@@ -248,9 +248,9 @@ INDIRECT_CALLABLE_SCOPE struct sk_buff *ipv6_gro_receive(struct list_head *head,
 		 * memcmp() alone below is sufficient, right?
 		 */
 		 if ((first_word & htonl(0xF00FFFFF)) ||
-		    !ipv6_addr_equal(&iph->saddr, &iph2->saddr) ||
-		    !ipv6_addr_equal(&iph->daddr, &iph2->daddr) ||
-		    *(u16 *)&iph->nexthdr != *(u16 *)&iph2->nexthdr) {
+		     !ipv6_addr_equal(&iph->saddr, &iph2->saddr) ||
+		     !ipv6_addr_equal(&iph->daddr, &iph2->daddr) ||
+		     *(u16 *)&iph->nexthdr != *(u16 *)&iph2->nexthdr) {
 not_same_flow:
 			NAPI_GRO_CB(p)->same_flow = 0;
 			continue;

@@ -64,6 +64,7 @@ config BPF_JIT_DEFAULT_ON
 
 config BPF_UNPRIV_DEFAULT_OFF
 	bool "Disable unprivileged BPF by default"
+	default y
 	depends on BPF_SYSCALL
 	help
 	  Disables unprivileged BPF by default by setting the corresponding
@@ -71,6 +72,12 @@ config BPF_UNPRIV_DEFAULT_OFF
 	  still reenable it by setting it to 0 later on, or permanently
 	  disable it by setting it to 1 (from which no other transition to
 	  0 is possible anymore).
+
+	  Unprivileged BPF could be used to exploit certain potential
+	  speculative execution side-channel vulnerabilities on unmitigated
+	  affected hardware.
+
+	  If you are unsure how to answer this question, answer Y.
 
 source "kernel/bpf/preload/Kconfig"
 

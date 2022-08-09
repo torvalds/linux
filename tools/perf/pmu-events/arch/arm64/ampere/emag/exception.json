@@ -36,9 +36,9 @@
         "ArchStdEvent": "EXC_TRAP_FIQ"
     },
     {
-        "ArchStdEvent": "EXC_TAKEN",
+        "ArchStdEvent": "EXC_TAKEN"
     },
     {
-        "ArchStdEvent": "EXC_RETURN",
+        "ArchStdEvent": "EXC_RETURN"
     }
 ]

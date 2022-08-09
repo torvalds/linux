@@ -162,7 +162,6 @@ static int bcma_host_pci_probe(struct pci_dev *dev,
 {
 	struct bcma_bus *bus;
 	int err = -ENOMEM;
-	const char *name;
 	u32 val;
 
 	/* Alloc */
@@ -175,10 +174,7 @@ static int bcma_host_pci_probe(struct pci_dev *dev,
 	if (err)
 		goto err_kfree_bus;
 
-	name = dev_name(&dev->dev);
-	if (dev->driver && dev->driver->name)
-		name = dev->driver->name;
-	err = pci_request_regions(dev, name);
+	err = pci_request_regions(dev, "bcma-pci-bridge");
 	if (err)
 		goto err_pci_disable;
 	pci_set_master(dev);

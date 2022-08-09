@@ -37,7 +37,7 @@ void test_rdonly_maps(void)
 	if (CHECK(err, "obj_load", "err %d errno %d\n", err, errno))
 		goto cleanup;
 
-	bss_map = bpf_object__find_map_by_name(obj, "test_rdo.bss");
+	bss_map = bpf_object__find_map_by_name(obj, ".bss");
 	if (CHECK(!bss_map, "find_bss_map", "failed\n"))
 		goto cleanup;
 

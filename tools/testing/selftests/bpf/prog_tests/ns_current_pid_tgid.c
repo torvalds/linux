@@ -78,7 +78,8 @@ static void test_ns_current_pid_tgid_new_ns(void)
 		return;
 }
 
-void test_ns_current_pid_tgid(void)
+/* TODO: use a different tracepoint */
+void serial_test_ns_current_pid_tgid(void)
 {
 	if (test__start_subtest("ns_current_pid_tgid_root_ns"))
 		test_current_pid_tgid(NULL);

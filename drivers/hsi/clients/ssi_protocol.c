@@ -1055,14 +1055,16 @@ static const struct net_device_ops ssip_pn_ops = {
 
 static void ssip_pn_setup(struct net_device *dev)
 {
+	static const u8 addr = PN_MEDIA_SOS;
+
 	dev->features		= 0;
 	dev->netdev_ops		= &ssip_pn_ops;
 	dev->type		= ARPHRD_PHONET;
 	dev->flags		= IFF_POINTOPOINT | IFF_NOARP;
 	dev->mtu		= SSIP_DEFAULT_MTU;
 	dev->hard_header_len	= 1;
-	dev->dev_addr[0]	= PN_MEDIA_SOS;
 	dev->addr_len		= 1;
+	dev_addr_set(dev, &addr);
 	dev->tx_queue_len	= SSIP_TXQUEUE_LEN;
 
 	dev->needs_free_netdev	= true;

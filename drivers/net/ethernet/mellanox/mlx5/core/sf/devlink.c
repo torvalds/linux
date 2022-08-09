@@ -8,6 +8,8 @@
 #include "mlx5_ifc_vhca_event.h"
 #include "vhca_event.h"
 #include "ecpf.h"
+#define CREATE_TRACE_POINTS
+#include "diag/sf_tracepoint.h"
 
 struct mlx5_sf {
 	struct devlink_port dl_port;
@@ -112,6 +114,7 @@ static void mlx5_sf_free(struct mlx5_sf_table *table, struct mlx5_sf *sf)
 {
 	mlx5_sf_id_erase(table, sf);
 	mlx5_sf_hw_table_sf_free(table->dev, sf->controller, sf->id);
+	trace_mlx5_sf_free(table->dev, sf->port_index, sf->controller, sf->hw_fn_id);
 	kfree(sf);
 }
 
@@ -209,6 +212,7 @@ static int mlx5_sf_activate(struct mlx5_core_dev *dev, struct mlx5_sf *sf,
 		return err;
 
 	sf->hw_state = MLX5_VHCA_STATE_ACTIVE;
+	trace_mlx5_sf_activate(dev, sf->port_index, sf->controller, sf->hw_fn_id);
 	return 0;
 }
 
@@ -224,6 +228,7 @@ static int mlx5_sf_deactivate(struct mlx5_core_dev *dev, struct mlx5_sf *sf)
 		return err;
 
 	sf->hw_state = MLX5_VHCA_STATE_TEARDOWN_REQUEST;
+	trace_mlx5_sf_deactivate(dev, sf->port_index, sf->controller, sf->hw_fn_id);
 	return 0;
 }
 
@@ -293,6 +298,7 @@ static int mlx5_sf_add(struct mlx5_core_dev *dev, struct mlx5_sf_table *table,
 	if (err)
 		goto esw_err;
 	*new_port_index = sf->port_index;
+	trace_mlx5_sf_add(dev, sf->port_index, sf->controller, sf->hw_fn_id, new_attr->sfnum);
 	return 0;
 
 esw_err:
@@ -323,7 +329,7 @@ mlx5_sf_new_check_attr(struct mlx5_core_dev *dev, const struct devlink_port_new_
 		NL_SET_ERR_MSG_MOD(extack, "External controller is unsupported");
 		return -EOPNOTSUPP;
 	}
-	if (new_attr->pfnum != PCI_FUNC(dev->pdev->devfn)) {
+	if (new_attr->pfnum != mlx5_get_dev_index(dev)) {
 		NL_SET_ERR_MSG_MOD(extack, "Invalid pfnum supplied");
 		return -EOPNOTSUPP;
 	}
@@ -442,6 +448,8 @@ static int mlx5_sf_vhca_event(struct notifier_block *nb, unsigned long opcode, v
 	update = mlx5_sf_state_update_check(sf, event->new_vhca_state);
 	if (update)
 		sf->hw_state = event->new_vhca_state;
+	trace_mlx5_sf_update_state(table->dev, sf->port_index, sf->controller,
+				   sf->hw_fn_id, sf->hw_state);
 sf_err:
 	mutex_unlock(&table->sf_state_lock);
 	mlx5_sf_table_put(table);

@@ -96,7 +96,7 @@ static inline void bnxt_qplib_set_cmd_slots(struct cmdq_base *req)
 
 #define RCFW_MAX_COOKIE_VALUE		0x7FFF
 #define RCFW_CMD_IS_BLOCKING		0x8000
-#define RCFW_BLOCKED_CMD_WAIT_COUNT	0x4E20
+#define RCFW_BLOCKED_CMD_WAIT_COUNT	20000000UL /* 20 sec */
 
 #define HWRM_VERSION_RCFW_CMDQ_DEPTH_CHECK 0x1000900020011ULL
 

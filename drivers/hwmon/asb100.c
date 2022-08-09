@@ -186,7 +186,7 @@ struct asb100_data {
 	/* array of 2 pointers to subclients */
 	struct i2c_client *lm75[2];
 
-	char valid;		/* !=0 if following fields are valid */
+	bool valid;		/* true if following fields are valid */
 	u8 in[7];		/* Register value */
 	u8 in_max[7];		/* Register value */
 	u8 in_min[7];		/* Register value */
@@ -993,7 +993,7 @@ static struct asb100_data *asb100_update_device(struct device *dev)
 			(asb100_read_value(client, ASB100_REG_ALARM2) << 8);
 
 		data->last_updated = jiffies;
-		data->valid = 1;
+		data->valid = true;
 
 		dev_dbg(&client->dev, "... device update complete\n");
 	}

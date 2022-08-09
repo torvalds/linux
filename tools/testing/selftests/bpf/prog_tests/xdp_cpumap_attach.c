@@ -7,7 +7,7 @@
 
 #define IFINDEX_LO	1
 
-void test_xdp_cpumap_attach(void)
+void serial_test_xdp_cpumap_attach(void)
 {
 	struct test_xdp_with_cpumap_helpers *skel;
 	struct bpf_prog_info info = {};

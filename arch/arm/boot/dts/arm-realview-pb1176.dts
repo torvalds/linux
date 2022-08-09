@@ -216,96 +216,112 @@
 		syscon: syscon@10000000 {
 			compatible = "arm,realview-pb1176-syscon", "syscon", "simple-mfd";
 			reg = <0x10000000 0x1000>;
+			ranges = <0x0 0x10000000 0x1000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
 
-			led@08.0 {
+			led@8,0 {
 				compatible = "register-bit-led";
+				reg = <0x08 0x04>;
 				offset = <0x08>;
 				mask = <0x01>;
 				label = "versatile:0";
 				linux,default-trigger = "heartbeat";
 				default-state = "on";
 			};
-			led@08.1 {
+			led@8,1 {
 				compatible = "register-bit-led";
+				reg = <0x08 0x04>;
 				offset = <0x08>;
 				mask = <0x02>;
 				label = "versatile:1";
 				linux,default-trigger = "mmc0";
 				default-state = "off";
 			};
-			led@08.2 {
+			led@8,2 {
 				compatible = "register-bit-led";
+				reg = <0x08 0x04>;
 				offset = <0x08>;
 				mask = <0x04>;
 				label = "versatile:2";
 				linux,default-trigger = "cpu0";
 				default-state = "off";
 			};
-			led@08.3 {
+			led@8,3 {
 				compatible = "register-bit-led";
+				reg = <0x08 0x04>;
 				offset = <0x08>;
 				mask = <0x08>;
 				label = "versatile:3";
 				default-state = "off";
 			};
-			led@08.4 {
+			led@8,4 {
 				compatible = "register-bit-led";
+				reg = <0x08 0x04>;
 				offset = <0x08>;
 				mask = <0x10>;
 				label = "versatile:4";
 				default-state = "off";
 			};
-			led@08.5 {
+			led@8,5 {
 				compatible = "register-bit-led";
+				reg = <0x08 0x04>;
 				offset = <0x08>;
 				mask = <0x20>;
 				label = "versatile:5";
 				default-state = "off";
 			};
-			led@08.6 {
+			led@8,6 {
 				compatible = "register-bit-led";
+				reg = <0x08 0x04>;
 				offset = <0x08>;
 				mask = <0x40>;
 				label = "versatile:6";
 				default-state = "off";
 			};
-			led@08.7 {
+			led@8,7 {
 				compatible = "register-bit-led";
+				reg = <0x08 0x04>;
 				offset = <0x08>;
 				mask = <0x80>;
 				label = "versatile:7";
 				default-state = "off";
 			};
-			oscclk0: osc0@0c {
+			oscclk0: clock-controller@c {
 				compatible = "arm,syscon-icst307";
+				reg = <0x0c 0x04>;
 				#clock-cells = <0>;
 				lock-offset = <0x20>;
 				vco-offset = <0x0C>;
 				clocks = <&xtal24mhz>;
 			};
-			oscclk1: osc1@10 {
+			oscclk1: clock-controller@10 {
 				compatible = "arm,syscon-icst307";
+				reg = <0x10 0x04>;
 				#clock-cells = <0>;
 				lock-offset = <0x20>;
 				vco-offset = <0x10>;
 				clocks = <&xtal24mhz>;
 			};
-			oscclk2: osc2@14 {
+			oscclk2: clock-controller@14 {
 				compatible = "arm,syscon-icst307";
+				reg = <0x14 0x04>;
 				#clock-cells = <0>;
 				lock-offset = <0x20>;
 				vco-offset = <0x14>;
 				clocks = <&xtal24mhz>;
 			};
-			oscclk3: osc3@18 {
+			oscclk3: clock-controller@18 {
 				compatible = "arm,syscon-icst307";
+				reg = <0x18 0x04>;
 				#clock-cells = <0>;
 				lock-offset = <0x20>;
 				vco-offset = <0x18>;
 				clocks = <&xtal24mhz>;
 			};
-			oscclk4: osc4@1c {
+			oscclk4: clock-controller@1c {
 				compatible = "arm,syscon-icst307";
+				reg = <0x1c 0x04>;
 				#clock-cells = <0>;
 				lock-offset = <0x20>;
 				vco-offset = <0x1c>;

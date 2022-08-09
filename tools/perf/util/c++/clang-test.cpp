@@ -35,7 +35,8 @@ __test__clang_to_IR(void)
 }
 
 extern "C" {
-int test__clang_to_IR(void)
+int test__clang_to_IR(struct test_suite *test __maybe_unused,
+                      int subtest __maybe_unused)
 {
 	perf_clang_scope _scope;
 
@@ -48,7 +49,8 @@ int test__clang_to_IR(void)
 	return -1;
 }
 
-int test__clang_to_obj(void)
+int test__clang_to_obj(struct test_suite *test __maybe_unused,
+                       int subtest __maybe_unused)
 {
 	perf_clang_scope _scope;
 

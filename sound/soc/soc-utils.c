@@ -63,10 +63,23 @@ static const struct snd_pcm_hardware dummy_dma_hardware = {
 	.periods_max		= 128,
 };
 
+
+static const struct snd_soc_component_driver dummy_platform;
+
 static int dummy_dma_open(struct snd_soc_component *component,
 			  struct snd_pcm_substream *substream)
 {
 	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
+	int i;
+
+	/*
+	 * If there are other components associated with rtd, we shouldn't
+	 * override their hwparams
+	 */
+	for_each_rtd_components(rtd, i, component) {
+		if (component->driver == &dummy_platform)
+			return 0;
+	}
 
 	/* BE's dont need dummy params */
 	if (!rtd->dai_link->no_pcm)

@@ -150,6 +150,19 @@ config CORESIGHT_CPU_DEBUG
 	  To compile this driver as a module, choose M here: the
 	  module will be called coresight-cpu-debug.
 
+config CORESIGHT_CPU_DEBUG_DEFAULT_ON
+	bool "Enable CoreSight CPU Debug by default"
+	depends on CORESIGHT_CPU_DEBUG
+	help
+	  Say Y here to enable the CoreSight Debug panic-debug by default. This
+	  can also be enabled via debugfs, but this ensures the debug feature
+	  is enabled as early as possible.
+
+	  Has the same effect as setting coresight_cpu_debug.enable=1 on the
+	  kernel command line.
+
+	  Say N if unsure.
+
 config CORESIGHT_CTI
 	tristate "CoreSight Cross Trigger Interface (CTI) driver"
 	depends on ARM || ARM64

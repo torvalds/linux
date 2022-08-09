@@ -7,7 +7,7 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: Orise Tech OTM8009A 3.97" 480x800 TFT LCD panel (MIPI-DSI video mode)
 
 maintainers:
-  - Philippe CORNU <philippe.cornu@st.com>
+  - Philippe CORNU <philippe.cornu@foss.st.com>
 
 description: |
              The Orise Tech OTM8009A is a 3.97" 480x800 TFT LCD panel connected using

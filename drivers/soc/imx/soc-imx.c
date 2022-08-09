@@ -36,6 +36,10 @@ static int __init imx_soc_device_init(void)
 	int ret;
 	int i;
 
+	/* Return early if this is running on devices with different SoCs */
+	if (!__mxc_cpu_type)
+		return 0;
+
 	if (of_machine_is_compatible("fsl,ls1021a"))
 		return 0;
 

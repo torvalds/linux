@@ -1212,7 +1212,7 @@ static int rcar_drif_parse_subdevs(struct rcar_drif_sdr *sdr)
 	struct fwnode_handle *fwnode, *ep;
 	struct v4l2_async_subdev *asd;
 
-	v4l2_async_notifier_init(notifier);
+	v4l2_async_nf_init(notifier);
 
 	ep = fwnode_graph_get_next_endpoint(of_fwnode_handle(sdr->dev->of_node),
 					    NULL);
@@ -1229,8 +1229,8 @@ static int rcar_drif_parse_subdevs(struct rcar_drif_sdr *sdr)
 		return -EINVAL;
 	}
 
-	asd = v4l2_async_notifier_add_fwnode_subdev(notifier, fwnode,
-						    struct v4l2_async_subdev);
+	asd = v4l2_async_nf_add_fwnode(notifier, fwnode,
+				       struct v4l2_async_subdev);
 	fwnode_handle_put(fwnode);
 	if (IS_ERR(asd))
 		return PTR_ERR(asd);
@@ -1346,7 +1346,7 @@ static int rcar_drif_sdr_probe(struct rcar_drif_sdr *sdr)
 	sdr->notifier.ops = &rcar_drif_notify_ops;
 
 	/* Register notifier */
-	ret = v4l2_async_notifier_register(&sdr->v4l2_dev, &sdr->notifier);
+	ret = v4l2_async_nf_register(&sdr->v4l2_dev, &sdr->notifier);
 	if (ret < 0) {
 		dev_err(sdr->dev, "failed: notifier register ret %d\n", ret);
 		goto cleanup;
@@ -1355,7 +1355,7 @@ static int rcar_drif_sdr_probe(struct rcar_drif_sdr *sdr)
 	return ret;
 
 cleanup:
-	v4l2_async_notifier_cleanup(&sdr->notifier);
+	v4l2_async_nf_cleanup(&sdr->notifier);
 error:
 	v4l2_device_unregister(&sdr->v4l2_dev);
 
@@ -1365,8 +1365,8 @@ error:
 /* V4L2 SDR device remove */
 static void rcar_drif_sdr_remove(struct rcar_drif_sdr *sdr)
 {
-	v4l2_async_notifier_unregister(&sdr->notifier);
-	v4l2_async_notifier_cleanup(&sdr->notifier);
+	v4l2_async_nf_unregister(&sdr->notifier);
+	v4l2_async_nf_cleanup(&sdr->notifier);
 	v4l2_device_unregister(&sdr->v4l2_dev);
 }
 
@@ -1395,8 +1395,7 @@ static int rcar_drif_probe(struct platform_device *pdev)
 	}
 
 	/* Register map */
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	ch->base = devm_ioremap_resource(&pdev->dev, res);
+	ch->base = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
 	if (IS_ERR(ch->base))
 		return PTR_ERR(ch->base);
 

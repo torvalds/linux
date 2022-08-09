@@ -108,13 +108,6 @@ int otx2_register_dl(struct otx2_nic *pfvf)
 		return -ENOMEM;
 	}
 
-	err = devlink_register(dl);
-	if (err) {
-		dev_err(pfvf->dev, "devlink register failed with error %d\n", err);
-		devlink_free(dl);
-		return err;
-	}
-
 	otx2_dl = devlink_priv(dl);
 	otx2_dl->dl = dl;
 	otx2_dl->pfvf = pfvf;
@@ -128,12 +121,10 @@ int otx2_register_dl(struct otx2_nic *pfvf)
 		goto err_dl;
 	}
 
-	devlink_params_publish(dl);
-
+	devlink_register(dl);
 	return 0;
 
 err_dl:
-	devlink_unregister(dl);
 	devlink_free(dl);
 	return err;
 }
@@ -141,16 +132,10 @@ err_dl:
 void otx2_unregister_dl(struct otx2_nic *pfvf)
 {
 	struct otx2_devlink *otx2_dl = pfvf->dl;
-	struct devlink *dl;
-
-	if (!otx2_dl || !otx2_dl->dl)
-		return;
-
-	dl = otx2_dl->dl;
-
-	devlink_params_unregister(dl, otx2_dl_params,
-				  ARRAY_SIZE(otx2_dl_params));
+	struct devlink *dl = otx2_dl->dl;
 
 	devlink_unregister(dl);
+	devlink_params_unregister(dl, otx2_dl_params,
+				  ARRAY_SIZE(otx2_dl_params));
 	devlink_free(dl);
 }

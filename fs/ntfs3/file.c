@@ -8,6 +8,7 @@
  */
 
 #include <linux/backing-dev.h>
+#include <linux/blkdev.h>
 #include <linux/buffer_head.h>
 #include <linux/compat.h>
 #include <linux/falloc.h>
@@ -989,7 +990,7 @@ static ssize_t ntfs_compress_write(struct kiocb *iocb, struct iov_iter *from)
 		frame_vbo = pos & ~(frame_size - 1);
 		index = frame_vbo >> PAGE_SHIFT;
 
-		if (unlikely(iov_iter_fault_in_readable(from, bytes))) {
+		if (unlikely(fault_in_iov_iter_readable(from, bytes))) {
 			err = -EFAULT;
 			goto out;
 		}

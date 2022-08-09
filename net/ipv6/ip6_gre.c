@@ -1088,7 +1088,7 @@ static void ip6gre_tnl_link_config_common(struct ip6_tnl *t)
 	struct flowi6 *fl6 = &t->fl.u.ip6;
 
 	if (dev->type != ARPHRD_ETHER) {
-		memcpy(dev->dev_addr, &p->laddr, sizeof(struct in6_addr));
+		__dev_addr_set(dev, &p->laddr, sizeof(struct in6_addr));
 		memcpy(dev->broadcast, &p->raddr, sizeof(struct in6_addr));
 	}
 
@@ -1521,7 +1521,7 @@ static int ip6gre_tunnel_init(struct net_device *dev)
 	if (tunnel->parms.collect_md)
 		return 0;
 
-	memcpy(dev->dev_addr, &tunnel->parms.laddr, sizeof(struct in6_addr));
+	__dev_addr_set(dev, &tunnel->parms.laddr, sizeof(struct in6_addr));
 	memcpy(dev->broadcast, &tunnel->parms.raddr, sizeof(struct in6_addr));
 
 	if (ipv6_addr_any(&tunnel->parms.raddr))

@@ -145,7 +145,7 @@ release:
 	return TC_ACT_OK;
 }
 
-SEC("classifier/ingress")
+SEC("tc")
 int cls_ingress(struct __sk_buff *skb)
 {
 	struct ipv6hdr *ip6h;

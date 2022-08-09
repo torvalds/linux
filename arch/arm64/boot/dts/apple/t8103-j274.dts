@@ -17,6 +17,7 @@
 
 	aliases {
 		serial0 = &serial0;
+		ethernet0 = &ethernet0;
 	};
 
 	chosen {
@@ -42,4 +43,26 @@
 
 &serial0 {
 	status = "okay";
+};
+
+/*
+ * Force the bus number assignments so that we can declare some of the
+ * on-board devices and properties that are populated by the bootloader
+ * (such as MAC addresses).
+ */
+&port00 {
+	bus-range = <1 1>;
+};
+
+&port01 {
+	bus-range = <2 2>;
+};
+
+&port02 {
+	bus-range = <3 3>;
+	ethernet0: ethernet@0,0 {
+		reg = <0x30000 0x0 0x0 0x0 0x0>;
+		/* To be filled by the loader */
+		local-mac-address = [00 10 18 00 00 00];
+	};
 };

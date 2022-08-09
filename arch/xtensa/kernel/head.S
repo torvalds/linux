@@ -15,6 +15,7 @@
  * Kevin Chea
  */
 
+#include <asm/asmmacro.h>
 #include <asm/processor.h>
 #include <asm/page.h>
 #include <asm/cacheasm.h>
@@ -66,11 +67,13 @@ _SetupOCD:
 	 * xt-gdb to single step via DEBUG exceptions received directly
 	 * by ocd.
 	 */
+#if XCHAL_HAVE_WINDOWED
 	movi	a1, 1
 	movi	a0, 0
 	wsr	a1, windowstart
 	wsr	a0, windowbase
 	rsync
+#endif
 
 	movi	a1, LOCKLEVEL
 	wsr	a1, ps
@@ -193,9 +196,10 @@ ENTRY(_startup)
 	movi	a1, start_info
 	l32i	a1, a1, 0
 
-	movi	a2, PS_WOE_MASK | LOCKLEVEL
-					# WOE=1, INTLEVEL=LOCKLEVEL, UM=0
-	wsr	a2, ps			# (enable reg-windows; progmode stack)
+	/* Disable interrupts. */
+	/* Enable window exceptions if kernel is built with windowed ABI. */
+	movi	a2, KERNEL_PS_WOE_MASK | LOCKLEVEL
+	wsr	a2, ps
 	rsync
 
 #ifdef CONFIG_SMP
@@ -267,13 +271,13 @@ ENTRY(_startup)
 	l32i	a1, a1, 0
 #endif
 
-	movi	a6, 0
-	xsr	a6, excsave1
+	movi	abi_arg0, 0
+	xsr	abi_arg0, excsave1
 
 	/* init_arch kick-starts the linux kernel */
 
-	call4	init_arch
-	call4	start_kernel
+	abi_call	init_arch
+	abi_call	start_kernel
 
 should_never_return:
 	j	should_never_return
@@ -297,10 +301,10 @@ should_never_return:
 	s32i	a3, a2, 0
 	memw
 
-	movi	a6, 0
-	wsr	a6, excsave1
+	movi	abi_arg0, 0
+	wsr	abi_arg0, excsave1
 
-	call4	secondary_start_kernel
+	abi_call	secondary_start_kernel
 	j	should_never_return
 
 #endif  /* CONFIG_SMP */

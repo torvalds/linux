@@ -59,7 +59,7 @@ static void asix_status(struct usbnet *dev, struct urb *urb)
 static void asix_set_netdev_dev_addr(struct usbnet *dev, u8 *addr)
 {
 	if (is_valid_ether_addr(addr)) {
-		memcpy(dev->net->dev_addr, addr, ETH_ALEN);
+		eth_hw_addr_set(dev->net, addr);
 	} else {
 		netdev_info(dev->net, "invalid hw address, using random\n");
 		eth_hw_addr_random(dev->net);

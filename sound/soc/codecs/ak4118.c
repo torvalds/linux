@@ -151,8 +151,8 @@ static const struct snd_soc_dapm_route ak4118_dapm_routes[] = {
 };
 
 
-static int ak4118_set_dai_fmt_master(struct ak4118_priv *ak4118,
-				     unsigned int format)
+static int ak4118_set_dai_fmt_provider(struct ak4118_priv *ak4118,
+				       unsigned int format)
 {
 	int dif;
 
@@ -173,8 +173,8 @@ static int ak4118_set_dai_fmt_master(struct ak4118_priv *ak4118,
 	return dif;
 }
 
-static int ak4118_set_dai_fmt_slave(struct ak4118_priv *ak4118,
-				    unsigned int format)
+static int ak4118_set_dai_fmt_consumer(struct ak4118_priv *ak4118,
+				       unsigned int format)
 {
 	int dif;
 
@@ -201,14 +201,12 @@ static int ak4118_set_dai_fmt(struct snd_soc_dai *dai,
 	int dif;
 	int ret = 0;
 
-	switch (format & SND_SOC_DAIFMT_MASTER_MASK) {
-	case SND_SOC_DAIFMT_CBM_CFM:
-		/* component is master */
-		dif = ak4118_set_dai_fmt_master(ak4118, format);
+	switch (format & SND_SOC_DAIFMT_CLOCK_PROVIDER_MASK) {
+	case SND_SOC_DAIFMT_CBP_CFP:
+		dif = ak4118_set_dai_fmt_provider(ak4118, format);
 		break;
-	case SND_SOC_DAIFMT_CBS_CFS:
-		/*component is slave */
-		dif = ak4118_set_dai_fmt_slave(ak4118, format);
+	case SND_SOC_DAIFMT_CBC_CFC:
+		dif = ak4118_set_dai_fmt_consumer(ak4118, format);
 		break;
 	default:
 		ret = -ENOTSUPP;

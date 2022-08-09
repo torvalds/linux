@@ -3,7 +3,7 @@ Timerlat tracer
 ###############
 
 The timerlat tracer aims to help the preemptive kernel developers to
-find souces of wakeup latencies of real-time threads. Like cyclictest,
+find sources of wakeup latencies of real-time threads. Like cyclictest,
 the tracer sets a periodic timer that wakes up a thread. The thread then
 computes a *wakeup latency* value as the difference between the *current
 time* and the *absolute time* that the timer was set to expire. The main
@@ -50,14 +50,14 @@ The second is the *timer latency* observed by the thread. The ACTIVATION
 ID field serves to relate the *irq* execution to its respective *thread*
 execution.
 
-The *irq*/*thread* splitting is important to clarify at which context
+The *irq*/*thread* splitting is important to clarify in which context
 the unexpected high value is coming from. The *irq* context can be
-delayed by hardware related actions, such as SMIs, NMIs, IRQs
-or by a thread masking interrupts. Once the timer happens, the delay
+delayed by hardware-related actions, such as SMIs, NMIs, IRQs,
+or by thread masking interrupts. Once the timer happens, the delay
 can also be influenced by blocking caused by threads. For example, by
-postponing the scheduler execution via preempt_disable(), by the
-scheduler execution, or by masking interrupts. Threads can
-also be delayed by the interference from other threads and IRQs.
+postponing the scheduler execution via preempt_disable(), scheduler
+execution, or masking interrupts. Threads can also be delayed by the
+interference from other threads and IRQs.
 
 Tracer options
 ---------------------
@@ -68,14 +68,14 @@ directory. The timerlat configs are:
 
  - cpus: CPUs at which a timerlat thread will execute.
  - timerlat_period_us: the period of the timerlat thread.
- - osnoise/stop_tracing_us: stop the system tracing if a
+ - stop_tracing_us: stop the system tracing if a
    timer latency at the *irq* context higher than the configured
    value happens. Writing 0 disables this option.
  - stop_tracing_total_us: stop the system tracing if a
-   timer latency at the *thread* context higher than the configured
+   timer latency at the *thread* context is higher than the configured
    value happens. Writing 0 disables this option.
- - print_stack: save the stack of the IRQ ocurrence, and print
-   it afte the *thread context* event".
+ - print_stack: save the stack of the IRQ occurrence, and print
+   it after the *thread context* event".
 
 timerlat and osnoise
 ----------------------------
@@ -95,7 +95,7 @@ For example::
       timerlat/5-1035    [005] .......   548.771104: #402268 context thread timer_latency     39960 ns
 
 In this case, the root cause of the timer latency does not point to a
-single cause, but to multiple ones. Firstly, the timer IRQ was delayed
+single cause but to multiple ones. Firstly, the timer IRQ was delayed
 for 13 us, which may point to a long IRQ disabled section (see IRQ
 stacktrace section). Then the timer interrupt that wakes up the timerlat
 thread took 7597 ns, and the qxl:21 device IRQ took 7139 ns. Finally,

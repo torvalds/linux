@@ -15,7 +15,7 @@ description: |
   current.
 
 maintainers:
-  - Fabrice Gasnier <fabrice.gasnier@st.com>
+  - Fabrice Gasnier <fabrice.gasnier@foss.st.com>
 
 properties:
   compatible:

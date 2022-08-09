@@ -732,11 +732,8 @@ static ssize_t fuse_dax_direct_write(struct kiocb *iocb, struct iov_iter *from)
 	ssize_t ret;
 
 	ret = fuse_direct_io(&io, from, &iocb->ki_pos, FUSE_DIO_WRITE);
-	if (ret < 0)
-		return ret;
 
-	fuse_invalidate_attr(inode);
-	fuse_write_update_size(inode, iocb->ki_pos);
+	fuse_write_update_attr(inode, iocb->ki_pos, ret);
 	return ret;
 }
 

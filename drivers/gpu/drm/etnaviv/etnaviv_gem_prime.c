@@ -5,9 +5,12 @@
 
 #include <drm/drm_prime.h>
 #include <linux/dma-buf.h>
+#include <linux/module.h>
 
 #include "etnaviv_drv.h"
 #include "etnaviv_gem.h"
+
+MODULE_IMPORT_NS(DMA_BUF);
 
 static struct lock_class_key etnaviv_prime_lock_class;
 

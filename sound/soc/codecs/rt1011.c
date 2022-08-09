@@ -1311,6 +1311,55 @@ static int rt1011_r0_load_info(struct snd_kcontrol *kcontrol,
 	.put = rt1011_r0_load_mode_put \
 }
 
+static const char * const rt1011_i2s_ref[] = {
+	"None", "Left Channel", "Right Channel"
+};
+
+static SOC_ENUM_SINGLE_DECL(rt1011_i2s_ref_enum, 0, 0,
+	rt1011_i2s_ref);
+
+static int rt1011_i2s_ref_put(struct snd_kcontrol *kcontrol,
+		struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component =
+		snd_soc_kcontrol_component(kcontrol);
+	struct rt1011_priv *rt1011 =
+		snd_soc_component_get_drvdata(component);
+
+	rt1011->i2s_ref = ucontrol->value.enumerated.item[0];
+	switch (rt1011->i2s_ref) {
+	case RT1011_I2S_REF_LEFT_CH:
+		regmap_write(rt1011->regmap, RT1011_TDM_TOTAL_SET, 0x0240);
+		regmap_write(rt1011->regmap, RT1011_TDM1_SET_2, 0x8);
+		regmap_write(rt1011->regmap, RT1011_TDM1_SET_1, 0x1022);
+		regmap_write(rt1011->regmap, RT1011_ADCDAT_OUT_SOURCE, 0x4);
+		break;
+	case RT1011_I2S_REF_RIGHT_CH:
+		regmap_write(rt1011->regmap, RT1011_TDM_TOTAL_SET, 0x0240);
+		regmap_write(rt1011->regmap, RT1011_TDM1_SET_2, 0x8);
+		regmap_write(rt1011->regmap, RT1011_TDM1_SET_1, 0x10a2);
+		regmap_write(rt1011->regmap, RT1011_ADCDAT_OUT_SOURCE, 0x4);
+		break;
+	default:
+		dev_info(component->dev, "I2S Reference: Do nothing\n");
+	}
+
+	return 0;
+}
+
+static int rt1011_i2s_ref_get(struct snd_kcontrol *kcontrol,
+		struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component =
+		snd_soc_kcontrol_component(kcontrol);
+	struct rt1011_priv *rt1011 =
+		snd_soc_component_get_drvdata(component);
+
+	ucontrol->value.enumerated.item[0] = rt1011->i2s_ref;
+
+	return 0;
+}
+
 static const struct snd_kcontrol_new rt1011_snd_controls[] = {
 	/* I2S Data In Selection */
 	SOC_ENUM("DIN Source", rt1011_din_source_enum),
@@ -1349,6 +1398,9 @@ static const struct snd_kcontrol_new rt1011_snd_controls[] = {
 	/* R0 temperature */
 	SOC_SINGLE("R0 Temperature", RT1011_STP_INITIAL_RESISTANCE_TEMP,
 		2, 255, 0),
+	/* I2S Reference */
+	SOC_ENUM_EXT("I2S Reference", rt1011_i2s_ref_enum,
+		rt1011_i2s_ref_get, rt1011_i2s_ref_put),
 };
 
 static int rt1011_is_sys_clk_from_pll(struct snd_soc_dapm_widget *source,
@@ -2007,6 +2059,7 @@ static int rt1011_probe(struct snd_soc_component *component)
 
 	schedule_work(&rt1011->cali_work);
 
+	rt1011->i2s_ref = 0;
 	rt1011->bq_drc_params = devm_kcalloc(component->dev,
 		RT1011_ADVMODE_NUM, sizeof(struct rt1011_bq_drc_params *),
 		GFP_KERNEL);

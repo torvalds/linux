@@ -22,7 +22,7 @@ Groups:
   Errors:
 
     =======  ==========================================
-    -EINVAL  Value greater than KVM_MAX_VCPU_ID.
+    -EINVAL  Value greater than KVM_MAX_VCPU_IDS.
     -EFAULT  Invalid user pointer for attr->addr.
     -EBUSY   A vcpu is already connected to the device.
     =======  ==========================================

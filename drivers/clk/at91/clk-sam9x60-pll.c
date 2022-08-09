@@ -5,6 +5,7 @@
  */
 
 #include <linux/bitfield.h>
+#include <linux/clk.h>
 #include <linux/clk-provider.h>
 #include <linux/clkdev.h>
 #include <linux/clk/at91_pmc.h>
@@ -38,18 +39,23 @@ struct sam9x60_pll_core {
 
 struct sam9x60_frac {
 	struct sam9x60_pll_core core;
+	struct at91_clk_pms pms;
 	u32 frac;
 	u16 mul;
 };
 
 struct sam9x60_div {
 	struct sam9x60_pll_core core;
+	struct at91_clk_pms pms;
 	u8 div;
+	u8 safe_div;
 };
 
 #define to_sam9x60_pll_core(hw)	container_of(hw, struct sam9x60_pll_core, hw)
 #define to_sam9x60_frac(core)	container_of(core, struct sam9x60_frac, core)
 #define to_sam9x60_div(core)	container_of(core, struct sam9x60_div, core)
+
+static struct sam9x60_div *notifier_div;
 
 static inline bool sam9x60_pll_ready(struct regmap *regmap, int id)
 {
@@ -71,13 +77,12 @@ static unsigned long sam9x60_frac_pll_recalc_rate(struct clk_hw *hw,
 	struct sam9x60_pll_core *core = to_sam9x60_pll_core(hw);
 	struct sam9x60_frac *frac = to_sam9x60_frac(core);
 
-	return (parent_rate * (frac->mul + 1) +
-		((u64)parent_rate * frac->frac >> 22));
+	return parent_rate * (frac->mul + 1) +
+		DIV_ROUND_CLOSEST_ULL((u64)parent_rate * frac->frac, (1 << 22));
 }
 
-static int sam9x60_frac_pll_prepare(struct clk_hw *hw)
+static int sam9x60_frac_pll_set(struct sam9x60_pll_core *core)
 {
-	struct sam9x60_pll_core *core = to_sam9x60_pll_core(hw);
 	struct sam9x60_frac *frac = to_sam9x60_frac(core);
 	struct regmap *regmap = core->regmap;
 	unsigned int val, cfrac, cmul;
@@ -139,6 +144,13 @@ unlock:
 	spin_unlock_irqrestore(core->lock, flags);
 
 	return 0;
+}
+
+static int sam9x60_frac_pll_prepare(struct clk_hw *hw)
+{
+	struct sam9x60_pll_core *core = to_sam9x60_pll_core(hw);
+
+	return sam9x60_frac_pll_set(core);
 }
 
 static void sam9x60_frac_pll_unprepare(struct clk_hw *hw)
@@ -280,6 +292,25 @@ unlock:
 	return ret;
 }
 
+static int sam9x60_frac_pll_save_context(struct clk_hw *hw)
+{
+	struct sam9x60_pll_core *core = to_sam9x60_pll_core(hw);
+	struct sam9x60_frac *frac = to_sam9x60_frac(core);
+
+	frac->pms.status = sam9x60_pll_ready(core->regmap, core->id);
+
+	return 0;
+}
+
+static void sam9x60_frac_pll_restore_context(struct clk_hw *hw)
+{
+	struct sam9x60_pll_core *core = to_sam9x60_pll_core(hw);
+	struct sam9x60_frac *frac = to_sam9x60_frac(core);
+
+	if (frac->pms.status)
+		sam9x60_frac_pll_set(core);
+}
+
 static const struct clk_ops sam9x60_frac_pll_ops = {
 	.prepare = sam9x60_frac_pll_prepare,
 	.unprepare = sam9x60_frac_pll_unprepare,
@@ -287,6 +318,8 @@ static const struct clk_ops sam9x60_frac_pll_ops = {
 	.recalc_rate = sam9x60_frac_pll_recalc_rate,
 	.round_rate = sam9x60_frac_pll_round_rate,
 	.set_rate = sam9x60_frac_pll_set_rate,
+	.save_context = sam9x60_frac_pll_save_context,
+	.restore_context = sam9x60_frac_pll_restore_context,
 };
 
 static const struct clk_ops sam9x60_frac_pll_ops_chg = {
@@ -296,11 +329,32 @@ static const struct clk_ops sam9x60_frac_pll_ops_chg = {
 	.recalc_rate = sam9x60_frac_pll_recalc_rate,
 	.round_rate = sam9x60_frac_pll_round_rate,
 	.set_rate = sam9x60_frac_pll_set_rate_chg,
+	.save_context = sam9x60_frac_pll_save_context,
+	.restore_context = sam9x60_frac_pll_restore_context,
 };
 
-static int sam9x60_div_pll_prepare(struct clk_hw *hw)
+/* This function should be called with spinlock acquired. */
+static void sam9x60_div_pll_set_div(struct sam9x60_pll_core *core, u32 div,
+				    bool enable)
 {
-	struct sam9x60_pll_core *core = to_sam9x60_pll_core(hw);
+	struct regmap *regmap = core->regmap;
+	u32 ena_msk = enable ? core->layout->endiv_mask : 0;
+	u32 ena_val = enable ? (1 << core->layout->endiv_shift) : 0;
+
+	regmap_update_bits(regmap, AT91_PMC_PLL_CTRL0,
+			   core->layout->div_mask | ena_msk,
+			   (div << core->layout->div_shift) | ena_val);
+
+	regmap_update_bits(regmap, AT91_PMC_PLL_UPDT,
+			   AT91_PMC_PLL_UPDT_UPDATE | AT91_PMC_PLL_UPDT_ID_MSK,
+			   AT91_PMC_PLL_UPDT_UPDATE | core->id);
+
+	while (!sam9x60_pll_ready(regmap, core->id))
+		cpu_relax();
+}
+
+static int sam9x60_div_pll_set(struct sam9x60_pll_core *core)
+{
 	struct sam9x60_div *div = to_sam9x60_div(core);
 	struct regmap *regmap = core->regmap;
 	unsigned long flags;
@@ -316,22 +370,19 @@ static int sam9x60_div_pll_prepare(struct clk_hw *hw)
 	if (!!(val & core->layout->endiv_mask) && cdiv == div->div)
 		goto unlock;
 
-	regmap_update_bits(regmap, AT91_PMC_PLL_CTRL0,
-			   core->layout->div_mask | core->layout->endiv_mask,
-			   (div->div << core->layout->div_shift) |
-			   (1 << core->layout->endiv_shift));
-
-	regmap_update_bits(regmap, AT91_PMC_PLL_UPDT,
-			   AT91_PMC_PLL_UPDT_UPDATE | AT91_PMC_PLL_UPDT_ID_MSK,
-			   AT91_PMC_PLL_UPDT_UPDATE | core->id);
-
-	while (!sam9x60_pll_ready(regmap, core->id))
-		cpu_relax();
+	sam9x60_div_pll_set_div(core, div->div, 1);
 
 unlock:
 	spin_unlock_irqrestore(core->lock, flags);
 
 	return 0;
+}
+
+static int sam9x60_div_pll_prepare(struct clk_hw *hw)
+{
+	struct sam9x60_pll_core *core = to_sam9x60_pll_core(hw);
+
+	return sam9x60_div_pll_set(core);
 }
 
 static void sam9x60_div_pll_unprepare(struct clk_hw *hw)
@@ -465,22 +516,74 @@ static int sam9x60_div_pll_set_rate_chg(struct clk_hw *hw, unsigned long rate,
 	if (cdiv == div->div)
 		goto unlock;
 
-	regmap_update_bits(regmap, AT91_PMC_PLL_CTRL0,
-			   core->layout->div_mask,
-			   (div->div << core->layout->div_shift));
-
-	regmap_update_bits(regmap, AT91_PMC_PLL_UPDT,
-			   AT91_PMC_PLL_UPDT_UPDATE | AT91_PMC_PLL_UPDT_ID_MSK,
-			   AT91_PMC_PLL_UPDT_UPDATE | core->id);
-
-	while (!sam9x60_pll_ready(regmap, core->id))
-		cpu_relax();
+	sam9x60_div_pll_set_div(core, div->div, 0);
 
 unlock:
 	spin_unlock_irqrestore(core->lock, irqflags);
 
 	return 0;
 }
+
+static int sam9x60_div_pll_save_context(struct clk_hw *hw)
+{
+	struct sam9x60_pll_core *core = to_sam9x60_pll_core(hw);
+	struct sam9x60_div *div = to_sam9x60_div(core);
+
+	div->pms.status = sam9x60_div_pll_is_prepared(hw);
+
+	return 0;
+}
+
+static void sam9x60_div_pll_restore_context(struct clk_hw *hw)
+{
+	struct sam9x60_pll_core *core = to_sam9x60_pll_core(hw);
+	struct sam9x60_div *div = to_sam9x60_div(core);
+
+	if (div->pms.status)
+		sam9x60_div_pll_set(core);
+}
+
+static int sam9x60_div_pll_notifier_fn(struct notifier_block *notifier,
+				       unsigned long code, void *data)
+{
+	struct sam9x60_div *div = notifier_div;
+	struct sam9x60_pll_core core = div->core;
+	struct regmap *regmap = core.regmap;
+	unsigned long irqflags;
+	u32 val, cdiv;
+	int ret = NOTIFY_DONE;
+
+	if (code != PRE_RATE_CHANGE)
+		return ret;
+
+	/*
+	 * We switch to safe divider to avoid overclocking of other domains
+	 * feed by us while the frac PLL (our parent) is changed.
+	 */
+	div->div = div->safe_div;
+
+	spin_lock_irqsave(core.lock, irqflags);
+	regmap_update_bits(regmap, AT91_PMC_PLL_UPDT, AT91_PMC_PLL_UPDT_ID_MSK,
+			   core.id);
+	regmap_read(regmap, AT91_PMC_PLL_CTRL0, &val);
+	cdiv = (val & core.layout->div_mask) >> core.layout->div_shift;
+
+	/* Stop if nothing changed. */
+	if (cdiv == div->safe_div)
+		goto unlock;
+
+	sam9x60_div_pll_set_div(&core, div->div, 0);
+	ret = NOTIFY_OK;
+
+unlock:
+	spin_unlock_irqrestore(core.lock, irqflags);
+
+	return ret;
+}
+
+static struct notifier_block sam9x60_div_pll_notifier = {
+	.notifier_call = sam9x60_div_pll_notifier_fn,
+};
 
 static const struct clk_ops sam9x60_div_pll_ops = {
 	.prepare = sam9x60_div_pll_prepare,
@@ -489,6 +592,8 @@ static const struct clk_ops sam9x60_div_pll_ops = {
 	.recalc_rate = sam9x60_div_pll_recalc_rate,
 	.round_rate = sam9x60_div_pll_round_rate,
 	.set_rate = sam9x60_div_pll_set_rate,
+	.save_context = sam9x60_div_pll_save_context,
+	.restore_context = sam9x60_div_pll_restore_context,
 };
 
 static const struct clk_ops sam9x60_div_pll_ops_chg = {
@@ -498,6 +603,8 @@ static const struct clk_ops sam9x60_div_pll_ops_chg = {
 	.recalc_rate = sam9x60_div_pll_recalc_rate,
 	.round_rate = sam9x60_div_pll_round_rate,
 	.set_rate = sam9x60_div_pll_set_rate_chg,
+	.save_context = sam9x60_div_pll_save_context,
+	.restore_context = sam9x60_div_pll_restore_context,
 };
 
 struct clk_hw * __init
@@ -587,7 +694,8 @@ struct clk_hw * __init
 sam9x60_clk_register_div_pll(struct regmap *regmap, spinlock_t *lock,
 			     const char *name, const char *parent_name, u8 id,
 			     const struct clk_pll_characteristics *characteristics,
-			     const struct clk_pll_layout *layout, u32 flags)
+			     const struct clk_pll_layout *layout, u32 flags,
+			     u32 safe_div)
 {
 	struct sam9x60_div *div;
 	struct clk_hw *hw;
@@ -596,8 +704,12 @@ sam9x60_clk_register_div_pll(struct regmap *regmap, spinlock_t *lock,
 	unsigned int val;
 	int ret;
 
-	if (id > PLL_MAX_ID || !lock)
+	/* We only support one changeable PLL. */
+	if (id > PLL_MAX_ID || !lock || (safe_div && notifier_div))
 		return ERR_PTR(-EINVAL);
+
+	if (safe_div >= PLL_DIV_MAX)
+		safe_div = PLL_DIV_MAX - 1;
 
 	div = kzalloc(sizeof(*div), GFP_KERNEL);
 	if (!div)
@@ -618,6 +730,7 @@ sam9x60_clk_register_div_pll(struct regmap *regmap, spinlock_t *lock,
 	div->core.layout = layout;
 	div->core.regmap = regmap;
 	div->core.lock = lock;
+	div->safe_div = safe_div;
 
 	spin_lock_irqsave(div->core.lock, irqflags);
 
@@ -633,6 +746,9 @@ sam9x60_clk_register_div_pll(struct regmap *regmap, spinlock_t *lock,
 	if (ret) {
 		kfree(div);
 		hw = ERR_PTR(ret);
+	} else if (div->safe_div) {
+		notifier_div = div;
+		clk_notifier_register(hw->clk, &sam9x60_div_pll_notifier);
 	}
 
 	return hw;

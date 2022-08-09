@@ -191,8 +191,8 @@ static int copy_oldmem_user(void __user *dst, void *src, size_t count)
 				return rc;
 		} else {
 			/* Check for swapped kdump oldmem areas */
-			if (oldmem_data.start && from - oldmem_data.size < oldmem_data.size) {
-				from -= oldmem_data.size;
+			if (oldmem_data.start && from - oldmem_data.start < oldmem_data.size) {
+				from -= oldmem_data.start;
 				len = min(count, oldmem_data.size - from);
 			} else if (oldmem_data.start && from < oldmem_data.size) {
 				len = min(count, oldmem_data.size - from);

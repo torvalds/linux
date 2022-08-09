@@ -611,6 +611,41 @@ int genphy_c45_loopback(struct phy_device *phydev, bool enable)
 }
 EXPORT_SYMBOL_GPL(genphy_c45_loopback);
 
+/**
+ * genphy_c45_fast_retrain - configure fast retrain registers
+ * @phydev: target phy_device struct
+ * @enable: enable fast retrain or not
+ *
+ * Description: If fast-retrain is enabled, we configure PHY as
+ *   advertising fast retrain capable and THP Bypass Request, then
+ *   enable fast retrain. If it is not enabled, we configure fast
+ *   retrain disabled.
+ */
+int genphy_c45_fast_retrain(struct phy_device *phydev, bool enable)
+{
+	int ret;
+
+	if (!enable)
+		return phy_clear_bits_mmd(phydev, MDIO_MMD_PMAPMD, MDIO_PMA_10GBR_FSRT_CSR,
+				MDIO_PMA_10GBR_FSRT_ENABLE);
+
+	if (linkmode_test_bit(ETHTOOL_LINK_MODE_2500baseT_Full_BIT, phydev->supported)) {
+		ret = phy_set_bits_mmd(phydev, MDIO_MMD_AN, MDIO_AN_10GBT_CTRL,
+				MDIO_AN_10GBT_CTRL_ADVFSRT2_5G);
+		if (ret)
+			return ret;
+
+		ret = phy_set_bits_mmd(phydev, MDIO_MMD_AN, MDIO_AN_CTRL2,
+				MDIO_AN_THP_BP2_5GT);
+		if (ret)
+			return ret;
+	}
+
+	return phy_set_bits_mmd(phydev, MDIO_MMD_PMAPMD, MDIO_PMA_10GBR_FSRT_CSR,
+			MDIO_PMA_10GBR_FSRT_ENABLE);
+}
+EXPORT_SYMBOL_GPL(genphy_c45_fast_retrain);
+
 struct phy_driver genphy_c45_driver = {
 	.phy_id         = 0xffffffff,
 	.phy_id_mask    = 0xffffffff,

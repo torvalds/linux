@@ -15,8 +15,3 @@ void __init init_IRQ(void)
 	setup_smp_ipi();
 #endif
 }
-
-asmlinkage void __irq_entry csky_do_IRQ(struct pt_regs *regs)
-{
-	handle_arch_irq(regs);
-}

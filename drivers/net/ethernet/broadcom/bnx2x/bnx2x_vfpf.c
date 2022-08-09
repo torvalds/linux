@@ -384,9 +384,8 @@ int bnx2x_vfpf_acquire(struct bnx2x *bp, u8 tx_count, u8 rx_count)
 		sizeof(bp->fw_ver));
 
 	if (is_valid_ether_addr(bp->acquire_resp.resc.current_mac_addr))
-		memcpy(bp->dev->dev_addr,
-		       bp->acquire_resp.resc.current_mac_addr,
-		       ETH_ALEN);
+		eth_hw_addr_set(bp->dev,
+				bp->acquire_resp.resc.current_mac_addr);
 
 out:
 	bnx2x_vfpf_finalize(bp, &req->first_tlv);
@@ -722,7 +721,7 @@ out:
 }
 
 /* request pf to add a mac for the vf */
-int bnx2x_vfpf_config_mac(struct bnx2x *bp, u8 *addr, u8 vf_qid, bool set)
+int bnx2x_vfpf_config_mac(struct bnx2x *bp, const u8 *addr, u8 vf_qid, bool set)
 {
 	struct vfpf_set_q_filters_tlv *req = &bp->vf2pf_mbox->req.set_q_filters;
 	struct pfvf_general_resp_tlv *resp = &bp->vf2pf_mbox->resp.general_resp;
@@ -767,7 +766,7 @@ int bnx2x_vfpf_config_mac(struct bnx2x *bp, u8 *addr, u8 vf_qid, bool set)
 		   "vfpf SET MAC failed. Check bulletin board for new posts\n");
 
 		/* copy mac from bulletin to device */
-		memcpy(bp->dev->dev_addr, bulletin.mac, ETH_ALEN);
+		eth_hw_addr_set(bp->dev, bulletin.mac);
 
 		/* check if bulletin board was updated */
 		if (bnx2x_sample_bulletin(bp) == PFVF_BULLETIN_UPDATED) {

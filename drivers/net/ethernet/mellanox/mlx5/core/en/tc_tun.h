@@ -51,6 +51,7 @@ struct mlx5e_tc_tunnel {
 			    void *headers_v);
 	bool (*encap_info_equal)(struct mlx5e_encap_key *a,
 				 struct mlx5e_encap_key *b);
+	int (*get_remote_ifindex)(struct net_device *mirred_dev);
 };
 
 extern struct mlx5e_tc_tunnel vxlan_tunnel;

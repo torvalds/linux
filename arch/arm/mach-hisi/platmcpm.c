@@ -339,7 +339,7 @@ err_fabric:
 err_sysctrl:
 	iounmap(relocation);
 err_reloc:
-	memblock_free(hip04_boot_method[0], hip04_boot_method[1]);
+	memblock_phys_free(hip04_boot_method[0], hip04_boot_method[1]);
 err:
 	return ret;
 }

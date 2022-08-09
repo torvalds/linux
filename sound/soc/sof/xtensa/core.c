@@ -128,7 +128,7 @@ static void xtensa_stack(struct snd_sof_dev *sdev, void *oops, u32 *stack,
 	}
 }
 
-const struct sof_arch_ops sof_xtensa_arch_ops = {
+const struct dsp_arch_ops sof_xtensa_arch_ops = {
 	.dsp_oops = xtensa_dsp_oops,
 	.dsp_stack = xtensa_stack,
 };

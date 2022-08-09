@@ -41,5 +41,5 @@ int bnxt_cfg_hw_sriov(struct bnxt *bp, int *num_vfs, bool reset);
 void bnxt_sriov_disable(struct bnxt *);
 void bnxt_hwrm_exec_fwd_req(struct bnxt *);
 void bnxt_update_vf_mac(struct bnxt *);
-int bnxt_approve_mac(struct bnxt *, u8 *, bool);
+int bnxt_approve_mac(struct bnxt *, const u8 *, bool);
 #endif

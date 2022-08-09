@@ -37,6 +37,7 @@ trace/beauty/generated/
 pmu-events/pmu-events.c
 pmu-events/jevents
 feature/
+libbpf/
 fixdep
 libtraceevent-dynamic-list
 Documentation/doc.dep

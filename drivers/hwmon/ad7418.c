@@ -46,7 +46,7 @@ struct ad7418_data {
 	enum chips		type;
 	struct mutex		lock;
 	int			adc_max;	/* number of ADC channels */
-	char			valid;
+	bool			valid;
 	unsigned long		last_updated;	/* In jiffies */
 	s16			temp[3];	/* Register values */
 	u16			in[4];
@@ -111,14 +111,14 @@ static int ad7418_update_device(struct device *dev)
 			goto abort;
 
 		data->last_updated = jiffies;
-		data->valid = 1;
+		data->valid = true;
 	}
 
 	mutex_unlock(&data->lock);
 	return 0;
 
 abort:
-	data->valid = 0;
+	data->valid = false;
 	mutex_unlock(&data->lock);
 	return val;
 }

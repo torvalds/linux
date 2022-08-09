@@ -47,6 +47,11 @@ properties:
 
   ieee80211-freq-limit: true
 
+  mediatek,eeprom-data:
+    $ref: /schemas/types.yaml#/definitions/uint32-array
+    description:
+      EEPROM data embedded as array.
+
   mediatek,mtd-eeprom:
     $ref: /schemas/types.yaml#/definitions/phandle-array
     description:

@@ -11,12 +11,14 @@ void test_skb_ctx(void)
 		.cb[3] = 4,
 		.cb[4] = 5,
 		.priority = 6,
+		.ingress_ifindex = 11,
 		.ifindex = 1,
 		.tstamp = 7,
 		.wire_len = 100,
 		.gso_segs = 8,
 		.mark = 9,
 		.gso_size = 10,
+		.hwtstamp = 11,
 	};
 	struct bpf_prog_test_run_attr tattr = {
 		.data_in = &pkt_v4,
@@ -97,6 +99,10 @@ void test_skb_ctx(void)
 		   "ctx_out_ifindex",
 		   "skb->ifindex == %d, expected %d\n",
 		   skb.ifindex, 1);
+	CHECK_ATTR(skb.ingress_ifindex != 11,
+		   "ctx_out_ingress_ifindex",
+		   "skb->ingress_ifindex == %d, expected %d\n",
+		   skb.ingress_ifindex, 11);
 	CHECK_ATTR(skb.tstamp != 8,
 		   "ctx_out_tstamp",
 		   "skb->tstamp == %lld, expected %d\n",

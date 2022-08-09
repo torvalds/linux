@@ -146,8 +146,8 @@ static int ec_device_probe(struct platform_device *pdev)
 	ec->ec_dev = dev_get_drvdata(dev->parent);
 	ec->dev = dev;
 	ec->cmd_offset = ec_platform->cmd_offset;
-	ec->features[0] = -1U; /* Not cached yet */
-	ec->features[1] = -1U; /* Not cached yet */
+	ec->features.flags[0] = -1U; /* Not cached yet */
+	ec->features.flags[1] = -1U; /* Not cached yet */
 	device_initialize(&ec->class_dev);
 
 	for (i = 0; i < ARRAY_SIZE(cros_mcu_devices); i++) {
@@ -326,7 +326,6 @@ static void __exit cros_ec_dev_exit(void)
 module_init(cros_ec_dev_init);
 module_exit(cros_ec_dev_exit);
 
-MODULE_ALIAS("platform:" DRV_NAME);
 MODULE_AUTHOR("Bill Richardson <wfrichar@chromium.org>");
 MODULE_DESCRIPTION("Userspace interface to the Chrome OS Embedded Controller");
 MODULE_VERSION("1.0");

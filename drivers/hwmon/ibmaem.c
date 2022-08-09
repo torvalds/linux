@@ -127,7 +127,7 @@ struct aem_data {
 	struct device		*hwmon_dev;
 	struct platform_device	*pdev;
 	struct mutex		lock;
-	char			valid;
+	bool			valid;
 	unsigned long		last_updated;	/* In jiffies */
 	u8			ver_major;
 	u8			ver_minor;

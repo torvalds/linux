@@ -6,6 +6,8 @@
 #include "mlx5_core.h"
 #include "vhca_event.h"
 #include "ecpf.h"
+#define CREATE_TRACE_POINTS
+#include "diag/vhca_tracepoint.h"
 
 struct mlx5_vhca_state_notifier {
 	struct mlx5_core_dev *dev;
@@ -82,6 +84,7 @@ mlx5_vhca_event_notify(struct mlx5_core_dev *dev, struct mlx5_vhca_state_event *
 					 vhca_state_context.vhca_state);
 
 	mlx5_vhca_event_arm(dev, event->function_id);
+	trace_mlx5_sf_vhca_event(dev, event);
 
 	blocking_notifier_call_chain(&dev->priv.vhca_state_notifier->n_head, 0, event);
 }

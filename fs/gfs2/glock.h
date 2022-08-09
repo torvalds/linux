@@ -150,6 +150,8 @@ static inline struct gfs2_holder *gfs2_glock_is_locked_by_me(struct gfs2_glock *
 	list_for_each_entry(gh, &gl->gl_holders, gh_list) {
 		if (!test_bit(HIF_HOLDER, &gh->gh_iflags))
 			break;
+		if (test_bit(HIF_MAY_DEMOTE, &gh->gh_iflags))
+			continue;
 		if (gh->gh_owner_pid == pid)
 			goto out;
 	}
@@ -188,13 +190,21 @@ extern int gfs2_glock_get(struct gfs2_sbd *sdp, u64 number,
 extern void gfs2_glock_hold(struct gfs2_glock *gl);
 extern void gfs2_glock_put(struct gfs2_glock *gl);
 extern void gfs2_glock_queue_put(struct gfs2_glock *gl);
-extern void gfs2_holder_init(struct gfs2_glock *gl, unsigned int state,
-			     u16 flags, struct gfs2_holder *gh);
+
+extern void __gfs2_holder_init(struct gfs2_glock *gl, unsigned int state,
+			       u16 flags, struct gfs2_holder *gh,
+			       unsigned long ip);
+static inline void gfs2_holder_init(struct gfs2_glock *gl, unsigned int state,
+				    u16 flags, struct gfs2_holder *gh) {
+	__gfs2_holder_init(gl, state, flags, gh, _RET_IP_);
+}
+
 extern void gfs2_holder_reinit(unsigned int state, u16 flags,
 			       struct gfs2_holder *gh);
 extern void gfs2_holder_uninit(struct gfs2_holder *gh);
 extern int gfs2_glock_nq(struct gfs2_holder *gh);
 extern int gfs2_glock_poll(struct gfs2_holder *gh);
+extern int gfs2_instantiate(struct gfs2_holder *gh);
 extern int gfs2_glock_wait(struct gfs2_holder *gh);
 extern int gfs2_glock_async_wait(unsigned int num_gh, struct gfs2_holder *ghs);
 extern void gfs2_glock_dq(struct gfs2_holder *gh);
@@ -239,7 +249,7 @@ static inline int gfs2_glock_nq_init(struct gfs2_glock *gl,
 {
 	int error;
 
-	gfs2_holder_init(gl, state, flags, gh);
+	__gfs2_holder_init(gl, state, flags, gh, _RET_IP_);
 
 	error = gfs2_glock_nq(gh);
 	if (error)
@@ -322,6 +332,24 @@ static inline void glock_clear_object(struct gfs2_glock *gl, void *object)
 	spin_lock(&gl->gl_lockref.lock);
 	if (gl->gl_object == object)
 		gl->gl_object = NULL;
+	spin_unlock(&gl->gl_lockref.lock);
+}
+
+static inline void gfs2_holder_allow_demote(struct gfs2_holder *gh)
+{
+	struct gfs2_glock *gl = gh->gh_gl;
+
+	spin_lock(&gl->gl_lockref.lock);
+	set_bit(HIF_MAY_DEMOTE, &gh->gh_iflags);
+	spin_unlock(&gl->gl_lockref.lock);
+}
+
+static inline void gfs2_holder_disallow_demote(struct gfs2_holder *gh)
+{
+	struct gfs2_glock *gl = gh->gh_gl;
+
+	spin_lock(&gl->gl_lockref.lock);
+	clear_bit(HIF_MAY_DEMOTE, &gh->gh_iflags);
 	spin_unlock(&gl->gl_lockref.lock);
 }
 

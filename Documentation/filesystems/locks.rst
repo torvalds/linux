@@ -57,16 +57,9 @@ fcntl(), with all the problems that implies.
 1.3 Mandatory Locking As A Mount Option
 ---------------------------------------
 
-Mandatory locking, as described in
-'Documentation/filesystems/mandatory-locking.rst' was prior to this release a
-general configuration option that was valid for all mounted filesystems.  This
-had a number of inherent dangers, not the least of which was the ability to
-freeze an NFS server by asking it to read a file for which a mandatory lock
-existed.
+Mandatory locking was prior to this release a general configuration option
+that was valid for all mounted filesystems.  This had a number of inherent
+dangers, not the least of which was the ability to freeze an NFS server by
+asking it to read a file for which a mandatory lock existed.
 
-From this release of the kernel, mandatory locking can be turned on and off
-on a per-filesystem basis, using the mount options 'mand' and 'nomand'.
-The default is to disallow mandatory locking. The intention is that
-mandatory locking only be enabled on a local filesystem as the specific need
-arises.
-
+Such option was dropped in Kernel v5.14.

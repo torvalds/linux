@@ -76,6 +76,26 @@ struct device_node *of_irq_find_parent(struct device_node *child)
 }
 EXPORT_SYMBOL_GPL(of_irq_find_parent);
 
+/*
+ * These interrupt controllers abuse interrupt-map for unspeakable
+ * reasons and rely on the core code to *ignore* it (the drivers do
+ * their own parsing of the property).
+ *
+ * If you think of adding to the list for something *new*, think
+ * again. There is a high chance that you will be sent back to the
+ * drawing board.
+ */
+static const char * const of_irq_imap_abusers[] = {
+	"CBEA,platform-spider-pic",
+	"sti,platform-spider-pic",
+	"realtek,rtl-intc",
+	"fsl,ls1021a-extirq",
+	"fsl,ls1043a-extirq",
+	"fsl,ls1088a-extirq",
+	"renesas,rza1-irqc",
+	NULL,
+};
+
 /**
  * of_irq_parse_raw - Low level interrupt tree parsing
  * @addr:	address specifier (start of "reg" property of the device) in be32 format
@@ -156,10 +176,18 @@ int of_irq_parse_raw(const __be32 *addr, struct of_phandle_args *out_irq)
 
 	/* Now start the actual "proper" walk of the interrupt tree */
 	while (ipar != NULL) {
-		/* Now check if cursor is an interrupt-controller and if it is
-		 * then we are done
+		/*
+		 * Now check if cursor is an interrupt-controller and
+		 * if it is then we are done, unless there is an
+		 * interrupt-map which takes precedence except on one
+		 * of these broken platforms that want to parse
+		 * interrupt-map themselves for $reason.
 		 */
-		if (of_property_read_bool(ipar, "interrupt-controller")) {
+		bool intc = of_property_read_bool(ipar, "interrupt-controller");
+
+		imap = of_get_property(ipar, "interrupt-map", &imaplen);
+		if (intc &&
+		    (!imap || of_device_compatible_match(ipar, of_irq_imap_abusers))) {
 			pr_debug(" -> got it !\n");
 			return 0;
 		}
@@ -173,8 +201,6 @@ int of_irq_parse_raw(const __be32 *addr, struct of_phandle_args *out_irq)
 			goto fail;
 		}
 
-		/* Now look for an interrupt-map */
-		imap = of_get_property(ipar, "interrupt-map", &imaplen);
 		/* No interrupt map, check for an interrupt parent */
 		if (imap == NULL) {
 			pr_debug(" -> no map, getting parent\n");
@@ -242,8 +268,20 @@ int of_irq_parse_raw(const __be32 *addr, struct of_phandle_args *out_irq)
 
 			pr_debug(" -> imaplen=%d\n", imaplen);
 		}
-		if (!match)
+		if (!match) {
+			if (intc) {
+				/*
+				 * The PASEMI Nemo is a known offender, so
+				 * let's only warn for anyone else.
+				 */
+				WARN(!IS_ENABLED(CONFIG_PPC_PASEMI),
+				     "%pOF interrupt-map failed, using interrupt-controller\n",
+				     ipar);
+				return 0;
+			}
+
 			goto fail;
+		}
 
 		/*
 		 * Successfully parsed an interrrupt-map translation; copy new
@@ -254,6 +292,11 @@ int of_irq_parse_raw(const __be32 *addr, struct of_phandle_args *out_irq)
 			out_irq->args[i] = be32_to_cpup(imap - newintsize + i);
 		out_irq->args_count = intsize = newintsize;
 		addrsize = newaddrsize;
+
+		if (ipar == newpar) {
+			pr_debug("%pOF interrupt-map entry to self\n", ipar);
+			return 0;
+		}
 
 	skiplevel:
 		/* Iterate again with new parent */

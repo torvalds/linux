@@ -197,7 +197,6 @@ static int sun6i_msgbox_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct mbox_chan *chans;
 	struct reset_control *reset;
-	struct resource *res;
 	struct sun6i_msgbox *mbox;
 	int i, ret;
 
@@ -246,13 +245,7 @@ static int sun6i_msgbox_probe(struct platform_device *pdev)
 		goto err_disable_unprepare;
 	}
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		ret = -ENODEV;
-		goto err_disable_unprepare;
-	}
-
-	mbox->regs = devm_ioremap_resource(&pdev->dev, res);
+	mbox->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(mbox->regs)) {
 		ret = PTR_ERR(mbox->regs);
 		dev_err(dev, "Failed to map MMIO resource: %d\n", ret);

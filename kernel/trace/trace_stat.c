@@ -297,9 +297,9 @@ static int init_stat_file(struct stat_session *session)
 	if (!stat_dir && (ret = tracing_stat_init()))
 		return ret;
 
-	session->file = tracefs_create_file(session->ts->name, 0644,
-					    stat_dir,
-					    session, &tracing_stat_fops);
+	session->file = tracefs_create_file(session->ts->name, TRACE_MODE_WRITE,
+					    stat_dir, session,
+					    &tracing_stat_fops);
 	if (!session->file)
 		return -ENOMEM;
 	return 0;

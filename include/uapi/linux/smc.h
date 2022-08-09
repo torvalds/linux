@@ -38,6 +38,9 @@ enum {				/* SMC PNET Table commands */
 #define SMC_GENL_FAMILY_VERSION		1
 
 #define SMC_PCI_ID_STR_LEN		16 /* Max length of pci id string */
+#define SMC_MAX_HOSTNAME_LEN		32 /* Max length of the hostname */
+#define SMC_MAX_UEID			4  /* Max number of user EIDs */
+#define SMC_MAX_EID_LEN			32 /* Max length of an EID */
 
 /* SMC_GENL_FAMILY commands */
 enum {
@@ -49,6 +52,13 @@ enum {
 	SMC_NETLINK_GET_DEV_SMCR,
 	SMC_NETLINK_GET_STATS,
 	SMC_NETLINK_GET_FBACK_STATS,
+	SMC_NETLINK_DUMP_UEID,
+	SMC_NETLINK_ADD_UEID,
+	SMC_NETLINK_REMOVE_UEID,
+	SMC_NETLINK_FLUSH_UEID,
+	SMC_NETLINK_DUMP_SEID,
+	SMC_NETLINK_ENABLE_SEID,
+	SMC_NETLINK_DISABLE_SEID,
 };
 
 /* SMC_GENL_FAMILY top level attributes */
@@ -74,17 +84,28 @@ enum {
 	SMC_NLA_SYS_IS_ISM_V2,		/* u8 */
 	SMC_NLA_SYS_LOCAL_HOST,		/* string */
 	SMC_NLA_SYS_SEID,		/* string */
+	SMC_NLA_SYS_IS_SMCR_V2,		/* u8 */
 	__SMC_NLA_SYS_MAX,
 	SMC_NLA_SYS_MAX = __SMC_NLA_SYS_MAX - 1
 };
 
-/* SMC_NLA_LGR_V2 nested attributes */
+/* SMC_NLA_LGR_D_V2_COMMON and SMC_NLA_LGR_R_V2_COMMON nested attributes */
 enum {
 	SMC_NLA_LGR_V2_VER,		/* u8 */
 	SMC_NLA_LGR_V2_REL,		/* u8 */
 	SMC_NLA_LGR_V2_OS,		/* u8 */
 	SMC_NLA_LGR_V2_NEG_EID,		/* string */
 	SMC_NLA_LGR_V2_PEER_HOST,	/* string */
+	__SMC_NLA_LGR_V2_MAX,
+	SMC_NLA_LGR_V2_MAX = __SMC_NLA_LGR_V2_MAX - 1
+};
+
+/* SMC_NLA_LGR_R_V2 nested attributes */
+enum {
+	SMC_NLA_LGR_R_V2_UNSPEC,
+	SMC_NLA_LGR_R_V2_DIRECT,	/* u8 */
+	__SMC_NLA_LGR_R_V2_MAX,
+	SMC_NLA_LGR_R_V2_MAX = __SMC_NLA_LGR_R_V2_MAX - 1
 };
 
 /* SMC_GEN_LGR_SMCR attributes */
@@ -96,6 +117,8 @@ enum {
 	SMC_NLA_LGR_R_PNETID,		/* string */
 	SMC_NLA_LGR_R_VLAN_ID,		/* u8 */
 	SMC_NLA_LGR_R_CONNS_NUM,	/* u32 */
+	SMC_NLA_LGR_R_V2_COMMON,	/* nest */
+	SMC_NLA_LGR_R_V2,		/* nest */
 	__SMC_NLA_LGR_R_MAX,
 	SMC_NLA_LGR_R_MAX = __SMC_NLA_LGR_R_MAX - 1
 };
@@ -128,7 +151,7 @@ enum {
 	SMC_NLA_LGR_D_PNETID,		/* string */
 	SMC_NLA_LGR_D_CHID,		/* u16 */
 	SMC_NLA_LGR_D_PAD,		/* flag */
-	SMC_NLA_LGR_V2,			/* nest */
+	SMC_NLA_LGR_D_V2_COMMON,	/* nest */
 	__SMC_NLA_LGR_D_MAX,
 	SMC_NLA_LGR_D_MAX = __SMC_NLA_LGR_D_MAX - 1
 };
@@ -241,5 +264,22 @@ enum {
 	SMC_NLA_FBACK_STATS_RSN_CNT,	/* u16 */
 	__SMC_NLA_FBACK_STATS_MAX,
 	SMC_NLA_FBACK_STATS_MAX = __SMC_NLA_FBACK_STATS_MAX - 1
+};
+
+/* SMC_NETLINK_UEID attributes */
+enum {
+	SMC_NLA_EID_TABLE_UNSPEC,
+	SMC_NLA_EID_TABLE_ENTRY,	/* string */
+	__SMC_NLA_EID_TABLE_MAX,
+	SMC_NLA_EID_TABLE_MAX = __SMC_NLA_EID_TABLE_MAX - 1
+};
+
+/* SMC_NETLINK_SEID attributes */
+enum {
+	SMC_NLA_SEID_UNSPEC,
+	SMC_NLA_SEID_ENTRY,	/* string */
+	SMC_NLA_SEID_ENABLED,	/* u8 */
+	__SMC_NLA_SEID_TABLE_MAX,
+	SMC_NLA_SEID_TABLE_MAX = __SMC_NLA_SEID_TABLE_MAX - 1
 };
 #endif /* _UAPI_LINUX_SMC_H */

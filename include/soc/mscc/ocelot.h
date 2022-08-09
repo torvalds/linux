@@ -563,9 +563,22 @@ struct ocelot_vcap_block {
 	int pol_lpr;
 };
 
-struct ocelot_vlan {
-	bool valid;
+struct ocelot_bridge_vlan {
 	u16 vid;
+	unsigned long portmask;
+	unsigned long untagged;
+	struct list_head list;
+};
+
+enum ocelot_port_tag_config {
+	/* all VLANs are egress-untagged */
+	OCELOT_PORT_TAG_DISABLED = 0,
+	/* all VLANs except the native VLAN and VID 0 are egress-tagged */
+	OCELOT_PORT_TAG_NATIVE = 1,
+	/* all VLANs except VID 0 are egress-tagged */
+	OCELOT_PORT_TAG_TRUNK_NO_VID0 = 2,
+	/* all VLANs are egress-tagged */
+	OCELOT_PORT_TAG_TRUNK = 3,
 };
 
 enum ocelot_sb {
@@ -590,9 +603,7 @@ struct ocelot_port {
 
 	bool				vlan_aware;
 	/* VLAN that untagged frames are classified to, on ingress */
-	struct ocelot_vlan		pvid_vlan;
-	/* The VLAN ID that will be transmitted as untagged, on egress */
-	struct ocelot_vlan		native_vlan;
+	const struct ocelot_bridge_vlan	*pvid_vlan;
 
 	unsigned int			ptp_skbs_in_flight;
 	u8				ptp_cmd;
@@ -635,8 +646,7 @@ struct ocelot {
 
 	u8				base_mac[ETH_ALEN];
 
-	/* Keep track of the vlan port masks */
-	u32				vlan_mask[VLAN_N_VID];
+	struct list_head		vlans;
 
 	/* Switches like VSC9959 have flooding per traffic class */
 	int				num_flooding_pgids;
@@ -664,6 +674,9 @@ struct ocelot {
 	u64				*stats;
 	struct delayed_work		stats_work;
 	struct workqueue_struct		*stats_queue;
+
+	/* Lock for serializing access to the MAC table */
+	struct mutex			mact_lock;
 
 	struct workqueue_struct		*owq;
 

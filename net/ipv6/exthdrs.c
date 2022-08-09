@@ -979,7 +979,7 @@ static bool ipv6_hop_ioam(struct sk_buff *skb, int optoff)
 		if (!skb_valid_dst(skb))
 			ip6_route_input(skb);
 
-		ioam6_fill_trace_data(skb, ns, trace);
+		ioam6_fill_trace_data(skb, ns, trace, true);
 		break;
 	default:
 		break;

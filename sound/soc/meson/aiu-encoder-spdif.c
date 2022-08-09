@@ -113,7 +113,7 @@ static int aiu_encoder_spdif_hw_params(struct snd_pcm_substream *substream,
 		val |= AIU_958_MISC_MODE_32BITS;
 		break;
 	default:
-		dev_err(dai->dev, "Unsupport physical width\n");
+		dev_err(dai->dev, "Unsupported physical width\n");
 		return -EINVAL;
 	}
 

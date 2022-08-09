@@ -82,7 +82,8 @@ static bool scmi_vio_have_vq_rx(struct virtio_device *vdev)
 }
 
 static int scmi_vio_feed_vq_rx(struct scmi_vio_channel *vioch,
-			       struct scmi_vio_msg *msg)
+			       struct scmi_vio_msg *msg,
+			       struct device *dev)
 {
 	struct scatterlist sg_in;
 	int rc;
@@ -94,8 +95,7 @@ static int scmi_vio_feed_vq_rx(struct scmi_vio_channel *vioch,
 
 	rc = virtqueue_add_inbuf(vioch->vqueue, &sg_in, 1, msg, GFP_ATOMIC);
 	if (rc)
-		dev_err_once(vioch->cinfo->dev,
-			     "failed to add to virtqueue (%d)\n", rc);
+		dev_err_once(dev, "failed to add to virtqueue (%d)\n", rc);
 	else
 		virtqueue_kick(vioch->vqueue);
 
@@ -108,7 +108,7 @@ static void scmi_finalize_message(struct scmi_vio_channel *vioch,
 				  struct scmi_vio_msg *msg)
 {
 	if (vioch->is_rx) {
-		scmi_vio_feed_vq_rx(vioch, msg);
+		scmi_vio_feed_vq_rx(vioch, msg, vioch->cinfo->dev);
 	} else {
 		/* Here IRQs are assumed to be already disabled by the caller */
 		spin_lock(&vioch->lock);
@@ -269,7 +269,7 @@ static int virtio_chan_setup(struct scmi_chan_info *cinfo, struct device *dev,
 			list_add_tail(&msg->list, &vioch->free_list);
 			spin_unlock_irqrestore(&vioch->lock, flags);
 		} else {
-			scmi_vio_feed_vq_rx(vioch, msg);
+			scmi_vio_feed_vq_rx(vioch, msg, cinfo->dev);
 		}
 	}
 

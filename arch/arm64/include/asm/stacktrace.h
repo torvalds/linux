@@ -9,6 +9,7 @@
 #include <linux/sched.h>
 #include <linux/sched/task_stack.h>
 #include <linux/types.h>
+#include <linux/llist.h>
 
 #include <asm/memory.h>
 #include <asm/ptrace.h>
@@ -46,9 +47,6 @@ struct stack_info {
  * @prev_type:   The type of stack this frame record was on, or a synthetic
  *               value of STACK_TYPE_UNKNOWN. This is used to detect a
  *               transition from one stack to another.
- *
- * @graph:       When FUNCTION_GRAPH_TRACER is selected, holds the index of a
- *               replacement lr value in the ftrace graph stack.
  */
 struct stackframe {
 	unsigned long fp;
@@ -56,8 +54,8 @@ struct stackframe {
 	DECLARE_BITMAP(stacks_done, __NR_STACK_TYPES);
 	unsigned long prev_fp;
 	enum stack_type prev_type;
-#ifdef CONFIG_FUNCTION_GRAPH_TRACER
-	int graph;
+#ifdef CONFIG_KRETPROBES
+	struct llist_node *kr_cur;
 #endif
 };
 

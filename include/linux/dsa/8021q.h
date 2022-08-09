@@ -9,6 +9,7 @@
 #include <linux/types.h>
 
 struct dsa_switch;
+struct dsa_port;
 struct sk_buff;
 struct net_device;
 
@@ -45,9 +46,9 @@ void dsa_tag_8021q_bridge_tx_fwd_unoffload(struct dsa_switch *ds, int port,
 
 u16 dsa_8021q_bridge_tx_fwd_offload_vid(int bridge_num);
 
-u16 dsa_8021q_tx_vid(struct dsa_switch *ds, int port);
+u16 dsa_tag_8021q_tx_vid(const struct dsa_port *dp);
 
-u16 dsa_8021q_rx_vid(struct dsa_switch *ds, int port);
+u16 dsa_tag_8021q_rx_vid(const struct dsa_port *dp);
 
 int dsa_8021q_rx_switch_id(u16 vid);
 

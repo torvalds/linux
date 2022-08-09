@@ -37,7 +37,7 @@ static u8 AD7414_REG_LIMIT[] = { AD7414_REG_T_HIGH, AD7414_REG_T_LOW };
 struct ad7414_data {
 	struct i2c_client	*client;
 	struct mutex		lock;	/* atomic read data updates */
-	char			valid;	/* !=0 if following fields are valid */
+	bool			valid;	/* true if following fields are valid */
 	unsigned long		next_update;	/* In jiffies */
 	s16			temp_input;	/* Register values */
 	s8			temps[ARRAY_SIZE(AD7414_REG_LIMIT)];
@@ -95,7 +95,7 @@ static struct ad7414_data *ad7414_update_device(struct device *dev)
 		}
 
 		data->next_update = jiffies + HZ + HZ / 2;
-		data->valid = 1;
+		data->valid = true;
 	}
 
 	mutex_unlock(&data->lock);

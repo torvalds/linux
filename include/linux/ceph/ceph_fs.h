@@ -302,6 +302,8 @@ enum {
 	CEPH_SESSION_REQUEST_FLUSH_MDLOG,
 };
 
+#define CEPH_SESSION_BLOCKLISTED	(1 << 0)  /* session blocklisted */
+
 extern const char *ceph_session_op_name(int op);
 
 struct ceph_mds_session_head {

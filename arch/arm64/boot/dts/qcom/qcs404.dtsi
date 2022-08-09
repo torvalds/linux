@@ -318,7 +318,7 @@
 			status = "disabled";
 		};
 
-		rpm_msg_ram: memory@60000 {
+		rpm_msg_ram: sram@60000 {
 			compatible = "qcom,rpm-msg-ram";
 			reg = <0x00060000 0x6000>;
 		};
@@ -717,6 +717,11 @@
 		tcsr: syscon@1937000 {
 			compatible = "syscon";
 			reg = <0x01937000 0x25000>;
+		};
+
+		sram@290000 {
+			compatible = "qcom,rpm-stats";
+			reg = <0x00290000 0x10000>;
 		};
 
 		spmi_bus: spmi@200f000 {

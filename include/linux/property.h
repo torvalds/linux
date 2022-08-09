@@ -15,6 +15,7 @@
 #include <linux/types.h>
 
 struct device;
+struct net_device;
 
 enum dev_prop_type {
 	DEV_PROP_U8,
@@ -389,11 +390,7 @@ const void *device_get_match_data(struct device *dev);
 
 int device_get_phy_mode(struct device *dev);
 
-void *device_get_mac_address(struct device *dev, char *addr, int alen);
-
 int fwnode_get_phy_mode(struct fwnode_handle *fwnode);
-void *fwnode_get_mac_address(struct fwnode_handle *fwnode,
-			     char *addr, int alen);
 struct fwnode_handle *fwnode_graph_get_next_endpoint(
 	const struct fwnode_handle *fwnode, struct fwnode_handle *prev);
 struct fwnode_handle *

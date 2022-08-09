@@ -26,7 +26,7 @@
 #include <net/llc_c_st.h>
 #include <net/llc_conn.h>
 
-static void llc_ui_format_mac(struct seq_file *seq, u8 *addr)
+static void llc_ui_format_mac(struct seq_file *seq, const u8 *addr)
 {
 	seq_printf(seq, "%pM", addr);
 }

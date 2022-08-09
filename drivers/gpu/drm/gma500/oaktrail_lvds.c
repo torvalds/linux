@@ -37,7 +37,7 @@ static void oaktrail_lvds_set_power(struct drm_device *dev,
 				bool on)
 {
 	u32 pp_status;
-	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 
 	if (!gma_power_begin(dev, true))
 		return;
@@ -83,7 +83,7 @@ static void oaktrail_lvds_mode_set(struct drm_encoder *encoder,
 			       struct drm_display_mode *adjusted_mode)
 {
 	struct drm_device *dev = encoder->dev;
-	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	struct psb_intel_mode_device *mode_dev = &dev_priv->mode_dev;
 	struct drm_mode_config *mode_config = &dev->mode_config;
 	struct drm_connector *connector = NULL;
@@ -155,7 +155,7 @@ static void oaktrail_lvds_mode_set(struct drm_encoder *encoder,
 static void oaktrail_lvds_prepare(struct drm_encoder *encoder)
 {
 	struct drm_device *dev = encoder->dev;
-	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	struct gma_encoder *gma_encoder = to_gma_encoder(encoder);
 	struct psb_intel_mode_device *mode_dev = &dev_priv->mode_dev;
 
@@ -171,7 +171,7 @@ static void oaktrail_lvds_prepare(struct drm_encoder *encoder)
 
 static u32 oaktrail_lvds_get_max_backlight(struct drm_device *dev)
 {
-	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	u32 ret;
 
 	if (gma_power_begin(dev, false)) {
@@ -191,7 +191,7 @@ static u32 oaktrail_lvds_get_max_backlight(struct drm_device *dev)
 static void oaktrail_lvds_commit(struct drm_encoder *encoder)
 {
 	struct drm_device *dev = encoder->dev;
-	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	struct gma_encoder *gma_encoder = to_gma_encoder(encoder);
 	struct psb_intel_mode_device *mode_dev = &dev_priv->mode_dev;
 
@@ -215,7 +215,7 @@ static void oaktrail_lvds_get_configuration_mode(struct drm_device *dev,
 					struct psb_intel_mode_device *mode_dev)
 {
 	struct drm_display_mode *mode = NULL;
-	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	struct oaktrail_timing_info *ti = &dev_priv->gct_data.DTD;
 
 	mode_dev->panel_fixed_mode = NULL;
@@ -294,7 +294,7 @@ void oaktrail_lvds_init(struct drm_device *dev,
 	struct gma_connector *gma_connector;
 	struct drm_connector *connector;
 	struct drm_encoder *encoder;
-	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	struct edid *edid;
 	struct i2c_adapter *i2c_adap;
 	struct drm_display_mode *scan;	/* *modes, *bios_mode; */

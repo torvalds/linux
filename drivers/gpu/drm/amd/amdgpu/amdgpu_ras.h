@@ -32,7 +32,6 @@
 #include "amdgpu_ras_eeprom.h"
 
 #define AMDGPU_RAS_FLAG_INIT_BY_VBIOS		(0x1 << 0)
-#define AMDGPU_RAS_FLAG_INIT_NEED_RESET		(0x1 << 1)
 
 enum amdgpu_ras_block {
 	AMDGPU_RAS_BLOCK__UMC = 0,
@@ -49,15 +48,22 @@ enum amdgpu_ras_block {
 	AMDGPU_RAS_BLOCK__MP0,
 	AMDGPU_RAS_BLOCK__MP1,
 	AMDGPU_RAS_BLOCK__FUSE,
-	AMDGPU_RAS_BLOCK__MPIO,
+	AMDGPU_RAS_BLOCK__MCA,
 
 	AMDGPU_RAS_BLOCK__LAST
 };
 
-extern const char *ras_block_string[];
+enum amdgpu_ras_mca_block {
+	AMDGPU_RAS_MCA_BLOCK__MP0 = 0,
+	AMDGPU_RAS_MCA_BLOCK__MP1,
+	AMDGPU_RAS_MCA_BLOCK__MPIO,
+	AMDGPU_RAS_MCA_BLOCK__IOHC,
 
-#define ras_block_str(i) (ras_block_string[i])
+	AMDGPU_RAS_MCA_BLOCK__LAST
+};
+
 #define AMDGPU_RAS_BLOCK_COUNT	AMDGPU_RAS_BLOCK__LAST
+#define AMDGPU_RAS_MCA_BLOCK_COUNT	AMDGPU_RAS_MCA_BLOCK__LAST
 #define AMDGPU_RAS_BLOCK_MASK	((1ULL << AMDGPU_RAS_BLOCK_COUNT) - 1)
 
 enum amdgpu_ras_gfx_subblock {
@@ -345,6 +351,9 @@ struct amdgpu_ras {
 	/* disable ras error count harvest in recovery */
 	bool disable_ras_err_cnt_harvest;
 
+	/* is poison mode supported */
+	bool poison_supported;
+
 	/* RAS count errors delayed work */
 	struct delayed_work ras_counte_delay_work;
 	atomic_t ras_ue_count;
@@ -488,8 +497,6 @@ static inline int amdgpu_ras_is_supported(struct amdgpu_device *adev,
 }
 
 int amdgpu_ras_recovery_init(struct amdgpu_device *adev);
-int amdgpu_ras_request_reset_on_boot(struct amdgpu_device *adev,
-		unsigned int block);
 
 void amdgpu_ras_resume(struct amdgpu_device *adev);
 void amdgpu_ras_suspend(struct amdgpu_device *adev);
@@ -544,6 +551,8 @@ amdgpu_ras_block_to_ta(enum amdgpu_ras_block block) {
 		return TA_RAS_BLOCK__MP1;
 	case AMDGPU_RAS_BLOCK__FUSE:
 		return TA_RAS_BLOCK__FUSE;
+	case AMDGPU_RAS_BLOCK__MCA:
+		return TA_RAS_BLOCK__MCA;
 	default:
 		WARN_ONCE(1, "RAS ERROR: unexpected block id %d\n", block);
 		return TA_RAS_BLOCK__UMC;
@@ -637,5 +646,9 @@ bool amdgpu_ras_need_emergency_restart(struct amdgpu_device *adev);
 void amdgpu_release_ras_context(struct amdgpu_device *adev);
 
 int amdgpu_persistent_edc_harvesting_supported(struct amdgpu_device *adev);
+
+const char *get_ras_block_str(struct ras_common_if *ras_block);
+
+bool amdgpu_ras_is_poison_mode_supported(struct amdgpu_device *adev);
 
 #endif

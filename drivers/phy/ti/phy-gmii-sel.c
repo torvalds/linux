@@ -320,6 +320,8 @@ static int phy_gmii_sel_init_ports(struct phy_gmii_sel_priv *priv)
 		u64 size;
 
 		offset = of_get_address(dev->of_node, 0, &size, NULL);
+		if (!offset)
+			return -EINVAL;
 		priv->num_ports = size / sizeof(u32);
 		if (!priv->num_ports)
 			return -EINVAL;

@@ -6,6 +6,7 @@ config IMX_GPCV2_PM_DOMAINS
 	depends on ARCH_MXC || (COMPILE_TEST && OF)
 	depends on PM
 	select PM_GENERIC_DOMAINS
+	select REGMAP_MMIO
 	default y if SOC_IMX7D
 
 config SOC_IMX8M

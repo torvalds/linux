@@ -428,7 +428,7 @@ for t in $TEST_CASES; do
     exit 1
   fi
 done
-(cd $TRACING_DIR; initialize_ftrace) # for cleanup
+(cd $TRACING_DIR; finish_ftrace) # for cleanup
 
 prlog ""
 prlog "# of passed: " `echo $PASSED_CASES | wc -w`

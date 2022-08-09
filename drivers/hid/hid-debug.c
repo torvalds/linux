@@ -160,6 +160,7 @@ static const struct hid_usage_entry hid_usage_table[] = {
     {0, 0x59, "ButtonType"},
     {0, 0x5A, "SecondaryBarrelSwitch"},
     {0, 0x5B, "TransducerSerialNumber"},
+    {0, 0x6e, "TransducerSerialNumber2"},
   { 15, 0, "PhysicalInterfaceDevice" },
     {0, 0x00, "Undefined"},
     {0, 0x01, "Physical_Interface_Device"},
@@ -486,8 +487,7 @@ char *hid_resolv_usage(unsigned usage, struct seq_file *f) {
 
 	if (!f) {
 		len = strlen(buf);
-		snprintf(buf+len, max(0, HID_DEBUG_BUFSIZE - len), ".");
-		len++;
+		len += scnprintf(buf + len, HID_DEBUG_BUFSIZE - len, ".");
 	}
 	else {
 		seq_printf(f, ".");
@@ -498,7 +498,7 @@ char *hid_resolv_usage(unsigned usage, struct seq_file *f) {
 				if (p->usage == (usage & 0xffff)) {
 					if (!f)
 						snprintf(buf + len,
-							max(0,HID_DEBUG_BUFSIZE - len - 1),
+							HID_DEBUG_BUFSIZE - len,
 							"%s", p->description);
 					else
 						seq_printf(f,
@@ -509,8 +509,8 @@ char *hid_resolv_usage(unsigned usage, struct seq_file *f) {
 			break;
 		}
 	if (!f)
-		snprintf(buf + len, max(0, HID_DEBUG_BUFSIZE - len - 1),
-				"%04x", usage & 0xffff);
+		snprintf(buf + len, HID_DEBUG_BUFSIZE - len, "%04x",
+			 usage & 0xffff);
 	else
 		seq_printf(f, "%04x", usage & 0xffff);
 	return buf;

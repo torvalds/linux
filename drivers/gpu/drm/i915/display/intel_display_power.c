@@ -3,24 +3,25 @@
  * Copyright © 2019 Intel Corporation
  */
 
-#include "display/intel_crt.h"
-
 #include "i915_drv.h"
 #include "i915_irq.h"
 #include "intel_cdclk.h"
 #include "intel_combo_phy.h"
-#include "intel_display_power.h"
+#include "intel_crt.h"
 #include "intel_de.h"
+#include "intel_display_power.h"
 #include "intel_display_types.h"
 #include "intel_dmc.h"
 #include "intel_dpio_phy.h"
+#include "intel_dpll.h"
 #include "intel_hotplug.h"
+#include "intel_pcode.h"
 #include "intel_pm.h"
 #include "intel_pps.h"
-#include "intel_sideband.h"
 #include "intel_snps_phy.h"
 #include "intel_tc.h"
 #include "intel_vga.h"
+#include "vlv_sideband.h"
 
 bool intel_display_power_well_is_enabled(struct drm_i915_private *dev_priv,
 					 enum i915_power_well_id power_well_id);
@@ -560,7 +561,7 @@ static void icl_tc_port_assert_ref_held(struct drm_i915_private *dev_priv,
 	if (drm_WARN_ON(&dev_priv->drm, !dig_port))
 		return;
 
-	if (DISPLAY_VER(dev_priv) == 11 && dig_port->tc_legacy_port)
+	if (DISPLAY_VER(dev_priv) == 11 && intel_tc_cold_requires_aux_pw(dig_port))
 		return;
 
 	drm_WARN_ON(&dev_priv->drm, !intel_tc_port_ref_held(dig_port));
@@ -629,7 +630,7 @@ icl_tc_phy_aux_power_well_enable(struct drm_i915_private *dev_priv,
 	 * exit sequence.
 	 */
 	timeout_expected = is_tbt || intel_tc_cold_requires_aux_pw(dig_port);
-	if (DISPLAY_VER(dev_priv) == 11 && dig_port->tc_legacy_port)
+	if (DISPLAY_VER(dev_priv) == 11 && intel_tc_cold_requires_aux_pw(dig_port))
 		icl_tc_cold_exit(dev_priv);
 
 	hsw_wait_for_power_well_enable(dev_priv, power_well, timeout_expected);
@@ -1195,7 +1196,7 @@ static void gen9_disable_dc_states(struct drm_i915_private *dev_priv)
 	if (!HAS_DISPLAY(dev_priv))
 		return;
 
-	dev_priv->display.get_cdclk(dev_priv, &cdclk_config);
+	intel_cdclk_get_cdclk(dev_priv, &cdclk_config);
 	/* Can't read out voltage_level so can't use intel_cdclk_changed() */
 	drm_WARN_ON(&dev_priv->drm,
 		    intel_cdclk_needs_modeset(&dev_priv->cdclk.hw,

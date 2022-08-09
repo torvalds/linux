@@ -10,3 +10,12 @@
 / {
 	compatible = "renesas,r8a779m3", "renesas,r8a77961";
 };
+
+&cluster0_opp {
+	opp-2000000000 {
+		opp-hz = /bits/ 64 <2000000000>;
+		opp-microvolt = <960000>;
+		clock-latency-ns = <300000>;
+		turbo-mode;
+	};
+};

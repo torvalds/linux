@@ -58,7 +58,7 @@
  *     the output constraints to make the compiler aware that R11 cannot be
  *     reused after the asm() statement.
  *
- *     For builds with CONFIG_UNWIND_FRAME_POINTER ASM_CALL_CONSTRAINT is
+ *     For builds with CONFIG_UNWINDER_FRAME_POINTER, ASM_CALL_CONSTRAINT is
  *     required as well as this prevents certain creative GCC variants from
  *     misplacing the ASM code.
  *
@@ -77,11 +77,11 @@
  *     Function calls can clobber anything except the callee-saved
  *     registers. Tell the compiler.
  */
-#define call_on_irqstack(func, asm_call, argconstr...)			\
+#define call_on_stack(stack, func, asm_call, argconstr...)		\
 {									\
 	register void *tos asm("r11");					\
 									\
-	tos = ((void *)__this_cpu_read(hardirq_stack_ptr));		\
+	tos = ((void *)(stack));					\
 									\
 	asm_inline volatile(						\
 	"movq	%%rsp, (%[tos])				\n"		\
@@ -97,6 +97,25 @@
 	  "memory"							\
 	);								\
 }
+
+#define ASM_CALL_ARG0							\
+	"call %P[__func]				\n"
+
+#define ASM_CALL_ARG1							\
+	"movq	%[arg1], %%rdi				\n"		\
+	ASM_CALL_ARG0
+
+#define ASM_CALL_ARG2							\
+	"movq	%[arg2], %%rsi				\n"		\
+	ASM_CALL_ARG1
+
+#define ASM_CALL_ARG3							\
+	"movq	%[arg3], %%rdx				\n"		\
+	ASM_CALL_ARG2
+
+#define call_on_irqstack(func, asm_call, argconstr...)			\
+	call_on_stack(__this_cpu_read(hardirq_stack_ptr),		\
+		      func, asm_call, argconstr)
 
 /* Macros to assert type correctness for run_*_on_irqstack macros */
 #define assert_function_type(func, proto)				\
@@ -147,8 +166,7 @@
  */
 #define ASM_CALL_SYSVEC							\
 	"call irq_enter_rcu				\n"		\
-	"movq	%[arg1], %%rdi				\n"		\
-	"call %P[__func]				\n"		\
+	ASM_CALL_ARG1							\
 	"call irq_exit_rcu				\n"
 
 #define SYSVEC_CONSTRAINTS	, [arg1] "r" (regs)
@@ -168,12 +186,10 @@
  */
 #define ASM_CALL_IRQ							\
 	"call irq_enter_rcu				\n"		\
-	"movq	%[arg1], %%rdi				\n"		\
-	"movl	%[arg2], %%esi				\n"		\
-	"call %P[__func]				\n"		\
+	ASM_CALL_ARG2							\
 	"call irq_exit_rcu				\n"
 
-#define IRQ_CONSTRAINTS	, [arg1] "r" (regs), [arg2] "r" (vector)
+#define IRQ_CONSTRAINTS	, [arg1] "r" (regs), [arg2] "r" ((unsigned long)vector)
 
 #define run_irq_on_irqstack_cond(func, regs, vector)			\
 {									\
@@ -185,9 +201,7 @@
 			      IRQ_CONSTRAINTS, regs, vector);		\
 }
 
-#define ASM_CALL_SOFTIRQ						\
-	"call %P[__func]				\n"
-
+#ifndef CONFIG_PREEMPT_RT
 /*
  * Macro to invoke __do_softirq on the irq stack. This is only called from
  * task context when bottom halves are about to be reenabled and soft
@@ -197,9 +211,11 @@
 #define do_softirq_own_stack()						\
 {									\
 	__this_cpu_write(hardirq_stack_inuse, true);			\
-	call_on_irqstack(__do_softirq, ASM_CALL_SOFTIRQ);		\
+	call_on_irqstack(__do_softirq, ASM_CALL_ARG0);			\
 	__this_cpu_write(hardirq_stack_inuse, false);			\
 }
+
+#endif
 
 #else /* CONFIG_X86_64 */
 /* System vector handlers always run on the stack they interrupted. */

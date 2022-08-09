@@ -53,6 +53,8 @@ struct prestera_port_stats {
 	u64 good_octets_sent;
 };
 
+#define PRESTERA_AP_PORT_MAX   (10)
+
 struct prestera_port_caps {
 	u64 supp_link_modes;
 	u8 supp_fec;
@@ -68,6 +70,39 @@ struct prestera_lag {
 };
 
 struct prestera_flow_block;
+
+struct prestera_port_mac_state {
+	u32 mode;
+	u32 speed;
+	bool oper;
+	u8 duplex;
+	u8 fc;
+	u8 fec;
+};
+
+struct prestera_port_phy_state {
+	u64 lmode_bmap;
+	struct {
+		bool pause;
+		bool asym_pause;
+	} remote_fc;
+	u8 mdix;
+};
+
+struct prestera_port_mac_config {
+	u32 mode;
+	u32 speed;
+	bool admin;
+	u8 inband;
+	u8 duplex;
+	u8 fec;
+};
+
+struct prestera_port_phy_config {
+	u32 mode;
+	bool admin;
+	u8 mdix;
+};
 
 struct prestera_port {
 	struct net_device *dev;
@@ -91,6 +126,10 @@ struct prestera_port {
 		struct prestera_port_stats stats;
 		struct delayed_work caching_dw;
 	} cached_hw_stats;
+	struct prestera_port_mac_config cfg_mac;
+	struct prestera_port_phy_config cfg_phy;
+	struct prestera_port_mac_state state_mac;
+	struct prestera_port_phy_state state_phy;
 };
 
 struct prestera_device {
@@ -107,7 +146,7 @@ struct prestera_device {
 	int (*recv_msg)(struct prestera_device *dev, void *msg, size_t size);
 
 	/* called by higher layer to send request to the firmware */
-	int (*send_req)(struct prestera_device *dev, void *in_msg,
+	int (*send_req)(struct prestera_device *dev, int qid, void *in_msg,
 			size_t in_size, void *out_msg, size_t out_size,
 			unsigned int wait);
 };
@@ -129,13 +168,28 @@ enum prestera_rxtx_event_id {
 
 enum prestera_port_event_id {
 	PRESTERA_PORT_EVENT_UNSPEC,
-	PRESTERA_PORT_EVENT_STATE_CHANGED,
+	PRESTERA_PORT_EVENT_MAC_STATE_CHANGED,
 };
 
 struct prestera_port_event {
 	u32 port_id;
 	union {
-		u32 oper_state;
+		struct {
+			u32 mode;
+			u32 speed;
+			u8 oper;
+			u8 duplex;
+			u8 fc;
+			u8 fec;
+		} mac;
+		struct {
+			u64 lmode_bmap;
+			struct {
+				bool pause;
+				bool asym_pause;
+			} remote_fc;
+			u8 mdix;
+		} phy;
 	} data;
 };
 
@@ -223,10 +277,15 @@ void prestera_device_unregister(struct prestera_device *dev);
 struct prestera_port *prestera_port_find_by_hwid(struct prestera_switch *sw,
 						 u32 dev_id, u32 hw_id);
 
-int prestera_port_autoneg_set(struct prestera_port *port, bool enable,
-			      u64 adver_link_modes, u8 adver_fec);
+int prestera_port_autoneg_set(struct prestera_port *port, u64 link_modes);
 
 struct prestera_port *prestera_find_port(struct prestera_switch *sw, u32 id);
+
+int prestera_port_cfg_mac_read(struct prestera_port *port,
+			       struct prestera_port_mac_config *cfg);
+
+int prestera_port_cfg_mac_write(struct prestera_port *port,
+				struct prestera_port_mac_config *cfg);
 
 struct prestera_port *prestera_port_dev_lower_find(struct net_device *dev);
 

@@ -105,10 +105,12 @@ static inline int bpf_load_and_run(struct bpf_load_and_run_opts *opts)
 	err = skel_sys_bpf(BPF_PROG_RUN, &attr, sizeof(attr));
 	if (err < 0 || (int)attr.test.retval < 0) {
 		opts->errstr = "failed to execute loader prog";
-		if (err < 0)
+		if (err < 0) {
 			err = -errno;
-		else
+		} else {
 			err = (int)attr.test.retval;
+			errno = -err;
+		}
 		goto out;
 	}
 	err = 0;

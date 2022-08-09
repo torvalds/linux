@@ -46,7 +46,7 @@ unsigned int kvm_sve_max_vl;
 int kvm_arm_init_sve(void)
 {
 	if (system_supports_sve()) {
-		kvm_sve_max_vl = sve_max_virtualisable_vl;
+		kvm_sve_max_vl = sve_max_virtualisable_vl();
 
 		/*
 		 * The get_sve_reg()/set_sve_reg() ioctl interface will need
@@ -61,7 +61,7 @@ int kvm_arm_init_sve(void)
 		 * Don't even try to make use of vector lengths that
 		 * aren't available on all CPUs, for now:
 		 */
-		if (kvm_sve_max_vl < sve_max_vl)
+		if (kvm_sve_max_vl < sve_max_vl())
 			pr_warn("KVM: SVE vector length for guests limited to %u bytes\n",
 				kvm_sve_max_vl);
 	}
@@ -102,11 +102,11 @@ static int kvm_vcpu_finalize_sve(struct kvm_vcpu *vcpu)
 	 * kvm_arm_init_arch_resources(), kvm_vcpu_enable_sve() and
 	 * set_sve_vls().  Double-check here just to be sure:
 	 */
-	if (WARN_ON(!sve_vl_valid(vl) || vl > sve_max_virtualisable_vl ||
+	if (WARN_ON(!sve_vl_valid(vl) || vl > sve_max_virtualisable_vl() ||
 		    vl > SVE_VL_ARCH_MAX))
 		return -EIO;
 
-	buf = kzalloc(SVE_SIG_REGS_SIZE(sve_vq_from_vl(vl)), GFP_KERNEL);
+	buf = kzalloc(SVE_SIG_REGS_SIZE(sve_vq_from_vl(vl)), GFP_KERNEL_ACCOUNT);
 	if (!buf)
 		return -ENOMEM;
 

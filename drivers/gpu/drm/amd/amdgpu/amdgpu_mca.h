@@ -29,6 +29,7 @@ struct amdgpu_mca_ras_funcs {
 	void (*query_ras_error_address)(struct amdgpu_device *adev,
 					void *ras_error_status);
 	uint32_t ras_block;
+	uint32_t ras_sub_block;
 	const char* sysfs_name;
 };
 

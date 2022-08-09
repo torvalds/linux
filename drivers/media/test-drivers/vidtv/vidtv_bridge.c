@@ -564,6 +564,10 @@ static int vidtv_bridge_remove(struct platform_device *pdev)
 
 static void vidtv_bridge_dev_release(struct device *dev)
 {
+	struct vidtv_dvb *dvb;
+
+	dvb = dev_get_drvdata(dev);
+	kfree(dvb);
 }
 
 static struct platform_device vidtv_bridge_dev = {

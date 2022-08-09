@@ -806,7 +806,7 @@ static ssize_t ath11k_debugfs_dump_soc_dp_stats(struct file *file,
 	len += scnprintf(buf + len, size - len, "\nSOC TX STATS:\n");
 	len += scnprintf(buf + len, size - len, "\nTCL Ring Full Failures:\n");
 
-	for (i = 0; i < DP_TCL_NUM_RING_MAX; i++)
+	for (i = 0; i < ab->hw_params.max_tx_ring; i++)
 		len += scnprintf(buf + len, size - len, "ring%d: %u\n",
 				 i, soc_stats->tx_err.desc_na[i]);
 
@@ -902,7 +902,7 @@ static ssize_t ath11k_write_pktlog_filter(struct file *file,
 	struct htt_rx_ring_tlv_filter tlv_filter = {0};
 	u32 rx_filter = 0, ring_id, filter, mode;
 	u8 buf[128] = {0};
-	int i, ret;
+	int i, ret, rx_buf_sz = 0;
 	ssize_t rc;
 
 	mutex_lock(&ar->conf_mutex);
@@ -940,6 +940,17 @@ static ssize_t ath11k_write_pktlog_filter(struct file *file,
 		}
 	}
 
+	/* Clear rx filter set for monitor mode and rx status */
+	for (i = 0; i < ab->hw_params.num_rxmda_per_pdev; i++) {
+		ring_id = ar->dp.rx_mon_status_refill_ring[i].refill_buf_ring.ring_id;
+		ret = ath11k_dp_tx_htt_rx_filter_setup(ar->ab, ring_id, ar->dp.mac_id,
+						       HAL_RXDMA_MONITOR_STATUS,
+						       rx_buf_sz, &tlv_filter);
+		if (ret) {
+			ath11k_warn(ar->ab, "failed to set rx filter for monitor status ring\n");
+			goto out;
+		}
+	}
 #define HTT_RX_FILTER_TLV_LITE_MODE \
 			(HTT_RX_FILTER_TLV_FLAGS_PPDU_START | \
 			HTT_RX_FILTER_TLV_FLAGS_PPDU_END | \
@@ -955,6 +966,7 @@ static ssize_t ath11k_write_pktlog_filter(struct file *file,
 			    HTT_RX_FILTER_TLV_FLAGS_MPDU_END |
 			    HTT_RX_FILTER_TLV_FLAGS_PACKET_HEADER |
 			    HTT_RX_FILTER_TLV_FLAGS_ATTENTION;
+		rx_buf_sz = DP_RX_BUFFER_SIZE;
 	} else if (mode == ATH11K_PKTLOG_MODE_LITE) {
 		ret = ath11k_dp_tx_htt_h2t_ppdu_stats_req(ar,
 							  HTT_PPDU_STATS_TAG_PKTLOG);
@@ -964,7 +976,12 @@ static ssize_t ath11k_write_pktlog_filter(struct file *file,
 		}
 
 		rx_filter = HTT_RX_FILTER_TLV_LITE_MODE;
+		rx_buf_sz = DP_RX_BUFFER_SIZE_LITE;
 	} else {
+		rx_buf_sz = DP_RX_BUFFER_SIZE;
+		tlv_filter = ath11k_mac_mon_status_filter_default;
+		rx_filter = tlv_filter.rx_filter;
+
 		ret = ath11k_dp_tx_htt_h2t_ppdu_stats_req(ar,
 							  HTT_PPDU_STATS_TAG_DEFAULT);
 		if (ret) {
@@ -988,7 +1005,7 @@ static ssize_t ath11k_write_pktlog_filter(struct file *file,
 		ret = ath11k_dp_tx_htt_rx_filter_setup(ab, ring_id,
 						       ar->dp.mac_id + i,
 						       HAL_RXDMA_MONITOR_STATUS,
-						       DP_RX_BUFFER_SIZE, &tlv_filter);
+						       rx_buf_sz, &tlv_filter);
 
 		if (ret) {
 			ath11k_warn(ab, "failed to set rx filter for monitor status ring\n");
@@ -996,8 +1013,8 @@ static ssize_t ath11k_write_pktlog_filter(struct file *file,
 		}
 	}
 
-	ath11k_dbg(ab, ATH11K_DBG_WMI, "pktlog filter %d mode %s\n",
-		   filter, ((mode == ATH11K_PKTLOG_MODE_FULL) ? "full" : "lite"));
+	ath11k_info(ab, "pktlog mode %s\n",
+		    ((mode == ATH11K_PKTLOG_MODE_FULL) ? "full" : "lite"));
 
 	ar->debug.pktlog_filter = filter;
 	ar->debug.pktlog_mode = mode;

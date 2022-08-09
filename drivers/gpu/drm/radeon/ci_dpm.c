@@ -390,8 +390,7 @@ static int ci_min_max_v_gnbl_pm_lid_from_bapm_vddc(struct radeon_device *rdev)
 static int ci_populate_bapm_vddc_base_leakage_sidd(struct radeon_device *rdev)
 {
 	struct ci_power_info *pi = ci_get_pi(rdev);
-	u16 hi_sidd = pi->smc_powertune_table.BapmVddCBaseLeakageHiSidd;
-	u16 lo_sidd = pi->smc_powertune_table.BapmVddCBaseLeakageLoSidd;
+	u16 hi_sidd, lo_sidd;
 	struct radeon_cac_tdp_table *cac_tdp_table =
 		rdev->pm.dpm.dyn_state.cac_tdp_table;
 

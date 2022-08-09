@@ -160,64 +160,75 @@
 				apbregs@10000 {
 					compatible = "syscon", "simple-mfd";
 					reg = <0x010000 0x1000>;
+					ranges = <0x0 0x10000 0x1000>;
+					#address-cells = <1>;
+					#size-cells = <1>;
 
-					led0 {
+					led@8,0 {
 						compatible = "register-bit-led";
+						reg = <0x08 0x04>;
 						offset = <0x08>;
 						mask = <0x01>;
 						label = "vexpress:0";
 						linux,default-trigger = "heartbeat";
 						default-state = "on";
 					};
-					led1 {
+					led@8,1 {
 						compatible = "register-bit-led";
+						reg = <0x08 0x04>;
 						offset = <0x08>;
 						mask = <0x02>;
 						label = "vexpress:1";
 						linux,default-trigger = "mmc0";
 						default-state = "off";
 					};
-					led2 {
+					led@8,2 {
 						compatible = "register-bit-led";
+						reg = <0x08 0x04>;
 						offset = <0x08>;
 						mask = <0x04>;
 						label = "vexpress:2";
 						linux,default-trigger = "cpu0";
 						default-state = "off";
 					};
-					led3 {
+					led@8,3 {
 						compatible = "register-bit-led";
+						reg = <0x08 0x04>;
 						offset = <0x08>;
 						mask = <0x08>;
 						label = "vexpress:3";
 						linux,default-trigger = "cpu1";
 						default-state = "off";
 					};
-					led4 {
+					led@8,4 {
 						compatible = "register-bit-led";
+						reg = <0x08 0x04>;
 						offset = <0x08>;
 						mask = <0x10>;
 						label = "vexpress:4";
 						linux,default-trigger = "cpu2";
 						default-state = "off";
 					};
-					led5 {
+					led@8,5 {
 						compatible = "register-bit-led";
+						reg = <0x08 0x04>;
 						offset = <0x08>;
 						mask = <0x20>;
 						label = "vexpress:5";
 						linux,default-trigger = "cpu3";
 						default-state = "off";
 					};
-					led6 {
+					led@8,6 {
 						compatible = "register-bit-led";
+						reg = <0x08 0x04>;
 						offset = <0x08>;
 						mask = <0x40>;
 						label = "vexpress:6";
 						default-state = "off";
 					};
-					led7 {
+					led@8,7 {
 						compatible = "register-bit-led";
+						reg = <0x08 0x04>;
 						offset = <0x08>;
 						mask = <0x80>;
 						label = "vexpress:7";

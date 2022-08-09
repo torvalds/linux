@@ -1355,3 +1355,18 @@ int pm8001_clear_task_set(struct domain_device *dev, u8 *lun)
 	tmf_task.tmf = TMF_CLEAR_TASK_SET;
 	return pm8001_issue_ssp_tmf(dev, lun, &tmf_task);
 }
+
+void pm8001_port_formed(struct asd_sas_phy *sas_phy)
+{
+	struct sas_ha_struct *sas_ha = sas_phy->ha;
+	struct pm8001_hba_info *pm8001_ha = sas_ha->lldd_ha;
+	struct pm8001_phy *phy = sas_phy->lldd_phy;
+	struct asd_sas_port *sas_port = sas_phy->port;
+	struct pm8001_port *port = phy->port;
+
+	if (!sas_port) {
+		pm8001_dbg(pm8001_ha, FAIL, "Received null port\n");
+		return;
+	}
+	sas_port->lldd_port = port;
+}

@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  AMD SFH Client Layer
- *  Copyright 2020 Advanced Micro Devices, Inc.
+ *  Copyright 2020-2021 Advanced Micro Devices, Inc.
  *  Authors: Nehal Bakulchandra Shah <Nehal-Bakulchandra.Shah@amd.com>
  *	     Sandeep Singh <Sandeep.singh@amd.com>
+ *	     Basavaraj Natikar <Basavaraj.Natikar@amd.com>
  */
 
 #include <linux/dma-mapping.h>

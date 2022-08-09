@@ -190,10 +190,10 @@ enum kunit_status kunit_suite_has_succeeded(struct kunit_suite *suite)
 }
 EXPORT_SYMBOL_GPL(kunit_suite_has_succeeded);
 
+static size_t kunit_suite_counter = 1;
+
 static void kunit_print_subtest_end(struct kunit_suite *suite)
 {
-	static size_t kunit_suite_counter = 1;
-
 	kunit_print_ok_not_ok((void *)suite, false,
 			      kunit_suite_has_succeeded(suite),
 			      kunit_suite_counter++,
@@ -583,6 +583,8 @@ void __kunit_test_suites_exit(struct kunit_suite **suites)
 
 	for (i = 0; suites[i] != NULL; i++)
 		kunit_exit_suite(suites[i]);
+
+	kunit_suite_counter = 1;
 }
 EXPORT_SYMBOL_GPL(__kunit_test_suites_exit);
 

@@ -61,6 +61,7 @@ enum RSI_FSM_STATES {
 extern u32 rsi_zone_enabled;
 extern __printf(2, 3) void rsi_dbg(u32 zone, const char *fmt, ...);
 
+#define RSI_MAX_BANDS			2
 #define RSI_MAX_VIFS                    3
 #define NUM_EDCA_QUEUES                 4
 #define IEEE80211_ADDR_LEN              6
@@ -139,6 +140,7 @@ struct skb_info {
 	u8 internal_hdr_size;
 	struct ieee80211_vif *vif;
 	u8 vap_id;
+	bool have_key;
 };
 
 enum edca_queue {
@@ -229,6 +231,12 @@ struct rsi_9116_features {
 	u32 ps_options;
 };
 
+struct rsi_rate_config {
+	u32 configured_mask;	/* configured by mac80211 bits 0-11=legacy 12+ mcs */
+	u16 fixed_hw_rate;
+	bool fixed_enabled;
+};
+
 struct rsi_common {
 	struct rsi_hw *priv;
 	struct vif_priv vif_info[RSI_MAX_VIFS];
@@ -254,8 +262,8 @@ struct rsi_common {
 	u8 channel_width;
 
 	u16 rts_threshold;
-	u16 bitrate_mask[2];
-	u32 fixedrate_mask[2];
+	u32 bitrate_mask[RSI_MAX_BANDS];
+	struct rsi_rate_config rate_config[RSI_MAX_BANDS];
 
 	u8 rf_reset;
 	struct transmit_q_stats tx_stats;
@@ -276,7 +284,6 @@ struct rsi_common {
 	u8 mac_id;
 	u8 radio_id;
 	u16 rate_pwr[20];
-	u16 min_rate;
 
 	/* WMM algo related */
 	u8 selected_qnum;
@@ -320,6 +327,7 @@ struct rsi_common {
 	struct ieee80211_vif *roc_vif;
 
 	bool eapol4_confirm;
+	bool bt_defer_attach;
 	void *bt_adapter;
 
 	struct cfg80211_scan_request *hwscan;
@@ -401,5 +409,6 @@ struct rsi_host_intf_ops {
 
 enum rsi_host_intf rsi_get_host_intf(void *priv);
 void rsi_set_bt_context(void *priv, void *bt_context);
+void rsi_attach_bt(struct rsi_common *common);
 
 #endif

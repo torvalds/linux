@@ -27,25 +27,12 @@ enum RTL8188E_H2C_CMD_ID {
 	/* Class DM */
 	H2C_DM_MACID_CFG		= 0x40,
 	H2C_DM_TXBF			= 0x41,
-
-	/* Class BT */
-	H2C_BT_COEX_MASK		= 0x60,
-	H2C_BT_COEX_GPIO_MODE		= 0x61,
-	H2C_BT_DAC_SWING_VAL		= 0x62,
-	H2C_BT_PSD_RST			= 0x63,
-
-	/* Class */
-	 H2C_RESET_TSF			= 0xc0,
 };
 
 struct cmd_msg_parm {
 	u8 eid; /* element id */
 	u8 sz; /*  sz */
 	u8 buf[6];
-};
-
-enum {
-	PWRS
 };
 
 struct setpwrmode_parm {
@@ -91,14 +78,11 @@ struct P2P_PS_CTWPeriod_t {
 /*  host message to firmware cmd */
 void rtl8188e_set_FwPwrMode_cmd(struct adapter *padapter, u8 Mode);
 void rtl8188e_set_FwJoinBssReport_cmd(struct adapter *padapter, u8 mstatus);
-u8 rtl8188e_set_rssi_cmd(struct adapter *padapter, u8 *param);
 u8 rtl8188e_set_raid_cmd(struct adapter *padapter, u32 mask);
 void rtl8188e_Add_RateATid(struct adapter *padapter, u32 bitmap, u8 arg,
 			   u8 rssi_level);
 
-#ifdef CONFIG_88EU_P2P
 void rtl8188e_set_p2p_ps_offload_cmd(struct adapter *adapt, u8 p2p_ps_state);
-#endif /* CONFIG_88EU_P2P */
 
 void CheckFwRsvdPageContent(struct adapter *adapt);
 void rtl8188e_set_FwMediaStatus_cmd(struct adapter *adapt, __le16 mstatus_rpt);

@@ -155,7 +155,7 @@ int __no_sanitize_address arch_stack_walk_reliable(stack_trace_consume_fn consum
 		 * Mark stacktraces with kretprobed functions on them
 		 * as unreliable.
 		 */
-		if (ip == (unsigned long)kretprobe_trampoline)
+		if (ip == (unsigned long)__kretprobe_trampoline)
 			return -EINVAL;
 #endif
 

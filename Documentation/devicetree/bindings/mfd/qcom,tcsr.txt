@@ -6,6 +6,7 @@ registers via syscon.
 
 Required properties:
 - compatible:	Should contain:
+		"qcom,tcsr-ipq6018", "syscon", "simple-mfd" for IPQ6018
 		"qcom,tcsr-ipq8064", "syscon" for IPQ8064
 		"qcom,tcsr-apq8064", "syscon" for APQ8064
 		"qcom,tcsr-msm8660", "syscon" for MSM8660

@@ -21,3 +21,11 @@
 		stdout-path = "serial0:115200n8";
 	};
 };
+
+&nvme_pwren {
+	pins = "gpio51";
+};
+
+&nvme_3v3_regulator {
+	gpio = <&tlmm 51 GPIO_ACTIVE_HIGH>;
+};

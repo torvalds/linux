@@ -14,7 +14,7 @@
 static void psb_lid_timer_func(struct timer_list *t)
 {
 	struct drm_psb_private *dev_priv = from_timer(dev_priv, t, lid_timer);
-	struct drm_device *dev = (struct drm_device *)dev_priv->dev;
+	struct drm_device *dev = (struct drm_device *)&dev_priv->dev;
 	struct timer_list *lid_timer = &dev_priv->lid_timer;
 	unsigned long irq_flags;
 	u32 __iomem *lid_state = dev_priv->opregion.lid_state;

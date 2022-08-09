@@ -54,15 +54,17 @@ int gfxhub_v1_1_get_xgmi_info(struct amdgpu_device *adev)
 		seg_size = REG_GET_FIELD(
 			RREG32_SOC15(GC, 0, mmMC_VM_XGMI_LFB_SIZE_ALDE),
 			MC_VM_XGMI_LFB_SIZE, PF_LFB_SIZE) << 24;
+		max_region =
+			REG_GET_FIELD(xgmi_lfb_cntl, MC_VM_XGMI_LFB_CNTL_ALDE, PF_MAX_REGION);
 	} else {
 		xgmi_lfb_cntl = RREG32_SOC15(GC, 0, mmMC_VM_XGMI_LFB_CNTL);
 		seg_size = REG_GET_FIELD(
 			RREG32_SOC15(GC, 0, mmMC_VM_XGMI_LFB_SIZE),
 			MC_VM_XGMI_LFB_SIZE, PF_LFB_SIZE) << 24;
+		max_region =
+			REG_GET_FIELD(xgmi_lfb_cntl, MC_VM_XGMI_LFB_CNTL, PF_MAX_REGION);
 	}
 
-	max_region =
-		REG_GET_FIELD(xgmi_lfb_cntl, MC_VM_XGMI_LFB_CNTL, PF_MAX_REGION);
 
 
 	switch (adev->asic_type) {
@@ -89,9 +91,15 @@ int gfxhub_v1_1_get_xgmi_info(struct amdgpu_device *adev)
 		if (adev->gmc.xgmi.num_physical_nodes > max_num_physical_nodes)
 			return -EINVAL;
 
-		adev->gmc.xgmi.physical_node_id =
-		REG_GET_FIELD(xgmi_lfb_cntl, MC_VM_XGMI_LFB_CNTL,
-			      PF_LFB_REGION);
+		if (adev->asic_type == CHIP_ALDEBARAN) {
+			adev->gmc.xgmi.physical_node_id =
+				REG_GET_FIELD(xgmi_lfb_cntl, MC_VM_XGMI_LFB_CNTL_ALDE,
+						PF_LFB_REGION);
+		} else {
+			adev->gmc.xgmi.physical_node_id =
+				REG_GET_FIELD(xgmi_lfb_cntl, MC_VM_XGMI_LFB_CNTL,
+						PF_LFB_REGION);
+		}
 
 		if (adev->gmc.xgmi.physical_node_id > max_physical_node_id)
 			return -EINVAL;

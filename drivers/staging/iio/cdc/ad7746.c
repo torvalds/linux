@@ -241,10 +241,8 @@ static int ad7746_select_channel(struct iio_dev *indio_dev,
 		if (ret < 0)
 			return ret;
 
-		if (chip->capdac_set != chan->channel) {
-
+		if (chip->capdac_set != chan->channel)
 			chip->capdac_set = chan->channel;
-		}
 		break;
 	case IIO_VOLTAGE:
 	case IIO_TEMP:

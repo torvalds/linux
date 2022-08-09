@@ -538,7 +538,7 @@ static void __init suniv_f1c100s_ccu_setup(struct device_node *node)
 	val &= ~GENMASK(19, 16);
 	writel(val | (3 << 16), reg + SUNIV_PLL_AUDIO_REG);
 
-	sunxi_ccu_probe(node, reg, &suniv_ccu_desc);
+	of_sunxi_ccu_probe(node, reg, &suniv_ccu_desc);
 
 	/* Gate then ungate PLL CPU after any rate changes */
 	ccu_pll_notifier_register(&suniv_pll_cpu_nb);

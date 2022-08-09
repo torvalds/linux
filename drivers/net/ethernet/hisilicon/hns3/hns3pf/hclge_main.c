@@ -26,8 +26,6 @@
 #include "hclge_devlink.h"
 
 #define HCLGE_NAME			"hclge"
-#define HCLGE_STATS_READ(p, offset) (*(u64 *)((u8 *)(p) + (offset)))
-#define HCLGE_MAC_STATS_FIELD_OFF(f) (offsetof(struct hclge_mac_stats, f))
 
 #define HCLGE_BUF_SIZE_UNIT	256U
 #define HCLGE_BUF_MUL_BY	2
@@ -156,174 +154,210 @@ static const char hns3_nic_test_strs[][ETH_GSTRING_LEN] = {
 };
 
 static const struct hclge_comm_stats_str g_mac_stats_string[] = {
-	{"mac_tx_mac_pause_num",
+	{"mac_tx_mac_pause_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_tx_mac_pause_num)},
-	{"mac_rx_mac_pause_num",
+	{"mac_rx_mac_pause_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_rx_mac_pause_num)},
-	{"mac_tx_control_pkt_num",
+	{"mac_tx_pause_xoff_time", HCLGE_MAC_STATS_MAX_NUM_V2,
+		HCLGE_MAC_STATS_FIELD_OFF(mac_tx_pause_xoff_time)},
+	{"mac_rx_pause_xoff_time", HCLGE_MAC_STATS_MAX_NUM_V2,
+		HCLGE_MAC_STATS_FIELD_OFF(mac_rx_pause_xoff_time)},
+	{"mac_tx_control_pkt_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_tx_ctrl_pkt_num)},
-	{"mac_rx_control_pkt_num",
+	{"mac_rx_control_pkt_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_rx_ctrl_pkt_num)},
-	{"mac_tx_pfc_pkt_num",
+	{"mac_tx_pfc_pkt_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_tx_pfc_pause_pkt_num)},
-	{"mac_tx_pfc_pri0_pkt_num",
+	{"mac_tx_pfc_pri0_pkt_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_tx_pfc_pri0_pkt_num)},
-	{"mac_tx_pfc_pri1_pkt_num",
+	{"mac_tx_pfc_pri1_pkt_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_tx_pfc_pri1_pkt_num)},
-	{"mac_tx_pfc_pri2_pkt_num",
+	{"mac_tx_pfc_pri2_pkt_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_tx_pfc_pri2_pkt_num)},
-	{"mac_tx_pfc_pri3_pkt_num",
+	{"mac_tx_pfc_pri3_pkt_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_tx_pfc_pri3_pkt_num)},
-	{"mac_tx_pfc_pri4_pkt_num",
+	{"mac_tx_pfc_pri4_pkt_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_tx_pfc_pri4_pkt_num)},
-	{"mac_tx_pfc_pri5_pkt_num",
+	{"mac_tx_pfc_pri5_pkt_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_tx_pfc_pri5_pkt_num)},
-	{"mac_tx_pfc_pri6_pkt_num",
+	{"mac_tx_pfc_pri6_pkt_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_tx_pfc_pri6_pkt_num)},
-	{"mac_tx_pfc_pri7_pkt_num",
+	{"mac_tx_pfc_pri7_pkt_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_tx_pfc_pri7_pkt_num)},
-	{"mac_rx_pfc_pkt_num",
+	{"mac_tx_pfc_pri0_xoff_time", HCLGE_MAC_STATS_MAX_NUM_V2,
+		HCLGE_MAC_STATS_FIELD_OFF(mac_tx_pfc_pri0_xoff_time)},
+	{"mac_tx_pfc_pri1_xoff_time", HCLGE_MAC_STATS_MAX_NUM_V2,
+		HCLGE_MAC_STATS_FIELD_OFF(mac_tx_pfc_pri1_xoff_time)},
+	{"mac_tx_pfc_pri2_xoff_time", HCLGE_MAC_STATS_MAX_NUM_V2,
+		HCLGE_MAC_STATS_FIELD_OFF(mac_tx_pfc_pri2_xoff_time)},
+	{"mac_tx_pfc_pri3_xoff_time", HCLGE_MAC_STATS_MAX_NUM_V2,
+		HCLGE_MAC_STATS_FIELD_OFF(mac_tx_pfc_pri3_xoff_time)},
+	{"mac_tx_pfc_pri4_xoff_time", HCLGE_MAC_STATS_MAX_NUM_V2,
+		HCLGE_MAC_STATS_FIELD_OFF(mac_tx_pfc_pri4_xoff_time)},
+	{"mac_tx_pfc_pri5_xoff_time", HCLGE_MAC_STATS_MAX_NUM_V2,
+		HCLGE_MAC_STATS_FIELD_OFF(mac_tx_pfc_pri5_xoff_time)},
+	{"mac_tx_pfc_pri6_xoff_time", HCLGE_MAC_STATS_MAX_NUM_V2,
+		HCLGE_MAC_STATS_FIELD_OFF(mac_tx_pfc_pri6_xoff_time)},
+	{"mac_tx_pfc_pri7_xoff_time", HCLGE_MAC_STATS_MAX_NUM_V2,
+		HCLGE_MAC_STATS_FIELD_OFF(mac_tx_pfc_pri7_xoff_time)},
+	{"mac_rx_pfc_pkt_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_rx_pfc_pause_pkt_num)},
-	{"mac_rx_pfc_pri0_pkt_num",
+	{"mac_rx_pfc_pri0_pkt_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_rx_pfc_pri0_pkt_num)},
-	{"mac_rx_pfc_pri1_pkt_num",
+	{"mac_rx_pfc_pri1_pkt_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_rx_pfc_pri1_pkt_num)},
-	{"mac_rx_pfc_pri2_pkt_num",
+	{"mac_rx_pfc_pri2_pkt_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_rx_pfc_pri2_pkt_num)},
-	{"mac_rx_pfc_pri3_pkt_num",
+	{"mac_rx_pfc_pri3_pkt_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_rx_pfc_pri3_pkt_num)},
-	{"mac_rx_pfc_pri4_pkt_num",
+	{"mac_rx_pfc_pri4_pkt_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_rx_pfc_pri4_pkt_num)},
-	{"mac_rx_pfc_pri5_pkt_num",
+	{"mac_rx_pfc_pri5_pkt_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_rx_pfc_pri5_pkt_num)},
-	{"mac_rx_pfc_pri6_pkt_num",
+	{"mac_rx_pfc_pri6_pkt_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_rx_pfc_pri6_pkt_num)},
-	{"mac_rx_pfc_pri7_pkt_num",
+	{"mac_rx_pfc_pri7_pkt_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_rx_pfc_pri7_pkt_num)},
-	{"mac_tx_total_pkt_num",
+	{"mac_rx_pfc_pri0_xoff_time", HCLGE_MAC_STATS_MAX_NUM_V2,
+		HCLGE_MAC_STATS_FIELD_OFF(mac_rx_pfc_pri0_xoff_time)},
+	{"mac_rx_pfc_pri1_xoff_time", HCLGE_MAC_STATS_MAX_NUM_V2,
+		HCLGE_MAC_STATS_FIELD_OFF(mac_rx_pfc_pri1_xoff_time)},
+	{"mac_rx_pfc_pri2_xoff_time", HCLGE_MAC_STATS_MAX_NUM_V2,
+		HCLGE_MAC_STATS_FIELD_OFF(mac_rx_pfc_pri2_xoff_time)},
+	{"mac_rx_pfc_pri3_xoff_time", HCLGE_MAC_STATS_MAX_NUM_V2,
+		HCLGE_MAC_STATS_FIELD_OFF(mac_rx_pfc_pri3_xoff_time)},
+	{"mac_rx_pfc_pri4_xoff_time", HCLGE_MAC_STATS_MAX_NUM_V2,
+		HCLGE_MAC_STATS_FIELD_OFF(mac_rx_pfc_pri4_xoff_time)},
+	{"mac_rx_pfc_pri5_xoff_time", HCLGE_MAC_STATS_MAX_NUM_V2,
+		HCLGE_MAC_STATS_FIELD_OFF(mac_rx_pfc_pri5_xoff_time)},
+	{"mac_rx_pfc_pri6_xoff_time", HCLGE_MAC_STATS_MAX_NUM_V2,
+		HCLGE_MAC_STATS_FIELD_OFF(mac_rx_pfc_pri6_xoff_time)},
+	{"mac_rx_pfc_pri7_xoff_time", HCLGE_MAC_STATS_MAX_NUM_V2,
+		HCLGE_MAC_STATS_FIELD_OFF(mac_rx_pfc_pri7_xoff_time)},
+	{"mac_tx_total_pkt_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_tx_total_pkt_num)},
-	{"mac_tx_total_oct_num",
+	{"mac_tx_total_oct_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_tx_total_oct_num)},
-	{"mac_tx_good_pkt_num",
+	{"mac_tx_good_pkt_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_tx_good_pkt_num)},
-	{"mac_tx_bad_pkt_num",
+	{"mac_tx_bad_pkt_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_tx_bad_pkt_num)},
-	{"mac_tx_good_oct_num",
+	{"mac_tx_good_oct_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_tx_good_oct_num)},
-	{"mac_tx_bad_oct_num",
+	{"mac_tx_bad_oct_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_tx_bad_oct_num)},
-	{"mac_tx_uni_pkt_num",
+	{"mac_tx_uni_pkt_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_tx_uni_pkt_num)},
-	{"mac_tx_multi_pkt_num",
+	{"mac_tx_multi_pkt_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_tx_multi_pkt_num)},
-	{"mac_tx_broad_pkt_num",
+	{"mac_tx_broad_pkt_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_tx_broad_pkt_num)},
-	{"mac_tx_undersize_pkt_num",
+	{"mac_tx_undersize_pkt_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_tx_undersize_pkt_num)},
-	{"mac_tx_oversize_pkt_num",
+	{"mac_tx_oversize_pkt_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_tx_oversize_pkt_num)},
-	{"mac_tx_64_oct_pkt_num",
+	{"mac_tx_64_oct_pkt_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_tx_64_oct_pkt_num)},
-	{"mac_tx_65_127_oct_pkt_num",
+	{"mac_tx_65_127_oct_pkt_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_tx_65_127_oct_pkt_num)},
-	{"mac_tx_128_255_oct_pkt_num",
+	{"mac_tx_128_255_oct_pkt_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_tx_128_255_oct_pkt_num)},
-	{"mac_tx_256_511_oct_pkt_num",
+	{"mac_tx_256_511_oct_pkt_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_tx_256_511_oct_pkt_num)},
-	{"mac_tx_512_1023_oct_pkt_num",
+	{"mac_tx_512_1023_oct_pkt_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_tx_512_1023_oct_pkt_num)},
-	{"mac_tx_1024_1518_oct_pkt_num",
+	{"mac_tx_1024_1518_oct_pkt_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_tx_1024_1518_oct_pkt_num)},
-	{"mac_tx_1519_2047_oct_pkt_num",
+	{"mac_tx_1519_2047_oct_pkt_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_tx_1519_2047_oct_pkt_num)},
-	{"mac_tx_2048_4095_oct_pkt_num",
+	{"mac_tx_2048_4095_oct_pkt_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_tx_2048_4095_oct_pkt_num)},
-	{"mac_tx_4096_8191_oct_pkt_num",
+	{"mac_tx_4096_8191_oct_pkt_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_tx_4096_8191_oct_pkt_num)},
-	{"mac_tx_8192_9216_oct_pkt_num",
+	{"mac_tx_8192_9216_oct_pkt_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_tx_8192_9216_oct_pkt_num)},
-	{"mac_tx_9217_12287_oct_pkt_num",
+	{"mac_tx_9217_12287_oct_pkt_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_tx_9217_12287_oct_pkt_num)},
-	{"mac_tx_12288_16383_oct_pkt_num",
+	{"mac_tx_12288_16383_oct_pkt_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_tx_12288_16383_oct_pkt_num)},
-	{"mac_tx_1519_max_good_pkt_num",
+	{"mac_tx_1519_max_good_pkt_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_tx_1519_max_good_oct_pkt_num)},
-	{"mac_tx_1519_max_bad_pkt_num",
+	{"mac_tx_1519_max_bad_pkt_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_tx_1519_max_bad_oct_pkt_num)},
-	{"mac_rx_total_pkt_num",
+	{"mac_rx_total_pkt_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_rx_total_pkt_num)},
-	{"mac_rx_total_oct_num",
+	{"mac_rx_total_oct_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_rx_total_oct_num)},
-	{"mac_rx_good_pkt_num",
+	{"mac_rx_good_pkt_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_rx_good_pkt_num)},
-	{"mac_rx_bad_pkt_num",
+	{"mac_rx_bad_pkt_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_rx_bad_pkt_num)},
-	{"mac_rx_good_oct_num",
+	{"mac_rx_good_oct_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_rx_good_oct_num)},
-	{"mac_rx_bad_oct_num",
+	{"mac_rx_bad_oct_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_rx_bad_oct_num)},
-	{"mac_rx_uni_pkt_num",
+	{"mac_rx_uni_pkt_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_rx_uni_pkt_num)},
-	{"mac_rx_multi_pkt_num",
+	{"mac_rx_multi_pkt_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_rx_multi_pkt_num)},
-	{"mac_rx_broad_pkt_num",
+	{"mac_rx_broad_pkt_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_rx_broad_pkt_num)},
-	{"mac_rx_undersize_pkt_num",
+	{"mac_rx_undersize_pkt_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_rx_undersize_pkt_num)},
-	{"mac_rx_oversize_pkt_num",
+	{"mac_rx_oversize_pkt_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_rx_oversize_pkt_num)},
-	{"mac_rx_64_oct_pkt_num",
+	{"mac_rx_64_oct_pkt_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_rx_64_oct_pkt_num)},
-	{"mac_rx_65_127_oct_pkt_num",
+	{"mac_rx_65_127_oct_pkt_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_rx_65_127_oct_pkt_num)},
-	{"mac_rx_128_255_oct_pkt_num",
+	{"mac_rx_128_255_oct_pkt_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_rx_128_255_oct_pkt_num)},
-	{"mac_rx_256_511_oct_pkt_num",
+	{"mac_rx_256_511_oct_pkt_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_rx_256_511_oct_pkt_num)},
-	{"mac_rx_512_1023_oct_pkt_num",
+	{"mac_rx_512_1023_oct_pkt_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_rx_512_1023_oct_pkt_num)},
-	{"mac_rx_1024_1518_oct_pkt_num",
+	{"mac_rx_1024_1518_oct_pkt_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_rx_1024_1518_oct_pkt_num)},
-	{"mac_rx_1519_2047_oct_pkt_num",
+	{"mac_rx_1519_2047_oct_pkt_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_rx_1519_2047_oct_pkt_num)},
-	{"mac_rx_2048_4095_oct_pkt_num",
+	{"mac_rx_2048_4095_oct_pkt_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_rx_2048_4095_oct_pkt_num)},
-	{"mac_rx_4096_8191_oct_pkt_num",
+	{"mac_rx_4096_8191_oct_pkt_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_rx_4096_8191_oct_pkt_num)},
-	{"mac_rx_8192_9216_oct_pkt_num",
+	{"mac_rx_8192_9216_oct_pkt_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_rx_8192_9216_oct_pkt_num)},
-	{"mac_rx_9217_12287_oct_pkt_num",
+	{"mac_rx_9217_12287_oct_pkt_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_rx_9217_12287_oct_pkt_num)},
-	{"mac_rx_12288_16383_oct_pkt_num",
+	{"mac_rx_12288_16383_oct_pkt_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_rx_12288_16383_oct_pkt_num)},
-	{"mac_rx_1519_max_good_pkt_num",
+	{"mac_rx_1519_max_good_pkt_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_rx_1519_max_good_oct_pkt_num)},
-	{"mac_rx_1519_max_bad_pkt_num",
+	{"mac_rx_1519_max_bad_pkt_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_rx_1519_max_bad_oct_pkt_num)},
 
-	{"mac_tx_fragment_pkt_num",
+	{"mac_tx_fragment_pkt_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_tx_fragment_pkt_num)},
-	{"mac_tx_undermin_pkt_num",
+	{"mac_tx_undermin_pkt_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_tx_undermin_pkt_num)},
-	{"mac_tx_jabber_pkt_num",
+	{"mac_tx_jabber_pkt_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_tx_jabber_pkt_num)},
-	{"mac_tx_err_all_pkt_num",
+	{"mac_tx_err_all_pkt_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_tx_err_all_pkt_num)},
-	{"mac_tx_from_app_good_pkt_num",
+	{"mac_tx_from_app_good_pkt_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_tx_from_app_good_pkt_num)},
-	{"mac_tx_from_app_bad_pkt_num",
+	{"mac_tx_from_app_bad_pkt_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_tx_from_app_bad_pkt_num)},
-	{"mac_rx_fragment_pkt_num",
+	{"mac_rx_fragment_pkt_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_rx_fragment_pkt_num)},
-	{"mac_rx_undermin_pkt_num",
+	{"mac_rx_undermin_pkt_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_rx_undermin_pkt_num)},
-	{"mac_rx_jabber_pkt_num",
+	{"mac_rx_jabber_pkt_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_rx_jabber_pkt_num)},
-	{"mac_rx_fcs_err_pkt_num",
+	{"mac_rx_fcs_err_pkt_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_rx_fcs_err_pkt_num)},
-	{"mac_rx_send_app_good_pkt_num",
+	{"mac_rx_send_app_good_pkt_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_rx_send_app_good_pkt_num)},
-	{"mac_rx_send_app_bad_pkt_num",
+	{"mac_rx_send_app_bad_pkt_num", HCLGE_MAC_STATS_MAX_NUM_V1,
 		HCLGE_MAC_STATS_FIELD_OFF(mac_rx_send_app_bad_pkt_num)}
 };
 
@@ -451,8 +485,9 @@ static int hclge_mac_update_stats_defective(struct hclge_dev *hdev)
 	u64 *data = (u64 *)(&hdev->mac_stats);
 	struct hclge_desc desc[HCLGE_MAC_CMD_NUM];
 	__le64 *desc_data;
-	int i, k, n;
+	u32 data_size;
 	int ret;
+	u32 i;
 
 	hclge_cmd_setup_basic_desc(&desc[0], HCLGE_OPC_STATS_MAC, true);
 	ret = hclge_cmd_send(&hdev->hw, desc, HCLGE_MAC_CMD_NUM);
@@ -463,33 +498,37 @@ static int hclge_mac_update_stats_defective(struct hclge_dev *hdev)
 		return ret;
 	}
 
-	for (i = 0; i < HCLGE_MAC_CMD_NUM; i++) {
-		/* for special opcode 0032, only the first desc has the head */
-		if (unlikely(i == 0)) {
-			desc_data = (__le64 *)(&desc[i].data[0]);
-			n = HCLGE_RD_FIRST_STATS_NUM;
-		} else {
-			desc_data = (__le64 *)(&desc[i]);
-			n = HCLGE_RD_OTHER_STATS_NUM;
-		}
+	/* The first desc has a 64-bit header, so data size need to minus 1 */
+	data_size = sizeof(desc) / (sizeof(u64)) - 1;
 
-		for (k = 0; k < n; k++) {
-			*data += le64_to_cpu(*desc_data);
-			data++;
-			desc_data++;
-		}
+	desc_data = (__le64 *)(&desc[0].data[0]);
+	for (i = 0; i < data_size; i++) {
+		/* data memory is continuous becase only the first desc has a
+		 * header in this command
+		 */
+		*data += le64_to_cpu(*desc_data);
+		data++;
+		desc_data++;
 	}
 
 	return 0;
 }
 
-static int hclge_mac_update_stats_complete(struct hclge_dev *hdev, u32 desc_num)
+static int hclge_mac_update_stats_complete(struct hclge_dev *hdev)
 {
+#define HCLGE_REG_NUM_PER_DESC		4
+
+	u32 reg_num = hdev->ae_dev->dev_specs.mac_stats_num;
 	u64 *data = (u64 *)(&hdev->mac_stats);
 	struct hclge_desc *desc;
 	__le64 *desc_data;
-	u16 i, k, n;
+	u32 data_size;
+	u32 desc_num;
 	int ret;
+	u32 i;
+
+	/* The first desc has a 64-bit header, so need to consider it */
+	desc_num = reg_num / HCLGE_REG_NUM_PER_DESC + 1;
 
 	/* This may be called inside atomic sections,
 	 * so GFP_ATOMIC is more suitalbe here
@@ -505,21 +544,16 @@ static int hclge_mac_update_stats_complete(struct hclge_dev *hdev, u32 desc_num)
 		return ret;
 	}
 
-	for (i = 0; i < desc_num; i++) {
-		/* for special opcode 0034, only the first desc has the head */
-		if (i == 0) {
-			desc_data = (__le64 *)(&desc[i].data[0]);
-			n = HCLGE_RD_FIRST_STATS_NUM;
-		} else {
-			desc_data = (__le64 *)(&desc[i]);
-			n = HCLGE_RD_OTHER_STATS_NUM;
-		}
+	data_size = min_t(u32, sizeof(hdev->mac_stats) / sizeof(u64), reg_num);
 
-		for (k = 0; k < n; k++) {
-			*data += le64_to_cpu(*desc_data);
-			data++;
-			desc_data++;
-		}
+	desc_data = (__le64 *)(&desc[0].data[0]);
+	for (i = 0; i < data_size; i++) {
+		/* data memory is continuous becase only the first desc has a
+		 * header in this command
+		 */
+		*data += le64_to_cpu(*desc_data);
+		data++;
+		desc_data++;
 	}
 
 	kfree(desc);
@@ -527,42 +561,47 @@ static int hclge_mac_update_stats_complete(struct hclge_dev *hdev, u32 desc_num)
 	return 0;
 }
 
-static int hclge_mac_query_reg_num(struct hclge_dev *hdev, u32 *desc_num)
+static int hclge_mac_query_reg_num(struct hclge_dev *hdev, u32 *reg_num)
 {
 	struct hclge_desc desc;
-	__le32 *desc_data;
-	u32 reg_num;
 	int ret;
+
+	/* Driver needs total register number of both valid registers and
+	 * reserved registers, but the old firmware only returns number
+	 * of valid registers in device V2. To be compatible with these
+	 * devices, driver uses a fixed value.
+	 */
+	if (hdev->ae_dev->dev_version == HNAE3_DEVICE_VERSION_V2) {
+		*reg_num = HCLGE_MAC_STATS_MAX_NUM_V1;
+		return 0;
+	}
 
 	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_QUERY_MAC_REG_NUM, true);
 	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
-	if (ret)
+	if (ret) {
+		dev_err(&hdev->pdev->dev,
+			"failed to query mac statistic reg number, ret = %d\n",
+			ret);
 		return ret;
+	}
 
-	desc_data = (__le32 *)(&desc.data[0]);
-	reg_num = le32_to_cpu(*desc_data);
-
-	*desc_num = 1 + ((reg_num - 3) >> 2) +
-		    (u32)(((reg_num - 3) & 0x3) ? 1 : 0);
+	*reg_num = le32_to_cpu(desc.data[0]);
+	if (*reg_num == 0) {
+		dev_err(&hdev->pdev->dev,
+			"mac statistic reg number is invalid!\n");
+		return -ENODATA;
+	}
 
 	return 0;
 }
 
-static int hclge_mac_update_stats(struct hclge_dev *hdev)
+int hclge_mac_update_stats(struct hclge_dev *hdev)
 {
-	u32 desc_num;
-	int ret;
-
-	ret = hclge_mac_query_reg_num(hdev, &desc_num);
 	/* The firmware supports the new statistics acquisition method */
-	if (!ret)
-		ret = hclge_mac_update_stats_complete(hdev, desc_num);
-	else if (ret == -EOPNOTSUPP)
-		ret = hclge_mac_update_stats_defective(hdev);
+	if (hdev->ae_dev->dev_specs.mac_stats_num)
+		return hclge_mac_update_stats_complete(hdev);
 	else
-		dev_err(&hdev->pdev->dev, "query mac reg num fail!\n");
-
-	return ret;
+		return hclge_mac_update_stats_defective(hdev);
 }
 
 static int hclge_tqps_update_stats(struct hnae3_handle *handle)
@@ -670,20 +709,39 @@ static u8 *hclge_tqps_get_strings(struct hnae3_handle *handle, u8 *data)
 	return buff;
 }
 
-static u64 *hclge_comm_get_stats(const void *comm_stats,
+static int hclge_comm_get_count(struct hclge_dev *hdev,
+				const struct hclge_comm_stats_str strs[],
+				u32 size)
+{
+	int count = 0;
+	u32 i;
+
+	for (i = 0; i < size; i++)
+		if (strs[i].stats_num <= hdev->ae_dev->dev_specs.mac_stats_num)
+			count++;
+
+	return count;
+}
+
+static u64 *hclge_comm_get_stats(struct hclge_dev *hdev,
 				 const struct hclge_comm_stats_str strs[],
 				 int size, u64 *data)
 {
 	u64 *buf = data;
 	u32 i;
 
-	for (i = 0; i < size; i++)
-		buf[i] = HCLGE_STATS_READ(comm_stats, strs[i].offset);
+	for (i = 0; i < size; i++) {
+		if (strs[i].stats_num > hdev->ae_dev->dev_specs.mac_stats_num)
+			continue;
 
-	return buf + size;
+		*buf = HCLGE_STATS_READ(&hdev->mac_stats, strs[i].offset);
+		buf++;
+	}
+
+	return buf;
 }
 
-static u8 *hclge_comm_get_strings(u32 stringset,
+static u8 *hclge_comm_get_strings(struct hclge_dev *hdev, u32 stringset,
 				  const struct hclge_comm_stats_str strs[],
 				  int size, u8 *data)
 {
@@ -694,6 +752,9 @@ static u8 *hclge_comm_get_strings(u32 stringset,
 		return buff;
 
 	for (i = 0; i < size; i++) {
+		if (strs[i].stats_num > hdev->ae_dev->dev_specs.mac_stats_num)
+			continue;
+
 		snprintf(buff, ETH_GSTRING_LEN, "%s", strs[i].desc);
 		buff = buff + ETH_GSTRING_LEN;
 	}
@@ -785,7 +846,8 @@ static int hclge_get_sset_count(struct hnae3_handle *handle, int stringset)
 			handle->flags |= HNAE3_SUPPORT_PHY_LOOPBACK;
 		}
 	} else if (stringset == ETH_SS_STATS) {
-		count = ARRAY_SIZE(g_mac_stats_string) +
+		count = hclge_comm_get_count(hdev, g_mac_stats_string,
+					     ARRAY_SIZE(g_mac_stats_string)) +
 			hclge_tqps_get_sset_count(handle, stringset);
 	}
 
@@ -795,12 +857,14 @@ static int hclge_get_sset_count(struct hnae3_handle *handle, int stringset)
 static void hclge_get_strings(struct hnae3_handle *handle, u32 stringset,
 			      u8 *data)
 {
+	struct hclge_vport *vport = hclge_get_vport(handle);
+	struct hclge_dev *hdev = vport->back;
 	u8 *p = (char *)data;
 	int size;
 
 	if (stringset == ETH_SS_STATS) {
 		size = ARRAY_SIZE(g_mac_stats_string);
-		p = hclge_comm_get_strings(stringset, g_mac_stats_string,
+		p = hclge_comm_get_strings(hdev, stringset, g_mac_stats_string,
 					   size, p);
 		p = hclge_tqps_get_strings(handle, p);
 	} else if (stringset == ETH_SS_TEST) {
@@ -834,7 +898,7 @@ static void hclge_get_stats(struct hnae3_handle *handle, u64 *data)
 	struct hclge_dev *hdev = vport->back;
 	u64 *p;
 
-	p = hclge_comm_get_stats(&hdev->mac_stats, g_mac_stats_string,
+	p = hclge_comm_get_stats(hdev, g_mac_stats_string,
 				 ARRAY_SIZE(g_mac_stats_string), data);
 	p = hclge_tqps_get_stats(handle, p);
 }
@@ -1037,96 +1101,100 @@ static int hclge_check_port_speed(struct hnae3_handle *handle, u32 speed)
 	return -EINVAL;
 }
 
-static void hclge_convert_setting_sr(struct hclge_mac *mac, u16 speed_ability)
+static void hclge_convert_setting_sr(u16 speed_ability,
+				     unsigned long *link_mode)
 {
 	if (speed_ability & HCLGE_SUPPORT_10G_BIT)
 		linkmode_set_bit(ETHTOOL_LINK_MODE_10000baseSR_Full_BIT,
-				 mac->supported);
+				 link_mode);
 	if (speed_ability & HCLGE_SUPPORT_25G_BIT)
 		linkmode_set_bit(ETHTOOL_LINK_MODE_25000baseSR_Full_BIT,
-				 mac->supported);
+				 link_mode);
 	if (speed_ability & HCLGE_SUPPORT_40G_BIT)
 		linkmode_set_bit(ETHTOOL_LINK_MODE_40000baseSR4_Full_BIT,
-				 mac->supported);
+				 link_mode);
 	if (speed_ability & HCLGE_SUPPORT_50G_BIT)
 		linkmode_set_bit(ETHTOOL_LINK_MODE_50000baseSR2_Full_BIT,
-				 mac->supported);
+				 link_mode);
 	if (speed_ability & HCLGE_SUPPORT_100G_BIT)
 		linkmode_set_bit(ETHTOOL_LINK_MODE_100000baseSR4_Full_BIT,
-				 mac->supported);
+				 link_mode);
 	if (speed_ability & HCLGE_SUPPORT_200G_BIT)
 		linkmode_set_bit(ETHTOOL_LINK_MODE_200000baseSR4_Full_BIT,
-				 mac->supported);
+				 link_mode);
 }
 
-static void hclge_convert_setting_lr(struct hclge_mac *mac, u16 speed_ability)
+static void hclge_convert_setting_lr(u16 speed_ability,
+				     unsigned long *link_mode)
 {
 	if (speed_ability & HCLGE_SUPPORT_10G_BIT)
 		linkmode_set_bit(ETHTOOL_LINK_MODE_10000baseLR_Full_BIT,
-				 mac->supported);
+				 link_mode);
 	if (speed_ability & HCLGE_SUPPORT_25G_BIT)
 		linkmode_set_bit(ETHTOOL_LINK_MODE_25000baseSR_Full_BIT,
-				 mac->supported);
+				 link_mode);
 	if (speed_ability & HCLGE_SUPPORT_50G_BIT)
 		linkmode_set_bit(ETHTOOL_LINK_MODE_50000baseLR_ER_FR_Full_BIT,
-				 mac->supported);
+				 link_mode);
 	if (speed_ability & HCLGE_SUPPORT_40G_BIT)
 		linkmode_set_bit(ETHTOOL_LINK_MODE_40000baseLR4_Full_BIT,
-				 mac->supported);
+				 link_mode);
 	if (speed_ability & HCLGE_SUPPORT_100G_BIT)
 		linkmode_set_bit(ETHTOOL_LINK_MODE_100000baseLR4_ER4_Full_BIT,
-				 mac->supported);
+				 link_mode);
 	if (speed_ability & HCLGE_SUPPORT_200G_BIT)
 		linkmode_set_bit(
 			ETHTOOL_LINK_MODE_200000baseLR4_ER4_FR4_Full_BIT,
-			mac->supported);
+			link_mode);
 }
 
-static void hclge_convert_setting_cr(struct hclge_mac *mac, u16 speed_ability)
+static void hclge_convert_setting_cr(u16 speed_ability,
+				     unsigned long *link_mode)
 {
 	if (speed_ability & HCLGE_SUPPORT_10G_BIT)
 		linkmode_set_bit(ETHTOOL_LINK_MODE_10000baseCR_Full_BIT,
-				 mac->supported);
+				 link_mode);
 	if (speed_ability & HCLGE_SUPPORT_25G_BIT)
 		linkmode_set_bit(ETHTOOL_LINK_MODE_25000baseCR_Full_BIT,
-				 mac->supported);
+				 link_mode);
 	if (speed_ability & HCLGE_SUPPORT_40G_BIT)
 		linkmode_set_bit(ETHTOOL_LINK_MODE_40000baseCR4_Full_BIT,
-				 mac->supported);
+				 link_mode);
 	if (speed_ability & HCLGE_SUPPORT_50G_BIT)
 		linkmode_set_bit(ETHTOOL_LINK_MODE_50000baseCR2_Full_BIT,
-				 mac->supported);
+				 link_mode);
 	if (speed_ability & HCLGE_SUPPORT_100G_BIT)
 		linkmode_set_bit(ETHTOOL_LINK_MODE_100000baseCR4_Full_BIT,
-				 mac->supported);
+				 link_mode);
 	if (speed_ability & HCLGE_SUPPORT_200G_BIT)
 		linkmode_set_bit(ETHTOOL_LINK_MODE_200000baseCR4_Full_BIT,
-				 mac->supported);
+				 link_mode);
 }
 
-static void hclge_convert_setting_kr(struct hclge_mac *mac, u16 speed_ability)
+static void hclge_convert_setting_kr(u16 speed_ability,
+				     unsigned long *link_mode)
 {
 	if (speed_ability & HCLGE_SUPPORT_1G_BIT)
 		linkmode_set_bit(ETHTOOL_LINK_MODE_1000baseKX_Full_BIT,
-				 mac->supported);
+				 link_mode);
 	if (speed_ability & HCLGE_SUPPORT_10G_BIT)
 		linkmode_set_bit(ETHTOOL_LINK_MODE_10000baseKR_Full_BIT,
-				 mac->supported);
+				 link_mode);
 	if (speed_ability & HCLGE_SUPPORT_25G_BIT)
 		linkmode_set_bit(ETHTOOL_LINK_MODE_25000baseKR_Full_BIT,
-				 mac->supported);
+				 link_mode);
 	if (speed_ability & HCLGE_SUPPORT_40G_BIT)
 		linkmode_set_bit(ETHTOOL_LINK_MODE_40000baseKR4_Full_BIT,
-				 mac->supported);
+				 link_mode);
 	if (speed_ability & HCLGE_SUPPORT_50G_BIT)
 		linkmode_set_bit(ETHTOOL_LINK_MODE_50000baseKR2_Full_BIT,
-				 mac->supported);
+				 link_mode);
 	if (speed_ability & HCLGE_SUPPORT_100G_BIT)
 		linkmode_set_bit(ETHTOOL_LINK_MODE_100000baseKR4_Full_BIT,
-				 mac->supported);
+				 link_mode);
 	if (speed_ability & HCLGE_SUPPORT_200G_BIT)
 		linkmode_set_bit(ETHTOOL_LINK_MODE_200000baseKR4_Full_BIT,
-				 mac->supported);
+				 link_mode);
 }
 
 static void hclge_convert_setting_fec(struct hclge_mac *mac)
@@ -1170,9 +1238,9 @@ static void hclge_parse_fiber_link_mode(struct hclge_dev *hdev,
 		linkmode_set_bit(ETHTOOL_LINK_MODE_1000baseX_Full_BIT,
 				 mac->supported);
 
-	hclge_convert_setting_sr(mac, speed_ability);
-	hclge_convert_setting_lr(mac, speed_ability);
-	hclge_convert_setting_cr(mac, speed_ability);
+	hclge_convert_setting_sr(speed_ability, mac->supported);
+	hclge_convert_setting_lr(speed_ability, mac->supported);
+	hclge_convert_setting_cr(speed_ability, mac->supported);
 	if (hnae3_dev_fec_supported(hdev))
 		hclge_convert_setting_fec(mac);
 
@@ -1188,7 +1256,7 @@ static void hclge_parse_backplane_link_mode(struct hclge_dev *hdev,
 {
 	struct hclge_mac *mac = &hdev->hw.mac;
 
-	hclge_convert_setting_kr(mac, speed_ability);
+	hclge_convert_setting_kr(speed_ability, mac->supported);
 	if (hnae3_dev_fec_supported(hdev))
 		hclge_convert_setting_fec(mac);
 
@@ -1342,8 +1410,6 @@ static void hclge_parse_cfg(struct hclge_cfg *cfg, struct hclge_desc *desc)
 	cfg->umv_space = hnae3_get_field(__le32_to_cpu(req->param[1]),
 					 HCLGE_CFG_UMV_TBL_SPACE_M,
 					 HCLGE_CFG_UMV_TBL_SPACE_S);
-	if (!cfg->umv_space)
-		cfg->umv_space = HCLGE_DEFAULT_UMV_SPACE_PER_PF;
 
 	cfg->pf_rss_size_max = hnae3_get_field(__le32_to_cpu(req->param[2]),
 					       HCLGE_CFG_PF_RSS_SIZE_M,
@@ -1419,6 +1485,7 @@ static void hclge_set_default_dev_specs(struct hclge_dev *hdev)
 	ae_dev->dev_specs.max_int_gl = HCLGE_DEF_MAX_INT_GL;
 	ae_dev->dev_specs.max_frm_size = HCLGE_MAC_MAX_FRAME;
 	ae_dev->dev_specs.max_qset_num = HCLGE_MAX_QSET_NUM;
+	ae_dev->dev_specs.umv_size = HCLGE_DEFAULT_UMV_SPACE_PER_PF;
 }
 
 static void hclge_parse_dev_specs(struct hclge_dev *hdev,
@@ -1440,6 +1507,8 @@ static void hclge_parse_dev_specs(struct hclge_dev *hdev,
 	ae_dev->dev_specs.max_qset_num = le16_to_cpu(req1->max_qset_num);
 	ae_dev->dev_specs.max_int_gl = le16_to_cpu(req1->max_int_gl);
 	ae_dev->dev_specs.max_frm_size = le16_to_cpu(req1->max_frm_size);
+	ae_dev->dev_specs.umv_size = le16_to_cpu(req1->umv_size);
+	ae_dev->dev_specs.mc_mac_size = le16_to_cpu(req1->mc_mac_size);
 }
 
 static void hclge_check_dev_specs(struct hclge_dev *hdev)
@@ -1460,6 +1529,21 @@ static void hclge_check_dev_specs(struct hclge_dev *hdev)
 		dev_specs->max_int_gl = HCLGE_DEF_MAX_INT_GL;
 	if (!dev_specs->max_frm_size)
 		dev_specs->max_frm_size = HCLGE_MAC_MAX_FRAME;
+	if (!dev_specs->umv_size)
+		dev_specs->umv_size = HCLGE_DEFAULT_UMV_SPACE_PER_PF;
+}
+
+static int hclge_query_mac_stats_num(struct hclge_dev *hdev)
+{
+	u32 reg_num = 0;
+	int ret;
+
+	ret = hclge_mac_query_reg_num(hdev, &reg_num);
+	if (ret && ret != -EOPNOTSUPP)
+		return ret;
+
+	hdev->ae_dev->dev_specs.mac_stats_num = reg_num;
+	return 0;
 }
 
 static int hclge_query_dev_specs(struct hclge_dev *hdev)
@@ -1467,6 +1551,10 @@ static int hclge_query_dev_specs(struct hclge_dev *hdev)
 	struct hclge_desc desc[HCLGE_QUERY_DEV_SPECS_BD_NUM];
 	int ret;
 	int i;
+
+	ret = hclge_query_mac_stats_num(hdev);
+	if (ret)
+		return ret;
 
 	/* set default specifications as devices lower than version V3 do not
 	 * support querying specifications from firmware.
@@ -1549,7 +1637,10 @@ static int hclge_configure(struct hclge_dev *hdev)
 	hdev->tm_info.num_pg = 1;
 	hdev->tc_max = cfg.tc_num;
 	hdev->tm_info.hw_pfc_map = 0;
-	hdev->wanted_umv_size = cfg.umv_space;
+	if (cfg.umv_space)
+		hdev->wanted_umv_size = cfg.umv_space;
+	else
+		hdev->wanted_umv_size = hdev->ae_dev->dev_specs.umv_size;
 	hdev->tx_spare_buf_size = cfg.tx_spare_buf_size;
 	hdev->gro_en = true;
 	if (cfg.vlan_fliter_cap == HCLGE_VLAN_FLTR_CAN_MDF)
@@ -2498,7 +2589,7 @@ static int hclge_init_roce_base_info(struct hclge_vport *vport)
 	if (hdev->num_msi < hdev->num_nic_msi + hdev->num_roce_msi)
 		return -EINVAL;
 
-	roce->rinfo.base_vector = hdev->roce_base_vector;
+	roce->rinfo.base_vector = hdev->num_nic_msi;
 
 	roce->rinfo.netdev = nic->kinfo.netdev;
 	roce->rinfo.roce_io_base = hdev->hw.io_base;
@@ -2533,10 +2624,6 @@ static int hclge_init_msi(struct hclge_dev *hdev)
 
 	hdev->num_msi = vectors;
 	hdev->num_msi_left = vectors;
-
-	hdev->base_msi_vector = pdev->irq;
-	hdev->roce_base_vector = hdev->base_msi_vector +
-				hdev->num_nic_msi;
 
 	hdev->vector_status = devm_kcalloc(&pdev->dev, hdev->num_msi,
 					   sizeof(u16), GFP_KERNEL);
@@ -2964,6 +3051,82 @@ static void hclge_update_link_status(struct hclge_dev *hdev)
 	clear_bit(HCLGE_STATE_LINK_UPDATING, &hdev->state);
 }
 
+static void hclge_update_speed_advertising(struct hclge_mac *mac)
+{
+	u32 speed_ability;
+
+	if (hclge_get_speed_bit(mac->speed, &speed_ability))
+		return;
+
+	switch (mac->module_type) {
+	case HNAE3_MODULE_TYPE_FIBRE_LR:
+		hclge_convert_setting_lr(speed_ability, mac->advertising);
+		break;
+	case HNAE3_MODULE_TYPE_FIBRE_SR:
+	case HNAE3_MODULE_TYPE_AOC:
+		hclge_convert_setting_sr(speed_ability, mac->advertising);
+		break;
+	case HNAE3_MODULE_TYPE_CR:
+		hclge_convert_setting_cr(speed_ability, mac->advertising);
+		break;
+	case HNAE3_MODULE_TYPE_KR:
+		hclge_convert_setting_kr(speed_ability, mac->advertising);
+		break;
+	default:
+		break;
+	}
+}
+
+static void hclge_update_fec_advertising(struct hclge_mac *mac)
+{
+	if (mac->fec_mode & BIT(HNAE3_FEC_RS))
+		linkmode_set_bit(ETHTOOL_LINK_MODE_FEC_RS_BIT,
+				 mac->advertising);
+	else if (mac->fec_mode & BIT(HNAE3_FEC_BASER))
+		linkmode_set_bit(ETHTOOL_LINK_MODE_FEC_BASER_BIT,
+				 mac->advertising);
+	else
+		linkmode_set_bit(ETHTOOL_LINK_MODE_FEC_NONE_BIT,
+				 mac->advertising);
+}
+
+static void hclge_update_pause_advertising(struct hclge_dev *hdev)
+{
+	struct hclge_mac *mac = &hdev->hw.mac;
+	bool rx_en, tx_en;
+
+	switch (hdev->fc_mode_last_time) {
+	case HCLGE_FC_RX_PAUSE:
+		rx_en = true;
+		tx_en = false;
+		break;
+	case HCLGE_FC_TX_PAUSE:
+		rx_en = false;
+		tx_en = true;
+		break;
+	case HCLGE_FC_FULL:
+		rx_en = true;
+		tx_en = true;
+		break;
+	default:
+		rx_en = false;
+		tx_en = false;
+		break;
+	}
+
+	linkmode_set_pause(mac->advertising, tx_en, rx_en);
+}
+
+static void hclge_update_advertising(struct hclge_dev *hdev)
+{
+	struct hclge_mac *mac = &hdev->hw.mac;
+
+	linkmode_zero(mac->advertising);
+	hclge_update_speed_advertising(mac);
+	hclge_update_fec_advertising(mac);
+	hclge_update_pause_advertising(hdev);
+}
+
 static void hclge_update_port_capability(struct hclge_dev *hdev,
 					 struct hclge_mac *mac)
 {
@@ -2986,7 +3149,7 @@ static void hclge_update_port_capability(struct hclge_dev *hdev,
 	} else {
 		linkmode_clear_bit(ETHTOOL_LINK_MODE_Autoneg_BIT,
 				   mac->supported);
-		linkmode_zero(mac->advertising);
+		hclge_update_advertising(hdev);
 	}
 }
 
@@ -8475,6 +8638,9 @@ static int hclge_init_umv_space(struct hclge_dev *hdev)
 	hdev->share_umv_size = hdev->priv_umv_size +
 			hdev->max_umv_size % (hdev->num_alloc_vport + 1);
 
+	if (hdev->ae_dev->dev_specs.mc_mac_size)
+		set_bit(HNAE3_DEV_SUPPORT_MC_MAC_MNG_B, hdev->ae_dev->caps);
+
 	return 0;
 }
 
@@ -8492,6 +8658,8 @@ static void hclge_reset_umv_space(struct hclge_dev *hdev)
 	hdev->share_umv_size = hdev->priv_umv_size +
 			hdev->max_umv_size % (hdev->num_alloc_vport + 1);
 	mutex_unlock(&hdev->vport_lock);
+
+	hdev->used_mc_mac_num = 0;
 }
 
 static bool hclge_is_umv_space_full(struct hclge_vport *vport, bool need_lock)
@@ -8746,6 +8914,7 @@ int hclge_add_mc_addr_common(struct hclge_vport *vport,
 	struct hclge_dev *hdev = vport->back;
 	struct hclge_mac_vlan_tbl_entry_cmd req;
 	struct hclge_desc desc[3];
+	bool is_new_addr = false;
 	int status;
 
 	/* mac addr check */
@@ -8759,6 +8928,13 @@ int hclge_add_mc_addr_common(struct hclge_vport *vport,
 	hclge_prepare_mac_addr(&req, addr, true);
 	status = hclge_lookup_mac_vlan_tbl(vport, &req, desc, true);
 	if (status) {
+		if (hnae3_ae_dev_mc_mac_mng_supported(hdev->ae_dev) &&
+		    hdev->used_mc_mac_num >=
+		    hdev->ae_dev->dev_specs.mc_mac_size)
+			goto err_no_space;
+
+		is_new_addr = true;
+
 		/* This mac addr do not exist, add new entry for it */
 		memset(desc[0].data, 0, sizeof(desc[0].data));
 		memset(desc[1].data, 0, sizeof(desc[0].data));
@@ -8768,12 +8944,21 @@ int hclge_add_mc_addr_common(struct hclge_vport *vport,
 	if (status)
 		return status;
 	status = hclge_add_mac_vlan_tbl(vport, &req, desc);
-	/* if already overflow, not to print each time */
-	if (status == -ENOSPC &&
-	    !(vport->overflow_promisc_flags & HNAE3_OVERFLOW_MPE))
-		dev_err(&hdev->pdev->dev, "mc mac vlan table is full\n");
+	if (status == -ENOSPC)
+		goto err_no_space;
+	else if (!status && is_new_addr)
+		hdev->used_mc_mac_num++;
 
 	return status;
+
+err_no_space:
+	/* if already overflow, not to print each time */
+	if (!(vport->overflow_promisc_flags & HNAE3_OVERFLOW_MPE)) {
+		vport->overflow_promisc_flags |= HNAE3_OVERFLOW_MPE;
+		dev_err(&hdev->pdev->dev, "mc mac vlan table is full\n");
+	}
+
+	return -ENOSPC;
 }
 
 static int hclge_rm_mc_addr(struct hnae3_handle *handle,
@@ -8810,12 +8995,15 @@ int hclge_rm_mc_addr_common(struct hclge_vport *vport,
 		if (status)
 			return status;
 
-		if (hclge_is_all_function_id_zero(desc))
+		if (hclge_is_all_function_id_zero(desc)) {
 			/* All the vfid is zero, so need to delete this entry */
 			status = hclge_remove_mac_vlan_tbl(vport, &req);
-		else
+			if (!status)
+				hdev->used_mc_mac_num--;
+		} else {
 			/* Not all the vfid is zero, update the vfid */
 			status = hclge_add_mac_vlan_tbl(vport, &req, desc);
+		}
 	} else if (status == -ENOENT) {
 		status = 0;
 	}
@@ -8825,11 +9013,16 @@ int hclge_rm_mc_addr_common(struct hclge_vport *vport,
 
 static void hclge_sync_vport_mac_list(struct hclge_vport *vport,
 				      struct list_head *list,
-				      int (*sync)(struct hclge_vport *,
-						  const unsigned char *))
+				      enum HCLGE_MAC_ADDR_TYPE mac_type)
 {
+	int (*sync)(struct hclge_vport *vport, const unsigned char *addr);
 	struct hclge_mac_node *mac_node, *tmp;
 	int ret;
+
+	if (mac_type == HCLGE_MAC_ADDR_UC)
+		sync = hclge_add_uc_addr_common;
+	else
+		sync = hclge_add_mc_addr_common;
 
 	list_for_each_entry_safe(mac_node, tmp, list, node) {
 		ret = sync(vport, mac_node->mac_addr);
@@ -8842,8 +9035,13 @@ static void hclge_sync_vport_mac_list(struct hclge_vport *vport,
 			/* If one unicast mac address is existing in hardware,
 			 * we need to try whether other unicast mac addresses
 			 * are new addresses that can be added.
+			 * Multicast mac address can be reusable, even though
+			 * there is no space to add new multicast mac address,
+			 * we should check whether other mac addresses are
+			 * existing in hardware for reuse.
 			 */
-			if (ret != -EEXIST)
+			if ((mac_type == HCLGE_MAC_ADDR_UC && ret != -EEXIST) ||
+			    (mac_type == HCLGE_MAC_ADDR_MC && ret != -ENOSPC))
 				break;
 		}
 	}
@@ -8851,11 +9049,16 @@ static void hclge_sync_vport_mac_list(struct hclge_vport *vport,
 
 static void hclge_unsync_vport_mac_list(struct hclge_vport *vport,
 					struct list_head *list,
-					int (*unsync)(struct hclge_vport *,
-						      const unsigned char *))
+					enum HCLGE_MAC_ADDR_TYPE mac_type)
 {
+	int (*unsync)(struct hclge_vport *vport, const unsigned char *addr);
 	struct hclge_mac_node *mac_node, *tmp;
 	int ret;
+
+	if (mac_type == HCLGE_MAC_ADDR_UC)
+		unsync = hclge_rm_uc_addr_common;
+	else
+		unsync = hclge_rm_mc_addr_common;
 
 	list_for_each_entry_safe(mac_node, tmp, list, node) {
 		ret = unsync(vport, mac_node->mac_addr);
@@ -8987,17 +9190,8 @@ stop_traverse:
 	spin_unlock_bh(&vport->mac_list_lock);
 
 	/* delete first, in order to get max mac table space for adding */
-	if (mac_type == HCLGE_MAC_ADDR_UC) {
-		hclge_unsync_vport_mac_list(vport, &tmp_del_list,
-					    hclge_rm_uc_addr_common);
-		hclge_sync_vport_mac_list(vport, &tmp_add_list,
-					  hclge_add_uc_addr_common);
-	} else {
-		hclge_unsync_vport_mac_list(vport, &tmp_del_list,
-					    hclge_rm_mc_addr_common);
-		hclge_sync_vport_mac_list(vport, &tmp_add_list,
-					  hclge_add_mc_addr_common);
-	}
+	hclge_unsync_vport_mac_list(vport, &tmp_del_list, mac_type);
+	hclge_sync_vport_mac_list(vport, &tmp_add_list, mac_type);
 
 	/* if some mac addresses were added/deleted fail, move back to the
 	 * mac_list, and retry at next time.
@@ -9156,12 +9350,7 @@ static void hclge_uninit_vport_mac_list(struct hclge_vport *vport,
 
 	spin_unlock_bh(&vport->mac_list_lock);
 
-	if (mac_type == HCLGE_MAC_ADDR_UC)
-		hclge_unsync_vport_mac_list(vport, &tmp_del_list,
-					    hclge_rm_uc_addr_common);
-	else
-		hclge_unsync_vport_mac_list(vport, &tmp_del_list,
-					    hclge_rm_mc_addr_common);
+	hclge_unsync_vport_mac_list(vport, &tmp_del_list, mac_type);
 
 	if (!list_empty(&tmp_del_list))
 		dev_warn(&hdev->pdev->dev,
@@ -9229,36 +9418,6 @@ static int hclge_get_mac_ethertype_cmd_status(struct hclge_dev *hdev,
 	return return_status;
 }
 
-static bool hclge_check_vf_mac_exist(struct hclge_vport *vport, int vf_idx,
-				     u8 *mac_addr)
-{
-	struct hclge_mac_vlan_tbl_entry_cmd req;
-	struct hclge_dev *hdev = vport->back;
-	struct hclge_desc desc;
-	u16 egress_port = 0;
-	int i;
-
-	if (is_zero_ether_addr(mac_addr))
-		return false;
-
-	memset(&req, 0, sizeof(req));
-	hnae3_set_field(egress_port, HCLGE_MAC_EPORT_VFID_M,
-			HCLGE_MAC_EPORT_VFID_S, vport->vport_id);
-	req.egress_port = cpu_to_le16(egress_port);
-	hclge_prepare_mac_addr(&req, mac_addr, false);
-
-	if (hclge_lookup_mac_vlan_tbl(vport, &req, &desc, false) != -ENOENT)
-		return true;
-
-	vf_idx += HCLGE_VF_VPORT_START_NUM;
-	for (i = HCLGE_VF_VPORT_START_NUM; i < hdev->num_alloc_vport; i++)
-		if (i != vf_idx &&
-		    ether_addr_equal(mac_addr, hdev->vport[i].vf_info.mac))
-			return true;
-
-	return false;
-}
-
 static int hclge_set_vf_mac(struct hnae3_handle *handle, int vf,
 			    u8 *mac_addr)
 {
@@ -9274,12 +9433,6 @@ static int hclge_set_vf_mac(struct hnae3_handle *handle, int vf,
 			 "Specified MAC(=%pM) is same as before, no change committed!\n",
 			 mac_addr);
 		return 0;
-	}
-
-	if (hclge_check_vf_mac_exist(vport, vf, mac_addr)) {
-		dev_err(&hdev->pdev->dev, "Specified MAC(=%pM) exists!\n",
-			mac_addr);
-		return -EEXIST;
 	}
 
 	ether_addr_copy(vport->vf_info.mac, mac_addr);
@@ -9391,7 +9544,7 @@ int hclge_update_mac_node_for_dev_addr(struct hclge_vport *vport,
 	return 0;
 }
 
-static int hclge_set_mac_addr(struct hnae3_handle *handle, void *p,
+static int hclge_set_mac_addr(struct hnae3_handle *handle, const void *p,
 			      bool is_first)
 {
 	const unsigned char *new_addr = (const unsigned char *)p;

@@ -159,12 +159,11 @@ mshw0011_notify(struct mshw0011_data *cdata, u8 arg1, u8 arg2,
 		unsigned int *ret_value)
 {
 	union acpi_object *obj;
-	struct acpi_device *adev;
 	acpi_handle handle;
 	unsigned int i;
 
 	handle = ACPI_HANDLE(&cdata->adp1->dev);
-	if (!handle || acpi_bus_get_device(handle, &adev))
+	if (!handle)
 		return -ENODEV;
 
 	obj = acpi_evaluate_dsm_typed(handle, &mshw0011_guid, arg1, arg2, NULL,

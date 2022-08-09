@@ -394,7 +394,8 @@ static int sja1105_init_virtual_links(struct sja1105_private *priv,
 				vl_lookup[k].vlanid = rule->key.vl.vid;
 				vl_lookup[k].vlanprior = rule->key.vl.pcp;
 			} else {
-				u16 vid = dsa_8021q_rx_vid(priv->ds, port);
+				struct dsa_port *dp = dsa_to_port(priv->ds, port);
+				u16 vid = dsa_tag_8021q_rx_vid(dp);
 
 				vl_lookup[k].vlanid = vid;
 				vl_lookup[k].vlanprior = 0;
@@ -494,13 +495,15 @@ int sja1105_vl_redirect(struct sja1105_private *priv, int port,
 			bool append)
 {
 	struct sja1105_rule *rule = sja1105_rule_find(priv, cookie);
+	struct dsa_port *dp = dsa_to_port(priv->ds, port);
+	bool vlan_aware = dsa_port_is_vlan_filtering(dp);
 	int rc;
 
-	if (!priv->vlan_aware && key->type != SJA1105_KEY_VLAN_UNAWARE_VL) {
+	if (!vlan_aware && key->type != SJA1105_KEY_VLAN_UNAWARE_VL) {
 		NL_SET_ERR_MSG_MOD(extack,
 				   "Can only redirect based on DMAC");
 		return -EOPNOTSUPP;
-	} else if (priv->vlan_aware && key->type != SJA1105_KEY_VLAN_AWARE_VL) {
+	} else if (vlan_aware && key->type != SJA1105_KEY_VLAN_AWARE_VL) {
 		NL_SET_ERR_MSG_MOD(extack,
 				   "Can only redirect based on {DMAC, VID, PCP}");
 		return -EOPNOTSUPP;
@@ -568,6 +571,8 @@ int sja1105_vl_gate(struct sja1105_private *priv, int port,
 		    u32 num_entries, struct action_gate_entry *entries)
 {
 	struct sja1105_rule *rule = sja1105_rule_find(priv, cookie);
+	struct dsa_port *dp = dsa_to_port(priv->ds, port);
+	bool vlan_aware = dsa_port_is_vlan_filtering(dp);
 	int ipv = -1;
 	int i, rc;
 	s32 rem;
@@ -592,11 +597,11 @@ int sja1105_vl_gate(struct sja1105_private *priv, int port,
 		return -ERANGE;
 	}
 
-	if (!priv->vlan_aware && key->type != SJA1105_KEY_VLAN_UNAWARE_VL) {
+	if (!vlan_aware && key->type != SJA1105_KEY_VLAN_UNAWARE_VL) {
 		NL_SET_ERR_MSG_MOD(extack,
 				   "Can only gate based on DMAC");
 		return -EOPNOTSUPP;
-	} else if (priv->vlan_aware && key->type != SJA1105_KEY_VLAN_AWARE_VL) {
+	} else if (vlan_aware && key->type != SJA1105_KEY_VLAN_AWARE_VL) {
 		NL_SET_ERR_MSG_MOD(extack,
 				   "Can only gate based on {DMAC, VID, PCP}");
 		return -EOPNOTSUPP;

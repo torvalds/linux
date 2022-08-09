@@ -42,6 +42,4 @@ int log_cgroup_id(struct __sk_buff *skb)
 	return TC_ACT_OK;
 }
 
-int _version SEC("version") = 1;
-
 char _license[] SEC("license") = "GPL";

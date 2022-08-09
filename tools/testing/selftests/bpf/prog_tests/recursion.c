@@ -20,18 +20,18 @@ void test_recursion(void)
 		goto out;
 
 	ASSERT_EQ(skel->bss->pass1, 0, "pass1 == 0");
-	bpf_map_lookup_elem(bpf_map__fd(skel->maps.hash1), &key, 0);
+	bpf_map_delete_elem(bpf_map__fd(skel->maps.hash1), &key);
 	ASSERT_EQ(skel->bss->pass1, 1, "pass1 == 1");
-	bpf_map_lookup_elem(bpf_map__fd(skel->maps.hash1), &key, 0);
+	bpf_map_delete_elem(bpf_map__fd(skel->maps.hash1), &key);
 	ASSERT_EQ(skel->bss->pass1, 2, "pass1 == 2");
 
 	ASSERT_EQ(skel->bss->pass2, 0, "pass2 == 0");
-	bpf_map_lookup_elem(bpf_map__fd(skel->maps.hash2), &key, 0);
+	bpf_map_delete_elem(bpf_map__fd(skel->maps.hash2), &key);
 	ASSERT_EQ(skel->bss->pass2, 1, "pass2 == 1");
-	bpf_map_lookup_elem(bpf_map__fd(skel->maps.hash2), &key, 0);
+	bpf_map_delete_elem(bpf_map__fd(skel->maps.hash2), &key);
 	ASSERT_EQ(skel->bss->pass2, 2, "pass2 == 2");
 
-	err = bpf_obj_get_info_by_fd(bpf_program__fd(skel->progs.on_lookup),
+	err = bpf_obj_get_info_by_fd(bpf_program__fd(skel->progs.on_delete),
 				     &prog_info, &prog_info_len);
 	if (!ASSERT_OK(err, "get_prog_info"))
 		goto out;

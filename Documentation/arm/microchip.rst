@@ -137,6 +137,26 @@ the Microchip website: http://www.microchip.com.
 
           http://ww1.microchip.com/downloads/en/DeviceDoc/DS60001476B.pdf
 
+    * ARM Cortex-A7 based SoCs
+      - sama7g5 family
+
+        - sama7g51
+        - sama7g52
+        - sama7g53
+        - sama7g54 (device superset)
+
+          * Datasheet
+
+          Coming soon
+
+      - lan966 family
+        - lan9662
+        - lan9668
+
+          * Datasheet
+
+          Coming soon
+
     * ARM Cortex-M7 MCUs
       - sams70 family
 

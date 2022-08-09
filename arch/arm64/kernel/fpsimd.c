@@ -121,40 +121,62 @@ struct fpsimd_last_state_struct {
 
 static DEFINE_PER_CPU(struct fpsimd_last_state_struct, fpsimd_last_state);
 
-/* Default VL for tasks that don't set it explicitly: */
-static int __sve_default_vl = -1;
+__ro_after_init struct vl_info vl_info[ARM64_VEC_MAX] = {
+#ifdef CONFIG_ARM64_SVE
+	[ARM64_VEC_SVE] = {
+		.type			= ARM64_VEC_SVE,
+		.name			= "SVE",
+		.min_vl			= SVE_VL_MIN,
+		.max_vl			= SVE_VL_MIN,
+		.max_virtualisable_vl	= SVE_VL_MIN,
+	},
+#endif
+};
 
-static int get_sve_default_vl(void)
+static unsigned int vec_vl_inherit_flag(enum vec_type type)
 {
-	return READ_ONCE(__sve_default_vl);
+	switch (type) {
+	case ARM64_VEC_SVE:
+		return TIF_SVE_VL_INHERIT;
+	default:
+		WARN_ON_ONCE(1);
+		return 0;
+	}
+}
+
+struct vl_config {
+	int __default_vl;		/* Default VL for tasks */
+};
+
+static struct vl_config vl_config[ARM64_VEC_MAX];
+
+static inline int get_default_vl(enum vec_type type)
+{
+	return READ_ONCE(vl_config[type].__default_vl);
 }
 
 #ifdef CONFIG_ARM64_SVE
 
-static void set_sve_default_vl(int val)
+static inline int get_sve_default_vl(void)
 {
-	WRITE_ONCE(__sve_default_vl, val);
+	return get_default_vl(ARM64_VEC_SVE);
 }
 
-/* Maximum supported vector length across all CPUs (initially poisoned) */
-int __ro_after_init sve_max_vl = SVE_VL_MIN;
-int __ro_after_init sve_max_virtualisable_vl = SVE_VL_MIN;
+static inline void set_default_vl(enum vec_type type, int val)
+{
+	WRITE_ONCE(vl_config[type].__default_vl, val);
+}
 
-/*
- * Set of available vector lengths,
- * where length vq encoded as bit __vq_to_bit(vq):
- */
-__ro_after_init DECLARE_BITMAP(sve_vq_map, SVE_VQ_MAX);
-/* Set of vector lengths present on at least one cpu: */
-static __ro_after_init DECLARE_BITMAP(sve_vq_partial_map, SVE_VQ_MAX);
+static inline void set_sve_default_vl(int val)
+{
+	set_default_vl(ARM64_VEC_SVE, val);
+}
 
 static void __percpu *efi_sve_state;
 
 #else /* ! CONFIG_ARM64_SVE */
 
 /* Dummy declaration for code that will be optimised out: */
-extern __ro_after_init DECLARE_BITMAP(sve_vq_map, SVE_VQ_MAX);
-extern __ro_after_init DECLARE_BITMAP(sve_vq_partial_map, SVE_VQ_MAX);
 extern void __percpu *efi_sve_state;
 
 #endif /* ! CONFIG_ARM64_SVE */
@@ -228,6 +250,29 @@ static void sve_free(struct task_struct *task)
 	__sve_free(task);
 }
 
+unsigned int task_get_vl(const struct task_struct *task, enum vec_type type)
+{
+	return task->thread.vl[type];
+}
+
+void task_set_vl(struct task_struct *task, enum vec_type type,
+		 unsigned long vl)
+{
+	task->thread.vl[type] = vl;
+}
+
+unsigned int task_get_vl_onexec(const struct task_struct *task,
+				enum vec_type type)
+{
+	return task->thread.vl_onexec[type];
+}
+
+void task_set_vl_onexec(struct task_struct *task, enum vec_type type,
+			unsigned long vl)
+{
+	task->thread.vl_onexec[type] = vl;
+}
+
 /*
  * TIF_SVE controls whether a task can use SVE without trapping while
  * in userspace, and also the way a task's FPSIMD/SVE state is stored
@@ -287,12 +332,13 @@ static void task_fpsimd_load(void)
 	WARN_ON(!system_supports_fpsimd());
 	WARN_ON(!have_cpu_fpsimd_context());
 
-	if (IS_ENABLED(CONFIG_ARM64_SVE) && test_thread_flag(TIF_SVE))
+	if (IS_ENABLED(CONFIG_ARM64_SVE) && test_thread_flag(TIF_SVE)) {
+		sve_set_vq(sve_vq_from_vl(task_get_sve_vl(current)) - 1);
 		sve_load_state(sve_pffr(&current->thread),
-			       &current->thread.uw.fpsimd_state.fpsr,
-			       sve_vq_from_vl(current->thread.sve_vl) - 1);
-	else
+			       &current->thread.uw.fpsimd_state.fpsr, true);
+	} else {
 		fpsimd_load_state(&current->thread.uw.fpsimd_state);
+	}
 }
 
 /*
@@ -308,24 +354,26 @@ static void fpsimd_save(void)
 	WARN_ON(!system_supports_fpsimd());
 	WARN_ON(!have_cpu_fpsimd_context());
 
-	if (!test_thread_flag(TIF_FOREIGN_FPSTATE)) {
-		if (IS_ENABLED(CONFIG_ARM64_SVE) &&
-		    test_thread_flag(TIF_SVE)) {
-			if (WARN_ON(sve_get_vl() != last->sve_vl)) {
-				/*
-				 * Can't save the user regs, so current would
-				 * re-enter user with corrupt state.
-				 * There's no way to recover, so kill it:
-				 */
-				force_signal_inject(SIGKILL, SI_KERNEL, 0, 0);
-				return;
-			}
+	if (test_thread_flag(TIF_FOREIGN_FPSTATE))
+		return;
 
-			sve_save_state((char *)last->sve_state +
-						sve_ffr_offset(last->sve_vl),
-				       &last->st->fpsr);
-		} else
-			fpsimd_save_state(last->st);
+	if (IS_ENABLED(CONFIG_ARM64_SVE) &&
+	    test_thread_flag(TIF_SVE)) {
+		if (WARN_ON(sve_get_vl() != last->sve_vl)) {
+			/*
+			 * Can't save the user regs, so current would
+			 * re-enter user with corrupt state.
+			 * There's no way to recover, so kill it:
+			 */
+			force_signal_inject(SIGKILL, SI_KERNEL, 0, 0);
+			return;
+		}
+
+		sve_save_state((char *)last->sve_state +
+					sve_ffr_offset(last->sve_vl),
+			       &last->st->fpsr, true);
+	} else {
+		fpsimd_save_state(last->st);
 	}
 }
 
@@ -335,21 +383,23 @@ static void fpsimd_save(void)
  * If things go wrong there's a bug somewhere, but try to fall back to a
  * safe choice.
  */
-static unsigned int find_supported_vector_length(unsigned int vl)
+static unsigned int find_supported_vector_length(enum vec_type type,
+						 unsigned int vl)
 {
+	struct vl_info *info = &vl_info[type];
 	int bit;
-	int max_vl = sve_max_vl;
+	int max_vl = info->max_vl;
 
 	if (WARN_ON(!sve_vl_valid(vl)))
-		vl = SVE_VL_MIN;
+		vl = info->min_vl;
 
 	if (WARN_ON(!sve_vl_valid(max_vl)))
-		max_vl = SVE_VL_MIN;
+		max_vl = info->min_vl;
 
 	if (vl > max_vl)
 		vl = max_vl;
 
-	bit = find_next_bit(sve_vq_map, SVE_VQ_MAX,
+	bit = find_next_bit(info->vq_map, SVE_VQ_MAX,
 			    __vq_to_bit(sve_vq_from_vl(vl)));
 	return sve_vl_from_vq(__bit_to_vq(bit));
 }
@@ -359,6 +409,7 @@ static unsigned int find_supported_vector_length(unsigned int vl)
 static int sve_proc_do_default_vl(struct ctl_table *table, int write,
 				  void *buffer, size_t *lenp, loff_t *ppos)
 {
+	struct vl_info *info = &vl_info[ARM64_VEC_SVE];
 	int ret;
 	int vl = get_sve_default_vl();
 	struct ctl_table tmp_table = {
@@ -372,12 +423,12 @@ static int sve_proc_do_default_vl(struct ctl_table *table, int write,
 
 	/* Writing -1 has the special meaning "set to max": */
 	if (vl == -1)
-		vl = sve_max_vl;
+		vl = info->max_vl;
 
 	if (!sve_vl_valid(vl))
 		return -EINVAL;
 
-	set_sve_default_vl(find_supported_vector_length(vl));
+	set_sve_default_vl(find_supported_vector_length(ARM64_VEC_SVE, vl));
 	return 0;
 }
 
@@ -456,7 +507,7 @@ static void fpsimd_to_sve(struct task_struct *task)
 	if (!system_supports_sve())
 		return;
 
-	vq = sve_vq_from_vl(task->thread.sve_vl);
+	vq = sve_vq_from_vl(task_get_sve_vl(task));
 	__fpsimd_to_sve(sst, fst, vq);
 }
 
@@ -482,7 +533,7 @@ static void sve_to_fpsimd(struct task_struct *task)
 	if (!system_supports_sve())
 		return;
 
-	vq = sve_vq_from_vl(task->thread.sve_vl);
+	vq = sve_vq_from_vl(task_get_sve_vl(task));
 	for (i = 0; i < SVE_NUM_ZREGS; ++i) {
 		p = (__uint128_t const *)ZREG(sst, vq, i);
 		fst->vregs[i] = arm64_le128_to_cpu(*p);
@@ -495,9 +546,9 @@ static void sve_to_fpsimd(struct task_struct *task)
  * Return how many bytes of memory are required to store the full SVE
  * state for task, given task's currently configured vector length.
  */
-size_t sve_state_size(struct task_struct const *task)
+static size_t sve_state_size(struct task_struct const *task)
 {
-	return SVE_SIG_REGS_SIZE(sve_vq_from_vl(task->thread.sve_vl));
+	return SVE_SIG_REGS_SIZE(sve_vq_from_vl(task_get_sve_vl(task)));
 }
 
 /*
@@ -572,7 +623,7 @@ void sve_sync_from_fpsimd_zeropad(struct task_struct *task)
 	if (!test_tsk_thread_flag(task, TIF_SVE))
 		return;
 
-	vq = sve_vq_from_vl(task->thread.sve_vl);
+	vq = sve_vq_from_vl(task_get_sve_vl(task));
 
 	memset(sst, 0, SVE_SIG_REGS_SIZE(vq));
 	__fpsimd_to_sve(sst, fst, vq);
@@ -596,20 +647,20 @@ int sve_set_vector_length(struct task_struct *task,
 	if (vl > SVE_VL_ARCH_MAX)
 		vl = SVE_VL_ARCH_MAX;
 
-	vl = find_supported_vector_length(vl);
+	vl = find_supported_vector_length(ARM64_VEC_SVE, vl);
 
 	if (flags & (PR_SVE_VL_INHERIT |
 		     PR_SVE_SET_VL_ONEXEC))
-		task->thread.sve_vl_onexec = vl;
+		task_set_sve_vl_onexec(task, vl);
 	else
 		/* Reset VL to system default on next exec: */
-		task->thread.sve_vl_onexec = 0;
+		task_set_sve_vl_onexec(task, 0);
 
 	/* Only actually set the VL if not deferred: */
 	if (flags & PR_SVE_SET_VL_ONEXEC)
 		goto out;
 
-	if (vl == task->thread.sve_vl)
+	if (vl == task_get_sve_vl(task))
 		goto out;
 
 	/*
@@ -636,7 +687,7 @@ int sve_set_vector_length(struct task_struct *task,
 	 */
 	sve_free(task);
 
-	task->thread.sve_vl = vl;
+	task_set_sve_vl(task, vl);
 
 out:
 	update_tsk_thread_flag(task, TIF_SVE_VL_INHERIT,
@@ -656,9 +707,9 @@ static int sve_prctl_status(unsigned long flags)
 	int ret;
 
 	if (flags & PR_SVE_SET_VL_ONEXEC)
-		ret = current->thread.sve_vl_onexec;
+		ret = task_get_sve_vl_onexec(current);
 	else
-		ret = current->thread.sve_vl;
+		ret = task_get_sve_vl(current);
 
 	if (test_thread_flag(TIF_SVE_VL_INHERIT))
 		ret |= PR_SVE_VL_INHERIT;
@@ -694,18 +745,15 @@ int sve_get_current_vl(void)
 	return sve_prctl_status(0);
 }
 
-static void sve_probe_vqs(DECLARE_BITMAP(map, SVE_VQ_MAX))
+static void vec_probe_vqs(struct vl_info *info,
+			  DECLARE_BITMAP(map, SVE_VQ_MAX))
 {
 	unsigned int vq, vl;
-	unsigned long zcr;
 
 	bitmap_zero(map, SVE_VQ_MAX);
 
-	zcr = ZCR_ELx_LEN_MASK;
-	zcr = read_sysreg_s(SYS_ZCR_EL1) & ~zcr;
-
 	for (vq = SVE_VQ_MAX; vq >= SVE_VQ_MIN; --vq) {
-		write_sysreg_s(zcr | (vq - 1), SYS_ZCR_EL1); /* self-syncing */
+		write_vl(info->type, vq - 1); /* self-syncing */
 		vl = sve_get_vl();
 		vq = sve_vq_from_vl(vl); /* skip intervening lengths */
 		set_bit(__vq_to_bit(vq), map);
@@ -716,10 +764,11 @@ static void sve_probe_vqs(DECLARE_BITMAP(map, SVE_VQ_MAX))
  * Initialise the set of known supported VQs for the boot CPU.
  * This is called during kernel boot, before secondary CPUs are brought up.
  */
-void __init sve_init_vq_map(void)
+void __init vec_init_vq_map(enum vec_type type)
 {
-	sve_probe_vqs(sve_vq_map);
-	bitmap_copy(sve_vq_partial_map, sve_vq_map, SVE_VQ_MAX);
+	struct vl_info *info = &vl_info[type];
+	vec_probe_vqs(info, info->vq_map);
+	bitmap_copy(info->vq_partial_map, info->vq_map, SVE_VQ_MAX);
 }
 
 /*
@@ -727,30 +776,33 @@ void __init sve_init_vq_map(void)
  * those not supported by the current CPU.
  * This function is called during the bring-up of early secondary CPUs only.
  */
-void sve_update_vq_map(void)
+void vec_update_vq_map(enum vec_type type)
 {
+	struct vl_info *info = &vl_info[type];
 	DECLARE_BITMAP(tmp_map, SVE_VQ_MAX);
 
-	sve_probe_vqs(tmp_map);
-	bitmap_and(sve_vq_map, sve_vq_map, tmp_map, SVE_VQ_MAX);
-	bitmap_or(sve_vq_partial_map, sve_vq_partial_map, tmp_map, SVE_VQ_MAX);
+	vec_probe_vqs(info, tmp_map);
+	bitmap_and(info->vq_map, info->vq_map, tmp_map, SVE_VQ_MAX);
+	bitmap_or(info->vq_partial_map, info->vq_partial_map, tmp_map,
+		  SVE_VQ_MAX);
 }
 
 /*
  * Check whether the current CPU supports all VQs in the committed set.
  * This function is called during the bring-up of late secondary CPUs only.
  */
-int sve_verify_vq_map(void)
+int vec_verify_vq_map(enum vec_type type)
 {
+	struct vl_info *info = &vl_info[type];
 	DECLARE_BITMAP(tmp_map, SVE_VQ_MAX);
 	unsigned long b;
 
-	sve_probe_vqs(tmp_map);
+	vec_probe_vqs(info, tmp_map);
 
 	bitmap_complement(tmp_map, tmp_map, SVE_VQ_MAX);
-	if (bitmap_intersects(tmp_map, sve_vq_map, SVE_VQ_MAX)) {
-		pr_warn("SVE: cpu%d: Required vector length(s) missing\n",
-			smp_processor_id());
+	if (bitmap_intersects(tmp_map, info->vq_map, SVE_VQ_MAX)) {
+		pr_warn("%s: cpu%d: Required vector length(s) missing\n",
+			info->name, smp_processor_id());
 		return -EINVAL;
 	}
 
@@ -766,7 +818,7 @@ int sve_verify_vq_map(void)
 	/* Recover the set of supported VQs: */
 	bitmap_complement(tmp_map, tmp_map, SVE_VQ_MAX);
 	/* Find VQs supported that are not globally supported: */
-	bitmap_andnot(tmp_map, tmp_map, sve_vq_map, SVE_VQ_MAX);
+	bitmap_andnot(tmp_map, tmp_map, info->vq_map, SVE_VQ_MAX);
 
 	/* Find the lowest such VQ, if any: */
 	b = find_last_bit(tmp_map, SVE_VQ_MAX);
@@ -777,9 +829,9 @@ int sve_verify_vq_map(void)
 	 * Mismatches above sve_max_virtualisable_vl are fine, since
 	 * no guest is allowed to configure ZCR_EL2.LEN to exceed this:
 	 */
-	if (sve_vl_from_vq(__bit_to_vq(b)) <= sve_max_virtualisable_vl) {
-		pr_warn("SVE: cpu%d: Unsupported vector length(s) present\n",
-			smp_processor_id());
+	if (sve_vl_from_vq(__bit_to_vq(b)) <= info->max_virtualisable_vl) {
+		pr_warn("%s: cpu%d: Unsupported vector length(s) present\n",
+			info->name, smp_processor_id());
 		return -EINVAL;
 	}
 
@@ -788,6 +840,8 @@ int sve_verify_vq_map(void)
 
 static void __init sve_efi_setup(void)
 {
+	struct vl_info *info = &vl_info[ARM64_VEC_SVE];
+
 	if (!IS_ENABLED(CONFIG_EFI))
 		return;
 
@@ -796,11 +850,11 @@ static void __init sve_efi_setup(void)
 	 * This is evidence of a crippled system and we are returning void,
 	 * so no attempt is made to handle this situation here.
 	 */
-	if (!sve_vl_valid(sve_max_vl))
+	if (!sve_vl_valid(info->max_vl))
 		goto fail;
 
 	efi_sve_state = __alloc_percpu(
-		SVE_SIG_REGS_SIZE(sve_vq_from_vl(sve_max_vl)), SVE_VQ_BYTES);
+		SVE_SIG_REGS_SIZE(sve_vq_from_vl(info->max_vl)), SVE_VQ_BYTES);
 	if (!efi_sve_state)
 		goto fail;
 
@@ -849,6 +903,7 @@ u64 read_zcr_features(void)
 
 void __init sve_setup(void)
 {
+	struct vl_info *info = &vl_info[ARM64_VEC_SVE];
 	u64 zcr;
 	DECLARE_BITMAP(tmp_map, SVE_VQ_MAX);
 	unsigned long b;
@@ -861,49 +916,52 @@ void __init sve_setup(void)
 	 * so sve_vq_map must have at least SVE_VQ_MIN set.
 	 * If something went wrong, at least try to patch it up:
 	 */
-	if (WARN_ON(!test_bit(__vq_to_bit(SVE_VQ_MIN), sve_vq_map)))
-		set_bit(__vq_to_bit(SVE_VQ_MIN), sve_vq_map);
+	if (WARN_ON(!test_bit(__vq_to_bit(SVE_VQ_MIN), info->vq_map)))
+		set_bit(__vq_to_bit(SVE_VQ_MIN), info->vq_map);
 
 	zcr = read_sanitised_ftr_reg(SYS_ZCR_EL1);
-	sve_max_vl = sve_vl_from_vq((zcr & ZCR_ELx_LEN_MASK) + 1);
+	info->max_vl = sve_vl_from_vq((zcr & ZCR_ELx_LEN_MASK) + 1);
 
 	/*
 	 * Sanity-check that the max VL we determined through CPU features
 	 * corresponds properly to sve_vq_map.  If not, do our best:
 	 */
-	if (WARN_ON(sve_max_vl != find_supported_vector_length(sve_max_vl)))
-		sve_max_vl = find_supported_vector_length(sve_max_vl);
+	if (WARN_ON(info->max_vl != find_supported_vector_length(ARM64_VEC_SVE,
+								 info->max_vl)))
+		info->max_vl = find_supported_vector_length(ARM64_VEC_SVE,
+							    info->max_vl);
 
 	/*
 	 * For the default VL, pick the maximum supported value <= 64.
 	 * VL == 64 is guaranteed not to grow the signal frame.
 	 */
-	set_sve_default_vl(find_supported_vector_length(64));
+	set_sve_default_vl(find_supported_vector_length(ARM64_VEC_SVE, 64));
 
-	bitmap_andnot(tmp_map, sve_vq_partial_map, sve_vq_map,
+	bitmap_andnot(tmp_map, info->vq_partial_map, info->vq_map,
 		      SVE_VQ_MAX);
 
 	b = find_last_bit(tmp_map, SVE_VQ_MAX);
 	if (b >= SVE_VQ_MAX)
 		/* No non-virtualisable VLs found */
-		sve_max_virtualisable_vl = SVE_VQ_MAX;
+		info->max_virtualisable_vl = SVE_VQ_MAX;
 	else if (WARN_ON(b == SVE_VQ_MAX - 1))
 		/* No virtualisable VLs?  This is architecturally forbidden. */
-		sve_max_virtualisable_vl = SVE_VQ_MIN;
+		info->max_virtualisable_vl = SVE_VQ_MIN;
 	else /* b + 1 < SVE_VQ_MAX */
-		sve_max_virtualisable_vl = sve_vl_from_vq(__bit_to_vq(b + 1));
+		info->max_virtualisable_vl = sve_vl_from_vq(__bit_to_vq(b + 1));
 
-	if (sve_max_virtualisable_vl > sve_max_vl)
-		sve_max_virtualisable_vl = sve_max_vl;
+	if (info->max_virtualisable_vl > info->max_vl)
+		info->max_virtualisable_vl = info->max_vl;
 
-	pr_info("SVE: maximum available vector length %u bytes per vector\n",
-		sve_max_vl);
-	pr_info("SVE: default vector length %u bytes per vector\n",
-		get_sve_default_vl());
+	pr_info("%s: maximum available vector length %u bytes per vector\n",
+		info->name, info->max_vl);
+	pr_info("%s: default vector length %u bytes per vector\n",
+		info->name, get_sve_default_vl());
 
 	/* KVM decides whether to support mismatched systems. Just warn here: */
-	if (sve_max_virtualisable_vl < sve_max_vl)
-		pr_warn("SVE: unvirtualisable vector lengths present\n");
+	if (sve_max_virtualisable_vl() < sve_max_vl())
+		pr_warn("%s: unvirtualisable vector lengths present\n",
+			info->name);
 
 	sve_efi_setup();
 }
@@ -958,9 +1016,9 @@ void do_sve_acc(unsigned int esr, struct pt_regs *regs)
 	 */
 	if (!test_thread_flag(TIF_FOREIGN_FPSTATE)) {
 		unsigned long vq_minus_one =
-			sve_vq_from_vl(current->thread.sve_vl) - 1;
+			sve_vq_from_vl(task_get_sve_vl(current)) - 1;
 		sve_set_vq(vq_minus_one);
-		sve_flush_live(vq_minus_one);
+		sve_flush_live(true, vq_minus_one);
 		fpsimd_bind_task_to_cpu();
 	} else {
 		fpsimd_to_sve(current);
@@ -1030,10 +1088,43 @@ void fpsimd_thread_switch(struct task_struct *next)
 	__put_cpu_fpsimd_context();
 }
 
-void fpsimd_flush_thread(void)
+static void fpsimd_flush_thread_vl(enum vec_type type)
 {
 	int vl, supported_vl;
 
+	/*
+	 * Reset the task vector length as required.  This is where we
+	 * ensure that all user tasks have a valid vector length
+	 * configured: no kernel task can become a user task without
+	 * an exec and hence a call to this function.  By the time the
+	 * first call to this function is made, all early hardware
+	 * probing is complete, so __sve_default_vl should be valid.
+	 * If a bug causes this to go wrong, we make some noise and
+	 * try to fudge thread.sve_vl to a safe value here.
+	 */
+	vl = task_get_vl_onexec(current, type);
+	if (!vl)
+		vl = get_default_vl(type);
+
+	if (WARN_ON(!sve_vl_valid(vl)))
+		vl = SVE_VL_MIN;
+
+	supported_vl = find_supported_vector_length(type, vl);
+	if (WARN_ON(supported_vl != vl))
+		vl = supported_vl;
+
+	task_set_vl(current, type, vl);
+
+	/*
+	 * If the task is not set to inherit, ensure that the vector
+	 * length will be reset by a subsequent exec:
+	 */
+	if (!test_thread_flag(vec_vl_inherit_flag(type)))
+		task_set_vl_onexec(current, type, 0);
+}
+
+void fpsimd_flush_thread(void)
+{
 	if (!system_supports_fpsimd())
 		return;
 
@@ -1046,36 +1137,7 @@ void fpsimd_flush_thread(void)
 	if (system_supports_sve()) {
 		clear_thread_flag(TIF_SVE);
 		sve_free(current);
-
-		/*
-		 * Reset the task vector length as required.
-		 * This is where we ensure that all user tasks have a valid
-		 * vector length configured: no kernel task can become a user
-		 * task without an exec and hence a call to this function.
-		 * By the time the first call to this function is made, all
-		 * early hardware probing is complete, so __sve_default_vl
-		 * should be valid.
-		 * If a bug causes this to go wrong, we make some noise and
-		 * try to fudge thread.sve_vl to a safe value here.
-		 */
-		vl = current->thread.sve_vl_onexec ?
-			current->thread.sve_vl_onexec : get_sve_default_vl();
-
-		if (WARN_ON(!sve_vl_valid(vl)))
-			vl = SVE_VL_MIN;
-
-		supported_vl = find_supported_vector_length(vl);
-		if (WARN_ON(supported_vl != vl))
-			vl = supported_vl;
-
-		current->thread.sve_vl = vl;
-
-		/*
-		 * If the task is not set to inherit, ensure that the vector
-		 * length will be reset by a subsequent exec:
-		 */
-		if (!test_thread_flag(TIF_SVE_VL_INHERIT))
-			current->thread.sve_vl_onexec = 0;
+		fpsimd_flush_thread_vl(ARM64_VEC_SVE);
 	}
 
 	put_cpu_fpsimd_context();
@@ -1120,7 +1182,7 @@ static void fpsimd_bind_task_to_cpu(void)
 	WARN_ON(!system_supports_fpsimd());
 	last->st = &current->thread.uw.fpsimd_state;
 	last->sve_state = current->thread.sve_state;
-	last->sve_vl = current->thread.sve_vl;
+	last->sve_vl = task_get_sve_vl(current);
 	current->thread.fpsimd_cpu = smp_processor_id();
 
 	if (system_supports_sve()) {
@@ -1353,8 +1415,9 @@ void __efi_fpsimd_begin(void)
 
 			__this_cpu_write(efi_sve_state_used, true);
 
-			sve_save_state(sve_state + sve_ffr_offset(sve_max_vl),
-				       &this_cpu_ptr(&efi_fpsimd_state)->fpsr);
+			sve_save_state(sve_state + sve_ffr_offset(sve_max_vl()),
+				       &this_cpu_ptr(&efi_fpsimd_state)->fpsr,
+				       true);
 		} else {
 			fpsimd_save_state(this_cpu_ptr(&efi_fpsimd_state));
 		}
@@ -1378,9 +1441,10 @@ void __efi_fpsimd_end(void)
 		    likely(__this_cpu_read(efi_sve_state_used))) {
 			char const *sve_state = this_cpu_ptr(efi_sve_state);
 
-			sve_load_state(sve_state + sve_ffr_offset(sve_max_vl),
+			sve_set_vq(sve_vq_from_vl(sve_get_vl()) - 1);
+			sve_load_state(sve_state + sve_ffr_offset(sve_max_vl()),
 				       &this_cpu_ptr(&efi_fpsimd_state)->fpsr,
-				       sve_vq_from_vl(sve_get_vl()) - 1);
+				       true);
 
 			__this_cpu_write(efi_sve_state_used, false);
 		} else {

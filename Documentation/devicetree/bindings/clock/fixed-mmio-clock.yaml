@@ -1,0 +1,47 @@
+# SPDX-License-Identifier: GPL-2.0
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/clock/fixed-mmio-clock.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Binding for simple memory mapped IO fixed-rate clock sources
+
+description:
+  This binding describes a fixed-rate clock for which the frequency can
+  be read from a single 32-bit memory mapped I/O register.
+
+  It was designed for test systems, like FPGA, not for complete,
+  finished SoCs.
+
+maintainers:
+  - Jan Kotas <jank@cadence.com>
+
+properties:
+  compatible:
+    const: fixed-mmio-clock
+
+  reg:
+    maxItems: 1
+
+  "#clock-cells":
+    const: 0
+
+  clock-output-names:
+    maxItems: 1
+
+required:
+  - compatible
+  - reg
+  - "#clock-cells"
+
+additionalProperties: false
+
+examples:
+  - |
+    sysclock: sysclock@fd020004 {
+      compatible = "fixed-mmio-clock";
+      #clock-cells = <0>;
+      reg = <0xfd020004 0x4>;
+      clock-output-names = "sysclk";
+    };
+...

@@ -79,6 +79,8 @@ This driver does not auto-detect devices. You will have to instantiate the
 devices explicitly. Please see Documentation/i2c/instantiating-devices.rst for
 details.
 
+The shunt (sense) resistor value can be configured by a device tree property;
+see Documentation/devicetree/bindings/hwmon/pmbus/ti,lm25066.yaml for details.
 
 Platform data support
 ---------------------

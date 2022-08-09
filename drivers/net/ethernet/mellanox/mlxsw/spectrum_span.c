@@ -1650,6 +1650,22 @@ void mlxsw_sp_span_trigger_disable(struct mlxsw_sp_port *mlxsw_sp_port,
 	return trigger_entry->ops->disable(trigger_entry, mlxsw_sp_port, tc);
 }
 
+bool mlxsw_sp_span_trigger_is_ingress(enum mlxsw_sp_span_trigger trigger)
+{
+	switch (trigger) {
+	case MLXSW_SP_SPAN_TRIGGER_INGRESS:
+	case MLXSW_SP_SPAN_TRIGGER_EARLY_DROP:
+	case MLXSW_SP_SPAN_TRIGGER_TAIL_DROP:
+		return true;
+	case MLXSW_SP_SPAN_TRIGGER_EGRESS:
+	case MLXSW_SP_SPAN_TRIGGER_ECN:
+		return false;
+	}
+
+	WARN_ON_ONCE(1);
+	return false;
+}
+
 static int mlxsw_sp1_span_init(struct mlxsw_sp *mlxsw_sp)
 {
 	size_t arr_size = ARRAY_SIZE(mlxsw_sp1_span_entry_ops_arr);

@@ -25,8 +25,6 @@ struct ksz_port_mib {
 };
 
 struct ksz_port {
-	u16 member;
-	u16 vid_member;
 	bool remove_tag;		/* Remove Tag flag set, for ksz8795 only */
 	int stp_state;
 	struct phy_device phydev;
@@ -83,8 +81,6 @@ struct ksz_device {
 	struct ksz_port *ports;
 	struct delayed_work mib_read;
 	unsigned long mib_read_interval;
-	u16 br_member;
-	u16 member;
 	u16 mirror_rx;
 	u16 mirror_tx;
 	u32 features;			/* chip specific features */

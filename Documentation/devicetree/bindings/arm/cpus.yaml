@@ -171,6 +171,8 @@ properties:
       - qcom,kryo385
       - qcom,kryo468
       - qcom,kryo485
+      - qcom,kryo560
+      - qcom,kryo570
       - qcom,kryo685
       - qcom,scorpion
 
@@ -209,6 +211,9 @@ properties:
           - qcom,gcc-msm8660
           - qcom,kpss-acc-v1
           - qcom,kpss-acc-v2
+          - qcom,msm8226-smp
+          # Only valid on ARM 32-bit, see above for ARM v8 64-bit
+          - qcom,msm8916-smp
           - renesas,apmu
           - renesas,r9a06g032-smp
           - rockchip,rk3036-smp
@@ -239,6 +244,8 @@ properties:
       u32 value representing CPU capacity (see ./cpu-capacity.txt) in
       DMIPS/MHz, relative to highest capacity-dmips-mhz
       in the system.
+
+  cci-control-port: true
 
   dynamic-power-coefficient:
     $ref: '/schemas/types.yaml#/definitions/uint32'
@@ -293,7 +300,8 @@ properties:
       Specifies the ACC* node associated with this CPU.
 
       Required for systems that have an "enable-method" property
-      value of "qcom,kpss-acc-v1" or "qcom,kpss-acc-v2"
+      value of "qcom,kpss-acc-v1", "qcom,kpss-acc-v2", "qcom,msm8226-smp" or
+      "qcom,msm8916-smp".
 
       * arm/msm/qcom,kpss-acc.txt
 

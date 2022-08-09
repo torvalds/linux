@@ -255,6 +255,7 @@ struct max98927_priv {
 	struct regmap *regmap;
 	struct snd_soc_component *component;
 	struct max98927_pdata *pdata;
+	struct gpio_desc *reset_gpio; 
 	unsigned int spk_gain;
 	unsigned int sysclk;
 	unsigned int v_l_slot;

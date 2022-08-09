@@ -41,7 +41,7 @@ static struct snd_soc_acpi_mach *apl_quirk(void *arg)
 	return mach;
 }
 
-static struct snd_soc_acpi_codecs bxt_codecs = {
+static const struct snd_soc_acpi_codecs bxt_codecs = {
 	.num_codecs = 1,
 	.codecs = {"MX98357A"}
 };
@@ -81,6 +81,12 @@ struct snd_soc_acpi_mach snd_soc_acpi_intel_bxt_machines[] = {
 		.machine_quirk = apl_quirk,
 		.sof_fw_filename = "sof-apl.ri",
 		.sof_tplg_filename = "sof-apl-tdf8532.tplg",
+	},
+	{
+		.id = "ESSX8336",
+		.drv_name = "sof-essx8336",
+		.sof_fw_filename = "sof-apl.ri",
+		.sof_tplg_filename = "sof-apl-es8336.tplg",
 	},
 	{},
 };

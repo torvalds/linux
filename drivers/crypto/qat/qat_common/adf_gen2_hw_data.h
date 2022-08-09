@@ -22,6 +22,8 @@
 #define ADF_RING_CSR_INT_FLAG_AND_COL	0x184
 #define ADF_RING_CSR_INT_COL_CTL_ENABLE	0x80000000
 #define ADF_RING_BUNDLE_SIZE		0x1000
+#define ADF_GEN2_RX_RINGS_OFFSET	8
+#define ADF_GEN2_TX_RINGS_MASK		0xFF
 
 #define BUILD_RING_BASE_ADDR(addr, size) \
 	(((addr) >> 6) & (GENMASK_ULL(63, 0) << (size)))
@@ -125,6 +127,31 @@ do { \
 #define ADF_SSMWDT(i)		(ADF_SSMWDT_OFFSET + ((i) * 0x4000))
 #define ADF_SSMWDTPKE(i)	(ADF_SSMWDTPKE_OFFSET + ((i) * 0x4000))
 
+/* Error detection and correction */
+#define ADF_GEN2_AE_CTX_ENABLES(i)	((i) * 0x1000 + 0x20818)
+#define ADF_GEN2_AE_MISC_CONTROL(i)	((i) * 0x1000 + 0x20960)
+#define ADF_GEN2_ENABLE_AE_ECC_ERR	BIT(28)
+#define ADF_GEN2_ENABLE_AE_ECC_PARITY_CORR	(BIT(24) | BIT(12))
+#define ADF_GEN2_UERRSSMSH(i)		((i) * 0x4000 + 0x18)
+#define ADF_GEN2_CERRSSMSH(i)		((i) * 0x4000 + 0x10)
+#define ADF_GEN2_ERRSSMSH_EN		BIT(3)
+
+ /* VF2PF interrupts */
+#define ADF_GEN2_ERRSOU3 (0x3A000 + 0x0C)
+#define ADF_GEN2_ERRSOU5 (0x3A000 + 0xD8)
+#define ADF_GEN2_ERRMSK3 (0x3A000 + 0x1C)
+#define ADF_GEN2_ERRMSK5 (0x3A000 + 0xDC)
+#define ADF_GEN2_ERR_REG_VF2PF(vf_src)	(((vf_src) & 0x01FFFE00) >> 9)
+#define ADF_GEN2_ERR_MSK_VF2PF(vf_mask)	(((vf_mask) & 0xFFFF) << 9)
+
+u32 adf_gen2_get_pf2vf_offset(u32 i);
+u32 adf_gen2_get_vf2pf_sources(void __iomem *pmisc_bar);
+void adf_gen2_enable_vf2pf_interrupts(void __iomem *pmisc_addr, u32 vf_mask);
+void adf_gen2_disable_vf2pf_interrupts(void __iomem *pmisc_addr, u32 vf_mask);
+
+u32 adf_gen2_get_num_accels(struct adf_hw_device_data *self);
+u32 adf_gen2_get_num_aes(struct adf_hw_device_data *self);
+void adf_gen2_enable_error_correction(struct adf_accel_dev *accel_dev);
 void adf_gen2_cfg_iov_thds(struct adf_accel_dev *accel_dev, bool enable,
 			   int num_a_regs, int num_b_regs);
 void adf_gen2_init_hw_csr_ops(struct adf_hw_csr_ops *csr_ops);

@@ -62,30 +62,40 @@ static int intel_fw_table_check(const struct intel_forcewake_range *ranges,
 static int intel_shadow_table_check(void)
 {
 	struct {
-		const i915_reg_t *regs;
+		const struct i915_range *regs;
 		unsigned int size;
-	} reg_lists[] = {
+	} range_lists[] = {
 		{ gen8_shadowed_regs, ARRAY_SIZE(gen8_shadowed_regs) },
 		{ gen11_shadowed_regs, ARRAY_SIZE(gen11_shadowed_regs) },
 		{ gen12_shadowed_regs, ARRAY_SIZE(gen12_shadowed_regs) },
-		{ xehp_shadowed_regs, ARRAY_SIZE(xehp_shadowed_regs) },
+		{ dg2_shadowed_regs, ARRAY_SIZE(dg2_shadowed_regs) },
 	};
-	const i915_reg_t *reg;
+	const struct i915_range *range;
 	unsigned int i, j;
 	s32 prev;
 
-	for (j = 0; j < ARRAY_SIZE(reg_lists); ++j) {
-		reg = reg_lists[j].regs;
-		for (i = 0, prev = -1; i < reg_lists[j].size; i++, reg++) {
-			u32 offset = i915_mmio_reg_offset(*reg);
-
-			if (prev >= (s32)offset) {
-				pr_err("%s: entry[%d]:(%x) is before previous (%x)\n",
-				       __func__, i, offset, prev);
+	for (j = 0; j < ARRAY_SIZE(range_lists); ++j) {
+		range = range_lists[j].regs;
+		for (i = 0, prev = -1; i < range_lists[j].size; i++, range++) {
+			if (range->end < range->start) {
+				pr_err("%s: range[%d]:(%06x-%06x) has end before start\n",
+				       __func__, i, range->start, range->end);
 				return -EINVAL;
 			}
 
-			prev = offset;
+			if (prev >= (s32)range->start) {
+				pr_err("%s: range[%d]:(%06x-%06x) is before end of previous (%06x)\n",
+				       __func__, i, range->start, range->end, prev);
+				return -EINVAL;
+			}
+
+			if (range->start % 4) {
+				pr_err("%s: range[%d]:(%06x-%06x) has non-dword-aligned start\n",
+				       __func__, i, range->start, range->end);
+				return -EINVAL;
+			}
+
+			prev = range->end;
 		}
 	}
 

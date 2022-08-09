@@ -156,6 +156,10 @@ static const struct of_device_id uniphier_glue_reset_match[] = {
 		.data = &uniphier_pxs2_data,
 	},
 	{
+		.compatible = "socionext,uniphier-nx1-usb3-reset",
+		.data = &uniphier_pxs2_data,
+	},
+	{
 		.compatible = "socionext,uniphier-pro4-ahci-reset",
 		.data = &uniphier_pro4_data,
 	},

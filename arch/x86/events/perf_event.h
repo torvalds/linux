@@ -14,6 +14,7 @@
 
 #include <linux/perf_event.h>
 
+#include <asm/fpu/xstate.h>
 #include <asm/intel_ds.h>
 #include <asm/cpu.h>
 
@@ -726,6 +727,7 @@ struct x86_pmu {
 	void		(*enable_all)(int added);
 	void		(*enable)(struct perf_event *);
 	void		(*disable)(struct perf_event *);
+	void		(*assign)(struct perf_event *event, int idx);
 	void		(*add)(struct perf_event *);
 	void		(*del)(struct perf_event *);
 	void		(*read)(struct perf_event *event);
@@ -1238,6 +1240,25 @@ static inline bool intel_pmu_has_bts(struct perf_event *event)
 	struct hw_perf_event *hwc = &event->hw;
 
 	return intel_pmu_has_bts_period(event, hwc->sample_period);
+}
+
+static __always_inline void __intel_pmu_pebs_disable_all(void)
+{
+	wrmsrl(MSR_IA32_PEBS_ENABLE, 0);
+}
+
+static __always_inline void __intel_pmu_arch_lbr_disable(void)
+{
+	wrmsrl(MSR_ARCH_LBR_CTL, 0);
+}
+
+static __always_inline void __intel_pmu_lbr_disable(void)
+{
+	u64 debugctl;
+
+	rdmsrl(MSR_IA32_DEBUGCTLMSR, debugctl);
+	debugctl &= ~(DEBUGCTLMSR_LBR | DEBUGCTLMSR_FREEZE_LBRS_ON_PMI);
+	wrmsrl(MSR_IA32_DEBUGCTLMSR, debugctl);
 }
 
 int intel_pmu_save_and_restart(struct perf_event *event);

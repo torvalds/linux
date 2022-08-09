@@ -329,7 +329,7 @@ done:
 		close(listen_fd);
 }
 
-void test_sock_fields(void)
+void serial_test_sock_fields(void)
 {
 	struct bpf_link *egress_link = NULL, *ingress_link = NULL;
 	int parent_cg_fd = -1, child_cg_fd = -1;

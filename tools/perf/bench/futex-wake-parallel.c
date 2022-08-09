@@ -329,6 +329,7 @@ int bench_futex_wake_parallel(int argc, const char **argv)
 	print_summary();
 
 	free(blocked_worker);
+	perf_cpu_map__put(cpu);
 	return ret;
 }
 #endif /* HAVE_PTHREAD_BARRIER */

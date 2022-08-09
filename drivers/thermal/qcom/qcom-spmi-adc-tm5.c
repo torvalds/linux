@@ -82,6 +82,7 @@ struct adc_tm5_data {
 	const u32	full_scale_code_volt;
 	unsigned int	*decimation;
 	unsigned int	*hw_settle;
+	bool		is_hc;
 };
 
 enum adc_tm5_cal_method {
@@ -144,6 +145,14 @@ static const struct adc_tm5_data adc_tm5_data_pmic = {
 	.hw_settle = (unsigned int []) { 15, 100, 200, 300, 400, 500, 600, 700,
 					 1000, 2000, 4000, 8000, 16000, 32000,
 					 64000, 128000 },
+};
+
+static const struct adc_tm5_data adc_tm_hc_data_pmic = {
+	.full_scale_code_volt = 0x70e4,
+	.decimation = (unsigned int []) { 256, 512, 1024 },
+	.hw_settle = (unsigned int []) { 0, 100, 200, 300, 400, 500, 600, 700,
+					 1000, 2000, 4000, 6000, 8000, 10000 },
+	.is_hc = true,
 };
 
 static int adc_tm5_read(struct adc_tm5_chip *adc_tm, u16 offset, u8 *data, int len)
@@ -375,6 +384,29 @@ static int adc_tm5_register_tzd(struct adc_tm5_chip *adc_tm)
 	return 0;
 }
 
+static int adc_tm_hc_init(struct adc_tm5_chip *chip)
+{
+	unsigned int i;
+	u8 buf[2];
+	int ret;
+
+	for (i = 0; i < chip->nchannels; i++) {
+		if (chip->channels[i].channel >= ADC_TM5_NUM_CHANNELS) {
+			dev_err(chip->dev, "Invalid channel %d\n", chip->channels[i].channel);
+			return -EINVAL;
+		}
+	}
+
+	buf[0] = chip->decimation;
+	buf[1] = chip->avg_samples | ADC_TM5_FAST_AVG_EN;
+
+	ret = adc_tm5_write(chip, ADC_TM5_ADC_DIG_PARAM, buf, sizeof(buf));
+	if (ret)
+		dev_err(chip->dev, "block write failed: %d\n", ret);
+
+	return ret;
+}
+
 static int adc_tm5_init(struct adc_tm5_chip *chip)
 {
 	u8 buf[4], channels_available;
@@ -591,7 +623,10 @@ static int adc_tm5_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	ret = adc_tm5_init(adc_tm);
+	if (adc_tm->data->is_hc)
+		ret = adc_tm_hc_init(adc_tm);
+	else
+		ret = adc_tm5_init(adc_tm);
 	if (ret) {
 		dev_err(dev, "adc-tm init failed\n");
 		return ret;
@@ -611,6 +646,10 @@ static const struct of_device_id adc_tm5_match_table[] = {
 	{
 		.compatible = "qcom,spmi-adc-tm5",
 		.data = &adc_tm5_data_pmic,
+	},
+	{
+		.compatible = "qcom,spmi-adc-tm-hc",
+		.data = &adc_tm_hc_data_pmic,
 	},
 	{ }
 };

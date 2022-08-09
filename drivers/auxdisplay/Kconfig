@@ -25,6 +25,12 @@ config CHARLCD
 	  This is some character LCD core interface that multiple drivers can
 	  use.
 
+config LINEDISP
+	tristate "Character line display core support" if COMPILE_TEST
+	help
+	  This is the core support for single-line character displays, to be
+	  selected by drivers that use it.
+
 config HD44780_COMMON
 	tristate "Common functions for HD44780 (and compatibles) LCD displays" if COMPILE_TEST
 	select CHARLCD
@@ -155,6 +161,7 @@ config IMG_ASCII_LCD
 	depends on HAS_IOMEM
 	default y if MIPS_MALTA
 	select MFD_SYSCON
+	select LINEDISP
 	help
 	  Enable this to support the simple ASCII LCD displays found on
 	  development boards such as the MIPS Boston, MIPS Malta & MIPS SEAD3
@@ -162,13 +169,16 @@ config IMG_ASCII_LCD
 
 config HT16K33
 	tristate "Holtek Ht16K33 LED controller with keyscan"
-	depends on FB && OF && I2C && INPUT
+	depends on FB && I2C && INPUT
 	select FB_SYS_FOPS
 	select FB_SYS_FILLRECT
 	select FB_SYS_COPYAREA
 	select FB_SYS_IMAGEBLIT
 	select INPUT_MATRIXKMAP
 	select FB_BACKLIGHT
+	select NEW_LEDS
+	select LEDS_CLASS
+	select LINEDISP
 	help
 	  Say yes here to add support for Holtek HT16K33, RAM mapping 16*8
 	  LED controller driver with keyscan.

@@ -19,6 +19,7 @@
 
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_bridge.h>
+#include <drm/drm_bridge_connector.h>
 #include <drm/drm_dp_helper.h>
 #include <drm/drm_of.h>
 #include <drm/drm_panel.h>
@@ -439,11 +440,9 @@ struct drm_encoder_helper_funcs px30_lvds_encoder_helper_funcs = {
 static int rk3288_lvds_probe(struct platform_device *pdev,
 			     struct rockchip_lvds *lvds)
 {
-	struct resource *res;
 	int ret;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	lvds->regs = devm_ioremap_resource(lvds->dev, res);
+	lvds->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(lvds->regs))
 		return PTR_ERR(lvds->regs);
 
@@ -612,9 +611,9 @@ static int rockchip_lvds_bind(struct device *dev, struct device *master,
 	}
 
 	drm_encoder_helper_add(encoder, lvds->soc_data->helper_funcs);
+	connector = &lvds->connector;
 
 	if (lvds->panel) {
-		connector = &lvds->connector;
 		connector->dpms = DRM_MODE_DPMS_OFF;
 		ret = drm_connector_init(drm_dev, connector,
 					 &rockchip_lvds_connector_funcs,
@@ -627,17 +626,27 @@ static int rockchip_lvds_bind(struct device *dev, struct device *master,
 
 		drm_connector_helper_add(connector,
 					 &rockchip_lvds_connector_helper_funcs);
-
-		ret = drm_connector_attach_encoder(connector, encoder);
-		if (ret < 0) {
-			DRM_DEV_ERROR(drm_dev->dev,
-				      "failed to attach encoder: %d\n", ret);
-			goto err_free_connector;
-		}
 	} else {
-		ret = drm_bridge_attach(encoder, lvds->bridge, NULL, 0);
+		ret = drm_bridge_attach(encoder, lvds->bridge, NULL,
+					DRM_BRIDGE_ATTACH_NO_CONNECTOR);
 		if (ret)
 			goto err_free_encoder;
+
+		connector = drm_bridge_connector_init(lvds->drm_dev, encoder);
+		if (IS_ERR(connector)) {
+			DRM_DEV_ERROR(drm_dev->dev,
+				      "failed to initialize bridge connector: %pe\n",
+				      connector);
+			ret = PTR_ERR(connector);
+			goto err_free_encoder;
+		}
+	}
+
+	ret = drm_connector_attach_encoder(connector, encoder);
+	if (ret < 0) {
+		DRM_DEV_ERROR(drm_dev->dev,
+			      "failed to attach encoder: %d\n", ret);
+		goto err_free_connector;
 	}
 
 	pm_runtime_enable(dev);

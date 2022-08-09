@@ -97,6 +97,30 @@ do {								\
 			     __func__, __LINE__, current->pid,	\
 			     ##__VA_ARGS__)
 
+static inline void mlx5_printk(struct mlx5_core_dev *dev, int level, const char *format, ...)
+{
+	struct device *device = dev->device;
+	struct va_format vaf;
+	va_list args;
+
+	if (WARN_ONCE(level < LOGLEVEL_EMERG || level > LOGLEVEL_DEBUG,
+		      "Level %d is out of range, set to default level\n", level))
+		level = LOGLEVEL_DEFAULT;
+
+	va_start(args, format);
+	vaf.fmt = format;
+	vaf.va = &args;
+
+	dev_printk_emit(level, device, "%s %s: %pV", dev_driver_string(device), dev_name(device),
+			&vaf);
+	va_end(args);
+}
+
+#define mlx5_log(__dev, level, format, ...)			\
+	mlx5_printk(__dev, level, "%s:%d:(pid %d): " format,	\
+		    __func__, __LINE__, current->pid,		\
+		    ##__VA_ARGS__)
+
 static inline struct device *mlx5_core_dma_dev(struct mlx5_core_dev *dev)
 {
 	return &dev->pdev->dev;

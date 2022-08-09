@@ -217,37 +217,40 @@
 .macro sve_flush_z
  _for n, 0, 31, _sve_flush_z	\n
 .endm
-.macro sve_flush_p_ffr
+.macro sve_flush_p
  _for n, 0, 15, _sve_pfalse	\n
+.endm
+.macro sve_flush_ffr
 		_sve_wrffr	0
 .endm
 
-.macro sve_save nxbase, xpfpsr, nxtmp
+.macro sve_save nxbase, xpfpsr, save_ffr, nxtmp
  _for n, 0, 31,	_sve_str_v	\n, \nxbase, \n - 34
  _for n, 0, 15,	_sve_str_p	\n, \nxbase, \n - 16
+		cbz		\save_ffr, 921f
 		_sve_rdffr	0
 		_sve_str_p	0, \nxbase
 		_sve_ldr_p	0, \nxbase, -16
-
+		b		922f
+921:
+		str		xzr, [x\nxbase]		// Zero out FFR
+922:
 		mrs		x\nxtmp, fpsr
 		str		w\nxtmp, [\xpfpsr]
 		mrs		x\nxtmp, fpcr
 		str		w\nxtmp, [\xpfpsr, #4]
 .endm
 
-.macro __sve_load nxbase, xpfpsr, nxtmp
+.macro sve_load nxbase, xpfpsr, restore_ffr, nxtmp
  _for n, 0, 31,	_sve_ldr_v	\n, \nxbase, \n - 34
+		cbz		\restore_ffr, 921f
 		_sve_ldr_p	0, \nxbase
 		_sve_wrffr	0
+921:
  _for n, 0, 15,	_sve_ldr_p	\n, \nxbase, \n - 16
 
 		ldr		w\nxtmp, [\xpfpsr]
 		msr		fpsr, x\nxtmp
 		ldr		w\nxtmp, [\xpfpsr, #4]
 		msr		fpcr, x\nxtmp
-.endm
-
-.macro sve_load nxbase, xpfpsr, xvqminus1, nxtmp, xtmp2
-		sve_load_vq	\xvqminus1, x\nxtmp, \xtmp2
-		__sve_load	\nxbase, \xpfpsr, \nxtmp
 .endm

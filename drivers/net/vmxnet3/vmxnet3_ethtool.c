@@ -1134,9 +1134,8 @@ static int vmxnet3_set_coalesce(struct net_device *netdev,
 	}
 
 	if (ec->use_adaptive_rx_coalesce != 0) {
-		if ((ec->rx_coalesce_usecs != 0) ||
-		    (ec->tx_max_coalesced_frames != 0) ||
-		    (ec->rx_max_coalesced_frames != 0)) {
+		if (ec->tx_max_coalesced_frames != 0 ||
+		    ec->rx_max_coalesced_frames != 0) {
 			return -EINVAL;
 		}
 		memset(adapter->coal_conf, 0, sizeof(*adapter->coal_conf));
@@ -1146,11 +1145,6 @@ static int vmxnet3_set_coalesce(struct net_device *netdev,
 
 	if ((ec->tx_max_coalesced_frames != 0) ||
 	    (ec->rx_max_coalesced_frames != 0)) {
-		if ((ec->rx_coalesce_usecs != 0) ||
-		    (ec->use_adaptive_rx_coalesce != 0)) {
-			return -EINVAL;
-		}
-
 		if ((ec->tx_max_coalesced_frames >
 		    VMXNET3_COAL_STATIC_MAX_DEPTH) ||
 		    (ec->rx_max_coalesced_frames >

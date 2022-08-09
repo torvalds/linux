@@ -65,6 +65,14 @@
  * support can instead use e.g. drm_helper_hpd_irq_event().
  */
 
+/*
+ * Global connector list for drm_connector_find_by_fwnode().
+ * Note drm_connector_[un]register() first take connector->lock and then
+ * take the connector_list_lock.
+ */
+static DEFINE_MUTEX(connector_list_lock);
+static LIST_HEAD(connector_list);
+
 struct drm_conn_prop_enum_list {
 	int type;
 	const char *name;
@@ -267,6 +275,7 @@ int drm_connector_init(struct drm_device *dev,
 		goto out_put_type_id;
 	}
 
+	INIT_LIST_HEAD(&connector->global_connector_list_entry);
 	INIT_LIST_HEAD(&connector->probed_modes);
 	INIT_LIST_HEAD(&connector->modes);
 	mutex_init(&connector->mutex);
@@ -474,6 +483,8 @@ void drm_connector_cleanup(struct drm_connector *connector)
 	drm_mode_object_unregister(dev, &connector->base);
 	kfree(connector->name);
 	connector->name = NULL;
+	fwnode_handle_put(connector->fwnode);
+	connector->fwnode = NULL;
 	spin_lock_irq(&dev->mode_config.connector_list_lock);
 	list_del(&connector->head);
 	dev->mode_config.num_connector--;
@@ -532,6 +543,9 @@ int drm_connector_register(struct drm_connector *connector)
 	/* Let userspace know we have a new connector */
 	drm_sysfs_hotplug_event(connector->dev);
 
+	mutex_lock(&connector_list_lock);
+	list_add_tail(&connector->global_connector_list_entry, &connector_list);
+	mutex_unlock(&connector_list_lock);
 	goto unlock;
 
 err_debugfs:
@@ -559,6 +573,10 @@ void drm_connector_unregister(struct drm_connector *connector)
 		mutex_unlock(&connector->mutex);
 		return;
 	}
+
+	mutex_lock(&connector_list_lock);
+	list_del_init(&connector->global_connector_list_entry);
+	mutex_unlock(&connector_list_lock);
 
 	if (connector->funcs->early_unregister)
 		connector->funcs->early_unregister(connector);
@@ -607,6 +625,8 @@ int drm_connector_register_all(struct drm_device *dev)
  *
  * In contrast to the other drm_get_*_name functions this one here returns a
  * const pointer and hence is threadsafe.
+ *
+ * Returns: connector status string
  */
 const char *drm_get_connector_status_name(enum drm_connector_status status)
 {
@@ -689,7 +709,7 @@ __drm_connector_put_safe(struct drm_connector *conn)
  * drm_connector_list_iter_next - return next connector
  * @iter: connector_list iterator
  *
- * Returns the next connector for @iter, or NULL when the list walk has
+ * Returns: the next connector for @iter, or NULL when the list walk has
  * completed.
  */
 struct drm_connector *
@@ -762,6 +782,8 @@ static const struct drm_prop_enum_list drm_subpixel_enum_list[] = {
  *
  * Note you could abuse this and return something out of bounds, but that
  * would be a caller error.  No unscrubbed user data should make it here.
+ *
+ * Returns: string describing an enumerated subpixel property
  */
 const char *drm_get_subpixel_order_name(enum subpixel_order order)
 {
@@ -791,6 +813,9 @@ static const struct drm_prop_enum_list drm_link_status_enum_list[] = {
  * Store the supported bus formats in display info structure.
  * See MEDIA_BUS_FMT_* definitions in include/uapi/linux/media-bus-format.h for
  * a full list of available formats.
+ *
+ * Returns:
+ * 0 on success or a negative error code on failure.
  */
 int drm_display_info_set_bus_formats(struct drm_display_info *info,
 				     const u32 *formats,
@@ -1308,6 +1333,8 @@ int drm_connector_create_standard_properties(struct drm_device *dev)
  * @dev: DRM device
  *
  * Called by a driver the first time a DVI-I connector is made.
+ *
+ * Returns: %0
  */
 int drm_mode_create_dvi_i_properties(struct drm_device *dev)
 {
@@ -1379,6 +1406,8 @@ EXPORT_SYMBOL(drm_connector_attach_dp_subconnector_property);
  *	Game:
  *		Content type is game
  *
+ *	The meaning of each content type is defined in CTA-861-G table 15.
+ *
  *	Drivers can set up this property by calling
  *	drm_connector_attach_content_type_property(). Decoding to
  *	infoframe values is done through drm_hdmi_avi_infoframe_content_type().
@@ -1389,6 +1418,8 @@ EXPORT_SYMBOL(drm_connector_attach_dp_subconnector_property);
  * @connector: connector to attach content type property on.
  *
  * Called by a driver the first time a HDMI connector is made.
+ *
+ * Returns: %0
  */
 int drm_connector_attach_content_type_property(struct drm_connector *connector)
 {
@@ -1469,6 +1500,9 @@ EXPORT_SYMBOL(drm_connector_attach_tv_margin_properties);
  * creates the TV margin properties for a given device. No need to call this
  * function for an SDTV connector, it's already called from
  * drm_mode_create_tv_properties().
+ *
+ * Returns:
+ * 0 on success or a negative error code on failure.
  */
 int drm_mode_create_tv_margin_properties(struct drm_device *dev)
 {
@@ -1509,6 +1543,9 @@ EXPORT_SYMBOL(drm_mode_create_tv_margin_properties);
  * the TV specific connector properties for a given device.  Caller is
  * responsible for allocating a list of format names and passing them to
  * this routine.
+ *
+ * Returns:
+ * 0 on success or a negative error code on failure.
  */
 int drm_mode_create_tv_properties(struct drm_device *dev,
 				  unsigned int num_modes,
@@ -1602,8 +1639,10 @@ EXPORT_SYMBOL(drm_mode_create_tv_properties);
  * connectors.
  *
  * Atomic drivers should use drm_connector_attach_scaling_mode_property()
- * instead to correctly assign &drm_connector_state.picture_aspect_ratio
+ * instead to correctly assign &drm_connector_state.scaling_mode
  * in the atomic state.
+ *
+ * Returns: %0
  */
 int drm_mode_create_scaling_mode_property(struct drm_device *dev)
 {
@@ -1722,7 +1761,7 @@ EXPORT_SYMBOL(drm_connector_attach_vrr_capable_property);
  * @scaling_mode_mask: or'ed mask of BIT(%DRM_MODE_SCALE_\*).
  *
  * This is used to add support for scaling mode to atomic drivers.
- * The scaling mode will be set to &drm_connector_state.picture_aspect_ratio
+ * The scaling mode will be set to &drm_connector_state.scaling_mode
  * and can be used from &drm_connector_helper_funcs->atomic_check for validation.
  *
  * This is the atomic version of drm_mode_create_scaling_mode_property().
@@ -1921,6 +1960,9 @@ EXPORT_SYMBOL(drm_mode_create_content_type_property);
  * @dev: DRM device
  *
  * Create the suggested x/y offset property for connectors.
+ *
+ * Returns:
+ * 0 on success or a negative error code on failure.
  */
 int drm_mode_create_suggested_offset_properties(struct drm_device *dev)
 {
@@ -2294,8 +2336,8 @@ int drm_connector_set_panel_orientation(
 EXPORT_SYMBOL(drm_connector_set_panel_orientation);
 
 /**
- * drm_connector_set_panel_orientation_with_quirk -
- *	set the connector's panel_orientation after checking for quirks
+ * drm_connector_set_panel_orientation_with_quirk - set the
+ *	connector's panel_orientation after checking for quirks
  * @connector: connector for which to init the panel-orientation property.
  * @panel_orientation: drm_panel_orientation value to set
  * @width: width in pixels of the panel, used for panel quirk detection
@@ -2542,6 +2584,67 @@ out:
 
 	return ret;
 }
+
+/**
+ * drm_connector_find_by_fwnode - Find a connector based on the associated fwnode
+ * @fwnode: fwnode for which to find the matching drm_connector
+ *
+ * This functions looks up a drm_connector based on its associated fwnode. When
+ * a connector is found a reference to the connector is returned. The caller must
+ * call drm_connector_put() to release this reference when it is done with the
+ * connector.
+ *
+ * Returns: A reference to the found connector or an ERR_PTR().
+ */
+struct drm_connector *drm_connector_find_by_fwnode(struct fwnode_handle *fwnode)
+{
+	struct drm_connector *connector, *found = ERR_PTR(-ENODEV);
+
+	if (!fwnode)
+		return ERR_PTR(-ENODEV);
+
+	mutex_lock(&connector_list_lock);
+
+	list_for_each_entry(connector, &connector_list, global_connector_list_entry) {
+		if (connector->fwnode == fwnode ||
+		    (connector->fwnode && connector->fwnode->secondary == fwnode)) {
+			drm_connector_get(connector);
+			found = connector;
+			break;
+		}
+	}
+
+	mutex_unlock(&connector_list_lock);
+
+	return found;
+}
+
+/**
+ * drm_connector_oob_hotplug_event - Report out-of-band hotplug event to connector
+ * @connector_fwnode: fwnode_handle to report the event on
+ *
+ * On some hardware a hotplug event notification may come from outside the display
+ * driver / device. An example of this is some USB Type-C setups where the hardware
+ * muxes the DisplayPort data and aux-lines but does not pass the altmode HPD
+ * status bit to the GPU's DP HPD pin.
+ *
+ * This function can be used to report these out-of-band events after obtaining
+ * a drm_connector reference through calling drm_connector_find_by_fwnode().
+ */
+void drm_connector_oob_hotplug_event(struct fwnode_handle *connector_fwnode)
+{
+	struct drm_connector *connector;
+
+	connector = drm_connector_find_by_fwnode(connector_fwnode);
+	if (IS_ERR(connector))
+		return;
+
+	if (connector->funcs->oob_hotplug_event)
+		connector->funcs->oob_hotplug_event(connector);
+
+	drm_connector_put(connector);
+}
+EXPORT_SYMBOL(drm_connector_oob_hotplug_event);
 
 
 /**

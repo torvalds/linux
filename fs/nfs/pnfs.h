@@ -82,10 +82,6 @@ enum pnfs_try_status {
 	PNFS_TRY_AGAIN     = 2,
 };
 
-/* error codes for internal use */
-#define NFS4ERR_RESET_TO_MDS   12001
-#define NFS4ERR_RESET_TO_PNFS  12002
-
 #ifdef CONFIG_NFS_V4_1
 
 #define LAYOUT_NFSV4_1_MODULE_PREFIX "nfs-layouttype4"
@@ -517,7 +513,7 @@ pnfs_mark_request_commit(struct nfs_page *req, struct pnfs_layout_segment *lseg,
 {
 	struct pnfs_ds_commit_info *fl_cinfo = cinfo->ds;
 
-	if (!lseg || !fl_cinfo->ops->mark_request_commit)
+	if (!lseg || !fl_cinfo->ops || !fl_cinfo->ops->mark_request_commit)
 		return false;
 	fl_cinfo->ops->mark_request_commit(req, lseg, cinfo, ds_commit_idx);
 	return true;

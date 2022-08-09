@@ -55,7 +55,7 @@ nfp_net_get_mac_addr(struct nfp_pf *pf, struct net_device *netdev,
 		return;
 	}
 
-	ether_addr_copy(netdev->dev_addr, eth_port->mac_addr);
+	eth_hw_addr_set(netdev, eth_port->mac_addr);
 	ether_addr_copy(netdev->perm_addr, eth_port->mac_addr);
 }
 
@@ -701,10 +701,6 @@ int nfp_net_pci_probe(struct nfp_pf *pf)
 	if (err)
 		goto err_unmap;
 
-	err = devlink_register(devlink);
-	if (err)
-		goto err_app_clean;
-
 	err = nfp_shared_buf_register(pf);
 	if (err)
 		goto err_devlink_unreg;
@@ -734,6 +730,7 @@ int nfp_net_pci_probe(struct nfp_pf *pf)
 		goto err_stop_app;
 
 	mutex_unlock(&pf->lock);
+	devlink_register(devlink);
 
 	return 0;
 
@@ -751,8 +748,6 @@ err_shared_buf_unreg:
 	nfp_shared_buf_unregister(pf);
 err_devlink_unreg:
 	cancel_work_sync(&pf->port_refresh_work);
-	devlink_unregister(devlink);
-err_app_clean:
 	nfp_net_pf_app_clean(pf);
 err_unmap:
 	nfp_net_pci_unmap_mem(pf);
@@ -763,6 +758,7 @@ void nfp_net_pci_remove(struct nfp_pf *pf)
 {
 	struct nfp_net *nn, *next;
 
+	devlink_unregister(priv_to_devlink(pf));
 	mutex_lock(&pf->lock);
 	list_for_each_entry_safe(nn, next, &pf->vnics, vnic_list) {
 		if (!nfp_net_is_data_vnic(nn))
@@ -779,7 +775,6 @@ void nfp_net_pci_remove(struct nfp_pf *pf)
 
 	nfp_devlink_params_unregister(pf);
 	nfp_shared_buf_unregister(pf);
-	devlink_unregister(priv_to_devlink(pf));
 
 	nfp_net_pf_free_irqs(pf);
 	nfp_net_pf_app_clean(pf);

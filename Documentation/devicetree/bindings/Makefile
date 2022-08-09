@@ -9,6 +9,11 @@ DT_SCHEMA_MIN_VERSION = 2021.2.1
 
 PHONY += check_dtschema_version
 check_dtschema_version:
+	@which $(DT_DOC_CHECKER) >/dev/null || \
+		{ echo "Error: '$(DT_DOC_CHECKER)' not found!" >&2; \
+		  echo "Ensure dtschema python package is installed and in your PATH." >&2; \
+		  echo "Current PATH is:" >&2; \
+		  echo "$$PATH" >&2; false; }
 	@{ echo $(DT_SCHEMA_MIN_VERSION); \
 	$(DT_DOC_CHECKER) --version 2>/dev/null || echo 0; } | sort -Vc >/dev/null || \
 	{ echo "ERROR: dtschema minimum version is v$(DT_SCHEMA_MIN_VERSION)" >&2; false; }
@@ -22,13 +27,20 @@ $(obj)/%.example.dts: $(src)/%.yaml check_dtschema_version FORCE
 # Use full schemas when checking %.example.dts
 DT_TMP_SCHEMA := $(obj)/processed-schema-examples.json
 
-find_cmd = find $(srctree)/$(src) \( -name '*.yaml' ! \
+find_all_cmd = find $(srctree)/$(src) \( -name '*.yaml' ! \
 		-name 'processed-schema*' ! \
 		-name '*.example.dt.yaml' \)
 
+ifeq ($(DT_SCHEMA_FILES),)
+find_cmd = $(find_all_cmd)
+else
+find_cmd = echo $(addprefix $(srctree)/, $(DT_SCHEMA_FILES))
+endif
+
 quiet_cmd_yamllint = LINT    $(src)
       cmd_yamllint = ($(find_cmd) | \
-                     xargs $(DT_SCHEMA_LINT) -f parsable -c $(srctree)/$(src)/.yamllint >&2) || true
+                     xargs -n200 -P$$(nproc) \
+		     $(DT_SCHEMA_LINT) -f parsable -c $(srctree)/$(src)/.yamllint >&2) || true
 
 quiet_cmd_chk_bindings = CHKDT   $@
       cmd_chk_bindings = ($(find_cmd) | \
@@ -38,7 +50,7 @@ quiet_cmd_mk_schema = SCHEMA  $@
       cmd_mk_schema = f=$$(mktemp) ; \
                       $(if $(DT_MK_SCHEMA_FLAGS), \
                            printf '%s\n' $(real-prereqs), \
-                           $(find_cmd)) > $$f ; \
+                           $(find_all_cmd)) > $$f ; \
                       $(DT_MK_SCHEMA) -j $(DT_MK_SCHEMA_FLAGS) @$$f > $@ ; \
 		      rm -f $$f
 
@@ -48,7 +60,7 @@ define rule_chkdt
 	$(call cmd,mk_schema)
 endef
 
-DT_DOCS = $(patsubst $(srctree)/%,%,$(shell $(find_cmd)))
+DT_DOCS = $(patsubst $(srctree)/%,%,$(shell $(find_all_cmd)))
 
 override DTC_FLAGS := \
 	-Wno-avoid_unnecessary_addr_size \

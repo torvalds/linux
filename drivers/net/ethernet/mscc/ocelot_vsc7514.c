@@ -1135,10 +1135,6 @@ static int mscc_ocelot_probe(struct platform_device *pdev)
 	if (err)
 		goto out_put_ports;
 
-	err = devlink_register(devlink);
-	if (err)
-		goto out_ocelot_deinit;
-
 	err = mscc_ocelot_init_ports(pdev, ports);
 	if (err)
 		goto out_ocelot_devlink_unregister;
@@ -1161,6 +1157,7 @@ static int mscc_ocelot_probe(struct platform_device *pdev)
 	register_switchdev_blocking_notifier(&ocelot_switchdev_blocking_nb);
 
 	of_node_put(ports);
+	devlink_register(devlink);
 
 	dev_info(&pdev->dev, "Ocelot switch probed\n");
 
@@ -1170,8 +1167,6 @@ out_ocelot_release_ports:
 	mscc_ocelot_release_ports(ocelot);
 	mscc_ocelot_teardown_devlink_ports(ocelot);
 out_ocelot_devlink_unregister:
-	devlink_unregister(devlink);
-out_ocelot_deinit:
 	ocelot_deinit(ocelot);
 out_put_ports:
 	of_node_put(ports);
@@ -1184,11 +1179,11 @@ static int mscc_ocelot_remove(struct platform_device *pdev)
 {
 	struct ocelot *ocelot = platform_get_drvdata(pdev);
 
+	devlink_unregister(ocelot->devlink);
 	ocelot_deinit_timestamp(ocelot);
 	ocelot_devlink_sb_unregister(ocelot);
 	mscc_ocelot_release_ports(ocelot);
 	mscc_ocelot_teardown_devlink_ports(ocelot);
-	devlink_unregister(ocelot->devlink);
 	ocelot_deinit(ocelot);
 	unregister_switchdev_blocking_notifier(&ocelot_switchdev_blocking_nb);
 	unregister_switchdev_notifier(&ocelot_switchdev_nb);

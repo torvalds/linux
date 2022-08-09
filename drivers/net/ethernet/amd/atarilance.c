@@ -582,7 +582,7 @@ static unsigned long __init lance_probe1( struct net_device *dev,
 	switch( lp->cardtype ) {
 	  case OLD_RIEBL:
 		/* No ethernet address! (Set some default address) */
-		memcpy(dev->dev_addr, OldRieblDefHwaddr, ETH_ALEN);
+		eth_hw_addr_set(dev, OldRieblDefHwaddr);
 		break;
 	  case NEW_RIEBL:
 		lp->memcpy_f(dev->dev_addr, RIEBL_HWADDR_ADDR, ETH_ALEN);
@@ -1123,7 +1123,7 @@ static int lance_set_mac_address( struct net_device *dev, void *addr )
 		return -EIO;
 	}
 
-	memcpy( dev->dev_addr, saddr->sa_data, dev->addr_len );
+	eth_hw_addr_set(dev, saddr->sa_data);
 	for( i = 0; i < 6; i++ )
 		MEM->init.hwaddr[i] = dev->dev_addr[i^1]; /* <- 16 bit swap! */
 	lp->memcpy_f( RIEBL_HWADDR_ADDR, dev->dev_addr, 6 );

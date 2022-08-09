@@ -168,16 +168,19 @@ static inline bool qed_rdma_is_xrc_qp(struct qed_rdma_qp *qp)
 
 	return false;
 }
+
 #if IS_ENABLED(CONFIG_QED_RDMA)
 void qed_rdma_dpm_bar(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt);
 void qed_rdma_dpm_conf(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt);
 int qed_rdma_info_alloc(struct qed_hwfn *p_hwfn);
 void qed_rdma_info_free(struct qed_hwfn *p_hwfn);
 #else
-static inline void qed_rdma_dpm_conf(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt) {}
+static inline void qed_rdma_dpm_conf(struct qed_hwfn *p_hwfn,
+				     struct qed_ptt *p_ptt) {}
 static inline void qed_rdma_dpm_bar(struct qed_hwfn *p_hwfn,
 				    struct qed_ptt *p_ptt) {}
-static inline int qed_rdma_info_alloc(struct qed_hwfn *p_hwfn) {return -EINVAL;}
+static inline int qed_rdma_info_alloc(struct qed_hwfn *p_hwfn)
+				      {return -EINVAL; }
 static inline void qed_rdma_info_free(struct qed_hwfn *p_hwfn) {}
 #endif
 

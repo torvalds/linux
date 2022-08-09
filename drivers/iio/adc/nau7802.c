@@ -428,8 +428,6 @@ static int nau7802_probe(struct i2c_client *client,
 
 	st = iio_priv(indio_dev);
 
-	i2c_set_clientdata(client, indio_dev);
-
 	indio_dev->name = dev_name(&client->dev);
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->info = &nau7802_info;
@@ -495,13 +493,13 @@ static int nau7802_probe(struct i2c_client *client,
 	 * will enable them back when we will need them..
 	 */
 	if (client->irq) {
-		ret = request_threaded_irq(client->irq,
-				NULL,
-				nau7802_eoc_trigger,
-				IRQF_TRIGGER_HIGH | IRQF_ONESHOT |
-				IRQF_NO_AUTOEN,
-				client->dev.driver->name,
-				indio_dev);
+		ret = devm_request_threaded_irq(&client->dev, client->irq,
+						NULL,
+						nau7802_eoc_trigger,
+						IRQF_TRIGGER_HIGH | IRQF_ONESHOT |
+						IRQF_NO_AUTOEN,
+						client->dev.driver->name,
+						indio_dev);
 		if (ret) {
 			/*
 			 * What may happen here is that our IRQ controller is
@@ -526,7 +524,7 @@ static int nau7802_probe(struct i2c_client *client,
 		ret = i2c_smbus_write_byte_data(st->client, NAU7802_REG_CTRL2,
 					  NAU7802_CTRL2_CRS(st->sample_rate));
 		if (ret)
-			goto error_free_irq;
+			return ret;
 	}
 
 	/* Setup the ADC channels available on the board */
@@ -536,36 +534,7 @@ static int nau7802_probe(struct i2c_client *client,
 	mutex_init(&st->lock);
 	mutex_init(&st->data_lock);
 
-	ret = iio_device_register(indio_dev);
-	if (ret < 0) {
-		dev_err(&client->dev, "Couldn't register the device.\n");
-		goto error_device_register;
-	}
-
-	return 0;
-
-error_device_register:
-	mutex_destroy(&st->lock);
-	mutex_destroy(&st->data_lock);
-error_free_irq:
-	if (client->irq)
-		free_irq(client->irq, indio_dev);
-
-	return ret;
-}
-
-static int nau7802_remove(struct i2c_client *client)
-{
-	struct iio_dev *indio_dev = i2c_get_clientdata(client);
-	struct nau7802_state *st = iio_priv(indio_dev);
-
-	iio_device_unregister(indio_dev);
-	mutex_destroy(&st->lock);
-	mutex_destroy(&st->data_lock);
-	if (client->irq)
-		free_irq(client->irq, indio_dev);
-
-	return 0;
+	return devm_iio_device_register(&client->dev, indio_dev);
 }
 
 static const struct i2c_device_id nau7802_i2c_id[] = {
@@ -582,7 +551,6 @@ MODULE_DEVICE_TABLE(of, nau7802_dt_ids);
 
 static struct i2c_driver nau7802_driver = {
 	.probe = nau7802_probe,
-	.remove = nau7802_remove,
 	.id_table = nau7802_i2c_id,
 	.driver = {
 		   .name = "nau7802",

@@ -364,6 +364,11 @@ netdev_tx_t arcnet_send_packet(struct sk_buff *skb,
 			       struct net_device *dev);
 void arcnet_timeout(struct net_device *dev, unsigned int txqueue);
 
+static inline void arcnet_set_addr(struct net_device *dev, u8 addr)
+{
+	dev_addr_set(dev, &addr);
+}
+
 /* I/O equivalents */
 
 #ifdef CONFIG_SA1100_CT6001

@@ -67,8 +67,8 @@ static const struct {
 	{ .init = i915_mock_selftests },
 	{ .init = i915_pmu_init,
 	  .exit = i915_pmu_exit },
-	{ .init = i915_register_pci_driver,
-	  .exit = i915_unregister_pci_driver },
+	{ .init = i915_pci_register_driver,
+	  .exit = i915_pci_unregister_driver },
 	{ .init = i915_perf_sysctl_register,
 	  .exit = i915_perf_sysctl_unregister },
 };

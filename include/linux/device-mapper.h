@@ -576,9 +576,9 @@ struct dm_table *dm_swap_table(struct mapped_device *md,
 			       struct dm_table *t);
 
 /*
- * Table keyslot manager functions
+ * Table blk_crypto_profile functions
  */
-void dm_destroy_keyslot_manager(struct blk_keyslot_manager *ksm);
+void dm_destroy_crypto_profile(struct blk_crypto_profile *profile);
 
 /*-----------------------------------------------------------------
  * Macros.

@@ -48,6 +48,7 @@ struct amdgpu_umc_ras_funcs {
 				      void *ras_error_status);
 	void (*query_ras_error_address)(struct amdgpu_device *adev,
 					void *ras_error_status);
+	bool (*query_ras_poison_mode)(struct amdgpu_device *adev);
 };
 
 struct amdgpu_umc_funcs {

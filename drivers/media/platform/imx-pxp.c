@@ -1636,7 +1636,6 @@ static int pxp_soft_reset(struct pxp_dev *dev)
 static int pxp_probe(struct platform_device *pdev)
 {
 	struct pxp_dev *dev;
-	struct resource *res;
 	struct video_device *vfd;
 	int irq;
 	int ret;
@@ -1652,8 +1651,7 @@ static int pxp_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	dev->mmio = devm_ioremap_resource(&pdev->dev, res);
+	dev->mmio = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(dev->mmio))
 		return PTR_ERR(dev->mmio);
 

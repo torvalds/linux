@@ -9,6 +9,7 @@
 
 #define pr_fmt(fmt) "mux-core: " fmt
 
+#include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/err.h>
 #include <linux/export.h>
@@ -116,6 +117,7 @@ struct mux_chip *mux_chip_alloc(struct device *dev,
 		sema_init(&mux->lock, 1);
 		mux->cached_state = MUX_CACHE_UNKNOWN;
 		mux->idle_state = MUX_IDLE_AS_IS;
+		mux->last_change = ktime_get();
 	}
 
 	device_initialize(&mux_chip->dev);
@@ -129,6 +131,8 @@ static int mux_control_set(struct mux_control *mux, int state)
 	int ret = mux->chip->ops->set(mux, state);
 
 	mux->cached_state = ret < 0 ? MUX_CACHE_UNKNOWN : state;
+	if (ret >= 0)
+		mux->last_change = ktime_get();
 
 	return ret;
 }
@@ -314,10 +318,25 @@ static int __mux_control_select(struct mux_control *mux, int state)
 	return ret;
 }
 
+static void mux_control_delay(struct mux_control *mux, unsigned int delay_us)
+{
+	ktime_t delayend;
+	s64 remaining;
+
+	if (!delay_us)
+		return;
+
+	delayend = ktime_add_us(mux->last_change, delay_us);
+	remaining = ktime_us_delta(delayend, ktime_get());
+	if (remaining > 0)
+		fsleep(remaining);
+}
+
 /**
- * mux_control_select() - Select the given multiplexer state.
+ * mux_control_select_delay() - Select the given multiplexer state.
  * @mux: The mux-control to request a change of state from.
  * @state: The new requested state.
+ * @delay_us: The time to delay (in microseconds) if the mux state is changed.
  *
  * On successfully selecting the mux-control state, it will be locked until
  * there is a call to mux_control_deselect(). If the mux-control is already
@@ -331,7 +350,8 @@ static int __mux_control_select(struct mux_control *mux, int state)
  * Return: 0 when the mux-control state has the requested state or a negative
  * errno on error.
  */
-int mux_control_select(struct mux_control *mux, unsigned int state)
+int mux_control_select_delay(struct mux_control *mux, unsigned int state,
+			     unsigned int delay_us)
 {
 	int ret;
 
@@ -340,18 +360,21 @@ int mux_control_select(struct mux_control *mux, unsigned int state)
 		return ret;
 
 	ret = __mux_control_select(mux, state);
+	if (ret >= 0)
+		mux_control_delay(mux, delay_us);
 
 	if (ret < 0)
 		up(&mux->lock);
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(mux_control_select);
+EXPORT_SYMBOL_GPL(mux_control_select_delay);
 
 /**
- * mux_control_try_select() - Try to select the given multiplexer state.
+ * mux_control_try_select_delay() - Try to select the given multiplexer state.
  * @mux: The mux-control to request a change of state from.
  * @state: The new requested state.
+ * @delay_us: The time to delay (in microseconds) if the mux state is changed.
  *
  * On successfully selecting the mux-control state, it will be locked until
  * mux_control_deselect() called.
@@ -363,7 +386,8 @@ EXPORT_SYMBOL_GPL(mux_control_select);
  * Return: 0 when the mux-control state has the requested state or a negative
  * errno on error. Specifically -EBUSY if the mux-control is contended.
  */
-int mux_control_try_select(struct mux_control *mux, unsigned int state)
+int mux_control_try_select_delay(struct mux_control *mux, unsigned int state,
+				 unsigned int delay_us)
 {
 	int ret;
 
@@ -371,13 +395,15 @@ int mux_control_try_select(struct mux_control *mux, unsigned int state)
 		return -EBUSY;
 
 	ret = __mux_control_select(mux, state);
+	if (ret >= 0)
+		mux_control_delay(mux, delay_us);
 
 	if (ret < 0)
 		up(&mux->lock);
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(mux_control_try_select);
+EXPORT_SYMBOL_GPL(mux_control_try_select_delay);
 
 /**
  * mux_control_deselect() - Deselect the previously selected multiplexer state.

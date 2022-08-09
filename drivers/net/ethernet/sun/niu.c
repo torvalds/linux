@@ -2603,7 +2603,7 @@ static int niu_init_link(struct niu *np)
 	return 0;
 }
 
-static void niu_set_primary_mac(struct niu *np, unsigned char *addr)
+static void niu_set_primary_mac(struct niu *np, const unsigned char *addr)
 {
 	u16 reg0 = addr[4] << 8 | addr[5];
 	u16 reg1 = addr[2] << 8 | addr[3];
@@ -6386,7 +6386,7 @@ static int niu_set_mac_addr(struct net_device *dev, void *p)
 	if (!is_valid_ether_addr(addr->sa_data))
 		return -EADDRNOTAVAIL;
 
-	memcpy(dev->dev_addr, addr->sa_data, ETH_ALEN);
+	eth_hw_addr_set(dev, addr->sa_data);
 
 	if (!netif_running(dev))
 		return 0;
@@ -8312,6 +8312,7 @@ static void niu_pci_vpd_validate(struct niu *np)
 {
 	struct net_device *dev = np->dev;
 	struct niu_vpd *vpd = &np->vpd;
+	u8 addr[ETH_ALEN];
 	u8 val8;
 
 	if (!is_valid_ether_addr(&vpd->local_mac[0])) {
@@ -8344,17 +8345,20 @@ static void niu_pci_vpd_validate(struct niu *np)
 		return;
 	}
 
-	memcpy(dev->dev_addr, vpd->local_mac, ETH_ALEN);
+	ether_addr_copy(addr, vpd->local_mac);
 
-	val8 = dev->dev_addr[5];
-	dev->dev_addr[5] += np->port;
-	if (dev->dev_addr[5] < val8)
-		dev->dev_addr[4]++;
+	val8 = addr[5];
+	addr[5] += np->port;
+	if (addr[5] < val8)
+		addr[4]++;
+
+	eth_hw_addr_set(dev, addr);
 }
 
 static int niu_pci_probe_sprom(struct niu *np)
 {
 	struct net_device *dev = np->dev;
+	u8 addr[ETH_ALEN];
 	int len, i;
 	u64 val, sum;
 	u8 val8;
@@ -8446,27 +8450,29 @@ static int niu_pci_probe_sprom(struct niu *np)
 	val = nr64(ESPC_MAC_ADDR0);
 	netif_printk(np, probe, KERN_DEBUG, np->dev,
 		     "SPROM: MAC_ADDR0[%08llx]\n", (unsigned long long)val);
-	dev->dev_addr[0] = (val >>  0) & 0xff;
-	dev->dev_addr[1] = (val >>  8) & 0xff;
-	dev->dev_addr[2] = (val >> 16) & 0xff;
-	dev->dev_addr[3] = (val >> 24) & 0xff;
+	addr[0] = (val >>  0) & 0xff;
+	addr[1] = (val >>  8) & 0xff;
+	addr[2] = (val >> 16) & 0xff;
+	addr[3] = (val >> 24) & 0xff;
 
 	val = nr64(ESPC_MAC_ADDR1);
 	netif_printk(np, probe, KERN_DEBUG, np->dev,
 		     "SPROM: MAC_ADDR1[%08llx]\n", (unsigned long long)val);
-	dev->dev_addr[4] = (val >>  0) & 0xff;
-	dev->dev_addr[5] = (val >>  8) & 0xff;
+	addr[4] = (val >>  0) & 0xff;
+	addr[5] = (val >>  8) & 0xff;
 
-	if (!is_valid_ether_addr(&dev->dev_addr[0])) {
+	if (!is_valid_ether_addr(addr)) {
 		dev_err(np->device, "SPROM MAC address invalid [ %pM ]\n",
-			dev->dev_addr);
+			addr);
 		return -EINVAL;
 	}
 
-	val8 = dev->dev_addr[5];
-	dev->dev_addr[5] += np->port;
-	if (dev->dev_addr[5] < val8)
-		dev->dev_addr[4]++;
+	val8 = addr[5];
+	addr[5] += np->port;
+	if (addr[5] < val8)
+		addr[4]++;
+
+	eth_hw_addr_set(dev, addr);
 
 	val = nr64(ESPC_MOD_STR_LEN);
 	netif_printk(np, probe, KERN_DEBUG, np->dev,
@@ -9235,7 +9241,7 @@ static int niu_get_of_props(struct niu *np)
 		netdev_err(dev, "%pOF: OF MAC address prop len (%d) is wrong\n",
 			   dp, prop_len);
 	}
-	memcpy(dev->dev_addr, mac_addr, dev->addr_len);
+	eth_hw_addr_set(dev, mac_addr);
 	if (!is_valid_ether_addr(&dev->dev_addr[0])) {
 		netdev_err(dev, "%pOF: OF MAC address is invalid\n", dp);
 		netdev_err(dev, "%pOF: [ %pM ]\n", dp, dev->dev_addr);

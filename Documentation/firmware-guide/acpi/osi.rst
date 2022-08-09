@@ -74,7 +74,7 @@ The ACPI BIOS flow would include an evaluation of _OS, and the AML
 interpreter in the kernel would return to it a string identifying the OS:
 
 Windows 98, SE: "Microsoft Windows"
-Windows ME: "Microsoft WindowsME:Millenium Edition"
+Windows ME: "Microsoft WindowsME:Millennium Edition"
 Windows NT: "Microsoft Windows NT"
 
 The idea was on a platform tasked with running multiple OS's,

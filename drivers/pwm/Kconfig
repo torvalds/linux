@@ -476,7 +476,9 @@ config PWM_SAMSUNG
 	depends on PLAT_SAMSUNG || ARCH_S5PV210 || ARCH_EXYNOS || COMPILE_TEST
 	depends on HAS_IOMEM
 	help
-	  Generic PWM framework driver for Samsung.
+	  Generic PWM framework driver for Samsung S3C24xx, S3C64xx, S5Pv210
+	  and Exynos SoCs.
+	  Choose Y here only if you build for such Samsung SoC.
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called pwm-samsung.

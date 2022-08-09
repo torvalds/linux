@@ -197,6 +197,11 @@ static int tegra186_emc_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "failed to EMC DVFS pairs: %d\n", err);
 		goto put_bpmp;
 	}
+	if (msg.rx.ret < 0) {
+		err = -EINVAL;
+		dev_err(&pdev->dev, "EMC DVFS MRQ failed: %d (BPMP error code)\n", msg.rx.ret);
+		goto put_bpmp;
+	}
 
 	emc->debugfs.min_rate = ULONG_MAX;
 	emc->debugfs.max_rate = 0;

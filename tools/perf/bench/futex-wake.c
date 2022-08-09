@@ -222,5 +222,6 @@ int bench_futex_wake(int argc, const char **argv)
 	print_summary();
 
 	free(worker);
+	perf_cpu_map__put(cpu);
 	return ret;
 }

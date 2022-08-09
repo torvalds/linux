@@ -26,7 +26,7 @@ static int get_bridge_ifindices(struct net *net, int *indices, int num)
 	for_each_netdev_rcu(net, dev) {
 		if (i >= num)
 			break;
-		if (dev->priv_flags & IFF_EBRIDGE)
+		if (netif_is_bridge_master(dev))
 			indices[i++] = dev->ifindex;
 	}
 	rcu_read_unlock();
@@ -71,7 +71,8 @@ static int get_fdb_entries(struct net_bridge *br, void __user *userbuf,
 
 	num = br_fdb_fillbuf(br, buf, maxnum, offset);
 	if (num > 0) {
-		if (copy_to_user(userbuf, buf, num*sizeof(struct __fdb_entry)))
+		if (copy_to_user(userbuf, buf,
+				 array_size(num, sizeof(struct __fdb_entry))))
 			num = -EFAULT;
 	}
 	kfree(buf);
@@ -188,7 +189,7 @@ int br_dev_siocdevprivate(struct net_device *dev, struct ifreq *rq, void __user 
 			return -ENOMEM;
 
 		get_port_ifindices(br, indices, num);
-		if (copy_to_user(argp, indices, num * sizeof(int)))
+		if (copy_to_user(argp, indices, array_size(num, sizeof(int))))
 			num =  -EFAULT;
 		kfree(indices);
 		return num;
@@ -336,7 +337,8 @@ static int old_deviceless(struct net *net, void __user *uarg)
 
 		args[2] = get_bridge_ifindices(net, indices, args[2]);
 
-		ret = copy_to_user(uarg, indices, args[2]*sizeof(int))
+		ret = copy_to_user((void __user *)args[1], indices,
+				   array_size(args[2], sizeof(int)))
 			? -EFAULT : args[2];
 
 		kfree(indices);

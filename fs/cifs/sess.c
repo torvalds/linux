@@ -54,41 +54,53 @@ bool is_ses_using_iface(struct cifs_ses *ses, struct cifs_server_iface *iface)
 {
 	int i;
 
+	spin_lock(&ses->chan_lock);
 	for (i = 0; i < ses->chan_count; i++) {
-		if (is_server_using_iface(ses->chans[i].server, iface))
+		if (is_server_using_iface(ses->chans[i].server, iface)) {
+			spin_unlock(&ses->chan_lock);
 			return true;
+		}
 	}
+	spin_unlock(&ses->chan_lock);
 	return false;
 }
 
 /* returns number of channels added */
 int cifs_try_adding_channels(struct cifs_sb_info *cifs_sb, struct cifs_ses *ses)
 {
-	int old_chan_count = ses->chan_count;
-	int left = ses->chan_max - ses->chan_count;
+	int old_chan_count, new_chan_count;
+	int left;
 	int i = 0;
 	int rc = 0;
 	int tries = 0;
 	struct cifs_server_iface *ifaces = NULL;
 	size_t iface_count;
 
-	if (left <= 0) {
-		cifs_dbg(FYI,
-			 "ses already at max_channels (%zu), nothing to open\n",
-			 ses->chan_max);
-		return 0;
-	}
-
 	if (ses->server->dialect < SMB30_PROT_ID) {
 		cifs_dbg(VFS, "multichannel is not supported on this protocol version, use 3.0 or above\n");
 		return 0;
 	}
 
-	if (!(ses->server->capabilities & SMB2_GLOBAL_CAP_MULTI_CHANNEL)) {
-		cifs_dbg(VFS, "server %s does not support multichannel\n", ses->server->hostname);
-		ses->chan_max = 1;
+	spin_lock(&ses->chan_lock);
+
+	new_chan_count = old_chan_count = ses->chan_count;
+	left = ses->chan_max - ses->chan_count;
+
+	if (left <= 0) {
+		cifs_dbg(FYI,
+			 "ses already at max_channels (%zu), nothing to open\n",
+			 ses->chan_max);
+		spin_unlock(&ses->chan_lock);
 		return 0;
 	}
+
+	if (!(ses->server->capabilities & SMB2_GLOBAL_CAP_MULTI_CHANNEL)) {
+		ses->chan_max = 1;
+		spin_unlock(&ses->chan_lock);
+		cifs_dbg(VFS, "server %s does not support multichannel\n", ses->server->hostname);
+		return 0;
+	}
+	spin_unlock(&ses->chan_lock);
 
 	/*
 	 * Make a copy of the iface list at the time and use that
@@ -142,10 +154,11 @@ int cifs_try_adding_channels(struct cifs_sb_info *cifs_sb, struct cifs_ses *ses)
 		cifs_dbg(FYI, "successfully opened new channel on iface#%d\n",
 			 i);
 		left--;
+		new_chan_count++;
 	}
 
 	kfree(ifaces);
-	return ses->chan_count - old_chan_count;
+	return new_chan_count - old_chan_count;
 }
 
 /*
@@ -157,10 +170,14 @@ cifs_ses_find_chan(struct cifs_ses *ses, struct TCP_Server_Info *server)
 {
 	int i;
 
+	spin_lock(&ses->chan_lock);
 	for (i = 0; i < ses->chan_count; i++) {
-		if (ses->chans[i].server == server)
+		if (ses->chans[i].server == server) {
+			spin_unlock(&ses->chan_lock);
 			return &ses->chans[i];
+		}
 	}
+	spin_unlock(&ses->chan_lock);
 	return NULL;
 }
 
@@ -168,6 +185,7 @@ static int
 cifs_ses_add_channel(struct cifs_sb_info *cifs_sb, struct cifs_ses *ses,
 		     struct cifs_server_iface *iface)
 {
+	struct TCP_Server_Info *chan_server;
 	struct cifs_chan *chan;
 	struct smb3_fs_context ctx = {NULL};
 	static const char unc_fmt[] = "\\%s\\foo";
@@ -204,6 +222,7 @@ cifs_ses_add_channel(struct cifs_sb_info *cifs_sb, struct cifs_ses *ses,
 	/* Auth */
 	ctx.domainauto = ses->domainAuto;
 	ctx.domainname = ses->domainName;
+	ctx.server_hostname = ses->server->hostname;
 	ctx.username = ses->user_name;
 	ctx.password = ses->password;
 	ctx.sectype = ses->sectype;
@@ -240,18 +259,19 @@ cifs_ses_add_channel(struct cifs_sb_info *cifs_sb, struct cifs_ses *ses,
 	       SMB2_CLIENT_GUID_SIZE);
 	ctx.use_client_guid = true;
 
-	mutex_lock(&ses->session_mutex);
+	chan_server = cifs_get_tcp_session(&ctx, ses->server);
 
+	mutex_lock(&ses->session_mutex);
+	spin_lock(&ses->chan_lock);
 	chan = ses->binding_chan = &ses->chans[ses->chan_count];
-	chan->server = cifs_get_tcp_session(&ctx);
+	chan->server = chan_server;
 	if (IS_ERR(chan->server)) {
 		rc = PTR_ERR(chan->server);
 		chan->server = NULL;
+		spin_unlock(&ses->chan_lock);
 		goto out;
 	}
-	spin_lock(&cifs_tcp_ses_lock);
-	chan->server->is_channel = true;
-	spin_unlock(&cifs_tcp_ses_lock);
+	spin_unlock(&ses->chan_lock);
 
 	/*
 	 * We need to allocate the server crypto now as we will need
@@ -283,8 +303,11 @@ cifs_ses_add_channel(struct cifs_sb_info *cifs_sb, struct cifs_ses *ses,
 	 * ses to the new server.
 	 */
 
+	spin_lock(&ses->chan_lock);
 	ses->chan_count++;
 	atomic_set(&ses->chan_seq, 0);
+	spin_unlock(&ses->chan_lock);
+
 out:
 	ses->binding = false;
 	ses->binding_chan = NULL;
@@ -294,6 +317,19 @@ out:
 		cifs_put_tcp_session(chan->server, 0);
 
 	return rc;
+}
+
+/* Mark all session channels for reconnect */
+void cifs_ses_mark_for_reconnect(struct cifs_ses *ses)
+{
+	int i;
+
+	for (i = 0; i < ses->chan_count; i++) {
+		spin_lock(&GlobalMid_Lock);
+		if (ses->chans[i].server->tcpStatus != CifsExiting)
+			ses->chans[i].server->tcpStatus = CifsNeedReconnect;
+		spin_unlock(&GlobalMid_Lock);
+	}
 }
 
 static __u32 cifs_ssetup_hdr(struct cifs_ses *ses, SESSION_SETUP_ANDX *pSMB)
@@ -554,8 +590,8 @@ int decode_ntlmssp_challenge(char *bcc_ptr, int blob_len,
 {
 	unsigned int tioffset; /* challenge message target info area */
 	unsigned int tilen; /* challenge message target info area length  */
-
 	CHALLENGE_MESSAGE *pblob = (CHALLENGE_MESSAGE *)bcc_ptr;
+	__u32 server_flags;
 
 	if (blob_len < sizeof(CHALLENGE_MESSAGE)) {
 		cifs_dbg(VFS, "challenge blob len %d too small\n", blob_len);
@@ -573,12 +609,37 @@ int decode_ntlmssp_challenge(char *bcc_ptr, int blob_len,
 		return -EINVAL;
 	}
 
+	server_flags = le32_to_cpu(pblob->NegotiateFlags);
+	cifs_dbg(FYI, "%s: negotiate=0x%08x challenge=0x%08x\n", __func__,
+		 ses->ntlmssp->client_flags, server_flags);
+
+	if ((ses->ntlmssp->client_flags & (NTLMSSP_NEGOTIATE_SEAL | NTLMSSP_NEGOTIATE_SIGN)) &&
+	    (!(server_flags & NTLMSSP_NEGOTIATE_56) && !(server_flags & NTLMSSP_NEGOTIATE_128))) {
+		cifs_dbg(VFS, "%s: requested signing/encryption but server did not return either 56-bit or 128-bit session key size\n",
+			 __func__);
+		return -EINVAL;
+	}
+	if (!(server_flags & NTLMSSP_NEGOTIATE_NTLM) && !(server_flags & NTLMSSP_NEGOTIATE_EXTENDED_SEC)) {
+		cifs_dbg(VFS, "%s: server does not seem to support either NTLMv1 or NTLMv2\n", __func__);
+		return -EINVAL;
+	}
+	if (ses->server->sign && !(server_flags & NTLMSSP_NEGOTIATE_SIGN)) {
+		cifs_dbg(VFS, "%s: forced packet signing but server does not seem to support it\n",
+			 __func__);
+		return -EOPNOTSUPP;
+	}
+	if ((ses->ntlmssp->client_flags & NTLMSSP_NEGOTIATE_KEY_XCH) &&
+	    !(server_flags & NTLMSSP_NEGOTIATE_KEY_XCH))
+		pr_warn_once("%s: authentication has been weakened as server does not support key exchange\n",
+			     __func__);
+
+	ses->ntlmssp->server_flags = server_flags;
+
 	memcpy(ses->ntlmssp->cryptkey, pblob->Challenge, CIFS_CRYPTO_KEY_SIZE);
-	/* BB we could decode pblob->NegotiateFlags; some may be useful */
 	/* In particular we can examine sign flags */
 	/* BB spec says that if AvId field of MsvAvTimestamp is populated then
 		we must set the MIC field of the AUTHENTICATE_MESSAGE */
-	ses->ntlmssp->server_flags = le32_to_cpu(pblob->NegotiateFlags);
+
 	tioffset = le32_to_cpu(pblob->TargetInfoArray.BufferOffset);
 	tilen = le16_to_cpu(pblob->TargetInfoArray.Length);
 	if (tioffset > blob_len || tioffset + tilen > blob_len) {
@@ -599,18 +660,85 @@ int decode_ntlmssp_challenge(char *bcc_ptr, int blob_len,
 	return 0;
 }
 
+static int size_of_ntlmssp_blob(struct cifs_ses *ses, int base_size)
+{
+	int sz = base_size + ses->auth_key.len
+		- CIFS_SESS_KEY_SIZE + CIFS_CPHTXT_SIZE + 2;
+
+	if (ses->domainName)
+		sz += sizeof(__le16) * strnlen(ses->domainName, CIFS_MAX_DOMAINNAME_LEN);
+	else
+		sz += sizeof(__le16);
+
+	if (ses->user_name)
+		sz += sizeof(__le16) * strnlen(ses->user_name, CIFS_MAX_USERNAME_LEN);
+	else
+		sz += sizeof(__le16);
+
+	sz += sizeof(__le16) * strnlen(ses->workstation_name, CIFS_MAX_WORKSTATION_LEN);
+
+	return sz;
+}
+
+static inline void cifs_security_buffer_from_str(SECURITY_BUFFER *pbuf,
+						 char *str_value,
+						 int str_length,
+						 unsigned char *pstart,
+						 unsigned char **pcur,
+						 const struct nls_table *nls_cp)
+{
+	unsigned char *tmp = pstart;
+	int len;
+
+	if (!pbuf)
+		return;
+
+	if (!pcur)
+		pcur = &tmp;
+
+	if (!str_value) {
+		pbuf->BufferOffset = cpu_to_le32(*pcur - pstart);
+		pbuf->Length = 0;
+		pbuf->MaximumLength = 0;
+		*pcur += sizeof(__le16);
+	} else {
+		len = cifs_strtoUTF16((__le16 *)*pcur,
+				      str_value,
+				      str_length,
+				      nls_cp);
+		len *= sizeof(__le16);
+		pbuf->BufferOffset = cpu_to_le32(*pcur - pstart);
+		pbuf->Length = cpu_to_le16(len);
+		pbuf->MaximumLength = cpu_to_le16(len);
+		*pcur += len;
+	}
+}
+
 /* BB Move to ntlmssp.c eventually */
 
-/* We do not malloc the blob, it is passed in pbuffer, because
-   it is fixed size, and small, making this approach cleaner */
-void build_ntlmssp_negotiate_blob(unsigned char *pbuffer,
-					 struct cifs_ses *ses)
+int build_ntlmssp_negotiate_blob(unsigned char **pbuffer,
+				 u16 *buflen,
+				 struct cifs_ses *ses,
+				 const struct nls_table *nls_cp)
 {
+	int rc = 0;
 	struct TCP_Server_Info *server = cifs_ses_server(ses);
-	NEGOTIATE_MESSAGE *sec_blob = (NEGOTIATE_MESSAGE *)pbuffer;
+	NEGOTIATE_MESSAGE *sec_blob;
 	__u32 flags;
+	unsigned char *tmp;
+	int len;
 
-	memset(pbuffer, 0, sizeof(NEGOTIATE_MESSAGE));
+	len = size_of_ntlmssp_blob(ses, sizeof(NEGOTIATE_MESSAGE));
+	*pbuffer = kmalloc(len, GFP_KERNEL);
+	if (!*pbuffer) {
+		rc = -ENOMEM;
+		cifs_dbg(VFS, "Error %d during NTLMSSP allocation\n", rc);
+		*buflen = 0;
+		goto setup_ntlm_neg_ret;
+	}
+	sec_blob = (NEGOTIATE_MESSAGE *)*pbuffer;
+
+	memset(*pbuffer, 0, sizeof(NEGOTIATE_MESSAGE));
 	memcpy(sec_blob->Signature, NTLMSSP_SIGNATURE, 8);
 	sec_blob->MessageType = NtLmNegotiate;
 
@@ -618,40 +746,31 @@ void build_ntlmssp_negotiate_blob(unsigned char *pbuffer,
 	flags = NTLMSSP_NEGOTIATE_56 |	NTLMSSP_REQUEST_TARGET |
 		NTLMSSP_NEGOTIATE_128 | NTLMSSP_NEGOTIATE_UNICODE |
 		NTLMSSP_NEGOTIATE_NTLM | NTLMSSP_NEGOTIATE_EXTENDED_SEC |
-		NTLMSSP_NEGOTIATE_SEAL;
-	if (server->sign)
-		flags |= NTLMSSP_NEGOTIATE_SIGN;
+		NTLMSSP_NEGOTIATE_ALWAYS_SIGN | NTLMSSP_NEGOTIATE_SEAL |
+		NTLMSSP_NEGOTIATE_SIGN;
 	if (!server->session_estab || ses->ntlmssp->sesskey_per_smbsess)
 		flags |= NTLMSSP_NEGOTIATE_KEY_XCH;
 
+	tmp = *pbuffer + sizeof(NEGOTIATE_MESSAGE);
+	ses->ntlmssp->client_flags = flags;
 	sec_blob->NegotiateFlags = cpu_to_le32(flags);
 
-	sec_blob->WorkstationName.BufferOffset = 0;
-	sec_blob->WorkstationName.Length = 0;
-	sec_blob->WorkstationName.MaximumLength = 0;
+	/* these fields should be null in negotiate phase MS-NLMP 3.1.5.1.1 */
+	cifs_security_buffer_from_str(&sec_blob->DomainName,
+				      NULL,
+				      CIFS_MAX_DOMAINNAME_LEN,
+				      *pbuffer, &tmp,
+				      nls_cp);
 
-	/* Domain name is sent on the Challenge not Negotiate NTLMSSP request */
-	sec_blob->DomainName.BufferOffset = 0;
-	sec_blob->DomainName.Length = 0;
-	sec_blob->DomainName.MaximumLength = 0;
-}
+	cifs_security_buffer_from_str(&sec_blob->WorkstationName,
+				      NULL,
+				      CIFS_MAX_WORKSTATION_LEN,
+				      *pbuffer, &tmp,
+				      nls_cp);
 
-static int size_of_ntlmssp_blob(struct cifs_ses *ses)
-{
-	int sz = sizeof(AUTHENTICATE_MESSAGE) + ses->auth_key.len
-		- CIFS_SESS_KEY_SIZE + CIFS_CPHTXT_SIZE + 2;
-
-	if (ses->domainName)
-		sz += 2 * strnlen(ses->domainName, CIFS_MAX_DOMAINNAME_LEN);
-	else
-		sz += 2;
-
-	if (ses->user_name)
-		sz += 2 * strnlen(ses->user_name, CIFS_MAX_USERNAME_LEN);
-	else
-		sz += 2;
-
-	return sz;
+	*buflen = tmp - *pbuffer;
+setup_ntlm_neg_ret:
+	return rc;
 }
 
 int build_ntlmssp_auth_blob(unsigned char **pbuffer,
@@ -663,6 +782,7 @@ int build_ntlmssp_auth_blob(unsigned char **pbuffer,
 	AUTHENTICATE_MESSAGE *sec_blob;
 	__u32 flags;
 	unsigned char *tmp;
+	int len;
 
 	rc = setup_ntlmv2_rsp(ses, nls_cp);
 	if (rc) {
@@ -670,7 +790,9 @@ int build_ntlmssp_auth_blob(unsigned char **pbuffer,
 		*buflen = 0;
 		goto setup_ntlmv2_ret;
 	}
-	*pbuffer = kmalloc(size_of_ntlmssp_blob(ses), GFP_KERNEL);
+
+	len = size_of_ntlmssp_blob(ses, sizeof(AUTHENTICATE_MESSAGE));
+	*pbuffer = kmalloc(len, GFP_KERNEL);
 	if (!*pbuffer) {
 		rc = -ENOMEM;
 		cifs_dbg(VFS, "Error %d during NTLMSSP allocation\n", rc);
@@ -682,15 +804,8 @@ int build_ntlmssp_auth_blob(unsigned char **pbuffer,
 	memcpy(sec_blob->Signature, NTLMSSP_SIGNATURE, 8);
 	sec_blob->MessageType = NtLmAuthenticate;
 
-	flags = NTLMSSP_NEGOTIATE_56 |
-		NTLMSSP_REQUEST_TARGET | NTLMSSP_NEGOTIATE_TARGET_INFO |
-		NTLMSSP_NEGOTIATE_128 | NTLMSSP_NEGOTIATE_UNICODE |
-		NTLMSSP_NEGOTIATE_NTLM | NTLMSSP_NEGOTIATE_EXTENDED_SEC |
-		NTLMSSP_NEGOTIATE_SEAL;
-	if (ses->server->sign)
-		flags |= NTLMSSP_NEGOTIATE_SIGN;
-	if (!ses->server->session_estab || ses->ntlmssp->sesskey_per_smbsess)
-		flags |= NTLMSSP_NEGOTIATE_KEY_XCH;
+	flags = ses->ntlmssp->server_flags | NTLMSSP_REQUEST_TARGET |
+		NTLMSSP_NEGOTIATE_TARGET_INFO | NTLMSSP_NEGOTIATE_WORKSTATION_SUPPLIED;
 
 	tmp = *pbuffer + sizeof(AUTHENTICATE_MESSAGE);
 	sec_blob->NegotiateFlags = cpu_to_le32(flags);
@@ -719,46 +834,27 @@ int build_ntlmssp_auth_blob(unsigned char **pbuffer,
 		sec_blob->NtChallengeResponse.MaximumLength = 0;
 	}
 
-	if (ses->domainName == NULL) {
-		sec_blob->DomainName.BufferOffset = cpu_to_le32(tmp - *pbuffer);
-		sec_blob->DomainName.Length = 0;
-		sec_blob->DomainName.MaximumLength = 0;
-		tmp += 2;
-	} else {
-		int len;
-		len = cifs_strtoUTF16((__le16 *)tmp, ses->domainName,
-				      CIFS_MAX_DOMAINNAME_LEN, nls_cp);
-		len *= 2; /* unicode is 2 bytes each */
-		sec_blob->DomainName.BufferOffset = cpu_to_le32(tmp - *pbuffer);
-		sec_blob->DomainName.Length = cpu_to_le16(len);
-		sec_blob->DomainName.MaximumLength = cpu_to_le16(len);
-		tmp += len;
-	}
+	cifs_security_buffer_from_str(&sec_blob->DomainName,
+				      ses->domainName,
+				      CIFS_MAX_DOMAINNAME_LEN,
+				      *pbuffer, &tmp,
+				      nls_cp);
 
-	if (ses->user_name == NULL) {
-		sec_blob->UserName.BufferOffset = cpu_to_le32(tmp - *pbuffer);
-		sec_blob->UserName.Length = 0;
-		sec_blob->UserName.MaximumLength = 0;
-		tmp += 2;
-	} else {
-		int len;
-		len = cifs_strtoUTF16((__le16 *)tmp, ses->user_name,
-				      CIFS_MAX_USERNAME_LEN, nls_cp);
-		len *= 2; /* unicode is 2 bytes each */
-		sec_blob->UserName.BufferOffset = cpu_to_le32(tmp - *pbuffer);
-		sec_blob->UserName.Length = cpu_to_le16(len);
-		sec_blob->UserName.MaximumLength = cpu_to_le16(len);
-		tmp += len;
-	}
+	cifs_security_buffer_from_str(&sec_blob->UserName,
+				      ses->user_name,
+				      CIFS_MAX_USERNAME_LEN,
+				      *pbuffer, &tmp,
+				      nls_cp);
 
-	sec_blob->WorkstationName.BufferOffset = cpu_to_le32(tmp - *pbuffer);
-	sec_blob->WorkstationName.Length = 0;
-	sec_blob->WorkstationName.MaximumLength = 0;
-	tmp += 2;
+	cifs_security_buffer_from_str(&sec_blob->WorkstationName,
+				      ses->workstation_name,
+				      CIFS_MAX_WORKSTATION_LEN,
+				      *pbuffer, &tmp,
+				      nls_cp);
 
-	if (((ses->ntlmssp->server_flags & NTLMSSP_NEGOTIATE_KEY_XCH) ||
-		(ses->ntlmssp->server_flags & NTLMSSP_NEGOTIATE_EXTENDED_SEC))
-			&& !calc_seckey(ses)) {
+	if ((ses->ntlmssp->server_flags & NTLMSSP_NEGOTIATE_KEY_XCH) &&
+	    (!ses->server->session_estab || ses->ntlmssp->sesskey_per_smbsess) &&
+	    !calc_seckey(ses)) {
 		memcpy(tmp, ses->ntlmssp->ciphertext, CIFS_CPHTXT_SIZE);
 		sec_blob->SessionKey.BufferOffset = cpu_to_le32(tmp - *pbuffer);
 		sec_blob->SessionKey.Length = cpu_to_le16(CIFS_CPHTXT_SIZE);
@@ -1230,6 +1326,7 @@ sess_auth_rawntlmssp_negotiate(struct sess_data *sess_data)
 	struct cifs_ses *ses = sess_data->ses;
 	__u16 bytes_remaining;
 	char *bcc_ptr;
+	unsigned char *ntlmsspblob = NULL;
 	u16 blob_len;
 
 	cifs_dbg(FYI, "rawntlmssp session setup negotiate phase\n");
@@ -1253,10 +1350,15 @@ sess_auth_rawntlmssp_negotiate(struct sess_data *sess_data)
 	pSMB = (SESSION_SETUP_ANDX *)sess_data->iov[0].iov_base;
 
 	/* Build security blob before we assemble the request */
-	build_ntlmssp_negotiate_blob(pSMB->req.SecurityBlob, ses);
-	sess_data->iov[1].iov_len = sizeof(NEGOTIATE_MESSAGE);
-	sess_data->iov[1].iov_base = pSMB->req.SecurityBlob;
-	pSMB->req.SecurityBlobLength = cpu_to_le16(sizeof(NEGOTIATE_MESSAGE));
+	rc = build_ntlmssp_negotiate_blob(&ntlmsspblob,
+				     &blob_len, ses,
+				     sess_data->nls_cp);
+	if (rc)
+		goto out;
+
+	sess_data->iov[1].iov_len = blob_len;
+	sess_data->iov[1].iov_base = ntlmsspblob;
+	pSMB->req.SecurityBlobLength = cpu_to_le16(blob_len);
 
 	rc = _sess_auth_rawntlmssp_assemble_req(sess_data);
 	if (rc)

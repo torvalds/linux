@@ -70,7 +70,7 @@ static __always_inline bool is_remote_ep_v6(struct __sk_buff *skb,
 	return v6_equal(ip6h->daddr, addr);
 }
 
-SEC("classifier/chk_egress")
+SEC("tc")
 int tc_chk(struct __sk_buff *skb)
 {
 	void *data_end = ctx_ptr(skb->data_end);
@@ -83,7 +83,7 @@ int tc_chk(struct __sk_buff *skb)
 	return !raw[0] && !raw[1] && !raw[2] ? TC_ACT_SHOT : TC_ACT_OK;
 }
 
-SEC("classifier/dst_ingress")
+SEC("tc")
 int tc_dst(struct __sk_buff *skb)
 {
 	__u8 zero[ETH_ALEN * 2];
@@ -108,7 +108,7 @@ int tc_dst(struct __sk_buff *skb)
 	return bpf_redirect_neigh(IFINDEX_SRC, NULL, 0, 0);
 }
 
-SEC("classifier/src_ingress")
+SEC("tc")
 int tc_src(struct __sk_buff *skb)
 {
 	__u8 zero[ETH_ALEN * 2];

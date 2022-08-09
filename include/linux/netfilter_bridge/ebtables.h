@@ -112,9 +112,8 @@ extern int ebt_register_table(struct net *net,
 			      const struct nf_hook_ops *ops);
 extern void ebt_unregister_table(struct net *net, const char *tablename);
 void ebt_unregister_table_pre_exit(struct net *net, const char *tablename);
-extern unsigned int ebt_do_table(struct sk_buff *skb,
-				 const struct nf_hook_state *state,
-				 struct ebt_table *table);
+extern unsigned int ebt_do_table(void *priv, struct sk_buff *skb,
+				 const struct nf_hook_state *state);
 
 /* True if the hook mask denotes that the rule is in a base chain,
  * used in the check() functions */

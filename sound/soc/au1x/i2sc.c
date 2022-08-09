@@ -119,9 +119,9 @@ static int au1xi2s_set_fmt(struct snd_soc_dai *cpu_dai, unsigned int fmt)
 		goto out;
 	}
 
-	/* I2S controller only supports master */
-	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
-	case SND_SOC_DAIFMT_CBS_CFS:	/* CODEC slave */
+	/* I2S controller only supports provider */
+	switch (fmt & SND_SOC_DAIFMT_CLOCK_PROVIDER_MASK) {
+	case SND_SOC_DAIFMT_CBC_CFC:	/* CODEC consumer */
 		break;
 	default:
 		goto out;

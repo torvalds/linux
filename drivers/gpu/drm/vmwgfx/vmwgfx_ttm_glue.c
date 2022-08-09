@@ -61,9 +61,6 @@ int vmw_mmap(struct file *filp, struct vm_area_struct *vma)
 		.fault = vmw_bo_vm_fault,
 		.open = ttm_bo_vm_open,
 		.close = ttm_bo_vm_close,
-#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-		.huge_fault = vmw_bo_vm_huge_fault,
-#endif
 	};
 	struct drm_file *file_priv = filp->private_data;
 	struct vmw_private *dev_priv = vmw_priv(file_priv->minor->dev);

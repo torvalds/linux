@@ -166,7 +166,10 @@ static int nvme_zone_parse_entry(struct nvme_ns *ns,
 	zone.len = ns->zsze;
 	zone.capacity = nvme_lba_to_sect(ns, le64_to_cpu(entry->zcap));
 	zone.start = nvme_lba_to_sect(ns, le64_to_cpu(entry->zslba));
-	zone.wp = nvme_lba_to_sect(ns, le64_to_cpu(entry->wp));
+	if (zone.cond == BLK_ZONE_COND_FULL)
+		zone.wp = zone.start + zone.len;
+	else
+		zone.wp = nvme_lba_to_sect(ns, le64_to_cpu(entry->wp));
 
 	return cb(&zone, idx, data);
 }
@@ -233,6 +236,8 @@ out_free:
 blk_status_t nvme_setup_zone_mgmt_send(struct nvme_ns *ns, struct request *req,
 		struct nvme_command *c, enum nvme_zone_mgmt_action action)
 {
+	memset(c, 0, sizeof(*c));
+
 	c->zms.opcode = nvme_cmd_zone_mgmt_send;
 	c->zms.nsid = cpu_to_le32(ns->head->ns_id);
 	c->zms.slba = cpu_to_le64(nvme_sect_to_lba(ns, blk_rq_pos(req)));

@@ -543,7 +543,7 @@ As mentioned earlier, Speakup can either be completely compiled into the
 kernel, with the exception of the help module, or it can be compiled as
 a series of modules.   When compiled as modules, Speakup will only be
 able to speak some of the bootup messages if your system administrator
-has configured the system to load the modules at boo time. The modules
+has configured the system to load the modules at boot time. The modules
 can  be loaded after the file systems have been checked and mounted, or
 from an initrd.  There is a third possibility.  Speakup can be compiled
 with some components built into the kernel, and others as modules.  As

@@ -279,13 +279,10 @@ static int visconti_add_pcie_port(struct visconti_pcie *pcie,
 {
 	struct dw_pcie *pci = &pcie->pci;
 	struct pcie_port *pp = &pci->pp;
-	struct device *dev = &pdev->dev;
 
 	pp->irq = platform_get_irq_byname(pdev, "intr");
-	if (pp->irq < 0) {
-		dev_err(dev, "Interrupt intr is missing");
+	if (pp->irq < 0)
 		return pp->irq;
-	}
 
 	pp->ops = &visconti_pcie_host_ops;
 

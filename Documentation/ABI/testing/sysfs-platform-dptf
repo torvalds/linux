@@ -133,7 +133,10 @@ Contact:	linux-acpi@vger.kernel.org
 Description:
 		(RO) Presents SSC (spread spectrum clock) information for EMI
 		(Electro magnetic interference) control. This is a bit mask.
+
+		=======	==========================================
 		Bits	Description
+		=======	==========================================
 		[7:0]	Sets clock spectrum spread percentage:
 			0x00=0.2% , 0x3F=10%
 			1 LSB = 0.1% increase in spread (for
@@ -151,3 +154,4 @@ Description:
 		[10]	0: No white noise. 1: Add white noise
 			to spread waveform
 		[11]	When 1, future writes are ignored.
+		=======	==========================================

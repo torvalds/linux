@@ -13,7 +13,7 @@
 
 #include <asm/tlbflush.h>
 
-extern void die(const char *str, struct pt_regs *regs, long err);
+extern void __noreturn die(const char *str, struct pt_regs *regs, long err);
 
 /*
  * This is useful to dump out the page tables associated with
@@ -299,10 +299,6 @@ no_context:
 
 	show_pte(mm, addr);
 	die("Oops", regs, error_code);
-	bust_spinlocks(0);
-	do_exit(SIGKILL);
-
-	return;
 
 	/*
 	 * We ran out of memory, or some other thing happened to us that made

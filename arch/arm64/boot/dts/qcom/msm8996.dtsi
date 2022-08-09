@@ -582,7 +582,6 @@
 		pcie_phy: phy@34000 {
 			compatible = "qcom,msm8996-qmp-pcie-phy";
 			reg = <0x00034000 0x488>;
-			#clock-cells = <1>;
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges;
@@ -598,12 +597,13 @@
 			reset-names = "phy", "common", "cfg";
 			status = "disabled";
 
-			pciephy_0: lane@35000 {
+			pciephy_0: phy@35000 {
 				reg = <0x00035000 0x130>,
 				      <0x00035200 0x200>,
 				      <0x00035400 0x1dc>;
 				#phy-cells = <0>;
 
+				#clock-cells = <1>;
 				clock-output-names = "pcie_0_pipe_clk_src";
 				clocks = <&gcc GCC_PCIE_0_PIPE_CLK>;
 				clock-names = "pipe0";
@@ -611,7 +611,7 @@
 				reset-names = "lane0";
 			};
 
-			pciephy_1: lane@36000 {
+			pciephy_1: phy@36000 {
 				reg = <0x00036000 0x130>,
 				      <0x00036200 0x200>,
 				      <0x00036400 0x1dc>;
@@ -624,7 +624,7 @@
 				reset-names = "lane1";
 			};
 
-			pciephy_2: lane@37000 {
+			pciephy_2: phy@37000 {
 				reg = <0x00037000 0x130>,
 				      <0x00037200 0x200>,
 				      <0x00037400 0x1dc>;
@@ -638,7 +638,7 @@
 			};
 		};
 
-		rpm_msg_ram: memory@68000 {
+		rpm_msg_ram: sram@68000 {
 			compatible = "qcom,rpm-msg-ram";
 			reg = <0x00068000 0x6000>;
 		};
@@ -703,6 +703,28 @@
 				     <GIC_SPI 430 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "uplow", "critical";
 			#thermal-sensor-cells = <1>;
+		};
+
+		cryptobam: dma@644000 {
+			compatible = "qcom,bam-v1.7.0";
+			reg = <0x00644000 0x24000>;
+			interrupts = <GIC_SPI 206 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&gcc GCC_CE1_CLK>;
+			clock-names = "bam_clk";
+			#dma-cells = <1>;
+			qcom,ee = <0>;
+			qcom,controlled-remotely = <1>;
+		};
+
+		crypto: crypto@67a000 {
+			compatible = "qcom,crypto-v5.4";
+			reg = <0x0067a000 0x6000>;
+			clocks = <&gcc GCC_CE1_AHB_CLK>,
+				 <&gcc GCC_CE1_AXI_CLK>,
+				 <&gcc GCC_CE1_CLK>;
+			clock-names = "iface", "bus", "core";
+			dmas = <&cryptobam 6>, <&cryptobam 7>;
+			dma-names = "rx", "tx";
 		};
 
 		tcsr_mutex_regs: syscon@740000 {
@@ -1211,6 +1233,20 @@
 				};
 			};
 
+			blsp1_uart2_default: blsp1-uart2-default {
+				pins = "gpio41", "gpio42", "gpio43", "gpio44";
+				function = "blsp_uart2";
+				drive-strength = <16>;
+				bias-disable;
+			};
+
+			blsp1_uart2_sleep: blsp1-uart2-sleep {
+				pins = "gpio41", "gpio42", "gpio43", "gpio44";
+				function = "gpio";
+				drive-strength = <2>;
+				bias-disable;
+			};
+
 			blsp1_i2c3_default: blsp1-i2c2-default {
 				pins = "gpio47", "gpio48";
 				function = "blsp_i2c3";
@@ -1235,6 +1271,20 @@
 			blsp2_uart3_4pins_sleep: blsp2-uart2-4pins-sleep {
 				pins = "gpio49", "gpio50", "gpio51", "gpio52";
 				function = "blsp_uart9";
+				drive-strength = <2>;
+				bias-disable;
+			};
+
+			blsp2_i2c3_default: blsp2-i2c3 {
+				pins = "gpio51", "gpio52";
+				function = "blsp_i2c9";
+				drive-strength = <16>;
+				bias-disable;
+			};
+
+			blsp2_i2c3_sleep: blsp2-i2c3-sleep {
+				pins = "gpio51", "gpio52";
+				function = "gpio";
 				drive-strength = <2>;
 				bias-disable;
 			};
@@ -1495,6 +1545,11 @@
 			};
 		};
 
+		sram@290000 {
+			compatible = "qcom,rpm-stats";
+			reg = <0x00290000 0x10000>;
+		};
+
 		spmi_bus: qcom,spmi@400f000 {
 			compatible = "qcom,spmi-pmic-arb";
 			reg = <0x0400f000 0x1000>,
@@ -1746,7 +1801,7 @@
 			reset-names = "ufsphy";
 			status = "disabled";
 
-			ufsphy_lane: lanes@627400 {
+			ufsphy_lane: phy@627400 {
 				reg = <0x627400 0x12c>,
 				      <0x627600 0x200>,
 				      <0x627c00 0x1b4>;
@@ -2586,7 +2641,6 @@
 		usb3phy: phy@7410000 {
 			compatible = "qcom,msm8996-qmp-usb3-phy";
 			reg = <0x07410000 0x1c4>;
-			#clock-cells = <1>;
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges;
@@ -2601,12 +2655,13 @@
 			reset-names = "phy", "common";
 			status = "disabled";
 
-			ssusb_phy_0: lane@7410200 {
+			ssusb_phy_0: phy@7410200 {
 				reg = <0x07410200 0x200>,
 				      <0x07410400 0x130>,
 				      <0x07410600 0x1a8>;
 				#phy-cells = <0>;
 
+				#clock-cells = <1>;
 				clock-output-names = "usb3_phy_pipe_clk_src";
 				clocks = <&gcc GCC_USB3_PHY_PIPE_CLK>;
 				clock-names = "pipe0";
@@ -2686,7 +2741,7 @@
 			status = "disabled";
 		 };
 
-		blsp1_dma: dma@7544000 {
+		blsp1_dma: dma-controller@7544000 {
 			compatible = "qcom,bam-v1.7.0";
 			reg = <0x07544000 0x2b000>;
 			interrupts = <GIC_SPI 238 IRQ_TYPE_LEVEL_HIGH>;
@@ -2704,6 +2759,9 @@
 			clocks = <&gcc GCC_BLSP1_UART2_APPS_CLK>,
 				 <&gcc GCC_BLSP1_AHB_CLK>;
 			clock-names = "core", "iface";
+			pinctrl-names = "default", "sleep";
+			pinctrl-0 = <&blsp1_uart2_default>;
+			pinctrl-1 = <&blsp1_uart2_sleep>;
 			dmas = <&blsp1_dma 2>, <&blsp1_dma 3>;
 			dma-names = "tx", "rx";
 			status = "disabled";
@@ -2743,7 +2801,7 @@
 			status = "disabled";
 		};
 
-		blsp2_dma: dma@7584000 {
+		blsp2_dma: dma-controller@7584000 {
 			compatible = "qcom,bam-v1.7.0";
 			reg = <0x07584000 0x2b000>;
 			interrupts = <GIC_SPI 239 IRQ_TYPE_LEVEL_HIGH>;
@@ -2802,6 +2860,24 @@
 			pinctrl-0 = <&blsp2_i2c2_default>;
 			pinctrl-1 = <&blsp2_i2c2_sleep>;
 			dmas = <&blsp2_dma 14>, <&blsp2_dma 15>;
+			dma-names = "tx", "rx";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
+		};
+
+		blsp2_i2c3: i2c@75b7000 {
+			compatible = "qcom,i2c-qup-v2.2.1";
+			reg = <0x075b7000 0x1000>;
+			interrupts = <GIC_SPI 103 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&gcc GCC_BLSP2_AHB_CLK>,
+				<&gcc GCC_BLSP2_QUP3_I2C_APPS_CLK>;
+			clock-names = "iface", "core";
+			clock-frequency = <400000>;
+			pinctrl-names = "default", "sleep";
+			pinctrl-0 = <&blsp2_i2c3_default>;
+			pinctrl-1 = <&blsp2_i2c3_sleep>;
+			dmas = <&blsp2_dma 16>, <&blsp2_dma 17>;
 			dma-names = "tx", "rx";
 			#address-cells = <1>;
 			#size-cells = <0>;

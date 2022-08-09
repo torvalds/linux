@@ -21,6 +21,7 @@ intel-vbtn-y				:= vbtn.o
 obj-$(CONFIG_INTEL_VBTN)		+= intel-vbtn.o
 
 # Intel miscellaneous drivers
+obj-$(CONFIG_INTEL_ISHTP_ECLITE)	+= ishtp_eclite.o
 intel_int0002_vgpio-y			:= int0002_vgpio.o
 obj-$(CONFIG_INTEL_INT0002_VGPIO)	+= intel_int0002_vgpio.o
 intel_oaktrail-y			:= oaktrail.o

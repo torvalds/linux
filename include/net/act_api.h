@@ -30,13 +30,13 @@ struct tc_action {
 	atomic_t			tcfa_bindcnt;
 	int				tcfa_action;
 	struct tcf_t			tcfa_tm;
-	struct gnet_stats_basic_packed	tcfa_bstats;
-	struct gnet_stats_basic_packed	tcfa_bstats_hw;
+	struct gnet_stats_basic_sync	tcfa_bstats;
+	struct gnet_stats_basic_sync	tcfa_bstats_hw;
 	struct gnet_stats_queue		tcfa_qstats;
 	struct net_rate_estimator __rcu *tcfa_rate_est;
 	spinlock_t			tcfa_lock;
-	struct gnet_stats_basic_cpu __percpu *cpu_bstats;
-	struct gnet_stats_basic_cpu __percpu *cpu_bstats_hw;
+	struct gnet_stats_basic_sync __percpu *cpu_bstats;
+	struct gnet_stats_basic_sync __percpu *cpu_bstats_hw;
 	struct gnet_stats_queue __percpu *cpu_qstats;
 	struct tc_cookie	__rcu *act_cookie;
 	struct tcf_chain	__rcu *goto_chain;
@@ -206,7 +206,7 @@ static inline void tcf_action_update_bstats(struct tc_action *a,
 					    struct sk_buff *skb)
 {
 	if (likely(a->cpu_bstats)) {
-		bstats_cpu_update(this_cpu_ptr(a->cpu_bstats), skb);
+		bstats_update(this_cpu_ptr(a->cpu_bstats), skb);
 		return;
 	}
 	spin_lock(&a->tcfa_lock);

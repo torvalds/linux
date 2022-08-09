@@ -1444,6 +1444,14 @@ struct hns_roce_dip {
 	struct list_head node;	/* all dips are on a list */
 };
 
+/* only for RNR timeout issue of HIP08 */
+#define HNS_ROCE_CLOCK_ADJUST 1000
+#define HNS_ROCE_MAX_CQ_PERIOD 65
+#define HNS_ROCE_MAX_EQ_PERIOD 65
+#define HNS_ROCE_RNR_TIMER_10NS 1
+#define HNS_ROCE_1US_CFG 999
+#define HNS_ROCE_1NS_CFG 0
+
 #define HNS_ROCE_AEQ_DEFAULT_BURST_NUM	0x0
 #define HNS_ROCE_AEQ_DEFAULT_INTERVAL	0x0
 #define HNS_ROCE_CEQ_DEFAULT_BURST_NUM	0x0

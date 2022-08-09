@@ -1496,7 +1496,7 @@ int stmpe_probe(struct stmpe_client_info *ci, enum stmpe_partnum partnum)
 	return ret;
 }
 
-int stmpe_remove(struct stmpe *stmpe)
+void stmpe_remove(struct stmpe *stmpe)
 {
 	if (!IS_ERR(stmpe->vio))
 		regulator_disable(stmpe->vio);
@@ -1506,8 +1506,6 @@ int stmpe_remove(struct stmpe *stmpe)
 	__stmpe_disable(stmpe, STMPE_BLOCK_ADC);
 
 	mfd_remove_devices(stmpe->dev);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM

@@ -469,3 +469,21 @@ free_cpuclk:
 	kfree(cpuclk);
 	return ret;
 }
+
+void __init samsung_clk_register_cpu(struct samsung_clk_provider *ctx,
+		const struct samsung_cpu_clock *list, unsigned int nr_clk)
+{
+	unsigned int idx;
+	unsigned int num_cfgs;
+	struct clk_hw **hws = ctx->clk_data.hws;
+
+	for (idx = 0; idx < nr_clk; idx++, list++) {
+		/* find count of configuration rates in cfg */
+		for (num_cfgs = 0; list->cfg[num_cfgs].prate != 0; )
+			num_cfgs++;
+
+		exynos_register_cpu_clock(ctx, list->id, list->name, hws[list->parent_id],
+				hws[list->alt_parent_id], list->offset, list->cfg, num_cfgs,
+				list->flags);
+	}
+}

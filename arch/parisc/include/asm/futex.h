@@ -2,8 +2,6 @@
 #ifndef _ASM_PARISC_FUTEX_H
 #define _ASM_PARISC_FUTEX_H
 
-#ifdef __KERNEL__
-
 #include <linux/futex.h>
 #include <linux/uaccess.h>
 #include <asm/atomic.h>
@@ -13,35 +11,34 @@
    sixteen four-word locks. */
 
 static inline void
-_futex_spin_lock_irqsave(u32 __user *uaddr, unsigned long int *flags)
+_futex_spin_lock(u32 __user *uaddr)
 {
 	extern u32 lws_lock_start[];
-	long index = ((long)uaddr & 0x3f8) >> 1;
+	long index = ((long)uaddr & 0x7f8) >> 1;
 	arch_spinlock_t *s = (arch_spinlock_t *)&lws_lock_start[index];
-	local_irq_save(*flags);
+	preempt_disable();
 	arch_spin_lock(s);
 }
 
 static inline void
-_futex_spin_unlock_irqrestore(u32 __user *uaddr, unsigned long int *flags)
+_futex_spin_unlock(u32 __user *uaddr)
 {
 	extern u32 lws_lock_start[];
-	long index = ((long)uaddr & 0x3f8) >> 1;
+	long index = ((long)uaddr & 0x7f8) >> 1;
 	arch_spinlock_t *s = (arch_spinlock_t *)&lws_lock_start[index];
 	arch_spin_unlock(s);
-	local_irq_restore(*flags);
+	preempt_enable();
 }
 
 static inline int
 arch_futex_atomic_op_inuser(int op, int oparg, int *oval, u32 __user *uaddr)
 {
-	unsigned long int flags;
 	int oldval, ret;
 	u32 tmp;
 
-	_futex_spin_lock_irqsave(uaddr, &flags);
-
 	ret = -EFAULT;
+
+	_futex_spin_lock(uaddr);
 	if (unlikely(get_user(oldval, uaddr) != 0))
 		goto out_pagefault_enable;
 
@@ -72,7 +69,7 @@ arch_futex_atomic_op_inuser(int op, int oparg, int *oval, u32 __user *uaddr)
 		ret = -EFAULT;
 
 out_pagefault_enable:
-	_futex_spin_unlock_irqrestore(uaddr, &flags);
+	_futex_spin_unlock(uaddr);
 
 	if (!ret)
 		*oval = oldval;
@@ -85,7 +82,6 @@ futex_atomic_cmpxchg_inatomic(u32 *uval, u32 __user *uaddr,
 			      u32 oldval, u32 newval)
 {
 	u32 val;
-	unsigned long flags;
 
 	/* futex.c wants to do a cmpxchg_inatomic on kernel NULL, which is
 	 * our gateway page, and causes no end of trouble...
@@ -102,22 +98,21 @@ futex_atomic_cmpxchg_inatomic(u32 *uval, u32 __user *uaddr,
 	 * address. This should scale to a couple of CPUs.
 	 */
 
-	_futex_spin_lock_irqsave(uaddr, &flags);
+	_futex_spin_lock(uaddr);
 	if (unlikely(get_user(val, uaddr) != 0)) {
-		_futex_spin_unlock_irqrestore(uaddr, &flags);
+		_futex_spin_unlock(uaddr);
 		return -EFAULT;
 	}
 
 	if (val == oldval && unlikely(put_user(newval, uaddr) != 0)) {
-		_futex_spin_unlock_irqrestore(uaddr, &flags);
+		_futex_spin_unlock(uaddr);
 		return -EFAULT;
 	}
 
 	*uval = val;
-	_futex_spin_unlock_irqrestore(uaddr, &flags);
+	_futex_spin_unlock(uaddr);
 
 	return 0;
 }
 
-#endif /*__KERNEL__*/
 #endif /*_ASM_PARISC_FUTEX_H*/

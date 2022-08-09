@@ -11,13 +11,10 @@ maintainers:
 
 properties:
   compatible:
-    oneOf:
-      - const: rockchip,rk3288-usb-phy
-      - items:
-          - enum:
-              - rockchip,rk3066a-usb-phy
-              - rockchip,rk3188-usb-phy
-          - const: rockchip,rk3288-usb-phy
+    enum:
+      - rockchip,rk3066a-usb-phy
+      - rockchip,rk3188-usb-phy
+      - rockchip,rk3288-usb-phy
 
   "#address-cells":
     const: 1

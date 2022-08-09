@@ -454,7 +454,9 @@ static int ks8851_probe_spi(struct spi_device *spi)
 
 static int ks8851_remove_spi(struct spi_device *spi)
 {
-	return ks8851_remove_common(&spi->dev);
+	ks8851_remove_common(&spi->dev);
+
+	return 0;
 }
 
 static const struct of_device_id ks8851_match_table[] = {

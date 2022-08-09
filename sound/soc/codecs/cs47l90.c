@@ -37,56 +37,56 @@ struct cs47l90 {
 	struct madera_fll fll[3];
 };
 
-static const struct wm_adsp_region cs47l90_dsp1_regions[] = {
+static const struct cs_dsp_region cs47l90_dsp1_regions[] = {
 	{ .type = WMFW_ADSP2_PM, .base = 0x080000 },
 	{ .type = WMFW_ADSP2_ZM, .base = 0x0e0000 },
 	{ .type = WMFW_ADSP2_XM, .base = 0x0a0000 },
 	{ .type = WMFW_ADSP2_YM, .base = 0x0c0000 },
 };
 
-static const struct wm_adsp_region cs47l90_dsp2_regions[] = {
+static const struct cs_dsp_region cs47l90_dsp2_regions[] = {
 	{ .type = WMFW_ADSP2_PM, .base = 0x100000 },
 	{ .type = WMFW_ADSP2_ZM, .base = 0x160000 },
 	{ .type = WMFW_ADSP2_XM, .base = 0x120000 },
 	{ .type = WMFW_ADSP2_YM, .base = 0x140000 },
 };
 
-static const struct wm_adsp_region cs47l90_dsp3_regions[] = {
+static const struct cs_dsp_region cs47l90_dsp3_regions[] = {
 	{ .type = WMFW_ADSP2_PM, .base = 0x180000 },
 	{ .type = WMFW_ADSP2_ZM, .base = 0x1e0000 },
 	{ .type = WMFW_ADSP2_XM, .base = 0x1a0000 },
 	{ .type = WMFW_ADSP2_YM, .base = 0x1c0000 },
 };
 
-static const struct wm_adsp_region cs47l90_dsp4_regions[] = {
+static const struct cs_dsp_region cs47l90_dsp4_regions[] = {
 	{ .type = WMFW_ADSP2_PM, .base = 0x200000 },
 	{ .type = WMFW_ADSP2_ZM, .base = 0x260000 },
 	{ .type = WMFW_ADSP2_XM, .base = 0x220000 },
 	{ .type = WMFW_ADSP2_YM, .base = 0x240000 },
 };
 
-static const struct wm_adsp_region cs47l90_dsp5_regions[] = {
+static const struct cs_dsp_region cs47l90_dsp5_regions[] = {
 	{ .type = WMFW_ADSP2_PM, .base = 0x280000 },
 	{ .type = WMFW_ADSP2_ZM, .base = 0x2e0000 },
 	{ .type = WMFW_ADSP2_XM, .base = 0x2a0000 },
 	{ .type = WMFW_ADSP2_YM, .base = 0x2c0000 },
 };
 
-static const struct wm_adsp_region cs47l90_dsp6_regions[] = {
+static const struct cs_dsp_region cs47l90_dsp6_regions[] = {
 	{ .type = WMFW_ADSP2_PM, .base = 0x300000 },
 	{ .type = WMFW_ADSP2_ZM, .base = 0x360000 },
 	{ .type = WMFW_ADSP2_XM, .base = 0x320000 },
 	{ .type = WMFW_ADSP2_YM, .base = 0x340000 },
 };
 
-static const struct wm_adsp_region cs47l90_dsp7_regions[] = {
+static const struct cs_dsp_region cs47l90_dsp7_regions[] = {
 	{ .type = WMFW_ADSP2_PM, .base = 0x380000 },
 	{ .type = WMFW_ADSP2_ZM, .base = 0x3e0000 },
 	{ .type = WMFW_ADSP2_XM, .base = 0x3a0000 },
 	{ .type = WMFW_ADSP2_YM, .base = 0x3c0000 },
 };
 
-static const struct wm_adsp_region *cs47l90_dsp_regions[] = {
+static const struct cs_dsp_region *cs47l90_dsp_regions[] = {
 	cs47l90_dsp1_regions,
 	cs47l90_dsp2_regions,
 	cs47l90_dsp3_regions,
@@ -2543,18 +2543,18 @@ static int cs47l90_probe(struct platform_device *pdev)
 
 	for (i = 0; i < CS47L90_NUM_ADSP; i++) {
 		cs47l90->core.adsp[i].part = "cs47l90";
-		cs47l90->core.adsp[i].num = i + 1;
-		cs47l90->core.adsp[i].type = WMFW_ADSP2;
-		cs47l90->core.adsp[i].rev = 2;
-		cs47l90->core.adsp[i].dev = madera->dev;
-		cs47l90->core.adsp[i].regmap = madera->regmap_32bit;
+		cs47l90->core.adsp[i].cs_dsp.num = i + 1;
+		cs47l90->core.adsp[i].cs_dsp.type = WMFW_ADSP2;
+		cs47l90->core.adsp[i].cs_dsp.rev = 2;
+		cs47l90->core.adsp[i].cs_dsp.dev = madera->dev;
+		cs47l90->core.adsp[i].cs_dsp.regmap = madera->regmap_32bit;
 
-		cs47l90->core.adsp[i].base = cs47l90_dsp_control_bases[i];
-		cs47l90->core.adsp[i].mem = cs47l90_dsp_regions[i];
-		cs47l90->core.adsp[i].num_mems =
+		cs47l90->core.adsp[i].cs_dsp.base = cs47l90_dsp_control_bases[i];
+		cs47l90->core.adsp[i].cs_dsp.mem = cs47l90_dsp_regions[i];
+		cs47l90->core.adsp[i].cs_dsp.num_mems =
 			ARRAY_SIZE(cs47l90_dsp1_regions);
 
-		cs47l90->core.adsp[i].lock_regions = WM_ADSP2_REGION_1_9;
+		cs47l90->core.adsp[i].cs_dsp.lock_regions = CS_ADSP2_REGION_1_9;
 
 		ret = wm_adsp2_init(&cs47l90->core.adsp[i]);
 

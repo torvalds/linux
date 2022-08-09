@@ -28,8 +28,8 @@ struct {
 	__uint(type, BPF_MAP_TYPE_STACK_TRACE);
 	__uint(max_entries, 128);
 	__uint(map_flags, BPF_F_STACK_BUILD_ID);
-	__uint(key_size, sizeof(__u32));
-	__uint(value_size, sizeof(stack_trace_t));
+	__type(key, __u32);
+	__type(value, stack_trace_t);
 } stackmap SEC(".maps");
 
 struct {
@@ -73,4 +73,3 @@ int oncpu(struct random_urandom_args *args)
 }
 
 char _license[] SEC("license") = "GPL";
-__u32 _version SEC("version") = 1; /* ignored by tracepoints, required by libbpf.a */

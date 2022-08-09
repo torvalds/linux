@@ -129,8 +129,7 @@ static void cfg_scan_result(enum scan_event scan_event,
 						info->frame_len,
 						(s32)info->rssi * 100,
 						GFP_KERNEL);
-		if (!bss)
-			cfg80211_put_bss(wiphy, bss);
+		cfg80211_put_bss(wiphy, bss);
 	} else if (scan_event == SCAN_EVENT_DONE) {
 		mutex_lock(&priv->scan_req_lock);
 
@@ -729,6 +728,7 @@ static int get_station(struct wiphy *wiphy, struct net_device *dev,
 {
 	struct wilc_vif *vif = netdev_priv(dev);
 	struct wilc_priv *priv = &vif->priv;
+	struct wilc *wilc = vif->wilc;
 	u32 i = 0;
 	u32 associatedsta = ~0;
 	u32 inactive_time = 0;
@@ -754,6 +754,9 @@ static int get_station(struct wiphy *wiphy, struct net_device *dev,
 		sinfo->inactive_time = 1000 * inactive_time;
 	} else if (vif->iftype == WILC_STATION_MODE) {
 		struct rf_info stats;
+
+		if (!wilc->initialized)
+			return -EBUSY;
 
 		wilc_get_statistics(vif, &stats);
 
@@ -1581,6 +1584,7 @@ static void wilc_set_wakeup(struct wiphy *wiphy, bool enabled)
 	}
 
 	netdev_info(vif->ndev, "cfg set wake up = %d\n", enabled);
+	wilc_set_wowlan_trigger(vif, enabled);
 	srcu_read_unlock(&wl->srcu, srcu_idx);
 }
 
@@ -1683,6 +1687,7 @@ static void wlan_init_locks(struct wilc *wl)
 	mutex_init(&wl->rxq_cs);
 	mutex_init(&wl->cfg_cmd_lock);
 	mutex_init(&wl->vif_mutex);
+	mutex_init(&wl->deinit_lock);
 
 	spin_lock_init(&wl->txq_spinlock);
 	mutex_init(&wl->txq_add_to_head_cs);
@@ -1701,6 +1706,7 @@ void wlan_deinit_locks(struct wilc *wilc)
 	mutex_destroy(&wilc->cfg_cmd_lock);
 	mutex_destroy(&wilc->txq_add_to_head_cs);
 	mutex_destroy(&wilc->vif_mutex);
+	mutex_destroy(&wilc->deinit_lock);
 	cleanup_srcu_struct(&wilc->srcu);
 }
 
@@ -1724,7 +1730,6 @@ int wilc_cfg80211_init(struct wilc **wilc, struct device *dev, int io_type,
 	*wilc = wl;
 	wl->io_type = io_type;
 	wl->hif_func = ops;
-	wl->chip_ps_state = WILC_CHIP_WAKEDUP;
 
 	for (i = 0; i < NQUEUES; i++)
 		INIT_LIST_HEAD(&wl->txq[i].txq_head.list);

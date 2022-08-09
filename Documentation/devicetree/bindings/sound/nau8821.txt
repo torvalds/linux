@@ -1,0 +1,55 @@
+Nuvoton NAU88L21 audio codec
+
+This device supports I2C only.
+
+Required properties:
+  - compatible : Must be "nuvoton,nau8821"
+
+  - reg : the I2C address of the device. This is either 0x1B (CSB=0) or 0x54 (CSB=1).
+
+Optional properties:
+  - nuvoton,jkdet-enable: Enable jack detection via JKDET pin.
+  - nuvoton,jkdet-pull-enable: Enable JKDET pin pull. If set - pin pull enabled,
+      otherwise pin in high impedance state.
+  - nuvoton,jkdet-pull-up: Pull-up JKDET pin. If set then JKDET pin is pull up, otherwise pull down.
+  - nuvoton,jkdet-polarity: JKDET pin polarity. 0 - active high, 1 - active low.
+
+  - nuvoton,vref-impedance: VREF Impedance selection
+      0 - Open
+      1 - 25 kOhm
+      2 - 125 kOhm
+      3 - 2.5 kOhm
+
+  - nuvoton,micbias-voltage: Micbias voltage level.
+      0 - VDDA
+      1 - VDDA
+      2 - VDDA * 1.1
+      3 - VDDA * 1.2
+      4 - VDDA * 1.3
+      5 - VDDA * 1.4
+      6 - VDDA * 1.53
+      7 - VDDA * 1.53
+
+  - nuvoton,jack-insert-debounce: number from 0 to 7 that sets debounce time to 2^(n+2) ms
+  - nuvoton,jack-eject-debounce: number from 0 to 7 that sets debounce time to 2^(n+2) ms
+
+  - nuvoton,dmic-clk-threshold: the ADC threshold of DMIC clock.
+
+
+Example:
+
+  headset: nau8821@1b {
+      compatible = "nuvoton,nau8821";
+      reg = <0x1b>;
+      interrupt-parent = <&gpio>;
+      interrupts = <23 IRQ_TYPE_LEVEL_LOW>;
+      nuvoton,jkdet-enable;
+      nuvoton,jkdet-pull-enable;
+      nuvoton,jkdet-pull-up;
+      nuvoton,jkdet-polarity = <GPIO_ACTIVE_LOW>;
+      nuvoton,vref-impedance = <2>;
+      nuvoton,micbias-voltage = <6>;
+      nuvoton,jack-insert-debounce = <7>;
+      nuvoton,jack-eject-debounce = <7>;
+      nuvoton,dmic-clk-threshold = 3072000;
+  };

@@ -164,12 +164,20 @@ patternProperties:
       "#size-cells":
         const: 0
 
+      lpddr2:
+        $ref: "ddr/jedec,lpddr2.yaml#"
+        type: object
+
     patternProperties:
       "^emc-table@[0-9]+$":
         $ref: "#/$defs/emc-table"
 
-    required:
-      - nvidia,ram-code
+    oneOf:
+      - required:
+          - nvidia,ram-code
+
+      - required:
+          - lpddr2
 
     additionalProperties: false
 
@@ -225,6 +233,17 @@ examples:
                         0x00000000 0x00000000 0x00000083 0xf0440303
                         0x007fe010 0x00001414 0x00000000 0x00000000
                         0x00000000 0x00000000 0x00000000 0x00000000>;
+            };
+        };
+
+        emc-tables@1 {
+            reg = <1>;
+
+            lpddr2 {
+                compatible = "elpida,B8132B2PB-6D-F", "jedec,lpddr2-s4";
+                revision-id1 = <1>;
+                density = <2048>;
+                io-width = <16>;
             };
         };
     };

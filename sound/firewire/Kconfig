@@ -169,6 +169,7 @@ config SND_FIREWIRE_MOTU
 	  * 828
 	  * 896
 	  * 828mk2
+	  * 896hd
 	  * Traveler
 	  * Ultralite
 	  * 8pre
@@ -176,7 +177,9 @@ config SND_FIREWIRE_MOTU
 	  * 828mk3 (Hybrid)
 	  * Ultralite mk3 (FireWire only)
 	  * Ultralite mk3 (Hybrid)
+	  * Traveler mk3
 	  * Audio Express
+	  * Track 16
 	  * 4pre
 
 	 To compile this driver as a module, choose M here: the module

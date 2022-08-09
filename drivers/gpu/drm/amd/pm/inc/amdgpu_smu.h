@@ -1008,7 +1008,9 @@ struct pptable_funcs {
 	/**
 	 * @set_power_limit: Set power limit in watts.
 	 */
-	int (*set_power_limit)(struct smu_context *smu, uint32_t n);
+	int (*set_power_limit)(struct smu_context *smu,
+			       enum smu_ppt_limit_type limit_type,
+			       uint32_t limit);
 
 	/**
 	 * @init_max_sustainable_clocks: Populate max sustainable clock speed

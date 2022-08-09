@@ -7,6 +7,7 @@
 / {
 	model = "Samsung Galaxy A3U (EUR)";
 	compatible = "samsung,a3u-eur", "qcom,msm8916";
+	chassis-type = "handset";
 
 	reg_panel_vdd3: regulator-panel-vdd3 {
 		compatible = "regulator-fixed";

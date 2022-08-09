@@ -600,7 +600,7 @@ static void atmel_set_mib8(struct atmel_private *priv, u8 type, u8 index,
 static void atmel_set_mib16(struct atmel_private *priv, u8 type, u8 index,
 			    u16 data);
 static void atmel_set_mib(struct atmel_private *priv, u8 type, u8 index,
-			  u8 *data, int data_len);
+			  const u8 *data, int data_len);
 static void atmel_get_mib(struct atmel_private *priv, u8 type, u8 index,
 			  u8 *data, int data_len);
 static void atmel_scan(struct atmel_private *priv, int specific_ssid);
@@ -1296,7 +1296,7 @@ static int atmel_set_mac_address(struct net_device *dev, void *p)
 {
 	struct sockaddr *addr = p;
 
-	memcpy (dev->dev_addr, addr->sa_data, dev->addr_len);
+	eth_hw_addr_set(dev, addr->sa_data);
 	return atmel_open(dev);
 }
 
@@ -3669,6 +3669,7 @@ static int probe_atmel_card(struct net_device *dev)
 {
 	int rc = 0;
 	struct atmel_private *priv = netdev_priv(dev);
+	u8 addr[ETH_ALEN] = {};
 
 	/* reset pccard */
 	if (priv->bus_type == BUS_TYPE_PCCARD)
@@ -3693,7 +3694,9 @@ static int probe_atmel_card(struct net_device *dev)
 		if (i == 0) {
 			printk(KERN_ALERT "%s: MAC failed to boot MAC address reader.\n", dev->name);
 		} else {
-			atmel_copy_to_host(dev, dev->dev_addr, atmel_read16(dev, MR2), 6);
+
+			atmel_copy_to_host(dev, addr, atmel_read16(dev, MR2), 6);
+			eth_hw_addr_set(dev, addr);
 			/* got address, now squash it again until the network
 			   interface is opened */
 			if (priv->bus_type == BUS_TYPE_PCCARD)
@@ -3705,7 +3708,8 @@ static int probe_atmel_card(struct net_device *dev)
 		/* Mac address easy in this case. */
 		priv->card_type = CARD_TYPE_PARALLEL_FLASH;
 		atmel_write16(dev,  BSR, 1);
-		atmel_copy_to_host(dev, dev->dev_addr, 0xc000, 6);
+		atmel_copy_to_host(dev, addr, 0xc000, 6);
+		eth_hw_addr_set(dev, addr);
 		atmel_write16(dev,  BSR, 0x200);
 		rc = 1;
 	} else {
@@ -3713,7 +3717,8 @@ static int probe_atmel_card(struct net_device *dev)
 		   for the Mac Address */
 		priv->card_type = CARD_TYPE_SPI_FLASH;
 		if (atmel_wakeup_firmware(priv) == 0) {
-			atmel_get_mib(priv, Mac_Address_Mib_Type, 0, dev->dev_addr, 6);
+			atmel_get_mib(priv, Mac_Address_Mib_Type, 0, addr, 6);
+			eth_hw_addr_set(dev, addr);
 
 			/* got address, now squash it again until the network
 			   interface is opened */
@@ -3730,7 +3735,7 @@ static int probe_atmel_card(struct net_device *dev)
 				0x00, 0x04, 0x25, 0x00, 0x00, 0x00
 			};
 			printk(KERN_ALERT "%s: *** Invalid MAC address. UPGRADE Firmware ****\n", dev->name);
-			memcpy(dev->dev_addr, default_mac, ETH_ALEN);
+			eth_hw_addr_set(dev, default_mac);
 		}
 	}
 
@@ -4103,7 +4108,7 @@ static void atmel_set_mib16(struct atmel_private *priv, u8 type, u8 index,
 }
 
 static void atmel_set_mib(struct atmel_private *priv, u8 type, u8 index,
-			  u8 *data, int data_len)
+			  const u8 *data, int data_len)
 {
 	struct get_set_mib m;
 	m.type = type;

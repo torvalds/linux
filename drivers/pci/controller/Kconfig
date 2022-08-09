@@ -254,7 +254,7 @@ config PCIE_MEDIATEK_GEN3
 	  MediaTek SoCs.
 
 config VMD
-	depends on PCI_MSI && X86_64 && SRCU
+	depends on PCI_MSI && X86_64 && SRCU && !UML
 	tristate "Intel Volume Management Device Driver"
 	help
 	  Adds support for the Intel Volume Management Device (VMD). VMD is a
@@ -270,7 +270,8 @@ config VMD
 
 config PCIE_BRCMSTB
 	tristate "Broadcom Brcmstb PCIe host controller"
-	depends on ARCH_BRCMSTB || ARCH_BCM2835 || ARCH_BCM4908 || COMPILE_TEST
+	depends on ARCH_BRCMSTB || ARCH_BCM2835 || ARCH_BCM4908 || \
+		   BMIPS_GENERIC || COMPILE_TEST
 	depends on OF
 	depends on PCI_MSI_IRQ_DOMAIN
 	default ARCH_BRCMSTB
@@ -311,6 +312,32 @@ config PCIE_HISI_ERR
 	help
 	  Say Y here if you want error handling support
 	  for the PCIe controller's errors on HiSilicon HIP SoCs
+
+config PCIE_APPLE_MSI_DOORBELL_ADDR
+	hex
+	default 0xfffff000
+	depends on PCIE_APPLE
+
+config PCIE_APPLE
+	tristate "Apple PCIe controller"
+	depends on ARCH_APPLE || COMPILE_TEST
+	depends on OF
+	depends on PCI_MSI_IRQ_DOMAIN
+	select PCI_HOST_COMMON
+	help
+	  Say Y here if you want to enable PCIe controller support on Apple
+	  system-on-chips, like the Apple M1. This is required for the USB
+	  type-A ports, Ethernet, Wi-Fi, and Bluetooth.
+
+	  If unsure, say Y if you have an Apple Silicon system.
+
+config PCIE_MT7621
+	bool "MediaTek MT7621 PCIe Controller"
+	depends on SOC_MT7621 || (MIPS && COMPILE_TEST)
+	select PHY_MT7621_PCI
+	default SOC_MT7621
+	help
+	  This selects a driver for the MediaTek MT7621 PCIe Controller.
 
 source "drivers/pci/controller/dwc/Kconfig"
 source "drivers/pci/controller/mobiveil/Kconfig"

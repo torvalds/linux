@@ -27,15 +27,29 @@
 
 #define SJA1105_UNKNOWN_MULTICAST	0x010000000000ull
 
-static void sja1105_hw_reset(struct gpio_desc *gpio, unsigned int pulse_len,
-			     unsigned int startup_delay)
+/* Configure the optional reset pin and bring up switch */
+static int sja1105_hw_reset(struct device *dev, unsigned int pulse_len,
+			    unsigned int startup_delay)
 {
+	struct gpio_desc *gpio;
+
+	gpio = gpiod_get_optional(dev, "reset", GPIOD_OUT_HIGH);
+	if (IS_ERR(gpio))
+		return PTR_ERR(gpio);
+
+	if (!gpio)
+		return 0;
+
 	gpiod_set_value_cansleep(gpio, 1);
 	/* Wait for minimum reset pulse length */
 	msleep(pulse_len);
 	gpiod_set_value_cansleep(gpio, 0);
 	/* Wait until chip is ready after reset */
 	msleep(startup_delay);
+
+	gpiod_put(gpio);
+
+	return 0;
 }
 
 static void
@@ -1095,27 +1109,78 @@ static int sja1105_static_config_load(struct sja1105_private *priv)
 	return sja1105_static_config_upload(priv);
 }
 
-static int sja1105_parse_rgmii_delays(struct sja1105_private *priv)
+/* This is the "new way" for a MAC driver to configure its RGMII delay lines,
+ * based on the explicit "rx-internal-delay-ps" and "tx-internal-delay-ps"
+ * properties. It has the advantage of working with fixed links and with PHYs
+ * that apply RGMII delays too, and the MAC driver needs not perform any
+ * special checks.
+ *
+ * Previously we were acting upon the "phy-mode" property when we were
+ * operating in fixed-link, basically acting as a PHY, but with a reversed
+ * interpretation: PHY_INTERFACE_MODE_RGMII_TXID means that the MAC should
+ * behave as if it is connected to a PHY which has applied RGMII delays in the
+ * TX direction. So if anything, RX delays should have been added by the MAC,
+ * but we were adding TX delays.
+ *
+ * If the "{rx,tx}-internal-delay-ps" properties are not specified, we fall
+ * back to the legacy behavior and apply delays on fixed-link ports based on
+ * the reverse interpretation of the phy-mode. This is a deviation from the
+ * expected default behavior which is to simply apply no delays. To achieve
+ * that behavior with the new bindings, it is mandatory to specify
+ * "{rx,tx}-internal-delay-ps" with a value of 0.
+ */
+static int sja1105_parse_rgmii_delays(struct sja1105_private *priv, int port,
+				      struct device_node *port_dn)
 {
-	struct dsa_switch *ds = priv->ds;
-	int port;
+	phy_interface_t phy_mode = priv->phy_mode[port];
+	struct device *dev = &priv->spidev->dev;
+	int rx_delay = -1, tx_delay = -1;
 
-	for (port = 0; port < ds->num_ports; port++) {
-		if (!priv->fixed_link[port])
-			continue;
+	if (!phy_interface_mode_is_rgmii(phy_mode))
+		return 0;
 
-		if (priv->phy_mode[port] == PHY_INTERFACE_MODE_RGMII_RXID ||
-		    priv->phy_mode[port] == PHY_INTERFACE_MODE_RGMII_ID)
-			priv->rgmii_rx_delay[port] = true;
+	of_property_read_u32(port_dn, "rx-internal-delay-ps", &rx_delay);
+	of_property_read_u32(port_dn, "tx-internal-delay-ps", &tx_delay);
 
-		if (priv->phy_mode[port] == PHY_INTERFACE_MODE_RGMII_TXID ||
-		    priv->phy_mode[port] == PHY_INTERFACE_MODE_RGMII_ID)
-			priv->rgmii_tx_delay[port] = true;
+	if (rx_delay == -1 && tx_delay == -1 && priv->fixed_link[port]) {
+		dev_warn(dev,
+			 "Port %d interpreting RGMII delay settings based on \"phy-mode\" property, "
+			 "please update device tree to specify \"rx-internal-delay-ps\" and "
+			 "\"tx-internal-delay-ps\"",
+			 port);
 
-		if ((priv->rgmii_rx_delay[port] || priv->rgmii_tx_delay[port]) &&
-		    !priv->info->setup_rgmii_delay)
-			return -EINVAL;
+		if (phy_mode == PHY_INTERFACE_MODE_RGMII_RXID ||
+		    phy_mode == PHY_INTERFACE_MODE_RGMII_ID)
+			rx_delay = 2000;
+
+		if (phy_mode == PHY_INTERFACE_MODE_RGMII_TXID ||
+		    phy_mode == PHY_INTERFACE_MODE_RGMII_ID)
+			tx_delay = 2000;
 	}
+
+	if (rx_delay < 0)
+		rx_delay = 0;
+	if (tx_delay < 0)
+		tx_delay = 0;
+
+	if ((rx_delay || tx_delay) && !priv->info->setup_rgmii_delay) {
+		dev_err(dev, "Chip cannot apply RGMII delays\n");
+		return -EINVAL;
+	}
+
+	if ((rx_delay && rx_delay < SJA1105_RGMII_DELAY_MIN_PS) ||
+	    (tx_delay && tx_delay < SJA1105_RGMII_DELAY_MIN_PS) ||
+	    (rx_delay > SJA1105_RGMII_DELAY_MAX_PS) ||
+	    (tx_delay > SJA1105_RGMII_DELAY_MAX_PS)) {
+		dev_err(dev,
+			"port %d RGMII delay values out of range, must be between %d and %d ps\n",
+			port, SJA1105_RGMII_DELAY_MIN_PS, SJA1105_RGMII_DELAY_MAX_PS);
+		return -ERANGE;
+	}
+
+	priv->rgmii_rx_delay_ps[port] = rx_delay;
+	priv->rgmii_tx_delay_ps[port] = tx_delay;
+
 	return 0;
 }
 
@@ -1166,6 +1231,12 @@ static int sja1105_parse_ports_node(struct sja1105_private *priv,
 		}
 
 		priv->phy_mode[index] = phy_mode;
+
+		err = sja1105_parse_rgmii_delays(priv, index, child);
+		if (err) {
+			of_node_put(child);
+			return err;
+		}
 	}
 
 	return 0;
@@ -1360,7 +1431,7 @@ static void sja1105_phylink_validate(struct dsa_switch *ds, int port,
 	 */
 	if (state->interface != PHY_INTERFACE_MODE_NA &&
 	    sja1105_phy_mode_mismatch(priv, port, state->interface)) {
-		bitmap_zero(supported, __ETHTOOL_LINK_MODE_MASK_NBITS);
+		linkmode_zero(supported);
 		return;
 	}
 
@@ -1380,9 +1451,8 @@ static void sja1105_phylink_validate(struct dsa_switch *ds, int port,
 		phylink_set(mask, 2500baseX_Full);
 	}
 
-	bitmap_and(supported, supported, mask, __ETHTOOL_LINK_MODE_MASK_NBITS);
-	bitmap_and(state->advertising, state->advertising, mask,
-		   __ETHTOOL_LINK_MODE_MASK_NBITS);
+	linkmode_and(supported, supported, mask);
+	linkmode_and(state->advertising, state->advertising, mask);
 }
 
 static int
@@ -1766,6 +1836,7 @@ static int sja1105_fdb_del(struct dsa_switch *ds, int port,
 static int sja1105_fdb_dump(struct dsa_switch *ds, int port,
 			    dsa_fdb_dump_cb_t *cb, void *data)
 {
+	struct dsa_port *dp = dsa_to_port(ds, port);
 	struct sja1105_private *priv = ds->priv;
 	struct device *dev = ds->dev;
 	int i;
@@ -1802,7 +1873,7 @@ static int sja1105_fdb_dump(struct dsa_switch *ds, int port,
 		u64_to_ether_addr(l2_lookup.macaddr, macaddr);
 
 		/* We need to hide the dsa_8021q VLANs from the user. */
-		if (!priv->vlan_aware)
+		if (!dsa_port_is_vlan_filtering(dp))
 			l2_lookup.vlanid = 0;
 		rc = cb(macaddr, l2_lookup.vlanid, l2_lookup.lockeds, data);
 		if (rc)
@@ -2295,11 +2366,6 @@ int sja1105_vlan_filtering(struct dsa_switch *ds, int port, bool enabled,
 		tpid2 = ETH_P_SJA1105;
 	}
 
-	if (priv->vlan_aware == enabled)
-		return 0;
-
-	priv->vlan_aware = enabled;
-
 	table = &priv->static_config.tables[BLK_IDX_GENERAL_PARAMS];
 	general_params = table->entries;
 	/* EtherType used to identify inner tagged (C-tag) VLAN traffic */
@@ -2332,7 +2398,7 @@ int sja1105_vlan_filtering(struct dsa_switch *ds, int port, bool enabled,
 	 */
 	table = &priv->static_config.tables[BLK_IDX_L2_LOOKUP_PARAMS];
 	l2_lookup_params = table->entries;
-	l2_lookup_params->shared_learn = !priv->vlan_aware;
+	l2_lookup_params->shared_learn = !enabled;
 
 	for (port = 0; port < ds->num_ports; port++) {
 		if (dsa_is_unused_port(ds, port))
@@ -2965,7 +3031,6 @@ static int sja1105_setup_ports(struct sja1105_private *priv)
 			continue;
 
 		dp->priv = sp;
-		sp->dp = dp;
 		sp->data = tagger_data;
 		slave = dp->slave;
 		kthread_init_work(&sp->xmit_work, sja1105_port_deferred_xmit);
@@ -3229,16 +3294,13 @@ static int sja1105_probe(struct spi_device *spi)
 		return -EINVAL;
 	}
 
+	rc = sja1105_hw_reset(dev, 1, 1);
+	if (rc)
+		return rc;
+
 	priv = devm_kzalloc(dev, sizeof(struct sja1105_private), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
-
-	/* Configure the optional reset pin and bring up switch */
-	priv->reset_gpio = devm_gpiod_get(dev, "reset", GPIOD_OUT_HIGH);
-	if (IS_ERR(priv->reset_gpio))
-		dev_dbg(dev, "reset-gpios not defined, ignoring\n");
-	else
-		sja1105_hw_reset(priv->reset_gpio, 1, 1);
 
 	/* Populate our driver private structure (priv) based on
 	 * the device tree node that was probed (spi)
@@ -3303,20 +3365,12 @@ static int sja1105_probe(struct spi_device *spi)
 	priv->ds = ds;
 
 	mutex_init(&priv->ptp_data.lock);
+	mutex_init(&priv->dynamic_config_lock);
 	mutex_init(&priv->mgmt_lock);
 
 	rc = sja1105_parse_dt(priv);
 	if (rc < 0) {
 		dev_err(ds->dev, "Failed to parse DT: %d\n", rc);
-		return rc;
-	}
-
-	/* Error out early if internal delays are required through DT
-	 * and we can't apply them.
-	 */
-	rc = sja1105_parse_rgmii_delays(priv);
-	if (rc < 0) {
-		dev_err(ds->dev, "RGMII delay not supported\n");
 		return rc;
 	}
 

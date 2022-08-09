@@ -23,6 +23,20 @@
 	status = "disabled";
 };
 
+&pm6150_adc {
+	status = "disabled";
+
+	/delete-node/ skin-temp-thermistor@4e;
+	/delete-node/ charger-thermistor@4f;
+};
+
+&pm6150_adc_tm {
+	status = "disabled";
+
+	/delete-node/ charger-thermistor@0;
+	/delete-node/ skin-temp-thermistor@1;
+};
+
 /*
  * CoachZ rev1 is stuffed with a 47k NTC as thermistor for skin temperature,
  * which currently is not supported by the PM6150 ADC driver. Disable the

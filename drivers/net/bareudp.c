@@ -577,11 +577,8 @@ static int bareudp2info(struct nlattr *data[], struct bareudp_conf *conf,
 		return -EINVAL;
 	}
 
-	if (data[IFLA_BAREUDP_PORT])
-		conf->port =  nla_get_u16(data[IFLA_BAREUDP_PORT]);
-
-	if (data[IFLA_BAREUDP_ETHERTYPE])
-		conf->ethertype =  nla_get_u16(data[IFLA_BAREUDP_ETHERTYPE]);
+	conf->port = nla_get_u16(data[IFLA_BAREUDP_PORT]);
+	conf->ethertype = nla_get_u16(data[IFLA_BAREUDP_ETHERTYPE]);
 
 	if (data[IFLA_BAREUDP_SRCPORT_MIN])
 		conf->sport_min =  nla_get_u16(data[IFLA_BAREUDP_SRCPORT_MIN]);

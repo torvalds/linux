@@ -243,11 +243,6 @@ static int udc_plat_remove(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, NULL);
 
-	if (dev->drd_wq) {
-		flush_workqueue(dev->drd_wq);
-		destroy_workqueue(dev->drd_wq);
-	}
-
 	phy_power_off(dev->udc_phy);
 	phy_exit(dev->udc_phy);
 	extcon_unregister_notifier(dev->edev, EXTCON_USB, &dev->nb);

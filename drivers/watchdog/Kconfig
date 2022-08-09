@@ -496,16 +496,18 @@ config S3C2410_WATCHDOG
 	select WATCHDOG_CORE
 	select MFD_SYSCON if ARCH_EXYNOS
 	help
-	  Watchdog timer block in the Samsung SoCs. This will reboot
-	  the system when the timer expires with the watchdog enabled.
+	  Watchdog timer block in the Samsung S3C24xx, S3C64xx, S5Pv210 and
+	  Exynos SoCs. This will reboot the system when the timer expires with
+	  the watchdog enabled.
 
 	  The driver is limited by the speed of the system's PCLK
 	  signal, so with reasonably fast systems (PCLK around 50-66MHz)
 	  then watchdog intervals of over approximately 20seconds are
 	  unavailable.
 
+	  Choose Y/M here only if you build for such Samsung SoC.
 	  The driver can be built as a module by choosing M, and will
-	  be called s3c2410_wdt
+	  be called s3c2410_wdt.
 
 config SA1100_WATCHDOG
 	tristate "SA1100/PXA2xx watchdog"
@@ -560,22 +562,6 @@ config PNX4008_WATCHDOG
 	  will be called pnx4008_wdt.
 
 	  Say N if you are unsure.
-
-config IOP_WATCHDOG
-	tristate "IOP Watchdog"
-	depends on ARCH_IOP13XX
-	select WATCHDOG_NOWAYOUT if (ARCH_IOP32X || ARCH_IOP33X)
-	help
-	  Say Y here if to include support for the watchdog timer
-	  in the Intel IOP3XX & IOP13XX I/O Processors.  This driver can
-	  be built as a module by choosing M. The module will
-	  be called iop_wdt.
-
-	  Note: The IOP13XX watchdog does an Internal Bus Reset which will
-	  affect both cores and the peripherals of the IOP.  The ATU-X
-	  and/or ATUe configuration registers will remain intact, but if
-	  operating as an Root Complex and/or Central Resource, the PCI-X
-	  and/or PCIe busses will also be reset.  THIS IS A VERY BIG HAMMER.
 
 config DAVINCI_WATCHDOG
 	tristate "DaVinci watchdog"
@@ -743,17 +729,17 @@ config IMX7ULP_WDT
 	  To compile this driver as a module, choose M here: the
 	  module will be called imx7ulp_wdt.
 
-config UX500_WATCHDOG
-	tristate "ST-Ericsson Ux500 watchdog"
+config DB500_WATCHDOG
+	tristate "ST-Ericsson DB800 watchdog"
 	depends on MFD_DB8500_PRCMU
 	select WATCHDOG_CORE
 	default y
 	help
 	  Say Y here to include Watchdog timer support for the watchdog
-	  existing in the prcmu of ST-Ericsson Ux500 series platforms.
+	  existing in the prcmu of ST-Ericsson DB8500 platform.
 
 	  To compile this driver as a module, choose M here: the
-	  module will be called ux500_wdt.
+	  module will be called db500_wdt.
 
 config RETU_WATCHDOG
 	tristate "Retu watchdog"
@@ -1052,6 +1038,7 @@ config EBC_C384_WDT
 config F71808E_WDT
 	tristate "Fintek F718xx, F818xx Super I/O Watchdog"
 	depends on X86
+	select WATCHDOG_CORE
 	help
 	  This is the driver for the hardware watchdog on the Fintek F71808E,
 	  F71862FG, F71868, F71869, F71882FG, F71889FG, F81803, F81865, and
@@ -1679,7 +1666,7 @@ config SIBYTE_WDOG
 
 config AR7_WDT
 	tristate "TI AR7 Watchdog Timer"
-	depends on AR7 || (MIPS && COMPILE_TEST)
+	depends on AR7 || (MIPS && 32BIT && COMPILE_TEST)
 	help
 	  Hardware driver for the TI AR7 Watchdog Timer.
 

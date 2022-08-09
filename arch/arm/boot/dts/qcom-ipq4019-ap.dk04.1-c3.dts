@@ -5,5 +5,5 @@
 
 / {
 	model = "Qualcomm Technologies, Inc. IPQ4019/AP-DK04.1-C3";
-	compatible = "qcom,ipq4019-ap-dk04.1-c3";
+	compatible = "qcom,ipq4019-ap-dk04.1-c3", "qcom,ipq4019";
 };

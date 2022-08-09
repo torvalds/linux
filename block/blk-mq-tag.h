@@ -2,52 +2,30 @@
 #ifndef INT_BLK_MQ_TAG_H
 #define INT_BLK_MQ_TAG_H
 
-/*
- * Tag address space map.
- */
-struct blk_mq_tags {
-	unsigned int nr_tags;
-	unsigned int nr_reserved_tags;
-
-	atomic_t active_queues;
-
-	struct sbitmap_queue *bitmap_tags;
-	struct sbitmap_queue *breserved_tags;
-
-	struct sbitmap_queue __bitmap_tags;
-	struct sbitmap_queue __breserved_tags;
-
-	struct request **rqs;
-	struct request **static_rqs;
-	struct list_head page_list;
-
-	/*
-	 * used to clear request reference in rqs[] before freeing one
-	 * request pool
-	 */
-	spinlock_t lock;
-};
+struct blk_mq_alloc_data;
 
 extern struct blk_mq_tags *blk_mq_init_tags(unsigned int nr_tags,
 					unsigned int reserved_tags,
-					int node, unsigned int flags);
-extern void blk_mq_free_tags(struct blk_mq_tags *tags, unsigned int flags);
+					int node, int alloc_policy);
+extern void blk_mq_free_tags(struct blk_mq_tags *tags);
 extern int blk_mq_init_bitmaps(struct sbitmap_queue *bitmap_tags,
 			       struct sbitmap_queue *breserved_tags,
 			       unsigned int queue_depth,
 			       unsigned int reserved,
 			       int node, int alloc_policy);
 
-extern int blk_mq_init_shared_sbitmap(struct blk_mq_tag_set *set);
-extern void blk_mq_exit_shared_sbitmap(struct blk_mq_tag_set *set);
 extern unsigned int blk_mq_get_tag(struct blk_mq_alloc_data *data);
+unsigned long blk_mq_get_tags(struct blk_mq_alloc_data *data, int nr_tags,
+			      unsigned int *offset);
 extern void blk_mq_put_tag(struct blk_mq_tags *tags, struct blk_mq_ctx *ctx,
 			   unsigned int tag);
+void blk_mq_put_tags(struct blk_mq_tags *tags, int *tag_array, int nr_tags);
 extern int blk_mq_tag_update_depth(struct blk_mq_hw_ctx *hctx,
 					struct blk_mq_tags **tags,
 					unsigned int depth, bool can_grow);
-extern void blk_mq_tag_resize_shared_sbitmap(struct blk_mq_tag_set *set,
+extern void blk_mq_tag_resize_shared_tags(struct blk_mq_tag_set *set,
 					     unsigned int size);
+extern void blk_mq_tag_update_sched_shared_tags(struct request_queue *q);
 
 extern void blk_mq_tag_wakeup_all(struct blk_mq_tags *tags, bool);
 void blk_mq_queue_tag_busy_iter(struct request_queue *q, busy_iter_fn *fn,

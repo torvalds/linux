@@ -11,8 +11,8 @@ int thermal_notify_tz_create(int tz_id, const char *name);
 int thermal_notify_tz_delete(int tz_id);
 int thermal_notify_tz_enable(int tz_id);
 int thermal_notify_tz_disable(int tz_id);
-int thermal_notify_tz_trip_down(int tz_id, int id);
-int thermal_notify_tz_trip_up(int tz_id, int id);
+int thermal_notify_tz_trip_down(int tz_id, int id, int temp);
+int thermal_notify_tz_trip_up(int tz_id, int id, int temp);
 int thermal_notify_tz_trip_delete(int tz_id, int id);
 int thermal_notify_tz_trip_add(int tz_id, int id, int type,
 			       int temp, int hyst);
@@ -49,12 +49,12 @@ static inline int thermal_notify_tz_disable(int tz_id)
 	return 0;
 }
 
-static inline int thermal_notify_tz_trip_down(int tz_id, int id)
+static inline int thermal_notify_tz_trip_down(int tz_id, int id, int temp)
 {
 	return 0;
 }
 
-static inline int thermal_notify_tz_trip_up(int tz_id, int id)
+static inline int thermal_notify_tz_trip_up(int tz_id, int id, int temp)
 {
 	return 0;
 }

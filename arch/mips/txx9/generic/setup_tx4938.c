@@ -82,7 +82,7 @@ static int tx4938_be_handler(struct pt_regs *regs, int is_fixup)
 }
 static void __init tx4938_be_init(void)
 {
-	board_be_handler = tx4938_be_handler;
+	mips_set_be_handler(tx4938_be_handler);
 }
 
 static struct resource tx4938_sdram_resource[4];

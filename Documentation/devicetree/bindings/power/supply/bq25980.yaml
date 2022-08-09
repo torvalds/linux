@@ -105,7 +105,7 @@ examples:
           reg = <0x65>;
           interrupt-parent = <&gpio1>;
           interrupts = <16 IRQ_TYPE_EDGE_FALLING>;
-          ti,watchdog-timer = <0>;
+          ti,watchdog-timeout-ms = <0>;
           ti,sc-ocp-limit-microamp = <2000000>;
           ti,sc-ovp-limit-microvolt = <17800000>;
           monitored-battery = <&bat>;

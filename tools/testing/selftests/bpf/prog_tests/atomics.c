@@ -4,13 +4,13 @@
 
 #include "atomics.lskel.h"
 
-static void test_add(struct atomics *skel)
+static void test_add(struct atomics_lskel *skel)
 {
 	int err, prog_fd;
 	__u32 duration = 0, retval;
 	int link_fd;
 
-	link_fd = atomics__add__attach(skel);
+	link_fd = atomics_lskel__add__attach(skel);
 	if (!ASSERT_GT(link_fd, 0, "attach(add)"))
 		return;
 
@@ -36,13 +36,13 @@ cleanup:
 	close(link_fd);
 }
 
-static void test_sub(struct atomics *skel)
+static void test_sub(struct atomics_lskel *skel)
 {
 	int err, prog_fd;
 	__u32 duration = 0, retval;
 	int link_fd;
 
-	link_fd = atomics__sub__attach(skel);
+	link_fd = atomics_lskel__sub__attach(skel);
 	if (!ASSERT_GT(link_fd, 0, "attach(sub)"))
 		return;
 
@@ -69,13 +69,13 @@ cleanup:
 	close(link_fd);
 }
 
-static void test_and(struct atomics *skel)
+static void test_and(struct atomics_lskel *skel)
 {
 	int err, prog_fd;
 	__u32 duration = 0, retval;
 	int link_fd;
 
-	link_fd = atomics__and__attach(skel);
+	link_fd = atomics_lskel__and__attach(skel);
 	if (!ASSERT_GT(link_fd, 0, "attach(and)"))
 		return;
 
@@ -97,13 +97,13 @@ cleanup:
 	close(link_fd);
 }
 
-static void test_or(struct atomics *skel)
+static void test_or(struct atomics_lskel *skel)
 {
 	int err, prog_fd;
 	__u32 duration = 0, retval;
 	int link_fd;
 
-	link_fd = atomics__or__attach(skel);
+	link_fd = atomics_lskel__or__attach(skel);
 	if (!ASSERT_GT(link_fd, 0, "attach(or)"))
 		return;
 
@@ -126,13 +126,13 @@ cleanup:
 	close(link_fd);
 }
 
-static void test_xor(struct atomics *skel)
+static void test_xor(struct atomics_lskel *skel)
 {
 	int err, prog_fd;
 	__u32 duration = 0, retval;
 	int link_fd;
 
-	link_fd = atomics__xor__attach(skel);
+	link_fd = atomics_lskel__xor__attach(skel);
 	if (!ASSERT_GT(link_fd, 0, "attach(xor)"))
 		return;
 
@@ -154,13 +154,13 @@ cleanup:
 	close(link_fd);
 }
 
-static void test_cmpxchg(struct atomics *skel)
+static void test_cmpxchg(struct atomics_lskel *skel)
 {
 	int err, prog_fd;
 	__u32 duration = 0, retval;
 	int link_fd;
 
-	link_fd = atomics__cmpxchg__attach(skel);
+	link_fd = atomics_lskel__cmpxchg__attach(skel);
 	if (!ASSERT_GT(link_fd, 0, "attach(cmpxchg)"))
 		return;
 
@@ -183,13 +183,13 @@ cleanup:
 	close(link_fd);
 }
 
-static void test_xchg(struct atomics *skel)
+static void test_xchg(struct atomics_lskel *skel)
 {
 	int err, prog_fd;
 	__u32 duration = 0, retval;
 	int link_fd;
 
-	link_fd = atomics__xchg__attach(skel);
+	link_fd = atomics_lskel__xchg__attach(skel);
 	if (!ASSERT_GT(link_fd, 0, "attach(xchg)"))
 		return;
 
@@ -212,10 +212,10 @@ cleanup:
 
 void test_atomics(void)
 {
-	struct atomics *skel;
+	struct atomics_lskel *skel;
 	__u32 duration = 0;
 
-	skel = atomics__open_and_load();
+	skel = atomics_lskel__open_and_load();
 	if (CHECK(!skel, "skel_load", "atomics skeleton failed\n"))
 		return;
 
@@ -225,6 +225,7 @@ void test_atomics(void)
 		test__skip();
 		goto cleanup;
 	}
+	skel->bss->pid = getpid();
 
 	if (test__start_subtest("add"))
 		test_add(skel);
@@ -242,5 +243,5 @@ void test_atomics(void)
 		test_xchg(skel);
 
 cleanup:
-	atomics__destroy(skel);
+	atomics_lskel__destroy(skel);
 }

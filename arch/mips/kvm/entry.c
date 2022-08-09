@@ -104,13 +104,7 @@ static void *kvm_mips_build_ret_to_host(void *addr);
  */
 static int c0_kscratch(void)
 {
-	switch (boot_cpu_type()) {
-	case CPU_XLP:
-	case CPU_XLR:
-		return 22;
-	default:
-		return 31;
-	}
+	return 31;
 }
 
 /**

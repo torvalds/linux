@@ -9,7 +9,7 @@
 #define _INTEL_ISH_CLIENT_IF_H_
 
 #include <linux/device.h>
-#include <linux/uuid.h>
+#include <linux/mod_devicetable.h>
 
 struct ishtp_cl_device;
 struct ishtp_device;
@@ -40,7 +40,7 @@ enum cl_state {
 struct ishtp_cl_driver {
 	struct device_driver driver;
 	const char *name;
-	const guid_t *guid;
+	const struct ishtp_device_id *id;
 	int (*probe)(struct ishtp_cl_device *dev);
 	void (*remove)(struct ishtp_cl_device *dev);
 	int (*reset)(struct ishtp_cl_device *dev);

@@ -8,6 +8,7 @@
 #include <linux/bits.h>
 #include <linux/clk-provider.h>
 #include <linux/err.h>
+#include <linux/io.h>
 #include <linux/slab.h>
 
 #include "../clk-fractional-divider.h"
@@ -23,17 +24,61 @@
 #define PCG_PCD_WIDTH	3
 #define PCG_PCD_MASK	0x7
 
-struct clk_hw *imx7ulp_clk_hw_composite(const char *name,
+#define SW_RST		BIT(28)
+
+static int pcc_gate_enable(struct clk_hw *hw)
+{
+	struct clk_gate *gate = to_clk_gate(hw);
+	unsigned long flags;
+	u32 val;
+	int ret;
+
+	ret = clk_gate_ops.enable(hw);
+	if (ret)
+		return ret;
+
+	spin_lock_irqsave(gate->lock, flags);
+	/*
+	 * release the sw reset for peripherals associated with
+	 * with this pcc clock.
+	 */
+	val = readl(gate->reg);
+	val |= SW_RST;
+	writel(val, gate->reg);
+
+	spin_unlock_irqrestore(gate->lock, flags);
+
+	return 0;
+}
+
+static void pcc_gate_disable(struct clk_hw *hw)
+{
+	clk_gate_ops.disable(hw);
+}
+
+static int pcc_gate_is_enabled(struct clk_hw *hw)
+{
+	return clk_gate_ops.is_enabled(hw);
+}
+
+static const struct clk_ops pcc_gate_ops = {
+	.enable = pcc_gate_enable,
+	.disable = pcc_gate_disable,
+	.is_enabled = pcc_gate_is_enabled,
+};
+
+static struct clk_hw *imx_ulp_clk_hw_composite(const char *name,
 				     const char * const *parent_names,
 				     int num_parents, bool mux_present,
 				     bool rate_present, bool gate_present,
-				     void __iomem *reg)
+				     void __iomem *reg, bool has_swrst)
 {
 	struct clk_hw *mux_hw = NULL, *fd_hw = NULL, *gate_hw = NULL;
 	struct clk_fractional_divider *fd = NULL;
 	struct clk_gate *gate = NULL;
 	struct clk_mux *mux = NULL;
 	struct clk_hw *hw;
+	u32 val;
 
 	if (mux_present) {
 		mux = kzalloc(sizeof(*mux), GFP_KERNEL);
@@ -43,6 +88,8 @@ struct clk_hw *imx7ulp_clk_hw_composite(const char *name,
 		mux->reg = reg;
 		mux->shift = PCG_PCS_SHIFT;
 		mux->mask = PCG_PCS_MASK;
+		if (has_swrst)
+			mux->lock = &imx_ccm_lock;
 	}
 
 	if (rate_present) {
@@ -60,6 +107,8 @@ struct clk_hw *imx7ulp_clk_hw_composite(const char *name,
 		fd->nwidth = PCG_PCD_WIDTH;
 		fd->nmask = PCG_PCD_MASK;
 		fd->flags = CLK_FRAC_DIVIDER_ZERO_BASED;
+		if (has_swrst)
+			fd->lock = &imx_ccm_lock;
 	}
 
 	if (gate_present) {
@@ -72,13 +121,27 @@ struct clk_hw *imx7ulp_clk_hw_composite(const char *name,
 		gate_hw = &gate->hw;
 		gate->reg = reg;
 		gate->bit_idx = PCG_CGC_SHIFT;
+		if (has_swrst)
+			gate->lock = &imx_ccm_lock;
+		/*
+		 * make sure clock is gated during clock tree initialization,
+		 * the HW ONLY allow clock parent/rate changed with clock gated,
+		 * during clock tree initialization, clocks could be enabled
+		 * by bootloader, so the HW status will mismatch with clock tree
+		 * prepare count, then clock core driver will allow parent/rate
+		 * change since the prepare count is zero, but HW actually
+		 * prevent the parent/rate change due to the clock is enabled.
+		 */
+		val = readl_relaxed(reg);
+		val &= ~(1 << PCG_CGC_SHIFT);
+		writel_relaxed(val, reg);
 	}
 
 	hw = clk_hw_register_composite(NULL, name, parent_names, num_parents,
 				       mux_hw, &clk_mux_ops, fd_hw,
 				       &clk_fractional_divider_ops, gate_hw,
-				       &clk_gate_ops, CLK_SET_RATE_GATE |
-				       CLK_SET_PARENT_GATE);
+				       has_swrst ? &pcc_gate_ops : &clk_gate_ops, CLK_SET_RATE_GATE |
+				       CLK_SET_PARENT_GATE | CLK_SET_RATE_NO_REPARENT);
 	if (IS_ERR(hw)) {
 		kfree(mux);
 		kfree(fd);
@@ -87,3 +150,20 @@ struct clk_hw *imx7ulp_clk_hw_composite(const char *name,
 
 	return hw;
 }
+
+struct clk_hw *imx7ulp_clk_hw_composite(const char *name, const char * const *parent_names,
+				int num_parents, bool mux_present, bool rate_present,
+				bool gate_present, void __iomem *reg)
+{
+	return imx_ulp_clk_hw_composite(name, parent_names, num_parents, mux_present, rate_present,
+					gate_present, reg, false);
+}
+
+struct clk_hw *imx8ulp_clk_hw_composite(const char *name, const char * const *parent_names,
+				int num_parents, bool mux_present, bool rate_present,
+				bool gate_present, void __iomem *reg, bool has_swrst)
+{
+	return imx_ulp_clk_hw_composite(name, parent_names, num_parents, mux_present, rate_present,
+					gate_present, reg, has_swrst);
+}
+EXPORT_SYMBOL_GPL(imx8ulp_clk_hw_composite);

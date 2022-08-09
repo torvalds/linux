@@ -116,16 +116,16 @@ static void ocelot_mrp_save_mac(struct ocelot *ocelot,
 				struct ocelot_port *port)
 {
 	ocelot_mact_learn(ocelot, PGID_BLACKHOLE, mrp_test_dmac,
-			  port->pvid_vlan.vid, ENTRYTYPE_LOCKED);
+			  OCELOT_VLAN_UNAWARE_PVID, ENTRYTYPE_LOCKED);
 	ocelot_mact_learn(ocelot, PGID_BLACKHOLE, mrp_control_dmac,
-			  port->pvid_vlan.vid, ENTRYTYPE_LOCKED);
+			  OCELOT_VLAN_UNAWARE_PVID, ENTRYTYPE_LOCKED);
 }
 
 static void ocelot_mrp_del_mac(struct ocelot *ocelot,
 			       struct ocelot_port *port)
 {
-	ocelot_mact_forget(ocelot, mrp_test_dmac, port->pvid_vlan.vid);
-	ocelot_mact_forget(ocelot, mrp_control_dmac, port->pvid_vlan.vid);
+	ocelot_mact_forget(ocelot, mrp_test_dmac, OCELOT_VLAN_UNAWARE_PVID);
+	ocelot_mact_forget(ocelot, mrp_control_dmac, OCELOT_VLAN_UNAWARE_PVID);
 }
 
 int ocelot_mrp_add(struct ocelot *ocelot, int port,

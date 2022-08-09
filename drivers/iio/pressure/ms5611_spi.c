@@ -112,7 +112,9 @@ static int ms5611_spi_probe(struct spi_device *spi)
 
 static int ms5611_spi_remove(struct spi_device *spi)
 {
-	return ms5611_remove(spi_get_drvdata(spi));
+	ms5611_remove(spi_get_drvdata(spi));
+
+	return 0;
 }
 
 static const struct of_device_id ms5611_spi_matches[] = {

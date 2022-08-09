@@ -15,6 +15,7 @@
 #include <linux/mm.h>
 #include <linux/smp.h>
 #include <linux/kernel.h>
+#include <linux/kstrtox.h>
 #include <linux/errno.h>
 #include <linux/wait.h>
 #include <linux/tracehook.h>
@@ -30,8 +31,8 @@
 
 #include <asm/processor.h>
 #include <asm/ucontext.h>
-#include <asm/fpu/internal.h>
 #include <asm/fpu/signal.h>
+#include <asm/fpu/xstate.h>
 #include <asm/vdso.h>
 #include <asm/mce.h>
 #include <asm/sighandling.h>
@@ -41,6 +42,7 @@
 #include <linux/compat.h>
 #include <asm/proto.h>
 #include <asm/ia32_unistd.h>
+#include <asm/fpu/xstate.h>
 #endif /* CONFIG_X86_64 */
 
 #include <asm/syscall.h>
@@ -79,9 +81,9 @@ static void force_valid_ss(struct pt_regs *regs)
 # define CONTEXT_COPY_SIZE	sizeof(struct sigcontext)
 #endif
 
-static int restore_sigcontext(struct pt_regs *regs,
-			      struct sigcontext __user *usc,
-			      unsigned long uc_flags)
+static bool restore_sigcontext(struct pt_regs *regs,
+			       struct sigcontext __user *usc,
+			       unsigned long uc_flags)
 {
 	struct sigcontext sc;
 
@@ -89,7 +91,7 @@ static int restore_sigcontext(struct pt_regs *regs,
 	current->restart_block.fn = do_no_restart_syscall;
 
 	if (copy_from_user(&sc, usc, CONTEXT_COPY_SIZE))
-		return -EFAULT;
+		return false;
 
 #ifdef CONFIG_X86_32
 	set_user_gs(regs, sc.gs);
@@ -244,7 +246,6 @@ get_sigframe(struct k_sigaction *ka, struct pt_regs *regs, size_t frame_size,
 	unsigned long math_size = 0;
 	unsigned long sp = regs->sp;
 	unsigned long buf_fx = 0;
-	int ret;
 
 	/* redzone */
 	if (IS_ENABLED(CONFIG_X86_64))
@@ -292,8 +293,7 @@ get_sigframe(struct k_sigaction *ka, struct pt_regs *regs, size_t frame_size,
 	}
 
 	/* save i387 and extended state */
-	ret = copy_fpstate_to_sigframe(*fpstate, (void __user *)buf_fx, math_size);
-	if (ret < 0)
+	if (!copy_fpstate_to_sigframe(*fpstate, (void __user *)buf_fx, math_size))
 		return (void __user *)-1L;
 
 	return (void __user *)sp;
@@ -643,7 +643,7 @@ SYSCALL_DEFINE0(sigreturn)
 	 * x86_32 has no uc_flags bits relevant to restore_sigcontext.
 	 * Save a few cycles by skipping the __get_user.
 	 */
-	if (restore_sigcontext(regs, &frame->sc, 0))
+	if (!restore_sigcontext(regs, &frame->sc, 0))
 		goto badframe;
 	return regs->ax;
 
@@ -671,7 +671,7 @@ SYSCALL_DEFINE0(rt_sigreturn)
 
 	set_current_blocked(&set);
 
-	if (restore_sigcontext(regs, &frame->uc.uc_mcontext, uc_flags))
+	if (!restore_sigcontext(regs, &frame->uc.uc_mcontext, uc_flags))
 		goto badframe;
 
 	if (restore_altstack(&frame->uc.uc_stack))
@@ -721,12 +721,15 @@ badframe:
 
 /* max_frame_size tells userspace the worst case signal stack size. */
 static unsigned long __ro_after_init max_frame_size;
+static unsigned int __ro_after_init fpu_default_state_size;
 
 void __init init_sigframe_size(void)
 {
+	fpu_default_state_size = fpu__get_fpstate_size();
+
 	max_frame_size = MAX_FRAME_SIGINFO_UCTXT_SIZE + MAX_FRAME_PADDING;
 
-	max_frame_size += fpu__get_fpstate_size() + MAX_XSAVE_PADDING;
+	max_frame_size += fpu_default_state_size + MAX_XSAVE_PADDING;
 
 	/* Userspace expects an aligned size. */
 	max_frame_size = round_up(max_frame_size, FRAME_ALIGNMENT);
@@ -910,6 +913,62 @@ void signal_fault(struct pt_regs *regs, void __user *frame, char *where)
 	force_sig(SIGSEGV);
 }
 
+#ifdef CONFIG_DYNAMIC_SIGFRAME
+#ifdef CONFIG_STRICT_SIGALTSTACK_SIZE
+static bool strict_sigaltstack_size __ro_after_init = true;
+#else
+static bool strict_sigaltstack_size __ro_after_init = false;
+#endif
+
+static int __init strict_sas_size(char *arg)
+{
+	return kstrtobool(arg, &strict_sigaltstack_size);
+}
+__setup("strict_sas_size", strict_sas_size);
+
+/*
+ * MINSIGSTKSZ is 2048 and can't be changed despite the fact that AVX512
+ * exceeds that size already. As such programs might never use the
+ * sigaltstack they just continued to work. While always checking against
+ * the real size would be correct, this might be considered a regression.
+ *
+ * Therefore avoid the sanity check, unless enforced by kernel
+ * configuration or command line option.
+ *
+ * When dynamic FPU features are supported, the check is also enforced when
+ * the task has permissions to use dynamic features. Tasks which have no
+ * permission are checked against the size of the non-dynamic feature set
+ * if strict checking is enabled. This avoids forcing all tasks on the
+ * system to allocate large sigaltstacks even if they are never going
+ * to use a dynamic feature. As this is serialized via sighand::siglock
+ * any permission request for a dynamic feature either happened already
+ * or will see the newly install sigaltstack size in the permission checks.
+ */
+bool sigaltstack_size_valid(size_t ss_size)
+{
+	unsigned long fsize = max_frame_size - fpu_default_state_size;
+	u64 mask;
+
+	lockdep_assert_held(&current->sighand->siglock);
+
+	if (!fpu_state_size_dynamic() && !strict_sigaltstack_size)
+		return true;
+
+	fsize += current->group_leader->thread.fpu.perm.__user_state_size;
+	if (likely(ss_size > fsize))
+		return true;
+
+	if (strict_sigaltstack_size)
+		return ss_size > fsize;
+
+	mask = current->group_leader->thread.fpu.perm.__state_perm;
+	if (mask & XFEATURE_MASK_USER_DYNAMIC)
+		return ss_size > fsize;
+
+	return true;
+}
+#endif /* CONFIG_DYNAMIC_SIGFRAME */
+
 #ifdef CONFIG_X86_X32_ABI
 COMPAT_SYSCALL_DEFINE0(x32_rt_sigreturn)
 {
@@ -929,7 +988,7 @@ COMPAT_SYSCALL_DEFINE0(x32_rt_sigreturn)
 
 	set_current_blocked(&set);
 
-	if (restore_sigcontext(regs, &frame->uc.uc_mcontext, uc_flags))
+	if (!restore_sigcontext(regs, &frame->uc.uc_mcontext, uc_flags))
 		goto badframe;
 
 	if (compat_restore_altstack(&frame->uc.uc_stack))

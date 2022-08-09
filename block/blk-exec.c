@@ -65,13 +65,19 @@ EXPORT_SYMBOL_GPL(blk_execute_rq_nowait);
 
 static bool blk_rq_is_poll(struct request *rq)
 {
-	return rq->mq_hctx && rq->mq_hctx->type == HCTX_TYPE_POLL;
+	if (!rq->mq_hctx)
+		return false;
+	if (rq->mq_hctx->type != HCTX_TYPE_POLL)
+		return false;
+	if (WARN_ON_ONCE(!rq->bio))
+		return false;
+	return true;
 }
 
 static void blk_rq_poll_completion(struct request *rq, struct completion *wait)
 {
 	do {
-		blk_poll(rq->q, request_to_qc_t(rq->mq_hctx, rq), true);
+		bio_poll(rq->bio, NULL, 0);
 		cond_resched();
 	} while (!completion_done(wait));
 }

@@ -51,7 +51,7 @@ static bool is_namespace_io(const struct device *dev);
 
 static int is_uuid_busy(struct device *dev, void *data)
 {
-	u8 *uuid1 = data, *uuid2 = NULL;
+	uuid_t *uuid1 = data, *uuid2 = NULL;
 
 	if (is_namespace_pmem(dev)) {
 		struct nd_namespace_pmem *nspm = to_nd_namespace_pmem(dev);
@@ -71,7 +71,7 @@ static int is_uuid_busy(struct device *dev, void *data)
 		uuid2 = nd_pfn->uuid;
 	}
 
-	if (uuid2 && memcmp(uuid1, uuid2, NSLABEL_UUID_LEN) == 0)
+	if (uuid2 && uuid_equal(uuid1, uuid2))
 		return -EBUSY;
 
 	return 0;
@@ -89,7 +89,7 @@ static int is_namespace_uuid_busy(struct device *dev, void *data)
  * @dev: any device on a nvdimm_bus
  * @uuid: uuid to check
  */
-bool nd_is_uuid_unique(struct device *dev, u8 *uuid)
+bool nd_is_uuid_unique(struct device *dev, uuid_t *uuid)
 {
 	struct nvdimm_bus *nvdimm_bus = walk_to_nvdimm_bus(dev);
 
@@ -192,12 +192,10 @@ const char *nvdimm_namespace_disk_name(struct nd_namespace_common *ndns,
 }
 EXPORT_SYMBOL(nvdimm_namespace_disk_name);
 
-const u8 *nd_dev_to_uuid(struct device *dev)
+const uuid_t *nd_dev_to_uuid(struct device *dev)
 {
-	static const u8 null_uuid[16];
-
 	if (!dev)
-		return null_uuid;
+		return &uuid_null;
 
 	if (is_namespace_pmem(dev)) {
 		struct nd_namespace_pmem *nspm = to_nd_namespace_pmem(dev);
@@ -208,7 +206,7 @@ const u8 *nd_dev_to_uuid(struct device *dev)
 
 		return nsblk->uuid;
 	} else
-		return null_uuid;
+		return &uuid_null;
 }
 EXPORT_SYMBOL(nd_dev_to_uuid);
 
@@ -938,7 +936,8 @@ static void nd_namespace_pmem_set_resource(struct nd_region *nd_region,
 	res->end = res->start + size - 1;
 }
 
-static bool uuid_not_set(const u8 *uuid, struct device *dev, const char *where)
+static bool uuid_not_set(const uuid_t *uuid, struct device *dev,
+			 const char *where)
 {
 	if (!uuid) {
 		dev_dbg(dev, "%s: uuid not set\n", where);
@@ -957,7 +956,7 @@ static ssize_t __size_store(struct device *dev, unsigned long long val)
 	struct nd_label_id label_id;
 	u32 flags = 0, remainder;
 	int rc, i, id = -1;
-	u8 *uuid = NULL;
+	uuid_t *uuid = NULL;
 
 	if (dev->driver || ndns->claim)
 		return -EBUSY;
@@ -1050,7 +1049,7 @@ static ssize_t size_store(struct device *dev,
 {
 	struct nd_region *nd_region = to_nd_region(dev->parent);
 	unsigned long long val;
-	u8 **uuid = NULL;
+	uuid_t **uuid = NULL;
 	int rc;
 
 	rc = kstrtoull(buf, 0, &val);
@@ -1147,7 +1146,7 @@ static ssize_t size_show(struct device *dev,
 }
 static DEVICE_ATTR(size, 0444, size_show, size_store);
 
-static u8 *namespace_to_uuid(struct device *dev)
+static uuid_t *namespace_to_uuid(struct device *dev)
 {
 	if (is_namespace_pmem(dev)) {
 		struct nd_namespace_pmem *nspm = to_nd_namespace_pmem(dev);
@@ -1161,10 +1160,10 @@ static u8 *namespace_to_uuid(struct device *dev)
 		return ERR_PTR(-ENXIO);
 }
 
-static ssize_t uuid_show(struct device *dev,
-		struct device_attribute *attr, char *buf)
+static ssize_t uuid_show(struct device *dev, struct device_attribute *attr,
+			 char *buf)
 {
-	u8 *uuid = namespace_to_uuid(dev);
+	uuid_t *uuid = namespace_to_uuid(dev);
 
 	if (IS_ERR(uuid))
 		return PTR_ERR(uuid);
@@ -1181,7 +1180,8 @@ static ssize_t uuid_show(struct device *dev,
  * @old_uuid: reference to the uuid storage location in the namespace object
  */
 static int namespace_update_uuid(struct nd_region *nd_region,
-		struct device *dev, u8 *new_uuid, u8 **old_uuid)
+				 struct device *dev, uuid_t *new_uuid,
+				 uuid_t **old_uuid)
 {
 	u32 flags = is_namespace_blk(dev) ? NSLABEL_FLAG_LOCAL : 0;
 	struct nd_label_id old_label_id;
@@ -1231,10 +1231,12 @@ static int namespace_update_uuid(struct nd_region *nd_region,
 		list_for_each_entry(label_ent, &nd_mapping->labels, list) {
 			struct nd_namespace_label *nd_label = label_ent->label;
 			struct nd_label_id label_id;
+			uuid_t uuid;
 
 			if (!nd_label)
 				continue;
-			nd_label_gen_id(&label_id, nd_label->uuid,
+			nsl_get_uuid(ndd, nd_label, &uuid);
+			nd_label_gen_id(&label_id, &uuid,
 					nsl_get_flags(ndd, nd_label));
 			if (strcmp(old_label_id.id, label_id.id) == 0)
 				set_bit(ND_LABEL_REAP, &label_ent->flags);
@@ -1251,9 +1253,9 @@ static ssize_t uuid_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t len)
 {
 	struct nd_region *nd_region = to_nd_region(dev->parent);
-	u8 *uuid = NULL;
+	uuid_t *uuid = NULL;
+	uuid_t **ns_uuid;
 	ssize_t rc = 0;
-	u8 **ns_uuid;
 
 	if (is_namespace_pmem(dev)) {
 		struct nd_namespace_pmem *nspm = to_nd_namespace_pmem(dev);
@@ -1378,8 +1380,8 @@ static ssize_t dpa_extents_show(struct device *dev,
 {
 	struct nd_region *nd_region = to_nd_region(dev->parent);
 	struct nd_label_id label_id;
+	uuid_t *uuid = NULL;
 	int count = 0, i;
-	u8 *uuid = NULL;
 	u32 flags = 0;
 
 	nvdimm_bus_lock(dev);
@@ -1831,8 +1833,8 @@ static struct device **create_namespace_io(struct nd_region *nd_region)
 	return devs;
 }
 
-static bool has_uuid_at_pos(struct nd_region *nd_region, u8 *uuid,
-		u64 cookie, u16 pos)
+static bool has_uuid_at_pos(struct nd_region *nd_region, const uuid_t *uuid,
+			    u64 cookie, u16 pos)
 {
 	struct nd_namespace_label *found = NULL;
 	int i;
@@ -1846,17 +1848,16 @@ static bool has_uuid_at_pos(struct nd_region *nd_region, u8 *uuid,
 
 		list_for_each_entry(label_ent, &nd_mapping->labels, list) {
 			struct nd_namespace_label *nd_label = label_ent->label;
-			u16 position, nlabel;
+			u16 position;
 
 			if (!nd_label)
 				continue;
 			position = nsl_get_position(ndd, nd_label);
-			nlabel = nsl_get_nlabel(ndd, nd_label);
 
 			if (!nsl_validate_isetcookie(ndd, nd_label, cookie))
 				continue;
 
-			if (memcmp(nd_label->uuid, uuid, NSLABEL_UUID_LEN) != 0)
+			if (!nsl_uuid_equal(ndd, nd_label, uuid))
 				continue;
 
 			if (!nsl_validate_type_guid(ndd, nd_label,
@@ -1868,7 +1869,7 @@ static bool has_uuid_at_pos(struct nd_region *nd_region, u8 *uuid,
 				return false;
 			}
 			found_uuid = true;
-			if (nlabel != nd_region->ndr_mappings)
+			if (!nsl_validate_nlabel(nd_region, ndd, nd_label))
 				continue;
 			if (position != pos)
 				continue;
@@ -1881,7 +1882,7 @@ static bool has_uuid_at_pos(struct nd_region *nd_region, u8 *uuid,
 	return found != NULL;
 }
 
-static int select_pmem_id(struct nd_region *nd_region, u8 *pmem_id)
+static int select_pmem_id(struct nd_region *nd_region, const uuid_t *pmem_id)
 {
 	int i;
 
@@ -1900,7 +1901,7 @@ static int select_pmem_id(struct nd_region *nd_region, u8 *pmem_id)
 			nd_label = label_ent->label;
 			if (!nd_label)
 				continue;
-			if (memcmp(nd_label->uuid, pmem_id, NSLABEL_UUID_LEN) == 0)
+			if (nsl_uuid_equal(ndd, nd_label, pmem_id))
 				break;
 			nd_label = NULL;
 		}
@@ -1923,7 +1924,8 @@ static int select_pmem_id(struct nd_region *nd_region, u8 *pmem_id)
 			/* pass */;
 		else {
 			dev_dbg(&nd_region->dev, "%s invalid label for %pUb\n",
-					dev_name(ndd->dev), nd_label->uuid);
+				dev_name(ndd->dev),
+				nsl_uuid_raw(ndd, nd_label));
 			return -EINVAL;
 		}
 
@@ -1953,6 +1955,7 @@ static struct device *create_namespace_pmem(struct nd_region *nd_region,
 	resource_size_t size = 0;
 	struct resource *res;
 	struct device *dev;
+	uuid_t uuid;
 	int rc = 0;
 	u16 i;
 
@@ -1963,12 +1966,12 @@ static struct device *create_namespace_pmem(struct nd_region *nd_region,
 
 	if (!nsl_validate_isetcookie(ndd, nd_label, cookie)) {
 		dev_dbg(&nd_region->dev, "invalid cookie in label: %pUb\n",
-				nd_label->uuid);
+			nsl_uuid_raw(ndd, nd_label));
 		if (!nsl_validate_isetcookie(ndd, nd_label, altcookie))
 			return ERR_PTR(-EAGAIN);
 
 		dev_dbg(&nd_region->dev, "valid altcookie in label: %pUb\n",
-				nd_label->uuid);
+			nsl_uuid_raw(ndd, nd_label));
 	}
 
 	nspm = kzalloc(sizeof(*nspm), GFP_KERNEL);
@@ -1984,9 +1987,12 @@ static struct device *create_namespace_pmem(struct nd_region *nd_region,
 	res->flags = IORESOURCE_MEM;
 
 	for (i = 0; i < nd_region->ndr_mappings; i++) {
-		if (has_uuid_at_pos(nd_region, nd_label->uuid, cookie, i))
+		uuid_t uuid;
+
+		nsl_get_uuid(ndd, nd_label, &uuid);
+		if (has_uuid_at_pos(nd_region, &uuid, cookie, i))
 			continue;
-		if (has_uuid_at_pos(nd_region, nd_label->uuid, altcookie, i))
+		if (has_uuid_at_pos(nd_region, &uuid, altcookie, i))
 			continue;
 		break;
 	}
@@ -2000,7 +2006,7 @@ static struct device *create_namespace_pmem(struct nd_region *nd_region,
 		 * find a dimm with two instances of the same uuid.
 		 */
 		dev_err(&nd_region->dev, "%s missing label for %pUb\n",
-				nvdimm_name(nvdimm), nd_label->uuid);
+			nvdimm_name(nvdimm), nsl_uuid_raw(ndd, nd_label));
 		rc = -EINVAL;
 		goto err;
 	}
@@ -2013,7 +2019,8 @@ static struct device *create_namespace_pmem(struct nd_region *nd_region,
 	 * the dimm being enabled (i.e. nd_label_reserve_dpa()
 	 * succeeded).
 	 */
-	rc = select_pmem_id(nd_region, nd_label->uuid);
+	nsl_get_uuid(ndd, nd_label, &uuid);
+	rc = select_pmem_id(nd_region, &uuid);
 	if (rc)
 		goto err;
 
@@ -2039,8 +2046,8 @@ static struct device *create_namespace_pmem(struct nd_region *nd_region,
 		WARN_ON(nspm->alt_name || nspm->uuid);
 		nspm->alt_name = kmemdup(nsl_ref_name(ndd, label0),
 					 NSLABEL_NAME_LEN, GFP_KERNEL);
-		nspm->uuid = kmemdup((void __force *) label0->uuid,
-				NSLABEL_UUID_LEN, GFP_KERNEL);
+		nsl_get_uuid(ndd, label0, &uuid);
+		nspm->uuid = kmemdup(&uuid, sizeof(uuid_t), GFP_KERNEL);
 		nspm->lbasize = nsl_get_lbasize(ndd, label0);
 		nspm->nsio.common.claim_class =
 			nsl_get_claim_class(ndd, label0);
@@ -2217,15 +2224,15 @@ static int add_namespace_resource(struct nd_region *nd_region,
 	int i;
 
 	for (i = 0; i < count; i++) {
-		u8 *uuid = namespace_to_uuid(devs[i]);
+		uuid_t *uuid = namespace_to_uuid(devs[i]);
 		struct resource *res;
 
-		if (IS_ERR_OR_NULL(uuid)) {
+		if (IS_ERR(uuid)) {
 			WARN_ON(1);
 			continue;
 		}
 
-		if (memcmp(uuid, nd_label->uuid, NSLABEL_UUID_LEN) != 0)
+		if (!nsl_uuid_equal(ndd, nd_label, uuid))
 			continue;
 		if (is_namespace_blk(devs[i])) {
 			res = nsblk_add_resource(nd_region, ndd,
@@ -2236,8 +2243,8 @@ static int add_namespace_resource(struct nd_region *nd_region,
 			nd_dbg_dpa(nd_region, ndd, res, "%d assign\n", count);
 		} else {
 			dev_err(&nd_region->dev,
-					"error: conflicting extents for uuid: %pUb\n",
-					nd_label->uuid);
+				"error: conflicting extents for uuid: %pUb\n",
+				uuid);
 			return -ENXIO;
 		}
 		break;
@@ -2257,6 +2264,7 @@ static struct device *create_namespace_blk(struct nd_region *nd_region,
 	char name[NSLABEL_NAME_LEN];
 	struct device *dev = NULL;
 	struct resource *res;
+	uuid_t uuid;
 
 	if (!nsl_validate_type_guid(ndd, nd_label, &nd_set->type_guid))
 		return ERR_PTR(-EAGAIN);
@@ -2271,7 +2279,8 @@ static struct device *create_namespace_blk(struct nd_region *nd_region,
 	dev->parent = &nd_region->dev;
 	nsblk->id = -1;
 	nsblk->lbasize = nsl_get_lbasize(ndd, nd_label);
-	nsblk->uuid = kmemdup(nd_label->uuid, NSLABEL_UUID_LEN, GFP_KERNEL);
+	nsl_get_uuid(ndd, nd_label, &uuid);
+	nsblk->uuid = kmemdup(&uuid, sizeof(uuid_t), GFP_KERNEL);
 	nsblk->common.claim_class = nsl_get_claim_class(ndd, nd_label);
 	if (!nsblk->uuid)
 		goto blk_err;

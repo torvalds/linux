@@ -32,8 +32,8 @@ enum xfs_refcount_intent_type {
 struct xfs_refcount_intent {
 	struct list_head			ri_list;
 	enum xfs_refcount_intent_type		ri_type;
-	xfs_fsblock_t				ri_startblock;
 	xfs_extlen_t				ri_blockcount;
+	xfs_fsblock_t				ri_startblock;
 };
 
 void xfs_refcount_increase_extent(struct xfs_trans *tp,
@@ -82,5 +82,10 @@ extern void xfs_refcount_btrec_to_irec(const union xfs_btree_rec *rec,
 		struct xfs_refcount_irec *irec);
 extern int xfs_refcount_insert(struct xfs_btree_cur *cur,
 		struct xfs_refcount_irec *irec, int *stat);
+
+extern struct kmem_cache	*xfs_refcount_intent_cache;
+
+int __init xfs_refcount_intent_init_cache(void);
+void xfs_refcount_intent_destroy_cache(void);
 
 #endif	/* __XFS_REFCOUNT_H__ */

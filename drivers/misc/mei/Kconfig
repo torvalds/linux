@@ -47,3 +47,5 @@ config INTEL_MEI_TXE
 	  Intel Bay Trail
 
 source "drivers/misc/mei/hdcp/Kconfig"
+source "drivers/misc/mei/pxp/Kconfig"
+

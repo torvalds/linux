@@ -32,6 +32,7 @@ properties:
           - const: mediatek,mt6580
       - items:
           - enum:
+              - fairphone,fp1
               - mundoreader,bq-aquaris5
           - const: mediatek,mt6589
       - items:

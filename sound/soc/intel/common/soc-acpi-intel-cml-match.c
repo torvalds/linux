@@ -9,22 +9,22 @@
 #include <sound/soc-acpi.h>
 #include <sound/soc-acpi-intel-match.h>
 
-static struct snd_soc_acpi_codecs rt1011_spk_codecs = {
+static const struct snd_soc_acpi_codecs rt1011_spk_codecs = {
 	.num_codecs = 1,
 	.codecs = {"10EC1011"}
 };
 
-static struct snd_soc_acpi_codecs rt1015_spk_codecs = {
+static const struct snd_soc_acpi_codecs rt1015_spk_codecs = {
 	.num_codecs = 1,
 	.codecs = {"10EC1015"}
 };
 
-static struct snd_soc_acpi_codecs max98357a_spk_codecs = {
+static const struct snd_soc_acpi_codecs max98357a_spk_codecs = {
 	.num_codecs = 1,
 	.codecs = {"MX98357A"}
 };
 
-static struct snd_soc_acpi_codecs max98390_spk_codecs = {
+static const struct snd_soc_acpi_codecs max98390_spk_codecs = {
 	.num_codecs = 1,
 	.codecs = {"MX98390"}
 };
@@ -80,6 +80,12 @@ struct snd_soc_acpi_mach snd_soc_acpi_intel_cml_machines[] = {
 		.quirk_data = &max98390_spk_codecs,
 		.sof_fw_filename = "sof-cml.ri",
 		.sof_tplg_filename = "sof-cml-da7219-max98390.tplg",
+	},
+	{
+		.id = "ESSX8336",
+		.drv_name = "sof-essx8336",
+		.sof_fw_filename = "sof-cml.ri",
+		.sof_tplg_filename = "sof-cml-es8336.tplg",
 	},
 	{},
 };

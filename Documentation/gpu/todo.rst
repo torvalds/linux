@@ -314,15 +314,18 @@ Level: Advanced
 Garbage collect fbdev scrolling acceleration
 --------------------------------------------
 
-Scroll acceleration is disabled in fbcon by hard-wiring p->scrollmode =
-SCROLL_REDRAW. There's a ton of code this will allow us to remove:
+Scroll acceleration has been disabled in fbcon. Now it works as the old
+SCROLL_REDRAW mode. A ton of code was removed in fbcon.c and the hook bmove was
+removed from fbcon_ops.
+Remaining tasks:
 
-- lots of code in fbcon.c
-
-- a bunch of the hooks in fbcon_ops, maybe the remaining hooks could be called
+- a bunch of the hooks in fbcon_ops could be removed or simplified by calling
   directly instead of the function table (with a switch on p->rotate)
 
 - fb_copyarea is unused after this, and can be deleted from all drivers
+
+- after that, fb_copyarea can be deleted from fb_ops in include/linux/fb.h as
+  well as cfb_copyarea
 
 Note that not all acceleration code can be deleted, since clearing and cursor
 support is still accelerated, which might be good candidates for further
@@ -352,23 +355,6 @@ DRM driver struct. This is now the preferred way. Callbacks in drivers have been
 converted, except for struct drm_driver.gem_prime_mmap.
 
 Level: Intermediate
-
-Use DRM_MODESET_LOCK_ALL_* helpers instead of boilerplate
----------------------------------------------------------
-
-For cases where drivers are attempting to grab the modeset locks with a local
-acquire context. Replace the boilerplate code surrounding
-drm_modeset_lock_all_ctx() with DRM_MODESET_LOCK_ALL_BEGIN() and
-DRM_MODESET_LOCK_ALL_END() instead.
-
-This should also be done for all places where drm_modeset_lock_all() is still
-used.
-
-As a reference, take a look at the conversions already completed in drm core.
-
-Contact: Sean Paul, respective driver maintainers
-
-Level: Starter
 
 Rename CMA helpers to DMA helpers
 ---------------------------------

@@ -69,7 +69,7 @@ static void __exception_irq_entry wpcm450_aic_handle_irq(struct pt_regs *regs)
 	/* Read IPER to signal that nIRQ can be de-asserted */
 	hwirq = readl(aic->regs + AIC_IPER) / 4;
 
-	handle_domain_irq(aic->domain, hwirq, regs);
+	generic_handle_domain_irq(aic->domain, hwirq);
 }
 
 static void wpcm450_aic_eoi(struct irq_data *d)

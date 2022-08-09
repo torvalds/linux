@@ -32,6 +32,29 @@
 #include <generated/utsrelease.h>
 #include "common.h"
 
+/* State held across locks and calls for commands which have devlink fallback */
+struct ethtool_devlink_compat {
+	struct devlink *devlink;
+	union {
+		struct ethtool_flash efl;
+		struct ethtool_drvinfo info;
+	};
+};
+
+static struct devlink *netdev_to_devlink_get(struct net_device *dev)
+{
+	struct devlink_port *devlink_port;
+
+	if (!dev->netdev_ops->ndo_get_devlink_port)
+		return NULL;
+
+	devlink_port = dev->netdev_ops->ndo_get_devlink_port(dev);
+	if (!devlink_port)
+		return NULL;
+
+	return devlink_try_get(devlink_port->devlink);
+}
+
 /*
  * Some useful ethtool_ops methods that're device independent.
  * If we find that all drivers want to do the same thing here,
@@ -89,7 +112,8 @@ static int ethtool_get_features(struct net_device *dev, void __user *useraddr)
 	if (copy_to_user(useraddr, &cmd, sizeof(cmd)))
 		return -EFAULT;
 	useraddr += sizeof(cmd);
-	if (copy_to_user(useraddr, features, copy_size * sizeof(*features)))
+	if (copy_to_user(useraddr, features,
+			 array_size(copy_size, sizeof(*features))))
 		return -EFAULT;
 
 	return 0;
@@ -335,7 +359,7 @@ EXPORT_SYMBOL(ethtool_intersect_link_masks);
 void ethtool_convert_legacy_u32_to_link_mode(unsigned long *dst,
 					     u32 legacy_u32)
 {
-	bitmap_zero(dst, __ETHTOOL_LINK_MODE_MASK_NBITS);
+	linkmode_zero(dst);
 	dst[0] = legacy_u32;
 }
 EXPORT_SYMBOL(ethtool_convert_legacy_u32_to_link_mode);
@@ -350,11 +374,10 @@ bool ethtool_convert_link_mode_to_legacy_u32(u32 *legacy_u32,
 	if (__ETHTOOL_LINK_MODE_MASK_NBITS > 32) {
 		__ETHTOOL_DECLARE_LINK_MODE_MASK(ext);
 
-		bitmap_zero(ext, __ETHTOOL_LINK_MODE_MASK_NBITS);
+		linkmode_zero(ext);
 		bitmap_fill(ext, 32);
 		bitmap_complement(ext, ext, __ETHTOOL_LINK_MODE_MASK_NBITS);
-		if (bitmap_intersects(ext, src,
-				      __ETHTOOL_LINK_MODE_MASK_NBITS)) {
+		if (linkmode_intersects(ext, src)) {
 			/* src mask goes beyond bit 31 */
 			retval = false;
 		}
@@ -697,22 +720,20 @@ static int ethtool_set_settings(struct net_device *dev, void __user *useraddr)
 	return ret;
 }
 
-static noinline_for_stack int ethtool_get_drvinfo(struct net_device *dev,
-						  void __user *useraddr)
+static int
+ethtool_get_drvinfo(struct net_device *dev, struct ethtool_devlink_compat *rsp)
 {
-	struct ethtool_drvinfo info;
 	const struct ethtool_ops *ops = dev->ethtool_ops;
 
-	memset(&info, 0, sizeof(info));
-	info.cmd = ETHTOOL_GDRVINFO;
-	strlcpy(info.version, UTS_RELEASE, sizeof(info.version));
+	rsp->info.cmd = ETHTOOL_GDRVINFO;
+	strlcpy(rsp->info.version, UTS_RELEASE, sizeof(rsp->info.version));
 	if (ops->get_drvinfo) {
-		ops->get_drvinfo(dev, &info);
+		ops->get_drvinfo(dev, &rsp->info);
 	} else if (dev->dev.parent && dev->dev.parent->driver) {
-		strlcpy(info.bus_info, dev_name(dev->dev.parent),
-			sizeof(info.bus_info));
-		strlcpy(info.driver, dev->dev.parent->driver->name,
-			sizeof(info.driver));
+		strlcpy(rsp->info.bus_info, dev_name(dev->dev.parent),
+			sizeof(rsp->info.bus_info));
+		strlcpy(rsp->info.driver, dev->dev.parent->driver->name,
+			sizeof(rsp->info.driver));
 	} else {
 		return -EOPNOTSUPP;
 	}
@@ -726,30 +747,27 @@ static noinline_for_stack int ethtool_get_drvinfo(struct net_device *dev,
 
 		rc = ops->get_sset_count(dev, ETH_SS_TEST);
 		if (rc >= 0)
-			info.testinfo_len = rc;
+			rsp->info.testinfo_len = rc;
 		rc = ops->get_sset_count(dev, ETH_SS_STATS);
 		if (rc >= 0)
-			info.n_stats = rc;
+			rsp->info.n_stats = rc;
 		rc = ops->get_sset_count(dev, ETH_SS_PRIV_FLAGS);
 		if (rc >= 0)
-			info.n_priv_flags = rc;
+			rsp->info.n_priv_flags = rc;
 	}
 	if (ops->get_regs_len) {
 		int ret = ops->get_regs_len(dev);
 
 		if (ret > 0)
-			info.regdump_len = ret;
+			rsp->info.regdump_len = ret;
 	}
 
 	if (ops->get_eeprom_len)
-		info.eedump_len = ops->get_eeprom_len(dev);
+		rsp->info.eedump_len = ops->get_eeprom_len(dev);
 
-	if (!info.fw_version[0])
-		devlink_compat_running_version(dev, info.fw_version,
-					       sizeof(info.fw_version));
+	if (!rsp->info.fw_version[0])
+		rsp->devlink = netdev_to_devlink_get(dev);
 
-	if (copy_to_user(useraddr, &info, sizeof(info)))
-		return -EFAULT;
 	return 0;
 }
 
@@ -799,7 +817,7 @@ static noinline_for_stack int ethtool_get_sset_info(struct net_device *dev,
 		goto out;
 
 	useraddr += offsetof(struct ethtool_sset_info, data);
-	if (copy_to_user(useraddr, info_buf, idx * sizeof(u32)))
+	if (copy_to_user(useraddr, info_buf, array_size(idx, sizeof(u32))))
 		goto out;
 
 	ret = 0;
@@ -1022,7 +1040,7 @@ static int ethtool_copy_validate_indir(u32 *indir, void __user *useraddr,
 {
 	int i;
 
-	if (copy_from_user(indir, useraddr, size * sizeof(indir[0])))
+	if (copy_from_user(indir, useraddr, array_size(size, sizeof(indir[0]))))
 		return -EFAULT;
 
 	/* Validate ring indices */
@@ -1537,6 +1555,10 @@ static int ethtool_get_any_eeprom(struct net_device *dev, void __user *useraddr,
 		ret = getter(dev, &eeprom, data);
 		if (ret)
 			break;
+		if (!eeprom.len) {
+			ret = -EIO;
+			break;
+		}
 		if (copy_to_user(userbuf, data, eeprom.len)) {
 			ret = -EFAULT;
 			break;
@@ -1697,7 +1719,7 @@ static noinline_for_stack int ethtool_set_coalesce(struct net_device *dev,
 	struct ethtool_coalesce coalesce;
 	int ret;
 
-	if (!dev->ethtool_ops->set_coalesce && !dev->ethtool_ops->get_coalesce)
+	if (!dev->ethtool_ops->set_coalesce || !dev->ethtool_ops->get_coalesce)
 		return -EOPNOTSUPP;
 
 	ret = dev->ethtool_ops->get_coalesce(dev, &coalesce, &kernel_coalesce,
@@ -1891,7 +1913,7 @@ static int ethtool_self_test(struct net_device *dev, char __user *useraddr)
 	if (copy_to_user(useraddr, &test, sizeof(test)))
 		goto out;
 	useraddr += sizeof(test);
-	if (copy_to_user(useraddr, data, test.len * sizeof(u64)))
+	if (copy_to_user(useraddr, data, array_size(test.len, sizeof(u64))))
 		goto out;
 	ret = 0;
 
@@ -1933,7 +1955,8 @@ static int ethtool_get_strings(struct net_device *dev, void __user *useraddr)
 		goto out;
 	useraddr += sizeof(gstrings);
 	if (gstrings.len &&
-	    copy_to_user(useraddr, data, gstrings.len * ETH_GSTRING_LEN))
+	    copy_to_user(useraddr, data,
+			 array_size(gstrings.len, ETH_GSTRING_LEN)))
 		goto out;
 	ret = 0;
 
@@ -2173,19 +2196,15 @@ static int ethtool_set_value(struct net_device *dev, char __user *useraddr,
 	return actor(dev, edata.data);
 }
 
-static noinline_for_stack int ethtool_flash_device(struct net_device *dev,
-						   char __user *useraddr)
+static int
+ethtool_flash_device(struct net_device *dev, struct ethtool_devlink_compat *req)
 {
-	struct ethtool_flash efl;
+	if (!dev->ethtool_ops->flash_device) {
+		req->devlink = netdev_to_devlink_get(dev);
+		return 0;
+	}
 
-	if (copy_from_user(&efl, useraddr, sizeof(efl)))
-		return -EFAULT;
-	efl.data[ETHTOOL_FLASH_MAX_FILENAME - 1] = 0;
-
-	if (!dev->ethtool_ops->flash_device)
-		return devlink_compat_flash_update(dev, efl.data);
-
-	return dev->ethtool_ops->flash_device(dev, &efl);
+	return dev->ethtool_ops->flash_device(dev, &req->efl);
 }
 
 static int ethtool_set_dump(struct net_device *dev,
@@ -2695,18 +2714,18 @@ static int ethtool_set_fecparam(struct net_device *dev, void __user *useraddr)
 
 /* The main entry point in this file.  Called from net/core/dev_ioctl.c */
 
-int dev_ethtool(struct net *net, struct ifreq *ifr, void __user *useraddr)
+static int
+__dev_ethtool(struct net *net, struct ifreq *ifr, void __user *useraddr,
+	      u32 ethcmd, struct ethtool_devlink_compat *devlink_state)
 {
-	struct net_device *dev = __dev_get_by_name(net, ifr->ifr_name);
-	u32 ethcmd, sub_cmd;
+	struct net_device *dev;
+	u32 sub_cmd;
 	int rc;
 	netdev_features_t old_features;
 
+	dev = __dev_get_by_name(net, ifr->ifr_name);
 	if (!dev)
 		return -ENODEV;
-
-	if (copy_from_user(&ethcmd, useraddr, sizeof(ethcmd)))
-		return -EFAULT;
 
 	if (ethcmd == ETHTOOL_PERQUEUE) {
 		if (copy_from_user(&sub_cmd, useraddr + sizeof(ethcmd), sizeof(sub_cmd)))
@@ -2781,7 +2800,7 @@ int dev_ethtool(struct net *net, struct ifreq *ifr, void __user *useraddr)
 		rc = ethtool_set_settings(dev, useraddr);
 		break;
 	case ETHTOOL_GDRVINFO:
-		rc = ethtool_get_drvinfo(dev, useraddr);
+		rc = ethtool_get_drvinfo(dev, devlink_state);
 		break;
 	case ETHTOOL_GREGS:
 		rc = ethtool_get_regs(dev, useraddr);
@@ -2883,7 +2902,7 @@ int dev_ethtool(struct net *net, struct ifreq *ifr, void __user *useraddr)
 		rc = ethtool_set_rxnfc(dev, ethcmd, useraddr);
 		break;
 	case ETHTOOL_FLASHDEV:
-		rc = ethtool_flash_device(dev, useraddr);
+		rc = ethtool_flash_device(dev, devlink_state);
 		break;
 	case ETHTOOL_RESET:
 		rc = ethtool_reset(dev, useraddr);
@@ -2992,6 +3011,60 @@ out:
 	if (dev->dev.parent)
 		pm_runtime_put(dev->dev.parent);
 
+	return rc;
+}
+
+int dev_ethtool(struct net *net, struct ifreq *ifr, void __user *useraddr)
+{
+	struct ethtool_devlink_compat *state;
+	u32 ethcmd;
+	int rc;
+
+	if (copy_from_user(&ethcmd, useraddr, sizeof(ethcmd)))
+		return -EFAULT;
+
+	state = kzalloc(sizeof(*state), GFP_KERNEL);
+	if (!state)
+		return -ENOMEM;
+
+	switch (ethcmd) {
+	case ETHTOOL_FLASHDEV:
+		if (copy_from_user(&state->efl, useraddr, sizeof(state->efl))) {
+			rc = -EFAULT;
+			goto exit_free;
+		}
+		state->efl.data[ETHTOOL_FLASH_MAX_FILENAME - 1] = 0;
+		break;
+	}
+
+	rtnl_lock();
+	rc = __dev_ethtool(net, ifr, useraddr, ethcmd, state);
+	rtnl_unlock();
+	if (rc)
+		goto exit_free;
+
+	switch (ethcmd) {
+	case ETHTOOL_FLASHDEV:
+		if (state->devlink)
+			rc = devlink_compat_flash_update(state->devlink,
+							 state->efl.data);
+		break;
+	case ETHTOOL_GDRVINFO:
+		if (state->devlink)
+			devlink_compat_running_version(state->devlink,
+						       state->info.fw_version,
+						       sizeof(state->info.fw_version));
+		if (copy_to_user(useraddr, &state->info, sizeof(state->info))) {
+			rc = -EFAULT;
+			goto exit_free;
+		}
+		break;
+	}
+
+exit_free:
+	if (state->devlink)
+		devlink_put(state->devlink);
+	kfree(state);
 	return rc;
 }
 

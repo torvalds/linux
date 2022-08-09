@@ -2,9 +2,10 @@
 #ifndef _BCACHE_FEATURES_H
 #define _BCACHE_FEATURES_H
 
-#include <linux/bcache.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
+
+#include "bcache_ondisk.h"
 
 #define BCH_FEATURE_COMPAT		0
 #define BCH_FEATURE_RO_COMPAT		1

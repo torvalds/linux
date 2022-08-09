@@ -87,6 +87,7 @@ properties:
               - xlnx,zynqmp-zcu102-revA
               - xlnx,zynqmp-zcu102-revB
               - xlnx,zynqmp-zcu102-rev1.0
+              - xlnx,zynqmp-zcu102-rev1.1
           - const: xlnx,zynqmp-zcu102
           - const: xlnx,zynqmp
 
@@ -113,6 +114,22 @@ properties:
               - xlnx,zynqmp-zcu111-revA
               - xlnx,zynqmp-zcu111-rev1.0
           - const: xlnx,zynqmp-zcu111
+          - const: xlnx,zynqmp
+
+      - description: Xilinx Kria SOMs
+        items:
+          - const: xlnx,zynqmp-sm-k26-rev1
+          - const: xlnx,zynqmp-sm-k26-revB
+          - const: xlnx,zynqmp-sm-k26-revA
+          - const: xlnx,zynqmp-sm-k26
+          - const: xlnx,zynqmp
+
+      - description: Xilinx Kria SOMs (starter)
+        items:
+          - const: xlnx,zynqmp-smk-k26-rev1
+          - const: xlnx,zynqmp-smk-k26-revB
+          - const: xlnx,zynqmp-smk-k26-revA
+          - const: xlnx,zynqmp-smk-k26
           - const: xlnx,zynqmp
 
 additionalProperties: true

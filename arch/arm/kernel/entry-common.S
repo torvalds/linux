@@ -170,6 +170,7 @@ ENTRY(vector_swi)
 	str	saved_psr, [sp, #S_PSR]		@ Save CPSR
 	str	r0, [sp, #S_OLD_R0]		@ Save OLD_R0
 #endif
+	reload_current r10, ip
 	zero_fp
 	alignment_trap r10, ip, __cr_alignment
 	asm_trace_hardirqs_on save=0

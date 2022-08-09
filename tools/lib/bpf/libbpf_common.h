@@ -10,12 +10,36 @@
 #define __LIBBPF_LIBBPF_COMMON_H
 
 #include <string.h>
+#include "libbpf_version.h"
 
 #ifndef LIBBPF_API
 #define LIBBPF_API __attribute__((visibility("default")))
 #endif
 
 #define LIBBPF_DEPRECATED(msg) __attribute__((deprecated(msg)))
+
+/* Mark a symbol as deprecated when libbpf version is >= {major}.{minor} */
+#define LIBBPF_DEPRECATED_SINCE(major, minor, msg)			    \
+	__LIBBPF_MARK_DEPRECATED_ ## major ## _ ## minor		    \
+		(LIBBPF_DEPRECATED("libbpf v" # major "." # minor "+: " msg))
+
+#define __LIBBPF_CURRENT_VERSION_GEQ(major, minor)			    \
+	(LIBBPF_MAJOR_VERSION > (major) ||				    \
+	 (LIBBPF_MAJOR_VERSION == (major) && LIBBPF_MINOR_VERSION >= (minor)))
+
+/* Add checks for other versions below when planning deprecation of API symbols
+ * with the LIBBPF_DEPRECATED_SINCE macro.
+ */
+#if __LIBBPF_CURRENT_VERSION_GEQ(0, 6)
+#define __LIBBPF_MARK_DEPRECATED_0_6(X) X
+#else
+#define __LIBBPF_MARK_DEPRECATED_0_6(X)
+#endif
+#if __LIBBPF_CURRENT_VERSION_GEQ(0, 7)
+#define __LIBBPF_MARK_DEPRECATED_0_7(X) X
+#else
+#define __LIBBPF_MARK_DEPRECATED_0_7(X)
+#endif
 
 /* Helper macro to declare and initialize libbpf options struct
  *

@@ -301,8 +301,7 @@ static int vdoa_probe(struct platform_device *pdev)
 		return PTR_ERR(vdoa->vdoa_clk);
 	}
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	vdoa->regs = devm_ioremap_resource(vdoa->dev, res);
+	vdoa->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(vdoa->regs))
 		return PTR_ERR(vdoa->regs);
 

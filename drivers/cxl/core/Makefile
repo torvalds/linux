@@ -6,3 +6,4 @@ cxl_core-y := bus.o
 cxl_core-y += pmem.o
 cxl_core-y += regs.o
 cxl_core-y += memdev.o
+cxl_core-y += mbox.o

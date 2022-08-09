@@ -1,5 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <linux/module.h>
+#include <linux/cpu.h>
+#include <linux/smp.h>
+#include <asm/text-patching.h>
 #include <asm/alternative.h>
 #include <asm/facility.h>
 #include <asm/nospec-branch.h>
@@ -109,4 +112,21 @@ extern struct alt_instr __alt_instructions[], __alt_instructions_end[];
 void __init apply_alternative_instructions(void)
 {
 	apply_alternatives(__alt_instructions, __alt_instructions_end);
+}
+
+static void do_sync_core(void *info)
+{
+	sync_core();
+}
+
+void text_poke_sync(void)
+{
+	on_each_cpu(do_sync_core, NULL, 1);
+}
+
+void text_poke_sync_lock(void)
+{
+	cpus_read_lock();
+	text_poke_sync();
+	cpus_read_unlock();
 }

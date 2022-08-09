@@ -64,15 +64,15 @@ DECLARE_EVENT_CLASS(ice_rx_dim_template,
 		    TP_ARGS(q_vector, dim),
 		    TP_STRUCT__entry(__field(struct ice_q_vector *, q_vector)
 				     __field(struct dim *, dim)
-				     __string(devname, q_vector->rx.ring->netdev->name)),
+				     __string(devname, q_vector->rx.rx_ring->netdev->name)),
 
 		    TP_fast_assign(__entry->q_vector = q_vector;
 				   __entry->dim = dim;
-				   __assign_str(devname, q_vector->rx.ring->netdev->name);),
+				   __assign_str(devname, q_vector->rx.rx_ring->netdev->name);),
 
 		    TP_printk("netdev: %s Rx-Q: %d dim-state: %d dim-profile: %d dim-tune: %d dim-st-right: %d dim-st-left: %d dim-tired: %d",
 			      __get_str(devname),
-			      __entry->q_vector->rx.ring->q_index,
+			      __entry->q_vector->rx.rx_ring->q_index,
 			      __entry->dim->state,
 			      __entry->dim->profile_ix,
 			      __entry->dim->tune_state,
@@ -91,15 +91,15 @@ DECLARE_EVENT_CLASS(ice_tx_dim_template,
 		    TP_ARGS(q_vector, dim),
 		    TP_STRUCT__entry(__field(struct ice_q_vector *, q_vector)
 				     __field(struct dim *, dim)
-				     __string(devname, q_vector->tx.ring->netdev->name)),
+				     __string(devname, q_vector->tx.tx_ring->netdev->name)),
 
 		    TP_fast_assign(__entry->q_vector = q_vector;
 				   __entry->dim = dim;
-				   __assign_str(devname, q_vector->tx.ring->netdev->name);),
+				   __assign_str(devname, q_vector->tx.tx_ring->netdev->name);),
 
 		    TP_printk("netdev: %s Tx-Q: %d dim-state: %d dim-profile: %d dim-tune: %d dim-st-right: %d dim-st-left: %d dim-tired: %d",
 			      __get_str(devname),
-			      __entry->q_vector->tx.ring->q_index,
+			      __entry->q_vector->tx.tx_ring->q_index,
 			      __entry->dim->state,
 			      __entry->dim->profile_ix,
 			      __entry->dim->tune_state,
@@ -115,7 +115,7 @@ DEFINE_EVENT(ice_tx_dim_template, ice_tx_dim_work,
 
 /* Events related to a vsi & ring */
 DECLARE_EVENT_CLASS(ice_tx_template,
-		    TP_PROTO(struct ice_ring *ring, struct ice_tx_desc *desc,
+		    TP_PROTO(struct ice_tx_ring *ring, struct ice_tx_desc *desc,
 			     struct ice_tx_buf *buf),
 
 		    TP_ARGS(ring, desc, buf),
@@ -135,7 +135,7 @@ DECLARE_EVENT_CLASS(ice_tx_template,
 
 #define DEFINE_TX_TEMPLATE_OP_EVENT(name) \
 DEFINE_EVENT(ice_tx_template, name, \
-	     TP_PROTO(struct ice_ring *ring, \
+	     TP_PROTO(struct ice_tx_ring *ring, \
 		      struct ice_tx_desc *desc, \
 		      struct ice_tx_buf *buf), \
 	     TP_ARGS(ring, desc, buf))
@@ -145,7 +145,7 @@ DEFINE_TX_TEMPLATE_OP_EVENT(ice_clean_tx_irq_unmap);
 DEFINE_TX_TEMPLATE_OP_EVENT(ice_clean_tx_irq_unmap_eop);
 
 DECLARE_EVENT_CLASS(ice_rx_template,
-		    TP_PROTO(struct ice_ring *ring, union ice_32b_rx_flex_desc *desc),
+		    TP_PROTO(struct ice_rx_ring *ring, union ice_32b_rx_flex_desc *desc),
 
 		    TP_ARGS(ring, desc),
 
@@ -161,12 +161,12 @@ DECLARE_EVENT_CLASS(ice_rx_template,
 			      __entry->ring, __entry->desc)
 );
 DEFINE_EVENT(ice_rx_template, ice_clean_rx_irq,
-	     TP_PROTO(struct ice_ring *ring, union ice_32b_rx_flex_desc *desc),
+	     TP_PROTO(struct ice_rx_ring *ring, union ice_32b_rx_flex_desc *desc),
 	     TP_ARGS(ring, desc)
 );
 
 DECLARE_EVENT_CLASS(ice_rx_indicate_template,
-		    TP_PROTO(struct ice_ring *ring, union ice_32b_rx_flex_desc *desc,
+		    TP_PROTO(struct ice_rx_ring *ring, union ice_32b_rx_flex_desc *desc,
 			     struct sk_buff *skb),
 
 		    TP_ARGS(ring, desc, skb),
@@ -186,13 +186,13 @@ DECLARE_EVENT_CLASS(ice_rx_indicate_template,
 );
 
 DEFINE_EVENT(ice_rx_indicate_template, ice_clean_rx_irq_indicate,
-	     TP_PROTO(struct ice_ring *ring, union ice_32b_rx_flex_desc *desc,
+	     TP_PROTO(struct ice_rx_ring *ring, union ice_32b_rx_flex_desc *desc,
 		      struct sk_buff *skb),
 	     TP_ARGS(ring, desc, skb)
 );
 
 DECLARE_EVENT_CLASS(ice_xmit_template,
-		    TP_PROTO(struct ice_ring *ring, struct sk_buff *skb),
+		    TP_PROTO(struct ice_tx_ring *ring, struct sk_buff *skb),
 
 		    TP_ARGS(ring, skb),
 
@@ -210,7 +210,7 @@ DECLARE_EVENT_CLASS(ice_xmit_template,
 
 #define DEFINE_XMIT_TEMPLATE_OP_EVENT(name) \
 DEFINE_EVENT(ice_xmit_template, name, \
-	     TP_PROTO(struct ice_ring *ring, struct sk_buff *skb), \
+	     TP_PROTO(struct ice_tx_ring *ring, struct sk_buff *skb), \
 	     TP_ARGS(ring, skb))
 
 DEFINE_XMIT_TEMPLATE_OP_EVENT(ice_xmit_frame_ring);

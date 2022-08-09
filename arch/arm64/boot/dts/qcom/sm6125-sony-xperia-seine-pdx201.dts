@@ -17,6 +17,7 @@
 
 	model = "Sony Xperia 10 II";
 	compatible = "sony,pdx201", "qcom,sm6125";
+	chassis-type = "handset";
 
 	chosen {
 		#address-cells = <2>;

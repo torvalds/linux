@@ -19,6 +19,7 @@
 / {
 	model = "Samsung Rinato board";
 	compatible = "samsung,rinato", "samsung,exynos3250", "samsung,exynos3";
+	chassis-type = "watch";
 
 	aliases {
 		i2c7 = &i2c_max77836;

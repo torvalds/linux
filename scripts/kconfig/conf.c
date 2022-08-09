@@ -646,19 +646,8 @@ static void check_conf(struct menu *menu)
 
 		switch (input_mode) {
 		case listnewconfig:
-			if (sym->name) {
-				const char *str;
-
-				if (sym->type == S_STRING) {
-					str = sym_get_string_value(sym);
-					str = sym_escape_string_value(str);
-					printf("%s%s=%s\n", CONFIG_, sym->name, str);
-					free((void *)str);
-				} else {
-					str = sym_get_string_value(sym);
-					printf("%s%s=%s\n", CONFIG_, sym->name, str);
-				}
-			}
+			if (sym->name)
+				print_symbol_for_listconfig(sym);
 			break;
 		case helpnewconfig:
 			printf("-----\n");

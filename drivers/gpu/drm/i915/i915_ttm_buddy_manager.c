@@ -126,11 +126,29 @@ static void i915_ttm_buddy_man_free(struct ttm_resource_manager *man,
 	kfree(bman_res);
 }
 
+static void i915_ttm_buddy_man_debug(struct ttm_resource_manager *man,
+				     struct drm_printer *printer)
+{
+	struct i915_ttm_buddy_manager *bman = to_buddy_manager(man);
+	struct i915_buddy_block *block;
+
+	mutex_lock(&bman->lock);
+	drm_printf(printer, "default_page_size: %lluKiB\n",
+		   bman->default_page_size >> 10);
+
+	i915_buddy_print(&bman->mm, printer);
+
+	drm_printf(printer, "reserved:\n");
+	list_for_each_entry(block, &bman->reserved, link)
+		i915_buddy_block_print(&bman->mm, block, printer);
+	mutex_unlock(&bman->lock);
+}
+
 static const struct ttm_resource_manager_func i915_ttm_buddy_manager_func = {
 	.alloc = i915_ttm_buddy_man_alloc,
 	.free = i915_ttm_buddy_man_free,
+	.debug = i915_ttm_buddy_man_debug,
 };
-
 
 /**
  * i915_ttm_buddy_man_init - Setup buddy allocator based ttm manager

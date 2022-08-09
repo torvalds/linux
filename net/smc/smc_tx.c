@@ -28,6 +28,7 @@
 #include "smc_ism.h"
 #include "smc_tx.h"
 #include "smc_stats.h"
+#include "smc_tracepoint.h"
 
 #define SMC_TX_WORK_DELAY	0
 #define SMC_TX_CORK_DELAY	(HZ >> 2)	/* 250 ms */
@@ -245,6 +246,8 @@ int smc_tx_sendmsg(struct smc_sock *smc, struct msghdr *msg, size_t len)
 					   SMC_TX_CORK_DELAY);
 		else
 			smc_tx_sndbuf_nonempty(conn);
+
+		trace_smc_tx_sendmsg(smc, copylen);
 	} /* while (msg_data_left(msg)) */
 
 	return send_done;

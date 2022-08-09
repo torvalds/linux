@@ -68,7 +68,7 @@ struct __large_struct { unsigned long buf[100]; };
 ({									\
 	long __gu_err = -EFAULT;					\
 	unsigned long __gu_val = 0;					\
-	const __typeof__(*(ptr)) *__gu_addr = (ptr);			\
+	const __typeof__(*(ptr)) __user *__gu_addr = (ptr);			\
 	if (likely(access_ok(__gu_addr, (size))))		\
 		__get_user_size(__gu_val, __gu_addr, (size), __gu_err);	\
 	(x) = (__force __typeof__(*(ptr)))__gu_val;			\
@@ -124,7 +124,7 @@ raw_copy_to_user(void __user *to, const void *from, unsigned long n)
  * Clear the area and return remaining number of bytes
  * (on failure.  Usually it's 0.)
  */
-__kernel_size_t __clear_user(void *addr, __kernel_size_t size);
+__kernel_size_t __clear_user(void __user *addr, __kernel_size_t size);
 
 #define clear_user(addr,n)						\
 ({									\

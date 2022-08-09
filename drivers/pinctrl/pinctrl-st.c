@@ -1588,7 +1588,7 @@ static int st_pctl_probe_dt(struct platform_device *pdev,
 
 	st_pctl_dt_child_count(info, np);
 	if (!info->nbanks) {
-		dev_err(&pdev->dev, "you need atleast one gpio bank\n");
+		dev_err(&pdev->dev, "you need at least one gpio bank\n");
 		return -EINVAL;
 	}
 

@@ -14,15 +14,18 @@
 #include <linux/clk.h>
 #include <linux/delay.h>
 
+#include <linux/if_vlan.h>
+
 #include <linux/of_net.h>
 #include <linux/of_platform.h>
 
 #include <xway_dma.h>
 
 /* DMA */
-#define XRX200_DMA_DATA_LEN	0x600
+#define XRX200_DMA_DATA_LEN	(SZ_64K - 1)
 #define XRX200_DMA_RX		0
 #define XRX200_DMA_TX		1
+#define XRX200_DMA_BURST_LEN	8
 
 /* cpu port mac */
 #define PMAC_RX_IPG		0x0024
@@ -68,6 +71,8 @@ struct xrx200_priv {
 	struct xrx200_chan chan_tx;
 	struct xrx200_chan chan_rx;
 
+	u16 rx_buf_size;
+
 	struct net_device *net_dev;
 	struct device *dev;
 
@@ -94,6 +99,16 @@ static void xrx200_pmac_mask(struct xrx200_priv *priv, u32 clear, u32 set,
 	xrx200_pmac_w32(priv, val, offset);
 }
 
+static int xrx200_max_frame_len(int mtu)
+{
+	return VLAN_ETH_HLEN + mtu;
+}
+
+static int xrx200_buffer_size(int mtu)
+{
+	return round_up(xrx200_max_frame_len(mtu), 4 * XRX200_DMA_BURST_LEN);
+}
+
 /* drop all the packets from the DMA ring */
 static void xrx200_flush_dma(struct xrx200_chan *ch)
 {
@@ -106,7 +121,7 @@ static void xrx200_flush_dma(struct xrx200_chan *ch)
 			break;
 
 		desc->ctl = LTQ_DMA_OWN | LTQ_DMA_RX_OFFSET(NET_IP_ALIGN) |
-			    XRX200_DMA_DATA_LEN;
+			    ch->priv->rx_buf_size;
 		ch->dma.desc++;
 		ch->dma.desc %= LTQ_DESC_NUM;
 	}
@@ -155,19 +170,20 @@ static int xrx200_close(struct net_device *net_dev)
 static int xrx200_alloc_skb(struct xrx200_chan *ch)
 {
 	struct sk_buff *skb = ch->skb[ch->dma.desc];
+	struct xrx200_priv *priv = ch->priv;
 	dma_addr_t mapping;
 	int ret = 0;
 
-	ch->skb[ch->dma.desc] = netdev_alloc_skb_ip_align(ch->priv->net_dev,
-							  XRX200_DMA_DATA_LEN);
+	ch->skb[ch->dma.desc] = netdev_alloc_skb_ip_align(priv->net_dev,
+							  priv->rx_buf_size);
 	if (!ch->skb[ch->dma.desc]) {
 		ret = -ENOMEM;
 		goto skip;
 	}
 
-	mapping = dma_map_single(ch->priv->dev, ch->skb[ch->dma.desc]->data,
-				 XRX200_DMA_DATA_LEN, DMA_FROM_DEVICE);
-	if (unlikely(dma_mapping_error(ch->priv->dev, mapping))) {
+	mapping = dma_map_single(priv->dev, ch->skb[ch->dma.desc]->data,
+				 priv->rx_buf_size, DMA_FROM_DEVICE);
+	if (unlikely(dma_mapping_error(priv->dev, mapping))) {
 		dev_kfree_skb_any(ch->skb[ch->dma.desc]);
 		ch->skb[ch->dma.desc] = skb;
 		ret = -ENOMEM;
@@ -179,8 +195,7 @@ static int xrx200_alloc_skb(struct xrx200_chan *ch)
 	wmb();
 skip:
 	ch->dma.desc_base[ch->dma.desc].ctl =
-		LTQ_DMA_OWN | LTQ_DMA_RX_OFFSET(NET_IP_ALIGN) |
-		XRX200_DMA_DATA_LEN;
+		LTQ_DMA_OWN | LTQ_DMA_RX_OFFSET(NET_IP_ALIGN) | priv->rx_buf_size;
 
 	return ret;
 }
@@ -209,7 +224,7 @@ static int xrx200_hw_receive(struct xrx200_chan *ch)
 	skb->protocol = eth_type_trans(skb, net_dev);
 	netif_receive_skb(skb);
 	net_dev->stats.rx_packets++;
-	net_dev->stats.rx_bytes += len - ETH_FCS_LEN;
+	net_dev->stats.rx_bytes += len;
 
 	return 0;
 }
@@ -316,8 +331,8 @@ static netdev_tx_t xrx200_start_xmit(struct sk_buff *skb,
 	if (unlikely(dma_mapping_error(priv->dev, mapping)))
 		goto err_drop;
 
-	/* dma needs to start on a 16 byte aligned address */
-	byte_offset = mapping % 16;
+	/* dma needs to start on a burst length value aligned address */
+	byte_offset = mapping % (XRX200_DMA_BURST_LEN * 4);
 
 	desc->addr = mapping - byte_offset;
 	/* Make sure the address is written before we give it to HW */
@@ -340,10 +355,59 @@ err_drop:
 	return NETDEV_TX_OK;
 }
 
+static int
+xrx200_change_mtu(struct net_device *net_dev, int new_mtu)
+{
+	struct xrx200_priv *priv = netdev_priv(net_dev);
+	struct xrx200_chan *ch_rx = &priv->chan_rx;
+	int old_mtu = net_dev->mtu;
+	bool running = false;
+	struct sk_buff *skb;
+	int curr_desc;
+	int ret = 0;
+
+	net_dev->mtu = new_mtu;
+	priv->rx_buf_size = xrx200_buffer_size(new_mtu);
+
+	if (new_mtu <= old_mtu)
+		return ret;
+
+	running = netif_running(net_dev);
+	if (running) {
+		napi_disable(&ch_rx->napi);
+		ltq_dma_close(&ch_rx->dma);
+	}
+
+	xrx200_poll_rx(&ch_rx->napi, LTQ_DESC_NUM);
+	curr_desc = ch_rx->dma.desc;
+
+	for (ch_rx->dma.desc = 0; ch_rx->dma.desc < LTQ_DESC_NUM;
+	     ch_rx->dma.desc++) {
+		skb = ch_rx->skb[ch_rx->dma.desc];
+		ret = xrx200_alloc_skb(ch_rx);
+		if (ret) {
+			net_dev->mtu = old_mtu;
+			priv->rx_buf_size = xrx200_buffer_size(old_mtu);
+			break;
+		}
+		dev_kfree_skb_any(skb);
+	}
+
+	ch_rx->dma.desc = curr_desc;
+	if (running) {
+		napi_enable(&ch_rx->napi);
+		ltq_dma_open(&ch_rx->dma);
+		ltq_dma_enable_irq(&ch_rx->dma);
+	}
+
+	return ret;
+}
+
 static const struct net_device_ops xrx200_netdev_ops = {
 	.ndo_open		= xrx200_open,
 	.ndo_stop		= xrx200_close,
 	.ndo_start_xmit		= xrx200_start_xmit,
+	.ndo_change_mtu		= xrx200_change_mtu,
 	.ndo_set_mac_address	= eth_mac_addr,
 	.ndo_validate_addr	= eth_validate_addr,
 };
@@ -369,7 +433,8 @@ static int xrx200_dma_init(struct xrx200_priv *priv)
 	int ret = 0;
 	int i;
 
-	ltq_dma_init_port(DMA_PORT_ETOP);
+	ltq_dma_init_port(DMA_PORT_ETOP, XRX200_DMA_BURST_LEN,
+			  XRX200_DMA_BURST_LEN);
 
 	ch_rx->dma.nr = XRX200_DMA_RX;
 	ch_rx->dma.dev = priv->dev;
@@ -453,7 +518,8 @@ static int xrx200_probe(struct platform_device *pdev)
 	net_dev->netdev_ops = &xrx200_netdev_ops;
 	SET_NETDEV_DEV(net_dev, dev);
 	net_dev->min_mtu = ETH_ZLEN;
-	net_dev->max_mtu = XRX200_DMA_DATA_LEN;
+	net_dev->max_mtu = XRX200_DMA_DATA_LEN - xrx200_max_frame_len(0);
+	priv->rx_buf_size = xrx200_buffer_size(ETH_DATA_LEN);
 
 	/* load the memory ranges */
 	priv->pmac_reg = devm_platform_get_and_ioremap_resource(pdev, 0, NULL);
@@ -474,7 +540,7 @@ static int xrx200_probe(struct platform_device *pdev)
 		return PTR_ERR(priv->clk);
 	}
 
-	err = of_get_mac_address(np, net_dev->dev_addr);
+	err = of_get_ethdev_address(np, net_dev);
 	if (err)
 		eth_hw_addr_random(net_dev);
 

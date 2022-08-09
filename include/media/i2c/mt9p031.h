@@ -10,6 +10,7 @@ struct v4l2_subdev;
  * @target_freq: Pixel clock frequency
  */
 struct mt9p031_platform_data {
+	unsigned int pixclk_pol:1;
 	int ext_freq;
 	int target_freq;
 };

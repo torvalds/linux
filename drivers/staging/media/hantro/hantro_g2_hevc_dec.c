@@ -516,6 +516,56 @@ static void set_buffers(struct hantro_ctx *ctx)
 	hantro_write_addr(vpu, G2_TILE_BSD, ctx->hevc_dec.tile_bsd.dma);
 }
 
+static void prepare_scaling_list_buffer(struct hantro_ctx *ctx)
+{
+	struct hantro_dev *vpu = ctx->dev;
+	const struct hantro_hevc_dec_ctrls *ctrls = &ctx->hevc_dec.ctrls;
+	const struct v4l2_ctrl_hevc_scaling_matrix *sc = ctrls->scaling;
+	const struct v4l2_ctrl_hevc_sps *sps = ctrls->sps;
+	u8 *p = ((u8 *)ctx->hevc_dec.scaling_lists.cpu);
+	unsigned int scaling_list_enabled;
+	unsigned int i, j, k;
+
+	scaling_list_enabled = !!(sps->flags & V4L2_HEVC_SPS_FLAG_SCALING_LIST_ENABLED);
+	hantro_reg_write(vpu, &g2_scaling_list_e, scaling_list_enabled);
+
+	if (!scaling_list_enabled)
+		return;
+
+	for (i = 0; i < ARRAY_SIZE(sc->scaling_list_dc_coef_16x16); i++)
+		*p++ = sc->scaling_list_dc_coef_16x16[i];
+
+	for (i = 0; i < ARRAY_SIZE(sc->scaling_list_dc_coef_32x32); i++)
+		*p++ = sc->scaling_list_dc_coef_32x32[i];
+
+	/* 128-bit boundary */
+	p += 8;
+
+	/* write scaling lists column by column */
+
+	for (i = 0; i < 6; i++)
+		for (j = 0; j < 4; j++)
+			for (k = 0; k < 4; k++)
+				*p++ = sc->scaling_list_4x4[i][4 * k + j];
+
+	for (i = 0; i < 6; i++)
+		for (j = 0; j < 8; j++)
+			for (k = 0; k < 8; k++)
+				*p++ = sc->scaling_list_8x8[i][8 * k + j];
+
+	for (i = 0; i < 6; i++)
+		for (j = 0; j < 8; j++)
+			for (k = 0; k < 8; k++)
+				*p++ = sc->scaling_list_16x16[i][8 * k + j];
+
+	for (i = 0; i < 2; i++)
+		for (j = 0; j < 8; j++)
+			for (k = 0; k < 8; k++)
+				*p++ = sc->scaling_list_32x32[i][8 * k + j];
+
+	hantro_write_addr(vpu, HEVC_SCALING_LIST, ctx->hevc_dec.scaling_lists.dma);
+}
+
 static void hantro_g2_check_idle(struct hantro_dev *vpu)
 {
 	int i;
@@ -555,6 +605,8 @@ int hantro_g2_hevc_dec_run(struct hantro_ctx *ctx)
 
 	set_buffers(ctx);
 	prepare_tile_info_buffer(ctx);
+
+	prepare_scaling_list_buffer(ctx);
 
 	hantro_end_prepare_run(ctx);
 

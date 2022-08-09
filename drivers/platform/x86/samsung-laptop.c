@@ -152,7 +152,7 @@ struct sabi_config {
 
 static const struct sabi_config sabi_configs[] = {
 	{
-		/* I don't know if it is really 2, but it it is
+		/* I don't know if it is really 2, but it is
 		 * less than 3 anyway */
 		.sabi_version = 2,
 

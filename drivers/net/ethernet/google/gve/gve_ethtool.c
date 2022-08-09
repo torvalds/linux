@@ -43,6 +43,7 @@ static const char gve_gstrings_main_stats[][ETH_GSTRING_LEN] = {
 
 static const char gve_gstrings_rx_stats[][ETH_GSTRING_LEN] = {
 	"rx_posted_desc[%u]", "rx_completed_desc[%u]", "rx_bytes[%u]",
+	"rx_cont_packet_cnt[%u]", "rx_frag_flip_cnt[%u]", "rx_frag_copy_cnt[%u]",
 	"rx_dropped_pkt[%u]", "rx_copybreak_pkt[%u]", "rx_copied_pkt[%u]",
 	"rx_queue_drop_cnt[%u]", "rx_no_buffers_posted[%u]",
 	"rx_drops_packet_over_mru[%u]", "rx_drops_invalid_checksum[%u]",
@@ -265,6 +266,9 @@ gve_get_ethtool_stats(struct net_device *netdev,
 			} while (u64_stats_fetch_retry(&priv->rx[ring].statss,
 						       start));
 			data[i++] = tmp_rx_bytes;
+			data[i++] = rx->rx_cont_packet_cnt;
+			data[i++] = rx->rx_frag_flip_cnt;
+			data[i++] = rx->rx_frag_copy_cnt;
 			/* rx dropped packets */
 			data[i++] = tmp_rx_skb_alloc_fail +
 				tmp_rx_buf_alloc_fail +
@@ -330,8 +334,7 @@ gve_get_ethtool_stats(struct net_device *netdev,
 			data[i++] = tmp_tx_bytes;
 			data[i++] = tx->wake_queue;
 			data[i++] = tx->stop_queue;
-			data[i++] = be32_to_cpu(gve_tx_load_event_counter(priv,
-									  tx));
+			data[i++] = gve_tx_load_event_counter(priv, tx);
 			data[i++] = tx->dma_mapping_error;
 			/* stats from NIC */
 			if (skip_nic_stats) {

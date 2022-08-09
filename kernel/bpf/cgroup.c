@@ -430,10 +430,10 @@ static struct bpf_prog_list *find_attach_entry(struct list_head *progs,
  * Exactly one of @prog or @link can be non-null.
  * Must be called with cgroup_mutex held.
  */
-int __cgroup_bpf_attach(struct cgroup *cgrp,
-			struct bpf_prog *prog, struct bpf_prog *replace_prog,
-			struct bpf_cgroup_link *link,
-			enum bpf_attach_type type, u32 flags)
+static int __cgroup_bpf_attach(struct cgroup *cgrp,
+			       struct bpf_prog *prog, struct bpf_prog *replace_prog,
+			       struct bpf_cgroup_link *link,
+			       enum bpf_attach_type type, u32 flags)
 {
 	u32 saved_flags = (flags & (BPF_F_ALLOW_OVERRIDE | BPF_F_ALLOW_MULTI));
 	struct bpf_prog *old_prog = NULL;
@@ -521,6 +521,20 @@ cleanup:
 		kfree(pl);
 	}
 	return err;
+}
+
+static int cgroup_bpf_attach(struct cgroup *cgrp,
+			     struct bpf_prog *prog, struct bpf_prog *replace_prog,
+			     struct bpf_cgroup_link *link,
+			     enum bpf_attach_type type,
+			     u32 flags)
+{
+	int ret;
+
+	mutex_lock(&cgroup_mutex);
+	ret = __cgroup_bpf_attach(cgrp, prog, replace_prog, link, type, flags);
+	mutex_unlock(&cgroup_mutex);
+	return ret;
 }
 
 /* Swap updated BPF program for given link in effective program arrays across
@@ -672,14 +686,14 @@ static struct bpf_prog_list *find_detach_entry(struct list_head *progs,
  *                         propagate the change to descendants
  * @cgrp: The cgroup which descendants to traverse
  * @prog: A program to detach or NULL
- * @prog: A link to detach or NULL
+ * @link: A link to detach or NULL
  * @type: Type of detach operation
  *
  * At most one of @prog or @link can be non-NULL.
  * Must be called with cgroup_mutex held.
  */
-int __cgroup_bpf_detach(struct cgroup *cgrp, struct bpf_prog *prog,
-			struct bpf_cgroup_link *link, enum bpf_attach_type type)
+static int __cgroup_bpf_detach(struct cgroup *cgrp, struct bpf_prog *prog,
+			       struct bpf_cgroup_link *link, enum bpf_attach_type type)
 {
 	enum cgroup_bpf_attach_type atype;
 	struct bpf_prog *old_prog;
@@ -730,9 +744,20 @@ cleanup:
 	return err;
 }
 
+static int cgroup_bpf_detach(struct cgroup *cgrp, struct bpf_prog *prog,
+			     enum bpf_attach_type type)
+{
+	int ret;
+
+	mutex_lock(&cgroup_mutex);
+	ret = __cgroup_bpf_detach(cgrp, prog, NULL, type);
+	mutex_unlock(&cgroup_mutex);
+	return ret;
+}
+
 /* Must be called with cgroup_mutex held to avoid races. */
-int __cgroup_bpf_query(struct cgroup *cgrp, const union bpf_attr *attr,
-		       union bpf_attr __user *uattr)
+static int __cgroup_bpf_query(struct cgroup *cgrp, const union bpf_attr *attr,
+			      union bpf_attr __user *uattr)
 {
 	__u32 __user *prog_ids = u64_to_user_ptr(attr->query.prog_ids);
 	enum bpf_attach_type type = attr->query.attach_type;
@@ -786,6 +811,17 @@ int __cgroup_bpf_query(struct cgroup *cgrp, const union bpf_attr *attr,
 				break;
 		}
 	}
+	return ret;
+}
+
+static int cgroup_bpf_query(struct cgroup *cgrp, const union bpf_attr *attr,
+			    union bpf_attr __user *uattr)
+{
+	int ret;
+
+	mutex_lock(&cgroup_mutex);
+	ret = __cgroup_bpf_query(cgrp, attr, uattr);
+	mutex_unlock(&cgroup_mutex);
 	return ret;
 }
 
@@ -1773,6 +1809,8 @@ sysctl_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
 		return &bpf_sysctl_get_new_value_proto;
 	case BPF_FUNC_sysctl_set_new_value:
 		return &bpf_sysctl_set_new_value_proto;
+	case BPF_FUNC_ktime_get_coarse_ns:
+		return &bpf_ktime_get_coarse_ns_proto;
 	default:
 		return cgroup_base_func_proto(func_id, prog);
 	}

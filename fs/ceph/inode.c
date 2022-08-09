@@ -1841,15 +1841,14 @@ void ceph_queue_inode_work(struct inode *inode, int work_bit)
 static void ceph_do_invalidate_pages(struct inode *inode)
 {
 	struct ceph_inode_info *ci = ceph_inode(inode);
-	struct ceph_fs_client *fsc = ceph_inode_to_client(inode);
 	u32 orig_gen;
 	int check = 0;
 
 	mutex_lock(&ci->i_truncate_mutex);
 
-	if (READ_ONCE(fsc->mount_state) >= CEPH_MOUNT_SHUTDOWN) {
-		pr_warn_ratelimited("invalidate_pages %p %lld forced umount\n",
-				    inode, ceph_ino(inode));
+	if (ceph_inode_is_shutdown(inode)) {
+		pr_warn_ratelimited("%s: inode %llx.%llx is shut down\n",
+				    __func__, ceph_vinop(inode));
 		mapping_set_error(inode->i_mapping, -EIO);
 		truncate_pagecache(inode, 0);
 		mutex_unlock(&ci->i_truncate_mutex);
@@ -1871,7 +1870,8 @@ static void ceph_do_invalidate_pages(struct inode *inode)
 
 	ceph_fscache_invalidate(inode);
 	if (invalidate_inode_pages2(inode->i_mapping) < 0) {
-		pr_err("invalidate_pages %p fails\n", inode);
+		pr_err("invalidate_inode_pages2 %llx.%llx failed\n",
+		       ceph_vinop(inode));
 	}
 
 	spin_lock(&ci->i_ceph_lock);
@@ -2103,12 +2103,14 @@ int __ceph_setattr(struct inode *inode, struct iattr *attr)
 		loff_t isize = i_size_read(inode);
 
 		dout("setattr %p size %lld -> %lld\n", inode, isize, attr->ia_size);
-		if ((issued & CEPH_CAP_FILE_EXCL) && attr->ia_size > isize) {
-			i_size_write(inode, attr->ia_size);
-			inode->i_blocks = calc_inode_blocks(attr->ia_size);
-			ci->i_reported_size = attr->ia_size;
-			dirtied |= CEPH_CAP_FILE_EXCL;
-			ia_valid |= ATTR_MTIME;
+		if ((issued & CEPH_CAP_FILE_EXCL) && attr->ia_size >= isize) {
+			if (attr->ia_size > isize) {
+				i_size_write(inode, attr->ia_size);
+				inode->i_blocks = calc_inode_blocks(attr->ia_size);
+				ci->i_reported_size = attr->ia_size;
+				dirtied |= CEPH_CAP_FILE_EXCL;
+				ia_valid |= ATTR_MTIME;
+			}
 		} else if ((issued & CEPH_CAP_FILE_SHARED) == 0 ||
 			   attr->ia_size != isize) {
 			req->r_args.setattr.size = cpu_to_le64(attr->ia_size);
@@ -2216,6 +2218,9 @@ int ceph_setattr(struct user_namespace *mnt_userns, struct dentry *dentry,
 
 	if (ceph_snap(inode) != CEPH_NOSNAP)
 		return -EROFS;
+
+	if (ceph_inode_is_shutdown(inode))
+		return -ESTALE;
 
 	err = setattr_prepare(&init_user_ns, dentry, attr);
 	if (err != 0)
@@ -2347,6 +2352,9 @@ int ceph_getattr(struct user_namespace *mnt_userns, const struct path *path,
 	u32 valid_mask = STATX_BASIC_STATS;
 	int err = 0;
 
+	if (ceph_inode_is_shutdown(inode))
+		return -ESTALE;
+
 	/* Skip the getattr altogether if we're asked not to sync */
 	if (!(flags & AT_STATX_DONT_SYNC)) {
 		err = ceph_do_getattr(inode,
@@ -2393,4 +2401,28 @@ int ceph_getattr(struct user_namespace *mnt_userns, const struct path *path,
 
 	stat->result_mask = request_mask & valid_mask;
 	return err;
+}
+
+void ceph_inode_shutdown(struct inode *inode)
+{
+	struct ceph_inode_info *ci = ceph_inode(inode);
+	struct rb_node *p;
+	int iputs = 0;
+	bool invalidate = false;
+
+	spin_lock(&ci->i_ceph_lock);
+	ci->i_ceph_flags |= CEPH_I_SHUTDOWN;
+	p = rb_first(&ci->i_caps);
+	while (p) {
+		struct ceph_cap *cap = rb_entry(p, struct ceph_cap, ci_node);
+
+		p = rb_next(p);
+		iputs += ceph_purge_inode_cap(inode, cap, &invalidate);
+	}
+	spin_unlock(&ci->i_ceph_lock);
+
+	if (invalidate)
+		ceph_queue_invalidate(inode);
+	while (iputs--)
+		iput(inode);
 }

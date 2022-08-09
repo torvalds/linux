@@ -356,6 +356,7 @@ static int db1x_pcmcia_get_status(struct pcmcia_socket *skt,
 	case 0:
 	case 2:
 		status |= SS_3VCARD;	/* 3V card */
+		break;
 	case 3:
 		break;			/* 5V card: set nothing */
 	default:

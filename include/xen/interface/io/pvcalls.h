@@ -1,3 +1,5 @@
+/* SPDX-License-Identifier: MIT */
+
 #ifndef __XEN_PUBLIC_IO_XEN_PVCALLS_H__
 #define __XEN_PUBLIC_IO_XEN_PVCALLS_H__
 

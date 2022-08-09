@@ -44,7 +44,7 @@ static int perf_session__process_compressed_event(struct perf_session *session,
 	size_t decomp_size, src_size;
 	u64 decomp_last_rem = 0;
 	size_t mmap_len, decomp_len = session->header.env.comp_mmap_len;
-	struct decomp *decomp, *decomp_last = session->decomp_last;
+	struct decomp *decomp, *decomp_last = session->active_decomp->decomp_last;
 
 	if (decomp_last) {
 		decomp_last_rem = decomp_last->size - decomp_last->head;
@@ -71,7 +71,7 @@ static int perf_session__process_compressed_event(struct perf_session *session,
 	src = (void *)event + sizeof(struct perf_record_compressed);
 	src_size = event->pack.header.size - sizeof(struct perf_record_compressed);
 
-	decomp_size = zstd_decompress_stream(&(session->zstd_data), src, src_size,
+	decomp_size = zstd_decompress_stream(session->active_decomp->zstd_decomp, src, src_size,
 				&(decomp->data[decomp_last_rem]), decomp_len - decomp_last_rem);
 	if (!decomp_size) {
 		munmap(decomp, mmap_len);
@@ -81,13 +81,12 @@ static int perf_session__process_compressed_event(struct perf_session *session,
 
 	decomp->size += decomp_size;
 
-	if (session->decomp == NULL) {
-		session->decomp = decomp;
-		session->decomp_last = decomp;
-	} else {
-		session->decomp_last->next = decomp;
-		session->decomp_last = decomp;
-	}
+	if (session->active_decomp->decomp == NULL)
+		session->active_decomp->decomp = decomp;
+	else
+		session->active_decomp->decomp_last->next = decomp;
+
+	session->active_decomp->decomp_last = decomp;
 
 	pr_debug("decomp (B): %zd to %zd\n", src_size, decomp_size);
 
@@ -197,6 +196,8 @@ struct perf_session *__perf_session__new(struct perf_data *data,
 
 	session->repipe = repipe;
 	session->tool   = tool;
+	session->decomp_data.zstd_decomp = &session->zstd_data;
+	session->active_decomp = &session->decomp_data;
 	INIT_LIST_HEAD(&session->auxtrace_index);
 	machines__init(&session->machines);
 	ordered_events__init(&session->ordered_events,
@@ -276,11 +277,11 @@ static void perf_session__delete_threads(struct perf_session *session)
 	machine__delete_threads(&session->machines.host);
 }
 
-static void perf_session__release_decomp_events(struct perf_session *session)
+static void perf_decomp__release_events(struct decomp *next)
 {
-	struct decomp *next, *decomp;
+	struct decomp *decomp;
 	size_t mmap_len;
-	next = session->decomp;
+
 	do {
 		decomp = next;
 		if (decomp == NULL)
@@ -299,7 +300,7 @@ void perf_session__delete(struct perf_session *session)
 	auxtrace_index__free(&session->auxtrace_index);
 	perf_session__destroy_kernel_maps(session);
 	perf_session__delete_threads(session);
-	perf_session__release_decomp_events(session);
+	perf_decomp__release_events(session->decomp_data.decomp);
 	perf_env__exit(&session->header.env);
 	machines__exit(&session->machines);
 	if (session->data) {
@@ -509,6 +510,8 @@ void perf_tool__fill_defaults(struct perf_tool *tool)
 		tool->bpf = perf_event__process_bpf;
 	if (tool->text_poke == NULL)
 		tool->text_poke = perf_event__process_text_poke;
+	if (tool->aux_output_hw_id == NULL)
+		tool->aux_output_hw_id = perf_event__process_aux_output_hw_id;
 	if (tool->read == NULL)
 		tool->read = process_event_sample_stub;
 	if (tool->throttle == NULL)
@@ -1000,6 +1003,7 @@ static perf_event__swap_op perf_event__swap_ops[] = {
 	[PERF_RECORD_NAMESPACES]	  = perf_event__namespaces_swap,
 	[PERF_RECORD_CGROUP]		  = perf_event__cgroup_swap,
 	[PERF_RECORD_TEXT_POKE]		  = perf_event__text_poke_swap,
+	[PERF_RECORD_AUX_OUTPUT_HW_ID]	  = perf_event__all64_swap,
 	[PERF_RECORD_HEADER_ATTR]	  = perf_event__hdr_attr_swap,
 	[PERF_RECORD_HEADER_EVENT_TYPE]	  = perf_event__event_type_swap,
 	[PERF_RECORD_HEADER_TRACING_DATA] = perf_event__tracing_data_swap,
@@ -1556,6 +1560,8 @@ static int machines__deliver_event(struct machines *machines,
 		return tool->bpf(tool, event, sample, machine);
 	case PERF_RECORD_TEXT_POKE:
 		return tool->text_poke(tool, event, sample, machine);
+	case PERF_RECORD_AUX_OUTPUT_HW_ID:
+		return tool->aux_output_hw_id(tool, event, sample, machine);
 	default:
 		++evlist->stats.nr_unknown_events;
 		return -1;
@@ -2117,7 +2123,7 @@ static int __perf_session__process_decomp_events(struct perf_session *session)
 {
 	s64 skip;
 	u64 size;
-	struct decomp *decomp = session->decomp_last;
+	struct decomp *decomp = session->active_decomp->decomp_last;
 
 	if (!decomp)
 		return 0;
@@ -2171,35 +2177,55 @@ struct reader {
 	u64		 data_offset;
 	reader_cb_t	 process;
 	bool		 in_place_update;
+	char		 *mmaps[NUM_MMAPS];
+	size_t		 mmap_size;
+	int		 mmap_idx;
+	char		 *mmap_cur;
+	u64		 file_pos;
+	u64		 file_offset;
+	u64		 head;
+	struct zstd_data   zstd_data;
+	struct decomp_data decomp_data;
 };
 
 static int
-reader__process_events(struct reader *rd, struct perf_session *session,
-		       struct ui_progress *prog)
+reader__init(struct reader *rd, bool *one_mmap)
 {
 	u64 data_size = rd->data_size;
-	u64 head, page_offset, file_offset, file_pos, size;
-	int err = 0, mmap_prot, mmap_flags, map_idx = 0;
-	size_t	mmap_size;
-	char *buf, *mmaps[NUM_MMAPS];
-	union perf_event *event;
-	s64 skip;
+	char **mmaps = rd->mmaps;
 
-	page_offset = page_size * (rd->data_offset / page_size);
-	file_offset = page_offset;
-	head = rd->data_offset - page_offset;
-
-	ui_progress__init_size(prog, data_size, "Processing events...");
-
+	rd->head = rd->data_offset;
 	data_size += rd->data_offset;
 
-	mmap_size = MMAP_SIZE;
-	if (mmap_size > data_size) {
-		mmap_size = data_size;
-		session->one_mmap = true;
+	rd->mmap_size = MMAP_SIZE;
+	if (rd->mmap_size > data_size) {
+		rd->mmap_size = data_size;
+		if (one_mmap)
+			*one_mmap = true;
 	}
 
-	memset(mmaps, 0, sizeof(mmaps));
+	memset(mmaps, 0, sizeof(rd->mmaps));
+
+	if (zstd_init(&rd->zstd_data, 0))
+		return -1;
+	rd->decomp_data.zstd_decomp = &rd->zstd_data;
+
+	return 0;
+}
+
+static void
+reader__release_decomp(struct reader *rd)
+{
+	perf_decomp__release_events(rd->decomp_data.decomp);
+	zstd_fini(&rd->zstd_data);
+}
+
+static int
+reader__mmap(struct reader *rd, struct perf_session *session)
+{
+	int mmap_prot, mmap_flags;
+	char *buf, **mmaps = rd->mmaps;
+	u64 page_offset;
 
 	mmap_prot  = PROT_READ;
 	mmap_flags = MAP_SHARED;
@@ -2210,47 +2236,63 @@ reader__process_events(struct reader *rd, struct perf_session *session,
 		mmap_prot  |= PROT_WRITE;
 		mmap_flags = MAP_PRIVATE;
 	}
-remap:
-	buf = mmap(NULL, mmap_size, mmap_prot, mmap_flags, rd->fd,
-		   file_offset);
-	if (buf == MAP_FAILED) {
-		pr_err("failed to mmap file\n");
-		err = -errno;
-		goto out;
-	}
-	mmaps[map_idx] = buf;
-	map_idx = (map_idx + 1) & (ARRAY_SIZE(mmaps) - 1);
-	file_pos = file_offset + head;
-	if (session->one_mmap) {
-		session->one_mmap_addr = buf;
-		session->one_mmap_offset = file_offset;
+
+	if (mmaps[rd->mmap_idx]) {
+		munmap(mmaps[rd->mmap_idx], rd->mmap_size);
+		mmaps[rd->mmap_idx] = NULL;
 	}
 
-more:
-	event = fetch_mmaped_event(head, mmap_size, buf, session->header.needs_swap);
+	page_offset = page_size * (rd->head / page_size);
+	rd->file_offset += page_offset;
+	rd->head -= page_offset;
+
+	buf = mmap(NULL, rd->mmap_size, mmap_prot, mmap_flags, rd->fd,
+		   rd->file_offset);
+	if (buf == MAP_FAILED) {
+		pr_err("failed to mmap file\n");
+		return -errno;
+	}
+	mmaps[rd->mmap_idx] = rd->mmap_cur = buf;
+	rd->mmap_idx = (rd->mmap_idx + 1) & (ARRAY_SIZE(rd->mmaps) - 1);
+	rd->file_pos = rd->file_offset + rd->head;
+	if (session->one_mmap) {
+		session->one_mmap_addr = buf;
+		session->one_mmap_offset = rd->file_offset;
+	}
+
+	return 0;
+}
+
+enum {
+	READER_OK,
+	READER_NODATA,
+};
+
+static int
+reader__read_event(struct reader *rd, struct perf_session *session,
+		   struct ui_progress *prog)
+{
+	u64 size;
+	int err = READER_OK;
+	union perf_event *event;
+	s64 skip;
+
+	event = fetch_mmaped_event(rd->head, rd->mmap_size, rd->mmap_cur,
+				   session->header.needs_swap);
 	if (IS_ERR(event))
 		return PTR_ERR(event);
 
-	if (!event) {
-		if (mmaps[map_idx]) {
-			munmap(mmaps[map_idx], mmap_size);
-			mmaps[map_idx] = NULL;
-		}
-
-		page_offset = page_size * (head / page_size);
-		file_offset += page_offset;
-		head -= page_offset;
-		goto remap;
-	}
+	if (!event)
+		return READER_NODATA;
 
 	size = event->header.size;
 
 	skip = -EINVAL;
 
 	if (size < sizeof(struct perf_event_header) ||
-	    (skip = rd->process(session, event, file_pos)) < 0) {
+	    (skip = rd->process(session, event, rd->file_pos)) < 0) {
 		pr_err("%#" PRIx64 " [%#x]: failed to process type: %d [%s]\n",
-		       file_offset + head, event->header.size,
+		       rd->file_offset + rd->head, event->header.size,
 		       event->header.type, strerror(-skip));
 		err = skip;
 		goto out;
@@ -2259,8 +2301,8 @@ more:
 	if (skip)
 		size += skip;
 
-	head += size;
-	file_pos += size;
+	rd->head += size;
+	rd->file_pos += size;
 
 	err = __perf_session__process_decomp_events(session);
 	if (err)
@@ -2268,13 +2310,48 @@ more:
 
 	ui_progress__update(prog, size);
 
+out:
+	return err;
+}
+
+static inline bool
+reader__eof(struct reader *rd)
+{
+	return (rd->file_pos >= rd->data_size + rd->data_offset);
+}
+
+static int
+reader__process_events(struct reader *rd, struct perf_session *session,
+		       struct ui_progress *prog)
+{
+	int err;
+
+	err = reader__init(rd, &session->one_mmap);
+	if (err)
+		goto out;
+
+	session->active_decomp = &rd->decomp_data;
+
+remap:
+	err = reader__mmap(rd, session);
+	if (err)
+		goto out;
+
+more:
+	err = reader__read_event(rd, session, prog);
+	if (err < 0)
+		goto out;
+	else if (err == READER_NODATA)
+		goto remap;
+
 	if (session_done())
 		goto out;
 
-	if (file_pos < data_size)
+	if (!reader__eof(rd))
 		goto more;
 
 out:
+	session->active_decomp = &session->decomp_data;
 	return err;
 }
 
@@ -2327,6 +2404,7 @@ out_err:
 	 */
 	ordered_events__reinit(&session->ordered_events);
 	auxtrace__free_events(session);
+	reader__release_decomp(&rd);
 	session->one_mmap = false;
 	return err;
 }

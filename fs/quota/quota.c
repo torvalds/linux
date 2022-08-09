@@ -10,6 +10,7 @@
 #include <linux/namei.h>
 #include <linux/slab.h>
 #include <asm/current.h>
+#include <linux/blkdev.h>
 #include <linux/uaccess.h>
 #include <linux/kernel.h>
 #include <linux/security.h>

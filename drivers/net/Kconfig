@@ -150,7 +150,7 @@ config NET_FC
 
 config IFB
 	tristate "Intermediate Functional Block support"
-	depends on NET_CLS_ACT
+	depends on NET_ACT_MIRRED || NFT_FWD_NETDEV
 	select NET_REDIRECT
 	help
 	  This is an intermediate driver that allows sharing of
@@ -290,6 +290,23 @@ config GTP
 
 	  To compile this drivers as a module, choose M here: the module
 	  will be called gtp.
+
+config AMT
+	tristate "Automatic Multicast Tunneling (AMT)"
+	depends on INET && IP_MULTICAST
+	depends on IPV6 || !IPV6
+	select NET_UDP_TUNNEL
+	help
+	  This allows one to create AMT(Automatic Multicast Tunneling)
+	  virtual interfaces that provide multicast tunneling.
+	  There are two roles, Gateway, and Relay.
+	  Gateway Encapsulates IGMP/MLD traffic from listeners to the Relay.
+	  Gateway Decapsulates multicast traffic from the Relay to Listeners.
+	  Relay Encapsulates multicast traffic from Sources to Gateway.
+	  Relay Decapsulates IGMP/MLD traffic from Gateway.
+
+	  To compile this drivers as a module, choose M here: the module
+	  will be called amt.
 
 config MACSEC
 	tristate "IEEE 802.1AE MAC-level encryption (MACsec)"
@@ -550,9 +567,7 @@ config XEN_NETDEV_BACKEND
 config VMXNET3
 	tristate "VMware VMXNET3 ethernet driver"
 	depends on PCI && INET
-	depends on !(PAGE_SIZE_64KB || ARM64_64K_PAGES || \
-		     IA64_PAGE_SIZE_64KB || PARISC_PAGE_SIZE_64KB || \
-		     PPC_64K_PAGES)
+	depends on PAGE_SIZE_LESS_THAN_64KB
 	help
 	  This driver supports VMware's vmxnet3 virtual ethernet NIC.
 	  To compile this driver as a module, choose M here: the

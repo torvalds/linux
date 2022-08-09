@@ -70,6 +70,18 @@ void perf_stat__collect_metric_expr(struct evlist *evsel_list)
 }
 
 /*
+ * This one is needed not to drag the PMU bandwagon, jevents generated
+ * pmu_sys_event_tables, etc and evsel__find_pmu() is used so far just for
+ * doing per PMU perf_event_attr.exclude_guest handling, not really needed, so
+ * far, for the perf python binding known usecases, revisit if this become
+ * necessary.
+ */
+struct perf_pmu *evsel__find_pmu(struct evsel *evsel __maybe_unused)
+{
+	return NULL;
+}
+
+/*
  * Add this one here not to drag util/metricgroup.c
  */
 int metricgroup__copy_metric_events(struct evlist *evlist, struct cgroup *cgrp,
@@ -449,7 +461,7 @@ get_tracepoint_field(struct pyrf_event *pevent, PyObject *attr_name)
 		struct tep_event *tp_format;
 
 		tp_format = trace_event__tp_format_id(evsel->core.attr.config);
-		if (!tp_format)
+		if (IS_ERR_OR_NULL(tp_format))
 			return NULL;
 
 		evsel->tp_format = tp_format;

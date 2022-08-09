@@ -37,7 +37,7 @@ ice_build_ctob(u64 td_cmd, u64 td_offset, unsigned int size, u64 td_tag)
  *
  * This function updates the XDP Tx ring tail register.
  */
-static inline void ice_xdp_ring_update_tail(struct ice_ring *xdp_ring)
+static inline void ice_xdp_ring_update_tail(struct ice_tx_ring *xdp_ring)
 {
 	/* Force memory writes to complete before letting h/w
 	 * know there are new descriptors to fetch.
@@ -46,14 +46,14 @@ static inline void ice_xdp_ring_update_tail(struct ice_ring *xdp_ring)
 	writel_relaxed(xdp_ring->next_to_use, xdp_ring->tail);
 }
 
-void ice_finalize_xdp_rx(struct ice_ring *rx_ring, unsigned int xdp_res);
-int ice_xmit_xdp_buff(struct xdp_buff *xdp, struct ice_ring *xdp_ring);
-int ice_xmit_xdp_ring(void *data, u16 size, struct ice_ring *xdp_ring);
-void ice_release_rx_desc(struct ice_ring *rx_ring, u16 val);
+void ice_finalize_xdp_rx(struct ice_tx_ring *xdp_ring, unsigned int xdp_res);
+int ice_xmit_xdp_buff(struct xdp_buff *xdp, struct ice_tx_ring *xdp_ring);
+int ice_xmit_xdp_ring(void *data, u16 size, struct ice_tx_ring *xdp_ring);
+void ice_release_rx_desc(struct ice_rx_ring *rx_ring, u16 val);
 void
-ice_process_skb_fields(struct ice_ring *rx_ring,
+ice_process_skb_fields(struct ice_rx_ring *rx_ring,
 		       union ice_32b_rx_flex_desc *rx_desc,
 		       struct sk_buff *skb, u16 ptype);
 void
-ice_receive_skb(struct ice_ring *rx_ring, struct sk_buff *skb, u16 vlan_tag);
+ice_receive_skb(struct ice_rx_ring *rx_ring, struct sk_buff *skb, u16 vlan_tag);
 #endif /* !_ICE_TXRX_LIB_H_ */

@@ -875,9 +875,10 @@ uninit_nic_rx:
 static int dr_matcher_init(struct mlx5dr_matcher *matcher,
 			   struct mlx5dr_match_parameters *mask)
 {
+	struct mlx5dr_match_parameters consumed_mask;
 	struct mlx5dr_table *tbl = matcher->tbl;
 	struct mlx5dr_domain *dmn = tbl->dmn;
-	int ret;
+	int i, ret;
 
 	if (matcher->match_criteria >= DR_MATCHER_CRITERIA_MAX) {
 		mlx5dr_err(dmn, "Invalid match criteria attribute\n");
@@ -889,8 +890,16 @@ static int dr_matcher_init(struct mlx5dr_matcher *matcher,
 			mlx5dr_err(dmn, "Invalid match size attribute\n");
 			return -EINVAL;
 		}
+
+		consumed_mask.match_buf = kzalloc(mask->match_sz, GFP_KERNEL);
+		if (!consumed_mask.match_buf)
+			return -ENOMEM;
+
+		consumed_mask.match_sz = mask->match_sz;
+		memcpy(consumed_mask.match_buf, mask->match_buf, mask->match_sz);
 		mlx5dr_ste_copy_param(matcher->match_criteria,
-				      &matcher->mask, mask);
+				      &matcher->mask, &consumed_mask,
+				      true);
 	}
 
 	switch (dmn->type) {
@@ -909,9 +918,23 @@ static int dr_matcher_init(struct mlx5dr_matcher *matcher,
 		break;
 	default:
 		WARN_ON(true);
-		return -EINVAL;
+		ret = -EINVAL;
+		goto free_consumed_mask;
 	}
 
+	/* Check that all mask data was consumed */
+	for (i = 0; i < consumed_mask.match_sz; i++) {
+		if (!((u8 *)consumed_mask.match_buf)[i])
+			continue;
+
+		mlx5dr_dbg(dmn, "Match param mask contains unsupported parameters\n");
+		ret = -EOPNOTSUPP;
+		goto free_consumed_mask;
+	}
+
+	ret =  0;
+free_consumed_mask:
+	kfree(consumed_mask.match_buf);
 	return ret;
 }
 

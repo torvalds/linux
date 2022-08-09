@@ -86,6 +86,7 @@ static void *iwl_uefi_reduce_power_section(struct iwl_trans *trans,
 		if (len < tlv_len) {
 			IWL_ERR(trans, "invalid TLV len: %zd/%u\n",
 				len, tlv_len);
+			kfree(reduce_power_data);
 			reduce_power_data = ERR_PTR(-EINVAL);
 			goto out;
 		}
@@ -105,6 +106,7 @@ static void *iwl_uefi_reduce_power_section(struct iwl_trans *trans,
 				IWL_DEBUG_FW(trans,
 					     "Couldn't allocate (more) reduce_power_data\n");
 
+				kfree(reduce_power_data);
 				reduce_power_data = ERR_PTR(-ENOMEM);
 				goto out;
 			}
@@ -134,6 +136,10 @@ static void *iwl_uefi_reduce_power_section(struct iwl_trans *trans,
 done:
 	if (!size) {
 		IWL_DEBUG_FW(trans, "Empty REDUCE_POWER, skipping.\n");
+		/* Better safe than sorry, but 'reduce_power_data' should
+		 * always be NULL if !size.
+		 */
+		kfree(reduce_power_data);
 		reduce_power_data = ERR_PTR(-ENOENT);
 		goto out;
 	}

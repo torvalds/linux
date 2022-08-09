@@ -1,0 +1,116 @@
+# SPDX-License-Identifier: GPL-2.0
+%YAML 1.2
+---
+$id: "http://devicetree.org/schemas/mfd/x-powers,ac100.yaml#"
+$schema: "http://devicetree.org/meta-schemas/core.yaml#"
+
+title: X-Powers AC100 Device Tree Bindings
+
+maintainers:
+  - Chen-Yu Tsai <wens@csie.org>
+
+properties:
+  compatible:
+    const: x-powers,ac100
+
+  reg:
+    maxItems: 1
+
+  codec:
+    type: object
+
+    properties:
+      "#clock-cells":
+        const: 0
+
+      compatible:
+        const: x-powers,ac100-codec
+
+      interrupts:
+        maxItems: 1
+
+      clock-output-names:
+        maxItems: 1
+        description: >
+          Name of the 4M_adda clock exposed by the codec
+
+    required:
+      - "#clock-cells"
+      - compatible
+      - interrupts
+      - clock-output-names
+
+    additionalProperties: false
+
+  rtc:
+    type: object
+
+    properties:
+      "#clock-cells":
+        const: 1
+
+      compatible:
+        const: x-powers,ac100-rtc
+
+      interrupts:
+        maxItems: 1
+
+      clocks:
+        maxItems: 1
+        description: >
+           A phandle to the codec's "4M_adda" clock
+
+      clock-output-names:
+        maxItems: 3
+        description: >
+          Name of the cko1, cko2 and cko3 clocks exposed by the codec
+
+    required:
+      - "#clock-cells"
+      - compatible
+      - interrupts
+      - clocks
+      - clock-output-names
+
+    additionalProperties: false
+
+required:
+  - compatible
+  - reg
+  - codec
+  - rtc
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/irq.h>
+
+    rsb {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        codec@e89 {
+            compatible = "x-powers,ac100";
+            reg = <0xe89>;
+
+            ac100_codec: codec {
+                compatible = "x-powers,ac100-codec";
+                interrupt-parent = <&r_pio>;
+                interrupts = <0 9 IRQ_TYPE_LEVEL_LOW>; /* PL9 */
+                #clock-cells = <0>;
+                clock-output-names = "4M_adda";
+            };
+
+            ac100_rtc: rtc {
+                compatible = "x-powers,ac100-rtc";
+                interrupt-parent = <&nmi_intc>;
+                interrupts = <0 IRQ_TYPE_LEVEL_LOW>;
+                clocks = <&ac100_codec>;
+                #clock-cells = <1>;
+                clock-output-names = "cko1_rtc", "cko2_rtc", "cko3_rtc";
+            };
+        };
+    };
+
+...

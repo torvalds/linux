@@ -28,7 +28,7 @@
 /* ASIC good health mask. */
 #define MLXREG_HOTPLUG_GOOD_HEALTH_MASK	0x02
 
-#define MLXREG_HOTPLUG_ATTRS_MAX	24
+#define MLXREG_HOTPLUG_ATTRS_MAX	128
 #define MLXREG_HOTPLUG_NOT_ASSERT	3
 
 /**
@@ -89,9 +89,20 @@ mlxreg_hotplug_udev_event_send(struct kobject *kobj,
 	return kobject_uevent_env(kobj, KOBJ_CHANGE, mlxreg_hotplug_udev_envp);
 }
 
-static int mlxreg_hotplug_device_create(struct mlxreg_hotplug_priv_data *priv,
-					struct mlxreg_core_data *data)
+static void
+mlxreg_hotplug_pdata_export(void *pdata, void *regmap)
 {
+	struct mlxreg_core_hotplug_platform_data *dev_pdata = pdata;
+
+	/* Export regmap to underlying device. */
+	dev_pdata->regmap = regmap;
+}
+
+static int mlxreg_hotplug_device_create(struct mlxreg_hotplug_priv_data *priv,
+					struct mlxreg_core_data *data,
+					enum mlxreg_hotplug_kind kind)
+{
+	struct i2c_board_info *brdinfo = data->hpdev.brdinfo;
 	struct mlxreg_core_hotplug_platform_data *pdata;
 	struct i2c_client *client;
 
@@ -106,46 +117,88 @@ static int mlxreg_hotplug_device_create(struct mlxreg_hotplug_priv_data *priv,
 		return 0;
 
 	pdata = dev_get_platdata(&priv->pdev->dev);
-	data->hpdev.adapter = i2c_get_adapter(data->hpdev.nr +
-					      pdata->shift_nr);
-	if (!data->hpdev.adapter) {
-		dev_err(priv->dev, "Failed to get adapter for bus %d\n",
-			data->hpdev.nr + pdata->shift_nr);
-		return -EFAULT;
+	switch (data->hpdev.action) {
+	case MLXREG_HOTPLUG_DEVICE_DEFAULT_ACTION:
+		data->hpdev.adapter = i2c_get_adapter(data->hpdev.nr +
+						      pdata->shift_nr);
+		if (!data->hpdev.adapter) {
+			dev_err(priv->dev, "Failed to get adapter for bus %d\n",
+				data->hpdev.nr + pdata->shift_nr);
+			return -EFAULT;
+		}
+
+		/* Export platform data to underlying device. */
+		if (brdinfo->platform_data)
+			mlxreg_hotplug_pdata_export(brdinfo->platform_data, pdata->regmap);
+
+		client = i2c_new_client_device(data->hpdev.adapter,
+					       brdinfo);
+		if (IS_ERR(client)) {
+			dev_err(priv->dev, "Failed to create client %s at bus %d at addr 0x%02x\n",
+				brdinfo->type, data->hpdev.nr +
+				pdata->shift_nr, brdinfo->addr);
+
+			i2c_put_adapter(data->hpdev.adapter);
+			data->hpdev.adapter = NULL;
+			return PTR_ERR(client);
+		}
+
+		data->hpdev.client = client;
+		break;
+	case MLXREG_HOTPLUG_DEVICE_PLATFORM_ACTION:
+		/* Export platform data to underlying device. */
+		if (data->hpdev.brdinfo && data->hpdev.brdinfo->platform_data)
+			mlxreg_hotplug_pdata_export(data->hpdev.brdinfo->platform_data,
+						    pdata->regmap);
+		/* Pass parent hotplug device handle to underlying device. */
+		data->notifier = data->hpdev.notifier;
+		data->hpdev.pdev = platform_device_register_resndata(&priv->pdev->dev,
+								     brdinfo->type,
+								     data->hpdev.nr,
+								     NULL, 0, data,
+								     sizeof(*data));
+		if (IS_ERR(data->hpdev.pdev))
+			return PTR_ERR(data->hpdev.pdev);
+
+		break;
+	default:
+		break;
 	}
 
-	client = i2c_new_client_device(data->hpdev.adapter,
-				       data->hpdev.brdinfo);
-	if (IS_ERR(client)) {
-		dev_err(priv->dev, "Failed to create client %s at bus %d at addr 0x%02x\n",
-			data->hpdev.brdinfo->type, data->hpdev.nr +
-			pdata->shift_nr, data->hpdev.brdinfo->addr);
-
-		i2c_put_adapter(data->hpdev.adapter);
-		data->hpdev.adapter = NULL;
-		return PTR_ERR(client);
-	}
-
-	data->hpdev.client = client;
+	if (data->hpdev.notifier && data->hpdev.notifier->user_handler)
+		return data->hpdev.notifier->user_handler(data->hpdev.notifier->handle, kind, 1);
 
 	return 0;
 }
 
 static void
 mlxreg_hotplug_device_destroy(struct mlxreg_hotplug_priv_data *priv,
-			      struct mlxreg_core_data *data)
+			      struct mlxreg_core_data *data,
+			      enum mlxreg_hotplug_kind kind)
 {
 	/* Notify user by sending hwmon uevent. */
 	mlxreg_hotplug_udev_event_send(&priv->hwmon->kobj, data, false);
+	if (data->hpdev.notifier && data->hpdev.notifier->user_handler)
+		data->hpdev.notifier->user_handler(data->hpdev.notifier->handle, kind, 0);
 
-	if (data->hpdev.client) {
-		i2c_unregister_device(data->hpdev.client);
-		data->hpdev.client = NULL;
-	}
+	switch (data->hpdev.action) {
+	case MLXREG_HOTPLUG_DEVICE_DEFAULT_ACTION:
+		if (data->hpdev.client) {
+			i2c_unregister_device(data->hpdev.client);
+			data->hpdev.client = NULL;
+		}
 
-	if (data->hpdev.adapter) {
-		i2c_put_adapter(data->hpdev.adapter);
-		data->hpdev.adapter = NULL;
+		if (data->hpdev.adapter) {
+			i2c_put_adapter(data->hpdev.adapter);
+			data->hpdev.adapter = NULL;
+		}
+		break;
+	case MLXREG_HOTPLUG_DEVICE_PLATFORM_ACTION:
+		if (data->hpdev.pdev)
+			platform_device_unregister(data->hpdev.pdev);
+		break;
+	default:
+		break;
 	}
 }
 
@@ -317,14 +370,14 @@ mlxreg_hotplug_work_helper(struct mlxreg_hotplug_priv_data *priv,
 		data = item->data + bit;
 		if (regval & BIT(bit)) {
 			if (item->inversed)
-				mlxreg_hotplug_device_destroy(priv, data);
+				mlxreg_hotplug_device_destroy(priv, data, item->kind);
 			else
-				mlxreg_hotplug_device_create(priv, data);
+				mlxreg_hotplug_device_create(priv, data, item->kind);
 		} else {
 			if (item->inversed)
-				mlxreg_hotplug_device_create(priv, data);
+				mlxreg_hotplug_device_create(priv, data, item->kind);
 			else
-				mlxreg_hotplug_device_destroy(priv, data);
+				mlxreg_hotplug_device_destroy(priv, data, item->kind);
 		}
 	}
 
@@ -381,7 +434,7 @@ mlxreg_hotplug_health_work_helper(struct mlxreg_hotplug_priv_data *priv,
 				 * ASIC is in steady state. Connect associated
 				 * device, if configured.
 				 */
-				mlxreg_hotplug_device_create(priv, data);
+				mlxreg_hotplug_device_create(priv, data, item->kind);
 				data->attached = true;
 			}
 		} else {
@@ -391,7 +444,7 @@ mlxreg_hotplug_health_work_helper(struct mlxreg_hotplug_priv_data *priv,
 				 * in steady state. Disconnect associated
 				 * device, if it has been connected.
 				 */
-				mlxreg_hotplug_device_destroy(priv, data);
+				mlxreg_hotplug_device_destroy(priv, data, item->kind);
 				data->attached = false;
 				data->health_cntr = 0;
 			}
@@ -630,7 +683,7 @@ static void mlxreg_hotplug_unset_irq(struct mlxreg_hotplug_priv_data *priv)
 		/* Remove all the attached devices in group. */
 		count = item->count;
 		for (j = 0; j < count; j++, data++)
-			mlxreg_hotplug_device_destroy(priv, data);
+			mlxreg_hotplug_device_destroy(priv, data, item->kind);
 	}
 }
 

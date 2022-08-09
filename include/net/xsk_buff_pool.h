@@ -7,6 +7,7 @@
 #include <linux/if_xdp.h>
 #include <linux/types.h>
 #include <linux/dma-mapping.h>
+#include <linux/bpf.h>
 #include <net/xdp.h>
 
 struct xsk_buff_pool;
@@ -23,7 +24,6 @@ struct xdp_buff_xsk {
 	dma_addr_t dma;
 	dma_addr_t frame_dma;
 	struct xsk_buff_pool *pool;
-	bool unaligned;
 	u64 orig_addr;
 	struct list_head free_list_node;
 };
@@ -67,6 +67,7 @@ struct xsk_buff_pool {
 	u32 free_heads_cnt;
 	u32 headroom;
 	u32 chunk_size;
+	u32 chunk_shift;
 	u32 frame_len;
 	u8 cached_need_wakeup;
 	bool uses_need_wakeup;
@@ -81,6 +82,13 @@ struct xsk_buff_pool {
 	struct xdp_buff_xsk *free_heads[];
 };
 
+/* Masks for xdp_umem_page flags.
+ * The low 12-bits of the addr will be 0 since this is the page address, so we
+ * can use them for flags.
+ */
+#define XSK_NEXT_PG_CONTIG_SHIFT 0
+#define XSK_NEXT_PG_CONTIG_MASK BIT_ULL(XSK_NEXT_PG_CONTIG_SHIFT)
+
 /* AF_XDP core. */
 struct xsk_buff_pool *xp_create_and_assign_umem(struct xdp_sock *xs,
 						struct xdp_umem *umem);
@@ -89,7 +97,6 @@ int xp_assign_dev(struct xsk_buff_pool *pool, struct net_device *dev,
 int xp_assign_dev_shared(struct xsk_buff_pool *pool, struct xdp_umem *umem,
 			 struct net_device *dev, u16 queue_id);
 void xp_destroy(struct xsk_buff_pool *pool);
-void xp_release(struct xdp_buff_xsk *xskb);
 void xp_get_pool(struct xsk_buff_pool *pool);
 bool xp_put_pool(struct xsk_buff_pool *pool);
 void xp_clear_dev(struct xsk_buff_pool *pool);
@@ -99,12 +106,28 @@ void xp_del_xsk(struct xsk_buff_pool *pool, struct xdp_sock *xs);
 /* AF_XDP, and XDP core. */
 void xp_free(struct xdp_buff_xsk *xskb);
 
+static inline void xp_init_xskb_addr(struct xdp_buff_xsk *xskb, struct xsk_buff_pool *pool,
+				     u64 addr)
+{
+	xskb->orig_addr = addr;
+	xskb->xdp.data_hard_start = pool->addrs + addr + pool->headroom;
+}
+
+static inline void xp_init_xskb_dma(struct xdp_buff_xsk *xskb, struct xsk_buff_pool *pool,
+				    dma_addr_t *dma_pages, u64 addr)
+{
+	xskb->frame_dma = (dma_pages[addr >> PAGE_SHIFT] & ~XSK_NEXT_PG_CONTIG_MASK) +
+		(addr & ~PAGE_MASK);
+	xskb->dma = xskb->frame_dma + pool->headroom + XDP_PACKET_HEADROOM;
+}
+
 /* AF_XDP ZC drivers, via xdp_sock_buff.h */
 void xp_set_rxq_info(struct xsk_buff_pool *pool, struct xdp_rxq_info *rxq);
 int xp_dma_map(struct xsk_buff_pool *pool, struct device *dev,
 	       unsigned long attrs, struct page **pages, u32 nr_pages);
 void xp_dma_unmap(struct xsk_buff_pool *pool, unsigned long attrs);
 struct xdp_buff *xp_alloc(struct xsk_buff_pool *pool);
+u32 xp_alloc_batch(struct xsk_buff_pool *pool, struct xdp_buff **xdp, u32 max);
 bool xp_can_alloc(struct xsk_buff_pool *pool, u32 count);
 void *xp_raw_get_data(struct xsk_buff_pool *pool, u64 addr);
 dma_addr_t xp_raw_get_dma(struct xsk_buff_pool *pool, u64 addr);
@@ -178,6 +201,27 @@ static inline u64 xp_unaligned_add_offset_to_addr(u64 addr)
 {
 	return xp_unaligned_extract_addr(addr) +
 		xp_unaligned_extract_offset(addr);
+}
+
+static inline u32 xp_aligned_extract_idx(struct xsk_buff_pool *pool, u64 addr)
+{
+	return xp_aligned_extract_addr(pool, addr) >> pool->chunk_shift;
+}
+
+static inline void xp_release(struct xdp_buff_xsk *xskb)
+{
+	if (xskb->pool->unaligned)
+		xskb->pool->free_heads[xskb->pool->free_heads_cnt++] = xskb;
+}
+
+static inline u64 xp_get_handle(struct xdp_buff_xsk *xskb)
+{
+	u64 offset = xskb->xdp.data - xskb->xdp.data_hard_start;
+
+	offset += xskb->pool->headroom;
+	if (!xskb->pool->unaligned)
+		return xskb->orig_addr + offset;
+	return xskb->orig_addr + (offset << XSK_UNALIGNED_BUF_OFFSET_SHIFT);
 }
 
 #endif /* XSK_BUFF_POOL_H_ */

@@ -463,7 +463,8 @@ int hantro_g1_vp8_dec_run(struct hantro_ctx *ctx)
 	      G1_REG_CONFIG_DEC_MAX_BURST(16);
 	vdpu_write_relaxed(vpu, reg, G1_REG_CONFIG);
 
-	reg = G1_REG_DEC_CTRL0_DEC_MODE(10);
+	reg = G1_REG_DEC_CTRL0_DEC_MODE(10) |
+	      G1_REG_DEC_CTRL0_DEC_AXI_AUTO;
 	if (!V4L2_VP8_FRAME_IS_KEY_FRAME(hdr))
 		reg |= G1_REG_DEC_CTRL0_PIC_INTER_E;
 	if (!(hdr->flags & V4L2_VP8_FRAME_FLAG_MB_NO_SKIP_COEFF))

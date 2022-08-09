@@ -12,8 +12,8 @@
 
 	.macro switch_tls_v6k, base, tp, tpuser, tmp1, tmp2
 	mrc	p15, 0, \tmp2, c13, c0, 2	@ get the user r/w register
-	mcr	p15, 0, \tp, c13, c0, 3		@ set TLS register
-	mcr	p15, 0, \tpuser, c13, c0, 2	@ and the user r/w register
+	@ TLS register update is deferred until return to user space
+	mcr	p15, 0, \tpuser, c13, c0, 2	@ set the user r/w register
 	str	\tmp2, [\base, #TI_TP_VALUE + 4] @ save it
 	.endm
 
@@ -38,18 +38,22 @@
 #ifdef CONFIG_TLS_REG_EMUL
 #define tls_emu		1
 #define has_tls_reg		1
+#define defer_tls_reg_update	0
 #define switch_tls	switch_tls_none
 #elif defined(CONFIG_CPU_V6)
 #define tls_emu		0
 #define has_tls_reg		(elf_hwcap & HWCAP_TLS)
+#define defer_tls_reg_update	0
 #define switch_tls	switch_tls_v6
 #elif defined(CONFIG_CPU_32v6K)
 #define tls_emu		0
 #define has_tls_reg		1
+#define defer_tls_reg_update	1
 #define switch_tls	switch_tls_v6k
 #else
 #define tls_emu		0
 #define has_tls_reg		0
+#define defer_tls_reg_update	0
 #define switch_tls	switch_tls_software
 #endif
 
@@ -77,7 +81,7 @@ static inline void set_tls(unsigned long val)
 	 */
 	barrier();
 
-	if (!tls_emu) {
+	if (!tls_emu && !defer_tls_reg_update) {
 		if (has_tls_reg) {
 			asm("mcr p15, 0, %0, c13, c0, 3"
 			    : : "r" (val));

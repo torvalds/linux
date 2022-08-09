@@ -915,6 +915,7 @@ static int jz4780_dma_probe(struct platform_device *pdev)
 	dd->dst_addr_widths = JZ_DMA_BUSWIDTHS;
 	dd->directions = BIT(DMA_DEV_TO_MEM) | BIT(DMA_MEM_TO_DEV);
 	dd->residue_granularity = DMA_RESIDUE_GRANULARITY_BURST;
+	dd->max_sg_burst = JZ_DMA_MAX_DESC;
 
 	/*
 	 * Enable DMA controller, mark all channels as not programmable.

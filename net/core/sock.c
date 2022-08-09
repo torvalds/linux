@@ -350,7 +350,7 @@ void sk_error_report(struct sock *sk)
 }
 EXPORT_SYMBOL(sk_error_report);
 
-static int sock_get_timeout(long timeo, void *optval, bool old_timeval)
+int sock_get_timeout(long timeo, void *optval, bool old_timeval)
 {
 	struct __kernel_sock_timeval tv;
 
@@ -379,12 +379,11 @@ static int sock_get_timeout(long timeo, void *optval, bool old_timeval)
 	*(struct __kernel_sock_timeval *)optval = tv;
 	return sizeof(tv);
 }
+EXPORT_SYMBOL(sock_get_timeout);
 
-static int sock_set_timeout(long *timeo_p, sockptr_t optval, int optlen,
-			    bool old_timeval)
+int sock_copy_user_timeval(struct __kernel_sock_timeval *tv,
+			   sockptr_t optval, int optlen, bool old_timeval)
 {
-	struct __kernel_sock_timeval tv;
-
 	if (old_timeval && in_compat_syscall() && !COMPAT_USE_64BIT_TIME) {
 		struct old_timeval32 tv32;
 
@@ -393,8 +392,8 @@ static int sock_set_timeout(long *timeo_p, sockptr_t optval, int optlen,
 
 		if (copy_from_sockptr(&tv32, optval, sizeof(tv32)))
 			return -EFAULT;
-		tv.tv_sec = tv32.tv_sec;
-		tv.tv_usec = tv32.tv_usec;
+		tv->tv_sec = tv32.tv_sec;
+		tv->tv_usec = tv32.tv_usec;
 	} else if (old_timeval) {
 		struct __kernel_old_timeval old_tv;
 
@@ -402,14 +401,28 @@ static int sock_set_timeout(long *timeo_p, sockptr_t optval, int optlen,
 			return -EINVAL;
 		if (copy_from_sockptr(&old_tv, optval, sizeof(old_tv)))
 			return -EFAULT;
-		tv.tv_sec = old_tv.tv_sec;
-		tv.tv_usec = old_tv.tv_usec;
+		tv->tv_sec = old_tv.tv_sec;
+		tv->tv_usec = old_tv.tv_usec;
 	} else {
-		if (optlen < sizeof(tv))
+		if (optlen < sizeof(*tv))
 			return -EINVAL;
-		if (copy_from_sockptr(&tv, optval, sizeof(tv)))
+		if (copy_from_sockptr(tv, optval, sizeof(*tv)))
 			return -EFAULT;
 	}
+
+	return 0;
+}
+EXPORT_SYMBOL(sock_copy_user_timeval);
+
+static int sock_set_timeout(long *timeo_p, sockptr_t optval, int optlen,
+			    bool old_timeval)
+{
+	struct __kernel_sock_timeval tv;
+	int err = sock_copy_user_timeval(&tv, optval, optlen, old_timeval);
+
+	if (err)
+		return err;
+
 	if (tv.tv_usec < 0 || tv.tv_usec >= USEC_PER_SEC)
 		return -EDOM;
 
@@ -947,6 +960,53 @@ void sock_set_mark(struct sock *sk, u32 val)
 }
 EXPORT_SYMBOL(sock_set_mark);
 
+static void sock_release_reserved_memory(struct sock *sk, int bytes)
+{
+	/* Round down bytes to multiple of pages */
+	bytes &= ~(SK_MEM_QUANTUM - 1);
+
+	WARN_ON(bytes > sk->sk_reserved_mem);
+	sk->sk_reserved_mem -= bytes;
+	sk_mem_reclaim(sk);
+}
+
+static int sock_reserve_memory(struct sock *sk, int bytes)
+{
+	long allocated;
+	bool charged;
+	int pages;
+
+	if (!mem_cgroup_sockets_enabled || !sk->sk_memcg || !sk_has_account(sk))
+		return -EOPNOTSUPP;
+
+	if (!bytes)
+		return 0;
+
+	pages = sk_mem_pages(bytes);
+
+	/* pre-charge to memcg */
+	charged = mem_cgroup_charge_skmem(sk->sk_memcg, pages,
+					  GFP_KERNEL | __GFP_RETRY_MAYFAIL);
+	if (!charged)
+		return -ENOMEM;
+
+	/* pre-charge to forward_alloc */
+	allocated = sk_memory_allocated_add(sk, pages);
+	/* If the system goes into memory pressure with this
+	 * precharge, give up and return error.
+	 */
+	if (allocated > sk_prot_mem_limits(sk, 1)) {
+		sk_memory_allocated_sub(sk, pages);
+		mem_cgroup_uncharge_skmem(sk->sk_memcg, pages);
+		return -ENOMEM;
+	}
+	sk->sk_forward_alloc += pages << SK_MEM_QUANTUM_SHIFT;
+
+	sk->sk_reserved_mem += pages << SK_MEM_QUANTUM_SHIFT;
+
+	return 0;
+}
+
 /*
  *	This is meant for all protocols to use and covers goings on
  *	at the socket level. Everything here is generic.
@@ -1367,6 +1427,23 @@ set_sndbuf:
 					  ~SOCK_BUF_LOCK_MASK);
 		break;
 
+	case SO_RESERVE_MEM:
+	{
+		int delta;
+
+		if (val < 0) {
+			ret = -EINVAL;
+			break;
+		}
+
+		delta = val - sk->sk_reserved_mem;
+		if (delta < 0)
+			sock_release_reserved_memory(sk, -delta);
+		else
+			ret = sock_reserve_memory(sk, delta);
+		break;
+	}
+
 	default:
 		ret = -ENOPROTOOPT;
 		break;
@@ -1750,6 +1827,10 @@ int sock_getsockopt(struct socket *sock, int level, int optname,
 		v.val = sk->sk_userlocks & SOCK_BUF_LOCK_MASK;
 		break;
 
+	case SO_RESERVE_MEM:
+		v.val = sk->sk_reserved_mem;
+		break;
+
 	default:
 		/* We implement the SO_SNDLOWAT etc to not be settable
 		 * (1003.1g 7).
@@ -2043,8 +2124,10 @@ struct sock *sk_clone_lock(const struct sock *sk, const gfp_t priority)
 	newsk->sk_prot_creator = prot;
 
 	/* SANITY */
-	if (likely(newsk->sk_net_refcnt))
+	if (likely(newsk->sk_net_refcnt)) {
 		get_net(sock_net(newsk));
+		sock_inuse_add(sock_net(newsk), 1);
+	}
 	sk_node_init(&newsk->sk_node);
 	sock_lock_init(newsk);
 	bh_lock_sock(newsk);
@@ -2063,6 +2146,7 @@ struct sock *sk_clone_lock(const struct sock *sk, const gfp_t priority)
 	newsk->sk_dst_pending_confirm = 0;
 	newsk->sk_wmem_queued	= 0;
 	newsk->sk_forward_alloc = 0;
+	newsk->sk_reserved_mem  = 0;
 	atomic_set(&newsk->sk_drops, 0);
 	newsk->sk_send_head	= NULL;
 	newsk->sk_userlocks	= sk->sk_userlocks & ~SOCK_BINDPORT_LOCK;
@@ -2115,8 +2199,6 @@ struct sock *sk_clone_lock(const struct sock *sk, const gfp_t priority)
 	newsk->sk_err_soft = 0;
 	newsk->sk_priority = 0;
 	newsk->sk_incoming_cpu = raw_smp_processor_id();
-	if (likely(newsk->sk_net_refcnt))
-		sock_inuse_add(sock_net(newsk), 1);
 
 	/* Before updating sk_refcnt, we must commit prior changes to memory
 	 * (Documentation/RCU/rculist_nulls.rst for details)

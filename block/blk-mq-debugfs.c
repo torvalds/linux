@@ -124,7 +124,6 @@ static const char *const blk_queue_flag_name[] = {
 	QUEUE_FLAG_NAME(STATS),
 	QUEUE_FLAG_NAME(POLL_STATS),
 	QUEUE_FLAG_NAME(REGISTERED),
-	QUEUE_FLAG_NAME(SCSI_PASSTHROUGH),
 	QUEUE_FLAG_NAME(QUIESCED),
 	QUEUE_FLAG_NAME(PCI_P2PDMA),
 	QUEUE_FLAG_NAME(ZONE_RESETALL),
@@ -287,7 +286,7 @@ static const char *const cmd_flag_name[] = {
 	CMD_FLAG_NAME(BACKGROUND),
 	CMD_FLAG_NAME(NOWAIT),
 	CMD_FLAG_NAME(NOUNMAP),
-	CMD_FLAG_NAME(HIPRI),
+	CMD_FLAG_NAME(POLLED),
 };
 #undef CMD_FLAG_NAME
 
@@ -309,6 +308,7 @@ static const char *const rqf_name[] = {
 	RQF_NAME(SPECIAL_PAYLOAD),
 	RQF_NAME(ZONE_WRITE_LOCKED),
 	RQF_NAME(MQ_POLL_SLEPT),
+	RQF_NAME(ELV),
 };
 #undef RQF_NAME
 
@@ -453,11 +453,11 @@ static void blk_mq_debugfs_tags_show(struct seq_file *m,
 		   atomic_read(&tags->active_queues));
 
 	seq_puts(m, "\nbitmap_tags:\n");
-	sbitmap_queue_show(tags->bitmap_tags, m);
+	sbitmap_queue_show(&tags->bitmap_tags, m);
 
 	if (tags->nr_reserved_tags) {
 		seq_puts(m, "\nbreserved_tags:\n");
-		sbitmap_queue_show(tags->breserved_tags, m);
+		sbitmap_queue_show(&tags->breserved_tags, m);
 	}
 }
 
@@ -488,7 +488,7 @@ static int hctx_tags_bitmap_show(void *data, struct seq_file *m)
 	if (res)
 		goto out;
 	if (hctx->tags)
-		sbitmap_bitmap_show(&hctx->tags->bitmap_tags->sb, m);
+		sbitmap_bitmap_show(&hctx->tags->bitmap_tags.sb, m);
 	mutex_unlock(&q->sysfs_lock);
 
 out:
@@ -522,75 +522,11 @@ static int hctx_sched_tags_bitmap_show(void *data, struct seq_file *m)
 	if (res)
 		goto out;
 	if (hctx->sched_tags)
-		sbitmap_bitmap_show(&hctx->sched_tags->bitmap_tags->sb, m);
+		sbitmap_bitmap_show(&hctx->sched_tags->bitmap_tags.sb, m);
 	mutex_unlock(&q->sysfs_lock);
 
 out:
 	return res;
-}
-
-static int hctx_io_poll_show(void *data, struct seq_file *m)
-{
-	struct blk_mq_hw_ctx *hctx = data;
-
-	seq_printf(m, "considered=%lu\n", hctx->poll_considered);
-	seq_printf(m, "invoked=%lu\n", hctx->poll_invoked);
-	seq_printf(m, "success=%lu\n", hctx->poll_success);
-	return 0;
-}
-
-static ssize_t hctx_io_poll_write(void *data, const char __user *buf,
-				  size_t count, loff_t *ppos)
-{
-	struct blk_mq_hw_ctx *hctx = data;
-
-	hctx->poll_considered = hctx->poll_invoked = hctx->poll_success = 0;
-	return count;
-}
-
-static int hctx_dispatched_show(void *data, struct seq_file *m)
-{
-	struct blk_mq_hw_ctx *hctx = data;
-	int i;
-
-	seq_printf(m, "%8u\t%lu\n", 0U, hctx->dispatched[0]);
-
-	for (i = 1; i < BLK_MQ_MAX_DISPATCH_ORDER - 1; i++) {
-		unsigned int d = 1U << (i - 1);
-
-		seq_printf(m, "%8u\t%lu\n", d, hctx->dispatched[i]);
-	}
-
-	seq_printf(m, "%8u+\t%lu\n", 1U << (i - 1), hctx->dispatched[i]);
-	return 0;
-}
-
-static ssize_t hctx_dispatched_write(void *data, const char __user *buf,
-				     size_t count, loff_t *ppos)
-{
-	struct blk_mq_hw_ctx *hctx = data;
-	int i;
-
-	for (i = 0; i < BLK_MQ_MAX_DISPATCH_ORDER; i++)
-		hctx->dispatched[i] = 0;
-	return count;
-}
-
-static int hctx_queued_show(void *data, struct seq_file *m)
-{
-	struct blk_mq_hw_ctx *hctx = data;
-
-	seq_printf(m, "%lu\n", hctx->queued);
-	return 0;
-}
-
-static ssize_t hctx_queued_write(void *data, const char __user *buf,
-				 size_t count, loff_t *ppos)
-{
-	struct blk_mq_hw_ctx *hctx = data;
-
-	hctx->queued = 0;
-	return count;
 }
 
 static int hctx_run_show(void *data, struct seq_file *m)
@@ -614,7 +550,7 @@ static int hctx_active_show(void *data, struct seq_file *m)
 {
 	struct blk_mq_hw_ctx *hctx = data;
 
-	seq_printf(m, "%d\n", atomic_read(&hctx->nr_active));
+	seq_printf(m, "%d\n", __blk_mq_active_requests(hctx));
 	return 0;
 }
 
@@ -662,57 +598,6 @@ static const struct seq_operations ctx_##name##_rq_list_seq_ops = {	\
 CTX_RQ_SEQ_OPS(default, HCTX_TYPE_DEFAULT);
 CTX_RQ_SEQ_OPS(read, HCTX_TYPE_READ);
 CTX_RQ_SEQ_OPS(poll, HCTX_TYPE_POLL);
-
-static int ctx_dispatched_show(void *data, struct seq_file *m)
-{
-	struct blk_mq_ctx *ctx = data;
-
-	seq_printf(m, "%lu %lu\n", ctx->rq_dispatched[1], ctx->rq_dispatched[0]);
-	return 0;
-}
-
-static ssize_t ctx_dispatched_write(void *data, const char __user *buf,
-				    size_t count, loff_t *ppos)
-{
-	struct blk_mq_ctx *ctx = data;
-
-	ctx->rq_dispatched[0] = ctx->rq_dispatched[1] = 0;
-	return count;
-}
-
-static int ctx_merged_show(void *data, struct seq_file *m)
-{
-	struct blk_mq_ctx *ctx = data;
-
-	seq_printf(m, "%lu\n", ctx->rq_merged);
-	return 0;
-}
-
-static ssize_t ctx_merged_write(void *data, const char __user *buf,
-				size_t count, loff_t *ppos)
-{
-	struct blk_mq_ctx *ctx = data;
-
-	ctx->rq_merged = 0;
-	return count;
-}
-
-static int ctx_completed_show(void *data, struct seq_file *m)
-{
-	struct blk_mq_ctx *ctx = data;
-
-	seq_printf(m, "%lu %lu\n", ctx->rq_completed[1], ctx->rq_completed[0]);
-	return 0;
-}
-
-static ssize_t ctx_completed_write(void *data, const char __user *buf,
-				   size_t count, loff_t *ppos)
-{
-	struct blk_mq_ctx *ctx = data;
-
-	ctx->rq_completed[0] = ctx->rq_completed[1] = 0;
-	return count;
-}
 
 static int blk_mq_debugfs_show(struct seq_file *m, void *v)
 {
@@ -789,9 +674,6 @@ static const struct blk_mq_debugfs_attr blk_mq_debugfs_hctx_attrs[] = {
 	{"tags_bitmap", 0400, hctx_tags_bitmap_show},
 	{"sched_tags", 0400, hctx_sched_tags_show},
 	{"sched_tags_bitmap", 0400, hctx_sched_tags_bitmap_show},
-	{"io_poll", 0600, hctx_io_poll_show, hctx_io_poll_write},
-	{"dispatched", 0600, hctx_dispatched_show, hctx_dispatched_write},
-	{"queued", 0600, hctx_queued_show, hctx_queued_write},
 	{"run", 0600, hctx_run_show, hctx_run_write},
 	{"active", 0400, hctx_active_show},
 	{"dispatch_busy", 0400, hctx_dispatch_busy_show},
@@ -803,9 +685,6 @@ static const struct blk_mq_debugfs_attr blk_mq_debugfs_ctx_attrs[] = {
 	{"default_rq_list", 0400, .seq_ops = &ctx_default_rq_list_seq_ops},
 	{"read_rq_list", 0400, .seq_ops = &ctx_read_rq_list_seq_ops},
 	{"poll_rq_list", 0400, .seq_ops = &ctx_poll_rq_list_seq_ops},
-	{"dispatched", 0600, ctx_dispatched_show, ctx_dispatched_write},
-	{"merged", 0600, ctx_merged_show, ctx_merged_write},
-	{"completed", 0600, ctx_completed_show, ctx_completed_write},
 	{},
 };
 

@@ -845,19 +845,6 @@ static int arizona_of_get_core_pdata(struct arizona *arizona)
 
 	return 0;
 }
-
-const struct of_device_id arizona_of_match[] = {
-	{ .compatible = "wlf,wm5102", .data = (void *)WM5102 },
-	{ .compatible = "wlf,wm5110", .data = (void *)WM5110 },
-	{ .compatible = "wlf,wm8280", .data = (void *)WM8280 },
-	{ .compatible = "wlf,wm8997", .data = (void *)WM8997 },
-	{ .compatible = "wlf,wm8998", .data = (void *)WM8998 },
-	{ .compatible = "wlf,wm1814", .data = (void *)WM1814 },
-	{ .compatible = "wlf,wm1831", .data = (void *)WM1831 },
-	{ .compatible = "cirrus,cs47l24", .data = (void *)CS47L24 },
-	{},
-};
-EXPORT_SYMBOL_GPL(arizona_of_match);
 #else
 static inline int arizona_of_get_core_pdata(struct arizona *arizona)
 {

@@ -3175,7 +3175,7 @@ static int nv_set_mac_address(struct net_device *dev, void *addr)
 		return -EADDRNOTAVAIL;
 
 	/* synchronized against open : rtnl_lock() held by caller */
-	memcpy(dev->dev_addr, macaddr->sa_data, ETH_ALEN);
+	eth_hw_addr_set(dev, macaddr->sa_data);
 
 	if (netif_running(dev)) {
 		netif_tx_lock_bh(dev);
@@ -5711,6 +5711,7 @@ static int nv_probe(struct pci_dev *pci_dev, const struct pci_device_id *id)
 	u32 phystate_orig = 0, phystate;
 	int phyinitialized = 0;
 	static int printed_version;
+	u8 mac[ETH_ALEN];
 
 	if (!printed_version++)
 		pr_info("Reverse Engineered nForce ethernet driver. Version %s.\n",
@@ -5884,50 +5885,52 @@ static int nv_probe(struct pci_dev *pci_dev, const struct pci_device_id *id)
 	txreg = readl(base + NvRegTransmitPoll);
 	if (id->driver_data & DEV_HAS_CORRECT_MACADDR) {
 		/* mac address is already in correct order */
-		dev->dev_addr[0] = (np->orig_mac[0] >>  0) & 0xff;
-		dev->dev_addr[1] = (np->orig_mac[0] >>  8) & 0xff;
-		dev->dev_addr[2] = (np->orig_mac[0] >> 16) & 0xff;
-		dev->dev_addr[3] = (np->orig_mac[0] >> 24) & 0xff;
-		dev->dev_addr[4] = (np->orig_mac[1] >>  0) & 0xff;
-		dev->dev_addr[5] = (np->orig_mac[1] >>  8) & 0xff;
+		mac[0] = (np->orig_mac[0] >>  0) & 0xff;
+		mac[1] = (np->orig_mac[0] >>  8) & 0xff;
+		mac[2] = (np->orig_mac[0] >> 16) & 0xff;
+		mac[3] = (np->orig_mac[0] >> 24) & 0xff;
+		mac[4] = (np->orig_mac[1] >>  0) & 0xff;
+		mac[5] = (np->orig_mac[1] >>  8) & 0xff;
 	} else if (txreg & NVREG_TRANSMITPOLL_MAC_ADDR_REV) {
 		/* mac address is already in correct order */
-		dev->dev_addr[0] = (np->orig_mac[0] >>  0) & 0xff;
-		dev->dev_addr[1] = (np->orig_mac[0] >>  8) & 0xff;
-		dev->dev_addr[2] = (np->orig_mac[0] >> 16) & 0xff;
-		dev->dev_addr[3] = (np->orig_mac[0] >> 24) & 0xff;
-		dev->dev_addr[4] = (np->orig_mac[1] >>  0) & 0xff;
-		dev->dev_addr[5] = (np->orig_mac[1] >>  8) & 0xff;
+		mac[0] = (np->orig_mac[0] >>  0) & 0xff;
+		mac[1] = (np->orig_mac[0] >>  8) & 0xff;
+		mac[2] = (np->orig_mac[0] >> 16) & 0xff;
+		mac[3] = (np->orig_mac[0] >> 24) & 0xff;
+		mac[4] = (np->orig_mac[1] >>  0) & 0xff;
+		mac[5] = (np->orig_mac[1] >>  8) & 0xff;
 		/*
 		 * Set orig mac address back to the reversed version.
 		 * This flag will be cleared during low power transition.
 		 * Therefore, we should always put back the reversed address.
 		 */
-		np->orig_mac[0] = (dev->dev_addr[5] << 0) + (dev->dev_addr[4] << 8) +
-			(dev->dev_addr[3] << 16) + (dev->dev_addr[2] << 24);
-		np->orig_mac[1] = (dev->dev_addr[1] << 0) + (dev->dev_addr[0] << 8);
+		np->orig_mac[0] = (mac[5] << 0) + (mac[4] << 8) +
+			(mac[3] << 16) + (mac[2] << 24);
+		np->orig_mac[1] = (mac[1] << 0) + (mac[0] << 8);
 	} else {
 		/* need to reverse mac address to correct order */
-		dev->dev_addr[0] = (np->orig_mac[1] >>  8) & 0xff;
-		dev->dev_addr[1] = (np->orig_mac[1] >>  0) & 0xff;
-		dev->dev_addr[2] = (np->orig_mac[0] >> 24) & 0xff;
-		dev->dev_addr[3] = (np->orig_mac[0] >> 16) & 0xff;
-		dev->dev_addr[4] = (np->orig_mac[0] >>  8) & 0xff;
-		dev->dev_addr[5] = (np->orig_mac[0] >>  0) & 0xff;
+		mac[0] = (np->orig_mac[1] >>  8) & 0xff;
+		mac[1] = (np->orig_mac[1] >>  0) & 0xff;
+		mac[2] = (np->orig_mac[0] >> 24) & 0xff;
+		mac[3] = (np->orig_mac[0] >> 16) & 0xff;
+		mac[4] = (np->orig_mac[0] >>  8) & 0xff;
+		mac[5] = (np->orig_mac[0] >>  0) & 0xff;
 		writel(txreg|NVREG_TRANSMITPOLL_MAC_ADDR_REV, base + NvRegTransmitPoll);
 		dev_dbg(&pci_dev->dev,
 			"%s: set workaround bit for reversed mac addr\n",
 			__func__);
 	}
 
-	if (!is_valid_ether_addr(dev->dev_addr)) {
+	if (is_valid_ether_addr(mac)) {
+		eth_hw_addr_set(dev, mac);
+	} else {
 		/*
 		 * Bad mac address. At least one bios sets the mac address
 		 * to 01:23:45:67:89:ab
 		 */
 		dev_err(&pci_dev->dev,
 			"Invalid MAC address detected: %pM - Please complain to your hardware vendor.\n",
-			dev->dev_addr);
+			mac);
 		eth_hw_addr_random(dev);
 		dev_err(&pci_dev->dev,
 			"Using random MAC address: %pM\n", dev->dev_addr);

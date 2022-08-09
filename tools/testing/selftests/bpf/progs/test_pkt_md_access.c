@@ -7,8 +7,6 @@
 #include <linux/pkt_cls.h>
 #include <bpf/bpf_helpers.h>
 
-int _version SEC("version") = 1;
-
 #if  __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
 #define TEST_FIELD(TYPE, FIELD, MASK)					\
 	{								\
@@ -27,7 +25,7 @@ int _version SEC("version") = 1;
 	}
 #endif
 
-SEC("classifier/test_pkt_md_access")
+SEC("tc")
 int test_pkt_md_access(struct __sk_buff *skb)
 {
 	TEST_FIELD(__u8,  len, 0xFF);

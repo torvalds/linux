@@ -41,7 +41,7 @@
 	leds: leds {
 		compatible = "gpio-leds";
 
-		on {
+		led {
 			label = "e60k02:white:on";
 			gpios = <&gpio5 7 GPIO_ACTIVE_LOW>;
 			linux,default-trigger = "timer";

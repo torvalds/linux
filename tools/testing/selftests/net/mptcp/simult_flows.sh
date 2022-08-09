@@ -51,7 +51,7 @@ setup()
 	sout=$(mktemp)
 	cout=$(mktemp)
 	capout=$(mktemp)
-	size=$((2048 * 4096))
+	size=$((2 * 2048 * 4096))
 	dd if=/dev/zero of=$small bs=4096 count=20 >/dev/null 2>&1
 	dd if=/dev/zero of=$large bs=4096 count=$((size / 4096)) >/dev/null 2>&1
 
@@ -161,17 +161,15 @@ do_transfer()
 
 	timeout ${timeout_test} \
 		ip netns exec ${ns3} \
-			./mptcp_connect -jt ${timeout_poll} -l -p $port \
+			./mptcp_connect -jt ${timeout_poll} -l -p $port -T $time \
 				0.0.0.0 < "$sin" > "$sout" &
 	local spid=$!
 
 	wait_local_port_listen "${ns3}" "${port}"
 
-	local start
-	start=$(date +%s%3N)
 	timeout ${timeout_test} \
 		ip netns exec ${ns1} \
-			./mptcp_connect -jt ${timeout_poll} -p $port \
+			./mptcp_connect -jt ${timeout_poll} -p $port -T $time \
 				10.0.3.3 < "$cin" > "$cout" &
 	local cpid=$!
 
@@ -180,27 +178,20 @@ do_transfer()
 	wait $spid
 	local rets=$?
 
-	local stop
-	stop=$(date +%s%3N)
-
 	if $capture; then
 		sleep 1
 		kill ${cappid_listener}
 		kill ${cappid_connector}
 	fi
 
-	local duration
-	duration=$((stop-start))
-
 	cmp $sin $cout > /dev/null 2>&1
 	local cmps=$?
 	cmp $cin $sout > /dev/null 2>&1
 	local cmpc=$?
 
-	printf "%16s" "$duration max $max_time "
+	printf "%-16s" " max $max_time "
 	if [ $retc -eq 0 ] && [ $rets -eq 0 ] && \
-	   [ $cmpc -eq 0 ] && [ $cmps -eq 0 ] && \
-	   [ $duration -lt $max_time ]; then
+	   [ $cmpc -eq 0 ] && [ $cmps -eq 0 ]; then
 		echo "[ OK ]"
 		cat "$capout"
 		return 0
@@ -244,23 +235,24 @@ run_test()
 	tc -n $ns2 qdisc add dev ns2eth1 root netem rate ${rate1}mbit $delay1
 	tc -n $ns2 qdisc add dev ns2eth2 root netem rate ${rate2}mbit $delay2
 
-	# time is measure in ms
-	local time=$((size * 8 * 1000 / (( $rate1 + $rate2) * 1024 *1024) ))
+	# time is measured in ms, account for transfer size, affegated link speed
+	# and header overhead (10%)
+	local time=$((size * 8 * 1000 * 10 / (( $rate1 + $rate2) * 1024 *1024 * 9) ))
 
 	# mptcp_connect will do some sleeps to allow the mp_join handshake
-	# completion
-	time=$((time + 1350))
+	# completion (see mptcp_connect): 200ms on each side, add some slack
+	time=$((time + 450))
 
-	printf "%-50s" "$msg"
-	do_transfer $small $large $((time * 11 / 10))
+	printf "%-60s" "$msg"
+	do_transfer $small $large $time
 	lret=$?
 	if [ $lret -ne 0 ]; then
 		ret=$lret
 		[ $bail -eq 0 ] || exit $ret
 	fi
 
-	printf "%-50s" "$msg - reverse direction"
-	do_transfer $large $small $((time * 11 / 10))
+	printf "%-60s" "$msg - reverse direction"
+	do_transfer $large $small $time
 	lret=$?
 	if [ $lret -ne 0 ]; then
 		ret=$lret

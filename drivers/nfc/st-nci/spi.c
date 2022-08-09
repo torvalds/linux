@@ -169,7 +169,6 @@ static int st_nci_spi_read(struct st_nci_spi_phy *phy,
 static irqreturn_t st_nci_irq_thread_fn(int irq, void *phy_id)
 {
 	struct st_nci_spi_phy *phy = phy_id;
-	struct spi_device *dev;
 	struct sk_buff *skb = NULL;
 	int r;
 
@@ -177,9 +176,6 @@ static irqreturn_t st_nci_irq_thread_fn(int irq, void *phy_id)
 		WARN_ON_ONCE(1);
 		return IRQ_NONE;
 	}
-
-	dev = phy->spi_dev;
-	dev_dbg(&dev->dev, "IRQ\n");
 
 	if (phy->ndlc->hard_fault)
 		return IRQ_HANDLED;

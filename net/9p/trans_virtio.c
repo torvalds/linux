@@ -794,6 +794,7 @@ static void __exit p9_virtio_cleanup(void)
 
 module_init(p9_virtio_init);
 module_exit(p9_virtio_cleanup);
+MODULE_ALIAS_9P("virtio");
 
 MODULE_DEVICE_TABLE(virtio, id_table);
 MODULE_AUTHOR("Eric Van Hensbergen <ericvh@gmail.com>");

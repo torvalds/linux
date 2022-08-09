@@ -53,7 +53,8 @@ cleanup:
 	modify_return__destroy(skel);
 }
 
-void test_modify_return(void)
+/* TODO: conflict with get_func_ip_test */
+void serial_test_modify_return(void)
 {
 	run_test(0 /* input_retval */,
 		 1 /* want_side_effect */,

@@ -14,9 +14,10 @@
 
 #include <asm-generic/export.h>
 
-#include <asm/asm-offsets.h>
 #include <asm/alternative.h>
 #include <asm/asm-bug.h>
+#include <asm/asm-extable.h>
+#include <asm/asm-offsets.h>
 #include <asm/cpufeature.h>
 #include <asm/cputype.h>
 #include <asm/debug-monitors.h>
@@ -128,32 +129,6 @@ alternative_endif
 	nop
 	.endr
 	.endm
-
-/*
- * Create an exception table entry for `insn`, which will branch to `fixup`
- * when an unhandled fault is taken.
- */
-	.macro		_asm_extable, insn, fixup
-	.pushsection	__ex_table, "a"
-	.align		3
-	.long		(\insn - .), (\fixup - .)
-	.popsection
-	.endm
-
-/*
- * Create an exception table entry for `insn` if `fixup` is provided. Otherwise
- * do nothing.
- */
-	.macro		_cond_extable, insn, fixup
-	.ifnc		\fixup,
-	_asm_extable	\insn, \fixup
-	.endif
-	.endm
-
-
-#define USER(l, x...)				\
-9999:	x;					\
-	_asm_extable	9999b, l
 
 /*
  * Register aliases.
@@ -405,19 +380,19 @@ alternative_endif
 
 /*
  * Macro to perform a data cache maintenance for the interval
- * [start, end)
+ * [start, end) with dcache line size explicitly provided.
  *
  * 	op:		operation passed to dc instruction
  * 	domain:		domain used in dsb instruciton
  * 	start:          starting virtual address of the region
  * 	end:            end virtual address of the region
+ *	linesz:		dcache line size
  * 	fixup:		optional label to branch to on user fault
- * 	Corrupts:       start, end, tmp1, tmp2
+ * 	Corrupts:       start, end, tmp
  */
-	.macro dcache_by_line_op op, domain, start, end, tmp1, tmp2, fixup
-	dcache_line_size \tmp1, \tmp2
-	sub	\tmp2, \tmp1, #1
-	bic	\start, \start, \tmp2
+	.macro dcache_by_myline_op op, domain, start, end, linesz, tmp, fixup
+	sub	\tmp, \linesz, #1
+	bic	\start, \start, \tmp
 .Ldcache_op\@:
 	.ifc	\op, cvau
 	__dcache_op_workaround_clean_cache \op, \start
@@ -436,12 +411,28 @@ alternative_endif
 	.endif
 	.endif
 	.endif
-	add	\start, \start, \tmp1
+	add	\start, \start, \linesz
 	cmp	\start, \end
 	b.lo	.Ldcache_op\@
 	dsb	\domain
 
 	_cond_extable .Ldcache_op\@, \fixup
+	.endm
+
+/*
+ * Macro to perform a data cache maintenance for the interval
+ * [start, end)
+ *
+ * 	op:		operation passed to dc instruction
+ * 	domain:		domain used in dsb instruciton
+ * 	start:          starting virtual address of the region
+ * 	end:            end virtual address of the region
+ * 	fixup:		optional label to branch to on user fault
+ * 	Corrupts:       start, end, tmp1, tmp2
+ */
+	.macro dcache_by_line_op op, domain, start, end, tmp1, tmp2, fixup
+	dcache_line_size \tmp1, \tmp2
+	dcache_by_myline_op \op, \domain, \start, \end, \tmp1, \tmp2, \fixup
 	.endm
 
 /*
@@ -465,6 +456,25 @@ alternative_endif
 	isb
 
 	_cond_extable .Licache_op\@, \fixup
+	.endm
+
+/*
+ * To prevent the possibility of old and new partial table walks being visible
+ * in the tlb, switch the ttbr to a zero page when we invalidate the old
+ * records. D4.7.1 'General TLB maintenance requirements' in ARM DDI 0487A.i
+ * Even switching to our copied tables will cause a changed output address at
+ * each stage of the walk.
+ */
+	.macro break_before_make_ttbr_switch zero_page, page_table, tmp, tmp2
+	phys_to_ttbr \tmp, \zero_page
+	msr	ttbr1_el1, \tmp
+	isb
+	tlbi	vmalle1
+	dsb	nsh
+	phys_to_ttbr \tmp, \page_table
+	offset_ttbr1 \tmp, \tmp2
+	msr	ttbr1_el1, \tmp
+	isb
 	.endm
 
 /*

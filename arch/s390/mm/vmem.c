@@ -13,6 +13,7 @@
 #include <linux/hugetlb.h>
 #include <linux/slab.h>
 #include <asm/cacheflush.h>
+#include <asm/nospec-branch.h>
 #include <asm/pgalloc.h>
 #include <asm/setup.h>
 #include <asm/tlbflush.h>
@@ -584,8 +585,13 @@ void __init vmem_map_init(void)
 	__set_memory(__stext_amode31, (__etext_amode31 - __stext_amode31) >> PAGE_SHIFT,
 		     SET_MEMORY_RO | SET_MEMORY_X);
 
-	/* we need lowcore executable for our LPSWE instructions */
-	set_memory_x(0, 1);
+	if (nospec_uses_trampoline() || !static_key_enabled(&cpu_has_bear)) {
+		/*
+		 * Lowcore must be executable for LPSWE
+		 * and expoline trampoline branch instructions.
+		 */
+		set_memory_x(0, 1);
+	}
 
 	pr_info("Write protected kernel read-only data: %luk\n",
 		(unsigned long)(__end_rodata - _stext) >> 10);

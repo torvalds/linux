@@ -17,7 +17,7 @@
 
 
 #define TB_CTL_RX_PKG_COUNT	10
-#define TB_CTL_RETRIES		1
+#define TB_CTL_RETRIES		4
 
 /**
  * struct tb_ctl - Thunderbolt control channel

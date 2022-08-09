@@ -379,7 +379,7 @@ static int mac_intr_clear(struct cmac *mac)
 }
 
 /* Expect MAC address to be in network byte order. */
-static int mac_set_address(struct cmac* mac, u8 addr[6])
+static int mac_set_address(struct cmac* mac, const u8 addr[6])
 {
 	u32 val;
 	int port = mac->instance->index;
@@ -591,7 +591,7 @@ static void port_stats_update(struct cmac *mac)
 	} hw_stats[] = {
 
 #define HW_STAT(reg, stat_name) \
-	{ reg, (&((struct cmac_statistics *)NULL)->stat_name) - (u64 *)NULL }
+	{ reg, offsetof(struct cmac_statistics, stat_name) / sizeof(u64) }
 
 		/* Rx stats */
 		HW_STAT(RxUnicast, RxUnicastFramesOK),

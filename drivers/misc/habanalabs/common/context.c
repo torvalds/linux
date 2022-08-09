@@ -181,12 +181,6 @@ out_err:
 	return rc;
 }
 
-void hl_ctx_free(struct hl_device *hdev, struct hl_ctx *ctx)
-{
-	if (kref_put(&ctx->refcount, hl_ctx_do_release) == 1)
-		return;
-}
-
 int hl_ctx_init(struct hl_device *hdev, struct hl_ctx *ctx, bool is_kernel_ctx)
 {
 	int rc = 0;
@@ -392,7 +386,7 @@ void hl_ctx_mgr_fini(struct hl_device *hdev, struct hl_ctx_mgr *mgr)
 	idp = &mgr->ctx_handles;
 
 	idr_for_each_entry(idp, ctx, id)
-		hl_ctx_free(hdev, ctx);
+		kref_put(&ctx->refcount, hl_ctx_do_release);
 
 	idr_destroy(&mgr->ctx_handles);
 	mutex_destroy(&mgr->ctx_lock);

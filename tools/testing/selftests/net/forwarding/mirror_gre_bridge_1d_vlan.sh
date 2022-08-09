@@ -80,7 +80,7 @@ test_gretap()
 
 test_ip6gretap()
 {
-	test_vlan_match gt6 'skip_hw vlan_id 555 vlan_ethtype ip' \
+	test_vlan_match gt6 'skip_hw vlan_id 555 vlan_ethtype ipv6' \
 			"mirror to ip6gretap"
 }
 

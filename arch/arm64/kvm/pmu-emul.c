@@ -978,7 +978,7 @@ int kvm_arm_pmu_v3_set_attr(struct kvm_vcpu *vcpu, struct kvm_device_attr *attr)
 		mutex_lock(&vcpu->kvm->lock);
 
 		if (!vcpu->kvm->arch.pmu_filter) {
-			vcpu->kvm->arch.pmu_filter = bitmap_alloc(nr_events, GFP_KERNEL);
+			vcpu->kvm->arch.pmu_filter = bitmap_alloc(nr_events, GFP_KERNEL_ACCOUNT);
 			if (!vcpu->kvm->arch.pmu_filter) {
 				mutex_unlock(&vcpu->kvm->lock);
 				return -ENOMEM;

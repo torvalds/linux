@@ -124,27 +124,6 @@ static void write_propval_int(FILE *f, const char *p, size_t len, size_t width)
 	}
 }
 
-static bool has_data_type_information(struct marker *m)
-{
-	return m->type >= TYPE_UINT8;
-}
-
-static struct marker *next_type_marker(struct marker *m)
-{
-	while (m && !has_data_type_information(m))
-		m = m->next;
-	return m;
-}
-
-size_t type_marker_length(struct marker *m)
-{
-	struct marker *next = next_type_marker(m->next);
-
-	if (next)
-		return next->offset - m->offset;
-	return 0;
-}
-
 static const char *delim_start[] = {
 	[TYPE_UINT8] = "[",
 	[TYPE_UINT16] = "/bits/ 16 <",
@@ -229,26 +208,39 @@ static void write_propval(FILE *f, struct property *prop)
 		size_t chunk_len = (m->next ? m->next->offset : len) - m->offset;
 		size_t data_len = type_marker_length(m) ? : len - m->offset;
 		const char *p = &prop->val.val[m->offset];
+		struct marker *m_phandle;
 
-		if (has_data_type_information(m)) {
+		if (is_type_marker(m->type)) {
 			emit_type = m->type;
 			fprintf(f, " %s", delim_start[emit_type]);
 		} else if (m->type == LABEL)
 			fprintf(f, " %s:", m->ref);
-		else if (m->offset)
-			fputc(' ', f);
 
-		if (emit_type == TYPE_NONE) {
-			assert(chunk_len == 0);
+		if (emit_type == TYPE_NONE || chunk_len == 0)
 			continue;
-		}
 
 		switch(emit_type) {
 		case TYPE_UINT16:
 			write_propval_int(f, p, chunk_len, 2);
 			break;
 		case TYPE_UINT32:
-			write_propval_int(f, p, chunk_len, 4);
+			m_phandle = prop->val.markers;
+			for_each_marker_of_type(m_phandle, REF_PHANDLE)
+				if (m->offset == m_phandle->offset)
+					break;
+
+			if (m_phandle) {
+				if (m_phandle->ref[0] == '/')
+					fprintf(f, "&{%s}", m_phandle->ref);
+				else
+					fprintf(f, "&%s", m_phandle->ref);
+				if (chunk_len > 4) {
+					fputc(' ', f);
+					write_propval_int(f, p + 4, chunk_len - 4, 4);
+				}
+			} else {
+				write_propval_int(f, p, chunk_len, 4);
+			}
 			break;
 		case TYPE_UINT64:
 			write_propval_int(f, p, chunk_len, 8);

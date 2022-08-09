@@ -33,7 +33,7 @@
 
 #define EXP_NO_BUF_RET 29
 
-void test_snprintf_positive(void)
+static void test_snprintf_positive(void)
 {
 	char exp_addr_out[] = EXP_ADDR_OUT;
 	char exp_sym_out[]  = EXP_SYM_OUT;
@@ -103,7 +103,7 @@ static int load_single_snprintf(char *fmt)
 	return ret;
 }
 
-void test_snprintf_negative(void)
+static void test_snprintf_negative(void)
 {
 	ASSERT_OK(load_single_snprintf("valid %d"), "valid usage");
 

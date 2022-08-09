@@ -64,7 +64,7 @@
  * timeout for a STREAM socket.
  */
 
-#define SO_VM_SOCKETS_CONNECT_TIMEOUT 6
+#define SO_VM_SOCKETS_CONNECT_TIMEOUT_OLD 6
 
 /* Option name for using non-blocking send/receive.  Use as the option name
  * for setsockopt(3) or getsockopt(3) to set or get the non-blocking
@@ -80,6 +80,17 @@
  */
 
 #define SO_VM_SOCKETS_NONBLOCK_TXRX 7
+
+#define SO_VM_SOCKETS_CONNECT_TIMEOUT_NEW 8
+
+#if !defined(__KERNEL__)
+#if __BITS_PER_LONG == 64 || (defined(__x86_64__) && defined(__ILP32__))
+#define SO_VM_SOCKETS_CONNECT_TIMEOUT SO_VM_SOCKETS_CONNECT_TIMEOUT_OLD
+#else
+#define SO_VM_SOCKETS_CONNECT_TIMEOUT \
+	(sizeof(time_t) == sizeof(__kernel_long_t) ? SO_VM_SOCKETS_CONNECT_TIMEOUT_OLD : SO_VM_SOCKETS_CONNECT_TIMEOUT_NEW)
+#endif
+#endif
 
 /* The vSocket equivalent of INADDR_ANY.  This works for the svm_cid field of
  * sockaddr_vm and indicates the context ID of the current endpoint.

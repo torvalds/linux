@@ -1460,13 +1460,15 @@ static DEVICE_ATTR(disable_port, S_IWUSR, NULL, csio_disable_port);
 static DEVICE_ATTR(dbg_level, S_IRUGO | S_IWUSR, csio_show_dbg_level,
 		  csio_store_dbg_level);
 
-static struct device_attribute *csio_fcoe_lport_attrs[] = {
-	&dev_attr_hw_state,
-	&dev_attr_device_reset,
-	&dev_attr_disable_port,
-	&dev_attr_dbg_level,
+static struct attribute *csio_fcoe_lport_attrs[] = {
+	&dev_attr_hw_state.attr,
+	&dev_attr_device_reset.attr,
+	&dev_attr_disable_port.attr,
+	&dev_attr_dbg_level.attr,
 	NULL,
 };
+
+ATTRIBUTE_GROUPS(csio_fcoe_lport);
 
 static ssize_t
 csio_show_num_reg_rnodes(struct device *dev,
@@ -1479,11 +1481,13 @@ csio_show_num_reg_rnodes(struct device *dev,
 
 static DEVICE_ATTR(num_reg_rnodes, S_IRUGO, csio_show_num_reg_rnodes, NULL);
 
-static struct device_attribute *csio_fcoe_vport_attrs[] = {
-	&dev_attr_num_reg_rnodes,
-	&dev_attr_dbg_level,
+static struct attribute *csio_fcoe_vport_attrs[] = {
+	&dev_attr_num_reg_rnodes.attr,
+	&dev_attr_dbg_level.attr,
 	NULL,
 };
+
+ATTRIBUTE_GROUPS(csio_fcoe_vport);
 
 static inline uint32_t
 csio_scsi_copy_to_sgl(struct csio_hw *hw, struct csio_ioreq *req)
@@ -1720,7 +1724,7 @@ out:
 	}
 
 	cmnd->result = (((host_status) << 16) | scsi_status);
-	cmnd->scsi_done(cmnd);
+	scsi_done(cmnd);
 
 	/* Wake up waiting threads */
 	csio_scsi_cmnd(req) = NULL;
@@ -1748,7 +1752,7 @@ csio_scsi_cbfn(struct csio_hw *hw, struct csio_ioreq *req)
 		}
 
 		cmnd->result = (((host_status) << 16) | scsi_status);
-		cmnd->scsi_done(cmnd);
+		scsi_done(cmnd);
 		csio_scsi_cmnd(req) = NULL;
 		CSIO_INC_STATS(csio_hw_to_scsim(hw), n_tot_success);
 	} else {
@@ -1876,7 +1880,7 @@ err:
 	return rv;
 
 err_done:
-	cmnd->scsi_done(cmnd);
+	scsi_done(cmnd);
 	return 0;
 }
 
@@ -1979,7 +1983,7 @@ inval_scmnd:
 		spin_unlock_irq(&hw->lock);
 
 		cmnd->result = (DID_ERROR << 16);
-		cmnd->scsi_done(cmnd);
+		scsi_done(cmnd);
 
 		return FAILED;
 	}
@@ -2277,7 +2281,7 @@ struct scsi_host_template csio_fcoe_shost_template = {
 	.this_id		= -1,
 	.sg_tablesize		= CSIO_SCSI_MAX_SGE,
 	.cmd_per_lun		= CSIO_MAX_CMD_PER_LUN,
-	.shost_attrs		= csio_fcoe_lport_attrs,
+	.shost_groups		= csio_fcoe_lport_groups,
 	.max_sectors		= CSIO_MAX_SECTOR_SIZE,
 };
 
@@ -2296,7 +2300,7 @@ struct scsi_host_template csio_fcoe_shost_vport_template = {
 	.this_id		= -1,
 	.sg_tablesize		= CSIO_SCSI_MAX_SGE,
 	.cmd_per_lun		= CSIO_MAX_CMD_PER_LUN,
-	.shost_attrs		= csio_fcoe_vport_attrs,
+	.shost_groups		= csio_fcoe_vport_groups,
 	.max_sectors		= CSIO_MAX_SECTOR_SIZE,
 };
 

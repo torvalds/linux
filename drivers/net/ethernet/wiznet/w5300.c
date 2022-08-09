@@ -472,7 +472,7 @@ static int w5300_set_macaddr(struct net_device *ndev, void *addr)
 
 	if (!is_valid_ether_addr(sock_addr->sa_data))
 		return -EADDRNOTAVAIL;
-	memcpy(ndev->dev_addr, sock_addr->sa_data, ETH_ALEN);
+	eth_hw_addr_set(ndev, sock_addr->sa_data);
 	w5300_write_macaddr(priv);
 	return 0;
 }
@@ -534,7 +534,7 @@ static int w5300_hw_probe(struct platform_device *pdev)
 	int ret;
 
 	if (data && is_valid_ether_addr(data->mac_addr)) {
-		memcpy(ndev->dev_addr, data->mac_addr, ETH_ALEN);
+		eth_hw_addr_set(ndev, data->mac_addr);
 	} else {
 		eth_hw_addr_random(ndev);
 	}

@@ -20,6 +20,15 @@ config VIRTIO_PCI_LIB
 	  PCI device with possible vendor specific extensions. Any
 	  module that selects this module must depend on PCI.
 
+config VIRTIO_PCI_LIB_LEGACY
+	tristate
+	help
+	  Legacy PCI device (Virtio PCI Card 0.9.x Draft and older device)
+	  implementation.
+	  This module implements the basic probe and control for devices
+	  which are based on legacy PCI device. Any module that selects this
+	  module must depend on PCI.
+
 menuconfig VIRTIO_MENU
 	bool "Virtio drivers"
 	default y
@@ -43,6 +52,7 @@ config VIRTIO_PCI_LEGACY
 	bool "Support for legacy virtio draft 0.9.X and older devices"
 	default y
 	depends on VIRTIO_PCI
+	select VIRTIO_PCI_LIB_LEGACY
 	help
           Virtio PCI Card 0.9.X Draft (circa 2014) and older device support.
 
@@ -98,9 +108,10 @@ config VIRTIO_MEM
 	default m
 	depends on X86_64
 	depends on VIRTIO
-	depends on MEMORY_HOTPLUG_SPARSE
+	depends on MEMORY_HOTPLUG
 	depends on MEMORY_HOTREMOVE
 	depends on CONTIG_ALLOC
+	depends on EXCLUSIVE_SYSTEM_RAM
 	help
 	 This driver provides access to virtio-mem paravirtualized memory
 	 devices, allowing to hotplug and hotunplug memory.

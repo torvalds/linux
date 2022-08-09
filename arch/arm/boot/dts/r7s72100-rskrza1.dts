@@ -192,6 +192,8 @@
 	renesas,no-ether-link;
 	phy-handle = <&phy0>;
 	phy0: ethernet-phy@0 {
+		compatible = "ethernet-phy-idb824.2814",
+			     "ethernet-phy-ieee802.3-c22";
 		reg = <0>;
 	};
 };

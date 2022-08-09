@@ -281,6 +281,7 @@ struct mpc_funcs {
 	struct mpcc* (*get_mpcc_for_dpp_from_secondary)(
 			struct mpc_tree *tree,
 			int dpp_id);
+
 	struct mpcc* (*get_mpcc_for_dpp)(
 			struct mpc_tree *tree,
 			int dpp_id);
@@ -366,6 +367,7 @@ struct mpc_funcs {
 	void (*set_bg_color)(struct mpc *mpc,
 			struct tg_color *bg_color,
 			int mpcc_id);
+	void (*set_mpc_mem_lp_mode)(struct mpc *mpc);
 };
 
 #endif

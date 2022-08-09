@@ -480,6 +480,19 @@ Description:
 
 		Valid values: Represented in microvolts
 
+What:		/sys/class/power_supply/<supply_name>/cycle_count
+Date:		January 2010
+Contact:	linux-pm@vger.kernel.org
+Description:
+		Reports the number of full charge + discharge cycles the
+		battery has undergone.
+
+		Access: Read
+
+		Valid values:
+			Integer > 0: representing full cycles
+			Integer = 0: cycle_count info is not available
+
 **USB Properties**
 
 What:		/sys/class/power_supply/<supply_name>/input_current_limit

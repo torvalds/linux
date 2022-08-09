@@ -342,7 +342,7 @@ static void wpf_configure_stream(struct vsp1_entity *entity,
 	/* Enable interrupts. */
 	vsp1_dl_body_write(dlb, VI6_WPF_IRQ_STA(index), 0);
 	vsp1_dl_body_write(dlb, VI6_WPF_IRQ_ENB(index),
-			   VI6_WFP_IRQ_ENB_DFEE);
+			   VI6_WPF_IRQ_ENB_DFEE);
 
 	/*
 	 * Configure writeback for display pipelines (the wpf writeback flag is

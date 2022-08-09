@@ -98,6 +98,10 @@ struct rxe_send_wr {
 			__u32	remote_qpn;
 			__u32	remote_qkey;
 			__u16	pkey_index;
+			__u16	reserved;
+			__u32	ah_num;
+			__u32	pad[4];
+			struct rxe_av av;
 		} ud;
 		struct {
 			__aligned_u64	addr;
@@ -141,14 +145,13 @@ struct rxe_dma_info {
 	__u32			sge_offset;
 	__u32			reserved;
 	union {
-		__u8		inline_data[0];
-		struct rxe_sge	sge[0];
+		__DECLARE_FLEX_ARRAY(__u8, inline_data);
+		__DECLARE_FLEX_ARRAY(struct rxe_sge, sge);
 	};
 };
 
 struct rxe_send_wqe {
 	struct rxe_send_wr	wr;
-	struct rxe_av		av;
 	__u32			status;
 	__u32			state;
 	__aligned_u64		iova;
@@ -166,6 +169,11 @@ struct rxe_recv_wqe {
 	__u32			num_sge;
 	__u32			padding;
 	struct rxe_dma_info	dma;
+};
+
+struct rxe_create_ah_resp {
+	__u32 ah_num;
+	__u32 reserved;
 };
 
 struct rxe_create_cq_resp {

@@ -12,6 +12,7 @@
 
 #include <dt-bindings/mux/mux.h>
 #include <linux/device.h>
+#include <linux/ktime.h>
 #include <linux/semaphore.h>
 
 struct mux_chip;
@@ -33,6 +34,7 @@ struct mux_control_ops {
  * @states:		The number of mux controller states.
  * @idle_state:		The mux controller state to use when inactive, or one
  *			of MUX_IDLE_AS_IS and MUX_IDLE_DISCONNECT.
+ * @last_change:	Timestamp of last change
  *
  * Mux drivers may only change @states and @idle_state, and may only do so
  * between allocation and registration of the mux controller. Specifically,
@@ -47,6 +49,8 @@ struct mux_control {
 
 	unsigned int states;
 	int idle_state;
+
+	ktime_t last_change;
 };
 
 /**

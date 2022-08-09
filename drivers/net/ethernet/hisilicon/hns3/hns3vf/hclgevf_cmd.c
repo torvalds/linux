@@ -434,8 +434,28 @@ err_csq:
 	return ret;
 }
 
+static int hclgevf_firmware_compat_config(struct hclgevf_dev *hdev, bool en)
+{
+	struct hclgevf_firmware_compat_cmd *req;
+	struct hclgevf_desc desc;
+	u32 compat = 0;
+
+	hclgevf_cmd_setup_basic_desc(&desc, HCLGEVF_OPC_IMP_COMPAT_CFG, false);
+
+	if (en) {
+		req = (struct hclgevf_firmware_compat_cmd *)desc.data;
+
+		hnae3_set_bit(compat, HCLGEVF_SYNC_RX_RING_HEAD_EN_B, 1);
+
+		req->compat = cpu_to_le32(compat);
+	}
+
+	return hclgevf_cmd_send(&hdev->hw, &desc, 1);
+}
+
 int hclgevf_cmd_init(struct hclgevf_dev *hdev)
 {
+	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(hdev->pdev);
 	int ret;
 
 	spin_lock_bh(&hdev->hw.cmq.csq.lock);
@@ -484,6 +504,17 @@ int hclgevf_cmd_init(struct hclgevf_dev *hdev)
 		 hnae3_get_field(hdev->fw_version, HNAE3_FW_VERSION_BYTE0_MASK,
 				 HNAE3_FW_VERSION_BYTE0_SHIFT));
 
+	if (ae_dev->dev_version >= HNAE3_DEVICE_VERSION_V3) {
+		/* ask the firmware to enable some features, driver can work
+		 * without it.
+		 */
+		ret = hclgevf_firmware_compat_config(hdev, true);
+		if (ret)
+			dev_warn(&hdev->pdev->dev,
+				 "Firmware compatible features not enabled(%d).\n",
+				 ret);
+	}
+
 	return 0;
 
 err_cmd_init:
@@ -508,6 +539,7 @@ static void hclgevf_cmd_uninit_regs(struct hclgevf_hw *hw)
 
 void hclgevf_cmd_uninit(struct hclgevf_dev *hdev)
 {
+	hclgevf_firmware_compat_config(hdev, false);
 	set_bit(HCLGEVF_STATE_CMD_DISABLE, &hdev->state);
 	/* wait to ensure that the firmware completes the possible left
 	 * over commands.

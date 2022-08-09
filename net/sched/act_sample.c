@@ -163,7 +163,7 @@ static int tcf_sample_act(struct sk_buff *skb, const struct tc_action *a,
 	int retval;
 
 	tcf_lastuse_update(&s->tcf_tm);
-	bstats_cpu_update(this_cpu_ptr(s->common.cpu_bstats), skb);
+	bstats_update(this_cpu_ptr(s->common.cpu_bstats), skb);
 	retval = READ_ONCE(s->tcf_action);
 
 	psample_group = rcu_dereference_bh(s->psample_group);

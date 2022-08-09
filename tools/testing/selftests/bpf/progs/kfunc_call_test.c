@@ -8,7 +8,7 @@ extern int bpf_kfunc_call_test2(struct sock *sk, __u32 a, __u32 b) __ksym;
 extern __u64 bpf_kfunc_call_test1(struct sock *sk, __u32 a, __u64 b,
 				  __u32 c, __u64 d) __ksym;
 
-SEC("classifier")
+SEC("tc")
 int kfunc_call_test2(struct __sk_buff *skb)
 {
 	struct bpf_sock *sk = skb->sk;
@@ -23,7 +23,7 @@ int kfunc_call_test2(struct __sk_buff *skb)
 	return bpf_kfunc_call_test2((struct sock *)sk, 1, 2);
 }
 
-SEC("classifier")
+SEC("tc")
 int kfunc_call_test1(struct __sk_buff *skb)
 {
 	struct bpf_sock *sk = skb->sk;

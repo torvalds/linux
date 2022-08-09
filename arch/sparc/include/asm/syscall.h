@@ -117,16 +117,6 @@ static inline void syscall_get_arguments(struct task_struct *task,
 	}
 }
 
-static inline void syscall_set_arguments(struct task_struct *task,
-					 struct pt_regs *regs,
-					 const unsigned long *args)
-{
-	unsigned int i;
-
-	for (i = 0; i < 6; i++)
-		regs->u_regs[UREG_I0 + i] = args[i];
-}
-
 static inline int syscall_get_arch(struct task_struct *task)
 {
 #if defined(CONFIG_SPARC64) && defined(CONFIG_COMPAT)

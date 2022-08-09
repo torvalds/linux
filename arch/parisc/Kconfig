@@ -13,6 +13,8 @@ config PARISC
 	select ARCH_NO_SG_CHAIN
 	select ARCH_SUPPORTS_HUGETLBFS if PA20
 	select ARCH_SUPPORTS_MEMORY_FAILURE
+	select ARCH_STACKWALK
+	select HAVE_RELIABLE_STACKTRACE
 	select DMA_OPS
 	select RTC_CLASS
 	select RTC_DRV_GENERIC
@@ -46,6 +48,7 @@ config PARISC
 	select HAVE_ARCH_HASH
 	select HAVE_ARCH_JUMP_LABEL
 	select HAVE_ARCH_JUMP_LABEL_RELATIVE
+	select HAVE_ARCH_KFENCE
 	select HAVE_ARCH_SECCOMP_FILTER
 	select HAVE_ARCH_TRACEHOOK
 	select HAVE_REGS_AND_STACK_ACCESS_API
@@ -53,6 +56,7 @@ config PARISC
 	select HAVE_UNSTABLE_SCHED_CLOCK if SMP
 	select LEGACY_TIMER_TICK
 	select CPU_NO_EFFICIENT_FFS
+	select THREAD_INFO_IN_TASK
 	select NEED_DMA_MAP_STATE
 	select NEED_SG_DMA_LENGTH
 	select HAVE_ARCH_KGDB
@@ -80,11 +84,6 @@ config MMU
 
 config STACK_GROWSUP
 	def_bool y
-
-config ARCH_DEFCONFIG
-	string
-	default "arch/parisc/configs/generic-32bit_defconfig" if !64BIT
-	default "arch/parisc/configs/generic-64bit_defconfig" if 64BIT
 
 config GENERIC_LOCKBREAK
 	bool
@@ -252,11 +251,11 @@ config PARISC_PAGE_SIZE_4KB
 
 config PARISC_PAGE_SIZE_16KB
 	bool "16KB"
-	depends on PA8X00 && BROKEN
+	depends on PA8X00 && BROKEN && !KFENCE
 
 config PARISC_PAGE_SIZE_64KB
 	bool "64KB"
-	depends on PA8X00 && BROKEN
+	depends on PA8X00 && BROKEN && !KFENCE
 
 endchoice
 
@@ -287,6 +286,20 @@ config SMP
 	  available at <https://www.tldp.org/docs.html#howto>.
 
 	  If you don't know what to do here, say N.
+
+config TOC
+	bool "Support TOC switch"
+	default y if 64BIT || !SMP
+	help
+	  Most PA-RISC machines have either a switch at the back of the machine
+	  or a command in BMC to trigger a TOC interrupt. If you say Y here a
+	  handler will be installed which will either show a backtrace on all
+	  CPUs, or enter a possible configured debugger like kgdb/kdb.
+
+	  Note that with this option enabled, the kernel will use an additional 16KB
+	  per possible CPU as a special stack for the TOC handler.
+
+	  If you don't want to debug the Kernel, say N.
 
 config PARISC_CPU_TOPOLOGY
 	bool "Support cpu topology definition"

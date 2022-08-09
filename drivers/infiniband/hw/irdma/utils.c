@@ -11,7 +11,7 @@
  * @action: modify, delete or add
  */
 int irdma_arp_table(struct irdma_pci_f *rf, u32 *ip_addr, bool ipv4,
-		    u8 *mac_addr, u32 action)
+		    const u8 *mac_addr, u32 action)
 {
 	unsigned long flags;
 	int arp_index;
@@ -77,7 +77,7 @@ int irdma_arp_table(struct irdma_pci_f *rf, u32 *ip_addr, bool ipv4,
  * @ipv4: IPv4 flag
  * @mac: MAC address
  */
-int irdma_add_arp(struct irdma_pci_f *rf, u32 *ip, bool ipv4, u8 *mac)
+int irdma_add_arp(struct irdma_pci_f *rf, u32 *ip, bool ipv4, const u8 *mac)
 {
 	int arpidx;
 
@@ -765,17 +765,6 @@ struct ib_qp *irdma_get_qp(struct ib_device *device, int qpn)
 		return NULL;
 
 	return &iwdev->rf->qp_table[qpn]->ibqp;
-}
-
-/**
- * irdma_get_hw_addr - return hw addr
- * @par: points to shared dev
- */
-u8 __iomem *irdma_get_hw_addr(void *par)
-{
-	struct irdma_sc_dev *dev = par;
-
-	return dev->hw->hw_addr;
 }
 
 /**
@@ -2060,40 +2049,6 @@ exit:
 }
 
 /**
- * irdma_cqp_up_map_cmd - Set the up-up mapping
- * @dev: pointer to device structure
- * @cmd: map command
- * @map_info: pointer to up map info
- */
-enum irdma_status_code irdma_cqp_up_map_cmd(struct irdma_sc_dev *dev, u8 cmd,
-					    struct irdma_up_info *map_info)
-{
-	struct irdma_pci_f *rf = dev_to_rf(dev);
-	struct irdma_cqp *iwcqp = &rf->cqp;
-	struct irdma_sc_cqp *cqp = &iwcqp->sc_cqp;
-	struct irdma_cqp_request *cqp_request;
-	struct cqp_cmds_info *cqp_info;
-	enum irdma_status_code status;
-
-	cqp_request = irdma_alloc_and_get_cqp_request(iwcqp, false);
-	if (!cqp_request)
-		return IRDMA_ERR_NO_MEMORY;
-
-	cqp_info = &cqp_request->info;
-	memset(cqp_info, 0, sizeof(*cqp_info));
-	cqp_info->cqp_cmd = cmd;
-	cqp_info->post_sq = 1;
-	cqp_info->in.u.up_map.info = *map_info;
-	cqp_info->in.u.up_map.cqp = cqp;
-	cqp_info->in.u.up_map.scratch = (uintptr_t)cqp_request;
-
-	status = irdma_handle_cqp_op(rf, cqp_request);
-	irdma_put_cqp_request(&rf->cqp, cqp_request);
-
-	return status;
-}
-
-/**
  * irdma_ah_cqp_op - perform an AH cqp operation
  * @rf: RDMA PCI function
  * @sc_ah: address handle
@@ -2284,14 +2239,9 @@ enum irdma_status_code irdma_prm_add_pble_mem(struct irdma_pble_prm *pprm,
 
 	sizeofbitmap = (u64)pchunk->size >> pprm->pble_shift;
 
-	pchunk->bitmapmem.size = sizeofbitmap >> 3;
-	pchunk->bitmapmem.va = kzalloc(pchunk->bitmapmem.size, GFP_KERNEL);
-
-	if (!pchunk->bitmapmem.va)
+	pchunk->bitmapbuf = bitmap_zalloc(sizeofbitmap, GFP_KERNEL);
+	if (!pchunk->bitmapbuf)
 		return IRDMA_ERR_NO_MEMORY;
-
-	pchunk->bitmapbuf = pchunk->bitmapmem.va;
-	bitmap_zero(pchunk->bitmapbuf, sizeofbitmap);
 
 	pchunk->sizeofbitmap = sizeofbitmap;
 	/* each pble is 8 bytes hence shift by 3 */
@@ -2535,4 +2485,19 @@ void irdma_ib_qp_event(struct irdma_qp *iwqp, enum irdma_qp_event_type event)
 	ibevent.device = iwqp->ibqp.device;
 	ibevent.element.qp = &iwqp->ibqp;
 	iwqp->ibqp.event_handler(&ibevent, iwqp->ibqp.qp_context);
+}
+
+bool irdma_cq_empty(struct irdma_cq *iwcq)
+{
+	struct irdma_cq_uk *ukcq;
+	u64 qword3;
+	__le64 *cqe;
+	u8 polarity;
+
+	ukcq  = &iwcq->sc_cq.cq_uk;
+	cqe = IRDMA_GET_CURRENT_CQ_ELEM(ukcq);
+	get_64bit_val(cqe, 24, &qword3);
+	polarity = (u8)FIELD_GET(IRDMA_CQ_VALID, qword3);
+
+	return polarity != ukcq->polarity;
 }

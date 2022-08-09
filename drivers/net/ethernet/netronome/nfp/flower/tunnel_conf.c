@@ -837,7 +837,7 @@ nfp_tunnel_put_ipv6_off(struct nfp_app *app, struct nfp_ipv6_addr_entry *entry)
 }
 
 static int
-__nfp_tunnel_offload_mac(struct nfp_app *app, u8 *mac, u16 idx, bool del)
+__nfp_tunnel_offload_mac(struct nfp_app *app, const u8 *mac, u16 idx, bool del)
 {
 	struct nfp_tun_mac_addr_offload payload;
 
@@ -886,7 +886,7 @@ static bool nfp_tunnel_is_mac_idx_global(u16 nfp_mac_idx)
 }
 
 static struct nfp_tun_offloaded_mac *
-nfp_tunnel_lookup_offloaded_macs(struct nfp_app *app, u8 *mac)
+nfp_tunnel_lookup_offloaded_macs(struct nfp_app *app, const u8 *mac)
 {
 	struct nfp_flower_priv *priv = app->priv;
 
@@ -1005,7 +1005,7 @@ err_free_ida:
 
 static int
 nfp_tunnel_del_shared_mac(struct nfp_app *app, struct net_device *netdev,
-			  u8 *mac, bool mod)
+			  const u8 *mac, bool mod)
 {
 	struct nfp_flower_priv *priv = app->priv;
 	struct nfp_flower_repr_priv *repr_priv;

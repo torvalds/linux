@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Datapath implementation.
+ * Data receiving implementation.
  *
  * Copyright (c) 2017-2020, Silicon Laboratories, Inc.
  * Copyright (c) 2010, ST-Ericsson
@@ -76,8 +76,9 @@ void wfx_rx_cb(struct wfx_vif *wvif,
 	if (arg->encryp)
 		hdr->flag |= RX_FLAG_DECRYPTED;
 
-	// Block ack negotiation is offloaded by the firmware. However,
-	// re-ordering must be done by the mac80211.
+	/* Block ack negotiation is offloaded by the firmware. However,
+	 * re-ordering must be done by the mac80211.
+	 */
 	if (ieee80211_is_action(frame->frame_control) &&
 	    mgmt->u.action.category == WLAN_CATEGORY_BACK &&
 	    skb->len > IEEE80211_MIN_ACTION_SIZE) {

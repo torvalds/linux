@@ -3,7 +3,9 @@
 # Makefile for the PowerPC 85xx linux kernel.
 #
 obj-$(CONFIG_SMP) += smp.o
-obj-$(CONFIG_FSL_PMC)		  += mpc85xx_pm_ops.o
+ifneq ($(CONFIG_FSL_CORENET_RCPM),y)
+obj-$(CONFIG_SMP) += mpc85xx_pm_ops.o
+endif
 
 obj-y += common.o
 

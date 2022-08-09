@@ -2002,7 +2002,7 @@ static void run_tests(struct test_sockmap_listen *skel, struct bpf_map *map,
 	test_udp_unix_redir(skel, map, family);
 }
 
-void test_sockmap_listen(void)
+void serial_test_sockmap_listen(void)
 {
 	struct test_sockmap_listen *skel;
 

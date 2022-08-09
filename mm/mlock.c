@@ -271,6 +271,7 @@ static void __munlock_pagevec(struct pagevec *pvec, struct zone *zone)
 	/* Phase 1: page isolation */
 	for (i = 0; i < nr; i++) {
 		struct page *page = pvec->pages[i];
+		struct folio *folio = page_folio(page);
 
 		if (TestClearPageMlocked(page)) {
 			/*
@@ -278,7 +279,7 @@ static void __munlock_pagevec(struct pagevec *pvec, struct zone *zone)
 			 * so we can spare the get_page() here.
 			 */
 			if (TestClearPageLRU(page)) {
-				lruvec = relock_page_lruvec_irq(page, lruvec);
+				lruvec = folio_lruvec_relock_irq(folio, lruvec);
 				del_page_from_lru_list(page, lruvec);
 				continue;
 			} else

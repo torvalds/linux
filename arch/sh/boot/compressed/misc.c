@@ -115,6 +115,9 @@ void __stack_chk_fail(void)
 void ftrace_stub(void)
 {
 }
+void arch_ftrace_ops_list_func(void)
+{
+}
 
 #define stackalign	4
 

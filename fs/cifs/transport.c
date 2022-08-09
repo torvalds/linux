@@ -1044,14 +1044,17 @@ struct TCP_Server_Info *cifs_pick_channel(struct cifs_ses *ses)
 	if (!ses)
 		return NULL;
 
+	spin_lock(&ses->chan_lock);
 	if (!ses->binding) {
 		/* round robin */
 		if (ses->chan_count > 1) {
 			index = (uint)atomic_inc_return(&ses->chan_seq);
 			index %= ses->chan_count;
 		}
+		spin_unlock(&ses->chan_lock);
 		return ses->chans[index].server;
 	} else {
+		spin_unlock(&ses->chan_lock);
 		return cifs_ses_server(ses);
 	}
 }

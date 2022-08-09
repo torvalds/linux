@@ -338,23 +338,16 @@ static void dw8250_set_termios(struct uart_port *p, struct ktermios *termios,
 	rate = clk_round_rate(d->clk, newrate);
 	if (rate > 0) {
 		/*
-		 * Premilinary set the uartclk to the new clock rate so the
-		 * clock update event handler caused by the clk_set_rate()
-		 * calling wouldn't actually update the UART divisor since
-		 * we about to do this anyway.
+		 * Note that any clock-notifer worker will block in
+		 * serial8250_update_uartclk() until we are done.
 		 */
-		swap(p->uartclk, rate);
 		ret = clk_set_rate(d->clk, newrate);
-		if (ret)
-			swap(p->uartclk, rate);
+		if (!ret)
+			p->uartclk = rate;
 	}
 	clk_prepare_enable(d->clk);
 
-	p->status &= ~UPSTAT_AUTOCTS;
-	if (termios->c_cflag & CRTSCTS)
-		p->status |= UPSTAT_AUTOCTS;
-
-	serial8250_do_set_termios(p, termios, old);
+	dw8250_do_set_termios(p, termios, old);
 }
 
 static void dw8250_set_ldisc(struct uart_port *p, struct ktermios *termios)
@@ -393,8 +386,9 @@ static bool dw8250_idma_filter(struct dma_chan *chan, void *param)
 
 static void dw8250_quirks(struct uart_port *p, struct dw8250_data *data)
 {
-	if (p->dev->of_node) {
-		struct device_node *np = p->dev->of_node;
+	struct device_node *np = p->dev->of_node;
+
+	if (np) {
 		int id;
 
 		/* get index of serial line, if found in DT aliases */
@@ -411,11 +405,13 @@ static void dw8250_quirks(struct uart_port *p, struct dw8250_data *data)
 			data->skip_autocfg = true;
 		}
 #endif
-		if (of_device_is_big_endian(p->dev->of_node)) {
+
+		if (of_device_is_big_endian(np)) {
 			p->iotype = UPIO_MEM32BE;
 			p->serial_in = dw8250_serial_in32be;
 			p->serial_out = dw8250_serial_out32be;
 		}
+
 		if (of_device_is_compatible(np, "marvell,armada-38x-uart"))
 			p->serial_out = dw8250_serial_out38x;
 
@@ -726,7 +722,7 @@ static struct platform_driver dw8250_platform_driver = {
 		.name		= "dw-apb-uart",
 		.pm		= &dw8250_pm_ops,
 		.of_match_table	= dw8250_of_match,
-		.acpi_match_table = ACPI_PTR(dw8250_acpi_match),
+		.acpi_match_table = dw8250_acpi_match,
 	},
 	.probe			= dw8250_probe,
 	.remove			= dw8250_remove,

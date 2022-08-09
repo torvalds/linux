@@ -13,7 +13,7 @@ struct inner {
 struct {
 	__uint(type, BPF_MAP_TYPE_ARRAY_OF_MAPS);
 	__uint(max_entries, 0); /* This will make map creation to fail */
-	__uint(key_size, sizeof(__u32));
+	__type(key, __u32);
 	__array(values, struct inner);
 } mim SEC(".maps");
 

@@ -14,7 +14,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/of_platform.h>
-#include <linux/of_gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
@@ -482,29 +482,12 @@ static void at91_usart_spi_init(struct at91_usart_spi *aus)
 
 static int at91_usart_gpio_setup(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.parent->of_node;
-	int i;
-	int ret;
-	int nb;
+	struct gpio_descs *cs_gpios;
 
-	if (!np)
-		return -EINVAL;
+	cs_gpios = devm_gpiod_get_array_optional(&pdev->dev, "cs", GPIOD_OUT_LOW);
 
-	nb = of_gpio_named_count(np, "cs-gpios");
-	for (i = 0; i < nb; i++) {
-		int cs_gpio = of_get_named_gpio(np, "cs-gpios", i);
-
-		if (cs_gpio < 0)
-			return cs_gpio;
-
-		if (gpio_is_valid(cs_gpio)) {
-			ret = devm_gpio_request_one(&pdev->dev, cs_gpio,
-						    GPIOF_DIR_OUT,
-						    dev_name(&pdev->dev));
-			if (ret)
-				return ret;
-		}
-	}
+	if (IS_ERR(cs_gpios))
+		return PTR_ERR(cs_gpios);
 
 	return 0;
 }

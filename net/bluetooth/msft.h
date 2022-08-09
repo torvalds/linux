@@ -13,6 +13,8 @@
 #if IS_ENABLED(CONFIG_BT_MSFTEXT)
 
 bool msft_monitor_supported(struct hci_dev *hdev);
+void msft_register(struct hci_dev *hdev);
+void msft_unregister(struct hci_dev *hdev);
 void msft_do_open(struct hci_dev *hdev);
 void msft_do_close(struct hci_dev *hdev);
 void msft_vendor_evt(struct hci_dev *hdev, struct sk_buff *skb);
@@ -22,6 +24,8 @@ int msft_remove_monitor(struct hci_dev *hdev, struct adv_monitor *monitor,
 			u16 handle);
 void msft_req_add_set_filter_enable(struct hci_request *req, bool enable);
 int msft_set_filter_enable(struct hci_dev *hdev, bool enable);
+void msft_suspend(struct hci_dev *hdev);
+void msft_resume(struct hci_dev *hdev);
 bool msft_curve_validity(struct hci_dev *hdev);
 
 #else
@@ -31,6 +35,8 @@ static inline bool msft_monitor_supported(struct hci_dev *hdev)
 	return false;
 }
 
+static inline void msft_register(struct hci_dev *hdev) {}
+static inline void msft_unregister(struct hci_dev *hdev) {}
 static inline void msft_do_open(struct hci_dev *hdev) {}
 static inline void msft_do_close(struct hci_dev *hdev) {}
 static inline void msft_vendor_evt(struct hci_dev *hdev, struct sk_buff *skb) {}
@@ -54,6 +60,9 @@ static inline int msft_set_filter_enable(struct hci_dev *hdev, bool enable)
 {
 	return -EOPNOTSUPP;
 }
+
+static inline void msft_suspend(struct hci_dev *hdev) {}
+static inline void msft_resume(struct hci_dev *hdev) {}
 
 static inline bool msft_curve_validity(struct hci_dev *hdev)
 {

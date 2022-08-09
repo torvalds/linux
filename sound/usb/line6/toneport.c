@@ -128,7 +128,7 @@ static int toneport_send_cmd(struct usb_device *usbdev, int cmd1, int cmd2)
 
 	ret = usb_control_msg_send(usbdev, 0, 0x67,
 				   USB_TYPE_VENDOR | USB_RECIP_DEVICE | USB_DIR_OUT,
-				   cmd1, cmd2, NULL, 0, LINE6_TIMEOUT * HZ,
+				   cmd1, cmd2, NULL, 0, LINE6_TIMEOUT,
 				   GFP_KERNEL);
 
 	if (ret) {

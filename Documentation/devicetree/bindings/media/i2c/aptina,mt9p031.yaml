@@ -1,0 +1,108 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/media/i2c/aptina,mt9p031.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Aptina 1/2.5-Inch 5Mp CMOS Digital Image Sensor
+
+maintainers:
+  - Laurent Pinchart <laurent.pinchart@ideasonboard.com>
+
+description: |
+  The Aptina MT9P031 is a 1/2.5-inch CMOS active pixel digital image sensor
+  with an active array size of 2592H x 1944V. It is programmable through a
+  simple two-wire serial interface.
+
+properties:
+  compatible:
+    enum:
+      - aptina,mt9p031
+      - aptina,mt9p031m
+
+  reg:
+    description: I2C device address
+    maxItems: 1
+
+  clocks:
+    maxItems: 1
+
+  vdd-supply:
+    description: Digital supply voltage, 1.8 V
+
+  vdd_io-supply:
+    description: I/O supply voltage, 1.8 or 2.8 V
+
+  vaa-supply:
+    description: Analog supply voltage, 2.8 V
+
+  reset-gpios:
+    maxItems: 1
+    description: Chip reset GPIO
+
+  port:
+    $ref: /schemas/graph.yaml#/$defs/port-base
+    additionalProperties: false
+
+    properties:
+      endpoint:
+        $ref: /schemas/media/video-interfaces.yaml#
+        unevaluatedProperties: false
+
+        properties:
+          input-clock-frequency:
+            $ref: /schemas/types.yaml#/definitions/uint32
+            minimum: 6000000
+            maximum: 96000000
+            description: Input clock frequency
+
+          pixel-clock-frequency:
+            $ref: /schemas/types.yaml#/definitions/uint32
+            maximum: 96000000
+            description: Target pixel clock frequency
+
+          pclk-sample:
+            default: 0
+
+        required:
+          - input-clock-frequency
+          - pixel-clock-frequency
+
+required:
+  - compatible
+  - reg
+  - clocks
+  - vdd-supply
+  - vdd_io-supply
+  - vaa-supply
+  - port
+
+additionalProperties: false
+
+examples:
+  - |
+    i2c0 {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        mt9p031@5d {
+            compatible = "aptina,mt9p031";
+            reg = <0x5d>;
+            reset-gpios = <&gpio_sensor 0 0>;
+
+            clocks = <&sensor_clk>;
+
+            vdd-supply = <&reg_vdd>;
+            vdd_io-supply = <&reg_vdd_io>;
+            vaa-supply = <&reg_vaa>;
+
+            port {
+                mt9p031_1: endpoint {
+                    input-clock-frequency = <6000000>;
+                    pixel-clock-frequency = <96000000>;
+                };
+            };
+        };
+    };
+
+...

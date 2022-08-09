@@ -32,12 +32,12 @@
 #define VI6_STATUS_SYS_ACT(n)		BIT((n) + 8)
 
 #define VI6_WPF_IRQ_ENB(n)		(0x0048 + (n) * 12)
-#define VI6_WFP_IRQ_ENB_DFEE		BIT(1)
-#define VI6_WFP_IRQ_ENB_FREE		BIT(0)
+#define VI6_WPF_IRQ_ENB_DFEE		BIT(1)
+#define VI6_WPF_IRQ_ENB_FREE		BIT(0)
 
 #define VI6_WPF_IRQ_STA(n)		(0x004c + (n) * 12)
-#define VI6_WFP_IRQ_STA_DFE		BIT(1)
-#define VI6_WFP_IRQ_STA_FRE		BIT(0)
+#define VI6_WPF_IRQ_STA_DFE		BIT(1)
+#define VI6_WPF_IRQ_STA_FRE		BIT(0)
 
 #define VI6_DISP_IRQ_ENB(n)		(0x0078 + (n) * 60)
 #define VI6_DISP_IRQ_ENB_DSTE		BIT(8)
@@ -766,6 +766,8 @@
 #define VI6_IP_VERSION_MODEL_VSPD_V3	(0x18 << 8)
 #define VI6_IP_VERSION_MODEL_VSPDL_GEN3	(0x19 << 8)
 #define VI6_IP_VERSION_MODEL_VSPBS_GEN3	(0x1a << 8)
+#define VI6_IP_VERSION_MODEL_VSPD_V3U	(0x1c << 8)
+
 #define VI6_IP_VERSION_SOC_MASK		(0xff << 0)
 #define VI6_IP_VERSION_SOC_H2		(0x01 << 0)
 #define VI6_IP_VERSION_SOC_V2H		(0x01 << 0)
@@ -777,6 +779,7 @@
 #define VI6_IP_VERSION_SOC_D3		(0x04 << 0)
 #define VI6_IP_VERSION_SOC_M3N		(0x04 << 0)
 #define VI6_IP_VERSION_SOC_E3		(0x04 << 0)
+#define VI6_IP_VERSION_SOC_V3U		(0x05 << 0)
 
 /* -----------------------------------------------------------------------------
  * RPF CLUT Registers

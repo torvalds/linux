@@ -165,7 +165,7 @@ static int ms_write_bytes(struct rtsx_chip *chip,
 	struct ms_info *ms_card = &chip->ms_card;
 	int retval, i;
 
-	if (!data || (data_len < cnt))
+	if (!data || data_len < cnt)
 		return STATUS_ERROR;
 
 	rtsx_init_cmd(chip);
@@ -290,7 +290,7 @@ static int ms_read_bytes(struct rtsx_chip *chip,
 	for (i = 0; i < data_len; i++)
 		data[i] = ptr[i];
 
-	if ((tpc == PRO_READ_SHORT_DATA) && (data_len == 8)) {
+	if (tpc == PRO_READ_SHORT_DATA && data_len == 8) {
 		dev_dbg(rtsx_dev(chip), "Read format progress:\n");
 		print_hex_dump_bytes(KBUILD_MODNAME ": ", DUMP_PREFIX_NONE, ptr,
 				     cnt);
@@ -964,13 +964,13 @@ static int ms_read_attribute_info(struct rtsx_chip *chip)
 		i++;
 	} while (i < 1024);
 
-	if ((buf[0] != 0xa5) && (buf[1] != 0xc3)) {
+	if (buf[0] != 0xa5 && buf[1] != 0xc3) {
 		/* Signature code is wrong */
 		kfree(buf);
 		return STATUS_FAIL;
 	}
 
-	if ((buf[4] < 1) || (buf[4] > 12)) {
+	if (buf[4] < 1 || buf[4] > 12) {
 		kfree(buf);
 		return STATUS_FAIL;
 	}
@@ -979,8 +979,8 @@ static int ms_read_attribute_info(struct rtsx_chip *chip)
 		int cur_addr_off = 16 + i * 12;
 
 #ifdef SUPPORT_MSXC
-		if ((buf[cur_addr_off + 8] == 0x10) ||
-		    (buf[cur_addr_off + 8] == 0x13)) {
+		if (buf[cur_addr_off + 8] == 0x10 ||
+		    buf[cur_addr_off + 8] == 0x13) {
 #else
 		if (buf[cur_addr_off + 8] == 0x10) {
 #endif
@@ -1109,8 +1109,8 @@ static int ms_read_attribute_info(struct rtsx_chip *chip)
 #endif
 
 	if (device_type != 0x00) {
-		if ((device_type == 0x01) || (device_type == 0x02) ||
-		    (device_type == 0x03)) {
+		if (device_type == 0x01 || device_type == 0x02 ||
+		    device_type == 0x03) {
 			chip->card_wp |= MS_CARD;
 		} else {
 			return STATUS_FAIL;
@@ -1336,7 +1336,7 @@ static int ms_write_extra_data(struct rtsx_chip *chip, u16 block_addr,
 	int retval, i;
 	u8 val, data[16];
 
-	if (!buf || (buf_len < MS_EXTRA_SIZE))
+	if (!buf || buf_len < MS_EXTRA_SIZE)
 		return STATUS_FAIL;
 
 	retval = ms_set_rw_reg_addr(chip, OVERWRITE_FLAG, MS_EXTRA_SIZE,
@@ -1574,7 +1574,7 @@ ERASE_RTY:
 
 static void ms_set_page_status(u16 log_blk, u8 type, u8 *extra, int extra_len)
 {
-	if (!extra || (extra_len < MS_EXTRA_SIZE))
+	if (!extra || extra_len < MS_EXTRA_SIZE)
 		return;
 
 	memset(extra, 0xFF, MS_EXTRA_SIZE);
@@ -2008,7 +2008,7 @@ RE_SEARCH:
 		goto RE_SEARCH;
 	}
 
-	if ((ptr[14] == 1) || (ptr[14] == 3))
+	if (ptr[14] == 1 || ptr[14] == 3)
 		chip->card_wp |= MS_CARD;
 
 	/* BLOCK_SIZE_0, BLOCK_SIZE_1 */
@@ -2378,8 +2378,8 @@ static int ms_build_l2p_tbl(struct rtsx_chip *chip, int seg_no)
 			continue;
 		}
 
-		if ((log_blk < ms_start_idx[seg_no]) ||
-		    (log_blk >= ms_start_idx[seg_no + 1])) {
+		if (log_blk < ms_start_idx[seg_no] ||
+		    log_blk >= ms_start_idx[seg_no + 1]) {
 			if (!(chip->card_wp & MS_CARD)) {
 				retval = ms_erase_block(chip, phy_blk);
 				if (retval != STATUS_SUCCESS)
@@ -2662,7 +2662,7 @@ static int mspro_rw_multi_sector(struct scsi_cmnd *srb,
 		return retval;
 
 	if (ms_card->seq_mode) {
-		if ((ms_card->pre_dir != srb->sc_data_direction) ||
+		if (ms_card->pre_dir != srb->sc_data_direction ||
 		    ((ms_card->pre_sec_addr + ms_card->pre_sec_cnt) !=
 		     start_sector) ||
 		    (mode_2k && (ms_card->seq_mode & MODE_512_SEQ)) ||
@@ -3294,8 +3294,8 @@ static int ms_write_multiple_pages(struct rtsx_chip *chip, u16 old_blk,
 					return STATUS_FAIL;
 			}
 
-			if ((page_addr == (end_page - 1)) ||
-			    (page_addr == ms_card->page_off)) {
+			if (page_addr == (end_page - 1) ||
+			    page_addr == ms_card->page_off) {
 				if (!(val & INT_REG_CED)) {
 					ms_set_err_code(chip,
 							MS_FLASH_WRITE_ERROR);
@@ -3434,8 +3434,8 @@ static int ms_rw_multi_sector(struct scsi_cmnd *srb, struct rtsx_chip *chip,
 	if (srb->sc_data_direction == DMA_TO_DEVICE) {
 #ifdef MS_DELAY_WRITE
 		if (delay_write->delay_write_flag &&
-		    (delay_write->logblock == log_blk) &&
-		    (start_page > delay_write->pageoff)) {
+		    delay_write->logblock == log_blk &&
+		    start_page > delay_write->pageoff) {
 			delay_write->delay_write_flag = 0;
 			retval = ms_copy_page(chip,
 					      delay_write->old_phyblock,
@@ -3467,7 +3467,7 @@ static int ms_rw_multi_sector(struct scsi_cmnd *srb, struct rtsx_chip *chip,
 					(chip, seg_no,
 					 log_blk - ms_start_idx[seg_no]);
 			new_blk  = ms_get_unused_block(chip, seg_no);
-			if ((old_blk == 0xFFFF) || (new_blk == 0xFFFF)) {
+			if (old_blk == 0xFFFF || new_blk == 0xFFFF) {
 				set_sense_type(chip, lun,
 					       SENSE_TYPE_MEDIA_WRITE_ERR);
 				return STATUS_FAIL;
@@ -4179,7 +4179,7 @@ int mg_set_ICV(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 
 		retval = rtsx_transfer_data(chip, MS_CARD, buf + 4 + i * 512,
 					    512, 0, DMA_TO_DEVICE, 3000);
-		if ((retval < 0) || check_ms_err(chip)) {
+		if (retval < 0 || check_ms_err(chip)) {
 			rtsx_clear_ms_error(chip);
 			if (ms_card->mg_auth == 0) {
 				if ((buf[5] & 0xC0) != 0)
@@ -4200,7 +4200,7 @@ int mg_set_ICV(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 #else
 	retval = ms_transfer_data(chip, MS_TM_AUTO_WRITE, PRO_WRITE_LONG_DATA,
 				  2, WAIT_INT, 0, 0, buf + 4, 1024);
-	if ((retval != STATUS_SUCCESS) || check_ms_err(chip)) {
+	if (retval != STATUS_SUCCESS || check_ms_err(chip)) {
 		rtsx_clear_ms_error(chip);
 		if (ms_card->mg_auth == 0) {
 			if ((buf[5] & 0xC0) != 0)

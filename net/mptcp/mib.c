@@ -72,6 +72,7 @@ bool mptcp_mib_alloc(struct net *net)
 
 void mptcp_seq_show(struct seq_file *seq)
 {
+	unsigned long sum[ARRAY_SIZE(mptcp_snmp_list) - 1];
 	struct net *net = seq->private;
 	int i;
 
@@ -81,17 +82,13 @@ void mptcp_seq_show(struct seq_file *seq)
 
 	seq_puts(seq, "\nMPTcpExt:");
 
-	if (!net->mib.mptcp_statistics) {
-		for (i = 0; mptcp_snmp_list[i].name; i++)
-			seq_puts(seq, " 0");
-
-		seq_putc(seq, '\n');
-		return;
-	}
+	memset(sum, 0, sizeof(sum));
+	if (net->mib.mptcp_statistics)
+		snmp_get_cpu_field_batch(sum, mptcp_snmp_list,
+					 net->mib.mptcp_statistics);
 
 	for (i = 0; mptcp_snmp_list[i].name; i++)
-		seq_printf(seq, " %lu",
-			   snmp_fold_field(net->mib.mptcp_statistics,
-					   mptcp_snmp_list[i].entry));
+		seq_printf(seq, " %lu", sum[i]);
+
 	seq_putc(seq, '\n');
 }

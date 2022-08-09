@@ -168,9 +168,9 @@ alternative_else_nop_endif
 
 	.macro mte_set_kernel_gcr, tmp, tmp2
 #ifdef CONFIG_KASAN_HW_TAGS
-alternative_if_not ARM64_MTE
+alternative_cb	kasan_hw_tags_enable
 	b	1f
-alternative_else_nop_endif
+alternative_cb_end
 	mov	\tmp, KERNEL_GCR_EL1
 	msr_s	SYS_GCR_EL1, \tmp
 1:
@@ -178,10 +178,10 @@ alternative_else_nop_endif
 	.endm
 
 	.macro mte_set_user_gcr, tsk, tmp, tmp2
-#ifdef CONFIG_ARM64_MTE
-alternative_if_not ARM64_MTE
+#ifdef CONFIG_KASAN_HW_TAGS
+alternative_cb	kasan_hw_tags_enable
 	b	1f
-alternative_else_nop_endif
+alternative_cb_end
 	ldr	\tmp, [\tsk, #THREAD_MTE_CTRL]
 
 	mte_set_gcr \tmp, \tmp2

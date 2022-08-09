@@ -11,6 +11,7 @@
 / {
 	model = "Sony Xperia XA2 Plus";
 	compatible = "sony,voyager-row", "qcom,sdm630";
+	chassis-type = "handset";
 
 	chosen {
 		framebuffer@9d400000 {

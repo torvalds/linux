@@ -46,7 +46,7 @@ static int __init early_init_dt_alloc_reserved_memory_arch(phys_addr_t size,
 	if (nomap) {
 		err = memblock_mark_nomap(base, size);
 		if (err)
-			memblock_free(base, size);
+			memblock_phys_free(base, size);
 		kmemleak_ignore_phys(base);
 	}
 
@@ -284,7 +284,8 @@ void __init fdt_init_reserved_mem(void)
 				if (nomap)
 					memblock_clear_nomap(rmem->base, rmem->size);
 				else
-					memblock_free(rmem->base, rmem->size);
+					memblock_phys_free(rmem->base,
+							   rmem->size);
 			}
 		}
 	}

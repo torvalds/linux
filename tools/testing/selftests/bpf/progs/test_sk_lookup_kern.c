@@ -15,7 +15,6 @@
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_endian.h>
 
-int _version SEC("version") = 1;
 char _license[] SEC("license") = "GPL";
 
 /* Fill 'tuple' with L3 info, and attempt to find L4. On fail, return NULL. */
@@ -53,8 +52,8 @@ static struct bpf_sock_tuple *get_tuple(void *data, __u64 nh_off,
 	return result;
 }
 
-SEC("classifier/sk_lookup_success")
-int bpf_sk_lookup_test0(struct __sk_buff *skb)
+SEC("tc")
+int sk_lookup_success(struct __sk_buff *skb)
 {
 	void *data_end = (void *)(long)skb->data_end;
 	void *data = (void *)(long)skb->data;
@@ -79,8 +78,8 @@ int bpf_sk_lookup_test0(struct __sk_buff *skb)
 	return sk ? TC_ACT_OK : TC_ACT_UNSPEC;
 }
 
-SEC("classifier/sk_lookup_success_simple")
-int bpf_sk_lookup_test1(struct __sk_buff *skb)
+SEC("tc")
+int sk_lookup_success_simple(struct __sk_buff *skb)
 {
 	struct bpf_sock_tuple tuple = {};
 	struct bpf_sock *sk;
@@ -91,8 +90,8 @@ int bpf_sk_lookup_test1(struct __sk_buff *skb)
 	return 0;
 }
 
-SEC("classifier/err_use_after_free")
-int bpf_sk_lookup_uaf(struct __sk_buff *skb)
+SEC("tc")
+int err_use_after_free(struct __sk_buff *skb)
 {
 	struct bpf_sock_tuple tuple = {};
 	struct bpf_sock *sk;
@@ -106,8 +105,8 @@ int bpf_sk_lookup_uaf(struct __sk_buff *skb)
 	return family;
 }
 
-SEC("classifier/err_modify_sk_pointer")
-int bpf_sk_lookup_modptr(struct __sk_buff *skb)
+SEC("tc")
+int err_modify_sk_pointer(struct __sk_buff *skb)
 {
 	struct bpf_sock_tuple tuple = {};
 	struct bpf_sock *sk;
@@ -121,8 +120,8 @@ int bpf_sk_lookup_modptr(struct __sk_buff *skb)
 	return 0;
 }
 
-SEC("classifier/err_modify_sk_or_null_pointer")
-int bpf_sk_lookup_modptr_or_null(struct __sk_buff *skb)
+SEC("tc")
+int err_modify_sk_or_null_pointer(struct __sk_buff *skb)
 {
 	struct bpf_sock_tuple tuple = {};
 	struct bpf_sock *sk;
@@ -135,8 +134,8 @@ int bpf_sk_lookup_modptr_or_null(struct __sk_buff *skb)
 	return 0;
 }
 
-SEC("classifier/err_no_release")
-int bpf_sk_lookup_test2(struct __sk_buff *skb)
+SEC("tc")
+int err_no_release(struct __sk_buff *skb)
 {
 	struct bpf_sock_tuple tuple = {};
 
@@ -144,8 +143,8 @@ int bpf_sk_lookup_test2(struct __sk_buff *skb)
 	return 0;
 }
 
-SEC("classifier/err_release_twice")
-int bpf_sk_lookup_test3(struct __sk_buff *skb)
+SEC("tc")
+int err_release_twice(struct __sk_buff *skb)
 {
 	struct bpf_sock_tuple tuple = {};
 	struct bpf_sock *sk;
@@ -156,8 +155,8 @@ int bpf_sk_lookup_test3(struct __sk_buff *skb)
 	return 0;
 }
 
-SEC("classifier/err_release_unchecked")
-int bpf_sk_lookup_test4(struct __sk_buff *skb)
+SEC("tc")
+int err_release_unchecked(struct __sk_buff *skb)
 {
 	struct bpf_sock_tuple tuple = {};
 	struct bpf_sock *sk;
@@ -173,8 +172,8 @@ void lookup_no_release(struct __sk_buff *skb)
 	bpf_sk_lookup_tcp(skb, &tuple, sizeof(tuple), BPF_F_CURRENT_NETNS, 0);
 }
 
-SEC("classifier/err_no_release_subcall")
-int bpf_sk_lookup_test5(struct __sk_buff *skb)
+SEC("tc")
+int err_no_release_subcall(struct __sk_buff *skb)
 {
 	lookup_no_release(skb);
 	return 0;

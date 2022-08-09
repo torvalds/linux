@@ -42,7 +42,7 @@
 # "select FW_LOADER" [0], in the end the simple alternative solution to this
 # problem consisted on matching semantics with newly introduced features.
 #
-# [0] https://lkml.kernel.org/r/1432241149-8762-1-git-send-email-mcgrof@do-not-panic.com
+# [0] https://lore.kernel.org/r/1432241149-8762-1-git-send-email-mcgrof@do-not-panic.com
 
 mainmenu "Simple example to demo cumulative kconfig recursive dependency implication"
 

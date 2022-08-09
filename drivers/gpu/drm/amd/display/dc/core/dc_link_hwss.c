@@ -17,6 +17,7 @@
 #include "link_enc_cfg.h"
 #include "clk_mgr.h"
 #include "inc/link_dpcd.h"
+#include "dccg.h"
 
 static uint8_t convert_to_count(uint8_t lttpr_repeater_count)
 {
@@ -61,6 +62,13 @@ void dp_receiver_power_ctrl(struct dc_link *link, bool on)
 			sizeof(state));
 }
 
+void dp_source_sequence_trace(struct dc_link *link, uint8_t dp_test_mode)
+{
+	if (link != NULL && link->dc->debug.enable_driver_sequence_debug)
+		core_link_write_dpcd(link, DP_SOURCE_SEQUENCE,
+					&dp_test_mode, sizeof(dp_test_mode));
+}
+
 void dp_enable_link_phy(
 	struct dc_link *link,
 	enum signal_type signal,
@@ -79,7 +87,7 @@ void dp_enable_link_phy(
 
 	/* Link should always be assigned encoder when en-/disabling. */
 	if (link->is_dig_mapping_flexible && dc->res_pool->funcs->link_encs_assign)
-		link_enc = link_enc_cfg_get_link_enc_used_by_link(link->dc->current_state, link);
+		link_enc = link_enc_cfg_get_link_enc_used_by_link(dc, link);
 	else
 		link_enc = link->link_enc;
 	ASSERT(link_enc);
@@ -111,12 +119,37 @@ void dp_enable_link_phy(
 
 	link->cur_link_settings = *link_settings;
 
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+	if (dp_get_link_encoding_format(link_settings) == DP_128b_132b_ENCODING) {
+		/* TODO - DP2.0 HW: notify link rate change here */
+	} else if (dp_get_link_encoding_format(link_settings) == DP_8b_10b_ENCODING) {
+		if (dc->clk_mgr->funcs->notify_link_rate_change)
+			dc->clk_mgr->funcs->notify_link_rate_change(dc->clk_mgr, link);
+	}
+#else
 	if (dc->clk_mgr->funcs->notify_link_rate_change)
 		dc->clk_mgr->funcs->notify_link_rate_change(dc->clk_mgr, link);
-
+#endif
 	if (dmcu != NULL && dmcu->funcs->lock_phy)
 		dmcu->funcs->lock_phy(dmcu);
 
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+	if (dp_get_link_encoding_format(link_settings) == DP_128b_132b_ENCODING) {
+		enable_dp_hpo_output(link, link_settings);
+	} else if (dp_get_link_encoding_format(link_settings) == DP_8b_10b_ENCODING) {
+		if (dc_is_dp_sst_signal(signal)) {
+			link_enc->funcs->enable_dp_output(
+							link_enc,
+							link_settings,
+							clock_source);
+		} else {
+			link_enc->funcs->enable_dp_mst_output(
+							link_enc,
+							link_settings,
+							clock_source);
+		}
+	}
+#else
 	if (dc_is_dp_sst_signal(signal)) {
 		link_enc->funcs->enable_dp_output(
 						link_enc,
@@ -128,10 +161,11 @@ void dp_enable_link_phy(
 						link_settings,
 						clock_source);
 	}
-
+#endif
 	if (dmcu != NULL && dmcu->funcs->unlock_phy)
 		dmcu->funcs->unlock_phy(dmcu);
 
+	dp_source_sequence_trace(link, DPCD_SOURCE_SEQ_AFTER_ENABLE_LINK_PHY);
 	dp_receiver_power_ctrl(link, true);
 }
 
@@ -206,11 +240,14 @@ void dp_disable_link_phy(struct dc_link *link, enum signal_type signal)
 {
 	struct dc  *dc = link->ctx->dc;
 	struct dmcu *dmcu = dc->res_pool->dmcu;
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+	struct hpo_dp_link_encoder *hpo_link_enc = link->hpo_dp_link_enc;
+#endif
 	struct link_encoder *link_enc;
 
 	/* Link should always be assigned encoder when en-/disabling. */
 	if (link->is_dig_mapping_flexible && dc->res_pool->funcs->link_encs_assign)
-		link_enc = link_enc_cfg_get_link_enc_used_by_link(link->dc->current_state, link);
+		link_enc = link_enc_cfg_get_link_enc_used_by_link(dc, link);
 	else
 		link_enc = link->link_enc;
 	ASSERT(link_enc);
@@ -221,17 +258,33 @@ void dp_disable_link_phy(struct dc_link *link, enum signal_type signal)
 	if (signal == SIGNAL_TYPE_EDP) {
 		if (link->dc->hwss.edp_backlight_control)
 			link->dc->hwss.edp_backlight_control(link, false);
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+		if (dp_get_link_encoding_format(&link->cur_link_settings) == DP_128b_132b_ENCODING)
+			disable_dp_hpo_output(link, signal);
+		else
+			link_enc->funcs->disable_output(link_enc, signal);
+#else
 		link_enc->funcs->disable_output(link_enc, signal);
+#endif
 		link->dc->hwss.edp_power_control(link, false);
 	} else {
 		if (dmcu != NULL && dmcu->funcs->lock_phy)
 			dmcu->funcs->lock_phy(dmcu);
 
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+		if (dp_get_link_encoding_format(&link->cur_link_settings) == DP_128b_132b_ENCODING &&
+				hpo_link_enc)
+			disable_dp_hpo_output(link, signal);
+		else
+			link_enc->funcs->disable_output(link_enc, signal);
+#else
 		link_enc->funcs->disable_output(link_enc, signal);
-
+#endif
 		if (dmcu != NULL && dmcu->funcs->unlock_phy)
 			dmcu->funcs->unlock_phy(dmcu);
 	}
+
+	dp_source_sequence_trace(link, DPCD_SOURCE_SEQ_AFTER_DISABLE_LINK_PHY);
 
 	/* Clear current link setting.*/
 	memset(&link->cur_link_settings, 0,
@@ -273,6 +326,14 @@ bool dp_set_hw_training_pattern(
 	case DP_TRAINING_PATTERN_SEQUENCE_4:
 		test_pattern = DP_TEST_PATTERN_TRAINING_PATTERN4;
 		break;
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+	case DP_128b_132b_TPS1:
+		test_pattern = DP_TEST_PATTERN_128b_132b_TPS1_TRAINING_MODE;
+		break;
+	case DP_128b_132b_TPS2:
+		test_pattern = DP_TEST_PATTERN_128b_132b_TPS2_TRAINING_MODE;
+		break;
+#endif
 	default:
 		break;
 	}
@@ -282,6 +343,10 @@ bool dp_set_hw_training_pattern(
 	return true;
 }
 
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+#define DC_LOGGER \
+	link->ctx->logger
+#endif
 void dp_set_hw_lane_settings(
 	struct dc_link *link,
 	const struct link_training_settings *link_settings,
@@ -293,7 +358,23 @@ void dp_set_hw_lane_settings(
 		return;
 
 	/* call Encoder to set lane settings */
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+	if (dp_get_link_encoding_format(&link_settings->link_settings) ==
+			DP_128b_132b_ENCODING) {
+		link->hpo_dp_link_enc->funcs->set_ffe(
+				link->hpo_dp_link_enc,
+				&link_settings->link_settings,
+				link_settings->lane_settings[0].FFE_PRESET.raw);
+	} else if (dp_get_link_encoding_format(&link_settings->link_settings)
+			== DP_8b_10b_ENCODING) {
+		encoder->funcs->dp_set_lane_settings(encoder, link_settings);
+	}
+#else
 	encoder->funcs->dp_set_lane_settings(encoder, link_settings);
+#endif
+	memmove(link->cur_lane_setting,
+			link_settings->lane_settings,
+			sizeof(link->cur_lane_setting));
 }
 
 void dp_set_hw_test_pattern(
@@ -304,13 +385,16 @@ void dp_set_hw_test_pattern(
 {
 	struct encoder_set_dp_phy_pattern_param pattern_param = {0};
 	struct link_encoder *encoder;
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+	enum dp_link_encoding link_encoding_format = dp_get_link_encoding_format(&link->cur_link_settings);
+#endif
 
 	/* Access link encoder based on whether it is statically
 	 * or dynamically assigned to a link.
 	 */
 	if (link->is_dig_mapping_flexible &&
 			link->dc->res_pool->funcs->link_encs_assign)
-		encoder = link_enc_cfg_get_link_enc_used_by_link(link->dc->current_state, link);
+		encoder = link_enc_cfg_get_link_enc_used_by_link(link->ctx->dc, link);
 	else
 		encoder = link->link_enc;
 
@@ -319,8 +403,28 @@ void dp_set_hw_test_pattern(
 	pattern_param.custom_pattern_size = custom_pattern_size;
 	pattern_param.dp_panel_mode = dp_get_panel_mode(link);
 
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+	switch (link_encoding_format) {
+	case DP_128b_132b_ENCODING:
+		link->hpo_dp_link_enc->funcs->set_link_test_pattern(
+				link->hpo_dp_link_enc, &pattern_param);
+		break;
+	case DP_8b_10b_ENCODING:
+		ASSERT(encoder);
+		encoder->funcs->dp_set_phy_pattern(encoder, &pattern_param);
+		break;
+	default:
+		DC_LOG_ERROR("%s: Unknown link encoding format.", __func__);
+		break;
+	}
+#else
 	encoder->funcs->dp_set_phy_pattern(encoder, &pattern_param);
+#endif
+	dp_source_sequence_trace(link, DPCD_SOURCE_SEQ_AFTER_SET_SOURCE_PATTERN);
 }
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+#undef DC_LOGGER
+#endif
 
 void dp_retrain_link_dp_test(struct dc_link *link,
 			struct dc_link_settings *link_setting,
@@ -338,7 +442,7 @@ void dp_retrain_link_dp_test(struct dc_link *link,
 			pipes[i].stream->link == link) {
 			udelay(100);
 
-			pipes[i].stream_res.stream_enc->funcs->dp_blank(
+			pipes[i].stream_res.stream_enc->funcs->dp_blank(link,
 					pipes[i].stream_res.stream_enc);
 
 			/* disable any test pattern that might be active */
@@ -351,9 +455,10 @@ void dp_retrain_link_dp_test(struct dc_link *link,
 			if ((&pipes[i])->stream_res.audio && !link->dc->debug.az_endpoint_mute_only)
 				(&pipes[i])->stream_res.audio->funcs->az_disable((&pipes[i])->stream_res.audio);
 
-			link->link_enc->funcs->disable_output(
-					link->link_enc,
-					SIGNAL_TYPE_DISPLAY_PORT);
+			if (link->link_enc)
+				link->link_enc->funcs->disable_output(
+						link->link_enc,
+						SIGNAL_TYPE_DISPLAY_PORT);
 
 			/* Clear current link setting. */
 			memset(&link->cur_link_settings, 0,
@@ -468,7 +573,12 @@ void dp_set_dsc_on_stream(struct pipe_ctx *pipe_ctx, bool enable)
 		optc_dsc_mode = dsc_optc_cfg.is_pixel_format_444 ? OPTC_DSC_ENABLED_444 : OPTC_DSC_ENABLED_NATIVE_SUBSAMPLED;
 
 		/* Enable DSC in encoder */
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+		if (dc_is_dp_signal(stream->signal) && !IS_FPGA_MAXIMUS_DC(dc->ctx->dce_environment)
+				&& !is_dp_128b_132b_signal(pipe_ctx)) {
+#else
 		if (dc_is_dp_signal(stream->signal) && !IS_FPGA_MAXIMUS_DC(dc->ctx->dce_environment)) {
+#endif
 			DC_LOG_DSC("Setting stream encoder DSC config for engine %d:", (int)pipe_ctx->stream_res.stream_enc->id);
 			dsc_optc_config_log(dsc, &dsc_optc_cfg);
 			pipe_ctx->stream_res.stream_enc->funcs->dp_set_dsc_config(pipe_ctx->stream_res.stream_enc,
@@ -495,13 +605,22 @@ void dp_set_dsc_on_stream(struct pipe_ctx *pipe_ctx, bool enable)
 		/* disable DSC in stream encoder */
 		if (dc_is_dp_signal(stream->signal)) {
 
-			if (!IS_FPGA_MAXIMUS_DC(dc->ctx->dce_environment)) {
-				pipe_ctx->stream_res.stream_enc->funcs->dp_set_dsc_config(
-						pipe_ctx->stream_res.stream_enc,
-						OPTC_DSC_DISABLED, 0, 0);
-				pipe_ctx->stream_res.stream_enc->funcs->dp_set_dsc_pps_info_packet(
-							pipe_ctx->stream_res.stream_enc, false, NULL);
-			}
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+			if (is_dp_128b_132b_signal(pipe_ctx))
+				pipe_ctx->stream_res.hpo_dp_stream_enc->funcs->dp_set_dsc_pps_info_packet(
+										pipe_ctx->stream_res.hpo_dp_stream_enc,
+										false,
+										NULL,
+										true);
+			else
+#endif
+				if (!IS_FPGA_MAXIMUS_DC(dc->ctx->dce_environment)) {
+					pipe_ctx->stream_res.stream_enc->funcs->dp_set_dsc_config(
+							pipe_ctx->stream_res.stream_enc,
+							OPTC_DSC_DISABLED, 0, 0);
+					pipe_ctx->stream_res.stream_enc->funcs->dp_set_dsc_pps_info_packet(
+								pipe_ctx->stream_res.stream_enc, false, NULL, true);
+				}
 		}
 
 		/* disable DSC block */
@@ -535,7 +654,16 @@ out:
 	return result;
 }
 
-bool dp_set_dsc_pps_sdp(struct pipe_ctx *pipe_ctx, bool enable)
+/*
+ * For dynamic bpp change case, dsc is programmed with MASTER_UPDATE_LOCK enabled;
+ * hence PPS info packet update need to use frame update instead of immediate update.
+ * Added parameter immediate_update for this purpose.
+ * The decision to use frame update is hard-coded in function dp_update_dsc_config(),
+ * which is the only place where a "false" would be passed in for param immediate_update.
+ *
+ * immediate_update is only applicable when DSC is enabled.
+ */
+bool dp_set_dsc_pps_sdp(struct pipe_ctx *pipe_ctx, bool enable, bool immediate_update)
 {
 	struct display_stream_compressor *dsc = pipe_ctx->stream_res.dsc;
 	struct dc_stream_state *stream = pipe_ctx->stream;
@@ -562,16 +690,35 @@ bool dp_set_dsc_pps_sdp(struct pipe_ctx *pipe_ctx, bool enable)
 		dsc->funcs->dsc_get_packed_pps(dsc, &dsc_cfg, &dsc_packed_pps[0]);
 		if (dc_is_dp_signal(stream->signal)) {
 			DC_LOG_DSC("Setting stream encoder DSC PPS SDP for engine %d\n", (int)pipe_ctx->stream_res.stream_enc->id);
-			pipe_ctx->stream_res.stream_enc->funcs->dp_set_dsc_pps_info_packet(
-									pipe_ctx->stream_res.stream_enc,
-									true,
-									&dsc_packed_pps[0]);
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+			if (is_dp_128b_132b_signal(pipe_ctx))
+				pipe_ctx->stream_res.hpo_dp_stream_enc->funcs->dp_set_dsc_pps_info_packet(
+										pipe_ctx->stream_res.hpo_dp_stream_enc,
+										true,
+										&dsc_packed_pps[0],
+										immediate_update);
+			else
+#endif
+				pipe_ctx->stream_res.stream_enc->funcs->dp_set_dsc_pps_info_packet(
+										pipe_ctx->stream_res.stream_enc,
+										true,
+										&dsc_packed_pps[0],
+										immediate_update);
 		}
 	} else {
 		/* disable DSC PPS in stream encoder */
 		if (dc_is_dp_signal(stream->signal)) {
-			pipe_ctx->stream_res.stream_enc->funcs->dp_set_dsc_pps_info_packet(
-						pipe_ctx->stream_res.stream_enc, false, NULL);
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+			if (is_dp_128b_132b_signal(pipe_ctx))
+				pipe_ctx->stream_res.hpo_dp_stream_enc->funcs->dp_set_dsc_pps_info_packet(
+										pipe_ctx->stream_res.hpo_dp_stream_enc,
+										false,
+										NULL,
+										true);
+			else
+#endif
+				pipe_ctx->stream_res.stream_enc->funcs->dp_set_dsc_pps_info_packet(
+							pipe_ctx->stream_res.stream_enc, false, NULL, true);
 		}
 	}
 
@@ -589,7 +736,171 @@ bool dp_update_dsc_config(struct pipe_ctx *pipe_ctx)
 		return false;
 
 	dp_set_dsc_on_stream(pipe_ctx, true);
-	dp_set_dsc_pps_sdp(pipe_ctx, true);
+	dp_set_dsc_pps_sdp(pipe_ctx, true, false);
 	return true;
 }
 
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+#undef DC_LOGGER
+#define DC_LOGGER \
+	link->ctx->logger
+
+static enum phyd32clk_clock_source get_phyd32clk_src(struct dc_link *link)
+{
+	switch (link->link_enc->transmitter) {
+	case TRANSMITTER_UNIPHY_A:
+		return PHYD32CLKA;
+	case TRANSMITTER_UNIPHY_B:
+		return PHYD32CLKB;
+	case TRANSMITTER_UNIPHY_C:
+		return PHYD32CLKC;
+	case TRANSMITTER_UNIPHY_D:
+		return PHYD32CLKD;
+	case TRANSMITTER_UNIPHY_E:
+		return PHYD32CLKE;
+	default:
+		return PHYD32CLKA;
+	}
+}
+
+void enable_dp_hpo_output(struct dc_link *link, const struct dc_link_settings *link_settings)
+{
+	const struct dc *dc = link->dc;
+	enum phyd32clk_clock_source phyd32clk;
+
+	/* Enable PHY PLL at target bit rate
+	 *   UHBR10 = 10Gbps (SYMCLK32 = 312.5MHz)
+	 *   UBR13.5 = 13.5Gbps (SYMCLK32 = 421.875MHz)
+	 *   UHBR20 = 20Gbps (SYMCLK32 = 625MHz)
+	 */
+	if (IS_FPGA_MAXIMUS_DC(dc->ctx->dce_environment)) {
+		switch (link_settings->link_rate) {
+		case LINK_RATE_UHBR10:
+			dm_set_phyd32clk(dc->ctx, 312500);
+			break;
+		case LINK_RATE_UHBR13_5:
+			dm_set_phyd32clk(dc->ctx, 412875);
+			break;
+		case LINK_RATE_UHBR20:
+			dm_set_phyd32clk(dc->ctx, 625000);
+			break;
+		default:
+			return;
+		}
+	} else {
+		/* DP2.0 HW: call transmitter control to enable PHY */
+		link->hpo_dp_link_enc->funcs->enable_link_phy(
+				link->hpo_dp_link_enc,
+				link_settings,
+				link->link_enc->transmitter);
+	}
+
+	/* DCCG muxing and DTBCLK DTO */
+	if (IS_FPGA_MAXIMUS_DC(dc->ctx->dce_environment)) {
+		dc->res_pool->dccg->funcs->set_physymclk(
+				dc->res_pool->dccg,
+				link->link_enc_hw_inst,
+				PHYSYMCLK_FORCE_SRC_PHYD32CLK,
+				true);
+
+		phyd32clk = get_phyd32clk_src(link);
+		dc->res_pool->dccg->funcs->enable_symclk32_le(
+				dc->res_pool->dccg,
+				link->hpo_dp_link_enc->inst,
+				phyd32clk);
+		link->hpo_dp_link_enc->funcs->link_enable(
+					link->hpo_dp_link_enc,
+					link_settings->lane_count);
+	}
+}
+
+void disable_dp_hpo_output(struct dc_link *link, enum signal_type signal)
+{
+	const struct dc *dc = link->dc;
+
+	link->hpo_dp_link_enc->funcs->link_disable(link->hpo_dp_link_enc);
+
+	if (IS_FPGA_MAXIMUS_DC(dc->ctx->dce_environment)) {
+		dc->res_pool->dccg->funcs->disable_symclk32_le(
+					dc->res_pool->dccg,
+					link->hpo_dp_link_enc->inst);
+
+		dc->res_pool->dccg->funcs->set_physymclk(
+					dc->res_pool->dccg,
+					link->link_enc_hw_inst,
+					PHYSYMCLK_FORCE_SRC_SYMCLK,
+					false);
+
+		dm_set_phyd32clk(dc->ctx, 0);
+	} else {
+		/* DP2.0 HW: call transmitter control to disable PHY */
+		link->hpo_dp_link_enc->funcs->disable_link_phy(
+				link->hpo_dp_link_enc,
+				signal);
+	}
+}
+
+void setup_dp_hpo_stream(struct pipe_ctx *pipe_ctx, bool enable)
+{
+	struct dc_stream_state *stream = pipe_ctx->stream;
+	struct dc *dc = pipe_ctx->stream->ctx->dc;
+	struct pipe_ctx *odm_pipe;
+	int odm_combine_num_segments = 1;
+	enum phyd32clk_clock_source phyd32clk;
+
+	if (enable) {
+		for (odm_pipe = pipe_ctx->next_odm_pipe; odm_pipe; odm_pipe = odm_pipe->next_odm_pipe)
+				odm_combine_num_segments++;
+
+		dc->res_pool->dccg->funcs->set_dpstreamclk(
+				dc->res_pool->dccg,
+				DTBCLK0,
+				pipe_ctx->stream_res.tg->inst);
+
+		phyd32clk = get_phyd32clk_src(stream->link);
+		dc->res_pool->dccg->funcs->enable_symclk32_se(
+				dc->res_pool->dccg,
+				pipe_ctx->stream_res.hpo_dp_stream_enc->inst,
+				phyd32clk);
+
+		dc->res_pool->dccg->funcs->set_dtbclk_dto(
+				dc->res_pool->dccg,
+				pipe_ctx->stream_res.tg->inst,
+				stream->phy_pix_clk,
+				odm_combine_num_segments,
+				&stream->timing);
+	} else {
+		dc->res_pool->dccg->funcs->set_dtbclk_dto(
+				dc->res_pool->dccg,
+				pipe_ctx->stream_res.tg->inst,
+				0,
+				0,
+				&stream->timing);
+		dc->res_pool->dccg->funcs->disable_symclk32_se(
+				dc->res_pool->dccg,
+				pipe_ctx->stream_res.hpo_dp_stream_enc->inst);
+		dc->res_pool->dccg->funcs->set_dpstreamclk(
+				dc->res_pool->dccg,
+				REFCLK,
+				pipe_ctx->stream_res.tg->inst);
+	}
+}
+
+void reset_dp_hpo_stream_encoders_for_link(struct dc_link *link)
+{
+	const struct dc *dc = link->dc;
+	struct dc_state *state = dc->current_state;
+	uint8_t i;
+
+	for (i = 0; i < MAX_PIPES; i++) {
+		if (state->res_ctx.pipe_ctx[i].stream_res.hpo_dp_stream_enc &&
+				state->res_ctx.pipe_ctx[i].stream &&
+				state->res_ctx.pipe_ctx[i].stream->link == link &&
+				!state->res_ctx.pipe_ctx[i].stream->dpms_off) {
+			setup_dp_hpo_stream(&state->res_ctx.pipe_ctx[i], false);
+		}
+	}
+}
+
+#undef DC_LOGGER
+#endif

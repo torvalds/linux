@@ -1375,7 +1375,7 @@ static void complete_command_orb(struct sbp2_orb *base_orb,
 	sbp2_unmap_scatterlist(device->card->device, orb);
 
 	orb->cmd->result = result;
-	orb->cmd->scsi_done(orb->cmd);
+	scsi_done(orb->cmd);
 }
 
 static int sbp2_map_scatterlist(struct sbp2_command_orb *orb,
@@ -1578,10 +1578,12 @@ static ssize_t sbp2_sysfs_ieee1394_id_show(struct device *dev,
 
 static DEVICE_ATTR(ieee1394_id, S_IRUGO, sbp2_sysfs_ieee1394_id_show, NULL);
 
-static struct device_attribute *sbp2_scsi_sysfs_attrs[] = {
-	&dev_attr_ieee1394_id,
+static struct attribute *sbp2_scsi_sysfs_attrs[] = {
+	&dev_attr_ieee1394_id.attr,
 	NULL
 };
+
+ATTRIBUTE_GROUPS(sbp2_scsi_sysfs);
 
 static struct scsi_host_template scsi_driver_template = {
 	.module			= THIS_MODULE,
@@ -1595,7 +1597,7 @@ static struct scsi_host_template scsi_driver_template = {
 	.sg_tablesize		= SG_ALL,
 	.max_segment_size	= SBP2_MAX_SEG_SIZE,
 	.can_queue		= 1,
-	.sdev_attrs		= sbp2_scsi_sysfs_attrs,
+	.sdev_groups		= sbp2_scsi_sysfs_groups,
 };
 
 MODULE_AUTHOR("Kristian Hoegsberg <krh@bitplanet.net>");

@@ -38,7 +38,8 @@ static struct macb_dma_desc_ptp *macb_ptp_desc(struct macb *bp,
 	return NULL;
 }
 
-static int gem_tsu_get_time(struct ptp_clock_info *ptp, struct timespec64 *ts)
+static int gem_tsu_get_time(struct ptp_clock_info *ptp, struct timespec64 *ts,
+			    struct ptp_system_timestamp *sts)
 {
 	struct macb *bp = container_of(ptp, struct macb, ptp_clock_info);
 	unsigned long flags;
@@ -46,7 +47,9 @@ static int gem_tsu_get_time(struct ptp_clock_info *ptp, struct timespec64 *ts)
 	u32 secl, sech;
 
 	spin_lock_irqsave(&bp->tsu_clk_lock, flags);
+	ptp_read_system_prets(sts);
 	first = gem_readl(bp, TN);
+	ptp_read_system_postts(sts);
 	secl = gem_readl(bp, TSL);
 	sech = gem_readl(bp, TSH);
 	second = gem_readl(bp, TN);
@@ -56,7 +59,9 @@ static int gem_tsu_get_time(struct ptp_clock_info *ptp, struct timespec64 *ts)
 		/* if so, use later read & re-read seconds
 		 * (assume all done within 1s)
 		 */
+		ptp_read_system_prets(sts);
 		ts->tv_nsec = gem_readl(bp, TN);
+		ptp_read_system_postts(sts);
 		secl = gem_readl(bp, TSL);
 		sech = gem_readl(bp, TSH);
 	} else {
@@ -161,7 +166,7 @@ static int gem_ptp_adjtime(struct ptp_clock_info *ptp, s64 delta)
 	}
 
 	if (delta > TSU_NSEC_MAX_VAL) {
-		gem_tsu_get_time(&bp->ptp_clock_info, &now);
+		gem_tsu_get_time(&bp->ptp_clock_info, &now, NULL);
 		now = timespec64_add(now, then);
 
 		gem_tsu_set_time(&bp->ptp_clock_info,
@@ -192,7 +197,7 @@ static const struct ptp_clock_info gem_ptp_caps_template = {
 	.pps		= 1,
 	.adjfine	= gem_ptp_adjfine,
 	.adjtime	= gem_ptp_adjtime,
-	.gettime64	= gem_tsu_get_time,
+	.gettimex64	= gem_tsu_get_time,
 	.settime64	= gem_tsu_set_time,
 	.enable		= gem_ptp_enable,
 };
@@ -251,7 +256,7 @@ static int gem_hw_timestamp(struct macb *bp, u32 dma_desc_ts_1,
 	 * The timestamp only contains lower few bits of seconds,
 	 * so add value from 1588 timer
 	 */
-	gem_tsu_get_time(&bp->ptp_clock_info, &tsu);
+	gem_tsu_get_time(&bp->ptp_clock_info, &tsu, NULL);
 
 	/* If the top bit is set in the timestamp,
 	 * but not in 1588 timer, it has rolled over,

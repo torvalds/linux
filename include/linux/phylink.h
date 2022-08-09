@@ -67,6 +67,8 @@ enum phylink_op_type {
  * @ovr_an_inband: if true, override PCS to MLO_AN_INBAND
  * @get_fixed_state: callback to execute to determine the fixed link state,
  *		     if MAC link is at %MLO_AN_FIXED mode.
+ * @supported_interfaces: bitmap describing which PHY_INTERFACE_MODE_xxx
+ *                        are supported by the MAC/PCS.
  */
 struct phylink_config {
 	struct device *dev;
@@ -76,6 +78,7 @@ struct phylink_config {
 	bool ovr_an_inband;
 	void (*get_fixed_state)(struct phylink_config *config,
 				struct phylink_link_state *state);
+	DECLARE_PHY_INTERFACE_MASK(supported_interfaces);
 };
 
 /**
@@ -133,8 +136,14 @@ struct phylink_mac_ops {
  * based on @state->advertising and/or @state->speed and update
  * @state->interface accordingly. See phylink_helper_basex_speed().
  *
- * When @state->interface is %PHY_INTERFACE_MODE_NA, phylink expects the
- * MAC driver to return all supported link modes.
+ * When @config->supported_interfaces has been set, phylink will iterate
+ * over the supported interfaces to determine the full capability of the
+ * MAC. The validation function must not print errors if @state->interface
+ * is set to an unexpected value.
+ *
+ * When @config->supported_interfaces is empty, phylink will call this
+ * function with @state->interface set to %PHY_INTERFACE_MODE_NA, and
+ * expects the MAC driver to return all supported link modes.
  *
  * If the @state->interface mode is not supported, then the @supported
  * mask must be cleared.
@@ -484,6 +493,7 @@ int phylink_speed_up(struct phylink *pl);
 #define phylink_test(bm, mode)	__phylink_do_bit(test_bit, bm, mode)
 
 void phylink_set_port_modes(unsigned long *bits);
+void phylink_set_10g_modes(unsigned long *mask);
 void phylink_helper_basex_speed(struct phylink_link_state *state);
 
 void phylink_mii_c22_pcs_get_state(struct mdio_device *pcs,

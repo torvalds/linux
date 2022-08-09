@@ -19,9 +19,14 @@
 #include <linux/delay.h>
 #include <linux/platform_device.h>
 #include <linux/ath9k_platform.h>
+#include <linux/nvmem-consumer.h>
+#include <linux/workqueue.h>
 
 struct owl_ctx {
+	struct pci_dev *pdev;
 	struct completion eeprom_load;
+	struct work_struct work;
+	struct nvmem_cell *cell;
 };
 
 #define EEPROM_FILENAME_LEN 100
@@ -41,6 +46,12 @@ static int ath9k_pci_fixup(struct pci_dev *pdev, const u16 *cal_data,
 	u16 cmd;
 	u32 bar0;
 	bool swap_needed = false;
+
+	/* also note that we are doing *u16 operations on the file */
+	if (cal_len > 4096 || cal_len < 0x200 || (cal_len & 1) == 1) {
+		dev_err(&pdev->dev, "eeprom has an invalid size.\n");
+		return -EINVAL;
+	}
 
 	if (*cal_data != AR5416_EEPROM_MAGIC) {
 		if (*cal_data != swab16(AR5416_EEPROM_MAGIC)) {
@@ -99,38 +110,31 @@ static int ath9k_pci_fixup(struct pci_dev *pdev, const u16 *cal_data,
 	return 0;
 }
 
-static void owl_fw_cb(const struct firmware *fw, void *context)
+static void owl_rescan(struct pci_dev *pdev)
 {
-	struct pci_dev *pdev = (struct pci_dev *)context;
-	struct owl_ctx *ctx = (struct owl_ctx *)pci_get_drvdata(pdev);
-	struct pci_bus *bus;
-
-	complete(&ctx->eeprom_load);
-
-	if (!fw) {
-		dev_err(&pdev->dev, "no eeprom data received.\n");
-		goto release;
-	}
-
-	/* also note that we are doing *u16 operations on the file */
-	if (fw->size > 4096 || fw->size < 0x200 || (fw->size & 1) == 1) {
-		dev_err(&pdev->dev, "eeprom file has an invalid size.\n");
-		goto release;
-	}
-
-	if (ath9k_pci_fixup(pdev, (const u16 *)fw->data, fw->size))
-		goto release;
+	struct pci_bus *bus = pdev->bus;
 
 	pci_lock_rescan_remove();
-	bus = pdev->bus;
 	pci_stop_and_remove_bus_device(pdev);
 	/* the device should come back with the proper
 	 * ProductId. But we have to initiate a rescan.
 	 */
 	pci_rescan_bus(bus);
 	pci_unlock_rescan_remove();
+}
 
-release:
+static void owl_fw_cb(const struct firmware *fw, void *context)
+{
+	struct owl_ctx *ctx = (struct owl_ctx *)context;
+
+	complete(&ctx->eeprom_load);
+
+	if (fw) {
+		ath9k_pci_fixup(ctx->pdev, (const u16 *)fw->data, fw->size);
+		owl_rescan(ctx->pdev);
+	} else {
+		dev_err(&ctx->pdev->dev, "no eeprom data received.\n");
+	}
 	release_firmware(fw);
 }
 
@@ -152,6 +156,43 @@ static const char *owl_get_eeprom_name(struct pci_dev *pdev)
 	return eeprom_name;
 }
 
+static void owl_nvmem_work(struct work_struct *work)
+{
+	struct owl_ctx *ctx = container_of(work, struct owl_ctx, work);
+	void *buf;
+	size_t len;
+
+	complete(&ctx->eeprom_load);
+
+	buf = nvmem_cell_read(ctx->cell, &len);
+	if (!IS_ERR(buf)) {
+		ath9k_pci_fixup(ctx->pdev, buf, len);
+		kfree(buf);
+		owl_rescan(ctx->pdev);
+	} else {
+		dev_err(&ctx->pdev->dev, "no nvmem data received.\n");
+	}
+}
+
+static int owl_nvmem_probe(struct owl_ctx *ctx)
+{
+	int err;
+
+	ctx->cell = devm_nvmem_cell_get(&ctx->pdev->dev, "calibration");
+	if (IS_ERR(ctx->cell)) {
+		err = PTR_ERR(ctx->cell);
+		if (err == -ENOENT || err == -EOPNOTSUPP)
+			return 1; /* not present, try firmware_request */
+
+		return err;
+	}
+
+	INIT_WORK(&ctx->work, owl_nvmem_work);
+	schedule_work(&ctx->work);
+
+	return 0;
+}
+
 static int owl_probe(struct pci_dev *pdev,
 		     const struct pci_device_id *id)
 {
@@ -164,21 +205,27 @@ static int owl_probe(struct pci_dev *pdev,
 
 	pcim_pin_device(pdev);
 
+	ctx = devm_kzalloc(&pdev->dev, sizeof(*ctx), GFP_KERNEL);
+	if (!ctx)
+		return -ENOMEM;
+
+	init_completion(&ctx->eeprom_load);
+	ctx->pdev = pdev;
+
+	pci_set_drvdata(pdev, ctx);
+
+	err = owl_nvmem_probe(ctx);
+	if (err <= 0)
+		return err;
+
 	eeprom_name = owl_get_eeprom_name(pdev);
 	if (!eeprom_name) {
 		dev_err(&pdev->dev, "no eeprom filename found.\n");
 		return -ENODEV;
 	}
 
-	ctx = devm_kzalloc(&pdev->dev, sizeof(*ctx), GFP_KERNEL);
-	if (!ctx)
-		return -ENOMEM;
-
-	init_completion(&ctx->eeprom_load);
-
-	pci_set_drvdata(pdev, ctx);
 	err = request_firmware_nowait(THIS_MODULE, true, eeprom_name,
-				      &pdev->dev, GFP_KERNEL, pdev, owl_fw_cb);
+				      &pdev->dev, GFP_KERNEL, ctx, owl_fw_cb);
 	if (err)
 		dev_err(&pdev->dev, "failed to request caldata (%d).\n", err);
 

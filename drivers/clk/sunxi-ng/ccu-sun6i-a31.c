@@ -1257,7 +1257,7 @@ static void __init sun6i_a31_ccu_setup(struct device_node *node)
 	val |= 0x3 << 12;
 	writel(val, reg + SUN6I_A31_AHB1_REG);
 
-	sunxi_ccu_probe(node, reg, &sun6i_a31_ccu_desc);
+	of_sunxi_ccu_probe(node, reg, &sun6i_a31_ccu_desc);
 
 	ccu_mux_notifier_register(pll_cpu_clk.common.hw.clk,
 				  &sun6i_a31_cpu_nb);

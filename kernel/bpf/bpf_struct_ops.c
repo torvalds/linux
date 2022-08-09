@@ -93,6 +93,9 @@ const struct bpf_verifier_ops bpf_struct_ops_verifier_ops = {
 };
 
 const struct bpf_prog_ops bpf_struct_ops_prog_ops = {
+#ifdef CONFIG_NET
+	.test_run = bpf_struct_ops_test_run,
+#endif
 };
 
 static const struct btf_type *module_type;
@@ -312,6 +315,20 @@ static int check_zero_holes(const struct btf_type *t, void *data)
 	return 0;
 }
 
+int bpf_struct_ops_prepare_trampoline(struct bpf_tramp_progs *tprogs,
+				      struct bpf_prog *prog,
+				      const struct btf_func_model *model,
+				      void *image, void *image_end)
+{
+	u32 flags;
+
+	tprogs[BPF_TRAMP_FENTRY].progs[0] = prog;
+	tprogs[BPF_TRAMP_FENTRY].nr_progs = 1;
+	flags = model->ret_size > 0 ? BPF_TRAMP_F_RET_FENTRY_RET : 0;
+	return arch_prepare_bpf_trampoline(NULL, image, image_end,
+					   model, flags, tprogs, NULL);
+}
+
 static int bpf_struct_ops_map_update_elem(struct bpf_map *map, void *key,
 					  void *value, u64 flags)
 {
@@ -323,7 +340,7 @@ static int bpf_struct_ops_map_update_elem(struct bpf_map *map, void *key,
 	struct bpf_tramp_progs *tprogs = NULL;
 	void *udata, *kdata;
 	int prog_fd, err = 0;
-	void *image;
+	void *image, *image_end;
 	u32 i;
 
 	if (flags)
@@ -363,12 +380,12 @@ static int bpf_struct_ops_map_update_elem(struct bpf_map *map, void *key,
 	udata = &uvalue->data;
 	kdata = &kvalue->data;
 	image = st_map->image;
+	image_end = st_map->image + PAGE_SIZE;
 
 	for_each_member(i, t, member) {
 		const struct btf_type *mtype, *ptype;
 		struct bpf_prog *prog;
 		u32 moff;
-		u32 flags;
 
 		moff = btf_member_bit_offset(t, member) / 8;
 		ptype = btf_type_resolve_ptr(btf_vmlinux, member->type, NULL);
@@ -430,14 +447,9 @@ static int bpf_struct_ops_map_update_elem(struct bpf_map *map, void *key,
 			goto reset_unlock;
 		}
 
-		tprogs[BPF_TRAMP_FENTRY].progs[0] = prog;
-		tprogs[BPF_TRAMP_FENTRY].nr_progs = 1;
-		flags = st_ops->func_models[i].ret_size > 0 ?
-			BPF_TRAMP_F_RET_FENTRY_RET : 0;
-		err = arch_prepare_bpf_trampoline(NULL, image,
-						  st_map->image + PAGE_SIZE,
-						  &st_ops->func_models[i],
-						  flags, tprogs, NULL);
+		err = bpf_struct_ops_prepare_trampoline(tprogs, prog,
+							&st_ops->func_models[i],
+							image, image_end);
 		if (err < 0)
 			goto reset_unlock;
 

@@ -13,8 +13,6 @@ struct xfs_inode;
 struct xfs_mount;
 struct xfs_trans;
 
-extern kmem_zone_t	*xfs_bmap_free_item_zone;
-
 /*
  * Argument structure for xfs_bmap_alloc.
  */
@@ -42,19 +40,6 @@ struct xfs_bmalloca {
 	bool			conv;	/* overwriting unwritten extents */
 	int			datatype;/* data type being allocated */
 	int			flags;
-};
-
-/*
- * List of extents to be free "later".
- * The list is kept sorted on xbf_startblock.
- */
-struct xfs_extent_free_item
-{
-	xfs_fsblock_t		xefi_startblock;/* starting fs block number */
-	xfs_extlen_t		xefi_blockcount;/* number of blocks in extent */
-	bool			xefi_skip_discard;
-	struct list_head	xefi_list;
-	struct xfs_owner_info	xefi_oinfo;	/* extent owner */
 };
 
 #define	XFS_BMAP_MAX_NMAP	4
@@ -189,9 +174,6 @@ unsigned int xfs_bmap_compute_attr_offset(struct xfs_mount *mp);
 int	xfs_bmap_add_attrfork(struct xfs_inode *ip, int size, int rsvd);
 void	xfs_bmap_local_to_extents_empty(struct xfs_trans *tp,
 		struct xfs_inode *ip, int whichfork);
-void	__xfs_bmap_add_free(struct xfs_trans *tp, xfs_fsblock_t bno,
-		xfs_filblks_t len, const struct xfs_owner_info *oinfo,
-		bool skip_discard);
 void	xfs_bmap_compute_maxlevels(struct xfs_mount *mp, int whichfork);
 int	xfs_bmap_first_unused(struct xfs_trans *tp, struct xfs_inode *ip,
 		xfs_extlen_t len, xfs_fileoff_t *unused, int whichfork);
@@ -239,16 +221,6 @@ int	xfs_bmap_add_extent_unwritten_real(struct xfs_trans *tp,
 		struct xfs_iext_cursor *icur, struct xfs_btree_cur **curp,
 		struct xfs_bmbt_irec *new, int *logflagsp);
 
-static inline void
-xfs_bmap_add_free(
-	struct xfs_trans		*tp,
-	xfs_fsblock_t			bno,
-	xfs_filblks_t			len,
-	const struct xfs_owner_info	*oinfo)
-{
-	__xfs_bmap_add_free(tp, bno, len, oinfo, false);
-}
-
 enum xfs_bmap_intent_type {
 	XFS_BMAP_MAP = 1,
 	XFS_BMAP_UNMAP,
@@ -257,8 +229,8 @@ enum xfs_bmap_intent_type {
 struct xfs_bmap_intent {
 	struct list_head			bi_list;
 	enum xfs_bmap_intent_type		bi_type;
-	struct xfs_inode			*bi_owner;
 	int					bi_whichfork;
+	struct xfs_inode			*bi_owner;
 	struct xfs_bmbt_irec			bi_bmap;
 };
 
@@ -289,5 +261,10 @@ xfs_failaddr_t xfs_bmap_validate_extent(struct xfs_inode *ip, int whichfork,
 int	xfs_bmapi_remap(struct xfs_trans *tp, struct xfs_inode *ip,
 		xfs_fileoff_t bno, xfs_filblks_t len, xfs_fsblock_t startblock,
 		int flags);
+
+extern struct kmem_cache	*xfs_bmap_intent_cache;
+
+int __init xfs_bmap_intent_init_cache(void);
+void xfs_bmap_intent_destroy_cache(void);
 
 #endif	/* __XFS_BMAP_H__ */

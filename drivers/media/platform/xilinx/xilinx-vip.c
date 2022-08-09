@@ -205,10 +205,8 @@ EXPORT_SYMBOL_GPL(xvip_clr_and_set);
 int xvip_init_resources(struct xvip_device *xvip)
 {
 	struct platform_device *pdev = to_platform_device(xvip->dev);
-	struct resource *res;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	xvip->iomem = devm_ioremap_resource(xvip->dev, res);
+	xvip->iomem = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(xvip->iomem))
 		return PTR_ERR(xvip->iomem);
 

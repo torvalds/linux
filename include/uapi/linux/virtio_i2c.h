@@ -11,8 +11,14 @@
 #include <linux/const.h>
 #include <linux/types.h>
 
+/* Virtio I2C Feature bits */
+#define VIRTIO_I2C_F_ZERO_LENGTH_REQUEST	0
+
 /* The bit 0 of the @virtio_i2c_out_hdr.@flags, used to group the requests */
 #define VIRTIO_I2C_FLAGS_FAIL_NEXT	_BITUL(0)
+
+/* The bit 1 of the @virtio_i2c_out_hdr.@flags, used to mark a buffer as read */
+#define VIRTIO_I2C_FLAGS_M_RD		_BITUL(1)
 
 /**
  * struct virtio_i2c_out_hdr - the virtio I2C message OUT header

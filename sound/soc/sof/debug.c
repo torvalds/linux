@@ -20,7 +20,7 @@
 #include "ops.h"
 
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_DEBUG_PROBES)
-#include "probe.h"
+#include "sof-probes.h"
 
 /**
  * strsplit_u32 - Split string into sequence of u32 tokens
@@ -546,10 +546,10 @@ static const struct file_operations sof_dfs_fops = {
 };
 
 /* create FS entry for debug files that can expose DSP memories, registers */
-int snd_sof_debugfs_io_item(struct snd_sof_dev *sdev,
-			    void __iomem *base, size_t size,
-			    const char *name,
-			    enum sof_debugfs_access_type access_type)
+static int snd_sof_debugfs_io_item(struct snd_sof_dev *sdev,
+				   void __iomem *base, size_t size,
+				   const char *name,
+				   enum sof_debugfs_access_type access_type)
 {
 	struct snd_sof_dfsentry *dfse;
 
@@ -586,7 +586,21 @@ int snd_sof_debugfs_io_item(struct snd_sof_dev *sdev,
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(snd_sof_debugfs_io_item);
+
+int snd_sof_debugfs_add_region_item_iomem(struct snd_sof_dev *sdev,
+					  enum snd_sof_fw_blk_type blk_type, u32 offset,
+					  size_t size, const char *name,
+					  enum sof_debugfs_access_type access_type)
+{
+	int bar = snd_sof_dsp_get_bar_index(sdev, blk_type);
+
+	if (bar < 0)
+		return bar;
+
+	return snd_sof_debugfs_io_item(sdev, sdev->bar[bar] + offset, size, name,
+				       access_type);
+}
+EXPORT_SYMBOL_GPL(snd_sof_debugfs_add_region_item_iomem);
 
 /* create FS entry for debug files to expose kernel memory */
 int snd_sof_debugfs_buf_item(struct snd_sof_dev *sdev,
@@ -808,18 +822,75 @@ void snd_sof_free_debug(struct snd_sof_dev *sdev)
 }
 EXPORT_SYMBOL_GPL(snd_sof_free_debug);
 
+static const struct soc_fw_state_info {
+	enum snd_sof_fw_state state;
+	const char *name;
+} fw_state_dbg[] = {
+	{SOF_FW_BOOT_NOT_STARTED, "SOF_FW_BOOT_NOT_STARTED"},
+	{SOF_FW_BOOT_PREPARE, "SOF_FW_BOOT_PREPARE"},
+	{SOF_FW_BOOT_IN_PROGRESS, "SOF_FW_BOOT_IN_PROGRESS"},
+	{SOF_FW_BOOT_FAILED, "SOF_FW_BOOT_FAILED"},
+	{SOF_FW_BOOT_READY_FAILED, "SOF_FW_BOOT_READY_FAILED"},
+	{SOF_FW_BOOT_COMPLETE, "SOF_FW_BOOT_COMPLETE"},
+};
+
+static void snd_sof_dbg_print_fw_state(struct snd_sof_dev *sdev)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(fw_state_dbg); i++) {
+		if (sdev->fw_state == fw_state_dbg[i].state) {
+			dev_err(sdev->dev, "fw_state: %s (%d)\n", fw_state_dbg[i].name, i);
+			return;
+		}
+	}
+
+	dev_err(sdev->dev, "fw_state: UNKNOWN (%d)\n", sdev->fw_state);
+}
+
+void snd_sof_dsp_dbg_dump(struct snd_sof_dev *sdev, u32 flags)
+{
+	bool print_all = !!(sof_core_debug & SOF_DBG_PRINT_ALL_DUMPS);
+
+	if (flags & SOF_DBG_DUMP_OPTIONAL && !print_all)
+		return;
+
+	if (sof_ops(sdev)->dbg_dump && !sdev->dbg_dump_printed) {
+		dev_err(sdev->dev, "------------[ DSP dump start ]------------\n");
+		snd_sof_dbg_print_fw_state(sdev);
+		sof_ops(sdev)->dbg_dump(sdev, flags);
+		dev_err(sdev->dev, "------------[ DSP dump end ]------------\n");
+		if (!print_all)
+			sdev->dbg_dump_printed = true;
+	}
+}
+EXPORT_SYMBOL(snd_sof_dsp_dbg_dump);
+
+static void snd_sof_ipc_dump(struct snd_sof_dev *sdev)
+{
+	if (sof_ops(sdev)->ipc_dump  && !sdev->ipc_dump_printed) {
+		dev_err(sdev->dev, "------------[ IPC dump start ]------------\n");
+		sof_ops(sdev)->ipc_dump(sdev);
+		dev_err(sdev->dev, "------------[ IPC dump end ]------------\n");
+		if (!(sof_core_debug & SOF_DBG_PRINT_ALL_DUMPS))
+			sdev->ipc_dump_printed = true;
+	}
+}
+
 void snd_sof_handle_fw_exception(struct snd_sof_dev *sdev)
 {
 	if (IS_ENABLED(CONFIG_SND_SOC_SOF_DEBUG_RETAIN_DSP_CONTEXT) ||
 	    (sof_core_debug & SOF_DBG_RETAIN_CTX)) {
 		/* should we prevent DSP entering D3 ? */
-		dev_info(sdev->dev, "info: preventing DSP entering D3 state to preserve context\n");
+		if (!sdev->ipc_dump_printed)
+			dev_info(sdev->dev,
+				 "preventing DSP entering D3 state to preserve context\n");
 		pm_runtime_get_noresume(sdev->dev);
 	}
 
 	/* dump vital information to the logs */
-	snd_sof_dsp_dbg_dump(sdev, SOF_DBG_DUMP_REGS | SOF_DBG_DUMP_MBOX);
 	snd_sof_ipc_dump(sdev);
+	snd_sof_dsp_dbg_dump(sdev, SOF_DBG_DUMP_REGS | SOF_DBG_DUMP_MBOX);
 	snd_sof_trace_notify_for_error(sdev);
 }
 EXPORT_SYMBOL(snd_sof_handle_fw_exception);

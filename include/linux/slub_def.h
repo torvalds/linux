@@ -99,6 +99,8 @@ struct kmem_cache {
 #ifdef CONFIG_SLUB_CPU_PARTIAL
 	/* Number of per cpu partial objects to keep around */
 	unsigned int cpu_partial;
+	/* Number of per cpu partial pages to keep around */
+	unsigned int cpu_partial_pages;
 #endif
 	struct kmem_cache_order_objects oo;
 
@@ -140,17 +142,6 @@ struct kmem_cache {
 
 	struct kmem_cache_node *node[MAX_NUMNODES];
 };
-
-#ifdef CONFIG_SLUB_CPU_PARTIAL
-#define slub_cpu_partial(s)		((s)->cpu_partial)
-#define slub_set_cpu_partial(s, n)		\
-({						\
-	slub_cpu_partial(s) = (n);		\
-})
-#else
-#define slub_cpu_partial(s)		(0)
-#define slub_set_cpu_partial(s, n)
-#endif /* CONFIG_SLUB_CPU_PARTIAL */
 
 #ifdef CONFIG_SYSFS
 #define SLAB_SUPPORTS_SYSFS

@@ -27,7 +27,7 @@ Sphinx Install
 ==============
 
 The ReST markups currently used by the Documentation/ files are meant to be
-built with ``Sphinx`` version 1.3 or higher.
+built with ``Sphinx`` version 1.7 or higher.
 
 There's a script that checks for the Sphinx requirements. Please see
 :ref:`sphinx-pre-install` for further details.
@@ -43,10 +43,6 @@ or ``virtualenv``, depending on how your distribution packaged Python 3.
 
 .. note::
 
-   #) Sphinx versions below 1.5 don't work properly with Python's
-      docutils version 0.13.1 or higher. So, if you're willing to use
-      those versions, you should run ``pip install 'docutils==0.12'``.
-
    #) It is recommended to use the RTD theme for html output. Depending
       on the Sphinx version, it should be installed separately,
       with ``pip install sphinx_rtd_theme``.
@@ -55,13 +51,13 @@ or ``virtualenv``, depending on how your distribution packaged Python 3.
       those expressions are written using LaTeX notation. It needs texlive
       installed with amsfonts and amsmath in order to evaluate them.
 
-In summary, if you want to install Sphinx version 1.7.9, you should do::
+In summary, if you want to install Sphinx version 2.4.4, you should do::
 
-       $ virtualenv sphinx_1.7.9
-       $ . sphinx_1.7.9/bin/activate
-       (sphinx_1.7.9) $ pip install -r Documentation/sphinx/requirements.txt
+       $ virtualenv sphinx_2.4.4
+       $ . sphinx_2.4.4/bin/activate
+       (sphinx_2.4.4) $ pip install -r Documentation/sphinx/requirements.txt
 
-After running ``. sphinx_1.7.9/bin/activate``, the prompt will change,
+After running ``. sphinx_2.4.4/bin/activate``, the prompt will change,
 in order to indicate that you're using the new environment. If you
 open a new shell, you need to rerun this command to enter again at
 the virtual environment before building the documentation.
@@ -81,7 +77,7 @@ output.
 PDF and LaTeX builds
 --------------------
 
-Such builds are currently supported only with Sphinx versions 1.4 and higher.
+Such builds are currently supported only with Sphinx versions 2.4 and higher.
 
 For PDF and LaTeX output, you'll also need ``XeLaTeX`` version 3.14159265.
 
@@ -104,8 +100,8 @@ command line options for your distro::
 	You should run:
 
 		sudo dnf install -y texlive-luatex85
-		/usr/bin/virtualenv sphinx_1.7.9
-		. sphinx_1.7.9/bin/activate
+		/usr/bin/virtualenv sphinx_2.4.4
+		. sphinx_2.4.4/bin/activate
 		pip install -r Documentation/sphinx/requirements.txt
 
 	Can't build as 1 mandatory dependency is missing at ./scripts/sphinx-pre-install line 468.

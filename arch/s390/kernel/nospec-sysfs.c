@@ -15,7 +15,7 @@ ssize_t cpu_show_spectre_v2(struct device *dev,
 {
 	if (test_facility(156))
 		return sprintf(buf, "Mitigation: etokens\n");
-	if (__is_defined(CC_USING_EXPOLINE) && !nospec_disable)
+	if (nospec_uses_trampoline())
 		return sprintf(buf, "Mitigation: execute trampolines\n");
 	if (__test_facility(82, alt_stfle_fac_list))
 		return sprintf(buf, "Mitigation: limited branch prediction\n");

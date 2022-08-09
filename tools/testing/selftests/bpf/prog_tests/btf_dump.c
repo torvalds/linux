@@ -27,7 +27,7 @@ static struct btf_dump_test_case {
 static int btf_dump_all_types(const struct btf *btf,
 			      const struct btf_dump_opts *opts)
 {
-	size_t type_cnt = btf__get_nr_types(btf);
+	size_t type_cnt = btf__type_cnt(btf);
 	struct btf_dump *d;
 	int err = 0, id;
 
@@ -36,7 +36,7 @@ static int btf_dump_all_types(const struct btf *btf,
 	if (err)
 		return err;
 
-	for (id = 1; id <= type_cnt; id++) {
+	for (id = 1; id < type_cnt; id++) {
 		err = btf_dump__dump_type(d, id);
 		if (err)
 			goto done;
@@ -133,7 +133,7 @@ static char *dump_buf;
 static size_t dump_buf_sz;
 static FILE *dump_buf_file;
 
-void test_btf_dump_incremental(void)
+static void test_btf_dump_incremental(void)
 {
 	struct btf *btf = NULL;
 	struct btf_dump *d = NULL;
@@ -171,7 +171,7 @@ void test_btf_dump_incremental(void)
 	err = btf__add_field(btf, "x", 2, 0, 0);
 	ASSERT_OK(err, "field_ok");
 
-	for (i = 1; i <= btf__get_nr_types(btf); i++) {
+	for (i = 1; i < btf__type_cnt(btf); i++) {
 		err = btf_dump__dump_type(d, i);
 		ASSERT_OK(err, "dump_type_ok");
 	}
@@ -210,7 +210,7 @@ void test_btf_dump_incremental(void)
 	err = btf__add_field(btf, "s", 3, 32, 0);
 	ASSERT_OK(err, "field_ok");
 
-	for (i = 1; i <= btf__get_nr_types(btf); i++) {
+	for (i = 1; i < btf__type_cnt(btf); i++) {
 		err = btf_dump__dump_type(d, i);
 		ASSERT_OK(err, "dump_type_ok");
 	}
@@ -358,12 +358,27 @@ static void test_btf_dump_int_data(struct btf *btf, struct btf_dump *d,
 	TEST_BTF_DUMP_DATA_OVER(btf, d, NULL, str, int, sizeof(int)-1, "", 1);
 
 #ifdef __SIZEOF_INT128__
-	TEST_BTF_DUMP_DATA(btf, d, NULL, str, __int128, BTF_F_COMPACT,
-			   "(__int128)0xffffffffffffffff",
-			   0xffffffffffffffff);
-	ASSERT_OK(btf_dump_data(btf, d, "__int128", NULL, 0, &i, 16, str,
-				"(__int128)0xfffffffffffffffffffffffffffffffe"),
-		  "dump __int128");
+	/* gcc encode unsigned __int128 type with name "__int128 unsigned" in dwarf,
+	 * and clang encode it with name "unsigned __int128" in dwarf.
+	 * Do an availability test for either variant before doing actual test.
+	 */
+	if (btf__find_by_name(btf, "unsigned __int128") > 0) {
+		TEST_BTF_DUMP_DATA(btf, d, NULL, str, unsigned __int128, BTF_F_COMPACT,
+				   "(unsigned __int128)0xffffffffffffffff",
+				   0xffffffffffffffff);
+		ASSERT_OK(btf_dump_data(btf, d, "unsigned __int128", NULL, 0, &i, 16, str,
+					"(unsigned __int128)0xfffffffffffffffffffffffffffffffe"),
+			  "dump unsigned __int128");
+	} else if (btf__find_by_name(btf, "__int128 unsigned") > 0) {
+		TEST_BTF_DUMP_DATA(btf, d, NULL, str, __int128 unsigned, BTF_F_COMPACT,
+				   "(__int128 unsigned)0xffffffffffffffff",
+				   0xffffffffffffffff);
+		ASSERT_OK(btf_dump_data(btf, d, "__int128 unsigned", NULL, 0, &i, 16, str,
+					"(__int128 unsigned)0xfffffffffffffffffffffffffffffffe"),
+			  "dump unsigned __int128");
+	} else {
+		ASSERT_TRUE(false, "unsigned_int128_not_found");
+	}
 #endif
 }
 
@@ -763,8 +778,10 @@ static void test_btf_dump_struct_data(struct btf *btf, struct btf_dump *d,
 static void test_btf_dump_var_data(struct btf *btf, struct btf_dump *d,
 				   char *str)
 {
+#if defined(__i386__) || defined(__x86_64__) || defined(__aarch64__)
 	TEST_BTF_DUMP_VAR(btf, d, NULL, str, "cpu_number", int, BTF_F_COMPACT,
 			  "int cpu_number = (int)100", 100);
+#endif
 	TEST_BTF_DUMP_VAR(btf, d, NULL, str, "cpu_profile_flip", int, BTF_F_COMPACT,
 			  "static int cpu_profile_flip = (int)2", 2);
 }

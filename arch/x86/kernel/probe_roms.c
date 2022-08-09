@@ -80,7 +80,7 @@ static struct resource video_rom_resource = {
  */
 static bool match_id(struct pci_dev *pdev, unsigned short vendor, unsigned short device)
 {
-	struct pci_driver *drv = pdev->driver;
+	struct pci_driver *drv = to_pci_driver(pdev->dev.driver);
 	const struct pci_device_id *id;
 
 	if (pdev->vendor == vendor && pdev->device == device)

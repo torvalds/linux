@@ -274,7 +274,7 @@ struct symbol *symbol__new(u64 start, u64 len, u8 binding, u8 type, const char *
 	if (symbol_conf.priv_size) {
 		if (symbol_conf.init_annotation) {
 			struct annotation *notes = (void *)sym;
-			pthread_mutex_init(&notes->lock, NULL);
+			annotation__init(notes);
 		}
 		sym = ((void *)sym) + symbol_conf.priv_size;
 	}
@@ -294,6 +294,13 @@ struct symbol *symbol__new(u64 start, u64 len, u8 binding, u8 type, const char *
 
 void symbol__delete(struct symbol *sym)
 {
+	if (symbol_conf.priv_size) {
+		if (symbol_conf.init_annotation) {
+			struct annotation *notes = symbol__annotation(sym);
+
+			annotation__exit(notes);
+		}
+	}
 	free(((void *)sym) - symbol_conf.priv_size);
 }
 
@@ -700,6 +707,10 @@ static int map__process_kallsym_symbol(void *arg, const char *name,
 	struct rb_root_cached *root = &dso->symbols;
 
 	if (!symbol_type__filter(type))
+		return 0;
+
+	/* Ignore local symbols for ARM modules */
+	if (name[0] == '$')
 		return 0;
 
 	/*
@@ -2629,4 +2640,26 @@ struct mem_info *mem_info__new(void)
 	if (mi)
 		refcount_set(&mi->refcnt, 1);
 	return mi;
+}
+
+/*
+ * Checks that user supplied symbol kernel files are accessible because
+ * the default mechanism for accessing elf files fails silently. i.e. if
+ * debug syms for a build ID aren't found perf carries on normally. When
+ * they are user supplied we should assume that the user doesn't want to
+ * silently fail.
+ */
+int symbol__validate_sym_arguments(void)
+{
+	if (symbol_conf.vmlinux_name &&
+	    access(symbol_conf.vmlinux_name, R_OK)) {
+		pr_err("Invalid file: %s\n", symbol_conf.vmlinux_name);
+		return -EINVAL;
+	}
+	if (symbol_conf.kallsyms_name &&
+	    access(symbol_conf.kallsyms_name, R_OK)) {
+		pr_err("Invalid file: %s\n", symbol_conf.kallsyms_name);
+		return -EINVAL;
+	}
+	return 0;
 }

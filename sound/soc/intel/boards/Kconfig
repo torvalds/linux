@@ -371,7 +371,7 @@ config SND_SOC_INTEL_KBL_RT5663_RT5514_MAX98927_MACH
 
 config SND_SOC_INTEL_KBL_DA7219_MAX98357A_MACH
 	tristate "KBL with DA7219 and MAX98357A in I2S Mode"
-	depends on I2C && ACPI
+	depends on I2C && ACPI && GPIOLIB
 	depends on MFD_INTEL_LPSS || COMPILE_TEST
 	select SND_SOC_INTEL_DA7219_MAX98357A_GENERIC
 	help
@@ -427,6 +427,7 @@ config SND_SOC_INTEL_GLK_RT5682_MAX98357A_MACH
 	depends on MFD_INTEL_LPSS || COMPILE_TEST
 	depends on SND_HDA_CODEC_HDMI && SND_SOC_SOF_HDA_AUDIO_CODEC
 	select SND_SOC_RT5682_I2C
+	select SND_SOC_RT5682S
 	select SND_SOC_MAX98357A
 	select SND_SOC_DMIC
 	select SND_SOC_HDAC_HDMI
@@ -470,6 +471,7 @@ config SND_SOC_INTEL_SOF_RT5682_MACH
 	select SND_SOC_RT1015
 	select SND_SOC_RT1015P
 	select SND_SOC_RT5682_I2C
+	select SND_SOC_RT5682S
 	select SND_SOC_DMIC
 	select SND_SOC_HDAC_HDMI
 	select SND_SOC_INTEL_HDA_DSP_COMMON
@@ -510,6 +512,20 @@ config SND_SOC_INTEL_SOF_PCM512x_MACH
 	  with TI PCM512x I2S audio codec.
 	  Say Y or m if you have such a device.
 	  If unsure select "N".
+
+config SND_SOC_INTEL_SOF_ES8336_MACH
+	tristate "SOF with ES8336 codec in I2S mode"
+	depends on I2C && ACPI && GPIOLIB
+	depends on MFD_INTEL_LPSS || COMPILE_TEST
+	depends on SND_HDA_CODEC_HDMI && SND_SOC_SOF_HDA_AUDIO_CODEC
+	select SND_SOC_ES8316
+	select SND_SOC_DMIC
+	select SND_SOC_INTEL_HDA_DSP_COMMON
+	help
+	   This adds support for ASoC machine driver for SOF platforms
+	   with es8336 codec.
+	   Say Y if you have such a device.
+	   If unsure select "N".
 
 endif ## SND_SOC_SOF_HDA_LINK || SND_SOC_SOF_BAYTRAIL
 

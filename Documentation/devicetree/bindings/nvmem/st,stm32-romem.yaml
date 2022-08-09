@@ -13,7 +13,7 @@ description: |
   internal vref (VREFIN_CAL), unique device ID...
 
 maintainers:
-  - Fabrice Gasnier <fabrice.gasnier@st.com>
+  - Fabrice Gasnier <fabrice.gasnier@foss.st.com>
 
 allOf:
   - $ref: "nvmem.yaml#"

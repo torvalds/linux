@@ -61,9 +61,10 @@ vimc-debayer:
 	* 1 Pad source
 
 vimc-scaler:
-	Scale up the image by a factor of 3. E.g.: a 640x480 image becomes a
-        1920x1440 image. (this value can be configured, see at
-        `Module options`_).
+	Re-size the image to meet the source pad resolution. E.g.: if the sync
+	pad is configured to 360x480 and the source to 1280x720, the image will
+	be stretched to fit the source resolution. Works for any resolution
+	within the vimc limitations (even shrinking the image if necessary).
 	Exposes:
 
 	* 1 Pad sink
@@ -75,16 +76,3 @@ vimc-capture:
 
 	* 1 Pad sink
 	* 1 Pad source
-
-
-Module options
---------------
-
-Vimc has a module parameter to configure the driver.
-
-* ``sca_mult=<unsigned int>``
-
-        Image size multiplier factor to be used to multiply both width and
-        height, so the image size will be ``sca_mult^2`` bigger than the
-        original one. Currently, only supports scaling up (the default value
-        is 3).

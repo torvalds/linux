@@ -16,7 +16,7 @@ struct devx_obj {
 	u32			dinbox[MLX5_MAX_DESTROY_INBOX_SIZE_DW];
 	u32			flags;
 	union {
-		struct mlx5_ib_devx_mr	devx_mr;
+		struct mlx5_ib_mkey	mkey;
 		struct mlx5_core_dct	core_dct;
 		struct mlx5_core_cq	core_cq;
 		u32			flow_counter_bulk_size;

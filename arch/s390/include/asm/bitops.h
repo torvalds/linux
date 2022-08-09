@@ -188,7 +188,7 @@ static inline bool arch_test_and_set_bit_lock(unsigned long nr,
 					      volatile unsigned long *ptr)
 {
 	if (arch_test_bit(nr, ptr))
-		return 1;
+		return true;
 	return arch_test_and_set_bit(nr, ptr);
 }
 

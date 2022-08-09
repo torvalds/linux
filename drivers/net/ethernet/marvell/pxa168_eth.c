@@ -389,7 +389,7 @@ static void inverse_every_nibble(unsigned char *mac_addr)
  * Outputs
  * return the calculated entry.
  */
-static u32 hash_function(unsigned char *mac_addr_orig)
+static u32 hash_function(const unsigned char *mac_addr_orig)
 {
 	u32 hash_result;
 	u32 addr0;
@@ -434,7 +434,7 @@ static u32 hash_function(unsigned char *mac_addr_orig)
  * -ENOSPC if table full
  */
 static int add_del_hash_entry(struct pxa168_eth_private *pep,
-			      unsigned char *mac_addr,
+			      const unsigned char *mac_addr,
 			      u32 rd, u32 skip, int del)
 {
 	struct addr_table_entry *entry, *start;
@@ -521,7 +521,7 @@ static int add_del_hash_entry(struct pxa168_eth_private *pep,
  */
 static void update_hash_table_mac_address(struct pxa168_eth_private *pep,
 					  unsigned char *oaddr,
-					  unsigned char *addr)
+					  const unsigned char *addr)
 {
 	/* Delete old entry */
 	if (oaddr)
@@ -607,7 +607,7 @@ static int pxa168_eth_set_mac_address(struct net_device *dev, void *addr)
 	if (!is_valid_ether_addr(sa->sa_data))
 		return -EADDRNOTAVAIL;
 	memcpy(oldMac, dev->dev_addr, ETH_ALEN);
-	memcpy(dev->dev_addr, sa->sa_data, ETH_ALEN);
+	eth_hw_addr_set(dev, sa->sa_data);
 
 	mac_h = dev->dev_addr[0] << 24;
 	mac_h |= dev->dev_addr[1] << 16;
@@ -977,8 +977,7 @@ static int pxa168_init_phy(struct net_device *dev)
 	cmd.base.phy_address = pep->phy_addr;
 	cmd.base.speed = pep->phy_speed;
 	cmd.base.duplex = pep->phy_duplex;
-	bitmap_copy(cmd.link_modes.advertising, PHY_BASIC_FEATURES,
-		    __ETHTOOL_LINK_MODE_MASK_NBITS);
+	linkmode_copy(cmd.link_modes.advertising, PHY_BASIC_FEATURES);
 	cmd.base.autoneg = AUTONEG_ENABLE;
 
 	if (cmd.base.speed != 0)
@@ -1434,11 +1433,15 @@ static int pxa168_eth_probe(struct platform_device *pdev)
 
 	INIT_WORK(&pep->tx_timeout_task, pxa168_eth_tx_timeout_task);
 
-	err = of_get_mac_address(pdev->dev.of_node, dev->dev_addr);
+	err = of_get_ethdev_address(pdev->dev.of_node, dev);
 	if (err) {
+		u8 addr[ETH_ALEN];
+
 		/* try reading the mac address, if set by the bootloader */
-		pxa168_eth_get_mac_address(dev, dev->dev_addr);
-		if (!is_valid_ether_addr(dev->dev_addr)) {
+		pxa168_eth_get_mac_address(dev, addr);
+		if (is_valid_ether_addr(addr)) {
+			eth_hw_addr_set(dev, addr);
+		} else {
 			dev_info(&pdev->dev, "Using random mac address\n");
 			eth_hw_addr_random(dev);
 		}

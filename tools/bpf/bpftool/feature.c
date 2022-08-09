@@ -624,6 +624,7 @@ probe_helpers_for_progtype(enum bpf_prog_type prog_type, bool supported_type,
 		 */
 		switch (id) {
 		case BPF_FUNC_trace_printk:
+		case BPF_FUNC_trace_vprintk:
 		case BPF_FUNC_probe_write_user:
 			if (!full_mode)
 				continue;

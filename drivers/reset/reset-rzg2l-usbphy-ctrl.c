@@ -137,7 +137,12 @@ static int rzg2l_usbphy_ctrl_probe(struct platform_device *pdev)
 	dev_set_drvdata(dev, priv);
 
 	pm_runtime_enable(&pdev->dev);
-	pm_runtime_resume_and_get(&pdev->dev);
+	error = pm_runtime_resume_and_get(&pdev->dev);
+	if (error < 0) {
+		pm_runtime_disable(&pdev->dev);
+		reset_control_assert(priv->rstc);
+		return dev_err_probe(&pdev->dev, error, "pm_runtime_resume_and_get failed");
+	}
 
 	/* put pll and phy into reset state */
 	spin_lock_irqsave(&priv->lock, flags);

@@ -200,7 +200,7 @@ Description:	USB Power Delivery Specification defines a set of product types
 		amc			Alternate Mode Controller
 		======================  ==========================
 
-What:		/sys/class/typec/<port>-partner>/identity/
+What:		/sys/class/typec/<port>-partner/identity/
 Date:		April 2017
 Contact:	Heikki Krogerus <heikki.krogerus@linux.intel.com>
 Description:

@@ -50,8 +50,9 @@ static int init_stream(struct snd_efw *efw, struct amdtp_stream *stream)
 		     efw->firmware_version == 0x5070300 ||
 		     efw->firmware_version == 0x5080000))
 			efw->tx_stream.flags |= CIP_UNALIGHED_DBC;
-		// AudioFire9 always reports wrong dbs.
-		if (efw->is_af9)
+		// AudioFire9 always reports wrong dbs. Onyx 1200F with the latest firmware (v4.6.0)
+		// also report wrong dbs at 88.2 kHz or greater.
+		if (efw->is_af9 || efw->firmware_version == 0x4060000)
 			efw->tx_stream.flags |= CIP_WRONG_DBS;
 		// Firmware version 5.5 reports fixed interval for dbc.
 		if (efw->firmware_version == 0x5050000)

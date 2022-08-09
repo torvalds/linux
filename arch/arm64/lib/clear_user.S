@@ -4,7 +4,7 @@
  */
 
 #include <linux/linkage.h>
-#include <asm/assembler.h>
+#include <asm/asm-uaccess.h>
 
 	.text
 
@@ -45,13 +45,11 @@ USER(9f, sttrh	wzr, [x0])
 USER(7f, sttrb	wzr, [x2, #-1])
 5:	mov	x0, #0
 	ret
-SYM_FUNC_END(__arch_clear_user)
-EXPORT_SYMBOL(__arch_clear_user)
 
-	.section .fixup,"ax"
-	.align	2
+	// Exception fixups
 7:	sub	x0, x2, #5	// Adjust for faulting on the final byte...
 8:	add	x0, x0, #4	// ...or the second word of the 4-7 byte case
 9:	sub	x0, x2, x0
 	ret
-	.previous
+SYM_FUNC_END(__arch_clear_user)
+EXPORT_SYMBOL(__arch_clear_user)

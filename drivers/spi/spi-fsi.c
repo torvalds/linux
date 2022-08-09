@@ -67,9 +67,14 @@
 	 SPI_FSI_STATUS_RDR_OVERRUN)
 #define SPI_FSI_PORT_CTRL		0x9
 
+struct fsi2spi {
+	struct fsi_device *fsi; /* FSI2SPI CFAM engine device */
+	struct mutex lock; /* lock access to the device */
+};
+
 struct fsi_spi {
 	struct device *dev;	/* SPI controller device */
-	struct fsi_device *fsi;	/* FSI2SPI CFAM engine device */
+	struct fsi2spi *bridge; /* FSI2SPI device */
 	u32 base;
 };
 
@@ -104,7 +109,7 @@ static int fsi_spi_check_status(struct fsi_spi *ctx)
 	u32 sts;
 	__be32 sts_be;
 
-	rc = fsi_device_read(ctx->fsi, FSI2SPI_STATUS, &sts_be,
+	rc = fsi_device_read(ctx->bridge->fsi, FSI2SPI_STATUS, &sts_be,
 			     sizeof(sts_be));
 	if (rc)
 		return rc;
@@ -120,73 +125,91 @@ static int fsi_spi_check_status(struct fsi_spi *ctx)
 
 static int fsi_spi_read_reg(struct fsi_spi *ctx, u32 offset, u64 *value)
 {
-	int rc;
+	int rc = 0;
 	__be32 cmd_be;
 	__be32 data_be;
 	u32 cmd = offset + ctx->base;
+	struct fsi2spi *bridge = ctx->bridge;
 
 	*value = 0ULL;
 
 	if (cmd & FSI2SPI_CMD_WRITE)
 		return -EINVAL;
 
-	cmd_be = cpu_to_be32(cmd);
-	rc = fsi_device_write(ctx->fsi, FSI2SPI_CMD, &cmd_be, sizeof(cmd_be));
+	rc = mutex_lock_interruptible(&bridge->lock);
 	if (rc)
 		return rc;
+
+	cmd_be = cpu_to_be32(cmd);
+	rc = fsi_device_write(bridge->fsi, FSI2SPI_CMD, &cmd_be,
+			      sizeof(cmd_be));
+	if (rc)
+		goto unlock;
 
 	rc = fsi_spi_check_status(ctx);
 	if (rc)
-		return rc;
+		goto unlock;
 
-	rc = fsi_device_read(ctx->fsi, FSI2SPI_DATA0, &data_be,
+	rc = fsi_device_read(bridge->fsi, FSI2SPI_DATA0, &data_be,
 			     sizeof(data_be));
 	if (rc)
-		return rc;
+		goto unlock;
 
 	*value |= (u64)be32_to_cpu(data_be) << 32;
 
-	rc = fsi_device_read(ctx->fsi, FSI2SPI_DATA1, &data_be,
+	rc = fsi_device_read(bridge->fsi, FSI2SPI_DATA1, &data_be,
 			     sizeof(data_be));
 	if (rc)
-		return rc;
+		goto unlock;
 
 	*value |= (u64)be32_to_cpu(data_be);
 	dev_dbg(ctx->dev, "Read %02x[%016llx].\n", offset, *value);
 
-	return 0;
+unlock:
+	mutex_unlock(&bridge->lock);
+	return rc;
 }
 
 static int fsi_spi_write_reg(struct fsi_spi *ctx, u32 offset, u64 value)
 {
-	int rc;
+	int rc = 0;
 	__be32 cmd_be;
 	__be32 data_be;
 	u32 cmd = offset + ctx->base;
+	struct fsi2spi *bridge = ctx->bridge;
 
 	if (cmd & FSI2SPI_CMD_WRITE)
 		return -EINVAL;
 
+	rc = mutex_lock_interruptible(&bridge->lock);
+	if (rc)
+		return rc;
+
 	dev_dbg(ctx->dev, "Write %02x[%016llx].\n", offset, value);
 
 	data_be = cpu_to_be32(upper_32_bits(value));
-	rc = fsi_device_write(ctx->fsi, FSI2SPI_DATA0, &data_be,
+	rc = fsi_device_write(bridge->fsi, FSI2SPI_DATA0, &data_be,
 			      sizeof(data_be));
 	if (rc)
-		return rc;
+		goto unlock;
 
 	data_be = cpu_to_be32(lower_32_bits(value));
-	rc = fsi_device_write(ctx->fsi, FSI2SPI_DATA1, &data_be,
+	rc = fsi_device_write(bridge->fsi, FSI2SPI_DATA1, &data_be,
 			      sizeof(data_be));
 	if (rc)
-		return rc;
+		goto unlock;
 
 	cmd_be = cpu_to_be32(cmd | FSI2SPI_CMD_WRITE);
-	rc = fsi_device_write(ctx->fsi, FSI2SPI_CMD, &cmd_be, sizeof(cmd_be));
+	rc = fsi_device_write(bridge->fsi, FSI2SPI_CMD, &cmd_be,
+			      sizeof(cmd_be));
 	if (rc)
-		return rc;
+		goto unlock;
 
-	return fsi_spi_check_status(ctx);
+	rc = fsi_spi_check_status(ctx);
+
+unlock:
+	mutex_unlock(&bridge->lock);
+	return rc;
 }
 
 static int fsi_spi_data_in(u64 in, u8 *rx, int len)
@@ -234,6 +257,26 @@ static int fsi_spi_reset(struct fsi_spi *ctx)
 	return fsi_spi_write_reg(ctx, SPI_FSI_STATUS, 0ULL);
 }
 
+static int fsi_spi_status(struct fsi_spi *ctx, u64 *status, const char *dir)
+{
+	int rc = fsi_spi_read_reg(ctx, SPI_FSI_STATUS, status);
+
+	if (rc)
+		return rc;
+
+	if (*status & SPI_FSI_STATUS_ANY_ERROR) {
+		dev_err(ctx->dev, "%s error: %016llx\n", dir, *status);
+
+		rc = fsi_spi_reset(ctx);
+		if (rc)
+			return rc;
+
+		return -EREMOTEIO;
+	}
+
+	return 0;
+}
+
 static void fsi_spi_sequence_add(struct fsi_spi_sequence *seq, u8 val)
 {
 	/*
@@ -273,18 +316,9 @@ static int fsi_spi_transfer_data(struct fsi_spi *ctx,
 				return rc;
 
 			do {
-				rc = fsi_spi_read_reg(ctx, SPI_FSI_STATUS,
-						      &status);
+				rc = fsi_spi_status(ctx, &status, "TX");
 				if (rc)
 					return rc;
-
-				if (status & SPI_FSI_STATUS_ANY_ERROR) {
-					rc = fsi_spi_reset(ctx);
-					if (rc)
-						return rc;
-
-					return -EREMOTEIO;
-				}
 			} while (status & SPI_FSI_STATUS_TDR_FULL);
 
 			sent += nb;
@@ -296,18 +330,9 @@ static int fsi_spi_transfer_data(struct fsi_spi *ctx,
 
 		while (transfer->len > recv) {
 			do {
-				rc = fsi_spi_read_reg(ctx, SPI_FSI_STATUS,
-						      &status);
+				rc = fsi_spi_status(ctx, &status, "RX");
 				if (rc)
 					return rc;
-
-				if (status & SPI_FSI_STATUS_ANY_ERROR) {
-					rc = fsi_spi_reset(ctx);
-					if (rc)
-						return rc;
-
-					return -EREMOTEIO;
-				}
 			} while (!(status & SPI_FSI_STATUS_RDR_FULL));
 
 			rc = fsi_spi_read_reg(ctx, SPI_FSI_DATA_RX, &in);
@@ -348,8 +373,12 @@ static int fsi_spi_transfer_init(struct fsi_spi *ctx)
 		if (status & (SPI_FSI_STATUS_ANY_ERROR |
 			      SPI_FSI_STATUS_TDR_FULL |
 			      SPI_FSI_STATUS_RDR_FULL)) {
-			if (reset)
+			if (reset) {
+				dev_err(ctx->dev,
+					"Initialization error: %08llx\n",
+					status);
 				return -EIO;
+			}
 
 			rc = fsi_spi_reset(ctx);
 			if (rc)
@@ -388,7 +417,7 @@ static int fsi_spi_transfer_one_message(struct spi_controller *ctlr,
 	struct spi_transfer *transfer;
 	struct fsi_spi *ctx = spi_controller_get_devdata(ctlr);
 
-	rc = fsi_spi_check_mux(ctx->fsi, ctx->dev);
+	rc = fsi_spi_check_mux(ctx->bridge->fsi, ctx->dev);
 	if (rc)
 		goto error;
 
@@ -478,11 +507,19 @@ static int fsi_spi_probe(struct device *dev)
 	int rc;
 	struct device_node *np;
 	int num_controllers_registered = 0;
+	struct fsi2spi *bridge;
 	struct fsi_device *fsi = to_fsi_dev(dev);
 
 	rc = fsi_spi_check_mux(fsi, dev);
 	if (rc)
 		return -ENODEV;
+
+	bridge = devm_kzalloc(dev, sizeof(*bridge), GFP_KERNEL);
+	if (!bridge)
+		return -ENOMEM;
+
+	bridge->fsi = fsi;
+	mutex_init(&bridge->lock);
 
 	for_each_available_child_of_node(dev->of_node, np) {
 		u32 base;
@@ -506,7 +543,7 @@ static int fsi_spi_probe(struct device *dev)
 
 		ctx = spi_controller_get_devdata(ctlr);
 		ctx->dev = &ctlr->dev;
-		ctx->fsi = fsi;
+		ctx->bridge = bridge;
 		ctx->base = base + SPI_FSI_BASE;
 
 		rc = devm_spi_register_controller(dev, ctlr);

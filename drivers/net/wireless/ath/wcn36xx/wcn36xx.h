@@ -128,7 +128,6 @@ struct wcn36xx_vif {
 	enum wcn36xx_hal_bss_type bss_type;
 
 	/* Power management */
-	bool allow_bmps;
 	enum wcn36xx_power_state pw_state;
 
 	u8 bss_index;
@@ -151,6 +150,8 @@ struct wcn36xx_vif {
 	} rekey_data;
 
 	struct list_head sta_list;
+
+	int bmps_fail_ct;
 };
 
 /**
@@ -269,6 +270,9 @@ struct wcn36xx {
 	struct sk_buff		*tx_ack_skb;
 	struct timer_list	tx_ack_timer;
 
+	/* For A-MSDU re-aggregation */
+	struct sk_buff_head amsdu;
+
 	/* RF module */
 	unsigned		rf_id;
 
@@ -276,7 +280,6 @@ struct wcn36xx {
 	/* Debug file system entry */
 	struct wcn36xx_dfs_entry    dfs;
 #endif /* CONFIG_WCN36XX_DEBUGFS */
-
 };
 
 static inline bool wcn36xx_is_fw_version(struct wcn36xx *wcn,

@@ -56,6 +56,7 @@ void secondary_trap_init(void);
 
 static inline void spill_registers(void)
 {
+#if defined(__XTENSA_WINDOWED_ABI__)
 #if XCHAL_NUM_AREGS > 16
 	__asm__ __volatile__ (
 		"	call8	1f\n"
@@ -95,6 +96,7 @@ static inline void spill_registers(void)
 	__asm__ __volatile__ (
 		"	mov	a12, a12\n"
 		: : : "memory");
+#endif
 #endif
 }
 

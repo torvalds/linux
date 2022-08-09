@@ -357,6 +357,9 @@ static void wb_timer_fn(struct blk_stat_callback *cb)
 	unsigned int inflight = wbt_inflight(rwb);
 	int status;
 
+	if (!rwb->rqos.q->disk)
+		return;
+
 	status = latency_exceeded(rwb, cb->stat);
 
 	trace_wbt_timer(rwb->rqos.q->disk->bdi, status, rqd->scale_step,

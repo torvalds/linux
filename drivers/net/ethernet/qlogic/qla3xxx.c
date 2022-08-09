@@ -508,10 +508,12 @@ static void eeprom_readword(struct ql3_adapter *qdev,
 
 static void ql_set_mac_addr(struct net_device *ndev, u16 *addr)
 {
-	__le16 *p = (__le16 *)ndev->dev_addr;
-	p[0] = cpu_to_le16(addr[0]);
-	p[1] = cpu_to_le16(addr[1]);
-	p[2] = cpu_to_le16(addr[2]);
+	__le16 buf[ETH_ALEN / 2];
+
+	buf[0] = cpu_to_le16(addr[0]);
+	buf[1] = cpu_to_le16(addr[1]);
+	buf[2] = cpu_to_le16(addr[2]);
+	eth_hw_addr_set(ndev, (u8 *)buf);
 }
 
 static int ql_get_nvram_params(struct ql3_adapter *qdev)
@@ -3478,19 +3480,18 @@ static int ql_adapter_up(struct ql3_adapter *qdev)
 
 	spin_lock_irqsave(&qdev->hw_lock, hw_flags);
 
-	err = ql_wait_for_drvr_lock(qdev);
-	if (err) {
-		err = ql_adapter_initialize(qdev);
-		if (err) {
-			netdev_err(ndev, "Unable to initialize adapter\n");
-			goto err_init;
-		}
-		netdev_err(ndev, "Releasing driver lock\n");
-		ql_sem_unlock(qdev, QL_DRVR_SEM_MASK);
-	} else {
+	if (!ql_wait_for_drvr_lock(qdev)) {
 		netdev_err(ndev, "Could not acquire driver lock\n");
+		err = -ENODEV;
 		goto err_lock;
 	}
+
+	err = ql_adapter_initialize(qdev);
+	if (err) {
+		netdev_err(ndev, "Unable to initialize adapter\n");
+		goto err_init;
+	}
+	ql_sem_unlock(qdev, QL_DRVR_SEM_MASK);
 
 	spin_unlock_irqrestore(&qdev->hw_lock, hw_flags);
 
@@ -3564,7 +3565,7 @@ static int ql3xxx_set_mac_address(struct net_device *ndev, void *p)
 	if (!is_valid_ether_addr(addr->sa_data))
 		return -EADDRNOTAVAIL;
 
-	memcpy(ndev->dev_addr, addr->sa_data, ndev->addr_len);
+	eth_hw_addr_set(ndev, addr->sa_data);
 
 	spin_lock_irqsave(&qdev->hw_lock, hw_flags);
 	/* Program lower 32 bits of the MAC address */

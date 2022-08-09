@@ -18,6 +18,7 @@
 / {
 	model = "Samsung Galaxy S2 (GT-I9100)";
 	compatible = "samsung,i9100", "samsung,exynos4210", "samsung,exynos4";
+	chassis-type = "handset";
 
 	memory@40000000 {
 		device_type = "memory";

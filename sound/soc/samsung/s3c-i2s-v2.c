@@ -397,6 +397,8 @@ static int s3c2412_i2s_trigger(struct snd_pcm_substream *substream, int cmd,
 		/* clear again, just in case */
 		writel(0x0, i2s->regs + S3C2412_IISFIC);
 
+		fallthrough;
+
 	case SNDRV_PCM_TRIGGER_RESUME:
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
 		if (!i2s->master) {

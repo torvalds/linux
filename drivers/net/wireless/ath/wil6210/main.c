@@ -1358,7 +1358,7 @@ static int wil_get_bl_info(struct wil6210_priv *wil)
 	ether_addr_copy(ndev->perm_addr, mac);
 	ether_addr_copy(wiphy->perm_addr, mac);
 	if (!is_valid_ether_addr(ndev->dev_addr))
-		ether_addr_copy(ndev->dev_addr, mac);
+		eth_hw_addr_set(ndev, mac);
 
 	if (rf_status) {/* bad RF cable? */
 		wil_err(wil, "RF communication error 0x%04x",
@@ -1431,7 +1431,7 @@ static int wil_get_otp_info(struct wil6210_priv *wil)
 	ether_addr_copy(ndev->perm_addr, mac);
 	ether_addr_copy(wiphy->perm_addr, mac);
 	if (!is_valid_ether_addr(ndev->dev_addr))
-		ether_addr_copy(ndev->dev_addr, mac);
+		eth_hw_addr_set(ndev, mac);
 
 	return 0;
 }
@@ -1609,7 +1609,7 @@ int wil_reset(struct wil6210_priv *wil, bool load_fw)
 		struct net_device *ndev = wil->main_ndev;
 
 		ether_addr_copy(ndev->perm_addr, mac);
-		ether_addr_copy(ndev->dev_addr, ndev->perm_addr);
+		eth_hw_addr_set(ndev, ndev->perm_addr);
 		return 0;
 	}
 

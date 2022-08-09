@@ -366,6 +366,14 @@
 	status = "okay";
 };
 
+&pio {
+	musb_pins: musb {
+		pins-musb {
+			pinmux = <MT7623_PIN_237_EXT_SDIO2_FUNC_DRV_VBUS>;
+		};
+	};
+};
+
 &pwm {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pwm_pins_a>;
@@ -396,6 +404,19 @@
 	status = "okay";
 };
 
+&usb0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&musb_pins>;
+	status = "okay";
+	usb-role-switch;
+
+	connector {
+		compatible = "gpio-usb-b-connector", "usb-b-connector";
+		type = "micro";
+		id-gpios = <&pio 44 GPIO_ACTIVE_HIGH>;
+	};
+};
+
 &usb1 {
 	vusb33-supply = <&reg_3p3v>;
 	vbus-supply = <&reg_5v>;
@@ -405,6 +426,10 @@
 &usb2 {
 	vusb33-supply = <&reg_3p3v>;
 	vbus-supply = <&reg_5v>;
+	status = "okay";
+};
+
+&u2phy1 {
 	status = "okay";
 };
 

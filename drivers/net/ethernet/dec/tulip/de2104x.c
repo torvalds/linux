@@ -666,8 +666,8 @@ static void build_setup_frame_hash(u16 *setup_frm, struct net_device *dev)
 	struct de_private *de = netdev_priv(dev);
 	u16 hash_table[32];
 	struct netdev_hw_addr *ha;
+	const u16 *eaddrs;
 	int i;
-	u16 *eaddrs;
 
 	memset(hash_table, 0, sizeof(hash_table));
 	__set_bit_le(255, hash_table);			/* Broadcast entry */
@@ -685,7 +685,7 @@ static void build_setup_frame_hash(u16 *setup_frm, struct net_device *dev)
 	setup_frm = &de->setup_frame[13*6];
 
 	/* Fill the final entry with our physical address. */
-	eaddrs = (u16 *)dev->dev_addr;
+	eaddrs = (const u16 *)dev->dev_addr;
 	*setup_frm++ = eaddrs[0]; *setup_frm++ = eaddrs[0];
 	*setup_frm++ = eaddrs[1]; *setup_frm++ = eaddrs[1];
 	*setup_frm++ = eaddrs[2]; *setup_frm++ = eaddrs[2];
@@ -695,7 +695,7 @@ static void build_setup_frame_perfect(u16 *setup_frm, struct net_device *dev)
 {
 	struct de_private *de = netdev_priv(dev);
 	struct netdev_hw_addr *ha;
-	u16 *eaddrs;
+	const u16 *eaddrs;
 
 	/* We have <= 14 addresses so we can use the wonderful
 	   16 address perfect filtering of the Tulip. */
@@ -710,7 +710,7 @@ static void build_setup_frame_perfect(u16 *setup_frm, struct net_device *dev)
 	setup_frm = &de->setup_frame[15*6];
 
 	/* Fill the final entry with our physical address. */
-	eaddrs = (u16 *)dev->dev_addr;
+	eaddrs = (const u16 *)dev->dev_addr;
 	*setup_frm++ = eaddrs[0]; *setup_frm++ = eaddrs[0];
 	*setup_frm++ = eaddrs[1]; *setup_frm++ = eaddrs[1];
 	*setup_frm++ = eaddrs[2]; *setup_frm++ = eaddrs[2];
@@ -1713,6 +1713,7 @@ static const struct ethtool_ops de_ethtool_ops = {
 
 static void de21040_get_mac_address(struct de_private *de)
 {
+	u8 addr[ETH_ALEN];
 	unsigned i;
 
 	dw32 (ROMCmd, 0);	/* Reset the pointer with a dummy write. */
@@ -1724,12 +1725,13 @@ static void de21040_get_mac_address(struct de_private *de)
 			value = dr32(ROMCmd);
 			rmb();
 		} while (value < 0 && --boguscnt > 0);
-		de->dev->dev_addr[i] = value;
+		addr[i] = value;
 		udelay(1);
 		if (boguscnt <= 0)
 			pr_warn("timeout reading 21040 MAC address byte %u\n",
 				i);
 	}
+	eth_hw_addr_set(de->dev, addr);
 }
 
 static void de21040_get_media_info(struct de_private *de)
@@ -1821,8 +1823,7 @@ static void de21041_get_srom_info(struct de_private *de)
 #endif
 
 	/* store MAC address */
-	for (i = 0; i < 6; i ++)
-		de->dev->dev_addr[i] = ee_data[i + sa_offset];
+	eth_hw_addr_set(de->dev, &ee_data[sa_offset]);
 
 	/* get offset of controller 0 info leaf.  ignore 2nd byte. */
 	ofs = ee_data[SROMC0InfoLeaf];

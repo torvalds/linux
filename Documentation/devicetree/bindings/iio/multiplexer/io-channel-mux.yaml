@@ -35,9 +35,18 @@ properties:
   mux-control-names: true
 
   channels:
-    $ref: /schemas/types.yaml#/definitions/string-array
+    $ref: /schemas/types.yaml#/definitions/non-unique-string-array
     description:
-      List of strings, labeling the mux controller states.
+      List of strings, labeling the mux controller states. An empty
+      string for a state means that the channel is not available.
+
+  settle-time-us:
+    default: 0
+    description:
+      Time required for analog signals to settle after muxing.
+
+  "#io-channel-cells":
+    const: 1
 
 required:
   - compatible

@@ -11,6 +11,7 @@ obj-$(CONFIG_WMI_BMOF)		+= wmi-bmof.o
 # WMI drivers
 obj-$(CONFIG_HUAWEI_WMI)		+= huawei-wmi.o
 obj-$(CONFIG_MXM_WMI)			+= mxm-wmi.o
+obj-$(CONFIG_NVIDIA_WMI_EC_BACKLIGHT)	+= nvidia-wmi-ec-backlight.o
 obj-$(CONFIG_PEAQ_WMI)			+= peaq-wmi.o
 obj-$(CONFIG_XIAOMI_WMI)		+= xiaomi-wmi.o
 obj-$(CONFIG_GIGABYTE_WMI)		+= gigabyte-wmi.o
@@ -67,7 +68,7 @@ obj-$(CONFIG_THINKPAD_ACPI)	+= thinkpad_acpi.o
 obj-$(CONFIG_THINKPAD_LMI)	+= think-lmi.o
 
 # Intel
-obj-$(CONFIG_X86_PLATFORM_DRIVERS_INTEL)		+= intel/
+obj-y				+= intel/
 
 # MSI
 obj-$(CONFIG_MSI_LAPTOP)	+= msi-laptop.o
@@ -79,6 +80,9 @@ obj-$(CONFIG_XO1_RFKILL)	+= xo1-rfkill.o
 
 # PC Engines
 obj-$(CONFIG_PCENGINES_APU2)	+= pcengines-apuv2.o
+
+# Barco
+obj-$(CONFIG_BARCO_P50_GPIO)	+= barco-p50-gpio.o
 
 # Samsung
 obj-$(CONFIG_SAMSUNG_LAPTOP)	+= samsung-laptop.o

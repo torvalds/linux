@@ -2,7 +2,7 @@
 #ifndef BLKTRACE_H
 #define BLKTRACE_H
 
-#include <linux/blkdev.h>
+#include <linux/blk-mq.h>
 #include <linux/relay.h>
 #include <linux/compat.h>
 #include <uapi/linux/blktrace_api.h>

@@ -9,8 +9,9 @@ test_tag
 FEATURE-DUMP.libbpf
 fixdep
 test_dev_cgroup
-/test_progs*
-!test_progs.h
+/test_progs
+/test_progs-no_alu32
+/test_progs-bpf_gcc
 test_verifier_log
 feature
 test_sock

@@ -9,9 +9,10 @@
 #include "../include/recv_osdep.h"
 #include "../include/hal_intf.h"
 #include "../include/rtw_ioctl.h"
-
 #include "../include/usb_osintf.h"
 #include "../include/rtw_br_ext.h"
+#include "../include/rtl8188e_led.h"
+#include "../include/rtl8188e_dm.h"
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Realtek Wireless Lan Driver");
@@ -51,8 +52,6 @@ static int rtw_short_retry_lmt = 7;
 static int rtw_busy_thresh = 40;
 static int rtw_ack_policy = NORMAL_ACK;
 
-static int rtw_mp_mode;
-
 static int rtw_software_encrypt;
 static int rtw_software_decrypt;
 
@@ -85,7 +84,6 @@ static int rtw_AcceptAddbaReq = true;/*  0:Reject AP's Add BA req, 1:Accept AP's
 static int rtw_antdiv_cfg = 2; /*  0:OFF , 1:ON, 2:decide by Efuse config */
 static int rtw_antdiv_type; /* 0:decide by efuse  1: for 88EE, 1Tx and 1RxCG are diversity.(2 Ant with SPDT), 2:  for 88EE, 1Tx and 2Rx are diversity.(2 Ant, Tx and RxCG are both on aux port, RxCS is on main port), 3: for 88EE, 1Tx and 1RxCG are fixed.(1Ant, Tx and RxCG are both on aux port) */
 
-static int rtw_enusbss;/* 0:disable, 1:enable */
 
 static int rtw_hwpdn_mode = 2;/* 0:disable, 1:enable, 2: by EFUSE config */
 
@@ -114,7 +112,6 @@ module_param(rtw_rfintfs, int, 0644);
 module_param(rtw_lbkmode, int, 0644);
 module_param(rtw_network_mode, int, 0644);
 module_param(rtw_channel, int, 0644);
-module_param(rtw_mp_mode, int, 0644);
 module_param(rtw_wmm_enable, int, 0644);
 module_param(rtw_vrtl_carrier_sense, int, 0644);
 module_param(rtw_vcs_type, int, 0644);
@@ -133,7 +130,6 @@ module_param(rtw_low_power, int, 0644);
 module_param(rtw_wifi_spec, int, 0644);
 module_param(rtw_antdiv_cfg, int, 0644);
 module_param(rtw_antdiv_type, int, 0644);
-module_param(rtw_enusbss, int, 0644);
 module_param(rtw_hwpdn_mode, int, 0644);
 module_param(rtw_hwpwrp_detect, int, 0644);
 module_param(rtw_hw_wps_pbc, int, 0644);
@@ -156,348 +152,6 @@ module_param(rtw_notch_filter, uint, 0644);
 MODULE_PARM_DESC(rtw_notch_filter, "0:Disable, 1:Enable, 2:Enable only for P2P");
 module_param_named(debug, rtw_debug, int, 0444);
 MODULE_PARM_DESC(debug, "Set debug level (1-9) (default 1)");
-
-/* dummy routines */
-void rtw_proc_remove_one(struct net_device *dev)
-{
-}
-
-void rtw_proc_init_one(struct net_device *dev)
-{
-}
-
-#if 0	/* TODO: Convert these to /sys */
-void rtw_proc_init_one(struct net_device *dev)
-{
-	struct proc_dir_entry *dir_dev = NULL;
-	struct proc_dir_entry *entry = NULL;
-	struct adapter	*padapter = rtw_netdev_priv(dev);
-	u8 rf_type;
-
-	if (!rtw_proc) {
-		memcpy(rtw_proc_name, DRV_NAME, sizeof(DRV_NAME));
-
-		rtw_proc = create_proc_entry(rtw_proc_name, S_IFDIR, init_net.proc_net);
-		if (!rtw_proc) {
-			DBG_88E(KERN_ERR "Unable to create rtw_proc directory\n");
-			return;
-		}
-
-		entry = create_proc_read_entry("ver_info", S_IFREG | S_IRUGO, rtw_proc, proc_get_drv_version, dev);
-		if (!entry) {
-			pr_info("Unable to create_proc_read_entry!\n");
-			return;
-		}
-	}
-
-	if (!padapter->dir_dev) {
-		padapter->dir_dev = create_proc_entry(dev->name,
-					  S_IFDIR | S_IRUGO | S_IXUGO,
-					  rtw_proc);
-		dir_dev = padapter->dir_dev;
-		if (!dir_dev) {
-			if (rtw_proc_cnt == 0) {
-				if (rtw_proc) {
-					remove_proc_entry(rtw_proc_name, init_net.proc_net);
-					rtw_proc = NULL;
-				}
-			}
-
-			pr_info("Unable to create dir_dev directory\n");
-			return;
-		}
-	} else {
-		return;
-	}
-
-	rtw_proc_cnt++;
-
-	entry = create_proc_read_entry("write_reg", S_IFREG | S_IRUGO,
-				   dir_dev, proc_get_write_reg, dev);
-	if (!entry) {
-		pr_info("Unable to create_proc_read_entry!\n");
-		return;
-	}
-	entry->write_proc = proc_set_write_reg;
-
-	entry = create_proc_read_entry("read_reg", S_IFREG | S_IRUGO,
-				   dir_dev, proc_get_read_reg, dev);
-	if (!entry) {
-		pr_info("Unable to create_proc_read_entry!\n");
-		return;
-	}
-	entry->write_proc = proc_set_read_reg;
-
-	entry = create_proc_read_entry("fwstate", S_IFREG | S_IRUGO,
-				   dir_dev, proc_get_fwstate, dev);
-	if (!entry) {
-		pr_info("Unable to create_proc_read_entry!\n");
-		return;
-	}
-
-	entry = create_proc_read_entry("sec_info", S_IFREG | S_IRUGO,
-				   dir_dev, proc_get_sec_info, dev);
-	if (!entry) {
-		pr_info("Unable to create_proc_read_entry!\n");
-		return;
-	}
-
-	entry = create_proc_read_entry("mlmext_state", S_IFREG | S_IRUGO,
-				   dir_dev, proc_get_mlmext_state, dev);
-	if (!entry) {
-		pr_info("Unable to create_proc_read_entry!\n");
-		return;
-	}
-
-	entry = create_proc_read_entry("qos_option", S_IFREG | S_IRUGO,
-				   dir_dev, proc_get_qos_option, dev);
-	if (!entry) {
-		pr_info("Unable to create_proc_read_entry!\n");
-		return;
-	}
-
-	entry = create_proc_read_entry("ht_option", S_IFREG | S_IRUGO,
-				   dir_dev, proc_get_ht_option, dev);
-	if (!entry) {
-		pr_info("Unable to create_proc_read_entry!\n");
-		return;
-	}
-
-	entry = create_proc_read_entry("rf_info", S_IFREG | S_IRUGO,
-				   dir_dev, proc_get_rf_info, dev);
-	if (!entry) {
-		pr_info("Unable to create_proc_read_entry!\n");
-		return;
-	}
-
-	entry = create_proc_read_entry("ap_info", S_IFREG | S_IRUGO,
-				   dir_dev, proc_get_ap_info, dev);
-	if (!entry) {
-		pr_info("Unable to create_proc_read_entry!\n");
-		return;
-	}
-
-	entry = create_proc_read_entry("adapter_state", S_IFREG | S_IRUGO,
-				   dir_dev, proc_getstruct adapter_state, dev);
-	if (!entry) {
-		pr_info("Unable to create_proc_read_entry!\n");
-		return;
-	}
-
-	entry = create_proc_read_entry("trx_info", S_IFREG | S_IRUGO,
-				   dir_dev, proc_get_trx_info, dev);
-	if (!entry) {
-		pr_info("Unable to create_proc_read_entry!\n");
-		return;
-	}
-
-	entry = create_proc_read_entry("mac_reg_dump1", S_IFREG | S_IRUGO,
-				   dir_dev, proc_get_mac_reg_dump1, dev);
-	if (!entry) {
-		pr_info("Unable to create_proc_read_entry!\n");
-		return;
-	}
-
-	entry = create_proc_read_entry("mac_reg_dump2", S_IFREG | S_IRUGO,
-				   dir_dev, proc_get_mac_reg_dump2, dev);
-	if (!entry) {
-		pr_info("Unable to create_proc_read_entry!\n");
-		return;
-	}
-
-	entry = create_proc_read_entry("mac_reg_dump3", S_IFREG | S_IRUGO,
-				   dir_dev, proc_get_mac_reg_dump3, dev);
-	if (!entry) {
-		pr_info("Unable to create_proc_read_entry!\n");
-		return;
-	}
-
-	entry = create_proc_read_entry("bb_reg_dump1", S_IFREG | S_IRUGO,
-				   dir_dev, proc_get_bb_reg_dump1, dev);
-	if (!entry) {
-		pr_info("Unable to create_proc_read_entry!\n");
-		return;
-	}
-
-	entry = create_proc_read_entry("bb_reg_dump2", S_IFREG | S_IRUGO,
-				   dir_dev, proc_get_bb_reg_dump2, dev);
-	if (!entry) {
-		pr_info("Unable to create_proc_read_entry!\n");
-		return;
-	}
-
-	entry = create_proc_read_entry("bb_reg_dump3", S_IFREG | S_IRUGO,
-				   dir_dev, proc_get_bb_reg_dump3, dev);
-	if (!entry) {
-		pr_info("Unable to create_proc_read_entry!\n");
-		return;
-	}
-
-	entry = create_proc_read_entry("rf_reg_dump1", S_IFREG | S_IRUGO,
-				   dir_dev, proc_get_rf_reg_dump1, dev);
-	if (!entry) {
-		pr_info("Unable to create_proc_read_entry!\n");
-		return;
-	}
-
-	entry = create_proc_read_entry("rf_reg_dump2", S_IFREG | S_IRUGO,
-				   dir_dev, proc_get_rf_reg_dump2, dev);
-	if (!entry) {
-		pr_info("Unable to create_proc_read_entry!\n");
-		return;
-	}
-
-	rtw_hal_get_hwreg(padapter, HW_VAR_RF_TYPE, (u8 *)(&rf_type));
-	if ((RF_1T2R == rf_type) || (RF_1T1R == rf_type)) {
-		entry = create_proc_read_entry("rf_reg_dump3", S_IFREG | S_IRUGO,
-					   dir_dev, proc_get_rf_reg_dump3, dev);
-		if (!entry) {
-			pr_info("Unable to create_proc_read_entry!\n");
-			return;
-		}
-
-		entry = create_proc_read_entry("rf_reg_dump4", S_IFREG | S_IRUGO,
-					   dir_dev, proc_get_rf_reg_dump4, dev);
-		if (!entry) {
-			pr_info("Unable to create_proc_read_entry!\n");
-			return;
-		}
-	}
-
-#ifdef CONFIG_88EU_AP_MODE
-
-	entry = create_proc_read_entry("all_sta_info", S_IFREG | S_IRUGO,
-				   dir_dev, proc_get_all_sta_info, dev);
-	if (!entry) {
-		pr_info("Unable to create_proc_read_entry!\n");
-		return;
-	}
-#endif
-
-	entry = create_proc_read_entry("best_channel", S_IFREG | S_IRUGO,
-				   dir_dev, proc_get_best_channel, dev);
-	if (!entry) {
-		pr_info("Unable to create_proc_read_entry!\n");
-		return;
-	}
-
-	entry = create_proc_read_entry("rx_signal", S_IFREG | S_IRUGO,
-				   dir_dev, proc_get_rx_signal, dev);
-	if (!entry) {
-		pr_info("Unable to create_proc_read_entry!\n");
-		return;
-	}
-	entry->write_proc = proc_set_rx_signal;
-	entry = create_proc_read_entry("ht_enable", S_IFREG | S_IRUGO,
-				   dir_dev, proc_get_ht_enable, dev);
-	if (!entry) {
-		pr_info("Unable to create_proc_read_entry!\n");
-		return;
-	}
-	entry->write_proc = proc_set_ht_enable;
-
-	entry = create_proc_read_entry("cbw40_enable", S_IFREG | S_IRUGO,
-				   dir_dev, proc_get_cbw40_enable, dev);
-	if (!entry) {
-		pr_info("Unable to create_proc_read_entry!\n");
-		return;
-	}
-	entry->write_proc = proc_set_cbw40_enable;
-
-	entry = create_proc_read_entry("ampdu_enable", S_IFREG | S_IRUGO,
-				   dir_dev, proc_get_ampdu_enable, dev);
-	if (!entry) {
-		pr_info("Unable to create_proc_read_entry!\n");
-		return;
-	}
-	entry->write_proc = proc_set_ampdu_enable;
-
-	entry = create_proc_read_entry("rx_stbc", S_IFREG | S_IRUGO,
-				   dir_dev, proc_get_rx_stbc, dev);
-	if (!entry) {
-		pr_info("Unable to create_proc_read_entry!\n");
-		return;
-	}
-	entry->write_proc = proc_set_rx_stbc;
-
-	entry = create_proc_read_entry("path_rssi", S_IFREG | S_IRUGO,
-					dir_dev, proc_get_two_path_rssi, dev);
-	if (!entry) {
-		pr_info("Unable to create_proc_read_entry!\n");
-		return;
-	}
-	entry = create_proc_read_entry("rssi_disp", S_IFREG | S_IRUGO,
-				   dir_dev, proc_get_rssi_disp, dev);
-	if (!entry) {
-		pr_info("Unable to create_proc_read_entry!\n");
-		return;
-	}
-	entry->write_proc = proc_set_rssi_disp;
-}
-
-void rtw_proc_remove_one(struct net_device *dev)
-{
-	struct proc_dir_entry *dir_dev = NULL;
-	struct adapter	*padapter = rtw_netdev_priv(dev);
-	u8 rf_type;
-
-	dir_dev = padapter->dir_dev;
-	padapter->dir_dev = NULL;
-
-	if (dir_dev) {
-		remove_proc_entry("write_reg", dir_dev);
-		remove_proc_entry("read_reg", dir_dev);
-		remove_proc_entry("fwstate", dir_dev);
-		remove_proc_entry("sec_info", dir_dev);
-		remove_proc_entry("mlmext_state", dir_dev);
-		remove_proc_entry("qos_option", dir_dev);
-		remove_proc_entry("ht_option", dir_dev);
-		remove_proc_entry("rf_info", dir_dev);
-		remove_proc_entry("ap_info", dir_dev);
-		remove_proc_entry("adapter_state", dir_dev);
-		remove_proc_entry("trx_info", dir_dev);
-		remove_proc_entry("mac_reg_dump1", dir_dev);
-		remove_proc_entry("mac_reg_dump2", dir_dev);
-		remove_proc_entry("mac_reg_dump3", dir_dev);
-		remove_proc_entry("bb_reg_dump1", dir_dev);
-		remove_proc_entry("bb_reg_dump2", dir_dev);
-		remove_proc_entry("bb_reg_dump3", dir_dev);
-		remove_proc_entry("rf_reg_dump1", dir_dev);
-		remove_proc_entry("rf_reg_dump2", dir_dev);
-		rtw_hal_get_hwreg(padapter, HW_VAR_RF_TYPE, (u8 *)(&rf_type));
-		if ((RF_1T2R == rf_type) || (RF_1T1R == rf_type)) {
-			remove_proc_entry("rf_reg_dump3", dir_dev);
-			remove_proc_entry("rf_reg_dump4", dir_dev);
-		}
-#ifdef CONFIG_88EU_AP_MODE
-		remove_proc_entry("all_sta_info", dir_dev);
-#endif
-
-		remove_proc_entry("best_channel", dir_dev);
-		remove_proc_entry("rx_signal", dir_dev);
-		remove_proc_entry("cbw40_enable", dir_dev);
-		remove_proc_entry("ht_enable", dir_dev);
-		remove_proc_entry("ampdu_enable", dir_dev);
-		remove_proc_entry("rx_stbc", dir_dev);
-		remove_proc_entry("path_rssi", dir_dev);
-		remove_proc_entry("rssi_disp", dir_dev);
-		remove_proc_entry(dev->name, rtw_proc);
-		dir_dev = NULL;
-	} else {
-		return;
-	}
-	rtw_proc_cnt--;
-
-	if (rtw_proc_cnt == 0) {
-		if (rtw_proc) {
-			remove_proc_entry("ver_info", rtw_proc);
-
-			remove_proc_entry(rtw_proc_name, init_net.proc_net);
-			rtw_proc = NULL;
-		}
-	}
-}
-#endif
 
 static uint loadparam(struct adapter *padapter,  struct  net_device *pnetdev)
 {
@@ -530,7 +184,6 @@ static uint loadparam(struct adapter *padapter,  struct  net_device *pnetdev)
 	registry_par->short_retry_lmt = (u8)rtw_short_retry_lmt;
 	registry_par->busy_thresh = (u16)rtw_busy_thresh;
 	registry_par->ack_policy = (u8)rtw_ack_policy;
-	registry_par->mp_mode = (u8)rtw_mp_mode;
 	registry_par->software_encrypt = (u8)rtw_software_encrypt;
 	registry_par->software_decrypt = (u8)rtw_software_decrypt;
 	registry_par->acm_method = (u8)rtw_acm_method;
@@ -731,20 +384,19 @@ u32 rtw_start_drv_threads(struct adapter *padapter)
 	if (IS_ERR(padapter->cmdThread))
 		_status = _FAIL;
 	else
-		_rtw_down_sema(&padapter->cmdpriv.terminate_cmdthread_sema); /* wait for cmd_thread to run */
+		/* wait for rtw_cmd_thread() to start running */
+		wait_for_completion(&padapter->cmdpriv.start_cmd_thread);
 
-	rtw_hal_start_thread(padapter);
 	return _status;
 }
 
 void rtw_stop_drv_threads(struct adapter *padapter)
 {
 	/* Below is to termindate rtw_cmd_thread & event_thread... */
-	up(&padapter->cmdpriv.cmd_queue_sema);
+	complete(&padapter->cmdpriv.enqueue_cmd);
 	if (padapter->cmdThread)
-		_rtw_down_sema(&padapter->cmdpriv.terminate_cmdthread_sema);
-
-	rtw_hal_stop_thread(padapter);
+		/* wait for rtw_cmd_thread() to stop running */
+		wait_for_completion(&padapter->cmdpriv.stop_cmd_thread);
 }
 
 static u8 rtw_init_default_value(struct adapter *padapter)
@@ -784,16 +436,14 @@ static u8 rtw_init_default_value(struct adapter *padapter)
 	rtw_update_registrypriv_dev_network(padapter);
 
 	/* hal_priv */
-	rtw_hal_def_value_init(padapter);
+	rtl8188eu_init_default_value(padapter);
 
 	/* misc. */
 	padapter->bReadPortCancel = false;
 	padapter->bWritePortCancel = false;
 	padapter->bRxRSSIDisplay = 0;
 	padapter->bNotifyChannelChange = 0;
-#ifdef CONFIG_88EU_P2P
 	padapter->bShowGetP2PState = 1;
-#endif
 	return _SUCCESS;
 }
 
@@ -803,7 +453,7 @@ u8 rtw_reset_drv_sw(struct adapter *padapter)
 	struct pwrctrl_priv *pwrctrlpriv = &padapter->pwrctrlpriv;
 
 	/* hal_priv */
-	rtw_hal_def_value_init(padapter);
+	rtl8188eu_init_default_value(padapter);
 	padapter->bReadPortCancel = false;
 	padapter->bWritePortCancel = false;
 	padapter->bRxRSSIDisplay = 0;
@@ -816,7 +466,6 @@ u8 rtw_reset_drv_sw(struct adapter *padapter)
 
 	_clr_fwstate_(pmlmepriv, _FW_UNDER_SURVEY | _FW_UNDER_LINKING);
 
-	rtw_hal_sreset_reset_value(padapter);
 	pwrctrlpriv->pwr_state_check_cnts = 0;
 
 	/* mlmeextpriv */
@@ -848,11 +497,9 @@ u8 rtw_init_drv_sw(struct adapter *padapter)
 		goto exit;
 	}
 
-#ifdef CONFIG_88EU_P2P
 	rtw_init_wifidirect_timers(padapter);
 	init_wifidirect_info(padapter, P2P_ROLE_DISABLE);
 	reset_global_wifidirect_info(padapter);
-#endif /* CONFIG_88EU_P2P */
 
 	if (init_mlme_ext_priv(padapter) == _FAIL) {
 		ret8 = _FAIL;
@@ -883,15 +530,10 @@ u8 rtw_init_drv_sw(struct adapter *padapter)
 
 	rtw_init_pwrctrl_priv(padapter);
 
-	if (init_mp_priv(padapter) == _FAIL)
-		DBG_88E("%s: initialize MP private data Fail!\n", __func__);
-
 	ret8 = rtw_init_default_value(padapter);
 
-	rtw_hal_dm_init(padapter);
-	rtw_hal_sw_led_init(padapter);
-
-	rtw_hal_sreset_init(padapter);
+	rtl8188e_init_dm_priv(padapter);
+	rtl8188eu_InitSwLeds(padapter);
 
 	spin_lock_init(&padapter->br_ext_lock);
 
@@ -908,13 +550,11 @@ void rtw_cancel_all_timer(struct adapter *padapter)
 	_cancel_timer_ex(&padapter->mlmepriv.dynamic_chk_timer);
 
 	/*  cancel sw led timer */
-	rtw_hal_sw_led_deinit(padapter);
+	rtl8188eu_DeInitSwLeds(padapter);
 
 	_cancel_timer_ex(&padapter->pwrctrlpriv.pwr_state_check_timer);
 
 	_cancel_timer_ex(&padapter->recvpriv.signal_stat_timer);
-	/* cancel dm timer */
-	rtw_hal_dm_deinit(padapter);
 }
 
 u8 rtw_free_drv_sw(struct adapter *padapter)
@@ -922,7 +562,6 @@ u8 rtw_free_drv_sw(struct adapter *padapter)
 	/* we can call rtw_p2p_enable here, but: */
 	/*  1. rtw_p2p_enable may have IO operation */
 	/*  2. rtw_p2p_enable is bundled with wext interface */
-	#ifdef CONFIG_88EU_P2P
 	{
 		struct wifidirect_info *pwdinfo = &padapter->wdinfo;
 		if (!rtw_p2p_chk_state(pwdinfo, P2P_STATE_NONE)) {
@@ -932,7 +571,6 @@ u8 rtw_free_drv_sw(struct adapter *padapter)
 			rtw_p2p_set_state(pwdinfo, P2P_STATE_NONE);
 		}
 	}
-	#endif
 
 	free_mlme_ext_priv(&padapter->mlmeextpriv);
 
@@ -947,9 +585,7 @@ u8 rtw_free_drv_sw(struct adapter *padapter)
 
 	_rtw_free_recv_priv(&padapter->recvpriv);
 
-	rtw_free_pwrctrl_priv(padapter);
-
-	rtw_hal_free_data(padapter);
+	rtl8188e_free_hal_data(padapter);
 
 	/* free the old_pnetdev */
 	if (padapter->rereg_nd_name_priv.old_pnetdev) {
@@ -1025,7 +661,6 @@ int _netdev_open(struct net_device *pnetdev)
 		}
 		if (padapter->intf_start)
 			padapter->intf_start(padapter);
-		rtw_proc_init_one(pnetdev);
 
 		rtw_led_control(padapter, LED_CTL_NO_LINK);
 
@@ -1062,9 +697,9 @@ int netdev_open(struct net_device *pnetdev)
 	int ret;
 	struct adapter *padapter = (struct adapter *)rtw_netdev_priv(pnetdev);
 
-	_enter_critical_mutex(padapter->hw_init_mutex, NULL);
+	mutex_lock(padapter->hw_init_mutex);
 	ret = _netdev_open(pnetdev);
-	_exit_critical_mutex(padapter->hw_init_mutex, NULL);
+	mutex_unlock(padapter->hw_init_mutex);
 	return ret;
 }
 
@@ -1130,7 +765,7 @@ void rtw_ips_dev_unload(struct adapter *padapter)
 {
 	DBG_88E("====> %s...\n", __func__);
 
-	rtw_hal_set_hwreg(padapter, HW_VAR_FIFO_CLEARN_UP, NULL);
+	SetHwReg8188EU(padapter, HW_VAR_FIFO_CLEARN_UP, NULL);
 
 	if (padapter->intf_stop)
 		padapter->intf_stop(padapter);
@@ -1187,9 +822,7 @@ int netdev_close(struct net_device *pnetdev)
 
 	nat25_db_cleanup(padapter);
 
-#ifdef CONFIG_88EU_P2P
 	rtw_p2p_enable(padapter, P2P_ROLE_DISABLE);
-#endif /* CONFIG_88EU_P2P */
 
 	kfree(dvobj->firmware.szFwBuffer);
 	dvobj->firmware.szFwBuffer = NULL;

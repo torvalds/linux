@@ -32,6 +32,9 @@ struct dc;
 struct resource_pool;
 struct _vcs_dpi_display_pipe_params_st;
 
+extern struct _vcs_dpi_ip_params_st dcn3_01_ip;
+extern struct _vcs_dpi_soc_bounding_box_st dcn3_01_soc;
+
 struct dcn301_resource_pool {
 	struct resource_pool base;
 };
