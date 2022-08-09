@@ -1989,20 +1989,24 @@ TRACE_EVENT(svc_wake_up,
 
 TRACE_EVENT(svc_alloc_arg_err,
 	TP_PROTO(
-		unsigned int pages
+		unsigned int requested,
+		unsigned int allocated
 	),
 
-	TP_ARGS(pages),
+	TP_ARGS(requested, allocated),
 
 	TP_STRUCT__entry(
-		__field(unsigned int, pages)
+		__field(unsigned int, requested)
+		__field(unsigned int, allocated)
 	),
 
 	TP_fast_assign(
-		__entry->pages = pages;
+		__entry->requested = requested;
+		__entry->allocated = allocated;
 	),
 
-	TP_printk("pages=%u", __entry->pages)
+	TP_printk("requested=%u allocated=%u",
+		__entry->requested, __entry->allocated)
 );
 
 DECLARE_EVENT_CLASS(svc_deferred_event,
