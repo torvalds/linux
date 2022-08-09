@@ -185,10 +185,11 @@ int rtw89_chanctx_ops_add(struct rtw89_dev *rtwdev,
 {
 	struct rtw89_hal *hal = &rtwdev->hal;
 	struct rtw89_chanctx_cfg *cfg = (struct rtw89_chanctx_cfg *)ctx->drv_priv;
+	const struct rtw89_chip_info *chip = rtwdev->chip;
 	u8 idx;
 
 	idx = find_first_zero_bit(hal->entity_map, NUM_OF_RTW89_SUB_ENTITY);
-	if (idx > RTW89_SUB_ENTITY_0)
+	if (idx >= chip->support_chanctx_num)
 		return -ENOENT;
 
 	rtw89_config_entity_chandef(rtwdev, idx, &ctx->def);

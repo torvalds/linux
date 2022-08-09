@@ -2133,6 +2133,7 @@ const struct rtw89_chip_info rtw8852a_chip_info = {
 	.txpwr_factor_mac	= 1,
 	.dig_table		= &rtw89_8852a_phy_dig_table,
 	.tssi_dbw_table		= NULL,
+	.support_chanctx_num	= 0,
 	.support_bands		= BIT(NL80211_BAND_2GHZ) |
 				  BIT(NL80211_BAND_5GHZ),
 	.support_bw160		= false,

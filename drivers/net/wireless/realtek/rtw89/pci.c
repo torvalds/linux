@@ -3614,27 +3614,23 @@ static const struct rtw89_hci_ops rtw89_pci_ops = {
 
 int rtw89_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
-	struct ieee80211_hw *hw;
 	struct rtw89_dev *rtwdev;
 	const struct rtw89_driver_info *info;
 	const struct rtw89_pci_info *pci_info;
-	int driver_data_size;
 	int ret;
 
-	driver_data_size = sizeof(struct rtw89_dev) + sizeof(struct rtw89_pci);
-	hw = ieee80211_alloc_hw(driver_data_size, &rtw89_ops);
-	if (!hw) {
+	info = (const struct rtw89_driver_info *)id->driver_data;
+
+	rtwdev = rtw89_alloc_ieee80211_hw(&pdev->dev,
+					  sizeof(struct rtw89_pci),
+					  info->chip);
+	if (!rtwdev) {
 		dev_err(&pdev->dev, "failed to allocate hw\n");
 		return -ENOMEM;
 	}
 
-	info = (const struct rtw89_driver_info *)id->driver_data;
 	pci_info = info->bus.pci;
 
-	rtwdev = hw->priv;
-	rtwdev->hw = hw;
-	rtwdev->dev = &pdev->dev;
-	rtwdev->chip = info->chip;
 	rtwdev->pci_info = info->bus.pci;
 	rtwdev->hci.ops = &rtw89_pci_ops;
 	rtwdev->hci.type = RTW89_HCI_TYPE_PCIE;
@@ -3696,7 +3692,7 @@ err_declaim_pci:
 err_core_deinit:
 	rtw89_core_deinit(rtwdev);
 err_release_hw:
-	ieee80211_free_hw(hw);
+	rtw89_free_ieee80211_hw(rtwdev);
 
 	return ret;
 }
@@ -3715,7 +3711,7 @@ void rtw89_pci_remove(struct pci_dev *pdev)
 	rtw89_pci_clear_resource(rtwdev, pdev);
 	rtw89_pci_declaim_device(rtwdev, pdev);
 	rtw89_core_deinit(rtwdev);
-	ieee80211_free_hw(hw);
+	rtw89_free_ieee80211_hw(rtwdev);
 }
 EXPORT_SYMBOL(rtw89_pci_remove);
 

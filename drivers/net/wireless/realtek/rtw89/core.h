@@ -2408,6 +2408,7 @@ struct rtw89_chip_info {
 	const struct rtw89_hfc_param_ini *hfc_param_ini;
 	const struct rtw89_dle_mem *dle_mem;
 	u32 rf_base_addr[2];
+	u8 support_chanctx_num;
 	u8 support_bands;
 	bool support_bw160;
 	bool hw_sec_hdr;
@@ -3152,6 +3153,7 @@ struct rtw89_phy_efuse_gain {
 struct rtw89_dev {
 	struct ieee80211_hw *hw;
 	struct device *dev;
+	const struct ieee80211_ops *ops;
 
 	bool dbcc_en;
 	struct rtw89_hw_scan_info scan_info;
@@ -3963,6 +3965,10 @@ int rtw89_core_init(struct rtw89_dev *rtwdev);
 void rtw89_core_deinit(struct rtw89_dev *rtwdev);
 int rtw89_core_register(struct rtw89_dev *rtwdev);
 void rtw89_core_unregister(struct rtw89_dev *rtwdev);
+struct rtw89_dev *rtw89_alloc_ieee80211_hw(struct device *device,
+					   u32 bus_data_size,
+					   const struct rtw89_chip_info *chip);
+void rtw89_free_ieee80211_hw(struct rtw89_dev *rtwdev);
 void rtw89_core_set_chip_txpwr(struct rtw89_dev *rtwdev);
 void rtw89_get_default_chandef(struct cfg80211_chan_def *chandef);
 void rtw89_set_channel(struct rtw89_dev *rtwdev);

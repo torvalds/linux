@@ -3208,6 +3208,53 @@ void rtw89_core_unregister(struct rtw89_dev *rtwdev)
 }
 EXPORT_SYMBOL(rtw89_core_unregister);
 
+struct rtw89_dev *rtw89_alloc_ieee80211_hw(struct device *device,
+					   u32 bus_data_size,
+					   const struct rtw89_chip_info *chip)
+{
+	struct ieee80211_hw *hw;
+	struct rtw89_dev *rtwdev;
+	struct ieee80211_ops *ops;
+	u32 driver_data_size;
+
+	ops = kmemdup(&rtw89_ops, sizeof(rtw89_ops), GFP_KERNEL);
+	if (!ops)
+		goto err;
+
+	if (chip->support_chanctx_num == 0) {
+		ops->add_chanctx = NULL;
+		ops->remove_chanctx = NULL;
+		ops->change_chanctx = NULL;
+		ops->assign_vif_chanctx = NULL;
+		ops->unassign_vif_chanctx = NULL;
+	}
+
+	driver_data_size = sizeof(struct rtw89_dev) + bus_data_size;
+	hw = ieee80211_alloc_hw(driver_data_size, ops);
+	if (!hw)
+		goto err;
+
+	rtwdev = hw->priv;
+	rtwdev->hw = hw;
+	rtwdev->dev = device;
+	rtwdev->ops = ops;
+	rtwdev->chip = chip;
+
+	return rtwdev;
+
+err:
+	kfree(ops);
+	return NULL;
+}
+EXPORT_SYMBOL(rtw89_alloc_ieee80211_hw);
+
+void rtw89_free_ieee80211_hw(struct rtw89_dev *rtwdev)
+{
+	kfree(rtwdev->ops);
+	ieee80211_free_hw(rtwdev->hw);
+}
+EXPORT_SYMBOL(rtw89_free_ieee80211_hw);
+
 MODULE_AUTHOR("Realtek Corporation");
 MODULE_DESCRIPTION("Realtek 802.11ax wireless core module");
 MODULE_LICENSE("Dual BSD/GPL");
