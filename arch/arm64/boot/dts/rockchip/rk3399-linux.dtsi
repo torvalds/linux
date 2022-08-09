@@ -10,6 +10,12 @@
 / {
 	compatible = "rockchip,linux", "rockchip,rk3399";
 
+	aliases {
+		mmc0 = &sdhci;
+		mmc1 = &sdmmc;
+		mmc2 = &sdio0;
+	};
+
 	chosen {
 		bootargs = "earlycon=uart8250,mmio32,0xff1a0000 console=ttyFIQ0 rw root=PARTUUID=614e0000-0000 rootfstype=ext4 rootwait coherent_pool=1m";
 	};
