@@ -1274,7 +1274,7 @@ svm_range_unmap_from_gpus(struct svm_range *prange, unsigned long start,
 			return -EINVAL;
 		}
 
-		kfd_smi_event_unmap_from_gpu(pdd->dev->kfd, p->lead_thread->pid,
+		kfd_smi_event_unmap_from_gpu(pdd->dev, p->lead_thread->pid,
 					     start, last, trigger);
 
 		r = svm_range_unmap_from_gpu(pdd->dev->adev,
@@ -2934,7 +2934,7 @@ retry_write_locked:
 		 svms, prange->start, prange->last, best_loc,
 		 prange->actual_loc);
 
-	kfd_smi_event_page_fault_start(adev->kfd.dev, p->lead_thread->pid, addr,
+	kfd_smi_event_page_fault_start(node, p->lead_thread->pid, addr,
 				       write_fault, timestamp);
 
 	if (prange->actual_loc != best_loc) {
@@ -2972,7 +2972,7 @@ retry_write_locked:
 		pr_debug("failed %d to map svms 0x%p [0x%lx 0x%lx] to gpus\n",
 			 r, svms, prange->start, prange->last);
 
-	kfd_smi_event_page_fault_end(adev->kfd.dev, p->lead_thread->pid, addr,
+	kfd_smi_event_page_fault_end(node, p->lead_thread->pid, addr,
 				     migration);
 
 out_unlock_range:
