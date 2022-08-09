@@ -52,19 +52,19 @@ static void st_asm330lhhx_read_hw_timestamp(struct st_asm330lhhx_hw *hw)
 	tmp = cpu_to_le32((u32)(timestamp_hw_global >> 32));
 	memcpy(&((int8_t *)&eventMSB)[0], &tmp, sizeof(tmp));
 
-	if (hw->enable_mask & BIT(ST_ASM330LHHX_ID_GYRO)) {
+	if (hw->enable_mask & BIT_ULL(ST_ASM330LHHX_ID_GYRO)) {
 		iio_push_event(hw->iio_devs[ST_ASM330LHHX_ID_GYRO], eventLSB,
 			       timestamp_cpu);
 		iio_push_event(hw->iio_devs[ST_ASM330LHHX_ID_GYRO], eventMSB,
 			       timestamp_cpu);
 	}
-	if (hw->enable_mask & BIT(ST_ASM330LHHX_ID_ACC)) {
+	if (hw->enable_mask & BIT_ULL(ST_ASM330LHHX_ID_ACC)) {
 		iio_push_event(hw->iio_devs[ST_ASM330LHHX_ID_ACC], eventLSB,
 			       timestamp_cpu);
 		iio_push_event(hw->iio_devs[ST_ASM330LHHX_ID_ACC], eventMSB,
 			       timestamp_cpu);
 	}
-	if (hw->enable_mask & BIT(ST_ASM330LHHX_ID_TEMP)) {
+	if (hw->enable_mask & BIT_ULL(ST_ASM330LHHX_ID_TEMP)) {
 		iio_push_event(hw->iio_devs[ST_ASM330LHHX_ID_TEMP], eventLSB,
 			       timestamp_cpu);
 		iio_push_event(hw->iio_devs[ST_ASM330LHHX_ID_TEMP], eventMSB,

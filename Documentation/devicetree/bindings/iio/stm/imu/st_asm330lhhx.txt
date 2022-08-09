@@ -14,24 +14,28 @@ Required properties for the spi bindings:
                      constrained by external circuitry
 
 Optional properties for all bus drivers:
-- vdd-supply:   an optional regulator that needs to be on to provide VDD
-                power to the sensor.
+- vdd-supply:     an optional regulator that needs to be on to provide
+                  VDD power to the sensor.
 
-- vddio-supply: an optional regulator that needs to be on to provide the
-                VDD IO power to the sensor.
+- vddio-supply:   an optional regulator that needs to be on to provide
+                  the VDD IO power to the sensor.
 
-- st,int-pin:   the pin on the package that will be used to signal
-                "data ready" (valid values: 1 or 2, default: 1).
+- st,int-pin:     the pin on the package that will be used to signal
+                  "data ready" (valid values: 1 or 2, default: 1).
 
-- mount-matrix: mount rotation matrix.
+- st,mlc-int-pin: the pin on the package that will be used to signal
+                  MLC/FSM event (valid values: 1 for int pin 1, 2 for
+                  int pin 2 or 3 for both int pin, default: st,int-pin).
 
-                Refer to iio/mount-matrix.txt for details.
+- mount-matrix:   mount rotation matrix.
 
-- interrupts:   interrupt mapping for IRQ. It should be configured with
-                flags IRQ_TYPE_LEVEL_HIGH or IRQ_TYPE_LEVEL_LOW.
+                  Refer to iio/mount-matrix.txt for details.
 
-                Refer to interrupt-controller/interrupts.txt for generic interrupt
-                client node bindings.
+- interrupts:     interrupt mapping for IRQ. It should be configured
+                  with flags IRQ_TYPE_LEVEL_HIGH or IRQ_TYPE_LEVEL_LOW.
+
+                  Refer to interrupt-controller/interrupts.txt for
+                  generic interrupt client node bindings.
 
 Example for an spi asm330lhh device node:
 
@@ -44,6 +48,7 @@ asm330lhh-imu@0 {
 	vddio-supply = <&sensors_vddio>;
 	vdd-supply = <&sensors_vdd>;
 	st,int-pin = <1>;
+	st,mlc-int-pin = <2>;
 	mount-matrix = "1", "0", "0",
 		       "0", "1", "0",
 		       "0", "0", "1";
@@ -59,6 +64,7 @@ asm330lhhx-imu@0x6a {
 	vddio-supply = <&sensors_vddio>;
 	vdd-supply = <&sensors_vdd>;
 	st,int-pin = <1>;
+	st,mlc-int-pin = <2>;
 	mount-matrix = "1", "0", "0",
 		       "0", "1", "0",
 		       "0", "0", "1";

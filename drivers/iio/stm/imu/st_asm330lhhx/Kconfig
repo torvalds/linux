@@ -41,3 +41,9 @@ config IIO_ST_ASM330LHHX_ASYNC_HW_TIMESTAMP
        help
          Enable async task that sends over hw timestamp events.
 
+config IIO_ST_ASM330LHHX_MLC_PRELOAD
+        bool "Preload some examples on MLC/FSM core"
+        depends on IIO_ST_ASM330LHHX
+        help
+          Preload some examples on machine learning core and finite state
+          machine. The examples code are hardcoded in to the driver.

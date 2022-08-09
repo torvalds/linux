@@ -131,9 +131,9 @@ int st_asm330lhhx_event_sensor_set_enable(struct st_asm330lhhx_sensor *sensor,
 				   ST_ASM330LHHX_INTERRUPTS_ENABLE_MASK,
 				   eint);
 		if (eint == 0)
-			hw->enable_mask &= ~BIT(sensor->id);
+			hw->enable_mask &= ~BIT_ULL(sensor->id);
 		else
-			hw->enable_mask |= BIT(sensor->id);
+			hw->enable_mask |= BIT_ULL(sensor->id);
 	}
 
 	return err;
@@ -147,7 +147,7 @@ static int st_asm330lhhx_read_event_config(struct iio_dev *iio_dev,
 	struct st_asm330lhhx_sensor *sensor = iio_priv(iio_dev);
 	struct st_asm330lhhx_hw *hw = sensor->hw;
 
-	return !!(hw->enable_mask & BIT(sensor->id));
+	return !!(hw->enable_mask & BIT_ULL(sensor->id));
 }
 
 static int st_asm330lhhx_write_event_config(struct iio_dev *iio_dev,
@@ -449,8 +449,8 @@ int st_asm330lhhx_event_handler(struct st_asm330lhhx_hw *hw)
 	int err;
 
 	if (hw->enable_mask &
-	    (BIT(ST_ASM330LHHX_ID_WK) | BIT(ST_ASM330LHHX_ID_FF) |
-	     BIT(ST_ASM330LHHX_ID_SC) | BIT(ST_ASM330LHHX_ID_6D))) {
+	    (BIT_ULL(ST_ASM330LHHX_ID_WK) | BIT_ULL(ST_ASM330LHHX_ID_FF) |
+	     BIT_ULL(ST_ASM330LHHX_ID_SC) | BIT_ULL(ST_ASM330LHHX_ID_6D))) {
 		err = regmap_bulk_read(hw->regmap,
 				     ST_ASM330LHHX_REG_ALL_INT_SRC_ADDR,
 				     &status, sizeof(status));

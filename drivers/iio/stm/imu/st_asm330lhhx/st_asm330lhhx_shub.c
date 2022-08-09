@@ -299,7 +299,7 @@ st_asm330lhhx_shub_wait_complete(struct st_asm330lhhx_hw *hw)
 	sensor = iio_priv(hw->iio_devs[ST_ASM330LHHX_ID_ACC]);
 
 	/* check if acc is enabled (it should be) */
-	if (hw->enable_mask & BIT(ST_ASM330LHHX_ID_ACC)) {
+	if (hw->enable_mask & BIT_ULL(ST_ASM330LHHX_ID_ACC)) {
 		odr = sensor->odr;
 		uodr = sensor->uodr;
 	} else {
@@ -563,15 +563,15 @@ st_asm330lhhx_shub_config_channels(struct st_asm330lhhx_sensor *sensor,
 	u8 config[6] = {}, enable_mask;
 	int i, j = 0;
 
-	enable_mask = enable ? hw->enable_mask | BIT(sensor->id)
-			     : hw->enable_mask & ~BIT(sensor->id);
+	enable_mask = enable ? hw->enable_mask | BIT_ULL(sensor->id)
+			     : hw->enable_mask & ~BIT_ULL(sensor->id);
 
 	for (i = ST_ASM330LHHX_ID_EXT0; i <= ST_ASM330LHHX_ID_EXT1; i++) {
 		if (!hw->iio_devs[i])
 			continue;
 
 		cur_sensor = iio_priv(hw->iio_devs[i]);
-		if (!(enable_mask & BIT(cur_sensor->id)))
+		if (!(enable_mask & BIT_ULL(cur_sensor->id)))
 			continue;
 
 		ext_info = &cur_sensor->ext_dev_info;
@@ -644,7 +644,7 @@ st_asm330lhhx_shub_set_odr(struct st_asm330lhhx_sensor *sensor, u16 odr)
 	if (err < 0)
 		return err;
 
-	if (sensor->odr == odr && (hw->enable_mask & BIT(sensor->id)))
+	if (sensor->odr == odr && (hw->enable_mask & BIT_ULL(sensor->id)))
 		return 0;
 
 	return st_asm330lhhx_shub_write_with_mask(sensor,

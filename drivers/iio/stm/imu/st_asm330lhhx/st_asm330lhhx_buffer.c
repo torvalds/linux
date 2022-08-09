@@ -157,7 +157,7 @@ int st_asm330lhhx_update_watermark(struct st_asm330lhhx_sensor *sensor,
 
 		cur_sensor = iio_priv(hw->iio_devs[i]);
 
-		if (!(hw->enable_mask & BIT(cur_sensor->id)))
+		if (!(hw->enable_mask & BIT_ULL(cur_sensor->id)))
 			continue;
 
 		cur_watermark = (cur_sensor == sensor) ? watermark
@@ -203,7 +203,7 @@ static struct iio_dev *st_asm330lhhx_get_iiodev_from_tag(struct st_asm330lhhx_hw
 		iio_dev = hw->iio_devs[ST_ASM330LHHX_ID_TEMP];
 		break;
 	case ST_ASM330LHHX_EXT0_TAG:
-		if (hw->enable_mask & BIT(ST_ASM330LHHX_ID_EXT0))
+		if (hw->enable_mask & BIT_ULL(ST_ASM330LHHX_ID_EXT0))
 			iio_dev = hw->iio_devs[ST_ASM330LHHX_ID_EXT0];
 		else
 			iio_dev = hw->iio_devs[ST_ASM330LHHX_ID_EXT1];
@@ -507,8 +507,8 @@ static int st_asm330lhhx_update_fifo(struct iio_dev *iio_dev,
 	 * toghether at least with a primary sensor (Acc/Gyro).
 	 */
 	if (sensor->id == ST_ASM330LHHX_ID_TEMP) {
-		if (!(hw->enable_mask & (BIT(ST_ASM330LHHX_ID_ACC) |
-					 BIT(ST_ASM330LHHX_ID_GYRO)))) {
+		if (!(hw->enable_mask & (BIT_ULL(ST_ASM330LHHX_ID_ACC) |
+					 BIT_ULL(ST_ASM330LHHX_ID_GYRO)))) {
 			struct st_asm330lhhx_sensor *acc_sensor;
 			u8 data = 0;
 
@@ -569,6 +569,9 @@ static irqreturn_t st_asm330lhhx_handler_irq(int irq, void *private)
 static irqreturn_t st_asm330lhhx_handler_thread(int irq, void *private)
 {
 	struct st_asm330lhhx_hw *hw = (struct st_asm330lhhx_hw *)private;
+
+	if (hw->settings->st_mlc_probe)
+		st_asm330lhhx_mlc_check_status(hw);
 
 	mutex_lock(&hw->fifo_lock);
 	st_asm330lhhx_read_fifo(hw);
