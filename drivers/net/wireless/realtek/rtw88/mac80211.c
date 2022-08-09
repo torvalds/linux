@@ -875,7 +875,9 @@ static int rtw_ops_set_sar_specs(struct ieee80211_hw *hw,
 {
 	struct rtw_dev *rtwdev = hw->priv;
 
+	mutex_lock(&rtwdev->mutex);
 	rtw_set_sar_specs(rtwdev, sar);
+	mutex_unlock(&rtwdev->mutex);
 
 	return 0;
 }
