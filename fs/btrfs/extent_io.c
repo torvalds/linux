@@ -6362,18 +6362,16 @@ static int release_extent_buffer(struct extent_buffer *eb)
 void free_extent_buffer(struct extent_buffer *eb)
 {
 	int refs;
-	int old;
 	if (!eb)
 		return;
 
+	refs = atomic_read(&eb->refs);
 	while (1) {
-		refs = atomic_read(&eb->refs);
 		if ((!test_bit(EXTENT_BUFFER_UNMAPPED, &eb->bflags) && refs <= 3)
 		    || (test_bit(EXTENT_BUFFER_UNMAPPED, &eb->bflags) &&
 			refs == 1))
 			break;
-		old = atomic_cmpxchg(&eb->refs, refs, refs - 1);
-		if (old == refs)
+		if (atomic_try_cmpxchg(&eb->refs, &refs, refs - 1))
 			return;
 	}
 
