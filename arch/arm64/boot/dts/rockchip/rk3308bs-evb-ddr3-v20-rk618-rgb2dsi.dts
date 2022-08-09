@@ -1,0 +1,14 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2022 Rockchip Electronics Co., Ltd
+ */
+
+/dts-v1/;
+
+#include "rk3308bs-evb-amic-v11.dts"
+#include "rk3308b-mipi-display-v11.dtsi"
+
+/ {
+	model = "Rockchip RK3308B-S EVB DDR3 V20 Board + Rockchip RK3308B-S MIPI DISPLAY V10 Ext Board";
+	compatible = "rockchip,rk3308bs-evb-ddr3-v20-rk618-rgb2dsi", "rockchip,rk3308";
+};

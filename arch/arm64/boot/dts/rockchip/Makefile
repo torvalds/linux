@@ -10,6 +10,7 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += px30-evb-ddr4-v10.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3308-evb.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3308-roc-cc.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3308bs-evb-amic-v11.dtb
+dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3308bs-evb-ddr3-v20-rk618-rgb2dsi.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3308bs-evb-dmic-pdm-v11.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3308bs-evb-mipi-display-v11.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3318-a95x-z2.dtb
