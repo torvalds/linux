@@ -57,8 +57,8 @@ static struct sg_table *dup_sg_table(struct sg_table *table)
 	return new_table;
 }
 
-static int qcom_sg_attach(struct dma_buf *dmabuf,
-			  struct dma_buf_attachment *attachment)
+int qcom_sg_attach(struct dma_buf *dmabuf,
+		   struct dma_buf_attachment *attachment)
 {
 	struct qcom_sg_buffer *buffer = dmabuf->priv;
 	struct dma_heap_attachment *a;
@@ -88,8 +88,8 @@ static int qcom_sg_attach(struct dma_buf *dmabuf,
 	return 0;
 }
 
-static void qcom_sg_detach(struct dma_buf *dmabuf,
-			   struct dma_buf_attachment *attachment)
+void qcom_sg_detach(struct dma_buf *dmabuf,
+		    struct dma_buf_attachment *attachment)
 {
 	struct qcom_sg_buffer *buffer = dmabuf->priv;
 	struct dma_heap_attachment *a = attachment->priv;
@@ -103,8 +103,8 @@ static void qcom_sg_detach(struct dma_buf *dmabuf,
 	kfree(a);
 }
 
-static struct sg_table *qcom_sg_map_dma_buf(struct dma_buf_attachment *attachment,
-					    enum dma_data_direction direction)
+struct sg_table *qcom_sg_map_dma_buf(struct dma_buf_attachment *attachment,
+				     enum dma_data_direction direction)
 {
 	struct dma_heap_attachment *a = attachment->priv;
 	struct sg_table *table = a->table;
@@ -145,9 +145,9 @@ err_map_sgtable:
 	return table;
 }
 
-static void qcom_sg_unmap_dma_buf(struct dma_buf_attachment *attachment,
-				  struct sg_table *table,
-				  enum dma_data_direction direction)
+void qcom_sg_unmap_dma_buf(struct dma_buf_attachment *attachment,
+			   struct sg_table *table,
+			   enum dma_data_direction direction)
 {
 	struct dma_heap_attachment *a = attachment->priv;
 	struct qcom_sg_buffer *buffer;
@@ -173,8 +173,8 @@ static void qcom_sg_unmap_dma_buf(struct dma_buf_attachment *attachment,
 	mutex_unlock(&buffer->lock);
 }
 
-static int qcom_sg_dma_buf_begin_cpu_access(struct dma_buf *dmabuf,
-					    enum dma_data_direction direction)
+int qcom_sg_dma_buf_begin_cpu_access(struct dma_buf *dmabuf,
+				     enum dma_data_direction direction)
 {
 	struct qcom_sg_buffer *buffer = dmabuf->priv;
 	struct dma_heap_attachment *a;
@@ -204,8 +204,8 @@ static int qcom_sg_dma_buf_begin_cpu_access(struct dma_buf *dmabuf,
 	return 0;
 }
 
-static int qcom_sg_dma_buf_end_cpu_access(struct dma_buf *dmabuf,
-					  enum dma_data_direction direction)
+int qcom_sg_dma_buf_end_cpu_access(struct dma_buf *dmabuf,
+				   enum dma_data_direction direction)
 {
 	struct qcom_sg_buffer *buffer = dmabuf->priv;
 	struct dma_heap_attachment *a;
@@ -290,10 +290,10 @@ static int sgl_sync_range(struct device *dev, struct scatterlist *sgl,
 	return 0;
 }
 
-static int qcom_sg_dma_buf_begin_cpu_access_partial(struct dma_buf *dmabuf,
-						    enum dma_data_direction dir,
-						    unsigned int offset,
-						    unsigned int len)
+int qcom_sg_dma_buf_begin_cpu_access_partial(struct dma_buf *dmabuf,
+					     enum dma_data_direction dir,
+					     unsigned int offset,
+					     unsigned int len)
 {
 	struct qcom_sg_buffer *buffer = dmabuf->priv;
 	struct dma_heap_attachment *a;
@@ -325,10 +325,10 @@ static int qcom_sg_dma_buf_begin_cpu_access_partial(struct dma_buf *dmabuf,
 	return ret;
 }
 
-static int qcom_sg_dma_buf_end_cpu_access_partial(struct dma_buf *dmabuf,
-					      enum dma_data_direction direction,
-					      unsigned int offset,
-					      unsigned int len)
+int qcom_sg_dma_buf_end_cpu_access_partial(struct dma_buf *dmabuf,
+					   enum dma_data_direction direction,
+					   unsigned int offset,
+					   unsigned int len)
 {
 	struct qcom_sg_buffer *buffer = dmabuf->priv;
 	struct dma_heap_attachment *a;
@@ -379,7 +379,7 @@ static const struct vm_operations_struct qcom_sg_vm_ops = {
 	.close = qcom_sg_vm_ops_close,
 };
 
-static int qcom_sg_mmap(struct dma_buf *dmabuf, struct vm_area_struct *vma)
+int qcom_sg_mmap(struct dma_buf *dmabuf, struct vm_area_struct *vma)
 {
 	struct qcom_sg_buffer *buffer = dmabuf->priv;
 	struct sg_table *table = &buffer->sg_table;
@@ -427,7 +427,7 @@ static int qcom_sg_mmap(struct dma_buf *dmabuf, struct vm_area_struct *vma)
 	return 0;
 }
 
-static void *qcom_sg_do_vmap(struct qcom_sg_buffer *buffer)
+void *qcom_sg_do_vmap(struct qcom_sg_buffer *buffer)
 {
 	struct sg_table *table = &buffer->sg_table;
 	int npages = PAGE_ALIGN(buffer->len) / PAGE_SIZE;
@@ -457,7 +457,7 @@ static void *qcom_sg_do_vmap(struct qcom_sg_buffer *buffer)
 	return vaddr;
 }
 
-static int qcom_sg_vmap(struct dma_buf *dmabuf, struct iosys_map *map)
+int qcom_sg_vmap(struct dma_buf *dmabuf, struct iosys_map *map)
 {
 	struct qcom_sg_buffer *buffer = dmabuf->priv;
 	void *vaddr;
@@ -492,7 +492,7 @@ out:
 	return ret;
 }
 
-static void qcom_sg_vunmap(struct dma_buf *dmabuf, struct iosys_map *map)
+void qcom_sg_vunmap(struct dma_buf *dmabuf, struct iosys_map *map)
 {
 	struct qcom_sg_buffer *buffer = dmabuf->priv;
 
@@ -506,7 +506,7 @@ static void qcom_sg_vunmap(struct dma_buf *dmabuf, struct iosys_map *map)
 	iosys_map_clear(map);
 }
 
-static void qcom_sg_release(struct dma_buf *dmabuf)
+void qcom_sg_release(struct dma_buf *dmabuf)
 {
 	struct qcom_sg_buffer *buffer = dmabuf->priv;
 
@@ -517,7 +517,7 @@ static void qcom_sg_release(struct dma_buf *dmabuf)
 	buffer->free(buffer);
 }
 
-static struct mem_buf_vmperm *qcom_sg_lookup_vmperm(struct dma_buf *dmabuf)
+struct mem_buf_vmperm *qcom_sg_lookup_vmperm(struct dma_buf *dmabuf)
 {
 	struct qcom_sg_buffer *buffer = dmabuf->priv;
 

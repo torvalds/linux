@@ -340,7 +340,7 @@ static int system_heap_zero_buffer(struct qcom_sg_buffer *buffer)
 	return ret;
 }
 
-static void system_heap_free(struct qcom_sg_buffer *buffer)
+void qcom_system_heap_free(struct qcom_sg_buffer *buffer)
 {
 	struct qcom_system_heap *sys_heap;
 	struct sg_table *table;
@@ -367,7 +367,7 @@ static void system_heap_free(struct qcom_sg_buffer *buffer)
 
 static void system_qcom_sg_buffer_free(struct qcom_sg_buffer *buffer)
 {
-	system_heap_free(buffer);
+	qcom_system_heap_free(buffer);
 	kfree(buffer);
 }
 
@@ -519,7 +519,7 @@ static struct dma_buf *system_heap_allocate(struct dma_heap *heap,
 free_vmperm:
 	mem_buf_vmperm_release(buffer->vmperm);
 free_sys_heap_mem:
-	system_heap_free(buffer);
+	qcom_system_heap_free(buffer);
 free_buf_struct:
 	kfree(buffer);
 
