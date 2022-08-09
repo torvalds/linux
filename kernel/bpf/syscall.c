@@ -5071,9 +5071,6 @@ static bool syscall_prog_is_valid_access(int off, int size,
 
 BPF_CALL_3(bpf_sys_bpf, int, cmd, union bpf_attr *, attr, u32, attr_size)
 {
-	struct bpf_prog * __maybe_unused prog;
-	struct bpf_tramp_run_ctx __maybe_unused run_ctx;
-
 	switch (cmd) {
 	case BPF_MAP_CREATE:
 	case BPF_MAP_UPDATE_ELEM:
@@ -5083,6 +5080,18 @@ BPF_CALL_3(bpf_sys_bpf, int, cmd, union bpf_attr *, attr, u32, attr_size)
 	case BPF_LINK_CREATE:
 	case BPF_RAW_TRACEPOINT_OPEN:
 		break;
+	default:
+		return -EINVAL;
+	}
+	return __sys_bpf(cmd, KERNEL_BPFPTR(attr), attr_size);
+}
+
+int kern_sys_bpf(int cmd, union bpf_attr *attr, unsigned int size)
+{
+	struct bpf_prog * __maybe_unused prog;
+	struct bpf_tramp_run_ctx __maybe_unused run_ctx;
+
+	switch (cmd) {
 #ifdef CONFIG_BPF_JIT /* __bpf_prog_enter_sleepable used by trampoline and JIT */
 	case BPF_PROG_TEST_RUN:
 		if (attr->test.data_in || attr->test.data_out ||
@@ -5113,11 +5122,10 @@ BPF_CALL_3(bpf_sys_bpf, int, cmd, union bpf_attr *, attr, u32, attr_size)
 		return 0;
 #endif
 	default:
-		return -EINVAL;
+		return ____bpf_sys_bpf(cmd, attr, size);
 	}
-	return __sys_bpf(cmd, KERNEL_BPFPTR(attr), attr_size);
 }
-EXPORT_SYMBOL(bpf_sys_bpf);
+EXPORT_SYMBOL(kern_sys_bpf);
 
 static const struct bpf_func_proto bpf_sys_bpf_proto = {
 	.func		= bpf_sys_bpf,
