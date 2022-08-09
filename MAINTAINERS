@@ -11063,6 +11063,7 @@ R:	Sergey Senozhatsky <senozhatsky@chromium.org>
 L:	linux-cifs@vger.kernel.org
 S:	Maintained
 T:	git git://git.samba.org/ksmbd.git
+F:	Documentation/filesystems/cifs/ksmbd.rst
 F:	fs/ksmbd/
 F:	fs/smbfs_common/
 
