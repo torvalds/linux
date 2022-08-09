@@ -118,3 +118,23 @@ bool rtw89_assign_entity_chan(struct rtw89_dev *rtwdev,
 	*chan = *new;
 	return band_changed;
 }
+
+static void __rtw89_config_entity_chandef(struct rtw89_dev *rtwdev,
+					  enum rtw89_sub_entity_idx idx,
+					  const struct cfg80211_chan_def *chandef,
+					  bool from_stack)
+{
+	struct rtw89_hal *hal = &rtwdev->hal;
+
+	hal->chandef[idx] = *chandef;
+
+	if (from_stack)
+		set_bit(idx, hal->entity_map);
+}
+
+void rtw89_config_entity_chandef(struct rtw89_dev *rtwdev,
+				 enum rtw89_sub_entity_idx idx,
+				 const struct cfg80211_chan_def *chandef)
+{
+	__rtw89_config_entity_chandef(rtwdev, idx, chandef, true);
+}

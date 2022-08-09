@@ -2634,6 +2634,9 @@ struct rtw89_hal {
 	bool support_cckpd;
 	bool support_igi;
 
+	DECLARE_BITMAP(entity_map, NUM_OF_RTW89_SUB_ENTITY);
+	struct cfg80211_chan_def chandef[NUM_OF_RTW89_SUB_ENTITY];
+
 	bool entity_active;
 
 	struct rtw89_chan chan[NUM_OF_RTW89_SUB_ENTITY];
@@ -3627,6 +3630,15 @@ void rtw89_chip_set_channel_done(struct rtw89_dev *rtwdev,
 {
 	rtwdev->chip->ops->set_channel_help(rtwdev, false, p, chan,
 					    mac_idx, phy_idx);
+}
+
+static inline
+const struct cfg80211_chan_def *rtw89_chandef_get(struct rtw89_dev *rtwdev,
+						  enum rtw89_sub_entity_idx idx)
+{
+	struct rtw89_hal *hal = &rtwdev->hal;
+
+	return &hal->chandef[idx];
 }
 
 static inline

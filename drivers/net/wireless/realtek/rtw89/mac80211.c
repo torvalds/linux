@@ -3,6 +3,7 @@
  */
 
 #include "cam.h"
+#include "chan.h"
 #include "coex.h"
 #include "debug.h"
 #include "fw.h"
@@ -85,8 +86,11 @@ static int rtw89_ops_config(struct ieee80211_hw *hw, u32 changed)
 		}
 	}
 
-	if (changed & IEEE80211_CONF_CHANGE_CHANNEL)
+	if (changed & IEEE80211_CONF_CHANGE_CHANNEL) {
+		rtw89_config_entity_chandef(rtwdev, RTW89_SUB_ENTITY_0,
+					    &hw->conf.chandef);
 		rtw89_set_channel(rtwdev);
+	}
 
 	if ((changed & IEEE80211_CONF_CHANGE_IDLE) &&
 	    (hw->conf.flags & IEEE80211_CONF_IDLE))

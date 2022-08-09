@@ -225,7 +225,7 @@ static void rtw89_traffic_stats_accu(struct rtw89_dev *rtwdev,
 	}
 }
 
-static void rtw89_get_channel_params(struct cfg80211_chan_def *chandef,
+static void rtw89_get_channel_params(const struct cfg80211_chan_def *chandef,
 				     struct rtw89_chan *chan)
 {
 	struct ieee80211_channel *channel = chandef->chan;
@@ -302,7 +302,8 @@ void rtw89_core_set_chip_txpwr(struct rtw89_dev *rtwdev)
 
 void rtw89_set_channel(struct rtw89_dev *rtwdev)
 {
-	struct ieee80211_hw *hw = rtwdev->hw;
+	const struct cfg80211_chan_def *chandef =
+		rtw89_chandef_get(rtwdev, RTW89_SUB_ENTITY_0);
 	const struct rtw89_chip_info *chip = rtwdev->chip;
 	struct rtw89_chan chan;
 	struct rtw89_channel_help_params bak;
@@ -311,7 +312,7 @@ void rtw89_set_channel(struct rtw89_dev *rtwdev)
 
 	entity_active = rtw89_get_entity_state(rtwdev);
 
-	rtw89_get_channel_params(&hw->conf.chandef, &chan);
+	rtw89_get_channel_params(chandef, &chan);
 	if (WARN(chan.channel == 0, "Invalid channel\n"))
 		return;
 
@@ -1607,14 +1608,15 @@ static void rtw89_core_update_rx_status(struct rtw89_dev *rtwdev,
 					struct rtw89_rx_desc_info *desc_info,
 					struct ieee80211_rx_status *rx_status)
 {
-	struct ieee80211_hw *hw = rtwdev->hw;
+	const struct cfg80211_chan_def *chandef =
+		rtw89_chandef_get(rtwdev, RTW89_SUB_ENTITY_0);
 	const struct rtw89_chan *cur = rtw89_chan_get(rtwdev, RTW89_SUB_ENTITY_0);
 	u16 data_rate;
 	u8 data_rate_mode;
 
 	/* currently using single PHY */
-	rx_status->freq = hw->conf.chandef.chan->center_freq;
-	rx_status->band = hw->conf.chandef.chan->band;
+	rx_status->freq = chandef->chan->center_freq;
+	rx_status->band = chandef->chan->band;
 
 	if (rtwdev->scanning &&
 	    RTW89_CHK_FW_FEATURE(SCAN_OFFLOAD, &rtwdev->fw)) {
