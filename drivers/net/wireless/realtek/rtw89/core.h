@@ -2115,9 +2115,14 @@ struct rtw89_chip_ops {
 	bool (*write_rf)(struct rtw89_dev *rtwdev, enum rtw89_rf_path rf_path,
 			 u32 addr, u32 mask, u32 data);
 	void (*set_channel)(struct rtw89_dev *rtwdev,
-			    const struct rtw89_chan *chan);
+			    const struct rtw89_chan *chan,
+			    enum rtw89_mac_idx mac_idx,
+			    enum rtw89_phy_idx phy_idx);
 	void (*set_channel_help)(struct rtw89_dev *rtwdev, bool enter,
-				 struct rtw89_channel_help_params *p);
+				 struct rtw89_channel_help_params *p,
+				 const struct rtw89_chan *chan,
+				 enum rtw89_mac_idx mac_idx,
+				 enum rtw89_phy_idx phy_idx);
 	int (*read_efuse)(struct rtw89_dev *rtwdev, u8 *log_map);
 	int (*read_phycap)(struct rtw89_dev *rtwdev, u8 *phycap_map);
 	void (*fem_setup)(struct rtw89_dev *rtwdev);
@@ -3604,16 +3609,24 @@ struct rtw89_bssid_cam_entry *rtw89_get_bssid_cam_of(struct rtw89_vif *rtwvif,
 
 static inline
 void rtw89_chip_set_channel_prepare(struct rtw89_dev *rtwdev,
-				    struct rtw89_channel_help_params *p)
+				    struct rtw89_channel_help_params *p,
+				    const struct rtw89_chan *chan,
+				    enum rtw89_mac_idx mac_idx,
+				    enum rtw89_phy_idx phy_idx)
 {
-	rtwdev->chip->ops->set_channel_help(rtwdev, true, p);
+	rtwdev->chip->ops->set_channel_help(rtwdev, true, p, chan,
+					    mac_idx, phy_idx);
 }
 
 static inline
 void rtw89_chip_set_channel_done(struct rtw89_dev *rtwdev,
-				 struct rtw89_channel_help_params *p)
+				 struct rtw89_channel_help_params *p,
+				 const struct rtw89_chan *chan,
+				 enum rtw89_mac_idx mac_idx,
+				 enum rtw89_phy_idx phy_idx)
 {
-	rtwdev->chip->ops->set_channel_help(rtwdev, false, p);
+	rtwdev->chip->ops->set_channel_help(rtwdev, false, p, chan,
+					    mac_idx, phy_idx);
 }
 
 static inline

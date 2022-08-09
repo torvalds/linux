@@ -319,13 +319,15 @@ void rtw89_set_channel(struct rtw89_dev *rtwdev)
 
 	rtw89_set_entity_state(rtwdev, true);
 
-	rtw89_chip_set_channel_prepare(rtwdev, &bak);
+	rtw89_chip_set_channel_prepare(rtwdev, &bak, &chan,
+				       RTW89_MAC_0, RTW89_PHY_0);
 
-	chip->ops->set_channel(rtwdev, &chan);
+	chip->ops->set_channel(rtwdev, &chan, RTW89_MAC_0, RTW89_PHY_0);
 
 	rtw89_core_set_chip_txpwr(rtwdev);
 
-	rtw89_chip_set_channel_done(rtwdev, &bak);
+	rtw89_chip_set_channel_done(rtwdev, &bak, &chan,
+				    RTW89_MAC_0, RTW89_PHY_0);
 
 	if (!entity_active || band_changed) {
 		rtw89_btc_ntfy_switch_band(rtwdev, RTW89_PHY_0, chan.band_type);

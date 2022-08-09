@@ -1529,11 +1529,9 @@ static void rtw8852c_bb_reset_all(struct rtw89_dev *rtwdev,
 			      phy_idx);
 }
 
-static void rtw8852c_bb_reset_en(struct rtw89_dev *rtwdev,
+static void rtw8852c_bb_reset_en(struct rtw89_dev *rtwdev, enum rtw89_band band,
 				 enum rtw89_phy_idx phy_idx, bool en)
 {
-	const struct rtw89_chan *chan = rtw89_chan_get(rtwdev, RTW89_SUB_ENTITY_0);
-
 	if (en) {
 		rtw89_phy_write32_idx(rtwdev, R_S0_HW_SI_DIS,
 				      B_S0_HW_SI_DIS_W_R_TRIG, 0x0, phy_idx);
@@ -1541,7 +1539,7 @@ static void rtw8852c_bb_reset_en(struct rtw89_dev *rtwdev,
 				      B_S1_HW_SI_DIS_W_R_TRIG, 0x0, phy_idx);
 		rtw89_phy_write32_idx(rtwdev, R_RSTB_ASYNC, B_RSTB_ASYNC_ALL, 1,
 				      phy_idx);
-		if (chan->band_type == RTW89_BAND_2G)
+		if (band == RTW89_BAND_2G)
 			rtw89_phy_write32_mask(rtwdev, R_RXCCA_V1, B_RXCCA_DIS_V1, 0x0);
 		rtw89_phy_write32_mask(rtwdev, R_PD_CTRL, B_PD_HIT_DIS, 0x0);
 	} else {
@@ -1777,11 +1775,13 @@ static void rtw8852c_set_channel_bb(struct rtw89_dev *rtwdev,
 }
 
 static void rtw8852c_set_channel(struct rtw89_dev *rtwdev,
-				 const struct rtw89_chan *chan)
+				 const struct rtw89_chan *chan,
+				 enum rtw89_mac_idx mac_idx,
+				 enum rtw89_phy_idx phy_idx)
 {
-	rtw8852c_set_channel_mac(rtwdev, chan, RTW89_MAC_0);
-	rtw8852c_set_channel_bb(rtwdev, chan, RTW89_PHY_0);
-	rtw8852c_set_channel_rf(rtwdev, chan, RTW89_PHY_0);
+	rtw8852c_set_channel_mac(rtwdev, chan, mac_idx);
+	rtw8852c_set_channel_bb(rtwdev, chan, phy_idx);
+	rtw8852c_set_channel_rf(rtwdev, chan, phy_idx);
 }
 
 static void rtw8852c_dfs_en(struct rtw89_dev *rtwdev, bool en)
@@ -1803,25 +1803,27 @@ static void rtw8852c_adc_en(struct rtw89_dev *rtwdev, bool en)
 }
 
 static void rtw8852c_set_channel_help(struct rtw89_dev *rtwdev, bool enter,
-				      struct rtw89_channel_help_params *p)
+				      struct rtw89_channel_help_params *p,
+				      const struct rtw89_chan *chan,
+				      enum rtw89_mac_idx mac_idx,
+				      enum rtw89_phy_idx phy_idx)
 {
-	u8 phy_idx = RTW89_PHY_0;
-
 	if (enter) {
-		rtw89_chip_stop_sch_tx(rtwdev, RTW89_MAC_0, &p->tx_en, RTW89_SCH_TX_SEL_ALL);
-		rtw89_mac_cfg_ppdu_status(rtwdev, RTW89_MAC_0, false);
+		rtw89_chip_stop_sch_tx(rtwdev, mac_idx, &p->tx_en,
+				       RTW89_SCH_TX_SEL_ALL);
+		rtw89_mac_cfg_ppdu_status(rtwdev, mac_idx, false);
 		rtw8852c_dfs_en(rtwdev, false);
-		rtw8852c_tssi_cont_en_phyidx(rtwdev, false, RTW89_PHY_0);
+		rtw8852c_tssi_cont_en_phyidx(rtwdev, false, phy_idx);
 		rtw8852c_adc_en(rtwdev, false);
 		fsleep(40);
-		rtw8852c_bb_reset_en(rtwdev, phy_idx, false);
+		rtw8852c_bb_reset_en(rtwdev, chan->band_type, phy_idx, false);
 	} else {
-		rtw89_mac_cfg_ppdu_status(rtwdev, RTW89_MAC_0, true);
+		rtw89_mac_cfg_ppdu_status(rtwdev, mac_idx, true);
 		rtw8852c_adc_en(rtwdev, true);
 		rtw8852c_dfs_en(rtwdev, true);
-		rtw8852c_tssi_cont_en_phyidx(rtwdev, true, RTW89_PHY_0);
-		rtw8852c_bb_reset_en(rtwdev, phy_idx, true);
-		rtw89_chip_resume_sch_tx(rtwdev, RTW89_MAC_0, p->tx_en);
+		rtw8852c_tssi_cont_en_phyidx(rtwdev, true, phy_idx);
+		rtw8852c_bb_reset_en(rtwdev, chan->band_type, phy_idx, true);
+		rtw89_chip_resume_sch_tx(rtwdev, mac_idx, p->tx_en);
 	}
 }
 
