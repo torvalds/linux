@@ -1447,44 +1447,50 @@ TRACE_EVENT(nfs_writeback_done,
 
 DECLARE_EVENT_CLASS(nfs_page_error_class,
 		TP_PROTO(
+			const struct inode *inode,
 			const struct nfs_page *req,
 			int error
 		),
 
-		TP_ARGS(req, error),
+		TP_ARGS(inode, req, error),
 
 		TP_STRUCT__entry(
-			__field(const void *, req)
-			__field(pgoff_t, index)
-			__field(unsigned int, offset)
-			__field(unsigned int, pgbase)
-			__field(unsigned int, bytes)
+			__field(dev_t, dev)
+			__field(u32, fhandle)
+			__field(u64, fileid)
+			__field(loff_t, offset)
+			__field(unsigned int, count)
 			__field(int, error)
 		),
 
 		TP_fast_assign(
-			__entry->req = req;
-			__entry->index = req->wb_index;
-			__entry->offset = req->wb_offset;
-			__entry->pgbase = req->wb_pgbase;
-			__entry->bytes = req->wb_bytes;
+			const struct nfs_inode *nfsi = NFS_I(inode);
+			__entry->dev = inode->i_sb->s_dev;
+			__entry->fileid = nfsi->fileid;
+			__entry->fhandle = nfs_fhandle_hash(&nfsi->fh);
+			__entry->offset = req_offset(req);
+			__entry->count = req->wb_bytes;
 			__entry->error = error;
 		),
 
 		TP_printk(
-			"req=%p index=%lu offset=%u pgbase=%u bytes=%u error=%d",
-			__entry->req, __entry->index, __entry->offset,
-			__entry->pgbase, __entry->bytes, __entry->error
+			"error=%d fileid=%02x:%02x:%llu fhandle=0x%08x "
+			"offset=%lld count=%u", __entry->error,
+			MAJOR(__entry->dev), MINOR(__entry->dev),
+			(unsigned long long)__entry->fileid,
+			__entry->fhandle, __entry->offset,
+			__entry->count
 		)
 );
 
 #define DEFINE_NFS_PAGEERR_EVENT(name) \
 	DEFINE_EVENT(nfs_page_error_class, name, \
 			TP_PROTO( \
+				const struct inode *inode, \
 				const struct nfs_page *req, \
 				int error \
 			), \
-			TP_ARGS(req, error))
+			TP_ARGS(inode, req, error))
 
 DEFINE_NFS_PAGEERR_EVENT(nfs_write_error);
 DEFINE_NFS_PAGEERR_EVENT(nfs_comp_error);
