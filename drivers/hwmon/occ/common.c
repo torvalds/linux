@@ -10,6 +10,7 @@
 #include <linux/math64.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
+#include <linux/property.h>
 #include <linux/sysfs.h>
 #include <asm/unaligned.h>
 
@@ -1216,8 +1217,16 @@ int occ_setup(struct occ *occ)
 	occ->groups[0] = &occ->group;
 
 	rc = occ_setup_sysfs(occ);
-	if (rc)
+	if (rc) {
 		dev_err(occ->bus_dev, "failed to setup sysfs: %d\n", rc);
+		return rc;
+	}
+
+	if (!device_property_read_bool(occ->bus_dev, "ibm,no-poll-on-init")) {
+		rc = occ_active(occ, true);
+		if (rc)
+			occ_shutdown_sysfs(occ);
+	}
 
 	return rc;
 }
