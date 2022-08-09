@@ -1254,8 +1254,9 @@ int psp_xgmi_get_node_id(struct psp_context *psp, uint64_t *node_id)
 
 static bool psp_xgmi_peer_link_info_supported(struct psp_context *psp)
 {
-	return psp->adev->ip_versions[MP0_HWIP][0] == IP_VERSION(13, 0, 2) &&
-		psp->xgmi_context.context.bin_desc.fw_version >= 0x2000000b;
+	return (psp->adev->ip_versions[MP0_HWIP][0] == IP_VERSION(13, 0, 2) &&
+		psp->xgmi_context.context.bin_desc.fw_version >= 0x2000000b) ||
+		psp->adev->ip_versions[MP0_HWIP][0] >= IP_VERSION(13, 0, 6);
 }
 
 /*
@@ -1363,6 +1364,9 @@ int psp_xgmi_get_topology_info(struct psp_context *psp,
 	/* Invoke xgmi ta again to get the link information */
 	if (psp_xgmi_peer_link_info_supported(psp)) {
 		struct ta_xgmi_cmd_get_peer_link_info_output *link_info_output;
+		bool requires_reflection =
+			(psp->xgmi_context.supports_extended_data && get_extended_data) ||
+				psp->adev->ip_versions[MP0_HWIP][0] == IP_VERSION(13, 0, 6);
 
 		xgmi_cmd->cmd_id = TA_COMMAND_XGMI__GET_PEER_LINKS;
 
@@ -1380,8 +1384,7 @@ int psp_xgmi_get_topology_info(struct psp_context *psp,
 					link_info_output->nodes[i].num_links;
 
 			/* reflect the topology information for bi-directionality */
-			if (psp->xgmi_context.supports_extended_data &&
-					get_extended_data && topology->nodes[i].num_hops)
+			if (requires_reflection && topology->nodes[i].num_hops)
 				psp_xgmi_reflect_topology_info(psp, topology->nodes[i]);
 		}
 	}
