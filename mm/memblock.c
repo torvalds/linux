@@ -597,6 +597,17 @@ static int __init_memblock memblock_add_range(struct memblock_type *type,
 		type->total_size = size;
 		return 0;
 	}
+
+	/*
+	 * The worst case is when new range overlaps all existing regions,
+	 * then we'll need type->cnt + 1 empty regions in @type. So if
+	 * type->cnt * 2 + 1 is less than type->max, we know
+	 * that there is enough empty regions in @type, and we can insert
+	 * regions directly.
+	 */
+	if (type->cnt * 2 + 1 < type->max)
+		insert = true;
+
 repeat:
 	/*
 	 * The following is executed twice.  Once with %false @insert and
