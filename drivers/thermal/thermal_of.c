@@ -1062,8 +1062,8 @@ static struct device_node *of_thermal_zone_find(struct device_node *sensor, int 
 
 	np = of_find_node_by_name(NULL, "thermal-zones");
 	if (!np) {
-		pr_err("Unable to find thermal zones description\n");
-		return ERR_PTR(-EINVAL);
+		pr_debug("No thermal zones description\n");
+		return ERR_PTR(-ENODEV);
 	}
 
 	/*
@@ -1102,7 +1102,7 @@ static struct device_node *of_thermal_zone_find(struct device_node *sensor, int 
 			}
 		}
 	}
-	tz = ERR_PTR(-EINVAL);
+	tz = ERR_PTR(-ENODEV);
 out:
 	of_node_put(np);
 	return tz;
@@ -1376,7 +1376,8 @@ struct thermal_zone_device *thermal_of_zone_register(struct device_node *sensor,
 
 	np = of_thermal_zone_find(sensor, id);
 	if (IS_ERR(np)) {
-		pr_err("Failed to find thermal zone for %pOFn id=%d\n", sensor, id);
+		if (PTR_ERR(np) != -ENODEV)
+			pr_err("Failed to find thermal zone for %pOFn id=%d\n", sensor, id);
 		return ERR_CAST(np);
 	}
 
