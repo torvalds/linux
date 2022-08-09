@@ -984,11 +984,17 @@ int tls_device_decrypted(struct sock *sk, struct tls_context *tls_ctx)
 	int is_decrypted = skb->decrypted;
 	int is_encrypted = !is_decrypted;
 	struct sk_buff *skb_iter;
+	int left;
 
+	left = rxm->full_len - skb->len;
 	/* Check if all the data is decrypted already */
-	skb_walk_frags(skb, skb_iter) {
+	skb_iter = skb_shinfo(skb)->frag_list;
+	while (skb_iter && left > 0) {
 		is_decrypted &= skb_iter->decrypted;
 		is_encrypted &= !skb_iter->decrypted;
+
+		left -= skb_iter->len;
+		skb_iter = skb_iter->next;
 	}
 
 	trace_tls_device_decrypted(sk, tcp_sk(sk)->copied_seq - rxm->full_len,
