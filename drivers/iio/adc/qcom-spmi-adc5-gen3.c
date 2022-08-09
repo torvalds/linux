@@ -400,7 +400,7 @@ static int adc5_gen3_configure(struct adc5_chip *adc,
 
 #define ADC5_GEN3_HS_DELAY_MIN_US		100
 #define ADC5_GEN3_HS_DELAY_MAX_US		110
-#define ADC5_GEN3_HS_RETRY_COUNT		20
+#define ADC5_GEN3_HS_RETRY_COUNT		150
 
 static int adc5_gen3_poll_wait_hs(struct adc5_chip *adc, struct adc5_channel_prop *prop)
 {
