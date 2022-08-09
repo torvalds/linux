@@ -3,6 +3,7 @@
  */
 
 #include "cam.h"
+#include "chan.h"
 #include "coex.h"
 #include "debug.h"
 #include "fw.h"
@@ -926,9 +927,9 @@ int rtw89_fw_h2c_assoc_cmac_tbl(struct rtw89_dev *rtwdev,
 				struct ieee80211_sta *sta)
 {
 	const struct rtw89_chip_info *chip = rtwdev->chip;
-	struct rtw89_hal *hal = &rtwdev->hal;
 	struct rtw89_sta *rtwsta = sta_to_rtwsta_safe(sta);
 	struct rtw89_vif *rtwvif = (struct rtw89_vif *)vif->drv_priv;
+	const struct rtw89_chan *chan = rtw89_chan_get(rtwdev, RTW89_SUB_ENTITY_0);
 	struct sk_buff *skb;
 	u8 pads[RTW89_PPE_BW_NUM];
 	u8 mac_id = rtwsta ? rtwsta->mac_id : rtwvif->mac_id;
@@ -947,7 +948,7 @@ int rtw89_fw_h2c_assoc_cmac_tbl(struct rtw89_dev *rtwdev,
 	SET_CTRL_INFO_OPERATION(skb->data, 1);
 	SET_CMC_TBL_DISRTSFB(skb->data, 1);
 	SET_CMC_TBL_DISDATAFB(skb->data, 1);
-	if (hal->current_band_type == RTW89_BAND_2G)
+	if (chan->band_type == RTW89_BAND_2G)
 		SET_CMC_TBL_RTS_RTY_LOWEST_RATE(skb->data, RTW89_HW_RATE_CCK1);
 	else
 		SET_CMC_TBL_RTS_RTY_LOWEST_RATE(skb->data, RTW89_HW_RATE_OFDM6);
@@ -1036,8 +1037,8 @@ fail:
 int rtw89_fw_h2c_update_beacon(struct rtw89_dev *rtwdev,
 			       struct rtw89_vif *rtwvif)
 {
-	struct rtw89_hal *hal = &rtwdev->hal;
 	struct ieee80211_vif *vif = rtwvif_to_vif(rtwvif);
+	const struct rtw89_chan *chan = rtw89_chan_get(rtwdev, RTW89_SUB_ENTITY_0);
 	struct sk_buff *skb;
 	struct sk_buff *skb_beacon;
 	u16 tim_offset;
@@ -1066,7 +1067,7 @@ int rtw89_fw_h2c_update_beacon(struct rtw89_dev *rtwdev,
 	SET_BCN_UPD_MACID(skb->data, rtwvif->mac_id);
 	SET_BCN_UPD_SSN_SEL(skb->data, RTW89_MGMT_HW_SSN_SEL);
 	SET_BCN_UPD_SSN_MODE(skb->data, RTW89_MGMT_HW_SEQ_MODE);
-	SET_BCN_UPD_RATE(skb->data, hal->current_band_type == RTW89_BAND_2G ?
+	SET_BCN_UPD_RATE(skb->data, chan->band_type == RTW89_BAND_2G ?
 				    RTW89_HW_RATE_CCK1 : RTW89_HW_RATE_OFDM6);
 
 	skb_put_data(skb, skb_beacon->data, skb_beacon->len);
@@ -1788,6 +1789,7 @@ fail:
 
 int rtw89_fw_h2c_rf_ntfy_mcc(struct rtw89_dev *rtwdev)
 {
+	const struct rtw89_chan *chan = rtw89_chan_get(rtwdev, RTW89_SUB_ENTITY_0);
 	struct rtw89_mcc_info *mcc_info = &rtwdev->mcc;
 	struct rtw89_fw_h2c_rf_get_mccch *mccch;
 	struct sk_buff *skb;
@@ -1804,8 +1806,8 @@ int rtw89_fw_h2c_rf_ntfy_mcc(struct rtw89_dev *rtwdev)
 	mccch->ch_1 = cpu_to_le32(mcc_info->ch[1]);
 	mccch->band_0 = cpu_to_le32(mcc_info->band[0]);
 	mccch->band_1 = cpu_to_le32(mcc_info->band[1]);
-	mccch->current_channel = cpu_to_le32(rtwdev->hal.current_channel);
-	mccch->current_band_type = cpu_to_le32(rtwdev->hal.current_band_type);
+	mccch->current_channel = cpu_to_le32(chan->channel);
+	mccch->current_band_type = cpu_to_le32(chan->band_type);
 
 	rtw89_h2c_pkt_set_hdr(rtwdev, skb, FWCMD_TYPE_H2C,
 			      H2C_CAT_OUTSRC, H2C_CL_OUTSRC_RF_FW_NOTIFY,
@@ -2377,18 +2379,21 @@ out:
 void rtw89_store_op_chan(struct rtw89_dev *rtwdev, bool backup)
 {
 	struct rtw89_hw_scan_info *scan_info = &rtwdev->scan_info;
-	struct rtw89_hal *hal = &rtwdev->hal;
+	const struct rtw89_chan *cur = rtw89_chan_get(rtwdev, RTW89_SUB_ENTITY_0);
+	struct rtw89_chan new;
 
 	if (backup) {
-		scan_info->op_pri_ch = hal->current_primary_channel;
-		scan_info->op_chan = hal->current_channel;
-		scan_info->op_bw = hal->current_band_width;
-		scan_info->op_band = hal->current_band_type;
+		scan_info->op_pri_ch = cur->primary_channel;
+		scan_info->op_chan = cur->channel;
+		scan_info->op_bw = cur->band_width;
+		scan_info->op_band = cur->band_type;
 	} else {
-		hal->current_primary_channel = scan_info->op_pri_ch;
-		hal->current_channel = scan_info->op_chan;
-		hal->current_band_width = scan_info->op_bw;
-		hal->current_band_type = scan_info->op_band;
+		new = *cur;
+		new.primary_channel = scan_info->op_pri_ch;
+		new.channel = scan_info->op_chan;
+		new.band_width = scan_info->op_bw;
+		new.band_type = scan_info->op_band;
+		rtw89_assign_entity_chan(rtwdev, RTW89_SUB_ENTITY_0, &new);
 	}
 }
 

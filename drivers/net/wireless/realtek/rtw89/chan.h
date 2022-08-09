@@ -21,4 +21,8 @@ static inline void rtw89_set_entity_state(struct rtw89_dev *rtwdev, bool active)
 	WRITE_ONCE(hal->entity_active, active);
 }
 
+bool rtw89_assign_entity_chan(struct rtw89_dev *rtwdev,
+			      enum rtw89_sub_entity_idx idx,
+			      const struct rtw89_chan *new);
+
 #endif

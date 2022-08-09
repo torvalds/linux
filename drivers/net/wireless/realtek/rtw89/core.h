@@ -542,6 +542,12 @@ enum rtw89_phy_idx {
 	RTW89_PHY_MAX
 };
 
+enum rtw89_sub_entity_idx {
+	RTW89_SUB_ENTITY_0 = 0,
+
+	NUM_OF_RTW89_SUB_ENTITY,
+};
+
 enum rtw89_rf_path {
 	RF_PATH_A = 0,
 	RF_PATH_B = 1,
@@ -632,6 +638,11 @@ struct rtw89_chan {
 	enum rtw89_bandwidth band_width;
 	enum rtw89_subband subband_type;
 	enum rtw89_sc_offset pri_ch_idx;
+};
+
+struct rtw89_chan_rcd {
+	u8 prev_primary_channel;
+	enum rtw89_band prev_band_type;
 };
 
 struct rtw89_channel_help_params {
@@ -2602,14 +2613,6 @@ struct rtw89_sar_info {
 struct rtw89_hal {
 	u32 rx_fltr;
 	u8 cv;
-	u8 current_channel;
-	u32 current_freq;
-	u8 prev_primary_channel;
-	u8 current_primary_channel;
-	enum rtw89_subband current_subband;
-	u8 current_band_width;
-	u8 prev_band_type;
-	u8 current_band_type;
 	u32 sw_amsdu_max_size;
 	u32 antenna_tx;
 	u32 antenna_rx;
@@ -2619,6 +2622,9 @@ struct rtw89_hal {
 	bool support_igi;
 
 	bool entity_active;
+
+	struct rtw89_chan chan[NUM_OF_RTW89_SUB_ENTITY];
+	struct rtw89_chan_rcd chan_rcd[NUM_OF_RTW89_SUB_ENTITY];
 };
 
 #define RTW89_MAX_MAC_ID_NUM 128
@@ -3600,6 +3606,24 @@ void rtw89_chip_set_channel_done(struct rtw89_dev *rtwdev,
 				 struct rtw89_channel_help_params *p)
 {
 	rtwdev->chip->ops->set_channel_help(rtwdev, false, p);
+}
+
+static inline
+const struct rtw89_chan *rtw89_chan_get(struct rtw89_dev *rtwdev,
+					enum rtw89_sub_entity_idx idx)
+{
+	struct rtw89_hal *hal = &rtwdev->hal;
+
+	return &hal->chan[idx];
+}
+
+static inline
+const struct rtw89_chan_rcd *rtw89_chan_rcd_get(struct rtw89_dev *rtwdev,
+						enum rtw89_sub_entity_idx idx)
+{
+	struct rtw89_hal *hal = &rtwdev->hal;
+
+	return &hal->chan_rcd[idx];
 }
 
 static inline void rtw89_chip_fem_setup(struct rtw89_dev *rtwdev)

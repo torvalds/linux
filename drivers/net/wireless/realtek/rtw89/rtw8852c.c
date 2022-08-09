@@ -1532,7 +1532,7 @@ static void rtw8852c_bb_reset_all(struct rtw89_dev *rtwdev,
 static void rtw8852c_bb_reset_en(struct rtw89_dev *rtwdev,
 				 enum rtw89_phy_idx phy_idx, bool en)
 {
-	struct rtw89_hal *hal = &rtwdev->hal;
+	const struct rtw89_chan *chan = rtw89_chan_get(rtwdev, RTW89_SUB_ENTITY_0);
 
 	if (en) {
 		rtw89_phy_write32_idx(rtwdev, R_S0_HW_SI_DIS,
@@ -1541,7 +1541,7 @@ static void rtw8852c_bb_reset_en(struct rtw89_dev *rtwdev,
 				      B_S1_HW_SI_DIS_W_R_TRIG, 0x0, phy_idx);
 		rtw89_phy_write32_idx(rtwdev, R_RSTB_ASYNC, B_RSTB_ASYNC_ALL, 1,
 				      phy_idx);
-		if (hal->current_band_type == RTW89_BAND_2G)
+		if (chan->band_type == RTW89_BAND_2G)
 			rtw89_phy_write32_mask(rtwdev, R_RXCCA_V1, B_RXCCA_DIS_V1, 0x0);
 		rtw89_phy_write32_mask(rtwdev, R_PD_CTRL, B_PD_HIT_DIS, 0x0);
 	} else {
@@ -1964,7 +1964,8 @@ static void rtw8852c_set_txpwr_ref(struct rtw89_dev *rtwdev,
 static void rtw8852c_set_txpwr_byrate(struct rtw89_dev *rtwdev,
 				      enum rtw89_phy_idx phy_idx)
 {
-	u8 ch = rtwdev->hal.current_channel;
+	const struct rtw89_chan *chan = rtw89_chan_get(rtwdev, RTW89_SUB_ENTITY_0);
+	u8 ch = chan->channel;
 	static const u8 rs[] = {
 		RTW89_RS_CCK,
 		RTW89_RS_OFDM,
@@ -2049,7 +2050,8 @@ static void rtw8852c_bb_set_tx_shape_dfir(struct rtw89_dev *rtwdev,
 	__DECL_DFIR_ADDR(filter,
 			 0x45BC, 0x45CC, 0x45D0, 0x45D4, 0x45D8, 0x45C0,
 			 0x45C4, 0x45C8);
-	u8 ch = rtwdev->hal.current_channel;
+	const struct rtw89_chan *chan = rtw89_chan_get(rtwdev, RTW89_SUB_ENTITY_0);
+	u8 ch = chan->channel;
 	const u32 *param;
 	int i;
 
@@ -2082,7 +2084,8 @@ static void rtw8852c_bb_set_tx_shape_dfir(struct rtw89_dev *rtwdev,
 static void rtw8852c_set_tx_shape(struct rtw89_dev *rtwdev,
 				  enum rtw89_phy_idx phy_idx)
 {
-	u8 band = rtwdev->hal.current_band_type;
+	const struct rtw89_chan *chan = rtw89_chan_get(rtwdev, RTW89_SUB_ENTITY_0);
+	u8 band = chan->band_type;
 	u8 regd = rtw89_regd_get(rtwdev, band);
 	u8 tx_shape_cck = rtw89_8852c_tx_shape[band][RTW89_RS_CCK][regd];
 	u8 tx_shape_ofdm = rtw89_8852c_tx_shape[band][RTW89_RS_OFDM][regd];
@@ -2099,8 +2102,9 @@ static void rtw8852c_set_txpwr_limit(struct rtw89_dev *rtwdev,
 				     enum rtw89_phy_idx phy_idx)
 {
 #define __MAC_TXPWR_LMT_PAGE_SIZE 40
-	u8 ch = rtwdev->hal.current_channel;
-	u8 bw = rtwdev->hal.current_band_width;
+	const struct rtw89_chan *chan = rtw89_chan_get(rtwdev, RTW89_SUB_ENTITY_0);
+	u8 ch = chan->channel;
+	u8 bw = chan->band_width;
 	struct rtw89_txpwr_limit lmt[NTX_NUM_8852C];
 	u32 addr, val;
 	const s8 *ptr;
@@ -2130,8 +2134,9 @@ static void rtw8852c_set_txpwr_limit_ru(struct rtw89_dev *rtwdev,
 					enum rtw89_phy_idx phy_idx)
 {
 #define __MAC_TXPWR_LMT_RU_PAGE_SIZE 24
-	u8 ch = rtwdev->hal.current_channel;
-	u8 bw = rtwdev->hal.current_band_width;
+	const struct rtw89_chan *chan = rtw89_chan_get(rtwdev, RTW89_SUB_ENTITY_0);
+	u8 ch = chan->channel;
+	u8 bw = chan->band_width;
 	struct rtw89_txpwr_limit_ru lmt_ru[NTX_NUM_8852C];
 	u32 addr, val;
 	const s8 *ptr;
@@ -2226,7 +2231,8 @@ rtw8852c_init_txpwr_unit(struct rtw89_dev *rtwdev, enum rtw89_phy_idx phy_idx)
 
 static void rtw8852c_bb_cfg_rx_path(struct rtw89_dev *rtwdev, u8 rx_path)
 {
-	struct rtw89_hal *hal = &rtwdev->hal;
+	const struct rtw89_chan *chan = rtw89_chan_get(rtwdev, RTW89_SUB_ENTITY_0);
+	u8 band = chan->band_type;
 	u32 rst_mask0 = B_P0_TXPW_RSTB_MANON | B_P0_TXPW_RSTB_TSSI;
 	u32 rst_mask1 = B_P1_TXPW_RSTB_MANON | B_P1_TXPW_RSTB_TSSI;
 
@@ -2320,7 +2326,7 @@ static void rtw8852c_bb_cfg_rx_path(struct rtw89_dev *rtwdev, u8 rx_path)
 					       1);
 			rtw89_phy_write32_mask(rtwdev, R_RXHE, B_RXHETB_MAX_NSS,
 					       1);
-			rtw8852c_ctrl_btg(rtwdev, hal->current_band_type == RTW89_BAND_2G);
+			rtw8852c_ctrl_btg(rtwdev, band == RTW89_BAND_2G);
 			rtw89_phy_write32_mask(rtwdev, R_P0_TXPW_RSTB,
 					       rst_mask0, 1);
 			rtw89_phy_write32_mask(rtwdev, R_P0_TXPW_RSTB,

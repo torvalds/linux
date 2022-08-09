@@ -370,10 +370,8 @@ void rtw89_set_channel(struct rtw89_dev *rtwdev)
 {
 	struct ieee80211_hw *hw = rtwdev->hw;
 	const struct rtw89_chip_info *chip = rtwdev->chip;
-	struct rtw89_hal *hal = &rtwdev->hal;
 	struct rtw89_chan chan;
 	struct rtw89_channel_help_params bak;
-	u8 center_chan, bandwidth;
 	bool band_changed;
 	bool entity_active;
 
@@ -383,18 +381,7 @@ void rtw89_set_channel(struct rtw89_dev *rtwdev)
 	if (WARN(chan.channel == 0, "Invalid channel\n"))
 		return;
 
-	center_chan = chan.channel;
-	bandwidth = chan.band_width;
-	band_changed = hal->current_band_type != chan.band_type;
-
-	hal->current_band_width = bandwidth;
-	hal->current_channel = center_chan;
-	hal->current_freq = chan.freq;
-	hal->prev_primary_channel = hal->current_primary_channel;
-	hal->prev_band_type = hal->current_band_type;
-	hal->current_primary_channel = chan.primary_channel;
-	hal->current_band_type = chan.band_type;
-	hal->current_subband = chan.subband_type;
+	band_changed = rtw89_assign_entity_chan(rtwdev, RTW89_SUB_ENTITY_0, &chan);
 
 	rtw89_set_entity_state(rtwdev, true);
 
@@ -407,7 +394,7 @@ void rtw89_set_channel(struct rtw89_dev *rtwdev)
 	rtw89_chip_set_channel_done(rtwdev, &bak);
 
 	if (!entity_active || band_changed) {
-		rtw89_btc_ntfy_switch_band(rtwdev, RTW89_PHY_0, hal->current_band_type);
+		rtw89_btc_ntfy_switch_band(rtwdev, RTW89_PHY_0, chan.band_type);
 		rtw89_chip_rfk_band_changed(rtwdev);
 	}
 }
@@ -547,8 +534,8 @@ static u16 rtw89_core_get_mgmt_rate(struct rtw89_dev *rtwdev,
 	struct sk_buff *skb = tx_req->skb;
 	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(skb);
 	struct ieee80211_vif *vif = tx_info->control.vif;
-	struct rtw89_hal *hal = &rtwdev->hal;
-	u16 lowest_rate = hal->current_band_type == RTW89_BAND_2G ?
+	const struct rtw89_chan *chan = rtw89_chan_get(rtwdev, RTW89_SUB_ENTITY_0);
+	u16 lowest_rate = chan->band_type == RTW89_BAND_2G ?
 			  RTW89_HW_RATE_CCK1 : RTW89_HW_RATE_OFDM6;
 
 	if (!vif || !vif->bss_conf.basic_rates || !tx_req->sta)
@@ -564,6 +551,7 @@ rtw89_core_tx_update_mgmt_info(struct rtw89_dev *rtwdev,
 	struct ieee80211_vif *vif = tx_req->vif;
 	struct rtw89_vif *rtwvif = (struct rtw89_vif *)vif->drv_priv;
 	struct rtw89_tx_desc_info *desc_info = &tx_req->desc_info;
+	const struct rtw89_chan *chan = rtw89_chan_get(rtwdev, RTW89_SUB_ENTITY_0);
 	u8 qsel, ch_dma;
 
 	qsel = desc_info->hiq ? RTW89_TX_QSEL_B0_HI : RTW89_TX_QSEL_B0_MGMT;
@@ -582,9 +570,9 @@ rtw89_core_tx_update_mgmt_info(struct rtw89_dev *rtwdev,
 	desc_info->data_rate = rtw89_core_get_mgmt_rate(rtwdev, tx_req);
 
 	rtw89_debug(rtwdev, RTW89_DBG_TXRX,
-		    "tx mgmt frame with rate 0x%x on channel %d (bw %d)\n",
-		    desc_info->data_rate, rtwdev->hal.current_channel,
-		    rtwdev->hal.current_band_width);
+		    "tx mgmt frame with rate 0x%x on channel %d (band %d, bw %d)\n",
+		    desc_info->data_rate, chan->channel, chan->band_type,
+		    chan->band_width);
 }
 
 static void
@@ -609,15 +597,16 @@ static void rtw89_core_get_no_ul_ofdma_htc(struct rtw89_dev *rtwdev, __le32 *htc
 	};
 	const struct rtw89_chip_info *chip = rtwdev->chip;
 	struct rtw89_hal *hal = &rtwdev->hal;
+	const struct rtw89_chan *chan = rtw89_chan_get(rtwdev, RTW89_SUB_ENTITY_0);
 	u8 om_bandwidth;
 
 	if (!chip->dis_2g_40m_ul_ofdma ||
-	    hal->current_band_type != RTW89_BAND_2G ||
-	    hal->current_band_width != RTW89_CHANNEL_WIDTH_40)
+	    chan->band_type != RTW89_BAND_2G ||
+	    chan->band_width != RTW89_CHANNEL_WIDTH_40)
 		return;
 
-	om_bandwidth = hal->current_band_width < ARRAY_SIZE(rtw89_bandwidth_to_om) ?
-		       rtw89_bandwidth_to_om[hal->current_band_width] : 0;
+	om_bandwidth = chan->band_width < ARRAY_SIZE(rtw89_bandwidth_to_om) ?
+		       rtw89_bandwidth_to_om[chan->band_width] : 0;
 	*htc = le32_encode_bits(RTW89_HTC_VARIANT_HE, RTW89_HTC_MASK_VARIANT) |
 	       le32_encode_bits(RTW89_HTC_VARIANT_HE_CID_OM, RTW89_HTC_MASK_CTL_ID) |
 	       le32_encode_bits(hal->rx_nss - 1, RTW89_HTC_MASK_HTC_OM_RX_NSS) |
@@ -731,7 +720,7 @@ rtw89_core_tx_update_data_info(struct rtw89_dev *rtwdev,
 	struct ieee80211_vif *vif = tx_req->vif;
 	struct rtw89_vif *rtwvif = (struct rtw89_vif *)vif->drv_priv;
 	struct rtw89_phy_rate_pattern *rate_pattern = &rtwvif->rate_pattern;
-	struct rtw89_hal *hal = &rtwdev->hal;
+	const struct rtw89_chan *chan = rtw89_chan_get(rtwdev, RTW89_SUB_ENTITY_0);
 	struct rtw89_tx_desc_info *desc_info = &tx_req->desc_info;
 	struct sk_buff *skb = tx_req->skb;
 	u8 tid, tid_indicate;
@@ -756,7 +745,7 @@ rtw89_core_tx_update_data_info(struct rtw89_dev *rtwdev,
 
 	if (rate_pattern->enable)
 		desc_info->data_retry_lowest_rate = rate_pattern->rate;
-	else if (hal->current_band_type == RTW89_BAND_2G)
+	else if (chan->band_type == RTW89_BAND_2G)
 		desc_info->data_retry_lowest_rate = RTW89_HW_RATE_CCK1;
 	else
 		desc_info->data_retry_lowest_rate = RTW89_HW_RATE_OFDM6;
@@ -1466,8 +1455,11 @@ static void rtw89_core_rx_stats(struct rtw89_dev *rtwdev,
 static void rtw89_correct_cck_chan(struct rtw89_dev *rtwdev,
 				   struct ieee80211_rx_status *status)
 {
-	u16 chan = rtwdev->hal.prev_primary_channel;
-	u8 band = chan <= 14 ? NL80211_BAND_2GHZ : NL80211_BAND_5GHZ;
+	const struct rtw89_chan_rcd *rcd =
+		rtw89_chan_rcd_get(rtwdev, RTW89_SUB_ENTITY_0);
+	u16 chan = rcd->prev_primary_channel;
+	u8 band = rcd->prev_band_type == RTW89_BAND_2G ?
+		  NL80211_BAND_2GHZ : NL80211_BAND_5GHZ;
 
 	if (status->band != NL80211_BAND_2GHZ &&
 	    status->encoding == RX_ENC_LEGACY &&
@@ -1680,7 +1672,7 @@ static void rtw89_core_update_rx_status(struct rtw89_dev *rtwdev,
 					struct ieee80211_rx_status *rx_status)
 {
 	struct ieee80211_hw *hw = rtwdev->hw;
-	struct rtw89_hal *hal = &rtwdev->hal;
+	const struct rtw89_chan *cur = rtw89_chan_get(rtwdev, RTW89_SUB_ENTITY_0);
 	u16 data_rate;
 	u8 data_rate_mode;
 
@@ -1690,8 +1682,8 @@ static void rtw89_core_update_rx_status(struct rtw89_dev *rtwdev,
 
 	if (rtwdev->scanning &&
 	    RTW89_CHK_FW_FEATURE(SCAN_OFFLOAD, &rtwdev->fw)) {
-		u8 chan = hal->current_primary_channel;
-		u8 band = hal->current_band_type;
+		u8 chan = cur->primary_channel;
+		u8 band = cur->band_type;
 		enum nl80211_band nl_band;
 
 		nl_band = rtw89_hw_to_nl80211_band(band);
@@ -3025,7 +3017,7 @@ EXPORT_SYMBOL(rtw89_core_deinit);
 void rtw89_core_scan_start(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif,
 			   const u8 *mac_addr, bool hw_scan)
 {
-	struct rtw89_hal *hal = &rtwdev->hal;
+	const struct rtw89_chan *chan = rtw89_chan_get(rtwdev, RTW89_SUB_ENTITY_0);
 
 	rtwdev->scanning = true;
 	rtw89_leave_lps(rtwdev);
@@ -3033,7 +3025,7 @@ void rtw89_core_scan_start(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif,
 		rtw89_leave_ips(rtwdev);
 
 	ether_addr_copy(rtwvif->mac_addr, mac_addr);
-	rtw89_btc_ntfy_scan_start(rtwdev, RTW89_PHY_0, hal->current_band_type);
+	rtw89_btc_ntfy_scan_start(rtwdev, RTW89_PHY_0, chan->band_type);
 	rtw89_chip_rfk_scan(rtwdev, true);
 	rtw89_hci_recalc_int_mit(rtwdev);
 

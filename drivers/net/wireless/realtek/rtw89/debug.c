@@ -525,7 +525,8 @@ static int __print_txpwr_map(struct seq_file *m, struct rtw89_dev *rtwdev,
 
 static void __print_regd(struct seq_file *m, struct rtw89_dev *rtwdev)
 {
-	u8 band = rtwdev->hal.current_band_type;
+	const struct rtw89_chan *chan = rtw89_chan_get(rtwdev, RTW89_SUB_ENTITY_0);
+	u8 band = chan->band_type;
 	u8 regd = rtw89_regd_get(rtwdev, band);
 
 	switch (regd) {

@@ -1381,7 +1381,8 @@ static void rtw8852a_set_txpwr_ref(struct rtw89_dev *rtwdev,
 static void rtw8852a_set_txpwr_byrate(struct rtw89_dev *rtwdev,
 				      enum rtw89_phy_idx phy_idx)
 {
-	u8 ch = rtwdev->hal.current_channel;
+	const struct rtw89_chan *chan = rtw89_chan_get(rtwdev, RTW89_SUB_ENTITY_0);
+	u8 ch = chan->channel;
 	static const u8 rs[] = {
 		RTW89_RS_CCK,
 		RTW89_RS_OFDM,
@@ -1446,8 +1447,9 @@ static void rtw8852a_set_txpwr_limit(struct rtw89_dev *rtwdev,
 				     enum rtw89_phy_idx phy_idx)
 {
 #define __MAC_TXPWR_LMT_PAGE_SIZE 40
-	u8 ch = rtwdev->hal.current_channel;
-	u8 bw = rtwdev->hal.current_band_width;
+	const struct rtw89_chan *chan = rtw89_chan_get(rtwdev, RTW89_SUB_ENTITY_0);
+	u8 ch = chan->channel;
+	u8 bw = chan->band_width;
 	struct rtw89_txpwr_limit lmt[NTX_NUM_8852A];
 	u32 addr, val;
 	const s8 *ptr;
@@ -1477,8 +1479,9 @@ static void rtw8852a_set_txpwr_limit_ru(struct rtw89_dev *rtwdev,
 					enum rtw89_phy_idx phy_idx)
 {
 #define __MAC_TXPWR_LMT_RU_PAGE_SIZE 24
-	u8 ch = rtwdev->hal.current_channel;
-	u8 bw = rtwdev->hal.current_band_width;
+	const struct rtw89_chan *chan = rtw89_chan_get(rtwdev, RTW89_SUB_ENTITY_0);
+	u8 ch = chan->channel;
+	u8 bw = chan->band_width;
 	struct rtw89_txpwr_limit_ru lmt_ru[NTX_NUM_8852A];
 	u32 addr, val;
 	const s8 *ptr;
@@ -1593,10 +1596,12 @@ void rtw8852a_bb_set_pmac_tx(struct rtw89_dev *rtwdev,
 			     struct rtw8852a_bb_pmac_info *tx_info,
 			     enum rtw89_phy_idx idx)
 {
+	const struct rtw89_chan *chan = rtw89_chan_get(rtwdev, RTW89_SUB_ENTITY_0);
+
 	if (!tx_info->en_pmac_tx) {
 		rtw8852a_stop_pmac_tx(rtwdev, tx_info, idx);
 		rtw89_phy_write32_idx(rtwdev, R_PD_CTRL, B_PD_HIT_DIS, 0, idx);
-		if (rtwdev->hal.current_band_type == RTW89_BAND_2G)
+		if (chan->band_type == RTW89_BAND_2G)
 			rtw89_phy_write32_clr(rtwdev, R_RXCCA, B_RXCCA_DIS);
 		return;
 	}
