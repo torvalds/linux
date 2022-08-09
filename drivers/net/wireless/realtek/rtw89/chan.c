@@ -138,3 +138,19 @@ void rtw89_config_entity_chandef(struct rtw89_dev *rtwdev,
 {
 	__rtw89_config_entity_chandef(rtwdev, idx, chandef, true);
 }
+
+static void rtw89_config_default_chandef(struct rtw89_dev *rtwdev)
+{
+	struct cfg80211_chan_def chandef = {0};
+
+	rtw89_get_default_chandef(&chandef);
+	__rtw89_config_entity_chandef(rtwdev, RTW89_SUB_ENTITY_0, &chandef, false);
+}
+
+void rtw89_entity_init(struct rtw89_dev *rtwdev)
+{
+	struct rtw89_hal *hal = &rtwdev->hal;
+
+	bitmap_zero(hal->entity_map, NUM_OF_RTW89_SUB_ENTITY);
+	rtw89_config_default_chandef(rtwdev);
+}

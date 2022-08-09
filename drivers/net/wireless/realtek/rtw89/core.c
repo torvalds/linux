@@ -225,6 +225,12 @@ static void rtw89_traffic_stats_accu(struct rtw89_dev *rtwdev,
 	}
 }
 
+void rtw89_get_default_chandef(struct cfg80211_chan_def *chandef)
+{
+	cfg80211_chandef_create(chandef, &rtw89_channels_2ghz[0],
+				NL80211_CHAN_NO_HT);
+}
+
 static void rtw89_get_channel_params(const struct cfg80211_chan_def *chandef,
 				     struct rtw89_chan *chan)
 {
@@ -2935,6 +2941,7 @@ int rtw89_core_init(struct rtw89_dev *rtwdev)
 		return ret;
 	}
 	rtw89_ser_init(rtwdev);
+	rtw89_entity_init(rtwdev);
 
 	return 0;
 }

@@ -29,5 +29,6 @@ bool rtw89_assign_entity_chan(struct rtw89_dev *rtwdev,
 void rtw89_config_entity_chandef(struct rtw89_dev *rtwdev,
 				 enum rtw89_sub_entity_idx idx,
 				 const struct cfg80211_chan_def *chandef);
+void rtw89_entity_init(struct rtw89_dev *rtwdev);
 
 #endif
