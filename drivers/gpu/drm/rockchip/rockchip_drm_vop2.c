@@ -1671,12 +1671,15 @@ static void vop2_win_disable(struct vop2_win *win, bool skip_splice_win)
 
 			/*
 			 * Don't dynamic turn on/off PD_ESMART.
-			 * There is a design issue for PD_EMSART when attached
-			 * on VP1/2/3, we found it will trigger POST_BUF_EMPTY irq at vp0
-			 * in splice mode.
+			 * (1) There is a design issue for PD_EMSART when attached
+			 *     on VP1/2/3, we found it will trigger POST_BUF_EMPTY irq at vp0
+			 *     in splice mode.
+			 * (2) PD_ESMART will be closed at esmart layers attathed on VPs
+			 *     config done + FS, but different VP FS time is different, this
+			 *     maybe lead to PD_ESMART closed at wrong time and display error.
 			 *
 			 */
-			if (win->pd->data->id == VOP2_PD_ESMART && win->splice_mode_right)
+			if (win->pd->data->id == VOP2_PD_ESMART && hweight8(vop2->active_vp_mask) > 1)
 				return;
 
 			vop2_power_domain_put(win->pd);
