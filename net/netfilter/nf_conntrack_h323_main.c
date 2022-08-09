@@ -34,6 +34,8 @@
 #include <net/netfilter/nf_conntrack_zones.h>
 #include <linux/netfilter/nf_conntrack_h323.h>
 
+#define H323_MAX_SIZE 65535
+
 /* Parameters */
 static unsigned int default_rrq_ttl __read_mostly = 300;
 module_param(default_rrq_ttl, uint, 0600);
@@ -85,6 +87,9 @@ static int get_tpkt_data(struct sk_buff *skb, unsigned int protoff,
 	tcpdatalen = skb->len - tcpdataoff;
 	if (tcpdatalen <= 0)	/* No TCP data */
 		goto clear_out;
+
+	if (tcpdatalen > H323_MAX_SIZE)
+		tcpdatalen = H323_MAX_SIZE;
 
 	if (*data == NULL) {	/* first TPKT */
 		/* Get first TPKT pointer */
@@ -1169,6 +1174,9 @@ static unsigned char *get_udp_data(struct sk_buff *skb, unsigned int protoff,
 	if (dataoff >= skb->len)
 		return NULL;
 	*datalen = skb->len - dataoff;
+	if (*datalen > H323_MAX_SIZE)
+		*datalen = H323_MAX_SIZE;
+
 	return skb_header_pointer(skb, dataoff, *datalen, h323_buffer);
 }
 
@@ -1770,7 +1778,7 @@ static int __init nf_conntrack_h323_init(void)
 
 	NF_CT_HELPER_BUILD_BUG_ON(sizeof(struct nf_ct_h323_master));
 
-	h323_buffer = kmalloc(65536, GFP_KERNEL);
+	h323_buffer = kmalloc(H323_MAX_SIZE + 1, GFP_KERNEL);
 	if (!h323_buffer)
 		return -ENOMEM;
 	ret = h323_helper_init();
