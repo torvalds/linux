@@ -30,10 +30,10 @@
 
 #define DRIVER_NAME "rknpu"
 #define DRIVER_DESC "RKNPU driver"
-#define DRIVER_DATE "20220803"
+#define DRIVER_DATE "20220826"
 #define DRIVER_MAJOR 0
 #define DRIVER_MINOR 8
-#define DRIVER_PATCHLEVEL 0
+#define DRIVER_PATCHLEVEL 2
 
 #define LOG_TAG "RKNPU"
 
@@ -123,6 +123,7 @@ struct rknpu_device {
 	struct ipa_power_model_data *model_data;
 	struct thermal_cooling_device *devfreq_cooling;
 	struct devfreq *devfreq;
+	unsigned long ondemand_freq;
 #ifndef FPGA_PLATFORM
 #if KERNEL_VERSION(5, 10, 0) <= LINUX_VERSION_CODE
 	struct rockchip_opp_info opp_info;
@@ -141,7 +142,6 @@ struct rknpu_device {
 	atomic_t cmdline_power_refcount;
 	struct delayed_work power_off_work;
 	struct workqueue_struct *power_off_wq;
-	bool is_powered;
 	struct rknpu_debugger debugger;
 	struct hrtimer timer;
 	ktime_t kt;
@@ -150,8 +150,10 @@ struct rknpu_device {
 	uint32_t sram_size;
 	void __iomem *sram_base_io;
 	struct rknpu_mm *sram_mm;
+	unsigned long power_put_delay;
 };
 
-int rknpu_action(struct rknpu_device *rknpu_dev, struct rknpu_action *args);
+int rknpu_power_get(struct rknpu_device *rknpu_dev);
+int rknpu_power_put(struct rknpu_device *rknpu_dev);
 
 #endif /* __LINUX_RKNPU_DRV_H_ */

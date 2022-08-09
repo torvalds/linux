@@ -9,14 +9,23 @@
 #include <linux/syscalls.h>
 #include <linux/debugfs.h>
 #include <linux/proc_fs.h>
+#include <linux/devfreq.h>
+#include <linux/clk.h>
 #include <asm/div64.h>
 
+#ifndef FPGA_PLATFORM
+#include <../drivers/devfreq/governor.h>
+#endif
+
+#include "rknpu_drv.h"
 #include "rknpu_mm.h"
 #include "rknpu_reset.h"
 #include "rknpu_debugger.h"
 
 #define RKNPU_DEBUGGER_ROOT_NAME "rknpu"
 
+#if defined(CONFIG_ROCKCHIP_RKNPU_DEBUG_FS) ||                                 \
+	defined(CONFIG_ROCKCHIP_RKNPU_PROC_FS)
 static int rknpu_version_show(struct seq_file *m, void *data)
 {
 	seq_printf(m, "%s: v%d.%d.%d\n", DRIVER_DESC, DRIVER_MAJOR,
@@ -71,7 +80,7 @@ static int rknpu_power_show(struct seq_file *m, void *data)
 	struct rknpu_device *rknpu_dev =
 		container_of(debugger, struct rknpu_device, debugger);
 
-	if (rknpu_dev->is_powered)
+	if (atomic_read(&rknpu_dev->power_refcount) > 0)
 		seq_puts(m, "on\n");
 	else
 		seq_puts(m, "off\n");
@@ -87,7 +96,6 @@ static ssize_t rknpu_power_set(struct file *file, const char __user *ubuf,
 	struct rknpu_debugger *debugger = node->debugger;
 	struct rknpu_device *rknpu_dev =
 		container_of(debugger, struct rknpu_device, debugger);
-	struct rknpu_action args;
 	char buf[8];
 
 	if (len > sizeof(buf) - 1)
@@ -98,27 +106,147 @@ static ssize_t rknpu_power_set(struct file *file, const char __user *ubuf,
 
 	if (strcmp(buf, "on") == 0) {
 		atomic_inc(&rknpu_dev->cmdline_power_refcount);
-		args.flags = RKNPU_POWER_ON;
-		rknpu_action(rknpu_dev, &args);
+		rknpu_power_get(rknpu_dev);
 		LOG_INFO("rknpu power is on!");
 	} else if (strcmp(buf, "off") == 0) {
-		if (rknpu_dev->is_powered &&
+		if (atomic_read(&rknpu_dev->power_refcount) > 0 &&
 		    atomic_dec_if_positive(
 			    &rknpu_dev->cmdline_power_refcount) >= 0) {
 			atomic_sub(
 				atomic_read(&rknpu_dev->cmdline_power_refcount),
 				&rknpu_dev->power_refcount);
 			atomic_set(&rknpu_dev->cmdline_power_refcount, 0);
-			args.flags = RKNPU_POWER_OFF;
-			rknpu_action(rknpu_dev, &args);
+			rknpu_power_put(rknpu_dev);
 		}
-		if (!rknpu_dev->is_powered)
+		if (atomic_read(&rknpu_dev->power_refcount) <= 0)
 			LOG_INFO("rknpu power is off!");
 	} else {
 		LOG_ERROR("rknpu power node params is invalid!");
 	}
 
 	return len;
+}
+
+static int rknpu_power_put_delay_show(struct seq_file *m, void *data)
+{
+	struct rknpu_debugger_node *node = m->private;
+	struct rknpu_debugger *debugger = node->debugger;
+	struct rknpu_device *rknpu_dev =
+		container_of(debugger, struct rknpu_device, debugger);
+
+	seq_printf(m, "%lu\n", rknpu_dev->power_put_delay);
+
+	return 0;
+}
+
+static ssize_t rknpu_power_put_delay_set(struct file *file,
+					 const char __user *ubuf, size_t len,
+					 loff_t *offp)
+{
+	struct seq_file *priv = file->private_data;
+	struct rknpu_debugger_node *node = priv->private;
+	struct rknpu_debugger *debugger = node->debugger;
+	struct rknpu_device *rknpu_dev =
+		container_of(debugger, struct rknpu_device, debugger);
+	char buf[16];
+	unsigned long power_put_delay = 0;
+	int ret = 0;
+
+	if (len > sizeof(buf) - 1)
+		return -EINVAL;
+	if (copy_from_user(buf, ubuf, len))
+		return -EFAULT;
+	buf[len - 1] = '\0';
+
+	ret = kstrtoul(buf, 10, &power_put_delay);
+	if (ret) {
+		LOG_ERROR("failed to parse power put delay string: %s\n", buf);
+		return -EFAULT;
+	}
+
+	rknpu_dev->power_put_delay = power_put_delay;
+
+	LOG_INFO("set rknpu power put delay time %lums\n",
+		 rknpu_dev->power_put_delay);
+
+	return len;
+}
+
+static int rknpu_freq_show(struct seq_file *m, void *data)
+{
+	struct rknpu_debugger_node *node = m->private;
+	struct rknpu_debugger *debugger = node->debugger;
+	struct rknpu_device *rknpu_dev =
+		container_of(debugger, struct rknpu_device, debugger);
+	unsigned long current_freq = 0;
+
+	rknpu_power_get(rknpu_dev);
+
+	current_freq = clk_get_rate(rknpu_dev->clks[0].clk);
+
+	rknpu_power_put(rknpu_dev);
+
+	seq_printf(m, "%lu\n", current_freq);
+
+	return 0;
+}
+
+static ssize_t rknpu_freq_set(struct file *file, const char __user *ubuf,
+			      size_t len, loff_t *offp)
+{
+	struct seq_file *priv = file->private_data;
+	struct rknpu_debugger_node *node = priv->private;
+	struct rknpu_debugger *debugger = node->debugger;
+	struct rknpu_device *rknpu_dev =
+		container_of(debugger, struct rknpu_device, debugger);
+	unsigned long current_freq = 0;
+	char buf[16];
+	unsigned long freq = 0;
+	int ret = 0;
+
+	if (len > sizeof(buf) - 1)
+		return -EINVAL;
+	if (copy_from_user(buf, ubuf, len))
+		return -EFAULT;
+	buf[len - 1] = '\0';
+
+	ret = kstrtoul(buf, 10, &freq);
+	if (ret) {
+		LOG_ERROR("failed to parse freq string: %s\n", buf);
+		return -EFAULT;
+	}
+
+	if (!rknpu_dev->devfreq)
+		return -EFAULT;
+
+	rknpu_power_get(rknpu_dev);
+
+	current_freq = clk_get_rate(rknpu_dev->clks[0].clk);
+	if (freq != current_freq) {
+		rknpu_dev->ondemand_freq = freq;
+		mutex_lock(&rknpu_dev->devfreq->lock);
+		update_devfreq(rknpu_dev->devfreq);
+		mutex_unlock(&rknpu_dev->devfreq->lock);
+	}
+
+	rknpu_power_put(rknpu_dev);
+
+	return len;
+}
+
+static int rknpu_volt_show(struct seq_file *m, void *data)
+{
+	struct rknpu_debugger_node *node = m->private;
+	struct rknpu_debugger *debugger = node->debugger;
+	struct rknpu_device *rknpu_dev =
+		container_of(debugger, struct rknpu_device, debugger);
+	unsigned long current_volt = 0;
+
+	current_volt = regulator_get_voltage(rknpu_dev->vdd);
+
+	seq_printf(m, "%lu\n", current_volt);
+
+	return 0;
 }
 
 static int rknpu_reset_show(struct seq_file *m, void *data)
@@ -152,7 +280,8 @@ static ssize_t rknpu_reset_set(struct file *file, const char __user *ubuf,
 		return -EFAULT;
 	buf[len - 1] = '\0';
 
-	if (strcmp(buf, "1") == 0 && rknpu_dev->is_powered)
+	if (strcmp(buf, "1") == 0 &&
+	    atomic_read(&rknpu_dev->power_refcount) > 0)
 		rknpu_soft_reset(rknpu_dev);
 	else if (strcmp(buf, "on") == 0)
 		rknpu_dev->bypass_soft_reset = 0;
@@ -166,6 +295,10 @@ static struct rknpu_debugger_list rknpu_debugger_root_list[] = {
 	{ "version", rknpu_version_show, NULL, NULL },
 	{ "load", rknpu_load_show, NULL, NULL },
 	{ "power", rknpu_power_show, rknpu_power_set, NULL },
+	{ "freq", rknpu_freq_show, rknpu_freq_set, NULL },
+	{ "volt", rknpu_volt_show, NULL, NULL },
+	{ "delayms", rknpu_power_put_delay_show, rknpu_power_put_delay_set,
+	  NULL },
 	{ "reset", rknpu_reset_show, rknpu_reset_set, NULL },
 #ifdef CONFIG_ROCKCHIP_RKNPU_SRAM
 	{ "mm", rknpu_mm_dump, NULL, NULL },
@@ -199,6 +332,7 @@ static const struct file_operations rknpu_debugfs_fops = {
 	.release = single_release,
 	.write = rknpu_debugger_write,
 };
+#endif /* #if defined(CONFIG_ROCKCHIP_RKNPU_DEBUG_FS) || defined(CONFIG_ROCKCHIP_RKNPU_PROC_FS) */
 
 #ifdef CONFIG_ROCKCHIP_RKNPU_DEBUG_FS
 static int rknpu_debugfs_remove_files(struct rknpu_debugger *debugger)
