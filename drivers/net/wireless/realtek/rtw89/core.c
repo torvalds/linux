@@ -5,6 +5,7 @@
 #include <linux/udp.h>
 
 #include "cam.h"
+#include "chan.h"
 #include "coex.h"
 #include "core.h"
 #include "efuse.h"
@@ -352,6 +353,19 @@ static void rtw89_get_channel_params(struct cfg80211_chan_def *chandef,
 	chan_param->subband_type = subband;
 }
 
+void rtw89_core_set_chip_txpwr(struct rtw89_dev *rtwdev)
+{
+	const struct rtw89_chip_info *chip = rtwdev->chip;
+	bool entity_active;
+
+	entity_active = rtw89_get_entity_state(rtwdev);
+	if (!entity_active)
+		return;
+
+	if (chip->ops->set_txpwr)
+		chip->ops->set_txpwr(rtwdev);
+}
+
 void rtw89_set_channel(struct rtw89_dev *rtwdev)
 {
 	struct ieee80211_hw *hw = rtwdev->hw;
@@ -361,6 +375,9 @@ void rtw89_set_channel(struct rtw89_dev *rtwdev)
 	struct rtw89_channel_help_params bak;
 	u8 center_chan, bandwidth;
 	bool band_changed;
+	bool entity_active;
+
+	entity_active = rtw89_get_entity_state(rtwdev);
 
 	rtw89_get_channel_params(&hw->conf.chandef, &ch_param);
 	if (WARN(ch_param.center_chan == 0, "Invalid channel\n"))
@@ -368,8 +385,7 @@ void rtw89_set_channel(struct rtw89_dev *rtwdev)
 
 	center_chan = ch_param.center_chan;
 	bandwidth = ch_param.bandwidth;
-	band_changed = hal->current_band_type != ch_param.band_type ||
-		       hal->current_channel == 0;
+	band_changed = hal->current_band_type != ch_param.band_type;
 
 	hal->current_band_width = bandwidth;
 	hal->current_channel = center_chan;
@@ -380,15 +396,17 @@ void rtw89_set_channel(struct rtw89_dev *rtwdev)
 	hal->current_band_type = ch_param.band_type;
 	hal->current_subband = ch_param.subband_type;
 
+	rtw89_set_entity_state(rtwdev, true);
+
 	rtw89_chip_set_channel_prepare(rtwdev, &bak);
 
 	chip->ops->set_channel(rtwdev, &ch_param);
 
-	rtw89_chip_set_txpwr(rtwdev);
+	rtw89_core_set_chip_txpwr(rtwdev);
 
 	rtw89_chip_set_channel_done(rtwdev, &bak);
 
-	if (band_changed) {
+	if (!entity_active || band_changed) {
 		rtw89_btc_ntfy_switch_band(rtwdev, RTW89_PHY_0, hal->current_band_type);
 		rtw89_chip_rfk_band_changed(rtwdev);
 	}

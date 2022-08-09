@@ -2617,6 +2617,8 @@ struct rtw89_hal {
 	u8 rx_nss;
 	bool support_cckpd;
 	bool support_igi;
+
+	bool entity_active;
 };
 
 #define RTW89_MAX_MAC_ID_NUM 128
@@ -3664,18 +3666,6 @@ static inline void rtw89_chip_set_txpwr_ctrl(struct rtw89_dev *rtwdev)
 		chip->ops->set_txpwr_ctrl(rtwdev);
 }
 
-static inline void rtw89_chip_set_txpwr(struct rtw89_dev *rtwdev)
-{
-	const struct rtw89_chip_info *chip = rtwdev->chip;
-	u8 ch = rtwdev->hal.current_channel;
-
-	if (!ch)
-		return;
-
-	if (chip->ops->set_txpwr)
-		chip->ops->set_txpwr(rtwdev);
-}
-
 static inline void rtw89_chip_power_trim(struct rtw89_dev *rtwdev)
 {
 	const struct rtw89_chip_info *chip = rtwdev->chip;
@@ -3906,6 +3896,7 @@ int rtw89_core_init(struct rtw89_dev *rtwdev);
 void rtw89_core_deinit(struct rtw89_dev *rtwdev);
 int rtw89_core_register(struct rtw89_dev *rtwdev);
 void rtw89_core_unregister(struct rtw89_dev *rtwdev);
+void rtw89_core_set_chip_txpwr(struct rtw89_dev *rtwdev);
 void rtw89_set_channel(struct rtw89_dev *rtwdev);
 u8 rtw89_core_acquire_bit_map(unsigned long *addr, unsigned long size);
 void rtw89_core_release_bit_map(unsigned long *addr, u8 bit);
