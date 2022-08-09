@@ -288,14 +288,16 @@ static void rtw89_get_channel_params(struct cfg80211_chan_def *chandef,
 void rtw89_core_set_chip_txpwr(struct rtw89_dev *rtwdev)
 {
 	const struct rtw89_chip_info *chip = rtwdev->chip;
+	const struct rtw89_chan *chan;
 	bool entity_active;
 
 	entity_active = rtw89_get_entity_state(rtwdev);
 	if (!entity_active)
 		return;
 
+	chan = rtw89_chan_get(rtwdev, RTW89_SUB_ENTITY_0);
 	if (chip->ops->set_txpwr)
-		chip->ops->set_txpwr(rtwdev);
+		chip->ops->set_txpwr(rtwdev, chan, RTW89_PHY_0);
 }
 
 void rtw89_set_channel(struct rtw89_dev *rtwdev)

@@ -3491,6 +3491,7 @@ static void _tssi_high_power(struct rtw89_dev *rtwdev, enum rtw89_phy_idx phy)
 	const struct rtw89_chan *chan = rtw89_chan_get(rtwdev, RTW89_SUB_ENTITY_0);
 	u8 ch = chan->channel, ch_tmp;
 	u8 bw = chan->band_width;
+	u8 band = chan->band_type;
 	u8 subband = chan->subband_type;
 	s8 power;
 	s32 xdbm;
@@ -3502,7 +3503,7 @@ static void _tssi_high_power(struct rtw89_dev *rtwdev, enum rtw89_phy_idx phy)
 	else
 		ch_tmp = ch;
 
-	power = rtw89_phy_read_txpwr_limit(rtwdev, bw, RTW89_1TX,
+	power = rtw89_phy_read_txpwr_limit(rtwdev, band, bw, RTW89_1TX,
 					   RTW89_RS_MCS, RTW89_NONBF, ch_tmp);
 
 	xdbm = power * 100 / 4;
@@ -3538,6 +3539,7 @@ static void _tssi_pre_tx(struct rtw89_dev *rtwdev, enum rtw89_phy_idx phy)
 	const struct rtw89_chip_info *mac_reg = rtwdev->chip;
 	u8 ch = chan->channel, ch_tmp;
 	u8 bw = chan->band_width;
+	u8 band = chan->band_type;
 	u32 tx_en;
 	u8 phy_map = rtw89_btc_phymap(rtwdev, phy, 0);
 	s8 power;
@@ -3551,8 +3553,9 @@ static void _tssi_pre_tx(struct rtw89_dev *rtwdev, enum rtw89_phy_idx phy)
 	else
 		ch_tmp = ch;
 
-	power = rtw89_phy_read_txpwr_limit(rtwdev, RTW89_CHANNEL_WIDTH_20, RTW89_1TX,
-					   RTW89_RS_OFDM, RTW89_NONBF, ch_tmp);
+	power = rtw89_phy_read_txpwr_limit(rtwdev, band, RTW89_CHANNEL_WIDTH_20,
+					   RTW89_1TX, RTW89_RS_OFDM,
+					   RTW89_NONBF, ch_tmp);
 
 	xdbm = (power * 100) >> mac_reg->txpwr_factor_mac;
 

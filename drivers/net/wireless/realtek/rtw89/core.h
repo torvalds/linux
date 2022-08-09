@@ -2127,8 +2127,11 @@ struct rtw89_chip_ops {
 	void (*rfk_scan)(struct rtw89_dev *rtwdev, bool start);
 	void (*rfk_track)(struct rtw89_dev *rtwdev);
 	void (*power_trim)(struct rtw89_dev *rtwdev);
-	void (*set_txpwr)(struct rtw89_dev *rtwdev);
-	void (*set_txpwr_ctrl)(struct rtw89_dev *rtwdev);
+	void (*set_txpwr)(struct rtw89_dev *rtwdev,
+			  const struct rtw89_chan *chan,
+			  enum rtw89_phy_idx phy_idx);
+	void (*set_txpwr_ctrl)(struct rtw89_dev *rtwdev,
+			       enum rtw89_phy_idx phy_idx);
 	int (*init_txpwr_unit)(struct rtw89_dev *rtwdev, enum rtw89_phy_idx phy_idx);
 	u8 (*get_thermal)(struct rtw89_dev *rtwdev, enum rtw89_rf_path rf_path);
 	void (*ctrl_btg)(struct rtw89_dev *rtwdev, bool btg);
@@ -3691,7 +3694,7 @@ static inline void rtw89_chip_set_txpwr_ctrl(struct rtw89_dev *rtwdev)
 	const struct rtw89_chip_info *chip = rtwdev->chip;
 
 	if (chip->ops->set_txpwr_ctrl)
-		chip->ops->set_txpwr_ctrl(rtwdev);
+		chip->ops->set_txpwr_ctrl(rtwdev,  RTW89_PHY_0);
 }
 
 static inline void rtw89_chip_power_trim(struct rtw89_dev *rtwdev)

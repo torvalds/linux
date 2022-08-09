@@ -1379,9 +1379,10 @@ static void rtw8852a_set_txpwr_ref(struct rtw89_dev *rtwdev,
 }
 
 static void rtw8852a_set_txpwr_byrate(struct rtw89_dev *rtwdev,
+				      const struct rtw89_chan *chan,
 				      enum rtw89_phy_idx phy_idx)
 {
-	const struct rtw89_chan *chan = rtw89_chan_get(rtwdev, RTW89_SUB_ENTITY_0);
+	u8 band = chan->band_type;
 	u8 ch = chan->channel;
 	static const u8 rs[] = {
 		RTW89_RS_CCK,
@@ -1408,7 +1409,8 @@ static void rtw8852a_set_txpwr_byrate(struct rtw89_dev *rtwdev,
 			for (j = 0; j < rtw89_rs_idx_max[rs[i]]; j++) {
 				cur.idx = j;
 				shf = (j % 4) * 8;
-				tmp = rtw89_phy_read_txpwr_byrate(rtwdev, &cur);
+				tmp = rtw89_phy_read_txpwr_byrate(rtwdev, band,
+								  &cur);
 				val |= (tmp << shf);
 
 				if ((j + 1) % 4)
@@ -1423,8 +1425,10 @@ static void rtw8852a_set_txpwr_byrate(struct rtw89_dev *rtwdev,
 }
 
 static void rtw8852a_set_txpwr_offset(struct rtw89_dev *rtwdev,
+				      const struct rtw89_chan *chan,
 				      enum rtw89_phy_idx phy_idx)
 {
+	u8 band = chan->band_type;
 	struct rtw89_rate_desc desc = {
 		.nss = RTW89_NSS_1,
 		.rs = RTW89_RS_OFFSET,
@@ -1435,7 +1439,7 @@ static void rtw8852a_set_txpwr_offset(struct rtw89_dev *rtwdev,
 	rtw89_debug(rtwdev, RTW89_DBG_TXPWR, "[TXPWR] set txpwr offset\n");
 
 	for (desc.idx = 0; desc.idx < RTW89_RATE_OFFSET_MAX; desc.idx++) {
-		v = rtw89_phy_read_txpwr_byrate(rtwdev, &desc);
+		v = rtw89_phy_read_txpwr_byrate(rtwdev, band, &desc);
 		val |= ((v & 0xf) << (4 * desc.idx));
 	}
 
@@ -1444,10 +1448,10 @@ static void rtw8852a_set_txpwr_offset(struct rtw89_dev *rtwdev,
 }
 
 static void rtw8852a_set_txpwr_limit(struct rtw89_dev *rtwdev,
+				     const struct rtw89_chan *chan,
 				     enum rtw89_phy_idx phy_idx)
 {
 #define __MAC_TXPWR_LMT_PAGE_SIZE 40
-	const struct rtw89_chan *chan = rtw89_chan_get(rtwdev, RTW89_SUB_ENTITY_0);
 	u8 ch = chan->channel;
 	u8 bw = chan->band_width;
 	struct rtw89_txpwr_limit lmt[NTX_NUM_8852A];
@@ -1459,7 +1463,7 @@ static void rtw8852a_set_txpwr_limit(struct rtw89_dev *rtwdev,
 		    "[TXPWR] set txpwr limit with ch=%d bw=%d\n", ch, bw);
 
 	for (i = 0; i < NTX_NUM_8852A; i++) {
-		rtw89_phy_fill_txpwr_limit(rtwdev, &lmt[i], i);
+		rtw89_phy_fill_txpwr_limit(rtwdev, chan, &lmt[i], i);
 
 		for (j = 0; j < __MAC_TXPWR_LMT_PAGE_SIZE; j += 4) {
 			addr = R_AX_PWR_LMT + j + __MAC_TXPWR_LMT_PAGE_SIZE * i;
@@ -1476,10 +1480,10 @@ static void rtw8852a_set_txpwr_limit(struct rtw89_dev *rtwdev,
 }
 
 static void rtw8852a_set_txpwr_limit_ru(struct rtw89_dev *rtwdev,
+					const struct rtw89_chan *chan,
 					enum rtw89_phy_idx phy_idx)
 {
 #define __MAC_TXPWR_LMT_RU_PAGE_SIZE 24
-	const struct rtw89_chan *chan = rtw89_chan_get(rtwdev, RTW89_SUB_ENTITY_0);
 	u8 ch = chan->channel;
 	u8 bw = chan->band_width;
 	struct rtw89_txpwr_limit_ru lmt_ru[NTX_NUM_8852A];
@@ -1491,7 +1495,7 @@ static void rtw8852a_set_txpwr_limit_ru(struct rtw89_dev *rtwdev,
 		    "[TXPWR] set txpwr limit ru with ch=%d bw=%d\n", ch, bw);
 
 	for (i = 0; i < NTX_NUM_8852A; i++) {
-		rtw89_phy_fill_txpwr_limit_ru(rtwdev, &lmt_ru[i], i);
+		rtw89_phy_fill_txpwr_limit_ru(rtwdev, chan, &lmt_ru[i], i);
 
 		for (j = 0; j < __MAC_TXPWR_LMT_RU_PAGE_SIZE; j += 4) {
 			addr = R_AX_PWR_RU_LMT + j +
@@ -1509,17 +1513,20 @@ static void rtw8852a_set_txpwr_limit_ru(struct rtw89_dev *rtwdev,
 #undef __MAC_TXPWR_LMT_RU_PAGE_SIZE
 }
 
-static void rtw8852a_set_txpwr(struct rtw89_dev *rtwdev)
+static void rtw8852a_set_txpwr(struct rtw89_dev *rtwdev,
+			       const struct rtw89_chan *chan,
+			       enum rtw89_phy_idx phy_idx)
 {
-	rtw8852a_set_txpwr_byrate(rtwdev, RTW89_PHY_0);
-	rtw8852a_set_txpwr_limit(rtwdev, RTW89_PHY_0);
-	rtw8852a_set_txpwr_limit_ru(rtwdev, RTW89_PHY_0);
+	rtw8852a_set_txpwr_byrate(rtwdev, chan, phy_idx);
+	rtw8852a_set_txpwr_offset(rtwdev, chan, phy_idx);
+	rtw8852a_set_txpwr_limit(rtwdev, chan, phy_idx);
+	rtw8852a_set_txpwr_limit_ru(rtwdev, chan, phy_idx);
 }
 
-static void rtw8852a_set_txpwr_ctrl(struct rtw89_dev *rtwdev)
+static void rtw8852a_set_txpwr_ctrl(struct rtw89_dev *rtwdev,
+				    enum rtw89_phy_idx phy_idx)
 {
-	rtw8852a_set_txpwr_ref(rtwdev, RTW89_PHY_0);
-	rtw8852a_set_txpwr_offset(rtwdev, RTW89_PHY_0);
+	rtw8852a_set_txpwr_ref(rtwdev, phy_idx);
 }
 
 static int
