@@ -38,6 +38,7 @@ properties:
       - samsung,exynos850-cmu-core
       - samsung,exynos850-cmu-dpu
       - samsung,exynos850-cmu-hsi
+      - samsung,exynos850-cmu-is
       - samsung,exynos850-cmu-peri
 
   clocks:
@@ -190,6 +191,30 @@ allOf:
             - const: dout_hsi_bus
             - const: dout_hsi_mmc_card
             - const: dout_hsi_usb20drd
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: samsung,exynos850-cmu-is
+
+    then:
+      properties:
+        clocks:
+          items:
+            - description: External reference clock (26 MHz)
+            - description: CMU_IS bus clock (from CMU_TOP)
+            - description: Image Texture Processing core clock (from CMU_TOP)
+            - description: Visual Recognition Accelerator clock (from CMU_TOP)
+            - description: Geometric Distortion Correction clock (from CMU_TOP)
+
+        clock-names:
+          items:
+            - const: oscclk
+            - const: dout_is_bus
+            - const: dout_is_itp
+            - const: dout_is_vra
+            - const: dout_is_gdc
 
   - if:
       properties:
