@@ -789,12 +789,14 @@ static int rk3588_combphy_cfg(struct rockchip_combphy_priv *priv)
 			val = 0x4c;
 			writel(val, priv->mmio + (0x1b << 2));
 
-			/* Set up su_trim: T3 */
-			val = 0xb0;
+			/* Set up su_trim: T3_P1 650mv */
+			val = 0x90;
 			writel(val, priv->mmio + (0xa << 2));
-			val = 0x47;
+			val = 0x43;
 			writel(val, priv->mmio + (0xb << 2));
-			val = 0x57;
+			val = 0x88;
+			writel(val, priv->mmio + (0xc << 2));
+			val = 0x56;
 			writel(val, priv->mmio + (0xd << 2));
 		} else if (priv->mode == PHY_TYPE_SATA) {
 			/* downward spread spectrum +500ppm */
@@ -824,14 +826,14 @@ static int rk3588_combphy_cfg(struct rockchip_combphy_priv *priv)
 			val = 0x0c;
 			writel(val, priv->mmio + (0x1b << 2));
 
-			/* Set up su_trim:  */
-			val = 0xf0;
+			/* Set up su_trim: T3_P1 650mv */
+			val = 0x90;
 			writel(val, priv->mmio + (0xa << 2));
-			val = 0x45;
+			val = 0x43;
 			writel(val, priv->mmio + (0xb << 2));
-			val = 0xb8;
+			val = 0x88;
 			writel(val, priv->mmio + (0xc << 2));
-			val = 0x59;
+			val = 0x56;
 			writel(val, priv->mmio + (0xd << 2));
 		}
 	}
