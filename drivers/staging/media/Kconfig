@@ -44,6 +44,4 @@ source "drivers/staging/media/sunxi/Kconfig"
 
 source "drivers/staging/media/tegra-video/Kconfig"
 
-source "drivers/staging/media/zoran/Kconfig"
-
 endif
