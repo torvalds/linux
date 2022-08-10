@@ -28,6 +28,7 @@
 #include "bpf_iter_test_kern6.skel.h"
 #include "bpf_iter_bpf_link.skel.h"
 #include "bpf_iter_ksym.skel.h"
+#include "bpf_iter_sockmap.skel.h"
 
 static int duration;
 
@@ -65,6 +66,50 @@ static void do_dummy_read(struct bpf_program *prog)
 
 free_link:
 	bpf_link__destroy(link);
+}
+
+static void do_read_map_iter_fd(struct bpf_object_skeleton **skel, struct bpf_program *prog,
+				struct bpf_map *map)
+{
+	DECLARE_LIBBPF_OPTS(bpf_iter_attach_opts, opts);
+	union bpf_iter_link_info linfo;
+	struct bpf_link *link;
+	char buf[16] = {};
+	int iter_fd, len;
+
+	memset(&linfo, 0, sizeof(linfo));
+	linfo.map.map_fd = bpf_map__fd(map);
+	opts.link_info = &linfo;
+	opts.link_info_len = sizeof(linfo);
+	link = bpf_program__attach_iter(prog, &opts);
+	if (!ASSERT_OK_PTR(link, "attach_map_iter"))
+		return;
+
+	iter_fd = bpf_iter_create(bpf_link__fd(link));
+	if (!ASSERT_GE(iter_fd, 0, "create_map_iter")) {
+		bpf_link__destroy(link);
+		return;
+	}
+
+	/* Close link and map fd prematurely */
+	bpf_link__destroy(link);
+	bpf_object__destroy_skeleton(*skel);
+	*skel = NULL;
+
+	/* Try to let map free work to run first if map is freed */
+	usleep(100);
+	/* Memory used by both sock map and sock local storage map are
+	 * freed after two synchronize_rcu() calls, so wait for it
+	 */
+	kern_sync_rcu();
+	kern_sync_rcu();
+
+	/* Read after both map fd and link fd are closed */
+	while ((len = read(iter_fd, buf, sizeof(buf))) > 0)
+		;
+	ASSERT_GE(len, 0, "read_iterator");
+
+	close(iter_fd);
 }
 
 static int read_fd_into_buffer(int fd, char *buf, int size)
@@ -827,6 +872,20 @@ out:
 	bpf_iter_bpf_array_map__destroy(skel);
 }
 
+static void test_bpf_array_map_iter_fd(void)
+{
+	struct bpf_iter_bpf_array_map *skel;
+
+	skel = bpf_iter_bpf_array_map__open_and_load();
+	if (!ASSERT_OK_PTR(skel, "bpf_iter_bpf_array_map__open_and_load"))
+		return;
+
+	do_read_map_iter_fd(&skel->skeleton, skel->progs.dump_bpf_array_map,
+			    skel->maps.arraymap1);
+
+	bpf_iter_bpf_array_map__destroy(skel);
+}
+
 static void test_bpf_percpu_array_map(void)
 {
 	DECLARE_LIBBPF_OPTS(bpf_iter_attach_opts, opts);
@@ -1007,6 +1066,20 @@ close_socket:
 	close(sock_fd);
 out:
 	bpf_iter_bpf_sk_storage_helpers__destroy(skel);
+}
+
+static void test_bpf_sk_stoarge_map_iter_fd(void)
+{
+	struct bpf_iter_bpf_sk_storage_map *skel;
+
+	skel = bpf_iter_bpf_sk_storage_map__open_and_load();
+	if (!ASSERT_OK_PTR(skel, "bpf_iter_bpf_sk_storage_map__open_and_load"))
+		return;
+
+	do_read_map_iter_fd(&skel->skeleton, skel->progs.dump_bpf_sk_storage_map,
+			    skel->maps.sk_stg_map);
+
+	bpf_iter_bpf_sk_storage_map__destroy(skel);
 }
 
 static void test_bpf_sk_storage_map(void)
@@ -1217,6 +1290,19 @@ out:
 	bpf_iter_task_vma__destroy(skel);
 }
 
+void test_bpf_sockmap_map_iter_fd(void)
+{
+	struct bpf_iter_sockmap *skel;
+
+	skel = bpf_iter_sockmap__open_and_load();
+	if (!ASSERT_OK_PTR(skel, "bpf_iter_sockmap__open_and_load"))
+		return;
+
+	do_read_map_iter_fd(&skel->skeleton, skel->progs.copy, skel->maps.sockmap);
+
+	bpf_iter_sockmap__destroy(skel);
+}
+
 void test_bpf_iter(void)
 {
 	if (test__start_subtest("btf_id_or_null"))
@@ -1267,10 +1353,14 @@ void test_bpf_iter(void)
 		test_bpf_percpu_hash_map();
 	if (test__start_subtest("bpf_array_map"))
 		test_bpf_array_map();
+	if (test__start_subtest("bpf_array_map_iter_fd"))
+		test_bpf_array_map_iter_fd();
 	if (test__start_subtest("bpf_percpu_array_map"))
 		test_bpf_percpu_array_map();
 	if (test__start_subtest("bpf_sk_storage_map"))
 		test_bpf_sk_storage_map();
+	if (test__start_subtest("bpf_sk_storage_map_iter_fd"))
+		test_bpf_sk_stoarge_map_iter_fd();
 	if (test__start_subtest("bpf_sk_storage_delete"))
 		test_bpf_sk_storage_delete();
 	if (test__start_subtest("bpf_sk_storage_get"))
@@ -1283,4 +1373,6 @@ void test_bpf_iter(void)
 		test_link_iter();
 	if (test__start_subtest("ksym"))
 		test_ksym_iter();
+	if (test__start_subtest("bpf_sockmap_map_iter_fd"))
+		test_bpf_sockmap_map_iter_fd();
 }
