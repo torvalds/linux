@@ -100,6 +100,7 @@ config SENSORS_AD7418
 config SENSORS_ADM1021
 	tristate "Analog Devices ADM1021 and compatibles"
 	depends on I2C
+	depends on SENSORS_LM90=n
 	help
 	  If you say yes here you get support for Analog Devices ADM1021
 	  and ADM1023 sensor chips and clones: Maxim MAX1617 and MAX1617A,
@@ -256,13 +257,13 @@ config SENSORS_AHT10
 	  will be called aht10.
 
 config SENSORS_AQUACOMPUTER_D5NEXT
-	tristate "Aquacomputer D5 Next, Octo, Farbwerk, and Farbwerk 360"
+	tristate "Aquacomputer D5 Next, Octo, Quadro, Farbwerk, and Farbwerk 360"
 	depends on USB_HID
 	select CRC16
 	help
 	  If you say yes here you get support for sensors and fans of
-	  the Aquacomputer D5 Next watercooling pump, Octo fan
-	  controller, Farbwerk and Farbwerk 360 RGB controllers, where
+	  the Aquacomputer D5 Next watercooling pump, Octo and Quadro fan
+	  controllers, Farbwerk and Farbwerk 360 RGB controllers, where
 	  available.
 
 	  This driver can also be built as a module. If so, the module
@@ -381,7 +382,7 @@ config SENSORS_ARM_SCPI
 
 config SENSORS_ASB100
 	tristate "Asus ASB100 Bach"
-	depends on X86 && I2C
+	depends on (X86 || COMPILE_TEST) && I2C
 	select HWMON_VID
 	help
 	  If you say yes here you get support for the ASB100 Bach sensor
@@ -626,7 +627,7 @@ config SENSORS_MC13783_ADC
 
 config SENSORS_FSCHMD
 	tristate "Fujitsu Siemens Computers sensor chips"
-	depends on X86 && I2C
+	depends on (X86 || COMPILE_TEST) && I2C
 	help
 	  If you say yes here you get support for the following Fujitsu
 	  Siemens Computers (FSC) sensor chips: Poseidon, Scylla, Hermes,
@@ -1102,6 +1103,7 @@ config SENSORS_MAX6639
 config SENSORS_MAX6642
 	tristate "Maxim MAX6642 sensor chip"
 	depends on I2C
+	depends on SENSORS_LM90=n
 	help
 	  If you say yes here you get support for MAX6642 sensor chip.
 	  MAX6642 is a SMBus-Compatible Remote/Local Temperature Sensor
@@ -1357,12 +1359,15 @@ config SENSORS_LM90
 	tristate "National Semiconductor LM90 and compatibles"
 	depends on I2C
 	help
-	  If you say yes here you get support for National Semiconductor LM90,
-	  LM86, LM89 and LM99, Analog Devices ADM1032, ADT7461, and ADT7461A,
-	  Maxim MAX6646, MAX6647, MAX6648, MAX6649, MAX6654, MAX6657, MAX6658,
-	  MAX6659, MAX6680, MAX6681, MAX6692, MAX6695, MAX6696,
-	  ON Semiconductor NCT1008, Winbond/Nuvoton W83L771W/G/AWG/ASG,
-	  Philips SA56004, GMT G781, Texas Instruments TMP451 and TMP461
+	  If you say yes here you get support for National Semiconductor LM84,
+	  LM90, LM86, LM89 and LM99, Analog Devices ADM1020, ADM2021, ADM1021A,
+	  ADM1023, ADM1032, ADT7461, ADT7461A, ADT7481, ADT7482, and ADT7483A,
+	  Maxim MAX1617, MAX6642, MAX6646, MAX6647, MAX6648, MAX6649, MAX6654,
+	  MAX6657, MAX6658, MAX6659, MAX6680, MAX6681, MAX6692, MAX6695,
+	  MAX6696,
+	  ON Semiconductor NCT1008, NCT210, NCT72, NCT214, NCT218,
+	  Winbond/Nuvoton W83L771W/G/AWG/ASG,
+	  Philips NE1618, SA56004, GMT G781, Texas Instruments TMP451 and TMP461
 	  sensor chips.
 
 	  This driver can also be built as a module. If so, the module
