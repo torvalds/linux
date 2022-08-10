@@ -372,7 +372,7 @@ struct bpf_map *bpf_map_offload_map_alloc(union bpf_attr *attr)
 	    attr->map_type != BPF_MAP_TYPE_HASH)
 		return ERR_PTR(-EINVAL);
 
-	offmap = kzalloc(sizeof(*offmap), GFP_USER);
+	offmap = kzalloc(sizeof(*offmap), GFP_USER | __GFP_NOWARN);
 	if (!offmap)
 		return ERR_PTR(-ENOMEM);
 
