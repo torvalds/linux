@@ -1575,7 +1575,7 @@ bch2_trans_update_by_path_trace(struct btree_trans *trans, struct btree_path *pa
 		if (ret)
 			goto err;
 
-		btree_path->should_be_locked = true;
+		btree_path_set_should_be_locked(btree_path);
 		ret = bch2_trans_update_by_path_trace(trans, btree_path, k, flags, ip);
 err:
 		bch2_path_put(trans, btree_path, true);
@@ -1643,7 +1643,7 @@ int __must_check bch2_trans_update(struct btree_trans *trans, struct btree_iter 
 				return btree_trans_restart(trans, BCH_ERR_transaction_restart_key_cache_raced);
 			}
 
-			iter->key_cache_path->should_be_locked = true;
+			btree_path_set_should_be_locked(iter->key_cache_path);
 		}
 
 		path = iter->key_cache_path;

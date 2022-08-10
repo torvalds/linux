@@ -283,4 +283,12 @@ static inline void bch2_btree_node_lock_write(struct btree_trans *trans,
 		__bch2_btree_node_lock_write(trans, b);
 }
 
+static inline void btree_path_set_should_be_locked(struct btree_path *path)
+{
+	EBUG_ON(!btree_node_locked(path, path->level));
+	EBUG_ON(path->uptodate);
+
+	path->should_be_locked = true;
+}
+
 #endif /* _BCACHEFS_BTREE_LOCKING_H */
