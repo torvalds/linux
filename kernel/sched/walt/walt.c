@@ -4193,6 +4193,10 @@ static void android_rvh_enqueue_task(void *unused, struct rq *rq, struct task_st
 
 	if (!double_enqueue)
 		walt_inc_cumulative_runnable_avg(rq, p);
+
+	if ((flags & ENQUEUE_WAKEUP) && do_pl_notif(rq))
+		waltgov_run_callback(rq, WALT_CPUFREQ_PL);
+
 	trace_sched_enq_deq_task(p, 1, cpumask_bits(p->cpus_ptr)[0], is_mvp(wts));
 }
 
@@ -4308,20 +4312,6 @@ static void android_rvh_try_to_wake_up(void *unused, struct task_struct *p)
 	if (update_preferred_cluster(grp, p, old_load, false))
 		set_preferred_cluster(grp);
 	rcu_read_unlock();
-}
-
-static void android_rvh_try_to_wake_up_success(void *unused, struct task_struct *p)
-{
-	unsigned long flags;
-	int cpu = p->cpu;
-
-	if (unlikely(walt_disabled))
-		return;
-
-	raw_spin_lock_irqsave(&cpu_rq(cpu)->__lock, flags);
-	if (do_pl_notif(cpu_rq(cpu)))
-		waltgov_run_callback(cpu_rq(cpu), WALT_CPUFREQ_PL);
-	raw_spin_unlock_irqrestore(&cpu_rq(cpu)->__lock, flags);
 }
 
 static u64 tick_sched_clock;
@@ -4495,7 +4485,6 @@ static void register_walt_hooks(void)
 	register_trace_android_rvh_after_enqueue_task(android_rvh_enqueue_task, NULL);
 	register_trace_android_rvh_after_dequeue_task(android_rvh_dequeue_task, NULL);
 	register_trace_android_rvh_try_to_wake_up(android_rvh_try_to_wake_up, NULL);
-	register_trace_android_rvh_try_to_wake_up_success(android_rvh_try_to_wake_up_success, NULL);
 	register_trace_android_rvh_tick_entry(android_rvh_tick_entry, NULL);
 	register_trace_android_vh_scheduler_tick(android_vh_scheduler_tick, NULL);
 	register_trace_android_rvh_schedule(android_rvh_schedule, NULL);
