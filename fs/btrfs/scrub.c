@@ -4096,32 +4096,16 @@ int btrfs_scrub_dev(struct btrfs_fs_info *fs_info, u64 devid, u64 start,
 	if (btrfs_fs_closing(fs_info))
 		return -EAGAIN;
 
-	if (fs_info->nodesize > BTRFS_STRIPE_LEN) {
-		/*
-		 * in this case scrub is unable to calculate the checksum
-		 * the way scrub is implemented. Do not handle this
-		 * situation at all because it won't ever happen.
-		 */
-		btrfs_err(fs_info,
-			   "scrub: size assumption nodesize <= BTRFS_STRIPE_LEN (%d <= %d) fails",
-		       fs_info->nodesize,
-		       BTRFS_STRIPE_LEN);
-		return -EINVAL;
-	}
+	/* At mount time we have ensured nodesize is in the range of [4K, 64K]. */
+	ASSERT(fs_info->nodesize <= BTRFS_STRIPE_LEN);
 
-	if (fs_info->nodesize >
-	    SCRUB_MAX_SECTORS_PER_BLOCK << fs_info->sectorsize_bits ||
-	    fs_info->sectorsize > PAGE_SIZE * SCRUB_MAX_SECTORS_PER_BLOCK) {
-		/*
-		 * Would exhaust the array bounds of sectorv member in
-		 * struct scrub_block
-		 */
-		btrfs_err(fs_info,
-"scrub: nodesize and sectorsize <= SCRUB_MAX_SECTORS_PER_BLOCK (%d <= %d && %d <= %d) fails",
-		       fs_info->nodesize, SCRUB_MAX_SECTORS_PER_BLOCK,
-		       fs_info->sectorsize, SCRUB_MAX_SECTORS_PER_BLOCK);
-		return -EINVAL;
-	}
+	/*
+	 * SCRUB_MAX_SECTORS_PER_BLOCK is calculated using the largest possible
+	 * value (max nodesize / min sectorsize), thus nodesize should always
+	 * be fine.
+	 */
+	ASSERT(fs_info->nodesize <=
+	       SCRUB_MAX_SECTORS_PER_BLOCK << fs_info->sectorsize_bits);
 
 	/* Allocate outside of device_list_mutex */
 	sctx = scrub_setup_ctx(fs_info, is_dev_replace);
