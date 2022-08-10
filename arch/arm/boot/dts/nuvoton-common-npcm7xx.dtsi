@@ -110,6 +110,7 @@
 			compatible = "nuvoton,npcm750-reset";
 			reg = <0xf0801000 0x70>;
 			#reset-cells = <2>;
+			nuvoton,sysgcr = <&gcr>;
 		};
 
 		clk: clock-controller@f0801000 {
