@@ -816,10 +816,9 @@ static const char * const acpi_honor_dep_ids[] = {
 	NULL
 };
 
-static struct acpi_device *acpi_bus_get_parent(acpi_handle handle)
+static struct acpi_device *acpi_find_parent_acpi_dev(acpi_handle handle)
 {
-	struct acpi_device *device;
-	acpi_status status;
+	struct acpi_device *adev;
 
 	/*
 	 * Fixed hardware devices do not appear in the namespace and do not
@@ -830,13 +829,18 @@ static struct acpi_device *acpi_bus_get_parent(acpi_handle handle)
 		return acpi_root;
 
 	do {
-		status = acpi_get_parent(handle, &handle);
-		if (ACPI_FAILURE(status))
-			return status == AE_NULL_ENTRY ? NULL : acpi_root;
+		acpi_status status;
 
-		device = acpi_fetch_acpi_dev(handle);
-	} while (!device);
-	return device;
+		status = acpi_get_parent(handle, &handle);
+		if (ACPI_FAILURE(status)) {
+			if (status != AE_NULL_ENTRY)
+				return acpi_root;
+
+			return NULL;
+		}
+		adev = acpi_fetch_acpi_dev(handle);
+	} while (!adev);
+	return adev;
 }
 
 acpi_status
@@ -1778,7 +1782,7 @@ void acpi_init_device_object(struct acpi_device *device, acpi_handle handle,
 	INIT_LIST_HEAD(&device->pnp.ids);
 	device->device_type = type;
 	device->handle = handle;
-	device->parent = acpi_bus_get_parent(handle);
+	device->parent = acpi_find_parent_acpi_dev(handle);
 	fwnode_init(&device->fwnode, &acpi_device_fwnode_ops);
 	acpi_set_device_status(device, ACPI_STA_DEFAULT);
 	acpi_device_get_busid(device);
