@@ -215,15 +215,6 @@ enum btree_path_uptodate {
 	BTREE_ITER_NEED_TRAVERSE	= 2,
 };
 
-#define BTREE_ITER_NO_NODE_GET_LOCKS	((struct btree *) 1)
-#define BTREE_ITER_NO_NODE_DROP		((struct btree *) 2)
-#define BTREE_ITER_NO_NODE_LOCK_ROOT	((struct btree *) 3)
-#define BTREE_ITER_NO_NODE_UP		((struct btree *) 4)
-#define BTREE_ITER_NO_NODE_DOWN		((struct btree *) 5)
-#define BTREE_ITER_NO_NODE_INIT		((struct btree *) 6)
-#define BTREE_ITER_NO_NODE_ERROR	((struct btree *) 7)
-#define BTREE_ITER_NO_NODE_CACHED	((struct btree *) 8)
-
 struct btree_path {
 	u8			idx;
 	u8			sorted_idx;

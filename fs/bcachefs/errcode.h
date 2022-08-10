@@ -28,6 +28,15 @@
 	x(transaction_restart,	transaction_restart_key_cache_realloced)\
 	x(transaction_restart,	transaction_restart_journal_preres_get)	\
 	x(transaction_restart,	transaction_restart_nested)		\
+	x(0,			no_btree_node)				\
+	x(no_btree_node,	no_btree_node_relock)			\
+	x(no_btree_node,	no_btree_node_upgrade)			\
+	x(no_btree_node,	no_btree_node_drop)			\
+	x(no_btree_node,	no_btree_node_lock_root)		\
+	x(no_btree_node,	no_btree_node_up)			\
+	x(no_btree_node,	no_btree_node_down)			\
+	x(no_btree_node,	no_btree_node_init)			\
+	x(no_btree_node,	no_btree_node_cached)			\
 	x(0,			lock_fail_node_reused)			\
 	x(0,			lock_fail_root_changed)			\
 	x(0,			journal_reclaim_would_deadlock)		\

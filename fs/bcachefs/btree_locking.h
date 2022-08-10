@@ -291,4 +291,19 @@ static inline void btree_path_set_should_be_locked(struct btree_path *path)
 	path->should_be_locked = true;
 }
 
+static inline void __btree_path_set_level_up(struct btree_trans *trans,
+				      struct btree_path *path,
+				      unsigned l)
+{
+	btree_node_unlock(trans, path, l);
+	path->l[l].b = ERR_PTR(-BCH_ERR_no_btree_node_up);
+}
+
+static inline void btree_path_set_level_up(struct btree_trans *trans,
+				    struct btree_path *path)
+{
+	__btree_path_set_level_up(trans, path, path->level++);
+	btree_path_set_dirty(path, BTREE_ITER_NEED_TRAVERSE);
+}
+
 #endif /* _BCACHEFS_BTREE_LOCKING_H */

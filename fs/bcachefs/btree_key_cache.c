@@ -440,7 +440,7 @@ fill:
 err:
 	if (!bch2_err_matches(ret, BCH_ERR_transaction_restart)) {
 		btree_node_unlock(trans, path, 0);
-		path->l[0].b = BTREE_ITER_NO_NODE_ERROR;
+		path->l[0].b = ERR_PTR(ret);
 	}
 	return ret;
 }
