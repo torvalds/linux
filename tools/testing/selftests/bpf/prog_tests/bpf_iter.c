@@ -1076,7 +1076,7 @@ static void test_bpf_sk_stoarge_map_iter_fd(void)
 	if (!ASSERT_OK_PTR(skel, "bpf_iter_bpf_sk_storage_map__open_and_load"))
 		return;
 
-	do_read_map_iter_fd(&skel->skeleton, skel->progs.dump_bpf_sk_storage_map,
+	do_read_map_iter_fd(&skel->skeleton, skel->progs.rw_bpf_sk_storage_map,
 			    skel->maps.sk_stg_map);
 
 	bpf_iter_bpf_sk_storage_map__destroy(skel);
@@ -1117,7 +1117,15 @@ static void test_bpf_sk_storage_map(void)
 	linfo.map.map_fd = map_fd;
 	opts.link_info = &linfo;
 	opts.link_info_len = sizeof(linfo);
-	link = bpf_program__attach_iter(skel->progs.dump_bpf_sk_storage_map, &opts);
+	link = bpf_program__attach_iter(skel->progs.oob_write_bpf_sk_storage_map, &opts);
+	err = libbpf_get_error(link);
+	if (!ASSERT_EQ(err, -EACCES, "attach_oob_write_iter")) {
+		if (!err)
+			bpf_link__destroy(link);
+		goto out;
+	}
+
+	link = bpf_program__attach_iter(skel->progs.rw_bpf_sk_storage_map, &opts);
 	if (!ASSERT_OK_PTR(link, "attach_iter"))
 		goto out;
 
@@ -1125,6 +1133,7 @@ static void test_bpf_sk_storage_map(void)
 	if (!ASSERT_GE(iter_fd, 0, "create_iter"))
 		goto free_link;
 
+	skel->bss->to_add_val = time(NULL);
 	/* do some tests */
 	while ((len = read(iter_fd, buf, sizeof(buf))) > 0)
 		;
@@ -1137,6 +1146,13 @@ static void test_bpf_sk_storage_map(void)
 
 	if (!ASSERT_EQ(skel->bss->val_sum, expected_val, "val_sum"))
 		goto close_iter;
+
+	for (i = 0; i < num_sockets; i++) {
+		err = bpf_map_lookup_elem(map_fd, &sock_fd[i], &val);
+		if (!ASSERT_OK(err, "map_lookup") ||
+		    !ASSERT_EQ(val, i + 1 + skel->bss->to_add_val, "check_map_value"))
+			break;
+	}
 
 close_iter:
 	close(iter_fd);
