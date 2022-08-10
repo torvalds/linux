@@ -336,6 +336,8 @@ struct amdgpu_gfx {
 	struct mutex                    gfx_off_mutex;
 	uint32_t                        gfx_off_req_count; /* default 1, enable gfx off: dec 1, disable gfx off: add 1 */
 	struct delayed_work             gfx_off_delay_work;
+	uint32_t                        gfx_off_residency;
+	uint64_t                        gfx_off_entrycount;
 
 	/* pipe reservation */
 	struct mutex			pipe_reserve_mutex;
@@ -407,6 +409,10 @@ bool amdgpu_gfx_is_me_queue_enabled(struct amdgpu_device *adev, int me,
 void amdgpu_gfx_off_ctrl(struct amdgpu_device *adev, bool enable);
 int amdgpu_get_gfx_off_status(struct amdgpu_device *adev, uint32_t *value);
 int amdgpu_gfx_ras_late_init(struct amdgpu_device *adev, struct ras_common_if *ras_block);
+void amdgpu_gfx_ras_fini(struct amdgpu_device *adev);
+int amdgpu_get_gfx_off_entrycount(struct amdgpu_device *adev, u64 *value);
+int amdgpu_get_gfx_off_residency(struct amdgpu_device *adev, u32 *residency);
+int amdgpu_set_gfx_off_residency(struct amdgpu_device *adev, bool value);
 int amdgpu_gfx_process_ras_data_cb(struct amdgpu_device *adev,
 		void *err_data,
 		struct amdgpu_iv_entry *entry);

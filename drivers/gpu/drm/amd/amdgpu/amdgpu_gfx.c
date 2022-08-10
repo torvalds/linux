@@ -610,6 +610,45 @@ unlock:
 	mutex_unlock(&adev->gfx.gfx_off_mutex);
 }
 
+int amdgpu_set_gfx_off_residency(struct amdgpu_device *adev, bool value)
+{
+	int r = 0;
+
+	mutex_lock(&adev->gfx.gfx_off_mutex);
+
+	r = amdgpu_dpm_set_residency_gfxoff(adev, value);
+
+	mutex_unlock(&adev->gfx.gfx_off_mutex);
+
+	return r;
+}
+
+int amdgpu_get_gfx_off_residency(struct amdgpu_device *adev, u32 *value)
+{
+	int r = 0;
+
+	mutex_lock(&adev->gfx.gfx_off_mutex);
+
+	r = amdgpu_dpm_get_residency_gfxoff(adev, value);
+
+	mutex_unlock(&adev->gfx.gfx_off_mutex);
+
+	return r;
+}
+
+int amdgpu_get_gfx_off_entrycount(struct amdgpu_device *adev, u64 *value)
+{
+	int r = 0;
+
+	mutex_lock(&adev->gfx.gfx_off_mutex);
+
+	r = amdgpu_dpm_get_entrycount_gfxoff(adev, value);
+
+	mutex_unlock(&adev->gfx.gfx_off_mutex);
+
+	return r;
+}
+
 int amdgpu_get_gfx_off_status(struct amdgpu_device *adev, uint32_t *value)
 {
 
