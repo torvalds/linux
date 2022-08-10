@@ -152,7 +152,7 @@
 			reg = <0x2011000 0x1000>;
 		};
 
-		rpm@108000 {
+		rpm: rpm@108000 {
 			compatible = "qcom,rpm-msm8960";
 			reg = <0x108000 0x1000>;
 			qcom,ipc = <&l2cc 0x8 2>;
@@ -307,7 +307,7 @@
 			reg = <0x1a400000 0x100>;
 		};
 
-		gsbi@16000000 {
+		gsbi1: gsbi@16000000 {
 			compatible = "qcom,gsbi-v1.0.0";
 			cell-index = <1>;
 			reg = <0x16000000 0x100>;
@@ -317,7 +317,7 @@
 			#size-cells = <1>;
 			ranges;
 
-			spi@16080000 {
+			gsbi1_spi: spi@16080000 {
 				compatible = "qcom,spi-qup-v1.1.1";
 				#address-cells = <1>;
 				#size-cells = <0>;
