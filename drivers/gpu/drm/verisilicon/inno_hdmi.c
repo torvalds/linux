@@ -539,9 +539,9 @@ static int inno_hdmi_setup(struct inno_hdmi *hdmi,
 	hdmi->tmds_rate = mode->clock * 1000;
 	inno_hdmi_phy_clk_set_rate(hdmi,hdmi->tmds_rate);
 
-	while (!(readl_relaxed(hdmi->regs + (0x1a9) * 0x04) & 0x1))
+	while (!(hdmi_readb(hdmi, 0x1a9) & 0x1))
 	;
-	while (!(readl_relaxed(hdmi->regs + (0x1af) * 0x04) & 0x1))
+	while (!(hdmi_readb(hdmi, 0x1af) & 0x1))
 	;
 
 	/*turn on LDO*/	
