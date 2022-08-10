@@ -1735,12 +1735,13 @@
 	hugetlb_free_vmemmap=
 			[KNL] Reguires CONFIG_HUGETLB_PAGE_OPTIMIZE_VMEMMAP
 			enabled.
+			Control if HugeTLB Vmemmap Optimization (HVO) is enabled.
 			Allows heavy hugetlb users to free up some more
 			memory (7 * PAGE_SIZE for each 2MB hugetlb page).
-			Format: { [oO][Nn]/Y/y/1 | [oO][Ff]/N/n/0 (default) }
+			Format: { on | off (default) }
 
-			[oO][Nn]/Y/y/1: enable the feature
-			[oO][Ff]/N/n/0: disable the feature
+			on: enable HVO
+			off: disable HVO
 
 			Built with CONFIG_HUGETLB_PAGE_OPTIMIZE_VMEMMAP_DEFAULT_ON=y,
 			the default is on.
