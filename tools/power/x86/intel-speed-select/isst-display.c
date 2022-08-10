@@ -169,21 +169,30 @@ static void format_and_print(FILE *outf, int level, char *header, char *value)
 static int print_package_info(struct isst_id *id, FILE *outf)
 {
 	char header[256];
+	int level = 1;
 
 	if (out_format_is_json()) {
-		snprintf(header, sizeof(header), "package-%d:die-%d:cpu-%d",
-			 id->pkg, id->die, id->cpu);
-		format_and_print(outf, 1, header, NULL);
+		if (api_version() > 1)
+			snprintf(header, sizeof(header), "package-%d:die-%d:powerdomain-%d:cpu-%d",
+				 id->pkg, id->die, id->punit, id->cpu);
+		else
+			snprintf(header, sizeof(header), "package-%d:die-%d:cpu-%d",
+				 id->pkg, id->die, id->cpu);
+		format_and_print(outf, level, header, NULL);
 		return 1;
 	}
 	snprintf(header, sizeof(header), "package-%d", id->pkg);
-	format_and_print(outf, 1, header, NULL);
+	format_and_print(outf, level++, header, NULL);
 	snprintf(header, sizeof(header), "die-%d", id->die);
-	format_and_print(outf, 2, header, NULL);
+	format_and_print(outf, level++, header, NULL);
+	if (api_version() > 1) {
+		snprintf(header, sizeof(header), "powerdomain-%d", id->punit);
+		format_and_print(outf, level++, header, NULL);
+	}
 	snprintf(header, sizeof(header), "cpu-%d", id->cpu);
-	format_and_print(outf, 3, header, NULL);
+	format_and_print(outf, level, header, NULL);
 
-	return 3;
+	return level;
 }
 
 static void _isst_pbf_display_information(struct isst_id *id, FILE *outf, int level,
@@ -306,22 +315,10 @@ static void _isst_fact_display_information(struct isst_id *id, FILE *outf, int l
 void isst_ctdp_display_core_info(struct isst_id *id, FILE *outf, char *prefix,
 				 unsigned int val, char *str0, char *str1)
 {
-	char header[256];
 	char value[256];
-	int level = 1;
+	int level = print_package_info(id, outf);
 
-	if (out_format_is_json()) {
-		snprintf(header, sizeof(header), "package-%d:die-%d:cpu-%d",
-			 id->pkg, id->die, id->cpu);
-		format_and_print(outf, level++, header, NULL);
-	} else {
-		snprintf(header, sizeof(header), "package-%d", id->pkg);
-		format_and_print(outf, level++, header, NULL);
-		snprintf(header, sizeof(header), "die-%d", id->die);
-		format_and_print(outf, level++, header, NULL);
-		snprintf(header, sizeof(header), "cpu-%d", id->cpu);
-		format_and_print(outf, level++, header, NULL);
-	}
+	level++;
 
 	if (str0 && !val)
 		snprintf(value, sizeof(value), "%s", str0);
