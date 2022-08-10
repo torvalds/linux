@@ -815,6 +815,10 @@ static struct dm_buffer *__get_unclaimed_buffer(struct dm_bufio_client *c)
 		BUG_ON(test_bit(B_WRITING, &b->state));
 		BUG_ON(test_bit(B_DIRTY, &b->state));
 
+		if (static_branch_unlikely(&no_sleep_enabled) && c->no_sleep &&
+		    unlikely(test_bit(B_READING, &b->state)))
+			continue;
+
 		if (!b->hold_count) {
 			__make_buffer_clean(b);
 			__unlink_buffer(b);
@@ -822,6 +826,9 @@ static struct dm_buffer *__get_unclaimed_buffer(struct dm_bufio_client *c)
 		}
 		cond_resched();
 	}
+
+	if (static_branch_unlikely(&no_sleep_enabled) && c->no_sleep)
+		return NULL;
 
 	list_for_each_entry_reverse(b, &c->lru[LIST_DIRTY], lru_list) {
 		BUG_ON(test_bit(B_READING, &b->state));
@@ -1632,7 +1639,8 @@ static void drop_buffers(struct dm_bufio_client *c)
  */
 static bool __try_evict_buffer(struct dm_buffer *b, gfp_t gfp)
 {
-	if (!(gfp & __GFP_FS)) {
+	if (!(gfp & __GFP_FS) ||
+	    (static_branch_unlikely(&no_sleep_enabled) && b->c->no_sleep)) {
 		if (test_bit(B_READING, &b->state) ||
 		    test_bit(B_WRITING, &b->state) ||
 		    test_bit(B_DIRTY, &b->state))
