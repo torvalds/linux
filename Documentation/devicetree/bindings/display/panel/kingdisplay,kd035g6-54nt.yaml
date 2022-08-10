@@ -23,6 +23,8 @@ properties:
   reg: true
   reset-gpios: true
 
+  spi-3wire: true
+
 required:
   - compatible
   - power-supply
