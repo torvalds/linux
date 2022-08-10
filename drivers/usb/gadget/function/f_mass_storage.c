@@ -2662,10 +2662,15 @@ static ssize_t forced_eject_store(struct device *dev,
 }
 
 static DEVICE_ATTR_RW(nofua);
-/* mode wil be set in fsg_lun_attr_is_visible() */
-static DEVICE_ATTR(ro, 0, ro_show, ro_store);
-static DEVICE_ATTR(file, 0, file_show, file_store);
 static DEVICE_ATTR_WO(forced_eject);
+
+/*
+ * Mode of the ro and file attribute files will be overridden in
+ * fsg_lun_dev_is_visible() depending on if this is a cdrom, or if it is a
+ * removable device.
+ */
+static DEVICE_ATTR_RW(ro);
+static DEVICE_ATTR_RW(file);
 
 /****************************** FSG COMMON ******************************/
 
