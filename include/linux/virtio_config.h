@@ -239,7 +239,7 @@ int virtio_find_vqs_ctx(struct virtio_device *vdev, unsigned nvqs,
 
 /**
  * virtio_synchronize_cbs - synchronize with virtqueue callbacks
- * @vdev: the device
+ * @dev: the virtio device
  */
 static inline
 void virtio_synchronize_cbs(struct virtio_device *dev)
@@ -258,7 +258,7 @@ void virtio_synchronize_cbs(struct virtio_device *dev)
 
 /**
  * virtio_device_ready - enable vq use in probe function
- * @vdev: the device
+ * @dev: the virtio device
  *
  * Driver must call this to use vqs in the probe function.
  *
@@ -306,7 +306,7 @@ const char *virtio_bus_name(struct virtio_device *vdev)
 /**
  * virtqueue_set_affinity - setting affinity for a virtqueue
  * @vq: the virtqueue
- * @cpu: the cpu no.
+ * @cpu_mask: the cpu mask
  *
  * Pay attention the function are best-effort: the affinity hint may not be set
  * due to config support, irq type and sharing.
