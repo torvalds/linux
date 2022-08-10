@@ -398,7 +398,7 @@ static void init_buffer_cache_hints(struct vb2_queue *q, struct vb2_buffer *vb)
 }
 
 /*
- * __vb2_queue_alloc() - allocate videobuf buffer structures and (for MMAP type)
+ * __vb2_queue_alloc() - allocate vb2 buffer structures and (for MMAP type)
  * video buffer memory for all buffers/planes on the queue and initializes the
  * queue
  *
@@ -417,7 +417,7 @@ static int __vb2_queue_alloc(struct vb2_queue *q, enum vb2_memory memory,
 			    VB2_MAX_FRAME - q->num_buffers);
 
 	for (buffer = 0; buffer < num_buffers; ++buffer) {
-		/* Allocate videobuf buffer structures */
+		/* Allocate vb2 buffer structures */
 		vb = kzalloc(q->buf_struct_size, GFP_KERNEL);
 		if (!vb) {
 			dprintk(q, 1, "memory alloc for buffer struct failed\n");
@@ -599,7 +599,7 @@ static int __vb2_queue_free(struct vb2_queue *q, unsigned int buffers)
 	}
 #endif
 
-	/* Free videobuf buffers */
+	/* Free vb2 buffers */
 	for (buffer = q->num_buffers - buffers; buffer < q->num_buffers;
 	     ++buffer) {
 		kfree(q->bufs[buffer]);
@@ -1949,7 +1949,7 @@ int vb2_core_dqbuf(struct vb2_queue *q, unsigned int *pindex, void *pb,
 	if (pb)
 		call_void_bufop(q, fill_user_buffer, vb, pb);
 
-	/* Remove from videobuf queue */
+	/* Remove from vb2 queue */
 	list_del(&vb->queued_entry);
 	q->queued_count--;
 
@@ -1978,7 +1978,7 @@ EXPORT_SYMBOL_GPL(vb2_core_dqbuf);
  * __vb2_queue_cancel() - cancel and stop (pause) streaming
  *
  * Removes all queued buffers from driver's queue and all buffers queued by
- * userspace from videobuf's queue. Returns to state after reqbufs.
+ * userspace from vb2's queue. Returns to state after reqbufs.
  */
 static void __vb2_queue_cancel(struct vb2_queue *q)
 {
@@ -2016,7 +2016,7 @@ static void __vb2_queue_cancel(struct vb2_queue *q)
 	q->uses_qbuf = 0;
 
 	/*
-	 * Remove all buffers from videobuf's list...
+	 * Remove all buffers from vb2's list...
 	 */
 	INIT_LIST_HEAD(&q->queued_list);
 	/*
@@ -2139,7 +2139,7 @@ int vb2_core_streamoff(struct vb2_queue *q, unsigned int type)
 
 	/*
 	 * Cancel will pause streaming and remove all buffers from the driver
-	 * and videobuf, effectively returning control over them to userspace.
+	 * and vb2, effectively returning control over them to userspace.
 	 *
 	 * Note that we do this even if q->streaming == 0: if you prepare or
 	 * queue buffers, and then call streamoff without ever having called

@@ -268,7 +268,7 @@ static int vb2_fill_vb2_v4l2_buffer(struct vb2_buffer *vb, struct v4l2_buffer *b
 		/*
 		 * Single-planar buffers do not use planes array,
 		 * so fill in relevant v4l2_buffer struct fields instead.
-		 * In videobuf we use our internal V4l2_planes struct for
+		 * In vb2 we use our internal V4l2_planes struct for
 		 * single-planar buffers as well, for simplicity.
 		 *
 		 * If bytesused == 0 for the output buffer, then fall back
@@ -652,7 +652,7 @@ EXPORT_SYMBOL_GPL(vb2_find_buffer);
 
 /*
  * vb2_querybuf() - query video buffer information
- * @q:		videobuf queue
+ * @q:		vb2 queue
  * @b:		buffer struct passed from userspace to vidioc_querybuf handler
  *		in driver
  *
