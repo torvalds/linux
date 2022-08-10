@@ -108,7 +108,10 @@
 #define PPSMC_MSG_SetSlowPPTLimit                      0x4A
 #define PPSMC_MSG_GetFastPPTLimit                      0x4B
 #define PPSMC_MSG_GetSlowPPTLimit                      0x4C
-#define PPSMC_Message_Count                            0x4D
+#define PPSMC_MSG_GetGfxOffStatus		       0x50
+#define PPSMC_MSG_GetGfxOffEntryCount		       0x51
+#define PPSMC_MSG_LogGfxOffResidency		       0x52
+#define PPSMC_Message_Count                            0x53
 
 //Argument for PPSMC_MSG_GfxDeviceDriverReset
 enum {
