@@ -4,9 +4,9 @@
 #include "buckets.h"
 #include "btree_types.h"
 #include "keylist.h"
+#include "six.h"
 
 #include <linux/blktrace_api.h>
-#include "keylist.h"
 
 #define CREATE_TRACE_POINTS
 #include "trace.h"
