@@ -315,9 +315,11 @@ static int qcom_edp_set_vco_div(const struct qcom_edp *edp)
 static int qcom_edp_phy_power_on(struct phy *phy)
 {
 	const struct qcom_edp *edp = phy_get_drvdata(phy);
+	u32 bias0_en, drvr0_en, bias1_en, drvr1_en;
 	int timeout;
 	int ret;
 	u32 val;
+	u8 cfg1;
 
 	writel(DP_PHY_PD_CTL_PWRDN | DP_PHY_PD_CTL_AUX_PWRDN |
 	       DP_PHY_PD_CTL_LANE_0_1_PWRDN | DP_PHY_PD_CTL_LANE_2_3_PWRDN |
@@ -398,11 +400,31 @@ static int qcom_edp_phy_power_on(struct phy *phy)
 	writel(0x1f, edp->tx0 + TXn_TX_DRV_LVL);
 	writel(0x1f, edp->tx1 + TXn_TX_DRV_LVL);
 
-	writel(0x4, edp->tx0 + TXn_HIGHZ_DRVR_EN);
-	writel(0x3, edp->tx0 + TXn_TRANSCEIVER_BIAS_EN);
-	writel(0x4, edp->tx1 + TXn_HIGHZ_DRVR_EN);
-	writel(0x0, edp->tx1 + TXn_TRANSCEIVER_BIAS_EN);
-	writel(0x3, edp->edp + DP_PHY_CFG_1);
+	if (edp->dp_opts.lanes == 1) {
+		bias0_en = 0x01;
+		bias1_en = 0x00;
+		drvr0_en = 0x06;
+		drvr1_en = 0x07;
+		cfg1 = 0x1;
+	} else if (edp->dp_opts.lanes == 2) {
+		bias0_en = 0x03;
+		bias1_en = 0x00;
+		drvr0_en = 0x04;
+		drvr1_en = 0x07;
+		cfg1 = 0x3;
+	} else {
+		bias0_en = 0x03;
+		bias1_en = 0x03;
+		drvr0_en = 0x04;
+		drvr1_en = 0x04;
+		cfg1 = 0xf;
+	}
+
+	writel(drvr0_en, edp->tx0 + TXn_HIGHZ_DRVR_EN);
+	writel(bias0_en, edp->tx0 + TXn_TRANSCEIVER_BIAS_EN);
+	writel(drvr1_en, edp->tx1 + TXn_HIGHZ_DRVR_EN);
+	writel(bias1_en, edp->tx1 + TXn_TRANSCEIVER_BIAS_EN);
+	writel(cfg1, edp->edp + DP_PHY_CFG_1);
 
 	writel(0x18, edp->edp + DP_PHY_CFG);
 	usleep_range(100, 1000);
