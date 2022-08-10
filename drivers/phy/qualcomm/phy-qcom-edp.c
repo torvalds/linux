@@ -70,8 +70,19 @@
 
 #define TXn_TRAN_DRVR_EMP_EN                    0x0078
 
+struct qcom_edp_cfg {
+	bool is_dp;
+
+	/* DP PHY swing and pre_emphasis tables */
+	const u8 (*swing_hbr_rbr)[4][4];
+	const u8 (*swing_hbr3_hbr2)[4][4];
+	const u8 (*pre_emphasis_hbr_rbr)[4][4];
+	const u8 (*pre_emphasis_hbr3_hbr2)[4][4];
+};
+
 struct qcom_edp {
 	struct device *dev;
+	const struct qcom_edp_cfg *cfg;
 
 	struct phy *phy;
 
@@ -92,7 +103,9 @@ struct qcom_edp {
 static int qcom_edp_phy_init(struct phy *phy)
 {
 	struct qcom_edp *edp = phy_get_drvdata(phy);
+	const struct qcom_edp_cfg *cfg = edp->cfg;
 	int ret;
+	u8 cfg8;
 
 	ret = regulator_bulk_enable(ARRAY_SIZE(edp->supplies), edp->supplies);
 	if (ret)
@@ -117,6 +130,13 @@ static int qcom_edp_phy_init(struct phy *phy)
 	       DP_PHY_PD_CTL_PLL_PWRDN | DP_PHY_PD_CTL_DP_CLAMP_EN,
 	       edp->edp + DP_PHY_PD_CTL);
 
+	if (cfg && cfg->is_dp)
+		cfg8 = 0xb7;
+	else
+		cfg8 = 0x37;
+
+	writel(0xfc, edp->edp + DP_PHY_MODE);
+
 	writel(0x00, edp->edp + DP_PHY_AUX_CFG0);
 	writel(0x13, edp->edp + DP_PHY_AUX_CFG1);
 	writel(0x24, edp->edp + DP_PHY_AUX_CFG2);
@@ -125,7 +145,7 @@ static int qcom_edp_phy_init(struct phy *phy)
 	writel(0x26, edp->edp + DP_PHY_AUX_CFG5);
 	writel(0x0a, edp->edp + DP_PHY_AUX_CFG6);
 	writel(0x03, edp->edp + DP_PHY_AUX_CFG7);
-	writel(0x37, edp->edp + DP_PHY_AUX_CFG8);
+	writel(cfg8, edp->edp + DP_PHY_AUX_CFG8);
 	writel(0x03, edp->edp + DP_PHY_AUX_CFG9);
 
 	writel(PHY_AUX_STOP_ERR_MASK | PHY_AUX_DEC_ERR_MASK |
@@ -142,14 +162,60 @@ out_disable_supplies:
 	return ret;
 }
 
+static int qcom_edp_set_voltages(struct qcom_edp *edp, const struct phy_configure_opts_dp *dp_opts)
+{
+	const struct qcom_edp_cfg *cfg = edp->cfg;
+	unsigned int v_level = 0;
+	unsigned int p_level = 0;
+	u8 ldo_config;
+	u8 swing;
+	u8 emph;
+	int i;
+
+	if (!cfg)
+		return 0;
+
+	for (i = 0; i < dp_opts->lanes; i++) {
+		v_level = max(v_level, dp_opts->voltage[i]);
+		p_level = max(p_level, dp_opts->pre[i]);
+	}
+
+	if (dp_opts->link_rate <= 2700) {
+		swing = (*cfg->swing_hbr_rbr)[v_level][p_level];
+		emph = (*cfg->pre_emphasis_hbr_rbr)[v_level][p_level];
+	} else {
+		swing = (*cfg->swing_hbr3_hbr2)[v_level][p_level];
+		emph = (*cfg->pre_emphasis_hbr3_hbr2)[v_level][p_level];
+	}
+
+	if (swing == 0xff || emph == 0xff)
+		return -EINVAL;
+
+	ldo_config = (cfg && cfg->is_dp) ? 0x1 : 0x0;
+
+	writel(ldo_config, edp->tx0 + TXn_LDO_CONFIG);
+	writel(swing, edp->tx0 + TXn_TX_DRV_LVL);
+	writel(emph, edp->tx0 + TXn_TX_EMP_POST1_LVL);
+
+	writel(ldo_config, edp->tx1 + TXn_LDO_CONFIG);
+	writel(swing, edp->tx1 + TXn_TX_DRV_LVL);
+	writel(emph, edp->tx1 + TXn_TX_EMP_POST1_LVL);
+
+	return 0;
+}
+
 static int qcom_edp_phy_configure(struct phy *phy, union phy_configure_opts *opts)
 {
 	const struct phy_configure_opts_dp *dp_opts = &opts->dp;
 	struct qcom_edp *edp = phy_get_drvdata(phy);
+	int ret = 0;
 
 	memcpy(&edp->dp_opts, dp_opts, sizeof(*dp_opts));
 
-	return 0;
+	if (dp_opts->set_voltages)
+		ret = qcom_edp_set_voltages(edp, dp_opts);
+
+	return ret;
 }
 
 static int qcom_edp_configure_ssc(const struct qcom_edp *edp)
@@ -315,7 +381,9 @@ static int qcom_edp_set_vco_div(const struct qcom_edp *edp)
 static int qcom_edp_phy_power_on(struct phy *phy)
 {
 	const struct qcom_edp *edp = phy_get_drvdata(phy);
+	const struct qcom_edp_cfg *cfg = edp->cfg;
 	u32 bias0_en, drvr0_en, bias1_en, drvr1_en;
+	u8 ldo_config;
 	int timeout;
 	int ret;
 	u32 val;
@@ -332,8 +400,11 @@ static int qcom_edp_phy_power_on(struct phy *phy)
 	if (timeout)
 		return timeout;
 
-	writel(0x01, edp->tx0 + TXn_LDO_CONFIG);
-	writel(0x01, edp->tx1 + TXn_LDO_CONFIG);
+
+	ldo_config = (cfg && cfg->is_dp) ? 0x1 : 0x0;
+
+	writel(ldo_config, edp->tx0 + TXn_LDO_CONFIG);
+	writel(ldo_config, edp->tx1 + TXn_LDO_CONFIG);
 	writel(0x00, edp->tx0 + TXn_LANE_MODE_1);
 	writel(0x00, edp->tx1 + TXn_LANE_MODE_1);
 
@@ -635,6 +706,7 @@ static int qcom_edp_phy_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	edp->dev = dev;
+	edp->cfg = of_device_get_match_data(&pdev->dev);
 
 	edp->edp = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(edp->edp))
