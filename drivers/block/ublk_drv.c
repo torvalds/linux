@@ -680,6 +680,11 @@ static inline void __ublk_rq_task_work(struct request *req)
 		 * do the copy work.
 		 */
 		io->flags &= ~UBLK_IO_FLAG_NEED_GET_DATA;
+		/* update iod->addr because ublksrv may have passed a new io buffer */
+		ublk_get_iod(ubq, req->tag)->addr = io->addr;
+		pr_devel("%s: update iod->addr: op %d, qid %d tag %d io_flags %x addr %llx\n",
+				__func__, io->cmd->cmd_op, ubq->q_id, req->tag, io->flags,
+				ublk_get_iod(ubq, req->tag)->addr);
 	}
 
 	mapped_bytes = ublk_map_io(ubq, req, io);
