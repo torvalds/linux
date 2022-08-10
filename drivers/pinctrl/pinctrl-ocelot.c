@@ -1810,6 +1810,7 @@ static void ocelot_irq_mask(struct irq_data *data)
 
 	regmap_update_bits(info->map, REG(OCELOT_GPIO_INTR_ENA, info, gpio),
 			   BIT(gpio % 32), 0);
+	gpiochip_disable_irq(chip, gpio);
 }
 
 static void ocelot_irq_unmask(struct irq_data *data)
@@ -1818,6 +1819,7 @@ static void ocelot_irq_unmask(struct irq_data *data)
 	struct ocelot_pinctrl *info = gpiochip_get_data(chip);
 	unsigned int gpio = irqd_to_hwirq(data);
 
+	gpiochip_enable_irq(chip, gpio);
 	regmap_update_bits(info->map, REG(OCELOT_GPIO_INTR_ENA, info, gpio),
 			   BIT(gpio % 32), BIT(gpio % 32));
 }
@@ -1839,8 +1841,10 @@ static struct irq_chip ocelot_eoi_irqchip = {
 	.irq_mask	= ocelot_irq_mask,
 	.irq_eoi	= ocelot_irq_ack,
 	.irq_unmask	= ocelot_irq_unmask,
-	.flags          = IRQCHIP_EOI_THREADED | IRQCHIP_EOI_IF_HANDLED,
+	.flags          = IRQCHIP_EOI_THREADED | IRQCHIP_EOI_IF_HANDLED |
+			  IRQCHIP_IMMUTABLE,
 	.irq_set_type	= ocelot_irq_set_type,
+	GPIOCHIP_IRQ_RESOURCE_HELPERS
 };
 
 static struct irq_chip ocelot_irqchip = {
@@ -1849,6 +1853,8 @@ static struct irq_chip ocelot_irqchip = {
 	.irq_ack	= ocelot_irq_ack,
 	.irq_unmask	= ocelot_irq_unmask,
 	.irq_set_type	= ocelot_irq_set_type,
+	.flags          = IRQCHIP_IMMUTABLE,
+	GPIOCHIP_IRQ_RESOURCE_HELPERS
 };
 
 static int ocelot_irq_set_type(struct irq_data *data, unsigned int type)
@@ -1912,7 +1918,7 @@ static int ocelot_gpiochip_register(struct platform_device *pdev,
 	irq = platform_get_irq_optional(pdev, 0);
 	if (irq > 0) {
 		girq = &gc->irq;
-		girq->chip = &ocelot_irqchip;
+		gpio_irq_chip_set_chip(girq, &ocelot_irqchip);
 		girq->parent_handler = ocelot_irq_handler;
 		girq->num_parents = 1;
 		girq->parents = devm_kcalloc(&pdev->dev, 1,

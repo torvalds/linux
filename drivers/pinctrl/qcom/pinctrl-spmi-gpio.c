@@ -966,16 +966,13 @@ static int pmic_gpio_child_to_parent_hwirq(struct gpio_chip *chip,
 	return 0;
 }
 
-static void *pmic_gpio_populate_parent_fwspec(struct gpio_chip *chip,
-					     unsigned int parent_hwirq,
-					     unsigned int parent_type)
+static int pmic_gpio_populate_parent_fwspec(struct gpio_chip *chip,
+					    union gpio_irq_fwspec *gfwspec,
+					    unsigned int parent_hwirq,
+					    unsigned int parent_type)
 {
 	struct pmic_gpio_state *state = gpiochip_get_data(chip);
-	struct irq_fwspec *fwspec;
-
-	fwspec = kzalloc(sizeof(*fwspec), GFP_KERNEL);
-	if (!fwspec)
-		return NULL;
+	struct irq_fwspec *fwspec = &gfwspec->fwspec;
 
 	fwspec->fwnode = chip->irq.parent_domain->fwnode;
 
@@ -985,7 +982,7 @@ static void *pmic_gpio_populate_parent_fwspec(struct gpio_chip *chip,
 	/* param[2] must be left as 0 */
 	fwspec->param[3] = parent_type;
 
-	return fwspec;
+	return 0;
 }
 
 static int pmic_gpio_probe(struct platform_device *pdev)

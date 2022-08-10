@@ -15,8 +15,6 @@
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/spinlock.h>
-#include <asm-generic/msi.h>
-
 
 #define GPIO_RX_DAT	0x0
 #define GPIO_TX_SET	0x8
@@ -408,18 +406,15 @@ static int thunderx_gpio_child_to_parent_hwirq(struct gpio_chip *gc,
 	return 0;
 }
 
-static void *thunderx_gpio_populate_parent_alloc_info(struct gpio_chip *chip,
-						      unsigned int parent_hwirq,
-						      unsigned int parent_type)
+static int thunderx_gpio_populate_parent_alloc_info(struct gpio_chip *chip,
+						    union gpio_irq_fwspec *gfwspec,
+						    unsigned int parent_hwirq,
+						    unsigned int parent_type)
 {
-	msi_alloc_info_t *info;
-
-	info = kmalloc(sizeof(*info), GFP_KERNEL);
-	if (!info)
-		return NULL;
+	msi_alloc_info_t *info = &gfwspec->msiinfo;
 
 	info->hwirq = parent_hwirq;
-	return info;
+	return 0;
 }
 
 static int thunderx_gpio_probe(struct pci_dev *pdev,
