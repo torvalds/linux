@@ -563,12 +563,12 @@ static void vpif_config_addr(struct channel_obj *ch, int muxmode)
 	struct common_obj *common = &ch->common[VPIF_VIDEO_INDEX];
 
 	if (VPIF_CHANNEL3_VIDEO == ch->channel_id) {
-		common->set_addr = ch3_set_videobuf_addr;
+		common->set_addr = ch3_set_video_buf_addr;
 	} else {
 		if (2 == muxmode)
-			common->set_addr = ch2_set_videobuf_addr_yc_nmux;
+			common->set_addr = ch2_set_video_buf_addr_yc_nmux;
 		else
-			common->set_addr = ch2_set_videobuf_addr;
+			common->set_addr = ch2_set_video_buf_addr;
 	}
 }
 

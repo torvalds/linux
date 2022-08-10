@@ -64,11 +64,11 @@ struct common_obj {
 	struct vpif_disp_buffer *next_frm;	/* Pointer pointing to next
 						 * vb2_buffer */
 	struct v4l2_format fmt;			/* Used to store the format */
-	struct vb2_queue buffer_queue;		/* Buffer queue used in
-						 * video-buf */
+	struct vb2_queue buffer_queue;		/* Buffer queue used in vb2 */
 
 	struct list_head dma_queue;		/* Queue of filled frames */
-	spinlock_t irqlock;			/* Used in video-buf */
+	spinlock_t irqlock;			/* Used for video buffer
+						 * handling */
 
 	/* channel specific parameters */
 	struct mutex lock;			/* lock used to access this
