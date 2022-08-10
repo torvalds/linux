@@ -93,6 +93,9 @@ properties:
           - x-powers,axp809
           - x-powers,axp813
       - items:
+          - const: x-powers,axp228
+          - const: x-powers,axp221
+      - items:
           - const: x-powers,axp805
           - const: x-powers,axp806
       - items:
