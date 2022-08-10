@@ -52,4 +52,14 @@
 #define RKPM_TIME_OUT_WKUP_EN		BIT(16)
 #define RKPM_PMUMCU_CEC_WKUP_EN		BIT(20)
 #define RKPM_PMUMCU_VAD_WKUP_EN		BIT(21)
+
+/* io retention config */
+#define RKPM_EMMCIO_RET_EN		BIT(0)
+#define RKPM_VCCIO1_RET_EN		BIT(1)
+#define RKPM_VCCIO2_RET_EN		BIT(2)
+#define RKPM_VCCIO3_RET_EN		BIT(3)
+#define RKPM_VCCIO4_RET_EN		BIT(4)
+#define RKPM_VCCIO5_RET_EN		BIT(5)
+#define RKPM_VCCIO6_RET_EN		BIT(6)
+#define RKPM_PMUIO2_RET_EN		BIT(7)
 #endif
