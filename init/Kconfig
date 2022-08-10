@@ -1411,13 +1411,6 @@ config CC_OPTIMIZE_FOR_PERFORMANCE
 	  with the "-O2" compiler flag for best performance and most
 	  helpful compile-time warnings.
 
-config CC_OPTIMIZE_FOR_PERFORMANCE_O3
-	bool "Optimize more for performance (-O3)"
-	depends on ARC
-	help
-	  Choosing this option will pass "-O3" to your compiler to optimize
-	  the kernel yet more for performance.
-
 config CC_OPTIMIZE_FOR_SIZE
 	bool "Optimize for size (-Os)"
 	help
@@ -1733,16 +1726,17 @@ config KALLSYMS_ALL
 	help
 	  Normally kallsyms only contains the symbols of functions for nicer
 	  OOPS messages and backtraces (i.e., symbols from the text and inittext
-	  sections). This is sufficient for most cases. And only in very rare
-	  cases (e.g., when a debugger is used) all symbols are required (e.g.,
-	  names of variables from the data sections, etc).
+	  sections). This is sufficient for most cases. And only if you want to
+	  enable kernel live patching, or other less common use cases (e.g.,
+	  when a debugger is used) all symbols are required (i.e., names of
+	  variables from the data sections, etc).
 
 	  This option makes sure that all symbols are loaded into the kernel
 	  image (i.e., symbols from all sections) in cost of increased kernel
 	  size (depending on the kernel configuration, it may be 300KiB or
 	  something like this).
 
-	  Say N unless you really need all symbols.
+	  Say N unless you really need all symbols, or kernel live patching.
 
 config KALLSYMS_ABSOLUTE_PERCPU
 	bool
