@@ -12473,6 +12473,50 @@ static void kvm_mmu_slot_apply_flags(struct kvm *kvm,
 		} else {
 			kvm_mmu_slot_remove_write_access(kvm, new, PG_LEVEL_4K);
 		}
+
+		/*
+		 * Unconditionally flush the TLBs after enabling dirty logging.
+		 * A flush is almost always going to be necessary (see below),
+		 * and unconditionally flushing allows the helpers to omit
+		 * the subtly complex checks when removing write access.
+		 *
+		 * Do the flush outside of mmu_lock to reduce the amount of
+		 * time mmu_lock is held.  Flushing after dropping mmu_lock is
+		 * safe as KVM only needs to guarantee the slot is fully
+		 * write-protected before returning to userspace, i.e. before
+		 * userspace can consume the dirty status.
+		 *
+		 * Flushing outside of mmu_lock requires KVM to be careful when
+		 * making decisions based on writable status of an SPTE, e.g. a
+		 * !writable SPTE doesn't guarantee a CPU can't perform writes.
+		 *
+		 * Specifically, KVM also write-protects guest page tables to
+		 * monitor changes when using shadow paging, and must guarantee
+		 * no CPUs can write to those page before mmu_lock is dropped.
+		 * Because CPUs may have stale TLB entries at this point, a
+		 * !writable SPTE doesn't guarantee CPUs can't perform writes.
+		 *
+		 * KVM also allows making SPTES writable outside of mmu_lock,
+		 * e.g. to allow dirty logging without taking mmu_lock.
+		 *
+		 * To handle these scenarios, KVM uses a separate software-only
+		 * bit (MMU-writable) to track if a SPTE is !writable due to
+		 * a guest page table being write-protected (KVM clears the
+		 * MMU-writable flag when write-protecting for shadow paging).
+		 *
+		 * The use of MMU-writable is also the primary motivation for
+		 * the unconditional flush.  Because KVM must guarantee that a
+		 * CPU doesn't contain stale, writable TLB entries for a
+		 * !MMU-writable SPTE, KVM must flush if it encounters any
+		 * MMU-writable SPTE regardless of whether the actual hardware
+		 * writable bit was set.  I.e. KVM is almost guaranteed to need
+		 * to flush, while unconditionally flushing allows the "remove
+		 * write access" helpers to ignore MMU-writable entirely.
+		 *
+		 * See is_writable_pte() for more details (the case involving
+		 * access-tracked SPTEs is particularly relevant).
+		 */
+		kvm_arch_flush_remote_tlbs_memslot(kvm, new);
 	}
 }
 
