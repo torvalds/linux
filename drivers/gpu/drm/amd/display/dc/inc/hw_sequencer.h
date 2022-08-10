@@ -245,6 +245,8 @@ struct hw_sequencer_funcs {
 			struct tg_color *color,
 			int mpcc_id);
 
+	void (*update_phy_state)(struct dc_state *state, struct pipe_ctx *pipe_ctx, enum phy_state target_state);
+
 	void (*commit_subvp_config)(struct dc *dc, struct dc_state *context);
 	void (*subvp_pipe_control_lock)(struct dc *dc,
 			struct dc_state *context,

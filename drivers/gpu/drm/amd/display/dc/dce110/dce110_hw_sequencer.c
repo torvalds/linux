@@ -1577,8 +1577,12 @@ static enum dc_status apply_single_controller_ctx_to_hw(
 	if (dc_is_dp_signal(pipe_ctx->stream->signal))
 		dp_source_sequence_trace(link, DPCD_SOURCE_SEQ_AFTER_CONNECT_DIG_FE_OTG);
 
-	if (!stream->dpms_off)
-		core_link_enable_stream(context, pipe_ctx);
+	if (!stream->dpms_off) {
+		if (dc->hwss.update_phy_state)
+			dc->hwss.update_phy_state(context, pipe_ctx, TX_ON_SYMCLK_ON);
+		else
+			core_link_enable_stream(context, pipe_ctx);
+	}
 
 	/* DCN3.1 FPGA Workaround
 	 * Need to enable HPO DP Stream Encoder before setting OTG master enable.

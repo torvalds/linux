@@ -268,6 +268,12 @@ enum dc_lut_mode {
 	LUT_RAM_B
 };
 
+enum phy_state {
+	TX_OFF_SYMCLK_OFF,
+	TX_ON_SYMCLK_ON,
+	TX_OFF_SYMCLK_ON
+};
+
 /**
  * speakersToChannels
  *

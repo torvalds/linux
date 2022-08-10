@@ -1180,7 +1180,11 @@ static void disable_vbios_mode_if_required(
 						pipe->stream_res.pix_clk_params.requested_pix_clk_100hz;
 
 					if (pix_clk_100hz != requested_pix_clk_100hz) {
-						core_link_disable_stream(pipe);
+						if (dc->hwss.update_phy_state)
+							dc->hwss.update_phy_state(dc->current_state,
+									pipe, TX_OFF_SYMCLK_OFF);
+						else
+							core_link_disable_stream(pipe);
 						pipe->stream->dpms_off = false;
 					}
 				}
@@ -3063,7 +3067,11 @@ static void commit_planes_do_stream_update(struct dc *dc,
 
 			if (stream_update->dpms_off) {
 				if (*stream_update->dpms_off) {
-					core_link_disable_stream(pipe_ctx);
+					if (dc->hwss.update_phy_state)
+						dc->hwss.update_phy_state(dc->current_state,
+								pipe_ctx, TX_OFF_SYMCLK_ON);
+					else
+						core_link_disable_stream(pipe_ctx);
 					/* for dpms, keep acquired resources*/
 					if (pipe_ctx->stream_res.audio && !dc->debug.az_endpoint_mute_only)
 						pipe_ctx->stream_res.audio->funcs->az_disable(pipe_ctx->stream_res.audio);
@@ -3074,7 +3082,11 @@ static void commit_planes_do_stream_update(struct dc *dc,
 					if (get_seamless_boot_stream_count(context) == 0)
 						dc->hwss.prepare_bandwidth(dc, dc->current_state);
 
-					core_link_enable_stream(dc->current_state, pipe_ctx);
+					if (dc->hwss.update_phy_state)
+						dc->hwss.update_phy_state(dc->current_state,
+								pipe_ctx, TX_ON_SYMCLK_ON);
+					else
+						core_link_enable_stream(dc->current_state, pipe_ctx);
 				}
 			}
 

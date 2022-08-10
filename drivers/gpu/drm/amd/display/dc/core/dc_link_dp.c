@@ -4519,7 +4519,11 @@ void dc_link_dp_handle_link_loss(struct dc_link *link)
 		pipe_ctx = &link->dc->current_state->res_ctx.pipe_ctx[i];
 		if (pipe_ctx && pipe_ctx->stream && !pipe_ctx->stream->dpms_off &&
 				pipe_ctx->stream->link == link && !pipe_ctx->prev_odm_pipe) {
-			core_link_disable_stream(pipe_ctx);
+			if (link->dc->hwss.update_phy_state)
+				link->dc->hwss.update_phy_state(link->dc->current_state,
+						pipe_ctx, TX_OFF_SYMCLK_OFF);
+			else
+				core_link_disable_stream(pipe_ctx);
 		}
 	}
 
@@ -4527,7 +4531,11 @@ void dc_link_dp_handle_link_loss(struct dc_link *link)
 		pipe_ctx = &link->dc->current_state->res_ctx.pipe_ctx[i];
 		if (pipe_ctx && pipe_ctx->stream && !pipe_ctx->stream->dpms_off &&
 				pipe_ctx->stream->link == link && !pipe_ctx->prev_odm_pipe) {
-			core_link_enable_stream(link->dc->current_state, pipe_ctx);
+			if (link->dc->hwss.update_phy_state)
+				link->dc->hwss.update_phy_state(link->dc->current_state,
+						pipe_ctx, TX_ON_SYMCLK_ON);
+			else
+				core_link_enable_stream(link->dc->current_state, pipe_ctx);
 		}
 	}
 }
