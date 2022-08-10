@@ -252,6 +252,26 @@ struct mt76_queue_ops {
 	void (*reset_q)(struct mt76_dev *dev, struct mt76_queue *q);
 };
 
+enum mt76_phy_type {
+	MT_PHY_TYPE_CCK,
+	MT_PHY_TYPE_OFDM,
+	MT_PHY_TYPE_HT,
+	MT_PHY_TYPE_HT_GF,
+	MT_PHY_TYPE_VHT,
+	MT_PHY_TYPE_HE_SU = 8,
+	MT_PHY_TYPE_HE_EXT_SU,
+	MT_PHY_TYPE_HE_TB,
+	MT_PHY_TYPE_HE_MU,
+	__MT_PHY_TYPE_HE_MAX,
+};
+
+struct mt76_sta_stats {
+	u64 tx_mode[__MT_PHY_TYPE_HE_MAX];
+	u64 tx_bw[4];		/* 20, 40, 80, 160 */
+	u64 tx_nss[4];		/* 1, 2, 3, 4 */
+	u64 tx_mcs[16];		/* mcs idx */
+};
+
 enum mt76_wcid_flags {
 	MT_WCID_FLAG_CHECK_PS,
 	MT_WCID_FLAG_PS,
@@ -299,6 +319,8 @@ struct mt76_wcid {
 
 	struct list_head list;
 	struct idr pktid;
+
+	struct mt76_sta_stats stats;
 };
 
 struct mt76_txq {
@@ -812,26 +834,6 @@ struct mt76_power_limits {
 	s8 ofdm[8];
 	s8 mcs[4][10];
 	s8 ru[7][12];
-};
-
-enum mt76_phy_type {
-	MT_PHY_TYPE_CCK,
-	MT_PHY_TYPE_OFDM,
-	MT_PHY_TYPE_HT,
-	MT_PHY_TYPE_HT_GF,
-	MT_PHY_TYPE_VHT,
-	MT_PHY_TYPE_HE_SU = 8,
-	MT_PHY_TYPE_HE_EXT_SU,
-	MT_PHY_TYPE_HE_TB,
-	MT_PHY_TYPE_HE_MU,
-	__MT_PHY_TYPE_HE_MAX,
-};
-
-struct mt76_sta_stats {
-	u64 tx_mode[__MT_PHY_TYPE_HE_MAX];
-	u64 tx_bw[4];		/* 20, 40, 80, 160 */
-	u64 tx_nss[4];		/* 1, 2, 3, 4 */
-	u64 tx_mcs[16];		/* mcs idx */
 };
 
 struct mt76_ethtool_worker_info {

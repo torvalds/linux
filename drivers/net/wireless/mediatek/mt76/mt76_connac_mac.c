@@ -551,9 +551,9 @@ void mt76_connac2_mac_write_txwi(struct mt76_dev *dev, __le32 *txwi,
 EXPORT_SYMBOL_GPL(mt76_connac2_mac_write_txwi);
 
 bool mt76_connac2_mac_add_txs_skb(struct mt76_dev *dev, struct mt76_wcid *wcid,
-				  int pid, __le32 *txs_data,
-				  struct mt76_sta_stats *stats)
+				  int pid, __le32 *txs_data)
 {
+	struct mt76_sta_stats *stats = &wcid->stats;
 	struct ieee80211_supported_band *sband;
 	struct mt76_phy *mphy;
 	struct ieee80211_tx_info *info;
