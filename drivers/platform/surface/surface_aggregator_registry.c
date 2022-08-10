@@ -86,38 +86,38 @@ static const struct software_node ssam_node_bas_dtx = {
 	.parent = &ssam_node_root,
 };
 
-/* HID keyboard (TID1). */
-static const struct software_node ssam_node_hid_tid1_keyboard = {
+/* HID keyboard (SAM, TID=1). */
+static const struct software_node ssam_node_hid_sam_keyboard = {
 	.name = "ssam:01:15:01:01:00",
 	.parent = &ssam_node_root,
 };
 
-/* HID pen stash (TID1; pen taken / stashed away evens). */
-static const struct software_node ssam_node_hid_tid1_penstash = {
+/* HID pen stash (SAM, TID=1; pen taken / stashed away evens). */
+static const struct software_node ssam_node_hid_sam_penstash = {
 	.name = "ssam:01:15:01:02:00",
 	.parent = &ssam_node_root,
 };
 
-/* HID touchpad (TID1). */
-static const struct software_node ssam_node_hid_tid1_touchpad = {
+/* HID touchpad (SAM, TID=1). */
+static const struct software_node ssam_node_hid_sam_touchpad = {
 	.name = "ssam:01:15:01:03:00",
 	.parent = &ssam_node_root,
 };
 
-/* HID device instance 6 (TID1, HID sensor collection). */
-static const struct software_node ssam_node_hid_tid1_sensors = {
+/* HID device instance 6 (SAM, TID=1, HID sensor collection). */
+static const struct software_node ssam_node_hid_sam_sensors = {
 	.name = "ssam:01:15:01:06:00",
 	.parent = &ssam_node_root,
 };
 
-/* HID device instance 7 (TID1, UCM UCSI HID client). */
-static const struct software_node ssam_node_hid_tid1_ucm_ucsi = {
+/* HID device instance 7 (SAM, TID=1, UCM UCSI HID client). */
+static const struct software_node ssam_node_hid_sam_ucm_ucsi = {
 	.name = "ssam:01:15:01:07:00",
 	.parent = &ssam_node_root,
 };
 
-/* HID system controls (TID1). */
-static const struct software_node ssam_node_hid_tid1_sysctrl = {
+/* HID system controls (SAM, TID=1). */
+static const struct software_node ssam_node_hid_sam_sysctrl = {
 	.name = "ssam:01:15:01:08:00",
 	.parent = &ssam_node_root,
 };
@@ -241,12 +241,12 @@ static const struct software_node *ssam_node_group_sls[] = {
 	&ssam_node_bat_main,
 	&ssam_node_tmp_pprof,
 	&ssam_node_pos_tablet_switch,
-	&ssam_node_hid_tid1_keyboard,
-	&ssam_node_hid_tid1_penstash,
-	&ssam_node_hid_tid1_touchpad,
-	&ssam_node_hid_tid1_sensors,
-	&ssam_node_hid_tid1_ucm_ucsi,
-	&ssam_node_hid_tid1_sysctrl,
+	&ssam_node_hid_sam_keyboard,
+	&ssam_node_hid_sam_penstash,
+	&ssam_node_hid_sam_touchpad,
+	&ssam_node_hid_sam_sensors,
+	&ssam_node_hid_sam_ucm_ucsi,
+	&ssam_node_hid_sam_sysctrl,
 	NULL,
 };
 
