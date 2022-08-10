@@ -497,7 +497,7 @@ static void acpi_pm_notify_handler(acpi_handle handle, u32 val, void *not_used)
 
 	acpi_handle_debug(handle, "Wake notify\n");
 
-	adev = acpi_bus_get_acpi_device(handle);
+	adev = acpi_get_acpi_dev(handle);
 	if (!adev)
 		return;
 
@@ -515,7 +515,7 @@ static void acpi_pm_notify_handler(acpi_handle handle, u32 val, void *not_used)
 
 	mutex_unlock(&acpi_pm_notifier_lock);
 
-	acpi_bus_put_acpi_device(adev);
+	acpi_put_acpi_dev(adev);
 }
 
 /**

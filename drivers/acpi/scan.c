@@ -429,7 +429,7 @@ void acpi_device_hotplug(struct acpi_device *adev, u32 src)
 	acpi_evaluate_ost(adev->handle, src, ost_code, NULL);
 
  out:
-	acpi_bus_put_acpi_device(adev);
+	acpi_put_acpi_dev(adev);
 	mutex_unlock(&acpi_scan_lock);
 	unlock_device_hotplug();
 }
@@ -599,11 +599,22 @@ static void get_acpi_device(void *dev)
 	acpi_dev_get(dev);
 }
 
-struct acpi_device *acpi_bus_get_acpi_device(acpi_handle handle)
+/**
+ * acpi_get_acpi_dev - Retrieve ACPI device object and reference count it.
+ * @handle: ACPI handle associated with the requested ACPI device object.
+ *
+ * Return a pointer to the ACPI device object associated with @handle and bump
+ * up that object's reference counter (under the ACPI Namespace lock), if
+ * present, or return NULL otherwise.
+ *
+ * The ACPI device object reference acquired by this function needs to be
+ * dropped via acpi_dev_put().
+ */
+struct acpi_device *acpi_get_acpi_dev(acpi_handle handle)
 {
 	return handle_to_device(handle, get_acpi_device);
 }
-EXPORT_SYMBOL_GPL(acpi_bus_get_acpi_device);
+EXPORT_SYMBOL_GPL(acpi_get_acpi_dev);
 
 static struct acpi_device_bus_id *acpi_device_bus_id_match(const char *dev_id)
 {
@@ -2239,7 +2250,7 @@ static int acpi_dev_get_first_consumer_dev_cb(struct acpi_dep_data *dep, void *d
 {
 	struct acpi_device *adev;
 
-	adev = acpi_bus_get_acpi_device(dep->consumer);
+	adev = acpi_get_acpi_dev(dep->consumer);
 	if (adev) {
 		*(struct acpi_device **)data = adev;
 		return 1;
@@ -2292,7 +2303,7 @@ static bool acpi_scan_clear_dep_queue(struct acpi_device *adev)
 
 static int acpi_scan_clear_dep(struct acpi_dep_data *dep, void *data)
 {
-	struct acpi_device *adev = acpi_bus_get_acpi_device(dep->consumer);
+	struct acpi_device *adev = acpi_get_acpi_dev(dep->consumer);
 
 	if (adev) {
 		adev->dep_unmet--;

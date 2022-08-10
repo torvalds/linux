@@ -511,7 +511,7 @@ static void acpi_bus_notify(acpi_handle handle, u32 type, void *data)
 		break;
 	}
 
-	adev = acpi_bus_get_acpi_device(handle);
+	adev = acpi_get_acpi_dev(handle);
 	if (!adev)
 		goto err;
 
@@ -524,14 +524,14 @@ static void acpi_bus_notify(acpi_handle handle, u32 type, void *data)
 	}
 
 	if (!hotplug_event) {
-		acpi_bus_put_acpi_device(adev);
+		acpi_put_acpi_dev(adev);
 		return;
 	}
 
 	if (ACPI_SUCCESS(acpi_hotplug_schedule(adev, type)))
 		return;
 
-	acpi_bus_put_acpi_device(adev);
+	acpi_put_acpi_dev(adev);
 
  err:
 	acpi_evaluate_ost(handle, type, ost_code, NULL);
