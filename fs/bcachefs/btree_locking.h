@@ -228,6 +228,9 @@ static inline int __btree_node_lock_nopath(struct btree_trans *trans,
 				 bch2_six_check_for_deadlock, trans, ip);
 	WRITE_ONCE(trans->locking, NULL);
 	WRITE_ONCE(trans->locking_wait.start_time, 0);
+
+	if (!ret)
+		trace_btree_path_lock(trans, _THIS_IP_, b);
 	return ret;
 }
 
@@ -400,12 +403,13 @@ static inline int bch2_btree_path_upgrade(struct btree_trans *trans,
 
 /* misc: */
 
-static inline void btree_path_set_should_be_locked(struct btree_path *path)
+static inline void btree_path_set_should_be_locked(struct btree_trans *trans, struct btree_path *path)
 {
 	EBUG_ON(!btree_node_locked(path, path->level));
 	EBUG_ON(path->uptodate);
 
 	path->should_be_locked = true;
+	trace_btree_path_should_be_locked(trans, path);
 }
 
 static inline void __btree_path_set_level_up(struct btree_trans *trans,

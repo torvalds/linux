@@ -1981,7 +1981,7 @@ int __bch2_foreground_maybe_merge(struct btree_trans *trans,
 	if (ret)
 		goto err;
 
-	btree_path_set_should_be_locked(trans->paths + sib_path);
+	btree_path_set_should_be_locked(trans, trans->paths + sib_path);
 
 	m = trans->paths[sib_path].l[level].b;
 
