@@ -285,7 +285,15 @@ static struct platform_driver rockchip_mbox_driver = {
 	},
 };
 
+#if defined(CONFIG_ROCKCHIP_THUNDER_BOOT)
+static int __init rockchip_mbox_driver_init(void)
+{
+	return platform_driver_register(&rockchip_mbox_driver);
+}
+core_initcall(rockchip_mbox_driver_init);
+#else
 module_platform_driver(rockchip_mbox_driver);
+#endif
 
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("Rockchip mailbox: communicate between CPU cores and MCU");
