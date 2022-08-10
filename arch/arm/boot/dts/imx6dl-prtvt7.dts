@@ -62,91 +62,91 @@
 		compatible = "gpio-keys";
 		autorepeat;
 
-		esc {
+		key-esc {
 			label = "GPIO Key ESC";
 			linux,code = <KEY_ESC>;
 			gpios = <&gpio_pca 0 GPIO_ACTIVE_LOW>;
 		};
 
-		up {
+		key-up {
 			label = "GPIO Key UP";
 			linux,code = <KEY_UP>;
 			gpios = <&gpio_pca 1 GPIO_ACTIVE_LOW>;
 		};
 
-		down {
+		key-down {
 			label = "GPIO Key DOWN";
 			linux,code = <KEY_DOWN>;
 			gpios = <&gpio_pca 4 GPIO_ACTIVE_LOW>;
 		};
 
-		enter {
+		key-enter {
 			label = "GPIO Key Enter";
 			linux,code = <KEY_ENTER>;
 			gpios = <&gpio_pca 3 GPIO_ACTIVE_LOW>;
 		};
 
-		cycle {
+		key-cycle {
 			label = "GPIO Key CYCLE";
 			linux,code = <KEY_CYCLEWINDOWS>;
 			gpios = <&gpio_pca 2 GPIO_ACTIVE_LOW>;
 		};
 
-		f1 {
+		key-f1 {
 			label = "GPIO Key F1";
 			linux,code = <KEY_F1>;
 			gpios = <&gpio_pca 14 GPIO_ACTIVE_LOW>;
 		};
 
-		f2 {
+		key-f2 {
 			label = "GPIO Key F2";
 			linux,code = <KEY_F2>;
 			gpios = <&gpio_pca 13 GPIO_ACTIVE_LOW>;
 		};
 
-		f3 {
+		key-f3 {
 			label = "GPIO Key F3";
 			linux,code = <KEY_F3>;
 			gpios = <&gpio_pca 12 GPIO_ACTIVE_LOW>;
 		};
 
-		f4 {
+		key-f4 {
 			label = "GPIO Key F4";
 			linux,code = <KEY_F4>;
 			gpios = <&gpio_pca 11 GPIO_ACTIVE_LOW>;
 		};
 
-		f5 {
+		key-f5 {
 			label = "GPIO Key F5";
 			linux,code = <KEY_F5>;
 			gpios = <&gpio_pca 10 GPIO_ACTIVE_LOW>;
 		};
 
-		f6 {
+		key-f6 {
 			label = "GPIO Key F6";
 			linux,code = <KEY_F6>;
 			gpios = <&gpio_pca 5 GPIO_ACTIVE_LOW>;
 		};
 
-		f7 {
+		key-f7 {
 			label = "GPIO Key F7";
 			linux,code = <KEY_F7>;
 			gpios = <&gpio_pca 6 GPIO_ACTIVE_LOW>;
 		};
 
-		f8 {
+		key-f8 {
 			label = "GPIO Key F8";
 			linux,code = <KEY_F8>;
 			gpios = <&gpio_pca 7 GPIO_ACTIVE_LOW>;
 		};
 
-		f9 {
+		key-f9 {
 			label = "GPIO Key F9";
 			linux,code = <KEY_F9>;
 			gpios = <&gpio_pca 8 GPIO_ACTIVE_LOW>;
 		};
 
-		f10 {
+		key-f10 {
 			label = "GPIO Key F10";
 			linux,code = <KEY_F10>;
 			gpios = <&gpio_pca 9 GPIO_ACTIVE_LOW>;

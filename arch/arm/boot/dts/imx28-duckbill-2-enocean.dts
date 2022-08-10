@@ -204,7 +204,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&enocean_button>;
 
-		enocean {
+		key-enocean {
 			label = "EnOcean";
 			linux,code = <KEY_NEW>;
 			gpios = <&gpio3 3 GPIO_ACTIVE_HIGH>;
