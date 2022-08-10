@@ -876,12 +876,7 @@ static int zoran_init_video_device(struct zoran *zr, struct video_device *video_
 	video_dev->device_caps = V4L2_CAP_STREAMING | dir;
 
 	strscpy(video_dev->name, ZR_DEVNAME(zr), sizeof(video_dev->name));
-	/*
-	 * It's not a mem2mem device, but you can both capture and output from one and the same
-	 * device. This should really be split up into two device nodes, but that's a job for
-	 * another day.
-	 */
-	video_dev->vfl_dir = VFL_DIR_M2M;
+	video_dev->vfl_dir = VFL_DIR_RX;
 	zoran_queue_init(zr, &zr->vq, V4L2_BUF_TYPE_VIDEO_CAPTURE);
 
 	err = video_register_device(video_dev, VFL_TYPE_VIDEO, video_nr[zr->id]);
