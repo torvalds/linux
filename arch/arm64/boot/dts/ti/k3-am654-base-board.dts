@@ -10,7 +10,7 @@
 #include <dt-bindings/net/ti-dp83867.h>
 
 / {
-	compatible =  "ti,am654-evm", "ti,am654";
+	compatible = "ti,am654-evm", "ti,am654";
 	model = "Texas Instruments AM654 Base Board";
 
 	chosen {
@@ -73,13 +73,13 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&push_button_pins_default>;
 
-		sw5 {
+		switch-5 {
 			label = "GPIO Key USER1";
 			linux,code = <BTN_0>;
 			gpios = <&wkup_gpio0 24 GPIO_ACTIVE_LOW>;
 		};
 
-		sw6 {
+		switch-6 {
 			label = "GPIO Key USER2";
 			linux,code = <BTN_1>;
 			gpios = <&wkup_gpio0 27 GPIO_ACTIVE_LOW>;
@@ -330,7 +330,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&main_spi0_pins_default>;
 	#address-cells = <1>;
-	#size-cells= <0>;
+	#size-cells = <0>;
 	ti,pindir-d0-out-d1-in;
 
 	flash@0 {

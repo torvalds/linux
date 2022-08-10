@@ -24,7 +24,7 @@
 		reg = <0x0 0x48000000 0x0 0x38000000>;
 	};
 
-	reg_1p8v: regulator0 {
+	reg_1p8v: regulator-1p8v {
 		compatible = "regulator-fixed";
 		regulator-name = "fixed-1.8V";
 		regulator-min-microvolt = <1800000>;
@@ -33,7 +33,7 @@
 		regulator-always-on;
 	};
 
-	reg_3p3v: regulator1 {
+	reg_3p3v: regulator-3p3v {
 		compatible = "regulator-fixed";
 		regulator-name = "fixed-3.3V";
 		regulator-min-microvolt = <3300000>;
@@ -56,6 +56,14 @@
 	};
 #endif
 };
+
+#if (SW_SW0_DEV_SEL)
+&adc {
+	pinctrl-0 = <&adc_pins>;
+	pinctrl-names = "default";
+	status = "okay";
+};
+#endif
 
 #if (!SW_ET0_EN_N)
 &eth0 {
@@ -124,6 +132,10 @@
 };
 
 &pinctrl {
+	adc_pins: adc {
+		pinmux = <RZG2L_PORT_PINMUX(6, 2, 1)>; /* ADC_TRG */
+	};
+
 	eth0_pins: eth0 {
 		pinmux = <RZG2L_PORT_PINMUX(4, 5, 1)>, /* ET0_LINKSTA */
 			 <RZG2L_PORT_PINMUX(4, 3, 1)>, /* ET0_MDC */
@@ -208,6 +220,13 @@
 		sd0_mux_uhs {
 			pinmux = <RZG2L_PORT_PINMUX(0, 0, 1)>; /* SD0_CD */
 		};
+	};
+
+	spi1_pins: rspi1 {
+		pinmux = <RZG2L_PORT_PINMUX(4, 0, 2)>, /* CK */
+			 <RZG2L_PORT_PINMUX(4, 1, 2)>, /* MOSI */
+			 <RZG2L_PORT_PINMUX(4, 2, 2)>, /* MISO */
+			 <RZG2L_PORT_PINMUX(4, 3, 2)>; /* SSL */
 	};
 };
 

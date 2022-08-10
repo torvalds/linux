@@ -1,0 +1,163 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (C) 2022 Marek Vasut <marex@denx.de>
+ */
+
+/dts-v1/;
+
+#include <dt-bindings/leds/common.h>
+#include <dt-bindings/net/qca-ar803x.h>
+#include <dt-bindings/phy/phy-imx8-pcie.h>
+#include "imx8mp-dhcom-som.dtsi"
+
+/ {
+	model = "DH electronics i.MX8M Plus DHCOM Premium Developer Kit (2)";
+	compatible = "dh,imx8mp-dhcom-pdk2", "fsl,imx8mp";
+
+	chosen {
+		stdout-path = &uart1;
+	};
+
+	gpio-keys {
+		compatible = "gpio-keys";
+
+		button-0 {
+			gpios = <&gpio1 9 GPIO_ACTIVE_LOW>; /* GPIO A */
+			label = "TA1-GPIO-A";
+			linux,code = <KEY_A>;
+			pinctrl-0 = <&pinctrl_dhcom_a>;
+			pinctrl-names = "default";
+			wakeup-source;
+		};
+
+		button-1 {
+			gpios = <&gpio1 8 GPIO_ACTIVE_LOW>; /* GPIO B */
+			label = "TA2-GPIO-B";
+			linux,code = <KEY_B>;
+			pinctrl-0 = <&pinctrl_dhcom_b>;
+			pinctrl-names = "default";
+			wakeup-source;
+		};
+
+		button-2 {
+			gpios = <&gpio5 2 GPIO_ACTIVE_LOW>; /* GPIO C */
+			label = "TA3-GPIO-C";
+			linux,code = <KEY_C>;
+			pinctrl-0 = <&pinctrl_dhcom_c>;
+			pinctrl-names = "default";
+			wakeup-source;
+		};
+
+		button-3 {
+			gpios = <&gpio4 27 GPIO_ACTIVE_LOW>; /* GPIO D */
+			label = "TA4-GPIO-D";
+			linux,code = <KEY_D>;
+			pinctrl-0 = <&pinctrl_dhcom_d>;
+			pinctrl-names = "default";
+			wakeup-source;
+		};
+	};
+
+	led {
+		compatible = "gpio-leds";
+
+		led-0 {
+			color = <LED_COLOR_ID_GREEN>;
+			default-state = "off";
+			function = LED_FUNCTION_INDICATOR;
+			gpios = <&gpio5 22 GPIO_ACTIVE_HIGH>; /* GPIO E */
+			pinctrl-0 = <&pinctrl_dhcom_e>;
+			pinctrl-names = "default";
+		};
+
+		led-1 {
+			color = <LED_COLOR_ID_GREEN>;
+			default-state = "off";
+			function = LED_FUNCTION_INDICATOR;
+			gpios = <&gpio5 23 GPIO_ACTIVE_HIGH>; /* GPIO F */
+			pinctrl-0 = <&pinctrl_dhcom_f>;
+			pinctrl-names = "default";
+		};
+
+		led-2 {
+			color = <LED_COLOR_ID_GREEN>;
+			default-state = "off";
+			function = LED_FUNCTION_INDICATOR;
+			gpios = <&gpio1 11 GPIO_ACTIVE_HIGH>; /* GPIO H */
+			pinctrl-0 = <&pinctrl_dhcom_h>;
+			pinctrl-names = "default";
+		};
+
+		led-3 {
+			color = <LED_COLOR_ID_GREEN>;
+			default-state = "off";
+			function = LED_FUNCTION_INDICATOR;
+			gpios = <&gpio1 5 GPIO_ACTIVE_HIGH>; /* GPIO I */
+			pinctrl-0 = <&pinctrl_dhcom_i>;
+			pinctrl-names = "default";
+		};
+	};
+};
+
+/*
+ * PDK2 carrier board uses SoM with KSZ9131 populated and connected to
+ * SoM EQoS ethernet RGMII interface. Remove the other SoM PHY DT node.
+ */
+/delete-node/ &ethphy0f;
+
+/*
+ * PDK2 carrier board has KSZ9021 PHY populated and connected to SoM FEC
+ * ethernet RGMII interface. The SoM is not populated with second FEC PHY.
+ */
+/delete-node/ &ethphy1f;
+
+&fec {	/* Second ethernet */
+	phy-handle = <&ethphypdk>;
+
+	mdio {
+		ethphypdk: ethernet-phy@7 { /* KSZ 9021 */
+			compatible = "ethernet-phy-ieee802.3-c22";
+			pinctrl-0 = <&pinctrl_ethphy1>;
+			pinctrl-names = "default";
+			interrupt-parent = <&gpio4>;
+			interrupts = <3 IRQ_TYPE_LEVEL_LOW>;
+			max-speed = <100>;
+			reg = <7>;
+			reset-assert-us = <1000>;
+			reset-deassert-us = <1000>;
+			reset-gpios = <&gpio4 2 GPIO_ACTIVE_LOW>;
+			rxc-skew-ps = <3000>;
+			rxd0-skew-ps = <0>;
+			rxd1-skew-ps = <0>;
+			rxd2-skew-ps = <0>;
+			rxd3-skew-ps = <0>;
+			rxdv-skew-ps = <0>;
+			txc-skew-ps = <3000>;
+			txd0-skew-ps = <0>;
+			txd1-skew-ps = <0>;
+			txd2-skew-ps = <0>;
+			txd3-skew-ps = <0>;
+			txen-skew-ps = <0>;
+		};
+	};
+};
+
+&flexcan1 {
+	status = "okay";
+};
+
+&usb3_1 {
+	fsl,over-current-active-low;
+};
+
+&iomuxc {
+	/*
+	 * GPIO_A,B,C,D are connected to buttons.
+	 * GPIO_E,F,H,I are connected to LEDs.
+	 * GPIO_M is connected to CLKOUT2.
+	 */
+	pinctrl-0 = <&pinctrl_hog_base
+		     &pinctrl_dhcom_g &pinctrl_dhcom_j
+		     &pinctrl_dhcom_k &pinctrl_dhcom_l
+		     &pinctrl_dhcom_int>;
+};

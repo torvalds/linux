@@ -1,194 +1,110 @@
-// SPDX-License-Identifier: GPL-2.0+ OR MIT
+// SPDX-License-Identifier: GPL-2.0-or-later OR MIT
 /*
- * Copyright 2016-2020 Toradex
+ * Copyright 2016-2022 Toradex
  */
 
 / {
-	aliases {
-		rtc0 = &rtc;
-		rtc1 = &snvs_rtc;
-	};
-
-	chosen {
-		stdout-path = "serial0:115200n8";
-	};
-
-	/* fixed crystal dedicated to mpc258x */
+	/* Fixed crystal dedicated to MCP2515. */
 	clk16m: clk16m {
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
 		clock-frequency = <16000000>;
 	};
-
-	gpio-keys {
-		compatible = "gpio-keys";
-		pinctrl-names = "default";
-		pinctrl-0 = <&pinctrl_gpiokeys>;
-
-		power {
-			label = "Wake-Up";
-			gpios = <&gpio1 1 GPIO_ACTIVE_HIGH>;
-			linux,code = <KEY_WAKEUP>;
-			debounce-interval = <10>;
-			wakeup-source;
-		};
-	};
-
-	panel: panel {
-		compatible = "edt,et057090dhu";
-		backlight = <&bl>;
-		power-supply = <&reg_3v3>;
-
-		port {
-			panel_in: endpoint {
-				remote-endpoint = <&lcdif_out>;
-			};
-		};
-	};
-
-	reg_3v3: regulator-3v3 {
-		compatible = "regulator-fixed";
-		regulator-name = "3.3V";
-		regulator-min-microvolt = <3300000>;
-		regulator-max-microvolt = <3300000>;
-	};
-
-	reg_5v0: regulator-5v0 {
-		compatible = "regulator-fixed";
-		regulator-name = "5V";
-		regulator-min-microvolt = <5000000>;
-		regulator-max-microvolt = <5000000>;
-	};
-
-	reg_usbh_vbus: regulator-usbh-vbus {
-		compatible = "regulator-fixed";
-		pinctrl-names = "default";
-		pinctrl-0 = <&pinctrl_usbh_reg>;
-		regulator-name = "VCC_USB[1-4]";
-		regulator-min-microvolt = <5000000>;
-		regulator-max-microvolt = <5000000>;
-		gpio = <&gpio4 7 GPIO_ACTIVE_LOW>;
-		vin-supply = <&reg_5v0>;
-	};
 };
 
-&bl {
-	brightness-levels = <0 4 8 16 32 64 128 255>;
-	default-brightness-level = <6>;
-	power-supply = <&reg_3v3>;
-
-	status = "okay";
-};
-
+/* Colibri AD0 to AD3 */
 &adc1 {
 	status = "okay";
 };
 
-&adc2 {
-	status = "okay";
+/*
+ * The Atmel maxtouch controller uses SODIMM 28/30, also used for PWM<B>, PWM<C>, aka pwm2, pwm3.
+ * So if you enable following capacitive touch controller, disable pwm2/pwm3 first.
+ */
+&atmel_mxt_ts {
+	interrupt-parent = <&gpio1>;
+	interrupts = <9 IRQ_TYPE_EDGE_FALLING>;		/* SODIMM 28 / INT */
+	pinctrl-0 = <&pinctrl_atmel_adapter>;
+	reset-gpios = <&gpio1 10 GPIO_ACTIVE_LOW>;	/* SODIMM 30 / RST */
+	status = "disabled";
 };
 
+/* Colibri SSP */
 &ecspi3 {
 	status = "okay";
 
 	mcp2515: can@0 {
+		clocks = <&clk16m>;
 		compatible = "microchip,mcp2515";
+		interrupt-parent = <&gpio5>;
+		interrupts = <2 IRQ_TYPE_EDGE_FALLING>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_can_int>;
 		reg = <0>;
-		clocks = <&clk16m>;
-		interrupt-parent = <&gpio5>;
-		interrupts = <2 IRQ_TYPE_EDGE_FALLING>;
 		spi-max-frequency = <10000000>;
 		vdd-supply = <&reg_3v3>;
 		xceiver-supply = <&reg_5v0>;
-		status = "okay";
 	};
 };
 
+/* Colibri Fast Ethernet */
 &fec1 {
 	status = "okay";
 };
 
+/* Colibri I2C: I2C3_SDA/SCL on SODIMM 194/196 */
 &i2c4 {
 	status = "okay";
-
-	/*
-	 * Touchscreen is using SODIMM 28/30, also used for PWM<B>, PWM<C>,
-	 * aka pwm2, pwm3. so if you enable touchscreen, disable the pwms
-	 */
-	touchscreen@4a {
-		compatible = "atmel,maxtouch";
-		pinctrl-names = "default";
-		pinctrl-0 = <&pinctrl_gpiotouch>;
-		reg = <0x4a>;
-		interrupt-parent = <&gpio1>;
-		interrupts = <9 IRQ_TYPE_EDGE_FALLING>;		/* SODIMM 28 */
-		reset-gpios = <&gpio1 10 GPIO_ACTIVE_LOW>;	/* SODIMM 30 */
-		status = "disabled";
-	};
-
-	/* M41T0M6 real time clock on carrier board */
-	rtc: rtc@68 {
-		compatible = "st,m41t0";
-		reg = <0x68>;
-	};
 };
 
-&lcdif {
-	status = "okay";
-
-	port {
-		lcdif_out: endpoint {
-			remote-endpoint = <&panel_in>;
-		};
-	};
-};
-
+/* Colibri PWM<A> */
 &pwm1 {
 	status = "okay";
 };
 
+/* Colibri PWM<B> */
 &pwm2 {
+	/* The pwm2 should be disabled to enable atmel_mxt_ts touchscreen for adapter. */
 	status = "okay";
 };
 
+/* Colibri PWM<C> */
 &pwm3 {
+	/* The pwm3 should be disabled to enable atmel_mxt_ts touchscreen for adapter. */
 	status = "okay";
 };
 
+/* Colibri PWM<D> */
 &pwm4 {
 	status = "okay";
 };
 
+/* M41T0M6 real time clock */
+&rtc {
+	status = "okay";
+};
+
+/* Colibri UART_A */
 &uart1 {
 	status = "okay";
 };
 
+/* Colibri UART_B */
 &uart2 {
 	status = "okay";
 };
 
+/* Colibri UART_C */
 &uart3 {
 	status = "okay";
 };
 
+/* Colibri USBC */
 &usbotg1 {
 	status = "okay";
 };
 
+/* Colibri MMC/SD */
 &usdhc1 {
-	keep-power-in-suspend;
-	wakeup-source;
-	vmmc-supply = <&reg_3v3>;
 	status = "okay";
-};
-
-&iomuxc {
-	pinctrl_gpiotouch: touchgpios {
-		fsl,pins = <
-			MX7D_PAD_GPIO1_IO09__GPIO1_IO9		0x74
-			MX7D_PAD_GPIO1_IO10__GPIO1_IO10		0x14
-		>;
-	};
 };

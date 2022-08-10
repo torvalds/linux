@@ -37,7 +37,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&pwr_key &usb_int>;
 
-		power {
+		key-power {
 			gpios = <&gpio0 RK_PA4 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_POWER>;
 			label = "GPIO Key Power";
@@ -46,7 +46,7 @@
 			wakeup-source;
 		};
 
-		wake_on_usb: wake-on-usb {
+		wake_on_usb: key-wake-on-usb {
 			label = "Wake-on-USB";
 			gpios = <&gpio0 RK_PA7 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_WAKEUP>;
