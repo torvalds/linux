@@ -330,7 +330,7 @@
 		};
 
 		qspi: spi@21000000 {
-			compatible = "microchip,mpfs-qspi";
+			compatible = "microchip,mpfs-qspi", "microchip,coreqspi-rtl-v2";
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg = <0x0 0x21000000 0x0 0x1000>;
