@@ -679,6 +679,12 @@ static void test_bpf_hash_map(void)
 			goto out;
 	}
 
+	/* Sleepable program is prohibited for hash map iterator */
+	linfo.map.map_fd = map_fd;
+	link = bpf_program__attach_iter(skel->progs.sleepable_dummy_dump, &opts);
+	if (!ASSERT_ERR_PTR(link, "attach_sleepable_prog_to_iter"))
+		goto out;
+
 	linfo.map.map_fd = map_fd;
 	link = bpf_program__attach_iter(skel->progs.dump_bpf_hash_map, &opts);
 	if (!ASSERT_OK_PTR(link, "attach_iter"))
