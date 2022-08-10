@@ -92,6 +92,7 @@
   clk_gate_ops
   clk_get
   __clk_get_name
+  clk_get_parent
   clk_get_rate
   clk_hw_get_flags
   clk_hw_get_name
@@ -241,6 +242,7 @@
   devm_input_allocate_device
   devm_ioremap
   devm_ioremap_resource
+  devm_kasprintf
   devm_kfree
   devm_kmalloc
   devm_kmemdup
@@ -315,7 +317,9 @@
   dma_buf_unmap_attachment
   dma_buf_vmap
   dma_buf_vunmap
+  dma_fence_add_callback
   dma_fence_context_alloc
+  dma_fence_get_status
   dma_fence_init
   dma_fence_release
   dma_fence_signal
@@ -507,6 +511,7 @@
   __get_free_pages
   get_random_bytes
   get_unused_fd_flags
+  get_user_pages_remote
   get_zeroed_page
   gic_nonsecure_priorities
   gpiochip_add_pin_range
@@ -526,6 +531,8 @@
   gpiod_set_value
   gpiod_set_value_cansleep
   gpiod_to_irq
+  gpio_free
+  gpio_request
   gpio_to_desc
   handle_nested_irq
   handle_simple_irq
@@ -555,8 +562,10 @@
   i2c_get_adapter
   i2c_put_adapter
   i2c_register_driver
+  i2c_smbus_read_byte
   i2c_smbus_read_byte_data
   i2c_smbus_read_i2c_block_data
+  i2c_smbus_read_word_data
   i2c_smbus_write_byte_data
   i2c_smbus_write_i2c_block_data
   __i2c_smbus_xfer
@@ -589,17 +598,22 @@
   input_register_device
   input_set_abs_params
   input_set_capability
+  input_unregister_device
   iommu_attach_device
+  iommu_attach_group
   iommu_detach_device
+  iommu_detach_group
   iommu_device_register
   iommu_device_sysfs_add
   iommu_device_sysfs_remove
   iommu_get_dma_cookie
   iommu_get_domain_for_dev
   iommu_group_alloc
+  iommu_group_get
   iommu_group_put
   iommu_group_ref_get
   iommu_map
+  iommu_map_sg
   iommu_put_dma_cookie
   iommu_set_fault_handler
   iommu_unmap
@@ -689,6 +703,7 @@
   media_pipeline_start
   media_pipeline_stop
   memcpy
+  __memcpy_fromio
   memdup_user
   memmove
   memset
@@ -706,6 +721,7 @@
   misc_deregister
   misc_register
   mmc_of_parse
+  __mmdrop
   mod_delayed_work_on
   mod_timer
   __module_get
@@ -801,6 +817,9 @@
   param_ops_int
   param_ops_string
   param_ops_uint
+  pcie_capability_clear_and_set_word
+  pci_read_config_dword
+  pci_write_config_dword
   PDE_DATA
   __per_cpu_offset
   perf_trace_buf_alloc
@@ -839,6 +858,7 @@
   pm_clk_destroy
   pm_power_off
   __pm_relax
+  pm_relax
   __pm_runtime_disable
   pm_runtime_enable
   pm_runtime_force_resume
@@ -851,6 +871,7 @@
   __pm_runtime_suspend
   __pm_runtime_use_autosuspend
   __pm_stay_awake
+  pm_stay_awake
   pm_wakeup_ws_event
   power_supply_am_i_supplied
   power_supply_changed
@@ -1075,6 +1096,7 @@
   __sw_hweight64
   __sw_hweight8
   sync_file_create
+  sync_file_get_fence
   synchronize_irq
   synchronize_rcu
   syscon_node_to_regmap
@@ -1221,6 +1243,7 @@
   v4l2_event_queue
   v4l2_event_subdev_unsubscribe
   v4l2_event_subscribe
+  v4l2_event_unsubscribe
   v4l2_fh_open
   v4l2_i2c_subdev_init
   v4l2_match_dv_timings
@@ -1312,6 +1335,10 @@
   drm_dp_start_crc
   drm_dp_stop_crc
 
+# required by aspm_ext.ko
+  pci_find_capability
+  pci_find_ext_capability
+
 # required by bifrost_kbase.ko
   __arch_clear_user
   __bitmap_andnot
@@ -1326,9 +1353,7 @@
   devfreq_cooling_unregister
   devfreq_remove_device
   dev_pm_opp_find_freq_exact
-  dma_fence_add_callback
   dma_fence_default_wait
-  dma_fence_get_status
   dma_fence_remove_callback
   downgrade_write
   down_read_trylock
@@ -1347,7 +1372,6 @@
   ktime_get_raw
   ktime_get_raw_ts64
   memchr
-  __mmdrop
   of_dma_is_coherent
   of_property_read_variable_u64_array
   pid_task
@@ -1371,7 +1395,6 @@
   shmem_file_setup
   simple_open
   strcspn
-  sync_file_get_fence
   system_freezing_cnt
   system_highpri_wq
   _totalram_pages
@@ -1482,7 +1505,6 @@
   clk_fixed_factor_ops
   clk_fractional_divider_ops
   __clk_get_hw
-  clk_get_parent
   clk_hw_register_composite
   clk_hw_round_rate
   clk_mux_ops
@@ -1500,6 +1522,9 @@
   of_clk_hw_onecell_get
   scmi_driver_register
   scmi_driver_unregister
+
+# required by cm3218.ko
+  i2c_smbus_write_word_data
 
 # required by cma_heap.ko
   cma_get_name
@@ -1544,15 +1569,16 @@
   mmc_cqe_request_done
 
 # required by cryptodev.ko
-  __close_fd
   crypto_ahash_final
   crypto_alloc_akcipher
-  get_user_pages_remote
   krealloc
   proc_dointvec
   register_sysctl_table
   sg_last
   unregister_sysctl_table
+
+# required by da223.ko
+  simple_strtoul
 
 # required by display-connector.ko
   drm_atomic_get_new_bridge_state
@@ -1672,12 +1698,6 @@
   irq_get_domain_generic_chip
   of_pinctrl_get
 
-# required by grf.ko
-  of_find_matching_node_and_match
-
-# required by gslx680-pad.ko
-  input_unregister_device
-
 # required by hid-alps.ko
   down
   input_alloc_absinfo
@@ -1706,7 +1726,6 @@
   hid_destroy_device
   hid_input_report
   hid_parse_report
-  i2c_smbus_read_byte
 
 # required by i2c-mux.ko
   i2c_add_numbered_adapter
@@ -1985,10 +2004,7 @@
   dw_pcie_write
   dw_pcie_write_dbi
   pci_disable_link_state
-  pcie_capability_clear_and_set_word
-  pci_read_config_dword
   pci_set_power_state
-  pci_write_config_dword
 
 # required by pcierockchiphost.ko
   devm_pci_alloc_host_bridge
@@ -2083,11 +2099,16 @@
   kernel_kobj
 
 # required by rfkill-rk.ko
-  gpio_free
-  gpio_request
   kstrtoll
   rfkill_init_sw_state
   rfkill_set_sw_state
+
+# required by rga3.ko
+  alloc_iova_fast
+  dma_fence_wait_timeout
+  free_iova_fast
+  kstrdup_quotable_cmdline
+  mmput
 
 # required by rk628.ko
   irq_dispose_mapping
@@ -2118,11 +2139,6 @@
   regmap_del_irq_chip
   unregister_syscore_ops
 
-# required by rk818_battery.ko
-  blocking_notifier_call_chain
-  blocking_notifier_chain_register
-  blocking_notifier_chain_unregister
-
 # required by rk860x-regulator.ko
   regulator_suspend_enable
 
@@ -2151,6 +2167,9 @@
 # required by rk_headset_irq_hook_adc.ko
   iio_read_channel_raw
 
+# required by rk_ircut.ko
+  drain_workqueue
+
 # required by rk_vcodec.ko
   devfreq_remove_governor
   devm_iounmap
@@ -2160,11 +2179,8 @@
   dma_buf_begin_cpu_access_partial
   dma_buf_end_cpu_access_partial
   __fdget
-  iommu_attach_group
-  iommu_detach_group
   iommu_device_unregister
   iommu_dma_reserve_iova
-  iommu_group_get
   kthread_flush_worker
   __kthread_init_worker
   kthread_queue_work
@@ -2174,15 +2190,12 @@
   platform_device_del
   pm_generic_runtime_resume
   pm_generic_runtime_suspend
-  pm_relax
-  pm_stay_awake
   proc_create_single_data
   proc_remove
   strncat
 
 # required by rknpu.ko
   dev_pm_domain_attach_by_name
-  drm_gem_create_mmap_offset
   drm_gem_dumb_destroy
   drm_gem_handle_delete
   drm_gem_prime_export
@@ -2253,7 +2266,6 @@
   dev_pm_qos_add_request
   dev_pm_qos_remove_request
   dev_pm_qos_update_request
-  regulator_get
   remove_cpu
   strchr
   strsep
@@ -2421,7 +2433,6 @@
   drm_writeback_signal_completion
   iommu_domain_alloc
   iommu_domain_free
-  iommu_map_sg
   memblock_free
   mipi_dsi_packet_format_is_short
   of_find_backlight_by_node
@@ -2464,11 +2475,16 @@
   sdhci_setup_host
 
 # required by sdhci-of-dwcmshc.ko
+  device_get_match_data
   devm_clk_bulk_get_optional
   dma_get_required_mask
   sdhci_adma_write_desc
   sdhci_remove_host
   sdhci_request
+
+# required by sensor_dev.ko
+  class_create_file_ns
+  class_remove_file_ns
 
 # required by sg.ko
   blk_get_request
@@ -2497,9 +2513,6 @@
   scsi_register_interface
   sg_scsi_ioctl
   __task_pid_nr_ns
-
-# required by sgm41542_charger.ko
-  regulator_unregister
 
 # required by sha1-ce.ko
   crypto_sha1_finup
@@ -2533,6 +2546,9 @@
 
 # required by snd-soc-es8316.ko
   snd_pcm_hw_constraint_list
+
+# required by snd-soc-es8326.ko
+  snd_soc_register_component
 
 # required by snd-soc-hdmi-codec.ko
   snd_ctl_add
@@ -2568,7 +2584,6 @@
   snd_soc_dapm_force_bias_level
 
 # required by snd-soc-simple-card-utils.ko
-  devm_kasprintf
   devm_kvasprintf
   snd_soc_dai_set_tdm_slot
   snd_soc_of_parse_audio_simple_widgets
@@ -2607,7 +2622,6 @@
   swiotlb_max_segment
 
 # required by tcpci_husb311.ko
-  i2c_smbus_read_word_data
   tcpci_get_tcpm_port
   tcpci_irq
   tcpci_register_port
@@ -2710,10 +2724,8 @@
 
 # required by video_rkisp.ko
   media_device_cleanup
-  __memcpy_fromio
   __memcpy_toio
   param_ops_ullong
-  v4l2_event_unsubscribe
   v4l2_pipeline_link_notify
 
 # required by videobuf2-dma-sg.ko
