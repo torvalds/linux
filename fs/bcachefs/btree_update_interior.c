@@ -994,8 +994,7 @@ bch2_btree_update_start(struct btree_trans *trans, struct btree_path *path,
 		nr_nodes[1] += 1;
 
 	if (!bch2_btree_path_upgrade(trans, path, U8_MAX)) {
-		trace_trans_restart_iter_upgrade(trans->fn, _RET_IP_,
-						 path->btree_id, &path->pos);
+		trace_trans_restart_iter_upgrade(trans, _RET_IP_, path);
 		ret = btree_trans_restart(trans, BCH_ERR_transaction_restart_upgrade);
 		return ERR_PTR(ret);
 	}
@@ -1053,7 +1052,7 @@ bch2_btree_update_start(struct btree_trans *trans, struct btree_path *path,
 					      BTREE_UPDATE_JOURNAL_RES,
 					      journal_flags);
 		if (ret) {
-			trace_trans_restart_journal_preres_get(trans->fn, _RET_IP_);
+			trace_trans_restart_journal_preres_get(trans, _RET_IP_);
 			ret = btree_trans_restart(trans, BCH_ERR_transaction_restart_journal_preres_get);
 			goto err;
 		}

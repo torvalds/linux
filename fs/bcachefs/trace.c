@@ -2,8 +2,10 @@
 #include "bcachefs.h"
 #include "alloc_types.h"
 #include "buckets.h"
-#include "btree_types.h"
+#include "btree_iter.h"
+#include "btree_locking.h"
 #include "keylist.h"
+#include "opts.h"
 #include "six.h"
 
 #include <linux/blktrace_api.h>

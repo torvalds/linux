@@ -13,6 +13,11 @@
 #include "btree_iter.h"
 #include "six.h"
 
+static inline bool is_btree_node(struct btree_path *path, unsigned l)
+{
+	return l < BTREE_MAX_DEPTH && !IS_ERR_OR_NULL(path->l[l].b);
+}
+
 /* matches six lock types */
 enum btree_node_locked_type {
 	BTREE_NODE_UNLOCKED		= -1,
@@ -305,5 +310,8 @@ static inline void btree_path_set_level_up(struct btree_trans *trans,
 	__btree_path_set_level_up(trans, path, path->level++);
 	btree_path_set_dirty(path, BTREE_ITER_NEED_TRAVERSE);
 }
+
+struct six_lock_count bch2_btree_node_lock_counts(struct btree_trans *,
+				struct btree_path *, struct btree *, unsigned);
 
 #endif /* _BCACHEFS_BTREE_LOCKING_H */
