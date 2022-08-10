@@ -20836,3 +20836,8 @@ Q:	http://patchwork.kernel.org/project/LKML/list/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git
 F:	*
 F:	*/
+
+STARFIVE JH7110 EVB USB DEVICE SUPPORT
+M:	Jianlong Huang <jianlong.huang@starfivetech.com>
+S:	Maintained
+F:	arch/riscv/boot/dts/starfive/jh7110-evb-usbdevice.dts
