@@ -99,7 +99,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_leds_novena>;
 
-		heartbeat {
+		led-heartbeat {
 			label = "novena:white:panel";
 			gpios = <&gpio1 21 GPIO_ACTIVE_HIGH>;
 			linux,default-trigger = "default-on";
