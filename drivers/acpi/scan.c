@@ -643,7 +643,7 @@ static int acpi_device_set_name(struct acpi_device *device,
 	return 0;
 }
 
-static int acpi_tie_acpi_dev(struct acpi_device *adev)
+int acpi_tie_acpi_dev(struct acpi_device *adev)
 {
 	acpi_handle handle = adev->handle;
 	acpi_status status;
@@ -673,7 +673,7 @@ static void acpi_store_pld_crc(struct acpi_device *adev)
 	ACPI_FREE(pld);
 }
 
-static int __acpi_device_add(struct acpi_device *device)
+int acpi_device_add(struct acpi_device *device)
 {
 	struct acpi_device_bus_id *acpi_device_bus_id;
 	int result;
@@ -753,17 +753,6 @@ err_unlock:
 	acpi_detach_data(device->handle, acpi_scan_drop_device);
 
 	return result;
-}
-
-int acpi_device_add(struct acpi_device *adev)
-{
-	int ret;
-
-	ret = acpi_tie_acpi_dev(adev);
-	if (ret)
-		return ret;
-
-	return __acpi_device_add(adev);
 }
 
 /* --------------------------------------------------------------------------
@@ -1867,7 +1856,7 @@ static int acpi_add_single_object(struct acpi_device **child,
 		mutex_unlock(&acpi_dep_list_lock);
 
 	if (!result)
-		result = __acpi_device_add(device);
+		result = acpi_device_add(device);
 
 	if (result) {
 		acpi_device_release(&device->dev);
