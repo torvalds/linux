@@ -52,6 +52,7 @@ properties:
           - qcom,pmi8998-gpio
           - qcom,pmk8350-gpio
           - qcom,pmm8155au-gpio
+          - qcom,pmp8074-gpio
           - qcom,pmr735a-gpio
           - qcom,pmr735b-gpio
           - qcom,pms405-gpio
@@ -158,6 +159,7 @@ allOf:
         compatible:
           contains:
             enum:
+              - qcom,pm8226-gpio
               - qcom,pm8350b-gpio
               - qcom,pm8950-gpio
     then:
@@ -233,6 +235,7 @@ allOf:
               - qcom,pm8150b-gpio
               - qcom,pm8150l-gpio
               - qcom,pmc8180c-gpio
+              - qcom,pmp8074-gpio
               - qcom,pms405-gpio
     then:
       properties:
@@ -415,6 +418,7 @@ $defs:
                  - gpio1-gpio10 for pmi8994
                  - gpio1-gpio4 for pmk8350
                  - gpio1-gpio10 for pmm8155au
+                 - gpio1-gpio12 for pmp8074 (holes on gpio1 and gpio12)
                  - gpio1-gpio4 for pmr735a
                  - gpio1-gpio4 for pmr735b
                  - gpio1-gpio12 for pms405 (holes on gpio1, gpio9
