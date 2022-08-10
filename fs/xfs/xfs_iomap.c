@@ -1062,11 +1062,11 @@ found_cow:
 		error = xfs_bmbt_to_iomap(ip, srcmap, &imap, 0);
 		if (error)
 			return error;
-	} else {
-		xfs_trim_extent(&cmap, offset_fsb,
-				imap.br_startoff - offset_fsb);
+		return xfs_bmbt_to_iomap(ip, iomap, &cmap, IOMAP_F_SHARED);
 	}
-	return xfs_bmbt_to_iomap(ip, iomap, &cmap, IOMAP_F_SHARED);
+
+	xfs_trim_extent(&cmap, offset_fsb, imap.br_startoff - offset_fsb);
+	return xfs_bmbt_to_iomap(ip, iomap, &cmap, 0);
 
 out_unlock:
 	xfs_iunlock(ip, XFS_ILOCK_EXCL);
