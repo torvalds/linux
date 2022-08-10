@@ -661,8 +661,6 @@ ssize_t nfs_file_write(struct kiocb *iocb, struct iov_iter *from)
 		result = filemap_fdatawait_range(file->f_mapping,
 						 iocb->ki_pos - written,
 						 iocb->ki_pos - 1);
-		if (result < 0)
-			goto out;
 	}
 	result = generic_write_sync(iocb, written);
 	if (result < 0)
