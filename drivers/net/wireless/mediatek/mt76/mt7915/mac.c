@@ -176,7 +176,7 @@ static void mt7915_mac_sta_poll(struct mt7915_dev *dev)
 		/*
 		 * We don't support reading GI info from txs packets.
 		 * For accurate tx status reporting and AQL improvement,
-		  we need to make sure that flags match so polling GI
+		 * we need to make sure that flags match so polling GI
 		 * from per-sta counters directly.
 		 */
 		rate = &msta->wcid.rate;
@@ -1001,7 +1001,7 @@ static void mt7915_mac_add_txs(struct mt7915_dev *dev, void *data)
 	wcidx = le32_get_bits(txs_data[2], MT_TXS2_WCID);
 	pid = le32_get_bits(txs_data[3], MT_TXS3_PID);
 
-	if (pid < MT_PACKET_ID_FIRST)
+	if (pid < MT_PACKET_ID_WED)
 		return;
 
 	if (wcidx >= mt7915_wtbl_size(dev))
@@ -1015,7 +1015,11 @@ static void mt7915_mac_add_txs(struct mt7915_dev *dev, void *data)
 
 	msta = container_of(wcid, struct mt7915_sta, wcid);
 
-	mt76_connac2_mac_add_txs_skb(&dev->mt76, wcid, pid, txs_data);
+	if (pid == MT_PACKET_ID_WED)
+		mt76_connac2_mac_fill_txs(&dev->mt76, wcid, txs_data);
+	else
+		mt76_connac2_mac_add_txs_skb(&dev->mt76, wcid, pid, txs_data);
+
 	if (!wcid->sta)
 		goto out;
 
@@ -1046,7 +1050,7 @@ bool mt7915_rx_check(struct mt76_dev *mdev, void *data, int len)
 		return false;
 	case PKT_TYPE_TXS:
 		for (rxd += 2; rxd + 8 <= end; rxd += 8)
-		    mt7915_mac_add_txs(dev, rxd);
+			mt7915_mac_add_txs(dev, rxd);
 		return false;
 	case PKT_TYPE_RX_FW_MONITOR:
 		mt7915_debugfs_rx_fw_monitor(dev, data, len);
@@ -1083,7 +1087,7 @@ void mt7915_queue_rx_skb(struct mt76_dev *mdev, enum mt76_rxq_id q,
 		break;
 	case PKT_TYPE_TXS:
 		for (rxd += 2; rxd + 8 <= end; rxd += 8)
-		    mt7915_mac_add_txs(dev, rxd);
+			mt7915_mac_add_txs(dev, rxd);
 		dev_kfree_skb(skb);
 		break;
 	case PKT_TYPE_RX_FW_MONITOR:

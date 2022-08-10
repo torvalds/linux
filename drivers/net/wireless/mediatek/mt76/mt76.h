@@ -270,6 +270,10 @@ struct mt76_sta_stats {
 	u64 tx_bw[4];		/* 20, 40, 80, 160 */
 	u64 tx_nss[4];		/* 1, 2, 3, 4 */
 	u64 tx_mcs[16];		/* mcs idx */
+	u64 tx_bytes;
+	u32 tx_packets;
+	u32 tx_retries;
+	u32 tx_failed;
 };
 
 enum mt76_wcid_flags {
@@ -364,7 +368,8 @@ struct mt76_rx_tid {
 #define MT_PACKET_ID_MASK		GENMASK(6, 0)
 #define MT_PACKET_ID_NO_ACK		0
 #define MT_PACKET_ID_NO_SKB		1
-#define MT_PACKET_ID_FIRST		2
+#define MT_PACKET_ID_WED		2
+#define MT_PACKET_ID_FIRST		3
 #define MT_PACKET_ID_HAS_RATE		BIT(7)
 /* This is timer for when to give up when waiting for TXS callback,
  * with starting time being the time at which the DMA_DONE callback
