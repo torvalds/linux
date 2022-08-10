@@ -288,7 +288,7 @@
 		};
 	};
 
-	spi0 {
+	spi-0 {
 		compatible = "spi-gpio";
 		pinctrl-0 = <&pinctrl_gpio_spi0>;
 		pinctrl-names = "default";
