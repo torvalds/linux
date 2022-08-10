@@ -793,11 +793,6 @@
 		reg = <0x4f>;
 	};
 
-	hdc1080@40 {
-		compatible = "ti,hdc1080";
-		reg = <0x40>;
-	};
-
 	front_leds: pca9552@67 {
 		compatible = "nxp,pca9552";
 		reg = <0x67>;
