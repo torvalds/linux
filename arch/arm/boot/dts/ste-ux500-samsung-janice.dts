@@ -263,7 +263,7 @@
 	 * this derivative is 3wire support, so it cannot be used to drive
 	 * this panel interface. We have to use GPIO bit-banging instead.
 	 */
-	spi-gpio-0 {
+	spi {
 		compatible = "spi-gpio";
 		/* Clock on GPIO220 */
 		sck-gpios = <&gpio6 28 GPIO_ACTIVE_HIGH>;
