@@ -662,6 +662,16 @@ static bool stage2_pte_is_counted(kvm_pte_t pte)
 	return !!pte;
 }
 
+static void stage2_clear_pte(kvm_pte_t *ptep, struct kvm_s2_mmu *mmu, u64 addr,
+			     u32 level)
+{
+	if (!kvm_pte_valid(*ptep))
+		return;
+
+	kvm_clear_pte(ptep);
+	kvm_call_hyp(__kvm_tlb_flush_vmid_ipa, mmu, addr, level);
+}
+
 static void stage2_put_pte(kvm_pte_t *ptep, struct kvm_s2_mmu *mmu, u64 addr,
 			   u32 level, struct kvm_pgtable_mm_ops *mm_ops)
 {
@@ -669,11 +679,7 @@ static void stage2_put_pte(kvm_pte_t *ptep, struct kvm_s2_mmu *mmu, u64 addr,
 	 * Clear the existing PTE, and perform break-before-make with
 	 * TLB maintenance if it was valid.
 	 */
-	if (kvm_pte_valid(*ptep)) {
-		kvm_clear_pte(ptep);
-		kvm_call_hyp(__kvm_tlb_flush_vmid_ipa, mmu, addr, level);
-	}
-
+	stage2_clear_pte(ptep, mmu, addr, level);
 	mm_ops->put_page(ptep);
 }
 
