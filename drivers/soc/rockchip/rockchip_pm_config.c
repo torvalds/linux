@@ -165,12 +165,14 @@ static int pm_config_probe(struct platform_device *pdev)
 	int gpio_temp[10];
 	u32 sleep_debug_en = 0;
 	u32 apios_suspend = 0;
+	u32 io_ret_config = 0;
 #if defined(CONFIG_NO_GKI)
 	u32 virtual_poweroff_en = 0;
 #endif
 	enum of_gpio_flags flags;
 	int i = 0;
 	int length;
+	int ret;
 
 	match_id = of_match_node(pm_match_table, pdev->dev.of_node);
 	if (!match_id)
@@ -236,6 +238,16 @@ static int pm_config_probe(struct platform_device *pdev)
 		sip_smc_set_suspend_mode(APIOS_SUSPEND_CONFIG,
 					 apios_suspend,
 					 0);
+
+	if (!of_property_read_u32_array(node,
+					"rockchip,sleep-io-ret-config",
+					&io_ret_config, 1)) {
+		ret = sip_smc_set_suspend_mode(SUSPEND_IO_RET_CONFIG, io_ret_config, 0);
+		if (ret)
+			dev_warn(&pdev->dev,
+				 "sleep-io-ret-config failed (%d), check parameters or update trust\n",
+				 ret);
+	}
 
 #if defined(CONFIG_NO_GKI)
 	if (!of_property_read_u32_array(node,
