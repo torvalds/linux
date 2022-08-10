@@ -223,13 +223,18 @@ __printf(2, 3)
 void libbpf_print(enum libbpf_print_level level, const char *format, ...)
 {
 	va_list args;
+	int old_errno;
 
 	if (!__libbpf_pr)
 		return;
 
+	old_errno = errno;
+
 	va_start(args, format);
 	__libbpf_pr(level, format, args);
 	va_end(args);
+
+	errno = old_errno;
 }
 
 static void pr_perm_msg(int err)
