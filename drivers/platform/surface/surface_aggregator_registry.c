@@ -104,14 +104,14 @@ static const struct software_node ssam_node_hid_tid1_touchpad = {
 	.parent = &ssam_node_root,
 };
 
-/* HID device instance 6 (TID1, unknown HID device). */
-static const struct software_node ssam_node_hid_tid1_iid6 = {
+/* HID device instance 6 (TID1, HID sensor collection). */
+static const struct software_node ssam_node_hid_tid1_sensors = {
 	.name = "ssam:01:15:01:06:00",
 	.parent = &ssam_node_root,
 };
 
-/* HID device instance 7 (TID1, unknown HID device). */
-static const struct software_node ssam_node_hid_tid1_iid7 = {
+/* HID device instance 7 (TID1, UCM UCSI HID client). */
+static const struct software_node ssam_node_hid_tid1_ucm_ucsi = {
 	.name = "ssam:01:15:01:07:00",
 	.parent = &ssam_node_root,
 };
@@ -182,8 +182,8 @@ static const struct software_node ssam_node_hid_kip_touchpad = {
 	.parent = &ssam_node_hub_kip,
 };
 
-/* HID device instance 5 (KIP hub, unknown HID device). */
-static const struct software_node ssam_node_hid_kip_iid5 = {
+/* HID device instance 5 (KIP hub, type-cover firmware update). */
+static const struct software_node ssam_node_hid_kip_fwupd = {
 	.name = "ssam:01:15:02:05:00",
 	.parent = &ssam_node_hub_kip,
 };
@@ -244,8 +244,8 @@ static const struct software_node *ssam_node_group_sls[] = {
 	&ssam_node_hid_tid1_keyboard,
 	&ssam_node_hid_tid1_penstash,
 	&ssam_node_hid_tid1_touchpad,
-	&ssam_node_hid_tid1_iid6,
-	&ssam_node_hid_tid1_iid7,
+	&ssam_node_hid_tid1_sensors,
+	&ssam_node_hid_tid1_ucm_ucsi,
 	&ssam_node_hid_tid1_sysctrl,
 	NULL,
 };
@@ -278,7 +278,7 @@ static const struct software_node *ssam_node_group_sp8[] = {
 	&ssam_node_hid_kip_keyboard,
 	&ssam_node_hid_kip_penstash,
 	&ssam_node_hid_kip_touchpad,
-	&ssam_node_hid_kip_iid5,
+	&ssam_node_hid_kip_fwupd,
 	NULL,
 };
 
