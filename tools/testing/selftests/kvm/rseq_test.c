@@ -20,15 +20,7 @@
 #include "processor.h"
 #include "test_util.h"
 
-static __thread volatile struct rseq __rseq = {
-	.cpu_id = RSEQ_CPU_ID_UNINITIALIZED,
-};
-
-/*
- * Use an arbitrary, bogus signature for configuring rseq, this test does not
- * actually enter an rseq critical section.
- */
-#define RSEQ_SIG 0xdeadbeef
+#include "../rseq/rseq.c"
 
 /*
  * Any bug related to task migration is likely to be timing-dependent; perform
@@ -47,14 +39,6 @@ static void guest_code(void)
 {
 	for (;;)
 		GUEST_SYNC(0);
-}
-
-static void sys_rseq(int flags)
-{
-	int r;
-
-	r = syscall(__NR_rseq, &__rseq, sizeof(__rseq), flags, RSEQ_SIG);
-	TEST_ASSERT(!r, "rseq failed, errno = %d (%s)", errno, strerror(errno));
 }
 
 static int next_cpu(int cpu)
@@ -218,7 +202,9 @@ int main(int argc, char *argv[])
 
 	calc_min_max_cpu();
 
-	sys_rseq(0);
+	r = rseq_register_current_thread();
+	TEST_ASSERT(!r, "rseq_register_current_thread failed, errno = %d (%s)",
+		    errno, strerror(errno));
 
 	/*
 	 * Create and run a dummy VM that immediately exits to userspace via
@@ -256,7 +242,7 @@ int main(int argc, char *argv[])
 			 */
 			smp_rmb();
 			cpu = sched_getcpu();
-			rseq_cpu = READ_ONCE(__rseq.cpu_id);
+			rseq_cpu = rseq_current_cpu_raw();
 			smp_rmb();
 		} while (snapshot != atomic_read(&seq_cnt));
 
@@ -278,7 +264,7 @@ int main(int argc, char *argv[])
 
 	kvm_vm_free(vm);
 
-	sys_rseq(RSEQ_FLAG_UNREGISTER);
+	rseq_unregister_current_thread();
 
 	return 0;
 }
