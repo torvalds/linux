@@ -305,7 +305,7 @@ static int vsp1_video_pipeline_setup_partitions(struct vsp1_pipeline *pipe)
  * @video: the video node
  *
  * This function completes the current buffer by filling its sequence number,
- * time stamp and payload size, and hands it back to the videobuf core.
+ * time stamp and payload size, and hands it back to the vb2 core.
  *
  * Return the next queued buffer or NULL if the queue is empty.
  */

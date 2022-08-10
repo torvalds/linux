@@ -323,7 +323,7 @@ static void s5p_mfc_handle_frame_new(struct s5p_mfc_ctx *ctx, unsigned int err)
 	}
 	ctx->sequence++;
 	/* The MFC returns address of the buffer, now we have to
-	 * check which videobuf does it correspond to */
+	 * check which vb2_buffer does it correspond to */
 	list_for_each_entry(dst_buf, &ctx->dst_queue, list) {
 		u32 addr = (u32)vb2_dma_contig_plane_dma_addr(&dst_buf->b->vb2_buf, 0);
 

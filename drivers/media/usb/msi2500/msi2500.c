@@ -411,7 +411,7 @@ static void msi2500_isoc_handler(struct urb *urb)
 		if (unlikely(fbuf == NULL)) {
 			dev->vb_full++;
 			dev_dbg_ratelimited(dev->dev,
-					    "videobuf is full, %d packets dropped\n",
+					    "video buffer is full, %d packets dropped\n",
 					    dev->vb_full);
 			continue;
 		}

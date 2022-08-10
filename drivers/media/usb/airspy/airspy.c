@@ -294,7 +294,7 @@ static void airspy_urb_complete(struct urb *urb)
 		if (unlikely(fbuf == NULL)) {
 			s->vb_full++;
 			dev_notice_ratelimited(s->dev,
-					"videobuf is full, %d packets dropped\n",
+					"video buffer is full, %d packets dropped\n",
 					s->vb_full);
 			goto skip;
 		}
