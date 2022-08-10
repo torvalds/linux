@@ -152,6 +152,15 @@ ensure the integrity of the operation being performed on the expected object.
 The KF_SLEEPABLE flag is used for kfuncs that may sleep. Such kfuncs can only
 be called by sleepable BPF programs (BPF_F_SLEEPABLE).
 
+2.4.7 KF_DESTRUCTIVE flag
+--------------------------
+
+The KF_DESTRUCTIVE flag is used to indicate functions calling which is
+destructive to the system. For example such a call can result in system
+rebooting or panicking. Due to this additional restrictions apply to these
+calls. At the moment they only require CAP_SYS_BOOT capability, but more can be
+added later.
+
 2.5 Registering the kfuncs
 --------------------------
 
