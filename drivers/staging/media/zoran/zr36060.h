@@ -124,78 +124,78 @@ struct zr36060 {
 
 /* ZR36060 LOAD register bits */
 
-#define ZR060_LOAD_LOAD			 BIT(7)
-#define ZR060_LOAD_SYNC_RST		 BIT(0)
+#define ZR060_LOAD_LOAD			BIT(7)
+#define ZR060_LOAD_SYNC_RST		BIT(0)
 
 /* ZR36060 Code FIFO Status register bits */
 
-#define ZR060_CFSR_BUSY			 BIT(7)
-#define ZR060_CFSR_C_BUSY		 BIT(2)
+#define ZR060_CFSR_BUSY			BIT(7)
+#define ZR060_CFSR_C_BUSY		BIT(2)
 #define ZR060_CFSR_CFIFO		(3 << 0)
 
 /* ZR36060 Code Interface register */
 
-#define ZR060_CIR_CODE16		 BIT(7)
-#define ZR060_CIR_ENDIAN		 BIT(6)
-#define ZR060_CIR_CFIS			 BIT(2)
-#define ZR060_CIR_CODE_MSTR		 BIT(0)
+#define ZR060_CIR_CODE16		BIT(7)
+#define ZR060_CIR_ENDIAN		BIT(6)
+#define ZR060_CIR_CFIS			BIT(2)
+#define ZR060_CIR_CODE_MSTR		BIT(0)
 
 /* ZR36060 Codec Mode register */
 
-#define ZR060_CMR_COMP			 BIT(7)
-#define ZR060_CMR_ATP			 BIT(6)
-#define ZR060_CMR_PASS2			 BIT(5)
-#define ZR060_CMR_TLM			 BIT(4)
-#define ZR060_CMR_BRB			 BIT(2)
-#define ZR060_CMR_FSF			 BIT(1)
+#define ZR060_CMR_COMP			BIT(7)
+#define ZR060_CMR_ATP			BIT(6)
+#define ZR060_CMR_PASS2			BIT(5)
+#define ZR060_CMR_TLM			BIT(4)
+#define ZR060_CMR_BRB			BIT(2)
+#define ZR060_CMR_FSF			BIT(1)
 
 /* ZR36060 Markers Enable register */
 
-#define ZR060_MER_APP			 BIT(7)
-#define ZR060_MER_COM			 BIT(6)
-#define ZR060_MER_DRI			 BIT(5)
-#define ZR060_MER_DQT			 BIT(4)
-#define ZR060_MER_DHT			 BIT(3)
+#define ZR060_MER_APP			BIT(7)
+#define ZR060_MER_COM			BIT(6)
+#define ZR060_MER_DRI			BIT(5)
+#define ZR060_MER_DQT			BIT(4)
+#define ZR060_MER_DHT			BIT(3)
 
 /* ZR36060 Interrupt Mask register */
 
-#define ZR060_IMR_EOAV			 BIT(3)
-#define ZR060_IMR_EOI			 BIT(2)
-#define ZR060_IMR_END			 BIT(1)
-#define ZR060_IMR_DATA_ERR		 BIT(0)
+#define ZR060_IMR_EOAV			BIT(3)
+#define ZR060_IMR_EOI			BIT(2)
+#define ZR060_IMR_END			BIT(1)
+#define ZR060_IMR_DATA_ERR		BIT(0)
 
 /* ZR36060 Interrupt Status register */
 
 #define ZR060_ISR_PRO_CNT		(3 << 6)
-#define ZR060_ISR_EOAV			 BIT(3)
-#define ZR060_ISR_EOI			 BIT(2)
-#define ZR060_ISR_END			 BIT(1)
-#define ZR060_ISR_DATA_ERR		 BIT(0)
+#define ZR060_ISR_EOAV			BIT(3)
+#define ZR060_ISR_EOI			BIT(2)
+#define ZR060_ISR_END			BIT(1)
+#define ZR060_ISR_DATA_ERR		BIT(0)
 
 /* ZR36060 Video Control register */
 
-#define ZR060_VCR_VIDEO8		 BIT(7)
-#define ZR060_VCR_RANGE			 BIT(6)
-#define ZR060_VCR_FI_DET			 BIT(3)
-#define ZR060_VCR_FI_VEDGE		 BIT(2)
-#define ZR060_VCR_FI_EXT			 BIT(1)
-#define ZR060_VCR_SYNC_MSTR		 BIT(0)
+#define ZR060_VCR_VIDEO8		BIT(7)
+#define ZR060_VCR_RANGE			BIT(6)
+#define ZR060_VCR_FI_DET		BIT(3)
+#define ZR060_VCR_FI_VEDGE		BIT(2)
+#define ZR060_VCR_FI_EXT		BIT(1)
+#define ZR060_VCR_SYNC_MSTR		BIT(0)
 
 /* ZR36060 Video Polarity register */
 
-#define ZR060_VPR_VCLK_POL		 BIT(7)
-#define ZR060_VPR_P_VAL_POL		 BIT(6)
-#define ZR060_VPR_POE_POL		 BIT(5)
-#define ZR060_VPR_S_IMG_POL		 BIT(4)
-#define ZR060_VPR_BL_POL			 BIT(3)
-#define ZR060_VPR_FI_POL			 BIT(2)
-#define ZR060_VPR_HS_POL			 BIT(1)
-#define ZR060_VPR_VS_POL			 BIT(0)
+#define ZR060_VPR_VCLK_POL		BIT(7)
+#define ZR060_VPR_P_VAL_POL		BIT(6)
+#define ZR060_VPR_POE_POL		BIT(5)
+#define ZR060_VPR_S_IMG_POL		BIT(4)
+#define ZR060_VPR_BL_POL		BIT(3)
+#define ZR060_VPR_FI_POL		BIT(2)
+#define ZR060_VPR_HS_POL		BIT(1)
+#define ZR060_VPR_VS_POL		BIT(0)
 
 /* ZR36060 Scaling register */
 
-#define ZR060_SR_V_SCALE			 BIT(2)
-#define ZR060_SR_H_SCALE2		 BIT(0)
+#define ZR060_SR_V_SCALE		BIT(2)
+#define ZR060_SR_H_SCALE2		BIT(0)
 #define ZR060_SR_H_SCALE4		(2 << 0)
 
 int zr36060_init_module(void);

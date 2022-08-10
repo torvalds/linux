@@ -172,8 +172,6 @@ void zr36016_write(struct videocodec *codec, u16 reg, u32 val)
 
 static void dc10_init(struct zoran *zr)
 {
-	pci_dbg(zr->pci_dev, "%s\n", __func__);
-
 	/* Pixel clock selection */
 	GPIO(zr, 4, 0);
 	GPIO(zr, 5, 1);
@@ -183,13 +181,10 @@ static void dc10_init(struct zoran *zr)
 
 static void dc10plus_init(struct zoran *zr)
 {
-	pci_dbg(zr->pci_dev, "%s\n", __func__);
 }
 
 static void buz_init(struct zoran *zr)
 {
-	pci_dbg(zr->pci_dev, "%s\n", __func__);
-
 	/* some stuff from Iomega */
 	pci_write_config_dword(zr->pci_dev, 0xfc, 0x90680f15);
 	pci_write_config_dword(zr->pci_dev, 0x0c, 0x00012020);
@@ -198,8 +193,6 @@ static void buz_init(struct zoran *zr)
 
 static void lml33_init(struct zoran *zr)
 {
-	pci_dbg(zr->pci_dev, "%s\n", __func__);
-
 	GPIO(zr, 2, 1);		// Set Composite input/output
 }
 
@@ -333,10 +326,6 @@ static void videocodec_exit(struct zoran *zr)
 	if (zr->card.video_vfe != CODEC_TYPE_NONE)
 		codec_exit(zr, zr->card.video_vfe);
 }
-
-// struct tvnorm {
-//      u16 wt, wa, h_start, h_sync_start, ht, ha, v_start;
-// };
 
 static const struct tvnorm f50sqpixel = { 944, 768, 83, 880, 625, 576, 16 };
 static const struct tvnorm f60sqpixel = { 780, 640, 51, 716, 525, 480, 12 };
@@ -619,7 +608,10 @@ static struct card_info zoran_cards[NUM_CARDS] = {
 	}, {
 		.type = AVS6EYES,
 		.name = "6-Eyes",
-/* AverMedia chose not to brand the 6-Eyes. Thus it can't be autodetected, and requires card=x. */
+		/*
+		 * AverMedia chose not to brand the 6-Eyes. Thus it can't be
+		 * autodetected, and requires card=x.
+		 */
 		.i2c_decoder = "ks0127",
 		.addrs_decoder = ks0127_addrs,
 		.i2c_encoder = "bt866",
@@ -764,7 +756,9 @@ int zoran_check_jpg_settings(struct zoran *zr,
 	case 4:
 
 		if (zr->card.type == DC10_NEW) {
-			pci_dbg(zr->pci_dev, "%s - HDec by 4 is not supported on the DC10\n", __func__);
+			pci_dbg(zr->pci_dev,
+				"%s - HDec by 4 is not supported on the DC10\n",
+				__func__);
 			err0++;
 			break;
 		}
@@ -1019,7 +1013,9 @@ static int zr36057_init(struct zoran *zr)
 		zr->timing = zr->card.tvn[ZR_NORM_SECAM];
 	}
 	if (!zr->timing) {
-		pci_warn(zr->pci_dev, "%s - default TV standard not supported by hardware. PAL will be used.\n", __func__);
+		pci_warn(zr->pci_dev,
+			 "%s - default TV standard not supported by hardware. PAL will be used.\n",
+			 __func__);
 		zr->norm = V4L2_STD_PAL;
 		zr->timing = zr->card.tvn[ZR_NORM_PAL];
 	}
@@ -1038,9 +1034,9 @@ static int zr36057_init(struct zoran *zr)
 	zr->stat_com = dma_alloc_coherent(&zr->pci_dev->dev,
 					  BUZ_NUM_STAT_COM * sizeof(u32),
 					  &zr->p_sc, GFP_KERNEL);
-	if (!zr->stat_com) {
+	if (!zr->stat_com)
 		return -ENOMEM;
-	}
+
 	for (j = 0; j < BUZ_NUM_STAT_COM; j++)
 		zr->stat_com[j] = cpu_to_le32(1); /* mark as unavailable to zr36057 */
 
@@ -1066,9 +1062,11 @@ static int zr36057_init(struct zoran *zr)
 	return 0;
 
 exit_statcomb:
-	dma_free_coherent(&zr->pci_dev->dev, BUZ_NUM_STAT_COM * sizeof(u32) * 2, zr->stat_comb, zr->p_scb);
+	dma_free_coherent(&zr->pci_dev->dev, BUZ_NUM_STAT_COM * sizeof(u32) * 2,
+			  zr->stat_comb, zr->p_scb);
 exit_statcom:
-	dma_free_coherent(&zr->pci_dev->dev, BUZ_NUM_STAT_COM * sizeof(u32), zr->stat_com, zr->p_sc);
+	dma_free_coherent(&zr->pci_dev->dev, BUZ_NUM_STAT_COM * sizeof(u32),
+			  zr->stat_com, zr->p_sc);
 	return err;
 }
 
@@ -1099,8 +1097,10 @@ static void zoran_remove(struct pci_dev *pdev)
 	btwrite(0, ZR36057_SPGPPCR);
 	pci_free_irq(zr->pci_dev, 0, zr);
 	/* unmap and free memory */
-	dma_free_coherent(&zr->pci_dev->dev, BUZ_NUM_STAT_COM * sizeof(u32), zr->stat_com, zr->p_sc);
-	dma_free_coherent(&zr->pci_dev->dev, BUZ_NUM_STAT_COM * sizeof(u32) * 2, zr->stat_comb, zr->p_scb);
+	dma_free_coherent(&zr->pci_dev->dev, BUZ_NUM_STAT_COM * sizeof(u32),
+			  zr->stat_com, zr->p_sc);
+	dma_free_coherent(&zr->pci_dev->dev, BUZ_NUM_STAT_COM * sizeof(u32) * 2,
+			  zr->stat_comb, zr->p_scb);
 	pci_release_regions(pdev);
 	pci_disable_device(zr->pci_dev);
 	zoran_exit_video_devices(zr);
@@ -1299,7 +1299,8 @@ static int zoran_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 			pci_err(pdev, "Unknown card, try specifying card=X module parameter\n");
 			goto zr_unreg;
 		}
-		pci_info(zr->pci_dev, "%s() - card %s detected\n", __func__, zoran_cards[card_num].name);
+		pci_info(zr->pci_dev, "%s() - card %s detected\n", __func__,
+			 zoran_cards[card_num].name);
 	} else {
 		card_num = card[nr];
 		if (card_num >= NUM_CARDS || card_num < 0) {
@@ -1324,7 +1325,8 @@ static int zoran_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (err)
 		goto zr_unreg;
 
-	zr->zr36057_mem = devm_ioremap(&pdev->dev, pci_resource_start(pdev, 0), pci_resource_len(pdev, 0));
+	zr->zr36057_mem = devm_ioremap(&pdev->dev, pci_resource_start(pdev, 0),
+				       pci_resource_len(pdev, 0));
 	if (!zr->zr36057_mem) {
 		pci_err(pdev, "%s() - ioremap failed\n", __func__);
 		goto zr_pci_release;
@@ -1348,7 +1350,8 @@ static int zoran_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 			     &latency);
 	need_latency = zr->revision > 1 ? 32 : 48;
 	if (latency != need_latency) {
-		pci_info(zr->pci_dev, "Changing PCI latency from %d to %d\n", latency, need_latency);
+		pci_info(zr->pci_dev, "Changing PCI latency from %d to %d\n",
+			 latency, need_latency);
 		pci_write_config_byte(zr->pci_dev, PCI_LATENCY_TIMER, need_latency);
 	}
 

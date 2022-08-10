@@ -140,11 +140,16 @@ struct zoran_v4l_settings {
 
 /* jpg-capture/-playback settings */
 struct zoran_jpg_settings {
-	int decimation;		/* this bit is used to set everything to default */
-	int hor_dcm, ver_dcm, tmp_dcm;	/* capture decimation settings (tmp_dcm=1 means both fields) */
-	int field_per_buff, odd_even;	/* field-settings (odd_even=1 (+tmp_dcm=1) means top-field-first) */
-	int img_x, img_y, img_width, img_height;	/* crop settings (subframe capture) */
-	struct v4l2_jpegcompression jpg_comp;	/* JPEG-specific capture settings */
+	/* this bit is used to set everything to default */
+	int decimation;
+	/* capture decimation settings (tmp_dcm=1 means both fields) */
+	int hor_dcm, ver_dcm, tmp_dcm;
+	/* field-settings (odd_even=1 (+tmp_dcm=1) means top-field-first) */
+	int field_per_buff, odd_even;
+	/* crop settings (subframe capture) */
+	int img_x, img_y, img_width, img_height;
+	/* JPEG-specific capture settings */
+	struct v4l2_jpegcompression jpg_comp;
 };
 
 struct zoran;
@@ -248,7 +253,8 @@ struct zoran {
 	unsigned long vbseq;
 
 	/* zr36057's code buffer table */
-	__le32 *stat_com;		/* stat_com[i] is indexed by dma_head/tail & BUZ_MASK_STAT_COM */
+	/* stat_com[i] is indexed by dma_head/tail & BUZ_MASK_STAT_COM */
+	__le32 *stat_com;
 
 	/* Additional stuff for testing */
 	unsigned int ghost_int;
@@ -292,14 +298,16 @@ static inline struct zoran *to_zoran(struct v4l2_device *v4l2_dev)
 	return container_of(v4l2_dev, struct zoran, v4l2_dev);
 }
 
-/* There was something called _ALPHA_BUZ that used the PCI address instead of
- * the kernel iomapped address for btread/btwrite.  */
+/*
+ * There was something called _ALPHA_BUZ that used the PCI address instead of
+ * the kernel iomapped address for btread/btwrite.
+ */
 #define btwrite(dat, adr)    writel((dat), zr->zr36057_mem + (adr))
 #define btread(adr)         readl(zr->zr36057_mem + (adr))
 
-#define btand(dat, adr)      btwrite((dat) & btread(adr), adr)
-#define btor(dat, adr)       btwrite((dat) | btread(adr), adr)
-#define btaor(dat, mask, adr) btwrite((dat) | ((mask) & btread(adr)), adr)
+#define btand(dat, adr)      btwrite((dat) & btread(adr), (adr))
+#define btor(dat, adr)       btwrite((dat) | btread(adr), (adr))
+#define btaor(dat, mask, adr) btwrite((dat) | ((mask) & btread(adr)), (adr))
 
 #endif
 

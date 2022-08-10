@@ -203,7 +203,6 @@ static int zoran_v4l_set_format(struct zoran *zr, int width, int height,
 
 static int zoran_set_norm(struct zoran *zr, v4l2_std_id norm)
 {
-
 	if (!(norm & zr->card.norms)) {
 		pci_dbg(zr->pci_dev, "%s - unsupported norm %llx\n", __func__, norm);
 		return -EINVAL;
@@ -286,17 +285,6 @@ static int zoran_enum_fmt_vid_cap(struct file *file, void *__fh,
 
 	return zoran_enum_fmt(zr, f, ZORAN_FORMAT_CAPTURE);
 }
-
-#if 0
-/* TODO: output does not work yet */
-static int zoran_enum_fmt_vid_out(struct file *file, void *__fh,
-				  struct v4l2_fmtdesc *f)
-{
-	struct zoran *zr = video_drvdata(file);
-
-	return zoran_enum_fmt(zr, f, ZORAN_FORMAT_PLAYBACK);
-}
-#endif
 
 static int zoran_g_fmt_vid_out(struct file *file, void *__fh,
 			       struct v4l2_format *fmt)
@@ -430,8 +418,10 @@ static int zoran_try_fmt_vid_cap(struct file *file, void *__fh,
 		fmt->fmt.pix.field = V4L2_FIELD_TOP;
 
 	bpp = DIV_ROUND_UP(zoran_formats[i].depth, 8);
-	v4l_bound_align_image(&fmt->fmt.pix.width, BUZ_MIN_WIDTH, BUZ_MAX_WIDTH, bpp == 2 ? 1 : 2,
-		&fmt->fmt.pix.height, BUZ_MIN_HEIGHT, BUZ_MAX_HEIGHT, 0, 0);
+	v4l_bound_align_image(&fmt->fmt.pix.width, BUZ_MIN_WIDTH, BUZ_MAX_WIDTH,
+			      bpp == 2 ? 1 : 2,
+			      &fmt->fmt.pix.height, BUZ_MIN_HEIGHT, BUZ_MAX_HEIGHT,
+			      0, 0);
 	fmt->fmt.pix.bytesperline = fmt->fmt.pix.width * bpp;
 	fmt->fmt.pix.sizeimage = fmt->fmt.pix.bytesperline * fmt->fmt.pix.height;
 	return 0;
@@ -627,38 +617,6 @@ static int zoran_s_input(struct file *file, void *__fh, unsigned int input)
 	return res;
 }
 
-#if 0
-/* TODO: output does not work yet */
-static int zoran_enum_output(struct file *file, void *__fh,
-			     struct v4l2_output *outp)
-{
-	if (outp->index != 0)
-		return -EINVAL;
-
-	outp->index = 0;
-	outp->type = V4L2_OUTPUT_TYPE_ANALOGVGAOVERLAY;
-	outp->std = V4L2_STD_NTSC | V4L2_STD_PAL | V4L2_STD_SECAM;
-	outp->capabilities = V4L2_OUT_CAP_STD;
-	strscpy(outp->name, "Autodetect", sizeof(outp->name));
-
-	return 0;
-}
-static int zoran_g_output(struct file *file, void *__fh, unsigned int *output)
-{
-	*output = 0;
-
-	return 0;
-}
-
-static int zoran_s_output(struct file *file, void *__fh, unsigned int output)
-{
-	if (output != 0)
-		return -EINVAL;
-
-	return 0;
-}
-#endif
-
 /* cropping (sub-frame capture) */
 static int zoran_g_selection(struct file *file, void *__fh, struct v4l2_selection *sel)
 {
@@ -746,9 +704,6 @@ static const struct v4l2_ioctl_ops zoran_ioctl_ops = {
 	.vidioc_enum_input		    = zoran_enum_input,
 	.vidioc_g_input			    = zoran_g_input,
 	.vidioc_s_input			    = zoran_s_input,
-/*	.vidioc_enum_output		    = zoran_enum_output,
-	.vidioc_g_output		    = zoran_g_output,
-	.vidioc_s_output		    = zoran_s_output,*/
 	.vidioc_g_std			    = zoran_g_std,
 	.vidioc_s_std			    = zoran_s_std,
 	.vidioc_create_bufs		    = vb2_ioctl_create_bufs,
@@ -760,13 +715,9 @@ static const struct v4l2_ioctl_ops zoran_ioctl_ops = {
 	.vidioc_streamon		    = vb2_ioctl_streamon,
 	.vidioc_streamoff		    = vb2_ioctl_streamoff,
 	.vidioc_enum_fmt_vid_cap	    = zoran_enum_fmt_vid_cap,
-/*	.vidioc_enum_fmt_vid_out	    = zoran_enum_fmt_vid_out,*/
 	.vidioc_g_fmt_vid_cap		    = zoran_g_fmt_vid_cap,
-/*	.vidioc_g_fmt_vid_out               = zoran_g_fmt_vid_out,*/
 	.vidioc_s_fmt_vid_cap		    = zoran_s_fmt_vid_cap,
-/*	.vidioc_s_fmt_vid_out               = zoran_s_fmt_vid_out,*/
 	.vidioc_try_fmt_vid_cap		    = zoran_try_fmt_vid_cap,
-/*	.vidioc_try_fmt_vid_out		    = zoran_try_fmt_vid_out,*/
 	.vidioc_subscribe_event             = v4l2_ctrl_subscribe_event,
 	.vidioc_unsubscribe_event           = v4l2_event_unsubscribe,
 };

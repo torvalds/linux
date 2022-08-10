@@ -12,109 +12,109 @@
 /* general description */
 /* =================== */
 
-/* Should ease the (re-)usage of drivers supporting cards with (different)
-   video codecs. The codecs register to this module their functionality,
-   and the processors (masters) can attach to them if they fit.
-
-   The codecs are typically have a "strong" binding to their master - so I
-   don't think it makes sense to have a full blown interfacing as with e.g.
-   i2c. If you have an other opinion, let's discuss & implement it :-)))
-
-   Usage:
-
-   The slave has just to setup the videocodec structure and use two functions:
-   videocodec_register(codecdata);
-   videocodec_unregister(codecdata);
-   The best is just calling them at module (de-)initialisation.
-
-   The master sets up the structure videocodec_master and calls:
-   codecdata=videocodec_attach(master_codecdata);
-   videocodec_detach(codecdata);
-
-   The slave is called during attach/detach via functions setup previously
-   during register. At that time, the master_data pointer is set up
-   and the slave can access any io registers of the master device (in the case
-   the slave is bound to it). Otherwise it doesn't need this functions and
-   therfor they may not be initialized.
-
-   The other functions are just for convenience, as they are for sure used by
-   most/all of the codecs. The last ones may be omitted, too.
-
-   See the structure declaration below for more information and which data has
-   to be set up for the master and the slave.
-
-   ----------------------------------------------------------------------------
-   The master should have "knowledge" of the slave and vice versa.  So the data
-   structures sent to/from slave via set_data/get_data set_image/get_image are
-   device dependent and vary between MJPEG/MPEG/WAVELET/... devices. (!!!!)
-   ----------------------------------------------------------------------------
-*/
+/*
+ * Should ease the (re-)usage of drivers supporting cards with (different)
+ * video codecs. The codecs register to this module their functionality,
+ * and the processors (masters) can attach to them if they fit.
+ *
+ * The codecs are typically have a "strong" binding to their master - so I
+ * don't think it makes sense to have a full blown interfacing as with e.g.
+ * i2c. If you have an other opinion, let's discuss & implement it :-)))
+ *
+ * Usage:
+ *
+ * The slave has just to setup the videocodec structure and use two functions:
+ * videocodec_register(codecdata);
+ * videocodec_unregister(codecdata);
+ * The best is just calling them at module (de-)initialisation.
+ *
+ * The master sets up the structure videocodec_master and calls:
+ * codecdata=videocodec_attach(master_codecdata);
+ * videocodec_detach(codecdata);
+ *
+ * The slave is called during attach/detach via functions setup previously
+ * during register. At that time, the master_data pointer is set up
+ * and the slave can access any io registers of the master device (in the case
+ * the slave is bound to it). Otherwise it doesn't need this functions and
+ * therefor they may not be initialized.
+ *
+ * The other functions are just for convenience, as they are for sure used by
+ * most/all of the codecs. The last ones may be omitted, too.
+ *
+ * See the structure declaration below for more information and which data has
+ * to be set up for the master and the slave.
+ *
+ * ----------------------------------------------------------------------------
+ * The master should have "knowledge" of the slave and vice versa.  So the data
+ * structures sent to/from slave via set_data/get_data set_image/get_image are
+ * device dependent and vary between MJPEG/MPEG/WAVELET/... devices. (!!!!)
+ * ----------------------------------------------------------------------------
+ */
 
 /* ========================================== */
 /* description of the videocodec_io structure */
 /* ========================================== */
 
 /*
-   ==== master setup ====
-   name -> name of the device structure for reference and debugging
-   master_data ->  data ref. for the master (e.g. the zr36055,57,67)
-   readreg -> ref. to read-fn from register (setup by master, used by slave)
-   writereg -> ref. to write-fn to register (setup by master, used by slave)
-	       this two functions do the lowlevel I/O job
+ * ==== master setup ====
+ * name -> name of the device structure for reference and debugging
+ * master_data ->  data ref. for the master (e.g. the zr36055,57,67)
+ * readreg -> ref. to read-fn from register (setup by master, used by slave)
+ * writereg -> ref. to write-fn to register (setup by master, used by slave)
+ *	       this two functions do the lowlevel I/O job
+ *
+ * ==== slave functionality setup ====
+ * slave_data -> data ref. for the slave (e.g. the zr36050,60)
+ * check -> fn-ref. checks availability of an device, returns -EIO on failure or
+ *	    the type on success
+ *	    this makes espcecially sense if a driver module supports more than
+ *	    one codec which may be quite similar to access, nevertheless it
+ *	    is good for a first functionality check
+ *
+ * -- main functions you always need for compression/decompression --
+ *
+ * set_mode -> this fn-ref. resets the entire codec, and sets up the mode
+ *	       with the last defined norm/size (or device default if not
+ *	       available) - it returns 0 if the mode is possible
+ * set_size -> this fn-ref. sets the norm and image size for
+ *	       compression/decompression (returns 0 on success)
+ *	       the norm param is defined in videodev2.h (V4L2_STD_*)
+ *
+ * additional setup may be available, too - but the codec should work with
+ * some default values even without this
+ *
+ * set_data -> sets device-specific data (tables, quality etc.)
+ * get_data -> query device-specific data (tables, quality etc.)
+ *
+ * if the device delivers interrupts, they may be setup/handled here
+ * setup_interrupt -> codec irq setup (not needed for 36050/60)
+ * handle_interrupt -> codec irq handling (not needed for 36050/60)
 
-   ==== slave functionality setup ====
-   slave_data -> data ref. for the slave (e.g. the zr36050,60)
-   check -> fn-ref. checks availability of an device, returns -EIO on failure or
-	    the type on success
-	    this makes espcecially sense if a driver module supports more than
-	    one codec which may be quite similar to access, nevertheless it
-	    is good for a first functionality check
-
-   -- main functions you always need for compression/decompression --
-
-   set_mode -> this fn-ref. resets the entire codec, and sets up the mode
-	       with the last defined norm/size (or device default if not
-	       available) - it returns 0 if the mode is possible
-   set_size -> this fn-ref. sets the norm and image size for
-	       compression/decompression (returns 0 on success)
-	       the norm param is defined in videodev2.h (V4L2_STD_*)
-
-   additional setup may be available, too - but the codec should work with
-   some default values even without this
-
-   set_data -> sets device-specific data (tables, quality etc.)
-   get_data -> query device-specific data (tables, quality etc.)
-
-   if the device delivers interrupts, they may be setup/handled here
-   setup_interrupt -> codec irq setup (not needed for 36050/60)
-   handle_interrupt -> codec irq handling (not needed for 36050/60)
-
-   if the device delivers pictures, they may be handled here
-   put_image -> puts image data to the codec (not needed for 36050/60)
-   get_image -> gets image data from the codec (not needed for 36050/60)
-		the calls include frame numbers and flags (even/odd/...)
-		if needed and a flag which allows blocking until its ready
-*/
+ * if the device delivers pictures, they may be handled here
+ * put_image -> puts image data to the codec (not needed for 36050/60)
+ * get_image -> gets image data from the codec (not needed for 36050/60)
+ *		the calls include frame numbers and flags (even/odd/...)
+ *		if needed and a flag which allows blocking until its ready
+ */
 
 /* ============== */
 /* user interface */
 /* ============== */
 
 /*
-   Currently there is only a information display planned, as the layer
-   is not visible for the user space at all.
-
-   Information is available via procfs. The current entry is "/proc/videocodecs"
-   but it makes sense to "hide" it in the /proc/video tree of v4l(2) --TODO--.
-
-A example for such an output is:
-
-<S>lave or attached <M>aster name  type flags    magic    (connected as)
-S                          zr36050 0002 0000d001 00000000 (TEMPLATE)
-M                       zr36055[0] 0001 0000c001 00000000 (zr36050[0])
-M                       zr36055[1] 0001 0000c001 00000000 (zr36050[1])
-
-*/
+ * Currently there is only a information display planned, as the layer
+ * is not visible for the user space at all.
+ *
+ * Information is available via procfs. The current entry is "/proc/videocodecs"
+ * but it makes sense to "hide" it in the /proc/video tree of v4l(2) --TODO--.
+ *
+ * A example for such an output is:
+ *
+ * <S>lave or attached <M>aster name  type flags    magic    (connected as)
+ * S                          zr36050 0002 0000d001 00000000 (TEMPLATE)
+ * M                       zr36055[0] 0001 0000c001 00000000 (zr36050[0])
+ * M                       zr36055[1] 0001 0000c001 00000000 (zr36050[1])
+ */
 
 /* =============================================== */
 /* special defines for the videocodec_io structure */
@@ -293,15 +293,15 @@ struct videocodec_master {
 // * master structure needs to be kmalloc'ed before calling attach
 //   and free'd after calling detach
 // * returns pointer on success, NULL on failure
-extern struct videocodec *videocodec_attach(struct videocodec_master *);
+struct videocodec *videocodec_attach(struct videocodec_master *master);
 // * 0 on success, <0 (errno) on failure
-extern int videocodec_detach(struct videocodec *);
+int videocodec_detach(struct videocodec *codec);
 
 /* register and unregister commands for the slaves */
 // * 0 on success, <0 (errno) on failure
-extern int videocodec_register(const struct videocodec *);
+int videocodec_register(const struct videocodec *codec);
 // * 0 on success, <0 (errno) on failure
-extern int videocodec_unregister(const struct videocodec *);
+int videocodec_unregister(const struct videocodec *codec);
 
 /* the other calls are directly done via the videocodec structure! */
 

@@ -15,18 +15,19 @@
 /* codec io API */
 #include "videocodec.h"
 
-/* it doesn't make sense to have more than 20 or so,
-  just to prevent some unwanted loops */
+/*
+ * it doesn't make sense to have more than 20 or so,
+ * just to prevent some unwanted loops
+ */
 #define MAX_CODECS 20
 
 /* amount of chips attached via this driver */
 static int zr36016_codecs;
 
-/* =========================================================================
-   Local hardware I/O functions:
-
-   read/write via codec layer (registers are located in the master device)
-   ========================================================================= */
+/*
+ * Local hardware I/O functions: read/write via codec layer
+ * (registers are located in the master device)
+ */
 
 /* read and write functions */
 static u8 zr36016_read(struct zr36016 *ptr, u16 reg)
@@ -58,9 +59,12 @@ static void zr36016_write(struct zr36016 *ptr, u16 reg, u8 value)
 		zrdev_err(zr, "%s: invalid I/O setup, nothing written!\n", ptr->name);
 }
 
-/* indirect read and write functions */
-/* the 016 supports auto-addr-increment, but
- * writing it all time cost not much and is safer... */
+/*
+ * indirect read and write functions
+ *
+ * the 016 supports auto-addr-increment, but
+ * writing it all time cost not much and is safer...
+ */
 static u8 zr36016_readi(struct zr36016 *ptr, u16 reg)
 {
 	u8 value = 0;
@@ -68,8 +72,8 @@ static u8 zr36016_readi(struct zr36016 *ptr, u16 reg)
 
 	/* just in case something is wrong... */
 	if ((ptr->codec->master_data->writereg) && (ptr->codec->master_data->readreg)) {
-		ptr->codec->master_data->writereg(ptr->codec, ZR016_IADDR, reg & 0x0F);	// ADDR
-		value = (ptr->codec->master_data->readreg(ptr->codec, ZR016_IDATA)) & 0xFF;	// DATA
+		ptr->codec->master_data->writereg(ptr->codec, ZR016_IADDR, reg & 0x0F);
+		value = (ptr->codec->master_data->readreg(ptr->codec, ZR016_IDATA)) & 0xFF;
 	} else {
 		zrdev_err(zr, "%s: invalid I/O setup, nothing read (i)!\n", ptr->name);
 	}
@@ -88,18 +92,14 @@ static void zr36016_writei(struct zr36016 *ptr, u16 reg, u8 value)
 
 	/* just in case something is wrong... */
 	if (ptr->codec->master_data->writereg) {
-		ptr->codec->master_data->writereg(ptr->codec, ZR016_IADDR, reg & 0x0F);	// ADDR
-		ptr->codec->master_data->writereg(ptr->codec, ZR016_IDATA, value & 0x0FF);	// DATA
+		ptr->codec->master_data->writereg(ptr->codec, ZR016_IADDR, reg & 0x0F);
+		ptr->codec->master_data->writereg(ptr->codec, ZR016_IDATA, value & 0x0FF);
 	} else {
 		zrdev_err(zr, "%s: invalid I/O setup, nothing written (i)!\n", ptr->name);
 	}
 }
 
-/* =========================================================================
-   Local helper function:
-
-   version read
-   ========================================================================= */
+/* Local helper function: version read */
 
 /* version kept in datastructure */
 static u8 zr36016_read_version(struct zr36016 *ptr)
@@ -108,11 +108,10 @@ static u8 zr36016_read_version(struct zr36016 *ptr)
 	return ptr->version;
 }
 
-/* =========================================================================
-   Local helper function:
-
-   basic test of "connectivity", writes/reads to/from PAX-Lo register
-   ========================================================================= */
+/*
+ * Local helper function: basic test of "connectivity", writes/reads
+ * to/from PAX-Lo register
+ */
 
 static int zr36016_basic_test(struct zr36016 *ptr)
 {
@@ -150,36 +149,7 @@ static int zr36016_basic_test(struct zr36016 *ptr)
 	return 0;		/* looks good! */
 }
 
-/* =========================================================================
-   Local helper function:
-
-   simple loop for pushing the init datasets - NO USE --
-   ========================================================================= */
-
-#if 0
-static int zr36016_pushit(struct zr36016 *ptr,
-			  u16             startreg,
-			   u16             len,
-			   const char     *data)
-{
-	struct zoran *zr = videocodec_to_zoran(ptr->codec);
-	int i = 0;
-
-	zrdev_dbg(zr, "%s: write data block to 0x%04x (len=%d)\n",
-		  ptr->name, startreg, len);
-	while (i < len) {
-		zr36016_writei(ptr, startreg++,  data[i++]);
-	}
-
-	return i;
-}
-#endif
-
-/* =========================================================================
-   Basic datasets & init:
-
-   //TODO//
-   ========================================================================= */
+/* Basic datasets & init */
 
 static void zr36016_init(struct zr36016 *ptr)
 {
@@ -213,14 +183,16 @@ static void zr36016_init(struct zr36016 *ptr)
 	zr36016_write(ptr, ZR016_GOSTOP, 1);
 }
 
-/* =========================================================================
-   CODEC API FUNCTIONS
+/*
+ * CODEC API FUNCTIONS
+ *
+ * These functions are accessed by the master via the API structure
+ */
 
-   this functions are accessed by the master via the API structure
-   ========================================================================= */
-
-/* set compression/expansion mode and launches codec -
-   this should be the last call from the master before starting processing */
+/*
+ * set compression/expansion mode and launches codec -
+ * this should be the last call from the master before starting processing
+ */
 static int zr36016_set_mode(struct videocodec *codec, int mode)
 {
 	struct zr36016 *ptr = (struct zr36016 *)codec->data;
@@ -249,22 +221,28 @@ static int zr36016_set_video(struct videocodec *codec, const struct tvnorm *norm
 		  cap->x, cap->y, cap->width, cap->height,
 		  cap->decimation);
 
-	/* if () return -EINVAL;
+	/*
+	 * if () return -EINVAL;
 	 * trust the master driver that it knows what it does - so
-	 * we allow invalid startx/y for now ... */
+	 * we allow invalid startx/y for now ...
+	 */
 	ptr->width = cap->width;
 	ptr->height = cap->height;
-	/* (Ronald) This is ugly. zoran_device.c, line 387
+	/*
+	 * (Ronald) This is ugly. zoran_device.c, line 387
 	 * already mentions what happens if h_start is even
 	 * (blue faces, etc., cr/cb inversed). There's probably
 	 * some good reason why h_start is 0 instead of 1, so I'm
 	 * leaving it to this for now, but really... This can be
-	 * done a lot simpler */
+	 * done a lot simpler
+	 */
 	ptr->xoff = (norm->h_start ? norm->h_start : 1) + cap->x;
-	/* Something to note here (I don't understand it), setting
+	/*
+	 * Something to note here (I don't understand it), setting
 	 * v_start too high will cause the codec to 'not work'. I
 	 * really don't get it. values of 16 (v_start) already break
-	 * it here. Just '0' seems to work. More testing needed! */
+	 * it here. Just '0' seems to work. More testing needed!
+	 */
 	ptr->yoff = norm->v_start + cap->y;
 	/* (Ronald) dzjeeh, can't this thing do hor_decimation = 4? */
 	ptr->xdec = ((cap->decimation & 0xff) == 1) ? 0 : 1;
@@ -319,11 +297,11 @@ static int zr36016_control(struct videocodec *codec, int type, int size, void *d
 	return size;
 }
 
-/* =========================================================================
-   Exit and unregister function:
-
-   Deinitializes Zoran's JPEG processor
-   ========================================================================= */
+/*
+ * Exit and unregister function:
+ *
+ * Deinitializes Zoran's JPEG processor
+ */
 
 static int zr36016_unset(struct videocodec *codec)
 {
@@ -344,14 +322,14 @@ static int zr36016_unset(struct videocodec *codec)
 	return -EFAULT;
 }
 
-/* =========================================================================
-   Setup and registry function:
-
-   Initializes Zoran's JPEG processor
-
-   Also sets pixel size, average code size, mode (compr./decompr.)
-   (the given size is determined by the processor with the video interface)
-   ========================================================================= */
+/*
+ * Setup and registry function:
+ *
+ * Initializes Zoran's JPEG processor
+ *
+ * Also sets pixel size, average code size, mode (compr./decompr.)
+ * (the given size is determined by the processor with the video interface)
+ */
 
 static int zr36016_setup(struct videocodec *codec)
 {
@@ -410,9 +388,7 @@ static const struct videocodec zr36016_codec = {
 	/* others are not used */
 };
 
-/* =========================================================================
-   HOOK IN DRIVER AS KERNEL MODULE
-   ========================================================================= */
+/* HOOK IN DRIVER AS KERNEL MODULE */
 
 int zr36016_init_module(void)
 {

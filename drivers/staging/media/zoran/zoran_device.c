@@ -50,7 +50,6 @@ static bool lml33dpath;		/* default = 0
 module_param(lml33dpath, bool, 0644);
 MODULE_PARM_DESC(lml33dpath, "Use digital path capture mode (on LML33 cards)");
 
-int zr_set_buf(struct zoran *zr);
 /*
  * initialize video front end
  */
@@ -108,7 +107,6 @@ int post_office_wait(struct zoran *zr)
 {
 	u32 por;
 
-//      while (((por = btread(ZR36057_POR)) & (ZR36057_POR_PO_PEN | ZR36057_POR_PO_TIME)) == ZR36057_POR_PO_PEN) {
 	while ((por = btread(ZR36057_POR)) & ZR36057_POR_PO_PEN) {
 		/* wait for something to happen */
 		/* TODO add timeout */
@@ -155,10 +153,12 @@ void jpeg_codec_sleep(struct zoran *zr, int sleep)
 {
 	GPIO(zr, zr->card.gpio[ZR_GPIO_JPEG_SLEEP], !sleep);
 	if (!sleep) {
-		pci_dbg(zr->pci_dev, "%s() - wake GPIO=0x%08x\n", __func__, btread(ZR36057_GPPGCR1));
-		udelay(500);
+		pci_dbg(zr->pci_dev, "%s() - wake GPIO=0x%08x\n",
+			__func__, btread(ZR36057_GPPGCR1));
+		usleep_range(500, 1000);
 	} else {
-		pci_dbg(zr->pci_dev, "%s() - sleep GPIO=0x%08x\n", __func__, btread(ZR36057_GPPGCR1));
+		pci_dbg(zr->pci_dev, "%s() - sleep GPIO=0x%08x\n",
+			__func__, btread(ZR36057_GPPGCR1));
 		udelay(2);
 	}
 }
@@ -284,7 +284,8 @@ static void zr36057_set_vfe(struct zoran *zr, int video_width, int video_height,
 	vcrop1 = (tvn->ha / 2 - he) / 2;
 	vcrop2 = tvn->ha / 2 - he - vcrop1;
 	v_start = tvn->v_start;
-	v_end = v_start + tvn->ha / 2;	// - 1; FIXME SnapShot times out with -1 in 768*576 on the DC10 - LP
+	// FIXME SnapShot times out with -1 in 768*576 on the DC10 - LP
+	v_end = v_start + tvn->ha / 2;	// - 1;
 	v_start += vcrop1;
 	v_end -= vcrop2;
 	reg = ((v_start & ZR36057_VFEVCR_VMASK) << ZR36057_VFEVCR_V_START)
@@ -298,10 +299,12 @@ static void zr36057_set_vfe(struct zoran *zr, int video_width, int video_height,
 	reg |= (hor_dcm << ZR36057_VFESPFR_HOR_DCM);
 	reg |= (ver_dcm << ZR36057_VFESPFR_VER_DCM);
 	reg |= (disp_mode << ZR36057_VFESPFR_DISP_MODE);
-	/* RJ: I don't know, why the following has to be the opposite
+	/*
+	 * RJ: I don't know, why the following has to be the opposite
 	 * of the corresponding ZR36060 setting, but only this way
-	 * we get the correct colors when uncompressing to the screen  */
-	//reg |= ZR36057_VFESPFR_VCLK_POL; /**/
+	 * we get the correct colors when uncompressing to the screen
+	 */
+	//reg |= ZR36057_VFESPFR_VCLK_POL;
 	/* RJ: Don't know if that is needed for NTSC also */
 	if (!(zr->norm & V4L2_STD_NTSC))
 		reg |= ZR36057_VFESPFR_EXT_FL;	// NEEDED!!!!!!! Wolfgang
@@ -342,7 +345,7 @@ void zr36057_set_memgrab(struct zoran *zr, int mode)
 		 * will be stuck at 1 until capturing is turned back on.
 		 */
 		if (btread(ZR36057_VSSFGR) & ZR36057_VSSFGR_SNAP_SHOT)
-			pci_warn(zr->pci_dev, "zr36057_set_memgrab(1) with SnapShot on!?\n");
+			pci_warn(zr->pci_dev, "%s(1) with SnapShot on!?\n", __func__);
 
 		/* switch on VSync interrupts */
 		btwrite(IRQ_MASK, ZR36057_ISR);	// Clear Interrupts
@@ -595,11 +598,9 @@ void jpeg_start(struct zoran *zr)
 
 	/* enable the Go generation */
 	btor(ZR36057_JMC_GO_EN, ZR36057_JMC);
-	udelay(30);
+	usleep_range(30, 100);
 
 	set_frame(zr, 1);	// /FRAME
-
-	pci_dbg(zr->pci_dev, "jpeg_start\n");
 }
 
 void zr36057_enable_jpg(struct zoran *zr, enum zoran_codec_mode mode)
@@ -803,8 +804,10 @@ static void zoran_reap_stat_com(struct zoran *zr)
 	unsigned int size = 0;
 	u32 fcnt;
 
-	/* In motion decompress we don't have a hardware frame counter,
-	 * we just count the interrupts here */
+	/*
+	 * In motion decompress we don't have a hardware frame counter,
+	 * we just count the interrupts here
+	 */
 
 	if (zr->codec_mode == BUZ_MODE_MOTION_DECOMPRESS)
 		zr->jpg_seq_num++;
@@ -938,9 +941,9 @@ void zoran_init_hardware(struct zoran *zr)
 void zr36057_restart(struct zoran *zr)
 {
 	btwrite(0, ZR36057_SPGPPCR);
-	udelay(1000);
+	usleep_range(1000, 2000);
 	btor(ZR36057_SPGPPCR_SOFT_RESET, ZR36057_SPGPPCR);
-	udelay(1000);
+	usleep_range(1000, 2000);
 
 	/* assert P_Reset */
 	btwrite(0, ZR36057_JPC);

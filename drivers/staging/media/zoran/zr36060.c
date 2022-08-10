@@ -243,7 +243,10 @@ static const char zr36060_ta[8] = { 0, 1, 1, 0, 0, 0, 0, 0 };	//table idx's AC
 static const char zr36060_decimation_h[8] = { 2, 1, 1, 0, 0, 0, 0, 0 };
 static const char zr36060_decimation_v[8] = { 1, 1, 1, 0, 0, 0, 0, 0 };
 
-/* SOF (start of frame) segment depends on width, height and sampling ratio of each color component */
+/*
+ * SOF (start of frame) segment depends on width, height and sampling ratio
+ * of each color component
+ */
 static int zr36060_set_sof(struct zr36060 *ptr)
 {
 	struct zoran *zr = videocodec_to_zoran(ptr->codec);
@@ -555,8 +558,6 @@ static int zr36060_set_video(struct videocodec *codec, const struct tvnorm *norm
 	reg = 6 - 1;		/* VsyncSize */
 	zr36060_write(ptr, ZR060_SGR_VSYNC, reg);
 
-	//reg   = 30 - 1;               /* HsyncSize */
-///*CP*/        reg = (zr->params.norm == 1 ? 57 : 68);
 	reg = 68;
 	zr36060_write(ptr, ZR060_SGR_HSYNC, reg);
 
