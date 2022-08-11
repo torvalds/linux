@@ -811,54 +811,54 @@ static struct stripe_head *__raid5_get_active_stripe(struct r5conf *conf,
 
 	spin_lock_irq(conf->hash_locks + hash);
 
-retry:
-	if (!noquiesce && conf->quiesce) {
-		/*
-		 * Must release the reference to batch_last before waiting,
-		 * on quiesce, otherwise the batch_last will hold a reference
-		 * to a stripe and raid5_quiesce() will deadlock waiting for
-		 * active_stripes to go to zero.
-		 */
-		if (ctx && ctx->batch_last) {
-			raid5_release_stripe(ctx->batch_last);
-			ctx->batch_last = NULL;
+	for (;;) {
+		if (!noquiesce && conf->quiesce) {
+			/*
+			 * Must release the reference to batch_last before
+			 * waiting, on quiesce, otherwise the batch_last will
+			 * hold a reference to a stripe and raid5_quiesce()
+			 * will deadlock waiting for active_stripes to go to
+			 * zero.
+			 */
+			if (ctx && ctx->batch_last) {
+				raid5_release_stripe(ctx->batch_last);
+				ctx->batch_last = NULL;
+			}
+
+			wait_event_lock_irq(conf->wait_for_quiescent,
+					    !conf->quiesce,
+					    *(conf->hash_locks + hash));
 		}
 
-		wait_event_lock_irq(conf->wait_for_quiescent, !conf->quiesce,
+		sh = find_get_stripe(conf, sector, conf->generation - previous,
+				     hash);
+		if (sh)
+			break;
+
+		if (!test_bit(R5_INACTIVE_BLOCKED, &conf->cache_state)) {
+			sh = get_free_stripe(conf, hash);
+			if (sh) {
+				r5c_check_stripe_cache_usage(conf);
+				init_stripe(sh, sector, previous);
+				atomic_inc(&sh->count);
+				break;
+			}
+
+			if (!test_bit(R5_DID_ALLOC, &conf->cache_state))
+				set_bit(R5_ALLOC_MORE, &conf->cache_state);
+		}
+
+		if (noblock)
+			break;
+
+		set_bit(R5_INACTIVE_BLOCKED, &conf->cache_state);
+		r5l_wake_reclaim(conf->log, 0);
+		wait_event_lock_irq(conf->wait_for_stripe,
+				    is_inactive_blocked(conf, hash),
 				    *(conf->hash_locks + hash));
+		clear_bit(R5_INACTIVE_BLOCKED, &conf->cache_state);
 	}
 
-	sh = find_get_stripe(conf, sector, conf->generation - previous, hash);
-	if (sh)
-		goto out;
-
-	if (test_bit(R5_INACTIVE_BLOCKED, &conf->cache_state))
-		goto wait_for_stripe;
-
-	sh = get_free_stripe(conf, hash);
-	if (sh) {
-		r5c_check_stripe_cache_usage(conf);
-		init_stripe(sh, sector, previous);
-		atomic_inc(&sh->count);
-		goto out;
-	}
-
-	if (!test_bit(R5_DID_ALLOC, &conf->cache_state))
-		set_bit(R5_ALLOC_MORE, &conf->cache_state);
-
-wait_for_stripe:
-	if (noblock)
-		goto out;
-
-	set_bit(R5_INACTIVE_BLOCKED, &conf->cache_state);
-	r5l_wake_reclaim(conf->log, 0);
-	wait_event_lock_irq(conf->wait_for_stripe,
-			    is_inactive_blocked(conf, hash),
-			    *(conf->hash_locks + hash));
-	clear_bit(R5_INACTIVE_BLOCKED, &conf->cache_state);
-	goto retry;
-
-out:
 	spin_unlock_irq(conf->hash_locks + hash);
 	return sh;
 }
