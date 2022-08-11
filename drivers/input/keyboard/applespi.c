@@ -202,7 +202,7 @@ struct command_protocol_tp_info {
 };
 
 /**
- * struct touchpad_info - touchpad info response.
+ * struct touchpad_info_protocol - touchpad info response.
  * message.type = 0x1020, message.length = 0x006e
  *
  * @unknown1:		unknown
