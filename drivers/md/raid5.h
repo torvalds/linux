@@ -803,16 +803,14 @@ raid5_get_dev_page(struct stripe_head *sh, int disk_idx)
 }
 #endif
 
-extern void md_raid5_kick_device(struct r5conf *conf);
-extern int raid5_set_cache_size(struct mddev *mddev, int size);
-extern sector_t raid5_compute_blocknr(struct stripe_head *sh, int i, int previous);
-extern void raid5_release_stripe(struct stripe_head *sh);
-extern sector_t raid5_compute_sector(struct r5conf *conf, sector_t r_sector,
-				     int previous, int *dd_idx,
-				     struct stripe_head *sh);
-extern struct stripe_head *
-raid5_get_active_stripe(struct r5conf *conf, sector_t sector,
-			bool previous, bool noblock, bool noquiesce);
-extern int raid5_calc_degraded(struct r5conf *conf);
-extern int r5c_journal_mode_set(struct mddev *mddev, int journal_mode);
+void md_raid5_kick_device(struct r5conf *conf);
+int raid5_set_cache_size(struct mddev *mddev, int size);
+sector_t raid5_compute_blocknr(struct stripe_head *sh, int i, int previous);
+void raid5_release_stripe(struct stripe_head *sh);
+sector_t raid5_compute_sector(struct r5conf *conf, sector_t r_sector,
+		int previous, int *dd_idx, struct stripe_head *sh);
+struct stripe_head *raid5_get_active_stripe(struct r5conf *conf,
+		sector_t sector, bool previous, bool noblock, bool noquiesce);
+int raid5_calc_degraded(struct r5conf *conf);
+int r5c_journal_mode_set(struct mddev *mddev, int journal_mode);
 #endif
