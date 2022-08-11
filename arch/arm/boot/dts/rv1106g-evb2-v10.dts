@@ -34,49 +34,6 @@
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
 	};
-
-	vcc3v3_sd0: vcc3v3-sd0 {
-		compatible = "regulator-fixed";
-		gpio = <&gpio2 RK_PA7 GPIO_ACTIVE_LOW>;
-		regulator-name = "vcc3v3_sd0";
-		regulator-min-microvolt = <3300000>;
-		regulator-max-microvolt = <3300000>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&sdmmc_pwren_m0>;
-	};
-
-	vcc3v3_sd1: vcc3v3-sd1 {
-		compatible = "regulator-fixed";
-		gpio = <&gpio1 RK_PC7 GPIO_ACTIVE_LOW>;
-		regulator-name = "vcc3v3_sd1";
-		regulator-min-microvolt = <3300000>;
-		regulator-max-microvolt = <3300000>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&sdmmc_pwren_m1>;
-	};
-
-	vccio_sd1: vccio-sd1 {
-		compatible = "regulator-gpio";
-		regulator-name = "vccio_sd1";
-		regulator-min-microvolt = <1800000>;
-		regulator-max-microvolt = <3300000>;
-		gpios = <&gpio2 RK_PB1 GPIO_ACTIVE_HIGH>;
-		states = <3300000 1
-			  1800000 0>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&sdmmc_volt>;
-	};
-
-	wireless_wlan: wireless-wlan {
-		compatible = "wlan-platdata";
-		rockchip,grf = <&grf>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&wifi_wake_host &clk_32k>;
-		wifi_chip_type = "Hi3861L";
-		WIFI,poweren_gpio = <&gpio1 RK_PA0 GPIO_ACTIVE_HIGH>;
-		WIFI,host_wake_irq = <&gpio1 RK_PB0 GPIO_ACTIVE_HIGH>;
-		status = "okay";
-	};
 };
 
 &csi2_dphy_hw {
@@ -180,35 +137,13 @@
 	};
 };
 
-&pinctrl {
-	sdmmc {
-		/omit-if-no-ref/
-		sdmmc_pwren_m0: sdmmc-pwren-m0 {
-			rockchip,pins = <2 RK_PA7 RK_FUNC_GPIO &pcfg_pull_none>;
-		};
+&memory {
+	reg = <0x00000000 0x08000000>;
+};
 
-		/omit-if-no-ref/
-		sdmmc_pwren_m1: sdmmc-pwren-m1 {
-			rockchip,pins = <1 RK_PC7 RK_FUNC_GPIO &pcfg_pull_none>;
-		};
-
-		/omit-if-no-ref/
-		sdmmc_volt: sdmmc-volt {
-			rockchip,pins = <2 RK_PB1 RK_FUNC_GPIO &pcfg_pull_none>;
-		};
-
-		/omit-if-no-ref/
-		sdmmc_det_l: sdmmc-det-l {
-			rockchip,pins = <3 RK_PA1 RK_FUNC_GPIO &pcfg_output_low>;
-		};
-	};
-
-	wireless-wlan {
-		/omit-if-no-ref/
-		wifi_wake_host: wifi-wake-host {
-			rockchip,pins = <1 RK_PB0 RK_FUNC_GPIO &pcfg_pull_down>;
-		};
-	};
+&meta {
+	/* reserved meta partition 384KB */
+	reg = <0x01e00000 (384 * 0x400)>;
 };
 
 &rkcif {
@@ -253,7 +188,20 @@
 	};
 };
 
-&sdmmc {
+&rkisp_thunderboot {
+	/* 9M for NV12 (w*h*1.5*2) w and h 16 align, 2304/1296 */
+	reg = <0x01e60000 (9 * 0x00100000)>;
+};
+
+&pwm10 {
+	status = "okay";
+};
+
+&pwm11 {
+	status = "okay";
+};
+
+&sdio {
 	max-frequency = <50000000>;
 	bus-width = <1>;
 	cap-sd-highspeed;
@@ -264,10 +212,8 @@
 	no-sd;
 	no-mmc;
 	supports-sdio;
-	supports-chip-alive;
-	logic-remove-card;
 	pinctrl-names = "default";
-	pinctrl-0 = <&sdmmc0_cmd &sdmmc0_clk &sdmmc0_bus4 &sdmmc_det_l>;
+	pinctrl-0 = <&sdmmc1m0_cmd &sdmmc1m0_clk &sdmmc1m0_bus4>;
 	status = "okay";
 };
 
