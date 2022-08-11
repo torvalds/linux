@@ -1,0 +1,9 @@
+- This driver is too old and relies on a different API.
+  Drop it from Kernel on a couple of versions.
+- Cleanup patches for the drivers here won't be accepted.
+
+These drivers are now deprecated with the intent of
+removing them altogether by the beginning of 2023.
+
+If someone is interested in doing this work, then contact the
+linux-media mailinglist (https://linuxtv.org/lists.php).
