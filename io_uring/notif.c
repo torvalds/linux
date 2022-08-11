@@ -100,7 +100,7 @@ __cold int io_notif_unregister(struct io_ring_ctx *ctx)
 
 		if (!notif)
 			continue;
-		nd = io_kiocb_to_cmd(notif);
+		nd = io_notif_to_data(notif);
 		slot->notif = NULL;
 		if (!refcount_dec_and_test(&nd->uarg.refcnt))
 			continue;
