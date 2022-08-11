@@ -58,6 +58,9 @@ int io_uring_cmd_prep_async(struct io_kiocb *req)
 	struct io_uring_cmd *ioucmd = io_kiocb_to_cmd(req, struct io_uring_cmd);
 	size_t cmd_size;
 
+	BUILD_BUG_ON(uring_cmd_pdu_size(0) != 16);
+	BUILD_BUG_ON(uring_cmd_pdu_size(1) != 80);
+
 	cmd_size = uring_cmd_pdu_size(req->ctx->flags & IORING_SETUP_SQE128);
 
 	memcpy(req->async_data, ioucmd->cmd, cmd_size);
