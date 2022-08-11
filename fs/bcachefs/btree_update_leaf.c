@@ -1785,9 +1785,8 @@ int bch2_btree_delete_range(struct bch_fs *c, enum btree_id id,
 			    unsigned update_flags,
 			    u64 *journal_seq)
 {
-	return bch2_trans_do(c, NULL, journal_seq, 0,
-			     bch2_btree_delete_range_trans(&trans, id, start, end,
-							   update_flags, journal_seq));
+	return bch2_trans_run(c,
+			bch2_btree_delete_range_trans(&trans, id, start, end, update_flags, journal_seq));
 }
 
 int bch2_trans_log_msg(struct btree_trans *trans, const char *msg)
