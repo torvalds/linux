@@ -335,7 +335,7 @@ mwifiex_11n_create_rx_reorder_tbl(struct mwifiex_private *priv, u8 *ta,
 	struct mwifiex_sta_node *node;
 
 	/*
-	 * If we get a TID, ta pair which is already present dispatch all the
+	 * If we get a TID, ta pair which is already present dispatch all
 	 * the packets and move the window size until the ssn
 	 */
 	tbl = mwifiex_11n_get_rx_reorder_tbl(priv, tid, ta);
