@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0-only
 config VIDEO_TM6000
-	tristate "TV Master TM5600/6000/6010 driver"
+	tristate "TV Master TM5600/6000/6010 driver (DEPRECATED)"
 	depends on VIDEO_DEV && I2C && INPUT && RC_CORE && USB
 	select VIDEO_TUNER
 	select MEDIA_TUNER_XC2028
@@ -12,6 +12,9 @@ config VIDEO_TM6000
 	  Since these cards have no MPEG decoder onboard, they transmit
 	  only compressed MPEG data over the usb bus, so you need
 	  an external software decoder to watch TV on your computer.
+
+	  This driver is deprecated and is scheduled for removal by
+	  the beginning of 2023. See the TODO file for more information.
 
 	  Say Y if you own such a device and want to use it.
 

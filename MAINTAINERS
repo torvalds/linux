@@ -20469,7 +20469,7 @@ S:	Odd fixes
 W:	https://linuxtv.org
 T:	git git://linuxtv.org/media_tree.git
 F:	Documentation/admin-guide/media/tm6000*
-F:	drivers/media/usb/tm6000/
+F:	drivers/staging/media/deprecated/tm6000/
 
 TMIO/SDHI MMC DRIVER
 M:	Wolfram Sang <wsa+renesas@sang-engineering.com>
