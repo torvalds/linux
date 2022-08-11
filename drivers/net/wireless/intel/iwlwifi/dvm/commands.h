@@ -2026,7 +2026,7 @@ struct iwl_spectrum_notification {
 	u8 channel;
 	u8 type;		/* see enum iwl_measurement_type */
 	u8 reserved1;
-	/* NOTE:  cca_ofdm, cca_cck, basic_type, and histogram are only only
+	/* NOTE:  cca_ofdm, cca_cck, basic_type, and histogram are only
 	 * valid if applicable for measurement type requested. */
 	__le32 cca_ofdm;	/* cca fraction time in 40Mhz clock periods */
 	__le32 cca_cck;		/* cca fraction time in 44Mhz clock periods */
