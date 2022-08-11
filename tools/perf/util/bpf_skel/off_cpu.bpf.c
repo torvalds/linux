@@ -85,6 +85,7 @@ int enabled = 0;
 int has_cpu = 0;
 int has_task = 0;
 int has_cgroup = 0;
+int uses_tgid = 0;
 
 const volatile bool has_prev_state = false;
 const volatile bool needs_cgroup = false;
@@ -144,7 +145,12 @@ static inline int can_record(struct task_struct *t, int state)
 
 	if (has_task) {
 		__u8 *ok;
-		__u32 pid = t->pid;
+		__u32 pid;
+
+		if (uses_tgid)
+			pid = t->tgid;
+		else
+			pid = t->pid;
 
 		ok = bpf_map_lookup_elem(&task_filter, &pid);
 		if (!ok)

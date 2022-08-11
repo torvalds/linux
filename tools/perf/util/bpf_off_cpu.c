@@ -78,6 +78,7 @@ static void off_cpu_start(void *arg)
 		u8 val = 1;
 
 		skel->bss->has_task = 1;
+		skel->bss->uses_tgid = 1;
 		fd = bpf_map__fd(skel->maps.task_filter);
 		pid = perf_thread_map__pid(evlist->core.threads, 0);
 		bpf_map_update_elem(fd, &pid, &val, BPF_ANY);
