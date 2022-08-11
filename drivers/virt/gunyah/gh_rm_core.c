@@ -586,7 +586,7 @@ static int gh_rm_send_request(u32 message_id,
 		return -E2BIG;
 	}
 
-	msg = kzalloc(GH_RM_MAX_MSG_SIZE_BYTES, GFP_KERNEL);
+	msg = kzalloc(GH_MSGQ_MAX_MSG_SIZE_BYTES, GFP_KERNEL);
 	if (!msg)
 		return -ENOMEM;
 
@@ -603,7 +603,7 @@ static int gh_rm_send_request(u32 message_id,
 			payload_size = buff_size_remaining;
 		}
 
-		memset(msg, 0, GH_RM_MAX_MSG_SIZE_BYTES);
+		memset(msg, 0, GH_MSGQ_MAX_MSG_SIZE_BYTES);
 
 		/* Fill header */
 		hdr = msg;
