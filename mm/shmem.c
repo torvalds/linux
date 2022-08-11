@@ -2839,12 +2839,13 @@ static long shmem_fallocate(struct file *file, int mode, loff_t offset,
 
 	if (!(mode & FALLOC_FL_KEEP_SIZE) && offset + len > inode->i_size)
 		i_size_write(inode, offset + len);
-	inode->i_ctime = current_time(inode);
 undone:
 	spin_lock(&inode->i_lock);
 	inode->i_private = NULL;
 	spin_unlock(&inode->i_lock);
 out:
+	if (!error)
+		file_modified(file);
 	inode_unlock(inode);
 	return error;
 }
