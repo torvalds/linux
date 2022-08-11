@@ -97,7 +97,7 @@ static __always_inline u64 sign_ext_branch_ip(u64 ip)
 static void amd_pmu_lbr_filter(void)
 {
 	struct cpu_hw_events *cpuc = this_cpu_ptr(&cpu_hw_events);
-	int br_sel = cpuc->br_sel, type, i, j;
+	int br_sel = cpuc->br_sel, offset, type, i, j;
 	bool compress = false;
 	u64 from, to;
 
@@ -109,7 +109,15 @@ static void amd_pmu_lbr_filter(void)
 	for (i = 0; i < cpuc->lbr_stack.nr; i++) {
 		from = cpuc->lbr_entries[i].from;
 		to = cpuc->lbr_entries[i].to;
-		type = branch_type(from, to, 0);
+		type = branch_type_fused(from, to, 0, &offset);
+
+		/*
+		 * Adjust the branch from address in case of instruction
+		 * fusion where it points to an instruction preceding the
+		 * actual branch
+		 */
+		if (offset)
+			cpuc->lbr_entries[i].from += offset;
 
 		/* If type does not correspond, then discard */
 		if (type == X86_BR_NONE || (br_sel & type) != type) {
