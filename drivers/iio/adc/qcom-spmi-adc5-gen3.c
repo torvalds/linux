@@ -1773,10 +1773,47 @@ static int adc5_gen3_exit(struct platform_device *pdev)
 	return 0;
 }
 
+static int adc5_gen3_freeze(struct device *dev)
+{
+	struct adc5_chip *adc = dev_get_drvdata(dev);
+	int i = 0;
+
+	mutex_lock(&adc->lock);
+
+	for (i = 0; i < adc->num_sdams; i++)
+		devm_free_irq(dev, adc->base[i].irq, adc);
+
+	mutex_unlock(&adc->lock);
+
+	return 0;
+}
+
+static int adc5_gen3_restore(struct device *dev)
+{
+	struct adc5_chip *adc = dev_get_drvdata(dev);
+	int i = 0;
+	int ret = 0;
+
+	for (i = 0; i < adc->num_sdams; i++) {
+		ret = devm_request_irq(dev, adc->base[i].irq, adc5_gen3_isr,
+				0, adc->base[i].irq_name, adc);
+		if (ret < 0)
+			return ret;
+	}
+
+	return ret;
+}
+
+static const struct dev_pm_ops adc5_gen3_pm_ops = {
+	.freeze = adc5_gen3_freeze,
+	.restore = adc5_gen3_restore,
+};
+
 static struct platform_driver adc5_gen3_driver = {
 	.driver = {
 		.name = "qcom-spmi-adc5-gen3",
 		.of_match_table = adc5_match_table,
+		.pm = &adc5_gen3_pm_ops,
 	},
 	.probe = adc5_gen3_probe,
 	.remove = adc5_gen3_exit,
