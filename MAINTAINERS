@@ -13775,7 +13775,7 @@ MOTION EYE VAIO PICTUREBOOK CAMERA DRIVER
 S:	Orphan
 W:	http://popies.net/meye/
 F:	Documentation/userspace-api/media/drivers/meye*
-F:	drivers/media/pci/meye/
+F:	drivers/staging/media/deprecated/meye/
 F:	include/uapi/linux/meye.h
 
 MOTORCOMM PHY DRIVER
