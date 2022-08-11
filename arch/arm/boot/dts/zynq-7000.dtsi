@@ -230,6 +230,18 @@
 			#size-cells = <0>;
 		};
 
+		qspi: spi@e000d000 {
+			compatible = "xlnx,zynq-qspi-1.0";
+			reg = <0xe000d000 0x1000>;
+			interrupt-parent = <&intc>;
+			interrupts = <0 19 4>;
+			clocks = <&clkc 10>, <&clkc 43>;
+			clock-names = "ref_clk", "pclk";
+			status = "disabled";
+			#address-cells = <1>;
+			#size-cells = <0>;
+		};
+
 		gem0: ethernet@e000b000 {
 			compatible = "cdns,zynq-gem", "cdns,gem";
 			reg = <0xe000b000 0x1000>;
