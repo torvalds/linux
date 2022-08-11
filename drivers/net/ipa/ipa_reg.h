@@ -48,7 +48,7 @@ struct ipa;
  *
  * The offset of registers related to resource types is computed by a macro
  * that is supplied a parameter "rt".  The "rt" represents a resource type,
- * which is is a member of the ipa_resource_type_src enumerated type for
+ * which is a member of the ipa_resource_type_src enumerated type for
  * source endpoint resources or the ipa_resource_type_dst enumerated type
  * for destination endpoint resources.
  *
