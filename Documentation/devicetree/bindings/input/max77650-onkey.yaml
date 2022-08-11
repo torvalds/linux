@@ -16,15 +16,15 @@ description: |
   The onkey controller is represented as a sub-node of the PMIC node on
   the device tree.
 
+allOf:
+  - $ref: input.yaml#
+
 properties:
   compatible:
     const: maxim,max77650-onkey
 
   linux,code:
-    $ref: /schemas/types.yaml#/definitions/uint32
-    description:
-      The key-code to be reported when the key is pressed. Defaults
-      to KEY_POWER.
+    default: 116  # KEY_POWER
 
   maxim,onkey-slide:
     $ref: /schemas/types.yaml#/definitions/flag
