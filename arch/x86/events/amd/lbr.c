@@ -4,6 +4,39 @@
 
 #include "../perf_event.h"
 
+/* LBR Branch Select valid bits */
+#define LBR_SELECT_MASK		0x1ff
+
+/*
+ * LBR Branch Select filter bits which when set, ensures that the
+ * corresponding type of branches are not recorded
+ */
+#define LBR_SELECT_KERNEL		0	/* Branches ending in CPL = 0 */
+#define LBR_SELECT_USER			1	/* Branches ending in CPL > 0 */
+#define LBR_SELECT_JCC			2	/* Conditional branches */
+#define LBR_SELECT_CALL_NEAR_REL	3	/* Near relative calls */
+#define LBR_SELECT_CALL_NEAR_IND	4	/* Indirect relative calls */
+#define LBR_SELECT_RET_NEAR		5	/* Near returns */
+#define LBR_SELECT_JMP_NEAR_IND		6	/* Near indirect jumps (excl. calls and returns) */
+#define LBR_SELECT_JMP_NEAR_REL		7	/* Near relative jumps (excl. calls) */
+#define LBR_SELECT_FAR_BRANCH		8	/* Far branches */
+
+#define LBR_KERNEL	BIT(LBR_SELECT_KERNEL)
+#define LBR_USER	BIT(LBR_SELECT_USER)
+#define LBR_JCC		BIT(LBR_SELECT_JCC)
+#define LBR_REL_CALL	BIT(LBR_SELECT_CALL_NEAR_REL)
+#define LBR_IND_CALL	BIT(LBR_SELECT_CALL_NEAR_IND)
+#define LBR_RETURN	BIT(LBR_SELECT_RET_NEAR)
+#define LBR_REL_JMP	BIT(LBR_SELECT_JMP_NEAR_REL)
+#define LBR_IND_JMP	BIT(LBR_SELECT_JMP_NEAR_IND)
+#define LBR_FAR		BIT(LBR_SELECT_FAR_BRANCH)
+#define LBR_NOT_SUPP	-1	/* unsupported filter */
+#define LBR_IGNORE	0
+
+#define LBR_ANY		\
+	(LBR_JCC | LBR_REL_CALL | LBR_IND_CALL | LBR_RETURN |	\
+	 LBR_REL_JMP | LBR_IND_JMP | LBR_FAR)
+
 struct branch_entry {
 	union {
 		struct {
@@ -97,11 +130,55 @@ void amd_pmu_lbr_read(void)
 	cpuc->lbr_stack.hw_idx = 0;
 }
 
+static const int lbr_select_map[PERF_SAMPLE_BRANCH_MAX_SHIFT] = {
+	[PERF_SAMPLE_BRANCH_USER_SHIFT]		= LBR_USER,
+	[PERF_SAMPLE_BRANCH_KERNEL_SHIFT]	= LBR_KERNEL,
+	[PERF_SAMPLE_BRANCH_HV_SHIFT]		= LBR_IGNORE,
+
+	[PERF_SAMPLE_BRANCH_ANY_SHIFT]		= LBR_ANY,
+	[PERF_SAMPLE_BRANCH_ANY_CALL_SHIFT]	= LBR_REL_CALL | LBR_IND_CALL,
+	[PERF_SAMPLE_BRANCH_ANY_RETURN_SHIFT]	= LBR_RETURN,
+	[PERF_SAMPLE_BRANCH_IND_CALL_SHIFT]	= LBR_IND_CALL,
+	[PERF_SAMPLE_BRANCH_ABORT_TX_SHIFT]	= LBR_NOT_SUPP,
+	[PERF_SAMPLE_BRANCH_IN_TX_SHIFT]	= LBR_NOT_SUPP,
+	[PERF_SAMPLE_BRANCH_NO_TX_SHIFT]	= LBR_NOT_SUPP,
+	[PERF_SAMPLE_BRANCH_COND_SHIFT]		= LBR_JCC,
+
+	[PERF_SAMPLE_BRANCH_CALL_STACK_SHIFT]	= LBR_NOT_SUPP,
+	[PERF_SAMPLE_BRANCH_IND_JUMP_SHIFT]	= LBR_IND_JMP,
+	[PERF_SAMPLE_BRANCH_CALL_SHIFT]		= LBR_REL_CALL,
+
+	[PERF_SAMPLE_BRANCH_NO_FLAGS_SHIFT]	= LBR_NOT_SUPP,
+	[PERF_SAMPLE_BRANCH_NO_CYCLES_SHIFT]	= LBR_NOT_SUPP,
+
+	[PERF_SAMPLE_BRANCH_TYPE_SAVE_SHIFT]	= LBR_NOT_SUPP,
+};
+
 static int amd_pmu_lbr_setup_filter(struct perf_event *event)
 {
+	struct hw_perf_event_extra *reg = &event->hw.branch_reg;
+	u64 br_type = event->attr.branch_sample_type;
+	u64 mask = 0, v;
+	int i;
+
 	/* No LBR support */
 	if (!x86_pmu.lbr_nr)
 		return -EOPNOTSUPP;
+
+	for (i = 0; i < PERF_SAMPLE_BRANCH_MAX_SHIFT; i++) {
+		if (!(br_type & BIT_ULL(i)))
+			continue;
+
+		v = lbr_select_map[i];
+		if (v == LBR_NOT_SUPP)
+			return -EOPNOTSUPP;
+
+		if (v != LBR_IGNORE)
+			mask |= v;
+	}
+
+	/* Filter bits operate in suppress mode */
+	reg->config = mask ^ LBR_SELECT_MASK;
 
 	return 0;
 }
@@ -137,6 +214,7 @@ void amd_pmu_lbr_reset(void)
 
 	cpuc->last_task_ctx = NULL;
 	cpuc->last_log_id = 0;
+	wrmsrl(MSR_AMD64_LBR_SELECT, 0);
 }
 
 void amd_pmu_lbr_add(struct perf_event *event)
@@ -145,6 +223,11 @@ void amd_pmu_lbr_add(struct perf_event *event)
 
 	if (!x86_pmu.lbr_nr)
 		return;
+
+	if (has_branch_stack(event)) {
+		cpuc->lbr_select = 1;
+		cpuc->lbr_sel->config = event->hw.branch_reg.config;
+	}
 
 	perf_sched_cb_inc(event->ctx->pmu);
 
@@ -158,6 +241,9 @@ void amd_pmu_lbr_del(struct perf_event *event)
 
 	if (!x86_pmu.lbr_nr)
 		return;
+
+	if (has_branch_stack(event))
+		cpuc->lbr_select = 0;
 
 	cpuc->lbr_users--;
 	WARN_ON_ONCE(cpuc->lbr_users < 0);
@@ -180,10 +266,16 @@ void amd_pmu_lbr_sched_task(struct perf_event_context *ctx, bool sched_in)
 void amd_pmu_lbr_enable_all(void)
 {
 	struct cpu_hw_events *cpuc = this_cpu_ptr(&cpu_hw_events);
-	u64 dbg_ctl, dbg_extn_cfg;
+	u64 lbr_select, dbg_ctl, dbg_extn_cfg;
 
 	if (!cpuc->lbr_users || !x86_pmu.lbr_nr)
 		return;
+
+	/* Set hardware branch filter */
+	if (cpuc->lbr_select) {
+		lbr_select = cpuc->lbr_sel->config & LBR_SELECT_MASK;
+		wrmsrl(MSR_AMD64_LBR_SELECT, lbr_select);
+	}
 
 	rdmsrl(MSR_IA32_DEBUGCTLMSR, dbg_ctl);
 	rdmsrl(MSR_AMD_DBG_EXTN_CFG, dbg_extn_cfg);

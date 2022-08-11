@@ -542,16 +542,24 @@ static int amd_pmu_cpu_prepare(int cpu)
 {
 	struct cpu_hw_events *cpuc = &per_cpu(cpu_hw_events, cpu);
 
+	cpuc->lbr_sel = kzalloc_node(sizeof(struct er_account), GFP_KERNEL,
+				     cpu_to_node(cpu));
+	if (!cpuc->lbr_sel)
+		return -ENOMEM;
+
 	WARN_ON_ONCE(cpuc->amd_nb);
 
 	if (!x86_pmu.amd_nb_constraints)
 		return 0;
 
 	cpuc->amd_nb = amd_alloc_nb(cpu);
-	if (!cpuc->amd_nb)
-		return -ENOMEM;
+	if (cpuc->amd_nb)
+		return 0;
 
-	return 0;
+	kfree(cpuc->lbr_sel);
+	cpuc->lbr_sel = NULL;
+
+	return -ENOMEM;
 }
 
 static void amd_pmu_cpu_starting(int cpu)
@@ -589,12 +597,13 @@ static void amd_pmu_cpu_starting(int cpu)
 
 static void amd_pmu_cpu_dead(int cpu)
 {
-	struct cpu_hw_events *cpuhw;
+	struct cpu_hw_events *cpuhw = &per_cpu(cpu_hw_events, cpu);
+
+	kfree(cpuhw->lbr_sel);
+	cpuhw->lbr_sel = NULL;
 
 	if (!x86_pmu.amd_nb_constraints)
 		return;
-
-	cpuhw = &per_cpu(cpu_hw_events, cpu);
 
 	if (cpuhw->amd_nb) {
 		struct amd_nb *nb = cpuhw->amd_nb;
