@@ -1233,6 +1233,14 @@ static inline bool fixed_counter_disabled(int i, struct pmu *pmu)
 int amd_pmu_init(void);
 
 int amd_pmu_lbr_init(void);
+void amd_pmu_lbr_reset(void);
+void amd_pmu_lbr_read(void);
+void amd_pmu_lbr_add(struct perf_event *event);
+void amd_pmu_lbr_del(struct perf_event *event);
+void amd_pmu_lbr_sched_task(struct perf_event_context *ctx, bool sched_in);
+void amd_pmu_lbr_enable_all(void);
+void amd_pmu_lbr_disable_all(void);
+int amd_pmu_lbr_hw_config(struct perf_event *event);
 
 #ifdef CONFIG_PERF_EVENTS_AMD_BRS
 
