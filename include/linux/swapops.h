@@ -301,13 +301,8 @@ static inline swp_entry_t make_writable_migration_entry(pgoff_t offset)
  */
 static inline bool migration_entry_supports_ad(void)
 {
-	/*
-	 * max_swapfile_size() returns the max supported swp-offset plus 1.
-	 * We can support the migration A/D bits iff the pfn swap entry has
-	 * the offset large enough to cover all of them (PFN, A & D bits).
-	 */
 #ifdef CONFIG_SWAP
-	return swapfile_maximum_size >= (1UL << SWP_MIG_TOTAL_BITS);
+	return swap_migration_ad_supported;
 #else  /* CONFIG_SWAP */
 	return false;
 #endif	/* CONFIG_SWAP */
