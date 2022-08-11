@@ -257,6 +257,19 @@ static int jh7110_cryp_hw_write_iv(struct jh7110_sec_ctx *ctx, u32 *iv)
 	return 0;
 }
 
+static void jh7110_cryp_hw_get_iv(struct jh7110_sec_ctx *ctx, u32 *iv)
+{
+	struct jh7110_sec_dev *sdev = ctx->sdev;
+
+	if (!iv)
+		return;
+
+	iv[0] = jh7110_sec_read(sdev, JH7110_AES_IV0);
+	iv[1] = jh7110_sec_read(sdev, JH7110_AES_IV1);
+	iv[2] = jh7110_sec_read(sdev, JH7110_AES_IV2);
+	iv[3] = jh7110_sec_read(sdev, JH7110_AES_IV3);
+}
+
 static void jh7110_cryp_hw_write_ctr(struct jh7110_sec_ctx *ctx, u32 *ctr)
 {
 	struct jh7110_sec_dev *sdev = ctx->sdev;
@@ -537,6 +550,9 @@ static int jh7110_cryp_finish_req(struct jh7110_sec_ctx *ctx, int err)
 		/* Phase 4 : output tag */
 		err = jh7110_cryp_read_auth_tag(ctx);
 	}
+
+	if (!err && (is_cbc(rctx) || is_ctr(rctx)))
+		jh7110_cryp_hw_get_iv(ctx, (void *)rctx->req.sreq->iv);
 
 	if (is_gcm(rctx) || is_ccm(rctx))
 		crypto_finalize_aead_request(ctx->sdev->engine, rctx->req.areq, err);
