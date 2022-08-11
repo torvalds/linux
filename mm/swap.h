@@ -18,9 +18,7 @@ static inline void swap_read_unplug(struct swap_iocb *plug)
 }
 void swap_write_unplug(struct swap_iocb *sio);
 int swap_writepage(struct page *page, struct writeback_control *wbc);
-void end_swap_bio_write(struct bio *bio);
-int __swap_writepage(struct page *page, struct writeback_control *wbc,
-		     bio_end_io_t end_write_func);
+int __swap_writepage(struct page *page, struct writeback_control *wbc);
 
 /* linux/mm/swap_state.c */
 /* One swap address space for each 64M swap space */
