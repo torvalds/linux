@@ -12,6 +12,7 @@
  */
 #include <linux/linkage.h>
 #include <asm/assembler.h>
+#include <asm/unwind.h>
                 .text
 
 #ifdef __ARMEB__
@@ -22,6 +23,7 @@
 
 		.macro	find_first, endian, set, name
 ENTRY(_find_first_\name\()bit_\endian)
+	UNWIND(	.fnstart)
 		teq	r1, #0
 		beq	3f
 		mov	r2, #0
@@ -41,11 +43,13 @@ ENTRY(_find_first_\name\()bit_\endian)
 		blo	1b
 3:		mov	r0, r1			@ no more bits
 		ret	lr
+	UNWIND(	.fnend)
 ENDPROC(_find_first_\name\()bit_\endian)
 		.endm
 
 		.macro	find_next, endian, set, name
 ENTRY(_find_next_\name\()bit_\endian)
+	UNWIND(	.fnstart)
 		cmp	r2, r1
 		bhs	3b
 		mov	ip, r2, lsr #5		@ word index
@@ -69,6 +73,7 @@ ENTRY(_find_next_\name\()bit_\endian)
 		orr	r2, r2, #31		@ no zero bits
 		add	r2, r2, #1		@ align bit pointer
 		b	2b			@ loop for next bit
+	UNWIND(	.fnend)
 ENDPROC(_find_next_\name\()bit_\endian)
 		.endm
 
@@ -97,6 +102,7 @@ ENDPROC(_find_next_\name\()bit_\endian)
  * One or more bits in the LSB of r3 are assumed to be set.
  */
 .L_found_swab:
+	UNWIND(	.fnstart)
 		rev_l	r3, ip
 .L_found:
 #if __LINUX_ARM_ARCH__ >= 7
@@ -130,4 +136,4 @@ ENDPROC(_find_next_\name\()bit_\endian)
 		cmp	r1, r0			@ Clamp to maxbit
 		movlo	r0, r1
 		ret	lr
-
+	UNWIND(	.fnend)
