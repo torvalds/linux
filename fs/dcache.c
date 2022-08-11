@@ -2248,10 +2248,16 @@ struct dentry *d_add_ci(struct dentry *dentry, struct inode *inode,
 }
 EXPORT_SYMBOL(d_add_ci);
 
-
-static inline bool d_same_name(const struct dentry *dentry,
-				const struct dentry *parent,
-				const struct qstr *name)
+/**
+ * d_same_name - compare dentry name with case-exact name
+ * @parent: parent dentry
+ * @dentry: the negative dentry that was passed to the parent's lookup func
+ * @name:   the case-exact name to be associated with the returned dentry
+ *
+ * Return: true if names are same, or false
+ */
+bool d_same_name(const struct dentry *dentry, const struct dentry *parent,
+		 const struct qstr *name)
 {
 	if (likely(!(parent->d_flags & DCACHE_OP_COMPARE))) {
 		if (dentry->d_name.len != name->len)
@@ -2262,6 +2268,7 @@ static inline bool d_same_name(const struct dentry *dentry,
 				       dentry->d_name.len, dentry->d_name.name,
 				       name) == 0;
 }
+EXPORT_SYMBOL_GPL(d_same_name);
 
 /**
  * __d_lookup_rcu - search for a dentry (racy, store-free)
