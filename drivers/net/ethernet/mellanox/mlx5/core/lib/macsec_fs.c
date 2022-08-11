@@ -95,6 +95,8 @@ struct mlx5_macsec_tx {
 	struct ida tx_halloc;
 
 	struct mlx5_macsec_tables tables;
+
+	struct mlx5_flow_table *ft_rdma_tx;
 };
 
 struct mlx5_macsec_rx_rule {
@@ -172,6 +174,9 @@ static void macsec_fs_tx_destroy(struct mlx5_macsec_fs *macsec_fs)
 {
 	struct mlx5_macsec_tx *tx_fs = macsec_fs->tx_fs;
 	struct mlx5_macsec_tables *tx_tables;
+
+	if (mlx5_is_macsec_roce_supported(macsec_fs->mdev))
+		mlx5_destroy_flow_table(tx_fs->ft_rdma_tx);
 
 	tx_tables = &tx_fs->tables;
 
@@ -298,6 +303,39 @@ static struct mlx5_flow_table
 	fdb = mlx5_create_auto_grouped_flow_table(ns, &ft_attr);
 
 	return fdb;
+}
+
+enum {
+	RDMA_TX_MACSEC_LEVEL = 0,
+};
+
+static int macsec_fs_tx_roce_create(struct mlx5_macsec_fs *macsec_fs)
+{
+	struct mlx5_macsec_tx *tx_fs = macsec_fs->tx_fs;
+	struct mlx5_core_dev *mdev = macsec_fs->mdev;
+	struct mlx5_flow_namespace *ns;
+	struct mlx5_flow_table *ft;
+	int err;
+
+	if (!mlx5_is_macsec_roce_supported(mdev)) {
+		mlx5_core_dbg(mdev, "Failed to init RoCE MACsec, capabilities not supported\n");
+		return 0;
+	}
+
+	ns = mlx5_get_flow_namespace(mdev, MLX5_FLOW_NAMESPACE_RDMA_TX_MACSEC);
+	if (!ns)
+		return -ENOMEM;
+
+	/* Tx RoCE crypto table  */
+	ft = macsec_fs_auto_group_table_create(ns, 0, RDMA_TX_MACSEC_LEVEL, CRYPTO_NUM_MAXSEC_FTE);
+	if (IS_ERR(ft)) {
+		err = PTR_ERR(ft);
+		mlx5_core_err(mdev, "Failed to create MACsec RoCE Tx crypto table err(%d)\n", err);
+		return err;
+	}
+	tx_fs->ft_rdma_tx = ft;
+
+	return 0;
 }
 
 static int macsec_fs_tx_create(struct mlx5_macsec_fs *macsec_fs)
@@ -442,7 +480,13 @@ static int macsec_fs_tx_create(struct mlx5_macsec_fs *macsec_fs)
 	}
 	tx_fs->check_rule = rule;
 
-	goto out_flow_group;
+	err = macsec_fs_tx_roce_create(macsec_fs);
+	if (err)
+		goto err;
+
+	kvfree(flow_group_in);
+	kvfree(spec);
+	return 0;
 
 err:
 	macsec_fs_tx_destroy(macsec_fs);
