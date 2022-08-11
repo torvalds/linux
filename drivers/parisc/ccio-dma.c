@@ -268,7 +268,7 @@ static int ioc_count;
 *   Each bit can represent a number of pages.
 *   LSbs represent lower addresses (IOVA's).
 *
-*   This was was copied from sba_iommu.c. Don't try to unify
+*   This was copied from sba_iommu.c. Don't try to unify
 *   the two resource managers unless a way to have different
 *   allocation policies is also adjusted. We'd like to avoid
 *   I/O TLB thrashing by having resource allocation policy
