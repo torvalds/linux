@@ -171,7 +171,7 @@ static int ftwdt010_wdt_probe(struct platform_device *pdev)
 	}
 
 	irq = platform_get_irq(pdev, 0);
-	if (irq) {
+	if (irq > 0) {
 		ret = devm_request_irq(dev, irq, ftwdt010_wdt_interrupt, 0,
 				       "watchdog bark", gwdt);
 		if (ret)
