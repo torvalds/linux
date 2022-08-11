@@ -56,6 +56,7 @@ menuconfig STAGING_MEDIA_DEPRECATED
 
 if STAGING_MEDIA_DEPRECATED
 source "drivers/staging/media/deprecated/cpia2/Kconfig"
+source "drivers/staging/media/deprecated/fsl-viu/Kconfig"
 source "drivers/staging/media/deprecated/meye/Kconfig"
 source "drivers/staging/media/deprecated/stkwebcam/Kconfig"
 source "drivers/staging/media/deprecated/tm6000/Kconfig"
