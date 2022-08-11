@@ -3462,7 +3462,7 @@ static void clk_core_reparent_orphans_nolock(void)
 
 		/*
 		 * We need to use __clk_set_parent_before() and _after() to
-		 * to properly migrate any prepare/enable count of the orphan
+		 * properly migrate any prepare/enable count of the orphan
 		 * clock. This is important for CLK_IS_CRITICAL clocks, which
 		 * are enabled during init but might not have a parent yet.
 		 */
