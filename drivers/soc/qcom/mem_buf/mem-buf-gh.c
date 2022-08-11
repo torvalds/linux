@@ -770,7 +770,7 @@ static int mem_buf_request_mem(struct mem_buf_desc *membuf)
 	if (ret < 0)
 		goto out;
 
-	ret = mem_buf_txn_wait(txn);
+	ret = mem_buf_txn_wait(mem_buf_msgq_hdl, txn);
 	if (ret < 0)
 		goto out;
 
@@ -808,7 +808,7 @@ static void __mem_buf_relinquish_mem(u32 obj_id, u32 memparcel_hdl)
 		pr_debug("%s: allocation relinquish message sent\n", __func__);
 
 	/* Wait for response */
-	mem_buf_txn_wait(txn);
+	mem_buf_txn_wait(mem_buf_msgq_hdl, txn);
 
 err_construct_relinquish_msg:
 	mem_buf_destroy_txn(mem_buf_msgq_hdl, txn);
