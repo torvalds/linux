@@ -32,55 +32,6 @@ config VIDEO_DAVINCI_VPIF_CAPTURE
 	  To compile this driver as a module, choose M here. There will
 	  be two modules called vpif.ko and vpif_capture.ko
 
-config VIDEO_DM6446_CCDC
-	tristate "TI DM6446 CCDC video capture driver"
-	depends on V4L_PLATFORM_DRIVERS
-	depends on VIDEO_DEV
-	depends on ARCH_DAVINCI || COMPILE_TEST
-	depends on I2C
-	select VIDEOBUF_DMA_CONTIG
-	help
-	   Enables DaVinci CCD hw module. DaVinci CCDC hw interfaces
-	   with decoder modules such as TVP5146 over BT656 or
-	   sensor module such as MT9T001 over a raw interface. This
-	   module configures the interface and CCDC/ISIF to do
-	   video frame capture from slave decoders.
-
-	   To compile this driver as a module, choose M here. There will
-	   be three modules called vpfe_capture.ko, vpss.ko and dm644x_ccdc.ko
-
-config VIDEO_DM355_CCDC
-	tristate "TI DM355 CCDC video capture driver"
-	depends on V4L_PLATFORM_DRIVERS
-	depends on VIDEO_DEV
-	depends on ARCH_DAVINCI || COMPILE_TEST
-	depends on I2C
-	select VIDEOBUF_DMA_CONTIG
-	help
-	   Enables DM355 CCD hw module. DM355 CCDC hw interfaces
-	   with decoder modules such as TVP5146 over BT656 or
-	   sensor module such as MT9T001 over a raw interface. This
-	   module configures the interface and CCDC/ISIF to do
-	   video frame capture from a slave decoders
-
-	   To compile this driver as a module, choose M here. There will
-	   be three modules called vpfe_capture.ko, vpss.ko and dm355_ccdc.ko
-
-config VIDEO_DM365_ISIF
-	tristate "TI DM365 ISIF video capture driver"
-	depends on V4L_PLATFORM_DRIVERS
-	depends on VIDEO_DEV
-	depends on ARCH_DAVINCI || COMPILE_TEST
-	depends on I2C
-	select VIDEOBUF_DMA_CONTIG
-	help
-	   Enables ISIF hw module. This is the hardware module for
-	   configuring ISIF in VPFE to capture Raw Bayer RGB data from
-	   a image sensor or YUV data from a YUV source.
-
-	   To compile this driver as a module, choose M here. There will
-	   be three modules called vpfe_capture.ko, vpss.ko and isif.ko
-
 config VIDEO_DAVINCI_VPBE_DISPLAY
 	tristate "TI DaVinci VPBE V4L2-Display driver"
 	depends on V4L_PLATFORM_DRIVERS

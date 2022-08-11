@@ -24,7 +24,7 @@
 #include <linux/err.h>
 #include <linux/module.h>
 
-#include <media/davinci/dm644x_ccdc.h>
+#include "dm644x_ccdc.h"
 #include <media/davinci/vpss.h>
 
 #include "dm644x_ccdc_regs.h"

@@ -22,7 +22,7 @@
 #include <linux/err.h>
 #include <linux/module.h>
 
-#include <media/davinci/isif.h>
+#include "isif.h"
 #include <media/davinci/vpss.h>
 
 #include "isif_regs.h"

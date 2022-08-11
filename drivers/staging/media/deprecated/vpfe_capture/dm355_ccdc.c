@@ -22,7 +22,7 @@
 #include <linux/err.h>
 #include <linux/module.h>
 
-#include <media/davinci/dm355_ccdc.h>
+#include "dm355_ccdc.h"
 #include <media/davinci/vpss.h>
 
 #include "dm355_ccdc_regs.h"
