@@ -307,7 +307,7 @@ static inline bool migration_entry_supports_ad(void)
 	 * the offset large enough to cover all of them (PFN, A & D bits).
 	 */
 #ifdef CONFIG_SWAP
-	return max_swapfile_size() >= (1UL << SWP_MIG_TOTAL_BITS);
+	return swapfile_maximum_size >= (1UL << SWP_MIG_TOTAL_BITS);
 #else  /* CONFIG_SWAP */
 	return false;
 #endif	/* CONFIG_SWAP */
