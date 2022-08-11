@@ -487,6 +487,29 @@ include::itrace.txt[]
 	For itrace only show specified functions and their callees for
 	itrace. Multiple functions can be separated by comma.
 
+--guestmount=<path>::
+	Guest OS root file system mount directory. Users mount guest OS
+	root directories under <path> by a specific filesystem access method,
+	typically, sshfs.
+	For example, start 2 guest OS, one's pid is 8888 and the other's is 9999:
+[verse]
+	$ mkdir \~/guestmount
+	$ cd \~/guestmount
+	$ sshfs -o allow_other,direct_io -p 5551 localhost:/ 8888/
+	$ sshfs -o allow_other,direct_io -p 5552 localhost:/ 9999/
+	$ perf script --guestmount=~/guestmount
+
+--guestkallsyms=<path>::
+	Guest OS /proc/kallsyms file copy. perf reads it to get guest
+	kernel symbols. Users copy it out from guest OS.
+
+--guestmodules=<path>::
+	Guest OS /proc/modules file copy. perf reads it to get guest
+	kernel module information. Users copy it out from guest OS.
+
+--guestvmlinux=<path>::
+	Guest OS kernel vmlinux.
+
 --switch-on EVENT_NAME::
 	Only consider events after this event is found.
 
