@@ -102,6 +102,18 @@ include::itrace.txt[]
 	should be used, and also --buildid-all and --switch-events may be
 	useful.
 
+--guestmount=<path>::
+	Guest OS root file system mount directory. Users mount guest OS
+	root directories under <path> by a specific filesystem access method,
+	typically, sshfs.
+	For example, start 2 guest OS, one's pid is 8888 and the other's is 9999:
+[verse]
+	$ mkdir \~/guestmount
+	$ cd \~/guestmount
+	$ sshfs -o allow_other,direct_io -p 5551 localhost:/ 8888/
+	$ sshfs -o allow_other,direct_io -p 5552 localhost:/ 9999/
+	$ perf inject --guestmount=~/guestmount
+
 SEE ALSO
 --------
 linkperf:perf-record[1], linkperf:perf-report[1], linkperf:perf-archive[1],
