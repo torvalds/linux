@@ -7,12 +7,12 @@ config NET_VENDOR_WANGXUN
 	bool "Wangxun devices"
 	default y
 	help
-	  If you have a network (Ethernet) card belonging to this class, say Y.
+	  If you have a network (Ethernet) card from Wangxun(R), say Y.
 
 	  Note that the answer to this question doesn't directly affect the
 	  kernel: saying N will just cause the configurator to skip all
-	  the questions about Intel cards. If you say Y, you will be asked for
-	  your specific card in the following questions.
+	  the questions about Wangxun(R) cards. If you say Y, you will
+	  be asked for your specific card in the following questions.
 
 if NET_VENDOR_WANGXUN
 
