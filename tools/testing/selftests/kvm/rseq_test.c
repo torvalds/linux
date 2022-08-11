@@ -20,15 +20,7 @@
 #include "processor.h"
 #include "test_util.h"
 
-static __thread volatile struct rseq __rseq = {
-	.cpu_id = RSEQ_CPU_ID_UNINITIALIZED,
-};
-
-/*
- * Use an arbitrary, bogus signature for configuring rseq, this test does not
- * actually enter an rseq critical section.
- */
-#define RSEQ_SIG 0xdeadbeef
+#include "../rseq/rseq.c"
 
 /*
  * Any bug related to task migration is likely to be timing-dependent; perform
@@ -49,12 +41,16 @@ static void guest_code(void)
 		GUEST_SYNC(0);
 }
 
-static void sys_rseq(int flags)
+/*
+ * We have to perform direct system call for getcpu() because it's
+ * not available until glic 2.29.
+ */
+static void sys_getcpu(unsigned *cpu)
 {
 	int r;
 
-	r = syscall(__NR_rseq, &__rseq, sizeof(__rseq), flags, RSEQ_SIG);
-	TEST_ASSERT(!r, "rseq failed, errno = %d (%s)", errno, strerror(errno));
+	r = syscall(__NR_getcpu, cpu, NULL, NULL);
+	TEST_ASSERT(!r, "getcpu failed, errno = %d (%s)", errno, strerror(errno));
 }
 
 static int next_cpu(int cpu)
@@ -101,7 +97,7 @@ static void *migration_worker(void *__rseq_tid)
 		atomic_inc(&seq_cnt);
 
 		/*
-		 * Ensure the odd count is visible while sched_getcpu() isn't
+		 * Ensure the odd count is visible while getcpu() isn't
 		 * stable, i.e. while changing affinity is in-progress.
 		 */
 		smp_wmb();
@@ -142,10 +138,10 @@ static void *migration_worker(void *__rseq_tid)
 		 *     check completes.
 		 *
 		 *  3. To ensure the read-side makes efficient forward progress,
-		 *     e.g. if sched_getcpu() involves a syscall.  Stalling the
-		 *     read-side means the test will spend more time waiting for
-		 *     sched_getcpu() to stabilize and less time trying to hit
-		 *     the timing-dependent bug.
+		 *     e.g. if getcpu() involves a syscall. Stalling the read-side
+		 *     means the test will spend more time waiting for getcpu()
+		 *     to stabilize and less time trying to hit the timing-dependent
+		 *     bug.
 		 *
 		 * Because any bug in this area is likely to be timing-dependent,
 		 * run with a range of delays at 1us intervals from 1us to 10us
@@ -218,7 +214,9 @@ int main(int argc, char *argv[])
 
 	calc_min_max_cpu();
 
-	sys_rseq(0);
+	r = rseq_register_current_thread();
+	TEST_ASSERT(!r, "rseq_register_current_thread failed, errno = %d (%s)",
+		    errno, strerror(errno));
 
 	/*
 	 * Create and run a dummy VM that immediately exits to userspace via
@@ -238,9 +236,9 @@ int main(int argc, char *argv[])
 
 		/*
 		 * Verify rseq's CPU matches sched's CPU.  Ensure migration
-		 * doesn't occur between sched_getcpu() and reading the rseq
-		 * cpu_id by rereading both if the sequence count changes, or
-		 * if the count is odd (migration in-progress).
+		 * doesn't occur between getcpu() and reading the rseq cpu_id
+		 * by rereading both if the sequence count changes, or if the
+		 * count is odd (migration in-progress).
 		 */
 		do {
 			/*
@@ -250,13 +248,13 @@ int main(int argc, char *argv[])
 			snapshot = atomic_read(&seq_cnt) & ~1;
 
 			/*
-			 * Ensure reading sched_getcpu() and rseq.cpu_id
-			 * complete in a single "no migration" window, i.e. are
-			 * not reordered across the seq_cnt reads.
+			 * Ensure calling getcpu() and reading rseq.cpu_id complete
+			 * in a single "no migration" window, i.e. are not reordered
+			 * across the seq_cnt reads.
 			 */
 			smp_rmb();
-			cpu = sched_getcpu();
-			rseq_cpu = READ_ONCE(__rseq.cpu_id);
+			sys_getcpu(&cpu);
+			rseq_cpu = rseq_current_cpu_raw();
 			smp_rmb();
 		} while (snapshot != atomic_read(&seq_cnt));
 
@@ -267,9 +265,9 @@ int main(int argc, char *argv[])
 	/*
 	 * Sanity check that the test was able to enter the guest a reasonable
 	 * number of times, e.g. didn't get stalled too often/long waiting for
-	 * sched_getcpu() to stabilize.  A 2:1 migration:KVM_RUN ratio is a
-	 * fairly conservative ratio on x86-64, which can do _more_ KVM_RUNs
-	 * than migrations given the 1us+ delay in the migration task.
+	 * getcpu() to stabilize.  A 2:1 migration:KVM_RUN ratio is a fairly
+	 * conservative ratio on x86-64, which can do _more_ KVM_RUNs than
+	 * migrations given the 1us+ delay in the migration task.
 	 */
 	TEST_ASSERT(i > (NR_TASK_MIGRATIONS / 2),
 		    "Only performed %d KVM_RUNs, task stalled too much?\n", i);
@@ -278,7 +276,7 @@ int main(int argc, char *argv[])
 
 	kvm_vm_free(vm);
 
-	sys_rseq(RSEQ_FLAG_UNREGISTER);
+	rseq_unregister_current_thread();
 
 	return 0;
 }

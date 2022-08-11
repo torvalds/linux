@@ -8262,15 +8262,15 @@ dump related UV data. Also the vcpu ioctl `KVM_S390_PV_CPU_COMMAND` is
 available and supports the `KVM_PV_DUMP_CPU` subcommand.
 
 8.38 KVM_CAP_VM_DISABLE_NX_HUGE_PAGES
----------------------------
+-------------------------------------
 
-:Capability KVM_CAP_VM_DISABLE_NX_HUGE_PAGES
+:Capability: KVM_CAP_VM_DISABLE_NX_HUGE_PAGES
 :Architectures: x86
 :Type: vm
 :Parameters: arg[0] must be 0.
-:Returns 0 on success, -EPERM if the userspace process does not
-	 have CAP_SYS_BOOT, -EINVAL if args[0] is not 0 or any vCPUs have been
-	 created.
+:Returns: 0 on success, -EPERM if the userspace process does not
+          have CAP_SYS_BOOT, -EINVAL if args[0] is not 0 or any vCPUs have been
+          created.
 
 This capability disables the NX huge pages mitigation for iTLB MULTIHIT.
 
