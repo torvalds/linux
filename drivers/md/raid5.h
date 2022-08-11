@@ -809,8 +809,18 @@ sector_t raid5_compute_blocknr(struct stripe_head *sh, int i, int previous);
 void raid5_release_stripe(struct stripe_head *sh);
 sector_t raid5_compute_sector(struct r5conf *conf, sector_t r_sector,
 		int previous, int *dd_idx, struct stripe_head *sh);
+
+struct stripe_request_ctx;
+/* get stripe from previous generation (when reshaping) */
+#define R5_GAS_PREVIOUS		(1 << 0)
+/* do not block waiting for a free stripe */
+#define R5_GAS_NOBLOCK		(1 << 1)
+/* do not block waiting for quiesce to be released */
+#define R5_GAS_NOQUIESCE	(1 << 2)
 struct stripe_head *raid5_get_active_stripe(struct r5conf *conf,
-		sector_t sector, bool previous, bool noblock, bool noquiesce);
+		struct stripe_request_ctx *ctx, sector_t sector,
+		unsigned int flags);
+
 int raid5_calc_degraded(struct r5conf *conf);
 int r5c_journal_mode_set(struct mddev *mddev, int journal_mode);
 #endif
