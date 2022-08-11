@@ -1659,7 +1659,9 @@ static int shmem_replace_page(struct page **pagep, gfp_t gfp,
 		new = page_folio(newpage);
 		mem_cgroup_migrate(old, new);
 		__inc_lruvec_page_state(newpage, NR_FILE_PAGES);
+		__inc_lruvec_page_state(newpage, NR_SHMEM);
 		__dec_lruvec_page_state(oldpage, NR_FILE_PAGES);
+		__dec_lruvec_page_state(oldpage, NR_SHMEM);
 	}
 	xa_unlock_irq(&swap_mapping->i_pages);
 
