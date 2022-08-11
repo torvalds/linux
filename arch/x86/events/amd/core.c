@@ -330,16 +330,8 @@ static inline bool amd_is_pair_event_code(struct hw_perf_event *hwc)
 	}
 }
 
-#define AMD_FAM19H_BRS_EVENT 0xc4 /* RETIRED_TAKEN_BRANCH_INSTRUCTIONS */
-static inline int amd_is_brs_event(struct perf_event *e)
-{
-	return (e->hw.config & AMD64_RAW_EVENT_MASK) == AMD_FAM19H_BRS_EVENT;
-}
-
 static int amd_core_hw_config(struct perf_event *event)
 {
-	int ret = 0;
-
 	if (event->attr.exclude_host && event->attr.exclude_guest)
 		/*
 		 * When HO == GO == 1 the hardware treats that as GO == HO == 0
@@ -356,66 +348,10 @@ static int amd_core_hw_config(struct perf_event *event)
 	if ((x86_pmu.flags & PMU_FL_PAIR) && amd_is_pair_event_code(&event->hw))
 		event->hw.flags |= PERF_X86_EVENT_PAIR;
 
-	/*
-	 * if branch stack is requested
-	 */
-	if (has_branch_stack(event)) {
-		/*
-		 * Due to interrupt holding, BRS is not recommended in
-		 * counting mode.
-		 */
-		if (!is_sampling_event(event))
-			return -EINVAL;
+	if (has_branch_stack(event))
+		return amd_brs_hw_config(event);
 
-		/*
-		 * Due to the way BRS operates by holding the interrupt until
-		 * lbr_nr entries have been captured, it does not make sense
-		 * to allow sampling on BRS with an event that does not match
-		 * what BRS is capturing, i.e., retired taken branches.
-		 * Otherwise the correlation with the event's period is even
-		 * more loose:
-		 *
-		 * With retired taken branch:
-		 *   Effective P = P + 16 + X
-		 * With any other event:
-		 *   Effective P = P + Y + X
-		 *
-		 * Where X is the number of taken branches due to interrupt
-		 * skid. Skid is large.
-		 *
-		 * Where Y is the occurences of the event while BRS is
-		 * capturing the lbr_nr entries.
-		 *
-		 * By using retired taken branches, we limit the impact on the
-		 * Y variable. We know it cannot be more than the depth of
-		 * BRS.
-		 */
-		if (!amd_is_brs_event(event))
-			return -EINVAL;
-
-		/*
-		 * BRS implementation does not work with frequency mode
-		 * reprogramming of the period.
-		 */
-		if (event->attr.freq)
-			return -EINVAL;
-		/*
-		 * The kernel subtracts BRS depth from period, so it must
-		 * be big enough.
-		 */
-		if (event->attr.sample_period <= x86_pmu.lbr_nr)
-			return -EINVAL;
-
-		/*
-		 * Check if we can allow PERF_SAMPLE_BRANCH_STACK
-		 */
-		ret = amd_brs_setup_filter(event);
-
-		/* only set in case of success */
-		if (!ret)
-			event->hw.flags |= PERF_X86_EVENT_AMD_BRS;
-	}
-	return ret;
+	return 0;
 }
 
 static inline int amd_is_nb_event(struct hw_perf_event *hwc)

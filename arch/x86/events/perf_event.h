@@ -1233,6 +1233,9 @@ static inline bool fixed_counter_disabled(int i, struct pmu *pmu)
 int amd_pmu_init(void);
 
 #ifdef CONFIG_PERF_EVENTS_AMD_BRS
+
+#define AMD_FAM19H_BRS_EVENT 0xc4 /* RETIRED_TAKEN_BRANCH_INSTRUCTIONS */
+
 int amd_brs_init(void);
 void amd_brs_disable(void);
 void amd_brs_enable(void);
@@ -1241,7 +1244,7 @@ void amd_brs_disable_all(void);
 void amd_brs_drain(void);
 void amd_brs_lopwr_init(void);
 void amd_brs_disable_all(void);
-int amd_brs_setup_filter(struct perf_event *event);
+int amd_brs_hw_config(struct perf_event *event);
 void amd_brs_reset(void);
 
 static inline void amd_pmu_brs_add(struct perf_event *event)
@@ -1277,7 +1280,7 @@ static inline void amd_brs_enable(void) {}
 static inline void amd_brs_drain(void) {}
 static inline void amd_brs_lopwr_init(void) {}
 static inline void amd_brs_disable_all(void) {}
-static inline int amd_brs_setup_filter(struct perf_event *event)
+static inline int amd_brs_hw_config(struct perf_event *event)
 {
 	return 0;
 }
