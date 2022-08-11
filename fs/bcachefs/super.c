@@ -893,6 +893,12 @@ int bch2_fs_start(struct bch_fs *c)
 		bch2_dev_allocator_add(c, ca);
 	bch2_recalc_capacity(c);
 
+	for (i = 0; i < BCH_TRANSACTIONS_NR; i++) {
+		mutex_lock(&c->btree_transaction_stats[i].lock);
+		bch2_time_stats_init(&c->btree_transaction_stats[i].lock_hold_times);
+		mutex_unlock(&c->btree_transaction_stats[i].lock);
+	}
+
 	ret = BCH_SB_INITIALIZED(c->disk_sb.sb)
 		? bch2_fs_recovery(c)
 		: bch2_fs_initialize(c);

@@ -24,6 +24,7 @@
 #include <linux/sched/clock.h>
 
 #include "eytzinger.h"
+#include "mean_and_variance.h"
 #include "util.h"
 
 static const char si_units[] = "?kMGTPEZY";
@@ -323,38 +324,39 @@ static void bch2_time_stats_update_one(struct bch2_time_stats *stats,
 {
 	u64 duration, freq;
 
-	duration	= time_after64(end, start)
-		? end - start : 0;
-	freq		= time_after64(end, stats->last_event)
-		? end - stats->last_event : 0;
+	if (time_after64(end, start)) {
+		duration = end - start;
+		stats->duration_stats = mean_and_variance_update(stats->duration_stats, duration);
+		mean_and_variance_weighted_update(&stats->duration_stats_weighted, duration);
+		stats->max_duration = max(stats->max_duration, duration);
+		stats->min_duration = min(stats->min_duration, duration);
+		bch2_quantiles_update(&stats->quantiles, duration);
+	}
 
-	stats->count++;
-
-	stats->average_duration = stats->average_duration
-		? ewma_add(stats->average_duration, duration, 6)
-		: duration;
-
-	stats->average_frequency = stats->average_frequency
-		? ewma_add(stats->average_frequency, freq, 6)
-		: freq;
-
-	stats->max_duration = max(stats->max_duration, duration);
-
-	stats->last_event = end;
-
-	bch2_quantiles_update(&stats->quantiles, duration);
+	if (time_after64(end, stats->last_event)) {
+		freq = end - stats->last_event;
+		stats->freq_stats = mean_and_variance_update(stats->freq_stats, freq);
+		mean_and_variance_weighted_update(&stats->freq_stats_weighted, freq);
+		stats->max_freq = max(stats->max_freq, freq);
+		stats->min_freq = min(stats->min_freq, freq);
+		stats->last_event = end;
+	}
 }
 
 void __bch2_time_stats_update(struct bch2_time_stats *stats, u64 start, u64 end)
 {
 	unsigned long flags;
 
+	WARN_RATELIMIT(!stats->min_duration || !stats->min_freq,
+		       "time_stats: min_duration = %llu, min_freq = %llu",
+		       stats->min_duration, stats->min_freq);
+
 	if (!stats->buffer) {
 		spin_lock_irqsave(&stats->lock, flags);
 		bch2_time_stats_update_one(stats, start, end);
 
-		if (stats->average_frequency < 32 &&
-		    stats->count > 1024)
+		if (mean_and_variance_weighted_get_mean(stats->freq_stats_weighted) < 32 &&
+		    stats->duration_stats.n > 1024)
 			stats->buffer =
 				alloc_percpu_gfp(struct bch2_time_stat_buffer,
 						 GFP_ATOMIC);
@@ -390,12 +392,15 @@ void __bch2_time_stats_update(struct bch2_time_stats *stats, u64 start, u64 end)
 
 static const struct time_unit {
 	const char	*name;
-	u32		nsecs;
+	u64		nsecs;
 } time_units[] = {
-	{ "ns",		1		},
-	{ "us",		NSEC_PER_USEC	},
-	{ "ms",		NSEC_PER_MSEC	},
-	{ "sec",	NSEC_PER_SEC	},
+	{ "ns",		1		 },
+	{ "us",		NSEC_PER_USEC	 },
+	{ "ms",		NSEC_PER_MSEC	 },
+	{ "s",		NSEC_PER_SEC	 },
+	{ "m",          NSEC_PER_SEC * 60},
+	{ "h",          NSEC_PER_SEC * 3600},
+	{ "eon",        U64_MAX          },
 };
 
 static const struct time_unit *pick_time_units(u64 ns)
@@ -418,35 +423,121 @@ void bch2_pr_time_units(struct printbuf *out, u64 ns)
 	prt_printf(out, "%llu %s", div_u64(ns, u->nsecs), u->name);
 }
 
+static void bch2_pr_time_units_aligned(struct printbuf *out, u64 ns)
+{
+	const struct time_unit *u = pick_time_units(ns);
+
+	prt_printf(out, "%llu ", div64_u64(ns, u->nsecs));
+	prt_tab_rjust(out);
+	prt_printf(out, "%s", u->name);
+}
+
+#define TABSTOP_SIZE 12
+
+static inline void pr_name_and_units(struct printbuf *out, const char *name, u64 ns)
+{
+	prt_printf(out, name);
+	prt_tab(out);
+	bch2_pr_time_units_aligned(out, ns);
+	prt_newline(out);
+}
+
 void bch2_time_stats_to_text(struct printbuf *out, struct bch2_time_stats *stats)
 {
 	const struct time_unit *u;
-	u64 freq = READ_ONCE(stats->average_frequency);
-	u64 q, last_q = 0;
+	s64 f_mean = 0, d_mean = 0;
+	u64 q, last_q = 0, f_stddev = 0, d_stddev = 0;
 	int i;
+	/*
+	 * avoid divide by zero
+	 */
+	if (stats->freq_stats.n) {
+		f_mean = mean_and_variance_get_mean(stats->freq_stats);
+		f_stddev = mean_and_variance_get_stddev(stats->freq_stats);
+		d_mean = mean_and_variance_get_mean(stats->duration_stats);
+		d_stddev = mean_and_variance_get_stddev(stats->duration_stats);
+	}
 
-	prt_printf(out, "count:\t\t%llu",
-			 stats->count);
-	prt_newline(out);
-	prt_printf(out, "rate:\t\t%llu/sec",
-	       freq ?  div64_u64(NSEC_PER_SEC, freq) : 0);
+	printbuf_tabstop_push(out, out->indent + TABSTOP_SIZE);
+	prt_printf(out, "count:");
+	prt_tab(out);
+	prt_printf(out, "%llu ",
+			 stats->duration_stats.n);
+	printbuf_tabstop_pop(out);
 	prt_newline(out);
 
-	prt_printf(out, "frequency:\t");
-	bch2_pr_time_units(out, freq);
+	printbuf_tabstops_reset(out);
 
-	prt_newline(out);
-	prt_printf(out, "avg duration:\t");
-	bch2_pr_time_units(out, stats->average_duration);
+	printbuf_tabstop_push(out, out->indent + 20);
+	printbuf_tabstop_push(out, TABSTOP_SIZE + 2);
+	printbuf_tabstop_push(out, 0);
+	printbuf_tabstop_push(out, TABSTOP_SIZE + 2);
 
+	prt_tab(out);
+	prt_printf(out, "since mount");
+	prt_tab_rjust(out);
+	prt_tab(out);
+	prt_printf(out, "recent");
+	prt_tab_rjust(out);
 	prt_newline(out);
-	prt_printf(out, "max duration:\t");
-	bch2_pr_time_units(out, stats->max_duration);
+
+	printbuf_tabstops_reset(out);
+	printbuf_tabstop_push(out, out->indent + 20);
+	printbuf_tabstop_push(out, TABSTOP_SIZE);
+	printbuf_tabstop_push(out, 2);
+	printbuf_tabstop_push(out, TABSTOP_SIZE);
+
+	prt_printf(out, "duration of events");
+	prt_newline(out);
+	printbuf_indent_add(out, 2);
+
+	pr_name_and_units(out, "min:", stats->min_duration);
+	pr_name_and_units(out, "max:", stats->max_duration);
+
+	prt_printf(out, "mean:");
+	prt_tab(out);
+	bch2_pr_time_units_aligned(out, d_mean);
+	prt_tab(out);
+	bch2_pr_time_units_aligned(out, mean_and_variance_weighted_get_mean(stats->duration_stats_weighted));
+	prt_newline(out);
+
+	prt_printf(out, "stddev:");
+	prt_tab(out);
+	bch2_pr_time_units_aligned(out, d_stddev);
+	prt_tab(out);
+	bch2_pr_time_units_aligned(out, mean_and_variance_weighted_get_stddev(stats->duration_stats_weighted));
+
+	printbuf_indent_sub(out, 2);
+	prt_newline(out);
+
+	prt_printf(out, "time between events");
+	prt_newline(out);
+	printbuf_indent_add(out, 2);
+
+	pr_name_and_units(out, "min:", stats->min_freq);
+	pr_name_and_units(out, "max:", stats->max_freq);
+
+	prt_printf(out, "mean:");
+	prt_tab(out);
+	bch2_pr_time_units_aligned(out, f_mean);
+	prt_tab(out);
+	bch2_pr_time_units_aligned(out, mean_and_variance_weighted_get_mean(stats->freq_stats_weighted));
+	prt_newline(out);
+
+	prt_printf(out, "stddev:");
+	prt_tab(out);
+	bch2_pr_time_units_aligned(out, f_stddev);
+	prt_tab(out);
+	bch2_pr_time_units_aligned(out, mean_and_variance_weighted_get_stddev(stats->freq_stats_weighted));
+
+	printbuf_indent_sub(out, 2);
+	prt_newline(out);
+
+	printbuf_tabstops_reset(out);
 
 	i = eytzinger0_first(NR_QUANTILES);
 	u = pick_time_units(stats->quantiles.entries[i].m);
 
-	prt_newline(out);
 	prt_printf(out, "quantiles (%s):\t", u->name);
 	eytzinger0_for_each(i, NR_QUANTILES) {
 		bool is_last = eytzinger0_next(i, NR_QUANTILES) == -1;
@@ -468,6 +559,10 @@ void bch2_time_stats_exit(struct bch2_time_stats *stats)
 void bch2_time_stats_init(struct bch2_time_stats *stats)
 {
 	memset(stats, 0, sizeof(*stats));
+	stats->duration_stats_weighted.weight = 8;
+	stats->freq_stats_weighted.weight = 8;
+	stats->min_duration = U64_MAX;
+	stats->min_freq = U64_MAX;
 	spin_lock_init(&stats->lock);
 }
 
