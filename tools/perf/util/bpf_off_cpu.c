@@ -17,6 +17,7 @@
 #include "bpf_skel/off_cpu.skel.h"
 
 #define MAX_STACKS  32
+#define MAX_PROC  4096
 /* we don't need actual timestamp, just want to put the samples at last */
 #define OFF_CPU_TIMESTAMP  (~0ull << 32)
 
@@ -164,10 +165,16 @@ int off_cpu_prepare(struct evlist *evlist, struct target *target,
 
 			ntasks++;
 		}
+
+		if (ntasks < MAX_PROC)
+			ntasks = MAX_PROC;
+
 		bpf_map__set_max_entries(skel->maps.task_filter, ntasks);
 	} else if (target__has_task(target)) {
 		ntasks = perf_thread_map__nr(evlist->core.threads);
 		bpf_map__set_max_entries(skel->maps.task_filter, ntasks);
+	} else if (target__none(target)) {
+		bpf_map__set_max_entries(skel->maps.task_filter, MAX_PROC);
 	}
 
 	if (evlist__first(evlist)->cgrp) {
