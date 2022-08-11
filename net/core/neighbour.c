@@ -316,9 +316,18 @@ static void pneigh_queue_purge(struct sk_buff_head *list, struct net *net)
 	skb = skb_peek(list);
 	while (skb != NULL) {
 		struct sk_buff *skb_next = skb_peek_next(skb, list);
-		if (net == NULL || net_eq(dev_net(skb->dev), net)) {
+		struct net_device *dev = skb->dev;
+		if (net == NULL || net_eq(dev_net(dev), net)) {
+			struct in_device *in_dev;
+
+			rcu_read_lock();
+			in_dev = __in_dev_get_rcu(dev);
+			if (in_dev)
+				in_dev->arp_parms->qlen--;
+			rcu_read_unlock();
 			__skb_unlink(skb, list);
-			dev_put(skb->dev);
+
+			dev_put(dev);
 			kfree_skb(skb);
 		}
 		skb = skb_next;
@@ -1606,8 +1615,15 @@ static void neigh_proxy_process(struct timer_list *t)
 
 		if (tdif <= 0) {
 			struct net_device *dev = skb->dev;
+			struct in_device *in_dev;
 
+			rcu_read_lock();
+			in_dev = __in_dev_get_rcu(dev);
+			if (in_dev)
+				in_dev->arp_parms->qlen--;
+			rcu_read_unlock();
 			__skb_unlink(skb, &tbl->proxy_queue);
+
 			if (tbl->proxy_redo && netif_running(dev)) {
 				rcu_read_lock();
 				tbl->proxy_redo(skb);
@@ -1632,7 +1648,7 @@ void pneigh_enqueue(struct neigh_table *tbl, struct neigh_parms *p,
 	unsigned long sched_next = jiffies +
 			prandom_u32_max(NEIGH_VAR(p, PROXY_DELAY));
 
-	if (tbl->proxy_queue.qlen > NEIGH_VAR(p, PROXY_QLEN)) {
+	if (p->qlen > NEIGH_VAR(p, PROXY_QLEN)) {
 		kfree_skb(skb);
 		return;
 	}
@@ -1648,6 +1664,7 @@ void pneigh_enqueue(struct neigh_table *tbl, struct neigh_parms *p,
 	skb_dst_drop(skb);
 	dev_hold(skb->dev);
 	__skb_queue_tail(&tbl->proxy_queue, skb);
+	p->qlen++;
 	mod_timer(&tbl->proxy_timer, sched_next);
 	spin_unlock(&tbl->proxy_queue.lock);
 }
@@ -1680,6 +1697,7 @@ struct neigh_parms *neigh_parms_alloc(struct net_device *dev,
 		refcount_set(&p->refcnt, 1);
 		p->reachable_time =
 				neigh_rand_reach_time(NEIGH_VAR(p, BASE_REACHABLE_TIME));
+		p->qlen = 0;
 		netdev_hold(dev, &p->dev_tracker, GFP_KERNEL);
 		p->dev = dev;
 		write_pnet(&p->net, net);
@@ -1745,6 +1763,7 @@ void neigh_table_init(int index, struct neigh_table *tbl)
 	refcount_set(&tbl->parms.refcnt, 1);
 	tbl->parms.reachable_time =
 			  neigh_rand_reach_time(NEIGH_VAR(&tbl->parms, BASE_REACHABLE_TIME));
+	tbl->parms.qlen = 0;
 
 	tbl->stats = alloc_percpu(struct neigh_statistics);
 	if (!tbl->stats)
