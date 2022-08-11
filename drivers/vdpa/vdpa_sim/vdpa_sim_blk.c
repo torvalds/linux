@@ -25,6 +25,7 @@
 #define DRV_LICENSE  "GPL v2"
 
 #define VDPASIM_BLK_FEATURES	(VDPASIM_FEATURES | \
+				 (1ULL << VIRTIO_BLK_F_FLUSH)    | \
 				 (1ULL << VIRTIO_BLK_F_SIZE_MAX) | \
 				 (1ULL << VIRTIO_BLK_F_SEG_MAX)  | \
 				 (1ULL << VIRTIO_BLK_F_BLK_SIZE) | \
@@ -186,6 +187,10 @@ static bool vdpasim_blk_handle_req(struct vdpasim *vdpasim,
 		}
 
 		pushed += bytes;
+		break;
+
+	case VIRTIO_BLK_T_FLUSH:
+		/* nothing to do */
 		break;
 
 	default:
