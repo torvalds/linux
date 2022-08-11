@@ -3555,6 +3555,121 @@ ice_aq_set_port_id_led(struct ice_port_info *pi, bool is_orig_mode,
 }
 
 /**
+ * ice_aq_get_port_options
+ * @hw: pointer to the HW struct
+ * @options: buffer for the resultant port options
+ * @option_count: input - size of the buffer in port options structures,
+ *                output - number of returned port options
+ * @lport: logical port to call the command with (optional)
+ * @lport_valid: when false, FW uses port owned by the PF instead of lport,
+ *               when PF owns more than 1 port it must be true
+ * @active_option_idx: index of active port option in returned buffer
+ * @active_option_valid: active option in returned buffer is valid
+ * @pending_option_idx: index of pending port option in returned buffer
+ * @pending_option_valid: pending option in returned buffer is valid
+ *
+ * Calls Get Port Options AQC (0x06ea) and verifies result.
+ */
+int
+ice_aq_get_port_options(struct ice_hw *hw,
+			struct ice_aqc_get_port_options_elem *options,
+			u8 *option_count, u8 lport, bool lport_valid,
+			u8 *active_option_idx, bool *active_option_valid,
+			u8 *pending_option_idx, bool *pending_option_valid)
+{
+	struct ice_aqc_get_port_options *cmd;
+	struct ice_aq_desc desc;
+	int status;
+	u8 i;
+
+	/* options buffer shall be able to hold max returned options */
+	if (*option_count < ICE_AQC_PORT_OPT_COUNT_M)
+		return -EINVAL;
+
+	cmd = &desc.params.get_port_options;
+	ice_fill_dflt_direct_cmd_desc(&desc, ice_aqc_opc_get_port_options);
+
+	if (lport_valid)
+		cmd->lport_num = lport;
+	cmd->lport_num_valid = lport_valid;
+
+	status = ice_aq_send_cmd(hw, &desc, options,
+				 *option_count * sizeof(*options), NULL);
+	if (status)
+		return status;
+
+	/* verify direct FW response & set output parameters */
+	*option_count = FIELD_GET(ICE_AQC_PORT_OPT_COUNT_M,
+				  cmd->port_options_count);
+	ice_debug(hw, ICE_DBG_PHY, "options: %x\n", *option_count);
+	*active_option_valid = FIELD_GET(ICE_AQC_PORT_OPT_VALID,
+					 cmd->port_options);
+	if (*active_option_valid) {
+		*active_option_idx = FIELD_GET(ICE_AQC_PORT_OPT_ACTIVE_M,
+					       cmd->port_options);
+		if (*active_option_idx > (*option_count - 1))
+			return -EIO;
+		ice_debug(hw, ICE_DBG_PHY, "active idx: %x\n",
+			  *active_option_idx);
+	}
+
+	*pending_option_valid = FIELD_GET(ICE_AQC_PENDING_PORT_OPT_VALID,
+					  cmd->pending_port_option_status);
+	if (*pending_option_valid) {
+		*pending_option_idx = FIELD_GET(ICE_AQC_PENDING_PORT_OPT_IDX_M,
+						cmd->pending_port_option_status);
+		if (*pending_option_idx > (*option_count - 1))
+			return -EIO;
+		ice_debug(hw, ICE_DBG_PHY, "pending idx: %x\n",
+			  *pending_option_idx);
+	}
+
+	/* mask output options fields */
+	for (i = 0; i < *option_count; i++) {
+		options[i].pmd = FIELD_GET(ICE_AQC_PORT_OPT_PMD_COUNT_M,
+					   options[i].pmd);
+		options[i].max_lane_speed = FIELD_GET(ICE_AQC_PORT_OPT_MAX_LANE_M,
+						      options[i].max_lane_speed);
+		ice_debug(hw, ICE_DBG_PHY, "pmds: %x max speed: %x\n",
+			  options[i].pmd, options[i].max_lane_speed);
+	}
+
+	return 0;
+}
+
+/**
+ * ice_aq_set_port_option
+ * @hw: pointer to the HW struct
+ * @lport: logical port to call the command with
+ * @lport_valid: when false, FW uses port owned by the PF instead of lport,
+ *               when PF owns more than 1 port it must be true
+ * @new_option: new port option to be written
+ *
+ * Calls Set Port Options AQC (0x06eb).
+ */
+int
+ice_aq_set_port_option(struct ice_hw *hw, u8 lport, u8 lport_valid,
+		       u8 new_option)
+{
+	struct ice_aqc_set_port_option *cmd;
+	struct ice_aq_desc desc;
+
+	if (new_option > ICE_AQC_PORT_OPT_COUNT_M)
+		return -EINVAL;
+
+	cmd = &desc.params.set_port_option;
+	ice_fill_dflt_direct_cmd_desc(&desc, ice_aqc_opc_set_port_option);
+
+	if (lport_valid)
+		cmd->lport_num = lport;
+
+	cmd->lport_num_valid = lport_valid;
+	cmd->selected_port_option = new_option;
+
+	return ice_aq_send_cmd(hw, &desc, NULL, 0, NULL);
+}
+
+/**
  * ice_aq_sff_eeprom
  * @hw: pointer to the HW struct
  * @lport: bits [7:0] = logical port, bit [8] = logical port valid
