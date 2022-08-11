@@ -12,7 +12,6 @@ obj-y += s2255/
 obj-y += siano/
 obj-y += ttusb-budget/
 obj-y += ttusb-dec/
-obj-y += zr364xx/
 
 # Please keep it alphabetically sorted by Kconfig name
 # (e. g. LC_ALL=C sort Makefile)

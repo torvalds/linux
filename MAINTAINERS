@@ -21218,7 +21218,7 @@ S:	Maintained
 W:	http://royale.zerezo.com/zr364xx/
 T:	git git://linuxtv.org/media_tree.git
 F:	Documentation/admin-guide/media/zr364xx*
-F:	drivers/media/usb/zr364xx/
+F:	drivers/staging/media/deprecated/zr364xx/
 
 USER-MODE LINUX (UML)
 M:	Richard Weinberger <richard@nod.at>
