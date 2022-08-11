@@ -40,6 +40,7 @@
 
 #include <linux/string_helpers.h>
 
+#include <drm/drm_blend.h>
 #include <drm/drm_fourcc.h>
 
 #include "i915_drv.h"
@@ -813,8 +814,8 @@ static void intel_fbc_program_cfb(struct intel_fbc *fbc)
 
 static void intel_fbc_program_workarounds(struct intel_fbc *fbc)
 {
-	/* Wa_22014263786:icl,jsl,tgl,dg1,rkl,adls,dg2,adlp */
-	if (DISPLAY_VER(fbc->i915) >= 11)
+	/* Wa_22014263786:icl,jsl,tgl,dg1,rkl,adls,adlp */
+	if (DISPLAY_VER(fbc->i915) >= 11 && !IS_DG2(fbc->i915))
 		intel_de_rmw(fbc->i915, ILK_DPFC_CHICKEN(fbc->id), 0,
 			     DPFC_CHICKEN_FORCE_SLB_INVALIDATION);
 }

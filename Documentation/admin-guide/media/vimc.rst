@@ -53,6 +53,25 @@ vimc-sensor:
 
 	* 1 Pad source
 
+vimc-lens:
+	Ancillary lens for a sensor. Supports auto focus control. Linked to
+	a vimc-sensor using an ancillary link. The lens supports FOCUS_ABSOLUTE
+	control.
+
+.. code-block:: bash
+
+	media-ctl -p
+	...
+	- entity 28: Lens A (0 pad, 0 link)
+			type V4L2 subdev subtype Lens flags 0
+			device node name /dev/v4l-subdev6
+	- entity 29: Lens B (0 pad, 0 link)
+			type V4L2 subdev subtype Lens flags 0
+			device node name /dev/v4l-subdev7
+	v4l2-ctl -d /dev/v4l-subdev7 -C focus_absolute
+	focus_absolute: 0
+
+
 vimc-debayer:
 	Transforms images in bayer format into a non-bayer format.
 	Exposes:

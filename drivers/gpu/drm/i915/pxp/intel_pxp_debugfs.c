@@ -9,9 +9,10 @@
 #include <drm/drm_print.h>
 
 #include "gt/intel_gt_debugfs.h"
-#include "pxp/intel_pxp.h"
-#include "pxp/intel_pxp_irq.h"
 #include "i915_drv.h"
+#include "intel_pxp.h"
+#include "intel_pxp_debugfs.h"
+#include "intel_pxp_irq.h"
 
 static int pxp_info_show(struct seq_file *m, void *data)
 {

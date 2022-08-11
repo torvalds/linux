@@ -14,7 +14,7 @@ struct imon {
 	struct device *dev;
 	struct urb *ir_urb;
 	struct rc_dev *rcdev;
-	__be64 ir_buf;
+	__be64 *ir_buf;
 	char phys[64];
 };
 
@@ -29,7 +29,7 @@ struct imon {
 static void imon_ir_data(struct imon *imon)
 {
 	struct ir_raw_event rawir = {};
-	u64 data = be64_to_cpu(imon->ir_buf);
+	u64 data = be64_to_cpup(imon->ir_buf);
 	u8 packet_no = data & 0xff;
 	int offset = 40;
 	int bit;
@@ -37,7 +37,7 @@ static void imon_ir_data(struct imon *imon)
 	if (packet_no == 0xff)
 		return;
 
-	dev_dbg(imon->dev, "data: %*ph", 8, &imon->ir_buf);
+	dev_dbg(imon->dev, "data: %*ph", 8, imon->ir_buf);
 
 	/*
 	 * Only the first 5 bytes contain IR data. Right shift so we move
@@ -137,10 +137,16 @@ static int imon_probe(struct usb_interface *intf,
 	if (!imon->ir_urb)
 		return -ENOMEM;
 
+	imon->ir_buf = kmalloc(sizeof(__be64), GFP_KERNEL);
+	if (!imon->ir_buf) {
+		ret = -ENOMEM;
+		goto free_urb;
+	}
+
 	imon->dev = &intf->dev;
 	usb_fill_int_urb(imon->ir_urb, udev,
 			 usb_rcvintpipe(udev, ir_ep->bEndpointAddress),
-			 &imon->ir_buf, sizeof(imon->ir_buf),
+			 imon->ir_buf, sizeof(__be64),
 			 imon_ir_rx, imon, ir_ep->bInterval);
 
 	rcdev = devm_rc_allocate_device(&intf->dev, RC_DRIVER_IR_RAW);
@@ -177,6 +183,7 @@ static int imon_probe(struct usb_interface *intf,
 
 free_urb:
 	usb_free_urb(imon->ir_urb);
+	kfree(imon->ir_buf);
 	return ret;
 }
 
@@ -186,6 +193,7 @@ static void imon_disconnect(struct usb_interface *intf)
 
 	usb_kill_urb(imon->ir_urb);
 	usb_free_urb(imon->ir_urb);
+	kfree(imon->ir_buf);
 }
 
 static const struct usb_device_id imon_table[] = {

@@ -34,6 +34,7 @@
 #define VIVID_CID_U8_4D_ARRAY		(VIVID_CID_CUSTOM_BASE + 10)
 #define VIVID_CID_AREA			(VIVID_CID_CUSTOM_BASE + 11)
 #define VIVID_CID_RO_INTEGER		(VIVID_CID_CUSTOM_BASE + 12)
+#define VIVID_CID_U32_DYN_ARRAY		(VIVID_CID_CUSTOM_BASE + 13)
 
 #define VIVID_CID_VIVID_BASE		(0x00f00000 | 0xf000)
 #define VIVID_CID_VIVID_CLASS		(0x00f00000 | 1)
@@ -46,6 +47,7 @@
 #define VIVID_CID_INSERT_SAV		(VIVID_CID_VIVID_BASE + 6)
 #define VIVID_CID_INSERT_EAV		(VIVID_CID_VIVID_BASE + 7)
 #define VIVID_CID_VBI_CAP_INTERLACED	(VIVID_CID_VIVID_BASE + 8)
+#define VIVID_CID_INSERT_HDMI_VIDEO_GUARD_BAND (VIVID_CID_VIVID_BASE + 9)
 
 #define VIVID_CID_HFLIP			(VIVID_CID_VIVID_BASE + 20)
 #define VIVID_CID_VFLIP			(VIVID_CID_VIVID_BASE + 21)
@@ -187,6 +189,19 @@ static const struct v4l2_ctrl_config vivid_ctrl_u32_array = {
 	.max = 0x20000,
 	.step = 1,
 	.dims = { 1 },
+};
+
+static const struct v4l2_ctrl_config vivid_ctrl_u32_dyn_array = {
+	.ops = &vivid_user_gen_ctrl_ops,
+	.id = VIVID_CID_U32_DYN_ARRAY,
+	.name = "U32 Dynamic Array",
+	.type = V4L2_CTRL_TYPE_U32,
+	.flags = V4L2_CTRL_FLAG_DYNAMIC_ARRAY,
+	.def = 50,
+	.min = 10,
+	.max = 90,
+	.step = 1,
+	.dims = { 100 },
 };
 
 static const struct v4l2_ctrl_config vivid_ctrl_u16_matrix = {
@@ -474,6 +489,9 @@ static int vivid_vid_cap_s_ctrl(struct v4l2_ctrl *ctrl)
 	case VIVID_CID_INSERT_EAV:
 		tpg_s_insert_eav(&dev->tpg, ctrl->val);
 		break;
+	case VIVID_CID_INSERT_HDMI_VIDEO_GUARD_BAND:
+		tpg_s_insert_hdmi_video_guard_band(&dev->tpg, ctrl->val);
+		break;
 	case VIVID_CID_HFLIP:
 		dev->sensor_hflip = ctrl->val;
 		tpg_s_hflip(&dev->tpg, dev->sensor_hflip ^ dev->hflip);
@@ -655,6 +673,15 @@ static const struct v4l2_ctrl_config vivid_ctrl_insert_eav = {
 	.ops = &vivid_vid_cap_ctrl_ops,
 	.id = VIVID_CID_INSERT_EAV,
 	.name = "Insert EAV Code in Image",
+	.type = V4L2_CTRL_TYPE_BOOLEAN,
+	.max = 1,
+	.step = 1,
+};
+
+static const struct v4l2_ctrl_config vivid_ctrl_insert_hdmi_video_guard_band = {
+	.ops = &vivid_vid_cap_ctrl_ops,
+	.id = VIVID_CID_INSERT_HDMI_VIDEO_GUARD_BAND,
+	.name = "Insert Video Guard Band",
 	.type = V4L2_CTRL_TYPE_BOOLEAN,
 	.max = 1,
 	.step = 1,
@@ -1612,6 +1639,7 @@ int vivid_create_controls(struct vivid_dev *dev, bool show_ccs_cap,
 	dev->ro_int32 = v4l2_ctrl_new_custom(hdl_user_gen, &vivid_ctrl_ro_int32, NULL);
 	v4l2_ctrl_new_custom(hdl_user_gen, &vivid_ctrl_area, NULL);
 	v4l2_ctrl_new_custom(hdl_user_gen, &vivid_ctrl_u32_array, NULL);
+	v4l2_ctrl_new_custom(hdl_user_gen, &vivid_ctrl_u32_dyn_array, NULL);
 	v4l2_ctrl_new_custom(hdl_user_gen, &vivid_ctrl_u16_matrix, NULL);
 	v4l2_ctrl_new_custom(hdl_user_gen, &vivid_ctrl_u8_4d_array, NULL);
 
@@ -1638,6 +1666,7 @@ int vivid_create_controls(struct vivid_dev *dev, bool show_ccs_cap,
 		v4l2_ctrl_new_custom(hdl_vid_cap, &vivid_ctrl_vflip, NULL);
 		v4l2_ctrl_new_custom(hdl_vid_cap, &vivid_ctrl_insert_sav, NULL);
 		v4l2_ctrl_new_custom(hdl_vid_cap, &vivid_ctrl_insert_eav, NULL);
+		v4l2_ctrl_new_custom(hdl_vid_cap, &vivid_ctrl_insert_hdmi_video_guard_band, NULL);
 		v4l2_ctrl_new_custom(hdl_vid_cap, &vivid_ctrl_reduced_fps, NULL);
 		if (show_ccs_cap) {
 			dev->ctrl_has_crop_cap = v4l2_ctrl_new_custom(hdl_vid_cap,

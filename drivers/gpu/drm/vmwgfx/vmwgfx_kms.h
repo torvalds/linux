@@ -29,6 +29,7 @@
 #define VMWGFX_KMS_H_
 
 #include <drm/drm_encoder.h>
+#include <drm/drm_framebuffer.h>
 #include <drm/drm_probe_helper.h>
 
 #include "vmwgfx_drv.h"

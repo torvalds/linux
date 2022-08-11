@@ -109,6 +109,8 @@ struct intel_uc_fw {
 	u32 ucode_size;
 
 	u32 private_data_size;
+
+	bool loaded_via_gsc;
 };
 
 #ifdef CONFIG_DRM_I915_DEBUG_GUC
