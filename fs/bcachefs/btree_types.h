@@ -390,6 +390,7 @@ struct btree_trans {
 	struct task_struct	*task;
 	int			srcu_idx;
 
+	u8			fn_idx;
 	u8			nr_sorted;
 	u8			nr_updates;
 	bool			used_mempool:1;
@@ -431,7 +432,6 @@ struct btree_trans {
 	unsigned		journal_u64s;
 	unsigned		journal_preres_u64s;
 	struct replicas_delta_list *fs_usage_deltas;
-	int                      lock_name_idx;
 };
 
 #define BTREE_FLAGS()							\

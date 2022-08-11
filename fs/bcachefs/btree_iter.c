@@ -3252,6 +3252,22 @@ static void bch2_trans_alloc_paths(struct btree_trans *trans, struct bch_fs *c)
 	trans->updates		= p; p += updates_bytes;
 }
 
+static inline unsigned bch2_trans_get_fn_idx(struct btree_trans *trans, struct bch_fs *c,
+					const char *fn)
+{
+	unsigned i;
+
+	for (i = 0; i < ARRAY_SIZE(c->btree_transaction_fns); i++)
+		if (!c->btree_transaction_fns[i] ||
+		    c->btree_transaction_fns[i] == fn) {
+			c->btree_transaction_fns[i] = fn;
+			return i;
+		}
+
+	pr_warn_once("BCH_TRANSACTIONS_NR not big enough!");
+	return i;
+}
+
 void __bch2_trans_init(struct btree_trans *trans, struct bch_fs *c,
 		       unsigned expected_nr_iters,
 		       size_t expected_mem_bytes,
@@ -3262,18 +3278,10 @@ void __bch2_trans_init(struct btree_trans *trans, struct bch_fs *c,
 	trans->c		= c;
 	trans->fn		= fn;
 	trans->last_begin_time	= ktime_get_ns();
+	trans->fn_idx		= bch2_trans_get_fn_idx(trans, c, fn);
 	trans->task		= current;
 	trans->journal_replay_not_finished =
 		!test_bit(JOURNAL_REPLAY_DONE, &c->journal.flags);
-
-	while (c->lock_held_stats.names[trans->lock_name_idx] != fn
-	       && c->lock_held_stats.names[trans->lock_name_idx] != 0)
-		trans->lock_name_idx++;
-
-	if (trans->lock_name_idx >= BCH_LOCK_TIME_NR)
-		pr_warn_once("lock_times array not big enough!");
-	else
-		c->lock_held_stats.names[trans->lock_name_idx] = fn;
 
 	bch2_trans_alloc_paths(trans, c);
 
@@ -3446,6 +3454,13 @@ void bch2_btree_trans_to_text(struct printbuf *out, struct btree_trans *trans)
 
 void bch2_fs_btree_iter_exit(struct bch_fs *c)
 {
+	struct btree_transaction_stats *s;
+
+	for (s = c->btree_transaction_stats;
+	     s < c->btree_transaction_stats + ARRAY_SIZE(c->btree_transaction_stats);
+	     s++)
+		bch2_time_stats_exit(&s->lock_hold_times);
+
 	if (c->btree_trans_barrier_initialized)
 		cleanup_srcu_struct(&c->btree_trans_barrier);
 	mempool_exit(&c->btree_trans_mem_pool);
@@ -3454,8 +3469,14 @@ void bch2_fs_btree_iter_exit(struct bch_fs *c)
 
 int bch2_fs_btree_iter_init(struct bch_fs *c)
 {
+	struct btree_transaction_stats *s;
 	unsigned nr = BTREE_ITER_MAX;
 	int ret;
+
+	for (s = c->btree_transaction_stats;
+	     s < c->btree_transaction_stats + ARRAY_SIZE(c->btree_transaction_stats);
+	     s++)
+		bch2_time_stats_init(&s->lock_hold_times);
 
 	INIT_LIST_HEAD(&c->btree_trans_list);
 	mutex_init(&c->btree_trans_lock);

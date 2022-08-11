@@ -112,6 +112,26 @@ btree_lock_want(struct btree_path *path, int level)
 	return BTREE_NODE_UNLOCKED;
 }
 
+static inline struct btree_transaction_stats *btree_trans_stats(struct btree_trans *trans)
+{
+	return trans->fn_idx < ARRAY_SIZE(trans->c->btree_transaction_stats)
+		? &trans->c->btree_transaction_stats[trans->fn_idx]
+		: NULL;
+}
+
+static void btree_trans_lock_hold_time_update(struct btree_trans *trans,
+					      struct btree_path *path, unsigned level)
+{
+#ifdef CONFIG_BCACHEFS_LOCK_TIME_STATS
+	struct btree_transaction_stats *s = btree_trans_stats(trans);
+
+	if (s)
+		__bch2_time_stats_update(&s->lock_hold_times,
+					 path->l[level].lock_taken_time,
+					 ktime_get_ns());
+#endif
+}
+
 static inline void btree_node_unlock(struct btree_trans *trans,
 				     struct btree_path *path, unsigned level)
 {
@@ -121,15 +141,7 @@ static inline void btree_node_unlock(struct btree_trans *trans,
 
 	if (lock_type != BTREE_NODE_UNLOCKED) {
 		six_unlock_type(&path->l[level].b->c.lock, lock_type);
-#ifdef CONFIG_BCACHEFS_LOCK_TIME_STATS
-		if (trans->lock_name_idx < BCH_LOCK_TIME_NR) {
-			struct bch_fs *c = trans->c;
-
-			__bch2_time_stats_update(&c->lock_held_stats.times[trans->lock_name_idx],
-					       path->l[level].lock_taken_time,
-						 ktime_get_ns());
-		}
-#endif
+		btree_trans_lock_hold_time_update(trans, path, level);
 	}
 	mark_btree_node_unlocked(path, level);
 }

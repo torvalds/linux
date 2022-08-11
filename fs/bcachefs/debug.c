@@ -653,14 +653,17 @@ static ssize_t lock_held_stats_read(struct file *file, char __user *buf,
 				      size_t size, loff_t *ppos)
 {
 	struct dump_iter        *i = file->private_data;
-	struct lock_held_stats *lhs = &i->c->lock_held_stats;
+	struct bch_fs *c = i->c;
 	int err;
 
 	i->ubuf = buf;
 	i->size = size;
 	i->ret  = 0;
 
-	while (lhs->names[i->iter] != 0 && i->iter < BCH_LOCK_TIME_NR) {
+	while (i->iter < ARRAY_SIZE(c->btree_transaction_fns) &&
+	       c->btree_transaction_fns[i->iter]) {
+		struct btree_transaction_stats *s = &c->btree_transaction_stats[i->iter];
+
 		err = flush_buf(i);
 		if (err)
 			return err;
@@ -668,11 +671,11 @@ static ssize_t lock_held_stats_read(struct file *file, char __user *buf,
 		if (!i->size)
 			break;
 
-		prt_printf(&i->buf, "%s:", lhs->names[i->iter]);
+		prt_printf(&i->buf, "%s: ", c->btree_transaction_fns[i->iter]);
 		prt_newline(&i->buf);
-		printbuf_indent_add(&i->buf, 8);
-		bch2_time_stats_to_text(&i->buf, &lhs->times[i->iter]);
-		printbuf_indent_sub(&i->buf, 8);
+		printbuf_indent_add(&i->buf, 2);
+		bch2_time_stats_to_text(&i->buf, &s->lock_hold_times);
+		printbuf_indent_sub(&i->buf, 2);
 		prt_newline(&i->buf);
 		i->iter++;
 	}
@@ -721,7 +724,7 @@ void bch2_fs_debug_init(struct bch_fs *c)
 			    c->btree_debug, &journal_pins_ops);
 
 	if (IS_ENABLED(CONFIG_BCACHEFS_LOCK_TIME_STATS)) {
-		debugfs_create_file("lock_held_stats", 0400, c->fs_debug_dir,
+		debugfs_create_file("btree_transaction_stats", 0400, c->fs_debug_dir,
 				c, &lock_held_stats_op);
 	}
 
