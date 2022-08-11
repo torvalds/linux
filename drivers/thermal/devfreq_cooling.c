@@ -28,6 +28,7 @@
  * struct devfreq_cooling_device - Devfreq cooling device
  *		devfreq_cooling_device registered.
  * @cdev:	Pointer to associated thermal cooling device.
+ * @cooling_ops: devfreq callbacks to thermal cooling device ops
  * @devfreq:	Pointer to associated devfreq device.
  * @cooling_state:	Current cooling state.
  * @freq_table:	Pointer to a table with the frequencies sorted in descending
@@ -48,6 +49,7 @@
  */
 struct devfreq_cooling_device {
 	struct thermal_cooling_device *cdev;
+	struct thermal_cooling_device_ops cooling_ops;
 	struct devfreq *devfreq;
 	unsigned long cooling_state;
 	u32 *freq_table;
@@ -301,12 +303,6 @@ static int devfreq_cooling_power2state(struct thermal_cooling_device *cdev,
 	return 0;
 }
 
-static struct thermal_cooling_device_ops devfreq_cooling_ops = {
-	.get_max_state = devfreq_cooling_get_max_state,
-	.get_cur_state = devfreq_cooling_get_cur_state,
-	.set_cur_state = devfreq_cooling_set_cur_state,
-};
-
 /**
  * devfreq_cooling_gen_tables() - Generate frequency table.
  * @dfc:	Pointer to devfreq cooling device.
@@ -374,17 +370,17 @@ of_devfreq_cooling_register_power(struct device_node *np, struct devfreq *df,
 	char *name;
 	int err, num_opps;
 
-	ops = kmemdup(&devfreq_cooling_ops, sizeof(*ops), GFP_KERNEL);
-	if (!ops)
-		return ERR_PTR(-ENOMEM);
 
 	dfc = kzalloc(sizeof(*dfc), GFP_KERNEL);
-	if (!dfc) {
-		err = -ENOMEM;
-		goto free_ops;
-	}
+	if (!dfc)
+		return ERR_PTR(-ENOMEM);
 
 	dfc->devfreq = df;
+
+	ops = &dfc->cooling_ops;
+	ops->get_max_state = devfreq_cooling_get_max_state;
+	ops->get_cur_state = devfreq_cooling_get_cur_state;
+	ops->set_cur_state = devfreq_cooling_set_cur_state;
 
 	em = em_pd_get(dev);
 	if (em && !em_is_artificial(em)) {
@@ -448,8 +444,6 @@ free_table:
 	kfree(dfc->freq_table);
 free_dfc:
 	kfree(dfc);
-free_ops:
-	kfree(ops);
 
 	return ERR_PTR(err);
 }
@@ -531,13 +525,11 @@ EXPORT_SYMBOL_GPL(devfreq_cooling_em_register);
 void devfreq_cooling_unregister(struct thermal_cooling_device *cdev)
 {
 	struct devfreq_cooling_device *dfc;
-	const struct thermal_cooling_device_ops *ops;
 	struct device *dev;
 
 	if (IS_ERR_OR_NULL(cdev))
 		return;
 
-	ops = cdev->ops;
 	dfc = cdev->devdata;
 	dev = dfc->devfreq->dev.parent;
 
@@ -548,6 +540,5 @@ void devfreq_cooling_unregister(struct thermal_cooling_device *cdev)
 
 	kfree(dfc->freq_table);
 	kfree(dfc);
-	kfree(ops);
 }
 EXPORT_SYMBOL_GPL(devfreq_cooling_unregister);
