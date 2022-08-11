@@ -2016,11 +2016,7 @@ inline struct bkey_s_c bch2_btree_path_peek_slot(struct btree_path *path, struct
 		EBUG_ON(ck &&
 			(path->btree_id != ck->key.btree_id ||
 			 bkey_cmp(path->pos, ck->key.pos)));
-
-		/* BTREE_ITER_CACHED_NOFILL|BTREE_ITER_CACHED_NOCREATE? */
-		if (unlikely(!ck || !ck->valid))
-			return bkey_s_c_null;
-
+		EBUG_ON(!ck || !ck->valid);
 		EBUG_ON(path->uptodate != BTREE_ITER_UPTODATE);
 
 		*u = ck->k->k;

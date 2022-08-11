@@ -372,11 +372,6 @@ int bch2_btree_path_traverse_cached(struct btree_trans *trans, struct btree_path
 retry:
 	ck = bch2_btree_key_cache_find(c, path->btree_id, path->pos);
 	if (!ck) {
-		if (flags & BTREE_ITER_CACHED_NOCREATE) {
-			path->l[0].b = NULL;
-			return 0;
-		}
-
 		ck = btree_key_cache_create(c, path->btree_id, path->pos);
 		ret = PTR_ERR_OR_ZERO(ck);
 		if (ret)
@@ -412,7 +407,7 @@ retry:
 	path->l[0].lock_seq	= ck->c.lock.state.seq;
 	path->l[0].b		= (void *) ck;
 fill:
-	if (!ck->valid && !(flags & BTREE_ITER_CACHED_NOFILL)) {
+	if (!ck->valid) {
 		/*
 		 * Using the underscore version because we haven't set
 		 * path->uptodate yet:
@@ -433,6 +428,7 @@ fill:
 		set_bit(BKEY_CACHED_ACCESSED, &ck->flags);
 
 	path->uptodate = BTREE_ITER_UPTODATE;
+	BUG_ON(!ck->valid);
 	BUG_ON(btree_node_locked_type(path, 0) != btree_lock_want(path, 0));
 
 	return ret;
@@ -462,8 +458,6 @@ static int btree_key_cache_flush_pos(struct btree_trans *trans,
 			     BTREE_ITER_ALL_SNAPSHOTS);
 	bch2_trans_iter_init(trans, &c_iter, key.btree_id, key.pos,
 			     BTREE_ITER_CACHED|
-			     BTREE_ITER_CACHED_NOFILL|
-			     BTREE_ITER_CACHED_NOCREATE|
 			     BTREE_ITER_INTENT);
 	b_iter.flags &= ~BTREE_ITER_WITH_KEY_CACHE;
 

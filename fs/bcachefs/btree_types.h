@@ -199,15 +199,13 @@ struct btree_node_iter {
 #define BTREE_ITER_IS_EXTENTS		(1 << 4)
 #define BTREE_ITER_NOT_EXTENTS		(1 << 5)
 #define BTREE_ITER_CACHED		(1 << 6)
-#define BTREE_ITER_CACHED_NOFILL	(1 << 7)
-#define BTREE_ITER_CACHED_NOCREATE	(1 << 8)
-#define BTREE_ITER_WITH_KEY_CACHE	(1 << 9)
-#define BTREE_ITER_WITH_UPDATES		(1 << 10)
-#define BTREE_ITER_WITH_JOURNAL		(1 << 11)
-#define __BTREE_ITER_ALL_SNAPSHOTS	(1 << 12)
-#define BTREE_ITER_ALL_SNAPSHOTS	(1 << 13)
-#define BTREE_ITER_FILTER_SNAPSHOTS	(1 << 14)
-#define BTREE_ITER_NOPRESERVE		(1 << 15)
+#define BTREE_ITER_WITH_KEY_CACHE	(1 << 7)
+#define BTREE_ITER_WITH_UPDATES		(1 << 8)
+#define BTREE_ITER_WITH_JOURNAL		(1 << 9)
+#define __BTREE_ITER_ALL_SNAPSHOTS	(1 << 10)
+#define BTREE_ITER_ALL_SNAPSHOTS	(1 << 11)
+#define BTREE_ITER_FILTER_SNAPSHOTS	(1 << 12)
+#define BTREE_ITER_NOPRESERVE		(1 << 13)
 
 enum btree_path_uptodate {
 	BTREE_ITER_UPTODATE		= 0,
