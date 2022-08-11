@@ -106,7 +106,9 @@ int io_uring_cmd(struct io_kiocb *req, unsigned int issue_flags)
 	}
 
 	if (ret != -EIOCBQUEUED) {
-		io_uring_cmd_done(ioucmd, ret, 0);
+		if (ret < 0)
+			req_set_fail(req);
+		io_req_set_res(req, ret, 0);
 		return IOU_OK;
 	}
 
