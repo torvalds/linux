@@ -668,8 +668,11 @@ static struct slave *rlb_arp_xmit(struct sk_buff *skb, struct bonding *bond)
 
 	dev = ip_dev_find(dev_net(bond->dev), arp->ip_src);
 	if (dev) {
-		if (netif_is_bridge_master(dev))
+		if (netif_is_bridge_master(dev)) {
+			dev_put(dev);
 			return NULL;
+		}
+		dev_put(dev);
 	}
 
 	if (arp->op_code == htons(ARPOP_REPLY)) {
