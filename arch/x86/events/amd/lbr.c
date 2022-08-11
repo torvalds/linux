@@ -146,12 +146,19 @@ static void amd_pmu_lbr_filter(void)
 	}
 }
 
+static const int lbr_spec_map[PERF_BR_SPEC_MAX] = {
+	PERF_BR_SPEC_NA,
+	PERF_BR_SPEC_WRONG_PATH,
+	PERF_BR_NON_SPEC_CORRECT_PATH,
+	PERF_BR_SPEC_CORRECT_PATH,
+};
+
 void amd_pmu_lbr_read(void)
 {
 	struct cpu_hw_events *cpuc = this_cpu_ptr(&cpu_hw_events);
 	struct perf_branch_entry *br = cpuc->lbr_entries;
 	struct branch_entry entry;
-	int out = 0, i;
+	int out = 0, idx, i;
 
 	if (!cpuc->lbr_users)
 		return;
@@ -160,8 +167,11 @@ void amd_pmu_lbr_read(void)
 		entry.from.full	= amd_pmu_lbr_get_from(i);
 		entry.to.full	= amd_pmu_lbr_get_to(i);
 
-		/* Check if a branch has been logged */
-		if (!entry.to.split.valid)
+		/*
+		 * Check if a branch has been logged; if valid = 0, spec = 0
+		 * then no branch was recorded
+		 */
+		if (!entry.to.split.valid && !entry.to.split.spec)
 			continue;
 
 		perf_clear_branch_entry_bitfields(br + out);
@@ -170,6 +180,25 @@ void amd_pmu_lbr_read(void)
 		br[out].to	= sign_ext_branch_ip(entry.to.split.ip);
 		br[out].mispred	= entry.from.split.mispredict;
 		br[out].predicted = !br[out].mispred;
+
+		/*
+		 * Set branch speculation information using the status of
+		 * the valid and spec bits.
+		 *
+		 * When valid = 0, spec = 0, no branch was recorded and the
+		 * entry is discarded as seen above.
+		 *
+		 * When valid = 0, spec = 1, the recorded branch was
+		 * speculative but took the wrong path.
+		 *
+		 * When valid = 1, spec = 0, the recorded branch was
+		 * non-speculative but took the correct path.
+		 *
+		 * When valid = 1, spec = 1, the recorded branch was
+		 * speculative and took the correct path
+		 */
+		idx = (entry.to.split.valid << 1) | entry.to.split.spec;
+		br[out].spec = lbr_spec_map[idx];
 		out++;
 	}
 
