@@ -60,6 +60,10 @@
 #define LINK_MODE		GENMASK(5, 4)
 #define	LOCKED			BIT(3)
 
+/* 0026h */
+#define LF_1			GENMASK(6, 4)
+#define LF_0			GENMASK(2, 0)
+
 /* 0048h */
 #define REM_MS_EN		BIT(5)
 #define LOC_MS_EN		BIT(4)
