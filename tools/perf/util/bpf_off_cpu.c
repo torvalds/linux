@@ -11,6 +11,7 @@
 #include "util/cpumap.h"
 #include "util/thread_map.h"
 #include "util/cgroup.h"
+#include "util/strlist.h"
 #include <bpf/bpf.h>
 
 #include "bpf_skel/off_cpu.skel.h"
@@ -125,6 +126,8 @@ int off_cpu_prepare(struct evlist *evlist, struct target *target,
 {
 	int err, fd, i;
 	int ncpus = 1, ntasks = 1, ncgrps = 1;
+	struct strlist *pid_slist = NULL;
+	struct str_node *pos;
 
 	if (off_cpu_config(evlist) < 0) {
 		pr_err("Failed to config off-cpu BPF event\n");
@@ -143,7 +146,26 @@ int off_cpu_prepare(struct evlist *evlist, struct target *target,
 		bpf_map__set_max_entries(skel->maps.cpu_filter, ncpus);
 	}
 
-	if (target__has_task(target)) {
+	if (target->pid) {
+		pid_slist = strlist__new(target->pid, NULL);
+		if (!pid_slist) {
+			pr_err("Failed to create a strlist for pid\n");
+			return -1;
+		}
+
+		ntasks = 0;
+		strlist__for_each_entry(pos, pid_slist) {
+			char *end_ptr;
+			int pid = strtol(pos->s, &end_ptr, 10);
+
+			if (pid == INT_MIN || pid == INT_MAX ||
+			    (*end_ptr != '\0' && *end_ptr != ','))
+				continue;
+
+			ntasks++;
+		}
+		bpf_map__set_max_entries(skel->maps.task_filter, ntasks);
+	} else if (target__has_task(target)) {
 		ntasks = perf_thread_map__nr(evlist->core.threads);
 		bpf_map__set_max_entries(skel->maps.task_filter, ntasks);
 	}
@@ -185,7 +207,26 @@ int off_cpu_prepare(struct evlist *evlist, struct target *target,
 		}
 	}
 
-	if (target__has_task(target)) {
+	if (target->pid) {
+		u8 val = 1;
+
+		skel->bss->has_task = 1;
+		skel->bss->uses_tgid = 1;
+		fd = bpf_map__fd(skel->maps.task_filter);
+
+		strlist__for_each_entry(pos, pid_slist) {
+			char *end_ptr;
+			u32 tgid;
+			int pid = strtol(pos->s, &end_ptr, 10);
+
+			if (pid == INT_MIN || pid == INT_MAX ||
+			    (*end_ptr != '\0' && *end_ptr != ','))
+				continue;
+
+			tgid = pid;
+			bpf_map_update_elem(fd, &tgid, &val, BPF_ANY);
+		}
+	} else if (target__has_task(target)) {
 		u32 pid;
 		u8 val = 1;
 
