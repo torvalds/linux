@@ -2659,7 +2659,7 @@ static int mlx5_vdpa_set_map(struct vdpa_device *vdev, unsigned int asid,
 {
 	struct mlx5_vdpa_dev *mvdev = to_mvdev(vdev);
 	struct mlx5_vdpa_net *ndev = to_mlx5_vdpa_ndev(mvdev);
-	int err;
+	int err = -EINVAL;
 
 	down_write(&ndev->reslock);
 	if (mvdev->group2asid[MLX5_VDPA_DATAVQ_GROUP] == asid) {
