@@ -424,13 +424,17 @@ int bch2_btree_path_relock_intent(struct btree_trans *trans,
 	return 0;
 }
 
-noinline __flatten
+__flatten
+static bool bch2_btree_path_relock_norestart(struct btree_trans *trans,
+			struct btree_path *path, unsigned long trace_ip)
+{
+	return btree_path_get_locks(trans, path, false);
+}
+
 static int __bch2_btree_path_relock(struct btree_trans *trans,
 			struct btree_path *path, unsigned long trace_ip)
 {
-	bool ret = btree_path_get_locks(trans, path, false);
-
-	if (!ret) {
+	if (!bch2_btree_path_relock_norestart(trans, path, trace_ip)) {
 		trace_trans_restart_relock_path(trans, trace_ip, path);
 		return btree_trans_restart(trans, BCH_ERR_transaction_restart_relock_path);
 	}
@@ -1743,30 +1747,30 @@ out:
 
 static struct btree_path *have_path_at_pos(struct btree_trans *trans, struct btree_path *path)
 {
-	struct btree_path *next;
+	struct btree_path *sib;
 
-	next = prev_btree_path(trans, path);
-	if (next && !btree_path_cmp(next, path))
-		return next;
+	sib = prev_btree_path(trans, path);
+	if (sib && !btree_path_cmp(sib, path))
+		return sib;
 
-	next = next_btree_path(trans, path);
-	if (next && !btree_path_cmp(next, path))
-		return next;
+	sib = next_btree_path(trans, path);
+	if (sib && !btree_path_cmp(sib, path))
+		return sib;
 
 	return NULL;
 }
 
 static struct btree_path *have_node_at_pos(struct btree_trans *trans, struct btree_path *path)
 {
-	struct btree_path *next;
+	struct btree_path *sib;
 
-	next = prev_btree_path(trans, path);
-	if (next && next->level == path->level && path_l(next)->b == path_l(path)->b)
-		return next;
+	sib = prev_btree_path(trans, path);
+	if (sib && sib->level == path->level && path_l(sib)->b == path_l(path)->b)
+		return sib;
 
-	next = next_btree_path(trans, path);
-	if (next && next->level == path->level && path_l(next)->b == path_l(path)->b)
-		return next;
+	sib = next_btree_path(trans, path);
+	if (sib && sib->level == path->level && path_l(sib)->b == path_l(path)->b)
+		return sib;
 
 	return NULL;
 }
@@ -1788,26 +1792,23 @@ void bch2_path_put(struct btree_trans *trans, struct btree_path *path, bool inte
 	if (!__btree_path_put(path, intent))
 		return;
 
-	/*
-	 * Perhaps instead we should check for duplicate paths in traverse_all:
-	 */
-	if (path->preserve &&
-	    (dup = have_path_at_pos(trans, path))) {
-		dup->preserve = true;
-		path->preserve = false;
-		goto free;
-	}
+	dup = path->preserve
+		? have_path_at_pos(trans, path)
+		: have_node_at_pos(trans, path);
 
-	if (!path->preserve &&
-	    (dup = have_node_at_pos(trans, path)))
-		goto free;
-	return;
-free:
-	if (path->should_be_locked &&
-	    !btree_node_locked(dup, path->level))
+	if (!dup && !(!path->preserve && !is_btree_node(path, path->level)))
 		return;
 
-	dup->should_be_locked |= path->should_be_locked;
+	if (path->should_be_locked &&
+	    !trans->restarted &&
+	    (!dup || !bch2_btree_path_relock_norestart(trans, dup, _THIS_IP_)))
+		return;
+
+	if (dup) {
+		dup->preserve		|= path->preserve;
+		dup->should_be_locked	|= path->should_be_locked;
+	}
+
 	__bch2_path_free(trans, path);
 }
 
