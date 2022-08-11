@@ -94,6 +94,50 @@ static __always_inline u64 sign_ext_branch_ip(u64 ip)
 	return (u64)(((s64)ip << shift) >> shift);
 }
 
+static void amd_pmu_lbr_filter(void)
+{
+	struct cpu_hw_events *cpuc = this_cpu_ptr(&cpu_hw_events);
+	int br_sel = cpuc->br_sel, type, i, j;
+	bool compress = false;
+	u64 from, to;
+
+	/* If sampling all branches, there is nothing to filter */
+	if (((br_sel & X86_BR_ALL) == X86_BR_ALL) &&
+	    ((br_sel & X86_BR_TYPE_SAVE) != X86_BR_TYPE_SAVE))
+		return;
+
+	for (i = 0; i < cpuc->lbr_stack.nr; i++) {
+		from = cpuc->lbr_entries[i].from;
+		to = cpuc->lbr_entries[i].to;
+		type = branch_type(from, to, 0);
+
+		/* If type does not correspond, then discard */
+		if (type == X86_BR_NONE || (br_sel & type) != type) {
+			cpuc->lbr_entries[i].from = 0;	/* mark invalid */
+			compress = true;
+		}
+
+		if ((br_sel & X86_BR_TYPE_SAVE) == X86_BR_TYPE_SAVE)
+			cpuc->lbr_entries[i].type = common_branch_type(type);
+	}
+
+	if (!compress)
+		return;
+
+	/* Remove all invalid entries */
+	for (i = 0; i < cpuc->lbr_stack.nr; ) {
+		if (!cpuc->lbr_entries[i].from) {
+			j = i;
+			while (++j < cpuc->lbr_stack.nr)
+				cpuc->lbr_entries[j - 1] = cpuc->lbr_entries[j];
+			cpuc->lbr_stack.nr--;
+			if (!cpuc->lbr_entries[i].from)
+				continue;
+		}
+		i++;
+	}
+}
+
 void amd_pmu_lbr_read(void)
 {
 	struct cpu_hw_events *cpuc = this_cpu_ptr(&cpu_hw_events);
@@ -128,6 +172,9 @@ void amd_pmu_lbr_read(void)
 	 * LBR To[0] always represent the TOS
 	 */
 	cpuc->lbr_stack.hw_idx = 0;
+
+	/* Perform further software filtering */
+	amd_pmu_lbr_filter();
 }
 
 static const int lbr_select_map[PERF_SAMPLE_BRANCH_MAX_SHIFT] = {
@@ -136,8 +183,8 @@ static const int lbr_select_map[PERF_SAMPLE_BRANCH_MAX_SHIFT] = {
 	[PERF_SAMPLE_BRANCH_HV_SHIFT]		= LBR_IGNORE,
 
 	[PERF_SAMPLE_BRANCH_ANY_SHIFT]		= LBR_ANY,
-	[PERF_SAMPLE_BRANCH_ANY_CALL_SHIFT]	= LBR_REL_CALL | LBR_IND_CALL,
-	[PERF_SAMPLE_BRANCH_ANY_RETURN_SHIFT]	= LBR_RETURN,
+	[PERF_SAMPLE_BRANCH_ANY_CALL_SHIFT]	= LBR_REL_CALL | LBR_IND_CALL | LBR_FAR,
+	[PERF_SAMPLE_BRANCH_ANY_RETURN_SHIFT]	= LBR_RETURN | LBR_FAR,
 	[PERF_SAMPLE_BRANCH_IND_CALL_SHIFT]	= LBR_IND_CALL,
 	[PERF_SAMPLE_BRANCH_ABORT_TX_SHIFT]	= LBR_NOT_SUPP,
 	[PERF_SAMPLE_BRANCH_IN_TX_SHIFT]	= LBR_NOT_SUPP,
@@ -150,8 +197,6 @@ static const int lbr_select_map[PERF_SAMPLE_BRANCH_MAX_SHIFT] = {
 
 	[PERF_SAMPLE_BRANCH_NO_FLAGS_SHIFT]	= LBR_NOT_SUPP,
 	[PERF_SAMPLE_BRANCH_NO_CYCLES_SHIFT]	= LBR_NOT_SUPP,
-
-	[PERF_SAMPLE_BRANCH_TYPE_SAVE_SHIFT]	= LBR_NOT_SUPP,
 };
 
 static int amd_pmu_lbr_setup_filter(struct perf_event *event)
@@ -164,6 +209,41 @@ static int amd_pmu_lbr_setup_filter(struct perf_event *event)
 	/* No LBR support */
 	if (!x86_pmu.lbr_nr)
 		return -EOPNOTSUPP;
+
+	if (br_type & PERF_SAMPLE_BRANCH_USER)
+		mask |= X86_BR_USER;
+
+	if (br_type & PERF_SAMPLE_BRANCH_KERNEL)
+		mask |= X86_BR_KERNEL;
+
+	/* Ignore BRANCH_HV here */
+
+	if (br_type & PERF_SAMPLE_BRANCH_ANY)
+		mask |= X86_BR_ANY;
+
+	if (br_type & PERF_SAMPLE_BRANCH_ANY_CALL)
+		mask |= X86_BR_ANY_CALL;
+
+	if (br_type & PERF_SAMPLE_BRANCH_ANY_RETURN)
+		mask |= X86_BR_RET | X86_BR_IRET | X86_BR_SYSRET;
+
+	if (br_type & PERF_SAMPLE_BRANCH_IND_CALL)
+		mask |= X86_BR_IND_CALL;
+
+	if (br_type & PERF_SAMPLE_BRANCH_COND)
+		mask |= X86_BR_JCC;
+
+	if (br_type & PERF_SAMPLE_BRANCH_IND_JUMP)
+		mask |= X86_BR_IND_JMP;
+
+	if (br_type & PERF_SAMPLE_BRANCH_CALL)
+		mask |= X86_BR_CALL | X86_BR_ZERO_CALL;
+
+	if (br_type & PERF_SAMPLE_BRANCH_TYPE_SAVE)
+		mask |= X86_BR_TYPE_SAVE;
+
+	reg->reg = mask;
+	mask = 0;
 
 	for (i = 0; i < PERF_SAMPLE_BRANCH_MAX_SHIFT; i++) {
 		if (!(br_type & BIT_ULL(i)))
@@ -220,13 +300,15 @@ void amd_pmu_lbr_reset(void)
 void amd_pmu_lbr_add(struct perf_event *event)
 {
 	struct cpu_hw_events *cpuc = this_cpu_ptr(&cpu_hw_events);
+	struct hw_perf_event_extra *reg = &event->hw.branch_reg;
 
 	if (!x86_pmu.lbr_nr)
 		return;
 
 	if (has_branch_stack(event)) {
 		cpuc->lbr_select = 1;
-		cpuc->lbr_sel->config = event->hw.branch_reg.config;
+		cpuc->lbr_sel->config = reg->config;
+		cpuc->br_sel = reg->reg;
 	}
 
 	perf_sched_cb_inc(event->ctx->pmu);
