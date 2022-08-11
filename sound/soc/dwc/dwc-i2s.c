@@ -73,12 +73,12 @@ static inline void i2s_disable_irqs(struct dw_i2s_dev *dev, u32 stream,
 	u32 i, irq;
 
 	if (stream == SNDRV_PCM_STREAM_PLAYBACK) {
-		for (i = 0; i < (chan_nr / 2); i++) {
+		for (i = 0; i <= ((chan_nr + 1) / 2); i++) {
 			irq = i2s_read_reg(dev->i2s_base, IMR(i));
 			i2s_write_reg(dev->i2s_base, IMR(i), irq | 0x30);
 		}
 	} else {
-		for (i = 0; i < (chan_nr / 2); i++) {
+		for (i = 0; i <= ((chan_nr + 1) / 2); i++) {
 			irq = i2s_read_reg(dev->i2s_base, IMR(i));
 			i2s_write_reg(dev->i2s_base, IMR(i), irq | 0x03);
 		}
@@ -91,12 +91,12 @@ static inline void i2s_enable_irqs(struct dw_i2s_dev *dev, u32 stream,
 	u32 i, irq;
 
 	if (stream == SNDRV_PCM_STREAM_PLAYBACK) {
-		for (i = 0; i < (chan_nr / 2); i++) {
+		for (i = 0; i < ((chan_nr + 1) / 2); i++) {
 			irq = i2s_read_reg(dev->i2s_base, IMR(i));
 			i2s_write_reg(dev->i2s_base, IMR(i), irq & ~0x30);
 		}
 	} else {
-		for (i = 0; i < (chan_nr / 2); i++) {
+		for (i = 0; i < ((chan_nr + 1) / 2); i++) {
 			irq = i2s_read_reg(dev->i2s_base, IMR(i));
 			i2s_write_reg(dev->i2s_base, IMR(i), irq & ~0x03);
 		}
@@ -222,8 +222,7 @@ static void dw_i2s_config(struct dw_i2s_dev *dev, int stream)
 
 
 	i2s_disable_channels(dev, stream);
-
-	for (ch_reg = 0; ch_reg < (config->chan_nr / 2); ch_reg++) {
+	for (ch_reg = 0; ch_reg < ((config->chan_nr + 1) / 2); ch_reg++) {
 		if (stream == SNDRV_PCM_STREAM_PLAYBACK) {
 			i2s_write_reg(dev->i2s_base, TCR(ch_reg),
 				      dev->xfer_resolution);
@@ -249,6 +248,8 @@ static int dw_i2s_hw_params(struct snd_pcm_substream *substream,
 	int ret;
 	unsigned int txrx = substream->stream;
 
+	config->chan_nr = params_channels(params);
+
 	switch (params_format(params)) {
 	case SNDRV_PCM_FORMAT_S16_LE:
 		config->data_width = 16;
@@ -263,23 +264,39 @@ static int dw_i2s_hw_params(struct snd_pcm_substream *substream,
 		break;
 
 	case SNDRV_PCM_FORMAT_S32_LE:
-		config->data_width = 32;
-		dev->ccr = 0x10;
-		dev->xfer_resolution = 0x05;
+		if (config->chan_nr == 1) {
+			if (txrx == SNDRV_PCM_STREAM_PLAYBACK)
+				dev->play_dma_data.dt.addr_width = DMA_SLAVE_BUSWIDTH_2_BYTES;
+			else
+				dev->capture_dma_data.dt.addr_width = DMA_SLAVE_BUSWIDTH_2_BYTES;
+
+			config->data_width = 16;
+			dev->ccr = 0x00;
+			dev->xfer_resolution = 0x02;
+		} else if (config->chan_nr == 2) {
+			if (txrx == SNDRV_PCM_STREAM_PLAYBACK)
+				dev->play_dma_data.dt.addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
+			else
+				dev->capture_dma_data.dt.addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
+
+			config->data_width = 32;
+			dev->ccr = 0x10;
+			dev->xfer_resolution = 0x05;
+		}
 		break;
 
 	default:
 		dev_err(dev->dev, "designware-i2s: unsupported PCM fmt");
 		return -EINVAL;
 	}
-
-	config->chan_nr = params_channels(params);
+	snd_soc_dai_set_drvdata(dai, dev);
 
 	switch (config->chan_nr) {
 	case EIGHT_CHANNEL_SUPPORT:
 	case SIX_CHANNEL_SUPPORT:
 	case FOUR_CHANNEL_SUPPORT:
 	case TWO_CHANNEL_SUPPORT:
+	case ONE_CHANNEL_SUPPORT:
 		break;
 	default:
 		dev_err(dev->dev, "channel not supported\n");
@@ -310,7 +327,7 @@ static int dw_i2s_hw_params(struct snd_pcm_substream *substream,
 			dev_err(dev->dev, "Can't set clock source for clks_lrclk: %d\n", ret);
 			return ret;
 		}
-	}else if (txrx == SNDRV_PCM_STREAM_CAPTURE) {
+	} else if (txrx == SNDRV_PCM_STREAM_CAPTURE) {
 		ret = clk_prepare_enable(dev->clks[CLK_ADC_BCLK_EXT]);
 		if (ret) {
 			dev_err(dev->dev, "%s: failed to enable CLK_ADC_BCLK_EXT\n", __func__);

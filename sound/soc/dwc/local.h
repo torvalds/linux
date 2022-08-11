@@ -79,7 +79,7 @@
 #define	COMP_MAX_DATA_WIDTH	(1 << 2)
 
 #define MAX_CHANNEL_NUM		8
-#define MIN_CHANNEL_NUM		2
+#define MIN_CHANNEL_NUM		1
 
 enum {
 	CLK_DAC_INNER = 0,
