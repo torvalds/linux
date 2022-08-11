@@ -1529,21 +1529,6 @@ unlock:
 }
 
 int
-iomap_writepage(struct page *page, struct writeback_control *wbc,
-		struct iomap_writepage_ctx *wpc,
-		const struct iomap_writeback_ops *ops)
-{
-	int ret;
-
-	wpc->ops = ops;
-	ret = iomap_do_writepage(page, wbc, wpc);
-	if (!wpc->ioend)
-		return ret;
-	return iomap_submit_ioend(wpc, wpc->ioend, ret);
-}
-EXPORT_SYMBOL_GPL(iomap_writepage);
-
-int
 iomap_writepages(struct address_space *mapping, struct writeback_control *wbc,
 		struct iomap_writepage_ctx *wpc,
 		const struct iomap_writeback_ops *ops)
