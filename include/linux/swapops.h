@@ -247,8 +247,8 @@ extern void migration_entry_wait(struct mm_struct *mm, pmd_t *pmd,
 #ifdef CONFIG_HUGETLB_PAGE
 extern void __migration_entry_wait_huge(pte_t *ptep, spinlock_t *ptl);
 extern void migration_entry_wait_huge(struct vm_area_struct *vma, pte_t *pte);
-#endif
-#else
+#endif	/* CONFIG_HUGETLB_PAGE */
+#else  /* CONFIG_MIGRATION */
 static inline swp_entry_t make_readable_migration_entry(pgoff_t offset)
 {
 	return swp_entry(0, 0);
@@ -276,7 +276,7 @@ static inline void migration_entry_wait(struct mm_struct *mm, pmd_t *pmd,
 #ifdef CONFIG_HUGETLB_PAGE
 static inline void __migration_entry_wait_huge(pte_t *ptep, spinlock_t *ptl) { }
 static inline void migration_entry_wait_huge(struct vm_area_struct *vma, pte_t *pte) { }
-#endif
+#endif	/* CONFIG_HUGETLB_PAGE */
 static inline int is_writable_migration_entry(swp_entry_t entry)
 {
 	return 0;
@@ -286,7 +286,7 @@ static inline int is_readable_migration_entry(swp_entry_t entry)
 	return 0;
 }
 
-#endif
+#endif	/* CONFIG_MIGRATION */
 
 typedef unsigned long pte_marker;
 
@@ -426,7 +426,7 @@ static inline int is_pmd_migration_entry(pmd_t pmd)
 {
 	return is_swap_pmd(pmd) && is_migration_entry(pmd_to_swp_entry(pmd));
 }
-#else
+#else  /* CONFIG_ARCH_ENABLE_THP_MIGRATION */
 static inline int set_pmd_migration_entry(struct page_vma_mapped_walk *pvmw,
 		struct page *page)
 {
@@ -455,7 +455,7 @@ static inline int is_pmd_migration_entry(pmd_t pmd)
 {
 	return 0;
 }
-#endif
+#endif  /* CONFIG_ARCH_ENABLE_THP_MIGRATION */
 
 #ifdef CONFIG_MEMORY_FAILURE
 
@@ -490,7 +490,7 @@ static inline void num_poisoned_pages_sub(long i)
 	atomic_long_sub(i, &num_poisoned_pages);
 }
 
-#else
+#else  /* CONFIG_MEMORY_FAILURE */
 
 static inline swp_entry_t make_hwpoison_entry(struct page *page)
 {
@@ -509,7 +509,7 @@ static inline void num_poisoned_pages_inc(void)
 static inline void num_poisoned_pages_sub(long i)
 {
 }
-#endif
+#endif  /* CONFIG_MEMORY_FAILURE */
 
 static inline int non_swap_entry(swp_entry_t entry)
 {
