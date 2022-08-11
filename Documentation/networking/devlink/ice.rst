@@ -139,6 +139,42 @@ EMP firmware image.
 The driver does not currently support reloading the driver via
 ``DEVLINK_RELOAD_ACTION_DRIVER_REINIT``.
 
+Port split
+==========
+
+The ``ice`` driver supports port splitting only for port 0, as the FW has
+a predefined set of available port split options for the whole device.
+
+A system reboot is required for port split to be applied.
+
+The following command will select the port split option with 4 ports:
+
+.. code:: shell
+
+    $ devlink port split pci/0000:16:00.0/0 count 4
+
+The list of all available port options will be printed to dynamic debug after
+each ``split`` and ``unsplit`` command. The first option is the default.
+
+.. code:: shell
+
+    ice 0000:16:00.0: Available port split options and max port speeds (Gbps):
+    ice 0000:16:00.0: Status  Split      Quad 0          Quad 1
+    ice 0000:16:00.0:         count  L0  L1  L2  L3  L4  L5  L6  L7
+    ice 0000:16:00.0: Active  2     100   -   -   - 100   -   -   -
+    ice 0000:16:00.0:         2      50   -  50   -   -   -   -   -
+    ice 0000:16:00.0: Pending 4      25  25  25  25   -   -   -   -
+    ice 0000:16:00.0:         4      25  25   -   -  25  25   -   -
+    ice 0000:16:00.0:         8      10  10  10  10  10  10  10  10
+    ice 0000:16:00.0:         1     100   -   -   -   -   -   -   -
+
+There could be multiple FW port options with the same port split count. When
+the same port split count request is issued again, the next FW port option with
+the same port split count will be selected.
+
+``devlink port unsplit`` will select the option with a split count of 1. If
+there is no FW option available with split count 1, you will receive an error.
+
 Regions
 =======
 
