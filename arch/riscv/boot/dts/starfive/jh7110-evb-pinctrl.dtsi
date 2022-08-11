@@ -336,6 +336,36 @@
 		};
 	};
 
+	csi_pins_default: csi-pins-default {
+		csi-pins-default {
+			sf,pins = <PAD_GPIO10>;
+			sf,pinmux = <PAD_GPIO10_FUNC_SEL 0>;
+			sf,pin-ioconfig = <IO(GPIO_IE(1))>;
+			sf,pin-gpio-dout = <GPO_LOW>;
+			sf,pin-gpio-doen = <OEN_LOW>;
+		};
+	};
+
+	csi_pins_pwup: csi-pins-pwup {
+		csi-pins-pwup {
+			sf,pins = <PAD_GPIO10>;
+			sf,pinmux = <PAD_GPIO10_FUNC_SEL 0>;
+			sf,pin-ioconfig = <IO(GPIO_IE(1))>;
+			sf,pin-gpio-dout = <GPO_HIGH>;
+			sf,pin-gpio-doen = <OEN_LOW>;
+		};
+	};
+
+	csi_pins_pwdn: csi-pins-pwdn {
+		csi-pins-pwdn {
+			sf,pins = <PAD_GPIO10>;
+			sf,pinmux = <PAD_GPIO10_FUNC_SEL 0>;
+			sf,pin-ioconfig = <IO(GPIO_IE(1))>;
+			sf,pin-gpio-dout = <GPO_LOW>;
+			sf,pin-gpio-doen = <OEN_LOW>;
+		};
+	};
+
 	mmc0_pins: mmc0-pins {
 		 mmc0-pins-rest {
 			sf,pins = <PAD_GPIO22>;
