@@ -28,6 +28,7 @@ __be16 sport = 0;
 __be32 daddr = 0;
 __be16 dport = 0;
 int test_exist_lookup = -ENOENT;
+u32 test_exist_lookup_mark = 0;
 
 struct nf_conn;
 
@@ -174,6 +175,8 @@ nf_ct_test(struct nf_conn *(*lookup_fn)(void *, struct bpf_sock_tuple *, u32,
 		       sizeof(opts_def));
 	if (ct) {
 		test_exist_lookup = 0;
+		if (ct->mark == 42)
+			test_exist_lookup_mark = 43;
 		bpf_ct_release(ct);
 	} else {
 		test_exist_lookup = opts_def.error;
