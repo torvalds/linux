@@ -1595,16 +1595,7 @@ static int __maybe_unused rkvdec2_runtime_suspend(struct device *dev)
 
 		mpp_clk_safe_disable(ccu->aclk_info.clk);
 	} else {
-		u32 val;
 		struct mpp_dev *mpp = dev_get_drvdata(dev);
-
-		/* soft reset */
-		mpp_write(mpp, RKVDEC_REG_IMPORTANT_BASE, RKVDEC_SOFTREST_EN);
-		udelay(5);
-		val = mpp_read(mpp, RKVDEC_REG_INT_EN);
-		if (!(val & RKVDEC_SOFT_RESET_READY))
-			mpp_err("soft reset fail, int %08x\n", val);
-		mpp_write(mpp, RKVDEC_REG_INT_EN, 0);
 
 		if (mpp->is_irq_startup) {
 			/* disable core irq */

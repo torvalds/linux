@@ -112,6 +112,7 @@ struct rkvdec_link_info {
 
 	/* interrupt read back in table buffer */
 	u32 tb_reg_int;
+	bool hack_setup;
 };
 
 struct rkvdec_link_dev {

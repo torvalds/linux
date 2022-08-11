@@ -71,6 +71,7 @@ struct rkvdec_link_info rkvdec_link_v2_hw_info = {
 		.reg_num = 28,
 	},
 	.tb_reg_int = 180,
+	.hack_setup = 0,
 };
 
 /* vdpu34x link hw info for rk356x */
@@ -123,6 +124,7 @@ struct rkvdec_link_info rkvdec_link_rk356x_hw_info = {
 		.reg_num = 28,
 	},
 	.tb_reg_int = 164,
+	.hack_setup = 1,
 };
 
 static void rkvdec_link_status_update(struct rkvdec_link_dev *dev)
@@ -601,7 +603,7 @@ static int rkvdec_link_isr_recv_task(struct mpp_dev *mpp,
 
 		task->irq_status = irq_status ? irq_status : mpp->irq_status;
 
-		cancel_delayed_work_sync(&mpp_task->timeout_work);
+		cancel_delayed_work(&mpp_task->timeout_work);
 		set_bit(TASK_STATE_HANDLE, &mpp_task->state);
 
 		if (link_dec->statistic_count &&
@@ -768,7 +770,7 @@ static int rkvdec2_link_isr(struct mpp_dev *mpp)
 			rkvdec_link_reg_dump("timeout", link_dec);
 
 		val = mpp_read(mpp, 224 * 4);
-		if (!(val & BIT(2))) {
+		if (link_dec->info->hack_setup && !(val & BIT(2))) {
 			dev_info(mpp->dev, "frame not complete\n");
 			link_dec->decoded++;
 		}
@@ -954,6 +956,9 @@ int rkvdec2_link_init(struct platform_device *pdev, struct rkvdec2_dev *dec)
 	ret = rkvdec2_link_alloc_table(&dec->mpp, link_dec);
 	if (ret)
 		goto done;
+
+	if (dec->fix)
+		rkvdec2_link_hack_data_setup(dec->fix);
 
 	link_dec->mpp = mpp;
 	link_dec->dev = dev;
@@ -1282,11 +1287,21 @@ int rkvdec2_link_process_task(struct mpp_session *session,
 {
 	struct mpp_task *task = NULL;
 	struct mpp_dev *mpp = session->mpp;
+	struct rkvdec_link_info *link_info = mpp->var->hw_info->link_info;
 
 	task = rkvdec2_alloc_task(session, msgs);
 	if (!task) {
 		mpp_err("alloc_task failed.\n");
 		return -ENOMEM;
+	}
+
+	if (link_info->hack_setup) {
+		u32 fmt;
+		struct rkvdec2_task *dec_task = NULL;
+
+		dec_task = to_rkvdec2_task(task);
+		fmt = RKVDEC_GET_FORMAT(dec_task->reg[RKVDEC_REG_FORMAT_INDEX]);
+		dec_task->need_hack = (fmt == RKVDEC_FMT_H264D);
 	}
 
 	kref_init(&task->ref);
