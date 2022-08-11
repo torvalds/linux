@@ -1418,9 +1418,19 @@ static pagemap_entry_t pte_to_pagemap_entry(struct pagemapread *pm,
 		if (pte_swp_uffd_wp(pte))
 			flags |= PM_UFFD_WP;
 		entry = pte_to_swp_entry(pte);
-		if (pm->show_pfn)
+		if (pm->show_pfn) {
+			pgoff_t offset;
+			/*
+			 * For PFN swap offsets, keeping the offset field
+			 * to be PFN only to be compatible with old smaps.
+			 */
+			if (is_pfn_swap_entry(entry))
+				offset = swp_offset_pfn(entry);
+			else
+				offset = swp_offset(entry);
 			frame = swp_type(entry) |
-				(swp_offset(entry) << MAX_SWAPFILES_SHIFT);
+			    (offset << MAX_SWAPFILES_SHIFT);
+		}
 		flags |= PM_SWAP;
 		migration = is_migration_entry(entry);
 		if (is_pfn_swap_entry(entry))
@@ -1477,7 +1487,11 @@ static int pagemap_pmd_range(pmd_t *pmdp, unsigned long addr, unsigned long end,
 			unsigned long offset;
 
 			if (pm->show_pfn) {
-				offset = swp_offset(entry) +
+				if (is_pfn_swap_entry(entry))
+					offset = swp_offset_pfn(entry);
+				else
+					offset = swp_offset(entry);
+				offset = offset +
 					((addr & ~PMD_MASK) >> PAGE_SHIFT);
 				frame = swp_type(entry) |
 					(offset << MAX_SWAPFILES_SHIFT);
