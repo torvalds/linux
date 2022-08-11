@@ -1374,10 +1374,11 @@ static int __init amd_core_pmu_init(void)
 		x86_pmu.flags |= PMU_FL_PAIR;
 	}
 
-	/*
-	 * BRS requires special event constraints and flushing on ctxsw.
-	 */
-	if (boot_cpu_data.x86 >= 0x19 && !amd_brs_init()) {
+	/* LBR and BRS are mutually exclusive features */
+	if (amd_pmu_lbr_init() && !amd_brs_init()) {
+		/*
+		 * BRS requires special event constraints and flushing on ctxsw.
+		 */
 		x86_pmu.get_event_constraints = amd_get_event_constraints_f19h;
 		x86_pmu.sched_task = amd_pmu_brs_sched_task;
 		x86_pmu.limit_period = amd_pmu_limit_period;
