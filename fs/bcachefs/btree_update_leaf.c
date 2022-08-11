@@ -726,8 +726,10 @@ bch2_trans_commit_write_locked(struct btree_trans *trans,
 			btree_insert_key_leaf(trans, i);
 		else if (!i->key_cache_already_flushed)
 			bch2_btree_insert_key_cached(trans, i->path, i->k);
-		else
+		else {
 			bch2_btree_key_cache_drop(trans, i->path);
+			btree_path_set_dirty(i->path, BTREE_ITER_NEED_TRAVERSE);
+		}
 	}
 
 	return ret;
