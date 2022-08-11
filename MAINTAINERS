@@ -20841,3 +20841,9 @@ STARFIVE JH7110 EVB USB DEVICE SUPPORT
 M:	Jianlong Huang <jianlong.huang@starfivetech.com>
 S:	Maintained
 F:	arch/riscv/boot/dts/starfive/jh7110-evb-usbdevice.dts
+
+STARFIVE JH7110 SOC BOARDS
+M:	Jianlong Huang <jianlong.huang@starfivetech.com>
+S:	Maintained
+F:	Documentation/devicetree/bindings/riscv/starfive-jh7110.yaml
+
