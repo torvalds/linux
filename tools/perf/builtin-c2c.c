@@ -2878,7 +2878,7 @@ static int setup_callchain(struct evlist *evlist)
 
 static int setup_display(const char *str)
 {
-	const char *display = str ?: "tot";
+	const char *display = str;
 
 	if (!strcmp(display, "tot"))
 		c2c.display = DISPLAY_TOT_HITM;
@@ -3068,22 +3068,6 @@ static int perf_c2c__report(int argc, const char **argv)
 	data.path  = input_name;
 	data.force = symbol_conf.force;
 
-	err = setup_display(display);
-	if (err)
-		goto out;
-
-	err = setup_coalesce(coalesce, no_source);
-	if (err) {
-		pr_debug("Failed to initialize hists\n");
-		goto out;
-	}
-
-	err = c2c_hists__init(&c2c.hists, "dcacheline", 2);
-	if (err) {
-		pr_debug("Failed to initialize hists\n");
-		goto out;
-	}
-
 	session = perf_session__new(&data, &c2c.tool);
 	if (IS_ERR(session)) {
 		err = PTR_ERR(session);
@@ -3091,12 +3075,40 @@ static int perf_c2c__report(int argc, const char **argv)
 		goto out;
 	}
 
+	/*
+	 * Use the 'tot' as default display type if user doesn't specify it;
+	 * since Arm64 platform doesn't support HITMs flag, use 'peer' as the
+	 * default display type.
+	 */
+	if (!display) {
+		if (!strcmp(perf_env__arch(&session->header.env), "arm64"))
+			display = "peer";
+		else
+			display = "tot";
+	}
+
+	err = setup_display(display);
+	if (err)
+		goto out_session;
+
+	err = setup_coalesce(coalesce, no_source);
+	if (err) {
+		pr_debug("Failed to initialize hists\n");
+		goto out_session;
+	}
+
+	err = c2c_hists__init(&c2c.hists, "dcacheline", 2);
+	if (err) {
+		pr_debug("Failed to initialize hists\n");
+		goto out_session;
+	}
+
 	session->itrace_synth_opts = &itrace_synth_opts;
 
 	err = setup_nodes(session);
 	if (err) {
 		pr_err("Failed setup nodes\n");
-		goto out;
+		goto out_session;
 	}
 
 	err = mem2node__init(&c2c.mem2node, &session->header.env);
