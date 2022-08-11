@@ -37,6 +37,7 @@
  *	Andrew F. Davis <afd@ti.com>
  *
  * Copyright (c) 2020-2021, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/dma-buf.h>
@@ -362,6 +363,11 @@ static void system_heap_free(struct qcom_sg_buffer *buffer)
 		dynamic_page_pool_free(sys_heap->pool_list[j], page);
 	}
 	sg_free_table(table);
+}
+
+static void system_qcom_sg_buffer_free(struct qcom_sg_buffer *buffer)
+{
+	system_heap_free(buffer);
 	kfree(buffer);
 }
 
@@ -398,26 +404,18 @@ struct page *qcom_sys_heap_alloc_largest_available(struct dynamic_page_pool **po
 	return NULL;
 }
 
-static struct dma_buf *system_heap_allocate(struct dma_heap *heap,
-					       unsigned long len,
-					       unsigned long fd_flags,
-					       unsigned long heap_flags)
+int system_qcom_sg_buffer_alloc(struct dma_heap *heap,
+				struct qcom_sg_buffer *buffer,
+				unsigned long len)
 {
 	struct qcom_system_heap *sys_heap;
-	struct qcom_sg_buffer *buffer;
-	DEFINE_DMA_BUF_EXPORT_INFO(exp_info);
 	unsigned long size_remaining = len;
 	unsigned int max_order = orders[0];
-	struct dma_buf *dmabuf;
 	struct sg_table *table;
 	struct scatterlist *sg;
 	struct list_head pages;
 	struct page *page, *tmp_page;
 	int i, ret = -ENOMEM;
-
-	buffer = kzalloc(sizeof(*buffer), GFP_KERNEL);
-	if (!buffer)
-		return ERR_PTR(-ENOMEM);
 
 	sys_heap = dma_heap_get_drvdata(heap);
 
@@ -426,7 +424,7 @@ static struct dma_buf *system_heap_allocate(struct dma_heap *heap,
 	buffer->heap = heap;
 	buffer->len = len;
 	buffer->uncached = sys_heap->uncached;
-	buffer->free = system_heap_free;
+	buffer->free = system_qcom_sg_buffer_free;
 
 	INIT_LIST_HEAD(&pages);
 	i = 0;
@@ -436,13 +434,13 @@ static struct dma_buf *system_heap_allocate(struct dma_heap *heap,
 		 * has been killed by SIGKILL
 		 */
 		if (fatal_signal_pending(current))
-			goto free_buffer;
+			goto free_mem;
 
 		page = qcom_sys_heap_alloc_largest_available(sys_heap->pool_list,
 							     size_remaining,
 							     max_order);
 		if (!page)
-			goto free_buffer;
+			goto free_mem;
 
 		list_add_tail(&page->lru, &pages);
 		size_remaining -= page_size(page);
@@ -452,7 +450,7 @@ static struct dma_buf *system_heap_allocate(struct dma_heap *heap,
 
 	table = &buffer->sg_table;
 	if (sg_alloc_table(table, i, GFP_KERNEL))
-		goto free_buffer;
+		goto free_mem;
 
 	sg = table->sgl;
 	list_for_each_entry_safe(page, tmp_page, &pages, lru) {
@@ -472,11 +470,37 @@ static struct dma_buf *system_heap_allocate(struct dma_heap *heap,
 		dma_unmap_sgtable(dma_heap_get_dev(heap), table, DMA_BIDIRECTIONAL, 0);
 	}
 
-	buffer->vmperm = mem_buf_vmperm_alloc(table);
+	return 0;
 
+free_mem:
+	list_for_each_entry_safe(page, tmp_page, &pages, lru)
+		__free_pages(page, compound_order(page));
+
+	return ret;
+}
+
+static struct dma_buf *system_heap_allocate(struct dma_heap *heap,
+					    unsigned long len,
+					    unsigned long fd_flags,
+					    unsigned long heap_flags)
+{
+	struct qcom_sg_buffer *buffer;
+	DEFINE_DMA_BUF_EXPORT_INFO(exp_info);
+	struct dma_buf *dmabuf;
+	int ret;
+
+	buffer = kzalloc(sizeof(*buffer), GFP_KERNEL);
+	if (!buffer)
+		return ERR_PTR(-ENOMEM);
+
+	ret = system_qcom_sg_buffer_alloc(heap, buffer, len);
+	if (ret)
+		goto free_buf_struct;
+
+	buffer->vmperm = mem_buf_vmperm_alloc(&buffer->sg_table);
 	if (IS_ERR(buffer->vmperm)) {
 		ret = PTR_ERR(buffer->vmperm);
-		goto free_sg;
+		goto free_sys_heap_mem;
 	}
 
 	/* create the dmabuf */
@@ -487,18 +511,16 @@ static struct dma_buf *system_heap_allocate(struct dma_heap *heap,
 	dmabuf = mem_buf_dma_buf_export(&exp_info, &qcom_sg_buf_ops);
 	if (IS_ERR(dmabuf)) {
 		ret = PTR_ERR(dmabuf);
-		goto vmperm_release;
+		goto free_vmperm;
 	}
 
 	return dmabuf;
 
-vmperm_release:
+free_vmperm:
 	mem_buf_vmperm_release(buffer->vmperm);
-free_sg:
-	sg_free_table(table);
-free_buffer:
-	list_for_each_entry_safe(page, tmp_page, &pages, lru)
-		__free_pages(page, compound_order(page));
+free_sys_heap_mem:
+	system_heap_free(buffer);
+free_buf_struct:
 	kfree(buffer);
 
 	return ERR_PTR(ret);
