@@ -3,6 +3,68 @@
 
 #include "perf_event.h"
 
+static int decode_branch_type(struct insn *insn)
+{
+	int ext;
+
+	if (insn_get_opcode(insn))
+		return X86_BR_ABORT;
+
+	switch (insn->opcode.bytes[0]) {
+	case 0xf:
+		switch (insn->opcode.bytes[1]) {
+		case 0x05: /* syscall */
+		case 0x34: /* sysenter */
+			return X86_BR_SYSCALL;
+		case 0x07: /* sysret */
+		case 0x35: /* sysexit */
+			return X86_BR_SYSRET;
+		case 0x80 ... 0x8f: /* conditional */
+			return X86_BR_JCC;
+		}
+		return X86_BR_NONE;
+	case 0x70 ... 0x7f: /* conditional */
+		return X86_BR_JCC;
+	case 0xc2: /* near ret */
+	case 0xc3: /* near ret */
+	case 0xca: /* far ret */
+	case 0xcb: /* far ret */
+		return X86_BR_RET;
+	case 0xcf: /* iret */
+		return X86_BR_IRET;
+	case 0xcc ... 0xce: /* int */
+		return X86_BR_INT;
+	case 0xe8: /* call near rel */
+		if (insn_get_immediate(insn) || insn->immediate1.value == 0) {
+			/* zero length call */
+			return X86_BR_ZERO_CALL;
+		}
+		fallthrough;
+	case 0x9a: /* call far absolute */
+		return X86_BR_CALL;
+	case 0xe0 ... 0xe3: /* loop jmp */
+		return X86_BR_JCC;
+	case 0xe9 ... 0xeb: /* jmp */
+		return X86_BR_JMP;
+	case 0xff: /* call near absolute, call far absolute ind */
+		if (insn_get_modrm(insn))
+			return X86_BR_ABORT;
+
+		ext = (insn->modrm.bytes[0] >> 3) & 0x7;
+		switch (ext) {
+		case 2: /* near ind call */
+		case 3: /* far ind call */
+			return X86_BR_IND_CALL;
+		case 4:
+		case 5:
+			return X86_BR_IND_JMP;
+		}
+		return X86_BR_NONE;
+	}
+
+	return X86_BR_NONE;
+}
+
 /*
  * return the type of control flow change at address "from"
  * instruction is not necessarily a branch (in case of interrupt).
@@ -13,14 +75,22 @@
  * If a branch type is unknown OR the instruction cannot be
  * decoded (e.g., text page not present), then X86_BR_NONE is
  * returned.
+ *
+ * While recording branches, some processors can report the "from"
+ * address to be that of an instruction preceding the actual branch
+ * when instruction fusion occurs. If fusion is expected, attempt to
+ * find the type of the first branch instruction within the next
+ * MAX_INSN_SIZE bytes and if found, provide the offset between the
+ * reported "from" address and the actual branch instruction address.
  */
-int branch_type(unsigned long from, unsigned long to, int abort)
+static int get_branch_type(unsigned long from, unsigned long to, int abort,
+			   bool fused, int *offset)
 {
 	struct insn insn;
 	void *addr;
-	int bytes_read, bytes_left;
+	int bytes_read, bytes_left, insn_offset;
 	int ret = X86_BR_NONE;
-	int ext, to_plm, from_plm;
+	int to_plm, from_plm;
 	u8 buf[MAX_INSN_SIZE];
 	int is64 = 0;
 
@@ -83,77 +153,27 @@ int branch_type(unsigned long from, unsigned long to, int abort)
 	is64 = kernel_ip((unsigned long)addr) || any_64bit_mode(current_pt_regs());
 #endif
 	insn_init(&insn, addr, bytes_read, is64);
-	if (insn_get_opcode(&insn))
-		return X86_BR_ABORT;
+	ret = decode_branch_type(&insn);
+	insn_offset = 0;
 
-	switch (insn.opcode.bytes[0]) {
-	case 0xf:
-		switch (insn.opcode.bytes[1]) {
-		case 0x05: /* syscall */
-		case 0x34: /* sysenter */
-			ret = X86_BR_SYSCALL;
+	/* Check for the possibility of branch fusion */
+	while (fused && ret == X86_BR_NONE) {
+		/* Check for decoding errors */
+		if (insn_get_length(&insn) || !insn.length)
 			break;
-		case 0x07: /* sysret */
-		case 0x35: /* sysexit */
-			ret = X86_BR_SYSRET;
-			break;
-		case 0x80 ... 0x8f: /* conditional */
-			ret = X86_BR_JCC;
-			break;
-		default:
-			ret = X86_BR_NONE;
-		}
-		break;
-	case 0x70 ... 0x7f: /* conditional */
-		ret = X86_BR_JCC;
-		break;
-	case 0xc2: /* near ret */
-	case 0xc3: /* near ret */
-	case 0xca: /* far ret */
-	case 0xcb: /* far ret */
-		ret = X86_BR_RET;
-		break;
-	case 0xcf: /* iret */
-		ret = X86_BR_IRET;
-		break;
-	case 0xcc ... 0xce: /* int */
-		ret = X86_BR_INT;
-		break;
-	case 0xe8: /* call near rel */
-		if (insn_get_immediate(&insn) || insn.immediate1.value == 0) {
-			/* zero length call */
-			ret = X86_BR_ZERO_CALL;
-			break;
-		}
-		fallthrough;
-	case 0x9a: /* call far absolute */
-		ret = X86_BR_CALL;
-		break;
-	case 0xe0 ... 0xe3: /* loop jmp */
-		ret = X86_BR_JCC;
-		break;
-	case 0xe9 ... 0xeb: /* jmp */
-		ret = X86_BR_JMP;
-		break;
-	case 0xff: /* call near absolute, call far absolute ind */
-		if (insn_get_modrm(&insn))
-			return X86_BR_ABORT;
 
-		ext = (insn.modrm.bytes[0] >> 3) & 0x7;
-		switch (ext) {
-		case 2: /* near ind call */
-		case 3: /* far ind call */
-			ret = X86_BR_IND_CALL;
+		insn_offset += insn.length;
+		bytes_read -= insn.length;
+		if (bytes_read < 0)
 			break;
-		case 4:
-		case 5:
-			ret = X86_BR_IND_JMP;
-			break;
-		}
-		break;
-	default:
-		ret = X86_BR_NONE;
+
+		insn_init(&insn, addr + insn_offset, bytes_read, is64);
+		ret = decode_branch_type(&insn);
 	}
+
+	if (offset)
+		*offset = insn_offset;
+
 	/*
 	 * interrupts, traps, faults (and thus ring transition) may
 	 * occur on any instructions. Thus, to classify them correctly,
@@ -177,6 +197,17 @@ int branch_type(unsigned long from, unsigned long to, int abort)
 		ret |= to_plm;
 
 	return ret;
+}
+
+int branch_type(unsigned long from, unsigned long to, int abort)
+{
+	return get_branch_type(from, to, abort, false, NULL);
+}
+
+int branch_type_fused(unsigned long from, unsigned long to, int abort,
+		      int *offset)
+{
+	return get_branch_type(from, to, abort, true, offset);
 }
 
 #define X86_BR_TYPE_MAP_MAX	16

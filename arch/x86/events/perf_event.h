@@ -1271,6 +1271,8 @@ enum {
 
 int common_branch_type(int type);
 int branch_type(unsigned long from, unsigned long to, int abort);
+int branch_type_fused(unsigned long from, unsigned long to, int abort,
+		      int *offset);
 
 ssize_t x86_event_sysfs_show(char *page, u64 config, u64 event);
 ssize_t intel_event_sysfs_show(char *page, u64 config);
