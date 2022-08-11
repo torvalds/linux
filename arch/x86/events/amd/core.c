@@ -330,6 +330,8 @@ static inline bool amd_is_pair_event_code(struct hw_perf_event *hwc)
 	}
 }
 
+DEFINE_STATIC_CALL_RET0(amd_pmu_branch_hw_config, *x86_pmu.hw_config);
+
 static int amd_core_hw_config(struct perf_event *event)
 {
 	if (event->attr.exclude_host && event->attr.exclude_guest)
@@ -349,7 +351,7 @@ static int amd_core_hw_config(struct perf_event *event)
 		event->hw.flags |= PERF_X86_EVENT_PAIR;
 
 	if (has_branch_stack(event))
-		return amd_brs_hw_config(event);
+		return static_call(amd_pmu_branch_hw_config)(event);
 
 	return 0;
 }
@@ -518,8 +520,14 @@ static struct amd_nb *amd_alloc_nb(int cpu)
 	return nb;
 }
 
+typedef void (amd_pmu_branch_reset_t)(void);
+DEFINE_STATIC_CALL_NULL(amd_pmu_branch_reset, amd_pmu_branch_reset_t);
+
 static void amd_pmu_cpu_reset(int cpu)
 {
+	if (x86_pmu.lbr_nr)
+		static_call(amd_pmu_branch_reset)();
+
 	if (x86_pmu.version < 2)
 		return;
 
@@ -576,7 +584,6 @@ static void amd_pmu_cpu_starting(int cpu)
 	cpuc->amd_nb->nb_id = nb_id;
 	cpuc->amd_nb->refcnt++;
 
-	amd_brs_reset();
 	amd_pmu_cpu_reset(cpu);
 }
 
@@ -771,16 +778,20 @@ static void amd_pmu_v2_disable_all(void)
 	amd_pmu_check_overflow();
 }
 
+DEFINE_STATIC_CALL_NULL(amd_pmu_branch_add, *x86_pmu.add);
+
 static void amd_pmu_add_event(struct perf_event *event)
 {
 	if (needs_branch_stack(event))
-		amd_pmu_brs_add(event);
+		static_call(amd_pmu_branch_add)(event);
 }
+
+DEFINE_STATIC_CALL_NULL(amd_pmu_branch_del, *x86_pmu.del);
 
 static void amd_pmu_del_event(struct perf_event *event)
 {
 	if (needs_branch_stack(event))
-		amd_pmu_brs_del(event);
+		static_call(amd_pmu_branch_del)(event);
 }
 
 /*
@@ -1184,13 +1195,6 @@ static ssize_t amd_event_sysfs_show(char *page, u64 config)
 	return x86_event_sysfs_show(page, config, event);
 }
 
-static void amd_pmu_sched_task(struct perf_event_context *ctx,
-				 bool sched_in)
-{
-	if (sched_in && x86_pmu.lbr_nr)
-		amd_pmu_brs_sched_task(ctx, sched_in);
-}
-
 static u64 amd_pmu_limit_period(struct perf_event *event, u64 left)
 {
 	/*
@@ -1375,8 +1379,14 @@ static int __init amd_core_pmu_init(void)
 	 */
 	if (boot_cpu_data.x86 >= 0x19 && !amd_brs_init()) {
 		x86_pmu.get_event_constraints = amd_get_event_constraints_f19h;
-		x86_pmu.sched_task = amd_pmu_sched_task;
+		x86_pmu.sched_task = amd_pmu_brs_sched_task;
 		x86_pmu.limit_period = amd_pmu_limit_period;
+
+		static_call_update(amd_pmu_branch_hw_config, amd_brs_hw_config);
+		static_call_update(amd_pmu_branch_reset, amd_brs_reset);
+		static_call_update(amd_pmu_branch_add, amd_pmu_brs_add);
+		static_call_update(amd_pmu_branch_del, amd_pmu_brs_del);
+
 		/*
 		 * put_event_constraints callback same as Fam17h, set above
 		 */
