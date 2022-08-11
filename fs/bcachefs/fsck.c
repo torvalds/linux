@@ -519,7 +519,7 @@ static int snapshots_seen_update(struct bch_fs *c, struct snapshots_seen *s,
 		.id	= pos.snapshot,
 		.equiv	= bch2_snapshot_equiv(c, pos.snapshot),
 	};
-	int ret;
+	int ret = 0;
 
 	if (bkey_cmp(s->pos, pos))
 		s->ids.nr = 0;
@@ -529,14 +529,13 @@ static int snapshots_seen_update(struct bch_fs *c, struct snapshots_seen *s,
 
 	darray_for_each(s->ids, i)
 		if (i->equiv == n.equiv) {
-			if (i->id != n.id) {
-				bch_err(c, "snapshot deletion did not run correctly:\n"
+			if (fsck_err_on(i->id != n.id, c,
+					"snapshot deletion did not run correctly:\n"
 					"  duplicate keys in btree %s at %llu:%llu snapshots %u, %u (equiv %u)\n",
 					bch2_btree_ids[btree_id],
 					pos.inode, pos.offset,
-					i->id, n.id, n.equiv);
+					i->id, n.id, n.equiv))
 				return -BCH_ERR_need_snapshot_cleanup;
-			}
 
 			return 0;
 		}
@@ -545,6 +544,7 @@ static int snapshots_seen_update(struct bch_fs *c, struct snapshots_seen *s,
 	if (ret)
 		bch_err(c, "error reallocating snapshots_seen table (size %zu)",
 			s->ids.size);
+fsck_err:
 	return ret;
 }
 
