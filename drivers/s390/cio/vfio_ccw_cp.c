@@ -83,12 +83,13 @@ static int page_array_alloc(struct page_array *pa, unsigned int len)
  * @pa: page_array on which to perform the operation
  * @vdev: the vfio device to perform the operation
  * @pa_nr: number of user pages to unpin
+ * @unaligned: were pages unaligned on the pin request
  *
  * Only unpin if any pages were pinned to begin with, i.e. pa_nr > 0,
  * otherwise only clear pa->pa_nr
  */
 static void page_array_unpin(struct page_array *pa,
-			     struct vfio_device *vdev, int pa_nr)
+			     struct vfio_device *vdev, int pa_nr, bool unaligned)
 {
 	int unpinned = 0, npage = 1;
 
@@ -97,7 +98,8 @@ static void page_array_unpin(struct page_array *pa,
 		dma_addr_t *last = &first[npage];
 
 		if (unpinned + npage < pa_nr &&
-		    *first + npage * PAGE_SIZE == *last) {
+		    *first + npage * PAGE_SIZE == *last &&
+		    !unaligned) {
 			npage++;
 			continue;
 		}
@@ -114,12 +116,19 @@ static void page_array_unpin(struct page_array *pa,
  * page_array_pin() - Pin user pages in memory
  * @pa: page_array on which to perform the operation
  * @vdev: the vfio device to perform pin operations
+ * @unaligned: are pages aligned to 4K boundary?
  *
  * Returns number of pages pinned upon success.
  * If the pin request partially succeeds, or fails completely,
  * all pages are left unpinned and a negative error value is returned.
+ *
+ * Requests to pin "aligned" pages can be coalesced into a single
+ * vfio_pin_pages request for the sake of efficiency, based on the
+ * expectation of 4K page requests. Unaligned requests are probably
+ * dealing with 2K "pages", and cannot be coalesced without
+ * reworking this logic to incorporate that math.
  */
-static int page_array_pin(struct page_array *pa, struct vfio_device *vdev)
+static int page_array_pin(struct page_array *pa, struct vfio_device *vdev, bool unaligned)
 {
 	int pinned = 0, npage = 1;
 	int ret = 0;
@@ -129,7 +138,8 @@ static int page_array_pin(struct page_array *pa, struct vfio_device *vdev)
 		dma_addr_t *last = &first[npage];
 
 		if (pinned + npage < pa->pa_nr &&
-		    *first + npage * PAGE_SIZE == *last) {
+		    *first + npage * PAGE_SIZE == *last &&
+		    !unaligned) {
 			npage++;
 			continue;
 		}
@@ -151,14 +161,14 @@ static int page_array_pin(struct page_array *pa, struct vfio_device *vdev)
 	return ret;
 
 err_out:
-	page_array_unpin(pa, vdev, pinned);
+	page_array_unpin(pa, vdev, pinned, unaligned);
 	return ret;
 }
 
 /* Unpin the pages before releasing the memory. */
-static void page_array_unpin_free(struct page_array *pa, struct vfio_device *vdev)
+static void page_array_unpin_free(struct page_array *pa, struct vfio_device *vdev, bool unaligned)
 {
-	page_array_unpin(pa, vdev, pa->pa_nr);
+	page_array_unpin(pa, vdev, pa->pa_nr, unaligned);
 	kfree(pa->pa_page);
 	kfree(pa->pa_iova);
 }
@@ -643,7 +653,7 @@ static int ccwchain_fetch_ccw(struct ccw1 *ccw,
 	}
 
 	if (ccw_does_data_transfer(ccw)) {
-		ret = page_array_pin(pa, vdev);
+		ret = page_array_pin(pa, vdev, idal_is_2k(cp));
 		if (ret < 0)
 			goto out_unpin;
 	} else {
@@ -659,7 +669,7 @@ static int ccwchain_fetch_ccw(struct ccw1 *ccw,
 	return 0;
 
 out_unpin:
-	page_array_unpin_free(pa, vdev);
+	page_array_unpin_free(pa, vdev, idal_is_2k(cp));
 out_free_idaws:
 	kfree(idaws);
 out_init:
@@ -757,7 +767,7 @@ void cp_free(struct channel_program *cp)
 	cp->initialized = false;
 	list_for_each_entry_safe(chain, temp, &cp->ccwchain_list, next) {
 		for (i = 0; i < chain->ch_len; i++) {
-			page_array_unpin_free(&chain->ch_pa[i], vdev);
+			page_array_unpin_free(&chain->ch_pa[i], vdev, idal_is_2k(cp));
 			ccwchain_cda_free(chain, i);
 		}
 		ccwchain_free(chain);
