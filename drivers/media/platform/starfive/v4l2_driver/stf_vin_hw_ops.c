@@ -224,7 +224,7 @@ static int stf_vin_top_clk_init(struct stf_vin2_dev *vin_dev)
 		dev_err(stfcamss->dev,
 			"vin_clk_init: failed to get pm runtime: %d\n", ret);
 		return ret;
-    }
+	}
 
 	if (!__clk_is_enabled(stfcamss->sys_clk[STFCLK_NOC_BUS_CLK_ISP_AXI].clk))
 		clk_prepare_enable(stfcamss->sys_clk[STFCLK_NOC_BUS_CLK_ISP_AXI].clk);

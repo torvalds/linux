@@ -164,6 +164,7 @@ struct stf_vin2_dev {
 	int power_count;
 };
 
+extern void sifive_l2_flush64_range(unsigned long start, unsigned long len);
 extern int stf_vin_subdev_init(struct stfcamss *stfcamss);
 extern int stf_vin_register(struct stf_vin2_dev *vin_dev,
 		struct v4l2_device *v4l2_dev);

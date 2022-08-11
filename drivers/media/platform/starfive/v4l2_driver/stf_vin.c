@@ -347,6 +347,17 @@ static unsigned int get_frame_skip(struct vin_line *line)
 	return frame_skip;
 }
 
+static void vin_buf_l2cache_flush(struct vin_output *output)
+{
+	struct stfcamss_buffer *buffer = NULL;
+
+	if (!list_empty(&output->pending_bufs)) {
+		list_for_each_entry(buffer, &output->pending_bufs, queue) {
+			sifive_l2_flush64_range(buffer->addr[0], buffer->sizeimage);
+		}
+	}
+}
+
 static int vin_enable_output(struct vin_line *line)
 {
 	struct vin_output *output = &line->output;
@@ -355,6 +366,8 @@ static int vin_enable_output(struct vin_line *line)
 	spin_lock_irqsave(&line->output_lock, flags);
 
 	output->state = VIN_OUTPUT_IDLE;
+
+	vin_buf_l2cache_flush(output);
 
 	output->buf[0] = vin_buf_get_pending(output);
 #ifdef VIN_TWO_BUFFER
@@ -1104,7 +1117,6 @@ static void vin_buf_flush(struct vin_output *output,
 	}
 }
 
-extern void sifive_l2_flush64_range(unsigned long start, unsigned long len);
 static void vin_buffer_done(struct vin_line *line, struct vin_params *params)
 {
 	struct stfcamss_buffer *ready_buf;

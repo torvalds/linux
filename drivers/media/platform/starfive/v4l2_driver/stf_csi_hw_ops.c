@@ -246,16 +246,13 @@ static int stf_csi_stream_set(struct stf_csi_dev *csi_dev,
 			BIT(11)|BIT(10)|BIT(9)|BIT(8),
 			0<<8);		//u0_vin_cnfg_mipi_channel_sel0
 		reg_set_bit(vin->sysctrl_base,	SYSCONSAIF_SYSCFG_36,
-			BIT(12),
-			1<<12);		//u0_vin_cnfg_p_i_mipi_header_en0
-		reg_set_bit(vin->sysctrl_base,	SYSCONSAIF_SYSCFG_36,
 			BIT(16)|BIT(15)|BIT(14)|BIT(13),
 			0<<13);		//u0_vin_cnfg_pix_num
 
 		if (dt == 0x2b)
 			reg_set_bit(vin->sysctrl_base,	SYSCONSAIF_SYSCFG_36,
 				BIT(12),
-				1 << 12);
+				1<<12);		//u0_vin_cnfg_p_i_mipi_header_en0
 		break;
 	default:
 		break;
