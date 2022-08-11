@@ -55,6 +55,7 @@ menuconfig STAGING_MEDIA_DEPRECATED
 	  If in doubt, say N here.
 
 if STAGING_MEDIA_DEPRECATED
+source "drivers/staging/media/deprecated/cpia2/Kconfig"
 source "drivers/staging/media/deprecated/stkwebcam/Kconfig"
 endif
 

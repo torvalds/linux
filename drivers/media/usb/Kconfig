@@ -13,7 +13,6 @@ if MEDIA_USB_SUPPORT
 if MEDIA_CAMERA_SUPPORT
 	comment "Webcam devices"
 
-source "drivers/media/usb/cpia2/Kconfig"
 source "drivers/media/usb/gspca/Kconfig"
 source "drivers/media/usb/pwc/Kconfig"
 source "drivers/media/usb/s2255/Kconfig"
