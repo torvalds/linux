@@ -2760,13 +2760,17 @@ again:
 		 * on transition from wanted -> needed caps.  This is needed
 		 * for WRBUFFER|WR -> WR to avoid a new WR sync write from
 		 * going before a prior buffered writeback happens.
+		 *
+		 * For RDCACHE|RD -> RD, there is not need to wait and we can
+		 * just exclude the revoking caps and force to sync read.
 		 */
 		int not = want & ~(have & need);
 		int revoking = implemented & ~have;
+		int exclude = revoking & not;
 		dout("get_cap_refs %p have %s but not %s (revoking %s)\n",
 		     inode, ceph_cap_string(have), ceph_cap_string(not),
 		     ceph_cap_string(revoking));
-		if ((revoking & not) == 0) {
+		if (!exclude || !(exclude & CEPH_CAP_FILE_BUFFER)) {
 			if (!snap_rwsem_locked &&
 			    !ci->i_head_snapc &&
 			    (need & CEPH_CAP_FILE_WR)) {
@@ -2788,7 +2792,7 @@ again:
 				snap_rwsem_locked = true;
 			}
 			if ((have & want) == want)
-				*got = need | want;
+				*got = need | (want & ~exclude);
 			else
 				*got = need;
 			ceph_take_cap_refs(ci, *got, true);
