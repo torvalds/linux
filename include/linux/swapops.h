@@ -8,6 +8,10 @@
 
 #ifdef CONFIG_MMU
 
+#ifdef CONFIG_SWAP
+#include <linux/swapfile.h>
+#endif	/* CONFIG_SWAP */
+
 /*
  * swapcache pages are stored in the swapper_space radix tree.  We want to
  * get good packing density in that tree, so the index should be dense in
@@ -34,6 +38,31 @@
 #define SWP_PFN_BITS			(BITS_PER_LONG - PAGE_SHIFT)
 #endif	/* MAX_PHYSMEM_BITS */
 #define SWP_PFN_MASK			(BIT(SWP_PFN_BITS) - 1)
+
+/**
+ * Migration swap entry specific bitfield definitions.  Layout:
+ *
+ *   |----------+--------------------|
+ *   | swp_type | swp_offset         |
+ *   |----------+--------+-+-+-------|
+ *   |          | resv   |D|A|  PFN  |
+ *   |----------+--------+-+-+-------|
+ *
+ * @SWP_MIG_YOUNG_BIT: Whether the page used to have young bit set (bit A)
+ * @SWP_MIG_DIRTY_BIT: Whether the page used to have dirty bit set (bit D)
+ *
+ * Note: A/D bits will be stored in migration entries iff there're enough
+ * free bits in arch specific swp offset.  By default we'll ignore A/D bits
+ * when migrating a page.  Please refer to migration_entry_supports_ad()
+ * for more information.  If there're more bits besides PFN and A/D bits,
+ * they should be reserved and always be zeros.
+ */
+#define SWP_MIG_YOUNG_BIT		(SWP_PFN_BITS)
+#define SWP_MIG_DIRTY_BIT		(SWP_PFN_BITS + 1)
+#define SWP_MIG_TOTAL_BITS		(SWP_PFN_BITS + 2)
+
+#define SWP_MIG_YOUNG			BIT(SWP_MIG_YOUNG_BIT)
+#define SWP_MIG_DIRTY			BIT(SWP_MIG_DIRTY_BIT)
 
 static inline bool is_pfn_swap_entry(swp_entry_t entry);
 
@@ -265,6 +294,57 @@ static inline swp_entry_t make_writable_migration_entry(pgoff_t offset)
 	return swp_entry(SWP_MIGRATION_WRITE, offset);
 }
 
+/*
+ * Returns whether the host has large enough swap offset field to support
+ * carrying over pgtable A/D bits for page migrations.  The result is
+ * pretty much arch specific.
+ */
+static inline bool migration_entry_supports_ad(void)
+{
+	/*
+	 * max_swapfile_size() returns the max supported swp-offset plus 1.
+	 * We can support the migration A/D bits iff the pfn swap entry has
+	 * the offset large enough to cover all of them (PFN, A & D bits).
+	 */
+#ifdef CONFIG_SWAP
+	return max_swapfile_size() >= (1UL << SWP_MIG_TOTAL_BITS);
+#else  /* CONFIG_SWAP */
+	return false;
+#endif	/* CONFIG_SWAP */
+}
+
+static inline swp_entry_t make_migration_entry_young(swp_entry_t entry)
+{
+	if (migration_entry_supports_ad())
+		return swp_entry(swp_type(entry),
+				 swp_offset(entry) | SWP_MIG_YOUNG);
+	return entry;
+}
+
+static inline bool is_migration_entry_young(swp_entry_t entry)
+{
+	if (migration_entry_supports_ad())
+		return swp_offset(entry) & SWP_MIG_YOUNG;
+	/* Keep the old behavior of aging page after migration */
+	return false;
+}
+
+static inline swp_entry_t make_migration_entry_dirty(swp_entry_t entry)
+{
+	if (migration_entry_supports_ad())
+		return swp_entry(swp_type(entry),
+				 swp_offset(entry) | SWP_MIG_DIRTY);
+	return entry;
+}
+
+static inline bool is_migration_entry_dirty(swp_entry_t entry)
+{
+	if (migration_entry_supports_ad())
+		return swp_offset(entry) & SWP_MIG_DIRTY;
+	/* Keep the old behavior of clean page after migration */
+	return false;
+}
+
 extern void __migration_entry_wait(struct mm_struct *mm, pte_t *ptep,
 					spinlock_t *ptl);
 extern void migration_entry_wait(struct mm_struct *mm, pmd_t *pmd,
@@ -311,6 +391,25 @@ static inline int is_readable_migration_entry(swp_entry_t entry)
 	return 0;
 }
 
+static inline swp_entry_t make_migration_entry_young(swp_entry_t entry)
+{
+	return entry;
+}
+
+static inline bool is_migration_entry_young(swp_entry_t entry)
+{
+	return false;
+}
+
+static inline swp_entry_t make_migration_entry_dirty(swp_entry_t entry)
+{
+	return entry;
+}
+
+static inline bool is_migration_entry_dirty(swp_entry_t entry)
+{
+	return false;
+}
 #endif	/* CONFIG_MIGRATION */
 
 typedef unsigned long pte_marker;

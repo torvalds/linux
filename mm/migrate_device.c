@@ -233,6 +233,12 @@ again:
 			else
 				entry = make_readable_migration_entry(
 							page_to_pfn(page));
+			if (pte_present(pte)) {
+				if (pte_young(pte))
+					entry = make_migration_entry_young(entry);
+				if (pte_dirty(pte))
+					entry = make_migration_entry_dirty(entry);
+			}
 			swp_pte = swp_entry_to_pte(entry);
 			if (pte_present(pte)) {
 				if (pte_soft_dirty(pte))
