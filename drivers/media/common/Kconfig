@@ -22,7 +22,6 @@ config VIDEO_TVEEPROM
 	depends on I2C
 
 source "drivers/media/common/b2c2/Kconfig"
-source "drivers/media/common/saa7146/Kconfig"
 source "drivers/media/common/siano/Kconfig"
 source "drivers/media/common/v4l2-tpg/Kconfig"
 source "drivers/media/common/videobuf2/Kconfig"
