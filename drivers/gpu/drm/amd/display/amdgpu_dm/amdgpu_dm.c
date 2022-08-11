@@ -9380,9 +9380,6 @@ static int amdgpu_dm_atomic_check(struct drm_device *dev,
 		struct dm_connector_state *dm_new_con_state = to_dm_connector_state(new_con_state);
 
 		/* Skip connectors that are disabled or part of modeset already. */
-		if (!old_con_state->crtc && !new_con_state->crtc)
-			continue;
-
 		if (!new_con_state->crtc)
 			continue;
 
