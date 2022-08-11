@@ -5086,6 +5086,14 @@ BPF_CALL_3(bpf_sys_bpf, int, cmd, union bpf_attr *, attr, u32, attr_size)
 	return __sys_bpf(cmd, KERNEL_BPFPTR(attr), attr_size);
 }
 
+
+/* To shut up -Wmissing-prototypes.
+ * This function is used by the kernel light skeleton
+ * to load bpf programs when modules are loaded or during kernel boot.
+ * See tools/lib/bpf/skel_internal.h
+ */
+int kern_sys_bpf(int cmd, union bpf_attr *attr, unsigned int size);
+
 int kern_sys_bpf(int cmd, union bpf_attr *attr, unsigned int size)
 {
 	struct bpf_prog * __maybe_unused prog;
