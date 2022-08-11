@@ -789,15 +789,14 @@ struct stripe_request_ctx {
  */
 static bool is_inactive_blocked(struct r5conf *conf, int hash)
 {
-	int active = atomic_read(&conf->active_stripes);
-
 	if (list_empty(conf->inactive_list + hash))
 		return false;
 
 	if (!test_bit(R5_INACTIVE_BLOCKED, &conf->cache_state))
 		return true;
 
-	return active < (conf->max_nr_stripes * 3 / 4);
+	return (atomic_read(&conf->active_stripes) <
+		(conf->max_nr_stripes * 3 / 4));
 }
 
 struct stripe_head *raid5_get_active_stripe(struct r5conf *conf,
