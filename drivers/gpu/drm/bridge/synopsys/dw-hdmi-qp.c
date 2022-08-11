@@ -568,6 +568,36 @@ void dw_hdmi_qp_set_channel_allocation(struct dw_hdmi_qp *hdmi, unsigned int ca)
 }
 EXPORT_SYMBOL_GPL(dw_hdmi_qp_set_channel_allocation);
 
+static int dw_hdmi_qp_init_audio_infoframe(struct dw_hdmi_qp *hdmi)
+{
+	struct hdmi_audio_infoframe frame;
+	u8 infoframe_buf[HDMI_INFOFRAME_SIZE(AUDIO)];
+	int ret = 0;
+
+	hdmi_audio_infoframe_init(&frame);
+
+	frame.coding_type = HDMI_AUDIO_CODING_TYPE_STREAM;
+	frame.sample_frequency = HDMI_AUDIO_SAMPLE_FREQUENCY_STREAM;
+	frame.sample_size = HDMI_AUDIO_SAMPLE_SIZE_STREAM;
+	frame.channels = 2;
+
+	ret = hdmi_audio_infoframe_pack(&frame, infoframe_buf,
+					sizeof(infoframe_buf));
+	if (ret < 0) {
+		dev_err(hdmi->dev, "%s: Failed to pack audio infoframe: %d\n",
+			__func__, ret);
+		return ret;
+	}
+
+	regmap_bulk_write(hdmi->regm, PKT_AUDI_CONTENTS1, &infoframe_buf[3], 2);
+	hdmi_modb(hdmi,
+		  PKTSCHED_ACR_TX_EN | PKTSCHED_AUDI_TX_EN,
+		  PKTSCHED_ACR_TX_EN | PKTSCHED_AUDI_TX_EN,
+		  PKTSCHED_PKT_EN);
+
+	return 0;
+}
+
 void dw_hdmi_qp_set_audio_infoframe(struct dw_hdmi_qp *hdmi,
 				    struct hdmi_codec_params *hparms)
 {
@@ -2334,6 +2364,9 @@ static void dw_hdmi_qp_bridge_atomic_enable(struct drm_bridge *bridge,
 		hdmi->dclk_en = true;
 		mutex_unlock(&hdmi->audio_mutex);
 	}
+	dw_hdmi_qp_init_audio_infoframe(hdmi);
+	dw_hdmi_qp_audio_enable(hdmi);
+	hdmi_clk_regenerator_update_pixel_clock(hdmi);
 
 	extcon_set_state_sync(hdmi->extcon, EXTCON_DISP_HDMI, true);
 	handle_plugged_change(hdmi, true);
