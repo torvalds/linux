@@ -1432,7 +1432,7 @@ static int mtk_i2c_probe(struct platform_device *pdev)
 		speed_clk = I2C_MT65XX_CLK_MAIN;
 	}
 
-	strlcpy(i2c->adap.name, I2C_DRV_NAME, sizeof(i2c->adap.name));
+	strscpy(i2c->adap.name, I2C_DRV_NAME, sizeof(i2c->adap.name));
 
 	ret = mtk_i2c_set_speed(i2c, clk_get_rate(i2c->clocks[speed_clk].clk));
 	if (ret) {
