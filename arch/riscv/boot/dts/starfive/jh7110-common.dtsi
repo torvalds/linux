@@ -282,8 +282,12 @@
 		reg = <0x10>;
 		clocks = <&clk_ext_camera>;
 		clock-names = "xclk";
-		//reset-gpio = <&gpio 18 0>;
+		//reset-gpio = <&gpio 10 0>;
 		//DOVDD-supply = <&v2v8>;
+		pinctrl-names = "default", "power_up", "power_down";
+		pinctrl-0 = <&csi_pins_default>;
+		pinctrl-1 = <&csi_pins_pwup>;
+		pinctrl-2 = <&csi_pins_pwdn>;
 		rotation = <0>;
 		orientation = <1>; //CAMERA_ORIENTATION_BACK
 
