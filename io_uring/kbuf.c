@@ -272,7 +272,7 @@ void io_destroy_buffers(struct io_ring_ctx *ctx)
 
 int io_remove_buffers_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 {
-	struct io_provide_buf *p = io_kiocb_to_cmd(req);
+	struct io_provide_buf *p = io_kiocb_to_cmd(req, struct io_provide_buf);
 	u64 tmp;
 
 	if (sqe->rw_flags || sqe->addr || sqe->len || sqe->off ||
@@ -291,7 +291,7 @@ int io_remove_buffers_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 
 int io_remove_buffers(struct io_kiocb *req, unsigned int issue_flags)
 {
-	struct io_provide_buf *p = io_kiocb_to_cmd(req);
+	struct io_provide_buf *p = io_kiocb_to_cmd(req, struct io_provide_buf);
 	struct io_ring_ctx *ctx = req->ctx;
 	struct io_buffer_list *bl;
 	int ret = 0;
@@ -319,7 +319,7 @@ int io_remove_buffers(struct io_kiocb *req, unsigned int issue_flags)
 int io_provide_buffers_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 {
 	unsigned long size, tmp_check;
-	struct io_provide_buf *p = io_kiocb_to_cmd(req);
+	struct io_provide_buf *p = io_kiocb_to_cmd(req, struct io_provide_buf);
 	u64 tmp;
 
 	if (sqe->rw_flags || sqe->splice_fd_in)
@@ -421,7 +421,7 @@ static int io_add_buffers(struct io_ring_ctx *ctx, struct io_provide_buf *pbuf,
 
 int io_provide_buffers(struct io_kiocb *req, unsigned int issue_flags)
 {
-	struct io_provide_buf *p = io_kiocb_to_cmd(req);
+	struct io_provide_buf *p = io_kiocb_to_cmd(req, struct io_provide_buf);
 	struct io_ring_ctx *ctx = req->ctx;
 	struct io_buffer_list *bl;
 	int ret = 0;

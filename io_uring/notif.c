@@ -123,8 +123,6 @@ __cold int io_notif_register(struct io_ring_ctx *ctx,
 	struct io_uring_notification_register reg;
 	unsigned i;
 
-	BUILD_BUG_ON(sizeof(struct io_notif_data) > 64);
-
 	if (ctx->nr_notif_slots)
 		return -EBUSY;
 	if (size != sizeof(reg))

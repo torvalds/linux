@@ -11,7 +11,7 @@
 
 static void io_uring_cmd_work(struct io_kiocb *req, bool *locked)
 {
-	struct io_uring_cmd *ioucmd = io_kiocb_to_cmd(req);
+	struct io_uring_cmd *ioucmd = io_kiocb_to_cmd(req, struct io_uring_cmd);
 
 	ioucmd->task_work_cb(ioucmd);
 }
@@ -55,7 +55,7 @@ EXPORT_SYMBOL_GPL(io_uring_cmd_done);
 
 int io_uring_cmd_prep_async(struct io_kiocb *req)
 {
-	struct io_uring_cmd *ioucmd = io_kiocb_to_cmd(req);
+	struct io_uring_cmd *ioucmd = io_kiocb_to_cmd(req, struct io_uring_cmd);
 	size_t cmd_size;
 
 	cmd_size = uring_cmd_pdu_size(req->ctx->flags & IORING_SETUP_SQE128);
@@ -66,7 +66,7 @@ int io_uring_cmd_prep_async(struct io_kiocb *req)
 
 int io_uring_cmd_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 {
-	struct io_uring_cmd *ioucmd = io_kiocb_to_cmd(req);
+	struct io_uring_cmd *ioucmd = io_kiocb_to_cmd(req, struct io_uring_cmd);
 
 	if (sqe->rw_flags || sqe->__pad1)
 		return -EINVAL;
@@ -77,7 +77,7 @@ int io_uring_cmd_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 
 int io_uring_cmd(struct io_kiocb *req, unsigned int issue_flags)
 {
-	struct io_uring_cmd *ioucmd = io_kiocb_to_cmd(req);
+	struct io_uring_cmd *ioucmd = io_kiocb_to_cmd(req, struct io_uring_cmd);
 	struct io_ring_ctx *ctx = req->ctx;
 	struct file *file = req->file;
 	int ret;
