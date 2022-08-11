@@ -46,6 +46,7 @@
 #include "netlink.h"
 #endif
 #include "fs_context.h"
+#include "cached_dir.h"
 
 /*
  * DOS dates from 1980/1/1 through 2107/12/31
@@ -283,30 +284,13 @@ out_no_root:
 static void cifs_kill_sb(struct super_block *sb)
 {
 	struct cifs_sb_info *cifs_sb = CIFS_SB(sb);
-	struct cifs_tcon *tcon;
-	struct cached_fid *cfid;
-	struct rb_root *root = &cifs_sb->tlink_tree;
-	struct rb_node *node;
-	struct tcon_link *tlink;
 
 	/*
 	 * We ned to release all dentries for the cached directories
 	 * before we kill the sb.
 	 */
 	if (cifs_sb->root) {
-		for (node = rb_first(root); node; node = rb_next(node)) {
-			tlink = rb_entry(node, struct tcon_link, tl_rbnode);
-			tcon = tlink_tcon(tlink);
-			if (IS_ERR(tcon))
-				continue;
-			cfid = &tcon->crfid;
-			mutex_lock(&cfid->fid_mutex);
-			if (cfid->dentry) {
-				dput(cfid->dentry);
-				cfid->dentry = NULL;
-			}
-			mutex_unlock(&cfid->fid_mutex);
-		}
+		close_all_cached_dirs(cifs_sb);
 
 		/* finally release root dentry */
 		dput(cifs_sb->root);

@@ -21,6 +21,7 @@
 #include "cifsfs.h"
 #include "smb2proto.h"
 #include "fs_context.h"
+#include "cached_dir.h"
 
 /*
  * To be safe - for UCS to UTF-8 with strings loaded with the rare long
