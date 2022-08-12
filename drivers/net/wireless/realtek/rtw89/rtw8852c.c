@@ -2115,7 +2115,7 @@ static void rtw8852c_set_txpwr_limit(struct rtw89_dev *rtwdev,
 	struct rtw89_txpwr_limit lmt[NTX_NUM_8852C];
 	u32 addr, val;
 	const s8 *ptr;
-	u8 i, j, k;
+	u8 i, j;
 
 	rtw89_debug(rtwdev, RTW89_DBG_TXPWR,
 		    "[TXPWR] set txpwr limit with ch=%d bw=%d\n", ch, bw);
@@ -2126,10 +2126,11 @@ static void rtw8852c_set_txpwr_limit(struct rtw89_dev *rtwdev,
 		for (j = 0; j < __MAC_TXPWR_LMT_PAGE_SIZE; j += 4) {
 			addr = R_AX_PWR_LMT + j + __MAC_TXPWR_LMT_PAGE_SIZE * i;
 			ptr = (s8 *)&lmt[i] + j;
-			val = 0;
 
-			for (k = 0; k < 4; k++)
-				val |= (ptr[k] << (8 * k));
+			val = FIELD_PREP(GENMASK(7, 0), ptr[0]) |
+			      FIELD_PREP(GENMASK(15, 8), ptr[1]) |
+			      FIELD_PREP(GENMASK(23, 16), ptr[2]) |
+			      FIELD_PREP(GENMASK(31, 24), ptr[3]);
 
 			rtw89_mac_txpwr_write32(rtwdev, phy_idx, addr, val);
 		}
@@ -2147,7 +2148,7 @@ static void rtw8852c_set_txpwr_limit_ru(struct rtw89_dev *rtwdev,
 	struct rtw89_txpwr_limit_ru lmt_ru[NTX_NUM_8852C];
 	u32 addr, val;
 	const s8 *ptr;
-	u8 i, j, k;
+	u8 i, j;
 
 	rtw89_debug(rtwdev, RTW89_DBG_TXPWR,
 		    "[TXPWR] set txpwr limit ru with ch=%d bw=%d\n", ch, bw);
@@ -2159,10 +2160,11 @@ static void rtw8852c_set_txpwr_limit_ru(struct rtw89_dev *rtwdev,
 			addr = R_AX_PWR_RU_LMT + j +
 			       __MAC_TXPWR_LMT_RU_PAGE_SIZE * i;
 			ptr = (s8 *)&lmt_ru[i] + j;
-			val = 0;
 
-			for (k = 0; k < 4; k++)
-				val |= (ptr[k] << (8 * k));
+			val = FIELD_PREP(GENMASK(7, 0), ptr[0]) |
+			      FIELD_PREP(GENMASK(15, 8), ptr[1]) |
+			      FIELD_PREP(GENMASK(23, 16), ptr[2]) |
+			      FIELD_PREP(GENMASK(31, 24), ptr[3]);
 
 			rtw89_mac_txpwr_write32(rtwdev, phy_idx, addr, val);
 		}
