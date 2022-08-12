@@ -229,9 +229,7 @@ struct asus_wmi {
 	u8 fan_boost_mode_mask;
 	u8 fan_boost_mode;
 
-	bool egpu_enable_available; // 0 = enable
-	bool egpu_enable;
-
+	bool egpu_enable_available;
 	bool dgpu_disable_available;
 
 	bool throttle_thermal_policy_available;
@@ -625,48 +623,10 @@ static DEVICE_ATTR_RW(dgpu_disable);
 /* eGPU ********************************************************************/
 static int egpu_enable_check_present(struct asus_wmi *asus)
 {
-	u32 result;
-	int err;
-
 	asus->egpu_enable_available = false;
 
-	err = asus_wmi_get_devstate(asus, ASUS_WMI_DEVID_EGPU, &result);
-	if (err) {
-		if (err == -ENODEV)
-			return 0;
-		return err;
-	}
-
-	if (result & ASUS_WMI_DSTS_PRESENCE_BIT) {
+	if (asus_wmi_dev_is_present(asus, ASUS_WMI_DEVID_EGPU))
 		asus->egpu_enable_available = true;
-		asus->egpu_enable = result & ASUS_WMI_DSTS_STATUS_BIT;
-	}
-
-	return 0;
-}
-
-static int egpu_enable_write(struct asus_wmi *asus)
-{
-	u32 retval;
-	u8 value;
-	int err;
-
-	/* Don't rely on type conversion */
-	value = asus->egpu_enable ? 1 : 0;
-
-	err = asus_wmi_set_devstate(ASUS_WMI_DEVID_EGPU, value, &retval);
-
-	if (err) {
-		pr_warn("Failed to set egpu disable: %d\n", err);
-		return err;
-	}
-
-	if (retval > 1) {
-		pr_warn("Failed to set egpu disable (retval): 0x%x\n", retval);
-		return -EIO;
-	}
-
-	sysfs_notify(&asus->platform_device->dev.kobj, NULL, "egpu_enable");
 
 	return 0;
 }
@@ -675,9 +635,13 @@ static ssize_t egpu_enable_show(struct device *dev,
 				   struct device_attribute *attr, char *buf)
 {
 	struct asus_wmi *asus = dev_get_drvdata(dev);
-	bool mode = asus->egpu_enable;
+	int result;
 
-	return sysfs_emit(buf, "%d\n", mode);
+	result = asus_wmi_get_devstate_simple(asus, ASUS_WMI_DEVID_EGPU);
+	if (result < 0)
+		return result;
+
+	return sysfs_emit(buf, "%d\n", result);
 }
 
 /* The ACPI call to enable the eGPU also disables the internal dGPU */
@@ -685,29 +649,33 @@ static ssize_t egpu_enable_store(struct device *dev,
 				    struct device_attribute *attr,
 				    const char *buf, size_t count)
 {
-	bool enable;
-	int result;
+	int result, err;
+	u32 enable;
 
 	struct asus_wmi *asus = dev_get_drvdata(dev);
 
-	result = kstrtobool(buf, &enable);
-	if (result)
-		return result;
+	err = kstrtou32(buf, 10, &enable);
+	if (err)
+		return err;
 
-	asus->egpu_enable = enable;
+	if (enable > 1)
+		return -EINVAL;
 
-	result = egpu_enable_write(asus);
-	if (result)
-		return result;
+	err = asus_wmi_set_devstate(ASUS_WMI_DEVID_EGPU, enable, &result);
+	if (err) {
+		pr_warn("Failed to set egpu disable: %d\n", err);
+		return err;
+	}
 
-	/* Ensure that the kernel status of dgpu is updated */
-	result = dgpu_disable_check_present(asus);
-	if (result)
-		return result;
+	if (result > 1) {
+		pr_warn("Failed to set egpu disable (retval): 0x%x\n", result);
+		return -EIO;
+	}
+
+	sysfs_notify(&asus->platform_device->dev.kobj, NULL, "egpu_enable");
 
 	return count;
 }
-
 static DEVICE_ATTR_RW(egpu_enable);
 
 /* Battery ********************************************************************/
