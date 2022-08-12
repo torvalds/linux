@@ -6,7 +6,8 @@ import csv
 import json
 import os
 import sys
-from typing import (Callable, Optional, Sequence)
+from typing import (Callable, Dict, Optional, Sequence, Set, Tuple)
+import collections
 
 # Global command line arguments.
 _args = None
@@ -20,6 +21,19 @@ _arch_std_events = {}
 _close_table = False
 # Events to write out when the table is closed
 _pending_events = []
+# Global BigCString shared by all structures.
+_bcs = None
+# Order specific JsonEvent attributes will be visited.
+_json_event_attributes = [
+    # cmp_sevent related attributes.
+    'name', 'pmu', 'topic', 'desc', 'metric_name', 'metric_group',
+    # Seems useful, put it early.
+    'event',
+    # Short things in alphabetical order.
+    'aggr_mode', 'compat', 'deprecated', 'perpkg', 'unit',
+    # Longer things (the last won't be iterated over during decompress).
+    'metric_constraint', 'metric_expr', 'long_desc'
+]
 
 
 def removesuffix(s: str, suffix: str) -> str:
@@ -39,6 +53,66 @@ def file_name_to_table_name(parents: Sequence[str], dirname: str) -> str:
   tblname += '_' + dirname
   return tblname.replace('-', '_')
 
+def c_len(s: str) -> int:
+  """Return the length of s a C string
+
+  This doesn't handle all escape characters properly. It first assumes
+  all \ are for escaping, it then adjusts as it will have over counted
+  \\. The code uses \000 rather than \0 as a terminator as an adjacent
+  number would be folded into a string of \0 (ie. "\0" + "5" doesn't
+  equal a terminator followed by the number 5 but the escape of
+  \05). The code adjusts for \000 but not properly for all octal, hex
+  or unicode values.
+  """
+  try:
+    utf = s.encode(encoding='utf-8',errors='strict')
+  except:
+    print(f'broken string {s}')
+    raise
+  return len(utf) - utf.count(b'\\') + utf.count(b'\\\\') - (utf.count(b'\\000') * 2)
+
+class BigCString:
+  """A class to hold many strings concatenated together.
+
+  Generating a large number of stand-alone C strings creates a large
+  number of relocations in position independent code. The BigCString
+  is a helper for this case. It builds a single string which within it
+  are all the other C strings (to avoid memory issues the string
+  itself is held as a list of strings). The offsets within the big
+  string are recorded and when stored to disk these don't need
+  relocation.
+  """
+  strings: Set[str]
+  big_string: Sequence[str]
+  offsets: Dict[str, int]
+
+  def __init__(self):
+    self.strings = set()
+
+  def add(self, s: str) -> None:
+    """Called to add to the big string."""
+    self.strings.add(s)
+
+  def compute(self) -> None:
+    """Called once all strings are added to compute the string and offsets."""
+
+    # big_string_offset is the current location within the C string
+    # being appended to - comments, etc. don't count. big_string is
+    # the string contents represented as a list. Strings are immutable
+    # in Python and so appending to one causes memory issues, while
+    # lists are mutable.
+    big_string_offset = 0
+    self.big_string = []
+    self.offsets = {}
+    # Emit all strings in a sorted manner.
+    for s in sorted(self.strings):
+      self.offsets[s] = big_string_offset
+      self.big_string.append(f'/* offset={big_string_offset} */ "')
+      self.big_string.append(s)
+      self.big_string.append('"\n')
+      big_string_offset += c_len(s)
+
+_bcs = BigCString()
 
 class JsonEvent:
   """Representation of an event loaded from a json file dictionary."""
@@ -203,26 +277,18 @@ class JsonEvent:
         s += f'\t{attr} = {value},\n'
     return s + '}'
 
+  def build_c_string(self) -> str:
+    s = ''
+    for attr in _json_event_attributes:
+      x = getattr(self, attr)
+      s += f'{x}\\000' if x else '\\000'
+    return s
+
   def to_c_string(self) -> str:
     """Representation of the event as a C struct initializer."""
 
-    def attr_string(attr: str, value: str) -> str:
-      return f'\t.{attr} = \"{value}\",\n'
-
-    def str_if_present(self, attr: str) -> str:
-      if not getattr(self, attr):
-        return ''
-      return attr_string(attr, getattr(self, attr))
-
-    s = '{\n'
-    for attr in [
-        'aggr_mode', 'compat', 'deprecated', 'desc', 'event', 'long_desc',
-        'metric_constraint', 'metric_expr', 'metric_group', 'metric_name',
-        'name', 'perpkg', 'pmu', 'topic', 'unit'
-    ]:
-      s += str_if_present(self, attr)
-    s += '},\n'
-    return s
+    s = self.build_c_string()
+    return f'{{ { _bcs.offsets[s] } }}, /* {s} */\n'
 
 
 def read_json_events(path: str, topic: str) -> Sequence[JsonEvent]:
@@ -236,7 +302,6 @@ def read_json_events(path: str, topic: str) -> Sequence[JsonEvent]:
   for event in result:
     event.topic = topic
   return result
-
 
 def preprocess_arch_std_files(archpath: str) -> None:
   """Read in all architecture standard events."""
@@ -253,7 +318,7 @@ def print_events_table_prefix(tblname: str) -> None:
   global _close_table
   if _close_table:
     raise IOError('Printing table prefix but last table has no suffix')
-  _args.output_file.write(f'static const struct pmu_event {tblname}[] = {{\n')
+  _args.output_file.write(f'static const struct compact_pmu_event {tblname}[] = {{\n')
   _close_table = True
 
 
@@ -268,13 +333,13 @@ def add_events_table_entries(item: os.DirEntry, topic: str) -> None:
 def print_events_table_suffix() -> None:
   """Optionally close events table."""
 
-  def event_cmp_key(j: JsonEvent):
-    def fix_none(s: str):
+  def event_cmp_key(j: JsonEvent) -> Tuple[bool, str, str, str, str]:
+    def fix_none(s: Optional[str]) -> str:
       if s is None:
         return ''
       return s
 
-    return (not j.desc is None, fix_none(j.topic), fix_none(j.name), fix_none(j.pmu),
+    return (j.desc is not None, fix_none(j.topic), fix_none(j.name), fix_none(j.pmu),
             fix_none(j.metric_name))
 
   global _close_table
@@ -286,22 +351,36 @@ def print_events_table_suffix() -> None:
     _args.output_file.write(event.to_c_string())
     _pending_events = []
 
-  _args.output_file.write("""{
-\t.name = 0,
-\t.event = 0,
-\t.desc = 0,
-},
-};
-""")
+  _args.output_file.write('};\n\n')
   _close_table = False
 
+def get_topic(topic: str) -> str:
+  if topic.endswith('metrics.json'):
+    return 'metrics'
+  return removesuffix(topic, '.json').replace('-', ' ')
+
+def preprocess_one_file(parents: Sequence[str], item: os.DirEntry) -> None:
+
+  if item.is_dir():
+    return
+
+  # base dir or too deep
+  level = len(parents)
+  if level == 0 or level > 4:
+    return
+
+  # Ignore other directories. If the file name does not have a .json
+  # extension, ignore it. It could be a readme.txt for instance.
+  if not item.is_file() or not item.name.endswith('.json'):
+    return
+
+  topic = get_topic(item.name)
+  for event in read_json_events(item.path, topic):
+    _bcs.add(event.build_c_string())
 
 def process_one_file(parents: Sequence[str], item: os.DirEntry) -> None:
   """Process a JSON file during the main walk."""
   global _sys_event_tables
-
-  def get_topic(topic: str) -> str:
-    return removesuffix(topic, '.json').replace('-', ' ')
 
   def is_leaf_dir(path: str) -> bool:
     for item in os.scandir(path):
@@ -337,7 +416,8 @@ def print_mapping_table(archs: Sequence[str]) -> None:
   _args.output_file.write("""
 /* Struct used to make the PMU event table implementation opaque to callers. */
 struct pmu_events_table {
-        const struct pmu_event *entries;
+        const struct compact_pmu_event *entries;
+        size_t length;
 };
 
 /*
@@ -365,7 +445,10 @@ const struct pmu_events_map pmu_events_map[] = {
       _args.output_file.write("""{
 \t.arch = "testarch",
 \t.cpuid = "testcpu",
-\t.table = { pme_test_soc_cpu },
+\t.table = {
+\t.entries = pme_test_soc_cpu,
+\t.length = ARRAY_SIZE(pme_test_soc_cpu),
+\t}
 },
 """)
     else:
@@ -380,7 +463,10 @@ const struct pmu_events_map pmu_events_map[] = {
             _args.output_file.write(f"""{{
 \t.arch = "{arch}",
 \t.cpuid = "{cpuid}",
-\t.table = {{ {tblname} }}
+\t.table = {{
+\t\t.entries = {tblname},
+\t\t.length = ARRAY_SIZE({tblname})
+\t}}
 }},
 """)
           first = False
@@ -388,7 +474,7 @@ const struct pmu_events_map pmu_events_map[] = {
   _args.output_file.write("""{
 \t.arch = 0,
 \t.cpuid = 0,
-\t.table = { 0 },
+\t.table = { 0, 0 },
 }
 };
 """)
@@ -406,23 +492,41 @@ static const struct pmu_sys_events pmu_sys_event_tables[] = {
 """)
   for tblname in _sys_event_tables:
     _args.output_file.write(f"""\t{{
-\t\t.table = {{ {tblname} }},
+\t\t.table = {{
+\t\t\t.entries = {tblname},
+\t\t\t.length = ARRAY_SIZE({tblname})
+\t\t}},
 \t\t.name = \"{tblname}\",
 \t}},
 """)
   _args.output_file.write("""\t{
-\t\t.table = { 0 }
+\t\t.table = { 0, 0 }
 \t},
 };
 
-int pmu_events_table_for_each_event(const struct pmu_events_table *table, pmu_event_iter_fn fn,
+static void decompress(int offset, struct pmu_event *pe)
+{
+\tconst char *p = &big_c_string[offset];
+""")
+  for attr in _json_event_attributes:
+    _args.output_file.write(f"""
+\tpe->{attr} = (*p == '\\0' ? NULL : p);
+""")
+    if attr == _json_event_attributes[-1]:
+      continue
+    _args.output_file.write('\twhile (*p++);')
+  _args.output_file.write("""}
+
+int pmu_events_table_for_each_event(const struct pmu_events_table *table,
+                                    pmu_event_iter_fn fn,
                                     void *data)
 {
-        for (const struct pmu_event *pe = &table->entries[0];
-             pe->name || pe->metric_group || pe->metric_name;
-             pe++) {
-                int ret = fn(pe, table, data);
+        for (size_t i = 0; i < table->length; i++) {
+                struct pmu_event pe;
+                int ret;
 
+                decompress(table->entries[i].offset, &pe);
+                ret = fn(&pe, table, data);
                 if (ret)
                         return ret;
         }
@@ -531,7 +635,7 @@ def main() -> None:
       help='Root of tree containing architecture directories containing json files'
   )
   ap.add_argument(
-      'output_file', type=argparse.FileType('w'), nargs='?', default=sys.stdout)
+      'output_file', type=argparse.FileType('w', encoding='utf-8'), nargs='?', default=sys.stdout)
   _args = ap.parse_args()
 
   _args.output_file.write("""
@@ -540,6 +644,10 @@ def main() -> None:
 #include "util/pmu.h"
 #include <string.h>
 #include <stddef.h>
+
+struct compact_pmu_event {
+  int offset;
+};
 
 """)
   archs = []
@@ -556,6 +664,15 @@ def main() -> None:
   for arch in archs:
     arch_path = f'{_args.starting_dir}/{arch}'
     preprocess_arch_std_files(arch_path)
+    ftw(arch_path, [], preprocess_one_file)
+
+  _bcs.compute()
+  _args.output_file.write('static const char *const big_c_string =\n')
+  for s in _bcs.big_string:
+    _args.output_file.write(s)
+  _args.output_file.write(';\n\n')
+  for arch in archs:
+    arch_path = f'{_args.starting_dir}/{arch}'
     ftw(arch_path, [], process_one_file)
     print_events_table_suffix()
 
