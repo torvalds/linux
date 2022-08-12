@@ -507,6 +507,7 @@ static void rkisp1_rsz_set_sink_fmt(struct rkisp1_resizer *rsz,
 	const struct rkisp1_mbus_info *mbus_info;
 	struct v4l2_mbus_framefmt *sink_fmt, *src_fmt;
 	struct v4l2_rect *sink_crop;
+	bool is_yuv;
 
 	sink_fmt = rkisp1_rsz_get_pad_fmt(rsz, sd_state, RKISP1_RSZ_PAD_SINK,
 					  which);
@@ -528,9 +529,6 @@ static void rkisp1_rsz_set_sink_fmt(struct rkisp1_resizer *rsz,
 	if (which == V4L2_SUBDEV_FORMAT_ACTIVE)
 		rsz->pixel_enc = mbus_info->pixel_enc;
 
-	/* Propagete to source pad */
-	src_fmt->code = sink_fmt->code;
-
 	sink_fmt->width = clamp_t(u32, format->width,
 				  RKISP1_ISP_MIN_WIDTH,
 				  RKISP1_ISP_MAX_WIDTH);
@@ -538,7 +536,44 @@ static void rkisp1_rsz_set_sink_fmt(struct rkisp1_resizer *rsz,
 				   RKISP1_ISP_MIN_HEIGHT,
 				   RKISP1_ISP_MAX_HEIGHT);
 
+	/*
+	 * Adjust the color space fields. Accept any color primaries and
+	 * transfer function for both YUV and Bayer. For YUV any YCbCr encoding
+	 * and quantization range is also accepted. For Bayer formats, the YCbCr
+	 * encoding isn't applicable, and the quantization range can only be
+	 * full.
+	 */
+	is_yuv = mbus_info->pixel_enc == V4L2_PIXEL_ENC_YUV;
+
+	sink_fmt->colorspace = format->colorspace ? :
+			       (is_yuv ? V4L2_COLORSPACE_SRGB :
+				V4L2_COLORSPACE_RAW);
+	sink_fmt->xfer_func = format->xfer_func ? :
+			      V4L2_MAP_XFER_FUNC_DEFAULT(sink_fmt->colorspace);
+	if (is_yuv) {
+		sink_fmt->ycbcr_enc = format->ycbcr_enc ? :
+			V4L2_MAP_YCBCR_ENC_DEFAULT(sink_fmt->colorspace);
+		sink_fmt->quantization = format->quantization ? :
+			V4L2_MAP_QUANTIZATION_DEFAULT(false, sink_fmt->colorspace,
+						      sink_fmt->ycbcr_enc);
+	} else {
+		/*
+		 * The YCbCr encoding isn't applicable for non-YUV formats, but
+		 * V4L2 has no "no encoding" value. Hardcode it to Rec. 601, it
+		 * should be ignored by userspace.
+		 */
+		sink_fmt->ycbcr_enc = V4L2_YCBCR_ENC_601;
+		sink_fmt->quantization = V4L2_QUANTIZATION_FULL_RANGE;
+	}
+
 	*format = *sink_fmt;
+
+	/* Propagate the media bus code and color space to the source pad. */
+	src_fmt->code = sink_fmt->code;
+	src_fmt->colorspace = sink_fmt->colorspace;
+	src_fmt->xfer_func = sink_fmt->xfer_func;
+	src_fmt->ycbcr_enc = sink_fmt->ycbcr_enc;
+	src_fmt->quantization = sink_fmt->quantization;
 
 	/* Update sink crop */
 	rkisp1_rsz_set_sink_crop(rsz, sd_state, sink_crop, which);
