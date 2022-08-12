@@ -405,10 +405,17 @@ PWM
   devm_fwnode_pwm_get()
 
 REGULATOR
+  devm_regulator_bulk_register_supply_alias()
   devm_regulator_bulk_get()
   devm_regulator_get()
+  devm_regulator_get_exclusive()
+  devm_regulator_get_optional()
+  devm_regulator_irq_helper()
   devm_regulator_put()
   devm_regulator_register()
+  devm_regulator_register_notifier()
+  devm_regulator_register_supply_alias()
+  devm_regulator_unregister_notifier()
 
 RESET
   devm_reset_control_get()
