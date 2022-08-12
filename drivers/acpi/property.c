@@ -1043,10 +1043,10 @@ static int acpi_data_prop_read_single(const struct acpi_device_data *data,
 				break;					\
 			}						\
 			if (__items[i].integer.value > _Generic(__val,	\
-								u8: U8_MAX, \
-								u16: U16_MAX, \
-								u32: U32_MAX, \
-								u64: U64_MAX, \
+								u8 *: U8_MAX, \
+								u16 *: U16_MAX, \
+								u32 *: U32_MAX, \
+								u64 *: U64_MAX, \
 								default: 0U)) { \
 				ret = -EOVERFLOW;			\
 				break;					\
