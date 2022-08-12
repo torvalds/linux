@@ -674,7 +674,29 @@ static ssize_t lock_held_stats_read(struct file *file, char __user *buf,
 		prt_printf(&i->buf, "%s: ", c->btree_transaction_fns[i->iter]);
 		prt_newline(&i->buf);
 		printbuf_indent_add(&i->buf, 2);
-		bch2_time_stats_to_text(&i->buf, &s->lock_hold_times);
+
+		mutex_lock(&s->lock);
+
+		if (IS_ENABLED(CONFIG_BCACHEFS_LOCK_TIME_STATS)) {
+			prt_printf(&i->buf, "Lock hold times:");
+			prt_newline(&i->buf);
+
+			printbuf_indent_add(&i->buf, 2);
+			bch2_time_stats_to_text(&i->buf, &s->lock_hold_times);
+			printbuf_indent_sub(&i->buf, 2);
+		}
+
+		if (s->max_paths_text) {
+			prt_printf(&i->buf, "Maximum allocated btree paths (%u):", s->nr_max_paths);
+			prt_newline(&i->buf);
+
+			printbuf_indent_add(&i->buf, 2);
+			prt_str_indented(&i->buf, s->max_paths_text);
+			printbuf_indent_sub(&i->buf, 2);
+		}
+
+		mutex_unlock(&s->lock);
+
 		printbuf_indent_sub(&i->buf, 2);
 		prt_newline(&i->buf);
 		i->iter++;
@@ -723,10 +745,8 @@ void bch2_fs_debug_init(struct bch_fs *c)
 	debugfs_create_file("journal_pins", 0400, c->fs_debug_dir,
 			    c->btree_debug, &journal_pins_ops);
 
-	if (IS_ENABLED(CONFIG_BCACHEFS_LOCK_TIME_STATS)) {
-		debugfs_create_file("btree_transaction_stats", 0400, c->fs_debug_dir,
-				c, &lock_held_stats_op);
-	}
+	debugfs_create_file("btree_transaction_stats", 0400, c->fs_debug_dir,
+			    c, &lock_held_stats_op);
 
 	c->btree_debug_dir = debugfs_create_dir("btrees", c->fs_debug_dir);
 	if (IS_ERR_OR_NULL(c->btree_debug_dir))

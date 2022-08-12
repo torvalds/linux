@@ -775,6 +775,8 @@ void bch2_assert_pos_locked(struct btree_trans *trans, enum btree_id id,
 	unsigned idx;
 	struct printbuf buf = PRINTBUF;
 
+	btree_trans_sort_paths(trans);
+
 	trans_for_each_path_inorder(trans, path, idx) {
 		int cmp = cmp_int(path->btree_id, id) ?:
 			cmp_int(path->cached, key_cache);
@@ -1812,6 +1814,7 @@ void bch2_path_put(struct btree_trans *trans, struct btree_path *path, bool inte
 	__bch2_path_free(trans, path);
 }
 
+noinline __cold
 void bch2_trans_updates_to_text(struct printbuf *buf, struct btree_trans *trans)
 {
 	struct btree_insert_entry *i;
@@ -1853,38 +1856,85 @@ void bch2_dump_trans_updates(struct btree_trans *trans)
 }
 
 noinline __cold
-void bch2_dump_trans_paths_updates(struct btree_trans *trans)
+void bch2_btree_path_to_text(struct printbuf *out, struct btree_path *path)
+{
+	prt_printf(out, "path: idx %2u ref %u:%u %c %c btree=%s l=%u pos ",
+		   path->idx, path->ref, path->intent_ref,
+		   path->preserve ? 'P' : ' ',
+		   path->should_be_locked ? 'S' : ' ',
+		   bch2_btree_ids[path->btree_id],
+		   path->level);
+	bch2_bpos_to_text(out, path->pos);
+
+	prt_printf(out, " locks %u", path->nodes_locked);
+#ifdef CONFIG_BCACHEFS_DEBUG
+	prt_printf(out, " %pS", (void *) path->ip_allocated);
+#endif
+	prt_newline(out);
+}
+
+noinline __cold
+void __bch2_trans_paths_to_text(struct printbuf *out, struct btree_trans *trans,
+				bool nosort)
 {
 	struct btree_path *path;
-	struct printbuf buf = PRINTBUF;
 	unsigned idx;
 
-	btree_trans_sort_paths(trans);
+	if (!nosort)
+		btree_trans_sort_paths(trans);
 
-	trans_for_each_path_inorder(trans, path, idx) {
-		printbuf_reset(&buf);
+	trans_for_each_path_inorder(trans, path, idx)
+		bch2_btree_path_to_text(out, path);
+}
 
-		bch2_bpos_to_text(&buf, path->pos);
+noinline __cold
+void bch2_trans_paths_to_text(struct printbuf *out, struct btree_trans *trans)
+{
+	__bch2_trans_paths_to_text(out, trans, false);
+}
 
-		printk(KERN_ERR "path: idx %2u ref %u:%u %c %c btree=%s l=%u pos %s locks %u %pS\n",
-		       path->idx, path->ref, path->intent_ref,
-		       path->preserve ? 'P' : ' ',
-		       path->should_be_locked ? 'S' : ' ',
-		       bch2_btree_ids[path->btree_id],
-		       path->level,
-		       buf.buf,
-		       path->nodes_locked,
-#ifdef CONFIG_BCACHEFS_DEBUG
-		       (void *) path->ip_allocated
-#else
-		       NULL
-#endif
-		       );
+noinline __cold
+void __bch2_dump_trans_paths_updates(struct btree_trans *trans, bool nosort)
+{
+	struct printbuf buf = PRINTBUF;
+
+	__bch2_trans_paths_to_text(&buf, trans, nosort);
+
+	printk(KERN_ERR "%s", buf.buf);
+	printbuf_exit(&buf);
+
+	bch2_dump_trans_updates(trans);
+}
+
+noinline __cold
+void bch2_dump_trans_paths_updates(struct btree_trans *trans)
+{
+	__bch2_dump_trans_paths_updates(trans, false);
+}
+
+noinline __cold
+static void bch2_trans_update_max_paths(struct btree_trans *trans)
+{
+	struct btree_transaction_stats *s = btree_trans_stats(trans);
+	struct printbuf buf = PRINTBUF;
+
+	if (!s)
+		return;
+
+	bch2_trans_paths_to_text(&buf, trans);
+
+	if (!buf.allocation_failure) {
+		mutex_lock(&s->lock);
+		if (s->nr_max_paths < hweight64(trans->paths_allocated)) {
+			s->nr_max_paths = hweight64(trans->paths_allocated);
+			swap(s->max_paths_text, buf.buf);
+		}
+		mutex_unlock(&s->lock);
 	}
 
 	printbuf_exit(&buf);
 
-	bch2_dump_trans_updates(trans);
+	trans->nr_max_paths = hweight64(trans->paths_allocated);
 }
 
 static struct btree_path *btree_path_alloc(struct btree_trans *trans,
@@ -1903,7 +1953,6 @@ static struct btree_path *btree_path_alloc(struct btree_trans *trans,
 	trans->paths_allocated |= 1ULL << idx;
 
 	path = &trans->paths[idx];
-
 	path->idx		= idx;
 	path->ref		= 0;
 	path->intent_ref	= 0;
@@ -1911,6 +1960,10 @@ static struct btree_path *btree_path_alloc(struct btree_trans *trans,
 	path->nodes_intent_locked = 0;
 
 	btree_path_list_add(trans, pos, path);
+	trans->paths_sorted = false;
+
+	if (unlikely(idx > trans->nr_max_paths))
+		bch2_trans_update_max_paths(trans);
 	return path;
 }
 
@@ -1926,8 +1979,6 @@ struct btree_path *bch2_path_get(struct btree_trans *trans,
 
 	BUG_ON(trans->restarted);
 	bch2_trans_verify_locks(trans);
-
-	btree_trans_sort_paths(trans);
 
 	btree_trans_sort_paths(trans);
 
@@ -2926,7 +2977,7 @@ static void btree_trans_verify_sorted(struct btree_trans *trans)
 
 	trans_for_each_path_inorder(trans, path, i) {
 		if (prev && btree_path_cmp(prev, path) > 0) {
-			bch2_dump_trans_paths_updates(trans);
+			__bch2_dump_trans_paths_updates(trans, true);
 			panic("trans paths out of order!\n");
 		}
 		prev = path;
@@ -2949,7 +3000,7 @@ void __bch2_btree_trans_sort_paths(struct btree_trans *trans)
 
 	/*
 	 * Cocktail shaker sort: this is efficient because iterators will be
-	 * mostly sorteda.
+	 * mostly sorted.
 	 */
 	do {
 		swapped = false;
@@ -3274,6 +3325,8 @@ void __bch2_trans_init(struct btree_trans *trans, struct bch_fs *c,
 		       const char *fn)
 	__acquires(&c->btree_trans_barrier)
 {
+	struct btree_transaction_stats *s;
+
 	memset(trans, 0, sizeof(*trans));
 	trans->c		= c;
 	trans->fn		= fn;
@@ -3296,6 +3349,10 @@ void __bch2_trans_init(struct btree_trans *trans, struct bch_fs *c,
 			trans->mem_bytes = expected_mem_bytes;
 		}
 	}
+
+	s = btree_trans_stats(trans);
+	if (s)
+		trans->nr_max_paths = s->nr_max_paths;
 
 	trans->srcu_idx = srcu_read_lock(&c->btree_trans_barrier);
 
@@ -3458,8 +3515,10 @@ void bch2_fs_btree_iter_exit(struct bch_fs *c)
 
 	for (s = c->btree_transaction_stats;
 	     s < c->btree_transaction_stats + ARRAY_SIZE(c->btree_transaction_stats);
-	     s++)
+	     s++) {
+		kfree(s->max_paths_text);
 		bch2_time_stats_exit(&s->lock_hold_times);
+	}
 
 	if (c->btree_trans_barrier_initialized)
 		cleanup_srcu_struct(&c->btree_trans_barrier);
@@ -3475,8 +3534,10 @@ int bch2_fs_btree_iter_init(struct bch_fs *c)
 
 	for (s = c->btree_transaction_stats;
 	     s < c->btree_transaction_stats + ARRAY_SIZE(c->btree_transaction_stats);
-	     s++)
+	     s++) {
 		bch2_time_stats_init(&s->lock_hold_times);
+		mutex_init(&s->lock);
+	}
 
 	INIT_LIST_HEAD(&c->btree_trans_list);
 	mutex_init(&c->btree_trans_lock);

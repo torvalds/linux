@@ -408,6 +408,7 @@ struct btree_trans {
 	 * extent:
 	 */
 	unsigned		extra_journal_res;
+	unsigned		nr_max_paths;
 
 	u64			paths_allocated;
 
