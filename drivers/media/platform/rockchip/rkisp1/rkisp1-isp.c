@@ -583,6 +583,7 @@ static void rkisp1_isp_set_sink_fmt(struct rkisp1_isp *isp,
 	const struct rkisp1_mbus_info *mbus_info;
 	struct v4l2_mbus_framefmt *sink_fmt;
 	struct v4l2_rect *sink_crop;
+	bool is_yuv;
 
 	sink_fmt = rkisp1_isp_get_pad_fmt(isp, sd_state,
 					  RKISP1_ISP_PAD_SINK_VIDEO,
@@ -602,6 +603,36 @@ static void rkisp1_isp_set_sink_fmt(struct rkisp1_isp *isp,
 	sink_fmt->height = clamp_t(u32, format->height,
 				   RKISP1_ISP_MIN_HEIGHT,
 				   RKISP1_ISP_MAX_HEIGHT);
+
+	/*
+	 * Adjust the color space fields. Accept any color primaries and
+	 * transfer function for both YUV and Bayer. For YUV any YCbCr encoding
+	 * and quantization range is also accepted. For Bayer formats, the YCbCr
+	 * encoding isn't applicable, and the quantization range can only be
+	 * full.
+	 */
+	is_yuv = mbus_info->pixel_enc == V4L2_PIXEL_ENC_YUV;
+
+	sink_fmt->colorspace = format->colorspace ? :
+			       (is_yuv ? V4L2_COLORSPACE_SRGB :
+				V4L2_COLORSPACE_RAW);
+	sink_fmt->xfer_func = format->xfer_func ? :
+			      V4L2_MAP_XFER_FUNC_DEFAULT(sink_fmt->colorspace);
+	if (is_yuv) {
+		sink_fmt->ycbcr_enc = format->ycbcr_enc ? :
+			V4L2_MAP_YCBCR_ENC_DEFAULT(sink_fmt->colorspace);
+		sink_fmt->quantization = format->quantization ? :
+			V4L2_MAP_QUANTIZATION_DEFAULT(false, sink_fmt->colorspace,
+						      sink_fmt->ycbcr_enc);
+	} else {
+		/*
+		 * The YCbCr encoding isn't applicable for non-YUV formats, but
+		 * V4L2 has no "no encoding" value. Hardcode it to Rec. 601, it
+		 * should be ignored by userspace.
+		 */
+		sink_fmt->ycbcr_enc = V4L2_YCBCR_ENC_601;
+		sink_fmt->quantization = V4L2_QUANTIZATION_FULL_RANGE;
+	}
 
 	*format = *sink_fmt;
 
