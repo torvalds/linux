@@ -141,7 +141,7 @@ static void virtscsi_complete_cmd(struct virtio_scsi *vscsi, void *buf)
 		set_host_byte(sc, DID_TRANSPORT_DISRUPTED);
 		break;
 	case VIRTIO_SCSI_S_TARGET_FAILURE:
-		set_host_byte(sc, DID_TARGET_FAILURE);
+		set_host_byte(sc, DID_BAD_TARGET);
 		break;
 	case VIRTIO_SCSI_S_NEXUS_FAILURE:
 		set_host_byte(sc, DID_NEXUS_FAILURE);
