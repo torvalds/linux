@@ -9,7 +9,12 @@
 
 #include <linux/types.h>
 
+#if IS_ENABLED(CONFIG_ARCH_QTI_VM)
+#define MAX_NAME_LENGTH		9
+#else
 #define MAX_NAME_LENGTH		12
+#endif
+
 /* md_region -  Minidump table entry
  * @name:	Entry name, Minidump will dump binary with this name.
  * @id:		Entry ID, used only for SDI dumps.
