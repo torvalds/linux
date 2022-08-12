@@ -17,7 +17,6 @@
 #include <linux/types.h>
 #include <linux/workqueue.h>
 
-#include <linux/of_gpio.h>
 #include <linux/of_graph.h>
 #include <linux/of_platform.h>
 
