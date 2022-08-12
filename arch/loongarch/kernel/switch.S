@@ -21,6 +21,8 @@ SYM_FUNC_START(__switch_to)
 
 	cpu_save_nonscratch a0
 	stptr.d	ra, a0, THREAD_REG01
+	stptr.d a3, a0, THREAD_SCHED_RA
+	stptr.d a4, a0, THREAD_SCHED_CFA
 	move	tp, a2
 	cpu_restore_nonscratch a1
 
