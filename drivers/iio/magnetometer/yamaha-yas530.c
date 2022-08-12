@@ -130,6 +130,7 @@ struct yas5xx;
  * @version_names: version letters or namings
  * @volatile_reg: device-specific volatile registers
  * @volatile_reg_qty: quantity of device-specific volatile registers
+ * @scaling_val2: scaling value for IIO_CHAN_INFO_SCALE
  */
 struct yas5xx_chip_info {
 	unsigned int devid;
@@ -137,6 +138,7 @@ struct yas5xx_chip_info {
 	char *version_names[2];
 	const int *volatile_reg;
 	int volatile_reg_qty;
+	u32 scaling_val2;
 };
 
 /**
@@ -504,27 +506,8 @@ static int yas5xx_read_raw(struct iio_dev *indio_dev,
 		}
 		return IIO_VAL_INT;
 	case IIO_CHAN_INFO_SCALE:
-		switch (ci->devid) {
-		case YAS530_DEVICE_ID:
-			/*
-			 * Raw values of YAS530 are in picotesla. Divide by
-			 * 100000000 (10^8) to get Gauss.
-			 */
-			*val = 1;
-			*val2 = 100000000;
-			break;
-		case YAS532_DEVICE_ID:
-			/*
-			 * Raw values of YAS532 are in nanotesla. Divide by
-			 * 100000 (10^5) to get Gauss.
-			 */
-			*val = 1;
-			*val2 = 100000;
-			break;
-		default:
-			dev_err(yas5xx->dev, "unknown device type\n");
-			return -EINVAL;
-		}
+		*val = 1;
+		*val2 = ci->scaling_val2;
 		return IIO_VAL_FRACTIONAL;
 	default:
 		/* Unknown request */
@@ -951,6 +934,7 @@ static const struct yas5xx_chip_info yas5xx_chip_info_tbl[] = {
 		.version_names = { "A", "B" },
 		.volatile_reg = yas530_volatile_reg,
 		.volatile_reg_qty = ARRAY_SIZE(yas530_volatile_reg),
+		.scaling_val2 = 100000000, /* picotesla to Gauss */
 	},
 	[yas532] = {
 		.devid = YAS532_DEVICE_ID,
@@ -958,6 +942,7 @@ static const struct yas5xx_chip_info yas5xx_chip_info_tbl[] = {
 		.version_names = { "AB", "AC" },
 		.volatile_reg = yas530_volatile_reg,
 		.volatile_reg_qty = ARRAY_SIZE(yas530_volatile_reg),
+		.scaling_val2 = 100000, /* nanotesla to Gauss */
 	},
 	[yas533] = {
 		.devid = YAS532_DEVICE_ID,
@@ -965,6 +950,7 @@ static const struct yas5xx_chip_info yas5xx_chip_info_tbl[] = {
 		.version_names = { "AB", "AC" },
 		.volatile_reg = yas530_volatile_reg,
 		.volatile_reg_qty = ARRAY_SIZE(yas530_volatile_reg),
+		.scaling_val2 = 100000, /* nanotesla to Gauss */
 	},
 };
 
