@@ -93,6 +93,7 @@ static const struct iio_chan_spec ltrf216a_channels[] = {
 	{
 		.type = IIO_LIGHT,
 		.info_mask_separate =
+			BIT(IIO_CHAN_INFO_RAW) |
 			BIT(IIO_CHAN_INFO_PROCESSED) |
 			BIT(IIO_CHAN_INFO_INT_TIME),
 		.info_mask_separate_available =
@@ -259,6 +260,18 @@ static int ltrf216a_read_raw(struct iio_dev *indio_dev,
 	int ret;
 
 	switch (mask) {
+	case IIO_CHAN_INFO_RAW:
+		ret = ltrf216a_set_power_state(data, true);
+		if (ret)
+			return ret;
+		mutex_lock(&data->lock);
+		ret = ltrf216a_read_data(data, LTRF216A_ALS_DATA_0);
+		mutex_unlock(&data->lock);
+		ltrf216a_set_power_state(data, false);
+		if (ret < 0)
+			return ret;
+		*val = ret;
+		return IIO_VAL_INT;
 	case IIO_CHAN_INFO_PROCESSED:
 		mutex_lock(&data->lock);
 		ret = ltrf216a_get_lux(data);
