@@ -3417,6 +3417,21 @@ static int test_acomp(struct crypto_acomp *tfm,
 			goto out;
 		}
 
+#ifdef CONFIG_CRYPTO_MANAGER_EXTRA_TESTS
+		crypto_init_wait(&wait);
+		sg_init_one(&src, input_vec, ilen);
+		acomp_request_set_params(req, &src, NULL, ilen, 0);
+
+		ret = crypto_wait_req(crypto_acomp_compress(req), &wait);
+		if (ret) {
+			pr_err("alg: acomp: compression failed on NULL dst buffer test %d for %s: ret=%d\n",
+			       i + 1, algo, -ret);
+			kfree(input_vec);
+			acomp_request_free(req);
+			goto out;
+		}
+#endif
+
 		kfree(input_vec);
 		acomp_request_free(req);
 	}
@@ -3477,6 +3492,20 @@ static int test_acomp(struct crypto_acomp *tfm,
 			acomp_request_free(req);
 			goto out;
 		}
+
+#ifdef CONFIG_CRYPTO_MANAGER_EXTRA_TESTS
+		crypto_init_wait(&wait);
+		acomp_request_set_params(req, &src, NULL, ilen, 0);
+
+		ret = crypto_wait_req(crypto_acomp_decompress(req), &wait);
+		if (ret) {
+			pr_err("alg: acomp: decompression failed on NULL dst buffer test %d for %s: ret=%d\n",
+			       i + 1, algo, -ret);
+			kfree(input_vec);
+			acomp_request_free(req);
+			goto out;
+		}
+#endif
 
 		kfree(input_vec);
 		acomp_request_free(req);
