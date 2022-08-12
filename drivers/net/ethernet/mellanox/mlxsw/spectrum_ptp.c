@@ -1529,6 +1529,9 @@ mlxsw_sp2_ptp_get_message_types(const struct hwtstamp_config *config,
 		return -EINVAL;
 	}
 
+	if ((ing_types && !egr_types) || (!ing_types && egr_types))
+		return -EINVAL;
+
 	*p_ing_types = ing_types;
 	*p_egr_types = egr_types;
 	return 0;
