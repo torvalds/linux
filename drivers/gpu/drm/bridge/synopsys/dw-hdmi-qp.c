@@ -1719,6 +1719,8 @@ static int dw_hdmi_qp_setup(struct dw_hdmi_qp *hdmi,
 		dev_dbg(hdmi->dev, "%s HDMI mode\n", __func__);
 		hdmi_modb(hdmi, 0, OPMODE_DVI, LINK_CONFIG0);
 		hdmi_modb(hdmi, HDCP2_BYPASS, HDCP2_BYPASS, HDCP2LOGIC_CONFIG0);
+		hdmi_modb(hdmi, KEEPOUT_REKEY_ALWAYS, KEEPOUT_REKEY_CFG, FRAME_COMPOSER_CONFIG9);
+
 		if (!link_cfg->frl_mode && dw_hdmi_support_scdc(hdmi, &connector->display_info)) {
 			if (vmode->mtmdsclock > HDMI14_MAX_TMDSCLK) {
 				drm_scdc_readb(hdmi->ddc, SCDC_SINK_VERSION, &bytes);
