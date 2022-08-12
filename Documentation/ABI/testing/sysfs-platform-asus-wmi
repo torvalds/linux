@@ -77,3 +77,12 @@ Description:
 
 			* 0 - Disable,
 			* 1 - Enable
+
+What:		/sys/devices/platform/<platform>/panel_od
+Date:		Aug 2022
+KernelVersion:	5.17
+Contact:	"Luke Jones" <luke@ljones.dev>
+Description:
+		Enable an LCD response-time boost to reduce or remove ghosting:
+			* 0 - Disable,
+			* 1 - Enable
