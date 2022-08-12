@@ -80,7 +80,9 @@ class BigCString:
   are all the other C strings (to avoid memory issues the string
   itself is held as a list of strings). The offsets within the big
   string are recorded and when stored to disk these don't need
-  relocation.
+  relocation. To reduce the size of the string further, identical
+  strings are merged. If a longer string ends-with the same value as a
+  shorter string, these entries are also merged.
   """
   strings: Set[str]
   big_string: Sequence[str]
@@ -96,6 +98,33 @@ class BigCString:
   def compute(self) -> None:
     """Called once all strings are added to compute the string and offsets."""
 
+    folded_strings = {}
+    # Determine if two strings can be folded, ie. let 1 string use the
+    # end of another. First reverse all strings and sort them.
+    sorted_reversed_strings = sorted([x[::-1] for x in self.strings])
+
+    # Strings 'xyz' and 'yz' will now be [ 'zy', 'zyx' ]. Scan forward
+    # for each string to see if there is a better candidate to fold it
+    # into, in the example rather than using 'yz' we can use'xyz' at
+    # an offset of 1. We record which string can be folded into which
+    # in folded_strings, we don't need to record the offset as it is
+    # trivially computed from the string lengths.
+    for pos,s in enumerate(sorted_reversed_strings):
+      best_pos = pos
+      for check_pos in range(pos + 1, len(sorted_reversed_strings)):
+        if sorted_reversed_strings[check_pos].startswith(s):
+          best_pos = check_pos
+        else:
+          break
+      if pos != best_pos:
+        folded_strings[s[::-1]] = sorted_reversed_strings[best_pos][::-1]
+
+    # Compute reverse mappings for debugging.
+    fold_into_strings = collections.defaultdict(set)
+    for key, val in folded_strings.items():
+      if key != val:
+        fold_into_strings[val].add(key)
+
     # big_string_offset is the current location within the C string
     # being appended to - comments, etc. don't count. big_string is
     # the string contents represented as a list. Strings are immutable
@@ -104,13 +133,25 @@ class BigCString:
     big_string_offset = 0
     self.big_string = []
     self.offsets = {}
-    # Emit all strings in a sorted manner.
+
+    # Emit all strings that aren't folded in a sorted manner.
     for s in sorted(self.strings):
-      self.offsets[s] = big_string_offset
-      self.big_string.append(f'/* offset={big_string_offset} */ "')
-      self.big_string.append(s)
-      self.big_string.append('"\n')
-      big_string_offset += c_len(s)
+      if s not in folded_strings:
+        self.offsets[s] = big_string_offset
+        self.big_string.append(f'/* offset={big_string_offset} */ "')
+        self.big_string.append(s)
+        self.big_string.append('"')
+        if s in fold_into_strings:
+          self.big_string.append(' /* also: ' + ', '.join(fold_into_strings[s]) + ' */')
+        self.big_string.append('\n')
+        big_string_offset += c_len(s)
+        continue
+
+    # Compute the offsets of the folded strings.
+    for s in folded_strings.keys():
+      assert s not in self.offsets
+      folded_s = folded_strings[s]
+      self.offsets[s] = self.offsets[folded_s] + c_len(folded_s) - c_len(s)
 
 _bcs = BigCString()
 
