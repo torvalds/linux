@@ -171,10 +171,11 @@ static inline void mlxsw_sp1_get_stats(struct mlxsw_sp_port *mlxsw_sp_port,
 {
 }
 
-int mlxsw_sp_ptp_txhdr_construct(struct mlxsw_core *mlxsw_core,
-				 struct mlxsw_sp_port *mlxsw_sp_port,
-				 struct sk_buff *skb,
-				 const struct mlxsw_tx_info *tx_info)
+static inline int
+mlxsw_sp_ptp_txhdr_construct(struct mlxsw_core *mlxsw_core,
+			     struct mlxsw_sp_port *mlxsw_sp_port,
+			     struct sk_buff *skb,
+			     const struct mlxsw_tx_info *tx_info)
 {
 	return -EOPNOTSUPP;
 }
@@ -231,10 +232,11 @@ static inline int mlxsw_sp2_ptp_get_ts_info(struct mlxsw_sp *mlxsw_sp,
 	return mlxsw_sp_ptp_get_ts_info_noptp(info);
 }
 
-int mlxsw_sp2_ptp_txhdr_construct(struct mlxsw_core *mlxsw_core,
-				  struct mlxsw_sp_port *mlxsw_sp_port,
-				  struct sk_buff *skb,
-				  const struct mlxsw_tx_info *tx_info)
+static inline int
+mlxsw_sp2_ptp_txhdr_construct(struct mlxsw_core *mlxsw_core,
+			      struct mlxsw_sp_port *mlxsw_sp_port,
+			      struct sk_buff *skb,
+			      const struct mlxsw_tx_info *tx_info)
 {
 	return -EOPNOTSUPP;
 }
