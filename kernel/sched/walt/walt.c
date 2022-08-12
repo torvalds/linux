@@ -4046,6 +4046,7 @@ static void walt_cpu_frequency_limits(void *unused, struct cpufreq_policy *polic
 		return;
 
 	cpu_cluster(policy->cpu)->max_freq = policy->max;
+	update_cpu_capacity_helper(policy->cpu);
 }
 
 static void android_rvh_sched_cpu_starting(void *unused, int cpu)
