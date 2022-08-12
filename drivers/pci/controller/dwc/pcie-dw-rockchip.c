@@ -117,6 +117,7 @@ enum rk_pcie_device_mode {
 #define PCIE_CLIENT_LTSSM_STATUS	0x300
 #define SMLH_LINKUP			BIT(16)
 #define RDLH_LINKUP			BIT(17)
+#define PCIE_CLIENT_CDM_RASDES_TBA_INFO_CMN 0x154
 #define PCIE_CLIENT_DBG_FIFO_MODE_CON	0x310
 #define PCIE_CLIENT_DBG_FIFO_PTN_HIT_D0 0x320
 #define PCIE_CLIENT_DBG_FIFO_PTN_HIT_D1 0x324
@@ -1776,6 +1777,25 @@ static int rockchip_pcie_rasdes_show(struct seq_file *s, void *unused)
 {
 	struct rk_pcie *pcie = s->private;
 	int cap_base;
+	u32 val = rk_pcie_readl_apb(pcie, PCIE_CLIENT_CDM_RASDES_TBA_INFO_CMN);
+	char *pm;
+
+	if (val & BIT(6))
+		pm = "In training";
+	else if (val & BIT(5))
+		pm = "L1.2";
+	else if (val & BIT(4))
+		pm = "L1.1";
+	else if (val & BIT(3))
+		pm = "L1";
+	else if (val & BIT(2))
+		pm = "L0";
+	else if (val & 0x3)
+		pm = (val == 0x3) ? "L0s" : (val & BIT(1) ? "RX L0s" : "TX L0s");
+	else
+		pm = "Invalid";
+
+	seq_printf(s, "Common event signal status: 0x%s\n", pm);
 
 	cap_base = dw_pcie_find_ext_capability(pcie->pci, PCI_EXT_CAP_ID_VNDR);
 	if (!cap_base) {
