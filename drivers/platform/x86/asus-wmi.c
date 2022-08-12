@@ -233,7 +233,6 @@ struct asus_wmi {
 	bool egpu_enable;
 
 	bool dgpu_disable_available;
-	bool dgpu_disable;
 
 	bool throttle_thermal_policy_available;
 	u8 throttle_thermal_policy_mode;
@@ -563,47 +562,10 @@ static void lid_flip_tablet_mode_get_state(struct asus_wmi *asus)
 /* dGPU ********************************************************************/
 static int dgpu_disable_check_present(struct asus_wmi *asus)
 {
-	u32 result;
-	int err;
-
 	asus->dgpu_disable_available = false;
 
-	err = asus_wmi_get_devstate(asus, ASUS_WMI_DEVID_DGPU, &result);
-	if (err) {
-		if (err == -ENODEV)
-			return 0;
-		return err;
-	}
-
-	if (result & ASUS_WMI_DSTS_PRESENCE_BIT) {
+	if (asus_wmi_dev_is_present(asus, ASUS_WMI_DEVID_DGPU))
 		asus->dgpu_disable_available = true;
-		asus->dgpu_disable = result & ASUS_WMI_DSTS_STATUS_BIT;
-	}
-
-	return 0;
-}
-
-static int dgpu_disable_write(struct asus_wmi *asus)
-{
-	u32 retval;
-	u8 value;
-	int err;
-
-	/* Don't rely on type conversion */
-	value = asus->dgpu_disable ? 1 : 0;
-
-	err = asus_wmi_set_devstate(ASUS_WMI_DEVID_DGPU, value, &retval);
-	if (err) {
-		pr_warn("Failed to set dgpu disable: %d\n", err);
-		return err;
-	}
-
-	if (retval > 1) {
-		pr_warn("Failed to set dgpu disable (retval): 0x%x\n", retval);
-		return -EIO;
-	}
-
-	sysfs_notify(&asus->platform_device->dev.kobj, NULL, "dgpu_disable");
 
 	return 0;
 }
@@ -612,9 +574,13 @@ static ssize_t dgpu_disable_show(struct device *dev,
 				   struct device_attribute *attr, char *buf)
 {
 	struct asus_wmi *asus = dev_get_drvdata(dev);
-	u8 mode = asus->dgpu_disable;
+	int result;
 
-	return sysfs_emit(buf, "%d\n", mode);
+	result = asus_wmi_get_devstate_simple(asus, ASUS_WMI_DEVID_DGPU);
+	if (result < 0)
+		return result;
+
+	return sysfs_emit(buf, "%d\n", result);
 }
 
 /*
@@ -627,24 +593,33 @@ static ssize_t dgpu_disable_store(struct device *dev,
 				    struct device_attribute *attr,
 				    const char *buf, size_t count)
 {
-	bool disable;
-	int result;
+	int result, err;
+	u32 disable;
 
 	struct asus_wmi *asus = dev_get_drvdata(dev);
 
-	result = kstrtobool(buf, &disable);
+	result = kstrtou32(buf, 10, &disable);
 	if (result)
 		return result;
 
-	asus->dgpu_disable = disable;
+	if (disable > 1)
+		return -EINVAL;
 
-	result = dgpu_disable_write(asus);
-	if (result)
-		return result;
+	err = asus_wmi_set_devstate(ASUS_WMI_DEVID_DGPU, disable, &result);
+	if (err) {
+		pr_warn("Failed to set dgpu disable: %d\n", err);
+		return err;
+	}
+
+	if (result > 1) {
+		pr_warn("Failed to set dgpu disable (result): 0x%x\n", result);
+		return -EIO;
+	}
+
+	sysfs_notify(&asus->platform_device->dev.kobj, NULL, "dgpu_disable");
 
 	return count;
 }
-
 static DEVICE_ATTR_RW(dgpu_disable);
 
 /* eGPU ********************************************************************/
