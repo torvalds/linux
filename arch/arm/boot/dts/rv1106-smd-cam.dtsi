@@ -332,6 +332,10 @@
 	};
 };
 
+&rkisp_vir2 {
+	status = "okay";
+};
+
 &pinctrl {
 	cam {
 		/* rgb camera power en */
