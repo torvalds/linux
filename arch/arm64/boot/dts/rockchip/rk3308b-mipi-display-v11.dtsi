@@ -56,6 +56,19 @@
 		enable-active-high;
 		regulator-boot-on;
 	};
+
+	reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		cma {
+			compatible = "shared-dma-pool";
+			reusable;
+			size = <0x0 0x2000000>;
+			linux,cma-default;
+		};
+	};
 };
 
 &i2c0 {
