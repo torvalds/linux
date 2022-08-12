@@ -231,7 +231,7 @@ static int rkisp1_config_isp(struct rkisp1_isp *isp,
 		struct v4l2_mbus_framefmt *src_frm;
 
 		src_frm = rkisp1_isp_get_pad_fmt(isp, NULL,
-						 RKISP1_ISP_PAD_SINK_VIDEO,
+						 RKISP1_ISP_PAD_SOURCE_VIDEO,
 						 V4L2_SUBDEV_FORMAT_ACTIVE);
 		rkisp1_params_configure(&rkisp1->params, sink_fmt->bayer_pat,
 					src_frm->quantization);
