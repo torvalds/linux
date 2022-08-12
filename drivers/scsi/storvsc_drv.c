@@ -1029,7 +1029,7 @@ do_work:
 	 */
 	wrk = kmalloc(sizeof(struct storvsc_scan_work), GFP_ATOMIC);
 	if (!wrk) {
-		set_host_byte(scmnd, DID_TARGET_FAILURE);
+		set_host_byte(scmnd, DID_BAD_TARGET);
 		return;
 	}
 
