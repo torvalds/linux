@@ -378,6 +378,7 @@ struct rkisp1_params {
 	struct v4l2_format vdev_fmt;
 
 	enum v4l2_quantization quantization;
+	enum v4l2_ycbcr_encoding ycbcr_encoding;
 	enum rkisp1_fmt_raw_pat_type raw_type;
 };
 
@@ -563,10 +564,12 @@ const struct rkisp1_mbus_info *rkisp1_mbus_info_get_by_code(u32 mbus_code);
  * @params:	  pointer to rkisp1_params.
  * @bayer_pat:	  the bayer pattern on the isp video sink pad
  * @quantization: the quantization configured on the isp's src pad
+ * @ycbcr_encoding: the ycbcr_encoding configured on the isp's src pad
  */
 void rkisp1_params_configure(struct rkisp1_params *params,
 			     enum rkisp1_fmt_raw_pat_type bayer_pat,
-			     enum v4l2_quantization quantization);
+			     enum v4l2_quantization quantization,
+			     enum v4l2_ycbcr_encoding ycbcr_encoding);
 
 /* rkisp1_params_disable - disable all parameters.
  *			   This function is called by the isp entity upon stream start

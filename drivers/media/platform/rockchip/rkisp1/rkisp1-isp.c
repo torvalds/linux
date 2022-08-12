@@ -234,7 +234,8 @@ static int rkisp1_config_isp(struct rkisp1_isp *isp,
 						 RKISP1_ISP_PAD_SOURCE_VIDEO,
 						 V4L2_SUBDEV_FORMAT_ACTIVE);
 		rkisp1_params_configure(&rkisp1->params, sink_fmt->bayer_pat,
-					src_frm->quantization);
+					src_frm->quantization,
+					src_frm->ycbcr_enc);
 	}
 
 	return 0;
