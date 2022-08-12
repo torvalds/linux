@@ -79,7 +79,6 @@
 #define YAS530_DATA_BITS		12
 #define YAS530_DATA_CENTER		BIT(YAS530_DATA_BITS - 1)
 #define YAS530_DATA_OVERFLOW		(BIT(YAS530_DATA_BITS) - 1)
-#define YAS530_20DEGREES		182 /* Counts starting at -62 °C */
 
 #define YAS532_DEVICE_ID		0x02 /* YAS532/YAS533 (MS-3R/F) */
 #define YAS532_VERSION_AB		0 /* YAS532/533 AB (MS-3R/F AB) */
@@ -91,7 +90,6 @@
 #define YAS532_DATA_BITS		13
 #define YAS532_DATA_CENTER		BIT(YAS532_DATA_BITS - 1)
 #define YAS532_DATA_OVERFLOW		(BIT(YAS532_DATA_BITS) - 1)
-#define YAS532_20DEGREES		390 /* Counts starting at -50 °C */
 
 /* Turn off device regulators etc after 5 seconds of inactivity */
 #define YAS5XX_AUTOSUSPEND_DELAY_MS	5000
@@ -131,6 +129,14 @@ struct yas5xx;
  * @volatile_reg: device-specific volatile registers
  * @volatile_reg_qty: quantity of device-specific volatile registers
  * @scaling_val2: scaling value for IIO_CHAN_INFO_SCALE
+ * @t_ref: number of counts at reference temperature 20 °C
+ * @min_temp_x10: starting point of temperature counting in 1/10:s degrees Celsius
+ *
+ * The "t_ref" value for YAS532/533 is known from the Android driver.
+ * For YAS530 it was approximately measured.
+ *
+ * The temperatures "min_temp_x10" are derived from the temperature resolutions
+ * given in the data sheets.
  */
 struct yas5xx_chip_info {
 	unsigned int devid;
@@ -139,6 +145,8 @@ struct yas5xx_chip_info {
 	const int *volatile_reg;
 	int volatile_reg_qty;
 	u32 scaling_val2;
+	u16 t_ref;
+	s16 min_temp_x10;
 };
 
 /**
@@ -337,6 +345,22 @@ static s32 yas530_linearize(struct yas5xx *yas5xx, u16 val, int axis)
 		(yas5xx->hard_offsets[axis] - c->r[axis]) * coef;
 }
 
+static s32 yas5xx_calc_temperature(struct yas5xx *yas5xx, u16 t)
+{
+	const struct yas5xx_chip_info *ci = yas5xx->chip_info;
+	s32 to;
+	u16 t_ref;
+	s16 min_temp_x10;
+	int ref_temp_x10;
+
+	t_ref = ci->t_ref;
+	min_temp_x10 = ci->min_temp_x10;
+	ref_temp_x10 = 200;
+
+	to = (min_temp_x10 + ((ref_temp_x10 - min_temp_x10) * t / t_ref)) * 100;
+	return to;
+}
+
 /**
  * yas530_get_measure() - Measure a sample of all axis and process
  * @yas5xx: The device state
@@ -352,7 +376,7 @@ static int yas530_get_measure(struct yas5xx *yas5xx, s32 *to, s32 *xo, s32 *yo, 
 {
 	const struct yas5xx_chip_info *ci = yas5xx->chip_info;
 	struct yas5xx_calibration *c = &yas5xx->calibration;
-	u16 t_ref, t, x, y1, y2;
+	u16 t_ref, t_comp, t, x, y1, y2;
 	/* These are signed x, signed y1 etc */
 	s32 sx, sy1, sy2, sy, sz;
 	int ret;
@@ -367,46 +391,29 @@ static int yas530_get_measure(struct yas5xx *yas5xx, s32 *to, s32 *xo, s32 *yo, 
 	sy1 = yas530_linearize(yas5xx, y1, 1);
 	sy2 = yas530_linearize(yas5xx, y2, 2);
 
-	/* Set the temperature reference value (unit: counts) */
-	switch (ci->devid) {
-	case YAS530_DEVICE_ID:
-		t_ref = YAS530_20DEGREES;
-		break;
-	case YAS532_DEVICE_ID:
-		t_ref = YAS532_20DEGREES;
-		break;
-	default:
-		dev_err(yas5xx->dev, "unknown device type\n");
-		return -EINVAL;
-	}
-
-	/* Temperature compensation for x, y1, y2 respectively */
+	/*
+	 * Set the temperature for compensation (unit: counts):
+	 * YAS532/YAS533 version AC uses the temperature deviation as a
+	 * multiplier. YAS530 and YAS532 version AB use solely the t value.
+	 */
+	t_ref = ci->t_ref;
 	if (ci->devid == YAS532_DEVICE_ID &&
 	    yas5xx->version == YAS532_VERSION_AC) {
-		/*
-		 * YAS532 version AC uses the temperature deviation as a
-		 * multiplier.
-		 *
-		 *          Cx * (t - t_ref)
-		 * x' = x - ----------------
-		 *                100
-		 */
-		sx = sx - (c->Cx * (t - t_ref)) / 100;
-		sy1 = sy1 - (c->Cy1 * (t - t_ref)) / 100;
-		sy2 = sy2 - (c->Cy2 * (t - t_ref)) / 100;
+		t_comp = t - t_ref;
 	} else {
-		/*
-		 * YAS530 and YAS532 version AB use solely the t value as a
-		 * multiplier.
-		 *
-		 *          Cx * t
-		 * x' = x - ------
-		 *           100
-		 */
-		sx = sx - (c->Cx * t) / 100;
-		sy1 = sy1 - (c->Cy1 * t) / 100;
-		sy2 = sy2 - (c->Cy2 * t) / 100;
+		t_comp = t;
 	}
+
+	/*
+	 * Temperature compensation for x, y1, y2 respectively:
+	 *
+	 *          Cx * t_comp
+	 * x' = x - -----------
+	 *              100
+	 */
+	sx = sx - (c->Cx * t_comp) / 100;
+	sy1 = sy1 - (c->Cy1 * t_comp) / 100;
+	sy2 = sy2 - (c->Cy2 * t_comp) / 100;
 
 	/*
 	 * Break y1 and y2 into y and z, y1 and y2 are apparently encoding
@@ -415,36 +422,8 @@ static int yas530_get_measure(struct yas5xx *yas5xx, s32 *to, s32 *xo, s32 *yo, 
 	sy = sy1 - sy2;
 	sz = -sy1 - sy2;
 
-	/* Process temperature readout */
-	switch (ci->devid) {
-	case YAS530_DEVICE_ID:
-		/*
-		 * Raw temperature value t is the number of counts starting
-		 * at -62 °C. Reference value t_ref is the number of counts
-		 * between -62 °C and 20 °C (82 °C range).
-		 *
-		 * Temperature in °C would be (82 / t_ref * t) - 62.
-		 *
-		 * Contrary to this, perform multiplication first and division
-		 * second due to calculating with integers.
-		 *
-		 * To get a nicer result, calculate with 1/10:s degrees Celsius
-		 * and finally multiply by 100 to return millidegrees Celsius.
-		 */
-		*to = ((820 * t / t_ref) - 620) * 100;
-		break;
-	case YAS532_DEVICE_ID:
-		/*
-		 * Actually same procedure for YAS532 but the starting point is
-		 * at -50 °C. Reference value t_ref is the number of counts
-		 * between -50 °C and 20 °C (70 °C range).
-		 */
-		*to = ((700 * t / t_ref) - 500) * 100;
-		break;
-	default:
-		dev_err(yas5xx->dev, "unknown device type\n");
-		return -EINVAL;
-	}
+	/* Calculate temperature readout */
+	*to = yas5xx_calc_temperature(yas5xx, t);
 
 	/*
 	 * Calibrate [x,y,z] with some formulas like this:
@@ -935,6 +914,8 @@ static const struct yas5xx_chip_info yas5xx_chip_info_tbl[] = {
 		.volatile_reg = yas530_volatile_reg,
 		.volatile_reg_qty = ARRAY_SIZE(yas530_volatile_reg),
 		.scaling_val2 = 100000000, /* picotesla to Gauss */
+		.t_ref = 182, /* counts */
+		.min_temp_x10 = -620, /* 1/10:s degrees Celsius */
 	},
 	[yas532] = {
 		.devid = YAS532_DEVICE_ID,
@@ -943,6 +924,8 @@ static const struct yas5xx_chip_info yas5xx_chip_info_tbl[] = {
 		.volatile_reg = yas530_volatile_reg,
 		.volatile_reg_qty = ARRAY_SIZE(yas530_volatile_reg),
 		.scaling_val2 = 100000, /* nanotesla to Gauss */
+		.t_ref = 390, /* counts */
+		.min_temp_x10 = -500, /* 1/10:s degrees Celsius */
 	},
 	[yas533] = {
 		.devid = YAS532_DEVICE_ID,
@@ -951,6 +934,8 @@ static const struct yas5xx_chip_info yas5xx_chip_info_tbl[] = {
 		.volatile_reg = yas530_volatile_reg,
 		.volatile_reg_qty = ARRAY_SIZE(yas530_volatile_reg),
 		.scaling_val2 = 100000, /* nanotesla to Gauss */
+		.t_ref = 390, /* counts */
+		.min_temp_x10 = -500, /* 1/10:s degrees Celsius */
 	},
 };
 
