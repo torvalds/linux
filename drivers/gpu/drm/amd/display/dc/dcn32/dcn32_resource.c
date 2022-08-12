@@ -1737,13 +1737,26 @@ bool dcn32_remove_phantom_pipes(struct dc *dc, struct dc_state *context)
 {
 	int i;
 	bool removed_pipe = false;
+	struct dc_plane_state *phantom_plane = NULL;
+	struct dc_stream_state *phantom_stream = NULL;
 
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
 		struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
 		// build scaling params for phantom pipes
 		if (pipe->plane_state && pipe->stream && pipe->stream->mall_stream_config.type == SUBVP_PHANTOM) {
+			phantom_plane = pipe->plane_state;
+			phantom_stream = pipe->stream;
+
 			dc_rem_all_planes_for_stream(dc, pipe->stream, context);
 			dc_remove_stream_from_ctx(dc, context, pipe->stream);
+
+			/* Ref count is incremented on allocation and also when added to the context.
+			 * Therefore we must call release for the the phantom plane and stream once
+			 * they are removed from the ctx to finally decrement the refcount to 0 to free.
+			 */
+			dc_plane_state_release(phantom_plane);
+			dc_stream_release(phantom_stream);
+
 			removed_pipe = true;
 		}
 
