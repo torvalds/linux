@@ -254,7 +254,7 @@ static void mcb_free_bus(struct device *dev)
 	struct mcb_bus *bus = to_mcb_bus(dev);
 
 	put_device(bus->carrier);
-	ida_simple_remove(&mcb_ida, bus->bus_nr);
+	ida_free(&mcb_ida, bus->bus_nr);
 	kfree(bus);
 }
 
@@ -273,7 +273,7 @@ struct mcb_bus *mcb_alloc_bus(struct device *carrier)
 	if (!bus)
 		return ERR_PTR(-ENOMEM);
 
-	bus_nr = ida_simple_get(&mcb_ida, 0, 0, GFP_KERNEL);
+	bus_nr = ida_alloc(&mcb_ida, GFP_KERNEL);
 	if (bus_nr < 0) {
 		kfree(bus);
 		return ERR_PTR(bus_nr);

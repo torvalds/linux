@@ -175,7 +175,7 @@ struct adf4371_state {
 	unsigned int mod2;
 	unsigned int rf_div_sel;
 	unsigned int ref_div_factor;
-	u8 buf[10] ____cacheline_aligned;
+	u8 buf[10] __aligned(IIO_DMA_MINALIGN);
 };
 
 static unsigned long long adf4371_pll_fract_n_get_rate(struct adf4371_state *st,

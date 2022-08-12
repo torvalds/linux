@@ -67,7 +67,7 @@ struct bma220_data {
 		/* Ensure timestamp is naturally aligned. */
 		s64 timestamp __aligned(8);
 	} scan;
-	u8 tx_buf[2] ____cacheline_aligned;
+	u8 tx_buf[2] __aligned(IIO_DMA_MINALIGN);
 };
 
 static const struct iio_chan_spec bma220_channels[] = {
@@ -289,20 +289,20 @@ static int bma220_probe(struct spi_device *spi)
 	return devm_iio_device_register(&spi->dev, indio_dev);
 }
 
-static __maybe_unused int bma220_suspend(struct device *dev)
+static int bma220_suspend(struct device *dev)
 {
 	struct spi_device *spi = to_spi_device(dev);
 
 	return bma220_power(spi, false);
 }
 
-static __maybe_unused int bma220_resume(struct device *dev)
+static int bma220_resume(struct device *dev)
 {
 	struct spi_device *spi = to_spi_device(dev);
 
 	return bma220_power(spi, true);
 }
-static SIMPLE_DEV_PM_OPS(bma220_pm_ops, bma220_suspend, bma220_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(bma220_pm_ops, bma220_suspend, bma220_resume);
 
 static const struct spi_device_id bma220_spi_id[] = {
 	{"bma220", 0},
@@ -318,7 +318,7 @@ MODULE_DEVICE_TABLE(spi, bma220_spi_id);
 static struct spi_driver bma220_driver = {
 	.driver = {
 		.name = "bma220_spi",
-		.pm = &bma220_pm_ops,
+		.pm = pm_sleep_ptr(&bma220_pm_ops),
 		.acpi_match_table = bma220_acpi_id,
 	},
 	.probe =            bma220_probe,

@@ -97,7 +97,7 @@ static volatile int force_check;
 static void lkdtm_CFI_BACKWARD(void)
 {
 	/* Use calculated gotos to keep labels addressable. */
-	void *labels[] = {0, &&normal, &&redirected, &&check_normal, &&check_redirected};
+	void *labels[] = { NULL, &&normal, &&redirected, &&check_normal, &&check_redirected };
 
 	pr_info("Attempting unchecked stack return address redirection ...\n");
 

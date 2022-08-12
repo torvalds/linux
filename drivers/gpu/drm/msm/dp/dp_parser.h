@@ -91,18 +91,11 @@ struct dp_pinctrl {
 	struct pinctrl_state *state_suspend;
 };
 
-#define DP_DEV_REGULATOR_MAX	4
-
 /* Regulators for DP devices */
 struct dp_reg_entry {
 	char name[32];
 	int enable_load;
 	int disable_load;
-};
-
-struct dp_regulator_cfg {
-	int num;
-	struct dp_reg_entry regs[DP_DEV_REGULATOR_MAX];
 };
 
 struct dss_module_power {
@@ -125,7 +118,6 @@ struct dp_parser {
 	struct dp_pinctrl pinctrl;
 	struct dp_io io;
 	struct dp_display_data disp_data;
-	const struct dp_regulator_cfg *regulator_cfg;
 	u32 max_dp_lanes;
 	struct drm_bridge *next_bridge;
 

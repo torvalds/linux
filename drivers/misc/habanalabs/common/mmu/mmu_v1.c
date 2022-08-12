@@ -393,9 +393,8 @@ static int hl_mmu_v1_init(struct hl_device *hdev)
 		goto err_pool_add;
 	}
 
-	hdev->mmu_priv.dr.mmu_shadow_hop0 = kvmalloc_array(prop->max_asid,
-						prop->mmu_hop_table_size,
-						GFP_KERNEL | __GFP_ZERO);
+	hdev->mmu_priv.dr.mmu_shadow_hop0 = kvcalloc(prop->max_asid, prop->mmu_hop_table_size,
+										GFP_KERNEL);
 	if (ZERO_OR_NULL_PTR(hdev->mmu_priv.dr.mmu_shadow_hop0)) {
 		rc = -ENOMEM;
 		goto err_pool_add;
@@ -412,7 +411,7 @@ err_pool_add:
 }
 
 /**
- * hl_mmu_fini() - release the MMU module.
+ * hl_mmu_v1_fini() - release the MMU module.
  * @hdev: habanalabs device structure.
  *
  * This function does the following:
@@ -438,7 +437,7 @@ static void hl_mmu_v1_fini(struct hl_device *hdev)
 }
 
 /**
- * hl_mmu_ctx_init() - initialize a context for using the MMU module.
+ * hl_mmu_v1_ctx_init() - initialize a context for using the MMU module.
  * @ctx: pointer to the context structure to initialize.
  *
  * Initialize a mutex to protect the concurrent mapping flow, a hash to hold all
