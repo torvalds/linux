@@ -664,7 +664,7 @@ static int yas530_get_calibration_data(struct yas5xx *yas5xx)
 	ret = regmap_bulk_read(yas5xx->map, YAS530_CAL, data, sizeof(data));
 	if (ret)
 		return ret;
-	dev_dbg(yas5xx->dev, "calibration data: %*ph\n", 14, data);
+	dev_dbg(yas5xx->dev, "calibration data: %16ph\n", data);
 
 	add_device_randomness(data, sizeof(data));
 	yas5xx->version = data[15] & GENMASK(1, 0);
@@ -711,7 +711,7 @@ static int yas532_get_calibration_data(struct yas5xx *yas5xx)
 	ret = regmap_bulk_read(yas5xx->map, YAS530_CAL, data, sizeof(data));
 	if (ret)
 		return ret;
-	dev_dbg(yas5xx->dev, "calibration data: %*ph\n", 14, data);
+	dev_dbg(yas5xx->dev, "calibration data: %14ph\n", data);
 
 	/* Sanity check, is this all zeroes? */
 	if (memchr_inv(data, 0x00, 13) == NULL) {
