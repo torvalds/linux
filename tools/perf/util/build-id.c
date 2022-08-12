@@ -653,7 +653,11 @@ static char *build_id_cache__find_debug(const char *sbuild_id,
 
 #ifdef HAVE_DEBUGINFOD_SUPPORT
 	if (realname == NULL) {
-		debuginfod_client* c = debuginfod_begin();
+		debuginfod_client* c;
+
+		pr_debug("Downloading debug info with build id %s\n", sbuild_id);
+
+		c = debuginfod_begin();
 		if (c != NULL) {
 			int fd = debuginfod_find_debuginfo(c,
 					(const unsigned char*)sbuild_id, 0,
