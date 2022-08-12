@@ -4175,11 +4175,15 @@ static void gaudi2_init_qman_common(struct hl_device *hdev, u32 reg_base,
 	WREG32(reg_base + QM_GLBL_CFG2_OFFSET, 0);
 
 	/* Enable the QMAN channel.
-	 * PDMA1 QMAN configuration is different, as we do not allow user to
-	 * access CP2/3, it is reserved for the ARC usage.
+	 * PDMA QMAN configuration is different, as we do not allow user to
+	 * access some of the CPs.
+	 * PDMA0: CP2/3 are reserved for the ARC usage.
+	 * PDMA1: CP1/2/3 are reserved for the ARC usage.
 	 */
 	if (reg_base == gaudi2_qm_blocks_bases[GAUDI2_QUEUE_ID_PDMA_1_0])
 		WREG32(reg_base + QM_GLBL_CFG0_OFFSET, PDMA1_QMAN_ENABLE);
+	else if (reg_base == gaudi2_qm_blocks_bases[GAUDI2_QUEUE_ID_PDMA_0_0])
+		WREG32(reg_base + QM_GLBL_CFG0_OFFSET, PDMA0_QMAN_ENABLE);
 	else
 		WREG32(reg_base + QM_GLBL_CFG0_OFFSET, QMAN_ENABLE);
 }
@@ -5580,10 +5584,11 @@ static bool gaudi2_is_queue_enabled(struct hl_device *hdev, u32 hw_queue_id)
 	u64 hw_test_cap_bit = 0;
 
 	switch (hw_queue_id) {
-	case GAUDI2_QUEUE_ID_PDMA_0_0 ... GAUDI2_QUEUE_ID_PDMA_1_1:
+	case GAUDI2_QUEUE_ID_PDMA_0_0:
+	case GAUDI2_QUEUE_ID_PDMA_0_1:
+	case GAUDI2_QUEUE_ID_PDMA_1_0:
 		hw_cap_mask = HW_CAP_PDMA_MASK;
 		break;
-
 	case GAUDI2_QUEUE_ID_DCORE0_EDMA_0_0...GAUDI2_QUEUE_ID_DCORE0_EDMA_1_3:
 		hw_test_cap_bit = HW_CAP_EDMA_SHIFT +
 			((hw_queue_id - GAUDI2_QUEUE_ID_DCORE0_EDMA_0_0) >> 2);
