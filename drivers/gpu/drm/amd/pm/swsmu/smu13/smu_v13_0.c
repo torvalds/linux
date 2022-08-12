@@ -2345,8 +2345,8 @@ int smu_v13_0_set_gfx_power_up_by_imu(struct smu_context *smu)
 
 	index = smu_cmn_to_asic_specific_index(smu, CMN2ASIC_MAPPING_MSG,
 					       SMU_MSG_EnableGfxImu);
-
-	return smu_cmn_send_msg_without_waiting(smu, index, 0);
+	/* Param 1 to tell PMFW to enable GFXOFF feature */
+	return smu_cmn_send_msg_without_waiting(smu, index, 1);
 }
 
 int smu_v13_0_od_edit_dpm_table(struct smu_context *smu,
