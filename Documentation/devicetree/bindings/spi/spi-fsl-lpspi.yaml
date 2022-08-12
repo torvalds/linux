@@ -39,6 +39,16 @@ properties:
       - const: per
       - const: ipg
 
+  dmas:
+    items:
+      - description: TX DMA Channel
+      - description: RX DMA Channel
+
+  dma-names:
+    items:
+      - const: tx
+      - const: rx
+
   fsl,spi-only-use-cs1-sel:
     description:
       spi common code does not support use of CS signals discontinuously.
