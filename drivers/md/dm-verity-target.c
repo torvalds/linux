@@ -38,7 +38,7 @@
 #define DM_VERITY_OPT_AT_MOST_ONCE	"check_at_most_once"
 #define DM_VERITY_OPT_TASKLET_VERIFY	"try_verify_in_tasklet"
 
-#define DM_VERITY_OPTS_MAX		(3 + DM_VERITY_OPTS_FEC + \
+#define DM_VERITY_OPTS_MAX		(4 + DM_VERITY_OPTS_FEC + \
 					 DM_VERITY_ROOT_HASH_VERIFICATION_OPTS)
 
 static unsigned dm_verity_prefetch_cluster = DM_VERITY_DEFAULT_PREFETCH_SIZE;
@@ -1053,7 +1053,7 @@ static int verity_parse_opt_args(struct dm_arg_set *as, struct dm_verity *v,
 				 struct dm_verity_sig_opts *verify_args,
 				 bool only_modifier_opts)
 {
-	int r;
+	int r = 0;
 	unsigned argc;
 	struct dm_target *ti = v->ti;
 	const char *arg_name;
@@ -1123,8 +1123,18 @@ static int verity_parse_opt_args(struct dm_arg_set *as, struct dm_verity *v,
 			if (r)
 				return r;
 			continue;
+
+		} else if (only_modifier_opts) {
+			/*
+			 * Ignore unrecognized opt, could easily be an extra
+			 * argument to an option whose parsing was skipped.
+			 * Normal parsing (@only_modifier_opts=false) will
+			 * properly parse all options (and their extra args).
+			 */
+			continue;
 		}
 
+		DMERR("Unrecognized verity feature request: %s", arg_name);
 		ti->error = "Unrecognized verity feature request";
 		return -EINVAL;
 	} while (argc && !r);
