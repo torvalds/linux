@@ -96,6 +96,12 @@
 /* Turn off device regulators etc after 5 seconds of inactivity */
 #define YAS5XX_AUTOSUSPEND_DELAY_MS	5000
 
+enum chip_ids {
+	yas530,
+	yas532,
+	yas533,
+};
+
 struct yas5xx_calibration {
 	/* Linearization calibration x, y1, y2 */
 	s32 r[3];
@@ -110,12 +116,25 @@ struct yas5xx_calibration {
 	u8 dck;
 };
 
+struct yas5xx;
+
+/**
+ * struct yas5xx_chip_info - device-specific data and function pointers
+ * @devid: device ID number
+ * @product_name: product name of the YAS variant
+ * @version_names: version letters or namings
+ */
+struct yas5xx_chip_info {
+	unsigned int devid;
+	char *product_name;
+	char *version_names[2];
+};
+
 /**
  * struct yas5xx - state container for the YAS5xx driver
  * @dev: parent device pointer
- * @devid: device ID number
+ * @chip_info: device-specific data
  * @version: device version
- * @name: device name
  * @calibration: calibration settings from the OTP storage
  * @hard_offsets: offsets for each axis measured with initcoil actuated
  * @orientation: mounting matrix, flipped axis etc
@@ -129,9 +148,8 @@ struct yas5xx_calibration {
  */
 struct yas5xx {
 	struct device *dev;
-	unsigned int devid;
+	const struct yas5xx_chip_info *chip_info;
 	unsigned int version;
-	char name[16];
 	struct yas5xx_calibration calibration;
 	s8 hard_offsets[3];
 	struct iio_mount_matrix orientation;
@@ -192,6 +210,7 @@ static u16 yas532_extract_axis(u8 *data)
  */
 static int yas530_measure(struct yas5xx *yas5xx, u16 *t, u16 *x, u16 *y1, u16 *y2)
 {
+	const struct yas5xx_chip_info *ci = yas5xx->chip_info;
 	unsigned int busy;
 	u8 data[8];
 	int ret;
@@ -222,7 +241,7 @@ static int yas530_measure(struct yas5xx *yas5xx, u16 *t, u16 *x, u16 *y1, u16 *y
 
 	mutex_unlock(&yas5xx->lock);
 
-	switch (yas5xx->devid) {
+	switch (ci->devid) {
 	case YAS530_DEVICE_ID:
 		/*
 		 * The t value is 9 bits in big endian format
@@ -267,6 +286,7 @@ out_unlock:
 /* Used by YAS530, YAS532 and YAS533 */
 static s32 yas530_linearize(struct yas5xx *yas5xx, u16 val, int axis)
 {
+	const struct yas5xx_chip_info *ci = yas5xx->chip_info;
 	struct yas5xx_calibration *c = &yas5xx->calibration;
 	static const s32 yas532ac_coef[] = {
 		YAS532_VERSION_AC_COEF_X,
@@ -276,7 +296,7 @@ static s32 yas530_linearize(struct yas5xx *yas5xx, u16 val, int axis)
 	s32 coef;
 
 	/* Select coefficients */
-	switch (yas5xx->devid) {
+	switch (ci->devid) {
 	case YAS530_DEVICE_ID:
 		if (yas5xx->version == YAS530_VERSION_A)
 			coef = YAS530_VERSION_A_COEF;
@@ -319,6 +339,7 @@ static s32 yas530_linearize(struct yas5xx *yas5xx, u16 val, int axis)
  */
 static int yas530_get_measure(struct yas5xx *yas5xx, s32 *to, s32 *xo, s32 *yo, s32 *zo)
 {
+	const struct yas5xx_chip_info *ci = yas5xx->chip_info;
 	struct yas5xx_calibration *c = &yas5xx->calibration;
 	u16 t_ref, t, x, y1, y2;
 	/* These are signed x, signed y1 etc */
@@ -336,7 +357,7 @@ static int yas530_get_measure(struct yas5xx *yas5xx, s32 *to, s32 *xo, s32 *yo, 
 	sy2 = yas530_linearize(yas5xx, y2, 2);
 
 	/* Set the temperature reference value (unit: counts) */
-	switch (yas5xx->devid) {
+	switch (ci->devid) {
 	case YAS530_DEVICE_ID:
 		t_ref = YAS530_20DEGREES;
 		break;
@@ -349,7 +370,7 @@ static int yas530_get_measure(struct yas5xx *yas5xx, s32 *to, s32 *xo, s32 *yo, 
 	}
 
 	/* Temperature compensation for x, y1, y2 respectively */
-	if (yas5xx->devid == YAS532_DEVICE_ID &&
+	if (ci->devid == YAS532_DEVICE_ID &&
 	    yas5xx->version == YAS532_VERSION_AC) {
 		/*
 		 * YAS532 version AC uses the temperature deviation as a
@@ -384,7 +405,7 @@ static int yas530_get_measure(struct yas5xx *yas5xx, s32 *to, s32 *xo, s32 *yo, 
 	sz = -sy1 - sy2;
 
 	/* Process temperature readout */
-	switch (yas5xx->devid) {
+	switch (ci->devid) {
 	case YAS530_DEVICE_ID:
 		/*
 		 * Raw temperature value t is the number of counts starting
@@ -442,6 +463,7 @@ static int yas5xx_read_raw(struct iio_dev *indio_dev,
 			   long mask)
 {
 	struct yas5xx *yas5xx = iio_priv(indio_dev);
+	const struct yas5xx_chip_info *ci = yas5xx->chip_info;
 	s32 t, x, y, z;
 	int ret;
 
@@ -473,7 +495,7 @@ static int yas5xx_read_raw(struct iio_dev *indio_dev,
 		}
 		return IIO_VAL_INT;
 	case IIO_CHAN_INFO_SCALE:
-		switch (yas5xx->devid) {
+		switch (ci->devid) {
 		case YAS530_DEVICE_ID:
 			/*
 			 * Raw values of YAS530 are in picotesla. Divide by
@@ -802,6 +824,7 @@ static s8 yas530_adjust_offset(s8 old, int bit, u16 center, u16 measure)
 /* Used by YAS530, YAS532 and YAS533 */
 static int yas530_measure_offsets(struct yas5xx *yas5xx)
 {
+	const struct yas5xx_chip_info *ci = yas5xx->chip_info;
 	int ret;
 	u16 center;
 	u16 t, x, y1, y2;
@@ -814,7 +837,7 @@ static int yas530_measure_offsets(struct yas5xx *yas5xx)
 		return ret;
 
 	/* When the initcoil is active this should be around the center */
-	switch (yas5xx->devid) {
+	switch (ci->devid) {
 	case YAS530_DEVICE_ID:
 		center = YAS530_DATA_CENTER;
 		break;
@@ -895,12 +918,32 @@ static int yas530_power_on(struct yas5xx *yas5xx)
 	return regmap_write(yas5xx->map, YAS530_MEASURE_INTERVAL, 0);
 }
 
+static const struct yas5xx_chip_info yas5xx_chip_info_tbl[] = {
+	[yas530] = {
+		.devid = YAS530_DEVICE_ID,
+		.product_name = "YAS530 MS-3E",
+		.version_names = { "A", "B" },
+	},
+	[yas532] = {
+		.devid = YAS532_DEVICE_ID,
+		.product_name = "YAS532 MS-3R",
+		.version_names = { "AB", "AC" },
+	},
+	[yas533] = {
+		.devid = YAS532_DEVICE_ID,
+		.product_name = "YAS533 MS-3F",
+		.version_names = { "AB", "AC" },
+	},
+};
+
 static int yas5xx_probe(struct i2c_client *i2c,
 			const struct i2c_device_id *id)
 {
 	struct iio_dev *indio_dev;
 	struct device *dev = &i2c->dev;
 	struct yas5xx *yas5xx;
+	const struct yas5xx_chip_info *ci;
+	int id_check;
 	int ret;
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*yas5xx));
@@ -947,32 +990,39 @@ static int yas5xx_probe(struct i2c_client *i2c,
 		goto assert_reset;
 	}
 
-	ret = regmap_read(yas5xx->map, YAS5XX_DEVICE_ID, &yas5xx->devid);
+	yas5xx->chip_info = &yas5xx_chip_info_tbl[id->driver_data];
+	ci = yas5xx->chip_info;
+
+	ret = regmap_read(yas5xx->map, YAS5XX_DEVICE_ID, &id_check);
 	if (ret)
 		goto assert_reset;
 
-	switch (yas5xx->devid) {
+	if (id_check != ci->devid) {
+		ret = dev_err_probe(dev, -ENODEV,
+				    "device ID %02x doesn't match %s\n",
+				    id_check, id->name);
+		goto assert_reset;
+	}
+
+	switch (ci->devid) {
 	case YAS530_DEVICE_ID:
 		ret = yas530_get_calibration_data(yas5xx);
 		if (ret)
 			goto assert_reset;
-		dev_info(dev, "detected YAS530 MS-3E %s",
-			 yas5xx->version ? "B" : "A");
-		strncpy(yas5xx->name, "yas530", sizeof(yas5xx->name));
 		break;
 	case YAS532_DEVICE_ID:
 		ret = yas532_get_calibration_data(yas5xx);
 		if (ret)
 			goto assert_reset;
-		dev_info(dev, "detected YAS532/YAS533 MS-3R/F %s",
-			 yas5xx->version ? "AC" : "AB");
-		strncpy(yas5xx->name, "yas532", sizeof(yas5xx->name));
 		break;
 	default:
 		ret = -ENODEV;
-		dev_err(dev, "unhandled device ID %02x\n", yas5xx->devid);
+		dev_err(dev, "unhandled device ID %02x\n", ci->devid);
 		goto assert_reset;
 	}
+
+	dev_info(dev, "detected %s %s\n", ci->product_name,
+		 ci->version_names[yas5xx->version]);
 
 	yas530_dump_calibration(yas5xx);
 	ret = yas530_power_on(yas5xx);
@@ -985,7 +1035,7 @@ static int yas5xx_probe(struct i2c_client *i2c,
 	indio_dev->info = &yas5xx_info;
 	indio_dev->available_scan_masks = yas5xx_scan_masks;
 	indio_dev->modes = INDIO_DIRECT_MODE;
-	indio_dev->name = yas5xx->name;
+	indio_dev->name = id->name;
 	indio_dev->channels = yas5xx_channels;
 	indio_dev->num_channels = ARRAY_SIZE(yas5xx_channels);
 
@@ -1096,9 +1146,9 @@ static DEFINE_RUNTIME_DEV_PM_OPS(yas5xx_dev_pm_ops, yas5xx_runtime_suspend,
 				 yas5xx_runtime_resume, NULL);
 
 static const struct i2c_device_id yas5xx_id[] = {
-	{"yas530", },
-	{"yas532", },
-	{"yas533", },
+	{"yas530", yas530 },
+	{"yas532", yas532 },
+	{"yas533", yas533 },
 	{}
 };
 MODULE_DEVICE_TABLE(i2c, yas5xx_id);
