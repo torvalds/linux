@@ -23,6 +23,7 @@
 #include "dns_resolve.h"
 #endif
 #include "fs_context.h"
+#include "cached_dir.h"
 
 extern mempool_t *cifs_sm_req_poolp;
 extern mempool_t *cifs_req_poolp;
@@ -116,13 +117,11 @@ tconInfoAlloc(void)
 	ret_buf = kzalloc(sizeof(*ret_buf), GFP_KERNEL);
 	if (!ret_buf)
 		return NULL;
-	ret_buf->cfid.fid = kzalloc(sizeof(*ret_buf->cfid.fid), GFP_KERNEL);
-	if (!ret_buf->cfid.fid) {
+	ret_buf->cfid = init_cached_dir();
+	if (!ret_buf->cfid) {
 		kfree(ret_buf);
 		return NULL;
 	}
-	INIT_LIST_HEAD(&ret_buf->cfid.dirents.entries);
-	mutex_init(&ret_buf->cfid.dirents.de_mutex);
 
 	atomic_inc(&tconInfoAllocCount);
 	ret_buf->status = TID_NEW;
@@ -131,7 +130,6 @@ tconInfoAlloc(void)
 	INIT_LIST_HEAD(&ret_buf->openFileList);
 	INIT_LIST_HEAD(&ret_buf->tcon_list);
 	spin_lock_init(&ret_buf->open_file_lock);
-	mutex_init(&ret_buf->cfid.fid_mutex);
 	spin_lock_init(&ret_buf->stat_lock);
 	atomic_set(&ret_buf->num_local_opens, 0);
 	atomic_set(&ret_buf->num_remote_opens, 0);
@@ -140,17 +138,17 @@ tconInfoAlloc(void)
 }
 
 void
-tconInfoFree(struct cifs_tcon *buf_to_free)
+tconInfoFree(struct cifs_tcon *tcon)
 {
-	if (buf_to_free == NULL) {
+	if (tcon == NULL) {
 		cifs_dbg(FYI, "Null buffer passed to tconInfoFree\n");
 		return;
 	}
+	free_cached_dir(tcon);
 	atomic_dec(&tconInfoAllocCount);
-	kfree(buf_to_free->nativeFileSystem);
-	kfree_sensitive(buf_to_free->password);
-	kfree(buf_to_free->cfid.fid);
-	kfree(buf_to_free);
+	kfree(tcon->nativeFileSystem);
+	kfree_sensitive(tcon->password);
+	kfree(tcon);
 }
 
 struct smb_hdr *

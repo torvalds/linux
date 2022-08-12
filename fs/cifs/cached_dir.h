@@ -9,6 +9,44 @@
 #define _CACHED_DIR_H
 
 
+struct cached_dirent {
+	struct list_head entry;
+	char *name;
+	int namelen;
+	loff_t pos;
+
+	struct cifs_fattr fattr;
+};
+
+struct cached_dirents {
+	bool is_valid:1;
+	bool is_failed:1;
+	struct dir_context *ctx; /*
+				  * Only used to make sure we only take entries
+				  * from a single context. Never dereferenced.
+				  */
+	struct mutex de_mutex;
+	int pos;		 /* Expected ctx->pos */
+	struct list_head entries;
+};
+
+struct cached_fid {
+	bool is_valid:1;	/* Do we have a useable root fid */
+	bool file_all_info_is_valid:1;
+	bool has_lease:1;
+	unsigned long time; /* jiffies of when lease was taken */
+	struct kref refcount;
+	struct cifs_fid fid;
+	struct mutex fid_mutex;
+	struct cifs_tcon *tcon;
+	struct dentry *dentry;
+	struct work_struct lease_break;
+	struct smb2_file_all_info file_all_info;
+	struct cached_dirents dirents;
+};
+
+extern struct cached_fid *init_cached_dir(void);
+extern void free_cached_dir(struct cifs_tcon *tcon);
 extern int open_cached_dir(unsigned int xid, struct cifs_tcon *tcon,
 			   const char *path,
 			   struct cifs_sb_info *cifs_sb,

@@ -524,8 +524,8 @@ smb2_query_path_info(const unsigned int xid, struct cifs_tcon *tcon,
 					       &cfid->file_all_info);
 		} else {
 			rc = SMB2_query_info(xid, tcon,
-					     cfid->fid->persistent_fid,
-					     cfid->fid->volatile_fid, smb2_data);
+					     cfid->fid.persistent_fid,
+					     cfid->fid.volatile_fid, smb2_data);
 			if (!rc)
 				move_smb2_info_to_cifs(data, smb2_data);
 		}

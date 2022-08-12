@@ -722,7 +722,7 @@ smb3_qfs_tcon(const unsigned int xid, struct cifs_tcon *tcon,
 
 	rc = open_cached_dir(xid, tcon, "", cifs_sb, &cfid);
 	if (rc == 0)
-		memcpy(&fid, cfid->fid, sizeof(struct cifs_fid));
+		memcpy(&fid, &cfid->fid, sizeof(struct cifs_fid));
 	else
 		rc = SMB2_open(xid, &oparms, &srch_path, &oplock, NULL, NULL,
 			       NULL, NULL);
@@ -784,7 +784,7 @@ smb2_is_path_accessible(const unsigned int xid, struct cifs_tcon *tcon,
 	struct cifs_open_parms oparms;
 	struct cifs_fid fid;
 
-	if ((*full_path == 0) && tcon->cfid.is_valid)
+	if ((*full_path == 0) && tcon->cfid->is_valid)
 		return 0;
 
 	utf16_path = cifs_convert_path_to_utf16(full_path, cifs_sb);
@@ -2457,8 +2457,8 @@ smb2_query_info_compound(const unsigned int xid, struct cifs_tcon *tcon,
 	if (cfid) {
 		rc = SMB2_query_info_init(tcon, server,
 					  &rqst[1],
-					  cfid->fid->persistent_fid,
-					  cfid->fid->volatile_fid,
+					  cfid->fid.persistent_fid,
+					  cfid->fid.volatile_fid,
 					  class, type, 0,
 					  output_len, 0,
 					  NULL);
