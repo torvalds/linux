@@ -639,11 +639,22 @@ bool bch2_btree_insert_key_cached(struct btree_trans *trans,
 void bch2_btree_key_cache_drop(struct btree_trans *trans,
 			       struct btree_path *path)
 {
+	struct bch_fs *c = trans->c;
 	struct bkey_cached *ck = (void *) path->l[0].b;
 
-	ck->valid = false;
+	BUG_ON(!ck->valid);
 
-	BUG_ON(test_bit(BKEY_CACHED_DIRTY, &ck->flags));
+	/*
+	 * We just did an update to the btree, bypassing the key cache: the key
+	 * cache key is now stale and must be dropped, even if dirty:
+	 */
+	if (test_bit(BKEY_CACHED_DIRTY, &ck->flags)) {
+		clear_bit(BKEY_CACHED_DIRTY, &ck->flags);
+		atomic_long_dec(&c->btree_key_cache.nr_dirty);
+		bch2_journal_pin_drop(&c->journal, &ck->journal);
+	}
+
+	ck->valid = false;
 }
 
 static unsigned long bch2_btree_key_cache_scan(struct shrinker *shrink,
