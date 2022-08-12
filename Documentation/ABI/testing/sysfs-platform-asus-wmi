@@ -66,3 +66,14 @@ Description:
 		Disable discrete GPU:
 			* 0 - Enable dGPU,
 			* 1 - Disable dGPU
+
+What:		/sys/devices/platform/<platform>/egpu_enable
+Date:		Aug 2022
+KernelVersion:	5.17
+Contact:	"Luke Jones" <luke@ljones.dev>
+Description:
+		Enable the external GPU paired with ROG X-Flow laptops.
+		Toggling this setting will also trigger ACPI to disable the dGPU:
+
+			* 0 - Disable,
+			* 1 - Enable
