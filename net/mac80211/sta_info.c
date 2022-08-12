@@ -2778,10 +2778,8 @@ int ieee80211_sta_activate_link(struct sta_info *sta, unsigned int link_id)
 
 	sta->sta.valid_links = new_links;
 
-	if (!test_sta_flag(sta, WLAN_STA_INSERTED)) {
-		ret = 0;
+	if (!test_sta_flag(sta, WLAN_STA_INSERTED))
 		goto hash;
-	}
 
 	ret = drv_change_sta_links(sdata->local, sdata, &sta->sta,
 				   old_links, new_links);
