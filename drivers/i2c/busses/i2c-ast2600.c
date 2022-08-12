@@ -1109,11 +1109,12 @@ static void ast2600_i2c_master_package_irq(struct ast2600_i2c_bus *i2c_bus, u32 
 		i2c_bus->master_xfer_cnt += xfer_len;
 
 		if (i2c_bus->master_xfer_cnt == msg->len) {
-			if (i2c_bus->mode == DMA_MODE)
+			if (i2c_bus->mode == DMA_MODE) {
 				dma_unmap_single(i2c_bus->dev, i2c_bus->master_dma_addr, msg->len,
 						 DMA_TO_DEVICE);
 				i2c_put_dma_safe_msg_buf(i2c_bus->master_safe_buf, msg, true);
-				i2c_bus->msgs_index++;
+			}
+			i2c_bus->msgs_index++;
 			if (i2c_bus->msgs_index == i2c_bus->msgs_count) {
 				i2c_bus->cmd_err = i2c_bus->msgs_index;
 				complete(&i2c_bus->cmd_complete);
@@ -1228,10 +1229,11 @@ static void ast2600_i2c_master_package_irq(struct ast2600_i2c_bus *i2c_bus, u32 
 			msg->len);
 
 		if (i2c_bus->master_xfer_cnt == msg->len) {
-			if (i2c_bus->mode == DMA_MODE)
+			if (i2c_bus->mode == DMA_MODE) {
 				dma_unmap_single(i2c_bus->dev, i2c_bus->master_dma_addr, msg->len,
 						 DMA_FROM_DEVICE);
 				i2c_put_dma_safe_msg_buf(i2c_bus->master_safe_buf, msg, true);
+			}
 
 			for (i = 0; i < msg->len; i++)
 				dev_dbg(i2c_bus->dev, "M: r %d:[%x]\n", i, msg->buf[i]);
