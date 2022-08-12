@@ -774,8 +774,8 @@ static int rockchip_usb2phy_init(struct phy *phy)
 					"failed to enable bvalid irq\n");
 				goto out;
 			}
-
-			schedule_delayed_work(&rport->otg_sm_work, 0);
+			schedule_delayed_work(&rport->otg_sm_work,
+					      rport->typec_vbus_det ? 0 : OTG_SCHEDULE_DELAY);
 		}
 	} else if (rport->port_id == USB2PHY_PORT_HOST) {
 		if (rport->port_cfg->disfall_en.offset) {
