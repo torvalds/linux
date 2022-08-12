@@ -56,6 +56,7 @@ struct i2s_dma_data {
 #define I2S_RXDMA		0x01C0
 #define I2S_TXDMA		0x01C8
 
+#define ONE_CHANNEL_SUPPORT	1
 #define TWO_CHANNEL_SUPPORT	2	/* up to 2.0 */
 #define FOUR_CHANNEL_SUPPORT	4	/* up to 3.1 */
 #define SIX_CHANNEL_SUPPORT	6	/* up to 5.1 */
