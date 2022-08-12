@@ -246,7 +246,6 @@ struct asus_wmi {
 	bool battery_rsoc_available;
 
 	bool panel_overdrive_available;
-	bool panel_overdrive;
 
 	struct hotplug_slot hotplug_slot;
 	struct mutex hotplug_lock;
@@ -1500,48 +1499,10 @@ exit:
 /* Panel Overdrive ************************************************************/
 static int panel_od_check_present(struct asus_wmi *asus)
 {
-	u32 result;
-	int err;
-
 	asus->panel_overdrive_available = false;
 
-	err = asus_wmi_get_devstate(asus, ASUS_WMI_DEVID_PANEL_OD, &result);
-	if (err) {
-		if (err == -ENODEV)
-			return 0;
-		return err;
-	}
-
-	if (result & ASUS_WMI_DSTS_PRESENCE_BIT) {
+	if (asus_wmi_dev_is_present(asus, ASUS_WMI_DEVID_PANEL_OD))
 		asus->panel_overdrive_available = true;
-		asus->panel_overdrive = result & ASUS_WMI_DSTS_STATUS_BIT;
-	}
-
-	return 0;
-}
-
-static int panel_od_write(struct asus_wmi *asus)
-{
-	u32 retval;
-	u8 value;
-	int err;
-
-	/* Don't rely on type conversion */
-	value = asus->panel_overdrive ? 1 : 0;
-
-	err = asus_wmi_set_devstate(ASUS_WMI_DEVID_PANEL_OD, value, &retval);
-
-	if (err) {
-		pr_warn("Failed to set panel overdrive: %d\n", err);
-		return err;
-	}
-
-	if (retval > 1) {
-		pr_warn("Failed to set panel overdrive (retval): 0x%x\n", retval);
-		return -EIO;
-	}
-
-	sysfs_notify(&asus->platform_device->dev.kobj, NULL, "panel_od");
 
 	return 0;
 }
@@ -1550,32 +1511,47 @@ static ssize_t panel_od_show(struct device *dev,
 				   struct device_attribute *attr, char *buf)
 {
 	struct asus_wmi *asus = dev_get_drvdata(dev);
+	int result;
 
-	return sysfs_emit(buf, "%d\n", asus->panel_overdrive);
+	result = asus_wmi_get_devstate_simple(asus, ASUS_WMI_DEVID_PANEL_OD);
+	if (result < 0)
+		return result;
+
+	return sysfs_emit(buf, "%d\n", result);
 }
 
 static ssize_t panel_od_store(struct device *dev,
 				    struct device_attribute *attr,
 				    const char *buf, size_t count)
 {
-	bool overdrive;
-	int result;
+	int result, err;
+	u32 overdrive;
 
 	struct asus_wmi *asus = dev_get_drvdata(dev);
 
-	result = kstrtobool(buf, &overdrive);
+	result = kstrtou32(buf, 10, &overdrive);
 	if (result)
 		return result;
 
-	asus->panel_overdrive = overdrive;
-	result = panel_od_write(asus);
+	if (overdrive > 1)
+		return -EINVAL;
 
-	if (result)
-		return result;
+	err = asus_wmi_set_devstate(ASUS_WMI_DEVID_PANEL_OD, overdrive, &result);
+
+	if (err) {
+		pr_warn("Failed to set panel overdrive: %d\n", err);
+		return err;
+	}
+
+	if (result > 1) {
+		pr_warn("Failed to set panel overdrive (result): 0x%x\n", result);
+		return -EIO;
+	}
+
+	sysfs_notify(&asus->platform_device->dev.kobj, NULL, "panel_od");
 
 	return count;
 }
-
 static DEVICE_ATTR_RW(panel_od);
 
 /* Quirks *********************************************************************/
