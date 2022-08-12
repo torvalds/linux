@@ -431,12 +431,17 @@ static int rkisp1_isp_init_config(struct v4l2_subdev *sd,
 	struct v4l2_mbus_framefmt *sink_fmt, *src_fmt;
 	struct v4l2_rect *sink_crop, *src_crop;
 
+	/* Video. */
 	sink_fmt = v4l2_subdev_get_try_format(sd, sd_state,
 					      RKISP1_ISP_PAD_SINK_VIDEO);
 	sink_fmt->width = RKISP1_DEFAULT_WIDTH;
 	sink_fmt->height = RKISP1_DEFAULT_HEIGHT;
 	sink_fmt->field = V4L2_FIELD_NONE;
 	sink_fmt->code = RKISP1_DEF_SINK_PAD_FMT;
+	sink_fmt->colorspace = V4L2_COLORSPACE_RAW;
+	sink_fmt->xfer_func = V4L2_XFER_FUNC_NONE;
+	sink_fmt->ycbcr_enc = V4L2_YCBCR_ENC_601;
+	sink_fmt->quantization = V4L2_QUANTIZATION_FULL_RANGE;
 
 	sink_crop = v4l2_subdev_get_try_crop(sd, sd_state,
 					     RKISP1_ISP_PAD_SINK_VIDEO);
@@ -449,11 +454,16 @@ static int rkisp1_isp_init_config(struct v4l2_subdev *sd,
 					     RKISP1_ISP_PAD_SOURCE_VIDEO);
 	*src_fmt = *sink_fmt;
 	src_fmt->code = RKISP1_DEF_SRC_PAD_FMT;
+	src_fmt->colorspace = V4L2_COLORSPACE_SRGB;
+	src_fmt->xfer_func = V4L2_XFER_FUNC_SRGB;
+	src_fmt->ycbcr_enc = V4L2_YCBCR_ENC_601;
+	src_fmt->quantization = V4L2_QUANTIZATION_LIM_RANGE;
 
 	src_crop = v4l2_subdev_get_try_crop(sd, sd_state,
 					    RKISP1_ISP_PAD_SOURCE_VIDEO);
 	*src_crop = *sink_crop;
 
+	/* Parameters and statistics. */
 	sink_fmt = v4l2_subdev_get_try_format(sd, sd_state,
 					      RKISP1_ISP_PAD_SINK_PARAMS);
 	src_fmt = v4l2_subdev_get_try_format(sd, sd_state,
