@@ -1339,7 +1339,7 @@ static int bcm_vk_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	pci_set_drvdata(pdev, vk);
 
 	irq = pci_alloc_irq_vectors(pdev,
-				    1,
+				    VK_MSIX_IRQ_MIN_REQ,
 				    VK_MSIX_IRQ_MAX,
 				    PCI_IRQ_MSI | PCI_IRQ_MSIX);
 
