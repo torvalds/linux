@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 
 /* Copyright (c) 2018-2021 Rockchip Electronics Co. Ltd.
- * date: 2022-05-18
+ * date: 2022-08-15
  */
 	.text
 	.section	.note.gnu.property,"a",@note
@@ -2868,7 +2868,7 @@ FlashProgPages:                         // @FlashProgPages
 	stp	x22, x21, [sp, #128]            // 16-byte Folded Spill
 	stp	x20, x19, [sp, #144]            // 16-byte Folded Spill
 	stur	x8, [x29, #-8]
-	cbz	w1, .LBB22_39
+	cbz	w1, .LBB22_41
 // %bb.1:
 	adrp	x8, g_nand_phy_info+12
 	ldrh	w8, [x8, :lo12:g_nand_phy_info+12]
@@ -2932,7 +2932,7 @@ FlashProgPages:                         // @FlashProgPages
 // %bb.9:                               //   in Loop: Header=BB22_4 Depth=1
 	ldr	w8, [sp, #12]                   // 4-byte Folded Reload
 	cmp	w24, w8
-	b.lo	.LBB22_30
+	b.lo	.LBB22_32
 .LBB22_10:                              //   in Loop: Header=BB22_4 Depth=1
 	ldur	x25, [x27, #-8]
 	tst	x25, #0x3f
@@ -2987,7 +2987,7 @@ FlashProgPages:                         // @FlashProgPages
 	b	.LBB22_3
 .LBB22_16:
 	ldr	w8, [sp, #4]                    // 4-byte Folded Reload
-	cbz	w8, .LBB22_39
+	cbz	w8, .LBB22_41
 // %bb.17:
 	adrp	x24, .L.str.126
 	adrp	x22, .L.str.129
@@ -2999,12 +2999,19 @@ FlashProgPages:                         // @FlashProgPages
 	mov	w25, #-1
 	add	x20, x20, :lo12:.L.str.128
 	add	x26, x26, :lo12:.L.str.127
-	b	.LBB22_19
-.LBB22_18:                              //   in Loop: Header=BB22_19 Depth=1
+	b	.LBB22_20
+.LBB22_18:                              //   in Loop: Header=BB22_20 Depth=1
+	ldr	w1, [x19, #4]
+	ldr	w3, [x8, #4]
+	ldr	w5, [x9, #4]
+	mov	x0, x22
+	bl	sftl_printk
+	str	w25, [x19]
+.LBB22_19:                              //   in Loop: Header=BB22_20 Depth=1
 	subs	x21, x21, #1                    // =1
 	add	x19, x19, #32                   // =32
-	b.eq	.LBB22_39
-.LBB22_19:                              // =>This Inner Loop Header: Depth=1
+	b.eq	.LBB22_41
+.LBB22_20:                              // =>This Inner Loop Header: Depth=1
 	ldr	x8, [x28, :lo12:sftl_nand_check_buf]
 	add	x0, sp, #24                     // =24
 	mov	w1, #1
@@ -3019,49 +3026,56 @@ FlashProgPages:                         // @FlashProgPages
 	bl	FlashReadPages
 	ldr	w27, [sp, #24]
 	cmn	w27, #1                         // =1
-	b.eq	.LBB22_22
-// %bb.20:                              //   in Loop: Header=BB22_19 Depth=1
+	b.eq	.LBB22_23
+// %bb.21:                              //   in Loop: Header=BB22_20 Depth=1
 	cmp	w27, #256                       // =256
-	b.ne	.LBB22_24
-// %bb.21:                              //   in Loop: Header=BB22_19 Depth=1
+	b.ne	.LBB22_25
+// %bb.22:                              //   in Loop: Header=BB22_20 Depth=1
 	mov	x0, x26
-	b	.LBB22_23
-.LBB22_22:                              //   in Loop: Header=BB22_19 Depth=1
+	b	.LBB22_24
+.LBB22_23:                              //   in Loop: Header=BB22_20 Depth=1
 	mov	x0, x24
-.LBB22_23:                              //   in Loop: Header=BB22_19 Depth=1
+.LBB22_24:                              //   in Loop: Header=BB22_20 Depth=1
 	ldr	w1, [x19, #4]
 	bl	sftl_printk
 	str	w27, [x19]
-.LBB22_24:                              //   in Loop: Header=BB22_19 Depth=1
+.LBB22_25:                              //   in Loop: Header=BB22_20 Depth=1
 	ldr	x8, [x19, #16]
-	cbz	x8, .LBB22_27
-// %bb.25:                              //   in Loop: Header=BB22_19 Depth=1
+	cbz	x8, .LBB22_29
+// %bb.26:                              //   in Loop: Header=BB22_20 Depth=1
 	ldr	x9, [x23, :lo12:sftl_nand_check_spare_buf]
 	ldr	w2, [x8]
-	ldr	w3, [x9]
-	cmp	w2, w3
-	b.eq	.LBB22_27
-// %bb.26:                              //   in Loop: Header=BB22_19 Depth=1
+	ldr	w4, [x9]
+	cmp	w2, w4
+	b.ne	.LBB22_28
+// %bb.27:                              //   in Loop: Header=BB22_20 Depth=1
+	ldr	w10, [x8, #8]
+	ldr	w11, [x9, #8]
+	cmp	w10, w11
+	b.eq	.LBB22_29
+.LBB22_28:                              //   in Loop: Header=BB22_20 Depth=1
 	ldr	w1, [x19, #4]
+	ldr	w3, [x8, #4]
+	ldr	w5, [x9, #4]
 	mov	x0, x20
 	bl	sftl_printk
 	str	w25, [x19]
-.LBB22_27:                              //   in Loop: Header=BB22_19 Depth=1
+.LBB22_29:                              //   in Loop: Header=BB22_20 Depth=1
 	ldr	x8, [x19, #8]
-	cbz	x8, .LBB22_18
-// %bb.28:                              //   in Loop: Header=BB22_19 Depth=1
+	cbz	x8, .LBB22_19
+// %bb.30:                              //   in Loop: Header=BB22_20 Depth=1
 	ldr	x9, [x28, :lo12:sftl_nand_check_buf]
 	ldr	w2, [x8]
-	ldr	w3, [x9]
-	cmp	w2, w3
-	b.eq	.LBB22_18
-// %bb.29:                              //   in Loop: Header=BB22_19 Depth=1
-	ldr	w1, [x19, #4]
-	mov	x0, x22
-	bl	sftl_printk
-	str	w25, [x19]
-	b	.LBB22_18
-.LBB22_30:
+	ldr	w4, [x9]
+	cmp	w2, w4
+	b.ne	.LBB22_18
+// %bb.31:                              //   in Loop: Header=BB22_20 Depth=1
+	ldr	w10, [x8, #2048]
+	ldr	w11, [x9, #2048]
+	cmp	w10, w11
+	b.ne	.LBB22_18
+	b	.LBB22_19
+.LBB22_32:
 	adrp	x22, .L.str.116
 	adrp	x23, .L.str.124
 	adrp	x24, .L.str.117
@@ -3071,8 +3085,8 @@ FlashProgPages:                         // @FlashProgPages
 	add	x23, x23, :lo12:.L.str.124
 	add	x24, x24, :lo12:.L.str.117
 	add	x25, x25, :lo12:.L.str.120
-	b	.LBB22_32
-.LBB22_31:                              //   in Loop: Header=BB22_32 Depth=1
+	b	.LBB22_34
+.LBB22_33:                              //   in Loop: Header=BB22_34 Depth=1
 	mov	x0, x25
 	bl	sftl_printk
 	add	x8, x19, x20, lsl #5
@@ -3099,9 +3113,9 @@ FlashProgPages:                         // @FlashProgPages
 	bl	sftl_printk
 	add	x20, x20, #1                    // =1
 	cmp	x20, x21
-	b.eq	.LBB22_38
-.LBB22_32:                              // =>This Loop Header: Depth=1
-                                        //     Child Loop BB22_35 Depth 2
+	b.eq	.LBB22_40
+.LBB22_34:                              // =>This Loop Header: Depth=1
+                                        //     Child Loop BB22_37 Depth 2
 	add	x26, x19, x20, lsl #5
 	ldr	w2, [x26, #4]
 	adrp	x0, .L.str.123
@@ -3114,42 +3128,42 @@ FlashProgPages:                         // @FlashProgPages
 	ldr	x28, [x26, #8]
 	mov	x27, xzr
 	mov	w26, wzr
-	b	.LBB22_35
-.LBB22_33:                              //   in Loop: Header=BB22_35 Depth=2
+	b	.LBB22_37
+.LBB22_35:                              //   in Loop: Header=BB22_37 Depth=2
 	ldr	w1, [x28, x27]
 	mov	x0, x24
 	bl	sftl_printk
 	add	w26, w26, #1                    // =1
 	cmp	w26, #16                        // =16
-	b.hs	.LBB22_37
-.LBB22_34:                              //   in Loop: Header=BB22_35 Depth=2
+	b.hs	.LBB22_39
+.LBB22_36:                              //   in Loop: Header=BB22_37 Depth=2
 	add	x27, x27, #4                    // =4
 	cmp	x27, #64                        // =64
-	b.eq	.LBB22_31
-.LBB22_35:                              //   Parent Loop BB22_32 Depth=1
+	b.eq	.LBB22_33
+.LBB22_37:                              //   Parent Loop BB22_34 Depth=1
                                         // =>  This Inner Loop Header: Depth=2
-	cbnz	w26, .LBB22_33
-// %bb.36:                              //   in Loop: Header=BB22_35 Depth=2
+	cbnz	w26, .LBB22_35
+// %bb.38:                              //   in Loop: Header=BB22_37 Depth=2
 	mov	x0, x22
 	mov	x1, x23
 	mov	x2, x28
 	mov	w3, w27
 	bl	sftl_printk
-	b	.LBB22_33
-.LBB22_37:                              //   in Loop: Header=BB22_35 Depth=2
+	b	.LBB22_35
+.LBB22_39:                              //   in Loop: Header=BB22_37 Depth=2
 	mov	x0, x25
 	bl	sftl_printk
 	mov	w26, wzr
-	b	.LBB22_34
-.LBB22_38:
+	b	.LBB22_36
+.LBB22_40:
 	bl	dump_stack
-.LBB22_39:
+.LBB22_41:
 	adrp	x9, __stack_chk_guard
 	ldur	x8, [x29, #-8]
 	ldr	x9, [x9, :lo12:__stack_chk_guard]
 	cmp	x9, x8
-	b.ne	.LBB22_41
-// %bb.40:
+	b.ne	.LBB22_43
+// %bb.42:
 	ldp	x20, x19, [sp, #144]            // 16-byte Folded Reload
 	ldp	x22, x21, [sp, #128]            // 16-byte Folded Reload
 	ldp	x24, x23, [sp, #112]            // 16-byte Folded Reload
@@ -3160,7 +3174,7 @@ FlashProgPages:                         // @FlashProgPages
 	add	sp, sp, #160                    // =160
 	hint	#29
 	ret
-.LBB22_41:
+.LBB22_43:
 	bl	__stack_chk_fail
 .Lfunc_end22:
 	.size	FlashProgPages, .Lfunc_end22-FlashProgPages
@@ -4734,7 +4748,7 @@ FtlVpcTblFlush:                         // @FtlVpcTblFlush
 	mov	x9, #19539
 	movk	x9, #18004, lsl #16
 	adrp	x20, g_sys_save_data
-	movk	x9, #86, lsl #32
+	movk	x9, #87, lsl #32
 	add	x20, x20, :lo12:g_sys_save_data
 	movk	x9, #20480, lsl #48
 	adrp	x10, c_ftl_nand_die_num
@@ -7000,7 +7014,7 @@ FtlEctTblFlush:                         // @FtlEctTblFlush
 	ldr	w10, [x11, :lo12:g_totle_gc_page_count]
 	ldr	w11, [x12, :lo12:g_totle_write_page_count]
 	ldr	w12, [x13, :lo12:g_totle_read_page_count]
-	mov	w8, #86
+	mov	w8, #87
 	movk	w8, #20480, lsl #16
 	adrp	x14, g_totle_l2p_write_count
 	adrp	x15, g_totle_slc_erase_count
@@ -9512,13 +9526,13 @@ FtlWriteToIDB:                          // @FtlWriteToIDB
 	mov	w0, #262144
 	mov	w1, #3265
 	mov	w2, #6
-	bl	kmalloc_order
+	bl	kmalloc_order_trace
 	adrp	x25, idb_buf
 	str	x0, [x25, :lo12:idb_buf]
 	mov	w0, #262144
 	mov	w1, #3265
 	mov	w2, #6
-	bl	kmalloc_order
+	bl	kmalloc_order_trace
 	adrp	x8, gp_flash_check_buf
 	str	x0, [x8, :lo12:gp_flash_check_buf]
 	cbz	x0, .LBB56_15
@@ -12870,7 +12884,7 @@ Ftl_save_ext_data:                      // @Ftl_save_ext_data
 	ldr	w10, [x11, :lo12:g_totle_gc_page_count]
 	ldr	w11, [x12, :lo12:g_totle_write_page_count]
 	ldr	w12, [x13, :lo12:g_totle_read_page_count]
-	mov	w8, #86
+	mov	w8, #87
 	movk	w8, #20480, lsl #16
 	adrp	x14, g_totle_l2p_write_count
 	adrp	x15, g_totle_slc_erase_count
@@ -19872,7 +19886,7 @@ rk_sftl_vendor_storage_init:            // @rk_sftl_vendor_storage_init
 	stp	x22, x21, [sp, #32]             // 16-byte Folded Spill
 	stp	x20, x19, [sp, #48]             // 16-byte Folded Spill
 	mov	x29, sp
-	bl	kmalloc_order
+	bl	kmalloc_order_trace
 	adrp	x20, g_vendor
 	str	x0, [x20, :lo12:g_vendor]
 	cbz	x0, .LBB136_4
@@ -20190,232 +20204,126 @@ rk_sftl_vendor_write:                   // @rk_sftl_vendor_write
 rk_sftl_vendor_storage_ioctl:           // @rk_sftl_vendor_storage_ioctl
 // %bb.0:
 	hint	#25
-	stp	x29, x30, [sp, #-64]!           // 16-byte Folded Spill
-	adrp	x8, kmalloc_caches+320
-	ldr	x0, [x8, :lo12:kmalloc_caches+320]
-	stp	x22, x21, [sp, #32]             // 16-byte Folded Spill
+	stp	x29, x30, [sp, #-48]!           // 16-byte Folded Spill
+	adrp	x8, kmalloc_caches+96
+	ldr	x0, [x8, :lo12:kmalloc_caches+96]
+	str	x21, [sp, #16]                  // 8-byte Folded Spill
+	stp	x20, x19, [sp, #32]             // 16-byte Folded Spill
+	mov	x20, x2
 	mov	w21, w1
 	mov	w1, #3265
-	str	x23, [sp, #16]                  // 8-byte Folded Spill
-	stp	x20, x19, [sp, #48]             // 16-byte Folded Spill
+	mov	w2, #4096
 	mov	x29, sp
-	mov	x20, x2
-	bl	kmem_cache_alloc
-	cbz	x0, .LBB139_14
+	bl	kmem_cache_alloc_trace
+	cbz	x0, .LBB139_5
 // %bb.1:
 	mov	w8, #30210
 	movk	w8, #16388, lsl #16
 	mov	x19, x0
 	cmp	w21, w8
-	b.eq	.LBB139_15
+	b.eq	.LBB139_6
 // %bb.2:
 	mov	w8, #30209
 	movk	w8, #16388, lsl #16
 	cmp	w21, w8
-	b.ne	.LBB139_29
+	b.ne	.LBB139_9
 // %bb.3:
-	//APP
-	mrs	x22, SP_EL0
-	//NO_APP
-	ldrb	w10, [x22, #46]
-	ldr	x9, [x22, #8]
-	lsl	x8, x20, #8
-	tbnz	w10, #5, .LBB139_5
-// %bb.4:
-	ldr	x11, [x22]
-	mov	x10, x20
-	tbz	w11, #26, .LBB139_6
-.LBB139_5:
-	and	x10, x20, x8, asr #8
-.LBB139_6:
-	//APP
-	adds	x10, x10, #8                    // =8
-	csel	x9, xzr, x9, hi
-	csinv	x10, x10, xzr, lo
-	sbcs	xzr, x10, x9
-	cset	x10, ls
-
-	//NO_APP
-	cbz	x10, .LBB139_37
-// %bb.7:
-	//APP
-
-
-	//NO_APP
-	ldr	x9, [x22, #8]
-	and	x23, x20, x8, asr #8
-	//APP
-	bics	xzr, x23, x9
-	csel	x1, x20, xzr, eq
-
-	//NO_APP
-	//APP
-	csdb
-	//NO_APP
 	mov	w2, #8
 	mov	x0, x19
-	bl	__arch_copy_from_user
-	//APP
-
-
-	//NO_APP
-	cbnz	x0, .LBB139_38
-// %bb.8:
+	mov	x1, x20
+	bl	_copy_from_user
+	cbz	x0, .LBB139_10
+// %bb.4:
+	adrp	x0, .L.str.131
+	add	x0, x0, :lo12:.L.str.131
+	mov	w1, #256
+	b	.LBB139_8
+.LBB139_5:
+	mov	x21, #-1
+	b	.LBB139_22
+.LBB139_6:
+	mov	w2, #8
+	mov	x0, x19
+	mov	x1, x20
+	bl	_copy_from_user
+	cbz	x0, .LBB139_16
+// %bb.7:
+	adrp	x0, .L.str.131
+	add	x0, x0, :lo12:.L.str.131
+	mov	w1, #276
+.LBB139_8:
+	mov	x2, x20
+	bl	sftl_printk
+.LBB139_9:
+	mov	x21, #-14
+	b	.LBB139_21
+.LBB139_10:
 	ldr	w8, [x19]
 	mov	w9, #17745
 	movk	w9, #22098, lsl #16
 	cmp	w8, w9
-	b.ne	.LBB139_28
-// %bb.9:
+	b.ne	.LBB139_20
+// %bb.11:
 	adrp	x8, g_vendor
 	ldr	x8, [x8, :lo12:g_vendor]
-	cbz	x8, .LBB139_28
-// %bb.10:
+	cbz	x8, .LBB139_20
+// %bb.12:
 	ldrh	w9, [x8, #10]
-	cbz	x9, .LBB139_28
-// %bb.11:
+	cbz	x9, .LBB139_20
+// %bb.13:
 	ldrh	w12, [x19, #4]
 	ldrh	w10, [x19, #6]
 	add	x0, x19, #8                     // =8
 	add	x11, x8, #20                    // =20
-.LBB139_12:                             // =>This Inner Loop Header: Depth=1
+	mov	x21, #-1
+.LBB139_14:                             // =>This Inner Loop Header: Depth=1
 	ldurh	w13, [x11, #-4]
 	cmp	w13, w12
-	b.eq	.LBB139_32
-// %bb.13:                              //   in Loop: Header=BB139_12 Depth=1
-	subs	x9, x9, #1                      // =1
+	b.eq	.LBB139_23
+// %bb.15:                              //   in Loop: Header=BB139_14 Depth=1
 	add	x11, x11, #8                    // =8
-	b.ne	.LBB139_12
-	b	.LBB139_28
-.LBB139_14:
-	mov	x21, #-1
-	b	.LBB139_31
-.LBB139_15:
-	//APP
-	mrs	x22, SP_EL0
-	//NO_APP
-	ldrb	w9, [x22, #46]
-	ldr	x8, [x22, #8]
-	tbnz	w9, #5, .LBB139_17
-// %bb.16:
-	ldr	x10, [x22]
-	mov	x9, x20
-	tbz	w10, #26, .LBB139_18
-.LBB139_17:
-	lsl	x9, x20, #8
-	and	x9, x20, x9, asr #8
-.LBB139_18:
-	//APP
-	adds	x9, x9, #8                      // =8
-	csel	x8, xzr, x8, hi
-	csinv	x9, x9, xzr, lo
-	sbcs	xzr, x9, x8
-	cset	x9, ls
-
-	//NO_APP
-	cbz	x9, .LBB139_40
-// %bb.19:
-	lsl	x9, x20, #8
-	//APP
-
-
-	//NO_APP
-	ldr	x8, [x22, #8]
-	and	x23, x20, x9, asr #8
-	//APP
-	bics	xzr, x23, x8
-	csel	x1, x20, xzr, eq
-
-	//NO_APP
-	//APP
-	csdb
-	//NO_APP
-	mov	w2, #8
-	mov	x0, x19
-	bl	__arch_copy_from_user
-	//APP
-
-
-	//NO_APP
-	cbnz	x0, .LBB139_41
-// %bb.20:
+	subs	x9, x9, #1                      // =1
+	b.ne	.LBB139_14
+	b	.LBB139_21
+.LBB139_16:
 	ldr	w8, [x19]
 	mov	w9, #17745
 	movk	w9, #22098, lsl #16
 	cmp	w8, w9
-	b.ne	.LBB139_28
-// %bb.21:
-	ldrh	w9, [x19, #6]
-	cmp	x9, #4087                       // =4087
-	b.hi	.LBB139_28
-// %bb.22:
-	ldrb	w10, [x22, #46]
-	ldr	x8, [x22, #8]
-	add	x21, x9, #8                     // =8
-	tbnz	w10, #5, .LBB139_24
-// %bb.23:
-	ldr	x10, [x22]
-	mov	x9, x20
-	tbz	w10, #26, .LBB139_25
-.LBB139_24:
-	mov	x9, x23
-.LBB139_25:
-	//APP
-	adds	x9, x9, x21
-	csel	x8, xzr, x8, hi
-	csinv	x9, x9, xzr, lo
-	sbcs	xzr, x9, x8
-	cset	x9, ls
-
-	//NO_APP
-	cbz	x9, .LBB139_43
-// %bb.26:
-	//APP
-
-
-	//NO_APP
-	ldr	x8, [x22, #8]
-	//APP
-	bics	xzr, x23, x8
-	csel	x1, x20, xzr, eq
-
-	//NO_APP
-	//APP
-	csdb
-	//NO_APP
+	b.ne	.LBB139_20
+// %bb.17:
+	ldrh	w8, [x19, #6]
+	cmp	x8, #4087                       // =4087
+	b.hi	.LBB139_20
+// %bb.18:
+	add	x21, x8, #8                     // =8
 	mov	x0, x19
+	mov	x1, x21
+	mov	w2, wzr
+	bl	__check_object_size
+	mov	x0, x19
+	mov	x1, x20
 	mov	x2, x21
-	bl	__arch_copy_from_user
-	//APP
-
-
-	//NO_APP
-	cbnz	x0, .LBB139_44
-// %bb.27:
-	ldrh	w0, [x19, #4]
-	ldrh	w2, [x19, #6]
-	add	x1, x19, #8                     // =8
-	bl	rk_sftl_vendor_write
-                                        // kill: def $w0 killed $w0 def $x0
-	sxtw	x21, w0
-	b	.LBB139_30
-.LBB139_28:
+	bl	_copy_from_user
+	cbz	x0, .LBB139_24
+// %bb.19:
+	adrp	x0, .L.str.131
+	add	x0, x0, :lo12:.L.str.131
+	mov	w1, #283
+	b	.LBB139_8
+.LBB139_20:
 	mov	x21, #-1
-	b	.LBB139_30
-.LBB139_29:
-	mov	x21, #-14
-.LBB139_30:
+.LBB139_21:
 	mov	x0, x19
 	bl	kfree
-.LBB139_31:
+.LBB139_22:
 	mov	x0, x21
-	ldp	x20, x19, [sp, #48]             // 16-byte Folded Reload
-	ldp	x22, x21, [sp, #32]             // 16-byte Folded Reload
-	ldr	x23, [sp, #16]                  // 8-byte Folded Reload
-	ldp	x29, x30, [sp], #64             // 16-byte Folded Reload
+	ldp	x20, x19, [sp, #32]             // 16-byte Folded Reload
+	ldr	x21, [sp, #16]                  // 8-byte Folded Reload
+	ldp	x29, x30, [sp], #48             // 16-byte Folded Reload
 	hint	#29
 	ret
-.LBB139_32:
+.LBB139_23:
 	ldrh	w9, [x11]
 	ldurh	w11, [x11, #-2]
 	cmp	w9, w10
@@ -20425,96 +20333,27 @@ rk_sftl_vendor_storage_ioctl:           // @rk_sftl_vendor_storage_ioctl
 	mov	x2, x21
 	bl	memcpy
 	strh	w21, [x19, #6]
-	ldrb	w9, [x22, #46]
-	ldr	x8, [x22, #8]
-	add	w2, w21, #8                     // =8
-	tbnz	w9, #5, .LBB139_34
-// %bb.33:
-	ldr	x10, [x22]
-	mov	x9, x20
-	tbz	w10, #26, .LBB139_35
-.LBB139_34:
-	mov	x9, x23
-.LBB139_35:
-	mov	x21, #-14
-	//APP
-	adds	x9, x9, x2
-	csel	x8, xzr, x8, hi
-	csinv	x9, x9, xzr, lo
-	sbcs	xzr, x9, x8
-	cset	x9, ls
-
-	//NO_APP
-	cbz	x9, .LBB139_30
-// %bb.36:
-	//APP
-
-
-	//NO_APP
-	ldr	x8, [x22, #8]
-	//APP
-	bics	xzr, x23, x8
-	csel	x0, x20, xzr, eq
-
-	//NO_APP
-	//APP
-	csdb
-	//NO_APP
+	add	w21, w21, #8                    // =8
+	mov	w2, #1
+	mov	x0, x19
+	mov	x1, x21
+	bl	__check_object_size
+	mov	x0, x20
 	mov	x1, x19
-	bl	__arch_copy_to_user
-	cmp	x0, #0                          // =0
-	//APP
-
-
-	//NO_APP
-	csel	x21, xzr, x21, eq
-	b	.LBB139_30
-.LBB139_37:
-	mov	w2, #8
-	b	.LBB139_39
-.LBB139_38:
-	mov	x2, x0
-.LBB139_39:
-	sub	x8, x19, x2
-	add	x0, x8, #8                      // =8
-	mov	w1, wzr
-	bl	memset
-	adrp	x0, .L.str.131
-	add	x0, x0, :lo12:.L.str.131
-	mov	w1, #256
-	b	.LBB139_46
-.LBB139_40:
-	mov	w2, #8
-	b	.LBB139_42
-.LBB139_41:
-	mov	x2, x0
-.LBB139_42:
-	sub	x8, x19, x2
-	add	x0, x8, #8                      // =8
-	mov	w1, wzr
-	bl	memset
-	adrp	x0, .L.str.131
-	add	x0, x0, :lo12:.L.str.131
-	mov	w1, #276
-	b	.LBB139_46
-.LBB139_43:
 	mov	x2, x21
-	b	.LBB139_45
-.LBB139_44:
-	mov	x2, x0
-.LBB139_45:
-	sub	x8, x21, x2
-	add	x0, x19, x8
-	mov	w1, wzr
-	bl	memset
-	adrp	x0, .L.str.131
-	add	x0, x0, :lo12:.L.str.131
-	mov	w1, #283
-.LBB139_46:
-	mov	x2, x20
-	bl	sftl_printk
-	mov	x21, #-14
-	b	.LBB139_30
+	bl	_copy_to_user
+	cmp	x0, #0                          // =0
+	mov	x8, #-14
+	csel	x21, xzr, x8, eq
+	b	.LBB139_21
+.LBB139_24:
+	ldrh	w0, [x19, #4]
+	ldrh	w2, [x19, #6]
+	add	x1, x19, #8                     // =8
+	bl	rk_sftl_vendor_write
+                                        // kill: def $w0 killed $w0 def $x0
+	sxtw	x21, w0
+	b	.LBB139_21
 .Lfunc_end139:
 	.size	rk_sftl_vendor_storage_ioctl, .Lfunc_end139-rk_sftl_vendor_storage_ioctl
                                         // -- End function
@@ -20535,6 +20374,1516 @@ rk_sftl_vendor_register:                // @rk_sftl_vendor_register
 .Lfunc_end140:
 	.size	rk_sftl_vendor_register, .Lfunc_end140-rk_sftl_vendor_register
                                         // -- End function
+	.p2align	2                               // -- Begin function _copy_from_user
+	.type	_copy_from_user,@function
+_copy_from_user:                        // @_copy_from_user
+// %bb.0:
+	hint	#25
+	stp	x29, x30, [sp, #-48]!           // 16-byte Folded Spill
+	//APP
+	mrs	x8, SP_EL0
+	//NO_APP
+	ldrb	w11, [x8, #54]
+	ldr	x10, [x8, #8]
+	stp	x20, x19, [sp, #32]             // 16-byte Folded Spill
+	mov	x19, x2
+	mov	x20, x0
+	lsl	x9, x1, #8
+	str	x21, [sp, #16]                  // 8-byte Folded Spill
+	mov	x29, sp
+	tbnz	w11, #5, .LBB141_2
+// %bb.1:
+	ldr	x12, [x8]
+	mov	x11, x1
+	tbz	w12, #26, .LBB141_3
+.LBB141_2:
+	and	x11, x1, x9, asr #8
+.LBB141_3:
+	mov	x21, x19
+	//APP
+	adds	x11, x11, x19
+	csel	x10, xzr, x10, hi
+	csinv	x11, x11, xzr, lo
+	sbcs	xzr, x11, x10
+	cset	x11, ls
+
+	//NO_APP
+	cbz	x11, .LBB141_18
+// %bb.4:
+	//APP
+.Ltmp1:
+	b	.Ltmp0
+	.section	__jump_table,"aw",@progbits
+	.p2align	3
+.Ltmp2:
+	.word	.Ltmp1-.Ltmp2
+.Ltmp3:
+	.word	.Ltmp0-.Ltmp3
+.Ltmp4:
+	.xword	(arm64_const_caps_ready+1)-.Ltmp4
+	.text
+
+
+	//NO_APP
+// %bb.5:
+	//APP
+.Ltmp6:
+	nop
+	.section	__jump_table,"aw",@progbits
+	.p2align	3
+.Ltmp7:
+	.word	.Ltmp6-.Ltmp7
+.Ltmp8:
+	.word	.Ltmp5-.Ltmp8
+.Ltmp9:
+	.xword	(cpu_hwcap_keys+64)-.Ltmp9
+	.text
+
+
+	//NO_APP
+.LBB141_6:
+	//APP
+.Ltmp10:
+	mrs	x10, DAIF
+.Ltmp11:
+	.section	.altinstructions,"a",@progbits
+.Ltmp12:
+	.word	.Ltmp10-.Ltmp12
+.Ltmp14:
+	.word	.Ltmp13-.Ltmp14
+	.hword	42
+	.byte	.Ltmp11-.Ltmp10
+	.byte	.Ltmp15-.Ltmp13
+	.text
+
+	.text	1
+.Ltmp13:
+.set .L__reg_num_x0, 0
+.set .L__reg_num_x1, 1
+.set .L__reg_num_x2, 2
+.set .L__reg_num_x3, 3
+.set .L__reg_num_x4, 4
+.set .L__reg_num_x5, 5
+.set .L__reg_num_x6, 6
+.set .L__reg_num_x7, 7
+.set .L__reg_num_x8, 8
+.set .L__reg_num_x9, 9
+.set .L__reg_num_x10, 10
+.set .L__reg_num_x11, 11
+.set .L__reg_num_x12, 12
+.set .L__reg_num_x13, 13
+.set .L__reg_num_x14, 14
+.set .L__reg_num_x15, 15
+.set .L__reg_num_x16, 16
+.set .L__reg_num_x17, 17
+.set .L__reg_num_x18, 18
+.set .L__reg_num_x19, 19
+.set .L__reg_num_x20, 20
+.set .L__reg_num_x21, 21
+.set .L__reg_num_x22, 22
+.set .L__reg_num_x23, 23
+.set .L__reg_num_x24, 24
+.set .L__reg_num_x25, 25
+.set .L__reg_num_x26, 26
+.set .L__reg_num_x27, 27
+.set .L__reg_num_x28, 28
+.set .L__reg_num_x29, 29
+.set .L__reg_num_x30, 30
+
+.set .L__reg_num_xzr, 31
+
+	.inst	0xd538460a
+
+
+.Ltmp15:
+.Ltmp16:
+.org (.Ltmp16-(.Ltmp15-.Ltmp13))+(.Ltmp11-.Ltmp10), 0
+.Ltmp17:
+.org (.Ltmp17-(.Ltmp11-.Ltmp10))+(.Ltmp15-.Ltmp13), 0
+	.text
+
+
+	//NO_APP
+	//APP
+.Ltmp18:
+	and	w11, w10, #0x80
+.Ltmp19:
+	.section	.altinstructions,"a",@progbits
+.Ltmp20:
+	.word	.Ltmp18-.Ltmp20
+.Ltmp22:
+	.word	.Ltmp21-.Ltmp22
+	.hword	42
+	.byte	.Ltmp19-.Ltmp18
+	.byte	.Ltmp23-.Ltmp21
+	.text
+
+	.text	1
+.Ltmp21:
+	eor	w11, w10, #0xe0
+.Ltmp23:
+.Ltmp24:
+.org (.Ltmp24-(.Ltmp23-.Ltmp21))+(.Ltmp19-.Ltmp18), 0
+.Ltmp25:
+.org (.Ltmp25-(.Ltmp19-.Ltmp18))+(.Ltmp23-.Ltmp21), 0
+	.text
+
+
+	//NO_APP
+	cbnz	w11, .LBB141_10
+// %bb.7:
+	//APP
+.Ltmp27:
+	nop
+	.section	__jump_table,"aw",@progbits
+	.p2align	3
+.Ltmp28:
+	.word	.Ltmp27-.Ltmp28
+.Ltmp29:
+	.word	.Ltmp26-.Ltmp29
+.Ltmp30:
+	.xword	gic_nonsecure_priorities-.Ltmp30
+	.text
+
+
+	//NO_APP
+// %bb.8:
+	mov	w11, #96
+.LBB141_9:
+	//APP
+.Ltmp31:
+	msr	DAIFSet, #2	// arch_local_irq_disable
+.Ltmp32:
+	.section	.altinstructions,"a",@progbits
+.Ltmp33:
+	.word	.Ltmp31-.Ltmp33
+.Ltmp35:
+	.word	.Ltmp34-.Ltmp35
+	.hword	42
+	.byte	.Ltmp32-.Ltmp31
+	.byte	.Ltmp36-.Ltmp34
+	.text
+
+	.text	1
+.Ltmp34:
+.set .L__reg_num_x0, 0
+.set .L__reg_num_x1, 1
+.set .L__reg_num_x2, 2
+.set .L__reg_num_x3, 3
+.set .L__reg_num_x4, 4
+.set .L__reg_num_x5, 5
+.set .L__reg_num_x6, 6
+.set .L__reg_num_x7, 7
+.set .L__reg_num_x8, 8
+.set .L__reg_num_x9, 9
+.set .L__reg_num_x10, 10
+.set .L__reg_num_x11, 11
+.set .L__reg_num_x12, 12
+.set .L__reg_num_x13, 13
+.set .L__reg_num_x14, 14
+.set .L__reg_num_x15, 15
+.set .L__reg_num_x16, 16
+.set .L__reg_num_x17, 17
+.set .L__reg_num_x18, 18
+.set .L__reg_num_x19, 19
+.set .L__reg_num_x20, 20
+.set .L__reg_num_x21, 21
+.set .L__reg_num_x22, 22
+.set .L__reg_num_x23, 23
+.set .L__reg_num_x24, 24
+.set .L__reg_num_x25, 25
+.set .L__reg_num_x26, 26
+.set .L__reg_num_x27, 27
+.set .L__reg_num_x28, 28
+.set .L__reg_num_x29, 29
+.set .L__reg_num_x30, 30
+
+.set .L__reg_num_xzr, 31
+
+	.inst	0xd518460b
+
+
+.Ltmp36:
+.Ltmp37:
+.org (.Ltmp37-(.Ltmp36-.Ltmp34))+(.Ltmp32-.Ltmp31), 0
+.Ltmp38:
+.org (.Ltmp38-(.Ltmp32-.Ltmp31))+(.Ltmp36-.Ltmp34), 0
+	.text
+
+
+	//NO_APP
+.LBB141_10:
+	ldr	x11, [x8, #16]
+	//APP
+	mrs	x12, TTBR1_EL1
+	//NO_APP
+	mov	x13, x11
+	bfxil	x13, x12, #0, #48
+	//APP
+	msr	TTBR1_EL1, x13
+	//NO_APP
+	//APP
+	isb
+	//NO_APP
+	//APP
+	msr	TTBR0_EL1, x11
+	//NO_APP
+	//APP
+	isb
+	//NO_APP
+	//APP
+.Ltmp39:
+	msr	DAIF, x10
+.Ltmp40:
+	.section	.altinstructions,"a",@progbits
+.Ltmp41:
+	.word	.Ltmp39-.Ltmp41
+.Ltmp43:
+	.word	.Ltmp42-.Ltmp43
+	.hword	42
+	.byte	.Ltmp40-.Ltmp39
+	.byte	.Ltmp44-.Ltmp42
+	.text
+
+	.text	1
+.Ltmp42:
+.set .L__reg_num_x0, 0
+.set .L__reg_num_x1, 1
+.set .L__reg_num_x2, 2
+.set .L__reg_num_x3, 3
+.set .L__reg_num_x4, 4
+.set .L__reg_num_x5, 5
+.set .L__reg_num_x6, 6
+.set .L__reg_num_x7, 7
+.set .L__reg_num_x8, 8
+.set .L__reg_num_x9, 9
+.set .L__reg_num_x10, 10
+.set .L__reg_num_x11, 11
+.set .L__reg_num_x12, 12
+.set .L__reg_num_x13, 13
+.set .L__reg_num_x14, 14
+.set .L__reg_num_x15, 15
+.set .L__reg_num_x16, 16
+.set .L__reg_num_x17, 17
+.set .L__reg_num_x18, 18
+.set .L__reg_num_x19, 19
+.set .L__reg_num_x20, 20
+.set .L__reg_num_x21, 21
+.set .L__reg_num_x22, 22
+.set .L__reg_num_x23, 23
+.set .L__reg_num_x24, 24
+.set .L__reg_num_x25, 25
+.set .L__reg_num_x26, 26
+.set .L__reg_num_x27, 27
+.set .L__reg_num_x28, 28
+.set .L__reg_num_x29, 29
+.set .L__reg_num_x30, 30
+
+.set .L__reg_num_xzr, 31
+
+	.inst	0xd518460a
+
+
+.Ltmp44:
+.Ltmp45:
+.org (.Ltmp45-(.Ltmp44-.Ltmp42))+(.Ltmp40-.Ltmp39), 0
+.Ltmp46:
+.org (.Ltmp46-(.Ltmp40-.Ltmp39))+(.Ltmp44-.Ltmp42), 0
+	.text
+
+
+	//NO_APP
+	//APP
+.Ltmp48:
+	nop
+	.section	__jump_table,"aw",@progbits
+	.p2align	3
+.Ltmp49:
+	.word	.Ltmp48-.Ltmp49
+.Ltmp50:
+	.word	.Ltmp47-.Ltmp50
+.Ltmp51:
+	.xword	gic_pmr_sync-.Ltmp51
+	.text
+
+
+	//NO_APP
+.LBB141_11:
+	ldr	x10, [x8, #8]
+	and	x9, x1, x9, asr #8
+	//APP
+	bics	xzr, x9, x10
+	csel	x8, x1, xzr, eq
+
+	//NO_APP
+	//APP
+	csdb
+	//NO_APP
+	mov	x0, x20
+	mov	x1, x8
+	mov	x2, x19
+	bl	__arch_copy_from_user
+	mov	x21, x0
+	//APP
+.Ltmp53:
+	b	.Ltmp52
+	.section	__jump_table,"aw",@progbits
+	.p2align	3
+.Ltmp54:
+	.word	.Ltmp53-.Ltmp54
+.Ltmp55:
+	.word	.Ltmp52-.Ltmp55
+.Ltmp56:
+	.xword	(arm64_const_caps_ready+1)-.Ltmp56
+	.text
+
+
+	//NO_APP
+// %bb.12:
+	//APP
+.Ltmp58:
+	nop
+	.section	__jump_table,"aw",@progbits
+	.p2align	3
+.Ltmp59:
+	.word	.Ltmp58-.Ltmp59
+.Ltmp60:
+	.word	.Ltmp57-.Ltmp60
+.Ltmp61:
+	.xword	(cpu_hwcap_keys+64)-.Ltmp61
+	.text
+
+
+	//NO_APP
+.LBB141_13:
+	//APP
+.Ltmp62:
+	mrs	x8, DAIF
+.Ltmp63:
+	.section	.altinstructions,"a",@progbits
+.Ltmp64:
+	.word	.Ltmp62-.Ltmp64
+.Ltmp66:
+	.word	.Ltmp65-.Ltmp66
+	.hword	42
+	.byte	.Ltmp63-.Ltmp62
+	.byte	.Ltmp67-.Ltmp65
+	.text
+
+	.text	1
+.Ltmp65:
+.set .L__reg_num_x0, 0
+.set .L__reg_num_x1, 1
+.set .L__reg_num_x2, 2
+.set .L__reg_num_x3, 3
+.set .L__reg_num_x4, 4
+.set .L__reg_num_x5, 5
+.set .L__reg_num_x6, 6
+.set .L__reg_num_x7, 7
+.set .L__reg_num_x8, 8
+.set .L__reg_num_x9, 9
+.set .L__reg_num_x10, 10
+.set .L__reg_num_x11, 11
+.set .L__reg_num_x12, 12
+.set .L__reg_num_x13, 13
+.set .L__reg_num_x14, 14
+.set .L__reg_num_x15, 15
+.set .L__reg_num_x16, 16
+.set .L__reg_num_x17, 17
+.set .L__reg_num_x18, 18
+.set .L__reg_num_x19, 19
+.set .L__reg_num_x20, 20
+.set .L__reg_num_x21, 21
+.set .L__reg_num_x22, 22
+.set .L__reg_num_x23, 23
+.set .L__reg_num_x24, 24
+.set .L__reg_num_x25, 25
+.set .L__reg_num_x26, 26
+.set .L__reg_num_x27, 27
+.set .L__reg_num_x28, 28
+.set .L__reg_num_x29, 29
+.set .L__reg_num_x30, 30
+
+.set .L__reg_num_xzr, 31
+
+	.inst	0xd5384608
+
+
+.Ltmp67:
+.Ltmp68:
+.org (.Ltmp68-(.Ltmp67-.Ltmp65))+(.Ltmp63-.Ltmp62), 0
+.Ltmp69:
+.org (.Ltmp69-(.Ltmp63-.Ltmp62))+(.Ltmp67-.Ltmp65), 0
+	.text
+
+
+	//NO_APP
+	//APP
+.Ltmp70:
+	and	w9, w8, #0x80
+.Ltmp71:
+	.section	.altinstructions,"a",@progbits
+.Ltmp72:
+	.word	.Ltmp70-.Ltmp72
+.Ltmp74:
+	.word	.Ltmp73-.Ltmp74
+	.hword	42
+	.byte	.Ltmp71-.Ltmp70
+	.byte	.Ltmp75-.Ltmp73
+	.text
+
+	.text	1
+.Ltmp73:
+	eor	w9, w8, #0xe0
+.Ltmp75:
+.Ltmp76:
+.org (.Ltmp76-(.Ltmp75-.Ltmp73))+(.Ltmp71-.Ltmp70), 0
+.Ltmp77:
+.org (.Ltmp77-(.Ltmp71-.Ltmp70))+(.Ltmp75-.Ltmp73), 0
+	.text
+
+
+	//NO_APP
+	cbnz	w9, .LBB141_17
+// %bb.14:
+	//APP
+.Ltmp79:
+	nop
+	.section	__jump_table,"aw",@progbits
+	.p2align	3
+.Ltmp80:
+	.word	.Ltmp79-.Ltmp80
+.Ltmp81:
+	.word	.Ltmp78-.Ltmp81
+.Ltmp82:
+	.xword	gic_nonsecure_priorities-.Ltmp82
+	.text
+
+
+	//NO_APP
+// %bb.15:
+	mov	w9, #96
+.LBB141_16:
+	//APP
+.Ltmp83:
+	msr	DAIFSet, #2	// arch_local_irq_disable
+.Ltmp84:
+	.section	.altinstructions,"a",@progbits
+.Ltmp85:
+	.word	.Ltmp83-.Ltmp85
+.Ltmp87:
+	.word	.Ltmp86-.Ltmp87
+	.hword	42
+	.byte	.Ltmp84-.Ltmp83
+	.byte	.Ltmp88-.Ltmp86
+	.text
+
+	.text	1
+.Ltmp86:
+.set .L__reg_num_x0, 0
+.set .L__reg_num_x1, 1
+.set .L__reg_num_x2, 2
+.set .L__reg_num_x3, 3
+.set .L__reg_num_x4, 4
+.set .L__reg_num_x5, 5
+.set .L__reg_num_x6, 6
+.set .L__reg_num_x7, 7
+.set .L__reg_num_x8, 8
+.set .L__reg_num_x9, 9
+.set .L__reg_num_x10, 10
+.set .L__reg_num_x11, 11
+.set .L__reg_num_x12, 12
+.set .L__reg_num_x13, 13
+.set .L__reg_num_x14, 14
+.set .L__reg_num_x15, 15
+.set .L__reg_num_x16, 16
+.set .L__reg_num_x17, 17
+.set .L__reg_num_x18, 18
+.set .L__reg_num_x19, 19
+.set .L__reg_num_x20, 20
+.set .L__reg_num_x21, 21
+.set .L__reg_num_x22, 22
+.set .L__reg_num_x23, 23
+.set .L__reg_num_x24, 24
+.set .L__reg_num_x25, 25
+.set .L__reg_num_x26, 26
+.set .L__reg_num_x27, 27
+.set .L__reg_num_x28, 28
+.set .L__reg_num_x29, 29
+.set .L__reg_num_x30, 30
+
+.set .L__reg_num_xzr, 31
+
+	.inst	0xd5184609
+
+
+.Ltmp88:
+.Ltmp89:
+.org (.Ltmp89-(.Ltmp88-.Ltmp86))+(.Ltmp84-.Ltmp83), 0
+.Ltmp90:
+.org (.Ltmp90-(.Ltmp84-.Ltmp83))+(.Ltmp88-.Ltmp86), 0
+	.text
+
+
+	//NO_APP
+.LBB141_17:
+	//APP
+	mrs	x9, TTBR1_EL1
+	//NO_APP
+	and	x9, x9, #0xffffffffffff
+	sub	x10, x9, #1, lsl #12            // =4096
+	//APP
+	msr	TTBR0_EL1, x10
+	//NO_APP
+	//APP
+	isb
+	//NO_APP
+	//APP
+	msr	TTBR1_EL1, x9
+	//NO_APP
+	//APP
+	isb
+	//NO_APP
+	//APP
+.Ltmp91:
+	msr	DAIF, x8
+.Ltmp92:
+	.section	.altinstructions,"a",@progbits
+.Ltmp93:
+	.word	.Ltmp91-.Ltmp93
+.Ltmp95:
+	.word	.Ltmp94-.Ltmp95
+	.hword	42
+	.byte	.Ltmp92-.Ltmp91
+	.byte	.Ltmp96-.Ltmp94
+	.text
+
+	.text	1
+.Ltmp94:
+.set .L__reg_num_x0, 0
+.set .L__reg_num_x1, 1
+.set .L__reg_num_x2, 2
+.set .L__reg_num_x3, 3
+.set .L__reg_num_x4, 4
+.set .L__reg_num_x5, 5
+.set .L__reg_num_x6, 6
+.set .L__reg_num_x7, 7
+.set .L__reg_num_x8, 8
+.set .L__reg_num_x9, 9
+.set .L__reg_num_x10, 10
+.set .L__reg_num_x11, 11
+.set .L__reg_num_x12, 12
+.set .L__reg_num_x13, 13
+.set .L__reg_num_x14, 14
+.set .L__reg_num_x15, 15
+.set .L__reg_num_x16, 16
+.set .L__reg_num_x17, 17
+.set .L__reg_num_x18, 18
+.set .L__reg_num_x19, 19
+.set .L__reg_num_x20, 20
+.set .L__reg_num_x21, 21
+.set .L__reg_num_x22, 22
+.set .L__reg_num_x23, 23
+.set .L__reg_num_x24, 24
+.set .L__reg_num_x25, 25
+.set .L__reg_num_x26, 26
+.set .L__reg_num_x27, 27
+.set .L__reg_num_x28, 28
+.set .L__reg_num_x29, 29
+.set .L__reg_num_x30, 30
+
+.set .L__reg_num_xzr, 31
+
+	.inst	0xd5184608
+
+
+.Ltmp96:
+.Ltmp97:
+.org (.Ltmp97-(.Ltmp96-.Ltmp94))+(.Ltmp92-.Ltmp91), 0
+.Ltmp98:
+.org (.Ltmp98-(.Ltmp92-.Ltmp91))+(.Ltmp96-.Ltmp94), 0
+	.text
+
+
+	//NO_APP
+	//APP
+.Ltmp100:
+	nop
+	.section	__jump_table,"aw",@progbits
+	.p2align	3
+.Ltmp101:
+	.word	.Ltmp100-.Ltmp101
+.Ltmp102:
+	.word	.Ltmp99-.Ltmp102
+.Ltmp103:
+	.xword	gic_pmr_sync-.Ltmp103
+	.text
+
+
+	//NO_APP
+.LBB141_18:
+	cbnz	x21, .LBB141_20
+.LBB141_19:
+	mov	x0, x21
+	ldp	x20, x19, [sp, #32]             // 16-byte Folded Reload
+	ldr	x21, [sp, #16]                  // 8-byte Folded Reload
+	ldp	x29, x30, [sp], #48             // 16-byte Folded Reload
+	hint	#29
+	ret
+.LBB141_20:
+	sub	x8, x19, x21
+	add	x0, x20, x8
+	mov	w1, wzr
+	mov	x2, x21
+	bl	memset
+	b	.LBB141_19
+.Ltmp0:                                 // Block address taken
+.LBB141_21:
+	hint	#36
+	adrp	x10, cpu_hwcaps
+	ldr	x10, [x10, :lo12:cpu_hwcaps]
+	tbz	w10, #4, .LBB141_6
+.Ltmp5:                                 // Block address taken
+.LBB141_22:
+	hint	#36
+	//APP
+.Ltmp104:
+	nop
+.Ltmp105:
+	.section	.altinstructions,"a",@progbits
+.Ltmp106:
+	.word	.Ltmp104-.Ltmp106
+.Ltmp108:
+	.word	.Ltmp107-.Ltmp108
+	.hword	10
+	.byte	.Ltmp105-.Ltmp104
+	.byte	.Ltmp109-.Ltmp107
+	.text
+
+	.text	1
+.Ltmp107:
+	.inst	0xd500409f
+
+.Ltmp109:
+.Ltmp110:
+.org (.Ltmp110-(.Ltmp109-.Ltmp107))+(.Ltmp105-.Ltmp104), 0
+.Ltmp111:
+.org (.Ltmp111-(.Ltmp105-.Ltmp104))+(.Ltmp109-.Ltmp107), 0
+	.text
+
+
+	//NO_APP
+	b	.LBB141_11
+.Ltmp47:                                // Block address taken
+.LBB141_23:
+	hint	#36
+	//APP
+	dsb	sy
+	//NO_APP
+	b	.LBB141_11
+.Ltmp52:                                // Block address taken
+.LBB141_24:
+	hint	#36
+	adrp	x8, cpu_hwcaps
+	ldr	x8, [x8, :lo12:cpu_hwcaps]
+	tbz	w8, #4, .LBB141_13
+.Ltmp57:                                // Block address taken
+.LBB141_25:
+	hint	#36
+	//APP
+.Ltmp112:
+	nop
+.Ltmp113:
+	.section	.altinstructions,"a",@progbits
+.Ltmp114:
+	.word	.Ltmp112-.Ltmp114
+.Ltmp116:
+	.word	.Ltmp115-.Ltmp116
+	.hword	10
+	.byte	.Ltmp113-.Ltmp112
+	.byte	.Ltmp117-.Ltmp115
+	.text
+
+	.text	1
+.Ltmp115:
+	.inst	0xd500419f
+
+.Ltmp117:
+.Ltmp118:
+.org (.Ltmp118-(.Ltmp117-.Ltmp115))+(.Ltmp113-.Ltmp112), 0
+.Ltmp119:
+.org (.Ltmp119-(.Ltmp113-.Ltmp112))+(.Ltmp117-.Ltmp115), 0
+	.text
+
+
+	//NO_APP
+	b	.LBB141_18
+.Ltmp99:                                // Block address taken
+.LBB141_26:
+	hint	#36
+	//APP
+	dsb	sy
+	//NO_APP
+	b	.LBB141_18
+.Ltmp26:                                // Block address taken
+.LBB141_27:
+	hint	#36
+	mov	w11, #160
+	b	.LBB141_9
+.Ltmp78:                                // Block address taken
+.LBB141_28:
+	hint	#36
+	mov	w9, #160
+	b	.LBB141_16
+.Lfunc_end141:
+	.size	_copy_from_user, .Lfunc_end141-_copy_from_user
+                                        // -- End function
+	.p2align	2                               // -- Begin function _copy_to_user
+	.type	_copy_to_user,@function
+_copy_to_user:                          // @_copy_to_user
+// %bb.0:
+	hint	#25
+	stp	x29, x30, [sp, #-16]!           // 16-byte Folded Spill
+	//APP
+	mrs	x8, SP_EL0
+	//NO_APP
+	ldrb	w11, [x8, #54]
+	ldr	x10, [x8, #8]
+	lsl	x9, x0, #8
+	mov	x29, sp
+	tbnz	w11, #5, .LBB142_2
+// %bb.1:
+	ldr	x12, [x8]
+	mov	x11, x0
+	tbz	w12, #26, .LBB142_3
+.LBB142_2:
+	and	x11, x0, x9, asr #8
+.LBB142_3:
+	//APP
+	adds	x11, x11, x2
+	csel	x10, xzr, x10, hi
+	csinv	x11, x11, xzr, lo
+	sbcs	xzr, x11, x10
+	cset	x11, ls
+
+	//NO_APP
+	cbz	x11, .LBB142_18
+// %bb.4:
+	//APP
+.Ltmp121:
+	b	.Ltmp120
+	.section	__jump_table,"aw",@progbits
+	.p2align	3
+.Ltmp122:
+	.word	.Ltmp121-.Ltmp122
+.Ltmp123:
+	.word	.Ltmp120-.Ltmp123
+.Ltmp124:
+	.xword	(arm64_const_caps_ready+1)-.Ltmp124
+	.text
+
+
+	//NO_APP
+// %bb.5:
+	//APP
+.Ltmp126:
+	nop
+	.section	__jump_table,"aw",@progbits
+	.p2align	3
+.Ltmp127:
+	.word	.Ltmp126-.Ltmp127
+.Ltmp128:
+	.word	.Ltmp125-.Ltmp128
+.Ltmp129:
+	.xword	(cpu_hwcap_keys+64)-.Ltmp129
+	.text
+
+
+	//NO_APP
+.LBB142_6:
+	//APP
+.Ltmp130:
+	mrs	x10, DAIF
+.Ltmp131:
+	.section	.altinstructions,"a",@progbits
+.Ltmp132:
+	.word	.Ltmp130-.Ltmp132
+.Ltmp134:
+	.word	.Ltmp133-.Ltmp134
+	.hword	42
+	.byte	.Ltmp131-.Ltmp130
+	.byte	.Ltmp135-.Ltmp133
+	.text
+
+	.text	1
+.Ltmp133:
+.set .L__reg_num_x0, 0
+.set .L__reg_num_x1, 1
+.set .L__reg_num_x2, 2
+.set .L__reg_num_x3, 3
+.set .L__reg_num_x4, 4
+.set .L__reg_num_x5, 5
+.set .L__reg_num_x6, 6
+.set .L__reg_num_x7, 7
+.set .L__reg_num_x8, 8
+.set .L__reg_num_x9, 9
+.set .L__reg_num_x10, 10
+.set .L__reg_num_x11, 11
+.set .L__reg_num_x12, 12
+.set .L__reg_num_x13, 13
+.set .L__reg_num_x14, 14
+.set .L__reg_num_x15, 15
+.set .L__reg_num_x16, 16
+.set .L__reg_num_x17, 17
+.set .L__reg_num_x18, 18
+.set .L__reg_num_x19, 19
+.set .L__reg_num_x20, 20
+.set .L__reg_num_x21, 21
+.set .L__reg_num_x22, 22
+.set .L__reg_num_x23, 23
+.set .L__reg_num_x24, 24
+.set .L__reg_num_x25, 25
+.set .L__reg_num_x26, 26
+.set .L__reg_num_x27, 27
+.set .L__reg_num_x28, 28
+.set .L__reg_num_x29, 29
+.set .L__reg_num_x30, 30
+
+.set .L__reg_num_xzr, 31
+
+	.inst	0xd538460a
+
+
+.Ltmp135:
+.Ltmp136:
+.org (.Ltmp136-(.Ltmp135-.Ltmp133))+(.Ltmp131-.Ltmp130), 0
+.Ltmp137:
+.org (.Ltmp137-(.Ltmp131-.Ltmp130))+(.Ltmp135-.Ltmp133), 0
+	.text
+
+
+	//NO_APP
+	//APP
+.Ltmp138:
+	and	w11, w10, #0x80
+.Ltmp139:
+	.section	.altinstructions,"a",@progbits
+.Ltmp140:
+	.word	.Ltmp138-.Ltmp140
+.Ltmp142:
+	.word	.Ltmp141-.Ltmp142
+	.hword	42
+	.byte	.Ltmp139-.Ltmp138
+	.byte	.Ltmp143-.Ltmp141
+	.text
+
+	.text	1
+.Ltmp141:
+	eor	w11, w10, #0xe0
+.Ltmp143:
+.Ltmp144:
+.org (.Ltmp144-(.Ltmp143-.Ltmp141))+(.Ltmp139-.Ltmp138), 0
+.Ltmp145:
+.org (.Ltmp145-(.Ltmp139-.Ltmp138))+(.Ltmp143-.Ltmp141), 0
+	.text
+
+
+	//NO_APP
+	cbnz	w11, .LBB142_10
+// %bb.7:
+	//APP
+.Ltmp147:
+	nop
+	.section	__jump_table,"aw",@progbits
+	.p2align	3
+.Ltmp148:
+	.word	.Ltmp147-.Ltmp148
+.Ltmp149:
+	.word	.Ltmp146-.Ltmp149
+.Ltmp150:
+	.xword	gic_nonsecure_priorities-.Ltmp150
+	.text
+
+
+	//NO_APP
+// %bb.8:
+	mov	w11, #96
+.LBB142_9:
+	//APP
+.Ltmp151:
+	msr	DAIFSet, #2	// arch_local_irq_disable
+.Ltmp152:
+	.section	.altinstructions,"a",@progbits
+.Ltmp153:
+	.word	.Ltmp151-.Ltmp153
+.Ltmp155:
+	.word	.Ltmp154-.Ltmp155
+	.hword	42
+	.byte	.Ltmp152-.Ltmp151
+	.byte	.Ltmp156-.Ltmp154
+	.text
+
+	.text	1
+.Ltmp154:
+.set .L__reg_num_x0, 0
+.set .L__reg_num_x1, 1
+.set .L__reg_num_x2, 2
+.set .L__reg_num_x3, 3
+.set .L__reg_num_x4, 4
+.set .L__reg_num_x5, 5
+.set .L__reg_num_x6, 6
+.set .L__reg_num_x7, 7
+.set .L__reg_num_x8, 8
+.set .L__reg_num_x9, 9
+.set .L__reg_num_x10, 10
+.set .L__reg_num_x11, 11
+.set .L__reg_num_x12, 12
+.set .L__reg_num_x13, 13
+.set .L__reg_num_x14, 14
+.set .L__reg_num_x15, 15
+.set .L__reg_num_x16, 16
+.set .L__reg_num_x17, 17
+.set .L__reg_num_x18, 18
+.set .L__reg_num_x19, 19
+.set .L__reg_num_x20, 20
+.set .L__reg_num_x21, 21
+.set .L__reg_num_x22, 22
+.set .L__reg_num_x23, 23
+.set .L__reg_num_x24, 24
+.set .L__reg_num_x25, 25
+.set .L__reg_num_x26, 26
+.set .L__reg_num_x27, 27
+.set .L__reg_num_x28, 28
+.set .L__reg_num_x29, 29
+.set .L__reg_num_x30, 30
+
+.set .L__reg_num_xzr, 31
+
+	.inst	0xd518460b
+
+
+.Ltmp156:
+.Ltmp157:
+.org (.Ltmp157-(.Ltmp156-.Ltmp154))+(.Ltmp152-.Ltmp151), 0
+.Ltmp158:
+.org (.Ltmp158-(.Ltmp152-.Ltmp151))+(.Ltmp156-.Ltmp154), 0
+	.text
+
+
+	//NO_APP
+.LBB142_10:
+	ldr	x11, [x8, #16]
+	//APP
+	mrs	x12, TTBR1_EL1
+	//NO_APP
+	mov	x13, x11
+	bfxil	x13, x12, #0, #48
+	//APP
+	msr	TTBR1_EL1, x13
+	//NO_APP
+	//APP
+	isb
+	//NO_APP
+	//APP
+	msr	TTBR0_EL1, x11
+	//NO_APP
+	//APP
+	isb
+	//NO_APP
+	//APP
+.Ltmp159:
+	msr	DAIF, x10
+.Ltmp160:
+	.section	.altinstructions,"a",@progbits
+.Ltmp161:
+	.word	.Ltmp159-.Ltmp161
+.Ltmp163:
+	.word	.Ltmp162-.Ltmp163
+	.hword	42
+	.byte	.Ltmp160-.Ltmp159
+	.byte	.Ltmp164-.Ltmp162
+	.text
+
+	.text	1
+.Ltmp162:
+.set .L__reg_num_x0, 0
+.set .L__reg_num_x1, 1
+.set .L__reg_num_x2, 2
+.set .L__reg_num_x3, 3
+.set .L__reg_num_x4, 4
+.set .L__reg_num_x5, 5
+.set .L__reg_num_x6, 6
+.set .L__reg_num_x7, 7
+.set .L__reg_num_x8, 8
+.set .L__reg_num_x9, 9
+.set .L__reg_num_x10, 10
+.set .L__reg_num_x11, 11
+.set .L__reg_num_x12, 12
+.set .L__reg_num_x13, 13
+.set .L__reg_num_x14, 14
+.set .L__reg_num_x15, 15
+.set .L__reg_num_x16, 16
+.set .L__reg_num_x17, 17
+.set .L__reg_num_x18, 18
+.set .L__reg_num_x19, 19
+.set .L__reg_num_x20, 20
+.set .L__reg_num_x21, 21
+.set .L__reg_num_x22, 22
+.set .L__reg_num_x23, 23
+.set .L__reg_num_x24, 24
+.set .L__reg_num_x25, 25
+.set .L__reg_num_x26, 26
+.set .L__reg_num_x27, 27
+.set .L__reg_num_x28, 28
+.set .L__reg_num_x29, 29
+.set .L__reg_num_x30, 30
+
+.set .L__reg_num_xzr, 31
+
+	.inst	0xd518460a
+
+
+.Ltmp164:
+.Ltmp165:
+.org (.Ltmp165-(.Ltmp164-.Ltmp162))+(.Ltmp160-.Ltmp159), 0
+.Ltmp166:
+.org (.Ltmp166-(.Ltmp160-.Ltmp159))+(.Ltmp164-.Ltmp162), 0
+	.text
+
+
+	//NO_APP
+	//APP
+.Ltmp168:
+	nop
+	.section	__jump_table,"aw",@progbits
+	.p2align	3
+.Ltmp169:
+	.word	.Ltmp168-.Ltmp169
+.Ltmp170:
+	.word	.Ltmp167-.Ltmp170
+.Ltmp171:
+	.xword	gic_pmr_sync-.Ltmp171
+	.text
+
+
+	//NO_APP
+.LBB142_11:
+	ldr	x10, [x8, #8]
+	and	x9, x0, x9, asr #8
+	//APP
+	bics	xzr, x9, x10
+	csel	x8, x0, xzr, eq
+
+	//NO_APP
+	//APP
+	csdb
+	//NO_APP
+	mov	x0, x8
+	bl	__arch_copy_to_user
+	mov	x2, x0
+	//APP
+.Ltmp173:
+	b	.Ltmp172
+	.section	__jump_table,"aw",@progbits
+	.p2align	3
+.Ltmp174:
+	.word	.Ltmp173-.Ltmp174
+.Ltmp175:
+	.word	.Ltmp172-.Ltmp175
+.Ltmp176:
+	.xword	(arm64_const_caps_ready+1)-.Ltmp176
+	.text
+
+
+	//NO_APP
+// %bb.12:
+	//APP
+.Ltmp178:
+	nop
+	.section	__jump_table,"aw",@progbits
+	.p2align	3
+.Ltmp179:
+	.word	.Ltmp178-.Ltmp179
+.Ltmp180:
+	.word	.Ltmp177-.Ltmp180
+.Ltmp181:
+	.xword	(cpu_hwcap_keys+64)-.Ltmp181
+	.text
+
+
+	//NO_APP
+.LBB142_13:
+	//APP
+.Ltmp182:
+	mrs	x8, DAIF
+.Ltmp183:
+	.section	.altinstructions,"a",@progbits
+.Ltmp184:
+	.word	.Ltmp182-.Ltmp184
+.Ltmp186:
+	.word	.Ltmp185-.Ltmp186
+	.hword	42
+	.byte	.Ltmp183-.Ltmp182
+	.byte	.Ltmp187-.Ltmp185
+	.text
+
+	.text	1
+.Ltmp185:
+.set .L__reg_num_x0, 0
+.set .L__reg_num_x1, 1
+.set .L__reg_num_x2, 2
+.set .L__reg_num_x3, 3
+.set .L__reg_num_x4, 4
+.set .L__reg_num_x5, 5
+.set .L__reg_num_x6, 6
+.set .L__reg_num_x7, 7
+.set .L__reg_num_x8, 8
+.set .L__reg_num_x9, 9
+.set .L__reg_num_x10, 10
+.set .L__reg_num_x11, 11
+.set .L__reg_num_x12, 12
+.set .L__reg_num_x13, 13
+.set .L__reg_num_x14, 14
+.set .L__reg_num_x15, 15
+.set .L__reg_num_x16, 16
+.set .L__reg_num_x17, 17
+.set .L__reg_num_x18, 18
+.set .L__reg_num_x19, 19
+.set .L__reg_num_x20, 20
+.set .L__reg_num_x21, 21
+.set .L__reg_num_x22, 22
+.set .L__reg_num_x23, 23
+.set .L__reg_num_x24, 24
+.set .L__reg_num_x25, 25
+.set .L__reg_num_x26, 26
+.set .L__reg_num_x27, 27
+.set .L__reg_num_x28, 28
+.set .L__reg_num_x29, 29
+.set .L__reg_num_x30, 30
+
+.set .L__reg_num_xzr, 31
+
+	.inst	0xd5384608
+
+
+.Ltmp187:
+.Ltmp188:
+.org (.Ltmp188-(.Ltmp187-.Ltmp185))+(.Ltmp183-.Ltmp182), 0
+.Ltmp189:
+.org (.Ltmp189-(.Ltmp183-.Ltmp182))+(.Ltmp187-.Ltmp185), 0
+	.text
+
+
+	//NO_APP
+	//APP
+.Ltmp190:
+	and	w9, w8, #0x80
+.Ltmp191:
+	.section	.altinstructions,"a",@progbits
+.Ltmp192:
+	.word	.Ltmp190-.Ltmp192
+.Ltmp194:
+	.word	.Ltmp193-.Ltmp194
+	.hword	42
+	.byte	.Ltmp191-.Ltmp190
+	.byte	.Ltmp195-.Ltmp193
+	.text
+
+	.text	1
+.Ltmp193:
+	eor	w9, w8, #0xe0
+.Ltmp195:
+.Ltmp196:
+.org (.Ltmp196-(.Ltmp195-.Ltmp193))+(.Ltmp191-.Ltmp190), 0
+.Ltmp197:
+.org (.Ltmp197-(.Ltmp191-.Ltmp190))+(.Ltmp195-.Ltmp193), 0
+	.text
+
+
+	//NO_APP
+	cbnz	w9, .LBB142_17
+// %bb.14:
+	//APP
+.Ltmp199:
+	nop
+	.section	__jump_table,"aw",@progbits
+	.p2align	3
+.Ltmp200:
+	.word	.Ltmp199-.Ltmp200
+.Ltmp201:
+	.word	.Ltmp198-.Ltmp201
+.Ltmp202:
+	.xword	gic_nonsecure_priorities-.Ltmp202
+	.text
+
+
+	//NO_APP
+// %bb.15:
+	mov	w9, #96
+.LBB142_16:
+	//APP
+.Ltmp203:
+	msr	DAIFSet, #2	// arch_local_irq_disable
+.Ltmp204:
+	.section	.altinstructions,"a",@progbits
+.Ltmp205:
+	.word	.Ltmp203-.Ltmp205
+.Ltmp207:
+	.word	.Ltmp206-.Ltmp207
+	.hword	42
+	.byte	.Ltmp204-.Ltmp203
+	.byte	.Ltmp208-.Ltmp206
+	.text
+
+	.text	1
+.Ltmp206:
+.set .L__reg_num_x0, 0
+.set .L__reg_num_x1, 1
+.set .L__reg_num_x2, 2
+.set .L__reg_num_x3, 3
+.set .L__reg_num_x4, 4
+.set .L__reg_num_x5, 5
+.set .L__reg_num_x6, 6
+.set .L__reg_num_x7, 7
+.set .L__reg_num_x8, 8
+.set .L__reg_num_x9, 9
+.set .L__reg_num_x10, 10
+.set .L__reg_num_x11, 11
+.set .L__reg_num_x12, 12
+.set .L__reg_num_x13, 13
+.set .L__reg_num_x14, 14
+.set .L__reg_num_x15, 15
+.set .L__reg_num_x16, 16
+.set .L__reg_num_x17, 17
+.set .L__reg_num_x18, 18
+.set .L__reg_num_x19, 19
+.set .L__reg_num_x20, 20
+.set .L__reg_num_x21, 21
+.set .L__reg_num_x22, 22
+.set .L__reg_num_x23, 23
+.set .L__reg_num_x24, 24
+.set .L__reg_num_x25, 25
+.set .L__reg_num_x26, 26
+.set .L__reg_num_x27, 27
+.set .L__reg_num_x28, 28
+.set .L__reg_num_x29, 29
+.set .L__reg_num_x30, 30
+
+.set .L__reg_num_xzr, 31
+
+	.inst	0xd5184609
+
+
+.Ltmp208:
+.Ltmp209:
+.org (.Ltmp209-(.Ltmp208-.Ltmp206))+(.Ltmp204-.Ltmp203), 0
+.Ltmp210:
+.org (.Ltmp210-(.Ltmp204-.Ltmp203))+(.Ltmp208-.Ltmp206), 0
+	.text
+
+
+	//NO_APP
+.LBB142_17:
+	//APP
+	mrs	x9, TTBR1_EL1
+	//NO_APP
+	and	x9, x9, #0xffffffffffff
+	sub	x10, x9, #1, lsl #12            // =4096
+	//APP
+	msr	TTBR0_EL1, x10
+	//NO_APP
+	//APP
+	isb
+	//NO_APP
+	//APP
+	msr	TTBR1_EL1, x9
+	//NO_APP
+	//APP
+	isb
+	//NO_APP
+	//APP
+.Ltmp211:
+	msr	DAIF, x8
+.Ltmp212:
+	.section	.altinstructions,"a",@progbits
+.Ltmp213:
+	.word	.Ltmp211-.Ltmp213
+.Ltmp215:
+	.word	.Ltmp214-.Ltmp215
+	.hword	42
+	.byte	.Ltmp212-.Ltmp211
+	.byte	.Ltmp216-.Ltmp214
+	.text
+
+	.text	1
+.Ltmp214:
+.set .L__reg_num_x0, 0
+.set .L__reg_num_x1, 1
+.set .L__reg_num_x2, 2
+.set .L__reg_num_x3, 3
+.set .L__reg_num_x4, 4
+.set .L__reg_num_x5, 5
+.set .L__reg_num_x6, 6
+.set .L__reg_num_x7, 7
+.set .L__reg_num_x8, 8
+.set .L__reg_num_x9, 9
+.set .L__reg_num_x10, 10
+.set .L__reg_num_x11, 11
+.set .L__reg_num_x12, 12
+.set .L__reg_num_x13, 13
+.set .L__reg_num_x14, 14
+.set .L__reg_num_x15, 15
+.set .L__reg_num_x16, 16
+.set .L__reg_num_x17, 17
+.set .L__reg_num_x18, 18
+.set .L__reg_num_x19, 19
+.set .L__reg_num_x20, 20
+.set .L__reg_num_x21, 21
+.set .L__reg_num_x22, 22
+.set .L__reg_num_x23, 23
+.set .L__reg_num_x24, 24
+.set .L__reg_num_x25, 25
+.set .L__reg_num_x26, 26
+.set .L__reg_num_x27, 27
+.set .L__reg_num_x28, 28
+.set .L__reg_num_x29, 29
+.set .L__reg_num_x30, 30
+
+.set .L__reg_num_xzr, 31
+
+	.inst	0xd5184608
+
+
+.Ltmp216:
+.Ltmp217:
+.org (.Ltmp217-(.Ltmp216-.Ltmp214))+(.Ltmp212-.Ltmp211), 0
+.Ltmp218:
+.org (.Ltmp218-(.Ltmp212-.Ltmp211))+(.Ltmp216-.Ltmp214), 0
+	.text
+
+
+	//NO_APP
+	//APP
+.Ltmp220:
+	nop
+	.section	__jump_table,"aw",@progbits
+	.p2align	3
+.Ltmp221:
+	.word	.Ltmp220-.Ltmp221
+.Ltmp222:
+	.word	.Ltmp219-.Ltmp222
+.Ltmp223:
+	.xword	gic_pmr_sync-.Ltmp223
+	.text
+
+
+	//NO_APP
+.LBB142_18:
+	mov	x0, x2
+	ldp	x29, x30, [sp], #16             // 16-byte Folded Reload
+	hint	#29
+	ret
+.Ltmp120:                               // Block address taken
+.LBB142_19:
+	hint	#36
+	adrp	x10, cpu_hwcaps
+	ldr	x10, [x10, :lo12:cpu_hwcaps]
+	tbz	w10, #4, .LBB142_6
+.Ltmp125:                               // Block address taken
+.LBB142_20:
+	hint	#36
+	//APP
+.Ltmp224:
+	nop
+.Ltmp225:
+	.section	.altinstructions,"a",@progbits
+.Ltmp226:
+	.word	.Ltmp224-.Ltmp226
+.Ltmp228:
+	.word	.Ltmp227-.Ltmp228
+	.hword	10
+	.byte	.Ltmp225-.Ltmp224
+	.byte	.Ltmp229-.Ltmp227
+	.text
+
+	.text	1
+.Ltmp227:
+	.inst	0xd500409f
+
+.Ltmp229:
+.Ltmp230:
+.org (.Ltmp230-(.Ltmp229-.Ltmp227))+(.Ltmp225-.Ltmp224), 0
+.Ltmp231:
+.org (.Ltmp231-(.Ltmp225-.Ltmp224))+(.Ltmp229-.Ltmp227), 0
+	.text
+
+
+	//NO_APP
+	b	.LBB142_11
+.Ltmp167:                               // Block address taken
+.LBB142_21:
+	hint	#36
+	//APP
+	dsb	sy
+	//NO_APP
+	b	.LBB142_11
+.Ltmp172:                               // Block address taken
+.LBB142_22:
+	hint	#36
+	adrp	x8, cpu_hwcaps
+	ldr	x8, [x8, :lo12:cpu_hwcaps]
+	tbz	w8, #4, .LBB142_13
+.Ltmp177:                               // Block address taken
+.LBB142_23:
+	hint	#36
+	//APP
+.Ltmp232:
+	nop
+.Ltmp233:
+	.section	.altinstructions,"a",@progbits
+.Ltmp234:
+	.word	.Ltmp232-.Ltmp234
+.Ltmp236:
+	.word	.Ltmp235-.Ltmp236
+	.hword	10
+	.byte	.Ltmp233-.Ltmp232
+	.byte	.Ltmp237-.Ltmp235
+	.text
+
+	.text	1
+.Ltmp235:
+	.inst	0xd500419f
+
+.Ltmp237:
+.Ltmp238:
+.org (.Ltmp238-(.Ltmp237-.Ltmp235))+(.Ltmp233-.Ltmp232), 0
+.Ltmp239:
+.org (.Ltmp239-(.Ltmp233-.Ltmp232))+(.Ltmp237-.Ltmp235), 0
+	.text
+
+
+	//NO_APP
+	b	.LBB142_18
+.Ltmp219:                               // Block address taken
+.LBB142_24:
+	hint	#36
+	//APP
+	dsb	sy
+	//NO_APP
+	b	.LBB142_18
+.Ltmp146:                               // Block address taken
+.LBB142_25:
+	hint	#36
+	mov	w11, #160
+	b	.LBB142_9
+.Ltmp198:                               // Block address taken
+.LBB142_26:
+	hint	#36
+	mov	w9, #160
+	b	.LBB142_16
+.Lfunc_end142:
+	.size	_copy_to_user, .Lfunc_end142-_copy_to_user
+                                        // -- End function
 	.type	gFtlInitStatus,@object          // @gFtlInitStatus
 	.data
 	.globl	gFtlInitStatus
@@ -20551,7 +21900,7 @@ gFtlInitStatus:
 
 	.type	.L.str.1,@object                // @.str.1
 .L.str.1:
-	.asciz	"SFTL version: 5.0.56 20210329"
+	.asciz	"SFTL version: 5.0.58 20220814"
 	.size	.L.str.1, 30
 
 	.type	.L.str.2,@object                // @.str.2
@@ -22507,13 +23856,13 @@ g_nand_ops:
 
 	.type	.L.str.128,@object              // @.str.128
 .L.str.128:
-	.asciz	"prog read s error: = %x %x %x\n"
-	.size	.L.str.128, 31
+	.asciz	"prog read s error: = %x %x %x %x %x\n"
+	.size	.L.str.128, 37
 
 	.type	.L.str.129,@object              // @.str.129
 .L.str.129:
-	.asciz	"prog read d error: = %x %x %x\n"
-	.size	.L.str.129, 31
+	.asciz	"prog read d error: = %x %x %x %x %x\n"
+	.size	.L.str.129, 37
 
 	.type	.L__func__.FlashEraseBlocks,@object // @__func__.FlashEraseBlocks
 .L__func__.FlashEraseBlocks:
@@ -22647,4 +23996,9 @@ rk_sftl_vendor_storage_fops:
 	.addrsig_sym gL2pMapInfo
 	.addrsig_sym gVendorBlkInfo
 	.addrsig_sym rkflash_vender_storage_dev
+	.addrsig_sym arm64_const_caps_ready
+	.addrsig_sym cpu_hwcap_keys
+	.addrsig_sym cpu_hwcaps
+	.addrsig_sym gic_nonsecure_priorities
+	.addrsig_sym gic_pmr_sync
 	.addrsig_sym rk_sftl_vendor_storage_fops
