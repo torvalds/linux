@@ -487,6 +487,7 @@ static void rkisp1_isp_set_src_fmt(struct rkisp1_isp *isp,
 	struct v4l2_mbus_framefmt *sink_fmt;
 	struct v4l2_mbus_framefmt *src_fmt;
 	const struct v4l2_rect *src_crop;
+	bool set_csc;
 
 	sink_fmt = rkisp1_isp_get_pad_fmt(isp, sd_state,
 					  RKISP1_ISP_PAD_SINK_VIDEO, which);
@@ -523,19 +524,59 @@ static void rkisp1_isp_set_src_fmt(struct rkisp1_isp *isp,
 	src_fmt->height = src_crop->height;
 
 	/*
-	 * The CSC API is used to allow userspace to force full
-	 * quantization on YUV formats.
+	 * Copy the color space for the sink pad. When converting from Bayer to
+	 * YUV, default to a limited quantization range.
 	 */
-	if (format->flags & V4L2_MBUS_FRAMEFMT_SET_CSC &&
-	    format->quantization == V4L2_QUANTIZATION_FULL_RANGE &&
+	src_fmt->colorspace = sink_fmt->colorspace;
+	src_fmt->xfer_func = sink_fmt->xfer_func;
+	src_fmt->ycbcr_enc = sink_fmt->ycbcr_enc;
+
+	if (sink_info->pixel_enc == V4L2_PIXEL_ENC_BAYER &&
 	    src_info->pixel_enc == V4L2_PIXEL_ENC_YUV)
-		src_fmt->quantization = V4L2_QUANTIZATION_FULL_RANGE;
-	else if (src_info->pixel_enc == V4L2_PIXEL_ENC_YUV)
 		src_fmt->quantization = V4L2_QUANTIZATION_LIM_RANGE;
 	else
-		src_fmt->quantization = V4L2_QUANTIZATION_FULL_RANGE;
+		src_fmt->quantization = sink_fmt->quantization;
+
+	/*
+	 * Allow setting the source color space fields when the SET_CSC flag is
+	 * set and the source format is YUV. If the sink format is YUV, don't
+	 * set the color primaries, transfer function or YCbCr encoding as the
+	 * ISP is bypassed in that case and passes YUV data through without
+	 * modifications.
+	 *
+	 * The color primaries and transfer function are configured through the
+	 * cross-talk matrix and tone curve respectively. Settings for those
+	 * hardware blocks are conveyed through the ISP parameters buffer, as
+	 * they need to combine color space information with other image tuning
+	 * characteristics and can't thus be computed by the kernel based on the
+	 * color space. The source pad colorspace and xfer_func fields are thus
+	 * ignored by the driver, but can be set by userspace to propagate
+	 * accurate color space information down the pipeline.
+	 */
+	set_csc = format->flags & V4L2_MBUS_FRAMEFMT_SET_CSC;
+
+	if (set_csc && src_info->pixel_enc == V4L2_PIXEL_ENC_YUV) {
+		if (sink_info->pixel_enc == V4L2_PIXEL_ENC_BAYER) {
+			if (format->colorspace != V4L2_COLORSPACE_DEFAULT)
+				src_fmt->colorspace = format->colorspace;
+			if (format->xfer_func != V4L2_XFER_FUNC_DEFAULT)
+				src_fmt->xfer_func = format->xfer_func;
+			if (format->ycbcr_enc != V4L2_YCBCR_ENC_DEFAULT)
+				src_fmt->ycbcr_enc = format->ycbcr_enc;
+		}
+
+		if (format->quantization != V4L2_QUANTIZATION_DEFAULT)
+			src_fmt->quantization = format->quantization;
+	}
 
 	*format = *src_fmt;
+
+	/*
+	 * Restore the SET_CSC flag if it was set to indicate support for the
+	 * CSC setting API.
+	 */
+	if (set_csc)
+		format->flags |= V4L2_MBUS_FRAMEFMT_SET_CSC;
 
 	/* Store the source format info when setting the active format. */
 	if (which == V4L2_SUBDEV_FORMAT_ACTIVE)
