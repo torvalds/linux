@@ -119,6 +119,83 @@ static void max96745_power_on(struct max96745 *max96745)
 			   FIELD_PREP(DIS_REM_CC, 1));
 }
 
+static ssize_t line_fault_monitor_show(struct device *device,
+				       struct device_attribute *attr,
+				       char *buf)
+{
+	struct max96745 *max96745 = dev_get_drvdata(device);
+	u32 pu_lf, lf, status;
+
+	regmap_read(max96745->regmap, 0x0005, &pu_lf);
+
+	/*
+	 * Line-fault status of wire connected to LMN0/1/2/3 pin
+	 *
+	 * 0b000: Short to battery
+	 * 0b001: Short to GND
+	 * 0b010: Normal operation
+	 * 0b011: Line open
+	 * 0b1XX: Line-to-line short
+	 */
+	regmap_read(max96745->regmap, 0x0026, &lf);
+
+	if (FIELD_GET(PU_LF0, pu_lf)) {
+		status = (lf & LF_0);
+		return sprintf(buf, "%d\n", status);
+	}
+
+	if (FIELD_GET(PU_LF1, pu_lf)) {
+		status = (lf & LF_1) >> 4;
+		return sprintf(buf, "%d\n", status);
+	}
+
+	regmap_read(max96745->regmap, 0x0027, &lf);
+
+	if (FIELD_GET(PU_LF2, pu_lf)) {
+		status = (lf & LF_2);
+		return sprintf(buf, "%d\n", status);
+	}
+
+	if (FIELD_GET(PU_LF3, pu_lf)) {
+		status = (lf & LF_3) >> 4;
+		return sprintf(buf, "%d\n", status);
+	}
+
+
+	return sprintf(buf, "%d\n", -EINVAL);
+}
+
+static DEVICE_ATTR_RO(line_fault_monitor);
+
+static struct attribute *max96745_attrs[] = {
+	&dev_attr_line_fault_monitor.attr,
+	NULL
+};
+
+static const struct attribute_group max96745_attr_group = {
+	.attrs = max96745_attrs,
+};
+
+static int max96745_sysfs_add(struct max96745 *max96745)
+{
+	struct device *dev = max96745->dev;
+	int ret;
+	u32 ch;
+
+	ret = of_property_read_u32(dev->of_node, "line-fault-monitor", &ch);
+	if (!ret)
+		regmap_update_bits(max96745->regmap, 0x0005,
+				   PU_LF0 << ch, PU_LF0 << ch);
+
+	ret = devm_device_add_group(dev, &max96745_attr_group);
+	if (ret) {
+		dev_err(dev, "failed to register sysfs. err: %d\n", ret);
+		return ret;
+	};
+
+	return 0;
+}
+
 static int max96745_i2c_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
@@ -184,6 +261,10 @@ static int max96745_i2c_probe(struct i2c_client *client)
 			return ret;
 		}
 	}
+
+	ret = max96745_sysfs_add(max96745);
+	if (ret)
+		return dev_err_probe(dev, ret, "failed to registers sysfs\n");
 
 	return 0;
 }

@@ -15,6 +15,12 @@
 #define GPIO_C_REG(gpio)	(0x0202 + ((gpio) * 8))
 #define GPIO_D_REG(gpio)	(0x0203 + ((gpio) * 8))
 
+/* 0005h */
+#define PU_LF3			BIT(3)
+#define PU_LF2			BIT(2)
+#define PU_LF1			BIT(1)
+#define PU_LF0			BIT(0)
+
 /* 0010h */
 #define RESET_ALL		BIT(7)
 #define SLEEP			BIT(3)
@@ -22,6 +28,14 @@
 /* 0013h */
 #define LOCKED			BIT(3)
 #define ERROR			BIT(2)
+
+/* 0026h */
+#define LF_0			GENMASK(2, 0)
+#define LF_1			GENMASK(6, 4)
+
+/* 0027h */
+#define LF_2			GENMASK(2, 0)
+#define LF_3			GENMASK(6, 4)
 
 /* 0028h, 0032h */
 #define LINK_EN			BIT(7)
