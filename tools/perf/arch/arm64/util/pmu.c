@@ -3,7 +3,7 @@
 #include "../../../util/cpumap.h"
 #include "../../../util/pmu.h"
 
-const struct pmu_event *pmu_events_table__find(void)
+const struct pmu_events_table *pmu_events_table__find(void)
 {
 	struct perf_pmu *pmu = NULL;
 

@@ -424,7 +424,7 @@ static int compare_alias_to_test_event(struct perf_pmu_alias *alias,
 }
 
 static int test__pmu_event_table_core_callback(const struct pmu_event *pe,
-					       const struct pmu_event *table __maybe_unused,
+					       const struct pmu_events_table *table __maybe_unused,
 					       void *data)
 {
 	int *map_events = data;
@@ -461,7 +461,7 @@ static int test__pmu_event_table_core_callback(const struct pmu_event *pe,
 }
 
 static int test__pmu_event_table_sys_callback(const struct pmu_event *pe,
-					      const struct pmu_event *table __maybe_unused,
+					      const struct pmu_events_table *table __maybe_unused,
 					      void *data)
 {
 	int *map_events = data;
@@ -495,8 +495,8 @@ static int test__pmu_event_table_sys_callback(const struct pmu_event *pe,
 static int test__pmu_event_table(struct test_suite *test __maybe_unused,
 				 int subtest __maybe_unused)
 {
-	const struct pmu_event *sys_event_table = find_sys_events_table("pme_test_soc_sys");
-	const struct pmu_event *table = find_core_events_table("testarch", "testcpu");
+	const struct pmu_events_table *sys_event_table = find_sys_events_table("pme_test_soc_sys");
+	const struct pmu_events_table *table = find_core_events_table("testarch", "testcpu");
 	int map_events = 0, expected_events, err;
 
 	/* ignore 3x sentinels */
@@ -544,7 +544,7 @@ static int __test_core_pmu_event_aliases(char *pmu_name, int *count)
 	struct perf_pmu *pmu;
 	LIST_HEAD(aliases);
 	int res = 0;
-	const struct pmu_event *table = find_core_events_table("testarch", "testcpu");
+	const struct pmu_events_table *table = find_core_events_table("testarch", "testcpu");
 	struct perf_pmu_alias *a, *tmp;
 
 	if (!table)
@@ -597,7 +597,7 @@ static int __test_uncore_pmu_event_aliases(struct perf_pmu_test_pmu *test_pmu)
 	struct perf_pmu *pmu = &test_pmu->pmu;
 	const char *pmu_name = pmu->name;
 	struct perf_pmu_alias *a, *tmp, *alias;
-	const struct pmu_event *events_table;
+	const struct pmu_events_table *events_table;
 	LIST_HEAD(aliases);
 	int res = 0;
 
@@ -839,7 +839,7 @@ struct metric {
 	struct metric_ref metric_ref;
 };
 
-static int test__parsing_callback(const struct pmu_event *pe, const struct pmu_event *table,
+static int test__parsing_callback(const struct pmu_event *pe, const struct pmu_events_table *table,
 				  void *data)
 {
 	int *failures = data;
@@ -1016,7 +1016,7 @@ out:
 }
 
 static int test__parsing_fake_callback(const struct pmu_event *pe,
-				       const struct pmu_event *table __maybe_unused,
+				       const struct pmu_events_table *table __maybe_unused,
 				       void *data __maybe_unused)
 {
 	if (!pe->metric_expr)

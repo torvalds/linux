@@ -176,6 +176,10 @@ static const struct pmu_event pme_test_soc_cpu[] = {
 	},
 };
 
+/* Struct used to make the PMU event table implementation opaque to callers. */
+struct pmu_events_table {
+	const struct pmu_event *entries;
+};
 
 /*
  * Map a CPU to its table of PMU events. The CPU is identified by the
@@ -188,7 +192,7 @@ static const struct pmu_event pme_test_soc_cpu[] = {
 struct pmu_events_map {
 	const char *arch;
 	const char *cpuid;
-	const struct pmu_event *table;
+	const struct pmu_events_table table;
 };
 
 /*
@@ -199,12 +203,12 @@ static const struct pmu_events_map pmu_events_map[] = {
 	{
 		.arch = "testarch",
 		.cpuid = "testcpu",
-		.table = pme_test_soc_cpu,
+		.table = { pme_test_soc_cpu },
 	},
 	{
 		.arch = 0,
 		.cpuid = 0,
-		.table = 0,
+		.table = { 0 },
 	},
 };
 
@@ -234,23 +238,23 @@ static const struct pmu_event pme_test_soc_sys[] = {
 
 struct pmu_sys_events {
 	const char *name;
-	const struct pmu_event *table;
+	const struct pmu_events_table table;
 };
 
 static const struct pmu_sys_events pmu_sys_event_tables[] = {
 	{
-		.table = pme_test_soc_sys,
+		.table = { pme_test_soc_sys },
 		.name = "pme_test_soc_sys",
 	},
 	{
-		.table = 0
+		.table = { 0 }
 	},
 };
 
-int pmu_events_table_for_each_event(const struct pmu_event *table, pmu_event_iter_fn fn,
+int pmu_events_table_for_each_event(const struct pmu_events_table *table, pmu_event_iter_fn fn,
 				    void *data)
 {
-	for (const struct pmu_event *pe = &table[0];
+	for (const struct pmu_event *pe = &table->entries[0];
 	     pe->name || pe->metric_group || pe->metric_name;
 	     pe++) {
 		int ret = fn(pe, table, data);
@@ -261,9 +265,9 @@ int pmu_events_table_for_each_event(const struct pmu_event *table, pmu_event_ite
 	return 0;
 }
 
-const struct pmu_event *perf_pmu__find_table(struct perf_pmu *pmu)
+const struct pmu_events_table *perf_pmu__find_table(struct perf_pmu *pmu)
 {
-	const struct pmu_event *table = NULL;
+	const struct pmu_events_table *table = NULL;
 	char *cpuid = perf_pmu__getcpuid(pmu);
 	int i;
 
@@ -277,11 +281,11 @@ const struct pmu_event *perf_pmu__find_table(struct perf_pmu *pmu)
 	for (;;) {
 		const struct pmu_events_map *map = &pmu_events_map[i++];
 
-		if (!map->table)
+		if (!map->cpuid)
 			break;
 
 		if (!strcmp_cpuid_str(map->cpuid, cpuid)) {
-			table = map->table;
+			table = &map->table;
 			break;
 		}
 	}
@@ -289,13 +293,13 @@ const struct pmu_event *perf_pmu__find_table(struct perf_pmu *pmu)
 	return table;
 }
 
-const struct pmu_event *find_core_events_table(const char *arch, const char *cpuid)
+const struct pmu_events_table *find_core_events_table(const char *arch, const char *cpuid)
 {
 	for (const struct pmu_events_map *tables = &pmu_events_map[0];
-	     tables->table;
+	     tables->arch;
 	     tables++) {
 		if (!strcmp(tables->arch, arch) && !strcmp_cpuid_str(tables->cpuid, cpuid))
-			return tables->table;
+			return &tables->table;
 	}
 	return NULL;
 }
@@ -303,9 +307,9 @@ const struct pmu_event *find_core_events_table(const char *arch, const char *cpu
 int pmu_for_each_core_event(pmu_event_iter_fn fn, void *data)
 {
 	for (const struct pmu_events_map *tables = &pmu_events_map[0];
-	     tables->table;
+	     tables->arch;
 	     tables++) {
-		int ret = pmu_events_table_for_each_event(tables->table, fn, data);
+		int ret = pmu_events_table_for_each_event(&tables->table, fn, data);
 
 		if (ret)
 			return ret;
@@ -313,13 +317,13 @@ int pmu_for_each_core_event(pmu_event_iter_fn fn, void *data)
 	return 0;
 }
 
-const struct pmu_event *find_sys_events_table(const char *name)
+const struct pmu_events_table *find_sys_events_table(const char *name)
 {
 	for (const struct pmu_sys_events *tables = &pmu_sys_event_tables[0];
 	     tables->name;
 	     tables++) {
 		if (!strcmp(tables->name, name))
-			return tables->table;
+			return &tables->table;
 	}
 	return NULL;
 }
@@ -329,7 +333,7 @@ int pmu_for_each_sys_event(pmu_event_iter_fn fn, void *data)
 	for (const struct pmu_sys_events *tables = &pmu_sys_event_tables[0];
 	     tables->name;
 	     tables++) {
-		int ret = pmu_events_table_for_each_event(tables->table, fn, data);
+		int ret = pmu_events_table_for_each_event(&tables->table, fn, data);
 
 		if (ret)
 			return ret;

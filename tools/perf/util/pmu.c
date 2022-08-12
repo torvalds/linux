@@ -710,7 +710,7 @@ char *perf_pmu__getcpuid(struct perf_pmu *pmu)
 	return cpuid;
 }
 
-__weak const struct pmu_event *pmu_events_table__find(void)
+__weak const struct pmu_events_table *pmu_events_table__find(void)
 {
 	return perf_pmu__find_table(NULL);
 }
@@ -799,7 +799,7 @@ struct pmu_add_cpu_aliases_map_data {
 };
 
 static int pmu_add_cpu_aliases_map_callback(const struct pmu_event *pe,
-					const struct pmu_event *table __maybe_unused,
+					const struct pmu_events_table *table __maybe_unused,
 					void *vdata)
 {
 	struct pmu_add_cpu_aliases_map_data *data = vdata;
@@ -827,7 +827,7 @@ new_alias:
  * as aliases.
  */
 void pmu_add_cpu_aliases_table(struct list_head *head, struct perf_pmu *pmu,
-			       const struct pmu_event *table)
+			       const struct pmu_events_table *table)
 {
 	struct pmu_add_cpu_aliases_map_data data = {
 		.head = head,
@@ -841,7 +841,7 @@ void pmu_add_cpu_aliases_table(struct list_head *head, struct perf_pmu *pmu,
 
 static void pmu_add_cpu_aliases(struct list_head *head, struct perf_pmu *pmu)
 {
-	const struct pmu_event *table;
+	const struct pmu_events_table *table;
 
 	table = perf_pmu__find_table(pmu);
 	if (!table)
@@ -856,7 +856,7 @@ struct pmu_sys_event_iter_data {
 };
 
 static int pmu_add_sys_aliases_iter_fn(const struct pmu_event *pe,
-				       const struct pmu_event *table __maybe_unused,
+				       const struct pmu_events_table *table __maybe_unused,
 				       void *data)
 {
 	struct pmu_sys_event_iter_data *idata = data;
