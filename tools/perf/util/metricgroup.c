@@ -538,12 +538,40 @@ static int metricgroup__print_sys_event_iter(const struct pmu_event *pe,
 				     d->details, d->groups, d->metriclist);
 }
 
+struct metricgroup_print_data {
+	const char *pmu_name;
+	struct strlist *metriclist;
+	char *filter;
+	struct rblist *groups;
+	bool metricgroups;
+	bool raw;
+	bool details;
+};
+
+static int metricgroup__print_callback(const struct pmu_event *pe,
+				       const struct pmu_event *table __maybe_unused,
+				       void *vdata)
+{
+	struct metricgroup_print_data *data = vdata;
+
+	if (!pe->metric_expr)
+		return 0;
+
+	if (data->pmu_name && perf_pmu__is_hybrid(pe->pmu) && strcmp(data->pmu_name, pe->pmu))
+		return 0;
+
+	return metricgroup__print_pmu_event(pe, data->metricgroups, data->filter,
+					    data->raw, data->details, data->groups,
+					    data->metriclist);
+}
+
 void metricgroup__print(bool metrics, bool metricgroups, char *filter,
 			bool raw, bool details, const char *pmu_name)
 {
 	struct rblist groups;
 	struct rb_node *node, *next;
 	struct strlist *metriclist = NULL;
+	const struct pmu_event *table;
 
 	if (!metricgroups) {
 		metriclist = strlist__new(NULL, NULL);
@@ -555,22 +583,22 @@ void metricgroup__print(bool metrics, bool metricgroups, char *filter,
 	groups.node_new = mep_new;
 	groups.node_cmp = mep_cmp;
 	groups.node_delete = mep_delete;
-	for (const struct pmu_event *pe = pmu_events_table__find(); pe; pe++) {
+	table = pmu_events_table__find();
+	if (table) {
+		struct metricgroup_print_data data = {
+			.pmu_name = pmu_name,
+			.metriclist = metriclist,
+			.metricgroups = metricgroups,
+			.filter = filter,
+			.raw = raw,
+			.details = details,
+			.groups = &groups,
+		};
 
-		if (!pe->name && !pe->metric_group && !pe->metric_name)
-			break;
-		if (!pe->metric_expr)
-			continue;
-		if (pmu_name && perf_pmu__is_hybrid(pe->pmu) &&
-		    strcmp(pmu_name, pe->pmu)) {
-			continue;
-		}
-		if (metricgroup__print_pmu_event(pe, metricgroups, filter,
-						 raw, details, &groups,
-						 metriclist) < 0)
-			return;
+		pmu_events_table_for_each_event(table,
+						metricgroup__print_callback,
+						&data);
 	}
-
 	{
 		struct metricgroup_iter_data data = {
 			.fn = metricgroup__print_sys_event_iter,
@@ -1043,30 +1071,35 @@ static int __add_metric(struct list_head *metric_list,
 	return ret;
 }
 
-#define table_for_each_event(__pe, __idx, __table)					\
-	if (__table)								\
-		for (__idx = 0, __pe = &__table[__idx];				\
-		     __pe->name || __pe->metric_group || __pe->metric_name;	\
-		     __pe = &__table[++__idx])
+struct metricgroup__find_metric_data {
+	const char *metric;
+	const struct pmu_event *pe;
+};
 
-#define table_for_each_metric(__pe, __idx, __table, __metric)		\
-	table_for_each_event(__pe, __idx, __table)				\
-		if (__pe->metric_expr &&				\
-		    (match_metric(__pe->metric_group, __metric) ||	\
-		     match_metric(__pe->metric_name, __metric)))
+static int metricgroup__find_metric_callback(const struct pmu_event *pe,
+					     const struct pmu_event *table  __maybe_unused,
+					     void *vdata)
+{
+	struct metricgroup__find_metric_data *data = vdata;
+
+	if (!match_metric(pe->metric_name, data->metric))
+		return 0;
+
+	data->pe = pe;
+	return -1;
+}
 
 const struct pmu_event *metricgroup__find_metric(const char *metric,
 						 const struct pmu_event *table)
 {
-	const struct pmu_event *pe;
-	int i;
+	struct metricgroup__find_metric_data data = {
+		.metric = metric,
+		.pe = NULL,
+	};
 
-	table_for_each_event(pe, i, table) {
-		if (match_metric(pe->metric_name, metric))
-			return pe;
-	}
+	pmu_events_table_for_each_event(table, metricgroup__find_metric_callback, &data);
 
-	return NULL;
+	return data.pe;
 }
 
 static int add_metric(struct list_head *metric_list,
@@ -1151,6 +1184,33 @@ static int metric_list_cmp(void *priv __maybe_unused, const struct list_head *l,
 	return right_count - left_count;
 }
 
+struct metricgroup__add_metric_data {
+	struct list_head *list;
+	const char *metric_name;
+	const char *modifier;
+	bool metric_no_group;
+	bool has_match;
+};
+
+static int metricgroup__add_metric_callback(const struct pmu_event *pe,
+					    const struct pmu_event *table,
+					    void *vdata)
+{
+	struct metricgroup__add_metric_data *data = vdata;
+	int ret = 0;
+
+	if (pe->metric_expr &&
+		(match_metric(pe->metric_group, data->metric_name) ||
+		 match_metric(pe->metric_name, data->metric_name))) {
+
+		data->has_match = true;
+		ret = add_metric(data->list, pe, data->modifier, data->metric_no_group,
+				 /*root_metric=*/NULL,
+				 /*visited_metrics=*/NULL, table);
+	}
+	return ret;
+}
+
 /**
  * metricgroup__add_metric - Find and add a metric, or a metric group.
  * @metric_name: The name of the metric or metric group. For example, "IPC"
@@ -1169,24 +1229,29 @@ static int metricgroup__add_metric(const char *metric_name, const char *modifier
 				   struct list_head *metric_list,
 				   const struct pmu_event *table)
 {
-	const struct pmu_event *pe;
 	LIST_HEAD(list);
-	int i, ret;
+	int ret;
 	bool has_match = false;
 
-	/*
-	 * Iterate over all metrics seeing if metric matches either the name or
-	 * group. When it does add the metric to the list.
-	 */
-	table_for_each_metric(pe, i, table, metric_name) {
-		has_match = true;
-		ret = add_metric(&list, pe, modifier, metric_no_group,
-				 /*root_metric=*/NULL,
-				 /*visited_metrics=*/NULL, table);
+	{
+		struct metricgroup__add_metric_data data = {
+			.list = &list,
+			.metric_name = metric_name,
+			.modifier = modifier,
+			.metric_no_group = metric_no_group,
+			.has_match = false,
+		};
+		/*
+		 * Iterate over all metrics seeing if metric matches either the
+		 * name or group. When it does add the metric to the list.
+		 */
+		ret = pmu_events_table_for_each_event(table, metricgroup__add_metric_callback,
+						      &data);
 		if (ret)
 			goto out;
-	}
 
+		has_match = data.has_match;
+	}
 	{
 		struct metricgroup_iter_data data = {
 			.fn = metricgroup__add_metric_sys_event_iter,
@@ -1602,26 +1667,30 @@ int metricgroup__parse_groups_test(struct evlist *evlist,
 			    metric_no_merge, &perf_pmu__fake, metric_events, table);
 }
 
+static int metricgroup__has_metric_callback(const struct pmu_event *pe,
+					    const struct pmu_event *table __maybe_unused,
+					    void *vdata)
+{
+	const char *metric = vdata;
+
+	if (!pe->metric_expr)
+		return 0;
+
+	if (match_metric(pe->metric_name, metric))
+		return 1;
+
+	return 0;
+}
+
 bool metricgroup__has_metric(const char *metric)
 {
 	const struct pmu_event *table = pmu_events_table__find();
-	const struct pmu_event *pe;
-	int i;
 
 	if (!table)
 		return false;
 
-	for (i = 0; ; i++) {
-		pe = &table[i];
-
-		if (!pe->name && !pe->metric_group && !pe->metric_name)
-			break;
-		if (!pe->metric_expr)
-			continue;
-		if (match_metric(pe->metric_name, metric))
-			return true;
-	}
-	return false;
+	return pmu_events_table_for_each_event(table, metricgroup__has_metric_callback,
+					       (void *)metric) ? true : false;
 }
 
 int metricgroup__copy_metric_events(struct evlist *evlist, struct cgroup *cgrp,

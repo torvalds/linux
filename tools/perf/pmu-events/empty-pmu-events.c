@@ -247,6 +247,20 @@ static const struct pmu_sys_events pmu_sys_event_tables[] = {
 	},
 };
 
+int pmu_events_table_for_each_event(const struct pmu_event *table, pmu_event_iter_fn fn,
+				    void *data)
+{
+	for (const struct pmu_event *pe = &table[0];
+	     pe->name || pe->metric_group || pe->metric_name;
+	     pe++) {
+		int ret = fn(pe, table, data);
+
+		if (ret)
+			return ret;
+	}
+	return 0;
+}
+
 const struct pmu_event *perf_pmu__find_table(struct perf_pmu *pmu)
 {
 	const struct pmu_event *table = NULL;
@@ -291,14 +305,10 @@ int pmu_for_each_core_event(pmu_event_iter_fn fn, void *data)
 	for (const struct pmu_events_map *tables = &pmu_events_map[0];
 	     tables->table;
 	     tables++) {
-		for (const struct pmu_event *pe = &tables->table[0];
-		     pe->name || pe->metric_group || pe->metric_name;
-		     pe++) {
-			int ret = fn(pe, &tables->table[0], data);
+		int ret = pmu_events_table_for_each_event(tables->table, fn, data);
 
-			if (ret)
-				return ret;
-		}
+		if (ret)
+			return ret;
 	}
 	return 0;
 }
@@ -319,14 +329,10 @@ int pmu_for_each_sys_event(pmu_event_iter_fn fn, void *data)
 	for (const struct pmu_sys_events *tables = &pmu_sys_event_tables[0];
 	     tables->name;
 	     tables++) {
-		for (const struct pmu_event *pe = &tables->table[0];
-		     pe->name || pe->metric_group || pe->metric_name;
-		     pe++) {
-			int ret = fn(pe, &tables->table[0], data);
+		int ret = pmu_events_table_for_each_event(tables->table, fn, data);
 
-			if (ret)
-				return ret;
-		}
+		if (ret)
+			return ret;
 	}
 	return 0;
 }

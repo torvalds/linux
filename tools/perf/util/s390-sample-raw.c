@@ -129,6 +129,28 @@ static int get_counterset_start(int setnr)
 	}
 }
 
+struct get_counter_name_data {
+	int wanted;
+	const char *result;
+};
+
+static int get_counter_name_callback(const struct pmu_event *evp,
+				     const struct pmu_event *table __maybe_unused,
+				     void *vdata)
+{
+	struct get_counter_name_data *data = vdata;
+	int rc, event_nr;
+
+	if (evp->name == NULL || evp->event == NULL)
+		return 0;
+	rc = sscanf(evp->event, "event=%x", &event_nr);
+	if (rc == 1 && event_nr == data->wanted) {
+		data->result = evp->name;
+		return 1; /* Terminate the search. */
+	}
+	return 0;
+}
+
 /* Scan the PMU table and extract the logical name of a counter from the
  * PMU events table. Input is the counter set and counter number with in the
  * set. Construct the event number and use this as key. If they match return
@@ -137,20 +159,16 @@ static int get_counterset_start(int setnr)
  */
 static const char *get_counter_name(int set, int nr, const struct pmu_event *table)
 {
-	int rc, event_nr, wanted = get_counterset_start(set) + nr;
+	struct get_counter_name_data data = {
+		.wanted = get_counterset_start(set) + nr,
+		.result = NULL,
+	};
 
-	if (table) {
-		const struct pmu_event *evp = table;
+	if (!table)
+		return NULL;
 
-		for (; evp->name || evp->event || evp->desc; ++evp) {
-			if (evp->name == NULL || evp->event == NULL)
-				continue;
-			rc = sscanf(evp->event, "event=%x", &event_nr);
-			if (rc == 1 && event_nr == wanted)
-				return evp->name;
-		}
-	}
-	return NULL;
+	pmu_events_table_for_each_event(table, get_counter_name_callback, &data);
+	return data.result;
 }
 
 static void s390_cpumcfdg_dump(struct perf_sample *sample)

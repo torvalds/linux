@@ -34,6 +34,9 @@ typedef int (*pmu_event_iter_fn)(const struct pmu_event *pe,
 				 const struct pmu_event *table,
 				 void *data);
 
+int pmu_events_table_for_each_event(const struct pmu_event *table, pmu_event_iter_fn fn,
+				    void *data);
+
 const struct pmu_event *perf_pmu__find_table(struct perf_pmu *pmu);
 const struct pmu_event *find_core_events_table(const char *arch, const char *cpuid);
 int pmu_for_each_core_event(pmu_event_iter_fn fn, void *data);

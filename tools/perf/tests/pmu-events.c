@@ -423,84 +423,104 @@ static int compare_alias_to_test_event(struct perf_pmu_alias *alias,
 	return 0;
 }
 
+static int test__pmu_event_table_core_callback(const struct pmu_event *pe,
+					       const struct pmu_event *table __maybe_unused,
+					       void *data)
+{
+	int *map_events = data;
+	struct perf_pmu_test_event const **test_event_table;
+	bool found = false;
+
+	if (!pe->name)
+		return 0;
+
+	if (pe->pmu)
+		test_event_table = &uncore_events[0];
+	else
+		test_event_table = &core_events[0];
+
+	for (; *test_event_table; test_event_table++) {
+		struct perf_pmu_test_event const *test_event = *test_event_table;
+		struct pmu_event const *event = &test_event->event;
+
+		if (strcmp(pe->name, event->name))
+			continue;
+		found = true;
+		(*map_events)++;
+
+		if (compare_pmu_events(pe, event))
+			return -1;
+
+		pr_debug("testing event table %s: pass\n", pe->name);
+	}
+	if (!found) {
+		pr_err("testing event table: could not find event %s\n", pe->name);
+		return -1;
+	}
+	return 0;
+}
+
+static int test__pmu_event_table_sys_callback(const struct pmu_event *pe,
+					      const struct pmu_event *table __maybe_unused,
+					      void *data)
+{
+	int *map_events = data;
+	struct perf_pmu_test_event const **test_event_table;
+	bool found = false;
+
+	test_event_table = &sys_events[0];
+
+	for (; *test_event_table; test_event_table++) {
+		struct perf_pmu_test_event const *test_event = *test_event_table;
+		struct pmu_event const *event = &test_event->event;
+
+		if (strcmp(pe->name, event->name))
+			continue;
+		found = true;
+		(*map_events)++;
+
+		if (compare_pmu_events(pe, event))
+			return TEST_FAIL;
+
+		pr_debug("testing sys event table %s: pass\n", pe->name);
+	}
+	if (!found) {
+		pr_debug("testing sys event table: could not find event %s\n", pe->name);
+		return TEST_FAIL;
+	}
+	return TEST_OK;
+}
+
 /* Verify generated events from pmu-events.c are as expected */
 static int test__pmu_event_table(struct test_suite *test __maybe_unused,
 				 int subtest __maybe_unused)
 {
-	const struct pmu_event *sys_event_tables = find_sys_events_table("pme_test_soc_sys");
+	const struct pmu_event *sys_event_table = find_sys_events_table("pme_test_soc_sys");
 	const struct pmu_event *table = find_core_events_table("testarch", "testcpu");
-	int map_events = 0, expected_events;
+	int map_events = 0, expected_events, err;
 
 	/* ignore 3x sentinels */
 	expected_events = ARRAY_SIZE(core_events) +
 			  ARRAY_SIZE(uncore_events) +
 			  ARRAY_SIZE(sys_events) - 3;
 
-	if (!table || !sys_event_tables)
+	if (!table || !sys_event_table)
 		return -1;
 
-	for (; table->name; table++) {
-		struct perf_pmu_test_event const **test_event_table;
-		bool found = false;
+	err = pmu_events_table_for_each_event(table, test__pmu_event_table_core_callback,
+					      &map_events);
+	if (err)
+		return err;
 
-		if (table->pmu)
-			test_event_table = &uncore_events[0];
-		else
-			test_event_table = &core_events[0];
-
-		for (; *test_event_table; test_event_table++) {
-			struct perf_pmu_test_event const *test_event = *test_event_table;
-			struct pmu_event const *event = &test_event->event;
-
-			if (strcmp(table->name, event->name))
-				continue;
-			found = true;
-			map_events++;
-
-			if (compare_pmu_events(table, event))
-				return -1;
-
-			pr_debug("testing event table %s: pass\n", table->name);
-		}
-
-		if (!found) {
-			pr_err("testing event table: could not find event %s\n",
-			       table->name);
-			return -1;
-		}
-	}
-
-	for (table = sys_event_tables; table->name; table++) {
-		struct perf_pmu_test_event const **test_event_table;
-		bool found = false;
-
-		test_event_table = &sys_events[0];
-
-		for (; *test_event_table; test_event_table++) {
-			struct perf_pmu_test_event const *test_event = *test_event_table;
-			struct pmu_event const *event = &test_event->event;
-
-			if (strcmp(table->name, event->name))
-				continue;
-			found = true;
-			map_events++;
-
-			if (compare_pmu_events(table, event))
-				return -1;
-
-			pr_debug("testing sys event table %s: pass\n", table->name);
-		}
-		if (!found) {
-			pr_debug("testing event table: could not find event %s\n",
-				   table->name);
-			return -1;
-		}
-	}
+	err = pmu_events_table_for_each_event(sys_event_table, test__pmu_event_table_sys_callback,
+					      &map_events);
+	if (err)
+		return err;
 
 	if (map_events != expected_events) {
 		pr_err("testing event table: found %d, but expected %d\n",
 		       map_events, expected_events);
-		return -1;
+		return TEST_FAIL;
 	}
 
 	return 0;
