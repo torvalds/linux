@@ -161,7 +161,7 @@ no_valid_dev_replace_entry_found:
 		if (btrfs_find_device(fs_info->fs_devices,
 				      BTRFS_DEV_REPLACE_DEVID, NULL, NULL, false)) {
 			btrfs_err(fs_info,
-			"replace devid present without an active replace item");
+"replace without active item, run 'device scan --forget' on the target device");
 			ret = -EUCLEAN;
 		} else {
 			dev_replace->srcdev = NULL;
