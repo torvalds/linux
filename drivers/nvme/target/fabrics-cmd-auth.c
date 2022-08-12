@@ -229,10 +229,8 @@ void nvmet_execute_auth_send(struct nvmet_req *req)
 	}
 
 	status = nvmet_copy_from_sgl(req, 0, d, tl);
-	if (status) {
-		kfree(d);
-		goto done;
-	}
+	if (status)
+		goto done_kfree;
 
 	data = d;
 	pr_debug("%s: ctrl %d qid %d type %d id %d step %x\n", __func__,
