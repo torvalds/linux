@@ -334,7 +334,27 @@ def process_one_file(parents: Sequence[str], item: os.DirEntry) -> None:
 
 def print_mapping_table(archs: Sequence[str]) -> None:
   """Read the mapfile and generate the struct from cpuid string to event table."""
-  _args.output_file.write('const struct pmu_events_map pmu_events_map[] = {\n')
+  _args.output_file.write("""
+/*
+ * Map a CPU to its table of PMU events. The CPU is identified by the
+ * cpuid field, which is an arch-specific identifier for the CPU.
+ * The identifier specified in tools/perf/pmu-events/arch/xxx/mapfile
+ * must match the get_cpuid_str() in tools/perf/arch/xxx/util/header.c)
+ *
+ * The  cpuid can contain any character other than the comma.
+ */
+struct pmu_events_map {
+        const char *arch;
+        const char *cpuid;
+        const struct pmu_event *table;
+};
+
+/*
+ * Global table mapping each known CPU for the architecture to its
+ * table of PMU events.
+ */
+const struct pmu_events_map pmu_events_map[] = {
+""")
   for arch in archs:
     if arch == 'test':
       _args.output_file.write("""{
@@ -390,6 +410,61 @@ static const struct pmu_sys_events pmu_sys_event_tables[] = {
 \t},
 };
 
+const struct pmu_event *perf_pmu__find_table(struct perf_pmu *pmu)
+{
+        const struct pmu_event *table = NULL;
+        char *cpuid = perf_pmu__getcpuid(pmu);
+        int i;
+
+        /* on some platforms which uses cpus map, cpuid can be NULL for
+         * PMUs other than CORE PMUs.
+         */
+        if (!cpuid)
+                return NULL;
+
+        i = 0;
+        for (;;) {
+                const struct pmu_events_map *map = &pmu_events_map[i++];
+                if (!map->table)
+                        break;
+
+                if (!strcmp_cpuid_str(map->cpuid, cpuid)) {
+                        table = map->table;
+                        break;
+                }
+        }
+        free(cpuid);
+        return table;
+}
+
+const struct pmu_event *find_core_events_table(const char *arch, const char *cpuid)
+{
+        for (const struct pmu_events_map *tables = &pmu_events_map[0];
+             tables->table;
+             tables++) {
+                if (!strcmp(tables->arch, arch) && !strcmp_cpuid_str(tables->cpuid, cpuid))
+                        return tables->table;
+        }
+        return NULL;
+}
+
+int pmu_for_each_core_event(pmu_event_iter_fn fn, void *data)
+{
+        for (const struct pmu_events_map *tables = &pmu_events_map[0];
+             tables->table;
+             tables++) {
+                for (const struct pmu_event *pe = &tables->table[0];
+                     pe->name || pe->metric_group || pe->metric_name;
+                     pe++) {
+                        int ret = fn(pe, &tables->table[0], data);
+
+                        if (ret)
+                                return ret;
+                }
+        }
+        return 0;
+}
+
 const struct pmu_event *find_sys_events_table(const char *name)
 {
         for (const struct pmu_sys_events *tables = &pmu_sys_event_tables[0];
@@ -409,7 +484,7 @@ int pmu_for_each_sys_event(pmu_event_iter_fn fn, void *data)
                 for (const struct pmu_event *pe = &tables->table[0];
                      pe->name || pe->metric_group || pe->metric_name;
                      pe++) {
-                        int ret = fn(pe, data);
+                        int ret = fn(pe, &tables->table[0], data);
 
                         if (ret)
                                 return ret;
@@ -450,6 +525,8 @@ def main() -> None:
 
   _args.output_file.write("""
 #include "pmu-events/pmu-events.h"
+#include "util/header.h"
+#include "util/pmu.h"
 #include <string.h>
 #include <stddef.h>
 

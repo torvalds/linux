@@ -128,7 +128,7 @@ struct perf_event_attr *perf_pmu__get_default_config(struct perf_pmu *pmu);
 void pmu_add_cpu_aliases_table(struct list_head *head, struct perf_pmu *pmu,
 			       const struct pmu_event *table);
 
-const struct pmu_event *perf_pmu__find_table(struct perf_pmu *pmu);
+char *perf_pmu__getcpuid(struct perf_pmu *pmu);
 const struct pmu_event *pmu_events_table__find(void);
 bool pmu_uncore_alias_match(const char *pmu_name, const char *name);
 void perf_pmu_free_alias(struct perf_pmu_alias *alias);

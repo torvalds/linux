@@ -2,6 +2,8 @@
 #ifndef PMU_EVENTS_H
 #define PMU_EVENTS_H
 
+struct perf_pmu;
+
 enum aggr_mode_class {
 	PerChip = 1,
 	PerCore
@@ -28,30 +30,15 @@ struct pmu_event {
 	const char *metric_constraint;
 };
 
-/*
- *
- * Map a CPU to its table of PMU events. The CPU is identified by the
- * cpuid field, which is an arch-specific identifier for the CPU.
- * The identifier specified in tools/perf/pmu-events/arch/xxx/mapfile
- * must match the get_cpuid_str() in tools/perf/arch/xxx/util/header.c)
- *
- * The  cpuid can contain any character other than the comma.
- */
-struct pmu_events_map {
-	const char *arch;
-	const char *cpuid;
-	const struct pmu_event *table;
-};
+typedef int (*pmu_event_iter_fn)(const struct pmu_event *pe,
+				 const struct pmu_event *table,
+				 void *data);
 
-/*
- * Global table mapping each known CPU for the architecture to its
- * table of PMU events.
- */
-extern const struct pmu_events_map pmu_events_map[];
+const struct pmu_event *perf_pmu__find_table(struct perf_pmu *pmu);
+const struct pmu_event *find_core_events_table(const char *arch, const char *cpuid);
+int pmu_for_each_core_event(pmu_event_iter_fn fn, void *data);
 
 const struct pmu_event *find_sys_events_table(const char *name);
-
-typedef int (*pmu_event_iter_fn)(const struct pmu_event *pe, void *data);
 int pmu_for_each_sys_event(pmu_event_iter_fn fn, void *data);
 
 #endif

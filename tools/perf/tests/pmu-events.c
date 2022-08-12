@@ -272,18 +272,6 @@ static bool is_same(const char *reference, const char *test)
 	return !strcmp(reference, test);
 }
 
-static const struct pmu_event *__test_pmu_get_events_table(void)
-{
-	for (const struct pmu_events_map *map = &pmu_events_map[0]; map->cpuid; map++) {
-		if (!strcmp(map->cpuid, "testcpu"))
-			return map->table;
-	}
-
-	pr_err("could not find test events map\n");
-
-	return NULL;
-}
-
 static int compare_pmu_events(const struct pmu_event *e1, const struct pmu_event *e2)
 {
 	if (!is_same(e1->name, e2->name)) {
@@ -438,7 +426,7 @@ static int test__pmu_event_table(struct test_suite *test __maybe_unused,
 				 int subtest __maybe_unused)
 {
 	const struct pmu_event *sys_event_tables = find_sys_events_table("pme_test_soc_sys");
-	const struct pmu_event *table = __test_pmu_get_events_table();
+	const struct pmu_event *table = find_core_events_table("testarch", "testcpu");
 	int map_events = 0, expected_events;
 
 	/* ignore 3x sentinels */
@@ -534,7 +522,7 @@ static int __test_core_pmu_event_aliases(char *pmu_name, int *count)
 	struct perf_pmu *pmu;
 	LIST_HEAD(aliases);
 	int res = 0;
-	const struct pmu_event *table = __test_pmu_get_events_table();
+	const struct pmu_event *table = find_core_events_table("testarch", "testcpu");
 	struct perf_pmu_alias *a, *tmp;
 
 	if (!table)
@@ -591,7 +579,7 @@ static int __test_uncore_pmu_event_aliases(struct perf_pmu_test_pmu *test_pmu)
 	LIST_HEAD(aliases);
 	int res = 0;
 
-	events_table = __test_pmu_get_events_table();
+	events_table = find_core_events_table("testarch", "testcpu");
 	if (!events_table)
 		return -1;
 	pmu_add_cpu_aliases_table(&aliases, pmu, events_table);
@@ -845,11 +833,6 @@ static int check_parse_fake(const char *id)
 	return ret;
 }
 
-static void expr_failure(const char *msg, const struct pmu_event *pe)
-{
-	pr_debug("%s\nOn metric %s\nOn expression %s\n", msg, pe->metric_name, pe->metric_expr);
-}
-
 struct metric {
 	struct list_head list;
 	struct metric_ref metric_ref;
@@ -915,93 +898,100 @@ out_err:
 
 }
 
+static void expr_failure(const char *msg, const struct pmu_event *pe)
+{
+	pr_debug("%s\nOn metric %s\nOn expression %s\n", msg, pe->metric_name, pe->metric_expr);
+}
+
+
+struct test__parsing_data {
+	const struct pmu_event *cpus_table;
+	struct expr_parse_ctx *ctx;
+	int failures;
+};
+
+static int test__parsing_callback(const struct pmu_event *pe, const struct pmu_event *table,
+				  void *vdata)
+{
+	struct test__parsing_data *data = vdata;
+	struct metric *metric, *tmp;
+	struct hashmap_entry *cur;
+	LIST_HEAD(compound_list);
+	size_t bkt;
+	int k;
+	double result;
+
+	if (!pe->metric_expr)
+		return 0;
+
+	pr_debug("Found metric '%s'\n", pe->metric_name);
+
+	expr__ctx_clear(data->ctx);
+	if (expr__find_ids(pe->metric_expr, NULL, data->ctx) < 0) {
+		expr_failure("Parse find ids failed", pe);
+		data->failures++;
+		return 0;
+	}
+
+	if (resolve_metric_simple(data->ctx, &compound_list, table,
+				  pe->metric_name)) {
+		expr_failure("Could not resolve metrics", pe);
+		data->failures++;
+		return TEST_FAIL; /* Don't tolerate errors due to severity */
+	}
+
+	/*
+	 * Add all ids with a made up value. The value may trigger divide by
+	 * zero when subtracted and so try to make them unique.
+	 */
+	k = 1;
+	hashmap__for_each_entry(data->ctx->ids, cur, bkt)
+		expr__add_id_val(data->ctx, strdup(cur->key), k++);
+
+	hashmap__for_each_entry(data->ctx->ids, cur, bkt) {
+		if (check_parse_cpu(cur->key, table == data->cpus_table, pe))
+			data->failures++;
+	}
+
+	list_for_each_entry_safe(metric, tmp, &compound_list, list) {
+		expr__add_ref(data->ctx, &metric->metric_ref);
+		free(metric);
+	}
+
+	if (expr__parse(&result, data->ctx, pe->metric_expr)) {
+		/*
+		 * Parsing failed, make numbers go from large to small which can
+		 * resolve divide by zero issues.
+		 */
+		k = 1024;
+		hashmap__for_each_entry(data->ctx->ids, cur, bkt)
+			expr__add_id_val(data->ctx, strdup(cur->key), k--);
+		if (expr__parse(&result, data->ctx, pe->metric_expr)) {
+			expr_failure("Parse failed", pe);
+			data->failures++;
+		}
+	}
+	return 0;
+}
+
 static int test__parsing(struct test_suite *test __maybe_unused,
 			 int subtest __maybe_unused)
 {
-	const struct pmu_event *cpus_table = pmu_events_table__find();
-	const struct pmu_event *pe;
-	int i, j, k;
-	int ret = 0;
-	struct expr_parse_ctx *ctx;
-	double result;
+	struct test__parsing_data data = {
+		.cpus_table = pmu_events_table__find(),
+		.ctx = expr__ctx_new(),
+		.failures = 0,
+	};
 
-	ctx = expr__ctx_new();
-	if (!ctx) {
+	if (!data.ctx) {
 		pr_debug("expr__ctx_new failed");
 		return TEST_FAIL;
 	}
-	i = 0;
-	for (;;) {
-		const struct pmu_events_map *map = &pmu_events_map[i++];
+	pmu_for_each_core_event(test__parsing_callback, &data);
+	pmu_for_each_sys_event(test__parsing_callback, &data);
 
-		if (!map->table)
-			break;
-		j = 0;
-		for (;;) {
-			struct metric *metric, *tmp;
-			struct hashmap_entry *cur;
-			LIST_HEAD(compound_list);
-			size_t bkt;
-
-			pe = &map->table[j++];
-			if (!pe->name && !pe->metric_group && !pe->metric_name)
-				break;
-			if (!pe->metric_expr)
-				continue;
-			expr__ctx_clear(ctx);
-			if (expr__find_ids(pe->metric_expr, NULL, ctx) < 0) {
-				expr_failure("Parse find ids failed", pe);
-				ret++;
-				continue;
-			}
-
-			if (resolve_metric_simple(ctx, &compound_list, map->table,
-						  pe->metric_name)) {
-				expr_failure("Could not resolve metrics", pe);
-				ret++;
-				goto exit; /* Don't tolerate errors due to severity */
-			}
-
-			/*
-			 * Add all ids with a made up value. The value may
-			 * trigger divide by zero when subtracted and so try to
-			 * make them unique.
-			 */
-			k = 1;
-			hashmap__for_each_entry(ctx->ids, cur, bkt)
-				expr__add_id_val(ctx, strdup(cur->key), k++);
-
-			hashmap__for_each_entry(ctx->ids, cur, bkt) {
-				if (check_parse_cpu(cur->key, map->table == cpus_table,
-						   pe))
-					ret++;
-			}
-
-			list_for_each_entry_safe(metric, tmp, &compound_list, list) {
-				expr__add_ref(ctx, &metric->metric_ref);
-				free(metric);
-			}
-
-			if (expr__parse(&result, ctx, pe->metric_expr)) {
-				/*
-				 * Parsing failed, make numbers go from large to
-				 * small which can resolve divide by zero
-				 * issues.
-				 */
-				k = 1024;
-				hashmap__for_each_entry(ctx->ids, cur, bkt)
-					expr__add_id_val(ctx, strdup(cur->key), k--);
-				if (expr__parse(&result, ctx, pe->metric_expr)) {
-					expr_failure("Parse failed", pe);
-					ret++;
-				}
-			}
-		}
-	}
-	expr__ctx_free(ctx);
-	/* TODO: fail when not ok */
-exit:
-	return ret == 0 ? TEST_OK : TEST_SKIP;
+	expr__ctx_free(data.ctx);
+	return data.failures == 0 ? TEST_OK : TEST_FAIL;
 }
 
 struct test_metric {
@@ -1073,6 +1063,16 @@ out:
 	return ret;
 }
 
+static int test__parsing_fake_callback(const struct pmu_event *pe,
+				       const struct pmu_event *table __maybe_unused,
+				       void *data __maybe_unused)
+{
+	if (!pe->metric_expr)
+		return 0;
+
+	return metric_parse_fake(pe->metric_expr);
+}
+
 /*
  * Parse all the metrics for current architecture,
  * or all defined cpus via the 'fake_pmu'
@@ -1081,37 +1081,19 @@ out:
 static int test__parsing_fake(struct test_suite *test __maybe_unused,
 			      int subtest __maybe_unused)
 {
-	unsigned int i, j;
 	int err = 0;
 
-	for (i = 0; i < ARRAY_SIZE(metrics); i++) {
+	for (size_t i = 0; i < ARRAY_SIZE(metrics); i++) {
 		err = metric_parse_fake(metrics[i].str);
 		if (err)
 			return err;
 	}
 
-	i = 0;
-	for (;;) {
-		const struct pmu_events_map *map = &pmu_events_map[i++];
+	err = pmu_for_each_core_event(test__parsing_fake_callback, NULL);
+	if (err)
+		return err;
 
-		if (!map->table)
-			break;
-		j = 0;
-		for (;;) {
-			const struct pmu_event *pe = &map->table[j++];
-
-			if (!pe->name && !pe->metric_group && !pe->metric_name)
-				break;
-			if (!pe->metric_expr)
-				continue;
-			pr_debug("Found metric '%s' for '%s'\n", pe->metric_name, map->cpuid);
-			err = metric_parse_fake(pe->metric_expr);
-			if (err)
-				return err;
-		}
-	}
-
-	return 0;
+	return pmu_for_each_sys_event(test__parsing_fake_callback, NULL);
 }
 
 static struct test_case pmu_events_tests[] = {

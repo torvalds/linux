@@ -690,7 +690,7 @@ static int is_arm_pmu_core(const char *name)
 	return file_available(path);
 }
 
-static char *perf_pmu__getcpuid(struct perf_pmu *pmu)
+char *perf_pmu__getcpuid(struct perf_pmu *pmu)
 {
 	char *cpuid;
 	static bool printed;
@@ -708,34 +708,6 @@ static char *perf_pmu__getcpuid(struct perf_pmu *pmu)
 		printed = true;
 	}
 	return cpuid;
-}
-
-const struct pmu_event *perf_pmu__find_table(struct perf_pmu *pmu)
-{
-	const struct pmu_event *table = NULL;
-	char *cpuid = perf_pmu__getcpuid(pmu);
-	int i;
-
-	/* on some platforms which uses cpus map, cpuid can be NULL for
-	 * PMUs other than CORE PMUs.
-	 */
-	if (!cpuid)
-		return NULL;
-
-	i = 0;
-	for (;;) {
-		const struct pmu_events_map *map = &pmu_events_map[i++];
-
-		if (!map->table)
-			break;
-
-		if (!strcmp_cpuid_str(map->cpuid, cpuid)) {
-			table = map->table;
-			break;
-		}
-	}
-	free(cpuid);
-	return table;
 }
 
 __weak const struct pmu_event *pmu_events_table__find(void)
@@ -874,7 +846,9 @@ struct pmu_sys_event_iter_data {
 	struct perf_pmu *pmu;
 };
 
-static int pmu_add_sys_aliases_iter_fn(const struct pmu_event *pe, void *data)
+static int pmu_add_sys_aliases_iter_fn(const struct pmu_event *pe,
+				       const struct pmu_event *table __maybe_unused,
+				       void *data)
 {
 	struct pmu_sys_event_iter_data *idata = data;
 	struct perf_pmu *pmu = idata->pmu;
