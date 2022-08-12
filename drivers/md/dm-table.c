@@ -1302,7 +1302,7 @@ static int dm_derive_sw_secret(struct blk_crypto_profile *profile,
 	t = dm_get_live_table(md, &srcu_idx);
 	if (!t)
 		return -EOPNOTSUPP;
-	for (i = 0; i < dm_table_get_num_targets(t); i++) {
+	for (i = 0; i < t->num_targets; i++) {
 		ti = dm_table_get_target(t, i);
 		if (!ti->type->iterate_devices)
 			continue;
