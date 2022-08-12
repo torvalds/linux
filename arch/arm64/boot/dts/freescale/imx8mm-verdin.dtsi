@@ -603,7 +603,7 @@
 		pinctrl-0 = <&pinctrl_gpio_9_dsi>, <&pinctrl_i2s_2_bclk_touch_reset>;
 		reg = <0x4a>;
 		/* Verdin I2S_2_BCLK (TOUCH_RESET#, SODIMM 42) */
-		reset-gpios = <&gpio3 23 GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&gpio3 23 GPIO_ACTIVE_LOW>;
 		status = "disabled";
 	};
 
