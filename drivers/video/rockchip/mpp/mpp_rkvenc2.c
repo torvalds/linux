@@ -779,7 +779,6 @@ static void *rkvenc_alloc_task(struct mpp_session *session,
 			}
 		}
 	}
-	rkvenc2_set_rcbbuf(mpp, session, task);
 	rkvenc2_setup_task_id(session->index, task);
 	task->clk_mode = CLK_MODE_NORMAL;
 	task->task_split = rkvenc2_is_split_task(task);
@@ -829,10 +828,12 @@ static void *rkvenc2_prepare(struct mpp_dev *mpp, struct mpp_task *mpp_task)
 		mpp_task = NULL;
 		mpp_dbg_core("core %d all busy %lx\n", core_id, core_idle);
 	} else {
+		struct rkvenc_task *task = to_rkvenc_task(mpp_task);
+
 		clear_bit(core_id, &queue->core_idle);
 		mpp_task->mpp = queue->cores[core_id];
 		mpp_task->core_id = core_id;
-
+		rkvenc2_set_rcbbuf(mpp_task->mpp, mpp_task->session, task);
 		mpp_dbg_core("core %d set idle %lx -> %lx\n", core_id,
 			     core_idle, queue->core_idle);
 	}
@@ -2054,14 +2055,13 @@ static int rkvenc_core_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	rkvenc2_alloc_rcbbuf(pdev, enc);
-
 	/* attach core to ccu */
 	ret = rkvenc_attach_ccu(dev, enc);
 	if (ret) {
 		dev_err(dev, "attach ccu failed\n");
 		return ret;
 	}
+	rkvenc2_alloc_rcbbuf(pdev, enc);
 
 	ret = devm_request_threaded_irq(dev, mpp->irq,
 					mpp_dev_irq,
