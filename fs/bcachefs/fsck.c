@@ -1149,13 +1149,11 @@ static int check_i_sectors(struct btree_trans *trans, struct inode_walker *w)
 		}
 	}
 fsck_err:
-	if (ret) {
+	if (ret)
 		bch_err(c, "error from check_i_sectors(): %s", bch2_err_str(ret));
-		return ret;
-	}
-	if (trans_was_restarted(trans, restart_count))
-		return -BCH_ERR_transaction_restart_nested;
-	return 0;
+	if (!ret && trans_was_restarted(trans, restart_count))
+		ret = -BCH_ERR_transaction_restart_nested;
+	return ret;
 }
 
 static int check_extent(struct btree_trans *trans, struct btree_iter *iter,

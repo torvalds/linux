@@ -3229,6 +3229,7 @@ u32 bch2_trans_begin(struct btree_trans *trans)
 
 	bch2_trans_reset_updates(trans);
 
+	trans->restart_count++;
 	trans->mem_top			= 0;
 
 	if (trans->fs_usage_deltas) {

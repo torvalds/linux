@@ -218,7 +218,6 @@ static inline int btree_trans_restart_nounlock(struct btree_trans *trans, int er
 	BUG_ON(!bch2_err_matches(err, BCH_ERR_transaction_restart));
 
 	trans->restarted = err;
-	trans->restart_count++;
 	return -err;
 }
 
