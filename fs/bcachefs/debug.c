@@ -660,8 +660,7 @@ static ssize_t lock_held_stats_read(struct file *file, char __user *buf,
 	i->size = size;
 	i->ret  = 0;
 
-	while (i->iter < ARRAY_SIZE(c->btree_transaction_fns) &&
-	       c->btree_transaction_fns[i->iter]) {
+	while (1) {
 		struct btree_transaction_stats *s = &c->btree_transaction_stats[i->iter];
 
 		err = flush_buf(i);
@@ -669,6 +668,10 @@ static ssize_t lock_held_stats_read(struct file *file, char __user *buf,
 			return err;
 
 		if (!i->size)
+			break;
+
+		if (i->iter == ARRAY_SIZE(c->btree_transaction_fns) ||
+		    !c->btree_transaction_fns[i->iter])
 			break;
 
 		prt_printf(&i->buf, "%s: ", c->btree_transaction_fns[i->iter]);
