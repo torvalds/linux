@@ -16,9 +16,9 @@
  * If error then *cfid is not initialized.
  */
 int open_cached_dir(unsigned int xid, struct cifs_tcon *tcon,
-		const char *path,
-		struct cifs_sb_info *cifs_sb,
-		struct cached_fid **ret_cfid)
+		    const char *path,
+		    struct cifs_sb_info *cifs_sb,
+		    bool lookup_only, struct cached_fid **ret_cfid)
 {
 	struct cifs_ses *ses;
 	struct TCP_Server_Info *server;
@@ -68,8 +68,10 @@ int open_cached_dir(unsigned int xid, struct cifs_tcon *tcon,
 	 * cifs_mark_open_files_invalid() which takes the lock again
 	 * thus causing a deadlock
 	 */
-
 	mutex_unlock(&cfid->fid_mutex);
+
+	if (lookup_only)
+		return -ENOENT;
 
 	if (smb3_encryption_required(tcon))
 		flags |= CIFS_TRANSFORM_REQ;

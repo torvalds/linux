@@ -720,7 +720,7 @@ smb3_qfs_tcon(const unsigned int xid, struct cifs_tcon *tcon,
 	oparms.fid = &fid;
 	oparms.reconnect = false;
 
-	rc = open_cached_dir(xid, tcon, "", cifs_sb, &cfid);
+	rc = open_cached_dir(xid, tcon, "", cifs_sb, false, &cfid);
 	if (rc == 0)
 		memcpy(&fid, &cfid->fid, sizeof(struct cifs_fid));
 	else
@@ -783,9 +783,16 @@ smb2_is_path_accessible(const unsigned int xid, struct cifs_tcon *tcon,
 	__u8 oplock = SMB2_OPLOCK_LEVEL_NONE;
 	struct cifs_open_parms oparms;
 	struct cifs_fid fid;
+	struct cached_fid *cfid;
 
-	if ((*full_path == 0) && tcon->cfid->is_valid)
-		return 0;
+	rc = open_cached_dir(xid, tcon, full_path, cifs_sb, true, &cfid);
+	if (!rc) {
+		if (cfid->is_valid) {
+			close_cached_dir(cfid);
+			return 0;
+		}
+		close_cached_dir(cfid);
+	}
 
 	utf16_path = cifs_convert_path_to_utf16(full_path, cifs_sb);
 	if (!utf16_path)
@@ -2430,8 +2437,12 @@ smb2_query_info_compound(const unsigned int xid, struct cifs_tcon *tcon,
 	resp_buftype[0] = resp_buftype[1] = resp_buftype[2] = CIFS_NO_BUFFER;
 	memset(rsp_iov, 0, sizeof(rsp_iov));
 
+	/*
+	 * We can only call this for things we know are directories.
+	 */
 	if (!strcmp(path, ""))
-		open_cached_dir(xid, tcon, path, cifs_sb, &cfid); /* cfid null if open dir failed */
+		open_cached_dir(xid, tcon, path, cifs_sb, false,
+				&cfid); /* cfid null if open dir failed */
 
 	memset(&open_iov, 0, sizeof(open_iov));
 	rqst[0].rq_iov = open_iov;

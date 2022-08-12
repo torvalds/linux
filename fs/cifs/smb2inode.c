@@ -516,7 +516,7 @@ smb2_query_path_info(const unsigned int xid, struct cifs_tcon *tcon,
 	if (strcmp(full_path, ""))
 		rc = -ENOENT;
 	else
-		rc = open_cached_dir(xid, tcon, full_path, cifs_sb, &cfid);
+		rc = open_cached_dir(xid, tcon, full_path, cifs_sb, false, &cfid);
 	/* If it is a root and its handle is cached then use it */
 	if (!rc) {
 		if (cfid->file_all_info_is_valid) {

@@ -50,7 +50,7 @@ extern void free_cached_dir(struct cifs_tcon *tcon);
 extern int open_cached_dir(unsigned int xid, struct cifs_tcon *tcon,
 			   const char *path,
 			   struct cifs_sb_info *cifs_sb,
-			   struct cached_fid **cfid);
+			   bool lookup_only, struct cached_fid **cfid);
 extern int open_cached_dir_by_dentry(struct cifs_tcon *tcon,
 				     struct dentry *dentry,
 				     struct cached_fid **cfid);
