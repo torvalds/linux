@@ -59,6 +59,7 @@ TEST_GEN_FILES += toeplitz
 TEST_GEN_FILES += cmsg_sender
 TEST_GEN_FILES += stress_reuseport_listen
 TEST_PROGS += test_vxlan_vnifiltering.sh
+TEST_GEN_FILES += io_uring_zerocopy_tx
 
 TEST_FILES := settings
 

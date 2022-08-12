@@ -1136,7 +1136,7 @@ static int rbio_add_io_sector(struct btrfs_raid_bio *rbio,
 			      unsigned int stripe_nr,
 			      unsigned int sector_nr,
 			      unsigned long bio_max_len,
-			      unsigned int opf)
+			      enum req_op op)
 {
 	const u32 sectorsize = rbio->bioc->fs_info->sectorsize;
 	struct bio *last = bio_list->tail;
@@ -1181,7 +1181,7 @@ static int rbio_add_io_sector(struct btrfs_raid_bio *rbio,
 
 	/* put a new bio on the list */
 	bio = bio_alloc(stripe->dev->bdev, max(bio_max_len >> PAGE_SHIFT, 1UL),
-			opf, GFP_NOFS);
+			op, GFP_NOFS);
 	bio->bi_iter.bi_sector = disk_start >> 9;
 	bio->bi_private = rbio;
 
