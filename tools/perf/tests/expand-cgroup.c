@@ -195,16 +195,12 @@ static int expand_metric_events(void)
 			.metric_name	= NULL,
 		},
 	};
-	const struct pmu_events_map ev_map = {
-		.cpuid		= "test",
-		.table		= pme_test,
-	};
 
 	evlist = evlist__new();
 	TEST_ASSERT_VAL("failed to get evlist", evlist);
 
 	rblist__init(&metric_events);
-	ret = metricgroup__parse_groups_test(evlist, &ev_map, metric_str,
+	ret = metricgroup__parse_groups_test(evlist, pme_test, metric_str,
 					     false, false, &metric_events);
 	if (ret < 0) {
 		pr_debug("failed to parse '%s' metric\n", metric_str);

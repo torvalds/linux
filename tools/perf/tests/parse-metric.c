@@ -79,11 +79,6 @@ static struct pmu_event pme_test[] = {
 }
 };
 
-static const struct pmu_events_map map = {
-	.cpuid		= "test",
-	.table		= pme_test,
-};
-
 struct value {
 	const char	*event;
 	u64		 val;
@@ -166,7 +161,7 @@ static int __compute_metric(const char *name, struct value *vals,
 	runtime_stat__init(&st);
 
 	/* Parse the metric into metric_events list. */
-	err = metricgroup__parse_groups_test(evlist, &map, name,
+	err = metricgroup__parse_groups_test(evlist, pme_test, name,
 					     false, false,
 					     &metric_events);
 	if (err)
