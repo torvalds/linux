@@ -102,7 +102,6 @@ PVRSRV_ERROR PVRSRVRGXDestroyComputeContextKM(RGX_SERVER_COMPUTE_CONTEXT *psComp
  @Return   PVRSRV_ERROR
 ******************************************************************************/
 PVRSRV_ERROR PVRSRVRGXKickCDMKM(RGX_SERVER_COMPUTE_CONTEXT	*psComputeContext,
-								IMG_UINT32					ui32ClientCacheOpSeqNum,
 								IMG_UINT32					ui32ClientUpdateCount,
 								SYNC_PRIMITIVE_BLOCK		**pauiClientUpdateUFODevVarBlock,
 								IMG_UINT32					*paui32ClientUpdateSyncOffset,

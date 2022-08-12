@@ -71,7 +71,8 @@ static const IMG_CHAR * const apszMMULevelStringLookup[MMU_LEVEL_LAST] =
 };
 
 static PVRSRV_ERROR
-_ContiguousPDumpBytes(const IMG_CHAR *pszSymbolicName,
+_ContiguousPDumpBytes(PVRSRV_DEVICE_NODE *psDeviceNode,
+		      const IMG_CHAR *pszSymbolicName,
 		      IMG_UINT32 ui32SymAddrOffset,
 		      IMG_BOOL bFlush,
 		      IMG_UINT32 uiNumBytes,
@@ -106,7 +107,8 @@ _ContiguousPDumpBytes(const IMG_CHAR *pszSymbolicName,
 	/* Flush if necessary */
 	if (bFlush && uiAccumulatedBytes > 0)
 	{
-		eErr = PDumpWriteParameter((IMG_UINT8 *)(uintptr_t)pvBasePointer,
+		eErr = PDumpWriteParameter(psDeviceNode,
+					   (IMG_UINT8 *)(uintptr_t)pvBasePointer,
 					   uiAccumulatedBytes, ui32Flags,
 					   &ui32ParamOutPos, pszFileName);
 		if (eErr == PVRSRV_OK)
@@ -124,7 +126,7 @@ _ContiguousPDumpBytes(const IMG_CHAR *pszSymbolicName,
 					     pszFileName);
 			PVR_LOG_GOTO_IF_ERROR(eErr, "PDumpSNPrintf", ErrOut);
 
-			PDumpWriteScript(hScript, ui32Flags);
+			PDumpWriteScript(psDeviceNode, hScript, ui32Flags);
 		}
 		else if (eErr != PVRSRV_ERROR_PDUMP_NOT_ALLOWED)
 		{
@@ -166,7 +168,8 @@ ErrOut:
  * Returns        : PVRSRV_ERROR
  * Description    :
 **************************************************************************/
-PVRSRV_ERROR PDumpMMUMalloc(const IMG_CHAR *pszPDumpDevName,
+PVRSRV_ERROR PDumpMMUMalloc(PVRSRV_DEVICE_NODE *psDeviceNode,
+			    const IMG_CHAR *pszPDumpDevName,
 			    MMU_LEVEL eMMULevel,
 			    IMG_DEV_PHYADDR *psDevPAddr,
 			    IMG_UINT32 ui32Size,
@@ -197,7 +200,7 @@ PVRSRV_ERROR PDumpMMUMalloc(const IMG_CHAR *pszPDumpDevName,
 			     psDevPAddr->uiAddr);
 	PVR_GOTO_IF_ERROR(eErr, ErrUnlock);
 
-	PDumpWriteScript(hScript, ui32Flags);
+	PDumpWriteScript(psDeviceNode, hScript, ui32Flags);
 
 	/*
 	  construct the symbolic address
@@ -223,7 +226,7 @@ PVRSRV_ERROR PDumpMMUMalloc(const IMG_CHAR *pszPDumpDevName,
 			     ui32Align
 			     /* don't need this sDevPAddr.uiAddr*/);
 	PVR_GOTO_IF_ERROR(eErr, ErrUnlock);
-	PDumpWriteScript(hScript, ui32Flags);
+	PDumpWriteScript(psDeviceNode, hScript, ui32Flags);
 
 ErrUnlock:
 	PDUMP_UNLOCK(ui32Flags);
@@ -239,7 +242,8 @@ ErrOut:
  * Returns        : PVRSRV_ERROR
  * Description    :
 **************************************************************************/
-PVRSRV_ERROR PDumpMMUFree(const IMG_CHAR *pszPDumpDevName,
+PVRSRV_ERROR PDumpMMUFree(PVRSRV_DEVICE_NODE *psDeviceNode,
+			const IMG_CHAR *pszPDumpDevName,
 			  MMU_LEVEL eMMULevel,
 			  IMG_DEV_PHYADDR *psDevPAddr,
 			  PDUMP_MMU_TYPE eMMUType)
@@ -261,7 +265,7 @@ PVRSRV_ERROR PDumpMMUFree(const IMG_CHAR *pszPDumpDevName,
 			     pszPDumpDevName, apszMMULevelStringLookup[eMMULevel]);
 	PVR_GOTO_IF_ERROR(eErr, ErrUnlock);
 
-	PDumpWriteScript(hScript, ui32Flags);
+	PDumpWriteScript(psDeviceNode, hScript, ui32Flags);
 
 	/*
 	  construct the symbolic address
@@ -284,7 +288,7 @@ PVRSRV_ERROR PDumpMMUFree(const IMG_CHAR *pszPDumpDevName,
 			     pszMMUPX,
 			     ui64SymbolicAddr);
 	PVR_GOTO_IF_ERROR(eErr, ErrUnlock);
-	PDumpWriteScript(hScript, ui32Flags);
+	PDumpWriteScript(psDeviceNode, hScript, ui32Flags);
 
 ErrUnlock:
 	PDUMP_UNLOCK(ui32Flags);
@@ -337,7 +341,7 @@ PVRSRV_ERROR PDumpPTBaseObjectToMem64(const IMG_CHAR *pszPDumpDevName,
 	PVR_GOTO_IF_ERROR(eErr, Err);
 
 	PDUMP_LOCK(ui32Flags);
-	PDumpWriteScript(hScript, ui32Flags);
+	PDumpWriteScript(PMR_DeviceNode(psPMRDest), hScript, ui32Flags);
 	PDUMP_UNLOCK(ui32Flags);
 
 Err:
@@ -352,7 +356,8 @@ Err:
  * Returns        : PVRSRV_ERROR
  * Description    :
 **************************************************************************/
-PVRSRV_ERROR PDumpMMUDumpPxEntries(MMU_LEVEL eMMULevel,
+PVRSRV_ERROR PDumpMMUDumpPxEntries(PVRSRV_DEVICE_NODE *psDeviceNode,
+				   MMU_LEVEL eMMULevel,
 				   const IMG_CHAR *pszPDumpDevName,
 				   void *pvPxMem,
 				   IMG_DEV_PHYADDR sPxDevPAddr,
@@ -470,7 +475,8 @@ PVRSRV_ERROR PDumpMMUDumpPxEntries(MMU_LEVEL eMMULevel,
 		{
 			/* If the entry was "invalid", simply write the actual
 			   value found to the memory location */
-			eErr = _ContiguousPDumpBytes(aszPxSymbolicAddr, ui32SymAddrOffset, IMG_FALSE,
+			eErr = _ContiguousPDumpBytes(psDeviceNode,aszPxSymbolicAddr,
+			                             ui32SymAddrOffset, IMG_FALSE,
 			                             uiBytesPerEntry, pvRawBytes,
 			                             ui32Flags);
 			if (eErr == PVRSRV_OK)
@@ -483,7 +489,8 @@ PVRSRV_ERROR PDumpMMUDumpPxEntries(MMU_LEVEL eMMULevel,
 			}
 		}
 
-		_ContiguousPDumpBytes(aszPxSymbolicAddr, ui32SymAddrOffset, IMG_TRUE,
+		_ContiguousPDumpBytes(psDeviceNode, aszPxSymbolicAddr,
+		                      ui32SymAddrOffset, IMG_TRUE,
 		                      0, NULL,
 		                      ui32Flags);
 
@@ -564,7 +571,7 @@ PVRSRV_ERROR PDumpMMUDumpPxEntries(MMU_LEVEL eMMULevel,
 		}
 
 		PVR_GOTO_IF_ERROR(eErr, ErrUnlock);
-		PDumpWriteScript(hScript, ui32Flags);
+		PDumpWriteScript(psDeviceNode, hScript, ui32Flags);
 
 		/* Now shift it to the right place, if necessary: */
 		/* Now shift that value down, by the "Align shift"
@@ -589,7 +596,7 @@ PVRSRV_ERROR PDumpMMUDumpPxEntries(MMU_LEVEL eMMULevel,
 			                     /* src B */
 			                     iShiftAmount);
 			PVR_GOTO_IF_ERROR(eErr, ErrUnlock);
-			PDumpWriteScript(hScript, ui32Flags);
+			PDumpWriteScript(psDeviceNode, hScript, ui32Flags);
 		}
 		else if (iShiftAmount < 0)
 		{
@@ -605,7 +612,7 @@ PVRSRV_ERROR PDumpMMUDumpPxEntries(MMU_LEVEL eMMULevel,
 			                     /* src B */
 			                     -iShiftAmount);
 			PVR_GOTO_IF_ERROR(eErr, ErrUnlock);
-			PDumpWriteScript(hScript, ui32Flags);
+			PDumpWriteScript(psDeviceNode, hScript, ui32Flags);
 		}
 
 		if (eMMULevel == MMU_LEVEL_1)
@@ -623,7 +630,7 @@ PVRSRV_ERROR PDumpMMUDumpPxEntries(MMU_LEVEL eMMULevel,
 				                     /* src B */
 				                     ui64Protflags64);
 				PVR_GOTO_IF_ERROR(eErr, ErrUnlock);
-				PDumpWriteScript(hScript, ui32Flags);
+				PDumpWriteScript(psDeviceNode, hScript, ui32Flags);
 				eErr = PDumpSNPrintf(hScript,
 				                     ui32MaxLen,
 				                     "WRW%s :%s:%s%016"IMG_UINT64_FMTSPECX":0x%08X :%s:$1",
@@ -636,7 +643,7 @@ PVRSRV_ERROR PDumpMMUDumpPxEntries(MMU_LEVEL eMMULevel,
 				                     /* src */
 				                     pszPDumpDevName);
 				PVR_GOTO_IF_ERROR(eErr, ErrUnlock);
-				PDumpWriteScript(hScript, ui32Flags);
+				PDumpWriteScript(psDeviceNode, hScript, ui32Flags);
 			}
 		}
 		else
@@ -652,7 +659,7 @@ PVRSRV_ERROR PDumpMMUDumpPxEntries(MMU_LEVEL eMMULevel,
 			                     /* src B */
 			                     ui64Protflags64);
 			PVR_GOTO_IF_ERROR(eErr, ErrUnlock);
-			PDumpWriteScript(hScript, ui32Flags);
+			PDumpWriteScript(psDeviceNode, hScript, ui32Flags);
 
 			/* Finally, we write the register into the actual PxE */
 			eErr = PDumpSNPrintf(hScript,
@@ -667,13 +674,14 @@ PVRSRV_ERROR PDumpMMUDumpPxEntries(MMU_LEVEL eMMULevel,
 			                     /* src */
 			                     pszPDumpDevName);
 			PVR_GOTO_IF_ERROR(eErr, ErrUnlock);
-			PDumpWriteScript(hScript, ui32Flags);
+			PDumpWriteScript(psDeviceNode, hScript, ui32Flags);
 		}
 	}
 
 done:
 	/* flush out any partly accumulated stuff for LDB */
-	_ContiguousPDumpBytes(aszPxSymbolicAddr, ui32SymAddrOffset, IMG_TRUE,
+	_ContiguousPDumpBytes(psDeviceNode, aszPxSymbolicAddr,
+	                      ui32SymAddrOffset, IMG_TRUE,
 	                      0, NULL,
 	                      ui32Flags);
 
@@ -741,7 +749,8 @@ static PVRSRV_ERROR _PdumpFreeMMUContext(IMG_UINT32 ui32MMUContextID)
  * Returns        : PVRSRV_ERROR
  * Description    : Alloc MMU Context
 **************************************************************************/
-PVRSRV_ERROR PDumpMMUAllocMMUContext(const IMG_CHAR *pszPDumpMemSpaceName,
+PVRSRV_ERROR PDumpMMUAllocMMUContext(PVRSRV_DEVICE_NODE *psDeviceNode,
+				const IMG_CHAR *pszPDumpMemSpaceName,
 				     IMG_DEV_PHYADDR sPCDevPAddr,
 				     PDUMP_MMU_TYPE eMMUType,
 				     IMG_UINT32 *pui32MMUContextID,
@@ -797,7 +806,7 @@ PVRSRV_ERROR PDumpMMUAllocMMUContext(const IMG_CHAR *pszPDumpMemSpaceName,
 	}
 
 	PDUMP_LOCK(ui32PDumpFlags);
-	PDumpWriteScript(hScript, ui32PDumpFlags);
+	PDumpWriteScript(psDeviceNode, hScript, ui32PDumpFlags);
 	PDUMP_UNLOCK(ui32PDumpFlags);
 
 	/* return the MMU Context ID */
@@ -815,7 +824,8 @@ ErrOut:
  * Returns        : PVRSRV_ERROR
  * Description    : Free MMU Context
 **************************************************************************/
-PVRSRV_ERROR PDumpMMUFreeMMUContext(const IMG_CHAR *pszPDumpMemSpaceName,
+PVRSRV_ERROR PDumpMMUFreeMMUContext(PVRSRV_DEVICE_NODE *psDeviceNode,
+				    const IMG_CHAR *pszPDumpMemSpaceName,
 				    IMG_UINT32 ui32MMUContextID,
 				    IMG_UINT32 ui32PDumpFlags)
 {
@@ -828,7 +838,7 @@ PVRSRV_ERROR PDumpMMUFreeMMUContext(const IMG_CHAR *pszPDumpMemSpaceName,
 			     "-- Clear MMU Context for memory space %s", pszPDumpMemSpaceName);
 	PVR_GOTO_IF_ERROR(eErr, ErrUnlock);
 
-	PDumpWriteScript(hScript, ui32PDumpFlags);
+	PDumpWriteScript(psDeviceNode,hScript, ui32PDumpFlags);
 
 	eErr = PDumpSNPrintf(hScript,
 	                     ui32MaxLen,
@@ -838,7 +848,7 @@ PVRSRV_ERROR PDumpMMUFreeMMUContext(const IMG_CHAR *pszPDumpMemSpaceName,
 
 	PVR_GOTO_IF_ERROR(eErr, ErrUnlock);
 
-	PDumpWriteScript(hScript, ui32PDumpFlags);
+	PDumpWriteScript(psDeviceNode, hScript, ui32PDumpFlags);
 
 	eErr = _PdumpFreeMMUContext(ui32MMUContextID);
 	PVR_LOG_GOTO_IF_ERROR(eErr, "_PdumpFreeMMUContext", ErrUnlock);
@@ -850,7 +860,8 @@ ErrUnlock:
 }
 
 PVRSRV_ERROR
-PDumpMMUSAB(const IMG_CHAR *pszPDumpMemNamespace,
+PDumpMMUSAB(PVRSRV_DEVICE_NODE *psDeviceNode,
+	    const IMG_CHAR *pszPDumpMemNamespace,
 	    IMG_UINT32 uiPDumpMMUCtx,
 	    IMG_DEV_VIRTADDR sDevAddrStart,
 	    IMG_DEVMEM_SIZE_T uiSize,
@@ -886,7 +897,7 @@ PDumpMMUSAB(const IMG_CHAR *pszPDumpMemNamespace,
 	PVR_GOTO_IF_ERROR(eErr, ErrOut);
 
 	PDUMP_LOCK(ui32PDumpFlags);
-	PDumpWriteScript(hScript, ui32PDumpFlags);
+	PDumpWriteScript(psDeviceNode, hScript, ui32PDumpFlags);
 	PDUMP_UNLOCK(ui32PDumpFlags);
 
 ErrOut:

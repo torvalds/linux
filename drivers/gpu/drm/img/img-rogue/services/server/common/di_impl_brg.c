@@ -193,6 +193,12 @@ static void _WriteWithRetires(void *pvNativeHandle, const IMG_CHAR *pszStr,
 	PVR_LOG_IF_ERROR(eError, "TLStreamWrite");
 }
 
+static void _WriteData(void *pvNativeHandle, const void *pvData,
+                       IMG_UINT32 uiSize)
+{
+	_WriteWithRetires(pvNativeHandle, pvData, uiSize);
+}
+
 __printf(2, 0)
 static void _VPrintf(void *pvNativeHandle, const IMG_CHAR *pszFmt,
                      va_list pArgs)
@@ -216,6 +222,7 @@ static IMG_BOOL _HasOverflowed(void *pvNativeHandle)
 }
 
 static OSDI_IMPL_ENTRY_CB _g_sEntryCallbacks = {
+	.pfnWrite = _WriteData,
 	.pfnVPrintf = _VPrintf,
 	.pfnPuts = _Puts,
 	.pfnHasOverflowed = _HasOverflowed,
@@ -557,7 +564,7 @@ return_:
 }
 
 PVRSRV_ERROR DIWriteEntryKM(DI_CONTEXT *psContext, const IMG_CHAR *pszEntryPath,
-                           IMG_UINT64 ui64ValueSize, const IMG_CHAR *pszValue)
+                           IMG_UINT32 ui32ValueSize, const IMG_CHAR *pszValue)
 {
 	DIIB_ENTRY *psEntry;
 	DI_PFN_WRITE pfnEntryPuts;
@@ -574,7 +581,7 @@ PVRSRV_ERROR DIWriteEntryKM(DI_CONTEXT *psContext, const IMG_CHAR *pszEntryPath,
 	pfnEntryPuts = psEntry->sIterCb.pfnWrite;
 	if (pfnEntryPuts != NULL)
 	{
-		i64Length = pfnEntryPuts(pszValue, ui64ValueSize, (IMG_UINT64*)&i64Length, psEntry->pvPrivData);
+		i64Length = pfnEntryPuts(pszValue, ui32ValueSize, (IMG_UINT64*)&i64Length, psEntry->pvPrivData);
 
 		/* To deal with -EINVAL being returned */
 		PVR_LOG_RETURN_IF_INVALID_PARAM(i64Length >= 0, pszValue);

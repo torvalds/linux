@@ -77,9 +77,7 @@ PVRSRVTQAcquireShaders(PVRSRV_DEVICE_NODE  *psDeviceNode,
 @Function       PVRSRVTQUnLoadShaders
 @Description    Unref PMR memory.
 @Input          psDeviceNode Device node
-@Return         PVRSRV_ERROR Returns PVRSRV_OK on success.
 */ /**************************************************************************/
-PVRSRV_ERROR
-PVRSRVTQUnloadShaders(PVRSRV_DEVICE_NODE *psDeviceNode);
+void PVRSRVTQUnloadShaders(PVRSRV_DEVICE_NODE *psDeviceNode);
 
 #endif /* RGXSHADER_H */

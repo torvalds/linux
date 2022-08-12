@@ -122,10 +122,10 @@ typedef struct PVRSRV_BRIDGE_OUT_DIREADENTRY_TAG
 /* Bridge in structure for DIWriteEntry */
 typedef struct PVRSRV_BRIDGE_IN_DIWRITEENTRY_TAG
 {
-	IMG_UINT64 ui64ValueSize;
 	IMG_HANDLE hContext;
 	const IMG_CHAR *puiEntryPath;
 	const IMG_CHAR *puiValue;
+	IMG_UINT32 ui32ValueSize;
 } __packed PVRSRV_BRIDGE_IN_DIWRITEENTRY;
 
 /* Bridge out structure for DIWriteEntry */

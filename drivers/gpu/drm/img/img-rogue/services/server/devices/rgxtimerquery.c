@@ -72,6 +72,7 @@ PVRSRVRGXBeginTimerQueryKM(CONNECTION_DATA    * psConnection,
 	/* clear the stamps, in case there is no Kick */
 	psDevInfo->pui64StartTimeById[ui32QueryId] = 0UL;
 	psDevInfo->pui64EndTimeById[ui32QueryId]   = 0UL;
+	OSWriteMemoryBarrier(&psDevInfo->pui64EndTimeById[ui32QueryId]);
 
 	/* save of the active query index */
 	psDevInfo->ui32ActiveQueryId = ui32QueryId;

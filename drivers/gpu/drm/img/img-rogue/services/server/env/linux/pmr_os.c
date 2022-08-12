@@ -203,14 +203,10 @@ static const struct vm_operations_struct gsMMapOps =
 static INLINE int _OSMMapPMR(PVRSRV_DEVICE_NODE *psDevNode,
 							struct vm_area_struct *ps_vma,
 							IMG_DEVMEM_OFFSET_T uiOffset,
-#ifdef CACHE_TEST							
-							size_t   uiLogicalSize,
-#endif
 							IMG_CPU_PHYADDR *psCpuPAddr,
 							IMG_UINT32 uiLog2PageSize,
 							IMG_BOOL bUseVMInsertPage,
-							IMG_BOOL bUseMixedMap,
-							PMR_FLAGS_T ulFlags)
+							IMG_BOOL bUseMixedMap)
 {
 	IMG_INT32 iStatus;
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 5, 0))
@@ -220,30 +216,7 @@ static INLINE int _OSMMapPMR(PVRSRV_DEVICE_NODE *psDevNode,
 #endif
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 5, 0))
-#ifdef CACHE_TEST
-	if(PVRSRV_CHECK_CPU_UNCACHED(ulFlags) || PVRSRV_CHECK_CPU_WRITE_COMBINE(ulFlags) )
-	{
-		sPFN = phys_to_pfn_t(psCpuPAddr->uiAddr + SYSPORT_MEM_OFFSET, 0);
-	}
-	else
-	{	
-		if(uiLogicalSize <= 4096 )
-		{
-			sPFN = phys_to_pfn_t(psCpuPAddr->uiAddr + SYSPORT_MEM_OFFSET, 0);
-		}
-		else
-		{
-		    //printk("mmap size > 120K from %pS\n", __builtin_return_address(0));
-			sPFN = phys_to_pfn_t(psCpuPAddr->uiAddr, 0);
-		}
-	}
-	//printk("## the flag:%llx,PA:%llx, PFN:%llx, uiLogicalSize:%ld\n", (unsigned long long)ulFlags, (unsigned long long )psCpuPAddr->uiAddr,(unsigned long long )sPFN.val, uiLogicalSize);
-
-#else
-
 	sPFN = phys_to_pfn_t(psCpuPAddr->uiAddr + SYSPORT_MEM_OFFSET, 0);
-
-#endif
 #else
 	uiPFN = psCpuPAddr->uiAddr >> PAGE_SHIFT;
 	PVR_ASSERT(((IMG_UINT64)uiPFN << PAGE_SHIFT) == psCpuPAddr->uiAddr);
@@ -544,14 +517,10 @@ OSMMapPMRGeneric(PMR *psPMR, PMR_MMAP_DATA pOSMMapData)
 			iStatus = _OSMMapPMR(psDevNode,
 								 ps_vma,
 								 uiOffset,
-#ifdef CACHE_TEST								 
-								 pmr_size(psPMR),
-#endif								 
 								 &psCpuPAddr[uiOffsetIdx],
 								 uiLog2PageSize,
 								 bUseVMInsertPage,
-								 bUseMixedMap,
-								 PMR_Flags(psPMR));
+								 bUseMixedMap);
 			if (iStatus)
 			{
 				/* Failure error code doesn't get propagated */

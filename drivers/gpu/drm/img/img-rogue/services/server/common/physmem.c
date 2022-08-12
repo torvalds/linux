@@ -94,6 +94,7 @@ PVRSRV_ERROR DevPhysMemAlloc(PVRSRV_DEVICE_NODE	*psDevNode,
 	PDUMP_FILEOFFSET_T uiOffsetOut;
 	IMG_UINT32 ui32PageSize;
 	IMG_UINT32 ui32PDumpMemSize = ui32MemSize;
+	PVRSRV_ERROR ePDumpError;
 #endif
 	PG_HANDLE *psMemHandle;
 	IMG_UINT64 uiMask;
@@ -108,11 +109,11 @@ PVRSRV_ERROR DevPhysMemAlloc(PVRSRV_DEVICE_NODE	*psDevNode,
 #endif
 
 	/* Allocate the pages */
-	eError = psDevNode->sDevMMUPxSetup.pfnDevPxAlloc(psDevNode,
-	                                                 TRUNCATE_64BITS_TO_SIZE_T(ui32MemSize),
-	                                                 psMemHandle,
-	                                                 &sDevPhysAddr_int,
-	                                                 uiPid);
+	eError = PhysHeapPagesAlloc(psDevNode->psMMUPhysHeap,
+	                            TRUNCATE_64BITS_TO_SIZE_T(ui32MemSize),
+	                            psMemHandle,
+	                            &sDevPhysAddr_int,
+	                            uiPid);
 	PVR_LOG_RETURN_IF_ERROR(eError, "pfnDevPxAlloc:1");
 
 	/* Check to see if the page allocator returned pages with our desired
@@ -122,14 +123,14 @@ PVRSRV_ERROR DevPhysMemAlloc(PVRSRV_DEVICE_NODE	*psDevNode,
 	if (ui32Log2Align && (sDevPhysAddr_int.uiAddr & uiMask))
 	{
 		/* use over allocation instead */
-		psDevNode->sDevMMUPxSetup.pfnDevPxFree(psDevNode, psMemHandle);
+		PhysHeapPagesFree(psDevNode->psMMUPhysHeap, psMemHandle);
 
 		ui32MemSize += (IMG_UINT32) uiMask;
-		eError = psDevNode->sDevMMUPxSetup.pfnDevPxAlloc(psDevNode,
-		                                                 TRUNCATE_64BITS_TO_SIZE_T(ui32MemSize),
-		                                                 psMemHandle,
-		                                                 &sDevPhysAddr_int,
-		                                                 uiPid);
+		eError = PhysHeapPagesAlloc(psDevNode->psMMUPhysHeap,
+		                            TRUNCATE_64BITS_TO_SIZE_T(ui32MemSize),
+		                            psMemHandle,
+		                            &sDevPhysAddr_int,
+		                            uiPid);
 		PVR_LOG_RETURN_IF_ERROR(eError, "pfnDevPxAlloc:2");
 
 		sDevPhysAddr_int.uiAddr += uiMask;
@@ -139,33 +140,35 @@ PVRSRV_ERROR DevPhysMemAlloc(PVRSRV_DEVICE_NODE	*psDevNode,
 
 #if defined(PDUMP)
 	ui32PageSize = ui32Log2Align? (1 << ui32Log2Align) : OSGetPageSize();
-	eError = PDumpMalloc(pszDevSpace,
-								pszSymbolicAddress,
-								ui32PDumpMemSize,
-								ui32PageSize,
-								IMG_FALSE,
-								0,
-								phHandlePtr,
-								PDUMP_NONE);
+	eError = PDumpMalloc(psDevNode,
+	                     pszDevSpace,
+	                     pszSymbolicAddress,
+	                     ui32PDumpMemSize,
+	                     ui32PageSize,
+	                     IMG_FALSE,
+	                     0,
+	                     phHandlePtr,
+	                     PDUMP_NONE);
 	if (PVRSRV_OK != eError)
 	{
-		PDUMPCOMMENT("Allocating pages failed");
+		PDUMPCOMMENT(psDevNode, "Allocating pages failed");
 		*phHandlePtr = NULL;
 	}
+	ePDumpError = eError;
 #endif
 
 	if (bInitPage)
 	{
 		/*Map the page to the CPU VA space */
-		eError = psDevNode->sDevMMUPxSetup.pfnDevPxMap(psDevNode,
-		                                               psMemHandle,
-		                                               ui32MemSize,
-		                                               &sDevPhysAddr_int,
-		                                               &pvCpuVAddr);
+		eError = PhysHeapPagesMap(psDevNode->psMMUPhysHeap,
+		                          psMemHandle,
+		                          ui32MemSize,
+		                          &sDevPhysAddr_int,
+		                          &pvCpuVAddr);
 		if (PVRSRV_OK != eError)
 		{
 			PVR_LOG_ERROR(eError, "DevPxMap");
-			psDevNode->sDevMMUPxSetup.pfnDevPxFree(psDevNode, psMemHandle);
+			PhysHeapPagesFree(psDevNode->psMMUPhysHeap, psMemHandle);
 			return eError;
 		}
 
@@ -173,73 +176,78 @@ PVRSRV_ERROR DevPhysMemAlloc(PVRSRV_DEVICE_NODE	*psDevNode,
 		OSDeviceMemSet(pvCpuVAddr, u8Value, ui32MemSize);
 
 		/*Map the page to the CPU VA space */
-		eError = psDevNode->sDevMMUPxSetup.pfnDevPxClean(psDevNode,
-		                                                 psMemHandle,
-		                                                 0,
-		                                                 ui32MemSize);
+		eError = PhysHeapPagesClean(psDevNode->psMMUPhysHeap,
+		                            psMemHandle,
+		                            0,
+		                            ui32MemSize);
 		if (PVRSRV_OK != eError)
 		{
 			PVR_LOG_ERROR(eError, "DevPxClean");
-			psDevNode->sDevMMUPxSetup.pfnDevPxUnMap(psDevNode, psMemHandle, pvCpuVAddr);
-			psDevNode->sDevMMUPxSetup.pfnDevPxFree(psDevNode, psMemHandle);
+			PhysHeapPagesUnMap(psDevNode->psMMUPhysHeap, psMemHandle, pvCpuVAddr);
+			PhysHeapPagesFree(psDevNode->psMMUPhysHeap, psMemHandle);
 			return eError;
 		}
 
 #if defined(PDUMP)
-		/* PDumping of the page contents can be done in two ways
-		 * 1. Store the single byte init value to the .prm file
-		 *    and load the same value to the entire dummy page buffer
-		 *    This method requires lot of LDB's inserted into the out2.txt
-		 *
-		 * 2. Store the entire contents of the buffer to the .prm file
-		 *    and load them back.
-		 *    This only needs a single LDB instruction in the .prm file
-		 *    and chosen this method
-		 *    size of .prm file might go up but that's not huge at least
-		 *    for this allocation
-		 */
-		/* Write the buffer contents to the prm file */
-		eError = PDumpWriteParameterBlob(pvCpuVAddr,
-		                          ui32PDumpMemSize,
-		                          PDUMP_FLAGS_CONTINUOUS,
-		                          szFilenameOut,
-		                          sizeof(szFilenameOut),
-		                          &uiOffsetOut);
-		if (PVRSRV_OK == eError)
+		if (ePDumpError != PVRSRV_ERROR_PDUMP_CAPTURE_BOUND_TO_ANOTHER_DEVICE)
 		{
-			/* Load the buffer back to the allocated memory when playing the pdump */
-			eError = PDumpPMRLDB(pszDevSpace,
-			                     pszSymbolicAddress,
-			                     0,
-			                     ui32PDumpMemSize,
-			                     szFilenameOut,
-			                     uiOffsetOut,
-			                     PDUMP_FLAGS_CONTINUOUS);
-			if (PVRSRV_OK != eError)
-			{
-				PDUMP_ERROR(eError, "Failed to write LDB statement to script file");
-				PVR_LOG_ERROR(eError, "PDumpPMRLDB");
-			}
-		}
-		else if (eError != PVRSRV_ERROR_PDUMP_NOT_ALLOWED)
-		{
-			PDUMP_ERROR(eError, "Failed to write device allocation to parameter file");
-			PVR_LOG_ERROR(eError, "PDumpWriteParameterBlob");
-		}
-		else
-		{
-			/* Else write to parameter file prevented under the flags and
-			 * current state of the driver so skip write to script and error IF.
-			 * This is expected e.g., if not in the capture range.
+			/* PDumping of the page contents can be done in two ways
+			 * 1. Store the single byte init value to the .prm file
+			 *    and load the same value to the entire dummy page buffer
+			 *    This method requires lot of LDB's inserted into the out2.txt
+			 *
+			 * 2. Store the entire contents of the buffer to the .prm file
+			 *    and load them back.
+			 *    This only needs a single LDB instruction in the .prm file
+			 *    and chosen this method
+			 *    size of .prm file might go up but that's not huge at least
+			 *    for this allocation
 			 */
-			eError = PVRSRV_OK;
+			/* Write the buffer contents to the prm file */
+			eError = PDumpWriteParameterBlob(psDevNode,
+											 pvCpuVAddr,
+											 ui32PDumpMemSize,
+											 PDUMP_FLAGS_CONTINUOUS,
+											 szFilenameOut,
+											 sizeof(szFilenameOut),
+											 &uiOffsetOut);
+			if (PVRSRV_OK == eError)
+			{
+				/* Load the buffer back to the allocated memory when playing the pdump */
+				eError = PDumpPMRLDB(psDevNode,
+									 pszDevSpace,
+									 pszSymbolicAddress,
+									 0,
+									 ui32PDumpMemSize,
+									 szFilenameOut,
+									 uiOffsetOut,
+									 PDUMP_FLAGS_CONTINUOUS);
+				if (PVRSRV_OK != eError)
+				{
+					PDUMP_ERROR(psDevNode, eError, "Failed to write LDB statement to script file");
+					PVR_LOG_ERROR(eError, "PDumpPMRLDB");
+				}
+			}
+			else if (eError != PVRSRV_ERROR_PDUMP_NOT_ALLOWED)
+			{
+				PDUMP_ERROR(psDevNode, eError, "Failed to write device allocation to parameter file");
+				PVR_LOG_ERROR(eError, "PDumpWriteParameterBlob");
+			}
+			else
+			{
+				/* Else write to parameter file prevented under the flags and
+				 * current state of the driver so skip write to script and error IF.
+				 * This is expected e.g., if not in the capture range.
+				 */
+				eError = PVRSRV_OK;
+			}
 		}
 #endif
 
 		/* Unmap the page */
-		psDevNode->sDevMMUPxSetup.pfnDevPxUnMap(psDevNode,
-		                                        psMemHandle,
-		                                        pvCpuVAddr);
+		PhysHeapPagesUnMap(psDevNode->psMMUPhysHeap,
+		                   psMemHandle,
+		                   pvCpuVAddr);
 	}
 
 	return PVRSRV_OK;
@@ -254,11 +262,11 @@ void DevPhysMemFree(PVRSRV_DEVICE_NODE *psDevNode,
 	PG_HANDLE *psMemHandle;
 
 	psMemHandle = hMemHandle;
-	psDevNode->sDevMMUPxSetup.pfnDevPxFree(psDevNode, psMemHandle);
+	PhysHeapPagesFree(psDevNode->psMMUPhysHeap, psMemHandle);
 #if defined(PDUMP)
 	if (NULL != hPDUMPMemHandle)
 	{
-		PDumpFree(hPDUMPMemHandle);
+		PDumpFree(psDevNode, hPDUMPMemHandle);
 	}
 #endif
 
@@ -462,10 +470,12 @@ PhysmemNewRamBackedPMR_direct(CONNECTION_DATA *psConnection,
                        const IMG_CHAR *pszAnnotation,
                        IMG_PID uiPid,
                        PMR **ppsPMRPtr,
-                       IMG_UINT32 ui32PDumpFlags)
+                       IMG_UINT32 ui32PDumpFlags,
+                       PVRSRV_MEMALLOCFLAGS_T *puiPMRFlags)
 {
 	PVRSRV_ERROR eError;
 	PVRSRV_PHYS_HEAP ePhysHeapIdx;
+	PVRSRV_MEMALLOCFLAGS_T uiPMRFlags = uiFlags;
 	PFN_SYS_DEV_CHECK_MEM_ALLOC_SIZE pfnCheckMemAllocSize =
 		psDevNode->psDevConfig->pfnCheckMemAllocSize;
 
@@ -482,16 +492,37 @@ PhysmemNewRamBackedPMR_direct(CONNECTION_DATA *psConnection,
 	eError = _DevPhysHeapFromFlags(uiFlags, &ePhysHeapIdx);
 	PVR_RETURN_IF_ERROR(eError);
 
+	if (ePhysHeapIdx == PVRSRV_PHYS_HEAP_DEFAULT)
+	{
+		ePhysHeapIdx = psDevNode->psDevConfig->eDefaultHeap;
+		PVRSRV_CHANGE_PHYS_HEAP_HINT(ePhysHeapIdx, uiPMRFlags);
+	}
+
 	if (ePhysHeapIdx == PVRSRV_PHYS_HEAP_GPU_LOCAL)
 	{
 		if ((uiFlags & PVRSRV_MEMALLOCFLAGS_CPU_MAPPABLE_MASK) == 0)
 		{
 			ePhysHeapIdx = PVRSRV_PHYS_HEAP_GPU_PRIVATE;
+			PVRSRV_SET_PHYS_HEAP_HINT(GPU_PRIVATE, uiPMRFlags);
+			PVR_DPF((PVR_DBG_VERBOSE, "%s: Consider explicit use of GPU_PRIVATE for PMR %s."
+			        " Implicit conversion to GPU PRIVATE performed",
+			        __func__, pszAnnotation));
 		}
 		else if (PVRSRV_CHECK_GPU_CACHE_COHERENT(uiFlags) &&
 				 PVRSRVSystemSnoopingOfCPUCache(psDevNode->psDevConfig))
 		{
 			ePhysHeapIdx = PVRSRV_PHYS_HEAP_GPU_COHERENT;
+			PVRSRV_SET_PHYS_HEAP_HINT(GPU_COHERENT, uiPMRFlags);
+		}
+	}
+	else if (ePhysHeapIdx == PVRSRV_PHYS_HEAP_GPU_PRIVATE)
+	{
+		if (uiFlags & PVRSRV_MEMALLOCFLAGS_CPU_MAPPABLE_MASK)
+		{
+			PVR_DPF((PVR_DBG_ERROR, "%s: Invalid flags for PMR %s!"
+			        " Client requested GPU_PRIVATE physical heap with CPU access flags.",
+			        __func__, pszAnnotation));
+			return PVRSRV_ERROR_INVALID_HEAP;
 		}
 	}
 
@@ -555,6 +586,11 @@ PhysmemNewRamBackedPMR_direct(CONNECTION_DATA *psConnection,
 							   ppsPMRPtr,
 							   ui32PDumpFlags);
 
+	if (puiPMRFlags != NULL)
+	{
+		*puiPMRFlags = uiPMRFlags;
+	}
+
 #if defined(PVRSRV_ENABLE_PROCESS_STATS)
 	if (eError != PVRSRV_OK)
 	{
@@ -580,12 +616,18 @@ PhysmemNewRamBackedPMR(CONNECTION_DATA *psConnection,
                        const IMG_CHAR *pszAnnotation,
                        IMG_PID uiPid,
                        PMR **ppsPMRPtr,
-                       IMG_UINT32 ui32PDumpFlags)
+                       IMG_UINT32 ui32PDumpFlags,
+                       PVRSRV_MEMALLOCFLAGS_T *puiPMRFlags)
 {
 	PVRSRV_PHYS_HEAP ePhysHeap = PVRSRV_GET_PHYS_HEAP_HINT(uiFlags);
 
 	PVR_LOG_RETURN_IF_INVALID_PARAM(uiAnnotationLength != 0, "uiAnnotationLength");
 	PVR_LOG_RETURN_IF_INVALID_PARAM(pszAnnotation != NULL, "pszAnnotation");
+
+	if (ePhysHeap == PVRSRV_PHYS_HEAP_DEFAULT)
+	{
+		ePhysHeap = psDevNode->psDevConfig->eDefaultHeap;
+	}
 
 	if (!PhysHeapUserModeAlloc(ePhysHeap))
 	{
@@ -606,7 +648,8 @@ PhysmemNewRamBackedPMR(CONNECTION_DATA *psConnection,
 										 pszAnnotation,
 										 uiPid,
 										 ppsPMRPtr,
-										 ui32PDumpFlags);
+										 ui32PDumpFlags,
+										 puiPMRFlags);
 }
 
 PVRSRV_ERROR
@@ -623,7 +666,8 @@ PhysmemNewRamBackedLockedPMR(CONNECTION_DATA *psConnection,
 							const IMG_CHAR *pszAnnotation,
 							IMG_PID uiPid,
 							PMR **ppsPMRPtr,
-							IMG_UINT32 ui32PDumpFlags)
+							IMG_UINT32 ui32PDumpFlags,
+							PVRSRV_MEMALLOCFLAGS_T *puiPMRFlags)
 {
 
 	PVRSRV_ERROR eError;
@@ -640,7 +684,8 @@ PhysmemNewRamBackedLockedPMR(CONNECTION_DATA *psConnection,
 									pszAnnotation,
 									uiPid,
 									ppsPMRPtr,
-									ui32PDumpFlags);
+									ui32PDumpFlags,
+									puiPMRFlags);
 
 	if (eError == PVRSRV_OK)
 	{
@@ -651,53 +696,117 @@ PhysmemNewRamBackedLockedPMR(CONNECTION_DATA *psConnection,
 }
 
 PVRSRV_ERROR
-PVRSRVGetMaxDevMemSizeKM(CONNECTION_DATA *psConnection,
-			  PVRSRV_DEVICE_NODE *psDevNode,
-			  IMG_DEVMEM_SIZE_T *puiLMASize,
-			  IMG_DEVMEM_SIZE_T *puiUMASize )
+PVRSRVGetMaxPhysHeapCountKM(CONNECTION_DATA *psConnection,
+              			  PVRSRV_DEVICE_NODE *psDevNode,
+              			  IMG_UINT32 *pui32PhysHeapCount)
 {
-	IMG_DEVMEM_SIZE_T uiLMASize = 0;
-	IMG_DEVMEM_SIZE_T uiUMASize = 0;
+	PVR_UNREFERENCED_PARAMETER(psConnection);
+	PVRSRVGetDevicePhysHeapCount(psDevNode, pui32PhysHeapCount);
+	return PVRSRV_OK;
+}
+
+PVRSRV_ERROR
+PVRSRVGetDefaultPhysicalHeapKM(CONNECTION_DATA *psConnection,
+			  PVRSRV_DEVICE_NODE *psDevNode,
+			  PVRSRV_PHYS_HEAP *peHeap)
+{
+	PVR_UNREFERENCED_PARAMETER(psConnection);
+	*peHeap = psDevNode->psDevConfig->eDefaultHeap;
+	return PVRSRV_OK;
+}
+
+PVRSRV_ERROR
+PVRSRVGetHeapPhysMemUsageKM(CONNECTION_DATA *psConnection,
+			  PVRSRV_DEVICE_NODE *psDevNode,
+			  IMG_UINT32 ui32PhysHeapCount,
+			  PHYS_HEAP_MEM_STATS *apPhysHeapMemStats)
+{
 	PHYS_HEAP *psPhysHeap;
-	IMG_UINT uiHeapIndex;
-	IMG_UINT64 uiRegionSize;
+	IMG_UINT uiHeapIndex, i = 0;
 
 	PVR_UNREFERENCED_PARAMETER(psConnection);
 
-	/*
-	 * psDevNode->apsPhysHeap may contain duplicates so loop over all registered
-	 * heaps instead.
-	 */
-	for (uiHeapIndex = 0; uiHeapIndex < psDevNode->ui32RegisteredPhysHeaps; uiHeapIndex++)
+	if (ui32PhysHeapCount != psDevNode->ui32UserAllocHeapCount)
 	{
-		psPhysHeap = psDevNode->papsRegisteredPhysHeaps[uiHeapIndex];
-
-		if (psPhysHeap != psDevNode->apsPhysHeap[PVRSRV_PHYS_HEAP_GPU_LOCAL] &&
-			psPhysHeap != psDevNode->apsPhysHeap[PVRSRV_PHYS_HEAP_CPU_LOCAL])
-		{
-			continue;
-		}
-
-		if (PhysHeapGetType(psPhysHeap) == PHYS_HEAP_TYPE_LMA)
-		{
-
-			uiRegionSize = 0;
-			PhysHeapGetSize(psPhysHeap, &uiRegionSize);
-			uiLMASize += uiRegionSize;
-		}
-		else if (PhysHeapGetType(psPhysHeap) == PHYS_HEAP_TYPE_UMA)
-		{
-			if (uiUMASize == 0)
-			{
-				uiUMASize = OSGetRAMSize();
-			}
-		}
+		return PVRSRV_ERROR_INVALID_PARAMS;
 	}
 
-	*puiLMASize = uiLMASize;
-	*puiUMASize = uiUMASize;
+	for (uiHeapIndex = PVRSRV_PHYS_HEAP_DEFAULT+1; (uiHeapIndex < PVRSRV_PHYS_HEAP_LAST); uiHeapIndex++)
+	{
+		psPhysHeap = psDevNode->apsPhysHeap[uiHeapIndex];
 
+		if (psPhysHeap && PhysHeapUserModeAlloc(uiHeapIndex))
+		{
+			PVR_ASSERT(i < ui32PhysHeapCount);
+
+			PhysheapGetPhysMemUsage(psPhysHeap, &apPhysHeapMemStats[i].ui64TotalSize,
+					&apPhysHeapMemStats[i].ui64FreeSize);
+
+			i++;
+		}
+	}
 	return PVRSRV_OK;
+}
+
+PVRSRV_ERROR
+PVRSRVGetHeapPhysMemUsagePkdKM(CONNECTION_DATA *psConnection,
+			  PVRSRV_DEVICE_NODE *psDevNode,
+			  IMG_UINT32 ui32PhysHeapCount,
+			  PHYS_HEAP_MEM_STATS_PKD *apPhysHeapMemStats)
+{
+	PHYS_HEAP *psPhysHeap;
+	IMG_UINT uiHeapIndex, i = 0;
+
+	PVR_UNREFERENCED_PARAMETER(psConnection);
+
+	if (ui32PhysHeapCount != psDevNode->ui32UserAllocHeapCount)
+	{
+		return PVRSRV_ERROR_INVALID_PARAMS;
+	}
+
+	for (uiHeapIndex = PVRSRV_PHYS_HEAP_DEFAULT+1; (uiHeapIndex < PVRSRV_PHYS_HEAP_LAST); uiHeapIndex++)
+	{
+		psPhysHeap = psDevNode->apsPhysHeap[uiHeapIndex];
+
+		if (psPhysHeap && PhysHeapUserModeAlloc(uiHeapIndex))
+		{
+			PVR_ASSERT(i < ui32PhysHeapCount);
+
+			PhysheapGetPhysMemUsage(psPhysHeap, &apPhysHeapMemStats[i].ui64TotalSize,
+					&apPhysHeapMemStats[i].ui64FreeSize);
+
+			i++;
+		}
+	}
+	return PVRSRV_OK;
+}
+
+PVRSRV_ERROR
+PVRSRVPhysHeapGetMemInfoKM(CONNECTION_DATA *psConnection,
+			  PVRSRV_DEVICE_NODE *psDevNode,
+			  IMG_UINT32 ui32PhysHeapCount,
+			  PVRSRV_PHYS_HEAP *paePhysHeapID,
+			  PHYS_HEAP_MEM_STATS *paPhysHeapMemStats)
+{
+	PVR_UNREFERENCED_PARAMETER(psConnection);
+	return PhysHeapGetMemInfo(psDevNode,
+				  ui32PhysHeapCount,
+				  paePhysHeapID,
+				  paPhysHeapMemStats);
+}
+
+PVRSRV_ERROR
+PVRSRVPhysHeapGetMemInfoPkdKM(CONNECTION_DATA *psConnection,
+			  PVRSRV_DEVICE_NODE *psDevNode,
+			  IMG_UINT32 ui32PhysHeapCount,
+			  PVRSRV_PHYS_HEAP *paePhysHeapID,
+			  PHYS_HEAP_MEM_STATS_PKD *paPhysHeapMemStats)
+{
+	PVR_UNREFERENCED_PARAMETER(psConnection);
+	return PhysHeapGetMemInfoPkd(psDevNode,
+				  ui32PhysHeapCount,
+				  paePhysHeapID,
+				  paPhysHeapMemStats);
 }
 
 /* 'Wrapper' function to call PMRImportPMR(), which first checks the PMR is

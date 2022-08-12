@@ -73,10 +73,14 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define APPHINT_LIST_MODPARAM \
 /* name,                            type,           class,       default,                                         helper,         */ \
 X(EnableCDMKillingRandMode,         BOOL,           VALIDATION,  PVRSRV_APPHINT_ENABLECDMKILLINGRANDMODE,         NO_PARAM_TABLE   ) \
-X(VDMContextSwitchMode,             UINT32,         VALIDATION,  PVRSRV_APPHINT_VDMCONTEXTSWITCHMODE,             NO_PARAM_TABLE   ) \
 \
 X(HWPerfDisableCustomCounterFilter, BOOL,           VALIDATION,  PVRSRV_APPHINT_HWPERFDISABLECUSTOMCOUNTERFILTER, NO_PARAM_TABLE   ) \
+X(ValidateSOCUSCTimer,              BOOL,           VALIDATION,  PVRSRV_APPHINT_VALIDATESOCUSCTIMERS,             NO_PARAM_TABLE   ) \
 X(ECCRAMErrInj,                     UINT32,         VALIDATION,  0,                                               NO_PARAM_TABLE   ) \
+\
+X(TFBCCompressionControlGroup,      UINT32,         VALIDATION,  PVRSRV_APPHINT_TFBCCOMPRESSIONCONTROLGROUP,      NO_PARAM_TABLE   ) \
+X(TFBCCompressionControlScheme,     UINT32,         VALIDATION,  PVRSRV_APPHINT_TFBCCOMPRESSIONCONTROLSCHEME,     NO_PARAM_TABLE   ) \
+X(TFBCCompressionControlYUVFormat,  BOOL,           VALIDATION,  0,                                               NO_PARAM_TABLE   ) \
 
 /*
 *******************************************************************************

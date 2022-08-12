@@ -67,6 +67,7 @@ PVRSRV_ERROR PVRSRVRGXTDMCreateTransferContextKM(
 	IMG_HANDLE                  hMemCtxPrivData,
 	IMG_UINT32					ui32PackedCCBSizeU88,
 	IMG_UINT32                  ui32ContextFlags,
+	IMG_UINT64					ui64RobustnessAddress,
 	RGX_SERVER_TQ_TDM_CONTEXT **ppsTransferContext);
 
 
@@ -86,7 +87,6 @@ PVRSRV_ERROR PVRSRVRGXTDMDestroyTransferContextKM(RGX_SERVER_TQ_TDM_CONTEXT *psT
 PVRSRV_ERROR PVRSRVRGXTDMSubmitTransferKM(
 	RGX_SERVER_TQ_TDM_CONTEXT * psTransferContext,
 	IMG_UINT32                  ui32PDumpFlags,
-	IMG_UINT32                  ui32ClientCacheOpSeqNum,
 	IMG_UINT32                  ui32ClientUpdateCount,
 	SYNC_PRIMITIVE_BLOCK     ** pauiClientUpdateUFODevVarBlock,
 	IMG_UINT32                * paui32ClientUpdateSyncOffset,

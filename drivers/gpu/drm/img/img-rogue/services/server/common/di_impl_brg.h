@@ -85,7 +85,7 @@ PVRSRV_ERROR DIReadEntryKM(DI_CONTEXT *psContext, const IMG_CHAR *pszEntryPath,
                            IMG_UINT64 ui64Offset, IMG_UINT64 ui64Size);
 
 PVRSRV_ERROR DIWriteEntryKM(DI_CONTEXT *psContext, const IMG_CHAR *pszEntryPath,
-                            IMG_UINT64 ui64ValueSize, const IMG_CHAR *pszValue);
+                            IMG_UINT32 ui32ValueSize, const IMG_CHAR *pszValue);
 
 PVRSRV_ERROR DIListAllEntriesKM(DI_CONTEXT *psContext);
 

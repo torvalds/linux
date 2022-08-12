@@ -60,29 +60,29 @@ typedef atomic_t ATOMIC_T;
 
 #else /* defined(__linux__) && defined(__KERNEL__) */
 #include "img_types.h" /* needed for IMG_INT */
-typedef struct _OS_LOCK_ *POS_LOCK;
+typedef struct OS_LOCK_TAG *POS_LOCK;
 
 #if defined(__linux__) || defined(__QNXNTO__) || defined(INTEGRITY_OS)
-typedef struct _OSWR_LOCK_ *POSWR_LOCK;
+typedef struct OSWR_LOCK_TAG *POSWR_LOCK;
 #else /* defined(__linux__) || defined(__QNXNTO__) || defined(INTEGRITY_OS) */
-typedef struct _OSWR_LOCK_ {
+typedef struct OSWR_LOCK_TAG {
 	IMG_UINT32 ui32Dummy;
 } *POSWR_LOCK;
 #endif /* defined(__linux__) || defined(__QNXNTO__) || defined(INTEGRITY_OS) */
 
 #if defined(__linux__)
-	typedef struct _OS_ATOMIC {IMG_INT32 counter;} ATOMIC_T;
+	typedef struct OS_ATOMIC_TAG {IMG_INT32 counter;} ATOMIC_T;
 #elif defined(__QNXNTO__)
-	typedef struct _OS_ATOMIC {IMG_INT32 counter;} ATOMIC_T;
+	typedef struct OS_ATOMIC_TAG {IMG_INT32 counter;} ATOMIC_T;
 #elif defined(_WIN32)
 	/*
 	 * Dummy definition. WDDM doesn't use Services, but some headers
 	 * still have to be shared. This is one such case.
 	 */
-	typedef struct _OS_ATOMIC {IMG_INT32 counter;} ATOMIC_T;
+	typedef struct OS_ATOMIC_TAG {IMG_INT32 counter;} ATOMIC_T;
 #elif defined(INTEGRITY_OS)
 	/* Only lower 32bits are used in OS ATOMIC APIs to have consistent behaviour across all OS */
-	typedef struct _OS_ATOMIC {IMG_INT64 counter;} ATOMIC_T;
+	typedef struct OS_ATOMIC_TAG {IMG_INT64 counter;} ATOMIC_T;
 #else
 	#error "Please type-define an atomic lock for this environment"
 #endif

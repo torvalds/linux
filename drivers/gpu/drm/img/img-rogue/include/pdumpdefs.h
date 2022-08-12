@@ -186,6 +186,8 @@ typedef enum _PDUMP_FBC_SWIZZLE_
 #define PVRSRV_PDUMP_ADDRMODE_FBCCOMPAT_V3_1_SURFACE	(6U << PVRSRV_PDUMP_ADDRMODE_FBCCOMPAT_SHIFT)
 #define PVRSRV_PDUMP_ADDRMODE_FBCCOMPAT_V3_1_RESOURCE	(7U << PVRSRV_PDUMP_ADDRMODE_FBCCOMPAT_SHIFT)
 #define PVRSRV_PDUMP_ADDRMODE_FBCCOMPAT_V4				(8U << PVRSRV_PDUMP_ADDRMODE_FBCCOMPAT_SHIFT)
+#define PVRSRV_PDUMP_ADDRMODE_FBCCOMPAT_V4PLUS			(9U << PVRSRV_PDUMP_ADDRMODE_FBCCOMPAT_SHIFT)
+#define PVRSRV_PDUMP_ADDRMODE_FBCCOMPAT_TFBCDC			(10U << PVRSRV_PDUMP_ADDRMODE_FBCCOMPAT_SHIFT)
 
 /*! PDump Poll Operator */
 typedef enum _PDUMP_POLL_OPERATOR
@@ -224,9 +226,10 @@ typedef enum
 	PDump states
 	These values are used by the bridge call PVRSRVPDumpGetState
 */
-#define PDUMP_STATE_CAPTURE_FRAME	(1)		/*!< Flag represents the PDump being in capture range or not*/
-#define PDUMP_STATE_CONNECTED		(2)		/*!< Flag represents the PDump Client App being connected on not */
-#define PDUMP_STATE_SUSPENDED		(4)		/*!< Flag represents the PDump being suspended or not */
+#define PDUMP_STATE_CAPTURE_FRAME		(1U)		/*!< Flag represents the PDump being in capture range or not*/
+#define PDUMP_STATE_CONNECTED			(2U)		/*!< Flag represents the PDump Client App being connected on not */
+#define PDUMP_STATE_SUSPENDED			(4U)		/*!< Flag represents the PDump being suspended or not */
+#define PDUMP_STATE_CAPTURE_IN_INTERVAL	(8U)		/*!< Flag represents the PDump being in a capture range interval */
 
 /*!
 	PDump Capture modes

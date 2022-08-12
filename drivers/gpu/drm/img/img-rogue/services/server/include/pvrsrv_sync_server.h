@@ -79,7 +79,7 @@ static inline void SyncClearTimelineObj(SYNC_TIMELINE_OBJ *psSTO)
 
 static inline IMG_BOOL SyncIsTimelineObjValid(const SYNC_TIMELINE_OBJ *psSTO)
 {
-	return psSTO->pvTlObj != NULL;
+	return (IMG_BOOL)(psSTO->pvTlObj != NULL);
 }
 
 static inline void SyncClearFenceObj(SYNC_FENCE_OBJ *psSFO)
@@ -90,7 +90,7 @@ static inline void SyncClearFenceObj(SYNC_FENCE_OBJ *psSFO)
 
 static inline IMG_BOOL SyncIsFenceObjValid(const SYNC_FENCE_OBJ *psSFO)
 {
-	return psSFO->pvFenceObj != NULL;
+	return (IMG_BOOL)(psSFO->pvFenceObj != NULL);
 }
 
 
@@ -211,7 +211,8 @@ SyncSWTimelineFenceCreateKM(PVRSRV_DEVICE_NODE *psDevNode,
 {
 	IMG_UINT64 ui64SyncPtIdx;
 	PVRSRV_ERROR eError;
-	eError = SyncSWTimelineFenceCreateKM_(hSWTimeline,
+	eError = SyncSWTimelineFenceCreateKM_(psDevNode,
+	                                      hSWTimeline,
 	                                      pszFenceName,
 	                                      phOutFence,
 	                                      &ui64SyncPtIdx);

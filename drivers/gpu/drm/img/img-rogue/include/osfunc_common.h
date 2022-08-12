@@ -154,7 +154,14 @@ size_t StringLCopy(IMG_CHAR *pszDest, const IMG_CHAR *pszSrc, size_t uDataSize);
 @Input          c     the number of bytes to be set to the given value
 @Return         Pointer to the destination memory.
  */ /**************************************************************************/
-#define OSDeviceMemSet(a,b,c) memset((a), (b), (c))
+#define OSDeviceMemSet(a,b,c) \
+	do { \
+		if ((c) != 0) \
+		{ \
+			(void) memset((a), (b), (c)); \
+			(void) *(volatile IMG_UINT32*)((void*)(a)); \
+		} \
+	} while (false)
 
 /**************************************************************************/ /*!
 @Function       OSDeviceMemCopy
@@ -167,7 +174,14 @@ size_t StringLCopy(IMG_CHAR *pszDest, const IMG_CHAR *pszSrc, size_t uDataSize);
 @Input          c     the number of bytes to be copied
 @Return         Pointer to the destination memory.
  */ /**************************************************************************/
-#define OSDeviceMemCopy(a,b,c) memcpy((a), (b), (c))
+#define OSDeviceMemCopy(a,b,c) \
+	do { \
+		if ((c) != 0) \
+		{ \
+			memcpy((a), (b), (c)); \
+			(void) *(volatile IMG_UINT32*)((void*)(a)); \
+		} \
+	} while (false)
 
 #endif /* (defined(__arm64__) || defined(__aarch64__) || defined(PVRSRV_DEVMEM_TEST_SAFE_MEMSETCPY)) */
 
@@ -181,7 +195,7 @@ size_t StringLCopy(IMG_CHAR *pszDest, const IMG_CHAR *pszSrc, size_t uDataSize);
 @Input          c     the number of bytes to be set to the given value
 @Return         Pointer to the destination memory.
  */ /**************************************************************************/
-#define OSCachedMemSet(a,b,c)  memset((a), (b), (c))
+#define OSCachedMemSet(a,b,c)  (void) memset((a), (b), (c))
 
 /**************************************************************************/ /*!
 @Function       OSCachedMemCopy
@@ -210,12 +224,22 @@ size_t StringLCopy(IMG_CHAR *pszDest, const IMG_CHAR *pszSrc, size_t uDataSize);
 @Input          c     the number of bytes to be set to the given value
 @Return         Pointer to the destination memory.
  */ /**************************************************************************/
+#if !defined(SERVICES_SC)
 #define OSCachedMemSetWMB(a,b,c) \
 	do { \
-		memset((a), (b), (c)); \
+		if ((c) != 0) \
+		{ \
+			(void) memset((a), (b), (c)); \
+			OSWriteMemoryBarrier(a); \
+		} \
+	} while (false)
+#else
+#define OSCachedMemSetWMB(a,b,c) \
+	do { \
+		(void) memset((a), (b), (c)); \
 		OSWriteMemoryBarrier(); \
-	} while (0)
-
+	} while (false)
+#endif /* !defined(SERVICES_SC) */
 /**************************************************************************/ /*!
 @Function       OSCachedMemCopy
 @Description    Copy values from one area of memory, to another, when both
@@ -228,12 +252,22 @@ size_t StringLCopy(IMG_CHAR *pszDest, const IMG_CHAR *pszSrc, size_t uDataSize);
 @Input          c     the number of bytes to be copied
 @Return         Pointer to the destination memory.
  */ /**************************************************************************/
+#if !defined(SERVICES_SC)
 #define OSCachedMemCopyWMB(a,b,c) \
 	do { \
-		memcpy((a), (b), (c)); \
+		if ((c) != 0) \
+		{ \
+			(void) memcpy((a), (b), (c)); \
+			OSWriteMemoryBarrier(a); \
+		} \
+	} while (false)
+#else
+#define OSCachedMemCopyWMB(a,b,c) \
+	do { \
+		(void) memcpy((a), (b), (c)); \
 		OSWriteMemoryBarrier(); \
-	} while (0)
-
+	} while (false)
+#endif /* !defined(SERVICES_SC) */
 #endif /* defined(__KERNEL__) */
 
 /**************************************************************************/ /*!

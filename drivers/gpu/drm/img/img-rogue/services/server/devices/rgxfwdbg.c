@@ -95,7 +95,7 @@ PVRSRVRGXFWDebugSetFWLogKM(
 	IMG_BOOL bWaitForFwUpdate = IMG_FALSE;
 
 	PVR_UNREFERENCED_PARAMETER(psConnection);
-	PVRSRV_VZ_RET_IF_MODE(GUEST, PVRSRV_ERROR_NOT_IMPLEMENTED);
+	PVRSRV_VZ_RET_IF_MODE(GUEST, PVRSRV_ERROR_NOT_SUPPORTED);
 
 	ui32OldRGXFWLogTpe = psDevInfo->psRGXFWIfTraceBufCtl->ui32LogType;
 
@@ -111,7 +111,7 @@ PVRSRVRGXFWDebugSetFWLogKM(
 	 * before requesting the FW to read it
 	 */
 	psDevInfo->psRGXFWIfTraceBufCtl->ui32LogType = ui32RGXFWLogType;
-	OSMemoryBarrier();
+	OSMemoryBarrier(&psDevInfo->psRGXFWIfTraceBufCtl->ui32LogType);
 
 	/* Allocate firmware trace buffer resource(s) if not already done */
 	if (RGXTraceBufferIsInitRequired(psDevInfo))
@@ -139,7 +139,7 @@ PVRSRVRGXFWDebugSetFWLogKM(
 		         "%s: Failed to allocate resource on-demand. Reverting to old value",
 		         __func__));
 		psDevInfo->psRGXFWIfTraceBufCtl->ui32LogType = ui32OldRGXFWLogTpe;
-		OSMemoryBarrier();
+		OSMemoryBarrier(&psDevInfo->psRGXFWIfTraceBufCtl->ui32LogType);
 
 		OSLockRelease(psDevInfo->hRGXFWIfBufInitLock);
 
@@ -148,7 +148,7 @@ PVRSRVRGXFWDebugSetFWLogKM(
 
 	OSLockRelease(psDevInfo->hRGXFWIfBufInitLock);
 
-	eError = PVRSRVPowerLock((const PPVRSRV_DEVICE_NODE) psDeviceNode);
+	eError = PVRSRVPowerLock((PPVRSRV_DEVICE_NODE) psDeviceNode);
 	if (eError != PVRSRV_OK)
 	{
 		PVR_DPF((PVR_DBG_ERROR,
@@ -158,7 +158,7 @@ PVRSRVRGXFWDebugSetFWLogKM(
 		return eError;
 	}
 
-	eError = PVRSRVGetDevicePowerState((const PPVRSRV_DEVICE_NODE) psDeviceNode, &ePowerState);
+	eError = PVRSRVGetDevicePowerState((PPVRSRV_DEVICE_NODE) psDeviceNode, &ePowerState);
 
 	if ((eError == PVRSRV_OK) && (ePowerState != PVRSRV_DEV_POWER_STATE_OFF))
 	{
@@ -174,7 +174,7 @@ PVRSRVRGXFWDebugSetFWLogKM(
 	}
 
 unlock:
-	PVRSRVPowerUnlock((const PPVRSRV_DEVICE_NODE) psDeviceNode);
+	PVRSRVPowerUnlock( (PPVRSRV_DEVICE_NODE) psDeviceNode);
 	if (bWaitForFwUpdate)
 	{
 		/* Wait for the LogType value to be updated in FW */

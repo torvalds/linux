@@ -59,6 +59,7 @@ TOP:=$(TOP:/=)
 BRIDGE_SOURCE_ROOT=$(TOP)/generated/rogue
 TARGET_PRIMARY_ARCH=target_riscv64
 PVR_ARCH=rogue
+PVR_ARCH_DEFS=rogue
 PVR_SYSTEM := sf_7110
 PDUMP ?= 1
 BUILD ?= release
@@ -96,7 +97,9 @@ bridge_base := $(BRIDGE_SOURCE_ROOT)
 ccflags-y += -D__linux__ -include $(srctree)/$(src)/config_kernel.h \
  -include $(srctree)/drivers/gpu/drm/img/kernel_config_compatibility.h \
  -I$(OUT)/include \
- -I$(srctree)/drivers/gpu/drm/img
+ -I$(srctree)/drivers/gpu/drm/img \
+ -I$(srctree)/$(src)/hwdefs/rogue \
+ -I$(srctree)/$(src)/hwdefs/rogue/km
 
 include $(srctree)/$(src)/services/server/env/linux/Kbuild.mk
 include $(srctree)/$(src)/services/system/rogue/sf_7110/Kbuild.mk

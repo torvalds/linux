@@ -92,10 +92,12 @@ enum PVRSRV_ERROR_TAG pvr_sync_fence_release(void *fence);
 
 enum PVRSRV_ERROR_TAG pvr_sync_fence_get(int fence_fd, void **fence_out);
 
-enum PVRSRV_ERROR_TAG pvr_sync_sw_timeline_fence_create(int timeline_fd,
-						    const char *fence_name,
-						    int *fence_fd_out,
-						    u64 *sync_pt_idx);
+enum PVRSRV_ERROR_TAG
+pvr_sync_sw_timeline_fence_create(struct _PVRSRV_DEVICE_NODE_ *pvrsrv_dev_node,
+				  int timeline_fd,
+				  const char *fence_name,
+				  int *fence_fd_out,
+				  u64 *sync_pt_idx);
 
 enum PVRSRV_ERROR_TAG pvr_sync_sw_timeline_advance(void *timeline,
 					       u64 *sync_pt_idx);

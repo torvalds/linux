@@ -101,27 +101,27 @@ typedef struct
 } DEVMEM_EXPORTCOOKIE;
 
 /* Enum that describes the operation associated with changing sparse memory */
-typedef enum Resize {
-	SPARSE_RESIZE_NONE = 0,
+typedef IMG_UINT32 SPARSE_MEM_RESIZE_FLAGS;
+#define SPARSE_RESIZE_NONE 0U
 
 	/* This should be set to indicate the change needs allocation */
-	SPARSE_RESIZE_ALLOC = 1,
+#define SPARSE_RESIZE_ALLOC 1U
 
 	/* This should be set to indicate the change needs free */
-	SPARSE_RESIZE_FREE = 2,
+#define SPARSE_RESIZE_FREE 2U
 
-	SPARSE_RESIZE_BOTH = ((IMG_UINT8)SPARSE_RESIZE_ALLOC | (IMG_UINT8)SPARSE_RESIZE_FREE),
+#define SPARSE_RESIZE_BOTH (SPARSE_RESIZE_ALLOC | SPARSE_RESIZE_FREE)
 
 	/* This should be set to silently swap underlying physical memory
 	 * without disturbing its device or cpu virtual maps.
 	 * This flag is not supported in the case of PDUMP and could lead to
 	 * PDUMP panic when used.
 	 */
-	SPARSE_REMAP_MEM = 4,
+#define SPARSE_REMAP_MEM 4U
 
 	/* Should be set to get the sparse changes appear in cpu virtual map */
-	SPARSE_MAP_CPU_ADDR = 8
-}SPARSE_MEM_RESIZE_FLAGS;
+#define SPARSE_MAP_CPU_ADDR 8U
+
 
 /* To be used with all the sparse allocations that gets mapped to CPU Virtual
  * space. The sparse allocation CPU mapping is torn down and re-mapped every
@@ -137,6 +137,6 @@ typedef enum Resize {
 /* Defines the max length for PMR, MemDesc, Device memory History and RI debug
  * annotations stored in memory, including the null terminator.
  */
-#define DEVMEM_ANNOTATION_MAX_LEN (PVR_ANNOTATION_MAX_LEN + 1)
+#define DEVMEM_ANNOTATION_MAX_LEN ((IMG_UINT32)PVR_ANNOTATION_MAX_LEN + 1U)
 
 #endif /* #ifndef DEVICEMEM_TYPEDEFS_H */

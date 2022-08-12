@@ -230,6 +230,9 @@ PMRPDumpLoadMemValue64_exit:
 	return 0;
 }
 
+static_assert(PVRSRV_PDUMP_MAX_FILENAME_SIZE <= IMG_UINT32_MAX,
+	      "PVRSRV_PDUMP_MAX_FILENAME_SIZE must not be larger than IMG_UINT32_MAX");
+
 static IMG_INT
 PVRSRVBridgePMRPDumpSaveToFile(IMG_UINT32 ui32DispatchTableEntry,
 			       IMG_UINT8 * psPMRPDumpSaveToFileIN_UI8,
@@ -252,13 +255,23 @@ PVRSRVBridgePMRPDumpSaveToFile(IMG_UINT32 ui32DispatchTableEntry,
 	IMG_BOOL bHaveEnoughSpace = IMG_FALSE;
 #endif
 
-	IMG_UINT32 ui32BufferSize = (psPMRPDumpSaveToFileIN->ui32ArraySize * sizeof(IMG_CHAR)) + 0;
+	IMG_UINT32 ui32BufferSize = 0;
+	IMG_UINT64 ui64BufferSize =
+	    ((IMG_UINT64) psPMRPDumpSaveToFileIN->ui32ArraySize * sizeof(IMG_CHAR)) + 0;
 
 	if (unlikely(psPMRPDumpSaveToFileIN->ui32ArraySize > PVRSRV_PDUMP_MAX_FILENAME_SIZE))
 	{
 		psPMRPDumpSaveToFileOUT->eError = PVRSRV_ERROR_BRIDGE_ARRAY_SIZE_TOO_BIG;
 		goto PMRPDumpSaveToFile_exit;
 	}
+
+	if (ui64BufferSize > IMG_UINT32_MAX)
+	{
+		psPMRPDumpSaveToFileOUT->eError = PVRSRV_ERROR_BRIDGE_BUFFER_TOO_SMALL;
+		goto PMRPDumpSaveToFile_exit;
+	}
+
+	ui32BufferSize = (IMG_UINT32) ui64BufferSize;
 
 	if (ui32BufferSize != 0)
 	{
@@ -280,7 +293,7 @@ PVRSRVBridgePMRPDumpSaveToFile(IMG_UINT32 ui32DispatchTableEntry,
 		else
 #endif
 		{
-			pArrayArgsBuffer = OSAllocZMemNoStats(ui32BufferSize);
+			pArrayArgsBuffer = OSAllocMemNoStats(ui32BufferSize);
 
 			if (!pArrayArgsBuffer)
 			{
@@ -350,7 +363,10 @@ PMRPDumpSaveToFile_exit:
 	UnlockHandle(psConnection->psHandleBase);
 
 	/* Allocated space should be equal to the last updated offset */
-	PVR_ASSERT(ui32BufferSize == ui32NextOffset);
+#ifdef PVRSRV_NEED_PVR_ASSERT
+	if (psPMRPDumpSaveToFileOUT->eError == PVRSRV_OK)
+		PVR_ASSERT(ui32BufferSize == ui32NextOffset);
+#endif /* PVRSRV_NEED_PVR_ASSERT */
 
 #if defined(INTEGRITY_OS)
 	if (pArrayArgsBuffer)
@@ -386,9 +402,10 @@ PVRSRVBridgePMRPDumpSymbolicAddr(IMG_UINT32 ui32DispatchTableEntry,
 	IMG_BOOL bHaveEnoughSpace = IMG_FALSE;
 #endif
 
-	IMG_UINT32 ui32BufferSize =
-	    (psPMRPDumpSymbolicAddrIN->ui32MemspaceNameLen * sizeof(IMG_CHAR)) +
-	    (psPMRPDumpSymbolicAddrIN->ui32SymbolicAddrLen * sizeof(IMG_CHAR)) + 0;
+	IMG_UINT32 ui32BufferSize = 0;
+	IMG_UINT64 ui64BufferSize =
+	    ((IMG_UINT64) psPMRPDumpSymbolicAddrIN->ui32MemspaceNameLen * sizeof(IMG_CHAR)) +
+	    ((IMG_UINT64) psPMRPDumpSymbolicAddrIN->ui32SymbolicAddrLen * sizeof(IMG_CHAR)) + 0;
 
 	if (psPMRPDumpSymbolicAddrIN->ui32MemspaceNameLen > PHYSMEM_PDUMP_MEMSPACE_MAX_LENGTH)
 	{
@@ -404,6 +421,14 @@ PVRSRVBridgePMRPDumpSymbolicAddr(IMG_UINT32 ui32DispatchTableEntry,
 
 	psPMRPDumpSymbolicAddrOUT->puiMemspaceName = psPMRPDumpSymbolicAddrIN->puiMemspaceName;
 	psPMRPDumpSymbolicAddrOUT->puiSymbolicAddr = psPMRPDumpSymbolicAddrIN->puiSymbolicAddr;
+
+	if (ui64BufferSize > IMG_UINT32_MAX)
+	{
+		psPMRPDumpSymbolicAddrOUT->eError = PVRSRV_ERROR_BRIDGE_BUFFER_TOO_SMALL;
+		goto PMRPDumpSymbolicAddr_exit;
+	}
+
+	ui32BufferSize = (IMG_UINT32) ui64BufferSize;
 
 	if (ui32BufferSize != 0)
 	{
@@ -425,7 +450,7 @@ PVRSRVBridgePMRPDumpSymbolicAddr(IMG_UINT32 ui32DispatchTableEntry,
 		else
 #endif
 		{
-			pArrayArgsBuffer = OSAllocZMemNoStats(ui32BufferSize);
+			pArrayArgsBuffer = OSAllocMemNoStats(ui32BufferSize);
 
 			if (!pArrayArgsBuffer)
 			{
@@ -472,6 +497,11 @@ PVRSRVBridgePMRPDumpSymbolicAddr(IMG_UINT32 ui32DispatchTableEntry,
 				  puiSymbolicAddrInt,
 				  &psPMRPDumpSymbolicAddrOUT->uiNewOffset,
 				  &psPMRPDumpSymbolicAddrOUT->uiNextSymName);
+	/* Exit early if bridged call fails */
+	if (unlikely(psPMRPDumpSymbolicAddrOUT->eError != PVRSRV_OK))
+	{
+		goto PMRPDumpSymbolicAddr_exit;
+	}
 
 	/* If dest ptr is non-null and we have data to copy */
 	if ((puiMemspaceNameInt) &&
@@ -522,7 +552,10 @@ PMRPDumpSymbolicAddr_exit:
 	UnlockHandle(psConnection->psHandleBase);
 
 	/* Allocated space should be equal to the last updated offset */
-	PVR_ASSERT(ui32BufferSize == ui32NextOffset);
+#ifdef PVRSRV_NEED_PVR_ASSERT
+	if (psPMRPDumpSymbolicAddrOUT->eError == PVRSRV_OK)
+		PVR_ASSERT(ui32BufferSize == ui32NextOffset);
+#endif /* PVRSRV_NEED_PVR_ASSERT */
 
 #if defined(INTEGRITY_OS)
 	if (pArrayArgsBuffer)
@@ -692,6 +725,9 @@ PMRPDumpCBP_exit:
 	return 0;
 }
 
+static_assert(PVRSRV_PDUMP_MAX_FILENAME_SIZE <= IMG_UINT32_MAX,
+	      "PVRSRV_PDUMP_MAX_FILENAME_SIZE must not be larger than IMG_UINT32_MAX");
+
 static IMG_INT
 PVRSRVBridgeDevmemIntPDumpSaveToFileVirtual(IMG_UINT32 ui32DispatchTableEntry,
 					    IMG_UINT8 * psDevmemIntPDumpSaveToFileVirtualIN_UI8,
@@ -715,8 +751,10 @@ PVRSRVBridgeDevmemIntPDumpSaveToFileVirtual(IMG_UINT32 ui32DispatchTableEntry,
 	IMG_BOOL bHaveEnoughSpace = IMG_FALSE;
 #endif
 
-	IMG_UINT32 ui32BufferSize =
-	    (psDevmemIntPDumpSaveToFileVirtualIN->ui32ArraySize * sizeof(IMG_CHAR)) + 0;
+	IMG_UINT32 ui32BufferSize = 0;
+	IMG_UINT64 ui64BufferSize =
+	    ((IMG_UINT64) psDevmemIntPDumpSaveToFileVirtualIN->ui32ArraySize * sizeof(IMG_CHAR)) +
+	    0;
 
 	if (unlikely
 	    (psDevmemIntPDumpSaveToFileVirtualIN->ui32ArraySize > PVRSRV_PDUMP_MAX_FILENAME_SIZE))
@@ -725,6 +763,14 @@ PVRSRVBridgeDevmemIntPDumpSaveToFileVirtual(IMG_UINT32 ui32DispatchTableEntry,
 		    PVRSRV_ERROR_BRIDGE_ARRAY_SIZE_TOO_BIG;
 		goto DevmemIntPDumpSaveToFileVirtual_exit;
 	}
+
+	if (ui64BufferSize > IMG_UINT32_MAX)
+	{
+		psDevmemIntPDumpSaveToFileVirtualOUT->eError = PVRSRV_ERROR_BRIDGE_BUFFER_TOO_SMALL;
+		goto DevmemIntPDumpSaveToFileVirtual_exit;
+	}
+
+	ui32BufferSize = (IMG_UINT32) ui64BufferSize;
 
 	if (ui32BufferSize != 0)
 	{
@@ -747,7 +793,7 @@ PVRSRVBridgeDevmemIntPDumpSaveToFileVirtual(IMG_UINT32 ui32DispatchTableEntry,
 		else
 #endif
 		{
-			pArrayArgsBuffer = OSAllocZMemNoStats(ui32BufferSize);
+			pArrayArgsBuffer = OSAllocMemNoStats(ui32BufferSize);
 
 			if (!pArrayArgsBuffer)
 			{
@@ -824,7 +870,10 @@ DevmemIntPDumpSaveToFileVirtual_exit:
 	UnlockHandle(psConnection->psHandleBase);
 
 	/* Allocated space should be equal to the last updated offset */
-	PVR_ASSERT(ui32BufferSize == ui32NextOffset);
+#ifdef PVRSRV_NEED_PVR_ASSERT
+	if (psDevmemIntPDumpSaveToFileVirtualOUT->eError == PVRSRV_OK)
+		PVR_ASSERT(ui32BufferSize == ui32NextOffset);
+#endif /* PVRSRV_NEED_PVR_ASSERT */
 
 #if defined(INTEGRITY_OS)
 	if (pArrayArgsBuffer)
@@ -841,7 +890,7 @@ DevmemIntPDumpSaveToFileVirtual_exit:
  */
 
 PVRSRV_ERROR InitPDUMPMMBridge(void);
-PVRSRV_ERROR DeinitPDUMPMMBridge(void);
+void DeinitPDUMPMMBridge(void);
 
 /*
  * Register all PDUMPMM functions with services
@@ -883,7 +932,7 @@ PVRSRV_ERROR InitPDUMPMMBridge(void)
 /*
  * Unregister all pdumpmm functions with services
  */
-PVRSRV_ERROR DeinitPDUMPMMBridge(void)
+void DeinitPDUMPMMBridge(void)
 {
 
 	UnsetDispatchTableEntry(PVRSRV_BRIDGE_PDUMPMM, PVRSRV_BRIDGE_PDUMPMM_PMRPDUMPLOADMEM);
@@ -907,5 +956,4 @@ PVRSRV_ERROR DeinitPDUMPMMBridge(void)
 	UnsetDispatchTableEntry(PVRSRV_BRIDGE_PDUMPMM,
 				PVRSRV_BRIDGE_PDUMPMM_DEVMEMINTPDUMPSAVETOFILEVIRTUAL);
 
-	return PVRSRV_OK;
 }

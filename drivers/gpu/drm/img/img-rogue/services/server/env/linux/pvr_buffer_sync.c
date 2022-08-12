@@ -50,7 +50,6 @@
 #include "pvr_drv.h"
 #include "pvr_fence.h"
 
-
 struct pvr_buffer_sync_context {
 	struct mutex ctx_lock;
 	struct pvr_fence_context *fence_ctx;
@@ -74,7 +73,6 @@ struct pvr_buffer_sync_append_data {
 	struct pvr_fence *update_fence;
 	struct pvr_buffer_sync_check_data *check_data;
 };
-
 
 static struct dma_resv *
 pmr_reservation_object_get(struct _PMR_ *pmr)
@@ -192,8 +190,8 @@ pvr_buffer_sync_pmrs_fence_count(u32 nr_pmrs, struct _PMR_ **pmrs,
 		if (WARN_ON_ONCE(!resv))
 			continue;
 
-		resv_list = dma_resv_get_list(resv);
-		fence = dma_resv_get_excl(resv);
+		resv_list = dma_resv_shared_list(resv);
+		fence = dma_resv_excl_fence(resv);
 
 		if (fence &&
 		    (!exclusive || !resv_list || !resv_list->shared_count))
@@ -251,8 +249,8 @@ pvr_buffer_sync_check_fences_create(struct pvr_fence_context *fence_ctx,
 				goto err_destroy_fences;
 		}
 
-		resv_list = dma_resv_get_list(resv);
-		fence = dma_resv_get_excl(resv);
+		resv_list = dma_resv_shared_list(resv);
+		fence = dma_resv_excl_fence(resv);
 
 		if (fence &&
 		    (!exclusive || !resv_list || !resv_list->shared_count)) {
@@ -330,7 +328,7 @@ pvr_buffer_sync_context_create(struct device *dev, const char *name)
 	}
 
 	ctx->fence_ctx = pvr_fence_context_create(priv->dev_node,
-						  priv->fence_status_wq,
+						  NativeSyncGetFenceStatusWq(),
 						  name);
 	if (!ctx->fence_ctx) {
 		err = -ENOMEM;

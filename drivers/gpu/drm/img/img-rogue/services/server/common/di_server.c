@@ -46,6 +46,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "dllist.h"
 #include "lock.h"
 #include "allocmem.h"
+#include "osfunc.h"
 
 #define ROOT_GROUP_NAME PVR_DRM_NAME
 
@@ -95,7 +96,7 @@ struct DI_ENTRY
  */
 struct DI_GROUP
 {
-	const IMG_CHAR *pszName;         /*!< name of the group */
+	IMG_CHAR *pszName;               /*!< name of the group */
 	const struct DI_GROUP *psParent; /*!< parent groups */
 
 	DLLIST_NODE sListNode;           /*!< node element of group's group list */
@@ -128,7 +129,10 @@ PVRSRV_ERROR DIInit(void)
 	_g_psRootGroup = OSAllocMem(sizeof(*_g_psRootGroup));
 	PVR_LOG_GOTO_IF_NOMEM(_g_psRootGroup, eError, destroy_lock_);
 
-	_g_psRootGroup->pszName = ROOT_GROUP_NAME;
+	_g_psRootGroup->pszName = OSAllocMem(sizeof(ROOT_GROUP_NAME));
+	PVR_LOG_GOTO_IF_NOMEM(_g_psRootGroup->pszName, eError, cleanup_name_);
+	OSStringLCopy(_g_psRootGroup->pszName, ROOT_GROUP_NAME,
+				  sizeof(ROOT_GROUP_NAME));
 
 	dllist_init(&_g_psRootGroup->sListNode);
 	dllist_init(&_g_psRootGroup->sGroupList);
@@ -137,6 +141,8 @@ PVRSRV_ERROR DIInit(void)
 
 	return PVRSRV_OK;
 
+cleanup_name_:
+	OSFreeMem(_g_psRootGroup);
 destroy_lock_:
 	OSLockDestroy(_g_hLock);
 return_:
@@ -259,7 +265,7 @@ static PVRSRV_ERROR _CreateNativeEntry(DI_ENTRY *psEntry,
 	                                    psEntry->pvPrivData,
 	                                    psNativeParent->pvHandle,
 	                                    &psNativeEntry->pvHandle);
-	PVR_LOG_GOTO_IF_ERROR(eError, "psImpl->sCb.pfnCreateGroup", free_memory_);
+	PVR_LOG_GOTO_IF_ERROR(eError, "psImpl->sCb.pfnCreateEntry", free_memory_);
 
 	psNativeEntry->psDiImpl = psImpl;
 
@@ -422,6 +428,7 @@ PVRSRV_ERROR DICreateGroup(const IMG_CHAR *pszName,
 	PVRSRV_ERROR eError;
 	DLLIST_NODE *psThis, *psNext;
 	DI_GROUP *psGroup;
+	size_t uSize;
 
 	PVR_LOG_RETURN_IF_INVALID_PARAM(pszName != NULL, "pszName");
 	PVR_LOG_RETURN_IF_INVALID_PARAM(ppsGroup != NULL, "ppsDiGroup");
@@ -434,7 +441,11 @@ PVRSRV_ERROR DICreateGroup(const IMG_CHAR *pszName,
 		psParent = _g_psRootGroup;
 	}
 
-	psGroup->pszName = pszName;
+	uSize = OSStringLength(pszName) + 1;
+	psGroup->pszName = OSAllocMem(uSize * sizeof(*psGroup->pszName));
+	PVR_LOG_GOTO_IF_NOMEM(psGroup->pszName, eError, cleanup_name_);
+	OSStringLCopy(psGroup->pszName, pszName, uSize);
+
 	psGroup->psParent = psParent;
 	dllist_init(&psGroup->sGroupList);
 	dllist_init(&psGroup->sEntryList);
@@ -475,6 +486,8 @@ cleanup_:
 		OSFreeMem(psNativeGroup);
 	}
 
+	OSFreeMem(psGroup->pszName);
+cleanup_name_:
 	OSFreeMem(psGroup);
 
 	return eError;
@@ -502,6 +515,7 @@ void DIDestroyGroup(DI_GROUP *psGroup)
 
 	dllist_remove_node(&psGroup->sListNode);
 
+	OSFreeMem(psGroup->pszName);
 	OSFreeMem(psGroup);
 }
 
@@ -510,6 +524,17 @@ void *DIGetPrivData(const OSDI_IMPL_ENTRY *psEntry)
 	PVR_ASSERT(psEntry != NULL);
 
 	return psEntry->pvPrivData;
+}
+
+void DIWrite(const OSDI_IMPL_ENTRY *psEntry, const void *pvData,
+             IMG_UINT32 uiSize)
+{
+	PVR_ASSERT(psEntry != NULL);
+	PVR_ASSERT(psEntry->psCb != NULL);
+	PVR_ASSERT(psEntry->psCb->pfnWrite != NULL);
+	PVR_ASSERT(psEntry->pvNative != NULL);
+
+	psEntry->psCb->pfnWrite(psEntry->pvNative, pvData, uiSize);
 }
 
 void DIPrintf(const OSDI_IMPL_ENTRY *psEntry, const IMG_CHAR *pszFmt, ...)
@@ -524,6 +549,17 @@ void DIPrintf(const OSDI_IMPL_ENTRY *psEntry, const IMG_CHAR *pszFmt, ...)
 	va_start(args, pszFmt);
 	psEntry->psCb->pfnVPrintf(psEntry->pvNative, pszFmt, args);
 	va_end(args);
+}
+
+void DIVPrintf(const OSDI_IMPL_ENTRY *psEntry, const IMG_CHAR *pszFmt,
+               va_list pArgs)
+{
+	PVR_ASSERT(psEntry != NULL);
+	PVR_ASSERT(psEntry->psCb != NULL);
+	PVR_ASSERT(psEntry->psCb->pfnVPrintf != NULL);
+	PVR_ASSERT(psEntry->pvNative != NULL);
+
+	psEntry->psCb->pfnVPrintf(psEntry->pvNative, pszFmt, pArgs);
 }
 
 void DIPuts(const OSDI_IMPL_ENTRY *psEntry, const IMG_CHAR *pszStr)

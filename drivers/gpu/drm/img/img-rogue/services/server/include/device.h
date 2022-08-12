@@ -124,33 +124,6 @@ typedef struct _DEVICE_MEMORY_INFO_
 	DEVMEM_HEAP_BLUEPRINT   *psDeviceMemoryHeap;
 } DEVICE_MEMORY_INFO;
 
-
-typedef struct _PG_HANDLE_
-{
-	union
-	{
-		void *pvHandle;
-		IMG_UINT64 ui64Handle;
-	}u;
-	/* The allocation order is log2 value of the number of pages to allocate.
-	 * As such this is a correspondingly small value. E.g, for order 4 we
-	 * are talking 2^4 * PAGE_SIZE contiguous allocation.
-	 * DevPxAlloc API does not need to support orders higher than 4.
-	 */
-#if defined(SUPPORT_GPUVIRT_VALIDATION)
-	IMG_BYTE    uiOrder;    /* Order of the corresponding allocation */
-	IMG_BYTE    uiOSid;     /* OSid to use for allocation arena.
-	                         * Connection-specific. */
-	IMG_BYTE    uiPad1,
-	            uiPad2;     /* Spare */
-#else
-	IMG_BYTE    uiOrder;    /* Order of the corresponding allocation */
-	IMG_BYTE    uiPad1,
-	            uiPad2,
-	            uiPad3;     /* Spare */
-#endif
-} PG_HANDLE;
-
 #define MMU_BAD_PHYS_ADDR (0xbadbad00badULL)
 #define DUMMY_PAGE	("DUMMY_PAGE")
 #define DEV_ZERO_PAGE	("DEV_ZERO_PAGE")
@@ -208,35 +181,78 @@ typedef enum _PVRSRV_DEVICE_DEBUG_DUMP_STATUS_
 	PVRSRV_DEVICE_DEBUG_DUMP_CAPTURE
 } PVRSRV_DEVICE_DEBUG_DUMP_STATUS;
 
-typedef struct _MMU_PX_SETUP_
-{
-#if defined(SUPPORT_GPUVIRT_VALIDATION)
-	PVRSRV_ERROR (*pfnDevPxAllocGPV)(struct _PVRSRV_DEVICE_NODE_ *psDevNode, size_t uiSize,
-									PG_HANDLE *psMemHandle, IMG_DEV_PHYADDR *psDevPAddr,
-									IMG_UINT32 ui32OSid, IMG_PID uiPid);
+#ifndef DI_GROUP_DEFINED
+#define DI_GROUP_DEFINED
+typedef struct DI_GROUP DI_GROUP;
 #endif
-	PVRSRV_ERROR (*pfnDevPxAlloc)(struct _PVRSRV_DEVICE_NODE_ *psDevNode, size_t uiSize,
-									PG_HANDLE *psMemHandle, IMG_DEV_PHYADDR *psDevPAddr,
-									IMG_PID uiPid);
+#ifndef DI_ENTRY_DEFINED
+#define DI_ENTRY_DEFINED
+typedef struct DI_ENTRY DI_ENTRY;
+#endif
 
-	void (*pfnDevPxFree)(struct _PVRSRV_DEVICE_NODE_ *psDevNode, PG_HANDLE *psMemHandle);
+typedef struct _PVRSRV_DEVICE_DEBUG_INFO_
+{
+	DI_GROUP *psGroup;
+	DI_ENTRY *psDumpDebugEntry;
+#ifdef SUPPORT_RGX
+	DI_ENTRY *psFWTraceEntry;
+#ifdef SUPPORT_FIRMWARE_GCOV
+	DI_ENTRY *psFWGCOVEntry;
+#endif
+	DI_ENTRY *psFWMappingsEntry;
+#if defined(SUPPORT_VALIDATION) || defined(SUPPORT_RISCV_GDB)
+	DI_ENTRY *psRiscvDmiDIEntry;
+	IMG_UINT64 ui64RiscvDmi;
+#endif
+#endif /* SUPPORT_RGX */
+#ifdef SUPPORT_VALIDATION
+	DI_ENTRY *psRGXRegsEntry;
+#endif /* SUPPORT_VALIDATION */
+#ifdef SUPPORT_POWER_VALIDATION_VIA_DEBUGFS
+	DI_ENTRY *psPowMonEntry;
+#endif
+#ifdef SUPPORT_POWER_SAMPLING_VIA_DEBUGFS
+	DI_ENTRY *psPowerDataEntry;
+#endif
+} PVRSRV_DEVICE_DEBUG_INFO;
 
-	PVRSRV_ERROR (*pfnDevPxMap)(struct _PVRSRV_DEVICE_NODE_ *psDevNode, PG_HANDLE *pshMemHandle,
-								size_t uiSize, IMG_DEV_PHYADDR *psDevPAddr,
-								void **pvPtr);
+#if defined(PVRSRV_DEBUG_LISR_EXECUTION)
+#define RGX_LISR_INIT							(0U)
+#define RGX_LISR_DEVICE_NOT_POWERED				(1U)
+#define RGX_LISR_NOT_TRIGGERED_BY_HW			(2U)
+#define RGX_LISR_FW_IRQ_COUNTER_NOT_UPDATED		(3U)
+#define RGX_LISR_PROCESSED						(4U)
 
-	void (*pfnDevPxUnMap)(struct _PVRSRV_DEVICE_NODE_ *psDevNode,
-						  PG_HANDLE *psMemHandle, void *pvPtr);
+typedef IMG_UINT32 LISR_STATUS;
 
-	PVRSRV_ERROR (*pfnDevPxClean)(struct _PVRSRV_DEVICE_NODE_ *psDevNode,
-								PG_HANDLE *pshMemHandle,
-								IMG_UINT32 uiOffset,
-								IMG_UINT32 uiLength);
+typedef struct _LISR_EXECUTION_INFO_
+{
+	/* status of last LISR invocation */
+	LISR_STATUS ui32Status;
 
-	IMG_UINT32 uiMMUPxLog2AllocGran;
+	/* snapshot from the last LISR invocation */
+#if defined(RGX_FW_IRQ_OS_COUNTERS)
+	IMG_UINT32 aui32InterruptCountSnapshot[RGX_NUM_OS_SUPPORTED];
+#else
+	IMG_UINT32 aui32InterruptCountSnapshot[RGXFW_THREAD_NUM];
+#endif
 
-	RA_ARENA *psPxRA;
-} MMU_PX_SETUP;
+	/* time of the last LISR invocation */
+	IMG_UINT64 ui64Clockns;
+} LISR_EXECUTION_INFO;
+
+#define UPDATE_LISR_DBG_STATUS(status)		psDeviceNode->sLISRExecutionInfo.ui32Status = (status)
+#define UPDATE_LISR_DBG_SNAPSHOT(idx, val)	psDeviceNode->sLISRExecutionInfo.aui32InterruptCountSnapshot[idx] = (val)
+#define UPDATE_LISR_DBG_TIMESTAMP()			psDeviceNode->sLISRExecutionInfo.ui64Clockns = OSClockns64()
+#define UPDATE_LISR_DBG_COUNTER()			psDeviceNode->ui64nLISR++
+#define UPDATE_MISR_DBG_COUNTER()			psDeviceNode->ui64nMISR++
+#else
+#define UPDATE_LISR_DBG_STATUS(status)
+#define UPDATE_LISR_DBG_SNAPSHOT(idx, val)
+#define UPDATE_LISR_DBG_TIMESTAMP()
+#define UPDATE_LISR_DBG_COUNTER()
+#define UPDATE_MISR_DBG_COUNTER()
+#endif /* defined(PVRSRV_DEBUG_LISR_EXECUTION) */
 
 typedef struct _PVRSRV_DEVICE_NODE_
 {
@@ -256,7 +272,7 @@ typedef struct _PVRSRV_DEVICE_NODE_
 	/* Device specific MMU firmware attributes, used only in some devices */
 	MMU_DEVICEATTRIBS      *psFirmwareMMUDevAttrs;
 
-	MMU_PX_SETUP           sDevMMUPxSetup;
+	PHYS_HEAP              *psMMUPhysHeap;
 
 	/* lock for power state transitions */
 	POS_LOCK				hPowerLock;
@@ -362,8 +378,6 @@ typedef struct _PVRSRV_DEVICE_NODE_
 #if defined(SUPPORT_GPUVIRT_VALIDATION)
 	RA_ARENA                *psOSSharedArena;
 	RA_ARENA				*psOSidSubArena[GPUVIRT_VALIDATION_NUM_OS];
-	/* Number of supported OSid for this device node given available memory */
-	IMG_UINT32              ui32NumOSId;
 #endif
 
 	/* FW_MAIN, FW_CONFIG and FW_GUEST heaps. Should be part of registered heaps? */
@@ -379,24 +393,18 @@ typedef struct _PVRSRV_DEVICE_NODE_
 	 * the PHYS_HEAP_CONFIG data from the platform's system layer at device
 	 * creation time.
 	 *
-	 * The first entry (apsPhysHeap[PVRSRV_PHYS_HEAP_GPU_LOCAL]) will be used for allocations
-	 *  where the phys heap hint CPU_LOCAL flag is not set. Normally this will be an LMA heap
-	 *  (but the device configuration could specify a UMA heap here, if desired)
-	 * The second entry (apsPhysHeap[PVRSRV_PHYS_HEAP_CPU_LOCAL]) will be used for allocations
-	 *  where the phys heap hint CPU_LOCAL flag is set. Normally this will be a UMA heap
-	 *  (but the configuration could specify an LMA heap here, if desired)
-	 * The third entry (apsPhysHeap[PVRSRV_PHYS_HEAP_FW_MAIN]) will be used for allocations
-	 *  where the memalloc flags phys heap hint is MAIN,CONFIG or RAW; this is used when virtualization is enabled
-	 * The device configuration will always specify two physical heap IDs - in the event of the device
-	 *  only using one physical heap, both of these IDs will be the same, and hence both pointers below
-	 *  will also be the same; when virtualization is enabled the device configuration specifies
-	 *  three physical heap IDs, the last being for PVRSRV_PHYS_HEAP_FW_MAIN allocations
+	 * Contains PVRSRV_PHYS_HEAP_LAST entries for all the possible physical heaps allowed in the design.
+	 * It allows the system layer PhysHeaps for the device to be identified for use in creating new PMRs.
+	 * See PhysHeapCreatePMR()
 	 */
 	PHYS_HEAP				*apsPhysHeap[PVRSRV_PHYS_HEAP_LAST];
+	IMG_UINT32				ui32UserAllocHeapCount;
 
-	/* RA reserved for storing the MMU mappings of firmware.
-	 * The memory backing up this RA must persist between driver or OS reboots */
-	RA_ARENA				*psFwMMUReservedMemArena;
+#if defined(SUPPORT_AUTOVZ)
+	/* Phys Heap reserved for storing the MMU mappings of firmware.
+	 * The memory backing up this Phys Heap must persist between driver or OS reboots */
+	PHYS_HEAP               *psFwMMUReservedPhysHeap;
+#endif
 
 	/* Flag indicating if the firmware has been initialised during the
 	 * 1st boot of the Host driver according to the AutoVz life-cycle. */
@@ -414,10 +422,6 @@ typedef struct _PVRSRV_DEVICE_NODE_
 	/* Functions for allocation/freeing of UFOs */
 	AllocUFOBlockCallback	pfnAllocUFOBlock;	/*!< Callback for allocation of a block of UFO memory */
 	FreeUFOBlockCallback	pfnFreeUFOBlock;	/*!< Callback for freeing of a block of UFO memory */
-
-	IMG_HANDLE				hSyncServerNotify;
-	POS_LOCK				hSyncServerListLock;
-	DLLIST_NODE				sSyncServerSyncsList;
 
 	IMG_HANDLE				hSyncServerRecordNotify;
 	POS_LOCK				hSyncServerRecordLock;
@@ -449,9 +453,8 @@ typedef struct _PVRSRV_DEVICE_NODE_
 
 	IMG_HANDLE				hCmdCompNotify;
 	IMG_HANDLE				hDbgReqNotify;
-	IMG_HANDLE				hHtbDbgReqNotify;
 	IMG_HANDLE				hAppHintDbgReqNotify;
-	IMG_HANDLE				hThreadsDbgReqNotify;
+	IMG_HANDLE				hPhysHeapDbgReqNotify;
 
 	PVRSRV_DEF_PAGE			sDummyPage;
 	PVRSRV_DEF_PAGE			sDevZeroPage;
@@ -496,15 +499,20 @@ typedef struct _PVRSRV_DEVICE_NODE_
 #endif
 
 #if defined(SUPPORT_VALIDATION)
-	POS_LOCK				hValidationLock;
+	POS_LOCK			hValidationLock;
 #endif
 
+	/* Members for linking which connections are open on this device */
 	POS_LOCK                hConnectionsLock;    /*!< Lock protecting sConnections */
 	DLLIST_NODE             sConnections;        /*!< The list of currently active connection objects for this device node */
+
 #if defined(PVRSRV_DEBUG_LISR_EXECUTION)
+	LISR_EXECUTION_INFO     sLISRExecutionInfo;  /*!< Information about the last execution of the LISR */
 	IMG_UINT64              ui64nLISR;           /*!< Number of LISR calls seen */
 	IMG_UINT64              ui64nMISR;           /*!< Number of MISR calls made */
 #endif
+
+	PVRSRV_DEVICE_DEBUG_INFO sDebugInfo;
 } PVRSRV_DEVICE_NODE;
 
 /*

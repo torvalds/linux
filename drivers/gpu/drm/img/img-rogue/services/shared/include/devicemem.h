@@ -636,7 +636,7 @@ PVRSRV_ERROR
 DevmemGetReservation(DEVMEM_MEMDESC *psMemDesc,
 		     IMG_HANDLE *hReservation);
 
-IMG_INTERNAL PVRSRV_ERROR
+IMG_INTERNAL void
 DevmemGetPMRData(DEVMEM_MEMDESC *psMemDesc,
 		IMG_HANDLE *hPMR,
 		IMG_DEVMEM_OFFSET_T *puiPMROffset);
@@ -681,6 +681,13 @@ DevmemInvalidateFBSCTable(DEVMEM_CONTEXT *psContext,
 IMG_UINT32
 DevmemGetHeapLog2PageSize(DEVMEM_HEAP *psHeap);
 
+/* DevmemGetMemFlags()
+ *
+ * Get the memalloc flags for a certain memdesc.
+ */
+PVRSRV_MEMALLOCFLAGS_T
+DevmemGetMemAllocFlags(DEVMEM_MEMDESC *psMemDesc);
+
 /* DevmemGetHeapReservedSize()
  *
  * Get the reserved size used for a certain heap.
@@ -704,19 +711,6 @@ IMG_INTERNAL PVRSRV_ERROR
 RegisterDevmemPFNotify(DEVMEM_CONTEXT *psContext,
                        IMG_UINT32     ui32PID,
                        IMG_BOOL       bRegister);
-
-/*************************************************************************/ /*!
-@Function       GetMaxDevMemSize
-@Description    Get the amount of device memory on current platform
-                (memory size in Bytes)
-@Output         puiLMASize            LMA memory size
-@Output         puiUMASize            UMA memory size
-@Return         Error code
-*/ /**************************************************************************/
-IMG_INTERNAL PVRSRV_ERROR
-GetMaxDevMemSize(SHARED_DEV_CONNECTION hDevConnection,
-		 IMG_DEVMEM_SIZE_T *puiLMASize,
-		 IMG_DEVMEM_SIZE_T *puiUMASize);
 
 /*************************************************************************/ /*!
 @Function       DevmemHeapSetPremapStatus

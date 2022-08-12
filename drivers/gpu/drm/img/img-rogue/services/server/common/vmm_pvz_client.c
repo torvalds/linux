@@ -80,7 +80,7 @@ PvzClientMapDevPhysHeap(PVRSRV_DEVICE_CONFIG *psDevConfig)
 	IMG_DEV_PHYADDR sDevPAddr;
 	VMM_PVZ_CONNECTION *psVmmPvz;
 	IMG_UINT32 uiFuncID = PVZ_BRIDGE_MAPDEVICEPHYSHEAP;
-	PHYS_HEAP *psFwPhysHeap = psDevConfig->psDevNode->apsPhysHeap[PVRSRV_PHYS_HEAP_FW_CONFIG];
+	PHYS_HEAP *psFwPhysHeap = psDevConfig->psDevNode->apsPhysHeap[PVRSRV_PHYS_HEAP_FW_MAIN];
 
 	eError = PhysHeapGetDevPAddr(psFwPhysHeap, &sDevPAddr);
 

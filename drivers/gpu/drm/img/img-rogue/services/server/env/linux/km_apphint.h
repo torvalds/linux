@@ -56,17 +56,17 @@ int pvr_apphint_init(void);
 void pvr_apphint_deinit(void);
 int pvr_apphint_device_register(PVRSRV_DEVICE_NODE *device);
 void pvr_apphint_device_unregister(PVRSRV_DEVICE_NODE *device);
-void pvr_apphint_dump_state(void);
+void pvr_apphint_dump_state(PVRSRV_DEVICE_NODE *device);
 
-int pvr_apphint_get_uint64(APPHINT_ID ue, IMG_UINT64 *pVal);
-int pvr_apphint_get_uint32(APPHINT_ID ue, IMG_UINT32 *pVal);
-int pvr_apphint_get_bool(APPHINT_ID ue, IMG_BOOL *pVal);
-int pvr_apphint_get_string(APPHINT_ID ue, IMG_CHAR *pBuffer, size_t size);
+int pvr_apphint_get_uint64(PVRSRV_DEVICE_NODE *device, APPHINT_ID ue, IMG_UINT64 *pVal);
+int pvr_apphint_get_uint32(PVRSRV_DEVICE_NODE *device, APPHINT_ID ue, IMG_UINT32 *pVal);
+int pvr_apphint_get_bool(PVRSRV_DEVICE_NODE *device, APPHINT_ID ue, IMG_BOOL *pVal);
+int pvr_apphint_get_string(PVRSRV_DEVICE_NODE *device, APPHINT_ID ue, IMG_CHAR *pBuffer, size_t size);
 
-int pvr_apphint_set_uint64(APPHINT_ID ue, IMG_UINT64 Val);
-int pvr_apphint_set_uint32(APPHINT_ID ue, IMG_UINT32 Val);
-int pvr_apphint_set_bool(APPHINT_ID ue, IMG_BOOL Val);
-int pvr_apphint_set_string(APPHINT_ID ue, IMG_CHAR *pBuffer, size_t size);
+int pvr_apphint_set_uint64(PVRSRV_DEVICE_NODE *device, APPHINT_ID ue, IMG_UINT64 Val);
+int pvr_apphint_set_uint32(PVRSRV_DEVICE_NODE *device, APPHINT_ID ue, IMG_UINT32 Val);
+int pvr_apphint_set_bool(PVRSRV_DEVICE_NODE *device, APPHINT_ID ue, IMG_BOOL Val);
+int pvr_apphint_set_string(PVRSRV_DEVICE_NODE *device, APPHINT_ID ue, IMG_CHAR *pBuffer, size_t size);
 
 void pvr_apphint_register_handlers_uint64(APPHINT_ID id,
 	PVRSRV_ERROR (*query)(const PVRSRV_DEVICE_NODE *device, const void *private_data, IMG_UINT64 *value),

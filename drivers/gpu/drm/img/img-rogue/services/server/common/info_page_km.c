@@ -47,19 +47,13 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "pvrsrv.h"
 #include "devicemem.h"
 #include "pmr.h"
-#include "devicemem_utils.h"
-#include "client_cache_bridge.h"
-
 
 PVRSRV_ERROR InfoPageCreate(PVRSRV_DATA *psData)
 {
-#ifdef CACHE_TEST
-    struct DEVMEM_MEMDESC_TAG *pxmdsc = NULL;
-#endif
     const PVRSRV_MEMALLOCFLAGS_T uiMemFlags = PVRSRV_MEMALLOCFLAG_CPU_READABLE |
                                               PVRSRV_MEMALLOCFLAG_CPU_WRITEABLE |
                                               PVRSRV_MEMALLOCFLAG_ZERO_ON_ALLOC |
-                                              PVRSRV_MEMALLOCFLAG_CPU_UNCACHED |/* zz  chage to uncahed wc */
+                                              PVRSRV_MEMALLOCFLAG_CPU_UNCACHED |
                                               PVRSRV_MEMALLOCFLAG_KERNEL_CPU_MAPPABLE |
                                               PVRSRV_MEMALLOCFLAG_PHYS_HEAP_HINT(CPU_LOCAL);
     PVRSRV_ERROR eError;
@@ -79,15 +73,6 @@ PVRSRV_ERROR InfoPageCreate(PVRSRV_DATA *psData)
     eError =  DevmemAcquireCpuVirtAddr(psData->psInfoPageMemDesc,
                                        (void **) &psData->pui32InfoPage);
     PVR_LOG_GOTO_IF_ERROR(eError, "DevmemAllocateExportable", e0);
-#ifdef CACHE_TEST
-    pxmdsc = (struct DEVMEM_MEMDESC_TAG *)psData->psInfoPageMemDesc;
-    printk("in %s L:%d mdsc->size:%lld, import->size:%lld, flag:%llx\n", __func__, __LINE__, pxmdsc->uiAllocSize, pxmdsc->psImport->uiSize, (unsigned long long)(pxmdsc->psImport->uiFlags & PVRSRV_MEMALLOCFLAG_CPU_CACHE_MODE_MASK));
-    if(pxmdsc->uiAllocSize > 4096 && !(PVRSRV_CHECK_CPU_UNCACHED(pxmdsc->psImport->uiFlags) || PVRSRV_CHECK_CPU_WRITE_COMBINE(pxmdsc->psImport->uiFlags)))
-    {
-        printk("in %s L:%d cache_op:%d\n", __func__, __LINE__,PVRSRV_CACHE_OP_INVALIDATE);
-        BridgeCacheOpExec (GetBridgeHandle(pxmdsc->psImport->hDevConnection),pxmdsc->psImport->hPMR,(IMG_UINT64)(uintptr_t)psData->pui32InfoPage - pxmdsc->uiOffset,pxmdsc->uiOffset,pxmdsc->uiAllocSize,PVRSRV_CACHE_OP_INVALIDATE);
-    }
-#endif
 
     /* Look-up the memory descriptor PMR handle */
     eError = DevmemLocalGetImportHandle(psData->psInfoPageMemDesc,

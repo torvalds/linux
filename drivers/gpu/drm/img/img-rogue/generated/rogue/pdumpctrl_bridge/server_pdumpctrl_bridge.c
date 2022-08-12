@@ -127,10 +127,9 @@ PVRSRVBridgePVRSRVPDumpSetDefaultCaptureParams(IMG_UINT32 ui32DispatchTableEntry
 	    (PVRSRV_BRIDGE_OUT_PVRSRVPDUMPSETDEFAULTCAPTUREPARAMS *)
 	    IMG_OFFSET_ADDR(psPVRSRVPDumpSetDefaultCaptureParamsOUT_UI8, 0);
 
-	PVR_UNREFERENCED_PARAMETER(psConnection);
-
 	psPVRSRVPDumpSetDefaultCaptureParamsOUT->eError =
-	    PDumpSetDefaultCaptureParamsKM(psPVRSRVPDumpSetDefaultCaptureParamsIN->ui32Mode,
+	    PDumpSetDefaultCaptureParamsKM(psConnection, OSGetDevNode(psConnection),
+					   psPVRSRVPDumpSetDefaultCaptureParamsIN->ui32Mode,
 					   psPVRSRVPDumpSetDefaultCaptureParamsIN->ui32Start,
 					   psPVRSRVPDumpSetDefaultCaptureParamsIN->ui32End,
 					   psPVRSRVPDumpSetDefaultCaptureParamsIN->ui32Interval,
@@ -175,10 +174,10 @@ PVRSRVBridgePVRSRVPDumpForceCaptureStop(IMG_UINT32 ui32DispatchTableEntry,
 	    (PVRSRV_BRIDGE_OUT_PVRSRVPDUMPFORCECAPTURESTOP *)
 	    IMG_OFFSET_ADDR(psPVRSRVPDumpForceCaptureStopOUT_UI8, 0);
 
-	PVR_UNREFERENCED_PARAMETER(psConnection);
 	PVR_UNREFERENCED_PARAMETER(psPVRSRVPDumpForceCaptureStopIN);
 
-	psPVRSRVPDumpForceCaptureStopOUT->eError = PDumpForceCaptureStopKM();
+	psPVRSRVPDumpForceCaptureStopOUT->eError =
+	    PDumpForceCaptureStopKM(psConnection, OSGetDevNode(psConnection));
 
 	return 0;
 }
@@ -190,7 +189,7 @@ PVRSRVBridgePVRSRVPDumpForceCaptureStop(IMG_UINT32 ui32DispatchTableEntry,
 static POS_LOCK pPDUMPCTRLBridgeLock;
 
 PVRSRV_ERROR InitPDUMPCTRLBridge(void);
-PVRSRV_ERROR DeinitPDUMPCTRLBridge(void);
+void DeinitPDUMPCTRLBridge(void);
 
 /*
  * Register all PDUMPCTRL functions with services
@@ -223,9 +222,9 @@ PVRSRV_ERROR InitPDUMPCTRLBridge(void)
 /*
  * Unregister all pdumpctrl functions with services
  */
-PVRSRV_ERROR DeinitPDUMPCTRLBridge(void)
+void DeinitPDUMPCTRLBridge(void)
 {
-	PVR_LOG_RETURN_IF_ERROR(OSLockDestroy(pPDUMPCTRLBridgeLock), "OSLockDestroy");
+	OSLockDestroy(pPDUMPCTRLBridgeLock);
 
 	UnsetDispatchTableEntry(PVRSRV_BRIDGE_PDUMPCTRL,
 				PVRSRV_BRIDGE_PDUMPCTRL_PVRSRVPDUMPGETSTATE);
@@ -242,5 +241,4 @@ PVRSRV_ERROR DeinitPDUMPCTRLBridge(void)
 	UnsetDispatchTableEntry(PVRSRV_BRIDGE_PDUMPCTRL,
 				PVRSRV_BRIDGE_PDUMPCTRL_PVRSRVPDUMPFORCECAPTURESTOP);
 
-	return PVRSRV_OK;
 }

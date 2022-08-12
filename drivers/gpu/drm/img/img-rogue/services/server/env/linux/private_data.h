@@ -46,8 +46,14 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <linux/fs.h>
 
 #include "connection_server.h"
+#include "pvr_drm.h"
 
-CONNECTION_DATA *LinuxConnectionFromFile(struct file *pFile);
-struct file *LinuxFileFromConnection(CONNECTION_DATA *psConnection);
+#define PVR_SRVKM_PRIV_DATA_IDX 0
+#define PVR_SYNC_PRIV_DATA_IDX  1
+
+#define PVR_NUM_PRIV_DATA_IDXS  2
+
+CONNECTION_DATA *LinuxServicesConnectionFromFile(struct file *pFile);
+CONNECTION_DATA *LinuxSyncConnectionFromFile(struct file *pFile);
 
 #endif /* !defined(INCLUDED_PRIVATE_DATA_H) */

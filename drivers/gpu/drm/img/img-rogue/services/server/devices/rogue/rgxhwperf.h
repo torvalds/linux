@@ -50,11 +50,11 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  * RGX HW Performance Profiling API(s) Rogue specific
  *****************************************************************************/
 
-PVRSRV_ERROR PVRSRVRGXConfigEnableHWPerfCountersKM(
-	CONNECTION_DATA    * psConnection,
-	PVRSRV_DEVICE_NODE * psDeviceNode,
-	IMG_UINT32         ui32ArrayLen,
-	RGX_HWPERF_CONFIG_CNTBLK * psBlockConfigs);
+PVRSRV_ERROR PVRSRVRGXConfigMuxHWPerfCountersKM(
+	CONNECTION_DATA               *psConnection,
+	PVRSRV_DEVICE_NODE            *psDeviceNode,
+	IMG_UINT32                     ui32ArrayLen,
+	RGX_HWPERF_CONFIG_MUX_CNTBLK  *psBlockConfigs);
 
 
 PVRSRV_ERROR PVRSRVRGXConfigCustomCountersKM(
@@ -64,5 +64,11 @@ PVRSRV_ERROR PVRSRVRGXConfigCustomCountersKM(
 	IMG_UINT16           ui16NumCustomCounters,
 	IMG_UINT32         * pui32CustomCounterIDs);
 
+PVRSRV_ERROR PVRSRVRGXConfigureHWPerfBlocksKM(
+	CONNECTION_DATA       * psConnection,
+	PVRSRV_DEVICE_NODE    * psDeviceNode,
+	IMG_UINT32            ui32CtrlWord,
+	IMG_UINT32            ui32ArrayLen,
+	RGX_HWPERF_CONFIG_CNTBLK * psBlockConfigs);
 
 #endif /* RGXHWPERF_H_ */

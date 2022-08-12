@@ -52,6 +52,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include "mmu_common.h"
 
+#include "opaque_types.h"
+
 /*
  * PDUMP MMU attributes
  */
@@ -87,7 +89,8 @@ typedef struct _PDUMP_MMU_ATTRIB_
 
 #if defined(PDUMP)
 PVRSRV_ERROR
-PDumpMMUMalloc(const IMG_CHAR *pszPDumpDevName,
+PDumpMMUMalloc(PPVRSRV_DEVICE_NODE psDeviceNode,
+               const IMG_CHAR *pszPDumpDevName,
                MMU_LEVEL eMMULevel,
                IMG_DEV_PHYADDR *psDevPAddr,
                IMG_UINT32 ui32Size,
@@ -95,7 +98,8 @@ PDumpMMUMalloc(const IMG_CHAR *pszPDumpDevName,
                PDUMP_MMU_TYPE eMMUType);
 
 PVRSRV_ERROR
-PDumpMMUFree(const IMG_CHAR *pszPDumpDevName,
+PDumpMMUFree(PPVRSRV_DEVICE_NODE psDeviceNode,
+             const IMG_CHAR *pszPDumpDevName,
              MMU_LEVEL eMMULevel,
              IMG_DEV_PHYADDR *psDevPAddr,
              PDUMP_MMU_TYPE eMMUType);
@@ -111,7 +115,8 @@ PDumpPTBaseObjectToMem64(const IMG_CHAR *pszPDumpDevName,
                          IMG_UINT64 ui64PxOffset);
 
 PVRSRV_ERROR
-PDumpMMUDumpPxEntries(MMU_LEVEL eMMULevel,
+PDumpMMUDumpPxEntries(PPVRSRV_DEVICE_NODE psDeviceNode,
+                      MMU_LEVEL eMMULevel,
                       const IMG_CHAR *pszPDumpDevName,
                       void *pvPxMem,
                       IMG_DEV_PHYADDR sPxDevPAddr,
@@ -130,19 +135,22 @@ PDumpMMUDumpPxEntries(MMU_LEVEL eMMULevel,
                       PDUMP_MMU_TYPE eMMUType);
 
 PVRSRV_ERROR
-PDumpMMUAllocMMUContext(const IMG_CHAR *pszPDumpMemSpaceName,
+PDumpMMUAllocMMUContext(PPVRSRV_DEVICE_NODE psDeviceNode,
+                        const IMG_CHAR *pszPDumpMemSpaceName,
                         IMG_DEV_PHYADDR sPCDevPAddr,
                         PDUMP_MMU_TYPE eMMUType,
                         IMG_UINT32 *pui32MMUContextID,
                         IMG_UINT32 ui32PDumpFlags);
 
 PVRSRV_ERROR
-PDumpMMUFreeMMUContext(const IMG_CHAR *pszPDumpMemSpaceName,
+PDumpMMUFreeMMUContext(PPVRSRV_DEVICE_NODE psDeviceNode,
+                       const IMG_CHAR *pszPDumpMemSpaceName,
                        IMG_UINT32 ui32MMUContextID,
                        IMG_UINT32 ui32PDumpFlags);
 
 PVRSRV_ERROR
-PDumpMMUSAB(const IMG_CHAR *pszPDumpMemNamespace,
+PDumpMMUSAB(PPVRSRV_DEVICE_NODE psDeviceNode,
+            const IMG_CHAR *pszPDumpMemNamespace,
             IMG_UINT32 uiPDumpMMUCtx,
             IMG_DEV_VIRTADDR sDevAddrStart,
             IMG_DEVMEM_SIZE_T uiSize,
@@ -150,20 +158,21 @@ PDumpMMUSAB(const IMG_CHAR *pszPDumpMemNamespace,
             IMG_UINT32 uiFileOffset,
             IMG_UINT32 ui32PDumpFlags);
 
-#define PDUMP_MMU_ALLOC_MMUCONTEXT(pszPDumpMemDevName, sPCDevPAddr, eMMUType, puiPDumpCtxID, ui32PDumpFlags) \
-        PDumpMMUAllocMMUContext(pszPDumpMemDevName,                     \
+#define PDUMP_MMU_ALLOC_MMUCONTEXT(psDevNode, pszPDumpMemDevName, sPCDevPAddr, eMMUType, puiPDumpCtxID, ui32PDumpFlags) \
+        PDumpMMUAllocMMUContext(psDevNode,                              \
+                                pszPDumpMemDevName,                     \
                                 sPCDevPAddr,                            \
                                 eMMUType,                               \
                                 puiPDumpCtxID,                          \
                                 ui32PDumpFlags)
 
-#define PDUMP_MMU_FREE_MMUCONTEXT(pszPDumpMemDevName, uiPDumpCtxID, ui32PDumpFlags) \
-        PDumpMMUFreeMMUContext(pszPDumpMemDevName, uiPDumpCtxID, ui32PDumpFlags)
+#define PDUMP_MMU_FREE_MMUCONTEXT(psDevNode, pszPDumpMemDevName, uiPDumpCtxID, ui32PDumpFlags) \
+        PDumpMMUFreeMMUContext(psDevNode, pszPDumpMemDevName, uiPDumpCtxID, ui32PDumpFlags)
 #else /* PDUMP */
 
 #define PDUMP_MMU_ALLOC_MMUCONTEXT(pszPDumpMemDevName, sPCDevPAddr, eMMUType, puiPDumpCtxID, ui32PDumpFlags) \
         ((void)0)
-#define PDUMP_MMU_FREE_MMUCONTEXT(pszPDumpMemDevName, uiPDumpCtxID, ui32PDumpFlags) \
+#define PDUMP_MMU_FREE_MMUCONTEXT(psDevNode, pszPDumpMemDevName, uiPDumpCtxID, ui32PDumpFlags) \
         ((void)0)
 
 #endif /* PDUMP */

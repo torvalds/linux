@@ -126,7 +126,7 @@ PVRSRVBridgeRGXQueryTimer(IMG_UINT32 ui32DispatchTableEntry,
  */
 
 PVRSRV_ERROR InitRGXTIMERQUERYBridge(void);
-PVRSRV_ERROR DeinitRGXTIMERQUERYBridge(void);
+void DeinitRGXTIMERQUERYBridge(void);
 
 /*
  * Register all RGXTIMERQUERY functions with services
@@ -152,7 +152,7 @@ PVRSRV_ERROR InitRGXTIMERQUERYBridge(void)
 /*
  * Unregister all rgxtimerquery functions with services
  */
-PVRSRV_ERROR DeinitRGXTIMERQUERYBridge(void)
+void DeinitRGXTIMERQUERYBridge(void)
 {
 
 	UnsetDispatchTableEntry(PVRSRV_BRIDGE_RGXTIMERQUERY,
@@ -164,5 +164,4 @@ PVRSRV_ERROR DeinitRGXTIMERQUERYBridge(void)
 	UnsetDispatchTableEntry(PVRSRV_BRIDGE_RGXTIMERQUERY,
 				PVRSRV_BRIDGE_RGXTIMERQUERY_RGXQUERYTIMER);
 
-	return PVRSRV_OK;
 }

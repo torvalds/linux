@@ -88,29 +88,6 @@ typedef struct _PHYS_HEAP_FUNCTIONS_
 	DevPAddrToCpuPAddr	pfnDevPAddrToCpuPAddr;
 } PHYS_HEAP_FUNCTIONS;
 
-/*! Type conveys the class of physical heap to instantiate within Services
- * for the physical pool of memory. */
-typedef enum _PHYS_HEAP_TYPE_
-{
-	PHYS_HEAP_TYPE_UNKNOWN = 0,     /*!< Not a valid value for any config */
-	PHYS_HEAP_TYPE_UMA,             /*!< Heap represents OS managed physical memory heap
-	                                     i.e. system RAM. Unified Memory Architecture
-	                                     physmem_osmem PMR factory */
-	PHYS_HEAP_TYPE_LMA,             /*!< Heap represents physical memory pool managed by
-	                                     Services i.e. carve out from system RAM or local
-	                                     card memory. Local Memory Architecture
-	                                     physmem_lma PMR factory */
-	PHYS_HEAP_TYPE_DMA,             /*!< Heap represents a physical memory pool managed by
-	                                     Services, alias of LMA and is only used on
-	                                     VZ non-native system configurations for
-	                                     a heap used for PHYS_HEAP_USAGE_FW_MAIN tagged
-	                                     buffers */
-#if defined(SUPPORT_WRAP_EXTMEMOBJECT)
-	PHYS_HEAP_TYPE_WRAP,            /*!< Heap used to group UM buffers given
-	                                     to Services. Integrity OS port only. */
-#endif
-} PHYS_HEAP_TYPE;
-
 /*! Structure used to describe a physical Heap supported by a system. A
  * system layer module can declare multiple physical heaps for different
  * purposes. At a minimum a system must provide one physical heap tagged for

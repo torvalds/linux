@@ -45,15 +45,17 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #ifndef CACHE_OPS_H
 #define CACHE_OPS_H
 #include "img_types.h"
-
-//#define CACHE_TEST
-
-#define CACHE_BATCH_MAX (8)
+/*!
+* @Defgroup CPUCacheAPIs
+* @{
+*/
+#define CACHE_BATCH_MAX (8U)
 #define MAX_DMA_OPS (34)
 typedef IMG_UINT32 PVRSRV_CACHE_OP;				/*!< Type represents cache maintenance operation */
-#define PVRSRV_CACHE_OP_NONE				0x0	/*!< No operation */
-#define PVRSRV_CACHE_OP_CLEAN				0x1	/*!< Flush w/o invalidate */
-#define PVRSRV_CACHE_OP_INVALIDATE			0x2	/*!< Invalidate w/o flush */
-#define PVRSRV_CACHE_OP_FLUSH				0x3	/*!< Flush w/ invalidate */
+#define PVRSRV_CACHE_OP_NONE				0x0U	/*!< No operation */
+#define PVRSRV_CACHE_OP_CLEAN				0x1U	/*!< Flush w/o invalidate */
+#define PVRSRV_CACHE_OP_INVALIDATE			0x2U	/*!< Invalidate w/o flush */
+#define PVRSRV_CACHE_OP_FLUSH				0x3U	/*!< Flush w/ invalidate */
+/*! @} End of Defgroup CPUCacheAPIs */
 
 #endif	/* CACHE_OPS_H */

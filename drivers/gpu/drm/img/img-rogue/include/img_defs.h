@@ -80,9 +80,13 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 /* True if the GCC version is at least the given version. False for older
  * versions of GCC, or other compilers.
  */
+#if defined(__GNUC__)
 #define GCC_VERSION_AT_LEAST(major, minor) \
 	(__GNUC__ > (major) || \
 	(__GNUC__ == (major) && __GNUC_MINOR__ >= (minor)))
+#else
+#define GCC_VERSION_AT_LEAST(major, minor) 0
+#endif
 
 /* Use Clang's __has_extension and __has_builtin macros if available. */
 #if defined(__has_extension)
@@ -146,19 +150,19 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 		do { \
 			assert(!(msg)); \
 			__builtin_unreachable(); \
-		} while (0)
+		} while (false)
 #elif defined(_MSC_VER)
 	#define unreachable(msg) \
 		do { \
 			assert(!(msg)); \
 			__assume(0); \
-		} while (0)
+		} while (false)
 #else
 	#define unreachable(msg) \
 		do { \
 			assert(!(msg)); \
 			while (1); \
-		} while (0)
+		} while (false)
 #endif
 
 /*
@@ -171,13 +175,13 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 		do { \
 			assert(expr); \
 			__builtin_assume(expr); \
-		} while (0)
+		} while (false)
 #elif defined(_MSC_VER)
 	#define assume(expr) \
 		do { \
 			assert(expr); \
 			__assume(expr); \
-		} while (0)
+		} while (false)
 #elif defined(__linux__) && defined(__KERNEL__)
 	#define assume(expr) ((void)(expr))
 #elif GCC_VERSION_AT_LEAST(4, 5) || has_clang_builtin(__builtin_unreachable)
@@ -185,7 +189,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 		do { \
 			if (unlikely(!(expr))) \
 				unreachable("Assumption isn't true: " # expr); \
-		} while (0)
+		} while (false)
 #else
 	#define assume(expr) assert(expr)
 #endif
@@ -316,7 +320,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 	#include <linux/compiler.h>
 
 	#if !defined(__fallthrough)
-		#if defined(__GNUC__) && GCC_VERSION_AT_LEAST(7, 0)
+		#if GCC_VERSION_AT_LEAST(7, 0)
 			#define __fallthrough __attribute__((__fallthrough__))
 		#else
 			#define __fallthrough
@@ -349,7 +353,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 	#if defined(__cplusplus) && (__cplusplus >= 201703L)
 		#define __fallthrough [[fallthrough]]
-	#elif defined(__GNUC__) && GCC_VERSION_AT_LEAST(7, 0)
+	#elif GCC_VERSION_AT_LEAST(7, 0)
 		#define __fallthrough __attribute__((__fallthrough__))
 	#else
 		#define __fallthrough
@@ -502,6 +506,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 	#define VG_MARK_INITIALIZED(pvData,ui32Size) VALGRIND_MAKE_MEM_DEFINED(pvData,ui32Size)
 	#define VG_MARK_NOACCESS(pvData,ui32Size) VALGRIND_MAKE_MEM_NOACCESS(pvData,ui32Size)
 	#define VG_MARK_ACCESS(pvData,ui32Size) VALGRIND_MAKE_MEM_UNDEFINED(pvData,ui32Size)
+	#define VG_ASSERT_DEFINED(pvData,ui32Size) VALGRIND_CHECK_MEM_IS_DEFINED(pvData,ui32Size)
 #else
 	#if defined(_MSC_VER)
 	#	define PVR_MSC_SUPPRESS_4127 __pragma(warning(suppress:4127))
@@ -509,9 +514,10 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 	#	define PVR_MSC_SUPPRESS_4127
 	#endif
 
-	#define VG_MARK_INITIALIZED(pvData,ui32Size) PVR_MSC_SUPPRESS_4127 do { } while (0)
-	#define VG_MARK_NOACCESS(pvData,ui32Size) PVR_MSC_SUPPRESS_4127 do { } while (0)
-	#define VG_MARK_ACCESS(pvData,ui32Size) PVR_MSC_SUPPRESS_4127 do { } while (0)
+	#define VG_MARK_INITIALIZED(pvData,ui32Size) PVR_MSC_SUPPRESS_4127 do { } while (false)
+	#define VG_MARK_NOACCESS(pvData,ui32Size) PVR_MSC_SUPPRESS_4127 do { } while (false)
+	#define VG_MARK_ACCESS(pvData,ui32Size) PVR_MSC_SUPPRESS_4127 do { } while (false)
+	#define VG_ASSERT_DEFINED(pvData,ui32Size) PVR_MSC_SUPPRESS_4127 do { } while (false)
 #endif
 
 #define IMG_STRINGIFY_IMPL(x) # x

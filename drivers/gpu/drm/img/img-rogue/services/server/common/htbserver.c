@@ -157,6 +157,8 @@ static HTB_CTRL_INFO g_sCtrl;
 static IMG_BOOL g_bConfigured = IMG_FALSE;
 static IMG_HANDLE g_hTLStream;
 
+static IMG_HANDLE hHtbDbgReqNotify;
+
 
 /************************************************************************/ /*!
  @Function      _LookupFlags
@@ -219,49 +221,6 @@ static void _HTBLogDebugInfo(
 		{
 			PVR_DUMPDEBUG_LOG("------[ HTB Log state: Off ]------");
 		}
-	}
-}
-
-/************************************************************************/ /*!
- @Function      HTBDeviceCreate
- @Description   Initialisation actions for HTB at device creation.
-
- @Input         psDeviceNode    Reference to the device node in context
-
- @Return        eError          Internal services call returned eError error
-                                number
-*/ /**************************************************************************/
-PVRSRV_ERROR
-HTBDeviceCreate(
-		PVRSRV_DEVICE_NODE *psDeviceNode
-)
-{
-	PVRSRV_ERROR eError;
-
-	eError = PVRSRVRegisterDbgRequestNotify(&psDeviceNode->hHtbDbgReqNotify,
-			 psDeviceNode, &_HTBLogDebugInfo, DEBUG_REQUEST_HTB, NULL);
-	PVR_LOG_IF_ERROR(eError, "PVRSRVRegisterDbgRequestNotify");
-
-	return eError;
-}
-
-/************************************************************************/ /*!
- @Function      HTBIDeviceDestroy
- @Description   De-initialisation actions for HTB at device destruction.
-
- @Input         psDeviceNode    Reference to the device node in context
-
-*/ /**************************************************************************/
-void
-HTBDeviceDestroy(
-		PVRSRV_DEVICE_NODE *psDeviceNode
-)
-{
-	if (psDeviceNode->hHtbDbgReqNotify)
-	{
-		/* No much we can do if it fails, driver unloading */
-		(void)PVRSRVUnregisterDbgRequestNotify(psDeviceNode->hHtbDbgReqNotify);
-		psDeviceNode->hHtbDbgReqNotify = NULL;
 	}
 }
 
@@ -332,7 +291,7 @@ HTBInit(void)
 	 */
 	OSCreateKMAppHintState(&pvAppHintState);
 	ui32AppHintDefault = HTB_TL_BUFFER_SIZE_MIN / 1024;
-	OSGetKMAppHintUINT32(pvAppHintState, HTBufferSizeInKB,
+	OSGetKMAppHintUINT32(APPHINT_NO_DEVICE, pvAppHintState, HTBufferSizeInKB,
 						 &ui32AppHintDefault, &g_ui32HTBufferSize);
 	OSFreeKMAppHintState(pvAppHintState);
 
@@ -353,6 +312,10 @@ HTBInit(void)
 	eError = OSSpinLockCreate(&g_sCtrl.hRepeatMarkerLock);
 	PVR_LOG_RETURN_IF_ERROR(eError, "OSSpinLockCreate");
 
+	eError = PVRSRVRegisterDriverDbgRequestNotify(&hHtbDbgReqNotify,
+			 _HTBLogDebugInfo, DEBUG_REQUEST_HTB, NULL);
+	PVR_LOG_IF_ERROR(eError, "PVRSRVRegisterDeviceDbgRequestNotify");
+
 	g_sCtrl.bInitDone = IMG_TRUE;
 
 	/* Log the current driver parameter setting for the HTBufferSizeInKB.
@@ -363,6 +326,7 @@ HTBInit(void)
 	{
 		PVR_LOG(("Increasing HTBufferSize to %uKB", g_ui32HTBufferSize));
 	}
+
 
 	return PVRSRV_OK;
 }
@@ -380,6 +344,13 @@ HTBDeInit( void )
 {
 	if (!g_sCtrl.bInitDone)
 		return PVRSRV_OK;
+
+	if (hHtbDbgReqNotify)
+	{
+		/* Not much we can do if it fails, driver unloading */
+		(void)PVRSRVUnregisterDriverDbgRequestNotify(hHtbDbgReqNotify);
+		hHtbDbgReqNotify = NULL;
+	}
 
 	if (g_hTLStream)
 	{

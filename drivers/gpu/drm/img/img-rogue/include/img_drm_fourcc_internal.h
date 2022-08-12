@@ -61,7 +61,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 #define DRM_FORMAT_MOD_PVR_FBCDC_8x8_V0      fourcc_mod_code(PVR, 1)
 #define DRM_FORMAT_MOD_PVR_FBCDC_8x8_V0_FIX  fourcc_mod_code(PVR, 2) /* Fix for HW_BRN_37464 */
-#define DRM_FORMAT_MOD_PVR_FBCDC_8x8_V1      fourcc_mod_code(PVR, 3)
+/* DRM_FORMAT_MOD_PVR_FBCDC_8x8_V1 - moved to the public header */
 #define DRM_FORMAT_MOD_PVR_FBCDC_8x8_V2      fourcc_mod_code(PVR, 4)
 #define DRM_FORMAT_MOD_PVR_FBCDC_8x8_V3      fourcc_mod_code(PVR, 5)
 /* DRM_FORMAT_MOD_PVR_FBCDC_8x8_V7 - moved to the public header */
@@ -74,7 +74,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 /* DRM_FORMAT_MOD_PVR_FBCDC_8x8_LOSSY75_V13 - moved to the public header */
 #define DRM_FORMAT_MOD_PVR_FBCDC_16x4_V0     fourcc_mod_code(PVR, 7)
 #define DRM_FORMAT_MOD_PVR_FBCDC_16x4_V0_FIX fourcc_mod_code(PVR, 8) /* Fix for HW_BRN_37464 */
-#define DRM_FORMAT_MOD_PVR_FBCDC_16x4_V1     fourcc_mod_code(PVR, 9)
+/* DRM_FORMAT_MOD_PVR_FBCDC_16x4_V1 - moved to the public header */
 #define DRM_FORMAT_MOD_PVR_FBCDC_16x4_V2     fourcc_mod_code(PVR, 10)
 #define DRM_FORMAT_MOD_PVR_FBCDC_16x4_V3     fourcc_mod_code(PVR, 11)
 /* DRM_FORMAT_MOD_PVR_FBCDC_16x4_V7 - moved to the public header */

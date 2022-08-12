@@ -41,10 +41,17 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */ /**************************************************************************/
 
 #if defined(PDUMP)
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 15, 0)) 
-#include <stdarg.h>
-#endif
 
+#if defined(__linux__)
+ #include <linux/version.h>
+ #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0))
+  #include <linux/stdarg.h>
+ #else
+  #include <stdarg.h>
+ #endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0) */
+#else
+ #include <stdarg.h>
+#endif /* __linux__ */
 
 #include "pvrversion.h"
 #include "allocmem.h"
@@ -81,6 +88,11 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define PRM_FILE_SIZE_MAX	0x7FDFFFFFU /*!< Default maximum file size to split output files, 2GB-2MB as fwrite limits it to 2GB-1 on 32bit systems */
 
 #define MAX_PDUMP_WRITE_RETRIES	200	/*!< Max number of retries to dump pdump data in to respective buffers */
+
+/* 'Magic' cookie used in this file only, where no psDeviceNode is available
+ * but writing to the PDump log should be permitted
+ */
+#define PDUMP_MAGIC_COOKIE 0x9E0FF
 
 static ATOMIC_T		g_sConnectionCount;
 
@@ -167,9 +179,9 @@ ATOMIC_T g_sEveryLineCounter;
 
 // #define PDUMP_DEBUG_TRANSITION
 #if defined(PDUMP_DEBUG_TRANSITION)
-# define DEBUG_OUTFILES_COMMENT(fmt, ...) (void)PDumpCommentWithFlags(PDUMP_FLAGS_CONTINUOUS, fmt, __VA_ARGS__)
+# define DEBUG_OUTFILES_COMMENT(dev, fmt, ...) (void)PDumpCommentWithFlags(dev, PDUMP_FLAGS_CONTINUOUS, fmt, __VA_ARGS__)
 #else
-# define DEBUG_OUTFILES_COMMENT(fmt, ...)
+# define DEBUG_OUTFILES_COMMENT(dev, fmt, ...)
 #endif
 
 #if defined(PDUMP_DEBUG) || defined(REFCOUNT_DEBUG)
@@ -179,8 +191,9 @@ ATOMIC_T g_sEveryLineCounter;
 #endif
 
 /* Prototype for the test/debug state dump routine used in debugging */
+#if defined(PDUMP_TRACE_STATE) || defined(PVR_TESTING_UTILS)
 void PDumpCommonDumpState(void);
-#undef PDUMP_TRACE_STATE
+#endif
 
 
 /*****************************************************************************/
@@ -235,6 +248,7 @@ typedef enum _PDUMP_SM_
 /*! PDump control flags */
 #define FLAG_IS_DRIVER_IN_INIT_PHASE 0x1  /*! Control flag that keeps track of State of driver initialisation phase */
 #define FLAG_IS_IN_CAPTURE_RANGE     0x2  /*! Control flag that keeps track of Current capture status, is current frame in range */
+#define FLAG_IS_IN_CAPTURE_INTERVAL  0x4  /*! Control flag that keeps track of Current capture status, is current frame in an interval where no capture takes place. */
 
 #define CHECK_PDUMP_CONTROL_FLAG(PDUMP_CONTROL_FLAG) BITMASK_HAS(g_PDumpCtrl.ui32Flags, PDUMP_CONTROL_FLAG)
 #define SET_PDUMP_CONTROL_FLAG(PDUMP_CONTROL_FLAG)   BITMASK_SET(g_PDumpCtrl.ui32Flags, PDUMP_CONTROL_FLAG)
@@ -409,27 +423,39 @@ static void PDumpCtrlUpdateCaptureStatus(void)
 	if (g_PDumpCtrl.ui32DefaultCapMode == PDUMP_CAPMODE_FRAMED)
 	{
 		if ((g_PDumpCtrl.ui32CurrentFrame >= g_PDumpCtrl.sCaptureRange.ui32Start) &&
-			(g_PDumpCtrl.ui32CurrentFrame <= g_PDumpCtrl.sCaptureRange.ui32End) &&
-			(((g_PDumpCtrl.ui32CurrentFrame - g_PDumpCtrl.sCaptureRange.ui32Start) % g_PDumpCtrl.sCaptureRange.ui32Interval) == 0))
+			(g_PDumpCtrl.ui32CurrentFrame <= g_PDumpCtrl.sCaptureRange.ui32End))
 		{
-			SET_PDUMP_CONTROL_FLAG(FLAG_IS_IN_CAPTURE_RANGE);
+			if (((g_PDumpCtrl.ui32CurrentFrame - g_PDumpCtrl.sCaptureRange.ui32Start) % g_PDumpCtrl.sCaptureRange.ui32Interval) == 0)
+			{
+				SET_PDUMP_CONTROL_FLAG(FLAG_IS_IN_CAPTURE_RANGE);
+				UNSET_PDUMP_CONTROL_FLAG(FLAG_IS_IN_CAPTURE_INTERVAL);
+			}
+			else
+			{
+				UNSET_PDUMP_CONTROL_FLAG(FLAG_IS_IN_CAPTURE_RANGE);
+				SET_PDUMP_CONTROL_FLAG(FLAG_IS_IN_CAPTURE_INTERVAL);
+			}
 		}
 		else
 		{
 			UNSET_PDUMP_CONTROL_FLAG(FLAG_IS_IN_CAPTURE_RANGE);
+			UNSET_PDUMP_CONTROL_FLAG(FLAG_IS_IN_CAPTURE_INTERVAL);
 		}
 	}
 	else if ((g_PDumpCtrl.ui32DefaultCapMode == PDUMP_CAPMODE_CONTINUOUS) || (g_PDumpCtrl.ui32DefaultCapMode == PDUMP_CAPMODE_BLOCKED))
 	{
 		SET_PDUMP_CONTROL_FLAG(FLAG_IS_IN_CAPTURE_RANGE);
+		UNSET_PDUMP_CONTROL_FLAG(FLAG_IS_IN_CAPTURE_INTERVAL);
 	}
 	else if (g_PDumpCtrl.ui32DefaultCapMode == PDUMP_CAPMODE_UNSET)
 	{
 		UNSET_PDUMP_CONTROL_FLAG(FLAG_IS_IN_CAPTURE_RANGE);
+		UNSET_PDUMP_CONTROL_FLAG(FLAG_IS_IN_CAPTURE_INTERVAL);
 	}
 	else
 	{
 		UNSET_PDUMP_CONTROL_FLAG(FLAG_IS_IN_CAPTURE_RANGE);
+		UNSET_PDUMP_CONTROL_FLAG(FLAG_IS_IN_CAPTURE_INTERVAL);
 		PVR_DPF((PVR_DBG_ERROR, "PDumpCtrlUpdateCaptureStatus: Unexpected capture mode (%x)", g_PDumpCtrl.ui32DefaultCapMode));
 	}
 
@@ -459,7 +485,7 @@ static void PDumpCtrlSetBlock(IMG_UINT32 ui32BlockNum)
 
 static INLINE IMG_UINT32 PDumpCtrlGetBlock(void)
 {
-	return (PDumpCtrlCapModIsBlocked()? g_PDumpCtrl.sBlockCtrl.ui32CurrentBlock : PDUMP_BLOCKNUM_INVALID);
+	return PDumpCtrlCapModIsBlocked()? g_PDumpCtrl.sBlockCtrl.ui32CurrentBlock : PDUMP_BLOCKNUM_INVALID;
 }
 
 static PVRSRV_ERROR PDumpCtrlForcedStop(void)
@@ -531,6 +557,12 @@ static INLINE IMG_BOOL PDumpCtrlCaptureOn(void)
 {
 	return ((g_PDumpCtrl.eServiceState == PDUMP_SM_READY_CLIENT_CONNECTED) &&
 			CHECK_PDUMP_CONTROL_FLAG(FLAG_IS_IN_CAPTURE_RANGE)) ? IMG_TRUE : IMG_FALSE;
+}
+
+static INLINE IMG_BOOL PDumpCtrlCaptureInInterval(void)
+{
+	return ((g_PDumpCtrl.eServiceState == PDUMP_SM_READY_CLIENT_CONNECTED) &&
+			CHECK_PDUMP_CONTROL_FLAG(FLAG_IS_IN_CAPTURE_INTERVAL)) ? IMG_TRUE : IMG_FALSE;
 }
 
 static INLINE IMG_BOOL PDumpCtrlCaptureRangePast(void)
@@ -610,10 +642,17 @@ static INLINE IMG_BOOL PDumpCtrlInPowerTransition(void)
 static PVRSRV_ERROR PDumpCtrlGetState(IMG_UINT64 *ui64State)
 {
 	PDUMP_SM eState;
+
 	*ui64State = 0;
+
 	if (PDumpCtrlCaptureOn())
 	{
 		*ui64State |= PDUMP_STATE_CAPTURE_FRAME;
+	}
+
+	if (PDumpCtrlCaptureInInterval())
+	{
+		*ui64State |= PDUMP_STATE_CAPTURE_IN_INTERVAL;
 	}
 
 	eState = PDumpCtrlGetModuleState();
@@ -648,46 +687,35 @@ static INLINE void PDumpModuleTransitionState(PDUMP_SM eNewState)
 	PDumpCtrlLockAcquire();
 	g_PDumpCtrl.eServiceState = eNewState;
 	PDumpCtrlLockRelease();
-	return;
 }
 
-void PDumpPowerTransitionStart(void)
+void PDumpPowerTransitionStart(PVRSRV_DEVICE_NODE *psDeviceNode)
 {
-	PDumpCtrlLockAcquire();
-	PDumpCtrlPowerTransitionStart();
-	PDumpCtrlLockRelease();
-}
-
-void PDumpPowerTransitionEnd(void)
-{
-	PDumpCtrlLockAcquire();
-	PDumpCtrlPowerTransitionEnd();
-	PDumpCtrlLockRelease();
-}
-
-IMG_BOOL PDumpInPowerTransition(void)
-{
-	IMG_BOOL bPDumpInPowerTransition = IMG_FALSE;
-
-	PDumpCtrlLockAcquire();
-	if (PDumpCtrlInPowerTransitionPID())
+	if (PDumpIsDevicePermitted(psDeviceNode))
 	{
-		bPDumpInPowerTransition = IMG_TRUE;
+		PDumpCtrlLockAcquire();
+		PDumpCtrlPowerTransitionStart();
+		PDumpCtrlLockRelease();
 	}
-	PDumpCtrlLockRelease();
-
-	return bPDumpInPowerTransition;
 }
 
-IMG_BOOL PDumpIsContCaptureOn(void)
+void PDumpPowerTransitionEnd(PVRSRV_DEVICE_NODE *psDeviceNode)
 {
-	IMG_BOOL bPDumpIsCatpureOn;
+	if (PDumpIsDevicePermitted(psDeviceNode))
+	{
+		PDumpCtrlLockAcquire();
+		PDumpCtrlPowerTransitionEnd();
+		PDumpCtrlLockRelease();
+	}
+}
 
+static PVRSRV_ERROR PDumpGetCurrentBlockKM(IMG_UINT32 *pui32BlockNum)
+{
 	PDumpCtrlLockAcquire();
-	bPDumpIsCatpureOn = !PDumpCtrlInitPhaseComplete() || (PDumpCtrlGetModuleState() == PDUMP_SM_READY_CLIENT_CONNECTED);
+	*pui32BlockNum = PDumpCtrlGetBlock();
 	PDumpCtrlLockRelease();
 
-	return bPDumpIsCatpureOn;
+	return PVRSRV_OK;
 }
 
 static IMG_BOOL PDumpIsClientConnected(void)
@@ -699,6 +727,16 @@ static IMG_BOOL PDumpIsClientConnected(void)
 	PDumpCtrlLockRelease();
 
 	return bPDumpClientConnected;
+}
+
+/* Prototype write allowed for exposure in PDumpCheckFlagsWrite */
+static IMG_BOOL PDumpWriteAllowed(PVRSRV_DEVICE_NODE *psDeviceNode,
+                                  IMG_UINT32 ui32Flags, IMG_UINT32* ui32ExitHere);
+
+IMG_BOOL PDumpCheckFlagsWrite(PVRSRV_DEVICE_NODE *psDeviceNode,
+                              IMG_UINT32 ui32Flags)
+{
+	return PDumpWriteAllowed(psDeviceNode, ui32Flags, NULL);
 }
 
 /*****************************************************************************/
@@ -726,6 +764,35 @@ static IMG_BOOL _PDumpSetSplitMarker(IMG_HANDLE hStream, IMG_BOOL bRemoveOld)
 	return IMG_TRUE;
 }
 
+IMG_BOOL PDumpIsDevicePermitted(PVRSRV_DEVICE_NODE *psDeviceNode)
+{
+	PVRSRV_DATA *psPVRSRVData = PVRSRVGetPVRSRVData();
+
+	if ((void*)psDeviceNode == (void*)PDUMP_MAGIC_COOKIE)
+	{
+		/* Always permit PDumping if passed 'magic' cookie */
+		return IMG_TRUE;
+	}
+
+	if (psDeviceNode)
+	{
+		if ((psDeviceNode->sDevId.ui32InternalID > PVRSRV_MAX_DEVICES) ||
+		    ((psPVRSRVData->ui32PDumpBoundDevice < PVRSRV_MAX_DEVICES) &&
+		     (psDeviceNode->sDevId.ui32InternalID != psPVRSRVData->ui32PDumpBoundDevice)))
+		{
+			return IMG_FALSE;
+		}
+	}
+	else
+	{
+		/* Assert if provided with a NULL psDeviceNode */
+		OSDumpStack();
+		PVR_ASSERT(psDeviceNode);
+		return IMG_FALSE;
+	}
+	return IMG_TRUE;
+}
+
 /*
 	Checks in this method were seeded from the original PDumpWriteILock()
 	and DBGDrivWriteCM() and have grown since to ensure PDump output
@@ -733,12 +800,23 @@ static IMG_BOOL _PDumpSetSplitMarker(IMG_HANDLE hStream, IMG_BOOL bRemoveOld)
 	Note: the order of the checks in this method is important as some
 	writes have multiple pdump flags set!
  */
-static IMG_BOOL PDumpWriteAllowed(IMG_UINT32 ui32Flags, IMG_UINT32* ui32ExitHere)
+static IMG_BOOL PDumpWriteAllowed(PVRSRV_DEVICE_NODE *psDeviceNode,
+                                  IMG_UINT32 ui32Flags, IMG_UINT32* ui32ExitHere)
 {
 	PDUMP_HERE_VAR;
 
+	/* No writes if for a different device than the PDump-bound device
+	 *  NB. psDeviceNode may be NULL if called during initialisation
+	 */
+	if (!PDumpIsDevicePermitted(psDeviceNode))
+	{
+		PDUMP_HERE(5);
+		goto returnFalse;
+	}
+
 	/* PDUMP_FLAGS_CONTINUOUS and PDUMP_FLAGS_PERSISTENT can't come together. */
-	PVR_ASSERT(IMG_FALSE == ((ui32Flags & PDUMP_FLAGS_CONTINUOUS) && (ui32Flags & PDUMP_FLAGS_PERSISTENT)));
+	PVR_ASSERT(IMG_FALSE == ((ui32Flags & PDUMP_FLAGS_CONTINUOUS) &&
+		                     (ui32Flags & PDUMP_FLAGS_PERSISTENT)));
 
 	/* Lock down the PDUMP_CTRL_STATE struct before calling the following
 	   PDumpCtrl*** functions. This is to avoid updates to the Control data
@@ -810,6 +888,17 @@ static IMG_BOOL PDumpWriteAllowed(IMG_UINT32 ui32Flags, IMG_UINT32* ui32ExitHere
 		goto unlockAndReturnTrue;
 	}
 
+	/* If in a capture interval but a write is still required.
+	 * Force write out if FLAGS_INTERVAL has been set and we are in
+	 * a capture interval */
+	if (ui32Flags & PDUMP_FLAGS_INTERVAL)
+	{
+		if (PDumpCtrlCaptureInInterval()){
+			PDUMP_HERE(21);
+			goto unlockAndReturnTrue;
+		}
+	}
+
 	/*
 		If no flags are provided then it is FRAMED output and the frame
 		range must be checked matching expected behaviour.
@@ -830,6 +919,7 @@ unlockAndReturnTrue:
 
 unlockAndReturnFalse:
 	PDumpCtrlLockRelease();
+returnFalse:
 	if (ui32ExitHere != NULL)
 	{
 		*ui32ExitHere = here;
@@ -844,6 +934,7 @@ unlockAndReturnFalse:
                 to handle any buffer full conditions to ensure all the data
                 requested to be written, is.
 
+ @Input			psDeviceNode The device the PDump pertains to
  @Input			psStream	The address of the PDump stream buffer to write to
  @Input			pui8Data    Pointer to the data to be written
  @Input			ui32BCount	Number of bytes to write
@@ -853,8 +944,11 @@ unlockAndReturnFalse:
                             ui32BCount when buffer full condition could not
                             be avoided.
 */ /**************************************************************************/
-static IMG_UINT32 PDumpWriteToBuffer(PDUMP_STREAM* psStream, IMG_UINT8 *pui8Data,
-		IMG_UINT32 ui32BCount, IMG_UINT32 ui32Flags)
+static IMG_UINT32 PDumpWriteToBuffer(PVRSRV_DEVICE_NODE *psDeviceNode,
+                                     PDUMP_STREAM* psStream,
+                                     IMG_UINT8 *pui8Data,
+                                     IMG_UINT32 ui32BCount,
+                                     IMG_UINT32 ui32Flags)
 {
 	IMG_UINT32	ui32BytesToBeWritten;
 	IMG_UINT32	ui32Off = 0;
@@ -971,7 +1065,7 @@ static IMG_UINT32 PDumpWriteToBuffer(PDUMP_STREAM* psStream, IMG_UINT8 *pui8Data
 		   (which is detected via PDumpWriteAllowed())
 		*/
 
-		if (!PDumpWriteAllowed(ui32Flags, NULL))
+		if (!PDumpWriteAllowed(psDeviceNode, ui32Flags, NULL))
 		{
 			psStream->ui32BufferFullAborts++;
 			break;
@@ -986,6 +1080,7 @@ static IMG_UINT32 PDumpWriteToBuffer(PDUMP_STREAM* psStream, IMG_UINT8 *pui8Data
  @Description   Write the supplied data to the PDump channel specified obeying
                 flags to write to the necessary channel buffers.
 
+ @Input         psDeviceNode The device the PDump pertains to
  @Input         psChannel   Address of the script or parameter channel object
  @Input/Output  psWOff      Address of the channel write offsets object to
                             update on successful writing
@@ -1006,8 +1101,12 @@ static IMG_UINT32 PDumpWriteToBuffer(PDUMP_STREAM* psStream, IMG_UINT8 *pui8Data
                             the init buffer.
  @Return        IMG_BOOL    True when the data has been consumed, false otherwise
 */ /**************************************************************************/
-static IMG_BOOL PDumpWriteToChannel(PDUMP_CHANNEL* psChannel, PDUMP_CHANNEL_WOFFSETS* psWOff,
-		IMG_UINT8* pui8Data, IMG_UINT32 ui32Size, IMG_UINT32 ui32Flags)
+static IMG_BOOL PDumpWriteToChannel(PVRSRV_DEVICE_NODE *psDeviceNode,
+                                    PDUMP_CHANNEL* psChannel,
+                                    PDUMP_CHANNEL_WOFFSETS* psWOff,
+                                    IMG_UINT8* pui8Data,
+                                    IMG_UINT32 ui32Size,
+                                    IMG_UINT32 ui32Flags)
 {
 	IMG_UINT32 ui32BytesWritten = 0;
 	PDUMP_HERE_VAR;
@@ -1031,7 +1130,9 @@ static IMG_BOOL PDumpWriteToChannel(PDUMP_CHANNEL* psChannel, PDUMP_CHANNEL_WOFF
 	if (ui32Flags & PDUMP_FLAGS_DEINIT)
 	{
 		PDUMP_HERE(211);
-		ui32BytesWritten = PDumpWriteToBuffer(&psChannel->sDeinitStream, pui8Data, ui32Size, ui32Flags);
+		ui32BytesWritten = PDumpWriteToBuffer(psDeviceNode,
+		                                      &psChannel->sDeinitStream,
+		                                      pui8Data, ui32Size, ui32Flags);
 		if (ui32BytesWritten != ui32Size)
 		{
 			PVR_DPF((PVR_DBG_ERROR, "PDumpWriteToChannel: DEINIT Written length (%d) does not match data length (%d), PDump incomplete!", ui32BytesWritten, ui32Size));
@@ -1057,7 +1158,9 @@ static IMG_BOOL PDumpWriteToChannel(PDUMP_CHANNEL* psChannel, PDUMP_CHANNEL_WOFF
 		if (ui32Flags & PDUMP_FLAGS_PERSISTENT)
 		{
 			PDUMP_HERE(213);
-			ui32BytesWritten = PDumpWriteToBuffer(&psChannel->sInitStream, pui8Data, ui32Size, ui32Flags);
+			ui32BytesWritten = PDumpWriteToBuffer(psDeviceNode,
+			                                      &psChannel->sInitStream,
+			                                      pui8Data, ui32Size, ui32Flags);
 			if (ui32BytesWritten != ui32Size)
 			{
 				PVR_DPF((PVR_DBG_ERROR, "PDumpWriteToChannel: PERSIST Written length (%d) does not match data length (%d), PDump incomplete!", ui32BytesWritten, ui32Size));
@@ -1111,7 +1214,9 @@ static IMG_BOOL PDumpWriteToChannel(PDUMP_CHANNEL* psChannel, PDUMP_CHANNEL_WOFF
 			if (ui32Flags & PDUMP_FLAGS_BLKDATA)
 			{
 				PDUMP_HERE(217);
-				ui32BytesWritten = PDumpWriteToBuffer(&psChannel->sBlockStream, pui8Data, ui32Size, ui32Flags);
+				ui32BytesWritten = PDumpWriteToBuffer(psDeviceNode,
+				                                      &psChannel->sBlockStream,
+				                                      pui8Data, ui32Size, ui32Flags);
 				if (ui32BytesWritten != ui32Size)
 				{
 					PVR_DPF((PVR_DBG_ERROR, "PDumpWriteToChannel: BLOCK Written length (%d) does not match data length (%d), PDump incomplete!", ui32BytesWritten, ui32Size));
@@ -1122,7 +1227,9 @@ static IMG_BOOL PDumpWriteToChannel(PDUMP_CHANNEL* psChannel, PDUMP_CHANNEL_WOFF
 		}
 
 		/* Write the data to the stream */
-		ui32BytesWritten = PDumpWriteToBuffer(psStream, pui8Data, ui32Size, ui32Flags);
+		ui32BytesWritten = PDumpWriteToBuffer(psDeviceNode,
+		                                      psStream, pui8Data,
+		                                      ui32Size, ui32Flags);
 		if (ui32BytesWritten != ui32Size)
 		{
 			PVR_DPF((PVR_DBG_ERROR, "PDumpWriteToChannel: MAIN Written length (%d) does not match data length (%d), PDump incomplete!", ui32BytesWritten, ui32Size));
@@ -1167,8 +1274,12 @@ static IMG_UINT32 _GenerateChecksum(void *pvData, size_t uiSize)
 
 #endif
 
-PVRSRV_ERROR PDumpWriteParameter(IMG_UINT8 *pui8Data, IMG_UINT32 ui32Size, IMG_UINT32 ui32Flags,
-		IMG_UINT32* pui32FileOffset, IMG_CHAR* aszFilenameStr)
+PVRSRV_ERROR PDumpWriteParameter(PVRSRV_DEVICE_NODE *psDeviceNode,
+                                 IMG_UINT8 *pui8Data,
+                                 IMG_UINT32 ui32Size,
+                                 IMG_UINT32 ui32Flags,
+                                 IMG_UINT32* pui32FileOffset,
+                                 IMG_CHAR* aszFilenameStr)
 {
 	PVRSRV_ERROR eError = PVRSRV_OK;
 	IMG_BOOL bPDumpCtrlInitPhaseComplete = IMG_FALSE;
@@ -1183,7 +1294,7 @@ PVRSRV_ERROR PDumpWriteParameter(IMG_UINT8 *pui8Data, IMG_UINT32 ui32Size, IMG_U
 	PDUMP_HERE(1);
 
 	/* Check if write can proceed? */
-	if (!PDumpWriteAllowed(ui32Flags, &here))
+	if (!PDumpWriteAllowed(psDeviceNode, ui32Flags, &here))
 	{
 		/* Abort write for the above reason but indicate what happened to
 		 * caller to avoid disrupting the driver, caller should treat it as OK
@@ -1239,7 +1350,9 @@ PVRSRV_ERROR PDumpWriteParameter(IMG_UINT8 *pui8Data, IMG_UINT32 ui32Size, IMG_U
 
 	/* Write the parameter data to the parameter channel */
 	eError = PVRSRV_ERROR_PDUMP_BUFFER_FULL;
-	if (!PDumpWriteToChannel(&g_PDumpParameters.sCh, &g_PDumpParameters.sWOff, pui8Data, ui32Size, ui32Flags))
+	if (!PDumpWriteToChannel(psDeviceNode, &g_PDumpParameters.sCh,
+	                         &g_PDumpParameters.sWOff, pui8Data,
+	                         ui32Size, ui32Flags))
 	{
 		PDUMP_HERE(7);
 		PVR_LOG_GOTO_IF_ERROR(eError, "PDumpWrite", errExit);
@@ -1260,7 +1373,7 @@ PVRSRV_ERROR PDumpWriteParameter(IMG_UINT8 *pui8Data, IMG_UINT32 ui32Size, IMG_U
 									aszFilenameStr);
 		PVR_GOTO_IF_ERROR(eError, errExit);
 
-		PDumpWriteScript(hScript, ui32Flags);
+		PDumpWriteScript(psDeviceNode, hScript, ui32Flags);
 		PDUMP_RELEASE_SCRIPT_STRING();
 	}
 #endif
@@ -1272,7 +1385,8 @@ errExit:
 }
 
 
-IMG_BOOL PDumpWriteScript(IMG_HANDLE hString, IMG_UINT32 ui32Flags)
+IMG_BOOL PDumpWriteScript(PVRSRV_DEVICE_NODE *psDeviceNode,
+                          IMG_HANDLE hString, IMG_UINT32 ui32Flags)
 {
 	PDUMP_HERE_VAR;
 
@@ -1296,7 +1410,7 @@ IMG_BOOL PDumpWriteScript(IMG_HANDLE hString, IMG_UINT32 ui32Flags)
 	}
 #endif
 
-	if (!PDumpWriteAllowed(ui32Flags, NULL))
+	if (!PDumpWriteAllowed(psDeviceNode, ui32Flags, NULL))
 	{
 		/* Abort write for the above reasons but indicated it was OK to
 		 * caller to avoid disrupting the driver */
@@ -1335,7 +1449,10 @@ IMG_BOOL PDumpWriteScript(IMG_HANDLE hString, IMG_UINT32 ui32Flags)
 		}
 	}
 
-	return PDumpWriteToChannel(&g_PDumpScript.sCh, NULL, (IMG_UINT8*) hString, (IMG_UINT32) OSStringLength((IMG_CHAR*) hString), ui32Flags);
+	return PDumpWriteToChannel(psDeviceNode, &g_PDumpScript.sCh, NULL,
+	                          (IMG_UINT8*) hString,
+	                          (IMG_UINT32) OSStringLength((IMG_CHAR*) hString),
+	                          ui32Flags);
 }
 
 
@@ -1527,12 +1644,12 @@ static void PDumpDeInitStreams(PDUMP_CHANNEL* psParam, PDUMP_CHANNEL* psScript)
 
 /******************************************************************************
  * Function Name  : PDumpParameterChannelZeroedPageBlock
- * Inputs         : None
+ * Inputs         : psDeviceNode
  * Outputs        : None
  * Returns        : PVRSRV_ERROR
  * Description    : Set up the zero page block in the parameter stream
 ******************************************************************************/
-static PVRSRV_ERROR PDumpParameterChannelZeroedPageBlock(void)
+static PVRSRV_ERROR PDumpParameterChannelZeroedPageBlock(PVRSRV_DEVICE_NODE *psDeviceNode)
 {
 	IMG_UINT8 aui8Zero[32] = { 0 };
 	size_t uiBytesToWrite;
@@ -1542,7 +1659,7 @@ static PVRSRV_ERROR PDumpParameterChannelZeroedPageBlock(void)
 	IMG_UINT32 ui32GeneralNon4KHeapPageSize;
 
 	OSCreateKMAppHintState(&pvAppHintState);
-	OSGetKMAppHintUINT32(pvAppHintState, GeneralNon4KHeapPageSize,
+	OSGetKMAppHintUINT32(APPHINT_NO_DEVICE, pvAppHintState, GeneralNon4KHeapPageSize,
 			&ui32AppHintDefault, &ui32GeneralNon4KHeapPageSize);
 	OSFreeKMAppHintState(pvAppHintState);
 
@@ -1557,7 +1674,7 @@ static PVRSRV_ERROR PDumpParameterChannelZeroedPageBlock(void)
 	 * contiguous in the stream
 	 */
 	PDUMP_LOCK(0);
-	eError = PDumpWriteParameter(aui8Zero,
+	eError = PDumpWriteParameter(psDeviceNode, aui8Zero,
 							sizeof(aui8Zero),
 							0,
 							&g_PDumpParameters.uiZeroPageOffset,
@@ -1575,9 +1692,11 @@ static PVRSRV_ERROR PDumpParameterChannelZeroedPageBlock(void)
 	{
 		IMG_BOOL bOK;
 
-		bOK = PDumpWriteToChannel(&g_PDumpParameters.sCh, &g_PDumpParameters.sWOff,
-									aui8Zero,
-									sizeof(aui8Zero), 0);
+		bOK = PDumpWriteToChannel(psDeviceNode,
+								  &g_PDumpParameters.sCh,
+								  &g_PDumpParameters.sWOff,
+								  aui8Zero,
+								  sizeof(aui8Zero), 0);
 
 		if (!bOK)
 		{
@@ -1617,6 +1736,7 @@ void PDumpGetParameterZeroPageInfo(PDUMP_FILEOFFSET_T *puiZeroPageOffset,
 		*ppszZeroPageFilename = g_PDumpParameters.szZeroPageFilename;
 }
 
+
 PVRSRV_ERROR PDumpInitCommon(void)
 {
 	PVRSRV_ERROR eError;
@@ -1649,13 +1769,18 @@ PVRSRV_ERROR PDumpInitCommon(void)
 	PDUMP_HEREA(2011);
 
 	/* Test PDump initialised and ready by logging driver details */
-	eError = PDumpCommentWithFlags(PDUMP_FLAGS_CONTINUOUS, "Driver Product Version: %s - %s (%s)", PVRVERSION_STRING, PVR_BUILD_DIR, PVR_BUILD_TYPE);
+	eError = PDumpCommentWithFlags((PVRSRV_DEVICE_NODE*)PDUMP_MAGIC_COOKIE,
+	                               PDUMP_FLAGS_CONTINUOUS,
+	                               "Driver Product Version: %s - %s (%s)",
+	                               PVRVERSION_STRING, PVR_BUILD_DIR, PVR_BUILD_TYPE);
 	PVR_LOG_GOTO_IF_ERROR(eError, "PDumpCommentWithFlags", errRetState);
 
-	eError = PDumpCommentWithFlags(PDUMP_FLAGS_CONTINUOUS, "Start of Init Phase");
+	eError = PDumpCommentWithFlags((PVRSRV_DEVICE_NODE*)PDUMP_MAGIC_COOKIE,
+	                               PDUMP_FLAGS_CONTINUOUS,
+	                               "Start of Init Phase");
 	PVR_LOG_GOTO_IF_ERROR(eError, "PDumpCommentWithFlags", errRetState);
 
-	eError = PDumpParameterChannelZeroedPageBlock();
+	eError = PDumpParameterChannelZeroedPageBlock((PVRSRV_DEVICE_NODE*)PDUMP_MAGIC_COOKIE);
 	PVR_LOG_GOTO_IF_ERROR(eError, "PDumpParameterChannelZeroedPageBlock", errRetState);
 
 	PDUMP_HEREA(2012);
@@ -1693,14 +1818,20 @@ void PDumpDeInitCommon(void)
 	OSLockDestroy(g_hPDumpWriteLock);
 }
 
-void PDumpStopInitPhase(void)
+void PDumpStopInitPhase(PVRSRV_DEVICE_NODE *psDeviceNode)
 {
-	/* output this comment to indicate init phase ending OSs */
-	PDUMPCOMMENT("Stop Init Phase");
+	IMG_UINT32 ui32PDumpBoundDevice = PVRSRVGetPVRSRVData()->ui32PDumpBoundDevice;
 
-	PDumpCtrlLockAcquire();
-	PDumpCtrlSetInitPhaseComplete(IMG_TRUE);
-	PDumpCtrlLockRelease();
+	/* Stop the init phase for the PDump-bound device only */
+	if (psDeviceNode->sDevId.ui32InternalID == ui32PDumpBoundDevice)
+	{
+		/* output this comment to indicate init phase ending OSs */
+		PDUMPCOMMENT(psDeviceNode, "Stop Init Phase");
+
+		PDumpCtrlLockAcquire();
+		PDumpCtrlSetInitPhaseComplete(IMG_TRUE);
+		PDumpCtrlLockRelease();
+	}
 }
 
 PVRSRV_ERROR PDumpIsLastCaptureFrameKM(IMG_BOOL *pbIsLastCaptureFrame)
@@ -1800,12 +1931,13 @@ void PDumpUnregisterTransitionCallbackFenceSync(void *pvHandle)
 	OSFreeMem(psData);
 }
 
-static PVRSRV_ERROR _PDumpTransition(PDUMP_CONNECTION_DATA *psPDumpConnectionData, PDUMP_TRANSITION_EVENT eEvent, IMG_UINT32 ui32PDumpFlags)
+static PVRSRV_ERROR _PDumpTransition(PVRSRV_DEVICE_NODE *psDeviceNode,
+	                                 PDUMP_CONNECTION_DATA *psPDumpConnectionData,
+	                                 PDUMP_TRANSITION_EVENT eEvent,
+	                                 IMG_UINT32 ui32PDumpFlags)
 {
 	DLLIST_NODE *psNode, *psNext;
 	PVRSRV_ERROR eError;
-	PVRSRV_DEVICE_NODE *psThis;
-	PVRSRV_DATA *psPVRSRVData = PVRSRVGetPVRSRVData();
 
 	/* Only call the callbacks if we've really got new event */
 	if ((eEvent != psPDumpConnectionData->eLastEvent) && (eEvent != PDUMP_TRANSITION_EVENT_NONE))
@@ -1839,17 +1971,12 @@ static PVRSRV_ERROR _PDumpTransition(PDUMP_CONNECTION_DATA *psPDumpConnectionDat
 		 * At playback time, script-thread and sim-FW threads needs to be
 		 * synchronised before re-loading sync-blocks.
 		 * */
-		psPDumpConnectionData->pfnPDumpSyncBlocks(psPDumpConnectionData->hSyncPrivData, eEvent);
+		psPDumpConnectionData->pfnPDumpSyncBlocks(psDeviceNode, psPDumpConnectionData->hSyncPrivData, eEvent);
 
-		psThis = psPVRSRVData->psDeviceNodeList;
-		while (psThis)
+		if (psDeviceNode->hTransition)
 		{
-			if (psThis->hTransition)
-			{
-				PDUMP_Transition_DATA_FENCE_SYNC *psData = (PDUMP_Transition_DATA_FENCE_SYNC*)psThis->hTransition;
-				psData->pfnCallback(psData->hPrivData, eEvent);
-			}
-			psThis = psThis->psNext;
+			PDUMP_Transition_DATA_FENCE_SYNC *psData = (PDUMP_Transition_DATA_FENCE_SYNC*)psDeviceNode->hTransition;
+			psData->pfnCallback(psData->hPrivData, eEvent);
 		}
 
 		psPDumpConnectionData->eLastEvent = eEvent;
@@ -1858,7 +1985,10 @@ static PVRSRV_ERROR _PDumpTransition(PDUMP_CONNECTION_DATA *psPDumpConnectionDat
 	return PVRSRV_OK;
 }
 
-static PVRSRV_ERROR _PDumpBlockTransition(PDUMP_CONNECTION_DATA *psPDumpConnectionData, PDUMP_TRANSITION_EVENT eEvent, IMG_UINT32 ui32PDumpFlags)
+static PVRSRV_ERROR _PDumpBlockTransition(PVRSRV_DEVICE_NODE *psDeviceNode,
+                                          PDUMP_CONNECTION_DATA *psPDumpConnectionData,
+                                          PDUMP_TRANSITION_EVENT eEvent,
+                                          IMG_UINT32 ui32PDumpFlags)
 {
 
 	/* Need to follow following sequence for Block transition:
@@ -1878,38 +2008,51 @@ static PVRSRV_ERROR _PDumpBlockTransition(PDUMP_CONNECTION_DATA *psPDumpConnecti
 	if (eEvent == PDUMP_TRANSITION_EVENT_BLOCK_FINISHED)
 	{
 		/* (1) Current block has finished */
-		eError = _PDumpTransition(psPDumpConnectionData, PDUMP_TRANSITION_EVENT_BLOCK_FINISHED, ui32PDumpFlags);
+		eError = _PDumpTransition(psDeviceNode,
+			                      psPDumpConnectionData,
+			                      PDUMP_TRANSITION_EVENT_BLOCK_FINISHED,
+			                      ui32PDumpFlags);
 		PVR_RETURN_IF_ERROR(eError);
 
-		(void) PDumpCommentWithFlags(ui32Flags, "}PDUMP_BLOCK_END_0x%08X", ui32CurrentBlock - 1); /* Add pdump-block end marker */
+		(void) PDumpCommentWithFlags(psDeviceNode, ui32Flags,
+		                             "}PDUMP_BLOCK_END_0x%08X",
+		                             ui32CurrentBlock - 1); /* Add pdump-block end marker */
 
 		/* (2) Split MAIN and BLOCK script out files on current pdump-block end */
 		ui32Flags |= PDUMP_FLAGS_FORCESPLIT;
 
-		(void) PDumpCommentWithFlags(ui32Flags, "PDUMP_BLOCK_START_0x%08X{", ui32CurrentBlock); /* Add pdump-block start marker */
+		(void) PDumpCommentWithFlags(psDeviceNode, ui32Flags,
+		                             "PDUMP_BLOCK_START_0x%08X{",
+		                             ui32CurrentBlock); /* Add pdump-block start marker */
 	}
 
 	/* (3) New block has started */
-	return _PDumpTransition(psPDumpConnectionData, PDUMP_TRANSITION_EVENT_BLOCK_STARTED, ui32PDumpFlags);
+	return _PDumpTransition(psDeviceNode,
+		                    psPDumpConnectionData,
+		                    PDUMP_TRANSITION_EVENT_BLOCK_STARTED,
+		                    ui32PDumpFlags);
 }
 
 
-PVRSRV_ERROR PDumpTransition(PDUMP_CONNECTION_DATA *psPDumpConnectionData, PDUMP_TRANSITION_EVENT eEvent, IMG_UINT32 ui32PDumpFlags)
+PVRSRV_ERROR PDumpTransition(PVRSRV_DEVICE_NODE *psDeviceNode,
+                             PDUMP_CONNECTION_DATA *psPDumpConnectionData,
+                             PDUMP_TRANSITION_EVENT eEvent,
+                             IMG_UINT32 ui32PDumpFlags)
 {
 	if ((eEvent == PDUMP_TRANSITION_EVENT_BLOCK_FINISHED) || (eEvent == PDUMP_TRANSITION_EVENT_BLOCK_STARTED))
 	{
 		/* Block mode transition events */
 		PVR_ASSERT(PDumpCtrlCapModIsBlocked());
-		return _PDumpBlockTransition(psPDumpConnectionData, eEvent, ui32PDumpFlags);
+		return _PDumpBlockTransition(psDeviceNode, psPDumpConnectionData, eEvent, ui32PDumpFlags);
 	}
 	else
 	{
 		/* Non-block mode transition events */
-		return _PDumpTransition(psPDumpConnectionData, eEvent, ui32PDumpFlags);
+		return _PDumpTransition(psDeviceNode, psPDumpConnectionData, eEvent, ui32PDumpFlags);
 	}
 }
 
-PVRSRV_ERROR PDumpIsCaptureFrameKM(IMG_BOOL *bInCaptureRange)
+static PVRSRV_ERROR PDumpIsCaptureFrame(IMG_BOOL *bInCaptureRange)
 {
 	IMG_UINT64 ui64State = 0;
 	PVRSRV_ERROR eError;
@@ -1930,15 +2073,6 @@ PVRSRV_ERROR PDumpGetStateKM(IMG_UINT64 *ui64State)
 	PDumpCtrlLockRelease();
 
 	return eError;
-}
-
-PVRSRV_ERROR PDumpGetCurrentBlockKM(IMG_UINT32 *pui32BlockNum)
-{
-	PDumpCtrlLockAcquire();
-	*pui32BlockNum = PDumpCtrlGetBlock();
-	PDumpCtrlLockRelease();
-
-	return PVRSRV_OK;
 }
 
 /******************************************************************************
@@ -2015,9 +2149,20 @@ static INLINE IMG_BOOL PDumpUpdateBlockCtrlStatus(IMG_UINT32 ui32Frame)
 	return IMG_FALSE; /* No transition */
 }
 
-PVRSRV_ERROR PDumpForceCaptureStopKM(void)
+PVRSRV_ERROR PDumpForceCaptureStopKM(CONNECTION_DATA *psConnection,
+                                     PVRSRV_DEVICE_NODE *psDeviceNode)
 {
 	PVRSRV_ERROR eError;
+
+	PVR_UNREFERENCED_PARAMETER(psConnection);
+
+	/* If call is not for the pdump-bound device, return immediately
+	 * taking no action.
+	 */
+	if (!PDumpIsDevicePermitted(psDeviceNode))
+	{
+		return PVRSRV_OK;
+	}
 
 	if (!PDumpCtrlCapModIsBlocked())
 	{
@@ -2025,7 +2170,10 @@ PVRSRV_ERROR PDumpForceCaptureStopKM(void)
 		return PVRSRV_ERROR_PDUMP_NOT_ALLOWED;
 	}
 
-	(void) PDumpCommentWithFlags(PDUMP_FLAGS_CONTINUOUS | PDUMP_FLAGS_BLKDATA, "PDdump forced STOP capture request received at frame %u", g_PDumpCtrl.ui32CurrentFrame);
+	(void) PDumpCommentWithFlags(psDeviceNode,
+	                             PDUMP_FLAGS_CONTINUOUS | PDUMP_FLAGS_BLKDATA,
+	                             "PDdump forced STOP capture request received at frame %u",
+	                             g_PDumpCtrl.ui32CurrentFrame);
 
 	PDumpCtrlLockAcquire();
 	eError = PDumpCtrlForcedStop();
@@ -2035,6 +2183,7 @@ PVRSRV_ERROR PDumpForceCaptureStopKM(void)
 }
 
 static PVRSRV_ERROR _PDumpSetFrameKM(CONNECTION_DATA *psConnection,
+                                     PVRSRV_DEVICE_NODE *psDeviceNode,
                                      IMG_UINT32 ui32Frame)
 {
 	PDUMP_CONNECTION_DATA *psPDumpConnectionData = psConnection->psPDumpConnectionData;
@@ -2053,7 +2202,8 @@ static PVRSRV_ERROR _PDumpSetFrameKM(CONNECTION_DATA *psConnection,
 	*/
 	if (psPDumpConnectionData->ui32LastSetFrameNumber != ui32Frame)
 	{
-		(void) PDumpCommentWithFlags(PDUMP_FLAGS_CONTINUOUS, "Set pdump frame %u", ui32Frame);
+		(void) PDumpCommentWithFlags(psDeviceNode, PDUMP_FLAGS_CONTINUOUS,
+		                             "Set pdump frame %u", ui32Frame);
 
 		/*
 			The boolean values below decide if the PDump transition
@@ -2064,9 +2214,9 @@ static PVRSRV_ERROR _PDumpSetFrameKM(CONNECTION_DATA *psConnection,
 		*/
 		PDumpCtrlLockAcquire();
 
-		PDumpIsCaptureFrameKM(&bWasInCaptureRange);
+		PDumpIsCaptureFrame(&bWasInCaptureRange);
 		PDumpCtrlSetCurrentFrame(ui32Frame);
-		PDumpIsCaptureFrameKM(&bIsInCaptureRange);
+		PDumpIsCaptureFrame(&bIsInCaptureRange);
 
 		PDumpCtrlLockRelease();
 
@@ -2110,9 +2260,9 @@ static PVRSRV_ERROR _PDumpSetFrameKM(CONNECTION_DATA *psConnection,
 
 	if (eTransitionEvent != PDUMP_TRANSITION_EVENT_NONE)
 	{
-		DEBUG_OUTFILES_COMMENT("PDump transition event(%u)-begin frame %u (post)", eTransitionEvent, ui32Frame);
-		eError = PDumpTransition(psPDumpConnectionData, eTransitionEvent, PDUMP_FLAGS_NONE);
-		DEBUG_OUTFILES_COMMENT("PDump transition event(%u)-complete frame %u (post)", eTransitionEvent, ui32Frame);
+		DEBUG_OUTFILES_COMMENT(psDeviceNode, "PDump transition event(%u)-begin frame %u (post)", eTransitionEvent, ui32Frame);
+		eError = PDumpTransition(psDeviceNode, psPDumpConnectionData, eTransitionEvent, PDUMP_FLAGS_NONE);
+		DEBUG_OUTFILES_COMMENT(psDeviceNode, "PDump transition event(%u)-complete frame %u (post)", eTransitionEvent, ui32Frame);
 		PVR_RETURN_IF_ERROR(eError);
 	}
 
@@ -2120,26 +2270,32 @@ static PVRSRV_ERROR _PDumpSetFrameKM(CONNECTION_DATA *psConnection,
 }
 
 PVRSRV_ERROR PDumpSetFrameKM(CONNECTION_DATA *psConnection,
-                             PVRSRV_DEVICE_NODE * psDeviceNode,
+                             PVRSRV_DEVICE_NODE *psDeviceNode,
                              IMG_UINT32 ui32Frame)
 {
 	PVRSRV_ERROR eError = PVRSRV_OK;
 
-	PVR_UNREFERENCED_PARAMETER(psDeviceNode);
+	/* If call is not for the pdump-bound device, return immediately
+	 * taking no action.
+	 */
+	if (!PDumpIsDevicePermitted(psDeviceNode))
+	{
+		return PVRSRV_OK;
+	}
 
 #if defined(PDUMP_TRACE_STATE)
 	PVR_DPF((PVR_DBG_WARNING, "PDumpSetFrameKM: ui32Frame( %d )", ui32Frame));
 #endif
 
-	DEBUG_OUTFILES_COMMENT("(pre) Set pdump frame %u", ui32Frame);
+	DEBUG_OUTFILES_COMMENT(psDeviceNode, "(pre) Set pdump frame %u", ui32Frame);
 
-	eError = _PDumpSetFrameKM(psConnection, ui32Frame);
+	eError = _PDumpSetFrameKM(psConnection, psDeviceNode, ui32Frame);
 	if ((eError != PVRSRV_OK) && (eError != PVRSRV_ERROR_RETRY))
 	{
 		PVR_LOG_ERROR(eError, "_PDumpSetFrameKM");
 	}
 
-	DEBUG_OUTFILES_COMMENT("(post) Set pdump frame %u", ui32Frame);
+	DEBUG_OUTFILES_COMMENT(psDeviceNode, "(post) Set pdump frame %u", ui32Frame);
 
 	return eError;
 }
@@ -2167,13 +2323,23 @@ PVRSRV_ERROR PDumpGetFrameKM(CONNECTION_DATA *psConnection,
 	return eError;
 }
 
-PVRSRV_ERROR PDumpSetDefaultCaptureParamsKM(IMG_UINT32 ui32Mode,
-                                           IMG_UINT32 ui32Start,
-                                           IMG_UINT32 ui32End,
-                                           IMG_UINT32 ui32Interval,
-                                           IMG_UINT32 ui32MaxParamFileSize)
+PVRSRV_ERROR PDumpSetDefaultCaptureParamsKM(CONNECTION_DATA *psConnection,
+                                            PVRSRV_DEVICE_NODE *psDeviceNode,
+                                            IMG_UINT32 ui32Mode,
+                                            IMG_UINT32 ui32Start,
+                                            IMG_UINT32 ui32End,
+                                            IMG_UINT32 ui32Interval,
+                                            IMG_UINT32 ui32MaxParamFileSize)
 {
 	PVRSRV_ERROR eError;
+
+	PVR_UNREFERENCED_PARAMETER(psConnection);
+
+	/* NB. We choose not to check that the device is the pdump-bound
+	 * device here, as this particular bridge call is made only from the pdump
+	 * tool itself (which may only connect to the bound device).
+	 */
+	PVR_UNREFERENCED_PARAMETER(psDeviceNode);
 
 	eError = PDumpReady();
 	PVR_LOG_RETURN_IF_ERROR(eError, "PDumpReady");
@@ -2231,7 +2397,8 @@ PVRSRV_ERROR PDumpSetDefaultCaptureParamsKM(IMG_UINT32 ui32Mode,
  * Returns        : PVRSRV_ERROR
  * Description    : Create a PDUMP string, which represents a register write
 ******************************************************************************/
-PVRSRV_ERROR PDumpReg32(IMG_CHAR	*pszPDumpRegName,
+PVRSRV_ERROR PDumpReg32(PVRSRV_DEVICE_NODE *psDeviceNode,
+						IMG_CHAR	*pszPDumpRegName,
 						IMG_UINT32	ui32Reg,
 						IMG_UINT32	ui32Data,
 						IMG_UINT32	ui32Flags)
@@ -2248,7 +2415,7 @@ PVRSRV_ERROR PDumpReg32(IMG_CHAR	*pszPDumpRegName,
 	}
 
 	PDUMP_LOCK(ui32Flags);
-	PDumpWriteScript(hScript, ui32Flags);
+	PDumpWriteScript(psDeviceNode, hScript, ui32Flags);
 	PDUMP_UNLOCK(ui32Flags);
 
 	PDUMP_RELEASE_SCRIPT_STRING()
@@ -2262,7 +2429,8 @@ PVRSRV_ERROR PDumpReg32(IMG_CHAR	*pszPDumpRegName,
  * Returns        : PVRSRV_ERROR
  * Description    : Create a PDUMP string, which represents a register write
 ******************************************************************************/
-PVRSRV_ERROR PDumpReg64(IMG_CHAR	*pszPDumpRegName,
+PVRSRV_ERROR PDumpReg64(PVRSRV_DEVICE_NODE *psDeviceNode,
+						IMG_CHAR	*pszPDumpRegName,
 						IMG_UINT32	ui32Reg,
 						IMG_UINT64	ui64Data,
 						IMG_UINT32	ui32Flags)
@@ -2286,7 +2454,7 @@ PVRSRV_ERROR PDumpReg64(IMG_CHAR	*pszPDumpRegName,
 	}
 
 	PDUMP_LOCK(ui32Flags);
-	PDumpWriteScript(hScript, ui32Flags);
+	PDumpWriteScript(psDeviceNode, hScript, ui32Flags);
 
 	eErr = PDumpSNPrintf(hScript, ui32MaxLen, "WRW :%s:0x%08X 0x%08X",
 					pszPDumpRegName, ui32Reg + 4, ui32UpperValue);
@@ -2297,7 +2465,7 @@ PVRSRV_ERROR PDumpReg64(IMG_CHAR	*pszPDumpRegName,
 		PDUMP_UNLOCK(ui32Flags);
 		return eErr;
 	}
-	PDumpWriteScript(hScript, ui32Flags);
+	PDumpWriteScript(psDeviceNode, hScript, ui32Flags);
 	PDUMP_UNLOCK(ui32Flags);
 #else
 	eErr = PDumpSNPrintf(hScript, ui32MaxLen, "WRW64 :%s:0x%08X 0x%010" IMG_UINT64_FMTSPECX, pszPDumpRegName, ui32Reg, ui64Data);
@@ -2309,7 +2477,7 @@ PVRSRV_ERROR PDumpReg64(IMG_CHAR	*pszPDumpRegName,
 	}
 
 	PDUMP_LOCK(ui32Flags);
-	PDumpWriteScript(hScript, ui32Flags);
+	PDumpWriteScript(psDeviceNode, hScript, ui32Flags);
 	PDUMP_UNLOCK(ui32Flags);
 #endif
 	PDUMP_RELEASE_SCRIPT_STRING()
@@ -2322,7 +2490,8 @@ PVRSRV_ERROR PDumpReg64(IMG_CHAR	*pszPDumpRegName,
  * Description    : Create a PDUMP string, which represents a register write
  *                  from a register label
 ******************************************************************************/
-PVRSRV_ERROR PDumpRegLabelToReg64(IMG_CHAR *pszPDumpRegName,
+PVRSRV_ERROR PDumpRegLabelToReg64(PVRSRV_DEVICE_NODE *psDeviceNode,
+                                  IMG_CHAR *pszPDumpRegName,
                                   IMG_UINT32 ui32RegDst,
                                   IMG_UINT32 ui32RegSrc,
                                   IMG_UINT32 ui32Flags)
@@ -2339,7 +2508,7 @@ PVRSRV_ERROR PDumpRegLabelToReg64(IMG_CHAR *pszPDumpRegName,
 	}
 
 	PDUMP_LOCK(ui32Flags);
-	PDumpWriteScript(hScript, ui32Flags);
+	PDumpWriteScript(psDeviceNode, hScript, ui32Flags);
 	PDUMP_UNLOCK(ui32Flags);
 
 	PDUMP_RELEASE_SCRIPT_STRING()
@@ -2364,8 +2533,11 @@ PVRSRV_ERROR PDumpRegLabelToMem32(IMG_CHAR *pszPDumpRegName,
 	IMG_CHAR aszSymbolicName[PHYSMEM_PDUMP_SYMNAME_MAX_LENGTH];
 	IMG_DEVMEM_OFFSET_T uiPDumpSymbolicOffset;
 	IMG_DEVMEM_OFFSET_T uiNextSymName;
+	PVRSRV_DEVICE_NODE *psDeviceNode;
 
 	PDUMP_GET_SCRIPT_STRING()
+
+	psDeviceNode = PMR_DeviceNode(psPMR);
 
 	eErr = PMR_PDumpSymbolicAddr(psPMR,
 	                             uiLogicalOffset,
@@ -2393,7 +2565,7 @@ PVRSRV_ERROR PDumpRegLabelToMem32(IMG_CHAR *pszPDumpRegName,
 	}
 
 	PDUMP_LOCK(ui32Flags);
-	PDumpWriteScript(hScript, ui32Flags);
+	PDumpWriteScript(psDeviceNode, hScript, ui32Flags);
 	PDUMP_UNLOCK(ui32Flags);
 
 	PDUMP_RELEASE_SCRIPT_STRING()
@@ -2417,17 +2589,20 @@ PVRSRV_ERROR PDumpRegLabelToMem64(IMG_CHAR *pszPDumpRegName,
 	IMG_CHAR aszSymbolicName[PHYSMEM_PDUMP_SYMNAME_MAX_LENGTH];
 	IMG_DEVMEM_OFFSET_T uiPDumpSymbolicOffset;
 	IMG_DEVMEM_OFFSET_T uiNextSymName;
+	PVRSRV_DEVICE_NODE *psDeviceNode;
 
 	PDUMP_GET_SCRIPT_STRING()
 
+	psDeviceNode = PMR_DeviceNode(psPMR);
+
 	eErr = PMR_PDumpSymbolicAddr(psPMR,
-									 uiLogicalOffset,
-									 PHYSMEM_PDUMP_MEMSPACE_MAX_LENGTH,
-									 aszMemspaceName,
-									 PHYSMEM_PDUMP_SYMNAME_MAX_LENGTH,
-									 aszSymbolicName,
-									 &uiPDumpSymbolicOffset,
-									 &uiNextSymName);
+	                             uiLogicalOffset,
+	                             PHYSMEM_PDUMP_MEMSPACE_MAX_LENGTH,
+	                             aszMemspaceName,
+	                             PHYSMEM_PDUMP_SYMNAME_MAX_LENGTH,
+	                             aszSymbolicName,
+	                             &uiPDumpSymbolicOffset,
+	                             &uiNextSymName);
 
 	if (eErr != PVRSRV_OK)
 	{
@@ -2444,7 +2619,7 @@ PVRSRV_ERROR PDumpRegLabelToMem64(IMG_CHAR *pszPDumpRegName,
 	}
 
 	PDUMP_LOCK(ui32Flags);
-	PDumpWriteScript(hScript, ui32Flags);
+	PDumpWriteScript(psDeviceNode, hScript, ui32Flags);
 	PDUMP_UNLOCK(ui32Flags);
 
 	PDUMP_RELEASE_SCRIPT_STRING()
@@ -2458,7 +2633,8 @@ PVRSRV_ERROR PDumpRegLabelToMem64(IMG_CHAR *pszPDumpRegName,
  * Description    : Create a PDUMP string, which represents an internal var
                     write using a PDump pages handle
 ******************************************************************************/
-PVRSRV_ERROR PDumpPhysHandleToInternalVar64(IMG_CHAR *pszInternalVar,
+PVRSRV_ERROR PDumpPhysHandleToInternalVar64(PVRSRV_DEVICE_NODE *psDeviceNode,
+                                            IMG_CHAR *pszInternalVar,
                                             IMG_HANDLE hPdumpPages,
                                             IMG_UINT32 ui32Flags)
 {
@@ -2488,7 +2664,7 @@ PVRSRV_ERROR PDumpPhysHandleToInternalVar64(IMG_CHAR *pszInternalVar,
 	}
 
 	PDUMP_LOCK(ui32Flags);
-	PDumpWriteScript(hScript, ui32Flags);
+	PDumpWriteScript(psDeviceNode, hScript, ui32Flags);
 
 #if defined(PDUMP_SPLIT_64BIT_REGISTER_ACCESS)
 	pszPDumpVarName = PDumpCreateIncVarNameStr(pszInternalVar);
@@ -2510,7 +2686,7 @@ PVRSRV_ERROR PDumpPhysHandleToInternalVar64(IMG_CHAR *pszInternalVar,
 		return eErr;
 	}
 
-	PDumpWriteScript(hScript, ui32Flags);
+	PDumpWriteScript(psDeviceNode, hScript, ui32Flags);
 
 #endif
 	PDUMP_UNLOCK(ui32Flags);
@@ -2536,11 +2712,14 @@ PVRSRV_ERROR PDumpMemLabelToInternalVar64(IMG_CHAR *pszInternalVar,
 	IMG_CHAR aszSymbolicName[PHYSMEM_PDUMP_SYMNAME_MAX_LENGTH];
 	IMG_DEVMEM_OFFSET_T uiPDumpSymbolicOffset;
 	IMG_DEVMEM_OFFSET_T uiNextSymName;
+	PVRSRV_DEVICE_NODE *psDeviceNode;
 #if defined(PDUMP_SPLIT_64BIT_REGISTER_ACCESS)
 	IMG_CHAR *pszPDumpVarName;
 #endif
 
 	PDUMP_GET_SCRIPT_STRING()
+
+	psDeviceNode = PMR_DeviceNode(psPMR);
 
 	eErr = PMR_PDumpSymbolicAddr(psPMR,
 	                             uiLogicalOffset,
@@ -2569,7 +2748,7 @@ PVRSRV_ERROR PDumpMemLabelToInternalVar64(IMG_CHAR *pszInternalVar,
 	}
 
 	PDUMP_LOCK(ui32Flags);
-	PDumpWriteScript(hScript, ui32Flags);
+	PDumpWriteScript(psDeviceNode, hScript, ui32Flags);
 
 #if defined(PDUMP_SPLIT_64BIT_REGISTER_ACCESS)
 	pszPDumpVarName = PDumpCreateIncVarNameStr(pszInternalVar);
@@ -2580,7 +2759,17 @@ PVRSRV_ERROR PDumpMemLabelToInternalVar64(IMG_CHAR *pszInternalVar,
 		return PVRSRV_ERROR_OUT_OF_MEMORY;
 	}
 
-	eErr = PDumpSNPrintf(hScript, ui32MaxLen, "WRW %s 0x%X", pszPDumpVarName, 0);
+	eErr = PDumpSNPrintf(hScript, ui32MaxLen, "WRW %s :%s:%s:0x%"IMG_UINT64_FMTSPECX, pszPDumpVarName,
+							aszMemspaceName, aszSymbolicName, uiPDumpSymbolicOffset);
+	if (eErr != PVRSRV_OK)
+	{
+		PDUMP_RELEASE_SCRIPT_STRING()
+		PDUMP_UNLOCK(ui32Flags);
+		return eErr;
+	}
+
+	PDumpWriteScript(psDeviceNode, hScript, ui32Flags);
+	eErr = PDumpSNPrintf(hScript, ui32MaxLen, "SHR %s %s 0x20", pszPDumpVarName, pszPDumpVarName);
 
 	PDumpFreeIncVarNameStr(pszPDumpVarName);
 
@@ -2591,7 +2780,7 @@ PVRSRV_ERROR PDumpMemLabelToInternalVar64(IMG_CHAR *pszInternalVar,
 		return eErr;
 	}
 
-	PDumpWriteScript(hScript, ui32Flags);
+	PDumpWriteScript(psDeviceNode, hScript, ui32Flags);
 
 #endif
 	PDUMP_UNLOCK(ui32Flags);
@@ -2616,11 +2805,14 @@ PVRSRV_ERROR PDumpInternalVarToMemLabel(PMR *psPMR,
 	IMG_CHAR aszSymbolicName[PHYSMEM_PDUMP_SYMNAME_MAX_LENGTH];
 	IMG_DEVMEM_OFFSET_T uiPDumpSymbolicOffset;
 	IMG_DEVMEM_OFFSET_T uiNextSymName;
+	PVRSRV_DEVICE_NODE *psDeviceNode;
 #if defined(PDUMP_SPLIT_64BIT_REGISTER_ACCESS)
 	IMG_CHAR *pszPDumpVarName;
 #endif
 
 	PDUMP_GET_SCRIPT_STRING()
+
+	psDeviceNode = PMR_DeviceNode(psPMR);
 
 	eErr = PMR_PDumpSymbolicAddr(psPMR,
 	                             uiLogicalOffset,
@@ -2649,7 +2841,7 @@ PVRSRV_ERROR PDumpInternalVarToMemLabel(PMR *psPMR,
 		return eErr;
 	}
 
-	PDumpWriteScript(hScript, ui32Flags);
+	PDumpWriteScript(psDeviceNode, hScript, ui32Flags);
 
 #if defined(PDUMP_SPLIT_64BIT_REGISTER_ACCESS)
 	pszPDumpVarName = PDumpCreateIncVarNameStr(pszInternalVar);
@@ -2671,7 +2863,7 @@ PVRSRV_ERROR PDumpInternalVarToMemLabel(PMR *psPMR,
 		return eErr;
 	}
 
-	PDumpWriteScript(hScript, ui32Flags);
+	PDumpWriteScript(psDeviceNode, hScript, ui32Flags);
 
 #endif
 	PDUMP_UNLOCK(ui32Flags);
@@ -2693,7 +2885,8 @@ PVRSRV_ERROR PDumpInternalVarToMemLabel(PMR *psPMR,
  @Return   PVRSRV_ERROR
 
 ******************************************************************************/
-PVRSRV_ERROR PDumpWriteVarORValueOp(const IMG_CHAR *pszInternalVariable,
+PVRSRV_ERROR PDumpWriteVarORValueOp(PVRSRV_DEVICE_NODE *psDeviceNode,
+                                    const IMG_CHAR *pszInternalVariable,
                                     const IMG_UINT64 ui64Value,
                                     const IMG_UINT32 ui32PDumpFlags)
 {
@@ -2729,7 +2922,7 @@ PVRSRV_ERROR PDumpWriteVarORValueOp(const IMG_CHAR *pszInternalVariable,
 	}
 
 	PDUMP_LOCK(ui32PDumpFlags);
-	PDumpWriteScript(hScript, ui32PDumpFlags);
+	PDumpWriteScript(psDeviceNode, hScript, ui32PDumpFlags);
 
 #if defined(PDUMP_SPLIT_64BIT_REGISTER_ACCESS)
 	pszPDumpVarName = PDumpCreateIncVarNameStr(pszInternalVariable);
@@ -2756,7 +2949,7 @@ PVRSRV_ERROR PDumpWriteVarORValueOp(const IMG_CHAR *pszInternalVariable,
 		return eErr;
 	}
 
-	PDumpWriteScript(hScript, ui32PDumpFlags);
+	PDumpWriteScript(psDeviceNode, hScript, ui32PDumpFlags);
 #endif
 
 	PDUMP_UNLOCK(ui32PDumpFlags);
@@ -2778,7 +2971,8 @@ PVRSRV_ERROR PDumpWriteVarORValueOp(const IMG_CHAR *pszInternalVariable,
  @Return   PVRSRV_ERROR
 
 ******************************************************************************/
-PVRSRV_ERROR PDumpWriteVarORVarOp(const IMG_CHAR *pszInternalVar,
+PVRSRV_ERROR PDumpWriteVarORVarOp(PVRSRV_DEVICE_NODE *psDeviceNode,
+                                  const IMG_CHAR *pszInternalVar,
                                   const IMG_CHAR *pszInternalVar2,
                                   const IMG_UINT32 ui32PDumpFlags)
 {
@@ -2800,7 +2994,7 @@ PVRSRV_ERROR PDumpWriteVarORVarOp(const IMG_CHAR *pszInternalVar,
 	}
 
 	PDUMP_LOCK(ui32PDumpFlags);
-	PDumpWriteScript(hScript, ui32PDumpFlags);
+	PDumpWriteScript(psDeviceNode, hScript, ui32PDumpFlags);
 
 	PDUMP_UNLOCK(ui32PDumpFlags);
 	PDUMP_RELEASE_SCRIPT_STRING()
@@ -2820,7 +3014,8 @@ PVRSRV_ERROR PDumpWriteVarORVarOp(const IMG_CHAR *pszInternalVar,
  @Return   PVRSRV_ERROR
 
 ******************************************************************************/
-PVRSRV_ERROR PDumpWriteVarANDVarOp(const IMG_CHAR *pszInternalVar,
+PVRSRV_ERROR PDumpWriteVarANDVarOp(PVRSRV_DEVICE_NODE *psDeviceNode,
+                                   const IMG_CHAR *pszInternalVar,
                                    const IMG_CHAR *pszInternalVar2,
                                    const IMG_UINT32 ui32PDumpFlags)
 {
@@ -2842,7 +3037,7 @@ PVRSRV_ERROR PDumpWriteVarANDVarOp(const IMG_CHAR *pszInternalVar,
 	}
 
 	PDUMP_LOCK(ui32PDumpFlags);
-	PDumpWriteScript(hScript, ui32PDumpFlags);
+	PDumpWriteScript(psDeviceNode, hScript, ui32PDumpFlags);
 
 	PDUMP_UNLOCK(ui32PDumpFlags);
 	PDUMP_RELEASE_SCRIPT_STRING()
@@ -2857,7 +3052,8 @@ PVRSRV_ERROR PDumpWriteVarANDVarOp(const IMG_CHAR *pszInternalVar,
  * Description    : Create a PDUMP string, which writes a register label into
  *                  an internal variable
 ******************************************************************************/
-PVRSRV_ERROR PDumpRegLabelToInternalVar(IMG_CHAR *pszPDumpRegName,
+PVRSRV_ERROR PDumpRegLabelToInternalVar(PVRSRV_DEVICE_NODE *psDeviceNode,
+                                        IMG_CHAR *pszPDumpRegName,
                                         IMG_UINT32 ui32Reg,
                                         IMG_CHAR *pszInternalVar,
                                         IMG_UINT32 ui32Flags)
@@ -2877,7 +3073,7 @@ PVRSRV_ERROR PDumpRegLabelToInternalVar(IMG_CHAR *pszPDumpRegName,
 	}
 
 	PDUMP_LOCK(ui32Flags);
-	PDumpWriteScript(hScript, ui32Flags);
+	PDumpWriteScript(psDeviceNode, hScript, ui32Flags);
 
 #if defined(PDUMP_SPLIT_64BIT_REGISTER_ACCESS)
 	pszPDumpVarName = PDumpCreateIncVarNameStr(pszInternalVar);
@@ -2899,7 +3095,7 @@ PVRSRV_ERROR PDumpRegLabelToInternalVar(IMG_CHAR *pszPDumpRegName,
 		return eErr;
 	}
 
-	PDumpWriteScript(hScript, ui32Flags);
+	PDumpWriteScript(psDeviceNode, hScript, ui32Flags);
 #endif
 
 	PDUMP_UNLOCK(ui32Flags);
@@ -2915,7 +3111,8 @@ PVRSRV_ERROR PDumpRegLabelToInternalVar(IMG_CHAR *pszPDumpRegName,
  * Description    : Create a PDUMP string, which represents a register write
  *                  from an internal variable
 ******************************************************************************/
-PVRSRV_ERROR PDumpInternalVarToReg32(IMG_CHAR *pszPDumpRegName,
+PVRSRV_ERROR PDumpInternalVarToReg32(PVRSRV_DEVICE_NODE *psDeviceNode,
+                                     IMG_CHAR *pszPDumpRegName,
                                      IMG_UINT32 ui32Reg,
                                      IMG_CHAR *pszInternalVar,
                                      IMG_UINT32 ui32Flags)
@@ -2932,7 +3129,7 @@ PVRSRV_ERROR PDumpInternalVarToReg32(IMG_CHAR *pszPDumpRegName,
 	}
 
 	PDUMP_LOCK(ui32Flags);
-	PDumpWriteScript(hScript, ui32Flags);
+	PDumpWriteScript(psDeviceNode, hScript, ui32Flags);
 	PDUMP_UNLOCK(ui32Flags);
 
 	PDUMP_RELEASE_SCRIPT_STRING()
@@ -2946,7 +3143,8 @@ PVRSRV_ERROR PDumpInternalVarToReg32(IMG_CHAR *pszPDumpRegName,
  * Description    : Create a PDUMP string, which represents a register write
  *                  from an internal variable
 ******************************************************************************/
-PVRSRV_ERROR PDumpInternalVarToReg64(IMG_CHAR *pszPDumpRegName,
+PVRSRV_ERROR PDumpInternalVarToReg64(PVRSRV_DEVICE_NODE *psDeviceNode,
+                                     IMG_CHAR *pszPDumpRegName,
                                      IMG_UINT32 ui32Reg,
                                      IMG_CHAR *pszInternalVar,
                                      IMG_UINT32 ui32Flags)
@@ -2966,7 +3164,7 @@ PVRSRV_ERROR PDumpInternalVarToReg64(IMG_CHAR *pszPDumpRegName,
 	}
 
 	PDUMP_LOCK(ui32Flags);
-	PDumpWriteScript(hScript, ui32Flags);
+	PDumpWriteScript(psDeviceNode, hScript, ui32Flags);
 
 	pszPDumpVarName = PDumpCreateIncVarNameStr(pszInternalVar);
 	if (pszPDumpVarName == NULL)
@@ -2987,7 +3185,7 @@ PVRSRV_ERROR PDumpInternalVarToReg64(IMG_CHAR *pszPDumpRegName,
 		return eErr;
 	}
 
-	PDumpWriteScript(hScript, ui32Flags);
+	PDumpWriteScript(psDeviceNode, hScript, ui32Flags);
 	PDUMP_UNLOCK(ui32Flags);
 
 #else
@@ -3000,7 +3198,7 @@ PVRSRV_ERROR PDumpInternalVarToReg64(IMG_CHAR *pszPDumpRegName,
 	}
 
 	PDUMP_LOCK(ui32Flags);
-	PDumpWriteScript(hScript, ui32Flags);
+	PDumpWriteScript(psDeviceNode, hScript, ui32Flags);
 	PDUMP_UNLOCK(ui32Flags);
 #endif
 
@@ -3032,9 +3230,12 @@ PVRSRV_ERROR PDumpMemLabelToMem32(PMR *psPMRSource,
 	IMG_DEVMEM_OFFSET_T uiPDumpSymbolicOffsetDest;
 	IMG_DEVMEM_OFFSET_T uiNextSymNameSource;
 	IMG_DEVMEM_OFFSET_T uiNextSymNameDest;
+	PVRSRV_DEVICE_NODE *psDeviceNode;
 
 
 	PDUMP_GET_SCRIPT_STRING()
+
+	psDeviceNode = PMR_DeviceNode(psPMRSource);
 
 	eErr = PMR_PDumpSymbolicAddr(psPMRSource,
 	                             uiLogicalOffsetSource,
@@ -3081,7 +3282,7 @@ PVRSRV_ERROR PDumpMemLabelToMem32(PMR *psPMRSource,
 
 
 	PDUMP_LOCK(ui32Flags);
-	PDumpWriteScript(hScript, ui32Flags);
+	PDumpWriteScript(psDeviceNode, hScript, ui32Flags);
 	PDUMP_UNLOCK(ui32Flags);
 
 	PDUMP_RELEASE_SCRIPT_STRING()
@@ -3110,18 +3311,21 @@ PVRSRV_ERROR PDumpMemLabelToMem64(PMR *psPMRSource,
 	IMG_DEVMEM_OFFSET_T uiPDumpSymbolicOffsetDest;
 	IMG_DEVMEM_OFFSET_T uiNextSymNameSource;
 	IMG_DEVMEM_OFFSET_T uiNextSymNameDest;
+	PVRSRV_DEVICE_NODE *psDeviceNode;
 
 
 	PDUMP_GET_SCRIPT_STRING()
 
+	psDeviceNode = PMR_DeviceNode(psPMRSource);
+
 	eErr = PMR_PDumpSymbolicAddr(psPMRSource,
-									 uiLogicalOffsetSource,
-									 PHYSMEM_PDUMP_MEMSPACE_MAX_LENGTH,
-									 aszMemspaceNameSource,
-									 PHYSMEM_PDUMP_SYMNAME_MAX_LENGTH,
-									 aszSymbolicNameSource,
-									 &uiPDumpSymbolicOffsetSource,
-									 &uiNextSymNameSource);
+	                             uiLogicalOffsetSource,
+	                             PHYSMEM_PDUMP_MEMSPACE_MAX_LENGTH,
+	                             aszMemspaceNameSource,
+	                             PHYSMEM_PDUMP_SYMNAME_MAX_LENGTH,
+	                             aszSymbolicNameSource,
+	                             &uiPDumpSymbolicOffsetSource,
+	                             &uiNextSymNameSource);
 
 	if (eErr != PVRSRV_OK)
 	{
@@ -3130,13 +3334,13 @@ PVRSRV_ERROR PDumpMemLabelToMem64(PMR *psPMRSource,
 	}
 
 	eErr = PMR_PDumpSymbolicAddr(psPMRDest,
-									 uiLogicalOffsetDest,
-									 PHYSMEM_PDUMP_MEMSPACE_MAX_LENGTH,
-									 aszMemspaceNameDest,
-									 PHYSMEM_PDUMP_SYMNAME_MAX_LENGTH,
-									 aszSymbolicNameDest,
-									 &uiPDumpSymbolicOffsetDest,
-									 &uiNextSymNameDest);
+	                             uiLogicalOffsetDest,
+	                             PHYSMEM_PDUMP_MEMSPACE_MAX_LENGTH,
+	                             aszMemspaceNameDest,
+	                             PHYSMEM_PDUMP_SYMNAME_MAX_LENGTH,
+	                             aszSymbolicNameDest,
+	                             &uiPDumpSymbolicOffsetDest,
+	                             &uiNextSymNameDest);
 
 
 	if (eErr != PVRSRV_OK)
@@ -3158,7 +3362,7 @@ PVRSRV_ERROR PDumpMemLabelToMem64(PMR *psPMRSource,
 	}
 
 	PDUMP_LOCK(ui32Flags);
-	PDumpWriteScript(hScript, ui32Flags);
+	PDumpWriteScript(psDeviceNode, hScript, ui32Flags);
 	PDUMP_UNLOCK(ui32Flags);
 
 	PDUMP_RELEASE_SCRIPT_STRING();
@@ -3180,7 +3384,8 @@ PVRSRV_ERROR PDumpMemLabelToMem64(PMR *psPMRSource,
  @Return   PVRSRV_ERROR
 
 ******************************************************************************/
-PVRSRV_ERROR PDumpWriteVarSHRValueOp(const IMG_CHAR *pszInternalVariable,
+PVRSRV_ERROR PDumpWriteVarSHRValueOp(PVRSRV_DEVICE_NODE *psDeviceNode,
+                                     const IMG_CHAR *pszInternalVariable,
                                      const IMG_UINT64 ui64Value,
                                      const IMG_UINT32 ui32PDumpFlags)
 {
@@ -3216,7 +3421,7 @@ PVRSRV_ERROR PDumpWriteVarSHRValueOp(const IMG_CHAR *pszInternalVariable,
 	}
 
 	PDUMP_LOCK(ui32PDumpFlags);
-	PDumpWriteScript(hScript, ui32PDumpFlags);
+	PDumpWriteScript(psDeviceNode, hScript, ui32PDumpFlags);
 
 #if defined(PDUMP_SPLIT_64BIT_REGISTER_ACCESS)
 	pszPDumpVarName = PDumpCreateIncVarNameStr(pszInternalVariable);
@@ -3243,7 +3448,7 @@ PVRSRV_ERROR PDumpWriteVarSHRValueOp(const IMG_CHAR *pszInternalVariable,
 		return eErr;
 	}
 
-	PDumpWriteScript(hScript, ui32PDumpFlags);
+	PDumpWriteScript(psDeviceNode, hScript, ui32PDumpFlags);
 #endif
 
 	PDUMP_UNLOCK(ui32PDumpFlags);
@@ -3266,7 +3471,8 @@ PVRSRV_ERROR PDumpWriteVarSHRValueOp(const IMG_CHAR *pszInternalVariable,
  @Return   PVRSRV_ERROR
 
 ******************************************************************************/
-PVRSRV_ERROR PDumpWriteVarANDValueOp(const IMG_CHAR *pszInternalVariable,
+PVRSRV_ERROR PDumpWriteVarANDValueOp(PVRSRV_DEVICE_NODE *psDeviceNode,
+                                     const IMG_CHAR *pszInternalVariable,
                                      const IMG_UINT64 ui64Value,
                                      const IMG_UINT32 ui32PDumpFlags)
 {
@@ -3302,7 +3508,7 @@ PVRSRV_ERROR PDumpWriteVarANDValueOp(const IMG_CHAR *pszInternalVariable,
 	}
 
 	PDUMP_LOCK(ui32PDumpFlags);
-	PDumpWriteScript(hScript, ui32PDumpFlags);
+	PDumpWriteScript(psDeviceNode, hScript, ui32PDumpFlags);
 
 #if defined(PDUMP_SPLIT_64BIT_REGISTER_ACCESS)
 	pszPDumpVarName = PDumpCreateIncVarNameStr(pszInternalVariable);
@@ -3329,7 +3535,7 @@ PVRSRV_ERROR PDumpWriteVarANDValueOp(const IMG_CHAR *pszInternalVariable,
 		return eErr;
 	}
 
-	PDumpWriteScript(hScript, ui32PDumpFlags);
+	PDumpWriteScript(psDeviceNode, hScript, ui32PDumpFlags);
 #endif
 
 	PDUMP_UNLOCK(ui32PDumpFlags);
@@ -3352,12 +3558,13 @@ PVRSRV_ERROR PDumpWriteVarANDValueOp(const IMG_CHAR *pszInternalVariable,
  * Description    : Dumps the contents of a register bank into a file
  *                  NB: ui32NumSaveBytes must be divisible by 4
 ******************************************************************************/
-PVRSRV_ERROR PDumpSAW(IMG_CHAR      *pszDevSpaceName,
-                      IMG_UINT32    ui32HPOffsetBytes,
-                      IMG_UINT32    ui32NumSaveBytes,
-                      IMG_CHAR      *pszOutfileName,
-                      IMG_UINT32    ui32OutfileOffsetByte,
-                      PDUMP_FLAGS_T uiPDumpFlags)
+PVRSRV_ERROR PDumpSAW(PVRSRV_DEVICE_NODE *psDeviceNode,
+                      IMG_CHAR           *pszDevSpaceName,
+                      IMG_UINT32         ui32HPOffsetBytes,
+                      IMG_UINT32         ui32NumSaveBytes,
+                      IMG_CHAR           *pszOutfileName,
+                      IMG_UINT32         ui32OutfileOffsetByte,
+                      PDUMP_FLAGS_T      uiPDumpFlags)
 {
 	PVRSRV_ERROR eError;
 
@@ -3382,7 +3589,7 @@ PVRSRV_ERROR PDumpSAW(IMG_CHAR      *pszDevSpaceName,
 	}
 
 	PDUMP_LOCK(uiPDumpFlags);
-	if (! PDumpWriteScript(hScript, uiPDumpFlags))
+	if (! PDumpWriteScript(psDeviceNode, hScript, uiPDumpFlags))
 	{
 		PVR_DPF((PVR_DBG_ERROR, "PDumpSAW PDumpWriteScript failed!"));
 	}
@@ -3406,7 +3613,8 @@ PVRSRV_ERROR PDumpSAW(IMG_CHAR      *pszDevSpaceName,
  * Description    : Create a PDUMP string which represents a register read
  *					with the expected value
 ******************************************************************************/
-PVRSRV_ERROR PDumpRegPolKM(IMG_CHAR				*pszPDumpRegName,
+PVRSRV_ERROR PDumpRegPolKM(PVRSRV_DEVICE_NODE	*psDeviceNode,
+						   IMG_CHAR				*pszPDumpRegName,
 						   IMG_UINT32			ui32RegAddr,
 						   IMG_UINT32			ui32RegValue,
 						   IMG_UINT32			ui32Mask,
@@ -3436,7 +3644,7 @@ PVRSRV_ERROR PDumpRegPolKM(IMG_CHAR				*pszPDumpRegName,
 	}
 
 	PDUMP_LOCK(ui32Flags);
-	PDumpWriteScript(hScript, ui32Flags);
+	PDumpWriteScript(psDeviceNode, hScript, ui32Flags);
 	PDUMP_UNLOCK(ui32Flags);
 
 	PDUMP_RELEASE_SCRIPT_STRING()
@@ -3468,7 +3676,9 @@ static void _PDumpVerifyLineEnding(IMG_HANDLE hBuffer, IMG_UINT32 ui32BufferSize
  * Use PDumpCommentWithFlags() from within the server.
  * Clients call this via the bridge and PDumpCommentKM().
  */
-static PVRSRV_ERROR _PDumpWriteComment(IMG_CHAR *pszComment, IMG_UINT32 ui32Flags)
+static PVRSRV_ERROR _PDumpWriteComment(PVRSRV_DEVICE_NODE *psDeviceNode,
+                                       IMG_CHAR *pszComment,
+                                       IMG_UINT32 ui32Flags)
 {
 	PVRSRV_ERROR eErr;
 #if defined(PDUMP_DEBUG_OUTFILES)
@@ -3519,7 +3729,7 @@ static PVRSRV_ERROR _PDumpWriteComment(IMG_CHAR *pszComment, IMG_UINT32 ui32Flag
 		PVR_LOG_GOTO_IF_ERROR(eErr, "PDumpSNPrintf", ErrUnlock);
 	}
 
-	if (!PDumpWriteScript(hScript, ui32Flags))
+	if (!PDumpWriteScript(psDeviceNode, hScript, ui32Flags))
 	{
 		if (PDUMP_IS_CONTINUOUS(ui32Flags))
 		{
@@ -3540,43 +3750,28 @@ ErrUnlock:
 
 /******************************************************************************
  * Function Name  : PDumpCommentKM
- * Inputs         : pszComment, ui32Flags
+ * Inputs         : ui32CommentSize, pszComment, ui32Flags
  * Outputs        : None
  * Returns        : None
  * Description    : Dumps a pre-formatted comment, primarily called from the
  *                : bridge.
 ******************************************************************************/
-PVRSRV_ERROR PDumpCommentKM(IMG_CHAR *pszComment, IMG_UINT32 ui32Flags)
+PVRSRV_ERROR PDumpCommentKM(CONNECTION_DATA *psConnection,
+                            PVRSRV_DEVICE_NODE *psDeviceNode,
+                            IMG_UINT32 ui32CommentSize,
+                            IMG_CHAR *pszComment,
+                            IMG_UINT32 ui32Flags)
 {
 	PVRSRV_ERROR eErr = PVRSRV_OK;
+
+	PVR_UNREFERENCED_PARAMETER(psConnection);
+	PVR_UNREFERENCED_PARAMETER(ui32CommentSize); /* Generated bridge code appends null char to pszComment. */
 
 	PDUMP_LOCK(ui32Flags);
 
-	eErr = _PDumpWriteComment(pszComment, ui32Flags);
+	eErr = _PDumpWriteComment(psDeviceNode, pszComment, ui32Flags);
 
 	PDUMP_UNLOCK(ui32Flags);
-	return eErr;
-}
-
-/******************************************************************************
- * Function Name  : PDumpCommentWithFlagsNoLock
- * Inputs         : ui32Flags - PDump flags
- *				  : pszFormat - format string for comment
- *				  : ... - args for format string
- * Outputs        : None
- * Returns        : None
- * Description    : PDumps a comment, caller need to acquire pdump lock
- *                  explicitly before calling this function.
-******************************************************************************/
-PVRSRV_ERROR PDumpCommentWithFlagsNoLock(IMG_UINT32 ui32Flags, IMG_CHAR * pszFormat, ...)
-{
-	PVRSRV_ERROR eErr = PVRSRV_OK;
-	va_list args;
-
-	va_start(args, pszFormat);
-	PDumpCommentWithFlagsNoLockVA(ui32Flags, pszFormat, args);
-	va_end(args);
-
 	return eErr;
 }
 
@@ -3590,7 +3785,9 @@ PVRSRV_ERROR PDumpCommentWithFlagsNoLock(IMG_UINT32 ui32Flags, IMG_CHAR * pszFor
  * Description    : PDumps a comment, caller need to acquire pdump lock
  *                  explicitly before calling this function
 ******************************************************************************/
-PVRSRV_ERROR PDumpCommentWithFlagsNoLockVA(IMG_UINT32 ui32Flags, const IMG_CHAR * pszFormat, va_list args)
+static PVRSRV_ERROR PDumpCommentWithFlagsNoLockVA(PVRSRV_DEVICE_NODE *psDeviceNode,
+                                           IMG_UINT32 ui32Flags,
+                                           const IMG_CHAR * pszFormat, va_list args)
 {
 	IMG_INT32 iCount;
 	PVRSRV_ERROR eErr = PVRSRV_OK;
@@ -3600,10 +3797,35 @@ PVRSRV_ERROR PDumpCommentWithFlagsNoLockVA(IMG_UINT32 ui32Flags, const IMG_CHAR 
 	iCount = OSVSNPrintf(pszMsg, ui32MaxLen, pszFormat, args);
 	PVR_LOG_GOTO_IF_FALSE(((iCount != -1) && (iCount < ui32MaxLen)), "OSVSNPrintf", exit);
 
-	eErr = _PDumpWriteComment(pszMsg, ui32Flags);
+	eErr = _PDumpWriteComment(psDeviceNode, pszMsg, ui32Flags);
 
 exit:
 	PDUMP_RELEASE_MSG_STRING();
+	return eErr;
+}
+
+/******************************************************************************
+ * Function Name  : PDumpCommentWithFlagsNoLock
+ * Inputs         : ui32Flags - PDump flags
+ *				  : pszFormat - format string for comment
+ *				  : ... - args for format string
+ * Outputs        : None
+ * Returns        : None
+ * Description    : PDumps a comment, caller need to acquire pdump lock
+ *                  explicitly before calling this function.
+******************************************************************************/
+__printf(3, 4)
+static PVRSRV_ERROR PDumpCommentWithFlagsNoLock(PVRSRV_DEVICE_NODE *psDeviceNode,
+                                         IMG_UINT32 ui32Flags,
+                                         IMG_CHAR *pszFormat, ...)
+{
+	PVRSRV_ERROR eErr = PVRSRV_OK;
+	va_list args;
+
+	va_start(args, pszFormat);
+	PDumpCommentWithFlagsNoLockVA(psDeviceNode, ui32Flags, pszFormat, args);
+	va_end(args);
+
 	return eErr;
 }
 
@@ -3616,13 +3838,15 @@ exit:
  * Returns        : None
  * Description    : PDumps a comments
 ******************************************************************************/
-PVRSRV_ERROR PDumpCommentWithFlags(IMG_UINT32 ui32Flags, IMG_CHAR * pszFormat, ...)
+PVRSRV_ERROR PDumpCommentWithFlags(PVRSRV_DEVICE_NODE *psDeviceNode,
+                                   IMG_UINT32 ui32Flags,
+                                   IMG_CHAR * pszFormat, ...)
 {
 	PVRSRV_ERROR eErr = PVRSRV_OK;
 	va_list args;
 
 	va_start(args, pszFormat);
-	PDumpCommentWithFlagsVA(ui32Flags, pszFormat, args);
+	PDumpCommentWithFlagsVA(psDeviceNode, ui32Flags, pszFormat, args);
 	va_end(args);
 
 	return eErr;
@@ -3637,7 +3861,9 @@ PVRSRV_ERROR PDumpCommentWithFlags(IMG_UINT32 ui32Flags, IMG_CHAR * pszFormat, .
  * Returns        : None
  * Description    : PDumps a comments
 ******************************************************************************/
-PVRSRV_ERROR PDumpCommentWithFlagsVA(IMG_UINT32 ui32Flags, const IMG_CHAR * pszFormat, va_list args)
+PVRSRV_ERROR PDumpCommentWithFlagsVA(PVRSRV_DEVICE_NODE *psDeviceNode,
+                                     IMG_UINT32 ui32Flags,
+                                     const IMG_CHAR * pszFormat, va_list args)
 {
 	IMG_INT32 iCount;
 	PVRSRV_ERROR eErr = PVRSRV_OK;
@@ -3648,7 +3874,7 @@ PVRSRV_ERROR PDumpCommentWithFlagsVA(IMG_UINT32 ui32Flags, const IMG_CHAR * pszF
 	PVR_LOG_GOTO_IF_FALSE(((iCount != -1) && (iCount < ui32MaxLen)), "OSVSNPrintf", exit);
 
 	PDUMP_LOCK(ui32Flags);
-	eErr = _PDumpWriteComment(pszMsg, ui32Flags);
+	eErr = _PDumpWriteComment(psDeviceNode, pszMsg, ui32Flags);
 	PDUMP_UNLOCK(ui32Flags);
 
 exit:
@@ -3664,7 +3890,9 @@ exit:
  * Returns        : PVRSRV_ERROR
  * Description    : PDumps a COM command
 ******************************************************************************/
-PVRSRV_ERROR PDumpCOMCommand(IMG_UINT32 ui32PDumpFlags, const IMG_CHAR * pszPdumpStr)
+PVRSRV_ERROR PDumpCOMCommand(PVRSRV_DEVICE_NODE *psDeviceNode,
+                             IMG_UINT32 ui32PDumpFlags,
+                             const IMG_CHAR * pszPdumpStr)
 {
 	PVRSRV_ERROR eErr;
 	PDUMP_GET_SCRIPT_STRING()
@@ -3678,7 +3906,7 @@ PVRSRV_ERROR PDumpCOMCommand(IMG_UINT32 ui32PDumpFlags, const IMG_CHAR * pszPdum
 	}
 
 	PDUMP_LOCK(ui32PDumpFlags);
-	PDumpWriteScript(hScript, ui32PDumpFlags);
+	PDumpWriteScript(psDeviceNode, hScript, ui32PDumpFlags);
 	PDUMP_UNLOCK(ui32PDumpFlags);
 
 	PDUMP_RELEASE_SCRIPT_STRING();
@@ -3697,7 +3925,8 @@ PVRSRV_ERROR PDumpCOMCommand(IMG_UINT32 ui32PDumpFlags, const IMG_CHAR * pszPdum
  *                : detects a condition that will lead to an invalid PDump
  *                : script that cannot be played back off-line.
  */ /*************************************************************************/
-PVRSRV_ERROR PDumpPanic(IMG_UINT32      ui32PanicNo,
+PVRSRV_ERROR PDumpPanic(PVRSRV_DEVICE_NODE *psDeviceNode,
+						IMG_UINT32      ui32PanicNo,
 						IMG_CHAR*       pszPanicMsg,
 						const IMG_CHAR* pszPPFunc,
 						IMG_UINT32      ui32PPline)
@@ -3722,26 +3951,26 @@ PVRSRV_ERROR PDumpPanic(IMG_UINT32      ui32PanicNo,
 	/* Write -- Panic start (Function:line) */
 	eError = PDumpSNPrintf(hScript, ui32MaxLen, "-- Panic start (%s:%d)", pszPPFunc, ui32PPline);
 	PVR_LOG_GOTO_IF_ERROR(eError, "PDumpSNPrintf", e1);
-	(void)PDumpWriteScript(hScript, uiPDumpFlags);
+	(void)PDumpWriteScript(psDeviceNode, hScript, uiPDumpFlags);
 
 	/* Write COM messages */
-	eError = PDumpCOMCommand(uiPDumpFlags,
+	eError = PDumpCOMCommand(psDeviceNode, uiPDumpFlags,
 				  "**** Script invalid and not compatible with off-line playback. ****");
 	PVR_LOG_GOTO_IF_ERROR(eError, "PDumpCOMCommand", e1);
 
-	eError = PDumpCOMCommand(uiPDumpFlags,
+	eError = PDumpCOMCommand(psDeviceNode, uiPDumpFlags,
 				  "**** Check test parameters and driver configuration, stop imminent. ****");
 	PVR_LOG_GOTO_IF_ERROR(eError, "PDumpCOMCommand", e1);
 
 	/* Write PANIC no msg command */
 	eError = PDumpSNPrintf(hScript, ui32MaxLen, "PANIC %08x %s", ui32PanicNo, pszPanicMsg);
 	PVR_LOG_GOTO_IF_ERROR(eError, "PDumpSNPrintf", e1);
-	(void)PDumpWriteScript(hScript, uiPDumpFlags);
+	(void)PDumpWriteScript(psDeviceNode, hScript, uiPDumpFlags);
 
 	/* Write -- Panic end */
 	eError = PDumpSNPrintf(hScript, ui32MaxLen, "-- Panic end");
 	PVR_LOG_GOTO_IF_ERROR(eError, "PDumpSNPrintf", e1);
-	(void)PDumpWriteScript(hScript, uiPDumpFlags);
+	(void)PDumpWriteScript(psDeviceNode, hScript, uiPDumpFlags);
 
 e1:
 	PDUMP_BLKEND(uiPDumpFlags);
@@ -3762,10 +3991,11 @@ e1:
  *                : play back to inform user of a fatal issue that occurred
  *                : during PDump capture.
  */ /*************************************************************************/
-PVRSRV_ERROR PDumpCaptureError(PVRSRV_ERROR    ui32ErrorNo,
-                       IMG_CHAR*       pszErrorMsg,
-                       const IMG_CHAR* pszPPFunc,
-                       IMG_UINT32      ui32PPline)
+PVRSRV_ERROR PDumpCaptureError(PVRSRV_DEVICE_NODE *psDeviceNode,
+                               PVRSRV_ERROR       ui32ErrorNo,
+                               IMG_CHAR*          pszErrorMsg,
+                               const IMG_CHAR     *pszPPFunc,
+                               IMG_UINT32         ui32PPline)
 {
 	IMG_CHAR*       pszFormatStr = "DRIVER_ERROR: %3d: %s";
 	PDUMP_FLAGS_T   uiPDumpFlags = PDUMP_FLAGS_CONTINUOUS;
@@ -3782,287 +4012,11 @@ PVRSRV_ERROR PDumpCaptureError(PVRSRV_ERROR    ui32ErrorNo,
 	/* Obtain lock to keep the multi-line
 	 * panic statement together in a single atomic write */
 	PDUMP_LOCK(uiPDumpFlags);
-	(void) PDumpWriteScript(hScript, uiPDumpFlags);
+	(void) PDumpWriteScript(psDeviceNode, hScript, uiPDumpFlags);
 	PDUMP_UNLOCK(uiPDumpFlags);
 
 	PDUMP_RELEASE_SCRIPT_STRING();
 	return PVRSRV_OK;
-}
-
-/*!
-*******************************************************************************
-
- @Function	PDumpBitmapKM
-
- @Description
-
- Dumps a bitmap from device memory to a file
-
- @Input    psDevId
- @Input    pszFileName
- @Input    ui32FileOffset
- @Input    ui32Width
- @Input    ui32Height
- @Input    ui32StrideInBytes
- @Input    sDevBaseAddr
- @Input    ui32Size
- @Input    ePixelFormat
- @Input    eMemFormat
- @Input    ui32PDumpFlags
-
- @Return   PVRSRV_ERROR			:
-
-******************************************************************************/
-PVRSRV_ERROR PDumpBitmapKM(	PVRSRV_DEVICE_NODE *psDeviceNode,
-							IMG_CHAR *pszFileName,
-							IMG_UINT32 ui32FileOffset,
-							IMG_UINT32 ui32Width,
-							IMG_UINT32 ui32Height,
-							IMG_UINT32 ui32StrideInBytes,
-							IMG_DEV_VIRTADDR sDevBaseAddr,
-							IMG_UINT32 ui32MMUContextID,
-							IMG_UINT32 ui32Size,
-							PDUMP_PIXEL_FORMAT ePixelFormat,
-							IMG_UINT32 ui32AddrMode,
-							IMG_UINT32 ui32PDumpFlags)
-{
-	PVRSRV_DEVICE_IDENTIFIER *psDevId = &psDeviceNode->sDevId;
-	PVRSRV_ERROR eErr = PVRSRV_OK;
-	PVRSRV_RGXDEV_INFO *psDevInfo = psDeviceNode->pvDevice;
-	IMG_BOOL bIsFBC31 = psDevInfo->psRGXFWIfFwSysData->
-				ui32ConfigFlags & RGXFWIF_INICFG_FBCDC_V3_1_EN;
-	PDUMP_GET_SCRIPT_STRING();
-
-	PDUMP_LOCK(ui32PDumpFlags);
-
-	PDumpCommentWithFlagsNoLock(ui32PDumpFlags, "Dump bitmap of render.");
-
-	/* Overwrite incoming addrmode compat field if FBC v3.1 is enabled. */
-	if (bIsFBC31 &&
-		(ui32AddrMode & PVRSRV_PDUMP_ADDRMODE_FBCCOMPAT_MASK) == PVRSRV_PDUMP_ADDRMODE_FBCCOMPAT_V3_RESOURCE)
-	{
-		ui32AddrMode &= ~PVRSRV_PDUMP_ADDRMODE_FBCCOMPAT_MASK;
-		ui32AddrMode |= PVRSRV_PDUMP_ADDRMODE_FBCCOMPAT_V3_1_RESOURCE;
-	}
-
-	switch (ePixelFormat)
-	{
-		case PVRSRV_PDUMP_PIXEL_FORMAT_YUV8:
-		{
-			PDumpCommentWithFlagsNoLock(ui32PDumpFlags, "YUV data. Switching from SII to SAB. Width=0x%08X Height=0x%08X Stride=0x%08X",
-													ui32Width, ui32Height, ui32StrideInBytes);
-			eErr = PDumpSNPrintf(hScript,
-									ui32MaxLen,
-									"SAB :%s:v%x:0x%010"IMG_UINT64_FMTSPECX" 0x%08X 0x%08X %s.bin\n",
-									psDevId->pszPDumpDevName,
-									ui32MMUContextID,
-									sDevBaseAddr.uiAddr,
-									ui32Size,
-									ui32FileOffset,
-									pszFileName);
-
-			PVR_GOTO_IF_ERROR(eErr, error);
-
-			PDumpWriteScript(hScript, ui32PDumpFlags);
-			break;
-		}
-		case PVRSRV_PDUMP_PIXEL_FORMAT_420PL12YUV8: // YUV420 2 planes
-		{
-			const IMG_UINT32 ui32Plane0Size = ui32StrideInBytes*ui32Height;
-			const IMG_UINT32 ui32Plane1Size = ui32Plane0Size>>1; // YUV420
-			const IMG_UINT32 ui32Plane1FileOffset = ui32FileOffset + ui32Plane0Size;
-			const IMG_UINT32 ui32Plane1MemOffset = ui32Plane0Size;
-
-			PDumpCommentWithFlagsNoLock(ui32PDumpFlags, "YUV420 2-plane. Width=0x%08X Height=0x%08X Stride=0x%08X",
-													ui32Width, ui32Height, ui32StrideInBytes);
-			eErr = PDumpSNPrintf(hScript,
-						ui32MaxLen,
-						"SII %s %s.bin :%s:v%x:0x%010"IMG_UINT64_FMTSPECX" 0x%08X 0x%08X :%s:v%x:0x%010"IMG_UINT64_FMTSPECX" 0x%08X 0x%08X 0x%08X 0x%08X 0x%08X 0x%08X 0x%08X",
-						pszFileName,
-						pszFileName,
-
-						// Plane 0 (Y)
-						psDevId->pszPDumpDevName,	// memsp
-						ui32MMUContextID,			// Context id
-						sDevBaseAddr.uiAddr,		// virtaddr
-						ui32Plane0Size,				// size
-						ui32FileOffset,				// fileoffset
-
-						// Plane 1 (UV)
-						psDevId->pszPDumpDevName,	// memsp
-						ui32MMUContextID,			// Context id
-						sDevBaseAddr.uiAddr+ui32Plane1MemOffset,	// virtaddr
-						ui32Plane1Size,				// size
-						ui32Plane1FileOffset,		// fileoffset
-
-						ePixelFormat,
-						ui32Width,
-						ui32Height,
-						ui32StrideInBytes,
-						ui32AddrMode);
-
-			PVR_GOTO_IF_ERROR(eErr, error);
-
-			PDumpWriteScript(hScript, ui32PDumpFlags);
-			break;
-		}
-
-		case PVRSRV_PDUMP_PIXEL_FORMAT_YUV_YV12: // YUV420 3 planes
-		{
-			const IMG_UINT32 ui32Plane0Size = ui32StrideInBytes*ui32Height;
-			const IMG_UINT32 ui32Plane1Size = ui32Plane0Size>>2; // YUV420
-			const IMG_UINT32 ui32Plane2Size = ui32Plane1Size;
-			const IMG_UINT32 ui32Plane1FileOffset = ui32FileOffset + ui32Plane0Size;
-			const IMG_UINT32 ui32Plane2FileOffset = ui32Plane1FileOffset + ui32Plane1Size;
-			const IMG_UINT32 ui32Plane1MemOffset = ui32Plane0Size;
-			const IMG_UINT32 ui32Plane2MemOffset = ui32Plane0Size+ui32Plane1Size;
-
-			PDumpCommentWithFlagsNoLock(ui32PDumpFlags, "YUV420 3-plane. Width=0x%08X Height=0x%08X Stride=0x%08X",
-													ui32Width, ui32Height, ui32StrideInBytes);
-			eErr = PDumpSNPrintf(hScript,
-						ui32MaxLen,
-						"SII %s %s.bin :%s:v%x:0x%010"IMG_UINT64_FMTSPECX" 0x%08X 0x%08X :%s:v%x:0x%010"IMG_UINT64_FMTSPECX" 0x%08X 0x%08X :%s:v%x:0x%010"IMG_UINT64_FMTSPECX" 0x%08X 0x%08X 0x%08X 0x%08X 0x%08X 0x%08X 0x%08X",
-						pszFileName,
-						pszFileName,
-
-						// Plane 0 (Y)
-						psDevId->pszPDumpDevName,	// memsp
-						ui32MMUContextID,			// MMU context id
-						sDevBaseAddr.uiAddr,		// virtaddr
-						ui32Plane0Size,				// size
-						ui32FileOffset,				// fileoffset
-
-						// Plane 1 (U)
-						psDevId->pszPDumpDevName,	// memsp
-						ui32MMUContextID,			// MMU context id
-						sDevBaseAddr.uiAddr+ui32Plane1MemOffset,	// virtaddr
-						ui32Plane1Size,				// size
-						ui32Plane1FileOffset,		// fileoffset
-
-						// Plane 2 (V)
-						psDevId->pszPDumpDevName,	// memsp
-						ui32MMUContextID,			// MMU context id
-						sDevBaseAddr.uiAddr+ui32Plane2MemOffset,	// virtaddr
-						ui32Plane2Size,				// size
-						ui32Plane2FileOffset,		// fileoffset
-
-						ePixelFormat,
-						ui32Width,
-						ui32Height,
-						ui32StrideInBytes,
-						ui32AddrMode);
-
-			PVR_GOTO_IF_ERROR(eErr, error);
-
-			PDumpWriteScript(hScript, ui32PDumpFlags);
-			break;
-		}
-
-		case PVRSRV_PDUMP_PIXEL_FORMAT_YUV_YV32: // YV32 - 4 contiguous planes in the order VUYA, stride can be > width.
-		{
-			const IMG_UINT32 ui32PlaneSize = ui32StrideInBytes*ui32Height; // All 4 planes are the same size
-			const IMG_UINT32 ui32Plane0FileOffset = ui32FileOffset + (ui32PlaneSize<<1);		// SII plane 0 is Y, which is YV32 plane 2
-			const IMG_UINT32 ui32Plane1FileOffset = ui32FileOffset + ui32PlaneSize;				// SII plane 1 is U, which is YV32 plane 1
-			const IMG_UINT32 ui32Plane2FileOffset = ui32FileOffset;								// SII plane 2 is V, which is YV32 plane 0
-			const IMG_UINT32 ui32Plane3FileOffset = ui32Plane0FileOffset + ui32PlaneSize;		// SII plane 3 is A, which is YV32 plane 3
-			const IMG_UINT32 ui32Plane0MemOffset = ui32PlaneSize<<1;
-			const IMG_UINT32 ui32Plane1MemOffset = ui32PlaneSize;
-			const IMG_UINT32 ui32Plane2MemOffset = 0;
-			const IMG_UINT32 ui32Plane3MemOffset = ui32Plane0MemOffset + ui32PlaneSize;
-
-			PDumpCommentWithFlagsNoLock(ui32PDumpFlags, "YV32 4 planes. Width=0x%08X Height=0x%08X Stride=0x%08X",
-													ui32Width, ui32Height, ui32StrideInBytes);
-
-			PDumpCommentWithFlagsNoLock(ui32PDumpFlags, "YV32 plane size is 0x%08X", ui32PlaneSize);
-
-			PDumpCommentWithFlagsNoLock(ui32PDumpFlags, "YV32 Plane 0 Mem Offset=0x%08X", ui32Plane0MemOffset);
-			PDumpCommentWithFlagsNoLock(ui32PDumpFlags, "YV32 Plane 1 Mem Offset=0x%08X", ui32Plane1MemOffset);
-			PDumpCommentWithFlagsNoLock(ui32PDumpFlags, "YV32 Plane 2 Mem Offset=0x%08X", ui32Plane2MemOffset);
-			PDumpCommentWithFlagsNoLock(ui32PDumpFlags, "YV32 Plane 3 Mem Offset=0x%08X", ui32Plane3MemOffset);
-
-			/*
-				SII <imageset> <filename>	:<memsp1>:v<id1>:<virtaddr1> <size1> <fileoffset1>		Y
-											:<memsp2>:v<id2>:<virtaddr2> <size2> <fileoffset2>		U
-											:<memsp3>:v<id3>:<virtaddr3> <size3> <fileoffset3>		V
-											:<memsp4>:v<id4>:<virtaddr4> <size4> <fileoffset4>		A
-											<pixfmt> <width> <height> <stride> <addrmode>
-			*/
-			eErr = PDumpSNPrintf(hScript,
-						ui32MaxLen,
-						"SII %s %s.bin :%s:v%x:0x%010"IMG_UINT64_FMTSPECX" 0x%08X 0x%08X :%s:v%x:0x%010"IMG_UINT64_FMTSPECX" 0x%08X 0x%08X :%s:v%x:0x%010"IMG_UINT64_FMTSPECX" 0x%08X 0x%08X :%s:v%x:0x%010"IMG_UINT64_FMTSPECX" 0x%08X 0x%08X 0x%08X 0x%08X 0x%08X 0x%08X 0x%08X",
-						pszFileName,
-						pszFileName,
-
-						// Plane 0 (V)
-						psDevId->pszPDumpDevName,	// memsp
-						ui32MMUContextID,			// MMU context id
-						sDevBaseAddr.uiAddr+ui32Plane0MemOffset,	// virtaddr
-						ui32PlaneSize,				// size
-						ui32Plane0FileOffset,		// fileoffset
-
-						// Plane 1 (U)
-						psDevId->pszPDumpDevName,	// memsp
-						ui32MMUContextID,			// MMU context id
-						sDevBaseAddr.uiAddr+ui32Plane1MemOffset,	// virtaddr
-						ui32PlaneSize,				// size
-						ui32Plane1FileOffset,		// fileoffset
-
-						// Plane 2 (Y)
-						psDevId->pszPDumpDevName,	// memsp
-						ui32MMUContextID,			// MMU context id
-						sDevBaseAddr.uiAddr+ui32Plane2MemOffset,	// virtaddr
-						ui32PlaneSize,				// size
-						ui32Plane2FileOffset,		// fileoffset
-
-						// Plane 3 (A)
-						psDevId->pszPDumpDevName,	// memsp
-						ui32MMUContextID,			// MMU context id
-						sDevBaseAddr.uiAddr+ui32Plane3MemOffset,	// virtaddr
-						ui32PlaneSize,				// size
-						ui32Plane3FileOffset,		// fileoffset
-
-						ePixelFormat,
-						ui32Width,
-						ui32Height,
-						ui32StrideInBytes,
-						ui32AddrMode);
-
-			PVR_GOTO_IF_ERROR(eErr, error);
-
-			PDumpWriteScript(hScript, ui32PDumpFlags);
-			break;
-		}
-
-		default: // Single plane formats
-		{
-			eErr = PDumpSNPrintf(hScript,
-						ui32MaxLen,
-						"SII %s %s.bin :%s:v%x:0x%010"IMG_UINT64_FMTSPECX" 0x%08X 0x%08X 0x%08X 0x%08X 0x%08X 0x%08X 0x%08X",
-						pszFileName,
-						pszFileName,
-						psDevId->pszPDumpDevName,
-						ui32MMUContextID,
-						sDevBaseAddr.uiAddr,
-						ui32Size,
-						ui32FileOffset,
-						ePixelFormat,
-						ui32Width,
-						ui32Height,
-						ui32StrideInBytes,
-						ui32AddrMode);
-
-			PVR_GOTO_IF_ERROR(eErr, error);
-
-			PDumpWriteScript(hScript, ui32PDumpFlags);
-			break;
-		}
-	}
-
-error:
-	PDUMP_UNLOCK(ui32PDumpFlags);
-
-	PDUMP_RELEASE_SCRIPT_STRING()
-	return eErr;
 }
 
 /*!
@@ -4141,7 +4095,7 @@ PVRSRV_ERROR PDumpImageDescriptor(PVRSRV_DEVICE_NODE *psDeviceNode,
 	}
 
 	/* Prepare OutputImage descriptor header */
-	eErr = RGXPDumpPrepareOutputImageDescriptorHdr(	psDeviceNode,
+	eErr = RGXPDumpPrepareOutputImageDescriptorHdr(psDeviceNode,
 									ui32HeaderSize,
 									ui32DataSize,
 									ui32LogicalWidth,
@@ -4158,7 +4112,7 @@ PVRSRV_ERROR PDumpImageDescriptor(PVRSRV_DEVICE_NODE *psDeviceNode,
 
 	PDUMP_LOCK(ui32PDumpFlags);
 
-	PDumpCommentWithFlagsNoLock(ui32PDumpFlags, "Dump Image descriptor");
+	PDumpCommentWithFlagsNoLock(psDeviceNode, ui32PDumpFlags, "Dump Image descriptor");
 
 	bRawImageData =
 		 (ePixFmt == PVRSRV_PDUMP_PIXEL_FORMAT_YUV8
@@ -4189,8 +4143,9 @@ PVRSRV_ERROR PDumpImageDescriptor(PVRSRV_DEVICE_NODE *psDeviceNode,
 		IMG_UINT32 ui32ElementType;
 		IMG_UINT32 ui32ElementCount;
 
-		PDumpCommentWithFlagsNoLock(ui32PDumpFlags, "YUV data. Switching from OutputImage to SAB. Width=0x%08X Height=0x%08X",
-							  ui32LogicalWidth, ui32LogicalHeight);
+		PDumpCommentWithFlagsNoLock(psDeviceNode, ui32PDumpFlags,
+		                            "YUV data. Switching from OutputImage to SAB. Width=0x%08X Height=0x%08X",
+		                            ui32LogicalWidth, ui32LogicalHeight);
 
 		PDUMP_UNLOCK(ui32PDumpFlags);
 
@@ -4212,7 +4167,8 @@ PVRSRV_ERROR PDumpImageDescriptor(PVRSRV_DEVICE_NODE *psDeviceNode,
 	}
 
 	/* Write OutputImage descriptor header to parameter file */
-	eErr = PDumpWriteParameter(abyPDumpDesc,
+	eErr = PDumpWriteParameter(psDeviceNode,
+							   abyPDumpDesc,
 							   IMAGE_HEADER_SIZE,
 							   ui32PDumpFlags,
 							   &ui32ParamOutPos,
@@ -4221,7 +4177,8 @@ PVRSRV_ERROR PDumpImageDescriptor(PVRSRV_DEVICE_NODE *psDeviceNode,
 	{
 		if (eErr != PVRSRV_ERROR_PDUMP_NOT_ALLOWED)
 		{
-			PDUMP_ERROR(eErr, "Failed to write device allocation to parameter file");
+			PDUMP_ERROR(psDeviceNode, eErr,
+			            "Failed to write device allocation to parameter file");
 			PVR_LOG_ERROR(eErr, "PDumpWriteParameter");
 		}
 		else
@@ -4242,7 +4199,7 @@ PVRSRV_ERROR PDumpImageDescriptor(PVRSRV_DEVICE_NODE *psDeviceNode,
 							IMAGE_HEADER_SIZE,
 							IMAGE_HEADER_SIZE);
 	PVR_GOTO_IF_ERROR(eErr, error);
-	PDumpWriteScript(hScript, ui32PDumpFlags);
+	PDumpWriteScript(psDeviceNode, hScript, ui32PDumpFlags);
 
 	eErr = PDumpSNPrintf(hScript,
 							ui32MaxLenScript,
@@ -4252,7 +4209,7 @@ PVRSRV_ERROR PDumpImageDescriptor(PVRSRV_DEVICE_NODE *psDeviceNode,
 							ui32ParamOutPos,
 							pszFileName);
 	PVR_GOTO_IF_ERROR(eErr, error);
-	PDumpWriteScript(hScript, ui32PDumpFlags);
+	PDumpWriteScript(psDeviceNode, hScript, ui32PDumpFlags);
 
 	eErr = PDumpSNPrintf(hScript,
 							ui32MaxLenScript,
@@ -4261,7 +4218,7 @@ PVRSRV_ERROR PDumpImageDescriptor(PVRSRV_DEVICE_NODE *psDeviceNode,
 							IMAGE_HEADER_SIZE,
 							pszSABFileName);
 	PVR_GOTO_IF_ERROR(eErr, error);
-	PDumpWriteScript(hScript, ui32PDumpFlags);
+	PDumpWriteScript(psDeviceNode, hScript, ui32PDumpFlags);
 
 	ui32SABOffset += IMAGE_HEADER_SIZE;
 
@@ -4280,7 +4237,7 @@ PVRSRV_ERROR PDumpImageDescriptor(PVRSRV_DEVICE_NODE *psDeviceNode,
 								ui32SABOffset,
 								pszSABFileName);
 		PVR_GOTO_IF_ERROR(eErr, error);
-		PDumpWriteScript(hScript, ui32PDumpFlags);
+		PDumpWriteScript(psDeviceNode, hScript, ui32PDumpFlags);
 
 		ui32SABOffset += ui32HeaderSize;
 	}
@@ -4299,7 +4256,7 @@ PVRSRV_ERROR PDumpImageDescriptor(PVRSRV_DEVICE_NODE *psDeviceNode,
 							pszSABFileName);
 
 	PVR_GOTO_IF_ERROR(eErr, error);
-	PDumpWriteScript(hScript, ui32PDumpFlags);
+	PDumpWriteScript(psDeviceNode, hScript, ui32PDumpFlags);
 
 	/*
 	 * The OutputImage command is required to trigger processing of the output
@@ -4310,14 +4267,14 @@ PVRSRV_ERROR PDumpImageDescriptor(PVRSRV_DEVICE_NODE *psDeviceNode,
 							"CMD:OutputImage %s.bin\n",
 							pszSABFileName);
 	PVR_GOTO_IF_ERROR(eErr, error);
-	PDumpWriteScript(hScript, ui32PDumpFlags);
+	PDumpWriteScript(psDeviceNode, hScript, ui32PDumpFlags);
 
 	eErr = PDumpSNPrintf(hScript,
 							ui32MaxLenScript,
 							"FREE :%s:BINHEADER\n",
 							pszPDumpDevName);
 	PVR_GOTO_IF_ERROR(eErr, error);
-	PDumpWriteScript(hScript, ui32PDumpFlags);
+	PDumpWriteScript(psDeviceNode, hScript, ui32PDumpFlags);
 
 error:
 	PDUMP_UNLOCK(ui32PDumpFlags);
@@ -4401,7 +4358,7 @@ PVRSRV_ERROR PDumpDataDescriptor(PVRSRV_DEVICE_NODE *psDeviceNode,
 	}
 
 	/* Prepare OutputData descriptor header */
-	eErr = RGXPDumpPrepareOutputDataDescriptorHdr(	psDeviceNode,
+	eErr = RGXPDumpPrepareOutputDataDescriptorHdr(psDeviceNode,
 									ui32HeaderType,
 									ui32DataSize,
 									ui32ElementType,
@@ -4411,10 +4368,11 @@ PVRSRV_ERROR PDumpDataDescriptor(PVRSRV_DEVICE_NODE *psDeviceNode,
 
 	PDUMP_LOCK(ui32PDumpFlags);
 
-	PDumpCommentWithFlagsNoLock(ui32PDumpFlags, "Dump Data descriptor");
+	PDumpCommentWithFlagsNoLock(psDeviceNode, ui32PDumpFlags, "Dump Data descriptor");
 
 	/* Write OutputImage command header to parameter file */
-	eErr = PDumpWriteParameter(abyPDumpDesc,
+	eErr = PDumpWriteParameter(psDeviceNode,
+							   abyPDumpDesc,
 							   ui32HeaderSize,
 							   ui32PDumpFlags,
 							   &ui32ParamOutPos,
@@ -4423,7 +4381,8 @@ PVRSRV_ERROR PDumpDataDescriptor(PVRSRV_DEVICE_NODE *psDeviceNode,
 	{
 		if (eErr != PVRSRV_ERROR_PDUMP_NOT_ALLOWED)
 		{
-			PDUMP_ERROR(eErr, "Failed to write device allocation to parameter file");
+			PDUMP_ERROR(psDeviceNode, eErr,
+			            "Failed to write device allocation to parameter file");
 			PVR_LOG_ERROR(eErr, "PDumpWriteParameter");
 		}
 		else
@@ -4444,7 +4403,7 @@ PVRSRV_ERROR PDumpDataDescriptor(PVRSRV_DEVICE_NODE *psDeviceNode,
 							ui32HeaderSize,
 							ui32HeaderSize);
 	PVR_GOTO_IF_ERROR(eErr, error);
-	PDumpWriteScript(hScript, ui32PDumpFlags);
+	PDumpWriteScript(psDeviceNode, hScript, ui32PDumpFlags);
 
 	eErr = PDumpSNPrintf(hScript,
 							ui32MaxLenScript,
@@ -4454,7 +4413,7 @@ PVRSRV_ERROR PDumpDataDescriptor(PVRSRV_DEVICE_NODE *psDeviceNode,
 							ui32ParamOutPos,
 							pszFileName);
 	PVR_GOTO_IF_ERROR(eErr, error);
-	PDumpWriteScript(hScript, ui32PDumpFlags);
+	PDumpWriteScript(psDeviceNode, hScript, ui32PDumpFlags);
 
 	eErr = PDumpSNPrintf(hScript,
 							ui32MaxLenScript,
@@ -4463,7 +4422,7 @@ PVRSRV_ERROR PDumpDataDescriptor(PVRSRV_DEVICE_NODE *psDeviceNode,
 							ui32HeaderSize,
 							pszSABFileName);
 	PVR_GOTO_IF_ERROR(eErr, error);
-	PDumpWriteScript(hScript, ui32PDumpFlags);
+	PDumpWriteScript(psDeviceNode, hScript, ui32PDumpFlags);
 
 	ui32SABOffset += ui32HeaderSize;
 
@@ -4481,7 +4440,7 @@ PVRSRV_ERROR PDumpDataDescriptor(PVRSRV_DEVICE_NODE *psDeviceNode,
 							pszSABFileName);
 
 	PVR_GOTO_IF_ERROR(eErr, error);
-	PDumpWriteScript(hScript, ui32PDumpFlags);
+	PDumpWriteScript(psDeviceNode, hScript, ui32PDumpFlags);
 
 	/*
 	 * The OutputData command is required to trigger processing of the output
@@ -4492,14 +4451,14 @@ PVRSRV_ERROR PDumpDataDescriptor(PVRSRV_DEVICE_NODE *psDeviceNode,
 							"CMD:OutputData %s.bin\n",
 							pszSABFileName);
 	PVR_GOTO_IF_ERROR(eErr, error);
-	PDumpWriteScript(hScript, ui32PDumpFlags);
+	PDumpWriteScript(psDeviceNode, hScript, ui32PDumpFlags);
 
 	eErr = PDumpSNPrintf(hScript,
 							ui32MaxLenScript,
 							"FREE :%s:BINHEADER\n",
 							pszPDumpDevName);
 	PVR_GOTO_IF_ERROR(eErr, error);
-	PDumpWriteScript(hScript, ui32PDumpFlags);
+	PDumpWriteScript(psDeviceNode, hScript, ui32PDumpFlags);
 
 error:
 	PDUMP_UNLOCK(ui32PDumpFlags);
@@ -4528,12 +4487,13 @@ error_release_script:
  @Return   PVRSRV_ERROR			:
 
 ******************************************************************************/
-PVRSRV_ERROR PDumpReadRegKM		(	IMG_CHAR *pszPDumpRegName,
-									IMG_CHAR *pszFileName,
-									IMG_UINT32 ui32FileOffset,
-									IMG_UINT32 ui32Address,
-									IMG_UINT32 ui32Size,
-									IMG_UINT32 ui32PDumpFlags)
+PVRSRV_ERROR PDumpReadRegKM(PVRSRV_DEVICE_NODE *psDeviceNode,
+                            IMG_CHAR *pszPDumpRegName,
+                            IMG_CHAR *pszFileName,
+                            IMG_UINT32 ui32FileOffset,
+                            IMG_UINT32 ui32Address,
+                            IMG_UINT32 ui32Size,
+                            IMG_UINT32 ui32PDumpFlags)
 {
 	PVRSRV_ERROR eErr;
 	PDUMP_GET_SCRIPT_STRING();
@@ -4554,7 +4514,7 @@ PVRSRV_ERROR PDumpReadRegKM		(	IMG_CHAR *pszPDumpRegName,
 	}
 
 	PDUMP_LOCK(ui32PDumpFlags);
-	PDumpWriteScript(hScript, ui32PDumpFlags);
+	PDumpWriteScript(psDeviceNode, hScript, ui32PDumpFlags);
 	PDUMP_UNLOCK(ui32PDumpFlags);
 
 	PDUMP_RELEASE_SCRIPT_STRING();
@@ -4568,7 +4528,8 @@ PVRSRV_ERROR PDumpReadRegKM		(	IMG_CHAR *pszPDumpRegName,
  * Description    : Create a PDUMP string, which reads register into an
  *                  internal variable
 ******************************************************************************/
-PVRSRV_ERROR PDumpRegRead32ToInternalVar(IMG_CHAR *pszPDumpRegName,
+PVRSRV_ERROR PDumpRegRead32ToInternalVar(PVRSRV_DEVICE_NODE *psDeviceNode,
+							IMG_CHAR *pszPDumpRegName,
 							IMG_UINT32 ui32Reg,
 							IMG_CHAR *pszInternalVar,
 							IMG_UINT32 ui32Flags)
@@ -4591,7 +4552,7 @@ PVRSRV_ERROR PDumpRegRead32ToInternalVar(IMG_CHAR *pszPDumpRegName,
 	}
 
 	PDUMP_LOCK(ui32Flags);
-	PDumpWriteScript(hScript, ui32Flags);
+	PDumpWriteScript(psDeviceNode, hScript, ui32Flags);
 	PDUMP_UNLOCK(ui32Flags);
 
 	PDUMP_RELEASE_SCRIPT_STRING();
@@ -4606,7 +4567,8 @@ PVRSRV_ERROR PDumpRegRead32ToInternalVar(IMG_CHAR *pszPDumpRegName,
  @param		ui32Flags - pdump flags
  @return	Error
 ******************************************************************************/
-PVRSRV_ERROR PDumpRegRead32(IMG_CHAR *pszPDumpRegName,
+PVRSRV_ERROR PDumpRegRead32(PVRSRV_DEVICE_NODE *psDeviceNode,
+							IMG_CHAR *pszPDumpRegName,
 							const IMG_UINT32 ui32RegOffset,
 							IMG_UINT32 ui32Flags)
 {
@@ -4623,7 +4585,7 @@ PVRSRV_ERROR PDumpRegRead32(IMG_CHAR *pszPDumpRegName,
 	}
 
 	PDUMP_LOCK(ui32Flags);
-	PDumpWriteScript(hScript, ui32Flags);
+	PDumpWriteScript(psDeviceNode, hScript, ui32Flags);
 	PDUMP_UNLOCK(ui32Flags);
 
 	PDUMP_RELEASE_SCRIPT_STRING();
@@ -4638,7 +4600,8 @@ PVRSRV_ERROR PDumpRegRead32(IMG_CHAR *pszPDumpRegName,
  @param     ui32Flags - pdump flags
  @return    Error
 ******************************************************************************/
-PVRSRV_ERROR PDumpRegRead64ToInternalVar(IMG_CHAR *pszPDumpRegName,
+PVRSRV_ERROR PDumpRegRead64ToInternalVar(PVRSRV_DEVICE_NODE *psDeviceNode,
+                            IMG_CHAR *pszPDumpRegName,
                             IMG_CHAR *pszInternalVar,
                             const IMG_UINT32 ui32RegOffset,
                             IMG_UINT32 ui32Flags)
@@ -4661,7 +4624,7 @@ PVRSRV_ERROR PDumpRegRead64ToInternalVar(IMG_CHAR *pszPDumpRegName,
 	}
 
 	PDUMP_LOCK(ui32Flags);
-	PDumpWriteScript(hScript, ui32Flags);
+	PDumpWriteScript(psDeviceNode, hScript, ui32Flags);
 
 	pszPDumpVarName = PDumpCreateIncVarNameStr(pszInternalVar);
 	if (pszPDumpVarName == NULL)
@@ -4685,7 +4648,7 @@ PVRSRV_ERROR PDumpRegRead64ToInternalVar(IMG_CHAR *pszPDumpRegName,
 		return eErr;
 	}
 
-	PDumpWriteScript(hScript, ui32Flags);
+	PDumpWriteScript(psDeviceNode, hScript, ui32Flags);
 	PDUMP_UNLOCK(ui32Flags);
 
 #else
@@ -4700,7 +4663,7 @@ PVRSRV_ERROR PDumpRegRead64ToInternalVar(IMG_CHAR *pszPDumpRegName,
 	}
 
 	PDUMP_LOCK(ui32Flags);
-	PDumpWriteScript(hScript, ui32Flags);
+	PDumpWriteScript(psDeviceNode, hScript, ui32Flags);
 	PDUMP_UNLOCK(ui32Flags);
 #endif
 
@@ -4717,7 +4680,8 @@ PVRSRV_ERROR PDumpRegRead64ToInternalVar(IMG_CHAR *pszPDumpRegName,
  @param		ui32Flags - pdump flags
  @return	Error
 ******************************************************************************/
-PVRSRV_ERROR PDumpRegRead64(IMG_CHAR *pszPDumpRegName,
+PVRSRV_ERROR PDumpRegRead64(PVRSRV_DEVICE_NODE *psDeviceNode,
+							IMG_CHAR *pszPDumpRegName,
 							const IMG_UINT32 ui32RegOffset,
 							IMG_UINT32 ui32Flags)
 {
@@ -4733,7 +4697,7 @@ PVRSRV_ERROR PDumpRegRead64(IMG_CHAR *pszPDumpRegName,
 		return eErr;
 	}
 	PDUMP_LOCK(ui32Flags);
-	PDumpWriteScript(hScript, ui32Flags);
+	PDumpWriteScript(psDeviceNode, hScript, ui32Flags);
 
 	eErr = PDumpSNPrintf(hScript, ui32MaxLen, "RDW :%s:0x%X",
 							pszPDumpRegName, ui32RegOffset + 4);
@@ -4743,7 +4707,7 @@ PVRSRV_ERROR PDumpRegRead64(IMG_CHAR *pszPDumpRegName,
 		PDUMP_UNLOCK(ui32Flags);
 		return eErr;
 	}
-	PDumpWriteScript(hScript, ui32Flags);
+	PDumpWriteScript(psDeviceNode, hScript, ui32Flags);
 	PDUMP_UNLOCK(ui32Flags);
 #else
 	eErr = PDumpSNPrintf(hScript, ui32MaxLen, "RDW64 :%s:0x%X",
@@ -4756,7 +4720,7 @@ PVRSRV_ERROR PDumpRegRead64(IMG_CHAR *pszPDumpRegName,
 	}
 
 	PDUMP_LOCK(ui32Flags);
-	PDumpWriteScript(hScript, ui32Flags);
+	PDumpWriteScript(psDeviceNode, hScript, ui32Flags);
 	PDUMP_UNLOCK(ui32Flags);
 #endif
 
@@ -4780,7 +4744,8 @@ PVRSRV_ERROR PDumpRegRead64(IMG_CHAR *pszPDumpRegName,
  RETURNS	: None
 ******************************************************************************/
 PVRSRV_ERROR
-PDumpWriteShiftedMaskedValue(const IMG_CHAR *pszDestRegspaceName,
+PDumpWriteShiftedMaskedValue(PVRSRV_DEVICE_NODE *psDeviceNode,
+                             const IMG_CHAR *pszDestRegspaceName,
                              const IMG_CHAR *pszDestSymbolicName,
                              IMG_DEVMEM_OFFSET_T uiDestOffset,
                              const IMG_CHAR *pszRefRegspaceName,
@@ -4829,7 +4794,7 @@ PDumpWriteShiftedMaskedValue(const IMG_CHAR *pszDestRegspaceName,
 	               uiRefOffset);
 	PVR_GOTO_IF_ERROR(eError, ErrUnlock);
 
-	PDumpWriteScript(hScript, uiPDumpFlags);
+	PDumpWriteScript(psDeviceNode, hScript, uiPDumpFlags);
 
 	if (uiSHRAmount > 0)
 	{
@@ -4845,7 +4810,7 @@ PDumpWriteShiftedMaskedValue(const IMG_CHAR *pszDestRegspaceName,
 		               /* src B */
 		               uiSHRAmount);
 		PVR_GOTO_IF_ERROR(eError, ErrUnlock);
-		PDumpWriteScript(hScript, uiPDumpFlags);
+		PDumpWriteScript(psDeviceNode, hScript, uiPDumpFlags);
 	}
 
 	if (uiSHLAmount > 0)
@@ -4862,7 +4827,7 @@ PDumpWriteShiftedMaskedValue(const IMG_CHAR *pszDestRegspaceName,
 		               /* src B */
 		               uiSHLAmount);
 		PVR_GOTO_IF_ERROR(eError, ErrUnlock);
-		PDumpWriteScript(hScript, uiPDumpFlags);
+		PDumpWriteScript(psDeviceNode, hScript, uiPDumpFlags);
 	}
 
 	if (uiMask != (1ULL << (8*uiWordSize))-1)
@@ -4879,7 +4844,7 @@ PDumpWriteShiftedMaskedValue(const IMG_CHAR *pszDestRegspaceName,
 		               /* src B */
 		               uiMask);
 		PVR_GOTO_IF_ERROR(eError, ErrUnlock);
-		PDumpWriteScript(hScript, uiPDumpFlags);
+		PDumpWriteScript(psDeviceNode, hScript, uiPDumpFlags);
 	}
 
 	eError = PDumpSNPrintf(hScript,
@@ -4894,7 +4859,7 @@ PDumpWriteShiftedMaskedValue(const IMG_CHAR *pszDestRegspaceName,
 	               pszPDumpIntRegSpace,
 	               uiPDumpIntRegNum);
 	PVR_GOTO_IF_ERROR(eError, ErrUnlock);
-	PDumpWriteScript(hScript, uiPDumpFlags);
+	PDumpWriteScript(psDeviceNode, hScript, uiPDumpFlags);
 
 ErrUnlock:
 	PDUMP_UNLOCK(uiPDumpFlags);
@@ -4905,7 +4870,8 @@ ErrUnlock:
 
 
 PVRSRV_ERROR
-PDumpWriteSymbAddress(const IMG_CHAR *pszDestSpaceName,
+PDumpWriteSymbAddress(PVRSRV_DEVICE_NODE *psDeviceNode,
+                      const IMG_CHAR *pszDestSpaceName,
                       IMG_DEVMEM_OFFSET_T uiDestOffset,
                       const IMG_CHAR *pszRefSymbolicName,
                       IMG_DEVMEM_OFFSET_T uiRefOffset,
@@ -4940,7 +4906,7 @@ PDumpWriteSymbAddress(const IMG_CHAR *pszDestSpaceName,
 				       pszRefSymbolicName,
 				       uiRefOffset);
 		PVR_GOTO_IF_ERROR(eError, symbAddress_error);
-		PDumpWriteScript(hScript, uiPDumpFlags);
+		PDumpWriteScript(psDeviceNode, hScript, uiPDumpFlags);
 
 		/* apply address alignment */
 		eError = PDumpSNPrintf(hScript,
@@ -4953,7 +4919,7 @@ PDumpWriteSymbAddress(const IMG_CHAR *pszDestSpaceName,
 				       /* src B */
 				       ui32AlignShift);
 		PVR_GOTO_IF_ERROR(eError, symbAddress_error);
-		PDumpWriteScript(hScript, uiPDumpFlags);
+		PDumpWriteScript(psDeviceNode, hScript, uiPDumpFlags);
 
 		/* apply address shift */
 		eError = PDumpSNPrintf(hScript,
@@ -4966,7 +4932,7 @@ PDumpWriteSymbAddress(const IMG_CHAR *pszDestSpaceName,
 				       /* src B */
 				       ui32Shift);
 		PVR_GOTO_IF_ERROR(eError, symbAddress_error);
-		PDumpWriteScript(hScript, uiPDumpFlags);
+		PDumpWriteScript(psDeviceNode, hScript, uiPDumpFlags);
 
 
 		/* write result to register */
@@ -4978,7 +4944,7 @@ PDumpWriteSymbAddress(const IMG_CHAR *pszDestSpaceName,
 				       (IMG_UINT32)uiDestOffset,
 				       pszPDumpDevName);
 		PVR_GOTO_IF_ERROR(eError, symbAddress_error);
-		PDumpWriteScript(hScript, uiPDumpFlags);
+		PDumpWriteScript(psDeviceNode, hScript, uiPDumpFlags);
 	}
 	else
 	{
@@ -4993,7 +4959,7 @@ PDumpWriteSymbAddress(const IMG_CHAR *pszDestSpaceName,
 				       pszRefSymbolicName,
 				       uiRefOffset);
 		PVR_GOTO_IF_ERROR(eError, symbAddress_error);
-		PDumpWriteScript(hScript, uiPDumpFlags);
+		PDumpWriteScript(psDeviceNode, hScript, uiPDumpFlags);
 	}
 
 symbAddress_error:
@@ -5010,7 +4976,8 @@ symbAddress_error:
  * Returns        : Error
  * Description    : Dump IDL command to script
 ******************************************************************************/
-PVRSRV_ERROR PDumpIDLWithFlags(IMG_UINT32 ui32Clocks, IMG_UINT32 ui32Flags)
+PVRSRV_ERROR PDumpIDLWithFlags(PVRSRV_DEVICE_NODE *psDeviceNode,
+                               IMG_UINT32 ui32Clocks, IMG_UINT32 ui32Flags)
 {
 	PVRSRV_ERROR eErr;
 	PDUMP_GET_SCRIPT_STRING();
@@ -5023,7 +4990,7 @@ PVRSRV_ERROR PDumpIDLWithFlags(IMG_UINT32 ui32Clocks, IMG_UINT32 ui32Flags)
 	}
 
 	PDUMP_LOCK(ui32Flags);
-	PDumpWriteScript(hScript, ui32Flags);
+	PDumpWriteScript(psDeviceNode, hScript, ui32Flags);
 	PDUMP_UNLOCK(ui32Flags);
 
 	PDUMP_RELEASE_SCRIPT_STRING();
@@ -5038,9 +5005,10 @@ PVRSRV_ERROR PDumpIDLWithFlags(IMG_UINT32 ui32Clocks, IMG_UINT32 ui32Flags)
  * Returns        : Error
  * Description    : Dump IDL command to script
 ******************************************************************************/
-PVRSRV_ERROR PDumpIDL(IMG_UINT32 ui32Clocks)
+PVRSRV_ERROR PDumpIDL(PVRSRV_DEVICE_NODE *psDeviceNode,
+                      IMG_UINT32 ui32Clocks)
 {
-	return PDumpIDLWithFlags(ui32Clocks, PDUMP_FLAGS_CONTINUOUS);
+	return PDumpIDLWithFlags(psDeviceNode, ui32Clocks, PDUMP_FLAGS_CONTINUOUS);
 }
 
 /******************************************************************************
@@ -5051,7 +5019,8 @@ PVRSRV_ERROR PDumpIDL(IMG_UINT32 ui32Clocks)
  * Returns        : Error
  * Description    : Dump CBP command to script
 ******************************************************************************/
-PVRSRV_ERROR PDumpRegBasedCBP(IMG_CHAR		*pszPDumpRegName,
+PVRSRV_ERROR PDumpRegBasedCBP(PVRSRV_DEVICE_NODE *psDeviceNode,
+							  IMG_CHAR		*pszPDumpRegName,
 							  IMG_UINT32	ui32RegOffset,
 							  IMG_UINT32	ui32WPosVal,
 							  IMG_UINT32	ui32PacketSize,
@@ -5076,14 +5045,15 @@ PVRSRV_ERROR PDumpRegBasedCBP(IMG_CHAR		*pszPDumpRegName,
 	}
 
 	PDUMP_LOCK(ui32Flags);
-	PDumpWriteScript(hScript, ui32Flags);
+	PDumpWriteScript(psDeviceNode, hScript, ui32Flags);
 	PDUMP_UNLOCK(ui32Flags);
 
 	PDUMP_RELEASE_SCRIPT_STRING();
 	return PVRSRV_OK;
 }
 
-PVRSRV_ERROR PDumpTRG(IMG_CHAR *pszMemSpace,
+PVRSRV_ERROR PDumpTRG(PVRSRV_DEVICE_NODE *psDeviceNode,
+                      IMG_CHAR *pszMemSpace,
                       IMG_UINT32 ui32MMUCtxID,
                       IMG_UINT32 ui32RegionID,
                       IMG_BOOL bEnable,
@@ -5116,7 +5086,7 @@ PVRSRV_ERROR PDumpTRG(IMG_CHAR *pszMemSpace,
 	}
 
 	PDUMP_LOCK(ui32Flags);
-	PDumpWriteScript(hScript, ui32Flags);
+	PDumpWriteScript(psDeviceNode, hScript, ui32Flags);
 	PDUMP_UNLOCK(ui32Flags);
 
 	PDUMP_RELEASE_SCRIPT_STRING();
@@ -5129,10 +5099,8 @@ PVRSRV_ERROR PDumpTRG(IMG_CHAR *pszMemSpace,
  * Description    : Called by the srvcore to tell PDump core that the
  *                  PDump capture and control client has connected
 ******************************************************************************/
-void PDumpConnectionNotify(void)
+void PDumpConnectionNotify(PVRSRV_DEVICE_NODE *psDeviceNode)
 {
-	PVRSRV_DATA			*psPVRSRVData = PVRSRVGetPVRSRVData();
-	PVRSRV_DEVICE_NODE	*psThis;
 #if defined(TL_BUFFER_STATS)
 	PVRSRV_ERROR		eErr;
 #endif
@@ -5169,16 +5137,10 @@ void PDumpConnectionNotify(void)
 	PVR_LOG_IF_ERROR(eErr, "TLStreamResetByteCount Script Main");
 #endif
 
-	/* Loop over all known devices */
-	psThis = psPVRSRVData->psDeviceNodeList;
-	while (psThis)
+	if (psDeviceNode->pfnPDumpInitDevice)
 	{
-		if (psThis->pfnPDumpInitDevice)
-		{
-			/* Reset pdump according to connected device */
-			psThis->pfnPDumpInitDevice(psThis);
-		}
-		psThis = psThis->psNext;
+		/* Reset pdump according to connected device */
+		psDeviceNode->pfnPDumpInitDevice(psDeviceNode);
 	}
 }
 
@@ -5187,7 +5149,7 @@ void PDumpConnectionNotify(void)
  * Description    : Called by the connection_server to tell PDump core that
  *                  the PDump capture and control client has disconnected
 ******************************************************************************/
-void PDumpDisconnectionNotify(void)
+void PDumpDisconnectionNotify(PVRSRV_DEVICE_NODE *psDeviceNode)
 {
 	PVRSRV_ERROR eErr;
 
@@ -5199,7 +5161,7 @@ void PDumpDisconnectionNotify(void)
 		 * not get a chance to reset the capture parameters.
 		 * Will set module state back to READY.
 		 */
-		eErr = PDumpSetDefaultCaptureParamsKM(PDUMP_CAPMODE_UNSET,
+		eErr = PDumpSetDefaultCaptureParamsKM(NULL, psDeviceNode, PDUMP_CAPMODE_UNSET,
 						      PDUMP_FRAME_UNSET, PDUMP_FRAME_UNSET, 0, 0);
 		PVR_LOG_IF_ERROR(eErr, "PDumpSetDefaultCaptureParamsKM");
 	}
@@ -5291,7 +5253,8 @@ PVRSRV_ERROR PDumpInternalValCondStr(IMG_CHAR            **ppszPDumpCond,
  * Description    : Create a PDUMP string which represents IF command
 					with condition.
 ******************************************************************************/
-PVRSRV_ERROR PDumpIfKM(IMG_CHAR *pszPDumpCond, IMG_UINT32 ui32PDumpFlags)
+PVRSRV_ERROR PDumpIfKM(PVRSRV_DEVICE_NODE *psDeviceNode,
+                       IMG_CHAR *pszPDumpCond, IMG_UINT32 ui32PDumpFlags)
 {
 	PVRSRV_ERROR eErr;
 	PDUMP_GET_SCRIPT_STRING()
@@ -5305,7 +5268,7 @@ PVRSRV_ERROR PDumpIfKM(IMG_CHAR *pszPDumpCond, IMG_UINT32 ui32PDumpFlags)
 	}
 
 	PDUMP_LOCK(ui32PDumpFlags);
-	PDumpWriteScript(hScript, ui32PDumpFlags);
+	PDumpWriteScript(psDeviceNode, hScript, ui32PDumpFlags);
 	PDUMP_UNLOCK(ui32PDumpFlags);
 
 	PDUMP_RELEASE_SCRIPT_STRING();
@@ -5320,7 +5283,8 @@ PVRSRV_ERROR PDumpIfKM(IMG_CHAR *pszPDumpCond, IMG_UINT32 ui32PDumpFlags)
  * Description    : Create a PDUMP string which represents ELSE command
 					with condition.
 ******************************************************************************/
-PVRSRV_ERROR PDumpElseKM(IMG_CHAR *pszPDumpCond, IMG_UINT32 ui32PDumpFlags)
+PVRSRV_ERROR PDumpElseKM(PVRSRV_DEVICE_NODE *psDeviceNode,
+                         IMG_CHAR *pszPDumpCond, IMG_UINT32 ui32PDumpFlags)
 {
 	PVRSRV_ERROR eErr;
 	PDUMP_GET_SCRIPT_STRING()
@@ -5334,7 +5298,7 @@ PVRSRV_ERROR PDumpElseKM(IMG_CHAR *pszPDumpCond, IMG_UINT32 ui32PDumpFlags)
 	}
 
 	PDUMP_LOCK(ui32PDumpFlags);
-	PDumpWriteScript(hScript, ui32PDumpFlags);
+	PDumpWriteScript(psDeviceNode, hScript, ui32PDumpFlags);
 	PDUMP_UNLOCK(ui32PDumpFlags);
 
 	PDUMP_RELEASE_SCRIPT_STRING();
@@ -5350,7 +5314,8 @@ PVRSRV_ERROR PDumpElseKM(IMG_CHAR *pszPDumpCond, IMG_UINT32 ui32PDumpFlags)
  * Description    : Create a PDUMP string which represents FI command
 					with condition.
 ******************************************************************************/
-PVRSRV_ERROR PDumpFiKM(IMG_CHAR *pszPDumpCond, IMG_UINT32 ui32PDumpFlags)
+PVRSRV_ERROR PDumpFiKM(PVRSRV_DEVICE_NODE *psDeviceNode,
+                       IMG_CHAR *pszPDumpCond, IMG_UINT32 ui32PDumpFlags)
 {
 	PVRSRV_ERROR eErr;
 	PDUMP_GET_SCRIPT_STRING()
@@ -5364,7 +5329,7 @@ PVRSRV_ERROR PDumpFiKM(IMG_CHAR *pszPDumpCond, IMG_UINT32 ui32PDumpFlags)
 	}
 
 	PDUMP_LOCK(ui32PDumpFlags);
-	PDumpWriteScript(hScript, ui32PDumpFlags);
+	PDumpWriteScript(psDeviceNode, hScript, ui32PDumpFlags);
 	PDUMP_UNLOCK(ui32PDumpFlags);
 
 	PDUMP_RELEASE_SCRIPT_STRING();
@@ -5380,7 +5345,8 @@ PVRSRV_ERROR PDumpFiKM(IMG_CHAR *pszPDumpCond, IMG_UINT32 ui32PDumpFlags)
  * Description    : Create a PDUMP string which represents SDO command
 					with condition.
 ******************************************************************************/
-PVRSRV_ERROR PDumpStartDoLoopKM(IMG_UINT32 ui32PDumpFlags)
+PVRSRV_ERROR PDumpStartDoLoopKM(PVRSRV_DEVICE_NODE *psDeviceNode,
+                                IMG_UINT32 ui32PDumpFlags)
 {
 	PVRSRV_ERROR eErr;
 	PDUMP_GET_SCRIPT_STRING()
@@ -5394,7 +5360,7 @@ PVRSRV_ERROR PDumpStartDoLoopKM(IMG_UINT32 ui32PDumpFlags)
 	}
 
 	PDUMP_LOCK(ui32PDumpFlags);
-	PDumpWriteScript(hScript, ui32PDumpFlags);
+	PDumpWriteScript(psDeviceNode, hScript, ui32PDumpFlags);
 	PDUMP_UNLOCK(ui32PDumpFlags);
 
 	PDUMP_RELEASE_SCRIPT_STRING();
@@ -5410,7 +5376,9 @@ PVRSRV_ERROR PDumpStartDoLoopKM(IMG_UINT32 ui32PDumpFlags)
  * Description    : Create a PDUMP string which represents DOW command
 					with condition.
 ******************************************************************************/
-PVRSRV_ERROR PDumpEndDoWhileLoopKM(IMG_CHAR *pszPDumpWhileCond, IMG_UINT32 ui32PDumpFlags)
+PVRSRV_ERROR PDumpEndDoWhileLoopKM(PVRSRV_DEVICE_NODE *psDeviceNode,
+                                   IMG_CHAR *pszPDumpWhileCond,
+                                   IMG_UINT32 ui32PDumpFlags)
 {
 	PVRSRV_ERROR eErr;
 	PDUMP_GET_SCRIPT_STRING()
@@ -5424,7 +5392,7 @@ PVRSRV_ERROR PDumpEndDoWhileLoopKM(IMG_CHAR *pszPDumpWhileCond, IMG_UINT32 ui32P
 	}
 
 	PDUMP_LOCK(ui32PDumpFlags);
-	PDumpWriteScript(hScript, ui32PDumpFlags);
+	PDumpWriteScript(psDeviceNode, hScript, ui32PDumpFlags);
 	PDUMP_UNLOCK(ui32PDumpFlags);
 
 	PDUMP_RELEASE_SCRIPT_STRING();
@@ -5447,6 +5415,7 @@ static void PDumpAssertWriteLockHeld(void)
 	PVR_ASSERT(OSLockIsLocked(g_hPDumpWriteLock));
 }
 
+#if defined(PDUMP_TRACE_STATE) || defined(PVR_TESTING_UTILS)
 void PDumpCommonDumpState(void)
 {
 	PVR_LOG(("--- PDUMP COMMON: g_PDumpScript.sCh.*.hTL (In, Mn, De, Bk) ( %p, %p, %p, %p )",
@@ -5500,11 +5469,14 @@ void PDumpCommonDumpState(void)
 			g_PDumpCtrl.ui32DefaultCapMode, g_PDumpCtrl.ui32CurrentFrame));
 	PVR_LOG(("--- PDUMP COMMON: sCaptureRange.ui32Start( %x ) sCaptureRange.ui32End( %x ) sCaptureRange.ui32Interval( %u )",
 			g_PDumpCtrl.sCaptureRange.ui32Start, g_PDumpCtrl.sCaptureRange.ui32End, g_PDumpCtrl.sCaptureRange.ui32Interval));
-	PVR_LOG(("--- PDUMP COMMON: IsInCaptureRange( %s ) InPowerTransition( %d )",
-			CHECK_PDUMP_CONTROL_FLAG(FLAG_IS_IN_CAPTURE_RANGE) ? "yes" : "no", PDumpCtrlInPowerTransition()));
+	PVR_LOG(("--- PDUMP COMMON: IsInCaptureRange( %s ) IsInCaptureInterval( %s ) InPowerTransition( %d )",
+			CHECK_PDUMP_CONTROL_FLAG(FLAG_IS_IN_CAPTURE_RANGE) ? "yes" : "no",
+			CHECK_PDUMP_CONTROL_FLAG(FLAG_IS_IN_CAPTURE_INTERVAL) ? "yes" : "no",
+			PDumpCtrlInPowerTransition()));
 	PVR_LOG(("--- PDUMP COMMON: sBlockCtrl.ui32BlockLength( %d ), sBlockCtrl.ui32CurrentBlock( %d )",
 			g_PDumpCtrl.sBlockCtrl.ui32BlockLength, g_PDumpCtrl.sBlockCtrl.ui32CurrentBlock));
 }
+#endif /* defined(PDUMP_TRACE_STATE) || defined(PVR_TESTING_UTILS) */
 
 
 PVRSRV_ERROR PDumpRegisterConnection(void *hSyncPrivData,

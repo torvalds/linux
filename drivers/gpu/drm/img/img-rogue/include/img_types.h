@@ -109,12 +109,32 @@ typedef uint16_t		IMG_UINT16,	*IMG_PUINT16;
 typedef int16_t			IMG_INT16;
 typedef uint32_t		IMG_UINT32,	*IMG_PUINT32;
 typedef int32_t			IMG_INT32,	*IMG_PINT32;
+#if defined(INTEGRITY_OS)
+#if __INT_BIT >= 32U
+#define IMG_UINT32_C(n) ((IMG_UINT32)(n ## U))
+#elif __LONG_BIT >= 32U
+#define IMG_UINT32_C(n) ((IMG_UINT32)(n ## UL))
+#elif defined(__LLONG_BIT) && __LLONG_BIT >= 32U
+#define IMG_UINT32_C(n) ((IMG_UINT32)(n ## ULL))
+#endif
+#else /* defined(INTEGRITY_OS) */
 #define IMG_UINT32_C(c) ((IMG_UINT32)UINT32_C(c))
+#endif /* defined(INTEGRITY_OS) */
 
 typedef uint64_t		IMG_UINT64,	*IMG_PUINT64;
 typedef int64_t			IMG_INT64;
 #define IMG_INT64_C(c)	INT64_C(c)
+#if defined(INTEGRITY_OS)
+#if __INT_BIT >= 64U
+#define IMG_UINT64_C(n)	(n ## U)
+#elif defined(__LONG_BIT) && __LONG_BIT >= 64U
+#define IMG_UINT64_C(n)	(n ## UL)
+#elif defined(__LLONG_BIT) && __LLONG_BIT >= 64U
+#define IMG_UINT64_C(n)	(n ## ULL)
+#endif
+#else /* defined(INTEGRITY_OS) */
 #define IMG_UINT64_C(c)	UINT64_C(c)
+#endif /* defined(INTEGRITY_OS) */
 #define IMG_UINT16_C(c)	UINT16_C(c)
 #define IMG_UINT64_FMTSPEC PRIu64
 #define IMG_UINT64_FMTSPECX PRIX64
@@ -234,13 +254,19 @@ typedef struct
 {
 #if defined(UNDER_WDDM) || defined(WINDOWS_WDF)
 	uintptr_t uiAddr;
-#define IMG_CAST_TO_CPUPHYADDR_UINT(var)		(uintptr_t)(var)
+#define IMG_CAST_TO_CPUPHYADDR_UINT(var)	(uintptr_t)(var)
+#define CPUPHYADDR_FMTARG(var)				(IMG_UINT64)(var)
+#define CPUPHYADDR_UINT_FMTSPEC "0x%016" IMG_UINT64_FMTSPECx
 #elif defined(__linux__) && defined(__KERNEL__)
 	phys_addr_t uiAddr;
-#define IMG_CAST_TO_CPUPHYADDR_UINT(var)		(phys_addr_t)(var)
+#define IMG_CAST_TO_CPUPHYADDR_UINT(var)	(phys_addr_t)(var)
+#define CPUPHYADDR_FMTARG(var)				(&var)
+#define CPUPHYADDR_UINT_FMTSPEC "%pa"
 #else
 	IMG_UINT64 uiAddr;
-#define IMG_CAST_TO_CPUPHYADDR_UINT(var)		(IMG_UINT64)(var)
+#define IMG_CAST_TO_CPUPHYADDR_UINT(var)	(IMG_UINT64)(var)
+#define CPUPHYADDR_FMTARG(var)				(var)
+#define CPUPHYADDR_UINT_FMTSPEC "0x%016" IMG_UINT64_FMTSPECx
 #endif
 } IMG_CPU_PHYADDR;
 
@@ -292,7 +318,7 @@ typedef struct
 }
 #endif
 
-#endif	/* IMG_TYPES_H */
+#endif /* IMG_TYPES_H */
 /******************************************************************************
  End of file (img_types.h)
 ******************************************************************************/

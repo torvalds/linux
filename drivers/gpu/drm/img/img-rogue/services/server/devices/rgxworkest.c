@@ -317,7 +317,7 @@ PVRSRV_ERROR WorkEstPrepare(PVRSRV_RGXDEV_INFO        *psDevInfo,
 	psDevInfo->ui32ReturnDataWO = (ui32ReturnDataWO + 1) & RETURN_DATA_ARRAY_WRAP_MASK;
 
 	/* Index for the return data passed to/from the firmware. */
-	psWorkEstKickData->ui64ReturnDataIndex = ui32ReturnDataWO;
+	psWorkEstKickData->ui16ReturnDataIndex = ui32ReturnDataWO;
 	if (ui64DeadlineInus > ui64CurrentTime)
 	{
 		/* Rounding is done to reduce multiple deadlines with minor spread flooding the fw workload array. */
@@ -360,9 +360,15 @@ PVRSRV_ERROR WorkEstPrepare(PVRSRV_RGXDEV_INFO        *psDevInfo,
 	if (pui64CyclePrediction != NULL)
 	{
 		/* Cycle prediction is available, store this prediction */
-		psWorkEstKickData->ui64CyclesPrediction = *pui64CyclePrediction;
+		psWorkEstKickData->ui32CyclesPrediction = *pui64CyclePrediction;
 
 #if defined(PVRSRV_NEED_PVR_DPF)
+		if (*pui64CyclePrediction >= IMG_UINT32_MAX)
+		{
+			PVR_DPF((PVR_DBG_WARNING, "Workload estimate overflow:"
+					" %" IMG_UINT64_FMTSPEC, *pui64CyclePrediction));
+		}
+
 		switch (eDMCmdType)
 		{
 			case RGXFWIF_CCB_CMD_TYPE_GEOM:
@@ -396,7 +402,7 @@ PVRSRV_ERROR WorkEstPrepare(PVRSRV_RGXDEV_INFO        *psDevInfo,
 	else
 	{
 		/* There is no prediction */
-		psWorkEstKickData->ui64CyclesPrediction = 0;
+		psWorkEstKickData->ui32CyclesPrediction = 0;
 	}
 
 	return PVRSRV_OK;
@@ -424,19 +430,19 @@ PVRSRV_ERROR WorkEstRetire(PVRSRV_RGXDEV_INFO *psDevInfo,
 	                        "WorkEstRetire: Missing return command",
 	                        PVRSRV_ERROR_INVALID_PARAMS);
 
-	if (psReturnCmd->ui64ReturnDataIndex >= RETURN_DATA_ARRAY_SIZE)
+	if (psReturnCmd->ui16ReturnDataIndex >= RETURN_DATA_ARRAY_SIZE)
 	{
 		PVR_DPF((PVR_DBG_ERROR, "WorkEstRetire: Handle reference out-of-bounds:"
-		        " %" IMG_UINT64_FMTSPEC " >= %" IMG_UINT64_FMTSPEC,
-		        psReturnCmd->ui64ReturnDataIndex,
-		        (IMG_UINT64) RETURN_DATA_ARRAY_SIZE));
+		        " %u >= %u",
+		        psReturnCmd->ui16ReturnDataIndex,
+		        RETURN_DATA_ARRAY_SIZE));
 		return PVRSRV_ERROR_INVALID_PARAMS;
 	}
 
 	OSLockAcquire(psDevInfo->hWorkEstLock);
 
 	/* Retrieve/validate the return data from this completed workload */
-	psReturnData = &psDevInfo->asReturnData[psReturnCmd->ui64ReturnDataIndex];
+	psReturnData = &psDevInfo->asReturnData[psReturnCmd->ui16ReturnDataIndex];
 	psWorkloadCharacteristics = &psReturnData->sWorkloadCharacteristics;
 	psWorkEstHostData = psReturnData->psWorkEstHostData;
 	PVR_LOG_GOTO_IF_FALSE(psWorkEstHostData,
@@ -479,7 +485,7 @@ PVRSRV_ERROR WorkEstRetire(PVRSRV_RGXDEV_INFO *psDevInfo,
 	{
 		/* There is no existing entry for this workload characteristics,
 		 * store it */
-		paui64WorkloadHashData[ui32HashArrayWO] = psReturnCmd->ui64CyclesTaken;
+		paui64WorkloadHashData[ui32HashArrayWO] = psReturnCmd->ui32CyclesTaken;
 		pasWorkloadHashKeys[ui32HashArrayWO] = *psWorkloadCharacteristics;
 	}
 	else
@@ -487,7 +493,7 @@ PVRSRV_ERROR WorkEstRetire(PVRSRV_RGXDEV_INFO *psDevInfo,
 		/* Found prior entry for workload characteristics, average with
 		 * completed; also reset the old value to 0 so it is known to be
 		 * invalid */
-		paui64WorkloadHashData[ui32HashArrayWO] = (*pui64CyclesTaken + psReturnCmd->ui64CyclesTaken)/2;
+		paui64WorkloadHashData[ui32HashArrayWO] = (*pui64CyclesTaken + psReturnCmd->ui32CyclesTaken)/2;
 		pasWorkloadHashKeys[ui32HashArrayWO] = *psWorkloadCharacteristics;
 		*pui64CyclesTaken = 0;
 	}

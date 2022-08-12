@@ -109,6 +109,11 @@ void RGXHWPerfHostDeInit(PVRSRV_RGXDEV_INFO	*psRgxDevInfo);
 void RGXHWPerfHostSetEventFilter(PVRSRV_RGXDEV_INFO *psRgxDevInfo,
                                  IMG_UINT32 ui32Filter);
 
+void RGXHWPerfHostPostRaw(PVRSRV_RGXDEV_INFO *psRgxDevInfo,
+						  RGX_HWPERF_HOST_EVENT_TYPE eEvType,
+						  IMG_BYTE *pbPayload,
+						  IMG_UINT32 ui32PayloadSize);
+
 void RGXHWPerfHostPostEnqEvent(PVRSRV_RGXDEV_INFO *psRgxDevInfo,
                                RGX_HWPERF_KICK_TYPE eEnqType,
                                IMG_UINT32 ui32Pid,
@@ -121,7 +126,7 @@ void RGXHWPerfHostPostEnqEvent(PVRSRV_RGXDEV_INFO *psRgxDevInfo,
                                IMG_UINT64 ui64CheckFenceUID,
                                IMG_UINT64 ui64UpdateFenceUID,
                                IMG_UINT64 ui64DeadlineInus,
-                               IMG_UINT64 ui64CycleEstimate);
+                               IMG_UINT32 ui32CycleEstimate);
 
 void RGXHWPerfHostPostAllocEvent(PVRSRV_RGXDEV_INFO *psRgxDevInfo,
                                  RGX_HWPERF_HOST_RESOURCE_TYPE eAllocType,
@@ -168,6 +173,10 @@ void RGXHWPerfHostPostSWTimelineAdv(PVRSRV_RGXDEV_INFO *psRgxDevInfo,
                                     IMG_PID uiPID,
 									PVRSRV_TIMELINE hSWTimeline,
 									IMG_UINT64 ui64SyncPtIndex);
+
+void RGXHWPerfHostPostClientInfoProcName(PVRSRV_RGXDEV_INFO *psRgxDevInfo,
+                                         IMG_PID uiPID,
+									     const IMG_CHAR *psName);
 
 IMG_BOOL RGXHWPerfHostIsEventEnabled(PVRSRV_RGXDEV_INFO *psRgxDevInfo, RGX_HWPERF_HOST_EVENT_TYPE eEvent);
 
@@ -466,6 +475,20 @@ do { \
 		RGXHWPerfHostPostSWTimelineAdv((I), (PID), (SW_TL), (SPI)); \
 	} \
 } while (0)
+
+/**
+ * @param D      Device Node pointer
+ * @param PID    Process ID that the following timeline belongs to
+ * @param N      Null terminated string containing the process name
+ */
+#define RGXSRV_HWPERF_HOST_CLIENT_INFO_PROCESS_NAME(D, PID, N) \
+do { \
+	if (RGXHWPerfHostIsEventEnabled(_RGX_DEVICE_INFO_FROM_NODE(D), RGX_HWPERF_HOST_CLIENT_INFO)) \
+	{ \
+		RGXHWPerfHostPostClientInfoProcName(_RGX_DEVICE_INFO_FROM_NODE(D), (PID), (N)); \
+	} \
+} while (0)
+
 #else
 
 #define RGXSRV_HWPERF_ENQ(C, P, X, E, I, K, CF, UF, UT, CHKUID, UPDUID, D, CE)
@@ -482,6 +505,7 @@ do { \
 #define RGXSRV_HWPERF_HOST_INFO(I, T)
 #define RGXSRV_HWPERF_SYNC_FENCE_WAIT(I, T, PID, F, D)
 #define RGXSRV_HWPERF_SYNC_SW_TL_ADV(I, PID, SW_TL, SPI)
+#define RGXSRV_HWPERF_HOST_CLIENT_INFO_PROCESS_NAME(D, PID, N)
 
 #endif
 

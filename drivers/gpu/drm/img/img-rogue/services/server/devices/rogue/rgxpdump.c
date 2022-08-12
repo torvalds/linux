@@ -62,12 +62,12 @@ static PVRSRV_ERROR _FWDumpSignatureBufferKM(CONNECTION_DATA * psConnection,
 
 	PVR_UNREFERENCED_PARAMETER(psConnection);
 
-	PDUMPIF("DISABLE_SIGNATURE_BUFFER_DUMP", ui32PDumpFlags);
-	PDUMPELSE("DISABLE_SIGNATURE_BUFFER_DUMP", ui32PDumpFlags);
+	PDUMPIF(psDeviceNode, "DISABLE_SIGNATURE_BUFFER_DUMP", ui32PDumpFlags);
+	PDUMPELSE(psDeviceNode, "DISABLE_SIGNATURE_BUFFER_DUMP", ui32PDumpFlags);
 
 #if defined(SUPPORT_FIRMWARE_GCOV)
 	/* Gcov */
-	PDumpCommentWithFlags(ui32PDumpFlags, "** Gcov Buffer");
+	PDumpCommentWithFlags(psDeviceNode, ui32PDumpFlags, "** Gcov Buffer");
 	DevmemPDumpSaveToFileVirtual(psDevInfo->psFirmwareGcovBufferMemDesc,
 									 0,
 									 psDevInfo->ui32FirmwareGcovSize,
@@ -76,7 +76,7 @@ static PVRSRV_ERROR _FWDumpSignatureBufferKM(CONNECTION_DATA * psConnection,
 									 ui32PDumpFlags);
 #endif
 	/* TA signatures */
-	PDumpCommentWithFlags(ui32PDumpFlags, "** Dump TA signatures and checksums Buffer");
+	PDumpCommentWithFlags(psDeviceNode, ui32PDumpFlags, "** Dump TA signatures and checksums Buffer");
 	DevmemPDumpSaveToFileVirtual(psDevInfo->psRGXFWSigTAChecksMemDesc,
 								 0,
 								 psDevInfo->ui32SigTAChecksSize,
@@ -85,7 +85,7 @@ static PVRSRV_ERROR _FWDumpSignatureBufferKM(CONNECTION_DATA * psConnection,
 								 ui32PDumpFlags);
 
 	/* 3D signatures */
-	PDumpCommentWithFlags(ui32PDumpFlags, "** Dump 3D signatures and checksums Buffer");
+	PDumpCommentWithFlags(psDeviceNode, ui32PDumpFlags, "** Dump 3D signatures and checksums Buffer");
 	DevmemPDumpSaveToFileVirtual(psDevInfo->psRGXFWSig3DChecksMemDesc,
 								 0,
 								 psDevInfo->ui32Sig3DChecksSize,
@@ -93,10 +93,11 @@ static PVRSRV_ERROR _FWDumpSignatureBufferKM(CONNECTION_DATA * psConnection,
 								 0,
 								 ui32PDumpFlags);
 
+#if defined(RGX_FEATURE_TDM_PDS_CHECKSUM_BIT_MASK)
 	if (RGX_IS_FEATURE_SUPPORTED(psDevInfo, TDM_PDS_CHECKSUM))
 	{
 		/* TDM signatures */
-		PDumpCommentWithFlags(ui32PDumpFlags, "** Dump TDM signatures and checksums Buffer");
+		PDumpCommentWithFlags(psDeviceNode, ui32PDumpFlags, "** Dump TDM signatures and checksums Buffer");
 		DevmemPDumpSaveToFileVirtual(psDevInfo->psRGXFWSigTDM2DChecksMemDesc,
 									 0,
 									 psDevInfo->ui32SigTDM2DChecksSize,
@@ -104,8 +105,9 @@ static PVRSRV_ERROR _FWDumpSignatureBufferKM(CONNECTION_DATA * psConnection,
 									 0,
 									 ui32PDumpFlags);
 	}
+#endif
 
-	PDUMPFI("DISABLE_SIGNATURE_BUFFER_DUMP", ui32PDumpFlags);
+	PDUMPFI(psDeviceNode, "DISABLE_SIGNATURE_BUFFER_DUMP", ui32PDumpFlags);
 
 	return PVRSRV_OK;
 }
@@ -120,7 +122,7 @@ static PVRSRV_ERROR _FWDumpTraceBufferKM(CONNECTION_DATA * psConnection,
 	PVRSRV_VZ_RET_IF_MODE(GUEST, PVRSRV_OK);
 
 	/* Dump trace buffers */
-	PDumpCommentWithFlags(ui32PDumpFlags, "** Dump trace buffers");
+	PDumpCommentWithFlags(psDeviceNode, ui32PDumpFlags, "** Dump trace buffers");
 	for (ui32ThreadNum = 0, ui32OutFileOffset = 0; ui32ThreadNum < RGXFW_THREAD_NUM; ui32ThreadNum++)
 	{
 		/*
@@ -181,7 +183,7 @@ static PVRSRV_ERROR _FWDumpTraceBufferKM(CONNECTION_DATA * psConnection,
 	PVR_ASSERT(psDevInfo->psRGXFWIfHWPerfBufMemDesc);
 
 	/* Dump hwperf buffer */
-	PDumpCommentWithFlags(ui32PDumpFlags, "** Dump HWPerf Buffer");
+	PDumpCommentWithFlags(psDeviceNode, ui32PDumpFlags, "** Dump HWPerf Buffer");
 	DevmemPDumpSaveToFileVirtual(psDevInfo->psRGXFWIfHWPerfBufMemDesc,
 								 0,
 								 psDevInfo->ui32RGXFWIfHWPerfBufSize,
@@ -203,7 +205,7 @@ static PVRSRV_ERROR _MipsDumpSignatureBufferKM(CONNECTION_DATA * psConnection,
 	PVR_UNREFERENCED_PARAMETER(psConnection);
 
 	/* TA signatures */
-	PDumpCommentWithFlags(ui32PDumpFlags, "** Dump TA signatures and checksums Buffer");
+	PDumpCommentWithFlags(psDeviceNode, ui32PDumpFlags, "** Dump TA signatures and checksums Buffer");
 
 	DevmemPDumpSaveToFile(psDevInfo->psRGXFWSigTAChecksMemDesc,
 								 0,
@@ -212,23 +214,25 @@ static PVRSRV_ERROR _MipsDumpSignatureBufferKM(CONNECTION_DATA * psConnection,
 								 0);
 
 	/* 3D signatures */
-	PDumpCommentWithFlags(ui32PDumpFlags, "** Dump 3D signatures and checksums Buffer");
+	PDumpCommentWithFlags(psDeviceNode, ui32PDumpFlags, "** Dump 3D signatures and checksums Buffer");
 	DevmemPDumpSaveToFile(psDevInfo->psRGXFWSig3DChecksMemDesc,
 								 0,
 								 psDevInfo->ui32Sig3DChecksSize,
 								 "out.3dsig",
 								 0);
 
+#if defined(RGX_FEATURE_TDM_PDS_CHECKSUM_BIT_MASK)
 	if (RGX_IS_FEATURE_SUPPORTED(psDevInfo, TDM_PDS_CHECKSUM))
 	{
 		/* TDM signatures */
-		PDumpCommentWithFlags(ui32PDumpFlags, "** Dump TDM signatures and checksums Buffer");
+		PDumpCommentWithFlags(psDeviceNode, ui32PDumpFlags, "** Dump TDM signatures and checksums Buffer");
 		DevmemPDumpSaveToFile(psDevInfo->psRGXFWSigTDM2DChecksMemDesc,
 									 0,
 									 psDevInfo->ui32SigTDM2DChecksSize,
 									 "out.tdmsig",
 									 0);
 	}
+#endif
 
 	return PVRSRV_OK;
 }
@@ -243,7 +247,7 @@ static PVRSRV_ERROR _MipsDumpTraceBufferKM(CONNECTION_DATA *psConnection,
 	PVRSRV_VZ_RET_IF_MODE(GUEST, PVRSRV_OK);
 
 	/* Dump trace buffers */
-	PDumpCommentWithFlags(ui32PDumpFlags, "** Dump trace buffers");
+	PDumpCommentWithFlags(psDeviceNode, ui32PDumpFlags, "** Dump trace buffers");
 	for (ui32ThreadNum = 0, ui32OutFileOffset = 0; ui32ThreadNum < RGXFW_THREAD_NUM; ui32ThreadNum++)
 	{
 		/*
@@ -299,7 +303,7 @@ static PVRSRV_ERROR _MipsDumpTraceBufferKM(CONNECTION_DATA *psConnection,
 	}
 
 	/* Dump hwperf buffer */
-	PDumpCommentWithFlags(ui32PDumpFlags, "** Dump HWPerf Buffer");
+	PDumpCommentWithFlags(psDeviceNode, ui32PDumpFlags, "** Dump HWPerf Buffer");
 	DevmemPDumpSaveToFile(psDevInfo->psRGXFWIfHWPerfBufMemDesc,
 								 0,
 								 psDevInfo->ui32RGXFWIfHWPerfBufSize,
@@ -352,8 +356,9 @@ PVRSRV_ERROR PVRSRVPDumpComputeCRCSignatureCheckKM(CONNECTION_DATA * psConnectio
 	 */
 	if (psDevInfo->ui32ValidationFlags & RGX_VAL_KZ_SIG_CHECK_NOERR_EN)
 	{
-		PDUMPCOMMENT("Verify KZ Signature: match required");
-		eError = PDUMPREGPOL(RGX_PDUMPREG_NAME,
+		PDUMPCOMMENT(psDeviceNode, "Verify KZ Signature: match required");
+		eError = PDUMPREGPOL(psDeviceNode,
+		                     RGX_PDUMPREG_NAME,
 		                     RGX_CR_SCRATCH11,
 		                     1U,
 		                     0xFFFFFFFF,
@@ -362,8 +367,9 @@ PVRSRV_ERROR PVRSRVPDumpComputeCRCSignatureCheckKM(CONNECTION_DATA * psConnectio
 	}
 	else if (psDevInfo->ui32ValidationFlags & RGX_VAL_KZ_SIG_CHECK_ERR_EN)
 	{
-		PDUMPCOMMENT("Verify KZ Signature: mismatch required");
-		eError = PDUMPREGPOL(RGX_PDUMPREG_NAME,
+		PDUMPCOMMENT(psDeviceNode, "Verify KZ Signature: mismatch required");
+		eError = PDUMPREGPOL(psDeviceNode,
+		                     RGX_PDUMPREG_NAME,
 		                     RGX_CR_SCRATCH11,
 		                     2U,
 		                     0xFFFFFFFF,
@@ -449,12 +455,20 @@ PVRSRV_ERROR RGXPDumpPrepareOutputImageDescriptorHdr(PVRSRV_DEVICE_NODE *psDevic
 	IMG_PUINT32 pui32Word;
 	IMG_UINT32 ui32HeaderDataSize;
 
+#if defined(RGX_FEATURE_TFBC_LOSSY_37_PERCENT_BIT_MASK) || defined(RGX_FEATURE_TFBC_DELTA_CORRELATION_BIT_MASK) || defined(RGX_FEATURE_TFBC_NATIVE_YUV10_BIT_MASK)
+	PVRSRV_RGXDEV_INFO *psDevInfo = psDeviceNode->pvDevice;
+	IMG_UINT32 ui32TFBCControl = (psDevInfo->psRGXFWIfFwSysData->ui32ConfigFlagsExt & RGXFWIF_INICFG_EXT_TFBC_CONTROL_MASK) >>
+																					  RGXFWIF_INICFG_EXT_TFBC_CONTROL_SHIFT;
+#endif
+
 	/* Validate parameters */
 	if (((IMAGE_HEADER_SIZE & ~(HEADER_WORD1_SIZE_CLRMSK >> HEADER_WORD1_SIZE_SHIFT)) != 0) ||
 		((IMAGE_HEADER_VERSION & ~(HEADER_WORD1_VERSION_CLRMSK >> HEADER_WORD1_VERSION_SHIFT)) != 0))
 	{
 		return PVRSRV_ERROR_INVALID_PARAMS;
 	}
+
+	memset(pbyPDumpImageHdr, 0, IMAGE_HEADER_SIZE);
 
 	pui32Word = IMG_OFFSET_ADDR(pbyPDumpImageHdr, 0);
 	pui32Word[0] = (IMAGE_HEADER_TYPE << HEADER_WORD0_TYPE_SHIFT);
@@ -528,6 +542,13 @@ PVRSRV_ERROR RGXPDumpPrepareOutputImageDescriptorHdr(PVRSRV_DEVICE_NODE *psDevic
 				pui32Word[9] |= IMAGE_HEADER_WORD9_LOSSY_25;
 			}
 
+			if (eFBCompression == IMG_FB_COMPRESSION_DIRECT_LOSSY37_8x8  ||
+				eFBCompression == IMG_FB_COMPRESSION_DIRECT_LOSSY37_16x4 ||
+				eFBCompression == IMG_FB_COMPRESSION_DIRECT_LOSSY37_32x2)
+			{
+				pui32Word[9] |= IMAGE_HEADER_WORD9_LOSSY_37;
+			}
+
 			if (eFBCompression == IMG_FB_COMPRESSION_DIRECT_LOSSY50_8x8  ||
 				eFBCompression == IMG_FB_COMPRESSION_DIRECT_LOSSY50_16x4 ||
 				eFBCompression == IMG_FB_COMPRESSION_DIRECT_LOSSY50_32x2)
@@ -574,6 +595,69 @@ PVRSRV_ERROR RGXPDumpPrepareOutputImageDescriptorHdr(PVRSRV_DEVICE_NODE *psDevic
 	pui32Word[11] = paui32FBCClearColour[1];
 	pui32Word[12] = paui32FBCClearColour[2];
 	pui32Word[13] = paui32FBCClearColour[3];
+
+#if defined(RGX_FEATURE_TFBC_LOSSY_37_PERCENT_BIT_MASK)
+	if (RGX_IS_FEATURE_SUPPORTED(psDevInfo, TFBC_LOSSY_37_PERCENT))
+	{
+		/* Should match current value of RGX_CR_TFBC_COMPRESSION_CONTROL_GROUP */
+		IMG_UINT32 ui32TFBCGroup  = (ui32TFBCControl & ~RGX_CR_TFBC_COMPRESSION_CONTROL_GROUP_CONTROL_CLRMSK) >>
+														RGX_CR_TFBC_COMPRESSION_CONTROL_GROUP_CONTROL_SHIFT;
+		switch (ui32TFBCGroup)
+		{
+			case RGX_CR_TFBC_COMPRESSION_CONTROL_GROUP_CONTROL_GROUP_0:
+				pui32Word[14] = IMAGE_HEADER_WORD14_TFBC_GROUP_25_50_75;
+				break;
+			case RGX_CR_TFBC_COMPRESSION_CONTROL_GROUP_CONTROL_GROUP_1:
+				pui32Word[14] = IMAGE_HEADER_WORD14_TFBC_GROUP_25_37_50;
+				break;
+		}
+	}
+	else
+#endif
+	{
+		pui32Word[14] = IMAGE_HEADER_WORD14_TFBC_GROUP_25_50_75;
+	}
+
+#if defined(RGX_FEATURE_TFBC_DELTA_CORRELATION_BIT_MASK)
+	if (RGX_IS_FEATURE_SUPPORTED(psDevInfo, TFBC_DELTA_CORRELATION))
+	{
+		/* Should match current value of RGX_CR_TFBC_COMPRESSION_CONTROL_SCHEME */
+		IMG_UINT32 ui32TFBCScheme = (ui32TFBCControl & ~RGX_CR_TFBC_COMPRESSION_CONTROL_SCHEME_CLRMSK) >>
+														RGX_CR_TFBC_COMPRESSION_CONTROL_SCHEME_SHIFT;
+		switch (ui32TFBCScheme)
+		{
+			case RGX_CR_TFBC_COMPRESSION_CONTROL_SCHEME_DEFAULT:
+				pui32Word[14] |= IMAGE_HEADER_WORD14_COMP_SCHEME_ALL;
+				break;
+			case RGX_CR_TFBC_COMPRESSION_CONTROL_SCHEME_TFBC_DELTA_STANDARD_AND_CORRELATION:
+				pui32Word[14] |= IMAGE_HEADER_WORD14_COMP_SCHEME_D_STD_CORR;
+				break;
+			case RGX_CR_TFBC_COMPRESSION_CONTROL_SCHEME_TFBC_DELTA_STANDARD:
+				pui32Word[14] |= IMAGE_HEADER_WORD14_COMP_SCHEME_D_STD_ONLY;
+				break;
+			default:
+				PVR_DPF((PVR_DBG_ERROR, "Unsupported TFBC compression control scheme - %d", ui32TFBCScheme));
+				return PVRSRV_ERROR_UNSUPPORTED_FB_COMPRESSION_MODE;
+		}
+	}
+	else
+#endif
+	{
+		/* Should always be set to 2 ("TFBC delta standard only") on cores without this feature */
+		pui32Word[14] |= IMAGE_HEADER_WORD14_COMP_SCHEME_D_STD_ONLY;
+	}
+
+#if defined(RGX_FEATURE_TFBC_NATIVE_YUV10_BIT_MASK)
+	if (RGX_IS_FEATURE_SUPPORTED(psDevInfo, TFBC_NATIVE_YUV10))
+	{
+		IMG_UINT32 ui32TFBCOverrideYUV10 = (ui32TFBCControl & RGX_CR_TFBC_COMPRESSION_CONTROL_YUV10_OVERRIDE_EN);
+
+		if (ui32TFBCOverrideYUV10)
+		{
+			pui32Word[14] |= IMAGE_HEADER_WORD14_YUV10_OPTIMAL_FMT_8_EN;
+		}
+	}
+#endif
 
 	return PVRSRV_OK;
 }

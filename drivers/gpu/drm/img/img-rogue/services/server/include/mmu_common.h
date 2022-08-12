@@ -555,6 +555,22 @@ PVRSRV_ERROR
 MMU_AcquireBaseAddr(MMU_CONTEXT *psMMUContext, IMG_DEV_PHYADDR *psPhysAddr);
 
 /*************************************************************************/ /*!
+@Function       MMU_AcquireCPUBaseAddr
+
+@Description    Acquire the CPU Virtual Address of the base level MMU object
+
+@Input          psMMUContext            MMU context to operate on
+
+@Output         ppvCPUVAddr             CPU Virtual Address of the base level
+                                        MMU object
+
+@Return         PVRSRV_OK if successful
+*/
+/*****************************************************************************/
+PVRSRV_ERROR
+MMU_AcquireCPUBaseAddr(MMU_CONTEXT *psMMUContext, void **ppvCPUVAddr);
+
+/*************************************************************************/ /*!
 @Function       MMU_ReleaseBaseAddr
 
 @Description    Release the device physical address of the base level MMU object

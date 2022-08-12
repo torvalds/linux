@@ -66,7 +66,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 	Private structure's
 */
 #define SYNC_PRIM_NAME_SIZE		50
-typedef struct SYNC_PRIM_CONTEXT
+typedef struct SYNC_PRIM_CONTEXT_TAG
 {
 	SHARED_DEV_CONNECTION       hDevConnection;
 	IMG_CHAR					azName[SYNC_PRIM_NAME_SIZE];	/*!< Name of the RA */

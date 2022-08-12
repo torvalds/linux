@@ -53,7 +53,6 @@ void pvr_counting_fence_timeline_dump_timeline(
 	void *dump_debug_file);
 
 struct pvr_counting_fence_timeline *pvr_counting_fence_timeline_create(
-	void *dev_cookie,
 	const char *name);
 void pvr_counting_fence_timeline_put(
 	struct pvr_counting_fence_timeline *fence_timeline);

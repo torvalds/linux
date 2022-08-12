@@ -279,17 +279,13 @@ pvr_fence_context_signal_fences_nohw(void *data)
 }
 
 static void
-pvr_fence_context_destroy_work(struct work_struct *data)
+pvr_fence_context_destroy_internal(struct pvr_fence_context *fctx)
 {
-	struct pvr_fence_context *fctx =
-		container_of(data, struct pvr_fence_context, destroy_work);
-
 	pvr_fence_context_free_deferred(fctx);
 
 	if (WARN_ON(!list_empty_careful(&fctx->fence_list)))
 		pvr_fence_context_fences_dump(fctx, NULL, NULL);
 
-	PVRSRVUnregisterDbgRequestNotify(fctx->dbg_request_handle);
 	PVRSRVUnregisterCmdCompleteNotify(fctx->cmd_complete_handle);
 
 	// wait for all fences to be freed before kmem_cache_destroy() is called
@@ -306,6 +302,31 @@ pvr_fence_context_destroy_work(struct work_struct *data)
 }
 
 static void
+pvr_fence_context_unregister_dbg(void *dbg_request_handle)
+{
+	PVRSRVUnregisterDeviceDbgRequestNotify(dbg_request_handle);
+}
+
+static void
+pvr_fence_foreign_context_destroy_work(struct work_struct *data)
+{
+	struct pvr_fence_context *fctx =
+		container_of(data, struct pvr_fence_context, destroy_work);
+
+	pvr_fence_context_destroy_internal(fctx);
+}
+
+static void
+pvr_fence_context_destroy_work(struct work_struct *data)
+{
+	struct pvr_fence_context *fctx =
+		container_of(data, struct pvr_fence_context, destroy_work);
+
+	pvr_fence_context_unregister_dbg(fctx->dbg_request_handle);
+	pvr_fence_context_destroy_internal(fctx);
+}
+
+static void
 pvr_fence_context_debug_request(void *data, u32 verbosity,
 				DUMPDEBUG_PRINTF_FUNC *pfnDumpDebugPrintf,
 				void *pvDumpDebugFile)
@@ -317,22 +338,10 @@ pvr_fence_context_debug_request(void *data, u32 verbosity,
 					      pvDumpDebugFile);
 }
 
-/**
- * pvr_fence_context_create - creates a PVR fence context
- * @dev_cookie: services device cookie
- * @name: context name (used for debugging)
- *
- * Creates a PVR fence context that can be used to create PVR fences or to
- * create PVR fences from an existing fence.
- *
- * pvr_fence_context_destroy should be called to clean up the fence context.
- *
- * Returns NULL if a context cannot be created.
- */
-struct pvr_fence_context *
-pvr_fence_context_create(void *dev_cookie,
-			 struct workqueue_struct *fence_status_wq,
-			 const char *name)
+static struct pvr_fence_context *
+pvr_fence_context_create_internal(struct workqueue_struct *fence_status_wq,
+			const char *name,
+			work_func_t destroy_callback)
 {
 	struct pvr_fence_context *fctx;
 	PVRSRV_ERROR srv_err;
@@ -344,7 +353,7 @@ pvr_fence_context_create(void *dev_cookie,
 	spin_lock_init(&fctx->lock);
 	atomic_set(&fctx->fence_seqno, 0);
 	INIT_WORK(&fctx->check_status_work, pvr_fence_context_check_status);
-	INIT_WORK(&fctx->destroy_work, pvr_fence_context_destroy_work);
+	INIT_WORK(&fctx->destroy_work, destroy_callback);
 	spin_lock_init(&fctx->list_lock);
 	INIT_LIST_HEAD(&fctx->signal_list);
 	INIT_LIST_HEAD(&fctx->fence_list);
@@ -378,17 +387,6 @@ pvr_fence_context_create(void *dev_cookie,
 	pvr_fence_cache_refcount++;
 	mutex_unlock(&pvr_fence_cache_mutex);
 
-	srv_err = PVRSRVRegisterDbgRequestNotify(&fctx->dbg_request_handle,
-				dev_cookie,
-				pvr_fence_context_debug_request,
-				DEBUG_REQUEST_LINUXFENCE,
-				fctx);
-	if (srv_err != PVRSRV_OK) {
-		pr_err("%s: failed to register debug request callback (%s)\n",
-		       __func__, PVRSRVGetErrorString(srv_err));
-		goto err_free_pvr_fence_cache;
-	}
-
 	kref_init(&fctx->kref);
 
 	PVR_FENCE_CTX_TRACE(fctx, "created fence context (%s)\n", name);
@@ -396,15 +394,106 @@ pvr_fence_context_create(void *dev_cookie,
 
 	return fctx;
 
-err_free_pvr_fence_cache:
-	mutex_lock(&pvr_fence_cache_mutex);
-	if (--pvr_fence_cache_refcount == 0)
-		kmem_cache_destroy(pvr_fence_cache);
-	mutex_unlock(&pvr_fence_cache_mutex);
 err_unregister_cmd_complete_notify:
 	PVRSRVUnregisterCmdCompleteNotify(fctx->cmd_complete_handle);
 err_free_fctx:
 	kfree(fctx);
+	return NULL;
+}
+
+/**
+ * pvr_fence_context_register_dbg - registers the debug handler for a
+ * fence context
+ *
+ * @dbg_request_handle: handle used to keep a reference for deregister
+ * @dev: device to attach the debug notifier.
+ * @pvr_fence_context: context used as data to the callback for debug
+ *
+ * Registers a debug notifier for a given context for a given device.
+ *
+ * Returns PVRSRV_OK if successful.
+ */
+PVRSRV_ERROR pvr_fence_context_register_dbg(void *dbg_request_handle,
+				void *dev,
+				struct pvr_fence_context *fctx)
+{
+	PVRSRV_ERROR srv_err;
+
+	srv_err = PVRSRVRegisterDeviceDbgRequestNotify(dbg_request_handle,
+				dev,
+				pvr_fence_context_debug_request,
+				DEBUG_REQUEST_LINUXFENCE,
+				fctx);
+	if (srv_err != PVRSRV_OK) {
+		pr_err("%s: failed to register debug request callback (%s)\n",
+		       __func__, PVRSRVGetErrorString(srv_err));
+	}
+
+	return srv_err;
+}
+
+/**
+ * pvr_fence_foreign_context_create - creates a PVR fence context
+ * @fence_status_wq: linux workqueue used to signal foreign fences
+ * @name: context name (used for debugging)
+ *
+ * Creates a PVR foreign fence context that can be used to create PVR fences
+ * or to create PVR fences from an existing fence.
+ *
+ * pvr_fence_context_destroy should be called to clean up the fence context.
+ *
+ * Returns NULL if a context cannot be created.
+ */
+struct pvr_fence_context *
+pvr_fence_foreign_context_create(struct workqueue_struct *fence_status_wq,
+		const char *name)
+{
+	return pvr_fence_context_create_internal(fence_status_wq, name,
+							pvr_fence_foreign_context_destroy_work);
+}
+
+/**
+ * pvr_fence_context_create - creates a PVR fence context
+ * @dev_cookie: services device cookie
+ * @fence_status_wq: Status workqueue to queue fence update CBs.
+ * @name: context name (used for debugging)
+ *
+ * Creates a PVR fence context that can be used to create PVR fences or to
+ * create PVR fences from an existing fence.
+ *
+ * pvr_fence_context_destroy should be called to clean up the fence context.
+ *
+ * Returns NULL if a context cannot be created.
+ */
+struct pvr_fence_context *
+pvr_fence_context_create(void *dev_cookie,
+			 struct workqueue_struct *fence_status_wq,
+			 const char *name)
+{
+	struct pvr_fence_context *fctx;
+	PVRSRV_ERROR eError;
+
+	fctx = pvr_fence_context_create_internal(fence_status_wq, name,
+					pvr_fence_context_destroy_work);
+	if (fctx == NULL) {
+		pr_err("%s: failed to create fence context", __func__);
+		goto err_out;
+	}
+
+	eError = pvr_fence_context_register_dbg(&fctx->dbg_request_handle,
+					dev_cookie,
+					fctx);
+	if (eError != PVRSRV_OK) {
+		pr_err("%s: failed to register fence context debug (%s)\n",
+		       __func__, PVRSRVGetErrorString(eError));
+		goto err_destroy_ctx;
+	}
+
+	return fctx;
+
+err_destroy_ctx:
+	pvr_fence_context_destroy(fctx);
+err_out:
 	return NULL;
 }
 
@@ -571,7 +660,7 @@ const struct dma_fence_ops pvr_fence_ops = {
  */
 struct pvr_fence *
 pvr_fence_create(struct pvr_fence_context *fctx,
-		struct _SYNC_CHECKPOINT_CONTEXT *sync_checkpoint_ctx,
+		struct SYNC_CHECKPOINT_CONTEXT_TAG *sync_checkpoint_ctx,
 		int timeline_fd, const char *name)
 {
 	struct pvr_fence *pvr_fence;
@@ -783,7 +872,7 @@ pvr_fence_foreign_signal_sync(struct dma_fence *fence, struct dma_fence_cb *cb)
 
 struct pvr_fence *
 pvr_fence_create_from_fence(struct pvr_fence_context *fctx,
-			    struct _SYNC_CHECKPOINT_CONTEXT *sync_checkpoint_ctx,
+			    struct SYNC_CHECKPOINT_CONTEXT_TAG *sync_checkpoint_ctx,
 			    struct dma_fence *fence,
 			    PVRSRV_FENCE fence_fd,
 			    const char *name)
@@ -961,9 +1050,9 @@ pvr_fence_sw_error(struct pvr_fence *pvr_fence)
 
 int
 pvr_fence_get_checkpoints(struct pvr_fence **pvr_fences, u32 nr_fences,
-			  struct _SYNC_CHECKPOINT **fence_checkpoints)
+			  struct SYNC_CHECKPOINT_TAG **fence_checkpoints)
 {
-	struct _SYNC_CHECKPOINT **next_fence_checkpoint = fence_checkpoints;
+	struct SYNC_CHECKPOINT_TAG **next_fence_checkpoint = fence_checkpoints;
 	struct pvr_fence **next_pvr_fence = pvr_fences;
 	int fence_checkpoint_idx;
 
@@ -983,7 +1072,7 @@ pvr_fence_get_checkpoints(struct pvr_fence **pvr_fences, u32 nr_fences,
 	return 0;
 }
 
-struct _SYNC_CHECKPOINT *
+struct SYNC_CHECKPOINT_TAG *
 pvr_fence_get_checkpoint(struct pvr_fence *update_fence)
 {
 	return update_fence->sync_checkpoint;
@@ -1022,7 +1111,7 @@ u32 pvr_fence_dump_info_on_stalled_ufos(struct pvr_fence_context *fctx,
 		DUMPDEBUG_PRINTF_FUNC *pfnDummy = NULL;
 
 		for (ufo_num = 0; ufo_num < nr_ufos; ufo_num++) {
-			struct _SYNC_CHECKPOINT *checkpoint =
+			struct SYNC_CHECKPOINT_TAG *checkpoint =
 				pvr_fence->sync_checkpoint;
 			const u32 fence_ufo_addr =
 				SyncCheckpointGetFirmwareAddr(checkpoint);

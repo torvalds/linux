@@ -158,11 +158,8 @@ static bool rgxfw_hwperf_pow_st_indirect(RGX_HWPERF_CNTBLK_ID eBlkType, IMG_UINT
 
 # define rgxfw_hwperf_pow_st_direct   ((void*)NULL)
 # define rgxfw_hwperf_pow_st_indirect ((void*)NULL)
-# define rgxfw_hwperf_pow_st_gandalf  ((void*)NULL)
 
 #endif /* !defined(RGX_FIRMWARE) || !defined(RGX_FEATURE_PERFBUS) */
-
-# define rgxfw_hwperf_pow_st_gandalf  ((void*)NULL)
 
 /*****************************************************************************
  RGXFW_HWPERF_CNTBLK_TYPE_MODEL struct PFNs pfnIsBlkPowered() end

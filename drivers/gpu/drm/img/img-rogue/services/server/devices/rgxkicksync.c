@@ -200,18 +200,19 @@ PVRSRV_ERROR PVRSRVRGXSetKickSyncContextPropertyKM(RGX_SERVER_KICKSYNC_CONTEXT *
                                                    IMG_UINT64 ui64Input,
                                                    IMG_UINT64 *pui64Output)
 {
-	PVRSRV_ERROR eError;
+	PVRSRV_ERROR eError = PVRSRV_OK;
 
 	switch (eContextProperty)
 	{
 		case RGX_CONTEXT_PROPERTY_FLAGS:
 		{
+			IMG_UINT32 ui32ContextFlags = (IMG_UINT32)ui64Input;
+
 			OSLockAcquire(psKickSyncContext->hLock);
 			eError = FWCommonContextSetFlags(psKickSyncContext->psServerCommonContext,
-			                                 (IMG_UINT32)ui64Input);
+			                                 ui32ContextFlags);
 
 			OSLockRelease(psKickSyncContext->hLock);
-			PVR_LOG_IF_ERROR(eError, "FWCommonContextSetFlags");
 			break;
 		}
 
@@ -272,7 +273,6 @@ IMG_UINT32 CheckForStalledClientKickSyncCtxt(PVRSRV_RGXDEV_INFO *psDevInfo)
 }
 
 PVRSRV_ERROR PVRSRVRGXKickSyncKM(RGX_SERVER_KICKSYNC_CONTEXT * psKickSyncContext,
-                                 IMG_UINT32                    ui32ClientCacheOpSeqNum,
                                  IMG_UINT32                    ui32ClientUpdateCount,
                                  SYNC_PRIMITIVE_BLOCK       ** pauiClientUpdateUFODevVarBlock,
                                  IMG_UINT32                  * paui32ClientUpdateOffset,
@@ -594,7 +594,8 @@ PVRSRV_ERROR PVRSRVRGXKickSyncKM(RGX_SERVER_KICKSYNC_CONTEXT * psKickSyncContext
 		}
 #endif
 
-	RGXCmdHelperInitCmdCCB(psClientCCB,
+	RGXCmdHelperInitCmdCCB(psDevInfo,
+	                       psClientCCB,
 	                       0, /* empty ui64FBSCEntryMask */
 	                       ui32ClientFenceCount,
 	                       pauiClientFenceUFOAddress,
@@ -676,7 +677,6 @@ PVRSRV_ERROR PVRSRVRGXKickSyncKM(RGX_SERVER_KICKSYNC_CONTEXT * psKickSyncContext
 		eError2 = RGXScheduleCommand(psKickSyncContext->psDeviceNode->pvDevice,
 		                             RGXFWIF_DM_GP,
 		                             & sKickSyncKCCBCmd,
-		                             ui32ClientCacheOpSeqNum,
 		                             PDUMP_FLAGS_NONE);
 		if (eError2 != PVRSRV_ERROR_RETRY)
 		{
@@ -694,6 +694,10 @@ PVRSRV_ERROR PVRSRVRGXKickSyncKM(RGX_SERVER_KICKSYNC_CONTEXT * psKickSyncContext
 		PVR_DPF((PVR_DBG_ERROR,
 		         "PVRSRVRGXKickSync failed to schedule kernel CCB command. (0x%x)",
 		         eError));
+		if (eError == PVRSRV_OK)
+		{
+			eError = eError2;
+		}
 	}
 
 	/*

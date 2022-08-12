@@ -37,12 +37,12 @@ extern "C" {
 /*!
  * Number of sync prims still used internally in operations
  */
-#define PVRSRV_MAX_SYNC_PRIMS 4
+#define PVRSRV_MAX_SYNC_PRIMS 4U
 
 /*!
  * Maximum number of dev var updates passed in a kick call
  */
-#define PVRSRV_MAX_DEV_VARS 13
+#define PVRSRV_MAX_DEV_VARS 13U
 
 /*!
  * Number of UFOs in operations
@@ -56,7 +56,7 @@ typedef int32_t PVRSRV_TIMELINE;
 
 /*! Maximum length for an annotation name string for fence sync model objects.
  */
-#define PVRSRV_SYNC_NAME_LENGTH 32
+#define PVRSRV_SYNC_NAME_LENGTH 32U
 
 /* Macros for API callers using the fence sync model
  */

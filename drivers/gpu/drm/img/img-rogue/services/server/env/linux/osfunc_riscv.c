@@ -185,7 +185,7 @@ OS_CACHE_OP_ADDR_TYPE OSCPUCacheOpAddressType(void)
 	 * Return BOTH for now on.
 	 *
 	 */
-	return OS_CACHE_OP_ADDR_TYPE_PHYSICAL;
+	return OS_CACHE_OP_ADDR_TYPE_PHYSICAL;//OS_CACHE_OP_ADDR_TYPE_BOTH;
 }
 
 void OSUserModeAccessToPerfCountersEn(void)

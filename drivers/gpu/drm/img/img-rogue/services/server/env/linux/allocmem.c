@@ -54,19 +54,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #endif
 #include "osfunc.h"
 
-/*
- * DEBUG_MEMSTATS_ALLOC_RECORD_VALUES needs to be different from
- * DEBUG_MEMSTATS_VALUES defined in process_stats.h.
- * The reason for this is that the file and line where the allocation happens
- * are tracked from the OSAllocMem params. If DEBUG_MEMSTATS_VALUES were to be
- * used, all OSAllocMem allocation statistics would point to allocmem.c, which
- * is not expected behaviour.
- */
-#if defined(PVRSRV_DEBUG_LINUX_MEMORY_STATS_ON)
-#define DEBUG_MEMSTATS_ALLOC_RECORD_VALUES ,pvAllocFromFile, ui32AllocFromLine
-#else
-#define DEBUG_MEMSTATS_ALLOC_RECORD_VALUES
-#endif
 
 /*
  * When memory statistics are disabled, memory records are used instead.
@@ -167,7 +154,7 @@ static inline void _pvr_alloc_stats_add(void *pvAddr, IMG_UINT32 ui32Size DEBUG_
 									  ksize(pvAddr),
 									  NULL,
 									  OSGetCurrentClientProcessIDKM()
-									  DEBUG_MEMSTATS_ALLOC_RECORD_VALUES);
+									  DEBUG_MEMSTATS_ARGS);
 #else
 		{
 			/* Store the PID in the final additional 4 bytes allocated */
@@ -189,7 +176,7 @@ static inline void _pvr_alloc_stats_add(void *pvAddr, IMG_UINT32 ui32Size DEBUG_
 									  ((ui32Size + PAGE_SIZE-1) & ~(PAGE_SIZE-1)),
 									  NULL,
 									  OSGetCurrentClientProcessIDKM()
-									  DEBUG_MEMSTATS_ALLOC_RECORD_VALUES);
+									  DEBUG_MEMSTATS_ARGS);
 #else
 		PVRSRVStatsIncrMemAllocStatAndTrack(PVRSRV_MEM_ALLOC_TYPE_VMALLOC,
 		                                    ((ui32Size + PAGE_SIZE-1) & ~(PAGE_SIZE-1)),
@@ -256,7 +243,7 @@ void *(OSAllocMem)(IMG_UINT32 ui32Size DEBUG_MEMSTATS_PARAMS)
 
 	if (pvRet != NULL)
 	{
-		_pvr_alloc_stats_add(pvRet, ui32Size DEBUG_MEMSTATS_ALLOC_RECORD_VALUES);
+		_pvr_alloc_stats_add(pvRet, ui32Size DEBUG_MEMSTATS_ARGS);
 	}
 
 	return pvRet;
@@ -286,7 +273,7 @@ void *(OSAllocZMem)(IMG_UINT32 ui32Size DEBUG_MEMSTATS_PARAMS)
 
 	if (pvRet != NULL)
 	{
-		_pvr_alloc_stats_add(pvRet, ui32Size DEBUG_MEMSTATS_ALLOC_RECORD_VALUES);
+		_pvr_alloc_stats_add(pvRet, ui32Size DEBUG_MEMSTATS_ARGS);
 	}
 
 	return pvRet;

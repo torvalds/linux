@@ -153,7 +153,7 @@ AllocSyncPrimitiveBlock_exit:
 			/* Lock over handle creation cleanup. */
 			LockHandle(psConnection->psHandleBase);
 
-			eError = PVRSRVReleaseHandleUnlocked(psConnection->psHandleBase,
+			eError = PVRSRVDestroyHandleUnlocked(psConnection->psHandleBase,
 							     (IMG_HANDLE)
 							     psAllocSyncPrimitiveBlockOUT->
 							     hSyncHandle,
@@ -200,10 +200,11 @@ PVRSRVBridgeFreeSyncPrimitiveBlock(IMG_UINT32 ui32DispatchTableEntry,
 	LockHandle(psConnection->psHandleBase);
 
 	psFreeSyncPrimitiveBlockOUT->eError =
-	    PVRSRVReleaseHandleStagedUnlock(psConnection->psHandleBase,
-					    (IMG_HANDLE) psFreeSyncPrimitiveBlockIN->hSyncHandle,
-					    PVRSRV_HANDLE_TYPE_SYNC_PRIMITIVE_BLOCK);
+	    PVRSRVDestroyHandleStagedUnlocked(psConnection->psHandleBase,
+					      (IMG_HANDLE) psFreeSyncPrimitiveBlockIN->hSyncHandle,
+					      PVRSRV_HANDLE_TYPE_SYNC_PRIMITIVE_BLOCK);
 	if (unlikely((psFreeSyncPrimitiveBlockOUT->eError != PVRSRV_OK) &&
+		     (psFreeSyncPrimitiveBlockOUT->eError != PVRSRV_ERROR_KERNEL_CCB_FULL) &&
 		     (psFreeSyncPrimitiveBlockOUT->eError != PVRSRV_ERROR_RETRY)))
 	{
 		PVR_DPF((PVR_DBG_ERROR,
@@ -509,6 +510,9 @@ SyncPrimPDumpCBP_exit:
 #define PVRSRVBridgeSyncPrimPDumpCBP NULL
 #endif
 
+static_assert(PVRSRV_SYNC_NAME_LENGTH <= IMG_UINT32_MAX,
+	      "PVRSRV_SYNC_NAME_LENGTH must not be larger than IMG_UINT32_MAX");
+
 static IMG_INT
 PVRSRVBridgeSyncAllocEvent(IMG_UINT32 ui32DispatchTableEntry,
 			   IMG_UINT8 * psSyncAllocEventIN_UI8,
@@ -527,13 +531,23 @@ PVRSRVBridgeSyncAllocEvent(IMG_UINT32 ui32DispatchTableEntry,
 	IMG_BOOL bHaveEnoughSpace = IMG_FALSE;
 #endif
 
-	IMG_UINT32 ui32BufferSize = (psSyncAllocEventIN->ui32ClassNameSize * sizeof(IMG_CHAR)) + 0;
+	IMG_UINT32 ui32BufferSize = 0;
+	IMG_UINT64 ui64BufferSize =
+	    ((IMG_UINT64) psSyncAllocEventIN->ui32ClassNameSize * sizeof(IMG_CHAR)) + 0;
 
 	if (unlikely(psSyncAllocEventIN->ui32ClassNameSize > PVRSRV_SYNC_NAME_LENGTH))
 	{
 		psSyncAllocEventOUT->eError = PVRSRV_ERROR_BRIDGE_ARRAY_SIZE_TOO_BIG;
 		goto SyncAllocEvent_exit;
 	}
+
+	if (ui64BufferSize > IMG_UINT32_MAX)
+	{
+		psSyncAllocEventOUT->eError = PVRSRV_ERROR_BRIDGE_BUFFER_TOO_SMALL;
+		goto SyncAllocEvent_exit;
+	}
+
+	ui32BufferSize = (IMG_UINT32) ui64BufferSize;
 
 	if (ui32BufferSize != 0)
 	{
@@ -555,7 +569,7 @@ PVRSRVBridgeSyncAllocEvent(IMG_UINT32 ui32DispatchTableEntry,
 		else
 #endif
 		{
-			pArrayArgsBuffer = OSAllocZMemNoStats(ui32BufferSize);
+			pArrayArgsBuffer = OSAllocMemNoStats(ui32BufferSize);
 
 			if (!pArrayArgsBuffer)
 			{
@@ -596,7 +610,10 @@ PVRSRVBridgeSyncAllocEvent(IMG_UINT32 ui32DispatchTableEntry,
 SyncAllocEvent_exit:
 
 	/* Allocated space should be equal to the last updated offset */
-	PVR_ASSERT(ui32BufferSize == ui32NextOffset);
+#ifdef PVRSRV_NEED_PVR_ASSERT
+	if (psSyncAllocEventOUT->eError == PVRSRV_OK)
+		PVR_ASSERT(ui32BufferSize == ui32NextOffset);
+#endif /* PVRSRV_NEED_PVR_ASSERT */
 
 #if defined(INTEGRITY_OS)
 	if (pArrayArgsBuffer)
@@ -657,7 +674,7 @@ PVRSRVBridgeSyncCheckpointSignalledPDumpPol(IMG_UINT32 ui32DispatchTableEntry,
  */
 
 PVRSRV_ERROR InitSYNCBridge(void);
-PVRSRV_ERROR DeinitSYNCBridge(void);
+void DeinitSYNCBridge(void);
 
 /*
  * Register all SYNC functions with services
@@ -702,7 +719,7 @@ PVRSRV_ERROR InitSYNCBridge(void)
 /*
  * Unregister all sync functions with services
  */
-PVRSRV_ERROR DeinitSYNCBridge(void)
+void DeinitSYNCBridge(void)
 {
 
 	UnsetDispatchTableEntry(PVRSRV_BRIDGE_SYNC, PVRSRV_BRIDGE_SYNC_ALLOCSYNCPRIMITIVEBLOCK);
@@ -726,5 +743,4 @@ PVRSRV_ERROR DeinitSYNCBridge(void)
 	UnsetDispatchTableEntry(PVRSRV_BRIDGE_SYNC,
 				PVRSRV_BRIDGE_SYNC_SYNCCHECKPOINTSIGNALLEDPDUMPPOL);
 
-	return PVRSRV_OK;
 }

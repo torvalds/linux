@@ -121,7 +121,7 @@ typedef struct _VMM_PVZ_CONNECTION_
 		   for allocating the physical heap that backs its firmware
 		   allocations, this is the default configuration. The physical
 		   heap is allocated within the guest VM IPA space and this
-		   IPA Addr/Size must be re-expressed as PA space Addr/Size
+		   IPA Addr/Size must be translated into the host's IPA space
 		   by the VM manager before forwarding request to host.
 		   If not implemented, return PVRSRV_ERROR_NOT_IMPLEMENTED.
 		 */

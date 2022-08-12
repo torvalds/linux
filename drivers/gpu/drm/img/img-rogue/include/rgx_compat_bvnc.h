@@ -110,7 +110,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 											(bvnc) = ((L).ui64BVNC == (R).ui64BVNC);						\
 										}																	\
 										(all) = (version) && (bvnc);										\
-									} while (0)
+									} while (false)
 
 
 /**************************************************************************//**
@@ -121,10 +121,10 @@ static inline IMG_UINT64 rgx_bvnc_pack(IMG_UINT32 ui32B, IMG_UINT32 ui32V, IMG_U
 	/*
 	 * Test for input B, V, N and C exceeding max bit width.
 	 */
-	PVR_COMPAT_ASSERT((ui32B & (~(RGX_BVNC_PACK_MASK_B >> RGX_BVNC_PACK_SHIFT_B))) == 0);
-	PVR_COMPAT_ASSERT((ui32V & (~(RGX_BVNC_PACK_MASK_V >> RGX_BVNC_PACK_SHIFT_V))) == 0);
-	PVR_COMPAT_ASSERT((ui32N & (~(RGX_BVNC_PACK_MASK_N >> RGX_BVNC_PACK_SHIFT_N))) == 0);
-	PVR_COMPAT_ASSERT((ui32C & (~(RGX_BVNC_PACK_MASK_C >> RGX_BVNC_PACK_SHIFT_C))) == 0);
+	PVR_COMPAT_ASSERT((ui32B & (~(RGX_BVNC_PACK_MASK_B >> RGX_BVNC_PACK_SHIFT_B))) == 0U);
+	PVR_COMPAT_ASSERT((ui32V & (~(RGX_BVNC_PACK_MASK_V >> RGX_BVNC_PACK_SHIFT_V))) == 0U);
+	PVR_COMPAT_ASSERT((ui32N & (~(RGX_BVNC_PACK_MASK_N >> RGX_BVNC_PACK_SHIFT_N))) == 0U);
+	PVR_COMPAT_ASSERT((ui32C & (~(RGX_BVNC_PACK_MASK_C >> RGX_BVNC_PACK_SHIFT_C))) == 0U);
 
 	return (((IMG_UINT64)ui32B << RGX_BVNC_PACK_SHIFT_B) |
 			((IMG_UINT64)ui32V << RGX_BVNC_PACK_SHIFT_V) |

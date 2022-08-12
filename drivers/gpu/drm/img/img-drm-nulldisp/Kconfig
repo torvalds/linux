@@ -1,8 +1,0 @@
-config DRM_IMG_NULLDISP
-        bool "IMG DRM support null disp"
-        select DRM_IMG
-	select DRM_LEGACY
-        default y
-        help
-          Enable IMG null disp for powerVR GPU
-

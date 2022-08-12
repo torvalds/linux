@@ -644,8 +644,7 @@ IMG_INT OSMemCmp(void *pvBufA, void *pvBufB, size_t uiLen);
                 If allocations made by this function are CPU cached then
                 OSPhyContigPagesClean has to be implemented to write the
                 cached data to memory.
-@Input          psDevNode     the device for which the allocation is
-                              required
+@Input          psPhysHeap    the heap from which to allocate
 @Input          uiSize        the size of the required allocation (in bytes)
 @Output         psMemHandle   a returned handle to be used to refer to this
                               allocation
@@ -654,24 +653,24 @@ IMG_INT OSMemCmp(void *pvBufA, void *pvBufB, size_t uiLen);
                               be associated with
 @Return         PVRSRV_OK on success, a failure code otherwise.
 *****************************************************************************/
-PVRSRV_ERROR OSPhyContigPagesAlloc(PVRSRV_DEVICE_NODE *psDevNode, size_t uiSize,
+PVRSRV_ERROR OSPhyContigPagesAlloc(PHYS_HEAP *psPhysHeap, size_t uiSize,
 							PG_HANDLE *psMemHandle, IMG_DEV_PHYADDR *psDevPAddr,
 							IMG_PID uiPid);
 
 /*************************************************************************/ /*!
 @Function       OSPhyContigPagesFree
 @Description    Frees a previous allocation of contiguous physical pages
-@Input          psDevNode     the device on which the allocation was made
+@Input          psPhysHeap    the heap from which to allocate
 @Input          psMemHandle   the handle of the allocation to be freed
 @Return         None.
 *****************************************************************************/
-void OSPhyContigPagesFree(PVRSRV_DEVICE_NODE *psDevNode, PG_HANDLE *psMemHandle);
+void OSPhyContigPagesFree(PHYS_HEAP *psPhysHeap, PG_HANDLE *psMemHandle);
 
 /*************************************************************************/ /*!
 @Function       OSPhyContigPagesMap
 @Description    Maps the specified allocation of contiguous physical pages
                 to a kernel virtual address
-@Input          psDevNode     the device on which the allocation was made
+@Input          psPhysHeap    the heap from which to allocate
 @Input          psMemHandle   the handle of the allocation to be mapped
 @Input          uiSize        the size of the allocation (in bytes)
 @Input          psDevPAddr    the physical address of the allocation
@@ -679,7 +678,7 @@ void OSPhyContigPagesFree(PVRSRV_DEVICE_NODE *psDevNode, PG_HANDLE *psMemHandle)
                               allocation is now mapped
 @Return         PVRSRV_OK on success, a failure code otherwise.
 *****************************************************************************/
-PVRSRV_ERROR OSPhyContigPagesMap(PVRSRV_DEVICE_NODE *psDevNode, PG_HANDLE *psMemHandle,
+PVRSRV_ERROR OSPhyContigPagesMap(PHYS_HEAP *psPhysHeap, PG_HANDLE *psMemHandle,
 						size_t uiSize, IMG_DEV_PHYADDR *psDevPAddr,
 						void **pvPtr);
 
@@ -687,13 +686,13 @@ PVRSRV_ERROR OSPhyContigPagesMap(PVRSRV_DEVICE_NODE *psDevNode, PG_HANDLE *psMem
 @Function       OSPhyContigPagesUnmap
 @Description    Unmaps the kernel mapping for the specified allocation of
                 contiguous physical pages
-@Input          psDevNode     the device on which the allocation was made
+@Input          psPhysHeap    the heap from which to allocate
 @Input          psMemHandle   the handle of the allocation to be unmapped
 @Input          pvPtr         the virtual kernel address to which the
                               allocation is currently mapped
 @Return         None.
 *****************************************************************************/
-void OSPhyContigPagesUnmap(PVRSRV_DEVICE_NODE *psDevNode, PG_HANDLE *psMemHandle, void *pvPtr);
+void OSPhyContigPagesUnmap(PHYS_HEAP *psPhysHeap, PG_HANDLE *psMemHandle, void *pvPtr);
 
 /*************************************************************************/ /*!
 @Function       OSPhyContigPagesClean
@@ -704,14 +703,14 @@ void OSPhyContigPagesUnmap(PVRSRV_DEVICE_NODE *psDevNode, PG_HANDLE *psMemHandle
                 (i.e. flush).
                 If allocations returned by OSPhyContigPagesAlloc are always
                 uncached this can be implemented as nop.
-@Input          psDevNode     device on which the allocation was made
+@Input          psPhysHeap    the heap from which to allocate
 @Input          psMemHandle   the handle of the allocation to be flushed
 @Input          uiOffset      the offset in bytes from the start of the
                               allocation from where to start flushing
 @Input          uiLength      the amount to flush from the offset in bytes
 @Return         PVRSRV_OK on success, a failure code otherwise.
 *****************************************************************************/
-PVRSRV_ERROR OSPhyContigPagesClean(PVRSRV_DEVICE_NODE *psDevNode,
+PVRSRV_ERROR OSPhyContigPagesClean(PHYS_HEAP *psPhysHeap,
                                    PG_HANDLE *psMemHandle,
                                    IMG_UINT32 uiOffset,
                                    IMG_UINT32 uiLength);
@@ -967,19 +966,8 @@ void OSSleepms(IMG_UINT32 ui32Timems);
 void OSReleaseThreadQuanta(void);
 
 #if defined(__linux__) && defined(__KERNEL__)
-#define OSWriteMemoryBarrier() wmb()
 #define OSReadMemoryBarrier() rmb()
-#define OSMemoryBarrier() mb()
 #else
-/*************************************************************************/ /*!
-@Function       OSWriteMemoryBarrier
-@Description    Insert a write memory barrier.
-                The write memory barrier guarantees that all store operations
-                (writes) specified before the barrier will appear to happen
-                before all of the store operations specified after the barrier.
-@Return         PVRSRV_OK on success, a failure code otherwise.
-*/ /**************************************************************************/
-void OSWriteMemoryBarrier(void);
 /*************************************************************************/ /*!
 @Function       OSReadMemoryBarrier
 @Description    Insert a read memory barrier.
@@ -988,6 +976,7 @@ void OSWriteMemoryBarrier(void);
                 before all of the load operations specified after the barrier.
 */ /**************************************************************************/
 void OSReadMemoryBarrier(void);
+#endif
 /*************************************************************************/ /*!
 @Function       OSMemoryBarrier
 @Description    Insert a read/write memory barrier.
@@ -995,10 +984,24 @@ void OSReadMemoryBarrier(void);
                 (read) and all store (write) operations specified before the
                 barrier will appear to happen before all of the load/store
                 operations specified after the barrier.
+@Input          hReadback     Optional pointer to memory to read back, can be
+                useful for flushing queues in bus interconnects to RAM before
+                device (GPU) access the shared memory.
 @Return         None.
 */ /**************************************************************************/
-void OSMemoryBarrier(void);
-#endif
+void OSMemoryBarrier(volatile void *hReadback);
+/*************************************************************************/ /*!
+@Function       OSWriteMemoryBarrier
+@Description    Insert a write memory barrier.
+                The write memory barrier guarantees that all store operations
+                (writes) specified before the barrier will appear to happen
+                before all of the store operations specified after the barrier.
+@Input          hReadback     Optional pointer to memory to read back, can be
+                useful for flushing queues in bus interconnects to RAM before
+                device (GPU) access the shared memory.
+@Return         None.
+*/ /**************************************************************************/
+void OSWriteMemoryBarrier(volatile void *hReadback);
 
 /*************************************************************************/ /*!
 */ /**************************************************************************/
@@ -1008,14 +1011,14 @@ void OSMemoryBarrier(void);
  * macros may change in future to accommodate different access requirements.
  */
 /*! Performs a 32 bit word read from the device memory. */
-#define OSReadDeviceMem32(addr)        (*((volatile IMG_UINT32 __force *)(addr)))
+#define OSReadDeviceMem32(addr)        (*((volatile IMG_UINT32 __force *)((void*)addr)))
 /*! Performs a 32 bit word write to the device memory. */
-#define OSWriteDeviceMem32(addr, val)  (*((volatile IMG_UINT32 __force *)(addr)) = (IMG_UINT32)(val))
+#define OSWriteDeviceMem32(addr, val)  (*((volatile IMG_UINT32 __force *)((void*)addr)) = (IMG_UINT32)(val))
 /*! Performs a 32 bit word write to the device memory and issues a write memory barrier */
 #define OSWriteDeviceMem32WithWMB(addr, val) \
 	do { \
-		*((volatile IMG_UINT32 __force *)(addr)) = (IMG_UINT32)(val); \
-		OSWriteMemoryBarrier(); \
+		*((volatile IMG_UINT32 __force *)((void*)addr)) = (IMG_UINT32)(val); \
+		OSWriteMemoryBarrier(addr); \
 	} while (0)
 
 #if defined(__linux__) && defined(__KERNEL__) && !defined(NO_HARDWARE)
@@ -1051,14 +1054,14 @@ void OSMemoryBarrier(void);
 
 #elif defined(NO_HARDWARE)
 	/* OSReadHWReg operations skipped in no hardware builds */
-	#define OSReadHWReg8(addr, off)  (0x4eU)
-	#define OSReadHWReg16(addr, off) (0x3a4eU)
-	#define OSReadHWReg32(addr, off) (0x30f73a4eU)
+	#define OSReadHWReg8(addr, off)  ((void)(addr), 0x4eU)
+	#define OSReadHWReg16(addr, off) ((void)(addr), 0x3a4eU)
+	#define OSReadHWReg32(addr, off) ((void)(addr), 0x30f73a4eU)
 #if defined(__QNXNTO__) && __SIZEOF_LONG__ == 8
 	/* This is needed for 64-bit QNX builds where the size of a long is 64 bits */
-	#define OSReadHWReg64(addr, off) (0x5b376c9d30f73a4eUL)
+	#define OSReadHWReg64(addr, off) ((void)(addr), 0x5b376c9d30f73a4eUL)
 #else
-	#define OSReadHWReg64(addr, off) (0x5b376c9d30f73a4eULL)
+	#define OSReadHWReg64(addr, off) ((void)(addr), 0x5b376c9d30f73a4eULL)
 #endif
 
 	#define OSWriteHWReg8(addr, off, val)
@@ -1350,9 +1353,8 @@ PVRSRV_ERROR OSPlatformBridgeInit(void);
 @Description    Called during device destruction to allow the OS port to
                 deregister its OS specific bridges and clean up other
                 related resources.
-@Return         PVRSRV_OK on success, a failure code otherwise.
 */ /**************************************************************************/
-PVRSRV_ERROR OSPlatformBridgeDeInit(void);
+void OSPlatformBridgeDeInit(void);
 
 /*************************************************************************/ /*!
 @Function       PVRSRVToNativeError
@@ -1382,6 +1384,7 @@ int PVRSRVToNativeError(PVRSRV_ERROR e);
 #define OSWRLockDestroy(psLock) ({OSFreeMem(psLock); PVRSRV_OK;})
 
 #define OSWRLockAcquireRead(psLock) ({down_read(psLock); PVRSRV_OK;})
+#define OSWRLockAcquireReadNested(psLock, subclass) ({down_read_nested((psLock), (subclass)); PVRSRV_OK;})
 #define OSWRLockReleaseRead(psLock) ({up_read(psLock); PVRSRV_OK;})
 #define OSWRLockAcquireWrite(psLock) ({down_write(psLock); PVRSRV_OK;})
 #define OSWRLockReleaseWrite(psLock) ({up_write(psLock); PVRSRV_OK;})
@@ -1392,11 +1395,17 @@ int PVRSRVToNativeError(PVRSRV_ERROR e);
 PVRSRV_ERROR OSWRLockCreate(POSWR_LOCK *ppsLock);
 void OSWRLockDestroy(POSWR_LOCK psLock);
 void OSWRLockAcquireRead(POSWR_LOCK psLock);
+#define OSWRLockAcquireReadNested(psLock, subclass) OSWRLockAcquireRead((psLock))
 void OSWRLockReleaseRead(POSWR_LOCK psLock);
 void OSWRLockAcquireWrite(POSWR_LOCK psLock);
 void OSWRLockReleaseWrite(POSWR_LOCK psLock);
 
 #else
+
+/*! Function not implemented definition. */
+#define OSFUNC_NOT_IMPLEMENTED 0
+/*! Assert used for OSFUNC_NOT_IMPLEMENTED. */
+#define OSFUNC_NOT_IMPLEMENTED_ASSERT() PVR_ASSERT(OSFUNC_NOT_IMPLEMENTED)
 
 /*************************************************************************/ /*!
 @Function       OSWRLockCreate
@@ -1409,7 +1418,10 @@ void OSWRLockReleaseWrite(POSWR_LOCK psLock);
 static INLINE PVRSRV_ERROR OSWRLockCreate(POSWR_LOCK *ppsLock)
 {
 	PVR_UNREFERENCED_PARAMETER(ppsLock);
-	return PVRSRV_OK;
+
+	OSFUNC_NOT_IMPLEMENTED_ASSERT();
+
+	return PVRSRV_ERROR_NOT_IMPLEMENTED;
 }
 
 /*************************************************************************/ /*!
@@ -1421,6 +1433,7 @@ static INLINE PVRSRV_ERROR OSWRLockCreate(POSWR_LOCK *ppsLock)
 static INLINE void OSWRLockDestroy(POSWR_LOCK psLock)
 {
 	PVR_UNREFERENCED_PARAMETER(psLock);
+	OSFUNC_NOT_IMPLEMENTED_ASSERT();
 }
 
 /*************************************************************************/ /*!
@@ -1435,6 +1448,31 @@ static INLINE void OSWRLockDestroy(POSWR_LOCK psLock)
 static INLINE void OSWRLockAcquireRead(POSWR_LOCK psLock)
 {
 	PVR_UNREFERENCED_PARAMETER(psLock);
+	OSFUNC_NOT_IMPLEMENTED_ASSERT();
+}
+
+/*************************************************************************/ /*!
+@Function       OSWRLockAcquireReadNested
+@Description    Acquire a nested writer/reader read lock.
+                If the write lock is already acquired, the caller will
+                block until it is released.
+                For operating systems other than Linux, this equates to an
+                OSWRLockAcquireRead() call. On Linux, this function wraps a call
+                to down_read_nested(). This recognises the scenario where
+                there may be multiple subclasses within a particular class
+                of lock. In such cases, the order in which the locks belonging
+                these various subclasses are acquired is important and must be
+                validated.
+@Input          psLock     The handle of the WR lock to be acquired for
+                           reading.
+@Input          iSubclass  The subclass of the lock.
+@Return         None.
+*/ /**************************************************************************/
+static INLINE void OSWRLockAcquireReadNested(POSWR_LOCK psLock, IMG_INT iSubclass)
+{
+	PVR_UNREFERENCED_PARAMETER(psLock);
+	PVR_UNREFERENCED_PARAMETER(iSubclass);
+	OSFUNC_NOT_IMPLEMENTED_ASSERT();
 }
 
 /*************************************************************************/ /*!
@@ -1447,6 +1485,7 @@ static INLINE void OSWRLockAcquireRead(POSWR_LOCK psLock)
 static INLINE void OSWRLockReleaseRead(POSWR_LOCK psLock)
 {
 	PVR_UNREFERENCED_PARAMETER(psLock);
+	OSFUNC_NOT_IMPLEMENTED_ASSERT();
 }
 
 /*************************************************************************/ /*!
@@ -1461,6 +1500,7 @@ static INLINE void OSWRLockReleaseRead(POSWR_LOCK psLock)
 static INLINE void OSWRLockAcquireWrite(POSWR_LOCK psLock)
 {
 	PVR_UNREFERENCED_PARAMETER(psLock);
+	OSFUNC_NOT_IMPLEMENTED_ASSERT();
 }
 
 /*************************************************************************/ /*!
@@ -1473,6 +1513,7 @@ static INLINE void OSWRLockAcquireWrite(POSWR_LOCK psLock)
 static INLINE void OSWRLockReleaseWrite(POSWR_LOCK psLock)
 {
 	PVR_UNREFERENCED_PARAMETER(psLock);
+	OSFUNC_NOT_IMPLEMENTED_ASSERT();
 }
 #endif
 

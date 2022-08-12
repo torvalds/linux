@@ -194,7 +194,7 @@ PVRSRVBridgePDumpValCheckPostCommand(IMG_UINT32 ui32DispatchTableEntry,
  */
 
 PVRSRV_ERROR InitRGXPDUMPBridge(void);
-PVRSRV_ERROR DeinitRGXPDUMPBridge(void);
+void DeinitRGXPDUMPBridge(void);
 
 /*
  * Register all RGXPDUMP functions with services
@@ -229,7 +229,7 @@ PVRSRV_ERROR InitRGXPDUMPBridge(void)
 /*
  * Unregister all rgxpdump functions with services
  */
-PVRSRV_ERROR DeinitRGXPDUMPBridge(void)
+void DeinitRGXPDUMPBridge(void)
 {
 
 	UnsetDispatchTableEntry(PVRSRV_BRIDGE_RGXPDUMP, PVRSRV_BRIDGE_RGXPDUMP_PDUMPTRACEBUFFER);
@@ -249,5 +249,4 @@ PVRSRV_ERROR DeinitRGXPDUMPBridge(void)
 	UnsetDispatchTableEntry(PVRSRV_BRIDGE_RGXPDUMP,
 				PVRSRV_BRIDGE_RGXPDUMP_PDUMPVALCHECKPOSTCOMMAND);
 
-	return PVRSRV_OK;
 }

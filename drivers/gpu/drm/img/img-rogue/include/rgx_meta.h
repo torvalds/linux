@@ -49,7 +49,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 
 #include "img_defs.h"
-#include "rgxdefs_km.h"
+#include "km/rgxdefs_km.h"
 
 
 /******************************************************************************
@@ -74,7 +74,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define META_CR_PERF_COUNT_THR_SHIFT			(24)
 #define META_CR_PERF_COUNT_THR_MASK				(0x0F000000)
 #define META_CR_PERF_COUNT_THR_0				(IMG_UINT32_C(0x1) << META_CR_PERF_COUNT_THR_SHIFT)
-#define META_CR_PERF_COUNT_THR_1				(IMG_UINT32_C(0x2) << META_CR_PERF_COUNT_THR_1)
+#define META_CR_PERF_COUNT_THR_1				(IMG_UINT32_C(0x2) << META_CR_PERF_COUNT_THR_SHIFT)
 
 #define META_CR_TxVECINT_BHALT					(0x04820500)
 #define META_CR_PERF_ICORE0						(0x0480FFD0)
@@ -248,11 +248,11 @@ typedef struct
  * The interface has been kept the same to simplify the code changes.
  * The bifdm argument is ignored (no longer relevant) in S7 and volcanic.
  */
-#define RGXFW_SEGMMU_OUTADDR_TOP_VIVT_SLC(pers, slc_policy, mmu_ctx)      ((((IMG_UINT64) ((pers)    & 0x3))  << 52) | \
-                                                                           (((IMG_UINT64) ((mmu_ctx) & 0xFF)) << 44) | \
-                                                                           (((IMG_UINT64) ((slc_policy) & 0x1))  << 40))
-#define RGXFW_SEGMMU_OUTADDR_TOP_VIVT_SLC_CACHED(mmu_ctx)      RGXFW_SEGMMU_OUTADDR_TOP_VIVT_SLC(0x3, 0x0, mmu_ctx)
-#define RGXFW_SEGMMU_OUTADDR_TOP_VIVT_SLC_UNCACHED(mmu_ctx)    RGXFW_SEGMMU_OUTADDR_TOP_VIVT_SLC(0x0, 0x1, mmu_ctx)
+#define RGXFW_SEGMMU_OUTADDR_TOP_VIVT_SLC(pers, slc_policy, mmu_ctx)      ((((IMG_UINT64) ((pers)    & 0x3U))  << 52) | \
+                                                                           (((IMG_UINT64) ((mmu_ctx) & 0xFFU)) << 44) | \
+                                                                           (((IMG_UINT64) ((slc_policy) & 0x1U))  << 40))
+#define RGXFW_SEGMMU_OUTADDR_TOP_VIVT_SLC_CACHED(mmu_ctx)      RGXFW_SEGMMU_OUTADDR_TOP_VIVT_SLC(0x3U, 0x0U, mmu_ctx)
+#define RGXFW_SEGMMU_OUTADDR_TOP_VIVT_SLC_UNCACHED(mmu_ctx)    RGXFW_SEGMMU_OUTADDR_TOP_VIVT_SLC(0x0U, 0x1U, mmu_ctx)
 
 /* To configure the Page Catalog and BIF-DM fed into the BIF for Garten
  * accesses through this segment

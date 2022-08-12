@@ -74,29 +74,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "pvrsrv.h"
 #include "htbuffer.h"
 
-
-/************************************************************************/ /*!
- @Function      HTBIDeviceCreate
- @Description   Initialisation actions for HTB at device creation.
-
- @Input         psDeviceNode    Reference to the device node in context
-
- @Return        eError          Internal services call returned eError error
-                                number
-*/ /**************************************************************************/
-PVRSRV_ERROR
-HTBDeviceCreate(PVRSRV_DEVICE_NODE *psDeviceNode);
-
-/************************************************************************/ /*!
- @Function      HTBIDeviceDestroy
- @Description   De-initialisation actions for HTB at device destruction.
-
- @Input         psDeviceNode    Reference to the device node in context
-
-*/ /**************************************************************************/
-void
-HTBDeviceDestroy(PVRSRV_DEVICE_NODE *psDeviceNode);
-
 /************************************************************************/ /*!
  @Function      HTBInit
  @Description   Initialise the Host Trace Buffer and allocate all resources

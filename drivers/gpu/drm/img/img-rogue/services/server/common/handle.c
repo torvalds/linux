@@ -62,10 +62,12 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "handle_impl.h"
 #include "allocmem.h"
 #include "pvr_debug.h"
+#include "osfunc.h"
+#include "lock.h"
 #include "connection_server.h"
-#include "pvrsrv.h"
 
-#define	HANDLE_HASH_TAB_INIT_SIZE		32
+#define	HANDLE_HASH_TAB_INIT_SIZE 32
+#define HANDLE_PROC_HANDLE_HASH_INIT_SIZE 10
 
 #define	TEST_FLAG(v, f) BITMASK_HAS(v, f)
 #define	TEST_ALLOC_FLAG(psHandleData, f) BITMASK_HAS((psHandleData)->eFlag, f)
@@ -107,10 +109,13 @@ typedef struct _HANDLE_DATA_
 	/* List entry for sibling subhandles */
 	HANDLE_LIST sSiblings;
 
-	/* Reference count. The pfnReleaseData callback gets called when the
-	 * reference count hits zero
-	 */
-	IMG_UINT32 ui32RefCount;
+	/* Reference count of lookups made. It helps track which resources are in
+	 * use in concurrent bridge calls. */
+	IMG_INT32 iLookupCount;
+	/* State of a handle. If the handle was already destroyed this is false.
+	 * If this is false and iLookupCount is 0 the pfnReleaseData callback is
+	 * called on the handle. */
+	IMG_BOOL bCanLookup;
 
 #if defined(PVRSRV_DEBUG_HANDLE_LOCK)
 	/* Store the handle base used for this handle, so we
@@ -179,6 +184,12 @@ static HANDLE_IMPL_FUNCTAB const *gpsHandleFuncs;
 
 static POS_LOCK gKernelHandleLock;
 static IMG_BOOL gbLockInitialised = IMG_FALSE;
+/* Pointer to process handle base currently being freed */
+static PVRSRV_HANDLE_BASE *g_psProcessHandleBaseBeingFreed;
+/* Lock for the process handle base table */
+static POS_LOCK g_hProcessHandleBaseLock;
+/* Hash table with process handle bases */
+static HASH_TABLE *g_psProcessHandleBaseTable;
 
 void LockHandle(PVRSRV_HANDLE_BASE *psBase)
 {
@@ -196,40 +207,60 @@ void UnlockHandle(PVRSRV_HANDLE_BASE *psBase)
  */
 PVRSRV_HANDLE_BASE *gpsKernelHandleBase = NULL;
 
-/* Increase the reference count on the given handle.
+/* Increase the lookup reference count on the given handle.
  * The handle lock must already be acquired.
  * Returns: the reference count after the increment
  */
-static inline IMG_UINT32 _HandleRef(HANDLE_DATA *psHandleData)
+static inline IMG_UINT32 HandleGet(HANDLE_DATA *psHandleData)
 {
 #if defined(PVRSRV_DEBUG_HANDLE_LOCK)
 	if (!OSLockIsLocked(psHandleData->psBase->hLock))
 	{
 		PVR_DPF((PVR_DBG_ERROR, "%s: Handle lock is not locked", __func__));
-		//OSDumpStack();
+		OSDumpStack();
 	}
 #endif
-	psHandleData->ui32RefCount++;
-	return psHandleData->ui32RefCount;
+
+#ifdef DEBUG_REFCNT
+	PVR_DPF((PVR_DBG_ERROR, "%s: bCanLookup = %u, iLookupCount %d -> %d",
+	        __func__, psHandleData->bCanLookup, psHandleData->iLookupCount,
+	        psHandleData->iLookupCount + 1));
+#endif /* DEBUG_REFCNT */
+
+	PVR_ASSERT(psHandleData->bCanLookup);
+
+	return ++psHandleData->iLookupCount;
 }
 
-/* Decrease the reference count on the given handle.
+/* Decrease the lookup reference count on the given handle.
  * The handle lock must already be acquired.
  * Returns: the reference count after the decrement
  */
-static inline IMG_UINT32 _HandleUnref(HANDLE_DATA *psHandleData)
+static inline IMG_UINT32 HandlePut(HANDLE_DATA *psHandleData)
 {
 #if defined(PVRSRV_DEBUG_HANDLE_LOCK)
 	if (!OSLockIsLocked(psHandleData->psBase->hLock))
 	{
 		PVR_DPF((PVR_DBG_ERROR, "%s: Handle lock is not locked", __func__));
-		//OSDumpStack();
+		OSDumpStack();
 	}
 #endif
-	PVR_ASSERT(psHandleData->ui32RefCount > 0);
-	psHandleData->ui32RefCount--;
 
-	return psHandleData->ui32RefCount;
+#ifdef DEBUG_REFCNT
+	PVR_DPF((PVR_DBG_ERROR, "%s: bCanLookup = %u, iLookupCount %d -> %d",
+	        __func__, psHandleData->bCanLookup, psHandleData->iLookupCount,
+	        psHandleData->iLookupCount - 1));
+#endif /* DEBUG_REFCNT */
+
+	/* psHandleData->bCanLookup can be false at this point */
+	PVR_ASSERT(psHandleData->iLookupCount > 0);
+
+	return --psHandleData->iLookupCount;
+}
+
+static inline IMG_BOOL IsRetryError(PVRSRV_ERROR eError)
+{
+	return eError == PVRSRV_ERROR_RETRY || eError == PVRSRV_ERROR_KERNEL_CCB_FULL;
 }
 
 #if defined(PVRSRV_NEED_PVR_DPF)
@@ -265,6 +296,21 @@ static const IMG_CHAR *HandleBaseTypeToString(PVRSRV_HANDLE_BASE_TYPE eType)
 	}
 }
 #endif
+
+static PVRSRV_ERROR HandleUnrefAndMaybeMarkForFree(PVRSRV_HANDLE_BASE *psBase,
+                                                   HANDLE_DATA *psHandleData,
+                                                   IMG_HANDLE hHandle,
+                                                   PVRSRV_HANDLE_TYPE eType);
+
+static PVRSRV_ERROR HandleFreePrivData(PVRSRV_HANDLE_BASE *psBase,
+                                       HANDLE_DATA *psHandleData,
+                                       IMG_HANDLE hHandle,
+                                       PVRSRV_HANDLE_TYPE eType);
+
+static PVRSRV_ERROR HandleFreeDestroy(PVRSRV_HANDLE_BASE *psBase,
+                                      HANDLE_DATA *psHandleData,
+                                      IMG_HANDLE hHandle,
+                                      PVRSRV_HANDLE_TYPE eType);
 
 /*!
 *******************************************************************************
@@ -817,107 +863,6 @@ void InitKey(HAND_KEY aKey,
 	aKey[HAND_KEY_PARENT] = (uintptr_t)hParent;
 }
 
-static PVRSRV_ERROR FreeHandleWrapper(PVRSRV_HANDLE_BASE *psBase, IMG_HANDLE hHandle);
-
-/*!
-*******************************************************************************
- @Function      FreeHandle
- @Description   Free a handle data structure.
- @Input         psBase - Pointer to handle base structure
-                hHandle - Handle to be freed
-                eType - Type of the handle to be freed
-                ppvData - Location for data associated with the freed handle
- @Output        ppvData - Points to the data associated with the freed handle
- @Return        PVRSRV_OK or PVRSRV_ERROR
-******************************************************************************/
-static PVRSRV_ERROR FreeHandle(PVRSRV_HANDLE_BASE *psBase,
-			       IMG_HANDLE hHandle,
-			       PVRSRV_HANDLE_TYPE eType,
-			       void **ppvData)
-{
-	HANDLE_DATA *psHandleData = NULL;
-	HANDLE_DATA *psReleasedHandleData;
-	PVRSRV_ERROR eError;
-
-	eError = GetHandleData(psBase, &psHandleData, hHandle, eType);
-	PVR_LOG_RETURN_IF_ERROR(eError, "GetHandleData");
-
-	if (_HandleUnref(psHandleData) > 0)
-	{
-		/* this handle still has references so do not destroy it
-		 * or the underlying object yet
-		 */
-		return PVRSRV_OK;
-	}
-
-	/* Call the release data callback for each reference on the handle */
-	if (psHandleData->pfnReleaseData != NULL)
-	{
-		eError = psHandleData->pfnReleaseData(psHandleData->pvData);
-		if (eError == PVRSRV_ERROR_RETRY)
-		{
-			PVR_DPF((PVR_DBG_MESSAGE,
-				 "%s: "
-				 "Got retry while calling release data callback for %p (type = %d)",
-				 __func__,
-				 hHandle,
-				 (IMG_UINT32)psHandleData->eType));
-
-			/* the caller should retry, so retain a reference on the handle */
-			_HandleRef(psHandleData);
-
-			return eError;
-		}
-		else if (eError != PVRSRV_OK)
-		{
-			return eError;
-		}
-	}
-
-	if (!TEST_ALLOC_FLAG(psHandleData, PVRSRV_HANDLE_ALLOC_FLAG_MULTI))
-	{
-		HAND_KEY aKey;
-		IMG_HANDLE hRemovedHandle;
-
-		InitKey(aKey, psBase, psHandleData->pvData, psHandleData->eType, ParentIfPrivate(psHandleData));
-
-		hRemovedHandle = (IMG_HANDLE)HASH_Remove_Extended(psBase->psHashTab, aKey);
-
-		PVR_ASSERT(hRemovedHandle != NULL);
-		PVR_ASSERT(hRemovedHandle == psHandleData->hHandle);
-		PVR_UNREFERENCED_PARAMETER(hRemovedHandle);
-	}
-
-	eError = UnlinkFromParent(psBase, psHandleData);
-	PVR_LOG_RETURN_IF_ERROR(eError, "UnlinkFromParent");
-
-	/* Free children */
-	eError = IterateOverChildren(psBase, psHandleData, FreeHandleWrapper);
-	PVR_LOG_RETURN_IF_ERROR(eError, "IterateOverChildren");
-
-	eError = gpsHandleFuncs->pfnReleaseHandle(psBase->psImplBase,
-						  psHandleData->hHandle,
-						  (void **)&psReleasedHandleData);
-	if (unlikely(eError == PVRSRV_OK))
-	{
-		PVR_ASSERT(psReleasedHandleData == psHandleData);
-	}
-
-	if (ppvData)
-	{
-		*ppvData = psHandleData->pvData;
-	}
-
-	OSFreeMem(psHandleData);
-
-	return eError;
-}
-
-static PVRSRV_ERROR FreeHandleWrapper(PVRSRV_HANDLE_BASE *psBase, IMG_HANDLE hHandle)
-{
-	return FreeHandle(psBase, hHandle, PVRSRV_HANDLE_TYPE_NONE, NULL);
-}
-
 /*!
 *******************************************************************************
  @Function      FindHandle
@@ -1013,7 +958,12 @@ static PVRSRV_ERROR AllocHandle(PVRSRV_HANDLE_BASE *psBase,
 	psNewHandleData->eFlag = eFlag;
 	psNewHandleData->pvData = pvData;
 	psNewHandleData->pfnReleaseData = pfnReleaseData;
-	psNewHandleData->ui32RefCount = 1;
+	psNewHandleData->iLookupCount = 0;
+	psNewHandleData->bCanLookup = IMG_TRUE;
+
+#ifdef DEBUG_REFCNT
+	PVR_DPF((PVR_DBG_ERROR, "%s: bCanLookup = true", __func__));
+#endif /* DEBUG_REFCNT */
 
 	InitParentList(psNewHandleData);
 #if defined(DEBUG)
@@ -1197,7 +1147,7 @@ PVRSRV_ERROR PVRSRVAllocSubHandleUnlocked(PVRSRV_HANDLE_BASE *psBase,
 	return PVRSRV_OK;
 
 ExitFreeHandle:
-	(void) FreeHandle(psBase, hHandle, eType, NULL);
+	PVRSRVDestroyHandleUnlocked(psBase, hHandle, eType);
 Exit:
 	return eError;
 }
@@ -1337,14 +1287,16 @@ PVRSRV_ERROR PVRSRVLookupHandleUnlocked(PVRSRV_HANDLE_BASE *psBase,
 		return eError;
 	}
 
-	if (psHandleData->ui32RefCount == 0)
+	/* If bCanLookup is false it means that a destroy operation was already
+	 * called on this handle; therefore it can no longer be looked up. */
+	if (!psHandleData->bCanLookup)
 	{
-		return PVRSRV_ERROR_HANDLE_INDEX_OUT_OF_RANGE;
+		return PVRSRV_ERROR_HANDLE_NOT_ALLOCATED;
 	}
 
 	if (bRef)
 	{
-		_HandleRef(psHandleData);
+		HandleGet(psHandleData);
 	}
 
 	*ppvData = psHandleData->pvData;
@@ -1424,17 +1376,13 @@ ExitUnlock:
                 eType - handle type
  @Return        Error code or PVRSRV_OK
 ******************************************************************************/
-PVRSRV_ERROR PVRSRVReleaseHandle(PVRSRV_HANDLE_BASE *psBase,
-				 IMG_HANDLE hHandle,
-				 PVRSRV_HANDLE_TYPE eType)
+void PVRSRVReleaseHandle(PVRSRV_HANDLE_BASE *psBase,
+                         IMG_HANDLE hHandle,
+                         PVRSRV_HANDLE_TYPE eType)
 {
-	PVRSRV_ERROR eError;
-
 	LockHandle(psBase);
-	eError = PVRSRVReleaseHandleUnlocked(psBase, hHandle, eType);
+	PVRSRVReleaseHandleUnlocked(psBase, hHandle, eType);
 	UnlockHandle(psBase);
-
-	return eError;
 }
 
 
@@ -1446,19 +1394,40 @@ PVRSRV_ERROR PVRSRVReleaseHandle(PVRSRV_HANDLE_BASE *psBase,
                 hold the lock when called.
  @Input         hHandle - handle from client
                 eType - handle type
- @Return        Error code or PVRSRV_OK
 ******************************************************************************/
-PVRSRV_ERROR PVRSRVReleaseHandleUnlocked(PVRSRV_HANDLE_BASE *psBase,
-				 IMG_HANDLE hHandle,
-				 PVRSRV_HANDLE_TYPE eType)
+void PVRSRVReleaseHandleUnlocked(PVRSRV_HANDLE_BASE *psBase,
+                                 IMG_HANDLE hHandle,
+                                 PVRSRV_HANDLE_TYPE eType)
 {
+	HANDLE_DATA *psHandleData = NULL;
+	PVRSRV_ERROR eError;
+
 	/* PVRSRV_HANDLE_TYPE_NONE is reserved for internal use */
+	PVR_ASSERT(psBase != NULL);
 	PVR_ASSERT(eType != PVRSRV_HANDLE_TYPE_NONE);
 	PVR_ASSERT(gpsHandleFuncs);
 
-	PVR_LOG_RETURN_IF_INVALID_PARAM(psBase != NULL, "psBase");
+	PVR_LOG_RETURN_VOID_IF_FALSE(psBase != NULL, "invalid psBase");
 
-	return FreeHandle(psBase, hHandle, eType, NULL);
+	eError = GetHandleData(psBase, &psHandleData, hHandle, eType);
+	if (unlikely(eError != PVRSRV_OK))
+	{
+		PVR_DPF((PVR_DBG_ERROR, "%s: Error (%s) looking up handle %p of type %s "
+		        "for base %p of type %s.", __func__, PVRSRVGetErrorString(eError),
+		        (void*) hHandle, HandleTypeToString(eType), psBase,
+		        HandleBaseTypeToString(psBase->eType)));
+
+		PVR_ASSERT(eError == PVRSRV_OK);
+
+		return;
+	}
+
+	PVR_ASSERT(psHandleData->bCanLookup);
+	PVR_ASSERT(psHandleData->iLookupCount > 0);
+
+	/* If there are still outstanding lookups for this handle or the handle
+	 * has not been destroyed yet, return early */
+	HandlePut(psHandleData);
 }
 
 /*!
@@ -1483,86 +1452,92 @@ PVRSRV_ERROR PVRSRVPurgeHandles(PVRSRV_HANDLE_BASE *psBase)
 	return eError;
 }
 
-static PVRSRV_ERROR HandleUnrefAndMaybeMarkForFree(PVRSRV_HANDLE_BASE *psBase,
-                                      IMG_HANDLE hHandle,
-                                      PVRSRV_HANDLE_TYPE eType);
-
 static PVRSRV_ERROR HandleUnrefAndMaybeMarkForFreeWrapper(PVRSRV_HANDLE_BASE *psBase,
                                                           IMG_HANDLE hHandle)
 {
-	return HandleUnrefAndMaybeMarkForFree(psBase, hHandle, PVRSRV_HANDLE_TYPE_NONE);
+	HANDLE_DATA *psHandleData;
+	PVRSRV_ERROR eError = GetHandleData(psBase, &psHandleData, hHandle,
+	                                    PVRSRV_HANDLE_TYPE_NONE);
+	PVR_RETURN_IF_ERROR(eError);
+
+	return HandleUnrefAndMaybeMarkForFree(psBase, psHandleData, hHandle, PVRSRV_HANDLE_TYPE_NONE);
 }
 
 static PVRSRV_ERROR HandleUnrefAndMaybeMarkForFree(PVRSRV_HANDLE_BASE *psBase,
+                                                   HANDLE_DATA *psHandleData,
                                                    IMG_HANDLE hHandle,
                                                    PVRSRV_HANDLE_TYPE eType)
 {
-	HANDLE_DATA *psHandleData = NULL;
 	PVRSRV_ERROR eError;
 
-	eError = GetHandleData(psBase, &psHandleData, hHandle, eType);
-	PVR_RETURN_IF_ERROR(eError);
-
-	if (psHandleData->ui32RefCount == 0)
+	/* If bCanLookup is false it means that the destructor was called more than
+	 * once on this handle. */
+	if (!psHandleData->bCanLookup)
 	{
-		/* the handle is already in the destruction phase
-		 * i.e. its refcount has already reached 0
-		 */
-		return PVRSRV_OK;
+		PVR_DPF((PVR_DBG_ERROR, "%s: Handle %p of type %s already freed.",
+		        __func__, psHandleData->hHandle,
+		        HandleTypeToString(psHandleData->eType)));
+		return PVRSRV_ERROR_HANDLE_NOT_FOUND;
 	}
 
-	if (_HandleUnref(psHandleData) > 0)
+	if (psHandleData->iLookupCount > 0)
 	{
-		/* this handle still has references so do not destroy it
-		 * or the underlying object yet
-		 */
 		return PVRSRV_ERROR_OBJECT_STILL_REFERENCED;
 	}
+
+	/* Mark this handle as freed only if it's no longer referenced by any
+	 * lookup. The user space should retry freeing this handle once there are
+	 * no outstanding lookups. */
+	psHandleData->bCanLookup = IMG_FALSE;
+
+#ifdef DEBUG_REFCNT
+	PVR_DPF((PVR_DBG_ERROR, "%s: bCanLookup = false, iLookupCount = %d", __func__,
+	        psHandleData->iLookupCount));
+#endif /* DEBUG_REFCNT */
 
 	/* Prepare children for destruction */
 	eError = IterateOverChildren(psBase, psHandleData,
 	                             HandleUnrefAndMaybeMarkForFreeWrapper);
-	PVR_LOG_RETURN_IF_ERROR(eError, "IterateOverChildren->HandleUnrefAndMaybeMarkForFree");
+	PVR_LOG_RETURN_IF_ERROR(eError, "HandleUnrefAndMaybeMarkForFreeWrapper");
 
 	return PVRSRV_OK;
 }
 
-static PVRSRV_ERROR HandleFreePrivData(PVRSRV_HANDLE_BASE *psBase,
-                                       IMG_HANDLE hHandle,
-                                       PVRSRV_HANDLE_TYPE eType);
-
 static PVRSRV_ERROR HandleFreePrivDataWrapper(PVRSRV_HANDLE_BASE *psBase,
                                               IMG_HANDLE hHandle)
 {
-	return HandleFreePrivData(psBase, hHandle, PVRSRV_HANDLE_TYPE_NONE);
+	HANDLE_DATA *psHandleData;
+	PVRSRV_ERROR eError = GetHandleData(psBase, &psHandleData, hHandle,
+	                                    PVRSRV_HANDLE_TYPE_NONE);
+	PVR_RETURN_IF_ERROR(eError);
+
+	return HandleFreePrivData(psBase, psHandleData, hHandle, PVRSRV_HANDLE_TYPE_NONE);
 }
 
 static PVRSRV_ERROR HandleFreePrivData(PVRSRV_HANDLE_BASE *psBase,
+                                       HANDLE_DATA *psHandleData,
                                        IMG_HANDLE hHandle,
                                        PVRSRV_HANDLE_TYPE eType)
 {
-	HANDLE_DATA *psHandleData = NULL;
 	PVRSRV_ERROR eError;
-
-	eError = GetHandleData(psBase, &psHandleData, hHandle, eType);
-	PVR_RETURN_IF_ERROR(eError);
 
 	/* Call the release data callback for each reference on the handle */
 	if (psHandleData->pfnReleaseData != NULL)
 	{
 		eError = psHandleData->pfnReleaseData(psHandleData->pvData);
-		if (eError == PVRSRV_ERROR_RETRY)
+		if (eError != PVRSRV_OK)
 		{
-			PVR_DPF((PVR_DBG_MESSAGE,
-				 "FreeHandle: "
-				 "Got retry while calling release data callback for %p (type = %d)",
-				 hHandle,
-				 (IMG_UINT32)psHandleData->eType));
+			if (IsRetryError(eError))
+			{
+				PVR_DPF((PVR_DBG_MESSAGE, "%s: Got retry while calling release "
+						"data callback for handle %p of type = %s", __func__,
+						hHandle, HandleTypeToString(psHandleData->eType)));
+			}
+			else
+			{
+				PVR_LOG_ERROR(eError, "pfnReleaseData");
+			}
 
-			return eError;
-		}
-		else if (eError != PVRSRV_OK)
-		{
 			return eError;
 		}
 
@@ -1580,26 +1555,24 @@ static PVRSRV_ERROR HandleFreePrivData(PVRSRV_HANDLE_BASE *psBase,
 	return PVRSRV_OK;
 }
 
-static PVRSRV_ERROR HandleFreeDestroy(PVRSRV_HANDLE_BASE *psBase,
-                                     IMG_HANDLE hHandle,
-                                     PVRSRV_HANDLE_TYPE eType);
-
 static PVRSRV_ERROR HandleFreeDestroyWrapper(PVRSRV_HANDLE_BASE *psBase,
-                                         IMG_HANDLE hHandle)
+                                             IMG_HANDLE hHandle)
 {
-	return HandleFreeDestroy(psBase, hHandle, PVRSRV_HANDLE_TYPE_NONE);
+	HANDLE_DATA *psHandleData;
+	PVRSRV_ERROR eError = GetHandleData(psBase, &psHandleData, hHandle,
+	                                    PVRSRV_HANDLE_TYPE_NONE);
+	PVR_RETURN_IF_ERROR(eError);
+
+	return HandleFreeDestroy(psBase, psHandleData, hHandle, PVRSRV_HANDLE_TYPE_NONE);
 }
 
 static PVRSRV_ERROR HandleFreeDestroy(PVRSRV_HANDLE_BASE *psBase,
+                                      HANDLE_DATA *psHandleData,
                                       IMG_HANDLE hHandle,
                                       PVRSRV_HANDLE_TYPE eType)
 {
-	HANDLE_DATA *psHandleData = NULL;
 	HANDLE_DATA *psReleasedHandleData;
 	PVRSRV_ERROR eError;
-
-	eError = GetHandleData(psBase, &psHandleData, hHandle, eType);
-	PVR_RETURN_IF_ERROR(eError);
 
 	eError = UnlinkFromParent(psBase, psHandleData);
 	PVR_LOG_RETURN_IF_ERROR(eError, "UnlinkFromParent");
@@ -1633,40 +1606,122 @@ static PVRSRV_ERROR HandleFreeDestroy(PVRSRV_HANDLE_BASE *psBase,
 	return PVRSRV_OK;
 }
 
-PVRSRV_ERROR PVRSRVReleaseHandleStagedUnlock(PVRSRV_HANDLE_BASE *psBase,
-                                             IMG_HANDLE hHandle,
-                                             PVRSRV_HANDLE_TYPE eType)
+static PVRSRV_ERROR DestroyHandle(PVRSRV_HANDLE_BASE *psBase,
+                                  IMG_HANDLE hHandle,
+                                  PVRSRV_HANDLE_TYPE eType,
+                                  IMG_BOOL bReleaseLock)
 {
 	PVRSRV_ERROR eError;
+	HANDLE_DATA *psHandleData = NULL;
 
 	PVR_ASSERT(eType != PVRSRV_HANDLE_TYPE_NONE);
 	PVR_ASSERT(gpsHandleFuncs);
 
-	PVR_LOG_RETURN_IF_FALSE(psBase != NULL, "psBase invalid",
-	                        PVRSRV_ERROR_INVALID_PARAMS);
+	PVR_LOG_RETURN_IF_INVALID_PARAM(psBase != NULL, "psBase");
 
-	eError = HandleUnrefAndMaybeMarkForFree(psBase, hHandle, eType);
-	if (eError == PVRSRV_ERROR_OBJECT_STILL_REFERENCED)
+	eError = GetHandleData(psBase, &psHandleData, hHandle, eType);
+	PVR_RETURN_IF_ERROR(eError);
+
+	eError = HandleUnrefAndMaybeMarkForFree(psBase, psHandleData, hHandle, eType);
+	PVR_RETURN_IF_ERROR(eError);
+
+	if (bReleaseLock)
 	{
-		return PVRSRV_OK;
-	}
-	else if (eError != PVRSRV_OK)
-	{
-		return eError;
+		UnlockHandle(psBase);
 	}
 
-	UnlockHandle(psBase);
-
-	eError = HandleFreePrivData(psBase, hHandle, eType);
+	eError = HandleFreePrivData(psBase, psHandleData, hHandle, eType);
 	if (eError != PVRSRV_OK)
 	{
-		LockHandle(psBase);
+		if (bReleaseLock)
+		{
+			LockHandle(psBase);
+		}
+
+		/* If the data could not be freed due to a temporary condition the
+		 * handle must be kept alive so that the next destroy call can try again */
+		if (IsRetryError(eError))
+		{
+			psHandleData->bCanLookup = IMG_TRUE;
+		}
+
 		return eError;
 	}
 
-	LockHandle(psBase);
+	if (bReleaseLock)
+	{
+		LockHandle(psBase);
+	}
 
-	return HandleFreeDestroy(psBase, hHandle, eType);
+	return HandleFreeDestroy(psBase, psHandleData, hHandle, eType);
+}
+
+/*!
+*******************************************************************************
+ @Function      PVRSRVDestroyHandle
+ @Description   Destroys a handle that is no longer needed. Will
+                acquiring the handle lock for duration of the call.
+                Can return RETRY or KERNEL_CCB_FULL if resource could not be
+                destroyed, caller should retry sometime later.
+ @Input         psBase - pointer to handle base structure
+                hHandle - handle from client
+                eType - handle type
+ @Return        Error code or PVRSRV_OK
+******************************************************************************/
+PVRSRV_ERROR PVRSRVDestroyHandle(PVRSRV_HANDLE_BASE *psBase,
+                                 IMG_HANDLE hHandle,
+                                 PVRSRV_HANDLE_TYPE eType)
+{
+	PVRSRV_ERROR eError;
+
+	LockHandle(psBase);
+	eError = DestroyHandle(psBase, hHandle, eType, IMG_FALSE);
+	UnlockHandle(psBase);
+
+	return eError;
+}
+
+/*!
+*******************************************************************************
+ @Function      PVRSRVDestroyHandleUnlocked
+ @Description   Destroys a handle that is no longer needed without
+                acquiring/releasing the handle lock. The function assumes you
+                hold the lock when called.
+                Can return RETRY or KERNEL_CCB_FULL if resource could not be
+                destroyed, caller should retry sometime later.
+ @Input         psBase - pointer to handle base structure
+                hHandle - handle from client
+                eType - handle type
+ @Return        Error code or PVRSRV_OK
+******************************************************************************/
+PVRSRV_ERROR PVRSRVDestroyHandleUnlocked(PVRSRV_HANDLE_BASE *psBase,
+                                         IMG_HANDLE hHandle,
+                                         PVRSRV_HANDLE_TYPE eType)
+{
+	return DestroyHandle(psBase, hHandle, eType, IMG_FALSE);
+}
+
+/*!
+*******************************************************************************
+ @Function      PVRSRVDestroyHandleStagedUnlocked
+ @Description   Destroys a handle that is no longer needed without
+                acquiring/releasing the handle lock. The function assumes you
+                hold the lock when called. This function, unlike
+                PVRSRVDestroyHandleUnlocked(), releases the handle lock while
+                destroying handle private data. This is done to open the
+                bridge for other bridge calls.
+                Can return RETRY or KERNEL_CCB_FULL if resource could not be
+                destroyed, caller should retry sometime later.
+ @Input         psBase - pointer to handle base structure
+                hHandle - handle from client
+                eType - handle type
+ @Return        Error code or PVRSRV_OK
+******************************************************************************/
+PVRSRV_ERROR PVRSRVDestroyHandleStagedUnlocked(PVRSRV_HANDLE_BASE *psBase,
+                                               IMG_HANDLE hHandle,
+                                               PVRSRV_HANDLE_TYPE eType)
+{
+	return DestroyHandle(psBase, hHandle, eType, IMG_TRUE);
 }
 
 /*!
@@ -1778,12 +1833,11 @@ static PVRSRV_ERROR ListHandlesInBase(IMG_HANDLE hHandle, void *pvData)
 
 	if (psHandleData != NULL)
 	{
-		PVR_DPF((PVR_DBG_WARNING, "    Handle: %6u, Refs: %3u, Type: %s (%u), pvData<%p>",
-				(IMG_UINT32) (uintptr_t) psHandleData->hHandle,
-				psHandleData->ui32RefCount,
-				HandleTypeToString(psHandleData->eType),
-				psHandleData->eType,
-				psHandleData->pvData));
+		PVR_DPF((PVR_DBG_WARNING,
+		        "    Handle: %6u, CanLookup: %u, LookupCount: %3u, Type: %s (%u), pvData<%p>",
+		       (IMG_UINT32) (uintptr_t) psHandleData->hHandle, psHandleData->bCanLookup,
+		       psHandleData->iLookupCount, HandleTypeToString(psHandleData->eType),
+		       psHandleData->eType, psHandleData->pvData));
 	}
 
 	return PVRSRV_OK;
@@ -1794,7 +1848,7 @@ static PVRSRV_ERROR ListHandlesInBase(IMG_HANDLE hHandle, void *pvData)
 static INLINE IMG_BOOL _CheckIfMaxTimeExpired(IMG_UINT64 ui64TimeStart, IMG_UINT64 ui64MaxBridgeTime)
 {
 	/* unsigned arithmetic is well defined so this will wrap around correctly */
-	return (OSClockns64() - ui64TimeStart) >= ui64MaxBridgeTime;
+	return (IMG_BOOL)((OSClockns64() - ui64TimeStart) >= ui64MaxBridgeTime);
 }
 
 static PVRSRV_ERROR FreeKernelHandlesWrapperIterKernel(IMG_HANDLE hHandle, void *pvData)
@@ -1888,21 +1942,18 @@ static PVRSRV_ERROR FreeHandleDataWrapper(IMG_HANDLE hHandle, void *pvData)
 		return PVRSRV_OK;
 	}
 
-	PVR_ASSERT(psHandleData->ui32RefCount > 0);
+	PVR_ASSERT(psHandleData->bCanLookup && psHandleData->iLookupCount == 0);
 
-	while (psHandleData->ui32RefCount != 0)
+	if (psHandleData->bCanLookup)
 	{
 		if (psHandleData->pfnReleaseData != NULL)
 		{
 			eError = psHandleData->pfnReleaseData(psHandleData->pvData);
 			if (eError == PVRSRV_ERROR_RETRY)
 			{
-				PVR_DPF((PVR_DBG_MESSAGE,
-					 "%s: "
-					 "Got retry while calling release data callback for %p (type = %d)",
-					 __func__,
-					 hHandle,
-					 (IMG_UINT32)psHandleData->eType));
+				PVR_DPF((PVR_DBG_MESSAGE, "%s: Got retry while calling release "
+				        "data callback for handle %p of type = %s", __func__,
+				        hHandle, HandleTypeToString(psHandleData->eType)));
 
 				return eError;
 			}
@@ -1912,7 +1963,7 @@ static PVRSRV_ERROR FreeHandleDataWrapper(IMG_HANDLE hHandle, void *pvData)
 			}
 		}
 
-		_HandleUnref(psHandleData);
+		psHandleData->bCanLookup = IMG_FALSE;
 	}
 
 	if (!TEST_ALLOC_FLAG(psHandleData, PVRSRV_HANDLE_ALLOC_FLAG_MULTI))
@@ -1946,10 +1997,10 @@ static PVRSRV_ERROR FreeHandleDataWrapper(IMG_HANDLE hHandle, void *pvData)
 			 "%s: Lock timeout (timeout: %" IMG_UINT64_FMTSPEC")",
 			 __func__,
 			 psData->ui64MaxBridgeTime));
-		/* UnlockHandle(psData->psBase); - func only run in single thread ctx */
+		UnlockHandle(psData->psBase);
 		/* Invoke the scheduler to check if other processes are waiting for the lock */
 		OSReleaseThreadQuanta();
-		/* LockHandle(psData->psBase); - func only run in single thread ctx */
+		LockHandle(psData->psBase);
 		/* Set again lock timeout and reset the counter */
 		psData->ui64TimeStart = OSClockns64();
 		PVR_DPF((PVR_DBG_MESSAGE, "%s: Lock acquired again", __func__));
@@ -1998,6 +2049,9 @@ static const PVRSRV_HANDLE_TYPE g_aeOrderedFreeList[] =
 	PVRSRV_HANDLE_TYPE_RGX_SERVER_COMPUTE_CONTEXT,
 	PVRSRV_HANDLE_TYPE_RGX_SERVER_RAY_CONTEXT,
 	PVRSRV_HANDLE_TYPE_RGX_SERVER_KICKSYNC_CONTEXT,
+#if defined(PVR_TESTING_UTILS) && defined(SUPPORT_VALIDATION)
+	PVRSRV_HANDLE_TYPE_RGX_SERVER_GPUMAP_CONTEXT,
+#endif
 	PVRSRV_HANDLE_TYPE_RI_HANDLE,
 	PVRSRV_HANDLE_TYPE_SYNC_RECORD_HANDLE,
 	PVRSRV_HANDLE_TYPE_SYNC_PRIMITIVE_BLOCK,
@@ -2069,19 +2123,21 @@ PVRSRV_HANDLE_BASE *PVRSRVRetrieveProcessHandleBase(void)
 {
 	PVRSRV_HANDLE_BASE *psHandleBase = NULL;
 	PROCESS_HANDLE_BASE *psProcHandleBase = NULL;
-	PVRSRV_DATA *psPvrData = PVRSRVGetPVRSRVData();
 	IMG_PID ui32PurgePid = PVRSRVGetPurgeConnectionPid();
+	IMG_PID uiCleanupPid = PVRSRVCleanupThreadGetPid();
+	uintptr_t uiCleanupTid = PVRSRVCleanupThreadGetTid();
 
-	OSLockAcquire(psPvrData->hProcessHandleBase_Lock);
+	OSLockAcquire(g_hProcessHandleBaseLock);
 
 	/* Check to see if we're being called from the cleanup thread... */
-	if ((OSGetCurrentClientProcessIDKM() == psPvrData->cleanupThreadPid) &&
-		(ui32PurgePid > 0))
+	if ((OSGetCurrentProcessID() == uiCleanupPid) &&
+	    (OSGetCurrentThreadID() == uiCleanupTid) &&
+	    (ui32PurgePid > 0))
 	{
 		/* Check to see if the cleanup thread has already removed the
 		 * process handle base from the HASH table.
 		 */
-		psHandleBase = psPvrData->psProcessHandleBaseBeingFreed;
+		psHandleBase = g_psProcessHandleBaseBeingFreed;
 		/* psHandleBase shouldn't be null, as cleanup thread
 		 * should be removing this from the HASH table before
 		 * we get here, so assert if not.
@@ -2093,16 +2149,123 @@ PVRSRV_HANDLE_BASE *PVRSRVRetrieveProcessHandleBase(void)
 		/* Not being called from the cleanup thread, so return the process
 		 * handle base for the current process.
 		 */
-		psProcHandleBase = (PROCESS_HANDLE_BASE*) HASH_Retrieve(psPvrData->psProcessHandleBase_Table,
-																OSGetCurrentClientProcessIDKM());
+		psProcHandleBase = (PROCESS_HANDLE_BASE *)
+		    HASH_Retrieve(g_psProcessHandleBaseTable, OSGetCurrentClientProcessIDKM());
 	}
-	OSLockRelease(psPvrData->hProcessHandleBase_Lock);
+
+	OSLockRelease(g_hProcessHandleBaseLock);
 
 	if (psHandleBase == NULL && psProcHandleBase != NULL)
 	{
 		psHandleBase = psProcHandleBase->psHandleBase;
 	}
 	return psHandleBase;
+}
+
+/*!
+*******************************************************************************
+ @Function      PVRSRVAcquireProcessHandleBase
+ @Description   Increments reference count on a process handle base identified
+                by uiPid and returns pointer to the base. If the handle base
+                does not exist it will be allocated.
+ @Inout         uiPid - PID of a process
+ @Output        ppsBase - pointer to a handle base for the process identified by
+                          uiPid
+ @Return        Error code or PVRSRV_OK
+******************************************************************************/
+PVRSRV_ERROR PVRSRVAcquireProcessHandleBase(IMG_PID uiPid, PROCESS_HANDLE_BASE **ppsBase)
+{
+	PROCESS_HANDLE_BASE *psBase;
+	PVRSRV_ERROR eError;
+
+	OSLockAcquire(g_hProcessHandleBaseLock);
+
+	psBase = (PROCESS_HANDLE_BASE*) HASH_Retrieve(g_psProcessHandleBaseTable, uiPid);
+
+	/* In case there is none we are going to allocate one */
+	if (psBase == NULL)
+	{
+		IMG_BOOL bSuccess;
+
+		psBase = OSAllocZMem(sizeof(*psBase));
+		PVR_LOG_GOTO_IF_NOMEM(psBase, eError, ErrorUnlock);
+
+		/* Allocate handle base for this process */
+		eError = PVRSRVAllocHandleBase(&psBase->psHandleBase, PVRSRV_HANDLE_BASE_TYPE_PROCESS);
+		PVR_LOG_GOTO_IF_ERROR(eError, "PVRSRVAllocHandleBase", ErrorFreeProcessHandleBase);
+
+		/* Insert the handle base into the global hash table */
+		bSuccess = HASH_Insert(g_psProcessHandleBaseTable, uiPid, (uintptr_t) psBase);
+		PVR_LOG_GOTO_IF_FALSE(bSuccess, "HASH_Insert failed", ErrorFreeHandleBase);
+	}
+
+	OSAtomicIncrement(&psBase->iRefCount);
+
+	OSLockRelease(g_hProcessHandleBaseLock);
+
+	*ppsBase = psBase;
+
+	return PVRSRV_OK;
+
+ErrorFreeHandleBase:
+	PVRSRVFreeHandleBase(psBase->psHandleBase, 0);
+ErrorFreeProcessHandleBase:
+	OSFreeMem(psBase);
+ErrorUnlock:
+	OSLockRelease(g_hProcessHandleBaseLock);
+
+	return eError;
+}
+
+/*!
+*******************************************************************************
+ @Function      PVRSRVReleaseProcessHandleBase
+ @Description   Decrements reference count on a process handle base psBase
+                for a process identified by uiPid. If the reference count
+                reaches 0 the handle base will be freed..
+ @Input         psBase - pointer to a process handle base
+ @Inout         uiPid - PID of a process
+ @Inout         ui64MaxBridgeTime - maximum time a handle destroy operation
+                                    can hold the handle base lock (after that
+                                    time a lock will be release and reacquired
+                                    for another time slice)
+ @Return        Error code or PVRSRV_OK
+******************************************************************************/
+PVRSRV_ERROR PVRSRVReleaseProcessHandleBase(PROCESS_HANDLE_BASE *psBase, IMG_PID uiPid,
+                                            IMG_UINT64 ui64MaxBridgeTime)
+{
+	PVRSRV_ERROR eError;
+	IMG_INT iRefCount;
+	uintptr_t uiHashValue;
+
+	OSLockAcquire(g_hProcessHandleBaseLock);
+
+	iRefCount = OSAtomicDecrement(&psBase->iRefCount);
+
+	if (iRefCount != 0)
+	{
+		OSLockRelease(g_hProcessHandleBaseLock);
+		return PVRSRV_OK;
+	}
+
+	/* in case the refcount becomes 0 we can remove the process handle base
+	 * and all related objects */
+
+	uiHashValue = HASH_Remove(g_psProcessHandleBaseTable, uiPid);
+	OSLockRelease(g_hProcessHandleBaseLock);
+
+	PVR_LOG_RETURN_IF_FALSE(uiHashValue != 0, "HASH_Remove failed",
+	                        PVRSRV_ERROR_UNABLE_TO_REMOVE_HASH_VALUE);
+
+	eError = PVRSRVFreeKernelHandles(psBase->psHandleBase);
+	PVR_LOG_RETURN_IF_ERROR(eError, "PVRSRVFreeKernelHandles");
+
+	eError = PVRSRVFreeHandleBase(psBase->psHandleBase, ui64MaxBridgeTime);
+	PVR_LOG_RETURN_IF_ERROR(eError, "PVRSRVFreeHandleBase");
+
+	OSFreeMem(psBase);
+
+	return PVRSRV_OK;
 }
 
 /*!
@@ -2120,20 +2283,21 @@ PVRSRV_ERROR PVRSRVFreeHandleBase(PVRSRV_HANDLE_BASE *psBase, IMG_UINT64 ui64Max
 	FREE_HANDLE_DATA sHandleData = {NULL};
 	IMG_UINT32 i;
 	PVRSRV_ERROR eError;
-	PVRSRV_DATA *psPVRSRVData = PVRSRVGetPVRSRVData();
-	IMG_PID uiCleanupPid = psPVRSRVData->cleanupThreadPid;
+	IMG_PID uiCleanupPid = PVRSRVCleanupThreadGetPid();
+	uintptr_t uiCleanupTid = PVRSRVCleanupThreadGetTid();
 
 	PVR_ASSERT(gpsHandleFuncs);
 
-	/* LockHandle(psBase); - func only run in single thread ctx */
+	LockHandle(psBase);
 
 	/* If this is a process handle base being freed by the cleanup
-	 * thread, store this in psPVRSRVData->psProcessHandleBaseBeingFreed
+	 * thread, store this in g_psProcessHandleBaseBeingFreed
 	 */
-	if ((OSGetCurrentClientProcessIDKM() == uiCleanupPid) &&
+	if ((OSGetCurrentProcessID() == uiCleanupPid) &&
+	    (OSGetCurrentThreadID() == uiCleanupTid) &&
 	    (psBase->eType == PVRSRV_HANDLE_BASE_TYPE_PROCESS))
 	{
-		psPVRSRVData->psProcessHandleBaseBeingFreed = psBase;
+		g_psProcessHandleBaseBeingFreed = psBase;
 	}
 
 	sHandleData.psBase = psBase;
@@ -2152,7 +2316,7 @@ PVRSRV_ERROR PVRSRVFreeHandleBase(PVRSRV_HANDLE_BASE *psBase, IMG_UINT64 ui64Max
 
 	if (sCountData.uiHandleDataCount != 0)
 	{
-		IMG_BOOL bList = sCountData.uiHandleDataCount < HANDLE_DEBUG_LISTING_MAX_NUM;
+		IMG_BOOL bList = (IMG_BOOL)(sCountData.uiHandleDataCount < HANDLE_DEBUG_LISTING_MAX_NUM);
 
 		PVR_DPF((PVR_DBG_WARNING,
 			 "%s: %u remaining handles in handle base 0x%p "
@@ -2200,18 +2364,19 @@ PVRSRV_ERROR PVRSRVFreeHandleBase(PVRSRV_HANDLE_BASE *psBase, IMG_UINT64 ui64Max
 	eError = gpsHandleFuncs->pfnDestroyHandleBase(psBase->psImplBase);
 	PVR_GOTO_IF_ERROR(eError, ExitUnlock);
 
-	/* UnlockHandle(psBase); - func only run in single thread ctx */
+	UnlockHandle(psBase);
 	OSLockDestroy(psBase->hLock);
 	OSFreeMem(psBase);
 
 	return eError;
 
 ExitUnlock:
-	if (OSGetCurrentClientProcessIDKM() == uiCleanupPid)
+	if ((OSGetCurrentProcessID() == uiCleanupPid) &&
+		(OSGetCurrentThreadID() == uiCleanupTid))
 	{
-		psPVRSRVData->psProcessHandleBaseBeingFreed = NULL;
+		g_psProcessHandleBaseBeingFreed = NULL;
 	}
-	/* UnlockHandle(psBase); - func only run in single thread ctx */
+	UnlockHandle(psBase);
 
 	return eError;
 }
@@ -2228,10 +2393,15 @@ PVRSRV_ERROR PVRSRVHandleInit(void)
 
 	PVR_ASSERT(gpsKernelHandleBase == NULL);
 	PVR_ASSERT(gpsHandleFuncs == NULL);
+	PVR_ASSERT(g_hProcessHandleBaseLock == NULL);
+	PVR_ASSERT(g_psProcessHandleBaseTable == NULL);
 	PVR_ASSERT(!gbLockInitialised);
 
 	eError = OSLockCreate(&gKernelHandleLock);
-	PVR_LOG_RETURN_IF_ERROR(eError, "OSLockCreate");
+	PVR_LOG_RETURN_IF_ERROR(eError, "OSLockCreate:1");
+
+	eError = OSLockCreate(&g_hProcessHandleBaseLock);
+	PVR_LOG_GOTO_IF_ERROR(eError, "OSLockCreate:2", ErrorHandleDeinit);
 
 	gbLockInitialised = IMG_TRUE;
 
@@ -2242,9 +2412,11 @@ PVRSRV_ERROR PVRSRVHandleInit(void)
 	                               PVRSRV_HANDLE_BASE_TYPE_GLOBAL);
 	PVR_LOG_GOTO_IF_ERROR(eError, "PVRSRVAllocHandleBase", ErrorHandleDeinit);
 
+	g_psProcessHandleBaseTable = HASH_Create(HANDLE_PROC_HANDLE_HASH_INIT_SIZE);
+	PVR_LOG_GOTO_IF_NOMEM(g_psProcessHandleBaseTable, eError, ErrorHandleDeinit);
+
 	eError = gpsHandleFuncs->pfnEnableHandlePurging(gpsKernelHandleBase->psImplBase);
-	PVR_LOG_GOTO_IF_ERROR(eError, "pfnEnableHandlePurging",
-	                  ErrorHandleDeinit);
+	PVR_LOG_GOTO_IF_ERROR(eError, "pfnEnableHandlePurging", ErrorHandleDeinit);
 
 	return PVRSRV_OK;
 
@@ -2290,7 +2462,19 @@ PVRSRV_ERROR PVRSRVHandleDeInit(void)
 		PVR_ASSERT(gpsKernelHandleBase == NULL);
 	}
 
-	if (gbLockInitialised)
+	if (g_psProcessHandleBaseTable != NULL)
+	{
+		HASH_Delete(g_psProcessHandleBaseTable);
+		g_psProcessHandleBaseTable = NULL;
+	}
+
+	if (g_hProcessHandleBaseLock != NULL)
+	{
+		OSLockDestroy(g_hProcessHandleBaseLock);
+		g_hProcessHandleBaseLock = NULL;
+	}
+
+	if (gKernelHandleLock != NULL)
 	{
 		OSLockDestroy(gKernelHandleLock);
 		gbLockInitialised = IMG_FALSE;

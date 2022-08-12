@@ -80,42 +80,39 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 /* Bridge in structure for RGXCreateHWRTDataSet */
 typedef struct PVRSRV_BRIDGE_IN_RGXCREATEHWRTDATASET_TAG
 {
-	IMG_DEV_VIRTADDR sPMMlistDevVAddr0;
-	IMG_DEV_VIRTADDR sPMMlistDevVAddr1;
-	IMG_DEV_VIRTADDR sTailPtrsDevVAddr;
-	IMG_DEV_VIRTADDR ssMacrotileArrayDevVAddr0;
-	IMG_DEV_VIRTADDR ssMacrotileArrayDevVAddr1;
-	IMG_DEV_VIRTADDR ssRTCDevVAddr;
-	IMG_DEV_VIRTADDR ssRgnHeaderDevVAddr0;
-	IMG_DEV_VIRTADDR ssRgnHeaderDevVAddr1;
-	IMG_DEV_VIRTADDR ssVHeapTableDevVAddr;
 	IMG_UINT64 ui64FlippedMultiSampleCtl;
 	IMG_UINT64 ui64MultiSampleCtl;
-	IMG_UINT64 ui64uiRgnHeaderSize;
+	IMG_DEV_VIRTADDR *psMacrotileArrayDevVAddr;
+	IMG_DEV_VIRTADDR *psPMMlistDevVAddr;
+	IMG_DEV_VIRTADDR *psRTCDevVAddr;
+	IMG_DEV_VIRTADDR *psRgnHeaderDevVAddr;
+	IMG_DEV_VIRTADDR *psTailPtrsDevVAddr;
+	IMG_DEV_VIRTADDR *psVHeapTableDevVAddr;
+	IMG_HANDLE *phKmHwRTDataSet;
 	IMG_HANDLE *phapsFreeLists;
+	IMG_UINT32 ui32ISPMergeLowerX;
+	IMG_UINT32 ui32ISPMergeLowerY;
+	IMG_UINT32 ui32ISPMergeScaleX;
+	IMG_UINT32 ui32ISPMergeScaleY;
+	IMG_UINT32 ui32ISPMergeUpperX;
+	IMG_UINT32 ui32ISPMergeUpperY;
+	IMG_UINT32 ui32ISPMtileSize;
 	IMG_UINT32 ui32MTileStride;
 	IMG_UINT32 ui32PPPScreen;
+	IMG_UINT32 ui32RgnHeaderSize;
 	IMG_UINT32 ui32TEAA;
 	IMG_UINT32 ui32TEMTILE1;
 	IMG_UINT32 ui32TEMTILE2;
 	IMG_UINT32 ui32TEScreen;
 	IMG_UINT32 ui32TPCSize;
 	IMG_UINT32 ui32TPCStride;
-	IMG_UINT32 ui32ui32ISPMergeLowerX;
-	IMG_UINT32 ui32ui32ISPMergeLowerY;
-	IMG_UINT32 ui32ui32ISPMergeScaleX;
-	IMG_UINT32 ui32ui32ISPMergeScaleY;
-	IMG_UINT32 ui32ui32ISPMergeUpperX;
-	IMG_UINT32 ui32ui32ISPMergeUpperY;
-	IMG_UINT32 ui32ui32ISPMtileSize;
 	IMG_UINT16 ui16MaxRTs;
 } __packed PVRSRV_BRIDGE_IN_RGXCREATEHWRTDATASET;
 
 /* Bridge out structure for RGXCreateHWRTDataSet */
 typedef struct PVRSRV_BRIDGE_OUT_RGXCREATEHWRTDATASET_TAG
 {
-	IMG_HANDLE hKmHwRTDataSet0;
-	IMG_HANDLE hKmHwRTDataSet1;
+	IMG_HANDLE *phKmHwRTDataSet;
 	PVRSRV_ERROR eError;
 } __packed PVRSRV_BRIDGE_OUT_RGXCREATEHWRTDATASET;
 
@@ -264,6 +261,7 @@ typedef struct PVRSRV_BRIDGE_IN_RGXCREATERENDERCONTEXT_TAG
 	IMG_UINT32 ui32PackedCCBSizeU8888;
 	IMG_UINT32 ui32Priority;
 	IMG_UINT32 ui32StaticRenderContextStateSize;
+	IMG_UINT32 ui32ui32CallStackDepth;
 } __packed PVRSRV_BRIDGE_IN_RGXCREATERENDERCONTEXT;
 
 /* Bridge out structure for RGXCreateRenderContext */
@@ -362,16 +360,15 @@ typedef struct PVRSRV_BRIDGE_IN_RGXKICKTA3D2_TAG
 	IMG_UINT32 ui323DCmdSize;
 	IMG_UINT32 ui323DPRCmdSize;
 	IMG_UINT32 ui32Client3DUpdateCount;
-	IMG_UINT32 ui32ClientCacheOpSeqNum;
 	IMG_UINT32 ui32ClientTAFenceCount;
 	IMG_UINT32 ui32ClientTAUpdateCount;
 	IMG_UINT32 ui32ExtJobRef;
-	IMG_UINT32 ui32FRFenceUFOSyncOffset;
-	IMG_UINT32 ui32FRFenceValue;
 	IMG_UINT32 ui32NumberOfDrawCalls;
 	IMG_UINT32 ui32NumberOfIndices;
 	IMG_UINT32 ui32NumberOfMRTs;
 	IMG_UINT32 ui32PDumpFlags;
+	IMG_UINT32 ui32PRFenceUFOSyncOffset;
+	IMG_UINT32 ui32PRFenceValue;
 	IMG_UINT32 ui32RenderTargetSize;
 	IMG_UINT32 ui32SyncPMRCount;
 	IMG_UINT32 ui32TACmdSize;

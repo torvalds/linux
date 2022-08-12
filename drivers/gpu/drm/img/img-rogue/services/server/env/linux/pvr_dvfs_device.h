@@ -51,8 +51,12 @@ PVRSRV_ERROR InitDVFS(PPVRSRV_DEVICE_NODE psDeviceNode);
 
 void DeinitDVFS(PPVRSRV_DEVICE_NODE psDeviceNode);
 
-PVRSRV_ERROR SuspendDVFS(void);
+PVRSRV_ERROR RegisterDVFSDevice(PPVRSRV_DEVICE_NODE psDeviceNode);
 
-PVRSRV_ERROR ResumeDVFS(void);
+void UnregisterDVFSDevice(PPVRSRV_DEVICE_NODE psDeviceNode);
+
+PVRSRV_ERROR SuspendDVFS(PPVRSRV_DEVICE_NODE psDeviceNode);
+
+PVRSRV_ERROR ResumeDVFS(PPVRSRV_DEVICE_NODE psDeviceNode);
 
 #endif /* PVR_DVFS_DEVICE_H */

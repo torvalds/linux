@@ -122,18 +122,15 @@ typedef struct PVRSRV_DATA_TAG
 	PVRSRV_DRIVER_MODE    eDriverMode;                    /*!< Driver mode (i.e. native, host or guest) */
 	IMG_BOOL              bForceApphintDriverMode;        /*!< Indicate if driver mode is forced via apphint */
 	DRIVER_INFO           sDriverInfo;
-	IMG_UINT32            ui32RegisteredDevices;
 	IMG_UINT32            ui32DPFErrorCount;                 /*!< Number of Fatal/Error DPFs */
 
+	POSWR_LOCK            hDeviceNodeListLock;            /*!< Read-Write lock to protect the list of devices */
 	PVRSRV_DEVICE_NODE    *psDeviceNodeList;              /*!< List head of device nodes */
+	IMG_UINT32            ui32RegisteredDevices;
 	PVRSRV_DEVICE_NODE    *psHostMemDeviceNode;           /*!< DeviceNode to be used for device independent
 	                                                        host based memory allocations where the DevMem
 	                                                        framework is to be used e.g. TL */
 	PVRSRV_SERVICES_STATE eServicesState;                 /*!< global driver state */
-
-	HASH_TABLE            *psProcessHandleBase_Table;     /*!< Hash table with process handle bases */
-	POS_LOCK              hProcessHandleBase_Lock;        /*!< Lock for the process handle base table */
-	PVRSRV_HANDLE_BASE    *psProcessHandleBaseBeingFreed; /*!< Pointer to process handle base currently being freed */
 
 	IMG_HANDLE            hGlobalEventObject;             /*!< OS Global Event Object */
 	IMG_UINT32            ui32GEOConsecutiveTimeouts;     /*!< OS Global Event Object Timeouts */
@@ -143,7 +140,10 @@ typedef struct PVRSRV_DATA_TAG
 	POS_SPINLOCK          hCleanupThreadWorkListLock;     /*!< Lock protecting the cleanup thread work list */
 	DLLIST_NODE           sCleanupThreadWorkList;         /*!< List of work for the cleanup thread */
 	IMG_PID               cleanupThreadPid;               /*!< Cleanup thread process id */
-	ATOMIC_T              i32NumCleanupItems;             /*!< Number of items in cleanup thread work list */
+	uintptr_t             cleanupThreadTid;               /*!< Cleanup thread id */
+	ATOMIC_T              i32NumCleanupItemsQueued;       /*!< Number of items in cleanup thread work list */
+	ATOMIC_T              i32NumCleanupItemsNotCompleted; /*!< Number of items dropped from cleanup thread work list
+	                                                           after retry limit reached */
 
 	IMG_HANDLE            hDevicesWatchdogThread;         /*!< Devices watchdog thread */
 	IMG_HANDLE            hDevicesWatchdogEvObj;          /*! Event object to drive devices watchdog thread */
@@ -186,6 +186,9 @@ typedef struct PVRSRV_DATA_TAG
 #if defined(SUPPORT_VALIDATION) && defined(__linux__)
 	MEM_LEAK_INTERVALS    sMemLeakIntervals;              /*!< How often certain memory leak types will trigger */
 #endif
+	IMG_HANDLE            hThreadsDbgReqNotify;
+
+	IMG_UINT32            ui32PDumpBoundDevice;           /*!< PDump is bound to the device first connected to */
 } PVRSRV_DATA;
 
 
@@ -225,34 +228,85 @@ PVRSRV_DATA *PVRSRVGetPVRSRVData(void);
 			((IMG_UINT32)((IMG_UINT32)(_expr)&(IMG_UINT)0x7FFFFFFF)==(IMG_UINT32)0x1) ? DRIVER_MODE_GUEST : \
 				((IMG_UINT32)(_expr)&(IMG_UINT32)0x7FFFFFFF))
 
+typedef struct _PHYS_HEAP_ITERATOR_ PHYS_HEAP_ITERATOR;
+
 /*!
 ******************************************************************************
+ @Function LMA_HeapIteratorCreate
 
- @Function	LMA memory management API
+ @Description
+ Creates iterator for traversing physical heap requested by ui32Flags. The
+ iterator will go through all of the segments (a segment is physically
+ contiguous) of the physical heap and return their CPU physical address and
+ size.
 
+ @Input psDevNode: Pointer to device node struct.
+ @Input ui32Flags: Find heap that matches flags.
+ @Output ppsIter: Pointer to the iterator object.
+
+ @Return PVRSRV_OK upon success and PVRSRV_ERROR otherwise.
 ******************************************************************************/
-#if defined(SUPPORT_GPUVIRT_VALIDATION)
-PVRSRV_ERROR LMA_PhyContigPagesAllocGPV(PVRSRV_DEVICE_NODE *psDevNode, size_t uiSize,
-							PG_HANDLE *psMemHandle, IMG_DEV_PHYADDR *psDevPAddr,
-							IMG_UINT32 ui32OSid, IMG_PID uiPid);
-#endif
-PVRSRV_ERROR LMA_PhyContigPagesAlloc(PVRSRV_DEVICE_NODE *psDevNode, size_t uiSize,
-							PG_HANDLE *psMemHandle, IMG_DEV_PHYADDR *psDevPAddr,
-							IMG_PID uiPid);
+PVRSRV_ERROR LMA_HeapIteratorCreate(PVRSRV_DEVICE_NODE *psDevNode,
+                                    PHYS_HEAP_USAGE_FLAGS ui32Flags,
+                                    PHYS_HEAP_ITERATOR **ppsIter);
 
-void LMA_PhyContigPagesFree(PVRSRV_DEVICE_NODE *psDevNode, PG_HANDLE *psMemHandle);
+/*!
+******************************************************************************
+ @Function LMA_HeapIteratorDestroy
 
-PVRSRV_ERROR LMA_PhyContigPagesMap(PVRSRV_DEVICE_NODE *psDevNode, PG_HANDLE *psMemHandle,
-							size_t uiSize, IMG_DEV_PHYADDR *psDevPAddr,
-							void **pvPtr);
+ @Description
+ Frees the iterator object created with LMA_HeapIteratorCreate.
 
-void LMA_PhyContigPagesUnmap(PVRSRV_DEVICE_NODE *psDevNode, PG_HANDLE *psMemHandle,
-					void *pvPtr);
+ @Input psIter: Pointer to the iterator object.
+******************************************************************************/
+void LMA_HeapIteratorDestroy(PHYS_HEAP_ITERATOR *psIter);
 
-PVRSRV_ERROR LMA_PhyContigPagesClean(PVRSRV_DEVICE_NODE *psDevNode,
-                                     PG_HANDLE *psMemHandle,
-                                     IMG_UINT32 uiOffset,
-                                     IMG_UINT32 uiLength);
+/*!
+******************************************************************************
+ @Function LMA_HeapIteratorReset
+
+ @Description
+ Resets the iterator the first segment of the physical heap.
+
+ @Input psIter: Pointer to the iterator object.
+******************************************************************************/
+PVRSRV_ERROR LMA_HeapIteratorReset(PHYS_HEAP_ITERATOR *psIter);
+
+/*!
+******************************************************************************
+ @Function LMA_HeapIteratorNext
+
+ @Description
+ Retrieves current segment's physical device address and size and moves the
+ iterator to the next element (if exists). If the iterator reached an end of
+ the heap and no segment was retrieved, this function returns IMG_FALSE.
+
+ @Input psIter: Pointer to the iterator object.
+ @Output psDevPAddr: Device physical address of the current segment.
+ @Output puiSize: Size of the current segment.
+
+ @Return IMG TRUE if a segment was found and retrieved, IMG_FALSE otherwise.
+******************************************************************************/
+IMG_BOOL LMA_HeapIteratorNext(PHYS_HEAP_ITERATOR *psIter,
+                              IMG_DEV_PHYADDR *psDevPAddr,
+                              IMG_UINT64 *puiSize);
+
+/*!
+******************************************************************************
+ @Function LMA_HeapIteratorGetHeapStats
+
+ @Description
+ Retrieves phys heap's usage statistics.
+
+ @Input psPhysHeap: Pointer to the physical heap object.
+ @Output puiTotalSize: Total size of the physical heap.
+ @Output puiInUseSize: Used space in the physical heap.
+
+ @Return PVRSRV_OK upon success and PVRSRV_otherwise.
+******************************************************************************/
+PVRSRV_ERROR LMA_HeapIteratorGetHeapStats(PHYS_HEAP_ITERATOR *psIter,
+                                          IMG_UINT64 *puiTotalSize,
+                                          IMG_UINT64 *puiInUseSize);
 
 /*!
 ******************************************************************************
@@ -394,7 +448,7 @@ static inline IMG_BOOL PVRSRVIsBridgeEnabled(IMG_HANDLE hServices, IMG_UINT32 ui
 		ui32Offset = PVRSRV_BRIDGE_FIRST;
 	}
 
-	return ((1U << (ui32BridgeGroup - ui32Offset)) & ui32Bridges) != 0;
+	return (IMG_BOOL)(((1U << (ui32BridgeGroup - ui32Offset)) & ui32Bridges) != 0);
 }
 
 
@@ -468,4 +522,21 @@ PHYS_HEAP_CONFIG* FindPhysHeapConfig(PVRSRV_DEVICE_CONFIG *psDevConfig,
 @Return         PVRSRV_DEVICE_NODE*  Return a device node, or NULL if not found.
 */ /**************************************************************************/
 PVRSRV_DEVICE_NODE* PVRSRVGetDeviceInstance(IMG_UINT32 ui32Instance);
+
+/*************************************************************************/ /*!
+@Function       PVRSRVGetDeviceInstanceByOSId
+@Description    Return the specified device instance by OS Id.
+@Input          i32OSInstance        OS device Id to find
+@Return         PVRSRV_DEVICE_NODE*  Return a device node, or NULL if not found.
+*/ /**************************************************************************/
+PVRSRV_DEVICE_NODE *PVRSRVGetDeviceInstanceByOSId(IMG_INT32 i32OSInstance);
+
+/*************************************************************************/ /*!
+@Function       PVRSRVDefaultDomainPower
+@Description    Returns psDevNode->eCurrentSysPowerState
+@Input          PVRSRV_DEVICE_NODE*     Device node
+@Return         PVRSRV_SYS_POWER_STATE  System power state tracked internally
+*/ /**************************************************************************/
+PVRSRV_SYS_POWER_STATE PVRSRVDefaultDomainPower(PVRSRV_DEVICE_NODE *psDevNode);
+
 #endif /* PVRSRV_H */

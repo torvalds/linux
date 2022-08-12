@@ -58,7 +58,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 typedef IMG_UINT64 PVRSRV_MEMALLOCFLAGS_T;
 #define PVRSRV_MEMALLOCFLAGS_FMTSPEC IMG_UINT64_FMTSPECx
 
-#if defined(__KERNEL__) || defined(SERVICES_SC)
+#if defined(__KERNEL__)
 #include "pvrsrv_memallocflags_internal.h"
 #endif /* __KERNEL__ */
 
@@ -131,7 +131,7 @@ typedef IMG_UINT64 PVRSRV_MEMALLOCFLAGS_T;
   @Input  uiFlags Allocation flags.
   @Return         True if the flag is set, false otherwise
  */
-#define PVRSRV_CHECK_GPU_READABLE(uiFlags)		(((uiFlags) & PVRSRV_MEMALLOCFLAG_GPU_READABLE) != 0)
+#define PVRSRV_CHECK_GPU_READABLE(uiFlags)		(((uiFlags) & PVRSRV_MEMALLOCFLAG_GPU_READABLE) != 0U)
 
 /*!
  * This flag affects the device MMU protection flags, and specifies
@@ -161,7 +161,7 @@ typedef IMG_UINT64 PVRSRV_MEMALLOCFLAGS_T;
   @Input  uiFlags Allocation flags.
   @Return         True if the flag is set, false otherwise
  */
-#define PVRSRV_CHECK_GPU_WRITEABLE(uiFlags)				(((uiFlags) & PVRSRV_MEMALLOCFLAG_GPU_WRITEABLE) != 0)
+#define PVRSRV_CHECK_GPU_WRITEABLE(uiFlags)				(((uiFlags) & PVRSRV_MEMALLOCFLAG_GPU_WRITEABLE) != 0U)
 
 /*!
   The flag indicates whether an allocation can be mapped as GPU readable in another GPU memory context.
@@ -173,7 +173,7 @@ typedef IMG_UINT64 PVRSRV_MEMALLOCFLAGS_T;
   @Input  uiFlags Allocation flags.
   @Return         True if the flag is set, false otherwise
  */
-#define PVRSRV_CHECK_GPU_READ_PERMITTED(uiFlags)		(((uiFlags) & PVRSRV_MEMALLOCFLAG_GPU_READ_PERMITTED) != 0)
+#define PVRSRV_CHECK_GPU_READ_PERMITTED(uiFlags)		(((uiFlags) & PVRSRV_MEMALLOCFLAG_GPU_READ_PERMITTED) != 0U)
 
 /*!
   The flag indicates whether an allocation can be mapped as GPU writable in another GPU memory context.
@@ -185,7 +185,7 @@ typedef IMG_UINT64 PVRSRV_MEMALLOCFLAGS_T;
   @Input  uiFlags Allocation flags.
   @Return         True if the flag is set, false otherwise
  */
-#define PVRSRV_CHECK_GPU_WRITE_PERMITTED(uiFlags)		(((uiFlags) & PVRSRV_MEMALLOCFLAG_GPU_WRITE_PERMITTED) != 0)
+#define PVRSRV_CHECK_GPU_WRITE_PERMITTED(uiFlags)		(((uiFlags) & PVRSRV_MEMALLOCFLAG_GPU_WRITE_PERMITTED) != 0U)
 
 /*!
   The flag indicates that an allocation is mapped as readable to the CPU.
@@ -197,7 +197,7 @@ typedef IMG_UINT64 PVRSRV_MEMALLOCFLAGS_T;
   @Input  uiFlags Allocation flags.
   @Return         True if the flag is set, false otherwise
  */
-#define PVRSRV_CHECK_CPU_READABLE(uiFlags)				(((uiFlags) & PVRSRV_MEMALLOCFLAG_CPU_READABLE) != 0)
+#define PVRSRV_CHECK_CPU_READABLE(uiFlags)				(((uiFlags) & PVRSRV_MEMALLOCFLAG_CPU_READABLE) != 0U)
 
 /*!
   The flag indicates that an allocation is mapped as writable to the CPU.
@@ -209,7 +209,7 @@ typedef IMG_UINT64 PVRSRV_MEMALLOCFLAGS_T;
   @Input  uiFlags Allocation flags.
   @Return         True if the flag is set, false otherwise
  */
-#define PVRSRV_CHECK_CPU_WRITEABLE(uiFlags)				(((uiFlags) & PVRSRV_MEMALLOCFLAG_CPU_WRITEABLE) != 0)
+#define PVRSRV_CHECK_CPU_WRITEABLE(uiFlags)				(((uiFlags) & PVRSRV_MEMALLOCFLAG_CPU_WRITEABLE) != 0U)
 
 /*!
   The flag indicates whether an allocation can be mapped as CPU readable in another CPU memory context.
@@ -221,7 +221,7 @@ typedef IMG_UINT64 PVRSRV_MEMALLOCFLAGS_T;
   @Input  uiFlags Allocation flags.
   @Return         True if the flag is set, false otherwise
  */
-#define PVRSRV_CHECK_CPU_READ_PERMITTED(uiFlags)		(((uiFlags) & PVRSRV_MEMALLOCFLAG_CPU_READ_PERMITTED) != 0)
+#define PVRSRV_CHECK_CPU_READ_PERMITTED(uiFlags)		(((uiFlags) & PVRSRV_MEMALLOCFLAG_CPU_READ_PERMITTED) != 0U)
 
 /*!
   The flag indicates whether an allocation can be mapped as CPU writable in another CPU memory context.
@@ -233,7 +233,7 @@ typedef IMG_UINT64 PVRSRV_MEMALLOCFLAGS_T;
   @Input  uiFlags Allocation flags.
   @Return         True if the flag is set, false otherwise
  */
-#define PVRSRV_CHECK_CPU_WRITE_PERMITTED(uiFlags)		(((uiFlags) & PVRSRV_MEMALLOCFLAG_CPU_WRITE_PERMITTED) != 0)
+#define PVRSRV_CHECK_CPU_WRITE_PERMITTED(uiFlags)		(((uiFlags) & PVRSRV_MEMALLOCFLAG_CPU_WRITE_PERMITTED) != 0U)
 
 
 /*
@@ -503,7 +503,7 @@ typedef IMG_UINT64 PVRSRV_MEMALLOCFLAGS_T;
   @Input  uiFlags Allocation flags.
   @Return         True if the flag is set, false otherwise
  */
-#define PVRSRV_CHECK_KERNEL_CPU_MAPPABLE(uiFlags)		(((uiFlags) & PVRSRV_MEMALLOCFLAG_KERNEL_CPU_MAPPABLE) != 0)
+#define PVRSRV_CHECK_KERNEL_CPU_MAPPABLE(uiFlags)		(((uiFlags) & PVRSRV_MEMALLOCFLAG_KERNEL_CPU_MAPPABLE) != 0U)
 
 
 
@@ -519,7 +519,7 @@ typedef IMG_UINT64 PVRSRV_MEMALLOCFLAGS_T;
  *
  */
 #define PVRSRV_MEMALLOCFLAG_NO_OSPAGES_ON_ALLOC			(1ULL<<15)
-#define PVRSRV_CHECK_ON_DEMAND(uiFlags)					(((uiFlags) & PVRSRV_MEMALLOCFLAG_NO_OSPAGES_ON_ALLOC) != 0)
+#define PVRSRV_CHECK_ON_DEMAND(uiFlags)					(((uiFlags) & PVRSRV_MEMALLOCFLAG_NO_OSPAGES_ON_ALLOC) != 0U)
 
 /*!
     Indicates that the allocation will be accessed by the CPU and GPU using
@@ -533,12 +533,12 @@ typedef IMG_UINT64 PVRSRV_MEMALLOCFLAGS_T;
   @Input  uiFlags Allocation flags.
   @Return         True if the flag is set, false otherwise
  */
-#define PVRSRV_CHECK_SVM_ALLOC(uiFlags)					(((uiFlags) & PVRSRV_MEMALLOCFLAG_SVM_ALLOC) != 0)
+#define PVRSRV_CHECK_SVM_ALLOC(uiFlags)					(((uiFlags) & PVRSRV_MEMALLOCFLAG_SVM_ALLOC) != 0U)
 
 /*!
     Indicates the particular memory that's being allocated is sparse and the
     sparse regions should not be backed by dummy page
-*/
+ */
 #define PVRSRV_MEMALLOCFLAG_SPARSE_NO_DUMMY_BACKING		(1ULL << 18)
 
 /*!
@@ -546,12 +546,15 @@ typedef IMG_UINT64 PVRSRV_MEMALLOCFLAGS_T;
   @Input  uiFlags Allocation flags.
   @Return         True if the flag is set, false otherwise
  */
-#define PVRSRV_IS_SPARSE_DUMMY_BACKING_REQUIRED(uiFlags)		(((uiFlags) & PVRSRV_MEMALLOCFLAG_SPARSE_NO_DUMMY_BACKING) == 0)
+#define PVRSRV_IS_SPARSE_DUMMY_BACKING_REQUIRED(uiFlags)		(((uiFlags) & PVRSRV_MEMALLOCFLAG_SPARSE_NO_DUMMY_BACKING) == 0U)
 
 /*!
-    Services is going to clean the cache for the allocated memory.
-    For performance reasons avoid usage if allocation is written to by the
-    CPU anyway before the next GPU kick.
+  Used to force Services to carry out at least one CPU cache invalidate on a
+  CPU cached buffer during allocation of the memory. Applicable to incoherent
+  systems, it must be used for buffers which are CPU cached and which will not
+  be 100% written to by the CPU before the GPU accesses it. For performance
+  reasons, avoid usage if the whole buffer that is allocated is written to by
+  the CPU anyway before the next GPU kick, or if the system is coherent.
  */
 #define PVRSRV_MEMALLOCFLAG_CPU_CACHE_CLEAN				(1ULL<<19)
 
@@ -560,7 +563,7 @@ typedef IMG_UINT64 PVRSRV_MEMALLOCFLAGS_T;
   @Input  uiFlags Allocation flags.
   @Return         True if the flag is set, false otherwise
  */
-#define PVRSRV_CHECK_CPU_CACHE_CLEAN(uiFlags)			(((uiFlags) & PVRSRV_MEMALLOCFLAG_CPU_CACHE_CLEAN) != 0)
+#define PVRSRV_CHECK_CPU_CACHE_CLEAN(uiFlags)			(((uiFlags) & PVRSRV_MEMALLOCFLAG_CPU_CACHE_CLEAN) != 0U)
 
 /*! PVRSRV_MEMALLOCFLAG_SPARSE_ZERO_BACKING
 
@@ -570,7 +573,7 @@ typedef IMG_UINT64 PVRSRV_MEMALLOCFLAGS_T;
     by zero page at the time of mapping.
     The zero backed page is always with read only attribute irrespective of its
     original attributes.
-*/
+ */
 #define PVRSRV_MEMALLOCFLAG_SPARSE_ZERO_BACKING			(1ULL << 20)
 #define PVRSRV_IS_SPARSE_ZERO_BACKING_REQUIRED(uiFlags)		(((uiFlags) & \
 			PVRSRV_MEMALLOCFLAG_SPARSE_ZERO_BACKING) == PVRSRV_MEMALLOCFLAG_SPARSE_ZERO_BACKING)
@@ -630,7 +633,7 @@ typedef IMG_UINT64 PVRSRV_MEMALLOCFLAGS_T;
   @Input  uiFlags Allocation flags.
   @Return         True if the flag is set, false otherwise
  */
-#define PVRSRV_CHECK_ZERO_ON_ALLOC(uiFlags)				(((uiFlags) & PVRSRV_MEMALLOCFLAG_ZERO_ON_ALLOC) != 0)
+#define PVRSRV_CHECK_ZERO_ON_ALLOC(uiFlags)				(((uiFlags) & PVRSRV_MEMALLOCFLAG_ZERO_ON_ALLOC) != 0U)
 
 /*!
     Scribbles over the allocated memory with a poison value
@@ -648,10 +651,12 @@ typedef IMG_UINT64 PVRSRV_MEMALLOCFLAGS_T;
   @Input  uiFlags Allocation flags.
   @Return         True if the flag is set, false otherwise
  */
-#define PVRSRV_CHECK_POISON_ON_ALLOC(uiFlags)			(((uiFlags) & PVRSRV_MEMALLOCFLAG_POISON_ON_ALLOC) != 0)
+#define PVRSRV_CHECK_POISON_ON_ALLOC(uiFlags)			(((uiFlags) & PVRSRV_MEMALLOCFLAG_POISON_ON_ALLOC) != 0U)
 
+#if defined(DEBUG) || defined(SERVICES_SC)
 /*!
-    Causes memory to be trashed when freed, as a lazy man's security measure.
+    Causes memory to be trashed when freed, used when debugging only, not to be used
+    as a security measure.
  */
 #define PVRSRV_MEMALLOCFLAG_POISON_ON_FREE				(1ULL<<29)
 
@@ -660,7 +665,8 @@ typedef IMG_UINT64 PVRSRV_MEMALLOCFLAGS_T;
   @Input  uiFlags Allocation flags.
   @Return         True if the flag is set, false otherwise
  */
-#define PVRSRV_CHECK_POISON_ON_FREE(uiFlags)			(((uiFlags) & PVRSRV_MEMALLOCFLAG_POISON_ON_FREE) != 0)
+#define PVRSRV_CHECK_POISON_ON_FREE(uiFlags)			(((uiFlags) & PVRSRV_MEMALLOCFLAG_POISON_ON_FREE) != 0U)
+#endif /* DEBUG */
 
 /*!
     Avoid address alignment to a CPU or GPU cache line size.
@@ -672,7 +678,7 @@ typedef IMG_UINT64 PVRSRV_MEMALLOCFLAGS_T;
   @Input  uiFlags Allocation flags.
   @Return         True if the flag is set, false otherwise
  */
-#define PVRSRV_CHECK_NO_CACHE_LINE_ALIGN(uiFlags)		(((uiFlags) & PVRSRV_MEMALLOCFLAG_NO_CACHE_LINE_ALIGN) != 0)
+#define PVRSRV_CHECK_NO_CACHE_LINE_ALIGN(uiFlags)		(((uiFlags) & PVRSRV_MEMALLOCFLAG_NO_CACHE_LINE_ALIGN) != 0U)
 
 
 /*
@@ -707,7 +713,7 @@ typedef IMG_UINT64 PVRSRV_MEMALLOCFLAGS_T;
   @Return         Flag vector with the specified bit set.
  */
 #define PVRSRV_MEMALLOCFLAG_DEVICE_FLAG(n)	\
-			(((n) << PVRSRV_MEMALLOCFLAG_DEVICE_FLAGS_OFFSET) & \
+			(((PVRSRV_MEMALLOCFLAGS_T)(n) << PVRSRV_MEMALLOCFLAG_DEVICE_FLAGS_OFFSET) & \
 			PVRSRV_MEMALLOCFLAG_DEVICE_FLAGS_MASK)
 
 /*
@@ -727,7 +733,7 @@ typedef IMG_UINT64 PVRSRV_MEMALLOCFLAGS_T;
  */
 
 #define PVRSRV_MEMALLOCFLAG_VAL_SHARED_BUFFER           (1ULL<<35)
-#define PVRSRV_CHECK_SHARED_BUFFER(uiFlags)             (((uiFlags) & PVRSRV_MEMALLOCFLAG_VAL_SHARED_BUFFER) != 0)
+#define PVRSRV_CHECK_SHARED_BUFFER(uiFlags)             (((uiFlags) & PVRSRV_MEMALLOCFLAG_VAL_SHARED_BUFFER) != 0U)
 
 /*
  *
@@ -743,7 +749,7 @@ typedef IMG_UINT64 PVRSRV_MEMALLOCFLAGS_T;
 
 /*!
  * Value of enum PVRSRV_PHYS_HEAP stored in memalloc flags. If not set
- * defaults to GPU_LOCAL (value 0).
+ * i.e. PVRSRV_PHYS_HEAP_DEFAULT (value 0) used, the system layer defined default physical heap is used.
  */
 #define PVRSRV_PHYS_HEAP_HINT_SHIFT        (59)
 #define PVRSRV_PHYS_HEAP_HINT_MASK         (0x1FULL << PVRSRV_PHYS_HEAP_HINT_SHIFT)
@@ -767,12 +773,23 @@ typedef IMG_UINT64 PVRSRV_MEMALLOCFLAGS_T;
                                                            & PVRSRV_PHYS_HEAP_HINT_MASK)
 /*!
   @Description    Macro to replace an existing phys heap hint value in flags.
-  @Input uiFlags  Phys Heap
+  @Input PhysHeap Phys Heap Macro
   @Input uiFlags  Allocation flags
   @Return         N/A
  */
 #define PVRSRV_SET_PHYS_HEAP_HINT(PhysHeap, uiFlags)	  (uiFlags) = ((uiFlags) & ~PVRSRV_PHYS_HEAP_HINT_MASK) | \
                                                            PVRSRV_MEMALLOCFLAG_PHYS_HEAP_HINT(PhysHeap)
+
+/*!
+  @Description    Macro to replace an existing phys heap hint value using Phys Heap value.
+  @Input PhysHeap Phys Heap Value
+  @Input uiFlags  Allocation flags
+  @Return         N/A
+ */
+#define PVRSRV_CHANGE_PHYS_HEAP_HINT(Physheap, uiFlags)	  (uiFlags) = ((uiFlags) & ~PVRSRV_PHYS_HEAP_HINT_MASK) | \
+                                                           (((PVRSRV_MEMALLOCFLAGS_T)(Physheap) << \
+                                                            PVRSRV_PHYS_HEAP_HINT_SHIFT) \
+                                                           & PVRSRV_PHYS_HEAP_HINT_MASK)
 
 /*!
   @Description    Macros checking if a Phys Heap hint is set.
@@ -811,20 +828,27 @@ typedef IMG_UINT64 PVRSRV_MEMALLOCFLAGS_T;
  * Trusted device mask -- Flags in the mask are allowed for trusted device
  * because the driver cannot access the memory
  */
+#if defined(DEBUG) || defined(SERVICES_SC)
 #define PVRSRV_MEMALLOCFLAGS_TDFWMASK    ~(PVRSRV_MEMALLOCFLAG_KERNEL_CPU_MAPPABLE | \
                                            PVRSRV_MEMALLOCFLAG_ZERO_ON_ALLOC | \
                                            PVRSRV_MEMALLOCFLAG_POISON_ON_ALLOC | \
-                                           PVRSRV_MEMALLOCFLAG_POISON_ON_FREE |	\
+                                           PVRSRV_MEMALLOCFLAG_POISON_ON_FREE | \
                                            PVRSRV_MEMALLOCFLAGS_CPU_MMUFLAGSMASK | \
                                            PVRSRV_MEMALLOCFLAG_SPARSE_NO_DUMMY_BACKING)
-
+#else
+#define PVRSRV_MEMALLOCFLAGS_TDFWMASK    ~(PVRSRV_MEMALLOCFLAG_KERNEL_CPU_MAPPABLE | \
+                                           PVRSRV_MEMALLOCFLAG_ZERO_ON_ALLOC | \
+                                           PVRSRV_MEMALLOCFLAG_POISON_ON_ALLOC | \
+                                           PVRSRV_MEMALLOCFLAGS_CPU_MMUFLAGSMASK | \
+                                           PVRSRV_MEMALLOCFLAG_SPARSE_NO_DUMMY_BACKING)
+#endif
 
 /*!
   PMR flags mask -- for internal services use only.  This is the set of flags
   that will be passed down and stored with the PMR, this also includes the
   MMU flags which the PMR has to pass down to mm_common.c at PMRMap time.
 */
-
+#if defined(DEBUG) || defined(SERVICES_SC)
 #define PVRSRV_MEMALLOCFLAGS_PMRFLAGSMASK  (PVRSRV_MEMALLOCFLAG_DEVICE_FLAGS_MASK | \
                                             PVRSRV_MEMALLOCFLAG_CPU_CACHE_CLEAN | \
                                             PVRSRV_MEMALLOCFLAG_KERNEL_CPU_MAPPABLE | \
@@ -837,8 +861,23 @@ typedef IMG_UINT64 PVRSRV_MEMALLOCFLAGS_T;
                                             PVRSRV_MEMALLOCFLAG_NO_OSPAGES_ON_ALLOC | \
                                             PVRSRV_MEMALLOCFLAG_SPARSE_NO_DUMMY_BACKING | \
                                             PVRSRV_MEMALLOCFLAG_SPARSE_ZERO_BACKING | \
-											PVRSRV_MEMALLOCFLAG_VAL_SHARED_BUFFER | \
+                                            PVRSRV_MEMALLOCFLAG_VAL_SHARED_BUFFER | \
                                             PVRSRV_PHYS_HEAP_HINT_MASK)
+#else
+#define PVRSRV_MEMALLOCFLAGS_PMRFLAGSMASK  (PVRSRV_MEMALLOCFLAG_DEVICE_FLAGS_MASK | \
+                                            PVRSRV_MEMALLOCFLAG_CPU_CACHE_CLEAN | \
+                                            PVRSRV_MEMALLOCFLAG_KERNEL_CPU_MAPPABLE | \
+                                            PVRSRV_MEMALLOCFLAG_ZERO_ON_ALLOC | \
+                                            PVRSRV_MEMALLOCFLAG_SVM_ALLOC | \
+                                            PVRSRV_MEMALLOCFLAG_POISON_ON_ALLOC | \
+                                            PVRSRV_MEMALLOCFLAGS_GPU_MMUFLAGSMASK | \
+                                            PVRSRV_MEMALLOCFLAGS_CPU_MMUFLAGSMASK | \
+                                            PVRSRV_MEMALLOCFLAG_NO_OSPAGES_ON_ALLOC | \
+                                            PVRSRV_MEMALLOCFLAG_SPARSE_NO_DUMMY_BACKING | \
+                                            PVRSRV_MEMALLOCFLAG_SPARSE_ZERO_BACKING | \
+                                            PVRSRV_MEMALLOCFLAG_VAL_SHARED_BUFFER | \
+                                            PVRSRV_PHYS_HEAP_HINT_MASK)
+#endif
 
 /*!
  * CPU mappable mask -- Any flag set in the mask requires memory to be CPU mappable
@@ -863,11 +902,18 @@ typedef IMG_UINT64 PVRSRV_MEMALLOCFLAGS_T;
   memory might be reused.
 
 */
+#if defined(DEBUG) || defined(SERVICES_SC)
+#define PVRSRV_MEMALLOCFLAGS_RA_DIFFERENTIATION_MASK (PVRSRV_MEMALLOCFLAGS_PMRFLAGSMASK \
+                                                      & \
+                                                      ~(PVRSRV_MEMALLOCFLAG_ZERO_ON_ALLOC   | \
+                                                        PVRSRV_MEMALLOCFLAG_POISON_ON_ALLOC | \
+                                                        PVRSRV_MEMALLOCFLAG_POISON_ON_FREE))
+#else
 #define PVRSRV_MEMALLOCFLAGS_RA_DIFFERENTIATION_MASK (PVRSRV_MEMALLOCFLAGS_PMRFLAGSMASK \
                                                       & \
                                                       ~(PVRSRV_MEMALLOCFLAG_ZERO_ON_ALLOC   | \
                                                         PVRSRV_MEMALLOCFLAG_POISON_ON_ALLOC))
-
+#endif
 /*!
   Flags that affect _allocation_
 */
@@ -884,7 +930,7 @@ typedef IMG_UINT64 PVRSRV_MEMALLOCFLAGS_T;
                                                     PVRSRV_MEMALLOCFLAG_SPARSE_ZERO_BACKING | \
                                                     PVRSRV_MEMALLOCFLAG_SPARSE_NO_DUMMY_BACKING)
 
-#if ((~(PVRSRV_MEMALLOCFLAGS_RA_DIFFERENTIATION_MASK) & PVRSRV_MEMALLOCFLAGS_PERMAPPINGFLAGSMASK) != 0)
+#if ((~(PVRSRV_MEMALLOCFLAGS_RA_DIFFERENTIATION_MASK) & PVRSRV_MEMALLOCFLAGS_PERMAPPINGFLAGSMASK) != 0U)
 #error PVRSRV_MEMALLOCFLAGS_PERMAPPINGFLAGSMASK is not a subset of PVRSRV_MEMALLOCFLAGS_RA_DIFFERENTIATION_MASK
 #endif
 
@@ -892,6 +938,7 @@ typedef IMG_UINT64 PVRSRV_MEMALLOCFLAGS_T;
 /*!
   Flags that affect _physical allocations_ in the DevMemX API
  */
+#if defined(DEBUG) || defined(SERVICES_SC)
 #define PVRSRV_MEMALLOCFLAGS_DEVMEMX_PHYSICAL_MASK (PVRSRV_MEMALLOCFLAGS_CPU_MMUFLAGSMASK | \
                                                     PVRSRV_MEMALLOCFLAG_GPU_CACHE_MODE_MASK | \
                                                     PVRSRV_MEMALLOCFLAG_CPU_READ_PERMITTED | \
@@ -901,6 +948,16 @@ typedef IMG_UINT64 PVRSRV_MEMALLOCFLAGS_T;
                                                     PVRSRV_MEMALLOCFLAG_POISON_ON_ALLOC | \
                                                     PVRSRV_MEMALLOCFLAG_POISON_ON_FREE | \
                                                     PVRSRV_PHYS_HEAP_HINT_MASK)
+#else
+#define PVRSRV_MEMALLOCFLAGS_DEVMEMX_PHYSICAL_MASK (PVRSRV_MEMALLOCFLAGS_CPU_MMUFLAGSMASK | \
+                                                    PVRSRV_MEMALLOCFLAG_GPU_CACHE_MODE_MASK | \
+                                                    PVRSRV_MEMALLOCFLAG_CPU_READ_PERMITTED | \
+                                                    PVRSRV_MEMALLOCFLAG_CPU_WRITE_PERMITTED | \
+                                                    PVRSRV_MEMALLOCFLAG_CPU_CACHE_CLEAN | \
+                                                    PVRSRV_MEMALLOCFLAG_ZERO_ON_ALLOC | \
+                                                    PVRSRV_MEMALLOCFLAG_POISON_ON_ALLOC | \
+                                                    PVRSRV_PHYS_HEAP_HINT_MASK)
+#endif
 
 /*!
   Flags that affect _virtual allocations_ in the DevMemX API

@@ -58,7 +58,7 @@ typedef struct
 	IMG_BOOL                bEnabled;
 	IMG_UINT32              eBlockID;
 	IMG_UINT32              uiCounterMask;
-	IMG_UINT64  RGXFW_ALIGN aui64CounterCfg[RGX_CNTBLK_COUNTERS_MAX];
+	IMG_UINT64  RGXFW_ALIGN aui64CounterCfg[RGX_CNTBLK_MUX_COUNTERS_MAX];
 }  RGXFWIF_HWPERF_CTL_BLK;
 
 /* Structure used to hold the configuration of the non-mux counters blocks */
@@ -67,6 +67,20 @@ typedef struct
 	IMG_UINT32            ui32NumSelectedCounters;
 	IMG_UINT32            aui32SelectedCountersIDs[RGX_HWPERF_MAX_CUSTOM_CNTRS];
 } RGXFW_HWPERF_SELECT;
+
+/* Structure used to hold a Direct-Addressable block's parameters for passing
+ * between the BG context and the IRQ context when applying a configuration
+ * request. RGX_FEATURE_HWPERF_OCEANIC use only.
+ */
+typedef struct
+{
+	IMG_UINT32               uiEnabled;
+	IMG_UINT32               uiNumCounters;
+	IMG_UINT32               eBlockID;
+	RGXFWIF_DEV_VIRTADDR     psModel;
+	IMG_UINT32               aui32Counters[RGX_CNTBLK_COUNTERS_MAX];
+} RGXFWIF_HWPERF_DA_BLK;
+
 
 /* Structure to hold the whole configuration request details for all blocks
  * The block masks and counts are used to optimise reading of this data. */
@@ -77,8 +91,8 @@ typedef struct
 	IMG_UINT32                         ui32SelectedCountersBlockMask;
 	RGXFW_HWPERF_SELECT RGXFW_ALIGN    SelCntr[RGX_HWPERF_MAX_CUSTOM_BLKS];
 
-	IMG_UINT32                         ui32EnabledBlksCount;
-	RGXFWIF_HWPERF_CTL_BLK RGXFW_ALIGN sBlkCfg[RGX_HWPERF_MAX_DEFINED_BLKS];
+	IMG_UINT32                         ui32EnabledMUXBlksCount;
+	RGXFWIF_HWPERF_CTL_BLK RGXFW_ALIGN sBlkCfg[RGX_HWPERF_MAX_MUX_BLKS];
 } UNCACHED_ALIGN RGXFWIF_HWPERF_CTL;
 
 /* NOTE: The switch statement in this function must be kept in alignment with
@@ -90,7 +104,7 @@ typedef struct
 #ifdef INLINE_IS_PRAGMA
 #pragma inline(rgxfw_hwperf_get_block_ctl)
 #endif
-static INLINE RGXFWIF_HWPERF_CTL_BLK* rgxfw_hwperf_get_block_ctl(
+static INLINE RGXFWIF_HWPERF_CTL_BLK *rgxfw_hwperf_get_block_ctl(
 		RGX_HWPERF_CNTBLK_ID eBlockID, RGXFWIF_HWPERF_CTL *psHWPerfInitData)
 {
 	IMG_UINT32 ui32Idx;
@@ -221,4 +235,18 @@ static INLINE RGXFWIF_HWPERF_CTL_BLK* rgxfw_hwperf_get_block_ctl(
 	return &psHWPerfInitData->sBlkCfg[ui32Idx];
 }
 
+/* Stub routine for rgxfw_hwperf_get_da_block_ctl() for non
+ * RGX_FEATURE_HWPERF_OCEANIC systems. Just return a NULL.
+ */
+#ifdef INLINE_IS_PRAGMA
+#pragma inline(rgxfw_hwperf_get_da_block_ctl)
+#endif
+static INLINE RGXFWIF_HWPERF_DA_BLK* rgxfw_hwperf_get_da_block_ctl(
+		RGX_HWPERF_CNTBLK_ID eBlockID, RGXFWIF_HWPERF_CTL *psHWPerfInitData)
+{
+	PVR_UNREFERENCED_PARAMETER(eBlockID);
+	PVR_UNREFERENCED_PARAMETER(psHWPerfInitData);
+
+	return NULL;
+}
 #endif

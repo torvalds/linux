@@ -49,9 +49,9 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #ifndef CHECKPOINT_TYPES
 #define CHECKPOINT_TYPES
-typedef struct _SYNC_CHECKPOINT_CONTEXT *PSYNC_CHECKPOINT_CONTEXT;
+typedef struct SYNC_CHECKPOINT_CONTEXT_TAG *PSYNC_CHECKPOINT_CONTEXT;
 
-typedef struct _SYNC_CHECKPOINT *PSYNC_CHECKPOINT;
+typedef struct SYNC_CHECKPOINT_TAG *PSYNC_CHECKPOINT;
 #endif
 
 /* PVRSRV_SYNC_CHECKPOINT states.
@@ -68,7 +68,7 @@ typedef IMG_UINT32 PVRSRV_SYNC_CHECKPOINT_STATE;
 #define PVRSRV_SYNC_CHECKPOINT_ERRORED       0xeffU   /*!< checkpoint has been errored */
 
 
-#define PVRSRV_UFO_IS_SYNC_CHECKPOINT_FWADDR(fwaddr)	((fwaddr) & 0x1U)
+#define PVRSRV_UFO_IS_SYNC_CHECKPOINT_FWADDR(fwaddr)	(((fwaddr) & 0x1U) != 0U)
 #define PVRSRV_UFO_IS_SYNC_CHECKPOINT(ufoptr)			(PVRSRV_UFO_IS_SYNC_CHECKPOINT_FWADDR((ufoptr)->puiAddrUFO.ui32Addr))
 
 /* Maximum number of sync checkpoints the firmware supports in one fence */

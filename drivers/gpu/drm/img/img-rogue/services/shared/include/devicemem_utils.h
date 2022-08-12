@@ -54,6 +54,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "osfunc.h"
 #include "lock.h"
 #include "osmmap.h"
+#include "pvrsrv_memallocflags_internal.h"
 
 #define DEVMEM_HEAPNAME_MAXLENGTH 160
 
@@ -288,6 +289,10 @@ struct DEVMEM_MEMDESC_TAG
 
 	IMG_UINT32 ui32AllocationIndex;
 
+#if defined(DEBUG)
+	IMG_BOOL bPoisonOnFree;
+#endif
+
 #if defined(PVRSRV_ENABLE_GPU_MEMORY_INFO)
 	IMG_HANDLE hRIHandle;                   /*!< Handle to RI information */
 #endif
@@ -444,7 +449,7 @@ IMG_BOOL DevmemImportStructRelease(DEVMEM_IMPORT *psImport);
 
 /******************************************************************************
 @Function       DevmemImportDiscard
-@Description    Discard a created, but unitilised import structure.
+@Description    Discard a created, but uninitialised import structure.
                 This must only be called before DevmemImportStructInit
                 after which DevmemImportStructRelease must be used to
                 "free" the import structure.
@@ -458,6 +463,16 @@ void DevmemImportDiscard(DEVMEM_IMPORT *psImport);
 @return         PVRSRV_ERROR
 ******************************************************************************/
 PVRSRV_ERROR DevmemMemDescAlloc(DEVMEM_MEMDESC **ppsMemDesc);
+
+#if defined(DEBUG)
+/******************************************************************************
+@Function       DevmemMemDescSetPoF
+@Description    Sets the Poison on Free flag to true for this MemDesc if the
+                given MemAllocFlags have the Poison on Free bit set.
+                Poison on Free is a debug only feature.
+******************************************************************************/
+void DevmemMemDescSetPoF(DEVMEM_MEMDESC *psMemDesc, PVRSRV_MEMALLOCFLAGS_T uiFlags);
+#endif
 
 /******************************************************************************
 @Function       DevmemMemDescInit
@@ -517,6 +532,74 @@ static INLINE DEVMEM_PROPERTIES_T GetImportProperties(DEVMEM_IMPORT *psImport)
 	uiProperties = psImport->uiProperties;
 	OSLockRelease(psImport->hLock);
 	return uiProperties;
+}
+
+/******************************************************************************
+@Function       DevmemCPUMemSet
+@Description    Given a CPU Mapped Devmem address, set the memory at that
+                range (address, address + size) to the uiPattern provided.
+                Flags determine the OS abstracted MemSet method to use.
+******************************************************************************/
+static INLINE void DevmemCPUMemSet(void *pvMem,
+                                   IMG_UINT8 uiPattern,
+                                   IMG_DEVMEM_SIZE_T uiSize,
+                                   PVRSRV_MEMALLOCFLAGS_T uiFlags)
+{
+	if (PVRSRV_CHECK_CPU_UNCACHED(uiFlags))
+	{
+		OSDeviceMemSet(pvMem, uiPattern, uiSize);
+	}
+	else
+	{
+		/* it's safe to use OSCachedMemSet() for cached and wc memory */
+		OSCachedMemSet(pvMem, uiPattern, uiSize);
+	}
+}
+
+/******************************************************************************
+@Function       DevmemCPUMapCheckImportProperties
+@Description    Given a MemDesc check that the import properties are correct
+                to allow for mapping the MemDesc to the CPU.
+                Returns PVRSRV_OK on success.
+******************************************************************************/
+static INLINE PVRSRV_ERROR DevmemCPUMapCheckImportProperties(DEVMEM_MEMDESC *psMemDesc)
+{
+	DEVMEM_PROPERTIES_T uiProperties = GetImportProperties(psMemDesc->psImport);
+
+	if (uiProperties &
+			(DEVMEM_PROPERTIES_UNPINNED | DEVMEM_PROPERTIES_SECURE))
+	{
+#if defined(SUPPORT_SECURITY_VALIDATION)
+		if (uiProperties & DEVMEM_PROPERTIES_SECURE)
+		{
+			PVR_DPF((PVR_DBG_WARNING,
+					"%s: Allocation is a secure buffer. "
+					"It should not be possible to map to CPU, but for security "
+					"validation this will be allowed for testing purposes, "
+					"as long as the buffer is pinned.",
+					__func__));
+		}
+
+		if (uiProperties & DEVMEM_PROPERTIES_UNPINNED)
+#endif
+		{
+			PVR_DPF((PVR_DBG_ERROR,
+					"%s: Allocation is currently unpinned or a secure buffer. "
+					"Not possible to map to CPU!",
+					__func__));
+			return PVRSRV_ERROR_INVALID_MAP_REQUEST;
+		}
+	}
+
+	if (uiProperties & DEVMEM_PROPERTIES_NO_CPU_MAPPING)
+	{
+		PVR_DPF((PVR_DBG_ERROR,
+				"%s: CPU Mapping is not possible on this allocation!",
+				__func__));
+		return PVRSRV_ERROR_INVALID_MAP_REQUEST;
+	}
+
+	return PVRSRV_OK;
 }
 
 #endif /* DEVICEMEM_UTILS_H */

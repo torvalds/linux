@@ -70,6 +70,12 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "pvrsrv_tlcommon.h"
 #include "client_pvrtl_bridge.h"
 
+#if defined(__KERNEL__)
+#include "srvcore.h"
+#else
+#include "srvcore_intern.h"
+#endif
+
 /* Defines/Constants
  */
 
@@ -94,9 +100,12 @@ typedef struct _TL_STREAM_DESC_
 	 * is outstanding. Undefined at all other times. */
 	IMG_UINT32	uiReadLen;
 
-	/* Flag indicating if the RESERVE_TOO_BIG error was already printed.
-	 * It's used to reduce number of errors in kernel log. */
-	IMG_BOOL bPrinted;
+	/* Counter indicating how many writes to a stream failed.
+	 * It's used to reduce number of errors in output log. */
+	IMG_UINT32 ui32WritesFailed;
+
+	/* Name of the stream. */
+	IMG_CHAR szName[PRVSRVTL_MAX_STREAM_NAME_SIZE];
 } TL_STREAM_DESC, *PTL_STREAM_DESC;
 
 
@@ -164,6 +173,9 @@ PVRSRV_ERROR TLClientOpenStream(SHARED_DEV_CONNECTION hDevConnection,
 	(void) DevmemUnmakeLocalImportHandle(hDevConnection,
 			hTLImportHandle);
 
+	/* Copy stream name */
+	OSStringLCopy(psSD->szName, pszName, PRVSRVTL_MAX_STREAM_NAME_SIZE);
+
 	/* Return client descriptor handle to caller */
 	*phSD = psSD;
 	return PVRSRV_OK;
@@ -220,9 +232,18 @@ PVRSRV_ERROR TLClientCloseStream(SHARED_DEV_CONNECTION hDevConnection,
 
 	/* Send close to server to clean up kernel mode resources for this
 	 * handle and release the memory. */
-	eError = BridgeTLCloseStream(GetBridgeHandle(hDevConnection),
-			psSD->hServerSD);
+	eError = DestroyServerResource(hDevConnection,
+	                               NULL,
+	                               BridgeTLCloseStream,
+	                               psSD->hServerSD);
 	PVR_LOG_IF_ERROR(eError, "BridgeTLCloseStream");
+
+	if (psSD->ui32WritesFailed != 0)
+	{
+		PVR_DPF((PVR_DBG_ERROR, "%s() %u writes failed to stream %s (%c)",
+		        __func__, psSD->ui32WritesFailed, psSD->szName,
+		        psSD->ui32WritesFailed == IMG_UINT32_MAX ? 'T' : 'F'));
+	}
 
 	OSCachedMemSet(psSD, 0x00, sizeof(TL_STREAM_DESC));
 	OSFreeMem(psSD);
@@ -454,11 +475,21 @@ PVRSRV_ERROR TLClientWriteData(SHARED_DEV_CONNECTION hDevConnection,
 
 	eError = BridgeTLWriteData(GetBridgeHandle(hDevConnection),
 			psSD->hServerSD, ui32Size, pui8Data);
-	PVR_LOG_IF_ERROR(eError, "BridgeTLWriteData");
 
-	if (eError == PVRSRV_ERROR_STREAM_FULL && !psSD->bPrinted)
+	if (eError == PVRSRV_ERROR_STREAM_FULL)
 	{
-		psSD->bPrinted = IMG_TRUE;
+		if (psSD->ui32WritesFailed == 0)
+		{
+			PVR_LOG_ERROR(eError, "BridgeTLWriteData");
+		}
+		if (psSD->ui32WritesFailed != IMG_UINT32_MAX)
+		{
+			psSD->ui32WritesFailed++;
+		}
+	}
+	else if (eError != PVRSRV_OK)
+	{
+		PVR_LOG_ERROR(eError, "BridgeTLWriteData");
 	}
 
 	return eError;

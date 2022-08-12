@@ -46,6 +46,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <powervr/mem_types.h>
 
 #include "pvrsrv_error.h"
+#include "allocmem.h"
 #include "cache_ops.h"
 
 /*
@@ -94,35 +95,6 @@ void PVRSRVStatsDeregisterProcess(IMG_HANDLE hProcessStats);
 /*
  * Functions for recording the statistics...
  */
-
-/*
- * PVRSRV_ENABLE_PROCESS_STATS enables process statistics regarding events,
- *     resources and memory across all processes
- * PVRSRV_ENABLE_MEMORY_STATS enables recording of Linux kernel memory
- *     allocations, provided that PVRSRV_ENABLE_PROCESS_STATS is enabled
- *   - Output can be found in:
- *     /sys/kernel/debug/pvr/proc_stats/[live|retired]_pids_stats/mem_area
- * PVRSRV_DEBUG_LINUX_MEMORY_STATS provides more details about memory
- *     statistics in conjunction with PVRSRV_ENABLE_MEMORY_STATS
- * PVRSRV_DEBUG_LINUX_MEMORY_STATS_ON is defined to encompass both memory
- *     allocation statistics functionalities described above in a single macro
- */
-#if defined(PVRSRV_ENABLE_PROCESS_STATS) && defined(PVRSRV_ENABLE_MEMORY_STATS) && defined(PVRSRV_DEBUG_LINUX_MEMORY_STATS) && defined(DEBUG)
-#define PVRSRV_DEBUG_LINUX_MEMORY_STATS_ON
-#endif
-
-/*
- * When using detailed memory allocation statistics, the line number and
- * file name where the allocation happened are also provided.
- * When this feature is not used, these parameters are not needed.
- */
-#if defined(PVRSRV_DEBUG_LINUX_MEMORY_STATS_ON)
-#define DEBUG_MEMSTATS_PARAMS ,void *pvAllocFromFile, IMG_UINT32 ui32AllocFromLine
-#define DEBUG_MEMSTATS_VALUES ,__FILE__, __LINE__
-#else
-#define DEBUG_MEMSTATS_PARAMS
-#define DEBUG_MEMSTATS_VALUES
-#endif
 
 void PVRSRVStatsAddMemAllocRecord(PVRSRV_MEM_ALLOC_TYPE eAllocType,
 								  void *pvCpuVAddr,
@@ -198,17 +170,14 @@ void PVRSRVStatsUpdateFreelistStats(IMG_UINT32 ui32NumGrowReqByApp,
 									IMG_PID    ownerPid);
 #if defined(PVRSRV_ENABLE_CACHEOP_STATS)
 void PVRSRVStatsUpdateCacheOpStats(PVRSRV_CACHE_OP uiCacheOp,
-								   IMG_UINT32 ui32OpSeqNum,
 #if defined(PVRSRV_ENABLE_GPU_MEMORY_INFO) && defined(DEBUG)
 								   IMG_DEV_VIRTADDR sDevVAddr,
 								   IMG_DEV_PHYADDR sDevPAddr,
-								   IMG_UINT32 eFenceOpType,
 #endif
 								   IMG_DEVMEM_SIZE_T uiOffset,
 								   IMG_DEVMEM_SIZE_T uiSize,
 								   IMG_UINT64 ui64ExecuteTimeMs,
 								   IMG_BOOL bUserModeFlush,
-								   IMG_BOOL bIsFence,
 								   IMG_PID ownerPid);
 #endif
 

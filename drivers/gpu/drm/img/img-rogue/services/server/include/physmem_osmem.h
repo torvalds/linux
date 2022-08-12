@@ -60,6 +60,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "pmr.h"
 #include "pmr_impl.h"
 #include "connection_server.h"
+#include "physheap.h"
 
 /*************************************************************************/ /*!
 @Function       PhysmemNewOSRamBackedPMR
@@ -113,7 +114,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */ /**************************************************************************/
 PVRSRV_ERROR
 PhysmemNewOSRamBackedPMR(PHYS_HEAP *psPhysHeap,
-						 CONNECTION_DATA *psConnection,
+                         CONNECTION_DATA *psConnection,
                          IMG_DEVMEM_SIZE_T uiSize,
                          IMG_DEVMEM_SIZE_T uiChunkSize,
                          IMG_UINT32 ui32NumPhysChunks,
@@ -125,5 +126,17 @@ PhysmemNewOSRamBackedPMR(PHYS_HEAP *psPhysHeap,
                          IMG_PID uiPid,
                          PMR **ppsPMROut,
                          IMG_UINT32 ui32PDumpFlags);
+
+/*************************************************************************/ /*!
+@Function       PhysmemGetOSRamMemStats
+@Description    Function that gets the OS memory usage statistics
+@Input          pvImplData     Physical heap private data.
+@Output         pui64TotalSize Buffer that holds the total OS memory size
+@Output         pui64FreeSize  Buffer that holds the free OS memory size
+@Return         None.
+*/ /**************************************************************************/
+void PhysmemGetOSRamMemStats(PHEAP_IMPL_DATA pvImplData,
+                            IMG_UINT64 *pui64TotalSize,
+                            IMG_UINT64 *pui64FreeSize);
 
 #endif /* PHYSMEM_OSMEM_H */

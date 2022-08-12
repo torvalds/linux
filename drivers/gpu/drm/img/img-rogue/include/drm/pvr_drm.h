@@ -44,7 +44,13 @@
 #if !defined(__PVR_DRM_H__)
 #define __PVR_DRM_H__
 
-#include "pvr_drm_core.h"
+#include <linux/types.h>
+
+#if defined(__KERNEL__)
+#include <drm/drm.h>
+#else
+#include <drm.h>
+#endif
 
 /*
  * IMPORTANT:
@@ -68,16 +74,73 @@ struct drm_pvr_srvkm_cmd {
 	__u32 out_data_size;
 };
 
+struct pvr_sync_rename_ioctl_data {
+	char szName[32];
+};
+
+struct pvr_sw_sync_create_fence_data {
+	char name[32];
+	__s32 fence;
+	__u32 pad;
+	__u64 sync_pt_idx;
+};
+
+struct pvr_sw_timeline_advance_data {
+	__u64 sync_pt_idx;
+};
+
+#define PVR_SRVKM_SERVICES_INIT  1
+#define PVR_SRVKM_SYNC_INIT 2
+struct drm_pvr_srvkm_init_data {
+	__u32 init_module;
+};
+
+/* Values used to configure the PVRSRV_DEVICE_INIT_MODE tunable (Linux-only) */
+#define PVRSRV_LINUX_DEV_INIT_ON_PROBE   1
+#define PVRSRV_LINUX_DEV_INIT_ON_OPEN    2
+#define PVRSRV_LINUX_DEV_INIT_ON_CONNECT 3
+
 /*
  * DRM command numbers, relative to DRM_COMMAND_BASE.
  * These defines must be prefixed with "DRM_".
  */
-#define DRM_PVR_SRVKM_CMD		0 /* Used for PVR Services ioctls */
 
+/* PVR Services command */
+#define DRM_PVR_SRVKM_CMD			0
+
+/* PVR Sync commands */
+#define DRM_PVR_SYNC_RENAME_CMD			1
+#define DRM_PVR_SYNC_FORCE_SW_ONLY_CMD		2
+
+/* PVR Software Sync commands */
+#define DRM_PVR_SW_SYNC_CREATE_FENCE_CMD	3
+#define DRM_PVR_SW_SYNC_INC_CMD			4
+
+/* PVR Services Render Device Init command */
+#define DRM_PVR_SRVKM_INIT		5
 
 /* These defines must be prefixed with "DRM_IOCTL_". */
 #define	DRM_IOCTL_PVR_SRVKM_CMD	\
 	DRM_IOWR(DRM_COMMAND_BASE + DRM_PVR_SRVKM_CMD, \
 		 struct drm_pvr_srvkm_cmd)
+
+#define DRM_IOCTL_PVR_SYNC_RENAME_CMD \
+	DRM_IOW(DRM_COMMAND_BASE + DRM_PVR_SYNC_RENAME_CMD, \
+		struct pvr_sync_rename_ioctl_data)
+
+#define DRM_IOCTL_PVR_SYNC_FORCE_SW_ONLY_CMD \
+	DRM_IO(DRM_COMMAND_BASE + DRM_PVR_SYNC_FORCE_SW_ONLY_CMD)
+
+#define	DRM_IOCTL_PVR_SW_SYNC_CREATE_FENCE_CMD \
+	DRM_IOWR(DRM_COMMAND_BASE + DRM_PVR_SW_SYNC_CREATE_FENCE_CMD, \
+		struct pvr_sw_sync_create_fence_data)
+
+#define DRM_IOCTL_PVR_SW_SYNC_INC_CMD \
+	DRM_IOR(DRM_COMMAND_BASE + DRM_PVR_SW_SYNC_INC_CMD, \
+		struct pvr_sw_timeline_advance_data)
+
+#define DRM_IOCTL_PVR_SRVKM_INIT \
+	DRM_IOW(DRM_COMMAND_BASE + DRM_PVR_SRVKM_INIT, \
+		struct drm_pvr_srvkm_init_data)
 
 #endif /* defined(__PVR_DRM_H__) */

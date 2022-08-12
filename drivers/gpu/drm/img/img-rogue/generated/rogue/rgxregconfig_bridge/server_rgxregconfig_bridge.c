@@ -174,7 +174,7 @@ PVRSRVBridgeRGXDisableRegConfig(IMG_UINT32 ui32DispatchTableEntry,
 
 #if !defined(EXCLUDE_RGXREGCONFIG_BRIDGE)
 PVRSRV_ERROR InitRGXREGCONFIGBridge(void);
-PVRSRV_ERROR DeinitRGXREGCONFIGBridge(void);
+void DeinitRGXREGCONFIGBridge(void);
 
 /*
  * Register all RGXREGCONFIG functions with services
@@ -208,7 +208,7 @@ PVRSRV_ERROR InitRGXREGCONFIGBridge(void)
 /*
  * Unregister all rgxregconfig functions with services
  */
-PVRSRV_ERROR DeinitRGXREGCONFIGBridge(void)
+void DeinitRGXREGCONFIGBridge(void)
 {
 
 	UnsetDispatchTableEntry(PVRSRV_BRIDGE_RGXREGCONFIG,
@@ -226,7 +226,6 @@ PVRSRV_ERROR DeinitRGXREGCONFIGBridge(void)
 	UnsetDispatchTableEntry(PVRSRV_BRIDGE_RGXREGCONFIG,
 				PVRSRV_BRIDGE_RGXREGCONFIG_RGXDISABLEREGCONFIG);
 
-	return PVRSRV_OK;
 }
 #else /* EXCLUDE_RGXREGCONFIG_BRIDGE */
 /* This bridge is conditional on EXCLUDE_RGXREGCONFIG_BRIDGE - when defined,
@@ -235,7 +234,6 @@ PVRSRV_ERROR DeinitRGXREGCONFIGBridge(void)
 #define InitRGXREGCONFIGBridge() \
 	PVRSRV_OK
 
-#define DeinitRGXREGCONFIGBridge() \
-	PVRSRV_OK
+#define DeinitRGXREGCONFIGBridge()
 
 #endif /* EXCLUDE_RGXREGCONFIG_BRIDGE */

@@ -48,6 +48,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "pvrsrv_error.h"
 #include "rgxmem.h"
 #include "devicemem_utils.h"
+#include "connection_server.h"
 
 PVRSRV_ERROR DevicememHistoryInitKM(void);
 
@@ -71,7 +72,9 @@ PVRSRV_ERROR DevicememHistoryUnmapKM(PMR *psPMR,
 							IMG_UINT32 ui32AllocationIndex,
 							IMG_UINT32 *pui32AllocationIndexOut);
 
-PVRSRV_ERROR DevicememHistoryMapVRangeKM(IMG_DEV_VIRTADDR sBaseDevVAddr,
+PVRSRV_ERROR DevicememHistoryMapVRangeKM(CONNECTION_DATA *psConnection,
+							PVRSRV_DEVICE_NODE *psDeviceNode,
+							IMG_DEV_VIRTADDR sBaseDevVAddr,
 							IMG_UINT32 ui32StartPage,
 							IMG_UINT32 ui32NumPages,
 							IMG_DEVMEM_SIZE_T uiAllocSize,
@@ -80,7 +83,9 @@ PVRSRV_ERROR DevicememHistoryMapVRangeKM(IMG_DEV_VIRTADDR sBaseDevVAddr,
 							IMG_UINT32 ui32AllocationIndex,
 							IMG_UINT32 *ui32AllocationIndexOut);
 
-PVRSRV_ERROR DevicememHistoryUnmapVRangeKM(IMG_DEV_VIRTADDR sBaseDevVAddr,
+PVRSRV_ERROR DevicememHistoryUnmapVRangeKM(CONNECTION_DATA *psConnection,
+							PVRSRV_DEVICE_NODE *psDeviceNode,
+							IMG_DEV_VIRTADDR sBaseDevVAddr,
 							IMG_UINT32 ui32StartPage,
 							IMG_UINT32 ui32NumPages,
 							IMG_DEVMEM_SIZE_T uiAllocSize,

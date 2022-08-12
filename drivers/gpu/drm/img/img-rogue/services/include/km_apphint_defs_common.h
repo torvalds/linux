@@ -54,7 +54,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 /* name,                            type,           class,       default,                                         helper,         */ \
 X(EnableTrustedDeviceAceConfig,     BOOL,           GPUVIRT_VAL, PVRSRV_APPHINT_ENABLETRUSTEDDEVICEACECONFIG,     NO_PARAM_TABLE   ) \
 X(CleanupThreadPriority,            UINT32,         NEVER,       PVRSRV_APPHINT_CLEANUPTHREADPRIORITY,            NO_PARAM_TABLE   ) \
-X(CacheOpThreadPriority,            UINT32,         NEVER,       PVRSRV_APPHINT_CACHEOPTHREADPRIORITY,            NO_PARAM_TABLE   ) \
 X(WatchdogThreadPriority,           UINT32,         NEVER,       PVRSRV_APPHINT_WATCHDOGTHREADPRIORITY,           NO_PARAM_TABLE   ) \
 X(HWPerfClientBufferSize,           UINT32,         ALWAYS,      PVRSRV_APPHINT_HWPERFCLIENTBUFFERSIZE,           NO_PARAM_TABLE   ) \
 
@@ -116,7 +115,8 @@ X(EnablePollOnChecksumErrorStatus,  UINT32,         VALIDATION,  0,             
 X(RiscvDmiTest,                     BOOL,           VALIDATION,  PVRSRV_APPHINT_RISCVDMITEST,                     NO_PARAM_TABLE   ) \
 X(DevMemFWHeapPolicy,               UINT32,         ALWAYS,      PVRSRV_APPHINT_FIRMWARE_HEAP_POLICY,             NO_PARAM_TABLE   ) \
 \
-X(EnableAPMAll,                     UINT32,         VALIDATION,  PVRSRV_APPHINT_ENABLEAPM,                        NO_PARAM_TABLE)
+X(EnableAPMAll,                     UINT32,         VALIDATION,  PVRSRV_APPHINT_ENABLEAPM,                        NO_PARAM_TABLE   ) \
+X(KernelCCBSizeLog2,                UINT32,         VALIDATION,  PVRSRV_APPHINT_KCCB_SIZE_LOG2,                   NO_PARAM_TABLE   )
 
 /*
 *******************************************************************************
@@ -127,8 +127,6 @@ X(EnableAPMAll,                     UINT32,         VALIDATION,  PVRSRV_APPHINT_
 X(EnableHTBLogGroup,                UINT32Bitfield, ALWAYS,      PVRSRV_APPHINT_ENABLEHTBLOGGROUP,                htb_loggroup_tbl ) \
 X(HTBOperationMode,                 UINT32List,     ALWAYS,      PVRSRV_APPHINT_HTBOPERATIONMODE,                 htb_opmode_tbl   ) \
 X(EnableFTraceGPU,                  BOOL,           ALWAYS,      PVRSRV_APPHINT_ENABLEFTRACEGPU,                  NO_PARAM_TABLE   ) \
-X(HWPerfFWFilter,                   UINT64,         ALWAYS,      PVRSRV_APPHINT_HWPERFFWFILTER,                   NO_PARAM_TABLE   ) \
-X(HWPerfHostFilter,                 UINT32,         ALWAYS,      PVRSRV_APPHINT_HWPERFHOSTFILTER,                 NO_PARAM_TABLE   ) \
 X(HWPerfClientFilter_Services,      UINT32,         ALWAYS,      PVRSRV_APPHINT_HWPERFCLIENTFILTER_SERVICES,      NO_PARAM_TABLE   ) \
 X(HWPerfClientFilter_EGL,           UINT32,         ALWAYS,      PVRSRV_APPHINT_HWPERFCLIENTFILTER_EGL,           NO_PARAM_TABLE   ) \
 X(HWPerfClientFilter_OpenGLES,      UINT32,         ALWAYS,      PVRSRV_APPHINT_HWPERFCLIENTFILTER_OPENGLES,      NO_PARAM_TABLE   ) \
@@ -137,7 +135,6 @@ X(HWPerfClientFilter_Vulkan,        UINT32,         ALWAYS,      PVRSRV_APPHINT_
 X(HWPerfClientFilter_OpenGL,        UINT32,         ALWAYS,      PVRSRV_APPHINT_HWPERFCLIENTFILTER_OPENGL,        NO_PARAM_TABLE   ) \
 X(CacheOpConfig,                    UINT32,         ALWAYS,      PVRSRV_APPHINT_CACHEOPCONFIG,                    NO_PARAM_TABLE   ) \
 X(CacheOpUMKMThresholdSize,         UINT32,         ALWAYS,      PVRSRV_APPHINT_CACHEOPUMKMHRESHOLDSIZE,          NO_PARAM_TABLE   ) \
-X(TimeCorrClock,                    UINT32List,     ALWAYS,      PVRSRV_APPHINT_TIMECORRCLOCK,                    timecorr_clk_tbl )
 
 /*
 *******************************************************************************
@@ -152,14 +149,16 @@ X(CheckMList,                       BOOL,           ALWAYS,      PVRSRV_APPHINT_
 X(EnableLogGroup,                   UINT32Bitfield, ALWAYS,      PVRSRV_APPHINT_ENABLELOGGROUP,                   fwt_loggroup_tbl ) \
 X(FirmwareLogType,                  UINT32List,     ALWAYS,      PVRSRV_APPHINT_FIRMWARELOGTYPE,                  fwt_logtype_tbl  ) \
 X(HWRDebugDumpLimit,                UINT32,         ALWAYS,      PVRSRV_APPHINT_HWRDEBUGDUMPLIMIT,                NO_PARAM_TABLE   ) \
-X(KernelCCBSizeLog2,                UINT32,         VALIDATION,  PVRSRV_APPHINT_KCCB_SIZE_LOG2,                   NO_PARAM_TABLE   ) \
+X(TimeCorrClock,                    UINT32List,     ALWAYS,      PVRSRV_APPHINT_TIMECORRCLOCK,                    timecorr_clk_tbl ) \
+X(HWPerfFWFilter,                   UINT64,         ALWAYS,      PVRSRV_APPHINT_HWPERFFWFILTER,                   NO_PARAM_TABLE   ) \
 /* Device host config */ \
 X(EnableAPM,                        UINT32,         ALWAYS,      PVRSRV_APPHINT_ENABLEAPM,                        NO_PARAM_TABLE   ) \
 X(DisableFEDLogging,                BOOL,           ALWAYS,      PVRSRV_APPHINT_DISABLEFEDLOGGING,                NO_PARAM_TABLE   ) \
 X(ZeroFreelist,                     BOOL,           ALWAYS,      PVRSRV_APPHINT_ZEROFREELIST,                     NO_PARAM_TABLE   ) \
 X(DisablePDumpPanic,                BOOL,           PDUMP,       PVRSRV_APPHINT_DISABLEPDUMPPANIC,                NO_PARAM_TABLE   ) \
-X(EnableFWPoisonOnFree,             BOOL,           ALWAYS,      PVRSRV_APPHINT_ENABLEFWPOISONONFREE,             NO_PARAM_TABLE   ) \
+X(EnableFWPoisonOnFree,             BOOL,           DEBUG,       PVRSRV_APPHINT_ENABLEFWPOISONONFREE,             NO_PARAM_TABLE   ) \
 X(GPUUnitsPowerChange,              BOOL,           VALIDATION,  PVRSRV_APPHINT_GPUUNITSPOWERCHANGE,              NO_PARAM_TABLE   ) \
+X(HWPerfHostFilter,                 UINT32,         ALWAYS,      PVRSRV_APPHINT_HWPERFHOSTFILTER,                 NO_PARAM_TABLE   )
 
 /*
 *******************************************************************************

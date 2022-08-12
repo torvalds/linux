@@ -6,4 +6,3 @@ config DRM_IMG
 
 source "drivers/gpu/drm/img/img-rogue/Kconfig"
 
-source "drivers/gpu/drm/img/img-drm-nulldisp/Kconfig"

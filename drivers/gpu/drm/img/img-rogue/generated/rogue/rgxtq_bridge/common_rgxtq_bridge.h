@@ -69,6 +69,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 /* Bridge in structure for RGXCreateTransferContext */
 typedef struct PVRSRV_BRIDGE_IN_RGXCREATETRANSFERCONTEXT_TAG
 {
+	IMG_UINT64 ui64RobustnessAddress;
 	IMG_HANDLE hPrivData;
 	IMG_BYTE *pui8FrameworkCmd;
 	IMG_UINT32 ui32ContextFlags;
@@ -140,7 +141,6 @@ typedef struct PVRSRV_BRIDGE_IN_RGXSUBMITTRANSFER2_TAG
 	PVRSRV_TIMELINE h2DUpdateTimeline;
 	PVRSRV_TIMELINE h3DUpdateTimeline;
 	PVRSRV_FENCE hCheckFenceFD;
-	IMG_UINT32 ui32ClientCacheOpSeqNum;
 	IMG_UINT32 ui32ExtJobRef;
 	IMG_UINT32 ui32PrepareCount;
 	IMG_UINT32 ui32SyncPMRCount;

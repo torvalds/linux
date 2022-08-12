@@ -48,8 +48,10 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 /* Module specific includes */
 #include "pvrsrv_memallocflags.h"
+#include "pvrsrv_memalloc_physheap.h"
 #include "devicemem_typedefs.h"
 
+#include "pvrsrv_memalloc_physheap.h"
 #include "devicemem.h"
 #include "devicemem_server.h"
 #include "pmr.h"
@@ -212,7 +214,8 @@ IMG_INTERNAL PVRSRV_ERROR BridgePhysmemNewRamBackedPMR(IMG_HANDLE hBridge,
 						       const IMG_CHAR * puiAnnotation,
 						       IMG_PID ui32PID,
 						       IMG_HANDLE * phPMRPtr,
-						       IMG_UINT32 ui32PDumpFlags)
+						       IMG_UINT32 ui32PDumpFlags,
+						       PVRSRV_MEMALLOCFLAGS_T * puiOutFlags)
 {
 	PVRSRV_ERROR eError;
 	PMR *psPMRPtrInt = NULL;
@@ -227,7 +230,8 @@ IMG_INTERNAL PVRSRV_ERROR BridgePhysmemNewRamBackedPMR(IMG_HANDLE hBridge,
 					  ui32Log2PageSize,
 					  uiFlags,
 					  ui32AnnotationLength,
-					  puiAnnotation, ui32PID, &psPMRPtrInt, ui32PDumpFlags);
+					  puiAnnotation,
+					  ui32PID, &psPMRPtrInt, ui32PDumpFlags, puiOutFlags);
 
 	*phPMRPtr = psPMRPtrInt;
 	return eError;
@@ -245,7 +249,8 @@ IMG_INTERNAL PVRSRV_ERROR BridgePhysmemNewRamBackedLockedPMR(IMG_HANDLE hBridge,
 							     const IMG_CHAR * puiAnnotation,
 							     IMG_PID ui32PID,
 							     IMG_HANDLE * phPMRPtr,
-							     IMG_UINT32 ui32PDumpFlags)
+							     IMG_UINT32 ui32PDumpFlags,
+							     PVRSRV_MEMALLOCFLAGS_T * puiOutFlags)
 {
 	PVRSRV_ERROR eError;
 	PMR *psPMRPtrInt = NULL;
@@ -260,7 +265,8 @@ IMG_INTERNAL PVRSRV_ERROR BridgePhysmemNewRamBackedLockedPMR(IMG_HANDLE hBridge,
 					 ui32Log2PageSize,
 					 uiFlags,
 					 ui32AnnotationLength,
-					 puiAnnotation, ui32PID, &psPMRPtrInt, ui32PDumpFlags);
+					 puiAnnotation,
+					 ui32PID, &psPMRPtrInt, ui32PDumpFlags, puiOutFlags);
 
 	*phPMRPtr = psPMRPtrInt;
 	return eError;
@@ -669,29 +675,66 @@ IMG_INTERNAL PVRSRV_ERROR BridgeHeapCfgHeapDetails(IMG_HANDLE hBridge,
 }
 
 IMG_INTERNAL PVRSRV_ERROR BridgeDevmemIntRegisterPFNotifyKM(IMG_HANDLE hBridge,
-							    IMG_HANDLE hDevmemCtx,
+							    IMG_HANDLE hDevm,
 							    IMG_UINT32 ui32PID, IMG_BOOL bRegister)
 {
 	PVRSRV_ERROR eError;
-	DEVMEMINT_CTX *psDevmemCtxInt;
+	DEVMEMINT_CTX *psDevmInt;
 	PVR_UNREFERENCED_PARAMETER(hBridge);
 
-	psDevmemCtxInt = (DEVMEMINT_CTX *) hDevmemCtx;
+	psDevmInt = (DEVMEMINT_CTX *) hDevm;
 
-	eError = DevmemIntRegisterPFNotifyKM(psDevmemCtxInt, ui32PID, bRegister);
+	eError = DevmemIntRegisterPFNotifyKM(psDevmInt, ui32PID, bRegister);
 
 	return eError;
 }
 
-IMG_INTERNAL PVRSRV_ERROR BridgeGetMaxDevMemSize(IMG_HANDLE hBridge,
-						 IMG_DEVMEM_SIZE_T * puiLMASize,
-						 IMG_DEVMEM_SIZE_T * puiUMASize)
+IMG_INTERNAL PVRSRV_ERROR BridgeGetMaxPhysHeapCount(IMG_HANDLE hBridge,
+						    IMG_UINT32 * pui32PhysHeapCount)
 {
 	PVRSRV_ERROR eError;
 
 	eError =
-	    PVRSRVGetMaxDevMemSizeKM(NULL, (PVRSRV_DEVICE_NODE *) ((void *)hBridge),
-				     puiLMASize, puiUMASize);
+	    PVRSRVGetMaxPhysHeapCountKM(NULL, (PVRSRV_DEVICE_NODE *) ((void *)hBridge),
+					pui32PhysHeapCount);
+
+	return eError;
+}
+
+IMG_INTERNAL PVRSRV_ERROR BridgePhysHeapGetMemInfo(IMG_HANDLE hBridge,
+						   IMG_UINT32 ui32PhysHeapCount,
+						   PVRSRV_PHYS_HEAP * peaPhysHeapID,
+						   PHYS_HEAP_MEM_STATS * pasapPhysHeapMemStats)
+{
+	PVRSRV_ERROR eError;
+
+	eError =
+	    PVRSRVPhysHeapGetMemInfoKM(NULL, (PVRSRV_DEVICE_NODE *) ((void *)hBridge),
+				       ui32PhysHeapCount, peaPhysHeapID, pasapPhysHeapMemStats);
+
+	return eError;
+}
+
+IMG_INTERNAL PVRSRV_ERROR BridgeGetDefaultPhysicalHeap(IMG_HANDLE hBridge,
+						       PVRSRV_PHYS_HEAP * peHeap)
+{
+	PVRSRV_ERROR eError;
+
+	eError =
+	    PVRSRVGetDefaultPhysicalHeapKM(NULL, (PVRSRV_DEVICE_NODE *) ((void *)hBridge), peHeap);
+
+	return eError;
+}
+
+IMG_INTERNAL PVRSRV_ERROR BridgeGetHeapPhysMemUsage(IMG_HANDLE hBridge,
+						    IMG_UINT32 ui32PhysHeapCount,
+						    PHYS_HEAP_MEM_STATS * pasapPhysHeapMemStats)
+{
+	PVRSRV_ERROR eError;
+
+	eError =
+	    PVRSRVGetHeapPhysMemUsageKM(NULL, (PVRSRV_DEVICE_NODE *) ((void *)hBridge),
+					ui32PhysHeapCount, pasapPhysHeapMemStats);
 
 	return eError;
 }
@@ -729,4 +772,33 @@ IMG_INTERNAL PVRSRV_ERROR BridgePVRSRVUpdateOOMStats(IMG_HANDLE hBridge,
 
 	return PVRSRV_ERROR_NOT_IMPLEMENTED;
 #endif
+}
+
+IMG_INTERNAL PVRSRV_ERROR BridgePhysHeapGetMemInfoPkd(IMG_HANDLE hBridge,
+						      IMG_UINT32 ui32PhysHeapCount,
+						      PVRSRV_PHYS_HEAP * peaPhysHeapID,
+						      PHYS_HEAP_MEM_STATS_PKD *
+						      psapPhysHeapMemStats)
+{
+	PVRSRV_ERROR eError;
+
+	eError =
+	    PVRSRVPhysHeapGetMemInfoPkdKM(NULL, (PVRSRV_DEVICE_NODE *) ((void *)hBridge),
+					  ui32PhysHeapCount, peaPhysHeapID, psapPhysHeapMemStats);
+
+	return eError;
+}
+
+IMG_INTERNAL PVRSRV_ERROR BridgeGetHeapPhysMemUsagePkd(IMG_HANDLE hBridge,
+						       IMG_UINT32 ui32PhysHeapCount,
+						       PHYS_HEAP_MEM_STATS_PKD *
+						       psapPhysHeapMemStats)
+{
+	PVRSRV_ERROR eError;
+
+	eError =
+	    PVRSRVGetHeapPhysMemUsagePkdKM(NULL, (PVRSRV_DEVICE_NODE *) ((void *)hBridge),
+					   ui32PhysHeapCount, psapPhysHeapMemStats);
+
+	return eError;
 }

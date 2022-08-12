@@ -110,7 +110,6 @@ typedef struct PVRSRV_BRIDGE_IN_RGXKICKSYNC2_TAG
 	IMG_HANDLE *phUpdateUFODevVarBlock;
 	PVRSRV_FENCE hCheckFenceFD;
 	PVRSRV_TIMELINE hTimelineFenceFD;
-	IMG_UINT32 ui32ClientCacheOpSeqNum;
 	IMG_UINT32 ui32ClientUpdateCount;
 	IMG_UINT32 ui32ExtJobRef;
 } __packed PVRSRV_BRIDGE_IN_RGXKICKSYNC2;

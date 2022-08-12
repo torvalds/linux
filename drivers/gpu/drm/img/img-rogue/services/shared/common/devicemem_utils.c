@@ -49,6 +49,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "ra.h"
 #include "devicemem_utils.h"
 #include "client_mm_bridge.h"
+#include "client_cache_bridge.h"
 #if defined(PVRSRV_ENABLE_GPU_MEMORY_INFO)
 #include "client_ri_bridge.h"
 #if defined(__KERNEL__)
@@ -60,6 +61,12 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #if defined(PVRSRV_ENABLE_PROCESS_STATS)
 #include "proc_stats.h"
+#endif
+
+#if defined(__KERNEL__)
+#include "srvcore.h"
+#else
+#include "srvcore_intern.h"
 #endif
 
 /*
@@ -371,8 +378,12 @@ IMG_BOOL DevmemImportStructRelease(DEVMEM_IMPORT *psImport)
 
 	if (iRefCount == 0)
 	{
-		BridgePMRUnrefPMR(GetBridgeHandle(psImport->hDevConnection),
-				psImport->hPMR);
+		PVRSRV_ERROR eError = DestroyServerResource(psImport->hDevConnection,
+		                                            NULL,
+		                                            BridgePMRUnrefPMR,
+		                                            psImport->hPMR);
+		PVR_ASSERT(eError == PVRSRV_OK);
+
 		OSLockDestroy(psImport->sCPUImport.hLock);
 		OSLockDestroy(psImport->sDeviceImport.hLock);
 		OSLockDestroy(psImport->hLock);
@@ -455,8 +466,23 @@ void DevmemMemDescInit(DEVMEM_MEMDESC *psMemDesc,
 	psMemDesc->hPrivData = NULL;
 	psMemDesc->ui32AllocationIndex = DEVICEMEM_HISTORY_ALLOC_INDEX_NONE;
 
+#if defined(DEBUG)
+	psMemDesc->bPoisonOnFree = IMG_FALSE;
+#endif
+
 	OSAtomicWrite(&psMemDesc->hRefCount, 1);
 }
+
+#if defined(DEBUG)
+IMG_INTERNAL
+void DevmemMemDescSetPoF(DEVMEM_MEMDESC *psMemDesc, PVRSRV_MEMALLOCFLAGS_T uiFlags)
+{
+	if (PVRSRV_CHECK_POISON_ON_FREE(uiFlags))
+	{
+		psMemDesc->bPoisonOnFree = IMG_TRUE;
+	}
+}
+#endif
 
 IMG_INTERNAL
 void DevmemMemDescAcquire(DEVMEM_MEMDESC *psMemDesc)
@@ -472,6 +498,48 @@ void DevmemMemDescAcquire(DEVMEM_MEMDESC *psMemDesc)
 
 	PVR_UNREFERENCED_PARAMETER(iRefCount);
 }
+
+#if defined(DEBUG)
+static void _DevmemPoisonOnFree(DEVMEM_MEMDESC *psMemDesc)
+{
+	void *pvAddr = NULL;
+	IMG_UINT8 *pui8CPUVAddr;
+	PVRSRV_ERROR eError;
+
+	eError = DevmemCPUMapCheckImportProperties(psMemDesc);
+	PVR_LOG_RETURN_VOID_IF_ERROR(eError, "DevmemCPUMapCheckImportProperties");
+
+	OSLockAcquire(psMemDesc->sCPUMemDesc.hLock);
+	eError = DevmemImportStructCPUMap(psMemDesc->psImport);
+	OSLockRelease(psMemDesc->sCPUMemDesc.hLock);
+	PVR_LOG_RETURN_VOID_IF_ERROR(eError, "DevmemImportStructCPUMap");
+
+	pui8CPUVAddr = psMemDesc->psImport->sCPUImport.pvCPUVAddr;
+	pui8CPUVAddr += psMemDesc->uiOffset;
+	pvAddr = pui8CPUVAddr;
+
+	DevmemCPUMemSet(pvAddr,
+	                PVRSRV_POISON_ON_FREE_VALUE,
+	                psMemDesc->uiAllocSize,
+	                psMemDesc->psImport->uiFlags);
+
+	if (PVRSRV_CHECK_CPU_CACHE_COHERENT(psMemDesc->psImport->uiFlags) ||
+	    PVRSRV_CHECK_CPU_CACHE_INCOHERENT(psMemDesc->psImport->uiFlags))
+	{
+		eError = BridgeCacheOpExec(GetBridgeHandle(psMemDesc->psImport->hDevConnection),
+								   psMemDesc->psImport->hPMR,
+								   (IMG_UINT64) (uintptr_t)
+								   pvAddr - psMemDesc->uiOffset,
+								   psMemDesc->uiOffset,
+								   psMemDesc->uiAllocSize,
+								   PVRSRV_CACHE_OP_FLUSH);
+		PVR_LOG_IF_ERROR(eError, "BridgeCacheOpExec");
+	}
+
+	DevmemImportStructCPUUnmap(psMemDesc->psImport);
+	pvAddr = NULL;
+}
+#endif
 
 IMG_INTERNAL
 IMG_BOOL DevmemMemDescRelease(DEVMEM_MEMDESC *psMemDesc)
@@ -496,8 +564,10 @@ IMG_BOOL DevmemMemDescRelease(DEVMEM_MEMDESC *psMemDesc)
 		{
 			PVRSRV_ERROR eError;
 
-			eError = BridgeRIDeleteMEMDESCEntry(GetBridgeHandle(psMemDesc->psImport->hDevConnection),
-			                                    psMemDesc->hRIHandle);
+			eError = DestroyServerResource(psMemDesc->psImport->hDevConnection,
+			                               NULL,
+			                               BridgeRIDeleteMEMDESCEntry,
+			                               psMemDesc->hRIHandle);
 			PVR_LOG_IF_ERROR(eError, "BridgeRIDeleteMEMDESCEntry");
 		}
 #endif
@@ -508,13 +578,19 @@ IMG_BOOL DevmemMemDescRelease(DEVMEM_MEMDESC *psMemDesc)
 			/* As soon as the first sub-allocation on the psImport is freed
 			 * we might get dirty memory when reusing it.
 			 * We have to delete the ZEROED, CLEAN & POISONED flag */
-
 			psMemDesc->psImport->uiProperties &=
 					~(DEVMEM_PROPERTIES_IMPORT_IS_ZEROED |
 							DEVMEM_PROPERTIES_IMPORT_IS_CLEAN |
 							DEVMEM_PROPERTIES_IMPORT_IS_POISONED);
 
 			OSLockRelease(psMemDesc->psImport->hLock);
+
+#if defined(DEBUG)
+			if (psMemDesc->bPoisonOnFree)
+			{
+				_DevmemPoisonOnFree(psMemDesc);
+			}
+#endif
 
 			RA_Free(psMemDesc->psImport->sDeviceImport.psHeap->psSubAllocRA,
 					psMemDesc->psImport->sDeviceImport.sDevVAddr.uiAddr +
@@ -579,8 +655,13 @@ PVRSRV_ERROR DevmemValidateParams(IMG_DEVMEM_SIZE_T uiSize,
 		return PVRSRV_ERROR_INVALID_PARAMS;
 	}
 
-	/* If zero flag is set we have to have write access to the page. */
-	if (PVRSRV_CHECK_ZERO_ON_ALLOC(*puiFlags) || PVRSRV_CHECK_CPU_WRITEABLE(*puiFlags))
+	/* If zero or poison flags are set we have to have write access to the page. */
+	if (PVRSRV_CHECK_ZERO_ON_ALLOC(*puiFlags) ||
+	    PVRSRV_CHECK_POISON_ON_ALLOC(*puiFlags) ||
+#if defined(DEBUG)
+	    PVRSRV_CHECK_POISON_ON_FREE(*puiFlags) ||
+#endif
+	    PVRSRV_CHECK_CPU_WRITEABLE(*puiFlags))
 	{
 		(*puiFlags) |= PVRSRV_MEMALLOCFLAG_CPU_WRITEABLE |
 				PVRSRV_MEMALLOCFLAG_CPU_READABLE;
@@ -1035,13 +1116,17 @@ IMG_BOOL DevmemImportStructDevUnmap(DEVMEM_IMPORT *psImport)
 		{
 			if (psDeviceImport->bMapped)
 			{
-				eError = BridgeDevmemIntUnmapPMR(GetBridgeHandle(psImport->hDevConnection),
-						psDeviceImport->hMapping);
+				eError = DestroyServerResource(psImport->hDevConnection,
+				                               NULL,
+				                               BridgeDevmemIntUnmapPMR,
+				                               psDeviceImport->hMapping);
 				PVR_ASSERT(eError == PVRSRV_OK);
 			}
 
-			eError = BridgeDevmemIntUnreserveRange(GetBridgeHandle(psImport->hDevConnection),
-					psDeviceImport->hReservation);
+			eError = DestroyServerResource(psImport->hDevConnection,
+			                               NULL,
+			                               BridgeDevmemIntUnreserveRange,
+			                               psDeviceImport->hReservation);
 			PVR_ASSERT(eError == PVRSRV_OK);
 		}
 

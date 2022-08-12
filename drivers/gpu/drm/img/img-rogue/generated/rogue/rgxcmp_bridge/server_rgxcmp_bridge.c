@@ -74,6 +74,11 @@ static PVRSRV_ERROR _RGXCreateComputeContextpsComputeContextIntRelease(void *pvD
 	return eError;
 }
 
+static_assert(RGXFWIF_RF_CMD_SIZE <= IMG_UINT32_MAX,
+	      "RGXFWIF_RF_CMD_SIZE must not be larger than IMG_UINT32_MAX");
+static_assert(RGXFWIF_STATIC_COMPUTECONTEXT_SIZE <= IMG_UINT32_MAX,
+	      "RGXFWIF_STATIC_COMPUTECONTEXT_SIZE must not be larger than IMG_UINT32_MAX");
+
 static IMG_INT
 PVRSRVBridgeRGXCreateComputeContext(IMG_UINT32 ui32DispatchTableEntry,
 				    IMG_UINT8 * psRGXCreateComputeContextIN_UI8,
@@ -99,9 +104,11 @@ PVRSRVBridgeRGXCreateComputeContext(IMG_UINT32 ui32DispatchTableEntry,
 	IMG_BOOL bHaveEnoughSpace = IMG_FALSE;
 #endif
 
-	IMG_UINT32 ui32BufferSize =
-	    (psRGXCreateComputeContextIN->ui32FrameworkCmdize * sizeof(IMG_BYTE)) +
-	    (psRGXCreateComputeContextIN->ui32StaticComputeContextStateSize * sizeof(IMG_BYTE)) + 0;
+	IMG_UINT32 ui32BufferSize = 0;
+	IMG_UINT64 ui64BufferSize =
+	    ((IMG_UINT64) psRGXCreateComputeContextIN->ui32FrameworkCmdize * sizeof(IMG_BYTE)) +
+	    ((IMG_UINT64) psRGXCreateComputeContextIN->ui32StaticComputeContextStateSize *
+	     sizeof(IMG_BYTE)) + 0;
 
 	if (unlikely(psRGXCreateComputeContextIN->ui32FrameworkCmdize > RGXFWIF_RF_CMD_SIZE))
 	{
@@ -131,6 +138,14 @@ PVRSRVBridgeRGXCreateComputeContext(IMG_UINT32 ui32DispatchTableEntry,
 		}
 	}
 
+	if (ui64BufferSize > IMG_UINT32_MAX)
+	{
+		psRGXCreateComputeContextOUT->eError = PVRSRV_ERROR_BRIDGE_BUFFER_TOO_SMALL;
+		goto RGXCreateComputeContext_exit;
+	}
+
+	ui32BufferSize = (IMG_UINT32) ui64BufferSize;
+
 	if (ui32BufferSize != 0)
 	{
 #if !defined(INTEGRITY_OS)
@@ -151,7 +166,7 @@ PVRSRVBridgeRGXCreateComputeContext(IMG_UINT32 ui32DispatchTableEntry,
 		else
 #endif
 		{
-			pArrayArgsBuffer = OSAllocZMemNoStats(ui32BufferSize);
+			pArrayArgsBuffer = OSAllocMemNoStats(ui32BufferSize);
 
 			if (!pArrayArgsBuffer)
 			{
@@ -287,7 +302,10 @@ RGXCreateComputeContext_exit:
 	}
 
 	/* Allocated space should be equal to the last updated offset */
-	PVR_ASSERT(ui32BufferSize == ui32NextOffset);
+#ifdef PVRSRV_NEED_PVR_ASSERT
+	if (psRGXCreateComputeContextOUT->eError == PVRSRV_OK)
+		PVR_ASSERT(ui32BufferSize == ui32NextOffset);
+#endif /* PVRSRV_NEED_PVR_ASSERT */
 
 #if defined(INTEGRITY_OS)
 	if (pArrayArgsBuffer)
@@ -330,12 +348,13 @@ PVRSRVBridgeRGXDestroyComputeContext(IMG_UINT32 ui32DispatchTableEntry,
 	LockHandle(psConnection->psHandleBase);
 
 	psRGXDestroyComputeContextOUT->eError =
-	    PVRSRVReleaseHandleStagedUnlock(psConnection->psHandleBase,
-					    (IMG_HANDLE) psRGXDestroyComputeContextIN->
-					    hComputeContext,
-					    PVRSRV_HANDLE_TYPE_RGX_SERVER_COMPUTE_CONTEXT);
+	    PVRSRVDestroyHandleStagedUnlocked(psConnection->psHandleBase,
+					      (IMG_HANDLE) psRGXDestroyComputeContextIN->
+					      hComputeContext,
+					      PVRSRV_HANDLE_TYPE_RGX_SERVER_COMPUTE_CONTEXT);
 	if (unlikely
 	    ((psRGXDestroyComputeContextOUT->eError != PVRSRV_OK)
+	     && (psRGXDestroyComputeContextOUT->eError != PVRSRV_ERROR_KERNEL_CCB_FULL)
 	     && (psRGXDestroyComputeContextOUT->eError != PVRSRV_ERROR_RETRY)))
 	{
 		PVR_DPF((PVR_DBG_ERROR,
@@ -560,6 +579,15 @@ RGXNotifyComputeWriteOffsetUpdate_exit:
 	return 0;
 }
 
+static_assert(PVRSRV_MAX_SYNCS <= IMG_UINT32_MAX,
+	      "PVRSRV_MAX_SYNCS must not be larger than IMG_UINT32_MAX");
+static_assert(PVRSRV_SYNC_NAME_LENGTH <= IMG_UINT32_MAX,
+	      "PVRSRV_SYNC_NAME_LENGTH must not be larger than IMG_UINT32_MAX");
+static_assert(RGXFWIF_DM_INDEPENDENT_KICK_CMD_SIZE <= IMG_UINT32_MAX,
+	      "RGXFWIF_DM_INDEPENDENT_KICK_CMD_SIZE must not be larger than IMG_UINT32_MAX");
+static_assert(PVRSRV_MAX_SYNCS <= IMG_UINT32_MAX,
+	      "PVRSRV_MAX_SYNCS must not be larger than IMG_UINT32_MAX");
+
 static IMG_INT
 PVRSRVBridgeRGXKickCDM2(IMG_UINT32 ui32DispatchTableEntry,
 			IMG_UINT8 * psRGXKickCDM2IN_UI8,
@@ -588,16 +616,17 @@ PVRSRVBridgeRGXKickCDM2(IMG_UINT32 ui32DispatchTableEntry,
 	IMG_BOOL bHaveEnoughSpace = IMG_FALSE;
 #endif
 
-	IMG_UINT32 ui32BufferSize =
-	    (psRGXKickCDM2IN->ui32ClientUpdateCount * sizeof(SYNC_PRIMITIVE_BLOCK *)) +
-	    (psRGXKickCDM2IN->ui32ClientUpdateCount * sizeof(IMG_HANDLE)) +
-	    (psRGXKickCDM2IN->ui32ClientUpdateCount * sizeof(IMG_UINT32)) +
-	    (psRGXKickCDM2IN->ui32ClientUpdateCount * sizeof(IMG_UINT32)) +
-	    (PVRSRV_SYNC_NAME_LENGTH * sizeof(IMG_CHAR)) +
-	    (psRGXKickCDM2IN->ui32CmdSize * sizeof(IMG_BYTE)) +
-	    (psRGXKickCDM2IN->ui32SyncPMRCount * sizeof(IMG_UINT32)) +
-	    (psRGXKickCDM2IN->ui32SyncPMRCount * sizeof(PMR *)) +
-	    (psRGXKickCDM2IN->ui32SyncPMRCount * sizeof(IMG_HANDLE)) + 0;
+	IMG_UINT32 ui32BufferSize = 0;
+	IMG_UINT64 ui64BufferSize =
+	    ((IMG_UINT64) psRGXKickCDM2IN->ui32ClientUpdateCount * sizeof(SYNC_PRIMITIVE_BLOCK *)) +
+	    ((IMG_UINT64) psRGXKickCDM2IN->ui32ClientUpdateCount * sizeof(IMG_HANDLE)) +
+	    ((IMG_UINT64) psRGXKickCDM2IN->ui32ClientUpdateCount * sizeof(IMG_UINT32)) +
+	    ((IMG_UINT64) psRGXKickCDM2IN->ui32ClientUpdateCount * sizeof(IMG_UINT32)) +
+	    ((IMG_UINT64) PVRSRV_SYNC_NAME_LENGTH * sizeof(IMG_CHAR)) +
+	    ((IMG_UINT64) psRGXKickCDM2IN->ui32CmdSize * sizeof(IMG_BYTE)) +
+	    ((IMG_UINT64) psRGXKickCDM2IN->ui32SyncPMRCount * sizeof(IMG_UINT32)) +
+	    ((IMG_UINT64) psRGXKickCDM2IN->ui32SyncPMRCount * sizeof(PMR *)) +
+	    ((IMG_UINT64) psRGXKickCDM2IN->ui32SyncPMRCount * sizeof(IMG_HANDLE)) + 0;
 
 	if (unlikely(psRGXKickCDM2IN->ui32ClientUpdateCount > PVRSRV_MAX_SYNCS))
 	{
@@ -631,6 +660,14 @@ PVRSRVBridgeRGXKickCDM2(IMG_UINT32 ui32DispatchTableEntry,
 		}
 	}
 
+	if (ui64BufferSize > IMG_UINT32_MAX)
+	{
+		psRGXKickCDM2OUT->eError = PVRSRV_ERROR_BRIDGE_BUFFER_TOO_SMALL;
+		goto RGXKickCDM2_exit;
+	}
+
+	ui32BufferSize = (IMG_UINT32) ui64BufferSize;
+
 	if (ui32BufferSize != 0)
 	{
 #if !defined(INTEGRITY_OS)
@@ -651,7 +688,7 @@ PVRSRVBridgeRGXKickCDM2(IMG_UINT32 ui32DispatchTableEntry,
 		else
 #endif
 		{
-			pArrayArgsBuffer = OSAllocZMemNoStats(ui32BufferSize);
+			pArrayArgsBuffer = OSAllocMemNoStats(ui32BufferSize);
 
 			if (!pArrayArgsBuffer)
 			{
@@ -665,6 +702,9 @@ PVRSRVBridgeRGXKickCDM2(IMG_UINT32 ui32DispatchTableEntry,
 	{
 		psClientUpdateUFOSyncPrimBlockInt =
 		    (SYNC_PRIMITIVE_BLOCK **) IMG_OFFSET_ADDR(pArrayArgsBuffer, ui32NextOffset);
+		OSCachedMemSet(psClientUpdateUFOSyncPrimBlockInt, 0,
+			       psRGXKickCDM2IN->ui32ClientUpdateCount *
+			       sizeof(SYNC_PRIMITIVE_BLOCK *));
 		ui32NextOffset +=
 		    psRGXKickCDM2IN->ui32ClientUpdateCount * sizeof(SYNC_PRIMITIVE_BLOCK *);
 		hClientUpdateUFOSyncPrimBlockInt2 =
@@ -788,6 +828,7 @@ PVRSRVBridgeRGXKickCDM2(IMG_UINT32 ui32DispatchTableEntry,
 	if (psRGXKickCDM2IN->ui32SyncPMRCount != 0)
 	{
 		psSyncPMRsInt = (PMR **) IMG_OFFSET_ADDR(pArrayArgsBuffer, ui32NextOffset);
+		OSCachedMemSet(psSyncPMRsInt, 0, psRGXKickCDM2IN->ui32SyncPMRCount * sizeof(PMR *));
 		ui32NextOffset += psRGXKickCDM2IN->ui32SyncPMRCount * sizeof(PMR *);
 		hSyncPMRsInt2 = (IMG_HANDLE *) IMG_OFFSET_ADDR(pArrayArgsBuffer, ui32NextOffset);
 		ui32NextOffset += psRGXKickCDM2IN->ui32SyncPMRCount * sizeof(IMG_HANDLE);
@@ -865,7 +906,6 @@ PVRSRVBridgeRGXKickCDM2(IMG_UINT32 ui32DispatchTableEntry,
 
 	psRGXKickCDM2OUT->eError =
 	    PVRSRVRGXKickCDMKM(psComputeContextInt,
-			       psRGXKickCDM2IN->ui32ClientCacheOpSeqNum,
 			       psRGXKickCDM2IN->ui32ClientUpdateCount,
 			       psClientUpdateUFOSyncPrimBlockInt,
 			       ui32ClientUpdateOffsetInt,
@@ -906,7 +946,7 @@ RGXKickCDM2_exit:
 		{
 
 			/* Unreference the previously looked up handle */
-			if (hClientUpdateUFOSyncPrimBlockInt2[i])
+			if (psClientUpdateUFOSyncPrimBlockInt[i])
 			{
 				PVRSRVReleaseHandleUnlocked(psConnection->psHandleBase,
 							    hClientUpdateUFOSyncPrimBlockInt2[i],
@@ -923,7 +963,7 @@ RGXKickCDM2_exit:
 		{
 
 			/* Unreference the previously looked up handle */
-			if (hSyncPMRsInt2[i])
+			if (psSyncPMRsInt[i])
 			{
 				PVRSRVReleaseHandleUnlocked(psConnection->psHandleBase,
 							    hSyncPMRsInt2[i],
@@ -935,7 +975,10 @@ RGXKickCDM2_exit:
 	UnlockHandle(psConnection->psHandleBase);
 
 	/* Allocated space should be equal to the last updated offset */
-	PVR_ASSERT(ui32BufferSize == ui32NextOffset);
+#ifdef PVRSRV_NEED_PVR_ASSERT
+	if (psRGXKickCDM2OUT->eError == PVRSRV_OK)
+		PVR_ASSERT(ui32BufferSize == ui32NextOffset);
+#endif /* PVRSRV_NEED_PVR_ASSERT */
 
 #if defined(INTEGRITY_OS)
 	if (pArrayArgsBuffer)
@@ -1061,7 +1104,7 @@ RGXGetLastDeviceError_exit:
  */
 
 PVRSRV_ERROR InitRGXCMPBridge(void);
-PVRSRV_ERROR DeinitRGXCMPBridge(void);
+void DeinitRGXCMPBridge(void);
 
 /*
  * Register all RGXCMP functions with services
@@ -1102,7 +1145,7 @@ PVRSRV_ERROR InitRGXCMPBridge(void)
 /*
  * Unregister all rgxcmp functions with services
  */
-PVRSRV_ERROR DeinitRGXCMPBridge(void)
+void DeinitRGXCMPBridge(void)
 {
 
 	UnsetDispatchTableEntry(PVRSRV_BRIDGE_RGXCMP, PVRSRV_BRIDGE_RGXCMP_RGXCREATECOMPUTECONTEXT);
@@ -1125,5 +1168,4 @@ PVRSRV_ERROR DeinitRGXCMPBridge(void)
 
 	UnsetDispatchTableEntry(PVRSRV_BRIDGE_RGXCMP, PVRSRV_BRIDGE_RGXCMP_RGXGETLASTDEVICEERROR);
 
-	return PVRSRV_OK;
 }

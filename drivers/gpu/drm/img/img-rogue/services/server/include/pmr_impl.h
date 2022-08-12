@@ -51,9 +51,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "img_defs.h"
 #include "pvrsrv_error.h"
 
-
-//#define  CACHE_TEST
-
 /*! Physical Memory Resource type.
  */
 typedef struct _PMR_ PMR;
@@ -205,24 +202,12 @@ typedef PVRSRV_ERROR (*PFN_DEV_PHYS_ADDR_FN)(PMR_IMPL_PRIVDATA pvPriv,
 @Return         PVRSRV_OK if the mapping was successful, an error code
                 otherwise.
 */ /**************************************************************************/
-
-#ifdef CACHE_TEST
-typedef PVRSRV_ERROR (*PFN_ACQUIRE_KERNEL_MAPPING_DATA_FN)(PMR_IMPL_PRIVDATA pvPriv,
-                      size_t uiOffset,
-                      size_t uiSize,
-                      size_t uilogicSize,
-                      void **ppvKernelAddressOut,
-                      IMG_HANDLE *phHandleOut,
-                      PMR_FLAGS_T ulFlags);
-#else
-
 typedef PVRSRV_ERROR (*PFN_ACQUIRE_KERNEL_MAPPING_DATA_FN)(PMR_IMPL_PRIVDATA pvPriv,
                       size_t uiOffset,
                       size_t uiSize,
                       void **ppvKernelAddressOut,
                       IMG_HANDLE *phHandleOut,
                       PMR_FLAGS_T ulFlags);
-#endif
 
 /*************************************************************************/ /*!
 @Brief          Callback function type PFN_RELEASE_KERNEL_MAPPING_DATA_FN
@@ -241,7 +226,7 @@ typedef PVRSRV_ERROR (*PFN_ACQUIRE_KERNEL_MAPPING_DATA_FN)(PMR_IMPL_PRIVDATA pvP
 @Return         None
 */ /**************************************************************************/
 typedef void (*PFN_RELEASE_KERNEL_MAPPING_DATA_FN)(PMR_IMPL_PRIVDATA pvPriv,
-              IMG_HANDLE hHandle, PMR *psPMR);
+              IMG_HANDLE hHandle);
 
 /*************************************************************************/ /*!
 @Brief          Callback function type PFN_READ_BYTES_FN
@@ -518,20 +503,6 @@ struct _PMR_IMPL_FUNCTAB_ {
     PFN_ACQUIRE_KERNEL_MAPPING_DATA_FN pfnAcquireKernelMappingData;
     /*! Callback function pointer, see ::PFN_RELEASE_KERNEL_MAPPING_DATA_FN */
     PFN_RELEASE_KERNEL_MAPPING_DATA_FN pfnReleaseKernelMappingData;
-
-#if defined(INTEGRITY_OS)
-    /*
-     * MapMemoryObject()/UnmapMemoryObject()
-     *
-     * called to map/unmap memory objects in Integrity OS
-     */
-
-    PVRSRV_ERROR (*pfnMapMemoryObject)(PMR_IMPL_PRIVDATA pvPriv,
-                  IMG_HANDLE *phMemObj,
-                  void **pvClientAddr,
-                  IMG_HANDLE *phHandleOut);
-    PVRSRV_ERROR (*pfnUnmapMemoryObject)(PMR_IMPL_PRIVDATA pvPriv);
-#endif
 
     /*! Callback function pointer, see ::PFN_READ_BYTES_FN */
     PFN_READ_BYTES_FN pfnReadBytes;

@@ -299,10 +299,12 @@ static IMG_UINT64 TimeStampUnpack(COMMAND_TIMESTAMP *psTimeStamp)
 
 #if defined(PDUMP)
 
-static void EmitPDumpAllocation(IMG_UINT32 ui32AllocationIndex,
-					RECORD_ALLOCATION *psAlloc)
+static void EmitPDumpAllocation(PVRSRV_DEVICE_NODE *psDeviceNode,
+                                IMG_UINT32 ui32AllocationIndex,
+                                RECORD_ALLOCATION *psAlloc)
 {
-	PDUMPCOMMENT("[SrvPFD] Allocation: %u"
+	PDUMPCOMMENT(psDeviceNode,
+			"[SrvPFD] Allocation: %u"
 			" Addr: " IMG_DEV_VIRTADDR_FMTSPEC
 			" Size: " IMG_DEVMEM_SIZE_FMTSPEC
 			" Page size: %u"
@@ -318,8 +320,9 @@ static void EmitPDumpAllocation(IMG_UINT32 ui32AllocationIndex,
 			psAlloc->szName);
 }
 
-static void EmitPDumpMapUnmapAll(COMMAND_TYPE eType,
-					IMG_UINT32 ui32AllocationIndex)
+static void EmitPDumpMapUnmapAll(PVRSRV_DEVICE_NODE *psDeviceNode,
+                                 COMMAND_TYPE eType,
+                                 IMG_UINT32 ui32AllocationIndex)
 {
 	const IMG_CHAR *pszOpName;
 
@@ -338,12 +341,14 @@ static void EmitPDumpMapUnmapAll(COMMAND_TYPE eType,
 
 	}
 
-	PDUMPCOMMENT("[SrvPFD] Op: %s Allocation: %u",
-								pszOpName,
-								ui32AllocationIndex);
+	PDUMPCOMMENT(psDeviceNode,
+	             "[SrvPFD] Op: %s Allocation: %u",
+	             pszOpName,
+	             ui32AllocationIndex);
 }
 
-static void EmitPDumpMapUnmapRange(COMMAND_TYPE eType,
+static void EmitPDumpMapUnmapRange(PVRSRV_DEVICE_NODE *psDeviceNode,
+					COMMAND_TYPE eType,
 					IMG_UINT32 ui32AllocationIndex,
 					IMG_UINT32 ui32StartPage,
 					IMG_UINT32 ui32Count)
@@ -364,11 +369,12 @@ static void EmitPDumpMapUnmapRange(COMMAND_TYPE eType,
 			return;
 	}
 
-	PDUMPCOMMENT("[SrvPFD] Op: %s Allocation: %u Start Page: %u Count: %u",
-									pszOpName,
-									ui32AllocationIndex,
-									ui32StartPage,
-									ui32Count);
+	PDUMPCOMMENT(psDeviceNode,
+                 "[SrvPFD] Op: %s Allocation: %u Start Page: %u Count: %u",
+                 pszOpName,
+                 ui32AllocationIndex,
+                 ui32StartPage,
+                 ui32Count);
 }
 
 #endif
@@ -390,7 +396,8 @@ static void InsertTimeStampCommand(IMG_UINT64 ui64Now)
 /* InsertMapAllCommand:
  * Insert a "MAP_ALL" command for the given allocation into the circular buffer
  */
-static void InsertMapAllCommand(IMG_UINT32 ui32AllocIndex)
+static void InsertMapAllCommand(PVRSRV_DEVICE_NODE *psDeviceNode,
+                                IMG_UINT32 ui32AllocIndex)
 {
 	COMMAND_WRAPPER *psCommand;
 
@@ -400,14 +407,17 @@ static void InsertMapAllCommand(IMG_UINT32 ui32AllocIndex)
 	psCommand->u.sMapAll.uiAllocIndex = ui32AllocIndex;
 
 #if defined(PDUMP)
-	EmitPDumpMapUnmapAll(COMMAND_TYPE_MAP_ALL, ui32AllocIndex);
+	EmitPDumpMapUnmapAll(psDeviceNode, COMMAND_TYPE_MAP_ALL, ui32AllocIndex);
+#else
+	PVR_UNREFERENCED_PARAMETER(psDeviceNode);
 #endif
 }
 
 /* InsertUnmapAllCommand:
  * Insert a "UNMAP_ALL" command for the given allocation into the circular buffer
  */
-static void InsertUnmapAllCommand(IMG_UINT32 ui32AllocIndex)
+static void InsertUnmapAllCommand(PVRSRV_DEVICE_NODE *psDeviceNode,
+                                  IMG_UINT32 ui32AllocIndex)
 {
 	COMMAND_WRAPPER *psCommand;
 
@@ -417,7 +427,9 @@ static void InsertUnmapAllCommand(IMG_UINT32 ui32AllocIndex)
 	psCommand->u.sUnmapAll.uiAllocIndex = ui32AllocIndex;
 
 #if defined(PDUMP)
-	EmitPDumpMapUnmapAll(COMMAND_TYPE_UNMAP_ALL, ui32AllocIndex);
+	EmitPDumpMapUnmapAll(psDeviceNode, COMMAND_TYPE_UNMAP_ALL, ui32AllocIndex);
+#else
+	PVR_UNREFERENCED_PARAMETER(psDeviceNode);
 #endif
 }
 
@@ -473,7 +485,8 @@ static void MapRangeUnpack(COMMAND_MAP_RANGE *psMapRange,
  * Insert a MAP_RANGE command into the circular buffer with the given
  * StartPage and Count values.
  */
-static void InsertMapRangeCommand(IMG_UINT32 ui32AllocIndex,
+static void InsertMapRangeCommand(PVRSRV_DEVICE_NODE *psDeviceNode,
+						IMG_UINT32 ui32AllocIndex,
 						IMG_UINT32 ui32StartPage,
 						IMG_UINT32 ui32Count)
 {
@@ -487,10 +500,13 @@ static void InsertMapRangeCommand(IMG_UINT32 ui32AllocIndex,
 	MapRangePack(&psCommand->u.sMapRange, ui32StartPage, ui32Count);
 
 #if defined(PDUMP)
-	EmitPDumpMapUnmapRange(COMMAND_TYPE_MAP_RANGE,
-							ui32AllocIndex,
-							ui32StartPage,
-							ui32Count);
+	EmitPDumpMapUnmapRange(psDeviceNode,
+	                       COMMAND_TYPE_MAP_RANGE,
+	                       ui32AllocIndex,
+	                       ui32StartPage,
+	                       ui32Count);
+#else
+	PVR_UNREFERENCED_PARAMETER(psDeviceNode);
 #endif
 }
 
@@ -498,7 +514,8 @@ static void InsertMapRangeCommand(IMG_UINT32 ui32AllocIndex,
  * Insert a UNMAP_RANGE command into the circular buffer with the given
  * StartPage and Count values.
  */
-static void InsertUnmapRangeCommand(IMG_UINT32 ui32AllocIndex,
+static void InsertUnmapRangeCommand(PVRSRV_DEVICE_NODE *psDeviceNode,
+						IMG_UINT32 ui32AllocIndex,
 						IMG_UINT32 ui32StartPage,
 						IMG_UINT32 ui32Count)
 {
@@ -512,10 +529,13 @@ static void InsertUnmapRangeCommand(IMG_UINT32 ui32AllocIndex,
 	MapRangePack(&psCommand->u.sMapRange, ui32StartPage, ui32Count);
 
 #if defined(PDUMP)
-	EmitPDumpMapUnmapRange(COMMAND_TYPE_UNMAP_RANGE,
-							ui32AllocIndex,
-							ui32StartPage,
-							ui32Count);
+	EmitPDumpMapUnmapRange(psDeviceNode,
+	                       COMMAND_TYPE_UNMAP_RANGE,
+	                       ui32AllocIndex,
+	                       ui32StartPage,
+	                       ui32Count);
+#else
+	PVR_UNREFERENCED_PARAMETER(psDeviceNode);
 #endif
 }
 
@@ -668,7 +688,8 @@ static void InitialiseAllocation(RECORD_ALLOCATION *psAlloc,
  * Creates a new allocation with the given properties then outputs the
  * index of the allocation
  */
-static PVRSRV_ERROR CreateAllocation(const IMG_CHAR *pszName,
+static PVRSRV_ERROR CreateAllocation(PVRSRV_DEVICE_NODE *psDeviceNode,
+							const IMG_CHAR *pszName,
 							IMG_UINT64 ui64Serial,
 							IMG_PID uiPID,
 							IMG_DEV_VIRTADDR sDevVAddr,
@@ -698,7 +719,9 @@ static PVRSRV_ERROR CreateAllocation(const IMG_CHAR *pszName,
 	*puiAllocationIndex = ui32Alloc;
 
 #if defined(PDUMP)
-	EmitPDumpAllocation(ui32Alloc, psAlloc);
+	EmitPDumpAllocation(psDeviceNode, ui32Alloc, psAlloc);
+#else
+	PVR_UNREFERENCED_PARAMETER(psDeviceNode);
 #endif
 
 	return PVRSRV_OK;
@@ -733,7 +756,8 @@ static IMG_BOOL MatchAllocation(IMG_UINT32 ui32AllocationIndex,
  * this function will look for an existing record of this allocation and
  * create the allocation if there is no existing record
  */
-static PVRSRV_ERROR FindOrCreateAllocation(IMG_UINT32 ui32AllocationIndexHint,
+static PVRSRV_ERROR FindOrCreateAllocation(PVRSRV_DEVICE_NODE *psDeviceNode,
+							IMG_UINT32 ui32AllocationIndexHint,
 							IMG_UINT64 ui64Serial,
 							IMG_DEV_VIRTADDR sDevVAddr,
 							IMG_DEVMEM_SIZE_T uiSize,
@@ -773,7 +797,8 @@ static PVRSRV_ERROR FindOrCreateAllocation(IMG_UINT32 ui32AllocationIndexHint,
 	/* if there is no record of the allocation then we
 	 * create it now
 	 */
-	eError = CreateAllocation(pszName,
+	eError = CreateAllocation(psDeviceNode,
+					pszName,
 					ui64Serial,
 					uiPID,
 					sDevVAddr,
@@ -859,15 +884,17 @@ static void GenerateMapUnmapCommandsForSparsePMR(PMR *psPMR,
 			{
 				if (bMap)
 				{
-					InsertMapRangeCommand(ui32AllocIndex,
-										ui32CurrentStart,
-										ui32RunCount);
+					InsertMapRangeCommand(PMR_DeviceNode(psPMR),
+					                      ui32AllocIndex,
+					                      ui32CurrentStart,
+					                      ui32RunCount);
 				}
 				else
 				{
-					InsertUnmapRangeCommand(ui32AllocIndex,
-										ui32CurrentStart,
-										ui32RunCount);
+					InsertUnmapRangeCommand(PMR_DeviceNode(psPMR),
+					                        ui32AllocIndex,
+					                        ui32CurrentStart,
+					                        ui32RunCount);
 				}
 
 				ui32DonePages += ui32RunCount;
@@ -896,7 +923,8 @@ static void GenerateMapUnmapCommandsForSparsePMR(PMR *psPMR,
  * This function goes through every page in the list and looks for
  * virtually contiguous ranges to record as being mapped or unmapped.
  */
-static void GenerateMapUnmapCommandsForChangeList(IMG_UINT32 ui32NumPages,
+static void GenerateMapUnmapCommandsForChangeList(PVRSRV_DEVICE_NODE *psDeviceNode,
+							IMG_UINT32 ui32NumPages,
 							IMG_UINT32 *pui32PageList,
 							IMG_UINT32 ui32AllocIndex,
 							IMG_BOOL bMap)
@@ -927,13 +955,15 @@ static void GenerateMapUnmapCommandsForChangeList(IMG_UINT32 ui32NumPages,
 		{
 			if (bMap)
 			{
-				InsertMapRangeCommand(ui32AllocIndex,
+				InsertMapRangeCommand(psDeviceNode,
+									ui32AllocIndex,
 									ui32CurrentStart,
 									ui32RunCount);
 			}
 			else
 			{
-				InsertUnmapRangeCommand(ui32AllocIndex,
+				InsertUnmapRangeCommand(psDeviceNode,
+									ui32AllocIndex,
 									ui32CurrentStart,
 									ui32RunCount);
 			}
@@ -987,7 +1017,8 @@ PVRSRV_ERROR DevicememHistoryMapKM(PMR *psPMR,
 
 	DevicememHistoryLock();
 
-	eError = FindOrCreateAllocation(ui32AllocationIndex,
+	eError = FindOrCreateAllocation(PMR_DeviceNode(psPMR),
+						ui32AllocationIndex,
 						ui64Serial,
 						sDevVAddr,
 						uiSize,
@@ -1014,7 +1045,7 @@ PVRSRV_ERROR DevicememHistoryMapKM(PMR *psPMR,
 
 	if (!bSparse)
 	{
-		InsertMapAllCommand(ui32AllocationIndex);
+		InsertMapAllCommand(PMR_DeviceNode(psPMR), ui32AllocationIndex);
 	}
 	else
 	{
@@ -1033,7 +1064,8 @@ out_unlock:
 	return eError;
 }
 
-static void VRangeInsertMapUnmapCommands(IMG_BOOL bMap,
+static void VRangeInsertMapUnmapCommands(PVRSRV_DEVICE_NODE *psDeviceNode,
+							IMG_BOOL bMap,
 							IMG_UINT32 ui32AllocationIndex,
 							IMG_DEV_VIRTADDR sBaseDevVAddr,
 							IMG_UINT32 ui32StartPage,
@@ -1058,13 +1090,15 @@ static void VRangeInsertMapUnmapCommands(IMG_BOOL bMap,
 
 		if (bMap)
 		{
-			InsertMapRangeCommand(ui32AllocationIndex,
+			InsertMapRangeCommand(psDeviceNode,
+								ui32AllocationIndex,
 								ui32StartPage,
 								ui32PagesToAdd);
 		}
 		else
 		{
-			InsertUnmapRangeCommand(ui32AllocationIndex,
+			InsertUnmapRangeCommand(psDeviceNode,
+								ui32AllocationIndex,
 								ui32StartPage,
 								ui32PagesToAdd);
 		}
@@ -1074,7 +1108,9 @@ static void VRangeInsertMapUnmapCommands(IMG_BOOL bMap,
 	}
 }
 
-PVRSRV_ERROR DevicememHistoryMapVRangeKM(IMG_DEV_VIRTADDR sBaseDevVAddr,
+PVRSRV_ERROR DevicememHistoryMapVRangeKM(CONNECTION_DATA *psConnection,
+						PVRSRV_DEVICE_NODE *psDeviceNode,
+						IMG_DEV_VIRTADDR sBaseDevVAddr,
 						IMG_UINT32 ui32StartPage,
 						IMG_UINT32 ui32NumPages,
 						IMG_DEVMEM_SIZE_T uiAllocSize,
@@ -1087,6 +1123,8 @@ PVRSRV_ERROR DevicememHistoryMapVRangeKM(IMG_DEV_VIRTADDR sBaseDevVAddr,
 	PVRSRV_ERROR eError;
 	IMG_BOOL bCreated;
 
+	PVR_UNREFERENCED_PARAMETER(psConnection);
+
 	if ((ui32AllocationIndex != DEVICEMEM_HISTORY_ALLOC_INDEX_NONE) &&
 		!CHECK_ALLOC_INDEX(ui32AllocationIndex))
 	{
@@ -1098,7 +1136,8 @@ PVRSRV_ERROR DevicememHistoryMapVRangeKM(IMG_DEV_VIRTADDR sBaseDevVAddr,
 
 	DevicememHistoryLock();
 
-	eError = FindOrCreateAllocation(ui32AllocationIndex,
+	eError = FindOrCreateAllocation(psDeviceNode,
+						ui32AllocationIndex,
 						0,
 						sBaseDevVAddr,
 						uiAllocSize,
@@ -1123,7 +1162,8 @@ PVRSRV_ERROR DevicememHistoryMapVRangeKM(IMG_DEV_VIRTADDR sBaseDevVAddr,
 		goto out_unlock;
 	}
 
-	VRangeInsertMapUnmapCommands(IMG_TRUE,
+	VRangeInsertMapUnmapCommands(psDeviceNode,
+						IMG_TRUE,
 						ui32AllocationIndex,
 						sBaseDevVAddr,
 						ui32StartPage,
@@ -1139,7 +1179,9 @@ out_unlock:
 
 }
 
-PVRSRV_ERROR DevicememHistoryUnmapVRangeKM(IMG_DEV_VIRTADDR sBaseDevVAddr,
+PVRSRV_ERROR DevicememHistoryUnmapVRangeKM(CONNECTION_DATA *psConnection,
+						PVRSRV_DEVICE_NODE *psDeviceNode,
+						IMG_DEV_VIRTADDR sBaseDevVAddr,
 						IMG_UINT32 ui32StartPage,
 						IMG_UINT32 ui32NumPages,
 						IMG_DEVMEM_SIZE_T uiAllocSize,
@@ -1152,6 +1194,8 @@ PVRSRV_ERROR DevicememHistoryUnmapVRangeKM(IMG_DEV_VIRTADDR sBaseDevVAddr,
 	PVRSRV_ERROR eError;
 	IMG_BOOL bCreated;
 
+	PVR_UNREFERENCED_PARAMETER(psConnection);
+
 	if ((ui32AllocationIndex != DEVICEMEM_HISTORY_ALLOC_INDEX_NONE) &&
 		!CHECK_ALLOC_INDEX(ui32AllocationIndex))
 	{
@@ -1163,7 +1207,8 @@ PVRSRV_ERROR DevicememHistoryUnmapVRangeKM(IMG_DEV_VIRTADDR sBaseDevVAddr,
 
 	DevicememHistoryLock();
 
-	eError = FindOrCreateAllocation(ui32AllocationIndex,
+	eError = FindOrCreateAllocation(psDeviceNode,
+						ui32AllocationIndex,
 						0,
 						sBaseDevVAddr,
 						uiAllocSize,
@@ -1188,7 +1233,8 @@ PVRSRV_ERROR DevicememHistoryUnmapVRangeKM(IMG_DEV_VIRTADDR sBaseDevVAddr,
 		goto out_unlock;
 	}
 
-	VRangeInsertMapUnmapCommands(IMG_FALSE,
+	VRangeInsertMapUnmapCommands(psDeviceNode,
+						IMG_FALSE,
 						ui32AllocationIndex,
 						sBaseDevVAddr,
 						ui32StartPage,
@@ -1248,7 +1294,8 @@ PVRSRV_ERROR DevicememHistoryUnmapKM(PMR *psPMR,
 
 	DevicememHistoryLock();
 
-	eError = FindOrCreateAllocation(ui32AllocationIndex,
+	eError = FindOrCreateAllocation(PMR_DeviceNode(psPMR),
+						ui32AllocationIndex,
 						ui64Serial,
 						sDevVAddr,
 						uiSize,
@@ -1275,7 +1322,7 @@ PVRSRV_ERROR DevicememHistoryUnmapKM(PMR *psPMR,
 
 	if (!bSparse)
 	{
-		InsertUnmapAllCommand(ui32AllocationIndex);
+		InsertUnmapAllCommand(PMR_DeviceNode(psPMR), ui32AllocationIndex);
 	}
 	else
 	{
@@ -1345,7 +1392,8 @@ PVRSRV_ERROR DevicememHistorySparseChangeKM(PMR *psPMR,
 
 	DevicememHistoryLock();
 
-	eError = FindOrCreateAllocation(ui32AllocationIndex,
+	eError = FindOrCreateAllocation(PMR_DeviceNode(psPMR),
+						ui32AllocationIndex,
 						ui64Serial,
 						sDevVAddr,
 						uiSize,
@@ -1370,12 +1418,14 @@ PVRSRV_ERROR DevicememHistorySparseChangeKM(PMR *psPMR,
 		goto out_unlock;
 	}
 
-	GenerateMapUnmapCommandsForChangeList(ui32AllocPageCount,
+	GenerateMapUnmapCommandsForChangeList(PMR_DeviceNode(psPMR),
+							ui32AllocPageCount,
 							paui32AllocPageIndices,
 							ui32AllocationIndex,
 							IMG_TRUE);
 
-	GenerateMapUnmapCommandsForChangeList(ui32FreePageCount,
+	GenerateMapUnmapCommandsForChangeList(PMR_DeviceNode(psPMR),
+							ui32FreePageCount,
 							paui32FreePageIndices,
 							ui32AllocationIndex,
 							IMG_FALSE);
