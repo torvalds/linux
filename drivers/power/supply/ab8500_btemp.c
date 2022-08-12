@@ -697,7 +697,6 @@ static void ab8500_btemp_unbind(struct device *dev, struct device *master,
 
 	/* Delete the work queue */
 	destroy_workqueue(di->btemp_wq);
-	flush_scheduled_work();
 }
 
 static const struct component_ops ab8500_btemp_component_ops = {

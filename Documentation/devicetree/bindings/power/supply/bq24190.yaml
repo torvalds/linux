@@ -28,7 +28,7 @@ properties:
     maxItems: 1
 
   usb-otg-vbus:
-    type: object
+    $ref: /schemas/regulator/regulator.yaml#
     description: |
       Regulator that is used to control the VBUS voltage direction for
       either USB host mode or for charging on the OTG port
