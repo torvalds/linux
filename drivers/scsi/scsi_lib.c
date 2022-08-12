@@ -1548,7 +1548,6 @@ static blk_status_t scsi_prepare_cmd(struct request *req)
 	scsi_init_command(sdev, cmd);
 
 	cmd->eh_eflags = 0;
-	cmd->allowed = 0;
 	cmd->prot_type = 0;
 	cmd->prot_flags = 0;
 	cmd->submitter = 0;
@@ -1599,6 +1598,8 @@ static blk_status_t scsi_prepare_cmd(struct request *req)
 			return ret;
 	}
 
+	/* Usually overridden by the ULP */
+	cmd->allowed = 0;
 	memset(cmd->cmnd, 0, sizeof(cmd->cmnd));
 	return scsi_cmd_to_driver(cmd)->init_command(cmd);
 }
