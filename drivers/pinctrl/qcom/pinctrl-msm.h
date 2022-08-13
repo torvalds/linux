@@ -38,6 +38,7 @@ struct msm_function {
  * @intr_status_reg:      Offset of the register holding the status bits for this group.
  * @intr_target_reg:      Offset of the register specifying routing of the interrupts
  *                        from this group.
+ * @reg_size_4k:          Size of the group register space in 4k granularity.
  * @mux_bit:              Offset in @ctl_reg for the pinmux function selection.
  * @pull_bit:             Offset in @ctl_reg for the bias configuration.
  * @drv_bit:              Offset in @ctl_reg for the drive strength configuration.
@@ -73,6 +74,7 @@ struct msm_pingroup {
 	u32 intr_cfg_reg;
 	u32 intr_status_reg;
 	u32 intr_target_reg;
+	unsigned int reg_size_4k:5;
 
 	unsigned int tile:2;
 

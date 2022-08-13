@@ -15,4 +15,7 @@ int msm_qup_read(u32 mode);
 /* API to write to mpm_wakeup registers */
 int msm_gpio_mpm_wake_set(unsigned int gpio, bool enable);
 
+/* API to get gpio pin address */
+bool msm_gpio_get_pin_address(unsigned int gpio, struct resource *res);
 #endif /* __LINUX_PINCTRL_MSM_H__ */
+

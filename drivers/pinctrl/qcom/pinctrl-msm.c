@@ -25,6 +25,7 @@
 #include <linux/qcom_scm.h>
 #include <linux/soc/qcom/irq.h>
 #include <linux/bitmap.h>
+#include <linux/sizes.h>
 
 #include "../core.h"
 #include "../pinconf.h"
@@ -33,6 +34,7 @@
 
 #define MAX_NR_GPIO 300
 #define MAX_NR_TILES 4
+#define DEFAULT_REG_SIZE_4K  1
 #define PS_HOLD_OFFSET 0x820
 #define QUP_MASK       GENMASK(5, 0)
 
@@ -83,16 +85,19 @@ static struct msm_pinctrl *msm_pinctrl_data;
 
 #define EGPIO_PRESENT			11
 #define EGPIO_ENABLE			12
+#define I2C_PULL			13
 #define MSM_APPS_OWNER			1
 #define MSM_REMOTE_OWNER		0
 
 /* custom pinconf parameters for msm pinictrl*/
-#define MSM_PIN_CONFIG_APPS		(PIN_CONFIG_END + 1)
-#define MSM_PIN_CONFIG_REMOTE		(PIN_CONFIG_END + 2)
+#define MSM_PIN_CONFIG_APPS           (PIN_CONFIG_END + 1)
+#define MSM_PIN_CONFIG_REMOTE         (PIN_CONFIG_END + 2)
+#define MSM_PIN_CONFIG_I2C_PULL       (PIN_CONFIG_END + 3)
 
 static const struct pinconf_generic_params msm_gpio_bindings[] = {
-	{"qcom,apps",			MSM_PIN_CONFIG_APPS,	0},
-	{"qcom,remote",			MSM_PIN_CONFIG_REMOTE,	0},
+	{"qcom,apps",        MSM_PIN_CONFIG_APPS,     0},
+	{"qcom,remote",      MSM_PIN_CONFIG_REMOTE,   0},
+	{"qcom,i2c_pull",    MSM_PIN_CONFIG_I2C_PULL, 0},
 };
 
 #define MSM_ACCESSOR(name) \
@@ -321,6 +326,10 @@ static int msm_config_reg(struct msm_pinctrl *pctrl,
 		*bit = EGPIO_ENABLE;
 		*mask = 1;
 		break;
+	case MSM_PIN_CONFIG_I2C_PULL:
+		*bit = I2C_PULL;
+		*mask = 1;
+		break;
 	default:
 		return -ENOTSUPP;
 	}
@@ -426,6 +435,9 @@ static int msm_config_group_get(struct pinctrl_dev *pctldev,
 
 		arg = 1;
 		break;
+	case MSM_PIN_CONFIG_I2C_PULL:
+		arg = 1;
+		break;
 	default:
 		return -ENOTSUPP;
 	}
@@ -517,6 +529,9 @@ static int msm_config_group_set(struct pinctrl_dev *pctldev,
 		case MSM_PIN_CONFIG_REMOTE:
 			owner_update = 1;
 			owner_bit = MSM_REMOTE_OWNER;
+			break;
+		case MSM_PIN_CONFIG_I2C_PULL:
+			arg = 1;
 			break;
 		default:
 			dev_err(pctrl->dev, "Unsupported config parameter: %x\n",
@@ -766,9 +781,9 @@ static int msm_gpio_init_valid_mask(struct gpio_chip *gc,
 		return 0;
 	}
 
-	if (of_property_count_u32_elems(pctrl->dev->of_node, "reserved-gpios") > 0) {
+	if (of_property_count_u32_elems(pctrl->dev->of_node, "qcom,gpios-reserved") > 0) {
 		bitmap_fill(valid_mask, ngpios);
-		of_property_for_each_u32(pctrl->dev->of_node, "reserved-gpios", prop, p, i) {
+		of_property_for_each_u32(pctrl->dev->of_node, "qcom,gpios-reserved", prop, p, i) {
 			if (i >= ngpios) {
 				dev_err(pctrl->dev, "invalid list of reserved GPIOs\n");
 				return -EINVAL;
@@ -1359,11 +1374,11 @@ static bool msm_gpio_needs_valid_mask(struct msm_pinctrl *pctrl)
 	if (pctrl->soc->reserved_gpios)
 		return true;
 
-	have_reserved = of_property_count_u32_elems(pctrl->dev->of_node, "reserved-gpios") > 0;
+	have_reserved = of_property_count_u32_elems(pctrl->dev->of_node, "qcom,gpios-reserved") > 0;
 	have_gpios = device_property_count_u16(pctrl->dev, "gpios") > 0;
 
 	if (have_reserved && have_gpios)
-		dev_warn(pctrl->dev, "reserved-gpios and gpios are both defined. Only one should be used.\n");
+		dev_warn(pctrl->dev, "qcom,gpios-reserved and gpios are both defined. Only one should be used.\n");
 
 	return have_reserved || have_gpios;
 }
@@ -1553,6 +1568,52 @@ int msm_gpio_mpm_wake_set(unsigned int gpio, bool enable)
 	return 0;
 }
 EXPORT_SYMBOL(msm_gpio_mpm_wake_set);
+
+/*
+ * msm_gpio_get_pin_address - API to get GPIO physical address range
+ * @gpio_num:   global GPIO num, as returned from gpio apis - desc_to_gpio().
+ * @res:        Out param. Resource struct with start/end addr populated.
+ * @ret:        true if the pin is valid, false otherwise.
+ */
+bool msm_gpio_get_pin_address(unsigned int gpio_num, struct resource *res)
+{
+	struct gpio_chip *chip;
+	const struct msm_pingroup *g;
+	struct resource *tile_res;
+	struct platform_device *pdev;
+	unsigned int gpio;
+
+	if (!msm_pinctrl_data) {
+		pr_err("pinctrl data is not available\n");
+		return false;
+	}
+
+	chip = &msm_pinctrl_data->chip;
+	pdev = to_platform_device(msm_pinctrl_data->dev);
+	gpio = gpio_num - chip->base;
+
+	if (!gpiochip_line_is_valid(chip, gpio))
+		return false;
+	if (!res)
+		return false;
+
+	g = &msm_pinctrl_data->soc->groups[gpio];
+	if (msm_pinctrl_data->soc->tiles)
+		tile_res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
+					msm_pinctrl_data->soc->tiles[g->tile]);
+	else
+		tile_res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (!tile_res) {
+		dev_err(&pdev->dev, "failed to get resource\n");
+		return false;
+	}
+
+	res->start = tile_res->start + g->ctl_reg;
+	res->end = res->start + (g->reg_size_4k ? : DEFAULT_REG_SIZE_4K) * SZ_4K - 1;
+
+	return true;
+}
+EXPORT_SYMBOL(msm_gpio_get_pin_address);
 
 int msm_qup_write(u32 mode, u32 val)
 {
