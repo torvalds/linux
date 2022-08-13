@@ -84,9 +84,7 @@ static inline int sys_bpf_fd(enum bpf_cmd cmd, union bpf_attr *attr,
 	return ensure_good_fd(fd);
 }
 
-#define PROG_LOAD_ATTEMPTS 5
-
-static inline int sys_bpf_prog_load(union bpf_attr *attr, unsigned int size, int attempts)
+int sys_bpf_prog_load(union bpf_attr *attr, unsigned int size, int attempts)
 {
 	int fd;
 
@@ -263,7 +261,7 @@ int bpf_prog_load(enum bpf_prog_type prog_type,
 	attr.prog_ifindex = OPTS_GET(opts, prog_ifindex, 0);
 	attr.kern_version = OPTS_GET(opts, kern_version, 0);
 
-	if (prog_name)
+	if (prog_name && kernel_supports(NULL, FEAT_PROG_NAME))
 		libbpf_strlcpy(attr.prog_name, prog_name, sizeof(attr.prog_name));
 	attr.license = ptr_to_u64(license);
 
