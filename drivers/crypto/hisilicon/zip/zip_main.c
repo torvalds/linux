@@ -586,8 +586,9 @@ static ssize_t hisi_zip_ctrl_debug_write(struct file *filp,
 		return len;
 
 	tbuf[len] = '\0';
-	if (kstrtoul(tbuf, 0, &val))
-		return -EFAULT;
+	ret = kstrtoul(tbuf, 0, &val);
+	if (ret)
+		return ret;
 
 	ret = hisi_qm_get_dfx_access(qm);
 	if (ret)
@@ -976,7 +977,10 @@ static int hisi_zip_pf_probe_init(struct hisi_zip *hisi_zip)
 	qm->err_ini = &hisi_zip_err_ini;
 	qm->err_ini->err_info_init(qm);
 
-	hisi_zip_set_user_domain_and_cache(qm);
+	ret = hisi_zip_set_user_domain_and_cache(qm);
+	if (ret)
+		return ret;
+
 	hisi_zip_open_sva_prefetch(qm);
 	hisi_qm_dev_err_init(qm);
 	hisi_zip_debug_regs_clear(qm);

@@ -135,7 +135,7 @@ static u16 sgl_sge_nr = HZIP_SGL_SGE_NR;
 module_param_cb(sgl_sge_nr, &sgl_sge_nr_ops, &sgl_sge_nr, 0444);
 MODULE_PARM_DESC(sgl_sge_nr, "Number of sge in sgl(1-255)");
 
-static u16 get_extra_field_size(const u8 *start)
+static u32 get_extra_field_size(const u8 *start)
 {
 	return *((u16 *)start) + GZIP_HEAD_FEXTRA_XLEN;
 }
@@ -167,7 +167,7 @@ static u32 __get_gzip_head_size(const u8 *src)
 	return size;
 }
 
-static size_t __maybe_unused get_gzip_head_size(struct scatterlist *sgl)
+static u32 __maybe_unused get_gzip_head_size(struct scatterlist *sgl)
 {
 	char buf[HZIP_GZIP_HEAD_BUF];
 
@@ -497,7 +497,7 @@ static int hisi_zip_adecompress(struct acomp_req *acomp_req)
 	return ret;
 }
 
-static int hisi_zip_start_qp(struct hisi_qp *qp, struct hisi_zip_qp_ctx *ctx,
+static int hisi_zip_start_qp(struct hisi_qp *qp, struct hisi_zip_qp_ctx *qp_ctx,
 			     int alg_type, int req_type)
 {
 	struct device *dev = &qp->qm->pdev->dev;
@@ -505,7 +505,7 @@ static int hisi_zip_start_qp(struct hisi_qp *qp, struct hisi_zip_qp_ctx *ctx,
 
 	qp->req_type = req_type;
 	qp->alg_type = alg_type;
-	qp->qp_ctx = ctx;
+	qp->qp_ctx = qp_ctx;
 
 	ret = hisi_qm_start_qp(qp, 0);
 	if (ret < 0) {
@@ -513,15 +513,15 @@ static int hisi_zip_start_qp(struct hisi_qp *qp, struct hisi_zip_qp_ctx *ctx,
 		return ret;
 	}
 
-	ctx->qp = qp;
+	qp_ctx->qp = qp;
 
 	return 0;
 }
 
-static void hisi_zip_release_qp(struct hisi_zip_qp_ctx *ctx)
+static void hisi_zip_release_qp(struct hisi_zip_qp_ctx *qp_ctx)
 {
-	hisi_qm_stop_qp(ctx->qp);
-	hisi_qm_free_qps(&ctx->qp, 1);
+	hisi_qm_stop_qp(qp_ctx->qp);
+	hisi_qm_free_qps(&qp_ctx->qp, 1);
 }
 
 static const struct hisi_zip_sqe_ops hisi_zip_ops_v1 = {
@@ -593,7 +593,7 @@ static void hisi_zip_ctx_exit(struct hisi_zip_ctx *hisi_zip_ctx)
 {
 	int i;
 
-	for (i = 1; i >= 0; i--)
+	for (i = 0; i < HZIP_CTX_Q_NUM; i++)
 		hisi_zip_release_qp(&hisi_zip_ctx->qp_ctx[i]);
 }
 
@@ -612,7 +612,7 @@ static int hisi_zip_create_req_q(struct hisi_zip_ctx *ctx)
 			if (i == 0)
 				return ret;
 
-			goto err_free_loop0;
+			goto err_free_comp_q;
 		}
 		rwlock_init(&req_q->req_lock);
 
@@ -621,19 +621,19 @@ static int hisi_zip_create_req_q(struct hisi_zip_ctx *ctx)
 		if (!req_q->q) {
 			ret = -ENOMEM;
 			if (i == 0)
-				goto err_free_bitmap;
+				goto err_free_comp_bitmap;
 			else
-				goto err_free_loop1;
+				goto err_free_decomp_bitmap;
 		}
 	}
 
 	return 0;
 
-err_free_loop1:
+err_free_decomp_bitmap:
 	bitmap_free(ctx->qp_ctx[HZIP_QPC_DECOMP].req_q.req_bitmap);
-err_free_loop0:
+err_free_comp_q:
 	kfree(ctx->qp_ctx[HZIP_QPC_COMP].req_q.q);
-err_free_bitmap:
+err_free_comp_bitmap:
 	bitmap_free(ctx->qp_ctx[HZIP_QPC_COMP].req_q.req_bitmap);
 	return ret;
 }
