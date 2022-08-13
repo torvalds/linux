@@ -708,7 +708,7 @@ static u32 hpre_cluster_inqry_read(struct hpre_debugfs_file *file)
 	return readl(qm->io_base + offset + HPRE_CLSTR_ADDR_INQRY_RSLT);
 }
 
-static int hpre_cluster_inqry_write(struct hpre_debugfs_file *file, u32 val)
+static void hpre_cluster_inqry_write(struct hpre_debugfs_file *file, u32 val)
 {
 	struct hisi_qm *qm = hpre_file_to_qm(file);
 	int cluster_index = file->index - HPRE_CLUSTER_CTRL;
@@ -716,8 +716,6 @@ static int hpre_cluster_inqry_write(struct hpre_debugfs_file *file, u32 val)
 			       HPRE_CLSTR_ADDR_INTRVL;
 
 	writel(val, qm->io_base + offset + HPRE_CLUSTER_INQURY);
-
-	return 0;
 }
 
 static ssize_t hpre_ctrl_debug_read(struct file *filp, char __user *buf,
@@ -792,9 +790,7 @@ static ssize_t hpre_ctrl_debug_write(struct file *filp, const char __user *buf,
 			goto err_input;
 		break;
 	case HPRE_CLUSTER_CTRL:
-		ret = hpre_cluster_inqry_write(file, val);
-		if (ret)
-			goto err_input;
+		hpre_cluster_inqry_write(file, val);
 		break;
 	default:
 		ret = -EINVAL;
