@@ -9,6 +9,7 @@
 
 #include <linux/bcd.h>
 #include <linux/bitops.h>
+#include <linux/bitfield.h>
 #include <linux/log2.h>
 #include <linux/i2c.h>
 #include <linux/interrupt.h>
@@ -33,6 +34,7 @@
 #define RV8803_EXT			0x0D
 #define RV8803_FLAG			0x0E
 #define RV8803_CTRL			0x0F
+#define RV8803_OSC_OFFSET		0x2C
 
 #define RV8803_EXT_WADA			BIT(6)
 
@@ -49,12 +51,15 @@
 #define RV8803_CTRL_TIE			BIT(4)
 #define RV8803_CTRL_UIE			BIT(5)
 
+#define RX8803_CTRL_CSEL		GENMASK(7, 6)
+
 #define RX8900_BACKUP_CTRL		0x18
 #define RX8900_FLAG_SWOFF		BIT(2)
 #define RX8900_FLAG_VDETOFF		BIT(3)
 
 enum rv8803_type {
 	rv_8803,
+	rx_8803,
 	rx_8804,
 	rx_8900
 };
@@ -64,6 +69,7 @@ struct rv8803_data {
 	struct rtc_device *rtc;
 	struct mutex flags_lock;
 	u8 ctrl;
+	u8 backup;
 	enum rv8803_type type;
 };
 
@@ -134,6 +140,44 @@ static int rv8803_write_regs(const struct i2c_client *client,
 			reg, reg + count - 1);
 
 	return ret;
+}
+
+static int rv8803_regs_init(struct rv8803_data *rv8803)
+{
+	int ret;
+
+	ret = rv8803_write_reg(rv8803->client, RV8803_OSC_OFFSET, 0x00);
+	if (ret)
+		return ret;
+
+	ret = rv8803_write_reg(rv8803->client, RV8803_CTRL,
+			       FIELD_PREP(RX8803_CTRL_CSEL, 1)); /* 2s */
+	if (ret)
+		return ret;
+
+	ret = rv8803_write_regs(rv8803->client, RV8803_ALARM_MIN, 3,
+				(u8[]){ 0, 0, 0 });
+	if (ret)
+		return ret;
+
+	return rv8803_write_reg(rv8803->client, RV8803_RAM, 0x00);
+}
+
+static int rv8803_regs_configure(struct rv8803_data *rv8803);
+
+static int rv8803_regs_reset(struct rv8803_data *rv8803)
+{
+	/*
+	 * The RV-8803 resets all registers to POR defaults after voltage-loss,
+	 * the Epson RTCs don't, so we manually reset the remainder here.
+	 */
+	if (rv8803->type == rx_8803 || rv8803->type == rx_8900) {
+		int ret = rv8803_regs_init(rv8803);
+		if (ret)
+			return ret;
+	}
+
+	return rv8803_regs_configure(rv8803);
 }
 
 static irqreturn_t rv8803_handle_irq(int irq, void *dev_id)
@@ -267,6 +311,14 @@ static int rv8803_set_time(struct device *dev, struct rtc_time *tm)
 	if (flags < 0) {
 		mutex_unlock(&rv8803->flags_lock);
 		return flags;
+	}
+
+	if (flags & RV8803_FLAG_V2F) {
+		ret = rv8803_regs_reset(rv8803);
+		if (ret) {
+			mutex_unlock(&rv8803->flags_lock);
+			return ret;
+		}
 	}
 
 	ret = rv8803_write_reg(rv8803->client, RV8803_FLAG,
@@ -498,16 +550,30 @@ static int rx8900_trickle_charger_init(struct rv8803_data *rv8803)
 	if (err < 0)
 		return err;
 
-	flags = ~(RX8900_FLAG_VDETOFF | RX8900_FLAG_SWOFF) & (u8)err;
-
-	if (of_property_read_bool(node, "epson,vdet-disable"))
-		flags |= RX8900_FLAG_VDETOFF;
-
-	if (of_property_read_bool(node, "trickle-diode-disable"))
-		flags |= RX8900_FLAG_SWOFF;
+	flags = (u8)err;
+	flags &= ~(RX8900_FLAG_VDETOFF | RX8900_FLAG_SWOFF);
+	flags |= rv8803->backup;
 
 	return i2c_smbus_write_byte_data(rv8803->client, RX8900_BACKUP_CTRL,
 					 flags);
+}
+
+/* configure registers with values different than the Power-On reset defaults */
+static int rv8803_regs_configure(struct rv8803_data *rv8803)
+{
+	int err;
+
+	err = rv8803_write_reg(rv8803->client, RV8803_EXT, RV8803_EXT_WADA);
+	if (err)
+		return err;
+
+	err = rx8900_trickle_charger_init(rv8803);
+	if (err) {
+		dev_err(&rv8803->client->dev, "failed to init charger\n");
+		return err;
+	}
+
+	return 0;
 }
 
 static int rv8803_probe(struct i2c_client *client,
@@ -576,15 +642,15 @@ static int rv8803_probe(struct i2c_client *client,
 	if (!client->irq)
 		clear_bit(RTC_FEATURE_ALARM, rv8803->rtc->features);
 
-	err = rv8803_write_reg(rv8803->client, RV8803_EXT, RV8803_EXT_WADA);
+	if (of_property_read_bool(client->dev.of_node, "epson,vdet-disable"))
+		rv8803->backup |= RX8900_FLAG_VDETOFF;
+
+	if (of_property_read_bool(client->dev.of_node, "trickle-diode-disable"))
+		rv8803->backup |= RX8900_FLAG_SWOFF;
+
+	err = rv8803_regs_configure(rv8803);
 	if (err)
 		return err;
-
-	err = rx8900_trickle_charger_init(rv8803);
-	if (err) {
-		dev_err(&client->dev, "failed to init charger\n");
-		return err;
-	}
 
 	rv8803->rtc->ops = &rv8803_rtc_ops;
 	rv8803->rtc->range_min = RTC_TIMESTAMP_BEGIN_2000;
@@ -603,7 +669,7 @@ static int rv8803_probe(struct i2c_client *client,
 static const struct i2c_device_id rv8803_id[] = {
 	{ "rv8803", rv_8803 },
 	{ "rv8804", rx_8804 },
-	{ "rx8803", rv_8803 },
+	{ "rx8803", rx_8803 },
 	{ "rx8900", rx_8900 },
 	{ }
 };
@@ -616,7 +682,7 @@ static const __maybe_unused struct of_device_id rv8803_of_match[] = {
 	},
 	{
 		.compatible = "epson,rx8803",
-		.data = (void *)rv_8803
+		.data = (void *)rx_8803
 	},
 	{
 		.compatible = "epson,rx8804",
