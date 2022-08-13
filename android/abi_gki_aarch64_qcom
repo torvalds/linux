@@ -672,6 +672,7 @@
   __hwspin_lock_timeout
   __hwspin_unlock
   hypervisor_kobj
+  hyp_assign_phys
   i2c_add_adapter
   i2c_del_adapter
   i2c_del_driver
@@ -996,6 +997,7 @@
   netdev_rss_key_fill
   no_llseek
   nonseekable_open
+  noop_llseek
   nr_cpu_ids
   nr_ipi_get
   nr_irqs
@@ -1298,6 +1300,7 @@
   put_iova_domain
   __put_page
   __put_task_struct
+  put_unused_fd
   put_user_ifreq
   pwm_apply_state
   pwmchip_add

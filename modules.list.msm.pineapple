@@ -27,6 +27,14 @@ camcc-pineapple.ko
 qcom-ipcc.ko
 stub-regulator.ko
 gdsc-regulator.ko
+gh_virt_wdt.ko
+gh_arm_drv.ko
+gh_ctrl.ko
+gh_dbl.ko
+gh_msgq.ko
+gh_rm_drv.ko
+gunyah.ko
+mdt_loader.ko
 debug-regulator.ko
 phy-qcom-ufs.ko
 phy-qcom-ufs-qrbtc-sdm845.ko
