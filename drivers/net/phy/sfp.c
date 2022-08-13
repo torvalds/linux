@@ -1195,90 +1195,45 @@ static const struct hwmon_ops sfp_hwmon_ops = {
 	.read_string = sfp_hwmon_read_string,
 };
 
-static u32 sfp_hwmon_chip_config[] = {
-	HWMON_C_REGISTER_TZ,
-	0,
-};
-
-static const struct hwmon_channel_info sfp_hwmon_chip = {
-	.type = hwmon_chip,
-	.config = sfp_hwmon_chip_config,
-};
-
-static u32 sfp_hwmon_temp_config[] = {
-	HWMON_T_INPUT |
-	HWMON_T_MAX | HWMON_T_MIN |
-	HWMON_T_MAX_ALARM | HWMON_T_MIN_ALARM |
-	HWMON_T_CRIT | HWMON_T_LCRIT |
-	HWMON_T_CRIT_ALARM | HWMON_T_LCRIT_ALARM |
-	HWMON_T_LABEL,
-	0,
-};
-
-static const struct hwmon_channel_info sfp_hwmon_temp_channel_info = {
-	.type = hwmon_temp,
-	.config = sfp_hwmon_temp_config,
-};
-
-static u32 sfp_hwmon_vcc_config[] = {
-	HWMON_I_INPUT |
-	HWMON_I_MAX | HWMON_I_MIN |
-	HWMON_I_MAX_ALARM | HWMON_I_MIN_ALARM |
-	HWMON_I_CRIT | HWMON_I_LCRIT |
-	HWMON_I_CRIT_ALARM | HWMON_I_LCRIT_ALARM |
-	HWMON_I_LABEL,
-	0,
-};
-
-static const struct hwmon_channel_info sfp_hwmon_vcc_channel_info = {
-	.type = hwmon_in,
-	.config = sfp_hwmon_vcc_config,
-};
-
-static u32 sfp_hwmon_bias_config[] = {
-	HWMON_C_INPUT |
-	HWMON_C_MAX | HWMON_C_MIN |
-	HWMON_C_MAX_ALARM | HWMON_C_MIN_ALARM |
-	HWMON_C_CRIT | HWMON_C_LCRIT |
-	HWMON_C_CRIT_ALARM | HWMON_C_LCRIT_ALARM |
-	HWMON_C_LABEL,
-	0,
-};
-
-static const struct hwmon_channel_info sfp_hwmon_bias_channel_info = {
-	.type = hwmon_curr,
-	.config = sfp_hwmon_bias_config,
-};
-
-static u32 sfp_hwmon_power_config[] = {
-	/* Transmit power */
-	HWMON_P_INPUT |
-	HWMON_P_MAX | HWMON_P_MIN |
-	HWMON_P_MAX_ALARM | HWMON_P_MIN_ALARM |
-	HWMON_P_CRIT | HWMON_P_LCRIT |
-	HWMON_P_CRIT_ALARM | HWMON_P_LCRIT_ALARM |
-	HWMON_P_LABEL,
-	/* Receive power */
-	HWMON_P_INPUT |
-	HWMON_P_MAX | HWMON_P_MIN |
-	HWMON_P_MAX_ALARM | HWMON_P_MIN_ALARM |
-	HWMON_P_CRIT | HWMON_P_LCRIT |
-	HWMON_P_CRIT_ALARM | HWMON_P_LCRIT_ALARM |
-	HWMON_P_LABEL,
-	0,
-};
-
-static const struct hwmon_channel_info sfp_hwmon_power_channel_info = {
-	.type = hwmon_power,
-	.config = sfp_hwmon_power_config,
-};
-
 static const struct hwmon_channel_info *sfp_hwmon_info[] = {
-	&sfp_hwmon_chip,
-	&sfp_hwmon_vcc_channel_info,
-	&sfp_hwmon_temp_channel_info,
-	&sfp_hwmon_bias_channel_info,
-	&sfp_hwmon_power_channel_info,
+	HWMON_CHANNEL_INFO(chip,
+			   HWMON_C_REGISTER_TZ),
+	HWMON_CHANNEL_INFO(in,
+			   HWMON_I_INPUT |
+			   HWMON_I_MAX | HWMON_I_MIN |
+			   HWMON_I_MAX_ALARM | HWMON_I_MIN_ALARM |
+			   HWMON_I_CRIT | HWMON_I_LCRIT |
+			   HWMON_I_CRIT_ALARM | HWMON_I_LCRIT_ALARM |
+			   HWMON_I_LABEL),
+	HWMON_CHANNEL_INFO(temp,
+			   HWMON_T_INPUT |
+			   HWMON_T_MAX | HWMON_T_MIN |
+			   HWMON_T_MAX_ALARM | HWMON_T_MIN_ALARM |
+			   HWMON_T_CRIT | HWMON_T_LCRIT |
+			   HWMON_T_CRIT_ALARM | HWMON_T_LCRIT_ALARM |
+			   HWMON_T_LABEL),
+	HWMON_CHANNEL_INFO(curr,
+			   HWMON_C_INPUT |
+			   HWMON_C_MAX | HWMON_C_MIN |
+			   HWMON_C_MAX_ALARM | HWMON_C_MIN_ALARM |
+			   HWMON_C_CRIT | HWMON_C_LCRIT |
+			   HWMON_C_CRIT_ALARM | HWMON_C_LCRIT_ALARM |
+			   HWMON_C_LABEL),
+	HWMON_CHANNEL_INFO(power,
+			   /* Transmit power */
+			   HWMON_P_INPUT |
+			   HWMON_P_MAX | HWMON_P_MIN |
+			   HWMON_P_MAX_ALARM | HWMON_P_MIN_ALARM |
+			   HWMON_P_CRIT | HWMON_P_LCRIT |
+			   HWMON_P_CRIT_ALARM | HWMON_P_LCRIT_ALARM |
+			   HWMON_P_LABEL,
+			   /* Receive power */
+			   HWMON_P_INPUT |
+			   HWMON_P_MAX | HWMON_P_MIN |
+			   HWMON_P_MAX_ALARM | HWMON_P_MIN_ALARM |
+			   HWMON_P_CRIT | HWMON_P_LCRIT |
+			   HWMON_P_CRIT_ALARM | HWMON_P_LCRIT_ALARM |
+			   HWMON_P_LABEL),
 	NULL,
 };
 
