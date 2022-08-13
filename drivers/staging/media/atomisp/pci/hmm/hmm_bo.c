@@ -642,21 +642,11 @@ static void free_private_bo_pages(struct hmm_buffer_object *bo,
 /*Allocate pages which will be used only by ISP*/
 static int alloc_private_pages(struct hmm_buffer_object *bo)
 {
-	int ret;
-	unsigned int pgnr, blk_pgnr, alloc_pgnr;
+	const gfp_t gfp = __GFP_NOWARN | __GFP_RECLAIM | __GFP_FS;
 	struct page *pages;
-	gfp_t gfp = GFP_NOWAIT | __GFP_NOWARN; /* REVISIT: need __GFP_FS too? */
-	int i, j;
+	int i, ret;
 
-	pgnr = bo->pgnr;
-
-	i = 0;
-	alloc_pgnr = 0;
-
-	while (pgnr) {
-		gfp &= ~GFP_NOWAIT;
-		gfp |= __GFP_RECLAIM | __GFP_FS;
-
+	for (i = 0; i < bo->pgnr; i++) {
 		pages = alloc_pages(gfp, 0); // alloc 1 page
 		if (unlikely(!pages)) {
 			dev_err(atomisp_dev,
@@ -664,12 +654,10 @@ static int alloc_private_pages(struct hmm_buffer_object *bo)
 				__func__);
 			goto cleanup;
 		} else {
-			blk_pgnr = 1;
-
 			/*
 			 * set memory to uncacheable -- UC_MINUS
 			 */
-			ret = set_pages_uc(pages, blk_pgnr);
+			ret = set_pages_uc(pages, 1);
 			if (ret) {
 				dev_err(atomisp_dev,
 					"set page uncacheablefailed.\n");
@@ -679,18 +667,13 @@ static int alloc_private_pages(struct hmm_buffer_object *bo)
 				goto cleanup;
 			}
 
-			for (j = 0; j < blk_pgnr; j++, i++) {
-				bo->pages[i] = pages + j;
-			}
-
-			pgnr -= blk_pgnr;
+			bo->pages[i] = pages;
 		}
 	}
 
 	return 0;
 cleanup:
-	alloc_pgnr = i;
-	free_private_bo_pages(bo, alloc_pgnr);
+	free_private_bo_pages(bo, i);
 	return -ENOMEM;
 }
 
