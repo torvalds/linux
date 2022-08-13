@@ -35,7 +35,7 @@ static inline bool io_file_supports_nowait(struct io_kiocb *req)
 
 int io_prep_rw(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 {
-	struct io_rw *rw = io_kiocb_to_cmd(req);
+	struct io_rw *rw = io_kiocb_to_cmd(req, struct io_rw);
 	unsigned ioprio;
 	int ret;
 
@@ -102,7 +102,7 @@ static inline void io_rw_done(struct kiocb *kiocb, ssize_t ret)
 
 static inline loff_t *io_kiocb_update_pos(struct io_kiocb *req)
 {
-	struct io_rw *rw = io_kiocb_to_cmd(req);
+	struct io_rw *rw = io_kiocb_to_cmd(req, struct io_rw);
 
 	if (rw->kiocb.ki_pos != -1)
 		return &rw->kiocb.ki_pos;
@@ -186,7 +186,7 @@ static void kiocb_end_write(struct io_kiocb *req)
 
 static bool __io_complete_rw_common(struct io_kiocb *req, long res)
 {
-	struct io_rw *rw = io_kiocb_to_cmd(req);
+	struct io_rw *rw = io_kiocb_to_cmd(req, struct io_rw);
 
 	if (rw->kiocb.ki_flags & IOCB_WRITE) {
 		kiocb_end_write(req);
@@ -241,7 +241,7 @@ static int kiocb_done(struct io_kiocb *req, ssize_t ret,
 		       unsigned int issue_flags)
 {
 	struct io_async_rw *io = req->async_data;
-	struct io_rw *rw = io_kiocb_to_cmd(req);
+	struct io_rw *rw = io_kiocb_to_cmd(req, struct io_rw);
 
 	/* add previously done IO, if any */
 	if (req_has_async_data(req) && io->bytes_done > 0) {
@@ -277,7 +277,7 @@ static int kiocb_done(struct io_kiocb *req, ssize_t ret,
 static ssize_t io_compat_import(struct io_kiocb *req, struct iovec *iov,
 				unsigned int issue_flags)
 {
-	struct io_rw *rw = io_kiocb_to_cmd(req);
+	struct io_rw *rw = io_kiocb_to_cmd(req, struct io_rw);
 	struct compat_iovec __user *uiov;
 	compat_ssize_t clen;
 	void __user *buf;
@@ -305,7 +305,7 @@ static ssize_t io_compat_import(struct io_kiocb *req, struct iovec *iov,
 static ssize_t __io_iov_buffer_select(struct io_kiocb *req, struct iovec *iov,
 				      unsigned int issue_flags)
 {
-	struct io_rw *rw = io_kiocb_to_cmd(req);
+	struct io_rw *rw = io_kiocb_to_cmd(req, struct io_rw);
 	struct iovec __user *uiov = u64_to_user_ptr(rw->addr);
 	void __user *buf;
 	ssize_t len;
@@ -328,7 +328,7 @@ static ssize_t __io_iov_buffer_select(struct io_kiocb *req, struct iovec *iov,
 static ssize_t io_iov_buffer_select(struct io_kiocb *req, struct iovec *iov,
 				    unsigned int issue_flags)
 {
-	struct io_rw *rw = io_kiocb_to_cmd(req);
+	struct io_rw *rw = io_kiocb_to_cmd(req, struct io_rw);
 
 	if (req->flags & (REQ_F_BUFFER_SELECTED|REQ_F_BUFFER_RING)) {
 		iov[0].iov_base = u64_to_user_ptr(rw->addr);
@@ -350,7 +350,7 @@ static struct iovec *__io_import_iovec(int ddir, struct io_kiocb *req,
 				       struct io_rw_state *s,
 				       unsigned int issue_flags)
 {
-	struct io_rw *rw = io_kiocb_to_cmd(req);
+	struct io_rw *rw = io_kiocb_to_cmd(req, struct io_rw);
 	struct iov_iter *iter = &s->iter;
 	u8 opcode = req->opcode;
 	struct iovec *iovec;
@@ -571,7 +571,7 @@ static int io_async_buf_func(struct wait_queue_entry *wait, unsigned mode,
 {
 	struct wait_page_queue *wpq;
 	struct io_kiocb *req = wait->private;
-	struct io_rw *rw = io_kiocb_to_cmd(req);
+	struct io_rw *rw = io_kiocb_to_cmd(req, struct io_rw);
 	struct wait_page_key *key = arg;
 
 	wpq = container_of(wait, struct wait_page_queue, wait);
@@ -601,7 +601,7 @@ static bool io_rw_should_retry(struct io_kiocb *req)
 {
 	struct io_async_rw *io = req->async_data;
 	struct wait_page_queue *wait = &io->wpq;
-	struct io_rw *rw = io_kiocb_to_cmd(req);
+	struct io_rw *rw = io_kiocb_to_cmd(req, struct io_rw);
 	struct kiocb *kiocb = &rw->kiocb;
 
 	/* never retry for NOWAIT, we just complete with -EAGAIN */
@@ -649,7 +649,7 @@ static bool need_complete_io(struct io_kiocb *req)
 
 static int io_rw_init_file(struct io_kiocb *req, fmode_t mode)
 {
-	struct io_rw *rw = io_kiocb_to_cmd(req);
+	struct io_rw *rw = io_kiocb_to_cmd(req, struct io_rw);
 	struct kiocb *kiocb = &rw->kiocb;
 	struct io_ring_ctx *ctx = req->ctx;
 	struct file *file = req->file;
@@ -694,7 +694,7 @@ static int io_rw_init_file(struct io_kiocb *req, fmode_t mode)
 
 int io_read(struct io_kiocb *req, unsigned int issue_flags)
 {
-	struct io_rw *rw = io_kiocb_to_cmd(req);
+	struct io_rw *rw = io_kiocb_to_cmd(req, struct io_rw);
 	struct io_rw_state __s, *s = &__s;
 	struct iovec *iovec;
 	struct kiocb *kiocb = &rw->kiocb;
@@ -839,7 +839,7 @@ done:
 
 int io_write(struct io_kiocb *req, unsigned int issue_flags)
 {
-	struct io_rw *rw = io_kiocb_to_cmd(req);
+	struct io_rw *rw = io_kiocb_to_cmd(req, struct io_rw);
 	struct io_rw_state __s, *s = &__s;
 	struct iovec *iovec;
 	struct kiocb *kiocb = &rw->kiocb;
@@ -994,7 +994,7 @@ int io_do_iopoll(struct io_ring_ctx *ctx, bool force_nonspin)
 
 	wq_list_for_each(pos, start, &ctx->iopoll_list) {
 		struct io_kiocb *req = container_of(pos, struct io_kiocb, comp_list);
-		struct io_rw *rw = io_kiocb_to_cmd(req);
+		struct io_rw *rw = io_kiocb_to_cmd(req, struct io_rw);
 		int ret;
 
 		/*
