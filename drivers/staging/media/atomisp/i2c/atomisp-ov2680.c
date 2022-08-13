@@ -894,11 +894,7 @@ static int ov2680_set_fmt(struct v4l2_subdev *sd,
 	if (v_flag)
 		ov2680_v_flip(sd, v_flag);
 
-	/*
-	 * ret = startup(sd);
-	 * if (ret)
-	 * dev_err(&client->dev, "ov2680 startup err\n");
-	 */
+	dev->res = res;
 err:
 	mutex_unlock(&dev->input_lock);
 	return ret;
