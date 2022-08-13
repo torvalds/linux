@@ -182,6 +182,7 @@ struct nfs_inode {
 		/* Regular file */
 		struct {
 			atomic_long_t	nrequests;
+			atomic_long_t	redirtied_pages;
 			struct nfs_mds_commit_info commit_info;
 			struct mutex	commit_mutex;
 		};
