@@ -30,7 +30,7 @@ We may want to use the following options:
 
 .. code-block::
 
-	./tools/testing/kunit/kunit.py run --timeout=30 --jobs=`nproc --all
+	./tools/testing/kunit/kunit.py run --timeout=30 --jobs=`nproc --all`
 
 - ``--timeout`` sets a maximum amount of time for tests to run.
 - ``--jobs`` sets the number of threads to build the kernel.
