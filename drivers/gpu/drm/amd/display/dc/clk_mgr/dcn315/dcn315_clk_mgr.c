@@ -507,7 +507,7 @@ static void dcn315_clk_mgr_helper_populate_bw_params(
 		bw_params->clk_table.entries[i].dispclk_mhz = clock_table->DispClocks[i];
 		bw_params->clk_table.entries[i].dppclk_mhz = clock_table->DppClocks[i];
 		bw_params->clk_table.entries[i].wck_ratio = 1;
-	};
+	}
 
 	/* Make sure to include at least one entry and highest pstate */
 	if (max_pstate != min_pstate || i == 0) {
