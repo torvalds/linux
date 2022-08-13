@@ -665,9 +665,9 @@ struct se_dev_entry {
 	/* Used for PR SPEC_I_PT=1 and REGISTER_AND_MOVE */
 	struct kref		pr_kref;
 	struct completion	pr_comp;
-	struct se_lun_acl __rcu	*se_lun_acl;
+	struct se_lun_acl	*se_lun_acl;
 	spinlock_t		ua_lock;
-	struct se_lun __rcu	*se_lun;
+	struct se_lun		*se_lun;
 #define DEF_PR_REG_ACTIVE		1
 	unsigned long		deve_flags;
 	struct list_head	alua_port_list;
