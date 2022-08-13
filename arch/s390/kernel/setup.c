@@ -479,6 +479,7 @@ static void __init setup_lowcore_dat_off(void)
 	put_abs_lowcore(restart_data, lc->restart_data);
 	put_abs_lowcore(restart_source, lc->restart_source);
 	put_abs_lowcore(restart_psw, lc->restart_psw);
+	put_abs_lowcore(mcesad, lc->mcesad);
 
 	mcck_stack = (unsigned long)memblock_alloc(THREAD_SIZE, THREAD_SIZE);
 	if (!mcck_stack)
