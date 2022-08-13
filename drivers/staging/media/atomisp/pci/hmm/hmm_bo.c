@@ -44,16 +44,6 @@
 #include "hmm/hmm_common.h"
 #include "hmm/hmm_bo.h"
 
-static unsigned int order_to_nr(unsigned int order)
-{
-	return 1U << order;
-}
-
-static unsigned int nr_to_order_bottom(unsigned int nr)
-{
-	return fls(nr) - 1;
-}
-
 static int __bo_init(struct hmm_bo_device *bdev, struct hmm_buffer_object *bo,
 		     unsigned int pgnr)
 {
@@ -653,13 +643,10 @@ static void free_private_bo_pages(struct hmm_buffer_object *bo,
 static int alloc_private_pages(struct hmm_buffer_object *bo)
 {
 	int ret;
-	unsigned int pgnr, order, blk_pgnr, alloc_pgnr;
+	unsigned int pgnr, blk_pgnr, alloc_pgnr;
 	struct page *pages;
 	gfp_t gfp = GFP_NOWAIT | __GFP_NOWARN; /* REVISIT: need __GFP_FS too? */
 	int i, j;
-	int failure_number = 0;
-	bool reduce_order = false;
-	bool lack_mem = true;
 
 	pgnr = bo->pgnr;
 
@@ -667,58 +654,17 @@ static int alloc_private_pages(struct hmm_buffer_object *bo)
 	alloc_pgnr = 0;
 
 	while (pgnr) {
-		order = nr_to_order_bottom(pgnr);
-		/*
-		 * if be short of memory, we will set order to 0
-		 * everytime.
-		 */
-		if (lack_mem)
-			order = HMM_MIN_ORDER;
-		else if (order > HMM_MAX_ORDER)
-			order = HMM_MAX_ORDER;
-retry:
-		/*
-		 * When order > HMM_MIN_ORDER, for performance reasons we don't
-		 * want alloc_pages() to sleep. In case it fails and fallbacks
-		 * to HMM_MIN_ORDER or in case the requested order is originally
-		 * the minimum value, we can allow alloc_pages() to sleep for
-		 * robustness purpose.
-		 *
-		 * REVISIT: why __GFP_FS is necessary?
-		 */
-		if (order == HMM_MIN_ORDER) {
-			gfp &= ~GFP_NOWAIT;
-			gfp |= __GFP_RECLAIM | __GFP_FS;
-		}
+		gfp &= ~GFP_NOWAIT;
+		gfp |= __GFP_RECLAIM | __GFP_FS;
 
-		pages = alloc_pages(gfp, order);
+		pages = alloc_pages(gfp, 0); // alloc 1 page
 		if (unlikely(!pages)) {
-			/*
-			 * in low memory case, if allocation page fails,
-			 * we turn to try if order=0 allocation could
-			 * succeed. if order=0 fails too, that means there is
-			 * no memory left.
-			 */
-			if (order == HMM_MIN_ORDER) {
-				dev_err(atomisp_dev,
-					"%s: cannot allocate pages\n",
-					__func__);
-				goto cleanup;
-			}
-			order = HMM_MIN_ORDER;
-			failure_number++;
-			reduce_order = true;
-			/*
-			 * if fail two times continuously, we think be short
-			 * of memory now.
-			 */
-			if (failure_number == 2) {
-				lack_mem = true;
-				failure_number = 0;
-			}
-			goto retry;
+			dev_err(atomisp_dev,
+				"%s: cannot allocate pages\n",
+				__func__);
+			goto cleanup;
 		} else {
-			blk_pgnr = order_to_nr(order);
+			blk_pgnr = 1;
 
 			/*
 			 * set memory to uncacheable -- UC_MINUS
@@ -728,7 +674,7 @@ retry:
 				dev_err(atomisp_dev,
 					"set page uncacheablefailed.\n");
 
-				__free_pages(pages, order);
+				__free_pages(pages, 0);
 
 				goto cleanup;
 			}
@@ -738,15 +684,6 @@ retry:
 			}
 
 			pgnr -= blk_pgnr;
-
-			/*
-			 * if order is not reduced this time, clear
-			 * failure_number.
-			 */
-			if (reduce_order)
-				reduce_order = false;
-			else
-				failure_number = 0;
 		}
 	}
 
