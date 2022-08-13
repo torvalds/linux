@@ -2408,6 +2408,16 @@ static const struct msm_pinctrl_soc_data pineapple_pinctrl = {
 	.nwakeirq_map = ARRAY_SIZE(pineapple_pdc_map),
 };
 
+static const struct msm_pinctrl_soc_data pineapple_vm_pinctrl = {
+	.pins = pineapple_pins,
+	.npins = ARRAY_SIZE(pineapple_pins),
+	.functions = pineapple_functions,
+	.nfunctions = ARRAY_SIZE(pineapple_functions),
+	.groups = pineapple_groups,
+	.ngroups = ARRAY_SIZE(pineapple_groups),
+	.ngpios = 211,
+};
+
 static int pineapple_pinctrl_probe(struct platform_device *pdev)
 {
 	return msm_pinctrl_probe(pdev, &pineapple_pinctrl);
@@ -2415,6 +2425,7 @@ static int pineapple_pinctrl_probe(struct platform_device *pdev)
 
 static const struct of_device_id pineapple_pinctrl_of_match[] = {
 	{ .compatible = "qcom,pineapple-pinctrl", },
+	{ .compatible = "qcom,pineapple-vm-pinctrl", .data = &pineapple_vm_pinctrl},
 	{ },
 };
 
