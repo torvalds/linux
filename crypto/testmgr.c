@@ -5830,8 +5830,11 @@ test_done:
 			      driver, alg,
 			      fips_enabled ? "fips" : "panic_on_fail");
 		}
-		WARN(1, "alg: self-tests for %s (%s) failed (rc=%d)",
-		     driver, alg, rc);
+		pr_warn("alg: self-tests for %s using %s failed (rc=%d)",
+			alg, driver, rc);
+		WARN(rc != -ENOENT,
+		     "alg: self-tests for %s using %s failed (rc=%d)",
+		     alg, driver, rc);
 	} else {
 		if (fips_enabled)
 			pr_info("alg: self-tests for %s (%s) passed\n",
