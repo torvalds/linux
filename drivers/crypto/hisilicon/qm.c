@@ -3246,7 +3246,6 @@ static void hisi_qm_uacce_put_queue(struct uacce_queue *q)
 {
 	struct hisi_qp *qp = q->priv;
 
-	hisi_qm_cache_wb(qp->qm);
 	hisi_qm_release_qp(qp);
 }
 
