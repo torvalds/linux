@@ -951,7 +951,7 @@ static int __init ashmem_init(void)
 		goto out_free2;
 	}
 
-	ret = register_shrinker(&ashmem_shrinker);
+	ret = register_shrinker(&ashmem_shrinker, "android-ashmem");
 	if (ret) {
 		pr_err("failed to register shrinker!\n");
 		goto out_demisc;
