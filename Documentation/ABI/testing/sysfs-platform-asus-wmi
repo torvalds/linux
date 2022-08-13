@@ -58,6 +58,18 @@ Description:
 			* 1 - overboost,
 			* 2 - silent
 
+What:		/sys/devices/platform/<platform>/gpu_mux_mode
+Date:		Aug 2022
+KernelVersion:	6.1
+Contact:	"Luke Jones" <luke@ljones.dev>
+Description:
+		Switch the GPU hardware MUX mode. Laptops with this feature can
+		can be toggled to boot with only the dGPU (discrete mode) or in
+		standard Optimus/Hybrid mode. On switch a reboot is required:
+
+			* 0 - Discrete GPU,
+			* 1 - Optimus/Hybrid,
+
 What:		/sys/devices/platform/<platform>/dgpu_disable
 Date:		Aug 2022
 KernelVersion:	5.17
