@@ -704,25 +704,19 @@ EXPORT_SYMBOL_GPL(bdev_disk_changed);
 void *read_part_sector(struct parsed_partitions *state, sector_t n, Sector *p)
 {
 	struct address_space *mapping = state->disk->part0->bd_inode->i_mapping;
-	struct page *page;
+	struct folio *folio;
 
 	if (n >= get_capacity(state->disk)) {
 		state->access_beyond_eod = true;
-		return NULL;
+		goto out;
 	}
 
-	page = read_mapping_page(mapping,
-			(pgoff_t)(n >> (PAGE_SHIFT - 9)), NULL);
-	if (IS_ERR(page))
+	folio = read_mapping_folio(mapping, n >> PAGE_SECTORS_SHIFT, NULL);
+	if (IS_ERR(folio))
 		goto out;
-	if (PageError(page))
-		goto out_put_page;
 
-	p->v = page;
-	return (unsigned char *)page_address(page) +
-			((n & ((1 << (PAGE_SHIFT - 9)) - 1)) << SECTOR_SHIFT);
-out_put_page:
-	put_page(page);
+	p->v = folio;
+	return folio_address(folio) + offset_in_folio(folio, n * SECTOR_SIZE);
 out:
 	p->v = NULL;
 	return NULL;

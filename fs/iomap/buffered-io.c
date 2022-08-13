@@ -162,9 +162,6 @@ static void iomap_iop_set_range_uptodate(struct folio *folio,
 static void iomap_set_range_uptodate(struct folio *folio,
 		struct iomap_page *iop, size_t off, size_t len)
 {
-	if (folio_test_error(folio))
-		return;
-
 	if (iop)
 		iomap_iop_set_range_uptodate(folio, iop, off, len);
 	else
@@ -499,31 +496,6 @@ void iomap_invalidate_folio(struct folio *folio, size_t offset, size_t len)
 	}
 }
 EXPORT_SYMBOL_GPL(iomap_invalidate_folio);
-
-#ifdef CONFIG_MIGRATION
-int
-iomap_migrate_page(struct address_space *mapping, struct page *newpage,
-		struct page *page, enum migrate_mode mode)
-{
-	struct folio *folio = page_folio(page);
-	struct folio *newfolio = page_folio(newpage);
-	int ret;
-
-	ret = folio_migrate_mapping(mapping, newfolio, folio, 0);
-	if (ret != MIGRATEPAGE_SUCCESS)
-		return ret;
-
-	if (folio_test_private(folio))
-		folio_attach_private(newfolio, folio_detach_private(folio));
-
-	if (mode != MIGRATE_SYNC_NO_COPY)
-		folio_migrate_copy(newfolio, folio);
-	else
-		folio_migrate_flags(newfolio, folio);
-	return MIGRATEPAGE_SUCCESS;
-}
-EXPORT_SYMBOL_GPL(iomap_migrate_page);
-#endif /* CONFIG_MIGRATION */
 
 static void
 iomap_write_failed(struct inode *inode, loff_t pos, unsigned len)
@@ -954,10 +926,10 @@ static loff_t iomap_zero_iter(struct iomap_iter *iter, bool *did_zero)
 		pos += bytes;
 		length -= bytes;
 		written += bytes;
-		if (did_zero)
-			*did_zero = true;
 	} while (length > 0);
 
+	if (did_zero)
+		*did_zero = true;
 	return written;
 }
 
@@ -1515,10 +1487,10 @@ iomap_do_writepage(struct page *page, struct writeback_control *wbc, void *data)
 		pgoff_t end_index = isize >> PAGE_SHIFT;
 
 		/*
-		 * Skip the page if it's fully outside i_size, e.g. due to a
-		 * truncate operation that's in progress. We must redirty the
-		 * page so that reclaim stops reclaiming it. Otherwise
-		 * iomap_release_folio() is called on it and gets confused.
+		 * Skip the page if it's fully outside i_size, e.g.
+		 * due to a truncate operation that's in progress.  We've
+		 * cleaned this page and truncate will finish things off for
+		 * us.
 		 *
 		 * Note that the end_index is unsigned long.  If the given
 		 * offset is greater than 16TB on a 32-bit system then if we
@@ -1533,7 +1505,7 @@ iomap_do_writepage(struct page *page, struct writeback_control *wbc, void *data)
 		 */
 		if (folio->index > end_index ||
 		    (folio->index == end_index && poff == 0))
-			goto redirty;
+			goto unlock;
 
 		/*
 		 * The page straddles i_size.  It must be zeroed out on each
@@ -1551,6 +1523,7 @@ iomap_do_writepage(struct page *page, struct writeback_control *wbc, void *data)
 
 redirty:
 	folio_redirty_for_writepage(wbc, folio);
+unlock:
 	folio_unlock(folio);
 	return 0;
 }

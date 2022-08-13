@@ -459,43 +459,34 @@ static void brcmf_fw_fix_efi_nvram_ccode(char *data, unsigned long data_len)
 
 static u8 *brcmf_fw_nvram_from_efi(size_t *data_len_ret)
 {
-	const u16 name[] = { 'n', 'v', 'r', 'a', 'm', 0 };
-	struct efivar_entry *nvram_efivar;
+	efi_guid_t guid = EFI_GUID(0x74b00bd9, 0x805a, 0x4d61, 0xb5, 0x1f,
+				   0x43, 0x26, 0x81, 0x23, 0xd1, 0x13);
 	unsigned long data_len = 0;
+	efi_status_t status;
 	u8 *data = NULL;
-	int err;
 
-	nvram_efivar = kzalloc(sizeof(*nvram_efivar), GFP_KERNEL);
-	if (!nvram_efivar)
+	if (!efi_rt_services_supported(EFI_RT_SUPPORTED_GET_VARIABLE))
 		return NULL;
 
-	memcpy(&nvram_efivar->var.VariableName, name, sizeof(name));
-	nvram_efivar->var.VendorGuid = EFI_GUID(0x74b00bd9, 0x805a, 0x4d61,
-						0xb5, 0x1f, 0x43, 0x26,
-						0x81, 0x23, 0xd1, 0x13);
-
-	err = efivar_entry_size(nvram_efivar, &data_len);
-	if (err)
+	status = efi.get_variable(L"nvram", &guid, NULL, &data_len, NULL);
+	if (status != EFI_BUFFER_TOO_SMALL)
 		goto fail;
 
 	data = kmalloc(data_len, GFP_KERNEL);
 	if (!data)
 		goto fail;
 
-	err = efivar_entry_get(nvram_efivar, NULL, &data_len, data);
-	if (err)
+	status = efi.get_variable(L"nvram", &guid, NULL, &data_len, data);
+	if (status != EFI_SUCCESS)
 		goto fail;
 
 	brcmf_fw_fix_efi_nvram_ccode(data, data_len);
 	brcmf_info("Using nvram EFI variable\n");
 
-	kfree(nvram_efivar);
 	*data_len_ret = data_len;
 	return data;
-
 fail:
 	kfree(data);
-	kfree(nvram_efivar);
 	return NULL;
 }
 #else
