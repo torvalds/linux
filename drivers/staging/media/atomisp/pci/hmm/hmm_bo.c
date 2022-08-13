@@ -615,6 +615,14 @@ found:
 	return bo;
 }
 
+static void free_pages_bulk_array(unsigned long nr_pages, struct page **page_array)
+{
+	unsigned long i;
+
+	for (i = 0; i < nr_pages; i++)
+		__free_pages(page_array[i], 0);
+}
+
 static void free_private_bo_pages(struct hmm_buffer_object *bo,
 				  int free_pgnr)
 {
@@ -643,38 +651,22 @@ static void free_private_bo_pages(struct hmm_buffer_object *bo,
 static int alloc_private_pages(struct hmm_buffer_object *bo)
 {
 	const gfp_t gfp = __GFP_NOWARN | __GFP_RECLAIM | __GFP_FS;
-	struct page *pages;
-	int i, ret;
+	int ret;
 
-	for (i = 0; i < bo->pgnr; i++) {
-		pages = alloc_pages(gfp, 0); // alloc 1 page
-		if (unlikely(!pages)) {
-			dev_err(atomisp_dev,
-				"%s: cannot allocate pages\n",
-				__func__);
-			goto cleanup;
-		} else {
-			/*
-			 * set memory to uncacheable -- UC_MINUS
-			 */
-			ret = set_pages_uc(pages, 1);
-			if (ret) {
-				dev_err(atomisp_dev,
-					"set page uncacheablefailed.\n");
+	ret = alloc_pages_bulk_array(gfp, bo->pgnr, bo->pages);
+	if (ret != bo->pgnr) {
+		free_pages_bulk_array(ret, bo->pages);
+		return -ENOMEM;
+	}
 
-				__free_pages(pages, 0);
-
-				goto cleanup;
-			}
-
-			bo->pages[i] = pages;
-		}
+	ret = set_pages_array_uc(bo->pages, bo->pgnr);
+	if (ret) {
+		dev_err(atomisp_dev, "set pages uncacheable failed.\n");
+		free_pages_bulk_array(bo->pgnr, bo->pages);
+		return ret;
 	}
 
 	return 0;
-cleanup:
-	free_private_bo_pages(bo, i);
-	return -ENOMEM;
 }
 
 static void free_user_pages(struct hmm_buffer_object *bo,
@@ -774,7 +766,7 @@ int hmm_bo_alloc_pages(struct hmm_buffer_object *bo,
 	mutex_lock(&bo->mutex);
 	check_bo_status_no_goto(bo, HMM_BO_PAGE_ALLOCED, status_err);
 
-	bo->pages = kmalloc_array(bo->pgnr, sizeof(struct page *), GFP_KERNEL);
+	bo->pages = kcalloc(bo->pgnr, sizeof(struct page *), GFP_KERNEL);
 	if (unlikely(!bo->pages)) {
 		ret = -ENOMEM;
 		goto alloc_err;
