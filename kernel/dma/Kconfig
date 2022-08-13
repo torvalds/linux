@@ -93,6 +93,18 @@ config DMA_RESTRICTED_POOL
 	  and <kernel/dma/swiotlb.c>.
 	  If unsure, say "n".
 
+config SWIOTLB_NONLINEAR
+	bool "Allow swiotlb to use non-linear memory as bounce buffers"
+	depends on SWIOTLB
+	help
+	  This allows swiotlb driver to work with memory regions where
+	  physical to virtual address translations can't be done using APIs
+	  such as phys_to_virt. These could be reserved memory regions that
+	  are not mapped by default or could be seen as "device" memory
+	  accessed via ioremap().
+
+	  If unsure, say "n".
+
 #
 # Should be selected if we can mmap non-coherent mappings to userspace.
 # The only thing that is really required is a way to set an uncached bit

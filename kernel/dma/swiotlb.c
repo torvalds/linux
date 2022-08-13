@@ -69,6 +69,16 @@ struct io_tlb_mem io_tlb_default_mem;
 
 phys_addr_t swiotlb_unencrypted_base;
 
+#ifdef CONFIG_SWIOTLB_NONLINEAR
+phys_addr_t io_tlb_start, io_tlb_end;
+static unsigned long io_tlb_nslabs;
+static char *io_tlb_vstart;
+
+static inline unsigned char *swiotlb_phys_to_virt(phys_addr_t tlb_addr);
+#else
+#define swiotlb_phys_to_virt phys_to_virt
+#endif
+
 static unsigned long default_nslabs = IO_TLB_DEFAULT_SIZE >> IO_TLB_SHIFT;
 
 static int __init
@@ -194,7 +204,7 @@ void __init swiotlb_update_mem_attributes(void)
 static void swiotlb_init_io_tlb_mem(struct io_tlb_mem *mem, phys_addr_t start,
 		unsigned long nslabs, unsigned int flags, bool late_alloc)
 {
-	void *vaddr = phys_to_virt(start);
+	void *vaddr = swiotlb_phys_to_virt(start);
 	unsigned long bytes = nslabs << IO_TLB_SHIFT, i;
 
 	mem->nslabs = nslabs;
@@ -352,6 +362,47 @@ retry:
 	return 0;
 }
 
+#ifdef CONFIG_SWIOTLB_NONLINEAR
+static int swiotlb_late_init_with_tbl(char *tlb, unsigned long nslabs)
+{
+	struct io_tlb_mem *mem = &io_tlb_default_mem;
+	unsigned long bytes = nslabs << IO_TLB_SHIFT;
+
+	/* protect against double initialization */
+	if (WARN_ON_ONCE(mem->nslabs))
+		return -ENOMEM;
+
+	mem->slots = (void *)__get_free_pages(GFP_KERNEL | __GFP_ZERO,
+		get_order(array_size(sizeof(*mem->slots), nslabs)));
+	if (!mem->slots)
+		return -ENOMEM;
+
+	set_memory_decrypted((unsigned long)tlb, bytes >> PAGE_SHIFT);
+	swiotlb_init_io_tlb_mem(mem, io_tlb_start, nslabs, true);
+
+	swiotlb_print_info();
+	return 0;
+}
+
+int swiotlb_late_init_with_tblpaddr(char *tlb,
+			phys_addr_t tlb_paddr, unsigned long nslabs)
+{
+	unsigned long bytes;
+
+	if (io_tlb_start)
+		return -EBUSY;
+
+	bytes = nslabs << IO_TLB_SHIFT;
+	io_tlb_nslabs = nslabs;
+	io_tlb_start = tlb_paddr;
+	io_tlb_vstart = tlb;
+	io_tlb_end = io_tlb_start + bytes;
+
+	return swiotlb_late_init_with_tbl(tlb, nslabs);
+}
+EXPORT_SYMBOL(swiotlb_late_init_with_tblpaddr);
+#endif	/* CONFIG_SWIOTLB_NONLINEAR */
+
 void __init swiotlb_exit(void)
 {
 	struct io_tlb_mem *mem = &io_tlb_default_mem;
@@ -389,6 +440,13 @@ static unsigned int swiotlb_align_offset(struct device *dev, u64 addr)
 	return addr & dma_get_min_align_mask(dev) & (IO_TLB_SIZE - 1);
 }
 
+#ifdef CONFIG_SWIOTLB_NONLINEAR
+static inline unsigned char *swiotlb_phys_to_virt(phys_addr_t tlb_addr)
+{
+	return (unsigned char *)(io_tlb_vstart + (tlb_addr - io_tlb_start));
+}
+#endif
+
 /*
  * Bounce: copy the swiotlb buffer from or back to the original dma location
  */
@@ -400,7 +458,7 @@ static void swiotlb_bounce(struct device *dev, phys_addr_t tlb_addr, size_t size
 	phys_addr_t orig_addr = mem->slots[index].orig_addr;
 	size_t alloc_size = mem->slots[index].alloc_size;
 	unsigned long pfn = PFN_DOWN(orig_addr);
-	unsigned char *vaddr = mem->vaddr + tlb_addr - mem->start;
+	unsigned char *vaddr = swiotlb_phys_to_virt(tlb_addr);
 	unsigned int tlb_offset, orig_addr_offset;
 
 	if (orig_addr == INVALID_PHYS_ADDR)
@@ -620,6 +678,9 @@ phys_addr_t swiotlb_tbl_map_single(struct device *dev, phys_addr_t orig_addr,
 	swiotlb_bounce(dev, tlb_addr, mapping_size, DMA_TO_DEVICE);
 	return tlb_addr;
 }
+#ifdef CONFIG_SWIOTLB_NONLINEAR
+EXPORT_SYMBOL(swiotlb_tbl_unmap_single);
+#endif
 
 static void swiotlb_release_slots(struct device *dev, phys_addr_t tlb_addr)
 {
@@ -731,6 +792,9 @@ dma_addr_t swiotlb_map(struct device *dev, phys_addr_t paddr, size_t size,
 		arch_sync_dma_for_device(swiotlb_addr, size, dir);
 	return dma_addr;
 }
+#ifdef CONFIG_SWIOTLB_NONLINEAR
+EXPORT_SYMBOL(swiotlb_map);
+#endif
 
 size_t swiotlb_max_mapping_size(struct device *dev)
 {
