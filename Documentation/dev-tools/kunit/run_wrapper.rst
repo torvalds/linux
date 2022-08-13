@@ -165,6 +165,8 @@ example: if we only want to run KUnit resource tests, use:
 
 This uses the standard glob format with wildcard characters.
 
+.. _kunit-on-qemu:
+
 Run Tests on qemu
 =================
 
