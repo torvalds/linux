@@ -320,7 +320,6 @@ EXPORT_SYMBOL(skb_recv_datagram);
 void skb_free_datagram(struct sock *sk, struct sk_buff *skb)
 {
 	consume_skb(skb);
-	sk_mem_reclaim_partial(sk);
 }
 EXPORT_SYMBOL(skb_free_datagram);
 
@@ -336,7 +335,6 @@ void __skb_free_datagram_locked(struct sock *sk, struct sk_buff *skb, int len)
 	slow = lock_sock_fast(sk);
 	sk_peek_offset_bwd(sk, len);
 	skb_orphan(skb);
-	sk_mem_reclaim_partial(sk);
 	unlock_sock_fast(sk, slow);
 
 	/* skb is now orphaned, can be freed outside of locked section */
@@ -396,7 +394,6 @@ int skb_kill_datagram(struct sock *sk, struct sk_buff *skb, unsigned int flags)
 				      NULL);
 
 	kfree_skb(skb);
-	sk_mem_reclaim_partial(sk);
 	return err;
 }
 EXPORT_SYMBOL(skb_kill_datagram);

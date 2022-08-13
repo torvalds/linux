@@ -394,7 +394,6 @@ void serial_test_sock_fields(void)
 	test();
 
 done:
-	test_sock_fields__detach(skel);
 	test_sock_fields__destroy(skel);
 	if (child_cg_fd >= 0)
 		close(child_cg_fd);

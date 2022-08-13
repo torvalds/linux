@@ -88,7 +88,7 @@ enum b43_txpwr_result {
  * 			initialized here.
  * 			Must not be NULL.
  * @prepare_hardware:	Prepare the PHY. This is called before b43_chip_init to
- * 			do some early early PHY hardware init.
+ * 			do some early PHY hardware init.
  * 			Can be NULL, if not required.
  * @init:		Initialize the PHY.
  * 			Must not be NULL.

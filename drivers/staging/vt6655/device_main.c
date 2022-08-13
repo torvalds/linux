@@ -979,7 +979,7 @@ static void vnt_check_bb_vga(struct vnt_private *priv)
 	if (priv->hw->conf.flags & IEEE80211_CONF_OFFCHANNEL)
 		return;
 
-	if (!(priv->vif->bss_conf.assoc && priv->current_rssi))
+	if (!(priv->vif->cfg.assoc && priv->current_rssi))
 		return;
 
 	RFvRSSITodBm(priv, (u8)priv->current_rssi, &dbm);
@@ -1395,11 +1395,11 @@ static int vnt_config(struct ieee80211_hw *hw, u32 changed)
 
 static void vnt_bss_info_changed(struct ieee80211_hw *hw,
 				 struct ieee80211_vif *vif,
-				 struct ieee80211_bss_conf *conf, u32 changed)
+				 struct ieee80211_bss_conf *conf, u64 changed)
 {
 	struct vnt_private *priv = hw->priv;
 
-	priv->current_aid = conf->aid;
+	priv->current_aid = vif->cfg.aid;
 
 	if (changed & BSS_CHANGED_BSSID && conf->bssid) {
 		unsigned long flags;
@@ -1468,7 +1468,7 @@ static void vnt_bss_info_changed(struct ieee80211_hw *hw,
 
 	if (changed & (BSS_CHANGED_ASSOC | BSS_CHANGED_BEACON_INFO) &&
 	    priv->op_mode != NL80211_IFTYPE_AP) {
-		if (conf->assoc && conf->beacon_rate) {
+		if (vif->cfg.assoc && conf->beacon_rate) {
 			CARDbUpdateTSF(priv, conf->beacon_rate->hw_value,
 				       conf->sync_tsf);
 

@@ -32,9 +32,55 @@ void mana_xdp_tx(struct sk_buff *skb, struct net_device *ndev)
 	ndev->stats.tx_dropped++;
 }
 
+static int mana_xdp_xmit_fm(struct net_device *ndev, struct xdp_frame *frame,
+			    u16 q_idx)
+{
+	struct sk_buff *skb;
+
+	skb = xdp_build_skb_from_frame(frame, ndev);
+	if (unlikely(!skb))
+		return -ENOMEM;
+
+	skb_set_queue_mapping(skb, q_idx);
+
+	mana_xdp_tx(skb, ndev);
+
+	return 0;
+}
+
+int mana_xdp_xmit(struct net_device *ndev, int n, struct xdp_frame **frames,
+		  u32 flags)
+{
+	struct mana_port_context *apc = netdev_priv(ndev);
+	struct mana_stats_tx *tx_stats;
+	int i, count = 0;
+	u16 q_idx;
+
+	if (unlikely(!apc->port_is_up))
+		return 0;
+
+	q_idx = smp_processor_id() % ndev->real_num_tx_queues;
+
+	for (i = 0; i < n; i++) {
+		if (mana_xdp_xmit_fm(ndev, frames[i], q_idx))
+			break;
+
+		count++;
+	}
+
+	tx_stats = &apc->tx_qp[q_idx].txq.stats;
+
+	u64_stats_update_begin(&tx_stats->syncp);
+	tx_stats->xdp_xmit += count;
+	u64_stats_update_end(&tx_stats->syncp);
+
+	return count;
+}
+
 u32 mana_run_xdp(struct net_device *ndev, struct mana_rxq *rxq,
 		 struct xdp_buff *xdp, void *buf_va, uint pkt_len)
 {
+	struct mana_stats_rx *rx_stats;
 	struct bpf_prog *prog;
 	u32 act = XDP_PASS;
 
@@ -49,11 +95,29 @@ u32 mana_run_xdp(struct net_device *ndev, struct mana_rxq *rxq,
 
 	act = bpf_prog_run_xdp(prog, xdp);
 
+	rx_stats = &rxq->stats;
+
 	switch (act) {
 	case XDP_PASS:
 	case XDP_TX:
 	case XDP_DROP:
 		break;
+
+	case XDP_REDIRECT:
+		rxq->xdp_rc = xdp_do_redirect(ndev, xdp, prog);
+		if (!rxq->xdp_rc) {
+			rxq->xdp_flush = true;
+
+			u64_stats_update_begin(&rx_stats->syncp);
+			rx_stats->packets++;
+			rx_stats->bytes += pkt_len;
+			rx_stats->xdp_redirect++;
+			u64_stats_update_end(&rx_stats->syncp);
+
+			break;
+		}
+
+		fallthrough;
 
 	case XDP_ABORTED:
 		trace_xdp_exception(ndev, prog, act);

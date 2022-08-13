@@ -16,6 +16,7 @@ Optional properties:
 	KSZ8051: register 0x1f, bits 5..4
 	KSZ8081: register 0x1f, bits 5..4
 	KSZ8091: register 0x1f, bits 5..4
+	LAN8814: register EP5.0, bit 6
 
 	See the respective PHY datasheet for the mode values.
 

@@ -106,6 +106,8 @@ int nfp_net_tx_rings_prepare(struct nfp_net *nn, struct nfp_net_dp *dp);
 void nfp_net_rx_rings_free(struct nfp_net_dp *dp);
 void nfp_net_tx_rings_free(struct nfp_net_dp *dp);
 void nfp_net_rx_ring_reset(struct nfp_net_rx_ring *rx_ring);
+bool nfp_net_vlan_strip(struct sk_buff *skb, const struct nfp_net_rx_desc *rxd,
+			const struct nfp_meta_parsed *meta);
 
 enum nfp_nfd_version {
 	NFP_NFD_VER_NFD3,
@@ -117,6 +119,7 @@ enum nfp_nfd_version {
  * @version:			Indicate dp type
  * @tx_min_desc_per_pkt:	Minimal TX descs needed for each packet
  * @cap_mask:			Mask of supported features
+ * @dma_mask:			DMA addressing capability
  * @poll:			Napi poll for normal rx/tx
  * @xsk_poll:			Napi poll when xsk is enabled
  * @ctrl_poll:			Tasklet poll for ctrl rx/tx
@@ -134,6 +137,7 @@ struct nfp_dp_ops {
 	enum nfp_nfd_version version;
 	unsigned int tx_min_desc_per_pkt;
 	u32 cap_mask;
+	u64 dma_mask;
 
 	int (*poll)(struct napi_struct *napi, int budget);
 	int (*xsk_poll)(struct napi_struct *napi, int budget);

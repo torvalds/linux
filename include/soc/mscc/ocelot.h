@@ -575,6 +575,7 @@ struct ocelot_ops {
 	int (*psfp_stats_get)(struct ocelot *ocelot, struct flow_cls_offload *f,
 			      struct flow_stats *stats);
 	void (*cut_through_fwd)(struct ocelot *ocelot);
+	void (*tas_clock_adjust)(struct ocelot *ocelot);
 };
 
 struct ocelot_vcap_policer {
@@ -669,6 +670,8 @@ struct ocelot_port {
 	/* VLAN that untagged frames are classified to, on ingress */
 	const struct ocelot_bridge_vlan	*pvid_vlan;
 
+	struct tc_taprio_qopt_offload	*taprio;
+
 	phy_interface_t			phy_mode;
 
 	unsigned int			ptp_skbs_in_flight;
@@ -756,6 +759,9 @@ struct ocelot {
 	struct mutex			mact_lock;
 	/* Lock for serializing forwarding domain changes */
 	struct mutex			fwd_domain_lock;
+
+	/* Lock for serializing Time-Aware Shaper changes */
+	struct mutex			tas_lock;
 
 	struct workqueue_struct		*owq;
 

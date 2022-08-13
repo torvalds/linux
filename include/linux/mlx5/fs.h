@@ -212,6 +212,19 @@ struct mlx5_flow_group *
 mlx5_create_flow_group(struct mlx5_flow_table *ft, u32 *in);
 void mlx5_destroy_flow_group(struct mlx5_flow_group *fg);
 
+struct mlx5_exe_aso {
+	u32 object_id;
+	u8 type;
+	u8 return_reg_id;
+	union {
+		u32 ctrl_data;
+		struct {
+			u8 meter_idx;
+			u8 init_color;
+		} flow_meter;
+	};
+};
+
 struct mlx5_fs_vlan {
         u16 ethtype;
         u16 vid;
@@ -237,6 +250,7 @@ struct mlx5_flow_act {
 	struct mlx5_fs_vlan vlan[MLX5_FS_VLAN_DEPTH];
 	struct ib_counters *counters;
 	struct mlx5_flow_group *fg;
+	struct mlx5_exe_aso exe_aso;
 };
 
 #define MLX5_DECLARE_FLOW_ACT(name) \

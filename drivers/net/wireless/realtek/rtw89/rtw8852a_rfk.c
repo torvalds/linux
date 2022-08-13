@@ -2330,8 +2330,8 @@ static u8 _dpk_pas_read(struct rtw89_dev *rtwdev, bool is_check)
 		val2_q = abs(sign_extend32(val2_q, 11));
 
 		rtw89_debug(rtwdev, RTW89_DBG_RFK, "[DPK] PAS_delta = 0x%x\n",
-			    (val1_i * val1_i + val1_q * val1_q) /
-			    (val2_i * val2_i + val2_q * val2_q));
+			    phy_div(val1_i * val1_i + val1_q * val1_q,
+				    val2_i * val2_i + val2_q * val2_q));
 
 	} else {
 		for (i = 0; i < 32; i++) {

@@ -1099,6 +1099,7 @@ static int mcp251xfd_handle_cerrif(struct mcp251xfd_priv *priv)
 		err = mcp251xfd_get_berr_counter(priv->ndev, &bec);
 		if (err)
 			return err;
+		cf->can_id |= CAN_ERR_CNT;
 		cf->data[6] = bec.txerr;
 		cf->data[7] = bec.rxerr;
 	}
@@ -1670,6 +1671,7 @@ static const struct net_device_ops mcp251xfd_netdev_ops = {
 	.ndo_open = mcp251xfd_open,
 	.ndo_stop = mcp251xfd_stop,
 	.ndo_start_xmit	= mcp251xfd_start_xmit,
+	.ndo_eth_ioctl = can_eth_ioctl_hwts,
 	.ndo_change_mtu = can_change_mtu,
 };
 

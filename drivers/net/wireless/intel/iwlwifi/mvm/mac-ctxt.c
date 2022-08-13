@@ -481,7 +481,7 @@ static void iwl_mvm_mac_ctxt_cmd_common(struct iwl_mvm *mvm,
 		eth_broadcast_addr(cmd->bssid_addr);
 
 	rcu_read_lock();
-	chanctx = rcu_dereference(vif->chanctx_conf);
+	chanctx = rcu_dereference(vif->bss_conf.chanctx_conf);
 	iwl_mvm_ack_rates(mvm, vif, chanctx ? chanctx->def.chan->band
 					    : NL80211_BAND_2GHZ,
 			  &cck_ack_rates, &ofdm_ack_rates);
@@ -570,7 +570,7 @@ static int iwl_mvm_mac_ctxt_cmd_sta(struct iwl_mvm *mvm,
 	}
 
 	/* We need the dtim_period to set the MAC as associated */
-	if (vif->bss_conf.assoc && vif->bss_conf.dtim_period &&
+	if (vif->cfg.assoc && vif->bss_conf.dtim_period &&
 	    !force_assoc_off) {
 		struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 		u32 dtim_offs;
@@ -628,9 +628,9 @@ static int iwl_mvm_mac_ctxt_cmd_sta(struct iwl_mvm *mvm,
 					      vif->bss_conf.dtim_period);
 
 	ctxt_sta->listen_interval = cpu_to_le32(mvm->hw->conf.listen_interval);
-	ctxt_sta->assoc_id = cpu_to_le32(vif->bss_conf.aid);
+	ctxt_sta->assoc_id = cpu_to_le32(vif->cfg.aid);
 
-	if (vif->probe_req_reg && vif->bss_conf.assoc && vif->p2p)
+	if (vif->probe_req_reg && vif->cfg.assoc && vif->p2p)
 		cmd.filter_flags |= cpu_to_le32(MAC_FILTER_IN_PROBE_REQUEST);
 
 	if (vif->bss_conf.he_support && !iwlwifi_mod_params.disable_11ax) {
@@ -934,7 +934,7 @@ static int iwl_mvm_mac_ctxt_send_beacon_v9(struct iwl_mvm *mvm,
 
 	/* Enable FILS on PSC channels only */
 	rcu_read_lock();
-	ctx = rcu_dereference(vif->chanctx_conf);
+	ctx = rcu_dereference(vif->bss_conf.chanctx_conf);
 	channel = ieee80211_frequency_to_channel(ctx->def.chan->center_freq);
 	WARN_ON(channel == 0);
 	if (cfg80211_channel_is_psc(ctx->def.chan) &&
@@ -944,8 +944,8 @@ static int iwl_mvm_mac_ctxt_send_beacon_v9(struct iwl_mvm *mvm,
 			IWL_MAC_BEACON_FILS :
 			IWL_MAC_BEACON_FILS_V1;
 		beacon_cmd.short_ssid =
-			cpu_to_le32(~crc32_le(~0, vif->bss_conf.ssid,
-					      vif->bss_conf.ssid_len));
+			cpu_to_le32(~crc32_le(~0, vif->cfg.ssid,
+					      vif->cfg.ssid_len));
 	}
 	rcu_read_unlock();
 
@@ -1002,7 +1002,7 @@ int iwl_mvm_mac_ctxt_beacon_changed(struct iwl_mvm *mvm,
 	WARN_ON(vif->type != NL80211_IFTYPE_AP &&
 		vif->type != NL80211_IFTYPE_ADHOC);
 
-	beacon = ieee80211_beacon_get_template(mvm->hw, vif, NULL);
+	beacon = ieee80211_beacon_get_template(mvm->hw, vif, NULL, 0);
 	if (!beacon)
 		return -ENOMEM;
 
@@ -1031,7 +1031,7 @@ static void iwl_mvm_mac_ap_iterator(void *_data, u8 *mac,
 {
 	struct iwl_mvm_mac_ap_iterator_data *data = _data;
 
-	if (vif->type != NL80211_IFTYPE_STATION || !vif->bss_conf.assoc)
+	if (vif->type != NL80211_IFTYPE_STATION || !vif->cfg.assoc)
 		return;
 
 	/* Station client has higher priority over P2P client*/
@@ -1335,7 +1335,7 @@ void iwl_mvm_rx_beacon_notif(struct iwl_mvm *mvm,
 
 	csa_vif = rcu_dereference_protected(mvm->csa_vif,
 					    lockdep_is_held(&mvm->mutex));
-	if (unlikely(csa_vif && csa_vif->csa_active))
+	if (unlikely(csa_vif && csa_vif->bss_conf.csa_active))
 		iwl_mvm_csa_count_down(mvm, csa_vif, mvm->ap_last_beacon_gp2,
 				       (status == TX_STATUS_SUCCESS));
 
@@ -1558,7 +1558,7 @@ void iwl_mvm_channel_switch_start_notif(struct iwl_mvm *mvm,
 	switch (vif->type) {
 	case NL80211_IFTYPE_AP:
 		csa_vif = rcu_dereference(mvm->csa_vif);
-		if (WARN_ON(!csa_vif || !csa_vif->csa_active ||
+		if (WARN_ON(!csa_vif || !csa_vif->bss_conf.csa_active ||
 			    csa_vif != vif))
 			goto out_unlock;
 
@@ -1587,7 +1587,7 @@ void iwl_mvm_channel_switch_start_notif(struct iwl_mvm *mvm,
 		 */
 		if (iwl_fw_lookup_notif_ver(mvm->fw, MAC_CONF_GROUP,
 					    CHANNEL_SWITCH_ERROR_NOTIF,
-					    0) && !vif->csa_active) {
+					    0) && !vif->bss_conf.csa_active) {
 			IWL_DEBUG_INFO(mvm, "Channel Switch was canceled\n");
 			iwl_mvm_cancel_channel_switch(mvm, vif, mac_id);
 			break;

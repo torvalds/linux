@@ -1233,7 +1233,7 @@ static int _iwl_dbgfs_inject_beacon_ie(struct iwl_mvm *mvm, char *bin, int len)
 
 	mvm->hw->extra_beacon_tailroom = len;
 
-	beacon = ieee80211_beacon_get_template(mvm->hw, vif, NULL);
+	beacon = ieee80211_beacon_get_template(mvm->hw, vif, NULL, 0);
 	if (!beacon)
 		goto out_err;
 

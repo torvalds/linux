@@ -112,7 +112,7 @@ struct __packed pcan_usb_pro_devid {
 	u8 data_type;
 	u8 channel;
 	__le16 dummy;
-	__le32 serial_num;
+	__le32 dev_num;
 };
 
 #define PCAN_USBPRO_LED_DEVICE		0x00

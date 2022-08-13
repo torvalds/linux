@@ -721,7 +721,7 @@ restart:
 				__netpoll_cleanup(&nt->np);
 
 				spin_lock_irqsave(&target_list_lock, flags);
-				dev_put_track(nt->np.dev, &nt->np.dev_tracker);
+				netdev_put(nt->np.dev, &nt->np.dev_tracker);
 				nt->np.dev = NULL;
 				nt->enabled = false;
 				stopped = true;

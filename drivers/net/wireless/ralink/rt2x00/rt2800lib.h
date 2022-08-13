@@ -245,7 +245,8 @@ void rt2800_get_key_seq(struct ieee80211_hw *hw,
 			struct ieee80211_key_seq *seq);
 int rt2800_set_rts_threshold(struct ieee80211_hw *hw, u32 value);
 int rt2800_conf_tx(struct ieee80211_hw *hw,
-		   struct ieee80211_vif *vif, u16 queue_idx,
+		   struct ieee80211_vif *vif,
+		   unsigned int link_id, u16 queue_idx,
 		   const struct ieee80211_tx_queue_params *params);
 u64 rt2800_get_tsf(struct ieee80211_hw *hw, struct ieee80211_vif *vif);
 int rt2800_ampdu_action(struct ieee80211_hw *hw, struct ieee80211_vif *vif,

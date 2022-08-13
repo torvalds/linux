@@ -21,7 +21,9 @@ struct sk_buff;
 
 int mlx5e_selq_init(struct mlx5e_selq *selq, struct mutex *state_lock);
 void mlx5e_selq_cleanup(struct mlx5e_selq *selq);
-void mlx5e_selq_prepare(struct mlx5e_selq *selq, struct mlx5e_params *params, bool htb);
+void mlx5e_selq_prepare_params(struct mlx5e_selq *selq, struct mlx5e_params *params);
+void mlx5e_selq_prepare_htb(struct mlx5e_selq *selq, u16 htb_maj_id, u16 htb_defcls);
+bool mlx5e_selq_is_htb_enabled(struct mlx5e_selq *selq);
 void mlx5e_selq_apply(struct mlx5e_selq *selq);
 void mlx5e_selq_cancel(struct mlx5e_selq *selq);
 

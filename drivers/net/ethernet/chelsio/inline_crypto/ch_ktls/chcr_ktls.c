@@ -1012,7 +1012,7 @@ chcr_ktls_write_tcp_options(struct chcr_ktls_info *tx_info, struct sk_buff *skb,
 	/* packet length = eth hdr len + ip hdr len + tcp hdr len
 	 * (including options).
 	 */
-	pktlen = skb_transport_offset(skb) + tcp_hdrlen(skb);
+	pktlen = skb_tcp_all_headers(skb);
 
 	ctrl = sizeof(*cpl) + pktlen;
 	len16 = DIV_ROUND_UP(sizeof(*wr) + ctrl, 16);
@@ -1907,7 +1907,7 @@ static int chcr_ktls_sw_fallback(struct sk_buff *skb,
 		return 0;
 
 	th = tcp_hdr(nskb);
-	skb_offset =  skb_transport_offset(nskb) + tcp_hdrlen(nskb);
+	skb_offset = skb_tcp_all_headers(nskb);
 	data_len = nskb->len - skb_offset;
 	skb_tx_timestamp(nskb);
 
@@ -1938,7 +1938,7 @@ static int chcr_ktls_xmit(struct sk_buff *skb, struct net_device *dev)
 	unsigned long flags;
 
 	tcp_seq = ntohl(th->seq);
-	skb_offset = skb_transport_offset(skb) + tcp_hdrlen(skb);
+	skb_offset = skb_tcp_all_headers(skb);
 	skb_data_len = skb->len - skb_offset;
 	data_len = skb_data_len;
 
