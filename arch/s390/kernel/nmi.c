@@ -62,7 +62,7 @@ static inline unsigned long nmi_get_mcesa_size(void)
  * The structure is required for machine check happening early in
  * the boot process.
  */
-static struct mcesa boot_mcesa __initdata __aligned(MCESA_MAX_SIZE);
+static struct mcesa boot_mcesa __aligned(MCESA_MAX_SIZE);
 
 void __init nmi_alloc_boot_cpu(struct lowcore *lc)
 {
