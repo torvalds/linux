@@ -95,6 +95,8 @@ Unit Testing Advantages
 - Improves code quality.
 - Encourages writing testable code.
 
+Read also :ref:`kinds-of-tests`.
+
 How do I use it?
 ================
 

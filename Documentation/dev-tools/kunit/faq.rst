@@ -39,6 +39,8 @@ more work than using KUnit on UML.
 
 For more information, see :ref:`kunit-on-non-uml`.
 
+.. _kinds-of-tests:
+
 What is the difference between a unit test and other kinds of tests?
 ====================================================================
 Most existing tests for the Linux kernel would be categorized as an integration
