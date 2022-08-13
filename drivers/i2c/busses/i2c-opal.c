@@ -220,9 +220,9 @@ static int i2c_opal_probe(struct platform_device *pdev)
 	adapter->dev.of_node = of_node_get(pdev->dev.of_node);
 	pname = of_get_property(pdev->dev.of_node, "ibm,port-name", NULL);
 	if (pname)
-		strlcpy(adapter->name, pname, sizeof(adapter->name));
+		strscpy(adapter->name, pname, sizeof(adapter->name));
 	else
-		strlcpy(adapter->name, "opal", sizeof(adapter->name));
+		strscpy(adapter->name, "opal", sizeof(adapter->name));
 
 	platform_set_drvdata(pdev, adapter);
 	rc = i2c_add_adapter(adapter);

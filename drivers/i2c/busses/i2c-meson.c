@@ -502,7 +502,7 @@ static int meson_i2c_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	strlcpy(i2c->adap.name, "Meson I2C adapter",
+	strscpy(i2c->adap.name, "Meson I2C adapter",
 		sizeof(i2c->adap.name));
 	i2c->adap.owner = THIS_MODULE;
 	i2c->adap.algo = &meson_i2c_algorithm;
