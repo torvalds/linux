@@ -864,9 +864,11 @@ static int ov2680_set_fmt(struct v4l2_subdev *sd,
 	/* s_power has not been called yet for std v4l2 clients (camorama) */
 	power_up(sd);
 	ret = ov2680_write_reg_array(client, dev->res->regs);
-	if (ret)
+	if (ret) {
 		dev_err(&client->dev,
 			"ov2680 write resolution register err: %d\n", ret);
+		goto err;
+	}
 
 	vts = dev->res->lines_per_frame;
 
@@ -875,8 +877,10 @@ static int ov2680_set_fmt(struct v4l2_subdev *sd,
 		vts = dev->exposure + OV2680_INTEGRATION_TIME_MARGIN;
 
 	ret = ov2680_write_reg(client, 2, OV2680_TIMING_VTS_H, vts);
-	if (ret)
+	if (ret) {
 		dev_err(&client->dev, "ov2680 write vts err: %d\n", ret);
+		goto err;
+	}
 
 	ret = ov2680_get_intg_factor(client, ov2680_info, res);
 	if (ret) {
