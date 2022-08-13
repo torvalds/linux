@@ -960,6 +960,13 @@ static int atomisp_try_fmt_cap(struct file *file, void *fh,
 	struct atomisp_device *isp = video_get_drvdata(vdev);
 	int ret;
 
+	/*
+	 * atomisp_try_fmt() gived results with padding included, note
+	 * (this gets removed again by the atomisp_adjust_fmt() call below.
+	 */
+	f->fmt.pix.width += pad_w;
+	f->fmt.pix.height += pad_h;
+
 	rt_mutex_lock(&isp->mutex);
 	ret = atomisp_try_fmt(vdev, &f->fmt.pix, NULL);
 	rt_mutex_unlock(&isp->mutex);
