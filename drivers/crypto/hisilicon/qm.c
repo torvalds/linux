@@ -1857,39 +1857,19 @@ static void qm_ctx_free(struct hisi_qm *qm, size_t ctx_size,
 	kfree(ctx_addr);
 }
 
-static int dump_show(struct hisi_qm *qm, void *info,
+static void dump_show(struct hisi_qm *qm, void *info,
 		     unsigned int info_size, char *info_name)
 {
 	struct device *dev = &qm->pdev->dev;
-	u8 *info_buf, *info_curr = info;
+	u8 *info_curr = info;
 	u32 i;
 #define BYTE_PER_DW	4
 
-	info_buf = kzalloc(info_size, GFP_KERNEL);
-	if (!info_buf)
-		return -ENOMEM;
-
-	for (i = 0; i < info_size; i++, info_curr++) {
-		if (i % BYTE_PER_DW == 0)
-			info_buf[i + 3UL] = *info_curr;
-		else if (i % BYTE_PER_DW == 1)
-			info_buf[i + 1UL] = *info_curr;
-		else if (i % BYTE_PER_DW == 2)
-			info_buf[i - 1] = *info_curr;
-		else if (i % BYTE_PER_DW == 3)
-			info_buf[i - 3] = *info_curr;
-	}
-
 	dev_info(dev, "%s DUMP\n", info_name);
-	for (i = 0; i < info_size; i += BYTE_PER_DW) {
+	for (i = 0; i < info_size; i += BYTE_PER_DW, info_curr += BYTE_PER_DW) {
 		pr_info("DW%u: %02X%02X %02X%02X\n", i / BYTE_PER_DW,
-			info_buf[i], info_buf[i + 1UL],
-			info_buf[i + 2UL], info_buf[i + 3UL]);
+			*(info_curr + 3), *(info_curr + 2), *(info_curr + 1), *(info_curr));
 	}
-
-	kfree(info_buf);
-
-	return 0;
 }
 
 static int qm_dump_sqc_raw(struct hisi_qm *qm, dma_addr_t dma_addr, u16 qp_id)
@@ -1929,23 +1909,18 @@ static int qm_sqc_dump(struct hisi_qm *qm, const char *s)
 		if (qm->sqc) {
 			sqc_curr = qm->sqc + qp_id;
 
-			ret = dump_show(qm, sqc_curr, sizeof(*sqc),
-					"SOFT SQC");
-			if (ret)
-				dev_info(dev, "Show soft sqc failed!\n");
+			dump_show(qm, sqc_curr, sizeof(*sqc), "SOFT SQC");
 		}
 		up_read(&qm->qps_lock);
 
-		goto err_free_ctx;
+		goto free_ctx;
 	}
 
-	ret = dump_show(qm, sqc, sizeof(*sqc), "SQC");
-	if (ret)
-		dev_info(dev, "Show hw sqc failed!\n");
+	dump_show(qm, sqc, sizeof(*sqc), "SQC");
 
-err_free_ctx:
+free_ctx:
 	qm_ctx_free(qm, sizeof(*sqc), sqc, &sqc_dma);
-	return ret;
+	return 0;
 }
 
 static int qm_cqc_dump(struct hisi_qm *qm, const char *s)
@@ -1975,23 +1950,18 @@ static int qm_cqc_dump(struct hisi_qm *qm, const char *s)
 		if (qm->cqc) {
 			cqc_curr = qm->cqc + qp_id;
 
-			ret = dump_show(qm, cqc_curr, sizeof(*cqc),
-					"SOFT CQC");
-			if (ret)
-				dev_info(dev, "Show soft cqc failed!\n");
+			dump_show(qm, cqc_curr, sizeof(*cqc), "SOFT CQC");
 		}
 		up_read(&qm->qps_lock);
 
-		goto err_free_ctx;
+		goto free_ctx;
 	}
 
-	ret = dump_show(qm, cqc, sizeof(*cqc), "CQC");
-	if (ret)
-		dev_info(dev, "Show hw cqc failed!\n");
+	dump_show(qm, cqc, sizeof(*cqc), "CQC");
 
-err_free_ctx:
+free_ctx:
 	qm_ctx_free(qm, sizeof(*cqc), cqc, &cqc_dma);
-	return ret;
+	return 0;
 }
 
 static int qm_eqc_aeqc_dump(struct hisi_qm *qm, char *s, size_t size,
@@ -2015,9 +1985,7 @@ static int qm_eqc_aeqc_dump(struct hisi_qm *qm, char *s, size_t size,
 	if (ret)
 		goto err_free_ctx;
 
-	ret = dump_show(qm, xeqc, size, name);
-	if (ret)
-		dev_info(dev, "Show hw %s failed!\n", name);
+	dump_show(qm, xeqc, size, name);
 
 err_free_ctx:
 	qm_ctx_free(qm, size, xeqc, &xeqc_dma);
@@ -2066,7 +2034,6 @@ static int q_dump_param_parse(struct hisi_qm *qm, char *s,
 
 static int qm_sq_dump(struct hisi_qm *qm, char *s)
 {
-	struct device *dev = &qm->pdev->dev;
 	void *sqe, *sqe_curr;
 	struct hisi_qp *qp;
 	u32 qp_id, sqe_id;
@@ -2086,18 +2053,15 @@ static int qm_sq_dump(struct hisi_qm *qm, char *s)
 	memset(sqe_curr + qm->debug.sqe_mask_offset, QM_SQE_ADDR_MASK,
 	       qm->debug.sqe_mask_len);
 
-	ret = dump_show(qm, sqe_curr, qm->sqe_size, "SQE");
-	if (ret)
-		dev_info(dev, "Show sqe failed!\n");
+	dump_show(qm, sqe_curr, qm->sqe_size, "SQE");
 
 	kfree(sqe);
 
-	return ret;
+	return 0;
 }
 
 static int qm_cq_dump(struct hisi_qm *qm, char *s)
 {
-	struct device *dev = &qm->pdev->dev;
 	struct qm_cqe *cqe_curr;
 	struct hisi_qp *qp;
 	u32 qp_id, cqe_id;
@@ -2109,11 +2073,9 @@ static int qm_cq_dump(struct hisi_qm *qm, char *s)
 
 	qp = &qm->qp_array[qp_id];
 	cqe_curr = qp->cqe + cqe_id;
-	ret = dump_show(qm, cqe_curr, sizeof(struct qm_cqe), "CQE");
-	if (ret)
-		dev_info(dev, "Show cqe failed!\n");
+	dump_show(qm, cqe_curr, sizeof(struct qm_cqe), "CQE");
 
-	return ret;
+	return 0;
 }
 
 static int qm_eq_aeq_dump(struct hisi_qm *qm, const char *s,
@@ -2150,9 +2112,7 @@ static int qm_eq_aeq_dump(struct hisi_qm *qm, const char *s,
 		goto err_unlock;
 	}
 
-	ret = dump_show(qm, xeqe, size, name);
-	if (ret)
-		dev_info(dev, "Show %s failed!\n", name);
+	dump_show(qm, xeqe, size, name);
 
 err_unlock:
 	up_read(&qm->qps_lock);
