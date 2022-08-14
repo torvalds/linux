@@ -106,12 +106,7 @@ mt7921u_mcu_send_message(struct mt76_dev *mdev, struct sk_buff *skb,
 	if (ret)
 		return ret;
 
-	if (cmd == MCU_UNI_CMD(HIF_CTRL) ||
-	    cmd == MCU_UNI_CMD(SUSPEND) ||
-	    cmd == MCU_UNI_CMD(OFFLOAD))
-		mdev->mcu.timeout = HZ;
-	else
-		mdev->mcu.timeout = 3 * HZ;
+	mdev->mcu.timeout = 3 * HZ;
 
 	if (cmd != MCU_CMD(FW_SCATTER))
 		ep = MT_EP_OUT_INBAND_CMD;
