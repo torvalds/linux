@@ -1833,7 +1833,7 @@ void __audit_free(struct task_struct *tsk)
 
 	/* We are called either by do_exit() or the fork() error handling code;
 	 * in the former case tsk == current and in the latter tsk is a
-	 * random task_struct that doesn't doesn't have any meaningful data we
+	 * random task_struct that doesn't have any meaningful data we
 	 * need to log via audit_log_exit().
 	 */
 	if (tsk == current && !context->dummy) {
