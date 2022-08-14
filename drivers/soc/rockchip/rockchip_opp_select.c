@@ -792,6 +792,11 @@ static int rockchip_init_pvtpll_info(struct rockchip_opp_info *info)
 		info->opp_table[i].u_volt = opp->supplies[0].u_volt;
 		info->opp_table[i].u_volt_min = opp->supplies[0].u_volt_min;
 		info->opp_table[i].u_volt_max = opp->supplies[0].u_volt_max;
+		if (opp_table->regulator_count > 1) {
+			info->opp_table[i].u_volt_mem = opp->supplies[1].u_volt;
+			info->opp_table[i].u_volt_mem_min = opp->supplies[1].u_volt_min;
+			info->opp_table[i].u_volt_mem_max = opp->supplies[1].u_volt_max;
+		}
 		info->opp_table[i++].rate = opp->rate;
 	}
 	mutex_unlock(&opp_table->lock);
@@ -801,16 +806,44 @@ static int rockchip_init_pvtpll_info(struct rockchip_opp_info *info)
 	return 0;
 }
 
+static int rockchip_pvtpll_set_volt(struct device *dev, struct regulator *reg,
+				    int target_uV, int max_uV, char *reg_name)
+{
+	int ret = 0;
+
+	ret = regulator_set_voltage(reg, target_uV, max_uV);
+	if (ret)
+		dev_err(dev, "%s: failed to set %s voltage (%d %d uV): %d\n",
+			__func__, reg_name, target_uV, max_uV, ret);
+
+	return ret;
+}
+
+static int rockchip_pvtpll_set_clk(struct device *dev, struct clk *clk,
+				   unsigned long rate)
+{
+	int ret = 0;
+
+	ret = clk_set_rate(clk, rate);
+	if (ret)
+		dev_err(dev, "%s: failed to set rate %lu Hz, ret:%d\n",
+			__func__, rate, ret);
+
+	return ret;
+}
+
 void rockchip_pvtpll_calibrate_opp(struct rockchip_opp_info *info)
 {
 	struct opp_table *opp_table;
 	struct dev_pm_opp *opp;
-	struct regulator *reg;
-	unsigned long volt = 0, volt_min, volt_max, old_volt;
-	unsigned long rate, pvtpll_rate, old_rate, delta0, delta1;
+	struct regulator *reg = NULL, *reg_mem = NULL;
+	unsigned long old_volt = 0, old_volt_mem = 0;
+	unsigned long volt = 0, volt_mem = 0;
+	unsigned long volt_min, volt_max, volt_mem_min, volt_mem_max;
+	unsigned long rate, pvtpll_rate, old_rate, cur_rate, delta0, delta1;
 	int i = 0, max_count, step, cur_step, ret;
 
-	if (!info->grf)
+	if (!info || !info->grf)
 		return;
 
 	dev_dbg(info->dev, "calibrating opp ...\n");
@@ -831,13 +864,26 @@ void rockchip_pvtpll_calibrate_opp(struct rockchip_opp_info *info)
 
 	reg = opp_table->regulators[0];
 	old_volt = regulator_get_voltage(reg);
+	if (opp_table->regulator_count > 1) {
+		reg_mem = opp_table->regulators[1];
+		old_volt_mem = regulator_get_voltage(reg_mem);
+		if (IS_ERR_VALUE(old_volt_mem))
+			goto out_put;
+	}
 	old_rate = clk_get_rate(opp_table->clk);
 	if (IS_ERR_VALUE(old_volt) || IS_ERR_VALUE(old_rate))
 		goto out_put;
+	cur_rate = old_rate;
 
 	step = regulator_get_linear_step(reg);
-	if (!step)
+	if (!step || info->pvtpll_volt_step > step)
 		step = info->pvtpll_volt_step;
+
+	if (old_rate > info->pvtpll_min_rate * 1000) {
+		if (rockchip_pvtpll_set_clk(info->dev, opp_table->clk,
+					    info->pvtpll_min_rate * 1000))
+			goto out_put;
+	}
 
 	for (i = 0; i < max_count; i++) {
 		rate = info->opp_table[i].rate;
@@ -848,12 +894,20 @@ void rockchip_pvtpll_calibrate_opp(struct rockchip_opp_info *info)
 		volt_min = info->opp_table[i].u_volt_min;
 		volt_max = info->opp_table[i].u_volt_max;
 
-		ret = dev_pm_opp_set_rate(info->dev, rate);
-		if (ret) {
-			dev_err(info->dev, "%s: Cannot set rate %lu Hz, ret:%d\n",
-				__func__, rate, ret);
-			goto out;
+		if (opp_table->regulator_count > 1) {
+			volt_mem = max(volt_mem, info->opp_table[i].u_volt_mem);
+			volt_mem_min = info->opp_table[i].u_volt_mem_min;
+			volt_mem_max = info->opp_table[i].u_volt_mem_max;
+			if (rockchip_pvtpll_set_volt(info->dev, reg_mem,
+						     volt_mem, volt_mem_max, "mem"))
+				goto out;
 		}
+		if (rockchip_pvtpll_set_volt(info->dev, reg, volt, volt_max, "vdd"))
+			goto out;
+
+		if (rockchip_pvtpll_set_clk(info->dev, opp_table->clk, rate))
+			goto out;
+		cur_rate = rate;
 		pvtpll_rate = rockchip_pvtpll_get_rate(info);
 		if (!pvtpll_rate)
 			goto out;
@@ -864,12 +918,21 @@ void rockchip_pvtpll_calibrate_opp(struct rockchip_opp_info *info)
 			volt += cur_step;
 			if ((volt < volt_min) || (volt > volt_max))
 				break;
-			ret = regulator_set_voltage(reg, volt, volt);
-			if (ret) {
-				dev_err(info->dev, "%s: Cannot set voltage %lu uV, ret:%d\n",
-					__func__, volt, ret);
-				break;
+			if (opp_table->regulator_count > 1) {
+				if (volt > volt_mem_max)
+					break;
+				else if (volt < volt_mem_min)
+					volt_mem = volt_mem_min;
+				else
+					volt_mem = volt;
+				if (rockchip_pvtpll_set_volt(info->dev, reg_mem,
+							     volt_mem, volt_mem_max,
+							     "mem"))
+					break;
 			}
+			if (rockchip_pvtpll_set_volt(info->dev, reg, volt,
+						     volt_max, "vdd"))
+				break;
 			pvtpll_rate = rockchip_pvtpll_get_rate(info);
 			if (!pvtpll_rate)
 				goto out;
@@ -878,6 +941,13 @@ void rockchip_pvtpll_calibrate_opp(struct rockchip_opp_info *info)
 
 		volt -= cur_step;
 		info->opp_table[i].u_volt = volt;
+		if (opp_table->regulator_count > 1) {
+			if (volt < volt_mem_min)
+				volt_mem = volt_mem_min;
+			else
+				volt_mem = volt;
+			info->opp_table[i].u_volt_mem = volt_mem;
+		}
 	}
 
 	i = 0;
@@ -886,13 +956,22 @@ void rockchip_pvtpll_calibrate_opp(struct rockchip_opp_info *info)
 		if (!opp->available)
 			continue;
 
-		opp->supplies[0].u_volt = info->opp_table[i++].u_volt;
+		opp->supplies[0].u_volt = info->opp_table[i].u_volt;
+		if (opp_table->regulator_count > 1)
+			opp->supplies[1].u_volt = info->opp_table[i].u_volt_mem;
+		i++;
 	}
 	mutex_unlock(&opp_table->lock);
 	dev_info(info->dev, "opp calibration done\n");
 out:
-	clk_set_rate(opp_table->clk, old_rate);
-	regulator_set_voltage(reg, old_volt, old_volt);
+	if (cur_rate > old_rate)
+		rockchip_pvtpll_set_clk(info->dev, opp_table->clk, old_rate);
+	if (opp_table->regulator_count > 1)
+		rockchip_pvtpll_set_volt(info->dev, reg_mem, old_volt_mem,
+					 INT_MAX, "mem");
+	rockchip_pvtpll_set_volt(info->dev, reg, old_volt, INT_MAX, "vdd");
+	if (cur_rate < old_rate)
+		rockchip_pvtpll_set_clk(info->dev, opp_table->clk, old_rate);
 out_put:
 	dev_pm_opp_put_opp_table(opp_table);
 }
@@ -1584,6 +1663,7 @@ int rockchip_init_opp_table(struct device *dev, struct rockchip_opp_info *info,
 	}
 	if (!info)
 		goto next;
+	info->dev = dev;
 
 	num_clks = of_clk_get_parent_count(np);
 	if (num_clks > 0) {
@@ -1636,6 +1716,7 @@ next:
 		goto dis_opp_clk;
 	}
 	rockchip_adjust_power_scale(dev, scale);
+	rockchip_pvtpll_calibrate_opp(info);
 
 dis_opp_clk:
 	if (info && info->clks)

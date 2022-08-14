@@ -37,6 +37,9 @@ struct pvtpll_opp_table {
 	unsigned long u_volt;
 	unsigned long u_volt_min;
 	unsigned long u_volt_max;
+	unsigned long u_volt_mem;
+	unsigned long u_volt_mem_min;
+	unsigned long u_volt_mem_max;
 };
 
 struct rockchip_opp_info {
