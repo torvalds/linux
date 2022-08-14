@@ -406,7 +406,6 @@ static int ar0521_set_fmt(struct v4l2_subdev *sd,
 			  struct v4l2_subdev_format *format)
 {
 	struct ar0521_dev *sensor = to_ar0521_dev(sd);
-	int ret = 0;
 
 	ar0521_adj_fmt(&format->format);
 
@@ -423,7 +422,7 @@ static int ar0521_set_fmt(struct v4l2_subdev *sd,
 	}
 
 	mutex_unlock(&sensor->lock);
-	return ret;
+	return 0;
 }
 
 static int ar0521_s_ctrl(struct v4l2_ctrl *ctrl)
