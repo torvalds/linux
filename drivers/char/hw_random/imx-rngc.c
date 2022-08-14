@@ -355,7 +355,7 @@ MODULE_DEVICE_TABLE(of, imx_rngc_dt_ids);
 
 static struct platform_driver imx_rngc_driver = {
 	.driver = {
-		.name = "imx_rngc",
+		.name = KBUILD_MODNAME,
 		.pm = &imx_rngc_pm_ops,
 		.of_match_table = imx_rngc_dt_ids,
 	},
