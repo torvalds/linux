@@ -269,6 +269,7 @@ static void amd_pstate_update(struct amd_cpudata *cpudata, u32 min_perf,
 	u64 prev = READ_ONCE(cpudata->cppc_req_cached);
 	u64 value = prev;
 
+	des_perf = clamp_t(unsigned long, des_perf, min_perf, max_perf);
 	value &= ~AMD_CPPC_MIN_PERF(~0L);
 	value |= AMD_CPPC_MIN_PERF(min_perf);
 
@@ -356,8 +357,6 @@ static void amd_pstate_adjust_perf(unsigned int cpu,
 	max_perf = cap_perf;
 	if (max_perf < min_perf)
 		max_perf = min_perf;
-
-	des_perf = clamp_t(unsigned long, des_perf, min_perf, max_perf);
 
 	amd_pstate_update(cpudata, min_perf, des_perf, max_perf, true);
 }
