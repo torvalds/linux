@@ -14,14 +14,16 @@ static struct test_memory memory_block;
 static const char __maybe_unused *prefixes[PREFIXES_MAX];
 static int __maybe_unused nr_prefixes;
 
-static const char *short_opts = "mv";
+static const char *short_opts = "hmv";
 static const struct option long_opts[] = {
+	{"help", 0, NULL, 'h'},
 	{"movable-node", 0, NULL, 'm'},
 	{"verbose", 0, NULL, 'v'},
 	{NULL, 0, NULL, 0}
 };
 
 static const char * const help_opts[] = {
+	"display this help message and exit",
 	"disallow allocations from regions marked as hotplugged\n\t\t\t"
 		"by simulating enabling the \"movable_node\" kernel\n\t\t\t"
 		"parameter",
