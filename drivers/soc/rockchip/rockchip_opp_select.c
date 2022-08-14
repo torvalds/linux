@@ -1465,6 +1465,62 @@ int rockchip_set_read_margin(struct device *dev,
 }
 EXPORT_SYMBOL(rockchip_set_read_margin);
 
+int rockchip_init_read_margin(struct device *dev,
+			      struct rockchip_opp_info *opp_info,
+			      char *reg_name)
+{
+	struct clk *clk;
+	struct regulator *reg;
+	unsigned long cur_rate;
+	int cur_volt, ret = 0;
+	u32 target_rm = UINT_MAX;
+
+	reg = regulator_get_optional(dev, reg_name);
+	if (IS_ERR(reg)) {
+		ret = PTR_ERR(reg);
+		if (ret != -EPROBE_DEFER)
+			dev_err(dev, "%s: no regulator (%s) found: %d\n",
+				__func__, reg_name, ret);
+		return ret;
+	}
+	cur_volt = regulator_get_voltage(reg);
+	if (cur_volt < 0) {
+		ret = cur_volt;
+		if (ret != -EPROBE_DEFER)
+			dev_err(dev, "%s: failed to get (%s) volt: %d\n",
+				__func__, reg_name, ret);
+		goto out;
+	}
+
+	clk = clk_get(dev, NULL);
+	if (IS_ERR(clk)) {
+		ret = PTR_ERR(clk);
+		dev_err(dev, "%s: failed to get clk: %d\n", __func__, ret);
+		goto out;
+	}
+	cur_rate = clk_get_rate(clk);
+
+	rockchip_get_read_margin(dev, opp_info, cur_volt, &target_rm);
+	dev_dbg(dev, "cur_rate=%lu, threshold=%lu, cur_volt=%d, target_rm=%d\n",
+		cur_rate, opp_info->intermediate_threshold_freq,
+		cur_volt, target_rm);
+	if (opp_info->intermediate_threshold_freq &&
+	    cur_rate > opp_info->intermediate_threshold_freq) {
+		clk_set_rate(clk, opp_info->intermediate_threshold_freq);
+		rockchip_set_read_margin(dev, opp_info, target_rm, true);
+		clk_set_rate(clk, cur_rate);
+	} else {
+		rockchip_set_read_margin(dev, opp_info, target_rm, true);
+	}
+
+	clk_put(clk);
+out:
+	regulator_put(reg);
+
+	return ret;
+}
+EXPORT_SYMBOL(rockchip_init_read_margin);
+
 int rockchip_set_intermediate_rate(struct device *dev,
 				   struct rockchip_opp_info *opp_info,
 				   struct clk *clk, unsigned long old_freq,
@@ -1565,6 +1621,7 @@ int rockchip_init_opp_table(struct device *dev, struct rockchip_opp_info *info,
 		if (!of_property_read_u32(np, "intermediate-threshold-freq",
 					  &freq))
 			info->intermediate_threshold_freq = freq * 1000;
+		rockchip_init_read_margin(dev, info, reg_name);
 	}
 	if (info->data && info->data->get_soc_info)
 		info->data->get_soc_info(dev, np, &bin, &process);

@@ -93,6 +93,9 @@ int rockchip_get_read_margin(struct device *dev,
 int rockchip_set_read_margin(struct device *dev,
 			     struct rockchip_opp_info *opp_info, u32 rm,
 			     bool is_set_rm);
+int rockchip_init_read_margin(struct device *dev,
+			      struct rockchip_opp_info *opp_info,
+			      char *reg_name);
 int rockchip_set_intermediate_rate(struct device *dev,
 				   struct rockchip_opp_info *opp_info,
 				   struct clk *clk, unsigned long old_freq,
@@ -192,6 +195,13 @@ static inline int rockchip_get_read_margin(struct device *dev,
 static inline int rockchip_set_read_margin(struct device *dev,
 					   struct rockchip_opp_info *opp_info,
 					   u32 rm, bool is_set_rm)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline int rockchip_init_read_margin(struct device *dev,
+					    struct rockchip_opp_info *opp_info,
+					    char *reg_name)
 {
 	return -EOPNOTSUPP;
 }
