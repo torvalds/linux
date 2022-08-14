@@ -238,6 +238,12 @@ bool bch2_is_zero(const void *_p, size_t n)
 	return true;
 }
 
+void bch2_prt_u64_binary(struct printbuf *out, u64 v, unsigned nr_bits)
+{
+	while (nr_bits)
+		prt_char(out, '0' + ((v >> --nr_bits) & 1));
+}
+
 /* time stats: */
 
 #ifndef CONFIG_BCACHEFS_NO_LATENCY_ACCT

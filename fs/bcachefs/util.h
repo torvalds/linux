@@ -380,6 +380,8 @@ bool bch2_is_zero(const void *, size_t);
 
 u64 bch2_read_flag_list(char *, const char * const[]);
 
+void bch2_prt_u64_binary(struct printbuf *, u64, unsigned);
+
 #define NR_QUANTILES	15
 #define QUANTILE_IDX(i)	inorder_to_eytzinger0(i, NR_QUANTILES)
 #define QUANTILE_FIRST	eytzinger0_first(NR_QUANTILES)

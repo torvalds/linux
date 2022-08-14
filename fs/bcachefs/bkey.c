@@ -19,33 +19,49 @@ const struct bkey_format bch2_bkey_format_current = BKEY_FORMAT_CURRENT;
 struct bkey __bch2_bkey_unpack_key(const struct bkey_format *,
 			      const struct bkey_packed *);
 
-void bch2_to_binary(char *out, const u64 *p, unsigned nr_bits)
+void bch2_bkey_packed_to_binary_text(struct printbuf *out,
+				     const struct bkey_format *f,
+				     const struct bkey_packed *k)
 {
-	unsigned bit = high_bit_offset, done = 0;
+	const u64 *p = high_word(f, k);
+	unsigned word_bits = 64 - high_bit_offset;
+	unsigned nr_key_bits = bkey_format_key_bits(f) + high_bit_offset;
+	u64 v = *p & (~0ULL >> high_bit_offset);
+
+	if (!nr_key_bits) {
+		prt_str(out, "(empty)");
+		return;
+	}
 
 	while (1) {
-		while (bit < 64) {
-			if (done && !(done % 8))
-				*out++ = ' ';
-			*out++ = *p & (1ULL << (63 - bit)) ? '1' : '0';
-			bit++;
-			done++;
-			if (done == nr_bits) {
-				*out++ = '\0';
-				return;
-			}
+		unsigned next_key_bits = nr_key_bits;
+
+		if (nr_key_bits < 64) {
+			v >>= 64 - nr_key_bits;
+			next_key_bits = 0;
+		} else {
+			next_key_bits -= 64;
 		}
 
+		bch2_prt_u64_binary(out, v, min(word_bits, nr_key_bits));
+
+		if (!next_key_bits)
+			break;
+
+		prt_char(out, ' ');
+
 		p = next_word(p);
-		bit = 0;
+		v = *p;
+		word_bits = 64;
+		nr_key_bits = next_key_bits;
 	}
 }
 
 #ifdef CONFIG_BCACHEFS_DEBUG
 
 static void bch2_bkey_pack_verify(const struct bkey_packed *packed,
-				 const struct bkey *unpacked,
-				 const struct bkey_format *format)
+				  const struct bkey *unpacked,
+				  const struct bkey_format *format)
 {
 	struct bkey tmp;
 
@@ -57,23 +73,35 @@ static void bch2_bkey_pack_verify(const struct bkey_packed *packed,
 	tmp = __bch2_bkey_unpack_key(format, packed);
 
 	if (memcmp(&tmp, unpacked, sizeof(struct bkey))) {
-		struct printbuf buf1 = PRINTBUF;
-		struct printbuf buf2 = PRINTBUF;
-		char buf3[160], buf4[160];
+		struct printbuf buf = PRINTBUF;
 
-		bch2_bkey_to_text(&buf1, unpacked);
-		bch2_bkey_to_text(&buf2, &tmp);
-		bch2_to_binary(buf3, (void *) unpacked, 80);
-		bch2_to_binary(buf4, high_word(format, packed), 80);
-
-		panic("keys differ: format u64s %u fields %u %u %u %u %u\n%s\n%s\n%s\n%s\n",
+		prt_printf(&buf, "keys differ: format u64s %u fields %u %u %u %u %u\n",
 		      format->key_u64s,
 		      format->bits_per_field[0],
 		      format->bits_per_field[1],
 		      format->bits_per_field[2],
 		      format->bits_per_field[3],
-		      format->bits_per_field[4],
-		      buf1.buf, buf2.buf, buf3, buf4);
+		      format->bits_per_field[4]);
+
+		prt_printf(&buf, "compiled unpack: ");
+		bch2_bkey_to_text(&buf, unpacked);
+		prt_newline(&buf);
+
+		prt_printf(&buf, "c unpack:        ");
+		bch2_bkey_to_text(&buf, &tmp);
+		prt_newline(&buf);
+
+		prt_printf(&buf, "compiled unpack: ");
+		bch2_bkey_packed_to_binary_text(&buf, &bch2_bkey_format_current,
+						(struct bkey_packed *) unpacked);
+		prt_newline(&buf);
+
+		prt_printf(&buf, "c unpack:        ");
+		bch2_bkey_packed_to_binary_text(&buf, &bch2_bkey_format_current,
+						(struct bkey_packed *) &tmp);
+		prt_newline(&buf);
+
+		panic("%s", buf.buf);
 	}
 }
 
