@@ -591,6 +591,7 @@ static int rockchip_cpufreq_cluster_init(int cpu, struct cluster_info *cluster)
 				     &opp_info->low_rm);
 		if (!of_property_read_u32(np, "intermediate-threshold-freq", &freq))
 			opp_info->intermediate_threshold_freq = freq * 1000;
+		rockchip_init_read_margin(dev, opp_info, reg_name);
 	}
 	if (opp_info->data && opp_info->data->get_soc_info)
 		opp_info->data->get_soc_info(dev, np, &bin, &process);
