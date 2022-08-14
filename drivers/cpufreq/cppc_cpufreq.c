@@ -947,7 +947,7 @@ static int __init cppc_cpufreq_init(void)
 {
 	int ret;
 
-	if ((acpi_disabled) || !acpi_cpc_valid())
+	if (!acpi_cpc_valid())
 		return -ENODEV;
 
 	cppc_check_hisi_workaround();

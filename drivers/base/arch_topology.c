@@ -353,7 +353,7 @@ void topology_init_cpu_capacity_cppc(void)
 	struct cppc_perf_caps perf_caps;
 	int cpu;
 
-	if (likely(acpi_disabled || !acpi_cpc_valid()))
+	if (likely(!acpi_cpc_valid()))
 		return;
 
 	raw_capacity = kcalloc(num_possible_cpus(), sizeof(*raw_capacity),
