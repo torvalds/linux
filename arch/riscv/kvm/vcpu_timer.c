@@ -299,7 +299,6 @@ static void kvm_riscv_vcpu_update_timedelta(struct kvm_vcpu *vcpu)
 
 void kvm_riscv_vcpu_timer_restore(struct kvm_vcpu *vcpu)
 {
-	struct kvm_vcpu_csr *csr;
 	struct kvm_vcpu_timer *t = &vcpu->arch.timer;
 
 	kvm_riscv_vcpu_update_timedelta(vcpu);
@@ -307,7 +306,6 @@ void kvm_riscv_vcpu_timer_restore(struct kvm_vcpu *vcpu)
 	if (!t->sstc_enabled)
 		return;
 
-	csr = &vcpu->arch.guest_csr;
 #if defined(CONFIG_32BIT)
 	csr_write(CSR_VSTIMECMP, (u32)t->next_cycles);
 	csr_write(CSR_VSTIMECMPH, (u32)(t->next_cycles >> 32));
@@ -324,13 +322,11 @@ void kvm_riscv_vcpu_timer_restore(struct kvm_vcpu *vcpu)
 
 void kvm_riscv_vcpu_timer_save(struct kvm_vcpu *vcpu)
 {
-	struct kvm_vcpu_csr *csr;
 	struct kvm_vcpu_timer *t = &vcpu->arch.timer;
 
 	if (!t->sstc_enabled)
 		return;
 
-	csr = &vcpu->arch.guest_csr;
 	t = &vcpu->arch.timer;
 #if defined(CONFIG_32BIT)
 	t->next_cycles = csr_read(CSR_VSTIMECMP);
