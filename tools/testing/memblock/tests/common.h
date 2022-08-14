@@ -16,7 +16,8 @@
  * ASSERT_EQ():
  * Check the condition
  * @_expected == @_seen
- * If false, print failed test message (if in VERBOSE mode) and then assert
+ * If false, print failed test message (if running with --verbose) and then
+ * assert.
  */
 #define ASSERT_EQ(_expected, _seen) do { \
 	if ((_expected) != (_seen)) \
@@ -28,7 +29,8 @@
  * ASSERT_NE():
  * Check the condition
  * @_expected != @_seen
- * If false, print failed test message (if in VERBOSE mode) and then assert
+ * If false, print failed test message (if running with --verbose) and then
+ * assert.
  */
 #define ASSERT_NE(_expected, _seen) do { \
 	if ((_expected) == (_seen)) \
@@ -40,7 +42,8 @@
  * ASSERT_LT():
  * Check the condition
  * @_expected < @_seen
- * If false, print failed test message (if in VERBOSE mode) and then assert
+ * If false, print failed test message (if running with --verbose) and then
+ * assert.
  */
 #define ASSERT_LT(_expected, _seen) do { \
 	if ((_expected) >= (_seen)) \
