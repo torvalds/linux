@@ -393,11 +393,11 @@ int ftrace_make_nop(struct module *mod,
  */
 static bool expected_nop_sequence(void *ip, ppc_inst_t op0, ppc_inst_t op1)
 {
-	if (IS_ENABLED(CONFIG_PPC64_ELF_ABI_V1))
+	if (IS_ENABLED(CONFIG_DYNAMIC_FTRACE_WITH_REGS))
+		return ppc_inst_equal(op0, ppc_inst(PPC_RAW_NOP()));
+	else
 		return ppc_inst_equal(op0, ppc_inst(PPC_RAW_BRANCH(8))) &&
 		       ppc_inst_equal(op1, ppc_inst(PPC_INST_LD_TOC));
-	else
-		return ppc_inst_equal(op0, ppc_inst(PPC_RAW_NOP()));
 }
 
 static int
@@ -412,7 +412,7 @@ __ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr)
 	if (copy_inst_from_kernel_nofault(op, ip))
 		return -EFAULT;
 
-	if (IS_ENABLED(CONFIG_PPC64_ELF_ABI_V1) &&
+	if (!IS_ENABLED(CONFIG_DYNAMIC_FTRACE_WITH_REGS) &&
 	    copy_inst_from_kernel_nofault(op + 1, ip + 4))
 		return -EFAULT;
 
