@@ -14,7 +14,6 @@
         "EventCode": "0x38",
         "EventName": "UNC_Q_CTO_COUNT",
         "ExtSel": "1",
-        "Filter": "QPIMask0[17:0],QPIMatch0[17:0],QPIMask1[19:16],QPIMatch1[19:16]",
         "PerPkg": "1",
         "PublicDescription": "Counts the number of CTO (cluster trigger outs) events that were asserted across the two slots.  If both slots trigger in a given cycle, the event will increment by 2.  You can use edge detect to count the number of cases when both events triggered.",
         "Unit": "QPI LL"

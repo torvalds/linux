@@ -2240,6 +2240,17 @@ int __parse_events(struct evlist *evlist, const char *str,
 	return ret;
 }
 
+int parse_event(struct evlist *evlist, const char *str)
+{
+	struct parse_events_error err;
+	int ret;
+
+	parse_events_error__init(&err);
+	ret = parse_events(evlist, str, &err);
+	parse_events_error__exit(&err);
+	return ret;
+}
+
 void parse_events_error__init(struct parse_events_error *err)
 {
 	bzero(err, sizeof(*err));
@@ -2256,10 +2267,8 @@ void parse_events_error__exit(struct parse_events_error *err)
 void parse_events_error__handle(struct parse_events_error *err, int idx,
 				char *str, char *help)
 {
-	if (WARN(!str, "WARNING: failed to provide error string\n")) {
-		free(help);
-		return;
-	}
+	if (WARN(!str || !err, "WARNING: failed to provide error string or struct\n"))
+		goto out_free;
 	switch (err->num_errors) {
 	case 0:
 		err->idx = idx;
@@ -2284,6 +2293,11 @@ void parse_events_error__handle(struct parse_events_error *err, int idx,
 		break;
 	}
 	err->num_errors++;
+	return;
+
+out_free:
+	free(str);
+	free(help);
 }
 
 #define MAX_WIDTH 1000

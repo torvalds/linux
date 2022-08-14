@@ -102,6 +102,10 @@ include::itrace.txt[]
 	should be used, and also --buildid-all and --switch-events may be
 	useful.
 
+:GMEXAMPLECMD: inject
+:GMEXAMPLESUBCMD:
+include::guestmount.txt[]
+
 SEE ALSO
 --------
 linkperf:perf-record[1], linkperf:perf-report[1], linkperf:perf-archive[1],
