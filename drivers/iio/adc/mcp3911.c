@@ -258,6 +258,11 @@ static int mcp3911_config(struct mcp3911 *adc)
 	return  mcp3911_write(adc, MCP3911_REG_CONFIG, configreg, 2);
 }
 
+static void mcp3911_cleanup_regulator(void *vref)
+{
+	regulator_disable(vref);
+}
+
 static int mcp3911_probe(struct spi_device *spi)
 {
 	struct iio_dev *indio_dev;
@@ -286,9 +291,14 @@ static int mcp3911_probe(struct spi_device *spi)
 		ret = regulator_enable(adc->vref);
 		if (ret)
 			return ret;
+
+		ret = devm_add_action_or_reset(&spi->dev,
+				mcp3911_cleanup_regulator, adc->vref);
+		if (ret)
+			return ret;
 	}
 
-	adc->clki = devm_clk_get(&adc->spi->dev, NULL);
+	adc->clki = devm_clk_get_enabled(&adc->spi->dev, NULL);
 	if (IS_ERR(adc->clki)) {
 		if (PTR_ERR(adc->clki) == -ENOENT) {
 			adc->clki = NULL;
@@ -296,21 +306,13 @@ static int mcp3911_probe(struct spi_device *spi)
 			dev_err(&adc->spi->dev,
 				"failed to get adc clk (%ld)\n",
 				PTR_ERR(adc->clki));
-			ret = PTR_ERR(adc->clki);
-			goto reg_disable;
-		}
-	} else {
-		ret = clk_prepare_enable(adc->clki);
-		if (ret < 0) {
-			dev_err(&adc->spi->dev,
-				"Failed to enable clki: %d\n", ret);
-			goto reg_disable;
+			return PTR_ERR(adc->clki);
 		}
 	}
 
 	ret = mcp3911_config(adc);
 	if (ret)
-		goto clk_disable;
+		return ret;
 
 	indio_dev->name = spi_get_device_id(spi)->name;
 	indio_dev->modes = INDIO_DIRECT_MODE;
@@ -322,31 +324,7 @@ static int mcp3911_probe(struct spi_device *spi)
 
 	mutex_init(&adc->lock);
 
-	ret = iio_device_register(indio_dev);
-	if (ret)
-		goto clk_disable;
-
-	return ret;
-
-clk_disable:
-	clk_disable_unprepare(adc->clki);
-reg_disable:
-	if (adc->vref)
-		regulator_disable(adc->vref);
-
-	return ret;
-}
-
-static void mcp3911_remove(struct spi_device *spi)
-{
-	struct iio_dev *indio_dev = spi_get_drvdata(spi);
-	struct mcp3911 *adc = iio_priv(indio_dev);
-
-	iio_device_unregister(indio_dev);
-
-	clk_disable_unprepare(adc->clki);
-	if (adc->vref)
-		regulator_disable(adc->vref);
+	return devm_iio_device_register(&adc->spi->dev, indio_dev);
 }
 
 static const struct of_device_id mcp3911_dt_ids[] = {
@@ -367,7 +345,6 @@ static struct spi_driver mcp3911_driver = {
 		.of_match_table = mcp3911_dt_ids,
 	},
 	.probe = mcp3911_probe,
-	.remove = mcp3911_remove,
 	.id_table = mcp3911_id,
 };
 module_spi_driver(mcp3911_driver);
