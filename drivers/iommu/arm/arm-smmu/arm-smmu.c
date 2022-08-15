@@ -1332,13 +1332,12 @@ static phys_addr_t arm_smmu_iova_to_phys(struct iommu_domain *domain,
 
 static bool arm_smmu_capable(struct device *dev, enum iommu_cap cap)
 {
+	struct arm_smmu_master_cfg *cfg = dev_iommu_priv_get(dev);
+
 	switch (cap) {
 	case IOMMU_CAP_CACHE_COHERENCY:
-		/*
-		 * Return true here as the SMMU can always send out coherent
-		 * requests.
-		 */
-		return true;
+		/* Assume that a coherent TCU implies coherent TBUs */
+		return cfg->smmu->features & ARM_SMMU_FEAT_COHERENT_WALK;
 	case IOMMU_CAP_NOEXEC:
 		return true;
 	default:
