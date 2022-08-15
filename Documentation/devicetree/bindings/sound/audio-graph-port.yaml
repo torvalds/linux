@@ -19,11 +19,12 @@ properties:
     description: "device name prefix"
     $ref: /schemas/types.yaml#/definitions/string
   convert-rate:
-    description: CPU to Codec rate convert.
-    $ref: /schemas/types.yaml#/definitions/uint32
+    $ref: "/schemas/sound/dai-params.yaml#/$defs/dai-sample-rate"
   convert-channels:
-    description: CPU to Codec rate channels.
-    $ref: /schemas/types.yaml#/definitions/uint32
+    $ref: "/schemas/sound/dai-params.yaml#/$defs/dai-channels"
+  convert-sample-format:
+    $ref: "/schemas/sound/dai-params.yaml#/$defs/dai-sample-format"
+
 patternProperties:
   "^endpoint(@[0-9a-f]+)?":
     $ref: /schemas/graph.yaml#/$defs/endpoint-base
@@ -65,11 +66,11 @@ patternProperties:
             - msb
             - lsb
       convert-rate:
-        description: CPU to Codec rate convert.
-        $ref: /schemas/types.yaml#/definitions/uint32
+        $ref: "/schemas/sound/dai-params.yaml#/$defs/dai-sample-rate"
       convert-channels:
-        description: CPU to Codec rate channels.
-        $ref: /schemas/types.yaml#/definitions/uint32
+        $ref: "/schemas/sound/dai-params.yaml#/$defs/dai-channels"
+      convert-sample-format:
+        $ref: "/schemas/sound/dai-params.yaml#/$defs/dai-sample-format"
 
       dai-tdm-slot-width-map:
         description: Mapping of sample widths to slot widths. For hardware
