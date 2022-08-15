@@ -1865,10 +1865,8 @@ static void rkisp_stream_fast(struct work_struct *work)
 	struct rkisp_capture_device *cap_dev =
 		container_of(work, struct rkisp_capture_device, fast_work);
 	struct rkisp_stream *stream = &cap_dev->stream[0];
-	struct vb2_queue *q = &stream->vnode.buf_queue;
 	struct rkisp_device *ispdev = cap_dev->ispdev;
-	struct rkisp_tb_stream_info *info = &ispdev->tb_stream_info;
-	u32 i;
+	struct v4l2_subdev *sd = ispdev->active_sensor->sd;
 
 	v4l2_pipeline_pm_get(&stream->vnode.vdev.entity);
 	rkisp_chk_tb_over(ispdev);
@@ -1876,27 +1874,10 @@ static void rkisp_stream_fast(struct work_struct *work)
 		v4l2_pipeline_pm_put(&stream->vnode.vdev.entity);
 		return;
 	}
-	stream->is_pre_on = true;
-	stream->is_using_resmem = true;
-	info->width = stream->out_fmt.width;
-	info->height = stream->out_fmt.height;
-	info->bytesperline = stream->out_fmt.plane_fmt[0].bytesperline;
-	info->frame_size = info->bytesperline * ALIGN(info->height, 16) * 3 / 2;
-	info->buf_max = ispdev->resmem_size / info->frame_size;
-	if (!info->buf_max) {
-		stream->is_using_resmem = false;
-		v4l2_warn(&ispdev->v4l2_dev,
-			  "resmem size:%zu no enough for image:%d\n",
-			  ispdev->resmem_size, info->frame_size);
-	} else {
-		ispdev->tb_addr_idx = 0;
-		info->buf_cnt = 0;
-		if (info->buf_max > RKISP_TB_STREAM_BUF_MAX)
-			info->buf_max = RKISP_TB_STREAM_BUF_MAX;
-		for (i = 0; i < info->buf_max; i++)
-			info->buf[i].dma_addr = ispdev->resmem_addr + i * info->frame_size;
-	}
-	q->ops->start_streaming(q, 1);
+	ispdev->is_pre_on = true;
+	ispdev->is_rdbk_auto = true;
+	ispdev->pipe.open(&ispdev->pipe, &stream->vnode.vdev.entity, true);
+	v4l2_subdev_call(sd, video, s_stream, true);
 }
 
 void rkisp_unregister_stream_vdev(struct rkisp_stream *stream)

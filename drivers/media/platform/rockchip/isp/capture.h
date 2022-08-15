@@ -279,7 +279,6 @@ struct rkisp_stream {
 	bool is_flip;
 	bool is_pause;
 	bool is_crop_upd;
-	bool is_pre_on;
 	bool is_using_resmem;
 	bool is_tb_s_info;
 	wait_queue_head_t done;

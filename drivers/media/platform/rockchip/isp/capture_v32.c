@@ -958,7 +958,7 @@ static int mp_set_wrap(struct rkisp_stream *stream, int line)
 	int ret = 0;
 
 	dev->cap_dev.wrap_line = line;
-	if (stream->is_pre_on &&
+	if (dev->is_pre_on &&
 	    stream->streaming &&
 	    !stream->dummy_buf.mem_priv) {
 		ret = rkisp_create_dummy_buf(stream);
@@ -1397,8 +1397,10 @@ static void rkisp_stop_streaming(struct vb2_queue *queue)
 end:
 	mutex_unlock(&dev->hw_dev->dev_lock);
 
-	if (stream->is_pre_on) {
-		stream->is_pre_on = false;
+	if (dev->is_pre_on && stream->id == RKISP_STREAM_MP) {
+		dev->is_rdbk_auto = false;
+		dev->is_pre_on = false;
+		dev->pipe.close(&dev->pipe);
 		v4l2_pipeline_pm_put(&stream->vnode.vdev.entity);
 	}
 }
@@ -1453,10 +1455,7 @@ rkisp_start_streaming(struct vb2_queue *queue, unsigned int count)
 
 	if (WARN_ON(stream->streaming)) {
 		mutex_unlock(&dev->hw_dev->dev_lock);
-		if (stream->is_pre_on)
-			return 0;
-		else
-			return -EBUSY;
+		return -EBUSY;
 	}
 
 	memset(&stream->dbg, 0, sizeof(stream->dbg));
