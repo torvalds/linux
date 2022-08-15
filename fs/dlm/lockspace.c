@@ -584,7 +584,7 @@ static int new_lockspace(const char *name, const char *cluster,
 	atomic_set(&ls->ls_requestqueue_cnt, 0);
 	init_waitqueue_head(&ls->ls_requestqueue_wait);
 	mutex_init(&ls->ls_requestqueue_mutex);
-	mutex_init(&ls->ls_clear_proc_locks);
+	spin_lock_init(&ls->ls_clear_proc_locks);
 
 	/* Due backwards compatibility with 3.1 we need to use maximum
 	 * possible dlm message size to be sure the message will fit and

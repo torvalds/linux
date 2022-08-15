@@ -6215,7 +6215,7 @@ static struct dlm_lkb *del_proc_lock(struct dlm_ls *ls,
 {
 	struct dlm_lkb *lkb = NULL;
 
-	mutex_lock(&ls->ls_clear_proc_locks);
+	spin_lock(&ls->ls_clear_proc_locks);
 	if (list_empty(&proc->locks))
 		goto out;
 
@@ -6227,7 +6227,7 @@ static struct dlm_lkb *del_proc_lock(struct dlm_ls *ls,
 	else
 		lkb->lkb_flags |= DLM_IFL_DEAD;
  out:
-	mutex_unlock(&ls->ls_clear_proc_locks);
+	spin_unlock(&ls->ls_clear_proc_locks);
 	return lkb;
 }
 
@@ -6264,7 +6264,7 @@ void dlm_clear_proc_locks(struct dlm_ls *ls, struct dlm_user_proc *proc)
 		dlm_put_lkb(lkb);
 	}
 
-	mutex_lock(&ls->ls_clear_proc_locks);
+	spin_lock(&ls->ls_clear_proc_locks);
 
 	/* in-progress unlocks */
 	list_for_each_entry_safe(lkb, safe, &proc->unlocking, lkb_ownqueue) {
@@ -6280,7 +6280,7 @@ void dlm_clear_proc_locks(struct dlm_ls *ls, struct dlm_user_proc *proc)
 		dlm_put_lkb(lkb);
 	}
 
-	mutex_unlock(&ls->ls_clear_proc_locks);
+	spin_unlock(&ls->ls_clear_proc_locks);
 	dlm_unlock_recovery(ls);
 }
 
