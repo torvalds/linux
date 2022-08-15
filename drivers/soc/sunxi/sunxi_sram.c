@@ -294,6 +294,11 @@ static const struct sunxi_sramc_variant sun8i_h3_sramc_variant = {
 	.num_emac_clocks = 1,
 };
 
+static const struct sunxi_sramc_variant sun20i_d1_sramc_variant = {
+	.num_emac_clocks = 1,
+	.has_ldo_ctrl = true,
+};
+
 static const struct sunxi_sramc_variant sun50i_a64_sramc_variant = {
 	.num_emac_clocks = 1,
 };
@@ -381,6 +386,10 @@ static const struct of_device_id sunxi_sram_dt_match[] = {
 	{
 		.compatible = "allwinner,sun8i-h3-system-control",
 		.data = &sun8i_h3_sramc_variant,
+	},
+	{
+		.compatible = "allwinner,sun20i-d1-system-control",
+		.data = &sun20i_d1_sramc_variant,
 	},
 	{
 		.compatible = "allwinner,sun50i-a64-sram-controller",
