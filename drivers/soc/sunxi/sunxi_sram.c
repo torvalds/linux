@@ -283,6 +283,7 @@ EXPORT_SYMBOL(sunxi_sram_release);
 
 struct sunxi_sramc_variant {
 	int num_emac_clocks;
+	bool has_ldo_ctrl;
 };
 
 static const struct sunxi_sramc_variant sun4i_a10_sramc_variant = {
@@ -302,25 +303,28 @@ static const struct sunxi_sramc_variant sun50i_h616_sramc_variant = {
 };
 
 #define SUNXI_SRAM_EMAC_CLOCK_REG	0x30
+#define SUNXI_SYS_LDO_CTRL_REG		0x150
+
 static bool sunxi_sram_regmap_accessible_reg(struct device *dev,
 					     unsigned int reg)
 {
 	const struct sunxi_sramc_variant *variant = dev_get_drvdata(dev);
 
-	if (reg < SUNXI_SRAM_EMAC_CLOCK_REG)
-		return false;
-	if (reg > SUNXI_SRAM_EMAC_CLOCK_REG + variant->num_emac_clocks * 4)
-		return false;
+	if (reg >= SUNXI_SRAM_EMAC_CLOCK_REG &&
+	    reg <  SUNXI_SRAM_EMAC_CLOCK_REG + variant->num_emac_clocks * 4)
+		return true;
+	if (reg == SUNXI_SYS_LDO_CTRL_REG && variant->has_ldo_ctrl)
+		return true;
 
-	return true;
+	return false;
 }
 
-static struct regmap_config sunxi_sram_emac_clock_regmap = {
+static struct regmap_config sunxi_sram_regmap_config = {
 	.reg_bits       = 32,
 	.val_bits       = 32,
 	.reg_stride     = 4,
 	/* last defined register */
-	.max_register   = SUNXI_SRAM_EMAC_CLOCK_REG + 4,
+	.max_register   = SUNXI_SYS_LDO_CTRL_REG,
 	/* other devices have no business accessing other registers */
 	.readable_reg	= sunxi_sram_regmap_accessible_reg,
 	.writeable_reg	= sunxi_sram_regmap_accessible_reg,
@@ -328,9 +332,9 @@ static struct regmap_config sunxi_sram_emac_clock_regmap = {
 
 static int __init sunxi_sram_probe(struct platform_device *pdev)
 {
-	struct regmap *emac_clock;
 	const struct sunxi_sramc_variant *variant;
 	struct device *dev = &pdev->dev;
+	struct regmap *regmap;
 
 	sram_dev = &pdev->dev;
 
@@ -344,12 +348,10 @@ static int __init sunxi_sram_probe(struct platform_device *pdev)
 	if (IS_ERR(base))
 		return PTR_ERR(base);
 
-	if (variant->num_emac_clocks > 0) {
-		emac_clock = devm_regmap_init_mmio(&pdev->dev, base,
-						   &sunxi_sram_emac_clock_regmap);
-
-		if (IS_ERR(emac_clock))
-			return PTR_ERR(emac_clock);
+	if (variant->num_emac_clocks || variant->has_ldo_ctrl) {
+		regmap = devm_regmap_init_mmio(dev, base, &sunxi_sram_regmap_config);
+		if (IS_ERR(regmap))
+			return PTR_ERR(regmap);
 	}
 
 	of_platform_populate(dev->of_node, NULL, NULL, dev);
