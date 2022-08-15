@@ -7,6 +7,7 @@
  */
 
 #include <kunit/test.h>
+#include "./hid-uclogic-params.h"
 #include "./hid-uclogic-rdesc.h"
 
 #define MAX_STR_DESC_SIZE 14
@@ -17,6 +18,7 @@ struct uclogic_parse_ugee_v2_desc_case {
 	const __u8 str_desc[MAX_STR_DESC_SIZE];
 	size_t str_desc_size;
 	const s32 desc_params[UCLOGIC_RDESC_PH_ID_NUM];
+	enum uclogic_params_frame_type frame_type;
 };
 
 static struct uclogic_parse_ugee_v2_desc_case uclogic_parse_ugee_v2_desc_cases[] = {
@@ -26,6 +28,7 @@ static struct uclogic_parse_ugee_v2_desc_case uclogic_parse_ugee_v2_desc_cases[]
 		.str_desc = {},
 		.str_desc_size = 0,
 		.desc_params = {},
+		.frame_type = UCLOGIC_PARAMS_FRAME_BUTTONS,
 	},
 	{
 		.name = "resolution_with_value_0",
@@ -48,6 +51,7 @@ static struct uclogic_parse_ugee_v2_desc_case uclogic_parse_ugee_v2_desc_cases[]
 			[UCLOGIC_RDESC_PEN_PH_ID_PRESSURE_LM] = 0x1FFF,
 			[UCLOGIC_RDESC_FRAME_PH_ID_UM] = 0x08,
 		},
+		.frame_type = UCLOGIC_PARAMS_FRAME_BUTTONS,
 	},
 	/* XP-PEN Deco L str_desc: Frame with 8 buttons */
 	{
@@ -71,6 +75,7 @@ static struct uclogic_parse_ugee_v2_desc_case uclogic_parse_ugee_v2_desc_cases[]
 			[UCLOGIC_RDESC_PEN_PH_ID_PRESSURE_LM] = 0x1FFF,
 			[UCLOGIC_RDESC_FRAME_PH_ID_UM] = 0x08,
 		},
+		.frame_type = UCLOGIC_PARAMS_FRAME_BUTTONS,
 	},
 	/* PARBLO A610 PRO str_desc: Frame with 9 buttons and dial */
 	{
@@ -94,6 +99,31 @@ static struct uclogic_parse_ugee_v2_desc_case uclogic_parse_ugee_v2_desc_cases[]
 			[UCLOGIC_RDESC_PEN_PH_ID_PRESSURE_LM] = 0x1FFF,
 			[UCLOGIC_RDESC_FRAME_PH_ID_UM] = 0x09,
 		},
+		.frame_type = UCLOGIC_PARAMS_FRAME_DIAL,
+	},
+	/* XP-PEN Deco Pro S str_desc: Frame with 8 buttons and mouse */
+	{
+		.name = "frame_type_mouse",
+		.res = 0,
+		.str_desc = {
+			0x0E, 0x03,
+			0xC8, 0xB3,
+			0x34, 0x65,
+			0x08,
+			0x02,
+			0xFF, 0x1F,
+			0xD8, 0x13,
+		},
+		.str_desc_size = 12,
+		.desc_params = {
+			[UCLOGIC_RDESC_PEN_PH_ID_X_LM] = 0xB3C8,
+			[UCLOGIC_RDESC_PEN_PH_ID_X_PM] = 0x2363,
+			[UCLOGIC_RDESC_PEN_PH_ID_Y_LM] = 0x6534,
+			[UCLOGIC_RDESC_PEN_PH_ID_Y_PM] = 0x13EC,
+			[UCLOGIC_RDESC_PEN_PH_ID_PRESSURE_LM] = 0x1FFF,
+			[UCLOGIC_RDESC_FRAME_PH_ID_UM] = 0x08,
+		},
+		.frame_type = UCLOGIC_PARAMS_FRAME_MOUSE,
 	},
 };
 
@@ -110,12 +140,14 @@ static void uclogic_parse_ugee_v2_desc_test(struct kunit *test)
 {
 	int res;
 	s32 desc_params[UCLOGIC_RDESC_PH_ID_NUM];
+	enum uclogic_params_frame_type frame_type;
 	const struct uclogic_parse_ugee_v2_desc_case *params = test->param_value;
 
 	res = uclogic_params_parse_ugee_v2_desc(params->str_desc,
 						params->str_desc_size,
 						desc_params,
-						ARRAY_SIZE(desc_params));
+						ARRAY_SIZE(desc_params),
+						&frame_type);
 	KUNIT_ASSERT_EQ(test, res, params->res);
 
 	if (res)
@@ -139,6 +171,7 @@ static void uclogic_parse_ugee_v2_desc_test(struct kunit *test)
 	KUNIT_EXPECT_EQ(test,
 			params->desc_params[UCLOGIC_RDESC_FRAME_PH_ID_UM],
 			desc_params[UCLOGIC_RDESC_FRAME_PH_ID_UM]);
+	KUNIT_EXPECT_EQ(test, params->frame_type, frame_type);
 }
 
 static struct kunit_case hid_uclogic_params_test_cases[] = {

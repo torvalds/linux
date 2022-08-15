@@ -1064,6 +1064,7 @@ cleanup:
  * @str_desc_size:	Size of the string descriptor.
  * @desc_params:	Output description params list.
  * @desc_params_size:	Size of the output description params list.
+ * @frame_type:		Output frame type.
  *
  * Returns:
  *	Zero, if successful. A negative errno code on error.
@@ -1071,7 +1072,8 @@ cleanup:
 static int uclogic_params_parse_ugee_v2_desc(const __u8 *str_desc,
 					     size_t str_desc_size,
 					     s32 *desc_params,
-					     size_t desc_params_size)
+					     size_t desc_params_size,
+					     enum uclogic_params_frame_type *frame_type)
 {
 	s32 pen_x_lm, pen_y_lm;
 	s32 pen_x_pm, pen_y_pm;
@@ -1091,6 +1093,7 @@ static int uclogic_params_parse_ugee_v2_desc(const __u8 *str_desc,
 	pen_x_lm = get_unaligned_le16(str_desc + 2);
 	pen_y_lm = get_unaligned_le16(str_desc + 4);
 	frame_num_buttons = str_desc[6];
+	*frame_type = str_desc[7];
 	pen_pressure_lm = get_unaligned_le16(str_desc + 8);
 
 	resolution = get_unaligned_le16(str_desc + 10);
@@ -1176,6 +1179,7 @@ static int uclogic_params_ugee_v2_init(struct uclogic_params *params,
 	__u8 *str_desc = NULL;
 	__u8 *rdesc_pen = NULL;
 	s32 desc_params[UCLOGIC_RDESC_PH_ID_NUM];
+	enum uclogic_params_frame_type frame_type;
 	__u8 magic_arr[] = {
 		0x02, 0xb0, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 	};
@@ -1219,7 +1223,8 @@ static int uclogic_params_ugee_v2_init(struct uclogic_params *params,
 
 	rc = uclogic_params_parse_ugee_v2_desc(str_desc, str_desc_len,
 					       desc_params,
-					       ARRAY_SIZE(desc_params));
+					       ARRAY_SIZE(desc_params),
+					       &frame_type);
 	if (rc)
 		goto cleanup;
 
@@ -1243,8 +1248,14 @@ static int uclogic_params_ugee_v2_init(struct uclogic_params *params,
 	p.pen.subreport_list[0].id = UCLOGIC_RDESC_V1_FRAME_ID;
 
 	/* Initialize the frame interface */
-	rc = uclogic_params_ugee_v2_init_frame_buttons(&p, desc_params,
-						       ARRAY_SIZE(desc_params));
+	switch (frame_type) {
+	case UCLOGIC_PARAMS_FRAME_BUTTONS:
+	default:
+		rc = uclogic_params_ugee_v2_init_frame_buttons(&p, desc_params,
+							       ARRAY_SIZE(desc_params));
+		break;
+	}
+
 	if (rc)
 		goto cleanup;
 
