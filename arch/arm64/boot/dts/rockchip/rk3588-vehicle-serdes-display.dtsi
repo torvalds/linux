@@ -661,6 +661,7 @@
 	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c2m4_xfer>;
+	clock-frequency = <400000>;
 
 	bu18tl82: bu18tl82@10 {
 		compatible = "rohm,bu18tl82";
@@ -867,6 +868,7 @@
 &i2c3 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c3m2_xfer>;
+	clock-frequency = <400000>;
 	status = "okay";
 
 	bu18tl82@10 {
@@ -1040,6 +1042,7 @@
 };
 
 &i2c5 {
+	clock-frequency = <400000>;
 	status = "okay";
 
 	bu18tl82@10 {
@@ -1216,6 +1219,7 @@
 	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c6m3_xfer>;
+	clock-frequency = <400000>;
 
 	bu18tl82@10 {
 		compatible = "rohm,bu18tl82";
@@ -1425,6 +1429,7 @@
 &i2c7 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c7m3_xfer>;
+	clock-frequency = <400000>;
 	status = "okay";
 
 	bu18tl82@10 {
@@ -1600,6 +1605,7 @@
 &i2c8 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c8m2_xfer>;
+	clock-frequency = <400000>;
 	status = "okay";
 
 	bu18tl82@10 {
@@ -1843,31 +1849,43 @@
 &route_dp0 {
 	status = "disabled";
 	connect = <&vp0_out_dp0>;
+	logo,uboot = "logo34.bmp";
+	logo,kernel = "logo34.bmp";
 };
 
 &route_dp1 {
 	status = "disabled";
 	connect = <&vp0_out_dp1>;
+	logo,uboot = "logo34.bmp";
+	logo,kernel = "logo34.bmp";
 };
 
 &route_dsi0 {
 	status = "okay";
 	connect = <&vp2_out_dsi0>;
+	logo,uboot = "logo1.bmp";
+	logo,kernel = "logo1.bmp";
 };
 
 &route_dsi1 {
 	status = "okay";
 	connect = <&vp3_out_dsi1>;
+	logo,uboot = "logo2.bmp";
+	logo,kernel = "logo2.bmp";
 };
 
 &route_edp0 {
 	status = "disabled";
 	connect = <&vp1_out_edp0>;
+	logo,uboot = "logo56.bmp";
+	logo,kernel = "logo56.bmp";
 };
 
 &route_edp1 {
 	status = "disabled";
 	connect = <&vp1_out_edp1>;
+	logo,uboot = "logo56.bmp";
+	logo,kernel = "logo56.bmp";
 };
 
 &usbdp_phy0 {
