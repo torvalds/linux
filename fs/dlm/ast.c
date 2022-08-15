@@ -288,12 +288,13 @@ void dlm_callback_stop(struct dlm_ls *ls)
 
 void dlm_callback_suspend(struct dlm_ls *ls)
 {
-	mutex_lock(&ls->ls_cb_mutex);
-	set_bit(LSFL_CB_DELAY, &ls->ls_flags);
-	mutex_unlock(&ls->ls_cb_mutex);
+	if (ls->ls_callback_wq) {
+		mutex_lock(&ls->ls_cb_mutex);
+		set_bit(LSFL_CB_DELAY, &ls->ls_flags);
+		mutex_unlock(&ls->ls_cb_mutex);
 
-	if (ls->ls_callback_wq)
 		flush_workqueue(ls->ls_callback_wq);
+	}
 }
 
 #define MAX_CB_QUEUE 25
@@ -304,10 +305,10 @@ void dlm_callback_resume(struct dlm_ls *ls)
 	int count = 0, sum = 0;
 	bool empty;
 
-	clear_bit(LSFL_CB_DELAY, &ls->ls_flags);
-
 	if (!ls->ls_callback_wq)
 		return;
+
+	clear_bit(LSFL_CB_DELAY, &ls->ls_flags);
 
 more:
 	mutex_lock(&ls->ls_cb_mutex);
