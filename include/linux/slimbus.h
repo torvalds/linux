@@ -178,6 +178,14 @@ struct slim_device *slim_get_device(struct slim_controller *ctrl,
 				    struct slim_eaddr *e_addr);
 int slim_get_logical_addr(struct slim_device *sbdev);
 
+/*
+ * slim_vote_for_suspend : initiate immediate suspend.
+ * @sb: client handle requesting the address.
+ *
+ * return zero in case of suspended success.
+ */
+extern int slim_vote_for_suspend(struct slim_device *sb);
+
 /* Information Element management messages */
 #define SLIM_MSG_MC_REQUEST_INFORMATION          0x20
 #define SLIM_MSG_MC_REQUEST_CLEAR_INFORMATION    0x21

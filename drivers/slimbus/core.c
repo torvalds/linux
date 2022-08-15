@@ -307,6 +307,23 @@ int slim_unregister_controller(struct slim_controller *ctrl)
 }
 EXPORT_SYMBOL_GPL(slim_unregister_controller);
 
+/*
+ * slim_vote_for_suspend : initiate immediate suspend.
+ * @sb: client handle requesting the address.
+ *
+ * return zero in case of suspended success.
+ */
+int slim_vote_for_suspend(struct slim_device *sbdev)
+{
+	struct slim_controller *ctrl = sbdev->ctrl;
+
+	if (!ctrl)
+		return -EINVAL;
+
+	return ctrl->suspend_slimbus(ctrl);
+}
+EXPORT_SYMBOL(slim_vote_for_suspend);
+
 /**
  * slim_report_absent() - Controller calls this function when a device
  *	reports absent, OR when the device cannot be communicated with
