@@ -252,6 +252,7 @@ struct amdgpu_ring {
 	uint32_t		buf_mask;
 	u32			idx;
 	u32			xcc_id;
+	u32			xcp_id;
 	u32			me;
 	u32			pipe;
 	u32			queue;

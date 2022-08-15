@@ -61,6 +61,47 @@ void aqua_vanjaram_doorbell_index_init(struct amdgpu_device *adev)
 	adev->doorbell_index.max_assignment = AMDGPU_DOORBELL_LAYOUT1_MAX_ASSIGNMENT << 1;
 }
 
+static void aqua_vanjaram_set_xcp_id(struct amdgpu_device *adev,
+			     uint32_t inst_idx, struct amdgpu_ring *ring)
+{
+	int xcp_id;
+	enum AMDGPU_XCP_IP_BLOCK ip_blk;
+	uint32_t inst_mask;
+
+	ring->xcp_id = ~0;
+	if (adev->xcp_mgr->mode == AMDGPU_XCP_MODE_NONE)
+		return;
+
+	inst_mask = 1 << inst_idx;
+
+	switch (ring->funcs->type) {
+	case AMDGPU_HW_IP_GFX:
+	case AMDGPU_RING_TYPE_COMPUTE:
+	case AMDGPU_RING_TYPE_KIQ:
+		ip_blk = AMDGPU_XCP_GFX;
+		break;
+	case AMDGPU_RING_TYPE_SDMA:
+		ip_blk = AMDGPU_XCP_SDMA;
+		break;
+	case AMDGPU_RING_TYPE_VCN_ENC:
+	case AMDGPU_RING_TYPE_VCN_JPEG:
+		ip_blk = AMDGPU_XCP_VCN;
+		if (adev->xcp_mgr->mode == AMDGPU_CPX_PARTITION_MODE)
+			inst_mask = 1 << (inst_idx * 2);
+		break;
+	default:
+		DRM_ERROR("Not support ring type %d!", ring->funcs->type);
+		return;
+	}
+
+	for (xcp_id = 0; xcp_id < adev->xcp_mgr->num_xcps; xcp_id++) {
+		if (adev->xcp_mgr->xcp[xcp_id].ip[ip_blk].inst_mask & inst_mask) {
+			ring->xcp_id = xcp_id;
+			break;
+		}
+	}
+}
+
 static int8_t aqua_vanjaram_logical_to_dev_inst(struct amdgpu_device *adev,
 					 enum amd_hw_ip_block_type block,
 					 int8_t inst)
