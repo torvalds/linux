@@ -672,7 +672,6 @@
   __hwspin_lock_timeout
   __hwspin_unlock
   hypervisor_kobj
-  hyp_assign_phys
   i2c_add_adapter
   i2c_del_adapter
   i2c_del_driver
