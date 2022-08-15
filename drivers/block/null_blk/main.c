@@ -1555,7 +1555,9 @@ static int null_map_queues(struct blk_mq_tag_set *set)
 		} else {
 			pr_warn("tag set has unexpected nr_hw_queues: %d\n",
 				set->nr_hw_queues);
-			return -EINVAL;
+			WARN_ON_ONCE(true);
+			submit_queues = 1;
+			poll_queues = 0;
 		}
 	}
 
