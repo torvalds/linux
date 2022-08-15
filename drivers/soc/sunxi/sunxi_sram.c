@@ -305,9 +305,7 @@ static const struct sunxi_sramc_variant sun50i_h616_sramc_variant = {
 static bool sunxi_sram_regmap_accessible_reg(struct device *dev,
 					     unsigned int reg)
 {
-	const struct sunxi_sramc_variant *variant;
-
-	variant = of_device_get_match_data(dev);
+	const struct sunxi_sramc_variant *variant = dev_get_drvdata(dev);
 
 	if (reg < SUNXI_SRAM_EMAC_CLOCK_REG)
 		return false;
@@ -339,6 +337,8 @@ static int __init sunxi_sram_probe(struct platform_device *pdev)
 	variant = of_device_get_match_data(&pdev->dev);
 	if (!variant)
 		return -EINVAL;
+
+	dev_set_drvdata(dev, (struct sunxi_sramc_variant *)variant);
 
 	base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(base))
