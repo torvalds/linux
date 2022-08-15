@@ -1077,7 +1077,7 @@ static int bq24257_probe(struct i2c_client *client,
 	return 0;
 }
 
-static int bq24257_remove(struct i2c_client *client)
+static void bq24257_remove(struct i2c_client *client)
 {
 	struct bq24257_device *bq = i2c_get_clientdata(client);
 
@@ -1085,8 +1085,6 @@ static int bq24257_remove(struct i2c_client *client)
 		cancel_delayed_work_sync(&bq->iilimit_setup_work);
 
 	bq24257_field_write(bq, F_RESET, 1); /* reset to defaults */
-
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP

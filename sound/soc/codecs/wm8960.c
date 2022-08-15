@@ -1486,10 +1486,8 @@ static int wm8960_i2c_probe(struct i2c_client *i2c)
 	return ret;
 }
 
-static int wm8960_i2c_remove(struct i2c_client *client)
-{
-	return 0;
-}
+static void wm8960_i2c_remove(struct i2c_client *client)
+{}
 
 static const struct i2c_device_id wm8960_i2c_id[] = {
 	{ "wm8960", 0 },

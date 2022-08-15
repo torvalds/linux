@@ -1238,7 +1238,7 @@ error_free_ctrls:
 	return ret;
 }
 
-static int mt9v111_remove(struct i2c_client *client)
+static void mt9v111_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 	struct mt9v111_dev *mt9v111 = sd_to_mt9v111(sd);
@@ -1253,8 +1253,6 @@ static int mt9v111_remove(struct i2c_client *client)
 
 	mutex_destroy(&mt9v111->pwr_mutex);
 	mutex_destroy(&mt9v111->stream_mutex);
-
-	return 0;
 }
 
 static const struct of_device_id mt9v111_of_match[] = {

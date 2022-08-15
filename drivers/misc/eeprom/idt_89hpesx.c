@@ -1405,7 +1405,7 @@ err_free_pdev:
 /*
  * idt_remove() - IDT 89HPESx driver remove() callback method
  */
-static int idt_remove(struct i2c_client *client)
+static void idt_remove(struct i2c_client *client)
 {
 	struct idt_89hpesx_dev *pdev = i2c_get_clientdata(client);
 
@@ -1417,8 +1417,6 @@ static int idt_remove(struct i2c_client *client)
 
 	/* Discard driver data structure */
 	idt_free_pdev(pdev);
-
-	return 0;
 }
 
 /*

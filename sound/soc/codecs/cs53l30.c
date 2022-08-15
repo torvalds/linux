@@ -1043,7 +1043,7 @@ error_supplies:
 	return ret;
 }
 
-static int cs53l30_i2c_remove(struct i2c_client *client)
+static void cs53l30_i2c_remove(struct i2c_client *client)
 {
 	struct cs53l30_private *cs53l30 = i2c_get_clientdata(client);
 
@@ -1052,8 +1052,6 @@ static int cs53l30_i2c_remove(struct i2c_client *client)
 
 	regulator_bulk_disable(ARRAY_SIZE(cs53l30->supplies),
 			       cs53l30->supplies);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM

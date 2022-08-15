@@ -1239,7 +1239,7 @@ static int w83781d_probe(struct i2c_client *client)
 	return err;
 }
 
-static int
+static void
 w83781d_remove(struct i2c_client *client)
 {
 	struct w83781d_data *data = i2c_get_clientdata(client);
@@ -1250,8 +1250,6 @@ w83781d_remove(struct i2c_client *client)
 
 	i2c_unregister_device(data->lm75[0]);
 	i2c_unregister_device(data->lm75[1]);
-
-	return 0;
 }
 
 static int

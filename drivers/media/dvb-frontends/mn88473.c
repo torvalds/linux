@@ -726,7 +726,7 @@ err:
 	return ret;
 }
 
-static int mn88473_remove(struct i2c_client *client)
+static void mn88473_remove(struct i2c_client *client)
 {
 	struct mn88473_dev *dev = i2c_get_clientdata(client);
 
@@ -741,8 +741,6 @@ static int mn88473_remove(struct i2c_client *client)
 	regmap_exit(dev->regmap[0]);
 
 	kfree(dev);
-
-	return 0;
 }
 
 static const struct i2c_device_id mn88473_id_table[] = {

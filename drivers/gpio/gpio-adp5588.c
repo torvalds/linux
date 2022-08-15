@@ -409,14 +409,12 @@ static int adp5588_gpio_probe(struct i2c_client *client)
 	return 0;
 }
 
-static int adp5588_gpio_remove(struct i2c_client *client)
+static void adp5588_gpio_remove(struct i2c_client *client)
 {
 	struct adp5588_gpio *dev = i2c_get_clientdata(client);
 
 	if (dev->client->irq)
 		free_irq(dev->client->irq, dev);
-
-	return 0;
 }
 
 static const struct i2c_device_id adp5588_gpio_id[] = {

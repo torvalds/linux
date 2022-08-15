@@ -1101,7 +1101,7 @@ err_exit:
 	return ret;
 }
 
-static int pca953x_remove(struct i2c_client *client)
+static void pca953x_remove(struct i2c_client *client)
 {
 	struct pca953x_platform_data *pdata = dev_get_platdata(&client->dev);
 	struct pca953x_chip *chip = i2c_get_clientdata(client);
@@ -1112,8 +1112,6 @@ static int pca953x_remove(struct i2c_client *client)
 	}
 
 	regulator_disable(chip->regulator);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP

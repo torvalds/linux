@@ -487,7 +487,7 @@ errfr:
 	return ret;
 }
 
-static int tea5764_i2c_remove(struct i2c_client *client)
+static void tea5764_i2c_remove(struct i2c_client *client)
 {
 	struct tea5764_device *radio = i2c_get_clientdata(client);
 
@@ -499,7 +499,6 @@ static int tea5764_i2c_remove(struct i2c_client *client)
 		v4l2_device_unregister(&radio->v4l2_dev);
 		kfree(radio);
 	}
-	return 0;
 }
 
 /* I2C subsystem interface */

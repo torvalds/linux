@@ -856,7 +856,7 @@ err:
 	return ret;
 }
 
-static int tda18250_remove(struct i2c_client *client)
+static void tda18250_remove(struct i2c_client *client)
 {
 	struct tda18250_dev *dev = i2c_get_clientdata(client);
 	struct dvb_frontend *fe = dev->fe;
@@ -866,8 +866,6 @@ static int tda18250_remove(struct i2c_client *client)
 	memset(&fe->ops.tuner_ops, 0, sizeof(struct dvb_tuner_ops));
 	fe->tuner_priv = NULL;
 	kfree(dev);
-
-	return 0;
 }
 
 static const struct i2c_device_id tda18250_id_table[] = {

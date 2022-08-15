@@ -597,7 +597,7 @@ err_power_off:
 	return ret;
 }
 
-static int stk8312_remove(struct i2c_client *client)
+static void stk8312_remove(struct i2c_client *client)
 {
 	struct iio_dev *indio_dev = i2c_get_clientdata(client);
 	struct stk8312_data *data = iio_priv(indio_dev);
@@ -609,8 +609,6 @@ static int stk8312_remove(struct i2c_client *client)
 		iio_trigger_unregister(data->dready_trig);
 
 	stk8312_set_mode(data, STK8312_MODE_STANDBY);
-
-	return 0;
 }
 
 static int stk8312_suspend(struct device *dev)

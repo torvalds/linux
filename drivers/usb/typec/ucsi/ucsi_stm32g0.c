@@ -688,7 +688,7 @@ destroy:
 	return ret;
 }
 
-static int ucsi_stm32g0_remove(struct i2c_client *client)
+static void ucsi_stm32g0_remove(struct i2c_client *client)
 {
 	struct ucsi_stm32g0 *g0 = i2c_get_clientdata(client);
 
@@ -697,8 +697,6 @@ static int ucsi_stm32g0_remove(struct i2c_client *client)
 	if (g0->fw_name)
 		i2c_unregister_device(g0->i2c_bl);
 	ucsi_destroy(g0->ucsi);
-
-	return 0;
 }
 
 static int ucsi_stm32g0_suspend(struct device *dev)

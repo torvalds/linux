@@ -4145,7 +4145,7 @@ err_enable:
 	return ret;
 }
 
-static int rt5645_i2c_remove(struct i2c_client *i2c)
+static void rt5645_i2c_remove(struct i2c_client *i2c)
 {
 	struct rt5645_priv *rt5645 = i2c_get_clientdata(i2c);
 
@@ -4162,8 +4162,6 @@ static int rt5645_i2c_remove(struct i2c_client *i2c)
 	cancel_delayed_work_sync(&rt5645->rcclock_work);
 
 	regulator_bulk_disable(ARRAY_SIZE(rt5645->supplies), rt5645->supplies);
-
-	return 0;
 }
 
 static void rt5645_i2c_shutdown(struct i2c_client *i2c)

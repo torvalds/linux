@@ -263,12 +263,11 @@ static int rt1711h_probe(struct i2c_client *client,
 	return 0;
 }
 
-static int rt1711h_remove(struct i2c_client *client)
+static void rt1711h_remove(struct i2c_client *client)
 {
 	struct rt1711h_chip *chip = i2c_get_clientdata(client);
 
 	tcpci_unregister_port(chip->tcpci);
-	return 0;
 }
 
 static const struct i2c_device_id rt1711h_id[] = {

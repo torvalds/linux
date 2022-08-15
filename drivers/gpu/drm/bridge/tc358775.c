@@ -704,13 +704,11 @@ err_bridge_remove:
 	return ret;
 }
 
-static int tc_remove(struct i2c_client *client)
+static void tc_remove(struct i2c_client *client)
 {
 	struct tc_data *tc = i2c_get_clientdata(client);
 
 	drm_bridge_remove(&tc->bridge);
-
-	return 0;
 }
 
 static const struct i2c_device_id tc358775_i2c_ids[] = {

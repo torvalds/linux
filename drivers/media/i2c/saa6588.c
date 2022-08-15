@@ -484,7 +484,7 @@ static int saa6588_probe(struct i2c_client *client,
 	return 0;
 }
 
-static int saa6588_remove(struct i2c_client *client)
+static void saa6588_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 	struct saa6588 *s = to_saa6588(sd);
@@ -492,8 +492,6 @@ static int saa6588_remove(struct i2c_client *client)
 	v4l2_device_unregister_subdev(sd);
 
 	cancel_delayed_work_sync(&s->work);
-
-	return 0;
 }
 
 /* ----------------------------------------------------------------------- */

@@ -178,15 +178,13 @@ static int skl_int3472_tps68470_probe(struct i2c_client *client)
 	return ret;
 }
 
-static int skl_int3472_tps68470_remove(struct i2c_client *client)
+static void skl_int3472_tps68470_remove(struct i2c_client *client)
 {
 	const struct int3472_tps68470_board_data *board_data;
 
 	board_data = int3472_tps68470_get_board_data(dev_name(&client->dev));
 	if (board_data)
 		gpiod_remove_lookup_table(board_data->tps68470_gpio_lookup_table);
-
-	return 0;
 }
 
 static const struct acpi_device_id int3472_device_id[] = {

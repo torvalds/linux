@@ -1174,7 +1174,7 @@ err_hdl:
 
 /* ----------------------------------------------------------------------- */
 
-static int ad9389b_remove(struct i2c_client *client)
+static void ad9389b_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 	struct ad9389b_state *state = get_ad9389b_state(sd);
@@ -1192,7 +1192,6 @@ static int ad9389b_remove(struct i2c_client *client)
 	v4l2_device_unregister_subdev(sd);
 	media_entity_cleanup(&sd->entity);
 	v4l2_ctrl_handler_free(sd->ctrl_handler);
-	return 0;
 }
 
 /* ----------------------------------------------------------------------- */

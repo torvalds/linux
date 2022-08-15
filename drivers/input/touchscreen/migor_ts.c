@@ -176,7 +176,7 @@ static int migor_ts_probe(struct i2c_client *client,
 	return error;
 }
 
-static int migor_ts_remove(struct i2c_client *client)
+static void migor_ts_remove(struct i2c_client *client)
 {
 	struct migor_ts_priv *priv = i2c_get_clientdata(client);
 
@@ -185,8 +185,6 @@ static int migor_ts_remove(struct i2c_client *client)
 	kfree(priv);
 
 	dev_set_drvdata(&client->dev, NULL);
-
-	return 0;
 }
 
 static int __maybe_unused migor_ts_suspend(struct device *dev)

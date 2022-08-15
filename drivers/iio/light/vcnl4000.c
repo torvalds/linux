@@ -1111,7 +1111,7 @@ static const struct of_device_id vcnl_4000_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, vcnl_4000_of_match);
 
-static int vcnl4000_remove(struct i2c_client *client)
+static void vcnl4000_remove(struct i2c_client *client)
 {
 	struct iio_dev *indio_dev = i2c_get_clientdata(client);
 	struct vcnl4000_data *data = iio_priv(indio_dev);
@@ -1126,8 +1126,6 @@ static int vcnl4000_remove(struct i2c_client *client)
 	if (ret)
 		dev_warn(&client->dev, "Failed to power down (%pe)\n",
 			 ERR_PTR(ret));
-
-	return 0;
 }
 
 static int vcnl4000_runtime_suspend(struct device *dev)

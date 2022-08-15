@@ -3906,7 +3906,7 @@ entity_cleanup:
 	return ret;
 }
 
-static int ov5640_remove(struct i2c_client *client)
+static void ov5640_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 	struct ov5640_dev *sensor = to_ov5640_dev(sd);
@@ -3915,8 +3915,6 @@ static int ov5640_remove(struct i2c_client *client)
 	media_entity_cleanup(&sensor->sd.entity);
 	v4l2_ctrl_handler_free(&sensor->ctrls.handler);
 	mutex_destroy(&sensor->lock);
-
-	return 0;
 }
 
 static const struct i2c_device_id ov5640_id[] = {

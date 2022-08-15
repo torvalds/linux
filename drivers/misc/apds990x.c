@@ -1185,7 +1185,7 @@ fail1:
 	return err;
 }
 
-static int apds990x_remove(struct i2c_client *client)
+static void apds990x_remove(struct i2c_client *client)
 {
 	struct apds990x_chip *chip = i2c_get_clientdata(client);
 
@@ -1205,7 +1205,6 @@ static int apds990x_remove(struct i2c_client *client)
 	regulator_bulk_free(ARRAY_SIZE(chip->regs), chip->regs);
 
 	kfree(chip);
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP

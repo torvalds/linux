@@ -943,7 +943,7 @@ reg_off:
 	return ret;
 }
 
-static int yas5xx_remove(struct i2c_client *i2c)
+static void yas5xx_remove(struct i2c_client *i2c)
 {
 	struct iio_dev *indio_dev = i2c_get_clientdata(i2c);
 	struct yas5xx *yas5xx = iio_priv(indio_dev);
@@ -961,8 +961,6 @@ static int yas5xx_remove(struct i2c_client *i2c)
 	pm_runtime_disable(dev);
 	gpiod_set_value_cansleep(yas5xx->reset, 1);
 	regulator_bulk_disable(ARRAY_SIZE(yas5xx->regs), yas5xx->regs);
-
-	return 0;
 }
 
 static int yas5xx_runtime_suspend(struct device *dev)

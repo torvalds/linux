@@ -677,7 +677,7 @@ exit:
 	return err;
 }
 
-static int blinkm_remove(struct i2c_client *client)
+static void blinkm_remove(struct i2c_client *client)
 {
 	struct blinkm_data *data = i2c_get_clientdata(client);
 	int ret = 0;
@@ -716,7 +716,6 @@ static int blinkm_remove(struct i2c_client *client)
 		dev_err(&client->dev, "Failure in blinkm_remove ignored. Continuing.\n");
 
 	sysfs_remove_group(&client->dev.kobj, &blinkm_group);
-	return 0;
 }
 
 static const struct i2c_device_id blinkm_id[] = {

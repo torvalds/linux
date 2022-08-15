@@ -368,12 +368,11 @@ static int adv7170_probe(struct i2c_client *client,
 	return 0;
 }
 
-static int adv7170_remove(struct i2c_client *client)
+static void adv7170_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 
 	v4l2_device_unregister_subdev(sd);
-	return 0;
 }
 
 /* ----------------------------------------------------------------------- */

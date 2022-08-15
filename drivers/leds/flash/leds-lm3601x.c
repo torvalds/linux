@@ -440,7 +440,7 @@ static int lm3601x_probe(struct i2c_client *client)
 	return lm3601x_register_leds(led, fwnode);
 }
 
-static int lm3601x_remove(struct i2c_client *client)
+static void lm3601x_remove(struct i2c_client *client)
 {
 	struct lm3601x_led *led = i2c_get_clientdata(client);
 	int ret;
@@ -450,8 +450,6 @@ static int lm3601x_remove(struct i2c_client *client)
 	if (ret)
 		dev_warn(&client->dev,
 			 "Failed to put into standby (%pe)\n", ERR_PTR(ret));
-
-	return 0;
 }
 
 static const struct i2c_device_id lm3601x_id[] = {

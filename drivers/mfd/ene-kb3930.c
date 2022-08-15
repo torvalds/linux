@@ -177,7 +177,7 @@ static int kb3930_probe(struct i2c_client *client)
 	return 0;
 }
 
-static int kb3930_remove(struct i2c_client *client)
+static void kb3930_remove(struct i2c_client *client)
 {
 	struct kb3930 *ddata = i2c_get_clientdata(client);
 
@@ -187,8 +187,6 @@ static int kb3930_remove(struct i2c_client *client)
 		unregister_restart_handler(&kb3930_restart_nb);
 	}
 	kb3930_power_off = NULL;
-
-	return 0;
 }
 
 static const struct of_device_id kb3930_dt_ids[] = {

@@ -2346,7 +2346,7 @@ static int sii8620_probe(struct i2c_client *client,
 	return 0;
 }
 
-static int sii8620_remove(struct i2c_client *client)
+static void sii8620_remove(struct i2c_client *client)
 {
 	struct sii8620 *ctx = i2c_get_clientdata(client);
 
@@ -2360,8 +2360,6 @@ static int sii8620_remove(struct i2c_client *client)
 		sii8620_cable_out(ctx);
 	}
 	drm_bridge_remove(&ctx->bridge);
-
-	return 0;
 }
 
 static const struct of_device_id sii8620_dt_match[] = {

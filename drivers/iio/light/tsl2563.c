@@ -796,7 +796,7 @@ fail:
 	return err;
 }
 
-static int tsl2563_remove(struct i2c_client *client)
+static void tsl2563_remove(struct i2c_client *client)
 {
 	struct iio_dev *indio_dev = i2c_get_clientdata(client);
 	struct tsl2563_chip *chip = iio_priv(indio_dev);
@@ -809,8 +809,6 @@ static int tsl2563_remove(struct i2c_client *client)
 	i2c_smbus_write_byte_data(chip->client, TSL2563_CMD | TSL2563_REG_INT,
 				  chip->intr);
 	tsl2563_set_power(chip, 0);
-
-	return 0;
 }
 
 static int tsl2563_suspend(struct device *dev)

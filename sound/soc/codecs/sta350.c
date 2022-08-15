@@ -1242,10 +1242,8 @@ static int sta350_i2c_probe(struct i2c_client *i2c)
 	return ret;
 }
 
-static int sta350_i2c_remove(struct i2c_client *client)
-{
-	return 0;
-}
+static void sta350_i2c_remove(struct i2c_client *client)
+{}
 
 static const struct i2c_device_id sta350_i2c_id[] = {
 	{ "sta350", 0 },

@@ -289,14 +289,12 @@ static int usb3503_i2c_probe(struct i2c_client *i2c,
 	return usb3503_probe(hub);
 }
 
-static int usb3503_i2c_remove(struct i2c_client *i2c)
+static void usb3503_i2c_remove(struct i2c_client *i2c)
 {
 	struct usb3503 *hub;
 
 	hub = i2c_get_clientdata(i2c);
 	clk_disable_unprepare(hub->clk);
-
-	return 0;
 }
 
 static int usb3503_platform_probe(struct platform_device *pdev)

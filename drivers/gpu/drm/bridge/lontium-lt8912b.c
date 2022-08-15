@@ -714,7 +714,7 @@ err_dt_parse:
 	return ret;
 }
 
-static int lt8912_remove(struct i2c_client *client)
+static void lt8912_remove(struct i2c_client *client)
 {
 	struct lt8912 *lt = i2c_get_clientdata(client);
 
@@ -722,7 +722,6 @@ static int lt8912_remove(struct i2c_client *client)
 	drm_bridge_remove(&lt->bridge);
 	lt8912_free_i2c(lt);
 	lt8912_put_dt(lt);
-	return 0;
 }
 
 static const struct of_device_id lt8912_dt_match[] = {

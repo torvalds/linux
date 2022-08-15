@@ -194,7 +194,7 @@ err_free_mem:
 	return error;
 }
 
-static int mcs_touchkey_remove(struct i2c_client *client)
+static void mcs_touchkey_remove(struct i2c_client *client)
 {
 	struct mcs_touchkey_data *data = i2c_get_clientdata(client);
 
@@ -203,8 +203,6 @@ static int mcs_touchkey_remove(struct i2c_client *client)
 		data->poweron(false);
 	input_unregister_device(data->input_dev);
 	kfree(data);
-
-	return 0;
 }
 
 static void mcs_touchkey_shutdown(struct i2c_client *client)

@@ -1061,7 +1061,7 @@ error_probe:
 	return ret;
 }
 
-static int imx208_remove(struct i2c_client *client)
+static void imx208_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 	struct imx208 *imx208 = to_imx208(sd);
@@ -1075,8 +1075,6 @@ static int imx208_remove(struct i2c_client *client)
 	pm_runtime_set_suspended(&client->dev);
 
 	mutex_destroy(&imx208->imx208_mx);
-
-	return 0;
 }
 
 static const struct dev_pm_ops imx208_pm_ops = {

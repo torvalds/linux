@@ -33,7 +33,7 @@ struct i2chid_ops {
 
 int i2c_hid_core_probe(struct i2c_client *client, struct i2chid_ops *ops,
 		       u16 hid_descriptor_address, u32 quirks);
-int i2c_hid_core_remove(struct i2c_client *client);
+void i2c_hid_core_remove(struct i2c_client *client);
 
 void i2c_hid_core_shutdown(struct i2c_client *client);
 

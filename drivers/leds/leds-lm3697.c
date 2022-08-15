@@ -337,7 +337,7 @@ static int lm3697_probe(struct i2c_client *client,
 	return lm3697_init(led);
 }
 
-static int lm3697_remove(struct i2c_client *client)
+static void lm3697_remove(struct i2c_client *client)
 {
 	struct lm3697 *led = i2c_get_clientdata(client);
 	struct device *dev = &led->client->dev;
@@ -358,8 +358,6 @@ static int lm3697_remove(struct i2c_client *client)
 	}
 
 	mutex_destroy(&led->lock);
-
-	return 0;
 }
 
 static const struct i2c_device_id lm3697_id[] = {
