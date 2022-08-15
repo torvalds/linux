@@ -517,7 +517,7 @@ static ssize_t prop##_show(struct device *dev,				\
 {									\
 	struct omap_mcbsp *mcbsp = dev_get_drvdata(dev);		\
 									\
-	return sprintf(buf, "%u\n", mcbsp->prop);			\
+	return sysfs_emit(buf, "%u\n", mcbsp->prop);			\
 }									\
 									\
 static ssize_t prop##_store(struct device *dev,				\
@@ -560,11 +560,11 @@ static ssize_t dma_op_mode_show(struct device *dev,
 
 	for (s = &dma_op_modes[i]; i < ARRAY_SIZE(dma_op_modes); s++, i++) {
 		if (dma_op_mode == i)
-			len += sprintf(buf + len, "[%s] ", *s);
+			len += sysfs_emit_at(buf, len, "[%s] ", *s);
 		else
-			len += sprintf(buf + len, "%s ", *s);
+			len += sysfs_emit_at(buf, len, "%s ", *s);
 	}
-	len += sprintf(buf + len, "\n");
+	len += sysfs_emit_at(buf, len, "\n");
 
 	return len;
 }
