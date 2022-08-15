@@ -108,6 +108,7 @@
 #define RK3588_GRF_VO1_CON3		0x000c
 #define RK3588_COLOR_FORMAT_MASK	0xf
 #define RK3588_RGB			0
+#define RK3588_YUV422			0x1
 #define RK3588_YUV444			0x2
 #define RK3588_YUV420			0x3
 #define RK3588_COMPRESSED_DATA		0xb
@@ -710,6 +711,9 @@ static bool hdmi_bus_fmt_is_yuv422(unsigned int bus_format)
 	case MEDIA_BUS_FMT_UYVY8_1X16:
 	case MEDIA_BUS_FMT_UYVY10_1X20:
 	case MEDIA_BUS_FMT_UYVY12_1X24:
+	case MEDIA_BUS_FMT_YUYV8_1X16:
+	case MEDIA_BUS_FMT_YUYV10_1X20:
+	case MEDIA_BUS_FMT_YUYV12_1X24:
 		return true;
 
 	default:
@@ -737,18 +741,21 @@ static int hdmi_bus_fmt_color_depth(unsigned int bus_format)
 	case MEDIA_BUS_FMT_RGB888_1X24:
 	case MEDIA_BUS_FMT_YUV8_1X24:
 	case MEDIA_BUS_FMT_UYVY8_1X16:
+	case MEDIA_BUS_FMT_YUYV8_1X16:
 	case MEDIA_BUS_FMT_UYYVYY8_0_5X24:
 		return 8;
 
 	case MEDIA_BUS_FMT_RGB101010_1X30:
 	case MEDIA_BUS_FMT_YUV10_1X30:
 	case MEDIA_BUS_FMT_UYVY10_1X20:
+	case MEDIA_BUS_FMT_YUYV10_1X20:
 	case MEDIA_BUS_FMT_UYYVYY10_0_5X30:
 		return 10;
 
 	case MEDIA_BUS_FMT_RGB121212_1X36:
 	case MEDIA_BUS_FMT_YUV12_1X36:
 	case MEDIA_BUS_FMT_UYVY12_1X24:
+	case MEDIA_BUS_FMT_YUYV12_1X24:
 	case MEDIA_BUS_FMT_UYYVYY12_0_5X36:
 		return 12;
 
@@ -1845,6 +1852,10 @@ static void rk3588_set_color_format(struct rockchip_hdmi *hdmi, u64 bus_format,
 	case MEDIA_BUS_FMT_YUV10_1X30:
 		val = HIWORD_UPDATE(RK3588_YUV444, RK3588_COLOR_FORMAT_MASK);
 		break;
+	case MEDIA_BUS_FMT_YUYV10_1X20:
+	case MEDIA_BUS_FMT_YUYV8_1X16:
+		val = HIWORD_UPDATE(RK3588_YUV422, RK3588_COLOR_FORMAT_MASK);
+		break;
 	default:
 		dev_err(hdmi->dev, "can't set correct color format\n");
 		return;
@@ -1853,7 +1864,7 @@ static void rk3588_set_color_format(struct rockchip_hdmi *hdmi, u64 bus_format,
 	if (hdmi->link_cfg.dsc_mode)
 		val = HIWORD_UPDATE(RK3588_COMPRESSED_DATA, RK3588_COLOR_FORMAT_MASK);
 
-	if (depth == 8)
+	if (depth == 8 || bus_format == MEDIA_BUS_FMT_YUYV10_1X20)
 		val |= HIWORD_UPDATE(RK3588_8BPC, RK3588_COLOR_DEPTH_MASK);
 	else
 		val |= HIWORD_UPDATE(RK3588_10BPC, RK3588_COLOR_DEPTH_MASK);
@@ -1893,6 +1904,9 @@ static u64 rk3588_get_grf_color_fmt(void *data)
 			bus_format = MEDIA_BUS_FMT_YUV8_1X24;
 		else
 			bus_format = MEDIA_BUS_FMT_YUV10_1X30;
+		break;
+	case RK3588_YUV422:
+		bus_format = MEDIA_BUS_FMT_YUYV10_1X20;
 		break;
 	case RK3588_YUV420:
 		if (!depth)
@@ -2142,12 +2156,25 @@ dw_hdmi_rockchip_select_output(struct drm_connector_state *conn_state,
 	hdmi->bus_format = *bus_format;
 
 	if (*color_format == RK_IF_FORMAT_YCBCR422) {
-		if (color_depth == 12)
-			hdmi->output_bus_format = MEDIA_BUS_FMT_UYVY12_1X24;
-		else if (color_depth == 10)
-			hdmi->output_bus_format = MEDIA_BUS_FMT_UYVY10_1X20;
-		else
-			hdmi->output_bus_format = MEDIA_BUS_FMT_UYVY8_1X16;
+		if (hdmi->is_hdmi_qp) {
+			if (color_depth == 12)
+				hdmi->output_bus_format = MEDIA_BUS_FMT_YUYV12_1X24;
+			else if (color_depth == 10)
+				hdmi->output_bus_format = MEDIA_BUS_FMT_YUYV10_1X20;
+			else
+				hdmi->output_bus_format = MEDIA_BUS_FMT_YUYV8_1X16;
+
+			*bus_format = hdmi->output_bus_format;
+			hdmi->bus_format = *bus_format;
+			*output_mode = ROCKCHIP_OUT_MODE_YUV422;
+		} else {
+			if (color_depth == 12)
+				hdmi->output_bus_format = MEDIA_BUS_FMT_UYVY12_1X24;
+			else if (color_depth == 10)
+				hdmi->output_bus_format = MEDIA_BUS_FMT_UYVY10_1X20;
+			else
+				hdmi->output_bus_format = MEDIA_BUS_FMT_UYVY8_1X16;
+		}
 	} else {
 		hdmi->output_bus_format = *bus_format;
 	}
@@ -2233,7 +2260,7 @@ secondary:
 			if (hdmi_bus_fmt_is_yuv420(hdmi->output_bus_format))
 				bus_width /= 2;
 
-			if (color_depth == 10)
+			if (color_depth == 10 && !hdmi_bus_fmt_is_yuv422(hdmi->output_bus_format))
 				bus_width |= COLOR_DEPTH_10BIT;
 		}
 	}
@@ -2598,10 +2625,12 @@ dw_hdmi_rockchip_attach_properties(struct drm_connector *connector,
 		hdmi->colordepth = 10;
 		break;
 	case MEDIA_BUS_FMT_UYVY10_1X20:
+	case MEDIA_BUS_FMT_YUYV10_1X20:
 		hdmi->hdmi_output = RK_IF_FORMAT_YCBCR422;
 		hdmi->colordepth = 10;
 		break;
 	case MEDIA_BUS_FMT_UYVY8_1X16:
+	case MEDIA_BUS_FMT_YUYV8_1X16:
 		hdmi->hdmi_output = RK_IF_FORMAT_YCBCR422;
 		hdmi->colordepth = 8;
 		break;
@@ -2622,12 +2651,21 @@ dw_hdmi_rockchip_attach_properties(struct drm_connector *connector,
 	hdmi->prev_bus_format = color;
 
 	if (hdmi->hdmi_output == RK_IF_FORMAT_YCBCR422) {
-		if (hdmi->colordepth == 12)
-			hdmi->output_bus_format = MEDIA_BUS_FMT_UYVY12_1X24;
-		else if (hdmi->colordepth == 10)
-			hdmi->output_bus_format = MEDIA_BUS_FMT_UYVY10_1X20;
-		else
-			hdmi->output_bus_format = MEDIA_BUS_FMT_UYVY8_1X16;
+		if (hdmi->is_hdmi_qp) {
+			if (hdmi->colordepth == 12)
+				hdmi->output_bus_format = MEDIA_BUS_FMT_YUYV12_1X24;
+			else if (hdmi->colordepth == 10)
+				hdmi->output_bus_format = MEDIA_BUS_FMT_YUYV10_1X20;
+			else
+				hdmi->output_bus_format = MEDIA_BUS_FMT_YUYV8_1X16;
+		} else {
+			if (hdmi->colordepth == 12)
+				hdmi->output_bus_format = MEDIA_BUS_FMT_UYVY12_1X24;
+			else if (hdmi->colordepth == 10)
+				hdmi->output_bus_format = MEDIA_BUS_FMT_UYVY10_1X20;
+			else
+				hdmi->output_bus_format = MEDIA_BUS_FMT_UYVY8_1X16;
+		}
 	} else {
 		hdmi->output_bus_format = hdmi->bus_format;
 	}
