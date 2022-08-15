@@ -212,7 +212,7 @@ struct iommu_iotlb_gather {
  * @of_xlate: add OF master IDs to iommu grouping
  * @is_attach_deferred: Check if domain attach should be deferred from iommu
  *                      driver init to device driver init (default no)
- * @dev_has/enable/disable_feat: per device entries to check/enable/disable
+ * @dev_enable/disable_feat: per device entries to enable/disable
  *                               iommu specific features.
  * @sva_bind: Bind process address space to device
  * @sva_unbind: Unbind process address space from device
