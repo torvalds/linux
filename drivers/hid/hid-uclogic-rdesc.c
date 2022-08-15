@@ -1113,7 +1113,7 @@ __u8 *uclogic_rdesc_template_apply(const __u8 *template_ptr,
 		    memcmp(p, pen_head, sizeof(pen_head)) == 0 &&
 		    p[sizeof(pen_head)] < param_num) {
 			v = param_list[p[sizeof(pen_head)]];
-			put_unaligned(cpu_to_le32(v), (s32 *)p);
+			put_unaligned((__force u32)cpu_to_le32(v), (s32 *)p);
 			p += sizeof(pen_head) + 1;
 		} else if (memcmp(p, btn_head, sizeof(btn_head)) == 0 &&
 			   p[sizeof(btn_head)] < param_num) {
