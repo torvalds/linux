@@ -403,6 +403,8 @@ int hl_mmu_map_contiguous(struct hl_ctx *ctx, u64 virt_addr,
 			dev_err(hdev->dev,
 				"Map failed for va 0x%llx to pa 0x%llx\n",
 				curr_va, curr_pa);
+			/* last mapping failed so don't try to unmap it - reduce off by page_size */
+			off -= page_size;
 			goto unmap;
 		}
 	}
