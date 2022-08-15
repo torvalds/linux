@@ -5328,8 +5328,7 @@ static int gfx_v11_0_set_powergating_state(void *handle,
 		break;
 	case IP_VERSION(11, 0, 1):
 		gfx_v11_cntl_pg(adev, enable);
-		/* TODO: Enable this when GFXOFF is ready */
-		// amdgpu_gfx_off_ctrl(adev, enable);
+		amdgpu_gfx_off_ctrl(adev, enable);
 		break;
 	default:
 		break;
