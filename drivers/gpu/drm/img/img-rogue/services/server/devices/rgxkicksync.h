@@ -110,7 +110,6 @@ PVRSRV_ERROR PVRSRVRGXSetKickSyncContextPropertyKM(RGX_SERVER_KICKSYNC_CONTEXT *
 */ /**************************************************************************/
 PVRSRV_ERROR
 PVRSRVRGXKickSyncKM(RGX_SERVER_KICKSYNC_CONTEXT * psKicksyncContext,
-                    IMG_UINT32                    ui32ClientCacheOpSeqNum,
                     IMG_UINT32                    ui32ClientUpdateCount,
                     SYNC_PRIMITIVE_BLOCK       ** pauiClientUpdateUFODevVarBlock,
                     IMG_UINT32                  * paui32ClientUpdateDevVarOffset,

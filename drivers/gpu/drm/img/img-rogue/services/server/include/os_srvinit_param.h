@@ -48,26 +48,32 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "km_apphint.h"
 #include "km_apphint_defs.h"
 
+/* Supplied to SrvInitParamGetXXX() functions when the param/AppHint is
+ * applicable to all devices and not a specific device. Typically used
+ * for server-wide build and module AppHints.
+ */
+#define INITPARAM_NO_DEVICE (NULL)
+
 #define SrvInitParamOpen() NULL
 #define SrvInitParamClose(pvState) ((void)(pvState))
 
-#define SrvInitParamGetBOOL(state, name, value) \
-	((void) pvr_apphint_get_bool(APPHINT_ID_ ## name, &value))
+#define SrvInitParamGetBOOL(device, state, name, value) \
+	((void) pvr_apphint_get_bool(device, APPHINT_ID_ ## name, &value))
 
-#define SrvInitParamGetUINT32(state, name, value) \
-	((void) pvr_apphint_get_uint32(APPHINT_ID_ ## name, &value))
+#define SrvInitParamGetUINT32(device, state, name, value) \
+	((void) pvr_apphint_get_uint32(device, APPHINT_ID_ ## name, &value))
 
-#define SrvInitParamGetUINT64(state, name, value) \
-	((void) pvr_apphint_get_uint64(APPHINT_ID_ ## name, &value))
+#define SrvInitParamGetUINT64(device, state, name, value) \
+	((void) pvr_apphint_get_uint64(device, APPHINT_ID_ ## name, &value))
 
-#define SrvInitParamGetSTRING(state, name, buffer, size) \
-	((void) pvr_apphint_get_string(APPHINT_ID_ ## name, buffer, size))
+#define SrvInitParamGetSTRING(device, state, name, buffer, size) \
+	((void) pvr_apphint_get_string(device, APPHINT_ID_ ## name, buffer, size))
 
-#define SrvInitParamGetUINT32BitField(state, name, value) \
-	((void) pvr_apphint_get_uint32(APPHINT_ID_ ## name, &value))
+#define SrvInitParamGetUINT32BitField(device, state, name, value) \
+	((void) pvr_apphint_get_uint32(device, APPHINT_ID_ ## name, &value))
 
-#define SrvInitParamGetUINT32List(state, name, value) \
-	((void) pvr_apphint_get_uint32(APPHINT_ID_ ## name, &value))
+#define SrvInitParamGetUINT32List(device, state, name, value) \
+	((void) pvr_apphint_get_uint32(device, APPHINT_ID_ ## name, &value))
 
 #else	/* defined(__linux__) && defined(__KERNEL__) */
 
@@ -135,15 +141,15 @@ void _SrvInitParamGetBOOL(
 
 /*! Get the BOOL value for parameter 'name' from the parameter resource store
  *  attached to 'state'. */
-#define SrvInitParamGetBOOL(state, name, value) \
+#define SrvInitParamGetBOOL(device, state, name, value) \
 		_SrvInitParamGetBOOL(state, # name, & __SrvInitParam_ ## name, &(value))
 
 /*! Initialise FLAG type parameter identified by 'name'. */
-#define SrvInitParamInitFLAG(name, defval, dummy) \
+#define SrvInitParamInitFLAG(name, defval, unused) \
 	static const IMG_BOOL __SrvInitParam_ ## name = defval;
 
 /*! Initialise BOOL type parameter identified by 'name'. */
-#define SrvInitParamInitBOOL(name, defval, dummy) \
+#define SrvInitParamInitBOOL(name, defval, unused) \
 	static const IMG_BOOL __SrvInitParam_ ## name = defval;
 
 /*************************************************************************/ /*!
@@ -171,15 +177,15 @@ void _SrvInitParamGetUINT32(
 
 /*! Get the UINT32 value for parameter 'name' from the parameter resource store
  *  attached to 'state'. */
-#define SrvInitParamGetUINT32(state, name, value) \
+#define SrvInitParamGetUINT32(device, state, name, value) \
 		_SrvInitParamGetUINT32(state, # name, & __SrvInitParam_ ## name, &(value))
 
 /*! Initialise UINT32 type parameter identified by 'name'. */
-#define SrvInitParamInitUINT32(name, defval, dummy) \
+#define SrvInitParamInitUINT32(name, defval, unused) \
 	static const IMG_UINT32 __SrvInitParam_ ## name = defval;
 
 /*! Initialise UINT64 type parameter identified by 'name'. */
-#define SrvInitParamInitUINT64(name, defval, dummy) \
+#define SrvInitParamInitUINT64(name, defval, unused) \
 	static const IMG_UINT64 __SrvInitParam_ ## name = defval;
 
 /*! @cond Doxygen_Suppress */
@@ -227,7 +233,7 @@ void _SrvInitParamGetUINT32BitField(
 
 /*! Get the UINT32 bitfield value for parameter 'name' from the parameter
  *  resource store attached to 'state'. */
-#define SrvInitParamGetUINT32BitField(state, name, value) \
+#define SrvInitParamGetUINT32BitField(device, state, name, value) \
 		_SrvInitParamGetUINT32BitField(state, # name, __SrvInitParam_ ## name, __SrvInitParamLookup_ ## name, __SrvInitParamSize_ ## name, &(value))
 
 /*************************************************************************/ /*!
@@ -263,7 +269,7 @@ void _SrvInitParamGetUINT32List(
 
 /*! Get the UINT32 list value for parameter 'name' from the parameter
  *  resource store attached to 'state'. */
-#define SrvInitParamGetUINT32List(state, name, value) \
+#define SrvInitParamGetUINT32List(device, state, name, value) \
 		_SrvInitParamGetUINT32List(state, # name, __SrvInitParam_ ## name, __SrvInitParamLookup_ ## name, __SrvInitParamSize_ ## name, &(value))
 
 /*! Initialise UINT32 list type parameter identified by 'name' with
@@ -305,12 +311,12 @@ void _SrvInitParamGetSTRING(
 
 /*! Initialise STRING type parameter identified by 'name' with 'defval' default
  *  value. */
-#define SrvInitParamInitSTRING(name, defval, dummy) \
+#define SrvInitParamInitSTRING(name, defval, unused) \
 	static const IMG_CHAR *__SrvInitParam_ ## name = defval;
 
 /*! Get the STRING value for parameter 'name' from the parameter resource store
  *  attached to 'state'. */
-#define SrvInitParamGetSTRING(state, name, buffer, size) \
+#define SrvInitParamGetSTRING(device, state, name, buffer, size) \
 		_SrvInitParamGetSTRING(state, # name,  __SrvInitParam_ ## name, buffer, size)
 
 #if defined(__cplusplus)

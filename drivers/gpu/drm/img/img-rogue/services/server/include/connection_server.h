@@ -117,9 +117,19 @@ typedef struct _CONNECTION_DATA_
 PVRSRV_ERROR PVRSRVCommonConnectionConnect(void **ppvPrivData, void *pvOSData);
 void PVRSRVCommonConnectionDisconnect(void *pvPrivData);
 
+/**************************************************************************/ /*!
+@Function       PVRSRVGetPurgeConnectionPid
+
+@Description    Returns PID associated with Connection currently being purged by
+                Cleanup Thread. If no Connection is purged 0 is returned.
+
+@Return         PID associated with currently purged connection or 0 if no
+                connection is being purged
+*/ /***************************************************************************/
 IMG_PID PVRSRVGetPurgeConnectionPid(void);
 
-void PVRSRVConnectionDebugNotify(DUMPDEBUG_PRINTF_FUNC *pfnDumpDebugPrintf,
+void PVRSRVConnectionDebugNotify(PVRSRV_DEVICE_NODE *psDevNode,
+                                 DUMPDEBUG_PRINTF_FUNC *pfnDumpDebugPrintf,
                                  void *pvDumpDebugFile);
 
 #ifdef INLINE_IS_PRAGMA

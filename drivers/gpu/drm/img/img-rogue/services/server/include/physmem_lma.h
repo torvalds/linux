@@ -69,10 +69,6 @@ PhysmemCreateHeapLMA(PVRSRV_DEVICE_NODE *psDevNode,
 					 IMG_CHAR *pszLabel,
 					 PHYS_HEAP **ppsPhysHeap);
 
-PVRSRV_ERROR
-PhysmemGetArenaLMA(PHYS_HEAP *psPhysHeap,
-				   RA_ARENA **ppsArena);
-
 /*
  * PhysmemNewLocalRamBackedPMR
  *

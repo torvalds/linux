@@ -57,7 +57,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 static IMG_UINT64* _RGXSearchBVNCTable( IMG_UINT64 *pui64Array,
 								IMG_UINT uiEnd,
 								IMG_UINT64 ui64SearchValue,
-								IMG_UINT uiRowCount)
+								IMG_UINT uiColCount)
 {
 	IMG_UINT uiStart = 0, index;
 	IMG_UINT64 value, *pui64Ptr = NULL;
@@ -65,7 +65,7 @@ static IMG_UINT64* _RGXSearchBVNCTable( IMG_UINT64 *pui64Array,
 	while (uiStart < uiEnd)
 	{
 		index = (uiStart + uiEnd)/2;
-		pui64Ptr = pui64Array + (index * uiRowCount);
+		pui64Ptr = pui64Array + (index * uiColCount);
 		value = *(pui64Ptr);
 
 		if (value == ui64SearchValue)
@@ -104,23 +104,29 @@ static void _RGXBvncDumpParsedConfig(PVRSRV_DEVICE_NODE *psDeviceNode)
 	PVR_LOG_DUMP_FEATURE_VALUE(psDevInfo, "NC:       ", NUM_CLUSTERS);
 	PVR_LOG_DUMP_FEATURE_VALUE(psDevInfo, "CSF:      ", CDM_CONTROL_STREAM_FORMAT);
 	PVR_LOG_DUMP_FEATURE_VALUE(psDevInfo, "FBCDCA:   ", FBCDC_ARCHITECTURE);
+#if defined(RGX_FEATURE_META_MAX_VALUE_IDX)
+	PVR_LOG_DUMP_FEATURE_VALUE(psDevInfo, "META:     ", META);
 	PVR_LOG_DUMP_FEATURE_VALUE(psDevInfo, "MCMB:     ", META_COREMEM_BANKS);
 	PVR_LOG_DUMP_FEATURE_VALUE(psDevInfo, "MCMS:     ", META_COREMEM_SIZE);
 	PVR_LOG_DUMP_FEATURE_VALUE(psDevInfo, "MDMACnt:  ", META_DMA_CHANNEL_COUNT);
+#endif
 	PVR_LOG_DUMP_FEATURE_VALUE(psDevInfo, "NIIP:     ", NUM_ISP_IPP_PIPES);
 #if defined(RGX_FEATURE_NUM_ISP_PER_SPU_MAX_VALUE_IDX)
 	PVR_LOG_DUMP_FEATURE_VALUE(psDevInfo, "NIPS:     ", NUM_ISP_PER_SPU);
+#endif
+#if defined(RGX_FEATURE_PBE_PER_SPU_MAX_VALUE_IDX)
 	PVR_LOG_DUMP_FEATURE_VALUE(psDevInfo, "PPS:      ", PBE_PER_SPU);
 	PVR_LOG_DUMP_FEATURE_VALUE(psDevInfo, "NSPU:     ", NUM_SPU);
 #endif
 	PVR_LOG_DUMP_FEATURE_VALUE(psDevInfo, "PBW:      ", PHYS_BUS_WIDTH);
+#if defined(RGX_FEATURE_SCALABLE_TE_ARCH_MAX_VALUE_IDX)
 	PVR_LOG_DUMP_FEATURE_VALUE(psDevInfo, "STEArch:  ", SCALABLE_TE_ARCH);
 	PVR_LOG_DUMP_FEATURE_VALUE(psDevInfo, "SVCEA:    ", SCALABLE_VCE);
+#endif
 	PVR_LOG_DUMP_FEATURE_VALUE(psDevInfo, "SLCBanks: ", SLC_BANKS);
 	PVR_LOG_DUMP_FEATURE_VALUE(psDevInfo, "SLCCLS:   ", SLC_CACHE_LINE_SIZE_BITS);
 	PVR_LOG(("SLCSize:   %d",  psDevInfo->sDevFeatureCfg.ui32SLCSizeInBytes));
 	PVR_LOG_DUMP_FEATURE_VALUE(psDevInfo, "VASB:     ", VIRTUAL_ADDRESS_SPACE_BITS);
-	PVR_LOG_DUMP_FEATURE_VALUE(psDevInfo, "META:     ", META);
 	PVR_LOG_DUMP_FEATURE_VALUE(psDevInfo, "NOSIDS:   ", NUM_OSIDS);
 
 #if defined(FEATURE_NO_VALUES_NAMES_MAX_IDX)
@@ -206,23 +212,32 @@ static void _RGXBvncParseFeatureValues(PVRSRV_RGXDEV_INFO *psDevInfo, IMG_UINT64
 #if defined(RGX_FEATURE_POWER_ISLAND_VERSION_MAX_VALUE_IDX)
 	/* Code path for Volcanic */
 
-	psDevInfo->sDevFeatureCfg.ui32MAXDMCount =	RGXFWIF_DM_MIN_CNT;
-	psDevInfo->sDevFeatureCfg.ui32MAXDMMTSCount =	RGXFWIF_DM_MIN_MTS_CNT;
+	psDevInfo->sDevFeatureCfg.ui32MAXDMCount = RGXFWIF_DM_CDM+1;
+	if (RGX_IS_FEATURE_VALUE_SUPPORTED(psDevInfo, RAY_TRACING_ARCH) &&
+		RGX_GET_FEATURE_VALUE(psDevInfo, RAY_TRACING_ARCH) > 1)
+	{
+		psDevInfo->sDevFeatureCfg.ui32MAXDMCount = MAX(psDevInfo->sDevFeatureCfg.ui32MAXDMCount, RGXFWIF_DM_RAY+1);
+	}
+#if defined(SUPPORT_AGP)
+	psDevInfo->sDevFeatureCfg.ui32MAXDMCount = MAX(psDevInfo->sDevFeatureCfg.ui32MAXDMCount, RGXFWIF_DM_GEOM2+1);
+#if defined(SUPPORT_AGP4)
+	psDevInfo->sDevFeatureCfg.ui32MAXDMCount = MAX(psDevInfo->sDevFeatureCfg.ui32MAXDMCount, RGXFWIF_DM_GEOM4+1);
+#endif
+#endif
 
 	/* Get the max number of dusts in the core */
 	if (RGX_IS_FEATURE_VALUE_SUPPORTED(psDevInfo, NUM_CLUSTERS))
 	{
-		RGX_LAYER_PARAMS sParams;
-
-		OSCachedMemSet(&sParams, 0, sizeof(RGX_LAYER_PARAMS));
-		sParams.psDevInfo = psDevInfo;
+		RGX_LAYER_PARAMS sParams = {.psDevInfo = psDevInfo};
 
 		if (RGX_DEVICE_GET_FEATURE_VALUE(&sParams, POWER_ISLAND_VERSION) == 1)
 		{
+			/* per SPU power island */
 			psDevInfo->sDevFeatureCfg.ui32MAXPowUnitCount = MAX(1, (RGX_GET_FEATURE_VALUE(psDevInfo, NUM_CLUSTERS) / 2));
 		}
-		else if (RGX_DEVICE_GET_FEATURE_VALUE(&sParams, POWER_ISLAND_VERSION) == 2)
+		else if (RGX_DEVICE_GET_FEATURE_VALUE(&sParams, POWER_ISLAND_VERSION) >= 2)
 		{
+			/* per Cluster power island */
 			psDevInfo->sDevFeatureCfg.ui32MAXPowUnitCount = RGX_GET_FEATURE_VALUE(psDevInfo, NUM_CLUSTERS);
 		}
 		else
@@ -232,6 +247,19 @@ static void _RGXBvncParseFeatureValues(PVRSRV_RGXDEV_INFO *psDevInfo, IMG_UINT64
 			PVR_DPF((PVR_DBG_ERROR, "%s: Power island feature version not found!", __func__));
 			PVR_ASSERT(0);
 		}
+
+		if (RGX_IS_FEATURE_VALUE_SUPPORTED(psDevInfo, RAY_TRACING_ARCH) &&
+			RGX_GET_FEATURE_VALUE(psDevInfo, RAY_TRACING_ARCH) > 1)
+		{
+			if (RGX_IS_FEATURE_SUPPORTED(psDevInfo, RT_RAC_PER_SPU))
+			{
+				psDevInfo->sDevFeatureCfg.ui32MAXRACCount = RGX_GET_FEATURE_VALUE(psDevInfo, NUM_SPU);
+			}
+			else
+			{
+				psDevInfo->sDevFeatureCfg.ui32MAXRACCount = 1;
+			}
+		}
 	}
 	else
 	{
@@ -240,13 +268,21 @@ static void _RGXBvncParseFeatureValues(PVRSRV_RGXDEV_INFO *psDevInfo, IMG_UINT64
 		PVR_DPF((PVR_DBG_ERROR, "%s: Number of clusters feature value missing!", __func__));
 		PVR_ASSERT(0);
 	}
-#else
-	/* Code path for Rogue */
+#else /* defined(RGX_FEATURE_POWER_ISLAND_VERSION_MAX_VALUE_IDX) */
+	/* Code path for Rogue and Oceanic */
 
+	psDevInfo->sDevFeatureCfg.ui32MAXDMCount = RGXFWIF_DM_CDM+1;
+#if defined(SUPPORT_AGP)
+	psDevInfo->sDevFeatureCfg.ui32MAXDMCount = MAX(psDevInfo->sDevFeatureCfg.ui32MAXDMCount, RGXFWIF_DM_GEOM2+1);
+#endif
+
+	/* Meta feature not present in oceanic */
+#if defined(RGX_FEATURE_META_MAX_VALUE_IDX)
 	if (RGX_IS_FEATURE_SUPPORTED(psDevInfo, MIPS))
 	{
 		psDevInfo->sDevFeatureCfg.ui32FeaturesValues[RGX_FEATURE_META_IDX] = RGX_FEATURE_VALUE_DISABLED;
 	}
+#endif
 
 	/* Get the max number of dusts in the core */
 	if (RGX_IS_FEATURE_VALUE_SUPPORTED(psDevInfo, NUM_CLUSTERS))
@@ -260,13 +296,16 @@ static void _RGXBvncParseFeatureValues(PVRSRV_RGXDEV_INFO *psDevInfo, IMG_UINT64
 		PVR_DPF((PVR_DBG_ERROR, "%s: Number of clusters feature value missing!", __func__));
 		PVR_ASSERT(0);
 	}
-#endif
+#endif /* defined(RGX_FEATURE_POWER_ISLAND_VERSION_MAX_VALUE_IDX) */
 
+	/* Meta feature not present in oceanic */
+#if defined(RGX_FEATURE_META_COREMEM_SIZE_MAX_VALUE_IDX)
 	/* Transform the META coremem size info in bytes */
 	if (RGX_IS_FEATURE_VALUE_SUPPORTED(psDevInfo, META_COREMEM_SIZE))
 	{
 		psDevInfo->sDevFeatureCfg.ui32FeaturesValues[RGX_FEATURE_META_COREMEM_SIZE_IDX] *= 1024;
 	}
+#endif
 }
 
 static void _RGXBvncAcquireAppHint(IMG_CHAR *pszBVNC, const IMG_UINT32 ui32RGXDevCount)
@@ -281,7 +320,8 @@ static void _RGXBvncAcquireAppHint(IMG_CHAR *pszBVNC, const IMG_UINT32 ui32RGXDe
 
 	OSCreateKMAppHintState(&pvAppHintState);
 
-	bRet = (IMG_BOOL)OSGetKMAppHintSTRING(pvAppHintState,
+	bRet = (IMG_BOOL)OSGetKMAppHintSTRING(APPHINT_NO_DEVICE,
+						pvAppHintState,
 						RGXBVNC,
 						pszAppHintDefault,
 						szBVNCAppHint,
@@ -389,8 +429,8 @@ static IMG_UINT32 _RGXBvncReadSLCSize(PVRSRV_DEVICE_NODE *psDeviceNode)
 	PVRSRV_RGXDEV_INFO	*psDevInfo = psDeviceNode->pvDevice;
 	IMG_UINT64 ui64SLCSize = 0ULL;
 
-#if defined(RGX_CR_CORE_ID__PBVNC)
-	/* Rogue hardware */
+#if defined(RGX_CR_SLC_SIZE_IN_KB)
+	/* Rogue and Oceanic hardware */
 	if (RGX_IS_FEATURE_SUPPORTED(psDevInfo, SLC_SIZE_CONFIGURABLE))
 	{
 		ui64SLCSize = OSReadHWReg64(psDevInfo->pvRegsBaseKM, RGX_CR_SLC_SIZE_IN_KB);
@@ -461,7 +501,8 @@ PVRSRV_ERROR RGXBvncInitialiseConfiguration(PVRSRV_DEVICE_NODE *psDeviceNode)
 		const IMG_BOOL bAppHintDefault = PVRSRV_APPHINT_IGNOREHWREPORTEDBVNC;
 
 		OSCreateKMAppHintState(&pvAppHintState);
-		OSGetKMAppHintBOOL(pvAppHintState,
+		OSGetKMAppHintBOOL(APPHINT_NO_DEVICE,
+							pvAppHintState,
 							IgnoreHWReportedBVNC,
 							&bAppHintDefault,
 							&psDevInfo->bIgnoreHWReportedBVNC);
@@ -737,7 +778,7 @@ PVRSRV_ERROR RGXVerifyBVNC(PVRSRV_DEVICE_NODE *psDeviceNode, IMG_UINT64 ui64Give
 	/* The device info */
 	psDevInfo = psDeviceNode->pvDevice;
 
-	PDUMPCOMMENT("PDUMP VERIFY CORE_ID registers for all OSIDs\n");
+	PDUMPCOMMENT(psDeviceNode, "PDUMP VERIFY CORE_ID registers for all OSIDs\n");
 
 	/* construct the value to match against */
 	if ((ui64GivenBVNC | ui64CoreIdMask) == 0) /* both zero means use configured DDK value */
@@ -788,7 +829,7 @@ PVRSRV_ERROR RGXVerifyBVNC(PVRSRV_DEVICE_NODE *psDeviceNode, IMG_UINT64 ui64Give
 
 #if defined(SUPPORT_VALIDATION) && defined(NO_HARDWARE) && defined(PDUMP)
 		/* check upper DWORD */
-		eError = PDUMPREGPOL(RGX_PDUMPREG_NAME,
+		eError = PDUMPREGPOL(psDeviceNode, RGX_PDUMPREG_NAME,
 		                     (RGX_CR_CORE_ID + 4) + (i << 16),
 		                     (IMG_UINT32)(ui64MatchBVNC >> 32),
 		                     0xFFFFFFFF,
@@ -797,7 +838,7 @@ PVRSRV_ERROR RGXVerifyBVNC(PVRSRV_DEVICE_NODE *psDeviceNode, IMG_UINT64 ui64Give
 		if (eError == PVRSRV_OK)
 		{
 			/* check lower DWORD */
-			eError = PDUMPREGPOL(RGX_PDUMPREG_NAME,
+			eError = PDUMPREGPOL(psDeviceNode, RGX_PDUMPREG_NAME,
 			                     RGX_CR_CORE_ID + (i << 16),
 			                     (IMG_UINT32)(ui64MatchBVNC & 0xFFFFFFFF),
 			                     0xFFFFFFFF,

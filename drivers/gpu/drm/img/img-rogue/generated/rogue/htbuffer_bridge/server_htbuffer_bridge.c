@@ -69,6 +69,9 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  * Server-side bridge entry points
  */
 
+static_assert(HTB_FLAG_NUM_EL <= IMG_UINT32_MAX,
+	      "HTB_FLAG_NUM_EL must not be larger than IMG_UINT32_MAX");
+
 static IMG_INT
 PVRSRVBridgeHTBControl(IMG_UINT32 ui32DispatchTableEntry,
 		       IMG_UINT8 * psHTBControlIN_UI8,
@@ -87,7 +90,9 @@ PVRSRVBridgeHTBControl(IMG_UINT32 ui32DispatchTableEntry,
 	IMG_BOOL bHaveEnoughSpace = IMG_FALSE;
 #endif
 
-	IMG_UINT32 ui32BufferSize = (psHTBControlIN->ui32NumGroups * sizeof(IMG_UINT32)) + 0;
+	IMG_UINT32 ui32BufferSize = 0;
+	IMG_UINT64 ui64BufferSize =
+	    ((IMG_UINT64) psHTBControlIN->ui32NumGroups * sizeof(IMG_UINT32)) + 0;
 
 	if (unlikely(psHTBControlIN->ui32NumGroups > HTB_FLAG_NUM_EL))
 	{
@@ -96,6 +101,14 @@ PVRSRVBridgeHTBControl(IMG_UINT32 ui32DispatchTableEntry,
 	}
 
 	PVR_UNREFERENCED_PARAMETER(psConnection);
+
+	if (ui64BufferSize > IMG_UINT32_MAX)
+	{
+		psHTBControlOUT->eError = PVRSRV_ERROR_BRIDGE_BUFFER_TOO_SMALL;
+		goto HTBControl_exit;
+	}
+
+	ui32BufferSize = (IMG_UINT32) ui64BufferSize;
 
 	if (ui32BufferSize != 0)
 	{
@@ -117,7 +130,7 @@ PVRSRVBridgeHTBControl(IMG_UINT32 ui32DispatchTableEntry,
 		else
 #endif
 		{
-			pArrayArgsBuffer = OSAllocZMemNoStats(ui32BufferSize);
+			pArrayArgsBuffer = OSAllocMemNoStats(ui32BufferSize);
 
 			if (!pArrayArgsBuffer)
 			{
@@ -158,7 +171,10 @@ PVRSRVBridgeHTBControl(IMG_UINT32 ui32DispatchTableEntry,
 HTBControl_exit:
 
 	/* Allocated space should be equal to the last updated offset */
-	PVR_ASSERT(ui32BufferSize == ui32NextOffset);
+#ifdef PVRSRV_NEED_PVR_ASSERT
+	if (psHTBControlOUT->eError == PVRSRV_OK)
+		PVR_ASSERT(ui32BufferSize == ui32NextOffset);
+#endif /* PVRSRV_NEED_PVR_ASSERT */
 
 #if defined(INTEGRITY_OS)
 	if (pArrayArgsBuffer)
@@ -169,6 +185,9 @@ HTBControl_exit:
 
 	return 0;
 }
+
+static_assert(HTB_LOG_MAX_PARAMS <= IMG_UINT32_MAX,
+	      "HTB_LOG_MAX_PARAMS must not be larger than IMG_UINT32_MAX");
 
 static IMG_INT
 PVRSRVBridgeHTBLog(IMG_UINT32 ui32DispatchTableEntry,
@@ -188,7 +207,8 @@ PVRSRVBridgeHTBLog(IMG_UINT32 ui32DispatchTableEntry,
 	IMG_BOOL bHaveEnoughSpace = IMG_FALSE;
 #endif
 
-	IMG_UINT32 ui32BufferSize = (psHTBLogIN->ui32NumArgs * sizeof(IMG_UINT32)) + 0;
+	IMG_UINT32 ui32BufferSize = 0;
+	IMG_UINT64 ui64BufferSize = ((IMG_UINT64) psHTBLogIN->ui32NumArgs * sizeof(IMG_UINT32)) + 0;
 
 	if (unlikely(psHTBLogIN->ui32NumArgs > HTB_LOG_MAX_PARAMS))
 	{
@@ -197,6 +217,14 @@ PVRSRVBridgeHTBLog(IMG_UINT32 ui32DispatchTableEntry,
 	}
 
 	PVR_UNREFERENCED_PARAMETER(psConnection);
+
+	if (ui64BufferSize > IMG_UINT32_MAX)
+	{
+		psHTBLogOUT->eError = PVRSRV_ERROR_BRIDGE_BUFFER_TOO_SMALL;
+		goto HTBLog_exit;
+	}
+
+	ui32BufferSize = (IMG_UINT32) ui64BufferSize;
 
 	if (ui32BufferSize != 0)
 	{
@@ -218,7 +246,7 @@ PVRSRVBridgeHTBLog(IMG_UINT32 ui32DispatchTableEntry,
 		else
 #endif
 		{
-			pArrayArgsBuffer = OSAllocZMemNoStats(ui32BufferSize);
+			pArrayArgsBuffer = OSAllocMemNoStats(ui32BufferSize);
 
 			if (!pArrayArgsBuffer)
 			{
@@ -256,7 +284,10 @@ PVRSRVBridgeHTBLog(IMG_UINT32 ui32DispatchTableEntry,
 HTBLog_exit:
 
 	/* Allocated space should be equal to the last updated offset */
-	PVR_ASSERT(ui32BufferSize == ui32NextOffset);
+#ifdef PVRSRV_NEED_PVR_ASSERT
+	if (psHTBLogOUT->eError == PVRSRV_OK)
+		PVR_ASSERT(ui32BufferSize == ui32NextOffset);
+#endif /* PVRSRV_NEED_PVR_ASSERT */
 
 #if defined(INTEGRITY_OS)
 	if (pArrayArgsBuffer)
@@ -278,7 +309,7 @@ static POS_LOCK pHTBUFFERBridgeLock;
 
 #if !defined(EXCLUDE_HTBUFFER_BRIDGE)
 PVRSRV_ERROR InitHTBUFFERBridge(void);
-PVRSRV_ERROR DeinitHTBUFFERBridge(void);
+void DeinitHTBUFFERBridge(void);
 
 /*
  * Register all HTBUFFER functions with services
@@ -299,15 +330,14 @@ PVRSRV_ERROR InitHTBUFFERBridge(void)
 /*
  * Unregister all htbuffer functions with services
  */
-PVRSRV_ERROR DeinitHTBUFFERBridge(void)
+void DeinitHTBUFFERBridge(void)
 {
-	PVR_LOG_RETURN_IF_ERROR(OSLockDestroy(pHTBUFFERBridgeLock), "OSLockDestroy");
+	OSLockDestroy(pHTBUFFERBridgeLock);
 
 	UnsetDispatchTableEntry(PVRSRV_BRIDGE_HTBUFFER, PVRSRV_BRIDGE_HTBUFFER_HTBCONTROL);
 
 	UnsetDispatchTableEntry(PVRSRV_BRIDGE_HTBUFFER, PVRSRV_BRIDGE_HTBUFFER_HTBLOG);
 
-	return PVRSRV_OK;
 }
 #else /* EXCLUDE_HTBUFFER_BRIDGE */
 /* This bridge is conditional on EXCLUDE_HTBUFFER_BRIDGE - when defined,
@@ -316,7 +346,6 @@ PVRSRV_ERROR DeinitHTBUFFERBridge(void)
 #define InitHTBUFFERBridge() \
 	PVRSRV_OK
 
-#define DeinitHTBUFFERBridge() \
-	PVRSRV_OK
+#define DeinitHTBUFFERBridge()
 
 #endif /* EXCLUDE_HTBUFFER_BRIDGE */

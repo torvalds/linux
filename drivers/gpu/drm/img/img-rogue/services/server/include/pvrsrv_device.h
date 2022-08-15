@@ -46,6 +46,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "physheap.h"
 #include "pvrsrv_error.h"
 #include "pvrsrv_memalloc_physheap.h"
+#include "pvrsrv_firmware_boot.h"
 #include "rgx_fwif_km.h"
 #include "servicesext.h"
 #include "cache_ops.h"
@@ -57,10 +58,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #if defined(SUPPORT_GPUVIRT_VALIDATION)
 #include "virt_validation_defs.h"
 #endif
-
-
-#define IMG_GPU_DEBUG
-
 
 typedef struct _PVRSRV_DEVICE_CONFIG_ PVRSRV_DEVICE_CONFIG;
 typedef enum _DRIVER_MODE_
@@ -108,13 +105,36 @@ typedef PVRSRV_ERROR
 (*PFN_SYS_PRE_POWER)(IMG_HANDLE hSysData,
 						 PVRSRV_SYS_POWER_STATE eNewPowerState,
 						 PVRSRV_SYS_POWER_STATE eCurrentPowerState,
-						 IMG_BOOL bForced);
+						 PVRSRV_POWER_FLAGS ePwrFlags);
 
 typedef PVRSRV_ERROR
 (*PFN_SYS_POST_POWER)(IMG_HANDLE hSysData,
 						  PVRSRV_SYS_POWER_STATE eNewPowerState,
 						  PVRSRV_SYS_POWER_STATE eCurrentPowerState,
-						  IMG_BOOL bForced);
+						  PVRSRV_POWER_FLAGS ePwrFlags);
+
+/*************************************************************************/ /*!
+@Brief          Callback function type PFN_SYS_GET_POWER
+
+@Description    This function queries the SoC power registers to determine
+                if the power domain on which the GPU resides is powered on.
+
+   Implementation of this callback is optional - where it is not provided,
+   the driver will assume the domain power state depending on driver type:
+   regular drivers assume it is unpowered at startup, while drivers with
+   AutoVz support expect the GPU domain to be powered on initially. The power
+   state will be then tracked internally according to the pfnPrePowerState
+   and pfnPostPowerState calls using a fallback function.
+
+@Input          psDevNode                  Pointer to node struct of the
+                                           device being initialised
+
+@Return         PVRSRV_SYS_POWER_STATE_ON  if the respective device's hardware
+                                           domain is powered on
+                PVRSRV_SYS_POWER_STATE_OFF if the domain is powered off
+*/ /**************************************************************************/
+typedef PVRSRV_SYS_POWER_STATE
+(*PFN_SYS_GET_POWER)(struct _PVRSRV_DEVICE_NODE_ *psDevNode);
 
 typedef void
 (*PFN_SYS_DEV_INTERRUPT_HANDLED)(PVRSRV_DEVICE_CONFIG *psDevConfig);
@@ -148,40 +168,14 @@ typedef void
 							   IMG_UINT32,
 							   IMG_BOOL);
 
-#if defined(SUPPORT_TRUSTED_DEVICE)
 
-#define TD_MAX_NUM_MIPS_PAGETABLE_PAGES (4U)
+#if defined(SUPPORT_TRUSTED_DEVICE)
 
 typedef struct _PVRSRV_TD_FW_PARAMS_
 {
 	const void *pvFirmware;
 	IMG_UINT32 ui32FirmwareSize;
-
-	union
-	{
-		struct
-		{
-			/* META-only parameters */
-			IMG_DEV_VIRTADDR sFWCodeDevVAddr;
-			IMG_DEV_VIRTADDR sFWDataDevVAddr;
-			IMG_DEV_VIRTADDR sFWCorememCodeDevVAddr;
-			RGXFWIF_DEV_VIRTADDR sFWCorememCodeFWAddr;
-			IMG_DEVMEM_SIZE_T uiFWCorememCodeSize;
-			IMG_DEV_VIRTADDR sFWCorememDataDevVAddr;
-			RGXFWIF_DEV_VIRTADDR sFWCorememDataFWAddr;
-			IMG_UINT32 ui32NumThreads;
-		} sMeta;
-
-		struct
-		{
-			/* MIPS-only parameters */
-			IMG_DEV_PHYADDR sGPURegAddr;
-			IMG_DEV_PHYADDR asFWPageTableAddr[TD_MAX_NUM_MIPS_PAGETABLE_PAGES];
-			IMG_DEV_PHYADDR sFWStackAddr;
-			IMG_UINT32 ui32FWPageTableLog2PageSize;
-			IMG_UINT32 ui32FWPageTableNumPages;
-		} sMips;
-	} uFWP;
+	PVRSRV_FW_BOOT_PARAMS uFWP;
 } PVRSRV_TD_FW_PARAMS;
 
 typedef PVRSRV_ERROR
@@ -286,6 +280,12 @@ struct _PVRSRV_DEVICE_CONFIG_
 	/*! Indicates if system supports FBCDC v3.1 */
 	IMG_BOOL bHasFBCDCVersion31;
 
+	/*! Physical Heap definitions for this device.
+	 * eDefaultHeap must be set to GPU_LOCAL or CPU_LOCAL. Specifying any other value
+	 *    (e.g. DEFAULT) will lead to an error at device discovery.
+	 * pasPhysHeap array must contain at least one PhysHeap, the declared default heap.
+	 */
+	PVRSRV_PHYS_HEAP  eDefaultHeap;
 	PHYS_HEAP_CONFIG *pasPhysHeaps;
 	IMG_UINT32 ui32PhysHeapCount;
 
@@ -295,6 +295,7 @@ struct _PVRSRV_DEVICE_CONFIG_
 	 */
 	PFN_SYS_PRE_POWER pfnPrePowerState;
 	PFN_SYS_POST_POWER pfnPostPowerState;
+	PFN_SYS_GET_POWER  pfnGpuDomainPower;
 
 	/*! Callback to obtain the clock frequency from the device (optional). */
 	PFN_SYS_DEV_CLK_FREQ_GET pfnClockFreqGet;

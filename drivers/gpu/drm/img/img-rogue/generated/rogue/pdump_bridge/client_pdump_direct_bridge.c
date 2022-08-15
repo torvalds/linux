@@ -54,38 +54,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "devicemem_server.h"
 #include "pdump_km.h"
 
-IMG_INTERNAL PVRSRV_ERROR BridgeDevmemPDumpBitmap(IMG_HANDLE hBridge,
-						  IMG_CHAR * puiFileName,
-						  IMG_UINT32 ui32FileOffset,
-						  IMG_UINT32 ui32Width,
-						  IMG_UINT32 ui32Height,
-						  IMG_UINT32 ui32StrideInBytes,
-						  IMG_DEV_VIRTADDR sDevBaseAddr,
-						  IMG_HANDLE hDevmemCtx,
-						  IMG_UINT32 ui32Size,
-						  PDUMP_PIXEL_FORMAT ePixelFormat,
-						  IMG_UINT32 ui32AddrMode,
-						  IMG_UINT32 ui32PDumpFlags)
-{
-	PVRSRV_ERROR eError;
-	DEVMEMINT_CTX *psDevmemCtxInt;
-
-	psDevmemCtxInt = (DEVMEMINT_CTX *) hDevmemCtx;
-
-	eError =
-	    DevmemIntPDumpBitmap(NULL, (PVRSRV_DEVICE_NODE *) ((void *)hBridge),
-				 puiFileName,
-				 ui32FileOffset,
-				 ui32Width,
-				 ui32Height,
-				 ui32StrideInBytes,
-				 sDevBaseAddr,
-				 psDevmemCtxInt,
-				 ui32Size, ePixelFormat, ui32AddrMode, ui32PDumpFlags);
-
-	return eError;
-}
-
 IMG_INTERNAL PVRSRV_ERROR BridgePDumpImageDescriptor(IMG_HANDLE hBridge,
 						     IMG_HANDLE hDevmemCtx,
 						     IMG_UINT32 ui32StringSize,
@@ -132,12 +100,14 @@ IMG_INTERNAL PVRSRV_ERROR BridgePDumpImageDescriptor(IMG_HANDLE hBridge,
 }
 
 IMG_INTERNAL PVRSRV_ERROR BridgePVRSRVPDumpComment(IMG_HANDLE hBridge,
+						   IMG_UINT32 ui32CommentSize,
 						   IMG_CHAR * puiComment, IMG_UINT32 ui32Flags)
 {
 	PVRSRV_ERROR eError;
-	PVR_UNREFERENCED_PARAMETER(hBridge);
 
-	eError = PDumpCommentKM(puiComment, ui32Flags);
+	eError =
+	    PDumpCommentKM(NULL, (PVRSRV_DEVICE_NODE *) ((void *)hBridge),
+			   ui32CommentSize, puiComment, ui32Flags);
 
 	return eError;
 }

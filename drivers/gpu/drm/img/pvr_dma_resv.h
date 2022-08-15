@@ -47,15 +47,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0))
 #include <linux/dma-resv.h>
-
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0))
-#define dma_resv_get_list		dma_resv_shared_list
-#define dma_resv_get_excl		dma_resv_excl_fence
-#define dma_resv_test_signaled_rcu	dma_resv_test_signaled
-#define dma_resv_wait_timeout_rcu	dma_resv_wait_timeout
-
-#endif
-
 #else
 #include <linux/reservation.h>
 
@@ -75,5 +66,15 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define dma_resv_test_signaled_rcu	reservation_object_test_signaled_rcu
 #define dma_resv_wait_timeout_rcu	reservation_object_wait_timeout_rcu
 #endif
+
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 14, 0))
+
+#define dma_resv_shared_list   dma_resv_get_list
+#define dma_resv_excl_fence    dma_resv_get_excl
+#define dma_resv_wait_timeout  dma_resv_wait_timeout_rcu
+#define dma_resv_test_signaled dma_resv_test_signaled_rcu
+#define dma_resv_get_fences    dma_resv_get_fences_rcu
+
+#endif /* (LINUX_VERSION_CODE < KERNEL_VERSION(5, 14, 0)) */
 
 #endif /* __PVR_DMA_RESV_H__ */

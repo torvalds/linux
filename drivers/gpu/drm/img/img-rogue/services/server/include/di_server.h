@@ -43,12 +43,17 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #ifndef DI_SERVER_H
 #define DI_SERVER_H
 
-/* this inculde caused the redefine error in kernel 5.15, since kernel 5.10 not 
- * include stdarg.h and has no stdarg.h at all, but it does in kernel 5.15 
- */
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 15, 0)) 
-#include <stdarg.h>
-#endif
+#if defined(__linux__)
+ #include <linux/version.h>
+
+ #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0))
+  #include <linux/stdarg.h>
+ #else
+  #include <stdarg.h>
+ #endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0) */
+#else
+ #include <stdarg.h>
+#endif /* __linux__ */
 
 #include "di_common.h"
 #include "pvrsrv_error.h"
@@ -155,6 +160,19 @@ void DIDestroyGroup(DI_GROUP *psGroup);
  */
 void *DIGetPrivData(const OSDI_IMPL_ENTRY *psEntry);
 
+/*! @Function DIWrite
+ *
+ * @Description
+ * Writes the binary data of the DI entry to the output sync, whatever that may
+ * be for the DI implementation.
+ *
+ * @Input psEntry pointer to OSDI_IMPL_ENTRY object
+ * @Input pvData data
+ * @Input uiSize pvData length
+ */
+void DIWrite(const OSDI_IMPL_ENTRY *psEntry, const void *pvData,
+             IMG_UINT32 uiSize);
+
 /*! @Function DIPrintf
  *
  * @Description
@@ -165,6 +183,19 @@ void *DIGetPrivData(const OSDI_IMPL_ENTRY *psEntry);
  */
 void DIPrintf(const OSDI_IMPL_ENTRY *psEntry, const IMG_CHAR *pszFmt, ...)
 	__printf(2, 3);
+
+/*! @Function DIVPrintf
+ *
+ * @Description
+ * Prints formatted string to the DI entry. Equivalent to DIPrintf but takes
+ * va_list instead of a variable number of arguments.
+ *
+ * @Input psEntry pointer to OSDI_IMPL_ENTRY object
+ * @Input pszFmt NUL-terminated format string
+ * @Input pArgs vs_list object
+ */
+void DIVPrintf(const OSDI_IMPL_ENTRY *psEntry, const IMG_CHAR *pszFmt,
+               va_list pArgs);
 
 /*! @Function DIPrintf
  *

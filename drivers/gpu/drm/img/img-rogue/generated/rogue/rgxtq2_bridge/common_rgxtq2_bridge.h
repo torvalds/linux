@@ -72,10 +72,11 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 /* Bridge in structure for RGXTDMCreateTransferContext */
 typedef struct PVRSRV_BRIDGE_IN_RGXTDMCREATETRANSFERCONTEXT_TAG
 {
+	IMG_UINT64 ui64RobustnessAddress;
 	IMG_HANDLE hPrivData;
 	IMG_BYTE *pui8FrameworkCmd;
 	IMG_UINT32 ui32ContextFlags;
-	IMG_UINT32 ui32FrameworkCmdize;
+	IMG_UINT32 ui32FrameworkCmdSize;
 	IMG_UINT32 ui32PackedCCBSizeU88;
 	IMG_UINT32 ui32Priority;
 } __packed PVRSRV_BRIDGE_IN_RGXTDMCREATETRANSFERCONTEXT;
@@ -157,7 +158,6 @@ typedef struct PVRSRV_BRIDGE_IN_RGXTDMSUBMITTRANSFER2_TAG
 	PVRSRV_TIMELINE hUpdateTimeline;
 	IMG_UINT32 ui32Characteristic1;
 	IMG_UINT32 ui32Characteristic2;
-	IMG_UINT32 ui32ClientCacheOpSeqNum;
 	IMG_UINT32 ui32ClientUpdateCount;
 	IMG_UINT32 ui32CommandSize;
 	IMG_UINT32 ui32ExternalJobReference;

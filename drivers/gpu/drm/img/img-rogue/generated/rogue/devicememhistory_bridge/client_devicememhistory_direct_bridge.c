@@ -118,10 +118,10 @@ IMG_INTERNAL PVRSRV_ERROR BridgeDevicememHistoryMapVRange(IMG_HANDLE hBridge,
 							  IMG_UINT32 * pui32AllocationIndexOut)
 {
 	PVRSRV_ERROR eError;
-	PVR_UNREFERENCED_PARAMETER(hBridge);
 
 	eError =
-	    DevicememHistoryMapVRangeKM(sBaseDevVAddr,
+	    DevicememHistoryMapVRangeKM(NULL, (PVRSRV_DEVICE_NODE *) ((void *)hBridge),
+					sBaseDevVAddr,
 					ui32ui32StartPage,
 					ui32NumPages,
 					uiAllocSize,
@@ -143,10 +143,10 @@ IMG_INTERNAL PVRSRV_ERROR BridgeDevicememHistoryUnmapVRange(IMG_HANDLE hBridge,
 							    IMG_UINT32 * pui32AllocationIndexOut)
 {
 	PVRSRV_ERROR eError;
-	PVR_UNREFERENCED_PARAMETER(hBridge);
 
 	eError =
-	    DevicememHistoryUnmapVRangeKM(sBaseDevVAddr,
+	    DevicememHistoryUnmapVRangeKM(NULL, (PVRSRV_DEVICE_NODE *) ((void *)hBridge),
+					  sBaseDevVAddr,
 					  ui32ui32StartPage,
 					  ui32NumPages,
 					  uiAllocSize,

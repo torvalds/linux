@@ -115,30 +115,6 @@ SyncPrimAlloc(PSYNC_PRIM_CONTEXT      hSyncPrimContext,
               PVRSRV_CLIENT_SYNC_PRIM **ppsSync,
               const IMG_CHAR          *pszClassName);
 
-#if defined(__KERNEL__)
-/*************************************************************************/ /*!
-@Function       SyncPrimAllocForServerSync
-
-@Description    Allocate a new synchronisation primitive on the specified
-                synchronisation context for a server sync
-
-@Input          hSyncPrimContext        Handle to the synchronisation
-                                        primitive context
-
-@Output         ppsSync                 Created synchronisation primitive
-
-@Input          pszClassName            Sync source annotation
-
-@Return         PVRSRV_OK if the synchronisation primitive was
-                successfully created
-*/
-/*****************************************************************************/
-PVRSRV_ERROR
-SyncPrimAllocForServerSync(PSYNC_PRIM_CONTEXT      hSyncPrimContext,
-                           PVRSRV_CLIENT_SYNC_PRIM **ppsSync,
-                           const IMG_CHAR          *pszClassName);
-#endif
-
 /*************************************************************************/ /*!
 @Function       SyncPrimFree
 

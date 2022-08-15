@@ -182,19 +182,16 @@ OSLoadFirmware(PVRSRV_DEVICE_NODE *psDeviceNode, const IMG_CHAR *pszBVNCString,
 	res = request_firmware(&psFW, pszBVNCString, psDeviceNode->psDevConfig->pvOSDevice);
 	if (res != 0)
 	{
-		PVR_DPF((PVR_DBG_WARNING, "%s: request_firmware('%s') failed (%d)",
-						__func__, pszBVNCString, res));
-
 		release_firmware(psFW);
 		if (res == -ENOENT)
 		{
-			PVR_DPF((PVR_DBG_ERROR, "%s: request_firmware('%s') failed (%d) (ERROR_NOT_FOUND)",
+			PVR_DPF((PVR_DBG_WARNING, "%s: request_firmware('%s') not found (%d)",
 							__func__, pszBVNCString, res));
 			eError = PVRSRV_ERROR_NOT_FOUND;
 		}
 		else
 		{
-			PVR_DPF((PVR_DBG_ERROR, "%s: request_firmware('%s') failed (%d) (ERROR_NOT_READY)",
+			PVR_DPF((PVR_DBG_WARNING, "%s: request_firmware('%s') not ready (%d)",
 							__func__, pszBVNCString, res));
 			eError = PVRSRV_ERROR_NOT_READY;
 		}

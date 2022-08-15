@@ -235,7 +235,7 @@ PVRSRVBridgeRGXCurrentTime(IMG_UINT32 ui32DispatchTableEntry,
  */
 
 PVRSRV_ERROR InitRGXFWDBGBridge(void);
-PVRSRV_ERROR DeinitRGXFWDBGBridge(void);
+void DeinitRGXFWDBGBridge(void);
 
 /*
  * Register all RGXFWDBG functions with services
@@ -277,7 +277,7 @@ PVRSRV_ERROR InitRGXFWDBGBridge(void)
 /*
  * Unregister all rgxfwdbg functions with services
  */
-PVRSRV_ERROR DeinitRGXFWDBGBridge(void)
+void DeinitRGXFWDBGBridge(void)
 {
 
 	UnsetDispatchTableEntry(PVRSRV_BRIDGE_RGXFWDBG, PVRSRV_BRIDGE_RGXFWDBG_RGXFWDEBUGSETFWLOG);
@@ -302,5 +302,4 @@ PVRSRV_ERROR DeinitRGXFWDBGBridge(void)
 
 	UnsetDispatchTableEntry(PVRSRV_BRIDGE_RGXFWDBG, PVRSRV_BRIDGE_RGXFWDBG_RGXCURRENTTIME);
 
-	return PVRSRV_OK;
 }

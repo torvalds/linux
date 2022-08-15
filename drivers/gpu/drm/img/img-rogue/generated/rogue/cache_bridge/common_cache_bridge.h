@@ -71,7 +71,6 @@ typedef struct PVRSRV_BRIDGE_IN_CACHEOPQUEUE_TAG
 	IMG_DEVMEM_OFFSET_T *puiOffset;
 	IMG_DEVMEM_SIZE_T *puiSize;
 	IMG_HANDLE *phPMR;
-	IMG_UINT32 ui32CurrentFenceSeqNum;
 	IMG_UINT32 ui32NumCacheOps;
 	IMG_UINT32 ui32OpTimeline;
 } __packed PVRSRV_BRIDGE_IN_CACHEOPQUEUE;
@@ -80,7 +79,6 @@ typedef struct PVRSRV_BRIDGE_IN_CACHEOPQUEUE_TAG
 typedef struct PVRSRV_BRIDGE_OUT_CACHEOPQUEUE_TAG
 {
 	PVRSRV_ERROR eError;
-	IMG_UINT32 ui32NextFenceSeqNum;
 } __packed PVRSRV_BRIDGE_OUT_CACHEOPQUEUE;
 
 /*******************************************
@@ -110,13 +108,12 @@ typedef struct PVRSRV_BRIDGE_OUT_CACHEOPEXEC_TAG
 /* Bridge in structure for CacheOpLog */
 typedef struct PVRSRV_BRIDGE_IN_CACHEOPLOG_TAG
 {
-	IMG_INT64 i64ExecuteTimeUs;
-	IMG_INT64 i64QueuedTimeUs;
+	IMG_INT64 i64EndTime;
+	IMG_INT64 i64StartTime;
 	IMG_UINT64 ui64Address;
 	IMG_DEVMEM_OFFSET_T uiOffset;
 	IMG_DEVMEM_SIZE_T uiSize;
 	IMG_HANDLE hPMR;
-	IMG_INT32 i32NumRBF;
 	PVRSRV_CACHE_OP iuCacheOp;
 } __packed PVRSRV_BRIDGE_IN_CACHEOPLOG;
 

@@ -96,6 +96,17 @@ PhysmemImportDmaBuf(CONNECTION_DATA *psConnection,
                     IMG_DEVMEM_ALIGN_T *puiAlign);
 
 PVRSRV_ERROR
+PhysmemImportDmaBufLocked(CONNECTION_DATA *psConnection,
+                          PVRSRV_DEVICE_NODE *psDevNode,
+                          IMG_INT fd,
+                          PVRSRV_MEMALLOCFLAGS_T uiFlags,
+                          IMG_UINT32 ui32NameSize,
+                          const IMG_CHAR pszName[DEVMEM_ANNOTATION_MAX_LEN],
+                          PMR **ppsPMRPtr,
+                          IMG_DEVMEM_SIZE_T *puiSize,
+                          IMG_DEVMEM_ALIGN_T *puiAlign);
+
+PVRSRV_ERROR
 PhysmemImportSparseDmaBuf(CONNECTION_DATA *psConnection,
                           PVRSRV_DEVICE_NODE *psDevNode,
                           IMG_INT fd,

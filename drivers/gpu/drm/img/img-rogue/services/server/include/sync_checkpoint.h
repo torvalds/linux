@@ -56,9 +56,9 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #ifndef CHECKPOINT_TYPES
 #define CHECKPOINT_TYPES
-typedef struct _SYNC_CHECKPOINT_CONTEXT *PSYNC_CHECKPOINT_CONTEXT;
+typedef struct SYNC_CHECKPOINT_CONTEXT_TAG *PSYNC_CHECKPOINT_CONTEXT;
 
-typedef struct _SYNC_CHECKPOINT *PSYNC_CHECKPOINT;
+typedef struct SYNC_CHECKPOINT_TAG *PSYNC_CHECKPOINT;
 #endif
 
 /* definitions for functions to be implemented by OS-specific sync - the OS-specific sync code
@@ -71,7 +71,8 @@ typedef PVRSRV_ERROR (*PFN_SYNC_CHECKPOINT_FENCE_RESOLVE_FN)(PSYNC_CHECKPOINT_CO
                                                              IMG_UINT32 *nr_checkpoints,
                                                              PSYNC_CHECKPOINT **checkpoint_handles,
                                                              IMG_UINT64 *pui64FenceUID);
-typedef PVRSRV_ERROR (*PFN_SYNC_CHECKPOINT_FENCE_CREATE_FN)(const IMG_CHAR *fence_name,
+typedef PVRSRV_ERROR (*PFN_SYNC_CHECKPOINT_FENCE_CREATE_FN)(PPVRSRV_DEVICE_NODE device,
+                                                            const IMG_CHAR *fence_name,
                                                             PVRSRV_TIMELINE timeline,
                                                             PSYNC_CHECKPOINT_CONTEXT psSyncCheckpointContext,
                                                             PVRSRV_FENCE *new_fence,

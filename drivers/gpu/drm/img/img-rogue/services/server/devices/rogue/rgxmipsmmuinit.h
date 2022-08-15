@@ -90,5 +90,8 @@ Page Table entry #
 PVRSRV_ERROR RGXMipsMMUInit_Register(PVRSRV_DEVICE_NODE *psDeviceNode);
 PVRSRV_ERROR RGXMipsMMUInit_Unregister(PVRSRV_DEVICE_NODE *psDeviceNode);
 
+void RGXMipsCheckFaultAddress(MMU_CONTEXT *psFwMMUCtx,
+                              IMG_UINT32 ui32FwVA,
+                              MMU_FAULT_DATA *psOutFaultData);
 
 #endif /* #ifndef SRVKM_RGXMIPSMMUINIT_H */

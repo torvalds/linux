@@ -69,6 +69,8 @@ PVRSRV_ERROR PDVFSLimitMaxFrequency(PVRSRV_RGXDEV_INFO *psDevInfo, IMG_UINT32 ui
 	PVRSRV_ERROR			eError;
 	IMG_UINT32				ui32CmdKCCBSlot;
 
+	PVRSRV_VZ_RET_IF_MODE(GUEST, PVRSRV_ERROR_NOT_SUPPORTED);
+
 	if (!_PDVFSEnabled())
 	{
 		/* No error message to avoid excessive messages */
@@ -93,7 +95,7 @@ PVRSRV_ERROR PDVFSLimitMaxFrequency(PVRSRV_RGXDEV_INFO *psDevInfo, IMG_UINT32 ui
 		OSWaitus(MAX_HW_TIME_US/WAIT_TRY_COUNT);
 	} END_LOOP_UNTIL_TIMEOUT();
 
-	return PVRSRV_OK;
+	return eError;
 }
 
 PVRSRV_ERROR PDVFSLimitMinFrequency(PVRSRV_RGXDEV_INFO *psDevInfo, IMG_UINT32 ui32MinOPPPoint)
@@ -101,6 +103,8 @@ PVRSRV_ERROR PDVFSLimitMinFrequency(PVRSRV_RGXDEV_INFO *psDevInfo, IMG_UINT32 ui
 	RGXFWIF_KCCB_CMD		sGPCCBCmd;
 	PVRSRV_ERROR			eError;
 	IMG_UINT32				ui32CmdKCCBSlot;
+
+	PVRSRV_VZ_RET_IF_MODE(GUEST, PVRSRV_ERROR_NOT_SUPPORTED);
 
 	if (!_PDVFSEnabled())
 	{
@@ -126,7 +130,7 @@ PVRSRV_ERROR PDVFSLimitMinFrequency(PVRSRV_RGXDEV_INFO *psDevInfo, IMG_UINT32 ui
 		OSWaitus(MAX_HW_TIME_US/WAIT_TRY_COUNT);
 	} END_LOOP_UNTIL_TIMEOUT();
 
-	return PVRSRV_OK;
+	return eError;
 }
 
 

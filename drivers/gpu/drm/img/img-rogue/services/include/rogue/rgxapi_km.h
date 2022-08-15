@@ -191,7 +191,7 @@ PVRSRV_ERROR RGXHWPerfGetFilter(
 
 
 /*************************************************************************/ /*!
-@Function       RGXHWPerfConfigureAndEnableCounters
+@Function       RGXHWPerfConfigMuxCounters
 @Description    Enable and configure the performance counter block for one or
                  more device layout modules.
                  See RGXHWPerfConfigureAndEnableCustomCounters().
@@ -201,10 +201,10 @@ PVRSRV_ERROR RGXHWPerfGetFilter(
 @Input          asBlockConfigs     Address of the array of configuration blocks
 @Return         PVRSRV_ERROR       System error code
 */ /**************************************************************************/
-PVRSRV_ERROR RGXHWPerfConfigureAndEnableCounters(
-		RGX_HWPERF_CONNECTION *psHWPerfConnection,
-		IMG_UINT32                 ui32NumBlocks,
-		RGX_HWPERF_CONFIG_CNTBLK*  asBlockConfigs);
+PVRSRV_ERROR RGXHWPerfConfigMuxCounters(
+		RGX_HWPERF_CONNECTION         *psHWPerfConnection,
+		IMG_UINT32                     ui32NumBlocks,
+		RGX_HWPERF_CONFIG_MUX_CNTBLK  *asBlockConfigs);
 
 /*************************************************************************/ /*!
 @Function       RGXHWPerfConfigureAndEnableCustomCounters

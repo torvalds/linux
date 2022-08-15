@@ -83,9 +83,11 @@ PVRSRV_ERROR OSConnectionPrivateDataInit(IMG_HANDLE *phOsPrivateData, void *pvOS
 
 	psEnvConnection->owner = current->tgid;
 
-	/* Save the pointer to our struct file */
-	psEnvConnection->psFile = psPrivData->psFile;
 	psEnvConnection->psDevNode = psPrivData->psDevNode;
+
+#if defined(SUPPORT_NATIVE_FENCE_SYNC)
+	psEnvConnection->pvPvrSyncPrivateData = NULL;
+#endif
 
 #if defined(SUPPORT_ION) && (LINUX_VERSION_CODE < KERNEL_VERSION(4, 12, 0))
 	psIonConnection = (ENV_ION_CONNECTION_DATA *)OSAllocZMem(sizeof(ENV_ION_CONNECTION_DATA));

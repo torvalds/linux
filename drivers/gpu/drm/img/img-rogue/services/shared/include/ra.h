@@ -53,6 +53,25 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 typedef struct _RA_ARENA_ RA_ARENA;			//PRQA S 3313
 
+/** Resource arena's iterator.
+ *  struct _RA_ARENA_ITERATOR_ deliberately opaque
+ */
+typedef struct _RA_ARENA_ITERATOR_ RA_ARENA_ITERATOR;
+
+typedef struct _RA_ITERATOR_DATA_ {
+	IMG_UINT64 uiAddr;
+	IMG_UINT64 uiSize;
+	IMG_BOOL bFree;
+} RA_ITERATOR_DATA;
+
+/** Resource arena usage statistics.
+ *  struct _RA_USAGE_STATS
+ */
+typedef struct _RA_USAGE_STATS {
+	IMG_UINT64	ui64TotalArenaSize;
+	IMG_UINT64	ui64FreeArenaSize;
+}RA_USAGE_STATS, *PRA_USAGE_STATS;
+
 /*
  * Per-Arena handle - this is private data for the caller of the RA.
  * The RA knows nothing about this data. It is given it in RA_Create, and
@@ -85,8 +104,8 @@ typedef IMG_UINT64 RA_LENGTH_T;
  * */
 
 /* --- Resource allocation policy definitions ---
-* | 31.........4|......3....|........2.............|1..................0|
-* | Reserved    | No split  | Area bucket selection| Free node selection|
+* | 31.........4|......3....|........2.............|1...................0|
+* | Reserved    | No split  | Area bucket selection| Alloc node selection|
 */
 
 /*
@@ -103,7 +122,7 @@ typedef IMG_UINT64 RA_LENGTH_T;
  * As a result any future higher size allocation requests are likely to succeed
  */
 #define RA_POLICY_ALLOC_OPTIMAL		(1U)
-#define RA_POLICY_ALLOC_OPTIMAL_MASK			(3U)
+#define RA_POLICY_ALLOC_NODE_SELECT_MASK			(3U)
 
 /*
  * Bucket selection policies
@@ -323,5 +342,45 @@ RA_Alloc_Range(RA_ARENA *pArena,
  */
 void
 RA_Free(RA_ARENA *pArena, RA_BASE_T base);
+
+/**
+ *  @Function   RA_Get_Usage_Stats
+ *
+ *  @Description    To collect the arena usage statistics.
+ *
+ *  @Input  pArena - the arena to acquire usage statistics from.
+ *  @Input  psRAStats - the buffer to hold the usage statistics of the arena.
+ *
+ *  @Return None
+ */
+IMG_INTERNAL void
+RA_Get_Usage_Stats(RA_ARENA *pArena, PRA_USAGE_STATS psRAStats);
+
+IMG_INTERNAL RA_ARENA_ITERATOR *
+RA_IteratorAcquire(RA_ARENA *pArena, IMG_BOOL bIncludeFreeSegments);
+
+IMG_INTERNAL void
+RA_IteratorReset(RA_ARENA_ITERATOR *pIter);
+
+IMG_INTERNAL void
+RA_IteratorRelease(RA_ARENA_ITERATOR *pIter);
+
+IMG_INTERNAL IMG_BOOL
+RA_IteratorNext(RA_ARENA_ITERATOR *pIter, RA_ITERATOR_DATA *pData);
+
+/*************************************************************************/ /*!
+@Function       RA_BlockDump
+@Description    Debug dump of all memory allocations within the RA and the space
+                between. A '#' represents a block of memory (the arena's quantum
+                in size) that has been allocated whereas a '.' represents a free
+                block.
+@Input          pArena        The arena to dump.
+@Input          pfnLogDump    The dumping method.
+@Input          pPrivData     Data to be passed into the pfnLogDump method.
+*/ /**************************************************************************/
+IMG_INTERNAL PVRSRV_ERROR
+RA_BlockDump(RA_ARENA *pArena,
+             __printf(2, 3) void (*pfnLogDump)(void*, IMG_CHAR*, ...),
+             void *pPrivData);
 
 #endif

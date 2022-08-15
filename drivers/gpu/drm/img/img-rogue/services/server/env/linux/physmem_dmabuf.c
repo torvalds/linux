@@ -105,7 +105,6 @@ static struct sg_table *PVRDmaBufOpsMap(struct dma_buf_attachment *psAttachment,
                                         enum dma_data_direction eDirection)
 {
 	/* Attach hasn't been called yet */
-	dump_stack();
 	return ERR_PTR(-EINVAL);
 }
 
@@ -131,7 +130,6 @@ static void *PVRDmaBufOpsKMap(struct dma_buf *psDmaBuf, unsigned long uiPageNum)
 
 static int PVRDmaBufOpsMMap(struct dma_buf *psDmaBuf, struct vm_area_struct *psVMA)
 {
-	dump_stack();
 	return -ENOSYS;
 }
 
@@ -190,6 +188,80 @@ static IMG_UINT32 g_ui32HashRefCount;
 #else
 #define pvr_sg_length(sg) sg_dma_len(sg)
 #endif
+
+static int
+DmaBufSetValue(struct dma_buf *psDmaBuf, int iValue, const char *szFunc)
+{
+	struct dma_buf_map sMap;
+	int err, err_end_access;
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 6, 0))
+	int i;
+#endif
+
+	err = dma_buf_begin_cpu_access(psDmaBuf, DMA_FROM_DEVICE);
+	if (err)
+	{
+		PVR_DPF((PVR_DBG_ERROR, "%s: Failed to begin cpu access (err=%d)",
+		                        szFunc, err));
+		goto err_out;
+	}
+
+	err = dma_buf_vmap(psDmaBuf, &sMap);
+	if (err)
+	{
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 6, 0))
+		PVR_DPF((PVR_DBG_ERROR, "%s: Failed to map page (err=%d)",
+		                        szFunc, err));
+		goto exit_end_access;
+#else
+		for (i = 0; i < psDmaBuf->size / PAGE_SIZE; i++)
+		{
+			void *pvKernAddr;
+
+			pvKernAddr = dma_buf_kmap(psDmaBuf, i);
+			if (IS_ERR_OR_NULL(pvKernAddr))
+			{
+				PVR_DPF((PVR_DBG_ERROR, "%s: Failed to map page (err=%ld)",
+							szFunc,
+							pvKernAddr ? PTR_ERR(pvKernAddr) : -ENOMEM));
+				err = !pvKernAddr ? -ENOMEM : -EINVAL;
+
+				goto exit_end_access;
+			}
+
+			memset(pvKernAddr, iValue, PAGE_SIZE);
+
+			dma_buf_kunmap(psDmaBuf, i, pvKernAddr);
+		}
+#endif
+	}
+	else
+	{
+		memset(sMap.vaddr, iValue, psDmaBuf->size);
+
+		dma_buf_vunmap(psDmaBuf, &sMap);
+	}
+
+	err = 0;
+
+exit_end_access:
+	do {
+		err_end_access = dma_buf_end_cpu_access(psDmaBuf, DMA_TO_DEVICE);
+	} while (err_end_access == -EAGAIN || err_end_access == -EINTR);
+
+	if (err_end_access)
+	{
+		PVR_DPF((PVR_DBG_ERROR, "%s: Failed to end cpu access (err=%d)",
+		                        szFunc, err_end_access));
+		if (!err)
+		{
+			err = err_end_access;
+		}
+	}
+
+err_out:
+	return err;
+}
 
 /*****************************************************************************
  *                          PMR callback functions                           *
@@ -259,63 +331,16 @@ static PVRSRV_ERROR PMRFinalizeDmaBuf(PMR_IMPL_PRIVDATA pvPriv)
 	if (psPrivData->bPoisonOnFree)
 	{
 		int err;
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 6, 0))
-		int i;
-		void *pvKernAddr;
-#else
-		struct dma_buf_map sMap;
-#endif
 
-		err = dma_buf_begin_cpu_access(psDmaBuf, DMA_FROM_DEVICE);
+		err = DmaBufSetValue(psDmaBuf, PVRSRV_POISON_ON_FREE_VALUE, __func__);
 		if (err)
 		{
-			PVR_DPF((PVR_DBG_ERROR,
-					 "%s: Failed to begin cpu access for free poisoning (err=%d)",
-					 __func__, err));
+			PVR_DPF((PVR_DBG_ERROR, "%s: Failed to poison allocation before "
+			                        "free", __func__));
 			PVR_ASSERT(IMG_FALSE);
-			goto exit;
 		}
-
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 6, 0))
-		err = dma_buf_vmap(psDmaBuf, &sMap);
-		if (err != 0 || sMap.vaddr == NULL)
-		{
-			PVR_DPF((PVR_DBG_ERROR,
-					 "%s: Failed to poison allocation before free",
-					 __func__));
-			PVR_ASSERT(IMG_FALSE);
-			goto exit_end_access;
-		}
-
-		memset(sMap.vaddr, PVRSRV_POISON_ON_FREE_VALUE, psDmaBuf->size);
-
-		dma_buf_vunmap(psDmaBuf, &sMap);
-#else
-		for (i = 0; i < psDmaBuf->size / PAGE_SIZE; i++)
-		{
-			pvKernAddr = dma_buf_kmap(psDmaBuf, i);
-			if (IS_ERR_OR_NULL(pvKernAddr))
-			{
-				PVR_DPF((PVR_DBG_ERROR,
-						 "%s: Failed to poison allocation before free (err=%ld)",
-						 __func__, pvKernAddr ? PTR_ERR(pvKernAddr) : -ENOMEM));
-				PVR_ASSERT(IMG_FALSE);
-				goto exit_end_access;
-			}
-
-			memset(pvKernAddr, PVRSRV_POISON_ON_FREE_VALUE, PAGE_SIZE);
-
-			dma_buf_kunmap(psDmaBuf, i, pvKernAddr);
-		}
-#endif
-
-exit_end_access:
-		do {
-			err = dma_buf_end_cpu_access(psDmaBuf, DMA_TO_DEVICE);
-		} while (err == -EAGAIN || err == -EINTR);
 	}
 
-exit:
 	if (psPrivData->pfnDestroy)
 	{
 		eError = psPrivData->pfnDestroy(psPrivData->psPhysHeap, psPrivData->psAttachment);
@@ -378,8 +403,9 @@ static PVRSRV_ERROR PMRDevPhysAddrDmaBuf(PMR_IMPL_PRIVDATA pvPriv,
 			ui32PageIndex = puiOffset[idx] >> PAGE_SHIFT;
 			ui32InPageOffset = puiOffset[idx] - ((IMG_DEVMEM_OFFSET_T)ui32PageIndex << PAGE_SHIFT);
 
+			PVR_LOG_RETURN_IF_FALSE(ui32PageIndex < psPrivData->ui32VirtPageCount,
+			                        "puiOffset out of range", PVRSRV_ERROR_OUT_OF_RANGE);
 
-			PVR_ASSERT(ui32PageIndex < psPrivData->ui32VirtPageCount);
 			PVR_ASSERT(ui32InPageOffset < PAGE_SIZE);
 			psDevPAddr[idx].uiAddr = psPrivData->pasDevPhysAddr[ui32PageIndex].uiAddr + ui32InPageOffset;
 		}
@@ -387,16 +413,6 @@ static PVRSRV_ERROR PMRDevPhysAddrDmaBuf(PMR_IMPL_PRIVDATA pvPriv,
 	return PVRSRV_OK;
 }
 
-#ifdef CACHE_TEST
-static PVRSRV_ERROR
-PMRAcquireKernelMappingDataDmaBuf(PMR_IMPL_PRIVDATA pvPriv,
-				  size_t uiOffset,
-				  size_t uiSize,
-				  size_t uilogicSize,
-				  void **ppvKernelAddressOut,
-				  IMG_HANDLE *phHandleOut,
-				  PMR_FLAGS_T ulFlags)
-#else
 static PVRSRV_ERROR
 PMRAcquireKernelMappingDataDmaBuf(PMR_IMPL_PRIVDATA pvPriv,
 				  size_t uiOffset,
@@ -404,15 +420,11 @@ PMRAcquireKernelMappingDataDmaBuf(PMR_IMPL_PRIVDATA pvPriv,
 				  void **ppvKernelAddressOut,
 				  IMG_HANDLE *phHandleOut,
 				  PMR_FLAGS_T ulFlags)
-#endif
 {
 	PMR_DMA_BUF_DATA *psPrivData = pvPriv;
 	struct dma_buf *psDmaBuf = psPrivData->psAttachment->dmabuf;
 	PVRSRV_ERROR eError;
 	int err;
-#ifdef CACHE_TEST    
-	PVR_UNREFERENCED_PARAMETER(uilogicSize);
-#endif
 
 	if (psPrivData->ui32PhysPageCount != psPrivData->ui32VirtPageCount)
 	{
@@ -452,13 +464,11 @@ fail:
 }
 
 static void PMRReleaseKernelMappingDataDmaBuf(PMR_IMPL_PRIVDATA pvPriv,
-					      IMG_HANDLE hHandle, PMR *psPMR)
+					      IMG_HANDLE hHandle)
 {
 	PMR_DMA_BUF_DATA *psPrivData = pvPriv;
 	struct dma_buf *psDmaBuf = psPrivData->psAttachment->dmabuf;
 	int err;
-
-	PVR_UNREFERENCED_PARAMETER(psPMR);
 
 	dma_buf_vunmap(psDmaBuf, &psPrivData->sMap);
 
@@ -484,7 +494,6 @@ static PVRSRV_ERROR PMRMMapDmaBuf(PMR_IMPL_PRIVDATA pvPriv,
 		return PVRSRV_ERROR_NOT_IMPLEMENTED;
 	}
 
-	//dump_stack();  //arrive here...
 	err = dma_buf_mmap(psDmaBuf, psVma, 0);
 	if (err)
 	{
@@ -492,7 +501,6 @@ static PVRSRV_ERROR PMRMMapDmaBuf(PMR_IMPL_PRIVDATA pvPriv,
 	}
 
 #if defined(PVRSRV_ENABLE_LINUX_MMAP_STATS)
-sdaj;lll
 	MMapStatsAddOrUpdatePMR(psPMR, psVma->vm_end - psVma->vm_start);
 #endif
 
@@ -546,8 +554,11 @@ PhysmemCreateNewDmaBufBackedPMR(PHYS_HEAP *psHeap,
 
 	bZeroOnAlloc = PVRSRV_CHECK_ZERO_ON_ALLOC(uiFlags);
 	bPoisonOnAlloc = PVRSRV_CHECK_POISON_ON_ALLOC(uiFlags);
+#if defined(DEBUG)
 	bPoisonOnFree = PVRSRV_CHECK_POISON_ON_FREE(uiFlags);
-
+#else
+	bPoisonOnFree = IMG_FALSE;
+#endif
 	if (bZeroOnAlloc && bPoisonOnFree)
 	{
 		/* Zero on Alloc and Poison on Alloc are mutually exclusive */
@@ -583,82 +594,19 @@ PhysmemCreateNewDmaBufBackedPMR(PHYS_HEAP *psHeap,
 
 	if (bZeroOnAlloc || bPoisonOnAlloc)
 	{
+		int iValue = bZeroOnAlloc ? 0 : PVRSRV_POISON_ON_ALLOC_VALUE;
 		int err;
-#if (LINUX_VERSION_CODE <KERNEL_VERSION(5, 6, 0))
-		int i;
-		void *pvKernAddr;
-#else
-		struct dma_buf_map sMap;
-#endif
 
-		err = dma_buf_begin_cpu_access(psDmaBuf, DMA_FROM_DEVICE);
+		err = DmaBufSetValue(psDmaBuf, iValue, __func__);
 		if (err)
 		{
+			PVR_DPF((PVR_DBG_ERROR, "%s: Failed to map buffer for %s",
+			                        __func__,
+			                        bZeroOnAlloc ? "zeroing" : "poisoning"));
+
 			eError = PVRSRV_ERROR_PMR_NO_KERNEL_MAPPING;
 			goto errFreePhysAddr;
 		}
-
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 6, 0))
-		err = dma_buf_vmap(psDmaBuf, &sMap);
-		if (err != 0 || sMap.vaddr == NULL)
-		{
-			PVR_DPF((PVR_DBG_ERROR,
-					 "%s: Failed to map buffer for %s)",
-					 __func__, bZeroOnAlloc ? "zeroing" : "poisoning"));
-			eError = PVRSRV_ERROR_PMR_NO_KERNEL_MAPPING;
-
-			do {
-				err = dma_buf_end_cpu_access(psDmaBuf, DMA_TO_DEVICE);
-			} while (err == -EAGAIN || err == -EINTR);
-
-			goto errFreePhysAddr;
-		}
-
-		if (bZeroOnAlloc)
-		{
-			memset(sMap.vaddr, 0, psDmaBuf->size);
-		}
-		else
-		{
-			memset(sMap.vaddr, PVRSRV_POISON_ON_ALLOC_VALUE, psDmaBuf->size);
-		}
-
-		dma_buf_vunmap(psDmaBuf, &sMap);
-#else
-		for (i = 0; i < psDmaBuf->size / PAGE_SIZE; i++)
-		{
-			pvKernAddr = dma_buf_kmap(psDmaBuf, i);
-			if (IS_ERR_OR_NULL(pvKernAddr))
-			{
-				PVR_DPF((PVR_DBG_ERROR,
-						 "%s: Failed to map page for %s (err=%ld)",
-						 __func__, bZeroOnAlloc ? "zeroing" : "poisoning",
-						 pvKernAddr ? PTR_ERR(pvKernAddr) : -ENOMEM));
-				eError = PVRSRV_ERROR_PMR_NO_KERNEL_MAPPING;
-
-				do {
-					err = dma_buf_end_cpu_access(psDmaBuf, DMA_TO_DEVICE);
-				} while (err == -EAGAIN || err == -EINTR);
-
-				goto errFreePhysAddr;
-			}
-
-			if (bZeroOnAlloc)
-			{
-				memset(pvKernAddr, 0, PAGE_SIZE);
-			}
-			else
-			{
-				memset(pvKernAddr, PVRSRV_POISON_ON_ALLOC_VALUE, PAGE_SIZE);
-			}
-
-			dma_buf_kunmap(psDmaBuf, i, pvKernAddr);
-		}
-#endif
-
-		do {
-			err = dma_buf_end_cpu_access(psDmaBuf, DMA_TO_DEVICE);
-		} while (err == -EAGAIN || err == -EINTR);
 	}
 
 	table = dma_buf_map_attachment(psAttachment, DMA_BIDIRECTIONAL);
@@ -830,11 +778,7 @@ PhysmemExportDmaBuf(CONNECTION_DATA *psConnection,
 
 	PMRRefPMR(psPMR);
 
-	eError = PMR_LogicalSize(psPMR, &uiPMRSize);
-	if (eError != PVRSRV_OK)
-	{
-		goto fail_pmr_ref;
-	}
+	PMR_LogicalSize(psPMR, &uiPMRSize);
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 1, 0))
 	{
@@ -936,6 +880,46 @@ PhysmemImportDmaBuf(CONNECTION_DATA *psConnection,
 	                                 puiAlign);
 
 	dma_buf_put(psDmaBuf);
+
+	return eError;
+}
+
+PVRSRV_ERROR
+PhysmemImportDmaBufLocked(CONNECTION_DATA *psConnection,
+                          PVRSRV_DEVICE_NODE *psDevNode,
+                          IMG_INT fd,
+                          PVRSRV_MEMALLOCFLAGS_T uiFlags,
+                          IMG_UINT32 ui32NameSize,
+                          const IMG_CHAR pszName[DEVMEM_ANNOTATION_MAX_LEN],
+                          PMR **ppsPMRPtr,
+                          IMG_DEVMEM_SIZE_T *puiSize,
+                          IMG_DEVMEM_ALIGN_T *puiAlign)
+{
+	PMR *psPMRPtr;
+	PVRSRV_ERROR eError;
+
+	eError = PhysmemImportDmaBuf(psConnection,
+	                             psDevNode,
+	                             fd,
+	                             uiFlags,
+	                             ui32NameSize,
+	                             pszName,
+	                             &psPMRPtr,
+	                             puiSize,
+	                             puiAlign);
+
+	if (eError == PVRSRV_OK)
+	{
+		eError = PMRLockSysPhysAddresses(psPMRPtr);
+		if (eError == PVRSRV_OK)
+		{
+			*ppsPMRPtr = psPMRPtr;
+		}
+		else
+		{
+			PMRUnrefPMR(psPMRPtr);
+		}
+	}
 
 	return eError;
 }

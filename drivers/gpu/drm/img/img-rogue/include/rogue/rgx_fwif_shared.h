@@ -50,6 +50,19 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "rgx_common.h"
 #include "powervr/mem_types.h"
 
+/* Indicates the number of RTDATAs per RTDATASET */
+#if defined(SUPPORT_AGP)
+#define RGXMKIF_NUM_RTDATAS           4U
+#define RGXMKIF_NUM_GEOMDATAS         4U
+#define RGXMKIF_NUM_RTDATA_FREELISTS  12U /* RGXMKIF_NUM_RTDATAS * RGXFW_MAX_FREELISTS */
+#define RGX_NUM_GEOM_CORES           (2U)
+#else
+#define RGXMKIF_NUM_RTDATAS           2U
+#define RGXMKIF_NUM_GEOMDATAS         1U
+#define RGXMKIF_NUM_RTDATA_FREELISTS  2U  /* RGXMKIF_NUM_RTDATAS * RGXFW_MAX_FREELISTS */
+#define RGX_NUM_GEOM_CORES           (1U)
+#endif
+
 /* Maximum number of UFOs in a CCB command.
  * The number is based on having 32 sync prims (as originally), plus 32 sync
  * checkpoints.
@@ -118,13 +131,17 @@ typedef enum
 	RGXFWIF_PRBUFFER_UNBACKING_PENDING,
 }RGXFWIF_PRBUFFER_STATE;
 
+/*!
+ * @InGroup RenderTarget
+ * @Brief OnDemand Z/S/MSAA Buffers
+ */
 typedef struct
 {
-	IMG_UINT32				ui32BufferID;				/*!< Buffer ID*/
-	IMG_BOOL				bOnDemand;					/*!< Needs On-demand Z/S/MSAA Buffer allocation */
-	RGXFWIF_PRBUFFER_STATE	eState;						/*!< Z/S/MSAA -Buffer state */
-	RGXFWIF_CLEANUP_CTL		sCleanupState;				/*!< Cleanup state */
-	IMG_UINT32				ui32PRBufferFlags;		/*!< Compatibility and other flags */
+	IMG_UINT32		ui32BufferID;		/*!< Buffer ID*/
+	IMG_BOOL		bOnDemand;		/*!< Needs On-demand Z/S/MSAA Buffer allocation */
+	RGXFWIF_PRBUFFER_STATE	eState;			/*!< Z/S/MSAA -Buffer state */
+	RGXFWIF_CLEANUP_CTL	sCleanupState;		/*!< Cleanup state */
+	IMG_UINT32		ui32PRBufferFlags;	/*!< Compatibility and other flags */
 } UNCACHED_ALIGN RGXFWIF_PRBUFFER;
 
 /*
@@ -185,7 +202,15 @@ typedef struct
 	                                 *    Points to commands not ready, i.e.
 	                                 *    fence dependencies are not met. */
 	IMG_UINT32  ui32WrapMask;       /*!< Offset wrapping mask, total capacity
-	                                 *    in bytes of the CCB-1 */
+	                                      in bytes of the CCB-1 */
+#if defined(SUPPORT_AGP)
+	IMG_UINT32  ui32ReadOffset2;
+#if defined(SUPPORT_AGP4)
+	IMG_UINT32  ui32ReadOffset3;
+	IMG_UINT32  ui32ReadOffset4;
+#endif
+#endif
+
 } UNCACHED_ALIGN RGXFWIF_CCCB_CTL;
 
 
@@ -193,25 +218,39 @@ typedef IMG_UINT32 RGXFW_FREELIST_TYPE;
 
 #define RGXFW_LOCAL_FREELIST     IMG_UINT32_C(0)
 #define RGXFW_GLOBAL_FREELIST    IMG_UINT32_C(1)
+#if defined(SUPPORT_AGP)
+#define RGXFW_GLOBAL2_FREELIST   IMG_UINT32_C(2)
+#define RGXFW_MAX_FREELISTS      (RGXFW_GLOBAL2_FREELIST + 1U)
+#else
 #define RGXFW_MAX_FREELISTS      (RGXFW_GLOBAL_FREELIST + 1U)
+#endif
+#define RGXFW_MAX_HWFREELISTS    (2U)
 
+/*!
+ * @Defgroup ContextSwitching Context switching data interface
+ * @Brief Types grouping data structures and defines used in realising the Context Switching (CSW) functionality
+ * @{
+ */
 
+/*!
+ * @Brief GEOM DM or TA register controls for context switch
+ */
 typedef struct
 {
-	IMG_UINT64	uTAReg_VDM_CONTEXT_STATE_BASE_ADDR;
+	IMG_UINT64	uTAReg_VDM_CONTEXT_STATE_BASE_ADDR; /*!< The base address of the VDM's context state buffer */
 	IMG_UINT64	uTAReg_VDM_CONTEXT_STATE_RESUME_ADDR;
-	IMG_UINT64	uTAReg_TA_CONTEXT_STATE_BASE_ADDR;
+	IMG_UINT64	uTAReg_TA_CONTEXT_STATE_BASE_ADDR; /*!< The base address of the TA's context state buffer */
 
 	struct
 	{
-		IMG_UINT64	uTAReg_VDM_CONTEXT_STORE_TASK0;
-		IMG_UINT64	uTAReg_VDM_CONTEXT_STORE_TASK1;
-		IMG_UINT64	uTAReg_VDM_CONTEXT_STORE_TASK2;
+		IMG_UINT64	uTAReg_VDM_CONTEXT_STORE_TASK0; /*!< VDM context store task 0 */
+		IMG_UINT64	uTAReg_VDM_CONTEXT_STORE_TASK1; /*!< VDM context store task 1 */
+		IMG_UINT64	uTAReg_VDM_CONTEXT_STORE_TASK2; /*!< VDM context store task 2 */
 
 		/* VDM resume state update controls */
-		IMG_UINT64	uTAReg_VDM_CONTEXT_RESUME_TASK0;
-		IMG_UINT64	uTAReg_VDM_CONTEXT_RESUME_TASK1;
-		IMG_UINT64	uTAReg_VDM_CONTEXT_RESUME_TASK2;
+		IMG_UINT64	uTAReg_VDM_CONTEXT_RESUME_TASK0; /*!< VDM context resume task 0 */
+		IMG_UINT64	uTAReg_VDM_CONTEXT_RESUME_TASK1; /*!< VDM context resume task 1 */
+		IMG_UINT64	uTAReg_VDM_CONTEXT_RESUME_TASK2; /*!< VDM context resume task 2 */
 
 		IMG_UINT64	uTAReg_VDM_CONTEXT_STORE_TASK3;
 		IMG_UINT64	uTAReg_VDM_CONTEXT_STORE_TASK4;
@@ -221,6 +260,7 @@ typedef struct
 	} asTAState[2];
 
 } RGXFWIF_TAREGISTERS_CSWITCH;
+/*! @} End of Defgroup ContextSwitching */
 
 #define RGXFWIF_TAREGISTERS_CSWITCH_SIZE sizeof(RGXFWIF_TAREGISTERS_CSWITCH)
 
@@ -238,9 +278,13 @@ typedef struct
 
 } RGXFWIF_CDM_REGISTERS_CSWITCH;
 
+/*!
+ * @InGroup ContextSwitching
+ * @Brief Render context static register controls for context switch
+ */
 typedef struct
 {
-	RGXFWIF_TAREGISTERS_CSWITCH	RGXFW_ALIGN sCtxSwitch_Regs;	/*!< Geom registers for ctx switch */
+	RGXFWIF_TAREGISTERS_CSWITCH	RGXFW_ALIGN asCtxSwitch_GeomRegs[RGX_NUM_GEOM_CORES];	/*!< Geom registers for ctx switch */
 } RGXFWIF_STATIC_RENDERCONTEXT_STATE;
 
 #define RGXFWIF_STATIC_RENDERCONTEXT_SIZE sizeof(RGXFWIF_STATIC_RENDERCONTEXT_STATE)

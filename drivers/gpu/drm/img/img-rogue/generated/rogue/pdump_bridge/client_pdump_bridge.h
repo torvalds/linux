@@ -54,19 +54,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include "common_pdump_bridge.h"
 
-IMG_INTERNAL PVRSRV_ERROR BridgeDevmemPDumpBitmap(IMG_HANDLE hBridge,
-						  IMG_CHAR * puiFileName,
-						  IMG_UINT32 ui32FileOffset,
-						  IMG_UINT32 ui32Width,
-						  IMG_UINT32 ui32Height,
-						  IMG_UINT32 ui32StrideInBytes,
-						  IMG_DEV_VIRTADDR sDevBaseAddr,
-						  IMG_HANDLE hDevmemCtx,
-						  IMG_UINT32 ui32Size,
-						  PDUMP_PIXEL_FORMAT ePixelFormat,
-						  IMG_UINT32 ui32AddrMode,
-						  IMG_UINT32 ui32PDumpFlags);
-
 IMG_INTERNAL PVRSRV_ERROR BridgePDumpImageDescriptor(IMG_HANDLE hBridge,
 						     IMG_HANDLE hDevmemCtx,
 						     IMG_UINT32 ui32StringSize,
@@ -87,6 +74,7 @@ IMG_INTERNAL PVRSRV_ERROR BridgePDumpImageDescriptor(IMG_HANDLE hBridge,
 						     IMG_UINT32 ui32PDumpFlags);
 
 IMG_INTERNAL PVRSRV_ERROR BridgePVRSRVPDumpComment(IMG_HANDLE hBridge,
+						   IMG_UINT32 ui32CommentSize,
 						   IMG_CHAR * puiComment, IMG_UINT32 ui32Flags);
 
 IMG_INTERNAL PVRSRV_ERROR BridgePVRSRVPDumpSetFrame(IMG_HANDLE hBridge, IMG_UINT32 ui32Frame);

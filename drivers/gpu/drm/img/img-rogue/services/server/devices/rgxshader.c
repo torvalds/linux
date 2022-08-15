@@ -164,7 +164,7 @@ PVRSRVTQLoadShaders(PVRSRV_DEVICE_NODE * psDeviceNode)
 
 	ui32NumPages = (sHeader.ui32SizeFragment / RGX_BIF_PM_PHYSICAL_PAGE_SIZE) + 1;
 
-	PDUMPCOMMENT("Allocate TDM USC PMR Block (Pages %08X)", ui32NumPages);
+	PDUMPCOMMENT(psDeviceNode, "Allocate TDM USC PMR Block (Pages %08X)", ui32NumPages);
 
 	eError = PhysmemNewRamBackedPMR(NULL,
 									psDeviceNode,
@@ -182,7 +182,8 @@ PVRSRVTQLoadShaders(PVRSRV_DEVICE_NODE * psDeviceNode)
 									"tquscpmr",
 									PVR_SYS_ALLOC_PID,
 									(PMR**)&psDevInfo->hTQUSCSharedMem,
-									PDUMP_NONE);
+									PDUMP_NONE,
+									NULL);
 	if (eError != PVRSRV_OK)
 	{
 		PVR_LOG(("%s: Unexpected error from PhysmemNewRamBackedPMR (%s)",
@@ -213,7 +214,7 @@ PVRSRVTQLoadShaders(PVRSRV_DEVICE_NODE * psDeviceNode)
 
 	ui32NumPages = (sHeader.ui32SizeClientMem / RGX_BIF_PM_PHYSICAL_PAGE_SIZE) + 1;
 
-	PDUMPCOMMENT("Allocate TDM Client PMR Block (Pages %08X)", ui32NumPages);
+	PDUMPCOMMENT(psDeviceNode, "Allocate TDM Client PMR Block (Pages %08X)", ui32NumPages);
 
 	eError = PhysmemNewRamBackedPMR(NULL,
 									psDeviceNode,
@@ -231,7 +232,8 @@ PVRSRVTQLoadShaders(PVRSRV_DEVICE_NODE * psDeviceNode)
 									"tqclipmr",
 									PVR_SYS_ALLOC_PID,
 									(PMR**)&psDevInfo->hTQCLISharedMem,
-									PDUMP_NONE);
+									PDUMP_NONE,
+									NULL);
 	if (eError != PVRSRV_OK)
 	{
 		PVR_LOG(("%s: Unexpected error from PhysmemNewRamBackedPMR (%s)",
@@ -291,23 +293,10 @@ PVRSRVTQAcquireShaders(PVRSRV_DEVICE_NODE  * psDeviceNode,
 	*ppsCLIPMRMem = psDevInfo->hTQCLISharedMem;
 }
 
-PVRSRV_ERROR
-PVRSRVTQUnloadShaders(PVRSRV_DEVICE_NODE * psDeviceNode)
+void PVRSRVTQUnloadShaders(PVRSRV_DEVICE_NODE * psDeviceNode)
 {
 	PVRSRV_RGXDEV_INFO *psDevInfo = psDeviceNode->pvDevice;
-	PVRSRV_ERROR eError;
 
-	eError = PMRUnrefPMR(psDevInfo->hTQUSCSharedMem);
-	if (eError != PVRSRV_OK)
-	{
-		return eError;
-	}
-
-	eError = PMRUnrefPMR(psDevInfo->hTQCLISharedMem);
-	if (eError != PVRSRV_OK)
-	{
-		return eError;
-	}
-
-	return PVRSRV_OK;
+	(void) PMRUnrefPMR(psDevInfo->hTQUSCSharedMem);
+	(void) PMRUnrefPMR(psDevInfo->hTQCLISharedMem);
 }

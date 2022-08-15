@@ -64,12 +64,12 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 	*(phLock) = OSAllocMem(sizeof(struct mutex)); \
 	if (*(phLock)) { mutex_init(*(phLock)); e = PVRSRV_OK; }; \
 	e;})
-#define OSLockDestroy(hLock) ({mutex_destroy((hLock)); OSFreeMem((hLock)); PVRSRV_OK;})
-#define OSLockDestroyNoStats(hLock) ({mutex_destroy((hLock)); OSFreeMemNoStats((hLock)); PVRSRV_OK;})
+#define OSLockDestroy(hLock) ({mutex_destroy((hLock)); OSFreeMem((hLock));})
+#define OSLockDestroyNoStats(hLock) ({mutex_destroy((hLock)); OSFreeMemNoStats((hLock));})
 
-#define OSLockAcquire(hLock) ({mutex_lock((hLock)); PVRSRV_OK;})
-#define OSLockAcquireNested(hLock, subclass) ({mutex_lock_nested((hLock), (subclass)); PVRSRV_OK;})
-#define OSLockRelease(hLock) ({mutex_unlock((hLock)); PVRSRV_OK;})
+#define OSLockAcquire(hLock) ({mutex_lock((hLock));})
+#define OSLockAcquireNested(hLock, subclass) ({mutex_lock_nested((hLock), (subclass));})
+#define OSLockRelease(hLock) ({mutex_unlock((hLock));})
 
 #define OSLockIsLocked(hLock) ((mutex_is_locked((hLock)) == 1) ? IMG_TRUE : IMG_FALSE)
 #define OSTryLockAcquire(hLock) ((mutex_trylock(hLock) == 1) ? IMG_TRUE : IMG_FALSE)
@@ -114,10 +114,10 @@ static inline IMG_INT OSAtomicOr(ATOMIC_T *pCounter, IMG_INT iVal)
 }
 
 #define OSAtomicAdd(pCounter, incr) atomic_add_return(incr,pCounter)
-#define OSAtomicAddUnless(pCounter, incr, test) __atomic_add_unless(pCounter,incr,test)
+#define OSAtomicAddUnless(pCounter, incr, test) atomic_add_unless(pCounter, (incr), (test))
 
 #define OSAtomicSubtract(pCounter, incr) atomic_add_return(-(incr),pCounter)
-#define OSAtomicSubtractUnless(pCounter, incr, test) OSAtomicAddUnless(pCounter, -(incr), test)
+#define OSAtomicSubtractUnless(pCounter, incr, test) OSAtomicAddUnless(pCounter, -(incr), (test))
 
 #else /* defined(__linux__) && defined(__KERNEL__) */
 
@@ -147,7 +147,7 @@ PVRSRV_ERROR OSLockCreate(POS_LOCK *phLock);
 @Return         None.
  */ /**************************************************************************/
 IMG_INTERNAL
-PVRSRV_ERROR OSLockDestroy(POS_LOCK hLock);
+void OSLockDestroy(POS_LOCK hLock);
 
 #if defined(INTEGRITY_OS)
 #define OSLockDestroyNoStats OSLockDestroy
@@ -412,11 +412,17 @@ IMG_INT32 OSAtomicOr(ATOMIC_T *pCounter, IMG_INT32 iVal);
 
 /* For now, spin-locks are required on Linux only, so other platforms fake
  * spinlocks with normal mutex locks */
+/*! Type definitions for OS_SPINLOCK accessor and creation / deletion */
 typedef unsigned long OS_SPINLOCK_FLAGS;
+/*! Pointer to an OS Spinlock */
 #define POS_SPINLOCK POS_LOCK
+/*! Wrapper for OSLockCreate() */
 #define OSSpinLockCreate(ppLock) OSLockCreate(ppLock)
+/*! Wrapper for OSLockDestroy() */
 #define OSSpinLockDestroy(pLock) OSLockDestroy(pLock)
+/*! Wrapper for OSLockAcquire() */
 #define OSSpinLockAcquire(pLock, flags) {flags = 0; OSLockAcquire(pLock);}
+/*! Wrapper for OSLockRelease() */
 #define OSSpinLockRelease(pLock, flags) {flags = 0; OSLockRelease(pLock);}
 
 #endif /* defined(__linux__) */

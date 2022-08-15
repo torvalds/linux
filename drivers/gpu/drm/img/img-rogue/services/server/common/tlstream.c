@@ -56,9 +56,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "tlstream.h"
 
 #include "pvrsrv.h"
-#include "devicemem_utils.h"
-#include "client_cache_bridge.h"
-
 
 #define EVENT_OBJECT_TIMEOUT_US 1000000ULL
 #define READ_PENDING_TIMEOUT_US 100000ULL
@@ -144,9 +141,6 @@ IMG_UINT32 TLStreamGetUT(IMG_HANDLE hStream)
 
 PVRSRV_ERROR TLAllocSharedMemIfNull(IMG_HANDLE hStream)
 {
-#ifdef CACHE_TEST
-	struct DEVMEM_MEMDESC_TAG *pxmdsc = NULL;
-#endif
 	PTL_STREAM psStream = (PTL_STREAM) hStream;
 	PVRSRV_ERROR eError;
 
@@ -187,15 +181,6 @@ PVRSRV_ERROR TLAllocSharedMemIfNull(IMG_HANDLE hStream)
 	eError = DevmemAcquireCpuVirtAddr(psStream->psStreamMemDesc,
 	                                  (void**) &psStream->pbyBuffer);
 	PVR_LOG_GOTO_IF_ERROR(eError, "DevmemAcquireCpuVirtAddr", e1);
-#ifdef CACHE_TEST
-	pxmdsc = (struct DEVMEM_MEMDESC_TAG *)psStream->psStreamMemDesc;
-	printk("in %s L:%d mdsc->size:%lld, import->size:%lld, flag:%llx\n", __func__, __LINE__, pxmdsc->uiAllocSize, pxmdsc->psImport->uiSize, (unsigned long long)(pxmdsc->psImport->uiFlags & PVRSRV_MEMALLOCFLAG_CPU_CACHE_MODE_MASK));
-	if(pxmdsc->uiAllocSize > 4096 && !(PVRSRV_CHECK_CPU_UNCACHED(pxmdsc->psImport->uiFlags) || PVRSRV_CHECK_CPU_WRITE_COMBINE(pxmdsc->psImport->uiFlags)))
-	{
-	    printk("in %s L:%d cache_op:%d\n", __func__, __LINE__,PVRSRV_CACHE_OP_INVALIDATE);
-	    BridgeCacheOpExec (GetBridgeHandle(pxmdsc->psImport->hDevConnection),pxmdsc->psImport->hPMR,(IMG_UINT64)(uintptr_t)psStream->pbyBuffer - pxmdsc->uiOffset,pxmdsc->uiOffset,pxmdsc->uiAllocSize,PVRSRV_CACHE_OP_INVALIDATE);
-	}
-#endif
 
 	return PVRSRV_OK;
 
@@ -1077,7 +1062,7 @@ TLStreamCommit(IMG_HANDLE hStream, IMG_UINT32 ui32ReqSize)
 
 	/* Memory barrier required to ensure prior data written by writer is
 	 * flushed from WC buffer to main memory. */
-	OSWriteMemoryBarrier();
+	OSWriteMemoryBarrier(NULL);
 
 	/* Acquire stream lock to ensure other context(s) (if any)
 	 * wait on the lock (in DoTLStreamReserve) for consistent values
@@ -1087,6 +1072,9 @@ TLStreamCommit(IMG_HANDLE hStream, IMG_UINT32 ui32ReqSize)
 	/* Update stream buffer parameters to match local copies */
 	psTmp->ui32Write = ui32LWrite;
 	psTmp->ui32Pending = ui32LPending;
+
+	/* Ensure write pointer is flushed */
+	OSWriteMemoryBarrier(&psTmp->ui32Write);
 
 	TL_COUNTER_ADD(psTmp->ui32ProducerByteCount, ui32ReqSize);
 	TL_COUNTER_INC(psTmp->ui32NumCommits);

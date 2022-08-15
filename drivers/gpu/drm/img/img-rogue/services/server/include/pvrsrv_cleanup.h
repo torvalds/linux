@@ -156,4 +156,22 @@ typedef struct _PVRSRV_CLEANUP_THREAD_WORK_
 */ /***************************************************************************/
 void PVRSRVCleanupThreadAddWork(PVRSRV_CLEANUP_THREAD_WORK *psData);
 
+/**************************************************************************/ /*!
+@Function       PVRSRVCleanupThreadGetPid
+
+@Description    Returns Cleanup Thread's PID.
+
+@Return         PID of the Cleanup Thread
+*/ /***************************************************************************/
+IMG_PID PVRSRVCleanupThreadGetPid(void);
+
+/**************************************************************************/ /*!
+@Function       PVRSRVCleanupThreadGetTid
+
+@Description    Returns Cleanup Thread's TID.
+
+@Return         TID of the Cleanup Thread
+*/ /***************************************************************************/
+uintptr_t PVRSRVCleanupThreadGetTid(void);
+
 #endif /* PVRSRV_CLEANUP_H */

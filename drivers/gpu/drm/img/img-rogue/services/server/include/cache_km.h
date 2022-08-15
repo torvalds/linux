@@ -132,19 +132,7 @@ PVRSRV_ERROR CacheOpQueue(CONNECTION_DATA *psConnection,
 						IMG_DEVMEM_OFFSET_T *puiOffset,
 						IMG_DEVMEM_SIZE_T *puiSize,
 						PVRSRV_CACHE_OP *puiCacheOp,
-						IMG_UINT32 ui32OpTimeline,
-						IMG_UINT32 uiCurrentFenceSeqNum,
-						IMG_UINT32 *puiNextFenceSeqNum);
-
-/*
- * CacheOpFence()
- *
- * This is used for fencing for any client in-flight cache maintenance
- * operations that might have been deferred by the use of CacheOpQueue().
- * This should be called before any subsequent HW device kicks to ensure
- * device memory is coherent with the HW before the kick.
- */
-PVRSRV_ERROR CacheOpFence(RGXFWIF_DM eOpType, IMG_UINT32 ui32OpSeqNum);
+						IMG_UINT32 ui32OpTimeline);
 
 /*
  * CacheOpLog()
@@ -156,9 +144,8 @@ PVRSRV_ERROR CacheOpLog(PMR *psPMR,
 						IMG_UINT64 uiAddress,
 						IMG_DEVMEM_OFFSET_T uiOffset,
 						IMG_DEVMEM_SIZE_T uiSize,
-						IMG_UINT64 ui64QueuedTimeMs,
-						IMG_UINT64 ui64ExecuteTimeMs,
-						IMG_UINT32 ui32NumRBF,
+						IMG_UINT64 ui64StartTime,
+						IMG_UINT64 ui64EndTime,
 						PVRSRV_CACHE_OP uiCacheOp);
 
 #endif	/* CACHE_KM_H */

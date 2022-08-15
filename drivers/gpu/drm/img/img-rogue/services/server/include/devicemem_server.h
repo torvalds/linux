@@ -479,21 +479,6 @@ IMG_UINT32
 DevmemIntMMUContextID(DEVMEMINT_CTX *psDevMemContext);
 
 PVRSRV_ERROR
-DevmemIntPDumpBitmap(CONNECTION_DATA * psConnection,
-                     PVRSRV_DEVICE_NODE *psDeviceNode,
-                     IMG_CHAR *pszFileName,
-                     IMG_UINT32 ui32FileOffset,
-                     IMG_UINT32 ui32Width,
-                     IMG_UINT32 ui32Height,
-                     IMG_UINT32 ui32StrideInBytes,
-                     IMG_DEV_VIRTADDR sDevBaseAddr,
-                     DEVMEMINT_CTX *psDevMemContext,
-                     IMG_UINT32 ui32Size,
-                     PDUMP_PIXEL_FORMAT ePixelFormat,
-                     IMG_UINT32 ui32AddrMode,
-                     IMG_UINT32 ui32PDumpFlags);
-
-PVRSRV_ERROR
 DevmemIntPDumpImageDescriptor(CONNECTION_DATA * psConnection,
                               PVRSRV_DEVICE_NODE *psDeviceNode,
                               DEVMEMINT_CTX *psDevMemContext,
@@ -546,40 +531,6 @@ DevmemIntPDumpSaveToFileVirtual(DEVMEMINT_CTX *psDevmemCtx,
 	PVR_UNREFERENCED_PARAMETER(uiArraySize);
 	PVR_UNREFERENCED_PARAMETER(pszFilename);
 	PVR_UNREFERENCED_PARAMETER(ui32FileOffset);
-	PVR_UNREFERENCED_PARAMETER(ui32PDumpFlags);
-	return PVRSRV_OK;
-}
-
-#ifdef INLINE_IS_PRAGMA
-#pragma inline(DevmemIntPDumpBitmap)
-#endif
-static INLINE PVRSRV_ERROR
-DevmemIntPDumpBitmap(CONNECTION_DATA * psConnection,
-                     PVRSRV_DEVICE_NODE *psDeviceNode,
-                     IMG_CHAR *pszFileName,
-                     IMG_UINT32 ui32FileOffset,
-                     IMG_UINT32 ui32Width,
-                     IMG_UINT32 ui32Height,
-                     IMG_UINT32 ui32StrideInBytes,
-                     IMG_DEV_VIRTADDR sDevBaseAddr,
-                     DEVMEMINT_CTX *psDevMemContext,
-                     IMG_UINT32 ui32Size,
-                     PDUMP_PIXEL_FORMAT ePixelFormat,
-                     IMG_UINT32 ui32AddrMode,
-                     IMG_UINT32 ui32PDumpFlags)
-{
-	PVR_UNREFERENCED_PARAMETER(psConnection);
-	PVR_UNREFERENCED_PARAMETER(psDeviceNode);
-	PVR_UNREFERENCED_PARAMETER(pszFileName);
-	PVR_UNREFERENCED_PARAMETER(ui32FileOffset);
-	PVR_UNREFERENCED_PARAMETER(ui32Width);
-	PVR_UNREFERENCED_PARAMETER(ui32Height);
-	PVR_UNREFERENCED_PARAMETER(ui32StrideInBytes);
-	PVR_UNREFERENCED_PARAMETER(sDevBaseAddr);
-	PVR_UNREFERENCED_PARAMETER(psDevMemContext);
-	PVR_UNREFERENCED_PARAMETER(ui32Size);
-	PVR_UNREFERENCED_PARAMETER(ePixelFormat);
-	PVR_UNREFERENCED_PARAMETER(ui32AddrMode);
 	PVR_UNREFERENCED_PARAMETER(ui32PDumpFlags);
 	return PVRSRV_OK;
 }

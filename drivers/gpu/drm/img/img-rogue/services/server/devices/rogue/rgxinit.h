@@ -74,7 +74,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ******************************************************************************/
 PVRSRV_ERROR RGXInitDevPart2 (PVRSRV_DEVICE_NODE	*psDeviceNode,
 							  IMG_UINT32			ui32DeviceFlags,
-							  IMG_UINT32			ui32HWPerfHostBufSizeKB,
 							  IMG_UINT32			ui32HWPerfHostFilter,
 							  RGX_ACTIVEPM_CONF		eActivePMConf);
 
@@ -114,6 +113,7 @@ RGXInitFirmware(PVRSRV_DEVICE_NODE       *psDeviceNode,
                 IMG_UINT32               *pui32TPUTrilinearFracMask,
                 RGX_RD_POWER_ISLAND_CONF eRGXRDPowerIslandingConf,
                 FW_PERF_CONF             eFirmwarePerf,
+                IMG_UINT32               ui32KCCBSizeLog2,
                 IMG_UINT32               ui32ConfigFlagsExt,
                 IMG_UINT32               ui32FwOsCfgFlags);
 

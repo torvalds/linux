@@ -68,12 +68,15 @@ PVRSRV_ERROR SyncFbTimelineCreateSW(IMG_UINT32 uiTimelineNameSize,
                                     const IMG_CHAR *pszTimelineName,
                                     PVRSRV_TIMELINE_SERVER **ppsTimeline);
 
-PVRSRV_ERROR SyncFbFenceCreateSW(PVRSRV_TIMELINE_SERVER *psTimeline,
+PVRSRV_ERROR SyncFbFenceCreateSW(CONNECTION_DATA *psConnection,
+                                 PVRSRV_DEVICE_NODE *psDeviceNode,
+                                 PVRSRV_TIMELINE_SERVER *psTimeline,
                                  IMG_UINT32 uiFenceNameSize,
                                  const IMG_CHAR *pszFenceName,
                                  PVRSRV_FENCE_SERVER **ppsOutputFence,
                                  IMG_UINT64 *pui64SyncPtIdx);
-PVRSRV_ERROR SyncFbSWTimelineFenceCreateKM(PVRSRV_TIMELINE iSWTimeline,
+PVRSRV_ERROR SyncFbSWTimelineFenceCreateKM(PVRSRV_DEVICE_NODE *psDeviceNode,
+                                           PVRSRV_TIMELINE iSWTimeline,
                                            const IMG_CHAR *pszFenceName,
                                            PVRSRV_FENCE *piOutputFence,
                                            IMG_UINT64* pui64SyncPtIdx);
@@ -93,7 +96,8 @@ PVRSRV_ERROR SyncFbTimelineCreatePVR(IMG_UINT32 uiTimelineNameSize,
                                      const IMG_CHAR *pszTimelineName,
                                      PVRSRV_TIMELINE_SERVER **ppsTimeline);
 
-PVRSRV_ERROR SyncFbFenceCreatePVR(const IMG_CHAR *pszName,
+PVRSRV_ERROR SyncFbFenceCreatePVR(PPVRSRV_DEVICE_NODE psDeviceNode,
+                                  const IMG_CHAR *pszName,
                                   PVRSRV_TIMELINE iTl,
                                   PSYNC_CHECKPOINT_CONTEXT hSyncCheckpointContext,
                                   PVRSRV_FENCE *piOutFence,

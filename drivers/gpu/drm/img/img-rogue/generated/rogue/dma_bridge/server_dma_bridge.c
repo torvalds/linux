@@ -65,6 +65,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  * Server-side bridge entry points
  */
 
+static_assert(MAX_DMA_OPS <= IMG_UINT32_MAX, "MAX_DMA_OPS must not be larger than IMG_UINT32_MAX");
+
 static IMG_INT
 PVRSRVBridgeDmaTransfer(IMG_UINT32 ui32DispatchTableEntry,
 			IMG_UINT8 * psDmaTransferIN_UI8,
@@ -87,18 +89,27 @@ PVRSRVBridgeDmaTransfer(IMG_UINT32 ui32DispatchTableEntry,
 	IMG_BOOL bHaveEnoughSpace = IMG_FALSE;
 #endif
 
-	IMG_UINT32 ui32BufferSize =
-	    (psDmaTransferIN->ui32NumDMAs * sizeof(PMR *)) +
-	    (psDmaTransferIN->ui32NumDMAs * sizeof(IMG_HANDLE)) +
-	    (psDmaTransferIN->ui32NumDMAs * sizeof(IMG_UINT64)) +
-	    (psDmaTransferIN->ui32NumDMAs * sizeof(IMG_DEVMEM_OFFSET_T)) +
-	    (psDmaTransferIN->ui32NumDMAs * sizeof(IMG_DEVMEM_SIZE_T)) + 0;
+	IMG_UINT32 ui32BufferSize = 0;
+	IMG_UINT64 ui64BufferSize =
+	    ((IMG_UINT64) psDmaTransferIN->ui32NumDMAs * sizeof(PMR *)) +
+	    ((IMG_UINT64) psDmaTransferIN->ui32NumDMAs * sizeof(IMG_HANDLE)) +
+	    ((IMG_UINT64) psDmaTransferIN->ui32NumDMAs * sizeof(IMG_UINT64)) +
+	    ((IMG_UINT64) psDmaTransferIN->ui32NumDMAs * sizeof(IMG_DEVMEM_OFFSET_T)) +
+	    ((IMG_UINT64) psDmaTransferIN->ui32NumDMAs * sizeof(IMG_DEVMEM_SIZE_T)) + 0;
 
 	if (unlikely(psDmaTransferIN->ui32NumDMAs > MAX_DMA_OPS))
 	{
 		psDmaTransferOUT->eError = PVRSRV_ERROR_BRIDGE_ARRAY_SIZE_TOO_BIG;
 		goto DmaTransfer_exit;
 	}
+
+	if (ui64BufferSize > IMG_UINT32_MAX)
+	{
+		psDmaTransferOUT->eError = PVRSRV_ERROR_BRIDGE_BUFFER_TOO_SMALL;
+		goto DmaTransfer_exit;
+	}
+
+	ui32BufferSize = (IMG_UINT32) ui64BufferSize;
 
 	if (ui32BufferSize != 0)
 	{
@@ -120,7 +131,7 @@ PVRSRVBridgeDmaTransfer(IMG_UINT32 ui32DispatchTableEntry,
 		else
 #endif
 		{
-			pArrayArgsBuffer = OSAllocZMemNoStats(ui32BufferSize);
+			pArrayArgsBuffer = OSAllocMemNoStats(ui32BufferSize);
 
 			if (!pArrayArgsBuffer)
 			{
@@ -133,6 +144,7 @@ PVRSRVBridgeDmaTransfer(IMG_UINT32 ui32DispatchTableEntry,
 	if (psDmaTransferIN->ui32NumDMAs != 0)
 	{
 		psPMRInt = (PMR **) IMG_OFFSET_ADDR(pArrayArgsBuffer, ui32NextOffset);
+		OSCachedMemSet(psPMRInt, 0, psDmaTransferIN->ui32NumDMAs * sizeof(PMR *));
 		ui32NextOffset += psDmaTransferIN->ui32NumDMAs * sizeof(PMR *);
 		hPMRInt2 = (IMG_HANDLE *) IMG_OFFSET_ADDR(pArrayArgsBuffer, ui32NextOffset);
 		ui32NextOffset += psDmaTransferIN->ui32NumDMAs * sizeof(IMG_HANDLE);
@@ -251,7 +263,7 @@ DmaTransfer_exit:
 		{
 
 			/* Unreference the previously looked up handle */
-			if (hPMRInt2[i])
+			if (psPMRInt[i])
 			{
 				PVRSRVReleaseHandleUnlocked(psConnection->psHandleBase,
 							    hPMRInt2[i],
@@ -263,7 +275,10 @@ DmaTransfer_exit:
 	UnlockHandle(psConnection->psHandleBase);
 
 	/* Allocated space should be equal to the last updated offset */
-	PVR_ASSERT(ui32BufferSize == ui32NextOffset);
+#ifdef PVRSRV_NEED_PVR_ASSERT
+	if (psDmaTransferOUT->eError == PVRSRV_OK)
+		PVR_ASSERT(ui32BufferSize == ui32NextOffset);
+#endif /* PVRSRV_NEED_PVR_ASSERT */
 
 #if defined(INTEGRITY_OS)
 	if (pArrayArgsBuffer)
@@ -298,8 +313,9 @@ PVRSRVBridgeDmaSparseMappingTable(IMG_UINT32 ui32DispatchTableEntry,
 	IMG_BOOL bHaveEnoughSpace = IMG_FALSE;
 #endif
 
-	IMG_UINT32 ui32BufferSize =
-	    (psDmaSparseMappingTableIN->ui32SizeInPages * sizeof(IMG_BOOL)) + 0;
+	IMG_UINT32 ui32BufferSize = 0;
+	IMG_UINT64 ui64BufferSize =
+	    ((IMG_UINT64) psDmaSparseMappingTableIN->ui32SizeInPages * sizeof(IMG_BOOL)) + 0;
 
 	if (psDmaSparseMappingTableIN->ui32SizeInPages > 32)
 	{
@@ -308,6 +324,14 @@ PVRSRVBridgeDmaSparseMappingTable(IMG_UINT32 ui32DispatchTableEntry,
 	}
 
 	psDmaSparseMappingTableOUT->pbTable = psDmaSparseMappingTableIN->pbTable;
+
+	if (ui64BufferSize > IMG_UINT32_MAX)
+	{
+		psDmaSparseMappingTableOUT->eError = PVRSRV_ERROR_BRIDGE_BUFFER_TOO_SMALL;
+		goto DmaSparseMappingTable_exit;
+	}
+
+	ui32BufferSize = (IMG_UINT32) ui64BufferSize;
 
 	if (ui32BufferSize != 0)
 	{
@@ -329,7 +353,7 @@ PVRSRVBridgeDmaSparseMappingTable(IMG_UINT32 ui32DispatchTableEntry,
 		else
 #endif
 		{
-			pArrayArgsBuffer = OSAllocZMemNoStats(ui32BufferSize);
+			pArrayArgsBuffer = OSAllocMemNoStats(ui32BufferSize);
 
 			if (!pArrayArgsBuffer)
 			{
@@ -365,6 +389,11 @@ PVRSRVBridgeDmaSparseMappingTable(IMG_UINT32 ui32DispatchTableEntry,
 	    DmaSparseMappingTable(psPMRInt,
 				  psDmaSparseMappingTableIN->uiOffset,
 				  psDmaSparseMappingTableIN->ui32SizeInPages, pbTableInt);
+	/* Exit early if bridged call fails */
+	if (unlikely(psDmaSparseMappingTableOUT->eError != PVRSRV_OK))
+	{
+		goto DmaSparseMappingTable_exit;
+	}
 
 	/* If dest ptr is non-null and we have data to copy */
 	if ((pbTableInt) && ((psDmaSparseMappingTableIN->ui32SizeInPages * sizeof(IMG_BOOL)) > 0))
@@ -396,7 +425,10 @@ DmaSparseMappingTable_exit:
 	UnlockHandle(psConnection->psHandleBase);
 
 	/* Allocated space should be equal to the last updated offset */
-	PVR_ASSERT(ui32BufferSize == ui32NextOffset);
+#ifdef PVRSRV_NEED_PVR_ASSERT
+	if (psDmaSparseMappingTableOUT->eError == PVRSRV_OK)
+		PVR_ASSERT(ui32BufferSize == ui32NextOffset);
+#endif /* PVRSRV_NEED_PVR_ASSERT */
 
 #if defined(INTEGRITY_OS)
 	if (pArrayArgsBuffer)
@@ -433,7 +465,7 @@ PVRSRVBridgeDmaDeviceParams(IMG_UINT32 ui32DispatchTableEntry,
  */
 
 PVRSRV_ERROR InitDMABridge(void);
-PVRSRV_ERROR DeinitDMABridge(void);
+void DeinitDMABridge(void);
 
 /*
  * Register all DMA functions with services
@@ -456,7 +488,7 @@ PVRSRV_ERROR InitDMABridge(void)
 /*
  * Unregister all dma functions with services
  */
-PVRSRV_ERROR DeinitDMABridge(void)
+void DeinitDMABridge(void)
 {
 
 	UnsetDispatchTableEntry(PVRSRV_BRIDGE_DMA, PVRSRV_BRIDGE_DMA_DMATRANSFER);
@@ -465,5 +497,4 @@ PVRSRV_ERROR DeinitDMABridge(void)
 
 	UnsetDispatchTableEntry(PVRSRV_BRIDGE_DMA, PVRSRV_BRIDGE_DMA_DMADEVICEPARAMS);
 
-	return PVRSRV_OK;
 }

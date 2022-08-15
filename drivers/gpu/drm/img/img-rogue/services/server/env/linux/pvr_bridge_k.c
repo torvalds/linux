@@ -81,7 +81,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "common_srvcore_bridge.h"
 
 PVRSRV_ERROR InitDMABUFBridge(void);
-PVRSRV_ERROR DeinitDMABUFBridge(void);
+void DeinitDMABUFBridge(void);
 
 #if defined(MODULE_TEST)
 /************************************************************************/
@@ -113,8 +113,6 @@ static void *BridgeStatsDIStart(OSDI_IMPL_ENTRY *psEntry, IMG_UINT64 *pui64Pos)
 {
 	PVRSRV_BRIDGE_DISPATCH_TABLE_ENTRY *psDispatchTable = DIGetPrivData(psEntry);
 
-	BridgeGlobalStatsLock();
-
 	if (psDispatchTable == NULL || *pui64Pos > BRIDGE_DISPATCH_TABLE_ENTRY_COUNT)
 	{
 		return NULL;
@@ -132,8 +130,6 @@ static void BridgeStatsDIStop(OSDI_IMPL_ENTRY *psEntry, void *pvData)
 {
 	PVR_UNREFERENCED_PARAMETER(psEntry);
 	PVR_UNREFERENCED_PARAMETER(pvData);
-
-	BridgeGlobalStatsUnlock();
 }
 
 static void *BridgeStatsDINext(OSDI_IMPL_ENTRY *psEntry, void *pvData,
@@ -257,7 +253,10 @@ PVRSRV_ERROR OSPlatformBridgeInit(void)
 			.pfnStop = BridgeStatsDIStop,
 			.pfnNext = BridgeStatsDINext,
 			.pfnShow = BridgeStatsDIShow,
-			.pfnWrite = BridgeStatsWrite
+			.pfnWrite = BridgeStatsWrite,
+
+			//Expects '0' + Null terminator
+			.ui32WriteLenMax = ((1U)+1U)
 		};
 
 		eError = DICreateEntry("bridge_stats", NULL, &sIter,
@@ -279,10 +278,8 @@ error_:
 	return eError;
 }
 
-PVRSRV_ERROR OSPlatformBridgeDeInit(void)
+void OSPlatformBridgeDeInit(void)
 {
-	PVRSRV_ERROR eError;
-
 #if defined(DEBUG_BRIDGE_KM)
 	if (gpsDIBridgeStatsEntry != NULL)
 	{
@@ -290,15 +287,12 @@ PVRSRV_ERROR OSPlatformBridgeDeInit(void)
 	}
 #endif
 
-	eError = DeinitDMABUFBridge();
-	PVR_LOG_RETURN_IF_ERROR(eError, "DeinitDMABUFBridge");
+	DeinitDMABUFBridge();
 
 	if (g_hDriverThreadEventObject != NULL) {
 		OSEventObjectDestroy(g_hDriverThreadEventObject);
 		g_hDriverThreadEventObject = NULL;
 	}
-
-	return eError;
 }
 
 PVRSRV_ERROR LinuxBridgeBlockClientsAccess(IMG_BOOL bShutdown)
@@ -489,12 +483,12 @@ PVRSRV_BridgeDispatchKM(struct drm_device __maybe_unused *dev, void *arg, struct
 {
 	struct drm_pvr_srvkm_cmd *psSrvkmCmd = (struct drm_pvr_srvkm_cmd *) arg;
 	PVRSRV_BRIDGE_PACKAGE sBridgePackageKM = { 0 };
-	CONNECTION_DATA *psConnection = LinuxConnectionFromFile(pDRMFile->filp);
+	CONNECTION_DATA *psConnection = LinuxServicesConnectionFromFile(pDRMFile->filp);
 	PVRSRV_ERROR error;
 
 	if (psConnection == NULL)
 	{
-		PVR_DPF((PVR_DBG_ERROR, "%s: Connection is closed", __func__));
+		PVR_DPF((PVR_DBG_ERROR, "Invalid connection data"));
 		return -EFAULT;
 	}
 
@@ -528,7 +522,7 @@ e0:
 int
 PVRSRV_MMap(struct file *pFile, struct vm_area_struct *ps_vma)
 {
-	CONNECTION_DATA *psConnection = LinuxConnectionFromFile(pFile);
+	CONNECTION_DATA *psConnection = LinuxServicesConnectionFromFile(pFile);
 	IMG_HANDLE hSecurePMRHandle = (IMG_HANDLE)((uintptr_t)ps_vma->vm_pgoff);
 	PMR *psPMR;
 	PVRSRV_ERROR eError;

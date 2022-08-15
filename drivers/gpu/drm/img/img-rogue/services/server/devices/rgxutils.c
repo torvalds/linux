@@ -75,7 +75,9 @@ PVRSRV_ERROR RGXSetAPMState(const PVRSRV_DEVICE_NODE *psDeviceNode,
 	IMG_UINT32 ui32State)
 {
 	PVRSRV_ERROR eError = PVRSRV_OK;
+#if !defined(NO_HARDWARE)
 	PVRSRV_RGXDEV_INFO *psDevInfo;
+#endif
 
 	PVR_UNREFERENCED_PARAMETER(pvPrivateData);
 
@@ -84,21 +86,19 @@ PVRSRV_ERROR RGXSetAPMState(const PVRSRV_DEVICE_NODE *psDeviceNode,
 		return PVRSRV_ERROR_INVALID_PARAMS;
 	}
 
-	psDevInfo = psDeviceNode->pvDevice;
-
-	if (RGX_ACTIVEPM_FORCE_OFF != ui32State
-		|| !psDevInfo->pvAPMISRData)
+	if (RGX_ACTIVEPM_FORCE_OFF != ui32State)
 	{
 		return PVRSRV_ERROR_NOT_SUPPORTED;
 	}
 
 #if !defined(NO_HARDWARE)
-	eError = OSUninstallMISR(psDevInfo->pvAPMISRData);
-	if (PVRSRV_OK == eError)
+	psDevInfo = psDeviceNode->pvDevice;
+
+	if (psDevInfo->pvAPMISRData)
 	{
 		psDevInfo->eActivePMConf = RGX_ACTIVEPM_FORCE_OFF;
 		psDevInfo->pvAPMISRData = NULL;
-		eError = PVRSRVSetDeviceDefaultPowerState((const PPVRSRV_DEVICE_NODE)psDeviceNode,
+		eError = PVRSRVSetDeviceDefaultPowerState((PPVRSRV_DEVICE_NODE)psDeviceNode,
 		                                          PVRSRV_DEV_POWER_STATE_ON);
 	}
 #endif

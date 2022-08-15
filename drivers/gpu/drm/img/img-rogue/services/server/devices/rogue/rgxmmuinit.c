@@ -892,7 +892,7 @@ static IMG_UINT64 RGXDerivePTEProt8(IMG_UINT32 uiProtFlags, IMG_UINT32 uiLog2Dat
 	else if (MMU_PROTFLAGS_WRITEABLE & uiProtFlags)
 	{
 		/* write only */
-		PVR_DPF((PVR_DBG_MESSAGE, "RGXDerivePTEProt8: write-only is not possible on this device"));
+		PVR_DPF((PVR_DBG_WARNING, "RGXDerivePTEProt8: write-only is not possible on this device"));
 	}
 	else if ((MMU_PROTFLAGS_INVALID & uiProtFlags) == 0)
 	{

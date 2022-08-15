@@ -114,6 +114,9 @@ THE SOFTWARE.
 #define DRM_FORMAT_MOD_LINEAR fourcc_mod_code(NONE, 0)
 #endif
 
+#define DRM_FORMAT_MOD_PVR_FBCDC_8x8_V1      fourcc_mod_code(PVR, 3)
+#define DRM_FORMAT_MOD_PVR_FBCDC_16x4_V1     fourcc_mod_code(PVR, 9)
+
 #define DRM_FORMAT_MOD_PVR_FBCDC_8x8_V7      fourcc_mod_code(PVR, 6)
 #define DRM_FORMAT_MOD_PVR_FBCDC_16x4_V7     fourcc_mod_code(PVR, 12)
 

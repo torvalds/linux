@@ -48,10 +48,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "pvrsrv_error.h"
 
 PVRSRV_ERROR ServerBridgeInit(void);
-PVRSRV_ERROR DeviceDepBridgeInit(IMG_UINT64 ui64Features);
-
-PVRSRV_ERROR ServerBridgeDeInit(void);
-PVRSRV_ERROR DeviceDepBridgeDeInit(IMG_UINT64 ui64Features);
-
+void ServerBridgeDeInit(void);
 
 #endif  /* PVRSRV_BRIDGE_INIT_H */

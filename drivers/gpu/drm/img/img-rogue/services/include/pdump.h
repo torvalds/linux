@@ -126,6 +126,12 @@ typedef IMG_UINT32 PDUMP_FLAGS_T;
                                                           for the second and subsequent PDump client connections.
                                                           Never combine with the CONTINUOUS flag. */
 
+#define PDUMP_FLAGS_INTERVAL        0x04000000U    /*<! Output this entry even when the capture is on a
+                                                          "no capture interval frame" (see pdump -sr option).
+                                                          Useful for commands that have a resource that was written
+                                                          out in a frame that was captured. For example,
+                                                          used by RGXScheduleCleanupCommand. */
+
 #define PDUMP_FLAGS_DEBUG           0x00010000U    /*<! For internal debugging use */
 
 #define PDUMP_FLAGS_NOHW            0x00000001U    /* For internal use: Skip sending instructions to the hardware

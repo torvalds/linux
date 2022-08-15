@@ -99,7 +99,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  * Given a handle for a resource of type eType, return the pointer to the
  * resource.
  *
- * PVRSRV_ERROR PVRSRVLookuSubHandle(PVRSRV_HANDLE_BASE *psBase,
+ * PVRSRV_ERROR PVRSRVLookupSubHandle(PVRSRV_HANDLE_BASE *psBase,
  *      void **ppvData, IMG_HANDLE hHandle, PVRSRV_HANDLE_TYPE eType,
  *      IMH_HANDLE hAncestor);
  *
@@ -152,7 +152,6 @@ typedef struct _PROCESS_HANDLE_BASE_
 {
 	PVRSRV_HANDLE_BASE *psHandleBase;
 	ATOMIC_T iRefCount;
-
 } PROCESS_HANDLE_BASE;
 
 extern PVRSRV_HANDLE_BASE *gpsKernelHandleBase;
@@ -176,9 +175,12 @@ PVRSRV_ERROR PVRSRVLookupHandleUnlocked(PVRSRV_HANDLE_BASE *psBase, void **ppvDa
 
 PVRSRV_ERROR PVRSRVLookupSubHandle(PVRSRV_HANDLE_BASE *psBase, void **ppvData, IMG_HANDLE hHandle, PVRSRV_HANDLE_TYPE eType, IMG_HANDLE hAncestor);
 
-PVRSRV_ERROR PVRSRVReleaseHandle(PVRSRV_HANDLE_BASE *psBase, IMG_HANDLE hHandle, PVRSRV_HANDLE_TYPE eType);
-PVRSRV_ERROR PVRSRVReleaseHandleUnlocked(PVRSRV_HANDLE_BASE *psBase, IMG_HANDLE hHandle, PVRSRV_HANDLE_TYPE eType);
-PVRSRV_ERROR PVRSRVReleaseHandleStagedUnlock(PVRSRV_HANDLE_BASE *psBase, IMG_HANDLE hHandle, PVRSRV_HANDLE_TYPE eType);
+void PVRSRVReleaseHandle(PVRSRV_HANDLE_BASE *psBase, IMG_HANDLE hHandle, PVRSRV_HANDLE_TYPE eType);
+void PVRSRVReleaseHandleUnlocked(PVRSRV_HANDLE_BASE *psBase, IMG_HANDLE hHandle, PVRSRV_HANDLE_TYPE eType);
+
+PVRSRV_ERROR PVRSRVDestroyHandle(PVRSRV_HANDLE_BASE *psBase, IMG_HANDLE hHandle, PVRSRV_HANDLE_TYPE eType);
+PVRSRV_ERROR PVRSRVDestroyHandleUnlocked(PVRSRV_HANDLE_BASE *psBase, IMG_HANDLE hHandle, PVRSRV_HANDLE_TYPE eType);
+PVRSRV_ERROR PVRSRVDestroyHandleStagedUnlocked(PVRSRV_HANDLE_BASE *psBase, IMG_HANDLE hHandle, PVRSRV_HANDLE_TYPE eType);
 
 PVRSRV_ERROR PVRSRVPurgeHandles(PVRSRV_HANDLE_BASE *psBase);
 
@@ -194,6 +196,9 @@ PVRSRV_ERROR PVRSRVHandleInit(void);
 PVRSRV_ERROR PVRSRVHandleDeInit(void);
 
 PVRSRV_HANDLE_BASE *PVRSRVRetrieveProcessHandleBase(void);
+
+PVRSRV_ERROR PVRSRVAcquireProcessHandleBase(IMG_PID uiPid, PROCESS_HANDLE_BASE **ppsBase);
+PVRSRV_ERROR PVRSRVReleaseProcessHandleBase(PROCESS_HANDLE_BASE *psBase, IMG_PID uiPid, IMG_UINT64 ui64MaxBridgeTime);
 
 void LockHandle(PVRSRV_HANDLE_BASE *psBase);
 void UnlockHandle(PVRSRV_HANDLE_BASE *psBase);

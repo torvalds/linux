@@ -64,6 +64,7 @@ extern "C" {
 #include "img_types.h"
 #include "img_elf.h"
 #include "pvrsrv_error.h" /* includes pvrsrv_errors.h */
+#include "pvrsrv_firmware_boot.h"
 #include "rgx_bvnc_defs_km.h"
 #include "rgx_fw_info.h"
 #include "rgx_fwif_shared.h" /* includes rgx_common.h and mem_types.h */

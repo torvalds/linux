@@ -52,6 +52,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "osfunc.h"
 #include "pvr_debug.h"
 
+#include "kernel_compatibility.h"
+
 #if defined(CONFIG_OUTER_CACHE)
   /* If you encounter a 64-bit ARM system with an outer cache, you'll need
    * to add the necessary code to manage that cache. See osfunc_arm.c
@@ -63,14 +65,14 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 static inline void begin_user_mode_access(void)
 {
 #if defined(CONFIG_ARM64) && defined(CONFIG_ARM64_SW_TTBR0_PAN)
-	uaccess_enable();
+	uaccess_enable_privileged();
 #endif
 }
 
 static inline void end_user_mode_access(void)
 {
 #if defined(CONFIG_ARM64) && defined(CONFIG_ARM64_SW_TTBR0_PAN)
-	uaccess_disable();
+	uaccess_disable_privileged();
 #endif
 }
 

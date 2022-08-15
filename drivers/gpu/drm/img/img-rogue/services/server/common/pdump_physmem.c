@@ -60,6 +60,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "allocmem.h"
 #include "osfunc.h"
 
+#include "pvrsrv.h"
+
 /* #define MAX_PDUMP_MMU_CONTEXTS	(10) */
 /* static IMG_UINT32 guiPDumpMMUContextAvailabilityMask = (1<<MAX_PDUMP_MMU_CONTEXTS)-1; */
 
@@ -140,7 +142,8 @@ PVRSRV_ERROR PDumpGetSymbolicAddr(const IMG_HANDLE hPhysmemPDumpHandle,
  * Returns        : PVRSRV_ERROR
  * Description    :
  **************************************************************************/
-PVRSRV_ERROR PDumpMalloc(const IMG_CHAR *pszDevSpace,
+PVRSRV_ERROR PDumpMalloc(PVRSRV_DEVICE_NODE *psDeviceNode,
+                         const IMG_CHAR *pszDevSpace,
                          const IMG_CHAR *pszSymbolicAddress,
                          IMG_UINT64 ui64Size,
                          IMG_DEVMEM_ALIGN_T uiAlign,
@@ -208,7 +211,7 @@ PVRSRV_ERROR PDumpMalloc(const IMG_CHAR *pszDevSpace,
 	}
 
 	PDUMP_LOCK(ui32PDumpFlags);
-	PDumpWriteScript(hScript, ui32PDumpFlags);
+	PDumpWriteScript(psDeviceNode, hScript, ui32PDumpFlags);
 	PDUMP_UNLOCK(ui32PDumpFlags);
 
 	psPDumpAllocationInfo->ui64Size = ui64Size;
@@ -229,7 +232,8 @@ _return:
  * Returns        : PVRSRV_ERROR
  * Description    :
  **************************************************************************/
-PVRSRV_ERROR PDumpFree(IMG_HANDLE hPDumpAllocationInfoHandle)
+PVRSRV_ERROR PDumpFree(PVRSRV_DEVICE_NODE *psDeviceNode,
+                       IMG_HANDLE hPDumpAllocationInfoHandle)
 {
 	PVRSRV_ERROR eError = PVRSRV_OK;
 	IMG_UINT32 ui32Flags = PDUMP_FLAGS_CONTINUOUS | PDUMP_FLAGS_BLKDATA;
@@ -248,7 +252,7 @@ PVRSRV_ERROR PDumpFree(IMG_HANDLE hPDumpAllocationInfoHandle)
 	PVR_GOTO_IF_ERROR(eError, _return);
 
 	PDUMP_LOCK(ui32Flags);
-	PDumpWriteScript(hScript, ui32Flags);
+	PDumpWriteScript(psDeviceNode, hScript, ui32Flags);
 	OSFreeMem(psPDumpAllocationInfo);
 	PDUMP_UNLOCK(ui32Flags);
 
@@ -257,8 +261,13 @@ _return:
 	return eError;
 }
 
+
+/* Checking that the request is for the PDump-bound device
+ * should be done before the following function is called
+ */
 PVRSRV_ERROR
-PDumpPMRWRW32(const IMG_CHAR *pszDevSpace,
+PDumpPMRWRW32(PVRSRV_DEVICE_NODE *psDeviceNode,
+              const IMG_CHAR *pszDevSpace,
               const IMG_CHAR *pszSymbolicName,
               IMG_DEVMEM_OFFSET_T uiOffset,
               IMG_UINT32 ui32Value,
@@ -279,7 +288,7 @@ PDumpPMRWRW32(const IMG_CHAR *pszDevSpace,
 	PVR_GOTO_IF_ERROR(eError, _return);
 
 	PDUMP_LOCK(uiPDumpFlags);
-	PDumpWriteScript(hScript, uiPDumpFlags);
+	PDumpWriteScript(psDeviceNode, hScript, uiPDumpFlags);
 	PDUMP_UNLOCK(uiPDumpFlags);
 
 _return:
@@ -287,8 +296,12 @@ _return:
 	return eError;
 }
 
+/* Checking that the request is for the PDump-bound device
+ * should be done before the following function is called
+ */
 PVRSRV_ERROR
-PDumpPMRWRW32InternalVarToMem(const IMG_CHAR *pszDevSpace,
+PDumpPMRWRW32InternalVarToMem(PVRSRV_DEVICE_NODE *psDeviceNode,
+                              const IMG_CHAR *pszDevSpace,
                               const IMG_CHAR *pszSymbolicName,
                               IMG_DEVMEM_OFFSET_T uiOffset,
                               const IMG_CHAR *pszInternalVar,
@@ -308,7 +321,7 @@ PDumpPMRWRW32InternalVarToMem(const IMG_CHAR *pszDevSpace,
 	PVR_GOTO_IF_ERROR(eError, _return);
 
 	PDUMP_LOCK(uiPDumpFlags);
-	PDumpWriteScript(hScript, uiPDumpFlags);
+	PDumpWriteScript(psDeviceNode, hScript, uiPDumpFlags);
 	PDUMP_UNLOCK(uiPDumpFlags);
 
 _return:
@@ -316,8 +329,12 @@ _return:
 	return eError;
 }
 
+/* Checking that the request is for the PDump-bound device
+ * should be done before the following function is called
+ */
 PVRSRV_ERROR
-PDumpPMRRDW32MemToInternalVar(const IMG_CHAR *pszInternalVar,
+PDumpPMRRDW32MemToInternalVar(PVRSRV_DEVICE_NODE *psDeviceNode,
+                              const IMG_CHAR *pszInternalVar,
                               const IMG_CHAR *pszDevSpace,
                               const IMG_CHAR *pszSymbolicName,
                               IMG_DEVMEM_OFFSET_T uiOffset,
@@ -337,7 +354,7 @@ PDumpPMRRDW32MemToInternalVar(const IMG_CHAR *pszInternalVar,
 	PVR_GOTO_IF_ERROR(eError, _return);
 
 	PDUMP_LOCK(uiPDumpFlags);
-	PDumpWriteScript(hScript, uiPDumpFlags);
+	PDumpWriteScript(psDeviceNode, hScript, uiPDumpFlags);
 	PDUMP_UNLOCK(uiPDumpFlags);
 
 _return:
@@ -345,8 +362,12 @@ _return:
 	return eError;
 }
 
+/* Checking that the request is for the PDump-bound device
+ * should be done before the following function is called
+ */
 PVRSRV_ERROR
-PDumpPMRWRW64(const IMG_CHAR *pszDevSpace,
+PDumpPMRWRW64(PVRSRV_DEVICE_NODE *psDeviceNode,
+              const IMG_CHAR *pszDevSpace,
               const IMG_CHAR *pszSymbolicName,
               IMG_DEVMEM_OFFSET_T uiOffset,
               IMG_UINT64 ui64Value,
@@ -367,7 +388,7 @@ PDumpPMRWRW64(const IMG_CHAR *pszDevSpace,
 	PVR_GOTO_IF_ERROR(eError, _return);
 
 	PDUMP_LOCK(uiPDumpFlags);
-	PDumpWriteScript(hScript, uiPDumpFlags);
+	PDumpWriteScript(psDeviceNode, hScript, uiPDumpFlags);
 	PDUMP_UNLOCK(uiPDumpFlags);
 
 _return:
@@ -375,8 +396,12 @@ _return:
 	return eError;
 }
 
+/* Checking that the request is for the PDump-bound device
+ * should be done before the following function is called
+ */
 PVRSRV_ERROR
-PDumpPMRWRW64InternalVarToMem(const IMG_CHAR *pszDevSpace,
+PDumpPMRWRW64InternalVarToMem(PVRSRV_DEVICE_NODE *psDeviceNode,
+                              const IMG_CHAR *pszDevSpace,
                               const IMG_CHAR *pszSymbolicName,
                               IMG_DEVMEM_OFFSET_T uiOffset,
                               const IMG_CHAR *pszInternalVar,
@@ -396,7 +421,7 @@ PDumpPMRWRW64InternalVarToMem(const IMG_CHAR *pszDevSpace,
 	PVR_GOTO_IF_ERROR(eError, _return);
 
 	PDUMP_LOCK(uiPDumpFlags);
-	PDumpWriteScript(hScript, uiPDumpFlags);
+	PDumpWriteScript(psDeviceNode, hScript, uiPDumpFlags);
 	PDUMP_UNLOCK(uiPDumpFlags);
 
 _return:
@@ -404,8 +429,12 @@ _return:
 	return eError;
 }
 
+/* Checking that the request is for the PDump-bound device
+ * should be done before the following function is called
+ */
 PVRSRV_ERROR
-PDumpPMRRDW64MemToInternalVar(const IMG_CHAR *pszInternalVar,
+PDumpPMRRDW64MemToInternalVar(PVRSRV_DEVICE_NODE *psDeviceNode,
+                              const IMG_CHAR *pszInternalVar,
                               const IMG_CHAR *pszDevSpace,
                               const IMG_CHAR *pszSymbolicName,
                               IMG_DEVMEM_OFFSET_T uiOffset,
@@ -425,7 +454,7 @@ PDumpPMRRDW64MemToInternalVar(const IMG_CHAR *pszInternalVar,
 	PVR_GOTO_IF_ERROR(eError, _return);
 
 	PDUMP_LOCK(uiPDumpFlags);
-	PDumpWriteScript(hScript, uiPDumpFlags);
+	PDumpWriteScript(psDeviceNode, hScript, uiPDumpFlags);
 	PDUMP_UNLOCK(uiPDumpFlags);
 
 _return:
@@ -433,8 +462,12 @@ _return:
 	return eError;
 }
 
+/* Checking that the request is for the PDump-bound device
+ * should be done before the following function is called
+ */
 PVRSRV_ERROR
-PDumpPMRLDB(const IMG_CHAR *pszDevSpace,
+PDumpPMRLDB(PVRSRV_DEVICE_NODE *psDeviceNode,
+            const IMG_CHAR *pszDevSpace,
             const IMG_CHAR *pszSymbolicName,
             IMG_DEVMEM_OFFSET_T uiOffset,
             IMG_DEVMEM_SIZE_T uiSize,
@@ -460,7 +493,7 @@ PDumpPMRLDB(const IMG_CHAR *pszDevSpace,
 	PVR_GOTO_IF_ERROR(eError, _return);
 
 	PDUMP_LOCK(uiPDumpFlags);
-	PDumpWriteScript(hScript, uiPDumpFlags);
+	PDumpWriteScript(psDeviceNode, hScript, uiPDumpFlags);
 	PDUMP_UNLOCK(uiPDumpFlags);
 
 _return:
@@ -468,7 +501,11 @@ _return:
 	return eError;
 }
 
-PVRSRV_ERROR PDumpPMRSAB(const IMG_CHAR *pszDevSpace,
+/* Checking that the request is for the PDump-bound device
+ * should be done before the following function is called
+ */
+PVRSRV_ERROR PDumpPMRSAB(PVRSRV_DEVICE_NODE *psDeviceNode,
+                         const IMG_CHAR *pszDevSpace,
                          const IMG_CHAR *pszSymbolicName,
                          IMG_DEVMEM_OFFSET_T uiOffset,
                          IMG_DEVMEM_SIZE_T uiSize,
@@ -496,7 +533,7 @@ PVRSRV_ERROR PDumpPMRSAB(const IMG_CHAR *pszDevSpace,
 	PVR_GOTO_IF_ERROR(eError, _return);
 
 	PDUMP_LOCK(uiPDumpFlags);
-	PDumpWriteScript(hScript, uiPDumpFlags);
+	PDumpWriteScript(psDeviceNode, hScript, uiPDumpFlags);
 	PDUMP_UNLOCK(uiPDumpFlags);
 
 _return:
@@ -504,8 +541,12 @@ _return:
 	return eError;
 }
 
+/* Checking that the request is for the PDump-bound device
+ * should be done before the following function is called
+ */
 PVRSRV_ERROR
-PDumpPMRPOL(const IMG_CHAR *pszMemspaceName,
+PDumpPMRPOL(PVRSRV_DEVICE_NODE *psDeviceNode,
+            const IMG_CHAR *pszMemspaceName,
             const IMG_CHAR *pszSymbolicName,
             IMG_DEVMEM_OFFSET_T uiOffset,
             IMG_UINT32 ui32Value,
@@ -534,7 +575,7 @@ PDumpPMRPOL(const IMG_CHAR *pszMemspaceName,
 	PVR_GOTO_IF_ERROR(eError, _return);
 
 	PDUMP_LOCK(uiPDumpFlags);
-	PDumpWriteScript(hScript, uiPDumpFlags);
+	PDumpWriteScript(psDeviceNode, hScript, uiPDumpFlags);
 	PDUMP_UNLOCK(uiPDumpFlags);
 
 _return:
@@ -542,8 +583,12 @@ _return:
 	return eError;
 }
 
+/* Checking that the request is for the PDump-bound device
+ * should be done before the following function is called
+ */
 PVRSRV_ERROR
-PDumpPMRCBP(const IMG_CHAR *pszMemspaceName,
+PDumpPMRCBP(PVRSRV_DEVICE_NODE *psDeviceNode,
+            const IMG_CHAR *pszMemspaceName,
             const IMG_CHAR *pszSymbolicName,
             IMG_DEVMEM_OFFSET_T uiReadOffset,
             IMG_DEVMEM_OFFSET_T uiWriteOffset,
@@ -569,7 +614,7 @@ PDumpPMRCBP(const IMG_CHAR *pszMemspaceName,
 	PVR_GOTO_IF_ERROR(eError, _return);
 
 	PDUMP_LOCK(uiPDumpFlags);
-	PDumpWriteScript(hScript, uiPDumpFlags);
+	PDumpWriteScript(psDeviceNode, hScript, uiPDumpFlags);
 	PDUMP_UNLOCK(uiPDumpFlags);
 
 _return:
@@ -577,8 +622,12 @@ _return:
 	return eError;
 }
 
+/* Checking that the request is for the PDump-bound device
+ * should be done before the following function is called
+ */
 PVRSRV_ERROR
-PDumpWriteParameterBlob(IMG_UINT8 *pcBuffer,
+PDumpWriteParameterBlob(PVRSRV_DEVICE_NODE *psDeviceNode,
+                        IMG_UINT8 *pcBuffer,
                         size_t uiNumBytes,
                         PDUMP_FLAGS_T uiPDumpFlags,
                         IMG_CHAR *pszFilenameOut,
@@ -604,7 +653,8 @@ PDumpWriteParameterBlob(IMG_UINT8 *pcBuffer,
 
 	PDUMP_LOCK(uiPDumpFlags);
 
-	eError = PDumpWriteParameter(pcBuffer, uiNumBytes, uiPDumpFlags, puiOffsetOut, pszFilenameOut);
+	eError = PDumpWriteParameter(psDeviceNode, pcBuffer, uiNumBytes,
+	                             uiPDumpFlags, puiOffsetOut, pszFilenameOut);
 	PDUMP_UNLOCK(uiPDumpFlags);
 
 	if ((eError != PVRSRV_OK) && (eError != PVRSRV_ERROR_PDUMP_NOT_ALLOWED))

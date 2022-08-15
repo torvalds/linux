@@ -64,7 +64,7 @@ static inline void *pvr_vmap(struct page **pages,
 	return vmap(pages, count, flags, prot);
 #elif (LINUX_VERSION_CODE < KERNEL_VERSION(5, 8, 0))
 	return vm_map_ram(pages, count, -1, prot);
-#else   //using this code path
+#else
 	if (pgprot_val(prot) == pgprot_val(PAGE_KERNEL))
 		return vm_map_ram(pages, count, -1);
 	else

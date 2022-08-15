@@ -61,9 +61,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "ospvr_gputrace.h"
 #include "htbuffer.h"
 #include "rgxshader.h"
-#include "devicemem_utils.h"
-#include "client_cache_bridge.h"
-
 
 #include "pdump_km.h"
 
@@ -127,7 +124,8 @@ static PVRSRV_ERROR _CreateTDMTransferContext(
 		RGX_SERVER_TQ_TDM_DATA  * psTDMData,
 		IMG_UINT32				  ui32CCBAllocSizeLog2,
 		IMG_UINT32				  ui32CCBMaxAllocSizeLog2,
-		IMG_UINT32				  ui32ContextFlags)
+		IMG_UINT32				  ui32ContextFlags,
+		IMG_UINT64                ui64RobustnessAddress)
 {
 	PVRSRV_ERROR eError;
 
@@ -161,7 +159,7 @@ static PVRSRV_ERROR _CreateTDMTransferContext(
 			ui32ContextFlags,
 			ui32Priority,
 			UINT_MAX, /* max deadline MS */
-			0, /* robustness address */
+			ui64RobustnessAddress,
 			psInfo,
 			&psTDMData->psServerCommonContext);
 	if (eError != PVRSRV_OK)
@@ -230,6 +228,7 @@ PVRSRV_ERROR PVRSRVRGXTDMCreateTransferContextKM(
 		IMG_HANDLE                   hMemCtxPrivData,
 		IMG_UINT32					 ui32PackedCCBSizeU88,
 		IMG_UINT32                   ui32ContextFlags,
+		IMG_UINT64                   ui64RobustnessAddress,
 		RGX_SERVER_TQ_TDM_CONTEXT ** ppsTransferContext)
 {
 	RGX_SERVER_TQ_TDM_CONTEXT * psTransferContext;
@@ -291,7 +290,8 @@ PVRSRV_ERROR PVRSRVRGXTDMCreateTransferContextKM(
 		}
 
 		/* Copy the Framework client data into the framework buffer */
-		eError = PVRSRVRGXFrameworkCopyCommand(psTransferContext->psFWFrameworkMemDesc,
+		eError = PVRSRVRGXFrameworkCopyCommand(psDeviceNode,
+				psTransferContext->psFWFrameworkMemDesc,
 				pabyFrameworkCommand,
 				ui32FrameworkCommandSize);
 		if (eError != PVRSRV_OK)
@@ -316,7 +316,8 @@ PVRSRV_ERROR PVRSRVRGXTDMCreateTransferContextKM(
 	                                   &psTransferContext->sTDMData,
 									   U32toU8_Unpack1(ui32PackedCCBSizeU88),
 									   U32toU8_Unpack2(ui32PackedCCBSizeU88),
-	                                   ui32ContextFlags);
+	                                   ui32ContextFlags,
+	                                   ui64RobustnessAddress);
 	if (eError != PVRSRV_OK)
 	{
 		goto fail_tdmtransfercontext;
@@ -376,11 +377,6 @@ PVRSRV_ERROR PVRSRVRGXTDMReleaseSharedMemoryKM(PMR * psPMRMem)
 
 PVRSRV_ERROR PVRSRVRGXTDMDestroyTransferContextKM(RGX_SERVER_TQ_TDM_CONTEXT *psTransferContext)
 {
-#if defined(SUPPORT_WORKLOAD_ESTIMATION)
-#ifdef CACHE_TEST
-	struct DEVMEM_MEMDESC_TAG *pxmdsc = NULL;
-#endif
-#endif
 	PVRSRV_ERROR eError;
 	PVRSRV_RGXDEV_INFO *psDevInfo = psTransferContext->psDeviceNode->pvDevice;
 #if defined(SUPPORT_WORKLOAD_ESTIMATION)
@@ -399,15 +395,6 @@ PVRSRV_ERROR PVRSRVRGXTDMDestroyTransferContextKM(RGX_SERVER_TQ_TDM_CONTEXT *psT
 					PVRSRVGetErrorString(eError)));
 			return eError;
 		}
-#ifdef CACHE_TEST
-		pxmdsc = (struct DEVMEM_MEMDESC_TAG *)psTransferContext->psFWTransferContextMemDesc;
-		printk("in %s L:%d mdsc->size:%lld, import->size:%lld, flag:%llx\n", __func__, __LINE__, pxmdsc->uiAllocSize, pxmdsc->psImport->uiSize, (unsigned long long)(pxmdsc->psImport->uiFlags & PVRSRV_MEMALLOCFLAG_CPU_CACHE_MODE_MASK));
-		if(pxmdsc->uiAllocSize > 4096 && !(PVRSRV_CHECK_CPU_UNCACHED(pxmdsc->psImport->uiFlags) || PVRSRV_CHECK_CPU_WRITE_COMBINE(pxmdsc->psImport->uiFlags)))
-		{
-		    printk("in %s L:%d cache_op:%d\n", __func__, __LINE__,PVRSRV_CACHE_OP_INVALIDATE);
-		    BridgeCacheOpExec (GetBridgeHandle(pxmdsc->psImport->hDevConnection),pxmdsc->psImport->hPMR,(IMG_UINT64)(uintptr_t)psFWTransferContext - pxmdsc->uiOffset,pxmdsc->uiOffset,pxmdsc->uiAllocSize,PVRSRV_CACHE_OP_INVALIDATE);
-		}
-#endif
 
 		ui32WorkEstCCBSubmitted = psFWTransferContext->ui32WorkEstCCBSubmitted;
 
@@ -482,7 +469,6 @@ fail_destroyTDM:
 PVRSRV_ERROR PVRSRVRGXTDMSubmitTransferKM(
 		RGX_SERVER_TQ_TDM_CONTEXT * psTransferContext,
 		IMG_UINT32                  ui32PDumpFlags,
-		IMG_UINT32                  ui32ClientCacheOpSeqNum,
 		IMG_UINT32                  ui32ClientUpdateCount,
 		SYNC_PRIMITIVE_BLOCK     ** pauiClientUpdateUFODevVarBlock,
 		IMG_UINT32                * paui32ClientUpdateSyncOffset,
@@ -930,7 +916,8 @@ PVRSRV_ERROR PVRSRVRGXTDMSubmitTransferKM(
 		/*
 			Create the command helper data for this command
 		*/
-		RGXCmdHelperInitCmdCCB(psClientCCB,
+		RGXCmdHelperInitCmdCCB(psDevInfo,
+		                       psClientCCB,
 		                       0,
 		                       ui32IntClientFenceCount,
 		                       pauiIntFenceUFOAddress,
@@ -1057,7 +1044,6 @@ PVRSRV_ERROR PVRSRVRGXTDMSubmitTransferKM(
 			eError2 = RGXScheduleCommand(psDeviceNode->pvDevice,
 			                             RGXFWIF_DM_TDM,
 			                             & sTDMKCCBCmd,
-			                             ui32ClientCacheOpSeqNum,
 			                             ui32PDumpFlags);
 			if (eError2 != PVRSRV_ERROR_RETRY)
 			{
@@ -1065,6 +1051,16 @@ PVRSRV_ERROR PVRSRVRGXTDMSubmitTransferKM(
 			}
 			OSWaitus(MAX_HW_TIME_US/WAIT_TRY_COUNT);
 		} END_LOOP_UNTIL_TIMEOUT();
+
+		if (eError2 != PVRSRV_OK)
+		{
+			PVR_DPF((PVR_DBG_ERROR, "PVRSRVRGXTDMSubmitTransferKM failed to schedule kernel CCB command. (0x%x)", eError2));
+			if (eError == PVRSRV_OK)
+			{
+				eError = eError2;
+			}
+			goto fail_2dcmdacquire;
+		}
 
 		PVRGpuTraceEnqueueEvent(psDeviceNode->pvDevice, ui32FWAddr, ui32ExtJobRef,
 		                        ui32IntJobRef, RGX_HWPERF_KICK_TYPE_TQTDM);
@@ -1203,7 +1199,6 @@ PVRSRV_ERROR PVRSRVRGXTDMNotifyWriteOffsetUpdateKM(
 		eError = RGXScheduleCommand(psTransferContext->psDeviceNode->pvDevice,
 		                            RGXFWIF_DM_TDM,
 		                            &sKCCBCmd,
-		                            0,
 		                            ui32PDumpFlags);
 		if (eError != PVRSRV_ERROR_RETRY)
 		{
@@ -1259,21 +1254,18 @@ PVRSRV_ERROR PVRSRVRGXTDMSetTransferContextPropertyKM(RGX_SERVER_TQ_TDM_CONTEXT 
 													  IMG_UINT64 ui64Input,
 													  IMG_UINT64 *pui64Output)
 {
-	PVRSRV_ERROR eError;
+	PVRSRV_ERROR eError = PVRSRV_OK;
 
 	switch (eContextProperty)
 	{
 		case RGX_CONTEXT_PROPERTY_FLAGS:
 		{
+			IMG_UINT32 ui32ContextFlags = (IMG_UINT32)ui64Input;
+
 			OSLockAcquire(psTransferContext->hLock);
 			eError = FWCommonContextSetFlags(psTransferContext->sTDMData.psServerCommonContext,
-			                                 (IMG_UINT32)ui64Input);
-			if (eError == PVRSRV_OK)
-			{
-				psTransferContext->ui32Flags = (IMG_UINT32)ui64Input;
-			}
+			                                 ui32ContextFlags);
 			OSLockRelease(psTransferContext->hLock);
-			PVR_LOG_IF_ERROR(eError, "FWCommonContextSetFlags");
 			break;
 		}
 

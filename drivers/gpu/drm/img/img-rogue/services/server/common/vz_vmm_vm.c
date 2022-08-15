@@ -64,7 +64,6 @@ PVRSRV_ERROR PvzOnVmOnline(IMG_UINT32 ui32OSid)
 	PVRSRV_ERROR       eError          = PVRSRV_OK;
 	PVRSRV_DATA        *psPVRSRVData   = PVRSRVGetPVRSRVData();
 	PVRSRV_DEVICE_NODE *psDevNode;
-	PVRSRV_RGXDEV_INFO *psDevInfo;
 
 	if (ui32OSid == 0 || ui32OSid >= RGX_NUM_OS_SUPPORTED)
 	{
@@ -87,7 +86,6 @@ PVRSRV_ERROR PvzOnVmOnline(IMG_UINT32 ui32OSid)
 
 	/* For now, limit support to single device setups */
 	psDevNode = psPVRSRVData->psDeviceNodeList;
-	psDevInfo = psDevNode->pvDevice;
 
 	if (psDevNode->eDevState == PVRSRV_DEVICE_STATE_INIT)
 	{

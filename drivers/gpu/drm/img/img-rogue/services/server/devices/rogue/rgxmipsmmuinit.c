@@ -696,7 +696,8 @@ static PVRSRV_ERROR RGXCheckTrampolineAddrs(struct _PVRSRV_DEVICE_NODE_ *psDevNo
 		{
 			PVRSRV_RGXDEV_INFO *psDevice = (PVRSRV_RGXDEV_INFO *)psDevNode->pvDevice;
 
-			if (RGXMIPSFW_SENSITIVE_ADDR(*pui64Addr))
+			if ((RGX_GET_FEATURE_VALUE(psDevice, PHYS_BUS_WIDTH) == 32) &&
+				 RGXMIPSFW_SENSITIVE_ADDR(*pui64Addr))
 			{
 				*pui64Addr = psDevice->psTrampoline->sPhysAddr.uiAddr + RGXMIPSFW_TRAMPOLINE_OFFSET(*pui64Addr);
 			}
@@ -1005,3 +1006,40 @@ static PVRSRV_ERROR RGXGetPageSizeFromPDE8(IMG_UINT64 ui64PDE, IMG_UINT32 *pui32
 	PVR_DPF((PVR_DBG_ERROR, "PDE not supported on MIPS"));
 	return PVRSRV_ERROR_MMU_INVALID_PAGE_SIZE_FOR_DEVICE;
 }
+
+void RGXMipsCheckFaultAddress(MMU_CONTEXT *psFwMMUCtx,
+                              IMG_UINT32 ui32FwVA,
+                              MMU_FAULT_DATA *psOutFaultData)
+{
+	IMG_UINT32 *pui32PageTable = NULL;
+	PVRSRV_ERROR eError = MMU_AcquireCPUBaseAddr(psFwMMUCtx, (void**) &pui32PageTable);
+	MMU_LEVEL_DATA *psMMULevelData;
+	IMG_UINT32 ui32FwHeapBase = (IMG_UINT32) (RGX_FIRMWARE_RAW_HEAP_BASE & UINT_MAX);
+	IMG_UINT32 ui32PageSize = OSGetPageSize();
+
+	/* MIPS Firmware CPU must use the same page size as the Host */
+	IMG_UINT32 ui32PTEIndex = ((ui32FwVA & ~(ui32PageSize - 1)) - ui32FwHeapBase) / ui32PageSize;
+
+	psOutFaultData->eTopLevel = MMU_LEVEL_1;
+	psOutFaultData->eType = MMU_FAULT_TYPE_NON_PM;
+
+	psMMULevelData = &psOutFaultData->sLevelData[MMU_LEVEL_1];
+	psMMULevelData->uiBytesPerEntry = 1 << RGXMIPSFW_LOG2_PTE_ENTRY_SIZE;
+	psMMULevelData->ui32Index = ui32PTEIndex;
+	psMMULevelData->ui32NumOfEntries = RGX_FIRMWARE_RAW_HEAP_SIZE / ui32PageSize;
+
+	if ((eError == PVRSRV_OK) && (pui32PageTable != NULL))
+	{
+		psMMULevelData->ui64Address = pui32PageTable[ui32PTEIndex];
+	}
+	else
+	{
+		psMMULevelData->ui64Address = 0U;
+	}
+
+	psMMULevelData->psDebugStr = BITMASK_HAS(psMMULevelData->ui64Address,
+	                                         RGXMIPSFW_TLB_VALID) ?
+	                             ("valid") : ("not valid");
+}
+
+

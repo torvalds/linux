@@ -62,8 +62,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  *
  *****************************************************************************/
 
-static IMG_UINT32 g_ui32ClockSource = PVRSRV_APPHINT_TIMECORRCLOCK;
-
 /*
 	AppHint interfaces
 */
@@ -75,6 +73,9 @@ static PVRSRV_ERROR _SetClock(const PVRSRV_DEVICE_NODE *psDeviceNode,
 	static __maybe_unused const char* const apszClocks[] = {
 		"mono", "mono_raw", "sched"
 	};
+	PVRSRV_RGXDEV_INFO *psDevInfo = psDeviceNode->pvDevice;
+
+	PVR_ASSERT(psDeviceNode->pvDevice != NULL);
 
 	PVR_UNREFERENCED_PARAMETER(psPrivate);
 
@@ -88,10 +89,10 @@ static PVRSRV_ERROR _SetClock(const PVRSRV_DEVICE_NODE *psDeviceNode,
 	               RGXTIMECORR_EVENT_CLOCK_CHANGE);
 
 	PVR_DPF((PVR_DBG_WARNING, "Setting time correlation clock from \"%s\" to \"%s\"",
-			apszClocks[g_ui32ClockSource],
+			apszClocks[psDevInfo->ui32ClockSource],
 			apszClocks[ui32Value]));
 
-	g_ui32ClockSource = ui32Value;
+	psDevInfo->ui32ClockSource = ui32Value;
 
 	RGXTimeCorrBegin((PVRSRV_DEVICE_NODE *) psDeviceNode,
 	                 RGXTIMECORR_EVENT_CLOCK_CHANGE);
@@ -103,7 +104,10 @@ static PVRSRV_ERROR _GetClock(const PVRSRV_DEVICE_NODE *psDeviceNode,
                               const void *psPrivate,
                               IMG_UINT32 *pui32Value)
 {
-	*pui32Value = g_ui32ClockSource;
+	PVR_ASSERT(psDeviceNode->pvDevice != NULL);
+
+	*pui32Value =
+	    ((PVRSRV_RGXDEV_INFO *) psDeviceNode->pvDevice)->ui32ClockSource;
 
 	PVR_UNREFERENCED_PARAMETER(psPrivate);
 
@@ -120,11 +124,11 @@ void RGXTimeCorrInitAppHintCallbacks(const PVRSRV_DEVICE_NODE *psDeviceNode)
 	End of AppHint interface
 */
 
-IMG_UINT64 RGXTimeCorrGetClockns64(void)
+IMG_UINT64 RGXTimeCorrGetClockns64(const PVRSRV_DEVICE_NODE *psDeviceNode)
 {
 	IMG_UINT64 ui64Clock;
 
-	switch (g_ui32ClockSource) {
+	switch (((PVRSRV_RGXDEV_INFO *) psDeviceNode->pvDevice)->ui32ClockSource) {
 		case RGXTIMECORR_CLOCK_MONO:
 			return ((void) OSClockMonotonicns64(&ui64Clock), ui64Clock);
 		case RGXTIMECORR_CLOCK_MONO_RAW:
@@ -137,10 +141,10 @@ IMG_UINT64 RGXTimeCorrGetClockns64(void)
 	}
 }
 
-IMG_UINT64 RGXTimeCorrGetClockus64(void)
+IMG_UINT64 RGXTimeCorrGetClockus64(const PVRSRV_DEVICE_NODE *psDeviceNode)
 {
 	IMG_UINT32 rem;
-	return OSDivide64r64(RGXTimeCorrGetClockns64(), 1000, &rem);
+	return OSDivide64r64(RGXTimeCorrGetClockns64(psDeviceNode), 1000, &rem);
 }
 
 void RGXGetTimeCorrData(PVRSRV_DEVICE_NODE *psDeviceNode,
@@ -239,7 +243,7 @@ static void _RGXMakeTimeCorrData(PVRSRV_DEVICE_NODE *psDeviceNode, RGXTIMECORR_E
 	}
 #endif
 	psTimeCorr->ui64CRTimeStamp = RGXReadHWTimerReg(psDevInfo);
-	psTimeCorr->ui64OSTimeStamp = RGXTimeCorrGetClockns64();
+	psTimeCorr->ui64OSTimeStamp = RGXTimeCorrGetClockns64(psDeviceNode);
 	psTimeCorr->ui32CoreClockSpeed = _RGXGetEstimatedGPUClockSpeed(psDevInfo);
 	psTimeCorr->ui64CRDeltaToOSDeltaKNs = RGXTimeCorrGetConversionFactor(psTimeCorr->ui32CoreClockSpeed);
 
@@ -255,7 +259,7 @@ static void _RGXMakeTimeCorrData(PVRSRV_DEVICE_NODE *psDeviceNode, RGXTIMECORR_E
 	}
 
 	/* Make sure the values are written to memory before updating the index of the current entry */
-	OSWriteMemoryBarrier();
+	OSWriteMemoryBarrier(psTimeCorr);
 
 	/* Update the index of the current entry in the timer correlation array */
 	psGpuUtilFWCB->ui32TimeCorrSeqCount = ui32NewSeqCount;
@@ -300,7 +304,7 @@ static void _RGXCheckTimeCorrData(PVRSRV_DEVICE_NODE *psDeviceNode,
 	 * they represent the same current time sampled from different clock sources.
 	 */
 	ui64CRTimeStamp = RGXReadHWTimerReg(psDevInfo);
-	ui64OSTimeStamp = RGXTimeCorrGetClockns64();
+	ui64OSTimeStamp = RGXTimeCorrGetClockns64(psDeviceNode);
 
 	if ((ui64OSTimeStamp - psTimeCorr->ui64OSTimeStamp) < (1 << SCALING_FACTOR))
 	{
@@ -401,7 +405,7 @@ static void _RGXGPUFreqCalibrationPeriodStart(PVRSRV_DEVICE_NODE *psDeviceNode, 
 	IMG_UINT32 ui32CoreClockSpeed, ui32Index;
 
 	IMG_UINT64 ui64CRTimestamp = RGXReadHWTimerReg(psDevInfo);
-	IMG_UINT64 ui64OSTimestamp = RGXTimeCorrGetClockus64();
+	IMG_UINT64 ui64OSTimestamp = RGXTimeCorrGetClockus64(psDeviceNode);
 
 	psGpuDVFSTable->ui64CalibrationCRTimestamp = ui64CRTimestamp;
 	psGpuDVFSTable->ui64CalibrationOSTimestamp = ui64OSTimestamp;
@@ -450,7 +454,7 @@ static void _RGXGPUFreqCalibrationPeriodStop(PVRSRV_DEVICE_NODE *psDeviceNode,
 	PVRSRV_RGXDEV_INFO *psDevInfo = psDeviceNode->pvDevice;
 
 	IMG_UINT64 ui64CRTimestamp = RGXReadHWTimerReg(psDevInfo);
-	IMG_UINT64 ui64OSTimestamp = RGXTimeCorrGetClockus64();
+	IMG_UINT64 ui64OSTimestamp = RGXTimeCorrGetClockus64(psDeviceNode);
 
 	psGpuDVFSTable->ui64CalibrationCRTimediff =
 	    ui64CRTimestamp - psGpuDVFSTable->ui64CalibrationCRTimestamp;
@@ -579,7 +583,7 @@ void RGXTimeCorrRestartPeriodic(IMG_HANDLE hDevHandle)
 	PVRSRV_DEVICE_NODE     *psDeviceNode   = hDevHandle;
 	PVRSRV_RGXDEV_INFO     *psDevInfo      = psDeviceNode->pvDevice;
 	RGX_GPU_DVFS_TABLE     *psGpuDVFSTable = psDevInfo->psGpuDVFSTable;
-	IMG_UINT64             ui64TimeNow     = RGXTimeCorrGetClockus64();
+	IMG_UINT64             ui64TimeNow     = RGXTimeCorrGetClockus64(psDeviceNode);
 	PVRSRV_DEV_POWER_STATE ePowerState = PVRSRV_DEV_POWER_STATE_DEFAULT;
 	PVRSRV_VZ_RETN_IF_MODE(GUEST);
 
@@ -613,9 +617,9 @@ void RGXTimeCorrRestartPeriodic(IMG_HANDLE hDevHandle)
 /*
 	RGXTimeCorrGetClockSource
 */
-RGXTIMECORR_CLOCK_TYPE RGXTimeCorrGetClockSource(void)
+RGXTIMECORR_CLOCK_TYPE RGXTimeCorrGetClockSource(const PVRSRV_DEVICE_NODE *psDeviceNode)
 {
-	return g_ui32ClockSource;
+	return ((PVRSRV_RGXDEV_INFO *) psDeviceNode->pvDevice)->ui32ClockSource;
 }
 
 /*
@@ -633,9 +637,8 @@ PVRSRVRGXCurrentTime(CONNECTION_DATA    * psConnection,
                      IMG_UINT64         * pui64Time)
 {
 	PVR_UNREFERENCED_PARAMETER(psConnection);
-	PVR_UNREFERENCED_PARAMETER(psDeviceNode);
 
-	*pui64Time = RGXTimeCorrGetClockns64();
+	*pui64Time = RGXTimeCorrGetClockns64(psDeviceNode);
 
 	return PVRSRV_OK;
 }

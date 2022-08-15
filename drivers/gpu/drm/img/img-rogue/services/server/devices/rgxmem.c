@@ -58,15 +58,12 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "rgx_memallocflags.h"
 #include "rgx_bvnc_defs_km.h"
 #include "info_page.h"
-#include "devicemem_utils.h"
-#include "client_cache_bridge.h"
-
 
 #if defined(PDUMP)
 #include "sync.h"
 #endif
 
-typedef struct SERVER_MMU_CONTEXT_TAG
+struct SERVER_MMU_CONTEXT_TAG
 {
 	DEVMEM_MEMDESC *psFWMemContextMemDesc;
 	PRGXFWIF_FWMEMCONTEXT sFWMemContextDevVirtAddr;
@@ -76,7 +73,7 @@ typedef struct SERVER_MMU_CONTEXT_TAG
 	IMG_UINT64 ui64FBSCEntryMask;
 	DLLIST_NODE sNode;
 	PVRSRV_RGXDEV_INFO *psDevInfo;
-} SERVER_MMU_CONTEXT;
+}; /* SERVER_MMU_CONTEXT is typedef-ed in rgxmem.h */
 
 PVRSRV_ERROR RGXSLCFlushRange(PVRSRV_DEVICE_NODE *psDeviceNode,
 							  MMU_CONTEXT *psMMUContext,
@@ -111,7 +108,8 @@ PVRSRV_ERROR RGXSLCFlushRange(PVRSRV_DEVICE_NODE *psDeviceNode,
 
 	/* Schedule the SLC flush command */
 #if defined(PDUMP)
-	PDUMPCOMMENTWITHFLAGS(PDUMP_FLAGS_CONTINUOUS, "Submit SLC flush and invalidate");
+	PDUMPCOMMENTWITHFLAGS(psDeviceNode, PDUMP_FLAGS_CONTINUOUS,
+	                      "Submit SLC flush and invalidate");
 #endif
 	sFlushInvalCmd.eCmdType = RGXFWIF_KCCB_CMD_SLCFLUSHINVAL;
 	sFlushInvalCmd.uCmdData.sSLCFlushInvalData.bInval = bInvalidate;
@@ -225,7 +223,9 @@ void RGXMMUCacheInvalidate(PVRSRV_DEVICE_NODE *psDeviceNode,
 		case MMU_LEVEL_1:
 			ui32NewCacheFlags = RGXFWIF_MMUCACHEDATA_FLAGS_PT;
 
+#if defined(RGX_FEATURE_SLC_VIVT_BIT_MASK)
 			if (!(RGX_IS_FEATURE_SUPPORTED(psDevInfo, SLC_VIVT)))
+#endif
 			{
 				ui32NewCacheFlags |= RGXFWIF_MMUCACHEDATA_FLAGS_TLB;
 			}
@@ -238,11 +238,13 @@ void RGXMMUCacheInvalidate(PVRSRV_DEVICE_NODE *psDeviceNode,
 			break;
 	}
 
+#if defined(RGX_FEATURE_SLC_VIVT_BIT_MASK)
 	if (RGX_IS_FEATURE_SUPPORTED(psDevInfo, SLC_VIVT))
 	{
 		MMU_AppendCacheFlags(psMMUContext, ui32NewCacheFlags);
 	}
 	else
+#endif
 	{
 		MMU_AppendCacheFlags(psDevInfo->psKernelMMUCtx, ui32NewCacheFlags);
 	}
@@ -286,7 +288,7 @@ PVRSRV_ERROR _PrepareAndSubmitCacheCommand(PVRSRV_DEVICE_NODE *psDeviceNode,
 	sFlushCmd.uCmdData.sMMUCacheData.ui32CacheFlags = ui32CacheFlags;
 
 #if defined(PDUMP)
-	PDUMPCOMMENTWITHFLAGS(PDUMP_FLAGS_CONTINUOUS,
+	PDUMPCOMMENTWITHFLAGS(psDeviceNode, PDUMP_FLAGS_CONTINUOUS,
 	                      "Submit MMU flush and invalidate (flags = 0x%08x)",
 	                      ui32CacheFlags);
 #endif
@@ -312,7 +314,7 @@ PVRSRV_ERROR RGXMMUCacheInvalidateKick(PVRSRV_DEVICE_NODE *psDeviceNode,
 {
 	PVRSRV_ERROR eError;
 	IMG_UINT32 ui32FWCacheFlags;
-
+	PVRSRV_RGXDEV_INFO *psDevInfo = (PVRSRV_RGXDEV_INFO *)psDeviceNode->pvDevice;
 	eError = PVRSRVPowerLock(psDeviceNode);
 	if (eError != PVRSRV_OK)
 	{
@@ -330,15 +332,16 @@ PVRSRV_ERROR RGXMMUCacheInvalidateKick(PVRSRV_DEVICE_NODE *psDeviceNode,
 	}
 
 	/* Ensure device is powered up before sending cache command */
-	PDUMPPOWCMDSTART();
+	PDUMPPOWCMDSTART(psDeviceNode);
 	eError = PVRSRVSetDevicePowerStateKM(psDeviceNode,
 										 PVRSRV_DEV_POWER_STATE_ON,
-										 IMG_FALSE);
-	PDUMPPOWCMDEND();
+										 PVRSRV_POWER_FLAGS_NONE);
+	PDUMPPOWCMDEND(psDeviceNode);
 	if (eError != PVRSRV_OK)
 	{
 		PVR_DPF((PVR_DBG_WARNING, "%s: failed to transition RGX to ON (%s)",
 					__func__, PVRSRVGetErrorString(eError)));
+		MMU_AppendCacheFlags(psDevInfo->psKernelMMUCtx, ui32FWCacheFlags);
 		goto _PowerUnlockAndReturnErr;
 	}
 
@@ -347,6 +350,9 @@ PVRSRV_ERROR RGXMMUCacheInvalidateKick(PVRSRV_DEVICE_NODE *psDeviceNode,
 	if (eError != PVRSRV_OK)
 	{
 		/* failed to submit cache operations, return failure */
+		PVR_DPF((PVR_DBG_WARNING, "%s: failed to submit cache command (%s)",
+					__func__, PVRSRVGetErrorString(eError)));
+		MMU_AppendCacheFlags(psDevInfo->psKernelMMUCtx, ui32FWCacheFlags);
 		goto _PowerUnlockAndReturnErr;
 	}
 
@@ -439,7 +445,8 @@ void RGXUnregisterMemoryContext(IMG_HANDLE hPrivData)
 		 * MMU cache commands (always dumped) might have a pointer to this FW
 		 * memory context, wait until the FW has caught-up to the latest command.
 		 */
-		PDUMPCOMMENT("Ensure FW has executed all MMU invalidations on FW memory "
+		PDUMPCOMMENT(psDevInfo->psDeviceNode,
+		             "Ensure FW has executed all MMU invalidations on FW memory "
 		             "context 0x%x before freeing it", sFWAddr.ui32Addr);
 		SyncPrimPDumpPol(psDevInfo->psDeviceNode->psMMUCacheSyncPrim,
 		                 psDevInfo->psDeviceNode->ui32NextMMUInvalidateUpdate - 1,
@@ -466,7 +473,7 @@ void RGXUnregisterMemoryContext(IMG_HANDLE hPrivData)
 	/*
 	 * Free the firmware memory context.
 	 */
-	PDUMPCOMMENT("Free FW memory context");
+	PDUMPCOMMENT(psDevInfo->psDeviceNode, "Free FW memory context");
 	DevmemFwUnmapAndFree(psDevInfo, psServerMMUContext->psFWMemContextMemDesc);
 
 	OSFreeMem(psServerMMUContext);
@@ -479,9 +486,6 @@ PVRSRV_ERROR RGXRegisterMemoryContext(PVRSRV_DEVICE_NODE	*psDeviceNode,
 									  MMU_CONTEXT			*psMMUContext,
 									  IMG_HANDLE			*hPrivData)
 {
-#ifdef CACHE_TEST
-	struct DEVMEM_MEMDESC_TAG *pxmdsc = NULL;
-#endif
 	PVRSRV_ERROR			eError;
 	PVRSRV_RGXDEV_INFO		*psDevInfo = psDeviceNode->pvDevice;
 	PVRSRV_MEMALLOCFLAGS_T	uiFWMemContextMemAllocFlags;
@@ -539,7 +543,7 @@ PVRSRV_ERROR RGXRegisterMemoryContext(PVRSRV_DEVICE_NODE	*psDeviceNode,
 			Allocate device memory for the firmware memory context for the new
 			application.
 		*/
-		PDUMPCOMMENT("Allocate RGX firmware memory context");
+		PDUMPCOMMENT(psDevInfo->psDeviceNode, "Allocate RGX firmware memory context");
 		eError = DevmemFwAllocate(psDevInfo,
 								sizeof(*psFWMemContext),
 								uiFWMemContextMemAllocFlags | PVRSRV_MEMALLOCFLAG_ZERO_ON_ALLOC,
@@ -568,15 +572,6 @@ PVRSRV_ERROR RGXRegisterMemoryContext(PVRSRV_DEVICE_NODE	*psDeviceNode,
 			         eError));
 			goto fail_acquire_cpu_addr;
 		}
-#ifdef CACHE_TEST
-		pxmdsc = (struct DEVMEM_MEMDESC_TAG *)psFWMemContextMemDesc;
-		printk("in %s L:%d mdsc->size:%lld, import->size:%lld, flag:%llx\n", __func__, __LINE__, pxmdsc->uiAllocSize, pxmdsc->psImport->uiSize, (unsigned long long)(pxmdsc->psImport->uiFlags & PVRSRV_MEMALLOCFLAG_CPU_CACHE_MODE_MASK));
-		if(pxmdsc->uiAllocSize > 4096 && !(PVRSRV_CHECK_CPU_UNCACHED(pxmdsc->psImport->uiFlags) || PVRSRV_CHECK_CPU_WRITE_COMBINE(pxmdsc->psImport->uiFlags)))
-		{
-		    printk("in %s L:%d cache_op:%d\n", __func__, __LINE__,PVRSRV_CACHE_OP_INVALIDATE);
-		    BridgeCacheOpExec (GetBridgeHandle(pxmdsc->psImport->hDevConnection),pxmdsc->psImport->hPMR,(IMG_UINT64)(uintptr_t)psFWMemContext - pxmdsc->uiOffset,pxmdsc->uiOffset,pxmdsc->uiAllocSize,PVRSRV_CACHE_OP_INVALIDATE);
-		}
-#endif
 
 		/*
 		 * Write the new memory context's page catalogue into the firmware memory
@@ -596,7 +591,7 @@ PVRSRV_ERROR RGXRegisterMemoryContext(PVRSRV_DEVICE_NODE	*psDeviceNode,
 		/*
 		 * Set default values for the rest of the structure.
 		 */
-		psFWMemContext->uiPageCatBaseRegID = RGXFW_BIF_INVALID_PCREG;
+		psFWMemContext->uiPageCatBaseRegSet = RGXFW_BIF_INVALID_PCSET;
 		psFWMemContext->uiBreakpointAddr = 0;
 		psFWMemContext->uiBPHandlerAddr = 0;
 		psFWMemContext->uiBreakpointCtl = 0;
@@ -680,10 +675,11 @@ PVRSRV_ERROR RGXRegisterMemoryContext(PVRSRV_DEVICE_NODE	*psDeviceNode,
 		              OSGetCurrentClientProcessNameKM(),
 		              sizeof(psServerMMUContext->szProcessName));
 
-		PDUMPCOMMENTWITHFLAGS(PDUMP_FLAGS_CONTINUOUS, "New memory context: Process Name: %s PID: %u (0x%08X)",
-										psServerMMUContext->szProcessName,
-										psServerMMUContext->uiPID,
-										psServerMMUContext->uiPID);
+		PDUMPCOMMENTWITHFLAGS(psDeviceNode, PDUMP_FLAGS_CONTINUOUS,
+		                      "New memory context: Process Name: %s PID: %u (0x%08X)",
+		                      psServerMMUContext->szProcessName,
+		                      psServerMMUContext->uiPID,
+		                      psServerMMUContext->uiPID);
 
 		OSWRLockAcquireWrite(psDevInfo->hMemoryCtxListLock);
 		dllist_add_to_tail(&psDevInfo->sMemoryContextList, &psServerMMUContext->sNode);

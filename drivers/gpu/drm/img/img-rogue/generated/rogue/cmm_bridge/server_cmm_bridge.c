@@ -199,10 +199,11 @@ PVRSRVBridgeDevmemIntUnexportCtx(IMG_UINT32 ui32DispatchTableEntry,
 	LockHandle(psConnection->psHandleBase);
 
 	psDevmemIntUnexportCtxOUT->eError =
-	    PVRSRVReleaseHandleStagedUnlock(psConnection->psHandleBase,
-					    (IMG_HANDLE) psDevmemIntUnexportCtxIN->hContextExport,
-					    PVRSRV_HANDLE_TYPE_DEVMEMINT_CTX_EXPORT);
+	    PVRSRVDestroyHandleStagedUnlocked(psConnection->psHandleBase,
+					      (IMG_HANDLE) psDevmemIntUnexportCtxIN->hContextExport,
+					      PVRSRV_HANDLE_TYPE_DEVMEMINT_CTX_EXPORT);
 	if (unlikely((psDevmemIntUnexportCtxOUT->eError != PVRSRV_OK) &&
+		     (psDevmemIntUnexportCtxOUT->eError != PVRSRV_ERROR_KERNEL_CCB_FULL) &&
 		     (psDevmemIntUnexportCtxOUT->eError != PVRSRV_ERROR_RETRY)))
 	{
 		PVR_DPF((PVR_DBG_ERROR,
@@ -325,7 +326,7 @@ DevmemIntAcquireRemoteCtx_exit:
 			/* Lock over handle creation cleanup. */
 			LockHandle(psConnection->psHandleBase);
 
-			eError = PVRSRVReleaseHandleUnlocked(psConnection->psHandleBase,
+			eError = PVRSRVDestroyHandleUnlocked(psConnection->psHandleBase,
 							     (IMG_HANDLE)
 							     psDevmemIntAcquireRemoteCtxOUT->
 							     hContext,
@@ -363,7 +364,7 @@ DevmemIntAcquireRemoteCtx_exit:
 
 #if !defined(EXCLUDE_CMM_BRIDGE)
 PVRSRV_ERROR InitCMMBridge(void);
-PVRSRV_ERROR DeinitCMMBridge(void);
+void DeinitCMMBridge(void);
 
 /*
  * Register all CMM functions with services
@@ -386,7 +387,7 @@ PVRSRV_ERROR InitCMMBridge(void)
 /*
  * Unregister all cmm functions with services
  */
-PVRSRV_ERROR DeinitCMMBridge(void)
+void DeinitCMMBridge(void)
 {
 
 	UnsetDispatchTableEntry(PVRSRV_BRIDGE_CMM, PVRSRV_BRIDGE_CMM_DEVMEMINTEXPORTCTX);
@@ -395,7 +396,6 @@ PVRSRV_ERROR DeinitCMMBridge(void)
 
 	UnsetDispatchTableEntry(PVRSRV_BRIDGE_CMM, PVRSRV_BRIDGE_CMM_DEVMEMINTACQUIREREMOTECTX);
 
-	return PVRSRV_OK;
 }
 #else /* EXCLUDE_CMM_BRIDGE */
 /* This bridge is conditional on EXCLUDE_CMM_BRIDGE - when defined,
@@ -404,7 +404,6 @@ PVRSRV_ERROR DeinitCMMBridge(void)
 #define InitCMMBridge() \
 	PVRSRV_OK
 
-#define DeinitCMMBridge() \
-	PVRSRV_OK
+#define DeinitCMMBridge()
 
 #endif /* EXCLUDE_CMM_BRIDGE */

@@ -50,22 +50,9 @@ extern "C" {
 #include "img_defs.h"
 
 /* Included to get the BVNC_KM_N defined and other feature defs */
-#include "../hwdefs/rogue/km/rgxdefs_km.h"
+#include "km/rgxdefs_km.h"
 
-/*! This macro represents a mask of LSBs that must be zero on data structure
- * sizes and offsets to ensure they are 8-byte granular on types shared between
- * the FW and host driver */
-#define RGX_FW_ALIGNMENT_LSB (7U)
-
-/*! Macro to test structure size alignment */
-#define RGX_FW_STRUCT_SIZE_ASSERT(_a)	\
-	static_assert((sizeof(_a) & RGX_FW_ALIGNMENT_LSB) == 0U,	\
-				  "Size of " #_a " is not properly aligned")
-
-/*! Macro to test structure member alignment */
-#define RGX_FW_STRUCT_OFFSET_ASSERT(_a, _b)	\
-	static_assert((offsetof(_a, _b) & RGX_FW_ALIGNMENT_LSB) == 0U,	\
-				  "Offset of " #_a "." #_b " is not properly aligned")
+#include "rgx_common_asserts.h"
 
 
 /* Virtualisation validation builds are meant to test the VZ-related hardware without a fully virtualised platform.
@@ -98,44 +85,27 @@ typedef IMG_UINT32 RGXFWIF_DM;
 #define	RGXFWIF_DM_3D			IMG_UINT32_C(3)
 #define	RGXFWIF_DM_CDM			IMG_UINT32_C(4)
 #define	RGXFWIF_DM_RAY			IMG_UINT32_C(5)
+#define	RGXFWIF_DM_GEOM2		IMG_UINT32_C(6)
+#define	RGXFWIF_DM_GEOM3		IMG_UINT32_C(7)
+#define	RGXFWIF_DM_GEOM4		IMG_UINT32_C(8)
 
-#define	RGXFWIF_DM_LAST RGXFWIF_DM_RAY
+#define	RGXFWIF_DM_LAST			RGXFWIF_DM_GEOM4
 
-typedef enum _RGX_KICK_TYPE_DM_
-{
-	RGX_KICK_TYPE_DM_GP		= 0x001,
-	RGX_KICK_TYPE_DM_TDM_2D		= 0x002,
-	RGX_KICK_TYPE_DM_TA		= 0x004,
-	RGX_KICK_TYPE_DM_3D		= 0x008,
-	RGX_KICK_TYPE_DM_CDM		= 0x010,
-	RGX_KICK_TYPE_DM_RTU		= 0x020,
-	RGX_KICK_TYPE_DM_SHG		= 0x040,
-	RGX_KICK_TYPE_DM_TQ2D		= 0x080,
-	RGX_KICK_TYPE_DM_TQ3D		= 0x100,
-	RGX_KICK_TYPE_DM_RAY		= 0x200,
-	RGX_KICK_TYPE_DM_LAST		= 0x400
-} RGX_KICK_TYPE_DM;
+typedef IMG_UINT32 RGX_KICK_TYPE_DM;
+#define RGX_KICK_TYPE_DM_GP		IMG_UINT32_C(0x001)
+#define RGX_KICK_TYPE_DM_TDM_2D	IMG_UINT32_C(0x002)
+#define RGX_KICK_TYPE_DM_TA		IMG_UINT32_C(0x004)
+#define RGX_KICK_TYPE_DM_3D		IMG_UINT32_C(0x008)
+#define RGX_KICK_TYPE_DM_CDM	IMG_UINT32_C(0x010)
+#define RGX_KICK_TYPE_DM_RTU	IMG_UINT32_C(0x020)
+#define RGX_KICK_TYPE_DM_SHG	IMG_UINT32_C(0x040)
+#define RGX_KICK_TYPE_DM_TQ2D	IMG_UINT32_C(0x080)
+#define RGX_KICK_TYPE_DM_TQ3D	IMG_UINT32_C(0x100)
+#define RGX_KICK_TYPE_DM_RAY	IMG_UINT32_C(0x200)
+#define RGX_KICK_TYPE_DM_LAST	IMG_UINT32_C(0x400)
 
-/* Maximum number of DM in use: GP, 2D/TDM, TA, 3D, CDM, SHG, RTU, RDM */
-#define RGXFWIF_DM_DEFAULT_MAX	(RGXFWIF_DM_LAST + 1U)
-
-/* Maximum number of DM in use: GP, 2D/TDM, TA, 3D, CDM, RDM*/
-#define RGXFWIF_DM_MAX			(6U)
-#define RGXFWIF_HWDM_MAX		(RGXFWIF_DM_MAX)
-
-/* Min/Max number of HW DMs (all but GP) */
-#if defined(RGX_FEATURE_TLA)
-#define RGXFWIF_HWDM_MIN		(1U)
-#else
-#if defined(RGX_FEATURE_FASTRENDER_DM)
-#define RGXFWIF_HWDM_MIN		(1U)
-#else
-#define RGXFWIF_HWDM_MIN		(2U)
-#endif
-#endif
-
-#define RGXFWIF_DM_MIN_MTS_CNT		(6)
-#define RGXFWIF_DM_MIN_CNT		(5)
+/* Maximum number of DM in use: GP, 2D/TDM, GEOM, 3D, CDM, RDM, GEOM2, GEOM3, GEOM4 */
+#define RGXFWIF_DM_MAX			(RGXFWIF_DM_LAST + 1U)
 
 /*
  * Data Master Tags to be appended to resources created on behalf of each RGX
@@ -218,10 +188,18 @@ typedef enum _RGX_KICK_TYPE_DM_
 #define RGX_MAX_NUM_REGISTER_PROGRAMMER_WRITES  (128U)
 
 /* FW common context priority. */
-#define RGX_CTX_PRIORITY_REALTIME  (UINT32_MAX)
-#define RGX_CTX_PRIORITY_HIGH      (2U)
-#define RGX_CTX_PRIORITY_MEDIUM    (1U)
-#define RGX_CTX_PRIORITY_LOW       (0)
+/*!
+ * @AddToGroup WorkloadContexts
+ * @{
+ */
+#define RGX_CTX_PRIORITY_REALTIME  (INT32_MAX)
+#define RGX_CTX_PRIORITY_HIGH      (2U) /*!< HIGH priority */
+#define RGX_CTX_PRIORITY_MEDIUM    (1U) /*!< MEDIUM priority */
+#define RGX_CTX_PRIORITY_LOW       (0) /*!< LOW priority */
+/*!
+ * @} End of AddToGroup WorkloadContexts
+ */
+
 
 /*
  *   Use of the 32-bit context property flags mask
@@ -236,6 +214,9 @@ typedef enum _RGX_KICK_TYPE_DM_
  * (specify a context's properties at creation time)
  */
 #define RGX_CONTEXT_FLAG_DISABLESLR					(1UL << 0) /*!< Disable SLR */
+
+/* Bitmask of context flags allowed to be modified after context create. */
+#define RGX_CONTEXT_FLAGS_WRITEABLE_MASK            (RGX_CONTEXT_FLAG_DISABLESLR)
 
 /* List of attributes that may be set for a context */
 typedef enum _RGX_CONTEXT_PROPERTY_

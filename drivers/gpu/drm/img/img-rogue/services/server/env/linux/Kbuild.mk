@@ -41,19 +41,14 @@
 
 # Window system
 ccflags-y += -DWINDOW_SYSTEM=\"$(WINDOW_SYSTEM)\"
-ifeq ($(FPGA_VERIFICATION),1)
-ccflags-y += -D__FPGA_VERIFICATION__=$(FPGA_VERIFICATION)
-endif
 
 # Linux kernel headers
 ccflags-y += \
  -Iinclude \
- -Iinclude/drm \
- -Iinclude/mm
-# -I$(srctree)/mm
+ -Iinclude/drm
 
 # Compatibility BVNC
-ccflags-y += -I$(TOP)/services/shared/devices/$(PVR_ARCH)
+ccflags-y += -I$(TOP)/services/shared/devices/$(PVR_ARCH_DEFS)
 
 # Errata files
 ccflags-y += -I$(HWDEFS_DIR) -I$(HWDEFS_DIR)/$(RGX_BNC)
@@ -61,11 +56,9 @@ ccflags-y += -I$(HWDEFS_DIR) -I$(HWDEFS_DIR)/$(RGX_BNC)
 # Linux-specific headers
 ccflags-y += \
  -I$(TOP)/include/drm \
- -I$(srctree)/drivers/gpu/drm/img \
  -I$(TOP)/services/include/env/linux \
  -I$(TOP)/services/server/env/linux/$(PVR_ARCH) -I$(TOP)/services/server/env/linux \
- -I$(TOP)/hwdefs/$(PVR_ARCH)/km
- #-I$(TOP)/kernel/drivers/staging/imgtec
+ -I$(TOP)/kernel/drivers/staging/imgtec
 
 # System dir
 ifneq ($(wildcard $(TOP)/services/system/$(PVR_ARCH)/$(PVR_SYSTEM)/Kbuild.mk),)
@@ -171,11 +164,12 @@ endif
 
 ifeq ($(SUPPORT_RGX),1)
 $(PVRSRV_MODNAME)-y += \
+ services/server/devices/rgx_bridge_init.o \
  services/server/env/linux/pvr_gputrace.o \
  services/server/devices/rgxfwdbg.o \
  services/server/devices/rgxtimerquery.o \
  services/server/devices/rgxccb.o \
- services/server/devices/$(PVR_ARCH)/rgxdebug.o \
+ services/server/devices/$(PVR_ARCH_DEFS)/rgxdebug.o \
  services/server/devices/rgxfwtrace_strings.o \
  services/server/devices/$(PVR_ARCH)/rgxfwutils.o \
  services/server/devices/$(PVR_ARCH)/rgxinit.o \
@@ -195,7 +189,6 @@ $(PVRSRV_MODNAME)-y += \
  services/server/devices/$(PVR_ARCH)/rgxstartstop.o \
  services/server/devices/rgxtimecorr.o \
  services/server/devices/$(PVR_ARCH)/rgxcompute.o \
- services/server/devices/rgxsignals.o \
  services/server/devices/$(PVR_ARCH)/rgxmulticore.o \
  services/server/devices/rgxshader.o
 
@@ -226,6 +219,17 @@ ifeq ($(SUPPORT_WORKLOAD_ESTIMATION),1)
  services/server/devices/rgxworkest.o
 endif
 
+ifeq ($(SUPPORT_VALIDATION),1)
+ifeq ($(PVR_TESTING_UTILS),1)
+ $(PVRSRV_MODNAME)-y += \
+ services/server/devices/rgxgpumap.o
+endif
+endif
+
+ifeq ($(SUPPORT_VALIDATION),1)
+ $(PVRSRV_MODNAME)-y += \
+ services/server/devices/rgxsoctimer.o
+endif
 endif
 
 ifeq ($(SUPPORT_DISPLAY_CLASS),1)
@@ -284,6 +288,12 @@ $(PVRSRV_MODNAME)-y += \
 endif
 
 ifeq ($(SUPPORT_NATIVE_FENCE_SYNC),1)
+$(PVRSRV_MODNAME)-y += services/server/env/linux/pvr_sync_ioctl_common.o
+ifeq ($(USE_PVRSYNC_DEVNODE),1)
+$(PVRSRV_MODNAME)-y += services/server/env/linux/pvr_sync_ioctl_dev.o
+else
+$(PVRSRV_MODNAME)-y += services/server/env/linux/pvr_sync_ioctl_drm.o
+endif
 ifeq ($(SUPPORT_DMA_FENCE),1)
 $(PVRSRV_MODNAME)-y += \
  services/server/env/linux/pvr_sync_file.o \
@@ -318,11 +328,20 @@ $(PVRSRV_MODNAME)-$(CONFIG_METAG) += services/server/env/linux/osfunc_metag.o
 $(PVRSRV_MODNAME)-$(CONFIG_MIPS) += services/server/env/linux/osfunc_mips.o
 $(PVRSRV_MODNAME)-$(CONFIG_RISCV) += services/server/env/linux/osfunc_riscv.o
 
-ifeq ($(CONFIG_DEBUG_FS),y)
-$(PVRSRV_MODNAME)-$(CONFIG_DEBUG_FS) += services/server/env/linux/pvr_debugfs.o
-else ifeq ($(CONFIG_PROC_FS),y)
-$(PVRSRV_MODNAME)-$(CONFIG_PROC_FS) += services/server/env/linux/pvr_procfs.o
+ifeq ($(SUPPORT_ANDROID_PLATFORM),1)
+ ifeq ($(CONFIG_PROC_FS),y)
+ $(PVRSRV_MODNAME)-$(CONFIG_PROC_FS) += services/server/env/linux/pvr_procfs.o
+ else ifeq ($(CONFIG_DEBUG_FS),y)
+ $(PVRSRV_MODNAME)-$(CONFIG_DEBUG_FS) += services/server/env/linux/pvr_debugfs.o
+ endif
+else
+ ifeq ($(CONFIG_DEBUG_FS),y)
+ $(PVRSRV_MODNAME)-$(CONFIG_DEBUG_FS) += services/server/env/linux/pvr_debugfs.o
+ else ifeq ($(CONFIG_PROC_FS),y)
+ $(PVRSRV_MODNAME)-$(CONFIG_PROC_FS) += services/server/env/linux/pvr_procfs.o
+ endif
 endif
+
 ifeq ($(SUPPORT_DI_BRG_IMPL),1)
 $(PVRSRV_MODNAME)-y += services/server/common/di_impl_brg.o
 endif
@@ -338,12 +357,24 @@ $(PVRSRV_MODNAME)-y += \
  services/server/devices/rgxfwimageutils.o
 ifeq ($(PVR_ARCH),rogue)
 $(PVRSRV_MODNAME)-y += \
- services/shared/devices/$(PVR_ARCH)/rgx_hwperf_table.o
+ services/shared/devices/$(PVR_ARCH_DEFS)/rgx_hwperf_table.o
 endif
 endif
 
+$(PVRSRV_MODNAME)-y += \
+ services/system/$(PVR_ARCH)/common/env/linux/dma_support.o \
+ services/system/common/env/linux/interrupt_support.o
+
+$(PVRSRV_MODNAME)-$(CONFIG_PCI) += \
+ services/system/common/env/linux/pci_support.o
+
 ccflags-y += \
- -I$(HWDEFS_DIR)/km \
+ -I$(HWDEFS_DIR)/km
+ifeq ($(PVR_ARCH),rogue)
+ccflags-y += \
+ -I$(TOP)/include/$(PVR_ARCH_DEFS)
+endif
+ccflags-y += \
  -I$(TOP)/include/$(PVR_ARCH) -I$(TOP)/include \
  -I$(TOP)/include/$(PVR_ARCH)/public -I$(TOP)/include/public \
  -I$(TOP)/services/include/$(PVR_ARCH) -I$(TOP)/services/include \
@@ -384,15 +415,13 @@ endif
 
 ifeq ($(SUPPORT_RGX),1)
 ccflags-y += \
- -I$(bridge_base)/rgxtq2_bridge \
  -I$(bridge_base)/rgxta3d_bridge \
  -I$(bridge_base)/rgxhwperf_bridge \
  -I$(bridge_base)/rgxkicksync_bridge \
  -I$(bridge_base)/rgxcmp_bridge \
  -I$(bridge_base)/rgxregconfig_bridge \
  -I$(bridge_base)/rgxtimerquery_bridge \
- -I$(bridge_base)/rgxfwdbg_bridge \
- -I$(bridge_base)/rgxsignals_bridge
+ -I$(bridge_base)/rgxfwdbg_bridge
 ifeq ($(PVR_ARCH),volcanic)
 ccflags-y += \
  -I$(bridge_base)/rgxray_bridge
@@ -400,6 +429,11 @@ endif
 ifeq ($(PVR_ARCH),rogue)
 ccflags-y += \
  -I$(bridge_base)/rgxtq_bridge
+endif
+# Oceanic does not support TDM
+ifneq ($(PVR_ARCH_DEFS),oceanic)
+ccflags-y += \
+ -I$(bridge_base)/rgxtq2_bridge
 endif
 ifeq ($(SUPPORT_USC_BREAKPOINT),1)
 ccflags-y += \
@@ -424,15 +458,13 @@ endif
 
 ifeq ($(SUPPORT_RGX),1)
 $(PVRSRV_MODNAME)-y += \
- generated/$(PVR_ARCH)/rgxtq2_bridge/server_rgxtq2_bridge.o \
  generated/$(PVR_ARCH)/rgxta3d_bridge/server_rgxta3d_bridge.o \
  generated/$(PVR_ARCH)/rgxhwperf_bridge/server_rgxhwperf_bridge.o \
  generated/$(PVR_ARCH)/rgxkicksync_bridge/server_rgxkicksync_bridge.o \
  generated/$(PVR_ARCH)/rgxcmp_bridge/server_rgxcmp_bridge.o \
  generated/$(PVR_ARCH)/rgxregconfig_bridge/server_rgxregconfig_bridge.o \
  generated/$(PVR_ARCH)/rgxtimerquery_bridge/server_rgxtimerquery_bridge.o \
- generated/$(PVR_ARCH)/rgxfwdbg_bridge/server_rgxfwdbg_bridge.o \
- generated/$(PVR_ARCH)/rgxsignals_bridge/server_rgxsignals_bridge.o
+ generated/$(PVR_ARCH)/rgxfwdbg_bridge/server_rgxfwdbg_bridge.o
 ifeq ($(PVR_ARCH),volcanic)
 $(PVRSRV_MODNAME)-y += \
  generated/$(PVR_ARCH)/rgxray_bridge/server_rgxray_bridge.o
@@ -440,6 +472,11 @@ endif
 ifeq ($(PVR_ARCH),rogue)
 $(PVRSRV_MODNAME)-y += \
  generated/$(PVR_ARCH)/rgxtq_bridge/server_rgxtq_bridge.o
+endif
+# Oceanic does not support TDM
+ifneq ($(PVR_ARCH_DEFS),oceanic)
+$(PVRSRV_MODNAME)-y += \
+ generated/$(PVR_ARCH)/rgxtq2_bridge/server_rgxtq2_bridge.o
 endif
 ifeq ($(SUPPORT_USC_BREAKPOINT),1)
 $(PVRSRV_MODNAME)-y += \

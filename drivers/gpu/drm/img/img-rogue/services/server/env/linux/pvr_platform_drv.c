@@ -56,14 +56,11 @@
 
 #include <linux/module.h>
 #include <linux/platform_device.h>
-#include <asm/page.h>
 
 #include "module_common.h"
 #include "pvr_drv.h"
 #include "pvrmodule.h"
 #include "sysinfo.h"
-#include "pvr_debug.h"
-
 
 
 /* This header must always be included last */
@@ -148,6 +145,7 @@ static int pvr_devices_register(void)
 	return 0;
 }
 #endif
+
 static void pvr_devices_unregister(void)
 {
 #if defined(MODULE) && !defined(PVR_LDM_PLATFORM_PRE_REGISTERED)
@@ -163,90 +161,6 @@ static void pvr_devices_unregister(void)
 #endif /* defined(MODULE) && !defined(PVR_LDM_PLATFORM_PRE_REGISTERED) */
 }
 
-#ifdef IMG_GPU_DEBUG
-unsigned long va2pa(const void *vaddr_in);
-unsigned long va2pa(const void *vaddr_in)
-{
-    pgd_t *pgd;
-    p4d_t *p4d;
-    pud_t *pud;
-    pmd_t *pmd;
-    pte_t *pte;
-    unsigned long paddr = 0;
-    unsigned long page_addr = 0;
-    unsigned long page_offset = 0;
-    unsigned long vaddr = (unsigned long)vaddr_in;
-
-    printk("CSR_SATP = %lx\n", csr_read(CSR_SATP));
-
-    pgd = pgd_offset_k(vaddr);
-    printk("pgd_val = 0x%lx\n", pgd_val(*pgd));
-    printk("pgd_index = %lu\n", pgd_index(vaddr));
-    if (pgd_none(*pgd)) {
-        printk("not mapped in pgd\n");
-        return -1;
-    }
-
-    p4d = p4d_offset(pgd, vaddr);
-    printk("p4d_val = 0x%lx\n", p4d_val(*p4d));
-    if (p4d_none(*p4d)) {
-        printk("not mapped in p4d\n");
-        return -1;
-    }
-
-    pud = pud_offset(p4d, vaddr);
-    printk("pud_val = 0x%lx\n", pud_val(*pud));
-    if (pud_none(*pud)) {
-        printk("not mapped in pud\n");
-        return -1;
-    }
-
-    pmd = pmd_offset(pud, vaddr);
-    printk("pmd_val = 0x%lx\n", pmd_val(*pmd));
-    printk("pmd_index = %lu\n", pmd_index(vaddr));
-    if (pmd_none(*pmd)) {
-        printk("not mapped in pmd\n");
-        return -1;
-    }
-
-
-    pte = pte_offset_kernel(pmd, vaddr);
-    printk("pte_val = 0x%lx\n", pte_val(*pte));
-    printk("pte_index = %lu\n", pte_index(vaddr));
-    if (pte_none(*pte)) {
-        printk("not mapped in pte\n");
-        return -1;
-    }
-
-    /*Risc-v PTE format: PFN << 10 | prot_val*/
-    /* If PMD entry's bits 1-3 is non-zeor, then this is the leaf PTE */
-    if ((pmd_val(*pmd) & 0xE)) {
-        page_addr = pfn_to_phys(pmd_val(*pmd) >> _PAGE_PFN_SHIFT);
-        page_offset = vaddr & ~PMD_MASK;
-    } else {
-        page_addr = pfn_to_phys(pte_pfn(*pte));
-        page_offset = vaddr & ~PAGE_MASK;
-    }
-
-    paddr = page_addr | page_offset;
-    printk("page_addr = %lx, page_offset = %lx\n", page_addr, page_offset);
-    printk("vaddr = %lx, paddr = %lx\n", vaddr, paddr);
-
-    printk("!Only valid for linear space! - virt_to_phys(vaddr) = %lx\n", virt_to_phys((unsigned long *)vaddr_in));
-
-    return paddr;
-}
-
-void va2pa_test(void)
-{
-	void *tmp = kmalloc(256, GFP_KERNEL);
-
-	memset(tmp, 0x55, 256);
-	va2pa(tmp);
-	kfree(tmp);
-}
-#endif /* IMG_GPU_DEBUG */
-
 static int pvr_probe(struct platform_device *pdev)
 {
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 18, 0))
@@ -254,8 +168,7 @@ static int pvr_probe(struct platform_device *pdev)
 	int ret;
 
 	DRM_DEBUG_DRIVER("device %p\n", &pdev->dev);
-	printk("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@\n");
-	
+
 	ddev = drm_dev_alloc(&pvr_drm_platform_driver, &pdev->dev);
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 9, 0))
 	if (IS_ERR(ddev))
@@ -341,7 +254,7 @@ static void pvr_shutdown(struct platform_device *pdev)
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 9, 0))
 static const struct of_device_id pvr_of_ids[] = {
-#if 1// defined(SYS_RGX_OF_COMPATIBLE)
+#if defined(SYS_RGX_OF_COMPATIBLE)
 	{ .compatible = SYS_RGX_OF_COMPATIBLE, },
 #endif
 	{},
@@ -388,17 +301,17 @@ static int __init pvr_init(void)
 	(LINUX_VERSION_CODE < KERNEL_VERSION(4, 5, 0))
 	pvr_drm_platform_driver.set_busid = drm_platform_set_busid;
 #endif
-	printk("@@@@@#################################################\n");
+
+	printk("@@#########################@@\n");
 	err = PVRSRVDriverInit();
 	if (err)
 		return err;
 
-	printk("%s...%d.. compatable:%s\n", __func__, __LINE__, pvr_platform_driver.driver.of_match_table->compatible);
 	err = platform_driver_register(&pvr_platform_driver);
 	if (err)
 		return err;
 
-	return 0;
+	return 0;//pvr_devices_register();
 }
 
 static void __exit pvr_exit(void)

@@ -55,8 +55,8 @@ extern "C" {
 
 #define DEVVAR_MAX_NAME_LEN 32
 
-typedef struct _PVRSRV_DEVVARCTX_ *PDEVVARCTX;
-typedef struct _PVRSRV_DEVVAR_    *PDEVVAR;
+typedef struct SYNC_PRIM_CONTEXT_TAG *PDEVVARCTX;
+typedef struct PVRSRV_CLIENT_SYNC_PRIM_TAG *PDEVVAR;
 
 typedef struct PVRSRV_DEV_VAR_UPDATE_TAG
 {

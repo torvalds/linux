@@ -48,7 +48,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include "rgx_fwif_sf.h"
 
-static IMG_CHAR *const groups[]= {
+static const IMG_CHAR *const groups[]= {
 #define X(A,B) #B,
 	RGXFW_LOG_SFGROUPLIST
 #undef X

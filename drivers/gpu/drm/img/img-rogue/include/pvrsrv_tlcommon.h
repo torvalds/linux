@@ -62,7 +62,7 @@ typedef IMG_HANDLE PVRSRVTL_SD;
 
 /*! Packet lengths are always rounded up to a multiple of 8 bytes */
 #define PVRSRVTL_PACKET_ALIGNMENT		8U
-#define PVRSRVTL_ALIGN(x)				(((x)+PVRSRVTL_PACKET_ALIGNMENT-1) & ~(PVRSRVTL_PACKET_ALIGNMENT-1))
+#define PVRSRVTL_ALIGN(x)				(((x)+PVRSRVTL_PACKET_ALIGNMENT-1U) & ~(PVRSRVTL_PACKET_ALIGNMENT-1U))
 
 
 /*! A packet is made up of a header structure followed by the data bytes.
@@ -117,61 +117,60 @@ static_assert((sizeof(PVRSRVTL_PACKETHDR) & (PVRSRVTL_PACKET_ALIGNMENT-1U)) == 0
 
 /*! Packet type enumeration.
  */
-typedef enum
-{
-	/*! Undefined packet */
-	PVRSRVTL_PACKETTYPE_UNDEF = 0,
+typedef IMG_UINT32 PVRSRVTL_PACKETTYPE;
 
-	/*! Normal packet type. Indicates data follows the header.
-	 */
-	PVRSRVTL_PACKETTYPE_DATA = 1,
+/*! Undefined packet */
+#define PVRSRVTL_PACKETTYPE_UNDEF 0U
 
-	/*! When seen this packet type indicates that at this moment in the stream
-	 * packet(s) were not able to be accepted due to space constraints and
-	 * that recent data may be lost - depends on how the producer handles the
-	 * error. Such packets have no data, data length is 0.
-	 */
-	PVRSRVTL_PACKETTYPE_MOST_RECENT_WRITE_FAILED = 2,
+/*! Normal packet type. Indicates data follows the header.
+ */
+#define PVRSRVTL_PACKETTYPE_DATA 1U
 
-	/*! Packets with this type set are padding packets that contain undefined
-	 * data and must be ignored/skipped by the client. They are used when the
-	 * circular stream buffer wraps around and there is not enough space for
-	 * the data at the end of the buffer. Such packets have a length of 0 or
-	 * more.
-	 */
-	PVRSRVTL_PACKETTYPE_PADDING = 3,
+/*! When seen this packet type indicates that at this moment in the stream
+ * packet(s) were not able to be accepted due to space constraints and
+ * that recent data may be lost - depends on how the producer handles the
+ * error. Such packets have no data, data length is 0.
+ */
+#define PVRSRVTL_PACKETTYPE_MOST_RECENT_WRITE_FAILED 2U
 
-	/*! This packet type conveys to the stream consumer that the stream
-	 * producer has reached the end of data for that data sequence. The
-	 * TLDaemon has several options for processing these packets that can
-	 * be selected on a per stream basis.
-	 */
-	PVRSRVTL_PACKETTYPE_MARKER_EOS = 4,
+/*! Packets with this type set are padding packets that contain undefined
+ * data and must be ignored/skipped by the client. They are used when the
+ * circular stream buffer wraps around and there is not enough space for
+ * the data at the end of the buffer. Such packets have a length of 0 or
+ * more.
+ */
+#define PVRSRVTL_PACKETTYPE_PADDING 3U
 
-	/*! This is same as PVRSRVTL_PACKETTYPE_MARKER_EOS but additionally removes
-	 * old data record output file before opening new/next one
-	 */
-	PVRSRVTL_PACKETTYPE_MARKER_EOS_REMOVEOLD = 5,
+/*! This packet type conveys to the stream consumer that the stream
+ * producer has reached the end of data for that data sequence. The
+ * TLDaemon has several options for processing these packets that can
+ * be selected on a per stream basis.
+ */
+#define PVRSRVTL_PACKETTYPE_MARKER_EOS 4U
 
-	/*! Packet emitted on first stream opened by writer. Packet carries a name
-	 * of the opened stream in a form of null-terminated string.
-	 */
-	PVRSRVTL_PACKETTYPE_STREAM_OPEN_FOR_WRITE = 6,
+/*! This is same as PVRSRVTL_PACKETTYPE_MARKER_EOS but additionally removes
+ * old data record output file before opening new/next one
+ */
+#define PVRSRVTL_PACKETTYPE_MARKER_EOS_REMOVEOLD 5U
 
-	/*! Packet emitted on last stream closed by writer. Packet carries a name
-	 * of the closed stream in a form of null-terminated string.
-	 */
-	PVRSRVTL_PACKETTYPE_STREAM_CLOSE_FOR_WRITE = 7,
+/*! Packet emitted on first stream opened by writer. Packet carries a name
+ * of the opened stream in a form of null-terminated string.
+ */
+#define PVRSRVTL_PACKETTYPE_STREAM_OPEN_FOR_WRITE 6U
 
-	PVRSRVTL_PACKETTYPE_LAST
-} PVRSRVTL_PACKETTYPE;
+/*! Packet emitted on last stream closed by writer. Packet carries a name
+ * of the closed stream in a form of null-terminated string.
+ */
+#define PVRSRVTL_PACKETTYPE_STREAM_CLOSE_FOR_WRITE 7U
+
+#define PVRSRVTL_PACKETTYPE_LAST 8U
 
 /* The SET_PACKET_* macros rely on the order the PVRSRVTL_PACKETHDR members are declared:
  * uiFlags is the upper half of a structure consisting of 2 uint16 quantities.
  */
 #define PVRSRVTL_SET_PACKET_DATA(len)       (len) | (PVRSRVTL_PACKETTYPE_DATA                     << PVRSRVTL_PACKETHDR_TYPE_OFFSET)
 #define PVRSRVTL_SET_PACKET_PADDING(len)    (len) | (PVRSRVTL_PACKETTYPE_PADDING                  << PVRSRVTL_PACKETHDR_TYPE_OFFSET)
-#define PVRSRVTL_SET_PACKET_WRITE_FAILED    (0)   | (PVRSRVTL_PACKETTYPE_MOST_RECENT_WRITE_FAILED << PVRSRVTL_PACKETHDR_TYPE_OFFSET)
+#define PVRSRVTL_SET_PACKET_WRITE_FAILED    (0U)   | (PVRSRVTL_PACKETTYPE_MOST_RECENT_WRITE_FAILED << PVRSRVTL_PACKETHDR_TYPE_OFFSET)
 #define PVRSRVTL_SET_PACKET_HDR(len, type)  (len) | ((type)                                       << PVRSRVTL_PACKETHDR_TYPE_OFFSET)
 
 /*! Returns the number of bytes of data in the packet.
@@ -197,8 +196,8 @@ typedef enum
 	GET_PACKET_HDR( \
 		GET_PACKET_DATA_PTR(p) + \
 		( \
-			(GET_PACKET_DATA_LEN(p) + (PVRSRVTL_PACKET_ALIGNMENT-1)) & \
-			(~(PVRSRVTL_PACKET_ALIGNMENT-1)) \
+			(GET_PACKET_DATA_LEN(p) + (PVRSRVTL_PACKET_ALIGNMENT-1U)) & \
+			(~(PVRSRVTL_PACKET_ALIGNMENT-1U)) \
 		) \
 	)
 
@@ -209,7 +208,7 @@ typedef enum
 /*! Set PACKETS_DROPPED flag in packet header as a part of uiTypeSize.
  * p is of type PVRSRVTL_PPACKETHDR.
  */
-#define SET_PACKETS_DROPPED(p)		(((p)->uiTypeSize) | (1<<PVRSRVTL_PACKETHDR_OLDEST_DROPPED_OFFSET))
+#define SET_PACKETS_DROPPED(p)		(((p)->uiTypeSize) | (1UL << PVRSRVTL_PACKETHDR_OLDEST_DROPPED_OFFSET))
 
 /*! Check if packets were dropped before this packet.
  * p is of type PVRSRVTL_PPACKETHDR.

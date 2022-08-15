@@ -71,6 +71,10 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 	X(RGXFW_GROUP_DMA,DMA)          \
 	X(RGXFW_GROUP_DBG,DBG)
 
+/*!
+ * @InGroup SRVAndFWTracing
+ * @Brief FW Trace log groups(GID) list
+ */
 enum RGXFW_LOG_SFGROUPS {
 #define X(A,B) A,
 	RGXFW_LOG_SFGROUPLIST
@@ -281,10 +285,10 @@ X(177, RGXFW_GROUP_MAIN, RGXFW_SF_MAIN_PHR_CONFIG, "Set Periodic Hardware Reset 
 X(179, RGXFW_GROUP_MAIN, RGXFW_SF_MAIN_PHR_TRIG, "PHR mode %d, FW state: 0x%08x, HWR flags: 0x%08x", 3) \
 X(180, RGXFW_GROUP_MAIN, RGXFW_SF_MAIN_PHR_RESET_DEPRECATED, "PHR mode %d triggered a reset", 1) \
 X(181, RGXFW_GROUP_MAIN, RGXFW_SF_MAIN_SIGNAL_UPDATE, "Signal update, Snoop Filter: %u, Signal Id: %u", 2) \
-X(182, RGXFW_GROUP_MAIN, RGXFW_SF_MAIN_FIXME_SERIES8, "WARNING: Skipping FW KCCB Cmd type %d which is not yet supported on Series8.", 1) \
+X(182, RGXFW_GROUP_MAIN, RGXFW_SF_MAIN_DEV_SERIES8_DEPRECATED, "WARNING: Skipping FW KCCB Cmd type %d which is not yet supported on Series8.", 1) \
 X(183, RGXFW_GROUP_MAIN, RGXFW_SF_MAIN_INCONSISTENT_MMU_FLAGS, "MMU context cache data NULL, but cache flags=0x%x (sync counter=%u, update value=%u) OSId=%u", 4) \
 X(184, RGXFW_GROUP_MAIN, RGXFW_SF_MAIN_SLC_FLUSH, "SLC range based flush: Context=%u VAddr=0x%02x%08x, Size=0x%08x, Invalidate=%d", 5) \
-X(185, RGXFW_GROUP_MAIN, RGXFW_SF_MAIN_FBSC_INVAL, "FBSC invalidate for Context [0x%08x]: Entry mask 0x%08x%08x.", 3) \
+X(185, RGXFW_GROUP_MAIN, RGXFW_SF_MAIN_FBSC_INVAL, "FBSC invalidate for Context Set [0x%08x]: Entry mask 0x%08x%08x.", 3) \
 X(186, RGXFW_GROUP_MAIN, RGXFW_SF_MAIN_TDM_BRN66284_UPDATE, "TDM context switch check: Roff %u was not valid for kick starting at %u, moving back to %u", 3) \
 X(187, RGXFW_GROUP_MAIN, RGXFW_SF_MAIN_SPFILTER_UPDATES, "Signal updates: FIFO: %u, Signals: 0x%08x", 2) \
 X(188, RGXFW_GROUP_MAIN, RGXFW_SF_MAIN_INVALID_FBSC_CMD, "Invalid FBSC cmd: FWCtx 0x%08x, MemCtx 0x%08x", 2) \
@@ -318,17 +322,30 @@ X(215, RGXFW_GROUP_MAIN, RGXFW_SF_MAIN_USC_TASKS_RANGE, "DM%d USC tasks range li
 X(216, RGXFW_GROUP_MAIN, RGXFW_SF_MAIN_GPU_ECC_FAULT, "ECC fault GPU=0x%08x", 1) \
 X(217, RGXFW_GROUP_MAIN, RGXFW_SF_MAIN_GPU_SAFETY_RESET, "GPU Hardware units reset to prevent transient faults.", 0) \
 X(218, RGXFW_GROUP_MAIN, RGXFW_SF_MAIN_ABORTCMD, "Kick Abort cmd: FWCtx 0x%08.8x @ %d", 2) \
-X(219, RGXFW_GROUP_MAIN, RGXFW_SF_MAIN_KICK_RAY, "Kick Ray: FWCtx 0x%08.8x @ %d. (PID:%d, prio:%d, frame:%d, ext:0x%08x, int:0x%08x)", 7)\
-X(220, RGXFW_GROUP_MAIN, RGXFW_SF_MAIN_RAY_FINISHED, "Ray finished", 0) \
+X(219, RGXFW_GROUP_MAIN, RGXFW_SF_MAIN_KICK_RAY_DEPRECATED, "Kick Ray: FWCtx 0x%08.8x @ %d. (PID:%d, prio:%d, frame:%d, ext:0x%08x, int:0x%08x)", 7)\
+X(220, RGXFW_GROUP_MAIN, RGXFW_SF_MAIN_RAY_FINISHED_DEPRECATED, "Ray finished", 0) \
 X(221, RGXFW_GROUP_MAIN, RGXFW_SF_MAIN_FWDATA_INIT_STATUS, "State of firmware's private data at boot time: %d (0 = uninitialised, 1 = initialised); Fw State Flags = 0x%08X", 2) \
 X(222, RGXFW_GROUP_MAIN, RGXFW_SF_MAIN_CFI_TIMEOUT, "CFI Timeout detected (%d increasing to %d)", 2) \
 X(223, RGXFW_GROUP_MAIN, RGXFW_SF_MAIN_CFI_TIMEOUT_FBM, "CFI Timeout detected for FBM (%d increasing to %d)", 2) \
 X(224, RGXFW_GROUP_MAIN, RGXFW_SF_MAIN_GEOM_OOM_DISALLOWED, "Geom OOM event not allowed", 0) \
 X(225, RGXFW_GROUP_MAIN, RGXFW_SF_MAIN_OS_PRIORITY_CHANGE, "Changing OSid %d's priority from %u to %u; Isolation = %u (0 = off; 1 = on)", 4) \
+X(226, RGXFW_GROUP_MAIN, RGXFW_SF_MAIN_SKIP_ALREADY_RUN_GEOM, "Skipping already executed TA FWCtx 0x%08.8x @ %d", 2) \
+X(227, RGXFW_GROUP_MAIN, RGXFW_SF_MAIN_ATTEMPT_TO_RUN_AHEAD_GEOM, "Attempt to execute TA FWCtx 0x%08.8x @ %d ahead of time on other GEOM", 2) \
+X(228, RGXFW_GROUP_MAIN, RGXFW_SF_MAIN_KICK_TDM_DEPRECATED2, "Kick TDM: Kick ID %u FWCtx 0x%08.8x @ %d. (PID:%d, prio:%d, frame:%d, ext:0x%08x, int:0x%08x)", 8) \
+X(229, RGXFW_GROUP_MAIN, RGXFW_SF_MAIN_KICK_TA_PIPELINE, "Kick TA: Kick ID %u FWCtx 0x%08.8x @ %d, RTD 0x%08x, First kick:%d, Last kick:%d, CSW resume:%d. (PID:%d, prio:%d, frame:%d, ext:0x%08x, int:0x%08x)", 12) \
+X(230, RGXFW_GROUP_MAIN, RGXFW_SF_MAIN_KICK_3D_PIPELINE, "Kick 3D: Kick ID %u FWCtx 0x%08.8x @ %d, RTD 0x%08x, Partial render:%d, CSW resume:%d. (PID:%d, prio:%d, frame:%d, ext:0x%08x, int:0x%08x)", 11) \
+X(231, RGXFW_GROUP_MAIN, RGXFW_SF_MAIN_KICK_COMPUTE_PIPELINE, "Kick Compute: Kick ID %u FWCtx 0x%08.8x @ %d. (PID:%d, prio:%d, ext:0x%08x, int:0x%08x)", 7) \
+X(232, RGXFW_GROUP_MAIN, RGXFW_SF_MAIN_TDM_FINISHED_PIPELINE, "TDM finished: Kick ID %u ", 1) \
+X(233, RGXFW_GROUP_MAIN, RGXFW_SF_MAIN_TA_FINISHED_PIPELINE, "TA finished: Kick ID %u ", 1) \
+X(234, RGXFW_GROUP_MAIN, RGXFW_SF_MAIN_3D_FINISHED_PIPELINE, "3D finished: Kick ID %u , HWRTData0State=%x, HWRTData1State=%x", 3) \
+X(235, RGXFW_GROUP_MAIN, RGXFW_SF_MAIN_COMPUTE_FINISHED_PIPELINE, "Compute finished: Kick ID %u ", 1) \
+X(236, RGXFW_GROUP_MAIN, RGXFW_SF_MAIN_KICK_TDM_PIPELINE, "Kick TDM: Kick ID %u FWCtx 0x%08.8x @ %d, Base 0x%08x%08x. (PID:%d, prio:%d, frame:%d, ext:0x%08x, int:0x%08x)", 10) \
+X(237, RGXFW_GROUP_MAIN, RGXFW_SF_MAIN_KICK_RAY_PIPELINE, "Kick Ray: Kick ID %u FWCtx 0x%08.8x @ %d. (PID:%d, prio:%d, frame:%d, ext:0x%08x, int:0x%08x)", 8)\
+X(238, RGXFW_GROUP_MAIN, RGXFW_SF_MAIN_RAY_FINISHED_PIPELINE, "Ray finished: Kick ID %u ", 1) \
 \
 X(  1, RGXFW_GROUP_MTS, RGXFW_SF_MTS_BG_KICK_DEPRECATED, "Bg Task DM = %u, counted = %d", 2) \
 X(  2, RGXFW_GROUP_MTS, RGXFW_SF_MTS_BG_COMPLETE_DEPRECATED, "Bg Task complete DM = %u", 1) \
-X(  3, RGXFW_GROUP_MTS, RGXFW_SF_MTS_IRQ_KICK, "Irq Task DM = %u, Breq = %d, SBIrq = 0x%x", 3) \
+X(  3, RGXFW_GROUP_MTS, RGXFW_SF_MTS_IRQ_KICK_DEPRECATED, "Irq Task DM = %u, Breq = %d, SBIrq = 0x%x", 3) \
 X(  4, RGXFW_GROUP_MTS, RGXFW_SF_MTS_IRQ_COMPLETE_DEPRECATED, "Irq Task complete DM = %u", 1) \
 X(  5, RGXFW_GROUP_MTS, RGXFW_SF_MTS_KICK_MTS_BG_ALL_DEPRECATED, "Kick MTS Bg task DM=All", 0) \
 X(  6, RGXFW_GROUP_MTS, RGXFW_SF_MTS_KICK_MTS_IRQ, "Kick MTS Irq task DM=%d", 1) \
@@ -345,6 +362,8 @@ X( 16, RGXFW_GROUP_MTS, RGXFW_SF_MTS_KCCBCMD_EXEC_DEPRECATED, "KCCB Slot %u: DM=
 X( 17, RGXFW_GROUP_MTS, RGXFW_SF_MTS_KCCBCMD_RTN_VALUE, "KCCB Slot %u: Return value %u", 2) \
 X( 18, RGXFW_GROUP_MTS, RGXFW_SF_MTS_BG_KICK, "Bg Task OSid = %u", 1) \
 X( 19, RGXFW_GROUP_MTS, RGXFW_SF_MTS_KCCBCMD_EXEC, "KCCB Slot %u: Cmd=0x%08x, OSid=%u", 3) \
+X( 20, RGXFW_GROUP_MTS, RGXFW_SF_MTS_IRQ_KICK, "Irq Task (EVENT_STATUS=0x%08x)", 1) \
+X( 21, RGXFW_GROUP_MTS, RGXFW_SF_MTS_VZ_SIDEBAND, "VZ sideband test, kicked with OSid=%u from MTS, OSid for test=%u", 2) \
 \
 X(  1, RGXFW_GROUP_CLEANUP, RGXFW_SF_CLEANUP_FWCTX_CLEANUP, "FwCommonContext [0x%08x] cleaned", 1) \
 X(  2, RGXFW_GROUP_CLEANUP, RGXFW_SF_CLEANUP_FWCTX_BUSY, "FwCommonContext [0x%08x] is busy: ReadOffset = %d, WriteOffset = %d", 3) \
@@ -422,9 +441,9 @@ X( 54, RGXFW_GROUP_CSW, RGXFW_SF_CSW_RDM_RESUME, "RDM FWCtx 0x%08.8x resume", 1)
 \
 X(  1, RGXFW_GROUP_BIF, RGXFW_SF_BIF_ACTIVATE_BIFREQ_DEPRECATED, "Activate MemCtx=0x%08x BIFreq=%d secure=%d", 3) \
 X(  2, RGXFW_GROUP_BIF, RGXFW_SF_BIF_DEACTIVATE, "Deactivate MemCtx=0x%08x", 1) \
-X(  3, RGXFW_GROUP_BIF, RGXFW_SF_BIF_PCREG_ALLOC, "Alloc PC reg %d", 1) \
-X(  4, RGXFW_GROUP_BIF, RGXFW_SF_BIF_PCREG_GRAB, "Grab reg %d refcount now %d", 2) \
-X(  5, RGXFW_GROUP_BIF, RGXFW_SF_BIF_PCREG_UNGRAB, "Ungrab reg %d refcount now %d", 2) \
+X(  3, RGXFW_GROUP_BIF, RGXFW_SF_BIF_PCREG_ALLOC_DEPRECATED, "Alloc PC reg %d", 1) \
+X(  4, RGXFW_GROUP_BIF, RGXFW_SF_BIF_PCSET_GRAB, "Grab reg set %d refcount now %d", 2) \
+X(  5, RGXFW_GROUP_BIF, RGXFW_SF_BIF_PCSET_UNGRAB, "Ungrab reg set %d refcount now %d", 2) \
 X(  6, RGXFW_GROUP_BIF, RGXFW_SF_BIF_SETUP_REG_BIFREQ_DEPRECATED, "Setup reg=%d BIFreq=%d, expect=0x%08x%08x, actual=0x%08x%08x", 6) \
 X(  7, RGXFW_GROUP_BIF, RGXFW_SF_BIF_TRUST_DEPRECATED, "Trust enabled:%d, for BIFreq=%d", 2) \
 X(  8, RGXFW_GROUP_BIF, RGXFW_SF_BIF_TILECFG_DEPRECATED, "BIF Tiling Cfg %d base 0x%08x%08x len 0x%08x%08x enable %d stride %d --> 0x%08x%08x", 9) \
@@ -434,10 +453,12 @@ X( 11, RGXFW_GROUP_BIF, RGXFW_SF_BIF_OSIDx, "ui32OSid = %u, Catbase = %u, Reg Ad
 X( 12, RGXFW_GROUP_BIF, RGXFW_SF_BIF_MAP_GPU_MEMORY_BIFREQ_DEPRECATED, "Map GPU memory DevVAddr 0x%x%08x, Size %u, Context ID %u, BIFREQ %u", 5) \
 X( 13, RGXFW_GROUP_BIF, RGXFW_SF_BIF_UNMAP_GPU_MEMORY, "Unmap GPU memory (event status 0x%x)", 1) \
 X( 14, RGXFW_GROUP_BIF, RGXFW_SF_BIF_ACTIVATE_DM, "Activate MemCtx=0x%08x DM=%d secure=%d", 3) \
-X( 15, RGXFW_GROUP_BIF, RGXFW_SF_BIF_SETUP_REG_DM, "Setup reg=%d DM=%d, expect=0x%08x%08x, actual=0x%08x%08x", 6) \
+X( 15, RGXFW_GROUP_BIF, RGXFW_SF_BIF_SETUP_REG_DM_DEPRECATED, "Setup reg=%d DM=%d, expect=0x%08x%08x, actual=0x%08x%08x", 6) \
 X( 16, RGXFW_GROUP_BIF, RGXFW_SF_BIF_MAP_GPU_MEMORY, "Map GPU memory DevVAddr 0x%x%08x, Size %u, Context ID %u", 4) \
 X( 17, RGXFW_GROUP_BIF, RGXFW_SF_BIF_TRUST_DM, "Trust enabled:%d, for DM=%d", 2) \
 X( 18, RGXFW_GROUP_BIF, RGXFW_SF_BIF_MAP_GPU_MEMORY_DM, "Map GPU memory DevVAddr 0x%x%08x, Size %u, Context ID %u, DM %u", 5) \
+X( 19, RGXFW_GROUP_BIF, RGXFW_SF_BIF_SETUP_REG_DM, "Setup register set=%d DM=%d, PC address=0x%08x%08x, OSid=%u, NewPCRegRequired=%d", 6) \
+X( 20, RGXFW_GROUP_BIF, RGXFW_SF_BIF_PCSET_ALLOC, "Alloc PC set %d as register range [%u - %u]", 3) \
 \
 X(  1, RGXFW_GROUP_MISC, RGXFW_SF_MISC_GPIO_WRITE, "GPIO write 0x%02x", 1) \
 X(  2, RGXFW_GROUP_MISC, RGXFW_SF_MISC_GPIO_READ, "GPIO read 0x%02x", 1) \
@@ -500,6 +521,10 @@ X( 26, RGXFW_GROUP_PM, RGXFW_SF_PM_DEFER_FL_GROW, "Deferring FL grow for non-loa
 X( 27, RGXFW_GROUP_PM, RGXFW_SF_PM_UFL_SHARED_ALBIORIX, "Is GEOM: %d, finished: %d (HWRTData = 0x%08x, MemCtx = 0x%08x)", 4) \
 X( 28, RGXFW_GROUP_PM, RGXFW_SF_PM_3D_TIMEOUT, "3D Timeout Now for FWCtx 0x%08.8x", 1) \
 X( 29, RGXFW_GROUP_PM, RGXFW_SF_PM_RECYCLE, "GEOM PM Recycle for FWCtx 0x%08.8x", 1) \
+X( 30, RGXFW_GROUP_PM, RGXFW_SF_PM_PRIMARY_CONFIG, "PM running primary config (Core %d)", 1) \
+X( 31, RGXFW_GROUP_PM, RGXFW_SF_PM_SECONDARY_CONFIG, "PM running secondary config (Core %d)", 1) \
+X( 32, RGXFW_GROUP_PM, RGXFW_SF_PM_TERTIARY_CONFIG, "PM running tertiary config (Core %d)", 1) \
+X( 33, RGXFW_GROUP_PM, RGXFW_SF_PM_QUATERNARY_CONFIG, "PM running quaternary config (Core %d)", 1) \
 \
 X(  1, RGXFW_GROUP_RPM, RGXFW_SF_RPM_GLL_DYNAMIC_STATUS_DEPRECATED, "Global link list dynamic page count: vertex 0x%x, varying 0x%x, node 0x%x", 3) \
 X(  2, RGXFW_GROUP_RPM, RGXFW_SF_RPM_GLL_STATIC_STATUS_DEPRECATED, "Global link list static page count: vertex 0x%x, varying 0x%x, node 0x%x", 3) \
@@ -562,7 +587,9 @@ X( 35, RGXFW_GROUP_RTD, RGXFW_SF_RTD_LOAD_FL_V2, "Load  Freelist 0x%x type: %d (
 X( 36, RGXFW_GROUP_RTD, RGXFW_SF_RTD_KILLED_TA, "TA RTData 0x%08x marked as killed.", 1) \
 X( 37, RGXFW_GROUP_RTD, RGXFW_SF_RTD_KILLED_3D, "3D RTData 0x%08x marked as killed.", 1) \
 X( 38, RGXFW_GROUP_RTD, RGXFW_SF_RTD_KILL_TA_AFTER_RESTART, "RTData 0x%08x will be killed after TA restart.", 1) \
-X( 39, RGXFW_GROUP_RTD, RGXFW_SF_RTD_RENDERSTATE_RESET, "RTData 0x%08x Render State Buffer 0x%08x%08x will be reset.", 3) \
+X( 39, RGXFW_GROUP_RTD, RGXFW_SF_RTD_RENDERSTATE_RESET, "RTData 0x%08x Render State Buffer 0x%02x%08x will be reset.", 3) \
+X( 40, RGXFW_GROUP_RTD, RGXFW_SF_RTD_GEOM_RENDERSTATE, "GEOM RTData 0x%08x using Render State Buffer 0x%02x%08x.", 3) \
+X( 41, RGXFW_GROUP_RTD, RGXFW_SF_RTD_FRAG_RENDERSTATE, "FRAG RTData 0x%08x using Render State Buffer 0x%02x%08x.", 3) \
 \
 X(  1, RGXFW_GROUP_SPM, RGXFW_SF_SPM_ZLOAD_DEPRECATED, "Force Z-Load for partial render", 0) \
 X(  2, RGXFW_GROUP_SPM, RGXFW_SF_SPM_ZSTORE_DEPRECATED, "Force Z-Store for partial render", 0) \
@@ -621,6 +648,7 @@ X( 54, RGXFW_GROUP_SPM, RGXFW_SF_SPM_ACK_GROW_UPDATE, "Received grow update, FL 
 X( 66, RGXFW_GROUP_SPM, RGXFW_SF_SPM_OOM_TACMD, "OOM TA/3D PR Check: [0x%08.8x] is 0x%08.8x requires 0x%08.8x", 3) \
 X( 67, RGXFW_GROUP_SPM, RGXFW_SF_SPM_RESUMED_TA, "OOM: Resumed TA with ready pages, FL addr: 0x%02x%08x, current pages: %u", 3) \
 X( 68, RGXFW_GROUP_SPM, RGXFW_SF_SPM_PR_DEADLOCK_UNBLOCKED, "OOM TA/3D PR deadlock unblocked reordering DM%d runlist head from Context 0x%08x to 0x%08x", 3) \
+X( 69, RGXFW_GROUP_SPM, RGXFW_SF_SPM_STATE_PR_FORCEFREE, "SPM State = PR force free", 0) \
 \
 X(  1, RGXFW_GROUP_POW, RGXFW_SF_POW_CHECK_DEPRECATED, "Check Pow state DM%d int: 0x%x, ext: 0x%x, pow flags: 0x%x", 4) \
 X(  2, RGXFW_GROUP_POW, RGXFW_SF_POW_GPU_IDLE, "GPU idle (might be powered down). Pow state int: 0x%x, ext: 0x%x, flags: 0x%x", 3) \
@@ -690,6 +718,10 @@ X( 66, RGXFW_GROUP_POW, RGXFW_SF_POW_POWMON_PERF_MODE, "PPA block started in per
 X( 67, RGXFW_GROUP_POW, RGXFW_SF_POW_POWMON_RESET, "Reset PPA block state %u (1=reset, 0=recalculate).", 1) \
 X( 68, RGXFW_GROUP_POW, RGXFW_SF_POW_POWCTRL_ABORT_WITH_CORE, "Power controller returned ABORT for Core-%d last request so retrying.", 1) \
 X( 69, RGXFW_GROUP_POW, RGXFW_SF_POW_HWREQ64BIT, "HW Request On(1)/Off(0): %d, Units: 0x%08x%08x", 3) \
+X( 70, RGXFW_GROUP_POW, RGXFW_SF_POW_SPU_RAC_POW_STATE_CHANGE_REQ, "Request to change SPU power state mask from 0x%x to 0x%x and RAC from 0x%x to 0x%x. Pow flags: 0x%x", 5) \
+X( 71, RGXFW_GROUP_POW, RGXFW_SF_POW_SPU_RAC_POW_STATE_CHANGE, "Changing SPU power state mask from 0x%x to 0x%x and RAC from 0x%x to 0x%x", 4) \
+X( 72, RGXFW_GROUP_POW, RGXFW_SF_POW_REQUESTEDOFF_RAC, "RAC pending? %d, RAC Active? %d", 2) \
+X( 73, RGXFW_GROUP_POW, RGXFW_SF_POW_INIOFF_RAC, "Initiate powoff query for RAC.", 0) \
 \
 X(  1, RGXFW_GROUP_HWR, RGXFW_SF_HWR_LOCKUP_DEPRECATED, "Lockup detected on DM%d, FWCtx: 0x%08.8x", 2) \
 X(  2, RGXFW_GROUP_HWR, RGXFW_SF_HWR_RESET_FW_DEPRECATED, "Reset fw state for DM%d, FWCtx: 0x%08.8x, MemCtx: 0x%08.8x", 3) \
@@ -779,14 +811,15 @@ X( 85, RGXFW_GROUP_HWR, RGXFW_SF_HWR_FULL_CHECK, "Full Signature Check result fo
 X( 86, RGXFW_GROUP_HWR, RGXFW_SF_HWR_USC_SLOTS_CHECK, "USC Slots result for Core%u, DM%u is HWRNeeded=%u USCSlotsUsedByDM=%d", 4) \
 X( 87, RGXFW_GROUP_HWR, RGXFW_SF_HWR_WATCHDOG_CHECK, "USC Watchdog result for Core%u DM%u is HWRNeeded=%u Status=%u USCs={0x%x} with HWRChecksToGo=%u", 6) \
 X( 88, RGXFW_GROUP_HWR, RGXFW_SF_HWR_MMU_RISCV_FAULT, "RISC-V MMU page fault detected (FWCORE MMU Status 0x%08x Req Status 0x%08x%08x)", 3) \
-X( 89, RGXFW_GROUP_HWR, RGXFW_SF_HWR_HWR_FAULT_POLL_BIF_TEXAS1_PFS_DEPRECATED, "After FW fault was raised, TEXAS1_PFS poll failed on core %d with value 0x%08x", 2) \
-X( 90, RGXFW_GROUP_HWR, RGXFW_SF_HWR_HWR_FAULT_POLL_BIF_PFS, "After FW fault was raised, BIF_PFS poll failed on core %d with value 0x%08x", 2) \
-X( 91, RGXFW_GROUP_HWR, RGXFW_SF_HWR_HWR_FAULT_POLL_SET_ABORT_PM_STATUS, "After FW fault was raised, MMU_ABORT_PM_STATUS set poll failed on core %d with value 0x%08x", 2) \
-X( 92, RGXFW_GROUP_HWR, RGXFW_SF_HWR_HWR_FAULT_POLL_UNSET_ABORT_PM_STATUS, "After FW fault was raised, MMU_ABORT_PM_STATUS unset poll failed on core %d with value 0x%08x", 2) \
-X( 93, RGXFW_GROUP_HWR, RGXFW_SF_HWR_HWR_FAULT_POLL_SLC_INVAL, "After FW fault was raised, MMU_CTRL_INVAL poll (all but fw) failed on core %d with value 0x%08x", 2) \
-X( 94, RGXFW_GROUP_HWR, RGXFW_SF_HWR_HWR_FAULT_POLL_SLCMMU_INVAL, "After FW fault was raised, MMU_CTRL_INVAL poll (all) failed on core %d with value 0x%08x", 2) \
-X( 95, RGXFW_GROUP_HWR, RGXFW_SF_HWR_HWR_FAULT_POLL_BIF_TEXAS_PFS, "After FW fault was raised, TEXAS%d_PFS poll failed on core %d with value 0x%08x", 3) \
+X( 89, RGXFW_GROUP_HWR, RGXFW_SF_HWR_HWR_FAULT_POLL_BIF_TEXAS1_PFS_DEPRECATED, "TEXAS1_PFS poll failed on core %d with value 0x%08x", 2) \
+X( 90, RGXFW_GROUP_HWR, RGXFW_SF_HWR_HWR_FAULT_POLL_BIF_PFS, "BIF_PFS poll failed on core %d with value 0x%08x", 2) \
+X( 91, RGXFW_GROUP_HWR, RGXFW_SF_HWR_HWR_FAULT_POLL_SET_ABORT_PM_STATUS, "MMU_ABORT_PM_STATUS set poll failed on core %d with value 0x%08x", 2) \
+X( 92, RGXFW_GROUP_HWR, RGXFW_SF_HWR_HWR_FAULT_POLL_UNSET_ABORT_PM_STATUS, "MMU_ABORT_PM_STATUS unset poll failed on core %d with value 0x%08x", 2) \
+X( 93, RGXFW_GROUP_HWR, RGXFW_SF_HWR_HWR_FAULT_POLL_SLC_INVAL, "MMU_CTRL_INVAL poll (all but fw) failed on core %d with value 0x%08x", 2) \
+X( 94, RGXFW_GROUP_HWR, RGXFW_SF_HWR_HWR_FAULT_POLL_SLCMMU_INVAL, "MMU_CTRL_INVAL poll (all) failed on core %d with value 0x%08x", 2) \
+X( 95, RGXFW_GROUP_HWR, RGXFW_SF_HWR_HWR_FAULT_POLL_BIF_TEXAS_PFS, "TEXAS%d_PFS poll failed on core %d with value 0x%08x", 3) \
 X( 96, RGXFW_GROUP_HWR, RGXFW_SF_HWR_EXTRA_CHECK, "Extra Registers Check result for Core%u, DM%u is HWRNeeded=%u", 3) \
+X( 97, RGXFW_GROUP_HWR, RGXFW_SF_HWR_WRITE_TO_GPU_READONLY_ADDR, "FW attempted to write to read-only GPU address 0x%08x", 1) \
 \
 X(  1, RGXFW_GROUP_HWP, RGXFW_SF_HWP_I_CFGBLK, "Block 0x%x mapped to Config Idx %u", 2) \
 X(  2, RGXFW_GROUP_HWP, RGXFW_SF_HWP_I_OMTBLK, "Block 0x%x omitted from event - not enabled in HW", 1) \
@@ -881,7 +914,7 @@ X(65535, RGXFW_GROUP_NULL, RGXFW_SF_LAST, "You should not use this string", 15)
 #define RGXFW_LOG_IDMARKER			(0x70000000U)
 #define RGXFW_LOG_CREATESFID(a,b,e) ((IMG_UINT32)(a) | ((IMG_UINT32)(b)<<12U) | ((IMG_UINT32)(e)<<16U)) | RGXFW_LOG_IDMARKER
 
-#define RGXFW_LOG_IDMASK			(0xFFF00000)
+#define RGXFW_LOG_IDMASK			(0xFFF00000U)
 #define RGXFW_LOG_VALIDID(I)		(((I) & RGXFW_LOG_IDMASK) == RGXFW_LOG_IDMARKER)
 
 typedef enum {

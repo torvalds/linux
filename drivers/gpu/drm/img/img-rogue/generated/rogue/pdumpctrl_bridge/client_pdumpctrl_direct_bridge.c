@@ -77,10 +77,10 @@ IMG_INTERNAL PVRSRV_ERROR BridgePVRSRVPDumpSetDefaultCaptureParams(IMG_HANDLE hB
 								   IMG_UINT32 ui32MaxParamFileSize)
 {
 	PVRSRV_ERROR eError;
-	PVR_UNREFERENCED_PARAMETER(hBridge);
 
 	eError =
-	    PDumpSetDefaultCaptureParamsKM(ui32Mode,
+	    PDumpSetDefaultCaptureParamsKM(NULL, (PVRSRV_DEVICE_NODE *) ((void *)hBridge),
+					   ui32Mode,
 					   ui32Start, ui32End, ui32Interval, ui32MaxParamFileSize);
 
 	return eError;
@@ -100,8 +100,7 @@ IMG_INTERNAL PVRSRV_ERROR BridgePVRSRVPDumpIsLastCaptureFrame(IMG_HANDLE hBridge
 IMG_INTERNAL PVRSRV_ERROR BridgePVRSRVPDumpForceCaptureStop(IMG_HANDLE hBridge)
 {
 	PVRSRV_ERROR eError;
-	PVR_UNREFERENCED_PARAMETER(hBridge);
 
-	eError = PDumpForceCaptureStopKM();
+	eError = PDumpForceCaptureStopKM(NULL, (PVRSRV_DEVICE_NODE *) ((void *)hBridge));
 	return eError;
 }

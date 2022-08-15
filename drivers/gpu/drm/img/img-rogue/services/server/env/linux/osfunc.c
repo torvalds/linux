@@ -98,7 +98,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "dma_support.h"
 #include "kernel_compatibility.h"
 
-#include "dma_km.h"
 #include "pvrsrv_sync_server.h"
 
 
@@ -173,10 +172,11 @@ void OSThreadDumpInfo(DUMPDEBUG_PRINTF_FUNC* pfnDumpDebugPrintf,
 	}
 }
 
-PVRSRV_ERROR OSPhyContigPagesAlloc(PVRSRV_DEVICE_NODE *psDevNode, size_t uiSize,
+PVRSRV_ERROR OSPhyContigPagesAlloc(PHYS_HEAP *psPhysHeap, size_t uiSize,
 							PG_HANDLE *psMemHandle, IMG_DEV_PHYADDR *psDevPAddr,
 							IMG_PID uiPid)
 {
+	PVRSRV_DEVICE_NODE *psDevNode = PhysHeapDeviceNode(psPhysHeap);
 	struct device *psDev = psDevNode->psDevConfig->pvOSDevice;
 	IMG_CPU_PHYADDR sCpuPAddr;
 	struct page *psPage;
@@ -227,7 +227,7 @@ PVRSRV_ERROR OSPhyContigPagesAlloc(PVRSRV_DEVICE_NODE *psDevNode, size_t uiSize,
 	 * Even when more pages are allocated as base MMU object we still need one single physical address because
 	 * they are physically contiguous.
 	 */
-	PhysHeapCpuPAddrToDevPAddr(psDevNode->apsPhysHeap[PVRSRV_PHYS_HEAP_CPU_LOCAL], 1, psDevPAddr, &sCpuPAddr);
+	PhysHeapCpuPAddrToDevPAddr(psPhysHeap, 1, psDevPAddr, &sCpuPAddr);
 
 #if defined(PVRSRV_ENABLE_PROCESS_STATS)
 #if !defined(PVRSRV_ENABLE_MEMORY_STATS)
@@ -251,10 +251,12 @@ PVRSRV_ERROR OSPhyContigPagesAlloc(PVRSRV_DEVICE_NODE *psDevNode, size_t uiSize,
 	return PVRSRV_OK;
 }
 
-void OSPhyContigPagesFree(PVRSRV_DEVICE_NODE *psDevNode, PG_HANDLE *psMemHandle)
+void OSPhyContigPagesFree(PHYS_HEAP *psPhysHeap, PG_HANDLE *psMemHandle)
 {
 	struct page *psPage = (struct page*) psMemHandle->u.pvHandle;
 	IMG_UINT32	uiSize, uiPageCount=0, ui32Order;
+
+	PVR_UNREFERENCED_PARAMETER(psPhysHeap);
 
 	ui32Order = psMemHandle->uiOrder;
 	uiPageCount = (1 << ui32Order);
@@ -275,7 +277,7 @@ void OSPhyContigPagesFree(PVRSRV_DEVICE_NODE *psDevNode, PG_HANDLE *psMemHandle)
 	psMemHandle->uiOrder = 0;
 }
 
-PVRSRV_ERROR OSPhyContigPagesMap(PVRSRV_DEVICE_NODE *psDevNode, PG_HANDLE *psMemHandle,
+PVRSRV_ERROR OSPhyContigPagesMap(PHYS_HEAP *psPhysHeap, PG_HANDLE *psMemHandle,
 						size_t uiSize, IMG_DEV_PHYADDR *psDevPAddr,
 						void **pvPtr)
 {
@@ -286,7 +288,7 @@ PVRSRV_ERROR OSPhyContigPagesMap(PVRSRV_DEVICE_NODE *psDevNode, PG_HANDLE *psMem
 
 	PVR_UNREFERENCED_PARAMETER(actualSize); /* If we don't take an #ifdef path */
 	PVR_UNREFERENCED_PARAMETER(uiSize);
-	PVR_UNREFERENCED_PARAMETER(psDevNode);
+	PVR_UNREFERENCED_PARAMETER(psPhysHeap);
 
 #if defined(PVRSRV_ENABLE_PROCESS_STATS)
 #if !defined(PVRSRV_ENABLE_MEMORY_STATS)
@@ -310,7 +312,7 @@ PVRSRV_ERROR OSPhyContigPagesMap(PVRSRV_DEVICE_NODE *psDevNode, PG_HANDLE *psMem
 	return PVRSRV_OK;
 }
 
-void OSPhyContigPagesUnmap(PVRSRV_DEVICE_NODE *psDevNode, PG_HANDLE *psMemHandle, void *pvPtr)
+void OSPhyContigPagesUnmap(PHYS_HEAP *psPhysHeap, PG_HANDLE *psMemHandle, void *pvPtr)
 {
 #if defined(PVRSRV_ENABLE_PROCESS_STATS)
 #if !defined(PVRSRV_ENABLE_MEMORY_STATS)
@@ -325,17 +327,18 @@ void OSPhyContigPagesUnmap(PVRSRV_DEVICE_NODE *psDevNode, PG_HANDLE *psMemHandle
 #endif
 #endif
 
-	PVR_UNREFERENCED_PARAMETER(psDevNode);
+	PVR_UNREFERENCED_PARAMETER(psPhysHeap);
 	PVR_UNREFERENCED_PARAMETER(pvPtr);
 
 	kunmap((struct page*) psMemHandle->u.pvHandle);
 }
 
-PVRSRV_ERROR OSPhyContigPagesClean(PVRSRV_DEVICE_NODE *psDevNode,
+PVRSRV_ERROR OSPhyContigPagesClean(PHYS_HEAP *psPhysHeap,
                                    PG_HANDLE *psMemHandle,
                                    IMG_UINT32 uiOffset,
                                    IMG_UINT32 uiLength)
 {
+	PVRSRV_DEVICE_NODE *psDevNode = PhysHeapDeviceNode(psPhysHeap);
 	PVRSRV_ERROR eError = PVRSRV_OK;
 	struct page* psPage = (struct page*) psMemHandle->u.pvHandle;
 
@@ -473,7 +476,47 @@ size_t OSStringNLength(const IMG_CHAR *pStr, size_t uiCount)
 IMG_INT32 OSStringNCompare(const IMG_CHAR *pStr1, const IMG_CHAR *pStr2,
                           size_t uiSize)
 {
+#if defined(DEBUG)
+	/* Double-check that we are not passing NULL parameters in. If we are we
+	 * return -1 (for arg1 == NULL, arg2 != NULL)
+	 * 0 (for arg1 == NULL, arg2 == NULL
+	 * +1 (for arg1 != NULL, arg2 == NULL)
+	 * strncmp(arg1, arg2, size) otherwise
+	 */
+	if (pStr1 == NULL)
+	{
+		if (pStr2 == NULL)
+		{
+			PVR_DPF((PVR_DBG_ERROR, "%s(%p, %p, %d): Both args NULL",
+				 __func__, pStr1, pStr2, (int)uiSize));
+			OSDumpStack();
+			return 0;	/* Both NULL */
+		}
+		else
+		{
+			PVR_DPF((PVR_DBG_ERROR, "%s(%p, %p, %d): arg1 NULL",
+				 __func__, pStr1, pStr2, (int)uiSize));
+			OSDumpStack();
+			return -1;	/* NULL < non-NULL */
+		}
+	}
+	else
+	{
+		if (pStr2 == NULL)
+		{
+			PVR_DPF((PVR_DBG_ERROR, "%s(%p, %p, %d): arg2 NULL",
+				 __func__, pStr1, pStr2, (int)uiSize));
+			OSDumpStack();
+			return +1;	/* non-NULL > NULL */
+		}
+		else
+		{
+			return strncmp(pStr1, pStr2, uiSize);
+		}
+	}
+#else
 	return strncmp(pStr1, pStr2, uiSize);
+#endif
 }
 
 PVRSRV_ERROR OSStringToUINT32(const IMG_CHAR *pStr, IMG_UINT32 ui32Base,
@@ -513,27 +556,94 @@ IMG_UINT32 OSStringUINT32ToStr(IMG_CHAR *pszBuf, size_t uSize,
 	return ui32Len;
 }
 
+#if defined(SUPPORT_NATIVE_FENCE_SYNC) || defined(SUPPORT_BUFFER_SYNC)
+static struct workqueue_struct *gpFenceStatusWq;
+
+static PVRSRV_ERROR _NativeSyncInit(void)
+{
+	gpFenceStatusWq = create_freezable_workqueue("pvr_fence_status");
+	if (!gpFenceStatusWq)
+	{
+		PVR_DPF((PVR_DBG_ERROR, "%s: Failed to create foreign fence status workqueue",
+				 __func__));
+		return PVRSRV_ERROR_INIT_FAILURE;
+	}
+
+	return PVRSRV_OK;
+}
+
+static void _NativeSyncDeinit(void)
+{
+	destroy_workqueue(gpFenceStatusWq);
+}
+
+struct workqueue_struct *NativeSyncGetFenceStatusWq(void)
+{
+	if (!gpFenceStatusWq)
+	{
+#if defined(DEBUG)
+		PVR_ASSERT(gpFenceStatusWq);
+#endif
+		return NULL;
+	}
+
+	return gpFenceStatusWq;
+}
+#endif
+
 PVRSRV_ERROR OSInitEnvData(void)
 {
+	PVRSRV_ERROR eError = PVRSRV_OK;
 
 	LinuxInitPhysmem();
 
 	_OSInitThreadList();
 
-	return PVRSRV_OK;
-}
+#if defined(SUPPORT_NATIVE_FENCE_SYNC) || defined(SUPPORT_BUFFER_SYNC)
+	eError = _NativeSyncInit();
+#endif
 
+	return eError;
+}
 
 void OSDeInitEnvData(void)
 {
+#if defined(SUPPORT_NATIVE_FENCE_SYNC) || defined(SUPPORT_BUFFER_SYNC)
+	_NativeSyncDeinit();
+#endif
 
 	LinuxDeinitPhysmem();
 }
 
-
 void OSReleaseThreadQuanta(void)
 {
 	schedule();
+}
+
+void OSMemoryBarrier(volatile void *hReadback)
+{
+	mb();
+
+	if (hReadback)
+	{
+		/* Force a read-back to memory to avoid posted writes on certain buses
+		 * e.g. PCI(E)
+		 */
+		(void) OSReadDeviceMem32(hReadback);
+	}
+}
+
+void OSWriteMemoryBarrier(volatile void *hReadback)
+{
+	wmb();
+
+	if (hReadback)
+	{
+		/* Force a read-back to memory to avoid posted writes on certain buses
+		 * e.g. PCI(E)
+		 */
+		(void) OSReadDeviceMem32(hReadback);
+	}
 }
 
 /* Not matching/aligning this API to the Clockus() API above to avoid necessary
@@ -863,7 +973,7 @@ PVRSRV_ERROR OSScheduleMISR(IMG_HANDLE hMISRData)
 #else
 	{
 		bool rc = queue_work(psMISRData->psWorkQueue, &psMISRData->sMISRWork);
-		return (rc ? PVRSRV_OK : PVRSRV_ERROR_ALREADY_EXISTS);
+		return rc ? PVRSRV_OK : PVRSRV_ERROR_ALREADY_EXISTS;
 	}
 #endif
 }
@@ -903,7 +1013,7 @@ static int OSThreadRun(void *data)
 	/* Wait for OSThreadDestroy() to call kthread_stop() */
 	while (!kthread_freezable_should_stop(NULL))
 	{
-		 schedule();
+		schedule();
 	}
 
 	LinuxBridgeNumActiveKernelThreadsDecrement();
@@ -1902,8 +2012,6 @@ static void dma_callback(void *pvOSCleanup)
 	}
 
 	spin_unlock_irqrestore(&psOSCleanup->spinlock, flags);
-
-	return;
 }
 
 #if defined(SUPPORT_VALIDATION) && defined(PVRSRV_DEBUG_DMA)
@@ -2123,7 +2231,7 @@ PVRSRV_ERROR OSDmaPrepareTransfer(PVRSRV_DEVICE_NODE *psDevNode,
 	struct dma_async_tx_descriptor *psDesc;
 
 	unsigned long offset = (unsigned long)puiAddress & ((1 << PAGE_SHIFT) - 1);
-	unsigned num_pages = (uiSize + offset + PAGE_SIZE - 1) >> PAGE_SHIFT;
+	unsigned int num_pages = (uiSize + offset + PAGE_SIZE - 1) >> PAGE_SHIFT;
 	int num_pinned_pages = 0;
 	unsigned int gup_flags = 0;
 
@@ -2133,7 +2241,7 @@ PVRSRV_ERROR OSDmaPrepareTransfer(PVRSRV_DEVICE_NODE *psDevNode,
 	psOSCleanupData->pages[psOSCleanupData->uiCount] = OSAllocZMem(num_pages * sizeof(struct page *));
 	PVR_LOG_GOTO_IF_NOMEM(psOSCleanupData->pages[psOSCleanupData->uiCount], eError, e1);
 
-	gup_flags |= bMemToDev ? 0 : (FOLL_WRITE | FOLL_POPULATE);
+	gup_flags |= bMemToDev ? 0 : FOLL_WRITE;
 
 	num_pinned_pages = get_user_pages_fast(
 			(unsigned long)puiAddress,
@@ -2183,9 +2291,9 @@ PVRSRV_ERROR OSDmaPrepareTransfer(PVRSRV_DEVICE_NODE *psDevNode,
 		goto e4;
 	}
 
-	dma_sync_sg_for_device(psDevConfig->pvOSDevice, psSg->sgl,(unsigned)iRet, sConfig.direction);
+	dma_sync_sg_for_device(psDevConfig->pvOSDevice, psSg->sgl,(unsigned int)iRet, sConfig.direction);
 
-	psDesc = dmaengine_prep_slave_sg(pvChan, psSg->sgl, (unsigned)iRet, sConfig.direction, 0);
+	psDesc = dmaengine_prep_slave_sg(pvChan, psSg->sgl, (unsigned int)iRet, sConfig.direction, 0);
 	if (!psDesc)
 	{
 		PVR_DPF((PVR_DBG_ERROR, "%s: dmaengine_prep_slave_sg failed", __func__));
@@ -2276,9 +2384,9 @@ PVRSRV_ERROR OSDmaPrepareTransferSparse(PVRSRV_DEVICE_NODE *psDevNode,
 	struct dma_async_tx_descriptor *psDesc;
 
 	unsigned long offset = (unsigned long)puiAddress & ((1 << PAGE_SHIFT) - 1);
-	unsigned num_pages = (uiSize + offset + PAGE_SIZE - 1) >> PAGE_SHIFT;
+	unsigned int num_pages = (uiSize + offset + PAGE_SIZE - 1) >> PAGE_SHIFT;
 	unsigned int num_valid_pages = CalculateValidPages(pbValid, ui32SizeInPages);
-	unsigned num_pinned_pages = 0;
+	unsigned int num_pinned_pages = 0;
 	unsigned int gup_flags = 0;
 	unsigned int valid_idx;
 	size_t transfer_size;
@@ -2305,7 +2413,7 @@ PVRSRV_ERROR OSDmaPrepareTransferSparse(PVRSRV_DEVICE_NODE *psDevNode,
 	psOSCleanupData->ppsDescriptorsSparse[psOSCleanupData->uiCount] = OSAllocZMem(num_valid_pages * sizeof(struct dma_async_tx_descriptor *));
 	PVR_LOG_GOTO_IF_NOMEM(psOSCleanupData->ppsDescriptorsSparse[psOSCleanupData->uiCount], eError, e11);
 
-	gup_flags |= bMemToDev ? 0 : (FOLL_WRITE | FOLL_POPULATE);
+	gup_flags |= bMemToDev ? 0 : FOLL_WRITE;
 
 	for (ui32Idx = 0, valid_idx = 0; ui32Idx < ui32SizeInPages; ui32Idx++)
 	{
@@ -2345,7 +2453,7 @@ PVRSRV_ERROR OSDmaPrepareTransferSparse(PVRSRV_DEVICE_NODE *psDevNode,
 			}
 		}
 
-		if ((unsigned long long)pvNextAddress + transfer_size > PAGE_ALIGN((unsigned long long)pvNextAddress))
+		if (((unsigned long long)pvNextAddress & (ui32PageSize - 1)) + transfer_size > ui32PageSize)
 		{
 			num_pages = 2;
 		}
@@ -2410,9 +2518,9 @@ PVRSRV_ERROR OSDmaPrepareTransferSparse(PVRSRV_DEVICE_NODE *psDevNode,
 			eError = PVRSRV_ERROR_INVALID_PARAMS;
 			goto e5;
 		}
-		dma_sync_sg_for_device(psDevConfig->pvOSDevice, psSg->sgl,(unsigned)iRet, sConfig.direction);
+		dma_sync_sg_for_device(psDevConfig->pvOSDevice, psSg->sgl,(unsigned int)iRet, sConfig.direction);
 
-		psDesc = dmaengine_prep_slave_sg(pvChan, psSg->sgl, (unsigned)iRet, sConfig.direction, 0);
+		psDesc = dmaengine_prep_slave_sg(pvChan, psSg->sgl, (unsigned int)iRet, sConfig.direction, 0);
 		if (!psDesc)
 		{
 			PVR_DPF((PVR_DBG_ERROR, "%s: dmaengine_prep_slave_sg failed", __func__));

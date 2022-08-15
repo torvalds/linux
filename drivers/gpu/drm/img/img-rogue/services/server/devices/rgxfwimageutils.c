@@ -177,6 +177,7 @@ found:
  @Return        void
 
 ******************************************************************************/
+#if defined(RGX_FEATURE_META_MAX_VALUE_IDX)
 static void RGXFWConfigureSegID(const void *hPrivate,
                                 IMG_UINT64 ui64SegOutAddr,
                                 IMG_UINT32 ui32SegBase,
@@ -217,6 +218,7 @@ static void RGXFWConfigureSegID(const void *hPrivate,
 
 	*ppui32BootConf = pui32BootConf;
 }
+#endif
 
 /*!
 *******************************************************************************
@@ -233,6 +235,7 @@ static void RGXFWConfigureSegID(const void *hPrivate,
  @Return        void
 
 ******************************************************************************/
+#if defined(RGX_FEATURE_META_MAX_VALUE_IDX)
 static void RGXFWConfigureSegMMU(const void       *hPrivate,
                                  IMG_DEV_VIRTADDR *psFWCodeDevVAddrBase,
                                  IMG_DEV_VIRTADDR *psFWDataDevVAddrBase,
@@ -282,6 +285,7 @@ static void RGXFWConfigureSegMMU(const void       *hPrivate,
 		}
 	}
 }
+#endif
 
 /*!
 *******************************************************************************
@@ -297,6 +301,7 @@ static void RGXFWConfigureSegMMU(const void       *hPrivate,
  @Return        void
 
 ******************************************************************************/
+#if defined(RGX_FEATURE_META_MAX_VALUE_IDX)
 static void RGXFWConfigureMetaCaches(const void *hPrivate,
                                      IMG_UINT32 ui32NumThreads,
                                      IMG_UINT32 **ppui32BootConf)
@@ -323,8 +328,8 @@ static void RGXFWConfigureMetaCaches(const void *hPrivate,
 	RGXCommentLog(hPrivate, "********** Meta caches configuration *********");
 
 	/* Initialise I/Dcache settings */
-	ui32DCacheT0 = ui32DCacheT1 = META_CR_SYSC_DCPARTX_CACHED_WRITE_ENABLE;
-	ui32DCacheT2 = ui32DCacheT3 = META_CR_SYSC_DCPARTX_CACHED_WRITE_ENABLE;
+	ui32DCacheT0 = ui32DCacheT1 = (IMG_UINT32)META_CR_SYSC_DCPARTX_CACHED_WRITE_ENABLE;
+	ui32DCacheT2 = ui32DCacheT3 = (IMG_UINT32)META_CR_SYSC_DCPARTX_CACHED_WRITE_ENABLE;
 	ui32ICacheT0 = ui32ICacheT1 = ui32ICacheT2 = ui32ICacheT3 = 0;
 
 	if (ui32NumThreads == 1)
@@ -413,6 +418,7 @@ static void RGXFWConfigureMetaCaches(const void *hPrivate,
 
 	*ppui32BootConf = pui32BootConf;
 }
+#endif
 
 /*!
 *******************************************************************************
@@ -891,20 +897,27 @@ PVRSRV_ERROR RGXProcessFWImage(const void *hPrivate,
                                void *pvFWData,
                                void *pvFWCorememCode,
                                void *pvFWCorememData,
-                               RGX_FW_BOOT_PARAMS *puFWParams)
+                               PVRSRV_FW_BOOT_PARAMS *puFWParams)
 {
 	PVRSRV_ERROR eError = PVRSRV_OK;
 	IMG_BOOL bMIPS = IMG_FALSE;
+#if defined(RGX_FEATURE_RISCV_FW_PROCESSOR_BIT_MASK)
 	IMG_BOOL bRISCV = RGX_DEVICE_HAS_FEATURE(hPrivate, RISCV_FW_PROCESSOR);
+#endif
 	IMG_BOOL bMETA;
 
 #if defined(RGX_FEATURE_MIPS_BIT_MASK)
-	bMIPS = RGX_DEVICE_HAS_FEATURE(hPrivate, MIPS);
+	bMIPS = (IMG_BOOL)RGX_DEVICE_HAS_FEATURE(hPrivate, MIPS);
 #endif
-	bMETA = !bMIPS && !bRISCV;
+#if defined(RGX_FEATURE_RISCV_FW_PROCESSOR_BIT_MASK)
+	bMETA = (IMG_BOOL)(!bMIPS && !bRISCV);
+#else
+	bMETA = !bMIPS;
+#endif
 
 	if (bMETA)
 	{
+#if defined(RGX_FEATURE_META_MAX_VALUE_IDX)
 		IMG_UINT32 *pui32BootConf = NULL;
 		/* Skip bootloader configuration if a pointer to the FW code
 		 * allocation is not available
@@ -974,17 +987,20 @@ PVRSRV_ERROR RGXProcessFWImage(const void *hPrivate,
 				*pui32BootConf++ = 0;
 			}
 
+#if defined(RGX_FEATURE_META_DMA_BIT_MASK)
 			if (RGX_DEVICE_HAS_FEATURE(hPrivate, META_DMA))
 			{
 				*pui32BootConf++ = (IMG_UINT32) (puFWParams->sMeta.sFWCorememCodeDevVAddr.uiAddr >> 32);
 				*pui32BootConf++ = (IMG_UINT32) puFWParams->sMeta.sFWCorememCodeDevVAddr.uiAddr;
 			}
 			else
+#endif
 			{
 				*pui32BootConf++ = 0;
 				*pui32BootConf++ = 0;
 			}
 		}
+#endif /* defined(RGX_FEATURE_META_MAX_VALUE_IDX) */
 	}
 #if defined(RGXMIPSFW_MAX_NUM_PAGETABLE_PAGES)
 	else if (bMIPS)

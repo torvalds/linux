@@ -60,10 +60,11 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "log2.h"
 #if defined(__KERNEL__)
 #include "pvrsrv.h"
+#include "srvcore.h"
+#else
+#include "srvcore_intern.h"
 #endif
 
-#include "devicemem_utils.h"
-#include "client_cache_bridge.h"
 
 #define SYNC_BLOCK_LIST_CHUNCK_SIZE	10
 
@@ -119,9 +120,6 @@ static PVRSRV_ERROR
 AllocSyncPrimitiveBlock(SYNC_PRIM_CONTEXT *psContext,
                         SYNC_PRIM_BLOCK **ppsSyncBlock)
 {
-#ifdef CACHE_TEST
-	struct DEVMEM_MEMDESC_TAG *pxmdsc = NULL;
-#endif
 	SYNC_PRIM_BLOCK *psSyncBlk;
 	IMG_HANDLE hSyncPMR;
 	IMG_HANDLE hSyncImportHandle;
@@ -166,18 +164,6 @@ AllocSyncPrimitiveBlock(SYNC_PRIM_CONTEXT *psContext,
 	eError = DevmemAcquireCpuVirtAddr(psSyncBlk->hMemDesc,
 	                                  (void **) &psSyncBlk->pui32LinAddr);
 	PVR_GOTO_IF_ERROR(eError, fail_cpuvaddr);
-#ifdef CACHE_TEST
-	pxmdsc = (struct DEVMEM_MEMDESC_TAG *)psSyncBlk->hMemDesc;
-	printk("in %s L:%d mdsc->size:%lld, import->size:%lld, flag:%llx\n", __func__, __LINE__, pxmdsc->uiAllocSize, pxmdsc->psImport->uiSize, (unsigned long long)(pxmdsc->psImport->uiFlags & PVRSRV_MEMALLOCFLAG_CPU_CACHE_MODE_MASK));
-	if(pxmdsc->uiAllocSize > 4096 && !(PVRSRV_CHECK_CPU_UNCACHED(pxmdsc->psImport->uiFlags) || PVRSRV_CHECK_CPU_WRITE_COMBINE(pxmdsc->psImport->uiFlags)))
-	{
-		printk("in %s L:%d cache_op:%d\n", __func__, __LINE__,PVRSRV_CACHE_OP_INVALIDATE);
-		BridgeCacheOpExec (GetBridgeHandle(pxmdsc->psImport->hDevConnection),pxmdsc->psImport->hPMR,(IMG_UINT64)(uintptr_t)psSyncBlk->pui32LinAddr - pxmdsc->uiOffset,pxmdsc->uiOffset,pxmdsc->uiAllocSize,PVRSRV_CACHE_OP_INVALIDATE);
-	}
-#endif
-
-
-	
 
 	*ppsSyncBlock = psSyncBlk;
 	return PVRSRV_OK;
@@ -201,7 +187,9 @@ FreeSyncPrimitiveBlock(SYNC_PRIM_BLOCK *psSyncBlk)
 
 	DevmemReleaseCpuVirtAddr(psSyncBlk->hMemDesc);
 	DevmemFree(psSyncBlk->hMemDesc);
-	BridgeFreeSyncPrimitiveBlock(GetBridgeHandle(psContext->hDevConnection),
+	(void) DestroyServerResource(psContext->hDevConnection,
+	                             NULL,
+	                             BridgeFreeSyncPrimitiveBlock,
 	                             psSyncBlk->hServerSyncPrimBlock);
 	OSFreeMem(psSyncBlk);
 }
@@ -325,16 +313,19 @@ static void SyncPrimLocalFree(SYNC_PRIM *psSyncInt, IMG_BOOL bFreeFirstSyncPrim)
 #endif
 	{
 		PVRSRV_ERROR eError;
-		IMG_HANDLE hBridge =
-				GetBridgeHandle(psSyncInt->u.sLocal.psSyncBlock->psContext->hDevConnection);
+		SHARED_DEV_CONNECTION hDevConnection =
+			psSyncInt->u.sLocal.psSyncBlock->psContext->hDevConnection;
 
-		if (GetInfoPageDebugFlags(psSyncInt->u.sLocal.psSyncBlock->psContext->hDevConnection) & DEBUG_FEATURE_FULL_SYNC_TRACKING_ENABLED)
+		if (GetInfoPageDebugFlags(hDevConnection) & DEBUG_FEATURE_FULL_SYNC_TRACKING_ENABLED)
 		{
 			if (psSyncInt->u.sLocal.hRecord)
 			{
 				/* remove this sync record */
-				eError = BridgeSyncRecordRemoveByHandle(hBridge,
-				                                        psSyncInt->u.sLocal.hRecord);
+				eError = DestroyServerResource(hDevConnection,
+				                               NULL,
+				                               BridgeSyncRecordRemoveByHandle,
+				                               psSyncInt->u.sLocal.hRecord);
+				PVR_LOG_IF_ERROR(eError, "BridgeSyncRecordRemoveByHandle");
 			}
 		}
 		else
@@ -342,7 +333,7 @@ static void SyncPrimLocalFree(SYNC_PRIM *psSyncInt, IMG_BOOL bFreeFirstSyncPrim)
 			IMG_UINT32 ui32FWAddr = psSyncBlock->ui32FirmwareAddr +
 					SyncPrimGetOffset(psSyncInt);
 
-			eError = BridgeSyncFreeEvent(hBridge, ui32FWAddr);
+			eError = BridgeSyncFreeEvent(GetBridgeHandle(hDevConnection), ui32FWAddr);
 			PVR_LOG_IF_ERROR(eError, "BridgeSyncFreeEvent");
 		}
 #if defined(PVRSRV_ENABLE_SYNC_POISONING)

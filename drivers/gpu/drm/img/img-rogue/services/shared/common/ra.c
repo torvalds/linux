@@ -197,6 +197,19 @@ struct _RA_ARENA_
 	 */
 	IMG_UINT32 ui32LockClass;
 
+	/* Total Size of the Arena */
+	IMG_UINT64	ui64TotalArenaSize;
+
+	/* Size available for allocation in the arena */
+	IMG_UINT64	ui64FreeArenaSize;
+
+};
+
+struct _RA_ARENA_ITERATOR_
+{
+	RA_ARENA *pArena;
+	BT *pCurrent;
+	IMG_BOOL bIncludeFreeSegments;
 };
 
 /*************************************************************************/ /*!
@@ -214,12 +227,12 @@ struct _RA_ARENA_
 */ /**************************************************************************/
 static PVRSRV_ERROR
 _RequestAllocFail(RA_PERARENA_HANDLE _h,
-				  RA_LENGTH_T _uSize,
-				  RA_FLAGS_T _uFlags,
-				  const IMG_CHAR *_pszAnnotation,
-				  RA_BASE_T *_pBase,
-				  RA_LENGTH_T *_pActualSize,
-				  RA_PERISPAN_HANDLE *_phPriv)
+                  RA_LENGTH_T _uSize,
+                  RA_FLAGS_T _uFlags,
+                  const IMG_CHAR *_pszAnnotation,
+                  RA_BASE_T *_pBase,
+                  RA_LENGTH_T *_pActualSize,
+                  RA_PERISPAN_HANDLE *_phPriv)
 {
 	PVR_UNREFERENCED_PARAMETER(_h);
 	PVR_UNREFERENCED_PARAMETER(_uSize);
@@ -276,10 +289,10 @@ pvr_log2(RA_LENGTH_T n)
 
 	PVR_ASSERT(n != 0); /* Log2 is not defined on 0 */
 
-	n>>=1;
-	while (n>0)
+	n >>= 1;
+	while (n > 0)
 	{
-		n>>=1;
+		n >>= 1;
 		l++;
 	}
 	return l;
@@ -433,7 +446,7 @@ static int is_arena_valid(struct _RA_ARENA_ *arena)
 */ /**************************************************************************/
 static INLINE void
 _SegmentListInsertAfter(BT *pInsertionPoint,
-					    BT *pBT)
+                        BT *pBT)
 {
 	PVR_ASSERT(pBT != NULL);
 	PVR_ASSERT(pInsertionPoint != NULL);
@@ -589,7 +602,7 @@ _FreeListInsert(RA_ARENA *pArena, BT *pBT)
 	/* Get the first node in the bucket */
 	pBTTemp = pArena->per_flags_buckets->buckets[uIndex];
 
-	if (unlikely((pArena->ui32PolicyFlags & RA_POLICY_ALLOC_OPTIMAL_MASK) == RA_POLICY_ALLOC_OPTIMAL))
+	if (unlikely((pArena->ui32PolicyFlags & RA_POLICY_ALLOC_NODE_SELECT_MASK) == RA_POLICY_ALLOC_OPTIMAL))
 	{
 		/* Add the node to the start if the bucket is empty */
 		if (NULL == pBTTemp)
@@ -717,7 +730,7 @@ _FreeListRemove(RA_ARENA *pArena, BT *pBT)
 */ /**************************************************************************/
 static BT *
 _InsertResource(RA_ARENA *pArena, RA_BASE_T base, RA_LENGTH_T uSize,
-				RA_FLAGS_T uFlags)
+                RA_FLAGS_T uFlags)
 {
 	BT *pBT;
 	PVR_ASSERT(pArena!=NULL);
@@ -793,7 +806,6 @@ _RemoveResourceSpan(RA_ARENA *pArena, BT *pBT)
 	return IMG_FALSE;
 }
 
-
 /*************************************************************************/ /*!
 @Function       _FreeBT
 @Description    Free a boundary tag taking care of the segment list and the
@@ -865,9 +877,9 @@ _FreeBT(RA_ARENA *pArena, BT *pBT)
  */
 static INLINE
 struct _BT_ *find_chunk_in_bucket(struct _BT_ * first_elt,
-								  RA_LENGTH_T uSize,
-								  RA_LENGTH_T uAlignment,
-								  unsigned int nb_max_try)
+                                  RA_LENGTH_T uSize,
+                                  RA_LENGTH_T uAlignment,
+                                  unsigned int nb_max_try)
 {
 	struct _BT_ *walker;
 
@@ -892,6 +904,93 @@ struct _BT_ *find_chunk_in_bucket(struct _BT_ * first_elt,
 	return NULL;
 }
 
+/*************************************************************************/ /*!
+@Function       _AllocAlignSplit
+@Description    Given a valid BT, trim the start and end of the BT according
+                to alignment and size requirements. Also add the resulting
+                BT to the live hash table.
+@Input          pArena       The arena.
+@Input          pBT          The BT to trim and add to live hash table
+@Input          uSize        The requested allocation size.
+@Input          uAlignment   The alignment requirements of the allocation
+                             Required uAlignment, or 0.
+                             Must be a power of 2 if not 0
+@Output         pBase        Allocated, corrected, resource base
+                             (non-optional, must not be NULL)
+@Output         phPriv       The user references associated with
+                             the imported segment. (optional)
+@Return         IMG_FALSE failure
+                IMG_TRUE success
+*/ /**************************************************************************/
+static IMG_BOOL
+_AllocAlignSplit(RA_ARENA *pArena,
+                 BT *pBT,
+                 RA_LENGTH_T uSize,
+                 RA_LENGTH_T uAlignment,
+                 RA_BASE_T *pBase,
+                 RA_PERISPAN_HANDLE *phPriv)
+{
+	RA_BASE_T aligned_base;
+
+	aligned_base = (uAlignment > 1) ? (pBT->base + uAlignment - 1) & ~(uAlignment - 1) : pBT->base;
+
+	_FreeListRemove(pArena, pBT);
+
+	if ((pArena->ui32PolicyFlags & RA_POLICY_NO_SPLIT_MASK) == RA_POLICY_NO_SPLIT)
+	{
+		goto nosplit;
+	}
+
+	/* with uAlignment we might need to discard the front of this segment */
+	if (aligned_base > pBT->base)
+	{
+		BT *pNeighbour;
+		pNeighbour = _SegmentSplit(pBT, (RA_LENGTH_T)(aligned_base - pBT->base));
+		/* partition the buffer, create a new boundary tag */
+		if (pNeighbour == NULL)
+		{
+			PVR_DPF((PVR_DBG_ERROR, "%s: Front split failed", __func__));
+			/* Put pBT back in the list */
+			_FreeListInsert(pArena, pBT);
+			return IMG_FALSE;
+		}
+
+		_FreeListInsert(pArena, pBT);
+		pBT = pNeighbour;
+	}
+
+	/* the segment might be too big, if so, discard the back of the segment */
+	if (pBT->uSize > uSize)
+	{
+		BT *pNeighbour;
+		pNeighbour = _SegmentSplit(pBT, uSize);
+		/* partition the buffer, create a new boundary tag */
+		if (pNeighbour == NULL)
+		{
+			PVR_DPF((PVR_DBG_ERROR, "%s: Back split failed", __func__));
+			/* Put pBT back in the list */
+			_FreeListInsert(pArena, pBT);
+			return IMG_FALSE;
+		}
+
+		_FreeListInsert(pArena, pNeighbour);
+	}
+nosplit:
+	pBT->type = btt_live;
+
+	if (!HASH_Insert_Extended(pArena->pSegmentHash, &aligned_base, (uintptr_t)pBT))
+	{
+		_FreeBT(pArena, pBT);
+		return IMG_FALSE;
+	}
+
+	if (phPriv != NULL)
+		*phPriv = pBT->hPriv;
+
+	*pBase = aligned_base;
+
+	return IMG_TRUE;
+}
 
 /*************************************************************************/ /*!
 @Function       _AttemptAllocAligned
@@ -910,18 +1009,17 @@ struct _BT_ *find_chunk_in_bucket(struct _BT_ * first_elt,
 */ /**************************************************************************/
 static IMG_BOOL
 _AttemptAllocAligned(RA_ARENA *pArena,
-					 RA_LENGTH_T uSize,
-					 RA_FLAGS_T uFlags,
-					 RA_LENGTH_T uAlignment,
-					 RA_BASE_T *base,
-					 RA_PERISPAN_HANDLE *phPriv) /* this is the "per-import" private data */
+                     RA_LENGTH_T uSize,
+                     RA_FLAGS_T uFlags,
+                     RA_LENGTH_T uAlignment,
+                     RA_BASE_T *base,
+                     RA_PERISPAN_HANDLE *phPriv) /* this is the "per-import" private data */
 {
 
 	IMG_UINT32 index_low;
 	IMG_UINT32 index_high;
 	IMG_UINT32 i;
 	struct _BT_ *pBT = NULL;
-	RA_BASE_T aligned_base;
 
 	PVR_ASSERT(pArena!=NULL);
 	PVR_ASSERT(base != NULL);
@@ -994,88 +1092,104 @@ _AttemptAllocAligned(RA_ARENA *pArena,
 		return IMG_FALSE;
 	}
 
-	aligned_base = (uAlignment > 1) ? (pBT->base + uAlignment - 1) & ~(uAlignment - 1) : pBT->base;
-
-	_FreeListRemove(pArena, pBT);
-
-	if ((pArena->ui32PolicyFlags & RA_POLICY_NO_SPLIT_MASK) == RA_POLICY_NO_SPLIT)
-	{
-		goto nosplit;
-	}
-
-	/* with uAlignment we might need to discard the front of this segment */
-	if (aligned_base > pBT->base)
-	{
-		BT *pNeighbour;
-		pNeighbour = _SegmentSplit(pBT, (RA_LENGTH_T)(aligned_base - pBT->base));
-		/* partition the buffer, create a new boundary tag */
-		if (pNeighbour == NULL)
-		{
-			PVR_DPF((PVR_DBG_ERROR, "%s: Front split failed", __func__));
-			/* Put pBT back in the list */
-			_FreeListInsert(pArena, pBT);
-			return IMG_FALSE;
-		}
-
-		_FreeListInsert(pArena, pBT);
-		pBT = pNeighbour;
-	}
-
-	/* the segment might be too big, if so, discard the back of the segment */
-	if (pBT->uSize > uSize)
-	{
-		BT *pNeighbour;
-		pNeighbour = _SegmentSplit(pBT, uSize);
-		/* partition the buffer, create a new boundary tag */
-		if (pNeighbour == NULL)
-		{
-			PVR_DPF((PVR_DBG_ERROR, "%s: Back split failed", __func__));
-			/* Put pBT back in the list */
-			_FreeListInsert(pArena, pBT);
-			return IMG_FALSE;
-		}
-
-		_FreeListInsert(pArena, pNeighbour);
-	}
-nosplit:
-	pBT->type = btt_live;
-
-	if (!HASH_Insert_Extended(pArena->pSegmentHash, &aligned_base, (uintptr_t)pBT))
-	{
-		_FreeBT(pArena, pBT);
-		return IMG_FALSE;
-	}
-
-	if (phPriv != NULL)
-		*phPriv = pBT->hPriv;
-
-	*base = aligned_base;
-
-	return IMG_TRUE;
+	return _AllocAlignSplit(pArena, pBT, uSize, uAlignment, base, phPriv);
 }
 
-
-
 /*************************************************************************/ /*!
-@Function       RA_Create
-@Description    To create a resource arena.
-@Input          name          The name of the arena for diagnostic purposes.
-@Input          ulog2Quantum  The arena allocation quantum.
-@Input          ui32LockClass the lock class level this arena uses
-@Input          imp_alloc     A resource allocation callback or 0.
-@Input          imp_free      A resource de-allocation callback or 0.
-@Input          arena_handle  Handle passed to alloc and free or 0.
-@Input          ui32PolicyFlags Policies that govern the arena.
-@Return         arena handle, or NULL.
+@Function       _AttemptImportSpanAlloc
+@Description    Attempt to Import more memory and create a new span.
+                Function attempts to import more memory from the callback
+                provided at RA creation time, if successful the memory
+                will form a new span in the RA.
+@Input          pArena            The arena.
+@Input          uRequestSize      The requested allocation size.
+@Input          uImportMultiplier Import x-times more for future requests if
+                                  we have to import new memory.
+@Input          uImportFlags      Flags influencing allocation policy.
+@Input          uAlignment        The alignment requirements of the allocation
+                                  Required uAlignment, or 0.
+                                  Must be a power of 2 if not 0
+@Input          pszAnnotation     String to describe the allocation
+@Output         pImportBase       Allocated import base
+                                  (non-optional, must not be NULL)
+@Output         pImportSize       Allocated import size
+@Output         pImportBT         Allocated import BT
+@Return         PVRSRV_OK - success
 */ /**************************************************************************/
+static PVRSRV_ERROR
+_AttemptImportSpanAlloc(RA_ARENA *pArena,
+                        RA_LENGTH_T uRequestSize,
+                        IMG_UINT8 uImportMultiplier,
+                        RA_FLAGS_T uImportFlags,
+                        RA_LENGTH_T uAlignment,
+                        const IMG_CHAR *pszAnnotation,
+                        RA_BASE_T *pImportBase,
+                        RA_LENGTH_T *pImportSize,
+                        BT **pImportBT)
+{
+	IMG_HANDLE hPriv;
+	RA_FLAGS_T uFlags = (uImportFlags & PVRSRV_MEMALLOCFLAGS_RA_DIFFERENTIATION_MASK);
+	BT *pBT;
+	PVRSRV_ERROR eError;
+
+	*pImportSize = uRequestSize;
+	/*
+		Ensure that we allocate sufficient space to meet the uAlignment
+		constraint
+	 */
+	if (uAlignment > pArena->uQuantum)
+	{
+		*pImportSize += (uAlignment - pArena->uQuantum);
+	}
+
+	/* apply over-allocation multiplier after all alignment adjustments */
+	*pImportSize *= uImportMultiplier;
+
+	/* ensure that we import according to the quanta of this arena */
+	*pImportSize = (*pImportSize + pArena->uQuantum - 1) & ~(pArena->uQuantum - 1);
+
+	eError = pArena->pImportAlloc(pArena->pImportHandle,
+								  *pImportSize, uImportFlags,
+								  pszAnnotation,
+								  pImportBase, pImportSize,
+								  &hPriv);
+	if (PVRSRV_OK != eError)
+	{
+		return eError;
+	}
+
+	/* If we successfully import more resource, create a span to
+	 * represent it else free the resource we imported.
+	 */
+	pBT = _InsertResourceSpan(pArena, *pImportBase, *pImportSize, uFlags);
+	if (pBT == NULL)
+	{
+		/* insufficient resources to insert the newly acquired span,
+		   so free it back again */
+		pArena->pImportFree(pArena->pImportHandle, *pImportBase, hPriv);
+
+		PVR_DPF((PVR_DBG_MESSAGE, "%s: name='%s', "
+		        "size=0x%llx failed!", __func__, pArena->name,
+		        (unsigned long long)uRequestSize));
+		/* RA_Dump (arena); */
+
+		return PVRSRV_ERROR_RA_INSERT_RESOURCE_SPAN_FAILED;
+	}
+
+	pBT->hPriv = hPriv;
+	*pImportBT = pBT;
+
+	return eError;
+}
+
 IMG_INTERNAL RA_ARENA *
 RA_Create(IMG_CHAR *name,
-		  RA_LOG2QUANTUM_T uLog2Quantum,
-		  IMG_UINT32 ui32LockClass,
-		  PFN_RA_ALLOC imp_alloc,
-		  PFN_RA_FREE imp_free,
-		  RA_PERARENA_HANDLE arena_handle,
-		  IMG_UINT32 ui32PolicyFlags)
+          RA_LOG2QUANTUM_T uLog2Quantum,
+          IMG_UINT32 ui32LockClass,
+          PFN_RA_ALLOC imp_alloc,
+          PFN_RA_FREE imp_free,
+          RA_PERARENA_HANDLE arena_handle,
+          IMG_UINT32 ui32PolicyFlags)
 {
 	RA_ARENA *pArena;
 	PVRSRV_ERROR eError;
@@ -1116,6 +1230,8 @@ RA_Create(IMG_CHAR *name,
 	pArena->per_flags_buckets = NULL;
 	pArena->ui32LockClass = ui32LockClass;
 	pArena->ui32PolicyFlags = ui32PolicyFlags;
+	pArena->ui64TotalArenaSize = 0;
+	pArena->ui64FreeArenaSize = 0;
 
 	PVR_ASSERT(is_arena_valid(pArena));
 	return pArena;
@@ -1198,12 +1314,6 @@ return_:
 	return NULL;
 }
 
-/*************************************************************************/ /*!
-@Function       RA_Delete
-@Description    To delete a resource arena. All resources allocated from
-                the arena must be freed before deleting the arena.
-@Input          pArena        The arena to delete.
-*/ /**************************************************************************/
 IMG_INTERNAL void
 RA_Delete(RA_ARENA *pArena)
 {
@@ -1265,25 +1375,12 @@ RA_Delete(RA_ARENA *pArena)
 	/* not nulling pointer, copy on stack */
 }
 
-/*************************************************************************/ /*!
-@Function       RA_Add
-@Description    To add a resource span to an arena. The span must not
-                overlap with any span previously added to the arena.
-@Input          pArena     The arena to add a span into.
-@Input          base       The base of the span.
-@Input          uSize      The extent of the span.
-@Input          uFlags     the flags of the new import
-@Input          hPriv      a private handle associate to the span.
-                          (reserved for user)
-@Return         IMG_TRUE - Success
-                IMG_FALSE - failure
-*/ /**************************************************************************/
 IMG_INTERNAL IMG_BOOL
 RA_Add(RA_ARENA *pArena,
-	   RA_BASE_T base,
-	   RA_LENGTH_T uSize,
-	   RA_FLAGS_T uFlags,
-	   RA_PERISPAN_HANDLE hPriv)
+       RA_BASE_T base,
+       RA_LENGTH_T uSize,
+       RA_FLAGS_T uFlags,
+       RA_PERISPAN_HANDLE hPriv)
 {
 	struct _BT_* bt;
 	PVR_ASSERT(pArena != NULL);
@@ -1315,40 +1412,24 @@ RA_Add(RA_ARENA *pArena,
 	}
 
 	PVR_ASSERT(is_arena_valid(pArena));
+
+	pArena->ui64TotalArenaSize += uSize;
+	pArena->ui64FreeArenaSize += uSize;
 	OSLockRelease(pArena->hLock);
 
 	return bt != NULL;
 }
 
-/*************************************************************************/ /*!
-@Function       RA_Alloc
-@Description    To allocate resource from an arena.
-@Input          pArena            The arena
-@Input          uRequestSize      The size of resource segment requested.
-@Input          uImportMultiplier Import x-times more for future requests if
-                                  we have to import new memory.
-@Input          uImportFlags      Flags influencing allocation policy.
-@Input          uAlignment        The uAlignment constraint required for the
-                                  allocated segment, use 0 if uAlignment not
-                                  required, otherwise must be a power of 2.
-@Input          pszAnnotation     String to describe the allocation
-@Output         base              Allocated base resource
-@Output         pActualSize       The actual size of resource segment
-                                  allocated, typically rounded up by quantum.
-@Output         phPriv            The user reference associated with allocated
-                                  resource span.
-@Return         PVRSRV_OK - success
-*/ /**************************************************************************/
 IMG_INTERNAL PVRSRV_ERROR
 RA_Alloc(RA_ARENA *pArena,
-		 RA_LENGTH_T uRequestSize,
-		 IMG_UINT8 uImportMultiplier,
-		 RA_FLAGS_T uImportFlags,
-		 RA_LENGTH_T uAlignment,
-		 const IMG_CHAR *pszAnnotation,
-		 RA_BASE_T *base,
-		 RA_LENGTH_T *pActualSize,
-		 RA_PERISPAN_HANDLE *phPriv)
+         RA_LENGTH_T uRequestSize,
+         IMG_UINT8 uImportMultiplier,
+         RA_FLAGS_T uImportFlags,
+         RA_LENGTH_T uAlignment,
+         const IMG_CHAR *pszAnnotation,
+         RA_BASE_T *base,
+         RA_LENGTH_T *pActualSize,
+         RA_PERISPAN_HANDLE *phPriv)
 {
 	PVRSRV_ERROR eError;
 	IMG_BOOL bResult;
@@ -1358,7 +1439,7 @@ RA_Alloc(RA_ARENA *pArena,
 	if (pArena == NULL || uImportMultiplier == 0 || uSize == 0)
 	{
 		PVR_DPF((PVR_DBG_ERROR,
-				 "%s: One of the necessary parameters is 0", __func__));
+		        "%s: One of the necessary parameters is 0", __func__));
 		return PVRSRV_ERROR_INVALID_PARAMS;
 	}
 
@@ -1374,10 +1455,10 @@ RA_Alloc(RA_ARENA *pArena,
 	PVR_ASSERT((uAlignment == 0) || (uAlignment & (uAlignment - 1)) == 0);
 
 	PVR_DPF((PVR_DBG_MESSAGE,
-			 "%s: arena='%s', size=0x%llx(0x%llx), "
-			 "alignment=0x%llx", __func__, pArena->name,
-			 (unsigned long long)uSize, (unsigned long long)uRequestSize,
-			 (unsigned long long)uAlignment));
+	        "%s: arena='%s', size=0x%llx(0x%llx), "
+	        "alignment=0x%llx", __func__, pArena->name,
+	        (unsigned long long)uSize, (unsigned long long)uRequestSize,
+	        (unsigned long long)uAlignment));
 
 	/* if allocation failed then we might have an import source which
 	   can provide more resource, else we will have to fail the
@@ -1385,99 +1466,72 @@ RA_Alloc(RA_ARENA *pArena,
 	bResult = _AttemptAllocAligned(pArena, uSize, uFlags, uAlignment, base, phPriv);
 	if (!bResult)
 	{
-		IMG_HANDLE hPriv;
-		RA_BASE_T import_base;
-		RA_LENGTH_T uImportSize = uSize;
+		RA_BASE_T uImportBase;
+		RA_LENGTH_T uImportSize;
+		BT *pBT = NULL;
 
-		/*
-			Ensure that we allocate sufficient space to meet the uAlignment
-			constraint
-		 */
-		if (uAlignment > pArena->uQuantum)
-		{
-			uImportSize += (uAlignment - pArena->uQuantum);
-		}
-
-		/* apply over-allocation multiplier after all alignment adjustments */
-		uImportSize *= uImportMultiplier;
-
-		/* ensure that we import according to the quanta of this arena */
-		uImportSize = (uImportSize + pArena->uQuantum - 1) & ~(pArena->uQuantum - 1);
-
-		eError = pArena->pImportAlloc(pArena->pImportHandle,
-									  uImportSize, uImportFlags,
-									  pszAnnotation,
-									  &import_base, &uImportSize,
-									  &hPriv);
-		if (PVRSRV_OK != eError)
+		eError = _AttemptImportSpanAlloc(pArena,
+		                                 uSize,
+		                                 uImportMultiplier,
+		                                 uFlags,
+		                                 uAlignment,
+		                                 pszAnnotation,
+		                                 &uImportBase,
+		                                 &uImportSize,
+		                                 &pBT);
+		if (eError != PVRSRV_OK)
 		{
 			OSLockRelease(pArena->hLock);
 			return eError;
 		}
+
+		bResult = _AttemptAllocAligned(pArena, uSize, uFlags, uAlignment, base, phPriv);
+		if (!bResult)
+		{
+			PVR_DPF((PVR_DBG_ERROR,
+			        "%s: name='%s' second alloc failed!",
+			        __func__, pArena->name));
+
+			/*
+			  On failure of _AttemptAllocAligned() depending on the exact point
+			  of failure, the imported segment may have been used and freed, or
+			  left untouched. If the later, we need to return it.
+			*/
+			_FreeBT(pArena, pBT);
+
+			OSLockRelease(pArena->hLock);
+			return PVRSRV_ERROR_RA_ATTEMPT_ALLOC_ALIGNED_FAILED;
+		}
 		else
 		{
-			BT *pBT;
-			pBT = _InsertResourceSpan(pArena, import_base, uImportSize, uFlags);
-			/* successfully import more resource, create a span to
-			   represent it and retry the allocation attempt */
-			if (pBT == NULL)
-			{
-				/* insufficient resources to insert the newly acquired span,
-				   so free it back again */
-				pArena->pImportFree(pArena->pImportHandle, import_base, hPriv);
-
-				PVR_DPF((PVR_DBG_MESSAGE, "%s: name='%s', "
-						 "size=0x%llx failed!", __func__, pArena->name,
-						 (unsigned long long)uSize));
-				/* RA_Dump (arena); */
-
-				OSLockRelease(pArena->hLock);
-				return PVRSRV_ERROR_RA_INSERT_RESOURCE_SPAN_FAILED;
-			}
-
-			pBT->hPriv = hPriv;
-
-			bResult = _AttemptAllocAligned(pArena, uSize, uFlags, uAlignment, base, phPriv);
-			if (!bResult)
+			/* Check if the new allocation was in the span we just added... */
+			if (*base < uImportBase  ||  *base > (uImportBase + uImportSize))
 			{
 				PVR_DPF((PVR_DBG_ERROR,
-						 "%s: name='%s' second alloc failed!",
-						 __func__, pArena->name));
+				        "%s: name='%s' alloc did not occur in the imported span!",
+				        __func__, pArena->name));
 
 				/*
-				  On failure of _AttemptAllocAligned() depending on the exact point
-				  of failure, the imported segment may have been used and freed, or
-				  left untouched. If the later, we need to return it.
+				  Remove the imported span which should not be in use (if it is then
+				  that is okay, but essentially no span should exist that is not used).
 				*/
 				_FreeBT(pArena, pBT);
-
-				OSLockRelease(pArena->hLock);
-				return PVRSRV_ERROR_RA_ATTEMPT_ALLOC_ALIGNED_FAILED;
 			}
 			else
 			{
-				/* Check if the new allocation was in the span we just added... */
-				if (*base < import_base  ||  *base > (import_base + uImportSize))
-				{
-					PVR_DPF((PVR_DBG_ERROR,
-							 "%s: name='%s' alloc did not occur in the imported span!",
-							 __func__, pArena->name));
-
-					/*
-					  Remove the imported span which should not be in use (if it is then
-					  that is okay, but essentially no span should exist that is not used).
-					*/
-					_FreeBT(pArena, pBT);
-				}
+				pArena->ui64FreeArenaSize += uImportSize;
+				pArena->ui64TotalArenaSize += uImportSize;
 			}
 		}
 	}
 
 	PVR_DPF((PVR_DBG_MESSAGE, "%s: name='%s', size=0x%llx, "
-			 "*base=0x%llx = %d", __func__, pArena->name, (unsigned long long)uSize,
-			 (unsigned long long)*base, bResult));
+	        "*base=0x%llx = %d", __func__, pArena->name, (unsigned long long)uSize,
+	        (unsigned long long)*base, bResult));
 
 	PVR_ASSERT(is_arena_valid(pArena));
+
+	pArena->ui64FreeArenaSize -= uSize;
 
 	OSLockRelease(pArena->hLock);
 	return PVRSRV_OK;
@@ -1546,28 +1600,13 @@ static BT *RA_Find_BT_VARange(RA_ARENA *pArena,
 	return NULL;
 }
 
-
-/*************************************************************************/ /*!
-@Function       RA_Alloc_Range
-@Description    To allocate requested device virtual address resource from an arena.
-@Input          pArena            The arena
-@Input          uRequestSize      The size of resource segment requested.
-@Input          uImportFlags            Flags influencing allocation policy.
-@Input          uAlignment        The uAlignment constraint required for the
-                                  allocated segment, use 0 if uAlignment not required, otherwise
-                                  must be a power of 2.
-@input          base              Allocated base resource
-@Output         pActualSize       The actual size of resource segment
-                                  allocated, typically rounded up by quantum.
-@Return         PVRSRV_OK - success
-*/ /**************************************************************************/
 IMG_INTERNAL PVRSRV_ERROR
 RA_Alloc_Range(RA_ARENA *pArena,
-			   RA_LENGTH_T uRequestSize,
-			   RA_FLAGS_T uImportFlags,
-			   RA_LENGTH_T uAlignment,
-			   RA_BASE_T base,
-			   RA_LENGTH_T *pActualSize)
+               RA_LENGTH_T uRequestSize,
+               RA_FLAGS_T uImportFlags,
+               RA_LENGTH_T uAlignment,
+               RA_BASE_T base,
+               RA_LENGTH_T *pActualSize)
 {
 	RA_LENGTH_T uSize = uRequestSize;
 	BT *pBT = NULL;
@@ -1575,8 +1614,8 @@ RA_Alloc_Range(RA_ARENA *pArena,
 
 	if (pArena == NULL || uSize == 0)
 	{
-		PVR_DPF ((PVR_DBG_ERROR,
-				"%s: One of the necessary parameters is 0", __func__));
+		PVR_DPF((PVR_DBG_ERROR,
+		        "%s: One of the necessary parameters is 0", __func__));
 		return PVRSRV_ERROR_INVALID_PARAMS;
 	}
 
@@ -1675,18 +1714,14 @@ RA_Alloc_Range(RA_ARENA *pArena,
 		*pActualSize = uSize;
 	}
 
+	pArena->ui64FreeArenaSize -= uSize;
+
 unlock_:
 	OSLockRelease(pArena->hLock);
 
 	return eError;
 }
 
-/*************************************************************************/ /*!
-@Function       RA_Free
-@Description    To free a resource segment.
-@Input          pArena     The arena the segment was originally allocated from.
-@Input          base       The base of the resource span to free.
-*/ /**************************************************************************/
 IMG_INTERNAL void
 RA_Free(RA_ARENA *pArena, RA_BASE_T base)
 {
@@ -1704,23 +1739,428 @@ RA_Free(RA_ARENA *pArena, RA_BASE_T base)
 	PVR_ASSERT(is_arena_valid(pArena));
 
 	PVR_DPF((PVR_DBG_MESSAGE, "%s: name='%s', base=0x%llx", __func__, pArena->name,
-			 (unsigned long long)base));
+	        (unsigned long long)base));
 
 	pBT = (BT *) HASH_Remove_Extended(pArena->pSegmentHash, &base);
 	PVR_ASSERT(pBT != NULL);
 
 	if (pBT)
 	{
+		pArena->ui64FreeArenaSize += pBT->uSize;
+
 		PVR_ASSERT(pBT->base == base);
 		_FreeBT(pArena, pBT);
 	}
 	else
 	{
-		PVR_DPF((PVR_DBG_ERROR, "%s: no resource span found for given base (0x%llX) in arena %s",
-										__func__, (unsigned long long) base,
-											pArena->name));
+		PVR_DPF((PVR_DBG_ERROR,
+		        "%s: no resource span found for given base (0x%llX) in arena %s",
+		         __func__, (unsigned long long) base, pArena->name));
 	}
 
 	PVR_ASSERT(is_arena_valid(pArena));
 	OSLockRelease(pArena->hLock);
+}
+
+IMG_INTERNAL void
+RA_Get_Usage_Stats(RA_ARENA *pArena, PRA_USAGE_STATS psRAStats)
+{
+	psRAStats->ui64TotalArenaSize = pArena->ui64TotalArenaSize;
+	psRAStats->ui64FreeArenaSize = pArena->ui64FreeArenaSize;
+}
+
+/* #define _DBG(...) PVR_LOG((__VA_ARGS__)) */
+#define _DBG(...)
+
+IMG_INTERNAL RA_ARENA_ITERATOR *
+RA_IteratorAcquire(RA_ARENA *pArena, IMG_BOOL bIncludeFreeSegments)
+{
+	RA_ARENA_ITERATOR *pIter = OSAllocMem(sizeof(*pIter));
+	PVR_LOG_RETURN_IF_FALSE(pIter != NULL, "OSAllocMem", NULL);
+
+	OSLockAcquireNested(pArena->hLock, pArena->ui32LockClass);
+
+	pIter->pArena = pArena;
+	pIter->bIncludeFreeSegments = bIncludeFreeSegments;
+
+	RA_IteratorReset(pIter);
+
+	return pIter;
+}
+
+IMG_INTERNAL void
+RA_IteratorRelease(RA_ARENA_ITERATOR *pIter)
+{
+	PVR_ASSERT(pIter != NULL);
+
+	if (pIter == NULL)
+	{
+		return;
+	}
+
+	OSLockRelease(pIter->pArena->hLock);
+
+	OSFreeMem(pIter);
+}
+
+IMG_INTERNAL void
+RA_IteratorReset(RA_ARENA_ITERATOR *pIter)
+{
+	BT *pNext;
+
+	PVR_ASSERT(pIter != NULL);
+
+	pNext = pIter->pArena->pHeadSegment;
+
+	/* find next element if we're not including the free ones */
+	if (!pIter->bIncludeFreeSegments)
+	{
+		while (pNext != NULL && pNext->type != btt_live)
+		{
+			_DBG("(%s()) skipping segment=%px, size=0x%" IMG_UINT64_FMTSPECx ", "
+			     "type=%u", __func__, (void *) pNext->base, pNext->uSize,
+			     pNext->type);
+			pNext = pNext->pNextSegment;
+		}
+	}
+
+	_DBG("(%s()) current segment=%px, size=0x%" IMG_UINT64_FMTSPECx ", "
+	     "type=%u", __func__,
+	     pNext != NULL ? (void *) pNext->base : NULL,
+	     pNext != NULL ? pNext->uSize : 0,
+	     pNext != NULL ? pNext->type : 0);
+
+	/* if bIncludeFreeSegments then pNext here is either a valid pointer to
+	 * "live" segment or NULL and if !bIncludeFreeSegments then it's either
+	 * a valid pointer to any next segment or NULL */
+	pIter->pCurrent = pNext;
+}
+
+IMG_INTERNAL IMG_BOOL
+RA_IteratorNext(RA_ARENA_ITERATOR *pIter, RA_ITERATOR_DATA *pData)
+{
+	BT *pNext;
+
+	PVR_ASSERT(pIter != NULL);
+
+	if (pIter == NULL)
+	{
+		PVR_DPF((PVR_DBG_ERROR, "pIter in %s() is NULL", __func__));
+		return IMG_FALSE;
+	}
+
+	if (pIter->pCurrent == NULL)
+	{
+		return IMG_FALSE;
+	}
+
+	pNext = pIter->pCurrent;
+
+	_DBG("(%s()) current segment=%px, size=0x%" IMG_UINT64_FMTSPECx ", "
+	     "type=%u", __func__, (void *) pNext->base, pNext->uSize,
+	     pNext->type);
+
+	pData->uiAddr = pIter->pCurrent->base;
+	pData->uiSize = pIter->pCurrent->uSize;
+	pData->bFree = pIter->pCurrent->type == btt_free;
+
+	/* combine contiguous segments */
+	while ((pNext = pNext->pNextSegment) != NULL &&
+	       pNext->type == btt_live &&
+	       pNext->base == pData->uiAddr + pData->uiSize)
+	{
+		_DBG("(%s()) combining segment=%px, size=0x%" IMG_UINT64_FMTSPECx ", "
+		     "type=%u", __func__, (void *) pNext->base, pNext->uSize,
+		     pNext->type);
+		pData->uiSize += pNext->uSize;
+	}
+
+	/* advance to next */
+	if (!pIter->bIncludeFreeSegments)
+	{
+		while (pNext != NULL && pNext->type != btt_live)
+		{
+			_DBG("(%s()) skipping segment=%px, size=0x%" IMG_UINT64_FMTSPECx ", "
+			     "type=%u", __func__, (void *) pNext->base, pNext->uSize,
+			     pNext->type);
+			pNext = pNext->pNextSegment;
+		}
+	}
+
+	_DBG("(%s()) next segment=%px, size=0x%" IMG_UINT64_FMTSPECx ", "
+	     "type=%u", __func__,
+	     pNext != NULL ? (void *) pNext->base : NULL,
+	     pNext != NULL ? pNext->uSize : 0,
+	     pNext != NULL ? pNext->type : 0);
+
+	/* if bIncludeFreeSegments then pNext here is either a valid pointer to
+	 * "live" segment or NULL and if !bIncludeFreeSegments then it's either
+	 * a valid pointer to any next segment or NULL */
+	pIter->pCurrent = pNext;
+
+	return IMG_TRUE;
+}
+
+IMG_INTERNAL PVRSRV_ERROR
+RA_BlockDump(RA_ARENA *pArena, void (*pfnLogDump)(void*, IMG_CHAR*, ...), void *pPrivData)
+{
+	RA_ARENA_ITERATOR *pIter = NULL;
+	RA_ITERATOR_DATA sIterData;
+	const IMG_UINT32 uiLineWidth = 64;
+
+	IMG_UINT32 **papRegionArray = NULL;
+	IMG_UINT32 uiRegionCount = 0;
+
+	const IMG_UINT32 uiChunkSize = 32; /* 32-bit chunks */
+	const IMG_UINT32 uiChunkCount = (uiLineWidth / uiChunkSize) * 2; /* This should equal 2 or a multiple of 2 */
+	const IMG_UINT32 uiRegionSize = uiChunkSize * uiChunkCount;
+
+	IMG_UINT32 uiRecognisedQuantum = 0;
+
+	IMG_UINT32 uiLastBase = 0;
+	IMG_UINT32 uiLastSize = 0;
+
+	IMG_UINT32 i;
+	PVRSRV_ERROR eError = PVRSRV_OK;
+
+	/* -- papRegionArray Structure --
+	 *  papRegionArray Indexes
+	 *  |         Chunk 0      Chunk 1      Chunk 2      Chunk 3
+	 *  v     |------------|------------|------------|------------|
+	 * [0] -> | 0000000000 | 0000000000 | 0000000000 | 0000000000 | -- |
+	 * [1] -> | 0000000000 | 0000000000 | 0000000000 | 0000000000 |    |
+	 * [2] -> | 0000000000 | 0000000000 | 0000000000 | 0000000000 |    |
+	 * [3] -> | 0000000000 | 0000000000 | 0000000000 | 0000000000 |    | Regions
+	 * [4] -> | 0000000000 | 0000000000 | 0000000000 | 0000000000 |    |
+	 * [5] -> | 0000000000 | 0000000000 | 0000000000 | 0000000000 |    |
+	 * [6] -> | 0000000000 | 0000000000 | 0000000000 | 0000000000 | -- |
+	 * ...
+	 */
+
+	if (pArena == NULL || pfnLogDump == NULL)
+	{
+		return PVRSRV_ERROR_INVALID_PARAMS;
+	}
+
+	pIter = RA_IteratorAcquire(pArena, IMG_FALSE);
+	PVR_LOG_RETURN_IF_NOMEM(pIter, "RA_IteratorAcquire");
+
+	uiRecognisedQuantum = pArena->uQuantum > 0 ? pArena->uQuantum : 4096;
+
+	while (RA_IteratorNext(pIter, &sIterData))
+	{
+		if (sIterData.uiAddr >= uiLastBase)
+		{
+			uiLastBase = sIterData.uiAddr;
+			uiLastSize = sIterData.uiSize;
+		}
+	}
+
+	uiRegionCount = ((uiLastBase + uiLastSize) / uiRecognisedQuantum) / uiRegionSize;
+	if (((uiLastBase + uiLastSize) / uiRecognisedQuantum) % uiRegionSize != 0
+	   || uiRegionCount == 0)
+	{
+		uiRegionCount += 1;
+	}
+
+	papRegionArray = OSAllocZMem(sizeof(IMG_UINT32*) * uiRegionCount);
+	PVR_LOG_GOTO_IF_NOMEM(papRegionArray, eError, cleanup_array);
+
+	RA_IteratorReset(pIter);
+
+	while (RA_IteratorNext(pIter, &sIterData))
+	{
+		IMG_UINT32 uiAddrRegionIdx = 0;
+		IMG_UINT32 uiAddrRegionOffset = 0;
+		IMG_UINT32 uiAddrChunkIdx = 0;
+		IMG_UINT32 uiAddrChunkOffset = 0;
+		IMG_UINT32 uiAddrChunkShift; /* The bit-shift needed to fill the chunk */
+
+		IMG_UINT32 uiQuantisedSize;
+		IMG_UINT32 uiQuantisedSizeMod;
+		IMG_UINT32 uiAllocLastRegionIdx = 0; /* The last region that this alloc appears in */
+		IMG_UINT32 uiAllocChunkSize = 0; /* The number of chunks this alloc spans */
+
+		IMG_INT32 iBitSetCount = 0;
+		IMG_INT32 iOverflowCheck = 0;
+		IMG_INT32 iOverflow = 0;
+		IMG_UINT32 uiRegionIdx = 0;
+		IMG_UINT32 uiChunkIdx = 0;
+
+#if defined(__KERNEL__) && defined(__linux__)
+		IMG_UINT64 uiDataDivRecQuant = sIterData.uiSize;
+		uiQuantisedSizeMod = do_div(uiDataDivRecQuant, uiRecognisedQuantum);
+		uiQuantisedSize = (IMG_UINT32)uiDataDivRecQuant;
+
+		uiDataDivRecQuant = sIterData.uiAddr;
+		do_div(uiDataDivRecQuant, uiRecognisedQuantum);
+		uiAddrRegionOffset = do_div(uiDataDivRecQuant, uiRegionSize);
+		uiAddrRegionIdx = (IMG_UINT32)uiDataDivRecQuant;
+
+		uiDataDivRecQuant = sIterData.uiAddr;
+		do_div(uiDataDivRecQuant, uiRecognisedQuantum);
+#else
+		IMG_UINT64 uiDataDivRecQuant = sIterData.uiAddr / uiRecognisedQuantum;
+		uiAddrRegionIdx = uiDataDivRecQuant / uiRegionSize;
+		uiAddrRegionOffset = uiDataDivRecQuant % uiRegionSize;
+
+		uiQuantisedSize = sIterData.uiSize / uiRecognisedQuantum;
+		uiQuantisedSizeMod = sIterData.uiSize % uiRecognisedQuantum;
+#endif
+		uiAddrChunkIdx = uiAddrRegionOffset / uiChunkSize;
+		uiAddrChunkOffset = uiAddrRegionOffset % uiChunkSize;
+		uiAddrChunkShift = uiChunkSize - uiAddrChunkOffset;
+		uiRegionIdx = uiAddrRegionIdx;
+		uiChunkIdx = uiAddrChunkIdx;
+
+		if ((uiQuantisedSize == 0) || (uiQuantisedSizeMod != 0))
+		{
+			uiQuantisedSize += 1;
+		}
+
+#if defined(__KERNEL__) && defined(__linux__)
+		uiDataDivRecQuant += uiQuantisedSize - 1;
+		do_div(uiDataDivRecQuant, uiRegionSize);
+		uiAllocLastRegionIdx = (IMG_UINT32)uiDataDivRecQuant;
+#else
+		uiAllocLastRegionIdx =
+		    (uiDataDivRecQuant + uiQuantisedSize - 1) / uiRegionSize;
+#endif
+		uiAllocChunkSize = (uiAddrChunkOffset + uiQuantisedSize) / uiChunkSize;
+
+		if ((uiAddrChunkOffset + uiQuantisedSize) % uiChunkSize > 0)
+		{
+			uiAllocChunkSize += 1;
+		}
+
+		iBitSetCount = uiQuantisedSize;
+		iOverflowCheck = uiQuantisedSize - uiAddrChunkShift;
+
+		if (iOverflowCheck > 0)
+		{
+			iOverflow = iOverflowCheck;
+			iBitSetCount = uiQuantisedSize - iOverflow;
+		}
+
+		/**
+		 * Allocate memory to represent the chunks for each region the allocation
+		 * spans. If one was already allocated before don't do it again.
+		 */
+		for (i = 0; uiAddrRegionIdx + i <= uiAllocLastRegionIdx; i++)
+		{
+			if (papRegionArray[uiAddrRegionIdx + i] == NULL)
+			{
+				papRegionArray[uiAddrRegionIdx + i] = OSAllocZMem(sizeof(IMG_UINT32) * uiChunkCount);
+				PVR_LOG_GOTO_IF_NOMEM(papRegionArray[uiAddrRegionIdx + i], eError, cleanup_regions);
+			}
+		}
+
+		for (i = 0; i < uiAllocChunkSize; i++)
+		{
+			if (uiChunkIdx >= uiChunkCount)
+			{
+				uiRegionIdx++;
+				uiChunkIdx = 0;
+			}
+
+			if ((IMG_UINT32)iBitSetCount != uiChunkSize)
+			{
+				IMG_UINT32 uiBitMask = 0;
+
+				uiBitMask = (1U << iBitSetCount) - 1;
+				uiBitMask <<= (uiAddrChunkShift - iBitSetCount);
+
+				papRegionArray[uiRegionIdx][uiChunkIdx] |= uiBitMask;
+			}
+			else
+			{
+				papRegionArray[uiRegionIdx][uiChunkIdx] |= 0xFFFFFFFF;
+			}
+
+			uiChunkIdx++;
+			iOverflow -= uiChunkSize;
+			iBitSetCount = iOverflow >= 0 ? uiChunkSize : uiChunkSize + iOverflow;
+			if (iOverflow < 0)
+			{
+				uiAddrChunkShift = 32;
+			}
+		}
+	}
+
+	RA_IteratorRelease(pIter);
+
+	pfnLogDump(pPrivData, "~~~ '%s' Resource Arena Block Dump", pArena->name);
+	pfnLogDump(pPrivData, "    Block Size: %uB", uiRecognisedQuantum);
+	pfnLogDump(pPrivData,
+	           "    Span Memory Usage: %"IMG_UINT64_FMTSPEC"B"
+	           "    Free Span Memory: %"IMG_UINT64_FMTSPEC"B",
+	           pArena->ui64TotalArenaSize,
+	           pArena->ui64FreeArenaSize);
+	pfnLogDump(pPrivData,
+	           "===============================================================================");
+
+	for (i = 0; i < uiRegionCount; i++)
+	{
+		static IMG_BOOL bEmptyRegion = IMG_FALSE;
+		if (papRegionArray[i] != NULL)
+		{
+			IMG_CHAR pszLine[65];
+			IMG_UINT32 j;
+
+			bEmptyRegion = IMG_FALSE;
+			pszLine[64] = '\0';
+
+			for (j = 0; j < uiChunkCount; j+=2)
+			{
+				IMG_UINT8 uiBit = 0;
+				IMG_UINT32 k;
+				IMG_UINT64 uiLineAddress =
+				    (i * uiRegionSize + (j >> 1) * uiLineWidth) * uiRecognisedQuantum;
+
+				/**
+				 * Move through each of the 32 bits in the chunk and check their
+				 * value. If it is 1 we set the corresponding character to '#',
+				 * otherwise it is set to '.' representing empty space
+				 */
+				for (k = 1 << 31; k != 0; k >>= 1)
+				{
+					pszLine[uiBit] = papRegionArray[i][j] & k ? '#' : '.';
+					pszLine[32 + uiBit] = papRegionArray[i][j+1] & k ? '#' : '.';
+					uiBit++;
+				}
+
+				pfnLogDump(pPrivData,
+				           "| 0x%08"IMG_UINT64_FMTSPECx" | %s",
+				           uiLineAddress,
+				           pszLine);
+			}
+			OSFreeMem(papRegionArray[i]);
+		}
+		else
+		{
+			/* We only print this once per gap of n regions */
+			if (!bEmptyRegion)
+			{
+				pfnLogDump(pPrivData, "     ....");
+				bEmptyRegion = IMG_TRUE;
+			}
+		}
+	}
+	OSFreeMem(papRegionArray);
+	return eError;
+
+cleanup_regions:
+	for (i = 0; i < uiRegionCount; i++)
+	{
+		if (papRegionArray[i] != NULL)
+		{
+			OSFreeMem(papRegionArray[i]);
+		}
+	}
+
+cleanup_array:
+	OSFreeMem(papRegionArray);
+	RA_IteratorRelease(pIter);
+
+	return eError;
 }

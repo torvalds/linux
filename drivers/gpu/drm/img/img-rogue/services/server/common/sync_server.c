@@ -58,9 +58,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "htbuffer.h"
 #include "rgxhwperf.h"
 #include "info_page.h"
-#include "devicemem_utils.h"
-#include "client_cache_bridge.h"
-
 
 #include "sync_checkpoint_internal.h"
 #include "sync_checkpoint.h"
@@ -73,10 +70,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #if defined(SUPPORT_SECURE_EXPORT)
 #include "ossecure_export.h"
-#endif
-
-#if defined(SUPPORT_EXTRA_METASP_DEBUG)
-#include "rgxdebug.h"
 #endif
 
 /* Set this to enable debug relating to the construction and maintenance of the sync address list */
@@ -780,9 +773,6 @@ PVRSRVAllocSyncPrimitiveBlockKM(CONNECTION_DATA *psConnection,
 								IMG_UINT32 *puiSyncPrimBlockSize,
 								PMR        **ppsSyncPMR)
 {
-#ifdef CACHE_TEST
-	DEVMEM_MEMDESC *pxmdsc = NULL;
-#endif
 	SYNC_PRIMITIVE_BLOCK *psNewSyncBlk;
 	PVRSRV_ERROR eError;
 
@@ -791,7 +781,7 @@ PVRSRVAllocSyncPrimitiveBlockKM(CONNECTION_DATA *psConnection,
 
 	psNewSyncBlk->psDevNode = psDevNode;
 
-	PDUMPCOMMENTWITHFLAGS(PDUMP_FLAGS_CONTINUOUS, "Allocate UFO block");
+	PDUMPCOMMENTWITHFLAGS(psDevNode, PDUMP_FLAGS_CONTINUOUS, "Allocate UFO block");
 
 	eError = psDevNode->pfnAllocUFOBlock(psDevNode,
 										 &psNewSyncBlk->psMemDesc,
@@ -804,15 +794,6 @@ PVRSRVAllocSyncPrimitiveBlockKM(CONNECTION_DATA *psConnection,
 	eError = DevmemAcquireCpuVirtAddr(psNewSyncBlk->psMemDesc,
 									  (void **) &psNewSyncBlk->pui32LinAddr);
 	PVR_GOTO_IF_ERROR(eError, e2);
-#ifdef CACHE_TEST
-	pxmdsc = (DEVMEM_MEMDESC *)psNewSyncBlk->psMemDesc;
-	printk("in %s L:%d mdsc->size:%lld, import->size:%lld, flag:%llx\n", __func__, __LINE__, pxmdsc->uiAllocSize, pxmdsc->psImport->uiSize, (unsigned long long)(pxmdsc->psImport->uiFlags & PVRSRV_MEMALLOCFLAG_CPU_CACHE_MODE_MASK));
-	if(pxmdsc->uiAllocSize > 4096 && !(PVRSRV_CHECK_CPU_UNCACHED(pxmdsc->psImport->uiFlags) || PVRSRV_CHECK_CPU_WRITE_COMBINE(pxmdsc->psImport->uiFlags)))
-	{
-	    printk("in %s L:%d cache_op:%d\n", __func__, __LINE__,PVRSRV_CACHE_OP_INVALIDATE);
-	    BridgeCacheOpExec (GetBridgeHandle(pxmdsc->psImport->hDevConnection),pxmdsc->psImport->hPMR,(IMG_UINT64)(uintptr_t)psNewSyncBlk->pui32LinAddr - pxmdsc->uiOffset,pxmdsc->uiOffset,pxmdsc->uiAllocSize,PVRSRV_CACHE_OP_INVALIDATE);
-	}
-#endif
 
 	eError = DevmemLocalGetImportHandle(psNewSyncBlk->psMemDesc, (void **) ppsSyncPMR);
 
@@ -826,7 +807,7 @@ PVRSRVAllocSyncPrimitiveBlockKM(CONNECTION_DATA *psConnection,
 	*ppsSyncBlk = psNewSyncBlk;
 	*puiSyncPrimBlockSize = psNewSyncBlk->ui32BlockSize;
 
-	PDUMPCOMMENTWITHFLAGS(PDUMP_FLAGS_CONTINUOUS,
+	PDUMPCOMMENTWITHFLAGS(psDevNode, PDUMP_FLAGS_CONTINUOUS,
 						  "Allocated UFO block (FirmwareVAddr = 0x%08x)",
 						  *puiSyncPrimVAddr);
 
@@ -975,7 +956,7 @@ void SyncUnregisterConnection(SYNC_CONNECTION_DATA *psSyncConnectionData)
 	_SyncConnectionUnref(psSyncConnectionData);
 }
 
-void SyncConnectionPDumpSyncBlocks(void *hSyncPrivData, PDUMP_TRANSITION_EVENT eEvent)
+void SyncConnectionPDumpSyncBlocks(PVRSRV_DEVICE_NODE *psDevNode, void *hSyncPrivData, PDUMP_TRANSITION_EVENT eEvent)
 {
 	if ((eEvent == PDUMP_TRANSITION_EVENT_RANGE_ENTERED) || (eEvent == PDUMP_TRANSITION_EVENT_BLOCK_STARTED))
 	{
@@ -984,7 +965,7 @@ void SyncConnectionPDumpSyncBlocks(void *hSyncPrivData, PDUMP_TRANSITION_EVENT e
 
 		OSLockAcquire(psSyncConnectionData->hLock);
 
-		PDUMPCOMMENT("Dump client Sync Prim state");
+		PDUMPCOMMENT(psDevNode, "Dump client Sync Prim state");
 		dllist_foreach_node(&psSyncConnectionData->sListHead, psNode, psNext)
 		{
 			SYNC_PRIMITIVE_BLOCK *psSyncBlock =
@@ -1168,11 +1149,11 @@ static PVRSRV_ERROR SyncRecordListInit(PVRSRV_DEVICE_NODE *psDevNode)
 	PVR_GOTO_IF_ERROR(eError, fail_lock_create);
 	dllist_init(&psDevNode->sSyncServerRecordList);
 
-	eError = PVRSRVRegisterDbgRequestNotify(&psDevNode->hSyncServerRecordNotify,
-											psDevNode,
-											_SyncRecordRequest,
-											DEBUG_REQUEST_SYNCTRACKING,
-											psDevNode);
+	eError = PVRSRVRegisterDeviceDbgRequestNotify(&psDevNode->hSyncServerRecordNotify,
+		                                          psDevNode,
+		                                          _SyncRecordRequest,
+		                                          DEBUG_REQUEST_SYNCTRACKING,
+		                                          psDevNode);
 
 	PVR_GOTO_IF_ERROR(eError, fail_dbg_register);
 
@@ -1211,7 +1192,7 @@ static void SyncRecordListDeinit(PVRSRV_DEVICE_NODE *psDevNode)
 
 	if (psDevNode->hSyncServerRecordNotify)
 	{
-		PVRSRVUnregisterDbgRequestNotify(psDevNode->hSyncServerRecordNotify);
+		PVRSRVUnregisterDeviceDbgRequestNotify(psDevNode->hSyncServerRecordNotify);
 	}
 	OSLockDestroy(psDevNode->hSyncServerRecordLock);
 }

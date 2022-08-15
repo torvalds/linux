@@ -112,6 +112,12 @@ typedef struct DFS_FILE
 
 /* ----- native callbacks interface ----------------------------------------- */
 
+static void _WriteData(void *pvNativeHandle, const void *pvData,
+                       IMG_UINT32 uiSize)
+{
+	seq_write(pvNativeHandle, pvData, uiSize);
+}
+
 static void _VPrintf(void *pvNativeHandle, const IMG_CHAR *pszFmt,
                      va_list pArgs)
 {
@@ -141,6 +147,7 @@ static IMG_BOOL _HasOverflowed(void *pvNativeHandle)
 }
 
 static OSDI_IMPL_ENTRY_CB _g_sEntryCallbacks = {
+	.pfnWrite = _WriteData,
 	.pfnVPrintf = _VPrintf,
 	.pfnPuts = _Puts,
 	.pfnHasOverflowed = _HasOverflowed,
@@ -348,9 +355,9 @@ static loff_t _LSeek(struct file *psFile, loff_t iOffset, int iOrigin)
 		iRes = seq_lseek(psFile, iOffset, iOrigin);
 		if (iRes < 0)
 		{
-			PVR_DPF((PVR_DBG_ERROR, "%s: failed to set file position to offset "
-			        "%lld, pfnSeek() returned %lld", __func__,
-			        iOffset, iRes));
+			PVR_DPF((PVR_DBG_ERROR, "%s: failed to set file position in psFile<%p> to offset "
+			        "%lld, iOrigin %d, seq_lseek() returned %lld (dentry='%s')", __func__,
+			        psFile, iOffset, iOrigin, iRes, psFile->f_path.dentry->d_name.name));
 			goto return_;
 		}
 	}
@@ -403,22 +410,29 @@ static ssize_t _Write(struct file *psFile, const char __user *pszBuffer,
 	DFS_FILE *psDFSFile = psINode->i_private;
 	DI_ITERATOR_CB *psIter = &psDFSFile->sEntry.sIterCb;
 	IMG_CHAR *pcLocalBuffer;
-	IMG_UINT64 ui64Count = uiCount + 1, ui64Pos = *puiPos;
+	IMG_UINT64 ui64Count;
 	IMG_INT64 i64Res = -EIO;
+	IMG_UINT64 ui64Pos = *puiPos;
 
 	PVR_LOG_RETURN_IF_FALSE(psDFSFile != NULL, "psDFSFile is NULL",
 	                        -EIO);
 	PVR_LOG_RETURN_IF_FALSE(psIter->pfnWrite != NULL, "pfnWrite is NULL",
 	                        -EIO);
 
+
+	/* Make sure we allocate the smallest amount of needed memory*/
+	ui64Count = psIter->ui32WriteLenMax;
+	PVR_LOG_GOTO_IF_FALSE(uiCount <= ui64Count, "uiCount too long", return_);
+	ui64Count = MIN(uiCount + 1, ui64Count);
+
 	_DRIVER_THREAD_ENTER();
 
-	/* allocate buffer with one additional byte fore NUL character */
+	/* allocate buffer with one additional byte for NUL character */
 	pcLocalBuffer = OSAllocMem(ui64Count);
 	PVR_LOG_GOTO_IF_FALSE(pcLocalBuffer != NULL, "OSAllocMem() failed",
 	                      return_);
 
-	i64Res = pvr_copy_from_user(pcLocalBuffer, pszBuffer, uiCount);
+	i64Res = pvr_copy_from_user(pcLocalBuffer, pszBuffer, ui64Count);
 	PVR_LOG_GOTO_IF_FALSE(i64Res == 0, "pvr_copy_from_user() failed",
 	                      free_local_buffer_);
 

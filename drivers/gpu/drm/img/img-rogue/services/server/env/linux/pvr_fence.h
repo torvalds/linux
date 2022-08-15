@@ -57,8 +57,8 @@ static inline void pvr_fence_cleanup(void)
 #include <linux/spinlock.h>
 #include <linux/workqueue.h>
 
-struct _SYNC_CHECKPOINT_CONTEXT;
-struct _SYNC_CHECKPOINT;
+struct SYNC_CHECKPOINT_CONTEXT_TAG;
+struct SYNC_CHECKPOINT_TAG;
 
 /**
  * pvr_fence_context - PVR fence context used to create and manage PVR fences
@@ -117,7 +117,7 @@ struct pvr_fence {
 	char name[32];
 
 	struct dma_fence *fence;
-	struct _SYNC_CHECKPOINT *sync_checkpoint;
+	struct SYNC_CHECKPOINT_TAG *sync_checkpoint;
 
 	struct list_head fence_head;
 	struct list_head signal_head;
@@ -148,6 +148,12 @@ static inline struct pvr_fence *to_pvr_fence(struct dma_fence *fence)
 	return NULL;
 }
 
+PVRSRV_ERROR pvr_fence_context_register_dbg(void *dbg_request_handle,
+				void *dev,
+				struct pvr_fence_context *fctx);
+struct pvr_fence_context *
+pvr_fence_foreign_context_create(struct workqueue_struct *fence_status_wq,
+		const char *name);
 struct pvr_fence_context *
 pvr_fence_context_create(void *dev_cookie,
 			 struct workqueue_struct *fence_status_wq,
@@ -157,11 +163,11 @@ void pvr_context_value_str(struct pvr_fence_context *fctx, char *str, int size);
 
 struct pvr_fence *
 pvr_fence_create(struct pvr_fence_context *fctx,
-		 struct _SYNC_CHECKPOINT_CONTEXT *sync_checkpoint_ctx,
+		 struct SYNC_CHECKPOINT_CONTEXT_TAG *sync_checkpoint_ctx,
 		 int timeline_fd, const char *name);
 struct pvr_fence *
 pvr_fence_create_from_fence(struct pvr_fence_context *fctx,
-			    struct _SYNC_CHECKPOINT_CONTEXT *sync_checkpoint_ctx,
+			    struct SYNC_CHECKPOINT_CONTEXT_TAG *sync_checkpoint_ctx,
 			    struct dma_fence *fence,
 			    PVRSRV_FENCE fence_fd,
 			    const char *name);
@@ -170,8 +176,8 @@ int pvr_fence_sw_signal(struct pvr_fence *pvr_fence);
 int pvr_fence_sw_error(struct pvr_fence *pvr_fence);
 
 int pvr_fence_get_checkpoints(struct pvr_fence **pvr_fences, u32 nr_fences,
-			      struct _SYNC_CHECKPOINT **fence_checkpoints);
-struct _SYNC_CHECKPOINT *
+			      struct SYNC_CHECKPOINT_TAG **fence_checkpoints);
+struct SYNC_CHECKPOINT_TAG *
 pvr_fence_get_checkpoint(struct pvr_fence *update_fence);
 
 void pvr_fence_context_signal_fences_nohw(void *data);

@@ -44,8 +44,12 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define DEBUG_COMMON_H
 
 #include "pvrsrv_error.h"
+#include "device.h"
 
-PVRSRV_ERROR DebugCommonInit(void);
-void DebugCommonDeInit(void);
+PVRSRV_ERROR DebugCommonInitDriver(void);
+void DebugCommonDeInitDriver(void);
+
+PVRSRV_ERROR DebugCommonInitDevice(PVRSRV_DEVICE_NODE *psDeviceNode);
+void DebugCommonDeInitDevice(PVRSRV_DEVICE_NODE *psDeviceNode);
 
 #endif /* DEBUG_COMMON_H */

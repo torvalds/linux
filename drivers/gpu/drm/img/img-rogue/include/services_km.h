@@ -87,9 +87,9 @@ typedef struct PVRSRV_DEV_CONNECTION_TAG PVRSRV_DEV_CONNECTION;
 #endif
 
 /*!
- * \anchor SRV_FLAGS
- * @name SRV_FLAGS: Flags for Services connection
- * Allows to define per-client policy for Services
+ * @Anchor SRV_FLAGS
+ * @Name SRV_FLAGS: Services connection flags
+ * Allows to define per-client policy for Services.
  * @{
  */
 
@@ -102,10 +102,10 @@ typedef struct PVRSRV_DEV_CONNECTION_TAG PVRSRV_DEV_CONNECTION;
  *    X---XXXXXXXX-------------XXX----
  */
 
-#define SRV_NO_HWPERF_CLIENT_STREAM     (1U << 4)  /*!< Don't create HWPerf for this connection */
-#define SRV_FLAGS_CLIENT_64BIT_COMPAT   (1U << 5)  /*!< This flags gets set if the client is 64 Bit compatible. */
-#define SRV_FLAGS_CLIENT_SLR_DISABLED   (1U << 6)  /*!< This flag is set if the client does not want Sync Lockup Recovery (SLR) enabled. */
-#define SRV_FLAGS_PDUMPCTRL             (1U << 31) /*!< PDump Ctrl client flag */
+#define SRV_NO_HWPERF_CLIENT_STREAM     (1UL << 4)  /*!< Don't create HWPerf for this connection */
+#define SRV_FLAGS_CLIENT_64BIT_COMPAT   (1UL << 5)  /*!< This flags gets set if the client is 64 Bit compatible. */
+#define SRV_FLAGS_CLIENT_SLR_DISABLED   (1UL << 6)  /*!< This flag is set if the client does not want Sync Lockup Recovery (SLR) enabled. */
+#define SRV_FLAGS_PDUMPCTRL             (1UL << 31) /*!< PDump Ctrl client flag */
 
 /*! @} SRV_FLAGS */
 
@@ -138,7 +138,7 @@ typedef struct PVRSRV_DEV_CONNECTION_TAG PVRSRV_DEV_CONNECTION;
 
 
 /* Size of pointer on a 64 bit machine */
-#define	POINTER_SIZE_64BIT	(8)
+#define	POINTER_SIZE_64BIT	(8U)
 
 
 /*

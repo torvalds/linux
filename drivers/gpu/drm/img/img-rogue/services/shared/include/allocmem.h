@@ -51,7 +51,47 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 extern "C" {
 #endif
 
-#if !defined(PVRSRV_DEBUG_LINUX_MEMORY_STATS) || !defined(DEBUG) || !defined(PVRSRV_ENABLE_PROCESS_STATS) || !defined(PVRSRV_ENABLE_MEMORY_STATS) || defined(DOXYGEN)
+/*
+ * PVRSRV_ENABLE_PROCESS_STATS enables process statistics regarding events,
+ *     resources and memory across all processes
+ * PVRSRV_ENABLE_MEMORY_STATS enables recording of Linux kernel memory
+ *     allocations, provided that PVRSRV_ENABLE_PROCESS_STATS is enabled
+ *   - Output can be found in:
+ *     /(sys/kernel/debug|proc)/pvr/proc_stats/[live|retired]_pids_stats/mem_area
+ * PVRSRV_DEBUG_LINUX_MEMORY_STATS provides more details about memory
+ *     statistics in conjunction with PVRSRV_ENABLE_MEMORY_STATS
+ * PVRSRV_DEBUG_LINUX_MEMORY_STATS_ON is defined to encompass both memory
+ *     allocation statistics functionalities described above in a single macro
+ */
+#if defined(PVRSRV_ENABLE_PROCESS_STATS) && defined(PVRSRV_ENABLE_MEMORY_STATS) && defined(PVRSRV_DEBUG_LINUX_MEMORY_STATS) && defined(DEBUG)
+#define PVRSRV_DEBUG_LINUX_MEMORY_STATS_ON
+#endif
+
+/*
+ * When using detailed memory allocation statistics, the line number and
+ * file name where the allocation happened are also provided.
+ * When this feature is not used, these parameters are not needed.
+ */
+#if defined(PVRSRV_DEBUG_LINUX_MEMORY_STATS_ON)
+#define DEBUG_MEMSTATS_PARAMS ,void *pvAllocFromFile, IMG_UINT32 ui32AllocFromLine
+#define DEBUG_MEMSTATS_ARGS   ,pvAllocFromFile, ui32AllocFromLine
+#define DEBUG_MEMSTATS_UNREF  (void)pvAllocFromFile; (void)ui32AllocFromLine;
+#define DEBUG_MEMSTATS_VALUES ,__FILE__, __LINE__
+#else
+#define DEBUG_MEMSTATS_PARAMS /*!<
+                                 * Used for PVRSRV_DEBUG_LINUX_MEMORY_STATS_ON
+                                 * build option. */
+#define DEBUG_MEMSTATS_ARGS   /*!<
+                                 * Used for PVRSRV_DEBUG_LINUX_MEMORY_STATS_ON
+                                 * build option. */
+#define DEBUG_MEMSTATS_UNREF  /*!<
+                                 * Used for PVRSRV_DEBUG_LINUX_MEMORY_STATS_ON
+                                 * build option. */
+#define DEBUG_MEMSTATS_VALUES  /*!<
+                                 * Used for PVRSRV_DEBUG_LINUX_MEMORY_STATS_ON
+                                 * build option. */
+#endif
+
 
 /**************************************************************************/ /*!
 @Function       OSAllocMem
@@ -62,8 +102,13 @@ extern "C" {
 @Return         Pointer to allocated memory on success.
                 Otherwise NULL.
  */ /**************************************************************************/
+#if defined(DOXYGEN)
 void *OSAllocMem(IMG_UINT32 ui32Size);
-#define OSAllocMem(_size) (OSAllocMem)((_size))
+#else
+void *OSAllocMem(IMG_UINT32 ui32Size DEBUG_MEMSTATS_PARAMS);
+#define OSAllocMem(_size)	(OSAllocMem)((_size) DEBUG_MEMSTATS_VALUES)
+#endif
+
 /**************************************************************************/ /*!
 @Function       OSAllocZMem
 @Description    Allocates CPU memory and initializes the contents to zero.
@@ -73,27 +118,25 @@ void *OSAllocMem(IMG_UINT32 ui32Size);
 @Return         Pointer to allocated memory on success.
                 Otherwise NULL.
  */ /**************************************************************************/
+#if defined(DOXYGEN)
 void *OSAllocZMem(IMG_UINT32 ui32Size);
-#define OSAllocZMem(_size) (OSAllocZMem)((_size))
-
 #else
-void *OSAllocMem(IMG_UINT32 ui32Size, void *pvAllocFromFile, IMG_UINT32 ui32AllocFromLine);
-void *OSAllocZMem(IMG_UINT32 ui32Size, void *pvAllocFromFile, IMG_UINT32 ui32AllocFromLine);
-#define OSAllocMem(_size)	(OSAllocMem)((_size), (__FILE__), (__LINE__))
-#define OSAllocZMem(_size)	(OSAllocZMem)((_size), (__FILE__), (__LINE__))
+void *OSAllocZMem(IMG_UINT32 ui32Size DEBUG_MEMSTATS_PARAMS);
+#define OSAllocZMem(_size)	(OSAllocZMem)((_size) DEBUG_MEMSTATS_VALUES)
 #endif
+
 
 /**************************************************************************/ /*!
 @Function       OSAllocMemNoStats
 @Description    Allocates CPU memory. Contents are uninitialized.
-                If passed a size of zero, function should not assert,
-                but just return a NULL pointer.
-                The allocated memory is not accounted for by process stats.
-                Process stats are an optional feature (enabled only when
-                PVRSRV_ENABLE_PROCESS_STATS is defined) which track the amount
-                of memory allocated to help in debugging. Where this is not
-                required, OSAllocMem() and OSAllocMemNoStats() equate to
-                the same operation.
+                 If passed a size of zero, function should not assert,
+                 but just return a NULL pointer.
+                 The allocated memory is not accounted for by process stats.
+                 Process stats are an optional feature (enabled only when
+                 PVRSRV_ENABLE_PROCESS_STATS is defined) which track the amount
+                 of memory allocated to help in debugging. Where this is not
+                 required, OSAllocMem() and OSAllocMemNoStats() equate to
+                 the same operation.
 @Input          ui32Size        Size of required allocation (in bytes)
 @Return         Pointer to allocated memory on success.
                 Otherwise NULL.
@@ -103,14 +146,14 @@ void *OSAllocMemNoStats(IMG_UINT32 ui32Size);
 /**************************************************************************/ /*!
 @Function       OSAllocZMemNoStats
 @Description    Allocates CPU memory and initializes the contents to zero.
-                If passed a size of zero, function should not assert,
-                but just return a NULL pointer.
-                The allocated memory is not accounted for by process stats.
-                Process stats are an optional feature (enabled only when
-                PVRSRV_ENABLE_PROCESS_STATS is defined) which track the amount
-                of memory allocated to help in debugging. Where this is not
-                required, OSAllocZMem() and OSAllocZMemNoStats() equate to
-                the same operation.
+                 If passed a size of zero, function should not assert,
+                 but just return a NULL pointer.
+                 The allocated memory is not accounted for by process stats.
+                 Process stats are an optional feature (enabled only when
+                 PVRSRV_ENABLE_PROCESS_STATS is defined) which track the amount
+                 of memory allocated to help in debugging. Where this is not
+                 required, OSAllocZMem() and OSAllocZMemNoStats() equate to
+                 the same operation.
 @Input          ui32Size        Size of required allocation (in bytes)
 @Return         Pointer to allocated memory on success.
                 Otherwise NULL.
@@ -128,12 +171,12 @@ void OSFreeMem(void *pvCpuVAddr);
 /**************************************************************************/ /*!
 @Function       OSFreeMemNoStats
 @Description    Frees previously allocated CPU memory.
-                The freed memory does not update the figures in process stats.
-                Process stats are an optional feature (enabled only when
-                PVRSRV_ENABLE_PROCESS_STATS is defined) which track the amount
-                of memory allocated to help in debugging. Where this is not
-                required, OSFreeMem() and OSFreeMemNoStats() equate to the
-                same operation.
+                 The freed memory does not update the figures in process stats.
+                 Process stats are an optional feature (enabled only when
+                 PVRSRV_ENABLE_PROCESS_STATS is defined) which track the amount
+                 of memory allocated to help in debugging. Where this is not
+                 required, OSFreeMem() and OSFreeMemNoStats() equate to the
+                 same operation.
 @Input          pvCpuVAddr       Pointer to the memory to be freed.
 @Return         None.
  */ /**************************************************************************/

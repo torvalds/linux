@@ -49,9 +49,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "devicemem.h"
 #include "cache_km.h"
 #include "pmr.h"
-#include "devicemem_utils.h"
-#include "client_cache_bridge.h"
-
 
 #if defined(PDUMP)
 #include <stdarg.h>
@@ -80,11 +77,17 @@ void RGXCommentLog(const void *hPrivate,
 		...)
 {
 #if defined(PDUMP)
+	RGX_LAYER_PARAMS *psParams;
+	PVRSRV_RGXDEV_INFO *psDevInfo;
 	va_list argList;
 	va_start(argList, pszString);
-	PDumpCommentWithFlagsVA(PDUMP_FLAGS_CONTINUOUS, pszString, argList);
+
+	PVR_ASSERT(hPrivate != NULL);
+	psParams = (RGX_LAYER_PARAMS*)hPrivate;
+	psDevInfo = psParams->psDevInfo;
+
+	PDumpCommentWithFlagsVA(psDevInfo->psDeviceNode, PDUMP_FLAGS_CONTINUOUS, pszString, argList);
 	va_end(argList);
-	PVR_UNREFERENCED_PARAMETER(hPrivate);
 #else
 	PVR_UNREFERENCED_PARAMETER(hPrivate);
 	PVR_UNREFERENCED_PARAMETER(pszString);
@@ -115,6 +118,7 @@ IMG_UINT32 RGXGetOSPageSize(const void *hPrivate)
 
 IMG_UINT32 RGXGetFWCorememSize(const void *hPrivate)
 {
+#if defined(RGX_FEATURE_META_COREMEM_SIZE_MAX_VALUE_IDX)
 	RGX_LAYER_PARAMS *psParams;
 	PVRSRV_RGXDEV_INFO *psDevInfo;
 	IMG_UINT32 ui32CorememSize = 0;
@@ -130,6 +134,11 @@ IMG_UINT32 RGXGetFWCorememSize(const void *hPrivate)
 	}
 
 	return ui32CorememSize;
+#else
+	PVR_UNREFERENCED_PARAMETER(hPrivate);
+
+	return 0U;
+#endif
 }
 
 void RGXWriteReg32(const void *hPrivate, IMG_UINT32 ui32RegAddr, IMG_UINT32 ui32RegValue)
@@ -150,7 +159,8 @@ void RGXWriteReg32(const void *hPrivate, IMG_UINT32 ui32RegAddr, IMG_UINT32 ui32
 		OSWriteHWReg32(pvRegsBase, ui32RegAddr, ui32RegValue);
 	}
 
-	PDUMPREG32(RGX_PDUMPREG_NAME, ui32RegAddr, ui32RegValue, psParams->ui32PdumpFlags);
+	PDUMPREG32(psDevInfo->psDeviceNode, RGX_PDUMPREG_NAME,
+	           ui32RegAddr, ui32RegValue, psParams->ui32PdumpFlags);
 }
 
 void RGXWriteReg64(const void *hPrivate, IMG_UINT32 ui32RegAddr, IMG_UINT64 ui64RegValue)
@@ -171,7 +181,8 @@ void RGXWriteReg64(const void *hPrivate, IMG_UINT32 ui32RegAddr, IMG_UINT64 ui64
 		OSWriteHWReg64(pvRegsBase, ui32RegAddr, ui64RegValue);
 	}
 
-	PDUMPREG64(RGX_PDUMPREG_NAME, ui32RegAddr, ui64RegValue, psParams->ui32PdumpFlags);
+	PDUMPREG64(psDevInfo->psDeviceNode, RGX_PDUMPREG_NAME,
+	           ui32RegAddr, ui64RegValue, psParams->ui32PdumpFlags);
 }
 
 IMG_UINT32 RGXReadReg32(const void *hPrivate, IMG_UINT32 ui32RegAddr)
@@ -197,7 +208,8 @@ IMG_UINT32 RGXReadReg32(const void *hPrivate, IMG_UINT32 ui32RegAddr)
 		ui32RegValue = OSReadHWReg32(pvRegsBase, ui32RegAddr);
 	}
 
-	PDUMPREGREAD32(RGX_PDUMPREG_NAME, ui32RegAddr, psParams->ui32PdumpFlags);
+	PDUMPREGREAD32(psDevInfo->psDeviceNode, RGX_PDUMPREG_NAME,
+	               ui32RegAddr, psParams->ui32PdumpFlags);
 
 	return ui32RegValue;
 }
@@ -225,7 +237,8 @@ IMG_UINT64 RGXReadReg64(const void *hPrivate, IMG_UINT32 ui32RegAddr)
 		ui64RegValue = OSReadHWReg64(pvRegsBase, ui32RegAddr);
 	}
 
-	PDUMPREGREAD64(RGX_PDUMPREG_NAME, ui32RegAddr, PDUMP_FLAGS_CONTINUOUS);
+	PDUMPREGREAD64(psDevInfo->psDeviceNode, RGX_PDUMPREG_NAME,
+	               ui32RegAddr, PDUMP_FLAGS_CONTINUOUS);
 
 	return ui64RegValue;
 }
@@ -255,16 +268,20 @@ IMG_UINT32 RGXReadModifyWriteReg64(const void *hPrivate,
 	PDUMP_BLKSTART(ui32PDumpFlags);
 
 	/* Store register offset to temp PDump variable */
-	PDumpRegRead64ToInternalVar(RGX_PDUMPREG_NAME, ":SYSMEM:$1", ui32RegAddr, ui32PDumpFlags);
+	PDumpRegRead64ToInternalVar(psDevInfo->psDeviceNode, RGX_PDUMPREG_NAME,
+	                            ":SYSMEM:$1", ui32RegAddr, ui32PDumpFlags);
 
 	/* Keep the bits set in the mask */
-	PDumpWriteVarANDValueOp(":SYSMEM:$1", uiRegKeepMask, ui32PDumpFlags);
+	PDumpWriteVarANDValueOp(psDevInfo->psDeviceNode, ":SYSMEM:$1",
+	                        uiRegKeepMask, ui32PDumpFlags);
 
 	/* OR the new values */
-	PDumpWriteVarORValueOp(":SYSMEM:$1", uiRegValueNew, ui32PDumpFlags);
+	PDumpWriteVarORValueOp(psDevInfo->psDeviceNode, ":SYSMEM:$1",
+	                       uiRegValueNew, ui32PDumpFlags);
 
 	/* Do the actual register write */
-	PDumpInternalVarToReg64(RGX_PDUMPREG_NAME, ui32RegAddr, ":SYSMEM:$1", ui32PDumpFlags);
+	PDumpInternalVarToReg64(psDevInfo->psDeviceNode, RGX_PDUMPREG_NAME,
+	                        ui32RegAddr, ":SYSMEM:$1", ui32PDumpFlags);
 
 	PDUMP_BLKEND(ui32PDumpFlags);
 
@@ -309,7 +326,8 @@ PVRSRV_ERROR RGXPollReg32(const void *hPrivate,
 		}
 	}
 
-	PDUMPREGPOL(RGX_PDUMPREG_NAME,
+	PDUMPREGPOL(psDevInfo->psDeviceNode,
+			RGX_PDUMPREG_NAME,
 			ui32RegAddr,
 			ui32RegValue,
 			ui32RegMask,
@@ -364,7 +382,8 @@ PVRSRV_ERROR RGXPollReg64(const void *hPrivate,
 		}
 	}
 
-	PDUMPREGPOL(RGX_PDUMPREG_NAME,
+	PDUMPREGPOL(psDevInfo->psDeviceNode,
+			RGX_PDUMPREG_NAME,
 			ui32RegAddr + 4,
 			ui32UpperValue,
 			ui32UpperMask,
@@ -372,7 +391,8 @@ PVRSRV_ERROR RGXPollReg64(const void *hPrivate,
 			PDUMP_POLL_OPERATOR_EQUAL);
 
 
-	PDUMPREGPOL(RGX_PDUMPREG_NAME,
+	PDUMPREGPOL(psDevInfo->psDeviceNode,
+			RGX_PDUMPREG_NAME,
 			ui32RegAddr,
 			ui32LowerValue,
 			ui32LowerMask,
@@ -384,14 +404,12 @@ PVRSRV_ERROR RGXPollReg64(const void *hPrivate,
 
 void RGXWaitCycles(const void *hPrivate, IMG_UINT32 ui32Cycles, IMG_UINT32 ui32TimeUs)
 {
-	PVR_UNREFERENCED_PARAMETER(hPrivate);
-#ifdef __FPGA_VERIFICATION__
-#warning "RGXWaitCycles() will be modified on FPGA platform"
-       OSWaitus(ui32TimeUs * 60);
-#else
+	PVRSRV_RGXDEV_INFO *psDevInfo;
+
+	PVR_ASSERT(hPrivate != NULL);
+	psDevInfo = ((RGX_LAYER_PARAMS*)hPrivate)->psDevInfo;
 	OSWaitus(ui32TimeUs);
-#endif
-	PDUMPIDLWITHFLAGS(ui32Cycles, PDUMP_FLAGS_CONTINUOUS);
+	PDUMPIDLWITHFLAGS(psDevInfo->psDeviceNode, ui32Cycles, PDUMP_FLAGS_CONTINUOUS);
 }
 
 void RGXAcquireKernelMMUPC(const void *hPrivate, IMG_DEV_PHYADDR *psPCAddr)
@@ -476,16 +494,20 @@ void RGXMIPSWrapperConfig(const void *hPrivate,
 	PDUMP_BLKSTART(ui32PDumpFlags);
 
 	/* Store register offset to temp PDump variable */
-	PDumpRegLabelToInternalVar(RGX_PDUMPREG_NAME, ui32RegAddr, ":SYSMEM:$1", ui32PDumpFlags);
+	PDumpRegLabelToInternalVar(psDevInfo->psDeviceNode, RGX_PDUMPREG_NAME,
+	                           ui32RegAddr, ":SYSMEM:$1", ui32PDumpFlags);
 
 	/* Align register transactions identifier */
-	PDumpWriteVarSHRValueOp(":SYSMEM:$1", ui32GPURegsAlign, ui32PDumpFlags);
+	PDumpWriteVarSHRValueOp(psDevInfo->psDeviceNode, ":SYSMEM:$1",
+	                        ui32GPURegsAlign, ui32PDumpFlags);
 
 	/* Enable micromips instruction encoding */
-	PDumpWriteVarORValueOp(":SYSMEM:$1", ui32BootMode, ui32PDumpFlags);
+	PDumpWriteVarORValueOp(psDevInfo->psDeviceNode, ":SYSMEM:$1",
+	                       ui32BootMode, ui32PDumpFlags);
 
 	/* Do the actual register write */
-	PDumpInternalVarToReg64(RGX_PDUMPREG_NAME, ui32RegAddr, ":SYSMEM:$1", ui32PDumpFlags);
+	PDumpInternalVarToReg64(psDevInfo->psDeviceNode, RGX_PDUMPREG_NAME,
+	                        ui32RegAddr, ":SYSMEM:$1", ui32PDumpFlags);
 
 	PDUMP_BLKEND(ui32PDumpFlags);
 }
@@ -526,22 +548,28 @@ void RGXWriteRemapConfig2Reg(void __iomem *pvRegs,
 		IMG_UINT64 ui64Settings)
 {
 	PDUMP_FLAGS_T ui32PDumpFlags = PDUMP_FLAGS_CONTINUOUS;
+	PVRSRV_DEVICE_NODE *psDevNode;
+
+	PVR_ASSERT(psPMR != NULL);
+	psDevNode = PMR_DeviceNode(psPMR);
 
 	OSWriteHWReg64(pvRegs, ui32RegAddr, (ui64PhyAddr & ui64PhyMask) | ui64Settings);
 
 	PDUMP_BLKSTART(ui32PDumpFlags);
 
 	/* Store memory offset to temp PDump variable */
-	PDumpMemLabelToInternalVar64(":SYSMEM:$1", psPMR, uiLogicalOffset, ui32PDumpFlags);
+	PDumpMemLabelToInternalVar64(":SYSMEM:$1", psPMR,
+	                             uiLogicalOffset, ui32PDumpFlags);
 
 	/* Keep only the relevant bits of the output physical address */
-	PDumpWriteVarANDValueOp(":SYSMEM:$1", ui64PhyMask, ui32PDumpFlags);
+	PDumpWriteVarANDValueOp(psDevNode, ":SYSMEM:$1", ui64PhyMask, ui32PDumpFlags);
 
 	/* Extra settings for this remapped region */
-	PDumpWriteVarORValueOp(":SYSMEM:$1", ui64Settings, ui32PDumpFlags);
+	PDumpWriteVarORValueOp(psDevNode, ":SYSMEM:$1", ui64Settings, ui32PDumpFlags);
 
 	/* Do the actual register write */
-	PDumpInternalVarToReg64(RGX_PDUMPREG_NAME, ui32RegAddr, ":SYSMEM:$1", ui32PDumpFlags);
+	PDumpInternalVarToReg64(psDevNode, RGX_PDUMPREG_NAME, ui32RegAddr,
+	                        ":SYSMEM:$1", ui32PDumpFlags);
 
 	PDUMP_BLKEND(ui32PDumpFlags);
 }
@@ -655,22 +683,23 @@ void RGXTrampolineRemapConfig(const void *hPrivate,
 	PDUMP_BLKSTART(ui32PDumpFlags);
 
 	/* Store the memory address in a PDump variable */
-	PDumpPhysHandleToInternalVar64(":SYSMEM:$1",
+	PDumpPhysHandleToInternalVar64(psDevInfo->psDeviceNode, ":SYSMEM:$1",
 			psDevInfo->psTrampoline->hPdumpPages,
 			ui32PDumpFlags);
 
 	/* Keep only the relevant bits of the input physical address */
-	PDumpWriteVarANDValueOp(":SYSMEM:$1",
+	PDumpWriteVarANDValueOp(psDevInfo->psDeviceNode, ":SYSMEM:$1",
 			~RGX_CR_MIPS_ADDR_REMAP4_CONFIG1_BASE_ADDR_IN_CLRMSK,
 			ui32PDumpFlags);
 
 	/* Enable bit */
-	PDumpWriteVarORValueOp(":SYSMEM:$1",
+	PDumpWriteVarORValueOp(psDevInfo->psDeviceNode, ":SYSMEM:$1",
 			RGX_CR_MIPS_ADDR_REMAP4_CONFIG1_MODE_ENABLE_EN,
 			ui32PDumpFlags);
 
 	/* Do the PDump register write */
-	PDumpInternalVarToReg64(RGX_PDUMPREG_NAME,
+	PDumpInternalVarToReg64(psDevInfo->psDeviceNode,
+			RGX_PDUMPREG_NAME,
 			ui32Config1RegAddr,
 			":SYSMEM:$1",
 			ui32PDumpFlags);
@@ -703,6 +732,7 @@ IMG_BOOL RGXDoFWSlaveBoot(const void *hPrivate)
 	return PVRSRVSystemSnoopingOfCPUCache(psDevConfig);
 }
 
+#if defined(RGX_FEATURE_META_MAX_VALUE_IDX)
 static PVRSRV_ERROR RGXWriteMetaRegThroughSP(const void *hPrivate, IMG_UINT32 ui32RegAddr, IMG_UINT32 ui32RegValue)
 {
 	PVRSRV_ERROR eError = PVRSRV_OK;
@@ -720,8 +750,9 @@ static PVRSRV_ERROR RGXWriteMetaRegThroughSP(const void *hPrivate, IMG_UINT32 ui
 
 	return eError;
 }
-extern void do_invalid_range(unsigned long start, unsigned long len);
+#endif
 
+extern void do_invalid_range(unsigned long start, unsigned long len);
 /*
  * The fabric coherency test is performed when platform supports fabric coherency
  * either in the form of ACE-lite or Full-ACE. This test is done quite early
@@ -733,45 +764,43 @@ extern void do_invalid_range(unsigned long start, unsigned long len);
  */
 PVRSRV_ERROR RGXFabricCoherencyTest(const void *hPrivate)
 {
-#ifdef CACHE_TEST
-	struct DEVMEM_MEMDESC_TAG *pxmdsc = NULL;
-#endif
-
+#if defined(RGX_FEATURE_META_MAX_VALUE_IDX)
 	PVRSRV_RGXDEV_INFO *psDevInfo;
 	IMG_UINT32 *pui32FabricCohTestBufferCpuVA;
 	DEVMEM_MEMDESC *psFabricCohTestBufferMemDesc;
 	RGXFWIF_DEV_VIRTADDR sFabricCohTestBufferDevVA;
 	IMG_DEVMEM_SIZE_T uiFabricCohTestBlockSize = sizeof(IMG_UINT64);
 	IMG_DEVMEM_ALIGN_T uiFabricCohTestBlockAlign = sizeof(IMG_UINT64);
-	IMG_UINT64 ui64SegOutAddrTopCached = 0;
-	IMG_UINT64 ui64SegOutAddrTopUncached = 0;
 	IMG_UINT32 ui32SLCCTRL = 0;
 	IMG_UINT32 ui32OddEven;
-	IMG_BOOL   bFeatureS7;
+#if defined(RGX_FEATURE_S7_TOP_INFRASTRUCTURE_BIT_MASK)
+	IMG_BOOL   bFeatureS7 = RGX_DEVICE_HAS_FEATURE(hPrivate, S7_TOP_INFRASTRUCTURE);
+#endif
 	IMG_UINT32 ui32TestType;
 	IMG_UINT32 ui32OddEvenSeed = 1;
 	PVRSRV_ERROR eError = PVRSRV_OK;
 	IMG_BOOL bFullTestPassed = IMG_TRUE;
-	IMG_BOOL bSubTestPassed = IMG_FALSE;
 	IMG_BOOL bExit = IMG_FALSE;
+#if defined(DEBUG)
+	IMG_BOOL bSubTestPassed = IMG_FALSE;
+#endif
 
 	PVR_ASSERT(hPrivate != NULL);
 	psDevInfo = ((RGX_LAYER_PARAMS*)hPrivate)->psDevInfo;
 
 	PVR_LOG(("Starting fabric coherency test ....."));
 
-	bFeatureS7 = RGX_DEVICE_HAS_FEATURE(hPrivate, S7_TOP_INFRASTRUCTURE);
-
+#if defined(RGX_FEATURE_S7_TOP_INFRASTRUCTURE_BIT_MASK)
 	if (bFeatureS7)
 	{
-		ui64SegOutAddrTopCached   = RGXFW_SEGMMU_OUTADDR_TOP_VIVT_SLC_CACHED(MMU_CONTEXT_MAPPING_FWIF);
-		ui64SegOutAddrTopUncached = RGXFW_SEGMMU_OUTADDR_TOP_VIVT_SLC_UNCACHED(MMU_CONTEXT_MAPPING_FWIF);
+		IMG_UINT64 ui64SegOutAddrTopUncached = RGXFW_SEGMMU_OUTADDR_TOP_VIVT_SLC_UNCACHED(MMU_CONTEXT_MAPPING_FWIF);
 
 		/* Configure META to use SLC force-linefill for the bootloader segment */
 		RGXWriteMetaRegThroughSP(hPrivate, META_CR_MMCU_SEGMENTn_OUTA1(6),
 				(ui64SegOutAddrTopUncached | RGXFW_BOOTLDR_DEVV_ADDR) >> 32);
 	}
 	else
+#endif
 	{
 		/* Bypass the SLC when IO coherency is enabled */
 		ui32SLCCTRL = RGXReadReg32(hPrivate, RGX_CR_SLC_CTRL_BYPASS);
@@ -824,16 +853,6 @@ PVRSRV_ERROR RGXFabricCoherencyTest(const void *hPrivate)
 				PVRSRVGetErrorString(eError)));
 		goto e1;
 	}
-
-#ifdef CACHE_TEST
-	pxmdsc = (struct DEVMEM_MEMDESC_TAG *)psFabricCohTestBufferMemDesc;
-	printk("in %s L:%d mdsc->size:%lld, import->size:%lld, flag:%llx\n", __func__, __LINE__, pxmdsc->uiAllocSize, pxmdsc->psImport->uiSize, (unsigned long long)(pxmdsc->psImport->uiFlags & PVRSRV_MEMALLOCFLAG_CPU_CACHE_MODE_MASK));
-	if(pxmdsc->uiAllocSize > 4096 && !(PVRSRV_CHECK_CPU_UNCACHED(pxmdsc->psImport->uiFlags) || PVRSRV_CHECK_CPU_WRITE_COMBINE(pxmdsc->psImport->uiFlags)))
-	{
-	    printk("in %s L:%d cache_op:%d\n", __func__, __LINE__,PVRSRV_CACHE_OP_INVALIDATE);
-	    //BridgeCacheOpExec (GetBridgeHandle(pxmdsc->psImport->hDevConnection),pxmdsc->psImport->hPMR,(IMG_UINT64)(uintptr_t)pui32FabricCohTestBufferCpuVA - pxmdsc->uiOffset,pxmdsc->uiOffset,pxmdsc->uiAllocSize,PVRSRV_CACHE_OP_INVALIDATE);
-	}
-#endif	
 
 	/* Create a FW address which is uncached in the Meta DCache and in the SLC
 	 * using the Meta bootloader segment.
@@ -941,11 +960,11 @@ PVRSRV_ERROR RGXFabricCoherencyTest(const void *hPrivate)
 					}
 
 					/* Write the value using the RGX slave-port interface */
-					eError = RGXWriteMETAAddr(psDevInfo, ui32FWAddr, ui32FWValue);
+					eError = RGXWriteFWModuleAddr(psDevInfo, ui32FWAddr, ui32FWValue);
 					if (eError != PVRSRV_OK)
 					{
 						PVR_DPF((PVR_DBG_ERROR,
-								"RGXWriteMETAAddr error: %s, exiting",
+								"RGXWriteFWModuleAddr error: %s, exiting",
 								PVRSRVGetErrorString(eError)));
 						bExit = IMG_TRUE;
 						continue;
@@ -953,11 +972,11 @@ PVRSRV_ERROR RGXFabricCoherencyTest(const void *hPrivate)
 
 					/* Read back value using RGX slave-port interface, this is used
 					   as a sort of memory barrier for the above write */
-					eError = RGXReadMETAAddr(psDevInfo, ui32FWAddr, &ui32FWValue2);
+					eError = RGXReadFWModuleAddr(psDevInfo, ui32FWAddr, &ui32FWValue2);
 					if (eError != PVRSRV_OK)
 					{
 						PVR_DPF((PVR_DBG_ERROR,
-								"RGXReadMETAAddr error: %s, exiting",
+								"RGXReadFWModuleAddr error: %s, exiting",
 								PVRSRVGetErrorString(eError)));
 						bExit = IMG_TRUE;
 						continue;
@@ -1004,7 +1023,7 @@ PVRSRV_ERROR RGXFabricCoherencyTest(const void *hPrivate)
 					pui32FabricCohTestBufferCpuVA[i] = i + ui32OddEvenSeed;
 
 					/* Flush possible cpu store-buffer(ing) on LMA */
-					OSWriteMemoryBarrier();
+					OSWriteMemoryBarrier(&pui32FabricCohTestBufferCpuVA[i]);
 
 					switch (ui32TestType)
 					{
@@ -1022,11 +1041,11 @@ PVRSRV_ERROR RGXFabricCoherencyTest(const void *hPrivate)
 					}
 
 					/* Read back value using RGX slave-port interface */
-					eError = RGXReadMETAAddr(psDevInfo, ui32FWAddr, &ui32FWValue);
+					eError = RGXReadFWModuleAddr(psDevInfo, ui32FWAddr, &ui32FWValue);
 					if (eError != PVRSRV_OK)
 					{
 						PVR_DPF((PVR_DBG_ERROR,
-								"RGXReadWithSP error: %s, exiting",
+								"RGXReadFWModuleAddr error: %s, exiting",
 								PVRSRVGetErrorString(eError)));
 						bExit = IMG_TRUE;
 						continue;
@@ -1057,13 +1076,17 @@ PVRSRV_ERROR RGXFabricCoherencyTest(const void *hPrivate)
 				/* Compare to see if sub-test passed */
 				if (pui32FabricCohTestBufferCpuVA[i] == ui32FWValue)
 				{
+#if defined(DEBUG)
 					bSubTestPassed = IMG_TRUE;
+#endif
 				}
 				else
 				{
-					bSubTestPassed = IMG_FALSE;
 					bFullTestPassed = IMG_FALSE;
 					eError = PVRSRV_ERROR_INIT_FAILURE;
+#if defined(DEBUG)
+					bSubTestPassed = IMG_FALSE;
+#endif
 					if (ui32LastFWValue != ui32FWValue)
 					{
 #if defined(DEBUG)
@@ -1122,13 +1145,16 @@ e1:
 	DevmemFwUnmapAndFree(psDevInfo, psFabricCohTestBufferMemDesc);
 
 e0:
+#if defined(RGX_FEATURE_S7_TOP_INFRASTRUCTURE_BIT_MASK)
 	if (bFeatureS7)
 	{
 		/* Restore bootloader segment settings */
+		IMG_UINT64 ui64SegOutAddrTopCached   = RGXFW_SEGMMU_OUTADDR_TOP_VIVT_SLC_CACHED(MMU_CONTEXT_MAPPING_FWIF);
 		RGXWriteMetaRegThroughSP(hPrivate, META_CR_MMCU_SEGMENTn_OUTA1(6),
 				(ui64SegOutAddrTopCached | RGXFW_BOOTLDR_DEVV_ADDR) >> 32);
 	}
 	else
+#endif
 	{
 		/* Restore SLC bypass settings */
 		RGXWriteReg32(hPrivate, RGX_CR_SLC_CTRL_BYPASS, ui32SLCCTRL);
@@ -1147,6 +1173,11 @@ e0:
 	}
 
 	return eError;
+#else
+	PVR_UNREFERENCED_PARAMETER(hPrivate);
+
+	return PVRSRV_OK;
+#endif
 }
 
 IMG_INT32 RGXDeviceGetFeatureValue(const void *hPrivate, IMG_UINT64 ui64Feature)

@@ -155,7 +155,7 @@ PVRSRV_ERROR RGXInitMultiCoreInfo(PVRSRV_DEVICE_NODE *psDeviceNode)
 		ui32NumCores = RGX_MULTICORE_MAX_NOHW_CORES;
 #endif
 		PVR_DPF((PVR_DBG_MESSAGE, "Multicore system has %u cores", ui32NumCores));
-		PDUMPCOMMENT("RGX Multicore has %d cores\n", ui32NumCores);
+		PDUMPCOMMENT(psDeviceNode, "RGX Multicore has %d cores\n", ui32NumCores);
 
 		/* allocate storage for capabilities */
 		psDeviceNode->pui64MultiCoreCapabilities = OSAllocMem(ui32NumCores * sizeof(psDeviceNode->pui64MultiCoreCapabilities[0]));
@@ -181,7 +181,8 @@ PVRSRV_ERROR RGXInitMultiCoreInfo(PVRSRV_DEVICE_NODE *psDeviceNode)
 							   | RGX_MULTICORE_CAPABILITY_FRAGMENT_EN;
 	#endif
 			PVR_DPF((PVR_DBG_MESSAGE, "Core %d has capabilities value 0x%x", i, (IMG_UINT32)psDeviceNode->pui64MultiCoreCapabilities[i] ));
-			PDUMPCOMMENT("\tCore %d has caps 0x%08x\n", i, (IMG_UINT32)psDeviceNode->pui64MultiCoreCapabilities[i]);
+			PDUMPCOMMENT(psDeviceNode, "\tCore %d has caps 0x%08x\n", i,
+			             (IMG_UINT32)psDeviceNode->pui64MultiCoreCapabilities[i]);
 
 			if (psDeviceNode->pui64MultiCoreCapabilities[i] & RGX_CR_MULTICORE_GPU_CAPABILITY_PRIMARY_EN)
 			{

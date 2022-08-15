@@ -423,17 +423,6 @@ PVRSRV_ERROR
 PMRReleaseKernelMappingData(PMR *psPMR,
                             IMG_HANDLE hPriv);
 
-#if defined(INTEGRITY_OS)
-PVRSRV_ERROR
-PMRMapMemoryObject(PMR *psPMR,
-                   IMG_HANDLE *phMemObj,
-                   void **pvClientAddr,
-                   IMG_HANDLE *phPrivOut);
-PVRSRV_ERROR
-PMRUnmapMemoryObject(PMR *psPMR,
-                     IMG_HANDLE hPriv);
-#endif
-
 /*
  * PMR_ReadBytes()
  *
@@ -548,7 +537,7 @@ PMR_IsSparse(const PMR *psPMR);
 IMG_BOOL
 PMR_IsUnpinned(const PMR *psPMR);
 
-PVRSRV_ERROR
+void
 PMR_LogicalSize(const PMR *psPMR,
 				IMG_DEVMEM_SIZE_T *puiLogicalSize);
 
@@ -666,38 +655,6 @@ PVRSRV_ERROR PMR_ChangeSparseMemCPUMap(PMR *psPMR,
                                        IMG_UINT32 *pai32FreeIndices);
 
 #if defined(PDUMP)
-
-void
-PDumpPMRMallocPMR(PMR *psPMR,
-                  IMG_DEVMEM_SIZE_T uiSize,
-                  IMG_DEVMEM_ALIGN_T uiBlockSize,
-                  IMG_UINT32 ui32ChunkSize,
-                  IMG_UINT32 ui32NumPhysChunks,
-                  IMG_UINT32 ui32NumVirtChunks,
-                  IMG_UINT32 *puiMappingTable,
-                  IMG_UINT32 uiLog2Contiguity,
-                  IMG_BOOL bInitialise,
-                  IMG_UINT32 ui32InitValue,
-                  IMG_HANDLE *phPDumpAllocInfoPtr,
-                  IMG_UINT32 ui32PDumpFlags);
-
-void
-PDumpPMRFreePMR(PMR *psPMR,
-                IMG_DEVMEM_SIZE_T uiSize,
-                IMG_DEVMEM_ALIGN_T uiBlockSize,
-                IMG_UINT32 uiLog2Contiguity,
-                IMG_HANDLE hPDumpAllocationInfoHandle);
-
-void
-PDumpPMRChangeSparsePMR(PMR *psPMR,
-                        IMG_UINT32 uiBlockSize,
-                        IMG_UINT32 ui32AllocPageCount,
-                        IMG_UINT32 *pai32AllocIndices,
-                        IMG_UINT32 ui32FreePageCount,
-                        IMG_UINT32 *pai32FreeIndices,
-                        IMG_BOOL bInitialise,
-                        IMG_UINT32 ui32InitValue,
-                        IMG_HANDLE *phPDumpAllocInfoOut);
 
 /*
  * PMR_PDumpSymbolicAddr()
@@ -818,77 +775,6 @@ PMRPDumpSaveToFile(const PMR *psPMR,
                    const IMG_CHAR *pszFilename,
                    IMG_UINT32 uiFileOffset);
 #else /* PDUMP */
-
-#ifdef INLINE_IS_PRAGMA
-#pragma inline(PDumpPMRMallocPMR)
-#endif
-static INLINE void
-PDumpPMRMallocPMR(PMR *psPMR,
-                  IMG_DEVMEM_SIZE_T uiSize,
-                  IMG_DEVMEM_ALIGN_T uiBlockSize,
-                  IMG_UINT32 ui32NumPhysChunks,
-                  IMG_UINT32 ui32NumVirtChunks,
-                  IMG_UINT32 *puiMappingTable,
-                  IMG_UINT32 uiLog2Contiguity,
-                  IMG_BOOL bInitialise,
-                  IMG_UINT32 ui32InitValue,
-                  IMG_HANDLE *phPDumpAllocInfoPtr,
-                  IMG_UINT32 ui32PDumpFlags)
-{
-	PVR_UNREFERENCED_PARAMETER(psPMR);
-	PVR_UNREFERENCED_PARAMETER(uiSize);
-	PVR_UNREFERENCED_PARAMETER(uiBlockSize);
-	PVR_UNREFERENCED_PARAMETER(ui32NumPhysChunks);
-	PVR_UNREFERENCED_PARAMETER(ui32NumVirtChunks);
-	PVR_UNREFERENCED_PARAMETER(puiMappingTable);
-	PVR_UNREFERENCED_PARAMETER(uiLog2Contiguity);
-	PVR_UNREFERENCED_PARAMETER(bInitialise);
-	PVR_UNREFERENCED_PARAMETER(ui32InitValue);
-	PVR_UNREFERENCED_PARAMETER(phPDumpAllocInfoPtr);
-	PVR_UNREFERENCED_PARAMETER(ui32PDumpFlags);
-}
-
-#ifdef INLINE_IS_PRAGMA
-#pragma inline(PDumpPMRFreePMR)
-#endif
-static INLINE void
-PDumpPMRFreePMR(PMR *psPMR,
-                IMG_DEVMEM_SIZE_T uiSize,
-                IMG_DEVMEM_ALIGN_T uiBlockSize,
-                IMG_UINT32 uiLog2Contiguity,
-                IMG_HANDLE hPDumpAllocationInfoHandle)
-{
-	PVR_UNREFERENCED_PARAMETER(psPMR);
-	PVR_UNREFERENCED_PARAMETER(uiSize);
-	PVR_UNREFERENCED_PARAMETER(uiBlockSize);
-	PVR_UNREFERENCED_PARAMETER(uiLog2Contiguity);
-	PVR_UNREFERENCED_PARAMETER(hPDumpAllocationInfoHandle);
-}
-
-#ifdef INLINE_IS_PRAGMA
-#pragma inline(PDumpPMRChangeSparsePMR)
-#endif
-static INLINE void
-PDumpPMRChangeSparsePMR(PMR *psPMR,
-                        IMG_UINT32 uiBlockSize,
-                        IMG_UINT32 ui32AllocPageCount,
-                        IMG_UINT32 *pai32AllocIndices,
-                        IMG_UINT32 ui32FreePageCount,
-                        IMG_UINT32 *pai32FreeIndices,
-                        IMG_BOOL bInitialise,
-                        IMG_UINT32 ui32InitValue,
-                        IMG_HANDLE *phPDumpAllocInfoOut)
-{
-	PVR_UNREFERENCED_PARAMETER(psPMR);
-	PVR_UNREFERENCED_PARAMETER(uiBlockSize);
-	PVR_UNREFERENCED_PARAMETER(ui32AllocPageCount);
-	PVR_UNREFERENCED_PARAMETER(pai32AllocIndices);
-	PVR_UNREFERENCED_PARAMETER(ui32FreePageCount);
-	PVR_UNREFERENCED_PARAMETER(pai32FreeIndices);
-	PVR_UNREFERENCED_PARAMETER(bInitialise);
-	PVR_UNREFERENCED_PARAMETER(ui32InitValue);
-	PVR_UNREFERENCED_PARAMETER(phPDumpAllocInfoOut);
-}
 
 #ifdef INLINE_IS_PRAGMA
 #pragma inline(PMR_PDumpSymbolicAddr)
@@ -1128,9 +1014,6 @@ PMRInit(void);
  */
 PVRSRV_ERROR
 PMRDeInit(void);
-
-extern void show_pmr_info(PMR *psPMR);
-extern size_t pmr_size(PMR *psPMR);
 
 #if defined(PVRSRV_ENABLE_GPU_MEMORY_INFO)
 PVRSRV_ERROR

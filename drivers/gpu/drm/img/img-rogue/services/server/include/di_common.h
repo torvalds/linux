@@ -49,8 +49,14 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define DI_START_TOKEN ((void *) 1)
 
 /* This is a public handle to an entry. */
+#ifndef DI_GROUP_DEFINED
+#define DI_GROUP_DEFINED
 typedef struct DI_GROUP DI_GROUP;
+#endif
+#ifndef DI_ENTRY_DEFINED
+#define DI_ENTRY_DEFINED
 typedef struct DI_ENTRY DI_ENTRY;
+#endif
 typedef struct OSDI_IMPL_ENTRY OSDI_IMPL_ENTRY;
 
 /*! Debug Info entries types. */
@@ -220,9 +226,11 @@ typedef struct DI_ITERATOR_CB
     DI_PFN_SEEK pfnSeek;   /*!< Sets data pointer in an entry. */
     DI_PFN_READ pfnRead;   /*!< Reads data from an entry. */
 
-    /* Optional writing to entry interface. */
+    /* Optional writing to entry interface. Null terminated. */
 
     DI_PFN_WRITE pfnWrite; /*!< Performs write operation on an entry. */
+    IMG_UINT32   ui32WriteLenMax; /*!< Maximum char length of entry
+                                       accepted for write. Includes \0 */
 } DI_ITERATOR_CB;
 
 #endif /* DI_COMMON_H */

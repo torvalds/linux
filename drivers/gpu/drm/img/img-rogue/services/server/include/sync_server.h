@@ -153,11 +153,9 @@ PVRSRVSyncRecordRemoveByHandleKM(
 void SyncRecordLookup(PVRSRV_DEVICE_NODE *psDevNode, IMG_UINT32 ui32FwAddr,
 					  IMG_CHAR * pszSyncInfo, size_t len);
 
-void ServerSyncDumpPending(void);
-
 PVRSRV_ERROR SyncRegisterConnection(SYNC_CONNECTION_DATA **ppsSyncConnectionData);
 void SyncUnregisterConnection(SYNC_CONNECTION_DATA *ppsSyncConnectionData);
-void SyncConnectionPDumpSyncBlocks(void *hSyncPrivData, PDUMP_TRANSITION_EVENT eEvent);
+void SyncConnectionPDumpSyncBlocks(PVRSRV_DEVICE_NODE *psDevNode, void *hSyncPrivData, PDUMP_TRANSITION_EVENT eEvent);
 
 /*!
 ******************************************************************************
@@ -168,21 +166,6 @@ void SyncConnectionPDumpSyncBlocks(void *hSyncPrivData, PDUMP_TRANSITION_EVENT e
 PVRSRV_ERROR SyncServerInit(PVRSRV_DEVICE_NODE *psDevNode);
 void SyncServerDeinit(PVRSRV_DEVICE_NODE *psDevNode);
 
-
-/*!
-******************************************************************************
-@Function      PVRSRVLockServerSync
-
-@Description   Acquire a global lock to maintain server sync consistency
-******************************************************************************/
-void PVRSRVLockServerSync(void);
-/*!
-******************************************************************************
-@Function      PVRSRVUnlockServerSync
-
-@Description   Release the global server sync lock
-******************************************************************************/
-void PVRSRVUnlockServerSync(void);
 
 #if defined(PDUMP)
 PVRSRV_ERROR

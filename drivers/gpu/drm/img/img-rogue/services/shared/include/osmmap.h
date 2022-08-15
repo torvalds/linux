@@ -74,7 +74,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
                                      be done (read-only, etc). These may not
                                      be honoured if the PMR does not permit
                                      them.
-@Input          uiPMRLength          The size of the PMR.
 @Output         phOSMMapPrivDataOut  Returned private data.
 @Output         ppvMappingAddressOut The returned mapping.
 @Output         puiMappingLengthOut  The size of the returned mapping.

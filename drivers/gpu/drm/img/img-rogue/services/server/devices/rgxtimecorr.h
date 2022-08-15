@@ -175,10 +175,11 @@ void RGXTimeCorrRestartPeriodic(IMG_HANDLE hDevHandle);
 
  @Description Returns value of currently selected clock (in ns).
 
+ @Input       psDeviceNode : RGX Device Node
  @Return      clock value from currently selected clock source
 
 ******************************************************************************/
-IMG_UINT64 RGXTimeCorrGetClockns64(void);
+IMG_UINT64 RGXTimeCorrGetClockns64(const PVRSRV_DEVICE_NODE *psDeviceNode);
 
 /*!
 ******************************************************************************
@@ -187,10 +188,11 @@ IMG_UINT64 RGXTimeCorrGetClockns64(void);
 
  @Description Returns value of currently selected clock (in us).
 
+ @Input       psDeviceNode : RGX Device Node
  @Return      clock value from currently selected clock source
 
 ******************************************************************************/
-IMG_UINT64 RGXTimeCorrGetClockus64(void);
+IMG_UINT64 RGXTimeCorrGetClockus64(const PVRSRV_DEVICE_NODE *psDeviceNode);
 
 /*!
 ******************************************************************************
@@ -199,10 +201,11 @@ IMG_UINT64 RGXTimeCorrGetClockus64(void);
 
  @Description Returns currently selected clock source
 
+ @Input       psDeviceNode : RGX Device Node
  @Return      clock source type
 
 ******************************************************************************/
-RGXTIMECORR_CLOCK_TYPE RGXTimeCorrGetClockSource(void);
+RGXTIMECORR_CLOCK_TYPE RGXTimeCorrGetClockSource(const PVRSRV_DEVICE_NODE *psDeviceNode);
 
 /*!
 ******************************************************************************

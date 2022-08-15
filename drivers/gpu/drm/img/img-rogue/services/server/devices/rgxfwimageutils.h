@@ -53,45 +53,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 #include "rgxlayer.h"
 
-
-typedef union _RGX_FW_BOOT_PARAMS_
-{
-	struct
-	{
-		IMG_DEV_VIRTADDR sFWCodeDevVAddr;
-		IMG_DEV_VIRTADDR sFWDataDevVAddr;
-		IMG_DEV_VIRTADDR sFWCorememCodeDevVAddr;
-		RGXFWIF_DEV_VIRTADDR sFWCorememCodeFWAddr;
-		IMG_DEVMEM_SIZE_T uiFWCorememCodeSize;
-		IMG_DEV_VIRTADDR sFWCorememDataDevVAddr;
-		RGXFWIF_DEV_VIRTADDR sFWCorememDataFWAddr;
-		IMG_UINT32 ui32NumThreads;
-	} sMeta;
-
-#if defined(RGXMIPSFW_MAX_NUM_PAGETABLE_PAGES)
-	struct
-	{
-		IMG_DEV_PHYADDR sGPURegAddr;
-		IMG_DEV_PHYADDR asFWPageTableAddr[RGXMIPSFW_MAX_NUM_PAGETABLE_PAGES];
-		IMG_DEV_PHYADDR sFWStackAddr;
-		IMG_UINT32 ui32FWPageTableLog2PageSize;
-		IMG_UINT32 ui32FWPageTableNumPages;
-	} sMips;
-#endif
-
-	struct
-	{
-		IMG_DEV_VIRTADDR sFWCorememCodeDevVAddr;
-		RGXFWIF_DEV_VIRTADDR sFWCorememCodeFWAddr;
-		IMG_DEVMEM_SIZE_T uiFWCorememCodeSize;
-
-		IMG_DEV_VIRTADDR sFWCorememDataDevVAddr;
-		RGXFWIF_DEV_VIRTADDR sFWCorememDataFWAddr;
-		IMG_DEVMEM_SIZE_T uiFWCorememDataSize;
-	} sRISCV;
-
-} RGX_FW_BOOT_PARAMS;
-
 /*!
 *******************************************************************************
 
@@ -257,6 +218,6 @@ PVRSRV_ERROR RGXProcessFWImage(const void *hPrivate,
                                void *pvFWData,
                                void *pvFWCorememCode,
                                void *pvFWCorememData,
-                               RGX_FW_BOOT_PARAMS *puFWParams);
+                               PVRSRV_FW_BOOT_PARAMS *puFWParams);
 
 #endif /* RGXFWIMAGEUTILS_H */

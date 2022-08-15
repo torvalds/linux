@@ -174,7 +174,6 @@ typedef struct PVRSRV_BRIDGE_IN_RGXKICKCDM2_TAG
 	IMG_HANDLE *phSyncPMRs;
 	PVRSRV_FENCE hCheckFenceFd;
 	PVRSRV_TIMELINE hUpdateTimeline;
-	IMG_UINT32 ui32ClientCacheOpSeqNum;
 	IMG_UINT32 ui32ClientUpdateCount;
 	IMG_UINT32 ui32CmdSize;
 	IMG_UINT32 ui32ExtJobRef;

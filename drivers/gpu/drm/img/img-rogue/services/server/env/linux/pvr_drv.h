@@ -74,16 +74,21 @@ struct pvr_drm_private {
 	 */
 	struct device_dma_parameters dma_parms;
 
-#if defined(SUPPORT_BUFFER_SYNC) || defined(SUPPORT_NATIVE_FENCE_SYNC)
-	struct workqueue_struct *fence_status_wq;
-#endif
-
 	/* PVR Sync debug notify handle */
 	void *sync_debug_notify_handle;
+
+#if defined(SUPPORT_NATIVE_FENCE_SYNC)
+	/* Only used in fence sync as sync_debug_notify_handle is used
+	 * to print a header only. Content is registered separately.
+	 * Used to print foreign sync debug
+	 */
+	void *sync_foreign_debug_notify_handle;
+#endif
 };
 
 extern const struct dev_pm_ops pvr_pm_ops;
 extern const struct drm_driver pvr_drm_generic_driver;
+extern const struct file_operations pvr_drm_fops;
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 18, 0))
 int pvr_drm_load(struct drm_device *ddev, unsigned long flags);

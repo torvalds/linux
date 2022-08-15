@@ -55,8 +55,8 @@ extern "C" {
  * internally.
  */
 
-typedef struct SYNC_PRIM_CONTEXT *PSYNC_PRIM_CONTEXT;
-typedef struct PVRSRV_CLIENT_SYNC_PRIM
+typedef struct SYNC_PRIM_CONTEXT_TAG *PSYNC_PRIM_CONTEXT;
+typedef struct PVRSRV_CLIENT_SYNC_PRIM_TAG
 {
 	volatile uint32_t __iomem *pui32LinAddr;	/*!< User pointer to the primitive */
 } PVRSRV_CLIENT_SYNC_PRIM;
@@ -67,7 +67,7 @@ typedef struct PVRSRV_CLIENT_SYNC_PRIM
  *   Structure: #PVRSRV_CLIENT_SYNC_PRIM_OP
  *   Typedef: ::PVRSRV_CLIENT_SYNC_PRIM_OP
  */
-typedef struct PVRSRV_CLIENT_SYNC_PRIM_OP
+typedef struct PVRSRV_CLIENT_SYNC_PRIM_OP_TAG
 {
 	#define PVRSRV_CLIENT_SYNC_PRIM_OP_CHECK	(1U << 0)
 	#define PVRSRV_CLIENT_SYNC_PRIM_OP_UPDATE	(1U << 1)

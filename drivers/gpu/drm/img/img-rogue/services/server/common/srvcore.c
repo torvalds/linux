@@ -203,8 +203,6 @@ void BridgeDispatchTableStartOffsetsInit(void)
 	g_BridgeDispatchTableStartOffsets[PVRSRV_BRIDGE_RGXREGCONFIG][PVR_DISPATCH_OFFSET_LAST_FUNC] = PVRSRV_BRIDGE_RGXREGCONFIG_DISPATCH_LAST;
 	g_BridgeDispatchTableStartOffsets[PVRSRV_BRIDGE_RGXKICKSYNC][PVR_DISPATCH_OFFSET_FIRST_FUNC] = PVRSRV_BRIDGE_RGXKICKSYNC_DISPATCH_FIRST;
 	g_BridgeDispatchTableStartOffsets[PVRSRV_BRIDGE_RGXKICKSYNC][PVR_DISPATCH_OFFSET_LAST_FUNC] = PVRSRV_BRIDGE_RGXKICKSYNC_DISPATCH_LAST;
-	g_BridgeDispatchTableStartOffsets[PVRSRV_BRIDGE_RGXSIGNALS][PVR_DISPATCH_OFFSET_FIRST_FUNC] = PVRSRV_BRIDGE_RGXSIGNALS_DISPATCH_FIRST;
-	g_BridgeDispatchTableStartOffsets[PVRSRV_BRIDGE_RGXSIGNALS][PVR_DISPATCH_OFFSET_LAST_FUNC] = PVRSRV_BRIDGE_RGXSIGNALS_DISPATCH_LAST;
 	g_BridgeDispatchTableStartOffsets[PVRSRV_BRIDGE_RGXTQ2][PVR_DISPATCH_OFFSET_FIRST_FUNC] = PVRSRV_BRIDGE_RGXTQ2_DISPATCH_FIRST;
 	g_BridgeDispatchTableStartOffsets[PVRSRV_BRIDGE_RGXTQ2][PVR_DISPATCH_OFFSET_LAST_FUNC] = PVRSRV_BRIDGE_RGXTQ2_DISPATCH_LAST;
 	g_BridgeDispatchTableStartOffsets[PVRSRV_BRIDGE_RGXTIMERQUERY][PVR_DISPATCH_OFFSET_FIRST_FUNC] = PVRSRV_BRIDGE_RGXTIMERQUERY_DISPATCH_FIRST;
@@ -226,7 +224,7 @@ PVRSRV_ERROR PVRSRVPrintBridgeStats()
 		   "Total number of bytes copied via copy_from_user = %u\n"
 		   "Total number of bytes copied via copy_to_user = %u\n"
 		   "Total number of bytes copied via copy_*_user = %u\n\n"
-		   "%3s: %-60s | %-48s | %10s | %20s | %20s | %20s | %20s \n",
+		   "%3s: %-60s | %-48s | %10s | %20s | %20s | %20s | %20s\n",
 		   g_BridgeGlobalStats.ui32IOCTLCount,
 		   g_BridgeGlobalStats.ui32TotalCopyFromUserBytes,
 		   g_BridgeGlobalStats.ui32TotalCopyToUserBytes,
@@ -657,11 +655,32 @@ PVRSRVConnectKM(CONNECTION_DATA *psConnection,
 				__func__, ui32DDKBuild, ui32ClientDDKBuild));
 	}
 
+#if defined(PDUMP)
 	/* Success so far so is it the PDump client that is connecting? */
 	if (ui32Flags & SRV_FLAGS_PDUMPCTRL)
 	{
-		PDumpConnectionNotify();
+		if (psDeviceNode->sDevId.ui32InternalID == psSRVData->ui32PDumpBoundDevice)
+		{
+			PDumpConnectionNotify(psDeviceNode);
+		}
+		else
+		{
+			eError = PVRSRV_ERROR_PDUMP_CAPTURE_BOUND_TO_ANOTHER_DEVICE;
+			PVR_DPF((PVR_DBG_ERROR, "%s: PDump requested for device %u but only permitted for device %u",
+					__func__, psDeviceNode->sDevId.ui32InternalID, psSRVData->ui32PDumpBoundDevice));
+			goto chk_exit;
+		}
 	}
+	else
+	{
+		/* Warn if the app is connecting to a device PDump won't be able to capture */
+		if (psDeviceNode->sDevId.ui32InternalID != psSRVData->ui32PDumpBoundDevice)
+		{
+			PVR_DPF((PVR_DBG_WARNING, "%s: NB. App running on device %d won't be captured by PDump (must be on device %u)",
+					__func__, psDeviceNode->sDevId.ui32InternalID, psSRVData->ui32PDumpBoundDevice));
+		}
+	}
+#endif
 
 	PVR_ASSERT(pui8KernelArch != NULL);
 
@@ -902,6 +921,14 @@ PVRSRV_ERROR PVRSRVGetMultiCoreInfoKM(CONNECTION_DATA *psConnection,
 {
 	PVRSRV_ERROR eError = PVRSRV_ERROR_NOT_SUPPORTED;
 	PVR_UNREFERENCED_PARAMETER(psConnection);
+
+	if (ui32CapsSize > 0)
+	{
+		/* Clear the buffer to ensure no uninitialised data is returned to UM
+		 * if the pfn call below does not write to the whole array, or is null.
+		 */
+		memset(pui64Caps, 0x00, (ui32CapsSize * sizeof(IMG_UINT64)));
+	}
 
 	if (psDeviceNode->pfnGetMultiCoreInfo != NULL)
 	{
@@ -1162,7 +1189,9 @@ PVRSRV_ERROR BridgedDispatchKM(CONNECTION_DATA * psConnection,
 	BridgeWrapperFunction pfBridgeHandler;
 	IMG_UINT32   ui32DispatchTableEntry, ui32GroupBoundary;
 	PVRSRV_ERROR err = PVRSRV_OK;
+#if !defined(INTEGRITY_OS)
 	PVRSRV_POOL_TOKEN hBridgeBufferPoolToken = NULL;
+#endif
 	IMG_UINT32 ui32Timestamp = OSClockus();
 #if defined(DEBUG_BRIDGE_KM)
 	IMG_UINT64	ui64TimeStart;

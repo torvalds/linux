@@ -388,7 +388,8 @@ PVRSRV_ERROR SysDevInit(void *pvOSDevice, PVRSRV_DEVICE_CONFIG **ppsDevConfig)
 	struct platform_device *psDev;
 
 	psDev = to_platform_device((struct device *)pvOSDevice);
-	printk("@@ dev ptr:%llx\n", (uint64_t)psDev);
+	printk("@@ dev ptr:%llx/%d/%d\n", (uint64_t)psDev,DEVICES_WATCHDOG_POWER_ON_SLEEP_TIMEOUT,
+	PVRSRV_APPHINT_ENABLEPAGEFAULTDEBUG);
 #endif
 
 	if (gsDevices[0].pvOSDevice)
@@ -450,6 +451,7 @@ PVRSRV_ERROR SysDevInit(void *pvOSDevice, PVRSRV_DEVICE_CONFIG **ppsDevConfig)
 		gsDevices[0].ui32RegsSize           = STARFIVE_7110_GPU_SIZE;
 	}
 
+	gsDevices[0].eDefaultHeap = PVRSRV_PHYS_HEAP_GPU_LOCAL;
 #if defined(__linux__)
 	iIrq = platform_get_irq(psDev, 0);
 	if (iIrq >= 0) {

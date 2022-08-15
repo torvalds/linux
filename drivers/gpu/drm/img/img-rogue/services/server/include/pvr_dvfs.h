@@ -113,6 +113,8 @@ typedef struct _IMG_DVFS_DEVICE_
 	struct dev_pm_opp		*psOPP;
 #endif
 	struct devfreq			*psDevFreq;
+	IMG_BOOL			bInitPending;
+	IMG_BOOL			bReady;
 	IMG_BOOL			bEnabled;
 	IMG_HANDLE			hGpuUtilUserDVFS;
 	struct devfreq_simple_ondemand_data data;

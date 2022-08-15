@@ -733,7 +733,7 @@ TLServerWriteDataKM(PTL_STREAM_DESC psSD,
 	PVR_ASSERT (psNode->psStream);
 
 	eError = TLStreamWrite(psNode->psStream, pui8Data, ui32Size);
-	PVR_LOG_IF_ERROR(eError, "TLStreamWrite");
+	/* propagate error up but don't print anything here */
 
 	OSLockAcquire(psGD->hTLGDLock);
 	TLReturnStreamNode(psNode);
