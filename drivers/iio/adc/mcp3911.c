@@ -5,15 +5,24 @@
  * Copyright (C) 2018 Marcus Folkesson <marcus.folkesson@gmail.com>
  * Copyright (C) 2018 Kent Gustavsson <kent@minoris.se>
  */
+#include <linux/bitfield.h>
+#include <linux/bits.h>
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/err.h>
-#include <linux/iio/iio.h>
 #include <linux/module.h>
 #include <linux/mod_devicetable.h>
 #include <linux/property.h>
 #include <linux/regulator/consumer.h>
 #include <linux/spi/spi.h>
+
+#include <linux/iio/iio.h>
+#include <linux/iio/buffer.h>
+#include <linux/iio/triggered_buffer.h>
+#include <linux/iio/trigger_consumer.h>
+#include <linux/iio/trigger.h>
+
+#include <asm/unaligned.h>
 
 #define MCP3911_REG_CHANNEL0		0x00
 #define MCP3911_REG_CHANNEL1		0x03
@@ -22,6 +31,7 @@
 #define MCP3911_REG_GAIN		0x09
 
 #define MCP3911_REG_STATUSCOM		0x0a
+#define MCP3911_STATUSCOM_READ		GENMASK(7, 6)
 #define MCP3911_STATUSCOM_CH1_24WIDTH	BIT(4)
 #define MCP3911_STATUSCOM_CH0_24WIDTH	BIT(3)
 #define MCP3911_STATUSCOM_EN_OFFCAL	BIT(2)
@@ -54,6 +64,13 @@ struct mcp3911 {
 	struct regulator *vref;
 	struct clk *clki;
 	u32 dev_addr;
+	struct {
+		u32 channels[MCP3911_NUM_CHANNELS];
+		s64 ts __aligned(8);
+	} scan;
+
+	u8 tx_buf __aligned(IIO_DMA_MINALIGN);
+	u8 rx_buf[MCP3911_NUM_CHANNELS * 3];
 };
 
 static int mcp3911_read(struct mcp3911 *adc, u8 reg, u32 *val, u8 len)
@@ -196,15 +213,65 @@ out:
 		.type = IIO_VOLTAGE,				\
 		.indexed = 1,					\
 		.channel = idx,					\
+		.scan_index = idx,				\
 		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |	\
 			BIT(IIO_CHAN_INFO_OFFSET) |		\
 			BIT(IIO_CHAN_INFO_SCALE),		\
+		.scan_type = {					\
+			.sign = 's',				\
+			.realbits = 24,				\
+			.storagebits = 32,			\
+			.endianness = IIO_BE,			\
+		},						\
 }
 
 static const struct iio_chan_spec mcp3911_channels[] = {
 	MCP3911_CHAN(0),
 	MCP3911_CHAN(1),
+	IIO_CHAN_SOFT_TIMESTAMP(2),
 };
+
+static irqreturn_t mcp3911_trigger_handler(int irq, void *p)
+{
+	struct iio_poll_func *pf = p;
+	struct iio_dev *indio_dev = pf->indio_dev;
+	struct mcp3911 *adc = iio_priv(indio_dev);
+	struct spi_transfer xfer[] = {
+		{
+			.tx_buf = &adc->tx_buf,
+			.len = 1,
+		}, {
+			.rx_buf = adc->rx_buf,
+			.len = sizeof(adc->rx_buf),
+		},
+	};
+	int scan_index;
+	int i = 0;
+	int ret;
+
+	mutex_lock(&adc->lock);
+	adc->tx_buf = MCP3911_REG_READ(MCP3911_CHANNEL(0), adc->dev_addr);
+	ret = spi_sync_transfer(adc->spi, xfer, ARRAY_SIZE(xfer));
+	if (ret < 0) {
+		dev_warn(&adc->spi->dev,
+				"failed to get conversion data\n");
+		goto out;
+	}
+
+	for_each_set_bit(scan_index, indio_dev->active_scan_mask, indio_dev->masklength) {
+		const struct iio_chan_spec *scan_chan = &indio_dev->channels[scan_index];
+
+		adc->scan.channels[i] = get_unaligned_be24(&adc->rx_buf[scan_chan->channel * 3]);
+		i++;
+	}
+	iio_push_to_buffers_with_timestamp(indio_dev, &adc->scan,
+					   iio_get_time_ns(indio_dev));
+out:
+	mutex_unlock(&adc->lock);
+	iio_trigger_notify_done(indio_dev->trig);
+
+	return IRQ_HANDLED;
+}
 
 static const struct iio_info mcp3911_info = {
 	.read_raw = mcp3911_read_raw,
@@ -214,7 +281,7 @@ static const struct iio_info mcp3911_info = {
 static int mcp3911_config(struct mcp3911 *adc)
 {
 	struct device *dev = &adc->spi->dev;
-	u32 configreg;
+	u32 regval;
 	int ret;
 
 	ret = device_property_read_u32(dev, "microchip,device-addr", &adc->dev_addr);
@@ -233,29 +300,43 @@ static int mcp3911_config(struct mcp3911 *adc)
 	}
 	dev_dbg(&adc->spi->dev, "use device address %i\n", adc->dev_addr);
 
-	ret = mcp3911_read(adc, MCP3911_REG_CONFIG, &configreg, 2);
+	ret = mcp3911_read(adc, MCP3911_REG_CONFIG, &regval, 2);
 	if (ret)
 		return ret;
 
+	regval &= ~MCP3911_CONFIG_VREFEXT;
 	if (adc->vref) {
 		dev_dbg(&adc->spi->dev, "use external voltage reference\n");
-		configreg |= MCP3911_CONFIG_VREFEXT;
+		regval |= FIELD_PREP(MCP3911_CONFIG_VREFEXT, 1);
 	} else {
 		dev_dbg(&adc->spi->dev,
 			"use internal voltage reference (1.2V)\n");
-		configreg &= ~MCP3911_CONFIG_VREFEXT;
+		regval |= FIELD_PREP(MCP3911_CONFIG_VREFEXT, 0);
 	}
 
+	regval &= ~MCP3911_CONFIG_CLKEXT;
 	if (adc->clki) {
 		dev_dbg(&adc->spi->dev, "use external clock as clocksource\n");
-		configreg |= MCP3911_CONFIG_CLKEXT;
+		regval |= FIELD_PREP(MCP3911_CONFIG_CLKEXT, 1);
 	} else {
 		dev_dbg(&adc->spi->dev,
 			"use crystal oscillator as clocksource\n");
-		configreg &= ~MCP3911_CONFIG_CLKEXT;
+		regval |= FIELD_PREP(MCP3911_CONFIG_CLKEXT, 0);
 	}
 
-	return  mcp3911_write(adc, MCP3911_REG_CONFIG, configreg, 2);
+	ret = mcp3911_write(adc, MCP3911_REG_CONFIG, regval, 2);
+	if (ret)
+		return ret;
+
+	ret = mcp3911_read(adc, MCP3911_REG_STATUSCOM, &regval, 2);
+	if (ret)
+		return ret;
+
+	/* Address counter incremented, cycle through register types */
+	regval &= ~MCP3911_STATUSCOM_READ;
+	regval |= FIELD_PREP(MCP3911_STATUSCOM_READ, 0x02);
+
+	return  mcp3911_write(adc, MCP3911_REG_STATUSCOM, regval, 2);
 }
 
 static void mcp3911_cleanup_regulator(void *vref)
@@ -323,6 +404,12 @@ static int mcp3911_probe(struct spi_device *spi)
 	indio_dev->num_channels = ARRAY_SIZE(mcp3911_channels);
 
 	mutex_init(&adc->lock);
+
+	ret = devm_iio_triggered_buffer_setup(&spi->dev, indio_dev,
+			NULL,
+			mcp3911_trigger_handler, NULL);
+	if (ret)
+		return ret;
 
 	return devm_iio_device_register(&adc->spi->dev, indio_dev);
 }
