@@ -1058,7 +1058,8 @@ u32 sfc_nand_init(void)
 		return (u32)FTL_UNSUPPORTED_FLASH;
 	}
 
-	gp_page_buf = (u32 *)__get_free_pages(GFP_KERNEL | GFP_DMA32, get_order(SFC_NAND_PAGE_MAX_SIZE));
+	if (!gp_page_buf)
+		gp_page_buf = (u32 *)__get_free_pages(GFP_KERNEL | GFP_DMA32, get_order(SFC_NAND_PAGE_MAX_SIZE));
 	if (!gp_page_buf)
 		return -ENOMEM;
 
@@ -1074,7 +1075,8 @@ u32 sfc_nand_init(void)
 	sfc_nand_dev.prog_lines = DATA_LINES_X1;
 	sfc_nand_dev.page_read_cmd = 0x03;
 	sfc_nand_dev.page_prog_cmd = 0x02;
-	sfc_nand_dev.recheck_buffer = (u8 *)__get_free_pages(GFP_KERNEL | GFP_DMA32, get_order(SFC_NAND_PAGE_MAX_SIZE));
+	if (!sfc_nand_dev.recheck_buffer)
+		sfc_nand_dev.recheck_buffer = (u8 *)__get_free_pages(GFP_KERNEL | GFP_DMA32, get_order(SFC_NAND_PAGE_MAX_SIZE));
 	if (!sfc_nand_dev.recheck_buffer) {
 		pr_err("%s recheck_buffer alloc failed\n", __func__);
 		return -ENOMEM;

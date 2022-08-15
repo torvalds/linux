@@ -32,7 +32,8 @@ static int spi_nor_init(void __iomem *reg_addr)
 	struct id_block_tag *idb_tag;
 	struct snor_info_packet *packet;
 
-	sfnor_dev = kzalloc(sizeof(*sfnor_dev), GFP_KERNEL);
+	if (!sfnor_dev)
+		sfnor_dev = kzalloc(sizeof(*sfnor_dev), GFP_KERNEL);
 
 	if (!sfnor_dev)
 		return -ENOMEM;
