@@ -1528,7 +1528,7 @@ static bool should_requeue_request(struct request *rq)
 	return false;
 }
 
-static int null_map_queues(struct blk_mq_tag_set *set)
+static void null_map_queues(struct blk_mq_tag_set *set)
 {
 	struct nullb *nullb = set->driver_data;
 	int i, qoff;
@@ -1579,8 +1579,6 @@ static int null_map_queues(struct blk_mq_tag_set *set)
 		qoff += map->nr_queues;
 		blk_mq_map_queues(map);
 	}
-
-	return 0;
 }
 
 static int null_poll(struct blk_mq_hw_ctx *hctx, struct io_comp_batch *iob)

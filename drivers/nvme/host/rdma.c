@@ -2188,7 +2188,7 @@ static void nvme_rdma_complete_rq(struct request *rq)
 	nvme_complete_rq(rq);
 }
 
-static int nvme_rdma_map_queues(struct blk_mq_tag_set *set)
+static void nvme_rdma_map_queues(struct blk_mq_tag_set *set)
 {
 	struct nvme_rdma_ctrl *ctrl = set->driver_data;
 	struct nvmf_ctrl_options *opts = ctrl->ctrl.opts;
@@ -2231,8 +2231,6 @@ static int nvme_rdma_map_queues(struct blk_mq_tag_set *set)
 		ctrl->io_queues[HCTX_TYPE_DEFAULT],
 		ctrl->io_queues[HCTX_TYPE_READ],
 		ctrl->io_queues[HCTX_TYPE_POLL]);
-
-	return 0;
 }
 
 static const struct blk_mq_ops nvme_rdma_mq_ops = {
