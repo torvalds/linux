@@ -482,9 +482,10 @@ err_power_disable:
 	rga_power_disable(scheduler);
 
 err_free_job:
+	ret = job->ret;
 	rga_request_release_signal(scheduler, job);
 
-	return ERR_PTR(job->ret);
+	return ERR_PTR(ret);
 }
 
 static bool rga_is_need_current_mm(struct rga_req *req)
