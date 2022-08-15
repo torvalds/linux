@@ -42,7 +42,11 @@ static uint64_t hl_set_dram_bar(struct hl_device *hdev, u64 addr)
 	struct asic_fixed_properties *prop = &hdev->asic_prop;
 	u64 bar_base_addr;
 
-	bar_base_addr = addr & ~(prop->dram_pci_bar_size - 0x1ull);
+	if (is_power_of_2(prop->dram_pci_bar_size))
+		bar_base_addr = addr & ~(prop->dram_pci_bar_size - 0x1ull);
+	else
+		bar_base_addr = DIV_ROUND_DOWN_ULL(addr, prop->dram_pci_bar_size) *
+				prop->dram_pci_bar_size;
 
 	return hdev->asic_funcs->set_dram_bar_base(hdev, bar_base_addr);
 }
