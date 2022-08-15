@@ -9,6 +9,7 @@
 #include <linux/string_helpers.h>
 
 #include "intel_backlight.h"
+#include "intel_backlight_regs.h"
 #include "intel_connector.h"
 #include "intel_de.h"
 #include "intel_display_types.h"
