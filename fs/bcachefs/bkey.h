@@ -50,12 +50,15 @@ static inline size_t bkey_val_bytes(const struct bkey *k)
 
 static inline void set_bkey_val_u64s(struct bkey *k, unsigned val_u64s)
 {
-	k->u64s = BKEY_U64s + val_u64s;
+	unsigned u64s = BKEY_U64s + val_u64s;
+
+	BUG_ON(u64s > U8_MAX);
+	k->u64s = u64s;
 }
 
 static inline void set_bkey_val_bytes(struct bkey *k, unsigned bytes)
 {
-	k->u64s = BKEY_U64s + DIV_ROUND_UP(bytes, sizeof(u64));
+	set_bkey_val_u64s(k, DIV_ROUND_UP(bytes, sizeof(u64)));
 }
 
 #define bkey_val_end(_k)	((void *) (((u64 *) (_k).v) + bkey_val_u64s((_k).k)))
