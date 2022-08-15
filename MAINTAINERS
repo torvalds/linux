@@ -7534,7 +7534,7 @@ M:	Adrian Hunter <adrian.hunter@intel.com>
 M:	Ritesh Harjani <riteshh@codeaurora.org>
 M:	Asutosh Das <asutoshd@codeaurora.org>
 L:	linux-mmc@vger.kernel.org
-S:	Maintained
+S:	Supported
 F:	drivers/mmc/host/cqhci*
 
 EMULEX 10Gbps iSCSI - OneConnect DRIVER
@@ -18278,7 +18278,7 @@ F:	drivers/mmc/host/sdhci-brcmstb*
 SECURE DIGITAL HOST CONTROLLER INTERFACE (SDHCI) DRIVER
 M:	Adrian Hunter <adrian.hunter@intel.com>
 L:	linux-mmc@vger.kernel.org
-S:	Maintained
+S:	Supported
 F:	drivers/mmc/host/sdhci*
 
 SECURE DIGITAL HOST CONTROLLER INTERFACE (SDHCI) MICROCHIP DRIVER
