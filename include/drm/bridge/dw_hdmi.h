@@ -95,6 +95,13 @@ enum dw_hdmi_phy_type {
 	DW_HDMI_PHY_VENDOR_PHY = 0xfe,
 };
 
+struct dw_hdmi_audio_frl_n {
+	unsigned int r_bit;
+	unsigned int n_32k;
+	unsigned int n_44k1;
+	unsigned int n_48k;
+};
+
 struct dw_hdmi_audio_tmds_n {
 	unsigned long tmds;
 	unsigned int n_32k;

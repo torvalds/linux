@@ -57,6 +57,18 @@ static const unsigned int dw_hdmi_cable[] = {
 };
 
 /*
+ * Recommended N and Expected CTS Values in FRL Mode in chapter 9.2.2
+ * of HDMI Specification 2.1.
+ */
+static const struct dw_hdmi_audio_frl_n common_frl_n_table[] = {
+	{ .r_bit = 3,  .n_32k = 4224, .n_44k1 = 5292, .n_48k = 5760, },
+	{ .r_bit = 6,  .n_32k = 4032, .n_44k1 = 5292, .n_48k = 6048, },
+	{ .r_bit = 8,  .n_32k = 4032, .n_44k1 = 3969, .n_48k = 6048, },
+	{ .r_bit = 10, .n_32k = 3456, .n_44k1 = 3969, .n_48k = 5184, },
+	{ .r_bit = 12, .n_32k = 3072, .n_44k1 = 3969, .n_48k = 4752, },
+};
+
+/*
  * Unless otherwise noted, entries in this table are 100% optimization.
  * Values can be obtained from hdmi_compute_n() but that function is
  * slow so we pre-compute values we expect to see.
@@ -341,6 +353,50 @@ static void hdmi_set_cts_n(struct dw_hdmi_qp *hdmi, unsigned int cts,
 		  AUDPKT_ACR_CONTROL1);
 }
 
+static int hdmi_match_frl_n_table(struct dw_hdmi_qp *hdmi,
+				  unsigned long r_bit,
+				  unsigned long freq)
+{
+	const struct dw_hdmi_audio_frl_n *frl_n = NULL;
+	int i = 0, n = 0;
+
+	for (i = 0; ARRAY_SIZE(common_frl_n_table); i++) {
+		if (r_bit == common_frl_n_table[i].r_bit) {
+			frl_n = &common_frl_n_table[i];
+			break;
+		}
+	}
+
+	if (!frl_n)
+		goto err;
+
+	switch (freq) {
+	case 32000:
+	case 64000:
+	case 128000:
+		n = (freq / 32000) * frl_n->n_32k;
+		break;
+	case 44100:
+	case 88200:
+	case 176400:
+		n = (freq / 44100) * frl_n->n_44k1;
+		break;
+	case 48000:
+	case 96000:
+	case 192000:
+		n = (freq / 48000) * frl_n->n_48k;
+		break;
+	default:
+		goto err;
+	}
+
+	return n;
+err:
+	dev_err(hdmi->dev, "FRL; unexpected Rbit: %lu Gbps\n", r_bit);
+
+	return 0;
+}
+
 static int hdmi_match_tmds_n_table(struct dw_hdmi_qp *hdmi,
 				   unsigned long pixel_clk,
 				   unsigned long freq)
@@ -442,7 +498,15 @@ static unsigned int hdmi_compute_n(struct dw_hdmi_qp *hdmi,
 static unsigned int hdmi_find_n(struct dw_hdmi_qp *hdmi, unsigned long pixel_clk,
 				unsigned long sample_rate)
 {
+	struct dw_hdmi_link_config *link_cfg = NULL;
+	void *data = hdmi->plat_data->phy_data;
 	int n;
+
+	if (hdmi->plat_data->get_link_cfg) {
+		link_cfg = hdmi->plat_data->get_link_cfg(data);
+		if (link_cfg && link_cfg->frl_mode)
+			return hdmi_match_frl_n_table(hdmi, link_cfg->rate_per_lane, sample_rate);
+	}
 
 	n = hdmi_match_tmds_n_table(hdmi, pixel_clk, sample_rate);
 	if (n > 0)
