@@ -311,6 +311,8 @@ typedef void (*regmap_unlock)(void *);
  *		  This field is a duplicate of a similar file in
  *		  'struct regmap_bus' and serves exact same purpose.
  *		   Use it only for "no-bus" cases.
+ * @io_port:	  Support IO port accessors. Makes sense only when MMIO vs. IO port
+ *		  access can be distinguished.
  * @max_register: Optional, specifies the maximum valid register address.
  * @wr_table:     Optional, points to a struct regmap_access_table specifying
  *                valid ranges for write access.
@@ -399,6 +401,7 @@ struct regmap_config {
 	size_t max_raw_write;
 
 	bool fast_io;
+	bool io_port;
 
 	unsigned int max_register;
 	const struct regmap_access_table *wr_table;
