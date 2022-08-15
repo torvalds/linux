@@ -659,8 +659,7 @@ rollback:
  *
  * Returns the size on success or a negative error code on failure.
  */
-static int btrfs_get_verity_descriptor(struct inode *inode, void *buf,
-				       size_t buf_size)
+int btrfs_get_verity_descriptor(struct inode *inode, void *buf, size_t buf_size)
 {
 	u64 true_size;
 	int ret = 0;

@@ -15,6 +15,7 @@
 #include <linux/string.h>
 #include <linux/compat.h>
 #include <linux/crc32c.h>
+#include <linux/fsverity.h>
 
 #include "send.h"
 #include "ctree.h"
@@ -127,6 +128,8 @@ struct send_ctx {
 	bool cur_inode_new_gen;
 	bool cur_inode_deleted;
 	bool ignore_cur_inode;
+	bool cur_inode_needs_verity;
+	void *verity_descriptor;
 
 	u64 send_progress;
 
@@ -624,6 +627,7 @@ static int tlv_put(struct send_ctx *sctx, u16 attr, const void *data, int len)
 		return tlv_put(sctx, attr, &__tmp, sizeof(__tmp));	\
 	}
 
+TLV_PUT_DEFINE_INT(8)
 TLV_PUT_DEFINE_INT(32)
 TLV_PUT_DEFINE_INT(64)
 
@@ -4886,6 +4890,84 @@ static int process_all_new_xattrs(struct send_ctx *sctx)
 	return ret;
 }
 
+static int send_verity(struct send_ctx *sctx, struct fs_path *path,
+		       struct fsverity_descriptor *desc)
+{
+	int ret;
+
+	ret = begin_cmd(sctx, BTRFS_SEND_C_ENABLE_VERITY);
+	if (ret < 0)
+		goto out;
+
+	TLV_PUT_PATH(sctx, BTRFS_SEND_A_PATH, path);
+	TLV_PUT_U8(sctx, BTRFS_SEND_A_VERITY_ALGORITHM,
+			le8_to_cpu(desc->hash_algorithm));
+	TLV_PUT_U32(sctx, BTRFS_SEND_A_VERITY_BLOCK_SIZE,
+			1U << le8_to_cpu(desc->log_blocksize));
+	TLV_PUT(sctx, BTRFS_SEND_A_VERITY_SALT_DATA, desc->salt,
+			le8_to_cpu(desc->salt_size));
+	TLV_PUT(sctx, BTRFS_SEND_A_VERITY_SIG_DATA, desc->signature,
+			le32_to_cpu(desc->sig_size));
+
+	ret = send_cmd(sctx);
+
+tlv_put_failure:
+out:
+	return ret;
+}
+
+static int process_verity(struct send_ctx *sctx)
+{
+	int ret = 0;
+	struct btrfs_fs_info *fs_info = sctx->send_root->fs_info;
+	struct inode *inode;
+	struct fs_path *p;
+
+	inode = btrfs_iget(fs_info->sb, sctx->cur_ino, sctx->send_root);
+	if (IS_ERR(inode))
+		return PTR_ERR(inode);
+
+	ret = btrfs_get_verity_descriptor(inode, NULL, 0);
+	if (ret < 0)
+		goto iput;
+
+	if (ret > FS_VERITY_MAX_DESCRIPTOR_SIZE) {
+		ret = -EMSGSIZE;
+		goto iput;
+	}
+	if (!sctx->verity_descriptor) {
+		sctx->verity_descriptor = kvmalloc(FS_VERITY_MAX_DESCRIPTOR_SIZE,
+						   GFP_KERNEL);
+		if (!sctx->verity_descriptor) {
+			ret = -ENOMEM;
+			goto iput;
+		}
+	}
+
+	ret = btrfs_get_verity_descriptor(inode, sctx->verity_descriptor, ret);
+	if (ret < 0)
+		goto iput;
+
+	p = fs_path_alloc();
+	if (!p) {
+		ret = -ENOMEM;
+		goto iput;
+	}
+	ret = get_cur_path(sctx, sctx->cur_ino, sctx->cur_inode_gen, p);
+	if (ret < 0)
+		goto free_path;
+
+	ret = send_verity(sctx, p, sctx->verity_descriptor);
+	if (ret < 0)
+		goto free_path;
+
+free_path:
+	fs_path_free(p);
+iput:
+	iput(inode);
+	return ret;
+}
+
 static inline u64 max_send_read_size(const struct send_ctx *sctx)
 {
 	return sctx->send_max_size - SZ_16K;
@@ -6377,6 +6459,11 @@ static int finish_inode_if_needed(struct send_ctx *sctx, int at_end)
 		if (ret < 0)
 			goto out;
 	}
+	if (sctx->cur_inode_needs_verity) {
+		ret = process_verity(sctx);
+		if (ret < 0)
+			goto out;
+	}
 
 	ret = send_capabilities(sctx);
 	if (ret < 0)
@@ -6785,6 +6872,17 @@ static int changed_extent(struct send_ctx *sctx,
 	return ret;
 }
 
+static int changed_verity(struct send_ctx *sctx, enum btrfs_compare_tree_result result)
+{
+	int ret = 0;
+
+	if (!sctx->cur_inode_new_gen && !sctx->cur_inode_deleted) {
+		if (result == BTRFS_COMPARE_TREE_NEW)
+			sctx->cur_inode_needs_verity = true;
+	}
+	return ret;
+}
+
 static int dir_changed(struct send_ctx *sctx, u64 dir)
 {
 	u64 orig_gen, new_gen;
@@ -6939,6 +7037,9 @@ static int changed_cb(struct btrfs_path *left_path,
 			ret = changed_xattr(sctx, result);
 		else if (key->type == BTRFS_EXTENT_DATA_KEY)
 			ret = changed_extent(sctx, result);
+		else if (key->type == BTRFS_VERITY_DESC_ITEM_KEY &&
+			 key->offset == 0)
+			ret = changed_verity(sctx, result);
 	}
 
 out:
@@ -8036,6 +8137,7 @@ out:
 		kvfree(sctx->clone_roots);
 		kfree(sctx->send_buf_pages);
 		kvfree(sctx->send_buf);
+		kvfree(sctx->verity_descriptor);
 
 		name_cache_free(sctx);
 
