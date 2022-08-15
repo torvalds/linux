@@ -634,7 +634,7 @@ static void populate_subvp_cmd_pipe_info(struct dc *dc,
 			&cmd->fw_assisted_mclk_switch_v2.config_data.pipe_data[cmd_pipe_index];
 	struct dc_crtc_timing *main_timing = &subvp_pipe->stream->timing;
 	struct dc_crtc_timing *phantom_timing = &subvp_pipe->stream->mall_stream_config.paired_stream->timing;
-	uint32_t out_num, out_den;
+	uint32_t out_num_stream, out_den_stream, out_num_plane, out_den_plane, out_num, out_den;
 
 	pipe_data->mode = SUBVP;
 	pipe_data->pipe_config.subvp_data.pix_clk_100hz = subvp_pipe->stream->timing.pix_clk_100hz;
@@ -651,8 +651,14 @@ static void populate_subvp_cmd_pipe_info(struct dc *dc,
 	/* Calculate the scaling factor from the src and dst height.
 	 * e.g. If 3840x2160 being downscaled to 1920x1080, the scaling factor is 1/2.
 	 * Reduce the fraction 1080/2160 = 1/2 for the "scaling factor"
+	 *
+	 * Make sure to combine stream and plane scaling together.
 	 */
-	reduce_fraction(subvp_pipe->stream->src.height, subvp_pipe->stream->dst.height, &out_num, &out_den);
+	reduce_fraction(subvp_pipe->stream->src.height, subvp_pipe->stream->dst.height,
+			&out_num_stream, &out_den_stream);
+	reduce_fraction(subvp_pipe->plane_state->src_rect.height, subvp_pipe->plane_state->dst_rect.height,
+			&out_num_plane, &out_den_plane);
+	reduce_fraction(out_num_stream * out_num_plane, out_den_stream * out_den_plane, &out_num, &out_den);
 	pipe_data->pipe_config.subvp_data.scale_factor_numerator = out_num;
 	pipe_data->pipe_config.subvp_data.scale_factor_denominator = out_den;
 
