@@ -2185,6 +2185,10 @@ retry_init:
 		goto err_pci;
 	}
 
+	ret = amdgpu_xcp_dev_register(adev, ent);
+	if (ret)
+		goto err_pci;
+
 	/*
 	 * 1. don't init fbdev on hw without DCE
 	 * 2. don't init fbdev if there are no connectors
@@ -2257,6 +2261,7 @@ amdgpu_pci_remove(struct pci_dev *pdev)
 	struct drm_device *dev = pci_get_drvdata(pdev);
 	struct amdgpu_device *adev = drm_to_adev(dev);
 
+	amdgpu_xcp_dev_unplug(adev);
 	drm_dev_unplug(dev);
 
 	if (adev->pm.rpm_mode != AMDGPU_RUNPM_NONE) {
@@ -2816,6 +2821,33 @@ static const struct drm_driver amdgpu_kms_driver = {
 	    DRIVER_ATOMIC |
 	    DRIVER_GEM |
 	    DRIVER_RENDER | DRIVER_MODESET | DRIVER_SYNCOBJ |
+	    DRIVER_SYNCOBJ_TIMELINE,
+	.open = amdgpu_driver_open_kms,
+	.postclose = amdgpu_driver_postclose_kms,
+	.lastclose = amdgpu_driver_lastclose_kms,
+	.ioctls = amdgpu_ioctls_kms,
+	.num_ioctls = ARRAY_SIZE(amdgpu_ioctls_kms),
+	.dumb_create = amdgpu_mode_dumb_create,
+	.dumb_map_offset = amdgpu_mode_dumb_mmap,
+	.fops = &amdgpu_driver_kms_fops,
+	.release = &amdgpu_driver_release_kms,
+
+	.prime_handle_to_fd = drm_gem_prime_handle_to_fd,
+	.prime_fd_to_handle = drm_gem_prime_fd_to_handle,
+	.gem_prime_import = amdgpu_gem_prime_import,
+	.gem_prime_mmap = drm_gem_prime_mmap,
+
+	.name = DRIVER_NAME,
+	.desc = DRIVER_DESC,
+	.date = DRIVER_DATE,
+	.major = KMS_DRIVER_MAJOR,
+	.minor = KMS_DRIVER_MINOR,
+	.patchlevel = KMS_DRIVER_PATCHLEVEL,
+};
+
+const struct drm_driver amdgpu_partition_driver = {
+	.driver_features =
+	    DRIVER_GEM | DRIVER_RENDER | DRIVER_SYNCOBJ |
 	    DRIVER_SYNCOBJ_TIMELINE,
 	.open = amdgpu_driver_open_kms,
 	.postclose = amdgpu_driver_postclose_kms,

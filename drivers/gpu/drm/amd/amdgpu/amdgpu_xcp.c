@@ -22,6 +22,9 @@
  */
 #include "amdgpu.h"
 #include "amdgpu_xcp.h"
+#include "amdgpu_drv.h"
+
+#include <drm/drm_drv.h>
 
 static int __amdgpu_xcp_run(struct amdgpu_xcp_mgr *xcp_mgr,
 			    struct amdgpu_xcp_ip *xcp_ip, int xcp_state)
@@ -217,6 +220,31 @@ int amdgpu_xcp_query_partition_mode(struct amdgpu_xcp_mgr *xcp_mgr, u32 flags)
 	return mode;
 }
 
+static int amdgpu_xcp_dev_alloc(struct amdgpu_device *adev)
+{
+	struct drm_device *p_ddev;
+	struct pci_dev *pdev;
+	struct drm_device *ddev;
+	int i;
+
+	pdev = adev->pdev;
+	ddev = adev_to_drm(adev);
+
+	for (i = 0; i < MAX_XCP; i++) {
+		p_ddev = drm_dev_alloc(&amdgpu_partition_driver,
+			&pci_upstream_bridge(pdev)->dev);
+		if (IS_ERR(p_ddev))
+			return PTR_ERR(p_ddev);
+
+		/* Redirect all IOCTLs to the primary device */
+		p_ddev->render->dev = ddev;
+		p_ddev->vma_offset_manager = ddev->vma_offset_manager;
+		adev->xcp_mgr->xcp[i].ddev = p_ddev;
+	}
+
+	return 0;
+}
+
 int amdgpu_xcp_mgr_init(struct amdgpu_device *adev, int init_mode,
 			int init_num_xcps,
 			struct amdgpu_xcp_mgr_funcs *xcp_funcs)
@@ -242,7 +270,7 @@ int amdgpu_xcp_mgr_init(struct amdgpu_device *adev, int init_mode,
 
 	adev->xcp_mgr = xcp_mgr;
 
-	return 0;
+	return amdgpu_xcp_dev_alloc(adev);
 }
 
 int amdgpu_xcp_get_partition(struct amdgpu_xcp_mgr *xcp_mgr,
@@ -278,3 +306,32 @@ int amdgpu_xcp_get_inst_details(struct amdgpu_xcp *xcp,
 
 	return 0;
 }
+
+int amdgpu_xcp_dev_register(struct amdgpu_device *adev,
+			const struct pci_device_id *ent)
+{
+	int i, ret;
+
+	if (!adev->xcp_mgr)
+		return 0;
+
+	for (i = 0; i < MAX_XCP; i++) {
+		ret = drm_dev_register(adev->xcp_mgr->xcp[i].ddev, ent->driver_data);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
+void amdgpu_xcp_dev_unplug(struct amdgpu_device *adev)
+{
+	int i;
+
+	if (!adev->xcp_mgr)
+		return;
+
+	for (i = 0; i < MAX_XCP; i++)
+		drm_dev_unplug(adev->xcp_mgr->xcp[i].ddev);
+}
+

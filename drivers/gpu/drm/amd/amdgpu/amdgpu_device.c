@@ -6065,6 +6065,7 @@ void amdgpu_device_halt(struct amdgpu_device *adev)
 	struct pci_dev *pdev = adev->pdev;
 	struct drm_device *ddev = adev_to_drm(adev);
 
+	amdgpu_xcp_dev_unplug(adev);
 	drm_dev_unplug(ddev);
 
 	amdgpu_irq_disable_all(adev);

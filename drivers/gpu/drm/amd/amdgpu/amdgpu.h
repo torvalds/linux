@@ -107,6 +107,7 @@
 #include "amdgpu_fdinfo.h"
 #include "amdgpu_mca.h"
 #include "amdgpu_ras.h"
+#include "amdgpu_xcp.h"
 
 #define MAX_GPU_INSTANCE		64
 

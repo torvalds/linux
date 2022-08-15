@@ -70,6 +70,7 @@ struct amdgpu_xcp {
 	uint8_t id;
 	uint8_t mem_id;
 	bool valid;
+	struct drm_device *ddev;
 };
 
 struct amdgpu_xcp_mgr {
@@ -114,6 +115,10 @@ int amdgpu_xcp_get_partition(struct amdgpu_xcp_mgr *xcp_mgr,
 int amdgpu_xcp_get_inst_details(struct amdgpu_xcp *xcp,
 				enum AMDGPU_XCP_IP_BLOCK ip,
 				uint32_t *inst_mask);
+
+int amdgpu_xcp_dev_register(struct amdgpu_device *adev,
+				const struct pci_device_id *ent);
+void amdgpu_xcp_dev_unplug(struct amdgpu_device *adev);
 
 static inline int amdgpu_xcp_get_num_xcp(struct amdgpu_xcp_mgr *xcp_mgr)
 {
