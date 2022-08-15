@@ -261,25 +261,23 @@ int sunxi_sram_claim(struct device *dev)
 }
 EXPORT_SYMBOL(sunxi_sram_claim);
 
-int sunxi_sram_release(struct device *dev)
+void sunxi_sram_release(struct device *dev)
 {
 	const struct sunxi_sram_data *sram_data;
 	struct sunxi_sram_desc *sram_desc;
 
 	if (!dev || !dev->of_node)
-		return -EINVAL;
+		return;
 
 	sram_data = sunxi_sram_of_parse(dev->of_node, NULL);
 	if (IS_ERR(sram_data))
-		return -EINVAL;
+		return;
 
 	sram_desc = to_sram_desc(sram_data);
 
 	spin_lock(&sram_lock);
 	sram_desc->claimed = false;
 	spin_unlock(&sram_lock);
-
-	return 0;
 }
 EXPORT_SYMBOL(sunxi_sram_release);
 
