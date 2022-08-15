@@ -266,7 +266,8 @@ error_free_entity:
 	return r;
 }
 
-static ktime_t amdgpu_ctx_fini_entity(struct amdgpu_ctx_entity *entity)
+static ktime_t amdgpu_ctx_fini_entity(struct amdgpu_device *adev,
+				  struct amdgpu_ctx_entity *entity)
 {
 	ktime_t res = ns_to_ktime(0);
 	int i;
@@ -278,6 +279,8 @@ static ktime_t amdgpu_ctx_fini_entity(struct amdgpu_ctx_entity *entity)
 		res = ktime_add(res, amdgpu_ctx_fence_time(entity->fences[i]));
 		dma_fence_put(entity->fences[i]);
 	}
+
+	amdgpu_xcp_release_sched(adev, entity);
 
 	kfree(entity);
 	return res;
@@ -412,7 +415,7 @@ static void amdgpu_ctx_fini(struct kref *ref)
 		for (j = 0; j < AMDGPU_MAX_ENTITY_NUM; ++j) {
 			ktime_t spend;
 
-			spend = amdgpu_ctx_fini_entity(ctx->entities[i][j]);
+			spend = amdgpu_ctx_fini_entity(adev, ctx->entities[i][j]);
 			atomic64_add(ktime_to_ns(spend), &mgr->time_spend[i]);
 		}
 	}

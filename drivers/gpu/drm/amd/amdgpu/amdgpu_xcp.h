@@ -128,6 +128,8 @@ void amdgpu_xcp_dev_unplug(struct amdgpu_device *adev);
 int amdgpu_xcp_open_device(struct amdgpu_device *adev,
 			   struct amdgpu_fpriv *fpriv,
 			   struct drm_file *file_priv);
+void amdgpu_xcp_release_sched(struct amdgpu_device *adev,
+			      struct amdgpu_ctx_entity *entity);
 
 #define amdgpu_xcp_select_scheds(adev, e, c, d, x, y) \
 	((adev)->xcp_mgr && (adev)->xcp_mgr->funcs && \
