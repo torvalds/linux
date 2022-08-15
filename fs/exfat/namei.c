@@ -1175,7 +1175,7 @@ static int __exfat_rename(struct inode *old_parent_inode,
 	struct exfat_inode_info *new_ei = NULL;
 	unsigned int new_entry_type = TYPE_UNUSED;
 	int new_entry = 0;
-	struct buffer_head *old_bh, *new_bh = NULL;
+	struct buffer_head *new_bh = NULL;
 
 	/* check the validity of pointer parameters */
 	if (new_path == NULL || strlen(new_path) == 0)
@@ -1190,13 +1190,6 @@ static int __exfat_rename(struct inode *old_parent_inode,
 		EXFAT_B_TO_CLU_ROUND_UP(i_size_read(old_parent_inode), sbi),
 		EXFAT_I(old_parent_inode)->flags);
 	dentry = ei->entry;
-
-	ep = exfat_get_dentry(sb, &olddir, dentry, &old_bh);
-	if (!ep) {
-		ret = -EIO;
-		goto out;
-	}
-	brelse(old_bh);
 
 	/* check whether new dir is existing directory and empty */
 	if (new_inode) {
