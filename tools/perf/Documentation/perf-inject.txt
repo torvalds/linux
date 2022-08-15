@@ -27,8 +27,13 @@ OPTIONS
 --build-ids::
         Inject build-ids into the output stream
 
---buildid-all:
+--buildid-all::
 	Inject build-ids of all DSOs into the output stream
+
+--known-build-ids=::
+	Override build-ids to inject using these comma-separated pairs of
+	build-id and path. Understands file://filename to read these pairs
+	from a file, which can be generated with perf buildid-list.
 
 -v::
 --verbose::
