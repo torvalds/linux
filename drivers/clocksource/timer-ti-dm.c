@@ -387,16 +387,24 @@ static int omap_dm_timer_set_source(struct omap_dm_timer *timer, int source)
 
 static void omap_dm_timer_enable(struct omap_dm_timer *timer)
 {
-	pm_runtime_get_sync(&timer->pdev->dev);
+	struct device *dev = &timer->pdev->dev;
+	int rc;
+
+	rc = pm_runtime_resume_and_get(dev);
+	if (rc)
+		dev_err(dev, "could not enable timer\n");
 }
 
 static void omap_dm_timer_disable(struct omap_dm_timer *timer)
 {
-	pm_runtime_put_sync(&timer->pdev->dev);
+	struct device *dev = &timer->pdev->dev;
+
+	pm_runtime_put_sync(dev);
 }
 
 static int omap_dm_timer_prepare(struct omap_dm_timer *timer)
 {
+	struct device *dev = &timer->pdev->dev;
 	int rc;
 
 	/*
@@ -411,18 +419,20 @@ static int omap_dm_timer_prepare(struct omap_dm_timer *timer)
 		}
 	}
 
-	omap_dm_timer_enable(timer);
+	rc = pm_runtime_resume_and_get(dev);
+	if (rc)
+		return rc;
 
 	if (timer->capability & OMAP_TIMER_NEEDS_RESET) {
 		rc = omap_dm_timer_reset(timer);
 		if (rc) {
-			omap_dm_timer_disable(timer);
+			pm_runtime_put_sync(dev);
 			return rc;
 		}
 	}
 
 	__omap_dm_timer_enable_posted(timer);
-	omap_dm_timer_disable(timer);
+	pm_runtime_put_sync(dev);
 
 	return 0;
 }
@@ -628,12 +638,16 @@ __u32 omap_dm_timer_modify_idlect_mask(__u32 inputmask)
 
 static int omap_dm_timer_start(struct omap_dm_timer *timer)
 {
+	struct device *dev = &timer->pdev->dev;
+	int rc;
 	u32 l;
 
 	if (unlikely(!timer))
 		return -EINVAL;
 
-	omap_dm_timer_enable(timer);
+	rc = pm_runtime_resume_and_get(dev);
+	if (rc)
+		return rc;
 
 	l = dmtimer_read(timer, OMAP_TIMER_CTRL_REG);
 	if (!(l & OMAP_TIMER_CTRL_ST)) {
@@ -646,6 +660,7 @@ static int omap_dm_timer_start(struct omap_dm_timer *timer)
 
 static int omap_dm_timer_stop(struct omap_dm_timer *timer)
 {
+	struct device *dev = &timer->pdev->dev;
 	unsigned long rate = 0;
 
 	if (unlikely(!timer))
@@ -656,32 +671,47 @@ static int omap_dm_timer_stop(struct omap_dm_timer *timer)
 
 	__omap_dm_timer_stop(timer, rate);
 
-	omap_dm_timer_disable(timer);
+	pm_runtime_put_sync(dev);
+
 	return 0;
 }
 
 static int omap_dm_timer_set_load(struct omap_dm_timer *timer,
 				  unsigned int load)
 {
+	struct device *dev;
+	int rc;
+
 	if (unlikely(!timer))
 		return -EINVAL;
 
-	omap_dm_timer_enable(timer);
+	dev = &timer->pdev->dev;
+	rc = pm_runtime_resume_and_get(dev);
+	if (rc)
+		return rc;
+
 	dmtimer_write(timer, OMAP_TIMER_LOAD_REG, load);
 
-	omap_dm_timer_disable(timer);
+	pm_runtime_put_sync(dev);
+
 	return 0;
 }
 
 static int omap_dm_timer_set_match(struct omap_dm_timer *timer, int enable,
 				   unsigned int match)
 {
+	struct device *dev;
+	int rc;
 	u32 l;
 
 	if (unlikely(!timer))
 		return -EINVAL;
 
-	omap_dm_timer_enable(timer);
+	dev = &timer->pdev->dev;
+	rc = pm_runtime_resume_and_get(dev);
+	if (rc)
+		return rc;
+
 	l = dmtimer_read(timer, OMAP_TIMER_CTRL_REG);
 	if (enable)
 		l |= OMAP_TIMER_CTRL_CE;
@@ -690,19 +720,26 @@ static int omap_dm_timer_set_match(struct omap_dm_timer *timer, int enable,
 	dmtimer_write(timer, OMAP_TIMER_MATCH_REG, match);
 	dmtimer_write(timer, OMAP_TIMER_CTRL_REG, l);
 
-	omap_dm_timer_disable(timer);
+	pm_runtime_put_sync(dev);
+
 	return 0;
 }
 
 static int omap_dm_timer_set_pwm(struct omap_dm_timer *timer, int def_on,
 				 int toggle, int trigger, int autoreload)
 {
+	struct device *dev;
+	int rc;
 	u32 l;
 
 	if (unlikely(!timer))
 		return -EINVAL;
 
-	omap_dm_timer_enable(timer);
+	dev = &timer->pdev->dev;
+	rc = pm_runtime_resume_and_get(dev);
+	if (rc)
+		return rc;
+
 	l = dmtimer_read(timer, OMAP_TIMER_CTRL_REG);
 	l &= ~(OMAP_TIMER_CTRL_GPOCFG | OMAP_TIMER_CTRL_SCPWM |
 	       OMAP_TIMER_CTRL_PT | (0x03 << 10) | OMAP_TIMER_CTRL_AR);
@@ -715,20 +752,28 @@ static int omap_dm_timer_set_pwm(struct omap_dm_timer *timer, int def_on,
 		l |= OMAP_TIMER_CTRL_AR;
 	dmtimer_write(timer, OMAP_TIMER_CTRL_REG, l);
 
-	omap_dm_timer_disable(timer);
+	pm_runtime_put_sync(dev);
+
 	return 0;
 }
 
 static int omap_dm_timer_get_pwm_status(struct omap_dm_timer *timer)
 {
+	struct device *dev;
+	int rc;
 	u32 l;
 
 	if (unlikely(!timer))
 		return -EINVAL;
 
-	omap_dm_timer_enable(timer);
+	dev = &timer->pdev->dev;
+	rc = pm_runtime_resume_and_get(dev);
+	if (rc)
+		return rc;
+
 	l = dmtimer_read(timer, OMAP_TIMER_CTRL_REG);
-	omap_dm_timer_disable(timer);
+
+	pm_runtime_put_sync(dev);
 
 	return l;
 }
@@ -736,12 +781,18 @@ static int omap_dm_timer_get_pwm_status(struct omap_dm_timer *timer)
 static int omap_dm_timer_set_prescaler(struct omap_dm_timer *timer,
 					int prescaler)
 {
+	struct device *dev;
+	int rc;
 	u32 l;
 
 	if (unlikely(!timer) || prescaler < -1 || prescaler > 7)
 		return -EINVAL;
 
-	omap_dm_timer_enable(timer);
+	dev = &timer->pdev->dev;
+	rc = pm_runtime_resume_and_get(dev);
+	if (rc)
+		return rc;
+
 	l = dmtimer_read(timer, OMAP_TIMER_CTRL_REG);
 	l &= ~(OMAP_TIMER_CTRL_PRE | (0x07 << 2));
 	if (prescaler >= 0) {
@@ -750,20 +801,29 @@ static int omap_dm_timer_set_prescaler(struct omap_dm_timer *timer,
 	}
 	dmtimer_write(timer, OMAP_TIMER_CTRL_REG, l);
 
-	omap_dm_timer_disable(timer);
+	pm_runtime_put_sync(dev);
+
 	return 0;
 }
 
 static int omap_dm_timer_set_int_enable(struct omap_dm_timer *timer,
 					unsigned int value)
 {
+	struct device *dev;
+	int rc;
+
 	if (unlikely(!timer))
 		return -EINVAL;
 
-	omap_dm_timer_enable(timer);
+	dev = &timer->pdev->dev;
+	rc = pm_runtime_resume_and_get(dev);
+	if (rc)
+		return rc;
+
 	__omap_dm_timer_int_enable(timer, value);
 
-	omap_dm_timer_disable(timer);
+	pm_runtime_put_sync(dev);
+
 	return 0;
 }
 
@@ -776,12 +836,17 @@ static int omap_dm_timer_set_int_enable(struct omap_dm_timer *timer,
  */
 static int omap_dm_timer_set_int_disable(struct omap_dm_timer *timer, u32 mask)
 {
+	struct device *dev;
 	u32 l = mask;
+	int rc;
 
 	if (unlikely(!timer))
 		return -EINVAL;
 
-	omap_dm_timer_enable(timer);
+	dev = &timer->pdev->dev;
+	rc = pm_runtime_resume_and_get(dev);
+	if (rc)
+		return rc;
 
 	if (timer->revision == 1)
 		l = dmtimer_read(timer, timer->irq_ena) & ~mask;
@@ -790,7 +855,8 @@ static int omap_dm_timer_set_int_disable(struct omap_dm_timer *timer, u32 mask)
 	l = dmtimer_read(timer, OMAP_TIMER_WAKEUP_EN_REG) & ~mask;
 	dmtimer_write(timer, OMAP_TIMER_WAKEUP_EN_REG, l);
 
-	omap_dm_timer_disable(timer);
+	pm_runtime_put_sync(dev);
+
 	return 0;
 }
 
@@ -943,11 +1009,11 @@ static int omap_dm_timer_probe(struct platform_device *pdev)
 	pm_runtime_enable(dev);
 
 	if (!timer->reserved) {
-		ret = pm_runtime_get_sync(dev);
-		if (ret < 0) {
+		ret = pm_runtime_resume_and_get(dev);
+		if (ret) {
 			dev_err(dev, "%s: pm_runtime_get_sync failed!\n",
 				__func__);
-			goto err_get_sync;
+			goto err_disable;
 		}
 		__omap_dm_timer_init_regs(timer);
 		pm_runtime_put(dev);
@@ -962,8 +1028,7 @@ static int omap_dm_timer_probe(struct platform_device *pdev)
 
 	return 0;
 
-err_get_sync:
-	pm_runtime_put_noidle(dev);
+err_disable:
 	pm_runtime_disable(dev);
 	return ret;
 }
