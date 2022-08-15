@@ -762,6 +762,6 @@ static struct spi_driver mse102x_driver = {
 module_spi_driver(mse102x_driver);
 
 MODULE_DESCRIPTION("MSE102x Network driver");
-MODULE_AUTHOR("Stefan Wahren <stefan.wahren@in-tech.com>");
+MODULE_AUTHOR("Stefan Wahren <stefan.wahren@chargebyte.com>");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("spi:" DRV_NAME);
