@@ -852,8 +852,10 @@ static int vepu_reset(struct mpp_dev *mpp)
 	}
 	mpp_write(mpp, VEPU2_REG_INT, VEPU2_INT_CLEAR);
 
-	set_bit(mpp->core_id, &ccu->core_idle);
-	mpp_dbg_core("core %d reset idle %lx\n", mpp->core_id, ccu->core_idle);
+	if (ccu) {
+		set_bit(mpp->core_id, &ccu->core_idle);
+		mpp_dbg_core("core %d reset idle %lx\n", mpp->core_id, ccu->core_idle);
+	}
 
 	return 0;
 }
