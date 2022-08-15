@@ -1868,18 +1868,9 @@ bool device_iommu_capable(struct device *dev, enum iommu_cap cap)
 	if (!ops->capable)
 		return false;
 
-	return ops->capable(cap);
+	return ops->capable(dev, cap);
 }
 EXPORT_SYMBOL_GPL(device_iommu_capable);
-
-bool iommu_capable(struct bus_type *bus, enum iommu_cap cap)
-{
-	if (!bus->iommu_ops || !bus->iommu_ops->capable)
-		return false;
-
-	return bus->iommu_ops->capable(cap);
-}
-EXPORT_SYMBOL_GPL(iommu_capable);
 
 /**
  * iommu_set_fault_handler() - set a fault handler for an iommu domain
