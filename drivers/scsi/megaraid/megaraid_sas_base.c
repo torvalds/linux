@@ -5157,7 +5157,7 @@ static void megasas_update_ext_vd_details(struct megasas_instance *instance)
 	} else {
 		fusion->old_map_sz =  sizeof(struct MR_FW_RAID_MAP) +
 					(sizeof(struct MR_LD_SPAN_MAP) *
-					(instance->fw_supported_vd_count - 1));
+					instance->fw_supported_vd_count);
 		fusion->new_map_sz =  sizeof(struct MR_FW_RAID_MAP_EXT);
 
 		fusion->max_map_sz =

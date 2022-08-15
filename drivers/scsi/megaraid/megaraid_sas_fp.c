@@ -327,7 +327,7 @@ u8 MR_ValidateMapInfo(struct megasas_instance *instance, u64 map_id)
 		expected_size = sizeof(struct MR_FW_RAID_MAP_EXT);
 	else
 		expected_size =
-			(sizeof(struct MR_FW_RAID_MAP) - sizeof(struct MR_LD_SPAN_MAP) +
+			(sizeof(struct MR_FW_RAID_MAP) +
 			(sizeof(struct MR_LD_SPAN_MAP) * le16_to_cpu(pDrvRaidMap->ldCount)));
 
 	if (le32_to_cpu(pDrvRaidMap->totalSize) != expected_size) {
