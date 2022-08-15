@@ -473,18 +473,6 @@ static int omap_dm_timer_prepare(struct dmtimer *timer)
 	struct device *dev = &timer->pdev->dev;
 	int rc;
 
-	/*
-	 * FIXME: OMAP1 devices do not use the clock framework for dmtimers so
-	 * do not call clk_get() for these devices.
-	 */
-	if (!timer->omap1) {
-		timer->fclk = clk_get(&timer->pdev->dev, "fck");
-		if (WARN_ON_ONCE(IS_ERR(timer->fclk))) {
-			dev_err(&timer->pdev->dev, ": No fclk handle.\n");
-			return -EINVAL;
-		}
-	}
-
 	rc = pm_runtime_resume_and_get(dev);
 	if (rc)
 		return rc;
@@ -649,8 +637,6 @@ static int omap_dm_timer_free(struct omap_dm_timer *cookie)
 	timer = to_dmtimer(cookie);
 	if (unlikely(!timer))
 		return -EINVAL;
-
-	clk_put(timer->fclk);
 
 	WARN_ON(!timer->reserved);
 	timer->reserved = 0;
@@ -1098,7 +1084,6 @@ static int omap_dm_timer_probe(struct platform_device *pdev)
 	if (timer->irq < 0)
 		return timer->irq;
 
-	timer->fclk = ERR_PTR(-ENODEV);
 	timer->io_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(timer->io_base))
 		return PTR_ERR(timer->io_base);
@@ -1121,6 +1106,15 @@ static int omap_dm_timer_probe(struct platform_device *pdev)
 	}
 
 	timer->omap1 = timer->capability & OMAP_TIMER_NEEDS_RESET;
+
+	/* OMAP1 devices do not yet use the clock framework for dmtimers */
+	if (!timer->omap1) {
+		timer->fclk = devm_clk_get(dev, "fck");
+		if (IS_ERR(timer->fclk))
+			return PTR_ERR(timer->fclk);
+	} else {
+		timer->fclk = ERR_PTR(-ENODEV);
+	}
 
 	if (!(timer->capability & OMAP_TIMER_ALWON)) {
 		timer->nb.notifier_call = omap_timer_context_notifier;
