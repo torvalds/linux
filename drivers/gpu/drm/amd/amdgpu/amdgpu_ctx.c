@@ -222,8 +222,19 @@ static int amdgpu_ctx_init_entity(struct amdgpu_ctx *ctx, u32 hw_ip,
 	drm_prio = amdgpu_ctx_to_drm_sched_prio(ctx_prio);
 
 	hw_ip = array_index_nospec(hw_ip, AMDGPU_HW_IP_NUM);
-	scheds = adev->gpu_sched[hw_ip][hw_prio].sched;
-	num_scheds = adev->gpu_sched[hw_ip][hw_prio].num_scheds;
+
+	if (!(adev)->xcp_mgr) {
+		scheds = adev->gpu_sched[hw_ip][hw_prio].sched;
+		num_scheds = adev->gpu_sched[hw_ip][hw_prio].num_scheds;
+	} else {
+		struct amdgpu_fpriv *fpriv;
+
+		fpriv = container_of(ctx->ctx_mgr, struct amdgpu_fpriv, ctx_mgr);
+		r = amdgpu_xcp_select_scheds(adev, hw_ip, hw_prio, fpriv,
+						&num_scheds, &scheds);
+		if (r)
+			goto cleanup_entity;
+	}
 
 	/* disable load balance if the hw engine retains context among dependent jobs */
 	if (hw_ip == AMDGPU_HW_IP_VCN_ENC ||
