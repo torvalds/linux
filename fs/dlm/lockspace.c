@@ -416,7 +416,7 @@ static int new_lockspace(const char *name, const char *cluster,
 	if (namelen > DLM_LOCKSPACE_LEN || namelen == 0)
 		return -EINVAL;
 
-	if (!lvblen || (lvblen % 8))
+	if (lvblen % 8)
 		return -EINVAL;
 
 	if (!try_module_get(THIS_MODULE))
