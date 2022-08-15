@@ -1410,9 +1410,6 @@ static __always_inline int btree_path_down(struct btree_trans *trans,
 	if (unlikely(ret))
 		goto err;
 
-	mark_btree_node_locked(trans, path, level, lock_type);
-	btree_path_level_init(trans, path, b);
-
 	if (likely(!trans->journal_replay_not_finished &&
 		   tmp.k->k.type == KEY_TYPE_btree_ptr_v2) &&
 	    unlikely(b != btree_node_mem_ptr(tmp.k)))
@@ -1420,7 +1417,10 @@ static __always_inline int btree_path_down(struct btree_trans *trans,
 
 	if (btree_node_read_locked(path, level + 1))
 		btree_node_unlock(trans, path, level + 1);
+
+	mark_btree_node_locked(trans, path, level, lock_type);
 	path->level = level;
+	btree_path_level_init(trans, path, b);
 
 	bch2_btree_path_verify_locks(path);
 err:
