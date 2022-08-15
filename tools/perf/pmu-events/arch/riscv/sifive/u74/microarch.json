@@ -1,0 +1,57 @@
+[
+  {
+    "EventName": "ADDRESSGEN_INTERLOCK",
+    "EventCode": "0x0000101",
+    "BriefDescription": "Address-generation interlock"
+  },
+  {
+    "EventName": "LONGLAT_INTERLOCK",
+    "EventCode": "0x0000201",
+    "BriefDescription": "Long-latency interlock"
+  },
+  {
+    "EventName": "CSR_READ_INTERLOCK",
+    "EventCode": "0x0000401",
+    "BriefDescription": "CSR read interlock"
+  },
+  {
+    "EventName": "ICACHE_ITIM_BUSY",
+    "EventCode": "0x0000801",
+    "BriefDescription": "Instruction cache/ITIM busy"
+  },
+  {
+    "EventName": "DCACHE_DTIM_BUSY",
+    "EventCode": "0x0001001",
+    "BriefDescription": "Data cache/DTIM busy"
+  },
+  {
+    "EventName": "BRANCH_DIRECTION_MISPREDICTION",
+    "EventCode": "0x0002001",
+    "BriefDescription": "Branch direction misprediction"
+  },
+  {
+    "EventName": "BRANCH_TARGET_MISPREDICTION",
+    "EventCode": "0x0004001",
+    "BriefDescription": "Branch/jump target misprediction"
+  },
+  {
+    "EventName": "PIPE_FLUSH_CSR_WRITE",
+    "EventCode": "0x0008001",
+    "BriefDescription": "Pipeline flush from CSR write"
+  },
+  {
+    "EventName": "PIPE_FLUSH_OTHER_EVENT",
+    "EventCode": "0x0010001",
+    "BriefDescription": "Pipeline flush from other event"
+  },
+  {
+    "EventName": "INTEGER_MULTIPLICATION_INTERLOCK",
+    "EventCode": "0x0020001",
+    "BriefDescription": "Integer multiplication interlock"
+  },
+  {
+    "EventName": "FP_INTERLOCK",
+    "EventCode": "0x0040001",
+    "BriefDescription": "Floating-point interlock"
+  }
+]
