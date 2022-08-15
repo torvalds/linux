@@ -200,8 +200,7 @@ static void *__arm_lpae_alloc_pages(size_t size, gfp_t gfp,
 	void *pages;
 
 	VM_BUG_ON((gfp & __GFP_HIGHMEM));
-	p = alloc_pages_node(dev ? dev_to_node(dev) : NUMA_NO_NODE,
-			     gfp | __GFP_ZERO, order);
+	p = alloc_pages_node(dev_to_node(dev), gfp | __GFP_ZERO, order);
 	if (!p)
 		return NULL;
 
@@ -1343,11 +1342,16 @@ static int __init arm_lpae_do_selftests(void)
 	};
 
 	int i, j, pass = 0, fail = 0;
+	struct device dev;
 	struct io_pgtable_cfg cfg = {
 		.tlb = &dummy_tlb_ops,
 		.oas = 48,
 		.coherent_walk = true,
+		.iommu_dev = &dev,
 	};
+
+	/* __arm_lpae_alloc_pages() merely needs dev_to_node() to work */
+	set_dev_node(&dev, NUMA_NO_NODE);
 
 	for (i = 0; i < ARRAY_SIZE(pgsize); ++i) {
 		for (j = 0; j < ARRAY_SIZE(ias); ++j) {
