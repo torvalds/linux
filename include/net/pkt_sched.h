@@ -100,7 +100,7 @@ struct Qdisc *fifo_create_dflt(struct Qdisc *sch, struct Qdisc_ops *ops,
 			       struct netlink_ext_ack *extack);
 
 int register_qdisc(struct Qdisc_ops *qops);
-int unregister_qdisc(struct Qdisc_ops *qops);
+void unregister_qdisc(struct Qdisc_ops *qops);
 void qdisc_get_default(char *id, size_t len);
 int qdisc_set_default(const char *id);
 

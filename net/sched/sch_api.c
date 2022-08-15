@@ -171,7 +171,7 @@ out_einval:
 }
 EXPORT_SYMBOL(register_qdisc);
 
-int unregister_qdisc(struct Qdisc_ops *qops)
+void unregister_qdisc(struct Qdisc_ops *qops)
 {
 	struct Qdisc_ops *q, **qp;
 	int err = -ENOENT;
@@ -186,7 +186,8 @@ int unregister_qdisc(struct Qdisc_ops *qops)
 		err = 0;
 	}
 	write_unlock(&qdisc_mod_lock);
-	return err;
+
+	WARN(err, "unregister qdisc(%s) failed\n", qops->id);
 }
 EXPORT_SYMBOL(unregister_qdisc);
 
