@@ -560,6 +560,7 @@ static bool dcn32_assign_subvp_pipe(struct dc *dc,
 	bool valid_assignment_found = false;
 	unsigned int free_pipes = dcn32_get_num_free_pipes(dc, context);
 	bool current_assignment_freesync = false;
+	struct vba_vars_st *vba = &context->bw_ctx.dml.vba;
 
 	for (i = 0, pipe_idx = 0; i < dc->res_pool->pipe_count; i++) {
 		struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
@@ -573,8 +574,15 @@ static bool dcn32_assign_subvp_pipe(struct dc *dc,
 		refresh_rate = (pipe->stream->timing.pix_clk_100hz * 100 +
 				pipe->stream->timing.v_total * pipe->stream->timing.h_total - 1)
 				/ (double)(pipe->stream->timing.v_total * pipe->stream->timing.h_total);
+		/* SubVP pipe candidate requirements:
+		 * - Refresh rate < 120hz
+		 * - Not able to switch in vactive naturally (switching in active means the
+		 *   DET provides enough buffer to hide the P-State switch latency -- trying
+		 *   to combine this with SubVP can cause issues with the scheduling).
+		 */
 		if (pipe->plane_state && !pipe->top_pipe &&
-				pipe->stream->mall_stream_config.type == SUBVP_NONE && refresh_rate < 120) {
+				pipe->stream->mall_stream_config.type == SUBVP_NONE && refresh_rate < 120 &&
+				vba->ActiveDRAMClockChangeLatencyMarginPerState[vba->VoltageLevel][vba->maxMpcComb][vba->pipe_plane[pipe_idx]] <= 0) {
 			while (pipe) {
 				num_pipes++;
 				pipe = pipe->bottom_pipe;
@@ -998,8 +1006,10 @@ static void dcn32_full_validate_bw_helper(struct dc *dc,
 
 	*vlevel = dml_get_voltage_level(&context->bw_ctx.dml, pipes, *pipe_cnt);
 	/* This may adjust vlevel and maxMpcComb */
-	if (*vlevel < context->bw_ctx.dml.soc.num_states)
+	if (*vlevel < context->bw_ctx.dml.soc.num_states) {
 		*vlevel = dcn20_validate_apply_pipe_split_flags(dc, context, *vlevel, split, merge);
+		vba->VoltageLevel = *vlevel;
+	}
 
 	/* Conditions for setting up phantom pipes for SubVP:
 	 * 1. Not force disable SubVP
@@ -1085,13 +1095,16 @@ static void dcn32_full_validate_bw_helper(struct dc *dc,
 
 			*vlevel = dml_get_voltage_level(&context->bw_ctx.dml, pipes, *pipe_cnt);
 			/* This may adjust vlevel and maxMpcComb */
-			if (*vlevel < context->bw_ctx.dml.soc.num_states)
+			if (*vlevel < context->bw_ctx.dml.soc.num_states) {
 				*vlevel = dcn20_validate_apply_pipe_split_flags(dc, context, *vlevel, split, merge);
+				vba->VoltageLevel = *vlevel;
+			}
 		} else {
 			// only call dcn20_validate_apply_pipe_split_flags if we found a supported config
 			memset(split, 0, MAX_PIPES * sizeof(int));
 			memset(merge, 0, MAX_PIPES * sizeof(bool));
 			*vlevel = dcn20_validate_apply_pipe_split_flags(dc, context, *vlevel, split, merge);
+			vba->VoltageLevel = *vlevel;
 
 			// Most populate phantom DLG params before programming hardware / timing for phantom pipe
 			DC_FP_START();
@@ -1421,6 +1434,8 @@ bool dcn32_internal_validate_bw(struct dc *dc,
 			memset(split, 0, sizeof(split));
 			memset(merge, 0, sizeof(merge));
 			vlevel = dcn20_validate_apply_pipe_split_flags(dc, context, vlevel, split, merge);
+			// dcn20_validate_apply_pipe_split_flags can modify voltage level outside of DML
+			vba->VoltageLevel = vlevel;
 		}
 	}
 
