@@ -3466,7 +3466,7 @@ int dlm_lock(dlm_lockspace_t *lockspace,
 	if (error == -EINPROGRESS)
 		error = 0;
  out_put:
-	trace_dlm_lock_end(ls, lkb, name, namelen, mode, flags, error);
+	trace_dlm_lock_end(ls, lkb, name, namelen, mode, flags, error, true);
 
 	if (convert || error)
 		__put_lkb(ls, lkb);
@@ -5842,13 +5842,15 @@ int dlm_user_request(struct dlm_ls *ls, struct dlm_user_args *ua,
 		goto out;
 	}
 
+	trace_dlm_lock_start(ls, lkb, name, namelen, mode, flags);
+
 	if (flags & DLM_LKF_VALBLK) {
 		ua->lksb.sb_lvbptr = kzalloc(DLM_USER_LVB_LEN, GFP_NOFS);
 		if (!ua->lksb.sb_lvbptr) {
 			kfree(ua);
 			__put_lkb(ls, lkb);
 			error = -ENOMEM;
-			goto out;
+			goto out_trace_end;
 		}
 	}
 #ifdef CONFIG_DLM_DEPRECATED_API
@@ -5863,7 +5865,7 @@ int dlm_user_request(struct dlm_ls *ls, struct dlm_user_args *ua,
 		ua->lksb.sb_lvbptr = NULL;
 		kfree(ua);
 		__put_lkb(ls, lkb);
-		goto out;
+		goto out_trace_end;
 	}
 
 	/* After ua is attached to lkb it will be freed by dlm_free_lkb().
@@ -5883,7 +5885,7 @@ int dlm_user_request(struct dlm_ls *ls, struct dlm_user_args *ua,
 		fallthrough;
 	default:
 		__put_lkb(ls, lkb);
-		goto out;
+		goto out_trace_end;
 	}
 
 	/* add this new lkb to the per-process list of locks */
@@ -5891,6 +5893,8 @@ int dlm_user_request(struct dlm_ls *ls, struct dlm_user_args *ua,
 	hold_lkb(lkb);
 	list_add_tail(&lkb->lkb_ownqueue, &ua->proc->locks);
 	spin_unlock(&ua->proc->locks_spin);
+ out_trace_end:
+	trace_dlm_lock_end(ls, lkb, name, namelen, mode, flags, error, false);
  out:
 	dlm_unlock_recovery(ls);
 	return error;
@@ -5915,6 +5919,8 @@ int dlm_user_convert(struct dlm_ls *ls, struct dlm_user_args *ua_tmp,
 	error = find_lkb(ls, lkid, &lkb);
 	if (error)
 		goto out;
+
+	trace_dlm_lock_start(ls, lkb, NULL, 0, mode, flags);
 
 	/* user can change the params on its lock when it converts it, or
 	   add an lvb that didn't exist before */
@@ -5953,6 +5959,7 @@ int dlm_user_convert(struct dlm_ls *ls, struct dlm_user_args *ua_tmp,
 	if (error == -EINPROGRESS || error == -EAGAIN || error == -EDEADLK)
 		error = 0;
  out_put:
+	trace_dlm_lock_end(ls, lkb, NULL, 0, mode, flags, error, false);
 	dlm_put_lkb(lkb);
  out:
 	dlm_unlock_recovery(ls);
@@ -6045,6 +6052,8 @@ int dlm_user_unlock(struct dlm_ls *ls, struct dlm_user_args *ua_tmp,
 	if (error)
 		goto out;
 
+	trace_dlm_unlock_start(ls, lkb, flags);
+
 	ua = lkb->lkb_ua;
 
 	if (lvb_in && ua->lksb.sb_lvbptr)
@@ -6073,6 +6082,7 @@ int dlm_user_unlock(struct dlm_ls *ls, struct dlm_user_args *ua_tmp,
 		list_move(&lkb->lkb_ownqueue, &ua->proc->unlocking);
 	spin_unlock(&ua->proc->locks_spin);
  out_put:
+	trace_dlm_unlock_end(ls, lkb, flags, error);
 	dlm_put_lkb(lkb);
  out:
 	dlm_unlock_recovery(ls);
@@ -6094,6 +6104,8 @@ int dlm_user_cancel(struct dlm_ls *ls, struct dlm_user_args *ua_tmp,
 	if (error)
 		goto out;
 
+	trace_dlm_unlock_start(ls, lkb, flags);
+
 	ua = lkb->lkb_ua;
 	if (ua_tmp->castparam)
 		ua->castparam = ua_tmp->castparam;
@@ -6111,6 +6123,7 @@ int dlm_user_cancel(struct dlm_ls *ls, struct dlm_user_args *ua_tmp,
 	if (error == -EBUSY)
 		error = 0;
  out_put:
+	trace_dlm_unlock_end(ls, lkb, flags, error);
 	dlm_put_lkb(lkb);
  out:
 	dlm_unlock_recovery(ls);
@@ -6131,6 +6144,8 @@ int dlm_user_deadlock(struct dlm_ls *ls, uint32_t flags, uint32_t lkid)
 	error = find_lkb(ls, lkid, &lkb);
 	if (error)
 		goto out;
+
+	trace_dlm_unlock_start(ls, lkb, flags);
 
 	ua = lkb->lkb_ua;
 
@@ -6160,6 +6175,7 @@ int dlm_user_deadlock(struct dlm_ls *ls, uint32_t flags, uint32_t lkid)
 	if (error == -EBUSY)
 		error = 0;
  out_put:
+	trace_dlm_unlock_end(ls, lkb, flags, error);
 	dlm_put_lkb(lkb);
  out:
 	dlm_unlock_recovery(ls);

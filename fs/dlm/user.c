@@ -16,6 +16,8 @@
 #include <linux/slab.h>
 #include <linux/sched/signal.h>
 
+#include <trace/events/dlm.h>
+
 #include "dlm_internal.h"
 #include "lockspace.h"
 #include "lock.h"
@@ -882,7 +884,9 @@ static ssize_t device_read(struct file *file, char __user *buf, size_t count,
 		goto try_another;
 	}
 
-	if (cb.flags & DLM_CB_CAST) {
+	if (cb.flags & DLM_CB_BAST) {
+		trace_dlm_bast(lkb->lkb_resource->res_ls, lkb, cb.mode);
+	} else if (cb.flags & DLM_CB_CAST) {
 		new_mode = cb.mode;
 
 		if (!cb.sb_status && lkb->lkb_lksb->sb_lvbptr &&
@@ -891,6 +895,7 @@ static ssize_t device_read(struct file *file, char __user *buf, size_t count,
 
 		lkb->lkb_lksb->sb_status = cb.sb_status;
 		lkb->lkb_lksb->sb_flags = cb.sb_flags;
+		trace_dlm_ast(lkb->lkb_resource->res_ls, lkb);
 	}
 
 	rv = copy_result_to_user(lkb->lkb_ua,
