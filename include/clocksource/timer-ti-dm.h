@@ -119,16 +119,9 @@ struct omap_dm_timer {
 	struct notifier_block nb;
 };
 
-int omap_dm_timer_reserve_systimer(int id);
-struct omap_dm_timer *omap_dm_timer_request_by_cap(u32 cap);
-
 int omap_dm_timer_get_irq(struct omap_dm_timer *timer);
 
 u32 omap_dm_timer_modify_idlect_mask(u32 inputmask);
-
-int omap_dm_timer_trigger(struct omap_dm_timer *timer);
-
-int omap_dm_timers_active(void);
 
 /*
  * Do not use the defines below, they are not needed. They should be only

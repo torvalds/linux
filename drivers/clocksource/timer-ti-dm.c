@@ -388,16 +388,6 @@ static inline u32 omap_dm_timer_reserved_systimer(int id)
 	return (omap_reserved_systimers & (1 << (id - 1))) ? 1 : 0;
 }
 
-int omap_dm_timer_reserve_systimer(int id)
-{
-	if (omap_dm_timer_reserved_systimer(id))
-		return -ENODEV;
-
-	omap_reserved_systimers |= (1 << (id - 1));
-
-	return 0;
-}
-
 static struct omap_dm_timer *_omap_dm_timer_request(int req_type, void *data)
 {
 	struct omap_dm_timer *timer = NULL, *t;
@@ -500,20 +490,6 @@ static struct omap_dm_timer *omap_dm_timer_request_specific(int id)
 }
 
 /**
- * omap_dm_timer_request_by_cap - Request a timer by capability
- * @cap:	Bit mask of capabilities to match
- *
- * Find a timer based upon capabilities bit mask. Callers of this function
- * should use the definitions found in the plat/dmtimer.h file under the
- * comment "timer capabilities used in hwmod database". Returns pointer to
- * timer handle on success and a NULL pointer on failure.
- */
-struct omap_dm_timer *omap_dm_timer_request_by_cap(u32 cap)
-{
-	return _omap_dm_timer_request(REQUEST_BY_CAP, &cap);
-}
-
-/**
  * omap_dm_timer_request_by_node - Request a timer by device-tree node
  * @np:		Pointer to device-tree timer node
  *
@@ -605,17 +581,6 @@ __u32 omap_dm_timer_modify_idlect_mask(__u32 inputmask)
 }
 
 #endif
-
-int omap_dm_timer_trigger(struct omap_dm_timer *timer)
-{
-	if (unlikely(!timer || !atomic_read(&timer->enabled))) {
-		pr_err("%s: timer not available or enabled.\n", __func__);
-		return -EINVAL;
-	}
-
-	omap_dm_timer_write_reg(timer, OMAP_TIMER_TRIGGER_REG, 0);
-	return 0;
-}
 
 static int omap_dm_timer_start(struct omap_dm_timer *timer)
 {
@@ -830,22 +795,6 @@ static int omap_dm_timer_write_counter(struct omap_dm_timer *timer, unsigned int
 
 	/* Save the context */
 	timer->context.tcrr = value;
-	return 0;
-}
-
-int omap_dm_timers_active(void)
-{
-	struct omap_dm_timer *timer;
-
-	list_for_each_entry(timer, &omap_timer_list, node) {
-		if (!timer->reserved)
-			continue;
-
-		if (omap_dm_timer_read_reg(timer, OMAP_TIMER_CTRL_REG) &
-		    OMAP_TIMER_CTRL_ST) {
-			return 1;
-		}
-	}
 	return 0;
 }
 
