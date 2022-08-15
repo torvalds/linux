@@ -351,7 +351,7 @@ u64 fscrypt_fname_siphash(const struct inode *dir, const struct qstr *name);
 int fscrypt_d_revalidate(struct dentry *dentry, unsigned int flags);
 
 /* bio.c */
-void fscrypt_decrypt_bio(struct bio *bio);
+bool fscrypt_decrypt_bio(struct bio *bio);
 int fscrypt_zeroout_range(const struct inode *inode, pgoff_t lblk,
 			  sector_t pblk, unsigned int len);
 
@@ -644,8 +644,9 @@ static inline int fscrypt_d_revalidate(struct dentry *dentry,
 }
 
 /* bio.c */
-static inline void fscrypt_decrypt_bio(struct bio *bio)
+static inline bool fscrypt_decrypt_bio(struct bio *bio)
 {
+	return true;
 }
 
 static inline int fscrypt_zeroout_range(const struct inode *inode, pgoff_t lblk,
