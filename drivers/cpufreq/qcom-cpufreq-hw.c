@@ -361,6 +361,9 @@ static void qcom_lmh_dcvs_notify(struct qcom_cpufreq_data *data)
 	unsigned long freq_hz, throttled_freq;
 	struct dev_pm_opp *opp;
 
+	if (!dev)
+		return;
+
 	/*
 	 * Get the h/w throttled frequency, normalize it using the
 	 * registered opp table and use it to calculate thermal pressure.
@@ -528,6 +531,8 @@ static int qcom_cpufreq_hw_cpu_offline(struct cpufreq_policy *policy)
 	cancel_delayed_work_sync(&data->throttle_work);
 	irq_set_affinity_hint(data->throttle_irq, NULL);
 
+	arch_update_thermal_pressure(policy->related_cpus, U32_MAX);
+
 	return 0;
 }
 
@@ -570,33 +575,39 @@ static int qcom_cpufreq_hw_cpu_init(struct cpufreq_policy *policy)
 
 	index = args.args[0];
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, index);
-	if (!res) {
-		dev_err(dev, "failed to get mem resource %d\n", index);
-		return -ENODEV;
-	}
+	data = policy->driver_data;
 
-	if (!request_mem_region(res->start, resource_size(res), res->name)) {
-		dev_err(dev, "failed to request resource %pR\n", res);
-		return -EBUSY;
-	}
-
-	base = ioremap(res->start, resource_size(res));
-	if (!base) {
-		dev_err(dev, "failed to map resource %pR\n", res);
-		ret = -ENOMEM;
-		goto release_region;
-	}
-
-	data = kzalloc(sizeof(*data), GFP_KERNEL);
 	if (!data) {
-		ret = -ENOMEM;
-		goto unmap_base;
+		res = platform_get_resource(pdev, IORESOURCE_MEM, index);
+		if (!res) {
+			dev_err(dev, "failed to get mem resource %d\n", index);
+			return -ENODEV;
+		}
+
+		if (!devm_request_mem_region(dev, res->start, resource_size(res), res->name)) {
+			dev_err(dev, "failed to request resource %pR\n", res);
+			return -EBUSY;
+		}
+
+		base = devm_ioremap(dev, res->start, resource_size(res));
+		if (!base) {
+			dev_err(dev, "failed to map resource %pR\n", res);
+			ret = -ENOMEM;
+			goto release_region;
+		}
+
+		data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
+		if (!data) {
+			ret = -ENOMEM;
+			goto unmap_base;
+		}
+
+		data->soc_data = of_device_get_match_data(&pdev->dev);
+		data->base = base;
+		data->res = res;
 	}
 
-	data->soc_data = of_device_get_match_data(&pdev->dev);
-	data->base = base;
-	data->res = res;
+	base = data->base;
 
 	/* HW should be in enabled state to proceed */
 	if (!(readl_relaxed(base + data->soc_data->reg_enable) & 0x1)) {
@@ -644,6 +655,7 @@ static int qcom_cpufreq_hw_cpu_init(struct cpufreq_policy *policy)
 	return 0;
 error:
 	kfree(data);
+	policy->driver_data = NULL;
 unmap_base:
 	iounmap(base);
 release_region:
@@ -654,17 +666,11 @@ release_region:
 static int qcom_cpufreq_hw_cpu_exit(struct cpufreq_policy *policy)
 {
 	struct device *cpu_dev = get_cpu_device(policy->cpu);
-	struct qcom_cpufreq_data *data = policy->driver_data;
-	struct resource *res = data->res;
-	void __iomem *base = data->base;
 
-	qcom_cpufreq_hw_lmh_exit(data);
+	qcom_cpufreq_hw_lmh_exit(policy->driver_data);
 	dev_pm_opp_remove_all_dynamic(cpu_dev);
 	dev_pm_opp_of_cpumask_remove_table(policy->related_cpus);
 	kfree(policy->freq_table);
-	kfree(data);
-	iounmap(base);
-	release_mem_region(res->start, resource_size(res));
 
 	return 0;
 }
@@ -705,7 +711,7 @@ static int qcom_cpufreq_hw_driver_probe(struct platform_device *pdev)
 {
 	struct device *cpu_dev;
 	struct clk *clk;
-	int ret;
+	int ret, cpu;
 
 	clk = clk_get(&pdev->dev, "xo");
 	if (IS_ERR(clk))
@@ -731,6 +737,9 @@ static int qcom_cpufreq_hw_driver_probe(struct platform_device *pdev)
 	ret = dev_pm_opp_of_find_icc_paths(cpu_dev, NULL);
 	if (ret)
 		return ret;
+
+	for_each_possible_cpu(cpu)
+		spin_lock_init(&qcom_cpufreq_counter[cpu].lock);
 
 	ret = cpufreq_register_driver(&cpufreq_qcom_hw_driver);
 	if (ret)
