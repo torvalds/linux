@@ -1869,7 +1869,7 @@ static void rkisp_stream_fast(struct work_struct *work)
 	struct v4l2_subdev *sd = ispdev->active_sensor->sd;
 	int ret;
 
-	if (ispdev->isp_ver != ISP_V30)
+	if (ispdev->isp_ver != ISP_V32)
 		return;
 
 	ret = v4l2_pipeline_pm_get(&stream->vnode.vdev.entity);

@@ -511,8 +511,18 @@ rkisp_stats_send_meas_v32(struct rkisp_isp_stats_vdev *stats_vdev,
 		(struct rkisp_stats_ops_v32 *)stats_vdev->priv_ops;
 	u32 size = sizeof(struct rkisp32_isp_stat_buffer);
 	int ret = 0;
+	bool is_dummy = false;
+	unsigned long flags;
 
 	if (!stats_vdev->rdbk_drop) {
+		if (!cur_buf && stats_vdev->stats_buf[0].mem_priv) {
+			rkisp_finish_buffer(stats_vdev->dev, &stats_vdev->stats_buf[0]);
+			cur_stat_buf = stats_vdev->stats_buf[0].vaddr;
+			cur_stat_buf->frame_id = -1;
+			is_dummy = true;
+		} else if (cur_buf) {
+			cur_stat_buf = cur_buf->vaddr[0];
+		}
 		/* config buf for next frame */
 		stats_vdev->cur_buf = NULL;
 		if (stats_vdev->nxt_buf) {
@@ -524,14 +534,6 @@ rkisp_stats_send_meas_v32(struct rkisp_isp_stats_vdev *stats_vdev,
 		cur_frame_id = meas_work->frame_id;
 	} else {
 		cur_buf = NULL;
-	}
-
-	if (cur_buf) {
-		cur_stat_buf =
-			(struct rkisp32_isp_stat_buffer *)(cur_buf->vaddr[0]);
-		cur_stat_buf->frame_id = cur_frame_id;
-		cur_stat_buf->params.info2ddr.buf_fd = -1;
-		cur_stat_buf->params.info2ddr.owner = 0;
 	}
 
 	if (meas_work->isp_ris & ISP3X_AFM_SUM_OF)
@@ -584,15 +586,33 @@ rkisp_stats_send_meas_v32(struct rkisp_isp_stats_vdev *stats_vdev,
 		ret |= ops->get_vsm_stats(stats_vdev, cur_stat_buf);
 	}
 
-	if (cur_buf) {
-		if (ret || !cur_stat_buf->meas_type) {
-			unsigned long flags;
-
+	if (ret || (cur_stat_buf && !cur_stat_buf->meas_type)) {
+		if (cur_buf) {
 			spin_lock_irqsave(&stats_vdev->rd_lock, flags);
 			list_add_tail(&cur_buf->queue, &stats_vdev->stat);
 			spin_unlock_irqrestore(&stats_vdev->rd_lock, flags);
-		} else {
+		}
+	} else {
+		if (is_dummy) {
+			spin_lock_irqsave(&stats_vdev->rd_lock, flags);
+			if (!list_empty(&stats_vdev->stat)) {
+				cur_buf = list_first_entry(&stats_vdev->stat, struct rkisp_buffer, queue);
+				list_del(&cur_buf->queue);
+			} else {
+				cur_stat_buf->frame_id = cur_frame_id;
+			}
+			spin_unlock_irqrestore(&stats_vdev->rd_lock, flags);
+			if (cur_buf) {
+				memcpy(cur_buf->vaddr[0], cur_stat_buf, size);
+				cur_stat_buf = cur_buf->vaddr[0];
+			}
+		}
+		if (cur_buf && cur_stat_buf) {
+			cur_stat_buf->frame_id = cur_frame_id;
+			cur_stat_buf->params.info2ddr.buf_fd = -1;
+			cur_stat_buf->params.info2ddr.owner = 0;
 			rkisp_stats_info2ddr(stats_vdev, cur_stat_buf);
+
 			vb2_set_plane_payload(&cur_buf->vb.vb2_buf, 0, size);
 			cur_buf->vb.sequence = cur_frame_id;
 			cur_buf->vb.vb2_buf.timestamp = meas_work->timestamp;
@@ -678,9 +698,11 @@ void rkisp_stats_first_ddr_config_v32(struct rkisp_isp_stats_vdev *stats_vdev)
 		return;
 
 	stats_vdev->stats_buf[0].is_need_vaddr = true;
-	stats_vdev->stats_buf[0].size = sizeof(struct rkisp32_isp_stat_buffer);
+	stats_vdev->stats_buf[0].size = size;
 	if (rkisp_alloc_buffer(dev, &stats_vdev->stats_buf[0]))
 		v4l2_warn(&dev->v4l2_dev, "stats alloc buf fail\n");
+	else
+		memset(stats_vdev->stats_buf[0].vaddr, 0, size);
 	rkisp_stats_update_buf(stats_vdev);
 	rkisp_write(dev, ISP3X_MI_DBR_WR_SIZE, size, false);
 	rkisp_set_bits(dev, ISP3X_SWS_CFG, 0, ISP3X_3A_DDR_WRITE_EN, false);
