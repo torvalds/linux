@@ -70,7 +70,9 @@ struct amdgpu_xcp {
 	uint8_t id;
 	uint8_t mem_id;
 	bool valid;
+	atomic_t	ref_cnt;
 	struct drm_device *ddev;
+	struct amdgpu_sched	gpu_sched[AMDGPU_HW_IP_NUM][AMDGPU_RING_PRIO_MAX];
 };
 
 struct amdgpu_xcp_mgr {
@@ -97,6 +99,10 @@ struct amdgpu_xcp_mgr_funcs {
 	int (*suspend)(struct amdgpu_xcp_mgr *xcp_mgr, int xcp_id);
 	int (*prepare_resume)(struct amdgpu_xcp_mgr *xcp_mgr, int xcp_id);
 	int (*resume)(struct amdgpu_xcp_mgr *xcp_mgr, int xcp_id);
+	int (*select_scheds)(struct amdgpu_device *adev,
+				  u32 hw_ip, u32 hw_prio, struct amdgpu_fpriv *fpriv,
+				  unsigned int *num_scheds, struct drm_gpu_scheduler ***scheds);
+	int (*update_partition_sched_list)(struct amdgpu_device *adev);
 };
 
 int amdgpu_xcp_prepare_suspend(struct amdgpu_xcp_mgr *xcp_mgr, int xcp_id);
@@ -122,6 +128,15 @@ void amdgpu_xcp_dev_unplug(struct amdgpu_device *adev);
 int amdgpu_xcp_open_device(struct amdgpu_device *adev,
 			   struct amdgpu_fpriv *fpriv,
 			   struct drm_file *file_priv);
+
+#define amdgpu_xcp_select_scheds(adev, e, c, d, x, y) \
+	((adev)->xcp_mgr && (adev)->xcp_mgr->funcs && \
+	(adev)->xcp_mgr->funcs->select_scheds ? \
+	(adev)->xcp_mgr->funcs->select_scheds((adev), (e), (c), (d), (x), (y)) : -ENOENT)
+#define amdgpu_xcp_update_partition_sched_list(adev) \
+	((adev)->xcp_mgr && (adev)->xcp_mgr->funcs && \
+	(adev)->xcp_mgr->funcs->update_partition_sched_list ? \
+	(adev)->xcp_mgr->funcs->update_partition_sched_list(adev) : 0)
 
 static inline int amdgpu_xcp_get_num_xcp(struct amdgpu_xcp_mgr *xcp_mgr)
 {
