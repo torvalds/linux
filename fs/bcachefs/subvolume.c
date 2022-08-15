@@ -278,8 +278,8 @@ int bch2_fs_check_snapshots(struct bch_fs *c)
 
 	bch2_trans_init(&trans, c, 0, 0);
 
-	ret = for_each_btree_key_commit(&trans, iter, BTREE_ID_snapshots,
-			POS(BCACHEFS_ROOT_INO, 0),
+	ret = for_each_btree_key_commit(&trans, iter,
+			BTREE_ID_snapshots, POS_MIN,
 			BTREE_ITER_PREFETCH, k,
 			NULL, NULL, BTREE_INSERT_LAZY_RW|BTREE_INSERT_NOFAIL,
 		check_snapshot(&trans, &iter, k));
