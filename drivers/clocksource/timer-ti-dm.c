@@ -101,16 +101,16 @@ static inline void __omap_dm_timer_init_regs(struct omap_dm_timer *timer)
 	tidr = readl_relaxed(timer->io_base);
 	if (!(tidr >> 16)) {
 		timer->revision = 1;
-		timer->irq_stat = timer->io_base + OMAP_TIMER_V1_STAT_OFFSET;
-		timer->irq_ena = timer->io_base + OMAP_TIMER_V1_INT_EN_OFFSET;
-		timer->irq_dis = timer->io_base + OMAP_TIMER_V1_INT_EN_OFFSET;
+		timer->irq_stat = OMAP_TIMER_V1_STAT_OFFSET;
+		timer->irq_ena = OMAP_TIMER_V1_INT_EN_OFFSET;
+		timer->irq_dis = OMAP_TIMER_V1_INT_EN_OFFSET;
 		timer->pend = timer->io_base + _OMAP_TIMER_WRITE_PEND_OFFSET;
 		timer->func_base = timer->io_base;
 	} else {
 		timer->revision = 2;
-		timer->irq_stat = timer->io_base + OMAP_TIMER_V2_IRQSTATUS;
-		timer->irq_ena = timer->io_base + OMAP_TIMER_V2_IRQENABLE_SET;
-		timer->irq_dis = timer->io_base + OMAP_TIMER_V2_IRQENABLE_CLR;
+		timer->irq_stat = OMAP_TIMER_V2_IRQSTATUS - OMAP_TIMER_V2_FUNC_OFFSET;
+		timer->irq_ena = OMAP_TIMER_V2_IRQENABLE_SET - OMAP_TIMER_V2_FUNC_OFFSET;
+		timer->irq_dis = OMAP_TIMER_V2_IRQENABLE_CLR - OMAP_TIMER_V2_FUNC_OFFSET;
 		timer->pend = timer->io_base +
 			_OMAP_TIMER_WRITE_PEND_OFFSET +
 				OMAP_TIMER_V2_FUNC_OFFSET;
@@ -165,13 +165,13 @@ static inline void __omap_dm_timer_stop(struct omap_dm_timer *timer,
 	}
 
 	/* Ack possibly pending interrupt */
-	writel_relaxed(OMAP_TIMER_INT_OVERFLOW, timer->irq_stat);
+	dmtimer_write(timer, timer->irq_stat, OMAP_TIMER_INT_OVERFLOW);
 }
 
 static inline void __omap_dm_timer_int_enable(struct omap_dm_timer *timer,
 						unsigned int value)
 {
-	writel_relaxed(value, timer->irq_ena);
+	dmtimer_write(timer, timer->irq_ena, value);
 	dmtimer_write(timer, OMAP_TIMER_WAKEUP_EN_REG, value);
 }
 
@@ -184,7 +184,7 @@ __omap_dm_timer_read_counter(struct omap_dm_timer *timer)
 static inline void __omap_dm_timer_write_status(struct omap_dm_timer *timer,
 						unsigned int value)
 {
-	writel_relaxed(value, timer->irq_stat);
+	dmtimer_write(timer, timer->irq_stat, value);
 }
 
 static void omap_timer_restore_context(struct omap_dm_timer *timer)
@@ -196,7 +196,7 @@ static void omap_timer_restore_context(struct omap_dm_timer *timer)
 	dmtimer_write(timer, OMAP_TIMER_LOAD_REG, timer->context.tldr);
 	dmtimer_write(timer, OMAP_TIMER_MATCH_REG, timer->context.tmar);
 	dmtimer_write(timer, OMAP_TIMER_IF_CTRL_REG, timer->context.tsicr);
-	writel_relaxed(timer->context.tier, timer->irq_ena);
+	dmtimer_write(timer, timer->irq_ena, timer->context.tier);
 	dmtimer_write(timer, OMAP_TIMER_CTRL_REG, timer->context.tclr);
 }
 
@@ -208,7 +208,7 @@ static void omap_timer_save_context(struct omap_dm_timer *timer)
 	timer->context.twer = dmtimer_read(timer, OMAP_TIMER_WAKEUP_EN_REG);
 	timer->context.tldr = dmtimer_read(timer, OMAP_TIMER_LOAD_REG);
 	timer->context.tmar = dmtimer_read(timer, OMAP_TIMER_MATCH_REG);
-	timer->context.tier = readl_relaxed(timer->irq_ena);
+	timer->context.tier = dmtimer_read(timer, timer->irq_ena);
 	timer->context.tsicr = dmtimer_read(timer, OMAP_TIMER_IF_CTRL_REG);
 }
 
@@ -722,9 +722,9 @@ static int omap_dm_timer_set_int_disable(struct omap_dm_timer *timer, u32 mask)
 	omap_dm_timer_enable(timer);
 
 	if (timer->revision == 1)
-		l = readl_relaxed(timer->irq_ena) & ~mask;
+		l = dmtimer_read(timer, timer->irq_ena) & ~mask;
 
-	writel_relaxed(l, timer->irq_dis);
+	dmtimer_write(timer, timer->irq_dis, l);
 	l = dmtimer_read(timer, OMAP_TIMER_WAKEUP_EN_REG) & ~mask;
 	dmtimer_write(timer, OMAP_TIMER_WAKEUP_EN_REG, l);
 
@@ -741,7 +741,7 @@ static unsigned int omap_dm_timer_read_status(struct omap_dm_timer *timer)
 		return 0;
 	}
 
-	l = readl_relaxed(timer->irq_stat);
+	l = dmtimer_read(timer, timer->irq_stat);
 
 	return l;
 }

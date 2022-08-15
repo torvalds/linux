@@ -100,9 +100,9 @@ struct omap_dm_timer {
 	struct clk *fclk;
 
 	void __iomem	*io_base;
-	void __iomem	*irq_stat;	/* TISR/IRQSTATUS interrupt status */
-	void __iomem	*irq_ena;	/* irq enable */
-	void __iomem	*irq_dis;	/* irq disable, only on v2 ip */
+	int		irq_stat;	/* TISR/IRQSTATUS interrupt status */
+	int		irq_ena;	/* irq enable */
+	int		irq_dis;	/* irq disable, only on v2 ip */
 	void __iomem	*pend;		/* write pending */
 	void __iomem	*func_base;	/* function register base */
 
