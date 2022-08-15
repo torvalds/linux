@@ -15243,6 +15243,8 @@
 #define regBIF0_PCIE_TX_TRACKING_ADDR_HI_BASE_IDX                                                       5
 #define regBIF0_PCIE_TX_TRACKING_CTRL_STATUS                                                            0x420186
 #define regBIF0_PCIE_TX_TRACKING_CTRL_STATUS_BASE_IDX                                                   5
+#define regBIF0_PCIE_TX_POWER_CTRL_1                                                                    0x420187
+#define regBIF0_PCIE_TX_POWER_CTRL_1_BASE_IDX                                                           5
 #define regBIF0_PCIE_TX_CTRL_4                                                                          0x42018b
 #define regBIF0_PCIE_TX_CTRL_4_BASE_IDX                                                                 5
 #define regBIF0_PCIE_TX_STATUS                                                                          0x420194
