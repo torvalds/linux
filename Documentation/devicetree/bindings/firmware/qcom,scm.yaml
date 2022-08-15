@@ -44,6 +44,7 @@ properties:
           - qcom,scm-sdm845
           - qcom,scm-sdx55
           - qcom,scm-sdx65
+          - qcom,scm-sm6115
           - qcom,scm-sm6125
           - qcom,scm-sm6350
           - qcom,scm-sm8150
