@@ -107,7 +107,7 @@ static int cxl_pmem_get_config_size(struct cxl_dev_state *cxlds,
 
 	*cmd = (struct nd_cmd_get_config_size) {
 		 .config_size = cxlds->lsa_size,
-		 .max_xfer = cxlds->payload_size,
+		 .max_xfer = cxlds->payload_size - sizeof(struct cxl_mbox_set_lsa),
 	};
 
 	return 0;
