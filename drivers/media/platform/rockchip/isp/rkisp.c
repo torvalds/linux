@@ -384,14 +384,16 @@ int rkisp_update_sensor_info(struct rkisp_device *dev)
 	    dev->isp_ver < ISP_V30) {
 		u8 vc = 0;
 
-		memset(dev->csi_dev.mipi_di, 0,
-		       sizeof(dev->csi_dev.mipi_di));
+		sensor_sd = get_remote_sensor(sensor->sd);
+		if (!sensor_sd)
+			return -ENODEV;
+		memset(dev->csi_dev.mipi_di, 0, sizeof(dev->csi_dev.mipi_di));
 		for (i = 0; i < dev->csi_dev.max_pad - 1; i++) {
 			struct rkmodule_channel_info ch = { 0 };
 
 			fmt = &sensor->fmt[i];
 			ch.index = i;
-			ret = v4l2_subdev_call(sensor->sd, core, ioctl,
+			ret = v4l2_subdev_call(sensor_sd, core, ioctl,
 					       RKMODULE_GET_CHANNEL_INFO, &ch);
 			if (ret) {
 				if (i)
@@ -729,8 +731,6 @@ run_next:
 	v4l2_dbg(2, rkisp_debug, &dev->v4l2_dev,
 		 "readback frame:%d time:%d 0x%x\n",
 		 cur_frame_id, dma2frm + 1, val);
-	if (!dma2frm && !dev->sw_rd_cnt)
-		rkisp_bridge_update_mi(dev, 0);
 	if (!hw->is_shutdown)
 		rkisp_unite_write(dev, CSI2RX_CTRL0, val, true, hw->is_unite);
 }
@@ -2693,10 +2693,6 @@ static void rkisp_global_update_mi(struct rkisp_device *dev)
 	force_cfg_update(dev);
 
 	hdr_update_dmatx_buf(dev);
-	if (dev->br_dev.en && dev->isp_ver == ISP_V20) {
-		stream = &dev->cap_dev.stream[RKISP_STREAM_SP];
-		rkisp_update_spstream_buf(stream);
-	}
 	if (dev->hw_dev->is_single) {
 		for (i = 0; i < RKISP_MAX_STREAM; i++) {
 			stream = &dev->cap_dev.stream[i];

@@ -215,8 +215,6 @@ static int config_mode(struct rkisp_bridge_device *dev)
 
 	if (hw->isp_ver == ISP_V20) {
 		gain_size = ALIGN(w, 64) * ALIGN(h, 128) >> 4;
-		gain_size += RKISP_MOTION_DECT_TS_SIZE;
-		pic_size += RKISP_MOTION_DECT_TS_SIZE;
 		rkisp_bridge_init_ops_v20(dev);
 	} else {
 		dev->work_mode &= ~(ISP_ISPP_FBC | ISP_ISPP_QUICK);
@@ -235,6 +233,10 @@ static int config_mode(struct rkisp_bridge_device *dev)
 		pic_size += w * h * 3 >> 1;
 	dev->cfg->offset = offs;
 
+	if (hw->isp_ver == ISP_V20) {
+		pic_size += RKISP_MOTION_DECT_TS_SIZE;
+		gain_size += RKISP_MOTION_DECT_TS_SIZE;
+	}
 	return init_buf(dev, pic_size, gain_size);
 }
 
