@@ -44,14 +44,28 @@ enum {
 	REQUEST_BY_NODE,
 };
 
-static inline u32 __omap_dm_timer_read(struct omap_dm_timer *timer, u32 reg,
-						int posted)
+/**
+ * dmtimer_read - read timer registers in posted and non-posted mode
+ * @timer:	timer pointer over which read operation to perform
+ * @reg:	lowest byte holds the register offset
+ *
+ * The posted mode bit is encoded in reg. Note that in posted mode, write
+ * pending bit must be checked. Otherwise a read of a non completed write
+ * will produce an error.
+ */
+static inline u32 dmtimer_read(struct omap_dm_timer *timer, u32 reg)
 {
-	if (posted)
-		while (readl_relaxed(timer->pend) & (reg >> WPSHIFT))
+	u16 wp, offset;
+
+	wp = reg >> WPSHIFT;
+	offset = reg & 0xff;
+
+	/* Wait for a possible write pending bit in posted mode */
+	if (wp && timer->posted)
+		while (readl_relaxed(timer->pend) & wp)
 			cpu_relax();
 
-	return readl_relaxed(timer->func_base + (reg & 0xff));
+	return readl_relaxed(timer->func_base + offset);
 }
 
 static inline void __omap_dm_timer_write(struct omap_dm_timer *timer,
@@ -121,13 +135,13 @@ static inline void __omap_dm_timer_stop(struct omap_dm_timer *timer,
 {
 	u32 l;
 
-	l = __omap_dm_timer_read(timer, OMAP_TIMER_CTRL_REG, posted);
+	l = dmtimer_read(timer, OMAP_TIMER_CTRL_REG);
 	if (l & OMAP_TIMER_CTRL_ST) {
 		l &= ~0x1;
 		__omap_dm_timer_write(timer, OMAP_TIMER_CTRL_REG, l, posted);
 #ifdef CONFIG_ARCH_OMAP2PLUS
 		/* Readback to make sure write has completed */
-		__omap_dm_timer_read(timer, OMAP_TIMER_CTRL_REG, posted);
+		dmtimer_read(timer, OMAP_TIMER_CTRL_REG);
 		/*
 		 * Wait for functional clock period x 3.5 to make sure that
 		 * timer is stopped
@@ -148,30 +162,15 @@ static inline void __omap_dm_timer_int_enable(struct omap_dm_timer *timer,
 }
 
 static inline unsigned int
-__omap_dm_timer_read_counter(struct omap_dm_timer *timer, int posted)
+__omap_dm_timer_read_counter(struct omap_dm_timer *timer)
 {
-	return __omap_dm_timer_read(timer, OMAP_TIMER_COUNTER_REG, posted);
+	return dmtimer_read(timer, OMAP_TIMER_COUNTER_REG);
 }
 
 static inline void __omap_dm_timer_write_status(struct omap_dm_timer *timer,
 						unsigned int value)
 {
 	writel_relaxed(value, timer->irq_stat);
-}
-
-/**
- * omap_dm_timer_read_reg - read timer registers in posted and non-posted mode
- * @timer:      timer pointer over which read operation to perform
- * @reg:        lowest byte holds the register offset
- *
- * The posted mode bit is encoded in reg. Note that in posted mode write
- * pending bit must be checked. Otherwise a read of a non completed write
- * will produce an error.
- */
-static inline u32 omap_dm_timer_read_reg(struct omap_dm_timer *timer, u32 reg)
-{
-	WARN_ON((reg & 0xff) < _OMAP_TIMER_WAKEUP_EN_OFFSET);
-	return __omap_dm_timer_read(timer, reg, timer->posted);
 }
 
 /**
@@ -213,20 +212,14 @@ static void omap_timer_restore_context(struct omap_dm_timer *timer)
 
 static void omap_timer_save_context(struct omap_dm_timer *timer)
 {
-	timer->context.ocp_cfg =
-		__omap_dm_timer_read(timer, OMAP_TIMER_OCP_CFG_OFFSET, 0);
+	timer->context.ocp_cfg = dmtimer_read(timer, OMAP_TIMER_OCP_CFG_OFFSET);
 
-	timer->context.tclr =
-			omap_dm_timer_read_reg(timer, OMAP_TIMER_CTRL_REG);
-	timer->context.twer =
-			omap_dm_timer_read_reg(timer, OMAP_TIMER_WAKEUP_EN_REG);
-	timer->context.tldr =
-			omap_dm_timer_read_reg(timer, OMAP_TIMER_LOAD_REG);
-	timer->context.tmar =
-			omap_dm_timer_read_reg(timer, OMAP_TIMER_MATCH_REG);
+	timer->context.tclr = dmtimer_read(timer, OMAP_TIMER_CTRL_REG);
+	timer->context.twer = dmtimer_read(timer, OMAP_TIMER_WAKEUP_EN_REG);
+	timer->context.tldr = dmtimer_read(timer, OMAP_TIMER_LOAD_REG);
+	timer->context.tmar = dmtimer_read(timer, OMAP_TIMER_MATCH_REG);
 	timer->context.tier = readl_relaxed(timer->irq_ena);
-	timer->context.tsicr =
-			omap_dm_timer_read_reg(timer, OMAP_TIMER_IF_CTRL_REG);
+	timer->context.tsicr = dmtimer_read(timer, OMAP_TIMER_IF_CTRL_REG);
 }
 
 static int omap_timer_context_notifier(struct notifier_block *nb,
@@ -266,8 +259,7 @@ static int omap_dm_timer_reset(struct omap_dm_timer *timer)
 	omap_dm_timer_write_reg(timer, OMAP_TIMER_IF_CTRL_REG, 0x06);
 
 	do {
-		l = __omap_dm_timer_read(timer,
-					 OMAP_TIMER_V1_SYS_STAT_OFFSET, 0);
+		l = dmtimer_read(timer, OMAP_TIMER_V1_SYS_STAT_OFFSET);
 	} while (!l && timeout--);
 
 	if (!timeout) {
@@ -276,7 +268,7 @@ static int omap_dm_timer_reset(struct omap_dm_timer *timer)
 	}
 
 	/* Configure timer for smart-idle mode */
-	l = __omap_dm_timer_read(timer, OMAP_TIMER_OCP_CFG_OFFSET, 0);
+	l = dmtimer_read(timer, OMAP_TIMER_OCP_CFG_OFFSET);
 	l |= 0x2 << 0x3;
 	__omap_dm_timer_write(timer, OMAP_TIMER_OCP_CFG_OFFSET, l, 0);
 
@@ -550,7 +542,7 @@ __u32 omap_dm_timer_modify_idlect_mask(__u32 inputmask)
 	list_for_each_entry(timer, &omap_timer_list, node) {
 		u32 l;
 
-		l = omap_dm_timer_read_reg(timer, OMAP_TIMER_CTRL_REG);
+		l = dmtimer_read(timer, OMAP_TIMER_CTRL_REG);
 		if (l & OMAP_TIMER_CTRL_ST) {
 			if (((omap_readl(MOD_CONF_CTRL_1) >> (i * 2)) & 0x03) == 0)
 				inputmask &= ~(1 << 1);
@@ -591,7 +583,7 @@ static int omap_dm_timer_start(struct omap_dm_timer *timer)
 
 	omap_dm_timer_enable(timer);
 
-	l = omap_dm_timer_read_reg(timer, OMAP_TIMER_CTRL_REG);
+	l = dmtimer_read(timer, OMAP_TIMER_CTRL_REG);
 	if (!(l & OMAP_TIMER_CTRL_ST)) {
 		l |= OMAP_TIMER_CTRL_ST;
 		omap_dm_timer_write_reg(timer, OMAP_TIMER_CTRL_REG, l);
@@ -638,7 +630,7 @@ static int omap_dm_timer_set_match(struct omap_dm_timer *timer, int enable,
 		return -EINVAL;
 
 	omap_dm_timer_enable(timer);
-	l = omap_dm_timer_read_reg(timer, OMAP_TIMER_CTRL_REG);
+	l = dmtimer_read(timer, OMAP_TIMER_CTRL_REG);
 	if (enable)
 		l |= OMAP_TIMER_CTRL_CE;
 	else
@@ -659,7 +651,7 @@ static int omap_dm_timer_set_pwm(struct omap_dm_timer *timer, int def_on,
 		return -EINVAL;
 
 	omap_dm_timer_enable(timer);
-	l = omap_dm_timer_read_reg(timer, OMAP_TIMER_CTRL_REG);
+	l = dmtimer_read(timer, OMAP_TIMER_CTRL_REG);
 	l &= ~(OMAP_TIMER_CTRL_GPOCFG | OMAP_TIMER_CTRL_SCPWM |
 	       OMAP_TIMER_CTRL_PT | (0x03 << 10) | OMAP_TIMER_CTRL_AR);
 	if (def_on)
@@ -683,7 +675,7 @@ static int omap_dm_timer_get_pwm_status(struct omap_dm_timer *timer)
 		return -EINVAL;
 
 	omap_dm_timer_enable(timer);
-	l = omap_dm_timer_read_reg(timer, OMAP_TIMER_CTRL_REG);
+	l = dmtimer_read(timer, OMAP_TIMER_CTRL_REG);
 	omap_dm_timer_disable(timer);
 
 	return l;
@@ -698,7 +690,7 @@ static int omap_dm_timer_set_prescaler(struct omap_dm_timer *timer,
 		return -EINVAL;
 
 	omap_dm_timer_enable(timer);
-	l = omap_dm_timer_read_reg(timer, OMAP_TIMER_CTRL_REG);
+	l = dmtimer_read(timer, OMAP_TIMER_CTRL_REG);
 	l &= ~(OMAP_TIMER_CTRL_PRE | (0x07 << 2));
 	if (prescaler >= 0) {
 		l |= OMAP_TIMER_CTRL_PRE;
@@ -743,7 +735,7 @@ static int omap_dm_timer_set_int_disable(struct omap_dm_timer *timer, u32 mask)
 		l = readl_relaxed(timer->irq_ena) & ~mask;
 
 	writel_relaxed(l, timer->irq_dis);
-	l = omap_dm_timer_read_reg(timer, OMAP_TIMER_WAKEUP_EN_REG) & ~mask;
+	l = dmtimer_read(timer, OMAP_TIMER_WAKEUP_EN_REG) & ~mask;
 	omap_dm_timer_write_reg(timer, OMAP_TIMER_WAKEUP_EN_REG, l);
 
 	omap_dm_timer_disable(timer);
@@ -781,7 +773,7 @@ static unsigned int omap_dm_timer_read_counter(struct omap_dm_timer *timer)
 		return 0;
 	}
 
-	return __omap_dm_timer_read_counter(timer, timer->posted);
+	return __omap_dm_timer_read_counter(timer);
 }
 
 static int omap_dm_timer_write_counter(struct omap_dm_timer *timer, unsigned int value)
