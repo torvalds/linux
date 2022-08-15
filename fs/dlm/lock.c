@@ -401,7 +401,7 @@ static int pre_rsb_struct(struct dlm_ls *ls)
    unlock any spinlocks, go back and call pre_rsb_struct again.
    Otherwise, take an rsb off the list and return it. */
 
-static int get_rsb_struct(struct dlm_ls *ls, char *name, int len,
+static int get_rsb_struct(struct dlm_ls *ls, const void *name, int len,
 			  struct dlm_rsb **r_ret)
 {
 	struct dlm_rsb *r;
@@ -412,7 +412,8 @@ static int get_rsb_struct(struct dlm_ls *ls, char *name, int len,
 		count = ls->ls_new_rsb_count;
 		spin_unlock(&ls->ls_new_rsb_spin);
 		log_debug(ls, "find_rsb retry %d %d %s",
-			  count, dlm_config.ci_new_rsb_count, name);
+			  count, dlm_config.ci_new_rsb_count,
+			  (const char *)name);
 		return -EAGAIN;
 	}
 
@@ -448,7 +449,7 @@ static int rsb_cmp(struct dlm_rsb *r, const char *name, int nlen)
 	return memcmp(r->res_name, maxname, DLM_RESNAME_MAXLEN);
 }
 
-int dlm_search_rsb_tree(struct rb_root *tree, char *name, int len,
+int dlm_search_rsb_tree(struct rb_root *tree, const void *name, int len,
 			struct dlm_rsb **r_ret)
 {
 	struct rb_node *node = tree->rb_node;
@@ -546,7 +547,7 @@ static int rsb_insert(struct dlm_rsb *rsb, struct rb_root *tree)
  * while that rsb has a potentially stale master.)
  */
 
-static int find_rsb_dir(struct dlm_ls *ls, char *name, int len,
+static int find_rsb_dir(struct dlm_ls *ls, const void *name, int len,
 			uint32_t hash, uint32_t b,
 			int dir_nodeid, int from_nodeid,
 			unsigned int flags, struct dlm_rsb **r_ret)
@@ -724,7 +725,7 @@ static int find_rsb_dir(struct dlm_ls *ls, char *name, int len,
    dlm_recover_locks) before we've made ourself master (in
    dlm_recover_masters). */
 
-static int find_rsb_nodir(struct dlm_ls *ls, char *name, int len,
+static int find_rsb_nodir(struct dlm_ls *ls, const void *name, int len,
 			  uint32_t hash, uint32_t b,
 			  int dir_nodeid, int from_nodeid,
 			  unsigned int flags, struct dlm_rsb **r_ret)
@@ -818,8 +819,9 @@ static int find_rsb_nodir(struct dlm_ls *ls, char *name, int len,
 	return error;
 }
 
-static int find_rsb(struct dlm_ls *ls, char *name, int len, int from_nodeid,
-		    unsigned int flags, struct dlm_rsb **r_ret)
+static int find_rsb(struct dlm_ls *ls, const void *name, int len,
+		    int from_nodeid, unsigned int flags,
+		    struct dlm_rsb **r_ret)
 {
 	uint32_t hash, b;
 	int dir_nodeid;
@@ -3320,8 +3322,9 @@ static int _cancel_lock(struct dlm_rsb *r, struct dlm_lkb *lkb)
  * request_lock(), convert_lock(), unlock_lock(), cancel_lock()
  */
 
-static int request_lock(struct dlm_ls *ls, struct dlm_lkb *lkb, char *name,
-			int len, struct dlm_args *args)
+static int request_lock(struct dlm_ls *ls, struct dlm_lkb *lkb,
+			const void *name, int len,
+			struct dlm_args *args)
 {
 	struct dlm_rsb *r;
 	int error;
@@ -3420,7 +3423,7 @@ int dlm_lock(dlm_lockspace_t *lockspace,
 	     int mode,
 	     struct dlm_lksb *lksb,
 	     uint32_t flags,
-	     void *name,
+	     const void *name,
 	     unsigned int namelen,
 	     uint32_t parent_lkid,
 	     void (*ast) (void *astarg),
