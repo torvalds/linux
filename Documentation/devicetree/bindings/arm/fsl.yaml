@@ -554,8 +554,7 @@ properties:
               - engicam,imx6ul-isiot      # Engicam Is.IoT MX6UL eMMC/NAND Starter kit
               - fsl,imx6ul-14x14-evk      # i.MX6 UltraLite 14x14 EVK Board
               - karo,imx6ul-tx6ul         # Ka-Ro electronics TXUL-0010 Module
-              - kontron,imx6ul-n6310-som  # Kontron N6310 SOM
-              - kontron,imx6ul-n6311-som  # Kontron N6311 SOM
+              - kontron,sl-imx6ul         # Kontron SL i.MX6UL SoM
               - prt,prti6g                # Protonic PRTI6G Board
               - technexion,imx6ul-pico-dwarf   # TechNexion i.MX6UL Pico-Dwarf
               - technexion,imx6ul-pico-hobbit  # TechNexion i.MX6UL Pico-Hobbit
@@ -591,23 +590,17 @@ properties:
           - const: phytec,imx6ul-pcl063   # PHYTEC phyCORE-i.MX 6UL
           - const: fsl,imx6ul
 
-      - description: Kontron N6310 S Board
+      - description: Kontron BL i.MX6UL (N631X S) Board
         items:
-          - const: kontron,imx6ul-n6310-s
-          - const: kontron,imx6ul-n6310-som
+          - const: kontron,bl-imx6ul       # Kontron BL i.MX6UL Carrier Board
+          - const: kontron,sl-imx6ul       # Kontron SL i.MX6UL SoM
           - const: fsl,imx6ul
 
-      - description: Kontron N6311 S Board
+      - description: Kontron BL i.MX6UL 43 (N631X S 43) Board
         items:
-          - const: kontron,imx6ul-n6311-s
-          - const: kontron,imx6ul-n6311-som
-          - const: fsl,imx6ul
-
-      - description: Kontron N6310 S 43 Board
-        items:
-          - const: kontron,imx6ul-n6310-s-43
-          - const: kontron,imx6ul-n6310-s
-          - const: kontron,imx6ul-n6310-som
+          - const: kontron,bl-imx6ul-43    # Kontron BL i.MX6UL Carrier Board with 4.3" Display
+          - const: kontron,bl-imx6ul       # Kontron BL i.MX6UL Carrier Board
+          - const: kontron,sl-imx6ul       # Kontron SL i.MX6UL SoM
           - const: fsl,imx6ul
 
       - description: TQ-Systems TQMa6UL1 SoM on MBa6ULx board
@@ -637,7 +630,7 @@ properties:
           - enum:
               - fsl,imx6ull-14x14-evk     # i.MX6 UltraLiteLite 14x14 EVK Board
               - joz,jozacp                # JOZ Access Point
-              - kontron,imx6ull-n6411-som # Kontron N6411 SOM
+              - kontron,sl-imx6ull        # Kontron SL i.MX6ULL SoM
               - myir,imx6ull-mys-6ulx-eval # MYiR Tech iMX6ULL Evaluation Board
               - toradex,colibri-imx6ull      # Colibri iMX6ULL Modules
               - toradex,colibri-imx6ull-emmc # Colibri iMX6ULL 1GB (eMMC) Module
@@ -698,10 +691,10 @@ properties:
           - const: toradex,colibri-imx6ull-wifi       # Colibri iMX6ULL Wi-Fi / BT Module
           - const: fsl,imx6ull
 
-      - description: Kontron N6411 S Board
+      - description: Kontron BL i.MX6ULL (N6411 S) Board
         items:
-          - const: kontron,imx6ull-n6411-s
-          - const: kontron,imx6ull-n6411-som
+          - const: kontron,bl-imx6ull   # Kontron BL i.MX6ULL Carrier Board
+          - const: kontron,sl-imx6ull   # Kontron SL i.MX6ULL SoM
           - const: fsl,imx6ull
 
       - description: TQ Systems TQMa6ULLx SoM on MBa6ULx board
