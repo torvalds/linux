@@ -33,6 +33,7 @@ properties:
           - allwinner,sun5i-a13-system-control
           - allwinner,sun8i-a23-system-control
           - allwinner,sun8i-h3-system-control
+          - allwinner,sun20i-d1-system-control
           - allwinner,sun50i-a64-system-control
           - allwinner,sun50i-h5-system-control
           - allwinner,sun50i-h616-system-control
