@@ -867,6 +867,8 @@ static void hdmirx_hpd_config(struct rk_hdmirx_dev *hdmirx_dev, bool en)
 	hdmirx_update_bits(hdmirx_dev, SCDC_CONFIG, HPDLOW, en ? 0 : HPDLOW);
 	en = hdmirx_dev->hpd_trigger_level ? en : !en;
 	hdmirx_writel(hdmirx_dev, CORE_CONFIG, en);
+	if (hdmirx_dev->cec && hdmirx_dev->cec->adap)
+		cec_queue_pin_hpd_event(hdmirx_dev->cec->adap, en, ktime_get());
 }
 
 static void hdmirx_hpd_ctrl(struct rk_hdmirx_dev *hdmirx_dev, bool en)
@@ -3836,6 +3838,10 @@ static int hdmirx_probe(struct platform_device *pdev)
 		cec_data.irq = irq;
 		cec_data.edid = edid_init_data_340M;
 		hdmirx_dev->cec = rk_hdmirx_cec_register(&cec_data);
+		if (hdmirx_dev->cec && hdmirx_dev->cec->adap &&
+		    tx_5v_power_present(hdmirx_dev))
+			cec_queue_pin_hpd_event(hdmirx_dev->cec->adap, true,
+						ktime_get());
 	}
 	hdmirx_register_hdcp(dev, hdmirx_dev, hdmirx_dev->hdcp_enable);
 
