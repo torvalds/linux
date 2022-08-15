@@ -94,6 +94,24 @@ static u16 bcm_sf2_reg_led_base(struct bcm_sf2_priv *priv, int port)
 	return REG_SWITCH_STATUS;
 }
 
+static u32 bcm_sf2_port_override_offset(struct bcm_sf2_priv *priv, int port)
+{
+	switch (priv->type) {
+	case BCM4908_DEVICE_ID:
+	case BCM7445_DEVICE_ID:
+		return port == 8 ? CORE_STS_OVERRIDE_IMP :
+				   CORE_STS_OVERRIDE_GMIIP_PORT(port);
+	case BCM7278_DEVICE_ID:
+		return port == 8 ? CORE_STS_OVERRIDE_IMP2 :
+				   CORE_STS_OVERRIDE_GMIIP2_PORT(port);
+	default:
+		WARN_ONCE(1, "Unsupported device: %d\n", priv->type);
+	}
+
+	/* RO fallback register */
+	return REG_SWITCH_STATUS;
+}
+
 /* Return the number of active ports, not counting the IMP (CPU) port */
 static unsigned int bcm_sf2_num_active_ports(struct dsa_switch *ds)
 {
@@ -167,11 +185,7 @@ static void bcm_sf2_imp_setup(struct dsa_switch *ds, int port)
 	b53_brcm_hdr_setup(ds, port);
 
 	if (port == 8) {
-		if (priv->type == BCM4908_DEVICE_ID ||
-		    priv->type == BCM7445_DEVICE_ID)
-			offset = CORE_STS_OVERRIDE_IMP;
-		else
-			offset = CORE_STS_OVERRIDE_IMP2;
+		offset = bcm_sf2_port_override_offset(priv, port);
 
 		/* Force link status for IMP port */
 		reg = core_readl(priv, offset);
@@ -813,12 +827,7 @@ static void bcm_sf2_sw_mac_link_down(struct dsa_switch *ds, int port,
 		return;
 
 	if (port != core_readl(priv, CORE_IMP0_PRT_ID)) {
-		if (priv->type == BCM4908_DEVICE_ID ||
-		    priv->type == BCM7445_DEVICE_ID)
-			offset = CORE_STS_OVERRIDE_GMIIP_PORT(port);
-		else
-			offset = CORE_STS_OVERRIDE_GMIIP2_PORT(port);
-
+		offset = bcm_sf2_port_override_offset(priv, port);
 		reg = core_readl(priv, offset);
 		reg &= ~LINK_STS;
 		core_writel(priv, reg, offset);
@@ -843,11 +852,7 @@ static void bcm_sf2_sw_mac_link_up(struct dsa_switch *ds, int port,
 		u32 reg_rgmii_ctrl = 0;
 		u32 reg, offset;
 
-		if (priv->type == BCM4908_DEVICE_ID ||
-		    priv->type == BCM7445_DEVICE_ID)
-			offset = CORE_STS_OVERRIDE_GMIIP_PORT(port);
-		else
-			offset = CORE_STS_OVERRIDE_GMIIP2_PORT(port);
+		offset = bcm_sf2_port_override_offset(priv, port);
 
 		if (interface == PHY_INTERFACE_MODE_RGMII ||
 		    interface == PHY_INTERFACE_MODE_RGMII_TXID ||
