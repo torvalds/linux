@@ -303,6 +303,7 @@ static int amdgpu_ctx_get_stable_pstate(struct amdgpu_ctx *ctx,
 static int amdgpu_ctx_init(struct amdgpu_ctx_mgr *mgr, int32_t priority,
 			   struct drm_file *filp, struct amdgpu_ctx *ctx)
 {
+	struct amdgpu_fpriv *fpriv = filp->driver_priv;
 	u32 current_stable_pstate;
 	int r;
 
@@ -331,6 +332,7 @@ static int amdgpu_ctx_init(struct amdgpu_ctx_mgr *mgr, int32_t priority,
 	else
 		ctx->stable_pstate = current_stable_pstate;
 
+	ctx->ctx_mgr = &(fpriv->ctx_mgr);
 	return 0;
 }
 
