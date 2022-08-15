@@ -133,6 +133,7 @@ struct dmtimer {
 	unsigned long rate;
 	unsigned reserved:1;
 	unsigned posted:1;
+	unsigned omap1:1;
 	struct timer_regs context;
 	int revision;
 	u32 capability;
@@ -423,7 +424,7 @@ static int omap_dm_timer_set_source(struct omap_dm_timer *cookie, int source)
 	 * use the clock framework to set the parent clock. To be removed
 	 * once OMAP1 migrated to using clock framework for dmtimers
 	 */
-	if (pdata && pdata->set_timer_src)
+	if (timer->omap1 && pdata && pdata->set_timer_src)
 		return pdata->set_timer_src(timer->pdev, source);
 
 #if defined(CONFIG_COMMON_CLK)
@@ -476,7 +477,7 @@ static int omap_dm_timer_prepare(struct dmtimer *timer)
 	 * FIXME: OMAP1 devices do not use the clock framework for dmtimers so
 	 * do not call clk_get() for these devices.
 	 */
-	if (!(timer->capability & OMAP_TIMER_NEEDS_RESET)) {
+	if (!timer->omap1) {
 		timer->fclk = clk_get(&timer->pdev->dev, "fck");
 		if (WARN_ON_ONCE(IS_ERR(timer->fclk))) {
 			dev_err(&timer->pdev->dev, ": No fclk handle.\n");
@@ -763,7 +764,7 @@ static int omap_dm_timer_stop(struct omap_dm_timer *cookie)
 
 	dev = &timer->pdev->dev;
 
-	if (!(timer->capability & OMAP_TIMER_NEEDS_RESET))
+	if (!timer->omap1)
 		rate = clk_get_rate(timer->fclk);
 
 	__omap_dm_timer_stop(timer, rate);
@@ -1118,6 +1119,8 @@ static int omap_dm_timer_probe(struct platform_device *pdev)
 		timer->capability = pdata->timer_capability;
 		timer->reserved = omap_dm_timer_reserved_systimer(timer->id);
 	}
+
+	timer->omap1 = timer->capability & OMAP_TIMER_NEEDS_RESET;
 
 	if (!(timer->capability & OMAP_TIMER_ALWON)) {
 		timer->nb.notifier_call = omap_timer_context_notifier;
