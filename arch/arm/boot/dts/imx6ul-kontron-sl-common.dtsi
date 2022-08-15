@@ -11,6 +11,11 @@
 	chosen {
 		stdout-path = &uart4;
 	};
+
+	memory@80000000 {
+		reg = <0x80000000 0x10000000>;
+		device_type = "memory";
+	};
 };
 
 &ecspi2 {
@@ -55,6 +60,16 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_qspi>;
 	status = "okay";
+
+	spi-flash@0 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "spi-nand";
+		spi-max-frequency = <104000000>;
+		spi-tx-bus-width = <4>;
+		spi-rx-bus-width = <4>;
+		reg = <0>;
+	};
 };
 
 &wdog1 {

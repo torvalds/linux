@@ -7,11 +7,10 @@
 
 /dts-v1/;
 
-#include "imx6ul-kontron-n6310-som.dtsi"
-#include "imx6ul-kontron-n6x1x-s.dtsi"
+#include "imx6ul-kontron-sl.dtsi"
+#include "imx6ul-kontron-bl-common.dtsi"
 
 / {
-	model = "Kontron N6310 S";
-	compatible = "kontron,imx6ul-n6310-s", "kontron,imx6ul-n6310-som",
-		     "fsl,imx6ul";
+	model = "Kontron BL i.MX6UL (N631X S)";
+	compatible = "kontron,bl-imx6ul", "kontron,sl-imx6ul", "fsl,imx6ul";
 };

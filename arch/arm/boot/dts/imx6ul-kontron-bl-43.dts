@@ -5,12 +5,12 @@
  * Copyright (c) 2019 Krzysztof Kozlowski <krzk@kernel.org>
  */
 
-#include "imx6ul-kontron-n6310-s.dts"
+#include "imx6ul-kontron-bl.dts"
 
 / {
-	model = "Kontron N6310 S 43";
-	compatible = "kontron,imx6ul-n6310-s-43", "kontron,imx6ul-n6310-s",
-		     "kontron,imx6ul-n6310-som", "fsl,imx6ul";
+	model = "Kontron BL i.MX6UL 43 (N631X S 43)";
+	compatible = "kontron,bl-imx6ul-43", "kontron,bl-imx6ul",
+		     "kontron,sl-imx6ul", "fsl,imx6ul";
 
 	backlight {
 		compatible = "pwm-backlight";
