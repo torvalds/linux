@@ -1330,6 +1330,34 @@ static int tb_port_clx_enable(struct tb_port *port, enum tb_clx clx)
 	return __tb_port_clx_set(port, clx, true);
 }
 
+/**
+ * tb_port_is_clx_enabled() - Is given CL state enabled
+ * @port: USB4 port to check
+ * @clx_mask: Mask of CL states to check
+ *
+ * Returns true if any of the given CL states is enabled for @port.
+ */
+bool tb_port_is_clx_enabled(struct tb_port *port, unsigned int clx_mask)
+{
+	u32 val, mask = 0;
+	int ret;
+
+	if (!tb_port_clx_supported(port, clx_mask))
+		return false;
+
+	if (clx_mask & TB_CL1)
+		mask |= LANE_ADP_CS_1_CL0S_ENABLE | LANE_ADP_CS_1_CL1_ENABLE;
+	if (clx_mask & TB_CL2)
+		mask |= LANE_ADP_CS_1_CL2_ENABLE;
+
+	ret = tb_port_read(port, &val, TB_CFG_PORT,
+			   port->cap_phy + LANE_ADP_CS_1, 1);
+	if (ret)
+		return false;
+
+	return !!(val & mask);
+}
+
 static int tb_port_start_lane_initialization(struct tb_port *port)
 {
 	int ret;
