@@ -118,6 +118,7 @@ static void __amdgpu_xcp_add_block(struct amdgpu_xcp_mgr *xcp_mgr, int xcp_id,
 
 int amdgpu_xcp_init(struct amdgpu_xcp_mgr *xcp_mgr, int num_xcps, int mode)
 {
+	struct amdgpu_device *adev = xcp_mgr->adev;
 	struct amdgpu_xcp_ip ip;
 	uint8_t mem_id;
 	int i, j, ret;
@@ -153,6 +154,7 @@ int amdgpu_xcp_init(struct amdgpu_xcp_mgr *xcp_mgr, int num_xcps, int mode)
 	}
 
 	xcp_mgr->num_xcps = num_xcps;
+	amdgpu_xcp_update_partition_sched_list(adev);
 
 	return 0;
 }

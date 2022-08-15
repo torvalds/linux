@@ -102,6 +102,70 @@ static void aqua_vanjaram_set_xcp_id(struct amdgpu_device *adev,
 	}
 }
 
+static void aqua_vanjaram_xcp_gpu_sched_update(
+		struct amdgpu_device *adev,
+		struct amdgpu_ring *ring,
+		unsigned int sel_xcp_id)
+{
+	unsigned int *num_gpu_sched;
+
+	num_gpu_sched = &adev->xcp_mgr->xcp[sel_xcp_id]
+			.gpu_sched[ring->funcs->type][ring->hw_prio].num_scheds;
+	adev->xcp_mgr->xcp[sel_xcp_id].gpu_sched[ring->funcs->type][ring->hw_prio]
+			.sched[(*num_gpu_sched)++] = &ring->sched;
+	DRM_DEBUG("%s :[%d] gpu_sched[%d][%d] = %d", ring->name,
+			sel_xcp_id, ring->funcs->type,
+			ring->hw_prio, *num_gpu_sched);
+}
+
+static int aqua_vanjaram_xcp_sched_list_update(
+		struct amdgpu_device *adev)
+{
+	struct amdgpu_ring *ring;
+	int i;
+
+	for (i = 0; i < MAX_XCP; i++) {
+		atomic_set(&adev->xcp_mgr->xcp[i].ref_cnt, 0);
+		memset(adev->xcp_mgr->xcp[i].gpu_sched, 0, sizeof(adev->xcp_mgr->xcp->gpu_sched));
+	}
+
+	if (adev->xcp_mgr->mode == AMDGPU_XCP_MODE_NONE)
+		return 0;
+
+	for (i = 0; i < AMDGPU_MAX_RINGS; i++) {
+		ring = adev->rings[i];
+		if (!ring || !ring->sched.ready)
+			continue;
+
+		aqua_vanjaram_xcp_gpu_sched_update(adev, ring, ring->xcp_id);
+
+		/* VCN is shared by two partitions under CPX MODE */
+		if ((ring->funcs->type == AMDGPU_RING_TYPE_VCN_ENC ||
+			ring->funcs->type == AMDGPU_RING_TYPE_VCN_JPEG) &&
+			adev->xcp_mgr->mode == AMDGPU_CPX_PARTITION_MODE)
+			aqua_vanjaram_xcp_gpu_sched_update(adev, ring, ring->xcp_id + 1);
+	}
+
+	return 0;
+}
+
+static int aqua_vanjaram_update_partition_sched_list(struct amdgpu_device *adev)
+{
+	int i;
+
+	for (i = 0; i < adev->num_rings; i++) {
+		struct amdgpu_ring *ring = adev->rings[i];
+
+		if (ring->funcs->type == AMDGPU_RING_TYPE_COMPUTE ||
+			ring->funcs->type == AMDGPU_RING_TYPE_KIQ)
+			aqua_vanjaram_set_xcp_id(adev, ring->xcc_id, ring);
+		else
+			aqua_vanjaram_set_xcp_id(adev, ring->me, ring);
+	}
+
+	return aqua_vanjaram_xcp_sched_list_update(adev);
+}
+
 static int8_t aqua_vanjaram_logical_to_dev_inst(struct amdgpu_device *adev,
 					 enum amd_hw_ip_block_type block,
 					 int8_t inst)
@@ -483,7 +547,8 @@ struct amdgpu_xcp_mgr_funcs aqua_vanjaram_xcp_funcs = {
 	.switch_partition_mode = &aqua_vanjaram_switch_partition_mode,
 	.query_partition_mode = &aqua_vanjaram_query_partition_mode,
 	.get_ip_details = &aqua_vanjaram_get_xcp_ip_details,
-	.get_xcp_mem_id = &aqua_vanjaram_get_xcp_mem_id
+	.get_xcp_mem_id = &aqua_vanjaram_get_xcp_mem_id,
+	.update_partition_sched_list = &aqua_vanjaram_update_partition_sched_list
 };
 
 static int aqua_vanjaram_xcp_mgr_init(struct amdgpu_device *adev)
