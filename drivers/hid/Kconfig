@@ -1307,7 +1307,7 @@ config HID_MCP2221
 	will be called hid-mcp2221.ko.
 
 config HID_KUNIT_TEST
-	bool "KUnit tests for HID" if !KUNIT_ALL_TESTS
+	tristate "KUnit tests for HID" if !KUNIT_ALL_TESTS
 	depends on KUNIT=y
 	depends on HID_UCLOGIC
 	default KUNIT_ALL_TESTS
