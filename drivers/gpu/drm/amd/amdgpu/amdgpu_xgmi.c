@@ -504,6 +504,9 @@ int amdgpu_xgmi_update_topology(struct amdgpu_hive_info *hive, struct amdgpu_dev
 {
 	int ret;
 
+	if (amdgpu_sriov_vf(adev))
+		return 0;
+
 	/* Each psp need to set the latest topology */
 	ret = psp_xgmi_set_topology_info(&adev->psp,
 					 atomic_read(&hive->number_devices),
