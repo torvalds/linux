@@ -190,7 +190,7 @@ static int k3rtc_unlock_rtc(struct ti_k3_rtc *priv)
 
 	/* Skip fence since we are going to check the unlock bit as fence */
 	ret = regmap_field_read_poll_timeout(priv->r_fields[K3RTC_UNLOCK], ret,
-					     !ret, 2, priv->sync_timeout_us);
+					     ret, 2, priv->sync_timeout_us);
 
 	return ret;
 }
