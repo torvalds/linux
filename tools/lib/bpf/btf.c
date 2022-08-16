@@ -1225,8 +1225,6 @@ int btf__load_into_kernel(struct btf *btf)
 	return btf_load_into_kernel(btf, NULL, 0, 0);
 }
 
-int btf__load(struct btf *) __attribute__((alias("btf__load_into_kernel")));
-
 int btf__fd(const struct btf *btf)
 {
 	return btf->fd;

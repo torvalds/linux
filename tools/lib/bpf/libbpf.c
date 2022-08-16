@@ -7263,8 +7263,6 @@ static int bpf_object_unload(struct bpf_object *obj)
 	return 0;
 }
 
-int bpf_object__unload(struct bpf_object *obj) __attribute__((alias("bpf_object_unload")));
-
 static int bpf_object__sanitize_maps(struct bpf_object *obj)
 {
 	struct bpf_map *m;

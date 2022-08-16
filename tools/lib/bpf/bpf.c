@@ -641,11 +641,6 @@ int bpf_prog_attach_opts(int prog_fd, int target_fd,
 	return libbpf_err_errno(ret);
 }
 
-__attribute__((alias("bpf_prog_attach_opts")))
-int bpf_prog_attach_xattr(int prog_fd, int target_fd,
-			  enum bpf_attach_type type,
-			  const struct bpf_prog_attach_opts *opts);
-
 int bpf_prog_detach(int target_fd, enum bpf_attach_type type)
 {
 	const size_t attr_sz = offsetofend(union bpf_attr, replace_bpf_fd);
