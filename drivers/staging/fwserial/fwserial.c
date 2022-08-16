@@ -1267,7 +1267,8 @@ static int fwtty_ioctl(struct tty_struct *tty, unsigned int cmd,
 	return err;
 }
 
-static void fwtty_set_termios(struct tty_struct *tty, struct ktermios *old)
+static void fwtty_set_termios(struct tty_struct *tty,
+			      const struct ktermios *old)
 {
 	struct fwtty_port *port = tty->driver_data;
 	unsigned int baud;

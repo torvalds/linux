@@ -1380,7 +1380,8 @@ static void hso_serial_cleanup(struct tty_struct *tty)
 }
 
 /* setup the term */
-static void hso_serial_set_termios(struct tty_struct *tty, struct ktermios *old)
+static void hso_serial_set_termios(struct tty_struct *tty,
+				   const struct ktermios *old)
 {
 	struct hso_serial *serial = tty->driver_data;
 	unsigned long flags;

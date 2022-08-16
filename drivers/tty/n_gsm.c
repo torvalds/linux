@@ -3647,7 +3647,8 @@ static int gsmtty_ioctl(struct tty_struct *tty,
 	}
 }
 
-static void gsmtty_set_termios(struct tty_struct *tty, struct ktermios *old)
+static void gsmtty_set_termios(struct tty_struct *tty,
+			       const struct ktermios *old)
 {
 	struct gsm_dlci *dlci = tty->driver_data;
 	if (dlci->state == DLCI_CLOSED)

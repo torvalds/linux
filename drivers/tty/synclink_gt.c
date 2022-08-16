@@ -707,7 +707,8 @@ static void hangup(struct tty_struct *tty)
 	wake_up_interruptible(&info->port.open_wait);
 }
 
-static void set_termios(struct tty_struct *tty, struct ktermios *old_termios)
+static void set_termios(struct tty_struct *tty,
+			const struct ktermios *old_termios)
 {
 	struct slgt_info *info = tty->driver_data;
 	unsigned long flags;
