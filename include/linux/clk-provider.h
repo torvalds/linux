@@ -42,6 +42,8 @@ struct dentry;
  * struct clk_rate_request - Structure encoding the clk constraints that
  * a clock user might require.
  *
+ * Should be initialized by calling clk_hw_init_rate_request().
+ *
  * @rate:		Requested clock rate. This field will be adjusted by
  *			clock drivers according to hardware capabilities.
  * @min_rate:		Minimum rate imposed by clk users.
@@ -59,6 +61,10 @@ struct clk_rate_request {
 	unsigned long best_parent_rate;
 	struct clk_hw *best_parent_hw;
 };
+
+void clk_hw_init_rate_request(const struct clk_hw *hw,
+			      struct clk_rate_request *req,
+			      unsigned long rate);
 
 /**
  * struct clk_duty - Struture encoding the duty cycle ratio of a clock
