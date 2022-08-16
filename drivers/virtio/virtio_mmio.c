@@ -69,7 +69,10 @@
 #include <linux/virtio_config.h>
 #include <uapi/linux/virtio_mmio.h>
 #include <linux/virtio_ring.h>
-
+#ifdef CONFIG_VIRTIO_MMIO_SWIOTLB
+#include <linux/swiotlb.h>
+#include <linux/dma-direct.h>
+#endif
 
 
 /* The alignment to use between consumer and producer parts of vring.
@@ -81,6 +84,16 @@
 #define to_virtio_mmio_device(_plat_dev) \
 	container_of(_plat_dev, struct virtio_mmio_device, vdev)
 
+#ifdef CONFIG_VIRTIO_MMIO_SWIOTLB
+struct virtio_mem_pool {
+	void *virt_base;
+	dma_addr_t dma_base;
+	size_t size;
+	unsigned long *bitmap;
+	spinlock_t lock;
+};
+#endif
+
 struct virtio_mmio_device {
 	struct virtio_device vdev;
 	struct platform_device *pdev;
@@ -91,6 +104,9 @@ struct virtio_mmio_device {
 	/* a list of queues so we can dispatch IRQs */
 	spinlock_t lock;
 	struct list_head virtqueues;
+#ifdef CONFIG_VIRTIO_MMIO_SWIOTLB
+	struct virtio_mem_pool *mem_pool;
+#endif
 };
 
 struct virtio_mmio_vq_info {
@@ -590,8 +606,257 @@ static void virtio_mmio_release_dev(struct device *_d)
 	devm_kfree(&pdev->dev, vm_dev);
 }
 
-/* Platform device */
+#ifdef CONFIG_VIRTIO_MMIO_SWIOTLB
+static phys_addr_t virtio_swiotlb_base;
+static phys_addr_t virtio_swiotlb_dma_base;
+static size_t virtio_swiotlb_size;
 
+static int get_swiotlb_base(struct device_node *np, phys_addr_t *base,
+		phys_addr_t *dma_base, size_t *size)
+{
+	const __be64 *val;
+	int len;
+
+	val = of_get_property(np, "reg", &len);
+	if (!val || len != 16)
+		return -EINVAL;
+
+	*base = __be64_to_cpup(val);
+	val++;
+	*size = __be64_to_cpup(val);
+
+	if (!*base || !*size)
+		return -EINVAL;
+
+	val = of_get_property(np, "dma_base", &len);
+	if (!val || len != 8)
+		return -EINVAL;
+	*dma_base = __be64_to_cpup(val);
+
+	return 0;
+}
+
+static int __init virtio_swiotlb_init(void)
+{
+	void __iomem *vbase;
+	int ret;
+	unsigned long nslabs;
+	phys_addr_t base;
+	phys_addr_t dma_base;
+	size_t size;
+	struct device_node *np;
+
+	np = of_find_node_by_path("/swiotlb");
+	if (!np)
+		return 0;
+
+	ret = get_swiotlb_base(np, &base, &dma_base, &size);
+	of_node_put(np);
+
+	if (ret)
+		return ret;
+
+	nslabs = (size >> IO_TLB_SHIFT);
+	nslabs = ALIGN_DOWN(nslabs, IO_TLB_SEGSIZE);
+
+	if (!nslabs)
+		return -EINVAL;
+
+	vbase = __ioremap(base, size, __pgprot(PROT_NORMAL));
+	if (!vbase)
+		return -EINVAL;
+
+	ret = swiotlb_late_init_with_tblpaddr(vbase, dma_base, nslabs);
+	if (ret) {
+		iounmap(vbase);
+		return ret;
+	}
+
+	virtio_swiotlb_base = base;
+	virtio_swiotlb_dma_base = dma_base;
+	virtio_swiotlb_size = size;
+
+	return 0;
+}
+
+static void *virtio_alloc_coherent(struct device *dev, size_t size,
+		dma_addr_t *dma_handle, gfp_t flags, unsigned long attrs)
+{
+	struct platform_device *pdev =
+				container_of(dev, struct platform_device, dev);
+	struct virtio_mmio_device *vm_dev = platform_get_drvdata(pdev);
+	int pageno;
+	unsigned long irq_flags;
+	int order = get_order(size);
+	void *ret = NULL;
+	struct virtio_mem_pool *mem = vm_dev->mem_pool;
+
+	if (!mem || (size > (mem->size << PAGE_SHIFT)))
+		return NULL;
+
+	spin_lock_irqsave(&mem->lock, irq_flags);
+
+	pageno = bitmap_find_free_region(mem->bitmap, mem->size, order);
+	if (pageno >= 0) {
+		*dma_handle = mem->dma_base + (pageno << PAGE_SHIFT);
+		ret = mem->virt_base + (pageno << PAGE_SHIFT);
+	}
+
+	spin_unlock_irqrestore(&mem->lock, irq_flags);
+
+	return ret;
+}
+
+
+static void virtio_free_coherent(struct device *dev, size_t size, void *vaddr,
+				dma_addr_t dma_handle, unsigned long attrs)
+{
+	struct platform_device *pdev =
+			container_of(dev, struct platform_device, dev);
+	struct virtio_mmio_device *vm_dev = platform_get_drvdata(pdev);
+	int pageno;
+	unsigned long flags;
+	struct virtio_mem_pool *mem = vm_dev->mem_pool;
+
+	if (!mem)
+		return;
+
+	spin_lock_irqsave(&mem->lock, flags);
+	if (vaddr >= mem->virt_base &&
+			vaddr < (mem->virt_base + (mem->size << PAGE_SHIFT))) {
+		pageno = (vaddr - mem->virt_base) >> PAGE_SHIFT;
+		bitmap_release_region(mem->bitmap, pageno, get_order(size));
+	}
+
+	spin_unlock_irqrestore(&mem->lock, flags);
+}
+
+static dma_addr_t virtio_map_page(struct device *dev, struct page *page,
+				unsigned long offset, size_t size,
+				enum dma_data_direction dir,
+				unsigned long attrs)
+{
+	phys_addr_t phys = page_to_phys(page) + offset;
+
+	return swiotlb_map(dev, phys, size, dir, attrs);
+}
+
+static void virtio_unmap_page(struct device *dev, dma_addr_t dev_addr,
+			size_t size, enum dma_data_direction dir,
+			unsigned long attrs)
+{
+	BUG_ON(!is_swiotlb_buffer(dev, dev_addr));
+
+	swiotlb_tbl_unmap_single(dev, dev_addr, size, dir, attrs);
+}
+
+size_t virtio_max_mapping_size(struct device *dev)
+{
+	return SZ_4K;
+}
+
+static const struct dma_map_ops virtio_dma_ops = {
+	.alloc                  = virtio_alloc_coherent,
+	.free                   = virtio_free_coherent,
+	.map_page               = virtio_map_page,
+	.unmap_page             = virtio_unmap_page,
+	.max_mapping_size	= virtio_max_mapping_size,
+};
+
+static inline int
+get_ring_base(struct platform_device *pdev, phys_addr_t *ring_base,
+				phys_addr_t *ring_dma_base, size_t *ring_size)
+{
+	struct device *dev = &pdev->dev;
+	const __be64 *val;
+	int len;
+
+	if (!virtio_swiotlb_base)
+		return 0;
+
+	val = of_get_property(pdev->dev.of_node, "ring_base", &len);
+	if (!val || len != 24)
+		return 0;
+
+	*ring_base = __be64_to_cpup(val);
+	val++;
+	*ring_dma_base = __be64_to_cpup(val);
+	val++;
+	*ring_size = __be64_to_cpup(val);
+
+	dev_dbg(dev, "ring_base %pK ring_dma_base %pK ring_size %llx\n",
+				*ring_base, *ring_dma_base, *ring_size);
+	return 1;
+}
+
+static int setup_virtio_dma_ops(struct platform_device *pdev)
+{
+	struct virtio_mmio_device *vm_dev = platform_get_drvdata(pdev);
+	phys_addr_t ring_base, ring_dma_base;
+	size_t ring_size, pages;
+	struct virtio_mem_pool *vmem_pool;
+	unsigned long bitmap_size;
+
+	if (!vm_dev || !get_ring_base(pdev, &ring_base,
+					&ring_dma_base, &ring_size))
+		return 0;
+
+	vmem_pool = devm_kzalloc(&pdev->dev, sizeof(struct virtio_mem_pool),
+				GFP_KERNEL);
+	if (!vmem_pool)
+		return -ENOMEM;
+
+	pages = ring_size >> PAGE_SHIFT;
+	if (!pages) {
+		pr_err("%s: Ring size too small\n", __func__);
+		return -EINVAL;
+	}
+
+	if (ULONG_MAX / sizeof(unsigned long) < BITS_TO_LONGS(pages)) {
+		pr_err("%s: Ring size too large %lu\n", __func__, ring_size);
+		return -EINVAL;
+	}
+
+	bitmap_size = BITS_TO_LONGS(pages) * sizeof(long);
+	vmem_pool->bitmap = devm_kzalloc(&pdev->dev, bitmap_size, GFP_KERNEL);
+	if (!vmem_pool->bitmap)
+		return -ENOMEM;
+
+	/* Note: Mapped as 'normal/cacheable' memory */
+	vmem_pool->virt_base = __ioremap(ring_base, ring_size,
+						__pgprot(PROT_NORMAL));
+	if (!vmem_pool->virt_base) {
+		pr_err("Unable to ioremap %pK size %lx\n",
+					(void *)ring_base, ring_size);
+		return -ENOMEM;
+	}
+	memset(vmem_pool->virt_base, 0, ring_size);
+
+	vmem_pool->dma_base = ring_dma_base;
+	vmem_pool->size = pages;
+	spin_lock_init(&vmem_pool->lock);
+	vm_dev->mem_pool = vmem_pool;
+	set_dma_ops(&pdev->dev, &virtio_dma_ops);
+
+	dev_dbg(&pdev->dev, "virtio_mem_pool: virt_base %llx pages %lx\n",
+					vmem_pool->virt_base, pages);
+	return 0;
+}
+#else	/* CONFIG_VIRTIO_MMIO_SWIOTLB */
+
+static inline int setup_virtio_dma_ops(struct platform_device *pdev)
+{
+	return 0;
+}
+
+static inline int virtio_swiotlb_init(void)
+{
+	return 0;
+}
+
+#endif	/* CONFIG_VIRTIO_MMIO_SWIOTLB */
+
+/* Platform device */
 static int virtio_mmio_probe(struct platform_device *pdev)
 {
 	struct virtio_mmio_device *vm_dev;
@@ -658,6 +923,12 @@ static int virtio_mmio_probe(struct platform_device *pdev)
 		dev_warn(&pdev->dev, "Failed to enable 64-bit or 32-bit DMA.  Trying to continue, but this might not work.\n");
 
 	platform_set_drvdata(pdev, vm_dev);
+
+	rc = setup_virtio_dma_ops(pdev);
+	if (rc) {
+		put_device(&vm_dev->vdev.dev);
+		return rc;
+	}
 
 	rc = register_virtio_device(&vm_dev->vdev);
 	if (rc)
@@ -830,6 +1101,12 @@ static struct platform_driver virtio_mmio_driver = {
 
 static int __init virtio_mmio_init(void)
 {
+	int ret;
+
+	ret = virtio_swiotlb_init();
+	if (ret)
+		return ret;
+
 	return platform_driver_register(&virtio_mmio_driver);
 }
 

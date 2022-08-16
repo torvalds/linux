@@ -148,6 +148,18 @@ config VIRTIO_MMIO
 
  	 If unsure, say N.
 
+config VIRTIO_MMIO_SWIOTLB
+	bool "Instantiate swiotlb buffer pool for custom DMA ops"
+	depends on VIRTIO_MMIO
+	help
+	  Activating this feature results in custom DMA ops being
+	  setup up for virtio_mmio device, that uses swiotlb driver
+	  APIs to bounce buffers in and out of a pre-defined memory
+	  region. The pre-defined memory region is defined in
+	  device-tree (/swiotlb) and is indicative of memory that is
+	  shared with another virtual machine which is hosting virtio
+	  backend drivers.
+
 config VIRTIO_MMIO_CMDLINE_DEVICES
 	bool "Memory mapped virtio devices parameter parsing"
 	depends on VIRTIO_MMIO
