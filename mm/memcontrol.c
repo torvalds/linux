@@ -3975,6 +3975,8 @@ static const unsigned int memcg1_stats[] = {
 	NR_FILE_MAPPED,
 	NR_FILE_DIRTY,
 	NR_WRITEBACK,
+	WORKINGSET_REFAULT_ANON,
+	WORKINGSET_REFAULT_FILE,
 	MEMCG_SWAP,
 };
 
@@ -3988,6 +3990,8 @@ static const char *const memcg1_stat_names[] = {
 	"mapped_file",
 	"dirty",
 	"writeback",
+	"workingset_refault_anon",
+	"workingset_refault_file",
 	"swap",
 };
 
@@ -4016,7 +4020,8 @@ static int memcg_stat_show(struct seq_file *m, void *v)
 		if (memcg1_stats[i] == MEMCG_SWAP && !do_memsw_account())
 			continue;
 		nr = memcg_page_state_local(memcg, memcg1_stats[i]);
-		seq_printf(m, "%s %lu\n", memcg1_stat_names[i], nr * PAGE_SIZE);
+		seq_printf(m, "%s %lu\n", memcg1_stat_names[i],
+			   nr * memcg_page_state_unit(memcg1_stats[i]));
 	}
 
 	for (i = 0; i < ARRAY_SIZE(memcg1_events); i++)
@@ -4047,7 +4052,7 @@ static int memcg_stat_show(struct seq_file *m, void *v)
 			continue;
 		nr = memcg_page_state(memcg, memcg1_stats[i]);
 		seq_printf(m, "total_%s %llu\n", memcg1_stat_names[i],
-						(u64)nr * PAGE_SIZE);
+			   (u64)nr * memcg_page_state_unit(memcg1_stats[i]));
 	}
 
 	for (i = 0; i < ARRAY_SIZE(memcg1_events); i++)
