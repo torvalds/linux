@@ -1573,8 +1573,8 @@ static int mtk_xdp_submit_frame(struct mtk_eth *eth, struct xdp_frame *xdpf,
 		.last	= !xdp_frame_has_frags(xdpf),
 	};
 	int err, index = 0, n_desc = 1, nr_frags;
-	struct mtk_tx_dma *htxd, *txd, *txd_pdma;
 	struct mtk_tx_buf *htx_buf, *tx_buf;
+	struct mtk_tx_dma *htxd, *txd;
 	void *data = xdpf->data;
 
 	if (unlikely(test_bit(MTK_RESETTING, &eth->state)))
@@ -1608,7 +1608,6 @@ static int mtk_xdp_submit_frame(struct mtk_eth *eth, struct xdp_frame *xdpf,
 
 		if (MTK_HAS_CAPS(soc->caps, MTK_QDMA) || (index & 0x1)) {
 			txd = mtk_qdma_phys_to_virt(ring, txd->txd2);
-			txd_pdma = qdma_to_pdma(ring, txd);
 			if (txd == ring->last_free)
 				goto unmap;
 
@@ -1629,7 +1628,8 @@ static int mtk_xdp_submit_frame(struct mtk_eth *eth, struct xdp_frame *xdpf,
 	htx_buf->data = xdpf;
 
 	if (!MTK_HAS_CAPS(soc->caps, MTK_QDMA)) {
-		txd_pdma = qdma_to_pdma(ring, txd);
+		struct mtk_tx_dma *txd_pdma = qdma_to_pdma(ring, txd);
+
 		if (index & 1)
 			txd_pdma->txd2 |= TX_DMA_LS0;
 		else
@@ -1660,13 +1660,15 @@ static int mtk_xdp_submit_frame(struct mtk_eth *eth, struct xdp_frame *xdpf,
 
 unmap:
 	while (htxd != txd) {
-		txd_pdma = qdma_to_pdma(ring, htxd);
 		tx_buf = mtk_desc_to_tx_buf(ring, htxd, soc->txrx.txd_size);
 		mtk_tx_unmap(eth, tx_buf, NULL, false);
 
 		htxd->txd3 = TX_DMA_LS0 | TX_DMA_OWNER_CPU;
-		if (!MTK_HAS_CAPS(soc->caps, MTK_QDMA))
+		if (!MTK_HAS_CAPS(soc->caps, MTK_QDMA)) {
+			struct mtk_tx_dma *txd_pdma = qdma_to_pdma(ring, htxd);
+
 			txd_pdma->txd2 = TX_DMA_DESP2_DEF;
+		}
 
 		htxd = mtk_qdma_phys_to_virt(ring, htxd->txd2);
 	}
