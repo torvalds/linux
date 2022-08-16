@@ -23,18 +23,19 @@ properties:
   reg:
     maxItems: 1
 
-  spi-max-frequency: true
-
   vdd-supply: true
   vss-supply: true
-
-additionalProperties: false
 
 required:
   - compatible
   - reg
   - vdd-supply
   - vss-supply
+
+allOf:
+  - $ref: /schemas/spi/spi-peripheral-props.yaml#
+
+unevaluatedProperties: false
 
 examples:
   - |

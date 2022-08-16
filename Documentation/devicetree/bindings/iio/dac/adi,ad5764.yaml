@@ -22,18 +22,15 @@ properties:
   reg:
     maxItems: 1
 
-  spi-max-frequency: true
-
   vrefAB-supply: true
   vrefCD-supply: true
-
-additionalProperties: false
 
 required:
   - compatible
   - reg
 
 allOf:
+  - $ref: /schemas/spi/spi-peripheral-props.yaml#
   - if:
       properties:
         compatible:
@@ -45,6 +42,8 @@ allOf:
       required:
         - vrefAB-supply
         - vrefCD-supply
+
+unevaluatedProperties: false
 
 examples:
   - |
