@@ -690,6 +690,9 @@ static int is_memory(struct acpi_resource *ares, void *not_used)
 
 	memset(&win, 0, sizeof(win));
 
+	if (acpi_dev_filter_resource_type(ares, IORESOURCE_MEM))
+		return 1;
+
 	return !(acpi_dev_resource_memory(ares, res)
 	       || acpi_dev_resource_address_space(ares, &win)
 	       || acpi_dev_resource_ext_address_space(ares, &win));
