@@ -2572,6 +2572,8 @@ struct rtw89_chip_info {
 	u8 bcam_num;
 	u8 scam_num;
 	u8 bacam_num;
+	u8 bacam_dynamic_num;
+	bool bacam_v1;
 
 	u8 sec_ctrl_efuse_size;
 	u32 physical_efuse_size;

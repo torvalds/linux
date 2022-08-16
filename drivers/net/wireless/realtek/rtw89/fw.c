@@ -679,6 +679,8 @@ EXPORT_SYMBOL(rtw89_fw_h2c_dctl_sec_cam_v1);
 int rtw89_fw_h2c_ba_cam(struct rtw89_dev *rtwdev, struct rtw89_sta *rtwsta,
 			bool valid, struct ieee80211_ampdu_params *params)
 {
+	const struct rtw89_chip_info *chip = rtwdev->chip;
+	struct rtw89_vif *rtwvif = rtwsta->rtwvif;
 	u8 macid = rtwsta->mac_id;
 	struct sk_buff *skb;
 	u8 entry_idx;
@@ -704,7 +706,10 @@ int rtw89_fw_h2c_ba_cam(struct rtw89_dev *rtwdev, struct rtw89_sta *rtwsta,
 	}
 	skb_put(skb, H2C_BA_CAM_LEN);
 	SET_BA_CAM_MACID(skb->data, macid);
-	SET_BA_CAM_ENTRY_IDX(skb->data, entry_idx);
+	if (chip->bacam_v1)
+		SET_BA_CAM_ENTRY_IDX_V1(skb->data, entry_idx);
+	else
+		SET_BA_CAM_ENTRY_IDX(skb->data, entry_idx);
 	if (!valid)
 		goto end;
 	SET_BA_CAM_VALID(skb->data, valid);
@@ -716,6 +721,11 @@ int rtw89_fw_h2c_ba_cam(struct rtw89_dev *rtwdev, struct rtw89_sta *rtwsta,
 	/* If init req is set, hw will set the ssn */
 	SET_BA_CAM_INIT_REQ(skb->data, 1);
 	SET_BA_CAM_SSN(skb->data, params->ssn);
+
+	if (chip->bacam_v1) {
+		SET_BA_CAM_STD_EN(skb->data, 1);
+		SET_BA_CAM_BAND(skb->data, rtwvif->mac_idx);
+	}
 
 end:
 	rtw89_h2c_pkt_set_hdr(rtwdev, skb, FWCMD_TYPE_H2C,
@@ -734,6 +744,56 @@ fail:
 	dev_kfree_skb_any(skb);
 
 	return -EBUSY;
+}
+
+static int rtw89_fw_h2c_init_dynamic_ba_cam_v1(struct rtw89_dev *rtwdev,
+					       u8 entry_idx, u8 uid)
+{
+	struct sk_buff *skb;
+
+	skb = rtw89_fw_h2c_alloc_skb_with_hdr(rtwdev, H2C_BA_CAM_LEN);
+	if (!skb) {
+		rtw89_err(rtwdev, "failed to alloc skb for dynamic h2c ba cam\n");
+		return -ENOMEM;
+	}
+	skb_put(skb, H2C_BA_CAM_LEN);
+
+	SET_BA_CAM_VALID(skb->data, 1);
+	SET_BA_CAM_ENTRY_IDX_V1(skb->data, entry_idx);
+	SET_BA_CAM_UID(skb->data, uid);
+	SET_BA_CAM_BAND(skb->data, 0);
+	SET_BA_CAM_STD_EN(skb->data, 0);
+
+	rtw89_h2c_pkt_set_hdr(rtwdev, skb, FWCMD_TYPE_H2C,
+			      H2C_CAT_MAC,
+			      H2C_CL_BA_CAM,
+			      H2C_FUNC_MAC_BA_CAM, 0, 1,
+			      H2C_BA_CAM_LEN);
+
+	if (rtw89_h2c_tx(rtwdev, skb, false)) {
+		rtw89_err(rtwdev, "failed to send h2c\n");
+		goto fail;
+	}
+
+	return 0;
+fail:
+	dev_kfree_skb_any(skb);
+
+	return -EBUSY;
+}
+
+void rtw89_fw_h2c_init_ba_cam_v1(struct rtw89_dev *rtwdev)
+{
+	const struct rtw89_chip_info *chip = rtwdev->chip;
+	u8 entry_idx = chip->bacam_num;
+	u8 uid = 0;
+	int i;
+
+	for (i = 0; i < chip->bacam_dynamic_num; i++) {
+		rtw89_fw_h2c_init_dynamic_ba_cam_v1(rtwdev, entry_idx, uid);
+		entry_idx++;
+		uid++;
+	}
 }
 
 #define H2C_LOG_CFG_LEN 12
