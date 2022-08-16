@@ -2702,7 +2702,9 @@ int tls_set_sw_offload(struct sock *sk, struct tls_context *ctx, int tx)
 			crypto_info->version != TLS_1_3_VERSION &&
 			!!(tfm->__crt_alg->cra_flags & CRYPTO_ALG_ASYNC);
 
-		tls_strp_init(&sw_ctx_rx->strp, sk);
+		rc = tls_strp_init(&sw_ctx_rx->strp, sk);
+		if (rc)
+			goto free_aead;
 	}
 
 	goto out;
