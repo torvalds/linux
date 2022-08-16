@@ -1,0 +1,12 @@
+# SPDX-License-Identifier: GPL-2.0-only
+config HISI_PTT
+	tristate "HiSilicon PCIe Tune and Trace Device"
+	depends on ARM64 || (COMPILE_TEST && 64BIT)
+	depends on PCI && HAS_DMA && HAS_IOMEM && PERF_EVENTS
+	help
+	  HiSilicon PCIe Tune and Trace device exists as a PCIe RCiEP
+	  device, and it provides support for PCIe traffic tuning and
+	  tracing TLP headers to the memory.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called hisi_ptt.
