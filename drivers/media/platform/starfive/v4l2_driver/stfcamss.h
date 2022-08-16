@@ -32,6 +32,8 @@ enum subdev_type {
 #define STF_PAD_SRC    1
 #define STF_PADS_NUM   2
 
+#define STF_CAMSS_SKIP_ITI
+
 enum port_num {
 	DVP_SENSOR_PORT_NUMBER = 0,
 	CSI2RX_SENSOR_PORT_NUMBER
