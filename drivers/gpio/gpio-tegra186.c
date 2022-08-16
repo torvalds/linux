@@ -670,6 +670,7 @@ static unsigned int tegra186_gpio_child_offset_to_irq(struct gpio_chip *chip,
 static const struct of_device_id tegra186_pmc_of_match[] = {
 	{ .compatible = "nvidia,tegra186-pmc" },
 	{ .compatible = "nvidia,tegra194-pmc" },
+	{ .compatible = "nvidia,tegra234-pmc" },
 	{ /* sentinel */ }
 };
 
