@@ -930,27 +930,27 @@ static int wm8960_hw_params(struct snd_pcm_substream *substream,
 		snd_soc_component_write(component, WM8960_POWER2, 0x1f9);
 	} else if (audio_format == 0x2) {//I2S Format
 		if (!tx) {
-			snd_soc_component_update_bits(component, WM8960_LINVOL, 0x3<<7, 0x2<<7);
-			snd_soc_component_update_bits(component, WM8960_RINVOL, 0x3<<7, 0x2<<7);
+			snd_soc_component_update_bits(component, WM8960_LINVOL, 0x1<<7, 0x1<<7);
+			snd_soc_component_update_bits(component, WM8960_RINVOL, 0x1<<7, 0x1<<7);
 			snd_soc_component_write(component, WM8960_CLOCK1, 0x00); //0xd8
 			snd_soc_component_write(component, WM8960_ALC1, 0x1bb);
 			snd_soc_component_write(component, WM8960_ALC2, 0x30);
 			snd_soc_component_write(component, WM8960_ALC3, 0x30);
 			snd_soc_component_write(component, WM8960_NOISEG, 0xf9);
-			snd_soc_component_write(component, WM8960_LADC, 0x197);
-			snd_soc_component_write(component, WM8960_RADC, 0x197);
 			snd_soc_component_write(component, WM8960_ADDCTL1, 0xc0);
 			snd_soc_component_write(component, WM8960_ADDCTL3, 0x03);
-			snd_soc_component_write(component, WM8960_LOUT2, 0x1ff);
-			snd_soc_component_write(component, WM8960_ROUT2, 0x1ff);
 			snd_soc_component_write(component, WM8960_BYPASS1, 0x00);
 			snd_soc_component_write(component, WM8960_BYPASS2, 0x00);
 			snd_soc_component_write(component, WM8960_ADDCTL4, 0x00);
 		} else {
 			if (params_channels(params) == 1)
 				snd_soc_component_write(component, WM8960_LOUT1, 0x100);
-			else
-				snd_soc_component_update_bits(component, WM8960_LOUT1, 0x170, 0x170);
+			else {
+				if (snd_soc_component_read(component, WM8960_LOUT1) & 0x7f)
+					snd_soc_component_update_bits(component, WM8960_LOUT1, 0x100, 0x100);
+				else
+					snd_soc_component_write(component, WM8960_LOUT1, 0x170);
+			}
 		}
 	}
 
