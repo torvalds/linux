@@ -43,7 +43,7 @@ test_bpffs                               # bpffs test  failed 255               
 test_bprm_opts                           # failed to auto-attach program 'secure_exec': -524                           (trampoline)
 test_ima                                 # failed to auto-attach program 'ima': -524                                   (trampoline)
 test_local_storage                       # failed to auto-attach program 'unlink_hook': -524                           (trampoline)
-test_lsm                                 # failed to find kernel BTF type ID of '__x64_sys_setdomainname': -3          (?)
+test_lsm                                 # attach unexpected error: -524                                               (trampoline)
 test_overhead                            # attach_fentry unexpected error: -524                                        (trampoline)
 test_profiler                            # unknown func bpf_probe_read_str#45                                          (overlapping)
 timer                                    # failed to auto-attach program 'test1': -524                                 (trampoline)
