@@ -1649,7 +1649,7 @@ static int bpf_object__init_global_data_maps(struct bpf_object *obj)
 		sec_desc = &obj->efile.secs[sec_idx];
 
 		/* Skip recognized sections with size 0. */
-		if (sec_desc->data && sec_desc->data->d_size == 0)
+		if (!sec_desc->data || sec_desc->data->d_size == 0)
 			continue;
 
 		switch (sec_desc->sec_type) {
