@@ -42,7 +42,7 @@ DHDCFLAGS = -Wall -Wstrict-prototypes -Wno-date-time                      \
 	-DUSE_NEW_RSPEC_DEFS -DBCM_USE_PLATFORM_STRLCPY                       \
 	-DWL_EXT_IAPSTA -DWL_ESCAN -DCCODE_LIST -DSUSPEND_EVENT               \
 	-DEAPOL_RESEND -DEAPOL_DYNAMATIC_RESEND                               \
-	-DENABLE_INSMOD_NO_FW_LOAD
+	-DENABLE_INSMOD_NO_FW_LOAD -Wframe-larger-than=2048
 
 DHDOFILES = aiutils.o siutils.o sbutils.o bcmutils.o bcmwifi_channels.o   \
 	dhd_linux.o dhd_linux_platdev.o dhd_linux_sched.o dhd_pno.o           \
