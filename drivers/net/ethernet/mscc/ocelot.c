@@ -1860,16 +1860,20 @@ void ocelot_get_strings(struct ocelot *ocelot, int port, u32 sset, u8 *data)
 	if (sset != ETH_SS_STATS)
 		return;
 
-	for (i = 0; i < ocelot->num_stats; i++)
+	for (i = 0; i < OCELOT_NUM_STATS; i++) {
+		if (ocelot->stats_layout[i].name[0] == '\0')
+			continue;
+
 		memcpy(data + i * ETH_GSTRING_LEN, ocelot->stats_layout[i].name,
 		       ETH_GSTRING_LEN);
+	}
 }
 EXPORT_SYMBOL(ocelot_get_strings);
 
 /* Caller must hold &ocelot->stats_lock */
 static int ocelot_port_update_stats(struct ocelot *ocelot, int port)
 {
-	unsigned int idx = port * ocelot->num_stats;
+	unsigned int idx = port * OCELOT_NUM_STATS;
 	struct ocelot_stats_region *region;
 	int err, j;
 
@@ -1930,9 +1934,15 @@ void ocelot_get_ethtool_stats(struct ocelot *ocelot, int port, u64 *data)
 	/* check and update now */
 	err = ocelot_port_update_stats(ocelot, port);
 
-	/* Copy all counters */
-	for (i = 0; i < ocelot->num_stats; i++)
-		*data++ = ocelot->stats[port * ocelot->num_stats + i];
+	/* Copy all supported counters */
+	for (i = 0; i < OCELOT_NUM_STATS; i++) {
+		int index = port * OCELOT_NUM_STATS + i;
+
+		if (ocelot->stats_layout[i].name[0] == '\0')
+			continue;
+
+		*data++ = ocelot->stats[index];
+	}
 
 	spin_unlock(&ocelot->stats_lock);
 
@@ -1943,10 +1953,16 @@ EXPORT_SYMBOL(ocelot_get_ethtool_stats);
 
 int ocelot_get_sset_count(struct ocelot *ocelot, int port, int sset)
 {
+	int i, num_stats = 0;
+
 	if (sset != ETH_SS_STATS)
 		return -EOPNOTSUPP;
 
-	return ocelot->num_stats;
+	for (i = 0; i < OCELOT_NUM_STATS; i++)
+		if (ocelot->stats_layout[i].name[0] != '\0')
+			num_stats++;
+
+	return num_stats;
 }
 EXPORT_SYMBOL(ocelot_get_sset_count);
 
@@ -1958,7 +1974,10 @@ static int ocelot_prepare_stats_regions(struct ocelot *ocelot)
 
 	INIT_LIST_HEAD(&ocelot->stats_regions);
 
-	for (i = 0; i < ocelot->num_stats; i++) {
+	for (i = 0; i < OCELOT_NUM_STATS; i++) {
+		if (ocelot->stats_layout[i].name[0] == '\0')
+			continue;
+
 		if (region && ocelot->stats_layout[i].offset == last + 1) {
 			region->count++;
 		} else {
@@ -3340,7 +3359,6 @@ static void ocelot_detect_features(struct ocelot *ocelot)
 
 int ocelot_init(struct ocelot *ocelot)
 {
-	const struct ocelot_stat_layout *stat;
 	char queue_name[32];
 	int i, ret;
 	u32 port;
@@ -3353,12 +3371,8 @@ int ocelot_init(struct ocelot *ocelot)
 		}
 	}
 
-	ocelot->num_stats = 0;
-	for_each_stat(ocelot, stat)
-		ocelot->num_stats++;
-
 	ocelot->stats = devm_kcalloc(ocelot->dev,
-				     ocelot->num_phys_ports * ocelot->num_stats,
+				     ocelot->num_phys_ports * OCELOT_NUM_STATS,
 				     sizeof(u64), GFP_KERNEL);
 	if (!ocelot->stats)
 		return -ENOMEM;
