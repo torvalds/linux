@@ -595,10 +595,6 @@ ssize_t st_lsm6dsr_set_watermark(struct device *dev,
 	int err, val;
 
 	mutex_lock(&iio_dev->mlock);
-	if (iio_buffer_enabled(iio_dev)) {
-		err = -EBUSY;
-		goto out;
-	}
 
 	err = kstrtoint(buf, 10, &val);
 	if (err < 0)

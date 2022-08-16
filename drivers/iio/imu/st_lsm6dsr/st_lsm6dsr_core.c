@@ -368,13 +368,13 @@ static const struct st_lsm6dsr_odr_table_entry st_lsm6dsr_odr_table[] = {
 			.mask = GENMASK(7, 4),
 		},
 		.odr_avl[0] = {   0, 0,       0x00 },
-		.odr_avl[1] = { 208, 0,       0x05 },//{  12, 500000,  0x01 },
-		.odr_avl[2] = {  26, 0,       0x02 },//{  26, 0,       0x02 }
-		.odr_avl[3] = { 208, 0,       0x05 },//{  52, 0,       0x03 },
-		.odr_avl[4] = { 208, 0,       0x05 },//{ 104, 0,       0x04 },
-		.odr_avl[5] = { 208, 0,       0x05 },//{ 208, 0,       0x05 },
-		.odr_avl[6] = { 208, 0,       0x05 },//{ 416, 0,       0x06 },
-		.odr_avl[7] = { 208, 0,       0x05 },//{ 833, 0,       0x07 }
+		.odr_avl[1] = {  12, 500000,  0x01 },
+		.odr_avl[2] = {  26, 0,       0x02 },
+		.odr_avl[3] = {  52, 0,       0x03 },
+		.odr_avl[4] = { 104, 0,       0x04 },
+		.odr_avl[5] = { 208, 0,       0x05 },
+		.odr_avl[6] = { 416, 0,       0x06 },
+		.odr_avl[7] = { 833, 0,       0x07 }
 	},
 	[ST_LSM6DSR_ID_GYRO] = {
 		.odr_size = 8,
@@ -383,13 +383,13 @@ static const struct st_lsm6dsr_odr_table_entry st_lsm6dsr_odr_table[] = {
 			.mask = GENMASK(7, 4),
 		},
 		.odr_avl[0] = {   0, 0,       0x00 },
-		.odr_avl[1] = { 208, 0,       0x05 },//{  12, 500000,  0x01 },
-		.odr_avl[2] = { 208, 0,       0x05 },//{  26, 0,       0x02 }
-		.odr_avl[3] = { 208, 0,       0x05 },//{  52, 0,       0x03 },
-		.odr_avl[4] = { 208, 0,       0x05 },//{ 104, 0,       0x04 },
-		.odr_avl[5] = { 208, 0,       0x05 },//{ 208, 0,       0x05 },
-		.odr_avl[6] = { 208, 0,       0x05 },//{ 416, 0,       0x06 },
-		.odr_avl[7] = { 208, 0,       0x05 },//{ 833, 0,       0x07 }
+		.odr_avl[1] = {  12, 500000,  0x01 },
+		.odr_avl[2] = {  26, 0,       0x02 },
+		.odr_avl[3] = {  52, 0,       0x03 },
+		.odr_avl[4] = { 104, 0,       0x04 },
+		.odr_avl[5] = { 208, 0,       0x05 },
+		.odr_avl[6] = { 416, 0,       0x06 },
+		.odr_avl[7] = { 833, 0,       0x07 }
 	},
 	[ST_LSM6DSR_ID_TEMP] = {
 		.odr_size = 2,
