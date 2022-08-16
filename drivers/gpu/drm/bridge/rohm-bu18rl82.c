@@ -148,6 +148,8 @@ static void bu18rl82_bridge_disable(struct drm_bridge *bridge)
 	struct bu18rl82 *bu18rl82 = bridge_to_bu18rl82(bridge);
 
 	drm_panel_disable(bu18rl82->panel);
+
+	regmap_write(bu18rl82->regmap, 0x91, 0x00);
 }
 
 static void bu18rl82_bridge_pre_enable(struct drm_bridge *bridge)
