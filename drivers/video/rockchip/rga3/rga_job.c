@@ -755,6 +755,8 @@ err_request_abort:
 
 	spin_unlock_irqrestore(&request->lock, flags);
 
+	rga_dma_fence_signal(request->release_fence, -EBUSY);
+
 	mutex_lock(&request_manager->lock);
 	/* current submit request put */
 	rga_request_put(request);
@@ -843,7 +845,8 @@ int rga_request_release_signal(struct rga_scheduler_t *scheduler, struct rga_job
 
 		spin_unlock_irqrestore(&request->lock, flags);
 
-		rga_dma_fence_signal(request->release_fence);
+		rga_dma_fence_signal(request->release_fence, request->ret);
+
 		wake_up(&request->finished_wq);
 
 		if (DEBUGGER_EN(MSG))
@@ -1140,6 +1143,9 @@ static void rga_request_kref_release(struct kref *ref)
 	unsigned long flags;
 
 	request = container_of(ref, struct rga_request, refcount);
+
+	if (rga_dma_fence_get_status(request->release_fence) == 0)
+		rga_dma_fence_signal(request->release_fence, -EEXIST);
 
 	spin_lock_irqsave(&request->lock, flags);
 

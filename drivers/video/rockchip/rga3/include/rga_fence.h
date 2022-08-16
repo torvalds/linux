@@ -38,15 +38,21 @@ static inline void rga_dma_fence_put(struct dma_fence *fence)
 		dma_fence_put(fence);
 }
 
-static inline void rga_dma_fence_signal(struct dma_fence *fence)
+static inline void rga_dma_fence_signal(struct dma_fence *fence, int error)
 {
-	if (fence)
+	if (fence) {
+		if (error != 0)
+			dma_fence_set_error(fence, error);
 		dma_fence_signal(fence);
+	}
 }
 
 static inline int rga_dma_fence_get_status(struct dma_fence *fence)
 {
-	return dma_fence_get_status(fence);
+	if (fence)
+		return dma_fence_get_status(fence);
+	else
+		return 1;
 }
 
 #else
@@ -81,7 +87,7 @@ static inline void rga_dma_fence_put(struct dma_fence *fence)
 {
 }
 
-static inline void rga_dma_fence_signal(struct dma_fence *fence)
+static inline void rga_dma_fence_signal(struct dma_fence *fence, int error)
 {
 }
 
