@@ -50,8 +50,8 @@
 
 #define SC031GS_REG_COARSE_AGAIN		0x3e08
 #define SC031GS_REG_FINE_AGAIN          0x3e09
-#define	ANALOG_GAIN_MIN			0x01
-#define	ANALOG_GAIN_MAX			0xF8
+#define	ANALOG_GAIN_MIN			0x10
+#define	ANALOG_GAIN_MAX			0x7c0   // 124x
 #define	ANALOG_GAIN_STEP		1
 #define	ANALOG_GAIN_DEFAULT		0x1f
 
@@ -296,7 +296,7 @@ static const struct regval sc031gs_global_regs[] = {
 	{0x3d08, 0x01},
 	{0x3e01, 0x14},
 	{0x3e02, 0x80},
-	{0x3e06, 0x0c},
+	{0x3e06, 0x00},
 	{0x4500, 0x59},
 	{0x4501, 0xc4},
 	{0x4603, 0x00},
@@ -611,7 +611,10 @@ static long sc031gs_compat_ioctl32(struct v4l2_subdev *sd,
 
 		ret = sc031gs_ioctl(sd, cmd, inf);
 		if (!ret)
-			ret = copy_to_user(up, inf, sizeof(*inf));
+			if (copy_to_user(up, inf, sizeof(*inf))) {
+				kfree(inf);
+				return -EFAULT;
+			}
 		kfree(inf);
 		break;
 	case RKMODULE_AWB_CFG:
@@ -620,16 +623,17 @@ static long sc031gs_compat_ioctl32(struct v4l2_subdev *sd,
 			ret = -ENOMEM;
 			return ret;
 		}
-
-		ret = copy_from_user(cfg, up, sizeof(*cfg));
-		if (!ret)
-			ret = sc031gs_ioctl(sd, cmd, cfg);
+		if (copy_from_user(cfg, up, sizeof(*cfg))) {
+			kfree(cfg);
+			return -EFAULT;
+		}
+		ret = sc031gs_ioctl(sd, cmd, cfg);
 		kfree(cfg);
 		break;
 	case RKMODULE_SET_QUICK_STREAM:
-		ret = copy_from_user(&stream, up, sizeof(u32));
-		if (!ret)
-			ret = sc031gs_ioctl(sd, cmd, &stream);
+		if (copy_from_user(&stream, up, sizeof(u32)))
+			return -EFAULT;
+		ret = sc031gs_ioctl(sd, cmd, &stream);
 		break;
 	default:
 		ret = -ENOIOCTLCMD;
@@ -643,7 +647,7 @@ static long sc031gs_compat_ioctl32(struct v4l2_subdev *sd,
 static int sc031gs_set_ctrl_gain(struct sc031gs *sc031gs, u32 a_gain)
 {
 	int ret = 0;
-	u32 coarse_again, fine_again, fine_again_reg, coarse_again_reg;
+	u32 coarse_again, fine_again, fine_again_reg, coarse_again_reg, digital_gain_reg;
 
 		if (a_gain < 0x20) { /*1x ~ 2x*/
 			fine_again = a_gain - 16;
@@ -651,24 +655,40 @@ static int sc031gs_set_ctrl_gain(struct sc031gs *sc031gs, u32 a_gain)
 			fine_again_reg = ((0x01 << 4) & 0x10) |
 				(fine_again & 0x0f);
 			coarse_again_reg = coarse_again  & 0x1F;
+			digital_gain_reg = 0x80;
 		} else if (a_gain < 0x40) { /*2x ~ 4x*/
 			fine_again = (a_gain >> 1) - 16;
 			coarse_again = 0x7;
 			fine_again_reg = ((0x01 << 4) & 0x10) |
 				(fine_again & 0x0f);
 			coarse_again_reg = coarse_again  & 0x1F;
+			digital_gain_reg = 0x80;
 		} else if (a_gain < 0x80) { /*4x ~ 8x*/
 			fine_again = (a_gain >> 2) - 16;
 			coarse_again = 0xf;
 			fine_again_reg = ((0x01 << 4) & 0x10) |
 				(fine_again & 0x0f);
 			coarse_again_reg = coarse_again  & 0x1F;
-		} else { /*8x ~ 16x*/
+			digital_gain_reg = 0x80;
+		} else if (a_gain < 0x100) { /*8x ~ 16x*/
 			fine_again = (a_gain >> 3) - 16;
 			coarse_again = 0x1f;
 			fine_again_reg = ((0x01 << 4) & 0x10) |
 				(fine_again & 0x0f);
 			coarse_again_reg = coarse_again  & 0x1F;
+			digital_gain_reg = 0x80;
+		} else if (a_gain < 0x200) { /*16x ~ 32x*/
+			fine_again_reg = 0x1f;
+			coarse_again_reg = 0x1f;
+			digital_gain_reg = (a_gain * 0x80 / 0x100) & 0xf8;
+		} else if (a_gain < 0x400) { /*32x ~ 64x*/
+			fine_again_reg = 0x1f;
+			coarse_again_reg = 0x1f;
+			digital_gain_reg = (a_gain * 0x80 / 0x200) & 0x1f8;
+		} else { /*64x ~ 124*/
+			fine_again_reg = 0x1f;
+			coarse_again_reg = 0x1f;
+			digital_gain_reg = (a_gain * 0x80 / 0x400) & 0x3f8;
 		}
 
 		if (a_gain < 0x20) {
@@ -690,6 +710,9 @@ static int sc031gs_set_ctrl_gain(struct sc031gs *sc031gs, u32 a_gain)
 			SC031GS_REG_FINE_AGAIN,
 			SC031GS_REG_VALUE_08BIT,
 			fine_again_reg);
+
+		ret |= sc031gs_write_reg(sc031gs->client, 0x3e06,
+						SC031GS_REG_VALUE_16BIT, digital_gain_reg);
 
 	return ret;
 }
