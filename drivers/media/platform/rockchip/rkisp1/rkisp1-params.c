@@ -199,7 +199,8 @@ rkisp1_lsc_matrix_config_v10(struct rkisp1_params *params,
 			     const struct rkisp1_cif_isp_lsc_config *pconfig)
 {
 	struct rkisp1_device *rkisp1 = params->rkisp1;
-	unsigned int lsc_status, sram_addr, lsc_table_sel, i, j;
+	u32 lsc_status, sram_addr, lsc_table_sel;
+	unsigned int i, j;
 
 	lsc_status = rkisp1_read(rkisp1, RKISP1_CIF_ISP_LSC_STATUS);
 
@@ -258,7 +259,8 @@ rkisp1_lsc_matrix_config_v12(struct rkisp1_params *params,
 			     const struct rkisp1_cif_isp_lsc_config *pconfig)
 {
 	struct rkisp1_device *rkisp1 = params->rkisp1;
-	unsigned int lsc_status, sram_addr, lsc_table_sel, i, j;
+	u32 lsc_status, sram_addr, lsc_table_sel;
+	unsigned int i, j;
 
 	lsc_status = rkisp1_read(rkisp1, RKISP1_CIF_ISP_LSC_STATUS);
 
@@ -316,8 +318,8 @@ static void rkisp1_lsc_config(struct rkisp1_params *params,
 			      const struct rkisp1_cif_isp_lsc_config *arg)
 {
 	struct rkisp1_device *rkisp1 = params->rkisp1;
-	unsigned int i, data;
-	u32 lsc_ctrl;
+	u32 lsc_ctrl, data;
+	unsigned int i;
 
 	/* To config must be off , store the current status firstly */
 	lsc_ctrl = rkisp1_read(rkisp1, RKISP1_CIF_ISP_LSC_CTRL);
