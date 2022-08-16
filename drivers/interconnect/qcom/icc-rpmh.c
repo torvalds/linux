@@ -108,7 +108,9 @@ int qcom_icc_set(struct icc_node *src, struct icc_node *dst)
 {
 	struct qcom_icc_provider *qp;
 	struct icc_node *node;
-	int i;
+	struct qcom_icc_node *qn;
+	u64 clk_rate;
+	int i, ret;
 
 	if (!src)
 		node = dst;
@@ -116,6 +118,45 @@ int qcom_icc_set(struct icc_node *src, struct icc_node *dst)
 		node = src;
 
 	qp = to_qcom_provider(node->provider);
+	qn = node->data;
+
+	if (qn->bw_scale_numerator && qn->bw_scale_denominator) {
+		node->avg_bw *= qn->bw_scale_numerator;
+		do_div(node->avg_bw, qn->bw_scale_denominator);
+
+		node->peak_bw *= qn->bw_scale_numerator;
+		do_div(node->peak_bw, qn->bw_scale_denominator);
+	}
+
+	if (qn->clk) {
+		/*
+		 * Multiply by 1000 to convert the unit of bandwidth from KBps
+		 * to Bps, then divide by the bandwidth to get the clk rate in Hz.
+		 */
+		clk_rate = (u64)max(node->avg_bw, node->peak_bw) * 1000 / qn->buswidth;
+		clk_rate = clk_rate > U32_MAX ? U32_MAX : clk_rate;
+
+		if (clk_rate > 0) {
+			ret = clk_set_rate(qn->clk, clk_rate);
+			if (ret)
+				dev_warn(qp->dev, "Failed to set %s rate to %d for %s\n",
+					 qn->clk_name, clk_rate, qn->name);
+
+			if (qn->toggle_clk && !qn->clk_enabled) {
+				ret = clk_prepare_enable(qn->clk);
+				if (ret) {
+					dev_err(qp->dev, "Failed to enable %s for %s\n",
+						qn->clk_name, qn->name);
+					return ret;
+				}
+
+				qn->clk_enabled = true;
+			}
+		} else if (qn->toggle_clk && qn->clk_enabled) {
+			clk_disable_unprepare(qn->clk);
+			qn->clk_enabled = false;
+		}
+	}
 
 	for (i = 0; i < qp->num_voters; i++)
 		qcom_icc_bcm_voter_commit(qp->voters[i]);
@@ -416,6 +457,17 @@ int qcom_icc_rpmh_probe(struct platform_device *pdev)
 		if (IS_ERR(node)) {
 			ret = PTR_ERR(node);
 			goto err;
+		}
+
+		if (qn->clk_name) {
+			qn->clk = devm_clk_get(qp->dev, qn->clk_name);
+			if (IS_ERR(qn->clk)) {
+				ret = PTR_ERR(qn->clk);
+				if (ret != -EPROBE_DEFER)
+					dev_err(qp->dev, "failed to get %s, err:(%d)\n",
+						qn->clk_name, ret);
+				goto err;
+			}
 		}
 
 		if (qn->qosbox && !qp->skip_qos)
