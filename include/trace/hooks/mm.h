@@ -245,9 +245,6 @@ DECLARE_HOOK(android_vh_account_swap_pages,
 DECLARE_HOOK(android_vh_unuse_swap_page,
 	TP_PROTO(struct swap_info_struct *si, struct page *page),
 	TP_ARGS(si, page));
-DECLARE_HOOK(android_vh_si_swapinfo,
-	TP_PROTO(struct swap_info_struct *si, bool *skip),
-	TP_ARGS(si, skip));
 DECLARE_HOOK(android_vh_set_shmem_page_flag,
 	TP_PROTO(struct page *page),
 	TP_ARGS(page));
