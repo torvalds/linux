@@ -1211,9 +1211,13 @@ static struct kvm *kvm_create_vm(unsigned long type, const char *fdname)
 	if (r)
 		goto out_err_no_mmu_notifier;
 
+	r = kvm_create_vm_debugfs(kvm, fdname);
+	if (r)
+		goto out_err_no_debugfs;
+
 	r = kvm_arch_post_init_vm(kvm);
 	if (r)
-		goto out_err_mmu_notifier;
+		goto out_err;
 
 	mutex_lock(&kvm_lock);
 	list_add(&kvm->vm_list, &vm_list);
@@ -1229,18 +1233,14 @@ static struct kvm *kvm_create_vm(unsigned long type, const char *fdname)
 	 */
 	if (!try_module_get(kvm_chardev_ops.owner)) {
 		r = -ENODEV;
-		goto out_err_mmu_notifier;
-	}
-
-	r = kvm_create_vm_debugfs(kvm, fdname);
-	if (r)
 		goto out_err;
+	}
 
 	return kvm;
 
 out_err:
-	module_put(kvm_chardev_ops.owner);
-out_err_mmu_notifier:
+	kvm_destroy_vm_debugfs(kvm);
+out_err_no_debugfs:
 #if defined(CONFIG_MMU_NOTIFIER) && defined(KVM_ARCH_WANT_MMU_NOTIFIER)
 	if (kvm->mmu_notifier.ops)
 		mmu_notifier_unregister(&kvm->mmu_notifier, current->mm);
