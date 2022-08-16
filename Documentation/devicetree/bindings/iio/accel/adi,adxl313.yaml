@@ -24,8 +24,6 @@ properties:
 
   spi-3wire: true
 
-  spi-max-frequency: true
-
   vs-supply:
     description: Regulator that supplies power to the accelerometer
 
@@ -48,7 +46,10 @@ required:
   - compatible
   - reg
 
-additionalProperties: false
+allOf:
+  - $ref: /schemas/spi/spi-peripheral-props.yaml#
+
+unevaluatedProperties: false
 
 examples:
   - |
