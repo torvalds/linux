@@ -57,4 +57,36 @@ config GH_RM_DRV
 	  interface to other driver in order to obtain the services provided by
 	  the RM-VM.
 
+config GH_IRQ_LEND
+	  tristate "Gunyah IRQ Lending Framework"
+	  depends on GH_RM_DRV
+	  help
+	  Gunyah Resource Manager permits interrupts to be shared between
+	  virtual machines. This config enables a framework which
+	  supports sharing these interrupts. The follows RM recommended
+	  protocol.
+
+config GH_MEM_NOTIFIER
+	tristate "Gunyah Memory Resource Notification Framework"
+	depends on GH_RM_DRV
+	help
+	  The Gunyah Resource Manager allows for different memory resources
+	  to be transferred across virtual machines with different notification
+	  labels assigned to each resource to aid in distinguishing them.
+	  Enabling the Gunyah Memory Resource Notification Framework provides an
+	  interface for clients to transmit memory resources between virtual
+	  machines, and register callbacks that get invoked only when
+	  notifications pertaining to their memory resources arrive.
+
+config GH_GUEST_POPS
+	tristate "Gunyah Guest Power-Operations driver"
+	depends on GH_RM_DRV
+	help
+	The driver runs on guest VMs and is majorly responsible for coordinating
+	  the guest's power operations. This includes, setting the VM's status,
+	  such as OS_STATUS_* or APPS_STATUS_*. It also acts as an input power key
+	  driver. That is, it listens to the shutdown requests, and when it receives
+	  one, it'll emulate a power key press action by sending an input
+	  notification to user-space.
+
 endif
