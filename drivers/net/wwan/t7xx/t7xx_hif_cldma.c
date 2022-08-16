@@ -57,8 +57,6 @@
 #define CHECK_Q_STOP_TIMEOUT_US		1000000
 #define CHECK_Q_STOP_STEP_US		10000
 
-#define CLDMA_JUMBO_BUFF_SZ		(63 * 1024 + sizeof(struct ccci_header))
-
 static void md_cd_queue_struct_reset(struct cldma_queue *queue, struct cldma_ctrl *md_ctrl,
 				     enum mtk_txrx tx_rx, unsigned int index)
 {
@@ -993,6 +991,34 @@ allow_sleep:
 	return ret;
 }
 
+static void t7xx_cldma_adjust_config(struct cldma_ctrl *md_ctrl, enum cldma_cfg cfg_id)
+{
+	int qno;
+
+	for (qno = 0; qno < CLDMA_RXQ_NUM; qno++) {
+		md_ctrl->rx_ring[qno].pkt_size = CLDMA_SHARED_Q_BUFF_SZ;
+		md_ctrl->rxq[qno].q_type = CLDMA_SHARED_Q;
+	}
+
+	md_ctrl->rx_ring[CLDMA_RXQ_NUM - 1].pkt_size = CLDMA_JUMBO_BUFF_SZ;
+
+	for (qno = 0; qno < CLDMA_TXQ_NUM; qno++) {
+		md_ctrl->tx_ring[qno].pkt_size = CLDMA_SHARED_Q_BUFF_SZ;
+		md_ctrl->txq[qno].q_type = CLDMA_SHARED_Q;
+	}
+
+	if (cfg_id == CLDMA_DEDICATED_Q_CFG) {
+		md_ctrl->rxq[DOWNLOAD_PORT_ID].q_type = CLDMA_DEDICATED_Q;
+		md_ctrl->txq[DOWNLOAD_PORT_ID].q_type = CLDMA_DEDICATED_Q;
+		md_ctrl->tx_ring[DOWNLOAD_PORT_ID].pkt_size = CLDMA_DEDICATED_Q_BUFF_SZ;
+		md_ctrl->rx_ring[DOWNLOAD_PORT_ID].pkt_size = CLDMA_DEDICATED_Q_BUFF_SZ;
+		md_ctrl->rxq[DUMP_PORT_ID].q_type = CLDMA_DEDICATED_Q;
+		md_ctrl->txq[DUMP_PORT_ID].q_type = CLDMA_DEDICATED_Q;
+		md_ctrl->tx_ring[DUMP_PORT_ID].pkt_size = CLDMA_DEDICATED_Q_BUFF_SZ;
+		md_ctrl->rx_ring[DUMP_PORT_ID].pkt_size = CLDMA_DEDICATED_Q_BUFF_SZ;
+	}
+}
+
 static int t7xx_cldma_late_init(struct cldma_ctrl *md_ctrl)
 {
 	char dma_pool_name[32];
@@ -1021,11 +1047,6 @@ static int t7xx_cldma_late_init(struct cldma_ctrl *md_ctrl)
 	}
 
 	for (j = 0; j < CLDMA_RXQ_NUM; j++) {
-		md_ctrl->rx_ring[j].pkt_size = CLDMA_MTU;
-
-		if (j == CLDMA_RXQ_NUM - 1)
-			md_ctrl->rx_ring[j].pkt_size = CLDMA_JUMBO_BUFF_SZ;
-
 		ret = t7xx_cldma_rx_ring_init(md_ctrl, &md_ctrl->rx_ring[j]);
 		if (ret) {
 			dev_err(md_ctrl->dev, "Control RX ring init fail\n");
@@ -1329,9 +1350,10 @@ err_workqueue:
 	return -ENOMEM;
 }
 
-void t7xx_cldma_switch_cfg(struct cldma_ctrl *md_ctrl)
+void t7xx_cldma_switch_cfg(struct cldma_ctrl *md_ctrl, enum cldma_cfg cfg_id)
 {
 	t7xx_cldma_late_release(md_ctrl);
+	t7xx_cldma_adjust_config(md_ctrl, cfg_id);
 	t7xx_cldma_late_init(md_ctrl);
 }
 

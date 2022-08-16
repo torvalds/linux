@@ -96,6 +96,8 @@ struct t7xx_fsm_ctl {
 	bool			exp_flg;
 	spinlock_t		notifier_lock;		/* Protects notifier list */
 	struct list_head	notifier_list;
+	u32                     prev_dev_status;
+	unsigned int		device_stage_check_cnt;
 };
 
 struct t7xx_fsm_event {

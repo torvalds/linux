@@ -54,7 +54,7 @@ static void t7xx_port_ctrl_stop(struct wwan_port *port)
 static int t7xx_port_ctrl_tx(struct wwan_port *port, struct sk_buff *skb)
 {
 	struct t7xx_port *port_private = wwan_port_get_drvdata(port);
-	size_t len, offset, chunk_len = 0, txq_mtu = CLDMA_MTU;
+	size_t len, offset, chunk_len = 0, txq_mtu;
 	const struct t7xx_port_conf *port_conf;
 	struct t7xx_fsm_ctl *ctl;
 	enum md_state md_state;
@@ -72,6 +72,7 @@ static int t7xx_port_ctrl_tx(struct wwan_port *port, struct sk_buff *skb)
 		return -ENODEV;
 	}
 
+	txq_mtu = t7xx_get_port_mtu(port_private);
 	for (offset = 0; offset < len; offset += chunk_len) {
 		struct sk_buff *skb_ccci;
 		int ret;

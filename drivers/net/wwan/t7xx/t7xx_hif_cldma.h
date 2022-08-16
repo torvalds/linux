@@ -31,6 +31,10 @@
 #include "t7xx_cldma.h"
 #include "t7xx_pci.h"
 
+#define CLDMA_JUMBO_BUFF_SZ		(63 * 1024 + sizeof(struct ccci_header))
+#define CLDMA_SHARED_Q_BUFF_SZ		3584
+#define CLDMA_DEDICATED_Q_BUFF_SZ	2048
+
 /**
  * enum cldma_id - Identifiers for CLDMA HW units.
  * @CLDMA_ID_MD: Modem control channel.
@@ -55,6 +59,16 @@ struct cldma_gpd {
 	__le16 not_used2;
 };
 
+enum cldma_queue_type {
+	CLDMA_SHARED_Q,
+	CLDMA_DEDICATED_Q,
+};
+
+enum cldma_cfg {
+	CLDMA_SHARED_Q_CFG,
+	CLDMA_DEDICATED_Q_CFG,
+};
+
 struct cldma_request {
 	struct cldma_gpd *gpd;	/* Virtual address for CPU */
 	dma_addr_t gpd_addr;	/* Physical address for DMA */
@@ -77,6 +91,7 @@ struct cldma_queue {
 	struct cldma_request *tr_done;
 	struct cldma_request *rx_refill;
 	struct cldma_request *tx_next;
+	enum cldma_queue_type q_type;
 	int budget;			/* Same as ring buffer size by default */
 	spinlock_t ring_lock;
 	wait_queue_head_t req_wq;	/* Only for TX */
@@ -104,17 +119,20 @@ struct cldma_ctrl {
 	int (*recv_skb)(struct cldma_queue *queue, struct sk_buff *skb);
 };
 
+enum cldma_txq_rxq_port_id {
+	DOWNLOAD_PORT_ID = 0,
+	DUMP_PORT_ID = 1
+};
+
 #define GPD_FLAGS_HWO		BIT(0)
 #define GPD_FLAGS_IOC		BIT(7)
 #define GPD_DMAPOOL_ALIGN	16
-
-#define CLDMA_MTU		3584	/* 3.5kB */
 
 int t7xx_cldma_alloc(enum cldma_id hif_id, struct t7xx_pci_dev *t7xx_dev);
 void t7xx_cldma_hif_hw_init(struct cldma_ctrl *md_ctrl);
 int t7xx_cldma_init(struct cldma_ctrl *md_ctrl);
 void t7xx_cldma_exit(struct cldma_ctrl *md_ctrl);
-void t7xx_cldma_switch_cfg(struct cldma_ctrl *md_ctrl);
+void t7xx_cldma_switch_cfg(struct cldma_ctrl *md_ctrl, enum cldma_cfg cfg_id);
 void t7xx_cldma_start(struct cldma_ctrl *md_ctrl);
 int t7xx_cldma_stop(struct cldma_ctrl *md_ctrl);
 void t7xx_cldma_reset(struct cldma_ctrl *md_ctrl);
