@@ -156,6 +156,12 @@ static void t7xx_port_wwan_md_state_notify(struct t7xx_port *port, unsigned int 
 {
 	const struct t7xx_port_conf *port_conf = port->port_conf;
 
+	if (state == MD_STATE_EXCEPTION) {
+		if (port->wwan_port)
+			wwan_port_txoff(port->wwan_port);
+		return;
+	}
+
 	if (state != MD_STATE_READY)
 		return;
 

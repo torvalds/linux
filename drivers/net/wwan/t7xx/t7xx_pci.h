@@ -69,6 +69,7 @@ struct t7xx_pci_dev {
 	struct t7xx_modem	*md;
 	struct t7xx_ccmni_ctrl	*ccmni_ctlb;
 	bool			rgu_pci_irq_en;
+	bool			hp_enable;
 
 	/* Low Power Items */
 	struct list_head	md_pm_entities;

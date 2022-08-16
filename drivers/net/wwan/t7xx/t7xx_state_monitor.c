@@ -35,9 +35,11 @@
 #include "t7xx_hif_cldma.h"
 #include "t7xx_mhccif.h"
 #include "t7xx_modem_ops.h"
+#include "t7xx_netdev.h"
 #include "t7xx_pci.h"
 #include "t7xx_pcie_mac.h"
 #include "t7xx_port_proxy.h"
+#include "t7xx_pci_rescan.h"
 #include "t7xx_reg.h"
 #include "t7xx_state_monitor.h"
 
