@@ -1703,7 +1703,7 @@ int metricgroup__copy_metric_events(struct evlist *evlist, struct cgroup *cgrp,
 				    struct rblist *new_metric_events,
 				    struct rblist *old_metric_events)
 {
-	unsigned i;
+	unsigned int i;
 
 	for (i = 0; i < rblist__nr_entries(old_metric_events); i++) {
 		struct rb_node *nd;
