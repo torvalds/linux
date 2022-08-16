@@ -10,13 +10,17 @@
 #include <linux/tracepoint.h>
 #include <trace/hooks/vendor_hooks.h>
 
-#ifdef __GENKSYMS__
+#if defined(__GENKSYMS__) || !IS_ENABLED(CONFIG_MMC_SDHCI)
 struct sdhci_host;
-struct mmc_card;
-struct mmc_host;
 #else
 /* struct sdhci_host */
 #include <../drivers/mmc/host/sdhci.h>
+#endif
+
+#ifdef __GENKSYMS__
+struct mmc_card;
+struct mmc_host;
+#else
 /* struct mmc_card */
 #include <linux/mmc/card.h>
 /* struct mmc_host */

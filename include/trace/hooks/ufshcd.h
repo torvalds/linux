@@ -10,7 +10,7 @@
  * Following tracepoints are not exported in tracefs and provide a
  * mechanism for vendor modules to hook and extend functionality
  */
-#ifdef __GENKSYMS__
+#if defined(__GENKSYMS__) || !IS_ENABLED(CONFIG_SCSI_UFSHCD)
 struct ufs_hba;
 struct ufshcd_lrb;
 struct uic_command;

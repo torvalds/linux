@@ -33,7 +33,7 @@
 #include <linux/oom.h>
 #include <linux/numa.h>
 #include <linux/page_owner.h>
-
+#include <trace/hooks/mm.h>
 #include <asm/tlb.h>
 #include <asm/pgalloc.h>
 #include "internal.h"
@@ -2033,6 +2033,7 @@ static void __split_huge_pmd_locked(struct vm_area_struct *vma, pmd_t *pmd,
 	bool young, write, soft_dirty, pmd_migration = false, uffd_wp = false;
 	unsigned long addr;
 	int i;
+	bool success = false;
 
 	VM_BUG_ON(haddr & ~HPAGE_PMD_MASK);
 	VM_BUG_ON_VMA(vma->vm_start > haddr, vma);
@@ -2164,8 +2165,12 @@ static void __split_huge_pmd_locked(struct vm_area_struct *vma, pmd_t *pmd,
 		pte = pte_offset_map(&_pmd, addr);
 		BUG_ON(!pte_none(*pte));
 		set_pte_at(mm, addr, pte, entry);
-		if (!pmd_migration)
-			atomic_inc(&page[i]._mapcount);
+		if (!pmd_migration) {
+			trace_android_vh_update_page_mapcount(&page[i], true,
+						false, NULL, &success);
+			if (!success)
+				atomic_inc(&page[i]._mapcount);
+		}
 		pte_unmap(pte);
 	}
 
@@ -2176,8 +2181,12 @@ static void __split_huge_pmd_locked(struct vm_area_struct *vma, pmd_t *pmd,
 		 */
 		if (compound_mapcount(page) > 1 &&
 		    !TestSetPageDoubleMap(page)) {
-			for (i = 0; i < HPAGE_PMD_NR; i++)
-				atomic_inc(&page[i]._mapcount);
+			for (i = 0; i < HPAGE_PMD_NR; i++) {
+				trace_android_vh_update_page_mapcount(&page[i], true,
+								false, NULL, &success);
+				if (!success)
+					atomic_inc(&page[i]._mapcount);
+			}
 		}
 
 		lock_page_memcg(page);
@@ -2186,8 +2195,12 @@ static void __split_huge_pmd_locked(struct vm_area_struct *vma, pmd_t *pmd,
 			__dec_lruvec_page_state(page, NR_ANON_THPS);
 			if (TestClearPageDoubleMap(page)) {
 				/* No need in mapcount reference anymore */
-				for (i = 0; i < HPAGE_PMD_NR; i++)
-					atomic_dec(&page[i]._mapcount);
+				for (i = 0; i < HPAGE_PMD_NR; i++) {
+					trace_android_vh_update_page_mapcount(&page[i],
+							false, false, NULL, &success);
+					if (!success)
+						atomic_dec(&page[i]._mapcount);
+				}
 			}
 		}
 		unlock_page_memcg(page);

@@ -274,7 +274,7 @@ static void __dw_pcie_prog_outbound_atu(struct dw_pcie *pci, u8 func_no,
 	if (pci->ops->cpu_addr_fixup)
 		cpu_addr = pci->ops->cpu_addr_fixup(pci, cpu_addr);
 
-	if (pci->iatu_unroll_enabled) {
+	if (pci->iatu_unroll_enabled & DWC_IATU_UNROLL_EN) {
 		dw_pcie_prog_outbound_atu_unroll(pci, func_no, index, type,
 						 cpu_addr, pci_addr, size);
 		return;
@@ -394,7 +394,7 @@ int dw_pcie_prog_inbound_atu(struct dw_pcie *pci, u8 func_no, int index,
 	int type;
 	u32 retries, val;
 
-	if (pci->iatu_unroll_enabled)
+	if (pci->iatu_unroll_enabled & DWC_IATU_UNROLL_EN)
 		return dw_pcie_prog_inbound_atu_unroll(pci, func_no, index, bar,
 						       cpu_addr, as_type);
 
@@ -554,14 +554,15 @@ void dw_pcie_setup(struct dw_pcie *pci)
 
 	if (pci->version >= 0x480A || (!pci->version &&
 				       dw_pcie_iatu_unroll_enabled(pci))) {
-		pci->iatu_unroll_enabled = true;
+		pci->iatu_unroll_enabled |= DWC_IATU_UNROLL_EN;
 		if (!pci->atu_base)
 			pci->atu_base =
 			    devm_platform_ioremap_resource_byname(pdev, "atu");
 		if (IS_ERR(pci->atu_base))
 			pci->atu_base = pci->dbi_base + DEFAULT_DBI_ATU_OFFSET;
 	}
-	dev_dbg(pci->dev, "iATU unroll: %s\n", pci->iatu_unroll_enabled ?
+	dev_dbg(pci->dev, "iATU unroll: %s\n",
+		pci->iatu_unroll_enabled & DWC_IATU_UNROLL_EN ?
 		"enabled" : "disabled");
 
 	if (pci->link_gen > 0)

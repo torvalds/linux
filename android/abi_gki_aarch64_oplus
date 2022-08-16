@@ -681,6 +681,7 @@
   dma_unmap_sg_attrs
   do_exit
   do_wait_intr_irq
+  do_traversal_all_lruvec
   down
   down_interruptible
   down_read
@@ -1802,10 +1803,12 @@
   page_endio
   __page_file_index
   __page_file_mapping
+  __page_mapcount
   page_get_link
   page_mapping
   __page_pinner_migration_failed
   page_symlink
+  page_to_lruvec
   panic
   panic_notifier_list
   panic_timeout
@@ -2802,6 +2805,7 @@
   __traceiter_android_vh_ipi_stop
   __traceiter_android_vh_ipv6_gen_linklocal_addr
   __traceiter_android_vh_jiffies_update
+  __traceiter_android_vh_killed_process
   __traceiter_android_vh_kmalloc_slab
   __traceiter_android_vh_logbuf
   __traceiter_android_vh_mem_cgroup_alloc
@@ -2810,19 +2814,33 @@
   __traceiter_android_vh_mem_cgroup_free
   __traceiter_android_vh_mem_cgroup_id_remove
   __traceiter_android_vh_meminfo_proc_show
+  __traceiter_android_vh_alloc_pages_slowpath_begin
+  __traceiter_android_vh_alloc_pages_slowpath_end
   __traceiter_android_vh_mutex_unlock_slowpath
+  __traceiter_android_vh_mutex_unlock_slowpath_end
   __traceiter_android_vh_mutex_wait_finish
   __traceiter_android_vh_mutex_wait_start
   __traceiter_android_vh_override_creds
   __traceiter_android_vh_page_referenced_check_bypass
+  __traceiter_android_vh_page_should_be_protected
+  __traceiter_android_vh_mark_page_accessed
+  __traceiter_android_vh_show_mapcount_pages
+  __traceiter_android_vh_do_traversal_lruvec
+  __traceiter_android_vh_update_page_mapcount
+  __traceiter_android_vh_add_page_to_lrulist
+  __traceiter_android_vh_del_page_from_lrulist
   __traceiter_android_vh_pcplist_add_cma_pages_bypass
   __traceiter_android_vh_prepare_update_load_avg_se
   __traceiter_android_vh_printk_hotplug
   __traceiter_android_vh_process_killed
-  __traceiter_android_vh_killed_process
   __traceiter_android_vh_revert_creds
   __traceiter_android_vh_rmqueue
   __traceiter_android_vh_rwsem_init
+  __traceiter_android_vh_rwsem_mark_wake_readers
+  __traceiter_android_vh_rwsem_set_owner
+  __traceiter_android_vh_rwsem_set_reader_owned
+  __traceiter_android_vh_rwsem_up_read_end
+  __traceiter_android_vh_rwsem_up_write_end
   __traceiter_android_vh_rwsem_wake
   __traceiter_android_vh_rwsem_wake_finish
   __traceiter_android_vh_rwsem_write_finished
@@ -3010,6 +3028,7 @@
   __tracepoint_android_vh_ipi_stop
   __tracepoint_android_vh_ipv6_gen_linklocal_addr
   __tracepoint_android_vh_jiffies_update
+  __tracepoint_android_vh_killed_process
   __tracepoint_android_vh_kmalloc_slab
   __tracepoint_android_vh_logbuf
   __tracepoint_android_vh_mem_cgroup_alloc
@@ -3018,19 +3037,33 @@
   __tracepoint_android_vh_mem_cgroup_free
   __tracepoint_android_vh_mem_cgroup_id_remove
   __tracepoint_android_vh_meminfo_proc_show
+  __tracepoint_android_vh_alloc_pages_slowpath_begin
+  __tracepoint_android_vh_alloc_pages_slowpath_end
   __tracepoint_android_vh_mutex_unlock_slowpath
+  __tracepoint_android_vh_mutex_unlock_slowpath_end
   __tracepoint_android_vh_mutex_wait_finish
   __tracepoint_android_vh_mutex_wait_start
   __tracepoint_android_vh_override_creds
   __tracepoint_android_vh_page_referenced_check_bypass
+  __tracepoint_android_vh_page_should_be_protected
+  __tracepoint_android_vh_mark_page_accessed
+  __tracepoint_android_vh_show_mapcount_pages
+  __tracepoint_android_vh_do_traversal_lruvec
+  __tracepoint_android_vh_update_page_mapcount
+  __tracepoint_android_vh_add_page_to_lrulist
+  __tracepoint_android_vh_del_page_from_lrulist
   __tracepoint_android_vh_pcplist_add_cma_pages_bypass
   __tracepoint_android_vh_prepare_update_load_avg_se
   __tracepoint_android_vh_printk_hotplug
   __tracepoint_android_vh_process_killed
-  __tracepoint_android_vh_killed_process
   __tracepoint_android_vh_revert_creds
   __tracepoint_android_vh_rmqueue
   __tracepoint_android_vh_rwsem_init
+  __tracepoint_android_vh_rwsem_mark_wake_readers
+  __tracepoint_android_vh_rwsem_set_owner
+  __tracepoint_android_vh_rwsem_set_reader_owned
+  __tracepoint_android_vh_rwsem_up_read_end
+  __tracepoint_android_vh_rwsem_up_write_end
   __tracepoint_android_vh_rwsem_wake
   __tracepoint_android_vh_rwsem_wake_finish
   __tracepoint_android_vh_rwsem_write_finished

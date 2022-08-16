@@ -80,9 +80,6 @@
 #define PCIE_ATU_VIEWPORT		0x900
 #define PCIE_ATU_REGION_INBOUND		BIT(31)
 #define PCIE_ATU_REGION_OUTBOUND	0
-#define PCIE_ATU_REGION_INDEX2		0x2
-#define PCIE_ATU_REGION_INDEX1		0x1
-#define PCIE_ATU_REGION_INDEX0		0x0
 #define PCIE_ATU_CR1			0x904
 #define PCIE_ATU_TYPE_MEM		0x0
 #define PCIE_ATU_TYPE_IO		0x2
@@ -259,6 +256,8 @@ struct dw_pcie_ops {
 	void	(*stop_link)(struct dw_pcie *pcie);
 };
 
+#define DWC_IATU_UNROLL_EN	BIT(0)
+#define DWC_IATU_IOCFG_SHARED	BIT(1)
 struct dw_pcie {
 	struct device		*dev;
 	void __iomem		*dbi_base;

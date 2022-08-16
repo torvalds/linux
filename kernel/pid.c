@@ -45,6 +45,9 @@
 #include <net/sock.h>
 #include <uapi/linux/pidfd.h>
 
+#undef CREATE_TRACE_POINTS
+#include <trace/hooks/sched.h>
+
 struct pid init_struct_pid = {
 	.count		= REFCOUNT_INIT(1),
 	.tasks		= {
@@ -602,6 +605,7 @@ SYSCALL_DEFINE2(pidfd_open, pid_t, pid, unsigned int, flags)
 	else
 		fd = -EINVAL;
 
+	trace_android_vh_pidfd_open(p);
 	put_pid(p);
 	return fd;
 }

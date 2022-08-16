@@ -371,7 +371,10 @@
   device_unregister
   _dev_info
   __dev_kfree_skb_any
+  __dev_kfree_skb_irq
+  devm_add_action
   __devm_alloc_percpu
+  devm_alloc_etherdev_mqs
   devm_blk_ksm_init
   devm_clk_bulk_get
   devm_clk_bulk_get_optional
@@ -412,11 +415,13 @@
   devm_led_classdev_register_ext
   devm_led_classdev_unregister
   devm_mbox_controller_register
+  devm_mdiobus_alloc_size
   devm_memremap
   devm_mfd_add_devices
   devm_nvmem_cell_get
   devm_nvmem_device_get
   devm_nvmem_register
+  devm_of_mdiobus_register
   devm_of_phy_get_by_index
   __devm_of_phy_provider_register
   devm_of_platform_populate
@@ -433,6 +438,7 @@
   devm_power_supply_register
   devm_rc_allocate_device
   devm_rc_register_device
+  devm_register_netdev
   devm_regmap_add_irq_chip
   devm_regmap_field_alloc
   devm_regmap_field_bulk_alloc
@@ -584,6 +590,7 @@
   down_write
   d_path
   dput
+  dql_completed
   drain_workqueue
   driver_create_file
   driver_remove_file
@@ -809,7 +816,13 @@
   genlmsg_put
   genl_register_family
   genl_unregister_family
+  __genphy_config_aneg
+  genphy_read_abilities
+  genphy_read_mmd_unsupported
+  genphy_read_status
   genphy_resume
+  genphy_suspend
+  genphy_write_mmd_unsupported
   gen_pool_add_owner
   gen_pool_alloc_algo_owner
   gen_pool_avail
@@ -835,6 +848,7 @@
   get_kernel_pages
   get_net_ns_by_fd
   get_net_ns_by_pid
+  get_pelt_halflife
   get_pid_task
   get_random_bytes
   get_random_u32
@@ -957,11 +971,13 @@
   init_uts_ns
   init_wait_entry
   __init_waitqueue_head
+  input_alloc_absinfo
   input_allocate_device
   input_event
   input_free_device
   input_mt_init_slots
   input_mt_report_slot_state
+  input_mt_sync_frame
   input_register_device
   input_set_abs_params
   input_set_capability
@@ -1169,8 +1185,12 @@
   mbox_send_message
   mdiobus_alloc_size
   mdiobus_free
+  __mdiobus_read
+  mdiobus_read
   __mdiobus_register
   mdiobus_unregister
+  __mdiobus_write
+  mdiobus_write
   media_create_intf_link
   media_create_pad_link
   media_device_cleanup
@@ -1270,10 +1290,12 @@
   mutex_lock_killable
   mutex_trylock
   mutex_unlock
+  napi_complete_done
   napi_disable
   napi_gro_flush
   napi_gro_receive
   __napi_schedule
+  __napi_schedule_irqoff
   napi_schedule_prep
   __ndelay
   nd_tbl
@@ -1292,6 +1314,7 @@
   netif_receive_skb_list
   netif_rx
   netif_rx_ni
+  netif_schedule_queue
   netif_tx_stop_all_queues
   netif_tx_wake_queue
   netlink_broadcast
@@ -1372,6 +1395,7 @@
   of_get_next_child
   of_get_next_parent
   of_get_parent
+  of_get_phy_mode
   of_get_property
   of_get_regulator_init_data
   of_graph_get_next_endpoint
@@ -1392,6 +1416,7 @@
   of_parse_phandle_with_fixed_args
   of_phandle_iterator_init
   of_phandle_iterator_next
+  of_phy_connect
   of_phy_simple_xlate
   of_platform_depopulate
   of_platform_device_create
@@ -1459,19 +1484,29 @@
   phy_connect
   phy_disconnect
   phy_do_ioctl_running
+  phy_drivers_register
+  phy_drivers_unregister
   phy_ethtool_get_link_ksettings
   phy_ethtool_nway_reset
   phy_ethtool_set_link_ksettings
   phy_exit
   phy_get
   phy_init
+  phy_mii_ioctl
+  __phy_modify
+  phy_modify
+  phy_modify_paged_changed
   phy_power_off
   phy_power_on
   phy_print_status
   phy_put
+  phy_read_paged
+  phy_restore_page
+  phy_select_page
   phy_set_mode_ext
   phy_start
   phy_stop
+  phy_write_paged
   pid_task
   pinconf_generic_parse_dt_config
   pinctrl_dev_get_drvdata
@@ -1660,6 +1695,7 @@
   regmap_raw_read
   regmap_raw_write
   regmap_read
+  regmap_test_bits
   regmap_update_bits_base
   regmap_write
   regulator_count_voltages
@@ -2091,6 +2127,8 @@
   timer_unstable_counter_workaround
   topology_set_thermal_pressure
   _totalram_pages
+  touchscreen_parse_properties
+  touchscreen_report_pos
   __trace_bprintk
   __trace_bputs
   trace_event_buffer_commit
@@ -2153,6 +2191,7 @@
   __traceiter_android_vh_rwsem_init
   __traceiter_android_vh_rwsem_wake
   __traceiter_android_vh_rwsem_write_finished
+  __traceiter_android_vh_sched_pelt_multiplier
   __traceiter_android_vh_scheduler_tick
   __traceiter_android_vh_selinux_avc_insert
   __traceiter_android_vh_selinux_avc_lookup
@@ -2237,6 +2276,7 @@
   __tracepoint_android_vh_rwsem_init
   __tracepoint_android_vh_rwsem_wake
   __tracepoint_android_vh_rwsem_write_finished
+  __tracepoint_android_vh_sched_pelt_multiplier
   __tracepoint_android_vh_scheduler_tick
   __tracepoint_android_vh_selinux_avc_insert
   __tracepoint_android_vh_selinux_avc_lookup
@@ -2790,10 +2830,13 @@
   fwnode_graph_parse_endpoint
   fwnode_property_get_reference_args
   fwnode_property_read_u64_array
+  gen_pool_avail
   gen_pool_dma_alloc_align
   gen_pool_has_addr
+  gen_pool_size
   getboottime64
   get_governor_parent_kobj
+  get_pelt_halflife
   get_task_exe_file
   get_vaddr_frames
   get_zeroed_page
@@ -3070,6 +3113,7 @@
   __traceiter_android_vh_rwsem_init
   __traceiter_android_vh_rwsem_wake
   __traceiter_android_vh_rwsem_write_finished
+  __traceiter_android_vh_sched_pelt_multiplier
   __traceiter_android_vh_scmi_timeout_sync
   __traceiter_android_vh_show_resume_epoch_val
   __traceiter_android_vh_show_suspend_epoch_val
@@ -3123,6 +3167,7 @@
   __tracepoint_android_vh_rwsem_init
   __tracepoint_android_vh_rwsem_wake
   __tracepoint_android_vh_rwsem_write_finished
+  __tracepoint_android_vh_sched_pelt_multiplier
   __tracepoint_android_vh_scmi_timeout_sync
   __tracepoint_android_vh_show_resume_epoch_val
   __tracepoint_android_vh_show_suspend_epoch_val
@@ -3193,6 +3238,7 @@
   usb_otg_state_string
   usb_phy_set_charger_current
   usb_remove_phy
+  usb_role_switch_set_role
   v4l2_async_notifier_add_subdev
   v4l2_async_notifier_cleanup
   v4l2_async_subdev_notifier_register

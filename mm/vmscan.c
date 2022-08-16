@@ -1020,11 +1020,20 @@ static enum page_references page_check_references(struct page *page,
 {
 	int referenced_ptes, referenced_page;
 	unsigned long vm_flags;
+	bool should_protect = false;
+	bool trylock_fail = false;
 
+	trace_android_vh_page_should_be_protected(page, &should_protect);
+	if (unlikely(should_protect))
+		return PAGEREF_ACTIVATE;
+
+	trace_android_vh_page_trylock_set(page);
 	referenced_ptes = page_referenced(page, 1, sc->target_mem_cgroup,
 					  &vm_flags);
 	referenced_page = TestClearPageReferenced(page);
-
+	trace_android_vh_page_trylock_get_result(page, &trylock_fail);
+	if (trylock_fail)
+		return PAGEREF_KEEP;
 	/*
 	 * Mlock lost the isolation race with us.  Let try_to_unmap()
 	 * move the page to the unevictable list.
@@ -1336,6 +1345,7 @@ static unsigned int shrink_page_list(struct list_head *page_list,
 			if (unlikely(PageTransHuge(page)))
 				flags |= TTU_SPLIT_HUGE_PMD;
 
+			trace_android_vh_page_trylock_set(page);
 			if (!try_to_unmap(page, flags)) {
 				stat->nr_unmap_fail += nr_pages;
 				if (!was_swapbacked && PageSwapBacked(page))
@@ -1446,6 +1456,7 @@ static unsigned int shrink_page_list(struct list_head *page_list,
 					 * increment nr_reclaimed here (and
 					 * leave it off the LRU).
 					 */
+					trace_android_vh_page_trylock_clear(page);
 					nr_reclaimed++;
 					continue;
 				}
@@ -1481,8 +1492,10 @@ free_it:
 		 */
 		if (unlikely(PageTransHuge(page)))
 			destroy_compound_page(page);
-		else
+		else {
+			trace_android_vh_page_trylock_clear(page);
 			list_add(&page->lru, &free_pages);
+		}
 		continue;
 
 activate_locked_split:
@@ -1561,36 +1574,6 @@ unsigned int reclaim_clean_pages_from_list(struct zone *zone,
 			    stat.nr_lazyfree_fail);
 	mod_node_page_state(zone->zone_pgdat, NR_ISOLATED_FILE,
 			    -(long)stat.nr_lazyfree_fail);
-	return nr_reclaimed;
-}
-
-int reclaim_pages_from_list(struct list_head *page_list)
-{
-	struct scan_control sc = {
-		.gfp_mask = GFP_KERNEL,
-		.priority = DEF_PRIORITY,
-		.may_writepage = 1,
-		.may_unmap = 1,
-		.may_swap = 1,
-	};
-	unsigned long nr_reclaimed;
-	struct reclaim_stat dummy_stat;
-	struct page *page;
-
-	list_for_each_entry(page, page_list, lru)
-		ClearPageActive(page);
-
-	nr_reclaimed = shrink_page_list(page_list, NULL, &sc,
-				&dummy_stat, false);
-	while (!list_empty(page_list)) {
-
-		page = lru_to_page(page_list);
-		list_del(&page->lru);
-		dec_node_page_state(page, NR_ISOLATED_ANON +
-				page_is_file_lru(page));
-		putback_lru_page(page);
-	}
-
 	return nr_reclaimed;
 }
 
@@ -1757,6 +1740,7 @@ static unsigned long isolate_lru_pages(unsigned long nr_to_scan,
 		case 0:
 			nr_taken += nr_pages;
 			nr_zone_taken[page_zonenum(page)] += nr_pages;
+			trace_android_vh_del_page_from_lrulist(page, false, lru);
 			list_move(&page->lru, dst);
 			break;
 
@@ -1931,6 +1915,7 @@ static unsigned noinline_for_stack move_pages_to_lru(struct lruvec *lruvec,
 		nr_pages = thp_nr_pages(page);
 		update_lru_size(lruvec, lru, page_zonenum(page), nr_pages);
 		list_move(&page->lru, &lruvec->lists[lru]);
+		trace_android_vh_add_page_to_lrulist(page, false, lru);
 
 		if (put_page_testzero(page)) {
 			__ClearPageLRU(page);
@@ -2022,6 +2007,7 @@ shrink_inactive_list(unsigned long nr_to_scan, struct lruvec *lruvec,
 		return 0;
 
 	nr_reclaimed = shrink_page_list(&page_list, pgdat, sc, &stat, false);
+	trace_android_vh_handle_failed_page_trylock(&page_list);
 
 	spin_lock_irq(&pgdat->lru_lock);
 
@@ -2034,7 +2020,6 @@ shrink_inactive_list(unsigned long nr_to_scan, struct lruvec *lruvec,
 		__count_vm_events(item, nr_reclaimed);
 	__count_memcg_events(lruvec_memcg(lruvec), item, nr_reclaimed);
 	__count_vm_events(PGSTEAL_ANON + file, nr_reclaimed);
-
 	spin_unlock_irq(&pgdat->lru_lock);
 
 	mem_cgroup_uncharge_list(&page_list);
@@ -2085,6 +2070,7 @@ static void shrink_active_list(unsigned long nr_to_scan,
 	int file = is_file_lru(lru);
 	struct pglist_data *pgdat = lruvec_pgdat(lruvec);
 	bool bypass = false;
+	bool should_protect = false;
 
 	lru_add_drain();
 
@@ -2119,10 +2105,17 @@ static void shrink_active_list(unsigned long nr_to_scan,
 			}
 		}
 
+		trace_android_vh_page_should_be_protected(page, &should_protect);
+		if (unlikely(should_protect)) {
+			nr_rotated += thp_nr_pages(page);
+			list_add(&page->lru, &l_active);
+			continue;
+		}
+
 		trace_android_vh_page_referenced_check_bypass(page, nr_to_scan, lru, &bypass);
 		if (bypass)
 			goto skip_page_referenced;
-
+		trace_android_vh_page_trylock_set(page);
 		if (page_referenced(page, 0, sc->target_mem_cgroup,
 				    &vm_flags)) {
 			/*
@@ -2135,11 +2128,13 @@ static void shrink_active_list(unsigned long nr_to_scan,
 			 * so we ignore them here.
 			 */
 			if ((vm_flags & VM_EXEC) && page_is_file_lru(page)) {
+				trace_android_vh_page_trylock_clear(page);
 				nr_rotated += thp_nr_pages(page);
 				list_add(&page->lru, &l_active);
 				continue;
 			}
 		}
+		trace_android_vh_page_trylock_clear(page);
 skip_page_referenced:
 		ClearPageActive(page);	/* we are de-activating */
 		SetPageWorkingset(page);
@@ -2221,6 +2216,7 @@ unsigned long reclaim_pages(struct list_head *page_list)
 
 	return nr_reclaimed;
 }
+EXPORT_SYMBOL_GPL(reclaim_pages);
 
 static unsigned long shrink_list(enum lru_list lru, unsigned long nr_to_scan,
 				 struct lruvec *lruvec, struct scan_control *sc)

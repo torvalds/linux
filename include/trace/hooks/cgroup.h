@@ -9,12 +9,16 @@
 #include <trace/hooks/vendor_hooks.h>
 
 struct cgroup_taskset;
-#ifdef __GENKSYMS__
+#if defined(__GENKSYMS__) || !IS_ENABLED(CONFIG_CGROUPS)
 struct cgroup_subsys;
-struct task_struct;
 #else
 /* struct cgroup_subsys */
 #include <linux/cgroup-defs.h>
+#endif
+
+#ifdef __GENKSYMS__
+struct task_struct;
+#else
 /* struct task_struct */
 #include <linux/sched.h>
 #endif /* __GENKSYMS__ */
