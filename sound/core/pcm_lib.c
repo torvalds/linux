@@ -28,6 +28,7 @@
 #define trace_xrun(substream)
 #define trace_hw_ptr_error(substream, reason)
 #define trace_applptr(substream, prev, curr)
+#define trace_applptr_start(substream, frame)
 #endif
 
 static int fill_silence_frames(struct snd_pcm_substream *substream,
@@ -2130,6 +2131,8 @@ snd_pcm_sframes_t __snd_pcm_lib_xfer(struct snd_pcm_substream *substream,
 	err = pcm_sanity_check(substream);
 	if (err < 0)
 		return err;
+
+	trace_applptr_start(substream, size);
 
 	is_playback = substream->stream == SNDRV_PCM_STREAM_PLAYBACK;
 	if (interleaved) {
