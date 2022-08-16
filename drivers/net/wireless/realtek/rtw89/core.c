@@ -2242,23 +2242,42 @@ int rtw89_core_acquire_sta_ba_entry(struct rtw89_dev *rtwdev,
 				    struct rtw89_sta *rtwsta, u8 tid, u8 *cam_idx)
 {
 	const struct rtw89_chip_info *chip = rtwdev->chip;
-	struct rtw89_ba_cam_entry *entry;
+	struct rtw89_cam_info *cam_info = &rtwdev->cam_info;
+	struct rtw89_ba_cam_entry *entry = NULL, *tmp;
 	u8 idx;
+	int i;
 
-	idx = rtw89_core_acquire_bit_map(rtwsta->ba_cam_map, chip->bacam_num);
+	lockdep_assert_held(&rtwdev->mutex);
+
+	idx = rtw89_core_acquire_bit_map(cam_info->ba_cam_map, chip->bacam_num);
 	if (idx == chip->bacam_num) {
-		/* allocate a static BA CAM to tid=0, so replace the existing
+		/* allocate a static BA CAM to tid=0/5, so replace the existing
 		 * one if BA CAM is full. Hardware will process the original tid
 		 * automatically.
 		 */
-		if (tid != 0)
+		if (tid != 0 && tid != 5)
 			return -ENOSPC;
 
-		idx = 0;
+		for_each_set_bit(i, cam_info->ba_cam_map, chip->bacam_num) {
+			tmp = &cam_info->ba_cam_entry[i];
+			if (tmp->tid == 0 || tmp->tid == 5)
+				continue;
+
+			idx = i;
+			entry = tmp;
+			list_del(&entry->list);
+			break;
+		}
+
+		if (!entry)
+			return -ENOSPC;
+	} else {
+		entry = &cam_info->ba_cam_entry[idx];
 	}
 
-	entry = &rtwsta->ba_cam_entry[idx];
 	entry->tid = tid;
+	list_add_tail(&entry->list, &rtwsta->ba_cam_list);
+
 	*cam_idx = idx;
 
 	return 0;
@@ -2267,20 +2286,21 @@ int rtw89_core_acquire_sta_ba_entry(struct rtw89_dev *rtwdev,
 int rtw89_core_release_sta_ba_entry(struct rtw89_dev *rtwdev,
 				    struct rtw89_sta *rtwsta, u8 tid, u8 *cam_idx)
 {
-	const struct rtw89_chip_info *chip = rtwdev->chip;
-	struct rtw89_ba_cam_entry *entry;
-	int i;
+	struct rtw89_cam_info *cam_info = &rtwdev->cam_info;
+	struct rtw89_ba_cam_entry *entry = NULL, *tmp;
+	u8 idx;
 
-	for (i = 0; i < chip->bacam_num; i++) {
-		if (!test_bit(i, rtwsta->ba_cam_map))
-			continue;
+	lockdep_assert_held(&rtwdev->mutex);
 
-		entry = &rtwsta->ba_cam_entry[i];
+	list_for_each_entry_safe(entry, tmp, &rtwsta->ba_cam_list, list) {
 		if (entry->tid != tid)
 			continue;
 
-		rtw89_core_release_bit_map(rtwsta->ba_cam_map, i);
-		*cam_idx = i;
+		idx = entry - cam_info->ba_cam_entry;
+		list_del(&entry->list);
+
+		rtw89_core_release_bit_map(cam_info->ba_cam_map, idx);
+		*cam_idx = idx;
 		return 0;
 	}
 
@@ -2343,6 +2363,7 @@ int rtw89_core_sta_add(struct rtw89_dev *rtwdev,
 
 	rtwsta->rtwvif = rtwvif;
 	rtwsta->prev_rssi = 0;
+	INIT_LIST_HEAD(&rtwsta->ba_cam_list);
 
 	for (i = 0; i < ARRAY_SIZE(sta->txq); i++)
 		rtw89_core_txq_init(rtwdev, sta->txq[i]);

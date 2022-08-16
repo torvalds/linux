@@ -302,7 +302,7 @@ static void ser_reset_vif(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif)
 	rtwvif->trigger = false;
 }
 
-static void ser_sta_deinit_addr_cam_iter(void *data, struct ieee80211_sta *sta)
+static void ser_sta_deinit_cam_iter(void *data, struct ieee80211_sta *sta)
 {
 	struct rtw89_vif *rtwvif = (struct rtw89_vif *)data;
 	struct rtw89_dev *rtwdev = rtwvif->rtwdev;
@@ -312,15 +312,19 @@ static void ser_sta_deinit_addr_cam_iter(void *data, struct ieee80211_sta *sta)
 		rtw89_cam_deinit_addr_cam(rtwdev, &rtwsta->addr_cam);
 	if (sta->tdls)
 		rtw89_cam_deinit_bssid_cam(rtwdev, &rtwsta->bssid_cam);
+
+	INIT_LIST_HEAD(&rtwsta->ba_cam_list);
 }
 
 static void ser_deinit_cam(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif)
 {
 	ieee80211_iterate_stations_atomic(rtwdev->hw,
-					  ser_sta_deinit_addr_cam_iter,
+					  ser_sta_deinit_cam_iter,
 					  rtwvif);
 
 	rtw89_cam_deinit(rtwdev, rtwvif);
+
+	bitmap_zero(rtwdev->cam_info.ba_cam_map, RTW89_MAX_BA_CAM_NUM);
 }
 
 static void ser_reset_mac_binding(struct rtw89_dev *rtwdev)
