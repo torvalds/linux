@@ -57,7 +57,7 @@ static inline struct snd_soc_component *gpio_to_component(struct gpio_chip *chip
 	return gpio_priv->component;
 }
 
-static int snd_soc_ac97_gpio_request(struct gpio_chip *chip, unsigned offset)
+static int snd_soc_ac97_gpio_request(struct gpio_chip *chip, unsigned int offset)
 {
 	if (offset >= AC97_NUM_GPIOS)
 		return -EINVAL;
@@ -66,7 +66,7 @@ static int snd_soc_ac97_gpio_request(struct gpio_chip *chip, unsigned offset)
 }
 
 static int snd_soc_ac97_gpio_direction_in(struct gpio_chip *chip,
-					  unsigned offset)
+					  unsigned int offset)
 {
 	struct snd_soc_component *component = gpio_to_component(chip);
 
@@ -75,7 +75,7 @@ static int snd_soc_ac97_gpio_direction_in(struct gpio_chip *chip,
 				   1 << offset, 1 << offset);
 }
 
-static int snd_soc_ac97_gpio_get(struct gpio_chip *chip, unsigned offset)
+static int snd_soc_ac97_gpio_get(struct gpio_chip *chip, unsigned int offset)
 {
 	struct snd_soc_component *component = gpio_to_component(chip);
 	int ret;
@@ -88,7 +88,7 @@ static int snd_soc_ac97_gpio_get(struct gpio_chip *chip, unsigned offset)
 	return !!(ret & (1 << offset));
 }
 
-static void snd_soc_ac97_gpio_set(struct gpio_chip *chip, unsigned offset,
+static void snd_soc_ac97_gpio_set(struct gpio_chip *chip, unsigned int offset,
 				  int value)
 {
 	struct snd_ac97_gpio_priv *gpio_priv = gpiochip_get_data(chip);
