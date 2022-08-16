@@ -458,7 +458,7 @@ static inline speed_t tty_get_baud_rate(struct tty_struct *tty)
 unsigned char tty_get_char_size(unsigned int cflag);
 unsigned char tty_get_frame_size(unsigned int cflag);
 
-void tty_termios_copy_hw(struct ktermios *new, struct ktermios *old);
+void tty_termios_copy_hw(struct ktermios *new, const struct ktermios *old);
 int tty_termios_hw_change(const struct ktermios *a, const struct ktermios *b);
 int tty_set_termios(struct tty_struct *tty, struct ktermios *kt);
 

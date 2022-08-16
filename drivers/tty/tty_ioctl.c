@@ -249,7 +249,7 @@ static void unset_locked_termios(struct tty_struct *tty, struct ktermios *old)
  *	in some cases where only minimal reconfiguration is supported
  */
 
-void tty_termios_copy_hw(struct ktermios *new, struct ktermios *old)
+void tty_termios_copy_hw(struct ktermios *new, const struct ktermios *old)
 {
 	/* The bits a dumb device handles in software. Smart devices need
 	   to always provide a set_termios method */
