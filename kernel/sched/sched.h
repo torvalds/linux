@@ -1193,6 +1193,7 @@ static inline u64 rq_clock_task(struct rq *rq)
 	return rq->clock_task;
 }
 
+#ifdef CONFIG_SMP
 DECLARE_PER_CPU(u64, clock_task_mult);
 
 static inline u64 rq_clock_task_mult(struct rq *rq)
@@ -1202,6 +1203,7 @@ static inline u64 rq_clock_task_mult(struct rq *rq)
 
 	return per_cpu(clock_task_mult, cpu_of(rq));
 }
+#endif
 
 /**
  * By default the decay is the default pelt decay period.
