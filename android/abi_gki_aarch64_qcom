@@ -434,6 +434,8 @@
   dma_buf_map_attachment
   dma_buf_put
   dma_buf_unmap_attachment
+  dma_buf_vmap
+  dma_buf_vunmap
   dma_contiguous_default_area
   dma_fence_add_callback
   dma_fence_array_create
