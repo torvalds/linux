@@ -92,10 +92,10 @@ struct isst_id {
 };
 
 struct isst_clos_config {
+	unsigned int clos_min;
+	unsigned int clos_max;
 	unsigned char epp;
 	unsigned char clos_prop_prio;
-	unsigned char clos_min;
-	unsigned char clos_max;
 	unsigned char clos_desired;
 };
 
