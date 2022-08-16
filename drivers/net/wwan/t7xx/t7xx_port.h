@@ -129,6 +129,7 @@ struct t7xx_port {
 	int				rx_length_th;
 	bool				chan_enable;
 	struct task_struct		*thread;
+	struct t7xx_devlink	*dl;
 };
 
 int t7xx_get_port_mtu(struct t7xx_port *port);

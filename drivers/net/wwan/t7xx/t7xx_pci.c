@@ -40,6 +40,7 @@
 #include "t7xx_pci.h"
 #include "t7xx_pci_rescan.h"
 #include "t7xx_pcie_mac.h"
+#include "t7xx_port_devlink.h"
 #include "t7xx_reg.h"
 #include "t7xx_state_monitor.h"
 
@@ -704,16 +705,20 @@ static int t7xx_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	t7xx_pci_infracfg_ao_calc(t7xx_dev);
 	t7xx_mhccif_init(t7xx_dev);
 
-	ret = t7xx_md_init(t7xx_dev);
+	ret = t7xx_devlink_register(t7xx_dev);
 	if (ret)
 		return ret;
+
+	ret = t7xx_md_init(t7xx_dev);
+	if (ret)
+		goto err_devlink_unregister;
 
 	t7xx_pcie_mac_interrupts_dis(t7xx_dev);
 
 	ret = t7xx_interrupt_init(t7xx_dev);
 	if (ret) {
 		t7xx_md_exit(t7xx_dev);
-		return ret;
+		goto err_devlink_unregister;
 	}
 
 	t7xx_rescan_done();
@@ -723,6 +728,10 @@ static int t7xx_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		pci_ignore_hotplug(pdev);
 
 	return 0;
+
+err_devlink_unregister:
+	t7xx_devlink_unregister(t7xx_dev);
+	return ret;
 }
 
 static void t7xx_pci_remove(struct pci_dev *pdev)
@@ -732,6 +741,7 @@ static void t7xx_pci_remove(struct pci_dev *pdev)
 
 	t7xx_dev = pci_get_drvdata(pdev);
 	t7xx_md_exit(t7xx_dev);
+	t7xx_devlink_unregister(t7xx_dev);
 
 	for (i = 0; i < EXT_INT_NUM; i++) {
 		if (!t7xx_dev->intr_handler[i])

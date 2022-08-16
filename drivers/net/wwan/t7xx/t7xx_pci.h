@@ -59,6 +59,7 @@ typedef irqreturn_t (*t7xx_intr_callback)(int irq, void *param);
  * @md_pm_lock: protects PCIe sleep lock
  * @sleep_disable_count: PCIe L1.2 lock counter
  * @sleep_lock_acquire: indicates that sleep has been disabled
+ * @dl: devlink struct
  */
 struct t7xx_pci_dev {
 	t7xx_intr_callback	intr_handler[EXT_INT_NUM];
@@ -79,6 +80,7 @@ struct t7xx_pci_dev {
 	spinlock_t		md_pm_lock;		/* Protects PCI resource lock */
 	unsigned int		sleep_disable_count;
 	struct completion	sleep_lock_acquire;
+	struct t7xx_devlink	*dl;
 };
 
 enum t7xx_pm_id {

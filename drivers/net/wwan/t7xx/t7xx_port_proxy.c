@@ -98,6 +98,7 @@ static struct t7xx_port_conf t7xx_early_port_conf[] = {
 		.rxq_exp_index = 1,
 		.path_id = CLDMA_ID_AP,
 		.is_early_port = true,
+		.ops = &devlink_port_ops,
 		.name = "ttyDUMP",
 	},
 };
@@ -493,6 +494,7 @@ static void t7xx_proxy_init_all_ports(struct t7xx_modem *md)
 
 		port->t7xx_dev = md->t7xx_dev;
 		port->dev = &md->t7xx_dev->pdev->dev;
+		port->dl = md->t7xx_dev->dl;
 		spin_lock_init(&port->port_update_lock);
 		port->chan_enable = false;
 

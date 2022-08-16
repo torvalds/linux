@@ -38,10 +38,12 @@
 #include "t7xx_netdev.h"
 #include "t7xx_pci.h"
 #include "t7xx_pcie_mac.h"
+#include "t7xx_port_devlink.h"
 #include "t7xx_port_proxy.h"
 #include "t7xx_pci_rescan.h"
 #include "t7xx_reg.h"
 #include "t7xx_state_monitor.h"
+#include "t7xx_uevent.h"
 
 #define FSM_DRM_DISABLE_DELAY_MS		200
 #define FSM_EVENT_POLL_INTERVAL_MS		20
@@ -212,6 +214,16 @@ static void fsm_routine_exception(struct t7xx_fsm_ctl *ctl, struct t7xx_fsm_comm
 		fsm_finish_command(ctl, cmd, 0);
 }
 
+static void t7xx_host_event_notify(struct t7xx_modem *md, unsigned int event_id)
+{
+	u32 value;
+
+	value = ioread32(IREG_BASE(md->t7xx_dev) + T7XX_PCIE_MISC_DEV_STATUS);
+	value &= ~HOST_EVENT_MASK;
+	value |= FIELD_PREP(HOST_EVENT_MASK, event_id);
+	iowrite32(value, IREG_BASE(md->t7xx_dev) + T7XX_PCIE_MISC_DEV_STATUS);
+}
+
 static void t7xx_lk_stage_event_handling(struct t7xx_fsm_ctl *ctl, unsigned int dev_status)
 {
 	struct t7xx_modem *md = ctl->md;
@@ -228,6 +240,7 @@ static void t7xx_lk_stage_event_handling(struct t7xx_fsm_ctl *ctl, unsigned int 
 		break;
 
 	case LK_EVENT_CREATE_PD_PORT:
+	case LK_EVENT_CREATE_POST_DL_PORT:
 		md_ctrl = md->md_ctrl[CLDMA_ID_AP];
 		t7xx_cldma_hif_hw_init(md_ctrl);
 		t7xx_cldma_stop(md_ctrl);
@@ -239,8 +252,16 @@ static void t7xx_lk_stage_event_handling(struct t7xx_fsm_ctl *ctl, unsigned int 
 			return;
 		}
 
+		if (lk_event == LK_EVENT_CREATE_PD_PORT)
+			port->dl->mode = T7XX_FB_DUMP_MODE;
+		else
+			port->dl->mode = T7XX_FB_DL_MODE;
 		port->port_conf->ops->enable_chl(port);
 		t7xx_cldma_start(md_ctrl);
+		if (lk_event == LK_EVENT_CREATE_PD_PORT)
+			t7xx_uevent_send(dev, T7XX_UEVENT_MODEM_FASTBOOT_DUMP_MODE);
+		else
+			t7xx_uevent_send(dev, T7XX_UEVENT_MODEM_FASTBOOT_DL_MODE);
 		break;
 
 	case LK_EVENT_RESET:
@@ -289,13 +310,23 @@ static void fsm_routine_stopping(struct t7xx_fsm_ctl *ctl, struct t7xx_fsm_comma
 	t7xx_cldma_stop(md_ctrl);
 
 	if (!ctl->md->rgu_irq_asserted) {
+		if (t7xx_dev->dl->set_fastboot_dl)
+			t7xx_host_event_notify(ctl->md, FASTBOOT_DL_NOTY);
+
 		t7xx_mhccif_h2d_swint_trigger(t7xx_dev, H2D_CH_DRM_DISABLE_AP);
 		/* Wait for the DRM disable to take effect */
 		msleep(FSM_DRM_DISABLE_DELAY_MS);
 
-		err = t7xx_acpi_fldr_func(t7xx_dev);
-		if (err)
+		if (t7xx_dev->dl->set_fastboot_dl) {
+			/* Do not try fldr because device will always wait for
+			 * MHCCIF bit 13 in fastboot download flow.
+			 */
 			t7xx_mhccif_h2d_swint_trigger(t7xx_dev, H2D_CH_DEVICE_RESET);
+		} else {
+			err = t7xx_acpi_fldr_func(t7xx_dev);
+			if (err)
+				t7xx_mhccif_h2d_swint_trigger(t7xx_dev, H2D_CH_DEVICE_RESET);
+		}
 	}
 
 	fsm_finish_command(ctl, cmd, fsm_stopped_handler(ctl));
@@ -318,6 +349,7 @@ static void fsm_routine_ready(struct t7xx_fsm_ctl *ctl)
 
 	ctl->curr_state = FSM_STATE_READY;
 	t7xx_fsm_broadcast_ready_state(ctl);
+	t7xx_uevent_send(&md->t7xx_dev->pdev->dev, T7XX_UEVENT_MODEM_READY);
 	t7xx_md_event_notify(md, FSM_READY);
 }
 
