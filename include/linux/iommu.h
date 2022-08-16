@@ -1063,4 +1063,40 @@ void iommu_debugfs_setup(void);
 static inline void iommu_debugfs_setup(void) {}
 #endif
 
+#ifdef CONFIG_IOMMU_DMA
+#include <linux/msi.h>
+
+/* Setup call for arch DMA mapping code */
+void iommu_setup_dma_ops(struct device *dev, u64 dma_base, u64 dma_limit);
+
+int iommu_get_msi_cookie(struct iommu_domain *domain, dma_addr_t base);
+
+int iommu_dma_prepare_msi(struct msi_desc *desc, phys_addr_t msi_addr);
+void iommu_dma_compose_msi_msg(struct msi_desc *desc, struct msi_msg *msg);
+
+#else /* CONFIG_IOMMU_DMA */
+
+struct msi_desc;
+struct msi_msg;
+
+static inline void iommu_setup_dma_ops(struct device *dev, u64 dma_base, u64 dma_limit)
+{
+}
+
+static inline int iommu_get_msi_cookie(struct iommu_domain *domain, dma_addr_t base)
+{
+	return -ENODEV;
+}
+
+static inline int iommu_dma_prepare_msi(struct msi_desc *desc, phys_addr_t msi_addr)
+{
+	return 0;
+}
+
+static inline void iommu_dma_compose_msi_msg(struct msi_desc *desc, struct msi_msg *msg)
+{
+}
+
+#endif	/* CONFIG_IOMMU_DMA */
+
 #endif /* __LINUX_IOMMU_H */
