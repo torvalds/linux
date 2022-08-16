@@ -1214,6 +1214,10 @@ static struct kvm *kvm_create_vm(unsigned long type, const char *fdname)
 	if (r)
 		goto out_err_no_mmu_notifier;
 
+	r = kvm_coalesced_mmio_init(kvm);
+	if (r < 0)
+		goto out_no_coalesced_mmio;
+
 	r = kvm_create_vm_debugfs(kvm, fdname);
 	if (r)
 		goto out_err_no_debugfs;
@@ -1234,6 +1238,8 @@ static struct kvm *kvm_create_vm(unsigned long type, const char *fdname)
 out_err:
 	kvm_destroy_vm_debugfs(kvm);
 out_err_no_debugfs:
+	kvm_coalesced_mmio_free(kvm);
+out_no_coalesced_mmio:
 #if defined(CONFIG_MMU_NOTIFIER) && defined(KVM_ARCH_WANT_MMU_NOTIFIER)
 	if (kvm->mmu_notifier.ops)
 		mmu_notifier_unregister(&kvm->mmu_notifier, current->mm);
@@ -4907,11 +4913,6 @@ static int kvm_dev_ioctl_create_vm(unsigned long type)
 		goto put_fd;
 	}
 
-#ifdef CONFIG_KVM_MMIO
-	r = kvm_coalesced_mmio_init(kvm);
-	if (r < 0)
-		goto put_kvm;
-#endif
 	file = anon_inode_getfile("kvm-vm", &kvm_vm_fops, kvm, O_RDWR);
 	if (IS_ERR(file)) {
 		r = PTR_ERR(file);
