@@ -47,7 +47,7 @@ struct dw8250_data {
 	unsigned int		uart_16550_compatible:1;
 };
 
-void dw8250_do_set_termios(struct uart_port *p, struct ktermios *termios, struct ktermios *old);
+void dw8250_do_set_termios(struct uart_port *p, struct ktermios *termios, const struct ktermios *old);
 void dw8250_setup_port(struct uart_port *p);
 
 static inline struct dw8250_data *to_dw8250_data(struct dw8250_port_data *data)

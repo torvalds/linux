@@ -405,8 +405,8 @@ lqasc_shutdown(struct uart_port *port)
 }
 
 static void
-lqasc_set_termios(struct uart_port *port,
-	struct ktermios *new, struct ktermios *old)
+lqasc_set_termios(struct uart_port *port, struct ktermios *new,
+		  const struct ktermios *old)
 {
 	unsigned int cflag;
 	unsigned int iflag;

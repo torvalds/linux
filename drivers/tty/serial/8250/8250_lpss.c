@@ -70,7 +70,7 @@ static inline struct lpss8250 *to_lpss8250(struct dw8250_port_data *data)
 }
 
 static void byt_set_termios(struct uart_port *p, struct ktermios *termios,
-			    struct ktermios *old)
+			    const struct ktermios *old)
 {
 	unsigned int baud = tty_termios_baud_rate(termios);
 	struct lpss8250 *lpss = to_lpss8250(p->private_data);

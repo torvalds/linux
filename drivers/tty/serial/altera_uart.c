@@ -175,7 +175,7 @@ static void altera_uart_break_ctl(struct uart_port *port, int break_state)
 
 static void altera_uart_set_termios(struct uart_port *port,
 				    struct ktermios *termios,
-				    struct ktermios *old)
+				    const struct ktermios *old)
 {
 	unsigned long flags;
 	unsigned int baud, baudclk;

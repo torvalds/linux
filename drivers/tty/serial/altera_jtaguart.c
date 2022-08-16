@@ -106,8 +106,8 @@ static void altera_jtaguart_break_ctl(struct uart_port *port, int break_state)
 }
 
 static void altera_jtaguart_set_termios(struct uart_port *port,
-					struct ktermios *termios,
-					struct ktermios *old)
+				        struct ktermios *termios,
+				        const struct ktermios *old)
 {
 	/* Just copy the old termios settings back */
 	if (old)

@@ -298,7 +298,8 @@ static void mlb_usio_shutdown(struct uart_port *port)
 }
 
 static void mlb_usio_set_termios(struct uart_port *port,
-			struct ktermios *termios, struct ktermios *old)
+				 struct ktermios *termios,
+				 const struct ktermios *old)
 {
 	unsigned int escr, smr = MLB_USIO_SMR_SOE;
 	unsigned long flags, baud, quot;

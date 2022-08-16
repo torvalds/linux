@@ -2124,8 +2124,9 @@ static void atmel_serial_pm(struct uart_port *port, unsigned int state,
 /*
  * Change the port parameters
  */
-static void atmel_set_termios(struct uart_port *port, struct ktermios *termios,
-			      struct ktermios *old)
+static void atmel_set_termios(struct uart_port *port,
+			      struct ktermios *termios,
+			      const struct ktermios *old)
 {
 	struct atmel_uart_port *atmel_port = to_atmel_uart_port(port);
 	unsigned long flags;

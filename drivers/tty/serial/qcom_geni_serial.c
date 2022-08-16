@@ -1005,7 +1005,8 @@ static unsigned long get_clk_div_rate(struct clk *clk, unsigned int baud,
 }
 
 static void qcom_geni_serial_set_termios(struct uart_port *uport,
-				struct ktermios *termios, struct ktermios *old)
+					 struct ktermios *termios,
+					 const struct ktermios *old)
 {
 	unsigned int baud;
 	u32 bits_per_char;

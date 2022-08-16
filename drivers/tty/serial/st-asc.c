@@ -500,7 +500,7 @@ static void asc_pm(struct uart_port *port, unsigned int state,
 }
 
 static void asc_set_termios(struct uart_port *port, struct ktermios *termios,
-			    struct ktermios *old)
+			    const struct ktermios *old)
 {
 	struct asc_port *ascport = to_asc_port(port);
 	struct gpio_desc *gpiod;

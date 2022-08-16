@@ -1089,7 +1089,7 @@ static void stm32_usart_shutdown(struct uart_port *port)
 
 static void stm32_usart_set_termios(struct uart_port *port,
 				    struct ktermios *termios,
-				    struct ktermios *old)
+				    const struct ktermios *old)
 {
 	struct stm32_port *stm32_port = to_stm32_port(port);
 	const struct stm32_usart_offsets *ofs = &stm32_port->info->ofs;

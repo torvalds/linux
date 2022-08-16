@@ -350,7 +350,7 @@ static void omap8250_restore_regs(struct uart_8250_port *up)
  */
 static void omap_8250_set_termios(struct uart_port *port,
 				  struct ktermios *termios,
-				  struct ktermios *old)
+				  const struct ktermios *old)
 {
 	struct uart_8250_port *up = up_to_u8250p(port);
 	struct omap8250_priv *priv = up->port.private_data;
