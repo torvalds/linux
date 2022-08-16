@@ -2067,16 +2067,6 @@ dw_hdmi_rockchip_select_output(struct drm_connector_state *conn_state,
 		/* We prefer use YCbCr422 to send hdr 10bit */
 		if (info->color_formats & DRM_COLOR_FORMAT_YCRCB422)
 			*color_format = RK_IF_FORMAT_YCBCR422;
-		if (hdmi->is_hdmi_qp) {
-			if (info->color_formats & DRM_COLOR_FORMAT_YCRCB420) {
-				if (mode.clock >= 340000)
-					*color_format = RK_IF_FORMAT_YCBCR420;
-				else
-					*color_format = RK_IF_FORMAT_RGB;
-			} else {
-				*color_format = RK_IF_FORMAT_RGB;
-			}
-		}
 	}
 
 	if (mode.flags & DRM_MODE_FLAG_DBLCLK)
@@ -2085,14 +2075,8 @@ dw_hdmi_rockchip_select_output(struct drm_connector_state *conn_state,
 		DRM_MODE_FLAG_3D_FRAME_PACKING)
 		pixclock *= 2;
 
-	if (hdmi->is_hdmi_qp) {
-		if (mode.clock >= 600000) {
-			*color_format = RK_IF_FORMAT_YCBCR420;
-		} else if (mode.clock >= 340000) {
-			if (drm_mode_is_420(info, &mode))
-				*color_format = RK_IF_FORMAT_YCBCR420;
-		}
-	}
+	if (hdmi->is_hdmi_qp && mode.clock >= 600000)
+		*color_format = RK_IF_FORMAT_YCBCR420;
 
 	if (*color_format == RK_IF_FORMAT_YCBCR422 || color_depth == 8)
 		tmdsclock = pixclock;
