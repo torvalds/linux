@@ -25,13 +25,14 @@ properties:
     description: Optional external reference.  If not supplied, assume
       REFSEL input tied low to enable the internal reference.
 
-  spi-max-frequency: true
-
 required:
   - compatible
   - reg
 
-additionalProperties: false
+allOf:
+  - $ref: /schemas/spi/spi-peripheral-props.yaml#
+
+unevaluatedProperties: false
 
 examples:
   - |
