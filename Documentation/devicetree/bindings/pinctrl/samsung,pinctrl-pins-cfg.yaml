@@ -20,7 +20,6 @@ description: |
   The values used for config properties should be derived from the hardware
   manual and these values are programmed as-is into the pin pull up/down and
   driver strength register of the pin-controller.
-  See also include/dt-bindings/pinctrl/samsung.h with useful constants.
 
   See also Documentation/devicetree/bindings/pinctrl/samsung,pinctrl.yaml for
   additional information and example.
