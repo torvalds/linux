@@ -108,7 +108,7 @@ struct osf_dirent_callback {
 	int error;
 };
 
-static int
+static bool
 osf_filldir(struct dir_context *ctx, const char *name, int namlen,
 	    loff_t offset, u64 ino, unsigned int d_type)
 {
@@ -120,11 +120,11 @@ osf_filldir(struct dir_context *ctx, const char *name, int namlen,
 
 	buf->error = -EINVAL;	/* only used if we fail */
 	if (reclen > buf->count)
-		return -EINVAL;
+		return false;
 	d_ino = ino;
 	if (sizeof(d_ino) < sizeof(ino) && d_ino != ino) {
 		buf->error = -EOVERFLOW;
-		return -EOVERFLOW;
+		return false;
 	}
 	if (buf->basep) {
 		if (put_user(offset, buf->basep))
@@ -141,10 +141,10 @@ osf_filldir(struct dir_context *ctx, const char *name, int namlen,
 	dirent = (void __user *)dirent + reclen;
 	buf->dirent = dirent;
 	buf->count -= reclen;
-	return 0;
+	return true;
 Efault:
 	buf->error = -EFAULT;
-	return -EFAULT;
+	return false;
 }
 
 SYSCALL_DEFINE4(osf_getdirentries, unsigned int, fd,
