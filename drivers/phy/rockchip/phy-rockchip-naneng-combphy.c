@@ -703,6 +703,9 @@ static int rk3588_combphy_cfg(struct rockchip_combphy_priv *priv)
 		/* Set PLL KVCO to min and set PLL charge pump current to max */
 		writel(0xf0, priv->mmio + (0xa << 2));
 
+		/* Set Rx squelch input filler bandwidth */
+		writel(0x0d, priv->mmio + (0x14 << 2));
+
 		param_write(priv->phy_grf, &cfg->pipe_txcomp_sel, false);
 		param_write(priv->phy_grf, &cfg->pipe_txelec_sel, false);
 		param_write(priv->phy_grf, &cfg->usb_mode_set, true);
