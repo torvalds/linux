@@ -7,7 +7,7 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: Texas Instruments ADS131E0x 4-, 6- and 8-Channel ADCs
 
 maintainers:
-  - Tomislav Denis <tomislav.denis@avl.com>
+  - Jonathan Cameron <jic23@kernel.org>
 
 description: |
   The ADS131E0x are a family of multichannel, simultaneous sampling,
