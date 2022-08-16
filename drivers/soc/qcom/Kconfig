@@ -51,6 +51,13 @@ config QCOM_CPUSS_SLEEP_STATS
 	 low power modes. This driver creates debugfs entry which provide
 	 provision to read those counters.
 
+config QCOM_DCC_V2
+       tristate "Qualcomm Technologies Data Capture and Compare enigne support for V2"
+       help
+         This option enables driver for Data Capture and Compare engine. DCC
+         driver provides interface to configure DCC block and read back
+         captured data from DCC's internal SRAM.
+
 config QCOM_GENI_SE
 	tristate "QCOM GENI Serial Engine Driver"
 	depends on ARCH_QCOM || COMPILE_TEST
