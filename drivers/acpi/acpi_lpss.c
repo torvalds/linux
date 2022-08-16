@@ -392,13 +392,6 @@ static const struct acpi_device_id acpi_lpss_device_ids[] = {
 
 #ifdef CONFIG_X86_INTEL_LPSS
 
-static int is_memory(struct acpi_resource *res, void *not_used)
-{
-	struct resource r;
-
-	return !acpi_dev_resource_memory(res, &r);
-}
-
 /* LPSS main clock device. */
 static struct platform_device *lpss_clk_dev;
 
@@ -659,7 +652,7 @@ static int acpi_lpss_create_device(struct acpi_device *adev,
 		return -ENOMEM;
 
 	INIT_LIST_HEAD(&resource_list);
-	ret = acpi_dev_get_resources(adev, &resource_list, is_memory, NULL);
+	ret = acpi_dev_get_memory_resources(adev, &resource_list);
 	if (ret < 0)
 		goto err_out;
 
