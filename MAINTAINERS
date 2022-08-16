@@ -10626,8 +10626,8 @@ L:	iommu@lists.linux.dev
 S:	Maintained
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/joro/iommu.git
 F:	drivers/iommu/dma-iommu.c
+F:	drivers/iommu/dma-iommu.h
 F:	drivers/iommu/iova.c
-F:	include/linux/dma-iommu.h
 F:	include/linux/iova.h
 
 IOMMU SUBSYSTEM
