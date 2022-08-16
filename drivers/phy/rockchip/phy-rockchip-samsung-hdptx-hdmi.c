@@ -2313,7 +2313,6 @@ static int rockchip_hdptx_phy_probe(struct platform_device *pdev)
 	}
 
 	phy_set_drvdata(hdptx->phy, hdptx);
-	phy_set_bus_width(hdptx->phy, 8);
 
 	pm_runtime_enable(dev);
 	ret = devm_add_action_or_reset(dev, rockchip_hdptx_phy_runtime_disable,
