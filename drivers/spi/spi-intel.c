@@ -1100,6 +1100,7 @@ static int intel_spi_init(struct intel_spi *ispi)
 		ispi->pregs = ispi->base + CNL_PR;
 		ispi->nregions = CNL_FREG_NUM;
 		ispi->pr_num = CNL_PR_NUM;
+		erase_64k = true;
 		break;
 
 	default:
