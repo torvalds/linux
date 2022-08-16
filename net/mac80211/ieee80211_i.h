@@ -2185,6 +2185,8 @@ static inline void ieee80211_tx_skb(struct ieee80211_sub_if_data *sdata,
  *	for that non-transmitting BSS is returned
  * @link_id: the link ID to parse elements for, if a STA profile
  *	is present in the multi-link element, or -1 to ignore
+ * @from_ap: frame is received from an AP (currently used only
+ *	for EHT capabilities parsing)
  */
 struct ieee80211_elems_parse_params {
 	const u8 *start;
@@ -2194,6 +2196,7 @@ struct ieee80211_elems_parse_params {
 	u32 crc;
 	struct cfg80211_bss *bss;
 	int link_id;
+	bool from_ap;
 };
 
 struct ieee802_11_elems *
@@ -2514,7 +2517,8 @@ u8 ieee80211_ie_len_eht_cap(struct ieee80211_sub_if_data *sdata, u8 iftype);
 u8 *ieee80211_ie_build_eht_cap(u8 *pos,
 			       const struct ieee80211_sta_he_cap *he_cap,
 			       const struct ieee80211_sta_eht_cap *eht_cap,
-			       u8 *end);
+			       u8 *end,
+			       bool for_ap);
 
 void
 ieee80211_eht_cap_ie_to_sta_eht_cap(struct ieee80211_sub_if_data *sdata,

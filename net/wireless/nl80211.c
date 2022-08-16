@@ -1820,10 +1820,15 @@ nl80211_send_iftype_data(struct sk_buff *msg,
 	if (eht_cap->has_eht && he_cap->has_he) {
 		u8 mcs_nss_size, ppe_thresh_size;
 		u16 ppe_thres_hdr;
+		bool is_ap;
+
+		is_ap = iftdata->types_mask & BIT(NL80211_IFTYPE_AP) ||
+			iftdata->types_mask & BIT(NL80211_IFTYPE_P2P_GO);
 
 		mcs_nss_size =
 			ieee80211_eht_mcs_nss_size(&he_cap->he_cap_elem,
-						   &eht_cap->eht_cap_elem);
+						   &eht_cap->eht_cap_elem,
+						   is_ap);
 
 		ppe_thres_hdr = get_unaligned_le16(&eht_cap->eht_ppe_thres[0]);
 		ppe_thresh_size =
@@ -5668,7 +5673,7 @@ static int nl80211_calculate_ap_params(struct cfg80211_ap_settings *params)
 		params->eht_cap = (void *)(cap->data + 1);
 		if (!ieee80211_eht_capa_size_ok((const u8 *)params->he_cap,
 						(const u8 *)params->eht_cap,
-						cap->datalen - 1))
+						cap->datalen - 1, true))
 			return -EINVAL;
 	}
 	cap = cfg80211_find_ext_elem(WLAN_EID_EXT_EHT_OPERATION, ies, ies_len);
@@ -6897,7 +6902,8 @@ static int nl80211_set_station_tdls(struct genl_info *info,
 
 			if (!ieee80211_eht_capa_size_ok((const u8 *)params->link_sta_params.he_capa,
 							(const u8 *)params->link_sta_params.eht_capa,
-							params->link_sta_params.eht_capa_len))
+							params->link_sta_params.eht_capa_len,
+							false))
 				return -EINVAL;
 		}
 	}
@@ -7208,7 +7214,8 @@ static int nl80211_new_station(struct sk_buff *skb, struct genl_info *info)
 
 			if (!ieee80211_eht_capa_size_ok((const u8 *)params.link_sta_params.he_capa,
 							(const u8 *)params.link_sta_params.eht_capa,
-							params.link_sta_params.eht_capa_len))
+							params.link_sta_params.eht_capa_len,
+							false))
 				return -EINVAL;
 		}
 	}
@@ -15968,7 +15975,8 @@ nl80211_add_mod_link_station(struct sk_buff *skb, struct genl_info *info,
 
 			if (!ieee80211_eht_capa_size_ok((const u8 *)params.he_capa,
 							(const u8 *)params.eht_capa,
-							params.eht_capa_len))
+							params.eht_capa_len,
+							false))
 				return -EINVAL;
 		}
 	}
