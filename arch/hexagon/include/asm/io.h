@@ -308,6 +308,8 @@ static inline void outsl(unsigned long port, const void *buffer, int count)
 	}
 }
 
+#include <asm-generic/io.h>
+
 #endif /* __KERNEL__ */
 
 #endif
