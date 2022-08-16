@@ -752,7 +752,7 @@ struct ocelot {
 	struct ocelot_psfp_list		psfp;
 
 	/* Workqueue to check statistics for overflow with its lock */
-	struct mutex			stats_lock;
+	spinlock_t			stats_lock;
 	u64				*stats;
 	struct delayed_work		stats_work;
 	struct workqueue_struct		*stats_queue;

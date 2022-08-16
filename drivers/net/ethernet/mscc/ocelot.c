@@ -1906,13 +1906,13 @@ static void ocelot_check_stats_work(struct work_struct *work)
 					     stats_work);
 	int i, err;
 
-	mutex_lock(&ocelot->stats_lock);
+	spin_lock(&ocelot->stats_lock);
 	for (i = 0; i < ocelot->num_phys_ports; i++) {
 		err = ocelot_port_update_stats(ocelot, i);
 		if (err)
 			break;
 	}
-	mutex_unlock(&ocelot->stats_lock);
+	spin_unlock(&ocelot->stats_lock);
 
 	if (err)
 		dev_err(ocelot->dev, "Error %d updating ethtool stats\n",  err);
@@ -1925,7 +1925,7 @@ void ocelot_get_ethtool_stats(struct ocelot *ocelot, int port, u64 *data)
 {
 	int i, err;
 
-	mutex_lock(&ocelot->stats_lock);
+	spin_lock(&ocelot->stats_lock);
 
 	/* check and update now */
 	err = ocelot_port_update_stats(ocelot, port);
@@ -1934,7 +1934,7 @@ void ocelot_get_ethtool_stats(struct ocelot *ocelot, int port, u64 *data)
 	for (i = 0; i < ocelot->num_stats; i++)
 		*data++ = ocelot->stats[port * ocelot->num_stats + i];
 
-	mutex_unlock(&ocelot->stats_lock);
+	spin_unlock(&ocelot->stats_lock);
 
 	if (err)
 		dev_err(ocelot->dev, "Error %d updating ethtool stats\n", err);
@@ -3363,7 +3363,7 @@ int ocelot_init(struct ocelot *ocelot)
 	if (!ocelot->stats)
 		return -ENOMEM;
 
-	mutex_init(&ocelot->stats_lock);
+	spin_lock_init(&ocelot->stats_lock);
 	mutex_init(&ocelot->ptp_lock);
 	mutex_init(&ocelot->mact_lock);
 	mutex_init(&ocelot->fwd_domain_lock);
@@ -3511,7 +3511,6 @@ void ocelot_deinit(struct ocelot *ocelot)
 	cancel_delayed_work(&ocelot->stats_work);
 	destroy_workqueue(ocelot->stats_queue);
 	destroy_workqueue(ocelot->owq);
-	mutex_destroy(&ocelot->stats_lock);
 }
 EXPORT_SYMBOL(ocelot_deinit);
 
