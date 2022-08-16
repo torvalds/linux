@@ -722,6 +722,23 @@ int acpi_dev_get_dma_resources(struct acpi_device *adev, struct list_head *list)
 EXPORT_SYMBOL_GPL(acpi_dev_get_dma_resources);
 
 /**
+ * acpi_dev_get_memory_resources - Get current memory resources of a device.
+ * @adev: ACPI device node to get the resources for.
+ * @list: Head of the resultant list of resources (must be empty).
+ *
+ * This is a helper function that locates all memory type resources of @adev
+ * with acpi_dev_get_resources().
+ *
+ * The number of resources in the output list is returned on success, an error
+ * code reflecting the error condition is returned otherwise.
+ */
+int acpi_dev_get_memory_resources(struct acpi_device *adev, struct list_head *list)
+{
+	return acpi_dev_get_resources(adev, list, is_memory, NULL);
+}
+EXPORT_SYMBOL_GPL(acpi_dev_get_memory_resources);
+
+/**
  * acpi_dev_filter_resource_type - Filter ACPI resource according to resource
  *				   types
  * @ares: Input ACPI resource object.
