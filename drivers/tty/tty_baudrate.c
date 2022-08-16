@@ -92,7 +92,7 @@ speed_t tty_termios_input_baud_rate(const struct ktermios *termios)
 	if (cbaud == B0)
 		return tty_termios_baud_rate(termios);
 
-	/* Magic token for arbitrary speed via c_ispeed*/
+	/* Magic token for arbitrary speed via c_ispeed */
 	if (cbaud == BOTHER)
 		return termios->c_ispeed;
 
