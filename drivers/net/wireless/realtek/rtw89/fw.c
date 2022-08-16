@@ -685,8 +685,8 @@ int rtw89_fw_h2c_ba_cam(struct rtw89_dev *rtwdev, struct rtw89_sta *rtwsta,
 	int ret;
 
 	ret = valid ?
-	      rtw89_core_acquire_sta_ba_entry(rtwsta, params->tid, &entry_idx) :
-	      rtw89_core_release_sta_ba_entry(rtwsta, params->tid, &entry_idx);
+	      rtw89_core_acquire_sta_ba_entry(rtwdev, rtwsta, params->tid, &entry_idx) :
+	      rtw89_core_release_sta_ba_entry(rtwdev, rtwsta, params->tid, &entry_idx);
 	if (ret) {
 		/* it still works even if we don't have static BA CAM, because
 		 * hardware can create dynamic BA CAM automatically.

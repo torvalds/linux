@@ -2238,13 +2238,15 @@ void rtw89_core_release_all_bits_map(unsigned long *addr, unsigned int nbits)
 	bitmap_zero(addr, nbits);
 }
 
-int rtw89_core_acquire_sta_ba_entry(struct rtw89_sta *rtwsta, u8 tid, u8 *cam_idx)
+int rtw89_core_acquire_sta_ba_entry(struct rtw89_dev *rtwdev,
+				    struct rtw89_sta *rtwsta, u8 tid, u8 *cam_idx)
 {
+	const struct rtw89_chip_info *chip = rtwdev->chip;
 	struct rtw89_ba_cam_entry *entry;
 	u8 idx;
 
-	idx = rtw89_core_acquire_bit_map(rtwsta->ba_cam_map, RTW89_BA_CAM_NUM);
-	if (idx == RTW89_BA_CAM_NUM) {
+	idx = rtw89_core_acquire_bit_map(rtwsta->ba_cam_map, chip->bacam_num);
+	if (idx == chip->bacam_num) {
 		/* allocate a static BA CAM to tid=0, so replace the existing
 		 * one if BA CAM is full. Hardware will process the original tid
 		 * automatically.
@@ -2262,12 +2264,14 @@ int rtw89_core_acquire_sta_ba_entry(struct rtw89_sta *rtwsta, u8 tid, u8 *cam_id
 	return 0;
 }
 
-int rtw89_core_release_sta_ba_entry(struct rtw89_sta *rtwsta, u8 tid, u8 *cam_idx)
+int rtw89_core_release_sta_ba_entry(struct rtw89_dev *rtwdev,
+				    struct rtw89_sta *rtwsta, u8 tid, u8 *cam_idx)
 {
+	const struct rtw89_chip_info *chip = rtwdev->chip;
 	struct rtw89_ba_cam_entry *entry;
 	int i;
 
-	for (i = 0; i < RTW89_BA_CAM_NUM; i++) {
+	for (i = 0; i < chip->bacam_num; i++) {
 		if (!test_bit(i, rtwsta->ba_cam_map))
 			continue;
 

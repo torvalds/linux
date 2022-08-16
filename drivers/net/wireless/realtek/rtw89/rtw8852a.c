@@ -2148,6 +2148,7 @@ const struct rtw89_chip_info rtw8852a_chip_info = {
 	.acam_num		= 128,
 	.bcam_num		= 10,
 	.scam_num		= 128,
+	.bacam_num		= 2,
 	.sec_ctrl_efuse_size	= 4,
 	.physical_efuse_size	= 1216,
 	.logical_efuse_size	= 1536,
