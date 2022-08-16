@@ -2902,15 +2902,12 @@ late_initcall(max_swapfiles_check);
 
 static struct swap_info_struct *alloc_swap_info(void)
 {
-	struct swap_info_struct *p = NULL;
+	struct swap_info_struct *p;
 	struct swap_info_struct *defer = NULL;
 	unsigned int type;
 	int i;
-	bool skip = false;
 
-	trace_android_vh_alloc_si(&p, &skip);
-	if (!skip)
-		p = kvzalloc(struct_size(p, avail_lists, nr_node_ids), GFP_KERNEL);
+	p = kvzalloc(struct_size(p, avail_lists, nr_node_ids), GFP_KERNEL);
 	if (!p)
 		return ERR_PTR(-ENOMEM);
 
@@ -3393,7 +3390,6 @@ SYSCALL_DEFINE2(swapon, const char __user *, specialfile, int, swap_flags)
 		  (swap_flags & SWAP_FLAG_PRIO_MASK) >> SWAP_FLAG_PRIO_SHIFT;
 	enable_swap_info(p, prio, swap_map, cluster_info, frontswap_map);
 
-	trace_android_vh_init_swap_info_struct(p, swap_avail_heads);
 	pr_info("Adding %uk swap on %s.  Priority:%d extents:%d across:%lluk %s%s%s%s%s\n",
 		p->pages<<(PAGE_SHIFT-10), name->name, p->prio,
 		nr_extents, (unsigned long long)span<<(PAGE_SHIFT-10),
