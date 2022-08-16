@@ -739,7 +739,8 @@ static void ocelot_get_stats64(struct net_device *dev,
 			    ocelot_read(ocelot, SYS_COUNT_RX_64) +
 			    ocelot_read(ocelot, SYS_COUNT_RX_65_127) +
 			    ocelot_read(ocelot, SYS_COUNT_RX_128_255) +
-			    ocelot_read(ocelot, SYS_COUNT_RX_256_1023) +
+			    ocelot_read(ocelot, SYS_COUNT_RX_256_511) +
+			    ocelot_read(ocelot, SYS_COUNT_RX_512_1023) +
 			    ocelot_read(ocelot, SYS_COUNT_RX_1024_1526) +
 			    ocelot_read(ocelot, SYS_COUNT_RX_1527_MAX);
 	stats->multicast = ocelot_read(ocelot, SYS_COUNT_RX_MULTICAST);
@@ -749,7 +750,8 @@ static void ocelot_get_stats64(struct net_device *dev,
 	stats->tx_bytes = ocelot_read(ocelot, SYS_COUNT_TX_OCTETS);
 	stats->tx_packets = ocelot_read(ocelot, SYS_COUNT_TX_64) +
 			    ocelot_read(ocelot, SYS_COUNT_TX_65_127) +
-			    ocelot_read(ocelot, SYS_COUNT_TX_128_511) +
+			    ocelot_read(ocelot, SYS_COUNT_TX_128_255) +
+			    ocelot_read(ocelot, SYS_COUNT_TX_256_511) +
 			    ocelot_read(ocelot, SYS_COUNT_TX_512_1023) +
 			    ocelot_read(ocelot, SYS_COUNT_TX_1024_1526) +
 			    ocelot_read(ocelot, SYS_COUNT_TX_1527_MAX);
