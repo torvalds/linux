@@ -1189,7 +1189,7 @@ char *hex_string(char *buf, char *end, u8 *addr, struct printf_spec spec,
 }
 
 static noinline_for_stack
-char *bitmap_string(char *buf, char *end, unsigned long *bitmap,
+char *bitmap_string(char *buf, char *end, const unsigned long *bitmap,
 		    struct printf_spec spec, const char *fmt)
 {
 	const int CHUNKSZ = 32;
@@ -1233,7 +1233,7 @@ char *bitmap_string(char *buf, char *end, unsigned long *bitmap,
 }
 
 static noinline_for_stack
-char *bitmap_list_string(char *buf, char *end, unsigned long *bitmap,
+char *bitmap_list_string(char *buf, char *end, const unsigned long *bitmap,
 			 struct printf_spec spec, const char *fmt)
 {
 	int nr_bits = max_t(int, spec.field_width, 0);
