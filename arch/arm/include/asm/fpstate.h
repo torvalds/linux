@@ -46,9 +46,6 @@ union vfp_state {
 	struct vfp_hard_struct	hard;
 };
 
-extern void vfp_flush_thread(union vfp_state *);
-extern void vfp_release_thread(union vfp_state *);
-
 #define FP_HARD_SIZE 35
 
 struct fp_hard_struct {
