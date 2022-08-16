@@ -785,15 +785,45 @@ static int unix_set_peek_off(struct sock *sk, int val)
 }
 
 #ifdef CONFIG_PROC_FS
+static int unix_count_nr_fds(struct sock *sk)
+{
+	struct sk_buff *skb;
+	struct unix_sock *u;
+	int nr_fds = 0;
+
+	spin_lock(&sk->sk_receive_queue.lock);
+	skb = skb_peek(&sk->sk_receive_queue);
+	while (skb) {
+		u = unix_sk(skb->sk);
+		nr_fds += atomic_read(&u->scm_stat.nr_fds);
+		skb = skb_peek_next(skb, &sk->sk_receive_queue);
+	}
+	spin_unlock(&sk->sk_receive_queue.lock);
+
+	return nr_fds;
+}
+
 static void unix_show_fdinfo(struct seq_file *m, struct socket *sock)
 {
 	struct sock *sk = sock->sk;
 	struct unix_sock *u;
+	int nr_fds;
 
 	if (sk) {
-		u = unix_sk(sock->sk);
-		seq_printf(m, "scm_fds: %u\n",
-			   atomic_read(&u->scm_stat.nr_fds));
+		u = unix_sk(sk);
+		if (sock->type == SOCK_DGRAM) {
+			nr_fds = atomic_read(&u->scm_stat.nr_fds);
+			goto out_print;
+		}
+
+		unix_state_lock(sk);
+		if (sk->sk_state != TCP_LISTEN)
+			nr_fds = atomic_read(&u->scm_stat.nr_fds);
+		else
+			nr_fds = unix_count_nr_fds(sk);
+		unix_state_unlock(sk);
+out_print:
+		seq_printf(m, "scm_fds: %u\n", nr_fds);
 	}
 }
 #else
