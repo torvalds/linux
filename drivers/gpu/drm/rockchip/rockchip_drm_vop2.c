@@ -3828,12 +3828,12 @@ static void vop2_crtc_atomic_disable(struct drm_crtc *crtc,
 	vop2_disable_all_planes_for_crtc(crtc);
 
 	/*
-	 * A workaround for PD_ESMART, we can't dynamic
-	 * turn on/off it at runtime, so it can only be
-	 * turn down when the whole VOP_PD off.
+	 * A workaround for RK3588's PD_ESMART, we can't
+	 * dynamic turn on/off it at runtime, so it can
+	 * only be turn down when the whole VOP_PD off.
 	 * see vop2_power_domain_put at vop2_win_disable
 	 */
-	if (vop2->enable_count == 1)
+	if (vop2->version == VOP_VERSION_RK3588 && vop2->enable_count == 1)
 		vop2_power_domain_esmat_off(crtc);
 
 	if (vop2->dscs[vcstate->dsc_id].enabled &&
