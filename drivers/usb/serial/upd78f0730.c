@@ -296,8 +296,8 @@ static speed_t upd78f0730_get_baud_rate(struct tty_struct *tty)
 }
 
 static void upd78f0730_set_termios(struct tty_struct *tty,
-				struct usb_serial_port *port,
-				struct ktermios *old_termios)
+				   struct usb_serial_port *port,
+				   const struct ktermios *old_termios)
 {
 	struct device *dev = &port->dev;
 	struct upd78f0730_line_control request;

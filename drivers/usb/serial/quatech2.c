@@ -261,8 +261,8 @@ static int qt2_calc_num_ports(struct usb_serial *serial,
 }
 
 static void qt2_set_termios(struct tty_struct *tty,
-			    struct usb_serial_port *port,
-			    struct ktermios *old_termios)
+		            struct usb_serial_port *port,
+		            const struct ktermios *old_termios)
 {
 	struct usb_device *dev = port->serial->dev;
 	struct qt2_port_private *port_priv;
