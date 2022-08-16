@@ -832,7 +832,7 @@ static void rockchip_rgb_unbind(struct device *dev, struct device *master,
 	struct rockchip_rgb *rgb = dev_get_drvdata(dev);
 
 	if (rgb->sub_dev.connector)
-		rockchip_drm_register_sub_dev(&rgb->sub_dev);
+		rockchip_drm_unregister_sub_dev(&rgb->sub_dev);
 	if (rgb->panel)
 		drm_connector_cleanup(&rgb->connector);
 
