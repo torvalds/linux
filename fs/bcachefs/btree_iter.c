@@ -2334,7 +2334,7 @@ struct bkey_s_c btree_trans_peek_journal(struct btree_trans *trans,
  * bkey_s_c_null:
  */
 static noinline
-struct bkey_s_c btree_trans_peek_key_cache(struct btree_iter *iter, struct bpos pos)
+struct bkey_s_c __btree_trans_peek_key_cache(struct btree_iter *iter, struct bpos pos)
 {
 	struct btree_trans *trans = iter->trans;
 	struct bch_fs *c = trans->c;
@@ -2359,6 +2359,15 @@ struct bkey_s_c btree_trans_peek_key_cache(struct btree_iter *iter, struct bpos 
 	btree_path_set_should_be_locked(iter->key_cache_path);
 
 	return bch2_btree_path_peek_slot(iter->key_cache_path, &u);
+}
+
+static noinline
+struct bkey_s_c btree_trans_peek_key_cache(struct btree_iter *iter, struct bpos pos)
+{
+	struct bkey_s_c ret = __btree_trans_peek_key_cache(iter, pos);
+	int err = bkey_err(ret) ?: bch2_btree_path_relock(iter->trans, iter->path, _THIS_IP_);
+
+	return err ? bkey_s_c_err(err) : ret;
 }
 
 static struct bkey_s_c __bch2_btree_iter_peek(struct btree_iter *iter, struct bpos search_key)
@@ -2390,15 +2399,12 @@ static struct bkey_s_c __bch2_btree_iter_peek(struct btree_iter *iter, struct bp
 		if (unlikely(iter->flags & BTREE_ITER_WITH_KEY_CACHE) &&
 		    k.k &&
 		    (k2 = btree_trans_peek_key_cache(iter, k.k->p)).k) {
-			ret = bkey_err(k2);
+			k = k2;
+			ret = bkey_err(k);
 			if (ret) {
-				k = k2;
 				bch2_btree_iter_set_pos(iter, iter->pos);
 				goto out;
 			}
-
-			k = k2;
-			iter->k = *k.k;
 		}
 
 		if (unlikely(iter->flags & BTREE_ITER_WITH_JOURNAL))
@@ -2857,13 +2863,11 @@ struct bkey_s_c bch2_btree_iter_peek_slot(struct btree_iter *iter)
 			goto out;
 
 		if (unlikely(iter->flags & BTREE_ITER_WITH_KEY_CACHE) &&
-		    (k = btree_trans_peek_key_cache(iter, iter->pos)).k) {
-			if (bkey_err(k)) {
-				goto out_no_locked;
-			} else {
+		    (k = __btree_trans_peek_key_cache(iter, iter->pos)).k) {
+			if (!bkey_err(k))
 				iter->k = *k.k;
-				goto out;
-			}
+			/* We're not returning a key from iter->path: */
+			goto out_no_locked;
 		}
 
 		k = bch2_btree_path_peek_slot(iter->path, &iter->k);
