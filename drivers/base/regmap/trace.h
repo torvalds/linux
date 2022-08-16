@@ -64,6 +64,49 @@ DEFINE_EVENT(regmap_reg, regmap_reg_read_cache,
 
 );
 
+DECLARE_EVENT_CLASS(regmap_bulk,
+
+	TP_PROTO(struct regmap *map, unsigned int reg,
+		 const void *val, int val_len),
+
+	TP_ARGS(map, reg, val, val_len),
+
+	TP_STRUCT__entry(
+		__string(name, regmap_name(map))
+		__field(unsigned int, reg)
+		__dynamic_array(char, buf, val_len)
+		__field(int, val_len)
+	),
+
+	TP_fast_assign(
+		__assign_str(name, regmap_name(map));
+		__entry->reg = reg;
+		__entry->val_len = val_len;
+		if (val)
+			memcpy(__get_dynamic_array(buf), val, val_len);
+	),
+
+	TP_printk("%s reg=%x val=%s", __get_str(name),
+		  (unsigned int)__entry->reg,
+		  __print_hex(__get_dynamic_array(buf), __entry->val_len))
+);
+
+DEFINE_EVENT(regmap_bulk, regmap_bulk_write,
+
+	TP_PROTO(struct regmap *map, unsigned int reg,
+		 const void *val, int val_len),
+
+	TP_ARGS(map, reg, val, val_len)
+);
+
+DEFINE_EVENT(regmap_bulk, regmap_bulk_read,
+
+	TP_PROTO(struct regmap *map, unsigned int reg,
+		 const void *val, int val_len),
+
+	TP_ARGS(map, reg, val, val_len)
+);
+
 DECLARE_EVENT_CLASS(regmap_block,
 
 	TP_PROTO(struct regmap *map, unsigned int reg, int count),
