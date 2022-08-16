@@ -568,6 +568,7 @@ static void icl_ctx_workarounds_init(struct intel_engine_cs *engine,
 static void dg2_ctx_gt_tuning_init(struct intel_engine_cs *engine,
 				   struct i915_wa_list *wal)
 {
+	wa_masked_en(wal, CHICKEN_RASTER_2, TBIMR_FAST_CLIP);
 	wa_write_clr_set(wal, GEN11_L3SQCREG5, L3_PWM_TIMER_INIT_VAL_MASK,
 			 REG_FIELD_PREP(L3_PWM_TIMER_INIT_VAL_MASK, 0x7f));
 	wa_add(wal,
@@ -2195,15 +2196,6 @@ rcs_engine_wa_init(struct intel_engine_cs *engine, struct i915_wa_list *wal)
 		wa_write_or(wal, XEHP_L3NODEARBCFG, XEHP_LNESPARE);
 	}
 
-	if (IS_DG2_GRAPHICS_STEP(i915, G10, STEP_A0, STEP_C0) ||
-	    IS_DG2_G11(i915)) {
-		/* Wa_22012654132:dg2 */
-		wa_add(wal, GEN10_CACHE_MODE_SS, 0,
-		       _MASKED_BIT_ENABLE(ENABLE_PREFETCH_INTO_IC),
-		       0 /* write-only, so skip validation */,
-		       true);
-	}
-
 	/* Wa_14013202645:dg2 */
 	if (IS_DG2_GRAPHICS_STEP(i915, G10, STEP_B0, STEP_C0) ||
 	    IS_DG2_GRAPHICS_STEP(i915, G11, STEP_A0, STEP_B0))
@@ -2692,6 +2684,23 @@ add_render_compute_tuning_settings(struct drm_i915_private *i915,
 
 	if (IS_DG2(i915)) {
 		wa_write_or(wal, XEHP_L3SCQREG7, BLEND_FILL_CACHING_OPT_DIS);
+		wa_write_clr_set(wal, RT_CTRL, STACKID_CTRL, STACKID_CTRL_512);
+		wa_write_clr_set(wal, DRAW_WATERMARK, VERT_WM_VAL,
+				 REG_FIELD_PREP(VERT_WM_VAL, 0x3FF));
+
+		/*
+		 * This is also listed as Wa_22012654132 for certain DG2
+		 * steppings, but the tuning setting programming is a superset
+		 * since it applies to all DG2 variants and steppings.
+		 *
+		 * Note that register 0xE420 is write-only and cannot be read
+		 * back for verification on DG2 (due to Wa_14012342262), so
+		 * we need to explicitly skip the readback.
+		 */
+		wa_add(wal, GEN10_CACHE_MODE_SS, 0,
+		       _MASKED_BIT_ENABLE(ENABLE_PREFETCH_INTO_IC),
+		       0 /* write-only, so skip validation */,
+		       true);
 	}
 }
 
