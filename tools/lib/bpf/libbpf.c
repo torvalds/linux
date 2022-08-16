@@ -4287,11 +4287,12 @@ int bpf_map__set_autocreate(struct bpf_map *map, bool autocreate)
 
 int bpf_map__reuse_fd(struct bpf_map *map, int fd)
 {
-	struct bpf_map_info info = {};
+	struct bpf_map_info info;
 	__u32 len = sizeof(info), name_len;
 	int new_fd, err;
 	char *new_name;
 
+	memset(&info, 0, len);
 	err = bpf_obj_get_info_by_fd(fd, &info, &len);
 	if (err && errno == EINVAL)
 		err = bpf_get_map_info_from_fdinfo(fd, &info);
@@ -4833,13 +4834,12 @@ bool kernel_supports(const struct bpf_object *obj, enum kern_feature_id feat_id)
 
 static bool map_is_reuse_compat(const struct bpf_map *map, int map_fd)
 {
-	struct bpf_map_info map_info = {};
+	struct bpf_map_info map_info;
 	char msg[STRERR_BUFSIZE];
-	__u32 map_info_len;
+	__u32 map_info_len = sizeof(map_info);
 	int err;
 
-	map_info_len = sizeof(map_info);
-
+	memset(&map_info, 0, map_info_len);
 	err = bpf_obj_get_info_by_fd(map_fd, &map_info, &map_info_len);
 	if (err && errno == EINVAL)
 		err = bpf_get_map_info_from_fdinfo(map_fd, &map_info);
@@ -9007,11 +9007,12 @@ int libbpf_find_vmlinux_btf_id(const char *name,
 
 static int libbpf_find_prog_btf_id(const char *name, __u32 attach_prog_fd)
 {
-	struct bpf_prog_info info = {};
+	struct bpf_prog_info info;
 	__u32 info_len = sizeof(info);
 	struct btf *btf;
 	int err;
 
+	memset(&info, 0, info_len);
 	err = bpf_obj_get_info_by_fd(attach_prog_fd, &info, &info_len);
 	if (err) {
 		pr_warn("failed bpf_obj_get_info_by_fd for FD %d: %d\n",
@@ -9839,12 +9840,15 @@ static int determine_uprobe_retprobe_bit(void)
 static int perf_event_open_probe(bool uprobe, bool retprobe, const char *name,
 				 uint64_t offset, int pid, size_t ref_ctr_off)
 {
-	struct perf_event_attr attr = {};
+	const size_t attr_sz = sizeof(struct perf_event_attr);
+	struct perf_event_attr attr;
 	char errmsg[STRERR_BUFSIZE];
 	int type, pfd;
 
 	if (ref_ctr_off >= (1ULL << PERF_UPROBE_REF_CTR_OFFSET_BITS))
 		return -EINVAL;
+
+	memset(&attr, 0, attr_sz);
 
 	type = uprobe ? determine_uprobe_perf_type()
 		      : determine_kprobe_perf_type();
@@ -9866,7 +9870,7 @@ static int perf_event_open_probe(bool uprobe, bool retprobe, const char *name,
 		}
 		attr.config |= 1 << bit;
 	}
-	attr.size = sizeof(attr);
+	attr.size = attr_sz;
 	attr.type = type;
 	attr.config |= (__u64)ref_ctr_off << PERF_UPROBE_REF_CTR_OFFSET_SHIFT;
 	attr.config1 = ptr_to_u64(name); /* kprobe_func or uprobe_path */
@@ -9965,7 +9969,8 @@ static int determine_kprobe_perf_type_legacy(const char *probe_name, bool retpro
 static int perf_event_kprobe_open_legacy(const char *probe_name, bool retprobe,
 					 const char *kfunc_name, size_t offset, int pid)
 {
-	struct perf_event_attr attr = {};
+	const size_t attr_sz = sizeof(struct perf_event_attr);
+	struct perf_event_attr attr;
 	char errmsg[STRERR_BUFSIZE];
 	int type, pfd, err;
 
@@ -9984,7 +9989,9 @@ static int perf_event_kprobe_open_legacy(const char *probe_name, bool retprobe,
 			libbpf_strerror_r(err, errmsg, sizeof(errmsg)));
 		goto err_clean_legacy;
 	}
-	attr.size = sizeof(attr);
+
+	memset(&attr, 0, attr_sz);
+	attr.size = attr_sz;
 	attr.config = type;
 	attr.type = PERF_TYPE_TRACEPOINT;
 
@@ -10441,6 +10448,7 @@ static int determine_uprobe_perf_type_legacy(const char *probe_name, bool retpro
 static int perf_event_uprobe_open_legacy(const char *probe_name, bool retprobe,
 					 const char *binary_path, size_t offset, int pid)
 {
+	const size_t attr_sz = sizeof(struct perf_event_attr);
 	struct perf_event_attr attr;
 	int type, pfd, err;
 
@@ -10458,8 +10466,8 @@ static int perf_event_uprobe_open_legacy(const char *probe_name, bool retprobe,
 		goto err_clean_legacy;
 	}
 
-	memset(&attr, 0, sizeof(attr));
-	attr.size = sizeof(attr);
+	memset(&attr, 0, attr_sz);
+	attr.size = attr_sz;
 	attr.config = type;
 	attr.type = PERF_TYPE_TRACEPOINT;
 
@@ -10998,7 +11006,8 @@ static int determine_tracepoint_id(const char *tp_category,
 static int perf_event_open_tracepoint(const char *tp_category,
 				      const char *tp_name)
 {
-	struct perf_event_attr attr = {};
+	const size_t attr_sz = sizeof(struct perf_event_attr);
+	struct perf_event_attr attr;
 	char errmsg[STRERR_BUFSIZE];
 	int tp_id, pfd, err;
 
@@ -11010,8 +11019,9 @@ static int perf_event_open_tracepoint(const char *tp_category,
 		return tp_id;
 	}
 
+	memset(&attr, 0, attr_sz);
 	attr.type = PERF_TYPE_TRACEPOINT;
-	attr.size = sizeof(attr);
+	attr.size = attr_sz;
 	attr.config = tp_id;
 
 	pfd = syscall(__NR_perf_event_open, &attr, -1 /* pid */, 0 /* cpu */,
@@ -11631,12 +11641,15 @@ struct perf_buffer *perf_buffer__new(int map_fd, size_t page_cnt,
 				     void *ctx,
 				     const struct perf_buffer_opts *opts)
 {
+	const size_t attr_sz = sizeof(struct perf_event_attr);
 	struct perf_buffer_params p = {};
-	struct perf_event_attr attr = {};
+	struct perf_event_attr attr;
 
 	if (!OPTS_VALID(opts, perf_buffer_opts))
 		return libbpf_err_ptr(-EINVAL);
 
+	memset(&attr, 0, attr_sz);
+	attr.size = attr_sz;
 	attr.config = PERF_COUNT_SW_BPF_OUTPUT;
 	attr.type = PERF_TYPE_SOFTWARE;
 	attr.sample_type = PERF_SAMPLE_RAW;

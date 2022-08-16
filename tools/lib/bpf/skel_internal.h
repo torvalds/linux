@@ -285,6 +285,8 @@ static inline int skel_link_create(int prog_fd, int target_fd,
 
 static inline int bpf_load_and_run(struct bpf_load_and_run_opts *opts)
 {
+	const size_t prog_load_attr_sz = offsetofend(union bpf_attr, fd_array);
+	const size_t test_run_attr_sz = offsetofend(union bpf_attr, test);
 	int map_fd = -1, prog_fd = -1, key = 0, err;
 	union bpf_attr attr;
 
@@ -302,7 +304,7 @@ static inline int bpf_load_and_run(struct bpf_load_and_run_opts *opts)
 		goto out;
 	}
 
-	memset(&attr, 0, sizeof(attr));
+	memset(&attr, 0, prog_load_attr_sz);
 	attr.prog_type = BPF_PROG_TYPE_SYSCALL;
 	attr.insns = (long) opts->insns;
 	attr.insn_cnt = opts->insns_sz / sizeof(struct bpf_insn);
@@ -313,18 +315,18 @@ static inline int bpf_load_and_run(struct bpf_load_and_run_opts *opts)
 	attr.log_size = opts->ctx->log_size;
 	attr.log_buf = opts->ctx->log_buf;
 	attr.prog_flags = BPF_F_SLEEPABLE;
-	err = prog_fd = skel_sys_bpf(BPF_PROG_LOAD, &attr, sizeof(attr));
+	err = prog_fd = skel_sys_bpf(BPF_PROG_LOAD, &attr, prog_load_attr_sz);
 	if (prog_fd < 0) {
 		opts->errstr = "failed to load loader prog";
 		set_err;
 		goto out;
 	}
 
-	memset(&attr, 0, sizeof(attr));
+	memset(&attr, 0, test_run_attr_sz);
 	attr.test.prog_fd = prog_fd;
 	attr.test.ctx_in = (long) opts->ctx;
 	attr.test.ctx_size_in = opts->ctx->sz;
-	err = skel_sys_bpf(BPF_PROG_RUN, &attr, sizeof(attr));
+	err = skel_sys_bpf(BPF_PROG_RUN, &attr, test_run_attr_sz);
 	if (err < 0 || (int)attr.test.retval < 0) {
 		opts->errstr = "failed to execute loader prog";
 		if (err < 0) {
