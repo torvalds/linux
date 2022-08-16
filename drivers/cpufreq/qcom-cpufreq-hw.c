@@ -518,6 +518,10 @@ static int qcom_cpufreq_hw_cpu_online(struct cpufreq_policy *policy)
 	if (data->throttle_irq <= 0)
 		return 0;
 
+	mutex_lock(&data->throttle_lock);
+	data->cancel_throttle = false;
+	mutex_unlock(&data->throttle_lock);
+
 	ret = irq_set_affinity_hint(data->throttle_irq, policy->cpus);
 	if (ret)
 		dev_err(&pdev->dev, "Failed to set CPU affinity of %s[%d]\n",
@@ -539,6 +543,7 @@ static int qcom_cpufreq_hw_cpu_offline(struct cpufreq_policy *policy)
 
 	cancel_delayed_work_sync(&data->throttle_work);
 	irq_set_affinity_hint(data->throttle_irq, NULL);
+	disable_irq_nosync(data->throttle_irq);
 
 	arch_update_thermal_pressure(policy->related_cpus, U32_MAX);
 	trace_dcvsh_throttle(cpumask_first(policy->related_cpus), 0);
