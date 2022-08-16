@@ -249,13 +249,17 @@ static int jh7110_hash_xmit_cpu(struct jh7110_sec_ctx *ctx, int flags)
 	mlen = total_len / sizeof(u32);// DIV_ROUND_UP(total_len, sizeof(u32));
 	buffer = (unsigned int *)ctx->buffer;
 
-	for (loop = 0; loop < mlen; loop++, buffer++)
+	for (loop = 0; loop < mlen; loop++, buffer++) {
 		jh7110_sec_write(sdev, JH7110_SHA_SHAWDR, *buffer);
+		udelay(2);
+	}
 
 	if (total_len & 0x3) {
 		cl = (unsigned char *)buffer;
-		for (loop = 0; loop < (total_len & 0x3); loop++, cl++)
+		for (loop = 0; loop < (total_len & 0x3); loop++, cl++) {
 			jh7110_sec_writeb(sdev, JH7110_SHA_SHAWDR, *cl);
+			udelay(2);
+		}
 	}
 
 	return 0;
