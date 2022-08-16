@@ -101,10 +101,16 @@ enum {
 /*
  * helpers for block size to dentry size conversion.
  */
-#define EXFAT_B_TO_DEN_IDX(b, sbi)	\
-	((b) << ((sbi)->cluster_size_bits - DENTRY_SIZE_BITS))
 #define EXFAT_B_TO_DEN(b)		((b) >> DENTRY_SIZE_BITS)
 #define EXFAT_DEN_TO_B(b)		((b) << DENTRY_SIZE_BITS)
+
+/*
+ * helpers for cluster size to dentry size conversion.
+ */
+#define EXFAT_CLU_TO_DEN(clu, sbi)	\
+	((clu) << ((sbi)->cluster_size_bits - DENTRY_SIZE_BITS))
+#define EXFAT_DEN_TO_CLU(dentry, sbi)	\
+	((dentry) >> ((sbi)->cluster_size_bits - DENTRY_SIZE_BITS))
 
 /*
  * helpers for fat entry.
