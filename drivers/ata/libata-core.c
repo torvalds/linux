@@ -4324,13 +4324,12 @@ static unsigned int ata_dev_set_xfermode(struct ata_device *dev)
 }
 
 /**
- *	ata_dev_set_feature - Issue SET FEATURES - SATA FEATURES
+ *	ata_dev_set_feature - Issue SET FEATURES
  *	@dev: Device to which command will be sent
- *	@enable: Whether to enable or disable the feature
- *	@feature: The sector count represents the feature to set
+ *	@subcmd: The SET FEATURES subcommand to be sent
+ *	@action: The sector count represents a subcommand specific action
  *
- *	Issue SET FEATURES - SATA FEATURES command to device @dev
- *	on port @ap with sector count
+ *	Issue SET FEATURES command to device @dev on port @ap with sector count
  *
  *	LOCKING:
  *	PCI/etc. bus probe sem.
@@ -4338,23 +4337,23 @@ static unsigned int ata_dev_set_xfermode(struct ata_device *dev)
  *	RETURNS:
  *	0 on success, AC_ERR_* mask otherwise.
  */
-unsigned int ata_dev_set_feature(struct ata_device *dev, u8 enable, u8 feature)
+unsigned int ata_dev_set_feature(struct ata_device *dev, u8 subcmd, u8 action)
 {
 	struct ata_taskfile tf;
 	unsigned int err_mask;
 	unsigned int timeout = 0;
 
 	/* set up set-features taskfile */
-	ata_dev_dbg(dev, "set features - SATA features\n");
+	ata_dev_dbg(dev, "set features\n");
 
 	ata_tf_init(dev, &tf);
 	tf.command = ATA_CMD_SET_FEATURES;
-	tf.feature = enable;
+	tf.feature = subcmd;
 	tf.flags |= ATA_TFLAG_ISADDR | ATA_TFLAG_DEVICE;
 	tf.protocol = ATA_PROT_NODATA;
-	tf.nsect = feature;
+	tf.nsect = action;
 
-	if (enable == SETFEATURES_SPINUP)
+	if (subcmd == SETFEATURES_SPINUP)
 		timeout = ata_probe_timeout ?
 			  ata_probe_timeout * 1000 : SETFEATURES_SPINUP_TIMEOUT;
 	err_mask = ata_exec_internal(dev, &tf, NULL, DMA_NONE, NULL, 0, timeout);
