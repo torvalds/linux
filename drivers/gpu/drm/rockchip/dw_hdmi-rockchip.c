@@ -1700,19 +1700,19 @@ static u64 rk3588_get_grf_color_fmt(void *data)
 
 	switch (val & RK3588_COLOR_FORMAT_MASK) {
 	case RK3588_YUV444:
-		if (depth == 5)
+		if (!depth)
 			bus_format = MEDIA_BUS_FMT_YUV8_1X24;
 		else
 			bus_format = MEDIA_BUS_FMT_YUV10_1X30;
 		break;
 	case RK3588_YUV420:
-		if (depth == 5)
+		if (!depth)
 			bus_format = MEDIA_BUS_FMT_UYYVYY8_0_5X24;
 		else
 			bus_format = MEDIA_BUS_FMT_UYYVYY10_0_5X30;
 		break;
 	case RK3588_RGB:
-		if (depth == 5)
+		if (!depth)
 			bus_format = MEDIA_BUS_FMT_RGB888_1X24;
 		else
 			bus_format = MEDIA_BUS_FMT_RGB101010_1X30;
