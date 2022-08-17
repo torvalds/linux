@@ -926,6 +926,16 @@ static void setup_return(struct pt_regs *regs, struct k_sigaction *ka,
 
 	/* Signal handlers are invoked with ZA and streaming mode disabled */
 	if (system_supports_sme()) {
+		/*
+		 * If we were in streaming mode the saved register
+		 * state was SVE but we will exit SM and use the
+		 * FPSIMD register state - flush the saved FPSIMD
+		 * register state in case it gets loaded.
+		 */
+		if (current->thread.svcr & SVCR_SM_MASK)
+			memset(&current->thread.uw.fpsimd_state, 0,
+			       sizeof(current->thread.uw.fpsimd_state));
+
 		current->thread.svcr &= ~(SVCR_ZA_MASK |
 					  SVCR_SM_MASK);
 		sme_smstop();
