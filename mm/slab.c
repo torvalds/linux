@@ -3585,11 +3585,19 @@ __do_kmalloc_node(size_t size, gfp_t flags, int node, unsigned long caller)
 	struct kmem_cache *cachep;
 	void *ret;
 
-	if (unlikely(size > KMALLOC_MAX_CACHE_SIZE))
-		return NULL;
+	if (unlikely(size > KMALLOC_MAX_CACHE_SIZE)) {
+		ret = kmalloc_large_node_notrace(size, flags, node);
+
+		trace_kmalloc_node(caller, ret, NULL, size,
+				   PAGE_SIZE << get_order(size),
+				   flags, node);
+		return ret;
+	}
+
 	cachep = kmalloc_slab(size, flags);
 	if (unlikely(ZERO_OR_NULL_PTR(cachep)))
 		return cachep;
+
 	ret = kmem_cache_alloc_node_trace(cachep, flags, node, size);
 	ret = kasan_kmalloc(cachep, ret, size, flags);
 
@@ -3664,17 +3672,27 @@ EXPORT_SYMBOL(kmem_cache_free);
 
 void kmem_cache_free_bulk(struct kmem_cache *orig_s, size_t size, void **p)
 {
-	struct kmem_cache *s;
-	size_t i;
 
 	local_irq_disable();
-	for (i = 0; i < size; i++) {
+	for (int i = 0; i < size; i++) {
 		void *objp = p[i];
+		struct kmem_cache *s;
 
-		if (!orig_s) /* called via kfree_bulk */
-			s = virt_to_cache(objp);
-		else
+		if (!orig_s) {
+			struct folio *folio = virt_to_folio(objp);
+
+			/* called via kfree_bulk */
+			if (!folio_test_slab(folio)) {
+				local_irq_enable();
+				free_large_kmalloc(folio, objp);
+				local_irq_disable();
+				continue;
+			}
+			s = folio_slab(folio)->slab_cache;
+		} else {
 			s = cache_from_obj(orig_s, objp);
+		}
+
 		if (!s)
 			continue;
 
@@ -3703,20 +3721,24 @@ void kfree(const void *objp)
 {
 	struct kmem_cache *c;
 	unsigned long flags;
+	struct folio *folio;
 
 	trace_kfree(_RET_IP_, objp);
 
 	if (unlikely(ZERO_OR_NULL_PTR(objp)))
 		return;
-	local_irq_save(flags);
-	kfree_debugcheck(objp);
-	c = virt_to_cache(objp);
-	if (!c) {
-		local_irq_restore(flags);
+
+	folio = virt_to_folio(objp);
+	if (!folio_test_slab(folio)) {
+		free_large_kmalloc(folio, (void *)objp);
 		return;
 	}
-	debug_check_no_locks_freed(objp, c->object_size);
 
+	c = folio_slab(folio)->slab_cache;
+
+	local_irq_save(flags);
+	kfree_debugcheck(objp);
+	debug_check_no_locks_freed(objp, c->object_size);
 	debug_check_no_obj_freed(objp, c->object_size);
 	__cache_free(c, (void *)objp, _RET_IP_);
 	local_irq_restore(flags);
@@ -4138,15 +4160,17 @@ void __check_heap_object(const void *ptr, unsigned long n,
 size_t __ksize(const void *objp)
 {
 	struct kmem_cache *c;
-	size_t size;
+	struct folio *folio;
 
 	BUG_ON(!objp);
 	if (unlikely(objp == ZERO_SIZE_PTR))
 		return 0;
 
-	c = virt_to_cache(objp);
-	size = c ? c->object_size : 0;
+	folio = virt_to_folio(objp);
+	if (!folio_test_slab(folio))
+		return folio_size(folio);
 
-	return size;
+	c = folio_slab(folio)->slab_cache;
+	return c->object_size;
 }
 EXPORT_SYMBOL(__ksize);
