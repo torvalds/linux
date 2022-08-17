@@ -204,6 +204,8 @@ int hl_device_open(struct inode *inode, struct file *filp)
 		goto out_err;
 	}
 
+	rc = hdev->asic_funcs->send_device_activity(hdev, true);
+
 	list_add(&hpriv->dev_node, &hdev->fpriv_list);
 	mutex_unlock(&hdev->fpriv_list_lock);
 

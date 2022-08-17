@@ -10031,6 +10031,17 @@ static int gaudi2_get_monitor_dump(struct hl_device *hdev, void *data)
 	return -EOPNOTSUPP;
 }
 
+int gaudi2_send_device_activity(struct hl_device *hdev, bool open)
+{
+	struct gaudi2_device *gaudi2 = hdev->asic_specific;
+
+	if (!(gaudi2->hw_cap_initialized & HW_CAP_CPU_Q) || hdev->fw_major_version < 37)
+		return 0;
+
+	/* TODO: add check for FW version using minor ver once it's known */
+	return hl_fw_send_device_activity(hdev, open);
+}
+
 static const struct hl_asic_funcs gaudi2_funcs = {
 	.early_init = gaudi2_early_init,
 	.early_fini = gaudi2_early_fini,
@@ -10127,6 +10138,7 @@ static const struct hl_asic_funcs gaudi2_funcs = {
 	.access_dev_mem = hl_access_dev_mem,
 	.set_dram_bar_base = gaudi2_set_hbm_bar_base,
 	.set_engine_cores = gaudi2_set_engine_cores,
+	.send_device_activity = gaudi2_send_device_activity,
 };
 
 void gaudi2_set_asic_funcs(struct hl_device *hdev)

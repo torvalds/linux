@@ -636,6 +636,10 @@ enum pq_init_status {
  *       passes the max size it allows the CpuCP to write to the structure, to prevent
  *       data corruption in case of mismatched driver/FW versions.
  *       Relevant only to Gaudi.
+ *
+ * CPUCP_PACKET_ACTIVE_STATUS_SET -
+ *       LKD sends FW indication whether device is free or in use, this indication is reported
+ *       also to the BMC.
  */
 
 enum cpucp_packet_id {
@@ -691,6 +695,13 @@ enum cpucp_packet_id {
 	CPUCP_PACKET_RESERVED4,			/* not used */
 	CPUCP_PACKET_RESERVED5,			/* not used */
 	CPUCP_PACKET_MONITOR_DUMP_GET,		/* debugfs */
+	CPUCP_PACKET_RESERVED6,			/* not used */
+	CPUCP_PACKET_RESERVED7,			/* not used */
+	CPUCP_PACKET_RESERVED8,			/* not used */
+	CPUCP_PACKET_RESERVED9,			/* not used */
+	CPUCP_PACKET_RESERVED10,		/* not used */
+	CPUCP_PACKET_ACTIVE_STATUS_SET,		/* internal */
+	CPUCP_PACKET_ID_MAX			/* must be last */
 };
 
 #define CPUCP_PACKET_FENCE_VAL	0xFE8CE7A5

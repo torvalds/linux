@@ -5420,6 +5420,11 @@ static int goya_scrub_device_dram(struct hl_device *hdev, u64 val)
 	return -EOPNOTSUPP;
 }
 
+static int goya_send_device_activity(struct hl_device *hdev, bool open)
+{
+	return 0;
+}
+
 static const struct hl_asic_funcs goya_funcs = {
 	.early_init = goya_early_init,
 	.early_fini = goya_early_fini,
@@ -5512,6 +5517,7 @@ static const struct hl_asic_funcs goya_funcs = {
 	.mmu_get_real_page_size = hl_mmu_get_real_page_size,
 	.access_dev_mem = hl_access_dev_mem,
 	.set_dram_bar_base = goya_set_ddr_bar_base,
+	.send_device_activity = goya_send_device_activity,
 };
 
 /*

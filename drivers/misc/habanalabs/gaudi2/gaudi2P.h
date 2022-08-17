@@ -553,5 +553,6 @@ void gaudi2_pb_print_security_errors(struct hl_device *hdev, u32 block_addr, u32
 					u32 offended_addr);
 int gaudi2_init_security(struct hl_device *hdev);
 void gaudi2_ack_protection_bits_errors(struct hl_device *hdev);
+int gaudi2_send_device_activity(struct hl_device *hdev, bool open);
 
 #endif /* GAUDI2P_H_ */

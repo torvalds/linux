@@ -470,6 +470,8 @@ static int hl_device_release(struct inode *inode, struct file *filp)
 	hdev->last_open_session_duration_jif =
 		jiffies - hdev->last_successful_open_jif;
 
+	hdev->asic_funcs->send_device_activity(hdev, false);
+
 	return 0;
 }
 

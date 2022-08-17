@@ -9132,6 +9132,11 @@ static void gaudi_add_device_attr(struct hl_device *hdev, struct attribute_group
 	dev_vrm_attr_grp->attrs = gaudi_vrm_dev_attrs;
 }
 
+static int gaudi_send_device_activity(struct hl_device *hdev, bool open)
+{
+	return 0;
+}
+
 static const struct hl_asic_funcs gaudi_funcs = {
 	.early_init = gaudi_early_init,
 	.early_fini = gaudi_early_fini,
@@ -9224,6 +9229,7 @@ static const struct hl_asic_funcs gaudi_funcs = {
 	.mmu_get_real_page_size = hl_mmu_get_real_page_size,
 	.access_dev_mem = hl_access_dev_mem,
 	.set_dram_bar_base = gaudi_set_hbm_bar_base,
+	.send_device_activity = gaudi_send_device_activity,
 };
 
 /**
