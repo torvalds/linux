@@ -968,6 +968,8 @@ struct phy_fixup {
 const char *phy_speed_to_str(int speed);
 const char *phy_duplex_to_str(unsigned int duplex);
 
+int phy_interface_num_ports(phy_interface_t interface);
+
 /* A structure for mapping a particular speed and duplex
  * combination to a particular SUPPORTED and ADVERTISED value
  */
