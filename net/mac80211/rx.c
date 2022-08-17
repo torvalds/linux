@@ -4506,6 +4506,15 @@ void ieee80211_check_fast_rx_iface(struct ieee80211_sub_if_data *sdata)
 	mutex_unlock(&local->sta_mtx);
 }
 
+static bool
+ieee80211_rx_is_valid_sta_link_id(struct ieee80211_sta *sta, u8 link_id)
+{
+	if (!sta->mlo)
+		return false;
+
+	return !!(sta->valid_links & BIT(link_id));
+}
+
 static void ieee80211_rx_8023(struct ieee80211_rx_data *rx,
 			      struct ieee80211_fast_rx *fast_rx,
 			      int orig_len)
@@ -4835,6 +4844,7 @@ static void __ieee80211_rx_handle_8023(struct ieee80211_hw *hw,
 				       struct list_head *list)
 {
 	struct ieee80211_local *local = hw_to_local(hw);
+	struct ieee80211_rx_status *status = IEEE80211_SKB_RXCB(skb);
 	struct ieee80211_fast_rx *fast_rx;
 	struct ieee80211_rx_data rx;
 
@@ -4855,7 +4865,31 @@ static void __ieee80211_rx_handle_8023(struct ieee80211_hw *hw,
 
 	rx.sta = container_of(pubsta, struct sta_info, sta);
 	rx.sdata = rx.sta->sdata;
-	rx.link = &rx.sdata->deflink;
+
+	if (status->link_valid &&
+	    !ieee80211_rx_is_valid_sta_link_id(pubsta, status->link_id))
+		goto drop;
+
+	/*
+	 * TODO: Should the frame be dropped if the right link_id is not
+	 * available? Or may be it is fine in the current form to proceed with
+	 * the frame processing because with frame being in 802.3 format,
+	 * link_id is used only for stats purpose and updating the stats on
+	 * the deflink is fine?
+	 */
+	if (status->link_valid)
+		rx.link_id = status->link_id;
+
+	if (rx.link_id >= 0) {
+		struct ieee80211_link_data *link;
+
+		link =  rcu_dereference(rx.sdata->link[rx.link_id]);
+		if (!link)
+			goto drop;
+		rx.link = link;
+	} else {
+		rx.link = &rx.sdata->deflink;
+	}
 
 	fast_rx = rcu_dereference(rx.sta->fast_rx);
 	if (!fast_rx)
@@ -4885,7 +4919,19 @@ static bool ieee80211_rx_for_interface(struct ieee80211_rx_data *rx,
 		rx->sta = link_sta->sta;
 		rx->link_id = link_sta->link_id;
 	} else {
+		struct ieee80211_rx_status *status = IEEE80211_SKB_RXCB(skb);
+
 		rx->sta = sta_info_get_bss(rx->sdata, hdr->addr2);
+		if (rx->sta) {
+			if (status->link_valid &&
+			    !ieee80211_rx_is_valid_sta_link_id(&rx->sta->sta,
+							       status->link_id))
+				return false;
+
+			rx->link_id = status->link_valid ? status->link_id : -1;
+		} else {
+			rx->link_id = -1;
+		}
 	}
 
 	return ieee80211_prepare_and_rx_handle(rx, skb, consume);
@@ -4901,6 +4947,7 @@ static void __ieee80211_rx_handle_packet(struct ieee80211_hw *hw,
 					 struct list_head *list)
 {
 	struct ieee80211_local *local = hw_to_local(hw);
+	struct ieee80211_rx_status *status = IEEE80211_SKB_RXCB(skb);
 	struct ieee80211_sub_if_data *sdata;
 	struct ieee80211_hdr *hdr;
 	__le16 fc;
@@ -4945,10 +4992,39 @@ static void __ieee80211_rx_handle_packet(struct ieee80211_hw *hw,
 
 	if (ieee80211_is_data(fc)) {
 		struct sta_info *sta, *prev_sta;
+		u8 link_id = status->link_id;
 
 		if (pubsta) {
 			rx.sta = container_of(pubsta, struct sta_info, sta);
 			rx.sdata = rx.sta->sdata;
+
+			if (status->link_valid &&
+			    !ieee80211_rx_is_valid_sta_link_id(pubsta, link_id))
+				goto out;
+
+			if (status->link_valid)
+				rx.link_id = status->link_id;
+
+			/*
+			 * In MLO connection, fetch the link_id using addr2
+			 * when the driver does not pass link_id in status.
+			 * When the address translation is already performed by
+			 * driver/hw, the valid link_id must be passed in
+			 * status.
+			 */
+
+			if (!status->link_valid && pubsta->mlo) {
+				struct ieee80211_hdr *hdr = (void *)skb->data;
+				struct link_sta_info *link_sta;
+
+				link_sta = link_sta_info_get_bss(rx.sdata,
+								 hdr->addr2);
+				if (!link_sta)
+					goto out;
+
+				rx.link_id = link_sta->link_id;
+			}
+
 			if (ieee80211_prepare_and_rx_handle(&rx, skb, true))
 				return;
 			goto out;
@@ -4962,6 +5038,13 @@ static void __ieee80211_rx_handle_packet(struct ieee80211_hw *hw,
 				continue;
 			}
 
+			if ((status->link_valid &&
+			     !ieee80211_rx_is_valid_sta_link_id(&prev_sta->sta,
+								link_id)) ||
+			    (!status->link_valid && prev_sta->sta.mlo))
+				continue;
+
+			rx.link_id = status->link_valid ? link_id : -1;
 			rx.sta = prev_sta;
 			rx.sdata = prev_sta->sdata;
 			ieee80211_prepare_and_rx_handle(&rx, skb, false);
@@ -4970,6 +5053,13 @@ static void __ieee80211_rx_handle_packet(struct ieee80211_hw *hw,
 		}
 
 		if (prev_sta) {
+			if ((status->link_valid &&
+			     !ieee80211_rx_is_valid_sta_link_id(&prev_sta->sta,
+								link_id)) ||
+			    (!status->link_valid && prev_sta->sta.mlo))
+				goto out;
+
+			rx.link_id = status->link_valid ? link_id : -1;
 			rx.sta = prev_sta;
 			rx.sdata = prev_sta->sdata;
 
@@ -5111,6 +5201,9 @@ void ieee80211_rx_list(struct ieee80211_hw *hw, struct ieee80211_sta *pubsta,
 			rate = &sband->bitrates[status->rate_idx];
 		}
 	}
+
+	if (WARN_ON_ONCE(status->link_id >= IEEE80211_LINK_UNSPECIFIED))
+		goto drop;
 
 	status->rx_flags = 0;
 
