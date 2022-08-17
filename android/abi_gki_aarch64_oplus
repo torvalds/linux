@@ -2840,6 +2840,10 @@
   __traceiter_android_vh_printk_hotplug
   __traceiter_android_vh_process_killed
   __traceiter_android_vh_revert_creds
+  __traceiter_android_vh_record_mutex_lock_starttime
+  __traceiter_android_vh_record_rtmutex_lock_starttime
+  __traceiter_android_vh_record_rwsem_lock_starttime
+  __traceiter_android_vh_record_percpu_rwsem_lock_starttime
   __traceiter_android_vh_rmqueue
   __traceiter_android_vh_rwsem_init
   __traceiter_android_vh_rwsem_mark_wake_readers
@@ -3068,6 +3072,10 @@
   __tracepoint_android_vh_printk_hotplug
   __tracepoint_android_vh_process_killed
   __tracepoint_android_vh_revert_creds
+  __tracepoint_android_vh_record_mutex_lock_starttime
+  __tracepoint_android_vh_record_rtmutex_lock_starttime
+  __tracepoint_android_vh_record_rwsem_lock_starttime
+  __tracepoint_android_vh_record_percpu_rwsem_lock_starttime
   __tracepoint_android_vh_rmqueue
   __tracepoint_android_vh_rwsem_init
   __tracepoint_android_vh_rwsem_mark_wake_readers
