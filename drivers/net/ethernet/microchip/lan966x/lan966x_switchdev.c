@@ -320,9 +320,10 @@ static int lan966x_port_prechangeupper(struct net_device *dev,
 {
 	struct lan966x_port *port = netdev_priv(dev);
 
-	if (netif_is_bridge_master(info->upper_dev) && !info->linking)
-		switchdev_bridge_port_unoffload(port->dev, port,
-						NULL, NULL);
+	if (netif_is_bridge_master(info->upper_dev) && !info->linking) {
+		switchdev_bridge_port_unoffload(port->dev, port, NULL, NULL);
+		lan966x_fdb_flush_workqueue(port->lan966x);
+	}
 
 	return NOTIFY_DONE;
 }

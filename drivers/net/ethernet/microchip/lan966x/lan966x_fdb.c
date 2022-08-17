@@ -128,6 +128,11 @@ void lan966x_fdb_deinit(struct lan966x *lan966x)
 	lan966x_fdb_purge_entries(lan966x);
 }
 
+void lan966x_fdb_flush_workqueue(struct lan966x *lan966x)
+{
+	flush_workqueue(lan966x->fdb_work);
+}
+
 static void lan966x_fdb_port_event_work(struct lan966x_fdb_event_work *fdb_work)
 {
 	struct switchdev_notifier_fdb_info *fdb_info;
@@ -205,8 +210,6 @@ static void lan966x_fdb_event_work(struct work_struct *work)
 		lan966x_fdb_bridge_event_work(fdb_work);
 
 	kfree(fdb_work->fdb_info.addr);
-	dev_put(fdb_work->dev);
-	dev_put(fdb_work->orig_dev);
 	kfree(fdb_work);
 }
 
@@ -244,8 +247,6 @@ int lan966x_handle_fdb(struct net_device *dev,
 			goto err_addr_alloc;
 
 		ether_addr_copy((u8 *)fdb_work->fdb_info.addr, fdb_info->addr);
-		dev_hold(dev);
-		dev_hold(orig_dev);
 
 		queue_work(lan966x->fdb_work, &fdb_work->work);
 		break;
