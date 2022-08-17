@@ -4370,7 +4370,7 @@ int drm_dp_atomic_find_vcpi_slots(struct drm_atomic_state *state,
 				  int pbn_div)
 {
 	struct drm_dp_mst_topology_state *topology_state;
-	struct drm_dp_vcpi_allocation *pos, *vcpi = NULL;
+	struct drm_dp_mst_atomic_payload *pos, *payload = NULL;
 	int prev_slots, prev_bw, req_slots;
 
 	topology_state = drm_atomic_get_mst_topology_state(state, mgr);
@@ -4378,11 +4378,11 @@ int drm_dp_atomic_find_vcpi_slots(struct drm_atomic_state *state,
 		return PTR_ERR(topology_state);
 
 	/* Find the current allocation for this port, if any */
-	list_for_each_entry(pos, &topology_state->vcpis, next) {
+	list_for_each_entry(pos, &topology_state->payloads, next) {
 		if (pos->port == port) {
-			vcpi = pos;
-			prev_slots = vcpi->vcpi;
-			prev_bw = vcpi->pbn;
+			payload = pos;
+			prev_slots = payload->vcpi;
+			prev_bw = payload->pbn;
 
 			/*
 			 * This should never happen, unless the driver tries
@@ -4399,7 +4399,7 @@ int drm_dp_atomic_find_vcpi_slots(struct drm_atomic_state *state,
 			break;
 		}
 	}
-	if (!vcpi) {
+	if (!payload) {
 		prev_slots = 0;
 		prev_bw = 0;
 	}
@@ -4417,17 +4417,17 @@ int drm_dp_atomic_find_vcpi_slots(struct drm_atomic_state *state,
 		       port, prev_bw, pbn);
 
 	/* Add the new allocation to the state */
-	if (!vcpi) {
-		vcpi = kzalloc(sizeof(*vcpi), GFP_KERNEL);
-		if (!vcpi)
+	if (!payload) {
+		payload = kzalloc(sizeof(*payload), GFP_KERNEL);
+		if (!payload)
 			return -ENOMEM;
 
 		drm_dp_mst_get_port_malloc(port);
-		vcpi->port = port;
-		list_add(&vcpi->next, &topology_state->vcpis);
+		payload->port = port;
+		list_add(&payload->next, &topology_state->payloads);
 	}
-	vcpi->vcpi = req_slots;
-	vcpi->pbn = pbn;
+	payload->vcpi = req_slots;
+	payload->pbn = pbn;
 
 	return req_slots;
 }
@@ -4464,21 +4464,21 @@ int drm_dp_atomic_release_vcpi_slots(struct drm_atomic_state *state,
 				     struct drm_dp_mst_port *port)
 {
 	struct drm_dp_mst_topology_state *topology_state;
-	struct drm_dp_vcpi_allocation *pos;
+	struct drm_dp_mst_atomic_payload *pos;
 	bool found = false;
 
 	topology_state = drm_atomic_get_mst_topology_state(state, mgr);
 	if (IS_ERR(topology_state))
 		return PTR_ERR(topology_state);
 
-	list_for_each_entry(pos, &topology_state->vcpis, next) {
+	list_for_each_entry(pos, &topology_state->payloads, next) {
 		if (pos->port == port) {
 			found = true;
 			break;
 		}
 	}
 	if (WARN_ON(!found)) {
-		drm_err(mgr->dev, "no VCPI for [MST PORT:%p] found in mst state %p\n",
+		drm_err(mgr->dev, "No payload for [MST PORT:%p] found in mst state %p\n",
 			port, &topology_state->base);
 		return -EINVAL;
 	}
@@ -5060,7 +5060,7 @@ drm_dp_mst_duplicate_state(struct drm_private_obj *obj)
 {
 	struct drm_dp_mst_topology_state *state, *old_state =
 		to_dp_mst_topology_state(obj->state);
-	struct drm_dp_vcpi_allocation *pos, *vcpi;
+	struct drm_dp_mst_atomic_payload *pos, *payload;
 
 	state = kmemdup(old_state, sizeof(*state), GFP_KERNEL);
 	if (!state)
@@ -5068,25 +5068,25 @@ drm_dp_mst_duplicate_state(struct drm_private_obj *obj)
 
 	__drm_atomic_helper_private_obj_duplicate_state(obj, &state->base);
 
-	INIT_LIST_HEAD(&state->vcpis);
+	INIT_LIST_HEAD(&state->payloads);
 
-	list_for_each_entry(pos, &old_state->vcpis, next) {
+	list_for_each_entry(pos, &old_state->payloads, next) {
 		/* Prune leftover freed VCPI allocations */
 		if (!pos->vcpi)
 			continue;
 
-		vcpi = kmemdup(pos, sizeof(*vcpi), GFP_KERNEL);
-		if (!vcpi)
+		payload = kmemdup(pos, sizeof(*payload), GFP_KERNEL);
+		if (!payload)
 			goto fail;
 
-		drm_dp_mst_get_port_malloc(vcpi->port);
-		list_add(&vcpi->next, &state->vcpis);
+		drm_dp_mst_get_port_malloc(payload->port);
+		list_add(&payload->next, &state->payloads);
 	}
 
 	return &state->base;
 
 fail:
-	list_for_each_entry_safe(pos, vcpi, &state->vcpis, next) {
+	list_for_each_entry_safe(pos, payload, &state->payloads, next) {
 		drm_dp_mst_put_port_malloc(pos->port);
 		kfree(pos);
 	}
@@ -5100,9 +5100,9 @@ static void drm_dp_mst_destroy_state(struct drm_private_obj *obj,
 {
 	struct drm_dp_mst_topology_state *mst_state =
 		to_dp_mst_topology_state(state);
-	struct drm_dp_vcpi_allocation *pos, *tmp;
+	struct drm_dp_mst_atomic_payload *pos, *tmp;
 
-	list_for_each_entry_safe(pos, tmp, &mst_state->vcpis, next) {
+	list_for_each_entry_safe(pos, tmp, &mst_state->payloads, next) {
 		/* We only keep references to ports with non-zero VCPIs */
 		if (pos->vcpi)
 			drm_dp_mst_put_port_malloc(pos->port);
@@ -5135,7 +5135,7 @@ static int
 drm_dp_mst_atomic_check_mstb_bw_limit(struct drm_dp_mst_branch *mstb,
 				      struct drm_dp_mst_topology_state *state)
 {
-	struct drm_dp_vcpi_allocation *vcpi;
+	struct drm_dp_mst_atomic_payload *payload;
 	struct drm_dp_mst_port *port;
 	int pbn_used = 0, ret;
 	bool found = false;
@@ -5143,9 +5143,9 @@ drm_dp_mst_atomic_check_mstb_bw_limit(struct drm_dp_mst_branch *mstb,
 	/* Check that we have at least one port in our state that's downstream
 	 * of this branch, otherwise we can skip this branch
 	 */
-	list_for_each_entry(vcpi, &state->vcpis, next) {
-		if (!vcpi->pbn ||
-		    !drm_dp_mst_port_downstream_of_branch(vcpi->port, mstb))
+	list_for_each_entry(payload, &state->payloads, next) {
+		if (!payload->pbn ||
+		    !drm_dp_mst_port_downstream_of_branch(payload->port, mstb))
 			continue;
 
 		found = true;
@@ -5176,7 +5176,7 @@ static int
 drm_dp_mst_atomic_check_port_bw_limit(struct drm_dp_mst_port *port,
 				      struct drm_dp_mst_topology_state *state)
 {
-	struct drm_dp_vcpi_allocation *vcpi;
+	struct drm_dp_mst_atomic_payload *payload;
 	int pbn_used = 0;
 
 	if (port->pdt == DP_PEER_DEVICE_NONE)
@@ -5185,10 +5185,10 @@ drm_dp_mst_atomic_check_port_bw_limit(struct drm_dp_mst_port *port,
 	if (drm_dp_mst_is_end_device(port->pdt, port->mcs)) {
 		bool found = false;
 
-		list_for_each_entry(vcpi, &state->vcpis, next) {
-			if (vcpi->port != port)
+		list_for_each_entry(payload, &state->payloads, next) {
+			if (payload->port != port)
 				continue;
-			if (!vcpi->pbn)
+			if (!payload->pbn)
 				return 0;
 
 			found = true;
@@ -5208,7 +5208,7 @@ drm_dp_mst_atomic_check_port_bw_limit(struct drm_dp_mst_port *port,
 			return -EINVAL;
 		}
 
-		pbn_used = vcpi->pbn;
+		pbn_used = payload->pbn;
 	} else {
 		pbn_used = drm_dp_mst_atomic_check_mstb_bw_limit(port->mstb,
 								 state);
@@ -5233,25 +5233,25 @@ static inline int
 drm_dp_mst_atomic_check_vcpi_alloc_limit(struct drm_dp_mst_topology_mgr *mgr,
 					 struct drm_dp_mst_topology_state *mst_state)
 {
-	struct drm_dp_vcpi_allocation *vcpi;
+	struct drm_dp_mst_atomic_payload *payload;
 	int avail_slots = mst_state->total_avail_slots, payload_count = 0;
 
-	list_for_each_entry(vcpi, &mst_state->vcpis, next) {
-		/* Releasing VCPI is always OK-even if the port is gone */
-		if (!vcpi->vcpi) {
+	list_for_each_entry(payload, &mst_state->payloads, next) {
+		/* Releasing payloads is always OK-even if the port is gone */
+		if (!payload->vcpi) {
 			drm_dbg_atomic(mgr->dev, "[MST PORT:%p] releases all VCPI slots\n",
-				       vcpi->port);
+				       payload->port);
 			continue;
 		}
 
 		drm_dbg_atomic(mgr->dev, "[MST PORT:%p] requires %d vcpi slots\n",
-			       vcpi->port, vcpi->vcpi);
+			       payload->port, payload->vcpi);
 
-		avail_slots -= vcpi->vcpi;
+		avail_slots -= payload->vcpi;
 		if (avail_slots < 0) {
 			drm_dbg_atomic(mgr->dev,
 				       "[MST PORT:%p] not enough VCPI slots in mst state %p (avail=%d)\n",
-				       vcpi->port, mst_state, avail_slots + vcpi->vcpi);
+				       payload->port, mst_state, avail_slots + payload->vcpi);
 			return -ENOSPC;
 		}
 
@@ -5284,7 +5284,7 @@ drm_dp_mst_atomic_check_vcpi_alloc_limit(struct drm_dp_mst_topology_mgr *mgr,
 int drm_dp_mst_add_affected_dsc_crtcs(struct drm_atomic_state *state, struct drm_dp_mst_topology_mgr *mgr)
 {
 	struct drm_dp_mst_topology_state *mst_state;
-	struct drm_dp_vcpi_allocation *pos;
+	struct drm_dp_mst_atomic_payload *pos;
 	struct drm_connector *connector;
 	struct drm_connector_state *conn_state;
 	struct drm_crtc *crtc;
@@ -5295,7 +5295,7 @@ int drm_dp_mst_add_affected_dsc_crtcs(struct drm_atomic_state *state, struct drm
 	if (IS_ERR(mst_state))
 		return -EINVAL;
 
-	list_for_each_entry(pos, &mst_state->vcpis, next) {
+	list_for_each_entry(pos, &mst_state->payloads, next) {
 
 		connector = pos->port->connector;
 
@@ -5349,7 +5349,7 @@ int drm_dp_mst_atomic_enable_dsc(struct drm_atomic_state *state,
 				 bool enable)
 {
 	struct drm_dp_mst_topology_state *mst_state;
-	struct drm_dp_vcpi_allocation *pos;
+	struct drm_dp_mst_atomic_payload *pos;
 	bool found = false;
 	int vcpi = 0;
 
@@ -5358,7 +5358,7 @@ int drm_dp_mst_atomic_enable_dsc(struct drm_atomic_state *state,
 	if (IS_ERR(mst_state))
 		return PTR_ERR(mst_state);
 
-	list_for_each_entry(pos, &mst_state->vcpis, next) {
+	list_for_each_entry(pos, &mst_state->payloads, next) {
 		if (pos->port == port) {
 			found = true;
 			break;
@@ -5544,7 +5544,7 @@ int drm_dp_mst_topology_mgr_init(struct drm_dp_mst_topology_mgr *mgr,
 	mst_state->start_slot = 1;
 
 	mst_state->mgr = mgr;
-	INIT_LIST_HEAD(&mst_state->vcpis);
+	INIT_LIST_HEAD(&mst_state->payloads);
 
 	drm_atomic_private_obj_init(dev, &mgr->base,
 				    &mst_state->base,

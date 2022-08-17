@@ -542,7 +542,7 @@ struct drm_dp_payload {
 
 #define to_dp_mst_topology_state(x) container_of(x, struct drm_dp_mst_topology_state, base)
 
-struct drm_dp_vcpi_allocation {
+struct drm_dp_mst_atomic_payload {
 	struct drm_dp_mst_port *port;
 	int vcpi;
 	int pbn;
@@ -552,7 +552,7 @@ struct drm_dp_vcpi_allocation {
 
 struct drm_dp_mst_topology_state {
 	struct drm_private_state base;
-	struct list_head vcpis;
+	struct list_head payloads;
 	struct drm_dp_mst_topology_mgr *mgr;
 	u8 total_avail_slots;
 	u8 start_slot;
