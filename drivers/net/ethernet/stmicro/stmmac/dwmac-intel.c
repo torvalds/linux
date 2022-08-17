@@ -610,7 +610,6 @@ static int intel_mgbe_common_data(struct pci_dev *pdev,
 	plat->int_snapshot_num = AUX_SNAPSHOT1;
 	plat->ext_snapshot_num = AUX_SNAPSHOT0;
 
-	plat->has_crossts = true;
 	plat->crosststamp = intel_crosststamp;
 	plat->int_snapshot_en = 0;
 
