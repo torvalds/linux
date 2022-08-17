@@ -233,6 +233,7 @@ static const struct ethtool_ops tse_ethtool_ops = {
 	.set_msglevel = tse_set_msglevel,
 	.get_link_ksettings = phy_ethtool_get_link_ksettings,
 	.set_link_ksettings = phy_ethtool_set_link_ksettings,
+	.get_ts_info = ethtool_op_get_ts_info,
 };
 
 void altera_tse_set_ethtool_ops(struct net_device *netdev)
