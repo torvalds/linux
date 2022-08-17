@@ -668,6 +668,8 @@ void free_large_kmalloc(struct folio *folio, void *object);
 
 #endif /* CONFIG_SLOB */
 
+size_t __ksize(const void *objp);
+
 static inline size_t slab_ksize(const struct kmem_cache *s)
 {
 #ifndef CONFIG_SLUB
