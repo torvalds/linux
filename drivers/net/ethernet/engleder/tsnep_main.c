@@ -1239,6 +1239,13 @@ static int tsnep_probe(struct platform_device *pdev)
 	adapter->queue[0].rx = &adapter->rx[0];
 	adapter->queue[0].irq_mask = ECM_INT_TX_0 | ECM_INT_RX_0;
 
+	retval = dma_set_mask_and_coherent(&adapter->pdev->dev,
+					   DMA_BIT_MASK(64));
+	if (retval) {
+		dev_err(&adapter->pdev->dev, "no usable DMA configuration.\n");
+		return retval;
+	}
+
 	tsnep_disable_irq(adapter, ECM_INT_ALL);
 	retval = devm_request_irq(&adapter->pdev->dev, adapter->irq, tsnep_irq,
 				  0, TSNEP, adapter);
