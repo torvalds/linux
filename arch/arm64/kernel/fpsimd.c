@@ -1462,17 +1462,6 @@ void do_sme_acc(unsigned long esr, struct pt_regs *regs)
 		fpsimd_bind_task_to_cpu();
 	}
 
-	/*
-	 * If SVE was not already active initialise the SVE registers,
-	 * any non-shared state between the streaming and regular SVE
-	 * registers is architecturally guaranteed to be zeroed when
-	 * we enter streaming mode.  We do not need to initialize ZA
-	 * since ZA must be disabled at this point and enabling ZA is
-	 * architecturally defined to zero ZA.
-	 */
-	if (system_supports_sve() && !test_thread_flag(TIF_SVE))
-		sve_init_regs();
-
 	put_cpu_fpsimd_context();
 }
 
