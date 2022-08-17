@@ -280,8 +280,6 @@ void *__kmem_cache_alloc_node(struct kmem_cache *s, gfp_t gfpflags,
 void __kmem_cache_free(struct kmem_cache *s, void *x, unsigned long caller);
 #endif
 
-void *kmalloc_large_node_notrace(size_t size, gfp_t flags, int node);
-
 gfp_t kmalloc_fix_flags(gfp_t flags);
 
 /* Functions provided by the slab allocators */

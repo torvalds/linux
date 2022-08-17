@@ -3587,44 +3587,6 @@ void *kmem_cache_alloc_node_trace(struct kmem_cache *cachep,
 EXPORT_SYMBOL(kmem_cache_alloc_node_trace);
 #endif
 
-static __always_inline void *
-__do_kmalloc_node(size_t size, gfp_t flags, int node, unsigned long caller)
-{
-	struct kmem_cache *cachep;
-	void *ret;
-
-	if (unlikely(size > KMALLOC_MAX_CACHE_SIZE)) {
-		ret = kmalloc_large_node_notrace(size, flags, node);
-
-		trace_kmalloc_node(caller, ret, NULL, size,
-				   PAGE_SIZE << get_order(size),
-				   flags, node);
-		return ret;
-	}
-
-	cachep = kmalloc_slab(size, flags);
-	if (unlikely(ZERO_OR_NULL_PTR(cachep)))
-		return cachep;
-
-	ret = kmem_cache_alloc_node_trace(cachep, flags, node, size);
-	ret = kasan_kmalloc(cachep, ret, size, flags);
-
-	return ret;
-}
-
-void *__kmalloc_node(size_t size, gfp_t flags, int node)
-{
-	return __do_kmalloc_node(size, flags, node, _RET_IP_);
-}
-EXPORT_SYMBOL(__kmalloc_node);
-
-void *__kmalloc_node_track_caller(size_t size, gfp_t flags,
-		int node, unsigned long caller)
-{
-	return __do_kmalloc_node(size, flags, node, caller);
-}
-EXPORT_SYMBOL(__kmalloc_node_track_caller);
-
 #ifdef CONFIG_PRINTK
 void __kmem_obj_info(struct kmem_obj_info *kpp, void *object, struct slab *slab)
 {
@@ -3646,12 +3608,6 @@ void __kmem_obj_info(struct kmem_obj_info *kpp, void *object, struct slab *slab)
 		kpp->kp_ret = *dbg_userword(cachep, objp);
 }
 #endif
-
-void *__kmalloc(size_t size, gfp_t flags)
-{
-	return __do_kmalloc_node(size, flags, NUMA_NO_NODE, _RET_IP_);
-}
-EXPORT_SYMBOL(__kmalloc);
 
 static __always_inline
 void __do_kmem_cache_free(struct kmem_cache *cachep, void *objp,
@@ -3729,43 +3685,6 @@ void kmem_cache_free_bulk(struct kmem_cache *orig_s, size_t size, void **p)
 	/* FIXME: add tracing */
 }
 EXPORT_SYMBOL(kmem_cache_free_bulk);
-
-/**
- * kfree - free previously allocated memory
- * @objp: pointer returned by kmalloc.
- *
- * If @objp is NULL, no operation is performed.
- *
- * Don't free memory not originally allocated by kmalloc()
- * or you will run into trouble.
- */
-void kfree(const void *objp)
-{
-	struct kmem_cache *c;
-	unsigned long flags;
-	struct folio *folio;
-
-	trace_kfree(_RET_IP_, objp);
-
-	if (unlikely(ZERO_OR_NULL_PTR(objp)))
-		return;
-
-	folio = virt_to_folio(objp);
-	if (!folio_test_slab(folio)) {
-		free_large_kmalloc(folio, (void *)objp);
-		return;
-	}
-
-	c = folio_slab(folio)->slab_cache;
-
-	local_irq_save(flags);
-	kfree_debugcheck(objp);
-	debug_check_no_locks_freed(objp, c->object_size);
-	debug_check_no_obj_freed(objp, c->object_size);
-	__cache_free(c, (void *)objp, _RET_IP_);
-	local_irq_restore(flags);
-}
-EXPORT_SYMBOL(kfree);
 
 /*
  * This initializes kmem_cache_node or resizes various caches for all nodes.
@@ -4169,30 +4088,3 @@ void __check_heap_object(const void *ptr, unsigned long n,
 	usercopy_abort("SLAB object", cachep->name, to_user, offset, n);
 }
 #endif /* CONFIG_HARDENED_USERCOPY */
-
-/**
- * __ksize -- Uninstrumented ksize.
- * @objp: pointer to the object
- *
- * Unlike ksize(), __ksize() is uninstrumented, and does not provide the same
- * safety checks as ksize() with KASAN instrumentation enabled.
- *
- * Return: size of the actual memory used by @objp in bytes
- */
-size_t __ksize(const void *objp)
-{
-	struct kmem_cache *c;
-	struct folio *folio;
-
-	BUG_ON(!objp);
-	if (unlikely(objp == ZERO_SIZE_PTR))
-		return 0;
-
-	folio = virt_to_folio(objp);
-	if (!folio_test_slab(folio))
-		return folio_size(folio);
-
-	c = folio_slab(folio)->slab_cache;
-	return c->object_size;
-}
-EXPORT_SYMBOL(__ksize);

@@ -897,6 +897,109 @@ void free_large_kmalloc(struct folio *folio, void *object)
 			      -(PAGE_SIZE << order));
 	__free_pages(folio_page(folio, 0), order);
 }
+
+static void *__kmalloc_large_node(size_t size, gfp_t flags, int node);
+static __always_inline
+void *__do_kmalloc_node(size_t size, gfp_t flags, int node, unsigned long caller)
+{
+	struct kmem_cache *s;
+	void *ret;
+
+	if (unlikely(size > KMALLOC_MAX_CACHE_SIZE)) {
+		ret = __kmalloc_large_node(size, flags, node);
+		trace_kmalloc_node(caller, ret, NULL,
+				   size, PAGE_SIZE << get_order(size),
+				   flags, node);
+		return ret;
+	}
+
+	s = kmalloc_slab(size, flags);
+
+	if (unlikely(ZERO_OR_NULL_PTR(s)))
+		return s;
+
+	ret = __kmem_cache_alloc_node(s, flags, node, size, caller);
+	ret = kasan_kmalloc(s, ret, size, flags);
+	trace_kmalloc_node(caller, ret, s, size,
+			   s->size, flags, node);
+	return ret;
+}
+
+void *__kmalloc_node(size_t size, gfp_t flags, int node)
+{
+	return __do_kmalloc_node(size, flags, node, _RET_IP_);
+}
+EXPORT_SYMBOL(__kmalloc_node);
+
+void *__kmalloc(size_t size, gfp_t flags)
+{
+	return __do_kmalloc_node(size, flags, NUMA_NO_NODE, _RET_IP_);
+}
+EXPORT_SYMBOL(__kmalloc);
+
+void *__kmalloc_node_track_caller(size_t size, gfp_t flags,
+				  int node, unsigned long caller)
+{
+	return __do_kmalloc_node(size, flags, node, caller);
+}
+EXPORT_SYMBOL(__kmalloc_node_track_caller);
+
+/**
+ * kfree - free previously allocated memory
+ * @object: pointer returned by kmalloc.
+ *
+ * If @object is NULL, no operation is performed.
+ *
+ * Don't free memory not originally allocated by kmalloc()
+ * or you will run into trouble.
+ */
+void kfree(const void *object)
+{
+	struct folio *folio;
+	struct slab *slab;
+	struct kmem_cache *s;
+
+	trace_kfree(_RET_IP_, object);
+
+	if (unlikely(ZERO_OR_NULL_PTR(object)))
+		return;
+
+	folio = virt_to_folio(object);
+	if (unlikely(!folio_test_slab(folio))) {
+		free_large_kmalloc(folio, (void *)object);
+		return;
+	}
+
+	slab = folio_slab(folio);
+	s = slab->slab_cache;
+	__kmem_cache_free(s, (void *)object, _RET_IP_);
+}
+EXPORT_SYMBOL(kfree);
+
+/**
+ * __ksize -- Uninstrumented ksize.
+ * @object: pointer to the object
+ *
+ * Unlike ksize(), __ksize() is uninstrumented, and does not provide the same
+ * safety checks as ksize() with KASAN instrumentation enabled.
+ *
+ * Return: size of the actual memory used by @object in bytes
+ */
+size_t __ksize(const void *object)
+{
+	struct folio *folio;
+
+	if (unlikely(object == ZERO_SIZE_PTR))
+		return 0;
+
+	folio = virt_to_folio(object);
+
+	if (unlikely(!folio_test_slab(folio)))
+		return folio_size(folio);
+
+	return slab_ksize(folio_slab(folio)->slab_cache);
+}
+EXPORT_SYMBOL(__ksize);
 #endif /* !CONFIG_SLOB */
 
 gfp_t kmalloc_fix_flags(gfp_t flags)
@@ -917,7 +1020,7 @@ gfp_t kmalloc_fix_flags(gfp_t flags)
  * know the allocation order to free the pages properly in kfree.
  */
 
-void *kmalloc_large_node_notrace(size_t size, gfp_t flags, int node)
+static void *__kmalloc_large_node(size_t size, gfp_t flags, int node)
 {
 	struct page *page;
 	void *ptr = NULL;
@@ -943,7 +1046,7 @@ void *kmalloc_large_node_notrace(size_t size, gfp_t flags, int node)
 
 void *kmalloc_large(size_t size, gfp_t flags)
 {
-	void *ret = kmalloc_large_node_notrace(size, flags, NUMA_NO_NODE);
+	void *ret = __kmalloc_large_node(size, flags, NUMA_NO_NODE);
 
 	trace_kmalloc(_RET_IP_, ret, NULL, size,
 		      PAGE_SIZE << get_order(size), flags);
@@ -953,7 +1056,7 @@ EXPORT_SYMBOL(kmalloc_large);
 
 void *kmalloc_large_node(size_t size, gfp_t flags, int node)
 {
-	void *ret = kmalloc_large_node_notrace(size, flags, node);
+	void *ret = __kmalloc_large_node(size, flags, node);
 
 	trace_kmalloc_node(_RET_IP_, ret, NULL, size,
 			   PAGE_SIZE << get_order(size), flags, node);
