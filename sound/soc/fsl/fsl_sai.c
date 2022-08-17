@@ -114,11 +114,8 @@ static irqreturn_t fsl_sai_isr(int irq, void *devid)
 	if (flags & FSL_SAI_CSR_SEF)
 		dev_dbg(dev, "isr: Tx Frame sync error detected\n");
 
-	if (flags & FSL_SAI_CSR_FEF) {
+	if (flags & FSL_SAI_CSR_FEF)
 		dev_dbg(dev, "isr: Transmit underrun detected\n");
-		/* FIFO reset for safety */
-		xcsr |= FSL_SAI_CSR_FR;
-	}
 
 	if (flags & FSL_SAI_CSR_FWF)
 		dev_dbg(dev, "isr: Enabled transmit FIFO is empty\n");
@@ -148,11 +145,8 @@ irq_rx:
 	if (flags & FSL_SAI_CSR_SEF)
 		dev_dbg(dev, "isr: Rx Frame sync error detected\n");
 
-	if (flags & FSL_SAI_CSR_FEF) {
+	if (flags & FSL_SAI_CSR_FEF)
 		dev_dbg(dev, "isr: Receive overflow detected\n");
-		/* FIFO reset for safety */
-		xcsr |= FSL_SAI_CSR_FR;
-	}
 
 	if (flags & FSL_SAI_CSR_FWF)
 		dev_dbg(dev, "isr: Enabled receive FIFO is full\n");
