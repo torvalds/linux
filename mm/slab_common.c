@@ -905,34 +905,15 @@ gfp_t kmalloc_fix_flags(gfp_t flags)
  * directly to the page allocator. We use __GFP_COMP, because we will need to
  * know the allocation order to free the pages properly in kfree.
  */
-void *kmalloc_large(size_t size, gfp_t flags)
-{
-	void *ret = NULL;
-	struct page *page;
-	unsigned int order = get_order(size);
-
-	if (unlikely(flags & GFP_SLAB_BUG_MASK))
-		flags = kmalloc_fix_flags(flags);
-
-	page = alloc_pages(flags | __GFP_COMP, order);
-	if (likely(page)) {
-		ret = page_address(page);
-		mod_lruvec_page_state(page, NR_SLAB_UNRECLAIMABLE_B,
-				      PAGE_SIZE << order);
-	}
-	ret = kasan_kmalloc_large(ret, size, flags);
-	/* As ret might get tagged, call kmemleak hook after KASAN. */
-	kmemleak_alloc(ret, size, 1, flags);
-	trace_kmalloc(_RET_IP_, ret, NULL, size, PAGE_SIZE << order, flags);
-	return ret;
-}
-EXPORT_SYMBOL(kmalloc_large);
 
 void *kmalloc_large_node_notrace(size_t size, gfp_t flags, int node)
 {
 	struct page *page;
 	void *ptr = NULL;
 	unsigned int order = get_order(size);
+
+	if (unlikely(flags & GFP_SLAB_BUG_MASK))
+		flags = kmalloc_fix_flags(flags);
 
 	flags |= __GFP_COMP;
 	page = alloc_pages_node(node, flags, order);
@@ -948,6 +929,16 @@ void *kmalloc_large_node_notrace(size_t size, gfp_t flags, int node)
 
 	return ptr;
 }
+
+void *kmalloc_large(size_t size, gfp_t flags)
+{
+	void *ret = kmalloc_large_node_notrace(size, flags, NUMA_NO_NODE);
+
+	trace_kmalloc(_RET_IP_, ret, NULL, size,
+		      PAGE_SIZE << get_order(size), flags);
+	return ret;
+}
+EXPORT_SYMBOL(kmalloc_large);
 
 void *kmalloc_large_node(size_t size, gfp_t flags, int node)
 {
