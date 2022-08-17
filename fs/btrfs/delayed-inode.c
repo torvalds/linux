@@ -520,12 +520,11 @@ static struct btrfs_delayed_item *__btrfs_next_delayed_item(
 }
 
 static int btrfs_delayed_item_reserve_metadata(struct btrfs_trans_handle *trans,
-					       struct btrfs_root *root,
 					       struct btrfs_delayed_item *item)
 {
 	struct btrfs_block_rsv *src_rsv;
 	struct btrfs_block_rsv *dst_rsv;
-	struct btrfs_fs_info *fs_info = root->fs_info;
+	struct btrfs_fs_info *fs_info = trans->fs_info;
 	u64 num_bytes;
 	int ret;
 
@@ -1490,8 +1489,7 @@ int btrfs_insert_delayed_dir_index(struct btrfs_trans_handle *trans,
 	}
 
 	if (reserve_leaf_space) {
-		ret = btrfs_delayed_item_reserve_metadata(trans, dir->root,
-							  delayed_item);
+		ret = btrfs_delayed_item_reserve_metadata(trans, delayed_item);
 		/*
 		 * Space was reserved for a dir index item insertion when we
 		 * started the transaction, so getting a failure here should be
@@ -1614,7 +1612,7 @@ int btrfs_delete_delayed_dir_index(struct btrfs_trans_handle *trans,
 	item->key = item_key;
 	item->ins_or_del = BTRFS_DELAYED_DELETION_ITEM;
 
-	ret = btrfs_delayed_item_reserve_metadata(trans, dir->root, item);
+	ret = btrfs_delayed_item_reserve_metadata(trans, item);
 	/*
 	 * we have reserved enough space when we start a new transaction,
 	 * so reserving metadata failure is impossible.
