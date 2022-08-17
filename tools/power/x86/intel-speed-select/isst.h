@@ -271,7 +271,7 @@ extern int is_icx_platform(void);
 extern void isst_trl_display_information(struct isst_id *id, FILE *outf, unsigned long long trl);
 
 extern void set_cpu_online_offline(int cpu, int state);
-extern void for_each_online_package_in_set(void (*callback)(struct isst_id *, void *, void *,
+extern void for_each_online_power_domain_in_set(void (*callback)(struct isst_id *, void *, void *,
 							    void *, void *),
 					   void *arg1, void *arg2, void *arg3,
 					   void *arg4);

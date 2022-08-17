@@ -109,7 +109,7 @@ static void _poll_for_config_change(struct isst_id *id, void *arg1, void *arg2,
 
 static void poll_for_config_change(void)
 {
-	for_each_online_package_in_set(_poll_for_config_change, NULL, NULL,
+	for_each_online_power_domain_in_set(_poll_for_config_change, NULL, NULL,
 				       NULL, NULL);
 }
 
