@@ -4522,19 +4522,30 @@ static void ieee80211_rx_8023(struct ieee80211_rx_data *rx,
 	struct ieee80211_sta_rx_stats *stats;
 	struct ieee80211_rx_status *status = IEEE80211_SKB_RXCB(rx->skb);
 	struct sta_info *sta = rx->sta;
+	struct link_sta_info *link_sta;
 	struct sk_buff *skb = rx->skb;
 	void *sa = skb->data + ETH_ALEN;
 	void *da = skb->data;
 
-	stats = &sta->deflink.rx_stats;
+	if (rx->link_id >= 0) {
+		link_sta = rcu_dereference(sta->link[rx->link_id]);
+		if (WARN_ON_ONCE(!link_sta)) {
+			dev_kfree_skb(rx->skb);
+			return;
+		}
+	} else {
+		link_sta = &sta->deflink;
+	}
+
+	stats = &link_sta->rx_stats;
 	if (fast_rx->uses_rss)
-		stats = this_cpu_ptr(sta->deflink.pcpu_rx_stats);
+		stats = this_cpu_ptr(link_sta->pcpu_rx_stats);
 
 	/* statistics part of ieee80211_rx_h_sta_process() */
 	if (!(status->flag & RX_FLAG_NO_SIGNAL_VAL)) {
 		stats->last_signal = status->signal;
 		if (!fast_rx->uses_rss)
-			ewma_signal_add(&sta->deflink.rx_stats_avg.signal,
+			ewma_signal_add(&link_sta->rx_stats_avg.signal,
 					-status->signal);
 	}
 
@@ -4550,7 +4561,7 @@ static void ieee80211_rx_8023(struct ieee80211_rx_data *rx,
 
 			stats->chain_signal_last[i] = signal;
 			if (!fast_rx->uses_rss)
-				ewma_signal_add(&sta->deflink.rx_stats_avg.chain_signal[i],
+				ewma_signal_add(&link_sta->rx_stats_avg.chain_signal[i],
 						-signal);
 		}
 	}
@@ -4626,7 +4637,8 @@ static bool ieee80211_invoke_fast_rx(struct ieee80211_rx_data *rx,
 		u8 da[ETH_ALEN];
 		u8 sa[ETH_ALEN];
 	} addrs __aligned(2);
-	struct ieee80211_sta_rx_stats *stats = &sta->deflink.rx_stats;
+	struct link_sta_info *link_sta;
+	struct ieee80211_sta_rx_stats *stats;
 
 	/* for parallel-rx, we need to have DUP_VALIDATED, otherwise we write
 	 * to a common data structure; drivers can implement that per queue
@@ -4727,8 +4739,19 @@ static bool ieee80211_invoke_fast_rx(struct ieee80211_rx_data *rx,
 	return true;
  drop:
 	dev_kfree_skb(skb);
+
+	if (rx->link_id >= 0) {
+		link_sta = rcu_dereference(sta->link[rx->link_id]);
+		if (!link_sta)
+			return true;
+	} else {
+		link_sta = &sta->deflink;
+	}
+
 	if (fast_rx->uses_rss)
-		stats = this_cpu_ptr(sta->deflink.pcpu_rx_stats);
+		stats = this_cpu_ptr(link_sta->pcpu_rx_stats);
+	else
+		stats = &link_sta->rx_stats;
 
 	stats->dropped++;
 	return true;
