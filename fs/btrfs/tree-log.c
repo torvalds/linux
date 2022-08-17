@@ -6073,12 +6073,12 @@ struct btrfs_dir_list {
 };
 
 /*
- * Log the inodes of the new dentries of a directory. See log_dir_items() for
- * details about the why it is needed.
+ * Log the inodes of the new dentries of a directory.
+ * See process_dir_items_leaf() for details about why it is needed.
  * This is a recursive operation - if an existing dentry corresponds to a
  * directory, that directory's new entries are logged too (same behaviour as
  * ext3/4, xfs, f2fs, reiserfs, nilfs2). Note that when logging the inodes
- * the dentries point to we do not lock their i_mutex, otherwise lockdep
+ * the dentries point to we do not acquire their VFS lock, otherwise lockdep
  * complains about the following circular lock dependency / possible deadlock:
  *
  *        CPU0                                        CPU1
@@ -6090,7 +6090,7 @@ struct btrfs_dir_list {
  *
  * Where sb_internal is the lock (a counter that works as a lock) acquired by
  * sb_start_intwrite() in btrfs_start_transaction().
- * Not locking i_mutex of the inodes is still safe because:
+ * Not acquiring the VFS lock of the inodes is still safe because:
  *
  * 1) For regular files we log with a mode of LOG_INODE_EXISTS. It's possible
  *    that while logging the inode new references (names) are added or removed
