@@ -7216,12 +7216,6 @@ static void gaudi_handle_qman_err(struct hl_device *hdev, u16 event_type, u64 *e
 
 	switch (event_type) {
 	case GAUDI_EVENT_TPC0_QM ... GAUDI_EVENT_TPC7_QM:
-		/* In TPC QM event, notify on TPC assertion. While there isn't
-		 * a specific event for assertion yet, the FW generates QM event.
-		 * The SW upper layer will inspect an internal mapped area to indicate
-		 * if the event is a tpc assertion or tpc QM.
-		 */
-		*event_mask |= HL_NOTIFIER_EVENT_TPC_ASSERT;
 		index = event_type - GAUDI_EVENT_TPC0_QM;
 		qid_base = GAUDI_QUEUE_ID_TPC_0_0 + index * QMAN_STREAMS;
 		qman_base = mmTPC0_QM_BASE + index * TPC_QMAN_OFFSET;
@@ -7731,6 +7725,12 @@ static void gaudi_handle_eqe(struct hl_device *hdev, struct hl_eq_entry *eq_entr
 	case GAUDI_EVENT_TPC5_DEC:
 	case GAUDI_EVENT_TPC6_DEC:
 	case GAUDI_EVENT_TPC7_DEC:
+		/* In TPC DEC event, notify on TPC assertion. While there isn't
+		 * a specific event for assertion yet, the FW generates TPC DEC event.
+		 * The SW upper layer will inspect an internal mapped area to indicate
+		 * if the event is a TPC Assertion or a "real" TPC DEC.
+		 */
+		event_mask |= HL_NOTIFIER_EVENT_TPC_ASSERT;
 		gaudi_print_irq_info(hdev, event_type, true);
 		reset_required = gaudi_tpc_read_interrupts(hdev,
 					tpc_dec_event_to_tpc_id(event_type),
