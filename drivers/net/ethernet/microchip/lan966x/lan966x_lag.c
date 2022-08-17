@@ -123,7 +123,13 @@ int lan966x_lag_port_join(struct lan966x_port *port,
 {
 	struct lan966x *lan966x = port->lan966x;
 	struct net_device *dev = port->dev;
+	u32 lag_id = -1;
+	u32 bond_mask;
 	int err;
+
+	bond_mask = lan966x_lag_get_mask(lan966x, bond);
+	if (bond_mask)
+		lag_id = __ffs(bond_mask);
 
 	port->bond = bond;
 	lan966x_lag_update_ids(lan966x);
@@ -137,6 +143,12 @@ int lan966x_lag_port_join(struct lan966x_port *port,
 
 	lan966x_port_stp_state_set(port, br_port_get_stp_state(brport_dev));
 
+	if (lan966x_lag_first_port(port->bond, port->dev) &&
+	    lag_id != -1)
+		lan966x_mac_lag_replace_port_entry(lan966x,
+						   lan966x->ports[lag_id],
+						   port);
+
 	return 0;
 
 out:
@@ -149,6 +161,20 @@ out:
 void lan966x_lag_port_leave(struct lan966x_port *port, struct net_device *bond)
 {
 	struct lan966x *lan966x = port->lan966x;
+	u32 bond_mask;
+	u32 lag_id;
+
+	if (lan966x_lag_first_port(port->bond, port->dev)) {
+		bond_mask = lan966x_lag_get_mask(lan966x, port->bond);
+		bond_mask &= ~BIT(port->chip_port);
+		if (bond_mask) {
+			lag_id = __ffs(bond_mask);
+			lan966x_mac_lag_replace_port_entry(lan966x, port,
+							   lan966x->ports[lag_id]);
+		} else {
+			lan966x_mac_lag_remove_port_entry(lan966x, port);
+		}
+	}
 
 	port->bond = NULL;
 	lan966x_lag_update_ids(lan966x);
