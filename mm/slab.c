@@ -3631,37 +3631,9 @@ void __kmem_obj_info(struct kmem_obj_info *kpp, void *object, struct slab *slab)
 }
 #endif
 
-/**
- * __do_kmalloc - allocate memory
- * @size: how many bytes of memory are required.
- * @flags: the type of memory to allocate (see kmalloc).
- * @caller: function caller for debug tracking of the caller
- *
- * Return: pointer to the allocated memory or %NULL in case of error
- */
-static __always_inline void *__do_kmalloc(size_t size, gfp_t flags,
-					  unsigned long caller)
-{
-	struct kmem_cache *cachep;
-	void *ret;
-
-	if (unlikely(size > KMALLOC_MAX_CACHE_SIZE))
-		return NULL;
-	cachep = kmalloc_slab(size, flags);
-	if (unlikely(ZERO_OR_NULL_PTR(cachep)))
-		return cachep;
-	ret = slab_alloc(cachep, NULL, flags, size, caller);
-
-	ret = kasan_kmalloc(cachep, ret, size, flags);
-	trace_kmalloc(caller, ret, cachep,
-		      size, cachep->size, flags);
-
-	return ret;
-}
-
 void *__kmalloc(size_t size, gfp_t flags)
 {
-	return __do_kmalloc(size, flags, _RET_IP_);
+	return __do_kmalloc_node(size, flags, NUMA_NO_NODE, _RET_IP_);
 }
 EXPORT_SYMBOL(__kmalloc);
 
