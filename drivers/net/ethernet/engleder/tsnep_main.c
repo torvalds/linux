@@ -749,6 +749,7 @@ static int tsnep_rx_poll(struct tsnep_rx *rx, struct napi_struct *napi,
 				hwtstamps->netdev_data = rx_inline;
 			}
 			skb_pull(skb, TSNEP_RX_INLINE_METADATA_SIZE);
+			skb_record_rx_queue(skb, rx->queue_index);
 			skb->protocol = eth_type_trans(skb,
 						       rx->adapter->netdev);
 
@@ -783,7 +784,7 @@ static int tsnep_rx_poll(struct tsnep_rx *rx, struct napi_struct *napi,
 }
 
 static int tsnep_rx_open(struct tsnep_adapter *adapter, void __iomem *addr,
-			 struct tsnep_rx *rx)
+			 int queue_index, struct tsnep_rx *rx)
 {
 	dma_addr_t dma;
 	int i;
@@ -792,6 +793,7 @@ static int tsnep_rx_open(struct tsnep_adapter *adapter, void __iomem *addr,
 	memset(rx, 0, sizeof(*rx));
 	rx->adapter = adapter;
 	rx->addr = addr;
+	rx->queue_index = queue_index;
 
 	retval = tsnep_rx_ring_init(rx);
 	if (retval)
@@ -878,6 +880,7 @@ static int tsnep_netdev_open(struct net_device *netdev)
 		if (adapter->queue[i].rx) {
 			addr = adapter->addr + TSNEP_QUEUE(rx_queue_index);
 			retval = tsnep_rx_open(adapter, addr,
+					       rx_queue_index,
 					       adapter->queue[i].rx);
 			if (retval)
 				goto failed;
