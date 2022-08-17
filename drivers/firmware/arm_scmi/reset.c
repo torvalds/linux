@@ -158,7 +158,7 @@ static int scmi_domain_reset(const struct scmi_protocol_handle *ph, u32 domain,
 		return -EINVAL;
 
 	rdom = pi->dom_info + domain;
-	if (rdom->async_reset)
+	if (rdom->async_reset && flags & AUTONOMOUS_RESET)
 		flags |= ASYNCHRONOUS_RESET;
 
 	ret = ph->xops->xfer_get_init(ph, RESET, sizeof(*dom), 0, &t);
@@ -170,7 +170,7 @@ static int scmi_domain_reset(const struct scmi_protocol_handle *ph, u32 domain,
 	dom->flags = cpu_to_le32(flags);
 	dom->reset_state = cpu_to_le32(state);
 
-	if (rdom->async_reset)
+	if (flags & ASYNCHRONOUS_RESET)
 		ret = ph->xops->do_xfer_with_response(ph, t);
 	else
 		ret = ph->xops->do_xfer(ph, t);
