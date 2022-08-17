@@ -109,7 +109,7 @@ static void test_destructive(void)
 {
 	__u64 save_caps = 0;
 
-	ASSERT_OK(test_destructive_open_and_load(), "succesful_load");
+	ASSERT_OK(test_destructive_open_and_load(), "successful_load");
 
 	if (!ASSERT_OK(cap_disable_effective(1ULL << CAP_SYS_BOOT, &save_caps), "drop_caps"))
 		return;
