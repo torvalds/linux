@@ -27,7 +27,6 @@
 
 #include "rcar_du_drv.h"
 #include "rcar_du_kms.h"
-#include "rcar_du_regs.h"
 
 /* -----------------------------------------------------------------------------
  * Device Information
