@@ -6142,25 +6142,28 @@ static int log_new_dir_dentries(struct btrfs_trans_handle *trans,
 	while (!list_empty(&dir_list)) {
 		struct extent_buffer *leaf;
 		struct btrfs_key min_key;
+		u64 ino;
+		bool continue_curr_inode = true;
 		int nritems;
 		int i;
 
 		dir_elem = list_first_entry(&dir_list, struct btrfs_dir_list,
 					    list);
-		if (ret)
-			goto next_dir_inode;
+		ino = dir_elem->ino;
+		list_del(&dir_elem->list);
+		kfree(dir_elem);
 
-		min_key.objectid = dir_elem->ino;
+		min_key.objectid = ino;
 		min_key.type = BTRFS_DIR_INDEX_KEY;
 		min_key.offset = 0;
 again:
 		btrfs_release_path(path);
 		ret = btrfs_search_forward(root, &min_key, path, trans->transid);
 		if (ret < 0) {
-			goto next_dir_inode;
+			break;
 		} else if (ret > 0) {
 			ret = 0;
-			goto next_dir_inode;
+			continue;
 		}
 
 		leaf = path->nodes[0];
@@ -6169,14 +6172,15 @@ again:
 			struct btrfs_dir_item *di;
 			struct btrfs_key di_key;
 			struct inode *di_inode;
-			struct btrfs_dir_list *new_dir_elem;
 			int log_mode = LOG_INODE_EXISTS;
 			int type;
 
 			btrfs_item_key_to_cpu(leaf, &min_key, i);
-			if (min_key.objectid != dir_elem->ino ||
-			    min_key.type != BTRFS_DIR_INDEX_KEY)
-				goto next_dir_inode;
+			if (min_key.objectid != ino ||
+			    min_key.type != BTRFS_DIR_INDEX_KEY) {
+				continue_curr_inode = false;
+				break;
+			}
 
 			di = btrfs_item_ptr(leaf, i, struct btrfs_dir_item);
 			type = btrfs_dir_type(leaf, di);
@@ -6190,7 +6194,7 @@ again:
 			di_inode = btrfs_iget(fs_info->sb, di_key.objectid, root);
 			if (IS_ERR(di_inode)) {
 				ret = PTR_ERR(di_inode);
-				goto next_dir_inode;
+				goto out;
 			}
 
 			if (!need_log_inode(trans, BTRFS_I(di_inode))) {
@@ -6205,29 +6209,33 @@ again:
 					      log_mode, ctx);
 			btrfs_add_delayed_iput(di_inode);
 			if (ret)
-				goto next_dir_inode;
+				goto out;
 			if (ctx->log_new_dentries) {
-				new_dir_elem = kmalloc(sizeof(*new_dir_elem),
-						       GFP_NOFS);
-				if (!new_dir_elem) {
+				dir_elem = kmalloc(sizeof(*dir_elem), GFP_NOFS);
+				if (!dir_elem) {
 					ret = -ENOMEM;
-					goto next_dir_inode;
+					goto out;
 				}
-				new_dir_elem->ino = di_key.objectid;
-				list_add_tail(&new_dir_elem->list, &dir_list);
+				dir_elem->ino = di_key.objectid;
+				list_add_tail(&dir_elem->list, &dir_list);
 			}
 			break;
 		}
-		if (min_key.offset < (u64)-1) {
+
+		if (continue_curr_inode && min_key.offset < (u64)-1) {
 			min_key.offset++;
 			goto again;
 		}
-next_dir_inode:
-		list_del(&dir_elem->list);
-		kfree(dir_elem);
+	}
+out:
+	btrfs_free_path(path);
+	if (ret) {
+		struct btrfs_dir_list *next;
+
+		list_for_each_entry_safe(dir_elem, next, &dir_list, list)
+			kfree(dir_elem);
 	}
 
-	btrfs_free_path(path);
 	return ret;
 }
 
