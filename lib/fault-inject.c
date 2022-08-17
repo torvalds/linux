@@ -102,10 +102,16 @@ static inline bool fail_stacktrace(struct fault_attr *attr)
 
 bool should_fail_ex(struct fault_attr *attr, ssize_t size, int flags)
 {
+	bool stack_checked = false;
+
 	if (in_task()) {
 		unsigned int fail_nth = READ_ONCE(current->fail_nth);
 
 		if (fail_nth) {
+			if (!fail_stacktrace(attr))
+				return false;
+
+			stack_checked = true;
 			fail_nth--;
 			WRITE_ONCE(current->fail_nth, fail_nth);
 			if (!fail_nth)
@@ -125,6 +131,9 @@ bool should_fail_ex(struct fault_attr *attr, ssize_t size, int flags)
 	if (atomic_read(&attr->times) == 0)
 		return false;
 
+	if (!stack_checked && !fail_stacktrace(attr))
+		return false;
+
 	if (atomic_read(&attr->space) > size) {
 		atomic_sub(size, &attr->space);
 		return false;
@@ -137,9 +146,6 @@ bool should_fail_ex(struct fault_attr *attr, ssize_t size, int flags)
 	}
 
 	if (attr->probability <= get_random_u32_below(100))
-		return false;
-
-	if (!fail_stacktrace(attr))
 		return false;
 
 fail:
