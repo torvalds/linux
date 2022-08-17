@@ -215,9 +215,19 @@ ieee80211_rx_radiotap_hdrlen(struct ieee80211_local *local,
 }
 
 static void __ieee80211_queue_skb_to_iface(struct ieee80211_sub_if_data *sdata,
+					   int link_id,
 					   struct sta_info *sta,
 					   struct sk_buff *skb)
 {
+	struct ieee80211_rx_status *status = IEEE80211_SKB_RXCB(skb);
+
+	if (link_id >= 0) {
+		status->link_valid = 1;
+		status->link_id = link_id;
+	} else {
+		status->link_valid = 0;
+	}
+
 	skb_queue_tail(&sdata->skb_queue, skb);
 	ieee80211_queue_work(&sdata->local->hw, &sdata->work);
 	if (sta)
@@ -225,11 +235,12 @@ static void __ieee80211_queue_skb_to_iface(struct ieee80211_sub_if_data *sdata,
 }
 
 static void ieee80211_queue_skb_to_iface(struct ieee80211_sub_if_data *sdata,
+					 int link_id,
 					 struct sta_info *sta,
 					 struct sk_buff *skb)
 {
 	skb->protocol = 0;
-	__ieee80211_queue_skb_to_iface(sdata, sta, skb);
+	__ieee80211_queue_skb_to_iface(sdata, link_id, sta, skb);
 }
 
 static void ieee80211_handle_mu_mimo_mon(struct ieee80211_sub_if_data *sdata,
@@ -272,7 +283,7 @@ static void ieee80211_handle_mu_mimo_mon(struct ieee80211_sub_if_data *sdata,
 	if (!skb)
 		return;
 
-	ieee80211_queue_skb_to_iface(sdata, NULL, skb);
+	ieee80211_queue_skb_to_iface(sdata, -1, NULL, skb);
 }
 
 /*
@@ -1394,7 +1405,7 @@ static void ieee80211_rx_reorder_ampdu(struct ieee80211_rx_data *rx,
 	/* if this mpdu is fragmented - terminate rx aggregation session */
 	sc = le16_to_cpu(hdr->seq_ctrl);
 	if (sc & IEEE80211_SCTL_FRAG) {
-		ieee80211_queue_skb_to_iface(rx->sdata, NULL, skb);
+		ieee80211_queue_skb_to_iface(rx->sdata, rx->link_id, NULL, skb);
 		return;
 	}
 
@@ -3044,7 +3055,8 @@ ieee80211_rx_h_data(struct ieee80211_rx_data *rx)
 		    (tf->action_code == WLAN_TDLS_CHANNEL_SWITCH_REQUEST ||
 		     tf->action_code == WLAN_TDLS_CHANNEL_SWITCH_RESPONSE)) {
 			rx->skb->protocol = cpu_to_be16(ETH_P_TDLS);
-			__ieee80211_queue_skb_to_iface(sdata, rx->sta, rx->skb);
+			__ieee80211_queue_skb_to_iface(sdata, rx->link_id,
+						       rx->sta, rx->skb);
 			return RX_QUEUED;
 		}
 	}
@@ -3634,7 +3646,7 @@ ieee80211_rx_h_action(struct ieee80211_rx_data *rx)
 	return RX_QUEUED;
 
  queue:
-	ieee80211_queue_skb_to_iface(sdata, rx->sta, rx->skb);
+	ieee80211_queue_skb_to_iface(sdata, rx->link_id, rx->sta, rx->skb);
 	return RX_QUEUED;
 }
 
@@ -3792,7 +3804,7 @@ ieee80211_rx_h_ext(struct ieee80211_rx_data *rx)
 		return RX_DROP_MONITOR;
 
 	/* for now only beacons are ext, so queue them */
-	ieee80211_queue_skb_to_iface(sdata, rx->sta, rx->skb);
+	ieee80211_queue_skb_to_iface(sdata, rx->link_id, rx->sta, rx->skb);
 
 	return RX_QUEUED;
 }
@@ -3849,7 +3861,7 @@ ieee80211_rx_h_mgmt(struct ieee80211_rx_data *rx)
 		return RX_DROP_MONITOR;
 	}
 
-	ieee80211_queue_skb_to_iface(sdata, rx->sta, rx->skb);
+	ieee80211_queue_skb_to_iface(sdata, rx->link_id, rx->sta, rx->skb);
 
 	return RX_QUEUED;
 }
