@@ -1077,8 +1077,8 @@ EXPORT_SYMBOL(sockopt_capable);
  *	at the socket level. Everything here is generic.
  */
 
-static int sk_setsockopt(struct sock *sk, int level, int optname,
-			 sockptr_t optval, unsigned int optlen)
+int sk_setsockopt(struct sock *sk, int level, int optname,
+		  sockptr_t optval, unsigned int optlen)
 {
 	struct so_timestamping timestamping;
 	struct socket *sock = sk->sk_socket;
@@ -1264,7 +1264,7 @@ set_sndbuf:
 	case SO_RCVLOWAT:
 		if (val < 0)
 			val = INT_MAX;
-		if (sock->ops->set_rcvlowat)
+		if (sock && sock->ops->set_rcvlowat)
 			ret = sock->ops->set_rcvlowat(sk, val);
 		else
 			WRITE_ONCE(sk->sk_rcvlowat, val ? : 1);
