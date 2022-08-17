@@ -3262,6 +3262,14 @@ void *kmem_cache_alloc_lru(struct kmem_cache *s, struct list_lru *lru,
 }
 EXPORT_SYMBOL(kmem_cache_alloc_lru);
 
+void *__kmem_cache_alloc_node(struct kmem_cache *s, gfp_t gfpflags,
+			      int node, size_t orig_size,
+			      unsigned long caller)
+{
+	return slab_alloc_node(s, NULL, gfpflags, node,
+			       caller, orig_size);
+}
+
 #ifdef CONFIG_TRACING
 void *kmem_cache_alloc_trace(struct kmem_cache *s, gfp_t gfpflags, size_t size)
 {
@@ -3525,6 +3533,11 @@ void ___cache_free(struct kmem_cache *cache, void *x, unsigned long addr)
 	do_slab_free(cache, virt_to_slab(x), x, NULL, 1, addr);
 }
 #endif
+
+void __kmem_cache_free(struct kmem_cache *s, void *x, unsigned long caller)
+{
+	slab_free(s, virt_to_slab(x), x, NULL, &x, 1, caller);
+}
 
 void kmem_cache_free(struct kmem_cache *s, void *x)
 {

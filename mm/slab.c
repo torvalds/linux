@@ -3560,6 +3560,14 @@ void *kmem_cache_alloc_node(struct kmem_cache *cachep, gfp_t flags, int nodeid)
 }
 EXPORT_SYMBOL(kmem_cache_alloc_node);
 
+void *__kmem_cache_alloc_node(struct kmem_cache *cachep, gfp_t flags,
+			     int nodeid, size_t orig_size,
+			     unsigned long caller)
+{
+	return slab_alloc_node(cachep, NULL, flags, nodeid,
+			       orig_size, caller);
+}
+
 #ifdef CONFIG_TRACING
 void *kmem_cache_alloc_node_trace(struct kmem_cache *cachep,
 				  gfp_t flags,
@@ -3645,6 +3653,26 @@ void *__kmalloc(size_t size, gfp_t flags)
 }
 EXPORT_SYMBOL(__kmalloc);
 
+static __always_inline
+void __do_kmem_cache_free(struct kmem_cache *cachep, void *objp,
+			  unsigned long caller)
+{
+	unsigned long flags;
+
+	local_irq_save(flags);
+	debug_check_no_locks_freed(objp, cachep->object_size);
+	if (!(cachep->flags & SLAB_DEBUG_OBJECTS))
+		debug_check_no_obj_freed(objp, cachep->object_size);
+	__cache_free(cachep, objp, caller);
+	local_irq_restore(flags);
+}
+
+void __kmem_cache_free(struct kmem_cache *cachep, void *objp,
+		       unsigned long caller)
+{
+	__do_kmem_cache_free(cachep, objp, caller);
+}
+
 /**
  * kmem_cache_free - Deallocate an object
  * @cachep: The cache the allocation was from.
@@ -3655,18 +3683,12 @@ EXPORT_SYMBOL(__kmalloc);
  */
 void kmem_cache_free(struct kmem_cache *cachep, void *objp)
 {
-	unsigned long flags;
 	cachep = cache_from_obj(cachep, objp);
 	if (!cachep)
 		return;
 
 	trace_kmem_cache_free(_RET_IP_, objp, cachep->name);
-	local_irq_save(flags);
-	debug_check_no_locks_freed(objp, cachep->object_size);
-	if (!(cachep->flags & SLAB_DEBUG_OBJECTS))
-		debug_check_no_obj_freed(objp, cachep->object_size);
-	__cache_free(cachep, objp, _RET_IP_);
-	local_irq_restore(flags);
+	__do_kmem_cache_free(cachep, objp, _RET_IP_);
 }
 EXPORT_SYMBOL(kmem_cache_free);
 
