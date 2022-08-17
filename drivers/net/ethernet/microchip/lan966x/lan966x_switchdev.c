@@ -326,23 +326,25 @@ static int lan966x_port_prechangeupper(struct net_device *dev,
 	return NOTIFY_DONE;
 }
 
-static int lan966x_foreign_bridging_check(struct net_device *bridge,
+static int lan966x_foreign_bridging_check(struct net_device *upper,
+					  bool *has_foreign,
+					  bool *seen_lan966x,
 					  struct netlink_ext_ack *extack)
 {
 	struct lan966x *lan966x = NULL;
-	bool has_foreign = false;
 	struct net_device *dev;
 	struct list_head *iter;
 
-	if (!netif_is_bridge_master(bridge))
+	if (!netif_is_bridge_master(upper) &&
+	    !netif_is_lag_master(upper))
 		return 0;
 
-	netdev_for_each_lower_dev(bridge, dev, iter) {
+	netdev_for_each_lower_dev(upper, dev, iter) {
 		if (lan966x_netdevice_check(dev)) {
 			struct lan966x_port *port = netdev_priv(dev);
 
 			if (lan966x) {
-				/* Bridge already has at least one port of a
+				/* Upper already has at least one port of a
 				 * lan966x switch inside it, check that it's
 				 * the same instance of the driver.
 				 */
@@ -353,15 +355,24 @@ static int lan966x_foreign_bridging_check(struct net_device *bridge,
 				}
 			} else {
 				/* This is the first lan966x port inside this
-				 * bridge
+				 * upper device
 				 */
 				lan966x = port->lan966x;
+				*seen_lan966x = true;
 			}
+		} else if (netif_is_lag_master(dev)) {
+			/* Allow to have bond interfaces that have only lan966x
+			 * devices
+			 */
+			if (lan966x_foreign_bridging_check(dev, has_foreign,
+							   seen_lan966x,
+							   extack))
+				return -EINVAL;
 		} else {
-			has_foreign = true;
+			*has_foreign = true;
 		}
 
-		if (lan966x && has_foreign) {
+		if (*seen_lan966x && *has_foreign) {
 			NL_SET_ERR_MSG_MOD(extack,
 					   "Bridging lan966x ports with foreign interfaces disallowed");
 			return -EINVAL;
@@ -374,7 +385,12 @@ static int lan966x_foreign_bridging_check(struct net_device *bridge,
 static int lan966x_bridge_check(struct net_device *dev,
 				struct netdev_notifier_changeupper_info *info)
 {
+	bool has_foreign = false;
+	bool seen_lan966x = false;
+
 	return lan966x_foreign_bridging_check(info->upper_dev,
+					      &has_foreign,
+					      &seen_lan966x,
 					      info->info.extack);
 }
 
