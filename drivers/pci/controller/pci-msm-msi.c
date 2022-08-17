@@ -251,6 +251,7 @@ static int msm_msi_domain_prepare(struct irq_domain *domain, struct device *dev,
 		if (dma_mapping_error(client->dev, client->msi_addr)) {
 			dev_err(msi->dev, "MSI: failed to map msi address\n");
 			client->msi_addr = 0;
+			kfree(client);
 			return -ENOMEM;
 		}
 	}
@@ -265,42 +266,8 @@ static int msm_msi_domain_prepare(struct irq_domain *domain, struct device *dev,
 	return 0;
 }
 
-static void msm_msi_domain_finish(msi_alloc_info_t *arg, int retval)
-{
-	struct device *dev = arg->desc->dev;
-	struct irq_domain *domain = dev_get_msi_domain(dev);
-	struct msm_msi *msi = domain->parent->host_data;
-
-	/* if prepare or alloc fails, then clean up */
-	if (retval) {
-		struct msm_msi_client *tmp, *client = NULL;
-
-		mutex_lock(&msi->mutex);
-		list_for_each_entry(tmp, &msi->clients, node) {
-			if (tmp->dev == dev) {
-				client = tmp;
-				list_del(&client->node);
-				break;
-			}
-		}
-		mutex_unlock(&msi->mutex);
-
-		if (!client)
-			return;
-
-		if ((msi->type == MSM_MSI_TYPE_QCOM) && client->msi_addr)
-			dma_unmap_resource(client->dev, client->msi_addr,
-					PAGE_SIZE, DMA_FROM_DEVICE, 0);
-
-		kfree(client);
-
-		return;
-	}
-}
-
 static struct msi_domain_ops msm_msi_domain_ops = {
 	.msi_prepare = msm_msi_domain_prepare,
-	.msi_finish = msm_msi_domain_finish,
 };
 
 static struct msi_domain_info msm_msi_domain_info = {
