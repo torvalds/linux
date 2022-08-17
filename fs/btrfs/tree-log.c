@@ -5856,14 +5856,10 @@ static int btrfs_log_inode(struct btrfs_trans_handle *trans,
 	 * copies of everything.
 	 */
 	if (S_ISDIR(inode->vfs_inode.i_mode)) {
-		int max_key_type = BTRFS_DIR_LOG_INDEX_KEY;
-
 		clear_bit(BTRFS_INODE_COPY_EVERYTHING, &inode->runtime_flags);
-		if (inode_only == LOG_INODE_EXISTS)
-			max_key_type = BTRFS_XATTR_ITEM_KEY;
 		if (ctx->logged_before)
 			ret = drop_inode_items(trans, log, path, inode,
-					       max_key_type);
+					       BTRFS_XATTR_ITEM_KEY);
 	} else {
 		if (inode_only == LOG_INODE_EXISTS && ctx->logged_before) {
 			/*
