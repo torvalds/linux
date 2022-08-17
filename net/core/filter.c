@@ -5086,6 +5086,34 @@ static int bpf_sol_tcp_setsockopt(struct sock *sk, int optname,
 	return 0;
 }
 
+static int sol_tcp_setsockopt(struct sock *sk, int optname,
+			      char *optval, int optlen)
+{
+	if (sk->sk_prot->setsockopt != tcp_setsockopt)
+		return -EINVAL;
+
+	switch (optname) {
+	case TCP_KEEPIDLE:
+	case TCP_KEEPINTVL:
+	case TCP_KEEPCNT:
+	case TCP_SYNCNT:
+	case TCP_WINDOW_CLAMP:
+	case TCP_USER_TIMEOUT:
+	case TCP_NOTSENT_LOWAT:
+	case TCP_SAVE_SYN:
+		if (optlen != sizeof(int))
+			return -EINVAL;
+		break;
+	case TCP_CONGESTION:
+		break;
+	default:
+		return bpf_sol_tcp_setsockopt(sk, optname, optval, optlen);
+	}
+
+	return do_tcp_setsockopt(sk, SOL_TCP, optname,
+				 KERNEL_SOCKPTR(optval), optlen);
+}
+
 static int __bpf_setsockopt(struct sock *sk, int level, int optname,
 			    char *optval, int optlen)
 {
@@ -5138,73 +5166,8 @@ static int __bpf_setsockopt(struct sock *sk, int level, int optname,
 		default:
 			ret = -EINVAL;
 		}
-	} else if (IS_ENABLED(CONFIG_INET) && level == SOL_TCP &&
-		   sk->sk_prot->setsockopt == tcp_setsockopt) {
-		if (optname >= TCP_BPF_IW)
-			return bpf_sol_tcp_setsockopt(sk, optname,
-						      optval, optlen);
-
-		if (optname == TCP_CONGESTION) {
-			char name[TCP_CA_NAME_MAX];
-
-			strncpy(name, optval, min_t(long, optlen,
-						    TCP_CA_NAME_MAX-1));
-			name[TCP_CA_NAME_MAX-1] = 0;
-			ret = tcp_set_congestion_control(sk, name, false, true);
-		} else {
-			struct inet_connection_sock *icsk = inet_csk(sk);
-			struct tcp_sock *tp = tcp_sk(sk);
-
-			if (optlen != sizeof(int))
-				return -EINVAL;
-
-			val = *((int *)optval);
-			/* Only some options are supported */
-			switch (optname) {
-			case TCP_SAVE_SYN:
-				if (val < 0 || val > 1)
-					ret = -EINVAL;
-				else
-					tp->save_syn = val;
-				break;
-			case TCP_KEEPIDLE:
-				ret = tcp_sock_set_keepidle_locked(sk, val);
-				break;
-			case TCP_KEEPINTVL:
-				if (val < 1 || val > MAX_TCP_KEEPINTVL)
-					ret = -EINVAL;
-				else
-					tp->keepalive_intvl = val * HZ;
-				break;
-			case TCP_KEEPCNT:
-				if (val < 1 || val > MAX_TCP_KEEPCNT)
-					ret = -EINVAL;
-				else
-					tp->keepalive_probes = val;
-				break;
-			case TCP_SYNCNT:
-				if (val < 1 || val > MAX_TCP_SYNCNT)
-					ret = -EINVAL;
-				else
-					icsk->icsk_syn_retries = val;
-				break;
-			case TCP_USER_TIMEOUT:
-				if (val < 0)
-					ret = -EINVAL;
-				else
-					icsk->icsk_user_timeout = val;
-				break;
-			case TCP_NOTSENT_LOWAT:
-				tp->notsent_lowat = val;
-				sk->sk_write_space(sk);
-				break;
-			case TCP_WINDOW_CLAMP:
-				ret = tcp_set_window_clamp(sk, val);
-				break;
-			default:
-				ret = -EINVAL;
-			}
-		}
+	} else if (IS_ENABLED(CONFIG_INET) && level == SOL_TCP) {
+		return sol_tcp_setsockopt(sk, optname, optval, optlen);
 	} else {
 		ret = -EINVAL;
 	}
