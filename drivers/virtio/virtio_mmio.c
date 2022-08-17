@@ -59,6 +59,7 @@
 #include <linux/highmem.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
+#include <linux/of_address.h>
 #include <linux/list.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
@@ -611,27 +612,44 @@ static phys_addr_t virtio_swiotlb_base;
 static phys_addr_t virtio_swiotlb_dma_base;
 static size_t virtio_swiotlb_size;
 
-static int get_swiotlb_base(struct device_node *np, phys_addr_t *base,
+static int virtio_get_shm(struct device_node *np, phys_addr_t *base,
 		phys_addr_t *dma_base, size_t *size)
 {
 	const __be64 *val;
 	int len;
+	struct device_node *shm_np;
+	struct resource res_mem;
+	int ret;
 
-	val = of_get_property(np, "reg", &len);
-	if (!val || len != 16)
+	shm_np = of_parse_phandle(np, "memory-region", 0);
+	if (!shm_np) {
+		pr_err("%s: Invalid memory-region\n", __func__);
 		return -EINVAL;
+	}
 
-	*base = __be64_to_cpup(val);
-	val++;
-	*size = __be64_to_cpup(val);
-
-	if (!*base || !*size)
+	ret = of_address_to_resource(shm_np, 0, &res_mem);
+	if (ret) {
+		pr_err("%s: of_address_to_resource failed ret %d\n", __func__, ret);
 		return -EINVAL;
+	}
+
+	*base = res_mem.start;
+	*size = resource_size(&res_mem);
+	of_node_put(shm_np);
+
+	if (!*base || !*size) {
+		pr_err("%s: Invalid memory-region base %llx size %d\n", __func__, *base, *size);
+		return -EINVAL;
+	}
 
 	val = of_get_property(np, "dma_base", &len);
-	if (!val || len != 8)
+	if (!val || len != 8) {
+		pr_err("%s: Invalid dma_base prop val %llx size %d\n", __func__, val, len);
 		return -EINVAL;
+	}
 	*dma_base = __be64_to_cpup(val);
+
+	pr_debug("%s: shm base %llx size %llx dma_base %llx\n", __func__, *base, *size, *dma_base);
 
 	return 0;
 }
@@ -650,7 +668,7 @@ static int __init virtio_swiotlb_init(void)
 	if (!np)
 		return 0;
 
-	ret = get_swiotlb_base(np, &base, &dma_base, &size);
+	ret = virtio_get_shm(np, &base, &dma_base, &size);
 	of_node_put(np);
 
 	if (ret)
@@ -767,26 +785,14 @@ static inline int
 get_ring_base(struct platform_device *pdev, phys_addr_t *ring_base,
 				phys_addr_t *ring_dma_base, size_t *ring_size)
 {
-	struct device *dev = &pdev->dev;
-	const __be64 *val;
-	int len;
+	int ret;
 
 	if (!virtio_swiotlb_base)
 		return 0;
 
-	val = of_get_property(pdev->dev.of_node, "ring_base", &len);
-	if (!val || len != 24)
-		return 0;
+	ret = virtio_get_shm(pdev->dev.of_node, ring_base, ring_dma_base, ring_size);
 
-	*ring_base = __be64_to_cpup(val);
-	val++;
-	*ring_dma_base = __be64_to_cpup(val);
-	val++;
-	*ring_size = __be64_to_cpup(val);
-
-	dev_dbg(dev, "ring_base %pK ring_dma_base %pK ring_size %llx\n",
-				*ring_base, *ring_dma_base, *ring_size);
-	return 1;
+	return ret ? 0 : 1;
 }
 
 static int setup_virtio_dma_ops(struct platform_device *pdev)
