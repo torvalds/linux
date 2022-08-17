@@ -1761,25 +1761,17 @@ int tcp_read_skb(struct sock *sk, skb_read_actor_t recv_actor)
 	if (sk->sk_state == TCP_LISTEN)
 		return -ENOTCONN;
 
-	while ((skb = tcp_recv_skb(sk, seq, &offset)) != NULL) {
-		int used;
+	skb = tcp_recv_skb(sk, seq, &offset);
+	if (!skb)
+		return 0;
 
-		__skb_unlink(skb, &sk->sk_receive_queue);
-		WARN_ON(!skb_set_owner_sk_safe(skb, sk));
-		used = recv_actor(sk, skb);
-		if (used <= 0) {
-			if (!copied)
-				copied = used;
-			break;
-		}
-		seq += used;
-		copied += used;
-
-		if (TCP_SKB_CB(skb)->tcp_flags & TCPHDR_FIN) {
+	__skb_unlink(skb, &sk->sk_receive_queue);
+	WARN_ON(!skb_set_owner_sk_safe(skb, sk));
+	copied = recv_actor(sk, skb);
+	if (copied > 0) {
+		seq += copied;
+		if (TCP_SKB_CB(skb)->tcp_flags & TCPHDR_FIN)
 			++seq;
-			break;
-		}
-		break;
 	}
 	consume_skb(skb);
 	WRITE_ONCE(tp->copied_seq, seq);
