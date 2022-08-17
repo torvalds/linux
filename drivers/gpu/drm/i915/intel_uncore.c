@@ -112,8 +112,11 @@ fw_domain_reset(const struct intel_uncore_forcewake_domain *d)
 	 * trying to reset here does exist at this point (engines could be fused
 	 * off in ICL+), so no waiting for acks
 	 */
-	/* WaRsClearFWBitsAtReset:bdw,skl */
-	fw_clear(d, 0xffff);
+	/* WaRsClearFWBitsAtReset */
+	if (GRAPHICS_VER(d->uncore->i915) >= 12)
+		fw_clear(d, 0xefff);
+	else
+		fw_clear(d, 0xffff);
 }
 
 static inline void
