@@ -8,6 +8,108 @@
 
 #define ICE_PF_RESET_WAIT_COUNT	300
 
+static const char * const ice_link_mode_str_low[] = {
+	[0] = "100BASE_TX",
+	[1] = "100M_SGMII",
+	[2] = "1000BASE_T",
+	[3] = "1000BASE_SX",
+	[4] = "1000BASE_LX",
+	[5] = "1000BASE_KX",
+	[6] = "1G_SGMII",
+	[7] = "2500BASE_T",
+	[8] = "2500BASE_X",
+	[9] = "2500BASE_KX",
+	[10] = "5GBASE_T",
+	[11] = "5GBASE_KR",
+	[12] = "10GBASE_T",
+	[13] = "10G_SFI_DA",
+	[14] = "10GBASE_SR",
+	[15] = "10GBASE_LR",
+	[16] = "10GBASE_KR_CR1",
+	[17] = "10G_SFI_AOC_ACC",
+	[18] = "10G_SFI_C2C",
+	[19] = "25GBASE_T",
+	[20] = "25GBASE_CR",
+	[21] = "25GBASE_CR_S",
+	[22] = "25GBASE_CR1",
+	[23] = "25GBASE_SR",
+	[24] = "25GBASE_LR",
+	[25] = "25GBASE_KR",
+	[26] = "25GBASE_KR_S",
+	[27] = "25GBASE_KR1",
+	[28] = "25G_AUI_AOC_ACC",
+	[29] = "25G_AUI_C2C",
+	[30] = "40GBASE_CR4",
+	[31] = "40GBASE_SR4",
+	[32] = "40GBASE_LR4",
+	[33] = "40GBASE_KR4",
+	[34] = "40G_XLAUI_AOC_ACC",
+	[35] = "40G_XLAUI",
+	[36] = "50GBASE_CR2",
+	[37] = "50GBASE_SR2",
+	[38] = "50GBASE_LR2",
+	[39] = "50GBASE_KR2",
+	[40] = "50G_LAUI2_AOC_ACC",
+	[41] = "50G_LAUI2",
+	[42] = "50G_AUI2_AOC_ACC",
+	[43] = "50G_AUI2",
+	[44] = "50GBASE_CP",
+	[45] = "50GBASE_SR",
+	[46] = "50GBASE_FR",
+	[47] = "50GBASE_LR",
+	[48] = "50GBASE_KR_PAM4",
+	[49] = "50G_AUI1_AOC_ACC",
+	[50] = "50G_AUI1",
+	[51] = "100GBASE_CR4",
+	[52] = "100GBASE_SR4",
+	[53] = "100GBASE_LR4",
+	[54] = "100GBASE_KR4",
+	[55] = "100G_CAUI4_AOC_ACC",
+	[56] = "100G_CAUI4",
+	[57] = "100G_AUI4_AOC_ACC",
+	[58] = "100G_AUI4",
+	[59] = "100GBASE_CR_PAM4",
+	[60] = "100GBASE_KR_PAM4",
+	[61] = "100GBASE_CP2",
+	[62] = "100GBASE_SR2",
+	[63] = "100GBASE_DR",
+};
+
+static const char * const ice_link_mode_str_high[] = {
+	[0] = "100GBASE_KR2_PAM4",
+	[1] = "100G_CAUI2_AOC_ACC",
+	[2] = "100G_CAUI2",
+	[3] = "100G_AUI2_AOC_ACC",
+	[4] = "100G_AUI2",
+};
+
+/**
+ * ice_dump_phy_type - helper function to dump phy_type
+ * @hw: pointer to the HW structure
+ * @low: 64 bit value for phy_type_low
+ * @high: 64 bit value for phy_type_high
+ * @prefix: prefix string to differentiate multiple dumps
+ */
+static void
+ice_dump_phy_type(struct ice_hw *hw, u64 low, u64 high, const char *prefix)
+{
+	ice_debug(hw, ICE_DBG_PHY, "%s: phy_type_low: 0x%016llx\n", prefix, low);
+
+	for (u32 i = 0; i < BITS_PER_TYPE(typeof(low)); i++) {
+		if (low & BIT_ULL(i))
+			ice_debug(hw, ICE_DBG_PHY, "%s:   bit(%d): %s\n",
+				  prefix, i, ice_link_mode_str_low[i]);
+	}
+
+	ice_debug(hw, ICE_DBG_PHY, "%s: phy_type_high: 0x%016llx\n", prefix, high);
+
+	for (u32 i = 0; i < BITS_PER_TYPE(typeof(high)); i++) {
+		if (high & BIT_ULL(i))
+			ice_debug(hw, ICE_DBG_PHY, "%s:   bit(%d): %s\n",
+				  prefix, i, ice_link_mode_str_high[i]);
+	}
+}
+
 /**
  * ice_set_mac_type - Sets MAC type
  * @hw: pointer to the HW structure
@@ -183,6 +285,7 @@ ice_aq_get_phy_caps(struct ice_port_info *pi, bool qual_mods, u8 report_mode,
 	struct ice_aqc_get_phy_caps *cmd;
 	u16 pcaps_size = sizeof(*pcaps);
 	struct ice_aq_desc desc;
+	const char *prefix;
 	struct ice_hw *hw;
 	int status;
 
@@ -204,29 +307,48 @@ ice_aq_get_phy_caps(struct ice_port_info *pi, bool qual_mods, u8 report_mode,
 	cmd->param0 |= cpu_to_le16(report_mode);
 	status = ice_aq_send_cmd(hw, &desc, pcaps, pcaps_size, cd);
 
-	ice_debug(hw, ICE_DBG_LINK, "get phy caps - report_mode = 0x%x\n",
-		  report_mode);
-	ice_debug(hw, ICE_DBG_LINK, "	phy_type_low = 0x%llx\n",
-		  (unsigned long long)le64_to_cpu(pcaps->phy_type_low));
-	ice_debug(hw, ICE_DBG_LINK, "	phy_type_high = 0x%llx\n",
-		  (unsigned long long)le64_to_cpu(pcaps->phy_type_high));
-	ice_debug(hw, ICE_DBG_LINK, "	caps = 0x%x\n", pcaps->caps);
-	ice_debug(hw, ICE_DBG_LINK, "	low_power_ctrl_an = 0x%x\n",
+	ice_debug(hw, ICE_DBG_LINK, "get phy caps dump\n");
+
+	switch (report_mode) {
+	case ICE_AQC_REPORT_TOPO_CAP_MEDIA:
+		prefix = "phy_caps_media";
+		break;
+	case ICE_AQC_REPORT_TOPO_CAP_NO_MEDIA:
+		prefix = "phy_caps_no_media";
+		break;
+	case ICE_AQC_REPORT_ACTIVE_CFG:
+		prefix = "phy_caps_active";
+		break;
+	case ICE_AQC_REPORT_DFLT_CFG:
+		prefix = "phy_caps_default";
+		break;
+	default:
+		prefix = "phy_caps_invalid";
+	}
+
+	ice_dump_phy_type(hw, le64_to_cpu(pcaps->phy_type_low),
+			  le64_to_cpu(pcaps->phy_type_high), prefix);
+
+	ice_debug(hw, ICE_DBG_LINK, "%s: report_mode = 0x%x\n",
+		  prefix, report_mode);
+	ice_debug(hw, ICE_DBG_LINK, "%s: caps = 0x%x\n", prefix, pcaps->caps);
+	ice_debug(hw, ICE_DBG_LINK, "%s: low_power_ctrl_an = 0x%x\n", prefix,
 		  pcaps->low_power_ctrl_an);
-	ice_debug(hw, ICE_DBG_LINK, "	eee_cap = 0x%x\n", pcaps->eee_cap);
-	ice_debug(hw, ICE_DBG_LINK, "	eeer_value = 0x%x\n",
+	ice_debug(hw, ICE_DBG_LINK, "%s: eee_cap = 0x%x\n", prefix,
+		  pcaps->eee_cap);
+	ice_debug(hw, ICE_DBG_LINK, "%s: eeer_value = 0x%x\n", prefix,
 		  pcaps->eeer_value);
-	ice_debug(hw, ICE_DBG_LINK, "	link_fec_options = 0x%x\n",
+	ice_debug(hw, ICE_DBG_LINK, "%s: link_fec_options = 0x%x\n", prefix,
 		  pcaps->link_fec_options);
-	ice_debug(hw, ICE_DBG_LINK, "	module_compliance_enforcement = 0x%x\n",
-		  pcaps->module_compliance_enforcement);
-	ice_debug(hw, ICE_DBG_LINK, "   extended_compliance_code = 0x%x\n",
-		  pcaps->extended_compliance_code);
-	ice_debug(hw, ICE_DBG_LINK, "   module_type[0] = 0x%x\n",
+	ice_debug(hw, ICE_DBG_LINK, "%s: module_compliance_enforcement = 0x%x\n",
+		  prefix, pcaps->module_compliance_enforcement);
+	ice_debug(hw, ICE_DBG_LINK, "%s: extended_compliance_code = 0x%x\n",
+		  prefix, pcaps->extended_compliance_code);
+	ice_debug(hw, ICE_DBG_LINK, "%s: module_type[0] = 0x%x\n", prefix,
 		  pcaps->module_type[0]);
-	ice_debug(hw, ICE_DBG_LINK, "   module_type[1] = 0x%x\n",
+	ice_debug(hw, ICE_DBG_LINK, "%s: module_type[1] = 0x%x\n", prefix,
 		  pcaps->module_type[1]);
-	ice_debug(hw, ICE_DBG_LINK, "   module_type[2] = 0x%x\n",
+	ice_debug(hw, ICE_DBG_LINK, "%s: module_type[2] = 0x%x\n", prefix,
 		  pcaps->module_type[2]);
 
 	if (!status && report_mode == ICE_AQC_REPORT_TOPO_CAP_MEDIA) {
