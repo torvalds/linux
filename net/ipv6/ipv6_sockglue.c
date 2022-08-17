@@ -327,7 +327,7 @@ static int ipv6_set_opt_hdr(struct sock *sk, int optname, sockptr_t optval,
 	int err;
 
 	/* hop-by-hop / destination options are privileged option */
-	if (optname != IPV6_RTHDR && !ns_capable(net->user_ns, CAP_NET_RAW))
+	if (optname != IPV6_RTHDR && !sockopt_ns_capable(net->user_ns, CAP_NET_RAW))
 		return -EPERM;
 
 	/* remove any sticky options header with a zero option
@@ -417,7 +417,7 @@ static int do_ipv6_setsockopt(struct sock *sk, int level, int optname,
 
 	if (needs_rtnl)
 		rtnl_lock();
-	lock_sock(sk);
+	sockopt_lock_sock(sk);
 
 	switch (optname) {
 
@@ -634,8 +634,8 @@ static int do_ipv6_setsockopt(struct sock *sk, int level, int optname,
 		break;
 
 	case IPV6_TRANSPARENT:
-		if (valbool && !ns_capable(net->user_ns, CAP_NET_RAW) &&
-		    !ns_capable(net->user_ns, CAP_NET_ADMIN)) {
+		if (valbool && !sockopt_ns_capable(net->user_ns, CAP_NET_RAW) &&
+		    !sockopt_ns_capable(net->user_ns, CAP_NET_ADMIN)) {
 			retv = -EPERM;
 			break;
 		}
@@ -946,7 +946,7 @@ done:
 	case IPV6_IPSEC_POLICY:
 	case IPV6_XFRM_POLICY:
 		retv = -EPERM;
-		if (!ns_capable(net->user_ns, CAP_NET_ADMIN))
+		if (!sockopt_ns_capable(net->user_ns, CAP_NET_ADMIN))
 			break;
 		retv = xfrm_user_policy(sk, optname, optval, optlen);
 		break;
@@ -994,14 +994,14 @@ done:
 		break;
 	}
 
-	release_sock(sk);
+	sockopt_release_sock(sk);
 	if (needs_rtnl)
 		rtnl_unlock();
 
 	return retv;
 
 e_inval:
-	release_sock(sk);
+	sockopt_release_sock(sk);
 	if (needs_rtnl)
 		rtnl_unlock();
 	return -EINVAL;
