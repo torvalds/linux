@@ -284,7 +284,7 @@ static void _isst_fact_display_information(struct isst_id *id, FILE *outf, int l
 		for (i = 0; i < trl_max_levels; i++) {
 			if (fact_avx != 0xFF && !(fact_avx & (1 << i)))
 				continue;
-			if (i == 0)
+			if (i == 0 && api_version() == 1)
 				snprintf(header, sizeof(header),
 					"high-priority-max-frequency(MHz)");
 			else
@@ -301,7 +301,7 @@ static void _isst_fact_display_information(struct isst_id *id, FILE *outf, int l
 
 	for (j = 0; j < trl_max_levels; j++) {
 		/* No AVX level name for SSE to be consistent with previous formatting */
-		if (j == 0)
+		if (j == 0 && api_version() == 1)
 			snprintf(header, sizeof(header), "low-priority-max-frequency(MHz)");
 		else
 			snprintf(header, sizeof(header), "low-priority-max-%s-frequency(MHz)",
