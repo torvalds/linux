@@ -12,7 +12,7 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/version.h>
-#include <linux/kernel.h>
+#include <linux/types.h>
 #include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/i2c.h>
@@ -36,6 +36,14 @@
 
 #include "cs42l42.h"
 #include "cirrus_legacy.h"
+
+static const char * const cs42l42_supply_names[] = {
+	"VA",
+	"VP",
+	"VCP",
+	"VD_FILT",
+	"VL",
+};
 
 static const struct reg_default cs42l42_reg_defaults[] = {
 	{ CS42L42_FRZ_CTL,			0x00 },
@@ -395,7 +403,7 @@ static int cs42l42_slow_start_put(struct snd_kcontrol *kcontrol,
 	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
 	u8 val;
 
-	/* all bits of SLOW_START_EN much change together */
+	/* all bits of SLOW_START_EN must change together */
 	switch (ucontrol->value.integer.value[0]) {
 	case 0:
 		val = 0;
@@ -885,22 +893,21 @@ static int cs42l42_pcm_hw_params(struct snd_pcm_substream *substream,
 	struct cs42l42_private *cs42l42 = snd_soc_component_get_drvdata(component);
 	unsigned int channels = params_channels(params);
 	unsigned int width = (params_width(params) / 8) - 1;
+	unsigned int slot_width = 0;
 	unsigned int val = 0;
 	int ret;
 
 	cs42l42->srate = params_rate(params);
-	cs42l42->bclk = snd_soc_params_to_bclk(params);
-
-	/* I2S frame always has 2 channels even for mono audio */
-	if (channels == 1)
-		cs42l42->bclk *= 2;
 
 	/*
 	 * Assume 24-bit samples are in 32-bit slots, to prevent SCLK being
 	 * more than assumed (which would result in overclocking).
 	 */
 	if (params_width(params) == 24)
-		cs42l42->bclk = (cs42l42->bclk / 3) * 4;
+		slot_width = 32;
+
+	/* I2S frame always has multiple of 2 channels */
+	cs42l42->bclk = snd_soc_tdm_params_to_bclk(params, slot_width, 0, 2);
 
 	switch (substream->stream) {
 	case SNDRV_PCM_STREAM_CAPTURE:
@@ -2214,6 +2221,7 @@ static int cs42l42_i2c_probe(struct i2c_client *i2c_client)
 		return ret;
 	}
 
+	BUILD_BUG_ON(ARRAY_SIZE(cs42l42_supply_names) != ARRAY_SIZE(cs42l42->supplies));
 	for (i = 0; i < ARRAY_SIZE(cs42l42->supplies); i++)
 		cs42l42->supplies[i].supply = cs42l42_supply_names[i];
 
