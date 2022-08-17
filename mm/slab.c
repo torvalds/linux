@@ -3665,12 +3665,6 @@ void *__kmalloc(size_t size, gfp_t flags)
 }
 EXPORT_SYMBOL(__kmalloc);
 
-void *__kmalloc_track_caller(size_t size, gfp_t flags, unsigned long caller)
-{
-	return __do_kmalloc(size, flags, caller);
-}
-EXPORT_SYMBOL(__kmalloc_track_caller);
-
 /**
  * kmem_cache_free - Deallocate an object
  * @cachep: The cache the allocation was from.

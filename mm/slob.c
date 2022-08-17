@@ -530,12 +530,6 @@ void *__kmalloc(size_t size, gfp_t gfp)
 }
 EXPORT_SYMBOL(__kmalloc);
 
-void *__kmalloc_track_caller(size_t size, gfp_t gfp, unsigned long caller)
-{
-	return __do_kmalloc_node(size, gfp, NUMA_NO_NODE, caller);
-}
-EXPORT_SYMBOL(__kmalloc_track_caller);
-
 void *__kmalloc_node_track_caller(size_t size, gfp_t gfp,
 					int node, unsigned long caller)
 {
