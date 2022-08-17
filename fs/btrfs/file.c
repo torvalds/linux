@@ -2380,6 +2380,7 @@ int btrfs_sync_file(struct file *file, loff_t start, loff_t end, int datasync)
 	ret = btrfs_commit_transaction(trans);
 out:
 	ASSERT(list_empty(&ctx.list));
+	ASSERT(list_empty(&ctx.conflict_inodes));
 	err = file_check_and_advance_wb_err(file);
 	if (!ret)
 		ret = err;

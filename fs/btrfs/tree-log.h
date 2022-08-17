@@ -28,6 +28,9 @@ struct btrfs_log_ctx {
 	struct list_head list;
 	/* Only used for fast fsyncs. */
 	struct list_head ordered_extents;
+	struct list_head conflict_inodes;
+	int num_conflict_inodes;
+	bool logging_conflict_inodes;
 };
 
 static inline void btrfs_init_log_ctx(struct btrfs_log_ctx *ctx,
@@ -41,6 +44,9 @@ static inline void btrfs_init_log_ctx(struct btrfs_log_ctx *ctx,
 	ctx->inode = inode;
 	INIT_LIST_HEAD(&ctx->list);
 	INIT_LIST_HEAD(&ctx->ordered_extents);
+	INIT_LIST_HEAD(&ctx->conflict_inodes);
+	ctx->num_conflict_inodes = 0;
+	ctx->logging_conflict_inodes = false;
 }
 
 static inline void btrfs_release_log_ctx_extents(struct btrfs_log_ctx *ctx)
