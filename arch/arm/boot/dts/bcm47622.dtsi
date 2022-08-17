@@ -32,6 +32,7 @@
 			next-level-cache = <&L2_0>;
 			enable-method = "psci";
 		};
+
 		CA7_2: cpu@2 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a7";
@@ -39,6 +40,7 @@
 			next-level-cache = <&L2_0>;
 			enable-method = "psci";
 		};
+
 		CA7_3: cpu@3 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a7";
@@ -46,6 +48,7 @@
 			next-level-cache = <&L2_0>;
 			enable-method = "psci";
 		};
+
 		L2_0: l2-cache0 {
 			compatible = "cache";
 		};
@@ -76,6 +79,7 @@
 			#clock-cells = <0>;
 			clock-frequency = <200000000>;
 		};
+
 		uart_clk: uart-clk {
 			compatible = "fixed-factor-clock";
 			#clock-cells = <0>;
@@ -88,23 +92,23 @@
 	psci {
 		compatible = "arm,psci-0.2";
 		method = "smc";
-		cpu_off = <1>;
-		cpu_on = <2>;
 	};
 
 	axi@81000000 {
 		compatible = "simple-bus";
 		#address-cells = <1>;
 		#size-cells = <1>;
-		ranges = <0 0x81000000 0x818000>;
+		ranges = <0 0x81000000 0x8000>;
 
 		gic: interrupt-controller@1000 {
 			compatible = "arm,cortex-a7-gic";
 			#interrupt-cells = <3>;
-			#address-cells = <0>;
 			interrupt-controller;
+			interrupts = <GIC_PPI 9 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_HIGH)>;
 			reg = <0x1000 0x1000>,
-				<0x2000 0x2000>;
+				<0x2000 0x2000>,
+				<0x4000 0x2000>,
+				<0x6000 0x2000>;
 		};
 	};
 

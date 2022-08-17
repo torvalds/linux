@@ -26,6 +26,7 @@
 static const struct nvkm_engine_func
 tu102_ce = {
 	.intr = gp100_ce_intr,
+	.cclass = &gv100_ce_cclass,
 	.sclass = {
 		{ -1, -1, TURING_DMA_COPY_A },
 		{}

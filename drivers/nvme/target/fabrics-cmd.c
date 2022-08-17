@@ -82,7 +82,7 @@ static void nvmet_execute_prop_get(struct nvmet_req *req)
 	nvmet_req_complete(req, status);
 }
 
-u16 nvmet_parse_fabrics_cmd(struct nvmet_req *req)
+u16 nvmet_parse_fabrics_admin_cmd(struct nvmet_req *req)
 {
 	struct nvme_command *cmd = req->cmd;
 
@@ -93,6 +93,37 @@ u16 nvmet_parse_fabrics_cmd(struct nvmet_req *req)
 	case nvme_fabrics_type_property_get:
 		req->execute = nvmet_execute_prop_get;
 		break;
+#ifdef CONFIG_NVME_TARGET_AUTH
+	case nvme_fabrics_type_auth_send:
+		req->execute = nvmet_execute_auth_send;
+		break;
+	case nvme_fabrics_type_auth_receive:
+		req->execute = nvmet_execute_auth_receive;
+		break;
+#endif
+	default:
+		pr_debug("received unknown capsule type 0x%x\n",
+			cmd->fabrics.fctype);
+		req->error_loc = offsetof(struct nvmf_common_command, fctype);
+		return NVME_SC_INVALID_OPCODE | NVME_SC_DNR;
+	}
+
+	return 0;
+}
+
+u16 nvmet_parse_fabrics_io_cmd(struct nvmet_req *req)
+{
+	struct nvme_command *cmd = req->cmd;
+
+	switch (cmd->fabrics.fctype) {
+#ifdef CONFIG_NVME_TARGET_AUTH
+	case nvme_fabrics_type_auth_send:
+		req->execute = nvmet_execute_auth_send;
+		break;
+	case nvme_fabrics_type_auth_receive:
+		req->execute = nvmet_execute_auth_receive;
+		break;
+#endif
 	default:
 		pr_debug("received unknown capsule type 0x%x\n",
 			cmd->fabrics.fctype);
@@ -173,6 +204,7 @@ static void nvmet_execute_admin_connect(struct nvmet_req *req)
 	struct nvmf_connect_data *d;
 	struct nvmet_ctrl *ctrl = NULL;
 	u16 status = 0;
+	int ret;
 
 	if (!nvmet_check_transfer_len(req, sizeof(struct nvmf_connect_data)))
 		return;
@@ -215,18 +247,32 @@ static void nvmet_execute_admin_connect(struct nvmet_req *req)
 
 	uuid_copy(&ctrl->hostid, &d->hostid);
 
+	ret = nvmet_setup_auth(ctrl);
+	if (ret < 0) {
+		pr_err("Failed to setup authentication, error %d\n", ret);
+		nvmet_ctrl_put(ctrl);
+		if (ret == -EPERM)
+			status = (NVME_SC_CONNECT_INVALID_HOST | NVME_SC_DNR);
+		else
+			status = NVME_SC_INTERNAL;
+		goto out;
+	}
+
 	status = nvmet_install_queue(ctrl, req);
 	if (status) {
 		nvmet_ctrl_put(ctrl);
 		goto out;
 	}
 
-	pr_info("creating %s controller %d for subsystem %s for NQN %s%s.\n",
+	pr_info("creating %s controller %d for subsystem %s for NQN %s%s%s.\n",
 		nvmet_is_disc_subsys(ctrl->subsys) ? "discovery" : "nvm",
 		ctrl->cntlid, ctrl->subsys->subsysnqn, ctrl->hostnqn,
-		ctrl->pi_support ? " T10-PI is enabled" : "");
+		ctrl->pi_support ? " T10-PI is enabled" : "",
+		nvmet_has_auth(ctrl) ? " with DH-HMAC-CHAP" : "");
 	req->cqe->result.u16 = cpu_to_le16(ctrl->cntlid);
 
+	if (nvmet_has_auth(ctrl))
+		nvmet_init_auth(ctrl, req);
 out:
 	kfree(d);
 complete:
@@ -286,6 +332,9 @@ static void nvmet_execute_io_connect(struct nvmet_req *req)
 	req->cqe->result.u16 = cpu_to_le16(ctrl->cntlid);
 
 	pr_debug("adding queue %d to ctrl %d.\n", qid, ctrl->cntlid);
+	req->cqe->result.u16 = cpu_to_le16(ctrl->cntlid);
+	if (nvmet_has_auth(ctrl))
+		nvmet_init_auth(ctrl, req);
 
 out:
 	kfree(d);

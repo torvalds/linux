@@ -211,7 +211,7 @@ void clear_context(unsigned long context)
 
      if(context) {
 	     if(!ctx_alloc[context])
-		     panic("clear_context: context not allocated\n");
+		     panic("%s: context not allocated\n", __func__);
 
 	     ctx_alloc[context]->context = SUN3_INVALID_CONTEXT;
 	     ctx_alloc[context] = (struct mm_struct *)0;
@@ -261,7 +261,7 @@ unsigned long get_free_context(struct mm_struct *mm)
 		}
 		// check to make sure one was really free...
 		if(new == CONTEXTS_NUM)
-			panic("get_free_context: failed to find free context");
+			panic("%s: failed to find free context", __func__);
 	}
 
 	ctx_alloc[new] = mm;
@@ -369,16 +369,15 @@ int mmu_emu_handle_fault (unsigned long vaddr, int read_flag, int kernel_fault)
 	}
 
 #ifdef DEBUG_MMU_EMU
-	pr_info("mmu_emu_handle_fault: vaddr=%lx type=%s crp=%p\n",
-		vaddr, read_flag ? "read" : "write", crp);
+	pr_info("%s: vaddr=%lx type=%s crp=%p\n", __func__, vaddr,
+		read_flag ? "read" : "write", crp);
 #endif
 
 	segment = (vaddr >> SUN3_PMEG_SIZE_BITS) & 0x7FF;
 	offset  = (vaddr >> SUN3_PTE_SIZE_BITS) & 0xF;
 
 #ifdef DEBUG_MMU_EMU
-	pr_info("mmu_emu_handle_fault: segment=%lx offset=%lx\n", segment,
-		offset);
+	pr_info("%s: segment=%lx offset=%lx\n", __func__, segment, offset);
 #endif
 
 	pte = (pte_t *) pgd_val (*(crp + segment));

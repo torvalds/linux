@@ -152,16 +152,7 @@ tlb_miss_common_bolted:
 	clrrdi	r15,r15,3
 	beq	tlb_miss_fault_bolted	/* No PGDIR, bail */
 
-BEGIN_MMU_FTR_SECTION
-	/* Set the TLB reservation and search for existing entry. Then load
-	 * the entry.
-	 */
-	PPC_TLBSRX_DOT(0,R16)
 	ldx	r14,r14,r15		/* grab pgd entry */
-	beq	tlb_miss_done_bolted	/* tlb exists already, bail */
-MMU_FTR_SECTION_ELSE
-	ldx	r14,r14,r15		/* grab pgd entry */
-ALT_MMU_FTR_SECTION_END_IFSET(MMU_FTR_USE_TLBRSRV)
 
 	rldicl	r15,r16,64-PUD_SHIFT+3,64-PUD_INDEX_SIZE-3
 	clrrdi	r15,r15,3
@@ -222,10 +213,11 @@ itlb_miss_kernel_bolted:
 tlb_miss_kernel_bolted:
 	mfspr	r10,SPRN_MAS1
 	ld	r14,PACA_KERNELPGD(r13)
-	cmpldi	cr0,r15,8		/* Check for vmalloc region */
+	srdi	r15,r16,44		/* get kernel region */
+	andi.	r15,r15,1		/* Check for vmalloc region */
 	rlwinm	r10,r10,0,16,1		/* Clear TID */
 	mtspr	SPRN_MAS1,r10
-	beq+	tlb_miss_common_bolted
+	bne+	tlb_miss_common_bolted
 
 tlb_miss_fault_bolted:
 	/* We need to check if it was an instruction miss */
@@ -507,7 +499,9 @@ tlb_miss_huge_e6500:
 
 tlb_miss_kernel_e6500:
 	ld	r14,PACA_KERNELPGD(r13)
-	cmpldi	cr1,r15,8		/* Check for vmalloc region */
+	srdi	r15,r16,44		/* get kernel region */
+	xoris	r15,r15,0xc		/* Check for vmalloc region */
+	cmplwi	cr1,r15,1
 	beq+	cr1,tlb_miss_common_e6500
 
 tlb_miss_fault_e6500:
@@ -541,16 +535,18 @@ itlb_miss_fault_e6500:
 	 */
 	mfspr	r14,SPRN_ESR
 	mfspr	r16,SPRN_DEAR		/* get faulting address */
-	srdi	r15,r16,60		/* get region */
-	cmpldi	cr0,r15,0xc		/* linear mapping ? */
+	srdi	r15,r16,44		/* get region */
+	xoris	r15,r15,0xc
+	cmpldi	cr0,r15,0		/* linear mapping ? */
 	beq	tlb_load_linear		/* yes -> go to linear map load */
+	cmpldi	cr1,r15,1		/* vmalloc mapping ? */
 
 	/* The page tables are mapped virtually linear. At this point, though,
 	 * we don't know whether we are trying to fault in a first level
 	 * virtual address or a virtual page table address. We can get that
 	 * from bit 0x1 of the region ID which we have set for a page table
 	 */
-	andi.	r10,r15,0x1
+	andis.	r10,r15,0x1
 	bne-	virt_page_table_tlb_miss
 
 	std	r14,EX_TLB_ESR(r12);	/* save ESR */
@@ -562,7 +558,7 @@ itlb_miss_fault_e6500:
 
 	/* We do the user/kernel test for the PID here along with the RW test
 	 */
-	cmpldi	cr0,r15,0		/* Check for user region */
+	srdi.	r15,r16,60		/* Check for user region */
 
 	/* We pre-test some combination of permissions to avoid double
 	 * faults:
@@ -583,13 +579,12 @@ itlb_miss_fault_e6500:
 	 */
 	rlwimi	r11,r14,32-19,27,27
 	rlwimi	r11,r14,32-16,19,19
-	beq	normal_tlb_miss
+	beq	normal_tlb_miss_user
 	/* XXX replace the RMW cycles with immediate loads + writes */
 1:	mfspr	r10,SPRN_MAS1
-	cmpldi	cr0,r15,8		/* Check for vmalloc region */
 	rlwinm	r10,r10,0,16,1		/* Clear TID */
 	mtspr	SPRN_MAS1,r10
-	beq+	normal_tlb_miss
+	beq+	cr1,normal_tlb_miss
 
 	/* We got a crappy address, just fault with whatever DEAR and ESR
 	 * are here
@@ -615,27 +610,28 @@ itlb_miss_fault_e6500:
 	 *
 	 * Faulting address is SRR0 which is already in r16
 	 */
-	srdi	r15,r16,60		/* get region */
-	cmpldi	cr0,r15,0xc		/* linear mapping ? */
+	srdi	r15,r16,44		/* get region */
+	xoris	r15,r15,0xc
+	cmpldi	cr0,r15,0		/* linear mapping ? */
 	beq	tlb_load_linear		/* yes -> go to linear map load */
+	cmpldi	cr1,r15,1		/* vmalloc mapping ? */
 
 	/* We do the user/kernel test for the PID here along with the RW test
 	 */
 	li	r11,_PAGE_PRESENT|_PAGE_BAP_UX	/* Base perm */
 	oris	r11,r11,_PAGE_ACCESSED@h
 
-	cmpldi	cr0,r15,0			/* Check for user region */
+	srdi.	r15,r16,60			/* Check for user region */
 	std	r14,EX_TLB_ESR(r12)		/* write crazy -1 to frame */
-	beq	normal_tlb_miss
+	beq	normal_tlb_miss_user
 
 	li	r11,_PAGE_PRESENT|_PAGE_BAP_SX	/* Base perm */
 	oris	r11,r11,_PAGE_ACCESSED@h
 	/* XXX replace the RMW cycles with immediate loads + writes */
 	mfspr	r10,SPRN_MAS1
-	cmpldi	cr0,r15,8			/* Check for vmalloc region */
 	rlwinm	r10,r10,0,16,1			/* Clear TID */
 	mtspr	SPRN_MAS1,r10
-	beq+	normal_tlb_miss
+	beq+	cr1,normal_tlb_miss
 
 	/* We got a crappy address, just fault */
 	TLB_MISS_EPILOG_ERROR
@@ -653,6 +649,12 @@ itlb_miss_fault_e6500:
  * r11 = PTE permission mask
  * r10 = crap (free to use)
  */
+normal_tlb_miss_user:
+#ifdef CONFIG_PPC_KUAP
+	mfspr	r14,SPRN_MAS1
+	rlwinm.	r14,r14,0,0x3fff0000
+	beq-	normal_tlb_miss_access_fault /* KUAP fault */
+#endif
 normal_tlb_miss:
 	/* So we first construct the page table address. We do that by
 	 * shifting the bottom of the address (not the region ID) by
@@ -662,32 +664,19 @@ normal_tlb_miss:
 	 * NOTE: For 64K pages, we do things slightly differently in
 	 * order to handle the weird page table format used by linux
 	 */
-	ori	r10,r15,0x1
+	srdi	r15,r16,44
+	oris	r10,r15,0x1
 	rldicl	r14,r16,64-(PAGE_SHIFT-3),PAGE_SHIFT-3+4
-	sldi	r15,r10,60
-	clrrdi	r14,r14,3
+	sldi	r15,r10,44
+	clrrdi	r14,r14,19
 	or	r10,r15,r14
 
-BEGIN_MMU_FTR_SECTION
-	/* Set the TLB reservation and search for existing entry. Then load
-	 * the entry.
-	 */
-	PPC_TLBSRX_DOT(0,R16)
 	ld	r14,0(r10)
-	beq	normal_tlb_miss_done
-MMU_FTR_SECTION_ELSE
-	ld	r14,0(r10)
-ALT_MMU_FTR_SECTION_END_IFSET(MMU_FTR_USE_TLBRSRV)
 
 finish_normal_tlb_miss:
 	/* Check if required permissions are met */
 	andc.	r15,r11,r14
 	bne-	normal_tlb_miss_access_fault
-#ifdef CONFIG_PPC_KUAP
-	mfspr	r11,SPRN_MAS1
-	rlwinm.	r10,r11,0,0x3fff0000
-	beq-	normal_tlb_miss_access_fault /* KUAP fault */
-#endif
 
 	/* Now we build the MAS:
 	 *
@@ -709,9 +698,7 @@ finish_normal_tlb_miss:
 	rldicl	r10,r14,64-8,64-8
 	cmpldi	cr0,r10,BOOK3E_PAGESZ_4K
 	beq-	1f
-#ifndef CONFIG_PPC_KUAP
 	mfspr	r11,SPRN_MAS1
-#endif
 	rlwimi	r11,r14,31,21,24
 	rlwinm	r11,r11,0,21,19
 	mtspr	SPRN_MAS1,r11
@@ -728,13 +715,9 @@ finish_normal_tlb_miss:
 	li	r11,MAS3_SW|MAS3_UW
 	andc	r15,r15,r11
 1:
-BEGIN_MMU_FTR_SECTION
 	srdi	r16,r15,32
 	mtspr	SPRN_MAS3,r15
 	mtspr	SPRN_MAS7,r16
-MMU_FTR_SECTION_ELSE
-	mtspr	SPRN_MAS7_MAS3,r15
-ALT_MMU_FTR_SECTION_END_IFCLR(MMU_FTR_USE_PAIRED_MAS)
 
 	tlbwe
 
@@ -786,6 +769,7 @@ normal_tlb_miss_access_fault:
  */
 virt_page_table_tlb_miss:
 	/* Are we hitting a kernel page table ? */
+	srdi	r15,r16,60
 	andi.	r10,r15,0x8
 
 	/* The cool thing now is that r10 contains 0 for user and 8 for kernel,
@@ -810,18 +794,12 @@ virt_page_table_tlb_miss:
 #else
 1:
 #endif
-BEGIN_MMU_FTR_SECTION
-	/* Search if we already have a TLB entry for that virtual address, and
-	 * if we do, bail out.
-	 */
-	PPC_TLBSRX_DOT(0,R16)
-	beq	virt_page_table_tlb_miss_done
-END_MMU_FTR_SECTION_IFSET(MMU_FTR_USE_TLBRSRV)
 
 	/* Now, we need to walk the page tables. First check if we are in
 	 * range.
 	 */
-	rldicl.	r10,r16,64-(VPTE_INDEX_SIZE+3),VPTE_INDEX_SIZE+3+4
+	rldicl	r10,r16,64-(VPTE_INDEX_SIZE+3),VPTE_INDEX_SIZE+3+4
+	cmpldi	r10,0x80
 	bne-	virt_page_table_tlb_miss_fault
 
 	/* Get the PGD pointer */
@@ -867,41 +845,12 @@ END_MMU_FTR_SECTION_IFSET(MMU_FTR_USE_TLBRSRV)
 	clrldi	r11,r15,4		/* remove region ID from RPN */
 	ori	r10,r11,1		/* Or-in SR */
 
-BEGIN_MMU_FTR_SECTION
 	srdi	r16,r10,32
 	mtspr	SPRN_MAS3,r10
 	mtspr	SPRN_MAS7,r16
-MMU_FTR_SECTION_ELSE
-	mtspr	SPRN_MAS7_MAS3,r10
-ALT_MMU_FTR_SECTION_END_IFCLR(MMU_FTR_USE_PAIRED_MAS)
 
 	tlbwe
 
-BEGIN_MMU_FTR_SECTION
-virt_page_table_tlb_miss_done:
-
-	/* We have overridden MAS2:EPN but currently our primary TLB miss
-	 * handler will always restore it so that should not be an issue,
-	 * if we ever optimize the primary handler to not write MAS2 on
-	 * some cases, we'll have to restore MAS2:EPN here based on the
-	 * original fault's DEAR. If we do that we have to modify the
-	 * ITLB miss handler to also store SRR0 in the exception frame
-	 * as DEAR.
-	 *
-	 * However, one nasty thing we did is we cleared the reservation
-	 * (well, potentially we did). We do a trick here thus if we
-	 * are not a level 0 exception (we interrupted the TLB miss) we
-	 * offset the return address by -4 in order to replay the tlbsrx
-	 * instruction there
-	 */
-	subf	r10,r13,r12
-	cmpldi	cr0,r10,PACA_EXTLB+EX_TLB_SIZE
-	bne-	1f
-	ld	r11,PACA_EXTLB+EX_TLB_SIZE+EX_TLB_SRR0(r13)
-	addi	r10,r11,-4
-	std	r10,PACA_EXTLB+EX_TLB_SIZE+EX_TLB_SRR0(r13)
-1:
-END_MMU_FTR_SECTION_IFSET(MMU_FTR_USE_TLBRSRV)
 	/* Return to caller, normal case */
 	TLB_MISS_EPILOG_SUCCESS
 	rfi
@@ -969,23 +918,24 @@ virt_page_table_tlb_miss_whacko_fault:
 	 */
 	mfspr	r14,SPRN_ESR
 	mfspr	r16,SPRN_DEAR		/* get faulting address */
-	srdi	r11,r16,60		/* get region */
-	cmpldi	cr0,r11,0xc		/* linear mapping ? */
+	srdi	r11,r16,44		/* get region */
+	xoris	r11,r11,0xc
+	cmpldi	cr0,r11,0		/* linear mapping ? */
 	beq	tlb_load_linear		/* yes -> go to linear map load */
+	cmpldi	cr1,r11,1		/* vmalloc mapping ? */
 
 	/* We do the user/kernel test for the PID here along with the RW test
 	 */
-	cmpldi	cr0,r11,0		/* Check for user region */
+	srdi.	r11,r16,60		/* Check for user region */
 	ld	r15,PACAPGD(r13)	/* Load user pgdir */
 	beq	htw_tlb_miss
 
 	/* XXX replace the RMW cycles with immediate loads + writes */
 1:	mfspr	r10,SPRN_MAS1
-	cmpldi	cr0,r11,8		/* Check for vmalloc region */
 	rlwinm	r10,r10,0,16,1		/* Clear TID */
 	mtspr	SPRN_MAS1,r10
 	ld	r15,PACA_KERNELPGD(r13)	/* Load kernel pgdir */
-	beq+	htw_tlb_miss
+	beq+	cr1,htw_tlb_miss
 
 	/* We got a crappy address, just fault with whatever DEAR and ESR
 	 * are here
@@ -1011,19 +961,20 @@ virt_page_table_tlb_miss_whacko_fault:
 	 *
 	 * Faulting address is SRR0 which is already in r16
 	 */
-	srdi	r11,r16,60		/* get region */
-	cmpldi	cr0,r11,0xc		/* linear mapping ? */
+	srdi	r11,r16,44		/* get region */
+	xoris	r11,r11,0xc
+	cmpldi	cr0,r11,0		/* linear mapping ? */
 	beq	tlb_load_linear		/* yes -> go to linear map load */
+	cmpldi	cr1,r11,1		/* vmalloc mapping ? */
 
 	/* We do the user/kernel test for the PID here along with the RW test
 	 */
-	cmpldi	cr0,r11,0			/* Check for user region */
+	srdi.	r11,r16,60		/* Check for user region */
 	ld	r15,PACAPGD(r13)		/* Load user pgdir */
 	beq	htw_tlb_miss
 
 	/* XXX replace the RMW cycles with immediate loads + writes */
 1:	mfspr	r10,SPRN_MAS1
-	cmpldi	cr0,r11,8			/* Check for vmalloc region */
 	rlwinm	r10,r10,0,16,1			/* Clear TID */
 	mtspr	SPRN_MAS1,r10
 	ld	r15,PACA_KERNELPGD(r13)		/* Load kernel pgdir */
@@ -1116,13 +1067,9 @@ htw_tlb_miss:
 	 */
 	ori	r10,r15,(BOOK3E_PAGESZ_4K << MAS3_SPSIZE_SHIFT)
 
-BEGIN_MMU_FTR_SECTION
 	srdi	r16,r10,32
 	mtspr	SPRN_MAS3,r10
 	mtspr	SPRN_MAS7,r16
-MMU_FTR_SECTION_ELSE
-	mtspr	SPRN_MAS7_MAS3,r10
-ALT_MMU_FTR_SECTION_END_IFCLR(MMU_FTR_USE_PAIRED_MAS)
 
 	tlbwe
 
@@ -1203,13 +1150,9 @@ tlb_load_linear:
 	clrldi	r10,r10,4		/* clear region bits */
 	ori	r10,r10,MAS3_SR|MAS3_SW|MAS3_SX
 
-BEGIN_MMU_FTR_SECTION
 	srdi	r16,r10,32
 	mtspr	SPRN_MAS3,r10
 	mtspr	SPRN_MAS7,r16
-MMU_FTR_SECTION_ELSE
-	mtspr	SPRN_MAS7_MAS3,r10
-ALT_MMU_FTR_SECTION_END_IFCLR(MMU_FTR_USE_PAIRED_MAS)
 
 	tlbwe
 

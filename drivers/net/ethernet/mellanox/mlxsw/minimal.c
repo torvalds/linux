@@ -328,7 +328,6 @@ static void mlxsw_m_port_module_unmap(struct mlxsw_m *mlxsw_m, u8 module)
 static int mlxsw_m_ports_create(struct mlxsw_m *mlxsw_m)
 {
 	unsigned int max_ports = mlxsw_core_max_ports(mlxsw_m->core);
-	struct devlink *devlink = priv_to_devlink(mlxsw_m->core);
 	u8 last_module = max_ports;
 	int i;
 	int err;
@@ -357,10 +356,8 @@ static int mlxsw_m_ports_create(struct mlxsw_m *mlxsw_m)
 	}
 
 	/* Create port objects for each valid entry */
-	devl_lock(devlink);
 	for (i = 0; i < mlxsw_m->max_ports; i++) {
-		if (mlxsw_m->module_to_port[i] > 0 &&
-		    !mlxsw_core_port_is_xm(mlxsw_m->core, i)) {
+		if (mlxsw_m->module_to_port[i] > 0) {
 			err = mlxsw_m_port_create(mlxsw_m,
 						  mlxsw_m->module_to_port[i],
 						  i);
@@ -368,7 +365,6 @@ static int mlxsw_m_ports_create(struct mlxsw_m *mlxsw_m)
 				goto err_module_to_port_create;
 		}
 	}
-	devl_unlock(devlink);
 
 	return 0;
 
@@ -378,7 +374,6 @@ err_module_to_port_create:
 			mlxsw_m_port_remove(mlxsw_m,
 					    mlxsw_m->module_to_port[i]);
 	}
-	devl_unlock(devlink);
 	i = max_ports;
 err_module_to_port_map:
 	for (i--; i > 0; i--)
@@ -391,10 +386,8 @@ err_module_to_port_alloc:
 
 static void mlxsw_m_ports_remove(struct mlxsw_m *mlxsw_m)
 {
-	struct devlink *devlink = priv_to_devlink(mlxsw_m->core);
 	int i;
 
-	devl_lock(devlink);
 	for (i = 0; i < mlxsw_m->max_ports; i++) {
 		if (mlxsw_m->module_to_port[i] > 0) {
 			mlxsw_m_port_remove(mlxsw_m,
@@ -402,7 +395,6 @@ static void mlxsw_m_ports_remove(struct mlxsw_m *mlxsw_m)
 			mlxsw_m_port_module_unmap(mlxsw_m, i);
 		}
 	}
-	devl_unlock(devlink);
 
 	kfree(mlxsw_m->module_to_port);
 	kfree(mlxsw_m->ports);

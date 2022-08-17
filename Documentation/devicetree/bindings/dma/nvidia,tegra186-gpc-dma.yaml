@@ -23,7 +23,9 @@ properties:
     oneOf:
       - const: nvidia,tegra186-gpcdma
       - items:
-          - const: nvidia,tegra194-gpcdma
+          - enum:
+              - nvidia,tegra234-gpcdma
+              - nvidia,tegra194-gpcdma
           - const: nvidia,tegra186-gpcdma
 
   "#dma-cells":

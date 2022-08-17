@@ -23,7 +23,7 @@
 #include <linux/libata.h>
 
 #define DRV_NAME	"pata_hpt37x"
-#define DRV_VERSION	"0.6.25"
+#define DRV_VERSION	"0.6.30"
 
 struct hpt_clock {
 	u8	xfer_speed;
@@ -278,7 +278,7 @@ static const char * const bad_ata100_5[] = {
  *	Block UDMA on devices that cause trouble with this controller.
  */
 
-static unsigned long hpt370_filter(struct ata_device *adev, unsigned long mask)
+static unsigned int hpt370_filter(struct ata_device *adev, unsigned int mask)
 {
 	if (adev->class == ATA_DEV_ATA) {
 		if (hpt_dma_blacklisted(adev, "UDMA", bad_ata33))
@@ -297,7 +297,7 @@ static unsigned long hpt370_filter(struct ata_device *adev, unsigned long mask)
  *	Block UDMA on devices that cause trouble with this controller.
  */
 
-static unsigned long hpt370a_filter(struct ata_device *adev, unsigned long mask)
+static unsigned int hpt370a_filter(struct ata_device *adev, unsigned int mask)
 {
 	if (adev->class == ATA_DEV_ATA) {
 		if (hpt_dma_blacklisted(adev, "UDMA100", bad_ata100_5))
@@ -314,7 +314,7 @@ static unsigned long hpt370a_filter(struct ata_device *adev, unsigned long mask)
  *	The Marvell bridge chips used on the HighPoint SATA cards do not seem
  *	to support the UltraDMA modes 1, 2, and 3 as well as any MWDMA modes...
  */
-static unsigned long hpt372_filter(struct ata_device *adev, unsigned long mask)
+static unsigned int hpt372_filter(struct ata_device *adev, unsigned int mask)
 {
 	if (ata_id_is_sata(adev->id))
 		mask &= ~((0xE << ATA_SHIFT_UDMA) | ATA_MASK_MWDMA);
@@ -592,21 +592,19 @@ static struct ata_port_operations hpt374_fn1_port_ops = {
 
 /**
  *	hpt37x_clock_slot	-	Turn timing to PC clock entry
- *	@freq: Reported frequency timing
- *	@base: Base timing
+ *	@freq: Reported frequency in MHz
  *
- *	Turn the timing data intoa clock slot (0 for 33, 1 for 40, 2 for 50
+ *	Turn the timing data into a clock slot (0 for 33, 1 for 40, 2 for 50
  *	and 3 for 66Mhz)
  */
 
-static int hpt37x_clock_slot(unsigned int freq, unsigned int base)
+static int hpt37x_clock_slot(unsigned int freq)
 {
-	unsigned int f = (base * freq) / 192;	/* Mhz */
-	if (f < 40)
+	if (freq < 40)
 		return 0;	/* 33Mhz slot */
-	if (f < 45)
+	if (freq < 45)
 		return 1;	/* 40Mhz slot */
-	if (f < 55)
+	if (freq < 55)
 		return 2;	/* 50Mhz slot */
 	return 3;		/* 60Mhz slot */
 }
@@ -646,24 +644,57 @@ static int hpt37x_calibrate_dpll(struct pci_dev *dev)
 	return 0;
 }
 
-static u32 hpt374_read_freq(struct pci_dev *pdev)
+static int hpt37x_pci_clock(struct pci_dev *pdev, unsigned int base)
 {
-	u32 freq;
-	unsigned long io_base = pci_resource_start(pdev, 4);
+	unsigned int freq;
+	u32 fcnt;
 
-	if (PCI_FUNC(pdev->devfn) & 1) {
-		struct pci_dev *pdev_0;
+	/*
+	 * Some devices do not let this value be accessed via PCI space
+	 * according to the old driver. In addition we must use the value
+	 * from FN 0 on the HPT374.
+	 */
+	if (pdev->device == PCI_DEVICE_ID_TTI_HPT374 &&
+	    (PCI_FUNC(pdev->devfn) & 1)) {
+		struct pci_dev *pdev_fn0;
 
-		pdev_0 = pci_get_slot(pdev->bus, pdev->devfn - 1);
-		/* Someone hot plugged the controller on us ? */
-		if (pdev_0 == NULL)
+		pdev_fn0 = pci_get_slot(pdev->bus, pdev->devfn - 1);
+		/* Someone hot plugged the controller on us? */
+		if (!pdev_fn0)
 			return 0;
-		io_base = pci_resource_start(pdev_0, 4);
-		freq = inl(io_base + 0x90);
-		pci_dev_put(pdev_0);
-	} else
-		freq = inl(io_base + 0x90);
-	return freq;
+		fcnt = inl(pci_resource_start(pdev_fn0, 4) + 0x90);
+		pci_dev_put(pdev_fn0);
+	} else	{
+		fcnt = inl(pci_resource_start(pdev, 4) + 0x90);
+	}
+
+	if ((fcnt >> 12) != 0xABCDE) {
+		u32 total = 0;
+		int i;
+		u16 sr;
+
+		dev_warn(&pdev->dev, "BIOS clock data not set\n");
+
+		/* This is the process the HPT371 BIOS is reported to use */
+		for (i = 0; i < 128; i++) {
+			pci_read_config_word(pdev, 0x78, &sr);
+			total += sr & 0x1FF;
+			udelay(15);
+		}
+		fcnt = total / 128;
+	}
+	fcnt &= 0x1FF;
+
+	freq = (fcnt * base) / 192;	/* in MHz */
+
+	/* Clamp to bands */
+	if (freq < 40)
+		return 33;
+	if (freq < 45)
+		return 40;
+	if (freq < 55)
+		return 50;
+	return 66;
 }
 
 /**
@@ -770,7 +801,7 @@ static int hpt37x_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 	u8 rev = dev->revision;
 	u8 irqmask;
 	u8 mcr1;
-	u32 freq;
+	unsigned int freq; /* MHz */
 	int prefer_dpll = 1;
 
 	unsigned long iobase = pci_resource_start(dev, 4);
@@ -896,42 +927,16 @@ static int hpt37x_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 	if (chip_table == &hpt372a)
 		outb(0x0e, iobase + 0x9c);
 
-	/*
-	 * Some devices do not let this value be accessed via PCI space
-	 * according to the old driver. In addition we must use the value
-	 * from FN 0 on the HPT374.
-	 */
-
-	if (chip_table == &hpt374) {
-		freq = hpt374_read_freq(dev);
-		if (freq == 0)
-			return -ENODEV;
-	} else
-		freq = inl(iobase + 0x90);
-
-	if ((freq >> 12) != 0xABCDE) {
-		int i;
-		u16 sr;
-		u32 total = 0;
-
-		dev_warn(&dev->dev, "BIOS has not set timing clocks\n");
-
-		/* This is the process the HPT371 BIOS is reported to use */
-		for (i = 0; i < 128; i++) {
-			pci_read_config_word(dev, 0x78, &sr);
-			total += sr & 0x1FF;
-			udelay(15);
-		}
-		freq = total / 128;
-	}
-	freq &= 0x1FF;
+	freq = hpt37x_pci_clock(dev, chip_table->base);
+	if (!freq)
+		return -ENODEV;
 
 	/*
 	 *	Turn the frequency check into a band and then find a timing
 	 *	table to match it.
 	 */
 
-	clock_slot = hpt37x_clock_slot(freq, chip_table->base);
+	clock_slot = hpt37x_clock_slot(freq);
 	if (chip_table->clocks[clock_slot] == NULL || prefer_dpll) {
 		/*
 		 *	We need to try PLL mode instead

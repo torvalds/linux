@@ -75,7 +75,7 @@ struct cn_msg {
 
 	__u16 len;		/* Length of the following data */
 	__u16 flags;
-	__u8 data[0];
+	__u8 data[];
 };
 
 #endif /* _UAPI__CONNECTOR_H */

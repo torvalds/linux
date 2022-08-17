@@ -9,8 +9,8 @@
 / {
 	#address-cells = <1>;
 	#size-cells = <1>;
-	compatible = "brcm,bcm63138";
-	model = "Broadcom BCM63138 DSL SoC";
+	compatible = "brcm,bcm63138", "brcm,bcmbca";
+	model = "Broadcom BCM963138 Reference Board";
 	interrupt-parent = <&gic>;
 
 	aliases {

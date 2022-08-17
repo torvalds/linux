@@ -21,10 +21,11 @@ enum dr_dump_rec_type {
 	DR_DUMP_REC_TYPE_TABLE_TX = 3102,
 
 	DR_DUMP_REC_TYPE_MATCHER = 3200,
-	DR_DUMP_REC_TYPE_MATCHER_MASK = 3201,
+	DR_DUMP_REC_TYPE_MATCHER_MASK_DEPRECATED = 3201,
 	DR_DUMP_REC_TYPE_MATCHER_RX = 3202,
 	DR_DUMP_REC_TYPE_MATCHER_TX = 3203,
 	DR_DUMP_REC_TYPE_MATCHER_BUILDER = 3204,
+	DR_DUMP_REC_TYPE_MATCHER_MASK = 3205,
 
 	DR_DUMP_REC_TYPE_RULE = 3300,
 	DR_DUMP_REC_TYPE_RULE_RX_ENTRY_V0 = 3301,
@@ -114,13 +115,15 @@ dr_dump_rule_action_mem(struct seq_file *file, const u64 rule_id,
 		break;
 	case DR_ACTION_TYP_FT:
 		if (action->dest_tbl->is_fw_tbl)
-			seq_printf(file, "%d,0x%llx,0x%llx,0x%x\n",
+			seq_printf(file, "%d,0x%llx,0x%llx,0x%x,0x%x\n",
 				   DR_DUMP_REC_TYPE_ACTION_FT, action_id,
-				   rule_id, action->dest_tbl->fw_tbl.id);
+				   rule_id, action->dest_tbl->fw_tbl.id,
+				   -1);
 		else
-			seq_printf(file, "%d,0x%llx,0x%llx,0x%x\n",
+			seq_printf(file, "%d,0x%llx,0x%llx,0x%x,0x%llx\n",
 				   DR_DUMP_REC_TYPE_ACTION_FT, action_id,
-				   rule_id, action->dest_tbl->tbl->table_id);
+				   rule_id, action->dest_tbl->tbl->table_id,
+				   DR_DBG_PTR_TO_ID(action->dest_tbl->tbl));
 
 		break;
 	case DR_ACTION_TYP_CTR:

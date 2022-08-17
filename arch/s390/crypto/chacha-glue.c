@@ -121,7 +121,7 @@ static void __exit chacha_mod_fini(void)
 		crypto_unregister_skciphers(chacha_algs, ARRAY_SIZE(chacha_algs));
 }
 
-module_cpu_feature_match(VXRS, chacha_mod_init);
+module_cpu_feature_match(S390_CPU_FEATURE_VXRS, chacha_mod_init);
 module_exit(chacha_mod_fini);
 
 MODULE_DESCRIPTION("ChaCha20 stream cipher");

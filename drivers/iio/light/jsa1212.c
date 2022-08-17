@@ -380,7 +380,9 @@ static int jsa1212_remove(struct i2c_client *client)
 
 	iio_device_unregister(indio_dev);
 
-	return jsa1212_power_off(data);
+	jsa1212_power_off(data);
+
+	return 0;
 }
 
 static int jsa1212_suspend(struct device *dev)

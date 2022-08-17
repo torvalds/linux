@@ -551,7 +551,7 @@ static const struct iio_chan_spec scd4x_channels[] = {
 	},
 };
 
-static int __maybe_unused scd4x_suspend(struct device *dev)
+static int scd4x_suspend(struct device *dev)
 {
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 	struct scd4x_state *state  = iio_priv(indio_dev);
@@ -564,7 +564,7 @@ static int __maybe_unused scd4x_suspend(struct device *dev)
 	return regulator_disable(state->vdd);
 }
 
-static int __maybe_unused scd4x_resume(struct device *dev)
+static int scd4x_resume(struct device *dev)
 {
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 	struct scd4x_state *state = iio_priv(indio_dev);
@@ -577,7 +577,7 @@ static int __maybe_unused scd4x_resume(struct device *dev)
 	return scd4x_send_command(state, CMD_START_MEAS);
 }
 
-static __maybe_unused SIMPLE_DEV_PM_OPS(scd4x_pm_ops, scd4x_suspend, scd4x_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(scd4x_pm_ops, scd4x_suspend, scd4x_resume);
 
 static void scd4x_stop_meas(void *state)
 {
@@ -688,7 +688,7 @@ static struct i2c_driver scd4x_i2c_driver = {
 	.driver = {
 		.name = KBUILD_MODNAME,
 		.of_match_table = scd4x_dt_ids,
-		.pm = &scd4x_pm_ops
+		.pm = pm_sleep_ptr(&scd4x_pm_ops),
 	},
 	.probe = scd4x_probe,
 };

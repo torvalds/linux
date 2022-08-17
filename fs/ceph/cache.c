@@ -29,9 +29,9 @@ void ceph_fscache_register_inode_cookie(struct inode *inode)
 	if (!(inode->i_state & I_NEW))
 		return;
 
-	WARN_ON_ONCE(ci->netfs_ctx.cache);
+	WARN_ON_ONCE(ci->netfs.cache);
 
-	ci->netfs_ctx.cache =
+	ci->netfs.cache =
 		fscache_acquire_cookie(fsc->fscache, 0,
 				       &ci->i_vino, sizeof(ci->i_vino),
 				       &ci->i_version, sizeof(ci->i_version),

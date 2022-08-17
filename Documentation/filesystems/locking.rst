@@ -252,9 +252,8 @@ prototypes::
 	bool (*release_folio)(struct folio *, gfp_t);
 	void (*free_folio)(struct folio *);
 	int (*direct_IO)(struct kiocb *, struct iov_iter *iter);
-	bool (*isolate_page) (struct page *, isolate_mode_t);
-	int (*migratepage)(struct address_space *, struct page *, struct page *);
-	void (*putback_page) (struct page *);
+	int (*migrate_folio)(struct address_space *, struct folio *dst,
+			struct folio *src, enum migrate_mode);
 	int (*launder_folio)(struct folio *);
 	bool (*is_partially_uptodate)(struct folio *, size_t from, size_t count);
 	int (*error_remove_page)(struct address_space *, struct page *);
@@ -280,9 +279,7 @@ invalidate_folio:	yes					exclusive
 release_folio:		yes
 free_folio:		yes
 direct_IO:
-isolate_page:		yes
-migratepage:		yes (both)
-putback_page:		yes
+migrate_folio:		yes (both)
 launder_folio:		yes
 is_partially_uptodate:	yes
 error_remove_page:	yes

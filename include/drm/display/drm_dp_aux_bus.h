@@ -44,9 +44,37 @@ static inline struct dp_aux_ep_driver *to_dp_aux_ep_drv(struct device_driver *dr
 	return container_of(drv, struct dp_aux_ep_driver, driver);
 }
 
-int of_dp_aux_populate_ep_devices(struct drm_dp_aux *aux);
-void of_dp_aux_depopulate_ep_devices(struct drm_dp_aux *aux);
-int devm_of_dp_aux_populate_ep_devices(struct drm_dp_aux *aux);
+int of_dp_aux_populate_bus(struct drm_dp_aux *aux,
+			   int (*done_probing)(struct drm_dp_aux *aux));
+void of_dp_aux_depopulate_bus(struct drm_dp_aux *aux);
+int devm_of_dp_aux_populate_bus(struct drm_dp_aux *aux,
+				int (*done_probing)(struct drm_dp_aux *aux));
+
+/* Deprecated versions of the above functions. To be removed when no callers. */
+static inline int of_dp_aux_populate_ep_devices(struct drm_dp_aux *aux)
+{
+	int ret;
+
+	ret = of_dp_aux_populate_bus(aux, NULL);
+
+	/* New API returns -ENODEV for no child case; adapt to old assumption */
+	return (ret != -ENODEV) ? ret : 0;
+}
+
+static inline int devm_of_dp_aux_populate_ep_devices(struct drm_dp_aux *aux)
+{
+	int ret;
+
+	ret = devm_of_dp_aux_populate_bus(aux, NULL);
+
+	/* New API returns -ENODEV for no child case; adapt to old assumption */
+	return (ret != -ENODEV) ? ret : 0;
+}
+
+static inline void of_dp_aux_depopulate_ep_devices(struct drm_dp_aux *aux)
+{
+	of_dp_aux_depopulate_bus(aux);
+}
 
 #define dp_aux_dp_driver_register(aux_ep_drv) \
 	__dp_aux_dp_driver_register(aux_ep_drv, THIS_MODULE)

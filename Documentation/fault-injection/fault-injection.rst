@@ -169,6 +169,13 @@ configuration of fault-injection capabilities.
 	default is 'N', setting it to 'Y' will disable disconnect
 	injection on the RPC server.
 
+- /sys/kernel/debug/fail_sunrpc/ignore-cache-wait:
+
+	Format: { 'Y' | 'N' }
+
+	default is 'N', setting it to 'Y' will disable cache wait
+	injection on the RPC server.
+
 - /sys/kernel/debug/fail_function/inject:
 
 	Format: { 'function-name' | '!function-name' | '' }

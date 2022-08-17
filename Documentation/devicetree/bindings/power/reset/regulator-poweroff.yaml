@@ -16,7 +16,7 @@ description: |
 
 properties:
   compatible:
-    const: "regulator-poweroff"
+    const: regulator-poweroff
 
   cpu-supply:
     description:

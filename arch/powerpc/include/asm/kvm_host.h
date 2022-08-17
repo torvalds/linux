@@ -523,7 +523,11 @@ struct kvm_vcpu_arch {
 	struct kvmppc_book3s_shadow_vcpu *shadow_vcpu;
 #endif
 
-	struct pt_regs regs;
+	/*
+	 * This is passed along to the HV via H_ENTER_NESTED. Align to
+	 * prevent it crossing a real 4K page.
+	 */
+	struct pt_regs regs __aligned(512);
 
 	struct thread_fp_state fp;
 
@@ -830,11 +834,21 @@ struct kvm_vcpu_arch {
 #ifdef CONFIG_KVM_BOOK3S_HV_EXIT_TIMING
 	struct kvmhv_tb_accumulator *cur_activity;	/* What we're timing */
 	u64	cur_tb_start;			/* when it started */
+#ifdef CONFIG_KVM_BOOK3S_HV_P9_TIMING
+	struct kvmhv_tb_accumulator vcpu_entry;
+	struct kvmhv_tb_accumulator vcpu_exit;
+	struct kvmhv_tb_accumulator in_guest;
+	struct kvmhv_tb_accumulator hcall;
+	struct kvmhv_tb_accumulator pg_fault;
+	struct kvmhv_tb_accumulator guest_entry;
+	struct kvmhv_tb_accumulator guest_exit;
+#else
 	struct kvmhv_tb_accumulator rm_entry;	/* real-mode entry code */
 	struct kvmhv_tb_accumulator rm_intr;	/* real-mode intr handling */
 	struct kvmhv_tb_accumulator rm_exit;	/* real-mode exit code */
 	struct kvmhv_tb_accumulator guest_time;	/* guest execution */
 	struct kvmhv_tb_accumulator cede_time;	/* time napping inside guest */
+#endif
 #endif /* CONFIG_KVM_BOOK3S_HV_EXIT_TIMING */
 };
 

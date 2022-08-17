@@ -91,6 +91,7 @@ static struct cmd_struct commands[] = {
 	{ "data",	cmd_data,	0 },
 	{ "ftrace",	cmd_ftrace,	0 },
 	{ "daemon",	cmd_daemon,	0 },
+	{ "kwork",	cmd_kwork,	0 },
 };
 
 struct pager_config {

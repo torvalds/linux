@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Versatile Express Serial Power Controller (SPC) support
  *
@@ -6,15 +7,6 @@
  * Authors: Sudeep KarkadaNagesha <sudeep.karkadanagesha@arm.com>
  *          Achin Gupta           <achin.gupta@arm.com>
  *          Lorenzo Pieralisi     <lorenzo.pieralisi@arm.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed "as is" WITHOUT ANY WARRANTY of any
- * kind, whether express or implied; without even the implied warranty
- * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/clk-provider.h>

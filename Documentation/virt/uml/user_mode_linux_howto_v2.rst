@@ -322,7 +322,7 @@ Shared Options
 * ``v6=[0,1]`` to specify if a v6 connection is desired for all
   transports which operate over IP. Additionally, for transports that
   have some differences in the way they operate over v4 and v6 (for example
-  EoL2TPv3), sets the correct mode of operation. In the absense of this
+  EoL2TPv3), sets the correct mode of operation. In the absence of this
   option, the socket type is determined based on what do the src and dst
   arguments resolve/parse to.
 

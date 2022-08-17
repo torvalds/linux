@@ -55,6 +55,7 @@ static void free_pstore_private(struct pstore_private *private)
 		return;
 	if (private->record) {
 		kfree(private->record->buf);
+		kfree(private->record->priv);
 		kfree(private->record);
 	}
 	kfree(private);

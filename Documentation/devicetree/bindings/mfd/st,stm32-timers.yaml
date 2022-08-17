@@ -33,7 +33,7 @@ properties:
     items:
       - const: int
 
-  reset:
+  resets:
     maxItems: 1
 
   dmas:
@@ -45,6 +45,21 @@ properties:
       enum: [ ch1, ch2, ch3, ch4, up, trig, com ]
     minItems: 1
     maxItems: 7
+
+  interrupts:
+    oneOf:
+      - maxItems: 1
+      - maxItems: 4
+
+  interrupt-names:
+    oneOf:
+      - items:
+          - const: global
+      - items:
+          - const: brk
+          - const: up
+          - const: trg-com
+          - const: cc
 
   "#address-cells":
     const: 1
@@ -87,6 +102,16 @@ properties:
       - "#pwm-cells"
       - compatible
 
+  counter:
+    type: object
+
+    properties:
+      compatible:
+        const: st,stm32-timer-counter
+
+    required:
+      - compatible
+
 patternProperties:
   "^timer@[0-9]+$":
     type: object
@@ -106,16 +131,6 @@ patternProperties:
     required:
       - compatible
       - reg
-
-  counter:
-    type: object
-
-    properties:
-      compatible:
-        const: st,stm32-timer-counter
-
-    required:
-      - compatible
 
 required:
   - compatible

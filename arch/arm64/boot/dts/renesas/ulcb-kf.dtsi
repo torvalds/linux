@@ -206,12 +206,12 @@
 				clocks = <&clksndsel>;
 				clock-names = "scki";
 
-				VDD1-supply	= <&snd_3p3v>;
-				VDD2-supply	= <&snd_3p3v>;
-				VCCAD1-supply	= <&snd_vcc5v>;
-				VCCAD2-supply	= <&snd_vcc5v>;
-				VCCDA1-supply	= <&snd_vcc5v>;
-				VCCDA2-supply	= <&snd_vcc5v>;
+				VDD1-supply = <&snd_3p3v>;
+				VDD2-supply = <&snd_3p3v>;
+				VCCAD1-supply = <&snd_vcc5v>;
+				VCCAD2-supply = <&snd_vcc5v>;
+				VCCDA1-supply = <&snd_vcc5v>;
+				VCCDA2-supply = <&snd_vcc5v>;
 
 				ports {
 					#address-cells = <1>;
@@ -438,7 +438,7 @@
 				bitclock-master;
 				frame-master;
 				dai-tdm-slot-num = <6>;
-				capture  = <&ssi4>;
+				capture = <&ssi4>;
 			};
 		};
 	};

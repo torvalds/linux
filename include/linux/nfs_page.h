@@ -202,8 +202,7 @@ nfs_list_entry(struct list_head *head)
 	return list_entry(head, struct nfs_page, wb_list);
 }
 
-static inline
-loff_t req_offset(struct nfs_page *req)
+static inline loff_t req_offset(const struct nfs_page *req)
 {
 	return (((loff_t)req->wb_index) << PAGE_SHIFT) + req->wb_offset;
 }

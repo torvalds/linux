@@ -12,6 +12,7 @@
 
 #include <linux/device.h>
 #include <linux/refcount.h>
+#include <linux/percpu.h>
 #include "rtrs-pri.h"
 
 /*
@@ -29,15 +30,15 @@ enum rtrs_srv_state {
  */
 struct rtrs_srv_stats_rdma_stats {
 	struct {
-		atomic64_t	cnt;
-		atomic64_t	size_total;
+		u64 cnt;
+		u64 size_total;
 	} dir[2];
 };
 
 struct rtrs_srv_stats {
-	struct kobject				kobj_stats;
-	struct rtrs_srv_stats_rdma_stats	rdma_stats;
-	struct rtrs_srv_path			*srv_path;
+	struct kobject					kobj_stats;
+	struct rtrs_srv_stats_rdma_stats __percpu	*rdma_stats;
+	struct rtrs_srv_path				*srv_path;
 };
 
 struct rtrs_srv_con {
@@ -130,8 +131,8 @@ void close_path(struct rtrs_srv_path *srv_path);
 static inline void rtrs_srv_update_rdma_stats(struct rtrs_srv_stats *s,
 					      size_t size, int d)
 {
-	atomic64_inc(&s->rdma_stats.dir[d].cnt);
-	atomic64_add(size, &s->rdma_stats.dir[d].size_total);
+	this_cpu_inc(s->rdma_stats->dir[d].cnt);
+	this_cpu_add(s->rdma_stats->dir[d].size_total, size);
 }
 
 /* functions which are implemented in rtrs-srv-stats.c */

@@ -6,7 +6,7 @@ functional clock but can be configured to provide different clocks.
 ATL can maintain a clock averages to some desired frequency based on the bws/aws
 signals - can compensate the drift between the two ws signal.
 
-In order to provide the support for ATL and it's output clocks (which can be used
+In order to provide the support for ATL and its output clocks (which can be used
 internally within the SoC or external components) two sets of bindings is needed:
 
 Clock tree binding:

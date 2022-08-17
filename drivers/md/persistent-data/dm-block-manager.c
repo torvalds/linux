@@ -391,7 +391,8 @@ struct dm_block_manager *dm_block_manager_create(struct block_device *bdev,
 	bm->bufio = dm_bufio_client_create(bdev, block_size, max_held_per_thread,
 					   sizeof(struct buffer_aux),
 					   dm_block_manager_alloc_callback,
-					   dm_block_manager_write_callback);
+					   dm_block_manager_write_callback,
+					   0);
 	if (IS_ERR(bm->bufio)) {
 		r = PTR_ERR(bm->bufio);
 		kfree(bm);

@@ -73,7 +73,7 @@ static const struct pinctrl_pin_desc axp209_pins[] = {
 	PINCTRL_PIN(2, "GPIO2"),
 };
 
-static const struct pinctrl_pin_desc axp813_pins[] = {
+static const struct pinctrl_pin_desc axp22x_pins[] = {
 	PINCTRL_PIN(0, "GPIO0"),
 	PINCTRL_PIN(1, "GPIO1"),
 };
@@ -87,9 +87,16 @@ static const struct axp20x_pctrl_desc axp20x_data = {
 	.adc_mux = AXP20X_MUX_ADC,
 };
 
+static const struct axp20x_pctrl_desc axp22x_data = {
+	.pins	= axp22x_pins,
+	.npins	= ARRAY_SIZE(axp22x_pins),
+	.ldo_mask = BIT(0) | BIT(1),
+	.gpio_status_offset = 0,
+};
+
 static const struct axp20x_pctrl_desc axp813_data = {
-	.pins	= axp813_pins,
-	.npins	= ARRAY_SIZE(axp813_pins),
+	.pins	= axp22x_pins,
+	.npins	= ARRAY_SIZE(axp22x_pins),
 	.ldo_mask = BIT(0) | BIT(1),
 	.adc_mask = BIT(0),
 	.gpio_status_offset = 0,
@@ -388,6 +395,7 @@ static int axp20x_build_funcs_groups(struct platform_device *pdev)
 
 static const struct of_device_id axp20x_pctl_match[] = {
 	{ .compatible = "x-powers,axp209-gpio", .data = &axp20x_data, },
+	{ .compatible = "x-powers,axp221-gpio", .data = &axp22x_data, },
 	{ .compatible = "x-powers,axp813-gpio", .data = &axp813_data, },
 	{ }
 };

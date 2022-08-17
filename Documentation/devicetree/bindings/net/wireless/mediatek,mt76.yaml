@@ -54,6 +54,16 @@ properties:
   reset-names:
     const: consys
 
+  clocks:
+    maxItems: 2
+    description:
+      Specify the consys clocks for mt7986.
+
+  clock-names:
+    items:
+      - const: mcu
+      - const: ap2conn
+
   mediatek,infracfg:
     $ref: /schemas/types.yaml#/definitions/phandle
     description:
@@ -269,5 +279,8 @@ examples:
               <0x10003000 0x1000>,
               <0x11d10000 0x1000>;
         interrupts = <GIC_SPI 213 IRQ_TYPE_LEVEL_HIGH>;
+        clocks = <&topckgen 50>,
+                 <&topckgen 62>;
+        clock-names = "mcu", "ap2conn";
         memory-region = <&wmcpu_emi>;
     };

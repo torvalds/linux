@@ -571,11 +571,7 @@ xprt_rdma_allocate(struct rpc_task *task)
 	struct rpc_rqst *rqst = task->tk_rqstp;
 	struct rpcrdma_xprt *r_xprt = rpcx_to_rdmax(rqst->rq_xprt);
 	struct rpcrdma_req *req = rpcr_to_rdmar(rqst);
-	gfp_t flags;
-
-	flags = RPCRDMA_DEF_GFP;
-	if (RPC_IS_ASYNC(task))
-		flags = GFP_NOWAIT | __GFP_NOWARN;
+	gfp_t flags = rpc_task_gfp_mask();
 
 	if (!rpcrdma_check_regbuf(r_xprt, req->rl_sendbuf, rqst->rq_callsize,
 				  flags))

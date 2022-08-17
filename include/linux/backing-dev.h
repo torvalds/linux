@@ -119,6 +119,8 @@ int bdi_set_max_ratio(struct backing_dev_info *bdi, unsigned int max_ratio);
 
 extern struct backing_dev_info noop_backing_dev_info;
 
+int bdi_init(struct backing_dev_info *bdi);
+
 /**
  * writeback_in_progress - determine whether there is writeback in progress
  * @wb: bdi_writeback of interest
@@ -136,12 +138,6 @@ struct backing_dev_info *inode_to_bdi(struct inode *inode);
 static inline bool mapping_can_writeback(struct address_space *mapping)
 {
 	return inode_to_bdi(mapping->host)->capabilities & BDI_CAP_WRITEBACK;
-}
-
-static inline int bdi_sched_wait(void *word)
-{
-	schedule();
-	return 0;
 }
 
 #ifdef CONFIG_CGROUP_WRITEBACK
@@ -231,18 +227,6 @@ wb_get_create_current(struct backing_dev_info *bdi, gfp_t gfp)
 		css_put(memcg_css);
 	}
 	return wb;
-}
-
-/**
- * inode_to_wb_is_valid - test whether an inode has a wb associated
- * @inode: inode of interest
- *
- * Returns %true if @inode has a wb associated.  May be called without any
- * locking.
- */
-static inline bool inode_to_wb_is_valid(struct inode *inode)
-{
-	return inode->i_wb;
 }
 
 /**
@@ -341,11 +325,6 @@ static inline struct bdi_writeback *
 wb_get_create_current(struct backing_dev_info *bdi, gfp_t gfp)
 {
 	return &bdi->wb;
-}
-
-static inline bool inode_to_wb_is_valid(struct inode *inode)
-{
-	return true;
 }
 
 static inline struct bdi_writeback *inode_to_wb(struct inode *inode)

@@ -9,25 +9,34 @@
 #include <linux/dma-map-ops.h>
 #include <linux/dma-iommu.h>
 #include <xen/xen.h>
-#include <xen/swiotlb-xen.h>
 
 #include <asm/cacheflush.h>
+#include <asm/xen/xen-ops.h>
 
 void arch_sync_dma_for_device(phys_addr_t paddr, size_t size,
-		enum dma_data_direction dir)
+			      enum dma_data_direction dir)
 {
-	__dma_map_area(phys_to_virt(paddr), size, dir);
+	unsigned long start = (unsigned long)phys_to_virt(paddr);
+
+	dcache_clean_poc(start, start + size);
 }
 
 void arch_sync_dma_for_cpu(phys_addr_t paddr, size_t size,
-		enum dma_data_direction dir)
+			   enum dma_data_direction dir)
 {
-	__dma_unmap_area(phys_to_virt(paddr), size, dir);
+	unsigned long start = (unsigned long)phys_to_virt(paddr);
+
+	if (dir == DMA_TO_DEVICE)
+		return;
+
+	dcache_inval_poc(start, start + size);
 }
 
 void arch_dma_prep_coherent(struct page *page, size_t size)
 {
-	__dma_flush_area(page_address(page), size);
+	unsigned long start = (unsigned long)page_address(page);
+
+	dcache_clean_inval_poc(start, start + size);
 }
 
 #ifdef CONFIG_IOMMU_DMA
@@ -52,8 +61,5 @@ void arch_setup_dma_ops(struct device *dev, u64 dma_base, u64 size,
 	if (iommu)
 		iommu_setup_dma_ops(dev, dma_base, dma_base + size - 1);
 
-#ifdef CONFIG_XEN
-	if (xen_swiotlb_detect())
-		dev->dma_ops = &xen_swiotlb_dma_ops;
-#endif
+	xen_setup_dma_ops(dev);
 }

@@ -592,13 +592,13 @@
         "Unit": "cpu_atom"
     },
     {
-        "BriefDescription": "Instructions per Branch (lower number means higher occurrence rate)",
+        "BriefDescription": "Instructions per Branch (lower number means higher occurance rate)",
         "MetricExpr": "INST_RETIRED.ANY / BR_INST_RETIRED.ALL_BRANCHES",
         "MetricName": "IpBranch",
         "Unit": "cpu_atom"
     },
     {
-        "BriefDescription": "Instruction per (near) call (lower number means higher occurrence rate)",
+        "BriefDescription": "Instruction per (near) call (lower number means higher occurance rate)",
         "MetricExpr": "INST_RETIRED.ANY / BR_INST_RETIRED.CALL",
         "MetricName": "IpCall",
         "Unit": "cpu_atom"

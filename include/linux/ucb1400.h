@@ -84,8 +84,6 @@ struct ucb1400_gpio {
 	struct gpio_chip	gc;
 	struct snd_ac97		*ac97;
 	int			gpio_offset;
-	int			(*gpio_setup)(struct device *dev, int ngpio);
-	int			(*gpio_teardown)(struct device *dev, int ngpio);
 };
 
 struct ucb1400_ts {

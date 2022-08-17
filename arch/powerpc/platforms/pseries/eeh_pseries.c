@@ -71,7 +71,7 @@ static void pseries_pcibios_bus_add_device(struct pci_dev *pdev)
 	if (pdev->is_virtfn) {
 		/*
 		 * FIXME: This really should be handled by choosing the right
-		 *        parent PE in in pseries_eeh_init_edev().
+		 *        parent PE in pseries_eeh_init_edev().
 		 */
 		struct eeh_pe *physfn_pe = pci_dev_to_eeh_dev(pdev->physfn)->pe;
 		struct eeh_dev *edev = pdn_to_eeh_dev(pdn);

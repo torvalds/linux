@@ -75,7 +75,7 @@ bool caam_congested __read_mostly;
 EXPORT_SYMBOL(caam_congested);
 
 /*
- * This is a a cache of buffers, from which the users of CAAM QI driver
+ * This is a cache of buffers, from which the users of CAAM QI driver
  * can allocate short (CAAM_QI_MEMCACHE_SIZE) buffers. It's faster than
  * doing malloc on the hotpath.
  * NOTE: A more elegant solution would be to have some headroom in the frames
@@ -749,8 +749,8 @@ int caam_qi_init(struct platform_device *caam_pdev)
 		net_dev->dev = *qidev;
 		INIT_LIST_HEAD(&net_dev->napi_list);
 
-		netif_napi_add(net_dev, irqtask, caam_qi_poll,
-			       CAAM_NAPI_WEIGHT);
+		netif_napi_add_tx_weight(net_dev, irqtask, caam_qi_poll,
+					 CAAM_NAPI_WEIGHT);
 
 		napi_enable(irqtask);
 	}

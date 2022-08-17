@@ -17,9 +17,6 @@
 #include "kvm_util.h"
 #include "vmx.h"
 
-#define VCPU_ID	      0
-
-#define X86_FEATURE_PDCM	(1<<15)
 #define PMU_CAP_FW_WRITES	(1ULL << 13)
 #define PMU_CAP_LBR_FMT		0x3f
 
@@ -56,60 +53,56 @@ static void guest_code(void)
 
 int main(int argc, char *argv[])
 {
-	struct kvm_cpuid2 *cpuid;
-	struct kvm_cpuid_entry2 *entry_1_0;
-	struct kvm_cpuid_entry2 *entry_a_0;
-	bool pdcm_supported = false;
+	const struct kvm_cpuid_entry2 *entry_a_0;
 	struct kvm_vm *vm;
+	struct kvm_vcpu *vcpu;
 	int ret;
 	union cpuid10_eax eax;
 	union perf_capabilities host_cap;
+	uint64_t val;
 
 	host_cap.capabilities = kvm_get_feature_msr(MSR_IA32_PERF_CAPABILITIES);
 	host_cap.capabilities &= (PMU_CAP_FW_WRITES | PMU_CAP_LBR_FMT);
 
 	/* Create VM */
-	vm = vm_create_default(VCPU_ID, 0, guest_code);
-	cpuid = kvm_get_supported_cpuid();
+	vm = vm_create_with_one_vcpu(&vcpu, guest_code);
 
-	if (kvm_get_cpuid_max_basic() >= 0xa) {
-		entry_1_0 = kvm_get_supported_cpuid_index(1, 0);
-		entry_a_0 = kvm_get_supported_cpuid_index(0xa, 0);
-		pdcm_supported = entry_1_0 && !!(entry_1_0->ecx & X86_FEATURE_PDCM);
-		eax.full = entry_a_0->eax;
-	}
-	if (!pdcm_supported) {
-		print_skip("MSR_IA32_PERF_CAPABILITIES is not supported by the vCPU");
-		exit(KSFT_SKIP);
-	}
-	if (!eax.split.version_id) {
-		print_skip("PMU is not supported by the vCPU");
-		exit(KSFT_SKIP);
-	}
+	TEST_REQUIRE(kvm_cpu_has(X86_FEATURE_PDCM));
+
+	TEST_REQUIRE(kvm_get_cpuid_max_basic() >= 0xa);
+	entry_a_0 = kvm_get_supported_cpuid_entry(0xa);
+
+	eax.full = entry_a_0->eax;
+	__TEST_REQUIRE(eax.split.version_id, "PMU is not supported by the vCPU");
 
 	/* testcase 1, set capabilities when we have PDCM bit */
-	vcpu_set_cpuid(vm, VCPU_ID, cpuid);
-	vcpu_set_msr(vm, 0, MSR_IA32_PERF_CAPABILITIES, PMU_CAP_FW_WRITES);
+	vcpu_set_msr(vcpu, MSR_IA32_PERF_CAPABILITIES, PMU_CAP_FW_WRITES);
 
 	/* check capabilities can be retrieved with KVM_GET_MSR */
-	ASSERT_EQ(vcpu_get_msr(vm, VCPU_ID, MSR_IA32_PERF_CAPABILITIES), PMU_CAP_FW_WRITES);
+	ASSERT_EQ(vcpu_get_msr(vcpu, MSR_IA32_PERF_CAPABILITIES), PMU_CAP_FW_WRITES);
 
 	/* check whatever we write with KVM_SET_MSR is _not_ modified */
-	vcpu_run(vm, VCPU_ID);
-	ASSERT_EQ(vcpu_get_msr(vm, VCPU_ID, MSR_IA32_PERF_CAPABILITIES), PMU_CAP_FW_WRITES);
+	vcpu_run(vcpu);
+	ASSERT_EQ(vcpu_get_msr(vcpu, MSR_IA32_PERF_CAPABILITIES), PMU_CAP_FW_WRITES);
 
 	/* testcase 2, check valid LBR formats are accepted */
-	vcpu_set_msr(vm, 0, MSR_IA32_PERF_CAPABILITIES, 0);
-	ASSERT_EQ(vcpu_get_msr(vm, VCPU_ID, MSR_IA32_PERF_CAPABILITIES), 0);
+	vcpu_set_msr(vcpu, MSR_IA32_PERF_CAPABILITIES, 0);
+	ASSERT_EQ(vcpu_get_msr(vcpu, MSR_IA32_PERF_CAPABILITIES), 0);
 
-	vcpu_set_msr(vm, 0, MSR_IA32_PERF_CAPABILITIES, host_cap.lbr_format);
-	ASSERT_EQ(vcpu_get_msr(vm, VCPU_ID, MSR_IA32_PERF_CAPABILITIES), (u64)host_cap.lbr_format);
+	vcpu_set_msr(vcpu, MSR_IA32_PERF_CAPABILITIES, host_cap.lbr_format);
+	ASSERT_EQ(vcpu_get_msr(vcpu, MSR_IA32_PERF_CAPABILITIES), (u64)host_cap.lbr_format);
 
-	/* testcase 3, check invalid LBR format is rejected */
-	/* Note, on Arch LBR capable platforms, LBR_FMT in perf capability msr is 0x3f,
-	 * to avoid the failure, use a true invalid format 0x30 for the test. */
-	ret = _vcpu_set_msr(vm, 0, MSR_IA32_PERF_CAPABILITIES, 0x30);
-	TEST_ASSERT(ret == 0, "Bad PERF_CAPABILITIES didn't fail.");
+	/*
+	 * Testcase 3, check that an "invalid" LBR format is rejected.  Only an
+	 * exact match of the host's format (and 0/disabled) is allowed.
+	 */
+	for (val = 1; val <= PMU_CAP_LBR_FMT; val++) {
+		if (val == (host_cap.capabilities & PMU_CAP_LBR_FMT))
+			continue;
+
+		ret = _vcpu_set_msr(vcpu, MSR_IA32_PERF_CAPABILITIES, val);
+		TEST_ASSERT(!ret, "Bad LBR FMT = 0x%lx didn't fail", val);
+	}
 
 	printf("Completed perf capability tests.\n");
 	kvm_vm_free(vm);

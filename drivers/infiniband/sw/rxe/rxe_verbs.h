@@ -9,7 +9,6 @@
 
 #include <linux/interrupt.h>
 #include <linux/workqueue.h>
-#include <rdma/rdma_user_rxe.h>
 #include "rxe_pool.h"
 #include "rxe_task.h"
 #include "rxe_hw_counters.h"
@@ -124,11 +123,13 @@ struct rxe_req_info {
 	int			need_rd_atomic;
 	int			wait_psn;
 	int			need_retry;
+	int			wait_for_rnr_timer;
 	int			noack_pkts;
 	struct rxe_task		task;
 };
 
 struct rxe_comp_info {
+	enum rxe_qp_state	state;
 	u32			psn;
 	int			opcode;
 	int			timeout;
@@ -155,7 +156,7 @@ struct resp_res {
 
 	union {
 		struct {
-			struct sk_buff	*skb;
+			u64		orig_val;
 		} atomic;
 		struct {
 			u64		va_org;
@@ -189,7 +190,6 @@ struct rxe_resp_info {
 	u32			resid;
 	u32			rkey;
 	u32			length;
-	u64			atomic_orig;
 
 	/* SRQ only */
 	struct {
@@ -288,17 +288,6 @@ struct rxe_map {
 	struct rxe_phys_buf	buf[RXE_BUF_PER_MAP];
 };
 
-struct rxe_map_set {
-	struct rxe_map		**map;
-	u64			va;
-	u64			iova;
-	size_t			length;
-	u32			offset;
-	u32			nbuf;
-	int			page_shift;
-	int			page_mask;
-};
-
 static inline int rkey_is_mw(u32 rkey)
 {
 	u32 index = rkey >> 8;
@@ -316,20 +305,26 @@ struct rxe_mr {
 	u32			rkey;
 	enum rxe_mr_state	state;
 	enum ib_mr_type		type;
+	u64			va;
+	u64			iova;
+	size_t			length;
+	u32			offset;
 	int			access;
 
+	int			page_shift;
+	int			page_mask;
 	int			map_shift;
 	int			map_mask;
 
 	u32			num_buf;
+	u32			nbuf;
 
 	u32			max_buf;
 	u32			num_map;
 
 	atomic_t		num_mw;
 
-	struct rxe_map_set	*cur_map_set;
-	struct rxe_map_set	*next_map_set;
+	struct rxe_map		**map;
 };
 
 enum rxe_mw_state {

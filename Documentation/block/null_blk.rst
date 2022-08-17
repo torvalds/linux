@@ -72,6 +72,28 @@ submit_queues=[1..nr_cpus]: Default: 1
 hw_queue_depth=[0..qdepth]: Default: 64
   The hardware queue depth of the device.
 
+memory_backed=[0/1]: Default: 0
+  Whether or not to use a memory buffer to respond to IO requests
+
+  =  =============================================
+  0  Transfer no data in response to IO requests
+  1  Use a memory buffer to respond to IO requests
+  =  =============================================
+
+discard=[0/1]: Default: 0
+  Support discard operations (requires memory-backed null_blk device).
+
+  =  =====================================
+  0  Do not support discard operations
+  1  Enable support for discard operations
+  =  =====================================
+
+cache_size=[Size in MB]: Default: 0
+  Cache size in MB for memory-backed device.
+
+mbps=[Maximum bandwidth in MB/s]: Default: 0 (no limit)
+  Bandwidth limit for device performance.
+
 Multi-queue specific parameters
 -------------------------------
 

@@ -62,10 +62,10 @@ connlimit_mt(const struct sk_buff *skb, struct xt_action_param *par)
 		key[4] = zone->id;
 	} else {
 		const struct iphdr *iph = ip_hdr(skb);
-		key[0] = (info->flags & XT_CONNLIMIT_DADDR) ?
-			  iph->daddr : iph->saddr;
 
-		key[0] &= info->mask.ip;
+		key[0] = (info->flags & XT_CONNLIMIT_DADDR) ?
+			 (__force __u32)iph->daddr : (__force __u32)iph->saddr;
+		key[0] &= (__force __u32)info->mask.ip;
 		key[1] = zone->id;
 	}
 

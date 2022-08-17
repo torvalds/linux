@@ -47,6 +47,8 @@ cflags-y += $(call cc-option, -mno-check-zero-division)
 load-y		= 0x9000000000200000
 bootvars-y	= VMLINUX_LOAD_ADDRESS=$(load-y)
 
+drivers-$(CONFIG_PCI)		+= arch/loongarch/pci/
+
 KBUILD_AFLAGS	+= $(cflags-y)
 KBUILD_CFLAGS	+= $(cflags-y)
 KBUILD_CPPFLAGS += -DVMLINUX_LOAD_ADDRESS=$(load-y)

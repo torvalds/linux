@@ -118,8 +118,6 @@ amdgpu_atombios_encoder_set_backlight_level(struct amdgpu_encoder *amdgpu_encode
 	}
 }
 
-#if defined(CONFIG_BACKLIGHT_CLASS_DEVICE) || defined(CONFIG_BACKLIGHT_CLASS_DEVICE_MODULE)
-
 static u8 amdgpu_atombios_encoder_backlight_level(struct backlight_device *bd)
 {
 	u8 level;
@@ -250,18 +248,6 @@ amdgpu_atombios_encoder_fini_backlight(struct amdgpu_encoder *amdgpu_encoder)
 		DRM_INFO("amdgpu atom LVDS backlight unloaded\n");
 	}
 }
-
-#else /* !CONFIG_BACKLIGHT_CLASS_DEVICE */
-
-void amdgpu_atombios_encoder_init_backlight(struct amdgpu_encoder *encoder)
-{
-}
-
-void amdgpu_atombios_encoder_fini_backlight(struct amdgpu_encoder *encoder)
-{
-}
-
-#endif
 
 bool amdgpu_atombios_encoder_is_digital(struct drm_encoder *encoder)
 {

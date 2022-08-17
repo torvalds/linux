@@ -287,11 +287,13 @@ iommu options only relevant to the AMD GART hardware IOMMU:
 iommu options only relevant to the software bounce buffering (SWIOTLB) IOMMU
 implementation:
 
-    swiotlb=<pages>[,force]
-      <pages>
-        Prereserve that many 128K pages for the software IO bounce buffering.
+    swiotlb=<slots>[,force,noforce]
+      <slots>
+        Prereserve that many 2K slots for the software IO bounce buffering.
       force
         Force all IO through the software TLB.
+      noforce
+        Do not initialize the software TLB.
 
 
 Miscellaneous

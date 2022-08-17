@@ -22,9 +22,13 @@ if STAGING_MEDIA && MEDIA_SUPPORT
 # Please keep them in alphabetic order
 source "drivers/staging/media/atomisp/Kconfig"
 
+source "drivers/staging/media/av7110/Kconfig"
+
 source "drivers/staging/media/hantro/Kconfig"
 
 source "drivers/staging/media/imx/Kconfig"
+
+source "drivers/staging/media/ipu3/Kconfig"
 
 source "drivers/staging/media/max96712/Kconfig"
 
@@ -34,14 +38,12 @@ source "drivers/staging/media/omap4iss/Kconfig"
 
 source "drivers/staging/media/rkvdec/Kconfig"
 
-source "drivers/staging/media/sunxi/Kconfig"
+source "drivers/staging/media/stkwebcam/Kconfig"
 
-source "drivers/staging/media/zoran/Kconfig"
+source "drivers/staging/media/sunxi/Kconfig"
 
 source "drivers/staging/media/tegra-video/Kconfig"
 
-source "drivers/staging/media/ipu3/Kconfig"
-
-source "drivers/staging/media/av7110/Kconfig"
+source "drivers/staging/media/zoran/Kconfig"
 
 endif

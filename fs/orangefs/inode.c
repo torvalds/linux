@@ -307,7 +307,7 @@ static int orangefs_read_folio(struct file *file, struct folio *folio)
 
 	ret = wait_for_direct_io(ORANGEFS_IO_READ, inode, &off, &iter,
 			folio_size(folio), inode->i_size, NULL, NULL, file);
-	/* this will only zero remaining unread portions of the page data */
+	/* this will only zero remaining unread portions of the folio data */
 	iov_iter_zero(~0U, &iter);
 	/* takes care of potential aliasing */
 	flush_dcache_folio(folio);
@@ -315,8 +315,6 @@ static int orangefs_read_folio(struct file *file, struct folio *folio)
 		folio_set_error(folio);
 	} else {
 		folio_mark_uptodate(folio);
-		if (folio_test_error(folio))
-			folio_clear_error(folio);
 		ret = 0;
 	}
 	/* unlock the folio after the ->read_folio() routine completes */

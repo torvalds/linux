@@ -11,6 +11,7 @@
 #include <linux/slab.h>
 
 #include "bcm-voter.h"
+#include "icc-common.h"
 #include "icc-rpmh.h"
 
 /**
@@ -99,31 +100,6 @@ int qcom_icc_set(struct icc_node *src, struct icc_node *dst)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(qcom_icc_set);
-
-struct icc_node_data *qcom_icc_xlate_extended(struct of_phandle_args *spec, void *data)
-{
-	struct icc_node_data *ndata;
-	struct icc_node *node;
-
-	node = of_icc_xlate_onecell(spec, data);
-	if (IS_ERR(node))
-		return ERR_CAST(node);
-
-	ndata = kzalloc(sizeof(*ndata), GFP_KERNEL);
-	if (!ndata)
-		return ERR_PTR(-ENOMEM);
-
-	ndata->node = node;
-
-	if (spec->args_count == 2)
-		ndata->tag = spec->args[1];
-
-	if (spec->args_count > 2)
-		pr_warn("%pOF: Too many arguments, path tag is not parsed\n", spec->np);
-
-	return ndata;
-}
-EXPORT_SYMBOL_GPL(qcom_icc_xlate_extended);
 
 /**
  * qcom_icc_bcm_init - populates bcm aux data and connect qnodes
@@ -257,6 +233,10 @@ int qcom_icc_rpmh_probe(struct platform_device *pdev)
 
 	data->num_nodes = num_nodes;
 	platform_set_drvdata(pdev, qp);
+
+	/* Populate child NoC devices if any */
+	if (of_get_child_count(dev->of_node) > 0)
+		return of_platform_populate(dev->of_node, NULL, NULL, dev);
 
 	return 0;
 err:

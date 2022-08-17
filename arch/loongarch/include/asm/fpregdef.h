@@ -48,6 +48,5 @@
 #define fcsr1	$r1
 #define fcsr2	$r2
 #define fcsr3	$r3
-#define vcsr16	$r16
 
 #endif /* _ASM_FPREGDEF_H */

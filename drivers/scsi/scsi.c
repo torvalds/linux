@@ -586,10 +586,13 @@ EXPORT_SYMBOL(scsi_device_get);
  */
 void scsi_device_put(struct scsi_device *sdev)
 {
-	struct module *mod = sdev->host->hostt->module;
-
+	/*
+	 * Decreasing the module reference count before the device reference
+	 * count is safe since scsi_remove_host() only returns after all
+	 * devices have been removed.
+	 */
+	module_put(sdev->host->hostt->module);
 	put_device(&sdev->sdev_gendev);
-	module_put(mod);
 }
 EXPORT_SYMBOL(scsi_device_put);
 

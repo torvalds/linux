@@ -19,21 +19,20 @@
 		serial1 = &uart6;	/* BT */
 		serial2 = &uart5;	/* mikro BUS 2 */
 		serial3 = &uart3;	/* mikro BUS 1 */
-		i2c1	= &i2c1;
+		i2c1 = &i2c1;
 	};
 
 	chosen {
 		stdout-path = "serial0:115200n8";
 	};
 
-	gpio_keys {
+	gpio-keys {
 		compatible = "gpio-keys";
 
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_key_gpio_default>;
-		status = "okay";
 
-		sw4 {
+		button-1 {
 			label = "USER BUTTON";
 			gpios = <&pioA PIN_PB2 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_PROG1>;

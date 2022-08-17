@@ -620,7 +620,7 @@ static int kirin_pcie_start_link(struct dw_pcie *pci)
 	return 0;
 }
 
-static int kirin_pcie_host_init(struct pcie_port *pp)
+static int kirin_pcie_host_init(struct dw_pcie_rp *pp)
 {
 	pp->bridge->ops = &kirin_pci_ops;
 

@@ -42,6 +42,16 @@ void flush_icache_mm(struct mm_struct *mm, bool local);
 
 #endif /* CONFIG_SMP */
 
+#ifdef CONFIG_RISCV_ISA_ZICBOM
+void riscv_init_cbom_blocksize(void);
+#else
+static inline void riscv_init_cbom_blocksize(void) { }
+#endif
+
+#ifdef CONFIG_RISCV_DMA_NONCOHERENT
+void riscv_noncoherent_supported(void);
+#endif
+
 /*
  * Bits in sys_riscv_flush_icache()'s flags argument.
  */

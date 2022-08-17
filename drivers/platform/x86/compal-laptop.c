@@ -324,9 +324,7 @@ static int bl_update_status(struct backlight_device *b)
 	if (ret)
 		return ret;
 
-	set_backlight_state((b->props.power == FB_BLANK_UNBLANK)
-		&&    !(b->props.state & BL_CORE_SUSPENDED)
-		&&    !(b->props.state & BL_CORE_FBBLANK));
+	set_backlight_state(!backlight_is_blank(b));
 	return 0;
 }
 

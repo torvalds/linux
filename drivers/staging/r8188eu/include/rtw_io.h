@@ -220,9 +220,9 @@ void unregister_intf_hdl(struct intf_hdl *pintfhdl);
 void _rtw_attrib_read(struct adapter *adapter, u32 addr, u32 cnt, u8 *pmem);
 void _rtw_attrib_write(struct adapter *adapter, u32 addr, u32 cnt, u8 *pmem);
 
-u8 rtw_read8(struct adapter *adapter, u32 addr);
-u16 rtw_read16(struct adapter *adapter, u32 addr);
-u32 rtw_read32(struct adapter *adapter, u32 addr);
+int __must_check rtw_read8(struct adapter *adapter, u32 addr, u8 *data);
+int __must_check rtw_read16(struct adapter *adapter, u32 addr, u16 *data);
+int __must_check rtw_read32(struct adapter *adapter, u32 addr, u32 *data);
 void _rtw_read_mem(struct adapter *adapter, u32 addr, u32 cnt, u8 *pmem);
 u32 rtw_read_port(struct adapter *adapter, u8 *pmem);
 void rtw_read_port_cancel(struct adapter *adapter);
@@ -283,7 +283,7 @@ void free_io_queue(struct adapter *adapter);
 void async_bus_io(struct io_queue *pio_q);
 void bus_sync_io(struct io_queue *pio_q);
 u32 _ioreq2rwmem(struct io_queue *pio_q);
-void dev_power_down(struct adapter * Adapter, u8 bpwrup);
+void dev_power_down(struct adapter *Adapter, u8 bpwrup);
 
 #define PlatformEFIOWrite1Byte(_a,_b,_c)		\
 	rtw_write8(_a,_b,_c)

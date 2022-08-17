@@ -726,6 +726,7 @@ static int atlas_remove(struct i2c_client *client)
 {
 	struct iio_dev *indio_dev = i2c_get_clientdata(client);
 	struct atlas_data *data = iio_priv(indio_dev);
+	int ret;
 
 	iio_device_unregister(indio_dev);
 	iio_triggered_buffer_cleanup(indio_dev);
@@ -734,7 +735,12 @@ static int atlas_remove(struct i2c_client *client)
 	pm_runtime_disable(&client->dev);
 	pm_runtime_set_suspended(&client->dev);
 
-	return atlas_set_powermode(data, 0);
+	ret = atlas_set_powermode(data, 0);
+	if (ret)
+		dev_err(&client->dev, "Failed to power down device (%pe)\n",
+			ERR_PTR(ret));
+
+	return 0;
 }
 
 static int atlas_runtime_suspend(struct device *dev)

@@ -1284,7 +1284,7 @@ static int gmin_get_config_var(struct device *maindev,
 	const struct dmi_system_id *id;
 	struct device *dev = maindev;
 	char var8[CFG_VAR_NAME_MAX];
-	struct efivar_entry *ev;
+	efi_status_t status;
 	int i, ret;
 
 	/* For sensors, try first to use the _DSM table */
@@ -1326,32 +1326,17 @@ static int gmin_get_config_var(struct device *maindev,
 	for (i = 0; i < sizeof(var8) && var8[i]; i++)
 		var16[i] = var8[i];
 
-	/* Not sure this API usage is kosher; efivar_entry_get()'s
-	 * implementation simply uses VariableName and VendorGuid from
-	 * the struct and ignores the rest, but it seems like there
-	 * ought to be an "official" efivar_entry registered
-	 * somewhere?
-	 */
-	ev = kzalloc(sizeof(*ev), GFP_KERNEL);
-	if (!ev)
-		return -ENOMEM;
-	memcpy(&ev->var.VariableName, var16, sizeof(var16));
-	ev->var.VendorGuid = GMIN_CFG_VAR_EFI_GUID;
-	ev->var.DataSize = *out_len;
-
-	ret = efivar_entry_get(ev, &ev->var.Attributes,
-			       &ev->var.DataSize, ev->var.Data);
-	if (ret == 0) {
-		memcpy(out, ev->var.Data, ev->var.DataSize);
-		*out_len = ev->var.DataSize;
+	status = EFI_UNSUPPORTED;
+	if (efi_rt_services_supported(EFI_RT_SUPPORTED_GET_VARIABLE))
+		status = efi.get_variable(var16, &GMIN_CFG_VAR_EFI_GUID, NULL,
+					  (unsigned long *)out_len, out);
+	if (status == EFI_SUCCESS) {
 		dev_info(maindev, "found EFI entry for '%s'\n", var8);
 	} else if (is_gmin) {
 		dev_info(maindev, "Failed to find EFI gmin variable %s\n", var8);
 	} else {
 		dev_info(maindev, "Failed to find EFI variable %s\n", var8);
 	}
-
-	kfree(ev);
 
 	return ret;
 }

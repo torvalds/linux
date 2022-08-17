@@ -3429,18 +3429,18 @@ static ssize_t blocked_fl_write(struct file *filp, const char __user *ubuf,
 	unsigned long *t;
 	struct adapter *adap = filp->private_data;
 
-	t = kcalloc(BITS_TO_LONGS(adap->sge.egr_sz), sizeof(long), GFP_KERNEL);
+	t = bitmap_zalloc(adap->sge.egr_sz, GFP_KERNEL);
 	if (!t)
 		return -ENOMEM;
 
 	err = bitmap_parse_user(ubuf, count, t, adap->sge.egr_sz);
 	if (err) {
-		kfree(t);
+		bitmap_free(t);
 		return err;
 	}
 
 	bitmap_copy(adap->sge.blocked_fl, t, adap->sge.egr_sz);
-	kfree(t);
+	bitmap_free(t);
 	return count;
 }
 

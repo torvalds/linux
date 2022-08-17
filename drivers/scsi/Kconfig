@@ -458,17 +458,6 @@ config SCSI_MVUMI
 	  To compile this driver as a module, choose M here: the
 	  module will be called mvumi.
 
-config SCSI_DPT_I2O
-	tristate "Adaptec I2O RAID support "
-	depends on SCSI && PCI && VIRT_TO_BUS
-	help
-	  This driver supports all of Adaptec's I2O based RAID controllers as 
-	  well as the DPT SmartRaid V cards.  This is an Adaptec maintained
-	  driver by Deanna Bonds.  See <file:Documentation/scsi/dpti.rst>.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called dpt_i2o.
-
 config SCSI_ADVANSYS
 	tristate "AdvanSys SCSI support"
 	depends on SCSI
@@ -513,7 +502,7 @@ config SCSI_HPTIOP
 
 config SCSI_BUSLOGIC
 	tristate "BusLogic SCSI support"
-	depends on PCI && SCSI && VIRT_TO_BUS
+	depends on PCI && SCSI
 	help
 	  This is support for BusLogic MultiMaster and FlashPoint SCSI Host
 	  Adapters. Consult the SCSI-HOWTO, available from

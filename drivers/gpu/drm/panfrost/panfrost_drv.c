@@ -626,24 +626,29 @@ static int panfrost_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static const char * const default_supplies[] = { "mali" };
+/*
+ * The OPP core wants the supply names to be NULL terminated, but we need the
+ * correct num_supplies value for regulator core. Hence, we NULL terminate here
+ * and then initialize num_supplies with ARRAY_SIZE - 1.
+ */
+static const char * const default_supplies[] = { "mali", NULL };
 static const struct panfrost_compatible default_data = {
-	.num_supplies = ARRAY_SIZE(default_supplies),
+	.num_supplies = ARRAY_SIZE(default_supplies) - 1,
 	.supply_names = default_supplies,
 	.num_pm_domains = 1, /* optional */
 	.pm_domain_names = NULL,
 };
 
 static const struct panfrost_compatible amlogic_data = {
-	.num_supplies = ARRAY_SIZE(default_supplies),
+	.num_supplies = ARRAY_SIZE(default_supplies) - 1,
 	.supply_names = default_supplies,
 	.vendor_quirk = panfrost_gpu_amlogic_quirk,
 };
 
-static const char * const mediatek_mt8183_supplies[] = { "mali", "sram" };
+static const char * const mediatek_mt8183_supplies[] = { "mali", "sram", NULL };
 static const char * const mediatek_mt8183_pm_domains[] = { "core0", "core1", "core2" };
 static const struct panfrost_compatible mediatek_mt8183_data = {
-	.num_supplies = ARRAY_SIZE(mediatek_mt8183_supplies),
+	.num_supplies = ARRAY_SIZE(mediatek_mt8183_supplies) - 1,
 	.supply_names = mediatek_mt8183_supplies,
 	.num_pm_domains = ARRAY_SIZE(mediatek_mt8183_pm_domains),
 	.pm_domain_names = mediatek_mt8183_pm_domains,
@@ -665,6 +670,7 @@ static const struct of_device_id dt_match[] = {
 	{ .compatible = "arm,mali-t860", .data = &default_data, },
 	{ .compatible = "arm,mali-t880", .data = &default_data, },
 	{ .compatible = "arm,mali-bifrost", .data = &default_data, },
+	{ .compatible = "arm,mali-valhall-jm", .data = &default_data, },
 	{ .compatible = "mediatek,mt8183-mali", .data = &mediatek_mt8183_data },
 	{}
 };

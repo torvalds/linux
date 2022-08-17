@@ -200,19 +200,19 @@ static struct page * ext2_get_page(struct inode *dir, unsigned long n,
 				   int quiet, void **page_addr)
 {
 	struct address_space *mapping = dir->i_mapping;
-	struct page *page = read_mapping_page(mapping, n, NULL);
-	if (!IS_ERR(page)) {
-		*page_addr = kmap_local_page(page);
-		if (unlikely(!PageChecked(page))) {
-			if (PageError(page) || !ext2_check_page(page, quiet,
-								*page_addr))
-				goto fail;
-		}
+	struct folio *folio = read_mapping_folio(mapping, n, NULL);
+
+	if (IS_ERR(folio))
+		return &folio->page;
+	*page_addr = kmap_local_folio(folio, n & (folio_nr_pages(folio) - 1));
+	if (unlikely(!folio_test_checked(folio))) {
+		if (!ext2_check_page(&folio->page, quiet, *page_addr))
+			goto fail;
 	}
-	return page;
+	return &folio->page;
 
 fail:
-	ext2_put_page(page, *page_addr);
+	ext2_put_page(&folio->page, *page_addr);
 	return ERR_PTR(-EIO);
 }
 
@@ -672,17 +672,14 @@ int ext2_empty_dir (struct inode * inode)
 	void *page_addr = NULL;
 	struct page *page = NULL;
 	unsigned long i, npages = dir_pages(inode);
-	int dir_has_error = 0;
 
 	for (i = 0; i < npages; i++) {
 		char *kaddr;
 		ext2_dirent * de;
-		page = ext2_get_page(inode, i, dir_has_error, &page_addr);
+		page = ext2_get_page(inode, i, 0, &page_addr);
 
-		if (IS_ERR(page)) {
-			dir_has_error = 1;
-			continue;
-		}
+		if (IS_ERR(page))
+			goto not_empty;
 
 		kaddr = page_addr;
 		de = (ext2_dirent *)kaddr;

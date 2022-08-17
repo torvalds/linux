@@ -10,45 +10,6 @@
 
 #define _HAL_INIT_C_
 
-void dump_chip_info(struct HAL_VERSION	chip_vers)
-{
-	uint cnt = 0;
-	char buf[128];
-
-	cnt += sprintf((buf + cnt), "Chip Version Info: CHIP_8188E_");
-	cnt += sprintf((buf + cnt), "%s_", IS_NORMAL_CHIP(chip_vers) ?
-		       "Normal_Chip" : "Test_Chip");
-	cnt += sprintf((buf + cnt), "%s_", IS_CHIP_VENDOR_TSMC(chip_vers) ?
-		       "TSMC" : "UMC");
-
-	switch (chip_vers.CUTVersion) {
-	case A_CUT_VERSION:
-		cnt += sprintf((buf + cnt), "A_CUT_");
-		break;
-	case B_CUT_VERSION:
-		cnt += sprintf((buf + cnt), "B_CUT_");
-		break;
-	case C_CUT_VERSION:
-		cnt += sprintf((buf + cnt), "C_CUT_");
-		break;
-	case D_CUT_VERSION:
-		cnt += sprintf((buf + cnt), "D_CUT_");
-		break;
-	case E_CUT_VERSION:
-		cnt += sprintf((buf + cnt), "E_CUT_");
-		break;
-	default:
-		cnt += sprintf((buf + cnt), "UNKNOWN_CUT(%d)_", chip_vers.CUTVersion);
-		break;
-	}
-
-	cnt += sprintf((buf + cnt), "1T1R_");
-
-	cnt += sprintf((buf + cnt), "RomVer(%d)\n", 0);
-
-	pr_info("%s", buf);
-}
-
 #define	CHAN_PLAN_HW	0x80
 
 u8 /* return the final channel plan decision */
@@ -303,7 +264,9 @@ s32 c2h_evt_read(struct adapter *adapter, u8 *buf)
 	if (!buf)
 		goto exit;
 
-	trigger = rtw_read8(adapter, REG_C2HEVT_CLEAR);
+	ret = rtw_read8(adapter, REG_C2HEVT_CLEAR, &trigger);
+	if (ret)
+		return _FAIL;
 
 	if (trigger == C2H_EVT_HOST_CLOSE)
 		goto exit; /* Not ready */
@@ -314,13 +277,26 @@ s32 c2h_evt_read(struct adapter *adapter, u8 *buf)
 
 	memset(c2h_evt, 0, 16);
 
-	*buf = rtw_read8(adapter, REG_C2HEVT_MSG_NORMAL);
-	*(buf + 1) = rtw_read8(adapter, REG_C2HEVT_MSG_NORMAL + 1);
+	ret = rtw_read8(adapter, REG_C2HEVT_MSG_NORMAL, buf);
+	if (ret) {
+		ret = _FAIL;
+		goto clear_evt;
+	}
 
+	ret = rtw_read8(adapter, REG_C2HEVT_MSG_NORMAL + 1, buf + 1);
+	if (ret) {
+		ret = _FAIL;
+		goto clear_evt;
+	}
 	/* Read the content */
-	for (i = 0; i < c2h_evt->plen; i++)
-		c2h_evt->payload[i] = rtw_read8(adapter, REG_C2HEVT_MSG_NORMAL +
-						sizeof(*c2h_evt) + i);
+	for (i = 0; i < c2h_evt->plen; i++) {
+		ret = rtw_read8(adapter, REG_C2HEVT_MSG_NORMAL +
+						sizeof(*c2h_evt) + i, c2h_evt->payload + i);
+		if (ret) {
+			ret = _FAIL;
+			goto clear_evt;
+		}
+	}
 
 	ret = _SUCCESS;
 

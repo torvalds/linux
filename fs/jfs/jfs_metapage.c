@@ -618,7 +618,7 @@ struct metapage *__get_metapage(struct inode *inode, unsigned long lblock,
 		SetPageUptodate(page);
 	} else {
 		page = read_mapping_page(mapping, page_index, NULL);
-		if (IS_ERR(page) || !PageUptodate(page)) {
+		if (IS_ERR(page)) {
 			jfs_err("read_mapping_page failed!");
 			return NULL;
 		}

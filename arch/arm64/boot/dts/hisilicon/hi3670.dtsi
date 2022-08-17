@@ -324,7 +324,7 @@
 			interrupts = <GIC_SPI 87 IRQ_TYPE_LEVEL_HIGH>;
 			gpio-controller;
 			#gpio-cells = <2>;
-			gpio-ranges =  <&pmx0 0 13 4 &pmx0 7 17 1>;
+			gpio-ranges = <&pmx0 0 13 4 &pmx0 7 17 1>;
 			interrupt-controller;
 			#interrupt-cells = <2>;
 			clocks = <&crg_ctrl HI3670_PCLK_GPIO3>;

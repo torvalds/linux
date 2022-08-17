@@ -38,10 +38,14 @@ RS485 Serial Communications
    the values given by the device tree.
 
    Any driver for devices capable of working both as RS232 and RS485 should
-   implement the rs485_config callback in the uart_port structure. The
-   serial_core calls rs485_config to do the device specific part in response
-   to TIOCSRS485 and TIOCGRS485 ioctls (see below). The rs485_config callback
-   receives a pointer to struct serial_rs485.
+   implement the rs485_config callback and provide rs485_supported in the
+   uart_port structure. The serial core calls rs485_config to do the device
+   specific part in response to TIOCSRS485 ioctl (see below). The rs485_config
+   callback receives a pointer to a sanitizated serial_rs485 structure. The
+   serial_rs485 userspace provides is sanitized before calling rs485_config
+   using rs485_supported that indicates what RS485 features the driver supports
+   for the uart_port. TIOCGRS485 ioctl can be used to read back the
+   serial_rs485 structure matching to the current configuration.
 
 4. Usage from user-level
 ========================
@@ -95,7 +99,31 @@ RS485 Serial Communications
 		/* Error handling. See errno. */
 	}
 
-5. References
+5. Multipoint Addressing
+========================
+
+   The Linux kernel provides addressing mode for multipoint RS-485 serial
+   communications line. The addressing mode is enabled with SER_RS485_ADDRB
+   flag in serial_rs485. Struct serial_rs485 has two additional flags and
+   fields for enabling receive and destination addresses.
+
+   Address mode flags:
+	- SER_RS485_ADDRB: Enabled addressing mode (sets also ADDRB in termios).
+	- SER_RS485_ADDR_RECV: Receive (filter) address enabled.
+	- SER_RS485_ADDR_DEST: Set destination address.
+
+   Address fields (enabled with corresponding SER_RS485_ADDR_* flag):
+	- addr_recv: Receive address.
+	- addr_dest: Destination address.
+
+   Once a receive address is set, the communication can occur only with the
+   particular device and other peers are filtered out. It is left up to the
+   receiver side to enforce the filtering. Receive address will be cleared
+   if SER_RS485_ADDR_RECV is not set.
+
+   Note: not all devices supporting RS485 support multipoint addressing.
+
+6. References
 =============
 
  [1]	include/uapi/linux/serial.h

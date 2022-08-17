@@ -41,7 +41,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&lid_pin_active>, <&mode_pin_active>;
 
-		lid {
+		switch-lid {
 			gpios = <&tlmm 124 GPIO_ACTIVE_HIGH>;
 			linux,input-type = <EV_SW>;
 			linux,code = <SW_LID>;
@@ -49,7 +49,7 @@
 			wakeup-event-action = <EV_ACT_DEASSERTED>;
 		};
 
-		mode {
+		switch-mode {
 			gpios = <&tlmm 95 GPIO_ACTIVE_HIGH>;
 			linux,input-type = <EV_SW>;
 			linux,code = <SW_TABLET_MODE>;
@@ -581,7 +581,7 @@
 		};
 
 		codec {
-			sound-dai =  <&left_spkr>, <&right_spkr>, <&swm 0>, <&wcd9340 0>;
+			sound-dai = <&left_spkr>, <&right_spkr>, <&swm 0>, <&wcd9340 0>;
 		};
 	};
 
@@ -611,7 +611,7 @@
 		};
 
 		codec {
-			sound-dai =  <&wcd9340 2>;
+			sound-dai = <&wcd9340 2>;
 		};
 	};
 };
@@ -817,5 +817,5 @@
 
 &crypto {
 	/* FIXME: qce_start triggers an SError */
-	status= "disable";
+	status = "disable";
 };
