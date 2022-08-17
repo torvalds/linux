@@ -1111,7 +1111,8 @@ static const struct intel_device_info pvc_info = {
 #define XE_LPDP_FEATURES	\
 	XE_LPD_FEATURES,	\
 	.display.ver = 14,	\
-	.display.has_cdclk_crawl = 1
+	.display.has_cdclk_crawl = 1, \
+	.display.fbc_mask = BIT(INTEL_FBC_A) | BIT(INTEL_FBC_B)
 
 __maybe_unused
 static const struct intel_device_info mtl_info = {
