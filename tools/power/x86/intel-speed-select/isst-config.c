@@ -1002,74 +1002,87 @@ static int isst_fill_platform_info(void)
 	return 0;
 }
 
-static void isst_print_extended_platform_info(void)
+void get_isst_status(struct isst_id *id, void *arg1, void *arg2, void *arg3, void *arg4)
 {
-	int cp_state, cp_cap, fact_support = 0, pbf_support = 0;
-	struct isst_pkg_ctdp_level_info ctdp_level;
 	struct isst_pkg_ctdp pkg_dev;
-	int ret, i, j;
-	FILE *filep;
-	struct isst_id id;
+	struct isst_id *tid = (struct isst_id *)arg2;
+	int *mask = (int *)arg3;
+	int *max_level = (int *)arg4;
+	int j, ret;
 
-	for (i = 0; i < 256; ++i) {
-		char path[256];
-
-		snprintf(path, sizeof(path),
-			 "/sys/devices/system/cpu/cpu%d/topology/thread_siblings", i);
-		filep = fopen(path, "r");
-		if (filep)
-			break;
-	}
-
-	if (!filep)
+	/* Only check the first cpu power domain */
+	if (id->cpu < 0 || tid->cpu >= 0)
 		return;
 
-	fclose(filep);
-
-	set_isst_id(&id, i);
-	ret = isst_get_ctdp_levels(&id, &pkg_dev);
+	ret = isst_get_ctdp_levels(id, &pkg_dev);
 	if (ret)
 		return;
 
-	if (pkg_dev.enabled) {
+	if (pkg_dev.enabled)
+		*mask |= BIT(0);
+
+	if (pkg_dev.locked)
+		*mask |= BIT(1);
+
+	if (*max_level < pkg_dev.levels)
+		*max_level = pkg_dev.levels;
+
+	for (j = 0; j <= pkg_dev.levels; ++j) {
+		struct isst_pkg_ctdp_level_info ctdp_level;
+
+		ret = isst_get_ctdp_control(id, j, &ctdp_level);
+		if (ret)
+			continue;
+
+		if (ctdp_level.fact_support)
+			*mask |= BIT(2);
+
+		if (ctdp_level.pbf_support)
+			*mask |= BIT(3);
+	}
+
+	tid->cpu = id->cpu;
+	tid->pkg = id->pkg;
+	tid->die = id->die;
+	tid->punit = id->punit;
+}
+
+static void isst_print_extended_platform_info(void)
+{
+	int cp_state, cp_cap;
+	struct isst_id id;
+	int mask = 0, max_level = 0;
+
+	id.cpu = -1;
+	for_each_online_power_domain_in_set(get_isst_status, NULL, &id, &mask, &max_level);
+
+	if (mask & BIT(0)) {
 		fprintf(outf, "Intel(R) SST-PP (feature perf-profile) is supported\n");
 	} else {
 		fprintf(outf, "Intel(R) SST-PP (feature perf-profile) is not supported\n");
 		fprintf(outf, "Only performance level 0 (base level) is present\n");
 	}
 
-	if (pkg_dev.locked)
+	if (mask & BIT(1))
 		fprintf(outf, "TDP level change control is locked\n");
 	else
-		fprintf(outf, "TDP level change control is unlocked, max level: %d \n", pkg_dev.levels);
+		fprintf(outf, "TDP level change control is unlocked, max level: %d\n", max_level);
 
-	for (j = 0; j <= pkg_dev.levels; ++j) {
-		ret = isst_get_ctdp_control(&id, j, &ctdp_level);
-		if (ret)
-			continue;
-
-		if (!fact_support && ctdp_level.fact_support)
-			fact_support = 1;
-
-		if (!pbf_support && ctdp_level.pbf_support)
-			pbf_support = 1;
-	}
-
-	if (fact_support)
+	if (mask & BIT(2))
 		fprintf(outf, "Intel(R) SST-TF (feature turbo-freq) is supported\n");
 	else
 		fprintf(outf, "Intel(R) SST-TF (feature turbo-freq) is not supported\n");
 
-	if (pbf_support)
+	if (mask & BIT(3))
 		fprintf(outf, "Intel(R) SST-BF (feature base-freq) is supported\n");
 	else
 		fprintf(outf, "Intel(R) SST-BF (feature base-freq) is not supported\n");
 
-	ret = isst_read_pm_config(&id, &cp_state, &cp_cap);
-	if (ret) {
+	if (isst_read_pm_config(&id, &cp_state, &cp_cap)) {
 		fprintf(outf, "Intel(R) SST-CP (feature core-power) status is unknown\n");
 		return;
 	}
+
 	if (cp_cap)
 		fprintf(outf, "Intel(R) SST-CP (feature core-power) is supported\n");
 	else
