@@ -6117,6 +6117,7 @@ static int log_new_dir_dentries(struct btrfs_trans_handle *trans,
 	struct btrfs_path *path;
 	LIST_HEAD(dir_list);
 	struct btrfs_dir_list *dir_elem;
+	u64 ino = btrfs_ino(start_inode);
 	int ret = 0;
 
 	/*
@@ -6131,27 +6132,12 @@ static int log_new_dir_dentries(struct btrfs_trans_handle *trans,
 	if (!path)
 		return -ENOMEM;
 
-	dir_elem = kmalloc(sizeof(*dir_elem), GFP_NOFS);
-	if (!dir_elem) {
-		btrfs_free_path(path);
-		return -ENOMEM;
-	}
-	dir_elem->ino = btrfs_ino(start_inode);
-	list_add_tail(&dir_elem->list, &dir_list);
-
-	while (!list_empty(&dir_list)) {
+	while (true) {
 		struct extent_buffer *leaf;
 		struct btrfs_key min_key;
-		u64 ino;
 		bool continue_curr_inode = true;
 		int nritems;
 		int i;
-
-		dir_elem = list_first_entry(&dir_list, struct btrfs_dir_list,
-					    list);
-		ino = dir_elem->ino;
-		list_del(&dir_elem->list);
-		kfree(dir_elem);
 
 		min_key.objectid = ino;
 		min_key.type = BTRFS_DIR_INDEX_KEY;
@@ -6163,7 +6149,7 @@ again:
 			break;
 		} else if (ret > 0) {
 			ret = 0;
-			continue;
+			goto next;
 		}
 
 		leaf = path->nodes[0];
@@ -6226,6 +6212,15 @@ again:
 			min_key.offset++;
 			goto again;
 		}
+
+next:
+		if (list_empty(&dir_list))
+			break;
+
+		dir_elem = list_first_entry(&dir_list, struct btrfs_dir_list, list);
+		ino = dir_elem->ino;
+		list_del(&dir_elem->list);
+		kfree(dir_elem);
 	}
 out:
 	btrfs_free_path(path);
