@@ -21,14 +21,6 @@
 #include <sound/jack.h>
 #include <sound/cs42l42.h>
 
-static const char *const cs42l42_supply_names[CS42L42_NUM_SUPPLIES] = {
-	"VA",
-	"VP",
-	"VCP",
-	"VD_FILT",
-	"VL",
-};
-
 struct  cs42l42_private {
 	struct regmap *regmap;
 	struct device *dev;

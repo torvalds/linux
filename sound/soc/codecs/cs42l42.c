@@ -37,6 +37,14 @@
 #include "cs42l42.h"
 #include "cirrus_legacy.h"
 
+static const char * const cs42l42_supply_names[] = {
+	"VA",
+	"VP",
+	"VCP",
+	"VD_FILT",
+	"VL",
+};
+
 static const struct reg_default cs42l42_reg_defaults[] = {
 	{ CS42L42_FRZ_CTL,			0x00 },
 	{ CS42L42_SRC_CTL,			0x10 },
@@ -2214,6 +2222,7 @@ static int cs42l42_i2c_probe(struct i2c_client *i2c_client)
 		return ret;
 	}
 
+	BUILD_BUG_ON(ARRAY_SIZE(cs42l42_supply_names) != ARRAY_SIZE(cs42l42->supplies));
 	for (i = 0; i < ARRAY_SIZE(cs42l42->supplies); i++)
 		cs42l42->supplies[i].supply = cs42l42_supply_names[i];
 
