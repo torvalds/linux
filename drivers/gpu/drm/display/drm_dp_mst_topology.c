@@ -4384,11 +4384,15 @@ int drm_dp_atomic_find_time_slots(struct drm_atomic_state *state,
 {
 	struct drm_dp_mst_topology_state *topology_state;
 	struct drm_dp_mst_atomic_payload *payload = NULL;
+	struct drm_connector_state *conn_state;
 	int prev_slots = 0, prev_bw = 0, req_slots;
 
 	topology_state = drm_atomic_get_mst_topology_state(state, mgr);
 	if (IS_ERR(topology_state))
 		return PTR_ERR(topology_state);
+
+	conn_state = drm_atomic_get_new_connector_state(state, port->connector);
+	topology_state->pending_crtc_mask |= drm_crtc_mask(conn_state->crtc);
 
 	/* Find the current allocation for this port, if any */
 	payload = drm_atomic_get_mst_payload_state(topology_state, port);
@@ -4469,10 +4473,14 @@ int drm_dp_atomic_release_time_slots(struct drm_atomic_state *state,
 {
 	struct drm_dp_mst_topology_state *topology_state;
 	struct drm_dp_mst_atomic_payload *payload;
+	struct drm_connector_state *conn_state;
 
 	topology_state = drm_atomic_get_mst_topology_state(state, mgr);
 	if (IS_ERR(topology_state))
 		return PTR_ERR(topology_state);
+
+	conn_state = drm_atomic_get_old_connector_state(state, port->connector);
+	topology_state->pending_crtc_mask |= drm_crtc_mask(conn_state->crtc);
 
 	payload = drm_atomic_get_mst_payload_state(topology_state, port);
 	if (WARN_ON(!payload)) {
@@ -4491,6 +4499,83 @@ int drm_dp_atomic_release_time_slots(struct drm_atomic_state *state,
 	return 0;
 }
 EXPORT_SYMBOL(drm_dp_atomic_release_time_slots);
+
+/**
+ * drm_dp_mst_atomic_setup_commit() - setup_commit hook for MST helpers
+ * @state: global atomic state
+ *
+ * This function saves all of the &drm_crtc_commit structs in an atomic state that touch any CRTCs
+ * currently assigned to an MST topology. Drivers must call this hook from their
+ * &drm_mode_config_helper_funcs.atomic_commit_setup hook.
+ *
+ * Returns:
+ * 0 if all CRTC commits were retrieved successfully, negative error code otherwise
+ */
+int drm_dp_mst_atomic_setup_commit(struct drm_atomic_state *state)
+{
+	struct drm_dp_mst_topology_mgr *mgr;
+	struct drm_dp_mst_topology_state *mst_state;
+	struct drm_crtc *crtc;
+	struct drm_crtc_state *crtc_state;
+	int i, j, commit_idx, num_commit_deps;
+
+	for_each_new_mst_mgr_in_state(state, mgr, mst_state, i) {
+		if (!mst_state->pending_crtc_mask)
+			continue;
+
+		num_commit_deps = hweight32(mst_state->pending_crtc_mask);
+		mst_state->commit_deps = kmalloc_array(num_commit_deps,
+						       sizeof(*mst_state->commit_deps), GFP_KERNEL);
+		if (!mst_state->commit_deps)
+			return -ENOMEM;
+		mst_state->num_commit_deps = num_commit_deps;
+
+		commit_idx = 0;
+		for_each_new_crtc_in_state(state, crtc, crtc_state, j) {
+			if (mst_state->pending_crtc_mask & drm_crtc_mask(crtc)) {
+				mst_state->commit_deps[commit_idx++] =
+					drm_crtc_commit_get(crtc_state->commit);
+			}
+		}
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(drm_dp_mst_atomic_setup_commit);
+
+/**
+ * drm_dp_mst_atomic_wait_for_dependencies() - Wait for all pending commits on MST topologies
+ * @state: global atomic state
+ *
+ * Goes through any MST topologies in this atomic state, and waits for any pending commits which
+ * touched CRTCs that were/are on an MST topology to be programmed to hardware and flipped to before
+ * returning. This is to prevent multiple non-blocking commits affecting an MST topology from racing
+ * with eachother by forcing them to be executed sequentially in situations where the only resources
+ * the modeset objects in these commits share are an MST topology.
+ *
+ * This function also prepares the new MST state for commit by performing some state preparation
+ * which can't be done until this point, such as reading back the final VC start slots (which are
+ * determined at commit-time) from the previous state.
+ *
+ * All MST drivers must call this function after calling drm_atomic_helper_wait_for_dependencies(),
+ * or whatever their equivalent of that is.
+ */
+void drm_dp_mst_atomic_wait_for_dependencies(struct drm_atomic_state *state)
+{
+	struct drm_dp_mst_topology_state *old_mst_state;
+	struct drm_dp_mst_topology_mgr *mgr;
+	int i, j, ret;
+
+	for_each_old_mst_mgr_in_state(state, mgr, old_mst_state, i) {
+		for (j = 0; j < old_mst_state->num_commit_deps; j++) {
+			ret = drm_crtc_commit_wait(old_mst_state->commit_deps[j]);
+			if (ret < 0)
+				drm_err(state->dev, "Failed to wait for %s: %d\n",
+					old_mst_state->commit_deps[j]->crtc->name, ret);
+		}
+	}
+}
+EXPORT_SYMBOL(drm_dp_mst_atomic_wait_for_dependencies);
 
 /**
  * drm_dp_mst_update_slots() - updates the slot info depending on the DP ecoding format
@@ -5067,6 +5152,9 @@ drm_dp_mst_duplicate_state(struct drm_private_obj *obj)
 	__drm_atomic_helper_private_obj_duplicate_state(obj, &state->base);
 
 	INIT_LIST_HEAD(&state->payloads);
+	state->commit_deps = NULL;
+	state->num_commit_deps = 0;
+	state->pending_crtc_mask = 0;
 
 	list_for_each_entry(pos, &old_state->payloads, next) {
 		/* Prune leftover freed timeslot allocations */
@@ -5099,6 +5187,7 @@ static void drm_dp_mst_destroy_state(struct drm_private_obj *obj,
 	struct drm_dp_mst_topology_state *mst_state =
 		to_dp_mst_topology_state(state);
 	struct drm_dp_mst_atomic_payload *pos, *tmp;
+	int i;
 
 	list_for_each_entry_safe(pos, tmp, &mst_state->payloads, next) {
 		/* We only keep references to ports with non-zero VCPIs */
@@ -5107,6 +5196,10 @@ static void drm_dp_mst_destroy_state(struct drm_private_obj *obj,
 		kfree(pos);
 	}
 
+	for (i = 0; i < mst_state->num_commit_deps; i++)
+		drm_crtc_commit_put(mst_state->commit_deps[i]);
+
+	kfree(mst_state->commit_deps);
 	kfree(mst_state);
 }
 

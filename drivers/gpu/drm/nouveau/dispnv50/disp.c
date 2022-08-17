@@ -2136,6 +2136,7 @@ nv50_disp_atomic_commit_tail(struct drm_atomic_state *state)
 	nv50_crc_atomic_stop_reporting(state);
 	drm_atomic_helper_wait_for_fences(dev, state, false);
 	drm_atomic_helper_wait_for_dependencies(state);
+	drm_dp_mst_atomic_wait_for_dependencies(state);
 	drm_atomic_helper_update_legacy_modeset_state(dev, state);
 	drm_atomic_helper_calc_timestamping_constants(state);
 
@@ -2616,6 +2617,11 @@ nv50_disp_func = {
 	.atomic_state_free = nv50_disp_atomic_state_free,
 };
 
+static const struct drm_mode_config_helper_funcs
+nv50_disp_helper_func = {
+	.atomic_commit_setup = drm_dp_mst_atomic_setup_commit,
+};
+
 /******************************************************************************
  * Init
  *****************************************************************************/
@@ -2699,6 +2705,7 @@ nv50_display_create(struct drm_device *dev)
 	nouveau_display(dev)->fini = nv50_display_fini;
 	disp->disp = &nouveau_display(dev)->disp;
 	dev->mode_config.funcs = &nv50_disp_func;
+	dev->mode_config.helper_private = &nv50_disp_helper_func;
 	dev->mode_config.quirk_addfb_prefer_xbgr_30bpp = true;
 	dev->mode_config.normalize_zpos = true;
 
