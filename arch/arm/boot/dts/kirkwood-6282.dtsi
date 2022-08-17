@@ -30,8 +30,8 @@
 				ranges = <0x82000000 0 0 0x82000000 0x1 0 1 0
 					  0x81000000 0 0 0x81000000 0x1 0 1 0>;
 				bus-range = <0x00 0xff>;
-				interrupt-names = "intx";
-				interrupts = <9>;
+				interrupt-names = "intx", "error";
+				interrupts = <9>, <44>;
 				interrupt-map-mask = <0 0 0 7>;
 				interrupt-map = <0 0 0 1 &pcie0_intc 0>,
 						<0 0 0 2 &pcie0_intc 1>,
@@ -58,8 +58,8 @@
 				ranges = <0x82000000 0 0 0x82000000 0x2 0 1 0
 					  0x81000000 0 0 0x81000000 0x2 0 1 0>;
 				bus-range = <0x00 0xff>;
-				interrupt-names = "intx";
-				interrupts = <10>;
+				interrupt-names = "intx", "error";
+				interrupts = <10>, <45>;
 				interrupt-map-mask = <0 0 0 7>;
 				interrupt-map = <0 0 0 1 &pcie1_intc 0>,
 						<0 0 0 2 &pcie1_intc 1>,
