@@ -66,7 +66,7 @@ struct update_classid_context {
 
 #define UPDATE_CLASSID_BATCH 1000
 
-static int update_classid_sock(const void *v, struct file *file, unsigned n)
+static int update_classid_sock(const void *v, struct file *file, unsigned int n)
 {
 	struct update_classid_context *ctx = (void *)v;
 	struct socket *sock = sock_from_file(file);
