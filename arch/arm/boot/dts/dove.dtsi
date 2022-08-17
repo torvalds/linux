@@ -122,8 +122,8 @@
 				bus-range = <0x00 0xff>;
 
 				#interrupt-cells = <1>;
-				interrupt-names = "intx";
-				interrupts = <16>;
+				interrupt-names = "intx", "error";
+				interrupts = <16>, <15>;
 				interrupt-map-mask = <0 0 0 7>;
 				interrupt-map = <0 0 0 1 &pcie0_intc 0>,
 						<0 0 0 2 &pcie0_intc 1>,
@@ -151,8 +151,8 @@
 				bus-range = <0x00 0xff>;
 
 				#interrupt-cells = <1>;
-				interrupt-names = "intx";
-				interrupts = <18>;
+				interrupt-names = "intx", "error";
+				interrupts = <18>, <17>;
 				interrupt-map-mask = <0 0 0 7>;
 				interrupt-map = <0 0 0 1 &pcie1_intc 0>,
 						<0 0 0 2 &pcie1_intc 1>,
