@@ -322,28 +322,20 @@ static struct btrfs_delayed_item *btrfs_alloc_delayed_item(u32 data_len,
  * __btrfs_lookup_delayed_item - look up the delayed item by key
  * @delayed_node: pointer to the delayed node
  * @index:	  the dir index value to lookup (offset of a dir index key)
- * @prev:	  used to store the prev item if the right item isn't found
- * @next:	  used to store the next item if the right item isn't found
  *
  * Note: if we don't find the right item, we will return the prev item and
  * the next item.
  */
 static struct btrfs_delayed_item *__btrfs_lookup_delayed_item(
 				struct rb_root *root,
-				u64 index,
-				struct btrfs_delayed_item **prev,
-				struct btrfs_delayed_item **next)
+				u64 index)
 {
-	struct rb_node *node, *prev_node = NULL;
+	struct rb_node *node = root->rb_node;
 	struct btrfs_delayed_item *delayed_item = NULL;
-	int ret = 0;
-
-	node = root->rb_node;
 
 	while (node) {
 		delayed_item = rb_entry(node, struct btrfs_delayed_item,
 					rb_node);
-		prev_node = node;
 		if (delayed_item->index < index)
 			node = node->rb_right;
 		else if (delayed_item->index > index)
@@ -352,38 +344,7 @@ static struct btrfs_delayed_item *__btrfs_lookup_delayed_item(
 			return delayed_item;
 	}
 
-	if (prev) {
-		if (!prev_node)
-			*prev = NULL;
-		else if (ret < 0)
-			*prev = delayed_item;
-		else if ((node = rb_prev(prev_node)) != NULL) {
-			*prev = rb_entry(node, struct btrfs_delayed_item,
-					 rb_node);
-		} else
-			*prev = NULL;
-	}
-
-	if (next) {
-		if (!prev_node)
-			*next = NULL;
-		else if (ret > 0)
-			*next = delayed_item;
-		else if ((node = rb_next(prev_node)) != NULL) {
-			*next = rb_entry(node, struct btrfs_delayed_item,
-					 rb_node);
-		} else
-			*next = NULL;
-	}
 	return NULL;
-}
-
-static struct btrfs_delayed_item *__btrfs_lookup_delayed_insertion_item(
-					struct btrfs_delayed_node *delayed_node,
-					u64 index)
-{
-	return __btrfs_lookup_delayed_item(&delayed_node->ins_root.rb_root, index,
-					   NULL, NULL);
 }
 
 static int __btrfs_add_delayed_item(struct btrfs_delayed_node *delayed_node,
@@ -1549,7 +1510,7 @@ static int btrfs_delete_delayed_insertion_item(struct btrfs_fs_info *fs_info,
 	struct btrfs_delayed_item *item;
 
 	mutex_lock(&node->mutex);
-	item = __btrfs_lookup_delayed_insertion_item(node, index);
+	item = __btrfs_lookup_delayed_item(&node->ins_root.rb_root, index);
 	if (!item) {
 		mutex_unlock(&node->mutex);
 		return 1;
