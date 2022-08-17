@@ -3,6 +3,6 @@
 
 DEFCONFIG=rockchip_aarch64_gki_defconfig
 KMI_SYMBOL_LIST=android/abi_gki_aarch64_rockchip
-PRE_DEFCONFIG_CMDS="KCONFIG_CONFIG=${ROOT_DIR}/common/arch/arm64/configs/${DEFCONFIG} ${ROOT_DIR}/common/scripts/kconfig/merge_config.sh -m -r ${ROOT_DIR}/common/arch/arm64/configs/gki_defconfig ${ROOT_DIR}/common/arch/arm64/configs/rockchip_gki.config"
+PRE_DEFCONFIG_CMDS="KCONFIG_CONFIG=${ROOT_DIR}/common/arch/arm64/configs/${DEFCONFIG} ${ROOT_DIR}/common/scripts/kconfig/merge_config.sh -m -r ${ROOT_DIR}/common/arch/arm64/configs/gki_defconfig ${ROOT_DIR}/common/arch/arm64/configs/rockchip_gki.fragment"
 POST_DEFCONFIG_CMDS="rm ${ROOT_DIR}/common/arch/arm64/configs/${DEFCONFIG}"
 
