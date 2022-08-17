@@ -61,6 +61,7 @@ struct _cpu_map {
 	unsigned short core_id;
 	unsigned short pkg_id;
 	unsigned short die_id;
+	unsigned short punit_id;
 	unsigned short punit_cpu;
 	unsigned short punit_cpu_core;
 	unsigned short initialized;
@@ -378,6 +379,17 @@ static int get_physical_die_id(int cpu)
 	return ret;
 }
 
+static int get_physical_punit_id(int cpu)
+{
+	if (cpu < 0)
+		return -1;
+
+	if (cpu_map && cpu_map[cpu].initialized)
+		return cpu_map[cpu].punit_id;
+
+	return -1;
+}
+
 void set_isst_id(struct isst_id *id, int cpu)
 {
 	id->cpu = cpu;
@@ -389,6 +401,10 @@ void set_isst_id(struct isst_id *id, int cpu)
 	id->die = get_physical_die_id(cpu);
 	if (id->die >= MAX_DIE_PER_PACKAGE)
 		id->die = -1;
+
+	id->punit = get_physical_punit_id(cpu);
+	if (id->punit >= MAX_PUNIT_PER_DIE)
+		id->punit = -1;
 }
 
 int is_cpu_in_power_domain(int cpu, struct isst_id *id)
@@ -397,7 +413,7 @@ int is_cpu_in_power_domain(int cpu, struct isst_id *id)
 
 	set_isst_id(&tid, cpu);
 
-	if (id->pkg == tid.pkg && id->die == tid.die)
+	if (id->pkg == tid.pkg && id->die == tid.die && id->punit == tid.punit)
 		return 1;
 
 	return 0;
@@ -660,7 +676,7 @@ static void create_cpu_map(void)
 
 	for (i = 0; i < topo_max_cpus; ++i) {
 		char buffer[256];
-		int pkg_id, die_id, core_id;
+		int pkg_id, die_id, core_id, punit_id;
 
 		/* check if CPU is online */
 		snprintf(buffer, sizeof(buffer),
@@ -682,31 +698,47 @@ static void create_cpu_map(void)
 		cpu_map[i].pkg_id = pkg_id;
 		cpu_map[i].die_id = die_id;
 		cpu_map[i].core_id = core_id;
+
+
+		punit_id = 0;
+
+		if (fd >= 0) {
+			map.cmd_count = 1;
+			map.cpu_map[0].logical_cpu = i;
+			debug_printf(" map logical_cpu:%d\n",
+				     map.cpu_map[0].logical_cpu);
+			if (ioctl(fd, ISST_IF_GET_PHY_ID, &map) == -1) {
+				perror("ISST_IF_GET_PHY_ID");
+				fprintf(outf, "Error: map logical_cpu:%d\n",
+					map.cpu_map[0].logical_cpu);
+			} else {
+				/*
+				 * Format
+				 *      Bit 0 – thread ID
+				 *      Bit 8:1 – core ID
+				 *      Bit 13:9 – punit ID
+				 */
+				cpu_map[i].punit_cpu = map.cpu_map[0].physical_cpu & 0x1ff;
+				cpu_map[i].punit_cpu_core = (cpu_map[i].punit_cpu >>
+							     1); // shift to get core id
+				punit_id = (map.cpu_map[0].physical_cpu >> 9) & 0x1f;
+
+				if (punit_id >= MAX_PUNIT_PER_DIE)
+					punit_id = 0;
+
+				cpu_map[i].punit_id = punit_id;
+			}
+		}
+
 		cpu_map[i].initialized = 1;
 
 		cpu_cnt[pkg_id][die_id]++;
 
-		if (fd < 0)
-			continue;
-		map.cmd_count = 1;
-		map.cpu_map[0].logical_cpu = i;
-		debug_printf(" map logical_cpu:%d\n",
-			     map.cpu_map[0].logical_cpu);
-		if (ioctl(fd, ISST_IF_GET_PHY_ID, &map) == -1) {
-			perror("ISST_IF_GET_PHY_ID");
-			fprintf(outf, "Error: map logical_cpu:%d\n",
-				map.cpu_map[0].logical_cpu);
-			continue;
-		}
-		cpu_map[i].punit_cpu = map.cpu_map[0].physical_cpu;
-		cpu_map[i].punit_cpu_core = (map.cpu_map[0].physical_cpu >>
-					     1); // shift to get core id
-
 		debug_printf(
-			"map logical_cpu:%d core: %d die:%d pkg:%d punit_cpu:%d punit_core:%d\n",
+			"map logical_cpu:%d core: %d die:%d pkg:%d punit:%d punit_cpu:%d punit_core:%d\n",
 			i, cpu_map[i].core_id, cpu_map[i].die_id,
-			cpu_map[i].pkg_id, cpu_map[i].punit_cpu,
-			cpu_map[i].punit_cpu_core);
+			cpu_map[i].pkg_id, cpu_map[i].punit_id,
+			cpu_map[i].punit_cpu, cpu_map[i].punit_cpu_core);
 	}
 	if (fd >= 0)
 		close(fd);
