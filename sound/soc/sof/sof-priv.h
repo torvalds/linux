@@ -105,6 +105,11 @@ enum sof_debugfs_access_type {
 	SOF_DEBUGFS_ACCESS_D0_ONLY,
 };
 
+struct sof_compr_stream {
+	u64 copied_total;
+	u32 sampling_rate;
+};
+
 struct snd_sof_dev;
 struct snd_sof_ipc_msg;
 struct snd_sof_ipc;
