@@ -888,8 +888,8 @@ static int compat_ip_mcast_join_leave(struct sock *sk, int optname,
 
 DEFINE_STATIC_KEY_FALSE(ip4_min_ttl);
 
-static int do_ip_setsockopt(struct sock *sk, int level, int optname,
-		sockptr_t optval, unsigned int optlen)
+int do_ip_setsockopt(struct sock *sk, int level, int optname,
+		     sockptr_t optval, unsigned int optlen)
 {
 	struct inet_sock *inet = inet_sk(sk);
 	struct net *net = sock_net(sk);

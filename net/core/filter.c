@@ -5114,6 +5114,25 @@ static int sol_tcp_setsockopt(struct sock *sk, int optname,
 				 KERNEL_SOCKPTR(optval), optlen);
 }
 
+static int sol_ip_setsockopt(struct sock *sk, int optname,
+			     char *optval, int optlen)
+{
+	if (sk->sk_family != AF_INET)
+		return -EINVAL;
+
+	switch (optname) {
+	case IP_TOS:
+		if (optlen != sizeof(int))
+			return -EINVAL;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return do_ip_setsockopt(sk, SOL_IP, optname,
+				KERNEL_SOCKPTR(optval), optlen);
+}
+
 static int __bpf_setsockopt(struct sock *sk, int level, int optname,
 			    char *optval, int optlen)
 {
@@ -5125,26 +5144,7 @@ static int __bpf_setsockopt(struct sock *sk, int level, int optname,
 	if (level == SOL_SOCKET) {
 		return sol_socket_setsockopt(sk, optname, optval, optlen);
 	} else if (IS_ENABLED(CONFIG_INET) && level == SOL_IP) {
-		if (optlen != sizeof(int) || sk->sk_family != AF_INET)
-			return -EINVAL;
-
-		val = *((int *)optval);
-		/* Only some options are supported */
-		switch (optname) {
-		case IP_TOS:
-			if (val < -1 || val > 0xff) {
-				ret = -EINVAL;
-			} else {
-				struct inet_sock *inet = inet_sk(sk);
-
-				if (val == -1)
-					val = 0;
-				inet->tos = val;
-			}
-			break;
-		default:
-			ret = -EINVAL;
-		}
+		return sol_ip_setsockopt(sk, optname, optval, optlen);
 	} else if (IS_ENABLED(CONFIG_IPV6) && level == SOL_IPV6) {
 		if (optlen != sizeof(int) || sk->sk_family != AF_INET6)
 			return -EINVAL;
