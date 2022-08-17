@@ -108,6 +108,8 @@ enum sof_debugfs_access_type {
 struct sof_compr_stream {
 	u64 copied_total;
 	u32 sampling_rate;
+	u16 channels;
+	u16 sample_container_bytes;
 };
 
 struct snd_sof_dev;

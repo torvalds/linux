@@ -238,6 +238,8 @@ static int sof_compr_set_params(struct snd_soc_component *component,
 	}
 
 	sstream->sampling_rate = params->codec.sample_rate;
+	sstream->channels = params->codec.ch_out;
+	sstream->sample_container_bytes = pcm->params.sample_container_bytes;
 
 	spcm->prepared[cstream->direction] = true;
 
