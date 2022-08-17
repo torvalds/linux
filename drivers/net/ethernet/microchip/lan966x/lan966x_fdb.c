@@ -199,6 +199,34 @@ static void lan966x_fdb_bridge_event_work(struct lan966x_fdb_event_work *fdb_wor
 	}
 }
 
+static void lan966x_fdb_lag_event_work(struct lan966x_fdb_event_work *fdb_work)
+{
+	struct switchdev_notifier_fdb_info *fdb_info;
+	struct lan966x_port *port;
+	struct lan966x *lan966x;
+
+	if (!lan966x_lag_first_port(fdb_work->orig_dev, fdb_work->dev))
+		return;
+
+	lan966x = fdb_work->lan966x;
+	port = netdev_priv(fdb_work->dev);
+	fdb_info = &fdb_work->fdb_info;
+
+	switch (fdb_work->event) {
+	case SWITCHDEV_FDB_ADD_TO_DEVICE:
+		if (!fdb_info->added_by_user)
+			break;
+		lan966x_mac_add_entry(lan966x, port, fdb_info->addr,
+				      fdb_info->vid);
+		break;
+	case SWITCHDEV_FDB_DEL_TO_DEVICE:
+		if (!fdb_info->added_by_user)
+			break;
+		lan966x_mac_del_entry(lan966x, fdb_info->addr, fdb_info->vid);
+		break;
+	}
+}
+
 static void lan966x_fdb_event_work(struct work_struct *work)
 {
 	struct lan966x_fdb_event_work *fdb_work =
@@ -208,6 +236,8 @@ static void lan966x_fdb_event_work(struct work_struct *work)
 		lan966x_fdb_port_event_work(fdb_work);
 	else if (netif_is_bridge_master(fdb_work->orig_dev))
 		lan966x_fdb_bridge_event_work(fdb_work);
+	else if (netif_is_lag_master(fdb_work->orig_dev))
+		lan966x_fdb_lag_event_work(fdb_work);
 
 	kfree(fdb_work->fdb_info.addr);
 	kfree(fdb_work);

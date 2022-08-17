@@ -348,6 +348,7 @@ int lan966x_port_prechangeupper(struct net_device *dev,
 			return err;
 
 		switchdev_bridge_port_unoffload(brport_dev, port, NULL, NULL);
+		lan966x_fdb_flush_workqueue(port->lan966x);
 	}
 
 	return err;
