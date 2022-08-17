@@ -262,14 +262,14 @@ alloc_failed:
 	return retval;
 }
 
-static void tsnep_tx_activate(struct tsnep_tx *tx, int index, bool last)
+static void tsnep_tx_activate(struct tsnep_tx *tx, int index, int length,
+			      bool last)
 {
 	struct tsnep_tx_entry *entry = &tx->entry[index];
 
 	entry->properties = 0;
 	if (entry->skb) {
-		entry->properties =
-			skb_pagelen(entry->skb) & TSNEP_DESC_LENGTH_MASK;
+		entry->properties = length & TSNEP_DESC_LENGTH_MASK;
 		entry->properties |= TSNEP_DESC_INTERRUPT_FLAG;
 		if (skb_shinfo(entry->skb)->tx_flags & SKBTX_IN_PROGRESS)
 			entry->properties |= TSNEP_DESC_EXTENDED_WRITEBACK_FLAG;
@@ -334,6 +334,7 @@ static int tsnep_tx_map(struct sk_buff *skb, struct tsnep_tx *tx, int count)
 	struct tsnep_tx_entry *entry;
 	unsigned int len;
 	dma_addr_t dma;
+	int map_len = 0;
 	int i;
 
 	for (i = 0; i < count; i++) {
@@ -356,15 +357,18 @@ static int tsnep_tx_map(struct sk_buff *skb, struct tsnep_tx *tx, int count)
 		dma_unmap_addr_set(entry, dma, dma);
 
 		entry->desc->tx = __cpu_to_le64(dma);
+
+		map_len += len;
 	}
 
-	return 0;
+	return map_len;
 }
 
-static void tsnep_tx_unmap(struct tsnep_tx *tx, int index, int count)
+static int tsnep_tx_unmap(struct tsnep_tx *tx, int index, int count)
 {
 	struct device *dmadev = tx->adapter->dmadev;
 	struct tsnep_tx_entry *entry;
+	int map_len = 0;
 	int i;
 
 	for (i = 0; i < count; i++) {
@@ -381,9 +385,12 @@ static void tsnep_tx_unmap(struct tsnep_tx *tx, int index, int count)
 					       dma_unmap_addr(entry, dma),
 					       dma_unmap_len(entry, len),
 					       DMA_TO_DEVICE);
+			map_len += entry->len;
 			entry->len = 0;
 		}
 	}
+
+	return map_len;
 }
 
 static netdev_tx_t tsnep_xmit_frame_ring(struct sk_buff *skb,
@@ -392,6 +399,7 @@ static netdev_tx_t tsnep_xmit_frame_ring(struct sk_buff *skb,
 	unsigned long flags;
 	int count = 1;
 	struct tsnep_tx_entry *entry;
+	int length;
 	int i;
 	int retval;
 
@@ -415,7 +423,7 @@ static netdev_tx_t tsnep_xmit_frame_ring(struct sk_buff *skb,
 	entry->skb = skb;
 
 	retval = tsnep_tx_map(skb, tx, count);
-	if (retval != 0) {
+	if (retval < 0) {
 		tsnep_tx_unmap(tx, tx->write, count);
 		dev_kfree_skb_any(entry->skb);
 		entry->skb = NULL;
@@ -428,12 +436,13 @@ static netdev_tx_t tsnep_xmit_frame_ring(struct sk_buff *skb,
 
 		return NETDEV_TX_OK;
 	}
+	length = retval;
 
 	if (skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP)
 		skb_shinfo(skb)->tx_flags |= SKBTX_IN_PROGRESS;
 
 	for (i = 0; i < count; i++)
-		tsnep_tx_activate(tx, (tx->write + i) % TSNEP_RING_SIZE,
+		tsnep_tx_activate(tx, (tx->write + i) % TSNEP_RING_SIZE, length,
 				  i == (count - 1));
 	tx->write = (tx->write + count) % TSNEP_RING_SIZE;
 
@@ -449,9 +458,6 @@ static netdev_tx_t tsnep_xmit_frame_ring(struct sk_buff *skb,
 		netif_stop_queue(tx->adapter->netdev);
 	}
 
-	tx->packets++;
-	tx->bytes += skb_pagelen(entry->skb) + ETH_FCS_LEN;
-
 	spin_unlock_irqrestore(&tx->lock, flags);
 
 	return NETDEV_TX_OK;
@@ -463,6 +469,7 @@ static bool tsnep_tx_poll(struct tsnep_tx *tx, int napi_budget)
 	int budget = 128;
 	struct tsnep_tx_entry *entry;
 	int count;
+	int length;
 
 	spin_lock_irqsave(&tx->lock, flags);
 
@@ -485,7 +492,7 @@ static bool tsnep_tx_poll(struct tsnep_tx *tx, int napi_budget)
 		if (skb_shinfo(entry->skb)->nr_frags > 0)
 			count += skb_shinfo(entry->skb)->nr_frags;
 
-		tsnep_tx_unmap(tx, tx->read, count);
+		length = tsnep_tx_unmap(tx, tx->read, count);
 
 		if ((skb_shinfo(entry->skb)->tx_flags & SKBTX_IN_PROGRESS) &&
 		    (__le32_to_cpu(entry->desc_wb->properties) &
@@ -511,6 +518,9 @@ static bool tsnep_tx_poll(struct tsnep_tx *tx, int napi_budget)
 		entry->skb = NULL;
 
 		tx->read = (tx->read + count) % TSNEP_RING_SIZE;
+
+		tx->packets++;
+		tx->bytes += length + ETH_FCS_LEN;
 
 		budget--;
 	} while (likely(budget));
