@@ -33,7 +33,7 @@
 #include "dc_types.h"
 #include "dc.h"
 
-struct dp_mst_stream_allocation_table;
+struct dc_dp_mst_stream_allocation_table;
 struct aux_payload;
 enum aux_return_code_type;
 
@@ -77,7 +77,7 @@ void dm_helpers_dp_update_branch_info(
 bool dm_helpers_dp_mst_write_payload_allocation_table(
 		struct dc_context *ctx,
 		const struct dc_stream_state *stream,
-		struct dp_mst_stream_allocation_table *proposed_table,
+		struct dc_dp_mst_stream_allocation_table *proposed_table,
 		bool enable);
 
 /*
