@@ -342,41 +342,8 @@ int isst_get_get_trl_from_msr(struct isst_id *id, int *trl)
 
 int isst_get_get_trl(struct isst_id *id, int level, int avx_level, int *trl)
 {
-	unsigned int req, resp;
-	int ret;
-
-	req = level | (avx_level << 16);
-	ret = isst_send_mbox_command(id->cpu, CONFIG_TDP,
-				     CONFIG_TDP_GET_TURBO_LIMIT_RATIOS, 0, req,
-				     &resp);
-	if (ret)
-		return ret;
-
-	debug_printf(
-		"cpu:%d CONFIG_TDP_GET_TURBO_LIMIT_RATIOS req:%x resp:%x\n",
-		id->cpu, req, resp);
-
-	trl[0] = resp & GENMASK(7, 0);
-	trl[1] = (resp & GENMASK(15, 8)) >> 8;
-	trl[2] = (resp & GENMASK(23, 16)) >> 16;
-	trl[3] = (resp & GENMASK(31, 24)) >> 24;
-
-	req = level | BIT(8) | (avx_level << 16);
-	ret = isst_send_mbox_command(id->cpu, CONFIG_TDP,
-				     CONFIG_TDP_GET_TURBO_LIMIT_RATIOS, 0, req,
-				     &resp);
-	if (ret)
-		return ret;
-
-	debug_printf("cpu:%d CONFIG_TDP_GET_TURBO_LIMIT req:%x resp:%x\n", id->cpu,
-		     req, resp);
-
-	trl[4] = resp & GENMASK(7, 0);
-	trl[5] = (resp & GENMASK(15, 8)) >> 8;
-	trl[6] = (resp & GENMASK(23, 16)) >> 16;
-	trl[7] = (resp & GENMASK(31, 24)) >> 24;
-
-	return 0;
+	CHECK_CB(get_get_trl);
+	return isst_ops->get_get_trl(id, level, avx_level, trl);
 }
 
 int isst_get_trl_bucket_info(struct isst_id *id, unsigned long long *buckets_info)
