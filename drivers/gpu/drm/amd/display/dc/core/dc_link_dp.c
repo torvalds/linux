@@ -5032,6 +5032,10 @@ static void determine_lttpr_mode(struct dc_link *link)
 	bool vbios_lttpr_enable = link->dc->caps.vbios_lttpr_enable;
 	bool vbios_lttpr_interop = link->dc->caps.vbios_lttpr_aware;
 
+	if (link->ctx->dc->debug.lttpr_mode_override != 0) {
+		link->lttpr_mode = link->ctx->dc->debug.lttpr_mode_override;
+		return;
+	}
 
 	if ((link->dc->config.allow_lttpr_non_transparent_mode.bits.DP2_0 &&
 			link->dpcd_caps.channel_coding_cap.bits.DP_128b_132b_SUPPORTED)) {

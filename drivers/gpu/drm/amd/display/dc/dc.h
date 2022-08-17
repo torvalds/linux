@@ -846,6 +846,7 @@ struct dc_debug_options {
 	bool exit_idle_opt_for_cursor_updates;
 	bool enable_single_display_2to1_odm_policy;
 	bool enable_dp_dig_pixel_rate_div_policy;
+	enum lttpr_mode lttpr_mode_override;
 };
 
 struct gpu_info_soc_bounding_box_v1_0;
