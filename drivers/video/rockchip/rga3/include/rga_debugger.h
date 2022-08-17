@@ -134,7 +134,13 @@ static inline int rga_procfs_init(void)
 void rga_cmd_print_debug_info(struct rga_req *req);
 void rga_request_task_debug_info(struct seq_file *m, struct rga_req *req);
 void rga_dump_external_buffer(struct rga_external_buffer *buffer);
+#ifdef CONFIG_NO_GKI
 void rga_dump_job_image(struct rga_job *dump_job);
+#else
+static inline void rga_dump_job_image(struct rga_job *dump_job)
+{
+}
+#endif /* #ifdef CONFIG_NO_GKI */
 
 #endif /* #ifndef _RGA_DEBUGGER_H_ */
 

@@ -36,7 +36,9 @@ int RGA_DEBUG_NONUSE;
 int RGA_DEBUG_DEBUG_MODE;
 int RGA_DEBUG_DUMP_IMAGE;
 
+#ifdef CONFIG_NO_GKI
 static char g_dump_path[100] = "/data";
+#endif
 
 static int rga_debug_show(struct seq_file *m, void *data)
 {
@@ -361,6 +363,7 @@ static int rga_request_manager_show(struct seq_file *m, void *data)
 	return 0;
 }
 
+#ifdef CONFIG_NO_GKI
 static int rga_dump_path_show(struct seq_file *m, void *data)
 {
 	seq_printf(m, "dump path: %s\n", g_dump_path);
@@ -421,6 +424,7 @@ static ssize_t rga_dump_image_write(struct file *file, const char __user *ubuf,
 
 	return len;
 }
+#endif /* #ifdef CONFIG_NO_GKI */
 
 static int rga_hardware_show(struct seq_file *m, void *data)
 {
@@ -465,8 +469,10 @@ static struct rga_debugger_list rga_debugger_root_list[] = {
 	{"scheduler_status", rga_scheduler_show, NULL, NULL},
 	{"mm_session", rga_mm_session_show, NULL, NULL},
 	{"request_manager", rga_request_manager_show, NULL, NULL},
+#ifdef CONFIG_NO_GKI
 	{"dump_path", rga_dump_path_show, rga_dump_path_write, NULL},
 	{"dump_image", rga_dump_image_show, rga_dump_image_write, NULL},
+#endif
 	{"hardware", rga_hardware_show, NULL, NULL},
 };
 
@@ -830,6 +836,7 @@ void rga_dump_external_buffer(struct rga_external_buffer *buffer)
 		buffer->memory_parm.size);
 }
 
+#ifdef CONFIG_NO_GKI
 static int rga_dump_image_to_file(struct rga_internal_buffer *dump_buffer,
 				  const char *channel_name,
 				  int plane_id,
@@ -953,3 +960,4 @@ void rga_dump_job_image(struct rga_job *dump_job)
 	if (RGA_DEBUG_DUMP_IMAGE > 0)
 		RGA_DEBUG_DUMP_IMAGE--;
 }
+#endif /* #ifdef CONFIG_NO_GKI */
