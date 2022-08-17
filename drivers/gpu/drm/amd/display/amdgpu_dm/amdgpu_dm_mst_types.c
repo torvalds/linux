@@ -597,15 +597,8 @@ void amdgpu_dm_initialize_dp_connector(struct amdgpu_display_manager *dm,
 
 	dc_link_dp_get_max_link_enc_cap(aconnector->dc_link, &max_link_enc_cap);
 	aconnector->mst_mgr.cbs = &dm_mst_cbs;
-	drm_dp_mst_topology_mgr_init(
-		&aconnector->mst_mgr,
-		adev_to_drm(dm->adev),
-		&aconnector->dm_dp_aux.aux,
-		16,
-		4,
-		max_link_enc_cap.lane_count,
-		drm_dp_bw_code_to_link_rate(max_link_enc_cap.link_rate),
-		aconnector->connector_id);
+	drm_dp_mst_topology_mgr_init(&aconnector->mst_mgr, adev_to_drm(dm->adev),
+				     &aconnector->dm_dp_aux.aux, 16, 4, aconnector->connector_id);
 
 	drm_connector_attach_dp_subconnector_property(&aconnector->base);
 }
@@ -710,6 +703,7 @@ static int bpp_x16_from_pbn(struct dsc_mst_fairness_params param, int pbn)
 }
 
 static bool increase_dsc_bpp(struct drm_atomic_state *state,
+			     struct drm_dp_mst_topology_state *mst_state,
 			     struct dc_link *dc_link,
 			     struct dsc_mst_fairness_params *params,
 			     struct dsc_mst_fairness_vars *vars,
@@ -722,11 +716,8 @@ static bool increase_dsc_bpp(struct drm_atomic_state *state,
 	int min_initial_slack;
 	int next_index;
 	int remaining_to_increase = 0;
-	int pbn_per_timeslot;
 	int link_timeslots_used;
 	int fair_pbn_alloc;
-
-	pbn_per_timeslot = dm_mst_get_pbn_divider(dc_link);
 
 	for (i = 0; i < count; i++) {
 		if (vars[i + k].dsc_enabled) {
@@ -758,17 +749,17 @@ static bool increase_dsc_bpp(struct drm_atomic_state *state,
 		link_timeslots_used = 0;
 
 		for (i = 0; i < count; i++)
-			link_timeslots_used += DIV_ROUND_UP(vars[i + k].pbn, pbn_per_timeslot);
+			link_timeslots_used += DIV_ROUND_UP(vars[i + k].pbn, mst_state->pbn_div);
 
-		fair_pbn_alloc = (63 - link_timeslots_used) / remaining_to_increase * pbn_per_timeslot;
+		fair_pbn_alloc =
+			(63 - link_timeslots_used) / remaining_to_increase * mst_state->pbn_div;
 
 		if (initial_slack[next_index] > fair_pbn_alloc) {
 			vars[next_index].pbn += fair_pbn_alloc;
 			if (drm_dp_atomic_find_time_slots(state,
 							  params[next_index].port->mgr,
 							  params[next_index].port,
-							  vars[next_index].pbn,
-							  pbn_per_timeslot) < 0)
+							  vars[next_index].pbn) < 0)
 				return false;
 			if (!drm_dp_mst_atomic_check(state)) {
 				vars[next_index].bpp_x16 = bpp_x16_from_pbn(params[next_index], vars[next_index].pbn);
@@ -777,8 +768,7 @@ static bool increase_dsc_bpp(struct drm_atomic_state *state,
 				if (drm_dp_atomic_find_time_slots(state,
 								  params[next_index].port->mgr,
 								  params[next_index].port,
-								  vars[next_index].pbn,
-								  pbn_per_timeslot) < 0)
+								  vars[next_index].pbn) < 0)
 					return false;
 			}
 		} else {
@@ -786,8 +776,7 @@ static bool increase_dsc_bpp(struct drm_atomic_state *state,
 			if (drm_dp_atomic_find_time_slots(state,
 							  params[next_index].port->mgr,
 							  params[next_index].port,
-							  vars[next_index].pbn,
-							  pbn_per_timeslot) < 0)
+							  vars[next_index].pbn) < 0)
 				return false;
 			if (!drm_dp_mst_atomic_check(state)) {
 				vars[next_index].bpp_x16 = params[next_index].bw_range.max_target_bpp_x16;
@@ -796,8 +785,7 @@ static bool increase_dsc_bpp(struct drm_atomic_state *state,
 				if (drm_dp_atomic_find_time_slots(state,
 								  params[next_index].port->mgr,
 								  params[next_index].port,
-								  vars[next_index].pbn,
-								  pbn_per_timeslot) < 0)
+								  vars[next_index].pbn) < 0)
 					return false;
 			}
 		}
@@ -854,8 +842,7 @@ static bool try_disable_dsc(struct drm_atomic_state *state,
 		if (drm_dp_atomic_find_time_slots(state,
 						  params[next_index].port->mgr,
 						  params[next_index].port,
-						  vars[next_index].pbn,
-						  dm_mst_get_pbn_divider(dc_link)) < 0)
+						  vars[next_index].pbn) < 0)
 			return false;
 
 		if (!drm_dp_mst_atomic_check(state)) {
@@ -866,8 +853,7 @@ static bool try_disable_dsc(struct drm_atomic_state *state,
 			if (drm_dp_atomic_find_time_slots(state,
 							  params[next_index].port->mgr,
 							  params[next_index].port,
-							  vars[next_index].pbn,
-							  dm_mst_get_pbn_divider(dc_link)) < 0)
+							  vars[next_index].pbn) < 0)
 				return false;
 		}
 
@@ -881,16 +867,26 @@ static bool compute_mst_dsc_configs_for_link(struct drm_atomic_state *state,
 					     struct dc_state *dc_state,
 					     struct dc_link *dc_link,
 					     struct dsc_mst_fairness_vars *vars,
+					     struct drm_dp_mst_topology_mgr *mgr,
 					     int *link_vars_start_index)
 {
-	int i, k;
 	struct dc_stream_state *stream;
 	struct dsc_mst_fairness_params params[MAX_PIPES];
 	struct amdgpu_dm_connector *aconnector;
+	struct drm_dp_mst_topology_state *mst_state = drm_atomic_get_mst_topology_state(state, mgr);
 	int count = 0;
+	int i, k;
 	bool debugfs_overwrite = false;
 
 	memset(params, 0, sizeof(params));
+
+	if (IS_ERR(mst_state))
+		return false;
+
+	mst_state->pbn_div = dm_mst_get_pbn_divider(dc_link);
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+	drm_dp_mst_update_slots(mst_state, dc_link_dp_mst_decide_link_encoding_format(dc_link));
+#endif
 
 	/* Set up params */
 	for (i = 0; i < dc_state->stream_count; i++) {
@@ -950,11 +946,8 @@ static bool compute_mst_dsc_configs_for_link(struct drm_atomic_state *state,
 		vars[i + k].pbn = kbps_to_peak_pbn(params[i].bw_range.stream_kbps);
 		vars[i + k].dsc_enabled = false;
 		vars[i + k].bpp_x16 = 0;
-		if (drm_dp_atomic_find_time_slots(state,
-						  params[i].port->mgr,
-						  params[i].port,
-						  vars[i + k].pbn,
-						  dm_mst_get_pbn_divider(dc_link)) < 0)
+		if (drm_dp_atomic_find_time_slots(state, params[i].port->mgr, params[i].port,
+						  vars[i + k].pbn) < 0)
 			return false;
 	}
 	if (!drm_dp_mst_atomic_check(state) && !debugfs_overwrite) {
@@ -968,21 +961,15 @@ static bool compute_mst_dsc_configs_for_link(struct drm_atomic_state *state,
 			vars[i + k].pbn = kbps_to_peak_pbn(params[i].bw_range.min_kbps);
 			vars[i + k].dsc_enabled = true;
 			vars[i + k].bpp_x16 = params[i].bw_range.min_target_bpp_x16;
-			if (drm_dp_atomic_find_time_slots(state,
-							  params[i].port->mgr,
-							  params[i].port,
-							  vars[i + k].pbn,
-							  dm_mst_get_pbn_divider(dc_link)) < 0)
+			if (drm_dp_atomic_find_time_slots(state, params[i].port->mgr,
+							  params[i].port, vars[i + k].pbn) < 0)
 				return false;
 		} else {
 			vars[i + k].pbn = kbps_to_peak_pbn(params[i].bw_range.stream_kbps);
 			vars[i + k].dsc_enabled = false;
 			vars[i + k].bpp_x16 = 0;
-			if (drm_dp_atomic_find_time_slots(state,
-							  params[i].port->mgr,
-							  params[i].port,
-							  vars[i + k].pbn,
-							  dm_mst_get_pbn_divider(dc_link)) < 0)
+			if (drm_dp_atomic_find_time_slots(state, params[i].port->mgr,
+							  params[i].port, vars[i + k].pbn) < 0)
 				return false;
 		}
 	}
@@ -990,7 +977,7 @@ static bool compute_mst_dsc_configs_for_link(struct drm_atomic_state *state,
 		return false;
 
 	/* Optimize degree of compression */
-	if (!increase_dsc_bpp(state, dc_link, params, vars, count, k))
+	if (!increase_dsc_bpp(state, mst_state, dc_link, params, vars, count, k))
 		return false;
 
 	if (!try_disable_dsc(state, dc_link, params, vars, count, k))
@@ -1136,8 +1123,9 @@ bool compute_mst_dsc_configs_for_state(struct drm_atomic_state *state,
 			continue;
 
 		mutex_lock(&aconnector->mst_mgr.lock);
-		if (!compute_mst_dsc_configs_for_link(state, dc_state, stream->link,
-			vars, &link_vars_start_index)) {
+		if (!compute_mst_dsc_configs_for_link(state, dc_state, stream->link, vars,
+						      &aconnector->mst_mgr,
+						      &link_vars_start_index)) {
 			mutex_unlock(&aconnector->mst_mgr.lock);
 			return false;
 		}
@@ -1195,10 +1183,8 @@ static bool
 			continue;
 
 		mutex_lock(&aconnector->mst_mgr.lock);
-		if (!compute_mst_dsc_configs_for_link(state,
-						      dc_state,
-						      stream->link,
-						      vars,
+		if (!compute_mst_dsc_configs_for_link(state, dc_state, stream->link, vars,
+						      &aconnector->mst_mgr,
 						      &link_vars_start_index)) {
 			mutex_unlock(&aconnector->mst_mgr.lock);
 			return false;

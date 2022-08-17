@@ -68,8 +68,7 @@ static bool dump_dp_payload_table(struct drm_dp_mst_topology_mgr *mgr,
 static void drm_dp_mst_topology_put_port(struct drm_dp_mst_port *port);
 
 static int drm_dp_dpcd_write_payload(struct drm_dp_mst_topology_mgr *mgr,
-				     int id,
-				     struct drm_dp_payload *payload);
+				     int id, u8 start_slot, u8 num_slots);
 
 static int drm_dp_send_dpcd_read(struct drm_dp_mst_topology_mgr *mgr,
 				 struct drm_dp_mst_port *port,
@@ -1235,57 +1234,6 @@ build_query_stream_enc_status(struct drm_dp_sideband_msg_tx *msg, u8 stream_id,
 	return 0;
 }
 
-static int drm_dp_mst_assign_payload_id(struct drm_dp_mst_topology_mgr *mgr,
-					struct drm_dp_vcpi *vcpi)
-{
-	int ret, vcpi_ret;
-
-	mutex_lock(&mgr->payload_lock);
-	ret = find_first_zero_bit(&mgr->payload_mask, mgr->max_payloads + 1);
-	if (ret > mgr->max_payloads) {
-		ret = -EINVAL;
-		drm_dbg_kms(mgr->dev, "out of payload ids %d\n", ret);
-		goto out_unlock;
-	}
-
-	vcpi_ret = find_first_zero_bit(&mgr->vcpi_mask, mgr->max_payloads + 1);
-	if (vcpi_ret > mgr->max_payloads) {
-		ret = -EINVAL;
-		drm_dbg_kms(mgr->dev, "out of vcpi ids %d\n", ret);
-		goto out_unlock;
-	}
-
-	set_bit(ret, &mgr->payload_mask);
-	set_bit(vcpi_ret, &mgr->vcpi_mask);
-	vcpi->vcpi = vcpi_ret + 1;
-	mgr->proposed_vcpis[ret - 1] = vcpi;
-out_unlock:
-	mutex_unlock(&mgr->payload_lock);
-	return ret;
-}
-
-static void drm_dp_mst_put_payload_id(struct drm_dp_mst_topology_mgr *mgr,
-				      int vcpi)
-{
-	int i;
-
-	if (vcpi == 0)
-		return;
-
-	mutex_lock(&mgr->payload_lock);
-	drm_dbg_kms(mgr->dev, "putting payload %d\n", vcpi);
-	clear_bit(vcpi - 1, &mgr->vcpi_mask);
-
-	for (i = 0; i < mgr->max_payloads; i++) {
-		if (mgr->proposed_vcpis[i] &&
-		    mgr->proposed_vcpis[i]->vcpi == vcpi) {
-			mgr->proposed_vcpis[i] = NULL;
-			clear_bit(i + 1, &mgr->payload_mask);
-		}
-	}
-	mutex_unlock(&mgr->payload_lock);
-}
-
 static bool check_txmsg_state(struct drm_dp_mst_topology_mgr *mgr,
 			      struct drm_dp_sideband_msg_tx *txmsg)
 {
@@ -1738,7 +1686,7 @@ drm_dp_mst_dump_port_topology_history(struct drm_dp_mst_port *port) {}
 #define save_port_topology_ref(port, type)
 #endif
 
-static struct drm_dp_mst_atomic_payload *
+struct drm_dp_mst_atomic_payload *
 drm_atomic_get_mst_payload_state(struct drm_dp_mst_topology_state *state,
 				 struct drm_dp_mst_port *port)
 {
@@ -1750,6 +1698,7 @@ drm_atomic_get_mst_payload_state(struct drm_dp_mst_topology_state *state,
 
 	return NULL;
 }
+EXPORT_SYMBOL(drm_atomic_get_mst_payload_state);
 
 static void drm_dp_destroy_mst_branch_device(struct kref *kref)
 {
@@ -3252,6 +3201,8 @@ int drm_dp_send_query_stream_enc_status(struct drm_dp_mst_topology_mgr *mgr,
 		struct drm_dp_mst_port *port,
 		struct drm_dp_query_stream_enc_status_ack_reply *status)
 {
+	struct drm_dp_mst_topology_state *state;
+	struct drm_dp_mst_atomic_payload *payload;
 	struct drm_dp_sideband_msg_tx *txmsg;
 	u8 nonce[7];
 	int ret;
@@ -3268,6 +3219,10 @@ int drm_dp_send_query_stream_enc_status(struct drm_dp_mst_topology_mgr *mgr,
 
 	get_random_bytes(nonce, sizeof(nonce));
 
+	drm_modeset_lock(&mgr->base.lock, NULL);
+	state = to_drm_dp_mst_topology_state(mgr->base.state);
+	payload = drm_atomic_get_mst_payload_state(state, port);
+
 	/*
 	 * "Source device targets the QUERY_STREAM_ENCRYPTION_STATUS message
 	 *  transaction at the MST Branch device directly connected to the
@@ -3275,7 +3230,7 @@ int drm_dp_send_query_stream_enc_status(struct drm_dp_mst_topology_mgr *mgr,
 	 */
 	txmsg->dst = mgr->mst_primary;
 
-	build_query_stream_enc_status(txmsg, port->vcpi.vcpi, nonce);
+	build_query_stream_enc_status(txmsg, payload->vcpi, nonce);
 
 	drm_dp_queue_down_tx(mgr, txmsg);
 
@@ -3292,6 +3247,7 @@ int drm_dp_send_query_stream_enc_status(struct drm_dp_mst_topology_mgr *mgr,
 	memcpy(status, &txmsg->reply.u.enc_status, sizeof(*status));
 
 out:
+	drm_modeset_unlock(&mgr->base.lock);
 	drm_dp_mst_topology_put_port(port);
 out_get_port:
 	kfree(txmsg);
@@ -3300,238 +3256,162 @@ out_get_port:
 EXPORT_SYMBOL(drm_dp_send_query_stream_enc_status);
 
 static int drm_dp_create_payload_step1(struct drm_dp_mst_topology_mgr *mgr,
-				       int id,
-				       struct drm_dp_payload *payload)
+				       struct drm_dp_mst_atomic_payload *payload)
 {
-	int ret;
-
-	ret = drm_dp_dpcd_write_payload(mgr, id, payload);
-	if (ret < 0) {
-		payload->payload_state = 0;
-		return ret;
-	}
-	payload->payload_state = DP_PAYLOAD_LOCAL;
-	return 0;
+	return drm_dp_dpcd_write_payload(mgr, payload->vcpi, payload->vc_start_slot,
+					 payload->time_slots);
 }
 
 static int drm_dp_create_payload_step2(struct drm_dp_mst_topology_mgr *mgr,
-				       struct drm_dp_mst_port *port,
-				       int id,
-				       struct drm_dp_payload *payload)
+				       struct drm_dp_mst_atomic_payload *payload)
 {
 	int ret;
+	struct drm_dp_mst_port *port = drm_dp_mst_topology_get_port_validated(mgr, payload->port);
 
-	ret = drm_dp_payload_send_msg(mgr, port, id, port->vcpi.pbn);
-	if (ret < 0)
-		return ret;
-	payload->payload_state = DP_PAYLOAD_REMOTE;
+	if (!port)
+		return -EIO;
+
+	ret = drm_dp_payload_send_msg(mgr, port, payload->vcpi, payload->pbn);
+	drm_dp_mst_topology_put_port(port);
 	return ret;
 }
 
 static int drm_dp_destroy_payload_step1(struct drm_dp_mst_topology_mgr *mgr,
-					struct drm_dp_mst_port *port,
-					int id,
-					struct drm_dp_payload *payload)
+					struct drm_dp_mst_topology_state *mst_state,
+					struct drm_dp_mst_atomic_payload *payload)
 {
 	drm_dbg_kms(mgr->dev, "\n");
+
 	/* it's okay for these to fail */
-	if (port) {
-		drm_dp_payload_send_msg(mgr, port, id, 0);
-	}
+	drm_dp_payload_send_msg(mgr, payload->port, payload->vcpi, 0);
+	drm_dp_dpcd_write_payload(mgr, payload->vcpi, payload->vc_start_slot, 0);
 
-	drm_dp_dpcd_write_payload(mgr, id, payload);
-	payload->payload_state = DP_PAYLOAD_DELETE_LOCAL;
-	return 0;
-}
-
-static int drm_dp_destroy_payload_step2(struct drm_dp_mst_topology_mgr *mgr,
-					int id,
-					struct drm_dp_payload *payload)
-{
-	payload->payload_state = 0;
 	return 0;
 }
 
 /**
- * drm_dp_update_payload_part1() - Execute payload update part 1
- * @mgr: manager to use.
- * @start_slot: this is the cur slot
+ * drm_dp_add_payload_part1() - Execute payload update part 1
+ * @mgr: Manager to use.
+ * @mst_state: The MST atomic state
+ * @payload: The payload to write
  *
- * NOTE: start_slot is a temporary workaround for non-atomic drivers,
- * this will be removed when non-atomic mst helpers are moved out of the helper
+ * Determines the starting time slot for the given payload, and programs the VCPI for this payload
+ * into hardware. After calling this, the driver should generate ACT and payload packets.
  *
- * This iterates over all proposed virtual channels, and tries to
- * allocate space in the link for them. For 0->slots transitions,
- * this step just writes the VCPI to the MST device. For slots->0
- * transitions, this writes the updated VCPIs and removes the
- * remote VC payloads.
- *
- * after calling this the driver should generate ACT and payload
- * packets.
+ * Returns: 0 on success, error code on failure. In the event that this fails,
+ * @payload.vc_start_slot will also be set to -1.
  */
-int drm_dp_update_payload_part1(struct drm_dp_mst_topology_mgr *mgr, int start_slot)
+int drm_dp_add_payload_part1(struct drm_dp_mst_topology_mgr *mgr,
+			     struct drm_dp_mst_topology_state *mst_state,
+			     struct drm_dp_mst_atomic_payload *payload)
 {
-	struct drm_dp_payload req_payload;
 	struct drm_dp_mst_port *port;
-	int i, j;
-	int cur_slots = start_slot;
-	bool skip;
+	int ret;
 
-	mutex_lock(&mgr->payload_lock);
-	for (i = 0; i < mgr->max_payloads; i++) {
-		struct drm_dp_vcpi *vcpi = mgr->proposed_vcpis[i];
-		struct drm_dp_payload *payload = &mgr->payloads[i];
-		bool put_port = false;
+	port = drm_dp_mst_topology_get_port_validated(mgr, payload->port);
+	if (!port)
+		return 0;
 
-		/* solve the current payloads - compare to the hw ones
-		   - update the hw view */
-		req_payload.start_slot = cur_slots;
-		if (vcpi) {
-			port = container_of(vcpi, struct drm_dp_mst_port,
-					    vcpi);
+	if (mgr->payload_count == 0)
+		mgr->next_start_slot = mst_state->start_slot;
 
-			mutex_lock(&mgr->lock);
-			skip = !drm_dp_mst_port_downstream_of_branch(port, mgr->mst_primary);
-			mutex_unlock(&mgr->lock);
+	payload->vc_start_slot = mgr->next_start_slot;
 
-			if (skip) {
-				drm_dbg_kms(mgr->dev,
-					    "Virtual channel %d is not in current topology\n",
-					    i);
-				continue;
-			}
-			/* Validated ports don't matter if we're releasing
-			 * VCPI
-			 */
-			if (vcpi->num_slots) {
-				port = drm_dp_mst_topology_get_port_validated(
-				    mgr, port);
-				if (!port) {
-					if (vcpi->num_slots == payload->num_slots) {
-						cur_slots += vcpi->num_slots;
-						payload->start_slot = req_payload.start_slot;
-						continue;
-					} else {
-						drm_dbg_kms(mgr->dev,
-							    "Fail:set payload to invalid sink");
-						mutex_unlock(&mgr->payload_lock);
-						return -EINVAL;
-					}
-				}
-				put_port = true;
-			}
-
-			req_payload.num_slots = vcpi->num_slots;
-			req_payload.vcpi = vcpi->vcpi;
-		} else {
-			port = NULL;
-			req_payload.num_slots = 0;
-		}
-
-		payload->start_slot = req_payload.start_slot;
-		/* work out what is required to happen with this payload */
-		if (payload->num_slots != req_payload.num_slots) {
-
-			/* need to push an update for this payload */
-			if (req_payload.num_slots) {
-				drm_dp_create_payload_step1(mgr, vcpi->vcpi,
-							    &req_payload);
-				payload->num_slots = req_payload.num_slots;
-				payload->vcpi = req_payload.vcpi;
-
-			} else if (payload->num_slots) {
-				payload->num_slots = 0;
-				drm_dp_destroy_payload_step1(mgr, port,
-							     payload->vcpi,
-							     payload);
-				req_payload.payload_state =
-					payload->payload_state;
-				payload->start_slot = 0;
-			}
-			payload->payload_state = req_payload.payload_state;
-		}
-		cur_slots += req_payload.num_slots;
-
-		if (put_port)
-			drm_dp_mst_topology_put_port(port);
+	ret = drm_dp_create_payload_step1(mgr, payload);
+	drm_dp_mst_topology_put_port(port);
+	if (ret < 0) {
+		drm_warn(mgr->dev, "Failed to create MST payload for port %p: %d\n",
+			 payload->port, ret);
+		payload->vc_start_slot = -1;
+		return ret;
 	}
 
-	for (i = 0; i < mgr->max_payloads; /* do nothing */) {
-		if (mgr->payloads[i].payload_state != DP_PAYLOAD_DELETE_LOCAL) {
-			i++;
-			continue;
-		}
-
-		drm_dbg_kms(mgr->dev, "removing payload %d\n", i);
-		for (j = i; j < mgr->max_payloads - 1; j++) {
-			mgr->payloads[j] = mgr->payloads[j + 1];
-			mgr->proposed_vcpis[j] = mgr->proposed_vcpis[j + 1];
-
-			if (mgr->proposed_vcpis[j] &&
-			    mgr->proposed_vcpis[j]->num_slots) {
-				set_bit(j + 1, &mgr->payload_mask);
-			} else {
-				clear_bit(j + 1, &mgr->payload_mask);
-			}
-		}
-
-		memset(&mgr->payloads[mgr->max_payloads - 1], 0,
-		       sizeof(struct drm_dp_payload));
-		mgr->proposed_vcpis[mgr->max_payloads - 1] = NULL;
-		clear_bit(mgr->max_payloads, &mgr->payload_mask);
-	}
-	mutex_unlock(&mgr->payload_lock);
+	mgr->payload_count++;
+	mgr->next_start_slot += payload->time_slots;
 
 	return 0;
 }
-EXPORT_SYMBOL(drm_dp_update_payload_part1);
+EXPORT_SYMBOL(drm_dp_add_payload_part1);
 
 /**
- * drm_dp_update_payload_part2() - Execute payload update part 2
- * @mgr: manager to use.
+ * drm_dp_remove_payload() - Remove an MST payload
+ * @mgr: Manager to use.
+ * @mst_state: The MST atomic state
+ * @payload: The payload to write
  *
- * This iterates over all proposed virtual channels, and tries to
- * allocate space in the link for them. For 0->slots transitions,
- * this step writes the remote VC payload commands. For slots->0
- * this just resets some internal state.
+ * Removes a payload from an MST topology if it was successfully assigned a start slot. Also updates
+ * the starting time slots of all other payloads which would have been shifted towards the start of
+ * the VC table as a result. After calling this, the driver should generate ACT and payload packets.
  */
-int drm_dp_update_payload_part2(struct drm_dp_mst_topology_mgr *mgr)
+void drm_dp_remove_payload(struct drm_dp_mst_topology_mgr *mgr,
+			   struct drm_dp_mst_topology_state *mst_state,
+			   struct drm_dp_mst_atomic_payload *payload)
 {
-	struct drm_dp_mst_port *port;
-	int i;
+	struct drm_dp_mst_atomic_payload *pos;
+	bool send_remove = false;
+
+	/* We failed to make the payload, so nothing to do */
+	if (payload->vc_start_slot == -1)
+		return;
+
+	mutex_lock(&mgr->lock);
+	send_remove = drm_dp_mst_port_downstream_of_branch(payload->port, mgr->mst_primary);
+	mutex_unlock(&mgr->lock);
+
+	if (send_remove)
+		drm_dp_destroy_payload_step1(mgr, mst_state, payload);
+	else
+		drm_dbg_kms(mgr->dev, "Payload for VCPI %d not in topology, not sending remove\n",
+			    payload->vcpi);
+
+	list_for_each_entry(pos, &mst_state->payloads, next) {
+		if (pos != payload && pos->vc_start_slot > payload->vc_start_slot)
+			pos->vc_start_slot -= payload->time_slots;
+	}
+	payload->vc_start_slot = -1;
+
+	mgr->payload_count--;
+	mgr->next_start_slot -= payload->time_slots;
+}
+EXPORT_SYMBOL(drm_dp_remove_payload);
+
+/**
+ * drm_dp_add_payload_part2() - Execute payload update part 2
+ * @mgr: Manager to use.
+ * @state: The global atomic state
+ * @payload: The payload to update
+ *
+ * If @payload was successfully assigned a starting time slot by drm_dp_add_payload_part1(), this
+ * function will send the sideband messages to finish allocating this payload.
+ *
+ * Returns: 0 on success, negative error code on failure.
+ */
+int drm_dp_add_payload_part2(struct drm_dp_mst_topology_mgr *mgr,
+			     struct drm_atomic_state *state,
+			     struct drm_dp_mst_atomic_payload *payload)
+{
 	int ret = 0;
-	bool skip;
 
-	mutex_lock(&mgr->payload_lock);
-	for (i = 0; i < mgr->max_payloads; i++) {
-
-		if (!mgr->proposed_vcpis[i])
-			continue;
-
-		port = container_of(mgr->proposed_vcpis[i], struct drm_dp_mst_port, vcpi);
-
-		mutex_lock(&mgr->lock);
-		skip = !drm_dp_mst_port_downstream_of_branch(port, mgr->mst_primary);
-		mutex_unlock(&mgr->lock);
-
-		if (skip)
-			continue;
-
-		drm_dbg_kms(mgr->dev, "payload %d %d\n", i, mgr->payloads[i].payload_state);
-		if (mgr->payloads[i].payload_state == DP_PAYLOAD_LOCAL) {
-			ret = drm_dp_create_payload_step2(mgr, port, mgr->proposed_vcpis[i]->vcpi, &mgr->payloads[i]);
-		} else if (mgr->payloads[i].payload_state == DP_PAYLOAD_DELETE_LOCAL) {
-			ret = drm_dp_destroy_payload_step2(mgr, mgr->proposed_vcpis[i]->vcpi, &mgr->payloads[i]);
-		}
-		if (ret) {
-			mutex_unlock(&mgr->payload_lock);
-			return ret;
-		}
+	/* Skip failed payloads */
+	if (payload->vc_start_slot == -1) {
+		drm_dbg_kms(state->dev, "Part 1 of payload creation for %s failed, skipping part 2\n",
+			    payload->port->connector->name);
+		return -EIO;
 	}
-	mutex_unlock(&mgr->payload_lock);
-	return 0;
+
+	ret = drm_dp_create_payload_step2(mgr, payload);
+	if (ret < 0) {
+		if (!payload->delete)
+			drm_err(mgr->dev, "Step 2 of creating MST payload for %p failed: %d\n",
+				payload->port, ret);
+		else
+			drm_dbg_kms(mgr->dev, "Step 2 of removing MST payload for %p failed: %d\n",
+				    payload->port, ret);
+	}
+
+	return ret;
 }
-EXPORT_SYMBOL(drm_dp_update_payload_part2);
+EXPORT_SYMBOL(drm_dp_add_payload_part2);
 
 static int drm_dp_send_dpcd_read(struct drm_dp_mst_topology_mgr *mgr,
 				 struct drm_dp_mst_port *port,
@@ -3711,7 +3591,6 @@ int drm_dp_mst_topology_mgr_set_mst(struct drm_dp_mst_topology_mgr *mgr, bool ms
 	int ret = 0;
 	struct drm_dp_mst_branch *mstb = NULL;
 
-	mutex_lock(&mgr->payload_lock);
 	mutex_lock(&mgr->lock);
 	if (mst_state == mgr->mst_state)
 		goto out_unlock;
@@ -3719,10 +3598,6 @@ int drm_dp_mst_topology_mgr_set_mst(struct drm_dp_mst_topology_mgr *mgr, bool ms
 	mgr->mst_state = mst_state;
 	/* set the device into MST mode */
 	if (mst_state) {
-		struct drm_dp_payload reset_pay;
-		int lane_count;
-		int link_rate;
-
 		WARN_ON(mgr->mst_primary);
 
 		/* get dpcd info */
@@ -3730,16 +3605,6 @@ int drm_dp_mst_topology_mgr_set_mst(struct drm_dp_mst_topology_mgr *mgr, bool ms
 		if (ret < 0) {
 			drm_dbg_kms(mgr->dev, "%s: failed to read DPCD, ret %d\n",
 				    mgr->aux->name, ret);
-			goto out_unlock;
-		}
-
-		lane_count = min_t(int, mgr->dpcd[2] & DP_MAX_LANE_COUNT_MASK, mgr->max_lane_count);
-		link_rate = min_t(int, drm_dp_bw_code_to_link_rate(mgr->dpcd[1]), mgr->max_link_rate);
-		mgr->pbn_div = drm_dp_get_vc_payload_bw(mgr,
-							link_rate,
-							lane_count);
-		if (mgr->pbn_div == 0) {
-			ret = -EINVAL;
 			goto out_unlock;
 		}
 
@@ -3762,9 +3627,8 @@ int drm_dp_mst_topology_mgr_set_mst(struct drm_dp_mst_topology_mgr *mgr, bool ms
 		if (ret < 0)
 			goto out_unlock;
 
-		reset_pay.start_slot = 0;
-		reset_pay.num_slots = 0x3f;
-		drm_dp_dpcd_write_payload(mgr, 0, &reset_pay);
+		/* Write reset payload */
+		drm_dp_dpcd_write_payload(mgr, 0, 0, 0x3f);
 
 		queue_work(system_long_wq, &mgr->work);
 
@@ -3776,19 +3640,11 @@ int drm_dp_mst_topology_mgr_set_mst(struct drm_dp_mst_topology_mgr *mgr, bool ms
 		/* this can fail if the device is gone */
 		drm_dp_dpcd_writeb(mgr->aux, DP_MSTM_CTRL, 0);
 		ret = 0;
-		memset(mgr->payloads, 0,
-		       mgr->max_payloads * sizeof(mgr->payloads[0]));
-		memset(mgr->proposed_vcpis, 0,
-		       mgr->max_payloads * sizeof(mgr->proposed_vcpis[0]));
-		mgr->payload_mask = 0;
-		set_bit(0, &mgr->payload_mask);
-		mgr->vcpi_mask = 0;
 		mgr->payload_id_table_cleared = false;
 	}
 
 out_unlock:
 	mutex_unlock(&mgr->lock);
-	mutex_unlock(&mgr->payload_lock);
 	if (mstb)
 		drm_dp_mst_topology_put_mstb(mstb);
 	return ret;
@@ -4308,61 +4164,17 @@ struct edid *drm_dp_mst_get_edid(struct drm_connector *connector, struct drm_dp_
 EXPORT_SYMBOL(drm_dp_mst_get_edid);
 
 /**
- * drm_dp_find_vcpi_slots() - Find time slots for this PBN value
- * @mgr: manager to use
- * @pbn: payload bandwidth to convert into slots.
- *
- * Calculate the number of time slots that will be required for the given PBN
- * value. This function is deprecated, and should not be used in atomic
- * drivers.
- *
- * RETURNS:
- * The total slots required for this port, or error.
- */
-int drm_dp_find_vcpi_slots(struct drm_dp_mst_topology_mgr *mgr,
-			   int pbn)
-{
-	int num_slots;
-
-	num_slots = DIV_ROUND_UP(pbn, mgr->pbn_div);
-
-	/* max. time slots - one slot for MTP header */
-	if (num_slots > 63)
-		return -ENOSPC;
-	return num_slots;
-}
-EXPORT_SYMBOL(drm_dp_find_vcpi_slots);
-
-static int drm_dp_init_vcpi(struct drm_dp_mst_topology_mgr *mgr,
-			    struct drm_dp_vcpi *vcpi, int pbn, int slots)
-{
-	int ret;
-
-	vcpi->pbn = pbn;
-	vcpi->aligned_pbn = slots * mgr->pbn_div;
-	vcpi->num_slots = slots;
-
-	ret = drm_dp_mst_assign_payload_id(mgr, vcpi);
-	if (ret < 0)
-		return ret;
-	return 0;
-}
-
-/**
  * drm_dp_atomic_find_time_slots() - Find and add time slots to the state
  * @state: global atomic state
  * @mgr: MST topology manager for the port
  * @port: port to find time slots for
  * @pbn: bandwidth required for the mode in PBN
- * @pbn_div: divider for DSC mode that takes FEC into account
  *
- * Allocates time slots to @port, replacing any previous timeslot allocations it
- * may have had. Any atomic drivers which support MST must call this function
- * in their &drm_encoder_helper_funcs.atomic_check() callback to change the
- * current timeslot allocation for the new state, but only when
- * &drm_crtc_state.mode_changed or &drm_crtc_state.connectors_changed is set
- * to ensure compatibility with userspace applications that still use the
- * legacy modesetting UAPI.
+ * Allocates time slots to @port, replacing any previous time slot allocations it may
+ * have had. Any atomic drivers which support MST must call this function in
+ * their &drm_encoder_helper_funcs.atomic_check() callback unconditionally to
+ * change the current time slot allocation for the new state, and ensure the MST
+ * atomic state is added whenever the state of payloads in the topology changes.
  *
  * Allocations set by this function are not checked against the bandwidth
  * restraints of @mgr until the driver calls drm_dp_mst_atomic_check().
@@ -4381,8 +4193,7 @@ static int drm_dp_init_vcpi(struct drm_dp_mst_topology_mgr *mgr,
  */
 int drm_dp_atomic_find_time_slots(struct drm_atomic_state *state,
 				  struct drm_dp_mst_topology_mgr *mgr,
-				  struct drm_dp_mst_port *port, int pbn,
-				  int pbn_div)
+				  struct drm_dp_mst_port *port, int pbn)
 {
 	struct drm_dp_mst_topology_state *topology_state;
 	struct drm_dp_mst_atomic_payload *payload = NULL;
@@ -4415,10 +4226,7 @@ int drm_dp_atomic_find_time_slots(struct drm_atomic_state *state,
 		}
 	}
 
-	if (pbn_div <= 0)
-		pbn_div = mgr->pbn_div;
-
-	req_slots = DIV_ROUND_UP(pbn, pbn_div);
+	req_slots = DIV_ROUND_UP(pbn, topology_state->pbn_div);
 
 	drm_dbg_atomic(mgr->dev, "[CONNECTOR:%d:%s] [MST PORT:%p] TU %d -> %d\n",
 		       port->connector->base.id, port->connector->name,
@@ -4427,7 +4235,7 @@ int drm_dp_atomic_find_time_slots(struct drm_atomic_state *state,
 		       port->connector->base.id, port->connector->name,
 		       port, prev_bw, pbn);
 
-	/* Add the new allocation to the state */
+	/* Add the new allocation to the state, note the VCPI isn't assigned until the end */
 	if (!payload) {
 		payload = kzalloc(sizeof(*payload), GFP_KERNEL);
 		if (!payload)
@@ -4435,6 +4243,7 @@ int drm_dp_atomic_find_time_slots(struct drm_atomic_state *state,
 
 		drm_dp_mst_get_port_malloc(port);
 		payload->port = port;
+		payload->vc_start_slot = -1;
 		list_add(&payload->next, &topology_state->payloads);
 	}
 	payload->time_slots = req_slots;
@@ -4451,10 +4260,12 @@ EXPORT_SYMBOL(drm_dp_atomic_find_time_slots);
  * @port: The port to release the time slots from
  *
  * Releases any time slots that have been allocated to a port in the atomic
- * state. Any atomic drivers which support MST must call this function in
- * their &drm_connector_helper_funcs.atomic_check() callback when the
- * connector will no longer have VCPI allocated (e.g. because its CRTC was
- * removed) when it had VCPI allocated in the previous atomic state.
+ * state. Any atomic drivers which support MST must call this function
+ * unconditionally in their &drm_connector_helper_funcs.atomic_check() callback.
+ * This helper will check whether time slots would be released by the new state and
+ * respond accordingly, along with ensuring the MST state is always added to the
+ * atomic state whenever a new state would modify the state of payloads on the
+ * topology.
  *
  * It is OK to call this even if @port has been removed from the system.
  * Additionally, it is OK to call this function multiple times on the same
@@ -4516,6 +4327,7 @@ int drm_dp_atomic_release_time_slots(struct drm_atomic_state *state,
 		drm_dp_mst_put_port_malloc(port);
 		payload->pbn = 0;
 		payload->delete = true;
+		topology_state->payload_mask &= ~BIT(payload->vcpi - 1);
 	}
 
 	return 0;
@@ -4566,7 +4378,8 @@ int drm_dp_mst_atomic_setup_commit(struct drm_atomic_state *state)
 EXPORT_SYMBOL(drm_dp_mst_atomic_setup_commit);
 
 /**
- * drm_dp_mst_atomic_wait_for_dependencies() - Wait for all pending commits on MST topologies
+ * drm_dp_mst_atomic_wait_for_dependencies() - Wait for all pending commits on MST topologies,
+ * prepare new MST state for commit
  * @state: global atomic state
  *
  * Goes through any MST topologies in this atomic state, and waits for any pending commits which
@@ -4584,16 +4397,29 @@ EXPORT_SYMBOL(drm_dp_mst_atomic_setup_commit);
  */
 void drm_dp_mst_atomic_wait_for_dependencies(struct drm_atomic_state *state)
 {
-	struct drm_dp_mst_topology_state *old_mst_state;
+	struct drm_dp_mst_topology_state *old_mst_state, *new_mst_state;
 	struct drm_dp_mst_topology_mgr *mgr;
+	struct drm_dp_mst_atomic_payload *old_payload, *new_payload;
 	int i, j, ret;
 
-	for_each_old_mst_mgr_in_state(state, mgr, old_mst_state, i) {
+	for_each_oldnew_mst_mgr_in_state(state, mgr, old_mst_state, new_mst_state, i) {
 		for (j = 0; j < old_mst_state->num_commit_deps; j++) {
 			ret = drm_crtc_commit_wait(old_mst_state->commit_deps[j]);
 			if (ret < 0)
 				drm_err(state->dev, "Failed to wait for %s: %d\n",
 					old_mst_state->commit_deps[j]->crtc->name, ret);
+		}
+
+		/* Now that previous state is committed, it's safe to copy over the start slot
+		 * assignments
+		 */
+		list_for_each_entry(old_payload, &old_mst_state->payloads, next) {
+			if (old_payload->delete)
+				continue;
+
+			new_payload = drm_atomic_get_mst_payload_state(new_mst_state,
+								       old_payload->port);
+			new_payload->vc_start_slot = old_payload->vc_start_slot;
 		}
 	}
 }
@@ -4679,119 +4505,8 @@ void drm_dp_mst_update_slots(struct drm_dp_mst_topology_state *mst_state, uint8_
 }
 EXPORT_SYMBOL(drm_dp_mst_update_slots);
 
-/**
- * drm_dp_mst_allocate_vcpi() - Allocate a virtual channel
- * @mgr: manager for this port
- * @port: port to allocate a virtual channel for.
- * @pbn: payload bandwidth number to request
- * @slots: returned number of slots for this PBN.
- */
-bool drm_dp_mst_allocate_vcpi(struct drm_dp_mst_topology_mgr *mgr,
-			      struct drm_dp_mst_port *port, int pbn, int slots)
-{
-	int ret;
-
-	if (slots < 0)
-		return false;
-
-	port = drm_dp_mst_topology_get_port_validated(mgr, port);
-	if (!port)
-		return false;
-
-	if (port->vcpi.vcpi > 0) {
-		drm_dbg_kms(mgr->dev,
-			    "payload: vcpi %d already allocated for pbn %d - requested pbn %d\n",
-			    port->vcpi.vcpi, port->vcpi.pbn, pbn);
-		if (pbn == port->vcpi.pbn) {
-			drm_dp_mst_topology_put_port(port);
-			return true;
-		}
-	}
-
-	ret = drm_dp_init_vcpi(mgr, &port->vcpi, pbn, slots);
-	if (ret) {
-		drm_dbg_kms(mgr->dev, "failed to init time slots=%d ret=%d\n",
-			    DIV_ROUND_UP(pbn, mgr->pbn_div), ret);
-		drm_dp_mst_topology_put_port(port);
-		goto out;
-	}
-	drm_dbg_kms(mgr->dev, "initing vcpi for pbn=%d slots=%d\n", pbn, port->vcpi.num_slots);
-
-	/* Keep port allocated until its payload has been removed */
-	drm_dp_mst_get_port_malloc(port);
-	drm_dp_mst_topology_put_port(port);
-	return true;
-out:
-	return false;
-}
-EXPORT_SYMBOL(drm_dp_mst_allocate_vcpi);
-
-int drm_dp_mst_get_vcpi_slots(struct drm_dp_mst_topology_mgr *mgr, struct drm_dp_mst_port *port)
-{
-	int slots = 0;
-
-	port = drm_dp_mst_topology_get_port_validated(mgr, port);
-	if (!port)
-		return slots;
-
-	slots = port->vcpi.num_slots;
-	drm_dp_mst_topology_put_port(port);
-	return slots;
-}
-EXPORT_SYMBOL(drm_dp_mst_get_vcpi_slots);
-
-/**
- * drm_dp_mst_reset_vcpi_slots() - Reset number of slots to 0 for VCPI
- * @mgr: manager for this port
- * @port: unverified pointer to a port.
- *
- * This just resets the number of slots for the ports VCPI for later programming.
- */
-void drm_dp_mst_reset_vcpi_slots(struct drm_dp_mst_topology_mgr *mgr, struct drm_dp_mst_port *port)
-{
-	/*
-	 * A port with VCPI will remain allocated until its VCPI is
-	 * released, no verified ref needed
-	 */
-
-	port->vcpi.num_slots = 0;
-}
-EXPORT_SYMBOL(drm_dp_mst_reset_vcpi_slots);
-
-/**
- * drm_dp_mst_deallocate_vcpi() - deallocate a VCPI
- * @mgr: manager for this port
- * @port: port to deallocate vcpi for
- *
- * This can be called unconditionally, regardless of whether
- * drm_dp_mst_allocate_vcpi() succeeded or not.
- */
-void drm_dp_mst_deallocate_vcpi(struct drm_dp_mst_topology_mgr *mgr,
-				struct drm_dp_mst_port *port)
-{
-	bool skip;
-
-	if (!port->vcpi.vcpi)
-		return;
-
-	mutex_lock(&mgr->lock);
-	skip = !drm_dp_mst_port_downstream_of_branch(port, mgr->mst_primary);
-	mutex_unlock(&mgr->lock);
-
-	if (skip)
-		return;
-
-	drm_dp_mst_put_payload_id(mgr, port->vcpi.vcpi);
-	port->vcpi.num_slots = 0;
-	port->vcpi.pbn = 0;
-	port->vcpi.aligned_pbn = 0;
-	port->vcpi.vcpi = 0;
-	drm_dp_mst_put_port_malloc(port);
-}
-EXPORT_SYMBOL(drm_dp_mst_deallocate_vcpi);
-
 static int drm_dp_dpcd_write_payload(struct drm_dp_mst_topology_mgr *mgr,
-				     int id, struct drm_dp_payload *payload)
+				     int id, u8 start_slot, u8 num_slots)
 {
 	u8 payload_alloc[3], status;
 	int ret;
@@ -4801,8 +4516,8 @@ static int drm_dp_dpcd_write_payload(struct drm_dp_mst_topology_mgr *mgr,
 			   DP_PAYLOAD_TABLE_UPDATED);
 
 	payload_alloc[0] = id;
-	payload_alloc[1] = payload->start_slot;
-	payload_alloc[2] = payload->num_slots;
+	payload_alloc[1] = start_slot;
+	payload_alloc[2] = num_slots;
 
 	ret = drm_dp_dpcd_write(mgr->aux, DP_PAYLOAD_ALLOCATE_SET, payload_alloc, 3);
 	if (ret != 3) {
@@ -5017,8 +4732,9 @@ static void fetch_monitor_name(struct drm_dp_mst_topology_mgr *mgr,
 void drm_dp_mst_dump_topology(struct seq_file *m,
 			      struct drm_dp_mst_topology_mgr *mgr)
 {
-	int i;
-	struct drm_dp_mst_port *port;
+	struct drm_dp_mst_topology_state *state;
+	struct drm_dp_mst_atomic_payload *payload;
+	int i, ret;
 
 	mutex_lock(&mgr->lock);
 	if (mgr->mst_primary)
@@ -5027,36 +4743,35 @@ void drm_dp_mst_dump_topology(struct seq_file *m,
 	/* dump VCPIs */
 	mutex_unlock(&mgr->lock);
 
-	mutex_lock(&mgr->payload_lock);
-	seq_printf(m, "\n*** VCPI Info ***\n");
-	seq_printf(m, "payload_mask: %lx, vcpi_mask: %lx, max_payloads: %d\n", mgr->payload_mask, mgr->vcpi_mask, mgr->max_payloads);
+	ret = drm_modeset_lock_single_interruptible(&mgr->base.lock);
+	if (ret < 0)
+		return;
 
-	seq_printf(m, "\n|   idx   |  port # |  vcp_id | # slots |     sink name     |\n");
+	state = to_drm_dp_mst_topology_state(mgr->base.state);
+	seq_printf(m, "\n*** Atomic state info ***\n");
+	seq_printf(m, "payload_mask: %x, max_payloads: %d, start_slot: %u, pbn_div: %d\n",
+		   state->payload_mask, mgr->max_payloads, state->start_slot, state->pbn_div);
+
+	seq_printf(m, "\n| idx | port | vcpi | slots | pbn | dsc |     sink name     |\n");
 	for (i = 0; i < mgr->max_payloads; i++) {
-		if (mgr->proposed_vcpis[i]) {
+		list_for_each_entry(payload, &state->payloads, next) {
 			char name[14];
 
-			port = container_of(mgr->proposed_vcpis[i], struct drm_dp_mst_port, vcpi);
-			fetch_monitor_name(mgr, port, name, sizeof(name));
-			seq_printf(m, "%10d%10d%10d%10d%20s\n",
+			if (payload->vcpi != i || payload->delete)
+				continue;
+
+			fetch_monitor_name(mgr, payload->port, name, sizeof(name));
+			seq_printf(m, " %5d %6d %6d %02d - %02d %5d %5s %19s\n",
 				   i,
-				   port->port_num,
-				   port->vcpi.vcpi,
-				   port->vcpi.num_slots,
+				   payload->port->port_num,
+				   payload->vcpi,
+				   payload->vc_start_slot,
+				   payload->vc_start_slot + payload->time_slots - 1,
+				   payload->pbn,
+				   payload->dsc_enabled ? "Y" : "N",
 				   (*name != 0) ? name : "Unknown");
-		} else
-			seq_printf(m, "%6d - Unused\n", i);
+		}
 	}
-	seq_printf(m, "\n*** Payload Info ***\n");
-	seq_printf(m, "|   idx   |  state  |  start slot  | # slots |\n");
-	for (i = 0; i < mgr->max_payloads; i++) {
-		seq_printf(m, "%10d%10d%15d%10d\n",
-			   i,
-			   mgr->payloads[i].payload_state,
-			   mgr->payloads[i].start_slot,
-			   mgr->payloads[i].num_slots);
-	}
-	mutex_unlock(&mgr->payload_lock);
 
 	seq_printf(m, "\n*** DPCD Info ***\n");
 	mutex_lock(&mgr->lock);
@@ -5102,7 +4817,7 @@ void drm_dp_mst_dump_topology(struct seq_file *m,
 
 out:
 	mutex_unlock(&mgr->lock);
-
+	drm_modeset_unlock(&mgr->base.lock);
 }
 EXPORT_SYMBOL(drm_dp_mst_dump_topology);
 
@@ -5423,9 +5138,22 @@ drm_dp_mst_atomic_check_payload_alloc_limits(struct drm_dp_mst_topology_mgr *mgr
 				       mgr, mst_state, mgr->max_payloads);
 			return -EINVAL;
 		}
+
+		/* Assign a VCPI */
+		if (!payload->vcpi) {
+			payload->vcpi = ffz(mst_state->payload_mask) + 1;
+			drm_dbg_atomic(mgr->dev, "[MST PORT:%p] assigned VCPI #%d\n",
+				       payload->port, payload->vcpi);
+			mst_state->payload_mask |= BIT(payload->vcpi - 1);
+		}
 	}
-	drm_dbg_atomic(mgr->dev, "[MST MGR:%p] mst state %p TU avail=%d used=%d\n",
-		       mgr, mst_state, avail_slots, mst_state->total_avail_slots - avail_slots);
+
+	if (!payload_count)
+		mst_state->pbn_div = 0;
+
+	drm_dbg_atomic(mgr->dev, "[MST MGR:%p] mst state %p TU pbn_div=%d avail=%d used=%d\n",
+		       mgr, mst_state, mst_state->pbn_div, avail_slots,
+		       mst_state->total_avail_slots - avail_slots);
 
 	return 0;
 }
@@ -5496,7 +5224,6 @@ EXPORT_SYMBOL(drm_dp_mst_add_affected_dsc_crtcs);
  * @state: Pointer to the new drm_atomic_state
  * @port: Pointer to the affected MST Port
  * @pbn: Newly recalculated bw required for link with DSC enabled
- * @pbn_div: Divider to calculate correct number of pbn per slot
  * @enable: Boolean flag to enable or disable DSC on the port
  *
  * This function enables DSC on the given Port
@@ -5507,8 +5234,7 @@ EXPORT_SYMBOL(drm_dp_mst_add_affected_dsc_crtcs);
  */
 int drm_dp_mst_atomic_enable_dsc(struct drm_atomic_state *state,
 				 struct drm_dp_mst_port *port,
-				 int pbn, int pbn_div,
-				 bool enable)
+				 int pbn, bool enable)
 {
 	struct drm_dp_mst_topology_state *mst_state;
 	struct drm_dp_mst_atomic_payload *payload;
@@ -5534,7 +5260,7 @@ int drm_dp_mst_atomic_enable_dsc(struct drm_atomic_state *state,
 	}
 
 	if (enable) {
-		time_slots = drm_dp_atomic_find_time_slots(state, port->mgr, port, pbn, pbn_div);
+		time_slots = drm_dp_atomic_find_time_slots(state, port->mgr, port, pbn);
 		drm_dbg_atomic(state->dev,
 			       "[MST PORT:%p] Enabling DSC flag, reallocating %d time slots on the port\n",
 			       port, time_slots);
@@ -5547,6 +5273,7 @@ int drm_dp_mst_atomic_enable_dsc(struct drm_atomic_state *state,
 	return time_slots;
 }
 EXPORT_SYMBOL(drm_dp_mst_atomic_enable_dsc);
+
 /**
  * drm_dp_mst_atomic_check - Check that the new state of an MST topology in an
  * atomic update is valid
@@ -5604,7 +5331,6 @@ EXPORT_SYMBOL(drm_dp_mst_topology_state_funcs);
 
 /**
  * drm_atomic_get_mst_topology_state: get MST topology state
- *
  * @state: global atomic state
  * @mgr: MST topology manager, also the private object in this case
  *
@@ -5624,14 +5350,37 @@ struct drm_dp_mst_topology_state *drm_atomic_get_mst_topology_state(struct drm_a
 EXPORT_SYMBOL(drm_atomic_get_mst_topology_state);
 
 /**
+ * drm_atomic_get_new_mst_topology_state: get new MST topology state in atomic state, if any
+ * @state: global atomic state
+ * @mgr: MST topology manager, also the private object in this case
+ *
+ * This function wraps drm_atomic_get_priv_obj_state() passing in the MST atomic
+ * state vtable so that the private object state returned is that of a MST
+ * topology object.
+ *
+ * Returns:
+ *
+ * The MST topology state, or NULL if there's no topology state for this MST mgr
+ * in the global atomic state
+ */
+struct drm_dp_mst_topology_state *
+drm_atomic_get_new_mst_topology_state(struct drm_atomic_state *state,
+				      struct drm_dp_mst_topology_mgr *mgr)
+{
+	struct drm_private_state *priv_state =
+		drm_atomic_get_new_private_obj_state(state, &mgr->base);
+
+	return priv_state ? to_dp_mst_topology_state(priv_state) : NULL;
+}
+EXPORT_SYMBOL(drm_atomic_get_new_mst_topology_state);
+
+/**
  * drm_dp_mst_topology_mgr_init - initialise a topology manager
  * @mgr: manager struct to initialise
  * @dev: device providing this structure - for i2c addition.
  * @aux: DP helper aux channel to talk to this device
  * @max_dpcd_transaction_bytes: hw specific DPCD transaction limit
  * @max_payloads: maximum number of payloads this GPU can source
- * @max_lane_count: maximum number of lanes this GPU supports
- * @max_link_rate: maximum link rate per lane this GPU supports in kHz
  * @conn_base_id: the connector object ID the MST device is connected to.
  *
  * Return 0 for success, or negative error code on failure
@@ -5639,14 +5388,12 @@ EXPORT_SYMBOL(drm_atomic_get_mst_topology_state);
 int drm_dp_mst_topology_mgr_init(struct drm_dp_mst_topology_mgr *mgr,
 				 struct drm_device *dev, struct drm_dp_aux *aux,
 				 int max_dpcd_transaction_bytes, int max_payloads,
-				 int max_lane_count, int max_link_rate,
 				 int conn_base_id)
 {
 	struct drm_dp_mst_topology_state *mst_state;
 
 	mutex_init(&mgr->lock);
 	mutex_init(&mgr->qlock);
-	mutex_init(&mgr->payload_lock);
 	mutex_init(&mgr->delayed_destroy_lock);
 	mutex_init(&mgr->up_req_lock);
 	mutex_init(&mgr->probe_lock);
@@ -5676,19 +5423,7 @@ int drm_dp_mst_topology_mgr_init(struct drm_dp_mst_topology_mgr *mgr,
 	mgr->aux = aux;
 	mgr->max_dpcd_transaction_bytes = max_dpcd_transaction_bytes;
 	mgr->max_payloads = max_payloads;
-	mgr->max_lane_count = max_lane_count;
-	mgr->max_link_rate = max_link_rate;
 	mgr->conn_base_id = conn_base_id;
-	if (max_payloads + 1 > sizeof(mgr->payload_mask) * 8 ||
-	    max_payloads + 1 > sizeof(mgr->vcpi_mask) * 8)
-		return -EINVAL;
-	mgr->payloads = kcalloc(max_payloads, sizeof(struct drm_dp_payload), GFP_KERNEL);
-	if (!mgr->payloads)
-		return -ENOMEM;
-	mgr->proposed_vcpis = kcalloc(max_payloads, sizeof(struct drm_dp_vcpi *), GFP_KERNEL);
-	if (!mgr->proposed_vcpis)
-		return -ENOMEM;
-	set_bit(0, &mgr->payload_mask);
 
 	mst_state = kzalloc(sizeof(*mst_state), GFP_KERNEL);
 	if (mst_state == NULL)
@@ -5721,19 +5456,12 @@ void drm_dp_mst_topology_mgr_destroy(struct drm_dp_mst_topology_mgr *mgr)
 		destroy_workqueue(mgr->delayed_destroy_wq);
 		mgr->delayed_destroy_wq = NULL;
 	}
-	mutex_lock(&mgr->payload_lock);
-	kfree(mgr->payloads);
-	mgr->payloads = NULL;
-	kfree(mgr->proposed_vcpis);
-	mgr->proposed_vcpis = NULL;
-	mutex_unlock(&mgr->payload_lock);
 	mgr->dev = NULL;
 	mgr->aux = NULL;
 	drm_atomic_private_obj_fini(&mgr->base);
 	mgr->funcs = NULL;
 
 	mutex_destroy(&mgr->delayed_destroy_lock);
-	mutex_destroy(&mgr->payload_lock);
 	mutex_destroy(&mgr->qlock);
 	mutex_destroy(&mgr->lock);
 	mutex_destroy(&mgr->up_req_lock);

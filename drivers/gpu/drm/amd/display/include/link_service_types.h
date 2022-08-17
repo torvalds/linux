@@ -251,6 +251,9 @@ union dpcd_training_lane_set {
  * _ONLY_ be filled out from DM and then passed to DC, do NOT use these for _any_ kind of atomic
  * state calculations in DM, or you will break something.
  */
+
+struct drm_dp_mst_port;
+
 /* DP MST stream allocation (payload bandwidth number) */
 struct dc_dp_mst_stream_allocation {
 	uint8_t vcp_id;
