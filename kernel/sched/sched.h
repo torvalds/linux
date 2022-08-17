@@ -1203,6 +1203,11 @@ static inline u64 rq_clock_task_mult(struct rq *rq)
 
 	return per_cpu(clock_task_mult, cpu_of(rq));
 }
+#else
+static inline u64 rq_clock_task_mult(struct rq *rq)
+{
+	return rq_clock_task(rq);
+}
 #endif
 
 /**
