@@ -5425,6 +5425,41 @@ out:
 	return ret;
 }
 
+/*
+ * Check if we need to log an inode. This is used in contexts where while
+ * logging an inode we need to log another inode (either that it exists or in
+ * full mode). This is used instead of btrfs_inode_in_log() because the later
+ * requires the inode to be in the log and have the log transaction committed,
+ * while here we do not care if the log transaction was already committed - our
+ * caller will commit the log later - and we want to avoid logging an inode
+ * multiple times when multiple tasks have joined the same log transaction.
+ */
+static bool need_log_inode(const struct btrfs_trans_handle *trans,
+			   const struct btrfs_inode *inode)
+{
+	/*
+	 * If a directory was not modified, no dentries added or removed, we can
+	 * and should avoid logging it.
+	 */
+	if (S_ISDIR(inode->vfs_inode.i_mode) && inode->last_trans < trans->transid)
+		return false;
+
+	/*
+	 * If this inode does not have new/updated/deleted xattrs since the last
+	 * time it was logged and is flagged as logged in the current transaction,
+	 * we can skip logging it. As for new/deleted names, those are updated in
+	 * the log by link/unlink/rename operations.
+	 * In case the inode was logged and then evicted and reloaded, its
+	 * logged_trans will be 0, in which case we have to fully log it since
+	 * logged_trans is a transient field, not persisted.
+	 */
+	if (inode->logged_trans == trans->transid &&
+	    !test_bit(BTRFS_INODE_COPY_EVERYTHING, &inode->runtime_flags))
+		return false;
+
+	return true;
+}
+
 struct btrfs_ino_list {
 	u64 ino;
 	u64 parent;
@@ -6059,41 +6094,6 @@ out:
 		ctx->logged_before = orig_logged_before;
 
 	return ret;
-}
-
-/*
- * Check if we need to log an inode. This is used in contexts where while
- * logging an inode we need to log another inode (either that it exists or in
- * full mode). This is used instead of btrfs_inode_in_log() because the later
- * requires the inode to be in the log and have the log transaction committed,
- * while here we do not care if the log transaction was already committed - our
- * caller will commit the log later - and we want to avoid logging an inode
- * multiple times when multiple tasks have joined the same log transaction.
- */
-static bool need_log_inode(struct btrfs_trans_handle *trans,
-			   struct btrfs_inode *inode)
-{
-	/*
-	 * If a directory was not modified, no dentries added or removed, we can
-	 * and should avoid logging it.
-	 */
-	if (S_ISDIR(inode->vfs_inode.i_mode) && inode->last_trans < trans->transid)
-		return false;
-
-	/*
-	 * If this inode does not have new/updated/deleted xattrs since the last
-	 * time it was logged and is flagged as logged in the current transaction,
-	 * we can skip logging it. As for new/deleted names, those are updated in
-	 * the log by link/unlink/rename operations.
-	 * In case the inode was logged and then evicted and reloaded, its
-	 * logged_trans will be 0, in which case we have to fully log it since
-	 * logged_trans is a transient field, not persisted.
-	 */
-	if (inode->logged_trans == trans->transid &&
-	    !test_bit(BTRFS_INODE_COPY_EVERYTHING, &inode->runtime_flags))
-		return false;
-
-	return true;
 }
 
 struct btrfs_dir_list {
