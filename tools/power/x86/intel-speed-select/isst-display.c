@@ -682,8 +682,7 @@ void isst_display_result(struct isst_id *id, FILE *outf, char *feature, char *cm
 	char value[256];
 	int level = 3;
 
-	if (id->cpu >= 0)
-		level = print_package_info(id, outf);
+	level = print_package_info(id, outf);
 
 	snprintf(header, sizeof(header), "%s", feature);
 	format_and_print(outf, level + 1, header, NULL);
