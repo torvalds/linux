@@ -237,7 +237,6 @@ static int sof_compr_set_params(struct snd_soc_component *component,
 		goto out;
 	}
 
-	tstamp->byte_offset = sdev->stream_box.offset + ipc_params_reply.posn_offset;
 	tstamp->sampling_rate = params->codec.sample_rate;
 
 	spcm->prepared[cstream->direction] = true;
