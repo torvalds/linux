@@ -1000,6 +1000,33 @@ size_t __ksize(const void *object)
 	return slab_ksize(folio_slab(folio)->slab_cache);
 }
 EXPORT_SYMBOL(__ksize);
+
+#ifdef CONFIG_TRACING
+void *kmalloc_trace(struct kmem_cache *s, gfp_t gfpflags, size_t size)
+{
+	void *ret = __kmem_cache_alloc_node(s, gfpflags, NUMA_NO_NODE,
+					    size, _RET_IP_);
+
+	trace_kmalloc_node(_RET_IP_, ret, s, size, s->size,
+			   gfpflags, NUMA_NO_NODE);
+
+	ret = kasan_kmalloc(s, ret, size, gfpflags);
+	return ret;
+}
+EXPORT_SYMBOL(kmalloc_trace);
+
+void *kmalloc_node_trace(struct kmem_cache *s, gfp_t gfpflags,
+			 int node, size_t size)
+{
+	void *ret = __kmem_cache_alloc_node(s, gfpflags, node, size, _RET_IP_);
+
+	trace_kmalloc_node(_RET_IP_, ret, s, size, s->size, gfpflags, node);
+
+	ret = kasan_kmalloc(s, ret, size, gfpflags);
+	return ret;
+}
+EXPORT_SYMBOL(kmalloc_node_trace);
+#endif /* !CONFIG_TRACING */
 #endif /* !CONFIG_SLOB */
 
 gfp_t kmalloc_fix_flags(gfp_t flags)
