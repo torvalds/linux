@@ -124,28 +124,49 @@ static int tsnep_mdiobus_write(struct mii_bus *bus, int addr, int regnum,
 	return 0;
 }
 
+static void tsnep_set_link_mode(struct tsnep_adapter *adapter)
+{
+	u32 mode;
+
+	switch (adapter->phydev->speed) {
+	case SPEED_100:
+		mode = ECM_LINK_MODE_100;
+		break;
+	case SPEED_1000:
+		mode = ECM_LINK_MODE_1000;
+		break;
+	default:
+		mode = ECM_LINK_MODE_OFF;
+		break;
+	}
+	iowrite32(mode, adapter->addr + ECM_STATUS);
+}
+
 static void tsnep_phy_link_status_change(struct net_device *netdev)
 {
 	struct tsnep_adapter *adapter = netdev_priv(netdev);
 	struct phy_device *phydev = netdev->phydev;
-	u32 mode;
 
-	if (phydev->link) {
-		switch (phydev->speed) {
-		case SPEED_100:
-			mode = ECM_LINK_MODE_100;
-			break;
-		case SPEED_1000:
-			mode = ECM_LINK_MODE_1000;
-			break;
-		default:
-			mode = ECM_LINK_MODE_OFF;
-			break;
-		}
-		iowrite32(mode, adapter->addr + ECM_STATUS);
-	}
+	if (phydev->link)
+		tsnep_set_link_mode(adapter);
 
 	phy_print_status(netdev->phydev);
+}
+
+static int tsnep_phy_loopback(struct tsnep_adapter *adapter, bool enable)
+{
+	int retval;
+
+	retval = phy_loopback(adapter->phydev, enable);
+
+	/* PHY link state change is not signaled if loopback is enabled, it
+	 * would delay a working loopback anyway, let's ensure that loopback
+	 * is working immediately by setting link mode directly
+	 */
+	if (!retval && enable)
+		tsnep_set_link_mode(adapter);
+
+	return retval;
 }
 
 static int tsnep_phy_open(struct tsnep_adapter *adapter)
@@ -1017,6 +1038,22 @@ static int tsnep_netdev_set_mac_address(struct net_device *netdev, void *addr)
 	return 0;
 }
 
+static int tsnep_netdev_set_features(struct net_device *netdev,
+				     netdev_features_t features)
+{
+	struct tsnep_adapter *adapter = netdev_priv(netdev);
+	netdev_features_t changed = netdev->features ^ features;
+	bool enable;
+	int retval = 0;
+
+	if (changed & NETIF_F_LOOPBACK) {
+		enable = !!(features & NETIF_F_LOOPBACK);
+		retval = tsnep_phy_loopback(adapter, enable);
+	}
+
+	return retval;
+}
+
 static ktime_t tsnep_netdev_get_tstamp(struct net_device *netdev,
 				       const struct skb_shared_hwtstamps *hwtstamps,
 				       bool cycles)
@@ -1038,9 +1075,9 @@ static const struct net_device_ops tsnep_netdev_ops = {
 	.ndo_start_xmit = tsnep_netdev_xmit_frame,
 	.ndo_eth_ioctl = tsnep_netdev_ioctl,
 	.ndo_set_rx_mode = tsnep_netdev_set_multicast,
-
 	.ndo_get_stats64 = tsnep_netdev_get_stats64,
 	.ndo_set_mac_address = tsnep_netdev_set_mac_address,
+	.ndo_set_features = tsnep_netdev_set_features,
 	.ndo_get_tstamp = tsnep_netdev_get_tstamp,
 	.ndo_setup_tc = tsnep_tc_setup,
 };
@@ -1225,7 +1262,7 @@ static int tsnep_probe(struct platform_device *pdev)
 	netdev->netdev_ops = &tsnep_netdev_ops;
 	netdev->ethtool_ops = &tsnep_ethtool_ops;
 	netdev->features = NETIF_F_SG;
-	netdev->hw_features = netdev->features;
+	netdev->hw_features = netdev->features | NETIF_F_LOOPBACK;
 
 	/* carrier off reporting is important to ethtool even BEFORE open */
 	netif_carrier_off(netdev);
