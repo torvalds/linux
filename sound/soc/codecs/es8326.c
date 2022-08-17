@@ -207,7 +207,7 @@ static const struct regmap_access_table es8326_volatile_table = {
 	.n_yes_ranges = ARRAY_SIZE(es8326_volatile_ranges),
 };
 
-const struct regmap_config es8326_regmap_config = {
+static const struct regmap_config es8326_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
 	.max_register = 0xff,
