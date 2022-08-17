@@ -205,6 +205,7 @@ extern int isst_send_msr_command(unsigned int cpu, unsigned int command,
 
 extern int isst_get_trl_max_levels(void);
 extern char *isst_get_trl_level_name(int level);
+extern int isst_is_punit_valid(struct isst_id *id);
 
 extern int isst_get_ctdp_levels(struct isst_id *id, struct isst_pkg_ctdp *pkg_dev);
 extern int isst_get_ctdp_control(struct isst_id *id, int config_index,

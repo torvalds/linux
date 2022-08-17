@@ -25,6 +25,17 @@ char *isst_get_trl_level_name(int level)
 	}
 }
 
+int isst_is_punit_valid(struct isst_id *id)
+{
+	if (id->cpu < 0)
+		return 0;
+
+	if (id->pkg < 0 || id->die < 0 || id->punit)
+		return 0;
+
+	return 1;
+}
+
 int isst_write_pm_config(struct isst_id *id, int cp_state)
 {
 	unsigned int req, resp;
