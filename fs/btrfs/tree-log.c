@@ -6109,10 +6109,10 @@ struct btrfs_dir_list {
  *    do_overwrite_item()).
  */
 static int log_new_dir_dentries(struct btrfs_trans_handle *trans,
-				struct btrfs_root *root,
 				struct btrfs_inode *start_inode,
 				struct btrfs_log_ctx *ctx)
 {
+	struct btrfs_root *root = start_inode->root;
 	struct btrfs_fs_info *fs_info = root->fs_info;
 	struct btrfs_path *path;
 	LIST_HEAD(dir_list);
@@ -6339,7 +6339,7 @@ static int btrfs_log_all_parents(struct btrfs_trans_handle *trans,
 			ret = btrfs_log_inode(trans, BTRFS_I(dir_inode),
 					      LOG_INODE_ALL, ctx);
 			if (!ret && ctx->log_new_dentries)
-				ret = log_new_dir_dentries(trans, root,
+				ret = log_new_dir_dentries(trans,
 						   BTRFS_I(dir_inode), ctx);
 			btrfs_add_delayed_iput(dir_inode);
 			if (ret)
@@ -6654,7 +6654,7 @@ static int btrfs_log_inode_parent(struct btrfs_trans_handle *trans,
 		goto end_trans;
 
 	if (log_dentries)
-		ret = log_new_dir_dentries(trans, root, inode, ctx);
+		ret = log_new_dir_dentries(trans, inode, ctx);
 	else
 		ret = 0;
 end_trans:
