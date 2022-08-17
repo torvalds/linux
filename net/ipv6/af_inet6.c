@@ -1057,6 +1057,7 @@ static const struct ipv6_stub ipv6_stub_impl = {
 static const struct ipv6_bpf_stub ipv6_bpf_stub_impl = {
 	.inet6_bind = __inet6_bind,
 	.udp6_lib_lookup = __udp6_lib_lookup,
+	.ipv6_setsockopt = do_ipv6_setsockopt,
 };
 
 static int __init inet6_init(void)
