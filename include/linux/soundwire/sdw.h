@@ -839,6 +839,8 @@ struct sdw_defer {
  * @set_bus_conf: Set the bus configuration
  * @pre_bank_switch: Callback for pre bank switch
  * @post_bank_switch: Callback for post bank switch
+ * @read_ping_status: Read status from PING frames, reported with two bits per Device.
+ * Bits 31:24 are reserved.
  */
 struct sdw_master_ops {
 	int (*read_prop)(struct sdw_bus *bus);
@@ -855,6 +857,7 @@ struct sdw_master_ops {
 			struct sdw_bus_params *params);
 	int (*pre_bank_switch)(struct sdw_bus *bus);
 	int (*post_bank_switch)(struct sdw_bus *bus);
+	u32 (*read_ping_status)(struct sdw_bus *bus);
 
 };
 
@@ -918,6 +921,8 @@ struct sdw_bus {
 int sdw_bus_master_add(struct sdw_bus *bus, struct device *parent,
 		       struct fwnode_handle *fwnode);
 void sdw_bus_master_delete(struct sdw_bus *bus);
+
+void sdw_show_ping_status(struct sdw_bus *bus, bool sync_delay);
 
 /**
  * sdw_port_config: Master or Slave Port configuration
