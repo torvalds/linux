@@ -4440,6 +4440,14 @@ static void android_rvh_build_perf_domains(void *unused, bool *eas_check)
 	*eas_check = true;
 }
 
+static DECLARE_COMPLETION(rebuild_domains_completion);
+static void rebuild_sd_workfn(struct work_struct *work)
+{
+	rebuild_sched_domains();
+	complete(&rebuild_domains_completion);
+}
+static DECLARE_WORK(rebuild_sd_work, rebuild_sd_workfn);
+
 static void walt_do_sched_yield(void *unused, struct rq *rq)
 {
 	struct task_struct *curr = rq->curr;
@@ -4573,6 +4581,8 @@ static void walt_init(struct work_struct *work)
 	walt_cfs_init();
 	walt_halt_init();
 	wait_for_completion_interruptible(&tick_sched_clock_completion);
+	schedule_work(&rebuild_sd_work);
+	wait_for_completion_interruptible(&rebuild_domains_completion);
 	stop_machine(walt_init_stop_handler, NULL, NULL);
 
 	hdr = register_sysctl_table(walt_base_table);
