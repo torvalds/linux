@@ -127,7 +127,7 @@ struct mtk_smi_common_plat {
 
 struct mtk_smi_larb_gen {
 	int port_in_larb[MTK_LARB_NR_MAX + 1];
-	void (*config_port)(struct device *dev);
+	int				(*config_port)(struct device *dev);
 	unsigned int			larb_direct_to_common_mask;
 	unsigned int			flags_general;
 	const u8			(*ostd)[SMI_LARB_PORT_NR_MAX];
@@ -185,7 +185,7 @@ static const struct component_ops mtk_smi_larb_component_ops = {
 	.unbind = mtk_smi_larb_unbind,
 };
 
-static void mtk_smi_larb_config_port_gen1(struct device *dev)
+static int mtk_smi_larb_config_port_gen1(struct device *dev)
 {
 	struct mtk_smi_larb *larb = dev_get_drvdata(dev);
 	const struct mtk_smi_larb_gen *larb_gen = larb->larb_gen;
@@ -214,23 +214,26 @@ static void mtk_smi_larb_config_port_gen1(struct device *dev)
 			common->smi_ao_base
 			+ REG_SMI_SECUR_CON_ADDR(m4u_port_id));
 	}
+	return 0;
 }
 
-static void mtk_smi_larb_config_port_mt8167(struct device *dev)
+static int mtk_smi_larb_config_port_mt8167(struct device *dev)
 {
 	struct mtk_smi_larb *larb = dev_get_drvdata(dev);
 
 	writel(*larb->mmu, larb->base + MT8167_SMI_LARB_MMU_EN);
+	return 0;
 }
 
-static void mtk_smi_larb_config_port_mt8173(struct device *dev)
+static int mtk_smi_larb_config_port_mt8173(struct device *dev)
 {
 	struct mtk_smi_larb *larb = dev_get_drvdata(dev);
 
 	writel(*larb->mmu, larb->base + MT8173_SMI_LARB_MMU_EN);
+	return 0;
 }
 
-static void mtk_smi_larb_config_port_gen2_general(struct device *dev)
+static int mtk_smi_larb_config_port_gen2_general(struct device *dev)
 {
 	struct mtk_smi_larb *larb = dev_get_drvdata(dev);
 	u32 reg, flags_general = larb->larb_gen->flags_general;
@@ -238,7 +241,7 @@ static void mtk_smi_larb_config_port_gen2_general(struct device *dev)
 	int i;
 
 	if (BIT(larb->larbid) & larb->larb_gen->larb_direct_to_common_mask)
-		return;
+		return 0;
 
 	if (MTK_SMI_CAPS(flags_general, MTK_SMI_FLAG_THRT_UPDATE)) {
 		reg = readl_relaxed(larb->base + SMI_LARB_CMD_THRT_CON);
@@ -259,6 +262,7 @@ static void mtk_smi_larb_config_port_gen2_general(struct device *dev)
 		reg |= BANK_SEL(larb->bank[i]);
 		writel(reg, larb->base + SMI_LARB_NONSEC_CON(i));
 	}
+	return 0;
 }
 
 static const u8 mtk_smi_larb_mt8195_ostd[][SMI_LARB_PORT_NR_MAX] = {
@@ -511,9 +515,7 @@ static int __maybe_unused mtk_smi_larb_resume(struct device *dev)
 		mtk_smi_larb_sleep_ctrl_disable(larb);
 
 	/* Configure the basic setting for this larb */
-	larb_gen->config_port(dev);
-
-	return 0;
+	return larb_gen->config_port(dev);
 }
 
 static int __maybe_unused mtk_smi_larb_suspend(struct device *dev)
