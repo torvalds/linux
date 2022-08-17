@@ -6,8 +6,6 @@
 #include "lan966x_main.h"
 
 static struct notifier_block lan966x_netdevice_nb __read_mostly;
-static struct notifier_block lan966x_switchdev_nb __read_mostly;
-static struct notifier_block lan966x_switchdev_blocking_nb __read_mostly;
 
 static void lan966x_port_set_mcast_ip_flood(struct lan966x_port *port,
 					    u32 pgid_ip)
@@ -572,11 +570,11 @@ static struct notifier_block lan966x_netdevice_nb __read_mostly = {
 	.notifier_call = lan966x_netdevice_event,
 };
 
-static struct notifier_block lan966x_switchdev_nb __read_mostly = {
+struct notifier_block lan966x_switchdev_nb __read_mostly = {
 	.notifier_call = lan966x_switchdev_event,
 };
 
-static struct notifier_block lan966x_switchdev_blocking_nb __read_mostly = {
+struct notifier_block lan966x_switchdev_blocking_nb __read_mostly = {
 	.notifier_call = lan966x_switchdev_blocking_event,
 };
 
