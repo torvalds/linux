@@ -611,7 +611,6 @@ void bch2_btree_node_drop_keys_outside_node(struct btree *b)
 					  (u64 *) vstruct_end(i) - (u64 *) k);
 			i->u64s = cpu_to_le16(le16_to_cpu(i->u64s) - shift);
 			set_btree_bset_end(b, t);
-			bch2_bset_set_no_aux_tree(b, t);
 		}
 
 		for (k = i->start; k != vstruct_last(i); k = bkey_next(k))
@@ -621,10 +620,14 @@ void bch2_btree_node_drop_keys_outside_node(struct btree *b)
 		if (k != vstruct_last(i)) {
 			i->u64s = cpu_to_le16((u64 *) k - (u64 *) i->start);
 			set_btree_bset_end(b, t);
-			bch2_bset_set_no_aux_tree(b, t);
 		}
 	}
 
+	/*
+	 * Always rebuild search trees: eytzinger search tree nodes directly
+	 * depend on the values of min/max key:
+	 */
+	bch2_bset_set_no_aux_tree(b, b->set);
 	bch2_btree_build_aux_trees(b);
 
 	for_each_btree_node_key_unpack(b, k, &iter, &unpacked) {
