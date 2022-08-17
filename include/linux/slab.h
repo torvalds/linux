@@ -491,6 +491,10 @@ static __always_inline void *kmem_cache_alloc_node_trace(struct kmem_cache *s, g
 
 void *kmalloc_large(size_t size, gfp_t flags) __assume_page_alignment
 					      __alloc_size(1);
+
+void *kmalloc_large_node(size_t size, gfp_t flags, int node) __assume_page_alignment
+							     __alloc_size(1);
+
 /**
  * kmalloc - allocate memory
  * @size: how many bytes of memory are required.
