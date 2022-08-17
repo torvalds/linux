@@ -403,7 +403,7 @@ static int cs42l42_slow_start_put(struct snd_kcontrol *kcontrol,
 	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
 	u8 val;
 
-	/* all bits of SLOW_START_EN much change together */
+	/* all bits of SLOW_START_EN must change together */
 	switch (ucontrol->value.integer.value[0]) {
 	case 0:
 		val = 0;
