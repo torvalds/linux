@@ -170,8 +170,54 @@ static void test_tdm_params_to_bclk(struct kunit *test)
 	}
 }
 
+static void test_snd_soc_params_to_bclk_one(struct kunit *test,
+					    unsigned int rate, snd_pcm_format_t fmt,
+					    unsigned int channels,
+					    unsigned int expected_bclk)
+{
+	struct snd_pcm_hw_params params;
+	int got_bclk;
+
+	_snd_pcm_hw_params_any(&params);
+	snd_mask_none(hw_param_mask(&params, SNDRV_PCM_HW_PARAM_FORMAT));
+	hw_param_interval(&params, SNDRV_PCM_HW_PARAM_RATE)->min = rate;
+	hw_param_interval(&params, SNDRV_PCM_HW_PARAM_RATE)->max = rate;
+	hw_param_interval(&params, SNDRV_PCM_HW_PARAM_CHANNELS)->min = channels;
+	hw_param_interval(&params, SNDRV_PCM_HW_PARAM_CHANNELS)->max = channels;
+	params_set_format(&params, fmt);
+
+	got_bclk = snd_soc_params_to_bclk(&params);
+	pr_debug("%s: r=%u sb=%u ch=%u expected=%u got=%d\n",
+		 __func__,
+		 rate, params_width(&params), channels, expected_bclk, got_bclk);
+	KUNIT_ASSERT_EQ(test, expected_bclk, (unsigned int)got_bclk);
+}
+
+static void test_snd_soc_params_to_bclk(struct kunit *test)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(tdm_params_to_bclk_cases); ++i) {
+		/*
+		 * snd_soc_params_to_bclk() is all the test cases where
+		 * snd_pcm_hw_params values are not overridden.
+		 */
+		if (tdm_params_to_bclk_cases[i].tdm_width |
+		    tdm_params_to_bclk_cases[i].tdm_slots |
+		    tdm_params_to_bclk_cases[i].slot_multiple)
+			continue;
+
+		test_snd_soc_params_to_bclk_one(test,
+						tdm_params_to_bclk_cases[i].rate,
+						tdm_params_to_bclk_cases[i].fmt,
+						tdm_params_to_bclk_cases[i].channels,
+						tdm_params_to_bclk_cases[i].bclk);
+	}
+}
+
 static struct kunit_case soc_utils_test_cases[] = {
 	KUNIT_CASE(test_tdm_params_to_bclk),
+	KUNIT_CASE(test_snd_soc_params_to_bclk),
 	{}
 };
 
