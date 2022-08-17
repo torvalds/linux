@@ -4,6 +4,7 @@ config LAN966X_SWITCH
 	depends on HAS_IOMEM
 	depends on OF
 	depends on NET_SWITCHDEV
+	depends on BRIDGE || BRIDGE=n
 	select PHYLINK
 	select PACKING
 	help
