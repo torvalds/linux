@@ -1150,9 +1150,9 @@ static int rk3x_i2c_setup(struct rk3x_i2c *i2c, struct i2c_msg *msgs, int num)
 	return ret;
 }
 
-static int rk3x_i2c_wait_xfer_poll(struct rk3x_i2c *i2c)
+static int rk3x_i2c_wait_xfer_poll(struct rk3x_i2c *i2c, unsigned long xfer_time)
 {
-	ktime_t timeout = ktime_add_ms(ktime_get(), WAIT_TIMEOUT);
+	ktime_t timeout = ktime_add_ms(ktime_get(), xfer_time);
 
 	while (READ_ONCE(i2c->busy) &&
 	       ktime_compare(ktime_get(), timeout) < 0) {
@@ -1187,12 +1187,26 @@ static int rk3x_i2c_xfer_common(struct i2c_adapter *adap,
 	 * rk3x_i2c_setup()).
 	 */
 	for (i = 0; i < num; i += ret) {
-		ret = rk3x_i2c_setup(i2c, msgs + i, num - i);
+		unsigned long xfer_time = 100;
+		int len;
 
+		ret = rk3x_i2c_setup(i2c, msgs + i, num - i);
 		if (ret < 0) {
 			dev_err(i2c->dev, "rk3x_i2c_setup() failed\n");
 			break;
 		}
+
+		/*
+		 * Transfer time in mSec = Total bits / transfer rate + interval time
+		 * Total bits = 9 bits per byte (including ACK bit) + Start & stop bits
+		 */
+		if (ret == 2)
+			len = msgs[i + 1].len;
+		else
+			len = msgs[i].len;
+		xfer_time += len / 64;
+		xfer_time += DIV_ROUND_CLOSEST(((len * 9) + 2) * MSEC_PER_SEC,
+					       i2c->t.bus_freq_hz);
 
 		if (i + ret >= num)
 			i2c->is_last_msg = true;
@@ -1203,9 +1217,9 @@ static int rk3x_i2c_xfer_common(struct i2c_adapter *adap,
 
 		if (!polling) {
 			timeout = wait_event_timeout(i2c->wait, !i2c->busy,
-						     msecs_to_jiffies(WAIT_TIMEOUT));
+						     msecs_to_jiffies(xfer_time));
 		} else {
-			timeout = rk3x_i2c_wait_xfer_poll(i2c);
+			timeout = rk3x_i2c_wait_xfer_poll(i2c, xfer_time);
 		}
 
 		spin_lock_irqsave(&i2c->lock, flags);
