@@ -1751,6 +1751,8 @@ static inline void unlock_sock_fast(struct sock *sk, bool slow)
 
 void sockopt_lock_sock(struct sock *sk);
 void sockopt_release_sock(struct sock *sk);
+bool sockopt_ns_capable(struct user_namespace *ns, int cap);
+bool sockopt_capable(int cap);
 
 /* Used by processes to "lock" a socket state, so that
  * interrupts and bottom half handlers won't change it
