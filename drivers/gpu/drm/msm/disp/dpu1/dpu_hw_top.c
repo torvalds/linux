@@ -285,10 +285,7 @@ static const struct dpu_mdp_cfg *_top_offset(enum dpu_mdp mdp,
 
 	for (i = 0; i < m->mdp_count; i++) {
 		if (mdp == m->mdp[i].id) {
-			b->base_off = addr;
-			b->blk_off = m->mdp[i].base;
-			b->length = m->mdp[i].len;
-			b->hwversion = m->hwversion;
+			b->blk_addr = addr + m->mdp[i].base;
 			b->log_mask = DPU_DBG_MASK_TOP;
 			return &m->mdp[i];
 		}

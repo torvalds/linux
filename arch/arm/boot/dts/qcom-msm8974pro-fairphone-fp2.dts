@@ -3,6 +3,7 @@
 #include "qcom-pm8841.dtsi"
 #include "qcom-pm8941.dtsi"
 #include <dt-bindings/input/input.h>
+#include <dt-bindings/leds/common.h>
 #include <dt-bindings/pinctrl/qcom,pmic-gpio.h>
 
 / {
@@ -25,7 +26,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&gpio_keys_pin_a>;
 
-		camera-snapshot {
+		key-camera-snapshot {
 			label = "camera_snapshot";
 			gpios = <&pm8941_gpios 1 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_CAMERA>;
@@ -33,7 +34,7 @@
 			debounce-interval = <15>;
 		};
 
-		volume-down {
+		key-volume-down {
 			label = "volume_down";
 			gpios = <&pm8941_gpios 2 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_VOLUMEDOWN>;
@@ -41,7 +42,7 @@
 			debounce-interval = <15>;
 		};
 
-		volume-up {
+		key-volume-up {
 			label = "volume_up";
 			gpios = <&pm8941_gpios 5 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_VOLUMEUP>;
@@ -78,9 +79,9 @@
 
 &imem {
 	reboot-mode {
-		mode-normal	= <0x77665501>;
-		mode-bootloader	= <0x77665500>;
-		mode-recovery	= <0x77665502>;
+		mode-normal = <0x77665501>;
+		mode-bootloader = <0x77665500>;
+		mode-recovery = <0x77665502>;
 	};
 };
 
@@ -110,12 +111,41 @@
 };
 
 &pm8941_gpios {
-	gpio_keys_pin_a: gpio-keys-active {
+	gpio_keys_pin_a: gpio-keys-active-state {
 		pins = "gpio1", "gpio2", "gpio5";
 		function = "normal";
 
 		bias-pull-up;
 		power-source = <PM8941_GPIO_S3>;
+	};
+};
+
+&pm8941_lpg {
+	status = "okay";
+
+	qcom,power-source = <1>;
+
+	multi-led {
+		color = <LED_COLOR_ID_RGB>;
+		function = LED_FUNCTION_STATUS;
+
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		led@7 {
+			reg = <7>;
+			color = <LED_COLOR_ID_RED>;
+		};
+
+		led@6 {
+			reg = <6>;
+			color = <LED_COLOR_ID_GREEN>;
+		};
+
+		led@5 {
+			reg = <5>;
+			color = <LED_COLOR_ID_BLUE>;
+		};
 	};
 };
 
@@ -147,10 +177,12 @@
 };
 
 &remoteproc_adsp {
+	status = "okay";
 	cx-supply = <&pm8841_s2>;
 };
 
 &remoteproc_mss {
+	status = "okay";
 	cx-supply = <&pm8841_s2>;
 	mss-supply = <&pm8841_s3>;
 	mx-supply = <&pm8841_s1>;

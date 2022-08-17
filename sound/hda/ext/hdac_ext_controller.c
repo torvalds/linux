@@ -15,13 +15,6 @@
 #include <sound/hdaudio_ext.h>
 
 /*
- * maximum HDAC capablities we should parse to avoid endless looping:
- * currently we have 4 extended caps, so this is future proof for now.
- * extend when this limit is seen meeting in real HW
- */
-#define HDAC_MAX_CAPS 10
-
-/*
  * processing pipe helpers - these helpers are useful for dealing with HDA
  * new capability of processing pipelines
  */

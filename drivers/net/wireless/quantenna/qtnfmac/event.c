@@ -189,7 +189,7 @@ qtnf_event_handle_bss_join(struct qtnf_vif *vif,
 			vif->mac->macid, vif->vifid,
 			join_info->bssid, chandef.chan->hw_value);
 
-		if (!vif->wdev.ssid_len) {
+		if (!vif->wdev.u.client.ssid_len) {
 			pr_warn("VIF%u.%u: SSID unknown for BSS:%pM\n",
 				vif->mac->macid, vif->vifid,
 				join_info->bssid);
@@ -197,7 +197,7 @@ qtnf_event_handle_bss_join(struct qtnf_vif *vif,
 			goto done;
 		}
 
-		ie = kzalloc(2 + vif->wdev.ssid_len, GFP_KERNEL);
+		ie = kzalloc(2 + vif->wdev.u.client.ssid_len, GFP_KERNEL);
 		if (!ie) {
 			pr_warn("VIF%u.%u: IE alloc failed for BSS:%pM\n",
 				vif->mac->macid, vif->vifid,
@@ -207,14 +207,15 @@ qtnf_event_handle_bss_join(struct qtnf_vif *vif,
 		}
 
 		ie[0] = WLAN_EID_SSID;
-		ie[1] = vif->wdev.ssid_len;
-		memcpy(ie + 2, vif->wdev.ssid, vif->wdev.ssid_len);
+		ie[1] = vif->wdev.u.client.ssid_len;
+		memcpy(ie + 2, vif->wdev.u.client.ssid,
+		       vif->wdev.u.client.ssid_len);
 
 		bss = cfg80211_inform_bss(wiphy, chandef.chan,
 					  CFG80211_BSS_FTYPE_UNKNOWN,
 					  join_info->bssid, 0,
 					  WLAN_CAPABILITY_ESS, 100,
-					  ie, 2 + vif->wdev.ssid_len,
+					  ie, 2 + vif->wdev.u.client.ssid_len,
 					  0, GFP_KERNEL);
 		if (!bss) {
 			pr_warn("VIF%u.%u: can't connect to unknown BSS: %pM\n",
@@ -470,14 +471,14 @@ qtnf_event_handle_freq_change(struct qtnf_wmac *mac,
 			continue;
 
 		if (vif->wdev.iftype == NL80211_IFTYPE_STATION &&
-		    !vif->wdev.current_bss)
+		    !vif->wdev.connected)
 			continue;
 
 		if (!vif->netdev)
 			continue;
 
 		mutex_lock(&vif->wdev.mtx);
-		cfg80211_ch_switch_notify(vif->netdev, &chandef);
+		cfg80211_ch_switch_notify(vif->netdev, &chandef, 0);
 		mutex_unlock(&vif->wdev.mtx);
 	}
 

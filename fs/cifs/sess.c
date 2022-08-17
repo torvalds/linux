@@ -474,6 +474,14 @@ cifs_ses_add_channel(struct cifs_sb_info *cifs_sb, struct cifs_ses *ses,
 
 out:
 	if (rc && chan->server) {
+		/*
+		 * we should avoid race with these delayed works before we
+		 * remove this channel
+		 */
+		cancel_delayed_work_sync(&chan->server->echo);
+		cancel_delayed_work_sync(&chan->server->resolve);
+		cancel_delayed_work_sync(&chan->server->reconnect);
+
 		spin_lock(&ses->chan_lock);
 		/* we rely on all bits beyond chan_count to be clear */
 		cifs_chan_clear_need_reconnect(ses, chan->server);
@@ -484,14 +492,14 @@ out:
 		 */
 		WARN_ON(ses->chan_count < 1);
 		spin_unlock(&ses->chan_lock);
-	}
 
-	if (rc && chan->server)
 		cifs_put_tcp_session(chan->server, 0);
+	}
 
 	return rc;
 }
 
+#ifdef CONFIG_CIFS_ALLOW_INSECURE_LEGACY
 static __u32 cifs_ssetup_hdr(struct cifs_ses *ses,
 			     struct TCP_Server_Info *server,
 			     SESSION_SETUP_ANDX *pSMB)
@@ -583,7 +591,6 @@ static void unicode_domain_string(char **pbcc_area, struct cifs_ses *ses,
 
 	*pbcc_area = bcc_ptr;
 }
-
 
 static void unicode_ssetup_strings(char **pbcc_area, struct cifs_ses *ses,
 				   const struct nls_table *nls_cp)
@@ -746,6 +753,7 @@ static void decode_ascii_ssetup(char **pbcc_area, __u16 bleft,
 	   for it later, but it is not very important */
 	cifs_dbg(FYI, "ascii: bytes left %d\n", bleft);
 }
+#endif /* CONFIG_CIFS_ALLOW_INSECURE_LEGACY */
 
 int decode_ntlmssp_challenge(char *bcc_ptr, int blob_len,
 				    struct cifs_ses *ses)
@@ -1163,6 +1171,7 @@ struct sess_data {
 	struct kvec iov[3];
 };
 
+#ifdef CONFIG_CIFS_ALLOW_INSECURE_LEGACY
 static int
 sess_alloc_buffer(struct sess_data *sess_data, int wct)
 {
@@ -1839,3 +1848,4 @@ out:
 	kfree(sess_data);
 	return rc;
 }
+#endif /* CONFIG_CIFS_ALLOW_INSECURE_LEGACY */

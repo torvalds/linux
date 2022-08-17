@@ -19,6 +19,8 @@
 #define _BUZ_H_
 
 #include <linux/debugfs.h>
+#include <linux/pci.h>
+#include <linux/i2c-algo-bit.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-ctrls.h>
 #include <media/videobuf2-core.h>
@@ -300,6 +302,18 @@ static inline struct zoran *to_zoran(struct v4l2_device *v4l2_dev)
 #define btaor(dat, mask, adr) btwrite((dat) | ((mask) & btread(adr)), adr)
 
 #endif
+
+/*
+ * Debugging macros
+ */
+#define zrdev_dbg(zr, format, args...) \
+	pci_dbg((zr)->pci_dev, format, ##args) \
+
+#define zrdev_err(zr, format, args...) \
+	pci_err((zr)->pci_dev, format, ##args) \
+
+#define zrdev_info(zr, format, args...) \
+	pci_info((zr)->pci_dev, format, ##args) \
 
 int zoran_queue_init(struct zoran *zr, struct vb2_queue *vq, int dir);
 void zoran_queue_exit(struct zoran *zr);

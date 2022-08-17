@@ -79,12 +79,27 @@ do the programming sequence for this particular FPGA.  These ops return 0 for
 success or negative error codes otherwise.
 
 The programming sequence is::
- 1. .write_init
- 2. .write or .write_sg (may be called once or multiple times)
- 3. .write_complete
+ 1. .parse_header (optional, may be called once or multiple times)
+ 2. .write_init
+ 3. .write or .write_sg (may be called once or multiple times)
+ 4. .write_complete
 
-The .write_init function will prepare the FPGA to receive the image data.  The
-buffer passed into .write_init will be at most .initial_header_size bytes long;
+The .parse_header function will set header_size and data_size to
+struct fpga_image_info. Before parse_header call, header_size is initialized
+with initial_header_size. If flag skip_header of fpga_manager_ops is true,
+.write function will get image buffer starting at header_size offset from the
+beginning. If data_size is set, .write function will get data_size bytes of
+the image buffer, otherwise .write will get data up to the end of image buffer.
+This will not affect .write_sg, .write_sg will still get whole image in
+sg_table form. If FPGA image is already mapped as a single contiguous buffer,
+whole buffer will be passed into .parse_header. If image is in scatter-gather
+form, core code will buffer up at least .initial_header_size before the first
+call of .parse_header, if it is not enough, .parse_header should set desired
+size into info->header_size and return -EAGAIN, then it will be called again
+with greater part of image buffer on the input.
+
+The .write_init function will prepare the FPGA to receive the image data. The
+buffer passed into .write_init will be at least info->header_size bytes long;
 if the whole bitstream is not immediately available then the core code will
 buffer up at least this much before starting.
 

@@ -78,13 +78,14 @@ struct psb_intel_mode_device {
 	uint32_t saveBLC_PWM_CTL;
 };
 
-struct psb_intel_i2c_chan {
-	/* for getting at dev. private (mmio etc.) */
-	struct drm_device *drm_dev;
-	u32 reg;		/* GPIO reg */
-	struct i2c_adapter adapter;
+struct gma_i2c_chan {
+	struct i2c_adapter base;
 	struct i2c_algo_bit_data algo;
 	u8 slave_addr;
+
+	/* for getting at dev. private (mmio etc.) */
+	struct drm_device *drm_dev;
+	u32 reg; /* GPIO reg */
 };
 
 struct gma_encoder {
@@ -103,8 +104,7 @@ struct gma_encoder {
 
 	/* FIXME: Either make SDVO and LVDS store it's i2c here or give CDV it's
 	   own set of output privates */
-	struct psb_intel_i2c_chan *i2c_bus;
-	struct psb_intel_i2c_chan *ddc_bus;
+	struct gma_i2c_chan *i2c_bus;
 };
 
 struct gma_connector {
@@ -175,10 +175,12 @@ struct gma_crtc {
 		container_of(x, struct gma_encoder, base)
 #define to_psb_intel_framebuffer(x)	\
 		container_of(x, struct psb_intel_framebuffer, base)
+#define to_gma_i2c_chan(x)	\
+		container_of(x, struct gma_i2c_chan, base)
 
-struct psb_intel_i2c_chan *psb_intel_i2c_create(struct drm_device *dev,
-					const u32 reg, const char *name);
-void psb_intel_i2c_destroy(struct psb_intel_i2c_chan *chan);
+struct gma_i2c_chan *gma_i2c_create(struct drm_device *dev, const u32 reg,
+				    const char *name);
+void gma_i2c_destroy(struct gma_i2c_chan *chan);
 int psb_intel_ddc_get_modes(struct drm_connector *connector,
 			    struct i2c_adapter *adapter);
 extern bool psb_intel_ddc_probe(struct i2c_adapter *adapter);
@@ -197,7 +199,7 @@ extern void oaktrail_lvds_init(struct drm_device *dev,
 extern void oaktrail_wait_for_INTR_PKT_SENT(struct drm_device *dev);
 extern void oaktrail_dsi_init(struct drm_device *dev,
 			   struct psb_intel_mode_device *mode_dev);
-extern void oaktrail_lvds_i2c_init(struct drm_encoder *encoder);
+struct gma_i2c_chan *oaktrail_lvds_i2c_init(struct drm_device *dev);
 extern void mid_dsi_init(struct drm_device *dev,
 		    struct psb_intel_mode_device *mode_dev, int dsi_num);
 

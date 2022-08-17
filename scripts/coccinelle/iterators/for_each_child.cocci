@@ -5,7 +5,7 @@
 ///
 // Confidence: High
 // Copyright: (C) 2020 Sumera Priyadarsini
-// URL: http://coccinelle.lip6.fr
+// URL: https://coccinelle.gitlabpages.inria.fr/website
 // Options: --no-includes --include-headers
 
 virtual patch

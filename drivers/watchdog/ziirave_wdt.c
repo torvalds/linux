@@ -708,13 +708,11 @@ static int ziirave_wdt_probe(struct i2c_client *client,
 	return ret;
 }
 
-static int ziirave_wdt_remove(struct i2c_client *client)
+static void ziirave_wdt_remove(struct i2c_client *client)
 {
 	struct ziirave_wdt_data *w_priv = i2c_get_clientdata(client);
 
 	watchdog_unregister_device(&w_priv->wdd);
-
-	return 0;
 }
 
 static const struct i2c_device_id ziirave_wdt_id[] = {

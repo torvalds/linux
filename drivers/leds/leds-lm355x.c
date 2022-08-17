@@ -491,7 +491,7 @@ err_out:
 	return err;
 }
 
-static int lm355x_remove(struct i2c_client *client)
+static void lm355x_remove(struct i2c_client *client)
 {
 	struct lm355x_chip_data *chip = i2c_get_clientdata(client);
 	struct lm355x_reg_data *preg = chip->regs;
@@ -501,8 +501,6 @@ static int lm355x_remove(struct i2c_client *client)
 	led_classdev_unregister(&chip->cdev_torch);
 	led_classdev_unregister(&chip->cdev_flash);
 	dev_info(&client->dev, "%s is removed\n", lm355x_name[chip->type]);
-
-	return 0;
 }
 
 static const struct i2c_device_id lm355x_id[] = {

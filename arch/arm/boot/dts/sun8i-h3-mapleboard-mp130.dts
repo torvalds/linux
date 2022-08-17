@@ -39,16 +39,16 @@
 		};
 	};
 
-	r_gpio_keys {
+	gpio-keys {
 		compatible = "gpio-keys";
 
-		power {
+		key-power {
 			label = "power";
 			linux,code = <KEY_POWER>;
 			gpios = <&r_pio 0 3 GPIO_ACTIVE_LOW>; /* PL3 */
 		};
 
-		user {
+		key-user {
 			label = "user";
 			linux,code = <BTN_0>;
 			gpios = <&r_pio 0 4 GPIO_ACTIVE_LOW>;

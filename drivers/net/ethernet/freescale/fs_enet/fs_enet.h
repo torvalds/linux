@@ -201,7 +201,7 @@ void fs_enet_platform_cleanup(void);
 
 /* access macros */
 #if defined(CONFIG_CPM1)
-/* for a a CPM1 __raw_xxx's are sufficient */
+/* for a CPM1 __raw_xxx's are sufficient */
 #define __cbd_out32(addr, x)	__raw_writel(x, addr)
 #define __cbd_out16(addr, x)	__raw_writew(x, addr)
 #define __cbd_in32(addr)	__raw_readl(addr)

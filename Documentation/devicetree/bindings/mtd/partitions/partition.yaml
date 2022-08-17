@@ -11,6 +11,17 @@ description: |
   relative offset and size specified. Depending on partition function extra
   properties can be used.
 
+  A partition may be dynamically allocated by a specific parser at runtime.
+  In this specific case, a specific suffix is required to the node name.
+  Everything after 'partition-' will be used as the partition name to compare
+  with the one dynamically allocated by the specific parser.
+  If the partition contains invalid char a label can be provided that will
+  be used instead of the node name to make the comparison.
+  This is used to assign an OF node to the dynamiccally allocated partition
+  so that subsystem like NVMEM can provide an OF node and declare NVMEM cells.
+  The OF node will be assigned only if the partition label declared match the
+  one assigned by the parser at runtime.
+
 maintainers:
   - Rafał Miłecki <rafal@milecki.pl>
 
@@ -41,7 +52,12 @@ properties:
       immune to paired-pages corruptions
     type: boolean
 
-required:
-  - reg
+if:
+  not:
+    required: [ reg ]
+then:
+  properties:
+    $nodename:
+      pattern: '^partition-.*$'
 
 additionalProperties: true

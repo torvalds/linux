@@ -247,11 +247,6 @@ config SONYPI
 	  To compile this driver as a module, choose M here: the
 	  module will be called sonypi.
 
-config GPIO_TB0219
-	tristate "TANBAC TB0219 GPIO support"
-	depends on TANBAC_TB022X
-	select GPIO_VR41XX
-
 source "drivers/char/pcmcia/Kconfig"
 
 config MWAVE
@@ -431,7 +426,6 @@ config ADI
 config RANDOM_TRUST_CPU
 	bool "Initialize RNG using CPU RNG instructions"
 	default y
-	depends on ARCH_RANDOM
 	help
 	  Initialize the RNG using random numbers supplied by the CPU's
 	  RNG instructions (e.g. RDRAND), if supported and available. These

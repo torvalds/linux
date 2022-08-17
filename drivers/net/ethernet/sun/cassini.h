@@ -764,7 +764,7 @@
  * PAUSE thresholds defined in terms of FIFO occupancy and may be translated
  * into FIFO vacancy using RX_FIFO_SIZE. setting ON will trigger XON frames
  * when FIFO reaches 0. OFF threshold should not be > size of RX FIFO. max
- * value is is 0x6F.
+ * value is 0x6F.
  * DEFAULT: 0x00078
  */
 #define  REG_RX_PAUSE_THRESH               0x4020  /* RX pause thresholds */

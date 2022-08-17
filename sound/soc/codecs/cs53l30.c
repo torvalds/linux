@@ -899,7 +899,6 @@ static const struct snd_soc_component_driver cs53l30_driver = {
 	.num_dapm_routes	= ARRAY_SIZE(cs53l30_dapm_routes),
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
 };
 
 static struct regmap_config cs53l30_regmap = {
@@ -1044,7 +1043,7 @@ error_supplies:
 	return ret;
 }
 
-static int cs53l30_i2c_remove(struct i2c_client *client)
+static void cs53l30_i2c_remove(struct i2c_client *client)
 {
 	struct cs53l30_private *cs53l30 = i2c_get_clientdata(client);
 
@@ -1053,8 +1052,6 @@ static int cs53l30_i2c_remove(struct i2c_client *client)
 
 	regulator_bulk_disable(ARRAY_SIZE(cs53l30->supplies),
 			       cs53l30->supplies);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM

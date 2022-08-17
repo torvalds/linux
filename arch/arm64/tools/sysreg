@@ -46,6 +46,89 @@
 # feature that introduces them (eg, FEAT_LS64_ACCDATA introduces enumeration
 # item ACCDATA) though it may be more taseful to do something else.
 
+Sysreg	ID_AA64ZFR0_EL1	3	0	0	4	4
+Res0	63:60
+Enum	59:56	F64MM
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+Enum	55:52	F32MM
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+Res0	51:48
+Enum	47:44	I8MM
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+Enum	43:40	SM4
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+Res0	39:36
+Enum	35:32	SHA3
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+Res0	31:24
+Enum	23:20	BF16
+	0b0000	NI
+	0b0001	IMP
+	0b0010	EBF16
+EndEnum
+Enum	19:16	BitPerm
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+Res0	15:8
+Enum	7:4	AES
+	0b0000	NI
+	0b0001	IMP
+	0b0010	PMULL128
+EndEnum
+Enum	3:0	SVEver
+	0b0000	IMP
+	0b0001	SVE2
+EndEnum
+EndSysreg
+
+Sysreg	ID_AA64SMFR0_EL1	3	0	0	4	5
+Enum	63	FA64
+	0b0	NI
+	0b1	IMP
+EndEnum
+Res0	62:60
+Field	59:56	SMEver
+Enum	55:52	I16I64
+	0b0000	NI
+	0b1111	IMP
+EndEnum
+Res0	51:49
+Enum	48	F64F64
+	0b0	NI
+	0b1	IMP
+EndEnum
+Res0	47:40
+Enum	39:36	I8I32
+	0b0000	NI
+	0b1111	IMP
+EndEnum
+Enum	35	F16F32
+	0b0	NI
+	0b1	IMP
+EndEnum
+Enum	34	B16F32
+	0b0	NI
+	0b1	IMP
+EndEnum
+Res0	33
+Enum	32	F32F32
+	0b0	NI
+	0b1	IMP
+EndEnum
+Res0	31:0
+EndSysreg
+
 Sysreg	ID_AA64ISAR0_EL1	3	0	0	6	0
 Enum	63:60	RNDR
 	0b0000	NI
@@ -112,6 +195,122 @@ Enum	7:4	AES
 	0b0010	PMULL
 EndEnum
 Res0	3:0
+EndSysreg
+
+Sysreg	ID_AA64ISAR1_EL1	3	0	0	6	1
+Enum	63:60	LS64
+	0b0000	NI
+	0b0001	LS64
+	0b0010	LS64_V
+	0b0011	LS64_ACCDATA
+EndEnum
+Enum	59:56	XS
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+Enum	55:52	I8MM
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+Enum	51:48	DGH
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+Enum	47:44	BF16
+	0b0000	NI
+	0b0001	IMP
+	0b0010	EBF16
+EndEnum
+Enum	43:40	SPECRES
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+Enum	39:36	SB
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+Enum	35:32	FRINTTS
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+Enum	31:28	GPI
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+Enum	27:24	GPA
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+Enum	23:20	LRCPC
+	0b0000	NI
+	0b0001	IMP
+	0b0010	LRCPC2
+EndEnum
+Enum	19:16	FCMA
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+Enum	15:12	JSCVT
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+Enum	11:8	API
+	0b0000	NI
+	0b0001	PAuth
+	0b0010	EPAC
+	0b0011	PAuth2
+	0b0100	FPAC
+	0b0101	FPACCOMBINE
+EndEnum
+Enum	7:4	APA
+	0b0000	NI
+	0b0001	PAuth
+	0b0010	EPAC
+	0b0011	PAuth2
+	0b0100	FPAC
+	0b0101	FPACCOMBINE
+EndEnum
+Enum	3:0	DPB
+	0b0000	NI
+	0b0001	IMP
+	0b0010	DPB2
+EndEnum
+EndSysreg
+
+Sysreg	ID_AA64ISAR2_EL1	3	0	0	6	2
+Res0	63:28
+Enum	27:24	PAC_frac
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+Enum	23:20	BC
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+Enum	19:16	MOPS
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+Enum	15:12	APA3
+	0b0000	NI
+	0b0001	PAuth
+	0b0010	EPAC
+	0b0011	PAuth2
+	0b0100	FPAC
+	0b0101	FPACCOMBINE
+EndEnum
+Enum	11:8	GPA3
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+Enum	7:4	RPRES
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+Enum	3:0	WFxT
+	0b0000	NI
+	0b0010	IMP
+EndEnum
 EndSysreg
 
 Sysreg	SCTLR_EL1	3	0	1	0	0
@@ -257,6 +456,11 @@ Field	5:3	Ctype2
 Field	2:0	Ctype1
 EndSysreg
 
+Sysreg	GMID_EL1	3	1	0	0	4
+Res0	63:4
+Field	3:0	BS
+EndSysreg
+
 Sysreg	SMIDR_EL1	3	1	0	0	6
 Res0	63:32
 Field	31:24	IMPLEMENTER
@@ -271,6 +475,33 @@ Res0	63:5
 Field	4	TnD
 Field	3:1	Level
 Field	0	InD
+EndSysreg
+
+Sysreg	CTR_EL0	3	3	0	0	1
+Res0	63:38
+Field	37:32	TminLine
+Res1	31
+Res0	30
+Field	29	DIC
+Field	28	IDC
+Field	27:24	CWG
+Field	23:20	ERG
+Field	19:16	DminLine
+Enum	15:14	L1Ip
+	0b00	VPIPT
+	# This is named as AIVIVT in the ARM but documented as reserved
+	0b01	RESERVED
+	0b10	VIPT
+	0b11	PIPT
+EndEnum
+Res0	13:4
+Field	3:0	IminLine
+EndSysreg
+
+Sysreg	DCZID_EL0	3	3	0	0	7
+Res0	63:5
+Field	4	DZP
+Field	3:0	BS
 EndSysreg
 
 Sysreg	SVCR	3	3	4	2	2
@@ -366,4 +597,37 @@ EndSysreg
 
 Sysreg	TTBR1_EL1	3	0	2	0	1
 Fields	TTBRx_EL1
+EndSysreg
+
+Sysreg	LORSA_EL1	3	0	10	4	0
+Res0	63:52
+Field	51:16	SA
+Res0	15:1
+Field	0	Valid
+EndSysreg
+
+Sysreg	LOREA_EL1	3	0	10	4	1
+Res0	63:52
+Field	51:48	EA_51_48
+Field	47:16	EA_47_16
+Res0	15:0
+EndSysreg
+
+Sysreg	LORN_EL1	3	0	10	4	2
+Res0	63:8
+Field	7:0	Num
+EndSysreg
+
+Sysreg	LORC_EL1	3	0	10	4	3
+Res0	63:10
+Field	9:2	DS
+Res0	1
+Field	0	EN
+EndSysreg
+
+Sysreg	LORID_EL1	3	0	10	4	7
+Res0	63:24
+Field	23:16	LD
+Res0	15:8
+Field	7:0	LR
 EndSysreg

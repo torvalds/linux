@@ -62,6 +62,7 @@ struct mlx5_tc_int_port_priv;
 struct mlx5e_rep_bond;
 struct mlx5e_tc_tun_encap;
 struct mlx5e_post_act;
+struct mlx5e_flow_meters;
 
 struct mlx5_rep_uplink_priv {
 	/* indirect block callbacks are invoked on bind/unbind events
@@ -97,6 +98,8 @@ struct mlx5_rep_uplink_priv {
 
 	/* OVS internal port support */
 	struct mlx5e_tc_int_port_priv *int_port_priv;
+
+	struct mlx5e_flow_meters *flow_meters;
 };
 
 struct mlx5e_rep_priv {

@@ -1346,13 +1346,11 @@ static int edt_ft5x06_ts_probe(struct i2c_client *client,
 	return 0;
 }
 
-static int edt_ft5x06_ts_remove(struct i2c_client *client)
+static void edt_ft5x06_ts_remove(struct i2c_client *client)
 {
 	struct edt_ft5x06_ts_data *tsdata = i2c_get_clientdata(client);
 
 	edt_ft5x06_ts_teardown_debugfs(tsdata);
-
-	return 0;
 }
 
 static int __maybe_unused edt_ft5x06_ts_suspend(struct device *dev)

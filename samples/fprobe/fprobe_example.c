@@ -20,17 +20,24 @@
 
 #define BACKTRACE_DEPTH 16
 #define MAX_SYMBOL_LEN 4096
-struct fprobe sample_probe;
+static struct fprobe sample_probe;
 static unsigned long nhit;
 
 static char symbol[MAX_SYMBOL_LEN] = "kernel_clone";
 module_param_string(symbol, symbol, sizeof(symbol), 0644);
+MODULE_PARM_DESC(symbol, "Probed symbol(s), given by comma separated symbols or a wildcard pattern.");
+
 static char nosymbol[MAX_SYMBOL_LEN] = "";
 module_param_string(nosymbol, nosymbol, sizeof(nosymbol), 0644);
+MODULE_PARM_DESC(nosymbol, "Not-probed symbols, given by a wildcard pattern.");
+
 static bool stackdump = true;
 module_param(stackdump, bool, 0644);
+MODULE_PARM_DESC(stackdump, "Enable stackdump.");
+
 static bool use_trace = false;
 module_param(use_trace, bool, 0644);
+MODULE_PARM_DESC(use_trace, "Use trace_printk instead of printk. This is only for debugging.");
 
 static void show_backtrace(void)
 {

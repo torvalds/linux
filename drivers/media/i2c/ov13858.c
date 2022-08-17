@@ -1769,7 +1769,7 @@ error_handler_free:
 	return ret;
 }
 
-static int ov13858_remove(struct i2c_client *client)
+static void ov13858_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 	struct ov13858 *ov13858 = to_ov13858(sd);
@@ -1779,8 +1779,6 @@ static int ov13858_remove(struct i2c_client *client)
 	ov13858_free_controls(ov13858);
 
 	pm_runtime_disable(&client->dev);
-
-	return 0;
 }
 
 static const struct i2c_device_id ov13858_id_table[] = {

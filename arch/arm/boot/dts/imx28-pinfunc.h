@@ -1,14 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Header providing constants for i.MX28 pinctrl bindings.
  *
  * Copyright (C) 2013 Lothar Waßmann <LW@KARO-electronics.de>
- *
- * The code contained herein is licensed under the GNU General Public
- * License. You may obtain a copy of the GNU General Public License
- * Version 2 at the following locations:
- *
- * http://www.opensource.org/licenses/gpl-license.html
- * http://www.gnu.org/copyleft/gpl.html
  */
 
 #ifndef __DT_BINDINGS_MX28_PINCTRL_H__

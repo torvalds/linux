@@ -43,4 +43,6 @@ int ath11k_pcic_map_service_to_pipe(struct ath11k_base *ab, u16 service_id,
 void ath11k_pcic_ce_irqs_enable(struct ath11k_base *ab);
 void ath11k_pcic_ce_irq_disable_sync(struct ath11k_base *ab);
 int ath11k_pcic_init_msi_config(struct ath11k_base *ab);
+int ath11k_pcic_register_pci_ops(struct ath11k_base *ab,
+				 const struct ath11k_pci_ops *pci_ops);
 #endif

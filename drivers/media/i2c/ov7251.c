@@ -934,6 +934,8 @@ static int ov7251_set_power_on(struct device *dev)
 					ARRAY_SIZE(ov7251_global_init_setting));
 	if (ret < 0) {
 		dev_err(ov7251->dev, "error during global init\n");
+		gpiod_set_value_cansleep(ov7251->enable_gpio, 0);
+		clk_disable_unprepare(ov7251->xclk);
 		ov7251_regulators_disable(ov7251);
 		return ret;
 	}
@@ -1340,7 +1342,7 @@ static int ov7251_s_stream(struct v4l2_subdev *subdev, int enable)
 	if (enable) {
 		ret = pm_runtime_get_sync(ov7251->dev);
 		if (ret < 0)
-			goto unlock_out;
+			goto err_power_down;
 
 		ret = ov7251_pll_configure(ov7251);
 		if (ret) {
@@ -1372,12 +1374,11 @@ static int ov7251_s_stream(struct v4l2_subdev *subdev, int enable)
 		pm_runtime_put(ov7251->dev);
 	}
 
-unlock_out:
 	mutex_unlock(&ov7251->lock);
 	return ret;
 
 err_power_down:
-	pm_runtime_put_noidle(ov7251->dev);
+	pm_runtime_put(ov7251->dev);
 	mutex_unlock(&ov7251->lock);
 	return ret;
 }
@@ -1766,7 +1767,7 @@ destroy_mutex:
 	return ret;
 }
 
-static int ov7251_remove(struct i2c_client *client)
+static void ov7251_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 	struct ov7251 *ov7251 = to_ov7251(sd);
@@ -1780,8 +1781,6 @@ static int ov7251_remove(struct i2c_client *client)
 	if (!pm_runtime_status_suspended(ov7251->dev))
 		ov7251_set_power_off(ov7251->dev);
 	pm_runtime_set_suspended(ov7251->dev);
-
-	return 0;
 }
 
 static const struct dev_pm_ops ov7251_pm_ops = {

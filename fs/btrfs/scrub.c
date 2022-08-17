@@ -135,15 +135,13 @@ struct scrub_parity {
 	struct work_struct	work;
 
 	/* Mark the parity blocks which have data */
-	unsigned long		*dbitmap;
+	unsigned long		dbitmap;
 
 	/*
 	 * Mark the parity blocks which have data, but errors happen when
 	 * read data or check data
 	 */
-	unsigned long		*ebitmap;
-
-	unsigned long		bitmap[];
+	unsigned long		ebitmap;
 };
 
 struct scrub_ctx {
@@ -1218,7 +1216,6 @@ static inline int scrub_nr_raid_mirrors(struct btrfs_io_context *bioc)
 
 static inline void scrub_stripe_index_and_offset(u64 logical, u64 map_type,
 						 u64 *raid_map,
-						 u64 mapped_length,
 						 int nstripes, int mirror,
 						 int *stripe_index,
 						 u64 *stripe_offset)
@@ -1233,7 +1230,7 @@ static inline void scrub_stripe_index_and_offset(u64 logical, u64 map_type,
 				continue;
 
 			if (logical >= raid_map[i] &&
-			    logical < raid_map[i] + mapped_length)
+			    logical < raid_map[i] + BTRFS_STRIPE_LEN)
 				break;
 		}
 
@@ -1337,7 +1334,6 @@ leave_nomem:
 			scrub_stripe_index_and_offset(logical,
 						      bioc->map_type,
 						      bioc->raid_map,
-						      mapped_length,
 						      bioc->num_stripes -
 						      bioc->num_tgtdevs,
 						      mirror_index,
@@ -1380,19 +1376,12 @@ static int scrub_submit_raid56_bio_wait(struct btrfs_fs_info *fs_info,
 					struct scrub_sector *sector)
 {
 	DECLARE_COMPLETION_ONSTACK(done);
-	int ret;
-	int mirror_num;
 
 	bio->bi_iter.bi_sector = sector->logical >> 9;
 	bio->bi_private = &done;
 	bio->bi_end_io = scrub_bio_wait_endio;
-
-	mirror_num = sector->sblock->sectors[0]->mirror_num;
-	ret = raid56_parity_recover(bio, sector->recover->bioc,
-				    sector->recover->map_length,
-				    mirror_num, 0);
-	if (ret)
-		return ret;
+	raid56_parity_recover(bio, sector->recover->bioc,
+			      sector->sblock->sectors[0]->mirror_num, false);
 
 	wait_for_completion_io(&done);
 	return blk_status_to_errno(bio->bi_status);
@@ -2197,7 +2186,7 @@ static void scrub_missing_raid56_pages(struct scrub_block *sblock)
 	bio->bi_private = sblock;
 	bio->bi_end_io = scrub_missing_raid56_end_io;
 
-	rbio = raid56_alloc_missing_rbio(bio, bioc, length);
+	rbio = raid56_alloc_missing_rbio(bio, bioc);
 	if (!rbio)
 		goto rbio_out;
 
@@ -2406,13 +2395,13 @@ static inline void __scrub_mark_bitmap(struct scrub_parity *sparity,
 static inline void scrub_parity_mark_sectors_error(struct scrub_parity *sparity,
 						   u64 start, u32 len)
 {
-	__scrub_mark_bitmap(sparity, sparity->ebitmap, start, len);
+	__scrub_mark_bitmap(sparity, &sparity->ebitmap, start, len);
 }
 
 static inline void scrub_parity_mark_sectors_data(struct scrub_parity *sparity,
 						  u64 start, u32 len)
 {
-	__scrub_mark_bitmap(sparity, sparity->dbitmap, start, len);
+	__scrub_mark_bitmap(sparity, &sparity->dbitmap, start, len);
 }
 
 static void scrub_block_complete(struct scrub_block *sblock)
@@ -2763,7 +2752,7 @@ static void scrub_free_parity(struct scrub_parity *sparity)
 	struct scrub_sector *curr, *next;
 	int nbits;
 
-	nbits = bitmap_weight(sparity->ebitmap, sparity->nsectors);
+	nbits = bitmap_weight(&sparity->ebitmap, sparity->nsectors);
 	if (nbits) {
 		spin_lock(&sctx->stat_lock);
 		sctx->stat.read_errors += nbits;
@@ -2795,8 +2784,8 @@ static void scrub_parity_bio_endio(struct bio *bio)
 	struct btrfs_fs_info *fs_info = sparity->sctx->fs_info;
 
 	if (bio->bi_status)
-		bitmap_or(sparity->ebitmap, sparity->ebitmap, sparity->dbitmap,
-			  sparity->nsectors);
+		bitmap_or(&sparity->ebitmap, &sparity->ebitmap,
+			  &sparity->dbitmap, sparity->nsectors);
 
 	bio_put(bio);
 
@@ -2814,8 +2803,8 @@ static void scrub_parity_check_and_repair(struct scrub_parity *sparity)
 	u64 length;
 	int ret;
 
-	if (!bitmap_andnot(sparity->dbitmap, sparity->dbitmap, sparity->ebitmap,
-			   sparity->nsectors))
+	if (!bitmap_andnot(&sparity->dbitmap, &sparity->dbitmap,
+			   &sparity->ebitmap, sparity->nsectors))
 		goto out;
 
 	length = sparity->logic_end - sparity->logic_start;
@@ -2831,9 +2820,9 @@ static void scrub_parity_check_and_repair(struct scrub_parity *sparity)
 	bio->bi_private = sparity;
 	bio->bi_end_io = scrub_parity_bio_endio;
 
-	rbio = raid56_parity_alloc_scrub_rbio(bio, bioc, length,
+	rbio = raid56_parity_alloc_scrub_rbio(bio, bioc,
 					      sparity->scrub_dev,
-					      sparity->dbitmap,
+					      &sparity->dbitmap,
 					      sparity->nsectors);
 	if (!rbio)
 		goto rbio_out;
@@ -2847,18 +2836,13 @@ rbio_out:
 bioc_out:
 	btrfs_bio_counter_dec(fs_info);
 	btrfs_put_bioc(bioc);
-	bitmap_or(sparity->ebitmap, sparity->ebitmap, sparity->dbitmap,
+	bitmap_or(&sparity->ebitmap, &sparity->ebitmap, &sparity->dbitmap,
 		  sparity->nsectors);
 	spin_lock(&sctx->stat_lock);
 	sctx->stat.malloc_errors++;
 	spin_unlock(&sctx->stat_lock);
 out:
 	scrub_free_parity(sparity);
-}
-
-static inline int scrub_calc_parity_bitmap_len(int nsectors)
-{
-	return DIV_ROUND_UP(nsectors, BITS_PER_LONG) * sizeof(long);
 }
 
 static void scrub_parity_get(struct scrub_parity *sparity)
@@ -3131,7 +3115,6 @@ static noinline_for_stack int scrub_raid56_parity(struct scrub_ctx *sctx,
 	int ret;
 	struct scrub_parity *sparity;
 	int nsectors;
-	int bitmap_len;
 
 	path = btrfs_alloc_path();
 	if (!path) {
@@ -3145,9 +3128,8 @@ static noinline_for_stack int scrub_raid56_parity(struct scrub_ctx *sctx,
 
 	ASSERT(map->stripe_len <= U32_MAX);
 	nsectors = map->stripe_len >> fs_info->sectorsize_bits;
-	bitmap_len = scrub_calc_parity_bitmap_len(nsectors);
-	sparity = kzalloc(sizeof(struct scrub_parity) + 2 * bitmap_len,
-			  GFP_NOFS);
+	ASSERT(nsectors <= BITS_PER_LONG);
+	sparity = kzalloc(sizeof(struct scrub_parity), GFP_NOFS);
 	if (!sparity) {
 		spin_lock(&sctx->stat_lock);
 		sctx->stat.malloc_errors++;
@@ -3165,8 +3147,6 @@ static noinline_for_stack int scrub_raid56_parity(struct scrub_ctx *sctx,
 	sparity->logic_end = logic_end;
 	refcount_set(&sparity->refs, 1);
 	INIT_LIST_HEAD(&sparity->sectors_list);
-	sparity->dbitmap = sparity->bitmap;
-	sparity->ebitmap = (void *)sparity->bitmap + bitmap_len;
 
 	ret = 0;
 	for (cur_logical = logic_start; cur_logical < logic_end;
@@ -3429,20 +3409,22 @@ static int scrub_simple_stripe(struct scrub_ctx *sctx,
 
 static noinline_for_stack int scrub_stripe(struct scrub_ctx *sctx,
 					   struct btrfs_block_group *bg,
-					   struct map_lookup *map,
+					   struct extent_map *em,
 					   struct btrfs_device *scrub_dev,
-					   int stripe_index, u64 dev_extent_len)
+					   int stripe_index)
 {
 	struct btrfs_path *path;
 	struct btrfs_fs_info *fs_info = sctx->fs_info;
 	struct btrfs_root *root;
 	struct btrfs_root *csum_root;
 	struct blk_plug plug;
+	struct map_lookup *map = em->map_lookup;
 	const u64 profile = map->type & BTRFS_BLOCK_GROUP_PROFILE_MASK;
 	const u64 chunk_logical = bg->start;
 	int ret;
 	u64 physical = map->stripes[stripe_index].physical;
-	const u64 physical_end = physical + dev_extent_len;
+	const u64 dev_stripe_len = btrfs_calc_stripe_length(em);
+	const u64 physical_end = physical + dev_stripe_len;
 	u64 logical;
 	u64 logic_end;
 	/* The logical increment after finishing one stripe */
@@ -3569,8 +3551,8 @@ next:
 		physical += map->stripe_len;
 		spin_lock(&sctx->stat_lock);
 		if (stop_loop)
-			sctx->stat.last_physical = map->stripes[stripe_index].physical +
-						   dev_extent_len;
+			sctx->stat.last_physical =
+				map->stripes[stripe_index].physical + dev_stripe_len;
 		else
 			sctx->stat.last_physical = physical;
 		spin_unlock(&sctx->stat_lock);
@@ -3639,8 +3621,7 @@ static noinline_for_stack int scrub_chunk(struct scrub_ctx *sctx,
 	for (i = 0; i < map->num_stripes; ++i) {
 		if (map->stripes[i].dev->bdev == scrub_dev->bdev &&
 		    map->stripes[i].physical == dev_offset) {
-			ret = scrub_stripe(sctx, bg, map, scrub_dev, i,
-					   dev_extent_len);
+			ret = scrub_stripe(sctx, bg, em, scrub_dev, i);
 			if (ret)
 				goto out;
 		}

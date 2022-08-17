@@ -45,7 +45,6 @@
 
 #define NTB_EPF_MIN_DB_COUNT	3
 #define NTB_EPF_MAX_DB_COUNT	31
-#define NTB_EPF_MW_OFFSET	2
 
 #define NTB_EPF_COMMAND_TIMEOUT	1000 /* 1 Sec */
 
@@ -67,6 +66,7 @@ struct ntb_epf_dev {
 	enum pci_barno ctrl_reg_bar;
 	enum pci_barno peer_spad_reg_bar;
 	enum pci_barno db_reg_bar;
+	enum pci_barno mw_bar;
 
 	unsigned int mw_count;
 	unsigned int spad_count;
@@ -92,6 +92,8 @@ struct ntb_epf_data {
 	enum pci_barno peer_spad_reg_bar;
 	/* BAR that contains Doorbell region and Memory window '1' */
 	enum pci_barno db_reg_bar;
+	/* BAR that contains memory windows*/
+	enum pci_barno mw_bar;
 };
 
 static int ntb_epf_send_command(struct ntb_epf_dev *ndev, u32 command,
@@ -411,7 +413,7 @@ static int ntb_epf_mw_set_trans(struct ntb_dev *ntb, int pidx, int idx,
 		return -EINVAL;
 	}
 
-	bar = idx + NTB_EPF_MW_OFFSET;
+	bar = idx + ndev->mw_bar;
 
 	mw_size = pci_resource_len(ntb->pdev, bar);
 
@@ -453,7 +455,7 @@ static int ntb_epf_peer_mw_get_addr(struct ntb_dev *ntb, int idx,
 	if (idx == 0)
 		offset = readl(ndev->ctrl_reg + NTB_EPF_MW1_OFFSET);
 
-	bar = idx + NTB_EPF_MW_OFFSET;
+	bar = idx + ndev->mw_bar;
 
 	if (base)
 		*base = pci_resource_start(ndev->ntb.pdev, bar) + offset;
@@ -565,6 +567,7 @@ static int ntb_epf_init_pci(struct ntb_epf_dev *ndev,
 			    struct pci_dev *pdev)
 {
 	struct device *dev = ndev->dev;
+	size_t spad_sz, spad_off;
 	int ret;
 
 	pci_set_drvdata(pdev, ndev);
@@ -599,10 +602,16 @@ static int ntb_epf_init_pci(struct ntb_epf_dev *ndev,
 		goto err_dma_mask;
 	}
 
-	ndev->peer_spad_reg = pci_iomap(pdev, ndev->peer_spad_reg_bar, 0);
-	if (!ndev->peer_spad_reg) {
-		ret = -EIO;
-		goto err_dma_mask;
+	if (ndev->peer_spad_reg_bar) {
+		ndev->peer_spad_reg = pci_iomap(pdev, ndev->peer_spad_reg_bar, 0);
+		if (!ndev->peer_spad_reg) {
+			ret = -EIO;
+			goto err_dma_mask;
+		}
+	} else {
+		spad_sz = 4 * readl(ndev->ctrl_reg + NTB_EPF_SPAD_COUNT);
+		spad_off = readl(ndev->ctrl_reg + NTB_EPF_SPAD_OFFSET);
+		ndev->peer_spad_reg = ndev->ctrl_reg + spad_off  + spad_sz;
 	}
 
 	ndev->db_reg = pci_iomap(pdev, ndev->db_reg_bar, 0);
@@ -657,6 +666,7 @@ static int ntb_epf_pci_probe(struct pci_dev *pdev,
 	enum pci_barno peer_spad_reg_bar = BAR_1;
 	enum pci_barno ctrl_reg_bar = BAR_0;
 	enum pci_barno db_reg_bar = BAR_2;
+	enum pci_barno mw_bar = BAR_2;
 	struct device *dev = &pdev->dev;
 	struct ntb_epf_data *data;
 	struct ntb_epf_dev *ndev;
@@ -671,17 +681,16 @@ static int ntb_epf_pci_probe(struct pci_dev *pdev,
 
 	data = (struct ntb_epf_data *)id->driver_data;
 	if (data) {
-		if (data->peer_spad_reg_bar)
-			peer_spad_reg_bar = data->peer_spad_reg_bar;
-		if (data->ctrl_reg_bar)
-			ctrl_reg_bar = data->ctrl_reg_bar;
-		if (data->db_reg_bar)
-			db_reg_bar = data->db_reg_bar;
+		peer_spad_reg_bar = data->peer_spad_reg_bar;
+		ctrl_reg_bar = data->ctrl_reg_bar;
+		db_reg_bar = data->db_reg_bar;
+		mw_bar = data->mw_bar;
 	}
 
 	ndev->peer_spad_reg_bar = peer_spad_reg_bar;
 	ndev->ctrl_reg_bar = ctrl_reg_bar;
 	ndev->db_reg_bar = db_reg_bar;
+	ndev->mw_bar = mw_bar;
 	ndev->dev = dev;
 
 	ntb_epf_init_struct(ndev, pdev);
@@ -729,6 +738,14 @@ static const struct ntb_epf_data j721e_data = {
 	.ctrl_reg_bar = BAR_0,
 	.peer_spad_reg_bar = BAR_1,
 	.db_reg_bar = BAR_2,
+	.mw_bar = BAR_2,
+};
+
+static const struct ntb_epf_data mx8_data = {
+	.ctrl_reg_bar = BAR_0,
+	.peer_spad_reg_bar = BAR_0,
+	.db_reg_bar = BAR_2,
+	.mw_bar = BAR_4,
 };
 
 static const struct pci_device_id ntb_epf_pci_tbl[] = {
@@ -736,6 +753,11 @@ static const struct pci_device_id ntb_epf_pci_tbl[] = {
 		PCI_DEVICE(PCI_VENDOR_ID_TI, PCI_DEVICE_ID_TI_J721E),
 		.class = PCI_CLASS_MEMORY_RAM << 8, .class_mask = 0xffff00,
 		.driver_data = (kernel_ulong_t)&j721e_data,
+	},
+	{
+		PCI_DEVICE(PCI_VENDOR_ID_FREESCALE, 0x0809),
+		.class = PCI_CLASS_MEMORY_RAM << 8, .class_mask = 0xffff00,
+		.driver_data = (kernel_ulong_t)&mx8_data,
 	},
 	{ },
 };

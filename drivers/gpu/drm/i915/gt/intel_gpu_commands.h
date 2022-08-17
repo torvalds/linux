@@ -236,6 +236,28 @@
 #define   XY_FAST_COLOR_BLT_DW		16
 #define   XY_FAST_COLOR_BLT_MOCS_MASK	GENMASK(27, 21)
 #define   XY_FAST_COLOR_BLT_MEM_TYPE_SHIFT 31
+
+#define   XY_FAST_COPY_BLT_D0_SRC_TILING_MASK     REG_GENMASK(21, 20)
+#define   XY_FAST_COPY_BLT_D0_DST_TILING_MASK     REG_GENMASK(14, 13)
+#define   XY_FAST_COPY_BLT_D0_SRC_TILE_MODE(mode)  \
+	REG_FIELD_PREP(XY_FAST_COPY_BLT_D0_SRC_TILING_MASK, mode)
+#define   XY_FAST_COPY_BLT_D0_DST_TILE_MODE(mode)  \
+	REG_FIELD_PREP(XY_FAST_COPY_BLT_D0_DST_TILING_MASK, mode)
+#define     LINEAR				0
+#define     TILE_X				0x1
+#define     XMAJOR				0x1
+#define     YMAJOR				0x2
+#define     TILE_64			0x3
+#define   XY_FAST_COPY_BLT_D1_SRC_TILE4	REG_BIT(31)
+#define   XY_FAST_COPY_BLT_D1_DST_TILE4	REG_BIT(30)
+#define BLIT_CCTL_SRC_MOCS_MASK  REG_GENMASK(6, 0)
+#define BLIT_CCTL_DST_MOCS_MASK  REG_GENMASK(14, 8)
+/* Note:  MOCS value = (index << 1) */
+#define BLIT_CCTL_SRC_MOCS(idx) \
+	REG_FIELD_PREP(BLIT_CCTL_SRC_MOCS_MASK, (idx) << 1)
+#define BLIT_CCTL_DST_MOCS(idx) \
+	REG_FIELD_PREP(BLIT_CCTL_DST_MOCS_MASK, (idx) << 1)
+
 #define SRC_COPY_BLT_CMD		(2 << 29 | 0x43 << 22)
 #define GEN9_XY_FAST_COPY_BLT_CMD	(2 << 29 | 0x42 << 22)
 #define XY_SRC_COPY_BLT_CMD		(2 << 29 | 0x53 << 22)
@@ -288,8 +310,11 @@
 #define   PIPE_CONTROL_DEPTH_CACHE_FLUSH		(1<<0)
 #define   PIPE_CONTROL_GLOBAL_GTT (1<<2) /* in addr dword */
 
-/* 3D-related flags can't be set on compute engine */
-#define PIPE_CONTROL_3D_FLAGS (\
+/*
+ * 3D-related flags that can't be set on _engines_ that lack access to the 3D
+ * pipeline (i.e., CCS engines).
+ */
+#define PIPE_CONTROL_3D_ENGINE_FLAGS (\
 		PIPE_CONTROL_RENDER_TARGET_CACHE_FLUSH | \
 		PIPE_CONTROL_DEPTH_CACHE_FLUSH | \
 		PIPE_CONTROL_TILE_CACHE_FLUSH | \
@@ -299,6 +324,14 @@
 		PIPE_CONTROL_AMFS_FLUSH | \
 		PIPE_CONTROL_VF_CACHE_INVALIDATE | \
 		PIPE_CONTROL_GLOBAL_SNAPSHOT_RESET)
+
+/* 3D-related flags that can't be set on _platforms_ that lack a 3D pipeline */
+#define PIPE_CONTROL_3D_ARCH_FLAGS ( \
+		PIPE_CONTROL_3D_ENGINE_FLAGS | \
+		PIPE_CONTROL_INDIRECT_STATE_DISABLE | \
+		PIPE_CONTROL_FLUSH_ENABLE | \
+		PIPE_CONTROL_TEXTURE_CACHE_INVALIDATE | \
+		PIPE_CONTROL_DC_FLUSH_ENABLE)
 
 #define MI_MATH(x)			MI_INSTR(0x1a, (x) - 1)
 #define MI_MATH_INSTR(opcode, op1, op2) ((opcode) << 20 | (op1) << 10 | (op2))

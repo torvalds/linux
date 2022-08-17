@@ -132,7 +132,8 @@ format-specific subdirectories under ``Documentation/output``.
 To generate documentation, Sphinx (``sphinx-build``) must obviously be
 installed. For prettier HTML output, the Read the Docs Sphinx theme
 (``sphinx_rtd_theme``) is used if available. For PDF output you'll also need
-``XeLaTeX`` and ``convert(1)`` from ImageMagick (https://www.imagemagick.org).
+``XeLaTeX`` and ``convert(1)`` from ImageMagick
+(https://www.imagemagick.org).\ [#ink]_
 All of these are widely available and packaged in distributions.
 
 To pass extra options to Sphinx, you can use the ``SPHINXOPTS`` make
@@ -150,7 +151,18 @@ If the theme is not available, it will fall-back to the classic one.
 
 The Sphinx theme can be overridden by using the ``DOCS_THEME`` make variable.
 
+There is another make variable ``SPHINXDIRS``, which is useful when test
+building a subset of documentation.  For example, you can build documents
+under ``Documentation/doc-guide`` by running
+``make SPHINXDIRS=doc-guide htmldocs``.
+The documentation section of ``make help`` will show you the list of
+subdirectories you can specify.
+
 To remove the generated documentation, run ``make cleandocs``.
+
+.. [#ink] Having ``inkscape(1)`` from Inkscape (https://inkscape.org)
+	  as well would improve the quality of images embedded in PDF
+	  documents, especially for kernel releases 5.18 and later.
 
 Writing Documentation
 =====================

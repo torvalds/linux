@@ -1290,7 +1290,7 @@ static const struct hwmon_chip_info sfp_hwmon_chip_info = {
 static void sfp_hwmon_probe(struct work_struct *work)
 {
 	struct sfp *sfp = container_of(work, struct sfp, hwmon_probe.work);
-	int err, i;
+	int err;
 
 	/* hwmon interface needs to access 16bit registers in atomic way to
 	 * guarantee coherency of the diagnostic monitoring data. If it is not
@@ -1318,15 +1318,11 @@ static void sfp_hwmon_probe(struct work_struct *work)
 		return;
 	}
 
-	sfp->hwmon_name = kstrdup(dev_name(sfp->dev), GFP_KERNEL);
-	if (!sfp->hwmon_name) {
+	sfp->hwmon_name = hwmon_sanitize_name(dev_name(sfp->dev));
+	if (IS_ERR(sfp->hwmon_name)) {
 		dev_err(sfp->dev, "out of memory for hwmon name\n");
 		return;
 	}
-
-	for (i = 0; sfp->hwmon_name[i]; i++)
-		if (hwmon_is_bad_char(sfp->hwmon_name[i]))
-			sfp->hwmon_name[i] = '_';
 
 	sfp->hwmon_dev = hwmon_device_register_with_info(sfp->dev,
 							 sfp->hwmon_name, sfp,

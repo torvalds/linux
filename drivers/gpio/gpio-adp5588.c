@@ -6,19 +6,17 @@
  * Copyright 2009-2010 Analog Devices Inc.
  */
 
-#include <linux/module.h>
-#include <linux/kernel.h>
-#include <linux/slab.h>
-#include <linux/init.h>
-#include <linux/i2c.h>
 #include <linux/gpio/driver.h>
+#include <linux/i2c.h>
+#include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
-#include <linux/of_device.h>
+#include <linux/kernel.h>
+#include <linux/mod_devicetable.h>
+#include <linux/module.h>
+#include <linux/slab.h>
 
 #include <linux/platform_data/adp5588.h>
-
-#define DRV_NAME	"adp5588-gpio"
 
 /*
  * Early pre 4.0 Silicon required to delay readout by at least 25ms,
@@ -411,34 +409,30 @@ static int adp5588_gpio_probe(struct i2c_client *client)
 	return 0;
 }
 
-static int adp5588_gpio_remove(struct i2c_client *client)
+static void adp5588_gpio_remove(struct i2c_client *client)
 {
 	struct adp5588_gpio *dev = i2c_get_clientdata(client);
 
 	if (dev->client->irq)
 		free_irq(dev->client->irq, dev);
-
-	return 0;
 }
 
 static const struct i2c_device_id adp5588_gpio_id[] = {
-	{DRV_NAME, 0},
+	{ "adp5588-gpio" },
 	{}
 };
 MODULE_DEVICE_TABLE(i2c, adp5588_gpio_id);
 
-#ifdef CONFIG_OF
 static const struct of_device_id adp5588_gpio_of_id[] = {
-	{ .compatible = "adi," DRV_NAME, },
-	{},
+	{ .compatible = "adi,adp5588-gpio" },
+	{}
 };
 MODULE_DEVICE_TABLE(of, adp5588_gpio_of_id);
-#endif
 
 static struct i2c_driver adp5588_gpio_driver = {
 	.driver = {
-		.name = DRV_NAME,
-		.of_match_table = of_match_ptr(adp5588_gpio_of_id),
+		.name = "adp5588-gpio",
+		.of_match_table = adp5588_gpio_of_id,
 	},
 	.probe_new = adp5588_gpio_probe,
 	.remove = adp5588_gpio_remove,

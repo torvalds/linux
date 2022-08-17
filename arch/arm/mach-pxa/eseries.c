@@ -1,13 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Hardware definitions for the Toshiba eseries PDAs
  *
  * Copyright (c) 2003 Ian Molton <spyro@f2s.com>
- *
- * This file is licensed under
- * the terms of the GNU General Public License version 2. This program
- * is licensed "as is" without any warranty of any kind, whether express
- * or implied.
- *
  */
 
 #include <linux/clkdev.h>
@@ -86,11 +81,10 @@ int eseries_tmio_enable(struct platform_device *dev)
 	return 0;
 }
 
-int eseries_tmio_disable(struct platform_device *dev)
+void eseries_tmio_disable(struct platform_device *dev)
 {
 	gpio_set_value(GPIO_ESERIES_TMIO_SUSPEND, 0);
 	gpio_set_value(GPIO_ESERIES_TMIO_PCLR, 0);
-	return 0;
 }
 
 int eseries_tmio_suspend(struct platform_device *dev)
@@ -139,7 +133,6 @@ static void __init __maybe_unused eseries_register_clks(void)
 
 static struct tc6387xb_platform_data e330_tc6387xb_info = {
 	.enable   = &eseries_tmio_enable,
-	.disable  = &eseries_tmio_disable,
 	.suspend  = &eseries_tmio_suspend,
 	.resume   = &eseries_tmio_resume,
 };

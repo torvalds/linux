@@ -1284,7 +1284,6 @@ static const struct snd_soc_component_driver soc_component_dev_wm9081 = {
 	.num_dapm_routes	= ARRAY_SIZE(wm9081_audio_paths),
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
 };
 
 static const struct regmap_config wm9081_regmap = {
@@ -1357,10 +1356,8 @@ static int wm9081_i2c_probe(struct i2c_client *i2c)
 	return 0;
 }
 
-static int wm9081_i2c_remove(struct i2c_client *client)
-{
-	return 0;
-}
+static void wm9081_i2c_remove(struct i2c_client *client)
+{}
 
 static const struct i2c_device_id wm9081_i2c_id[] = {
 	{ "wm9081", 0 },

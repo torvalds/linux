@@ -18,7 +18,7 @@
 #ifndef __MAC_H__
 #define __MAC_H__
 
-#include "upc.h"
+#include "device.h"
 
 /*---------------------  Export Definitions -------------------------*/
 /* Registers in the MAC */
@@ -537,82 +537,14 @@
 
 /*---------------------  Export Macros ------------------------------*/
 
-#define MACvRegBitsOn(iobase, byRegOfs, byBits)			\
-do {									\
-	unsigned char byData;						\
-	byData = ioread8(iobase + byRegOfs);				\
-	iowrite8(byData | (byBits), iobase + byRegOfs);			\
-} while (0)
-
-#define MACvWordRegBitsOn(iobase, byRegOfs, wBits)			\
-do {									\
-	unsigned short wData;						\
-	wData = ioread16(iobase + byRegOfs);				\
-	VNSvOutPortW(iobase + byRegOfs, wData | (wBits));		\
-} while (0)
-
-#define MACvRegBitsOff(iobase, byRegOfs, byBits)			\
-do {									\
-	unsigned char byData;						\
-	byData = ioread8(iobase + byRegOfs);				\
-	iowrite8(byData & ~(byBits), iobase + byRegOfs);		\
-} while (0)
-
-#define MACvWordRegBitsOff(iobase, byRegOfs, wBits)			\
-do {									\
-	unsigned short wData;						\
-	wData = ioread16(iobase + byRegOfs);				\
-	VNSvOutPortW(iobase + byRegOfs, wData & ~(wBits));		\
-} while (0)
-
-/* set the chip with current BCN tx descriptor address */
-#define MACvSetCurrBCNTxDescAddr(iobase, dwCurrDescAddr)	\
-	VNSvOutPortD(iobase + MAC_REG_BCNDMAPTR,		\
-		     dwCurrDescAddr)
-
-/* set the chip with current BCN length */
-#define MACvSetCurrBCNLength(iobase, wCurrBCNLength)		\
-	VNSvOutPortW(iobase + MAC_REG_BCNDMACTL + 2,		\
-		     wCurrBCNLength)
-
-#define MACvWriteBSSIDAddress(iobase, pbyEtherAddr)		\
-do {								\
-	iowrite8(1, iobase + MAC_REG_PAGE1SEL);			\
-	iowrite8(pbyEtherAddr[0], iobase + MAC_REG_BSSID0);	\
-	iowrite8(pbyEtherAddr[1], iobase + MAC_REG_BSSID0 + 1);	\
-	iowrite8(pbyEtherAddr[2], iobase + MAC_REG_BSSID0 + 2);	\
-	iowrite8(pbyEtherAddr[3], iobase + MAC_REG_BSSID0 + 3);	\
-	iowrite8(pbyEtherAddr[4], iobase + MAC_REG_BSSID0 + 4);	\
-	iowrite8(pbyEtherAddr[5], iobase + MAC_REG_BSSID0 + 5);	\
-	iowrite8(0, iobase + MAC_REG_PAGE1SEL);			\
-} while (0)
-
-#define MACvReadEtherAddress(iobase, pbyEtherAddr)		\
-do {								\
-	iowrite8(1, iobase + MAC_REG_PAGE1SEL);			\
-	pbyEtherAddr[0] = ioread8(iobase + MAC_REG_PAR0);	\
-	pbyEtherAddr[1] = ioread8(iobase + MAC_REG_PAR0 + 1);	\
-	pbyEtherAddr[2] = ioread8(iobase + MAC_REG_PAR0 + 2);	\
-	pbyEtherAddr[3] = ioread8(iobase + MAC_REG_PAR0 + 3);	\
-	pbyEtherAddr[4] = ioread8(iobase + MAC_REG_PAR0 + 4);	\
-	pbyEtherAddr[5] = ioread8(iobase + MAC_REG_PAR0 + 5);	\
-	iowrite8(0, iobase + MAC_REG_PAGE1SEL);			\
-} while (0)
-
-#define MACvRx0PerPktMode(iobase)					\
-	VNSvOutPortD(iobase + MAC_REG_RXDMACTL0, RX_PERPKT)
-
-#define MACvRx1PerPktMode(iobase)					\
-	VNSvOutPortD(iobase + MAC_REG_RXDMACTL1, RX_PERPKT)
-
 #define MACvReceive0(iobase)						\
 do {									\
 	unsigned long dwData;						\
 	dwData = ioread32(iobase + MAC_REG_RXDMACTL0);			\
 	if (dwData & DMACTL_RUN)					\
-		VNSvOutPortD(iobase + MAC_REG_RXDMACTL0, DMACTL_WAKE); \
+		iowrite32(DMACTL_WAKE, iobase + MAC_REG_RXDMACTL0);	\
 	else								\
-		VNSvOutPortD(iobase + MAC_REG_RXDMACTL0, DMACTL_RUN); \
+		iowrite32(DMACTL_RUN, iobase + MAC_REG_RXDMACTL0);	\
 } while (0)
 
 #define MACvReceive1(iobase)						\
@@ -620,9 +552,9 @@ do {									\
 	unsigned long dwData;						\
 	dwData = ioread32(iobase + MAC_REG_RXDMACTL1);			\
 	if (dwData & DMACTL_RUN)					\
-		VNSvOutPortD(iobase + MAC_REG_RXDMACTL1, DMACTL_WAKE); \
+		iowrite32(DMACTL_WAKE, iobase + MAC_REG_RXDMACTL1);	\
 	else								\
-		VNSvOutPortD(iobase + MAC_REG_RXDMACTL1, DMACTL_RUN); \
+		iowrite32(DMACTL_RUN, iobase + MAC_REG_RXDMACTL1);	\
 } while (0)
 
 #define MACvTransmit0(iobase)						\
@@ -630,9 +562,9 @@ do {									\
 	unsigned long dwData;						\
 	dwData = ioread32(iobase + MAC_REG_TXDMACTL0);			\
 	if (dwData & DMACTL_RUN)					\
-		VNSvOutPortD(iobase + MAC_REG_TXDMACTL0, DMACTL_WAKE); \
+		iowrite32(DMACTL_WAKE, iobase + MAC_REG_TXDMACTL0);	\
 	else								\
-		VNSvOutPortD(iobase + MAC_REG_TXDMACTL0, DMACTL_RUN); \
+		iowrite32(DMACTL_RUN, iobase + MAC_REG_TXDMACTL0);	\
 } while (0)
 
 #define MACvTransmitAC0(iobase)					\
@@ -640,27 +572,10 @@ do {									\
 	unsigned long dwData;						\
 	dwData = ioread32(iobase + MAC_REG_AC0DMACTL);			\
 	if (dwData & DMACTL_RUN)					\
-		VNSvOutPortD(iobase + MAC_REG_AC0DMACTL, DMACTL_WAKE); \
+		iowrite32(DMACTL_WAKE, iobase + MAC_REG_AC0DMACTL);	\
 	else								\
-		VNSvOutPortD(iobase + MAC_REG_AC0DMACTL, DMACTL_RUN); \
+		iowrite32(DMACTL_RUN, iobase + MAC_REG_AC0DMACTL);	\
 } while (0)
-
-#define MACvClearStckDS(iobase)					\
-do {									\
-	unsigned char byOrgValue;					\
-	byOrgValue = ioread8(iobase + MAC_REG_STICKHW);			\
-	byOrgValue = byOrgValue & 0xFC;					\
-	iowrite8(byOrgValue, iobase + MAC_REG_STICKHW);			\
-} while (0)
-
-#define MACvWriteISR(iobase, dwValue)				\
-	VNSvOutPortD(iobase + MAC_REG_ISR, dwValue)
-
-#define MACvIntEnable(iobase, dwMask)				\
-	VNSvOutPortD(iobase + MAC_REG_IMR, dwMask)
-
-#define MACvIntDisable(iobase)				\
-	VNSvOutPortD(iobase + MAC_REG_IMR, 0)
 
 #define MACvSelectPage0(iobase)				\
 	iowrite8(0, iobase + MAC_REG_PAGE1SEL)
@@ -673,7 +588,7 @@ do {									\
 	unsigned long dwOrgValue;					\
 	dwOrgValue = ioread32(iobase + MAC_REG_ENCFG);			\
 	dwOrgValue = dwOrgValue | ENCFG_PROTECTMD;			\
-	VNSvOutPortD(iobase + MAC_REG_ENCFG, dwOrgValue);		\
+	iowrite32((u32)dwOrgValue, iobase + MAC_REG_ENCFG);		\
 } while (0)
 
 #define MACvDisableProtectMD(iobase)					\
@@ -681,7 +596,7 @@ do {									\
 	unsigned long dwOrgValue;					\
 	dwOrgValue = ioread32(iobase + MAC_REG_ENCFG);			\
 	dwOrgValue = dwOrgValue & ~ENCFG_PROTECTMD;			\
-	VNSvOutPortD(iobase + MAC_REG_ENCFG, dwOrgValue);		\
+	iowrite32((u32)dwOrgValue, iobase + MAC_REG_ENCFG);		\
 } while (0)
 
 #define MACvEnableBarkerPreambleMd(iobase)				\
@@ -689,7 +604,7 @@ do {									\
 	unsigned long dwOrgValue;					\
 	dwOrgValue = ioread32(iobase + MAC_REG_ENCFG);			\
 	dwOrgValue = dwOrgValue | ENCFG_BARKERPREAM;			\
-	VNSvOutPortD(iobase + MAC_REG_ENCFG, dwOrgValue);		\
+	iowrite32((u32)dwOrgValue, iobase + MAC_REG_ENCFG);		\
 } while (0)
 
 #define MACvDisableBarkerPreambleMd(iobase)				\
@@ -697,7 +612,7 @@ do {									\
 	unsigned long dwOrgValue;					\
 	dwOrgValue = ioread32(iobase + MAC_REG_ENCFG);			\
 	dwOrgValue = dwOrgValue & ~ENCFG_BARKERPREAM;			\
-	VNSvOutPortD(iobase + MAC_REG_ENCFG, dwOrgValue);		\
+	iowrite32((u32)dwOrgValue, iobase + MAC_REG_ENCFG);		\
 } while (0)
 
 #define MACvSetBBType(iobase, byTyp)					\
@@ -706,14 +621,19 @@ do {									\
 	dwOrgValue = ioread32(iobase + MAC_REG_ENCFG);			\
 	dwOrgValue = dwOrgValue & ~ENCFG_BBTYPE_MASK;			\
 	dwOrgValue = dwOrgValue | (unsigned long)byTyp;			\
-	VNSvOutPortD(iobase + MAC_REG_ENCFG, dwOrgValue);		\
+	iowrite32((u32)dwOrgValue, iobase + MAC_REG_ENCFG);		\
 } while (0)
 
 #define MACvSetRFLE_LatchBase(iobase)                                 \
-	MACvWordRegBitsOn(iobase, MAC_REG_SOFTPWRCTL, SOFTPWRCTL_RFLEOPT)
+	vt6655_mac_word_reg_bits_on(iobase, MAC_REG_SOFTPWRCTL, SOFTPWRCTL_RFLEOPT)
 
 #define MAKEWORD(lb, hb) \
 	((unsigned short)(((unsigned char)(lb)) | (((unsigned short)((unsigned char)(hb))) << 8)))
+
+void vt6655_mac_reg_bits_on(void __iomem *iobase, const u8 reg_offset, const u8 bit_mask);
+void vt6655_mac_word_reg_bits_on(void __iomem *iobase, const u8 reg_offset, const u16 bit_mask);
+void vt6655_mac_reg_bits_off(void __iomem *iobase, const u8 reg_offset, const u8 bit_mask);
+void vt6655_mac_word_reg_bits_off(void __iomem *iobase, const u8 reg_offset, const u16 bit_mask);
 
 bool MACbIsRegBitsOff(struct vnt_private *priv, unsigned char byRegOfs,
 		      unsigned char byTestBits);

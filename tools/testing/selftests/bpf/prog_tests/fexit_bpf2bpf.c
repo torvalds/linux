@@ -3,6 +3,7 @@
 #include <test_progs.h>
 #include <network_helpers.h>
 #include <bpf/btf.h>
+#include "bind4_prog.skel.h"
 
 typedef int (*test_cb)(struct bpf_object *obj);
 
@@ -407,6 +408,98 @@ static void test_func_replace_global_func(void)
 				  prog_name, false, NULL);
 }
 
+static int find_prog_btf_id(const char *name, __u32 attach_prog_fd)
+{
+	struct bpf_prog_info info = {};
+	__u32 info_len = sizeof(info);
+	struct btf *btf;
+	int ret;
+
+	ret = bpf_obj_get_info_by_fd(attach_prog_fd, &info, &info_len);
+	if (ret)
+		return ret;
+
+	if (!info.btf_id)
+		return -EINVAL;
+
+	btf = btf__load_from_kernel_by_id(info.btf_id);
+	ret = libbpf_get_error(btf);
+	if (ret)
+		return ret;
+
+	ret = btf__find_by_name_kind(btf, name, BTF_KIND_FUNC);
+	btf__free(btf);
+	return ret;
+}
+
+static int load_fentry(int attach_prog_fd, int attach_btf_id)
+{
+	LIBBPF_OPTS(bpf_prog_load_opts, opts,
+		    .expected_attach_type = BPF_TRACE_FENTRY,
+		    .attach_prog_fd = attach_prog_fd,
+		    .attach_btf_id = attach_btf_id,
+	);
+	struct bpf_insn insns[] = {
+		BPF_MOV64_IMM(BPF_REG_0, 0),
+		BPF_EXIT_INSN(),
+	};
+
+	return bpf_prog_load(BPF_PROG_TYPE_TRACING,
+			     "bind4_fentry",
+			     "GPL",
+			     insns,
+			     ARRAY_SIZE(insns),
+			     &opts);
+}
+
+static void test_fentry_to_cgroup_bpf(void)
+{
+	struct bind4_prog *skel = NULL;
+	struct bpf_prog_info info = {};
+	__u32 info_len = sizeof(info);
+	int cgroup_fd = -1;
+	int fentry_fd = -1;
+	int btf_id;
+
+	cgroup_fd = test__join_cgroup("/fentry_to_cgroup_bpf");
+	if (!ASSERT_GE(cgroup_fd, 0, "cgroup_fd"))
+		return;
+
+	skel = bind4_prog__open_and_load();
+	if (!ASSERT_OK_PTR(skel, "skel"))
+		goto cleanup;
+
+	skel->links.bind_v4_prog = bpf_program__attach_cgroup(skel->progs.bind_v4_prog, cgroup_fd);
+	if (!ASSERT_OK_PTR(skel->links.bind_v4_prog, "bpf_program__attach_cgroup"))
+		goto cleanup;
+
+	btf_id = find_prog_btf_id("bind_v4_prog", bpf_program__fd(skel->progs.bind_v4_prog));
+	if (!ASSERT_GE(btf_id, 0, "find_prog_btf_id"))
+		goto cleanup;
+
+	fentry_fd = load_fentry(bpf_program__fd(skel->progs.bind_v4_prog), btf_id);
+	if (!ASSERT_GE(fentry_fd, 0, "load_fentry"))
+		goto cleanup;
+
+	/* Make sure bpf_obj_get_info_by_fd works correctly when attaching
+	 * to another BPF program.
+	 */
+
+	ASSERT_OK(bpf_obj_get_info_by_fd(fentry_fd, &info, &info_len),
+		  "bpf_obj_get_info_by_fd");
+
+	ASSERT_EQ(info.btf_id, 0, "info.btf_id");
+	ASSERT_EQ(info.attach_btf_id, btf_id, "info.attach_btf_id");
+	ASSERT_GT(info.attach_btf_obj_id, 0, "info.attach_btf_obj_id");
+
+cleanup:
+	if (cgroup_fd >= 0)
+		close(cgroup_fd);
+	if (fentry_fd >= 0)
+		close(fentry_fd);
+	bind4_prog__destroy(skel);
+}
+
 /* NOTE: affect other tests, must run in serial mode */
 void serial_test_fexit_bpf2bpf(void)
 {
@@ -430,4 +523,6 @@ void serial_test_fexit_bpf2bpf(void)
 		test_fmod_ret_freplace();
 	if (test__start_subtest("func_replace_global_func"))
 		test_func_replace_global_func();
+	if (test__start_subtest("fentry_to_cgroup_bpf"))
+		test_fentry_to_cgroup_bpf();
 }

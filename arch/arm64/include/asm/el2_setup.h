@@ -129,64 +129,6 @@
 	msr	cptr_el2, x0			// Disable copro. traps to EL2
 .endm
 
-/* SVE register access */
-.macro __init_el2_nvhe_sve
-	mrs	x1, id_aa64pfr0_el1
-	ubfx	x1, x1, #ID_AA64PFR0_SVE_SHIFT, #4
-	cbz	x1, .Lskip_sve_\@
-
-	bic	x0, x0, #CPTR_EL2_TZ		// Also disable SVE traps
-	msr	cptr_el2, x0			// Disable copro. traps to EL2
-	isb
-	mov	x1, #ZCR_ELx_LEN_MASK		// SVE: Enable full vector
-	msr_s	SYS_ZCR_EL2, x1			// length for EL1.
-.Lskip_sve_\@:
-.endm
-
-/* SME register access and priority mapping */
-.macro __init_el2_nvhe_sme
-	mrs	x1, id_aa64pfr1_el1
-	ubfx	x1, x1, #ID_AA64PFR1_SME_SHIFT, #4
-	cbz	x1, .Lskip_sme_\@
-
-	bic	x0, x0, #CPTR_EL2_TSM		// Also disable SME traps
-	msr	cptr_el2, x0			// Disable copro. traps to EL2
-	isb
-
-	mrs	x1, sctlr_el2
-	orr	x1, x1, #SCTLR_ELx_ENTP2	// Disable TPIDR2 traps
-	msr	sctlr_el2, x1
-	isb
-
-	mov	x1, #0				// SMCR controls
-
-	mrs_s	x2, SYS_ID_AA64SMFR0_EL1
-	ubfx	x2, x2, #ID_AA64SMFR0_FA64_SHIFT, #1 // Full FP in SM?
-	cbz	x2, .Lskip_sme_fa64_\@
-
-	orr	x1, x1, SMCR_ELx_FA64_MASK
-.Lskip_sme_fa64_\@:
-
-	orr	x1, x1, #SMCR_ELx_LEN_MASK	// Enable full SME vector
-	msr_s	SYS_SMCR_EL2, x1		// length for EL1.
-
-	mrs_s	x1, SYS_SMIDR_EL1		// Priority mapping supported?
-	ubfx    x1, x1, #SMIDR_EL1_SMPS_SHIFT, #1
-	cbz     x1, .Lskip_sme_\@
-
-	msr_s	SYS_SMPRIMAP_EL2, xzr		// Make all priorities equal
-
-	mrs	x1, id_aa64mmfr1_el1		// HCRX_EL2 present?
-	ubfx	x1, x1, #ID_AA64MMFR1_HCX_SHIFT, #4
-	cbz	x1, .Lskip_sme_\@
-
-	mrs_s	x1, SYS_HCRX_EL2
-	orr	x1, x1, #HCRX_EL2_SMPME_MASK	// Enable priority mapping
-	msr_s	SYS_HCRX_EL2, x1
-
-.Lskip_sme_\@:
-.endm
-
 /* Disable any fine grained traps */
 .macro __init_el2_fgt
 	mrs	x1, id_aa64mmfr0_el1
@@ -250,8 +192,6 @@
 	__init_el2_hstr
 	__init_el2_nvhe_idregs
 	__init_el2_nvhe_cptr
-	__init_el2_nvhe_sve
-	__init_el2_nvhe_sme
 	__init_el2_fgt
 	__init_el2_nvhe_prepare_eret
 .endm

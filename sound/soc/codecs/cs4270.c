@@ -619,7 +619,6 @@ static const struct snd_soc_component_driver soc_component_device_cs4270 = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
 };
 
 /*
@@ -651,19 +650,16 @@ static const struct regmap_config cs4270_regmap = {
  * This function puts the chip into low power mode when the i2c device
  * is removed.
  */
-static int cs4270_i2c_remove(struct i2c_client *i2c_client)
+static void cs4270_i2c_remove(struct i2c_client *i2c_client)
 {
 	struct cs4270_private *cs4270 = i2c_get_clientdata(i2c_client);
 
 	gpiod_set_value_cansleep(cs4270->reset_gpio, 0);
-
-	return 0;
 }
 
 /**
  * cs4270_i2c_probe - initialize the I2C interface of the CS4270
  * @i2c_client: the I2C client object
- * @id: the I2C device ID (ignored)
  *
  * This function is called whenever the I2C subsystem finds a device that
  * matches the device ID given via a prior call to i2c_add_driver().

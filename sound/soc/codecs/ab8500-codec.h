@@ -11,8 +11,6 @@
  *         Mikko J. Lehto <mikko.lehto@symbio.com>,
  *         Mikko Sarmanne <mikko.sarmanne@symbio.com>,
  *         for ST-Ericsson.
- *
- * License terms:
  */
 
 #ifndef AB8500_CODEC_REGISTERS_H

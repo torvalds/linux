@@ -114,7 +114,7 @@ struct flexcan_priv {
 	void (*write)(u32 val, void __iomem *addr);
 };
 
-void flexcan_set_ethtool_ops(struct net_device *dev);
+extern const struct ethtool_ops flexcan_ethtool_ops;
 
 static inline bool
 flexcan_supports_rx_mailbox(const struct flexcan_priv *priv)

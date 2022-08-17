@@ -535,7 +535,6 @@ static const struct snd_soc_component_driver soc_component_dev_ak4641 = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
 };
 
 static const struct regmap_config ak4641_regmap = {
@@ -605,7 +604,7 @@ err_out:
 	return ret;
 }
 
-static int ak4641_i2c_remove(struct i2c_client *i2c)
+static void ak4641_i2c_remove(struct i2c_client *i2c)
 {
 	struct ak4641_platform_data *pdata = i2c->dev.platform_data;
 
@@ -617,8 +616,6 @@ static int ak4641_i2c_remove(struct i2c_client *i2c)
 		if (gpio_is_valid(pdata->gpio_npdn))
 			gpio_free(pdata->gpio_npdn);
 	}
-
-	return 0;
 }
 
 static const struct i2c_device_id ak4641_i2c_id[] = {

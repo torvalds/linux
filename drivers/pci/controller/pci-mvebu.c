@@ -1216,7 +1216,6 @@ static int mvebu_get_tgt_attr(struct device_node *np, int devfn,
 	return -ENOENT;
 }
 
-#ifdef CONFIG_PM_SLEEP
 static int mvebu_pcie_suspend(struct device *dev)
 {
 	struct mvebu_pcie *pcie;
@@ -1249,7 +1248,6 @@ static int mvebu_pcie_resume(struct device *dev)
 
 	return 0;
 }
-#endif
 
 static void mvebu_pcie_port_clk_put(void *data)
 {
@@ -1737,7 +1735,7 @@ static const struct of_device_id mvebu_pcie_of_match_table[] = {
 };
 
 static const struct dev_pm_ops mvebu_pcie_pm_ops = {
-	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(mvebu_pcie_suspend, mvebu_pcie_resume)
+	NOIRQ_SYSTEM_SLEEP_PM_OPS(mvebu_pcie_suspend, mvebu_pcie_resume)
 };
 
 static struct platform_driver mvebu_pcie_driver = {

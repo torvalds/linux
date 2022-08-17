@@ -21,6 +21,8 @@
 
 #include <video/mipi_display.h>
 
+#include <drm/drm_of.h>
+
 #include "dsi.h"
 #include "dsi.xml.h"
 #include "sfpb.xml.h"
@@ -1080,12 +1082,32 @@ static void dsi_timing_setup(struct msm_dsi_host *msm_host, bool is_bonded_dsi)
 
 static void dsi_sw_reset(struct msm_dsi_host *msm_host)
 {
+	u32 ctrl;
+
+	ctrl = dsi_read(msm_host, REG_DSI_CTRL);
+
+	if (ctrl & DSI_CTRL_ENABLE) {
+		dsi_write(msm_host, REG_DSI_CTRL, ctrl & ~DSI_CTRL_ENABLE);
+		/*
+		 * dsi controller need to be disabled before
+		 * clocks turned on
+		 */
+		wmb();
+	}
+
 	dsi_write(msm_host, REG_DSI_CLK_CTRL, DSI_CLK_CTRL_ENABLE_CLKS);
 	wmb(); /* clocks need to be enabled before reset */
 
+	/* dsi controller can only be reset while clocks are running */
 	dsi_write(msm_host, REG_DSI_RESET, 1);
 	msleep(DSI_RESET_TOGGLE_DELAY_MS); /* make sure reset happen */
 	dsi_write(msm_host, REG_DSI_RESET, 0);
+	wmb(); /* controller out of reset */
+
+	if (ctrl & DSI_CTRL_ENABLE) {
+		dsi_write(msm_host, REG_DSI_CTRL, ctrl);
+		wmb();	/* make sure dsi controller enabled again */
+	}
 }
 
 static void dsi_op_mode_config(struct msm_dsi_host *msm_host,
@@ -1478,32 +1500,6 @@ static int dsi_cmds2buf_tx(struct msm_dsi_host *msm_host,
 	return len;
 }
 
-static void dsi_sw_reset_restore(struct msm_dsi_host *msm_host)
-{
-	u32 data0, data1;
-
-	data0 = dsi_read(msm_host, REG_DSI_CTRL);
-	data1 = data0;
-	data1 &= ~DSI_CTRL_ENABLE;
-	dsi_write(msm_host, REG_DSI_CTRL, data1);
-	/*
-	 * dsi controller need to be disabled before
-	 * clocks turned on
-	 */
-	wmb();
-
-	dsi_write(msm_host, REG_DSI_CLK_CTRL, DSI_CLK_CTRL_ENABLE_CLKS);
-	wmb();	/* make sure clocks enabled */
-
-	/* dsi controller can only be reset while clocks are running */
-	dsi_write(msm_host, REG_DSI_RESET, 1);
-	msleep(DSI_RESET_TOGGLE_DELAY_MS); /* make sure reset happen */
-	dsi_write(msm_host, REG_DSI_RESET, 0);
-	wmb();	/* controller out of reset */
-	dsi_write(msm_host, REG_DSI_CTRL, data0);
-	wmb();	/* make sure dsi controller enabled again */
-}
-
 static void dsi_hpd_worker(struct work_struct *work)
 {
 	struct msm_dsi_host *msm_host =
@@ -1520,7 +1516,7 @@ static void dsi_err_worker(struct work_struct *work)
 
 	pr_err_ratelimited("%s: status=%x\n", __func__, status);
 	if (status & DSI_ERR_STATE_MDP_FIFO_UNDERFLOW)
-		dsi_sw_reset_restore(msm_host);
+		dsi_sw_reset(msm_host);
 
 	/* It is safe to clear here because error irq is disabled. */
 	msm_host->err_work_state = 0;
@@ -1779,11 +1775,10 @@ static int dsi_host_parse_lane_data(struct msm_dsi_host *msm_host,
 		return 0;
 	}
 
-	num_lanes = len / sizeof(u32);
-
-	if (num_lanes < 1 || num_lanes > 4) {
+	num_lanes = drm_of_get_data_lanes_count(ep, 1, 4);
+	if (num_lanes < 0) {
 		DRM_DEV_ERROR(dev, "bad number of data lanes\n");
-		return -EINVAL;
+		return num_lanes;
 	}
 
 	msm_host->num_data_lanes = num_lanes;

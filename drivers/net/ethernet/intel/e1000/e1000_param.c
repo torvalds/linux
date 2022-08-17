@@ -82,7 +82,6 @@ E1000_PARAM(Duplex, "Duplex setting");
  */
 E1000_PARAM(AutoNeg, "Advertised auto-negotiation setting");
 #define AUTONEG_ADV_DEFAULT  0x2F
-#define AUTONEG_ADV_MASK     0x2F
 
 /* User Specified Flow Control Override
  *
@@ -95,7 +94,6 @@ E1000_PARAM(AutoNeg, "Advertised auto-negotiation setting");
  * Default Value: Read flow control settings from the EEPROM
  */
 E1000_PARAM(FlowControl, "Flow Control setting");
-#define FLOW_CONTROL_DEFAULT FLOW_CONTROL_FULL
 
 /* XsumRX - Receive Checksum Offload Enable/Disable
  *

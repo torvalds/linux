@@ -15,7 +15,9 @@ static ssize_t fw_version_show(struct device *dev,
 	struct catpt_fw_version version;
 	int ret;
 
-	pm_runtime_get_sync(cdev->dev);
+	ret = pm_runtime_resume_and_get(cdev->dev);
+	if (ret < 0 && ret != -EACCES)
+		return ret;
 
 	ret = catpt_ipc_get_fw_version(cdev, &version);
 

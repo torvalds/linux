@@ -106,15 +106,15 @@ static inline void * phys_to_virt(unsigned long address)
 extern unsigned long __direct_map_base;
 extern unsigned long __direct_map_size;
 
-static inline unsigned long __deprecated virt_to_bus(volatile void *address)
+static inline unsigned long __deprecated isa_virt_to_bus(volatile void *address)
 {
 	unsigned long phys = virt_to_phys(address);
 	unsigned long bus = phys + __direct_map_base;
 	return phys <= __direct_map_size ? bus : 0;
 }
-#define isa_virt_to_bus virt_to_bus
+#define isa_virt_to_bus isa_virt_to_bus
 
-static inline void * __deprecated bus_to_virt(unsigned long address)
+static inline void * __deprecated isa_bus_to_virt(unsigned long address)
 {
 	void *virt;
 
@@ -125,7 +125,7 @@ static inline void * __deprecated bus_to_virt(unsigned long address)
 	virt = phys_to_virt(address);
 	return (long)address <= 0 ? NULL : virt;
 }
-#define isa_bus_to_virt bus_to_virt
+#define isa_bus_to_virt isa_bus_to_virt
 
 /*
  * There are different chipsets to interface the Alpha CPUs to the world.

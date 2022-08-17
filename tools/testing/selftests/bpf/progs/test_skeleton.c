@@ -51,6 +51,8 @@ int out_dynarr[4] SEC(".data.dyn") = { 1, 2, 3, 4 };
 int read_mostly_var __read_mostly;
 int out_mostly_var;
 
+char huge_arr[16 * 1024 * 1024];
+
 SEC("raw_tp/sys_enter")
 int handler(const void *ctx)
 {
@@ -70,6 +72,8 @@ int handler(const void *ctx)
 		out_dynarr[i] = in_dynarr[i];
 
 	out_mostly_var = read_mostly_var;
+
+	huge_arr[sizeof(huge_arr) - 1] = 123;
 
 	return 0;
 }

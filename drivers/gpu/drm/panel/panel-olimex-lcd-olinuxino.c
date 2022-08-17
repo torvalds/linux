@@ -288,7 +288,7 @@ static int lcd_olinuxino_probe(struct i2c_client *client,
 	return 0;
 }
 
-static int lcd_olinuxino_remove(struct i2c_client *client)
+static void lcd_olinuxino_remove(struct i2c_client *client)
 {
 	struct lcd_olinuxino *panel = i2c_get_clientdata(client);
 
@@ -296,8 +296,6 @@ static int lcd_olinuxino_remove(struct i2c_client *client)
 
 	drm_panel_disable(&panel->panel);
 	drm_panel_unprepare(&panel->panel);
-
-	return 0;
 }
 
 static const struct of_device_id lcd_olinuxino_of_ids[] = {

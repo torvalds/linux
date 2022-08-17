@@ -294,7 +294,7 @@ err_i2c_haptic:
 	return ret;
 }
 
-static int max77693_i2c_remove(struct i2c_client *i2c)
+static void max77693_i2c_remove(struct i2c_client *i2c)
 {
 	struct max77693_dev *max77693 = i2c_get_clientdata(i2c);
 
@@ -307,8 +307,6 @@ static int max77693_i2c_remove(struct i2c_client *i2c)
 
 	i2c_unregister_device(max77693->i2c_muic);
 	i2c_unregister_device(max77693->i2c_haptic);
-
-	return 0;
 }
 
 static const struct i2c_device_id max77693_i2c_id[] = {

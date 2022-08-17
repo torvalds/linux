@@ -2587,7 +2587,7 @@ error_endpoint:
 	return ret;
 }
 
-static int ov5648_remove(struct i2c_client *client)
+static void ov5648_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *subdev = i2c_get_clientdata(client);
 	struct ov5648_sensor *sensor = ov5648_subdev_sensor(subdev);
@@ -2597,8 +2597,6 @@ static int ov5648_remove(struct i2c_client *client)
 	v4l2_ctrl_handler_free(&sensor->ctrls.handler);
 	mutex_destroy(&sensor->mutex);
 	media_entity_cleanup(&subdev->entity);
-
-	return 0;
 }
 
 static const struct dev_pm_ops ov5648_pm_ops = {

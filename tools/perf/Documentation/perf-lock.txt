@@ -8,7 +8,7 @@ perf-lock - Analyze lock events
 SYNOPSIS
 --------
 [verse]
-'perf lock' {record|report|script|info}
+'perf lock' {record|report|script|info|contention}
 
 DESCRIPTION
 -----------
@@ -26,6 +26,8 @@ and statistics with this 'perf lock' command.
 
   'perf lock info' shows metadata like threads or addresses
   of lock instances.
+
+  'perf lock contention' shows contention statistics.
 
 COMMON OPTIONS
 --------------
@@ -45,6 +47,13 @@ COMMON OPTIONS
 -f::
 --force::
 	Don't complain, do it.
+
+--vmlinux=<file>::
+        vmlinux pathname
+
+--kallsyms=<file>::
+        kallsyms pathname
+
 
 REPORT OPTIONS
 --------------
@@ -95,6 +104,50 @@ INFO OPTIONS
 -m::
 --map::
 	dump map of lock instances (address:name table)
+
+CONTENTION OPTIONS
+--------------
+
+-k::
+--key=<value>::
+	Sorting key. Possible values: contended, wait_total (default),
+	wait_max, wait_min, avg_wait.
+
+-F::
+--field=<value>::
+	Output fields. By default it shows all but the wait_min fields
+	and users can customize that using this.  Possible values:
+	contended, wait_total, wait_max, wait_min, avg_wait.
+
+-t::
+--threads::
+	Show per-thread lock contention stat
+
+-b::
+--use-bpf::
+	Use BPF program to collect lock contention stats instead of
+	using the input data.
+
+-a::
+--all-cpus::
+        System-wide collection from all CPUs.
+
+-C::
+--cpu::
+	Collect samples only on the list of CPUs provided. Multiple CPUs can be
+	provided as a comma-separated list with no space: 0,1. Ranges of CPUs
+	are specified with -: 0-2.  Default is to monitor all CPUs.
+
+-p::
+--pid=::
+	Record events on existing process ID (comma separated list).
+
+--tid=::
+        Record events on existing thread ID (comma separated list).
+
+--map-nr-entries::
+	Maximum number of BPF map entries (default: 10240).
+
 
 SEE ALSO
 --------

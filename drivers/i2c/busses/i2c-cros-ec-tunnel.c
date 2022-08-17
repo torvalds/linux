@@ -267,7 +267,7 @@ static int ec_i2c_probe(struct platform_device *pdev)
 	bus->dev = dev;
 
 	bus->adap.owner = THIS_MODULE;
-	strlcpy(bus->adap.name, "cros-ec-i2c-tunnel", sizeof(bus->adap.name));
+	strscpy(bus->adap.name, "cros-ec-i2c-tunnel", sizeof(bus->adap.name));
 	bus->adap.algo = &ec_i2c_algorithm;
 	bus->adap.algo_data = bus;
 	bus->adap.dev.parent = &pdev->dev;

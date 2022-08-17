@@ -10,9 +10,9 @@
 #include <linux/i2c.h>
 #include <linux/interrupt.h>
 #include <linux/gpio/consumer.h>
+#include <linux/usb/tcpci.h>
 #include <linux/usb/tcpm.h>
 #include <linux/regmap.h>
-#include "tcpci.h"
 
 #define RT1711H_VID		0x29CF
 #define RT1711H_PID		0x1711
@@ -263,12 +263,11 @@ static int rt1711h_probe(struct i2c_client *client,
 	return 0;
 }
 
-static int rt1711h_remove(struct i2c_client *client)
+static void rt1711h_remove(struct i2c_client *client)
 {
 	struct rt1711h_chip *chip = i2c_get_clientdata(client);
 
 	tcpci_unregister_port(chip->tcpci);
-	return 0;
 }
 
 static const struct i2c_device_id rt1711h_id[] = {

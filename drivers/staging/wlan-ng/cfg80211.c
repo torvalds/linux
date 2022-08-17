@@ -645,7 +645,7 @@ void prism2_disconnected(struct wlandevice *wlandev)
 void prism2_roamed(struct wlandevice *wlandev)
 {
 	struct cfg80211_roam_info roam_info = {
-		.bssid = wlandev->bssid,
+		.links[0].bssid = wlandev->bssid,
 	};
 
 	cfg80211_roamed(wlandev->netdev, &roam_info, GFP_KERNEL);

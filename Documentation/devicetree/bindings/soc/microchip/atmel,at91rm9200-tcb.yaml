@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
 %YAML 1.2
 ---
-$id: "http://devicetree.org/schemas/soc/microchip/atmel,at91rm9200-tcb.yaml#"
-$schema: "http://devicetree.org/meta-schemas/core.yaml#"
+$id: http://devicetree.org/schemas/soc/microchip/atmel,at91rm9200-tcb.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
 
 title: Atmel Timer Counter Block
 
@@ -75,7 +75,7 @@ patternProperties:
 
   "^pwm@[0-2]$":
     description: The timer block channels that are used as PWMs.
-    $ref: ../../pwm/pwm.yaml#
+    $ref: /schemas/pwm/pwm.yaml#
     type: object
     properties:
       compatible:

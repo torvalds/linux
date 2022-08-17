@@ -456,7 +456,7 @@ int main(int argc, char *argv[])
 		buf[1] = 0;
 	} else if (opt.sock.type == SOCK_RAW) {
 		struct udphdr hdr = { 1, 2, htons(opt.size), 0 };
-		struct sockaddr_in6 *sin6 = (void *)ai->ai_addr;;
+		struct sockaddr_in6 *sin6 = (void *)ai->ai_addr;
 
 		memcpy(buf, &hdr, sizeof(hdr));
 		sin6->sin6_port = htons(opt.sock.proto);

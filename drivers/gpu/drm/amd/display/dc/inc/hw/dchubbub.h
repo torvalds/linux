@@ -47,6 +47,8 @@ struct dcn_hubbub_wm_set {
 	uint32_t sr_enter;
 	uint32_t sr_exit;
 	uint32_t dram_clk_chanage;
+	uint32_t usr_retrain;
+	uint32_t fclk_pstate_change;
 };
 
 struct dcn_hubbub_wm {
@@ -168,6 +170,7 @@ struct hubbub_funcs {
 	void (*program_det_size)(struct hubbub *hubbub, int hubp_inst, unsigned det_buffer_size_in_kbyte);
 	void (*program_compbuf_size)(struct hubbub *hubbub, unsigned compbuf_size_kb, bool safe_to_increase);
 	void (*init_crb)(struct hubbub *hubbub);
+	void (*force_usr_retraining_allow)(struct hubbub *hubbub, bool allow);
 };
 
 struct hubbub {

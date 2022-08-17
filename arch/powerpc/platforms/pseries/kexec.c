@@ -6,7 +6,7 @@
 #include <linux/kernel.h>
 #include <linux/interrupt.h>
 
-#include <asm/machdep.h>
+#include <asm/setup.h>
 #include <asm/page.h>
 #include <asm/firmware.h>
 #include <asm/kexec.h>

@@ -27,6 +27,12 @@ struct arm_smccc_res sam_smccc_call(u32 fn, u32 arg0, u32 arg1)
 	return res;
 }
 
+bool sam_linux_is_optee_available(void)
+{
+	/* If optee has been detected, then we are running in normal world */
+	return optee_available;
+}
+
 void __init sam_secure_init(void)
 {
 	struct device_node *np;

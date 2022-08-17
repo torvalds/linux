@@ -787,7 +787,6 @@ static const struct snd_soc_component_driver soc_component_dev_cs35l34 = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
 };
 
 static struct regmap_config cs35l34_regmap = {
@@ -1129,7 +1128,7 @@ err_regulator:
 	return ret;
 }
 
-static int cs35l34_i2c_remove(struct i2c_client *client)
+static void cs35l34_i2c_remove(struct i2c_client *client)
 {
 	struct cs35l34_private *cs35l34 = i2c_get_clientdata(client);
 
@@ -1138,8 +1137,6 @@ static int cs35l34_i2c_remove(struct i2c_client *client)
 	pm_runtime_disable(&client->dev);
 	regulator_bulk_disable(cs35l34->num_core_supplies,
 		cs35l34->core_supplies);
-
-	return 0;
 }
 
 static int __maybe_unused cs35l34_runtime_resume(struct device *dev)

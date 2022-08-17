@@ -67,7 +67,7 @@
 	gpio-keys {
 		compatible = "gpio-keys";
 
-		restart {
+		button-restart {
 			label = "Reset";
 			linux,code = <KEY_RESTART>;
 			gpios = <&chipcommon 17 GPIO_ACTIVE_LOW>;

@@ -26,7 +26,6 @@
 #define Elf_Shdr    Elf32_Shdr
 #define Elf_Sym     Elf32_Sym
 #define Elf_Addr    Elf32_Addr
-#define Elf_Sword   Elf64_Sword
 #define Elf_Section Elf32_Half
 #define ELF_ST_BIND ELF32_ST_BIND
 #define ELF_ST_TYPE ELF32_ST_TYPE
@@ -41,7 +40,6 @@
 #define Elf_Shdr    Elf64_Shdr
 #define Elf_Sym     Elf64_Sym
 #define Elf_Addr    Elf64_Addr
-#define Elf_Sword   Elf64_Sxword
 #define Elf_Section Elf64_Half
 #define ELF_ST_BIND ELF64_ST_BIND
 #define ELF_ST_TYPE ELF64_ST_TYPE
@@ -158,22 +156,28 @@ static inline int is_shndx_special(unsigned int i)
 	return i != SHN_XINDEX && i >= SHN_LORESERVE && i <= SHN_HIRESERVE;
 }
 
-/*
- * Move reserved section indices SHN_LORESERVE..SHN_HIRESERVE out of
- * the way to -256..-1, to avoid conflicting with real section
- * indices.
- */
-#define SPECIAL(i) ((i) - (SHN_HIRESERVE + 1))
-
 /* Accessor for sym->st_shndx, hides ugliness of "64k sections" */
 static inline unsigned int get_secindex(const struct elf_info *info,
 					const Elf_Sym *sym)
 {
-	if (is_shndx_special(sym->st_shndx))
-		return SPECIAL(sym->st_shndx);
-	if (sym->st_shndx != SHN_XINDEX)
-		return sym->st_shndx;
-	return info->symtab_shndx_start[sym - info->symtab_start];
+	unsigned int index = sym->st_shndx;
+
+	/*
+	 * Elf{32,64}_Sym::st_shndx is 2 byte. Big section numbers are available
+	 * in the .symtab_shndx section.
+	 */
+	if (index == SHN_XINDEX)
+		return info->symtab_shndx_start[sym - info->symtab_start];
+
+	/*
+	 * Move reserved section indices SHN_LORESERVE..SHN_HIRESERVE out of
+	 * the way to UINT_MAX-255..UINT_MAX, to avoid conflicting with real
+	 * section indices.
+	 */
+	if (index >= SHN_LORESERVE && index <= SHN_HIRESERVE)
+		return index - SHN_HIRESERVE - 1;
+
+	return index;
 }
 
 /* file2alias.c */
@@ -187,6 +191,7 @@ void get_src_version(const char *modname, char sum[], unsigned sumlen);
 /* from modpost.c */
 char *read_text_file(const char *filename);
 char *get_line(char **stringp);
+void *sym_get_data(const struct elf_info *info, const Elf_Sym *sym);
 
 enum loglevel {
 	LOG_WARN,

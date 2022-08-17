@@ -8,6 +8,7 @@
 /dts-v1/;
 
 #include "sc7280-herobrine.dtsi"
+#include "sc7280-herobrine-audio-wcd9385.dtsi"
 
 / {
 	model = "Qualcomm Technologies, Inc. sc7280 CRD platform (rev5+)";
@@ -132,6 +133,17 @@ ap_ts_pen_1v8: &i2c13 {
 /* For SD Card */
 &sdhc_2 {
 	status = "okay";
+};
+
+/* PINCTRL - ADDITIONS TO NODES IN PARENT DEVICE TREE FILES */
+
+/*
+ * This pin goes to the display panel but then doesn't actually do anything
+ * on the panel itself (it doesn't connect to the touchscreen controller).
+ * We'll set a pullup here just to park the line.
+ */
+&ts_rst_conn {
+	bias-pull-up;
 };
 
 /* PINCTRL - BOARD-SPECIFIC */

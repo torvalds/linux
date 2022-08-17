@@ -5,6 +5,7 @@ menu "Footbridge Implementations"
 
 config ARCH_CATS
 	bool "CATS"
+	depends on UNUSED_BOARD_FILES
 	select CLKEVT_I8253
 	select CLKSRC_I8253
 	select FOOTBRIDGE_HOST
@@ -60,6 +61,7 @@ endmenu
 
 # Footbridge support
 config FOOTBRIDGE
+	select ARCH_HAS_PHYS_TO_DMA
 	bool
 
 # Footbridge in host mode

@@ -200,17 +200,17 @@ static int al3010_probe(struct i2c_client *client,
 	return devm_iio_device_register(&client->dev, indio_dev);
 }
 
-static int __maybe_unused al3010_suspend(struct device *dev)
+static int al3010_suspend(struct device *dev)
 {
 	return al3010_set_pwr(to_i2c_client(dev), false);
 }
 
-static int __maybe_unused al3010_resume(struct device *dev)
+static int al3010_resume(struct device *dev)
 {
 	return al3010_set_pwr(to_i2c_client(dev), true);
 }
 
-static SIMPLE_DEV_PM_OPS(al3010_pm_ops, al3010_suspend, al3010_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(al3010_pm_ops, al3010_suspend, al3010_resume);
 
 static const struct i2c_device_id al3010_id[] = {
 	{"al3010", },
@@ -228,7 +228,7 @@ static struct i2c_driver al3010_driver = {
 	.driver = {
 		.name = AL3010_DRV_NAME,
 		.of_match_table = al3010_of_match,
-		.pm = &al3010_pm_ops,
+		.pm = pm_sleep_ptr(&al3010_pm_ops),
 	},
 	.probe		= al3010_probe,
 	.id_table	= al3010_id,

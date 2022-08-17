@@ -94,10 +94,10 @@ mlxsw_sp_policer_single_rate_family_init(struct mlxsw_sp_policer_family *family)
 
 	atomic_set(&family->policers_count, 0);
 	devlink = priv_to_devlink(core);
-	devlink_resource_occ_get_register(devlink,
-					  MLXSW_SP_RESOURCE_SINGLE_RATE_POLICERS,
-					  mlxsw_sp_policer_single_rate_occ_get,
-					  family);
+	devl_resource_occ_get_register(devlink,
+				       MLXSW_SP_RESOURCE_SINGLE_RATE_POLICERS,
+				       mlxsw_sp_policer_single_rate_occ_get,
+				       family);
 
 	return 0;
 }
@@ -107,8 +107,8 @@ mlxsw_sp_policer_single_rate_family_fini(struct mlxsw_sp_policer_family *family)
 {
 	struct devlink *devlink = priv_to_devlink(family->mlxsw_sp->core);
 
-	devlink_resource_occ_get_unregister(devlink,
-					    MLXSW_SP_RESOURCE_SINGLE_RATE_POLICERS);
+	devl_resource_occ_get_unregister(devlink,
+					 MLXSW_SP_RESOURCE_SINGLE_RATE_POLICERS);
 	WARN_ON(atomic_read(&family->policers_count) != 0);
 }
 
@@ -419,22 +419,22 @@ int mlxsw_sp_policer_resources_register(struct mlxsw_core *mlxsw_core)
 	devlink_resource_size_params_init(&size_params, global_policers,
 					  global_policers, 1,
 					  DEVLINK_RESOURCE_UNIT_ENTRY);
-	err = devlink_resource_register(devlink, "global_policers",
-					global_policers,
-					MLXSW_SP_RESOURCE_GLOBAL_POLICERS,
-					DEVLINK_RESOURCE_ID_PARENT_TOP,
-					&size_params);
+	err = devl_resource_register(devlink, "global_policers",
+				     global_policers,
+				     MLXSW_SP_RESOURCE_GLOBAL_POLICERS,
+				     DEVLINK_RESOURCE_ID_PARENT_TOP,
+				     &size_params);
 	if (err)
 		return err;
 
 	devlink_resource_size_params_init(&size_params, single_rate_policers,
 					  single_rate_policers, 1,
 					  DEVLINK_RESOURCE_UNIT_ENTRY);
-	err = devlink_resource_register(devlink, "single_rate_policers",
-					single_rate_policers,
-					MLXSW_SP_RESOURCE_SINGLE_RATE_POLICERS,
-					MLXSW_SP_RESOURCE_GLOBAL_POLICERS,
-					&size_params);
+	err = devl_resource_register(devlink, "single_rate_policers",
+				     single_rate_policers,
+				     MLXSW_SP_RESOURCE_SINGLE_RATE_POLICERS,
+				     MLXSW_SP_RESOURCE_GLOBAL_POLICERS,
+				     &size_params);
 	if (err)
 		return err;
 

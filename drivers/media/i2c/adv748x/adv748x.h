@@ -417,7 +417,7 @@ int adv748x_write_block(struct adv748x_state *state, int client_page,
 
 static inline struct v4l2_subdev *adv748x_get_remote_sd(struct media_pad *pad)
 {
-	pad = media_entity_remote_pad(pad);
+	pad = media_pad_remote_pad_first(pad);
 	if (!pad)
 		return NULL;
 

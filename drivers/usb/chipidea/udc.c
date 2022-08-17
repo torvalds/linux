@@ -1654,6 +1654,19 @@ static const struct usb_ep_ops usb_ep_ops = {
 /******************************************************************************
  * GADGET block
  *****************************************************************************/
+
+static int ci_udc_get_frame(struct usb_gadget *_gadget)
+{
+	struct ci_hdrc *ci = container_of(_gadget, struct ci_hdrc, gadget);
+	unsigned long flags;
+	int ret;
+
+	spin_lock_irqsave(&ci->lock, flags);
+	ret = hw_read(ci, OP_FRINDEX, 0x3fff);
+	spin_unlock_irqrestore(&ci->lock, flags);
+	return ret >> 3;
+}
+
 /*
  * ci_hdrc_gadget_connect: caller makes sure gadget driver is binded
  */
@@ -1810,6 +1823,7 @@ static struct usb_ep *ci_udc_match_ep(struct usb_gadget *gadget,
  * Check  "usb_gadget.h" for details
  */
 static const struct usb_gadget_ops usb_gadget_ops = {
+	.get_frame	= ci_udc_get_frame,
 	.vbus_session	= ci_udc_vbus_session,
 	.wakeup		= ci_udc_wakeup,
 	.set_selfpowered	= ci_udc_selfpowered,

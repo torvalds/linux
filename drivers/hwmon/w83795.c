@@ -2235,14 +2235,12 @@ exit_remove:
 	return err;
 }
 
-static int w83795_remove(struct i2c_client *client)
+static void w83795_remove(struct i2c_client *client)
 {
 	struct w83795_data *data = i2c_get_clientdata(client);
 
 	hwmon_device_unregister(data->hwmon_dev);
 	w83795_handle_files(&client->dev, device_remove_file_wrapper);
-
-	return 0;
 }
 
 

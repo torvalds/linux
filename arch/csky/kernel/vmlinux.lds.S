@@ -22,17 +22,13 @@ SECTIONS
 {
 	. = PAGE_OFFSET + PHYS_OFFSET_OFFSET;
 
-	_stext = .;
-	__init_begin = .;
+	_start = .;
 	HEAD_TEXT_SECTION
-	INIT_TEXT_SECTION(PAGE_SIZE)
-	INIT_DATA_SECTION(PAGE_SIZE)
-	PERCPU_SECTION(L1_CACHE_BYTES)
 	. = ALIGN(PAGE_SIZE);
-	__init_end = .;
 
 	.text : AT(ADDR(.text) - LOAD_OFFSET) {
 		_text = .;
+		_stext = .;
 		VBR_BASE
 		IRQENTRY_TEXT
 		SOFTIRQENTRY_TEXT
@@ -48,7 +44,12 @@ SECTIONS
 
 	/* __init_begin __init_end must be page aligned for free_initmem */
 	. = ALIGN(PAGE_SIZE);
-
+	__init_begin = .;
+	INIT_TEXT_SECTION(PAGE_SIZE)
+	INIT_DATA_SECTION(PAGE_SIZE)
+	PERCPU_SECTION(L1_CACHE_BYTES)
+	. = ALIGN(PAGE_SIZE);
+	__init_end = .;
 
 	_sdata = .;
 	RO_DATA(PAGE_SIZE)

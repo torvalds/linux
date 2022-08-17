@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * arch/arm/mach-spear6xx/spear6xx.c
  *
@@ -7,10 +8,6 @@
  * Rajeev Kumar<rajeev-dlh.kumar@st.com>
  *
  * Copyright 2012 Stefan Roese <sr@denx.de>
- *
- * This file is licensed under the terms of the GNU General Public
- * License version 2. This program is licensed "as is" without any
- * warranty of any kind, whether express or implied.
  */
 
 #include <linux/amba/pl08x.h>

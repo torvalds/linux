@@ -23,9 +23,7 @@
 以下文档含有大量简洁的建议， 具体请见：
 :ref:`Documentation/process <development_process_main>`
 同样，:ref:`Documentation/translations/zh_CN/process/submit-checklist.rst <cn_submitchecklist>`
-给出在提交代码前需要检查的项目的列表。如果你在提交一个驱动程序，那么
-同时阅读一下:
-:ref:`Documentation/process/submitting-drivers.rst <submittingdrivers>`
+给出在提交代码前需要检查的项目的列表。
 
 其中许多步骤描述了Git版本控制系统的默认行为；如果您使用Git来准备补丁，
 您将发现它为您完成的大部分机械工作，尽管您仍然需要准备和记录一组合理的

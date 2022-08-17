@@ -226,8 +226,8 @@ static void do_metadata(struct work_struct *work)
 /*
  * Read or write a chunk aligned and sized block of data from a device.
  */
-static int chunk_io(struct pstore *ps, void *area, chunk_t chunk, int op,
-		    int op_flags, int metadata)
+static int chunk_io(struct pstore *ps, void *area, chunk_t chunk, blk_opf_t opf,
+		    int metadata)
 {
 	struct dm_io_region where = {
 		.bdev = dm_snap_cow(ps->store->snap)->bdev,
@@ -235,8 +235,7 @@ static int chunk_io(struct pstore *ps, void *area, chunk_t chunk, int op,
 		.count = ps->store->chunk_size,
 	};
 	struct dm_io_request io_req = {
-		.bi_op = op,
-		.bi_op_flags = op_flags,
+		.bi_opf = opf,
 		.mem.type = DM_IO_VMA,
 		.mem.ptr.vma = area,
 		.client = ps->io_client,
@@ -282,11 +281,11 @@ static void skip_metadata(struct pstore *ps)
  * Read or write a metadata area.  Remembering to skip the first
  * chunk which holds the header.
  */
-static int area_io(struct pstore *ps, int op, int op_flags)
+static int area_io(struct pstore *ps, blk_opf_t opf)
 {
 	chunk_t chunk = area_location(ps, ps->current_area);
 
-	return chunk_io(ps, ps->area, chunk, op, op_flags, 0);
+	return chunk_io(ps, ps->area, chunk, opf, 0);
 }
 
 static void zero_memory_area(struct pstore *ps)
@@ -297,7 +296,7 @@ static void zero_memory_area(struct pstore *ps)
 static int zero_disk_area(struct pstore *ps, chunk_t area)
 {
 	return chunk_io(ps, ps->zero_area, area_location(ps, area),
-			REQ_OP_WRITE, 0, 0);
+			REQ_OP_WRITE, 0);
 }
 
 static int read_header(struct pstore *ps, int *new_snapshot)
@@ -329,7 +328,7 @@ static int read_header(struct pstore *ps, int *new_snapshot)
 	if (r)
 		return r;
 
-	r = chunk_io(ps, ps->header_area, 0, REQ_OP_READ, 0, 1);
+	r = chunk_io(ps, ps->header_area, 0, REQ_OP_READ, 1);
 	if (r)
 		goto bad;
 
@@ -390,7 +389,7 @@ static int write_header(struct pstore *ps)
 	dh->version = cpu_to_le32(ps->version);
 	dh->chunk_size = cpu_to_le32(ps->store->chunk_size);
 
-	return chunk_io(ps, ps->header_area, 0, REQ_OP_WRITE, 0, 1);
+	return chunk_io(ps, ps->header_area, 0, REQ_OP_WRITE, 1);
 }
 
 /*
@@ -494,7 +493,7 @@ static int read_exceptions(struct pstore *ps,
 
 	client = dm_bufio_client_create(dm_snap_cow(ps->store->snap)->bdev,
 					ps->store->chunk_size << SECTOR_SHIFT,
-					1, 0, NULL, NULL);
+					1, 0, NULL, NULL, 0);
 
 	if (IS_ERR(client))
 		return PTR_ERR(client);
@@ -734,8 +733,8 @@ static void persistent_commit_exception(struct dm_exception_store *store,
 	/*
 	 * Commit exceptions to disk.
 	 */
-	if (ps->valid && area_io(ps, REQ_OP_WRITE,
-				 REQ_PREFLUSH | REQ_FUA | REQ_SYNC))
+	if (ps->valid && area_io(ps, REQ_OP_WRITE | REQ_PREFLUSH | REQ_FUA |
+				 REQ_SYNC))
 		ps->valid = 0;
 
 	/*
@@ -775,7 +774,7 @@ static int persistent_prepare_merge(struct dm_exception_store *store,
 			return 0;
 
 		ps->current_area--;
-		r = area_io(ps, REQ_OP_READ, 0);
+		r = area_io(ps, REQ_OP_READ);
 		if (r < 0)
 			return r;
 		ps->current_committed = ps->exceptions_per_area;
@@ -812,7 +811,7 @@ static int persistent_commit_merge(struct dm_exception_store *store,
 	for (i = 0; i < nr_merged; i++)
 		clear_exception(ps, ps->current_committed - 1 - i);
 
-	r = area_io(ps, REQ_OP_WRITE, REQ_PREFLUSH | REQ_FUA);
+	r = area_io(ps, REQ_OP_WRITE | REQ_PREFLUSH | REQ_FUA);
 	if (r < 0)
 		return r;
 

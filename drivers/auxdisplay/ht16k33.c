@@ -775,7 +775,7 @@ static int ht16k33_probe(struct i2c_client *client)
 	return err;
 }
 
-static int ht16k33_remove(struct i2c_client *client)
+static void ht16k33_remove(struct i2c_client *client)
 {
 	struct ht16k33_priv *priv = i2c_get_clientdata(client);
 	struct ht16k33_fbdev *fbdev = &priv->fbdev;
@@ -796,8 +796,6 @@ static int ht16k33_remove(struct i2c_client *client)
 		device_remove_file(&client->dev, &dev_attr_map_seg14);
 		break;
 	}
-
-	return 0;
 }
 
 static const struct i2c_device_id ht16k33_i2c_match[] = {

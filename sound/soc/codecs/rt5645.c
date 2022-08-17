@@ -3534,7 +3534,6 @@ static const struct snd_soc_component_driver soc_component_dev_rt5645 = {
 	.num_dapm_routes	= ARRAY_SIZE(rt5645_dapm_routes),
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
 };
 
 static const struct regmap_config rt5645_regmap = {
@@ -4146,7 +4145,7 @@ err_enable:
 	return ret;
 }
 
-static int rt5645_i2c_remove(struct i2c_client *i2c)
+static void rt5645_i2c_remove(struct i2c_client *i2c)
 {
 	struct rt5645_priv *rt5645 = i2c_get_clientdata(i2c);
 
@@ -4163,8 +4162,6 @@ static int rt5645_i2c_remove(struct i2c_client *i2c)
 	cancel_delayed_work_sync(&rt5645->rcclock_work);
 
 	regulator_bulk_disable(ARRAY_SIZE(rt5645->supplies), rt5645->supplies);
-
-	return 0;
 }
 
 static void rt5645_i2c_shutdown(struct i2c_client *i2c)

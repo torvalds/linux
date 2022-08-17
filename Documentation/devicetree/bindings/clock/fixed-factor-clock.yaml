@@ -13,7 +13,6 @@ maintainers:
 properties:
   compatible:
     enum:
-      - allwinner,sun4i-a10-pll3-2x-clk
       - fixed-factor-clock
 
   "#clock-cells":

@@ -3316,7 +3316,7 @@ static int it6505_i2c_probe(struct i2c_client *client,
 	return 0;
 }
 
-static int it6505_i2c_remove(struct i2c_client *client)
+static void it6505_i2c_remove(struct i2c_client *client)
 {
 	struct it6505 *it6505 = i2c_get_clientdata(client);
 
@@ -3324,8 +3324,6 @@ static int it6505_i2c_remove(struct i2c_client *client)
 	drm_dp_aux_unregister(&it6505->aux);
 	it6505_debugfs_remove(it6505);
 	it6505_poweroff(it6505);
-
-	return 0;
 }
 
 static const struct i2c_device_id it6505_id[] = {

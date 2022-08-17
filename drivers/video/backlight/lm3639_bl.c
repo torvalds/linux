@@ -390,7 +390,7 @@ err_out:
 	return ret;
 }
 
-static int lm3639_remove(struct i2c_client *client)
+static void lm3639_remove(struct i2c_client *client)
 {
 	struct lm3639_chip_data *pchip = i2c_get_clientdata(client);
 
@@ -400,7 +400,6 @@ static int lm3639_remove(struct i2c_client *client)
 	led_classdev_unregister(&pchip->cdev_flash);
 	if (pchip->bled)
 		device_remove_file(&(pchip->bled->dev), &dev_attr_bled_mode);
-	return 0;
 }
 
 static const struct i2c_device_id lm3639_id[] = {

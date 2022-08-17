@@ -3681,17 +3681,20 @@ rtw89_mac_c2h_scanofld_rsp(struct rtw89_dev *rtwdev, struct sk_buff *c2h,
 		rtw89_hw_scan_complete(rtwdev, vif, false);
 		break;
 	case RTW89_SCAN_ENTER_CH_NOTIFY:
-		if (rtw89_is_op_chan(rtwdev, band, chan))
+		hal->prev_band_type = hal->current_band_type;
+		hal->current_band_type = band;
+		hal->prev_primary_channel = hal->current_primary_channel;
+		hal->current_primary_channel = chan;
+		hal->current_channel = chan;
+		hal->current_band_width = RTW89_CHANNEL_WIDTH_20;
+		if (rtw89_is_op_chan(rtwdev, band, chan)) {
+			rtw89_store_op_chan(rtwdev, false);
 			ieee80211_wake_queues(rtwdev->hw);
+		}
 		break;
 	default:
 		return;
 	}
-
-	hal->prev_band_type = hal->current_band_type;
-	hal->prev_primary_channel = hal->current_channel;
-	hal->current_channel = chan;
-	hal->current_band_type = band;
 }
 
 static void

@@ -16,6 +16,7 @@
 #include <linux/iopoll.h>
 #include <linux/mdio.h>
 #include <linux/pci.h>
+#include <linux/time.h>
 #include "felix.h"
 
 #define VSC9959_NUM_PORTS		6
@@ -1127,9 +1128,212 @@ static void vsc9959_mdio_bus_free(struct ocelot *ocelot)
 	mdiobus_free(felix->imdio);
 }
 
+/* Extract shortest continuous gate open intervals in ns for each traffic class
+ * of a cyclic tc-taprio schedule. If a gate is always open, the duration is
+ * considered U64_MAX. If the gate is always closed, it is considered 0.
+ */
+static void vsc9959_tas_min_gate_lengths(struct tc_taprio_qopt_offload *taprio,
+					 u64 min_gate_len[OCELOT_NUM_TC])
+{
+	struct tc_taprio_sched_entry *entry;
+	u64 gate_len[OCELOT_NUM_TC];
+	u8 gates_ever_opened = 0;
+	int tc, i, n;
+
+	/* Initialize arrays */
+	for (tc = 0; tc < OCELOT_NUM_TC; tc++) {
+		min_gate_len[tc] = U64_MAX;
+		gate_len[tc] = 0;
+	}
+
+	/* If we don't have taprio, consider all gates as permanently open */
+	if (!taprio)
+		return;
+
+	n = taprio->num_entries;
+
+	/* Walk through the gate list twice to determine the length
+	 * of consecutively open gates for a traffic class, including
+	 * open gates that wrap around. We are just interested in the
+	 * minimum window size, and this doesn't change what the
+	 * minimum is (if the gate never closes, min_gate_len will
+	 * remain U64_MAX).
+	 */
+	for (i = 0; i < 2 * n; i++) {
+		entry = &taprio->entries[i % n];
+
+		for (tc = 0; tc < OCELOT_NUM_TC; tc++) {
+			if (entry->gate_mask & BIT(tc)) {
+				gate_len[tc] += entry->interval;
+				gates_ever_opened |= BIT(tc);
+			} else {
+				/* Gate closes now, record a potential new
+				 * minimum and reinitialize length
+				 */
+				if (min_gate_len[tc] > gate_len[tc] &&
+				    gate_len[tc])
+					min_gate_len[tc] = gate_len[tc];
+				gate_len[tc] = 0;
+			}
+		}
+	}
+
+	/* min_gate_len[tc] actually tracks minimum *open* gate time, so for
+	 * permanently closed gates, min_gate_len[tc] will still be U64_MAX.
+	 * Therefore they are currently indistinguishable from permanently
+	 * open gates. Overwrite the gate len with 0 when we know they're
+	 * actually permanently closed, i.e. after the loop above.
+	 */
+	for (tc = 0; tc < OCELOT_NUM_TC; tc++)
+		if (!(gates_ever_opened & BIT(tc)))
+			min_gate_len[tc] = 0;
+}
+
+/* Update QSYS_PORT_MAX_SDU to make sure the static guard bands added by the
+ * switch (see the ALWAYS_GUARD_BAND_SCH_Q comment) are correct at all MTU
+ * values (the default value is 1518). Also, for traffic class windows smaller
+ * than one MTU sized frame, update QSYS_QMAXSDU_CFG to enable oversized frame
+ * dropping, such that these won't hang the port, as they will never be sent.
+ */
+static void vsc9959_tas_guard_bands_update(struct ocelot *ocelot, int port)
+{
+	struct ocelot_port *ocelot_port = ocelot->ports[port];
+	u64 min_gate_len[OCELOT_NUM_TC];
+	int speed, picos_per_byte;
+	u64 needed_bit_time_ps;
+	u32 val, maxlen;
+	u8 tas_speed;
+	int tc;
+
+	lockdep_assert_held(&ocelot->tas_lock);
+
+	val = ocelot_read_rix(ocelot, QSYS_TAG_CONFIG, port);
+	tas_speed = QSYS_TAG_CONFIG_LINK_SPEED_X(val);
+
+	switch (tas_speed) {
+	case OCELOT_SPEED_10:
+		speed = SPEED_10;
+		break;
+	case OCELOT_SPEED_100:
+		speed = SPEED_100;
+		break;
+	case OCELOT_SPEED_1000:
+		speed = SPEED_1000;
+		break;
+	case OCELOT_SPEED_2500:
+		speed = SPEED_2500;
+		break;
+	default:
+		return;
+	}
+
+	picos_per_byte = (USEC_PER_SEC * 8) / speed;
+
+	val = ocelot_port_readl(ocelot_port, DEV_MAC_MAXLEN_CFG);
+	/* MAXLEN_CFG accounts automatically for VLAN. We need to include it
+	 * manually in the bit time calculation, plus the preamble and SFD.
+	 */
+	maxlen = val + 2 * VLAN_HLEN;
+	/* Consider the standard Ethernet overhead of 8 octets preamble+SFD,
+	 * 4 octets FCS, 12 octets IFG.
+	 */
+	needed_bit_time_ps = (maxlen + 24) * picos_per_byte;
+
+	dev_dbg(ocelot->dev,
+		"port %d: max frame size %d needs %llu ps at speed %d\n",
+		port, maxlen, needed_bit_time_ps, speed);
+
+	vsc9959_tas_min_gate_lengths(ocelot_port->taprio, min_gate_len);
+
+	for (tc = 0; tc < OCELOT_NUM_TC; tc++) {
+		u32 max_sdu;
+
+		if (min_gate_len[tc] == U64_MAX /* Gate always open */ ||
+		    min_gate_len[tc] * PSEC_PER_NSEC > needed_bit_time_ps) {
+			/* Setting QMAXSDU_CFG to 0 disables oversized frame
+			 * dropping.
+			 */
+			max_sdu = 0;
+			dev_dbg(ocelot->dev,
+				"port %d tc %d min gate len %llu"
+				", sending all frames\n",
+				port, tc, min_gate_len[tc]);
+		} else {
+			/* If traffic class doesn't support a full MTU sized
+			 * frame, make sure to enable oversize frame dropping
+			 * for frames larger than the smallest that would fit.
+			 */
+			max_sdu = div_u64(min_gate_len[tc] * PSEC_PER_NSEC,
+					  picos_per_byte);
+			/* A TC gate may be completely closed, which is a
+			 * special case where all packets are oversized.
+			 * Any limit smaller than 64 octets accomplishes this
+			 */
+			if (!max_sdu)
+				max_sdu = 1;
+			/* Take L1 overhead into account, but just don't allow
+			 * max_sdu to go negative or to 0. Here we use 20
+			 * because QSYS_MAXSDU_CFG_* already counts the 4 FCS
+			 * octets as part of packet size.
+			 */
+			if (max_sdu > 20)
+				max_sdu -= 20;
+			dev_info(ocelot->dev,
+				 "port %d tc %d min gate length %llu"
+				 " ns not enough for max frame size %d at %d"
+				 " Mbps, dropping frames over %d"
+				 " octets including FCS\n",
+				 port, tc, min_gate_len[tc], maxlen, speed,
+				 max_sdu);
+		}
+
+		/* ocelot_write_rix is a macro that concatenates
+		 * QSYS_MAXSDU_CFG_* with _RSZ, so we need to spell out
+		 * the writes to each traffic class
+		 */
+		switch (tc) {
+		case 0:
+			ocelot_write_rix(ocelot, max_sdu, QSYS_QMAXSDU_CFG_0,
+					 port);
+			break;
+		case 1:
+			ocelot_write_rix(ocelot, max_sdu, QSYS_QMAXSDU_CFG_1,
+					 port);
+			break;
+		case 2:
+			ocelot_write_rix(ocelot, max_sdu, QSYS_QMAXSDU_CFG_2,
+					 port);
+			break;
+		case 3:
+			ocelot_write_rix(ocelot, max_sdu, QSYS_QMAXSDU_CFG_3,
+					 port);
+			break;
+		case 4:
+			ocelot_write_rix(ocelot, max_sdu, QSYS_QMAXSDU_CFG_4,
+					 port);
+			break;
+		case 5:
+			ocelot_write_rix(ocelot, max_sdu, QSYS_QMAXSDU_CFG_5,
+					 port);
+			break;
+		case 6:
+			ocelot_write_rix(ocelot, max_sdu, QSYS_QMAXSDU_CFG_6,
+					 port);
+			break;
+		case 7:
+			ocelot_write_rix(ocelot, max_sdu, QSYS_QMAXSDU_CFG_7,
+					 port);
+			break;
+		}
+	}
+
+	ocelot_write_rix(ocelot, maxlen, QSYS_PORT_MAX_SDU, port);
+}
+
 static void vsc9959_sched_speed_set(struct ocelot *ocelot, int port,
 				    u32 speed)
 {
+	struct ocelot_port *ocelot_port = ocelot->ports[port];
 	u8 tas_speed;
 
 	switch (speed) {
@@ -1154,6 +1358,13 @@ static void vsc9959_sched_speed_set(struct ocelot *ocelot, int port,
 		       QSYS_TAG_CONFIG_LINK_SPEED(tas_speed),
 		       QSYS_TAG_CONFIG_LINK_SPEED_M,
 		       QSYS_TAG_CONFIG, port);
+
+	mutex_lock(&ocelot->tas_lock);
+
+	if (ocelot_port->taprio)
+		vsc9959_tas_guard_bands_update(ocelot, port);
+
+	mutex_unlock(&ocelot->tas_lock);
 }
 
 static void vsc9959_new_base_time(struct ocelot *ocelot, ktime_t base_time,
@@ -1196,26 +1407,36 @@ static void vsc9959_tas_gcl_set(struct ocelot *ocelot, const u32 gcl_ix,
 static int vsc9959_qos_port_tas_set(struct ocelot *ocelot, int port,
 				    struct tc_taprio_qopt_offload *taprio)
 {
+	struct ocelot_port *ocelot_port = ocelot->ports[port];
 	struct timespec64 base_ts;
 	int ret, i;
 	u32 val;
 
+	mutex_lock(&ocelot->tas_lock);
+
 	if (!taprio->enable) {
-		ocelot_rmw_rix(ocelot,
-			       QSYS_TAG_CONFIG_INIT_GATE_STATE(0xFF),
-			       QSYS_TAG_CONFIG_ENABLE |
-			       QSYS_TAG_CONFIG_INIT_GATE_STATE_M,
+		ocelot_rmw_rix(ocelot, 0, QSYS_TAG_CONFIG_ENABLE,
 			       QSYS_TAG_CONFIG, port);
 
+		taprio_offload_free(ocelot_port->taprio);
+		ocelot_port->taprio = NULL;
+
+		vsc9959_tas_guard_bands_update(ocelot, port);
+
+		mutex_unlock(&ocelot->tas_lock);
 		return 0;
 	}
 
 	if (taprio->cycle_time > NSEC_PER_SEC ||
-	    taprio->cycle_time_extension >= NSEC_PER_SEC)
-		return -EINVAL;
+	    taprio->cycle_time_extension >= NSEC_PER_SEC) {
+		ret = -EINVAL;
+		goto err;
+	}
 
-	if (taprio->num_entries > VSC9959_TAS_GCL_ENTRY_MAX)
-		return -ERANGE;
+	if (taprio->num_entries > VSC9959_TAS_GCL_ENTRY_MAX) {
+		ret = -ERANGE;
+		goto err;
+	}
 
 	/* Enable guard band. The switch will schedule frames without taking
 	 * their length into account. Thus we'll always need to enable the
@@ -1236,8 +1457,10 @@ static int vsc9959_qos_port_tas_set(struct ocelot *ocelot, int port,
 	 * config is pending, need reset the TAS module
 	 */
 	val = ocelot_read(ocelot, QSYS_PARAM_STATUS_REG_8);
-	if (val & QSYS_PARAM_STATUS_REG_8_CONFIG_PENDING)
-		return  -EBUSY;
+	if (val & QSYS_PARAM_STATUS_REG_8_CONFIG_PENDING) {
+		ret = -EBUSY;
+		goto err;
+	}
 
 	ocelot_rmw_rix(ocelot,
 		       QSYS_TAG_CONFIG_ENABLE |
@@ -1270,8 +1493,65 @@ static int vsc9959_qos_port_tas_set(struct ocelot *ocelot, int port,
 	ret = readx_poll_timeout(vsc9959_tas_read_cfg_status, ocelot, val,
 				 !(val & QSYS_TAS_PARAM_CFG_CTRL_CONFIG_CHANGE),
 				 10, 100000);
+	if (ret)
+		goto err;
+
+	ocelot_port->taprio = taprio_offload_get(taprio);
+	vsc9959_tas_guard_bands_update(ocelot, port);
+
+err:
+	mutex_unlock(&ocelot->tas_lock);
 
 	return ret;
+}
+
+static void vsc9959_tas_clock_adjust(struct ocelot *ocelot)
+{
+	struct tc_taprio_qopt_offload *taprio;
+	struct ocelot_port *ocelot_port;
+	struct timespec64 base_ts;
+	int port;
+	u32 val;
+
+	mutex_lock(&ocelot->tas_lock);
+
+	for (port = 0; port < ocelot->num_phys_ports; port++) {
+		ocelot_port = ocelot->ports[port];
+		taprio = ocelot_port->taprio;
+		if (!taprio)
+			continue;
+
+		ocelot_rmw(ocelot,
+			   QSYS_TAS_PARAM_CFG_CTRL_PORT_NUM(port),
+			   QSYS_TAS_PARAM_CFG_CTRL_PORT_NUM_M,
+			   QSYS_TAS_PARAM_CFG_CTRL);
+
+		/* Disable time-aware shaper */
+		ocelot_rmw_rix(ocelot, 0, QSYS_TAG_CONFIG_ENABLE,
+			       QSYS_TAG_CONFIG, port);
+
+		vsc9959_new_base_time(ocelot, taprio->base_time,
+				      taprio->cycle_time, &base_ts);
+
+		ocelot_write(ocelot, base_ts.tv_nsec, QSYS_PARAM_CFG_REG_1);
+		ocelot_write(ocelot, lower_32_bits(base_ts.tv_sec),
+			     QSYS_PARAM_CFG_REG_2);
+		val = upper_32_bits(base_ts.tv_sec);
+		ocelot_rmw(ocelot,
+			   QSYS_PARAM_CFG_REG_3_BASE_TIME_SEC_MSB(val),
+			   QSYS_PARAM_CFG_REG_3_BASE_TIME_SEC_MSB_M,
+			   QSYS_PARAM_CFG_REG_3);
+
+		ocelot_rmw(ocelot, QSYS_TAS_PARAM_CFG_CTRL_CONFIG_CHANGE,
+			   QSYS_TAS_PARAM_CFG_CTRL_CONFIG_CHANGE,
+			   QSYS_TAS_PARAM_CFG_CTRL);
+
+		/* Re-enable time-aware shaper */
+		ocelot_rmw_rix(ocelot, QSYS_TAG_CONFIG_ENABLE,
+			       QSYS_TAG_CONFIG_ENABLE,
+			       QSYS_TAG_CONFIG, port);
+	}
+	mutex_unlock(&ocelot->tas_lock);
 }
 
 static int vsc9959_qos_port_cbs_set(struct dsa_switch *ds, int port,
@@ -2214,6 +2494,7 @@ static const struct ocelot_ops vsc9959_ops = {
 	.psfp_filter_del	= vsc9959_psfp_filter_del,
 	.psfp_stats_get		= vsc9959_psfp_stats_get,
 	.cut_through_fwd	= vsc9959_cut_through_fwd,
+	.tas_clock_adjust	= vsc9959_tas_clock_adjust,
 };
 
 static const struct felix_info felix_info_vsc9959 = {
@@ -2240,6 +2521,7 @@ static const struct felix_info felix_info_vsc9959 = {
 	.port_modes		= vsc9959_port_modes,
 	.port_setup_tc		= vsc9959_port_setup_tc,
 	.port_sched_speed_set	= vsc9959_sched_speed_set,
+	.tas_guard_bands_update	= vsc9959_tas_guard_bands_update,
 	.init_regmap		= ocelot_regmap_init,
 };
 

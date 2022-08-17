@@ -11,6 +11,7 @@
 
 #include <linux/utsname.h>
 #include <linux/idr.h>
+#include <linux/tracepoint-defs.h>
 
 /* Number of requests per row */
 #define P9_ROW_MAXTAG 255
@@ -76,7 +77,7 @@ enum p9_req_status_t {
 struct p9_req_t {
 	int status;
 	int t_err;
-	struct kref refcount;
+	refcount_t refcount;
 	wait_queue_head_t wq;
 	struct p9_fcall tc;
 	struct p9_fcall rc;
@@ -227,15 +228,55 @@ struct p9_req_t *p9_tag_lookup(struct p9_client *c, u16 tag);
 
 static inline void p9_req_get(struct p9_req_t *r)
 {
-	kref_get(&r->refcount);
+	refcount_inc(&r->refcount);
 }
 
 static inline int p9_req_try_get(struct p9_req_t *r)
 {
-	return kref_get_unless_zero(&r->refcount);
+	return refcount_inc_not_zero(&r->refcount);
 }
 
-int p9_req_put(struct p9_req_t *r);
+int p9_req_put(struct p9_client *c, struct p9_req_t *r);
+
+/* We cannot have the real tracepoints in header files,
+ * use a wrapper function */
+DECLARE_TRACEPOINT(9p_fid_ref);
+void do_trace_9p_fid_get(struct p9_fid *fid);
+void do_trace_9p_fid_put(struct p9_fid *fid);
+
+/* fid reference counting helpers:
+ *  - fids used for any length of time should always be referenced through
+ *    p9_fid_get(), and released with p9_fid_put()
+ *  - v9fs_fid_lookup() or similar will automatically call get for you
+ *    and also require a put
+ *  - the *_fid_add() helpers will stash the fid in the inode,
+ *    at which point it is the responsibility of evict_inode()
+ *    to call the put
+ *  - the last put will automatically send a clunk to the server
+ */
+static inline struct p9_fid *p9_fid_get(struct p9_fid *fid)
+{
+	if (tracepoint_enabled(9p_fid_ref))
+		do_trace_9p_fid_get(fid);
+
+	refcount_inc(&fid->count);
+
+	return fid;
+}
+
+static inline int p9_fid_put(struct p9_fid *fid)
+{
+	if (!fid || IS_ERR(fid))
+		return 0;
+
+	if (tracepoint_enabled(9p_fid_ref))
+		do_trace_9p_fid_put(fid);
+
+	if (!refcount_dec_and_test(&fid->count))
+		return 0;
+
+	return p9_client_clunk(fid);
+}
 
 void p9_client_cb(struct p9_client *c, struct p9_req_t *req, int status);
 

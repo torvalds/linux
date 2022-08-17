@@ -1012,7 +1012,7 @@ chcr_ktls_write_tcp_options(struct chcr_ktls_info *tx_info, struct sk_buff *skb,
 	/* packet length = eth hdr len + ip hdr len + tcp hdr len
 	 * (including options).
 	 */
-	pktlen = skb_transport_offset(skb) + tcp_hdrlen(skb);
+	pktlen = skb_tcp_all_headers(skb);
 
 	ctrl = sizeof(*cpl) + pktlen;
 	len16 = DIV_ROUND_UP(sizeof(*wr) + ctrl, 16);
@@ -1907,7 +1907,7 @@ static int chcr_ktls_sw_fallback(struct sk_buff *skb,
 		return 0;
 
 	th = tcp_hdr(nskb);
-	skb_offset =  skb_transport_offset(nskb) + tcp_hdrlen(nskb);
+	skb_offset = skb_tcp_all_headers(nskb);
 	data_len = nskb->len - skb_offset;
 	skb_tx_timestamp(nskb);
 
@@ -1932,20 +1932,26 @@ static int chcr_ktls_xmit(struct sk_buff *skb, struct net_device *dev)
 	int data_len, qidx, ret = 0, mss;
 	struct tls_record_info *record;
 	struct chcr_ktls_info *tx_info;
+	struct net_device *tls_netdev;
 	struct tls_context *tls_ctx;
 	struct sge_eth_txq *q;
 	struct adapter *adap;
 	unsigned long flags;
 
 	tcp_seq = ntohl(th->seq);
-	skb_offset = skb_transport_offset(skb) + tcp_hdrlen(skb);
+	skb_offset = skb_tcp_all_headers(skb);
 	skb_data_len = skb->len - skb_offset;
 	data_len = skb_data_len;
 
 	mss = skb_is_gso(skb) ? skb_shinfo(skb)->gso_size : data_len;
 
 	tls_ctx = tls_get_ctx(skb->sk);
-	if (unlikely(tls_ctx->netdev != dev))
+	tls_netdev = rcu_dereference_bh(tls_ctx->netdev);
+	/* Don't quit on NULL: if tls_device_down is running in parallel,
+	 * netdev might become NULL, even if tls_is_sk_tx_device_offloaded was
+	 * true. Rather continue processing this packet.
+	 */
+	if (unlikely(tls_netdev && tls_netdev != dev))
 		goto out;
 
 	tx_ctx = chcr_get_ktls_tx_context(tls_ctx);

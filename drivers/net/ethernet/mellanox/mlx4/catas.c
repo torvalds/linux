@@ -204,9 +204,13 @@ out:
 
 static void mlx4_handle_error_state(struct mlx4_dev_persistent *persist)
 {
+	struct mlx4_dev *dev = persist->dev;
+	struct devlink *devlink;
 	int err = 0;
 
 	mlx4_enter_error_state(persist);
+	devlink = priv_to_devlink(mlx4_priv(dev));
+	devl_lock(devlink);
 	mutex_lock(&persist->interface_state_mutex);
 	if (persist->interface_state & MLX4_INTERFACE_STATE_UP &&
 	    !(persist->interface_state & MLX4_INTERFACE_STATE_DELETION)) {
@@ -215,6 +219,7 @@ static void mlx4_handle_error_state(struct mlx4_dev_persistent *persist)
 			  err);
 	}
 	mutex_unlock(&persist->interface_state_mutex);
+	devl_unlock(devlink);
 }
 
 static void dump_err_buf(struct mlx4_dev *dev)

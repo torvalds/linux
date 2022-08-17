@@ -37,6 +37,7 @@ struct target_backend_ops {
 	struct se_dev_plug *(*plug_device)(struct se_device *se_dev);
 	void (*unplug_device)(struct se_dev_plug *se_plug);
 
+	bool (*configure_unmap)(struct se_device *se_dev);
 	ssize_t (*set_configfs_dev_params)(struct se_device *,
 					   const char *, ssize_t);
 	ssize_t (*show_configfs_dev_params)(struct se_device *, char *);

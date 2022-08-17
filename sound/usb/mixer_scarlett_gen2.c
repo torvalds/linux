@@ -1,13 +1,15 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- *   Focusrite Scarlett Gen 2/3 Driver for ALSA
+ *   Focusrite Scarlett Gen 2/3 and Clarett+ Driver for ALSA
  *
  *   Supported models:
  *   - 6i6/18i8/18i20 Gen 2
  *   - Solo/2i2/4i4/8i6/18i8/18i20 Gen 3
+ *   - Clarett+ 8Pre
  *
  *   Copyright (c) 2018-2022 by Geoffrey D. Bennett <g at b4.vu>
  *   Copyright (c) 2020-2021 by Vladimir Sadovnikov <sadko4u@gmail.com>
+ *   Copyright (c) 2022 by Christian Colglazier <christian@cacolglazier.com>
  *
  *   Based on the Scarlett (Gen 1) Driver for ALSA:
  *
@@ -50,6 +52,9 @@
  *
  * Support for phantom power, direct monitoring, speaker switching,
  * and talkback added in May-June 2021.
+ *
+ * Support for Clarett+ 8Pre added in Aug 2022 by Christian
+ * Colglazier.
  *
  * This ALSA mixer gives access to (model-dependent):
  *  - input, output, mixer-matrix muxes
@@ -203,7 +208,8 @@ enum {
 	SCARLETT2_CONFIG_SET_NO_MIXER = 0,
 	SCARLETT2_CONFIG_SET_GEN_2 = 1,
 	SCARLETT2_CONFIG_SET_GEN_3 = 2,
-	SCARLETT2_CONFIG_SET_COUNT = 3
+	SCARLETT2_CONFIG_SET_CLARETT = 3,
+	SCARLETT2_CONFIG_SET_COUNT = 4
 };
 
 /* Hardware port types:
@@ -841,6 +847,61 @@ static const struct scarlett2_device_info s18i20_gen3_info = {
 	} },
 };
 
+static const struct scarlett2_device_info clarett_8pre_info = {
+	.usb_id = USB_ID(0x1235, 0x820c),
+
+	.config_set = SCARLETT2_CONFIG_SET_CLARETT,
+	.line_out_hw_vol = 1,
+	.level_input_count = 2,
+	.air_input_count = 8,
+
+	.line_out_descrs = {
+		"Monitor L",
+		"Monitor R",
+		NULL,
+		NULL,
+		NULL,
+		NULL,
+		"Headphones 1 L",
+		"Headphones 1 R",
+		"Headphones 2 L",
+		"Headphones 2 R",
+	},
+
+	.port_count = {
+		[SCARLETT2_PORT_TYPE_NONE]     = {  1,  0 },
+		[SCARLETT2_PORT_TYPE_ANALOGUE] = {  8, 10 },
+		[SCARLETT2_PORT_TYPE_SPDIF]    = {  2,  2 },
+		[SCARLETT2_PORT_TYPE_ADAT]     = {  8,  8 },
+		[SCARLETT2_PORT_TYPE_MIX]      = { 10, 18 },
+		[SCARLETT2_PORT_TYPE_PCM]      = { 20, 18 },
+	},
+
+	.mux_assignment = { {
+		{ SCARLETT2_PORT_TYPE_PCM,      0, 18 },
+		{ SCARLETT2_PORT_TYPE_ANALOGUE, 0, 10 },
+		{ SCARLETT2_PORT_TYPE_SPDIF,    0,  2 },
+		{ SCARLETT2_PORT_TYPE_ADAT,     0,  8 },
+		{ SCARLETT2_PORT_TYPE_MIX,      0, 18 },
+		{ SCARLETT2_PORT_TYPE_NONE,     0,  8 },
+		{ 0,                            0,  0 },
+	}, {
+		{ SCARLETT2_PORT_TYPE_PCM,      0, 14 },
+		{ SCARLETT2_PORT_TYPE_ANALOGUE, 0, 10 },
+		{ SCARLETT2_PORT_TYPE_SPDIF,    0,  2 },
+		{ SCARLETT2_PORT_TYPE_ADAT,     0,  4 },
+		{ SCARLETT2_PORT_TYPE_MIX,      0, 18 },
+		{ SCARLETT2_PORT_TYPE_NONE,     0,  8 },
+		{ 0,                            0,  0 },
+	}, {
+		{ SCARLETT2_PORT_TYPE_PCM,      0, 12 },
+		{ SCARLETT2_PORT_TYPE_ANALOGUE, 0, 10 },
+		{ SCARLETT2_PORT_TYPE_SPDIF,    0,  2 },
+		{ SCARLETT2_PORT_TYPE_NONE,     0, 22 },
+		{ 0,                            0,  0 },
+	} },
+};
+
 static const struct scarlett2_device_info *scarlett2_devices[] = {
 	/* Supported Gen 2 devices */
 	&s6i6_gen2_info,
@@ -854,6 +915,9 @@ static const struct scarlett2_device_info *scarlett2_devices[] = {
 	&s8i6_gen3_info,
 	&s18i8_gen3_info,
 	&s18i20_gen3_info,
+
+	/* Supported Clarett+ devices */
+	&clarett_8pre_info,
 
 	/* End of list */
 	NULL
@@ -1047,6 +1111,29 @@ static const struct scarlett2_config
 
 	[SCARLETT2_CONFIG_TALKBACK_MAP] = {
 		.offset = 0xb0, .size = 16, .activate = 10 },
+
+/* Clarett+ 8Pre */
+}, {
+	[SCARLETT2_CONFIG_DIM_MUTE] = {
+		.offset = 0x31, .size = 8, .activate = 2 },
+
+	[SCARLETT2_CONFIG_LINE_OUT_VOLUME] = {
+		.offset = 0x34, .size = 16, .activate = 1 },
+
+	[SCARLETT2_CONFIG_MUTE_SWITCH] = {
+		.offset = 0x5c, .size = 8, .activate = 1 },
+
+	[SCARLETT2_CONFIG_SW_HW_SWITCH] = {
+		.offset = 0x66, .size = 8, .activate = 3 },
+
+	[SCARLETT2_CONFIG_LEVEL_SWITCH] = {
+		.offset = 0x7c, .size = 8, .activate = 7 },
+
+	[SCARLETT2_CONFIG_AIR_SWITCH] = {
+		.offset = 0x95, .size = 8, .activate = 8 },
+
+	[SCARLETT2_CONFIG_STANDALONE_SWITCH] = {
+		.offset = 0x8d, .size = 8, .activate = 6 },
 } };
 
 /* proprietary request/response format */

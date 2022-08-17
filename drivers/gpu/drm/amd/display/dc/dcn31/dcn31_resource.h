@@ -59,7 +59,6 @@ dcn31_set_mcif_arb_params(struct dc *dc,
 			  struct dc_state *context,
 			  display_e2e_pipe_params_st *pipes,
 			  int pipe_cnt);
-void dcn31_update_soc_for_wm_a(struct dc *dc, struct dc_state *context);
 
 struct resource_pool *dcn31_create_resource_pool(
 		const struct dc_init_data *init_data,

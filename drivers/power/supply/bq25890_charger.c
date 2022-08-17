@@ -1258,7 +1258,7 @@ err_unregister_usb_notifier:
 	return ret;
 }
 
-static int bq25890_remove(struct i2c_client *client)
+static void bq25890_remove(struct i2c_client *client)
 {
 	struct bq25890_device *bq = i2c_get_clientdata(client);
 
@@ -1269,8 +1269,6 @@ static int bq25890_remove(struct i2c_client *client)
 		/* reset all registers to default values */
 		bq25890_chip_reset(bq);
 	}
-
-	return 0;
 }
 
 static void bq25890_shutdown(struct i2c_client *client)

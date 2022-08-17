@@ -617,6 +617,17 @@ Contact: Javier Martinez Canillas <javierm@redhat.com>
 
 Level: Intermediate
 
+Convert Kernel Selftests (kselftest) to KUnit tests when appropriate
+--------------------------------------------------------------------
+
+Many of the `Kselftest <https://www.kernel.org/doc/html/latest/dev-tools/kselftest.html>`_
+tests in DRM could be converted to Kunit tests instead, since that framework
+is more suitable for unit testing.
+
+Contact: Javier Martinez Canillas <javierm@redhat.com>
+
+Level: Starter
+
 Enable trinity for DRM
 ----------------------
 

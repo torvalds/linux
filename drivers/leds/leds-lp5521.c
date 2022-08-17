@@ -579,7 +579,7 @@ err_init:
 	return ret;
 }
 
-static int lp5521_remove(struct i2c_client *client)
+static void lp5521_remove(struct i2c_client *client)
 {
 	struct lp55xx_led *led = i2c_get_clientdata(client);
 	struct lp55xx_chip *chip = led->chip;
@@ -587,8 +587,6 @@ static int lp5521_remove(struct i2c_client *client)
 	lp5521_stop_all_engines(chip);
 	lp55xx_unregister_sysfs(chip);
 	lp55xx_deinit_device(chip);
-
-	return 0;
 }
 
 static const struct i2c_device_id lp5521_id[] = {

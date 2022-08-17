@@ -29,7 +29,7 @@
 	 (1ul << ND_CMD_SET_CONFIG_DATA) | \
 	 (1ul << ND_CMD_CALL))
 
-/* DIMM health bitmap bitmap indicators */
+/* DIMM health bitmap indicators */
 /* SCM device is unable to persist memory contents */
 #define PAPR_PMEM_UNARMED                   (1ULL << (63 - 0))
 /* SCM device failed to persist memory contents */
@@ -354,7 +354,7 @@ static int papr_scm_pmu_get_value(struct perf_event *event, struct device *dev, 
 {
 	struct papr_scm_perf_stat *stat;
 	struct papr_scm_perf_stats *stats;
-	struct papr_scm_priv *p = (struct papr_scm_priv *)dev->driver_data;
+	struct papr_scm_priv *p = dev_get_drvdata(dev);
 	int rc, size;
 
 	/* Allocate request buffer enough to hold single performance stat */

@@ -2893,7 +2893,6 @@ static const struct snd_soc_component_driver rt5682s_soc_component_dev = {
 	.set_jack = rt5682s_set_jack_detect,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
 };
 
 static int rt5682s_parse_dt(struct rt5682s_priv *rt5682s, struct device *dev)
@@ -3195,11 +3194,9 @@ static void rt5682s_i2c_shutdown(struct i2c_client *client)
 	rt5682s_reset(rt5682s);
 }
 
-static int rt5682s_i2c_remove(struct i2c_client *client)
+static void rt5682s_i2c_remove(struct i2c_client *client)
 {
 	rt5682s_i2c_shutdown(client);
-
-	return 0;
 }
 
 static const struct of_device_id rt5682s_of_match[] = {

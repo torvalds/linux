@@ -667,7 +667,7 @@ EXPORT_SYMBOL_GPL(filemap_range_has_writeback);
 int filemap_write_and_wait_range(struct address_space *mapping,
 				 loff_t lstart, loff_t lend)
 {
-	int err = 0;
+	int err = 0, err2;
 
 	if (mapping_needs_writeback(mapping)) {
 		err = __filemap_fdatawrite_range(mapping, lstart, lend,
@@ -678,18 +678,12 @@ int filemap_write_and_wait_range(struct address_space *mapping,
 		 * But the -EIO is special case, it may indicate the worst
 		 * thing (e.g. bug) happened, so we avoid waiting for it.
 		 */
-		if (err != -EIO) {
-			int err2 = filemap_fdatawait_range(mapping,
-						lstart, lend);
-			if (!err)
-				err = err2;
-		} else {
-			/* Clear any previously stored errors */
-			filemap_check_errors(mapping);
-		}
-	} else {
-		err = filemap_check_errors(mapping);
+		if (err != -EIO)
+			__filemap_fdatawait_range(mapping, lstart, lend);
 	}
+	err2 = filemap_check_errors(mapping);
+	if (!err)
+		err = err2;
 	return err;
 }
 EXPORT_SYMBOL(filemap_write_and_wait_range);
@@ -928,26 +922,6 @@ error:
 	return xas_error(&xas);
 }
 ALLOW_ERROR_INJECTION(__filemap_add_folio, ERRNO);
-
-/**
- * add_to_page_cache_locked - add a locked page to the pagecache
- * @page:	page to add
- * @mapping:	the page's address_space
- * @offset:	page index
- * @gfp_mask:	page allocation mode
- *
- * This function is used to add a page to the pagecache. It must be locked.
- * This function does not add the page to the LRU.  The caller must do that.
- *
- * Return: %0 on success, negative error code otherwise.
- */
-int add_to_page_cache_locked(struct page *page, struct address_space *mapping,
-		pgoff_t offset, gfp_t gfp_mask)
-{
-	return __filemap_add_folio(mapping, page_folio(page), offset,
-					  gfp_mask, NULL);
-}
-EXPORT_SYMBOL(add_to_page_cache_locked);
 
 int filemap_add_folio(struct address_space *mapping, struct folio *folio,
 				pgoff_t index, gfp_t gfp)
@@ -1988,6 +1962,10 @@ no_page:
 			gfp |= __GFP_WRITE;
 		if (fgp_flags & FGP_NOFS)
 			gfp &= ~__GFP_FS;
+		if (fgp_flags & FGP_NOWAIT) {
+			gfp &= ~GFP_KERNEL;
+			gfp |= GFP_NOWAIT | __GFP_NOWARN;
+		}
 
 		folio = filemap_alloc_folio(gfp, 0);
 		if (!folio)
@@ -2147,64 +2125,45 @@ put:
 	return folio_batch_count(fbatch);
 }
 
-static inline
-bool folio_more_pages(struct folio *folio, pgoff_t index, pgoff_t max)
-{
-	if (!folio_test_large(folio) || folio_test_hugetlb(folio))
-		return false;
-	if (index >= max)
-		return false;
-	return index < folio->index + folio_nr_pages(folio) - 1;
-}
-
 /**
- * find_get_pages_range - gang pagecache lookup
+ * filemap_get_folios - Get a batch of folios
  * @mapping:	The address_space to search
  * @start:	The starting page index
  * @end:	The final page index (inclusive)
- * @nr_pages:	The maximum number of pages
- * @pages:	Where the resulting pages are placed
+ * @fbatch:	The batch to fill.
  *
- * find_get_pages_range() will search for and return a group of up to @nr_pages
- * pages in the mapping starting at index @start and up to index @end
- * (inclusive).  The pages are placed at @pages.  find_get_pages_range() takes
- * a reference against the returned pages.
+ * Search for and return a batch of folios in the mapping starting at
+ * index @start and up to index @end (inclusive).  The folios are returned
+ * in @fbatch with an elevated reference count.
  *
- * The search returns a group of mapping-contiguous pages with ascending
- * indexes.  There may be holes in the indices due to not-present pages.
- * We also update @start to index the next page for the traversal.
+ * The first folio may start before @start; if it does, it will contain
+ * @start.  The final folio may extend beyond @end; if it does, it will
+ * contain @end.  The folios have ascending indices.  There may be gaps
+ * between the folios if there are indices which have no folio in the
+ * page cache.  If folios are added to or removed from the page cache
+ * while this is running, they may or may not be found by this call.
  *
- * Return: the number of pages which were found. If this number is
- * smaller than @nr_pages, the end of specified range has been
- * reached.
+ * Return: The number of folios which were found.
+ * We also update @start to index the next folio for the traversal.
  */
-unsigned find_get_pages_range(struct address_space *mapping, pgoff_t *start,
-			      pgoff_t end, unsigned int nr_pages,
-			      struct page **pages)
+unsigned filemap_get_folios(struct address_space *mapping, pgoff_t *start,
+		pgoff_t end, struct folio_batch *fbatch)
 {
 	XA_STATE(xas, &mapping->i_pages, *start);
 	struct folio *folio;
-	unsigned ret = 0;
-
-	if (unlikely(!nr_pages))
-		return 0;
 
 	rcu_read_lock();
-	while ((folio = find_get_entry(&xas, end, XA_PRESENT))) {
+	while ((folio = find_get_entry(&xas, end, XA_PRESENT)) != NULL) {
 		/* Skip over shadow, swap and DAX entries */
 		if (xa_is_value(folio))
 			continue;
+		if (!folio_batch_add(fbatch, folio)) {
+			unsigned long nr = folio_nr_pages(folio);
 
-again:
-		pages[ret] = folio_file_page(folio, xas.xa_index);
-		if (++ret == nr_pages) {
-			*start = xas.xa_index + 1;
+			if (folio_test_hugetlb(folio))
+				nr = 1;
+			*start = folio->index + nr;
 			goto out;
-		}
-		if (folio_more_pages(folio, xas.xa_index, end)) {
-			xas.xa_index++;
-			folio_ref_inc(folio);
-			goto again;
 		}
 	}
 
@@ -2221,7 +2180,18 @@ again:
 out:
 	rcu_read_unlock();
 
-	return ret;
+	return folio_batch_count(fbatch);
+}
+EXPORT_SYMBOL(filemap_get_folios);
+
+static inline
+bool folio_more_pages(struct folio *folio, pgoff_t index, pgoff_t max)
+{
+	if (!folio_test_large(folio) || folio_test_hugetlb(folio))
+		return false;
+	if (index >= max)
+		return false;
+	return index < folio->index + folio_nr_pages(folio) - 1;
 }
 
 /**
@@ -2409,7 +2379,7 @@ retry:
 	rcu_read_unlock();
 }
 
-static int filemap_read_folio(struct file *file, struct address_space *mapping,
+static int filemap_read_folio(struct file *file, filler_t filler,
 		struct folio *folio)
 {
 	int error;
@@ -2421,7 +2391,7 @@ static int filemap_read_folio(struct file *file, struct address_space *mapping,
 	 */
 	folio_clear_error(folio);
 	/* Start the actual read. The read will unlock the page. */
-	error = mapping->a_ops->read_folio(file, folio);
+	error = filler(file, folio);
 	if (error)
 		return error;
 
@@ -2430,7 +2400,8 @@ static int filemap_read_folio(struct file *file, struct address_space *mapping,
 		return error;
 	if (folio_test_uptodate(folio))
 		return 0;
-	shrink_readahead_size_eio(&file->f_ra);
+	if (file)
+		shrink_readahead_size_eio(&file->f_ra);
 	return -EIO;
 }
 
@@ -2503,7 +2474,8 @@ static int filemap_update_page(struct kiocb *iocb,
 	if (iocb->ki_flags & (IOCB_NOIO | IOCB_NOWAIT | IOCB_WAITQ))
 		goto unlock;
 
-	error = filemap_read_folio(iocb->ki_filp, mapping, folio);
+	error = filemap_read_folio(iocb->ki_filp, mapping->a_ops->read_folio,
+			folio);
 	goto unlock_mapping;
 unlock:
 	folio_unlock(folio);
@@ -2546,7 +2518,7 @@ static int filemap_create_folio(struct file *file,
 	if (error)
 		goto error;
 
-	error = filemap_read_folio(file, mapping, folio);
+	error = filemap_read_folio(file, mapping->a_ops->read_folio, folio);
 	if (error)
 		goto error;
 
@@ -3230,7 +3202,7 @@ page_not_uptodate:
 	 * and we need to check for errors.
 	 */
 	fpin = maybe_unlock_mmap_for_io(vmf, fpin);
-	error = filemap_read_folio(file, mapping, folio);
+	error = filemap_read_folio(file, mapping->a_ops->read_folio, folio);
 	if (fpin)
 		goto out_retry;
 	folio_put(folio);
@@ -3520,20 +3492,7 @@ repeat:
 			return ERR_PTR(err);
 		}
 
-filler:
-		err = filler(file, folio);
-		if (err < 0) {
-			folio_put(folio);
-			return ERR_PTR(err);
-		}
-
-		folio_wait_locked(folio);
-		if (!folio_test_uptodate(folio)) {
-			folio_put(folio);
-			return ERR_PTR(-EIO);
-		}
-
-		goto out;
+		goto filler;
 	}
 	if (folio_test_uptodate(folio))
 		goto out;
@@ -3556,14 +3515,14 @@ filler:
 		goto out;
 	}
 
-	/*
-	 * A previous I/O error may have been due to temporary
-	 * failures.
-	 * Clear page error before actual read, PG_error will be
-	 * set again if read page fails.
-	 */
-	folio_clear_error(folio);
-	goto filler;
+filler:
+	err = filemap_read_folio(file, filler, folio);
+	if (err) {
+		folio_put(folio);
+		if (err == AOP_TRUNCATED_PAGE)
+			goto repeat;
+		return ERR_PTR(err);
+	}
 
 out:
 	folio_mark_accessed(folio);

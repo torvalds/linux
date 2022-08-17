@@ -925,7 +925,7 @@ static int ubd_add(int n, char **error_out)
 	return 0;
 
 out_cleanup_disk:
-	blk_cleanup_disk(disk);
+	put_disk(disk);
 out_cleanup_tags:
 	blk_mq_free_tag_set(&ubd_dev->tag_set);
 out:
@@ -1032,7 +1032,7 @@ static int ubd_remove(int n, char **error_out)
 	ubd_gendisk[n] = NULL;
 	if(disk != NULL){
 		del_gendisk(disk);
-		blk_cleanup_disk(disk);
+		put_disk(disk);
 	}
 
 	err = 0;
@@ -1262,7 +1262,7 @@ static void ubd_map_req(struct ubd *dev, struct io_thread_req *io_req,
 	struct req_iterator iter;
 	int i = 0;
 	unsigned long byte_offset = io_req->offset;
-	int op = req_op(req);
+	enum req_op op = req_op(req);
 
 	if (op == REQ_OP_WRITE_ZEROES || op == REQ_OP_DISCARD) {
 		io_req->io_desc[0].buffer = NULL;
@@ -1325,7 +1325,7 @@ static int ubd_submit_request(struct ubd *dev, struct request *req)
 	int segs = 0;
 	struct io_thread_req *io_req;
 	int ret;
-	int op = req_op(req);
+	enum req_op op = req_op(req);
 
 	if (op == REQ_OP_FLUSH)
 		segs = 0;

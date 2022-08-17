@@ -7,72 +7,127 @@
 #include "ptrace.h"
 #include "ptrace-gpr.h"
 #include "reg.h"
+#include <time.h>
 
 /* Tracer and Tracee Shared Data */
 int shm_id;
 int *cptr, *pptr;
 
-float a = FPR_1;
-float b = FPR_2;
-float c = FPR_3;
+extern void gpr_child_loop(int *read_flag, int *write_flag,
+			   unsigned long *gpr_buf, double *fpr_buf);
 
-void gpr(void)
+unsigned long child_gpr_val, parent_gpr_val;
+double child_fpr_val, parent_fpr_val;
+
+static int child(void)
 {
-	unsigned long gpr_buf[18];
-	float fpr_buf[32];
+	unsigned long gpr_buf[32];
+	double fpr_buf[32];
+	int i;
 
 	cptr = (int *)shmat(shm_id, NULL, 0);
+	memset(gpr_buf, 0, sizeof(gpr_buf));
+	memset(fpr_buf, 0, sizeof(fpr_buf));
 
-	asm __volatile__(
-		ASM_LOAD_GPR_IMMED(gpr_1)
-		ASM_LOAD_FPR_SINGLE_PRECISION(flt_1)
-		:
-		: [gpr_1]"i"(GPR_1), [flt_1] "b" (&a)
-		: "memory", "r6", "r7", "r8", "r9", "r10",
-		"r11", "r12", "r13", "r14", "r15", "r16", "r17",
-		"r18", "r19", "r20", "r21", "r22", "r23", "r24",
-		"r25", "r26", "r27", "r28", "r29", "r30", "r31"
-		);
+	for (i = 0; i < 32; i++) {
+		gpr_buf[i] = child_gpr_val;
+		fpr_buf[i] = child_fpr_val;
+	}
 
-	cptr[1] = 1;
-
-	while (!cptr[0])
-		asm volatile("" : : : "memory");
+	gpr_child_loop(&cptr[0], &cptr[1], gpr_buf, fpr_buf);
 
 	shmdt((void *)cptr);
-	store_gpr(gpr_buf);
-	store_fpr_single_precision(fpr_buf);
 
-	if (validate_gpr(gpr_buf, GPR_3))
-		exit(1);
+	FAIL_IF(validate_gpr(gpr_buf, parent_gpr_val));
+	FAIL_IF(validate_fpr_double(fpr_buf, parent_fpr_val));
 
-	if (validate_fpr_float(fpr_buf, c))
-		exit(1);
-
-	exit(0);
+	return 0;
 }
 
 int trace_gpr(pid_t child)
 {
+	__u64 tmp, fpr[32], *peeked_fprs;
 	unsigned long gpr[18];
-	unsigned long fpr[32];
 
 	FAIL_IF(start_trace(child));
+
+	// Check child GPRs match what we expect using GETREGS
 	FAIL_IF(show_gpr(child, gpr));
-	FAIL_IF(validate_gpr(gpr, GPR_1));
+	FAIL_IF(validate_gpr(gpr, child_gpr_val));
+
+	// Check child FPRs match what we expect using GETFPREGS
 	FAIL_IF(show_fpr(child, fpr));
-	FAIL_IF(validate_fpr(fpr, FPR_1_REP));
-	FAIL_IF(write_gpr(child, GPR_3));
-	FAIL_IF(write_fpr(child, FPR_3_REP));
+	memcpy(&tmp, &child_fpr_val, sizeof(tmp));
+	FAIL_IF(validate_fpr(fpr, tmp));
+
+	// Check child FPRs match what we expect using PEEKUSR
+	peeked_fprs = peek_fprs(child);
+	FAIL_IF(!peeked_fprs);
+	FAIL_IF(validate_fpr(peeked_fprs, tmp));
+	free(peeked_fprs);
+
+	// Write child GPRs using SETREGS
+	FAIL_IF(write_gpr(child, parent_gpr_val));
+
+	// Write child FPRs using SETFPREGS
+	memcpy(&tmp, &parent_fpr_val, sizeof(tmp));
+	FAIL_IF(write_fpr(child, tmp));
+
+	// Check child FPRs match what we just set, using PEEKUSR
+	peeked_fprs = peek_fprs(child);
+	FAIL_IF(!peeked_fprs);
+	FAIL_IF(validate_fpr(peeked_fprs, tmp));
+
+	// Write child FPRs using POKEUSR
+	FAIL_IF(poke_fprs(child, (unsigned long *)peeked_fprs));
+
+	// Child will check its FPRs match before exiting
 	FAIL_IF(stop_trace(child));
 
 	return TEST_PASS;
 }
 
+#ifndef __LONG_WIDTH__
+#define __LONG_WIDTH__ (sizeof(long) * 8)
+#endif
+
+static uint64_t rand_reg(void)
+{
+	uint64_t result;
+	long r;
+
+	r = random();
+
+	// Small values are typical
+	result = r & 0xffff;
+	if (r & 0x10000)
+		return result;
+
+	// Pointers tend to have high bits set
+	result |= random() << (__LONG_WIDTH__ - 31);
+	if (r & 0x100000)
+		return result;
+
+	// And sometimes we want a full 64-bit value
+	result ^= random() << 16;
+
+	return result;
+}
+
 int ptrace_gpr(void)
 {
-	pid_t pid;
+	unsigned long seed;
 	int ret, status;
+	pid_t pid;
+
+	seed = getpid() ^ time(NULL);
+	printf("srand(%lu)\n", seed);
+	srand(seed);
+
+	child_gpr_val = rand_reg();
+	child_fpr_val = rand_reg();
+	parent_gpr_val = rand_reg();
+	parent_fpr_val = rand_reg();
 
 	shm_id = shmget(IPC_PRIVATE, sizeof(int) * 2, 0777|IPC_CREAT);
 	pid = fork();
@@ -81,7 +136,7 @@ int ptrace_gpr(void)
 		return TEST_FAIL;
 	}
 	if (pid == 0)
-		gpr();
+		exit(child());
 
 	if (pid) {
 		pptr = (int *)shmat(shm_id, NULL, 0);

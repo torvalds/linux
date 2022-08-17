@@ -148,13 +148,13 @@ static struct bin_attribute bin_attr_bpf_testmod_file __ro_after_init = {
 	.write = bpf_testmod_test_write,
 };
 
-BTF_SET_START(bpf_testmod_check_kfunc_ids)
-BTF_ID(func, bpf_testmod_test_mod_kfunc)
-BTF_SET_END(bpf_testmod_check_kfunc_ids)
+BTF_SET8_START(bpf_testmod_check_kfunc_ids)
+BTF_ID_FLAGS(func, bpf_testmod_test_mod_kfunc)
+BTF_SET8_END(bpf_testmod_check_kfunc_ids)
 
 static const struct btf_kfunc_id_set bpf_testmod_kfunc_set = {
-	.owner     = THIS_MODULE,
-	.check_set = &bpf_testmod_check_kfunc_ids,
+	.owner = THIS_MODULE,
+	.set   = &bpf_testmod_check_kfunc_ids,
 };
 
 extern int bpf_fentry_test1(int a);

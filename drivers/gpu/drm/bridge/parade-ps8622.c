@@ -324,11 +324,7 @@ error:
 static int ps8622_backlight_update(struct backlight_device *bl)
 {
 	struct ps8622_bridge *ps8622 = dev_get_drvdata(&bl->dev);
-	int ret, brightness = bl->props.brightness;
-
-	if (bl->props.power != FB_BLANK_UNBLANK ||
-	    bl->props.state & (BL_CORE_SUSPENDED | BL_CORE_FBBLANK))
-		brightness = 0;
+	int ret, brightness = backlight_get_brightness(bl);
 
 	if (!ps8622->enabled)
 		return -EINVAL;
@@ -524,14 +520,12 @@ static int ps8622_probe(struct i2c_client *client,
 	return 0;
 }
 
-static int ps8622_remove(struct i2c_client *client)
+static void ps8622_remove(struct i2c_client *client)
 {
 	struct ps8622_bridge *ps8622 = i2c_get_clientdata(client);
 
 	backlight_device_unregister(ps8622->bl);
 	drm_bridge_remove(&ps8622->bridge);
-
-	return 0;
 }
 
 static const struct i2c_device_id ps8622_i2c_table[] = {

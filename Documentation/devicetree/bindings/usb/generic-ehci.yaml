@@ -38,6 +38,7 @@ properties:
               - allwinner,sun8i-h3-ehci
               - allwinner,sun8i-r40-ehci
               - allwinner,sun9i-a80-ehci
+              - allwinner,sun20i-d1-ehci
               - aspeed,ast2400-ehci
               - aspeed,ast2500-ehci
               - aspeed,ast2600-ehci
@@ -130,11 +131,6 @@ properties:
       Set this flag to indicate that the hardware sometimes turns on
       the OC bit when an over-current isn't actually present.
 
-  companion:
-    $ref: /schemas/types.yaml#/definitions/phandle
-    description:
-      Phandle of a companion.
-
   phys:
     minItems: 1
     maxItems: 3
@@ -155,7 +151,7 @@ required:
   - reg
   - interrupts
 
-additionalProperties: false
+unevaluatedProperties: false
 
 examples:
   - |

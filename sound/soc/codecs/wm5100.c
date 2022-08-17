@@ -2389,7 +2389,6 @@ static const struct snd_soc_component_driver soc_component_dev_wm5100 = {
 	.num_dapm_routes	= ARRAY_SIZE(wm5100_dapm_routes),
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
 };
 
 static const struct regmap_config wm5100_regmap = {
@@ -2636,7 +2635,7 @@ err:
 	return ret;
 }
 
-static int wm5100_i2c_remove(struct i2c_client *i2c)
+static void wm5100_i2c_remove(struct i2c_client *i2c)
 {
 	struct wm5100_priv *wm5100 = i2c_get_clientdata(i2c);
 
@@ -2652,8 +2651,6 @@ static int wm5100_i2c_remove(struct i2c_client *i2c)
 		gpio_set_value_cansleep(wm5100->pdata.ldo_ena, 0);
 		gpio_free(wm5100->pdata.ldo_ena);
 	}
-
-	return 0;
 }
 
 #ifdef CONFIG_PM

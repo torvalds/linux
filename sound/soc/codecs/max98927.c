@@ -832,7 +832,6 @@ static const struct snd_soc_component_driver soc_component_dev_max98927 = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
 };
 
 static const struct regmap_config max98927_regmap = {
@@ -935,15 +934,13 @@ static int max98927_i2c_probe(struct i2c_client *i2c)
 	return ret;
 }
 
-static int max98927_i2c_remove(struct i2c_client *i2c)
+static void max98927_i2c_remove(struct i2c_client *i2c)
 {
 	struct max98927_priv *max98927 = i2c_get_clientdata(i2c);
 
 	if (max98927->reset_gpio) {
 		gpiod_set_value_cansleep(max98927->reset_gpio, 1);
 	}
-
-	return 0;
 }
 
 static const struct i2c_device_id max98927_i2c_id[] = {

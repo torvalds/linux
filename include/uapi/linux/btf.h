@@ -36,10 +36,10 @@ struct btf_type {
 	 * bits 24-28: kind (e.g. int, ptr, array...etc)
 	 * bits 29-30: unused
 	 * bit     31: kind_flag, currently used by
-	 *             struct, union and fwd
+	 *             struct, union, enum, fwd and enum64
 	 */
 	__u32 info;
-	/* "size" is used by INT, ENUM, STRUCT, UNION and DATASEC.
+	/* "size" is used by INT, ENUM, STRUCT, UNION, DATASEC and ENUM64.
 	 * "size" tells the size of the type it is describing.
 	 *
 	 * "type" is used by PTR, TYPEDEF, VOLATILE, CONST, RESTRICT,
@@ -63,7 +63,7 @@ enum {
 	BTF_KIND_ARRAY		= 3,	/* Array	*/
 	BTF_KIND_STRUCT		= 4,	/* Struct	*/
 	BTF_KIND_UNION		= 5,	/* Union	*/
-	BTF_KIND_ENUM		= 6,	/* Enumeration	*/
+	BTF_KIND_ENUM		= 6,	/* Enumeration up to 32-bit values */
 	BTF_KIND_FWD		= 7,	/* Forward	*/
 	BTF_KIND_TYPEDEF	= 8,	/* Typedef	*/
 	BTF_KIND_VOLATILE	= 9,	/* Volatile	*/
@@ -76,6 +76,7 @@ enum {
 	BTF_KIND_FLOAT		= 16,	/* Floating point	*/
 	BTF_KIND_DECL_TAG	= 17,	/* Decl Tag */
 	BTF_KIND_TYPE_TAG	= 18,	/* Type Tag */
+	BTF_KIND_ENUM64		= 19,	/* Enumeration up to 64-bit values */
 
 	NR_BTF_KINDS,
 	BTF_KIND_MAX		= NR_BTF_KINDS - 1,
@@ -184,6 +185,16 @@ struct btf_var_secinfo {
  */
 struct btf_decl_tag {
        __s32   component_idx;
+};
+
+/* BTF_KIND_ENUM64 is followed by multiple "struct btf_enum64".
+ * The exact number of btf_enum64 is stored in the vlen (of the
+ * info in "struct btf_type").
+ */
+struct btf_enum64 {
+	__u32	name_off;
+	__u32	val_lo32;
+	__u32	val_hi32;
 };
 
 #endif /* _UAPI__LINUX_BTF_H__ */

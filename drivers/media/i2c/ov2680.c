@@ -1097,7 +1097,7 @@ lock_destroy:
 	return ret;
 }
 
-static int ov2680_remove(struct i2c_client *client)
+static void ov2680_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 	struct ov2680_dev *sensor = to_ov2680_dev(sd);
@@ -1106,8 +1106,6 @@ static int ov2680_remove(struct i2c_client *client)
 	mutex_destroy(&sensor->lock);
 	media_entity_cleanup(&sensor->sd.entity);
 	v4l2_ctrl_handler_free(&sensor->ctrls.handler);
-
-	return 0;
 }
 
 static int __maybe_unused ov2680_suspend(struct device *dev)

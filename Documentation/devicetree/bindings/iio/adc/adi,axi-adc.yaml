@@ -8,7 +8,6 @@ title: Analog Devices AXI ADC IP core
 
 maintainers:
   - Michael Hennerich <michael.hennerich@analog.com>
-  - Alexandru Ardelean <alexandru.ardelean@analog.com>
 
 description: |
   Analog Devices Generic AXI ADC IP core for interfacing an ADC device

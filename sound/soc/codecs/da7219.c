@@ -2647,7 +2647,6 @@ static const struct snd_soc_component_driver soc_component_dev_da7219 = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
 };
 
 
@@ -2693,11 +2692,6 @@ static int da7219_i2c_probe(struct i2c_client *i2c)
 	return ret;
 }
 
-static int da7219_i2c_remove(struct i2c_client *client)
-{
-	return 0;
-}
-
 static const struct i2c_device_id da7219_i2c_id[] = {
 	{ "da7219", },
 	{ }
@@ -2711,7 +2705,6 @@ static struct i2c_driver da7219_i2c_driver = {
 		.acpi_match_table = ACPI_PTR(da7219_acpi_match),
 	},
 	.probe_new	= da7219_i2c_probe,
-	.remove		= da7219_i2c_remove,
 	.id_table	= da7219_i2c_id,
 };
 

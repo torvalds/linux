@@ -157,7 +157,9 @@ put_codec_node:
 
 static int snd_proto_remove(struct platform_device *pdev)
 {
-	return snd_soc_unregister_card(&snd_proto);
+	snd_soc_unregister_card(&snd_proto);
+
+	return 0;
 }
 
 static const struct of_device_id snd_proto_of_match[] = {

@@ -2345,7 +2345,6 @@ static struct snd_soc_component_driver soc_component_dev_cs43130 = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
 };
 
 static const struct regmap_config cs43130_regmap = {
@@ -2584,7 +2583,7 @@ err_supplies:
 	return ret;
 }
 
-static int cs43130_i2c_remove(struct i2c_client *client)
+static void cs43130_i2c_remove(struct i2c_client *client)
 {
 	struct cs43130_private *cs43130 = i2c_get_clientdata(client);
 
@@ -2611,8 +2610,6 @@ static int cs43130_i2c_remove(struct i2c_client *client)
 
 	pm_runtime_disable(&client->dev);
 	regulator_bulk_disable(CS43130_NUM_SUPPLIES, cs43130->supplies);
-
-	return 0;
 }
 
 static int __maybe_unused cs43130_runtime_suspend(struct device *dev)

@@ -1304,7 +1304,6 @@ static const struct snd_soc_component_driver soc_component_dev_rt5616 = {
 	.num_dapm_routes	= ARRAY_SIZE(rt5616_dapm_routes),
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
 };
 
 static const struct regmap_config rt5616_regmap = {
@@ -1389,10 +1388,8 @@ static int rt5616_i2c_probe(struct i2c_client *i2c)
 				      rt5616_dai, ARRAY_SIZE(rt5616_dai));
 }
 
-static int rt5616_i2c_remove(struct i2c_client *i2c)
-{
-	return 0;
-}
+static void rt5616_i2c_remove(struct i2c_client *i2c)
+{}
 
 static void rt5616_i2c_shutdown(struct i2c_client *client)
 {
