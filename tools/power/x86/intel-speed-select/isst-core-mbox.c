@@ -102,6 +102,52 @@ static int mbox_get_ctdp_control(struct isst_id *id, int config_index,
 	return 0;
 }
 
+static void mbox_get_uncore_p0_p1_info(struct isst_id *id, int config_index,
+				struct isst_pkg_ctdp_level_info *ctdp_level)
+{
+	unsigned int resp;
+	int ret;
+
+	ctdp_level->uncore_pm = 0;
+	ctdp_level->uncore_p0 = 0;
+	ctdp_level->uncore_p1 = 0;
+
+	ret = isst_send_mbox_command(id->cpu, CONFIG_TDP,
+				     CONFIG_TDP_GET_RATIO_INFO, 0,
+				     (BIT(16) | config_index) , &resp);
+	if (ret) {
+		goto try_uncore_mbox;
+	}
+
+	ctdp_level->uncore_p0 = resp & GENMASK(7, 0);
+	ctdp_level->uncore_p1 = (resp & GENMASK(15, 8)) >> 8;
+	ctdp_level->uncore_pm = (resp & GENMASK(31, 24)) >> 24;
+
+	debug_printf(
+		"cpu:%d ctdp:%d CONFIG_TDP_GET_RATIO_INFO resp:%x uncore p0:%d uncore p1:%d uncore pm:%d\n",
+		id->cpu, config_index, resp, ctdp_level->uncore_p0, ctdp_level->uncore_p1,
+		ctdp_level->uncore_pm);
+
+	return;
+
+try_uncore_mbox:
+	ret = isst_send_mbox_command(id->cpu, CONFIG_TDP,
+				     CONFIG_TDP_GET_UNCORE_P0_P1_INFO, 0,
+				     config_index, &resp);
+	if (ret) {
+		ctdp_level->uncore_p0 = 0;
+		ctdp_level->uncore_p1 = 0;
+		return;
+	}
+
+	ctdp_level->uncore_p0 = resp & GENMASK(7, 0);
+	ctdp_level->uncore_p1 = (resp & GENMASK(15, 8)) >> 8;
+	debug_printf(
+		"cpu:%d ctdp:%d CONFIG_TDP_GET_UNCORE_P0_P1_INFO resp:%x uncore p0:%d uncore p1:%d\n",
+		id->cpu, config_index, resp, ctdp_level->uncore_p0,
+		ctdp_level->uncore_p1);
+}
+
 static int mbox_get_tdp_info(struct isst_id *id, int config_index,
 		      struct isst_pkg_ctdp_level_info *ctdp_level)
 {
@@ -497,6 +543,7 @@ static struct isst_platform_ops mbox_ops = {
 	.get_pbf_info = mbox_get_pbf_info,
 	.set_pbf_fact_status = mbox_set_pbf_fact_status,
 	.get_fact_info = mbox_get_fact_info,
+	.get_uncore_p0_p1_info = mbox_get_uncore_p0_p1_info,
 };
 
 struct isst_platform_ops *mbox_get_platform_ops(void)
