@@ -984,8 +984,13 @@ size_t __ksize(const void *object)
 
 	folio = virt_to_folio(object);
 
-	if (unlikely(!folio_test_slab(folio)))
+	if (unlikely(!folio_test_slab(folio))) {
+		if (WARN_ON(folio_size(folio) <= KMALLOC_MAX_CACHE_SIZE))
+			return 0;
+		if (WARN_ON(object != folio_address(folio)))
+			return 0;
 		return folio_size(folio);
+	}
 
 	return slab_ksize(folio_slab(folio)->slab_cache);
 }
