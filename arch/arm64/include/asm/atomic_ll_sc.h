@@ -23,7 +23,7 @@
  */
 
 #define ATOMIC_OP(op, asm_op, constraint)				\
-static inline void							\
+static __always_inline void						\
 __ll_sc_atomic_##op(int i, atomic_t *v)					\
 {									\
 	unsigned long tmp;						\
@@ -40,7 +40,7 @@ __ll_sc_atomic_##op(int i, atomic_t *v)					\
 }
 
 #define ATOMIC_OP_RETURN(name, mb, acq, rel, cl, op, asm_op, constraint)\
-static inline int							\
+static __always_inline int						\
 __ll_sc_atomic_##op##_return##name(int i, atomic_t *v)			\
 {									\
 	unsigned long tmp;						\
@@ -61,7 +61,7 @@ __ll_sc_atomic_##op##_return##name(int i, atomic_t *v)			\
 }
 
 #define ATOMIC_FETCH_OP(name, mb, acq, rel, cl, op, asm_op, constraint) \
-static inline int							\
+static __always_inline int						\
 __ll_sc_atomic_fetch_##op##name(int i, atomic_t *v)			\
 {									\
 	unsigned long tmp;						\
@@ -119,7 +119,7 @@ ATOMIC_OPS(andnot, bic, )
 #undef ATOMIC_OP
 
 #define ATOMIC64_OP(op, asm_op, constraint)				\
-static inline void							\
+static __always_inline void						\
 __ll_sc_atomic64_##op(s64 i, atomic64_t *v)				\
 {									\
 	s64 result;							\
@@ -136,7 +136,7 @@ __ll_sc_atomic64_##op(s64 i, atomic64_t *v)				\
 }
 
 #define ATOMIC64_OP_RETURN(name, mb, acq, rel, cl, op, asm_op, constraint)\
-static inline long							\
+static __always_inline long						\
 __ll_sc_atomic64_##op##_return##name(s64 i, atomic64_t *v)		\
 {									\
 	s64 result;							\
@@ -157,7 +157,7 @@ __ll_sc_atomic64_##op##_return##name(s64 i, atomic64_t *v)		\
 }
 
 #define ATOMIC64_FETCH_OP(name, mb, acq, rel, cl, op, asm_op, constraint)\
-static inline long							\
+static __always_inline long						\
 __ll_sc_atomic64_fetch_##op##name(s64 i, atomic64_t *v)			\
 {									\
 	s64 result, val;						\
@@ -214,7 +214,7 @@ ATOMIC64_OPS(andnot, bic, )
 #undef ATOMIC64_OP_RETURN
 #undef ATOMIC64_OP
 
-static inline s64
+static __always_inline s64
 __ll_sc_atomic64_dec_if_positive(atomic64_t *v)
 {
 	s64 result;
@@ -237,7 +237,7 @@ __ll_sc_atomic64_dec_if_positive(atomic64_t *v)
 }
 
 #define __CMPXCHG_CASE(w, sfx, name, sz, mb, acq, rel, cl, constraint)	\
-static inline u##sz							\
+static __always_inline u##sz						\
 __ll_sc__cmpxchg_case_##name##sz(volatile void *ptr,			\
 					 unsigned long old,		\
 					 u##sz new)			\
@@ -295,7 +295,7 @@ __CMPXCHG_CASE( ,  ,  mb_, 64, dmb ish,  , l, "memory", L)
 #undef __CMPXCHG_CASE
 
 #define __CMPXCHG_DBL(name, mb, rel, cl)				\
-static inline long							\
+static __always_inline long						\
 __ll_sc__cmpxchg_double##name(unsigned long old1,			\
 				      unsigned long old2,		\
 				      unsigned long new1,		\
