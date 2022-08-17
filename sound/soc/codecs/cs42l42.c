@@ -893,22 +893,21 @@ static int cs42l42_pcm_hw_params(struct snd_pcm_substream *substream,
 	struct cs42l42_private *cs42l42 = snd_soc_component_get_drvdata(component);
 	unsigned int channels = params_channels(params);
 	unsigned int width = (params_width(params) / 8) - 1;
+	unsigned int slot_width = 0;
 	unsigned int val = 0;
 	int ret;
 
 	cs42l42->srate = params_rate(params);
-	cs42l42->bclk = snd_soc_params_to_bclk(params);
-
-	/* I2S frame always has 2 channels even for mono audio */
-	if (channels == 1)
-		cs42l42->bclk *= 2;
 
 	/*
 	 * Assume 24-bit samples are in 32-bit slots, to prevent SCLK being
 	 * more than assumed (which would result in overclocking).
 	 */
 	if (params_width(params) == 24)
-		cs42l42->bclk = (cs42l42->bclk / 3) * 4;
+		slot_width = 32;
+
+	/* I2S frame always has multiple of 2 channels */
+	cs42l42->bclk = snd_soc_tdm_params_to_bclk(params, slot_width, 0, 2);
 
 	switch (substream->stream) {
 	case SNDRV_PCM_STREAM_CAPTURE:
