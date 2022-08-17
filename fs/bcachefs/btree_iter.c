@@ -2844,8 +2844,10 @@ struct bkey_s_c bch2_btree_iter_peek_slot(struct btree_iter *iter)
 					iter->flags & BTREE_ITER_INTENT);
 
 	ret = bch2_btree_path_traverse(trans, iter->path, iter->flags);
-	if (unlikely(ret))
-		return bkey_s_c_err(ret);
+	if (unlikely(ret)) {
+		k = bkey_s_c_err(ret);
+		goto out_no_locked;
+	}
 
 	if ((iter->flags & BTREE_ITER_CACHED) ||
 	    !(iter->flags & (BTREE_ITER_IS_EXTENTS|BTREE_ITER_FILTER_SNAPSHOTS))) {
@@ -2895,7 +2897,10 @@ struct bkey_s_c bch2_btree_iter_peek_slot(struct btree_iter *iter)
 			struct bpos pos = iter->pos;
 
 			k = bch2_btree_iter_peek(iter);
-			iter->pos = pos;
+			if (unlikely(bkey_err(k)))
+				bch2_btree_iter_set_pos(iter, pos);
+			else
+				iter->pos = pos;
 		}
 
 		if (unlikely(bkey_err(k)))
