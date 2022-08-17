@@ -70,7 +70,7 @@ static int intel_dp_mst_compute_link_config(struct intel_encoder *encoder,
 						       crtc_state->pipe_bpp,
 						       false);
 
-		slots = drm_dp_atomic_find_vcpi_slots(state, &intel_dp->mst_mgr,
+		slots = drm_dp_atomic_find_time_slots(state, &intel_dp->mst_mgr,
 						      connector->port,
 						      crtc_state->pbn,
 						      drm_dp_get_vc_payload_bw(&intel_dp->mst_mgr,
@@ -344,8 +344,7 @@ intel_dp_mst_atomic_check(struct drm_connector *connector,
 	}
 
 	mgr = &enc_to_mst(to_intel_encoder(old_conn_state->best_encoder))->primary->dp.mst_mgr;
-	ret = drm_dp_atomic_release_vcpi_slots(&state->base, mgr,
-					       intel_connector->port);
+	ret = drm_dp_atomic_release_time_slots(&state->base, mgr, intel_connector->port);
 
 	return ret;
 }

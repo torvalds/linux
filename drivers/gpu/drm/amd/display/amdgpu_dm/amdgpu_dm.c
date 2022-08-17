@@ -6401,7 +6401,7 @@ static int dm_encoder_helper_atomic_check(struct drm_encoder *encoder,
 		clock = adjusted_mode->clock;
 		dm_new_connector_state->pbn = drm_dp_calc_pbn_mode(clock, bpp, false);
 	}
-	dm_new_connector_state->vcpi_slots = drm_dp_atomic_find_vcpi_slots(state,
+	dm_new_connector_state->vcpi_slots = drm_dp_atomic_find_time_slots(state,
 									   mst_mgr,
 									   mst_port,
 									   dm_new_connector_state->pbn,

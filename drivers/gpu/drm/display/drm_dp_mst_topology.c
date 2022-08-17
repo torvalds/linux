@@ -4293,11 +4293,11 @@ struct edid *drm_dp_mst_get_edid(struct drm_connector *connector, struct drm_dp_
 EXPORT_SYMBOL(drm_dp_mst_get_edid);
 
 /**
- * drm_dp_find_vcpi_slots() - Find VCPI slots for this PBN value
+ * drm_dp_find_vcpi_slots() - Find time slots for this PBN value
  * @mgr: manager to use
  * @pbn: payload bandwidth to convert into slots.
  *
- * Calculate the number of VCPI slots that will be required for the given PBN
+ * Calculate the number of time slots that will be required for the given PBN
  * value. This function is deprecated, and should not be used in atomic
  * drivers.
  *
@@ -4334,17 +4334,17 @@ static int drm_dp_init_vcpi(struct drm_dp_mst_topology_mgr *mgr,
 }
 
 /**
- * drm_dp_atomic_find_vcpi_slots() - Find and add VCPI slots to the state
+ * drm_dp_atomic_find_time_slots() - Find and add time slots to the state
  * @state: global atomic state
  * @mgr: MST topology manager for the port
- * @port: port to find vcpi slots for
+ * @port: port to find time slots for
  * @pbn: bandwidth required for the mode in PBN
  * @pbn_div: divider for DSC mode that takes FEC into account
  *
- * Allocates VCPI slots to @port, replacing any previous VCPI allocations it
+ * Allocates time slots to @port, replacing any previous timeslot allocations it
  * may have had. Any atomic drivers which support MST must call this function
  * in their &drm_encoder_helper_funcs.atomic_check() callback to change the
- * current VCPI allocation for the new state, but only when
+ * current timeslot allocation for the new state, but only when
  * &drm_crtc_state.mode_changed or &drm_crtc_state.connectors_changed is set
  * to ensure compatibility with userspace applications that still use the
  * legacy modesetting UAPI.
@@ -4354,17 +4354,17 @@ static int drm_dp_init_vcpi(struct drm_dp_mst_topology_mgr *mgr,
  *
  * Additionally, it is OK to call this function multiple times on the same
  * @port as needed. It is not OK however, to call this function and
- * drm_dp_atomic_release_vcpi_slots() in the same atomic check phase.
+ * drm_dp_atomic_release_time_slots() in the same atomic check phase.
  *
  * See also:
- * drm_dp_atomic_release_vcpi_slots()
+ * drm_dp_atomic_release_time_slots()
  * drm_dp_mst_atomic_check()
  *
  * Returns:
  * Total slots in the atomic state assigned for this port, or a negative error
  * code if the port no longer exists
  */
-int drm_dp_atomic_find_vcpi_slots(struct drm_atomic_state *state,
+int drm_dp_atomic_find_time_slots(struct drm_atomic_state *state,
 				  struct drm_dp_mst_topology_mgr *mgr,
 				  struct drm_dp_mst_port *port, int pbn,
 				  int pbn_div)
@@ -4381,17 +4381,17 @@ int drm_dp_atomic_find_vcpi_slots(struct drm_atomic_state *state,
 	list_for_each_entry(pos, &topology_state->payloads, next) {
 		if (pos->port == port) {
 			payload = pos;
-			prev_slots = payload->vcpi;
+			prev_slots = payload->time_slots;
 			prev_bw = payload->pbn;
 
 			/*
 			 * This should never happen, unless the driver tries
-			 * releasing and allocating the same VCPI allocation,
+			 * releasing and allocating the same timeslot allocation,
 			 * which is an error
 			 */
 			if (WARN_ON(!prev_slots)) {
 				drm_err(mgr->dev,
-					"cannot allocate and release VCPI on [MST PORT:%p] in the same state\n",
+					"cannot allocate and release time slots on [MST PORT:%p] in the same state\n",
 					port);
 				return -EINVAL;
 			}
@@ -4409,7 +4409,7 @@ int drm_dp_atomic_find_vcpi_slots(struct drm_atomic_state *state,
 
 	req_slots = DIV_ROUND_UP(pbn, pbn_div);
 
-	drm_dbg_atomic(mgr->dev, "[CONNECTOR:%d:%s] [MST PORT:%p] VCPI %d -> %d\n",
+	drm_dbg_atomic(mgr->dev, "[CONNECTOR:%d:%s] [MST PORT:%p] TU %d -> %d\n",
 		       port->connector->base.id, port->connector->name,
 		       port, prev_slots, req_slots);
 	drm_dbg_atomic(mgr->dev, "[CONNECTOR:%d:%s] [MST PORT:%p] PBN %d -> %d\n",
@@ -4426,20 +4426,20 @@ int drm_dp_atomic_find_vcpi_slots(struct drm_atomic_state *state,
 		payload->port = port;
 		list_add(&payload->next, &topology_state->payloads);
 	}
-	payload->vcpi = req_slots;
+	payload->time_slots = req_slots;
 	payload->pbn = pbn;
 
 	return req_slots;
 }
-EXPORT_SYMBOL(drm_dp_atomic_find_vcpi_slots);
+EXPORT_SYMBOL(drm_dp_atomic_find_time_slots);
 
 /**
- * drm_dp_atomic_release_vcpi_slots() - Release allocated vcpi slots
+ * drm_dp_atomic_release_time_slots() - Release allocated time slots
  * @state: global atomic state
  * @mgr: MST topology manager for the port
- * @port: The port to release the VCPI slots from
+ * @port: The port to release the time slots from
  *
- * Releases any VCPI slots that have been allocated to a port in the atomic
+ * Releases any time slots that have been allocated to a port in the atomic
  * state. Any atomic drivers which support MST must call this function in
  * their &drm_connector_helper_funcs.atomic_check() callback when the
  * connector will no longer have VCPI allocated (e.g. because its CRTC was
@@ -4448,18 +4448,18 @@ EXPORT_SYMBOL(drm_dp_atomic_find_vcpi_slots);
  * It is OK to call this even if @port has been removed from the system.
  * Additionally, it is OK to call this function multiple times on the same
  * @port as needed. It is not OK however, to call this function and
- * drm_dp_atomic_find_vcpi_slots() on the same @port in a single atomic check
+ * drm_dp_atomic_find_time_slots() on the same @port in a single atomic check
  * phase.
  *
  * See also:
- * drm_dp_atomic_find_vcpi_slots()
+ * drm_dp_atomic_find_time_slots()
  * drm_dp_mst_atomic_check()
  *
  * Returns:
  * 0 if all slots for this port were added back to
  * &drm_dp_mst_topology_state.avail_slots or negative error code
  */
-int drm_dp_atomic_release_vcpi_slots(struct drm_atomic_state *state,
+int drm_dp_atomic_release_time_slots(struct drm_atomic_state *state,
 				     struct drm_dp_mst_topology_mgr *mgr,
 				     struct drm_dp_mst_port *port)
 {
@@ -4483,16 +4483,16 @@ int drm_dp_atomic_release_vcpi_slots(struct drm_atomic_state *state,
 		return -EINVAL;
 	}
 
-	drm_dbg_atomic(mgr->dev, "[MST PORT:%p] VCPI %d -> 0\n", port, pos->vcpi);
-	if (pos->vcpi) {
+	drm_dbg_atomic(mgr->dev, "[MST PORT:%p] TU %d -> 0\n", port, pos->time_slots);
+	if (pos->time_slots) {
 		drm_dp_mst_put_port_malloc(port);
-		pos->vcpi = 0;
+		pos->time_slots = 0;
 		pos->pbn = 0;
 	}
 
 	return 0;
 }
-EXPORT_SYMBOL(drm_dp_atomic_release_vcpi_slots);
+EXPORT_SYMBOL(drm_dp_atomic_release_time_slots);
 
 /**
  * drm_dp_mst_update_slots() - updates the slot info depending on the DP ecoding format
@@ -4546,7 +4546,7 @@ bool drm_dp_mst_allocate_vcpi(struct drm_dp_mst_topology_mgr *mgr,
 
 	ret = drm_dp_init_vcpi(mgr, &port->vcpi, pbn, slots);
 	if (ret) {
-		drm_dbg_kms(mgr->dev, "failed to init vcpi slots=%d ret=%d\n",
+		drm_dbg_kms(mgr->dev, "failed to init time slots=%d ret=%d\n",
 			    DIV_ROUND_UP(pbn, mgr->pbn_div), ret);
 		drm_dp_mst_topology_put_port(port);
 		goto out;
@@ -5071,8 +5071,8 @@ drm_dp_mst_duplicate_state(struct drm_private_obj *obj)
 	INIT_LIST_HEAD(&state->payloads);
 
 	list_for_each_entry(pos, &old_state->payloads, next) {
-		/* Prune leftover freed VCPI allocations */
-		if (!pos->vcpi)
+		/* Prune leftover freed timeslot allocations */
+		if (!pos->time_slots)
 			continue;
 
 		payload = kmemdup(pos, sizeof(*payload), GFP_KERNEL);
@@ -5104,7 +5104,7 @@ static void drm_dp_mst_destroy_state(struct drm_private_obj *obj,
 
 	list_for_each_entry_safe(pos, tmp, &mst_state->payloads, next) {
 		/* We only keep references to ports with non-zero VCPIs */
-		if (pos->vcpi)
+		if (pos->time_slots)
 			drm_dp_mst_put_port_malloc(pos->port);
 		kfree(pos);
 	}
@@ -5230,28 +5230,28 @@ drm_dp_mst_atomic_check_port_bw_limit(struct drm_dp_mst_port *port,
 }
 
 static inline int
-drm_dp_mst_atomic_check_vcpi_alloc_limit(struct drm_dp_mst_topology_mgr *mgr,
-					 struct drm_dp_mst_topology_state *mst_state)
+drm_dp_mst_atomic_check_payload_alloc_limits(struct drm_dp_mst_topology_mgr *mgr,
+					     struct drm_dp_mst_topology_state *mst_state)
 {
 	struct drm_dp_mst_atomic_payload *payload;
 	int avail_slots = mst_state->total_avail_slots, payload_count = 0;
 
 	list_for_each_entry(payload, &mst_state->payloads, next) {
 		/* Releasing payloads is always OK-even if the port is gone */
-		if (!payload->vcpi) {
-			drm_dbg_atomic(mgr->dev, "[MST PORT:%p] releases all VCPI slots\n",
+		if (!payload->time_slots) {
+			drm_dbg_atomic(mgr->dev, "[MST PORT:%p] releases all time slots\n",
 				       payload->port);
 			continue;
 		}
 
-		drm_dbg_atomic(mgr->dev, "[MST PORT:%p] requires %d vcpi slots\n",
-			       payload->port, payload->vcpi);
+		drm_dbg_atomic(mgr->dev, "[MST PORT:%p] requires %d time slots\n",
+			       payload->port, payload->time_slots);
 
-		avail_slots -= payload->vcpi;
+		avail_slots -= payload->time_slots;
 		if (avail_slots < 0) {
 			drm_dbg_atomic(mgr->dev,
-				       "[MST PORT:%p] not enough VCPI slots in mst state %p (avail=%d)\n",
-				       payload->port, mst_state, avail_slots + payload->vcpi);
+				       "[MST PORT:%p] not enough time slots in mst state %p (avail=%d)\n",
+				       payload->port, mst_state, avail_slots + payload->time_slots);
 			return -ENOSPC;
 		}
 
@@ -5262,7 +5262,7 @@ drm_dp_mst_atomic_check_vcpi_alloc_limit(struct drm_dp_mst_topology_mgr *mgr,
 			return -EINVAL;
 		}
 	}
-	drm_dbg_atomic(mgr->dev, "[MST MGR:%p] mst state %p VCPI avail=%d used=%d\n",
+	drm_dbg_atomic(mgr->dev, "[MST MGR:%p] mst state %p TU avail=%d used=%d\n",
 		       mgr, mst_state, avail_slots, mst_state->total_avail_slots - avail_slots);
 
 	return 0;
@@ -5351,7 +5351,7 @@ int drm_dp_mst_atomic_enable_dsc(struct drm_atomic_state *state,
 	struct drm_dp_mst_topology_state *mst_state;
 	struct drm_dp_mst_atomic_payload *pos;
 	bool found = false;
-	int vcpi = 0;
+	int time_slots = 0;
 
 	mst_state = drm_atomic_get_mst_topology_state(state, port->mgr);
 
@@ -5367,30 +5367,30 @@ int drm_dp_mst_atomic_enable_dsc(struct drm_atomic_state *state,
 
 	if (!found) {
 		drm_dbg_atomic(state->dev,
-			       "[MST PORT:%p] Couldn't find VCPI allocation in mst state %p\n",
+			       "[MST PORT:%p] Couldn't find payload in mst state %p\n",
 			       port, mst_state);
 		return -EINVAL;
 	}
 
 	if (pos->dsc_enabled == enable) {
 		drm_dbg_atomic(state->dev,
-			       "[MST PORT:%p] DSC flag is already set to %d, returning %d VCPI slots\n",
-			       port, enable, pos->vcpi);
-		vcpi = pos->vcpi;
+			       "[MST PORT:%p] DSC flag is already set to %d, returning %d time slots\n",
+			       port, enable, pos->time_slots);
+		time_slots = pos->time_slots;
 	}
 
 	if (enable) {
-		vcpi = drm_dp_atomic_find_vcpi_slots(state, port->mgr, port, pbn, pbn_div);
+		time_slots = drm_dp_atomic_find_time_slots(state, port->mgr, port, pbn, pbn_div);
 		drm_dbg_atomic(state->dev,
-			       "[MST PORT:%p] Enabling DSC flag, reallocating %d VCPI slots on the port\n",
-			       port, vcpi);
-		if (vcpi < 0)
+			       "[MST PORT:%p] Enabling DSC flag, reallocating %d time slots on the port\n",
+			       port, time_slots);
+		if (time_slots < 0)
 			return -EINVAL;
 	}
 
 	pos->dsc_enabled = enable;
 
-	return vcpi;
+	return time_slots;
 }
 EXPORT_SYMBOL(drm_dp_mst_atomic_enable_dsc);
 /**
@@ -5400,15 +5400,15 @@ EXPORT_SYMBOL(drm_dp_mst_atomic_enable_dsc);
  *
  * Checks the given topology state for an atomic update to ensure that it's
  * valid. This includes checking whether there's enough bandwidth to support
- * the new VCPI allocations in the atomic update.
+ * the new timeslot allocations in the atomic update.
  *
  * Any atomic drivers supporting DP MST must make sure to call this after
  * checking the rest of their state in their
  * &drm_mode_config_funcs.atomic_check() callback.
  *
  * See also:
- * drm_dp_atomic_find_vcpi_slots()
- * drm_dp_atomic_release_vcpi_slots()
+ * drm_dp_atomic_find_time_slots()
+ * drm_dp_atomic_release_time_slots()
  *
  * Returns:
  *
@@ -5424,7 +5424,7 @@ int drm_dp_mst_atomic_check(struct drm_atomic_state *state)
 		if (!mgr->mst_state)
 			continue;
 
-		ret = drm_dp_mst_atomic_check_vcpi_alloc_limit(mgr, mst_state);
+		ret = drm_dp_mst_atomic_check_payload_alloc_limits(mgr, mst_state);
 		if (ret)
 			break;
 

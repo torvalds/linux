@@ -544,7 +544,13 @@ struct drm_dp_payload {
 
 struct drm_dp_mst_atomic_payload {
 	struct drm_dp_mst_port *port;
-	int vcpi;
+
+	/**
+	 * @time_slots:
+	 * The number of timeslots allocated to this payload from the source DP Tx to
+	 * the immediate downstream DP Rx
+	 */
+	int time_slots;
 	int pbn;
 	bool dsc_enabled;
 	struct list_head next;
@@ -846,7 +852,7 @@ void drm_dp_mst_connector_early_unregister(struct drm_connector *connector,
 struct drm_dp_mst_topology_state *drm_atomic_get_mst_topology_state(struct drm_atomic_state *state,
 								    struct drm_dp_mst_topology_mgr *mgr);
 int __must_check
-drm_dp_atomic_find_vcpi_slots(struct drm_atomic_state *state,
+drm_dp_atomic_find_time_slots(struct drm_atomic_state *state,
 			      struct drm_dp_mst_topology_mgr *mgr,
 			      struct drm_dp_mst_port *port, int pbn,
 			      int pbn_div);
@@ -858,7 +864,7 @@ int __must_check
 drm_dp_mst_add_affected_dsc_crtcs(struct drm_atomic_state *state,
 				  struct drm_dp_mst_topology_mgr *mgr);
 int __must_check
-drm_dp_atomic_release_vcpi_slots(struct drm_atomic_state *state,
+drm_dp_atomic_release_time_slots(struct drm_atomic_state *state,
 				 struct drm_dp_mst_topology_mgr *mgr,
 				 struct drm_dp_mst_port *port);
 int drm_dp_send_power_updown_phy(struct drm_dp_mst_topology_mgr *mgr,
