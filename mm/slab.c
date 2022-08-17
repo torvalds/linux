@@ -3440,8 +3440,8 @@ void *__kmem_cache_alloc_lru(struct kmem_cache *cachep, struct list_lru *lru,
 {
 	void *ret = slab_alloc(cachep, lru, flags, cachep->object_size, _RET_IP_);
 
-	trace_kmem_cache_alloc(_RET_IP_, ret, cachep,
-			       cachep->object_size, cachep->size, flags);
+	trace_kmem_cache_alloc(_RET_IP_, ret, cachep, cachep->object_size,
+			       cachep->size, flags, NUMA_NO_NODE);
 
 	return ret;
 }
@@ -3536,9 +3536,8 @@ void *kmem_cache_alloc_node(struct kmem_cache *cachep, gfp_t flags, int nodeid)
 {
 	void *ret = slab_alloc_node(cachep, NULL, flags, nodeid, cachep->object_size, _RET_IP_);
 
-	trace_kmem_cache_alloc_node(_RET_IP_, ret, cachep,
-				    cachep->object_size, cachep->size,
-				    flags, nodeid);
+	trace_kmem_cache_alloc(_RET_IP_, ret, cachep, cachep->object_size,
+			       cachep->size, flags, nodeid);
 
 	return ret;
 }
