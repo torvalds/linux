@@ -1854,7 +1854,6 @@ static struct ieee80211_key *
 ieee80211_rx_get_bigtk(struct ieee80211_rx_data *rx, int idx)
 {
 	struct ieee80211_key *key = NULL;
-	struct ieee80211_sub_if_data *sdata = rx->sdata;
 	int idx2;
 
 	/* Make sure key gets set if either BIGTK key index is set so that
@@ -1873,14 +1872,14 @@ ieee80211_rx_get_bigtk(struct ieee80211_rx_data *rx, int idx)
 			idx2 = idx - 1;
 	}
 
-	if (rx->sta)
-		key = rcu_dereference(rx->sta->deflink.gtk[idx]);
+	if (rx->link_sta)
+		key = rcu_dereference(rx->link_sta->gtk[idx]);
 	if (!key)
-		key = rcu_dereference(sdata->deflink.gtk[idx]);
-	if (!key && rx->sta)
-		key = rcu_dereference(rx->sta->deflink.gtk[idx2]);
+		key = rcu_dereference(rx->link->gtk[idx]);
+	if (!key && rx->link_sta)
+		key = rcu_dereference(rx->link_sta->gtk[idx2]);
 	if (!key)
-		key = rcu_dereference(sdata->deflink.gtk[idx2]);
+		key = rcu_dereference(rx->link->gtk[idx2]);
 
 	return key;
 }
@@ -1986,15 +1985,15 @@ ieee80211_rx_h_decrypt(struct ieee80211_rx_data *rx)
 		if (mmie_keyidx < NUM_DEFAULT_KEYS ||
 		    mmie_keyidx >= NUM_DEFAULT_KEYS + NUM_DEFAULT_MGMT_KEYS)
 			return RX_DROP_MONITOR; /* unexpected BIP keyidx */
-		if (rx->sta) {
+		if (rx->link_sta) {
 			if (ieee80211_is_group_privacy_action(skb) &&
 			    test_sta_flag(rx->sta, WLAN_STA_MFP))
 				return RX_DROP_MONITOR;
 
-			rx->key = rcu_dereference(rx->sta->deflink.gtk[mmie_keyidx]);
+			rx->key = rcu_dereference(rx->link_sta->gtk[mmie_keyidx]);
 		}
 		if (!rx->key)
-			rx->key = rcu_dereference(rx->sdata->deflink.gtk[mmie_keyidx]);
+			rx->key = rcu_dereference(rx->link->gtk[mmie_keyidx]);
 	} else if (!ieee80211_has_protected(fc)) {
 		/*
 		 * The frame was not protected, so skip decryption. However, we
@@ -2003,25 +2002,24 @@ ieee80211_rx_h_decrypt(struct ieee80211_rx_data *rx)
 		 * have been expected.
 		 */
 		struct ieee80211_key *key = NULL;
-		struct ieee80211_sub_if_data *sdata = rx->sdata;
 		int i;
 
 		if (ieee80211_is_beacon(fc)) {
 			key = ieee80211_rx_get_bigtk(rx, -1);
 		} else if (ieee80211_is_mgmt(fc) &&
 			   is_multicast_ether_addr(hdr->addr1)) {
-			key = rcu_dereference(rx->sdata->deflink.default_mgmt_key);
+			key = rcu_dereference(rx->link->default_mgmt_key);
 		} else {
-			if (rx->sta) {
+			if (rx->link_sta) {
 				for (i = 0; i < NUM_DEFAULT_KEYS; i++) {
-					key = rcu_dereference(rx->sta->deflink.gtk[i]);
+					key = rcu_dereference(rx->link_sta->gtk[i]);
 					if (key)
 						break;
 				}
 			}
 			if (!key) {
 				for (i = 0; i < NUM_DEFAULT_KEYS; i++) {
-					key = rcu_dereference(sdata->deflink.gtk[i]);
+					key = rcu_dereference(rx->link->gtk[i]);
 					if (key)
 						break;
 				}
@@ -2050,13 +2048,13 @@ ieee80211_rx_h_decrypt(struct ieee80211_rx_data *rx)
 			return RX_DROP_UNUSABLE;
 
 		/* check per-station GTK first, if multicast packet */
-		if (is_multicast_ether_addr(hdr->addr1) && rx->sta)
-			rx->key = rcu_dereference(rx->sta->deflink.gtk[keyidx]);
+		if (is_multicast_ether_addr(hdr->addr1) && rx->link_sta)
+			rx->key = rcu_dereference(rx->link_sta->gtk[keyidx]);
 
 		/* if not found, try default key */
 		if (!rx->key) {
 			if (is_multicast_ether_addr(hdr->addr1))
-				rx->key = rcu_dereference(rx->sdata->deflink.gtk[keyidx]);
+				rx->key = rcu_dereference(rx->link->gtk[keyidx]);
 			if (!rx->key)
 				rx->key = rcu_dereference(rx->sdata->keys[keyidx]);
 
@@ -4769,7 +4767,17 @@ static bool ieee80211_prepare_and_rx_handle(struct ieee80211_rx_data *rx,
 		if (!link)
 			return true;
 		rx->link = link;
+
+		if (rx->sta) {
+			rx->link_sta =
+				rcu_dereference(rx->sta->link[rx->link_id]);
+			if (!rx->link_sta)
+				return true;
+		}
 	} else {
+		if (rx->sta)
+			rx->link_sta = &rx->sta->deflink;
+
 		rx->link = &sdata->deflink;
 	}
 

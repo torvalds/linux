@@ -213,6 +213,7 @@ struct ieee80211_rx_data {
 	struct ieee80211_sub_if_data *sdata;
 	struct ieee80211_link_data *link;
 	struct sta_info *sta;
+	struct link_sta_info *link_sta;
 	struct ieee80211_key *key;
 
 	unsigned int flags;

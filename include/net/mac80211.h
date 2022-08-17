@@ -1975,6 +1975,7 @@ enum ieee80211_key_flags {
  * 	- Temporal Authenticator Rx MIC Key (64 bits)
  * @icv_len: The ICV length for this key type
  * @iv_len: The IV length for this key type
+ * @link_id: the link ID for MLO, or -1 for non-MLO or pairwise keys
  */
 struct ieee80211_key_conf {
 	atomic64_t tx_pn;
@@ -1984,6 +1985,7 @@ struct ieee80211_key_conf {
 	u8 hw_key_idx;
 	s8 keyidx;
 	u16 flags;
+	s8 link_id;
 	u8 keylen;
 	u8 key[];
 };

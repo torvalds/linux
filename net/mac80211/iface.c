@@ -434,9 +434,18 @@ struct link_container {
 static void ieee80211_free_links(struct ieee80211_sub_if_data *sdata,
 				 struct link_container **links)
 {
+	LIST_HEAD(keys);
 	unsigned int link_id;
 
+	for (link_id = 0; link_id < IEEE80211_MLD_MAX_NUM_LINKS; link_id++) {
+		if (!links[link_id])
+			continue;
+		ieee80211_remove_link_keys(&links[link_id]->data, &keys);
+	}
+
 	synchronize_rcu();
+
+	ieee80211_free_key_list(sdata->local, &keys);
 
 	for (link_id = 0; link_id < IEEE80211_MLD_MAX_NUM_LINKS; link_id++) {
 		if (!links[link_id])

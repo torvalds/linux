@@ -24,12 +24,18 @@
 #include "wme.h"
 
 static struct ieee80211_link_data *
-ieee80211_link_or_deflink(struct ieee80211_sub_if_data *sdata, int link_id)
+ieee80211_link_or_deflink(struct ieee80211_sub_if_data *sdata, int link_id,
+			  bool require_valid)
 {
 	struct ieee80211_link_data *link;
 
 	if (link_id < 0) {
-		if (sdata->vif.valid_links)
+		/*
+		 * For keys, if sdata is not an MLD, we might not use
+		 * the return value at all (if it's not a pairwise key),
+		 * so in that case (require_valid==false) don't error.
+		 */
+		if (require_valid && sdata->vif.valid_links)
 			return ERR_PTR(-EINVAL);
 
 		return &sdata->deflink;
@@ -456,6 +462,8 @@ static int ieee80211_add_key(struct wiphy *wiphy, struct net_device *dev,
 			     const u8 *mac_addr, struct key_params *params)
 {
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
+	struct ieee80211_link_data *link =
+		ieee80211_link_or_deflink(sdata, link_id, false);
 	struct ieee80211_local *local = sdata->local;
 	struct sta_info *sta = NULL;
 	struct ieee80211_key *key;
@@ -463,6 +471,9 @@ static int ieee80211_add_key(struct wiphy *wiphy, struct net_device *dev,
 
 	if (!ieee80211_sdata_running(sdata))
 		return -ENETDOWN;
+
+	if (IS_ERR(link))
+		return PTR_ERR(link);
 
 	if (pairwise && params->mode == NL80211_KEY_SET_TX)
 		return ieee80211_set_tx(sdata, mac_addr, key_idx);
@@ -472,6 +483,8 @@ static int ieee80211_add_key(struct wiphy *wiphy, struct net_device *dev,
 	case WLAN_CIPHER_SUITE_WEP40:
 	case WLAN_CIPHER_SUITE_TKIP:
 	case WLAN_CIPHER_SUITE_WEP104:
+		if (link_id >= 0)
+			return -EINVAL;
 		if (WARN_ON_ONCE(fips_enabled))
 			return -EINVAL;
 		break;
@@ -483,6 +496,8 @@ static int ieee80211_add_key(struct wiphy *wiphy, struct net_device *dev,
 				  params->key, params->seq_len, params->seq);
 	if (IS_ERR(key))
 		return PTR_ERR(key);
+
+	key->conf.link_id = link_id;
 
 	if (pairwise)
 		key->conf.flags |= IEEE80211_KEY_FLAG_PAIRWISE;
@@ -545,7 +560,7 @@ static int ieee80211_add_key(struct wiphy *wiphy, struct net_device *dev,
 		break;
 	}
 
-	err = ieee80211_key_link(key, sdata, sta);
+	err = ieee80211_key_link(key, link, sta);
 
  out_unlock:
 	mutex_unlock(&local->sta_mtx);
@@ -554,17 +569,36 @@ static int ieee80211_add_key(struct wiphy *wiphy, struct net_device *dev,
 }
 
 static struct ieee80211_key *
-ieee80211_lookup_key(struct ieee80211_sub_if_data *sdata,
+ieee80211_lookup_key(struct ieee80211_sub_if_data *sdata, int link_id,
 		     u8 key_idx, bool pairwise, const u8 *mac_addr)
 {
 	struct ieee80211_local *local = sdata->local;
+	struct ieee80211_link_data *link = &sdata->deflink;
 	struct ieee80211_key *key;
-	struct sta_info *sta;
+
+	if (link_id >= 0) {
+		link = rcu_dereference_check(sdata->link[link_id],
+					     lockdep_is_held(&sdata->wdev.mtx));
+		if (!link)
+			return NULL;
+	}
 
 	if (mac_addr) {
+		struct sta_info *sta;
+		struct link_sta_info *link_sta;
+
 		sta = sta_info_get_bss(sdata, mac_addr);
 		if (!sta)
 			return NULL;
+
+		if (link_id >= 0) {
+			link_sta = rcu_dereference_check(sta->link[link_id],
+							 lockdep_is_held(&local->sta_mtx));
+			if (!link_sta)
+				return NULL;
+		} else {
+			link_sta = &sta->deflink;
+		}
 
 		if (pairwise && key_idx < NUM_DEFAULT_KEYS)
 			return rcu_dereference_check_key_mtx(local,
@@ -575,7 +609,7 @@ ieee80211_lookup_key(struct ieee80211_sub_if_data *sdata,
 			      NUM_DEFAULT_MGMT_KEYS +
 			      NUM_DEFAULT_BEACON_KEYS)
 			return rcu_dereference_check_key_mtx(local,
-							     sta->deflink.gtk[key_idx]);
+							     link_sta->gtk[key_idx]);
 
 		return NULL;
 	}
@@ -584,7 +618,7 @@ ieee80211_lookup_key(struct ieee80211_sub_if_data *sdata,
 		return rcu_dereference_check_key_mtx(local,
 						     sdata->keys[key_idx]);
 
-	key = rcu_dereference_check_key_mtx(local, sdata->deflink.gtk[key_idx]);
+	key = rcu_dereference_check_key_mtx(local, link->gtk[key_idx]);
 	if (key)
 		return key;
 
@@ -607,7 +641,7 @@ static int ieee80211_del_key(struct wiphy *wiphy, struct net_device *dev,
 	mutex_lock(&local->sta_mtx);
 	mutex_lock(&local->key_mtx);
 
-	key = ieee80211_lookup_key(sdata, key_idx, pairwise, mac_addr);
+	key = ieee80211_lookup_key(sdata, link_id, key_idx, pairwise, mac_addr);
 	if (!key) {
 		ret = -ENOENT;
 		goto out_unlock;
@@ -643,7 +677,7 @@ static int ieee80211_get_key(struct wiphy *wiphy, struct net_device *dev,
 
 	rcu_read_lock();
 
-	key = ieee80211_lookup_key(sdata, key_idx, pairwise, mac_addr);
+	key = ieee80211_lookup_key(sdata, link_id, key_idx, pairwise, mac_addr);
 	if (!key)
 		goto out;
 
@@ -734,8 +768,13 @@ static int ieee80211_config_default_key(struct wiphy *wiphy,
 					bool multi)
 {
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
+	struct ieee80211_link_data *link =
+		ieee80211_link_or_deflink(sdata, link_id, false);
 
-	ieee80211_set_default_key(sdata, key_idx, uni, multi);
+	if (IS_ERR(link))
+		return PTR_ERR(link);
+
+	ieee80211_set_default_key(link, key_idx, uni, multi);
 
 	return 0;
 }
@@ -745,8 +784,13 @@ static int ieee80211_config_default_mgmt_key(struct wiphy *wiphy,
 					     int link_id, u8 key_idx)
 {
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
+	struct ieee80211_link_data *link =
+		ieee80211_link_or_deflink(sdata, link_id, true);
 
-	ieee80211_set_default_mgmt_key(sdata, key_idx);
+	if (IS_ERR(link))
+		return PTR_ERR(link);
+
+	ieee80211_set_default_mgmt_key(link, key_idx);
 
 	return 0;
 }
@@ -756,8 +800,13 @@ static int ieee80211_config_default_beacon_key(struct wiphy *wiphy,
 					       int link_id, u8 key_idx)
 {
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
+	struct ieee80211_link_data *link =
+		ieee80211_link_or_deflink(sdata, link_id, true);
 
-	ieee80211_set_default_beacon_key(sdata, key_idx);
+	if (IS_ERR(link))
+		return PTR_ERR(link);
+
+	ieee80211_set_default_beacon_key(link, key_idx);
 
 	return 0;
 }
@@ -2588,7 +2637,7 @@ static int ieee80211_set_txq_params(struct wiphy *wiphy,
 	struct ieee80211_local *local = wiphy_priv(wiphy);
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 	struct ieee80211_link_data *link =
-		ieee80211_link_or_deflink(sdata, params->link_id);
+		ieee80211_link_or_deflink(sdata, params->link_id, true);
 	struct ieee80211_tx_queue_params p;
 
 	if (!local->ops->conf_tx)
