@@ -73,7 +73,8 @@ struct btrfs_delayed_node {
 
 struct btrfs_delayed_item {
 	struct rb_node rb_node;
-	struct btrfs_key key;
+	/* Offset value of the corresponding dir index key. */
+	u64 index;
 	struct list_head tree_list;	/* used for batch insert/delete items */
 	struct list_head readdir_list;	/* used for readdir items */
 	u64 bytes_reserved;
