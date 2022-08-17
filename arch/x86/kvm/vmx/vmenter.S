@@ -292,21 +292,12 @@ SYM_FUNC_START(vmread_error_trampoline)
 	push %r10
 	push %r11
 #endif
-#ifdef CONFIG_X86_64
+
 	/* Load @field and @fault to arg1 and arg2 respectively. */
-	mov 3*WORD_SIZE(%rbp), %_ASM_ARG2
-	mov 2*WORD_SIZE(%rbp), %_ASM_ARG1
-#else
-	/* Parameters are passed on the stack for 32-bit (see asmlinkage). */
-	push 3*WORD_SIZE(%ebp)
-	push 2*WORD_SIZE(%ebp)
-#endif
+	mov 3*WORD_SIZE(%_ASM_BP), %_ASM_ARG2
+	mov 2*WORD_SIZE(%_ASM_BP), %_ASM_ARG1
 
 	call vmread_error
-
-#ifndef CONFIG_X86_64
-	add $8, %esp
-#endif
 
 	/* Zero out @fault, which will be popped into the result register. */
 	_ASM_MOV $0, 3*WORD_SIZE(%_ASM_BP)
