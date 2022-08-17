@@ -16,9 +16,10 @@
 #include <linux/refcount.h>
 #include "ctree.h"
 
-/* types of the delayed item */
-#define BTRFS_DELAYED_INSERTION_ITEM	1
-#define BTRFS_DELAYED_DELETION_ITEM	2
+enum btrfs_delayed_item_type {
+	BTRFS_DELAYED_INSERTION_ITEM,
+	BTRFS_DELAYED_DELETION_ITEM
+};
 
 struct btrfs_delayed_root {
 	spinlock_t lock;
@@ -80,8 +81,9 @@ struct btrfs_delayed_item {
 	u64 bytes_reserved;
 	struct btrfs_delayed_node *delayed_node;
 	refcount_t refs;
-	int ins_or_del;
-	u32 data_len;
+	enum btrfs_delayed_item_type type:8;
+	/* The maximum leaf size is 64K, so u16 is more than enough. */
+	u16 data_len;
 	char data[];
 };
 

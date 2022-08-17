@@ -302,14 +302,16 @@ static inline void btrfs_release_prepared_delayed_node(
 	__btrfs_release_delayed_node(node, 1);
 }
 
-static struct btrfs_delayed_item *btrfs_alloc_delayed_item(u32 data_len,
-					   struct btrfs_delayed_node *node)
+static struct btrfs_delayed_item *btrfs_alloc_delayed_item(u16 data_len,
+					   struct btrfs_delayed_node *node,
+					   enum btrfs_delayed_item_type type)
 {
 	struct btrfs_delayed_item *item;
+
 	item = kmalloc(sizeof(*item) + data_len, GFP_NOFS);
 	if (item) {
 		item->data_len = data_len;
-		item->ins_or_del = 0;
+		item->type = type;
 		item->bytes_reserved = 0;
 		item->delayed_node = node;
 		RB_CLEAR_NODE(&item->rb_node);
@@ -356,12 +358,11 @@ static int __btrfs_add_delayed_item(struct btrfs_delayed_node *delayed_node,
 	struct btrfs_delayed_item *item;
 	bool leftmost = true;
 
-	if (ins->ins_or_del == BTRFS_DELAYED_INSERTION_ITEM)
+	if (ins->type == BTRFS_DELAYED_INSERTION_ITEM)
 		root = &delayed_node->ins_root;
-	else if (ins->ins_or_del == BTRFS_DELAYED_DELETION_ITEM)
-		root = &delayed_node->del_root;
 	else
-		BUG();
+		root = &delayed_node->del_root;
+
 	p = &root->rb_root.rb_node;
 	node = &ins->rb_node;
 
@@ -383,7 +384,7 @@ static int __btrfs_add_delayed_item(struct btrfs_delayed_node *delayed_node,
 	rb_link_node(node, parent_node, p);
 	rb_insert_color_cached(node, root, leftmost);
 
-	if (ins->ins_or_del == BTRFS_DELAYED_INSERTION_ITEM &&
+	if (ins->type == BTRFS_DELAYED_INSERTION_ITEM &&
 	    ins->index >= delayed_node->index_cnt)
 		delayed_node->index_cnt = ins->index + 1;
 
@@ -414,10 +415,8 @@ static void __btrfs_remove_delayed_item(struct btrfs_delayed_item *delayed_item)
 	delayed_root = delayed_item->delayed_node->root->fs_info->delayed_root;
 
 	BUG_ON(!delayed_root);
-	BUG_ON(delayed_item->ins_or_del != BTRFS_DELAYED_DELETION_ITEM &&
-	       delayed_item->ins_or_del != BTRFS_DELAYED_INSERTION_ITEM);
 
-	if (delayed_item->ins_or_del == BTRFS_DELAYED_INSERTION_ITEM)
+	if (delayed_item->type == BTRFS_DELAYED_INSERTION_ITEM)
 		root = &delayed_item->delayed_node->ins_root;
 	else
 		root = &delayed_item->delayed_node->del_root;
@@ -509,7 +508,7 @@ static int btrfs_delayed_item_reserve_metadata(struct btrfs_trans_handle *trans,
 		 * for the number of leaves that will be used, based on the delayed
 		 * node's index_items_size field.
 		 */
-		if (item->ins_or_del == BTRFS_DELAYED_DELETION_ITEM)
+		if (item->type == BTRFS_DELAYED_DELETION_ITEM)
 			item->bytes_reserved = num_bytes;
 	}
 
@@ -646,6 +645,7 @@ static int btrfs_insert_delayed_item(struct btrfs_trans_handle *trans,
 	const int max_size = BTRFS_LEAF_DATA_SIZE(fs_info);
 	struct btrfs_item_batch batch;
 	struct btrfs_key first_key;
+	const u32 first_data_size = first_item->data_len;
 	int total_size;
 	char *ins_data = NULL;
 	int ret;
@@ -674,9 +674,9 @@ static int btrfs_insert_delayed_item(struct btrfs_trans_handle *trans,
 	ASSERT(first_item->bytes_reserved == 0);
 
 	list_add_tail(&first_item->tree_list, &item_list);
-	batch.total_data_size = first_item->data_len;
+	batch.total_data_size = first_data_size;
 	batch.nr = 1;
-	total_size = first_item->data_len + sizeof(struct btrfs_item);
+	total_size = first_data_size + sizeof(struct btrfs_item);
 	curr = first_item;
 
 	while (true) {
@@ -711,7 +711,7 @@ static int btrfs_insert_delayed_item(struct btrfs_trans_handle *trans,
 		first_key.type = BTRFS_DIR_INDEX_KEY;
 		first_key.offset = first_item->index;
 		batch.keys = &first_key;
-		batch.data_sizes = &first_item->data_len;
+		batch.data_sizes = &first_data_size;
 	} else {
 		struct btrfs_key *ins_keys;
 		u32 *ins_sizes;
@@ -1427,14 +1427,14 @@ int btrfs_insert_delayed_dir_index(struct btrfs_trans_handle *trans,
 		return PTR_ERR(delayed_node);
 
 	delayed_item = btrfs_alloc_delayed_item(sizeof(*dir_item) + name_len,
-						delayed_node);
+						delayed_node,
+						BTRFS_DELAYED_INSERTION_ITEM);
 	if (!delayed_item) {
 		ret = -ENOMEM;
 		goto release_node;
 	}
 
 	delayed_item->index = index;
-	delayed_item->ins_or_del = BTRFS_DELAYED_INSERTION_ITEM;
 
 	dir_item = (struct btrfs_dir_item *)delayed_item->data;
 	dir_item->location = *disk_key;
@@ -1566,14 +1566,13 @@ int btrfs_delete_delayed_dir_index(struct btrfs_trans_handle *trans,
 	if (!ret)
 		goto end;
 
-	item = btrfs_alloc_delayed_item(0, node);
+	item = btrfs_alloc_delayed_item(0, node, BTRFS_DELAYED_DELETION_ITEM);
 	if (!item) {
 		ret = -ENOMEM;
 		goto end;
 	}
 
 	item->index = index;
-	item->ins_or_del = BTRFS_DELAYED_DELETION_ITEM;
 
 	ret = btrfs_delayed_item_reserve_metadata(trans, item);
 	/*
