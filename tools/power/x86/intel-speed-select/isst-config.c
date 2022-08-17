@@ -502,46 +502,54 @@ void for_each_online_package_in_set(void (*callback)(struct isst_id *, void *, v
 				    void *arg1, void *arg2, void *arg3,
 				    void *arg4)
 {
-	int max_packages[MAX_PACKAGE_COUNT * MAX_PACKAGE_COUNT];
-	int pkg_index = 0, i;
 	struct isst_id id;
+	int cpus[MAX_PACKAGE_COUNT][MAX_DIE_PER_PACKAGE][MAX_PUNIT_PER_DIE];
+	int valid_mask[MAX_PACKAGE_COUNT][MAX_DIE_PER_PACKAGE] = {0};
+	int i, j, k;
 
-	memset(max_packages, 0xff, sizeof(max_packages));
+	memset(cpus, -1, sizeof(cpus));
+
 	for (i = 0; i < topo_max_cpus; ++i) {
-		int j, online, pkg_id, die_id = 0, skip = 0;
+		int online;
 
 		if (!CPU_ISSET_S(i, present_cpumask_size, present_cpumask))
 			continue;
-		if (i)
-			online = parse_int_file(
-				1, "/sys/devices/system/cpu/cpu%d/online", i);
-		else
-			online =
-				1; /* online entry for CPU 0 needs some special configs */
 
-		die_id = get_physical_die_id(i);
-		if (die_id < 0)
-			die_id = 0;
+		online = parse_int_file(
+			i != 0, "/sys/devices/system/cpu/cpu%d/online", i);
+		if (online < 0)
+			online = 1; /* online entry for CPU 0 needs some special configs */
 
-		pkg_id = parse_int_file(0,
-			"/sys/devices/system/cpu/cpu%d/topology/physical_package_id", i);
-		if (pkg_id < 0)
+		if (!online)
 			continue;
 
-		/* Create an unique id for package, die combination to store */
-		pkg_id = (MAX_PACKAGE_COUNT * pkg_id + die_id);
-
-		for (j = 0; j < pkg_index; ++j) {
-			if (max_packages[j] == pkg_id) {
-				skip = 1;
-				break;
-			}
-		}
-
 		set_isst_id(&id, i);
-		if (!skip && online && callback) {
-			callback(&id, arg1, arg2, arg3, arg4);
-			max_packages[pkg_index++] = pkg_id;
+
+		if (id.pkg < 0 || id.die < 0 || id.punit < 0)
+			continue;
+
+		valid_mask[id.pkg][id.die] = 1;
+
+		if (cpus[id.pkg][id.die][id.punit] == -1)
+			cpus[id.pkg][id.die][id.punit] = i;
+	}
+
+	for (i = 0; i < MAX_PACKAGE_COUNT; i++) {
+		for (j = 0; j < MAX_DIE_PER_PACKAGE; j++) {
+			/*
+			 * Fix me:
+			 * How to check a non-cpu die for a package/die with all cpu offlined?
+			 */
+			if (!valid_mask[i][j])
+				continue;
+			for (k = 0; k < MAX_PUNIT_PER_DIE; k++) {
+				id.cpu = cpus[i][j][k];
+				id.pkg = i;
+				id.die = j;
+				id.punit = k;
+				if (isst_is_punit_valid(&id))
+					callback(&id, arg1, arg2, arg3, arg4);
+			}
 		}
 	}
 }
@@ -626,7 +634,7 @@ void free_cpu_set(cpu_set_t *cpu_set)
 	CPU_FREE(cpu_set);
 }
 
-static int cpu_cnt[MAX_PACKAGE_COUNT][MAX_DIE_PER_PACKAGE];
+static int cpu_cnt[MAX_PACKAGE_COUNT][MAX_DIE_PER_PACKAGE][MAX_PUNIT_PER_DIE];
 
 int get_max_punit_core_id(struct isst_id *id)
 {
@@ -648,10 +656,10 @@ int get_max_punit_core_id(struct isst_id *id)
 
 int get_cpu_count(struct isst_id *id)
 {
-	if (id->pkg < 0 || id->die < 0)
+	if (id->pkg < 0 || id->die < 0 || id->punit < 0)
 		return 0;
 
-	return cpu_cnt[id->pkg][id->die];
+	return cpu_cnt[id->pkg][id->die][id->punit];
 }
 
 static void create_cpu_map(void)
@@ -732,7 +740,7 @@ static void create_cpu_map(void)
 
 		cpu_map[i].initialized = 1;
 
-		cpu_cnt[pkg_id][die_id]++;
+		cpu_cnt[pkg_id][die_id][punit_id]++;
 
 		debug_printf(
 			"map logical_cpu:%d core: %d die:%d pkg:%d punit:%d punit_cpu:%d punit_core:%d\n",
