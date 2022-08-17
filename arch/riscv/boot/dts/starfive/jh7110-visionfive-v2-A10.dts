@@ -7,11 +7,6 @@
 /dts-v1/;
 #include "jh7110-visionfive-v2.dtsi"
 
-#ifdef AC108_ENABLED
-#define WM8960_AC108_COMMON 1
-#include "codecs/sf_ac108.dtsi"
-#endif
-
 / {
 	model = "StarFive VisionFive V2";
 	compatible = "starfive,visionfive-v2", "starfive,jh7110";
@@ -20,15 +15,16 @@
 &gpio {
 	uart0_pins: uart0-pins {
 		uart0-pins-tx {
-			sf,pins = <PAD_GPIO5>;
+			sf,pins = <PAD_GPIO41>;
+			sf,pinmux = <PAD_GPIO41_FUNC_SEL 0>;
 			sf,pin-ioconfig = <IO(GPIO_IE(1) | GPIO_DS(3))>;
 			sf,pin-gpio-dout = <GPO_UART0_SOUT>;
 			sf,pin-gpio-doen = <OEN_LOW>;
 		};
 
 		uart0-pins-rx {
-			sf,pins = <PAD_GPIO6>;
-			sf,pinmux = <PAD_GPIO6_FUNC_SEL 0>;
+			sf,pins = <PAD_GPIO40>;
+			sf,pinmux = <PAD_GPIO40_FUNC_SEL 0>;
 			sf,pin-ioconfig = <IO(GPIO_IE(1) | GPIO_PU(1))>;
 			sf,pin-gpio-doen = <OEN_HIGH>;
 			sf,pin-gpio-din =  <GPI_UART0_SIN>;
@@ -37,7 +33,8 @@
 
 	i2c2_pins: i2c2-pins {
 		i2c2-pins-scl {
-			sf,pins = <PAD_GPIO3>;
+			sf,pins = <PAD_GPIO11>;
+			sf,pinmux = <PAD_GPIO11_FUNC_SEL 0>;
 			sf,pin-ioconfig = <IO(GPIO_IE(1) | (GPIO_PU(1)))>;
 			sf,pin-gpio-dout = <GPO_LOW>;
 			sf,pin-gpio-doen = <OEN_I2C2_IC_CLK_OE>;
@@ -45,7 +42,8 @@
 		};
 
 		i2c2-pins-sda {
-			sf,pins = <PAD_GPIO2>;
+			sf,pins = <PAD_GPIO9>;
+			sf,pinmux = <PAD_GPIO9_FUNC_SEL 0>;
 			sf,pin-ioconfig = <IO(GPIO_IE(1) | (GPIO_PU(1)))>;
 			sf,pin-gpio-dout = <GPO_LOW>;
 			sf,pin-gpio-doen = <OEN_I2C2_IC_DATA_OE>;
@@ -55,8 +53,8 @@
 
 	mmc0_pins: mmc0-pins {
 		 mmc0-pins-rest {
-			sf,pins = <PAD_GPIO62>;
-			sf,pinmux = <PAD_GPIO62_FUNC_SEL 0>;
+			sf,pins = <PAD_GPIO22>;
+			sf,pinmux = <PAD_GPIO22_FUNC_SEL 0>;
 			sf,pin-ioconfig = <IO(GPIO_IE(1) | (GPIO_PU(1)))>;
 			sf,pin-gpio-dout = <GPO_SDIO0_RST_N>;
 			sf,pin-gpio-doen = <OEN_LOW>;
@@ -65,16 +63,14 @@
 
 	sdcard1_pins: sdcard1-pins {
 		sdcard1-pins0 {
-			sf,pins = <PAD_GPIO10>;
-			sf,pinmux = <PAD_GPIO10_FUNC_SEL 0>;
+			sf,pins = <PAD_GPIO4>;
 			sf,pin-ioconfig = <IO(GPIO_IE(1) | (GPIO_PU(1)))>;
 			sf,pin-gpio-dout = <GPO_SDIO1_CCLK_OUT>;
 			sf,pin-gpio-doen = <OEN_LOW>;
 		};
 
 		sdcard1-pins1 {
-			sf,pins = <PAD_GPIO9>;
-			sf,pinmux = <PAD_GPIO9_FUNC_SEL 0>;
+			sf,pins = <PAD_GPIO5>;
 			sf,pin-ioconfig = <IO(GPIO_IE(1) | (GPIO_PU(1)))>;
 			sf,pin-gpio-dout = <GPO_SDIO1_CCMD_OUT>;
 			sf,pin-gpio-doen = <OEN_SDIO1_CCMD_OUT_EN>;
@@ -82,8 +78,7 @@
 		};
 
 		sdcard1-pins2 {
-			sf,pins = <PAD_GPIO11>;
-			sf,pinmux = <PAD_GPIO11_FUNC_SEL 0>;
+			sf,pins = <PAD_GPIO0>;
 			sf,pin-ioconfig = <IO(GPIO_IE(1) | (GPIO_PU(1)))>;
 			sf,pin-gpio-dout = <GPO_SDIO1_CDATA_OUT_0>;
 			sf,pin-gpio-doen = <OEN_SDIO1_CDATA_OUT_EN_0>;
@@ -91,8 +86,7 @@
 		};
 
 		sdcard1-pins3 {
-			sf,pins = <PAD_GPIO12>;
-			sf,pinmux = <PAD_GPIO12_FUNC_SEL 0>;
+			sf,pins = <PAD_GPIO1>;
 			sf,pin-ioconfig = <IO(GPIO_IE(1) | (GPIO_PU(1)))>;
 			sf,pin-gpio-dout = <GPO_SDIO1_CDATA_OUT_1>;
 			sf,pin-gpio-doen = <OEN_SDIO1_CDATA_OUT_EN_1>;
@@ -100,8 +94,7 @@
 		};
 
 		sdcard1-pins4 {
-			sf,pins = <PAD_GPIO7>;
-			sf,pinmux = <PAD_GPIO7_FUNC_SEL 0>;
+			sf,pins = <PAD_GPIO2>;
 			sf,pin-ioconfig = <IO(GPIO_IE(1) | (GPIO_PU(1)))>;
 			sf,pin-gpio-dout = <GPO_SDIO1_CDATA_OUT_2>;
 			sf,pin-gpio-doen = <OEN_SDIO1_CDATA_OUT_EN_2>;
@@ -109,8 +102,7 @@
 		};
 
 		sdcard1-pins5 {
-			sf,pins = <PAD_GPIO8>;
-			sf,pinmux = <PAD_GPIO8_FUNC_SEL 0>;
+			sf,pins = <PAD_GPIO3>;
 			sf,pin-ioconfig = <IO(GPIO_IE(1) | (GPIO_PU(1)))>;
 			sf,pin-gpio-dout = <GPO_SDIO1_CDATA_OUT_3>;
 			sf,pin-gpio-doen = <OEN_SDIO1_CDATA_OUT_EN_3>;
@@ -120,7 +112,8 @@
 
 	inno_hdmi_pins: inno_hdmi-pins {
 		inno_hdmi-scl {
-			sf,pins = <PAD_GPIO0>;
+			sf,pins = <PAD_GPIO7>;
+			//sf,pinmux = <PAD_GPIO7_FUNC_SEL 0>;
 			sf,pin-ioconfig = <IO(GPIO_IE(1) | (GPIO_PU(1)))>;
 			sf,pin-gpio-dout = <GPO_HDMI0_DDC_SCL_OUT>;
 			sf,pin-gpio-doen = <OEN_HDMI0_DDC_SCL_OEN>;
@@ -128,7 +121,8 @@
 		};
 
 		inno_hdmi-sda {
-			sf,pins = <PAD_GPIO1>;
+			sf,pins = <PAD_GPIO8>;
+			//sf,pinmux = <PAD_GPIO8_FUNC_SEL 0>;
 			sf,pin-ioconfig = <IO(GPIO_IE(1) | (GPIO_PU(1)))>;
 			sf,pin-gpio-dout = <GPO_HDMI0_DDC_SDA_OUT>;
 			sf,pin-gpio-doen = <OEN_HDMI0_DDC_SDA_OEN>;
@@ -173,7 +167,7 @@
 &sdio1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&sdcard1_pins>;
-	//cd-gpios = <&gpio 41 0>;
+	//cd-gpios = <&gpio 6 0>;
 	status = "okay";
 };
 

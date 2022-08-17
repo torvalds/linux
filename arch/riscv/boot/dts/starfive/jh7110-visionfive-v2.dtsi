@@ -1,0 +1,795 @@
+// SPDX-License-Identifier: GPL-2.0 OR MIT
+/*
+ * Copyright (C) 2022 StarFive Technology Co., Ltd.
+ * Copyright (C) 2022 Hal Feng <hal.feng@starfivetech.com>
+ */
+
+/dts-v1/;
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/pinctrl/starfive,jh7110-pinfunc.h>
+#include "jh7110.dtsi"
+#include "codecs/sf_pwmdac.dtsi"
+#undef WM8960_ENABLED
+
+#ifdef WM8960_ENABLED
+#include "codecs/sf_wm8960.dtsi"
+#endif
+
+/ {
+	model = "StarFive VisionFive V2";
+	compatible = "starfive,visionfive-v2", "starfive,jh7110";
+
+	aliases {
+		spi0 = &qspi;
+		gpio0 = &gpio;
+		ethernet0 = &gmac0;
+		ethernet1 = &gmac1;
+		mmc0 = &sdio0;
+		mmc1 = &sdio1;
+		serial0 = &uart0;
+		serial3 = &uart3;
+		i2c0 = &i2c0;
+		i2c1 = &i2c1;
+		i2c2 = &i2c2;
+		i2c3 = &i2c3;
+		i2c4 = &i2c4;
+		i2c5 = &i2c5;
+		i2c6 = &i2c6;
+	};
+
+	chosen {
+		linux,initrd-start = <0x0 0x46100000>;
+		linux,initrd-end = <0x0 0x4c000000>;
+		stdout-path = "serial0:115200";
+		#bootargs = "debug console=ttyS0 rootwait";
+	};
+
+	cpus {
+		timebase-frequency = <4000000>;
+	};
+
+	memory@40000000 {
+		device_type = "memory";
+		reg = <0x0 0x40000000 0x1 0x0>;
+	};
+
+	reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		linux,cma {
+			compatible = "shared-dma-pool";
+			reusable;
+			size = <0x0 0x20000000>;
+			alignment = <0x0 0x1000>;
+			alloc-ranges = <0x0 0xa0000000 0x0 0x20000000>;
+			linux,cma-default;
+		};
+
+		e24_mem: e24@c0000000 {
+			no-map;
+			reg = <0x0 0xc0110000 0x0 0xf0000>;
+		};
+
+		xrp_reserved: xrpbuffer@f0000000 {
+			reg = <0x0 0xf0000000 0x0 0x01ffffff
+				0x0 0xf2000000 0x0 0x00001000
+				0x0 0xf2001000 0x0 0x00fff000
+				0x0 0xf3000000 0x0 0x00001000>;
+		};
+
+	};
+};
+
+&gpio {
+	i2c0_pins: i2c0-pins {
+		i2c0-pins-scl {
+			sf,pins = <PAD_GPIO57>;
+			sf,pinmux = <PAD_GPIO57_FUNC_SEL 0>;
+			sf,pin-ioconfig = <IO(GPIO_IE(1) | (GPIO_PU(1)))>;
+			sf,pin-gpio-dout = <GPO_LOW>;
+			sf,pin-gpio-doen = <OEN_I2C0_IC_CLK_OE>;
+			sf,pin-gpio-din =  <GPI_I2C0_IC_CLK_IN_A>;
+		};
+
+		i2c0-pins-sda {
+			sf,pins = <PAD_GPIO58>;
+			sf,pinmux = <PAD_GPIO58_FUNC_SEL 0>;
+			sf,pin-ioconfig = <IO(GPIO_IE(1) | (GPIO_PU(1)))>;
+			sf,pin-gpio-dout = <GPO_LOW>;
+			sf,pin-gpio-doen = <OEN_I2C0_IC_DATA_OE>;
+			sf,pin-gpio-din =  <GPI_I2C0_IC_DATA_IN_A>;
+		};
+	};
+
+	i2c5_pins: i2c5-pins {
+		i2c5-pins-scl {
+			sf,pins = <PAD_GPIO19>;
+			sf,pinmux = <PAD_GPIO19_FUNC_SEL 0>;
+			sf,pin-ioconfig = <IO(GPIO_IE(1) | (GPIO_PU(1)))>;
+			sf,pin-gpio-dout = <GPO_LOW>;
+			sf,pin-gpio-doen = <OEN_I2C5_IC_CLK_OE>;
+			sf,pin-gpio-din =  <GPI_I2C5_IC_CLK_IN_A>;
+		};
+
+		i2c5-pins-sda {
+			sf,pins = <PAD_GPIO20>;
+			sf,pinmux = <PAD_GPIO20_FUNC_SEL 0>;
+			sf,pin-ioconfig = <IO(GPIO_IE(1) | (GPIO_PU(1)))>;
+			sf,pin-gpio-dout = <GPO_LOW>;
+			sf,pin-gpio-doen = <OEN_I2C5_IC_DATA_OE>;
+			sf,pin-gpio-din =  <GPI_I2C5_IC_DATA_IN_A>;
+		};
+	};
+
+	i2c6_pins: i2c6-pins {
+		i2c6-pins-scl {
+			sf,pins = <PAD_GPIO16>;
+			sf,pinmux = <PAD_GPIO16_FUNC_SEL 0>;
+			sf,pin-ioconfig = <IO(GPIO_IE(1) | (GPIO_PU(1)))>;
+			sf,pin-gpio-dout = <GPO_LOW>;
+			sf,pin-gpio-doen = <OEN_I2C6_IC_CLK_OE>;
+			sf,pin-gpio-din =  <GPI_I2C6_IC_CLK_IN_A>;
+		};
+
+		i2c6-pins-sda {
+			sf,pins = <PAD_GPIO17>;
+			sf,pinmux = <PAD_GPIO17_FUNC_SEL 0>;
+			sf,pin-ioconfig = <IO(GPIO_IE(1) | (GPIO_PU(1)))>;
+			sf,pin-gpio-dout = <GPO_LOW>;
+			sf,pin-gpio-doen = <OEN_I2C6_IC_DATA_OE>;
+			sf,pin-gpio-din =  <GPI_I2C6_IC_DATA_IN_A>;
+		};
+	};
+
+	csi_pins: csi-pins {
+		csi-pins-pwdn {
+			sf,pins = <PAD_GPIO18>;
+			sf,pinmux = <PAD_GPIO18_FUNC_SEL 0>;
+			sf,pin-ioconfig = <IO(GPIO_IE(1))>;
+			sf,pin-gpio-dout = <GPO_HIGH>;
+			sf,pin-gpio-doen = <OEN_LOW>;
+		};
+	};
+
+	pwmdac0_pins: pwmdac0-pins {
+		pwmdac0-pins-left {
+			sf,pins = <PAD_GPIO33>;
+			sf,pinmux = <PAD_GPIO33_FUNC_SEL 0>;
+			sf,pin-ioconfig = <IO(GPIO_IE(1) | (GPIO_PU(1)))>;
+			sf,pin-gpio-dout = <GPO_PWMDAC0_LEFT_OUTPUT>;
+			sf,pin-gpio-doen = <OEN_LOW>;
+		};
+
+		pwmdac0-pins-right {
+			sf,pins = <PAD_GPIO34>;
+			sf,pinmux = <PAD_GPIO34_FUNC_SEL 0>;
+			sf,pin-ioconfig = <IO(GPIO_IE(1) | (GPIO_PU(1)))>;
+			sf,pin-gpio-dout = <GPO_PWMDAC0_RIGHT_OUTPUT>;
+			sf,pin-gpio-doen = <OEN_LOW>;
+		};
+	};
+
+	pwm_pins: pwm-pins {
+		pwm_ch0-pins {
+			sf,pins = <PAD_GPIO46>;
+			sf,pinmux = <PAD_GPIO46_FUNC_SEL 0>;
+			sf,pin-ioconfig = <IO(GPIO_IE(1))>;
+			sf,pin-gpio-dout = <GPO_PTC0_PWM_0>;
+			sf,pin-gpio-doen = <OEN_PTC0_PWM_0_OE_N>;
+		};
+
+		pwm_ch1-pins {
+			sf,pins = <PAD_GPIO59>;
+			sf,pinmux = <PAD_GPIO59_FUNC_SEL 0>;
+			sf,pin-ioconfig = <IO(GPIO_IE(1))>;
+			sf,pin-gpio-dout = <GPO_PTC0_PWM_1>;
+			sf,pin-gpio-doen = <OEN_PTC0_PWM_1_OE_N>;
+		};
+	};
+
+	ssp0_pins: ssp0-pins {
+		ssp0-pins_tx {
+			sf,pins = <PAD_GPIO52>;
+			sf,pinmux = <PAD_GPIO52_FUNC_SEL 0>;
+			sf,pin-ioconfig = <IO(GPIO_IE(1))>;
+			sf,pin-gpio-dout = <GPO_SPI0_SSPTXD>;
+			sf,pin-gpio-doen = <OEN_LOW>;
+		};
+
+		ssp0-pins_rx {
+			sf,pins = <PAD_GPIO53>;
+			sf,pinmux = <PAD_GPIO53_FUNC_SEL 0>;
+			sf,pin-ioconfig = <IO(GPIO_IE(1))>;
+			sf,pin-gpio-doen = <OEN_HIGH>;
+			sf,pin-gpio-din =  <GPI_SPI0_SSPRXD>;
+		};
+
+		ssp0-pins_clk {
+			sf,pins = <PAD_GPIO48>;
+			sf,pinmux = <PAD_GPIO48_FUNC_SEL 0>;
+			sf,pin-ioconfig = <IO(GPIO_IE(1))>;
+			sf,pin-gpio-dout = <GPO_SPI0_SSPCLKOUT>;
+			sf,pin-gpio-doen = <OEN_LOW>;
+		};
+
+		ssp0-pins_cs {
+			sf,pins = <PAD_GPIO49>;
+			sf,pinmux = <PAD_GPIO49_FUNC_SEL 0>;
+			sf,pin-ioconfig = <IO(GPIO_IE(1))>;
+			sf,pin-gpio-dout = <GPO_SPI0_SSPFSSOUT>;
+			sf,pin-gpio-doen = <OEN_LOW>;
+		};
+	};
+
+	pcie0_perst_default: pcie0_perst_default {
+		perst-pins {
+			sf,pins = <PAD_GPIO26>;
+			sf,pinmux = <PAD_GPIO26_FUNC_SEL 0>;
+			sf,pin-ioconfig = <IO(GPIO_IE(1))>;
+			sf,pin-gpio-dout = <GPO_HIGH>;
+			sf,pin-gpio-doen = <OEN_LOW>;
+		};
+	};
+
+	pcie0_perst_active: pcie0_perst_active {
+		perst-pins {
+			sf,pins = <PAD_GPIO26>;
+			sf,pinmux = <PAD_GPIO26_FUNC_SEL 0>;
+			sf,pin-ioconfig = <IO(GPIO_IE(1))>;
+			sf,pin-gpio-dout = <GPO_LOW>;
+			sf,pin-gpio-doen = <OEN_LOW>;
+		};
+	};
+
+	pcie0_wake_default: pcie0_wake_default {
+		wake-pins {
+			sf,pins = <PAD_GPIO32>;
+			sf,pinmux = <PAD_GPIO32_FUNC_SEL 0>;
+			sf,pin-ioconfig = <IO(GPIO_IE(1))>;
+			sf,pin-gpio-doen = <OEN_HIGH>;
+		};
+	};
+
+	pcie0_clkreq_default: pcie0_clkreq_default {
+		clkreq-pins {
+			sf,pins = <PAD_GPIO27>;
+			sf,pinmux = <PAD_GPIO27_FUNC_SEL 0>;
+			sf,pin-ioconfig = <IO(GPIO_IE(1))>;
+			sf,pin-gpio-doen = <OEN_HIGH>;
+		};
+	};
+
+	pcie0_vbus_default: pcie0_vbus_default {
+		drive-vbus-pin {
+			sf,pins = <PAD_GPIO25>;
+			sf,pinmux = <PAD_GPIO25_FUNC_SEL 0>;
+			sf,pin-ioconfig = <IO(GPIO_IE(1))>;
+			sf,pin-gpio-dout = <GPO_HIGH>;
+			sf,pin-gpio-doen = <OEN_LOW>;
+		};
+	};
+
+	pcie1_perst_default: pcie1_perst_default {
+		perst-pins {
+			sf,pins = <PAD_GPIO28>;
+			sf,pinmux = <PAD_GPIO28_FUNC_SEL 0>;
+			sf,pin-ioconfig = <IO(GPIO_IE(1))>;
+			sf,pin-gpio-dout = <GPO_HIGH>;
+			sf,pin-gpio-doen = <OEN_LOW>;
+		};
+	};
+
+	pcie1_perst_active: pcie1_perst_active {
+		perst-pins {
+			sf,pins = <PAD_GPIO28>;
+			sf,pinmux = <PAD_GPIO28_FUNC_SEL 0>;
+			sf,pin-ioconfig = <IO(GPIO_IE(1))>;
+			sf,pin-gpio-dout = <GPO_LOW>;
+			sf,pin-gpio-doen = <OEN_LOW>;
+		};
+	};
+
+	pcie1_wake_default: pcie1_wake_default {
+		wake-pins {
+			sf,pins = <PAD_GPIO21>;
+			sf,pinmux = <PAD_GPIO21_FUNC_SEL 0>;
+			sf,pin-ioconfig = <IO(GPIO_IE(1))>;
+			sf,pin-gpio-doen = <OEN_HIGH>;
+		};
+	};
+
+	pcie1_clkreq_default: pcie1_clkreq_default {
+		clkreq-pins {
+			sf,pins = <PAD_GPIO29>;
+			sf,pinmux = <PAD_GPIO29_FUNC_SEL 0>;
+			sf,pin-ioconfig = <IO(GPIO_IE(1))>;
+			sf,pin-gpio-doen = <OEN_HIGH>;
+		};
+	};
+
+	usb_pins: usb-pins {
+		drive-vbus-pin {
+			sf,pins = <PAD_GPIO25>;
+			sf,pinmux = <PAD_GPIO25_FUNC_SEL 0>;
+			sf,pin-ioconfig = <IO(GPIO_IE(1))>;
+			sf,pin-gpio-dout = <GPO_USB0_DRIVE_VBUS_IO>;
+			sf,pin-gpio-doen = <OEN_LOW>;
+		};
+	};
+
+#ifdef WM8960_ENABLED
+	i2srx_pins: i2srx-pins {
+		i2srx-pins0 {
+			sf,pins = <PAD_GPIO61>;
+			sf,pinmux = <PAD_GPIO61_FUNC_SEL 0>;
+			sf,pin-ioconfig = <IO(GPIO_IE(1))>;
+			sf,pin-gpio-doen = <OEN_HIGH>;
+			sf,pin-gpio-din =  <GPI_I2SRX0_EXT_SDIN0>;
+		};
+	};
+
+	i2s_clk_pins: i2s-clk0 {
+		i2s-clk0_bclk {
+			sf,pins = <PAD_GPIO38>;
+			sf,pinmux = <PAD_GPIO38_FUNC_SEL 0>;
+			sf,pin-ioconfig = <IO(GPIO_IE(1))>;
+			sf,pin-gpio-din = <GPI_I2STX0_BCLK_SLV GPI_I2SRX0_BCLK_SLV>;
+			sf,pin-gpio-doen = <OEN_HIGH>;
+		};
+
+		i2s-clk0_lrclk {
+			sf,pins = <PAD_GPIO63>;
+			sf,pinmux = <PAD_GPIO63_FUNC_SEL 0>;
+			sf,pin-ioconfig = <IO(GPIO_IE(1))>;
+			sf,pin-gpio-din = <GPI_I2STX0_LRCK_SLV GPI_I2SRX0_LRCK_SLV>;
+			sf,pin-gpio-doen = <OEN_HIGH>;
+		};
+	};
+
+	i2stx_pins: i2stx-pins {
+		i2stx-pins0 {
+			sf,pins = <PAD_GPIO44>;
+			sf,pinmux = <PAD_GPIO44_FUNC_SEL 0>;
+			sf,pin-ioconfig = <IO(GPIO_IE(1))>;
+			sf,pin-gpio-dout = <GPO_I2STX_4CH1_SDO0>;
+			sf,pin-gpio-doen = <OEN_LOW>;
+		};
+	};
+#endif
+};
+
+&uart0 {
+	status = "okay";
+};
+
+&dma {
+	status = "okay";
+};
+
+&trng {
+	status = "okay";
+};
+
+&crypto {
+	status = "okay";
+};
+
+&sec_dma {
+	status = "okay";
+};
+
+&i2c0 {
+	clock-frequency = <100000>;
+	i2c-sda-hold-time-ns = <300>;
+	i2c-sda-falling-time-ns = <510>;
+	i2c-scl-falling-time-ns = <510>;
+	auto_calc_scl_lhcnt;
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c0_pins>;
+	status = "okay";
+
+	ac108_a: ac108@3b {
+		compatible = "x-power,ac108_0";
+		reg = <0x3b>;
+		#sound-dai-cells = <0>;
+		data-protocol = <0>;
+	};
+#ifdef WM8960_ENABLED
+	wm8960: codec@1a {
+		compatible = "wlf,wm8960";
+		reg = <0x1a>;
+		#sound-dai-cells = <0>;
+
+		wlf,shared-lrclk;
+	};
+#endif
+};
+
+&i2c2 {
+	clock-frequency = <100000>;
+	i2c-sda-hold-time-ns = <300>;
+	i2c-sda-falling-time-ns = <510>;
+	i2c-scl-falling-time-ns = <510>;
+	auto_calc_scl_lhcnt;
+	status = "okay";
+
+	seeed_plane_i2c@45 {
+		compatible = "seeed_panel";
+		reg = <0x45>;
+
+		port {
+			panel_dsi_port: endpoint {
+				remote-endpoint = <&dsi_out_port>;
+			};
+		};
+	};
+
+};
+
+&i2c5 {
+	clock-frequency = <100000>;
+	i2c-sda-hold-time-ns = <300>;
+	i2c-sda-falling-time-ns = <510>;
+	i2c-scl-falling-time-ns = <510>;
+	auto_calc_scl_lhcnt;
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c5_pins>;
+	status = "okay";
+
+	eeprom@50 {
+		compatible = "atmel,24c04";
+		reg = <0x50>;
+		pagesize = <16>;
+	};
+
+	pmic: axp15060_reg@36 {
+		compatible = "stf,axp15060-regulator";
+		reg = <0x36>;
+
+		regulators {
+			mipi_0p9: ALDO1 {
+				regulator-boot-on;
+				regulator-compatible = "mipi_0p9";
+				regulator-name = "mipi_0p9";
+				regulator-min-microvolt = <900000>;
+				regulator-max-microvolt = <900000>;
+			};
+			hdmi_0p9: ALDO5 {
+				regulator-boot-on;
+				regulator-compatible = "hdmi_0p9";
+				regulator-name = "hdmi_0p9";
+				regulator-min-microvolt = <900000>;
+				regulator-max-microvolt = <900000>;
+			};
+			hdmi_1p8: ALDO3 {
+				regulator-boot-on;
+				regulator-compatible = "hdmi_1p8";
+				regulator-name = "hdmi_1p8";
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <1800000>;
+			};
+			sdio_vdd: ALDO4 {
+				regulator-boot-on;
+				regulator-compatible = "sdio_vdd";
+				regulator-name = "sdio_vdd";
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <3300000>;
+			};
+			cpu_vdd_0p9: DCDC2 {
+				regulator-boot-on;
+				regulator-always-on;
+				regulator-compatible = "cpu_vdd_0p9";
+				regulator-name = "cpu_vdd_0p9";
+				regulator-min-microvolt = <500000>;
+				regulator-max-microvolt = <1540000>;
+			};
+		};
+	};
+};
+
+&i2c6 {
+	clock-frequency = <100000>;
+	i2c-sda-hold-time-ns = <300>;
+	i2c-sda-falling-time-ns = <510>;
+	i2c-scl-falling-time-ns = <510>;
+	auto_calc_scl_lhcnt;
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c6_pins>;
+	status = "okay";
+
+	imx219@10 {
+		compatible = "imx219";
+		reg = <0x10>;
+		clocks = <&clk_ext_camera>;
+		clock-names = "xclk";
+		//reset-gpio = <&gpio 18 0>;
+		//DOVDD-supply = <&v2v8>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&csi_pins>;
+		rotation = <0>;
+		orientation = <1>; //CAMERA_ORIENTATION_BACK
+
+		port {
+			/* CSI2 bus endpoint */
+			imx219_to_csi2rx0: endpoint {
+				remote-endpoint = <&csi2rx0_from_imx219>;
+				bus-type = <4>;      /* MIPI CSI-2 D-PHY */
+				clock-lanes = <4>;
+				data-lanes = <0 1>;
+				lane-polarities = <0 0 0>;
+				link-frequencies = /bits/ 64 <456000000>;
+			};
+		};
+	};
+};
+
+&sdio0 {
+	clock-frequency = <102400000>;
+	max-frequency = <100000000>;
+	card-detect-delay = <300>;
+	bus-width = <8>;
+	cap-mmc-highspeed;
+	mmc-hs400-1_8v;
+	mmc-hs400-enhanced-strobe;
+	non-removable;
+	cap-mmc-hw-reset;
+	post-power-on-delay-ms = <200>;
+	vqmmc-supply = <&sdio_vdd>;
+	status = "okay";
+};
+
+&sdio1 {
+	clock-frequency = <102400000>;
+	max-frequency = <200000000>;
+	card-detect-delay = <300>;
+	bus-width = <4>;
+	broken-cd;
+	cap-sd-highspeed;
+	post-power-on-delay-ms = <200>;
+	status = "okay";
+};
+
+&vin_sysctl {
+	/* when use dvp open this pinctrl*/
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			/* CSI2 bus endpoint */
+			csi2rx0_from_imx219: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&imx219_to_csi2rx0>;
+				bus-type = <4>;      /* MIPI CSI-2 D-PHY */
+				clock-lanes = <4>;
+				data-lanes = <0 1>;
+				lane-polarities = <0 0 0>;
+				status = "okay";
+			};
+		};
+	};
+};
+
+&sfctemp {
+	status = "okay";
+};
+
+&jpu {
+	status = "okay";
+};
+
+&vpu_dec {
+	status = "okay";
+};
+
+&vpu_enc {
+	status = "okay";
+};
+
+&gmac0 {
+	status = "okay";
+	#address-cells = <1>;
+	#size-cells = <0>;
+	phy0: ethernet-phy@0 {
+		rxc_dly_en = <1>;
+		tx_delay_sel_fe = <5>;
+		tx_delay_sel = <9>;
+	};
+};
+
+&gmac1 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+	status = "okay";
+	phy1: ethernet-phy@1 {
+		tx_delay_sel_fe = <5>;
+		tx_delay_sel = <9>;
+		rxc_dly_en = <0>;
+	};
+};
+
+&gpu {
+	status = "okay";
+};
+
+&pwmdac {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pwmdac0_pins>;
+	status = "okay";
+};
+
+#ifdef WM8960_ENABLED
+&i2srx_3ch {
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2srx_pins>;
+	status = "okay";
+};
+
+&i2stx_4ch1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2s_clk_pins &i2stx_pins>;
+	status = "okay";
+};
+#endif
+
+&pwmdac_codec {
+	status = "okay";
+};
+
+&spi0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&ssp0_pins>;
+	status = "okay";
+
+	spi_dev0: spi@0 {
+		compatible = "rohm,dh2228fv";
+		pl022,com-mode = <1>;
+		spi-max-frequency = <10000000>;
+		reg = <0>;
+		status = "okay";
+	};
+};
+
+&pcie0 {
+	pinctrl-names = "default", "perst-default", "perst-active";
+	pinctrl-0 = <&pcie0_wake_default>,
+		    <&pcie0_clkreq_default>,
+		    <&pcie0_vbus_default>;
+	pinctrl-1 = <&pcie0_perst_default>;
+	pinctrl-2 = <&pcie0_perst_active>;
+	status = "okay";
+};
+
+&pcie1 {
+	pinctrl-names = "default", "perst-default", "perst-active";
+	pinctrl-0 = <&pcie1_wake_default>,
+		    <&pcie1_clkreq_default>;
+	pinctrl-1 = <&pcie1_perst_default>;
+	pinctrl-2 = <&pcie1_perst_active>;
+	status = "okay";
+};
+
+&mailbox_contrl0 {
+	status = "okay";
+};
+
+&mailbox_client0 {
+	status = "okay";
+};
+
+&display {
+	status = "okay";
+};
+
+&hdmi {
+	status = "okay";
+
+	hdmi_in: port {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		hdmi_in_lcdc: endpoint@0 {
+			reg = <0>;
+			remote-endpoint = <&dc_out_dpi1>;
+		};
+	};
+};
+
+&dc8200 {
+	status = "okay";
+
+	dc_out: port {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		dc_out_dpi0: endpoint@0 {
+			reg = <0>;
+			remote-endpoint = <&hdmi_input0>;
+		};
+		dc_out_dpi1: endpoint@1 {
+			reg = <1>;
+			remote-endpoint = <&hdmi_in_lcdc>;
+		};
+
+		dc_out_dpi2: endpoint@2 {
+			reg = <2>;
+			remote-endpoint = <&mipi_in>;
+		};
+	};
+};
+
+&hdmi_output {
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		port@0 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0>;
+			hdmi_input0:endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&dc_out_dpi0>;
+			};
+		};
+	};
+};
+
+&encoder {
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+			mipi_in: endpoint {
+				remote-endpoint = <&dc_out_dpi2>;
+			};
+		};
+
+		port@1 {
+			reg = <1>;
+			mipi_out: endpoint {
+				remote-endpoint = <&dsi_in_port>;
+			};
+		};
+	};
+};
+
+&mipi_dsi {
+	status = "okay";
+};
+
+&mipi_dphy {
+	status = "okay";
+};
+
+&co_process {
+	status = "okay";
+};
+
+&usbdrd30 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&usb_pins>;
+	dr_mode = "host"; /*host or peripheral*/
+	status = "disabled";
+};
+
+&xrp {
+	status = "okay";
+};
+
+&ptc {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pwm_pins>;
+	status = "okay";
+};
