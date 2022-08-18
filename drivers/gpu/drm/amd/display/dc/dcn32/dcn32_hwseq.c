@@ -295,7 +295,20 @@ static uint32_t dcn32_calculate_cab_allocation(struct dc *dc, struct dc_state *c
 		}
 
 		// Include cursor size for CAB allocation
-		cursor_size = dc->caps.max_cursor_size * dc->caps.max_cursor_size;
+		for (i = 0; i < dc->res_pool->pipe_count; i++) {
+			struct pipe_ctx *pipe = &ctx->res_ctx.pipe_ctx[i];
+			struct hubp *hubp = pipe->plane_res.hubp;
+
+			if (pipe->stream && pipe->plane_state && hubp)
+				/* Find the cursor plane and use the exact size instead of
+				 * using the max for calculation
+				 */
+				if (hubp->curs_attr.width > 0) {
+					cursor_size = hubp->curs_attr.width * hubp->curs_attr.height;
+					break;
+				}
+		}
+
 		switch (stream->cursor_attributes.color_format) {
 		case CURSOR_MODE_MONO:
 			cursor_size /= 2;
