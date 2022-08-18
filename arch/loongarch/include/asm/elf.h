@@ -288,8 +288,6 @@ struct arch_elf_state {
 	.interp_fp_abi = LOONGARCH_ABI_FP_ANY,	\
 }
 
-#define elf_read_implies_exec(ex, exec_stk) (exec_stk == EXSTACK_DEFAULT)
-
 extern int arch_elf_pt_proc(void *ehdr, void *phdr, struct file *elf,
 			    bool is_interp, struct arch_elf_state *state);
 

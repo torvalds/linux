@@ -63,20 +63,16 @@ static struct hashmap *bpf_map_hash;
 static struct bpf_perf_object *
 bpf_perf_object__next(struct bpf_perf_object *prev)
 {
-	struct bpf_perf_object *next;
+	if (!prev) {
+		if (list_empty(&bpf_objects_list))
+			return NULL;
 
-	if (!prev)
-		next = list_first_entry(&bpf_objects_list,
-					struct bpf_perf_object,
-					list);
-	else
-		next = list_next_entry(prev, list);
-
-	/* Empty list is noticed here so don't need checking on entry. */
-	if (&next->list == &bpf_objects_list)
+		return list_first_entry(&bpf_objects_list, struct bpf_perf_object, list);
+	}
+	if (list_is_last(&prev->list, &bpf_objects_list))
 		return NULL;
 
-	return next;
+	return list_next_entry(prev, list);
 }
 
 #define bpf_perf_object__for_each(perf_obj, tmp)	\

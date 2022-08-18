@@ -140,12 +140,12 @@ int use_after_invalid(void *ctx)
 
 	bpf_ringbuf_reserve_dynptr(&ringbuf, sizeof(read_data), 0, &ptr);
 
-	bpf_dynptr_read(read_data, sizeof(read_data), &ptr, 0);
+	bpf_dynptr_read(read_data, sizeof(read_data), &ptr, 0, 0);
 
 	bpf_ringbuf_submit_dynptr(&ptr, 0);
 
 	/* this should fail */
-	bpf_dynptr_read(read_data, sizeof(read_data), &ptr, 0);
+	bpf_dynptr_read(read_data, sizeof(read_data), &ptr, 0, 0);
 
 	return 0;
 }
@@ -338,7 +338,7 @@ int invalid_helper2(void *ctx)
 	get_map_val_dynptr(&ptr);
 
 	/* this should fail */
-	bpf_dynptr_read(read_data, sizeof(read_data), (void *)&ptr + 8, 0);
+	bpf_dynptr_read(read_data, sizeof(read_data), (void *)&ptr + 8, 0, 0);
 
 	return 0;
 }
@@ -377,7 +377,7 @@ int invalid_write2(void *ctx)
 	memcpy((void *)&ptr + 8, &x, sizeof(x));
 
 	/* this should fail */
-	bpf_dynptr_read(read_data, sizeof(read_data), &ptr, 0);
+	bpf_dynptr_read(read_data, sizeof(read_data), &ptr, 0, 0);
 
 	bpf_ringbuf_submit_dynptr(&ptr, 0);
 
@@ -473,7 +473,7 @@ int invalid_read2(void *ctx)
 	get_map_val_dynptr(&ptr);
 
 	/* this should fail */
-	bpf_dynptr_read(read_data, sizeof(read_data), (void *)&ptr + 1, 0);
+	bpf_dynptr_read(read_data, sizeof(read_data), (void *)&ptr + 1, 0, 0);
 
 	return 0;
 }

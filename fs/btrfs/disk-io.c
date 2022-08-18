@@ -5,6 +5,7 @@
 
 #include <linux/fs.h>
 #include <linux/blkdev.h>
+#include <linux/radix-tree.h>
 #include <linux/writeback.h>
 #include <linux/workqueue.h>
 #include <linux/kthread.h>
@@ -485,7 +486,7 @@ static int csum_dirty_subpage_buffers(struct btrfs_fs_info *fs_info,
 		uptodate = btrfs_subpage_test_uptodate(fs_info, page, cur,
 						       fs_info->nodesize);
 
-		/* A dirty eb shouldn't disappear from extent_buffers */
+		/* A dirty eb shouldn't disappear from buffer_radix */
 		if (WARN_ON(!eb))
 			return -EUCLEAN;
 
@@ -1158,7 +1159,7 @@ static void __setup_root(struct btrfs_root *root, struct btrfs_fs_info *fs_info,
 	root->nr_delalloc_inodes = 0;
 	root->nr_ordered_extents = 0;
 	root->inode_tree = RB_ROOT;
-	xa_init_flags(&root->delayed_nodes, GFP_ATOMIC);
+	INIT_RADIX_TREE(&root->delayed_nodes_tree, GFP_ATOMIC);
 
 	btrfs_init_root_block_rsv(root);
 
@@ -1210,9 +1211,9 @@ static void __setup_root(struct btrfs_root *root, struct btrfs_fs_info *fs_info,
 	btrfs_qgroup_init_swapped_blocks(&root->swapped_blocks);
 #ifdef CONFIG_BTRFS_DEBUG
 	INIT_LIST_HEAD(&root->leak_list);
-	spin_lock(&fs_info->fs_roots_lock);
+	spin_lock(&fs_info->fs_roots_radix_lock);
 	list_add_tail(&root->leak_list, &fs_info->allocated_roots);
-	spin_unlock(&fs_info->fs_roots_lock);
+	spin_unlock(&fs_info->fs_roots_radix_lock);
 #endif
 }
 
@@ -1659,11 +1660,12 @@ static struct btrfs_root *btrfs_lookup_fs_root(struct btrfs_fs_info *fs_info,
 {
 	struct btrfs_root *root;
 
-	spin_lock(&fs_info->fs_roots_lock);
-	root = xa_load(&fs_info->fs_roots, (unsigned long)root_id);
+	spin_lock(&fs_info->fs_roots_radix_lock);
+	root = radix_tree_lookup(&fs_info->fs_roots_radix,
+				 (unsigned long)root_id);
 	if (root)
 		root = btrfs_grab_root(root);
-	spin_unlock(&fs_info->fs_roots_lock);
+	spin_unlock(&fs_info->fs_roots_radix_lock);
 	return root;
 }
 
@@ -1705,14 +1707,20 @@ int btrfs_insert_fs_root(struct btrfs_fs_info *fs_info,
 {
 	int ret;
 
-	spin_lock(&fs_info->fs_roots_lock);
-	ret = xa_insert(&fs_info->fs_roots, (unsigned long)root->root_key.objectid,
-			root, GFP_NOFS);
+	ret = radix_tree_preload(GFP_NOFS);
+	if (ret)
+		return ret;
+
+	spin_lock(&fs_info->fs_roots_radix_lock);
+	ret = radix_tree_insert(&fs_info->fs_roots_radix,
+				(unsigned long)root->root_key.objectid,
+				root);
 	if (ret == 0) {
 		btrfs_grab_root(root);
-		set_bit(BTRFS_ROOT_REGISTERED, &root->state);
+		set_bit(BTRFS_ROOT_IN_RADIX, &root->state);
 	}
-	spin_unlock(&fs_info->fs_roots_lock);
+	spin_unlock(&fs_info->fs_roots_radix_lock);
+	radix_tree_preload_end();
 
 	return ret;
 }
@@ -2342,9 +2350,9 @@ void btrfs_put_root(struct btrfs_root *root)
 		btrfs_drew_lock_destroy(&root->snapshot_lock);
 		free_root_extent_buffers(root);
 #ifdef CONFIG_BTRFS_DEBUG
-		spin_lock(&root->fs_info->fs_roots_lock);
+		spin_lock(&root->fs_info->fs_roots_radix_lock);
 		list_del_init(&root->leak_list);
-		spin_unlock(&root->fs_info->fs_roots_lock);
+		spin_unlock(&root->fs_info->fs_roots_radix_lock);
 #endif
 		kfree(root);
 	}
@@ -2352,21 +2360,28 @@ void btrfs_put_root(struct btrfs_root *root)
 
 void btrfs_free_fs_roots(struct btrfs_fs_info *fs_info)
 {
-	struct btrfs_root *root;
-	unsigned long index = 0;
+	int ret;
+	struct btrfs_root *gang[8];
+	int i;
 
 	while (!list_empty(&fs_info->dead_roots)) {
-		root = list_entry(fs_info->dead_roots.next,
-				  struct btrfs_root, root_list);
-		list_del(&root->root_list);
+		gang[0] = list_entry(fs_info->dead_roots.next,
+				     struct btrfs_root, root_list);
+		list_del(&gang[0]->root_list);
 
-		if (test_bit(BTRFS_ROOT_REGISTERED, &root->state))
-			btrfs_drop_and_free_fs_root(fs_info, root);
-		btrfs_put_root(root);
+		if (test_bit(BTRFS_ROOT_IN_RADIX, &gang[0]->state))
+			btrfs_drop_and_free_fs_root(fs_info, gang[0]);
+		btrfs_put_root(gang[0]);
 	}
 
-	xa_for_each(&fs_info->fs_roots, index, root) {
-		btrfs_drop_and_free_fs_root(fs_info, root);
+	while (1) {
+		ret = radix_tree_gang_lookup(&fs_info->fs_roots_radix,
+					     (void **)gang, 0,
+					     ARRAY_SIZE(gang));
+		if (!ret)
+			break;
+		for (i = 0; i < ret; i++)
+			btrfs_drop_and_free_fs_root(fs_info, gang[i]);
 	}
 }
 
@@ -3134,8 +3149,8 @@ static int __cold init_tree_roots(struct btrfs_fs_info *fs_info)
 
 void btrfs_init_fs_info(struct btrfs_fs_info *fs_info)
 {
-	xa_init_flags(&fs_info->fs_roots, GFP_ATOMIC);
-	xa_init_flags(&fs_info->extent_buffers, GFP_ATOMIC);
+	INIT_RADIX_TREE(&fs_info->fs_roots_radix, GFP_ATOMIC);
+	INIT_RADIX_TREE(&fs_info->buffer_radix, GFP_ATOMIC);
 	INIT_LIST_HEAD(&fs_info->trans_list);
 	INIT_LIST_HEAD(&fs_info->dead_roots);
 	INIT_LIST_HEAD(&fs_info->delayed_iputs);
@@ -3143,7 +3158,7 @@ void btrfs_init_fs_info(struct btrfs_fs_info *fs_info)
 	INIT_LIST_HEAD(&fs_info->caching_block_groups);
 	spin_lock_init(&fs_info->delalloc_root_lock);
 	spin_lock_init(&fs_info->trans_lock);
-	spin_lock_init(&fs_info->fs_roots_lock);
+	spin_lock_init(&fs_info->fs_roots_radix_lock);
 	spin_lock_init(&fs_info->delayed_iput_lock);
 	spin_lock_init(&fs_info->defrag_inodes_lock);
 	spin_lock_init(&fs_info->super_lock);
@@ -3374,7 +3389,7 @@ int btrfs_start_pre_rw_mount(struct btrfs_fs_info *fs_info)
 	/*
 	 * btrfs_find_orphan_roots() is responsible for finding all the dead
 	 * roots (with 0 refs), flag them with BTRFS_ROOT_DEAD_TREE and load
-	 * them into the fs_info->fs_roots. This must be done before
+	 * them into the fs_info->fs_roots_radix tree. This must be done before
 	 * calling btrfs_orphan_cleanup() on the tree root. If we don't do it
 	 * first, then btrfs_orphan_cleanup() will delete a dead root's orphan
 	 * item before the root's tree is deleted - this means that if we unmount
@@ -4499,11 +4514,12 @@ void btrfs_drop_and_free_fs_root(struct btrfs_fs_info *fs_info,
 {
 	bool drop_ref = false;
 
-	spin_lock(&fs_info->fs_roots_lock);
-	xa_erase(&fs_info->fs_roots, (unsigned long)root->root_key.objectid);
-	if (test_and_clear_bit(BTRFS_ROOT_REGISTERED, &root->state))
+	spin_lock(&fs_info->fs_roots_radix_lock);
+	radix_tree_delete(&fs_info->fs_roots_radix,
+			  (unsigned long)root->root_key.objectid);
+	if (test_and_clear_bit(BTRFS_ROOT_IN_RADIX, &root->state))
 		drop_ref = true;
-	spin_unlock(&fs_info->fs_roots_lock);
+	spin_unlock(&fs_info->fs_roots_radix_lock);
 
 	if (BTRFS_FS_ERROR(fs_info)) {
 		ASSERT(root->log_root == NULL);
@@ -4519,48 +4535,50 @@ void btrfs_drop_and_free_fs_root(struct btrfs_fs_info *fs_info,
 
 int btrfs_cleanup_fs_roots(struct btrfs_fs_info *fs_info)
 {
-	struct btrfs_root *roots[8];
-	unsigned long index = 0;
-	int i;
+	u64 root_objectid = 0;
+	struct btrfs_root *gang[8];
+	int i = 0;
 	int err = 0;
-	int grabbed;
+	unsigned int ret = 0;
 
 	while (1) {
-		struct btrfs_root *root;
-
-		spin_lock(&fs_info->fs_roots_lock);
-		if (!xa_find(&fs_info->fs_roots, &index, ULONG_MAX, XA_PRESENT)) {
-			spin_unlock(&fs_info->fs_roots_lock);
-			return err;
+		spin_lock(&fs_info->fs_roots_radix_lock);
+		ret = radix_tree_gang_lookup(&fs_info->fs_roots_radix,
+					     (void **)gang, root_objectid,
+					     ARRAY_SIZE(gang));
+		if (!ret) {
+			spin_unlock(&fs_info->fs_roots_radix_lock);
+			break;
 		}
+		root_objectid = gang[ret - 1]->root_key.objectid + 1;
 
-		grabbed = 0;
-		xa_for_each_start(&fs_info->fs_roots, index, root, index) {
-			/* Avoid grabbing roots in dead_roots */
-			if (btrfs_root_refs(&root->root_item) > 0)
-				roots[grabbed++] = btrfs_grab_root(root);
-			if (grabbed >= ARRAY_SIZE(roots))
-				break;
-		}
-		spin_unlock(&fs_info->fs_roots_lock);
-
-		for (i = 0; i < grabbed; i++) {
-			if (!roots[i])
+		for (i = 0; i < ret; i++) {
+			/* Avoid to grab roots in dead_roots */
+			if (btrfs_root_refs(&gang[i]->root_item) == 0) {
+				gang[i] = NULL;
 				continue;
-			index = roots[i]->root_key.objectid;
-			err = btrfs_orphan_cleanup(roots[i]);
-			if (err)
-				goto out;
-			btrfs_put_root(roots[i]);
+			}
+			/* grab all the search result for later use */
+			gang[i] = btrfs_grab_root(gang[i]);
 		}
-		index++;
+		spin_unlock(&fs_info->fs_roots_radix_lock);
+
+		for (i = 0; i < ret; i++) {
+			if (!gang[i])
+				continue;
+			root_objectid = gang[i]->root_key.objectid;
+			err = btrfs_orphan_cleanup(gang[i]);
+			if (err)
+				break;
+			btrfs_put_root(gang[i]);
+		}
+		root_objectid++;
 	}
 
-out:
-	/* Release the roots that remain uncleaned due to error */
-	for (; i < grabbed; i++) {
-		if (roots[i])
-			btrfs_put_root(roots[i]);
+	/* release the uncleaned roots due to error */
+	for (; i < ret; i++) {
+		if (gang[i])
+			btrfs_put_root(gang[i]);
 	}
 	return err;
 }
@@ -4879,28 +4897,31 @@ static void btrfs_error_commit_super(struct btrfs_fs_info *fs_info)
 
 static void btrfs_drop_all_logs(struct btrfs_fs_info *fs_info)
 {
-	unsigned long index = 0;
-	int grabbed = 0;
-	struct btrfs_root *roots[8];
+	struct btrfs_root *gang[8];
+	u64 root_objectid = 0;
+	int ret;
 
-	spin_lock(&fs_info->fs_roots_lock);
-	while ((grabbed = xa_extract(&fs_info->fs_roots, (void **)roots, index,
-				     ULONG_MAX, 8, XA_PRESENT))) {
-		for (int i = 0; i < grabbed; i++)
-			roots[i] = btrfs_grab_root(roots[i]);
-		spin_unlock(&fs_info->fs_roots_lock);
+	spin_lock(&fs_info->fs_roots_radix_lock);
+	while ((ret = radix_tree_gang_lookup(&fs_info->fs_roots_radix,
+					     (void **)gang, root_objectid,
+					     ARRAY_SIZE(gang))) != 0) {
+		int i;
 
-		for (int i = 0; i < grabbed; i++) {
-			if (!roots[i])
+		for (i = 0; i < ret; i++)
+			gang[i] = btrfs_grab_root(gang[i]);
+		spin_unlock(&fs_info->fs_roots_radix_lock);
+
+		for (i = 0; i < ret; i++) {
+			if (!gang[i])
 				continue;
-			index = roots[i]->root_key.objectid;
-			btrfs_free_log(NULL, roots[i]);
-			btrfs_put_root(roots[i]);
+			root_objectid = gang[i]->root_key.objectid;
+			btrfs_free_log(NULL, gang[i]);
+			btrfs_put_root(gang[i]);
 		}
-		index++;
-		spin_lock(&fs_info->fs_roots_lock);
+		root_objectid++;
+		spin_lock(&fs_info->fs_roots_radix_lock);
 	}
-	spin_unlock(&fs_info->fs_roots_lock);
+	spin_unlock(&fs_info->fs_roots_radix_lock);
 	btrfs_free_log_root_tree(NULL, fs_info);
 }
 

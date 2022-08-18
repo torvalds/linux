@@ -251,7 +251,7 @@ static int userspace_tramp(void *stack)
 	signal(SIGTERM, SIG_DFL);
 	signal(SIGWINCH, SIG_IGN);
 
-	fd = phys_mapping(to_phys(__syscall_stub_start), &offset);
+	fd = phys_mapping(uml_to_phys(__syscall_stub_start), &offset);
 	addr = mmap64((void *) STUB_CODE, UM_KERN_PAGE_SIZE,
 		      PROT_EXEC, MAP_FIXED | MAP_PRIVATE, fd, offset);
 	if (addr == MAP_FAILED) {
@@ -261,7 +261,7 @@ static int userspace_tramp(void *stack)
 	}
 
 	if (stack != NULL) {
-		fd = phys_mapping(to_phys(stack), &offset);
+		fd = phys_mapping(uml_to_phys(stack), &offset);
 		addr = mmap((void *) STUB_DATA,
 			    UM_KERN_PAGE_SIZE, PROT_READ | PROT_WRITE,
 			    MAP_FIXED | MAP_SHARED, fd, offset);
@@ -534,7 +534,7 @@ int copy_context_skas0(unsigned long new_stack, int pid)
 	struct stub_data *data = (struct stub_data *) current_stack;
 	struct stub_data *child_data = (struct stub_data *) new_stack;
 	unsigned long long new_offset;
-	int new_fd = phys_mapping(to_phys((void *)new_stack), &new_offset);
+	int new_fd = phys_mapping(uml_to_phys((void *)new_stack), &new_offset);
 
 	/*
 	 * prepare offset and fd of child's stack as argument for parent's
