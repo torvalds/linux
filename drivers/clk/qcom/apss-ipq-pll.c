@@ -2,6 +2,7 @@
 // Copyright (c) 2018, The Linux Foundation. All rights reserved.
 #include <linux/clk-provider.h>
 #include <linux/module.h>
+#include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
 
@@ -36,7 +37,7 @@ static struct clk_alpha_pll ipq_pll = {
 	},
 };
 
-static const struct alpha_pll_config ipq_pll_config = {
+static const struct alpha_pll_config ipq6018_pll_config = {
 	.l = 0x37,
 	.config_ctl_val = 0x04141200,
 	.config_ctl_hi_val = 0x0,
@@ -54,6 +55,7 @@ static const struct regmap_config ipq_pll_regmap_config = {
 
 static int apss_ipq_pll_probe(struct platform_device *pdev)
 {
+	const struct alpha_pll_config *ipq_pll_config;
 	struct device *dev = &pdev->dev;
 	struct regmap *regmap;
 	void __iomem *base;
@@ -67,7 +69,11 @@ static int apss_ipq_pll_probe(struct platform_device *pdev)
 	if (IS_ERR(regmap))
 		return PTR_ERR(regmap);
 
-	clk_alpha_pll_configure(&ipq_pll, regmap, &ipq_pll_config);
+	ipq_pll_config = of_device_get_match_data(&pdev->dev);
+	if (!ipq_pll_config)
+		return -ENODEV;
+
+	clk_alpha_pll_configure(&ipq_pll, regmap, ipq_pll_config);
 
 	ret = devm_clk_register_regmap(dev, &ipq_pll.clkr);
 	if (ret)
@@ -78,7 +84,7 @@ static int apss_ipq_pll_probe(struct platform_device *pdev)
 }
 
 static const struct of_device_id apss_ipq_pll_match_table[] = {
-	{ .compatible = "qcom,ipq6018-a53pll" },
+	{ .compatible = "qcom,ipq6018-a53pll", .data = &ipq6018_pll_config },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, apss_ipq_pll_match_table);
