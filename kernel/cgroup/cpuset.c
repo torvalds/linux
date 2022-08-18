@@ -1113,6 +1113,7 @@ void rebuild_sched_domains(void)
 	percpu_up_write(&cpuset_rwsem);
 	cpus_read_unlock();
 }
+EXPORT_SYMBOL_GPL(rebuild_sched_domains);
 
 static int update_cpus_allowed(struct cpuset *cs, struct task_struct *p,
 				const struct cpumask *new_mask)
