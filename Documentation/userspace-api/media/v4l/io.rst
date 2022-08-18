@@ -17,8 +17,7 @@ read or write will fail at any time.
 
 Other methods must be negotiated. To select the streaming I/O method
 with memory mapped or user buffers applications call the
-:ref:`VIDIOC_REQBUFS` ioctl. The asynchronous I/O
-method is not defined yet.
+:ref:`VIDIOC_REQBUFS` ioctl.
 
 Video overlay can be considered another I/O method, although the
 application does not directly receive the image data. It is selected by
@@ -46,6 +45,5 @@ The following sections describe the various I/O methods in more detail.
     mmap
     userp
     dmabuf
-    async
     buffer
     field-order
