@@ -25,6 +25,7 @@
 static irqreturn_t aspeed_hace_irq(int irq, void *dev)
 {
 	struct aspeed_hace_dev *hace_dev = (struct aspeed_hace_dev *)dev;
+	struct aspeed_engine_crypto *crypto_engine = &hace_dev->crypto_engine;
 	struct aspeed_engine_hash *hash_engine = &hace_dev->hash_engine;
 	u32 sts;
 
@@ -40,7 +41,22 @@ static irqreturn_t aspeed_hace_irq(int irq, void *dev)
 			dev_warn(hace_dev->dev, "HASH no active requests.\n");
 	}
 
+	if (sts & HACE_CRYPTO_ISR) {
+		if (crypto_engine->flags & CRYPTO_FLAGS_BUSY)
+			tasklet_schedule(&crypto_engine->done_task);
+		else
+			dev_warn(hace_dev->dev, "CRYPTO no active requests.\n");
+	}
+
 	return IRQ_HANDLED;
+}
+
+static void aspeed_hace_crypto_done_task(unsigned long data)
+{
+	struct aspeed_hace_dev *hace_dev = (struct aspeed_hace_dev *)data;
+	struct aspeed_engine_crypto *crypto_engine = &hace_dev->crypto_engine;
+
+	crypto_engine->resume(hace_dev);
 }
 
 static void aspeed_hace_hash_done_task(unsigned long data)
@@ -56,12 +72,18 @@ static void aspeed_hace_register(struct aspeed_hace_dev *hace_dev)
 #ifdef CONFIG_CRYPTO_DEV_ASPEED_HACE_HASH
 	aspeed_register_hace_hash_algs(hace_dev);
 #endif
+#ifdef CONFIG_CRYPTO_DEV_ASPEED_HACE_CRYPTO
+	aspeed_register_hace_crypto_algs(hace_dev);
+#endif
 }
 
 static void aspeed_hace_unregister(struct aspeed_hace_dev *hace_dev)
 {
 #ifdef CONFIG_CRYPTO_DEV_ASPEED_HACE_HASH
 	aspeed_unregister_hace_hash_algs(hace_dev);
+#endif
+#ifdef CONFIG_CRYPTO_DEV_ASPEED_HACE_CRYPTO
+	aspeed_unregister_hace_crypto_algs(hace_dev);
 #endif
 }
 
@@ -73,6 +95,7 @@ static const struct of_device_id aspeed_hace_of_matches[] = {
 
 static int aspeed_hace_probe(struct platform_device *pdev)
 {
+	struct aspeed_engine_crypto *crypto_engine;
 	const struct of_device_id *hace_dev_id;
 	struct aspeed_engine_hash *hash_engine;
 	struct aspeed_hace_dev *hace_dev;
@@ -93,6 +116,7 @@ static int aspeed_hace_probe(struct platform_device *pdev)
 	hace_dev->dev = &pdev->dev;
 	hace_dev->version = (unsigned long)hace_dev_id->data;
 	hash_engine = &hace_dev->hash_engine;
+	crypto_engine = &hace_dev->crypto_engine;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 
@@ -146,6 +170,21 @@ static int aspeed_hace_probe(struct platform_device *pdev)
 	tasklet_init(&hash_engine->done_task, aspeed_hace_hash_done_task,
 		     (unsigned long)hace_dev);
 
+	/* Initialize crypto hardware engine structure for crypto */
+	hace_dev->crypt_engine_crypto = crypto_engine_alloc_init(hace_dev->dev,
+								 true);
+	if (!hace_dev->crypt_engine_crypto) {
+		rc = -ENOMEM;
+		goto err_engine_hash_start;
+	}
+
+	rc = crypto_engine_start(hace_dev->crypt_engine_crypto);
+	if (rc)
+		goto err_engine_crypto_start;
+
+	tasklet_init(&crypto_engine->done_task, aspeed_hace_crypto_done_task,
+		     (unsigned long)hace_dev);
+
 	/* Allocate DMA buffer for hash engine input used */
 	hash_engine->ahash_src_addr =
 		dmam_alloc_coherent(&pdev->dev,
@@ -155,7 +194,45 @@ static int aspeed_hace_probe(struct platform_device *pdev)
 	if (!hash_engine->ahash_src_addr) {
 		dev_err(&pdev->dev, "Failed to allocate dma buffer\n");
 		rc = -ENOMEM;
-		goto err_engine_hash_start;
+		goto err_engine_crypto_start;
+	}
+
+	/* Allocate DMA buffer for crypto engine context used */
+	crypto_engine->cipher_ctx =
+		dmam_alloc_coherent(&pdev->dev,
+				    PAGE_SIZE,
+				    &crypto_engine->cipher_ctx_dma,
+				    GFP_KERNEL);
+	if (!crypto_engine->cipher_ctx) {
+		dev_err(&pdev->dev, "Failed to allocate cipher ctx dma\n");
+		rc = -ENOMEM;
+		goto err_engine_crypto_start;
+	}
+
+	/* Allocate DMA buffer for crypto engine input used */
+	crypto_engine->cipher_addr =
+		dmam_alloc_coherent(&pdev->dev,
+				    ASPEED_CRYPTO_SRC_DMA_BUF_LEN,
+				    &crypto_engine->cipher_dma_addr,
+				    GFP_KERNEL);
+	if (!crypto_engine->cipher_addr) {
+		dev_err(&pdev->dev, "Failed to allocate cipher addr dma\n");
+		rc = -ENOMEM;
+		goto err_engine_crypto_start;
+	}
+
+	/* Allocate DMA buffer for crypto engine output used */
+	if (hace_dev->version == AST2600_VERSION) {
+		crypto_engine->dst_sg_addr =
+			dmam_alloc_coherent(&pdev->dev,
+					    ASPEED_CRYPTO_DST_DMA_BUF_LEN,
+					    &crypto_engine->dst_sg_dma_addr,
+					    GFP_KERNEL);
+		if (!crypto_engine->dst_sg_addr) {
+			dev_err(&pdev->dev, "Failed to allocate dst_sg dma\n");
+			rc = -ENOMEM;
+			goto err_engine_crypto_start;
+		}
 	}
 
 	aspeed_hace_register(hace_dev);
@@ -164,6 +241,8 @@ static int aspeed_hace_probe(struct platform_device *pdev)
 
 	return 0;
 
+err_engine_crypto_start:
+	crypto_engine_exit(hace_dev->crypt_engine_crypto);
 err_engine_hash_start:
 	crypto_engine_exit(hace_dev->crypt_engine_hash);
 clk_exit:
@@ -175,13 +254,16 @@ clk_exit:
 static int aspeed_hace_remove(struct platform_device *pdev)
 {
 	struct aspeed_hace_dev *hace_dev = platform_get_drvdata(pdev);
+	struct aspeed_engine_crypto *crypto_engine = &hace_dev->crypto_engine;
 	struct aspeed_engine_hash *hash_engine = &hace_dev->hash_engine;
 
 	aspeed_hace_unregister(hace_dev);
 
 	crypto_engine_exit(hace_dev->crypt_engine_hash);
+	crypto_engine_exit(hace_dev->crypt_engine_crypto);
 
 	tasklet_kill(&hash_engine->done_task);
+	tasklet_kill(&crypto_engine->done_task);
 
 	clk_disable_unprepare(hace_dev->clk);
 

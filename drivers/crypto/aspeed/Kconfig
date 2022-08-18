@@ -30,3 +30,20 @@ config CRYPTO_DEV_ASPEED_HACE_HASH
 	  hash driver.
 	  Supports multiple message digest standards, including
 	  SHA-1, SHA-224, SHA-256, SHA-384, SHA-512, and so on.
+
+config CRYPTO_DEV_ASPEED_HACE_CRYPTO
+	bool "Enable Aspeed Hash & Crypto Engine (HACE) crypto"
+	depends on CRYPTO_DEV_ASPEED
+	select CRYPTO_ENGINE
+	select CRYPTO_AES
+	select CRYPTO_DES
+	select CRYPTO_ECB
+	select CRYPTO_CBC
+	select CRYPTO_CFB
+	select CRYPTO_OFB
+	select CRYPTO_CTR
+	help
+	  Select here to enable Aspeed Hash & Crypto Engine (HACE)
+	  crypto driver.
+	  Supports AES/DES symmetric-key encryption and decryption
+	  with ECB/CBC/CFB/OFB/CTR options.
