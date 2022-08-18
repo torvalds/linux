@@ -1210,8 +1210,6 @@
 	par;								\
 })
 
-#endif
-
 #define SYS_FIELD_GET(reg, field, val)		\
 		 FIELD_GET(reg##_##field##_MASK, val)
 
@@ -1220,5 +1218,7 @@
 
 #define SYS_FIELD_PREP_ENUM(reg, field, val)		\
 		 FIELD_PREP(reg##_##field##_MASK, reg##_##field##_##val)
+
+#endif
 
 #endif	/* __ASM_SYSREG_H */
