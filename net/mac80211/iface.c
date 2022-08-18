@@ -2278,7 +2278,7 @@ int ieee80211_if_add(struct ieee80211_local *local, const char *name,
 		wdev = &sdata->wdev;
 
 		sdata->dev = NULL;
-		strlcpy(sdata->name, name, IFNAMSIZ);
+		strscpy(sdata->name, name, IFNAMSIZ);
 		ieee80211_assign_perm_addr(local, wdev->address, type);
 		memcpy(sdata->vif.addr, wdev->address, ETH_ALEN);
 		ether_addr_copy(sdata->vif.bss_conf.addr, sdata->vif.addr);
