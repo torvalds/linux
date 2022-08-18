@@ -424,7 +424,7 @@ static int ics932s401_detect(struct i2c_client *client,
 	if (revision != ICS932S401_REV)
 		dev_info(&adapter->dev, "Unknown revision %d\n", revision);
 
-	strlcpy(info->type, "ics932s401", I2C_NAME_SIZE);
+	strscpy(info->type, "ics932s401", I2C_NAME_SIZE);
 
 	return 0;
 }

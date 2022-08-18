@@ -1075,7 +1075,7 @@ static const struct i2c_device_id *idt_ee_match_id(struct fwnode_handle *fwnode)
 		return NULL;
 
 	p = strchr(compatible, ',');
-	strlcpy(devname, p ? p + 1 : compatible, sizeof(devname));
+	strscpy(devname, p ? p + 1 : compatible, sizeof(devname));
 	/* Search through the device name */
 	while (id->name[0]) {
 		if (strcmp(devname, id->name) == 0)

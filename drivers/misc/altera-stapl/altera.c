@@ -1014,7 +1014,7 @@ exit_done:
 			 * ...argument 0 is string ID
 			 */
 			count = strlen(msg_buff);
-			strlcpy(&msg_buff[count],
+			strscpy(&msg_buff[count],
 				&p[str_table + args[0]],
 				ALTERA_MESSAGE_LENGTH - count);
 			break;
@@ -2146,7 +2146,7 @@ static int altera_get_note(u8 *p, s32 program_size, s32 *offset,
 						&p[note_table + (8 * i) + 4])];
 
 				if (value != NULL)
-					strlcpy(value, value_ptr, vallen);
+					strscpy(value, value_ptr, vallen);
 
 			}
 		}
@@ -2162,13 +2162,13 @@ static int altera_get_note(u8 *p, s32 program_size, s32 *offset,
 			status = 0;
 
 			if (key != NULL)
-				strlcpy(key, &p[note_strings +
+				strscpy(key, &p[note_strings +
 						get_unaligned_be32(
 						&p[note_table + (8 * i)])],
 					keylen);
 
 			if (value != NULL)
-				strlcpy(value, &p[note_strings +
+				strscpy(value, &p[note_strings +
 						get_unaligned_be32(
 						&p[note_table + (8 * i) + 4])],
 					vallen);
