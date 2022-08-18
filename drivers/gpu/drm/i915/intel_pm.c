@@ -2910,13 +2910,27 @@ static void intel_read_wm_latency(struct drm_i915_private *dev_priv,
 				  u16 wm[])
 {
 	struct intel_uncore *uncore = &dev_priv->uncore;
+	int max_level = ilk_wm_max_level(dev_priv);
 
-	if (DISPLAY_VER(dev_priv) >= 9) {
+	if (DISPLAY_VER(dev_priv) >= 14) {
+		u32 val;
+
+		val = intel_uncore_read(uncore, MTL_LATENCY_LP0_LP1);
+		wm[0] = REG_FIELD_GET(MTL_LATENCY_LEVEL_EVEN_MASK, val);
+		wm[1] = REG_FIELD_GET(MTL_LATENCY_LEVEL_ODD_MASK, val);
+		val = intel_uncore_read(uncore, MTL_LATENCY_LP2_LP3);
+		wm[2] = REG_FIELD_GET(MTL_LATENCY_LEVEL_EVEN_MASK, val);
+		wm[3] = REG_FIELD_GET(MTL_LATENCY_LEVEL_ODD_MASK, val);
+		val = intel_uncore_read(uncore, MTL_LATENCY_LP4_LP5);
+		wm[4] = REG_FIELD_GET(MTL_LATENCY_LEVEL_EVEN_MASK, val);
+		wm[5] = REG_FIELD_GET(MTL_LATENCY_LEVEL_ODD_MASK, val);
+
+		adjust_wm_latency(dev_priv, wm, max_level, 6);
+	} else if (DISPLAY_VER(dev_priv) >= 9) {
 		int read_latency = DISPLAY_VER(dev_priv) >= 12 ? 3 : 2;
+		int mult = IS_DG2(dev_priv) ? 2 : 1;
 		u32 val;
 		int ret;
-		int max_level = ilk_wm_max_level(dev_priv);
-		int mult = IS_DG2(dev_priv) ? 2 : 1;
 
 		/* read the first set of memory latencies[0:3] */
 		val = 0; /* data0 to be programmed to 0 for first set */
