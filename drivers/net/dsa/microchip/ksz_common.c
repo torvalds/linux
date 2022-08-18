@@ -968,6 +968,7 @@ static void ksz_update_port_member(struct ksz_device *dev, int port)
 static int ksz_setup(struct dsa_switch *ds)
 {
 	struct ksz_device *dev = ds->priv;
+	struct ksz_port *p;
 	const u16 *regs;
 	int ret;
 
@@ -1006,6 +1007,14 @@ static int ksz_setup(struct dsa_switch *ds)
 		if (ret)
 			return ret;
 	}
+
+	/* Start with learning disabled on standalone user ports, and enabled
+	 * on the CPU port. In lack of other finer mechanisms, learning on the
+	 * CPU port will avoid flooding bridge local addresses on the network
+	 * in some cases.
+	 */
+	p = &dev->ports[dev->cpu_port];
+	p->learning = true;
 
 	/* start switch */
 	regmap_update_bits(dev->regmap[0], regs[S_START_CTRL],
@@ -1283,6 +1292,8 @@ void ksz_port_stp_state_set(struct dsa_switch *ds, int port, u8 state)
 	ksz_pread8(dev, port, regs[P_STP_CTRL], &data);
 	data &= ~(PORT_TX_ENABLE | PORT_RX_ENABLE | PORT_LEARN_DISABLE);
 
+	p = &dev->ports[port];
+
 	switch (state) {
 	case BR_STATE_DISABLED:
 		data |= PORT_LEARN_DISABLE;
@@ -1292,9 +1303,13 @@ void ksz_port_stp_state_set(struct dsa_switch *ds, int port, u8 state)
 		break;
 	case BR_STATE_LEARNING:
 		data |= PORT_RX_ENABLE;
+		if (!p->learning)
+			data |= PORT_LEARN_DISABLE;
 		break;
 	case BR_STATE_FORWARDING:
 		data |= (PORT_TX_ENABLE | PORT_RX_ENABLE);
+		if (!p->learning)
+			data |= PORT_LEARN_DISABLE;
 		break;
 	case BR_STATE_BLOCKING:
 		data |= PORT_LEARN_DISABLE;
@@ -1306,10 +1321,36 @@ void ksz_port_stp_state_set(struct dsa_switch *ds, int port, u8 state)
 
 	ksz_pwrite8(dev, port, regs[P_STP_CTRL], data);
 
-	p = &dev->ports[port];
 	p->stp_state = state;
 
 	ksz_update_port_member(dev, port);
+}
+
+static int ksz_port_pre_bridge_flags(struct dsa_switch *ds, int port,
+				     struct switchdev_brport_flags flags,
+				     struct netlink_ext_ack *extack)
+{
+	if (flags.mask & ~BR_LEARNING)
+		return -EINVAL;
+
+	return 0;
+}
+
+static int ksz_port_bridge_flags(struct dsa_switch *ds, int port,
+				 struct switchdev_brport_flags flags,
+				 struct netlink_ext_ack *extack)
+{
+	struct ksz_device *dev = ds->priv;
+	struct ksz_port *p = &dev->ports[port];
+
+	if (flags.mask & BR_LEARNING) {
+		p->learning = !!(flags.val & BR_LEARNING);
+
+		/* Make the change take effect immediately */
+		ksz_port_stp_state_set(ds, port, p->stp_state);
+	}
+
+	return 0;
 }
 
 static enum dsa_tag_protocol ksz_get_tag_protocol(struct dsa_switch *ds,
@@ -1725,6 +1766,8 @@ static const struct dsa_switch_ops ksz_switch_ops = {
 	.port_bridge_join	= ksz_port_bridge_join,
 	.port_bridge_leave	= ksz_port_bridge_leave,
 	.port_stp_state_set	= ksz_port_stp_state_set,
+	.port_pre_bridge_flags	= ksz_port_pre_bridge_flags,
+	.port_bridge_flags	= ksz_port_bridge_flags,
 	.port_fast_age		= ksz_port_fast_age,
 	.port_vlan_filtering	= ksz_port_vlan_filtering,
 	.port_vlan_add		= ksz_port_vlan_add,
