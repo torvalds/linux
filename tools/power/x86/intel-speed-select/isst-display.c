@@ -356,31 +356,33 @@ void isst_ctdp_display_information(struct isst_id *id, FILE *outf, int tdp_level
 			 ctdp_level->level);
 		format_and_print(outf, level + 1, header, NULL);
 
-		snprintf(header, sizeof(header), "cpu-count");
-		j = get_cpu_count(id);
-		snprintf(value, sizeof(value), "%d", j);
-		format_and_print(outf, level + 2, header, value);
-
-		j = CPU_COUNT_S(ctdp_level->core_cpumask_size,
-				ctdp_level->core_cpumask);
-		if (j) {
-			snprintf(header, sizeof(header), "enable-cpu-count");
+		if (id->cpu >= 0) {
+			snprintf(header, sizeof(header), "cpu-count");
+			j = get_cpu_count(id);
 			snprintf(value, sizeof(value), "%d", j);
 			format_and_print(outf, level + 2, header, value);
-		}
 
-		if (ctdp_level->core_cpumask_size) {
-			snprintf(header, sizeof(header), "enable-cpu-mask");
-			printcpumask(sizeof(value), value,
-				     ctdp_level->core_cpumask_size,
-				     ctdp_level->core_cpumask);
-			format_and_print(outf, level + 2, header, value);
+			j = CPU_COUNT_S(ctdp_level->core_cpumask_size,
+					ctdp_level->core_cpumask);
+			if (j) {
+				snprintf(header, sizeof(header), "enable-cpu-count");
+				snprintf(value, sizeof(value), "%d", j);
+				format_and_print(outf, level + 2, header, value);
+			}
 
-			snprintf(header, sizeof(header), "enable-cpu-list");
-			printcpulist(sizeof(value), value,
-				     ctdp_level->core_cpumask_size,
-				     ctdp_level->core_cpumask);
-			format_and_print(outf, level + 2, header, value);
+			if (ctdp_level->core_cpumask_size) {
+				snprintf(header, sizeof(header), "enable-cpu-mask");
+				printcpumask(sizeof(value), value,
+					     ctdp_level->core_cpumask_size,
+					     ctdp_level->core_cpumask);
+				format_and_print(outf, level + 2, header, value);
+
+				snprintf(header, sizeof(header), "enable-cpu-list");
+				printcpulist(sizeof(value), value,
+					     ctdp_level->core_cpumask_size,
+					     ctdp_level->core_cpumask);
+				format_and_print(outf, level + 2, header, value);
+			}
 		}
 
 		snprintf(header, sizeof(header), "thermal-design-power-ratio");
