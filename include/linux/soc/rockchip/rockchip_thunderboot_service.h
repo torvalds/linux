@@ -20,6 +20,9 @@ static inline bool rk_tb_mcu_is_done(void)
 }
 static inline int rk_tb_client_register_cb(struct rk_tb_client *client)
 {
+	if (client && client->cb)
+		client->cb(client->data);
+
 	return 0;
 }
 #endif
