@@ -63,6 +63,8 @@ examples:
                     reg = <3>;
                     label = "cpu";
                     ethernet = <&fec1>;
+                    phy-mode = "rgmii-id";
+
                     fixed-link {
                         speed = <1000>;
                         full-duplex;
