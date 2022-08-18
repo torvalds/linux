@@ -254,6 +254,9 @@ DECLARE_HOOK(android_vh_si_swapinfo,
 DECLARE_HOOK(android_vh_alloc_si,
 	TP_PROTO(struct swap_info_struct **p, bool *skip),
 	TP_ARGS(p, skip));
+DECLARE_HOOK(android_vh_free_pages,
+	TP_PROTO(struct page *page, unsigned int order),
+	TP_ARGS(page, order));
 DECLARE_HOOK(android_vh_set_shmem_page_flag,
 	TP_PROTO(struct page *page),
 	TP_ARGS(page));
