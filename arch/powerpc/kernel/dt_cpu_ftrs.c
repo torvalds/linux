@@ -1099,7 +1099,7 @@ static int __init dt_cpu_ftrs_scan_callback(unsigned long node, const char
 
 	prop = of_get_flat_dt_prop(node, "display-name", NULL);
 	if (prop && strlen((char *)prop) != 0) {
-		strlcpy(dt_cpu_name, (char *)prop, sizeof(dt_cpu_name));
+		strscpy(dt_cpu_name, (char *)prop, sizeof(dt_cpu_name));
 		cur_cpu_spec->cpu_name = dt_cpu_name;
 	}
 
