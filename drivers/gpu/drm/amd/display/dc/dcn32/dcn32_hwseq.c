@@ -312,7 +312,7 @@ static uint32_t dcn32_calculate_cab_allocation(struct dc *dc, struct dc_state *c
 				cursor_size *= 8;
 				break;
 			}
-			cache_lines_used += dcn32_cache_lines_for_surface(dc, surface_size,
+			cache_lines_used += dcn32_cache_lines_for_surface(dc, cursor_size,
 					plane->address.grph.cursor_cache_addr.quad_part);
 		}
 	}
