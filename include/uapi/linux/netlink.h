@@ -20,7 +20,7 @@
 #define NETLINK_CONNECTOR	11
 #define NETLINK_NETFILTER	12	/* netfilter subsystem */
 #define NETLINK_IP6_FW		13
-#define NETLINK_DNRTMSG		14	/* DECnet routing messages */
+#define NETLINK_DNRTMSG		14	/* DECnet routing messages (obsolete) */
 #define NETLINK_KOBJECT_UEVENT	15	/* Kernel messages to userspace */
 #define NETLINK_GENERIC		16
 /* leave room for NETLINK_DM (DM Events) */

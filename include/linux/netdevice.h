@@ -1837,7 +1837,6 @@ enum netdev_ml_priv_type {
  *	@tipc_ptr:	TIPC specific data
  *	@atalk_ptr:	AppleTalk link
  *	@ip_ptr:	IPv4 specific data
- *	@dn_ptr:	DECnet specific data
  *	@ip6_ptr:	IPv6 specific data
  *	@ax25_ptr:	AX.25 specific data
  *	@ieee80211_ptr:	IEEE 802.11 specific data, assign before registering
@@ -2132,9 +2131,6 @@ struct net_device {
 #endif
 #if IS_ENABLED(CONFIG_ATALK)
 	void 			*atalk_ptr;
-#endif
-#if IS_ENABLED(CONFIG_DECNET)
-	struct dn_dev __rcu     *dn_ptr;
 #endif
 #if IS_ENABLED(CONFIG_AX25)
 	void			*ax25_ptr;
