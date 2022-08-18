@@ -24,10 +24,9 @@
  */
 
 #include "dccg.h"
-#include "clk_mgr_internal.h"
+#include "rn_clk_mgr.h"
 
 #include "dcn20/dcn20_clk_mgr.h"
-#include "rn_clk_mgr.h"
 #include "dml/dcn20/dcn20_fpu.h"
 
 #include "dce100/dce_clk_mgr.h"

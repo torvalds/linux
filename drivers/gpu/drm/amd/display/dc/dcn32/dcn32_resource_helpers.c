@@ -63,7 +63,7 @@ uint32_t dcn32_helper_calculate_num_ways_for_subvp(struct dc *dc, struct dc_stat
 		if (pipe->stream && pipe->plane_state && !pipe->top_pipe &&
 				pipe->stream->mall_stream_config.type == SUBVP_PHANTOM) {
 			bytes_per_pixel = pipe->plane_state->format >= SURFACE_PIXEL_FORMAT_GRPH_ARGB16161616 ? 8 : 4;
-			mall_region_pixels = pipe->stream->timing.h_addressable * pipe->stream->timing.v_addressable;
+			mall_region_pixels = pipe->plane_state->plane_size.surface_pitch * pipe->stream->timing.v_addressable;
 
 			// For bytes required in MALL, calculate based on number of MBlks required
 			num_mblks = (mall_region_pixels * bytes_per_pixel +

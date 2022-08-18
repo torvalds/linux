@@ -1392,8 +1392,8 @@ static int kfd_build_p2p_node_entry(struct kfd_topology_device *dev,
 
 static int kfd_create_indirect_link_prop(struct kfd_topology_device *kdev, int gpu_node)
 {
+	struct kfd_iolink_properties *gpu_link, *tmp_link, *cpu_link;
 	struct kfd_iolink_properties *props = NULL, *props2 = NULL;
-	struct kfd_iolink_properties *gpu_link, *cpu_link;
 	struct kfd_topology_device *cpu_dev;
 	int ret = 0;
 	int i, num_cpu;
@@ -1416,16 +1416,19 @@ static int kfd_create_indirect_link_prop(struct kfd_topology_device *kdev, int g
 			continue;
 
 		/* find CPU <-->  CPU links */
+		cpu_link = NULL;
 		cpu_dev = kfd_topology_device_by_proximity_domain(i);
 		if (cpu_dev) {
-			list_for_each_entry(cpu_link,
+			list_for_each_entry(tmp_link,
 					&cpu_dev->io_link_props, list) {
-				if (cpu_link->node_to == gpu_link->node_to)
+				if (tmp_link->node_to == gpu_link->node_to) {
+					cpu_link = tmp_link;
 					break;
+				}
 			}
 		}
 
-		if (cpu_link->node_to != gpu_link->node_to)
+		if (!cpu_link)
 			return -ENOMEM;
 
 		/* CPU <--> CPU <--> GPU, GPU node*/

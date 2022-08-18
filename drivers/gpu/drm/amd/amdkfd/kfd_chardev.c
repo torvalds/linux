@@ -874,7 +874,7 @@ static int kfd_ioctl_wait_events(struct file *filp, struct kfd_process *p,
 	err = kfd_wait_on_events(p, args->num_events,
 			(void __user *)args->events_ptr,
 			(args->wait_for_all != 0),
-			args->timeout, &args->wait_result);
+			&args->timeout, &args->wait_result);
 
 	return err;
 }

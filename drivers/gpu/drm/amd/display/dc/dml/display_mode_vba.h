@@ -182,108 +182,6 @@ void Calculate256BBlockSizes(
 		unsigned int *BlockWidth256BytesY,
 		unsigned int *BlockWidth256BytesC);
 
-struct dml32_CalculateSwathAndDETConfiguration {
-	unsigned int MaximumSwathHeightY[DC__NUM_DPP__MAX];
-	unsigned int MaximumSwathHeightC[DC__NUM_DPP__MAX];
-	unsigned int RoundedUpMaxSwathSizeBytesY[DC__NUM_DPP__MAX];
-	unsigned int RoundedUpMaxSwathSizeBytesC[DC__NUM_DPP__MAX];
-	unsigned int RoundedUpSwathSizeBytesY;
-	unsigned int RoundedUpSwathSizeBytesC;
-	double SwathWidthdoubleDPP[DC__NUM_DPP__MAX];
-	double SwathWidthdoubleDPPChroma[DC__NUM_DPP__MAX];
-	unsigned int TotalActiveDPP;
-	bool NoChromaSurfaces;
-	unsigned int DETBufferSizeInKByteForSwathCalculation;
-};
-
-struct dml32_CalculateVMRowAndSwath {
-	unsigned int PTEBufferSizeInRequestsForLuma[DC__NUM_DPP__MAX];
-	unsigned int PTEBufferSizeInRequestsForChroma[DC__NUM_DPP__MAX];
-	unsigned int PDEAndMetaPTEBytesFrameY;
-	unsigned int PDEAndMetaPTEBytesFrameC;
-	unsigned int MetaRowByteY[DC__NUM_DPP__MAX];
-	unsigned int MetaRowByteC[DC__NUM_DPP__MAX];
-	unsigned int PixelPTEBytesPerRowY[DC__NUM_DPP__MAX];
-	unsigned int PixelPTEBytesPerRowC[DC__NUM_DPP__MAX];
-	unsigned int PixelPTEBytesPerRowY_one_row_per_frame[DC__NUM_DPP__MAX];
-	unsigned int PixelPTEBytesPerRowC_one_row_per_frame[DC__NUM_DPP__MAX];
-	unsigned int dpte_row_width_luma_ub_one_row_per_frame[DC__NUM_DPP__MAX];
-	unsigned int dpte_row_height_luma_one_row_per_frame[DC__NUM_DPP__MAX];
-	unsigned int dpte_row_width_chroma_ub_one_row_per_frame[DC__NUM_DPP__MAX];
-	unsigned int dpte_row_height_chroma_one_row_per_frame[DC__NUM_DPP__MAX];
-	bool one_row_per_frame_fits_in_buffer[DC__NUM_DPP__MAX];
-};
-
-struct dml32_CalculateWatermarksMALLUseAndDRAMSpeedChangeSupport {
-	unsigned int SurfaceWithMinActiveFCLKChangeMargin;
-	unsigned int DRAMClockChangeSupportNumber;
-	unsigned int LastSurfaceWithoutMargin;
-	unsigned int DRAMClockChangeMethod;
-	bool FoundFirstSurfaceWithMinActiveFCLKChangeMargin;
-	double MinActiveFCLKChangeMargin;
-	double SecondMinActiveFCLKChangeMarginOneDisplayInVBLank;
-	double ActiveClockChangeLatencyHidingY;
-	double ActiveClockChangeLatencyHidingC;
-	double ActiveClockChangeLatencyHiding;
-	double EffectiveDETBufferSizeY;
-	double ActiveFCLKChangeLatencyMargin[DC__NUM_DPP__MAX];
-	double USRRetrainingLatencyMargin[DC__NUM_DPP__MAX];
-	double TotalPixelBW;
-	bool SynchronizedSurfaces[DC__NUM_DPP__MAX][DC__NUM_DPP__MAX];
-	double EffectiveLBLatencyHidingY;
-	double EffectiveLBLatencyHidingC;
-	double LinesInDETY[DC__NUM_DPP__MAX];
-	double LinesInDETC[DC__NUM_DPP__MAX];
-	unsigned int LinesInDETYRoundedDownToSwath[DC__NUM_DPP__MAX];
-	unsigned int LinesInDETCRoundedDownToSwath[DC__NUM_DPP__MAX];
-	double FullDETBufferingTimeY;
-	double FullDETBufferingTimeC;
-	double WritebackDRAMClockChangeLatencyMargin;
-	double WritebackFCLKChangeLatencyMargin;
-	double WritebackLatencyHiding;
-	bool SameTimingForFCLKChange;
-	unsigned int TotalActiveWriteback;
-	unsigned int LBLatencyHidingSourceLinesY[DC__NUM_DPP__MAX];
-	unsigned int LBLatencyHidingSourceLinesC[DC__NUM_DPP__MAX];
-};
-
-struct dml32_CalculatePrefetchSchedule {
-	unsigned int DPPCycles, DISPCLKCycles;
-	double DSTTotalPixelsAfterScaler;
-	double LineTime;
-	double dst_y_prefetch_equ;
-	double prefetch_bw_oto;
-	double Tvm_oto;
-	double Tr0_oto;
-	double Tvm_oto_lines;
-	double Tr0_oto_lines;
-	double dst_y_prefetch_oto;
-	double TimeForFetchingMetaPTE;
-	double TimeForFetchingRowInVBlank;
-	double LinesToRequestPrefetchPixelData;
-	unsigned int HostVMDynamicLevelsTrips;
-	double trip_to_mem;
-	double Tvm_trips;
-	double Tr0_trips;
-	double Tvm_trips_rounded;
-	double Tr0_trips_rounded;
-	double Lsw_oto;
-	double Tpre_rounded;
-	double prefetch_bw_equ;
-	double Tvm_equ;
-	double Tr0_equ;
-	double Tdmbf;
-	double Tdmec;
-	double Tdmsks;
-	double prefetch_sw_bytes;
-	double bytes_pp;
-	double dep_bytes;
-	unsigned int max_vratio_pre;
-	double min_Lsw;
-	double Tsw_est1;
-	double Tsw_est3;
-};
-
 struct DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPerformanceCalculation {
 	unsigned int dummy_integer_array[2][DC__NUM_DPP__MAX];
 	double dummy_single_array[2][DC__NUM_DPP__MAX];
@@ -355,10 +253,6 @@ struct dummy_vars {
 	struct DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPerformanceCalculation
 	DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPerformanceCalculation;
 	struct dml32_ModeSupportAndSystemConfigurationFull dml32_ModeSupportAndSystemConfigurationFull;
-	struct dml32_CalculateSwathAndDETConfiguration dml32_CalculateSwathAndDETConfiguration;
-	struct dml32_CalculateVMRowAndSwath dml32_CalculateVMRowAndSwath;
-	struct dml32_CalculateWatermarksMALLUseAndDRAMSpeedChangeSupport dml32_CalculateWatermarksMALLUseAndDRAMSpeedChangeSupport;
-	struct dml32_CalculatePrefetchSchedule dml32_CalculatePrefetchSchedule;
 };
 
 struct vba_vars_st {

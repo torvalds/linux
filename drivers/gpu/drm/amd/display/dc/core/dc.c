@@ -1074,8 +1074,15 @@ static void disable_dangling_plane(struct dc *dc, struct dc_state *context)
 		struct dc_stream_state *old_stream =
 				dc->current_state->res_ctx.pipe_ctx[i].stream;
 		bool should_disable = true;
-		bool pipe_split_change =
-			context->res_ctx.pipe_ctx[i].top_pipe != dc->current_state->res_ctx.pipe_ctx[i].top_pipe;
+		bool pipe_split_change = false;
+
+		if ((context->res_ctx.pipe_ctx[i].top_pipe) &&
+			(dc->current_state->res_ctx.pipe_ctx[i].top_pipe))
+			pipe_split_change = context->res_ctx.pipe_ctx[i].top_pipe->pipe_idx !=
+				dc->current_state->res_ctx.pipe_ctx[i].top_pipe->pipe_idx;
+		else
+			pipe_split_change = context->res_ctx.pipe_ctx[i].top_pipe !=
+				dc->current_state->res_ctx.pipe_ctx[i].top_pipe;
 
 		for (j = 0; j < context->stream_count; j++) {
 			if (old_stream == context->streams[j]) {
@@ -3229,7 +3236,7 @@ static void commit_planes_for_stream(struct dc *dc,
 				odm_pipe->ttu_regs.min_ttu_vblank = MAX_TTU;
 	}
 
-	if ((update_type != UPDATE_TYPE_FAST) && stream->update_flags.bits.dsc_changed) {
+	if ((update_type != UPDATE_TYPE_FAST) && stream->update_flags.bits.dsc_changed)
 		if (top_pipe_to_program &&
 			top_pipe_to_program->stream_res.tg->funcs->lock_doublebuffer_enable) {
 			if (should_use_dmub_lock(stream->link)) {
@@ -3247,7 +3254,6 @@ static void commit_planes_for_stream(struct dc *dc,
 				top_pipe_to_program->stream_res.tg->funcs->lock_doublebuffer_enable(
 						top_pipe_to_program->stream_res.tg);
 		}
-	}
 
 	if (should_lock_all_pipes && dc->hwss.interdependent_update_lock) {
 		if (dc->hwss.subvp_pipe_control_lock)
@@ -3466,7 +3472,7 @@ static void commit_planes_for_stream(struct dc *dc,
 		dc->hwss.pipe_control_lock(dc, top_pipe_to_program, false);
 	}
 
-	if ((update_type != UPDATE_TYPE_FAST) && stream->update_flags.bits.dsc_changed) {
+	if ((update_type != UPDATE_TYPE_FAST) && stream->update_flags.bits.dsc_changed)
 		if (top_pipe_to_program->stream_res.tg->funcs->lock_doublebuffer_enable) {
 			top_pipe_to_program->stream_res.tg->funcs->wait_for_state(
 				top_pipe_to_program->stream_res.tg,
@@ -3493,21 +3499,19 @@ static void commit_planes_for_stream(struct dc *dc,
 				top_pipe_to_program->stream_res.tg->funcs->lock_doublebuffer_disable(
 					top_pipe_to_program->stream_res.tg);
 		}
-	}
 
-	if (update_type != UPDATE_TYPE_FAST) {
+	if (update_type != UPDATE_TYPE_FAST)
 		dc->hwss.post_unlock_program_front_end(dc, context);
 
-		/* Since phantom pipe programming is moved to post_unlock_program_front_end,
-		 * move the SubVP lock to after the phantom pipes have been setup
-		 */
-		if (should_lock_all_pipes && dc->hwss.interdependent_update_lock) {
-			if (dc->hwss.subvp_pipe_control_lock)
-				dc->hwss.subvp_pipe_control_lock(dc, context, false, should_lock_all_pipes, NULL, subvp_prev_use);
-		} else {
-			if (dc->hwss.subvp_pipe_control_lock)
-				dc->hwss.subvp_pipe_control_lock(dc, context, false, should_lock_all_pipes, top_pipe_to_program, subvp_prev_use);
-		}
+	/* Since phantom pipe programming is moved to post_unlock_program_front_end,
+	 * move the SubVP lock to after the phantom pipes have been setup
+	 */
+	if (should_lock_all_pipes && dc->hwss.interdependent_update_lock) {
+		if (dc->hwss.subvp_pipe_control_lock)
+			dc->hwss.subvp_pipe_control_lock(dc, context, false, should_lock_all_pipes, NULL, subvp_prev_use);
+	} else {
+		if (dc->hwss.subvp_pipe_control_lock)
+			dc->hwss.subvp_pipe_control_lock(dc, context, false, should_lock_all_pipes, top_pipe_to_program, subvp_prev_use);
 	}
 
 	// Fire manual trigger only when bottom plane is flipped
@@ -4292,7 +4296,7 @@ bool dc_is_dmub_outbox_supported(struct dc *dc)
 	    !dc->debug.dpia_debug.bits.disable_dpia)
 		return true;
 
-	if (dc->ctx->asic_id.chip_family == AMDGPU_FAMILY_GC_11_0_2 &&
+	if (dc->ctx->asic_id.chip_family == AMDGPU_FAMILY_GC_11_0_1 &&
 	    !dc->debug.dpia_debug.bits.disable_dpia)
 		return true;
 
@@ -4340,6 +4344,7 @@ void dc_enable_dmub_outbox(struct dc *dc)
 	struct dc_context *dc_ctx = dc->ctx;
 
 	dmub_enable_outbox_notification(dc_ctx->dmub_srv);
+	DC_LOG_DC("%s: dmub outbox notifications enabled\n", __func__);
 }
 
 /**

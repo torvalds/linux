@@ -1567,6 +1567,16 @@ static int smu_v13_0_7_set_mp1_state(struct smu_context *smu,
 	return ret;
 }
 
+static bool smu_v13_0_7_is_mode1_reset_supported(struct smu_context *smu)
+{
+	struct amdgpu_device *adev = smu->adev;
+
+	/* SRIOV does not support SMU mode1 reset */
+	if (amdgpu_sriov_vf(adev))
+		return false;
+
+	return true;
+}
 static const struct pptable_funcs smu_v13_0_7_ppt_funcs = {
 	.get_allowed_feature_mask = smu_v13_0_7_get_allowed_feature_mask,
 	.set_default_dpm_table = smu_v13_0_7_set_default_dpm_table,
@@ -1574,7 +1584,9 @@ static const struct pptable_funcs smu_v13_0_7_ppt_funcs = {
 	.dump_pptable = smu_v13_0_7_dump_pptable,
 	.init_microcode = smu_v13_0_init_microcode,
 	.load_microcode = smu_v13_0_load_microcode,
+	.fini_microcode = smu_v13_0_fini_microcode,
 	.init_smc_tables = smu_v13_0_7_init_smc_tables,
+	.fini_smc_tables = smu_v13_0_fini_smc_tables,
 	.init_power = smu_v13_0_init_power,
 	.fini_power = smu_v13_0_fini_power,
 	.check_fw_status = smu_v13_0_7_check_fw_status,
@@ -1624,6 +1636,8 @@ static const struct pptable_funcs smu_v13_0_7_ppt_funcs = {
 	.baco_set_state = smu_v13_0_baco_set_state,
 	.baco_enter = smu_v13_0_baco_enter,
 	.baco_exit = smu_v13_0_baco_exit,
+	.mode1_reset_is_support = smu_v13_0_7_is_mode1_reset_supported,
+	.mode1_reset = smu_v13_0_mode1_reset,
 	.set_mp1_state = smu_v13_0_7_set_mp1_state,
 };
 
