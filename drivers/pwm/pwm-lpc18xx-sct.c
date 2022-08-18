@@ -76,6 +76,8 @@
 #define LPC18XX_PWM_EVENT_PERIOD	0
 #define LPC18XX_PWM_EVENT_MAX		16
 
+#define LPC18XX_NUM_PWMS		16
+
 /* SCT conflict resolution */
 enum lpc18xx_pwm_res_action {
 	LPC18XX_PWM_RES_NONE,
@@ -96,11 +98,12 @@ struct lpc18xx_pwm_chip {
 	unsigned long clk_rate;
 	unsigned int period_ns;
 	unsigned int min_period_ns;
-	unsigned int max_period_ns;
+	u64 max_period_ns;
 	unsigned int period_event;
 	unsigned long event_map;
 	struct mutex res_lock;
 	struct mutex period_lock;
+	struct lpc18xx_pwm_data channeldata[LPC18XX_NUM_PWMS];
 };
 
 static inline struct lpc18xx_pwm_chip *
@@ -142,40 +145,48 @@ static void lpc18xx_pwm_set_conflict_res(struct lpc18xx_pwm_chip *lpc18xx_pwm,
 	mutex_unlock(&lpc18xx_pwm->res_lock);
 }
 
-static void lpc18xx_pwm_config_period(struct pwm_chip *chip, int period_ns)
+static void lpc18xx_pwm_config_period(struct pwm_chip *chip, u64 period_ns)
 {
 	struct lpc18xx_pwm_chip *lpc18xx_pwm = to_lpc18xx_pwm_chip(chip);
-	u64 val;
+	u32 val;
 
-	val = (u64)period_ns * lpc18xx_pwm->clk_rate;
-	do_div(val, NSEC_PER_SEC);
+	/*
+	 * With clk_rate < NSEC_PER_SEC this cannot overflow.
+	 * With period_ns < max_period_ns this also fits into an u32.
+	 * As period_ns >= min_period_ns = DIV_ROUND_UP(NSEC_PER_SEC, lpc18xx_pwm->clk_rate);
+	 * we have val >= 1.
+	 */
+	val = mul_u64_u64_div_u64(period_ns, lpc18xx_pwm->clk_rate, NSEC_PER_SEC);
 
 	lpc18xx_pwm_writel(lpc18xx_pwm,
 			   LPC18XX_PWM_MATCH(lpc18xx_pwm->period_event),
-			   (u32)val - 1);
+			   val - 1);
 
 	lpc18xx_pwm_writel(lpc18xx_pwm,
 			   LPC18XX_PWM_MATCHREL(lpc18xx_pwm->period_event),
-			   (u32)val - 1);
+			   val - 1);
 }
 
 static void lpc18xx_pwm_config_duty(struct pwm_chip *chip,
-				    struct pwm_device *pwm, int duty_ns)
+				    struct pwm_device *pwm, u64 duty_ns)
 {
 	struct lpc18xx_pwm_chip *lpc18xx_pwm = to_lpc18xx_pwm_chip(chip);
-	struct lpc18xx_pwm_data *lpc18xx_data = pwm_get_chip_data(pwm);
-	u64 val;
+	struct lpc18xx_pwm_data *lpc18xx_data = &lpc18xx_pwm->channeldata[pwm->hwpwm];
+	u32 val;
 
-	val = (u64)duty_ns * lpc18xx_pwm->clk_rate;
-	do_div(val, NSEC_PER_SEC);
+	/*
+	 * With clk_rate < NSEC_PER_SEC this cannot overflow.
+	 * With duty_ns <= period_ns < max_period_ns this also fits into an u32.
+	 */
+	val = mul_u64_u64_div_u64(duty_ns, lpc18xx_pwm->clk_rate, NSEC_PER_SEC);
 
 	lpc18xx_pwm_writel(lpc18xx_pwm,
 			   LPC18XX_PWM_MATCH(lpc18xx_data->duty_event),
-			   (u32)val);
+			   val);
 
 	lpc18xx_pwm_writel(lpc18xx_pwm,
 			   LPC18XX_PWM_MATCHREL(lpc18xx_data->duty_event),
-			   (u32)val);
+			   val);
 }
 
 static int lpc18xx_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
@@ -233,7 +244,7 @@ static int lpc18xx_pwm_set_polarity(struct pwm_chip *chip,
 static int lpc18xx_pwm_enable(struct pwm_chip *chip, struct pwm_device *pwm)
 {
 	struct lpc18xx_pwm_chip *lpc18xx_pwm = to_lpc18xx_pwm_chip(chip);
-	struct lpc18xx_pwm_data *lpc18xx_data = pwm_get_chip_data(pwm);
+	struct lpc18xx_pwm_data *lpc18xx_data = &lpc18xx_pwm->channeldata[pwm->hwpwm];
 	enum lpc18xx_pwm_res_action res_action;
 	unsigned int set_event, clear_event;
 
@@ -268,7 +279,7 @@ static int lpc18xx_pwm_enable(struct pwm_chip *chip, struct pwm_device *pwm)
 static void lpc18xx_pwm_disable(struct pwm_chip *chip, struct pwm_device *pwm)
 {
 	struct lpc18xx_pwm_chip *lpc18xx_pwm = to_lpc18xx_pwm_chip(chip);
-	struct lpc18xx_pwm_data *lpc18xx_data = pwm_get_chip_data(pwm);
+	struct lpc18xx_pwm_data *lpc18xx_data = &lpc18xx_pwm->channeldata[pwm->hwpwm];
 
 	lpc18xx_pwm_writel(lpc18xx_pwm,
 			   LPC18XX_PWM_EVCTRL(lpc18xx_data->duty_event), 0);
@@ -279,7 +290,7 @@ static void lpc18xx_pwm_disable(struct pwm_chip *chip, struct pwm_device *pwm)
 static int lpc18xx_pwm_request(struct pwm_chip *chip, struct pwm_device *pwm)
 {
 	struct lpc18xx_pwm_chip *lpc18xx_pwm = to_lpc18xx_pwm_chip(chip);
-	struct lpc18xx_pwm_data *lpc18xx_data = pwm_get_chip_data(pwm);
+	struct lpc18xx_pwm_data *lpc18xx_data = &lpc18xx_pwm->channeldata[pwm->hwpwm];
 	unsigned long event;
 
 	event = find_first_zero_bit(&lpc18xx_pwm->event_map,
@@ -300,7 +311,7 @@ static int lpc18xx_pwm_request(struct pwm_chip *chip, struct pwm_device *pwm)
 static void lpc18xx_pwm_free(struct pwm_chip *chip, struct pwm_device *pwm)
 {
 	struct lpc18xx_pwm_chip *lpc18xx_pwm = to_lpc18xx_pwm_chip(chip);
-	struct lpc18xx_pwm_data *lpc18xx_data = pwm_get_chip_data(pwm);
+	struct lpc18xx_pwm_data *lpc18xx_data = &lpc18xx_pwm->channeldata[pwm->hwpwm];
 
 	clear_bit(lpc18xx_data->duty_event, &lpc18xx_pwm->event_map);
 }
@@ -324,8 +335,7 @@ MODULE_DEVICE_TABLE(of, lpc18xx_pwm_of_match);
 static int lpc18xx_pwm_probe(struct platform_device *pdev)
 {
 	struct lpc18xx_pwm_chip *lpc18xx_pwm;
-	struct pwm_device *pwm;
-	int ret, i;
+	int ret;
 	u64 val;
 
 	lpc18xx_pwm = devm_kzalloc(&pdev->dev, sizeof(*lpc18xx_pwm),
@@ -358,19 +368,34 @@ static int lpc18xx_pwm_probe(struct platform_device *pdev)
 		goto disable_pwmclk;
 	}
 
+	/*
+	 * If clkrate is too fast, the calculations in .apply() might overflow.
+	 */
+	if (lpc18xx_pwm->clk_rate > NSEC_PER_SEC) {
+		ret = dev_err_probe(&pdev->dev, -EINVAL, "pwm clock to fast\n");
+		goto disable_pwmclk;
+	}
+
+	/*
+	 * If clkrate is too fast, the calculations in .apply() might overflow.
+	 */
+	if (lpc18xx_pwm->clk_rate > NSEC_PER_SEC) {
+		ret = dev_err_probe(&pdev->dev, -EINVAL, "pwm clock to fast\n");
+		goto disable_pwmclk;
+	}
+
 	mutex_init(&lpc18xx_pwm->res_lock);
 	mutex_init(&lpc18xx_pwm->period_lock);
 
-	val = (u64)NSEC_PER_SEC * LPC18XX_PWM_TIMER_MAX;
-	do_div(val, lpc18xx_pwm->clk_rate);
-	lpc18xx_pwm->max_period_ns = val;
+	lpc18xx_pwm->max_period_ns =
+		mul_u64_u64_div_u64(NSEC_PER_SEC, LPC18XX_PWM_TIMER_MAX, lpc18xx_pwm->clk_rate);
 
 	lpc18xx_pwm->min_period_ns = DIV_ROUND_UP(NSEC_PER_SEC,
 						  lpc18xx_pwm->clk_rate);
 
 	lpc18xx_pwm->chip.dev = &pdev->dev;
 	lpc18xx_pwm->chip.ops = &lpc18xx_pwm_ops;
-	lpc18xx_pwm->chip.npwm = 16;
+	lpc18xx_pwm->chip.npwm = LPC18XX_NUM_PWMS;
 
 	/* SCT counter must be in unify (32 bit) mode */
 	lpc18xx_pwm_writel(lpc18xx_pwm, LPC18XX_PWM_CONFIG,
@@ -394,21 +419,6 @@ static int lpc18xx_pwm_probe(struct platform_device *pdev)
 
 	lpc18xx_pwm_writel(lpc18xx_pwm, LPC18XX_PWM_LIMIT,
 			   BIT(lpc18xx_pwm->period_event));
-
-	for (i = 0; i < lpc18xx_pwm->chip.npwm; i++) {
-		struct lpc18xx_pwm_data *data;
-
-		pwm = &lpc18xx_pwm->chip.pwms[i];
-
-		data = devm_kzalloc(lpc18xx_pwm->dev, sizeof(*data),
-				    GFP_KERNEL);
-		if (!data) {
-			ret = -ENOMEM;
-			goto disable_pwmclk;
-		}
-
-		pwm_set_chip_data(pwm, data);
-	}
 
 	val = lpc18xx_pwm_readl(lpc18xx_pwm, LPC18XX_PWM_CTRL);
 	val &= ~LPC18XX_PWM_BIDIR;

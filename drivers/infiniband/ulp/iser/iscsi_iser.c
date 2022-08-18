@@ -584,7 +584,7 @@ iscsi_iser_session_destroy(struct iscsi_cls_session *cls_session)
 	struct Scsi_Host *shost = iscsi_session_to_shost(cls_session);
 
 	iscsi_session_teardown(cls_session);
-	iscsi_host_remove(shost);
+	iscsi_host_remove(shost, false);
 	iscsi_host_free(shost);
 }
 
@@ -702,7 +702,7 @@ iscsi_iser_session_create(struct iscsi_endpoint *ep,
 	return cls_session;
 
 remove_host:
-	iscsi_host_remove(shost);
+	iscsi_host_remove(shost, false);
 free_host:
 	iscsi_host_free(shost);
 	return NULL;

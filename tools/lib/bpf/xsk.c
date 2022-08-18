@@ -1164,8 +1164,6 @@ int xsk_socket__create_shared(struct xsk_socket **xsk_ptr,
 		goto out_mmap_tx;
 	}
 
-	ctx->prog_fd = -1;
-
 	if (!(xsk->config.libbpf_flags & XSK_LIBBPF_FLAGS__INHIBIT_PROG_LOAD)) {
 		err = __xsk_setup_xdp_prog(xsk, NULL);
 		if (err)
@@ -1246,7 +1244,10 @@ void xsk_socket__delete(struct xsk_socket *xsk)
 
 	ctx = xsk->ctx;
 	umem = ctx->umem;
-	if (ctx->prog_fd != -1) {
+
+	xsk_put_ctx(ctx, true);
+
+	if (!ctx->refcount) {
 		xsk_delete_bpf_maps(xsk);
 		close(ctx->prog_fd);
 		if (ctx->has_bpf_link)
@@ -1264,8 +1265,6 @@ void xsk_socket__delete(struct xsk_socket *xsk)
 			       off.tx.desc + xsk->config.tx_size * desc_sz);
 		}
 	}
-
-	xsk_put_ctx(ctx, true);
 
 	umem->refcount--;
 	/* Do not close an fd that also has an associated umem connected

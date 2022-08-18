@@ -122,21 +122,22 @@
 		};
 	};
 
-	sysram@40000000 {
+	sram@40000000 {
 		compatible = "nvidia,tegra234-sysram", "mmio-sram";
-		reg = <0x0 0x40000000 0x0 0x50000>;
+		reg = <0x0 0x40000000 0x0 0x80000>;
 		#address-cells = <1>;
 		#size-cells = <1>;
-		ranges = <0x0 0x0 0x40000000 0x50000>;
+		ranges = <0x0 0x0 0x40000000 0x80000>;
+		no-memory-wc;
 
-		cpu_bpmp_tx: shmem@4e000 {
-			reg = <0x4e000 0x1000>;
+		cpu_bpmp_tx: sram@70000 {
+			reg = <0x70000 0x1000>;
 			label = "cpu-bpmp-tx";
 			pool;
 		};
 
-		cpu_bpmp_rx: shmem@4f000 {
-			reg = <0x4f000 0x1000>;
+		cpu_bpmp_rx: sram@71000 {
+			reg = <0x71000 0x1000>;
 			label = "cpu-bpmp-rx";
 			pool;
 		};
@@ -146,7 +147,7 @@
 		compatible = "nvidia,tegra234-bpmp", "nvidia,tegra186-bpmp";
 		mboxes = <&hsp_top0 TEGRA_HSP_MBOX_TYPE_DB
 				    TEGRA_HSP_DB_MASTER_BPMP>;
-		shmem = <&cpu_bpmp_tx &cpu_bpmp_rx>;
+		shmem = <&cpu_bpmp_tx>, <&cpu_bpmp_rx>;
 		#clock-cells = <1>;
 		#reset-cells = <1>;
 		#power-domain-cells = <1>;

@@ -920,6 +920,10 @@ struct lpfc_hba {
 		(struct lpfc_vport *vport,
 		 struct lpfc_io_buf *lpfc_cmd,
 		 uint8_t tmo);
+	int (*lpfc_scsi_prep_task_mgmt_cmd)
+		(struct lpfc_vport *vport,
+		 struct lpfc_io_buf *lpfc_cmd,
+		 u64 lun, u8 task_mgmt_cmd);
 
 	/* IOCB interface function jump table entries */
 	int (*__lpfc_sli_issue_iocb)
@@ -1028,6 +1032,7 @@ struct lpfc_hba {
 					 * Firmware supports Forced Link Speed
 					 * capability
 					 */
+#define HBA_PCI_ERR		0x80000 /* The PCI slot is offline */
 #define HBA_FLOGI_ISSUED	0x100000 /* FLOGI was issued */
 #define HBA_CGN_RSVD1		0x200000 /* Reserved CGN flag */
 #define HBA_CGN_DAY_WRAP	0x400000 /* HBA Congestion info day wraps */
@@ -1801,4 +1806,40 @@ static const char *routine(enum enum_name table_key)			\
 static inline int lpfc_is_vmid_enabled(struct lpfc_hba *phba)
 {
 	return phba->cfg_vmid_app_header || phba->cfg_vmid_priority_tagging;
+}
+
+static inline
+u8 get_job_ulpstatus(struct lpfc_hba *phba, struct lpfc_iocbq *iocbq)
+{
+	if (phba->sli_rev == LPFC_SLI_REV4)
+		return bf_get(lpfc_wcqe_c_status, &iocbq->wcqe_cmpl);
+	else
+		return iocbq->iocb.ulpStatus;
+}
+
+static inline
+u32 get_job_word4(struct lpfc_hba *phba, struct lpfc_iocbq *iocbq)
+{
+	if (phba->sli_rev == LPFC_SLI_REV4)
+		return iocbq->wcqe_cmpl.parameter;
+	else
+		return iocbq->iocb.un.ulpWord[4];
+}
+
+static inline
+u8 get_job_cmnd(struct lpfc_hba *phba, struct lpfc_iocbq *iocbq)
+{
+	if (phba->sli_rev == LPFC_SLI_REV4)
+		return bf_get(wqe_cmnd, &iocbq->wqe.generic.wqe_com);
+	else
+		return iocbq->iocb.ulpCommand;
+}
+
+static inline
+u16 get_job_ulpcontext(struct lpfc_hba *phba, struct lpfc_iocbq *iocbq)
+{
+	if (phba->sli_rev == LPFC_SLI_REV4)
+		return bf_get(wqe_ctxt_tag, &iocbq->wqe.generic.wqe_com);
+	else
+		return iocbq->iocb.ulpContext;
 }

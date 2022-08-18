@@ -492,9 +492,9 @@ int kvm_s390_handle_sigp_pei(struct kvm_vcpu *vcpu)
 	struct kvm_vcpu *dest_vcpu;
 	u8 order_code = kvm_s390_get_base_disp_rs(vcpu, NULL);
 
-	trace_kvm_s390_handle_sigp_pei(vcpu, order_code, cpu_addr);
-
 	if (order_code == SIGP_EXTERNAL_CALL) {
+		trace_kvm_s390_handle_sigp_pei(vcpu, order_code, cpu_addr);
+
 		dest_vcpu = kvm_get_vcpu_by_id(vcpu->kvm, cpu_addr);
 		BUG_ON(dest_vcpu == NULL);
 
