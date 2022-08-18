@@ -82,6 +82,7 @@ void bch2_opt_target_to_text(struct printbuf *, struct bch_fs *, struct bch_sb *
 
 int bch2_sb_disk_groups_to_cpu(struct bch_fs *);
 
+int __bch2_dev_group_set(struct bch_fs *, struct bch_dev *, const char *);
 int bch2_dev_group_set(struct bch_fs *, struct bch_dev *, const char *);
 
 const char *bch2_sb_validate_disk_groups(struct bch_sb *,

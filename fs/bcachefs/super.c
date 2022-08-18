@@ -1522,6 +1522,7 @@ int bch2_dev_add(struct bch_fs *c, const char *path)
 	struct bch_member dev_mi;
 	unsigned dev_idx, nr_devices, u64s;
 	struct printbuf errbuf = PRINTBUF;
+	struct printbuf label = PRINTBUF;
 	int ret;
 
 	ret = bch2_read_super(path, &opts, &sb);
@@ -1531,6 +1532,14 @@ int bch2_dev_add(struct bch_fs *c, const char *path)
 	}
 
 	dev_mi = bch2_sb_get_members(sb.sb)->members[sb.sb->dev_idx];
+
+	if (BCH_MEMBER_GROUP(&dev_mi)) {
+		bch2_disk_path_to_text(&label, sb.sb, BCH_MEMBER_GROUP(&dev_mi) - 1);
+		if (label.allocation_failure) {
+			ret = -ENOMEM;
+			goto err;
+		}
+	}
 
 	err = bch2_dev_may_add(sb.sb, c);
 	if (err) {
@@ -1612,6 +1621,14 @@ have_slot:
 	ca->disk_sb.sb->dev_idx	= dev_idx;
 	bch2_dev_attach(c, ca, dev_idx);
 
+	if (BCH_MEMBER_GROUP(&dev_mi)) {
+		ret = __bch2_dev_group_set(c, ca, label.buf);
+		if (ret) {
+			bch_err(c, "device add error: error setting label");
+			goto err_unlock;
+		}
+	}
+
 	bch2_write_super(c);
 	mutex_unlock(&c->sb_lock);
 
@@ -1644,6 +1661,7 @@ err:
 	if (ca)
 		bch2_dev_free(ca);
 	bch2_free_super(&sb);
+	printbuf_exit(&label);
 	printbuf_exit(&errbuf);
 	return ret;
 err_late:

@@ -384,32 +384,34 @@ inval:
 	prt_printf(out, "invalid label %u", v);
 }
 
-int bch2_dev_group_set(struct bch_fs *c, struct bch_dev *ca, const char *name)
+int __bch2_dev_group_set(struct bch_fs *c, struct bch_dev *ca, const char *name)
 {
 	struct bch_member *mi;
-	int v = -1;
-	int ret = 0;
-
-	mutex_lock(&c->sb_lock);
+	int ret, v = -1;
 
 	if (!strlen(name) || !strcmp(name, "none"))
-		goto write_sb;
+		return 0;
 
 	v = bch2_disk_path_find_or_create(&c->disk_sb, name);
-	if (v < 0) {
-		mutex_unlock(&c->sb_lock);
+	if (v < 0)
 		return v;
-	}
 
 	ret = bch2_sb_disk_groups_to_cpu(c);
 	if (ret)
-		goto unlock;
-write_sb:
+		return ret;
+
 	mi = &bch2_sb_get_members(c->disk_sb.sb)->members[ca->dev_idx];
 	SET_BCH_MEMBER_GROUP(mi, v + 1);
+	return 0;
+}
 
-	bch2_write_super(c);
-unlock:
+int bch2_dev_group_set(struct bch_fs *c, struct bch_dev *ca, const char *name)
+{
+	int ret;
+
+	mutex_lock(&c->sb_lock);
+	ret = __bch2_dev_group_set(c, ca, name) ?:
+		bch2_write_super(c);
 	mutex_unlock(&c->sb_lock);
 
 	return ret;
