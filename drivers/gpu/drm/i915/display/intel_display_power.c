@@ -1382,6 +1382,9 @@ static void intel_pch_reset_handshake(struct drm_i915_private *dev_priv,
 		reset_bits = RESET_PCH_HANDSHAKE_ENABLE;
 	}
 
+	if (DISPLAY_VER(dev_priv) >= 14)
+		reset_bits |= MTL_RESET_PICA_HANDSHAKE_EN;
+
 	val = intel_de_read(dev_priv, reg);
 
 	if (enable)
