@@ -126,7 +126,7 @@ struct cpio_data find_cpio_data(const char *path, void *data,
 				"File %s exceeding MAX_CPIO_FILE_NAME [%d]\n",
 				p, MAX_CPIO_FILE_NAME);
 			}
-			strlcpy(cd.name, p + mypathsize, MAX_CPIO_FILE_NAME);
+			strscpy(cd.name, p + mypathsize, MAX_CPIO_FILE_NAME);
 
 			cd.data = (void *)dptr;
 			cd.size = ch[C_FILESIZE];
