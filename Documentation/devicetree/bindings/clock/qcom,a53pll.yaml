@@ -17,6 +17,7 @@ properties:
   compatible:
     enum:
       - qcom,ipq6018-a53pll
+      - qcom,ipq8074-a53pll
       - qcom,msm8916-a53pll
       - qcom,msm8939-a53pll
 
