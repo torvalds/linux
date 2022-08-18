@@ -14,12 +14,6 @@
 #include "rga_common.h"
 #include "rga_hw_config.h"
 
-static void rga2_dma_sync_flush_range(void *pstart, void *pend, struct rga_scheduler_t *scheduler)
-{
-	dma_sync_single_for_device(scheduler->dev, virt_to_phys(pstart),
-				   pend - pstart, DMA_TO_DEVICE);
-}
-
 int rga_user_memory_check(struct page **pages, u32 w, u32 h, u32 format, int flag)
 {
 	int bits;
@@ -61,26 +55,26 @@ int rga_user_memory_check(struct page **pages, u32 w, u32 h, u32 format, int fla
 int rga_set_mmu_base(struct rga_job *job, struct rga2_req *req)
 {
 	if (job->src_buffer.page_table) {
-		rga2_dma_sync_flush_range(job->src_buffer.page_table,
-					  (job->src_buffer.page_table +
-					   job->src_buffer.page_count),
-					  job->scheduler);
+		rga_dma_sync_flush_range(job->src_buffer.page_table,
+					 (job->src_buffer.page_table +
+					  job->src_buffer.page_count),
+					 job->scheduler);
 		req->mmu_info.src0_base_addr = virt_to_phys(job->src_buffer.page_table);
 	}
 
 	if (job->src1_buffer.page_table) {
-		rga2_dma_sync_flush_range(job->src1_buffer.page_table,
-					  (job->src1_buffer.page_table +
-					   job->src1_buffer.page_count),
-					  job->scheduler);
+		rga_dma_sync_flush_range(job->src1_buffer.page_table,
+					 (job->src1_buffer.page_table +
+					  job->src1_buffer.page_count),
+					 job->scheduler);
 		req->mmu_info.src1_base_addr = virt_to_phys(job->src1_buffer.page_table);
 	}
 
 	if (job->dst_buffer.page_table) {
-		rga2_dma_sync_flush_range(job->dst_buffer.page_table,
-					  (job->dst_buffer.page_table +
-					   job->dst_buffer.page_count),
-					  job->scheduler);
+		rga_dma_sync_flush_range(job->dst_buffer.page_table,
+					 (job->dst_buffer.page_table +
+					  job->dst_buffer.page_count),
+					 job->scheduler);
 		req->mmu_info.dst_base_addr = virt_to_phys(job->dst_buffer.page_table);
 
 		if (((req->alpha_rop_flag & 1) == 1) && (req->bitblt_mode == 0)) {
@@ -90,10 +84,10 @@ int rga_set_mmu_base(struct rga_job *job, struct rga2_req *req)
 	}
 
 	if (job->els_buffer.page_table) {
-		rga2_dma_sync_flush_range(job->els_buffer.page_table,
-					  (job->els_buffer.page_table +
-					   job->els_buffer.page_count),
-					  job->scheduler);
+		rga_dma_sync_flush_range(job->els_buffer.page_table,
+					 (job->els_buffer.page_table +
+					  job->els_buffer.page_count),
+					 job->scheduler);
 		req->mmu_info.els_base_addr = virt_to_phys(job->els_buffer.page_table);
 	}
 

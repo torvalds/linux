@@ -526,3 +526,9 @@ void rga_dma_unmap_buf(struct rga_dma_buffer *rga_dma_buffer)
 		dma_buf_put(rga_dma_buffer->dma_buf);
 	}
 }
+
+void rga_dma_sync_flush_range(void *pstart, void *pend, struct rga_scheduler_t *scheduler)
+{
+	dma_sync_single_for_device(scheduler->dev, virt_to_phys(pstart),
+				   pend - pstart, DMA_TO_DEVICE);
+}
