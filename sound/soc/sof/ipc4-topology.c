@@ -771,7 +771,7 @@ static int sof_ipc4_widget_setup_comp_src(struct snd_sof_widget *swidget)
 		goto err;
 
 	ret = sof_update_ipc_object(scomp, src, SOF_SRC_TOKENS, swidget->tuples,
-				    swidget->num_tuples, sizeof(src), 1);
+				    swidget->num_tuples, sizeof(*src), 1);
 	if (ret) {
 		dev_err(scomp->dev, "Parsing SRC tokens failed\n");
 		goto err;
