@@ -28,7 +28,6 @@ struct memory_dev_type {
 	/* Nodes of same abstract distance */
 	nodemask_t nodes;
 	struct kref kref;
-	struct memory_tier *memtier;
 };
 
 #ifdef CONFIG_NUMA

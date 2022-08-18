@@ -105,17 +105,22 @@ static struct memory_tier *find_create_memory_tier(struct memory_dev_type *memty
 
 	lockdep_assert_held_once(&memory_tier_lock);
 
+	adistance = round_down(adistance, memtier_adistance_chunk_size);
 	/*
 	 * If the memtype is already part of a memory tier,
 	 * just return that.
 	 */
-	if (memtype->memtier)
-		return memtype->memtier;
+	if (!list_empty(&memtype->tier_sibiling)) {
+		list_for_each_entry(memtier, &memory_tiers, list) {
+			if (adistance == memtier->adistance_start)
+				return memtier;
+		}
+		WARN_ON(1);
+		return ERR_PTR(-EINVAL);
+	}
 
-	adistance = round_down(adistance, memtier_adistance_chunk_size);
 	list_for_each_entry(memtier, &memory_tiers, list) {
 		if (adistance == memtier->adistance_start) {
-			memtype->memtier = memtier;
 			list_add(&memtype->tier_sibiling, &memtier->memory_types);
 			return memtier;
 		} else if (adistance < memtier->adistance_start) {
@@ -135,7 +140,6 @@ static struct memory_tier *find_create_memory_tier(struct memory_dev_type *memty
 		list_add_tail(&new_memtier->list, &memtier->list);
 	else
 		list_add_tail(&new_memtier->list, &memory_tiers);
-	memtype->memtier = new_memtier;
 	list_add(&memtype->tier_sibiling, &new_memtier->memory_types);
 	return new_memtier;
 }
@@ -372,7 +376,6 @@ static bool clear_node_memory_tier(int node)
 		node_clear(node, memtype->nodes);
 		if (nodes_empty(memtype->nodes)) {
 			list_del_init(&memtype->tier_sibiling);
-			memtype->memtier = NULL;
 			if (list_empty(&memtier->memory_types))
 				destroy_memory_tier(memtier);
 		}
@@ -400,7 +403,6 @@ struct memory_dev_type *alloc_memory_type(int adistance)
 	memtype->adistance = adistance;
 	INIT_LIST_HEAD(&memtype->tier_sibiling);
 	memtype->nodes  = NODE_MASK_NONE;
-	memtype->memtier = NULL;
 	kref_init(&memtype->kref);
 	return memtype;
 }
