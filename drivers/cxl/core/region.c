@@ -174,7 +174,8 @@ static int cxl_region_decode_commit(struct cxl_region *cxlr)
 		     iter = to_cxl_port(iter->dev.parent)) {
 			cxl_rr = cxl_rr_load(iter, cxlr);
 			cxld = cxl_rr->decoder;
-			rc = cxld->commit(cxld);
+			if (cxld->commit)
+				rc = cxld->commit(cxld);
 			if (rc)
 				break;
 		}
