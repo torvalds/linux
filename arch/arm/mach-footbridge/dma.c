@@ -50,8 +50,7 @@ static int __init fb_dma_init(void)
 	dma[_DC21285_DMA(1)].d_ops = &fb_dma_ops;
 #endif
 #ifdef CONFIG_ISA_DMA
-	if (footbridge_cfn_mode())
-		isa_init_dma();
+	isa_init_dma();
 #endif
 	return 0;
 }

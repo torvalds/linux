@@ -81,19 +81,6 @@
 #define SA110_CNTL_XCSDIR(x)		((x)<<28)
 #define SA110_CNTL_PCICFN		(1 << 31)
 
-/*
- * footbridge_cfn_mode() is used when we want
- * to check whether we are the central function
- */
-#define __footbridge_cfn_mode() (*CSR_SA110_CNTL & SA110_CNTL_PCICFN)
-#if defined(CONFIG_FOOTBRIDGE_HOST) && defined(CONFIG_FOOTBRIDGE_ADDIN)
-#define footbridge_cfn_mode() __footbridge_cfn_mode()
-#elif defined(CONFIG_FOOTBRIDGE_HOST)
-#define footbridge_cfn_mode() (1)
-#else
-#define footbridge_cfn_mode() (0)
-#endif
-
 #define CSR_PCIADDR_EXTN	DC21285_IO(0x0140)
 #define CSR_PREFETCHMEMRANGE	DC21285_IO(0x0144)
 #define CSR_XBUS_CYCLE		DC21285_IO(0x0148)
