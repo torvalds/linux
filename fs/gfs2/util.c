@@ -204,6 +204,7 @@ static void signal_our_withdraw(struct gfs2_sbd *sdp)
 	 * exception code in glock_dq.
 	 */
 	iput(inode);
+	sdp->sd_jdesc->jd_inode = NULL;
 	/*
 	 * Wait until the journal inode's glock is freed. This allows try locks
 	 * on other nodes to be successful, otherwise we remain the owner of
