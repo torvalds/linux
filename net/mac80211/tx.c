@@ -5885,6 +5885,7 @@ int ieee80211_tx_control_port(struct wiphy *wiphy, struct net_device *dev,
 	rcu_read_lock();
 	err = ieee80211_lookup_ra_sta(sdata, skb, &sta);
 	if (err) {
+		dev_kfree_skb(skb);
 		rcu_read_unlock();
 		return err;
 	}
