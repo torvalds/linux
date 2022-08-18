@@ -363,7 +363,7 @@ static int adf_ctl_ioctl_get_status(struct file *fp, unsigned int cmd,
 	dev_info.num_logical_accel = hw_data->num_logical_accel;
 	dev_info.banks_per_accel = hw_data->num_banks
 					/ hw_data->num_logical_accel;
-	strlcpy(dev_info.name, hw_data->dev_class->name, sizeof(dev_info.name));
+	strscpy(dev_info.name, hw_data->dev_class->name, sizeof(dev_info.name));
 	dev_info.instance_id = hw_data->instance_id;
 	dev_info.type = hw_data->dev_class->type;
 	dev_info.bus = accel_to_pci_dev(accel_dev)->bus->number;
