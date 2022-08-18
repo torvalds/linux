@@ -10,6 +10,7 @@
 
 #include <linux/bitfield.h>
 #include <linux/devfreq.h>
+#include <linux/reset.h>
 #include <linux/soc/qcom/llcc-qcom.h>
 
 #define GPU_PAS_ID 13
@@ -1296,6 +1297,9 @@ static void a6xx_recover(struct msm_gpu *gpu)
 
 	/* And the final one from recover worker */
 	pm_runtime_put_sync(&gpu->pdev->dev);
+
+	/* Call into gpucc driver to poll for cx gdsc collapse */
+	reset_control_reset(gpu->cx_collapse);
 
 	pm_runtime_use_autosuspend(&gpu->pdev->dev);
 
