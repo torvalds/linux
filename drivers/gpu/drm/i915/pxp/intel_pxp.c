@@ -176,6 +176,18 @@ static void pxp_queue_termination(struct intel_pxp *pxp)
 	spin_unlock_irq(&gt->irq_lock);
 }
 
+static bool pxp_component_bound(struct intel_pxp *pxp)
+{
+	bool bound = false;
+
+	mutex_lock(&pxp->tee_mutex);
+	if (pxp->pxp_component)
+		bound = true;
+	mutex_unlock(&pxp->tee_mutex);
+
+	return bound;
+}
+
 /*
  * the arb session is restarted from the irq work when we receive the
  * termination completion interrupt
@@ -186,6 +198,9 @@ int intel_pxp_start(struct intel_pxp *pxp)
 
 	if (!intel_pxp_is_enabled(pxp))
 		return -ENODEV;
+
+	if (wait_for(pxp_component_bound(pxp), 250))
+		return -ENXIO;
 
 	mutex_lock(&pxp->arb_mutex);
 
