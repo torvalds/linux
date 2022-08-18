@@ -2497,7 +2497,7 @@ uart_report_port(struct uart_driver *drv, struct uart_port *port)
 			 "MMIO 0x%llx", (unsigned long long)port->mapbase);
 		break;
 	default:
-		strlcpy(address, "*unknown*", sizeof(address));
+		strscpy(address, "*unknown*", sizeof(address));
 		break;
 	}
 
