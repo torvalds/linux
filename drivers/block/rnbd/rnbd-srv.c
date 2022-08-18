@@ -14,6 +14,7 @@
 
 #include "rnbd-srv.h"
 #include "rnbd-srv-dev.h"
+#include "rnbd-srv-trace.h"
 
 MODULE_DESCRIPTION("RDMA Network Block Device Server");
 MODULE_LICENSE("GPL");
@@ -132,6 +133,8 @@ static int process_rdma(struct rnbd_srv_session *srv_sess,
 	struct bio *bio;
 	short prio;
 
+	trace_process_rdma(srv_sess, msg, id, datalen, usrlen);
+
 	priv = kmalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
@@ -244,6 +247,8 @@ static void destroy_sess(struct rnbd_srv_session *srv_sess)
 	if (xa_empty(&srv_sess->index_idr))
 		goto out;
 
+	trace_destroy_sess(srv_sess);
+
 	mutex_lock(&srv_sess->lock);
 	xa_for_each(&srv_sess->index_idr, index, sess_dev)
 		rnbd_srv_destroy_dev_session_sysfs(sess_dev);
@@ -289,6 +294,8 @@ static int create_sess(struct rtrs_srv_sess *rtrs)
 	strscpy(srv_sess->sessname, pathname, sizeof(srv_sess->sessname));
 
 	rtrs_srv_set_sess_priv(rtrs, srv_sess);
+
+	trace_create_sess(srv_sess);
 
 	return 0;
 }
@@ -338,6 +345,8 @@ static int process_msg_close(struct rnbd_srv_session *srv_sess,
 {
 	const struct rnbd_msg_close *close_msg = usr;
 	struct rnbd_srv_sess_dev *sess_dev;
+
+	trace_process_msg_close(srv_sess, close_msg);
 
 	sess_dev = rnbd_get_sess_dev(le32_to_cpu(close_msg->device_id),
 				      srv_sess);
@@ -643,9 +652,8 @@ static int process_msg_sess_info(struct rnbd_srv_session *srv_sess,
 	struct rnbd_msg_sess_info_rsp *rsp = data;
 
 	srv_sess->ver = min_t(u8, sess_info_msg->ver, RNBD_PROTO_VER_MAJOR);
-	pr_debug("Session %s using protocol version %d (client version: %d, server version: %d)\n",
-		 srv_sess->sessname, srv_sess->ver,
-		 sess_info_msg->ver, RNBD_PROTO_VER_MAJOR);
+
+	trace_process_msg_sess_info(srv_sess, sess_info_msg);
 
 	rsp->hdr.type = cpu_to_le16(RNBD_MSG_SESS_INFO_RSP);
 	rsp->ver = srv_sess->ver;
@@ -690,9 +698,8 @@ static int process_msg_open(struct rnbd_srv_session *srv_sess,
 	struct rnbd_dev *rnbd_dev;
 	struct rnbd_msg_open_rsp *rsp = data;
 
-	pr_debug("Open message received: session='%s' path='%s' access_mode=%d\n",
-		 srv_sess->sessname, open_msg->dev_name,
-		 open_msg->access_mode);
+	trace_process_msg_open(srv_sess, open_msg);
+
 	open_flags = FMODE_READ;
 	if (open_msg->access_mode != RNBD_ACCESS_RO)
 		open_flags |= FMODE_WRITE;
