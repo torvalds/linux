@@ -1219,7 +1219,7 @@ thermal_zone_device_register_with_trips(const char *type, struct thermal_trip *t
 	}
 
 	tz->id = id;
-	strlcpy(tz->type, type, sizeof(tz->type));
+	strscpy(tz->type, type, sizeof(tz->type));
 
 	result = dev_set_name(&tz->device, "thermal_zone%d", tz->id);
 	if (result)
