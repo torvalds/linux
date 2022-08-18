@@ -3289,10 +3289,10 @@ u32 bch2_trans_begin(struct btree_trans *trans)
 
 void bch2_trans_verify_not_restarted(struct btree_trans *trans, u32 restart_count)
 {
-	bch2_trans_inconsistent_on(trans_was_restarted(trans, restart_count), trans,
-		"trans->restart_count %u, should be %u, last restarted by %ps\n",
-		trans->restart_count, restart_count,
-		(void *) trans->last_restarted_ip);
+	if (trans_was_restarted(trans, restart_count))
+		panic("trans->restart_count %u, should be %u, last restarted by %pS\n",
+		      trans->restart_count, restart_count,
+		      (void *) trans->last_restarted_ip);
 }
 
 static void bch2_trans_alloc_paths(struct btree_trans *trans, struct bch_fs *c)

@@ -290,7 +290,7 @@ err:
 	if (bch2_err_matches(ret, BCH_ERR_transaction_restart))
 		goto retry;
 
-	return ret;
+	return ret ?: -BCH_ERR_transaction_restart_nested;
 }
 
 static int __remove_dirent(struct btree_trans *trans, struct bpos pos)
@@ -914,7 +914,7 @@ static int check_inode(struct btree_trans *trans,
 		bch2_fs_lazy_rw(c);
 
 		ret = fsck_inode_rm(trans, u.bi_inum, iter->pos.snapshot);
-		if (ret)
+		if (ret && !bch2_err_matches(ret, BCH_ERR_transaction_restart))
 			bch_err(c, "error in fsck: error while deleting inode: %s",
 				bch2_err_str(ret));
 		return ret;
