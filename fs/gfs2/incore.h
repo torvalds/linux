@@ -608,12 +608,7 @@ enum {
 					 withdrawing */
 	SDF_DEACTIVATING	= 15,
 	SDF_EVICTING		= 16,
-};
-
-enum gfs2_freeze_state {
-	SFS_UNFROZEN		= 0,
-	SFS_STARTING_FREEZE	= 1,
-	SFS_FROZEN		= 2,
+	SDF_FROZEN		= 17,
 };
 
 #define GFS2_FSNAME_LEN		256
@@ -841,7 +836,6 @@ struct gfs2_sbd {
 
 	/* For quiescing the filesystem */
 	struct gfs2_holder sd_freeze_gh;
-	atomic_t sd_freeze_state;
 	struct mutex sd_freeze_mutex;
 
 	char sd_fsname[GFS2_FSNAME_LEN + 3 * sizeof(int) + 2];

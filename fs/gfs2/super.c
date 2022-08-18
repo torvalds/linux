@@ -689,26 +689,19 @@ static int gfs2_freeze_locally(struct gfs2_sbd *sdp)
 	struct super_block *sb = sdp->sd_vfs;
 	int error;
 
-	atomic_set(&sdp->sd_freeze_state, SFS_STARTING_FREEZE);
-
 	error = freeze_super(sb);
 	if (error)
-		goto fail;
+		return error;
 
 	if (test_bit(SDF_JOURNAL_LIVE, &sdp->sd_flags)) {
 		gfs2_log_flush(sdp, NULL, GFS2_LOG_HEAD_FLUSH_FREEZE |
 			       GFS2_LFC_FREEZE_GO_SYNC);
 		if (gfs2_withdrawn(sdp)) {
 			thaw_super(sb);
-			error = -EIO;
-			goto fail;
+			return -EIO;
 		}
 	}
 	return 0;
-
-fail:
-	atomic_set(&sdp->sd_freeze_state, SFS_UNFROZEN);
-	return error;
 }
 
 static int gfs2_do_thaw(struct gfs2_sbd *sdp)
@@ -737,7 +730,7 @@ void gfs2_freeze_func(struct work_struct *work)
 
 	mutex_lock(&sdp->sd_freeze_mutex);
 	error = -EBUSY;
-	if (atomic_read(&sdp->sd_freeze_state) != SFS_UNFROZEN)
+	if (test_bit(SDF_FROZEN, &sdp->sd_flags))
 		goto freeze_failed;
 
 	error = gfs2_freeze_locally(sdp);
@@ -745,13 +738,13 @@ void gfs2_freeze_func(struct work_struct *work)
 		goto freeze_failed;
 
 	gfs2_freeze_unlock(&sdp->sd_freeze_gh);
-	atomic_set(&sdp->sd_freeze_state, SFS_FROZEN);
+	set_bit(SDF_FROZEN, &sdp->sd_flags);
 
 	error = gfs2_do_thaw(sdp);
 	if (error)
 		goto out;
 
-	atomic_set(&sdp->sd_freeze_state, SFS_UNFROZEN);
+	clear_bit(SDF_FROZEN, &sdp->sd_flags);
 	goto out;
 
 freeze_failed:
@@ -776,7 +769,7 @@ static int gfs2_freeze_super(struct super_block *sb)
 	if (!mutex_trylock(&sdp->sd_freeze_mutex))
 		return -EBUSY;
 	error = -EBUSY;
-	if (atomic_read(&sdp->sd_freeze_state) != SFS_UNFROZEN)
+	if (test_bit(SDF_FROZEN, &sdp->sd_flags))
 		goto out;
 
 	for (;;) {
@@ -811,7 +804,7 @@ static int gfs2_freeze_super(struct super_block *sb)
 out:
 	if (!error) {
 		set_bit(SDF_FREEZE_INITIATOR, &sdp->sd_flags);
-		atomic_set(&sdp->sd_freeze_state, SFS_FROZEN);
+		set_bit(SDF_FROZEN, &sdp->sd_flags);
 	}
 	mutex_unlock(&sdp->sd_freeze_mutex);
 	return error;
@@ -840,7 +833,7 @@ static int gfs2_thaw_super(struct super_block *sb)
 
 	if (!error) {
 		clear_bit(SDF_FREEZE_INITIATOR, &sdp->sd_flags);
-		atomic_set(&sdp->sd_freeze_state, SFS_UNFROZEN);
+		clear_bit(SDF_FROZEN, &sdp->sd_flags);
 	}
 out:
 	mutex_unlock(&sdp->sd_freeze_mutex);

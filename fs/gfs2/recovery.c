@@ -467,7 +467,7 @@ void gfs2_recover_func(struct work_struct *work)
 	if (!(head.lh_flags & GFS2_LOG_HEAD_UNMOUNT)) {
 		mutex_lock(&sdp->sd_freeze_mutex);
 
-		if (atomic_read(&sdp->sd_freeze_state) != SFS_UNFROZEN) {
+		if (test_bit(SDF_FROZEN, &sdp->sd_flags)) {
 			mutex_unlock(&sdp->sd_freeze_mutex);
 			fs_warn(sdp, "jid=%u: Can't replay: filesystem "
 				"is frozen\n", jd->jd_jid);
