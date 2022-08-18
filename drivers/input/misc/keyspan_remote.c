@@ -485,7 +485,7 @@ static int keyspan_probe(struct usb_interface *interface, const struct usb_devic
 	}
 
 	if (udev->manufacturer)
-		strlcpy(remote->name, udev->manufacturer, sizeof(remote->name));
+		strscpy(remote->name, udev->manufacturer, sizeof(remote->name));
 
 	if (udev->product) {
 		if (udev->manufacturer)

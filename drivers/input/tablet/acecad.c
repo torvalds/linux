@@ -155,7 +155,7 @@ static int usb_acecad_probe(struct usb_interface *intf, const struct usb_device_
 	acecad->input = input_dev;
 
 	if (dev->manufacturer)
-		strlcpy(acecad->name, dev->manufacturer, sizeof(acecad->name));
+		strscpy(acecad->name, dev->manufacturer, sizeof(acecad->name));
 
 	if (dev->product) {
 		if (dev->manufacturer)

@@ -354,7 +354,7 @@ static int synusb_probe(struct usb_interface *intf,
 	synusb->urb->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
 
 	if (udev->manufacturer)
-		strlcpy(synusb->name, udev->manufacturer,
+		strscpy(synusb->name, udev->manufacturer,
 			sizeof(synusb->name));
 
 	if (udev->product) {

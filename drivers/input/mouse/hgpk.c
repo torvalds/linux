@@ -1057,7 +1057,7 @@ void hgpk_module_init(void)
 						strlen(hgpk_mode_name));
 	if (hgpk_default_mode == HGPK_MODE_INVALID) {
 		hgpk_default_mode = HGPK_MODE_MOUSE;
-		strlcpy(hgpk_mode_name, hgpk_mode_names[HGPK_MODE_MOUSE],
+		strscpy(hgpk_mode_name, hgpk_mode_names[HGPK_MODE_MOUSE],
 			sizeof(hgpk_mode_name));
 	}
 }

@@ -126,8 +126,8 @@ static int q40kbd_probe(struct platform_device *pdev)
 	port->close = q40kbd_close;
 	port->port_data = q40kbd;
 	port->dev.parent = &pdev->dev;
-	strlcpy(port->name, "Q40 Kbd Port", sizeof(port->name));
-	strlcpy(port->phys, "Q40", sizeof(port->phys));
+	strscpy(port->name, "Q40 Kbd Port", sizeof(port->name));
+	strscpy(port->phys, "Q40", sizeof(port->phys));
 
 	q40kbd_stop();
 
