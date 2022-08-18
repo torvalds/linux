@@ -6657,7 +6657,6 @@ static int rtl8xxxu_probe(struct usb_interface *interface,
 	hw = ieee80211_alloc_hw(sizeof(struct rtl8xxxu_priv), &rtl8xxxu_ops);
 	if (!hw) {
 		ret = -ENOMEM;
-		priv = NULL;
 		goto err_put_dev;
 	}
 
@@ -6768,11 +6767,9 @@ static int rtl8xxxu_probe(struct usb_interface *interface,
 err_set_intfdata:
 	usb_set_intfdata(interface, NULL);
 
-	if (priv) {
-		kfree(priv->fw_data);
-		mutex_destroy(&priv->usb_buf_mutex);
-		mutex_destroy(&priv->h2c_mutex);
-	}
+	kfree(priv->fw_data);
+	mutex_destroy(&priv->usb_buf_mutex);
+	mutex_destroy(&priv->h2c_mutex);
 
 	ieee80211_free_hw(hw);
 err_put_dev:
