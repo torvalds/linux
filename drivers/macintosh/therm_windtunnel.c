@@ -321,7 +321,7 @@ static void do_attach(struct i2c_adapter *adapter)
 	if (np) {
 		of_node_put(np);
 	} else {
-		strlcpy(info.type, "MAC,ds1775", I2C_NAME_SIZE);
+		strscpy(info.type, "MAC,ds1775", I2C_NAME_SIZE);
 		i2c_new_scanned_device(adapter, &info, scan_ds1775, NULL);
 	}
 
@@ -329,7 +329,7 @@ static void do_attach(struct i2c_adapter *adapter)
 	if (np) {
 		of_node_put(np);
 	} else {
-		strlcpy(info.type, "MAC,adm1030", I2C_NAME_SIZE);
+		strscpy(info.type, "MAC,adm1030", I2C_NAME_SIZE);
 		i2c_new_scanned_device(adapter, &info, scan_adm1030, NULL);
 	}
 }
