@@ -250,6 +250,7 @@
 	EM(rxrpc_reqack_retrans,		"RETRANS   ")	\
 	EM(rxrpc_reqack_slow_start,		"SLOW-START")	\
 	E_(rxrpc_reqack_small_txwin,		"SMALL-TXWN")
+/* ---- Must update size of stat_why_req_ack[] if more are added! */
 
 /*
  * Generate enums for tracing information.

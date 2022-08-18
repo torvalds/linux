@@ -430,6 +430,7 @@ int rxrpc_send_data_packet(struct rxrpc_call *call, struct sk_buff *skb,
 	else
 		goto dont_set_request_ack;
 
+	rxrpc_inc_stat(call->rxnet, stat_why_req_ack[why]);
 	trace_rxrpc_req_ack(call->debug_id, sp->hdr.seq, why);
 	if (why != rxrpc_reqack_no_srv_last)
 		whdr.flags |= RXRPC_REQUEST_ACK;
