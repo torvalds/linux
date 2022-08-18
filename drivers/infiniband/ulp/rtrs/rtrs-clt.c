@@ -16,6 +16,7 @@
 
 #include "rtrs-clt.h"
 #include "rtrs-log.h"
+#include "rtrs-clt-trace.h"
 
 #define RTRS_CONNECT_TIMEOUT_MS 30000
 /*
@@ -301,6 +302,8 @@ static void rtrs_clt_stop_and_destroy_conns(struct rtrs_clt_path *clt_path);
 static void rtrs_rdma_error_recovery(struct rtrs_clt_con *con)
 {
 	struct rtrs_clt_path *clt_path = to_clt_path(con->c.path);
+
+	trace_rtrs_rdma_error_recovery(clt_path);
 
 	if (rtrs_clt_change_state_from_to(clt_path,
 					   RTRS_CLT_CONNECTED,
@@ -1942,6 +1945,8 @@ static int rtrs_rdma_conn_rejected(struct rtrs_clt_con *con,
 
 void rtrs_clt_close_conns(struct rtrs_clt_path *clt_path, bool wait)
 {
+	trace_rtrs_clt_close_conns(clt_path);
+
 	if (rtrs_clt_change_state_get_old(clt_path, RTRS_CLT_CLOSING, NULL))
 		queue_work(rtrs_wq, &clt_path->close_work);
 	if (wait)
@@ -2647,6 +2652,8 @@ static void rtrs_clt_reconnect_work(struct work_struct *work)
 	clt_path = container_of(to_delayed_work(work), struct rtrs_clt_path,
 				reconnect_dwork);
 	clt = clt_path->clt;
+
+	trace_rtrs_clt_reconnect_work(clt_path);
 
 	if (READ_ONCE(clt_path->state) != RTRS_CLT_RECONNECTING)
 		return;
