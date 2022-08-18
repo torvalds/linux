@@ -692,7 +692,7 @@ static int stts751_detect(struct i2c_client *new_client,
 	}
 	dev_dbg(&new_client->dev, "Chip %s detected", name);
 
-	strlcpy(info->type, stts751_id[0].name, I2C_NAME_SIZE);
+	strscpy(info->type, stts751_id[0].name, I2C_NAME_SIZE);
 	return 0;
 }
 

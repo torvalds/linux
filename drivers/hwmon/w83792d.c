@@ -1346,7 +1346,7 @@ w83792d_detect(struct i2c_client *client, struct i2c_board_info *info)
 	if (val1 != 0x7a || val2 != 0x5c)
 		return -ENODEV;
 
-	strlcpy(info->type, "w83792d", I2C_NAME_SIZE);
+	strscpy(info->type, "w83792d", I2C_NAME_SIZE);
 
 	return 0;
 }

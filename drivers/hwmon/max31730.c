@@ -399,7 +399,7 @@ static int max31730_detect(struct i2c_client *client,
 			return -ENODEV;
 	}
 
-	strlcpy(info->type, "max31730", I2C_NAME_SIZE);
+	strscpy(info->type, "max31730", I2C_NAME_SIZE);
 
 	return 0;
 }

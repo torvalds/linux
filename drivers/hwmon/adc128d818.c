@@ -384,7 +384,7 @@ static int adc128_detect(struct i2c_client *client, struct i2c_board_info *info)
 	if (i2c_smbus_read_byte_data(client, ADC128_REG_BUSY_STATUS) & 0xfc)
 		return -ENODEV;
 
-	strlcpy(info->type, "adc128d818", I2C_NAME_SIZE);
+	strscpy(info->type, "adc128d818", I2C_NAME_SIZE);
 
 	return 0;
 }

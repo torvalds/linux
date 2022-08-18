@@ -1075,7 +1075,7 @@ static int fschmd_detect(struct i2c_client *client,
 	else
 		return -ENODEV;
 
-	strlcpy(info->type, fschmd_id[kind].name, I2C_NAME_SIZE);
+	strscpy(info->type, fschmd_id[kind].name, I2C_NAME_SIZE);
 
 	return 0;
 }

@@ -1333,7 +1333,7 @@ static int w83791d_detect(struct i2c_client *client,
 	if (val1 != 0x71 || val2 != 0x5c)
 		return -ENODEV;
 
-	strlcpy(info->type, "w83791d", I2C_NAME_SIZE);
+	strscpy(info->type, "w83791d", I2C_NAME_SIZE);
 
 	return 0;
 }

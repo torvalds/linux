@@ -739,7 +739,7 @@ static int fts_detect(struct i2c_client *client,
 	if (val != 0x11)
 		return -ENODEV;
 
-	strlcpy(info->type, fts_id[0].name, I2C_NAME_SIZE);
+	strscpy(info->type, fts_id[0].name, I2C_NAME_SIZE);
 	info->flags = 0;
 	return 0;
 }

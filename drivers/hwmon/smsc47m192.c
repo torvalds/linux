@@ -582,7 +582,7 @@ static int smsc47m192_detect(struct i2c_client *client,
 		return -ENODEV;
 	}
 
-	strlcpy(info->type, "smsc47m192", I2C_NAME_SIZE);
+	strscpy(info->type, "smsc47m192", I2C_NAME_SIZE);
 
 	return 0;
 }

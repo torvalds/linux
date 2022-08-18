@@ -514,7 +514,7 @@ static int max6639_detect(struct i2c_client *client,
 	if (dev_id != 0x58 || manu_id != 0x4D)
 		return -ENODEV;
 
-	strlcpy(info->type, "max6639", I2C_NAME_SIZE);
+	strscpy(info->type, "max6639", I2C_NAME_SIZE);
 
 	return 0;
 }

@@ -1153,7 +1153,7 @@ static int asc7621_detect(struct i2c_client *client,
 
 		if (company == asc7621_chips[chip_index].company_id &&
 		    verstep == asc7621_chips[chip_index].verstep_id) {
-			strlcpy(info->type, asc7621_chips[chip_index].name,
+			strscpy(info->type, asc7621_chips[chip_index].name,
 				I2C_NAME_SIZE);
 
 			dev_info(&adapter->dev, "Matched %s at 0x%02x\n",
