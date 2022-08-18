@@ -3343,7 +3343,8 @@ static bool dcn10_dmub_should_update_cursor_data(
 	if (dcn10_can_pipe_disable_cursor(pipe_ctx))
 		return false;
 
-	if (pipe_ctx->stream->link->psr_settings.psr_version == DC_PSR_VERSION_SU_1 || pipe_ctx->stream->link->psr_settings.psr_version == DC_PSR_VERSION_1)
+	if ((pipe_ctx->stream->link->psr_settings.psr_version == DC_PSR_VERSION_SU_1 || pipe_ctx->stream->link->psr_settings.psr_version == DC_PSR_VERSION_1)
+			&& pipe_ctx->stream->ctx->dce_version >= DCN_VERSION_3_1)
 		return true;
 
 	return false;

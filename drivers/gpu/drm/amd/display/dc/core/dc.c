@@ -3113,11 +3113,9 @@ static void commit_planes_do_stream_update(struct dc *dc,
 
 static bool dc_dmub_should_send_dirty_rect_cmd(struct dc *dc, struct dc_stream_state *stream)
 {
-	if (stream->link->psr_settings.psr_version == DC_PSR_VERSION_SU_1)
-		return true;
-
-	if (stream->link->psr_settings.psr_version == DC_PSR_VERSION_1 &&
-	    dc->debug.enable_sw_cntl_psr)
+	if ((stream->link->psr_settings.psr_version == DC_PSR_VERSION_SU_1
+			|| stream->link->psr_settings.psr_version == DC_PSR_VERSION_1)
+			&& stream->ctx->dce_version >= DCN_VERSION_3_1)
 		return true;
 
 	return false;

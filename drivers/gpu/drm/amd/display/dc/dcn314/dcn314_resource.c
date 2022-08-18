@@ -911,7 +911,6 @@ static const struct dc_debug_options debug_defaults_drv = {
 		}
 	},
 	.optimize_edp_link_rate = true,
-	.enable_sw_cntl_psr = true,
 	.seamless_boot_odm_combine = true
 };
 
