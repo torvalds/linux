@@ -1018,6 +1018,7 @@ static irqreturn_t aspeed_video_irq(int irq, void *arg)
 	u32 sts = aspeed_video_read(video, VE_INTERRUPT_STATUS);
 	bool get_box = false;
 
+	aspeed_video_write(video, VE_INTERRUPT_STATUS, sts);
 	sts &= aspeed_video_read(video, VE_INTERRUPT_CTRL);
 
 	v4l2_dbg(2, debug, &video->v4l2_dev, "irq sts=%#x %s%s%s%s\n", sts,
@@ -1039,8 +1040,6 @@ static irqreturn_t aspeed_video_irq(int irq, void *arg)
 		if (test_bit(VIDEO_RES_DETECT, &video->flags)) {
 			aspeed_video_update(video, VE_INTERRUPT_CTRL,
 					    VE_INTERRUPT_MODE_DETECT, 0);
-			aspeed_video_write(video, VE_INTERRUPT_STATUS,
-					   VE_INTERRUPT_MODE_DETECT);
 			sts &= ~VE_INTERRUPT_MODE_DETECT;
 			set_bit(VIDEO_MODE_DETECT_DONE, &video->flags);
 			wake_up_interruptible_all(&video->wait);
@@ -1070,9 +1069,6 @@ static irqreturn_t aspeed_video_irq(int irq, void *arg)
 				    VE_SEQ_CTRL_TRIG_COMP, 0);
 		aspeed_video_update(video, VE_INTERRUPT_CTRL,
 				    VE_INTERRUPT_COMP_COMPLETE, 0);
-		aspeed_video_write(video, VE_INTERRUPT_STATUS,
-				   VE_INTERRUPT_CAPTURE_COMPLETE |
-				   VE_INTERRUPT_COMP_COMPLETE);
 		sts &= ~VE_INTERRUPT_COMP_COMPLETE;
 
 		if (frame_done) {
@@ -1083,7 +1079,7 @@ static irqreturn_t aspeed_video_irq(int irq, void *arg)
 		}
 	}
 
-	return get_box ? IRQ_WAKE_THREAD : (sts ? IRQ_NONE : IRQ_HANDLED);
+	return get_box ? IRQ_WAKE_THREAD : IRQ_HANDLED;
 }
 
 static void aspeed_video_check_and_set_polarity(struct aspeed_video *video)
