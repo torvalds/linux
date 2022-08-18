@@ -2,9 +2,7 @@
 /* Copyright (c) 2019, Vladimir Oltean <olteanv@gmail.com>
  *
  * This module is not a complete tagger implementation. It only provides
- * primitives for taggers that rely on 802.1Q VLAN tags to use. The
- * dsa_8021q_netdev_ops is registered for API compliance and not used
- * directly by callers.
+ * primitives for taggers that rely on 802.1Q VLAN tags to use.
  */
 #include <linux/if_vlan.h>
 #include <linux/dsa/8021q.h>
