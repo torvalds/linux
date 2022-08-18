@@ -553,11 +553,15 @@ static int init_vqs(struct virtio_balloon *vb)
 		virtqueue_kick(vb->stats_vq);
 	}
 
-	if (virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_FREE_PAGE_HINT))
+	if (virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_FREE_PAGE_HINT)) {
 		vb->free_page_vq = vqs[VIRTIO_BALLOON_VQ_FREE_PAGE];
+		virtqueue_disable_dma_api_for_buffers(vb->free_page_vq);
+	}
 
-	if (virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_REPORTING))
+	if (virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_REPORTING)) {
 		vb->reporting_vq = vqs[VIRTIO_BALLOON_VQ_REPORTING];
+		virtqueue_disable_dma_api_for_buffers(vb->reporting_vq);
+	}
 
 	return 0;
 }

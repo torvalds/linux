@@ -2863,4 +2863,14 @@ const struct vring *virtqueue_get_vring(struct virtqueue *vq)
 }
 EXPORT_SYMBOL_GPL(virtqueue_get_vring);
 
+/*
+ * Prevents use of DMA API for buffers passed via the specified virtqueue.
+ * DMA API may still be used for the vrings themselves.
+ */
+void virtqueue_disable_dma_api_for_buffers(struct virtqueue *vq)
+{
+	to_vvq(vq)->use_dma_api = false;
+}
+EXPORT_SYMBOL_GPL(virtqueue_disable_dma_api_for_buffers);
+
 MODULE_LICENSE("GPL");
