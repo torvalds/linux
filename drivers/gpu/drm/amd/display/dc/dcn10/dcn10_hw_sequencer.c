@@ -3470,8 +3470,7 @@ void dcn10_set_cursor_position(struct pipe_ctx *pipe_ctx)
 		.rotation = pipe_ctx->plane_state->rotation,
 		.mirror = pipe_ctx->plane_state->horizontal_mirror
 	};
-	bool pipe_split_on = (pipe_ctx->top_pipe != NULL) ||
-		(pipe_ctx->bottom_pipe != NULL);
+	bool pipe_split_on = false;
 	bool odm_combine_on = (pipe_ctx->next_odm_pipe != NULL) ||
 		(pipe_ctx->prev_odm_pipe != NULL);
 
@@ -3479,6 +3478,13 @@ void dcn10_set_cursor_position(struct pipe_ctx *pipe_ctx)
 	int y_plane = pipe_ctx->plane_state->dst_rect.y;
 	int x_pos = pos_cpy.x;
 	int y_pos = pos_cpy.y;
+
+	if ((pipe_ctx->top_pipe != NULL) || (pipe_ctx->bottom_pipe != NULL)) {
+		if ((pipe_ctx->plane_state->src_rect.width != pipe_ctx->plane_res.scl_data.viewport.width) ||
+			(pipe_ctx->plane_state->src_rect.height != pipe_ctx->plane_res.scl_data.viewport.height)) {
+			pipe_split_on = true;
+		}
+	}
 
 	/**
 	 * DC cursor is stream space, HW cursor is plane space and drawn
@@ -3551,8 +3557,36 @@ void dcn10_set_cursor_position(struct pipe_ctx *pipe_ctx)
 	if (pos_cpy.enable && dcn10_can_pipe_disable_cursor(pipe_ctx))
 		pos_cpy.enable = false;
 
+
+	if (param.rotation == ROTATION_ANGLE_0) {
+		int viewport_width =
+			pipe_ctx->plane_res.scl_data.viewport.width;
+		int viewport_x =
+			pipe_ctx->plane_res.scl_data.viewport.x;
+
+		if (param.mirror) {
+			if (pipe_split_on || odm_combine_on) {
+				if (pos_cpy.x >= viewport_width + viewport_x) {
+					pos_cpy.x = 2 * viewport_width
+							- pos_cpy.x + 2 * viewport_x;
+				} else {
+					uint32_t temp_x = pos_cpy.x;
+
+					pos_cpy.x = 2 * viewport_x - pos_cpy.x;
+					if (temp_x >= viewport_x +
+						(int)hubp->curs_attr.width || pos_cpy.x
+						<= (int)hubp->curs_attr.width +
+						pipe_ctx->plane_state->src_rect.x) {
+						pos_cpy.x = temp_x + viewport_width;
+					}
+				}
+			} else {
+				pos_cpy.x = viewport_width - pos_cpy.x + 2 * viewport_x;
+			}
+		}
+	}
 	// Swap axis and mirror horizontally
-	if (param.rotation == ROTATION_ANGLE_90) {
+	else if (param.rotation == ROTATION_ANGLE_90) {
 		uint32_t temp_x = pos_cpy.x;
 
 		pos_cpy.x = pipe_ctx->plane_res.scl_data.viewport.width -
@@ -3623,23 +3657,25 @@ void dcn10_set_cursor_position(struct pipe_ctx *pipe_ctx)
 		int viewport_x =
 			pipe_ctx->plane_res.scl_data.viewport.x;
 
-		if (pipe_split_on || odm_combine_on) {
-			if (pos_cpy.x >= viewport_width + viewport_x) {
-				pos_cpy.x = 2 * viewport_width
-						- pos_cpy.x + 2 * viewport_x;
-			} else {
-				uint32_t temp_x = pos_cpy.x;
+		if (!param.mirror) {
+			if (pipe_split_on || odm_combine_on) {
+				if (pos_cpy.x >= viewport_width + viewport_x) {
+					pos_cpy.x = 2 * viewport_width
+							- pos_cpy.x + 2 * viewport_x;
+				} else {
+					uint32_t temp_x = pos_cpy.x;
 
-				pos_cpy.x = 2 * viewport_x - pos_cpy.x;
-				if (temp_x >= viewport_x +
-					(int)hubp->curs_attr.width || pos_cpy.x
-					<= (int)hubp->curs_attr.width +
-					pipe_ctx->plane_state->src_rect.x) {
-					pos_cpy.x = temp_x + viewport_width;
+					pos_cpy.x = 2 * viewport_x - pos_cpy.x;
+					if (temp_x >= viewport_x +
+						(int)hubp->curs_attr.width || pos_cpy.x
+						<= (int)hubp->curs_attr.width +
+						pipe_ctx->plane_state->src_rect.x) {
+						pos_cpy.x = temp_x + viewport_width;
+					}
 				}
+			} else {
+				pos_cpy.x = viewport_width - pos_cpy.x + 2 * viewport_x;
 			}
-		} else {
-			pos_cpy.x = viewport_width - pos_cpy.x + 2 * viewport_x;
 		}
 
 		/**
