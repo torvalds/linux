@@ -3,6 +3,7 @@
 /* Copyright (c) 2017, The Linux Foundation. All rights reserved.
  */
 #include "ipq8074.dtsi"
+#include "pmp8074.dtsi"
 
 / {
 	model = "Qualcomm Technologies, Inc. IPQ8074-HK01";
@@ -84,6 +85,7 @@
 
 &sdhc_1 {
 	status = "okay";
+	vqmmc-supply = <&l11>;
 };
 
 &qusb_phy_0 {
