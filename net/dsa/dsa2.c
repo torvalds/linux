@@ -470,7 +470,7 @@ static int dsa_port_setup(struct dsa_port *dp)
 		break;
 	case DSA_PORT_TYPE_CPU:
 		if (dp->dn) {
-			err = dsa_port_link_register_of(dp);
+			err = dsa_shared_port_link_register_of(dp);
 			if (err)
 				break;
 			dsa_port_link_registered = true;
@@ -488,7 +488,7 @@ static int dsa_port_setup(struct dsa_port *dp)
 		break;
 	case DSA_PORT_TYPE_DSA:
 		if (dp->dn) {
-			err = dsa_port_link_register_of(dp);
+			err = dsa_shared_port_link_register_of(dp);
 			if (err)
 				break;
 			dsa_port_link_registered = true;
@@ -517,7 +517,7 @@ static int dsa_port_setup(struct dsa_port *dp)
 	if (err && dsa_port_enabled)
 		dsa_port_disable(dp);
 	if (err && dsa_port_link_registered)
-		dsa_port_link_unregister_of(dp);
+		dsa_shared_port_link_unregister_of(dp);
 	if (err) {
 		if (ds->ops->port_teardown)
 			ds->ops->port_teardown(ds, dp->index);
@@ -590,12 +590,12 @@ static void dsa_port_teardown(struct dsa_port *dp)
 	case DSA_PORT_TYPE_CPU:
 		dsa_port_disable(dp);
 		if (dp->dn)
-			dsa_port_link_unregister_of(dp);
+			dsa_shared_port_link_unregister_of(dp);
 		break;
 	case DSA_PORT_TYPE_DSA:
 		dsa_port_disable(dp);
 		if (dp->dn)
-			dsa_port_link_unregister_of(dp);
+			dsa_shared_port_link_unregister_of(dp);
 		break;
 	case DSA_PORT_TYPE_USER:
 		if (dp->slave) {
