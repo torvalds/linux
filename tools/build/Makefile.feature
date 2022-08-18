@@ -137,6 +137,12 @@ FEATURE_DISPLAY ?=              \
          libaio			\
          libzstd
 
+#
+# Declare group members of a feature to display the logical OR of the detection
+# result instead of each member result.
+#
+FEATURE_GROUP_MEMBERS-libbfd = libbfd-liberty libbfd-liberty-z
+
 # Set FEATURE_CHECK_(C|LD)FLAGS-all for all FEATURE_TESTS features.
 # If in the future we need per-feature checks/flags for features not
 # mentioned in this list we need to refactor this ;-).
@@ -179,8 +185,17 @@ endif
 #
 feature_print_status = $(eval $(feature_print_status_code))
 
+feature_group = $(eval $(feature_gen_group)) $(GROUP)
+
+define feature_gen_group
+  GROUP := $(1)
+  ifneq ($(feature_verbose),1)
+    GROUP += $(FEATURE_GROUP_MEMBERS-$(1))
+  endif
+endef
+
 define feature_print_status_code
-  ifeq ($(feature-$(1)), 1)
+  ifneq (,$(filter 1,$(foreach feat,$(call feature_group,$(feat)),$(feature-$(feat)))))
     MSG = $(shell printf '...%40s: [ \033[32mon\033[m  ]' $(1))
   else
     MSG = $(shell printf '...%40s: [ \033[31mOFF\033[m ]' $(1))
@@ -244,12 +259,20 @@ ifeq ($(VF),1)
   feature_verbose := 1
 endif
 
+ifneq ($(feature_verbose),1)
+  #
+  # Determine the features to omit from the displayed message, as only the
+  # logical OR of the detection result will be shown.
+  #
+  FEATURE_OMIT := $(foreach feat,$(FEATURE_DISPLAY),$(FEATURE_GROUP_MEMBERS-$(feat)))
+endif
+
 feature_display_entries = $(eval $(feature_display_entries_code))
 define feature_display_entries_code
   ifeq ($(feature_display),1)
     $$(info )
     $$(info Auto-detecting system features:)
-    $(foreach feat,$(FEATURE_DISPLAY),$(call feature_print_status,$(feat),) $$(info $(MSG)))
+    $(foreach feat,$(filter-out $(FEATURE_OMIT),$(FEATURE_DISPLAY)),$(call feature_print_status,$(feat),) $$(info $(MSG)))
   endif
 
   ifeq ($(feature_verbose),1)
