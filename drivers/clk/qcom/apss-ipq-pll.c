@@ -39,10 +39,14 @@ static struct clk_alpha_pll ipq_pll = {
 
 static const struct alpha_pll_config ipq6018_pll_config = {
 	.l = 0x37,
-	.config_ctl_val = 0x04141200,
-	.config_ctl_hi_val = 0x0,
+	.config_ctl_val = 0x240d4828,
+	.config_ctl_hi_val = 0x6,
 	.early_output_mask = BIT(3),
+	.aux2_output_mask = BIT(2),
+	.aux_output_mask = BIT(1),
 	.main_output_mask = BIT(0),
+	.test_ctl_val = 0x1c0000C0,
+	.test_ctl_hi_val = 0x4000,
 };
 
 static const struct regmap_config ipq_pll_regmap_config = {
