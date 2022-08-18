@@ -469,8 +469,8 @@ void cvm_oct_rx_initialize(void)
 		if (!(pow_receive_groups & BIT(i)))
 			continue;
 
-		netif_napi_add(dev_for_napi, &oct_rx_group[i].napi,
-			       cvm_oct_napi_poll, rx_napi_weight);
+		netif_napi_add_weight(dev_for_napi, &oct_rx_group[i].napi,
+				      cvm_oct_napi_poll, rx_napi_weight);
 		napi_enable(&oct_rx_group[i].napi);
 
 		oct_rx_group[i].irq = OCTEON_IRQ_WORKQ0 + i;

@@ -467,8 +467,7 @@ static const struct watchdog_ops ds1374_wdt_ops = {
  *
  *****************************************************************************
  */
-static int ds1374_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int ds1374_probe(struct i2c_client *client)
 {
 	struct ds1374 *ds1374;
 	int ret;
@@ -575,7 +574,7 @@ static struct i2c_driver ds1374_driver = {
 		.of_match_table = of_match_ptr(ds1374_of_match),
 		.pm = &ds1374_pm,
 	},
-	.probe = ds1374_probe,
+	.probe_new = ds1374_probe,
 	.remove = ds1374_remove,
 	.id_table = ds1374_id,
 };

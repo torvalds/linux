@@ -70,6 +70,10 @@ void intel_uc_fw_change_status(struct intel_uc_fw *uc_fw,
 	fw_def(BROXTON,      0, guc_def(bxt,  70, 1, 1)) \
 	fw_def(SKYLAKE,      0, guc_def(skl,  70, 1, 1))
 
+#define INTEL_GUC_FIRMWARE_DEFS_FALLBACK(fw_def, guc_def) \
+	fw_def(ALDERLAKE_P,  0, guc_def(adlp, 69, 0, 3)) \
+	fw_def(ALDERLAKE_S,  0, guc_def(tgl,  69, 0, 3))
+
 #define INTEL_HUC_FIRMWARE_DEFS(fw_def, huc_def) \
 	fw_def(ALDERLAKE_P,  0, huc_def(tgl,  7, 9, 3)) \
 	fw_def(ALDERLAKE_S,  0, huc_def(tgl,  7, 9, 3)) \
@@ -105,6 +109,7 @@ void intel_uc_fw_change_status(struct intel_uc_fw *uc_fw,
 	MODULE_FIRMWARE(uc_);
 
 INTEL_GUC_FIRMWARE_DEFS(INTEL_UC_MODULE_FW, MAKE_GUC_FW_PATH)
+INTEL_GUC_FIRMWARE_DEFS_FALLBACK(INTEL_UC_MODULE_FW, MAKE_GUC_FW_PATH)
 INTEL_HUC_FIRMWARE_DEFS(INTEL_UC_MODULE_FW, MAKE_HUC_FW_PATH)
 
 /* The below structs and macros are used to iterate across the list of blobs */
@@ -149,6 +154,9 @@ __uc_fw_auto_select(struct drm_i915_private *i915, struct intel_uc_fw *uc_fw)
 	static const struct uc_fw_platform_requirement blobs_guc[] = {
 		INTEL_GUC_FIRMWARE_DEFS(MAKE_FW_LIST, GUC_FW_BLOB)
 	};
+	static const struct uc_fw_platform_requirement blobs_guc_fallback[] = {
+		INTEL_GUC_FIRMWARE_DEFS_FALLBACK(MAKE_FW_LIST, GUC_FW_BLOB)
+	};
 	static const struct uc_fw_platform_requirement blobs_huc[] = {
 		INTEL_HUC_FIRMWARE_DEFS(MAKE_FW_LIST, HUC_FW_BLOB)
 	};
@@ -156,11 +164,20 @@ __uc_fw_auto_select(struct drm_i915_private *i915, struct intel_uc_fw *uc_fw)
 		[INTEL_UC_FW_TYPE_GUC] = { blobs_guc, ARRAY_SIZE(blobs_guc) },
 		[INTEL_UC_FW_TYPE_HUC] = { blobs_huc, ARRAY_SIZE(blobs_huc) },
 	};
-	static const struct uc_fw_platform_requirement *fw_blobs;
+	const struct uc_fw_platform_requirement *fw_blobs;
 	enum intel_platform p = INTEL_INFO(i915)->platform;
 	u32 fw_count;
 	u8 rev = INTEL_REVID(i915);
 	int i;
+
+	/*
+	 * The only difference between the ADL GuC FWs is the HWConfig support.
+	 * ADL-N does not support HWConfig, so we should use the same binary as
+	 * ADL-S, otherwise the GuC might attempt to fetch a config table that
+	 * does not exist.
+	 */
+	if (IS_ADLP_N(i915))
+		p = INTEL_ALDERLAKE_S;
 
 	GEM_BUG_ON(uc_fw->type >= ARRAY_SIZE(blobs_all));
 	fw_blobs = blobs_all[uc_fw->type].blobs;
@@ -170,9 +187,26 @@ __uc_fw_auto_select(struct drm_i915_private *i915, struct intel_uc_fw *uc_fw)
 		if (p == fw_blobs[i].p && rev >= fw_blobs[i].rev) {
 			const struct uc_fw_blob *blob = &fw_blobs[i].blob;
 			uc_fw->path = blob->path;
+			uc_fw->wanted_path = blob->path;
 			uc_fw->major_ver_wanted = blob->major;
 			uc_fw->minor_ver_wanted = blob->minor;
 			break;
+		}
+	}
+
+	if (uc_fw->type == INTEL_UC_FW_TYPE_GUC) {
+		const struct uc_fw_platform_requirement *blobs = blobs_guc_fallback;
+		u32 count = ARRAY_SIZE(blobs_guc_fallback);
+
+		for (i = 0; i < count && p <= blobs[i].p; i++) {
+			if (p == blobs[i].p && rev >= blobs[i].rev) {
+				const struct uc_fw_blob *blob = &blobs[i].blob;
+
+				uc_fw->fallback.path = blob->path;
+				uc_fw->fallback.major_ver = blob->major;
+				uc_fw->fallback.minor_ver = blob->minor;
+				break;
+			}
 		}
 	}
 
@@ -301,45 +335,31 @@ static void __force_fw_fetch_failures(struct intel_uc_fw *uc_fw, int e)
 	}
 }
 
-/**
- * intel_uc_fw_fetch - fetch uC firmware
- * @uc_fw: uC firmware
- *
- * Fetch uC firmware into GEM obj.
- *
- * Return: 0 on success, a negative errno code on failure.
- */
-int intel_uc_fw_fetch(struct intel_uc_fw *uc_fw)
+static int check_gsc_manifest(const struct firmware *fw,
+			      struct intel_uc_fw *uc_fw)
 {
-	struct drm_i915_private *i915 = __uc_fw_to_gt(uc_fw)->i915;
-	struct device *dev = i915->drm.dev;
-	struct drm_i915_gem_object *obj;
-	const struct firmware *fw = NULL;
+	u32 *dw = (u32 *)fw->data;
+	u32 version = dw[HUC_GSC_VERSION_DW];
+
+	uc_fw->major_ver_found = FIELD_GET(HUC_GSC_MAJOR_VER_MASK, version);
+	uc_fw->minor_ver_found = FIELD_GET(HUC_GSC_MINOR_VER_MASK, version);
+
+	return 0;
+}
+
+static int check_ccs_header(struct drm_i915_private *i915,
+			    const struct firmware *fw,
+			    struct intel_uc_fw *uc_fw)
+{
 	struct uc_css_header *css;
 	size_t size;
-	int err;
-
-	GEM_BUG_ON(!i915->wopcm.size);
-	GEM_BUG_ON(!intel_uc_fw_is_enabled(uc_fw));
-
-	err = i915_inject_probe_error(i915, -ENXIO);
-	if (err)
-		goto fail;
-
-	__force_fw_fetch_failures(uc_fw, -EINVAL);
-	__force_fw_fetch_failures(uc_fw, -ESTALE);
-
-	err = request_firmware(&fw, uc_fw->path, dev);
-	if (err)
-		goto fail;
 
 	/* Check the size of the blob before examining buffer contents */
 	if (unlikely(fw->size < sizeof(struct uc_css_header))) {
 		drm_warn(&i915->drm, "%s firmware %s: invalid size: %zu < %zu\n",
 			 intel_uc_fw_type_repr(uc_fw->type), uc_fw->path,
 			 fw->size, sizeof(struct uc_css_header));
-		err = -ENODATA;
-		goto fail;
+		return -ENODATA;
 	}
 
 	css = (struct uc_css_header *)fw->data;
@@ -352,8 +372,7 @@ int intel_uc_fw_fetch(struct intel_uc_fw *uc_fw)
 			 "%s firmware %s: unexpected header size: %zu != %zu\n",
 			 intel_uc_fw_type_repr(uc_fw->type), uc_fw->path,
 			 fw->size, sizeof(struct uc_css_header));
-		err = -EPROTO;
-		goto fail;
+		return -EPROTO;
 	}
 
 	/* uCode size must calculated from other sizes */
@@ -368,8 +387,7 @@ int intel_uc_fw_fetch(struct intel_uc_fw *uc_fw)
 		drm_warn(&i915->drm, "%s firmware %s: invalid size: %zu < %zu\n",
 			 intel_uc_fw_type_repr(uc_fw->type), uc_fw->path,
 			 fw->size, size);
-		err = -ENOEXEC;
-		goto fail;
+		return -ENOEXEC;
 	}
 
 	/* Sanity check whether this fw is not larger than whole WOPCM memory */
@@ -378,8 +396,7 @@ int intel_uc_fw_fetch(struct intel_uc_fw *uc_fw)
 		drm_warn(&i915->drm, "%s firmware %s: invalid size: %zu > %zu\n",
 			 intel_uc_fw_type_repr(uc_fw->type), uc_fw->path,
 			 size, (size_t)i915->wopcm.size);
-		err = -E2BIG;
-		goto fail;
+		return -E2BIG;
 	}
 
 	/* Get version numbers from the CSS header */
@@ -387,6 +404,66 @@ int intel_uc_fw_fetch(struct intel_uc_fw *uc_fw)
 					   css->sw_version);
 	uc_fw->minor_ver_found = FIELD_GET(CSS_SW_VERSION_UC_MINOR,
 					   css->sw_version);
+
+	if (uc_fw->type == INTEL_UC_FW_TYPE_GUC)
+		uc_fw->private_data_size = css->private_data_size;
+
+	return 0;
+}
+
+/**
+ * intel_uc_fw_fetch - fetch uC firmware
+ * @uc_fw: uC firmware
+ *
+ * Fetch uC firmware into GEM obj.
+ *
+ * Return: 0 on success, a negative errno code on failure.
+ */
+int intel_uc_fw_fetch(struct intel_uc_fw *uc_fw)
+{
+	struct drm_i915_private *i915 = __uc_fw_to_gt(uc_fw)->i915;
+	struct device *dev = i915->drm.dev;
+	struct drm_i915_gem_object *obj;
+	const struct firmware *fw = NULL;
+	int err;
+
+	GEM_BUG_ON(!i915->wopcm.size);
+	GEM_BUG_ON(!intel_uc_fw_is_enabled(uc_fw));
+
+	err = i915_inject_probe_error(i915, -ENXIO);
+	if (err)
+		goto fail;
+
+	__force_fw_fetch_failures(uc_fw, -EINVAL);
+	__force_fw_fetch_failures(uc_fw, -ESTALE);
+
+	err = firmware_request_nowarn(&fw, uc_fw->path, dev);
+	if (err && !intel_uc_fw_is_overridden(uc_fw) && uc_fw->fallback.path) {
+		err = firmware_request_nowarn(&fw, uc_fw->fallback.path, dev);
+		if (!err) {
+			drm_notice(&i915->drm,
+				   "%s firmware %s is recommended, but only %s was found\n",
+				   intel_uc_fw_type_repr(uc_fw->type),
+				   uc_fw->wanted_path,
+				   uc_fw->fallback.path);
+			drm_info(&i915->drm,
+				 "Consider updating your linux-firmware pkg or downloading from %s\n",
+				 INTEL_UC_FIRMWARE_URL);
+
+			uc_fw->path = uc_fw->fallback.path;
+			uc_fw->major_ver_wanted = uc_fw->fallback.major_ver;
+			uc_fw->minor_ver_wanted = uc_fw->fallback.minor_ver;
+		}
+	}
+	if (err)
+		goto fail;
+
+	if (uc_fw->loaded_via_gsc)
+		err = check_gsc_manifest(fw, uc_fw);
+	else
+		err = check_ccs_header(i915, fw, uc_fw);
+	if (err)
+		goto fail;
 
 	if (uc_fw->major_ver_found != uc_fw->major_ver_wanted ||
 	    uc_fw->minor_ver_found < uc_fw->minor_ver_wanted) {
@@ -399,9 +476,6 @@ int intel_uc_fw_fetch(struct intel_uc_fw *uc_fw)
 			goto fail;
 		}
 	}
-
-	if (uc_fw->type == INTEL_UC_FW_TYPE_GUC)
-		uc_fw->private_data_size = css->private_data_size;
 
 	if (HAS_LMEM(i915)) {
 		obj = i915_gem_object_create_lmem_from_data(i915, fw->data, fw->size);
@@ -428,8 +502,8 @@ fail:
 				  INTEL_UC_FIRMWARE_MISSING :
 				  INTEL_UC_FIRMWARE_ERROR);
 
-	drm_notice(&i915->drm, "%s firmware %s: fetch failed with error %d\n",
-		   intel_uc_fw_type_repr(uc_fw->type), uc_fw->path, err);
+	i915_probe_error(i915, "%s firmware %s: fetch failed with error %d\n",
+			 intel_uc_fw_type_repr(uc_fw->type), uc_fw->path, err);
 	drm_info(&i915->drm, "%s firmware(s) can be downloaded from %s\n",
 		 intel_uc_fw_type_repr(uc_fw->type), INTEL_UC_FIRMWARE_URL);
 
@@ -470,7 +544,10 @@ static void uc_fw_bind_ggtt(struct intel_uc_fw *uc_fw)
 	if (i915_gem_object_is_lmem(obj))
 		pte_flags |= PTE_LM;
 
-	ggtt->vm.insert_entries(&ggtt->vm, dummy, I915_CACHE_NONE, pte_flags);
+	if (ggtt->vm.raw_insert_entries)
+		ggtt->vm.raw_insert_entries(&ggtt->vm, dummy, I915_CACHE_NONE, pte_flags);
+	else
+		ggtt->vm.insert_entries(&ggtt->vm, dummy, I915_CACHE_NONE, pte_flags);
 }
 
 static void uc_fw_unbind_ggtt(struct intel_uc_fw *uc_fw)
@@ -787,7 +864,13 @@ size_t intel_uc_fw_copy_rsa(struct intel_uc_fw *uc_fw, void *dst, u32 max_len)
 void intel_uc_fw_dump(const struct intel_uc_fw *uc_fw, struct drm_printer *p)
 {
 	drm_printf(p, "%s firmware: %s\n",
-		   intel_uc_fw_type_repr(uc_fw->type), uc_fw->path);
+		   intel_uc_fw_type_repr(uc_fw->type), uc_fw->wanted_path);
+	if (uc_fw->fallback.path) {
+		drm_printf(p, "%s firmware fallback: %s\n",
+			   intel_uc_fw_type_repr(uc_fw->type), uc_fw->fallback.path);
+		drm_printf(p, "fallback selected: %s\n",
+			   str_yes_no(uc_fw->path == uc_fw->fallback.path));
+	}
 	drm_printf(p, "\tstatus: %s\n",
 		   intel_uc_fw_status_repr(uc_fw->status));
 	drm_printf(p, "\tversion: wanted %u.%u, found %u.%u\n",

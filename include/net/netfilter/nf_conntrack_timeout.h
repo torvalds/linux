@@ -105,7 +105,7 @@ struct nf_ct_timeout_hooks {
 	void (*timeout_put)(struct nf_ct_timeout *timeout);
 };
 
-extern const struct nf_ct_timeout_hooks *nf_ct_timeout_hook;
+extern const struct nf_ct_timeout_hooks __rcu *nf_ct_timeout_hook;
 #endif
 
 #endif /* _NF_CONNTRACK_TIMEOUT_H */

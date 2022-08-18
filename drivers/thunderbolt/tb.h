@@ -13,6 +13,7 @@
 #include <linux/pci.h>
 #include <linux/thunderbolt.h>
 #include <linux/uuid.h>
+#include <linux/bitfield.h>
 
 #include "tb_regs.h"
 #include "ctl.h"
@@ -111,7 +112,7 @@ struct tb_switch_tmu {
 
 enum tb_clx {
 	TB_CLX_DISABLE,
-	TB_CL0S,
+	/* CL0s and CL1 are enabled and supported together */
 	TB_CL1,
 	TB_CL2,
 };
@@ -933,19 +934,32 @@ int tb_switch_tmu_enable(struct tb_switch *sw);
 void tb_switch_tmu_configure(struct tb_switch *sw,
 			     enum tb_switch_tmu_rate rate,
 			     bool unidirectional);
+void tb_switch_enable_tmu_1st_child(struct tb_switch *sw,
+				    enum tb_switch_tmu_rate rate);
 /**
- * tb_switch_tmu_hifi_is_enabled() - Checks if the specified TMU mode is enabled
+ * tb_switch_tmu_is_enabled() - Checks if the specified TMU mode is enabled
  * @sw: Router whose TMU mode to check
  * @unidirectional: If uni-directional (bi-directional otherwise)
  *
  * Return true if hardware TMU configuration matches the one passed in
- * as parameter. That is HiFi and either uni-directional or bi-directional.
+ * as parameter. That is HiFi/Normal and either uni-directional or bi-directional.
  */
-static inline bool tb_switch_tmu_hifi_is_enabled(const struct tb_switch *sw,
-						 bool unidirectional)
+static inline bool tb_switch_tmu_is_enabled(const struct tb_switch *sw,
+					    bool unidirectional)
 {
-	return sw->tmu.rate == TB_SWITCH_TMU_RATE_HIFI &&
+	return sw->tmu.rate == sw->tmu.rate_request &&
 	       sw->tmu.unidirectional == unidirectional;
+}
+
+static inline const char *tb_switch_clx_name(enum tb_clx clx)
+{
+	switch (clx) {
+	/* CL0s and CL1 are enabled and supported together */
+	case TB_CL1:
+		return "CL0s/CL1";
+	default:
+		return "unknown";
+	}
 }
 
 int tb_switch_enable_clx(struct tb_switch *sw, enum tb_clx clx);
@@ -953,26 +967,16 @@ int tb_switch_disable_clx(struct tb_switch *sw, enum tb_clx clx);
 
 /**
  * tb_switch_is_clx_enabled() - Checks if the CLx is enabled
- * @sw: Router to check the CLx state for
+ * @sw: Router to check for the CLx
+ * @clx: The CLx state to check for
  *
- * Checks if the CLx is enabled on the router upstream link.
+ * Checks if the specified CLx is enabled on the router upstream link.
  * Not applicable for a host router.
  */
-static inline bool tb_switch_is_clx_enabled(const struct tb_switch *sw)
+static inline bool tb_switch_is_clx_enabled(const struct tb_switch *sw,
+					    enum tb_clx clx)
 {
-	return sw->clx != TB_CLX_DISABLE;
-}
-
-/**
- * tb_switch_is_cl0s_enabled() - Checks if the CL0s is enabled
- * @sw: Router to check for the CL0s
- *
- * Checks if the CL0s is enabled on the router upstream link.
- * Not applicable for a host router.
- */
-static inline bool tb_switch_is_cl0s_enabled(const struct tb_switch *sw)
-{
-	return sw->clx == TB_CL0S;
+	return sw->clx == clx;
 }
 
 /**
@@ -1269,14 +1273,6 @@ static inline void tb_switch_debugfs_init(struct tb_switch *sw) { }
 static inline void tb_switch_debugfs_remove(struct tb_switch *sw) { }
 static inline void tb_service_debugfs_init(struct tb_service *svc) { }
 static inline void tb_service_debugfs_remove(struct tb_service *svc) { }
-#endif
-
-#ifdef CONFIG_USB4_KUNIT_TEST
-int tb_test_init(void);
-void tb_test_exit(void);
-#else
-static inline int tb_test_init(void) { return 0; }
-static inline void tb_test_exit(void) { }
 #endif
 
 #endif

@@ -25,7 +25,7 @@ static void __init kasan_populate_pte(pte_t *ptep, pgprot_t prot)
 	int i;
 
 	for (i = 0; i < PTRS_PER_PTE; i++, ptep++)
-		__set_pte_at(&init_mm, va, ptep, pfn_pte(PHYS_PFN(pa), prot), 0);
+		__set_pte_at(&init_mm, va, ptep, pfn_pte(PHYS_PFN(pa), prot), 1);
 }
 
 int __init kasan_init_shadow_page_tables(unsigned long k_start, unsigned long k_end)

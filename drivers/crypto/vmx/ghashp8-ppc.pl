@@ -16,7 +16,7 @@
 # details see https://www.openssl.org/~appro/cryptogams/.
 # ====================================================================
 #
-# GHASH for for PowerISA v2.07.
+# GHASH for PowerISA v2.07.
 #
 # July 2014
 #

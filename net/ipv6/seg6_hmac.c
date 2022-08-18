@@ -406,7 +406,6 @@ int __net_init seg6_hmac_net_init(struct net *net)
 
 	return rhashtable_init(&sdata->hmac_infos, &rht_params);
 }
-EXPORT_SYMBOL(seg6_hmac_net_init);
 
 void seg6_hmac_exit(void)
 {

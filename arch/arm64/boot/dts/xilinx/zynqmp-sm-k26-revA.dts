@@ -52,7 +52,7 @@
 	gpio-keys {
 		compatible = "gpio-keys";
 		autorepeat;
-		fwuen {
+		key-fwuen {
 			label = "fwuen";
 			gpios = <&gpio 12 GPIO_ACTIVE_LOW>;
 		};
@@ -285,5 +285,5 @@
 			  "", "", "", "", "", /* 155 - 159 */
 			  "", "", "", "", "", /* 160 - 164 */
 			  "", "", "", "", "", /* 165 - 169 */
-			  "", "", "", ""; /* 170 - 174 */
+			  "", "", "", ""; /* 170 - 173 */
 };

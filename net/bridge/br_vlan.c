@@ -505,8 +505,8 @@ struct sk_buff *br_handle_vlan(struct net_bridge *br,
 	if (br_opt_get(br, BROPT_VLAN_STATS_ENABLED)) {
 		stats = this_cpu_ptr(v->stats);
 		u64_stats_update_begin(&stats->syncp);
-		stats->tx_bytes += skb->len;
-		stats->tx_packets++;
+		u64_stats_add(&stats->tx_bytes, skb->len);
+		u64_stats_inc(&stats->tx_packets);
 		u64_stats_update_end(&stats->syncp);
 	}
 
@@ -624,8 +624,8 @@ static bool __allowed_ingress(const struct net_bridge *br,
 	if (br_opt_get(br, BROPT_VLAN_STATS_ENABLED)) {
 		stats = this_cpu_ptr(v->stats);
 		u64_stats_update_begin(&stats->syncp);
-		stats->rx_bytes += skb->len;
-		stats->rx_packets++;
+		u64_stats_add(&stats->rx_bytes, skb->len);
+		u64_stats_inc(&stats->rx_packets);
 		u64_stats_update_end(&stats->syncp);
 	}
 
@@ -1379,16 +1379,16 @@ void br_vlan_get_stats(const struct net_bridge_vlan *v,
 		cpu_stats = per_cpu_ptr(v->stats, i);
 		do {
 			start = u64_stats_fetch_begin_irq(&cpu_stats->syncp);
-			rxpackets = cpu_stats->rx_packets;
-			rxbytes = cpu_stats->rx_bytes;
-			txbytes = cpu_stats->tx_bytes;
-			txpackets = cpu_stats->tx_packets;
+			rxpackets = u64_stats_read(&cpu_stats->rx_packets);
+			rxbytes = u64_stats_read(&cpu_stats->rx_bytes);
+			txbytes = u64_stats_read(&cpu_stats->tx_bytes);
+			txpackets = u64_stats_read(&cpu_stats->tx_packets);
 		} while (u64_stats_fetch_retry_irq(&cpu_stats->syncp, start));
 
-		stats->rx_packets += rxpackets;
-		stats->rx_bytes += rxbytes;
-		stats->tx_bytes += txbytes;
-		stats->tx_packets += txpackets;
+		u64_stats_add(&stats->rx_packets, rxpackets);
+		u64_stats_add(&stats->rx_bytes, rxbytes);
+		u64_stats_add(&stats->tx_bytes, txbytes);
+		u64_stats_add(&stats->tx_packets, txpackets);
 	}
 }
 
@@ -1779,14 +1779,18 @@ static bool br_vlan_stats_fill(struct sk_buff *skb,
 		return false;
 
 	br_vlan_get_stats(v, &stats);
-	if (nla_put_u64_64bit(skb, BRIDGE_VLANDB_STATS_RX_BYTES, stats.rx_bytes,
+	if (nla_put_u64_64bit(skb, BRIDGE_VLANDB_STATS_RX_BYTES,
+			      u64_stats_read(&stats.rx_bytes),
 			      BRIDGE_VLANDB_STATS_PAD) ||
 	    nla_put_u64_64bit(skb, BRIDGE_VLANDB_STATS_RX_PACKETS,
-			      stats.rx_packets, BRIDGE_VLANDB_STATS_PAD) ||
-	    nla_put_u64_64bit(skb, BRIDGE_VLANDB_STATS_TX_BYTES, stats.tx_bytes,
+			      u64_stats_read(&stats.rx_packets),
+			      BRIDGE_VLANDB_STATS_PAD) ||
+	    nla_put_u64_64bit(skb, BRIDGE_VLANDB_STATS_TX_BYTES,
+			      u64_stats_read(&stats.tx_bytes),
 			      BRIDGE_VLANDB_STATS_PAD) ||
 	    nla_put_u64_64bit(skb, BRIDGE_VLANDB_STATS_TX_PACKETS,
-			      stats.tx_packets, BRIDGE_VLANDB_STATS_PAD))
+			      u64_stats_read(&stats.tx_packets),
+			      BRIDGE_VLANDB_STATS_PAD))
 		goto out_err;
 
 	nla_nest_end(skb, nest);

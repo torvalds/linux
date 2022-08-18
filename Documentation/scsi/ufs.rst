@@ -17,6 +17,8 @@ Universal Flash Storage
      3.2 UTP Transfer requests
      3.3 UFS error handling
      3.4 SCSI Error handling
+   4. BSG Support
+   5. UFS Reference Clock Frequency configuration
 
 
 1. Overview
@@ -193,3 +195,16 @@ UFS specifications can be found at:
 
 - UFS - http://www.jedec.org/sites/default/files/docs/JESD220.pdf
 - UFSHCI - http://www.jedec.org/sites/default/files/docs/JESD223.pdf
+
+5. UFS Reference Clock Frequency configuration
+==============================================
+
+Devicetree can define a clock named "ref_clk" under the UFS controller node
+to specify the intended reference clock frequency for the UFS storage
+parts. ACPI-based system can specify the frequency using ACPI
+Device-Specific Data property named "ref-clk-freq". In both ways the value
+is interpreted as frequency in Hz and must match one of the values given in
+the UFS specification. UFS subsystem will attempt to read the value when
+executing common controller initialization. If the value is available, UFS
+subsytem will ensure the bRefClkFreq attribute of the UFS storage device is
+set accordingly and will modify it if there is a mismatch.

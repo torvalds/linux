@@ -9,7 +9,7 @@ LLVM_STRIP ?= llvm-strip
 TOOLS_PATH := $(abspath ../../../../tools)
 BPFTOOL_SRC := $(TOOLS_PATH)/bpf/bpftool
 BPFTOOL_OUTPUT := $(abs_out)/bpftool
-DEFAULT_BPFTOOL := $(OUTPUT)/sbin/bpftool
+DEFAULT_BPFTOOL := $(BPFTOOL_OUTPUT)/bootstrap/bpftool
 BPFTOOL ?= $(DEFAULT_BPFTOOL)
 
 LIBBPF_SRC := $(TOOLS_PATH)/lib/bpf
@@ -61,9 +61,5 @@ $(BPFOBJ): $(wildcard $(LIBBPF_SRC)/*.[ch] $(LIBBPF_SRC)/Makefile) | $(LIBBPF_OU
 		    OUTPUT=$(abspath $(dir $@))/ prefix=		       \
 		    DESTDIR=$(LIBBPF_DESTDIR) $(abspath $@) install_headers
 
-$(DEFAULT_BPFTOOL): $(BPFOBJ) | $(BPFTOOL_OUTPUT)
-	$(Q)$(MAKE) $(submake_extras) -C $(BPFTOOL_SRC)			       \
-		    OUTPUT=$(BPFTOOL_OUTPUT)/				       \
-		    LIBBPF_OUTPUT=$(LIBBPF_OUTPUT)/			       \
-		    LIBBPF_DESTDIR=$(LIBBPF_DESTDIR)/			       \
-		    prefix= DESTDIR=$(abs_out)/ install-bin
+$(DEFAULT_BPFTOOL): | $(BPFTOOL_OUTPUT)
+	$(Q)$(MAKE) $(submake_extras) -C $(BPFTOOL_SRC)	OUTPUT=$(BPFTOOL_OUTPUT)/ bootstrap

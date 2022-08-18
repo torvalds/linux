@@ -171,6 +171,14 @@ EXPORT_SYMBOL_GPL(machine_power_off);
 void (*pm_power_off)(void);
 EXPORT_SYMBOL_GPL(pm_power_off);
 
+size_t __must_check arch_get_random_seed_longs(unsigned long *v, size_t max_longs)
+{
+	if (max_longs && ppc_md.get_random_seed && ppc_md.get_random_seed(v))
+		return 1;
+	return 0;
+}
+EXPORT_SYMBOL(arch_get_random_seed_longs);
+
 void machine_halt(void)
 {
 	machine_shutdown();
@@ -935,12 +943,6 @@ void __init setup_arch(char **cmdline_p)
 	/* Print various info about the machine that has been gathered so far. */
 	print_system_info();
 
-	/* Reserve large chunks of memory for use by CMA for KVM. */
-	kvm_cma_reserve();
-
-	/*  Reserve large chunks of memory for us by CMA for hugetlb */
-	gigantic_hugetlb_cma_reserve();
-
 	klp_init_thread_info(&init_task);
 
 	setup_initial_init_mm(_stext, _etext, _edata, _end);
@@ -954,6 +956,13 @@ void __init setup_arch(char **cmdline_p)
 	smp_release_cpus();
 
 	initmem_init();
+
+	/*
+	 * Reserve large chunks of memory for use by CMA for KVM and hugetlb. These must
+	 * be called after initmem_init(), so that pageblock_order is initialised.
+	 */
+	kvm_cma_reserve();
+	gigantic_hugetlb_cma_reserve();
 
 	early_memtest(min_low_pfn << PAGE_SHIFT, max_low_pfn << PAGE_SHIFT);
 

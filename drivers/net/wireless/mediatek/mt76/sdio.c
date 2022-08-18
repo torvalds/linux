@@ -350,7 +350,6 @@ int mt76s_alloc_tx(struct mt76_dev *dev)
 		if (IS_ERR(q))
 			return PTR_ERR(q);
 
-		q->qid = i;
 		dev->phy.q_tx[i] = q;
 	}
 
@@ -358,7 +357,6 @@ int mt76s_alloc_tx(struct mt76_dev *dev)
 	if (IS_ERR(q))
 		return PTR_ERR(q);
 
-	q->qid = MT_MCUQ_WM;
 	dev->q_mcu[MT_MCUQ_WM] = q;
 
 	return 0;
@@ -517,8 +515,8 @@ static void mt76s_tx_status_data(struct work_struct *work)
 
 static int
 mt76s_tx_queue_skb(struct mt76_dev *dev, struct mt76_queue *q,
-		   struct sk_buff *skb, struct mt76_wcid *wcid,
-		   struct ieee80211_sta *sta)
+		   enum mt76_txq_id qid, struct sk_buff *skb,
+		   struct mt76_wcid *wcid, struct ieee80211_sta *sta)
 {
 	struct mt76_tx_info tx_info = {
 		.skb = skb,
@@ -530,7 +528,7 @@ mt76s_tx_queue_skb(struct mt76_dev *dev, struct mt76_queue *q,
 		return -ENOSPC;
 
 	skb->prev = skb->next = NULL;
-	err = dev->drv->tx_prepare_skb(dev, NULL, q->qid, wcid, sta, &tx_info);
+	err = dev->drv->tx_prepare_skb(dev, NULL, qid, wcid, sta, &tx_info);
 	if (err < 0)
 		return err;
 

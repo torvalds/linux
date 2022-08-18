@@ -63,18 +63,13 @@ void fprop_global_destroy(struct fprop_global *p)
  */
 bool fprop_new_period(struct fprop_global *p, int periods)
 {
-	s64 events;
-	unsigned long flags;
+	s64 events = percpu_counter_sum(&p->events);
 
-	local_irq_save(flags);
-	events = percpu_counter_sum(&p->events);
 	/*
 	 * Don't do anything if there are no events.
 	 */
-	if (events <= 1) {
-		local_irq_restore(flags);
+	if (events <= 1)
 		return false;
-	}
 	write_seqcount_begin(&p->sequence);
 	if (periods < 64)
 		events -= events >> periods;
@@ -82,7 +77,6 @@ bool fprop_new_period(struct fprop_global *p, int periods)
 	percpu_counter_add(&p->events, -events);
 	p->period += periods;
 	write_seqcount_end(&p->sequence);
-	local_irq_restore(flags);
 
 	return true;
 }

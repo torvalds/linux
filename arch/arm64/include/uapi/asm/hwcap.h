@@ -19,6 +19,9 @@
 
 /*
  * HWCAP flags - for AT_HWCAP
+ *
+ * Bits 62 and 63 are reserved for use by libc.
+ * Bits 32-61 are unallocated for potential use by libc.
  */
 #define HWCAP_FP		(1 << 0)
 #define HWCAP_ASIMD		(1 << 1)
@@ -88,5 +91,6 @@
 #define HWCAP2_SME_F32F32	(1 << 29)
 #define HWCAP2_SME_FA64		(1 << 30)
 #define HWCAP2_WFXT		(1UL << 31)
+#define HWCAP2_EBF16		(1UL << 32)
 
 #endif /* _UAPI__ASM_HWCAP_H */

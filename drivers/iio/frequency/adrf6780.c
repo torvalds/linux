@@ -86,7 +86,7 @@ struct adrf6780_state {
 	bool			uc_bias_en;
 	bool			lo_sideband;
 	bool			vdet_out_en;
-	u8			data[3] ____cacheline_aligned;
+	u8			data[3] __aligned(IIO_DMA_MINALIGN);
 };
 
 static int __adrf6780_spi_read(struct adrf6780_state *st, unsigned int reg,

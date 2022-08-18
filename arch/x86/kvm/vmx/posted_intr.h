@@ -5,6 +5,8 @@
 #define POSTED_INTR_ON  0
 #define POSTED_INTR_SN  1
 
+#define PID_TABLE_ENTRY_VALID 1
+
 /* Posted-Interrupt Descriptor */
 struct pi_desc {
 	u32 pir[8];     /* Posted interrupt requested */

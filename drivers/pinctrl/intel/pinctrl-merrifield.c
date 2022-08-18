@@ -520,7 +520,7 @@ static const char *mrfld_get_group_name(struct pinctrl_dev *pctldev,
 {
 	struct mrfld_pinctrl *mp = pinctrl_dev_get_drvdata(pctldev);
 
-	return mp->groups[group].name;
+	return mp->groups[group].grp.name;
 }
 
 static int mrfld_get_group_pins(struct pinctrl_dev *pctldev, unsigned int group,
@@ -528,8 +528,8 @@ static int mrfld_get_group_pins(struct pinctrl_dev *pctldev, unsigned int group,
 {
 	struct mrfld_pinctrl *mp = pinctrl_dev_get_drvdata(pctldev);
 
-	*pins = mp->groups[group].pins;
-	*npins = mp->groups[group].npins;
+	*pins = mp->groups[group].grp.pins;
+	*npins = mp->groups[group].grp.npins;
 	return 0;
 }
 
@@ -604,15 +604,15 @@ static int mrfld_pinmux_set_mux(struct pinctrl_dev *pctldev,
 	 * All pins in the groups needs to be accessible and writable
 	 * before we can enable the mux for this group.
 	 */
-	for (i = 0; i < grp->npins; i++) {
-		if (!mrfld_buf_available(mp, grp->pins[i]))
+	for (i = 0; i < grp->grp.npins; i++) {
+		if (!mrfld_buf_available(mp, grp->grp.pins[i]))
 			return -EBUSY;
 	}
 
 	/* Now enable the mux setting for each pin in the group */
 	raw_spin_lock_irqsave(&mp->lock, flags);
-	for (i = 0; i < grp->npins; i++)
-		mrfld_update_bufcfg(mp, grp->pins[i], bits, mask);
+	for (i = 0; i < grp->grp.npins; i++)
+		mrfld_update_bufcfg(mp, grp->grp.pins[i], bits, mask);
 	raw_spin_unlock_irqrestore(&mp->lock, flags);
 
 	return 0;

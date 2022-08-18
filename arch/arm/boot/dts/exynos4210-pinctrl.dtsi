@@ -11,7 +11,7 @@
  * tree nodes are listed in this file.
  */
 
-#include <dt-bindings/pinctrl/samsung.h>
+#include "exynos-pinctrl.h"
 
 &pinctrl_0 {
 	gpa0: gpa0-gpio-bank {

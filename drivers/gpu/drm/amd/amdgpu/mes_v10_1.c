@@ -87,21 +87,32 @@ static const struct amdgpu_ring_funcs mes_v10_1_ring_funcs = {
 };
 
 static int mes_v10_1_submit_pkt_and_poll_completion(struct amdgpu_mes *mes,
-						    void *pkt, int size)
+						    void *pkt, int size,
+						    int api_status_off)
 {
 	int ndw = size / 4;
 	signed long r;
 	union MESAPI__ADD_QUEUE *x_pkt = pkt;
+	struct MES_API_STATUS *api_status;
 	struct amdgpu_device *adev = mes->adev;
 	struct amdgpu_ring *ring = &mes->ring;
+	unsigned long flags;
 
 	BUG_ON(size % 4 != 0);
 
-	if (amdgpu_ring_alloc(ring, ndw))
+	spin_lock_irqsave(&mes->ring_lock, flags);
+	if (amdgpu_ring_alloc(ring, ndw)) {
+		spin_unlock_irqrestore(&mes->ring_lock, flags);
 		return -ENOMEM;
+	}
+
+	api_status = (struct MES_API_STATUS *)((char *)pkt + api_status_off);
+	api_status->api_completion_fence_addr = mes->ring.fence_drv.gpu_addr;
+	api_status->api_completion_fence_value = ++mes->ring.fence_drv.sync_seq;
 
 	amdgpu_ring_write_multiple(ring, pkt, ndw);
 	amdgpu_ring_commit(ring);
+	spin_unlock_irqrestore(&mes->ring_lock, flags);
 
 	DRM_DEBUG("MES msg=%d was emitted\n", x_pkt->header.opcode);
 
@@ -166,13 +177,9 @@ static int mes_v10_1_add_hw_queue(struct amdgpu_mes *mes,
 	mes_add_queue_pkt.gws_size = input->gws_size;
 	mes_add_queue_pkt.trap_handler_addr = input->tba_addr;
 
-	mes_add_queue_pkt.api_status.api_completion_fence_addr =
-		mes->ring.fence_drv.gpu_addr;
-	mes_add_queue_pkt.api_status.api_completion_fence_value =
-		++mes->ring.fence_drv.sync_seq;
-
 	return mes_v10_1_submit_pkt_and_poll_completion(mes,
-			&mes_add_queue_pkt, sizeof(mes_add_queue_pkt));
+			&mes_add_queue_pkt, sizeof(mes_add_queue_pkt),
+			offsetof(union MESAPI__ADD_QUEUE, api_status));
 }
 
 static int mes_v10_1_remove_hw_queue(struct amdgpu_mes *mes,
@@ -189,13 +196,9 @@ static int mes_v10_1_remove_hw_queue(struct amdgpu_mes *mes,
 	mes_remove_queue_pkt.doorbell_offset = input->doorbell_offset;
 	mes_remove_queue_pkt.gang_context_addr = input->gang_context_addr;
 
-	mes_remove_queue_pkt.api_status.api_completion_fence_addr =
-		mes->ring.fence_drv.gpu_addr;
-	mes_remove_queue_pkt.api_status.api_completion_fence_value =
-		++mes->ring.fence_drv.sync_seq;
-
 	return mes_v10_1_submit_pkt_and_poll_completion(mes,
-			&mes_remove_queue_pkt, sizeof(mes_remove_queue_pkt));
+			&mes_remove_queue_pkt, sizeof(mes_remove_queue_pkt),
+			offsetof(union MESAPI__REMOVE_QUEUE, api_status));
 }
 
 static int mes_v10_1_unmap_legacy_queue(struct amdgpu_mes *mes,
@@ -227,13 +230,9 @@ static int mes_v10_1_unmap_legacy_queue(struct amdgpu_mes *mes,
 			mes_remove_queue_pkt.unmap_kiq_utility_queue = 1;
 	}
 
-	mes_remove_queue_pkt.api_status.api_completion_fence_addr =
-		mes->ring.fence_drv.gpu_addr;
-	mes_remove_queue_pkt.api_status.api_completion_fence_value =
-		++mes->ring.fence_drv.sync_seq;
-
 	return mes_v10_1_submit_pkt_and_poll_completion(mes,
-			&mes_remove_queue_pkt, sizeof(mes_remove_queue_pkt));
+			&mes_remove_queue_pkt, sizeof(mes_remove_queue_pkt),
+			offsetof(union MESAPI__REMOVE_QUEUE, api_status));
 }
 
 static int mes_v10_1_suspend_gang(struct amdgpu_mes *mes,
@@ -258,13 +257,9 @@ static int mes_v10_1_query_sched_status(struct amdgpu_mes *mes)
 	mes_status_pkt.header.opcode = MES_SCH_API_QUERY_SCHEDULER_STATUS;
 	mes_status_pkt.header.dwsize = API_FRAME_SIZE_IN_DWORDS;
 
-	mes_status_pkt.api_status.api_completion_fence_addr =
-		mes->ring.fence_drv.gpu_addr;
-	mes_status_pkt.api_status.api_completion_fence_value =
-		++mes->ring.fence_drv.sync_seq;
-
 	return mes_v10_1_submit_pkt_and_poll_completion(mes,
-			&mes_status_pkt, sizeof(mes_status_pkt));
+			&mes_status_pkt, sizeof(mes_status_pkt),
+			offsetof(union MESAPI__QUERY_MES_STATUS, api_status));
 }
 
 static int mes_v10_1_set_hw_resources(struct amdgpu_mes *mes)
@@ -299,7 +294,7 @@ static int mes_v10_1_set_hw_resources(struct amdgpu_mes *mes)
 
 	for (i = 0; i < AMD_PRIORITY_NUM_LEVELS; i++)
 		mes_set_hw_res_pkt.aggregated_doorbells[i] =
-			mes->agreegated_doorbells[i];
+			mes->aggregated_doorbells[i];
 
 	for (i = 0; i < 5; i++) {
 		mes_set_hw_res_pkt.gc_base[i] = adev->reg_offset[GC_HWIP][0][i];
@@ -313,13 +308,63 @@ static int mes_v10_1_set_hw_resources(struct amdgpu_mes *mes)
 	mes_set_hw_res_pkt.disable_mes_log = 1;
 	mes_set_hw_res_pkt.use_different_vmid_compute = 1;
 
-	mes_set_hw_res_pkt.api_status.api_completion_fence_addr =
-		mes->ring.fence_drv.gpu_addr;
-	mes_set_hw_res_pkt.api_status.api_completion_fence_value =
-		++mes->ring.fence_drv.sync_seq;
-
 	return mes_v10_1_submit_pkt_and_poll_completion(mes,
-			&mes_set_hw_res_pkt, sizeof(mes_set_hw_res_pkt));
+			&mes_set_hw_res_pkt, sizeof(mes_set_hw_res_pkt),
+			offsetof(union MESAPI_SET_HW_RESOURCES, api_status));
+}
+
+static void mes_v10_1_init_aggregated_doorbell(struct amdgpu_mes *mes)
+{
+	struct amdgpu_device *adev = mes->adev;
+	uint32_t data;
+
+	data = RREG32_SOC15(GC, 0, mmCP_MES_DOORBELL_CONTROL1);
+	data &= ~(CP_MES_DOORBELL_CONTROL1__DOORBELL_OFFSET_MASK |
+		  CP_MES_DOORBELL_CONTROL1__DOORBELL_EN_MASK |
+		  CP_MES_DOORBELL_CONTROL1__DOORBELL_HIT_MASK);
+	data |= mes->aggregated_doorbells[AMDGPU_MES_PRIORITY_LEVEL_LOW] <<
+		CP_MES_DOORBELL_CONTROL1__DOORBELL_OFFSET__SHIFT;
+	data |= 1 << CP_MES_DOORBELL_CONTROL1__DOORBELL_EN__SHIFT;
+	WREG32_SOC15(GC, 0, mmCP_MES_DOORBELL_CONTROL1, data);
+
+	data = RREG32_SOC15(GC, 0, mmCP_MES_DOORBELL_CONTROL2);
+	data &= ~(CP_MES_DOORBELL_CONTROL2__DOORBELL_OFFSET_MASK |
+		  CP_MES_DOORBELL_CONTROL2__DOORBELL_EN_MASK |
+		  CP_MES_DOORBELL_CONTROL2__DOORBELL_HIT_MASK);
+	data |= mes->aggregated_doorbells[AMDGPU_MES_PRIORITY_LEVEL_NORMAL] <<
+		CP_MES_DOORBELL_CONTROL2__DOORBELL_OFFSET__SHIFT;
+	data |= 1 << CP_MES_DOORBELL_CONTROL2__DOORBELL_EN__SHIFT;
+	WREG32_SOC15(GC, 0, mmCP_MES_DOORBELL_CONTROL2, data);
+
+	data = RREG32_SOC15(GC, 0, mmCP_MES_DOORBELL_CONTROL3);
+	data &= ~(CP_MES_DOORBELL_CONTROL3__DOORBELL_OFFSET_MASK |
+		  CP_MES_DOORBELL_CONTROL3__DOORBELL_EN_MASK |
+		  CP_MES_DOORBELL_CONTROL3__DOORBELL_HIT_MASK);
+	data |= mes->aggregated_doorbells[AMDGPU_MES_PRIORITY_LEVEL_MEDIUM] <<
+		CP_MES_DOORBELL_CONTROL3__DOORBELL_OFFSET__SHIFT;
+	data |= 1 << CP_MES_DOORBELL_CONTROL3__DOORBELL_EN__SHIFT;
+	WREG32_SOC15(GC, 0, mmCP_MES_DOORBELL_CONTROL3, data);
+
+	data = RREG32_SOC15(GC, 0, mmCP_MES_DOORBELL_CONTROL4);
+	data &= ~(CP_MES_DOORBELL_CONTROL4__DOORBELL_OFFSET_MASK |
+		  CP_MES_DOORBELL_CONTROL4__DOORBELL_EN_MASK |
+		  CP_MES_DOORBELL_CONTROL4__DOORBELL_HIT_MASK);
+	data |= mes->aggregated_doorbells[AMDGPU_MES_PRIORITY_LEVEL_HIGH] <<
+		CP_MES_DOORBELL_CONTROL4__DOORBELL_OFFSET__SHIFT;
+	data |= 1 << CP_MES_DOORBELL_CONTROL4__DOORBELL_EN__SHIFT;
+	WREG32_SOC15(GC, 0, mmCP_MES_DOORBELL_CONTROL4, data);
+
+	data = RREG32_SOC15(GC, 0, mmCP_MES_DOORBELL_CONTROL5);
+	data &= ~(CP_MES_DOORBELL_CONTROL5__DOORBELL_OFFSET_MASK |
+		  CP_MES_DOORBELL_CONTROL5__DOORBELL_EN_MASK |
+		  CP_MES_DOORBELL_CONTROL5__DOORBELL_HIT_MASK);
+	data |= mes->aggregated_doorbells[AMDGPU_MES_PRIORITY_LEVEL_REALTIME] <<
+		CP_MES_DOORBELL_CONTROL5__DOORBELL_OFFSET__SHIFT;
+	data |= 1 << CP_MES_DOORBELL_CONTROL5__DOORBELL_EN__SHIFT;
+	WREG32_SOC15(GC, 0, mmCP_MES_DOORBELL_CONTROL5, data);
+
+	data = 1 << CP_HQD_GFX_CONTROL__DB_UPDATED_MSG_EN__SHIFT;
+	WREG32_SOC15(GC, 0, mmCP_HQD_GFX_CONTROL, data);
 }
 
 static const struct amdgpu_mes_funcs mes_v10_1_funcs = {
@@ -1121,6 +1166,8 @@ static int mes_v10_1_hw_init(void *handle)
 	if (r)
 		goto failure;
 
+	mes_v10_1_init_aggregated_doorbell(&adev->mes);
+
 	r = mes_v10_1_query_sched_status(&adev->mes);
 	if (r) {
 		DRM_ERROR("MES is busy\n");
@@ -1133,6 +1180,7 @@ static int mes_v10_1_hw_init(void *handle)
 	 * with MES enabled.
 	 */
 	adev->gfx.kiq.ring.sched.ready = false;
+	adev->mes.ring.sched.ready = true;
 
 	return 0;
 
@@ -1144,6 +1192,8 @@ failure:
 static int mes_v10_1_hw_fini(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
+	adev->mes.ring.sched.ready = false;
 
 	mes_v10_1_enable(adev, false);
 
@@ -1183,7 +1233,8 @@ static int mes_v10_0_late_init(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	amdgpu_mes_self_test(adev);
+	if (!amdgpu_in_reset(adev))
+		amdgpu_mes_self_test(adev);
 
 	return 0;
 }

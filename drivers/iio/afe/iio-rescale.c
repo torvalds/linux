@@ -107,6 +107,7 @@ int rescale_process_scale(struct rescale *rescale, int scale_type,
 		return -EOPNOTSUPP;
 	}
 }
+EXPORT_SYMBOL_NS_GPL(rescale_process_scale, IIO_RESCALE);
 
 int rescale_process_offset(struct rescale *rescale, int scale_type,
 			   int scale, int scale2, int schan_off,
@@ -140,6 +141,7 @@ int rescale_process_offset(struct rescale *rescale, int scale_type,
 		return -EOPNOTSUPP;
 	}
 }
+EXPORT_SYMBOL_NS_GPL(rescale_process_offset, IIO_RESCALE);
 
 static int rescale_read_raw(struct iio_dev *indio_dev,
 			    struct iio_chan_spec const *chan,
@@ -277,7 +279,7 @@ static int rescale_configure_channel(struct device *dev,
 	chan->ext_info = rescale->ext_info;
 	chan->type = rescale->cfg->type;
 
-	if (iio_channel_has_info(schan, IIO_CHAN_INFO_RAW) ||
+	if (iio_channel_has_info(schan, IIO_CHAN_INFO_RAW) &&
 	    iio_channel_has_info(schan, IIO_CHAN_INFO_SCALE)) {
 		dev_info(dev, "using raw+scale source channel\n");
 	} else if (iio_channel_has_info(schan, IIO_CHAN_INFO_PROCESSED)) {

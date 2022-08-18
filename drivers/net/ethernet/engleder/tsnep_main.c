@@ -340,14 +340,14 @@ static int tsnep_tx_map(struct sk_buff *skb, struct tsnep_tx *tx, int count)
 	return 0;
 }
 
-static void tsnep_tx_unmap(struct tsnep_tx *tx, int count)
+static void tsnep_tx_unmap(struct tsnep_tx *tx, int index, int count)
 {
 	struct device *dmadev = tx->adapter->dmadev;
 	struct tsnep_tx_entry *entry;
 	int i;
 
 	for (i = 0; i < count; i++) {
-		entry = &tx->entry[(tx->read + i) % TSNEP_RING_SIZE];
+		entry = &tx->entry[(index + i) % TSNEP_RING_SIZE];
 
 		if (entry->len) {
 			if (i == 0)
@@ -395,7 +395,7 @@ static netdev_tx_t tsnep_xmit_frame_ring(struct sk_buff *skb,
 
 	retval = tsnep_tx_map(skb, tx, count);
 	if (retval != 0) {
-		tsnep_tx_unmap(tx, count);
+		tsnep_tx_unmap(tx, tx->write, count);
 		dev_kfree_skb_any(entry->skb);
 		entry->skb = NULL;
 
@@ -464,7 +464,7 @@ static bool tsnep_tx_poll(struct tsnep_tx *tx, int napi_budget)
 		if (skb_shinfo(entry->skb)->nr_frags > 0)
 			count += skb_shinfo(entry->skb)->nr_frags;
 
-		tsnep_tx_unmap(tx, count);
+		tsnep_tx_unmap(tx, tx->read, count);
 
 		if ((skb_shinfo(entry->skb)->tx_flags & SKBTX_IN_PROGRESS) &&
 		    (__le32_to_cpu(entry->desc_wb->properties) &
@@ -1282,7 +1282,7 @@ MODULE_DEVICE_TABLE(of, tsnep_of_match);
 static struct platform_driver tsnep_driver = {
 	.driver = {
 		.name = TSNEP,
-		.of_match_table = of_match_ptr(tsnep_of_match),
+		.of_match_table = tsnep_of_match,
 	},
 	.probe = tsnep_probe,
 	.remove = tsnep_remove,

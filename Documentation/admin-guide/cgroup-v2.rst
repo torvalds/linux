@@ -184,6 +184,14 @@ cgroup v2 currently supports the following mount options.
 	ignored on non-init namespace mounts.  Please refer to the
 	Delegation section for details.
 
+  favordynmods
+        Reduce the latencies of dynamic cgroup modifications such as
+        task migrations and controller on/offs at the cost of making
+        hot path operations such as forks and exits more expensive.
+        The static usage pattern of creating a cgroup, enabling
+        controllers, and then seeding it with CLONE_INTO_CGROUP is
+        not affected by this option.
+
   memory_localevents
         Only populate memory.events with data for the current cgroup,
         and not any subtrees. This is legacy behaviour, the default
@@ -1229,6 +1237,13 @@ PAGE_SIZE multiple when read back.
 	the target cgroup. If less bytes are reclaimed than the
 	specified amount, -EAGAIN is returned.
 
+	Please note that the proactive reclaim (triggered by this
+	interface) is not meant to indicate memory pressure on the
+	memory cgroup. Therefore socket memory balancing triggered by
+	the memory reclaim normally is not exercised in this case.
+	This means that the networking layer will not adapt based on
+	reclaim induced by memory.reclaim.
+
   memory.peak
 	A read-only single value file which exists on non-root
 	cgroups.
@@ -1433,6 +1448,24 @@ PAGE_SIZE multiple when read back.
 	  workingset_nodereclaim
 		Number of times a shadow node has been reclaimed
 
+	  pgscan (npn)
+		Amount of scanned pages (in an inactive LRU list)
+
+	  pgsteal (npn)
+		Amount of reclaimed pages
+
+	  pgscan_kswapd (npn)
+		Amount of scanned pages by kswapd (in an inactive LRU list)
+
+	  pgscan_direct (npn)
+		Amount of scanned pages directly  (in an inactive LRU list)
+
+	  pgsteal_kswapd (npn)
+		Amount of reclaimed pages by kswapd
+
+	  pgsteal_direct (npn)
+		Amount of reclaimed pages directly
+
 	  pgfault (npn)
 		Total number of page faults incurred
 
@@ -1441,12 +1474,6 @@ PAGE_SIZE multiple when read back.
 
 	  pgrefill (npn)
 		Amount of scanned pages (in an active LRU list)
-
-	  pgscan (npn)
-		Amount of scanned pages (in an inactive LRU list)
-
-	  pgsteal (npn)
-		Amount of reclaimed pages
 
 	  pgactivate (npn)
 		Amount of pages moved to the active LRU list

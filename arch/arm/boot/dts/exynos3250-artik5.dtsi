@@ -357,7 +357,7 @@
 
 &pinctrl_1 {
 	bten: bten-pins {
-		samsung,pins ="gpx1-7";
+		samsung,pins = "gpx1-7";
 		samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
 		samsung,pin-pud = <EXYNOS_PIN_PULL_DOWN>;
 		samsung,pin-con-pdn = <EXYNOS_PIN_PDN_PREV>;

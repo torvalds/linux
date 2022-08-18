@@ -402,6 +402,7 @@ out:
 		iounmap(addr);
 
 	release_resource(res);
+	kfree(res);
 
 	return ret;
 }

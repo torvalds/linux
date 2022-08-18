@@ -13,7 +13,7 @@
 监测数据访问
 ============
 
-:doc:`DAMON </vm/damon/index>` 允许轻量级的数据访问监测。使用DAMON，
+:doc:`DAMON </mm/damon/index>` 允许轻量级的数据访问监测。使用DAMON，
 用户可以分析他们系统的内存访问模式，并优化它们。
 
 .. toctree::

@@ -259,6 +259,8 @@ enum psp_gfx_fw_type {
 	GFX_FW_TYPE_SDMA7                           = 57,   /* SDMA7                    MI      */
 	GFX_FW_TYPE_VCN1                            = 58,   /* VCN1                     MI      */
 	GFX_FW_TYPE_CAP                             = 62,   /* CAP_FW                           */
+	GFX_FW_TYPE_SE2_TAP_DELAYS                  = 65,   /* SE2 TAP DELAYS           NV      */
+	GFX_FW_TYPE_SE3_TAP_DELAYS                  = 66,   /* SE3 TAP DELAYS           NV      */
 	GFX_FW_TYPE_REG_LIST                        = 67,   /* REG_LIST                 MI      */
 	GFX_FW_TYPE_IMU_I                           = 68,   /* IMU Instruction FW       SOC21   */
 	GFX_FW_TYPE_IMU_D                           = 69,   /* IMU Data FW              SOC21   */

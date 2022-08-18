@@ -34,6 +34,7 @@ properties:
       - qcom,rpm-apq8084
       - qcom,rpm-ipq6018
       - qcom,rpm-msm8226
+      - qcom,rpm-msm8909
       - qcom,rpm-msm8916
       - qcom,rpm-msm8936
       - qcom,rpm-msm8953
@@ -50,6 +51,9 @@ properties:
   clock-controller:
     $ref: /schemas/clock/qcom,rpmcc.yaml#
     unevaluatedProperties: false
+
+  power-controller:
+    $ref: /schemas/power/qcom,rpmpd.yaml#
 
   qcom,smd-channels:
     $ref: /schemas/types.yaml#/definitions/string-array
@@ -88,12 +92,33 @@ examples:
             qcom,ipc = <&apcs 8 0>;
             qcom,smd-edge = <15>;
 
-                rpm-requests {
-                        compatible = "qcom,rpm-msm8974";
-                        qcom,smd-channels = "rpm_requests";
+            rpm-requests {
+                compatible = "qcom,rpm-msm8916";
+                qcom,smd-channels = "rpm_requests";
 
-                        /* Regulator nodes to follow */
+                clock-controller {
+                    compatible = "qcom,rpmcc-msm8916", "qcom,rpmcc";
+                    #clock-cells = <1>;
+                    clocks = <&xo_board>;
+                    clock-names = "xo";
+                };
+
+                power-controller {
+                    compatible = "qcom,msm8916-rpmpd";
+                    #power-domain-cells = <1>;
+                    operating-points-v2 = <&rpmpd_opp_table>;
+
+                    rpmpd_opp_table: opp-table {
+                        compatible = "operating-points-v2";
+
+                        opp-1 {
+                            opp-level = <1>;
+                        };
+                        opp-2 {
+                            opp-level = <2>;
+                        };
+                    };
                 };
             };
-     };
-...
+        };
+    };

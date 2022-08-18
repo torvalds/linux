@@ -1261,7 +1261,7 @@ int nicvf_xdp_sq_append_pkt(struct nicvf *nic, struct snd_queue *sq,
 static int nicvf_tso_count_subdescs(struct sk_buff *skb)
 {
 	struct skb_shared_info *sh = skb_shinfo(skb);
-	unsigned int sh_len = skb_transport_offset(skb) + tcp_hdrlen(skb);
+	unsigned int sh_len = skb_tcp_all_headers(skb);
 	unsigned int data_len = skb->len - sh_len;
 	unsigned int p_len = sh->gso_size;
 	long f_id = -1;    /* id of the current fragment */
@@ -1382,7 +1382,7 @@ nicvf_sq_add_hdr_subdesc(struct nicvf *nic, struct snd_queue *sq, int qentry,
 
 	if (nic->hw_tso && skb_shinfo(skb)->gso_size) {
 		hdr->tso = 1;
-		hdr->tso_start = skb_transport_offset(skb) + tcp_hdrlen(skb);
+		hdr->tso_start = skb_tcp_all_headers(skb);
 		hdr->tso_max_paysize = skb_shinfo(skb)->gso_size;
 		/* For non-tunneled pkts, point this to L2 ethertype */
 		hdr->inner_l3_offset = skb_network_offset(skb) - 2;

@@ -126,9 +126,8 @@ nouveau_abi16_chan_fini(struct nouveau_abi16 *abi16,
 {
 	struct nouveau_abi16_ntfy *ntfy, *temp;
 
-	/* wait for all activity to stop before releasing notify object, which
-	 * may be still in use */
-	if (chan->chan && chan->ntfy)
+	/* wait for all activity to stop before cleaning up */
+	if (chan->chan)
 		nouveau_channel_idle(chan->chan);
 
 	/* cleanup notifier state */
@@ -147,7 +146,7 @@ nouveau_abi16_chan_fini(struct nouveau_abi16 *abi16,
 
 	/* destroy channel object, all children will be killed too */
 	if (chan->chan) {
-		nouveau_channel_idle(chan->chan);
+		nvif_object_dtor(&chan->ce);
 		nouveau_channel_del(&chan->chan);
 	}
 
@@ -323,6 +322,31 @@ nouveau_abi16_ioctl_channel_alloc(ABI16_IOCTL_ARGS)
 		init->subchan[1].handle = chan->chan->nvsw.handle;
 		init->subchan[1].grclass = 0x506e;
 		init->nr_subchan = 2;
+	}
+
+	/* Workaround "nvc0" gallium driver using classes it doesn't allocate on
+	 * Kepler and above.  NVKM no longer always sets CE_CTX_VALID as part of
+	 * channel init, now we know what that stuff actually is.
+	 *
+	 * Doesn't matter for Kepler/Pascal, CE context stored in NV_RAMIN.
+	 *
+	 * Userspace was fixed prior to adding Ampere support.
+	 */
+	switch (device->info.family) {
+	case NV_DEVICE_INFO_V0_VOLTA:
+		ret = nvif_object_ctor(&chan->chan->user, "abi16CeWar", 0, VOLTA_DMA_COPY_A,
+				       NULL, 0, &chan->ce);
+		if (ret)
+			goto done;
+		break;
+	case NV_DEVICE_INFO_V0_TURING:
+		ret = nvif_object_ctor(&chan->chan->user, "abi16CeWar", 0, TURING_DMA_COPY_A,
+				       NULL, 0, &chan->ce);
+		if (ret)
+			goto done;
+		break;
+	default:
+		break;
 	}
 
 	/* Named memory object area */

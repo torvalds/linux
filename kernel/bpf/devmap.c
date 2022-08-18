@@ -477,7 +477,7 @@ static inline int __xdp_enqueue(struct net_device *dev, struct xdp_frame *xdpf,
 	if (!dev->netdev_ops->ndo_xdp_xmit)
 		return -EOPNOTSUPP;
 
-	err = xdp_ok_fwd_dev(dev, xdpf->len);
+	err = xdp_ok_fwd_dev(dev, xdp_get_frame_len(xdpf));
 	if (unlikely(err))
 		return err;
 
@@ -536,7 +536,7 @@ static bool is_valid_dst(struct bpf_dtab_netdev *obj, struct xdp_frame *xdpf)
 	    !obj->dev->netdev_ops->ndo_xdp_xmit)
 		return false;
 
-	if (xdp_ok_fwd_dev(obj->dev, xdpf->len))
+	if (xdp_ok_fwd_dev(obj->dev, xdp_get_frame_len(xdpf)))
 		return false;
 
 	return true;
@@ -845,7 +845,7 @@ static struct bpf_dtab_netdev *__dev_map_alloc_node(struct net *net,
 	struct bpf_dtab_netdev *dev;
 
 	dev = bpf_map_kmalloc_node(&dtab->map, sizeof(*dev),
-				   GFP_ATOMIC | __GFP_NOWARN,
+				   GFP_NOWAIT | __GFP_NOWARN,
 				   dtab->map.numa_node);
 	if (!dev)
 		return ERR_PTR(-ENOMEM);

@@ -37,6 +37,7 @@ struct cstate_pstate_watermarks_st {
 	uint32_t cstate_enter_plus_exit_z8_ns;
 	uint32_t cstate_enter_plus_exit_ns;
 	uint32_t pstate_change_ns;
+	uint32_t fclk_pstate_change_ns;
 };
 
 struct dcn_watermarks {
@@ -46,6 +47,7 @@ struct dcn_watermarks {
 	uint32_t frac_urg_bw_flip;
 	int32_t urgent_latency_ns;
 	struct cstate_pstate_watermarks_st cstate_pstate;
+	uint32_t usr_retraining_ns;
 };
 
 struct dcn_watermark_set {

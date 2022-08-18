@@ -38,6 +38,7 @@
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_atomic_uapi.h>
 #include <drm/drm_fb_cma_helper.h>
+#include <drm/drm_framebuffer.h>
 #include <drm/drm_print.h>
 #include <drm/drm_probe_helper.h>
 #include <drm/drm_vblank.h>
@@ -256,7 +257,7 @@ static u32 vc4_get_fifo_full_level(struct vc4_crtc *vc4_crtc, u32 format)
 		 * Removing 1 from the FIFO full level however
 		 * seems to completely remove that issue.
 		 */
-		if (!vc4->hvs->hvs5)
+		if (!vc4->is_vc5)
 			return fifo_len_bytes - 3 * HVS_FIFO_LATENCY_PIX - 1;
 
 		return fifo_len_bytes - 3 * HVS_FIFO_LATENCY_PIX;
@@ -316,10 +317,13 @@ static void vc4_crtc_config_pv(struct drm_crtc *crtc, struct drm_encoder *encode
 	struct drm_crtc_state *crtc_state = crtc->state;
 	struct drm_display_mode *mode = &crtc_state->adjusted_mode;
 	bool interlace = mode->flags & DRM_MODE_FLAG_INTERLACE;
-	u32 pixel_rep = (mode->flags & DRM_MODE_FLAG_DBLCLK) ? 2 : 1;
+	bool is_hdmi = vc4_encoder->type == VC4_ENCODER_TYPE_HDMI0 ||
+		       vc4_encoder->type == VC4_ENCODER_TYPE_HDMI1;
+	u32 pixel_rep = ((mode->flags & DRM_MODE_FLAG_DBLCLK) && !is_hdmi) ? 2 : 1;
 	bool is_dsi = (vc4_encoder->type == VC4_ENCODER_TYPE_DSI0 ||
 		       vc4_encoder->type == VC4_ENCODER_TYPE_DSI1);
-	u32 format = is_dsi ? PV_CONTROL_FORMAT_DSIV_24 : PV_CONTROL_FORMAT_24;
+	bool is_dsi1 = vc4_encoder->type == VC4_ENCODER_TYPE_DSI1;
+	u32 format = is_dsi1 ? PV_CONTROL_FORMAT_DSIV_24 : PV_CONTROL_FORMAT_24;
 	u8 ppc = pv_data->pixels_per_clock;
 	bool debug_dump_regs = false;
 
@@ -345,7 +349,8 @@ static void vc4_crtc_config_pv(struct drm_crtc *crtc, struct drm_encoder *encode
 				 PV_HORZB_HACTIVE));
 
 	CRTC_WRITE(PV_VERTA,
-		   VC4_SET_FIELD(mode->crtc_vtotal - mode->crtc_vsync_end,
+		   VC4_SET_FIELD(mode->crtc_vtotal - mode->crtc_vsync_end +
+				 interlace,
 				 PV_VERTA_VBP) |
 		   VC4_SET_FIELD(mode->crtc_vsync_end - mode->crtc_vsync_start,
 				 PV_VERTA_VSYNC));
@@ -357,7 +362,7 @@ static void vc4_crtc_config_pv(struct drm_crtc *crtc, struct drm_encoder *encode
 	if (interlace) {
 		CRTC_WRITE(PV_VERTA_EVEN,
 			   VC4_SET_FIELD(mode->crtc_vtotal -
-					 mode->crtc_vsync_end - 1,
+					 mode->crtc_vsync_end,
 					 PV_VERTA_VBP) |
 			   VC4_SET_FIELD(mode->crtc_vsync_end -
 					 mode->crtc_vsync_start,
@@ -377,7 +382,7 @@ static void vc4_crtc_config_pv(struct drm_crtc *crtc, struct drm_encoder *encode
 			   PV_VCONTROL_CONTINUOUS |
 			   (is_dsi ? PV_VCONTROL_DSI : 0) |
 			   PV_VCONTROL_INTERLACE |
-			   VC4_SET_FIELD(mode->htotal * pixel_rep / 2,
+			   VC4_SET_FIELD(mode->htotal * pixel_rep / (2 * ppc),
 					 PV_VCONTROL_ODD_DELAY));
 		CRTC_WRITE(PV_VSYNCD_EVEN, 0);
 	} else {
@@ -389,7 +394,7 @@ static void vc4_crtc_config_pv(struct drm_crtc *crtc, struct drm_encoder *encode
 	if (is_dsi)
 		CRTC_WRITE(PV_HACT_ACT, mode->hdisplay * pixel_rep);
 
-	if (vc4->hvs->hvs5)
+	if (vc4->is_vc5)
 		CRTC_WRITE(PV_MUX_CFG,
 			   VC4_SET_FIELD(PV_MUX_CFG_RGB_PIXEL_MUX_MODE_NO_SWAP,
 					 PV_MUX_CFG_RGB_PIXEL_MUX_MODE));
@@ -775,17 +780,18 @@ struct vc4_async_flip_state {
 	struct drm_framebuffer *old_fb;
 	struct drm_pending_vblank_event *event;
 
-	struct vc4_seqno_cb cb;
+	union {
+		struct dma_fence_cb fence;
+		struct vc4_seqno_cb seqno;
+	} cb;
 };
 
 /* Called when the V3D execution for the BO being flipped to is done, so that
  * we can actually update the plane's address to point to it.
  */
 static void
-vc4_async_page_flip_complete(struct vc4_seqno_cb *cb)
+vc4_async_page_flip_complete(struct vc4_async_flip_state *flip_state)
 {
-	struct vc4_async_flip_state *flip_state =
-		container_of(cb, struct vc4_async_flip_state, cb);
 	struct drm_crtc *crtc = flip_state->crtc;
 	struct drm_device *dev = crtc->dev;
 	struct drm_plane *plane = crtc->primary;
@@ -802,59 +808,96 @@ vc4_async_page_flip_complete(struct vc4_seqno_cb *cb)
 	drm_crtc_vblank_put(crtc);
 	drm_framebuffer_put(flip_state->fb);
 
-	/* Decrement the BO usecnt in order to keep the inc/dec calls balanced
-	 * when the planes are updated through the async update path.
-	 * FIXME: we should move to generic async-page-flip when it's
-	 * available, so that we can get rid of this hand-made cleanup_fb()
-	 * logic.
-	 */
-	if (flip_state->old_fb) {
-		struct drm_gem_cma_object *cma_bo;
-		struct vc4_bo *bo;
-
-		cma_bo = drm_fb_cma_get_gem_obj(flip_state->old_fb, 0);
-		bo = to_vc4_bo(&cma_bo->base);
-		vc4_bo_dec_usecnt(bo);
+	if (flip_state->old_fb)
 		drm_framebuffer_put(flip_state->old_fb);
-	}
 
 	kfree(flip_state);
 }
 
-/* Implements async (non-vblank-synced) page flips.
- *
- * The page flip ioctl needs to return immediately, so we grab the
- * modeset semaphore on the pipe, and queue the address update for
- * when V3D is done with the BO being flipped to.
- */
-static int vc4_async_page_flip(struct drm_crtc *crtc,
-			       struct drm_framebuffer *fb,
-			       struct drm_pending_vblank_event *event,
-			       uint32_t flags)
+static void vc4_async_page_flip_seqno_complete(struct vc4_seqno_cb *cb)
 {
-	struct drm_device *dev = crtc->dev;
-	struct drm_plane *plane = crtc->primary;
-	int ret = 0;
-	struct vc4_async_flip_state *flip_state;
-	struct drm_gem_cma_object *cma_bo = drm_fb_cma_get_gem_obj(fb, 0);
-	struct vc4_bo *bo = to_vc4_bo(&cma_bo->base);
+	struct vc4_async_flip_state *flip_state =
+		container_of(cb, struct vc4_async_flip_state, cb.seqno);
+	struct vc4_bo *bo = NULL;
 
-	/* Increment the BO usecnt here, so that we never end up with an
-	 * unbalanced number of vc4_bo_{dec,inc}_usecnt() calls when the
-	 * plane is later updated through the non-async path.
-	 * FIXME: we should move to generic async-page-flip when it's
-	 * available, so that we can get rid of this hand-made prepare_fb()
-	 * logic.
+	if (flip_state->old_fb) {
+		struct drm_gem_cma_object *cma_bo =
+			drm_fb_cma_get_gem_obj(flip_state->old_fb, 0);
+		bo = to_vc4_bo(&cma_bo->base);
+	}
+
+	vc4_async_page_flip_complete(flip_state);
+
+	/*
+	 * Decrement the BO usecnt in order to keep the inc/dec
+	 * calls balanced when the planes are updated through
+	 * the async update path.
+	 *
+	 * FIXME: we should move to generic async-page-flip when
+	 * it's available, so that we can get rid of this
+	 * hand-made cleanup_fb() logic.
 	 */
-	ret = vc4_bo_inc_usecnt(bo);
+	if (bo)
+		vc4_bo_dec_usecnt(bo);
+}
+
+static void vc4_async_page_flip_fence_complete(struct dma_fence *fence,
+					       struct dma_fence_cb *cb)
+{
+	struct vc4_async_flip_state *flip_state =
+		container_of(cb, struct vc4_async_flip_state, cb.fence);
+
+	vc4_async_page_flip_complete(flip_state);
+	dma_fence_put(fence);
+}
+
+static int vc4_async_set_fence_cb(struct drm_device *dev,
+				  struct vc4_async_flip_state *flip_state)
+{
+	struct drm_framebuffer *fb = flip_state->fb;
+	struct drm_gem_cma_object *cma_bo = drm_fb_cma_get_gem_obj(fb, 0);
+	struct vc4_dev *vc4 = to_vc4_dev(dev);
+	struct dma_fence *fence;
+	int ret;
+
+	if (!vc4->is_vc5) {
+		struct vc4_bo *bo = to_vc4_bo(&cma_bo->base);
+
+		return vc4_queue_seqno_cb(dev, &flip_state->cb.seqno, bo->seqno,
+					  vc4_async_page_flip_seqno_complete);
+	}
+
+	ret = dma_resv_get_singleton(cma_bo->base.resv, DMA_RESV_USAGE_READ, &fence);
 	if (ret)
 		return ret;
 
-	flip_state = kzalloc(sizeof(*flip_state), GFP_KERNEL);
-	if (!flip_state) {
-		vc4_bo_dec_usecnt(bo);
-		return -ENOMEM;
+	/* If there's no fence, complete the page flip immediately */
+	if (!fence) {
+		vc4_async_page_flip_fence_complete(fence, &flip_state->cb.fence);
+		return 0;
 	}
+
+	/* If the fence has already been completed, complete the page flip */
+	if (dma_fence_add_callback(fence, &flip_state->cb.fence,
+				   vc4_async_page_flip_fence_complete))
+		vc4_async_page_flip_fence_complete(fence, &flip_state->cb.fence);
+
+	return 0;
+}
+
+static int
+vc4_async_page_flip_common(struct drm_crtc *crtc,
+			   struct drm_framebuffer *fb,
+			   struct drm_pending_vblank_event *event,
+			   uint32_t flags)
+{
+	struct drm_device *dev = crtc->dev;
+	struct drm_plane *plane = crtc->primary;
+	struct vc4_async_flip_state *flip_state;
+
+	flip_state = kzalloc(sizeof(*flip_state), GFP_KERNEL);
+	if (!flip_state)
+		return -ENOMEM;
 
 	drm_framebuffer_get(fb);
 	flip_state->fb = fb;
@@ -881,11 +924,60 @@ static int vc4_async_page_flip(struct drm_crtc *crtc,
 	 */
 	drm_atomic_set_fb_for_plane(plane->state, fb);
 
-	vc4_queue_seqno_cb(dev, &flip_state->cb, bo->seqno,
-			   vc4_async_page_flip_complete);
+	vc4_async_set_fence_cb(dev, flip_state);
 
 	/* Driver takes ownership of state on successful async commit. */
 	return 0;
+}
+
+/* Implements async (non-vblank-synced) page flips.
+ *
+ * The page flip ioctl needs to return immediately, so we grab the
+ * modeset semaphore on the pipe, and queue the address update for
+ * when V3D is done with the BO being flipped to.
+ */
+static int vc4_async_page_flip(struct drm_crtc *crtc,
+			       struct drm_framebuffer *fb,
+			       struct drm_pending_vblank_event *event,
+			       uint32_t flags)
+{
+	struct drm_device *dev = crtc->dev;
+	struct vc4_dev *vc4 = to_vc4_dev(dev);
+	struct drm_gem_cma_object *cma_bo = drm_fb_cma_get_gem_obj(fb, 0);
+	struct vc4_bo *bo = to_vc4_bo(&cma_bo->base);
+	int ret;
+
+	if (WARN_ON_ONCE(vc4->is_vc5))
+		return -ENODEV;
+
+	/*
+	 * Increment the BO usecnt here, so that we never end up with an
+	 * unbalanced number of vc4_bo_{dec,inc}_usecnt() calls when the
+	 * plane is later updated through the non-async path.
+	 *
+	 * FIXME: we should move to generic async-page-flip when
+	 * it's available, so that we can get rid of this
+	 * hand-made prepare_fb() logic.
+	 */
+	ret = vc4_bo_inc_usecnt(bo);
+	if (ret)
+		return ret;
+
+	ret = vc4_async_page_flip_common(crtc, fb, event, flags);
+	if (ret) {
+		vc4_bo_dec_usecnt(bo);
+		return ret;
+	}
+
+	return 0;
+}
+
+static int vc5_async_page_flip(struct drm_crtc *crtc,
+			       struct drm_framebuffer *fb,
+			       struct drm_pending_vblank_event *event,
+			       uint32_t flags)
+{
+	return vc4_async_page_flip_common(crtc, fb, event, flags);
 }
 
 int vc4_page_flip(struct drm_crtc *crtc,
@@ -894,10 +986,17 @@ int vc4_page_flip(struct drm_crtc *crtc,
 		  uint32_t flags,
 		  struct drm_modeset_acquire_ctx *ctx)
 {
-	if (flags & DRM_MODE_PAGE_FLIP_ASYNC)
-		return vc4_async_page_flip(crtc, fb, event, flags);
-	else
+	if (flags & DRM_MODE_PAGE_FLIP_ASYNC) {
+		struct drm_device *dev = crtc->dev;
+		struct vc4_dev *vc4 = to_vc4_dev(dev);
+
+		if (vc4->is_vc5)
+			return vc5_async_page_flip(crtc, fb, event, flags);
+		else
+			return vc4_async_page_flip(crtc, fb, event, flags);
+	} else {
 		return drm_atomic_helper_page_flip(crtc, fb, event, flags, ctx);
+	}
 }
 
 struct drm_crtc_state *vc4_crtc_duplicate_state(struct drm_crtc *crtc)
@@ -1149,7 +1248,7 @@ int vc4_crtc_init(struct drm_device *drm, struct vc4_crtc *vc4_crtc,
 				  crtc_funcs, NULL);
 	drm_crtc_helper_add(crtc, crtc_helper_funcs);
 
-	if (!vc4->hvs->hvs5) {
+	if (!vc4->is_vc5) {
 		drm_mode_crtc_set_gamma_size(crtc, ARRAY_SIZE(vc4_crtc->lut_r));
 
 		drm_crtc_enable_color_mgmt(crtc, 0, false, crtc->gamma_size);

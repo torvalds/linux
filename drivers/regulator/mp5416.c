@@ -6,14 +6,14 @@
 //
 // Author: Saravanan Sekar <sravanhome@gmail.com>
 
-#include <linux/kernel.h>
-#include <linux/module.h>
-#include <linux/init.h>
 #include <linux/err.h>
+#include <linux/i2c.h>
+#include <linux/init.h>
+#include <linux/module.h>
+#include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
 #include <linux/regulator/driver.h>
-#include <linux/i2c.h>
 
 #define MP5416_REG_CTL0			0x00
 #define MP5416_REG_CTL1			0x01
@@ -174,10 +174,22 @@ static struct regulator_desc mp5416_regulators_desc[MP5416_MAX_REGULATORS] = {
 	MP5416LDO("ldo4", 4, BIT(1)),
 };
 
+static struct regulator_desc mp5496_regulators_desc[MP5416_MAX_REGULATORS] = {
+	MP5416BUCK("buck1", 1, mp5416_I_limits1, MP5416_REG_CTL1, BIT(0), 1),
+	MP5416BUCK("buck2", 2, mp5416_I_limits2, MP5416_REG_CTL1, BIT(1), 1),
+	MP5416BUCK("buck3", 3, mp5416_I_limits1, MP5416_REG_CTL1, BIT(2), 1),
+	MP5416BUCK("buck4", 4, mp5416_I_limits2, MP5416_REG_CTL2, BIT(5), 1),
+	MP5416LDO("ldo1", 1, BIT(4)),
+	MP5416LDO("ldo2", 2, BIT(3)),
+	MP5416LDO("ldo3", 3, BIT(2)),
+	MP5416LDO("ldo4", 4, BIT(1)),
+};
+
 static int mp5416_i2c_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct regulator_config config = { NULL, };
+	static const struct regulator_desc *desc;
 	struct regulator_dev *rdev;
 	struct regmap *regmap;
 	int i;
@@ -188,12 +200,16 @@ static int mp5416_i2c_probe(struct i2c_client *client)
 		return PTR_ERR(regmap);
 	}
 
+	desc = of_device_get_match_data(dev);
+	if (!desc)
+		return -ENODEV;
+
 	config.dev = dev;
 	config.regmap = regmap;
 
 	for (i = 0; i < MP5416_MAX_REGULATORS; i++) {
 		rdev = devm_regulator_register(dev,
-					       &mp5416_regulators_desc[i],
+					       &desc[i],
 					       &config);
 		if (IS_ERR(rdev)) {
 			dev_err(dev, "Failed to register regulator!\n");
@@ -205,13 +221,15 @@ static int mp5416_i2c_probe(struct i2c_client *client)
 }
 
 static const struct of_device_id mp5416_of_match[] = {
-	{ .compatible = "mps,mp5416" },
+	{ .compatible = "mps,mp5416", .data = &mp5416_regulators_desc },
+	{ .compatible = "mps,mp5496", .data = &mp5496_regulators_desc },
 	{},
 };
 MODULE_DEVICE_TABLE(of, mp5416_of_match);
 
 static const struct i2c_device_id mp5416_id[] = {
 	{ "mp5416", },
+	{ "mp5496", },
 	{ },
 };
 MODULE_DEVICE_TABLE(i2c, mp5416_id);

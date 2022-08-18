@@ -155,7 +155,7 @@ static int copy_compressed_data_to_page(char *compressed_data,
 		out_pages[*cur_out / PAGE_SIZE] = cur_page;
 	}
 
-	kaddr = kmap(cur_page);
+	kaddr = kmap_local_page(cur_page);
 	write_compress_length(kaddr + offset_in_page(*cur_out),
 			      compressed_size);
 	*cur_out += LZO_LEN;
@@ -167,7 +167,7 @@ static int copy_compressed_data_to_page(char *compressed_data,
 		u32 copy_len = min_t(u32, sectorsize - *cur_out % sectorsize,
 				     orig_out + compressed_size - *cur_out);
 
-		kunmap(cur_page);
+		kunmap_local(kaddr);
 
 		if ((*cur_out / PAGE_SIZE) >= max_nr_page)
 			return -E2BIG;
@@ -180,7 +180,7 @@ static int copy_compressed_data_to_page(char *compressed_data,
 				return -ENOMEM;
 			out_pages[*cur_out / PAGE_SIZE] = cur_page;
 		}
-		kaddr = kmap(cur_page);
+		kaddr = kmap_local_page(cur_page);
 
 		memcpy(kaddr + offset_in_page(*cur_out),
 		       compressed_data + *cur_out - orig_out, copy_len);
@@ -202,7 +202,7 @@ static int copy_compressed_data_to_page(char *compressed_data,
 	*cur_out += sector_bytes_left;
 
 out:
-	kunmap(cur_page);
+	kunmap_local(kaddr);
 	return 0;
 }
 
@@ -248,12 +248,12 @@ int lzo_compress_pages(struct list_head *ws, struct address_space *mapping,
 		/* Compress at most one sector of data each time */
 		in_len = min_t(u32, start + len - cur_in, sectorsize - sector_off);
 		ASSERT(in_len);
-		data_in = kmap(page_in);
+		data_in = kmap_local_page(page_in);
 		ret = lzo1x_1_compress(data_in +
 				       offset_in_page(cur_in), in_len,
 				       workspace->cbuf, &out_len,
 				       workspace->mem);
-		kunmap(page_in);
+		kunmap_local(data_in);
 		if (ret < 0) {
 			pr_debug("BTRFS: lzo in loop returned %d\n", ret);
 			ret = -EIO;
@@ -310,7 +310,6 @@ static void copy_compressed_segment(struct compressed_bio *cb,
 	u32 orig_in = *cur_in;
 
 	while (*cur_in < orig_in + len) {
-		char *kaddr;
 		struct page *cur_page;
 		u32 copy_len = min_t(u32, PAGE_SIZE - offset_in_page(*cur_in),
 					  orig_in + len - *cur_in);
@@ -318,11 +317,8 @@ static void copy_compressed_segment(struct compressed_bio *cb,
 		ASSERT(copy_len);
 		cur_page = cb->compressed_pages[*cur_in / PAGE_SIZE];
 
-		kaddr = kmap(cur_page);
-		memcpy(dest + *cur_in - orig_in,
-			kaddr + offset_in_page(*cur_in),
-			copy_len);
-		kunmap(cur_page);
+		memcpy_from_page(dest + *cur_in - orig_in, cur_page,
+				 offset_in_page(*cur_in), copy_len);
 
 		*cur_in += copy_len;
 	}
@@ -342,9 +338,9 @@ int lzo_decompress_bio(struct list_head *ws, struct compressed_bio *cb)
 	/* Bytes decompressed so far */
 	u32 cur_out = 0;
 
-	kaddr = kmap(cb->compressed_pages[0]);
+	kaddr = kmap_local_page(cb->compressed_pages[0]);
 	len_in = read_compress_length(kaddr);
-	kunmap(cb->compressed_pages[0]);
+	kunmap_local(kaddr);
 	cur_in += LZO_LEN;
 
 	/*
@@ -378,9 +374,9 @@ int lzo_decompress_bio(struct list_head *ws, struct compressed_bio *cb)
 		       (cur_in + LZO_LEN - 1) / sectorsize);
 		cur_page = cb->compressed_pages[cur_in / PAGE_SIZE];
 		ASSERT(cur_page);
-		kaddr = kmap(cur_page);
+		kaddr = kmap_local_page(cur_page);
 		seg_len = read_compress_length(kaddr + offset_in_page(cur_in));
-		kunmap(cur_page);
+		kunmap_local(kaddr);
 		cur_in += LZO_LEN;
 
 		if (seg_len > WORKSPACE_CBUF_LENGTH) {

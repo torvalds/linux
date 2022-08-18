@@ -145,12 +145,16 @@ Documentation of Loongson's LS7A chipset:
 
   https://github.com/loongson/LoongArch-Documentation/releases/latest/download/Loongson-7A1000-usermanual-2.00-EN.pdf (in English)
 
-Note: CPUINTC is CSR.ECFG/CSR.ESTAT and its interrupt controller described
-in Section 7.4 of "LoongArch Reference Manual, Vol 1"; LIOINTC is "Legacy I/O
-Interrupts" described in Section 11.1 of "Loongson 3A5000 Processor Reference
-Manual"; EIOINTC is "Extended I/O Interrupts" described in Section 11.2 of
-"Loongson 3A5000 Processor Reference Manual"; HTVECINTC is "HyperTransport
-Interrupts" described in Section 14.3 of "Loongson 3A5000 Processor Reference
-Manual"; PCH-PIC/PCH-MSI is "Interrupt Controller" described in Section 5 of
-"Loongson 7A1000 Bridge User Manual"; PCH-LPC is "LPC Interrupts" described in
-Section 24.3 of "Loongson 7A1000 Bridge User Manual".
+.. Note::
+    - CPUINTC is CSR.ECFG/CSR.ESTAT and its interrupt controller described
+      in Section 7.4 of "LoongArch Reference Manual, Vol 1";
+    - LIOINTC is "Legacy I/OInterrupts" described in Section 11.1 of
+      "Loongson 3A5000 Processor Reference Manual";
+    - EIOINTC is "Extended I/O Interrupts" described in Section 11.2 of
+      "Loongson 3A5000 Processor Reference Manual";
+    - HTVECINTC is "HyperTransport Interrupts" described in Section 14.3 of
+      "Loongson 3A5000 Processor Reference Manual";
+    - PCH-PIC/PCH-MSI is "Interrupt Controller" described in Section 5 of
+      "Loongson 7A1000 Bridge User Manual";
+    - PCH-LPC is "LPC Interrupts" described in Section 24.3 of
+      "Loongson 7A1000 Bridge User Manual".

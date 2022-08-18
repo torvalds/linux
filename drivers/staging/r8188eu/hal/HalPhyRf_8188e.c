@@ -463,6 +463,7 @@ void _PHY_SaveADDARegisters(struct adapter *adapt, u32 *ADDAReg, u32 *ADDABackup
 	}
 }
 
+/* FIXME: return an error to caller */
 static void _PHY_SaveMACRegisters(
 		struct adapter *adapt,
 		u32 *MACReg,
@@ -470,11 +471,20 @@ static void _PHY_SaveMACRegisters(
 	)
 {
 	u32 i;
+	int res;
 
-	for (i = 0; i < (IQK_MAC_REG_NUM - 1); i++)
-		MACBackup[i] = rtw_read8(adapt, MACReg[i]);
+	for (i = 0; i < (IQK_MAC_REG_NUM - 1); i++) {
+		u8 reg;
 
-	MACBackup[i] = rtw_read32(adapt, MACReg[i]);
+		res = rtw_read8(adapt, MACReg[i], &reg);
+		if (res)
+			return;
+
+		MACBackup[i] = reg;
+	}
+
+	res = rtw_read32(adapt, MACReg[i], MACBackup + i);
+	(void)res;
 }
 
 static void reload_adda_reg(struct adapter *adapt, u32 *ADDAReg, u32 *ADDABackup, u32 RegiesterNum)
@@ -739,9 +749,12 @@ static void phy_LCCalibrate_8188E(struct adapter *adapt)
 {
 	u8 tmpreg;
 	u32 RF_Amode = 0, LC_Cal;
+	int res;
 
 	/* Check continuous TX and Packet TX */
-	tmpreg = rtw_read8(adapt, 0xd03);
+	res = rtw_read8(adapt, 0xd03, &tmpreg);
+	if (res)
+		return;
 
 	if ((tmpreg & 0x70) != 0)			/* Deal with contisuous TX case */
 		rtw_write8(adapt, 0xd03, tmpreg & 0x8F);	/* disable all continuous TX */

@@ -33,12 +33,16 @@ struct typec_partner {
 	int				num_altmodes;
 	u16				pd_revision; /* 0300H = "3.0" */
 	enum usb_pd_svdm_ver		svdm_version;
+
+	struct usb_power_delivery	*pd;
 };
 
 struct typec_port {
 	unsigned int			id;
 	struct device			dev;
 	struct ida			mode_ids;
+
+	struct usb_power_delivery	*pd;
 
 	int				prefer_role;
 	enum typec_data_role		data_role;
@@ -51,6 +55,7 @@ struct typec_port {
 	enum typec_orientation		orientation;
 	struct typec_switch		*sw;
 	struct typec_mux		*mux;
+	struct typec_retimer		*retimer;
 
 	const struct typec_capability	*cap;
 	const struct typec_operations   *ops;
@@ -72,6 +77,7 @@ extern const struct device_type typec_port_dev_type;
 #define is_typec_port(dev) ((dev)->type == &typec_port_dev_type)
 
 extern struct class typec_mux_class;
+extern struct class retimer_class;
 extern struct class typec_class;
 
 #if defined(CONFIG_ACPI)

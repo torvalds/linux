@@ -52,7 +52,7 @@ struct ti_dac_chip {
 	bool powerdown;
 	u8 powerdown_mode;
 	u8 resolution;
-	u8 buf[2] ____cacheline_aligned;
+	u8 buf[2] __aligned(IIO_DMA_MINALIGN);
 };
 
 static u8 ti_dac_get_power(struct ti_dac_chip *ti_dac, bool powerdown)

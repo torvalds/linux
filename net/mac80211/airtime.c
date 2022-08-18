@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: ISC
 /*
  * Copyright (C) 2019 Felix Fietkau <nbd@nbd.name>
- * Copyright (C) 2021 Intel Corporation
+ * Copyright (C) 2021-2022 Intel Corporation
  */
 
 #include <net/mac80211.h>
@@ -637,7 +637,7 @@ u32 ieee80211_calc_expected_tx_airtime(struct ieee80211_hw *hw,
 
 	len += 38; /* Ethernet header length */
 
-	conf = rcu_dereference(vif->chanctx_conf);
+	conf = rcu_dereference(vif->bss_conf.chanctx_conf);
 	if (conf) {
 		band = conf->def.chan->band;
 		shift = ieee80211_chandef_get_shift(&conf->def);

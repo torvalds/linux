@@ -19,6 +19,7 @@
 struct pwm_led {
 	struct pwm_device *pwm;
 	struct pwm_state state;
+	bool active_low;
 };
 
 struct pwm_mc_led {
@@ -44,6 +45,9 @@ static int led_pwm_mc_set(struct led_classdev *cdev,
 		duty = priv->leds[i].state.period;
 		duty *= mc_cdev->subled_info[i].brightness;
 		do_div(duty, cdev->max_brightness);
+
+		if (priv->leds[i].active_low)
+			duty = priv->leds[i].state.period - duty;
 
 		priv->leds[i].state.duty_cycle = duty;
 		priv->leds[i].state.enabled = duty > 0;
@@ -72,11 +76,11 @@ static int iterate_subleds(struct device *dev, struct pwm_mc_led *priv,
 		pwmled = &priv->leds[priv->mc_cdev.num_colors];
 		pwmled->pwm = devm_fwnode_pwm_get(dev, fwnode, NULL);
 		if (IS_ERR(pwmled->pwm)) {
-			ret = PTR_ERR(pwmled->pwm);
-			dev_err(dev, "unable to request PWM: %d\n", ret);
+			ret = dev_err_probe(dev, PTR_ERR(pwmled->pwm), "unable to request PWM\n");
 			goto release_fwnode;
 		}
 		pwm_init_state(pwmled->pwm, &pwmled->state);
+		pwmled->active_low = fwnode_property_read_bool(fwnode, "active-low");
 
 		ret = fwnode_property_read_u32(fwnode, "color", &color);
 		if (ret) {

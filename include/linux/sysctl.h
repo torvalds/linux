@@ -75,6 +75,8 @@ int proc_douintvec_minmax(struct ctl_table *table, int write, void *buffer,
 int proc_dou8vec_minmax(struct ctl_table *table, int write, void *buffer,
 			size_t *lenp, loff_t *ppos);
 int proc_dointvec_jiffies(struct ctl_table *, int, void *, size_t *, loff_t *);
+int proc_dointvec_ms_jiffies_minmax(struct ctl_table *table, int write,
+		void *buffer, size_t *lenp, loff_t *ppos);
 int proc_dointvec_userhz_jiffies(struct ctl_table *, int, void *, size_t *,
 		loff_t *);
 int proc_dointvec_ms_jiffies(struct ctl_table *, int, void *, size_t *,
@@ -264,6 +266,10 @@ static inline int __register_sysctl_base(struct ctl_table *base_table)
 static inline struct ctl_table_header *register_sysctl_table(struct ctl_table * table)
 {
 	return NULL;
+}
+
+static inline void register_sysctl_init(const char *path, struct ctl_table *table)
+{
 }
 
 static inline struct ctl_table_header *register_sysctl_mount_point(const char *path)

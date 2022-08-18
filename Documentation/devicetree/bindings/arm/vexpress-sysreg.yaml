@@ -29,6 +29,13 @@ properties:
 
   ranges: true
 
+  gpio-controller:
+    deprecated: true
+
+  "#gpio-cells":
+    deprecated: true
+    const: 2
+
 additionalProperties: false
 
 patternProperties:
@@ -67,8 +74,7 @@ patternProperties:
 
 required:
   - compatible
-  - "#address-cells"
-  - "#size-cells"
+  - reg
 
 examples:
   - |

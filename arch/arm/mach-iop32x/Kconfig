@@ -3,6 +3,7 @@ menuconfig ARCH_IOP32X
 	bool "IOP32x-based platforms"
 	depends on ARCH_MULTI_V5
 	depends on CPU_LITTLE_ENDIAN
+	depends on ATAGS && UNUSED_BOARD_FILES
 	select CPU_XSCALE
 	select GPIO_IOP
 	select GPIOLIB

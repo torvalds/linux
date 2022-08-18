@@ -17,7 +17,7 @@ if RESET_CONTROLLER
 
 config RESET_A10SR
 	tristate "Altera Arria10 System Resource Reset"
-	depends on MFD_ALTERA_A10SR
+	depends on MFD_ALTERA_A10SR || COMPILE_TEST
 	help
 	  This option enables support for the external reset functions for
 	  peripheral PHYs on the Altera Arria10 System Resource Chip.
@@ -200,8 +200,9 @@ config RESET_SCMI
 	  firmware controlling all the reset signals.
 
 config RESET_SIMPLE
-	bool "Simple Reset Controller Driver" if COMPILE_TEST
+	bool "Simple Reset Controller Driver" if COMPILE_TEST || EXPERT
 	default ARCH_ASPEED || ARCH_BCM4908 || ARCH_BITMAIN || ARCH_REALTEK || ARCH_STM32 || (ARCH_INTEL_SOCFPGA && ARM64) || ARCH_SUNXI || ARC
+	depends on HAS_IOMEM
 	help
 	  This enables a simple reset controller driver for reset lines that
 	  that can be asserted and deasserted by toggling bits in a contiguous,
@@ -231,6 +232,15 @@ config RESET_STARFIVE_JH7100
 	help
 	  This enables the reset controller driver for the StarFive JH7100 SoC.
 
+config RESET_SUNPLUS
+	bool "Sunplus SoCs Reset Driver" if COMPILE_TEST
+	default ARCH_SUNPLUS
+	help
+	  This enables the reset driver support for Sunplus SoCs.
+	  The reset lines that can be asserted and deasserted by toggling bits
+	  in a contiguous, exclusive register space. The register is HIWORD_MASKED,
+	  which means each register holds 16 reset lines.
+
 config RESET_SUNXI
 	bool "Allwinner SoCs Reset Driver" if COMPILE_TEST && !ARCH_SUNXI
 	default ARCH_SUNXI
@@ -255,6 +265,14 @@ config RESET_TI_SYSCON
 	  memory-mapped reset registers as part of a syscon device node. If
 	  you wish to use the reset framework for such memory-mapped devices,
 	  say Y here. Otherwise, say N.
+
+config RESET_TI_TPS380X
+	tristate "TI TPS380x Reset Driver"
+	select GPIOLIB
+	help
+	  This enables the reset driver support for TI TPS380x devices. If
+	  you wish to use the reset framework for such devices, say Y here.
+	  Otherwise, say N.
 
 config RESET_TN48M_CPLD
 	tristate "Delta Networks TN48M switch CPLD reset controller"

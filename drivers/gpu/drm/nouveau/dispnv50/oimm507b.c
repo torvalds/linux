@@ -21,14 +21,14 @@
  */
 #include "oimm.h"
 
-#include <nvif/cl507b.h>
+#include <nvif/if0014.h>
 
 static int
 oimm507b_init_(const struct nv50_wimm_func *func, struct nouveau_drm *drm,
 	       s32 oclass, struct nv50_wndw *wndw)
 {
-	struct nv50_disp_overlay_v0 args = {
-		.head = wndw->id,
+	struct nvif_disp_chan_v0 args = {
+		.id = wndw->id,
 	};
 	struct nv50_disp *disp = nv50_disp(drm->dev);
 	int ret;

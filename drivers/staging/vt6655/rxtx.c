@@ -1420,11 +1420,11 @@ static int vnt_beacon_xmit(struct vnt_private *priv,
 
 	priv->wBCNBufLen = sizeof(*short_head) + skb->len;
 
-	MACvSetCurrBCNTxDescAddr(priv->port_offset, priv->tx_beacon_dma);
+	iowrite32((u32)priv->tx_beacon_dma, priv->port_offset + MAC_REG_BCNDMAPTR);
 
-	MACvSetCurrBCNLength(priv->port_offset, priv->wBCNBufLen);
+	iowrite16(priv->wBCNBufLen, priv->port_offset + MAC_REG_BCNDMACTL + 2);
 	/* Set auto Transmit on */
-	MACvRegBitsOn(priv->port_offset, MAC_REG_TCR, TCR_AUTOBCNTX);
+	vt6655_mac_reg_bits_on(priv->port_offset, MAC_REG_TCR, TCR_AUTOBCNTX);
 	/* Poll Transmit the adapter */
 	iowrite8(BEACON_READY, priv->port_offset + MAC_REG_BCNDMACTL);
 
@@ -1435,7 +1435,7 @@ int vnt_beacon_make(struct vnt_private *priv, struct ieee80211_vif *vif)
 {
 	struct sk_buff *beacon;
 
-	beacon = ieee80211_beacon_get(priv->hw, vif);
+	beacon = ieee80211_beacon_get(priv->hw, vif, 0);
 	if (!beacon)
 		return -ENOMEM;
 

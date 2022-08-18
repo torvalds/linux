@@ -25,7 +25,7 @@
  *		  check this.)
  * 990605 (jmt) - Rearranged things a bit wrt IOP detection; iop_present is
  *		  gone, IOP base addresses are now in an array and the
- *		  globally-visible functions take an IOP number instead of an
+ *		  globally-visible functions take an IOP number instead of
  *		  an actual base address.
  * 990610 (jmt) - Finished the message passing framework and it seems to work.
  *		  Sending _definitely_ works; my adb-bus.c mods can send
@@ -66,7 +66,7 @@
  * a shared memory area in the IOP RAM. Each IOP has seven "channels"; each
  * channel is connected to a specific software driver on the IOP. For example
  * on the SCC IOP there is one channel for each serial port. Each channel has
- * an incoming and and outgoing message queue with a depth of one.
+ * an incoming and an outgoing message queue with a depth of one.
  *
  * A message is 32 bytes plus a state byte for the channel (MSG_IDLE, MSG_NEW,
  * MSG_RCVD, MSG_COMPLETE). To send a message you copy the message into the

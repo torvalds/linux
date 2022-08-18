@@ -20,6 +20,7 @@ properties:
           - allwinner,suniv-f1c100s-timer
       - items:
           - enum:
+              - allwinner,sun20i-d1-timer
               - allwinner,sun50i-a64-timer
               - allwinner,sun50i-h6-timer
               - allwinner,sun50i-h616-timer

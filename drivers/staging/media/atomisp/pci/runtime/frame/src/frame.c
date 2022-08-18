@@ -48,12 +48,6 @@ static void frame_init_raw_single_plane(
     unsigned int subpixels_per_line,
     unsigned int bits_per_pixel);
 
-static void frame_init_mipi_plane(struct ia_css_frame *frame,
-				  struct ia_css_frame_plane *plane,
-				  unsigned int height,
-				  unsigned int subpixels_per_line,
-				  unsigned int bytes_per_pixel);
-
 static void frame_init_nv_planes(struct ia_css_frame *frame,
 				 unsigned int horizontal_decimation,
 				 unsigned int vertical_decimation,
@@ -77,15 +71,13 @@ static int frame_allocate_with_data(struct ia_css_frame **frame,
 	unsigned int height,
 	enum ia_css_frame_format format,
 	unsigned int padded_width,
-	unsigned int raw_bit_depth,
-	bool contiguous);
+	unsigned int raw_bit_depth);
 
 static struct ia_css_frame *frame_create(unsigned int width,
 	unsigned int height,
 	enum ia_css_frame_format format,
 	unsigned int padded_width,
 	unsigned int raw_bit_depth,
-	bool contiguous,
 	bool valid);
 
 static unsigned
@@ -137,7 +129,7 @@ int ia_css_frame_allocate(struct ia_css_frame **frame,
 			    width, height, format, padded_width, raw_bit_depth);
 
 	err = frame_allocate_with_data(frame, width, height, format,
-				       padded_width, raw_bit_depth, false);
+				       padded_width, raw_bit_depth);
 
 	if ((*frame) && err == 0)
 		ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE,
@@ -154,7 +146,6 @@ int ia_css_frame_allocate(struct ia_css_frame **frame,
 int ia_css_frame_map(struct ia_css_frame **frame,
 				 const struct ia_css_frame_info *info,
 				 const void __user *data,
-				 u16 attribute,
 				 unsigned int pgnr)
 {
 	int err = 0;
@@ -180,9 +171,7 @@ int ia_css_frame_map(struct ia_css_frame **frame,
 		goto error;
 	}
 
-	me->data = hmm_alloc(me->data_bytes, HMM_BO_USER, 0, data,
-			     attribute & ATOMISP_MAP_FLAG_CACHED);
-
+	me->data = hmm_create_from_userdata(me->data_bytes, data);
 	if (me->data == mmgr_NULL)
 		err = -EINVAL;
 
@@ -216,7 +205,6 @@ int ia_css_frame_create_from_info(struct ia_css_frame **frame,
 			  info->format,
 			  info->padded_width,
 			  info->raw_bit_depth,
-			  false,
 			  false);
 	if (!me) {
 		ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE,
@@ -270,49 +258,6 @@ int ia_css_frame_set_data(struct ia_css_frame *frame,
 	return err;
 }
 
-int ia_css_frame_allocate_contiguous(struct ia_css_frame **frame,
-	unsigned int width,
-	unsigned int height,
-	enum ia_css_frame_format format,
-	unsigned int padded_width,
-	unsigned int raw_bit_depth)
-{
-	int err = 0;
-
-	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE,
-			    "ia_css_frame_allocate_contiguous() enter: width=%d, height=%d, format=%d, padded_width=%d, raw_bit_depth=%d\n",
-			    width, height, format, padded_width, raw_bit_depth);
-
-	err = frame_allocate_with_data(frame, width, height, format,
-				       padded_width, raw_bit_depth, true);
-
-	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE,
-			    "ia_css_frame_allocate_contiguous() leave: frame=%p\n",
-			    frame ? *frame : (void *)-1);
-
-	return err;
-}
-
-int ia_css_frame_allocate_contiguous_from_info(
-    struct ia_css_frame **frame,
-    const struct ia_css_frame_info *info)
-{
-	int err = 0;
-
-	assert(frame);
-	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE,
-			    "ia_css_frame_allocate_contiguous_from_info() enter:\n");
-	err = ia_css_frame_allocate_contiguous(frame,
-					       info->res.width,
-					       info->res.height,
-					       info->format,
-					       info->padded_width,
-					       info->raw_bit_depth);
-	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE,
-			    "ia_css_frame_allocate_contiguous_from_info() leave:\n");
-	return err;
-}
-
 void ia_css_frame_free(struct ia_css_frame *frame)
 {
 	IA_CSS_ENTER_PRIVATE("frame = %p", frame);
@@ -343,11 +288,9 @@ int ia_css_frame_init_planes(struct ia_css_frame *frame)
 
 	switch (frame->info.format) {
 	case IA_CSS_FRAME_FORMAT_MIPI:
-		frame_init_mipi_plane(frame, &frame->planes.raw,
-				      frame->info.res.height,
-				      frame->info.padded_width,
-				      frame->info.raw_bit_depth <= 8 ? 1 : 2);
-		break;
+		dev_err(atomisp_dev,
+			"%s: unexpected use of IA_CSS_FRAME_FORMAT_MIPI\n", __func__);
+		return -EINVAL;
 	case IA_CSS_FRAME_FORMAT_RAW_PACKED:
 		frame_init_raw_single_plane(frame, &frame->planes.raw,
 					    frame->info.res.height,
@@ -460,10 +403,7 @@ void ia_css_frame_info_set_width(struct ia_css_frame_info *info,
 		IA_CSS_LEAVE_PRIVATE("");
 		return;
 	}
-	if (min_padded_width > width)
-		align = min_padded_width;
-	else
-		align = width;
+	align = max(min_padded_width, width);
 
 	info->res.width = width;
 	/* frames with a U and V plane of 8 bits per pixel need to have
@@ -529,16 +469,14 @@ void ia_css_frame_free_multiple(unsigned int num_frames,
 	}
 }
 
-int ia_css_frame_allocate_with_buffer_size(
-    struct ia_css_frame **frame,
-    const unsigned int buffer_size_bytes,
-    const bool contiguous)
+int ia_css_frame_allocate_with_buffer_size(struct ia_css_frame **frame,
+					   const unsigned int buffer_size_bytes)
 {
 	/* AM: Body coppied from frame_allocate_with_data(). */
 	int err;
 	struct ia_css_frame *me = frame_create(0, 0,
 					       IA_CSS_FRAME_FORMAT_NUM,/* Not valid format yet */
-					       0, 0, contiguous, false);
+					       0, 0, false);
 
 	if (!me)
 		return -ENOMEM;
@@ -670,22 +608,6 @@ static void frame_init_raw_single_plane(
 	return;
 }
 
-static void frame_init_mipi_plane(struct ia_css_frame *frame,
-				  struct ia_css_frame_plane *plane,
-				  unsigned int height,
-				  unsigned int subpixels_per_line,
-				  unsigned int bytes_per_pixel)
-{
-	unsigned int stride;
-
-	stride = subpixels_per_line * bytes_per_pixel;
-	frame->data_bytes = 8388608; /* 8*1024*1024 */
-	frame->valid = false;
-	frame->contiguous = true;
-	frame_init_plane(plane, subpixels_per_line, stride, height, 0);
-	return;
-}
-
 static void frame_init_nv_planes(struct ia_css_frame *frame,
 				 unsigned int horizontal_decimation,
 				 unsigned int vertical_decimation,
@@ -803,11 +725,7 @@ static int frame_allocate_buffer_data(struct ia_css_frame *frame)
 #ifdef ISP2401
 	IA_CSS_ENTER_LEAVE_PRIVATE("frame->data_bytes=%d\n", frame->data_bytes);
 #endif
-	frame->data = hmm_alloc(frame->data_bytes,
-				HMM_BO_PRIVATE, 0, NULL,
-				frame->contiguous ?
-				ATOMISP_MAP_FLAG_CONTIGUOUS : 0);
-
+	frame->data = hmm_alloc(frame->data_bytes);
 	if (frame->data == mmgr_NULL)
 		return -ENOMEM;
 	return 0;
@@ -818,8 +736,7 @@ static int frame_allocate_with_data(struct ia_css_frame **frame,
 	unsigned int height,
 	enum ia_css_frame_format format,
 	unsigned int padded_width,
-	unsigned int raw_bit_depth,
-	bool contiguous)
+	unsigned int raw_bit_depth)
 {
 	int err;
 	struct ia_css_frame *me = frame_create(width,
@@ -827,7 +744,6 @@ static int frame_allocate_with_data(struct ia_css_frame **frame,
 					       format,
 					       padded_width,
 					       raw_bit_depth,
-					       contiguous,
 					       true);
 
 	if (!me)
@@ -857,7 +773,6 @@ static struct ia_css_frame *frame_create(unsigned int width,
 	enum ia_css_frame_format format,
 	unsigned int padded_width,
 	unsigned int raw_bit_depth,
-	bool contiguous,
 	bool valid)
 {
 	struct ia_css_frame *me = kvmalloc(sizeof(*me), GFP_KERNEL);
@@ -871,7 +786,6 @@ static struct ia_css_frame *frame_create(unsigned int width,
 	me->info.format = format;
 	me->info.padded_width = padded_width;
 	me->info.raw_bit_depth = raw_bit_depth;
-	me->contiguous = contiguous;
 	me->valid = valid;
 	me->data_bytes = 0;
 	me->data = mmgr_NULL;

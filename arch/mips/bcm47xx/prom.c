@@ -69,7 +69,7 @@ static __init void prom_init_mem(void)
 	 * call them at the beginning of the boot.
 	 *
 	 * BCM47XX uses 128MB for addressing the ram, if the system contains
-	 * less that that amount of ram it remaps the ram more often into the
+	 * less than that amount of ram it remaps the ram more often into the
 	 * available space.
 	 */
 

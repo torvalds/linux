@@ -163,7 +163,7 @@ static inline unsigned long fn(			\
 	"bne- 1b\n"					\
 	postfix						\
 	: "=&r" (old), "=&r" (t)			\
-	: "rK" (mask), "r" (p), "i" (IS_ENABLED(CONFIG_PPC64) ? eh : 0)	\
+	: "rK" (mask), "r" (p), "n" (eh)		\
 	: "cc", "memory");				\
 	return (old & mask);				\
 }
@@ -171,7 +171,7 @@ static inline unsigned long fn(			\
 DEFINE_TESTOP(test_and_set_bits, or, PPC_ATOMIC_ENTRY_BARRIER,
 	      PPC_ATOMIC_EXIT_BARRIER, 0)
 DEFINE_TESTOP(test_and_set_bits_lock, or, "",
-	      PPC_ACQUIRE_BARRIER, 1)
+	      PPC_ACQUIRE_BARRIER, IS_ENABLED(CONFIG_PPC64))
 DEFINE_TESTOP(test_and_change_bits, xor, PPC_ATOMIC_ENTRY_BARRIER,
 	      PPC_ATOMIC_EXIT_BARRIER, 0)
 

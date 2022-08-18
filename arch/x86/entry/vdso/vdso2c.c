@@ -1,7 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * vdso2c - A vdso image preparation tool
  * Copyright (c) 2014 Andy Lutomirski and others
- * Licensed under the GPL v2
  *
  * vdso2c requires stripped and unstripped input.  It would be trivial
  * to fully strip the input in here, but, for reasons described below,

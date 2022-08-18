@@ -33,10 +33,8 @@
 
 	gpio-keys {
 		compatible = "gpio-keys";
-		#address-cells = <1>;
-		#size-cells = <0>;
 
-		button@0 {
+		button-0 {
 			label = "reset";
 			linux,code = <KEY_RESTART>;
 			gpios = <&gpio 11 GPIO_ACTIVE_LOW>;

@@ -142,7 +142,12 @@ void amdgpu_gfx_parse_disable_cu(unsigned *mask, unsigned max_se, unsigned max_s
 	}
 }
 
-static bool amdgpu_gfx_is_multipipe_capable(struct amdgpu_device *adev)
+static bool amdgpu_gfx_is_graphics_multipipe_capable(struct amdgpu_device *adev)
+{
+	return amdgpu_async_gfx_ring && adev->gfx.me.num_pipe_per_me > 1;
+}
+
+static bool amdgpu_gfx_is_compute_multipipe_capable(struct amdgpu_device *adev)
 {
 	if (amdgpu_compute_multipipe != -1) {
 		DRM_INFO("amdgpu: forcing compute pipe policy %d\n",
@@ -156,6 +161,28 @@ static bool amdgpu_gfx_is_multipipe_capable(struct amdgpu_device *adev)
 		return false;
 
 	return adev->gfx.mec.num_mec > 1;
+}
+
+bool amdgpu_gfx_is_high_priority_graphics_queue(struct amdgpu_device *adev,
+						struct amdgpu_ring *ring)
+{
+	int queue = ring->queue;
+	int pipe = ring->pipe;
+
+	/* Policy: use pipe1 queue0 as high priority graphics queue if we
+	 * have more than one gfx pipe.
+	 */
+	if (amdgpu_gfx_is_graphics_multipipe_capable(adev) &&
+	    adev->gfx.num_gfx_rings > 1 && pipe == 1 && queue == 0) {
+		int me = ring->me;
+		int bit;
+
+		bit = amdgpu_gfx_me_queue_to_bit(adev, me, pipe, queue);
+		if (ring == &adev->gfx.gfx_ring[bit])
+			return true;
+	}
+
+	return false;
 }
 
 bool amdgpu_gfx_is_high_priority_compute_queue(struct amdgpu_device *adev,
@@ -174,7 +201,7 @@ bool amdgpu_gfx_is_high_priority_compute_queue(struct amdgpu_device *adev,
 void amdgpu_gfx_compute_queue_acquire(struct amdgpu_device *adev)
 {
 	int i, queue, pipe;
-	bool multipipe_policy = amdgpu_gfx_is_multipipe_capable(adev);
+	bool multipipe_policy = amdgpu_gfx_is_compute_multipipe_capable(adev);
 	int max_queues_per_mec = min(adev->gfx.mec.num_pipe_per_mec *
 				     adev->gfx.mec.num_queue_per_pipe,
 				     adev->gfx.num_compute_rings);
@@ -200,18 +227,24 @@ void amdgpu_gfx_compute_queue_acquire(struct amdgpu_device *adev)
 
 void amdgpu_gfx_graphics_queue_acquire(struct amdgpu_device *adev)
 {
-	int i, queue, me;
+	int i, queue, pipe;
+	bool multipipe_policy = amdgpu_gfx_is_graphics_multipipe_capable(adev);
+	int max_queues_per_me = adev->gfx.me.num_pipe_per_me *
+					adev->gfx.me.num_queue_per_pipe;
 
-	for (i = 0; i < AMDGPU_MAX_GFX_QUEUES; ++i) {
-		queue = i % adev->gfx.me.num_queue_per_pipe;
-		me = (i / adev->gfx.me.num_queue_per_pipe)
-		      / adev->gfx.me.num_pipe_per_me;
-
-		if (me >= adev->gfx.me.num_me)
-			break;
+	if (multipipe_policy) {
 		/* policy: amdgpu owns the first queue per pipe at this stage
 		 * will extend to mulitple queues per pipe later */
-		if (me == 0 && queue < 1)
+		for (i = 0; i < max_queues_per_me; i++) {
+			pipe = i % adev->gfx.me.num_pipe_per_me;
+			queue = (i / adev->gfx.me.num_pipe_per_me) %
+				adev->gfx.me.num_queue_per_pipe;
+
+			set_bit(pipe * adev->gfx.me.num_queue_per_pipe + queue,
+				adev->gfx.me.queue_bitmap);
+		}
+	} else {
+		for (i = 0; i < max_queues_per_me; ++i)
 			set_bit(i, adev->gfx.me.queue_bitmap);
 	}
 
@@ -666,6 +699,9 @@ uint32_t amdgpu_kiq_rreg(struct amdgpu_device *adev, uint32_t reg)
 	if (amdgpu_device_skip_hw_access(adev))
 		return 0;
 
+	if (adev->mes.ring.sched.ready)
+		return amdgpu_mes_rreg(adev, reg);
+
 	BUG_ON(!ring->funcs->emit_rreg);
 
 	spin_lock_irqsave(&kiq->ring_lock, flags);
@@ -732,6 +768,11 @@ void amdgpu_kiq_wreg(struct amdgpu_device *adev, uint32_t reg, uint32_t v)
 
 	if (amdgpu_device_skip_hw_access(adev))
 		return;
+
+	if (adev->mes.ring.sched.ready) {
+		amdgpu_mes_wreg(adev, reg, v);
+		return;
+	}
 
 	spin_lock_irqsave(&kiq->ring_lock, flags);
 	amdgpu_ring_alloc(ring, 32);

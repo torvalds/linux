@@ -389,8 +389,8 @@ static int __prestera_inetaddr_event(struct prestera_switch *sw,
 				     unsigned long event,
 				     struct netlink_ext_ack *extack)
 {
-	if (!prestera_netdev_check(dev) || netif_is_bridge_port(dev) ||
-	    netif_is_lag_port(dev) || netif_is_ovs_port(dev))
+	if (!prestera_netdev_check(dev) || netif_is_any_bridge_port(dev) ||
+	    netif_is_lag_port(dev))
 		return 0;
 
 	return __prestera_inetaddr_port_event(dev, event, extack);
@@ -588,6 +588,7 @@ err_router_lib_init:
 
 void prestera_router_fini(struct prestera_switch *sw)
 {
+	unregister_fib_notifier(&init_net, &sw->router->fib_nb);
 	unregister_inetaddr_notifier(&sw->router->inetaddr_nb);
 	unregister_inetaddr_validator_notifier(&sw->router->inetaddr_valid_nb);
 	rhashtable_destroy(&sw->router->kern_fib_cache_ht);

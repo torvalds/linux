@@ -258,7 +258,8 @@ void mt7601u_tx_stat(struct work_struct *work)
 }
 
 int mt7601u_conf_tx(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
-		    u16 queue, const struct ieee80211_tx_queue_params *params)
+		    unsigned int link_id, u16 queue,
+		    const struct ieee80211_tx_queue_params *params)
 {
 	struct mt7601u_dev *dev = hw->priv;
 	u8 cw_min = 5, cw_max = 10, hw_q = q2hwq(queue);

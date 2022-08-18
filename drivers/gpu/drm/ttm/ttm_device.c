@@ -156,8 +156,12 @@ int ttm_device_swapout(struct ttm_device *bdev, struct ttm_operation_ctx *ctx,
 
 		ttm_resource_manager_for_each_res(man, &cursor, res) {
 			struct ttm_buffer_object *bo = res->bo;
-			uint32_t num_pages = PFN_UP(bo->base.size);
+			uint32_t num_pages;
 
+			if (!bo)
+				continue;
+
+			num_pages = PFN_UP(bo->base.size);
 			ret = ttm_bo_swapout(bo, ctx, gfp_flags);
 			/* ttm_bo_swapout has dropped the lru_lock */
 			if (!ret)

@@ -3353,7 +3353,7 @@ static void atmel_management_frame(struct atmel_private *priv,
 					priv->beacons_this_sec++;
 					atmel_smooth_qual(priv);
 					if (priv->last_beacon_timestamp) {
-						/* Note truncate this to 32 bits - kernel can't divide a long long */
+						/* Note truncate this to 32 bits - kernel can't divide a long */
 						u32 beacon_delay = timestamp - priv->last_beacon_timestamp;
 						int beacons = beacon_delay / (beacon_interval * 1000);
 						if (beacons > 1)

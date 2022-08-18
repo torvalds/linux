@@ -1822,8 +1822,8 @@ wmi_evt_reassoc_status(struct wil6210_vif *vif, int id, void *d, int len)
 	freq = ieee80211_channel_to_frequency(ch, NL80211_BAND_60GHZ);
 
 	memset(&info, 0, sizeof(info));
-	info.channel = ieee80211_get_channel(wiphy, freq);
-	info.bss = vif->bss;
+	info.links[0].channel = ieee80211_get_channel(wiphy, freq);
+	info.links[0].bss = vif->bss;
 	info.req_ie = assoc_req_ie;
 	info.req_ie_len = assoc_req_ie_len;
 	info.resp_ie = assoc_resp_ie;

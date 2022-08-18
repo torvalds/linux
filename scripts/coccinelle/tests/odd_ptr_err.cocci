@@ -6,7 +6,7 @@
 // Confidence: High
 // Copyright: (C) 2012, 2015 Julia Lawall, INRIA.
 // Copyright: (C) 2012, 2015 Gilles Muller, INRIA.
-// URL: http://coccinelle.lip6.fr/
+// URL: https://coccinelle.gitlabpages.inria.fr/website
 // Options: --no-includes --include-headers
 
 virtual patch
