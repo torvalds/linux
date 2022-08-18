@@ -1160,12 +1160,8 @@ static void vin_change_buffer(struct vin_line *line)
 	if (output->state == VIN_OUTPUT_OFF
 		|| output->state == VIN_OUTPUT_STOPPING
 		|| output->state == VIN_OUTPUT_RESERVED
-		|| output->state == VIN_OUTPUT_IDLE) {
-		st_err_ratelimited(ST_VIN,
-				"%s: output state no ready %d!, %d\n",
-				__func__, output->state, line->id);
+		|| output->state == VIN_OUTPUT_IDLE)
 		return;
-	}
 
 	spin_lock_irqsave(&line->output_lock, flags);
 
