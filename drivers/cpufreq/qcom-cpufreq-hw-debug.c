@@ -23,7 +23,7 @@ enum debug_hw_regs_data {
 };
 
 struct cpufreq_hwregs {
-	void __iomem *base[REG_ARRAY_SIZE];
+	void * __iomem *base;
 	int domain_cnt;
 	struct dentry *debugfs_base;
 };
@@ -133,6 +133,11 @@ static int cpufreq_get_hwregs(struct platform_device *pdev)
 		return -EINVAL;
 
 	hw_regs->domain_cnt = prop->length / (2 * sizeof(prop->length));
+
+	hw_regs->base = devm_kzalloc(&pdev->dev,
+				     hw_regs->domain_cnt * sizeof(base), GFP_KERNEL);
+	if (!hw_regs->base)
+		return -ENOMEM;
 
 	for (i = 0; i < hw_regs->domain_cnt; i++) {
 		ret = of_parse_phandle_with_fixed_args(pdev->dev.of_node,
