@@ -2124,7 +2124,7 @@ static void qib_7322_handle_hwerrors(struct qib_devdata *dd, char *msg,
 
 	if (hwerrs & HWE_MASK(PowerOnBISTFailed)) {
 		isfatal = 1;
-		strlcpy(msg,
+		strscpy(msg,
 			"[Memory BIST test failed, InfiniPath hardware unusable]",
 			msgl);
 		/* ignore from now on, so disable until driver reloaded */

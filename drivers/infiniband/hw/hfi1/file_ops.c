@@ -965,7 +965,7 @@ static int allocate_ctxt(struct hfi1_filedata *fd, struct hfi1_devdata *dd,
 	uctxt->userversion = uinfo->userversion;
 	uctxt->flags = hfi1_cap_mask; /* save current flag state */
 	init_waitqueue_head(&uctxt->wait);
-	strlcpy(uctxt->comm, current->comm, sizeof(uctxt->comm));
+	strscpy(uctxt->comm, current->comm, sizeof(uctxt->comm));
 	memcpy(uctxt->uuid, uinfo->uuid, sizeof(uctxt->uuid));
 	uctxt->jkey = generate_jkey(current_uid());
 	hfi1_stats.sps_ctxts++;

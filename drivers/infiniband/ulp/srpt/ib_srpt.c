@@ -2300,7 +2300,7 @@ static int srpt_cm_req_recv(struct srpt_device *const sdev,
 		goto free_recv_ring;
 	}
 
-	strlcpy(ch->sess_name, src_addr, sizeof(ch->sess_name));
+	strscpy(ch->sess_name, src_addr, sizeof(ch->sess_name));
 	snprintf(i_port_id, sizeof(i_port_id), "0x%016llx%016llx",
 			be64_to_cpu(*(__be64 *)nexus->i_port_id),
 			be64_to_cpu(*(__be64 *)(nexus->i_port_id + 8)));

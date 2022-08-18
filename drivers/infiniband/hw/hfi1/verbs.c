@@ -1801,7 +1801,7 @@ int hfi1_register_ib_device(struct hfi1_devdata *dd)
 
 	ib_set_device_ops(ibdev, &hfi1_dev_ops);
 
-	strlcpy(ibdev->node_desc, init_utsname()->nodename,
+	strscpy(ibdev->node_desc, init_utsname()->nodename,
 		sizeof(ibdev->node_desc));
 
 	/*
