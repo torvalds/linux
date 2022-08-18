@@ -254,6 +254,8 @@ examples:
                     ethernet = <&amac2>;
                     label = "cpu";
                     reg = <8>;
+                    phy-mode = "internal";
+
                     fixed-link {
                         speed = <1000>;
                         full-duplex;
