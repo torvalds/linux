@@ -2573,10 +2573,12 @@ union bpf_attr {
  *		There are two supported modes at this time:
  *
  *		* **BPF_ADJ_ROOM_MAC**: Adjust room at the mac layer
- *		  (room space is added or removed below the layer 2 header).
+ * 		  (room space is added or removed between the layer 2 and
+ * 		  layer 3 headers).
  *
  * 		* **BPF_ADJ_ROOM_NET**: Adjust room at the network layer
- * 		  (room space is added or removed below the layer 3 header).
+ * 		  (room space is added or removed between the layer 3 and
+ * 		  layer 4 headers).
  *
  *		The following flags are supported at this time:
  *
@@ -3008,8 +3010,18 @@ union bpf_attr {
  * 		**BPF_F_USER_STACK**
  * 			Collect a user space stack instead of a kernel stack.
  * 		**BPF_F_USER_BUILD_ID**
- * 			Collect buildid+offset instead of ips for user stack,
- * 			only valid if **BPF_F_USER_STACK** is also specified.
+ * 			Collect (build_id, file_offset) instead of ips for user
+ * 			stack, only valid if **BPF_F_USER_STACK** is also
+ * 			specified.
+ *
+ * 			*file_offset* is an offset relative to the beginning
+ * 			of the executable or shared object file backing the vma
+ * 			which the *ip* falls in. It is *not* an offset relative
+ * 			to that object's base address. Accordingly, it must be
+ * 			adjusted by adding (sh_addr - sh_offset), where
+ * 			sh_{addr,offset} correspond to the executable section
+ * 			containing *file_offset* in the object, for comparisons
+ * 			to symbols' st_value to be valid.
  *
  * 		**bpf_get_stack**\ () can collect up to
  * 		**PERF_MAX_STACK_DEPTH** both kernel and user frames, subject
@@ -5331,6 +5343,18 @@ union bpf_attr {
  *		**-EACCES** if the SYN cookie is not valid.
  *
  *		**-EPROTONOSUPPORT** if CONFIG_IPV6 is not builtin.
+ *
+ * u64 bpf_ktime_get_tai_ns(void)
+ *	Description
+ *		A nonsettable system-wide clock derived from wall-clock time but
+ *		ignoring leap seconds.  This clock does not experience
+ *		discontinuities and backwards jumps caused by NTP inserting leap
+ *		seconds as CLOCK_REALTIME does.
+ *
+ *		See: **clock_gettime**\ (**CLOCK_TAI**)
+ *	Return
+ *		Current *ktime*.
+ *
  */
 #define __BPF_FUNC_MAPPER(FN)		\
 	FN(unspec),			\
@@ -5541,6 +5565,7 @@ union bpf_attr {
 	FN(tcp_raw_gen_syncookie_ipv6),	\
 	FN(tcp_raw_check_syncookie_ipv4),	\
 	FN(tcp_raw_check_syncookie_ipv6),	\
+	FN(ktime_get_tai_ns),		\
 	/* */
 
 /* integer value in 'imm' field of BPF_CALL instruction selects which helper

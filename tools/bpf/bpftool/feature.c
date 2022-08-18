@@ -1147,7 +1147,7 @@ exit_free:
 	return res;
 #else
 	/* Detection assumes user has specific privileges.
-	 * We do not use libpcap so let's approximate, and restrict usage to
+	 * We do not use libcap so let's approximate, and restrict usage to
 	 * root user only.
 	 */
 	if (geteuid()) {

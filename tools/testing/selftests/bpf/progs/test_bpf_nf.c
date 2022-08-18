@@ -23,6 +23,12 @@ int test_insert_entry = -EAFNOSUPPORT;
 int test_succ_lookup = -ENOENT;
 u32 test_delta_timeout = 0;
 u32 test_status = 0;
+__be32 saddr = 0;
+__be16 sport = 0;
+__be32 daddr = 0;
+__be16 dport = 0;
+int test_exist_lookup = -ENOENT;
+u32 test_exist_lookup_mark = 0;
 
 struct nf_conn;
 
@@ -159,6 +165,21 @@ nf_ct_test(struct nf_conn *(*lookup_fn)(void *, struct bpf_sock_tuple *, u32,
 			test_insert_entry = 0;
 		}
 		test_alloc_entry = 0;
+	}
+
+	bpf_tuple.ipv4.saddr = saddr;
+	bpf_tuple.ipv4.daddr = daddr;
+	bpf_tuple.ipv4.sport = sport;
+	bpf_tuple.ipv4.dport = dport;
+	ct = lookup_fn(ctx, &bpf_tuple, sizeof(bpf_tuple.ipv4), &opts_def,
+		       sizeof(opts_def));
+	if (ct) {
+		test_exist_lookup = 0;
+		if (ct->mark == 42)
+			test_exist_lookup_mark = 43;
+		bpf_ct_release(ct);
+	} else {
+		test_exist_lookup = opts_def.error;
 	}
 }
 

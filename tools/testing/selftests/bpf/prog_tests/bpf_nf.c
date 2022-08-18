@@ -24,10 +24,34 @@ enum {
 	TEST_TC_BPF,
 };
 
+#define TIMEOUT_MS 3000
+
+static int connect_to_server(int srv_fd)
+{
+	int fd = -1;
+
+	fd = socket(AF_INET, SOCK_STREAM, 0);
+	if (!ASSERT_GE(fd, 0, "socket"))
+		goto out;
+
+	if (!ASSERT_EQ(connect_fd_to_fd(fd, srv_fd, TIMEOUT_MS), 0, "connect_fd_to_fd")) {
+		close(fd);
+		fd = -1;
+	}
+out:
+	return fd;
+}
+
 static void test_bpf_nf_ct(int mode)
 {
+	const char *iptables = "iptables -t raw %s PREROUTING -j CONNMARK --set-mark 42/0";
+	int srv_fd = -1, client_fd = -1, srv_client_fd = -1;
+	struct sockaddr_in peer_addr = {};
 	struct test_bpf_nf *skel;
 	int prog_fd, err;
+	socklen_t len;
+	u16 srv_port;
+	char cmd[64];
 	LIBBPF_OPTS(bpf_test_run_opts, topts,
 		.data_in = &pkt_v4,
 		.data_size_in = sizeof(pkt_v4),
@@ -37,6 +61,32 @@ static void test_bpf_nf_ct(int mode)
 	skel = test_bpf_nf__open_and_load();
 	if (!ASSERT_OK_PTR(skel, "test_bpf_nf__open_and_load"))
 		return;
+
+	/* Enable connection tracking */
+	snprintf(cmd, sizeof(cmd), iptables, "-A");
+	if (!ASSERT_OK(system(cmd), "iptables"))
+		goto end;
+
+	srv_port = (mode == TEST_XDP) ? 5005 : 5006;
+	srv_fd = start_server(AF_INET, SOCK_STREAM, "127.0.0.1", srv_port, TIMEOUT_MS);
+	if (!ASSERT_GE(srv_fd, 0, "start_server"))
+		goto end;
+
+	client_fd = connect_to_server(srv_fd);
+	if (!ASSERT_GE(client_fd, 0, "connect_to_server"))
+		goto end;
+
+	len = sizeof(peer_addr);
+	srv_client_fd = accept(srv_fd, (struct sockaddr *)&peer_addr, &len);
+	if (!ASSERT_GE(srv_client_fd, 0, "accept"))
+		goto end;
+	if (!ASSERT_EQ(len, sizeof(struct sockaddr_in), "sockaddr len"))
+		goto end;
+
+	skel->bss->saddr = peer_addr.sin_addr.s_addr;
+	skel->bss->sport = peer_addr.sin_port;
+	skel->bss->daddr = peer_addr.sin_addr.s_addr;
+	skel->bss->dport = htons(srv_port);
 
 	if (mode == TEST_XDP)
 		prog_fd = bpf_program__fd(skel->progs.nf_xdp_ct_test);
@@ -63,7 +113,17 @@ static void test_bpf_nf_ct(int mode)
 	ASSERT_LE(skel->bss->test_delta_timeout, 10, "Test for max ct timeout update");
 	/* expected status is IPS_SEEN_REPLY */
 	ASSERT_EQ(skel->bss->test_status, 2, "Test for ct status update ");
+	ASSERT_EQ(skel->data->test_exist_lookup, 0, "Test existing connection lookup");
+	ASSERT_EQ(skel->bss->test_exist_lookup_mark, 43, "Test existing connection lookup ctmark");
 end:
+	if (srv_client_fd != -1)
+		close(srv_client_fd);
+	if (client_fd != -1)
+		close(client_fd);
+	if (srv_fd != -1)
+		close(srv_fd);
+	snprintf(cmd, sizeof(cmd), iptables, "-D");
+	system(cmd);
 	test_bpf_nf__destroy(skel);
 }
 
