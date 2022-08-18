@@ -660,6 +660,9 @@ static struct qcom_icc_node qnm_ubwc_p = {
 	.qosbox = &qnm_ubwc_p_qos,
 	.num_links = 1,
 	.links = { SLAVE_LLCC },
+	.clk_name = "gcc_ddrss_ubwcp_clk",
+	.bw_scale_numerator = 15,
+	.bw_scale_denominator = 10,
 };
 
 static struct qcom_icc_qosbox xm_gic_qos = {

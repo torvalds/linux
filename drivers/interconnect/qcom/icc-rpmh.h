@@ -68,6 +68,12 @@ struct bcm_db {
  * @perf_mode: current OR aggregate value of all QCOM_ICC_TAG_PERF_MODE votes
  * @bcms: list of bcms associated with this logical node
  * @num_bcms: num of @bcms
+ * @clk: the local clock at this node
+ * @clk_name: the local clock name at this node
+ * @toggle_clk: flag used to indicate whether local clock can be enabled/disabled
+ * @clk_enabled: flag used to indicate whether local clock have been enabled
+ * @bw_scale_numerator: the numerator of the bandwidth scale factor
+ * @bw_scale_denominator: the denominator of the bandwidth scale factor
  */
 struct qcom_icc_node {
 	const char *name;
@@ -84,6 +90,12 @@ struct qcom_icc_node {
 	struct regmap *regmap;
 	struct qcom_icc_qosbox *qosbox;
 	const struct qcom_icc_noc_ops *noc_ops;
+	struct clk *clk;
+	const char *clk_name;
+	bool toggle_clk;
+	bool clk_enabled;
+	u16 bw_scale_numerator;
+	u16 bw_scale_denominator;
 };
 
 /**
