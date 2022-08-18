@@ -4466,8 +4466,8 @@
 	};
 
 	dfi: dfi@fe060000 {
-		reg = <0x00 0xfe060000 0x00 0x10000>;
 		compatible = "rockchip,rk3588-dfi";
+		reg = <0x00 0xfe060000 0x00 0x10000>;
 		rockchip,pmu_grf = <&pmu1_grf>;
 		status = "disabled";
 	};
