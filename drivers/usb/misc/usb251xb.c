@@ -547,7 +547,7 @@ static int usb251xb_get_ofdata(struct usb251xb *hub,
 		hub->boost_up = USB251XB_DEF_BOOST_UP;
 
 	cproperty_char = of_get_property(np, "manufacturer", NULL);
-	strlcpy(str, cproperty_char ? : USB251XB_DEF_MANUFACTURER_STRING,
+	strscpy(str, cproperty_char ? : USB251XB_DEF_MANUFACTURER_STRING,
 		sizeof(str));
 	hub->manufacturer_len = strlen(str) & 0xFF;
 	memset(hub->manufacturer, 0, USB251XB_STRING_BUFSIZE);
@@ -557,7 +557,7 @@ static int usb251xb_get_ofdata(struct usb251xb *hub,
 			      USB251XB_STRING_BUFSIZE);
 
 	cproperty_char = of_get_property(np, "product", NULL);
-	strlcpy(str, cproperty_char ? : data->product_str, sizeof(str));
+	strscpy(str, cproperty_char ? : data->product_str, sizeof(str));
 	hub->product_len = strlen(str) & 0xFF;
 	memset(hub->product, 0, USB251XB_STRING_BUFSIZE);
 	len = min_t(size_t, USB251XB_STRING_BUFSIZE / 2, strlen(str));
@@ -566,7 +566,7 @@ static int usb251xb_get_ofdata(struct usb251xb *hub,
 			      USB251XB_STRING_BUFSIZE);
 
 	cproperty_char = of_get_property(np, "serial", NULL);
-	strlcpy(str, cproperty_char ? : USB251XB_DEF_SERIAL_STRING,
+	strscpy(str, cproperty_char ? : USB251XB_DEF_SERIAL_STRING,
 		sizeof(str));
 	hub->serial_len = strlen(str) & 0xFF;
 	memset(hub->serial, 0, USB251XB_STRING_BUFSIZE);

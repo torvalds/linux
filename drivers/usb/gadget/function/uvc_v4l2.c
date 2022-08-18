@@ -67,9 +67,9 @@ uvc_v4l2_querycap(struct file *file, void *fh, struct v4l2_capability *cap)
 	struct uvc_device *uvc = video_get_drvdata(vdev);
 	struct usb_composite_dev *cdev = uvc->func.config->cdev;
 
-	strlcpy(cap->driver, "g_uvc", sizeof(cap->driver));
-	strlcpy(cap->card, cdev->gadget->name, sizeof(cap->card));
-	strlcpy(cap->bus_info, dev_name(&cdev->gadget->dev),
+	strscpy(cap->driver, "g_uvc", sizeof(cap->driver));
+	strscpy(cap->card, cdev->gadget->name, sizeof(cap->card));
+	strscpy(cap->bus_info, dev_name(&cdev->gadget->dev),
 		sizeof(cap->bus_info));
 	return 0;
 }
