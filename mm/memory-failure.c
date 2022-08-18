@@ -2351,7 +2351,7 @@ int unpoison_memory(unsigned long pfn)
 		goto unlock_mutex;
 	}
 
-	if (PageSlab(page) || PageTable(page))
+	if (PageSlab(page) || PageTable(page) || PageReserved(page))
 		goto unlock_mutex;
 
 	ret = get_hwpoison_page(p, MF_UNPOISON);
@@ -2382,7 +2382,7 @@ int unpoison_memory(unsigned long pfn)
 		freeit = !!TestClearPageHWPoison(p);
 
 		put_page(page);
-		if (freeit && !(pfn == my_zero_pfn(0) && page_count(p) == 1)) {
+		if (freeit) {
 			put_page(page);
 			ret = 0;
 		}
