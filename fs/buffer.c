@@ -52,8 +52,8 @@
 #include "internal.h"
 
 static int fsync_buffers_list(spinlock_t *lock, struct list_head *list);
-static int submit_bh_wbc(blk_opf_t opf, struct buffer_head *bh,
-			 struct writeback_control *wbc);
+static void submit_bh_wbc(blk_opf_t opf, struct buffer_head *bh,
+			  struct writeback_control *wbc);
 
 #define BH_ENTRY(list) list_entry((list), struct buffer_head, b_assoc_buffers)
 
@@ -2673,8 +2673,8 @@ static void end_bio_bh_io_sync(struct bio *bio)
 	bio_put(bio);
 }
 
-static int submit_bh_wbc(blk_opf_t opf, struct buffer_head *bh,
-			 struct writeback_control *wbc)
+static void submit_bh_wbc(blk_opf_t opf, struct buffer_head *bh,
+			  struct writeback_control *wbc)
 {
 	const enum req_op op = opf & REQ_OP_MASK;
 	struct bio *bio;
@@ -2717,12 +2717,11 @@ static int submit_bh_wbc(blk_opf_t opf, struct buffer_head *bh,
 	}
 
 	submit_bio(bio);
-	return 0;
 }
 
-int submit_bh(blk_opf_t opf, struct buffer_head *bh)
+void submit_bh(blk_opf_t opf, struct buffer_head *bh)
 {
-	return submit_bh_wbc(opf, bh, NULL);
+	submit_bh_wbc(opf, bh, NULL);
 }
 EXPORT_SYMBOL(submit_bh);
 
