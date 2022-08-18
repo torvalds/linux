@@ -184,7 +184,7 @@ static int cfusbl_device_notify(struct notifier_block *me, unsigned long what,
 		dev_add_pack(&caif_usb_type);
 	pack_added = true;
 
-	strlcpy(layer->name, dev->name, sizeof(layer->name));
+	strscpy(layer->name, dev->name, sizeof(layer->name));
 
 	return 0;
 err:
