@@ -1980,7 +1980,7 @@ static int radeon_set_fbinfo(struct radeonfb_info *rinfo)
 	info->screen_base = rinfo->fb_base;
 	info->screen_size = rinfo->mapped_vram;
 	/* Fill fix common fields */
-	strlcpy(info->fix.id, rinfo->name, sizeof(info->fix.id));
+	strscpy(info->fix.id, rinfo->name, sizeof(info->fix.id));
         info->fix.smem_start = rinfo->fb_base_phys;
         info->fix.smem_len = rinfo->video_ram;
         info->fix.type = FB_TYPE_PACKED_PIXELS;

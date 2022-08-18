@@ -1382,7 +1382,7 @@ static int sstfb_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		goto fail;
 	}
 	sst_get_memsize(info, &fix->smem_len);
-	strlcpy(fix->id, spec->name, sizeof(fix->id));
+	strscpy(fix->id, spec->name, sizeof(fix->id));
 
 	printk(KERN_INFO "%s (revision %d) with %s dac\n",
 		fix->id, par->revision, par->dac_sw.name);
