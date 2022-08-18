@@ -183,6 +183,13 @@ config APPLE_M1_CPU_PMU
 	  Provides support for the non-architectural CPU PMUs present on
 	  the Apple M1 SoCs and derivatives.
 
+config ALIBABA_UNCORE_DRW_PMU
+	tristate "Alibaba T-Head Yitian 710 DDR Sub-system Driveway PMU driver"
+	depends on ARM64 || COMPILE_TEST
+	help
+	  Support for Driveway PMU events monitoring on Yitian 710 DDR
+	  Sub-system.
+
 source "drivers/perf/hisilicon/Kconfig"
 
 config MARVELL_CN10K_DDR_PMU
