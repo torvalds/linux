@@ -200,28 +200,19 @@ static int __arch_setup_additional_pages(struct linux_binprm *bprm, int uses_int
 	if (is_32bit_task()) {
 		vdso_spec = &vdso32_spec;
 		vdso_size = &vdso32_end - &vdso32_start;
-		vdso_base = VDSO32_MBASE;
 	} else {
 		vdso_spec = &vdso64_spec;
 		vdso_size = &vdso64_end - &vdso64_start;
-		/*
-		 * On 64bit we don't have a preferred map address. This
-		 * allows get_unmapped_area to find an area near other mmaps
-		 * and most likely share a SLB entry.
-		 */
-		vdso_base = 0;
 	}
 
 	mappings_size = vdso_size + vvar_size;
 	mappings_size += (VDSO_ALIGNMENT - 1) & PAGE_MASK;
 
 	/*
-	 * pick a base address for the vDSO in process space. We try to put it
-	 * at vdso_base which is the "natural" base for it, but we might fail
-	 * and end up putting it elsewhere.
+	 * Pick a base address for the vDSO in process space.
 	 * Add enough to the size so that the result can be aligned.
 	 */
-	vdso_base = get_unmapped_area(NULL, vdso_base, mappings_size, 0, 0);
+	vdso_base = get_unmapped_area(NULL, 0, mappings_size, 0, 0);
 	if (IS_ERR_VALUE(vdso_base))
 		return vdso_base;
 
