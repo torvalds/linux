@@ -177,7 +177,7 @@ endif
 #
 # Print the result of the feature test:
 #
-feature_print_status = $(eval $(feature_print_status_code)) $(info $(MSG))
+feature_print_status = $(eval $(feature_print_status_code))
 
 define feature_print_status_code
   ifeq ($(feature-$(1)), 1)
@@ -187,7 +187,7 @@ define feature_print_status_code
   endif
 endef
 
-feature_print_text = $(eval $(feature_print_text_code)) $(info $(MSG))
+feature_print_text = $(eval $(feature_print_text_code))
 define feature_print_text_code
     MSG = $(shell printf '...%30s: %s' $(1) $(2))
 endef
@@ -247,21 +247,18 @@ endif
 feature_display_entries = $(eval $(feature_display_entries_code))
 define feature_display_entries_code
   ifeq ($(feature_display),1)
-    $(info )
-    $(info Auto-detecting system features:)
-    $(foreach feat,$(FEATURE_DISPLAY),$(call feature_print_status,$(feat),))
-    ifneq ($(feature_verbose),1)
-      $(info )
-    endif
+    $$(info )
+    $$(info Auto-detecting system features:)
+    $(foreach feat,$(FEATURE_DISPLAY),$(call feature_print_status,$(feat),) $$(info $(MSG)))
   endif
 
   ifeq ($(feature_verbose),1)
-    TMP := $(filter-out $(FEATURE_DISPLAY),$(FEATURE_TESTS))
-    $(foreach feat,$(TMP),$(call feature_print_status,$(feat),))
-    $(info )
+    $(eval TMP := $(filter-out $(FEATURE_DISPLAY),$(FEATURE_TESTS)))
+    $(foreach feat,$(TMP),$(call feature_print_status,$(feat),) $$(info $(MSG)))
   endif
 endef
 
 ifeq ($(FEATURE_DISPLAY_DEFERRED),)
   $(call feature_display_entries)
+  $(info )
 endif
