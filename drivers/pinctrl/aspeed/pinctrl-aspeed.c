@@ -92,19 +92,10 @@ static int aspeed_sig_expr_enable(struct aspeed_pinmux_data *ctx,
 static int aspeed_sig_expr_disable(struct aspeed_pinmux_data *ctx,
 				   const struct aspeed_sig_expr *expr)
 {
-	int ret;
-
 	pr_debug("Disabling signal %s for %s\n", expr->signal,
 		 expr->function);
 
-	ret = aspeed_sig_expr_eval(ctx, expr, true);
-	if (ret < 0)
-		return ret;
-
-	if (ret)
-		return aspeed_sig_expr_set(ctx, expr, false);
-
-	return 0;
+	return aspeed_sig_expr_set(ctx, expr, false);
 }
 
 /**
