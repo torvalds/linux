@@ -27,9 +27,9 @@ TRACE_EVENT(scmi_fc_call,
 		__entry->val2 = val2;
 	),
 
-	TP_printk("[0x%02X]:[0x%02X]:[%08X]:%u:%u",
-		  __entry->protocol_id, __entry->msg_id,
-		  __entry->res_id, __entry->val1, __entry->val2)
+	TP_printk("pt=%02X msg_id=%02X res_id:%u vals=%u:%u",
+		__entry->protocol_id, __entry->msg_id,
+		__entry->res_id, __entry->val1, __entry->val2)
 );
 
 TRACE_EVENT(scmi_xfer_begin,
@@ -53,9 +53,9 @@ TRACE_EVENT(scmi_xfer_begin,
 		__entry->poll = poll;
 	),
 
-	TP_printk("transfer_id=%d msg_id=%u protocol_id=%u seq=%u poll=%u",
-		__entry->transfer_id, __entry->msg_id, __entry->protocol_id,
-		__entry->seq, __entry->poll)
+	TP_printk("pt=%02X msg_id=%02X seq=%04X transfer_id=%X poll=%u",
+		__entry->protocol_id, __entry->msg_id, __entry->seq,
+		__entry->transfer_id, __entry->poll)
 );
 
 TRACE_EVENT(scmi_xfer_response_wait,
@@ -81,9 +81,9 @@ TRACE_EVENT(scmi_xfer_response_wait,
 		__entry->poll = poll;
 	),
 
-	TP_printk("transfer_id=%d msg_id=%u protocol_id=%u seq=%u tmo_ms=%u poll=%u",
-		__entry->transfer_id, __entry->msg_id, __entry->protocol_id,
-		__entry->seq, __entry->timeout, __entry->poll)
+	TP_printk("pt=%02X msg_id=%02X seq=%04X transfer_id=%X tmo_ms=%u poll=%u",
+		__entry->protocol_id, __entry->msg_id, __entry->seq,
+		__entry->transfer_id, __entry->timeout, __entry->poll)
 );
 
 TRACE_EVENT(scmi_xfer_end,
@@ -107,9 +107,9 @@ TRACE_EVENT(scmi_xfer_end,
 		__entry->status = status;
 	),
 
-	TP_printk("transfer_id=%d msg_id=%u protocol_id=%u seq=%u status=%d",
-		__entry->transfer_id, __entry->msg_id, __entry->protocol_id,
-		__entry->seq, __entry->status)
+	TP_printk("pt=%02X msg_id=%02X seq=%04X transfer_id=%X s=%d",
+		__entry->protocol_id, __entry->msg_id, __entry->seq,
+		__entry->transfer_id, __entry->status)
 );
 
 TRACE_EVENT(scmi_rx_done,
@@ -133,9 +133,9 @@ TRACE_EVENT(scmi_rx_done,
 		__entry->msg_type = msg_type;
 	),
 
-	TP_printk("transfer_id=%d msg_id=%u protocol_id=%u seq=%u msg_type=%u",
-		__entry->transfer_id, __entry->msg_id, __entry->protocol_id,
-		__entry->seq, __entry->msg_type)
+	TP_printk("pt=%02X msg_id=%02X seq=%04X transfer_id=%X msg_type=%u",
+		__entry->protocol_id, __entry->msg_id, __entry->seq,
+		__entry->transfer_id, __entry->msg_type)
 );
 
 TRACE_EVENT(scmi_msg_dump,
