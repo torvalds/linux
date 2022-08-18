@@ -253,7 +253,8 @@ static void _isst_fact_display_information(struct isst_id *id, FILE *outf, int l
 		if (fact_bucket != 0xff && fact_bucket != j)
 			continue;
 
-		if (!bucket_info[j].hp_cores)
+		/* core count must be valid for CPU power domain */
+		if (!bucket_info[j].hp_cores && id->cpu >= 0)
 			break;
 
 		print = 1;
