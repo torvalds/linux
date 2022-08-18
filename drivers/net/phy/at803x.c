@@ -115,6 +115,7 @@
 #define AT803X_DEBUG_REG_HIB_CTRL		0x0b
 #define   AT803X_DEBUG_HIB_CTRL_SEL_RST_80U	BIT(10)
 #define   AT803X_DEBUG_HIB_CTRL_EN_ANY_CHANGE	BIT(13)
+#define   AT803X_DEBUG_HIB_CTRL_PS_HIB_EN	BIT(15)
 
 #define AT803X_DEBUG_REG_3C			0x3C
 
@@ -191,6 +192,9 @@
 /* don't turn off internal PLL */
 #define AT803X_KEEP_PLL_ENABLED			BIT(0)
 #define AT803X_DISABLE_SMARTEEE			BIT(1)
+
+/* disable hibernation mode */
+#define AT803X_DISABLE_HIBERNATION_MODE		BIT(2)
 
 /* ADC threshold */
 #define QCA808X_PHY_DEBUG_ADC_THRESHOLD		0x2c80
@@ -730,6 +734,9 @@ static int at803x_parse_dt(struct phy_device *phydev)
 	if (of_property_read_bool(node, "qca,disable-smarteee"))
 		priv->flags |= AT803X_DISABLE_SMARTEEE;
 
+	if (of_property_read_bool(node, "qca,disable-hibernation-mode"))
+		priv->flags |= AT803X_DISABLE_HIBERNATION_MODE;
+
 	if (!of_property_read_u32(node, "qca,smarteee-tw-us-1g", &tw)) {
 		if (!tw || tw > 255) {
 			phydev_err(phydev, "invalid qca,smarteee-tw-us-1g\n");
@@ -999,6 +1006,20 @@ static int at8031_pll_config(struct phy_device *phydev)
 					     AT803X_DEBUG_PLL_ON, 0);
 }
 
+static int at803x_hibernation_mode_config(struct phy_device *phydev)
+{
+	struct at803x_priv *priv = phydev->priv;
+
+	/* The default after hardware reset is hibernation mode enabled. After
+	 * software reset, the value is retained.
+	 */
+	if (!(priv->flags & AT803X_DISABLE_HIBERNATION_MODE))
+		return 0;
+
+	return at803x_debug_reg_mask(phydev, AT803X_DEBUG_REG_HIB_CTRL,
+					 AT803X_DEBUG_HIB_CTRL_PS_HIB_EN, 0);
+}
+
 static int at803x_config_init(struct phy_device *phydev)
 {
 	struct at803x_priv *priv = phydev->priv;
@@ -1048,6 +1069,10 @@ static int at803x_config_init(struct phy_device *phydev)
 		return ret;
 
 	ret = at803x_clk_out_config(phydev);
+	if (ret < 0)
+		return ret;
+
+	ret = at803x_hibernation_mode_config(phydev);
 	if (ret < 0)
 		return ret;
 
