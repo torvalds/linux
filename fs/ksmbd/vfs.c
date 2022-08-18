@@ -963,7 +963,7 @@ ssize_t ksmbd_vfs_getxattr(struct user_namespace *user_ns,
  */
 int ksmbd_vfs_setxattr(struct user_namespace *user_ns,
 		       struct dentry *dentry, const char *attr_name,
-		       const void *attr_value, size_t attr_size, int flags)
+		       void *attr_value, size_t attr_size, int flags)
 {
 	int err;
 

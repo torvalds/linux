@@ -35,14 +35,14 @@
 		 * external power off (e.g ATX Power Button)
 		 * asserted
 		 */
-		powerdn {
+		button-powerdn {
 			label = "External Power Down";
 			gpios = <&gpio1 17 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_POWER>;
 		};
 
 		/* Rear Panel 'ADMIN' button (GPIO_H) */
-		admin {
+		button-admin {
 			label = "ADMIN button";
 			gpios = <&gpio3 8 GPIO_ACTIVE_HIGH>;
 			linux,code = <KEY_WPS_BUTTON>;
@@ -52,17 +52,17 @@
 	leds {
 		compatible = "gpio-leds";
 
-		sfp1down {
+		led-0 {
 			label = "ten64:green:sfp1:down";
 			gpios = <&gpio3 11 GPIO_ACTIVE_HIGH>;
 		};
 
-		sfp2up {
+		led-1 {
 			label = "ten64:green:sfp2:up";
 			gpios = <&gpio3 12 GPIO_ACTIVE_HIGH>;
 		};
 
-		admin {
+		led-2 {
 			label = "ten64:admin";
 			gpios = <&sfpgpio 12 GPIO_ACTIVE_HIGH>;
 		};

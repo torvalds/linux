@@ -755,8 +755,7 @@ make a neat patch, there's administrative work to be done:
    it implies a more-than-passing commitment to some part of the code.
 
 -  Finally, don't forget to read
-   ``Documentation/process/submitting-patches.rst`` and possibly
-   ``Documentation/process/submitting-drivers.rst``.
+   ``Documentation/process/submitting-patches.rst``
 
 Kernel Cantrips
 ===============

@@ -400,6 +400,12 @@
 	arm64.nomte	[ARM64] Unconditionally disable Memory Tagging Extension
 			support
 
+	arm64.nosve	[ARM64] Unconditionally disable Scalable Vector
+			Extension support
+
+	arm64.nosme	[ARM64] Unconditionally disable Scalable Matrix
+			Extension support
+
 	ataflop=	[HW,M68k]
 
 	atarimouse=	[HW,MOUSE] Atari Mouse
@@ -550,7 +556,7 @@
 			nosocket -- Disable socket memory accounting.
 			nokmem -- Disable kernel memory accounting.
 
-	checkreqprot	[SELINUX] Set initial checkreqprot flag value.
+	checkreqprot=	[SELINUX] Set initial checkreqprot flag value.
 			Format: { "0" | "1" }
 			See security/selinux/Kconfig help text.
 			0 -- check protection applied by kernel (includes
@@ -1439,7 +1445,7 @@
 			(in particular on some ATI chipsets).
 			The kernel tries to set a reasonable default.
 
-	enforcing	[SELINUX] Set initial enforcing status.
+	enforcing=	[SELINUX] Set initial enforcing status.
 			Format: {"0" | "1"}
 			See security/selinux/Kconfig help text.
 			0 -- permissive (log only, no denials).
@@ -3111,7 +3117,7 @@
 			mem_encrypt=on:		Activate SME
 			mem_encrypt=off:	Do not activate SME
 
-			Refer to Documentation/virt/kvm/amd-memory-encryption.rst
+			Refer to Documentation/virt/kvm/x86/amd-memory-encryption.rst
 			for details on when memory encryption can be activated.
 
 	mem_sleep_default=	[SUSPEND] Default system suspend mode:
@@ -3169,7 +3175,7 @@
 				improves system performance, but it may also
 				expose users to several CPU vulnerabilities.
 				Equivalent to: nopti [X86,PPC]
-					       kpti=0 [ARM64]
+					       if nokaslr then kpti=0 [ARM64]
 					       nospectre_v1 [X86,PPC]
 					       nobp=0 [S390]
 					       nospectre_v2 [X86,PPC,S390,ARM64]
@@ -3669,6 +3675,9 @@
 			just as if they had also been called out in the
 			rcu_nocbs= boot parameter.
 
+			Note that this argument takes precedence over
+			the CONFIG_RCU_NOCB_CPU_DEFAULT_ALL option.
+
 	noiotrap	[SH] Disables trapped I/O port accesses.
 
 	noirqdebug	[X86-32] Disables the code which attempts to detect and
@@ -3742,11 +3751,6 @@
 
 	noreplace-smp	[X86-32,SMP] Don't replace SMP instructions
 			with UP alternatives
-
-	nordrand	[X86] Disable kernel use of the RDRAND and
-			RDSEED instructions even if they are supported
-			by the processor.  RDRAND and RDSEED are still
-			available to user space applications.
 
 	noresume	[SWSUSP] Disables resume and restores original swap
 			space.
@@ -4567,6 +4571,9 @@
 			no-callback mode from boot but the mode may be
 			toggled at runtime via cpusets.
 
+			Note that this argument takes precedence over
+			the CONFIG_RCU_NOCB_CPU_DEFAULT_ALL option.
+
 	rcu_nocb_poll	[KNL]
 			Rather than requiring that offloaded CPUs
 			(specified by rcu_nocbs= above) explicitly
@@ -4675,6 +4682,34 @@
 			the default is zero (non-realtime operation).
 			When RCU_NOCB_CPU is set, also adjust the
 			priority of NOCB callback kthreads.
+
+	rcutree.rcu_divisor= [KNL]
+			Set the shift-right count to use to compute
+			the callback-invocation batch limit bl from
+			the number of callbacks queued on this CPU.
+			The result will be bounded below by the value of
+			the rcutree.blimit kernel parameter.  Every bl
+			callbacks, the softirq handler will exit in
+			order to allow the CPU to do other work.
+
+			Please note that this callback-invocation batch
+			limit applies only to non-offloaded callback
+			invocation.  Offloaded callbacks are instead
+			invoked in the context of an rcuoc kthread, which
+			scheduler will preempt as it does any other task.
+
+	rcutree.nocb_nobypass_lim_per_jiffy= [KNL]
+			On callback-offloaded (rcu_nocbs) CPUs,
+			RCU reduces the lock contention that would
+			otherwise be caused by callback floods through
+			use of the ->nocb_bypass list.	However, in the
+			common non-flooded case, RCU queues directly to
+			the main ->cblist in order to avoid the extra
+			overhead of the ->nocb_bypass list and its lock.
+			But if there are too many callbacks queued during
+			a single jiffy, RCU pre-queues the callbacks into
+			the ->nocb_bypass queue.  The definition of "too
+			many" is supplied by this kernel boot parameter.
 
 	rcutree.rcu_nocb_gp_stride= [KNL]
 			Set the number of NOCB callback kthreads in

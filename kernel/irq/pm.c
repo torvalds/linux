@@ -147,7 +147,6 @@ void suspend_device_irqs(void)
 			synchronize_irq(irq);
 	}
 }
-EXPORT_SYMBOL_GPL(suspend_device_irqs);
 
 static void resume_irq(struct irq_desc *desc)
 {
@@ -259,4 +258,3 @@ void resume_device_irqs(void)
 {
 	resume_irqs(false);
 }
-EXPORT_SYMBOL_GPL(resume_device_irqs);

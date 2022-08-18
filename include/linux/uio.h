@@ -156,19 +156,17 @@ static inline size_t copy_folio_to_iter(struct folio *folio, size_t offset,
 static __always_inline __must_check
 size_t copy_to_iter(const void *addr, size_t bytes, struct iov_iter *i)
 {
-	if (unlikely(!check_copy_size(addr, bytes, true)))
-		return 0;
-	else
+	if (check_copy_size(addr, bytes, true))
 		return _copy_to_iter(addr, bytes, i);
+	return 0;
 }
 
 static __always_inline __must_check
 size_t copy_from_iter(void *addr, size_t bytes, struct iov_iter *i)
 {
-	if (unlikely(!check_copy_size(addr, bytes, false)))
-		return 0;
-	else
+	if (check_copy_size(addr, bytes, false))
 		return _copy_from_iter(addr, bytes, i);
+	return 0;
 }
 
 static __always_inline __must_check
@@ -184,10 +182,9 @@ bool copy_from_iter_full(void *addr, size_t bytes, struct iov_iter *i)
 static __always_inline __must_check
 size_t copy_from_iter_nocache(void *addr, size_t bytes, struct iov_iter *i)
 {
-	if (unlikely(!check_copy_size(addr, bytes, false)))
-		return 0;
-	else
+	if (check_copy_size(addr, bytes, false))
 		return _copy_from_iter_nocache(addr, bytes, i);
+	return 0;
 }
 
 static __always_inline __must_check
@@ -219,6 +216,8 @@ size_t _copy_mc_to_iter(const void *addr, size_t bytes, struct iov_iter *i);
 #endif
 
 size_t iov_iter_zero(size_t bytes, struct iov_iter *);
+bool iov_iter_is_aligned(const struct iov_iter *i, unsigned addr_mask,
+			unsigned len_mask);
 unsigned long iov_iter_alignment(const struct iov_iter *i);
 unsigned long iov_iter_gap_alignment(const struct iov_iter *i);
 void iov_iter_init(struct iov_iter *i, unsigned int direction, const struct iovec *iov,

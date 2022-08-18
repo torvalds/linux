@@ -50,7 +50,7 @@
 };
 
 / {
-	soc {
+	soc: soc {
 		aips3: bus@2200000 {
 			compatible = "fsl,aips-bus", "simple-bus";
 			#address-cells = <1>;

@@ -546,52 +546,51 @@ static void __call_rcu_nocb_wake(struct rcu_data *rdp, bool was_alldone,
 	}
 }
 
-/*
- * Check if we ignore this rdp.
- *
- * We check that without holding the nocb lock but
- * we make sure not to miss a freshly offloaded rdp
- * with the current ordering:
- *
- *  rdp_offload_toggle()        nocb_gp_enabled_cb()
- * -------------------------   ----------------------------
- *    WRITE flags                 LOCK nocb_gp_lock
- *    LOCK nocb_gp_lock           READ/WRITE nocb_gp_sleep
- *    READ/WRITE nocb_gp_sleep    UNLOCK nocb_gp_lock
- *    UNLOCK nocb_gp_lock         READ flags
- */
-static inline bool nocb_gp_enabled_cb(struct rcu_data *rdp)
-{
-	u8 flags = SEGCBLIST_OFFLOADED | SEGCBLIST_KTHREAD_GP;
-
-	return rcu_segcblist_test_flags(&rdp->cblist, flags);
-}
-
-static inline bool nocb_gp_update_state_deoffloading(struct rcu_data *rdp,
-						     bool *needwake_state)
+static int nocb_gp_toggle_rdp(struct rcu_data *rdp,
+			       bool *wake_state)
 {
 	struct rcu_segcblist *cblist = &rdp->cblist;
+	unsigned long flags;
+	int ret;
 
-	if (rcu_segcblist_test_flags(cblist, SEGCBLIST_OFFLOADED)) {
-		if (!rcu_segcblist_test_flags(cblist, SEGCBLIST_KTHREAD_GP)) {
-			rcu_segcblist_set_flags(cblist, SEGCBLIST_KTHREAD_GP);
-			if (rcu_segcblist_test_flags(cblist, SEGCBLIST_KTHREAD_CB))
-				*needwake_state = true;
-		}
-		return false;
+	rcu_nocb_lock_irqsave(rdp, flags);
+	if (rcu_segcblist_test_flags(cblist, SEGCBLIST_OFFLOADED) &&
+	    !rcu_segcblist_test_flags(cblist, SEGCBLIST_KTHREAD_GP)) {
+		/*
+		 * Offloading. Set our flag and notify the offload worker.
+		 * We will handle this rdp until it ever gets de-offloaded.
+		 */
+		rcu_segcblist_set_flags(cblist, SEGCBLIST_KTHREAD_GP);
+		if (rcu_segcblist_test_flags(cblist, SEGCBLIST_KTHREAD_CB))
+			*wake_state = true;
+		ret = 1;
+	} else if (!rcu_segcblist_test_flags(cblist, SEGCBLIST_OFFLOADED) &&
+		   rcu_segcblist_test_flags(cblist, SEGCBLIST_KTHREAD_GP)) {
+		/*
+		 * De-offloading. Clear our flag and notify the de-offload worker.
+		 * We will ignore this rdp until it ever gets re-offloaded.
+		 */
+		rcu_segcblist_clear_flags(cblist, SEGCBLIST_KTHREAD_GP);
+		if (!rcu_segcblist_test_flags(cblist, SEGCBLIST_KTHREAD_CB))
+			*wake_state = true;
+		ret = 0;
+	} else {
+		WARN_ON_ONCE(1);
+		ret = -1;
 	}
 
-	/*
-	 * De-offloading. Clear our flag and notify the de-offload worker.
-	 * We will ignore this rdp until it ever gets re-offloaded.
-	 */
-	WARN_ON_ONCE(!rcu_segcblist_test_flags(cblist, SEGCBLIST_KTHREAD_GP));
-	rcu_segcblist_clear_flags(cblist, SEGCBLIST_KTHREAD_GP);
-	if (!rcu_segcblist_test_flags(cblist, SEGCBLIST_KTHREAD_CB))
-		*needwake_state = true;
-	return true;
+	rcu_nocb_unlock_irqrestore(rdp, flags);
+
+	return ret;
 }
 
+static void nocb_gp_sleep(struct rcu_data *my_rdp, int cpu)
+{
+	trace_rcu_nocb_wake(rcu_state.name, cpu, TPS("Sleep"));
+	swait_event_interruptible_exclusive(my_rdp->nocb_gp_wq,
+					!READ_ONCE(my_rdp->nocb_gp_sleep));
+	trace_rcu_nocb_wake(rcu_state.name, cpu, TPS("EndSleep"));
+}
 
 /*
  * No-CBs GP kthreads come here to wait for additional callbacks to show up
@@ -609,7 +608,7 @@ static void nocb_gp_wait(struct rcu_data *my_rdp)
 	bool needwait_gp = false; // This prevents actual uninitialized use.
 	bool needwake;
 	bool needwake_gp;
-	struct rcu_data *rdp;
+	struct rcu_data *rdp, *rdp_toggling = NULL;
 	struct rcu_node *rnp;
 	unsigned long wait_gp_seq = 0; // Suppress "use uninitialized" warning.
 	bool wasempty = false;
@@ -634,19 +633,10 @@ static void nocb_gp_wait(struct rcu_data *my_rdp)
 	 * is added to the list, so the skipped-over rcu_data structures
 	 * won't be ignored for long.
 	 */
-	list_for_each_entry_rcu(rdp, &my_rdp->nocb_head_rdp, nocb_entry_rdp, 1) {
-		bool needwake_state = false;
-
-		if (!nocb_gp_enabled_cb(rdp))
-			continue;
+	list_for_each_entry(rdp, &my_rdp->nocb_head_rdp, nocb_entry_rdp) {
 		trace_rcu_nocb_wake(rcu_state.name, rdp->cpu, TPS("Check"));
 		rcu_nocb_lock_irqsave(rdp, flags);
-		if (nocb_gp_update_state_deoffloading(rdp, &needwake_state)) {
-			rcu_nocb_unlock_irqrestore(rdp, flags);
-			if (needwake_state)
-				swake_up_one(&rdp->nocb_state_wq);
-			continue;
-		}
+		lockdep_assert_held(&rdp->nocb_lock);
 		bypass_ncbs = rcu_cblist_n_cbs(&rdp->nocb_bypass);
 		if (bypass_ncbs &&
 		    (time_after(j, READ_ONCE(rdp->nocb_bypass_first) + 1) ||
@@ -656,8 +646,6 @@ static void nocb_gp_wait(struct rcu_data *my_rdp)
 			bypass_ncbs = rcu_cblist_n_cbs(&rdp->nocb_bypass);
 		} else if (!bypass_ncbs && rcu_segcblist_empty(&rdp->cblist)) {
 			rcu_nocb_unlock_irqrestore(rdp, flags);
-			if (needwake_state)
-				swake_up_one(&rdp->nocb_state_wq);
 			continue; /* No callbacks here, try next. */
 		}
 		if (bypass_ncbs) {
@@ -705,8 +693,6 @@ static void nocb_gp_wait(struct rcu_data *my_rdp)
 		}
 		if (needwake_gp)
 			rcu_gp_kthread_wake();
-		if (needwake_state)
-			swake_up_one(&rdp->nocb_state_wq);
 	}
 
 	my_rdp->nocb_gp_bypass = bypass;
@@ -723,13 +709,19 @@ static void nocb_gp_wait(struct rcu_data *my_rdp)
 		/* Polling, so trace if first poll in the series. */
 		if (gotcbs)
 			trace_rcu_nocb_wake(rcu_state.name, cpu, TPS("Poll"));
-		schedule_timeout_idle(1);
+		if (list_empty(&my_rdp->nocb_head_rdp)) {
+			raw_spin_lock_irqsave(&my_rdp->nocb_gp_lock, flags);
+			if (!my_rdp->nocb_toggling_rdp)
+				WRITE_ONCE(my_rdp->nocb_gp_sleep, true);
+			raw_spin_unlock_irqrestore(&my_rdp->nocb_gp_lock, flags);
+			/* Wait for any offloading rdp */
+			nocb_gp_sleep(my_rdp, cpu);
+		} else {
+			schedule_timeout_idle(1);
+		}
 	} else if (!needwait_gp) {
 		/* Wait for callbacks to appear. */
-		trace_rcu_nocb_wake(rcu_state.name, cpu, TPS("Sleep"));
-		swait_event_interruptible_exclusive(my_rdp->nocb_gp_wq,
-				!READ_ONCE(my_rdp->nocb_gp_sleep));
-		trace_rcu_nocb_wake(rcu_state.name, cpu, TPS("EndSleep"));
+		nocb_gp_sleep(my_rdp, cpu);
 	} else {
 		rnp = my_rdp->mynode;
 		trace_rcu_this_gp(rnp, my_rdp, wait_gp_seq, TPS("StartWait"));
@@ -739,15 +731,49 @@ static void nocb_gp_wait(struct rcu_data *my_rdp)
 			!READ_ONCE(my_rdp->nocb_gp_sleep));
 		trace_rcu_this_gp(rnp, my_rdp, wait_gp_seq, TPS("EndWait"));
 	}
+
 	if (!rcu_nocb_poll) {
 		raw_spin_lock_irqsave(&my_rdp->nocb_gp_lock, flags);
+		// (De-)queue an rdp to/from the group if its nocb state is changing
+		rdp_toggling = my_rdp->nocb_toggling_rdp;
+		if (rdp_toggling)
+			my_rdp->nocb_toggling_rdp = NULL;
+
 		if (my_rdp->nocb_defer_wakeup > RCU_NOCB_WAKE_NOT) {
 			WRITE_ONCE(my_rdp->nocb_defer_wakeup, RCU_NOCB_WAKE_NOT);
 			del_timer(&my_rdp->nocb_timer);
 		}
 		WRITE_ONCE(my_rdp->nocb_gp_sleep, true);
 		raw_spin_unlock_irqrestore(&my_rdp->nocb_gp_lock, flags);
+	} else {
+		rdp_toggling = READ_ONCE(my_rdp->nocb_toggling_rdp);
+		if (rdp_toggling) {
+			/*
+			 * Paranoid locking to make sure nocb_toggling_rdp is well
+			 * reset *before* we (re)set SEGCBLIST_KTHREAD_GP or we could
+			 * race with another round of nocb toggling for this rdp.
+			 * Nocb locking should prevent from that already but we stick
+			 * to paranoia, especially in rare path.
+			 */
+			raw_spin_lock_irqsave(&my_rdp->nocb_gp_lock, flags);
+			my_rdp->nocb_toggling_rdp = NULL;
+			raw_spin_unlock_irqrestore(&my_rdp->nocb_gp_lock, flags);
+		}
 	}
+
+	if (rdp_toggling) {
+		bool wake_state = false;
+		int ret;
+
+		ret = nocb_gp_toggle_rdp(rdp_toggling, &wake_state);
+		if (ret == 1)
+			list_add_tail(&rdp_toggling->nocb_entry_rdp, &my_rdp->nocb_head_rdp);
+		else if (ret == 0)
+			list_del(&rdp_toggling->nocb_entry_rdp);
+		if (wake_state)
+			swake_up_one(&rdp_toggling->nocb_state_wq);
+	}
+
 	my_rdp->nocb_gp_seq = -1;
 	WARN_ON(signal_pending(current));
 }
@@ -966,16 +992,15 @@ static int rdp_offload_toggle(struct rcu_data *rdp,
 	swake_up_one(&rdp->nocb_cb_wq);
 
 	raw_spin_lock_irqsave(&rdp_gp->nocb_gp_lock, flags);
+	// Queue this rdp for add/del to/from the list to iterate on rcuog
+	WRITE_ONCE(rdp_gp->nocb_toggling_rdp, rdp);
 	if (rdp_gp->nocb_gp_sleep) {
 		rdp_gp->nocb_gp_sleep = false;
 		wake_gp = true;
 	}
 	raw_spin_unlock_irqrestore(&rdp_gp->nocb_gp_lock, flags);
 
-	if (wake_gp)
-		wake_up_process(rdp_gp->nocb_gp_kthread);
-
-	return 0;
+	return wake_gp;
 }
 
 static long rcu_nocb_rdp_deoffload(void *arg)
@@ -983,9 +1008,15 @@ static long rcu_nocb_rdp_deoffload(void *arg)
 	struct rcu_data *rdp = arg;
 	struct rcu_segcblist *cblist = &rdp->cblist;
 	unsigned long flags;
-	int ret;
+	int wake_gp;
+	struct rcu_data *rdp_gp = rdp->nocb_gp_rdp;
 
-	WARN_ON_ONCE(rdp->cpu != raw_smp_processor_id());
+	/*
+	 * rcu_nocb_rdp_deoffload() may be called directly if
+	 * rcuog/o[p] spawn failed, because at this time the rdp->cpu
+	 * is not online yet.
+	 */
+	WARN_ON_ONCE((rdp->cpu != raw_smp_processor_id()) && cpu_online(rdp->cpu));
 
 	pr_info("De-offloading %d\n", rdp->cpu);
 
@@ -1009,12 +1040,41 @@ static long rcu_nocb_rdp_deoffload(void *arg)
 	 */
 	rcu_segcblist_set_flags(cblist, SEGCBLIST_RCU_CORE);
 	invoke_rcu_core();
-	ret = rdp_offload_toggle(rdp, false, flags);
-	swait_event_exclusive(rdp->nocb_state_wq,
-			      !rcu_segcblist_test_flags(cblist, SEGCBLIST_KTHREAD_CB |
-							SEGCBLIST_KTHREAD_GP));
-	/* Stop nocb_gp_wait() from iterating over this structure. */
-	list_del_rcu(&rdp->nocb_entry_rdp);
+	wake_gp = rdp_offload_toggle(rdp, false, flags);
+
+	mutex_lock(&rdp_gp->nocb_gp_kthread_mutex);
+	if (rdp_gp->nocb_gp_kthread) {
+		if (wake_gp)
+			wake_up_process(rdp_gp->nocb_gp_kthread);
+
+		/*
+		 * If rcuo[p] kthread spawn failed, directly remove SEGCBLIST_KTHREAD_CB.
+		 * Just wait SEGCBLIST_KTHREAD_GP to be cleared by rcuog.
+		 */
+		if (!rdp->nocb_cb_kthread) {
+			rcu_nocb_lock_irqsave(rdp, flags);
+			rcu_segcblist_clear_flags(&rdp->cblist, SEGCBLIST_KTHREAD_CB);
+			rcu_nocb_unlock_irqrestore(rdp, flags);
+		}
+
+		swait_event_exclusive(rdp->nocb_state_wq,
+					!rcu_segcblist_test_flags(cblist,
+					  SEGCBLIST_KTHREAD_CB | SEGCBLIST_KTHREAD_GP));
+	} else {
+		/*
+		 * No kthread to clear the flags for us or remove the rdp from the nocb list
+		 * to iterate. Do it here instead. Locking doesn't look stricly necessary
+		 * but we stick to paranoia in this rare path.
+		 */
+		rcu_nocb_lock_irqsave(rdp, flags);
+		rcu_segcblist_clear_flags(&rdp->cblist,
+				SEGCBLIST_KTHREAD_CB | SEGCBLIST_KTHREAD_GP);
+		rcu_nocb_unlock_irqrestore(rdp, flags);
+
+		list_del(&rdp->nocb_entry_rdp);
+	}
+	mutex_unlock(&rdp_gp->nocb_gp_kthread_mutex);
+
 	/*
 	 * Lock one last time to acquire latest callback updates from kthreads
 	 * so we can later handle callbacks locally without locking.
@@ -1035,7 +1095,7 @@ static long rcu_nocb_rdp_deoffload(void *arg)
 	WARN_ON_ONCE(rcu_cblist_n_cbs(&rdp->nocb_bypass));
 
 
-	return ret;
+	return 0;
 }
 
 int rcu_nocb_cpu_deoffload(int cpu)
@@ -1043,8 +1103,8 @@ int rcu_nocb_cpu_deoffload(int cpu)
 	struct rcu_data *rdp = per_cpu_ptr(&rcu_data, cpu);
 	int ret = 0;
 
-	mutex_lock(&rcu_state.barrier_mutex);
 	cpus_read_lock();
+	mutex_lock(&rcu_state.barrier_mutex);
 	if (rcu_rdp_is_offloaded(rdp)) {
 		if (cpu_online(cpu)) {
 			ret = work_on_cpu(cpu, rcu_nocb_rdp_deoffload, rdp);
@@ -1055,8 +1115,8 @@ int rcu_nocb_cpu_deoffload(int cpu)
 			ret = -EINVAL;
 		}
 	}
-	cpus_read_unlock();
 	mutex_unlock(&rcu_state.barrier_mutex);
+	cpus_read_unlock();
 
 	return ret;
 }
@@ -1067,7 +1127,8 @@ static long rcu_nocb_rdp_offload(void *arg)
 	struct rcu_data *rdp = arg;
 	struct rcu_segcblist *cblist = &rdp->cblist;
 	unsigned long flags;
-	int ret;
+	int wake_gp;
+	struct rcu_data *rdp_gp = rdp->nocb_gp_rdp;
 
 	WARN_ON_ONCE(rdp->cpu != raw_smp_processor_id());
 	/*
@@ -1077,17 +1138,10 @@ static long rcu_nocb_rdp_offload(void *arg)
 	if (!rdp->nocb_gp_rdp)
 		return -EINVAL;
 
-	pr_info("Offloading %d\n", rdp->cpu);
+	if (WARN_ON_ONCE(!rdp_gp->nocb_gp_kthread))
+		return -EINVAL;
 
-	/*
-	 * Cause future nocb_gp_wait() invocations to iterate over
-	 * structure, resetting ->nocb_gp_sleep and waking up the related
-	 * "rcuog".  Since nocb_gp_wait() in turn locks ->nocb_gp_lock
-	 * before setting ->nocb_gp_sleep again, we are guaranteed to
-	 * iterate this newly added structure before "rcuog" goes to
-	 * sleep again.
-	 */
-	list_add_tail_rcu(&rdp->nocb_entry_rdp, &rdp->nocb_gp_rdp->nocb_head_rdp);
+	pr_info("Offloading %d\n", rdp->cpu);
 
 	/*
 	 * Can't use rcu_nocb_lock_irqsave() before SEGCBLIST_LOCKING
@@ -1111,7 +1165,9 @@ static long rcu_nocb_rdp_offload(void *arg)
 	 *      WRITE flags               READ callbacks
 	 *      rcu_nocb_unlock()         rcu_nocb_unlock()
 	 */
-	ret = rdp_offload_toggle(rdp, true, flags);
+	wake_gp = rdp_offload_toggle(rdp, true, flags);
+	if (wake_gp)
+		wake_up_process(rdp_gp->nocb_gp_kthread);
 	swait_event_exclusive(rdp->nocb_state_wq,
 			      rcu_segcblist_test_flags(cblist, SEGCBLIST_KTHREAD_CB) &&
 			      rcu_segcblist_test_flags(cblist, SEGCBLIST_KTHREAD_GP));
@@ -1124,7 +1180,7 @@ static long rcu_nocb_rdp_offload(void *arg)
 	rcu_segcblist_clear_flags(cblist, SEGCBLIST_RCU_CORE);
 	rcu_nocb_unlock_irqrestore(rdp, flags);
 
-	return ret;
+	return 0;
 }
 
 int rcu_nocb_cpu_offload(int cpu)
@@ -1132,8 +1188,8 @@ int rcu_nocb_cpu_offload(int cpu)
 	struct rcu_data *rdp = per_cpu_ptr(&rcu_data, cpu);
 	int ret = 0;
 
-	mutex_lock(&rcu_state.barrier_mutex);
 	cpus_read_lock();
+	mutex_lock(&rcu_state.barrier_mutex);
 	if (!rcu_rdp_is_offloaded(rdp)) {
 		if (cpu_online(cpu)) {
 			ret = work_on_cpu(cpu, rcu_nocb_rdp_offload, rdp);
@@ -1144,8 +1200,8 @@ int rcu_nocb_cpu_offload(int cpu)
 			ret = -EINVAL;
 		}
 	}
-	cpus_read_unlock();
 	mutex_unlock(&rcu_state.barrier_mutex);
+	cpus_read_unlock();
 
 	return ret;
 }
@@ -1155,11 +1211,21 @@ void __init rcu_init_nohz(void)
 {
 	int cpu;
 	bool need_rcu_nocb_mask = false;
+	bool offload_all = false;
 	struct rcu_data *rdp;
 
-#if defined(CONFIG_NO_HZ_FULL)
-	if (tick_nohz_full_running && !cpumask_empty(tick_nohz_full_mask))
+#if defined(CONFIG_RCU_NOCB_CPU_DEFAULT_ALL)
+	if (!rcu_state.nocb_is_setup) {
 		need_rcu_nocb_mask = true;
+		offload_all = true;
+	}
+#endif /* #if defined(CONFIG_RCU_NOCB_CPU_DEFAULT_ALL) */
+
+#if defined(CONFIG_NO_HZ_FULL)
+	if (tick_nohz_full_running && !cpumask_empty(tick_nohz_full_mask)) {
+		need_rcu_nocb_mask = true;
+		offload_all = false; /* NO_HZ_FULL has its own mask. */
+	}
 #endif /* #if defined(CONFIG_NO_HZ_FULL) */
 
 	if (need_rcu_nocb_mask) {
@@ -1179,6 +1245,9 @@ void __init rcu_init_nohz(void)
 	if (tick_nohz_full_running)
 		cpumask_or(rcu_nocb_mask, rcu_nocb_mask, tick_nohz_full_mask);
 #endif /* #if defined(CONFIG_NO_HZ_FULL) */
+
+	if (offload_all)
+		cpumask_setall(rcu_nocb_mask);
 
 	if (!cpumask_subset(rcu_nocb_mask, cpu_possible_mask)) {
 		pr_info("\tNote: kernel parameter 'rcu_nocbs=', 'nohz_full', or 'isolcpus=' contains nonexistent CPUs.\n");
@@ -1246,7 +1315,7 @@ static void rcu_spawn_cpu_nocb_kthread(int cpu)
 				"rcuog/%d", rdp_gp->cpu);
 		if (WARN_ONCE(IS_ERR(t), "%s: Could not start rcuo GP kthread, OOM is now expected behavior\n", __func__)) {
 			mutex_unlock(&rdp_gp->nocb_gp_kthread_mutex);
-			return;
+			goto end;
 		}
 		WRITE_ONCE(rdp_gp->nocb_gp_kthread, t);
 		if (kthread_prio)
@@ -1258,12 +1327,21 @@ static void rcu_spawn_cpu_nocb_kthread(int cpu)
 	t = kthread_run(rcu_nocb_cb_kthread, rdp,
 			"rcuo%c/%d", rcu_state.abbr, cpu);
 	if (WARN_ONCE(IS_ERR(t), "%s: Could not start rcuo CB kthread, OOM is now expected behavior\n", __func__))
-		return;
+		goto end;
 
-	if (kthread_prio)
+	if (IS_ENABLED(CONFIG_RCU_NOCB_CPU_CB_BOOST) && kthread_prio)
 		sched_setscheduler_nocheck(t, SCHED_FIFO, &sp);
+
 	WRITE_ONCE(rdp->nocb_cb_kthread, t);
 	WRITE_ONCE(rdp->nocb_gp_kthread, rdp_gp->nocb_gp_kthread);
+	return;
+end:
+	mutex_lock(&rcu_state.barrier_mutex);
+	if (rcu_rdp_is_offloaded(rdp)) {
+		rcu_nocb_rdp_deoffload(rdp);
+		cpumask_clear_cpu(cpu, rcu_nocb_mask);
+	}
+	mutex_unlock(&rcu_state.barrier_mutex);
 }
 
 /* How many CB CPU IDs per GP kthread?  Default of -1 for sqrt(nr_cpu_ids). */

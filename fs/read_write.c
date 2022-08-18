@@ -227,12 +227,6 @@ loff_t noop_llseek(struct file *file, loff_t offset, int whence)
 }
 EXPORT_SYMBOL(noop_llseek);
 
-loff_t no_llseek(struct file *file, loff_t offset, int whence)
-{
-	return -ESPIPE;
-}
-EXPORT_SYMBOL(no_llseek);
-
 loff_t default_llseek(struct file *file, loff_t offset, int whence)
 {
 	struct inode *inode = file_inode(file);
@@ -290,14 +284,9 @@ EXPORT_SYMBOL(default_llseek);
 
 loff_t vfs_llseek(struct file *file, loff_t offset, int whence)
 {
-	loff_t (*fn)(struct file *, loff_t, int);
-
-	fn = no_llseek;
-	if (file->f_mode & FMODE_LSEEK) {
-		if (file->f_op->llseek)
-			fn = file->f_op->llseek;
-	}
-	return fn(file, offset, whence);
+	if (!(file->f_mode & FMODE_LSEEK))
+		return -ESPIPE;
+	return file->f_op->llseek(file, offset, whence);
 }
 EXPORT_SYMBOL(vfs_llseek);
 
@@ -1663,7 +1652,9 @@ int generic_write_checks_count(struct kiocb *iocb, loff_t *count)
 	if (iocb->ki_flags & IOCB_APPEND)
 		iocb->ki_pos = i_size_read(inode);
 
-	if ((iocb->ki_flags & IOCB_NOWAIT) && !(iocb->ki_flags & IOCB_DIRECT))
+	if ((iocb->ki_flags & IOCB_NOWAIT) &&
+	    !((iocb->ki_flags & IOCB_DIRECT) ||
+	      (file->f_mode & FMODE_BUF_WASYNC)))
 		return -EINVAL;
 
 	return generic_write_check_limits(iocb->ki_filp, iocb->ki_pos, count);

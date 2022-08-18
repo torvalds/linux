@@ -43,7 +43,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_gpio_keys>;
 
-		wakeup {
+		key-wakeup {
 			debounce-interval = <10>;
 			/* Verdin CTRL_WAKE1_MICO# (SODIMM 252) */
 			gpios = <&gpio4 28 GPIO_ACTIVE_LOW>;
@@ -152,6 +152,14 @@
 
 &A53_3 {
 	cpu-supply = <&reg_vdd_arm>;
+};
+
+&cpu_alert0 {
+	temperature = <95000>;
+};
+
+&cpu_crit0 {
+	temperature = <105000>;
 };
 
 &ddrc {

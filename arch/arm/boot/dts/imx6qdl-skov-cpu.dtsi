@@ -149,6 +149,16 @@
 		gpio = <&gpio4 11 GPIO_ACTIVE_LOW>;
 	};
 
+	reg_tft_vcom: regulator-tft-vcom {
+		compatible = "pwm-regulator";
+		pwms = <&pwm3 0 20000 0>;
+		regulator-name = "tft_vcom";
+		regulator-min-microvolt = <3600000>;
+		regulator-max-microvolt = <3600000>;
+		regulator-always-on;
+		voltage-table = <3600000 26>;
+	};
+
 	reg_vcc_mmc: regulator-vcc-mmc {
 		compatible = "regulator-fixed";
 		pinctrl-names = "default";

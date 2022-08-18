@@ -41,7 +41,7 @@
 struct rand_pool_info {
 	int	entropy_count;
 	int	buf_size;
-	__u32	buf[0];
+	__u32	buf[];
 };
 
 /*

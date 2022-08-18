@@ -102,15 +102,10 @@ che non esistano.
 Sincronizzazione nel kernel Linux
 =================================
 
-Se posso darvi un suggerimento: non dormite mai con qualcuno più pazzo di
-voi. Ma se dovessi darvi un suggerimento sulla sincronizzazione:
-**mantenetela semplice**.
+Se dovessi darvi un suggerimento sulla sincronizzazione: **mantenetela
+semplice**.
 
 Siate riluttanti nell'introduzione di nuovi *lock*.
-
-Abbastanza strano, quest'ultimo è l'esatto opposto del mio suggerimento
-su quando **avete** dormito con qualcuno più pazzo di voi. E dovreste
-pensare a prendervi un cane bello grande.
 
 I due principali tipi di *lock* nel kernel: spinlock e mutex
 ------------------------------------------------------------
@@ -316,7 +311,7 @@ Pete Zaitcev ci offre il seguente riassunto:
 
 -  Se siete in un contesto utente (una qualsiasi chiamata di sistema)
    e volete sincronizzarvi con altri processi, usate i mutex. Potete trattenere
-   il mutex e dormire (``copy_from_user*(`` o ``kmalloc(x,GFP_KERNEL)``).
+   il mutex e dormire (``copy_from_user(`` o ``kmalloc(x,GFP_KERNEL)``).
 
 -  Altrimenti (== i dati possono essere manipolati da un'interruzione) usate
    spin_lock_irqsave() e spin_unlock_irqrestore().
@@ -978,9 +973,6 @@ Un pezzo di codice trattiene un *lock* di lettura, cerca in una lista,
 fallisce nel trovare quello che vuole, quindi rilascia il *lock* di lettura,
 trattiene un *lock* di scrittura ed inserisce un oggetto; questo genere di
 codice presenta una corsa critica.
-
-Se non riuscite a capire il perché, per favore state alla larga dal mio
-codice.
 
 corsa fra temporizzatori: un passatempo del kernel
 --------------------------------------------------

@@ -1940,7 +1940,7 @@ try_again:
 
 	/*
 	 * Now take care of user space mappings.
-	 * Abort on fail: __delete_from_page_cache() assumes unmapped page.
+	 * Abort on fail: __filemap_remove_folio() assumes unmapped page.
 	 */
 	if (!hwpoison_user_mappings(p, pfn, flags, p)) {
 		action_result(pfn, MF_MSG_UNMAP_FAILED, MF_IGNORED);

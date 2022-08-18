@@ -416,10 +416,13 @@ static struct dbs_governor od_dbs_gov = {
 static void od_set_powersave_bias(unsigned int powersave_bias)
 {
 	unsigned int cpu;
-	cpumask_t done;
+	cpumask_var_t done;
+
+	if (!alloc_cpumask_var(&done, GFP_KERNEL))
+		return;
 
 	default_powersave_bias = powersave_bias;
-	cpumask_clear(&done);
+	cpumask_clear(done);
 
 	cpus_read_lock();
 	for_each_online_cpu(cpu) {
@@ -428,7 +431,7 @@ static void od_set_powersave_bias(unsigned int powersave_bias)
 		struct dbs_data *dbs_data;
 		struct od_dbs_tuners *od_tuners;
 
-		if (cpumask_test_cpu(cpu, &done))
+		if (cpumask_test_cpu(cpu, done))
 			continue;
 
 		policy = cpufreq_cpu_get_raw(cpu);
@@ -439,13 +442,15 @@ static void od_set_powersave_bias(unsigned int powersave_bias)
 		if (!policy_dbs)
 			continue;
 
-		cpumask_or(&done, &done, policy->cpus);
+		cpumask_or(done, done, policy->cpus);
 
 		dbs_data = policy_dbs->dbs_data;
 		od_tuners = dbs_data->tuners;
 		od_tuners->powersave_bias = default_powersave_bias;
 	}
 	cpus_read_unlock();
+
+	free_cpumask_var(done);
 }
 
 void od_register_powersave_bias_handler(unsigned int (*f)

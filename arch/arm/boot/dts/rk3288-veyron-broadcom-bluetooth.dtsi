@@ -13,10 +13,10 @@
 			    <&bt_dev_wake>;
 
 		compatible = "brcm,bcm43540-bt";
-		host-wakeup-gpios	= <&gpio4 RK_PD7 GPIO_ACTIVE_HIGH>;
-		shutdown-gpios		= <&gpio4 RK_PD5 GPIO_ACTIVE_HIGH>;
-		device-wakeup-gpios	= <&gpio4 RK_PD2 GPIO_ACTIVE_HIGH>;
-		max-speed		= <3000000>;
-		brcm,bt-pcm-int-params	= [01 02 00 01 01];
+		host-wakeup-gpios = <&gpio4 RK_PD7 GPIO_ACTIVE_HIGH>;
+		shutdown-gpios = <&gpio4 RK_PD5 GPIO_ACTIVE_HIGH>;
+		device-wakeup-gpios = <&gpio4 RK_PD2 GPIO_ACTIVE_HIGH>;
+		max-speed = <3000000>;
+		brcm,bt-pcm-int-params = [01 02 00 01 01];
 	};
 };

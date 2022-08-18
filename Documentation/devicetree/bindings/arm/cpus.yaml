@@ -221,6 +221,7 @@ properties:
           - qcom,kpss-acc-v1
           - qcom,kpss-acc-v2
           - qcom,msm8226-smp
+          - qcom,msm8909-smp
           # Only valid on ARM 32-bit, see above for ARM v8 64-bit
           - qcom,msm8916-smp
           - renesas,apmu

@@ -34,15 +34,11 @@
 #include <linux/node.h>
 #include <linux/compaction.h>
 #include <linux/percpu.h>
-#include <linux/mount.h>
-#include <linux/pseudo_fs.h>
-#include <linux/fs.h>
 #include <linux/preempt.h>
 #include <linux/workqueue.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/zpool.h>
-#include <linux/magic.h>
 #include <linux/kmemleak.h>
 
 /*
@@ -149,7 +145,6 @@ struct z3fold_header {
  * @compact_wq:	workqueue for page layout background optimization
  * @release_wq:	workqueue for safe page release
  * @work:	work_struct for safe page release
- * @inode:	inode for z3fold pseudo filesystem
  *
  * This structure is allocated at pool creation time and maintains metadata
  * pertaining to a particular z3fold pool.
@@ -169,7 +164,6 @@ struct z3fold_pool {
 	struct workqueue_struct *compact_wq;
 	struct workqueue_struct *release_wq;
 	struct work_struct work;
-	struct inode *inode;
 };
 
 /*
@@ -332,54 +326,6 @@ static inline void free_handle(unsigned long handle, struct z3fold_header *zhdr)
 			zhdr->slots = NULL;
 		kmem_cache_free(pool->c_handle, slots);
 	}
-}
-
-static int z3fold_init_fs_context(struct fs_context *fc)
-{
-	return init_pseudo(fc, Z3FOLD_MAGIC) ? 0 : -ENOMEM;
-}
-
-static struct file_system_type z3fold_fs = {
-	.name		= "z3fold",
-	.init_fs_context = z3fold_init_fs_context,
-	.kill_sb	= kill_anon_super,
-};
-
-static struct vfsmount *z3fold_mnt;
-static int __init z3fold_mount(void)
-{
-	int ret = 0;
-
-	z3fold_mnt = kern_mount(&z3fold_fs);
-	if (IS_ERR(z3fold_mnt))
-		ret = PTR_ERR(z3fold_mnt);
-
-	return ret;
-}
-
-static void z3fold_unmount(void)
-{
-	kern_unmount(z3fold_mnt);
-}
-
-static const struct address_space_operations z3fold_aops;
-static int z3fold_register_migration(struct z3fold_pool *pool)
-{
-	pool->inode = alloc_anon_inode(z3fold_mnt->mnt_sb);
-	if (IS_ERR(pool->inode)) {
-		pool->inode = NULL;
-		return 1;
-	}
-
-	pool->inode->i_mapping->private_data = pool;
-	pool->inode->i_mapping->a_ops = &z3fold_aops;
-	return 0;
-}
-
-static void z3fold_unregister_migration(struct z3fold_pool *pool)
-{
-	if (pool->inode)
-		iput(pool->inode);
 }
 
 /* Initializes the z3fold header of a newly allocated z3fold page */
@@ -1002,14 +948,10 @@ static struct z3fold_pool *z3fold_create_pool(const char *name, gfp_t gfp,
 	pool->release_wq = create_singlethread_workqueue(pool->name);
 	if (!pool->release_wq)
 		goto out_wq;
-	if (z3fold_register_migration(pool))
-		goto out_rwq;
 	INIT_WORK(&pool->work, free_pages_work);
 	pool->ops = ops;
 	return pool;
 
-out_rwq:
-	destroy_workqueue(pool->release_wq);
 out_wq:
 	destroy_workqueue(pool->compact_wq);
 out_unbuddied:
@@ -1043,10 +985,11 @@ static void z3fold_destroy_pool(struct z3fold_pool *pool)
 
 	destroy_workqueue(pool->compact_wq);
 	destroy_workqueue(pool->release_wq);
-	z3fold_unregister_migration(pool);
 	free_percpu(pool->unbuddied);
 	kfree(pool);
 }
+
+static const struct movable_operations z3fold_mops;
 
 /**
  * z3fold_alloc() - allocates a region of a given size
@@ -1117,11 +1060,11 @@ retry:
 	}
 	if (can_sleep) {
 		lock_page(page);
-		__SetPageMovable(page, pool->inode->i_mapping);
+		__SetPageMovable(page, &z3fold_mops);
 		unlock_page(page);
 	} else {
 		WARN_ON(!trylock_page(page));
-		__SetPageMovable(page, pool->inode->i_mapping);
+		__SetPageMovable(page, &z3fold_mops);
 		unlock_page(page);
 	}
 	z3fold_page_lock(zhdr);
@@ -1554,12 +1497,11 @@ out:
 	return false;
 }
 
-static int z3fold_page_migrate(struct address_space *mapping, struct page *newpage,
-			       struct page *page, enum migrate_mode mode)
+static int z3fold_page_migrate(struct page *newpage, struct page *page,
+		enum migrate_mode mode)
 {
 	struct z3fold_header *zhdr, *new_zhdr;
 	struct z3fold_pool *pool;
-	struct address_space *new_mapping;
 
 	VM_BUG_ON_PAGE(!PageMovable(page), page);
 	VM_BUG_ON_PAGE(!PageIsolated(page), page);
@@ -1592,7 +1534,6 @@ static int z3fold_page_migrate(struct address_space *mapping, struct page *newpa
 	 * so we only have to reinitialize it.
 	 */
 	INIT_LIST_HEAD(&new_zhdr->buddy);
-	new_mapping = page_mapping(page);
 	__ClearPageMovable(page);
 
 	get_page(newpage);
@@ -1608,7 +1549,7 @@ static int z3fold_page_migrate(struct address_space *mapping, struct page *newpa
 	spin_lock(&pool->lock);
 	list_add(&newpage->lru, &pool->lru);
 	spin_unlock(&pool->lock);
-	__SetPageMovable(newpage, new_mapping);
+	__SetPageMovable(newpage, &z3fold_mops);
 	z3fold_page_unlock(new_zhdr);
 
 	queue_work_on(new_zhdr->cpu, pool->compact_wq, &new_zhdr->work);
@@ -1642,9 +1583,9 @@ static void z3fold_page_putback(struct page *page)
 	z3fold_page_unlock(zhdr);
 }
 
-static const struct address_space_operations z3fold_aops = {
+static const struct movable_operations z3fold_mops = {
 	.isolate_page = z3fold_page_isolate,
-	.migratepage = z3fold_page_migrate,
+	.migrate_page = z3fold_page_migrate,
 	.putback_page = z3fold_page_putback,
 };
 
@@ -1746,17 +1687,11 @@ MODULE_ALIAS("zpool-z3fold");
 
 static int __init init_z3fold(void)
 {
-	int ret;
-
 	/*
 	 * Make sure the z3fold header is not larger than the page size and
 	 * there has remaining spaces for its buddy.
 	 */
 	BUILD_BUG_ON(ZHDR_SIZE_ALIGNED > PAGE_SIZE - CHUNK_SIZE);
-	ret = z3fold_mount();
-	if (ret)
-		return ret;
-
 	zpool_register_driver(&z3fold_zpool_driver);
 
 	return 0;
@@ -1764,7 +1699,6 @@ static int __init init_z3fold(void)
 
 static void __exit exit_z3fold(void)
 {
-	z3fold_unmount();
 	zpool_unregister_driver(&z3fold_zpool_driver);
 }
 

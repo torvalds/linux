@@ -525,7 +525,7 @@ int hfsplus_compare_dentry(const struct dentry *dentry, unsigned int len,
 
 /* wrapper.c */
 int hfsplus_submit_bio(struct super_block *sb, sector_t sector, void *buf,
-		       void **data, int op, int op_flags);
+		       void **data, blk_opf_t opf);
 int hfsplus_read_wrapper(struct super_block *sb);
 
 /*

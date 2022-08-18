@@ -84,7 +84,7 @@ config ARM
 	select HAVE_ARCH_TRANSPARENT_HUGEPAGE if ARM_LPAE
 	select HAVE_ARM_SMCCC if CPU_V7
 	select HAVE_EBPF_JIT if !CPU_ENDIAN_BE32
-	select HAVE_CONTEXT_TRACKING
+	select HAVE_CONTEXT_TRACKING_USER
 	select HAVE_C_RECORDMCOUNT
 	select HAVE_BUILDTIME_MCOUNT_SORT
 	select HAVE_DEBUG_KMEMLEAK if !XIP_KERNEL
@@ -350,6 +350,7 @@ config ARCH_MULTIPLATFORM
 config ARCH_FOOTBRIDGE
 	bool "FootBridge"
 	depends on CPU_LITTLE_ENDIAN
+	depends on ATAGS
 	select CPU_SA110
 	select FOOTBRIDGE
 	select NEED_MACH_MEMORY_H
@@ -361,6 +362,7 @@ config ARCH_RPC
 	bool "RiscPC"
 	depends on !CC_IS_CLANG && GCC_VERSION < 90100 && GCC_VERSION >= 60000
 	depends on CPU_LITTLE_ENDIAN
+	depends on ATAGS
 	select ARCH_ACORN
 	select ARCH_MAY_HAVE_PC_FDC
 	select ARCH_SPARSEMEM_ENABLE
@@ -380,6 +382,7 @@ config ARCH_RPC
 config ARCH_SA1100
 	bool "SA1100-based"
 	depends on CPU_LITTLE_ENDIAN
+	depends on ATAGS
 	select ARCH_MTD_XIP
 	select ARCH_SPARSEMEM_ENABLE
 	select CLKSRC_MMIO
@@ -587,6 +590,8 @@ source "arch/arm/mach-spear/Kconfig"
 source "arch/arm/mach-sti/Kconfig"
 
 source "arch/arm/mach-stm32/Kconfig"
+
+source "arch/arm/mach-sunplus/Kconfig"
 
 source "arch/arm/mach-sunxi/Kconfig"
 
@@ -1539,14 +1544,26 @@ config USE_OF
 	  Include support for flattened device tree machine descriptions.
 
 config ATAGS
-	bool "Support for the traditional ATAGS boot data passing" if USE_OF
+	bool "Support for the traditional ATAGS boot data passing"
 	default y
 	help
 	  This is the traditional way of passing data to the kernel at boot
 	  time. If you are solely relying on the flattened device tree (or
 	  the ARM_ATAG_DTB_COMPAT option) then you may unselect this option
-	  to remove ATAGS support from your kernel binary.  If unsure,
-	  leave this to y.
+	  to remove ATAGS support from your kernel binary.
+
+config UNUSED_BOARD_FILES
+	bool "Board support for machines without known users"
+	depends on ATAGS
+	help
+	  Most ATAGS based board files are completely unused and are
+	  scheduled for removal in early 2023, and left out of kernels
+	  by default now.  If you are using a board file that is marked
+	  as unused, turn on this option to build support into the kernel.
+
+	  To keep support for your individual board from being removed,
+	  send a reply to the email discussion at
+	  https://lore.kernel.org/all/CAK8P3a0Z9vGEQbVRBo84bSyPFM-LF+hs5w8ZA51g2Z+NsdtDQA@mail.gmail.com/
 
 config DEPRECATED_PARAM_STRUCT
 	bool "Provide old way to pass kernel parameters"

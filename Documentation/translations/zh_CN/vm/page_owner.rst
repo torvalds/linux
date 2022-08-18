@@ -96,21 +96,82 @@ page owner在默认情况下是禁用的。所以，如果你想使用它，你�
    默认情况下， ``page_owner_sort`` 是根据buf的时间来排序的。如果你想
    按buf的页数排序，请使用-m参数。详细的参数是:
 
-   基本函数:
+   基本函数::
 
-	Sort:
+	排序:
 		-a		按内存分配时间排序
 		-m		按总内存排序
 		-p		按pid排序。
 		-P		按tgid排序。
+		-n		按任务命令名称排序。
 		-r		按内存释放时间排序。
 		-s		按堆栈跟踪排序。
 		-t		按时间排序（默认）。
+       --sort <order> 指定排序顺序。排序的语法是[+|-]key[,[+|-]key[,...]]。从
+       **标准格式指定器**那一节选择一个键。"+"是可选的，因为默认的方向是数字或
+       词法的增加。允许混合使用缩写和完整格式的键。
 
-   其它函数:
+        例子:
+				./page_owner_sort <input> <output> --sort=n,+pid,-tgid
+				./page_owner_sort <input> <output> --sort=at
 
-	Cull:
-		-c		通过比较堆栈跟踪而不是总块来进行剔除。
+    其它函数::
 
-	Filter:
+	剔除:
+		--cull <rules>
+		        指定剔除规则。剔除的语法是key[,key[,...]]。从**标准格式指定器**
+				部分选择一个多字母键。
+		<rules>是一个以逗号分隔的列表形式的单一参数，它提供了一种指定单个剔除规则的
+		方法。 识别的关键字在下面的**标准格式指定器**部分有描述。<规则>可以通过键的
+		序列k1,k2,...来指定，在下面的标准排序键部分有描述。允许混合使用简写和完整形
+		式的键。
+
+		Examples:
+				./page_owner_sort <input> <output> --cull=stacktrace
+				./page_owner_sort <input> <output> --cull=st,pid,name
+				./page_owner_sort <input> <output> --cull=n,f
+
+	过滤:
 		-f		过滤掉内存已被释放的块的信息。
+
+	选择:
+		--pid <pidlist>		按pid选择。这将选择进程ID号出现在<pidlist>中的块。
+		--tgid <tgidlist>	按tgid选择。这将选择其线程组ID号出现在<tgidlist>
+		                    中的块。
+		--name <cmdlist>	按任务命令名称选择。这将选择其任务命令名称出现在
+		                    <cmdlist>中的区块。
+
+		<pidlist>, <tgidlist>, <cmdlist>是以逗号分隔的列表形式的单个参数，
+		它提供了一种指定单个选择规则的方法。
+
+
+		例子:
+				./page_owner_sort <input> <output> --pid=1
+				./page_owner_sort <input> <output> --tgid=1,2,3
+				./page_owner_sort <input> <output> --name name1,name2
+
+标准格式指定器
+==============
+::
+
+  --sort的选项:
+
+	短键		长键		描述
+	p		pid		进程ID
+	tg		tgid		线程组ID
+	n		name		任务命令名称
+	st		stacktrace	页面分配的堆栈跟踪
+	T		txt		块的全文
+	ft		free_ts		页面释放时的时间戳
+	at		alloc_ts	页面被分配时的时间戳
+	ator		allocator	页面的内存分配器
+
+  --curl的选项:
+
+	短键		长键		描述
+	p		pid		进程ID
+	tg		tgid		线程组ID
+	n		name		任务命令名称
+	f		free		该页是否已经释放
+	st		stacktrace	页面分配的堆栈跟踪
+	ator		allocator	页面的内存分配器

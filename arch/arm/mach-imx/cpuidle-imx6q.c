@@ -3,6 +3,7 @@
  * Copyright (C) 2012 Freescale Semiconductor, Inc.
  */
 
+#include <linux/context_tracking.h>
 #include <linux/cpuidle.h>
 #include <linux/module.h>
 #include <asm/cpuidle.h>
@@ -24,9 +25,9 @@ static int imx6q_enter_wait(struct cpuidle_device *dev,
 		imx6_set_lpm(WAIT_UNCLOCKED);
 	raw_spin_unlock(&cpuidle_lock);
 
-	rcu_idle_enter();
+	ct_idle_enter();
 	cpu_do_idle();
-	rcu_idle_exit();
+	ct_idle_exit();
 
 	raw_spin_lock(&cpuidle_lock);
 	if (num_idle_cpus-- == num_online_cpus())

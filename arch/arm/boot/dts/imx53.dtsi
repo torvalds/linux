@@ -132,7 +132,7 @@
 		status = "okay";
 	};
 
-	soc {
+	soc: soc {
 		#address-cells = <1>;
 		#size-cells = <1>;
 		compatible = "simple-bus";
@@ -222,7 +222,7 @@
 			clock-names = "core_clk", "mem_iface_clk";
 		};
 
-		bus@50000000 { /* AIPS1 */
+		aips1: bus@50000000 { /* AIPS1 */
 			compatible = "fsl,aips-bus", "simple-bus";
 			#address-cells = <1>;
 			#size-cells = <1>;
@@ -655,7 +655,7 @@
 			};
 		};
 
-		bus@60000000 {	/* AIPS2 */
+		aips2: bus@60000000 {	/* AIPS2 */
 			compatible = "fsl,aips-bus", "simple-bus";
 			#address-cells = <1>;
 			#size-cells = <1>;

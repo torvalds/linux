@@ -844,8 +844,9 @@ struct task_struct {
 	int				trc_reader_nesting;
 	int				trc_ipi_to_cpu;
 	union rcu_special		trc_reader_special;
-	bool				trc_reader_checked;
 	struct list_head		trc_holdout_list;
+	struct list_head		trc_blkd_node;
+	int				trc_blkd_cpu;
 #endif /* #ifdef CONFIG_TASKS_TRACE_RCU */
 
 	struct sched_info		sched_info;
@@ -2231,6 +2232,7 @@ static inline void set_task_cpu(struct task_struct *p, unsigned int cpu)
 
 extern bool sched_task_on_rq(struct task_struct *p);
 extern unsigned long get_wchan(struct task_struct *p);
+extern struct task_struct *cpu_curr_snapshot(int cpu);
 
 /*
  * In order to reduce various lock holder preemption latencies provide an
@@ -2265,7 +2267,7 @@ static inline bool owner_on_cpu(struct task_struct *owner)
 }
 
 /* Returns effective CPU energy utilization, as seen by the scheduler */
-unsigned long sched_cpu_util(int cpu, unsigned long max);
+unsigned long sched_cpu_util(int cpu);
 #endif /* CONFIG_SMP */
 
 #ifdef CONFIG_RSEQ

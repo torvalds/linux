@@ -1209,7 +1209,7 @@ static int mspro_block_init_disk(struct memstick_dev *card)
 	return 0;
 
 out_cleanup_disk:
-	blk_cleanup_disk(msb->disk);
+	put_disk(msb->disk);
 out_free_tag_set:
 	blk_mq_free_tag_set(&msb->tag_set);
 out_release_id:
@@ -1294,7 +1294,6 @@ static void mspro_block_remove(struct memstick_dev *card)
 	del_gendisk(msb->disk);
 	dev_dbg(&card->dev, "mspro block remove\n");
 
-	blk_cleanup_queue(msb->queue);
 	blk_mq_free_tag_set(&msb->tag_set);
 	msb->queue = NULL;
 

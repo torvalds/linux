@@ -94,7 +94,7 @@
 	clk_ext4: clock-ext4 {
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
-		clock-frequency= <133000000>;
+		clock-frequency = <133000000>;
 		clock-output-names = "clk_ext4";
 	};
 
@@ -320,7 +320,7 @@
 		arm,no-tick-in-suspend;
 	};
 
-	soc@0 {
+	soc: soc@0 {
 		compatible = "fsl,imx8mq-soc", "simple-bus";
 		#address-cells = <1>;
 		#size-cells = <1>;
@@ -329,7 +329,7 @@
 		nvmem-cells = <&imx8mq_uid>;
 		nvmem-cell-names = "soc_unique_id";
 
-		bus@30000000 { /* AIPS1 */
+		aips1: bus@30000000 { /* AIPS1 */
 			compatible = "fsl,aips-bus", "simple-bus";
 			reg = <0x30000000 0x400000>;
 			#address-cells = <1>;
@@ -507,7 +507,7 @@
 						      <0x00030005 0x00000053>,
 						      <0x00030006 0x0000005f>,
 						      <0x00030007 0x00000071>;
-				#thermal-sensor-cells =  <1>;
+				#thermal-sensor-cells = <1>;
 			};
 
 			wdog1: watchdog@30280000 {
@@ -784,7 +784,7 @@
 			};
 		};
 
-		bus@30400000 { /* AIPS2 */
+		aips2: bus@30400000 { /* AIPS2 */
 			compatible = "fsl,aips-bus", "simple-bus";
 			reg = <0x30400000 0x400000>;
 			#address-cells = <1>;
@@ -844,7 +844,7 @@
 			};
 		};
 
-		bus@30800000 { /* AIPS3 */
+		aips3: bus@30800000 { /* AIPS3 */
 			compatible = "fsl,aips-bus", "simple-bus";
 			reg = <0x30800000 0x400000>;
 			#address-cells = <1>;
@@ -1018,6 +1018,7 @@
 					compatible = "fsl,sec-v4.0-job-ring";
 					reg = <0x1000 0x1000>;
 					interrupts = <GIC_SPI 105 IRQ_TYPE_LEVEL_HIGH>;
+					status = "disabled";
 				};
 
 				sec_jr1: jr@2000 {
@@ -1369,7 +1370,7 @@
 			};
 		};
 
-		bus@32c00000 { /* AIPS4 */
+		aips4: bus@32c00000 { /* AIPS4 */
 			compatible = "fsl,aips-bus", "simple-bus";
 			reg = <0x32c00000 0x400000>;
 			#address-cells = <1>;

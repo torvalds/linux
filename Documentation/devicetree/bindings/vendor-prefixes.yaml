@@ -510,6 +510,8 @@ patternProperties:
     description: Haoyu Microelectronic Co. Ltd.
   "^hardkernel,.*":
     description: Hardkernel Co., Ltd
+  "^hechuang,.*":
+    description: Shenzhen Hechuang Intelligent Co.
   "^hideep,.*":
     description: HiDeep Inc.
   "^himax,.*":
@@ -1101,6 +1103,8 @@ patternProperties:
     description: SGX Sensortech
   "^sharp,.*":
     description: Sharp Corporation
+  "^shift,.*":
+    description: SHIFT GmbH
   "^shimafuji,.*":
     description: Shimafuji Electric, Inc.
   "^shiratech,.*":

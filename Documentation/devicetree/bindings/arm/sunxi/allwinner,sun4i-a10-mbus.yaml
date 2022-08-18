@@ -29,10 +29,20 @@ properties:
   compatible:
     enum:
       - allwinner,sun5i-a13-mbus
+      - allwinner,sun8i-a33-mbus
+      - allwinner,sun8i-a50-mbus
+      - allwinner,sun8i-a83t-mbus
       - allwinner,sun8i-h3-mbus
       - allwinner,sun8i-r40-mbus
+      - allwinner,sun8i-v3s-mbus
+      - allwinner,sun8i-v536-mbus
+      - allwinner,sun20i-d1-mbus
       - allwinner,sun50i-a64-mbus
+      - allwinner,sun50i-a100-mbus
       - allwinner,sun50i-h5-mbus
+      - allwinner,sun50i-h6-mbus
+      - allwinner,sun50i-h616-mbus
+      - allwinner,sun50i-r329-mbus
 
   reg:
     minItems: 1
@@ -81,13 +91,13 @@ required:
   - dma-ranges
 
 if:
-  properties:
-    compatible:
-      contains:
-        enum:
-          - allwinner,sun8i-h3-mbus
-          - allwinner,sun50i-a64-mbus
-          - allwinner,sun50i-h5-mbus
+  not:
+    properties:
+      compatible:
+        contains:
+          enum:
+            - allwinner,sun5i-a13-mbus
+            - allwinner,sun8i-r40-mbus
 
 then:
   properties:

@@ -14,6 +14,7 @@
 
 	aliases {
 		serial0 = &uart0;
+		ethernet0 = &avb;
 	};
 
 	chosen {
@@ -32,6 +33,19 @@
 	memory@180000000 {
 		device_type = "memory";
 		reg = <0x1 0x80000000 0x0 0x80000000>;
+	};
+};
+
+&avb {
+	renesas,no-ether-link;
+	phy-handle = <&phy0>;
+	phy-mode = "gmii";
+	status = "okay";
+
+	phy0: ethernet-phy@0 {
+		compatible = "ethernet-phy-id001c.c916",
+			     "ethernet-phy-ieee802.3-c22";
+		reg = <0>;
 	};
 };
 

@@ -200,19 +200,19 @@ static struct page * ext2_get_page(struct inode *dir, unsigned long n,
 				   int quiet, void **page_addr)
 {
 	struct address_space *mapping = dir->i_mapping;
-	struct page *page = read_mapping_page(mapping, n, NULL);
-	if (!IS_ERR(page)) {
-		*page_addr = kmap_local_page(page);
-		if (unlikely(!PageChecked(page))) {
-			if (PageError(page) || !ext2_check_page(page, quiet,
-								*page_addr))
-				goto fail;
-		}
+	struct folio *folio = read_mapping_folio(mapping, n, NULL);
+
+	if (IS_ERR(folio))
+		return &folio->page;
+	*page_addr = kmap_local_folio(folio, n & (folio_nr_pages(folio) - 1));
+	if (unlikely(!folio_test_checked(folio))) {
+		if (!ext2_check_page(&folio->page, quiet, *page_addr))
+			goto fail;
 	}
-	return page;
+	return &folio->page;
 
 fail:
-	ext2_put_page(page, *page_addr);
+	ext2_put_page(&folio->page, *page_addr);
 	return ERR_PTR(-EIO);
 }
 

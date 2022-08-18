@@ -16,6 +16,7 @@
 void __flush_tlb_all(void);
 
 #define TLB_FLUSH_ALL	-1UL
+#define TLB_GENERATION_INVALID	0
 
 void cr4_update_irqsoff(unsigned long set, unsigned long clear);
 unsigned long cr4_read_shadow(void);

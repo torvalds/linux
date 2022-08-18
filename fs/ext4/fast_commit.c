@@ -658,7 +658,7 @@ void ext4_fc_track_range(handle_t *handle, struct inode *inode, ext4_lblk_t star
 
 static void ext4_fc_submit_bh(struct super_block *sb, bool is_tail)
 {
-	int write_flags = REQ_SYNC;
+	blk_opf_t write_flags = REQ_SYNC;
 	struct buffer_head *bh = EXT4_SB(sb)->s_fc_bh;
 
 	/* Add REQ_FUA | REQ_PREFLUSH only its tail */
@@ -668,7 +668,7 @@ static void ext4_fc_submit_bh(struct super_block *sb, bool is_tail)
 	set_buffer_dirty(bh);
 	set_buffer_uptodate(bh);
 	bh->b_end_io = ext4_end_buffer_io_sync;
-	submit_bh(REQ_OP_WRITE, write_flags, bh);
+	submit_bh(REQ_OP_WRITE | write_flags, bh);
 	EXT4_SB(sb)->s_fc_bh = NULL;
 }
 

@@ -72,25 +72,25 @@
 	gpio-keys {
 		compatible = "gpio-keys";
 
-		wps {
+		button-wps {
 			label = "WPS";
 			linux,code = <KEY_WPS_BUTTON>;
 			gpios = <&chipcommon 20 GPIO_ACTIVE_LOW>;
 		};
 
-		reset {
+		button-reset {
 			label = "Reset";
 			linux,code = <KEY_RESTART>;
 			gpios = <&chipcommon 11 GPIO_ACTIVE_LOW>;
 		};
 
-		wifi {
+		button-wifi {
 			label = "Wi-Fi";
 			linux,code = <KEY_RFKILL>;
 			gpios = <&chipcommon 18 GPIO_ACTIVE_LOW>;
 		};
 
-		led {
+		button-led {
 			label = "Backlight";
 			linux,code = <KEY_BRIGHTNESS_ZERO>;
 			gpios = <&chipcommon 4 GPIO_ACTIVE_LOW>;

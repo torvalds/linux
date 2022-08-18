@@ -170,7 +170,7 @@ struct fanotify_event_info_fid {
 	 * Following is an opaque struct file_handle that can be passed as
 	 * an argument to open_by_handle_at(2).
 	 */
-	unsigned char handle[0];
+	unsigned char handle[];
 };
 
 /*

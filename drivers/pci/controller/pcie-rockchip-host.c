@@ -864,7 +864,7 @@ static int rockchip_pcie_wait_l2(struct rockchip_pcie *rockchip)
 	return 0;
 }
 
-static int __maybe_unused rockchip_pcie_suspend_noirq(struct device *dev)
+static int rockchip_pcie_suspend_noirq(struct device *dev)
 {
 	struct rockchip_pcie *rockchip = dev_get_drvdata(dev);
 	int ret;
@@ -889,7 +889,7 @@ static int __maybe_unused rockchip_pcie_suspend_noirq(struct device *dev)
 	return ret;
 }
 
-static int __maybe_unused rockchip_pcie_resume_noirq(struct device *dev)
+static int rockchip_pcie_resume_noirq(struct device *dev)
 {
 	struct rockchip_pcie *rockchip = dev_get_drvdata(dev);
 	int err;
@@ -1035,8 +1035,8 @@ static int rockchip_pcie_remove(struct platform_device *pdev)
 }
 
 static const struct dev_pm_ops rockchip_pcie_pm_ops = {
-	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(rockchip_pcie_suspend_noirq,
-				      rockchip_pcie_resume_noirq)
+	NOIRQ_SYSTEM_SLEEP_PM_OPS(rockchip_pcie_suspend_noirq,
+				  rockchip_pcie_resume_noirq)
 };
 
 static const struct of_device_id rockchip_pcie_of_match[] = {

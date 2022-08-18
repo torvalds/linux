@@ -40,7 +40,6 @@
 .. toctree::
    :maxdepth: 1
 
-   submitting-drivers
    submit-checklist
    stable-api-nonsense
    stable-kernel-rules
