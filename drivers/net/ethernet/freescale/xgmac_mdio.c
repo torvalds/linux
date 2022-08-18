@@ -355,7 +355,7 @@ static int xgmac_mdio_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	fwnode = pdev->dev.fwnode;
+	fwnode = dev_fwnode(&pdev->dev);
 	if (is_of_node(fwnode))
 		ret = of_mdiobus_register(bus, to_of_node(fwnode));
 	else if (is_acpi_node(fwnode))
