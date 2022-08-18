@@ -25,9 +25,6 @@ struct netns_nf {
 #ifdef CONFIG_NETFILTER_FAMILY_BRIDGE
 	struct nf_hook_entries __rcu *hooks_bridge[NF_INET_NUMHOOKS];
 #endif
-#if IS_ENABLED(CONFIG_DECNET)
-	struct nf_hook_entries __rcu *hooks_decnet[NF_DN_NUMHOOKS];
-#endif
 #if IS_ENABLED(CONFIG_NF_DEFRAG_IPV4)
 	bool			defrag_ipv4;
 #endif
