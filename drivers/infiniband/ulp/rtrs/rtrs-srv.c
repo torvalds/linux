@@ -16,6 +16,7 @@
 #include "rtrs-log.h"
 #include <rdma/ib_cm.h>
 #include <rdma/ib_verbs.h>
+#include "rtrs-srv-trace.h"
 
 MODULE_DESCRIPTION("RDMA Transport Server");
 MODULE_LICENSE("GPL");
@@ -55,11 +56,6 @@ static struct workqueue_struct *rtrs_wq;
 static inline struct rtrs_srv_con *to_srv_con(struct rtrs_con *c)
 {
 	return container_of(c, struct rtrs_srv_con, c);
-}
-
-static inline struct rtrs_srv_path *to_srv_path(struct rtrs_path *s)
-{
-	return container_of(s, struct rtrs_srv_path, s);
 }
 
 static bool rtrs_srv_change_state(struct rtrs_srv_path *srv_path,
@@ -374,6 +370,8 @@ static int send_io_resp_imm(struct rtrs_srv_con *con, struct rtrs_srv_op *id,
 			}
 		}
 	}
+
+	trace_send_io_resp_imm(id, need_inval, always_invalidate, errno);
 
 	if (need_inval && always_invalidate) {
 		wr = &inv_wr;
