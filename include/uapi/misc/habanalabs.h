@@ -715,12 +715,16 @@ enum hl_server_type {
  * HL_NOTIFIER_EVENT_DEVICE_RESET	- Indicates device requires a reset
  * HL_NOTIFIER_EVENT_CS_TIMEOUT		- Indicates CS timeout error
  * HL_NOTIFIER_EVENT_DEVICE_UNAVAILABLE	- Indicates device is unavailable
+ * HL_NOTIFIER_EVENT_USER_ENGINE_ERR	- Indicates device engine in error state
+ * HL_NOTIFIER_EVENT_GENERAL_HW_ERR     - Indicates device HW error
  */
 #define HL_NOTIFIER_EVENT_TPC_ASSERT		(1ULL << 0)
 #define HL_NOTIFIER_EVENT_UNDEFINED_OPCODE	(1ULL << 1)
 #define HL_NOTIFIER_EVENT_DEVICE_RESET		(1ULL << 2)
 #define HL_NOTIFIER_EVENT_CS_TIMEOUT		(1ULL << 3)
 #define HL_NOTIFIER_EVENT_DEVICE_UNAVAILABLE	(1ULL << 4)
+#define HL_NOTIFIER_EVENT_USER_ENGINE_ERR	(1ULL << 5)
+#define HL_NOTIFIER_EVENT_GENERAL_HW_ERR	(1ULL << 6)
 
 /* Opcode for management ioctl
  *

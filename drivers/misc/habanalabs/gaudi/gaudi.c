@@ -7685,6 +7685,7 @@ static void gaudi_handle_eqe(struct hl_device *hdev, struct hl_eq_entry *eq_entr
 	case GAUDI_EVENT_NIC0_CS_DBG_DERR ... GAUDI_EVENT_NIC4_CS_DBG_DERR:
 		gaudi_print_irq_info(hdev, event_type, true);
 		gaudi_handle_ecc_event(hdev, event_type, &eq_entry->ecc_data);
+		event_mask |= HL_NOTIFIER_EVENT_GENERAL_HW_ERR;
 		fw_fatal_err_flag = HL_DRV_RESET_FW_FATAL_ERR;
 		goto reset_device;
 
@@ -7694,6 +7695,7 @@ static void gaudi_handle_eqe(struct hl_device *hdev, struct hl_eq_entry *eq_entr
 	case GAUDI_EVENT_PLL0 ... GAUDI_EVENT_PLL17:
 		gaudi_print_irq_info(hdev, event_type, false);
 		fw_fatal_err_flag = HL_DRV_RESET_FW_FATAL_ERR;
+		event_mask |= HL_NOTIFIER_EVENT_GENERAL_HW_ERR;
 		goto reset_device;
 
 	case GAUDI_EVENT_HBM0_SPI_0:
@@ -7705,6 +7707,7 @@ static void gaudi_handle_eqe(struct hl_device *hdev, struct hl_eq_entry *eq_entr
 				gaudi_hbm_event_to_dev(event_type),
 				&eq_entry->hbm_ecc_data);
 		fw_fatal_err_flag = HL_DRV_RESET_FW_FATAL_ERR;
+		event_mask |= HL_NOTIFIER_EVENT_GENERAL_HW_ERR;
 		goto reset_device;
 
 	case GAUDI_EVENT_HBM0_SPI_1:
@@ -7716,6 +7719,7 @@ static void gaudi_handle_eqe(struct hl_device *hdev, struct hl_eq_entry *eq_entr
 				gaudi_hbm_event_to_dev(event_type),
 				&eq_entry->hbm_ecc_data);
 		hl_fw_unmask_irq(hdev, event_type);
+		event_mask |= HL_NOTIFIER_EVENT_GENERAL_HW_ERR;
 		break;
 
 	case GAUDI_EVENT_TPC0_DEC:
@@ -7730,6 +7734,7 @@ static void gaudi_handle_eqe(struct hl_device *hdev, struct hl_eq_entry *eq_entr
 		reset_required = gaudi_tpc_read_interrupts(hdev,
 					tpc_dec_event_to_tpc_id(event_type),
 					"AXI_SLV_DEC_Error");
+		event_mask |= HL_NOTIFIER_EVENT_USER_ENGINE_ERR;
 		if (reset_required) {
 			dev_err(hdev->dev, "reset required due to %s\n",
 				gaudi_irq_map_table[event_type].name);
@@ -7738,6 +7743,7 @@ static void gaudi_handle_eqe(struct hl_device *hdev, struct hl_eq_entry *eq_entr
 			goto reset_device;
 		} else {
 			hl_fw_unmask_irq(hdev, event_type);
+			event_mask |= HL_NOTIFIER_EVENT_DEVICE_RESET;
 		}
 		break;
 
@@ -7753,6 +7759,7 @@ static void gaudi_handle_eqe(struct hl_device *hdev, struct hl_eq_entry *eq_entr
 		reset_required = gaudi_tpc_read_interrupts(hdev,
 					tpc_krn_event_to_tpc_id(event_type),
 					"KRN_ERR");
+		event_mask |= HL_NOTIFIER_EVENT_USER_ENGINE_ERR;
 		if (reset_required) {
 			dev_err(hdev->dev, "reset required due to %s\n",
 				gaudi_irq_map_table[event_type].name);
@@ -7761,6 +7768,7 @@ static void gaudi_handle_eqe(struct hl_device *hdev, struct hl_eq_entry *eq_entr
 			goto reset_device;
 		} else {
 			hl_fw_unmask_irq(hdev, event_type);
+			event_mask |= HL_NOTIFIER_EVENT_DEVICE_RESET;
 		}
 		break;
 
@@ -7789,9 +7797,25 @@ static void gaudi_handle_eqe(struct hl_device *hdev, struct hl_eq_entry *eq_entr
 		gaudi_print_irq_info(hdev, event_type, true);
 		gaudi_handle_ecc_event(hdev, event_type, &eq_entry->ecc_data);
 		hl_fw_unmask_irq(hdev, event_type);
+		event_mask |= HL_NOTIFIER_EVENT_GENERAL_HW_ERR;
 		break;
 
 	case GAUDI_EVENT_PCIE_DEC:
+	case GAUDI_EVENT_CPU_AXI_SPLITTER:
+	case GAUDI_EVENT_PSOC_AXI_DEC:
+	case GAUDI_EVENT_PSOC_PRSTN_FALL:
+		gaudi_print_irq_info(hdev, event_type, true);
+		hl_fw_unmask_irq(hdev, event_type);
+		event_mask |= HL_NOTIFIER_EVENT_GENERAL_HW_ERR;
+		break;
+
+	case GAUDI_EVENT_MMU_PAGE_FAULT:
+	case GAUDI_EVENT_MMU_WR_PERM:
+		gaudi_print_irq_info(hdev, event_type, true);
+		hl_fw_unmask_irq(hdev, event_type);
+		event_mask |= HL_NOTIFIER_EVENT_USER_ENGINE_ERR;
+		break;
+
 	case GAUDI_EVENT_MME0_WBC_RSP:
 	case GAUDI_EVENT_MME0_SBAB0_RSP:
 	case GAUDI_EVENT_MME1_WBC_RSP:
@@ -7800,11 +7824,6 @@ static void gaudi_handle_eqe(struct hl_device *hdev, struct hl_eq_entry *eq_entr
 	case GAUDI_EVENT_MME2_SBAB0_RSP:
 	case GAUDI_EVENT_MME3_WBC_RSP:
 	case GAUDI_EVENT_MME3_SBAB0_RSP:
-	case GAUDI_EVENT_CPU_AXI_SPLITTER:
-	case GAUDI_EVENT_PSOC_AXI_DEC:
-	case GAUDI_EVENT_PSOC_PRSTN_FALL:
-	case GAUDI_EVENT_MMU_PAGE_FAULT:
-	case GAUDI_EVENT_MMU_WR_PERM:
 	case GAUDI_EVENT_RAZWI_OR_ADC:
 	case GAUDI_EVENT_MME0_QM ... GAUDI_EVENT_MME2_QM:
 	case GAUDI_EVENT_DMA0_QM ... GAUDI_EVENT_DMA7_QM:
@@ -7824,10 +7843,12 @@ static void gaudi_handle_eqe(struct hl_device *hdev, struct hl_eq_entry *eq_entr
 		gaudi_print_irq_info(hdev, event_type, true);
 		gaudi_handle_qman_err(hdev, event_type, &event_mask);
 		hl_fw_unmask_irq(hdev, event_type);
+		event_mask |= (HL_NOTIFIER_EVENT_USER_ENGINE_ERR | HL_NOTIFIER_EVENT_DEVICE_RESET);
 		break;
 
 	case GAUDI_EVENT_RAZWI_OR_ADC_SW:
 		gaudi_print_irq_info(hdev, event_type, true);
+		event_mask |= HL_NOTIFIER_EVENT_USER_ENGINE_ERR;
 		goto reset_device;
 
 	case GAUDI_EVENT_TPC0_BMON_SPMU:
@@ -7841,11 +7862,13 @@ static void gaudi_handle_eqe(struct hl_device *hdev, struct hl_eq_entry *eq_entr
 	case GAUDI_EVENT_DMA_BM_CH0 ... GAUDI_EVENT_DMA_BM_CH7:
 		gaudi_print_irq_info(hdev, event_type, false);
 		hl_fw_unmask_irq(hdev, event_type);
+		event_mask |= HL_NOTIFIER_EVENT_USER_ENGINE_ERR;
 		break;
 
 	case GAUDI_EVENT_NIC_SEI_0 ... GAUDI_EVENT_NIC_SEI_4:
 		gaudi_print_nic_axi_irq_info(hdev, event_type, &data);
 		hl_fw_unmask_irq(hdev, event_type);
+		event_mask |= HL_NOTIFIER_EVENT_USER_ENGINE_ERR;
 		break;
 
 	case GAUDI_EVENT_DMA_IF_SEI_0 ... GAUDI_EVENT_DMA_IF_SEI_3:
@@ -7853,6 +7876,7 @@ static void gaudi_handle_eqe(struct hl_device *hdev, struct hl_eq_entry *eq_entr
 		gaudi_print_sm_sei_info(hdev, event_type,
 					&eq_entry->sm_sei_data);
 		rc = hl_state_dump(hdev);
+		event_mask |= HL_NOTIFIER_EVENT_USER_ENGINE_ERR;
 		if (rc)
 			dev_err(hdev->dev,
 				"Error during system state dump %d\n", rc);
@@ -7863,6 +7887,7 @@ static void gaudi_handle_eqe(struct hl_device *hdev, struct hl_eq_entry *eq_entr
 		break;
 
 	case GAUDI_EVENT_FIX_POWER_ENV_S ... GAUDI_EVENT_FIX_THERMAL_ENV_E:
+		event_mask |= HL_NOTIFIER_EVENT_USER_ENGINE_ERR;
 		gaudi_print_clk_change_info(hdev, event_type);
 		hl_fw_unmask_irq(hdev, event_type);
 		break;
@@ -7872,20 +7897,24 @@ static void gaudi_handle_eqe(struct hl_device *hdev, struct hl_eq_entry *eq_entr
 		dev_err(hdev->dev,
 			"Received high temp H/W interrupt %d (cause %d)\n",
 			event_type, cause);
+		event_mask |= HL_NOTIFIER_EVENT_USER_ENGINE_ERR;
 		break;
 
 	case GAUDI_EVENT_DEV_RESET_REQ:
 		gaudi_print_irq_info(hdev, event_type, false);
+		event_mask |= HL_NOTIFIER_EVENT_GENERAL_HW_ERR;
 		goto reset_device;
 
 	case GAUDI_EVENT_PKT_QUEUE_OUT_SYNC:
 		gaudi_print_irq_info(hdev, event_type, false);
 		gaudi_print_out_of_sync_info(hdev, &eq_entry->pkt_sync_err);
+		event_mask |= HL_NOTIFIER_EVENT_GENERAL_HW_ERR;
 		goto reset_device;
 
 	case GAUDI_EVENT_FW_ALIVE_S:
 		gaudi_print_irq_info(hdev, event_type, false);
 		gaudi_print_fw_alive_info(hdev, &eq_entry->fw_alive);
+		event_mask |= HL_NOTIFIER_EVENT_GENERAL_HW_ERR;
 		goto reset_device;
 
 	default:
