@@ -37,6 +37,14 @@ struct memory_dev_type *alloc_memory_type(int adistance);
 void destroy_memory_type(struct memory_dev_type *memtype);
 void init_node_memory_type(int node, struct memory_dev_type *default_type);
 void clear_node_memory_type(int node, struct memory_dev_type *memtype);
+#ifdef CONFIG_MIGRATION
+int next_demotion_node(int node);
+#else
+static inline int next_demotion_node(int node)
+{
+	return NUMA_NO_NODE;
+}
+#endif
 
 #else
 
@@ -62,6 +70,11 @@ static inline void init_node_memory_type(int node, struct memory_dev_type *defau
 static inline void clear_node_memory_type(int node, struct memory_dev_type *memtype)
 {
 
+}
+
+static inline int next_demotion_node(int node)
+{
+	return NUMA_NO_NODE;
 }
 #endif	/* CONFIG_NUMA */
 #endif  /* _LINUX_MEMORY_TIERS_H */
