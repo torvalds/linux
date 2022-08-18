@@ -353,7 +353,7 @@ ip_set_init_comment(struct ip_set *set, struct ip_set_comment *comment,
 	c = kmalloc(sizeof(*c) + len + 1, GFP_ATOMIC);
 	if (unlikely(!c))
 		return;
-	strlcpy(c->str, ext->comment, len + 1);
+	strscpy(c->str, ext->comment, len + 1);
 	set->ext_size += sizeof(*c) + strlen(c->str) + 1;
 	rcu_assign_pointer(comment->c, c);
 }
@@ -1072,7 +1072,7 @@ static int ip_set_create(struct sk_buff *skb, const struct nfnl_info *info,
 	if (!set)
 		return -ENOMEM;
 	spin_lock_init(&set->lock);
-	strlcpy(set->name, name, IPSET_MAXNAMELEN);
+	strscpy(set->name, name, IPSET_MAXNAMELEN);
 	set->family = family;
 	set->revision = revision;
 
