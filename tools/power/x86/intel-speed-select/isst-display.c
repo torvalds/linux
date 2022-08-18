@@ -505,6 +505,9 @@ void isst_ctdp_display_information(struct isst_id *id, FILE *outf, int tdp_level
 		}
 
 		for (k = 0; k < trl_max_levels; k++) {
+			if (!ctdp_level->trl_ratios[k][0])
+				continue;
+
 			snprintf(header, sizeof(header), "turbo-ratio-limits-%s", isst_get_trl_level_name(k));
 			format_and_print(outf, level + 2, header, NULL);
 
