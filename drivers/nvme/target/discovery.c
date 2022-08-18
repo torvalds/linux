@@ -292,7 +292,7 @@ static void nvmet_execute_disc_identify(struct nvmet_req *req)
 
 	id->oaes = cpu_to_le32(NVMET_DISC_AEN_CFG_OPTIONAL);
 
-	strlcpy(id->subnqn, ctrl->subsys->subsysnqn, sizeof(id->subnqn));
+	strscpy(id->subnqn, ctrl->subsys->subsysnqn, sizeof(id->subnqn));
 
 	status = nvmet_copy_to_sgl(req, 0, id, sizeof(*id));
 

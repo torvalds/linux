@@ -49,7 +49,7 @@ static struct nvmf_host *nvmf_host_add(const char *hostnqn)
 		goto out_unlock;
 
 	kref_init(&host->ref);
-	strlcpy(host->nqn, hostnqn, NVMF_NQN_SIZE);
+	strscpy(host->nqn, hostnqn, NVMF_NQN_SIZE);
 
 	list_add_tail(&host->list, &nvmf_hosts);
 out_unlock:
