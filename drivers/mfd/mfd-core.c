@@ -105,7 +105,7 @@ static void mfd_acpi_add_device(const struct mfd_cell *cell,
 				.ids = ids,
 			};
 
-			strlcpy(ids[0].id, match->pnpid, sizeof(ids[0].id));
+			strscpy(ids[0].id, match->pnpid, sizeof(ids[0].id));
 			acpi_dev_for_each_child(parent, match_device_ids, &wd);
 			adev = wd.adev;
 		} else {

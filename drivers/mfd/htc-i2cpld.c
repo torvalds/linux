@@ -352,7 +352,7 @@ static int htcpld_register_chip_i2c(
 
 	memset(&info, 0, sizeof(struct i2c_board_info));
 	info.addr = plat_chip_data->addr;
-	strlcpy(info.type, "htcpld-chip", I2C_NAME_SIZE);
+	strscpy(info.type, "htcpld-chip", I2C_NAME_SIZE);
 	info.platform_data = chip;
 
 	/* Add the I2C device.  This calls the probe() function. */
