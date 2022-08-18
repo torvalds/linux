@@ -1713,15 +1713,16 @@ int bch2_btree_delete_range_trans(struct btree_trans *trans, enum btree_id id,
 				  unsigned update_flags,
 				  u64 *journal_seq)
 {
+	u32 restart_count = trans->restart_count;
 	struct btree_iter iter;
 	struct bkey_s_c k;
 	int ret = 0;
 
 	bch2_trans_iter_init(trans, &iter, id, start, BTREE_ITER_INTENT);
 retry:
-	while ((bch2_trans_begin(trans),
-	       (k = bch2_btree_iter_peek(&iter)).k) &&
-	       !(ret = bkey_err(k)) &&
+	while ((k = bch2_btree_iter_peek(&iter)).k &&
+	       !(ret = bkey_err(k) ?:
+		 btree_trans_too_many_iters(trans)) &&
 	       bkey_cmp(iter.pos, end) < 0) {
 		struct disk_reservation disk_res =
 			bch2_disk_reservation_init(trans->c, 0);
@@ -1767,11 +1768,15 @@ retry:
 	}
 
 	if (bch2_err_matches(ret, BCH_ERR_transaction_restart)) {
+		bch2_trans_begin(trans);
 		ret = 0;
 		goto retry;
 	}
 
 	bch2_trans_iter_exit(trans, &iter);
+
+	if (!ret && trans_was_restarted(trans, restart_count))
+		ret = -BCH_ERR_transaction_restart_nested;
 	return ret;
 }
 
@@ -1785,8 +1790,12 @@ int bch2_btree_delete_range(struct bch_fs *c, enum btree_id id,
 			    unsigned update_flags,
 			    u64 *journal_seq)
 {
-	return bch2_trans_run(c,
-			bch2_btree_delete_range_trans(&trans, id, start, end, update_flags, journal_seq));
+	int ret = bch2_trans_run(c,
+			bch2_btree_delete_range_trans(&trans, id, start, end,
+						      update_flags, journal_seq));
+	if (ret == -BCH_ERR_transaction_restart_nested)
+		ret = 0;
+	return ret;
 }
 
 int bch2_trans_log_msg(struct btree_trans *trans, const char *msg)

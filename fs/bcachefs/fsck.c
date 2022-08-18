@@ -19,6 +19,10 @@
 
 #define QSTR(n) { { { .len = strlen(n) } }, .name = n }
 
+/*
+ * XXX: this is handling transaction restarts without returning
+ * -BCH_ERR_transaction_restart_nested, this is not how we do things anymore:
+ */
 static s64 bch2_count_inode_sectors(struct btree_trans *trans, u64 inum,
 				    u32 snapshot)
 {
@@ -239,18 +243,20 @@ static int fsck_inode_rm(struct btree_trans *trans, u64 inum, u32 snapshot)
 	struct bkey_s_c k;
 	int ret;
 
-	ret   = bch2_btree_delete_range_trans(trans, BTREE_ID_extents,
-					      SPOS(inum, 0, snapshot),
-					      SPOS(inum, U64_MAX, snapshot),
-					      0, NULL) ?:
-		bch2_btree_delete_range_trans(trans, BTREE_ID_dirents,
-					      SPOS(inum, 0, snapshot),
-					      SPOS(inum, U64_MAX, snapshot),
-					      0, NULL) ?:
-		bch2_btree_delete_range_trans(trans, BTREE_ID_xattrs,
-					      SPOS(inum, 0, snapshot),
-					      SPOS(inum, U64_MAX, snapshot),
-					      0, NULL);
+	do {
+		ret   = bch2_btree_delete_range_trans(trans, BTREE_ID_extents,
+						      SPOS(inum, 0, snapshot),
+						      SPOS(inum, U64_MAX, snapshot),
+						      0, NULL) ?:
+			bch2_btree_delete_range_trans(trans, BTREE_ID_dirents,
+						      SPOS(inum, 0, snapshot),
+						      SPOS(inum, U64_MAX, snapshot),
+						      0, NULL) ?:
+			bch2_btree_delete_range_trans(trans, BTREE_ID_xattrs,
+						      SPOS(inum, 0, snapshot),
+						      SPOS(inum, U64_MAX, snapshot),
+						      0, NULL);
+	} while (ret == -BCH_ERR_transaction_restart_nested);
 	if (ret)
 		goto err;
 retry:
