@@ -7623,9 +7623,9 @@ static int __init volume_create_alsa_mixer(void)
 	data = card->private_data;
 	data->card = card;
 
-	strlcpy(card->driver, TPACPI_ALSA_DRVNAME,
+	strscpy(card->driver, TPACPI_ALSA_DRVNAME,
 		sizeof(card->driver));
-	strlcpy(card->shortname, TPACPI_ALSA_SHRTNAME,
+	strscpy(card->shortname, TPACPI_ALSA_SHRTNAME,
 		sizeof(card->shortname));
 	snprintf(card->mixername, sizeof(card->mixername), "ThinkPad EC %s",
 		 (thinkpad_id.ec_version_str) ?

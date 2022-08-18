@@ -270,7 +270,7 @@ void strlcpy_attr(char *dest, char *src)
 	size_t len = strlen(src) + 1;
 
 	if (len > 1 && len <= MAX_BUFF)
-		strlcpy(dest, src, len);
+		strscpy(dest, src, len);
 
 	/*len can be zero because any property not-applicable to attribute can
 	 * be empty so check only for too long buffers and log error
