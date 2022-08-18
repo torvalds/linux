@@ -246,7 +246,7 @@ config ARCH_MTD_XIP
 config ARM_PATCH_PHYS_VIRT
 	bool "Patch physical to virtual translations at runtime" if EMBEDDED
 	default y
-	depends on !XIP_KERNEL && MMU
+	depends on MMU
 	help
 	  Patch phys-to-virt and virt-to-phys translation functions at
 	  boot and module load time according to the position of the
@@ -975,7 +975,7 @@ config SMP
 
 config SMP_ON_UP
 	bool "Allow booting SMP kernel on uniprocessor systems"
-	depends on SMP && !XIP_KERNEL && MMU
+	depends on SMP && MMU
 	default y
 	help
 	  SMP kernels contain instructions which fail on non-SMP processors.
@@ -1224,7 +1224,7 @@ config THUMB2_KERNEL
 
 config ARM_PATCH_IDIV
 	bool "Runtime patch udiv/sdiv instructions into __aeabi_{u}idiv()"
-	depends on CPU_32v7 && !XIP_KERNEL
+	depends on CPU_32v7
 	default y
 	help
 	  The ARM compiler inserts calls to __aeabi_idiv() and
@@ -1619,6 +1619,7 @@ endchoice
 config XIP_KERNEL
 	bool "Kernel Execute-In-Place from ROM"
 	depends on !ARM_LPAE && !ARCH_MULTIPLATFORM
+	depends on !ARM_PATCH_IDIV && !ARM_PATCH_PHYS_VIRT && !SMP_ON_UP
 	help
 	  Execute-In-Place allows the kernel to run from non-volatile storage
 	  directly addressable by the CPU, such as NOR flash. This saves RAM
