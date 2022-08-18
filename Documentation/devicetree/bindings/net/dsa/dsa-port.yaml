@@ -76,6 +76,23 @@ properties:
 required:
   - reg
 
+# CPU and DSA ports must have phylink-compatible link descriptions
+if:
+  oneOf:
+    - required: [ ethernet ]
+    - required: [ link ]
+then:
+  allOf:
+    - required:
+        - phy-mode
+    - oneOf:
+        - required:
+            - fixed-link
+        - required:
+            - phy-handle
+        - required:
+            - managed
+
 additionalProperties: true
 
 ...
