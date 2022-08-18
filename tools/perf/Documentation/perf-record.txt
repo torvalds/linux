@@ -757,8 +757,6 @@ events in data directory files. Option specified with no or empty value
 defaults to CPU layout. Masks defined or provided by the option value are
 filtered through the mask provided by -C option.
 
-include::intel-hybrid.txt[]
-
 --debuginfod[=URLs]::
 	Specify debuginfod URL to be used when cacheing perf.data binaries,
 	it follows the same syntax as the DEBUGINFOD_URLS variable, like:
@@ -777,6 +775,8 @@ include::intel-hybrid.txt[]
 	Note that BPF can collect stack traces using frame pointer ("fp")
 	only, as of now.  So the applications built without the frame
 	pointer might see bogus addresses.
+
+include::intel-hybrid.txt[]
 
 SEE ALSO
 --------
