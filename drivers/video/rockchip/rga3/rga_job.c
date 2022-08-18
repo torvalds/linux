@@ -705,19 +705,47 @@ static int rga_request_scheduler_job_abort(struct rga_request *request)
 	if (running_abort_count + todo_abort_count == 0)
 		return 1;
 
-	pr_err("request[%d] timeout abort! finished %d failed %d running_abort %d todo_abort %d\n",
+	pr_err("request[%d] abort! finished %d failed %d running_abort %d todo_abort %d\n",
 	       request->id, request->finished_task_count, request->failed_task_count,
 	       running_abort_count, todo_abort_count);
 
 	return 0;
 }
 
+static void rga_request_release_abort(struct rga_request *request, int err_code)
+{
+	unsigned long flags;
+	struct rga_pending_request_manager *request_manager = rga_drvdata->pend_request_manager;
+
+	if (rga_request_scheduler_job_abort(request) > 0)
+		return;
+
+	spin_lock_irqsave(&request->lock, flags);
+
+	if (request->is_done) {
+		spin_unlock_irqrestore(&request->lock, flags);
+		return;
+	}
+
+	request->is_running = false;
+	request->is_done = false;
+
+	rga_request_put_current_mm(request);
+
+	spin_unlock_irqrestore(&request->lock, flags);
+
+	rga_dma_fence_signal(request->release_fence, err_code);
+
+	mutex_lock(&request_manager->lock);
+	/* current submit request put */
+	rga_request_put(request);
+	mutex_unlock(&request_manager->lock);
+}
+
 static int rga_request_wait(struct rga_request *request)
 {
 	int left_time;
 	int ret;
-	unsigned long flags;
-	struct rga_pending_request_manager *request_manager = rga_drvdata->pend_request_manager;
 
 	left_time = wait_event_timeout(request->finished_wq, request->is_done,
 				       RGA_JOB_TIMEOUT_DELAY * request->task_count);
@@ -738,31 +766,8 @@ static int rga_request_wait(struct rga_request *request)
 	return ret;
 
 err_request_abort:
-	if (rga_request_scheduler_job_abort(request) > 0)
-		goto err_return;
+	rga_request_release_abort(request, ret);
 
-	spin_lock_irqsave(&request->lock, flags);
-
-	if (request->is_done) {
-		spin_unlock_irqrestore(&request->lock, flags);
-		goto err_return;
-	}
-
-	request->is_running = false;
-	request->is_done = false;
-
-	rga_request_put_current_mm(request);
-
-	spin_unlock_irqrestore(&request->lock, flags);
-
-	rga_dma_fence_signal(request->release_fence, -EBUSY);
-
-	mutex_lock(&request_manager->lock);
-	/* current submit request put */
-	rga_request_put(request);
-	mutex_unlock(&request_manager->lock);
-
-err_return:
 	return ret;
 }
 
@@ -770,9 +775,17 @@ int rga_request_commit(struct rga_request *request)
 {
 	int ret;
 	int i = 0;
+	struct rga_job *job;
 
-	for (i = 0; i < request->task_count; i++)
-		rga_job_commit(&(request->task_list[i]), request);
+	for (i = 0; i < request->task_count; i++) {
+		job = rga_job_commit(&(request->task_list[i]), request);
+		if (IS_ERR(job)) {
+			pr_err("request[%d] task[%d] job_commit failed.\n", request->id, i);
+			rga_request_release_abort(request, PTR_ERR(job));
+
+			return PTR_ERR(job);
+		}
+	}
 
 	if (request->sync_mode == RGA_BLIT_SYNC) {
 		ret = rga_request_wait(request);
@@ -1052,6 +1065,7 @@ request_commit:
 
 error_release_fence_put:
 	rga_dma_fence_put(request->release_fence);
+	request->release_fence = NULL;
 	return ret;
 }
 
