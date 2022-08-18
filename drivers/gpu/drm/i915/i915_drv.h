@@ -1358,7 +1358,7 @@ IS_SUBPLATFORM(const struct drm_i915_private *i915,
 #define HAS_D12_PLANE_MINIMIZATION(dev_priv) (IS_ROCKETLAKE(dev_priv) || \
 					      IS_ALDERLAKE_S(dev_priv))
 
-#define HAS_MBUS_JOINING(i915) (IS_ALDERLAKE_P(i915))
+#define HAS_MBUS_JOINING(i915) (IS_ALDERLAKE_P(i915) || DISPLAY_VER(i915) >= 14)
 
 #define HAS_3D_PIPELINE(i915)	(INTEL_INFO(i915)->has_3d_pipeline)
 
