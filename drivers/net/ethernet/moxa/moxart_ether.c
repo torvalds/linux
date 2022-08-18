@@ -62,9 +62,6 @@ static int moxart_set_mac_address(struct net_device *ndev, void *addr)
 {
 	struct sockaddr *address = addr;
 
-	if (!is_valid_ether_addr(address->sa_data))
-		return -EADDRNOTAVAIL;
-
 	eth_hw_addr_set(ndev, address->sa_data);
 	moxart_update_mac_address(ndev);
 
@@ -171,9 +168,6 @@ static void moxart_mac_setup_desc_ring(struct net_device *ndev)
 static int moxart_mac_open(struct net_device *ndev)
 {
 	struct moxart_mac_priv_t *priv = netdev_priv(ndev);
-
-	if (!is_valid_ether_addr(ndev->dev_addr))
-		return -EADDRNOTAVAIL;
 
 	napi_enable(&priv->napi);
 
@@ -487,6 +481,13 @@ static int moxart_mac_probe(struct platform_device *pdev)
 		goto init_fail;
 	}
 	ndev->base_addr = res->start;
+
+	ret = platform_get_ethdev_address(p_dev, ndev);
+	if (ret == -EPROBE_DEFER)
+		goto init_fail;
+	if (ret)
+		eth_hw_addr_random(ndev);
+	moxart_update_mac_address(ndev);
 
 	spin_lock_init(&priv->txlock);
 
