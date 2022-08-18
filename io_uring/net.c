@@ -152,9 +152,9 @@ static int io_setup_async_msg(struct io_kiocb *req,
 			      struct io_async_msghdr *kmsg,
 			      unsigned int issue_flags)
 {
-	struct io_async_msghdr *async_msg = req->async_data;
+	struct io_async_msghdr *async_msg;
 
-	if (async_msg)
+	if (req_has_async_data(req))
 		return -EAGAIN;
 	async_msg = io_recvmsg_alloc_async(req, issue_flags);
 	if (!async_msg) {
