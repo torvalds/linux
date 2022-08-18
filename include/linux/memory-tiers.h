@@ -5,6 +5,7 @@
 #include <linux/types.h>
 #include <linux/nodemask.h>
 #include <linux/kref.h>
+#include <linux/mmzone.h>
 /*
  * Each tier cover a abstrace distance chunk size of 128
  */
@@ -38,10 +39,16 @@ void init_node_memory_type(int node, struct memory_dev_type *default_type);
 void clear_node_memory_type(int node, struct memory_dev_type *memtype);
 #ifdef CONFIG_MIGRATION
 int next_demotion_node(int node);
+void node_get_allowed_targets(pg_data_t *pgdat, nodemask_t *targets);
 #else
 static inline int next_demotion_node(int node)
 {
 	return NUMA_NO_NODE;
+}
+
+static inline void node_get_allowed_targets(pg_data_t *pgdat, nodemask_t *targets)
+{
+	*targets = NODE_MASK_NONE;
 }
 #endif
 
@@ -74,6 +81,11 @@ static inline void clear_node_memory_type(int node, struct memory_dev_type *memt
 static inline int next_demotion_node(int node)
 {
 	return NUMA_NO_NODE;
+}
+
+static inline void node_get_allowed_targets(pg_data_t *pgdat, nodemask_t *targets)
+{
+	*targets = NODE_MASK_NONE;
 }
 #endif	/* CONFIG_NUMA */
 #endif  /* _LINUX_MEMORY_TIERS_H */
