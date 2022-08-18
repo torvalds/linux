@@ -446,27 +446,12 @@ static int fastop(struct x86_emulate_ctxt *ctxt, fastop_t fop);
 	FOP_END
 
 /* Special case for SETcc - 1 instruction per cc */
-
-/*
- * Depending on .config the SETcc functions look like:
- *
- * ENDBR			[4 bytes; CONFIG_X86_KERNEL_IBT]
- * SETcc %al			[3 bytes]
- * RET | JMP __x86_return_thunk	[1,5 bytes; CONFIG_RETHUNK]
- * INT3				[1 byte; CONFIG_SLS]
- */
-#define SETCC_ALIGN	16
-
 #define FOP_SETCC(op) \
-	".align " __stringify(SETCC_ALIGN) " \n\t" \
-	".type " #op ", @function \n\t" \
-	#op ": \n\t" \
-	ASM_ENDBR \
+	FOP_FUNC(op) \
 	#op " %al \n\t" \
-	__FOP_RET(#op) \
-	".skip " __stringify(SETCC_ALIGN) " - (.-" #op "), 0xcc \n\t"
+	FOP_RET(op)
 
-__FOP_START(setcc, SETCC_ALIGN)
+FOP_START(setcc)
 FOP_SETCC(seto)
 FOP_SETCC(setno)
 FOP_SETCC(setc)
@@ -1079,7 +1064,7 @@ static int em_bsr_c(struct x86_emulate_ctxt *ctxt)
 static __always_inline u8 test_cc(unsigned int condition, unsigned long flags)
 {
 	u8 rc;
-	void (*fop)(void) = (void *)em_setcc + SETCC_ALIGN * (condition & 0xf);
+	void (*fop)(void) = (void *)em_setcc + FASTOP_SIZE * (condition & 0xf);
 
 	flags = (flags & EFLAGS_MASK) | X86_EFLAGS_IF;
 	asm("push %[flags]; popf; " CALL_NOSPEC
