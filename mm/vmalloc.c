@@ -590,7 +590,7 @@ int vmap_pages_range_noflush(unsigned long addr, unsigned long end,
 		int err;
 
 		err = vmap_range_noflush(addr, addr + (1UL << page_shift),
-					__pa(page_address(pages[i])), prot,
+					page_to_phys(pages[i]), prot,
 					page_shift);
 		if (err)
 			return err;
