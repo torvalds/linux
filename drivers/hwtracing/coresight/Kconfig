@@ -188,6 +188,44 @@ config CORESIGHT_CTI_INTEGRATION_REGS
 	  registers are not used in normal operation and can leave devices in
 	  an inconsistent state.
 
+config CORESIGHT_DUMMY
+	tristate "Dummy driver support"
+	help
+	  Enables support for dummy driver. Dummy driver can be used for
+	  CoreSight sources/sinks that are owned and configured by some
+	  other subsystem and use Linux drivers to configure rest of trace
+	  path.
+
+config CORESIGHT_REMOTE_ETM
+	tristate "Remote processor ETM trace support"
+	depends on QCOM_QMI_HELPERS
+	help
+	  Enables support for ETM trace collection on remote processor using
+	  CoreSight framework. Enabling this will allow turning on ETM
+	  tracing on remote processor via sysfs by configuring the required
+	  CoreSight components.
+
+config CORESIGHT_TGU
+	tristate "CoreSight Trigger Generation Unit driver"
+	help
+	  This driver provides support for Trigger Generation Unit that is
+	  used to detect patterns or sequences on a given set of signals.
+	  TGU is used to monitor a particular bus within a given region to
+	  detect illegal transaction sequences or slave responses. It is also
+	  used to monitor a data stream to detect protocol violations and to
+	  provide a trigger point for centering data around a specific event
+	  within the trace data buffer.
+
+config CORESIGHT_HWEVENT
+	tristate "CoreSight Hardware Event driver"
+	depends on CORESIGHT_STM
+	select CORESIGHT_CSR
+	help
+	  This driver provides support for monitoring and tracing CoreSight
+	  Hardware Event across STM interface. It configures Coresight
+	  Hardware Event mux control registers to select hardware events
+	  based on user input.
+
 config CORESIGHT_TRBE
 	tristate "Trace Buffer Extension (TRBE) driver"
 	depends on ARM64 && CORESIGHT_SOURCE_ETM4X
