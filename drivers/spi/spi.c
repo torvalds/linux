@@ -753,7 +753,7 @@ struct spi_device *spi_new_device(struct spi_controller *ctlr,
 	proxy->max_speed_hz = chip->max_speed_hz;
 	proxy->mode = chip->mode;
 	proxy->irq = chip->irq;
-	strlcpy(proxy->modalias, chip->modalias, sizeof(proxy->modalias));
+	strscpy(proxy->modalias, chip->modalias, sizeof(proxy->modalias));
 	proxy->dev.platform_data = (void *) chip->platform_data;
 	proxy->controller_data = chip->controller_data;
 	proxy->controller_state = NULL;
@@ -2330,7 +2330,7 @@ struct spi_device *spi_new_ancillary_device(struct spi_device *spi,
 		goto err_out;
 	}
 
-	strlcpy(ancillary->modalias, "dummy", sizeof(ancillary->modalias));
+	strscpy(ancillary->modalias, "dummy", sizeof(ancillary->modalias));
 
 	/* Use provided chip-select for ancillary device */
 	ancillary->chip_select = chip_select;
@@ -2726,7 +2726,7 @@ static ssize_t slave_store(struct device *dev, struct device_attribute *attr,
 		if (!spi)
 			return -ENOMEM;
 
-		strlcpy(spi->modalias, name, sizeof(spi->modalias));
+		strscpy(spi->modalias, name, sizeof(spi->modalias));
 
 		rc = spi_add_device(spi);
 		if (rc) {
