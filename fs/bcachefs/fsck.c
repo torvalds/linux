@@ -728,7 +728,7 @@ static int __get_visible_inodes(struct btree_trans *trans,
 
 	w->inodes.nr = 0;
 
-	for_each_btree_key(trans, iter, BTREE_ID_inodes, POS(0, inum),
+	for_each_btree_key_norestart(trans, iter, BTREE_ID_inodes, POS(0, inum),
 			   BTREE_ITER_ALL_SNAPSHOTS, k, ret) {
 		u32 equiv = bch2_snapshot_equiv(c, k.k->p.snapshot);
 
@@ -1372,13 +1372,11 @@ static int check_subdir_count(struct btree_trans *trans, struct inode_walker *w)
 		}
 	}
 fsck_err:
-	if (ret) {
+	if (ret)
 		bch_err(c, "error from check_subdir_count(): %s", bch2_err_str(ret));
-		return ret;
-	}
-	if (trans_was_restarted(trans, restart_count))
-		return -BCH_ERR_transaction_restart_nested;
-	return 0;
+	if (!ret && trans_was_restarted(trans, restart_count))
+		ret = -BCH_ERR_transaction_restart_nested;
+	return ret;
 }
 
 static int check_dirent_target(struct btree_trans *trans,

@@ -18,7 +18,7 @@
 	__entry->dst##_snapshot		= (src).snapshot
 
 DECLARE_EVENT_CLASS(bpos,
-	TP_PROTO(struct bpos *p),
+	TP_PROTO(const struct bpos *p),
 	TP_ARGS(p),
 
 	TP_STRUCT__entry(
@@ -225,7 +225,7 @@ TRACE_EVENT(journal_reclaim_finish,
 /* bset.c: */
 
 DEFINE_EVENT(bpos, bkey_pack_pos_fail,
-	TP_PROTO(struct bpos *p),
+	TP_PROTO(const struct bpos *p),
 	TP_ARGS(p)
 );
 
@@ -726,6 +726,13 @@ TRACE_EVENT(copygc_wait,
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  __entry->wait_amount, __entry->until)
 );
+
+DEFINE_EVENT(bpos, data_update_fail,
+	TP_PROTO(const struct bpos *p),
+	TP_ARGS(p)
+);
+
+/* btree transactions: */
 
 DECLARE_EVENT_CLASS(transaction_event,
 	TP_PROTO(struct btree_trans *trans,
