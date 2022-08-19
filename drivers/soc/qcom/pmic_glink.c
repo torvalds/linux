@@ -312,10 +312,13 @@ struct pmic_glink_client *pmic_glink_register_client(struct device *dev,
 		return ERR_PTR(-ENODEV);
 	}
 
+	down_read(&pgdev->rpdev_sem);
 	if (!atomic_read(&pgdev->state)) {
+		up_read(&pgdev->rpdev_sem);
 		pr_err("pmic_glink is not up\n");
 		return ERR_PTR(-EPROBE_DEFER);
 	}
+	up_read(&pgdev->rpdev_sem);
 
 	client = kzalloc(sizeof(*client), GFP_KERNEL);
 	if (!client)
