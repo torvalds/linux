@@ -336,6 +336,14 @@ struct bkey_cached {
 	struct bkey_i		*k;
 };
 
+static inline struct bpos btree_node_pos(struct btree_bkey_cached_common *b,
+					 bool cached)
+{
+	return !cached
+		? container_of(b, struct btree, c)->key.k.p
+		: container_of(b, struct bkey_cached, c)->key.pos;
+}
+
 struct btree_insert_entry {
 	unsigned		flags;
 	u8			bkey_type;

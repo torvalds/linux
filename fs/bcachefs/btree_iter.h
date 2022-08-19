@@ -181,12 +181,10 @@ struct bkey_i *bch2_btree_journal_peek_slot(struct btree_trans *,
 
 #ifdef CONFIG_BCACHEFS_DEBUG
 void bch2_trans_verify_paths(struct btree_trans *);
-void bch2_trans_verify_locks(struct btree_trans *);
 void bch2_assert_pos_locked(struct btree_trans *, enum btree_id,
 			    struct bpos, bool);
 #else
 static inline void bch2_trans_verify_paths(struct btree_trans *trans) {}
-static inline void bch2_trans_verify_locks(struct btree_trans *trans) {}
 static inline void bch2_assert_pos_locked(struct btree_trans *trans, enum btree_id id,
 					  struct bpos pos, bool key_cache) {}
 #endif
@@ -230,20 +228,6 @@ static inline int btree_trans_restart(struct btree_trans *trans, int err)
 
 bool bch2_btree_node_upgrade(struct btree_trans *,
 			     struct btree_path *, unsigned);
-
-bool __bch2_btree_path_upgrade(struct btree_trans *,
-			       struct btree_path *, unsigned);
-
-static inline bool bch2_btree_path_upgrade(struct btree_trans *trans,
-					   struct btree_path *path,
-					   unsigned new_locks_want)
-{
-	new_locks_want = min(new_locks_want, BTREE_MAX_DEPTH);
-
-	return path->locks_want < new_locks_want
-		? __bch2_btree_path_upgrade(trans, path, new_locks_want)
-		: path->uptodate == BTREE_ITER_UPTODATE;
-}
 
 void __bch2_btree_path_downgrade(struct btree_trans *, struct btree_path *, unsigned);
 

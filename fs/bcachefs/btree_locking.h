@@ -13,6 +13,8 @@
 #include "btree_iter.h"
 #include "six.h"
 
+extern struct lock_class_key bch2_btree_node_lock_key;
+
 static inline bool is_btree_node(struct btree_path *path, unsigned l)
 {
 	return l < BTREE_MAX_DEPTH && !IS_ERR_OR_NULL(path->l[l].b);
@@ -300,6 +302,22 @@ static inline void bch2_btree_node_lock_write(struct btree_trans *trans,
 		__bch2_btree_node_lock_write(trans, b);
 }
 
+bool bch2_btree_path_upgrade_noupgrade_sibs(struct btree_trans *,
+			       struct btree_path *, unsigned);
+bool __bch2_btree_path_upgrade(struct btree_trans *,
+			       struct btree_path *, unsigned);
+
+static inline bool bch2_btree_path_upgrade(struct btree_trans *trans,
+					   struct btree_path *path,
+					   unsigned new_locks_want)
+{
+	new_locks_want = min(new_locks_want, BTREE_MAX_DEPTH);
+
+	return path->locks_want < new_locks_want
+		? __bch2_btree_path_upgrade(trans, path, new_locks_want)
+		: path->uptodate == BTREE_ITER_UPTODATE;
+}
+
 static inline void btree_path_set_should_be_locked(struct btree_path *path)
 {
 	EBUG_ON(!btree_node_locked(path, path->level));
@@ -325,5 +343,28 @@ static inline void btree_path_set_level_up(struct btree_trans *trans,
 
 struct six_lock_count bch2_btree_node_lock_counts(struct btree_trans *,
 				struct btree_path *, struct btree *, unsigned);
+
+bool bch2_btree_path_relock_norestart(struct btree_trans *,
+				      struct btree_path *, unsigned long);
+int __bch2_btree_path_relock(struct btree_trans *,
+			     struct btree_path *, unsigned long);
+
+static inline int bch2_btree_path_relock(struct btree_trans *trans,
+			struct btree_path *path, unsigned long trace_ip)
+{
+	return btree_node_locked(path, path->level)
+		? 0
+		: __bch2_btree_path_relock(trans, path, trace_ip);
+}
+
+int bch2_btree_path_relock(struct btree_trans *, struct btree_path *, unsigned long);
+
+#ifdef CONFIG_BCACHEFS_DEBUG
+void bch2_btree_path_verify_locks(struct btree_path *);
+void bch2_trans_verify_locks(struct btree_trans *);
+#else
+static inline void bch2_btree_path_verify_locks(struct btree_path *path) {}
+static inline void bch2_trans_verify_locks(struct btree_trans *trans) {}
+#endif
 
 #endif /* _BCACHEFS_BTREE_LOCKING_H */

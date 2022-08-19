@@ -1,0 +1,442 @@
+// SPDX-License-Identifier: GPL-2.0
+
+#include "bcachefs.h"
+#include "btree_locking.h"
+#include "btree_types.h"
+
+struct lock_class_key bch2_btree_node_lock_key;
+
+/* Btree node locking: */
+
+void bch2_btree_node_unlock_write(struct btree_trans *trans,
+			struct btree_path *path, struct btree *b)
+{
+	bch2_btree_node_unlock_write_inlined(trans, path, b);
+}
+
+struct six_lock_count bch2_btree_node_lock_counts(struct btree_trans *trans,
+						  struct btree_path *skip,
+						  struct btree *b,
+						  unsigned level)
+{
+	struct btree_path *path;
+	struct six_lock_count ret = { 0, 0 };
+
+	if (IS_ERR_OR_NULL(b))
+		return ret;
+
+	trans_for_each_path(trans, path)
+		if (path != skip && path->l[level].b == b) {
+			ret.read += btree_node_read_locked(path, level);
+			ret.intent += btree_node_intent_locked(path, level);
+		}
+
+	return ret;
+}
+
+static inline void six_lock_readers_add(struct six_lock *lock, int nr)
+{
+	if (!lock->readers)
+		atomic64_add(__SIX_VAL(read_lock, nr), &lock->state.counter);
+	else
+		this_cpu_add(*lock->readers, nr);
+}
+
+void __bch2_btree_node_lock_write(struct btree_trans *trans, struct btree *b)
+{
+	int readers = bch2_btree_node_lock_counts(trans, NULL, b, b->c.level).read;
+
+	/*
+	 * Must drop our read locks before calling six_lock_write() -
+	 * six_unlock() won't do wakeups until the reader count
+	 * goes to 0, and it's safe because we have the node intent
+	 * locked:
+	 */
+	six_lock_readers_add(&b->c.lock, -readers);
+	six_lock_write(&b->c.lock, NULL, NULL);
+	six_lock_readers_add(&b->c.lock, readers);
+}
+
+bool __bch2_btree_node_relock(struct btree_trans *trans,
+			      struct btree_path *path, unsigned level)
+{
+	struct btree *b = btree_path_node(path, level);
+	int want = __btree_lock_want(path, level);
+
+	if (!is_btree_node(path, level))
+		goto fail;
+
+	if (race_fault())
+		goto fail;
+
+	if (six_relock_type(&b->c.lock, want, path->l[level].lock_seq) ||
+	    (btree_node_lock_seq_matches(path, b, level) &&
+	     btree_node_lock_increment(trans, b, level, want))) {
+		mark_btree_node_locked(trans, path, level, want);
+		return true;
+	}
+fail:
+	if (b != ERR_PTR(-BCH_ERR_no_btree_node_cached) &&
+	    b != ERR_PTR(-BCH_ERR_no_btree_node_init))
+		trace_btree_node_relock_fail(trans, _RET_IP_, path, level);
+	return false;
+}
+
+bool bch2_btree_node_upgrade(struct btree_trans *trans,
+			     struct btree_path *path, unsigned level)
+{
+	struct btree *b = path->l[level].b;
+
+	if (!is_btree_node(path, level))
+		return false;
+
+	switch (btree_lock_want(path, level)) {
+	case BTREE_NODE_UNLOCKED:
+		BUG_ON(btree_node_locked(path, level));
+		return true;
+	case BTREE_NODE_READ_LOCKED:
+		BUG_ON(btree_node_intent_locked(path, level));
+		return bch2_btree_node_relock(trans, path, level);
+	case BTREE_NODE_INTENT_LOCKED:
+		break;
+	}
+
+	if (btree_node_intent_locked(path, level))
+		return true;
+
+	if (race_fault())
+		return false;
+
+	if (btree_node_locked(path, level)
+	    ? six_lock_tryupgrade(&b->c.lock)
+	    : six_relock_type(&b->c.lock, SIX_LOCK_intent, path->l[level].lock_seq))
+		goto success;
+
+	if (btree_node_lock_seq_matches(path, b, level) &&
+	    btree_node_lock_increment(trans, b, level, BTREE_NODE_INTENT_LOCKED)) {
+		btree_node_unlock(trans, path, level);
+		goto success;
+	}
+
+	trace_btree_node_upgrade_fail(trans, _RET_IP_, path, level);
+	return false;
+success:
+	mark_btree_node_intent_locked(trans, path, level);
+	return true;
+}
+
+static inline bool btree_path_get_locks(struct btree_trans *trans,
+					struct btree_path *path,
+					bool upgrade)
+{
+	unsigned l = path->level;
+	int fail_idx = -1;
+
+	do {
+		if (!btree_path_node(path, l))
+			break;
+
+		if (!(upgrade
+		      ? bch2_btree_node_upgrade(trans, path, l)
+		      : bch2_btree_node_relock(trans, path, l)))
+			fail_idx = l;
+
+		l++;
+	} while (l < path->locks_want);
+
+	/*
+	 * When we fail to get a lock, we have to ensure that any child nodes
+	 * can't be relocked so bch2_btree_path_traverse has to walk back up to
+	 * the node that we failed to relock:
+	 */
+	if (fail_idx >= 0) {
+		__bch2_btree_path_unlock(trans, path);
+		btree_path_set_dirty(path, BTREE_ITER_NEED_TRAVERSE);
+
+		do {
+			path->l[fail_idx].b = upgrade
+				? ERR_PTR(-BCH_ERR_no_btree_node_upgrade)
+				: ERR_PTR(-BCH_ERR_no_btree_node_relock);
+			--fail_idx;
+		} while (fail_idx >= 0);
+	}
+
+	if (path->uptodate == BTREE_ITER_NEED_RELOCK)
+		path->uptodate = BTREE_ITER_UPTODATE;
+
+	bch2_trans_verify_locks(trans);
+
+	return path->uptodate < BTREE_ITER_NEED_RELOCK;
+}
+
+/* Slowpath: */
+int __bch2_btree_node_lock(struct btree_trans *trans,
+			   struct btree_path *path,
+			   struct btree *b,
+			   struct bpos pos, unsigned level,
+			   enum six_lock_type type,
+			   six_lock_should_sleep_fn should_sleep_fn, void *p,
+			   unsigned long ip)
+{
+	struct btree_path *linked;
+	unsigned reason;
+
+	/* Check if it's safe to block: */
+	trans_for_each_path(trans, linked) {
+		if (!linked->nodes_locked)
+			continue;
+
+		/*
+		 * Can't block taking an intent lock if we have _any_ nodes read
+		 * locked:
+		 *
+		 * - Our read lock blocks another thread with an intent lock on
+		 *   the same node from getting a write lock, and thus from
+		 *   dropping its intent lock
+		 *
+		 * - And the other thread may have multiple nodes intent locked:
+		 *   both the node we want to intent lock, and the node we
+		 *   already have read locked - deadlock:
+		 */
+		if (type == SIX_LOCK_intent &&
+		    linked->nodes_locked != linked->nodes_intent_locked) {
+			reason = 1;
+			goto deadlock;
+		}
+
+		if (linked->btree_id != path->btree_id) {
+			if (linked->btree_id < path->btree_id)
+				continue;
+
+			reason = 3;
+			goto deadlock;
+		}
+
+		/*
+		 * Within the same btree, non-cached paths come before cached
+		 * paths:
+		 */
+		if (linked->cached != path->cached) {
+			if (!linked->cached)
+				continue;
+
+			reason = 4;
+			goto deadlock;
+		}
+
+		/*
+		 * Interior nodes must be locked before their descendants: if
+		 * another path has possible descendants locked of the node
+		 * we're about to lock, it must have the ancestors locked too:
+		 */
+		if (level > __fls(linked->nodes_locked)) {
+			reason = 5;
+			goto deadlock;
+		}
+
+		/* Must lock btree nodes in key order: */
+		if (btree_node_locked(linked, level) &&
+		    bpos_cmp(pos, btree_node_pos((void *) linked->l[level].b,
+						 linked->cached)) <= 0) {
+			reason = 7;
+			goto deadlock;
+		}
+	}
+
+	return btree_node_lock_type(trans, path, b, pos, level,
+				    type, should_sleep_fn, p);
+deadlock:
+	trace_trans_restart_would_deadlock(trans, ip, reason, linked, path, &pos);
+	return btree_trans_restart(trans, BCH_ERR_transaction_restart_would_deadlock);
+}
+
+/* Btree iterator locking: */
+
+#ifdef CONFIG_BCACHEFS_DEBUG
+
+void bch2_btree_path_verify_locks(struct btree_path *path)
+{
+	unsigned l;
+
+	if (!path->nodes_locked) {
+		BUG_ON(path->uptodate == BTREE_ITER_UPTODATE &&
+		       btree_path_node(path, path->level));
+		return;
+	}
+
+	for (l = 0; btree_path_node(path, l); l++)
+		BUG_ON(btree_lock_want(path, l) !=
+		       btree_node_locked_type(path, l));
+}
+
+void bch2_trans_verify_locks(struct btree_trans *trans)
+{
+	struct btree_path *path;
+
+	trans_for_each_path(trans, path)
+		bch2_btree_path_verify_locks(path);
+}
+
+#endif
+
+/* Btree path locking: */
+
+/*
+ * Only for btree_cache.c - only relocks intent locks
+ */
+int bch2_btree_path_relock_intent(struct btree_trans *trans,
+				  struct btree_path *path)
+{
+	unsigned l;
+
+	for (l = path->level;
+	     l < path->locks_want && btree_path_node(path, l);
+	     l++) {
+		if (!bch2_btree_node_relock(trans, path, l)) {
+			__bch2_btree_path_unlock(trans, path);
+			btree_path_set_dirty(path, BTREE_ITER_NEED_TRAVERSE);
+			trace_trans_restart_relock_path_intent(trans, _RET_IP_, path);
+			return btree_trans_restart(trans, BCH_ERR_transaction_restart_relock_path_intent);
+		}
+	}
+
+	return 0;
+}
+
+__flatten
+bool bch2_btree_path_relock_norestart(struct btree_trans *trans,
+			struct btree_path *path, unsigned long trace_ip)
+{
+	return btree_path_get_locks(trans, path, false);
+}
+
+int __bch2_btree_path_relock(struct btree_trans *trans,
+			struct btree_path *path, unsigned long trace_ip)
+{
+	if (!bch2_btree_path_relock_norestart(trans, path, trace_ip)) {
+		trace_trans_restart_relock_path(trans, trace_ip, path);
+		return btree_trans_restart(trans, BCH_ERR_transaction_restart_relock_path);
+	}
+
+	return 0;
+}
+
+__flatten
+bool bch2_btree_path_upgrade_norestart(struct btree_trans *trans,
+			struct btree_path *path, unsigned long trace_ip)
+{
+	return btree_path_get_locks(trans, path, true);
+}
+
+bool bch2_btree_path_upgrade_noupgrade_sibs(struct btree_trans *trans,
+			       struct btree_path *path,
+			       unsigned new_locks_want)
+{
+	EBUG_ON(path->locks_want >= new_locks_want);
+
+	path->locks_want = new_locks_want;
+
+	return btree_path_get_locks(trans, path, true);
+}
+
+bool __bch2_btree_path_upgrade(struct btree_trans *trans,
+			       struct btree_path *path,
+			       unsigned new_locks_want)
+{
+	struct btree_path *linked;
+
+	if (bch2_btree_path_upgrade_noupgrade_sibs(trans, path, new_locks_want))
+		return true;
+
+	/*
+	 * XXX: this is ugly - we'd prefer to not be mucking with other
+	 * iterators in the btree_trans here.
+	 *
+	 * On failure to upgrade the iterator, setting iter->locks_want and
+	 * calling get_locks() is sufficient to make bch2_btree_path_traverse()
+	 * get the locks we want on transaction restart.
+	 *
+	 * But if this iterator was a clone, on transaction restart what we did
+	 * to this iterator isn't going to be preserved.
+	 *
+	 * Possibly we could add an iterator field for the parent iterator when
+	 * an iterator is a copy - for now, we'll just upgrade any other
+	 * iterators with the same btree id.
+	 *
+	 * The code below used to be needed to ensure ancestor nodes get locked
+	 * before interior nodes - now that's handled by
+	 * bch2_btree_path_traverse_all().
+	 */
+	if (!path->cached && !trans->in_traverse_all)
+		trans_for_each_path(trans, linked)
+			if (linked != path &&
+			    linked->cached == path->cached &&
+			    linked->btree_id == path->btree_id &&
+			    linked->locks_want < new_locks_want) {
+				linked->locks_want = new_locks_want;
+				btree_path_get_locks(trans, linked, true);
+			}
+
+	return false;
+}
+
+void __bch2_btree_path_downgrade(struct btree_trans *trans,
+				 struct btree_path *path,
+				 unsigned new_locks_want)
+{
+	unsigned l;
+
+	EBUG_ON(path->locks_want < new_locks_want);
+
+	path->locks_want = new_locks_want;
+
+	while (path->nodes_locked &&
+	       (l = __fls(path->nodes_locked)) >= path->locks_want) {
+		if (l > path->level) {
+			btree_node_unlock(trans, path, l);
+		} else {
+			if (btree_node_intent_locked(path, l)) {
+				six_lock_downgrade(&path->l[l].b->c.lock);
+				path->nodes_intent_locked ^= 1 << l;
+			}
+			break;
+		}
+	}
+
+	bch2_btree_path_verify_locks(path);
+}
+
+void bch2_trans_downgrade(struct btree_trans *trans)
+{
+	struct btree_path *path;
+
+	trans_for_each_path(trans, path)
+		bch2_btree_path_downgrade(trans, path);
+}
+
+/* Btree transaction locking: */
+
+int bch2_trans_relock(struct btree_trans *trans)
+{
+	struct btree_path *path;
+
+	if (unlikely(trans->restarted))
+		return -BCH_ERR_transaction_restart_relock;
+
+	trans_for_each_path(trans, path)
+		if (path->should_be_locked &&
+		    bch2_btree_path_relock(trans, path, _RET_IP_)) {
+			trace_trans_restart_relock(trans, _RET_IP_, path);
+			BUG_ON(!trans->restarted);
+			return -BCH_ERR_transaction_restart_relock;
+		}
+	return 0;
+}
+
+void bch2_trans_unlock(struct btree_trans *trans)
+{
+	struct btree_path *path;
+
+	trans_for_each_path(trans, path)
+		__bch2_btree_path_unlock(trans, path);
+}
