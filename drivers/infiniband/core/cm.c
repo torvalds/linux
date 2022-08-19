@@ -617,7 +617,6 @@ static struct cm_id_private *cm_insert_listen(struct cm_id_private *cm_id_priv,
 	struct rb_node *parent = NULL;
 	struct cm_id_private *cur_cm_id_priv;
 	__be64 service_id = cm_id_priv->id.service_id;
-	__be64 service_mask = cm_id_priv->id.service_mask;
 	unsigned long flags;
 
 	spin_lock_irqsave(&cm.lock, flags);
@@ -625,8 +624,7 @@ static struct cm_id_private *cm_insert_listen(struct cm_id_private *cm_id_priv,
 		parent = *link;
 		cur_cm_id_priv = rb_entry(parent, struct cm_id_private,
 					  service_node);
-		if ((cur_cm_id_priv->id.service_mask & service_id) ==
-		    (service_mask & cur_cm_id_priv->id.service_id) &&
+		if ((service_id == cur_cm_id_priv->id.service_id) &&
 		    (cm_id_priv->id.device == cur_cm_id_priv->id.device)) {
 			/*
 			 * Sharing an ib_cm_id with different handlers is not
@@ -670,8 +668,7 @@ static struct cm_id_private *cm_find_listen(struct ib_device *device,
 
 	while (node) {
 		cm_id_priv = rb_entry(node, struct cm_id_private, service_node);
-		if ((cm_id_priv->id.service_mask & service_id) ==
-		     cm_id_priv->id.service_id &&
+		if ((service_id == cm_id_priv->id.service_id) &&
 		    (cm_id_priv->id.device == device)) {
 			refcount_inc(&cm_id_priv->refcount);
 			return cm_id_priv;
@@ -1158,22 +1155,17 @@ void ib_destroy_cm_id(struct ib_cm_id *cm_id)
 }
 EXPORT_SYMBOL(ib_destroy_cm_id);
 
-static int cm_init_listen(struct cm_id_private *cm_id_priv, __be64 service_id,
-			  __be64 service_mask)
+static int cm_init_listen(struct cm_id_private *cm_id_priv, __be64 service_id)
 {
-	service_mask = service_mask ? service_mask : ~cpu_to_be64(0);
-	service_id &= service_mask;
 	if ((service_id & IB_SERVICE_ID_AGN_MASK) == IB_CM_ASSIGN_SERVICE_ID &&
 	    (service_id != IB_CM_ASSIGN_SERVICE_ID))
 		return -EINVAL;
 
-	if (service_id == IB_CM_ASSIGN_SERVICE_ID) {
+	if (service_id == IB_CM_ASSIGN_SERVICE_ID)
 		cm_id_priv->id.service_id = cpu_to_be64(cm.listen_service_id++);
-		cm_id_priv->id.service_mask = ~cpu_to_be64(0);
-	} else {
+	else
 		cm_id_priv->id.service_id = service_id;
-		cm_id_priv->id.service_mask = service_mask;
-	}
+
 	return 0;
 }
 
@@ -1199,7 +1191,7 @@ int ib_cm_listen(struct ib_cm_id *cm_id, __be64 service_id)
 		goto out;
 	}
 
-	ret = cm_init_listen(cm_id_priv, service_id, 0);
+	ret = cm_init_listen(cm_id_priv, service_id);
 	if (ret)
 		goto out;
 
@@ -1247,7 +1239,7 @@ struct ib_cm_id *ib_cm_insert_listen(struct ib_device *device,
 	if (IS_ERR(cm_id_priv))
 		return ERR_CAST(cm_id_priv);
 
-	err = cm_init_listen(cm_id_priv, service_id, 0);
+	err = cm_init_listen(cm_id_priv, service_id);
 	if (err) {
 		ib_destroy_cm_id(&cm_id_priv->id);
 		return ERR_PTR(err);
@@ -1518,7 +1510,6 @@ int ib_send_cm_req(struct ib_cm_id *cm_id,
 		}
 	}
 	cm_id->service_id = param->service_id;
-	cm_id->service_mask = ~cpu_to_be64(0);
 	cm_id_priv->timeout_ms = cm_convert_to_ms(
 				    param->primary_path->packet_life_time) * 2 +
 				 cm_convert_to_ms(
@@ -2075,7 +2066,6 @@ static int cm_req_handler(struct cm_work *work)
 		cpu_to_be32(IBA_GET(CM_REQ_LOCAL_COMM_ID, req_msg));
 	cm_id_priv->id.service_id =
 		cpu_to_be64(IBA_GET(CM_REQ_SERVICE_ID, req_msg));
-	cm_id_priv->id.service_mask = ~cpu_to_be64(0);
 	cm_id_priv->tid = req_msg->hdr.tid;
 	cm_id_priv->timeout_ms = cm_convert_to_ms(
 		IBA_GET(CM_REQ_LOCAL_CM_RESPONSE_TIMEOUT, req_msg));
@@ -3482,7 +3472,6 @@ int ib_send_cm_sidr_req(struct ib_cm_id *cm_id,
 	spin_lock_irqsave(&cm_id_priv->lock, flags);
 	cm_move_av_from_path(&cm_id_priv->av, &av);
 	cm_id->service_id = param->service_id;
-	cm_id->service_mask = ~cpu_to_be64(0);
 	cm_id_priv->timeout_ms = param->timeout_ms;
 	cm_id_priv->max_cm_retries = param->max_cm_retries;
 	if (cm_id->state != IB_CM_IDLE) {
@@ -3557,7 +3546,6 @@ static int cm_sidr_req_handler(struct cm_work *work)
 		cpu_to_be32(IBA_GET(CM_SIDR_REQ_REQUESTID, sidr_req_msg));
 	cm_id_priv->id.service_id =
 		cpu_to_be64(IBA_GET(CM_SIDR_REQ_SERVICEID, sidr_req_msg));
-	cm_id_priv->id.service_mask = ~cpu_to_be64(0);
 	cm_id_priv->tid = sidr_req_msg->hdr.tid;
 
 	wc = work->mad_recv_wc->wc;
