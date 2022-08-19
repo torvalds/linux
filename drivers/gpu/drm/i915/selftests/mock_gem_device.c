@@ -209,7 +209,7 @@ struct drm_i915_private *mock_gem_device(void)
 	mock_init_ggtt(to_gt(i915));
 	to_gt(i915)->vm = i915_vm_get(&to_gt(i915)->ggtt->vm);
 
-	mkwrite_device_info(i915)->platform_engine_mask = BIT(0);
+	RUNTIME_INFO(i915)->platform_engine_mask = BIT(0);
 	to_gt(i915)->info.engine_mask = BIT(0);
 
 	to_gt(i915)->engine[RCS0] = mock_engine(i915, "mock", RCS0);
