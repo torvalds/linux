@@ -162,7 +162,7 @@ void __reset_page_pinner(struct page *page, unsigned int order, bool free)
 	struct page_ext *page_ext;
 	int i;
 
-	page_ext = lookup_page_ext(page);
+	page_ext = page_ext_get(page);
 	if (unlikely(!page_ext))
 		return;
 
@@ -184,6 +184,7 @@ void __reset_page_pinner(struct page *page, unsigned int order, bool free)
 		clear_bit(PAGE_EXT_GET, &page_ext->flags);
 		page_ext = page_ext_next(page_ext);
 	}
+	page_ext_put(page_ext);
 }
 
 static inline void __set_page_pinner_handle(struct page *page,
@@ -206,14 +207,16 @@ static inline void __set_page_pinner_handle(struct page *page,
 
 noinline void __set_page_pinner(struct page *page, unsigned int order)
 {
-	struct page_ext *page_ext = lookup_page_ext(page);
+	struct page_ext *page_ext;
 	depot_stack_handle_t handle;
 
+	handle = save_stack(GFP_NOWAIT|__GFP_NOWARN);
+
+	page_ext = page_ext_get(page);
 	if (unlikely(!page_ext))
 		return;
-
-	handle = save_stack(GFP_NOWAIT|__GFP_NOWARN);
 	__set_page_pinner_handle(page, page_ext, handle, order);
+	page_ext_put(page_ext);
 }
 
 static ssize_t
@@ -279,7 +282,7 @@ err:
 
 void __dump_page_pinner(struct page *page)
 {
-	struct page_ext *page_ext = lookup_page_ext(page);
+	struct page_ext *page_ext = page_ext_get(page);
 	struct page_pinner *page_pinner;
 	depot_stack_handle_t handle;
 	unsigned long *entries;
@@ -300,6 +303,7 @@ void __dump_page_pinner(struct page *page)
 	count = atomic_read(&page_pinner->count);
 	if (!count) {
 		pr_alert("page_pinner info is not present (never set?)\n");
+		page_ext_put(page_ext);
 		return;
 	}
 
@@ -323,11 +327,12 @@ void __dump_page_pinner(struct page *page)
 		nr_entries = stack_depot_fetch(handle, &entries);
 		stack_trace_print(entries, nr_entries, 0);
 	}
+	page_ext_put(page_ext);
 }
 
 void __page_pinner_migration_failed(struct page *page)
 {
-	struct page_ext *page_ext = lookup_page_ext(page);
+	struct page_ext *page_ext = page_ext_get(page);
 	struct captured_pinner record;
 	unsigned long flags;
 	unsigned int idx;
@@ -335,9 +340,12 @@ void __page_pinner_migration_failed(struct page *page)
 	if (unlikely(!page_ext))
 		return;
 
-	if (!test_bit(PAGE_EXT_PINNER_MIGRATION_FAILED, &page_ext->flags))
+	if (!test_bit(PAGE_EXT_PINNER_MIGRATION_FAILED, &page_ext->flags)) {
+		page_ext_put(page_ext);
 		return;
+	}
 
+	page_ext_put(page_ext);
 	record.handle = save_stack(GFP_NOWAIT|__GFP_NOWARN);
 	record.ts_usec = ktime_to_us(ktime_get_boottime());
 	capture_page_state(page, &record);
@@ -359,10 +367,11 @@ void __page_pinner_mark_migration_failed_pages(struct list_head *page_list)
 		/* The page will be freed by putback_movable_pages soon */
 		if (page_count(page) == 1)
 			continue;
-		page_ext = lookup_page_ext(page);
+		page_ext = page_ext_get(page);
 		if (unlikely(!page_ext))
 			continue;
 		__set_bit(PAGE_EXT_PINNER_MIGRATION_FAILED, &page_ext->flags);
+		page_ext_put(page_ext);
 		__page_pinner_migration_failed(page);
 	}
 }
