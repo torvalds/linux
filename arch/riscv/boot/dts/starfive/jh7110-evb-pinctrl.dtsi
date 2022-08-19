@@ -336,36 +336,6 @@
 		};
 	};
 
-	csi_pins_default: csi-pins-default {
-		csi-pins-default {
-			starfive,pins = <PAD_GPIO10>;
-			starfive,pinmux = <PAD_GPIO10_FUNC_SEL 0>;
-			starfive,pin-ioconfig = <IO(GPIO_IE(1))>;
-			starfive,pin-gpio-dout = <GPO_LOW>;
-			starfive,pin-gpio-doen = <OEN_LOW>;
-		};
-	};
-
-	csi_pins_pwup: csi-pins-pwup {
-		csi-pins-pwup {
-			starfive,pins = <PAD_GPIO10>;
-			starfive,pinmux = <PAD_GPIO10_FUNC_SEL 0>;
-			starfive,pin-ioconfig = <IO(GPIO_IE(1))>;
-			starfive,pin-gpio-dout = <GPO_HIGH>;
-			starfive,pin-gpio-doen = <OEN_LOW>;
-		};
-	};
-
-	csi_pins_pwdn: csi-pins-pwdn {
-		csi-pins-pwdn {
-			starfive,pins = <PAD_GPIO10>;
-			starfive,pinmux = <PAD_GPIO10_FUNC_SEL 0>;
-			starfive,pin-ioconfig = <IO(GPIO_IE(1))>;
-			starfive,pin-gpio-dout = <GPO_LOW>;
-			starfive,pin-gpio-doen = <OEN_LOW>;
-		};
-	};
-
 	mmc0_pins: mmc0-pins {
 		 mmc0-pins-rest {
 			starfive,pins = <PAD_GPIO22>;
