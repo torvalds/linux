@@ -1357,11 +1357,9 @@ static int qm_set_sqc_cqc_vft(struct hisi_qm *qm, u32 fun_num, u32 base,
 
 	return 0;
 back_sqc_cqc:
-	for (i = SQC_VFT; i <= CQC_VFT; i++) {
-		ret = qm_set_vft_common(qm, i, fun_num, 0, 0);
-		if (ret)
-			return ret;
-	}
+	for (i = SQC_VFT; i <= CQC_VFT; i++)
+		qm_set_vft_common(qm, i, fun_num, 0, 0);
+
 	return ret;
 }
 
