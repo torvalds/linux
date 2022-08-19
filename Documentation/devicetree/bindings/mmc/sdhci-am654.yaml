@@ -51,6 +51,9 @@ properties:
 
   sdhci-caps-mask: true
 
+  dma-coherent:
+    type: boolean
+
   # PHY output tap delays:
   # Used to delay the data valid window and align it to the sampling clock.
   # Binding needs to be provided for each supported speed mode otherwise the
