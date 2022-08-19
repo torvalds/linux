@@ -295,8 +295,8 @@ static uint32_t dcn32_calculate_cab_allocation(struct dc *dc, struct dc_state *c
 		}
 
 		// Include cursor size for CAB allocation
-		for (i = 0; i < dc->res_pool->pipe_count; i++) {
-			struct pipe_ctx *pipe = &ctx->res_ctx.pipe_ctx[i];
+		for (j = 0; j < dc->res_pool->pipe_count; j++) {
+			struct pipe_ctx *pipe = &ctx->res_ctx.pipe_ctx[j];
 			struct hubp *hubp = pipe->plane_res.hubp;
 
 			if (pipe->stream && pipe->plane_state && hubp)
@@ -339,15 +339,25 @@ static uint32_t dcn32_calculate_cab_allocation(struct dc *dc, struct dc_state *c
 	if (cache_lines_used % lines_per_way > 0)
 		num_ways++;
 
-	if (stream->cursor_position.enable &&
-	    !plane->address.grph.cursor_cache_addr.quad_part &&
-	    cursor_size > 16384)
-		/* Cursor caching is not supported since it won't be on the same line.
-		 * So we need an extra line to accommodate it. With large cursors and a single 4k monitor
-		 * this case triggers corruption. If we're at the edge, then dont trigger display refresh
-		 * from MALL. We only need to cache cursor if its greater that 64x64 at 4 bpp.
-		 */
-		num_ways++;
+	for (i = 0; i < ctx->stream_count; i++) {
+		stream = ctx->streams[i];
+		for (j = 0; j < ctx->stream_status[i].plane_count; j++) {
+			plane = ctx->stream_status[i].plane_states[j];
+
+			if (stream->cursor_position.enable && plane &&
+				!plane->address.grph.cursor_cache_addr.quad_part &&
+				cursor_size > 16384) {
+				/* Cursor caching is not supported since it won't be on the same line.
+				 * So we need an extra line to accommodate it. With large cursors and a single 4k monitor
+				 * this case triggers corruption. If we're at the edge, then dont trigger display refresh
+				 * from MALL. We only need to cache cursor if its greater that 64x64 at 4 bpp.
+				 */
+				num_ways++;
+				/* We only expect one cursor plane */
+				break;
+			}
+		}
+	}
 
 	return num_ways;
 }
