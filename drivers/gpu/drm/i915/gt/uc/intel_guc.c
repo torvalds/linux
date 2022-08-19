@@ -365,8 +365,6 @@ void intel_guc_dump_time_info(struct intel_guc *guc, struct drm_printer *p)
 	u32 stamp = 0;
 	u64 ktime;
 
-	intel_device_info_print_runtime(RUNTIME_INFO(gt->i915), p);
-
 	with_intel_runtime_pm(&gt->i915->runtime_pm, wakeref)
 		stamp = intel_uncore_read(gt->uncore, GUCPMTIMESTAMP);
 	ktime = ktime_get_boottime_ns();
