@@ -88,6 +88,7 @@ enum {
 };
 
 static const struct pre_pll_config pre_pll_cfg_table[] = {
+	{ 25175000,  25175000, 1,  100, 2, 3, 3, 12, 3, 3, 4, 0, 0},
 	{ 25200000,  25200000, 1,  100, 2, 3, 3, 12, 3, 3, 4, 0, 0},
 	{ 27000000,  27000000, 1,  90, 3, 2, 2, 10, 3, 3, 4, 0, 0},
 	{ 27000000,  33750000, 1,  90, 1, 3, 3, 10, 3, 3, 4, 0, 0},
@@ -356,7 +357,7 @@ static void inno_hdmi_reset(struct inno_hdmi *hdmi)
 	rate = (rate / 1000) * 1000;
 
 	for (; cfg->pixclock != 0; cfg++)
-		if (cfg->tmdsclock == rate)
+		if (cfg->tmdsclock == rate && cfg->pixclock == rate)
 			break;
 
 	if (cfg->pixclock == 0)
