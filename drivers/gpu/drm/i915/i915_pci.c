@@ -160,7 +160,7 @@
 /* Keep in gen based order, and chronological order within a gen */
 
 #define GEN_DEFAULT_PAGE_SIZES \
-	.page_sizes = I915_GTT_PAGE_SIZE_4K
+	.__runtime.page_sizes = I915_GTT_PAGE_SIZE_4K
 
 #define GEN_DEFAULT_REGIONS \
 	.memory_regions = REGION_SMEM | REGION_STOLEN_SMEM
@@ -647,8 +647,8 @@ static const struct intel_device_info chv_info = {
 };
 
 #define GEN9_DEFAULT_PAGE_SIZES \
-	.page_sizes = I915_GTT_PAGE_SIZE_4K | \
-		      I915_GTT_PAGE_SIZE_64K
+	.__runtime.page_sizes = I915_GTT_PAGE_SIZE_4K | \
+		I915_GTT_PAGE_SIZE_64K
 
 #define GEN9_FEATURES \
 	GEN8_FEATURES, \
@@ -802,9 +802,9 @@ static const struct intel_device_info cml_gt2_info = {
 };
 
 #define GEN11_DEFAULT_PAGE_SIZES \
-	.page_sizes = I915_GTT_PAGE_SIZE_4K | \
-		      I915_GTT_PAGE_SIZE_64K | \
-		      I915_GTT_PAGE_SIZE_2M
+	.__runtime.page_sizes = I915_GTT_PAGE_SIZE_4K | \
+		I915_GTT_PAGE_SIZE_64K |		\
+		I915_GTT_PAGE_SIZE_2M
 
 #define GEN11_FEATURES \
 	GEN9_FEATURES, \
@@ -1001,9 +1001,9 @@ static const struct intel_device_info adl_p_info = {
 #undef GEN
 
 #define XE_HP_PAGE_SIZES \
-	.page_sizes = I915_GTT_PAGE_SIZE_4K | \
-		      I915_GTT_PAGE_SIZE_64K | \
-		      I915_GTT_PAGE_SIZE_2M
+	.__runtime.page_sizes = I915_GTT_PAGE_SIZE_4K | \
+		I915_GTT_PAGE_SIZE_64K |		\
+		I915_GTT_PAGE_SIZE_2M
 
 #define XE_HP_FEATURES \
 	.__runtime.graphics.ver = 12, \

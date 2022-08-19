@@ -19,7 +19,7 @@ void __i915_gem_object_set_pages(struct drm_i915_gem_object *obj,
 				 unsigned int sg_page_sizes)
 {
 	struct drm_i915_private *i915 = to_i915(obj->base.dev);
-	unsigned long supported = INTEL_INFO(i915)->page_sizes;
+	unsigned long supported = RUNTIME_INFO(i915)->page_sizes;
 	bool shrinkable;
 	int i;
 

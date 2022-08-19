@@ -221,6 +221,8 @@ struct intel_runtime_info {
 
 	struct intel_step_info step;
 
+	unsigned int page_sizes; /* page sizes supported by the HW */
+
 	/* display */
 	struct {
 		u8 num_sprites[I915_MAX_PIPES];
@@ -241,8 +243,6 @@ struct intel_device_info {
 
 	enum intel_ppgtt_type ppgtt_type;
 	unsigned int ppgtt_size; /* log2, e.g. 31/32/48 bits */
-
-	unsigned int page_sizes; /* page sizes supported by the HW */
 
 	u32 memory_regions; /* regions supported by the HW */
 

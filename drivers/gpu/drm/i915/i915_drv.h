@@ -1218,7 +1218,7 @@ IS_SUBPLATFORM(const struct drm_i915_private *i915,
 
 #define HAS_PAGE_SIZES(dev_priv, sizes) ({ \
 	GEM_BUG_ON((sizes) == 0); \
-	((sizes) & ~INTEL_INFO(dev_priv)->page_sizes) == 0; \
+	((sizes) & ~RUNTIME_INFO(dev_priv)->page_sizes) == 0; \
 })
 
 #define HAS_OVERLAY(dev_priv)		 (INTEL_INFO(dev_priv)->display.has_overlay)

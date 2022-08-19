@@ -110,7 +110,7 @@ void intel_device_info_print(const struct intel_device_info *info,
 
 	drm_printf(p, "gt: %d\n", info->gt);
 	drm_printf(p, "memory-regions: %x\n", info->memory_regions);
-	drm_printf(p, "page-sizes: %x\n", info->page_sizes);
+	drm_printf(p, "page-sizes: %x\n", runtime->page_sizes);
 	drm_printf(p, "platform: %s\n", intel_platform_name(info->platform));
 	drm_printf(p, "ppgtt-size: %d\n", info->ppgtt_size);
 	drm_printf(p, "ppgtt-type: %d\n", info->ppgtt_type);

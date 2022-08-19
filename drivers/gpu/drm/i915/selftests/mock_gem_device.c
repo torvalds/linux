@@ -174,7 +174,7 @@ struct drm_i915_private *mock_gem_device(void)
 
 	RUNTIME_INFO(i915)->graphics.ver = -1;
 
-	mkwrite_device_info(i915)->page_sizes =
+	RUNTIME_INFO(i915)->page_sizes =
 		I915_GTT_PAGE_SIZE_4K |
 		I915_GTT_PAGE_SIZE_64K |
 		I915_GTT_PAGE_SIZE_2M;
