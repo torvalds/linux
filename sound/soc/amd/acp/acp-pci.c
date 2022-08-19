@@ -104,6 +104,7 @@ static int acp_pci_probe(struct pci_dev *pci, const struct pci_device_id *pci_id
 	addr = pci_resource_start(pci, 0);
 	chip->base = devm_ioremap(&pci->dev, addr, pci_resource_len(pci, 0));
 	if (!chip->base) {
+		platform_device_unregister(dmic_dev);
 		ret = -ENOMEM;
 		goto release_regions;
 	}
