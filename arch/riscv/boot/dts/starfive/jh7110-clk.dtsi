@@ -76,12 +76,6 @@
 		clock-frequency = <50000000>;
 	};
 
-	stg_apb: stg_apb {
-		compatible = "fixed-clock";
-		#clock-cells = <0>;
-		clock-frequency = <51200000>;
-	};
-
 	gmac0_rmii_refin: gmac0_rmii_refin {
 		compatible = "fixed-clock";
 		#clock-cells = <0>;

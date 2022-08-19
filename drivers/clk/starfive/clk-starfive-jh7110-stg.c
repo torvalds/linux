@@ -15,8 +15,6 @@
 
 /* external clocks */
 #define JH7110_OSC				(JH7110_CLK_END + 0)
-/* stg external clocks */
-#define JH7110_STG_APB				(JH7110_CLK_END + 11)
 
 static const struct jh7110_clk_data jh7110_clk_stg_data[] __initconst = {
 	//hifi4
@@ -127,6 +125,9 @@ int __init clk_starfive_jh7110_stg_init(struct platform_device *pdev,
 	priv->pll[PLL_OF(JH7110_STG_SYSCON_PCLK)] =
 			devm_clk_hw_register_fixed_factor(priv->dev,
 			"u0_stg_syscon_pclk", "stg_apb", 0, 1, 1);
+	priv->pll[PLL_OF(JH7110_STG_APB)] =
+			devm_clk_hw_register_fixed_factor(priv->dev,
+			"stg_apb", "apb_bus", 0, 1, 1);
 
 	for (idx = JH7110_CLK_SYS_REG_END; idx < JH7110_CLK_STG_REG_END; idx++) {
 		u32 max = jh7110_clk_stg_data[idx].max;
@@ -145,15 +146,13 @@ int __init clk_starfive_jh7110_stg_init(struct platform_device *pdev,
 		for (i = 0; i < init.num_parents; i++) {
 			unsigned int pidx = jh7110_clk_stg_data[idx].parents[i];
 
-			if (pidx < JH7110_CLK_STG_REG_END)
+			if (pidx < JH7110_CLK_REG_END )
 				parents[i].hw = &priv->reg[pidx].hw;
 			else if ((pidx < JH7110_CLK_STG_END) &&
-				(pidx > JH7110_CLK_SYS_END))
+				(pidx > (JH7110_CLK_SYS_END - 1)))
 				parents[i].hw = priv->pll[PLL_OF(pidx)];
 			else if (pidx == JH7110_OSC)
 				parents[i].fw_name = "osc";
-			else if (pidx == JH7110_STG_APB)
-				parents[i].fw_name = "stg_apb";
 		}
 
 		clk->hw.init = &init;

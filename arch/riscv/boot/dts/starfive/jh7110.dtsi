@@ -332,7 +332,7 @@
 				 <&i2srx_bclk_ext>, <&i2srx_lrck_ext>,
 				 <&tdm_ext>, <&mclk_ext>,
 				 <&jtag_tck_inner>, <&bist_apb>,
-				 <&stg_apb>, <&clk_rtc>,
+				 <&clk_rtc>,
 				 <&gmac0_rmii_refin>, <&gmac0_rgmii_rxin>;
 			clock-names = "osc", "gmac1_rmii_refin",
 				"gmac1_rgmii_rxin",
@@ -340,7 +340,7 @@
 				"i2srx_bclk_ext", "i2srx_lrck_ext",
 				"tdm_ext", "mclk_ext",
 				"jtag_tck_inner", "bist_apb",
-				"stg_apb", "clk_rtc",
+				"clk_rtc",
 				"gmac0_rmii_refin", "gmac0_rgmii_rxin";
 			#clock-cells = <1>;
 			starfive,sys-syscon = <&sys_syscon 0x18 0x1c
