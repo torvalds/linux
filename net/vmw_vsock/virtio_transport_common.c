@@ -634,10 +634,7 @@ virtio_transport_notify_poll_in(struct vsock_sock *vsk,
 				size_t target,
 				bool *data_ready_now)
 {
-	if (vsock_stream_has_data(vsk))
-		*data_ready_now = true;
-	else
-		*data_ready_now = false;
+	*data_ready_now = vsock_stream_has_data(vsk) >= target;
 
 	return 0;
 }
