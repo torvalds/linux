@@ -837,15 +837,6 @@ static void rtw_reset_securitypriv(struct adapter *adapter)
 	}
 }
 
-static void rtw_os_indicate_disconnect(struct adapter *adapter)
-{
-	/*  Do it first for tx broadcast pkt after disconnection issue! */
-	netif_carrier_off(adapter->pnetdev);
-
-	rtw_indicate_wx_disassoc_event(adapter);
-	rtw_reset_securitypriv(adapter);
-}
-
 /*
 *rtw_indicate_connect: the caller has to lock pmlmepriv->lock
 */
@@ -882,7 +873,11 @@ void rtw_indicate_disconnect(struct adapter *padapter)
 
 	if (check_fwstate(&padapter->mlmepriv, _FW_LINKED) ||
 	    (pmlmepriv->to_roaming <= 0)) {
-		rtw_os_indicate_disconnect(padapter);
+		/*  Do it first for tx broadcast pkt after disconnection issue! */
+		netif_carrier_off(padapter->pnetdev);
+
+		rtw_indicate_wx_disassoc_event(padapter);
+		rtw_reset_securitypriv(padapter);
 
 		_clr_fwstate_(pmlmepriv, _FW_LINKED);
 		rtw_led_control(padapter, LED_CTL_NO_LINK);
