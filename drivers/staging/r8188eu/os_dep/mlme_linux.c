@@ -130,19 +130,6 @@ void rtw_report_sec_ie(struct adapter *adapter, u8 authmode, u8 *sec_ie)
 	}
 }
 
-static void _survey_timer_hdl(struct timer_list *t)
-{
-	struct adapter *padapter = from_timer(padapter, t, mlmeextpriv.survey_timer);
-
-	survey_timer_hdl(padapter);
-}
-
-static void _link_timer_hdl(struct timer_list *t)
-{
-	struct adapter *padapter = from_timer(padapter, t, mlmeextpriv.link_timer);
-	link_timer_hdl(padapter);
-}
-
 static void _addba_timer_hdl(struct timer_list *t)
 {
 	struct sta_info *psta = from_timer(psta, t, addba_retry_timer);
@@ -152,14 +139,6 @@ static void _addba_timer_hdl(struct timer_list *t)
 void init_addba_retry_timer(struct adapter *padapter, struct sta_info *psta)
 {
 	timer_setup(&psta->addba_retry_timer, _addba_timer_hdl, 0);
-}
-
-void init_mlme_ext_timer(struct adapter *padapter)
-{
-	struct	mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
-
-	timer_setup(&pmlmeext->survey_timer, _survey_timer_hdl, 0);
-	timer_setup(&pmlmeext->link_timer, _link_timer_hdl, 0);
 }
 
 void rtw_indicate_sta_assoc_event(struct adapter *padapter, struct sta_info *psta)
