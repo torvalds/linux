@@ -233,6 +233,9 @@ struct intel_runtime_info {
 
 	/* display */
 	struct {
+		u8 pipe_mask;
+		u8 cpu_transcoder_mask;
+
 		u8 num_sprites[I915_MAX_PIPES];
 		u8 num_scalers[I915_MAX_PIPES];
 
@@ -257,8 +260,6 @@ struct intel_device_info {
 		u8 ver;
 		u8 rel;
 
-		u8 pipe_mask;
-		u8 cpu_transcoder_mask;
 		u8 abox_mask;
 
 		struct {
