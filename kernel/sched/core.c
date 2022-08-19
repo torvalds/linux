@@ -95,6 +95,7 @@
 #include "../smpboot.h"
 
 #include <trace/hooks/sched.h>
+#include <trace/hooks/cgroup.h>
 
 /*
  * Export tracepoints that act as a bare tracehook (ie: have no trace event
