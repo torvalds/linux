@@ -772,6 +772,7 @@ static int md_remove_ss_toc(const struct md_region *entry)
 
 	minidump_table->md_ss_toc->ss_region_count--;
 	minidump_table->md_ss_toc->md_ss_toc_init = 1;
+	num_regions--;
 
 	return 0;
 }
