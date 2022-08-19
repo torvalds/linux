@@ -1768,7 +1768,13 @@ static int nfsd4_do_async_copy(void *data)
 		filp = nfs42_ssc_open(copy->ss_mnt, &copy->c_fh,
 				      &copy->stateid);
 		if (IS_ERR(filp)) {
-			nfserr = nfserr_offload_denied;
+			switch (PTR_ERR(filp)) {
+			case -EBADF:
+				nfserr = nfserr_wrong_type;
+				break;
+			default:
+				nfserr = nfserr_offload_denied;
+			}
 			nfsd4_interssc_disconnect(copy->ss_mnt);
 			goto do_callback;
 		}
