@@ -624,8 +624,16 @@ static struct cm_id_private *cm_insert_listen(struct cm_id_private *cm_id_priv,
 		parent = *link;
 		cur_cm_id_priv = rb_entry(parent, struct cm_id_private,
 					  service_node);
-		if ((service_id == cur_cm_id_priv->id.service_id) &&
-		    (cm_id_priv->id.device == cur_cm_id_priv->id.device)) {
+
+		if (cm_id_priv->id.device < cur_cm_id_priv->id.device)
+			link = &(*link)->rb_left;
+		else if (cm_id_priv->id.device > cur_cm_id_priv->id.device)
+			link = &(*link)->rb_right;
+		else if (be64_lt(service_id, cur_cm_id_priv->id.service_id))
+			link = &(*link)->rb_left;
+		else if (be64_gt(service_id, cur_cm_id_priv->id.service_id))
+			link = &(*link)->rb_right;
+		else {
 			/*
 			 * Sharing an ib_cm_id with different handlers is not
 			 * supported
@@ -641,17 +649,6 @@ static struct cm_id_private *cm_insert_listen(struct cm_id_private *cm_id_priv,
 			spin_unlock_irqrestore(&cm.lock, flags);
 			return cur_cm_id_priv;
 		}
-
-		if (cm_id_priv->id.device < cur_cm_id_priv->id.device)
-			link = &(*link)->rb_left;
-		else if (cm_id_priv->id.device > cur_cm_id_priv->id.device)
-			link = &(*link)->rb_right;
-		else if (be64_lt(service_id, cur_cm_id_priv->id.service_id))
-			link = &(*link)->rb_left;
-		else if (be64_gt(service_id, cur_cm_id_priv->id.service_id))
-			link = &(*link)->rb_right;
-		else
-			link = &(*link)->rb_right;
 	}
 	cm_id_priv->listen_sharecount++;
 	rb_link_node(&cm_id_priv->service_node, parent, link);
@@ -668,11 +665,7 @@ static struct cm_id_private *cm_find_listen(struct ib_device *device,
 
 	while (node) {
 		cm_id_priv = rb_entry(node, struct cm_id_private, service_node);
-		if ((service_id == cm_id_priv->id.service_id) &&
-		    (cm_id_priv->id.device == device)) {
-			refcount_inc(&cm_id_priv->refcount);
-			return cm_id_priv;
-		}
+
 		if (device < cm_id_priv->id.device)
 			node = node->rb_left;
 		else if (device > cm_id_priv->id.device)
@@ -681,8 +674,10 @@ static struct cm_id_private *cm_find_listen(struct ib_device *device,
 			node = node->rb_left;
 		else if (be64_gt(service_id, cm_id_priv->id.service_id))
 			node = node->rb_right;
-		else
-			node = node->rb_right;
+		else {
+			refcount_inc(&cm_id_priv->refcount);
+			return cm_id_priv;
+		}
 	}
 	return NULL;
 }
