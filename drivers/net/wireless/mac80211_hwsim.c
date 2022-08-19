@@ -2995,9 +2995,14 @@ static int mac80211_hwsim_change_vif_links(struct ieee80211_hw *hw,
 					   u16 old_links, u16 new_links,
 					   struct ieee80211_bss_conf *old[IEEE80211_MLD_MAX_NUM_LINKS])
 {
-	unsigned long rem = old_links & ~new_links ?: BIT(0);
+	unsigned long rem = old_links & ~new_links;
 	unsigned long add = new_links & ~old_links;
 	int i;
+
+	if (!old_links)
+		rem |= BIT(0);
+	if (!new_links)
+		add |= BIT(0);
 
 	for_each_set_bit(i, &rem, IEEE80211_MLD_MAX_NUM_LINKS)
 		mac80211_hwsim_config_mac_nl(hw, old[i]->addr, false);
