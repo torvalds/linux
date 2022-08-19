@@ -245,4 +245,8 @@ pcpu_free_vm_areas(struct vm_struct **vms, int nr_vms)
 int register_vmap_purge_notifier(struct notifier_block *nb);
 int unregister_vmap_purge_notifier(struct notifier_block *nb);
 
+#ifndef arch_disable_lazy_vunmap
+#define arch_disable_lazy_vunmap false
+#endif
+
 #endif /* _LINUX_VMALLOC_H */

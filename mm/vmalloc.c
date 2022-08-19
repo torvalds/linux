@@ -1297,6 +1297,9 @@ static unsigned long lazy_max_pages(void)
 {
 	unsigned int log;
 
+	if (arch_disable_lazy_vunmap)
+		return 0;
+
 	log = fls(num_online_cpus());
 
 	return log * (32UL * 1024 * 1024 / PAGE_SIZE);
