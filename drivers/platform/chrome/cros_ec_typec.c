@@ -26,7 +26,8 @@
 
 #define DRV_NAME "cros-ec-typec"
 
-#define DP_PORT_VDO	(BIT(DP_PIN_ASSIGN_C) | BIT(DP_PIN_ASSIGN_D) | DP_CAP_DFP_D)
+#define DP_PORT_VDO	(DP_CONF_SET_PIN_ASSIGN(BIT(DP_PIN_ASSIGN_C) | BIT(DP_PIN_ASSIGN_D)) | \
+				DP_CAP_DFP_D)
 
 /* Supported alt modes. */
 enum {
