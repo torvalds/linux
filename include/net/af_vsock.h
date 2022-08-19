@@ -78,6 +78,7 @@ struct vsock_sock {
 s64 vsock_stream_has_data(struct vsock_sock *vsk);
 s64 vsock_stream_has_space(struct vsock_sock *vsk);
 struct sock *vsock_create_connected(struct sock *parent);
+void vsock_data_ready(struct sock *sk);
 
 /**** TRANSPORT ****/
 

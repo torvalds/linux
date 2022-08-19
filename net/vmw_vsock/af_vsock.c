@@ -882,6 +882,16 @@ s64 vsock_stream_has_space(struct vsock_sock *vsk)
 }
 EXPORT_SYMBOL_GPL(vsock_stream_has_space);
 
+void vsock_data_ready(struct sock *sk)
+{
+	struct vsock_sock *vsk = vsock_sk(sk);
+
+	if (vsock_stream_has_data(vsk) >= sk->sk_rcvlowat ||
+	    sock_flag(sk, SOCK_DONE))
+		sk->sk_data_ready(sk);
+}
+EXPORT_SYMBOL_GPL(vsock_data_ready);
+
 static int vsock_release(struct socket *sock)
 {
 	__vsock_release(sock->sk, 0);
