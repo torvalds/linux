@@ -1764,8 +1764,8 @@ int i915_gem_huge_page_mock_selftests(void)
 		return -ENOMEM;
 
 	/* Pretend to be a device which supports the 48b PPGTT */
-	mkwrite_device_info(dev_priv)->ppgtt_type = INTEL_PPGTT_FULL;
-	mkwrite_device_info(dev_priv)->ppgtt_size = 48;
+	RUNTIME_INFO(dev_priv)->ppgtt_type = INTEL_PPGTT_FULL;
+	RUNTIME_INFO(dev_priv)->ppgtt_size = 48;
 
 	ppgtt = i915_ppgtt_create(to_gt(dev_priv), 0);
 	if (IS_ERR(ppgtt)) {

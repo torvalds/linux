@@ -112,8 +112,8 @@ void intel_device_info_print(const struct intel_device_info *info,
 	drm_printf(p, "memory-regions: %x\n", info->memory_regions);
 	drm_printf(p, "page-sizes: %x\n", runtime->page_sizes);
 	drm_printf(p, "platform: %s\n", intel_platform_name(info->platform));
-	drm_printf(p, "ppgtt-size: %d\n", info->ppgtt_size);
-	drm_printf(p, "ppgtt-type: %d\n", info->ppgtt_type);
+	drm_printf(p, "ppgtt-size: %d\n", runtime->ppgtt_size);
+	drm_printf(p, "ppgtt-type: %d\n", runtime->ppgtt_type);
 	drm_printf(p, "dma_mask_size: %u\n", info->dma_mask_size);
 
 #define PRINT_FLAG(name) drm_printf(p, "%s: %s\n", #name, str_yes_no(info->name))
@@ -409,7 +409,7 @@ void intel_device_info_runtime_init(struct drm_i915_private *dev_priv)
 	if (GRAPHICS_VER(dev_priv) == 6 && i915_vtd_active(dev_priv)) {
 		drm_info(&dev_priv->drm,
 			 "Disabling ppGTT for VT-d support\n");
-		info->ppgtt_type = INTEL_PPGTT_NONE;
+		runtime->ppgtt_type = INTEL_PPGTT_NONE;
 	}
 
 	runtime->rawclk_freq = intel_read_rawclk(dev_priv);

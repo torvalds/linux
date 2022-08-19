@@ -421,8 +421,8 @@ static const struct intel_device_info ilk_m_info = {
 	.has_rc6p = 1, \
 	.has_rps = true, \
 	.dma_mask_size = 40, \
-	.ppgtt_type = INTEL_PPGTT_ALIASING, \
-	.ppgtt_size = 31, \
+	.__runtime.ppgtt_type = INTEL_PPGTT_ALIASING, \
+	.__runtime.ppgtt_size = 31, \
 	I9XX_PIPE_OFFSETS, \
 	I9XX_CURSOR_OFFSETS, \
 	ILK_COLORS, \
@@ -474,8 +474,8 @@ static const struct intel_device_info snb_m_gt2_info = {
 	.has_reset_engine = true, \
 	.has_rps = true, \
 	.dma_mask_size = 40, \
-	.ppgtt_type = INTEL_PPGTT_ALIASING, \
-	.ppgtt_size = 31, \
+	.__runtime.ppgtt_type = INTEL_PPGTT_ALIASING, \
+	.__runtime.ppgtt_size = 31, \
 	IVB_PIPE_OFFSETS, \
 	IVB_CURSOR_OFFSETS, \
 	IVB_COLORS, \
@@ -535,8 +535,8 @@ static const struct intel_device_info vlv_info = {
 	.display.has_gmch = 1,
 	.display.has_hotplug = 1,
 	.dma_mask_size = 40,
-	.ppgtt_type = INTEL_PPGTT_ALIASING,
-	.ppgtt_size = 31,
+	.__runtime.ppgtt_type = INTEL_PPGTT_ALIASING,
+	.__runtime.ppgtt_size = 31,
 	.has_snoop = true,
 	.has_coherent_ggtt = false,
 	.platform_engine_mask = BIT(RCS0) | BIT(VCS0) | BIT(BCS0),
@@ -585,8 +585,8 @@ static const struct intel_device_info hsw_gt3_info = {
 	GEN(8), \
 	.has_logical_ring_contexts = 1, \
 	.dma_mask_size = 39, \
-	.ppgtt_type = INTEL_PPGTT_FULL, \
-	.ppgtt_size = 48, \
+	.__runtime.ppgtt_type = INTEL_PPGTT_FULL, \
+	.__runtime.ppgtt_size = 48, \
 	.has_64bit_reloc = 1
 
 #define BDW_PLATFORM \
@@ -633,8 +633,8 @@ static const struct intel_device_info chv_info = {
 	.has_logical_ring_contexts = 1,
 	.display.has_gmch = 1,
 	.dma_mask_size = 39,
-	.ppgtt_type = INTEL_PPGTT_FULL,
-	.ppgtt_size = 32,
+	.__runtime.ppgtt_type = INTEL_PPGTT_FULL,
+	.__runtime.ppgtt_size = 32,
 	.has_reset_engine = 1,
 	.has_snoop = true,
 	.has_coherent_ggtt = false,
@@ -719,8 +719,8 @@ static const struct intel_device_info skl_gt4_info = {
 	.has_logical_ring_contexts = 1, \
 	.has_gt_uc = 1, \
 	.dma_mask_size = 39, \
-	.ppgtt_type = INTEL_PPGTT_FULL, \
-	.ppgtt_size = 48, \
+	.__runtime.ppgtt_type = INTEL_PPGTT_FULL, \
+	.__runtime.ppgtt_size = 48, \
 	.has_reset_engine = 1, \
 	.has_snoop = true, \
 	.has_coherent_ggtt = false, \
@@ -848,14 +848,14 @@ static const struct intel_device_info ehl_info = {
 	GEN11_FEATURES,
 	PLATFORM(INTEL_ELKHARTLAKE),
 	.platform_engine_mask = BIT(RCS0) | BIT(BCS0) | BIT(VCS0) | BIT(VECS0),
-	.ppgtt_size = 36,
+	.__runtime.ppgtt_size = 36,
 };
 
 static const struct intel_device_info jsl_info = {
 	GEN11_FEATURES,
 	PLATFORM(INTEL_JASPERLAKE),
 	.platform_engine_mask = BIT(RCS0) | BIT(BCS0) | BIT(VCS0) | BIT(VECS0),
-	.ppgtt_size = 36,
+	.__runtime.ppgtt_size = 36,
 };
 
 #define GEN12_FEATURES \
@@ -927,7 +927,7 @@ static const struct intel_device_info dg1_info = {
 		BIT(RCS0) | BIT(BCS0) | BIT(VECS0) |
 		BIT(VCS0) | BIT(VCS2),
 	/* Wa_16011227922 */
-	.ppgtt_size = 47,
+	.__runtime.ppgtt_size = 47,
 };
 
 static const struct intel_device_info adl_s_info = {
@@ -994,7 +994,7 @@ static const struct intel_device_info adl_p_info = {
 	.display.has_psr_hw_tracking = 0,
 	.platform_engine_mask =
 		BIT(RCS0) | BIT(BCS0) | BIT(VECS0) | BIT(VCS0) | BIT(VCS2),
-	.ppgtt_size = 48,
+	.__runtime.ppgtt_size = 48,
 	.dma_mask_size = 39,
 };
 
@@ -1023,8 +1023,8 @@ static const struct intel_device_info adl_p_info = {
 	.has_reset_engine = 1, \
 	.has_rps = 1, \
 	.has_runtime_pm = 1, \
-	.ppgtt_size = 48, \
-	.ppgtt_type = INTEL_PPGTT_FULL
+	.__runtime.ppgtt_size = 48, \
+	.__runtime.ppgtt_type = INTEL_PPGTT_FULL
 
 #define XE_HPM_FEATURES \
 	.media.ver = 12, \
