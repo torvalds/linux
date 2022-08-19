@@ -1392,7 +1392,6 @@ lpfc_linkup(struct lpfc_hba *phba)
 
 	/* reinitialize initial HBA flag */
 	phba->hba_flag &= ~(HBA_FLOGI_ISSUED | HBA_RHBA_CMPL);
-	phba->defer_flogi_acc_flag = false;
 
 	return 0;
 }
