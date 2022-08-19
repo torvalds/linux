@@ -1054,18 +1054,29 @@ void rtw89_mac_power_mode_change(struct rtw89_dev *rtwdev, bool enter)
 	enum rtw89_rpwm_req_pwr_state state;
 	unsigned long delay = enter ? 10 : 150;
 	int ret;
+	int i;
 
 	if (enter)
 		state = rtw89_mac_get_req_pwr_state(rtwdev);
 	else
 		state = RTW89_MAC_RPWM_REQ_PWR_STATE_ACTIVE;
 
-	rtw89_mac_send_rpwm(rtwdev, state, false);
-	ret = read_poll_timeout_atomic(rtw89_mac_check_cpwm_state, ret, !ret,
-				       delay, 15000, false, rtwdev, state);
-	if (ret)
-		rtw89_err(rtwdev, "firmware failed to ack for %s ps mode\n",
-			  enter ? "entering" : "leaving");
+	for (i = 0; i < RPWM_TRY_CNT; i++) {
+		rtw89_mac_send_rpwm(rtwdev, state, false);
+		ret = read_poll_timeout_atomic(rtw89_mac_check_cpwm_state, ret,
+					       !ret, delay, 15000, false,
+					       rtwdev, state);
+		if (!ret)
+			break;
+
+		if (i == RPWM_TRY_CNT - 1)
+			rtw89_err(rtwdev, "firmware failed to ack for %s ps mode\n",
+				  enter ? "entering" : "leaving");
+		else
+			rtw89_debug(rtwdev, RTW89_DBG_UNEXP,
+				    "%d time firmware failed to ack for %s ps mode\n",
+				    i + 1, enter ? "entering" : "leaving");
+	}
 }
 
 void rtw89_mac_notify_wake(struct rtw89_dev *rtwdev)
