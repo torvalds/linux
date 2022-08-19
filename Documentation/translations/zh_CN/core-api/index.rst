@@ -44,12 +44,12 @@
    assoc_array
    xarray
    rbtree
+   idr
 
 Todolist:
 
 
 
-   idr
    circular-buffers
    generic-radix-tree
    packing
