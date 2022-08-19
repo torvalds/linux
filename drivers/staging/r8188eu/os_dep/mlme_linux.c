@@ -37,8 +37,3 @@ void rtw_init_mlme_timer(struct adapter *padapter)
 	timer_setup(&pmlmepriv->scan_to_timer, _rtw_scan_timeout_handler, 0);
 	timer_setup(&pmlmepriv->dynamic_chk_timer, _dynamic_check_timer_handlder, 0);
 }
-
-void rtw_os_indicate_scan_done(struct adapter *padapter, bool aborted)
-{
-	indicate_wx_scan_complete_event(padapter);
-}

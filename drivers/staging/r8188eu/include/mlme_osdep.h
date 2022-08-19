@@ -8,7 +8,6 @@
 #include "drv_types.h"
 
 void rtw_init_mlme_timer(struct adapter *padapter);
-void rtw_os_indicate_scan_done(struct adapter *padapter, bool aborted);
 
 void indicate_wx_scan_complete_event(struct adapter *padapter);
 
