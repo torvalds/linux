@@ -225,6 +225,8 @@ struct intel_runtime_info {
 	enum intel_ppgtt_type ppgtt_type;
 	unsigned int ppgtt_size; /* log2, e.g. 31/32/48 bits */
 
+	u32 memory_regions; /* regions supported by the HW */
+
 	bool has_pooled_eu;
 
 	/* display */
@@ -244,8 +246,6 @@ struct intel_device_info {
 	enum intel_platform platform;
 
 	unsigned int dma_mask_size; /* available DMA address bits */
-
-	u32 memory_regions; /* regions supported by the HW */
 
 	u8 gt; /* GT number, 0 if undefined */
 
