@@ -161,12 +161,12 @@ vmci_transport_notify_pkt_poll_in(struct sock *sk,
 {
 	struct vsock_sock *vsk = vsock_sk(sk);
 
-	if (vsock_stream_has_data(vsk)) {
+	if (vsock_stream_has_data(vsk) >= target) {
 		*data_ready_now = true;
 	} else {
-		/* We can't read right now because there is nothing in the
-		 * queue. Ask for notifications when there is something to
-		 * read.
+		/* We can't read right now because there is not enough data
+		 * in the queue. Ask for notifications when there is something
+		 * to read.
 		 */
 		if (sk->sk_state == TCP_ESTABLISHED)
 			vsock_block_update_write_window(sk);
