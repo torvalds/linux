@@ -202,6 +202,27 @@ struct ip_version {
 	u8 rel;
 };
 
+struct intel_runtime_info {
+	/*
+	 * Platform mask is used for optimizing or-ed IS_PLATFORM calls into
+	 * single runtime conditionals, and also to provide groundwork for
+	 * future per platform, or per SKU build optimizations.
+	 *
+	 * Array can be extended when necessary if the corresponding
+	 * BUILD_BUG_ON is hit.
+	 */
+	u32 platform_mask[2];
+
+	u16 device_id;
+
+	u8 num_sprites[I915_MAX_PIPES];
+	u8 num_scalers[I915_MAX_PIPES];
+
+	u32 rawclk_freq;
+
+	struct intel_step_info step;
+};
+
 struct intel_device_info {
 	struct ip_version graphics;
 	struct ip_version media;
@@ -258,27 +279,11 @@ struct intel_device_info {
 			u32 gamma_lut_tests;
 		} color;
 	} display;
-};
 
-struct intel_runtime_info {
 	/*
-	 * Platform mask is used for optimizing or-ed IS_PLATFORM calls into
-	 * into single runtime conditionals, and also to provide groundwork
-	 * for future per platform, or per SKU build optimizations.
-	 *
-	 * Array can be extended when necessary if the corresponding
-	 * BUILD_BUG_ON is hit.
+	 * Initial runtime info. Do not access outside of i915_driver_create().
 	 */
-	u32 platform_mask[2];
-
-	u16 device_id;
-
-	u8 num_sprites[I915_MAX_PIPES];
-	u8 num_scalers[I915_MAX_PIPES];
-
-	u32 rawclk_freq;
-
-	struct intel_step_info step;
+	const struct intel_runtime_info __runtime;
 };
 
 struct intel_driver_caps {
