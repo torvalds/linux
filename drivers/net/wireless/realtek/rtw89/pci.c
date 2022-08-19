@@ -3221,6 +3221,76 @@ static void rtw89_pci_free_irq(struct rtw89_dev *rtwdev,
 	pci_free_irq_vectors(pdev);
 }
 
+static u16 gray_code_to_bin(u16 gray_code, u32 bit_num)
+{
+	u16 bin = 0, gray_bit;
+	u32 bit_idx;
+
+	for (bit_idx = 0; bit_idx < bit_num; bit_idx++) {
+		gray_bit = (gray_code >> bit_idx) & 0x1;
+		if (bit_num - bit_idx > 1)
+			gray_bit ^= (gray_code >> (bit_idx + 1)) & 0x1;
+		bin |= (gray_bit << bit_idx);
+	}
+
+	return bin;
+}
+
+static int rtw89_pci_filter_out(struct rtw89_dev *rtwdev)
+{
+	struct rtw89_pci *rtwpci = (struct rtw89_pci *)rtwdev->priv;
+	struct pci_dev *pdev = rtwpci->pdev;
+	u16 val16, filter_out_val;
+	u32 val, phy_offset;
+	int ret;
+
+	if (rtwdev->chip->chip_id != RTL8852C)
+		return 0;
+
+	val = rtw89_read32_mask(rtwdev, R_AX_PCIE_MIX_CFG_V1, B_AX_ASPM_CTRL_MASK);
+	if (val == B_AX_ASPM_CTRL_L1)
+		return 0;
+
+	ret = pci_read_config_dword(pdev, RTW89_PCIE_L1_STS_V1, &val);
+	if (ret)
+		return ret;
+
+	val = FIELD_GET(RTW89_BCFG_LINK_SPEED_MASK, val);
+	if (val == RTW89_PCIE_GEN1_SPEED) {
+		phy_offset = R_RAC_DIRECT_OFFSET_G1;
+	} else if (val == RTW89_PCIE_GEN2_SPEED) {
+		phy_offset = R_RAC_DIRECT_OFFSET_G2;
+		val16 = rtw89_read16(rtwdev, phy_offset + RAC_ANA10 * RAC_MULT);
+		rtw89_write16_set(rtwdev, phy_offset + RAC_ANA10 * RAC_MULT,
+				  val16 | B_PCIE_BIT_PINOUT_DIS);
+		rtw89_write16_set(rtwdev, phy_offset + RAC_ANA19 * RAC_MULT,
+				  val16 & ~B_PCIE_BIT_RD_SEL);
+
+		val16 = rtw89_read16_mask(rtwdev,
+					  phy_offset + RAC_ANA1F * RAC_MULT,
+					  FILTER_OUT_EQ_MASK);
+		val16 = gray_code_to_bin(val16, hweight16(val16));
+		filter_out_val = rtw89_read16(rtwdev, phy_offset + RAC_ANA24 *
+					      RAC_MULT);
+		filter_out_val &= ~REG_FILTER_OUT_MASK;
+		filter_out_val |= FIELD_PREP(REG_FILTER_OUT_MASK, val16);
+
+		rtw89_write16(rtwdev, phy_offset + RAC_ANA24 * RAC_MULT,
+			      filter_out_val);
+		rtw89_write16_set(rtwdev, phy_offset + RAC_ANA0A * RAC_MULT,
+				  B_BAC_EQ_SEL);
+		rtw89_write16_set(rtwdev,
+				  R_RAC_DIRECT_OFFSET_G1 + RAC_ANA0C * RAC_MULT,
+				  B_PCIE_BIT_PSAVE);
+	} else {
+		return -EOPNOTSUPP;
+	}
+	rtw89_write16_set(rtwdev, phy_offset + RAC_ANA0C * RAC_MULT,
+			  B_PCIE_BIT_PSAVE);
+
+	return 0;
+}
+
 static void rtw89_pci_clkreq_set(struct rtw89_dev *rtwdev, bool enable)
 {
 	int ret;
@@ -3665,6 +3735,7 @@ int rtw89_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		goto err_clear_resource;
 	}
 
+	rtw89_pci_filter_out(rtwdev);
 	rtw89_pci_link_cfg(rtwdev);
 	rtw89_pci_l1ss_cfg(rtwdev);
 
