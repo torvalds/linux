@@ -279,10 +279,6 @@ void flush_thread(void)
 	flush_tagged_addr_state();
 }
 
-void release_thread(struct task_struct *dead_task)
-{
-}
-
 void arch_release_task_struct(struct task_struct *tsk)
 {
 	fpsimd_release_task(tsk);

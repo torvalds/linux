@@ -1655,11 +1655,6 @@ EXPORT_SYMBOL_GPL(set_thread_tidr);
 
 #endif /* CONFIG_PPC64 */
 
-void
-release_thread(struct task_struct *t)
-{
-}
-
 /*
  * this gets called so that we can store coprocessor state into memory and
  * copy the current task into the new thread.
