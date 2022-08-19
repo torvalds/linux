@@ -72,7 +72,7 @@ static void pmu_legacy_ctr_start(struct perf_event *event, u64 ival)
 	local64_set(&hwc->prev_count, initial_val);
 }
 
-/**
+/*
  * This is just a simple implementation to allow legacy implementations
  * compatible with new RISC-V PMU driver framework.
  * This driver only allows reading two counters i.e CYCLE & INSTRET.
