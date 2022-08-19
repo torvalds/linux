@@ -347,8 +347,3 @@ void ODM_PhyStatusQuery(struct odm_dm_struct *dm_odm,
 	odm_RxPhyStatus92CSeries_Parsing(dm_odm, pPhyInfo, pPhyStatus, pPktinfo, adapt);
 	odm_Process_RSSIForDM(dm_odm, pPhyInfo, pPktinfo);
 }
-
-enum HAL_STATUS ODM_ConfigRFWithHeaderFile(struct odm_dm_struct *dm_odm)
-{
-	return ODM_ReadAndConfig_RadioA_1T_8188E(dm_odm);
-}
