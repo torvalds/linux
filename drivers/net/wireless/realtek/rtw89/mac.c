@@ -3550,6 +3550,26 @@ static void rtw89_mac_port_cfg_bcn_early(struct rtw89_dev *rtwdev,
 				BCN_ERLY_DEF);
 }
 
+static void rtw89_mac_port_cfg_tbtt_shift(struct rtw89_dev *rtwdev,
+					  struct rtw89_vif *rtwvif)
+{
+	const struct rtw89_port_reg *p = &rtw_port_base;
+	u16 val;
+
+	if (rtwdev->chip->chip_id != RTL8852C)
+		return;
+
+	if (rtwvif->wifi_role != RTW89_WIFI_ROLE_P2P_CLIENT &&
+	    rtwvif->wifi_role != RTW89_WIFI_ROLE_STATION)
+		return;
+
+	val = FIELD_PREP(B_AX_TBTT_SHIFT_OFST_MAG, 1) |
+			 B_AX_TBTT_SHIFT_OFST_SIGN;
+
+	rtw89_write16_port_mask(rtwdev, rtwvif, p->tbtt_shift,
+				B_AX_TBTT_SHIFT_OFST_MASK, val);
+}
+
 int rtw89_mac_vif_init(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif)
 {
 	int ret;
@@ -3624,6 +3644,7 @@ int rtw89_mac_port_update(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif)
 	rtw89_mac_port_cfg_bcn_hold_time(rtwdev, rtwvif);
 	rtw89_mac_port_cfg_bcn_mask_area(rtwdev, rtwvif);
 	rtw89_mac_port_cfg_tbtt_early(rtwdev, rtwvif);
+	rtw89_mac_port_cfg_tbtt_shift(rtwdev, rtwvif);
 	rtw89_mac_port_cfg_bss_color(rtwdev, rtwvif);
 	rtw89_mac_port_cfg_mbssid(rtwdev, rtwvif);
 	rtw89_mac_port_cfg_func_en(rtwdev, rtwvif);
