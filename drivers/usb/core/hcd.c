@@ -1474,7 +1474,7 @@ int usb_hcd_map_urb_for_dma(struct usb_hcd *hcd, struct urb *urb,
 						urb->sg,
 						urb->num_sgs,
 						dir);
-				if (n <= 0)
+				if (!n)
 					ret = -EAGAIN;
 				else
 					urb->transfer_flags |= URB_DMA_MAP_SG;
