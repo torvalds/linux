@@ -102,30 +102,3 @@ void rtw_os_indicate_disconnect(struct adapter *adapter)
 	rtw_indicate_wx_disassoc_event(adapter);
 	rtw_reset_securitypriv(adapter);
 }
-
-void rtw_report_sec_ie(struct adapter *adapter, u8 authmode, u8 *sec_ie)
-{
-	uint	len;
-	u8	*buff, *p, i;
-	union iwreq_data wrqu;
-
-	buff = NULL;
-	if (authmode == _WPA_IE_ID_) {
-		buff = kzalloc(IW_CUSTOM_MAX, GFP_ATOMIC);
-		if (!buff)
-			return;
-		p = buff;
-		p += sprintf(p, "ASSOCINFO(ReqIEs =");
-		len = sec_ie[1] + 2;
-		len =  (len < IW_CUSTOM_MAX) ? len : IW_CUSTOM_MAX;
-		for (i = 0; i < len; i++)
-			p += sprintf(p, "%02x", sec_ie[i]);
-		p += sprintf(p, ")");
-		memset(&wrqu, 0, sizeof(wrqu));
-		wrqu.data.length = p - buff;
-		wrqu.data.length = (wrqu.data.length < IW_CUSTOM_MAX) ?
-				   wrqu.data.length : IW_CUSTOM_MAX;
-		wireless_send_event(adapter->pnetdev, IWEVCUSTOM, &wrqu, buff);
-		kfree(buff);
-	}
-}
