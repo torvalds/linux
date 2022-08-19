@@ -450,8 +450,8 @@ qce_aead_async_req_handle(struct crypto_async_request *async_req)
 	if (ret)
 		return ret;
 	dst_nents = dma_map_sg(qce->dev, rctx->dst_sg, rctx->dst_nents, dir_dst);
-	if (dst_nents < 0) {
-		ret = dst_nents;
+	if (!dst_nents) {
+		ret = -EIO;
 		goto error_free;
 	}
 
