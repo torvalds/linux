@@ -106,14 +106,14 @@ static irqreturn_t i2s_irq_handler(int irq, void *data)
 
 	spin_lock(&adata->acp_lock);
 	list_for_each_entry(stream, &adata->stream_list, list) {
-		if (stream && (ext_intr_stat & stream->irq_bit)) {
+		if (ext_intr_stat & stream->irq_bit) {
 			writel(stream->irq_bit,
 			       ACP_EXTERNAL_INTR_STAT(adata, rsrc->irqp_used));
 			snd_pcm_period_elapsed(stream->substream);
 			i2s_flag = 1;
 		}
 		if (adata->rsrc->no_of_ctrls == 2) {
-			if (stream && (ext_intr_stat1 & stream->irq_bit)) {
+			if (ext_intr_stat1 & stream->irq_bit) {
 				writel(stream->irq_bit, ACP_EXTERNAL_INTR_STAT(adata,
 				       (rsrc->irqp_used - 1)));
 				snd_pcm_period_elapsed(stream->substream);
