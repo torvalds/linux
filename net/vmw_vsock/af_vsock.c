@@ -1066,8 +1066,9 @@ static __poll_t vsock_poll(struct file *file, struct socket *sock,
 		if (transport && transport->stream_is_active(vsk) &&
 		    !(sk->sk_shutdown & RCV_SHUTDOWN)) {
 			bool data_ready_now = false;
+			int target = sock_rcvlowat(sk, 0, INT_MAX);
 			int ret = transport->notify_poll_in(
-					vsk, 1, &data_ready_now);
+					vsk, target, &data_ready_now);
 			if (ret < 0) {
 				mask |= EPOLLERR;
 			} else {
