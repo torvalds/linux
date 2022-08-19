@@ -1,9 +1,9 @@
 # SPDX-License-Identifier: GPL-2.0
-VERSION = 5
-PATCHLEVEL = 19
+VERSION = 6
+PATCHLEVEL = 0
 SUBLEVEL = 0
-EXTRAVERSION =
-NAME = Superb Owl
+EXTRAVERSION = -rc1
+NAME = Hurr durr I'ma ninja sloth
 
 # *DOCUMENTATION*
 # To see a list of typical targets execute "make help"

@@ -494,6 +494,9 @@ static int proc_reg_open(struct inode *inode, struct file *file)
 	typeof_member(struct proc_ops, proc_release) release;
 	struct pde_opener *pdeo;
 
+	if (!pde->proc_ops->proc_lseek)
+		file->f_mode &= ~FMODE_LSEEK;
+
 	if (pde_is_permanent(pde)) {
 		open = pde->proc_ops->proc_open;
 		if (open)

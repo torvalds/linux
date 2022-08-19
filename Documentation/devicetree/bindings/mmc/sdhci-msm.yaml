@@ -137,6 +137,8 @@ properties:
 
   max-frequency: true
 
+  operating-points-v2: true
+
 patternProperties:
   '^opp-table(-[a-z0-9]+)?$':
     if:

@@ -613,6 +613,9 @@ int ksz9477_fdb_dump(struct ksz_device *dev, int port,
 			goto exit;
 		}
 
+		if (!(ksz_data & ALU_VALID))
+			continue;
+
 		/* read ALU table */
 		ksz9477_read_table(dev, alu_table);
 

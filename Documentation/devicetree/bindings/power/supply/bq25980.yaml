@@ -8,8 +8,7 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: TI BQ25980 Flash Charger
 
 maintainers:
-  - Dan Murphy <dmurphy@ti.com>
-  - Ricardo Rivera-Matos <r-rivera-matos@ti.com>
+  - Andrew Davis <afd@ti.com>
 
 description: |
   The BQ25980, BQ25975, and BQ25960 are a series of flash chargers intended

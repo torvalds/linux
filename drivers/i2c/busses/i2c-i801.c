@@ -1116,7 +1116,7 @@ static void dmi_check_onboard_device(u8 type, const char *name,
 
 		memset(&info, 0, sizeof(struct i2c_board_info));
 		info.addr = dmi_devices[i].i2c_addr;
-		strlcpy(info.type, dmi_devices[i].i2c_type, I2C_NAME_SIZE);
+		strscpy(info.type, dmi_devices[i].i2c_type, I2C_NAME_SIZE);
 		i2c_new_client_device(adap, &info);
 		break;
 	}
@@ -1267,7 +1267,7 @@ static void register_dell_lis3lv02d_i2c_device(struct i801_priv *priv)
 
 	memset(&info, 0, sizeof(struct i2c_board_info));
 	info.addr = dell_lis3lv02d_devices[i].i2c_addr;
-	strlcpy(info.type, "lis3lv02d", I2C_NAME_SIZE);
+	strscpy(info.type, "lis3lv02d", I2C_NAME_SIZE);
 	i2c_new_client_device(&priv->adapter, &info);
 }
 

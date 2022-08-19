@@ -25,6 +25,7 @@
 #include "fscache.h"
 #include "fs_context.h"
 #include "cifs_ioctl.h"
+#include "cached_dir.h"
 
 static void cifs_set_ops(struct inode *inode)
 {

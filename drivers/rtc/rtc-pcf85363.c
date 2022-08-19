@@ -350,8 +350,7 @@ static const struct pcf85x63_config pcf_85363_config = {
 	.num_nvram = 2
 };
 
-static int pcf85363_probe(struct i2c_client *client,
-			  const struct i2c_device_id *id)
+static int pcf85363_probe(struct i2c_client *client)
 {
 	struct pcf85363 *pcf85363;
 	const struct pcf85x63_config *config = &pcf_85363_config;
@@ -436,7 +435,7 @@ static struct i2c_driver pcf85363_driver = {
 		.name	= "pcf85363",
 		.of_match_table = of_match_ptr(dev_ids),
 	},
-	.probe	= pcf85363_probe,
+	.probe_new = pcf85363_probe,
 };
 
 module_i2c_driver(pcf85363_driver);

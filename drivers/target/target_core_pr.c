@@ -739,8 +739,7 @@ static struct t10_pr_registration *__core_scsi3_alloc_registration(
 			if (!deve_tmp->se_lun_acl)
 				continue;
 
-			lacl_tmp = rcu_dereference_check(deve_tmp->se_lun_acl,
-						lockdep_is_held(&lun_tmp->lun_deve_lock));
+			lacl_tmp = deve_tmp->se_lun_acl;
 			nacl_tmp = lacl_tmp->se_lun_nacl;
 			/*
 			 * Skip the matching struct se_node_acl that is allocated
@@ -784,8 +783,7 @@ static struct t10_pr_registration *__core_scsi3_alloc_registration(
 			 * the original *pr_reg is processed in
 			 * __core_scsi3_add_registration()
 			 */
-			dest_lun = rcu_dereference_check(deve_tmp->se_lun,
-				kref_read(&deve_tmp->pr_kref) != 0);
+			dest_lun = deve_tmp->se_lun;
 
 			pr_reg_atp = __core_scsi3_do_alloc_registration(dev,
 						nacl_tmp, dest_lun, deve_tmp,
@@ -1437,34 +1435,26 @@ static void core_scsi3_nodeacl_undepend_item(struct se_node_acl *nacl)
 
 static int core_scsi3_lunacl_depend_item(struct se_dev_entry *se_deve)
 {
-	struct se_lun_acl *lun_acl;
-
 	/*
 	 * For nacl->dynamic_node_acl=1
 	 */
-	lun_acl = rcu_dereference_check(se_deve->se_lun_acl,
-				kref_read(&se_deve->pr_kref) != 0);
-	if (!lun_acl)
+	if (!se_deve->se_lun_acl)
 		return 0;
 
-	return target_depend_item(&lun_acl->se_lun_group.cg_item);
+	return target_depend_item(&se_deve->se_lun_acl->se_lun_group.cg_item);
 }
 
 static void core_scsi3_lunacl_undepend_item(struct se_dev_entry *se_deve)
 {
-	struct se_lun_acl *lun_acl;
-
 	/*
 	 * For nacl->dynamic_node_acl=1
 	 */
-	lun_acl = rcu_dereference_check(se_deve->se_lun_acl,
-				kref_read(&se_deve->pr_kref) != 0);
-	if (!lun_acl) {
+	if (!se_deve->se_lun_acl) {
 		kref_put(&se_deve->pr_kref, target_pr_kref_release);
 		return;
 	}
 
-	target_undepend_item(&lun_acl->se_lun_group.cg_item);
+	target_undepend_item(&se_deve->se_lun_acl->se_lun_group.cg_item);
 	kref_put(&se_deve->pr_kref, target_pr_kref_release);
 }
 
@@ -1751,8 +1741,7 @@ core_scsi3_decode_spec_i_port(
 		 * and then call __core_scsi3_add_registration() in the
 		 * 2nd loop which will never fail.
 		 */
-		dest_lun = rcu_dereference_check(dest_se_deve->se_lun,
-				kref_read(&dest_se_deve->pr_kref) != 0);
+		dest_lun = dest_se_deve->se_lun;
 
 		dest_pr_reg = __core_scsi3_alloc_registration(cmd->se_dev,
 					dest_node_acl, dest_lun, dest_se_deve,
@@ -3446,8 +3435,7 @@ after_iport_check:
 	dest_pr_reg = __core_scsi3_locate_pr_reg(dev, dest_node_acl,
 					iport_ptr);
 	if (!dest_pr_reg) {
-		struct se_lun *dest_lun = rcu_dereference_check(dest_se_deve->se_lun,
-				kref_read(&dest_se_deve->pr_kref) != 0);
+		struct se_lun *dest_lun = dest_se_deve->se_lun;
 
 		spin_unlock(&dev->dev_reservation_lock);
 		if (core_scsi3_alloc_registration(cmd->se_dev, dest_node_acl,

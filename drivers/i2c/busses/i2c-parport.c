@@ -308,7 +308,7 @@ static void i2c_parport_attach(struct parport *port)
 	/* Fill the rest of the structure */
 	adapter->adapter.owner = THIS_MODULE;
 	adapter->adapter.class = I2C_CLASS_HWMON;
-	strlcpy(adapter->adapter.name, "Parallel port adapter",
+	strscpy(adapter->adapter.name, "Parallel port adapter",
 		sizeof(adapter->adapter.name));
 	adapter->algo_data = parport_algo_data;
 	/* Slow down if we can't sense SCL */
