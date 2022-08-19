@@ -103,16 +103,14 @@ static int acp_pci_probe(struct pci_dev *pci, const struct pci_device_id *pci_id
 	addr = pci_resource_start(pci, 0);
 	chip->base = devm_ioremap(&pci->dev, addr, pci_resource_len(pci, 0));
 	if (!chip->base) {
-		platform_device_unregister(dmic_dev);
 		ret = -ENOMEM;
-		goto release_regions;
+		goto unregister_dmic_dev;
 	}
 
 	res = devm_kzalloc(&pci->dev, sizeof(struct resource) * num_res, GFP_KERNEL);
 	if (!res) {
-		platform_device_unregister(dmic_dev);
 		ret = -ENOMEM;
-		goto release_regions;
+		goto unregister_dmic_dev;
 	}
 
 	for (i = 0; i < num_res; i++, res_acp++) {
@@ -139,13 +137,14 @@ static int acp_pci_probe(struct pci_dev *pci, const struct pci_device_id *pci_id
 	pdev = platform_device_register_full(&pdevinfo);
 	if (IS_ERR(pdev)) {
 		dev_err(&pci->dev, "cannot register %s device\n", pdevinfo.name);
-		platform_device_unregister(dmic_dev);
 		ret = PTR_ERR(pdev);
-		goto release_regions;
+		goto unregister_dmic_dev;
 	}
 
 	return ret;
 
+unregister_dmic_dev:
+	platform_device_unregister(dmic_dev);
 release_regions:
 	pci_release_regions(pci);
 disable_pci:
