@@ -219,9 +219,8 @@ struct rk_hdmirx_dev {
 	bool initialized;
 	bool freq_qos_add;
 	bool get_timing;
-	u8 hdcp_enable;
-	u8 hdcp_support;
 	bool cec_enable;
+	u8 hdcp_enable;
 	u32 num_clks;
 	u32 edid_blocks_written;
 	u32 hpd_trigger_level;
@@ -1048,7 +1047,6 @@ static void hdmirx_register_hdcp(struct device *dev,
 		.hpd_config = hdmirx_hpd_config,
 		.tx_5v_power = tx_5v_power_present,
 		.enable = hdcp_enable,
-		.hdcp_support = hdmirx_dev->hdcp_support,
 		.dev = hdmirx_dev->dev,
 	};
 
@@ -1299,6 +1297,8 @@ static void hdmirx_format_change(struct rk_hdmirx_dev *hdmirx_dev)
 	}
 
 	hdmirx_dev->get_timing = true;
+	if (hdmirx_dev->hdcp && hdmirx_dev->hdcp->hdcp_start)
+		hdmirx_dev->hdcp->hdcp_start(hdmirx_dev->hdcp);
 	v4l2_dbg(1, debug, v4l2_dev, "%s: queue res_chg_event\n", __func__);
 	v4l2_event_queue(&stream->vdev, &ev_src_chg);
 }
@@ -1422,10 +1422,6 @@ static void hdmirx_dma_config(struct rk_hdmirx_dev *hdmirx_dev)
 
 static void hdmirx_submodule_init(struct rk_hdmirx_dev *hdmirx_dev)
 {
-	/* Note: if not config HDCP2_CONFIG, there will be some errors; */
-	hdmirx_update_bits(hdmirx_dev, HDCP2_CONFIG,
-			   HDCP2_SWITCH_OVR_EN,
-			   HDCP2_SWITCH_OVR_EN);
 	hdmirx_scdc_init(hdmirx_dev);
 	hdmirx_controller_init(hdmirx_dev);
 }
@@ -2022,9 +2018,11 @@ static void process_signal_change(struct rk_hdmirx_dev *hdmirx_dev)
 			HDMIRX_AXI_ERROR_INT_EN, 0);
 	hdmirx_reset_dma(hdmirx_dev);
 	hdmirx_dev->get_timing = false;
+	if (hdmirx_dev->hdcp && hdmirx_dev->hdcp->hdcp_stop)
+		hdmirx_dev->hdcp->hdcp_stop(hdmirx_dev->hdcp);
 	schedule_delayed_work_on(hdmirx_dev->bound_cpu,
 			&hdmirx_dev->delayed_work_res_change,
-			msecs_to_jiffies(50));
+			msecs_to_jiffies(800));
 }
 
 static void avpunit_0_int_handler(struct rk_hdmirx_dev *hdmirx_dev,
@@ -2435,8 +2433,6 @@ static void hdmirx_plugin(struct rk_hdmirx_dev *hdmirx_dev)
 	hdmirx_dma_config(hdmirx_dev);
 	hdmirx_interrupts_setup(hdmirx_dev, true);
 	hdmirx_audio_handle_plugged_change(hdmirx_dev, 1);
-	if (hdmirx_dev->hdcp && hdmirx_dev->hdcp->hdcp_start)
-		hdmirx_dev->hdcp->hdcp_start(hdmirx_dev->hdcp);
 }
 
 static void hdmirx_plugout(struct rk_hdmirx_dev *hdmirx_dev)
@@ -2946,18 +2942,11 @@ static int hdmirx_parse_dt(struct rk_hdmirx_dev *hdmirx_dev)
 		dev_warn(dev, "failed to get hpd-trigger-level, set high as default\n");
 	}
 
-	if (of_property_read_bool(np, "hdcp1x-enable")) {
-		hdmirx_dev->hdcp_support |= HDCP_1X_ENABLE;
+	if (of_property_read_bool(np, "hdcp1x-enable"))
 		hdmirx_dev->hdcp_enable = HDCP_1X_ENABLE;
-	}
-	if (of_property_read_bool(np, "hdcp2x-enable")) {
-		hdmirx_dev->hdcp_support |= HDCP_2X_ENABLE;
+
+	if (of_property_read_bool(np, "hdcp2x-enable"))
 		hdmirx_dev->hdcp_enable = HDCP_2X_ENABLE;
-	}
-	if (of_property_read_bool(np, "hdcp1x-default-enable")) {
-		hdmirx_dev->hdcp_support |= HDCP_1X_ENABLE;
-		hdmirx_dev->hdcp_enable = HDCP_1X_ENABLE;
-	}
 
 	if (of_property_read_bool(np, "cec-enable"))
 		hdmirx_dev->cec_enable = true;

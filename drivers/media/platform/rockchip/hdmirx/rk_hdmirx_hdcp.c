@@ -81,6 +81,7 @@ static int rk_hdmirx_hdcp_load_key(struct rk_hdmirx_hdcp *hdcp)
 {
 	int ret;
 
+	hdcp->status = HDMIRX_HDCP_DISABLED;
 	if (!hdcp->keys_is_load) {
 		ret = hdcp_load_keys_cb(hdcp);
 		if (ret)
@@ -95,10 +96,8 @@ static int rk_hdmirx_hdcp_load_key(struct rk_hdmirx_hdcp *hdcp)
 
 	hdmirx_hdcp_update_bits(hdcp, HDCP2_CONFIG,
 				HDCP2_CONNECTED |
-				HDCP2_SWITCH_OVR_VALUE |
-				HDCP2_SWITCH_OVR_EN,
-				HDCP2_CONNECTED |
-				HDCP2_SWITCH_OVR_EN);
+				HDCP2_SWITCH_OVR_VALUE,
+				HDCP2_CONNECTED);
 
 	return 0;
 }
@@ -113,6 +112,9 @@ static int rk_hdmirx_hdcp1x_start(struct rk_hdmirx_hdcp *hdcp)
 
 static int rk_hdmirx_hdcp1x_stop(struct rk_hdmirx_hdcp *hdcp)
 {
+	if (hdcp->status == HDMIRX_HDCP_DISABLED)
+		return 0;
+
 	hdmirx_hdcp_update_bits(hdcp, GLOBAL_SWENABLE, HDCP_ENABLE, 0);
 	hdcp->status = HDMIRX_HDCP_DISABLED;
 
@@ -129,8 +131,8 @@ static int rk_hdmirx_hdcp2x_start(struct rk_hdmirx_hdcp *hdcp)
 {
 	hdmirx_hdcp_update_bits(hdcp, HDCP2_CONFIG,
 				HDCP2_SWITCH_OVR_VALUE |
-				HDCP2_SWITCH_LCK,
-				HDCP2_SWITCH_OVR_VALUE |
+				HDCP2_SWITCH_LCK |
+				HDCP2_SWITCH_OVR_EN,
 				HDCP2_SWITCH_LCK);
 	if (hdcp->tx_5v_power(hdcp->hdmirx))
 		hdmirx_hdcp_write(hdcp, HDCP2_ESM_P0_GPIO_IN, 0x2);
@@ -141,13 +143,12 @@ static int rk_hdmirx_hdcp2x_start(struct rk_hdmirx_hdcp *hdcp)
 
 static int rk_hdmirx_hdcp2x_stop(struct rk_hdmirx_hdcp *hdcp)
 {
-	rk_hdmirx_hdcp2_hpd_config(hdcp, false);
 	hdmirx_hdcp_write(hdcp, HDCP2_ESM_P0_GPIO_IN, 0x0);
 	hdmirx_hdcp_update_bits(hdcp, HDCP2_CONFIG,
 				HDCP2_SWITCH_OVR_VALUE |
-				HDCP2_SWITCH_LCK, 0);
-	msleep(300);
-	rk_hdmirx_hdcp2_hpd_config(hdcp, true);
+				HDCP2_SWITCH_LCK |
+				HDCP2_SWITCH_OVR_EN,
+				HDCP2_SWITCH_OVR_EN);
 
 	return 0;
 }
@@ -169,13 +170,15 @@ static void rk_hdmirx_hdcp2_connect_ctrl(struct rk_hdmirx_hdcp *hdcp, bool en)
 
 static int rk_hdmirx_hdcp_start(struct rk_hdmirx_hdcp *hdcp)
 {
-	if ((hdcp->hdcp_support & HDCP_2X_ENABLE) &&
-	    hdcp->enable == HDCP_2X_ENABLE) {
+	if (hdcp->enable == HDCP_2X_ENABLE) {
+		rk_hdmirx_hdcp1x_start(hdcp);
 		rk_hdmirx_hdcp2x_start(hdcp);
 		return 0;
 	}
-	if ((hdcp->hdcp_support & HDCP_1X_ENABLE) &&
-	    hdcp->enable == HDCP_1X_ENABLE)
+	hdmirx_hdcp_update_bits(hdcp, HDCP2_CONFIG,
+				HDCP2_SWITCH_OVR_EN,
+				HDCP2_SWITCH_OVR_EN);
+	if (hdcp->enable == HDCP_1X_ENABLE)
 		rk_hdmirx_hdcp1x_start(hdcp);
 
 	return 0;
@@ -183,18 +186,13 @@ static int rk_hdmirx_hdcp_start(struct rk_hdmirx_hdcp *hdcp)
 
 static int rk_hdmirx_hdcp_stop(struct rk_hdmirx_hdcp *hdcp)
 {
-	if ((hdcp->hdcp_support & HDCP_2X_ENABLE) &&
-	    hdcp->enable == HDCP_2X_ENABLE) {
-		rk_hdmirx_hdcp2x_stop(hdcp);
-		dev_dbg(hdcp->dev, "hdcp2 stop\n");
-	}
+	if (!hdcp->enable)
+		return 0;
 
-	if ((hdcp->hdcp_support & HDCP_1X_ENABLE) &&
-	    hdcp->enable == HDCP_1X_ENABLE) {
-		rk_hdmirx_hdcp1x_stop(hdcp);
-		dev_dbg(hdcp->dev, "hdcp1x stop\n");
-	}
-	hdcp->enable = 0;
+	if (hdcp->enable == HDCP_2X_ENABLE)
+		rk_hdmirx_hdcp2x_stop(hdcp);
+	rk_hdmirx_hdcp1x_stop(hdcp);
+	dev_dbg(hdcp->dev, "hdcp stop\n");
 
 	return 0;
 }
@@ -215,7 +213,7 @@ static ssize_t enable_store(struct device *device,
 			    struct device_attribute *attr,
 			    const char *buf, size_t count)
 {
-	int enable, hdcp_support;
+	int enable;
 	struct rk_hdmirx_hdcp *hdcp = g_hdmirx_hdcp;
 
 	if (!hdcp)
@@ -224,31 +222,23 @@ static ssize_t enable_store(struct device *device,
 	if (kstrtoint(buf, 10, &enable))
 		return -EINVAL;
 
-	if (hdcp->hdcp_support & HDCP_2X_ENABLE)
-		hdcp_support = HDCP_2X_ENABLE;
-	else if (hdcp->hdcp_support & HDCP_1X_ENABLE)
-		hdcp_support = HDCP_1X_ENABLE;
-	else
-		hdcp_support = 0;
-
-	if (enable > hdcp_support)
+	if (enable > hdcp->hdcp_support)
 		return count;
 
 	if (hdcp->enable != enable) {
+		rk_hdmirx_hdcp2_hpd_config(hdcp, false);
 		if (enable == HDCP_2X_ENABLE) {
-			if (hdcp->enable == HDCP_1X_ENABLE)
-				rk_hdmirx_hdcp1x_stop(hdcp);
+			rk_hdmirx_hdcp1x_start(hdcp);
 			rk_hdmirx_hdcp2x_start(hdcp);
 		} else if (enable == HDCP_1X_ENABLE) {
 			if (hdcp->enable == HDCP_2X_ENABLE)
 				rk_hdmirx_hdcp2x_stop(hdcp);
 			rk_hdmirx_hdcp1x_start(hdcp);
 		} else {
-			if (hdcp->enable == HDCP_2X_ENABLE)
-				rk_hdmirx_hdcp2x_stop(hdcp);
-			if (hdcp->enable == HDCP_1X_ENABLE)
-				rk_hdmirx_hdcp1x_stop(hdcp);
+			rk_hdmirx_hdcp_stop(hdcp);
 		}
+		msleep(300);
+		rk_hdmirx_hdcp2_hpd_config(hdcp, true);
 		hdcp->enable = enable;
 	}
 
@@ -263,31 +253,27 @@ static ssize_t status_show(struct device *device,
 	int status = HDMIRX_HDCP_DISABLED;
 	struct rk_hdmirx_hdcp *hdcp = g_hdmirx_hdcp;
 	u32 val;
-	int n;
+	int dectypt, n = 0;
 
 	if (!hdcp)
 		return 0;
 
+	if (!hdcp->enable)
+		return snprintf(buf, PAGE_SIZE, "HDCP Disable\n");
+
 	if (hdcp->enable == HDCP_2X_ENABLE) {
-		val = hdmirx_hdcp_read(hdcp, HDCP2_STATUS);
-		n = snprintf(buf, PAGE_SIZE, "HDCP2:\n%s\n",
-			       (val & BIT(0)) ? "Dectypted" : "No dectypted");
-
-		val = hdmirx_hdcp_read(hdcp, HDCP2_ESM_P0_GPIO_OUT);
-		if (val & BIT(0))
-			n += snprintf(buf + n, PAGE_SIZE - n, "Capable\n");
-		if (val & BIT(1))
-			n += snprintf(buf + n, PAGE_SIZE - n, "Not capable\n");
-		if (val & BIT(2))
-			n += snprintf(buf + n, PAGE_SIZE - n, "Authenticated success\n");
-		if (val & BIT(3))
-			n += snprintf(buf + n, PAGE_SIZE - n, "Authenticated failed\n");
-		if (val & BIT(4))
-			n += snprintf(buf + n, PAGE_SIZE - n, "Link Error\n");
-		if (val & BIT(7))
-			n += snprintf(buf + n, PAGE_SIZE - n, "AKE Init or SKE done\n");
-
-		return n;
+		dectypt = hdmirx_hdcp_read(hdcp, HDCP2_STATUS) & BIT(0);
+		if (dectypt) {
+			val = hdmirx_hdcp_read(hdcp, HDCP2_ESM_P0_GPIO_OUT);
+			if (val & BIT(2))
+				n += snprintf(buf + n, PAGE_SIZE - n,
+					      "HDCP2.3: Authenticated success\n");
+			else
+				n += snprintf(buf + n, PAGE_SIZE - n,
+					      "HDCP2.3: Authenticated failed\n");
+			return n;
+		}
+		n += snprintf(buf, PAGE_SIZE, "HDCP2.3: No dectypted\n");
 	}
 
 	status = hdcp->status;
@@ -302,16 +288,17 @@ static ssize_t status_show(struct device *device,
 		else
 			status = HDMIRX_HDCP_AUTH_FAIL;
 	}
-	if (status == HDMIRX_HDCP_DISABLED)
-		return snprintf(buf, PAGE_SIZE, "hdcp disable\n");
-	else if (status == HDMIRX_HDCP_AUTH_START)
-		return snprintf(buf, PAGE_SIZE, "hdcp_auth_start\n");
+
+	if (status == HDMIRX_HDCP_AUTH_START)
+		n += snprintf(buf + n, PAGE_SIZE, "HDCP1.4: Authenticated start\n");
 	else if (status == HDMIRX_HDCP_AUTH_SUCCESS)
-		return snprintf(buf, PAGE_SIZE, "hdcp_auth_success\n");
+		n += snprintf(buf + n, PAGE_SIZE, "HDCP1.4: Authenticated success\n");
 	else if (status == HDMIRX_HDCP_AUTH_FAIL)
-		return snprintf(buf, PAGE_SIZE, "hdcp_auth_fail\n");
+		n += snprintf(buf + n, PAGE_SIZE, "HDCP1.4: Authenticated failed\n");
 	else
-		return snprintf(buf, PAGE_SIZE, "unknown status\n");
+		n += snprintf(buf + n, PAGE_SIZE, "HDCP1.4: Unknown status\n");
+
+	return n;
 }
 
 static DEVICE_ATTR_RO(status);
@@ -345,7 +332,7 @@ struct rk_hdmirx_hdcp *rk_hdmirx_hdcp_register(struct rk_hdmirx_hdcp *hdcp_data)
 	hdcp->tx_5v_power = hdcp_data->tx_5v_power;
 	hdcp->hpd_config = hdcp_data->hpd_config;
 	hdcp->enable = hdcp_data->enable;
-	hdcp->hdcp_support = hdcp_data->hdcp_support;
+	hdcp->hdcp_support = hdcp_data->enable;
 	hdcp->dev = hdcp_data->dev;
 	g_hdmirx_hdcp = hdcp;
 	hdcp->mdev.minor = MISC_DYNAMIC_MINOR;
