@@ -115,8 +115,4 @@ struct vport_cmd_tag {
 void lpfc_vport_set_state(struct lpfc_vport *vport,
 			  enum fc_vport_state new_state);
 
-void lpfc_vport_reset_stat_data(struct lpfc_vport *);
-void lpfc_alloc_bucket(struct lpfc_vport *);
-void lpfc_free_bucket(struct lpfc_vport *);
-
 #endif /* H_LPFC_VPORT */

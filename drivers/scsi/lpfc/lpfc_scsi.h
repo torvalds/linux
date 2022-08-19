@@ -126,10 +126,6 @@ struct fcp_cmnd {
 
 };
 
-struct lpfc_scsicmd_bkt {
-	uint32_t cmd_count;
-};
-
 #define LPFC_SCSI_DMA_EXT_SIZE	264
 #define LPFC_BPL_SIZE		1024
 #define MDAC_DIRECT_CMD		0x22
