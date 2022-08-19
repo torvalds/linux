@@ -65,8 +65,8 @@
 		__overlay__ {
 			clock-frequency = <100000>;
 			i2c-sda-hold-time-ns = <300>;
-			i2c-sda-falling-time-ns = <3000>;
-			i2c-scl-falling-time-ns = <3000>;
+			i2c-sda-falling-time-ns = <510>;
+			i2c-scl-falling-time-ns = <510>;
 			auto_calc_scl_lhcnt;
 			pinctrl-names = "default";
 			pinctrl-0 = <&dt_i2c1_pins>;
