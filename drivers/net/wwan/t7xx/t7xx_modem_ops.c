@@ -37,7 +37,6 @@
 #include "t7xx_modem_ops.h"
 #include "t7xx_netdev.h"
 #include "t7xx_pci.h"
-#include "t7xx_pci_rescan.h"
 #include "t7xx_pcie_mac.h"
 #include "t7xx_port.h"
 #include "t7xx_port_proxy.h"
@@ -45,7 +44,6 @@
 #include "t7xx_state_monitor.h"
 
 #define RT_ID_MD_PORT_ENUM	0
-#define RT_ID_AP_PORT_ENUM	1
 /* Modem feature query identification code - "ICCC" */
 #define MD_FEATURE_QUERY_ID	0x49434343
 
@@ -193,10 +191,6 @@ static irqreturn_t t7xx_rgu_isr_thread(int irq, void *data)
 
 	msleep(RGU_RESET_DELAY_MS);
 	t7xx_reset_device_via_pmic(t7xx_dev);
-
-	if (!t7xx_dev->hp_enable)
-		t7xx_rescan_queue_work(t7xx_dev->pdev);
-
 	return IRQ_HANDLED;
 }
 
@@ -302,7 +296,6 @@ static void t7xx_md_exception(struct t7xx_modem *md, enum hif_ex_stage stage)
 	}
 
 	t7xx_cldma_exception(md->md_ctrl[CLDMA_ID_MD], stage);
-	t7xx_cldma_exception(md->md_ctrl[CLDMA_ID_AP], stage);
 
 	if (stage == HIF_EX_INIT)
 		t7xx_mhccif_h2d_swint_trigger(t7xx_dev, H2D_CH_EXCEPTION_ACK);
@@ -431,7 +424,7 @@ static int t7xx_parse_host_rt_data(struct t7xx_fsm_ctl *ctl, struct t7xx_sys_inf
 		if (ft_spt_st != MTK_FEATURE_MUST_BE_SUPPORTED)
 			return -EINVAL;
 
-		if (i == RT_ID_MD_PORT_ENUM || i == RT_ID_AP_PORT_ENUM)
+		if (i == RT_ID_MD_PORT_ENUM)
 			t7xx_port_enum_msg_handler(ctl->md, rt_feature->data);
 	}
 
@@ -461,12 +454,12 @@ static int t7xx_core_reset(struct t7xx_modem *md)
 	return 0;
 }
 
-static void t7xx_core_hk_handler(struct t7xx_modem *md, struct t7xx_sys_info *core_info,
-				 struct t7xx_fsm_ctl *ctl,
+static void t7xx_core_hk_handler(struct t7xx_modem *md, struct t7xx_fsm_ctl *ctl,
 				 enum t7xx_fsm_event_state event_id,
 				 enum t7xx_fsm_event_state err_detect)
 {
 	struct t7xx_fsm_event *event = NULL, *event_next;
+	struct t7xx_sys_info *core_info = &md->core_md;
 	struct device *dev = &md->t7xx_dev->pdev->dev;
 	unsigned long flags;
 	int ret;
@@ -532,37 +525,23 @@ static void t7xx_md_hk_wq(struct work_struct *work)
 
 	/* Clear the HS2 EXIT event appended in core_reset() */
 	t7xx_fsm_clr_event(ctl, FSM_EVENT_MD_HS2_EXIT);
-	t7xx_cldma_switch_cfg(md->md_ctrl[CLDMA_ID_MD], CLDMA_SHARED_Q_CFG);
+	t7xx_cldma_switch_cfg(md->md_ctrl[CLDMA_ID_MD]);
 	t7xx_cldma_start(md->md_ctrl[CLDMA_ID_MD]);
 	t7xx_fsm_broadcast_state(ctl, MD_STATE_WAITING_FOR_HS2);
 	md->core_md.handshake_ongoing = true;
-	t7xx_core_hk_handler(md, &md->core_md, ctl, FSM_EVENT_MD_HS2, FSM_EVENT_MD_HS2_EXIT);
-}
-
-static void t7xx_ap_hk_wq(struct work_struct *work)
-{
-	struct t7xx_modem *md = container_of(work, struct t7xx_modem, ap_handshake_work);
-	struct t7xx_fsm_ctl *ctl = md->fsm_ctl;
-
-	 /* Clear the HS2 EXIT event appended in t7xx_core_reset(). */
-	t7xx_fsm_clr_event(ctl, FSM_EVENT_AP_HS2_EXIT);
-	t7xx_cldma_stop(md->md_ctrl[CLDMA_ID_AP]);
-	t7xx_cldma_switch_cfg(md->md_ctrl[CLDMA_ID_AP], CLDMA_SHARED_Q_CFG);
-	t7xx_cldma_start(md->md_ctrl[CLDMA_ID_AP]);
-	md->core_ap.handshake_ongoing = true;
-	t7xx_core_hk_handler(md, &md->core_ap, ctl, FSM_EVENT_AP_HS2, FSM_EVENT_AP_HS2_EXIT);
+	t7xx_core_hk_handler(md, ctl, FSM_EVENT_MD_HS2, FSM_EVENT_MD_HS2_EXIT);
 }
 
 void t7xx_md_event_notify(struct t7xx_modem *md, enum md_event_id evt_id)
 {
 	struct t7xx_fsm_ctl *ctl = md->fsm_ctl;
+	void __iomem *mhccif_base;
 	unsigned int int_sta;
 	unsigned long flags;
 
 	switch (evt_id) {
 	case FSM_PRE_START:
-		t7xx_mhccif_mask_clr(md->t7xx_dev, D2H_INT_PORT_ENUM | D2H_INT_ASYNC_MD_HK |
-						   D2H_INT_ASYNC_AP_HK);
+		t7xx_mhccif_mask_clr(md->t7xx_dev, D2H_INT_PORT_ENUM);
 		break;
 
 	case FSM_START:
@@ -575,26 +554,16 @@ void t7xx_md_event_notify(struct t7xx_modem *md, enum md_event_id evt_id)
 			ctl->exp_flg = true;
 			md->exp_id &= ~D2H_INT_EXCEPTION_INIT;
 			md->exp_id &= ~D2H_INT_ASYNC_MD_HK;
-			md->exp_id &= ~D2H_INT_ASYNC_AP_HK;
 		} else if (ctl->exp_flg) {
 			md->exp_id &= ~D2H_INT_ASYNC_MD_HK;
-			md->exp_id &= ~D2H_INT_ASYNC_AP_HK;
+		} else if (md->exp_id & D2H_INT_ASYNC_MD_HK) {
+			queue_work(md->handshake_wq, &md->handshake_work);
+			md->exp_id &= ~D2H_INT_ASYNC_MD_HK;
+			mhccif_base = md->t7xx_dev->base_addr.mhccif_rc_base;
+			iowrite32(D2H_INT_ASYNC_MD_HK, mhccif_base + REG_EP2RC_SW_INT_ACK);
+			t7xx_mhccif_mask_set(md->t7xx_dev, D2H_INT_ASYNC_MD_HK);
 		} else {
-			void __iomem *mhccif_base = md->t7xx_dev->base_addr.mhccif_rc_base;
-
-			if (md->exp_id & D2H_INT_ASYNC_MD_HK) {
-				queue_work(md->handshake_wq, &md->handshake_work);
-				md->exp_id &= ~D2H_INT_ASYNC_MD_HK;
-				iowrite32(D2H_INT_ASYNC_MD_HK, mhccif_base + REG_EP2RC_SW_INT_ACK);
-				t7xx_mhccif_mask_set(md->t7xx_dev, D2H_INT_ASYNC_MD_HK);
-			}
-
-			if (md->exp_id & D2H_INT_ASYNC_AP_HK) {
-				queue_work(md->ap_handshake_wq, &md->ap_handshake_work);
-				md->exp_id &= ~D2H_INT_ASYNC_AP_HK;
-				iowrite32(D2H_INT_ASYNC_AP_HK, mhccif_base + REG_EP2RC_SW_INT_ACK);
-				t7xx_mhccif_mask_set(md->t7xx_dev, D2H_INT_ASYNC_AP_HK);
-			}
+			t7xx_mhccif_mask_clr(md->t7xx_dev, D2H_INT_ASYNC_MD_HK);
 		}
 		spin_unlock_irqrestore(&md->exp_lock, flags);
 
@@ -607,7 +576,6 @@ void t7xx_md_event_notify(struct t7xx_modem *md, enum md_event_id evt_id)
 
 	case FSM_READY:
 		t7xx_mhccif_mask_set(md->t7xx_dev, D2H_INT_ASYNC_MD_HK);
-		t7xx_mhccif_mask_set(md->t7xx_dev, D2H_INT_ASYNC_AP_HK);
 		break;
 
 	default:
@@ -659,19 +627,6 @@ static struct t7xx_modem *t7xx_md_alloc(struct t7xx_pci_dev *t7xx_dev)
 	md->core_md.feature_set[RT_ID_MD_PORT_ENUM] &= ~FEATURE_MSK;
 	md->core_md.feature_set[RT_ID_MD_PORT_ENUM] |=
 		FIELD_PREP(FEATURE_MSK, MTK_FEATURE_MUST_BE_SUPPORTED);
-
-	md->ap_handshake_wq = alloc_workqueue("%s", WQ_UNBOUND | WQ_MEM_RECLAIM | WQ_HIGHPRI,
-					      0, "ap_hk_wq");
-	if (!md->ap_handshake_wq) {
-		destroy_workqueue(md->handshake_wq);
-		return NULL;
-	}
-
-	INIT_WORK(&md->ap_handshake_work, t7xx_ap_hk_wq);
-	md->core_ap.feature_set[RT_ID_AP_PORT_ENUM] &= ~FEATURE_MSK;
-	md->core_ap.feature_set[RT_ID_AP_PORT_ENUM] |=
-		FIELD_PREP(FEATURE_MSK, MTK_FEATURE_MUST_BE_SUPPORTED);
-
 	return md;
 }
 
@@ -683,7 +638,6 @@ int t7xx_md_reset(struct t7xx_pci_dev *t7xx_dev)
 	md->exp_id = 0;
 	t7xx_fsm_reset(md);
 	t7xx_cldma_reset(md->md_ctrl[CLDMA_ID_MD]);
-	t7xx_cldma_reset(md->md_ctrl[CLDMA_ID_AP]);
 	t7xx_port_proxy_reset(md->port_prox);
 	md->md_init_finish = true;
 	return t7xx_core_reset(md);
@@ -713,10 +667,6 @@ int t7xx_md_init(struct t7xx_pci_dev *t7xx_dev)
 	if (ret)
 		goto err_destroy_hswq;
 
-	ret = t7xx_cldma_alloc(CLDMA_ID_AP, t7xx_dev);
-	if (ret)
-		goto err_destroy_hswq;
-
 	ret = t7xx_fsm_init(md);
 	if (ret)
 		goto err_destroy_hswq;
@@ -729,16 +679,12 @@ int t7xx_md_init(struct t7xx_pci_dev *t7xx_dev)
 	if (ret)
 		goto err_uninit_ccmni;
 
-	ret = t7xx_cldma_init(md->md_ctrl[CLDMA_ID_AP]);
+	ret = t7xx_port_proxy_init(md);
 	if (ret)
 		goto err_uninit_md_cldma;
 
-	ret = t7xx_port_proxy_init(md);
-	if (ret)
-		goto err_uninit_ap_cldma;
-
 	ret = t7xx_fsm_append_cmd(md->fsm_ctl, FSM_CMD_START, 0);
-	if (ret) /* t7xx_fsm_uninit() flushes cmd queue */
+	if (ret) /* fsm_uninit flushes cmd queue */
 		goto err_uninit_proxy;
 
 	t7xx_md_sys_sw_init(t7xx_dev);
@@ -747,9 +693,6 @@ int t7xx_md_init(struct t7xx_pci_dev *t7xx_dev)
 
 err_uninit_proxy:
 	t7xx_port_proxy_uninit(md->port_prox);
-
-err_uninit_ap_cldma:
-	t7xx_cldma_exit(md->md_ctrl[CLDMA_ID_AP]);
 
 err_uninit_md_cldma:
 	t7xx_cldma_exit(md->md_ctrl[CLDMA_ID_MD]);
@@ -762,7 +705,6 @@ err_uninit_fsm:
 
 err_destroy_hswq:
 	destroy_workqueue(md->handshake_wq);
-	destroy_workqueue(md->ap_handshake_wq);
 	dev_err(&t7xx_dev->pdev->dev, "Modem init failed\n");
 	return ret;
 }
@@ -778,10 +720,8 @@ void t7xx_md_exit(struct t7xx_pci_dev *t7xx_dev)
 
 	t7xx_fsm_append_cmd(md->fsm_ctl, FSM_CMD_PRE_STOP, FSM_CMD_FLAG_WAIT_FOR_COMPLETION);
 	t7xx_port_proxy_uninit(md->port_prox);
-	t7xx_cldma_exit(md->md_ctrl[CLDMA_ID_AP]);
 	t7xx_cldma_exit(md->md_ctrl[CLDMA_ID_MD]);
 	t7xx_ccmni_exit(t7xx_dev);
 	t7xx_fsm_uninit(md);
 	destroy_workqueue(md->handshake_wq);
-	destroy_workqueue(md->ap_handshake_wq);
 }

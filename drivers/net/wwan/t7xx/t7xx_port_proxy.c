@@ -77,29 +77,6 @@ static const struct t7xx_port_conf t7xx_md_port_conf[] = {
 		.path_id = CLDMA_ID_MD,
 		.ops = &ctl_port_ops,
 		.name = "t7xx_ctrl",
-	}, {
-		.tx_ch = PORT_CH_AP_CONTROL_TX,
-		.rx_ch = PORT_CH_AP_CONTROL_RX,
-		.txq_index = Q_IDX_CTRL,
-		.rxq_index = Q_IDX_CTRL,
-		.path_id = CLDMA_ID_AP,
-		.ops = &ctl_port_ops,
-		.name = "t7xx_ap_ctrl",
-	},
-};
-
-static struct t7xx_port_conf t7xx_early_port_conf[] = {
-	{
-		.tx_ch = 0xffff,
-		.rx_ch = 0xffff,
-		.txq_index = 1,
-		.rxq_index = 1,
-		.txq_exp_index = 1,
-		.rxq_exp_index = 1,
-		.path_id = CLDMA_ID_AP,
-		.is_early_port = true,
-		.ops = &devlink_port_ops,
-		.name = "ttyDUMP",
 	},
 };
 
@@ -217,17 +194,7 @@ int t7xx_port_enqueue_skb(struct t7xx_port *port, struct sk_buff *skb)
 	return 0;
 }
 
-int t7xx_get_port_mtu(struct t7xx_port *port)
-{
-	enum cldma_id path_id = port->port_conf->path_id;
-	int tx_qno = t7xx_port_get_queue_no(port);
-	struct cldma_ctrl *md_ctrl;
-
-	md_ctrl = port->t7xx_dev->md->md_ctrl[path_id];
-	return md_ctrl->tx_ring[tx_qno].pkt_size;
-}
-
-int t7xx_port_send_raw_skb(struct t7xx_port *port, struct sk_buff *skb)
+static int t7xx_port_send_raw_skb(struct t7xx_port *port, struct sk_buff *skb)
 {
 	enum cldma_id path_id = port->port_conf->path_id;
 	struct cldma_ctrl *md_ctrl;
@@ -342,26 +309,6 @@ static void t7xx_proxy_setup_ch_mapping(struct port_proxy *port_prox)
 	}
 }
 
-static int t7xx_port_proxy_recv_skb_from_queue(struct t7xx_pci_dev *t7xx_dev,
-					       struct cldma_queue *queue, struct sk_buff *skb)
-{
-	struct port_proxy *port_prox = t7xx_dev->md->port_prox;
-	const struct t7xx_port_conf *port_conf;
-	struct t7xx_port *port;
-	int ret;
-
-	port = port_prox->ports;
-	port_conf = port->port_conf;
-
-	ret = port_conf->ops->recv_skb(port, skb);
-	if (ret < 0 && ret != -ENOBUFS) {
-		dev_err(port->dev, "drop on RX ch %d, %d\n", port_conf->rx_ch, ret);
-		dev_kfree_skb_any(skb);
-	}
-
-	return ret;
-}
-
 static struct t7xx_port *t7xx_port_proxy_find_port(struct t7xx_pci_dev *t7xx_dev,
 						   struct cldma_queue *queue, u16 channel)
 {
@@ -377,22 +324,6 @@ static struct t7xx_port *t7xx_port_proxy_find_port(struct t7xx_pci_dev *t7xx_dev
 
 		if (queue->md_ctrl->hif_id == port_conf->path_id &&
 		    channel == port_conf->rx_ch)
-			return port;
-	}
-
-	return NULL;
-}
-
-struct t7xx_port *t7xx_port_proxy_get_port_by_name(struct port_proxy *port_prox, char *port_name)
-{
-	const struct t7xx_port_conf *port_conf;
-	struct t7xx_port *port;
-	int i;
-
-	for_each_proxy_port(i, port, port_prox) {
-		port_conf = port->port_conf;
-
-		if (!strncmp(port_conf->name, port_name, strlen(port_conf->name)))
 			return port;
 	}
 
@@ -419,9 +350,6 @@ static int t7xx_port_proxy_recv_skb(struct cldma_queue *queue, struct sk_buff *s
 	u16 seq_num, channel;
 	int ret;
 
-	if (queue->q_type == CLDMA_DEDICATED_Q)
-		return t7xx_port_proxy_recv_skb_from_queue(t7xx_dev, queue, skb);
-
 	channel = FIELD_GET(CCCI_H_CHN_FLD, le32_to_cpu(ccci_h->status));
 	if (t7xx_fsm_get_md_state(ctl) == MD_STATE_INVALID) {
 		dev_err_ratelimited(dev, "Packet drop on channel 0x%x, modem not ready\n", channel);
@@ -436,8 +364,7 @@ static int t7xx_port_proxy_recv_skb(struct cldma_queue *queue, struct sk_buff *s
 
 	seq_num = t7xx_port_next_rx_seq_num(port, ccci_h);
 	port_conf = port->port_conf;
-	if (!port->port_conf->is_early_port)
-		skb_pull(skb, sizeof(*ccci_h));
+	skb_pull(skb, sizeof(*ccci_h));
 
 	ret = port_conf->ops->recv_skb(port, skb);
 	/* Error indicates to try again later */
@@ -489,12 +416,8 @@ static void t7xx_proxy_init_all_ports(struct t7xx_modem *md)
 		if (port_conf->tx_ch == PORT_CH_CONTROL_TX)
 			md->core_md.ctl_port = port;
 
-		if (port_conf->tx_ch == PORT_CH_AP_CONTROL_TX)
-			md->core_ap.ctl_port = port;
-
 		port->t7xx_dev = md->t7xx_dev;
 		port->dev = &md->t7xx_dev->pdev->dev;
-		port->dl = md->t7xx_dev->dl;
 		spin_lock_init(&port->port_update_lock);
 		port->chan_enable = false;
 
@@ -505,58 +428,26 @@ static void t7xx_proxy_init_all_ports(struct t7xx_modem *md)
 	t7xx_proxy_setup_ch_mapping(port_prox);
 }
 
-void t7xx_port_proxy_set_cfg(struct t7xx_modem *md, enum port_cfg_id cfg_id)
-{
-	struct port_proxy *port_prox = md->port_prox;
-	const struct t7xx_port_conf *port_conf;
-	struct device *dev = port_prox->dev;
-	unsigned int port_count;
-	struct t7xx_port *port;
-	int i;
-
-	if (port_prox->cfg_id == cfg_id)
-		return;
-
-	if (port_prox->cfg_id != PORT_CFG_ID_INVALID) {
-		for_each_proxy_port(i, port, port_prox)
-			port->port_conf->ops->uninit(port);
-
-		devm_kfree(dev, port_prox->ports);
-	}
-
-	if (cfg_id == PORT_CFG_ID_EARLY) {
-		port_conf = t7xx_early_port_conf;
-		port_count = ARRAY_SIZE(t7xx_early_port_conf);
-	} else {
-		port_conf = t7xx_md_port_conf;
-		port_count = ARRAY_SIZE(t7xx_md_port_conf);
-	}
-
-	port_prox->ports = devm_kzalloc(dev, sizeof(struct t7xx_port) * port_count, GFP_KERNEL);
-	if (!port_prox->ports)
-		return;
-
-	for (i = 0; i < port_count; i++)
-		port_prox->ports[i].port_conf = &port_conf[i];
-
-	port_prox->cfg_id = cfg_id;
-	port_prox->port_count = port_count;
-	t7xx_proxy_init_all_ports(md);
-}
-
 static int t7xx_proxy_alloc(struct t7xx_modem *md)
 {
+	unsigned int port_count = ARRAY_SIZE(t7xx_md_port_conf);
 	struct device *dev = &md->t7xx_dev->pdev->dev;
 	struct port_proxy *port_prox;
+	int i;
 
-	port_prox = devm_kzalloc(dev, sizeof(*port_prox), GFP_KERNEL);
+	port_prox = devm_kzalloc(dev, sizeof(*port_prox) + sizeof(struct t7xx_port) * port_count,
+				 GFP_KERNEL);
 	if (!port_prox)
 		return -ENOMEM;
 
 	md->port_prox = port_prox;
 	port_prox->dev = dev;
-	t7xx_port_proxy_set_cfg(md, PORT_CFG_ID_EARLY);
 
+	for (i = 0; i < port_count; i++)
+		port_prox->ports[i].port_conf = &t7xx_md_port_conf[i];
+
+	port_prox->port_count = port_count;
+	t7xx_proxy_init_all_ports(md);
 	return 0;
 }
 
@@ -578,7 +469,6 @@ int t7xx_port_proxy_init(struct t7xx_modem *md)
 	if (ret)
 		return ret;
 
-	t7xx_cldma_set_recv_skb(md->md_ctrl[CLDMA_ID_AP], t7xx_port_proxy_recv_skb);
 	t7xx_cldma_set_recv_skb(md->md_ctrl[CLDMA_ID_MD], t7xx_port_proxy_recv_skb);
 	return 0;
 }

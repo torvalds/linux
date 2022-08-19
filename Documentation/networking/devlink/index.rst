@@ -67,4 +67,3 @@ parameters, info versions, and other features it supports.
    prestera
    iosm
    octeontx2
-   t7xx
