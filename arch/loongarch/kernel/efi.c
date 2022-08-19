@@ -69,4 +69,7 @@ void __init efi_init(void)
 	config_tables = early_memremap(efi_config_table, efi_nr_tables * size);
 	efi_config_parse_tables(config_tables, efi_systab->nr_tables, arch_tables);
 	early_memunmap(config_tables, efi_nr_tables * size);
+
+	if (screen_info.orig_video_isVGA == VIDEO_TYPE_EFI)
+		memblock_reserve(screen_info.lfb_base, screen_info.lfb_size);
 }
