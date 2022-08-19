@@ -92,15 +92,11 @@ extern void mapin_ram(void);
 extern void setbat(int index, unsigned long virt, phys_addr_t phys,
 		   unsigned int size, pgprot_t prot);
 
-extern unsigned int rtas_data, rtas_size;
-
-struct hash_pte;
 extern u8 early_hash[];
 
 #endif /* CONFIG_PPC32 */
 
 extern unsigned long __max_low_memory;
-extern phys_addr_t __initial_memory_limit_addr;
 extern phys_addr_t total_memory;
 extern phys_addr_t total_lowmem;
 extern phys_addr_t memstart_addr;

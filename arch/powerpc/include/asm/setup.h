@@ -7,7 +7,6 @@
 #ifndef __ASSEMBLY__
 extern void ppc_printk_progress(char *s, unsigned short hex);
 
-extern unsigned int rtas_data;
 extern unsigned long long memory_limit;
 extern void *zalloc_maybe_bootmem(size_t size, gfp_t mask);
 
