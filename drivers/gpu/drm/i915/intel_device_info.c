@@ -363,7 +363,7 @@ void intel_device_info_runtime_init(struct drm_i915_private *dev_priv)
 				 "Display fused off, disabling\n");
 			info->display.pipe_mask = 0;
 			info->display.cpu_transcoder_mask = 0;
-			info->display.fbc_mask = 0;
+			runtime->fbc_mask = 0;
 		} else if (fuse_strap & IVB_PIPE_C_DISABLE) {
 			drm_info(&dev_priv->drm, "PipeC fused off\n");
 			info->display.pipe_mask &= ~BIT(PIPE_C);
@@ -375,7 +375,7 @@ void intel_device_info_runtime_init(struct drm_i915_private *dev_priv)
 		if (dfsm & SKL_DFSM_PIPE_A_DISABLE) {
 			info->display.pipe_mask &= ~BIT(PIPE_A);
 			info->display.cpu_transcoder_mask &= ~BIT(TRANSCODER_A);
-			info->display.fbc_mask &= ~BIT(INTEL_FBC_A);
+			runtime->fbc_mask &= ~BIT(INTEL_FBC_A);
 		}
 		if (dfsm & SKL_DFSM_PIPE_B_DISABLE) {
 			info->display.pipe_mask &= ~BIT(PIPE_B);
@@ -396,7 +396,7 @@ void intel_device_info_runtime_init(struct drm_i915_private *dev_priv)
 			info->display.has_hdcp = 0;
 
 		if (dfsm & SKL_DFSM_DISPLAY_PM_DISABLE)
-			info->display.fbc_mask = 0;
+			runtime->fbc_mask = 0;
 
 		if (DISPLAY_VER(dev_priv) >= 11 && (dfsm & ICL_DFSM_DMC_DISABLE))
 			info->display.has_dmc = 0;

@@ -217,12 +217,17 @@ struct intel_runtime_info {
 
 	u16 device_id;
 
-	u8 num_sprites[I915_MAX_PIPES];
-	u8 num_scalers[I915_MAX_PIPES];
-
 	u32 rawclk_freq;
 
 	struct intel_step_info step;
+
+	/* display */
+	struct {
+		u8 num_sprites[I915_MAX_PIPES];
+		u8 num_scalers[I915_MAX_PIPES];
+
+		u8 fbc_mask;
+	};
 };
 
 struct intel_device_info {
@@ -253,7 +258,6 @@ struct intel_device_info {
 
 		u8 pipe_mask;
 		u8 cpu_transcoder_mask;
-		u8 fbc_mask;
 		u8 abox_mask;
 
 		struct {
