@@ -892,7 +892,7 @@ void rtw_indicate_disconnect(struct adapter *padapter)
 
 }
 
-inline void rtw_indicate_scan_done(struct adapter *padapter, bool aborted)
+inline void rtw_indicate_scan_done(struct adapter *padapter)
 {
 	indicate_wx_scan_complete_event(padapter);
 }
@@ -1365,7 +1365,7 @@ void rtw_scan_timeout_handler (struct adapter *adapter)
 	spin_lock_bh(&pmlmepriv->lock);
 	_clr_fwstate_(pmlmepriv, _FW_UNDER_SURVEY);
 	spin_unlock_bh(&pmlmepriv->lock);
-	rtw_indicate_scan_done(adapter, true);
+	rtw_indicate_scan_done(adapter);
 }
 
 static void rtw_auto_scan_handler(struct adapter *padapter)

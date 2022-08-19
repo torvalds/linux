@@ -231,7 +231,7 @@ static int rtw_suspend(struct usb_interface *pusb_intf, pm_message_t message)
 	mutex_unlock(&pwrpriv->lock);
 
 	if (check_fwstate(pmlmepriv, _FW_UNDER_SURVEY))
-		rtw_indicate_scan_done(padapter, 1);
+		rtw_indicate_scan_done(padapter);
 
 	if (check_fwstate(pmlmepriv, _FW_UNDER_LINKING))
 		rtw_indicate_disconnect(padapter);
