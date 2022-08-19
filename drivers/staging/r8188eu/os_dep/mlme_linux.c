@@ -38,16 +38,6 @@ void rtw_init_mlme_timer(struct adapter *padapter)
 	timer_setup(&pmlmepriv->dynamic_chk_timer, _dynamic_check_timer_handlder, 0);
 }
 
-void rtw_os_indicate_connect(struct adapter *adapter)
-{
-
-	rtw_indicate_wx_assoc_event(adapter);
-	netif_carrier_on(adapter->pnetdev);
-	if (adapter->pid[2] != 0)
-		rtw_signal_process(adapter->pid[2], SIGALRM);
-
-}
-
 void rtw_os_indicate_scan_done(struct adapter *padapter, bool aborted)
 {
 	indicate_wx_scan_complete_event(padapter);

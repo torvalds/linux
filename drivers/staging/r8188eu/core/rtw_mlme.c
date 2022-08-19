@@ -851,7 +851,10 @@ void rtw_indicate_connect(struct adapter *padapter)
 
 		rtw_led_control(padapter, LED_CTL_LINK);
 
-		rtw_os_indicate_connect(padapter);
+		rtw_indicate_wx_assoc_event(padapter);
+		netif_carrier_on(padapter->pnetdev);
+		if (padapter->pid[2] != 0)
+			rtw_signal_process(padapter->pid[2], SIGALRM);
 	}
 
 	pmlmepriv->to_roaming = 0;
