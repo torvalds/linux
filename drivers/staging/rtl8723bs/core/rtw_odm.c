@@ -90,11 +90,6 @@ static const char * const odm_dbg_level_str[] = {
 
 #define RTW_ODM_DBG_LEVEL_NUM 6
 
-inline void rtw_odm_dbg_comp_set(struct adapter *adapter, u64 comps)
-{
-	rtw_hal_set_def_var(adapter, HW_DEF_ODM_DBG_FLAG, &comps);
-}
-
 void rtw_odm_dbg_level_msg(void *sel, struct adapter *adapter)
 {
 	u32 dbg_level;
