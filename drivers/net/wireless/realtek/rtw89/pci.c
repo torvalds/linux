@@ -3293,6 +3293,7 @@ static int rtw89_pci_filter_out(struct rtw89_dev *rtwdev)
 
 static void rtw89_pci_clkreq_set(struct rtw89_dev *rtwdev, bool enable)
 {
+	enum rtw89_core_chip_id chip_id = rtwdev->chip->chip_id;
 	int ret;
 
 	if (rtw89_pci_disable_clkreq)
@@ -3303,19 +3304,33 @@ static void rtw89_pci_clkreq_set(struct rtw89_dev *rtwdev, bool enable)
 	if (ret)
 		rtw89_err(rtwdev, "failed to set CLKREQ Delay\n");
 
-	if (enable)
-		ret = rtw89_pci_config_byte_set(rtwdev, RTW89_PCIE_L1_CTRL,
-						RTW89_PCIE_BIT_CLK);
-	else
-		ret = rtw89_pci_config_byte_clr(rtwdev, RTW89_PCIE_L1_CTRL,
-						RTW89_PCIE_BIT_CLK);
-	if (ret)
-		rtw89_err(rtwdev, "failed to %s CLKREQ_L1, ret=%d",
-			  enable ? "set" : "unset", ret);
+	if (chip_id == RTL8852A) {
+		if (enable)
+			ret = rtw89_pci_config_byte_set(rtwdev,
+							RTW89_PCIE_L1_CTRL,
+							RTW89_PCIE_BIT_CLK);
+		else
+			ret = rtw89_pci_config_byte_clr(rtwdev,
+							RTW89_PCIE_L1_CTRL,
+							RTW89_PCIE_BIT_CLK);
+		if (ret)
+			rtw89_err(rtwdev, "failed to %s CLKREQ_L1, ret=%d",
+				  enable ? "set" : "unset", ret);
+	} else if (chip_id == RTL8852C) {
+		rtw89_write32_set(rtwdev, R_AX_PCIE_LAT_CTRL,
+				  B_AX_CLK_REQ_SEL_OPT | B_AX_CLK_REQ_SEL);
+		if (enable)
+			rtw89_write32_set(rtwdev, R_AX_L1_CLK_CTRL,
+					  B_AX_CLK_REQ_N);
+		else
+			rtw89_write32_clr(rtwdev, R_AX_L1_CLK_CTRL,
+					  B_AX_CLK_REQ_N);
+	}
 }
 
 static void rtw89_pci_aspm_set(struct rtw89_dev *rtwdev, bool enable)
 {
+	enum rtw89_core_chip_id chip_id = rtwdev->chip->chip_id;
 	u8 value = 0;
 	int ret;
 
@@ -3334,12 +3349,23 @@ static void rtw89_pci_aspm_set(struct rtw89_dev *rtwdev, bool enable)
 	if (ret)
 		rtw89_err(rtwdev, "failed to read ASPM Delay\n");
 
-	if (enable)
-		ret = rtw89_pci_config_byte_set(rtwdev, RTW89_PCIE_L1_CTRL,
-						RTW89_PCIE_BIT_L1);
-	else
-		ret = rtw89_pci_config_byte_clr(rtwdev, RTW89_PCIE_L1_CTRL,
-						RTW89_PCIE_BIT_L1);
+	if (chip_id == RTL8852A || chip_id == RTL8852B) {
+		if (enable)
+			ret = rtw89_pci_config_byte_set(rtwdev,
+							RTW89_PCIE_L1_CTRL,
+							RTW89_PCIE_BIT_L1);
+		else
+			ret = rtw89_pci_config_byte_clr(rtwdev,
+							RTW89_PCIE_L1_CTRL,
+							RTW89_PCIE_BIT_L1);
+	} else if (chip_id == RTL8852C) {
+		if (enable)
+			rtw89_write32_set(rtwdev, R_AX_PCIE_MIX_CFG_V1,
+					  B_AX_ASPM_CTRL_L1);
+		else
+			rtw89_write32_clr(rtwdev, R_AX_PCIE_MIX_CFG_V1,
+					  B_AX_ASPM_CTRL_L1);
+	}
 	if (ret)
 		rtw89_err(rtwdev, "failed to %s ASPM L1, ret=%d",
 			  enable ? "set" : "unset", ret);
@@ -3400,17 +3426,34 @@ static void rtw89_pci_link_cfg(struct rtw89_dev *rtwdev)
 
 static void rtw89_pci_l1ss_set(struct rtw89_dev *rtwdev, bool enable)
 {
+	enum rtw89_core_chip_id chip_id = rtwdev->chip->chip_id;
 	int ret;
 
-	if (enable)
-		ret = rtw89_pci_config_byte_set(rtwdev, RTW89_PCIE_TIMER_CTRL,
-						RTW89_PCIE_BIT_L1SUB);
-	else
-		ret = rtw89_pci_config_byte_clr(rtwdev, RTW89_PCIE_TIMER_CTRL,
-						RTW89_PCIE_BIT_L1SUB);
-	if (ret)
-		rtw89_err(rtwdev, "failed to %s L1SS, ret=%d",
-			  enable ? "set" : "unset", ret);
+	if (chip_id == RTL8852A || chip_id == RTL8852B) {
+		if (enable)
+			ret = rtw89_pci_config_byte_set(rtwdev,
+							RTW89_PCIE_TIMER_CTRL,
+							RTW89_PCIE_BIT_L1SUB);
+		else
+			ret = rtw89_pci_config_byte_clr(rtwdev,
+							RTW89_PCIE_TIMER_CTRL,
+							RTW89_PCIE_BIT_L1SUB);
+		if (ret)
+			rtw89_err(rtwdev, "failed to %s L1SS, ret=%d",
+				  enable ? "set" : "unset", ret);
+	} else if (chip_id == RTL8852C) {
+		ret = rtw89_pci_config_byte_clr(rtwdev, RTW89_PCIE_L1SS_STS_V1,
+						RTW89_PCIE_BIT_ASPM_L11 |
+						RTW89_PCIE_BIT_PCI_L11);
+		if (ret)
+			rtw89_warn(rtwdev, "failed to unset ASPM L1.1, ret=%d", ret);
+		if (enable)
+			rtw89_write32_clr(rtwdev, R_AX_PCIE_MIX_CFG_V1,
+					  B_AX_L1SUB_DISABLE);
+		else
+			rtw89_write32_set(rtwdev, R_AX_PCIE_MIX_CFG_V1,
+					  B_AX_L1SUB_DISABLE);
+	}
 }
 
 static void rtw89_pci_l1ss_cfg(struct rtw89_dev *rtwdev)
