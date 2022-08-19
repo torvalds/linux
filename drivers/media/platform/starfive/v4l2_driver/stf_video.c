@@ -1827,7 +1827,7 @@ int stf_video_register(struct stfcamss_video *video,
 	//strlcpy(vdev->name, name, sizeof(vdev->name));
 	strscpy(vdev->name, name, sizeof(vdev->name));
 
-	ret = video_register_device(vdev, VFL_TYPE_VIDEO, -1);
+	ret = video_register_device(vdev, VFL_TYPE_VIDEO, video->id);
 	if (ret < 0) {
 		st_err(ST_VIDEO,
 			"Failed to register video device: %d\n",

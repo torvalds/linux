@@ -1373,6 +1373,11 @@ int stf_vin_register(struct stf_vin2_dev *vin_dev, struct v4l2_device *v4l2_dev)
 		char *sub_name = get_line_subdevname(i);
 		int is_mp;
 
+#ifdef	STF_CAMSS_SKIP_ITI
+		if ((stf_vin_map_isp_line(i) == STF_ISP_LINE_SRC_ITIW) ||
+			(stf_vin_map_isp_line(i) == STF_ISP_LINE_SRC_ITIR))
+			continue;
+#endif
 		is_mp = (stf_vin_map_isp_line(i) == STF_ISP_LINE_SRC) ? true : false;
 		is_mp = false;
 		sd = &vin_dev->line[i].subdev;
