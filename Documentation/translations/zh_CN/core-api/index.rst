@@ -47,12 +47,12 @@
    idr
    circular-buffers
    generic-radix-tree
+   packing
 
 Todolist:
 
 
 
-   packing
    this_cpu_ops
    timekeeping
    errseq
