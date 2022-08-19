@@ -2214,25 +2214,50 @@ static void ocelot_update_pgid_cpu(struct ocelot *ocelot)
 	ocelot_write_rix(ocelot, pgid_cpu, ANA_PGID_PGID, PGID_CPU);
 }
 
-void ocelot_port_assign_dsa_8021q_cpu(struct ocelot *ocelot, int port,
-				      int cpu)
+void ocelot_port_setup_dsa_8021q_cpu(struct ocelot *ocelot, int cpu)
 {
 	struct ocelot_port *cpu_port = ocelot->ports[cpu];
 	u16 vid;
 
 	mutex_lock(&ocelot->fwd_domain_lock);
 
+	cpu_port->is_dsa_8021q_cpu = true;
+
+	for (vid = OCELOT_RSV_VLAN_RANGE_START; vid < VLAN_N_VID; vid++)
+		ocelot_vlan_member_add(ocelot, cpu, vid, true);
+
+	ocelot_update_pgid_cpu(ocelot);
+
+	mutex_unlock(&ocelot->fwd_domain_lock);
+}
+EXPORT_SYMBOL_GPL(ocelot_port_setup_dsa_8021q_cpu);
+
+void ocelot_port_teardown_dsa_8021q_cpu(struct ocelot *ocelot, int cpu)
+{
+	struct ocelot_port *cpu_port = ocelot->ports[cpu];
+	u16 vid;
+
+	mutex_lock(&ocelot->fwd_domain_lock);
+
+	cpu_port->is_dsa_8021q_cpu = false;
+
+	for (vid = OCELOT_RSV_VLAN_RANGE_START; vid < VLAN_N_VID; vid++)
+		ocelot_vlan_member_del(ocelot, cpu_port->index, vid);
+
+	ocelot_update_pgid_cpu(ocelot);
+
+	mutex_unlock(&ocelot->fwd_domain_lock);
+}
+EXPORT_SYMBOL_GPL(ocelot_port_teardown_dsa_8021q_cpu);
+
+void ocelot_port_assign_dsa_8021q_cpu(struct ocelot *ocelot, int port,
+				      int cpu)
+{
+	struct ocelot_port *cpu_port = ocelot->ports[cpu];
+
+	mutex_lock(&ocelot->fwd_domain_lock);
+
 	ocelot->ports[port]->dsa_8021q_cpu = cpu_port;
-
-	if (!cpu_port->is_dsa_8021q_cpu) {
-		cpu_port->is_dsa_8021q_cpu = true;
-
-		for (vid = OCELOT_RSV_VLAN_RANGE_START; vid < VLAN_N_VID; vid++)
-			ocelot_vlan_member_add(ocelot, cpu, vid, true);
-
-		ocelot_update_pgid_cpu(ocelot);
-	}
-
 	ocelot_apply_bridge_fwd_mask(ocelot, true);
 
 	mutex_unlock(&ocelot->fwd_domain_lock);
@@ -2241,34 +2266,9 @@ EXPORT_SYMBOL_GPL(ocelot_port_assign_dsa_8021q_cpu);
 
 void ocelot_port_unassign_dsa_8021q_cpu(struct ocelot *ocelot, int port)
 {
-	struct ocelot_port *cpu_port = ocelot->ports[port]->dsa_8021q_cpu;
-	bool keep = false;
-	u16 vid;
-	int p;
-
 	mutex_lock(&ocelot->fwd_domain_lock);
 
 	ocelot->ports[port]->dsa_8021q_cpu = NULL;
-
-	for (p = 0; p < ocelot->num_phys_ports; p++) {
-		if (!ocelot->ports[p])
-			continue;
-
-		if (ocelot->ports[p]->dsa_8021q_cpu == cpu_port) {
-			keep = true;
-			break;
-		}
-	}
-
-	if (!keep) {
-		cpu_port->is_dsa_8021q_cpu = false;
-
-		for (vid = OCELOT_RSV_VLAN_RANGE_START; vid < VLAN_N_VID; vid++)
-			ocelot_vlan_member_del(ocelot, cpu_port->index, vid);
-
-		ocelot_update_pgid_cpu(ocelot);
-	}
-
 	ocelot_apply_bridge_fwd_mask(ocelot, true);
 
 	mutex_unlock(&ocelot->fwd_domain_lock);

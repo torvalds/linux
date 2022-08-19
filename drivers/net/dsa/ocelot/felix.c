@@ -445,6 +445,9 @@ static int felix_tag_8021q_setup(struct dsa_switch *ds)
 	if (err)
 		return err;
 
+	dsa_switch_for_each_cpu_port(dp, ds)
+		ocelot_port_setup_dsa_8021q_cpu(ocelot, dp->index);
+
 	dsa_switch_for_each_user_port(dp, ds)
 		ocelot_port_assign_dsa_8021q_cpu(ocelot, dp->index,
 						 dp->cpu_dp->index);
@@ -492,6 +495,9 @@ static void felix_tag_8021q_teardown(struct dsa_switch *ds)
 
 	dsa_switch_for_each_user_port(dp, ds)
 		ocelot_port_unassign_dsa_8021q_cpu(ocelot, dp->index);
+
+	dsa_switch_for_each_cpu_port(dp, ds)
+		ocelot_port_teardown_dsa_8021q_cpu(ocelot, dp->index);
 
 	dsa_tag_8021q_unregister(ds);
 }
