@@ -8,6 +8,7 @@
 #ifndef __LCDIF_DRV_H__
 #define __LCDIF_DRV_H__
 
+#include <drm/drm_bridge.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_device.h>
 #include <drm/drm_encoder.h>
