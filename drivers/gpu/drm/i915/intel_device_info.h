@@ -178,7 +178,6 @@ enum intel_ppgtt_type {
 	/* Keep in alphabetical order */ \
 	func(cursor_needs_physical); \
 	func(has_cdclk_crawl); \
-	func(has_dmc); \
 	func(has_ddi); \
 	func(has_dp_mst); \
 	func(has_dsb); \
@@ -241,6 +240,7 @@ struct intel_runtime_info {
 		u8 fbc_mask;
 
 		bool has_hdcp;
+		bool has_dmc;
 	};
 };
 
