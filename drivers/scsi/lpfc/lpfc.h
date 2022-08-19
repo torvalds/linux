@@ -1564,7 +1564,7 @@ struct lpfc_hba {
 		/* cgn_reg_signal and cgn_init_reg_signal use
 		 * enum fc_edc_cg_signal_cap_types
 		 */
-	u16 cgn_fpin_frequency;
+	u16 cgn_fpin_frequency;		/* In units of msecs */
 #define LPFC_FPIN_INIT_FREQ	0xffff
 	u32 cgn_sig_freq;
 	u32 cgn_acqe_cnt;

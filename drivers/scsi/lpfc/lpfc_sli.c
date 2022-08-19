@@ -1916,6 +1916,7 @@ lpfc_issue_cmf_sync_wqe(struct lpfc_hba *phba, u32 ms, u64 total)
 	unsigned long iflags;
 	u32 ret_val;
 	u32 atot, wtot, max;
+	u16 warn_sync_period = 0;
 
 	/* First address any alarm / warning activity */
 	atot = atomic_xchg(&phba->cgn_sync_alarm_cnt, 0);
@@ -1970,10 +1971,14 @@ lpfc_issue_cmf_sync_wqe(struct lpfc_hba *phba, u32 ms, u64 total)
 				lpfc_acqe_cgn_frequency;
 			bf_set(cmf_sync_wsigmax, &wqe->cmf_sync, max);
 			bf_set(cmf_sync_wsigcnt, &wqe->cmf_sync, wtot);
+			warn_sync_period = lpfc_acqe_cgn_frequency;
 		} else {
 			/* We hit a FPIN warning condition */
 			bf_set(cmf_sync_wfpinmax, &wqe->cmf_sync, 1);
 			bf_set(cmf_sync_wfpincnt, &wqe->cmf_sync, 1);
+			if (phba->cgn_fpin_frequency != LPFC_FPIN_INIT_FREQ)
+				warn_sync_period =
+				LPFC_MSECS_TO_SECS(phba->cgn_fpin_frequency);
 		}
 	}
 
@@ -1989,6 +1994,7 @@ initpath:
 	bf_set(cmf_sync_reqtag, &wqe->cmf_sync, sync_buf->iotag);
 
 	bf_set(cmf_sync_qosd, &wqe->cmf_sync, 1);
+	bf_set(cmf_sync_period, &wqe->cmf_sync, warn_sync_period);
 
 	bf_set(cmf_sync_cmd_type, &wqe->cmf_sync, CMF_SYNC_COMMAND);
 	bf_set(cmf_sync_wqec, &wqe->cmf_sync, 1);

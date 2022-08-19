@@ -738,6 +738,7 @@ struct lpfc_register {
 #define lpfc_sliport_eqdelay_id_WORD	word0
 #define LPFC_SEC_TO_USEC		1000000
 #define LPFC_SEC_TO_MSEC		1000
+#define LPFC_MSECS_TO_SECS(msecs) ((msecs) / 1000)
 
 /* The following Registers apply to SLI4 if_type 0 UCNAs. They typically
  * reside in BAR 2.
@@ -4798,6 +4799,9 @@ struct cmf_sync_wqe {
 #define cmf_sync_cqid_WORD	word11
 	uint32_t read_bytes;
 	uint32_t word13;
+#define cmf_sync_period_SHIFT	16
+#define cmf_sync_period_MASK	0x0000ffff
+#define cmf_sync_period_WORD	word13
 	uint32_t word14;
 	uint32_t word15;
 };
