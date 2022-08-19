@@ -2064,6 +2064,16 @@ static int ocelot_bond_get_id(struct ocelot *ocelot, struct net_device *bond)
 	return __ffs(bond_mask);
 }
 
+/* Returns the mask of user ports assigned to this DSA tag_8021q CPU port.
+ * Note that when CPU ports are in a LAG, the user ports are assigned to the
+ * 'primary' CPU port, the one whose physical port number gives the logical
+ * port number of the LAG.
+ *
+ * We leave PGID_SRC poorly configured for the 'secondary' CPU port in the LAG
+ * (to which no user port is assigned), but it appears that forwarding from
+ * this secondary CPU port looks at the PGID_SRC associated with the logical
+ * port ID that it's assigned to, which *is* configured properly.
+ */
 static u32 ocelot_dsa_8021q_cpu_assigned_ports(struct ocelot *ocelot,
 					       struct ocelot_port *cpu)
 {
@@ -2080,9 +2090,15 @@ static u32 ocelot_dsa_8021q_cpu_assigned_ports(struct ocelot *ocelot,
 			mask |= BIT(port);
 	}
 
+	if (cpu->bond)
+		mask &= ~ocelot_get_bond_mask(ocelot, cpu->bond);
+
 	return mask;
 }
 
+/* Returns the DSA tag_8021q CPU port that the given port is assigned to,
+ * or the bit mask of CPU ports if said CPU port is in a LAG.
+ */
 u32 ocelot_port_assigned_dsa_8021q_cpu_mask(struct ocelot *ocelot, int port)
 {
 	struct ocelot_port *ocelot_port = ocelot->ports[port];
@@ -2090,6 +2106,9 @@ u32 ocelot_port_assigned_dsa_8021q_cpu_mask(struct ocelot *ocelot, int port)
 
 	if (!cpu_port)
 		return 0;
+
+	if (cpu_port->bond)
+		return ocelot_get_bond_mask(ocelot, cpu_port->bond);
 
 	return BIT(cpu_port->index);
 }
