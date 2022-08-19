@@ -3764,6 +3764,10 @@ static int rk3308_codec_set_jack(struct snd_soc_component *component,
 {
 	struct rk3308_codec_priv *rk3308 = snd_soc_component_get_drvdata(component);
 
+	/* Return directly if the DUT don't need to support headphone detection */
+	if (rk3308->no_hp_det)
+		return 0;
+
 	rk3308->hpdet_jack = jack;
 
 	/* To detect jack once during startup */
