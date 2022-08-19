@@ -6174,7 +6174,7 @@ F:	Documentation/devicetree/bindings/memory-controllers/samsung,exynos5422-dmc.y
 F:	drivers/memory/samsung/exynos5422-dmc.c
 
 DME1737 HARDWARE MONITOR DRIVER
-M:	Juerg Haefliger <juergh@gmail.com>
+M:	Juerg Haefliger <juergh@proton.me>
 L:	linux-hwmon@vger.kernel.org
 S:	Maintained
 F:	Documentation/hwmon/dme1737.rst
@@ -21805,7 +21805,7 @@ F:	lib/test_scanf.c
 F:	lib/vsprintf.c
 
 VT1211 HARDWARE MONITOR DRIVER
-M:	Juerg Haefliger <juergh@gmail.com>
+M:	Juerg Haefliger <juergh@proton.me>
 L:	linux-hwmon@vger.kernel.org
 S:	Maintained
 F:	Documentation/hwmon/vt1211.rst
