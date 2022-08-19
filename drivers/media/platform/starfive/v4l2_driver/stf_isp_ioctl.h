@@ -22,7 +22,7 @@
 #define RDMA_LINK                       (0xA2)
 #define RDMA_SINT                       (0xA3)
 #define RDMA_END                        (0xAF)
-
+#define ENABLE_SS0_SS1
 
 enum _STF_ISP_IOCTL {
 	STF_ISP_IOCTL_LOAD_FW = BASE_VIDIOC_PRIVATE + 1,
