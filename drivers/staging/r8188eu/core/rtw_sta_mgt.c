@@ -154,6 +154,18 @@ static void rtw_init_recv_timer(struct recv_reorder_ctrl *preorder_ctrl)
 	timer_setup(&preorder_ctrl->reordering_ctrl_timer, _rtw_reordering_ctrl_timeout_handler, 0);
 }
 
+static void _addba_timer_hdl(struct timer_list *t)
+{
+	struct sta_info *psta = from_timer(psta, t, addba_retry_timer);
+
+	addba_timer_hdl(psta);
+}
+
+static void init_addba_retry_timer(struct adapter *padapter, struct sta_info *psta)
+{
+	timer_setup(&psta->addba_retry_timer, _addba_timer_hdl, 0);
+}
+
 struct	sta_info *rtw_alloc_stainfo(struct sta_priv *pstapriv, u8 *hwaddr)
 {
 	s32	index;

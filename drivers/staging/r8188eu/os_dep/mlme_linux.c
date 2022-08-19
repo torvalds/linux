@@ -130,17 +130,6 @@ void rtw_report_sec_ie(struct adapter *adapter, u8 authmode, u8 *sec_ie)
 	}
 }
 
-static void _addba_timer_hdl(struct timer_list *t)
-{
-	struct sta_info *psta = from_timer(psta, t, addba_retry_timer);
-	addba_timer_hdl(psta);
-}
-
-void init_addba_retry_timer(struct adapter *padapter, struct sta_info *psta)
-{
-	timer_setup(&psta->addba_retry_timer, _addba_timer_hdl, 0);
-}
-
 void rtw_indicate_sta_assoc_event(struct adapter *padapter, struct sta_info *psta)
 {
 	union iwreq_data wrqu;
