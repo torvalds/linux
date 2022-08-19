@@ -10,41 +10,6 @@
 #include <rtw_odm.h>
 #include <hal_data.h>
 
-static const char * const odm_comp_str[] = {
-	/* BIT0 */"ODM_COMP_DIG",
-	/* BIT1 */"ODM_COMP_RA_MASK",
-	/* BIT2 */"ODM_COMP_DYNAMIC_TXPWR",
-	/* BIT3 */"ODM_COMP_FA_CNT",
-	/* BIT4 */"ODM_COMP_RSSI_MONITOR",
-	/* BIT5 */"ODM_COMP_CCK_PD",
-	/* BIT6 */"ODM_COMP_ANT_DIV",
-	/* BIT7 */"ODM_COMP_PWR_SAVE",
-	/* BIT8 */"ODM_COMP_PWR_TRAIN",
-	/* BIT9 */"ODM_COMP_RATE_ADAPTIVE",
-	/* BIT10 */"ODM_COMP_PATH_DIV",
-	/* BIT11 */"ODM_COMP_PSD",
-	/* BIT12 */"ODM_COMP_DYNAMIC_PRICCA",
-	/* BIT13 */"ODM_COMP_RXHP",
-	/* BIT14 */"ODM_COMP_MP",
-	/* BIT15 */"ODM_COMP_DYNAMIC_ATC",
-	/* BIT16 */"ODM_COMP_EDCA_TURBO",
-	/* BIT17 */"ODM_COMP_EARLY_MODE",
-	/* BIT18 */NULL,
-	/* BIT19 */NULL,
-	/* BIT20 */NULL,
-	/* BIT21 */NULL,
-	/* BIT22 */NULL,
-	/* BIT23 */NULL,
-	/* BIT24 */"ODM_COMP_TX_PWR_TRACK",
-	/* BIT25 */"ODM_COMP_RX_GAIN_TRACK",
-	/* BIT26 */"ODM_COMP_CALIBRATION",
-	/* BIT27 */NULL,
-	/* BIT28 */NULL,
-	/* BIT29 */NULL,
-	/* BIT30 */"ODM_COMP_COMMON",
-	/* BIT31 */"ODM_COMP_INIT",
-};
-
 #define RTW_ODM_COMP_MAX 32
 
 static const char * const odm_ability_str[] = {
