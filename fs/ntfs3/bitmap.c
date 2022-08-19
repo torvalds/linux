@@ -1324,7 +1324,7 @@ int wnd_extend(struct wnd_bitmap *wnd, size_t new_bits)
 		new_last = wbits;
 
 	if (new_wnd != wnd->nwnd) {
-		new_free = kmalloc(new_wnd * sizeof(u16), GFP_NOFS);
+		new_free = kmalloc_array(new_wnd, sizeof(u16), GFP_NOFS);
 		if (!new_free)
 			return -ENOMEM;
 
