@@ -884,8 +884,8 @@ int ipoib_cm_dev_open(struct net_device *dev)
 		goto err_cm;
 	}
 
-	ret = ib_cm_listen(priv->cm.id, cpu_to_be64(IPOIB_CM_IETF_ID | priv->qp->qp_num),
-			   0);
+	ret = ib_cm_listen(priv->cm.id,
+			   cpu_to_be64(IPOIB_CM_IETF_ID | priv->qp->qp_num));
 	if (ret) {
 		pr_warn("%s: failed to listen on ID 0x%llx\n", priv->ca->name,
 			IPOIB_CM_IETF_ID | priv->qp->qp_num);

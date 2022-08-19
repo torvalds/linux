@@ -1185,12 +1185,8 @@ static int cm_init_listen(struct cm_id_private *cm_id_priv, __be64 service_id,
  *   and service ID resolution requests.  The service ID should be specified
  *   network-byte order.  If set to IB_CM_ASSIGN_SERVICE_ID, the CM will
  *   assign a service ID to the caller.
- * @service_mask: Mask applied to service ID used to listen across a
- *   range of service IDs.  If set to 0, the service ID is matched
- *   exactly.  This parameter is ignored if %service_id is set to
- *   IB_CM_ASSIGN_SERVICE_ID.
  */
-int ib_cm_listen(struct ib_cm_id *cm_id, __be64 service_id, __be64 service_mask)
+int ib_cm_listen(struct ib_cm_id *cm_id, __be64 service_id)
 {
 	struct cm_id_private *cm_id_priv =
 		container_of(cm_id, struct cm_id_private, id);
@@ -1203,7 +1199,7 @@ int ib_cm_listen(struct ib_cm_id *cm_id, __be64 service_id, __be64 service_mask)
 		goto out;
 	}
 
-	ret = cm_init_listen(cm_id_priv, service_id, service_mask);
+	ret = cm_init_listen(cm_id_priv, service_id, 0);
 	if (ret)
 		goto out;
 
