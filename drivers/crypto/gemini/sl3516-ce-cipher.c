@@ -149,7 +149,7 @@ static int sl3516_ce_cipher(struct skcipher_request *areq)
 	if (areq->src == areq->dst) {
 		nr_sgs = dma_map_sg(ce->dev, areq->src, sg_nents(areq->src),
 				    DMA_BIDIRECTIONAL);
-		if (nr_sgs <= 0 || nr_sgs > MAXDESC / 2) {
+		if (!nr_sgs || nr_sgs > MAXDESC / 2) {
 			dev_err(ce->dev, "Invalid sg number %d\n", nr_sgs);
 			err = -EINVAL;
 			goto theend;
@@ -158,14 +158,14 @@ static int sl3516_ce_cipher(struct skcipher_request *areq)
 	} else {
 		nr_sgs = dma_map_sg(ce->dev, areq->src, sg_nents(areq->src),
 				    DMA_TO_DEVICE);
-		if (nr_sgs <= 0 || nr_sgs > MAXDESC / 2) {
+		if (!nr_sgs || nr_sgs > MAXDESC / 2) {
 			dev_err(ce->dev, "Invalid sg number %d\n", nr_sgs);
 			err = -EINVAL;
 			goto theend;
 		}
 		nr_sgd = dma_map_sg(ce->dev, areq->dst, sg_nents(areq->dst),
 				    DMA_FROM_DEVICE);
-		if (nr_sgd <= 0 || nr_sgd > MAXDESC) {
+		if (!nr_sgd || nr_sgd > MAXDESC) {
 			dev_err(ce->dev, "Invalid sg number %d\n", nr_sgd);
 			err = -EINVAL;
 			goto theend_sgs;
