@@ -992,16 +992,18 @@ static void walt_binder_low_latency_set(void *unused, struct task_struct *task,
 			(current->group_leader->prio < MAX_RT_PRIO &&
 			task_in_related_thread_group(task))))
 		wts->low_latency |= WALT_LOW_LATENCY_BINDER;
-}
-
-static void walt_binder_low_latency_clear(void *unused, struct binder_transaction *t)
-{
-	struct walt_task_struct *wts = (struct walt_task_struct *) current->android_vendor_data1;
-
-	if (unlikely(walt_disabled))
-		return;
-	if (wts->low_latency & WALT_LOW_LATENCY_BINDER)
+	else
+		/*
+		 * Clear low_latency flag if criterion above is not met, this
+		 * will handle usecase where for a binder thread WALT_LOW_LATENCY_BINDER
+		 * is set by one task and before WALT clears this flag after timer expiry
+		 * some other task tries to use same binder thread.
+		 *
+		 * The only gets cleared when binder transaction is initiated
+		 * and the above condition to set flasg is nto satisfied.
+		 */
 		wts->low_latency &= ~WALT_LOW_LATENCY_BINDER;
+
 }
 
 static void binder_set_priority_hook(void *data,
@@ -1364,7 +1366,6 @@ void walt_cfs_init(void)
 	register_trace_android_rvh_select_task_rq_fair(walt_select_task_rq_fair, NULL);
 
 	register_trace_android_vh_binder_wakeup_ilocked(walt_binder_low_latency_set, NULL);
-	register_trace_binder_transaction_received(walt_binder_low_latency_clear, NULL);
 
 	register_trace_android_vh_binder_set_priority(binder_set_priority_hook, NULL);
 	register_trace_android_vh_binder_restore_priority(binder_restore_priority_hook, NULL);
