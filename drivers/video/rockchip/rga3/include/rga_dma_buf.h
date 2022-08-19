@@ -11,6 +11,14 @@
 
 #include "rga_drv.h"
 
+#ifndef for_each_sgtable_sg
+/*
+ * Loop over each sg element in the given sg_table object.
+ */
+#define for_each_sgtable_sg(sgt, sg, i)		\
+	for_each_sg((sgt)->sgl, sg, (sgt)->orig_nents, i)
+#endif
+
 int rga_buf_size_cal(unsigned long yrgb_addr, unsigned long uv_addr,
 		      unsigned long v_addr, int format, uint32_t w,
 		      uint32_t h, unsigned long *StartAddr, unsigned long *size);
