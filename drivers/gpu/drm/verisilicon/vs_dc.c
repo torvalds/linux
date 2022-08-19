@@ -978,6 +978,12 @@ static void update_fb(struct vs_plane *plane, u8 display_id,
 	update_swizzle(drm_fb->format->format, fb);
 	update_watermark(plane_state->watermark, fb);
 
+	starfive_flush_dcache(fb->y_address, fb->height * fb->y_stride);
+	if (fb->u_address)
+		starfive_flush_dcache(fb->u_address, fb->height * fb->u_stride);
+	if (fb->v_address)
+		starfive_flush_dcache(fb->v_address, fb->height * fb->v_stride);
+
 	plane_state->status.tile_mode = fb->tile_mode;
 }
 
@@ -1339,23 +1345,6 @@ static irqreturn_t dc_isr(int irq, void *data)
 
 	for (i = 0; i < dc_info->panel_num; i++)
 		vs_crtc_handle_vblank(&dc->crtc[i]->base, dc_hw_check_underflow(&dc->hw));
-
-	starfive_flush_dcache(dc->hw.plane[0].fb.y_address,
-			dc->hw.plane[0].fb.width * dc->hw.plane[0].fb.height*4);
-	starfive_flush_dcache(dc->hw.plane[1].fb.y_address,
-			dc->hw.plane[1].fb.width * dc->hw.plane[1].fb.height*4);
-	starfive_flush_dcache(dc->hw.plane[2].fb.y_address,
-			dc->hw.plane[2].fb.width * dc->hw.plane[2].fb.height*4);
-	starfive_flush_dcache(dc->hw.plane[3].fb.y_address,
-			dc->hw.plane[3].fb.width * dc->hw.plane[3].fb.height*4);
-	starfive_flush_dcache(dc->hw.plane[4].fb.y_address,
-			dc->hw.plane[4].fb.width * dc->hw.plane[4].fb.height*4);
-	starfive_flush_dcache(dc->hw.plane[5].fb.y_address,
-			dc->hw.plane[5].fb.width * dc->hw.plane[5].fb.height*4);
-	starfive_flush_dcache(dc->hw.plane[6].fb.y_address,
-			dc->hw.plane[6].fb.width * dc->hw.plane[6].fb.height*4);
-	starfive_flush_dcache(dc->hw.plane[7].fb.y_address,
-			dc->hw.plane[7].fb.width * dc->hw.plane[7].fb.height*4);
 
 	return IRQ_HANDLED;
 }
