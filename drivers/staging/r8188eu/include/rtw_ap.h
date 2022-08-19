@@ -10,8 +10,6 @@
 /* external function */
 void rtw_indicate_sta_assoc_event(struct adapter *padapter,
 				  struct sta_info *psta);
-void rtw_indicate_sta_disassoc_event(struct adapter *padapter,
-				     struct sta_info *psta);
 void init_mlme_ap_info(struct adapter *padapter);
 void free_mlme_ap_info(struct adapter *padapter);
 void update_beacon(struct adapter *padapter, u8 ie_id,
