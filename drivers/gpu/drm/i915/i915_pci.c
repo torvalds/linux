@@ -34,7 +34,7 @@
 
 #define PLATFORM(x) .platform = (x)
 #define GEN(x) \
-	.graphics.ver = (x), \
+	.__runtime.graphics.ver = (x), \
 	.media.ver = (x), \
 	.display.ver = (x)
 
@@ -919,7 +919,7 @@ static const struct intel_device_info rkl_info = {
 static const struct intel_device_info dg1_info = {
 	GEN12_FEATURES,
 	DGFX_FEATURES,
-	.graphics.rel = 10,
+	.__runtime.graphics.rel = 10,
 	PLATFORM(INTEL_DG1),
 	.display.pipe_mask = BIT(PIPE_A) | BIT(PIPE_B) | BIT(PIPE_C) | BIT(PIPE_D),
 	.require_force_probe = 1,
@@ -1006,8 +1006,8 @@ static const struct intel_device_info adl_p_info = {
 		      I915_GTT_PAGE_SIZE_2M
 
 #define XE_HP_FEATURES \
-	.graphics.ver = 12, \
-	.graphics.rel = 50, \
+	.__runtime.graphics.ver = 12, \
+	.__runtime.graphics.rel = 50, \
 	XE_HP_PAGE_SIZES, \
 	.dma_mask_size = 46, \
 	.has_3d_pipeline = 1, \
@@ -1053,7 +1053,7 @@ static const struct intel_device_info xehpsdv_info = {
 	XE_HP_FEATURES, \
 	XE_HPM_FEATURES, \
 	DGFX_FEATURES, \
-	.graphics.rel = 55, \
+	.__runtime.graphics.rel = 55, \
 	.media.rel = 55, \
 	PLATFORM(INTEL_DG2), \
 	.has_4tile = 1, \
@@ -1096,7 +1096,7 @@ static const struct intel_device_info pvc_info = {
 	XE_HPC_FEATURES,
 	XE_HPM_FEATURES,
 	DGFX_FEATURES,
-	.graphics.rel = 60,
+	.__runtime.graphics.rel = 60,
 	.media.rel = 60,
 	PLATFORM(INTEL_PONTEVECCHIO),
 	.display = { 0 },
@@ -1122,8 +1122,8 @@ static const struct intel_device_info mtl_info = {
 	 * Real graphics IP version will be obtained from hardware GMD_ID
 	 * register.  Value provided here is just for sanity checking.
 	 */
-	.graphics.ver = 12,
-	.graphics.rel = 70,
+	.__runtime.graphics.ver = 12,
+	.__runtime.graphics.rel = 70,
 	.media.ver = 13,
 	PLATFORM(INTEL_METEORLAKE),
 	.display.has_modular_fia = 1,
@@ -1280,7 +1280,7 @@ bool i915_pci_resource_valid(struct pci_dev *pdev, int bar)
 
 static bool intel_mmio_bar_valid(struct pci_dev *pdev, struct intel_device_info *intel_info)
 {
-	int gttmmaddr_bar = intel_info->graphics.ver == 2 ? GEN2_GTTMMADR_BAR : GTTMMADR_BAR;
+	int gttmmaddr_bar = intel_info->__runtime.graphics.ver == 2 ? GEN2_GTTMMADR_BAR : GTTMMADR_BAR;
 
 	return i915_pci_resource_valid(pdev, gttmmaddr_bar);
 }

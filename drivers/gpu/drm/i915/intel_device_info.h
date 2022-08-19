@@ -203,6 +203,8 @@ struct ip_version {
 };
 
 struct intel_runtime_info {
+	struct ip_version graphics;
+
 	/*
 	 * Platform mask is used for optimizing or-ed IS_PLATFORM calls into
 	 * single runtime conditionals, and also to provide groundwork for
@@ -224,7 +226,6 @@ struct intel_runtime_info {
 };
 
 struct intel_device_info {
-	struct ip_version graphics;
 	struct ip_version media;
 
 	intel_engine_mask_t platform_engine_mask; /* Engines supported by the HW */

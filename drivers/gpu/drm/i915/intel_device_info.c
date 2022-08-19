@@ -92,11 +92,11 @@ void intel_device_info_print(const struct intel_device_info *info,
 			     const struct intel_runtime_info *runtime,
 			     struct drm_printer *p)
 {
-	if (info->graphics.rel)
-		drm_printf(p, "graphics version: %u.%02u\n", info->graphics.ver,
-			   info->graphics.rel);
+	if (runtime->graphics.rel)
+		drm_printf(p, "graphics version: %u.%02u\n", runtime->graphics.ver,
+			   runtime->graphics.rel);
 	else
-		drm_printf(p, "graphics version: %u\n", info->graphics.ver);
+		drm_printf(p, "graphics version: %u\n", runtime->graphics.ver);
 
 	if (info->media.rel)
 		drm_printf(p, "media version: %u.%02u\n", info->media.ver, info->media.rel);
