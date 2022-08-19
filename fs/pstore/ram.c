@@ -289,6 +289,7 @@ static ssize_t ramoops_pstore_read(struct pstore_record *record)
 			record->id = 0;
 		}
 	}
+
 #ifdef CONFIG_PSTORE_MCU_LOG
 	if (!prz_ok(prz)) {
 		while (cxt->mcu_log_read_cnt < cxt->max_mcu_log_cnt && !prz) {
@@ -298,6 +299,7 @@ static ssize_t ramoops_pstore_read(struct pstore_record *record)
 		}
 	}
 #endif
+
 	if (!prz_ok(prz)) {
 		size = 0;
 		goto out;
@@ -782,9 +784,7 @@ static int ramoops_probe(struct platform_device *pdev)
 	size_t dump_mem_sz;
 	phys_addr_t paddr;
 	int err = -EINVAL;
-#ifdef CONFIG_PSTORE_MCU_LOG
 	int i = 0;
-#endif
 
 	/*
 	 * Only a single ramoops area allowed at a time, so fail extra
@@ -809,6 +809,7 @@ static int ramoops_probe(struct platform_device *pdev)
 		pr_err("NULL platform data\n");
 		goto fail_out;
 	}
+
 #ifdef CONFIG_PSTORE_MCU_LOG
 	if (!pdata->mem_size || (!pdata->record_size && !pdata->console_size &&
 			!pdata->ftrace_size && !pdata->pmsg_size && !pdata->mcu_log_size)) {
@@ -824,6 +825,8 @@ static int ramoops_probe(struct platform_device *pdev)
 		goto fail_out;
 	}
 #endif
+
+#ifndef CONFIG_ARCH_ROCKCHIP
 	if (pdata->record_size && !is_power_of_2(pdata->record_size))
 		pdata->record_size = rounddown_pow_of_two(pdata->record_size);
 	if (pdata->console_size && !is_power_of_2(pdata->console_size))
@@ -832,10 +835,8 @@ static int ramoops_probe(struct platform_device *pdev)
 		pdata->ftrace_size = rounddown_pow_of_two(pdata->ftrace_size);
 	if (pdata->pmsg_size && !is_power_of_2(pdata->pmsg_size))
 		pdata->pmsg_size = rounddown_pow_of_two(pdata->pmsg_size);
-#ifdef CONFIG_PSTORE_MCU_LOG
-	if (pdata->mcu_log_size && !is_power_of_2(pdata->mcu_log_size))
-		pdata->mcu_log_size = rounddown_pow_of_two(pdata->mcu_log_size);
 #endif
+
 	cxt->size = pdata->mem_size;
 	cxt->phys_addr = pdata->mem_address;
 	cxt->memtype = pdata->mem_type;
@@ -849,6 +850,7 @@ static int ramoops_probe(struct platform_device *pdev)
 	cxt->mcu_log_size = pdata->mcu_log_size;
 	cxt->max_mcu_log_cnt = pdata->max_mcu_log_cnt;
 #endif
+
 	paddr = cxt->phys_addr;
 
 	dump_mem_sz = cxt->size - cxt->console_size - cxt->ftrace_size
@@ -863,11 +865,16 @@ static int ramoops_probe(struct platform_device *pdev)
 				&cxt->max_dump_cnt, 0, 0);
 	if (err)
 		goto fail_out;
+	if (cxt->record_size > 0)
+		for (i = 0; i < cxt->max_dump_cnt; i++)
+			pr_info("dmesg-%d\t0x%zx@%pa\n", i, cxt->dprzs[i]->size, &cxt->dprzs[i]->paddr);
 
 	err = ramoops_init_prz("console", dev, cxt, &cxt->cprz, &paddr,
 			       cxt->console_size, 0);
 	if (err)
 		goto fail_init_cprz;
+	if (cxt->console_size > 0)
+		pr_info("console\t0x%zx@%pa\n", cxt->cprz->size, &cxt->cprz->paddr);
 
 	cxt->max_ftrace_cnt = (cxt->flags & RAMOOPS_FLAG_FTRACE_PER_CPU)
 				? nr_cpu_ids
@@ -879,23 +886,28 @@ static int ramoops_probe(struct platform_device *pdev)
 					? PRZ_FLAG_NO_LOCK : 0);
 	if (err)
 		goto fail_init_fprz;
+	if (cxt->ftrace_size > 0)
+		for (i = 0; i < cxt->max_ftrace_cnt; i++)
+			pr_info("ftrace-%d\t0x%zx@%pa\n", i, cxt->fprzs[i]->size, &cxt->fprzs[i]->paddr);
 
 	err = ramoops_init_prz("pmsg", dev, cxt, &cxt->mprz, &paddr,
 				cxt->pmsg_size, 0);
 	if (err)
 		goto fail_init_mprz;
+	if (cxt->pmsg_size > 0)
+		pr_info("pmsg\t0x%zx@%pa\n", cxt->mprz->size, &cxt->mprz->paddr);
 
 #ifdef CONFIG_PSTORE_MCU_LOG
 	err = ramoops_init_przs("mcu-log", dev, cxt, &cxt->mcu_przs, &paddr,
 				cxt->mcu_log_size, -1,
 				&cxt->max_mcu_log_cnt, 0, 0);
-	for (i = 0; i < cxt->max_mcu_log_cnt; i++)
-		pr_info("mcu%d log start:0x%08x size:0x%08x\n",
-			i, cxt->mcu_przs[i]->paddr, cxt->mcu_przs[i]->size);
-
 	if (err)
 		goto fail_clear;
+	if (cxt->mcu_log_size > 0)
+		for (i = 0; i < cxt->max_mcu_log_cnt; i++)
+			pr_info("mcu-log-%d\t0x%zx@%pa\n", i, cxt->mcu_przs[i]->size, &cxt->mcu_przs[i]->paddr);
 #endif
+
 	cxt->pstore.data = cxt;
 	/*
 	 * Prepare frontend flags based on which areas are initialized.
@@ -918,6 +930,7 @@ static int ramoops_probe(struct platform_device *pdev)
 	if (cxt->mcu_log_size)
 		cxt->pstore.flags |= PSTORE_FLAGS_MCU_LOG;
 #endif
+
 	/*
 	 * Since bufsize is only used for dmesg crash dumps, it
 	 * must match the size of the dprz record (after PRZ header
