@@ -8,11 +8,9 @@
 #include "drv_types.h"
 
 void rtw_init_mlme_timer(struct adapter *padapter);
-void rtw_os_indicate_disconnect(struct adapter *adapter);
 void rtw_os_indicate_connect(struct adapter *adapter);
 void rtw_os_indicate_scan_done(struct adapter *padapter, bool aborted);
 
-void rtw_reset_securitypriv(struct adapter *adapter);
 void indicate_wx_scan_complete_event(struct adapter *padapter);
 
 #endif	/* _MLME_OSDEP_H_ */
