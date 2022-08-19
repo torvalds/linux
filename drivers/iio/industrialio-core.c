@@ -1303,8 +1303,7 @@ static int iio_device_add_channel_sysfs(struct iio_dev *indio_dev,
 
 	ret = iio_device_add_info_mask_type_avail(indio_dev, chan,
 						  IIO_SEPARATE,
-						  &chan->
-						  info_mask_separate_available);
+						  &chan->info_mask_separate_available);
 	if (ret < 0)
 		return ret;
 	attrcount += ret;
@@ -1318,8 +1317,7 @@ static int iio_device_add_channel_sysfs(struct iio_dev *indio_dev,
 
 	ret = iio_device_add_info_mask_type_avail(indio_dev, chan,
 						  IIO_SHARED_BY_TYPE,
-						  &chan->
-						  info_mask_shared_by_type_available);
+						  &chan->info_mask_shared_by_type_available);
 	if (ret < 0)
 		return ret;
 	attrcount += ret;
