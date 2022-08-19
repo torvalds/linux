@@ -67,6 +67,10 @@ properties:
   ranges:
     maxItems: 1
 
+  dma-ranges:
+    minItems: 1
+    maxItems: 6
+
   msi-controller:
     description: Identifies the node as an MSI controller.
 
