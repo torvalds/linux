@@ -213,7 +213,7 @@ out:
 		put_device(&codec->core.dev);
 	}
 #else
-	codec = hda_codec_device_init(&hbus->core, address);
+	codec = hda_codec_device_init(&hbus->core, address, HDA_DEV_ASOC);
 	ret = PTR_ERR_OR_ZERO(codec);
 #endif
 
