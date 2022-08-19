@@ -181,7 +181,6 @@ enum intel_ppgtt_type {
 	func(has_ddi); \
 	func(has_dp_mst); \
 	func(has_dsb); \
-	func(has_dsc); \
 	func(has_fpga_dbg); \
 	func(has_gmch); \
 	func(has_hotplug); \
@@ -241,6 +240,7 @@ struct intel_runtime_info {
 
 		bool has_hdcp;
 		bool has_dmc;
+		bool has_dsc;
 	};
 };
 

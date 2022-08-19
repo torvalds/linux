@@ -344,7 +344,7 @@ bool intel_dsc_source_support(const struct intel_crtc_state *crtc_state)
 	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
 	enum transcoder cpu_transcoder = crtc_state->cpu_transcoder;
 
-	if (!INTEL_INFO(i915)->display.has_dsc)
+	if (!RUNTIME_INFO(i915)->has_dsc)
 		return false;
 
 	if (DISPLAY_VER(i915) >= 12)

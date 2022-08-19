@@ -833,7 +833,7 @@ static const struct intel_device_info cml_gt2_info = {
 	ICL_COLORS, \
 	.display.dbuf.size = 2048, \
 	.display.dbuf.slice_mask = BIT(DBUF_S1) | BIT(DBUF_S2), \
-	.display.has_dsc = 1, \
+	.__runtime.has_dsc = 1, \
 	.has_coherent_ggtt = false, \
 	.has_logical_ring_elsq = 1
 
@@ -955,7 +955,7 @@ static const struct intel_device_info adl_s_info = {
 	.__runtime.has_dmc = 1,							\
 	.display.has_dp_mst = 1,						\
 	.display.has_dsb = 1,							\
-	.display.has_dsc = 1,							\
+	.__runtime.has_dsc = 1,							\
 	.__runtime.fbc_mask = BIT(INTEL_FBC_A),					\
 	.display.has_fpga_dbg = 1,						\
 	.__runtime.has_hdcp = 1,						\
