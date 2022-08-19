@@ -2,6 +2,8 @@
 
 .. include:: ../disclaimer-zh_CN.rst
 
+.. _cn_email_clients:
+
 :Original: Documentation/process/email-clients.rst
 
 :译者:
