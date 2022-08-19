@@ -3372,7 +3372,7 @@ bool dc_link_setup_psr(struct dc_link *link,
 		switch(link->ctx->asic_id.chip_family) {
 		case FAMILY_YELLOW_CARP:
 		case AMDGPU_FAMILY_GC_10_3_6:
-		case AMDGPU_FAMILY_GC_11_0_2:
+		case AMDGPU_FAMILY_GC_11_0_1:
 			if(!dc->debug.disable_z10)
 				psr_context->psr_level.bits.SKIP_CRTC_DISABLE = false;
 			break;
