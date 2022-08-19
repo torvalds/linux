@@ -1732,7 +1732,7 @@ static u32 mtk_xdp_run(struct mtk_eth *eth, struct mtk_rx_ring *ring,
 	case XDP_TX: {
 		struct xdp_frame *xdpf = xdp_convert_buff_to_frame(xdp);
 
-		if (mtk_xdp_submit_frame(eth, xdpf, dev, false)) {
+		if (!xdpf || mtk_xdp_submit_frame(eth, xdpf, dev, false)) {
 			count = &hw_stats->xdp_stats.rx_xdp_tx_errors;
 			act = XDP_DROP;
 			break;

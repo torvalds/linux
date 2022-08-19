@@ -348,7 +348,7 @@ do {									\
  *		This macro is invoked by the OS-specific before it left the
  *		function mac_drv_rx_complete. This macro calls mac_drv_fill_rxd
  *		if the number of used RxDs is equal or lower than the
- *		the given low water mark.
+ *		given low water mark.
  *
  * para	low_water	low water mark of used RxD's
  *
