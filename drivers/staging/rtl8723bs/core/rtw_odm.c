@@ -90,22 +90,6 @@ static const char * const odm_dbg_level_str[] = {
 
 #define RTW_ODM_DBG_LEVEL_NUM 6
 
-void rtw_odm_dbg_comp_msg(struct adapter *adapter)
-{
-	u64 dbg_comp;
-	int i;
-
-	rtw_hal_get_def_var(adapter, HW_DEF_ODM_DBG_FLAG, &dbg_comp);
-	netdev_dbg(adapter->pnetdev, "odm.DebugComponents = 0x%016llx\n",
-		   dbg_comp);
-	for (i = 0; i < RTW_ODM_COMP_MAX; i++) {
-		if (odm_comp_str[i])
-			netdev_dbg(adapter->pnetdev, "%cBIT%-2d %s\n",
-				   (BIT0 << i) & dbg_comp ? '+' : ' ', i,
-				   odm_comp_str[i]);
-	}
-}
-
 inline void rtw_odm_dbg_comp_set(struct adapter *adapter, u64 comps)
 {
 	rtw_hal_set_def_var(adapter, HW_DEF_ODM_DBG_FLAG, &comps);
