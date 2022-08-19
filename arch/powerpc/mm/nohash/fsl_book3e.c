@@ -135,8 +135,8 @@ static void settlbcam(int index, unsigned long virt, phys_addr_t phys,
 	tlbcam_addrs[index].phys = phys;
 }
 
-unsigned long calc_cam_sz(unsigned long ram, unsigned long virt,
-			  phys_addr_t phys)
+static unsigned long calc_cam_sz(unsigned long ram, unsigned long virt,
+				 phys_addr_t phys)
 {
 	unsigned int camsize = __ilog2(ram);
 	unsigned int align = __ffs(virt | phys);
