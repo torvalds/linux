@@ -77,7 +77,7 @@ struct perf_record_lost_samples {
 };
 
 /*
- * PERF_FORMAT_ENABLED | PERF_FORMAT_RUNNING | PERF_FORMAT_ID
+ * PERF_FORMAT_ENABLED | PERF_FORMAT_RUNNING | PERF_FORMAT_ID | PERF_FORMAT_LOST
  */
 struct perf_record_read {
 	struct perf_event_header header;
@@ -86,6 +86,7 @@ struct perf_record_read {
 	__u64			 time_enabled;
 	__u64			 time_running;
 	__u64			 id;
+	__u64			 lost;
 };
 
 struct perf_record_throttle {
