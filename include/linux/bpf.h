@@ -1966,6 +1966,15 @@ static inline bool unprivileged_ebpf_enabled(void)
 	return !sysctl_unprivileged_bpf_disabled;
 }
 
+/* Not all bpf prog type has the bpf_ctx.
+ * For the bpf prog type that has initialized the bpf_ctx,
+ * this function can be used to decide if a kernel function
+ * is called by a bpf program.
+ */
+static inline bool has_current_bpf_ctx(void)
+{
+	return !!current->bpf_ctx;
+}
 #else /* !CONFIG_BPF_SYSCALL */
 static inline struct bpf_prog *bpf_prog_get(u32 ufd)
 {
@@ -2175,6 +2184,10 @@ static inline bool unprivileged_ebpf_enabled(void)
 	return false;
 }
 
+static inline bool has_current_bpf_ctx(void)
+{
+	return false;
+}
 #endif /* CONFIG_BPF_SYSCALL */
 
 void __bpf_free_used_btfs(struct bpf_prog_aux *aux,
