@@ -87,8 +87,6 @@ struct isst_id {
 };
 
 struct isst_clos_config {
-	int pkg_id;
-	int die_id;
 	unsigned char epp;
 	unsigned char clos_prop_prio;
 	unsigned char clos_min;

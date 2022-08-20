@@ -971,9 +971,6 @@ int isst_pm_get_clos(struct isst_id *id, int clos, struct isst_clos_config *clos
 	if (ret)
 		return ret;
 
-	clos_config->pkg_id = id->pkg;
-	clos_config->die_id = id->die;
-
 	clos_config->epp = resp & 0x0f;
 	clos_config->clos_prop_prio = (resp >> 4) & 0x0f;
 	clos_config->clos_min = (resp >> 8) & 0xff;

@@ -2197,9 +2197,6 @@ static void set_clos_config_for_cpu(struct isst_id *id, void *arg1, void *arg2, 
 	struct isst_clos_config clos_config;
 	int ret;
 
-	clos_config.pkg_id = id->pkg;
-	clos_config.die_id = id->die;
-
 	clos_config.epp = clos_epp;
 	clos_config.clos_prop_prio = clos_prop_prio;
 	clos_config.clos_min = clos_min;
