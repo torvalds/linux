@@ -21,7 +21,7 @@ menuconfig CRYPTO
 
 if CRYPTO
 
-comment "Crypto core or helper"
+menu "Crypto core or helper"
 
 config CRYPTO_FIPS
 	bool "FIPS 200 compliance"
@@ -235,7 +235,9 @@ config CRYPTO_SIMD
 config CRYPTO_ENGINE
 	tristate
 
-comment "Public-key cryptography"
+endmenu
+
+menu "Public-key cryptography"
 
 config CRYPTO_RSA
 	tristate "RSA algorithm"
@@ -316,499 +318,9 @@ config CRYPTO_CURVE25519
 	select CRYPTO_KPP
 	select CRYPTO_LIB_CURVE25519_GENERIC
 
-comment "Authenticated Encryption with Associated Data"
+endmenu
 
-config CRYPTO_CCM
-	tristate "CCM support"
-	select CRYPTO_CTR
-	select CRYPTO_HASH
-	select CRYPTO_AEAD
-	select CRYPTO_MANAGER
-	help
-	  Support for Counter with CBC MAC. Required for IPsec.
-
-config CRYPTO_GCM
-	tristate "GCM/GMAC support"
-	select CRYPTO_CTR
-	select CRYPTO_AEAD
-	select CRYPTO_GHASH
-	select CRYPTO_NULL
-	select CRYPTO_MANAGER
-	help
-	  Support for Galois/Counter Mode (GCM) and Galois Message
-	  Authentication Code (GMAC). Required for IPSec.
-
-config CRYPTO_CHACHA20POLY1305
-	tristate "ChaCha20-Poly1305 AEAD support"
-	select CRYPTO_CHACHA20
-	select CRYPTO_POLY1305
-	select CRYPTO_AEAD
-	select CRYPTO_MANAGER
-	help
-	  ChaCha20-Poly1305 AEAD support, RFC7539.
-
-	  Support for the AEAD wrapper using the ChaCha20 stream cipher combined
-	  with the Poly1305 authenticator. It is defined in RFC7539 for use in
-	  IETF protocols.
-
-config CRYPTO_AEGIS128
-	tristate "AEGIS-128 AEAD algorithm"
-	select CRYPTO_AEAD
-	select CRYPTO_AES  # for AES S-box tables
-	help
-	 Support for the AEGIS-128 dedicated AEAD algorithm.
-
-config CRYPTO_AEGIS128_SIMD
-	bool "Support SIMD acceleration for AEGIS-128"
-	depends on CRYPTO_AEGIS128 && ((ARM || ARM64) && KERNEL_MODE_NEON)
-	default y
-
-config CRYPTO_SEQIV
-	tristate "Sequence Number IV Generator"
-	select CRYPTO_AEAD
-	select CRYPTO_SKCIPHER
-	select CRYPTO_NULL
-	select CRYPTO_RNG_DEFAULT
-	select CRYPTO_MANAGER
-	help
-	  This IV generator generates an IV based on a sequence number by
-	  xoring it with a salt.  This algorithm is mainly useful for CTR
-
-config CRYPTO_ECHAINIV
-	tristate "Encrypted Chain IV Generator"
-	select CRYPTO_AEAD
-	select CRYPTO_NULL
-	select CRYPTO_RNG_DEFAULT
-	select CRYPTO_MANAGER
-	help
-	  This IV generator generates an IV based on the encryption of
-	  a sequence number xored with a salt.  This is the default
-	  algorithm for CBC.
-
-comment "Block modes"
-
-config CRYPTO_CBC
-	tristate "CBC support"
-	select CRYPTO_SKCIPHER
-	select CRYPTO_MANAGER
-	help
-	  CBC: Cipher Block Chaining mode
-	  This block cipher algorithm is required for IPSec.
-
-config CRYPTO_CFB
-	tristate "CFB support"
-	select CRYPTO_SKCIPHER
-	select CRYPTO_MANAGER
-	help
-	  CFB: Cipher FeedBack mode
-	  This block cipher algorithm is required for TPM2 Cryptography.
-
-config CRYPTO_CTR
-	tristate "CTR support"
-	select CRYPTO_SKCIPHER
-	select CRYPTO_MANAGER
-	help
-	  CTR: Counter mode
-	  This block cipher algorithm is required for IPSec.
-
-config CRYPTO_CTS
-	tristate "CTS support"
-	select CRYPTO_SKCIPHER
-	select CRYPTO_MANAGER
-	help
-	  CTS: Cipher Text Stealing
-	  This is the Cipher Text Stealing mode as described by
-	  Section 8 of rfc2040 and referenced by rfc3962
-	  (rfc3962 includes errata information in its Appendix A) or
-	  CBC-CS3 as defined by NIST in Sp800-38A addendum from Oct 2010.
-	  This mode is required for Kerberos gss mechanism support
-	  for AES encryption.
-
-	  See: https://csrc.nist.gov/publications/detail/sp/800-38a/addendum/final
-
-config CRYPTO_ECB
-	tristate "ECB support"
-	select CRYPTO_SKCIPHER
-	select CRYPTO_MANAGER
-	help
-	  ECB: Electronic CodeBook mode
-	  This is the simplest block cipher algorithm.  It simply encrypts
-	  the input block by block.
-
-config CRYPTO_LRW
-	tristate "LRW support"
-	select CRYPTO_SKCIPHER
-	select CRYPTO_MANAGER
-	select CRYPTO_GF128MUL
-	select CRYPTO_ECB
-	help
-	  LRW: Liskov Rivest Wagner, a tweakable, non malleable, non movable
-	  narrow block cipher mode for dm-crypt.  Use it with cipher
-	  specification string aes-lrw-benbi, the key must be 256, 320 or 384.
-	  The first 128, 192 or 256 bits in the key are used for AES and the
-	  rest is used to tie each cipher block to its logical position.
-
-config CRYPTO_OFB
-	tristate "OFB support"
-	select CRYPTO_SKCIPHER
-	select CRYPTO_MANAGER
-	help
-	  OFB: the Output Feedback mode makes a block cipher into a synchronous
-	  stream cipher. It generates keystream blocks, which are then XORed
-	  with the plaintext blocks to get the ciphertext. Flipping a bit in the
-	  ciphertext produces a flipped bit in the plaintext at the same
-	  location. This property allows many error correcting codes to function
-	  normally even when applied before encryption.
-
-config CRYPTO_PCBC
-	tristate "PCBC support"
-	select CRYPTO_SKCIPHER
-	select CRYPTO_MANAGER
-	help
-	  PCBC: Propagating Cipher Block Chaining mode
-	  This block cipher algorithm is required for RxRPC.
-
-config CRYPTO_XCTR
-	tristate
-	select CRYPTO_SKCIPHER
-	select CRYPTO_MANAGER
-	help
-	  XCTR: XOR Counter mode. This blockcipher mode is a variant of CTR mode
-	  using XORs and little-endian addition rather than big-endian arithmetic.
-	  XCTR mode is used to implement HCTR2.
-
-config CRYPTO_XTS
-	tristate "XTS support"
-	select CRYPTO_SKCIPHER
-	select CRYPTO_MANAGER
-	select CRYPTO_ECB
-	help
-	  XTS: IEEE1619/D16 narrow block cipher use with aes-xts-plain,
-	  key size 256, 384 or 512 bits. This implementation currently
-	  can't handle a sectorsize which is not a multiple of 16 bytes.
-
-config CRYPTO_KEYWRAP
-	tristate "Key wrapping support"
-	select CRYPTO_SKCIPHER
-	select CRYPTO_MANAGER
-	help
-	  Support for key wrapping (NIST SP800-38F / RFC3394) without
-	  padding.
-
-config CRYPTO_NHPOLY1305
-	tristate
-	select CRYPTO_HASH
-	select CRYPTO_LIB_POLY1305_GENERIC
-
-config CRYPTO_ADIANTUM
-	tristate "Adiantum support"
-	select CRYPTO_CHACHA20
-	select CRYPTO_LIB_POLY1305_GENERIC
-	select CRYPTO_NHPOLY1305
-	select CRYPTO_MANAGER
-	help
-	  Adiantum is a tweakable, length-preserving encryption mode
-	  designed for fast and secure disk encryption, especially on
-	  CPUs without dedicated crypto instructions.  It encrypts
-	  each sector using the XChaCha12 stream cipher, two passes of
-	  an ε-almost-∆-universal hash function, and an invocation of
-	  the AES-256 block cipher on a single 16-byte block.  On CPUs
-	  without AES instructions, Adiantum is much faster than
-	  AES-XTS.
-
-	  Adiantum's security is provably reducible to that of its
-	  underlying stream and block ciphers, subject to a security
-	  bound.  Unlike XTS, Adiantum is a true wide-block encryption
-	  mode, so it actually provides an even stronger notion of
-	  security than XTS, subject to the security bound.
-
-	  If unsure, say N.
-
-config CRYPTO_HCTR2
-	tristate "HCTR2 support"
-	select CRYPTO_XCTR
-	select CRYPTO_POLYVAL
-	select CRYPTO_MANAGER
-	help
-	  HCTR2 is a length-preserving encryption mode for storage encryption that
-	  is efficient on processors with instructions to accelerate AES and
-	  carryless multiplication, e.g. x86 processors with AES-NI and CLMUL, and
-	  ARM processors with the ARMv8 crypto extensions.
-
-config CRYPTO_ESSIV
-	tristate "ESSIV support for block encryption"
-	select CRYPTO_AUTHENC
-	help
-	  Encrypted salt-sector initialization vector (ESSIV) is an IV
-	  generation method that is used in some cases by fscrypt and/or
-	  dm-crypt. It uses the hash of the block encryption key as the
-	  symmetric key for a block encryption pass applied to the input
-	  IV, making low entropy IV sources more suitable for block
-	  encryption.
-
-	  This driver implements a crypto API template that can be
-	  instantiated either as an skcipher or as an AEAD (depending on the
-	  type of the first template argument), and which defers encryption
-	  and decryption requests to the encapsulated cipher after applying
-	  ESSIV to the input IV. Note that in the AEAD case, it is assumed
-	  that the keys are presented in the same format used by the authenc
-	  template, and that the IV appears at the end of the authenticated
-	  associated data (AAD) region (which is how dm-crypt uses it.)
-
-	  Note that the use of ESSIV is not recommended for new deployments,
-	  and so this only needs to be enabled when interoperability with
-	  existing encrypted volumes of filesystems is required, or when
-	  building for a particular system that requires it (e.g., when
-	  the SoC in question has accelerated CBC but not XTS, making CBC
-	  combined with ESSIV the only feasible mode for h/w accelerated
-	  block encryption)
-
-comment "Hash modes"
-
-config CRYPTO_CMAC
-	tristate "CMAC support"
-	select CRYPTO_HASH
-	select CRYPTO_MANAGER
-	help
-	  Cipher-based Message Authentication Code (CMAC) specified by
-	  The National Institute of Standards and Technology (NIST).
-
-	  https://tools.ietf.org/html/rfc4493
-	  http://csrc.nist.gov/publications/nistpubs/800-38B/SP_800-38B.pdf
-
-config CRYPTO_HMAC
-	tristate "HMAC support"
-	select CRYPTO_HASH
-	select CRYPTO_MANAGER
-	help
-	  HMAC: Keyed-Hashing for Message Authentication (RFC2104).
-	  This is required for IPSec.
-
-config CRYPTO_XCBC
-	tristate "XCBC support"
-	select CRYPTO_HASH
-	select CRYPTO_MANAGER
-	help
-	  XCBC: Keyed-Hashing with encryption algorithm
-		https://www.ietf.org/rfc/rfc3566.txt
-		http://csrc.nist.gov/encryption/modes/proposedmodes/
-		 xcbc-mac/xcbc-mac-spec.pdf
-
-config CRYPTO_VMAC
-	tristate "VMAC support"
-	select CRYPTO_HASH
-	select CRYPTO_MANAGER
-	help
-	  VMAC is a message authentication algorithm designed for
-	  very high speed on 64-bit architectures.
-
-	  See also:
-	  <https://fastcrypto.org/vmac>
-
-comment "Digest"
-
-config CRYPTO_CRC32C
-	tristate "CRC32c CRC algorithm"
-	select CRYPTO_HASH
-	select CRC32
-	help
-	  Castagnoli, et al Cyclic Redundancy-Check Algorithm.  Used
-	  by iSCSI for header and data digests and by others.
-	  See Castagnoli93.  Module will be crc32c.
-
-config CRYPTO_CRC32
-	tristate "CRC32 CRC algorithm"
-	select CRYPTO_HASH
-	select CRC32
-	help
-	  CRC-32-IEEE 802.3 cyclic redundancy-check algorithm.
-	  Shash crypto api wrappers to crc32_le function.
-
-config CRYPTO_XXHASH
-	tristate "xxHash hash algorithm"
-	select CRYPTO_HASH
-	select XXHASH
-	help
-	  xxHash non-cryptographic hash algorithm. Extremely fast, working at
-	  speeds close to RAM limits.
-
-config CRYPTO_BLAKE2B
-	tristate "BLAKE2b digest algorithm"
-	select CRYPTO_HASH
-	help
-	  Implementation of cryptographic hash function BLAKE2b (or just BLAKE2),
-	  optimized for 64bit platforms and can produce digests of any size
-	  between 1 to 64.  The keyed hash is also implemented.
-
-	  This module provides the following algorithms:
-
-	  - blake2b-160
-	  - blake2b-256
-	  - blake2b-384
-	  - blake2b-512
-
-	  See https://blake2.net for further information.
-
-config CRYPTO_CRCT10DIF
-	tristate "CRCT10DIF algorithm"
-	select CRYPTO_HASH
-	help
-	  CRC T10 Data Integrity Field computation is being cast as
-	  a crypto transform.  This allows for faster crc t10 diff
-	  transforms to be used if they are available.
-
-config CRYPTO_CRC64_ROCKSOFT
-	tristate "Rocksoft Model CRC64 algorithm"
-	depends on CRC64
-	select CRYPTO_HASH
-
-config CRYPTO_GHASH
-	tristate "GHASH hash function"
-	select CRYPTO_GF128MUL
-	select CRYPTO_HASH
-	help
-	  GHASH is the hash function used in GCM (Galois/Counter Mode).
-	  It is not a general-purpose cryptographic hash function.
-
-config CRYPTO_POLYVAL
-	tristate
-	select CRYPTO_GF128MUL
-	select CRYPTO_HASH
-	help
-	  POLYVAL is the hash function used in HCTR2.  It is not a general-purpose
-	  cryptographic hash function.
-
-config CRYPTO_POLY1305
-	tristate "Poly1305 authenticator algorithm"
-	select CRYPTO_HASH
-	select CRYPTO_LIB_POLY1305_GENERIC
-	help
-	  Poly1305 authenticator algorithm, RFC7539.
-
-	  Poly1305 is an authenticator algorithm designed by Daniel J. Bernstein.
-	  It is used for the ChaCha20-Poly1305 AEAD, specified in RFC7539 for use
-	  in IETF protocols. This is the portable C implementation of Poly1305.
-
-config CRYPTO_MD4
-	tristate "MD4 digest algorithm"
-	select CRYPTO_HASH
-	help
-	  MD4 message digest algorithm (RFC1320).
-
-config CRYPTO_MD5
-	tristate "MD5 digest algorithm"
-	select CRYPTO_HASH
-	help
-	  MD5 message digest algorithm (RFC1321).
-
-config CRYPTO_MICHAEL_MIC
-	tristate "Michael MIC keyed digest algorithm"
-	select CRYPTO_HASH
-	help
-	  Michael MIC is used for message integrity protection in TKIP
-	  (IEEE 802.11i). This algorithm is required for TKIP, but it
-	  should not be used for other purposes because of the weakness
-	  of the algorithm.
-
-config CRYPTO_RMD160
-	tristate "RIPEMD-160 digest algorithm"
-	select CRYPTO_HASH
-	help
-	  RIPEMD-160 (ISO/IEC 10118-3:2004).
-
-	  RIPEMD-160 is a 160-bit cryptographic hash function. It is intended
-	  to be used as a secure replacement for the 128-bit hash functions
-	  MD4, MD5 and its predecessor RIPEMD
-	  (not to be confused with RIPEMD-128).
-
-	  It's speed is comparable to SHA1 and there are no known attacks
-	  against RIPEMD-160.
-
-	  Developed by Hans Dobbertin, Antoon Bosselaers and Bart Preneel.
-	  See <https://homes.esat.kuleuven.be/~bosselae/ripemd160.html>
-
-config CRYPTO_SHA1
-	tristate "SHA1 digest algorithm"
-	select CRYPTO_HASH
-	select CRYPTO_LIB_SHA1
-	help
-	  SHA-1 secure hash standard (FIPS 180-1/DFIPS 180-2).
-
-config CRYPTO_SHA256
-	tristate "SHA224 and SHA256 digest algorithm"
-	select CRYPTO_HASH
-	select CRYPTO_LIB_SHA256
-	help
-	  SHA256 secure hash standard (DFIPS 180-2).
-
-	  This version of SHA implements a 256 bit hash with 128 bits of
-	  security against collision attacks.
-
-	  This code also includes SHA-224, a 224 bit hash with 112 bits
-	  of security against collision attacks.
-
-config CRYPTO_SHA512
-	tristate "SHA384 and SHA512 digest algorithms"
-	select CRYPTO_HASH
-	help
-	  SHA512 secure hash standard (DFIPS 180-2).
-
-	  This version of SHA implements a 512 bit hash with 256 bits of
-	  security against collision attacks.
-
-	  This code also includes SHA-384, a 384 bit hash with 192 bits
-	  of security against collision attacks.
-
-config CRYPTO_SHA3
-	tristate "SHA3 digest algorithm"
-	select CRYPTO_HASH
-	help
-	  SHA-3 secure hash standard (DFIPS 202). It's based on
-	  cryptographic sponge function family called Keccak.
-
-	  References:
-	  http://keccak.noekeon.org/
-
-config CRYPTO_SM3
-	tristate
-
-config CRYPTO_SM3_GENERIC
-	tristate "SM3 digest algorithm"
-	select CRYPTO_HASH
-	select CRYPTO_SM3
-	help
-	  SM3 secure hash function as defined by OSCCA GM/T 0004-2012 SM3).
-	  It is part of the Chinese Commercial Cryptography suite.
-
-	  References:
-	  http://www.oscca.gov.cn/UpFile/20101222141857786.pdf
-	  https://datatracker.ietf.org/doc/html/draft-shen-sm3-hash
-
-config CRYPTO_STREEBOG
-	tristate "Streebog Hash Function"
-	select CRYPTO_HASH
-	help
-	  Streebog Hash Function (GOST R 34.11-2012, RFC 6986) is one of the Russian
-	  cryptographic standard algorithms (called GOST algorithms).
-	  This setting enables two hash algorithms with 256 and 512 bits output.
-
-	  References:
-	  https://tc26.ru/upload/iblock/fed/feddbb4d26b685903faa2ba11aea43f6.pdf
-	  https://tools.ietf.org/html/rfc6986
-
-config CRYPTO_WP512
-	tristate "Whirlpool digest algorithms"
-	select CRYPTO_HASH
-	help
-	  Whirlpool hash algorithm 512, 384 and 256-bit hashes
-
-	  Whirlpool-512 is part of the NESSIE cryptographic primitives.
-	  Whirlpool will be part of the ISO/IEC 10118-3:2003(E) standard
-
-	  See also:
-	  <http://www.larc.usp.br/~pbarreto/WhirlpoolPage.html>
-
-comment "Ciphers"
+menu "Block ciphers"
 
 config CRYPTO_AES
 	tristate "AES cipher algorithms"
@@ -865,18 +377,20 @@ config CRYPTO_ANUBIS
 	  <https://www.cosic.esat.kuleuven.be/nessie/reports/>
 	  <http://www.larc.usp.br/~pbarreto/AnubisPage.html>
 
-config CRYPTO_ARC4
-	tristate "ARC4 cipher algorithm"
-	depends on CRYPTO_USER_API_ENABLE_OBSOLETE
-	select CRYPTO_SKCIPHER
-	select CRYPTO_LIB_ARC4
+config CRYPTO_ARIA
+	tristate "ARIA cipher algorithm"
+	select CRYPTO_ALGAPI
 	help
-	  ARC4 cipher algorithm.
+	  ARIA cipher algorithm (RFC5794).
 
-	  ARC4 is a stream cipher using keys ranging from 8 bits to 2048
-	  bits in length.  This algorithm is required for driver-based
-	  WEP, but it should not be for other purposes because of the
-	  weakness of the algorithm.
+	  ARIA is a standard encryption algorithm of the Republic of Korea.
+	  The ARIA specifies three key sizes and rounds.
+	  128-bit: 12 rounds.
+	  192-bit: 14 rounds.
+	  256-bit: 16 rounds.
+
+	  See also:
+	  <https://seed.kisa.or.kr/kisa/algorithm/EgovAriaInfo.do>
 
 config CRYPTO_BLOWFISH
 	tristate "Blowfish cipher algorithm"
@@ -965,28 +479,6 @@ config CRYPTO_KHAZAD
 	  See also:
 	  <http://www.larc.usp.br/~pbarreto/KhazadPage.html>
 
-config CRYPTO_CHACHA20
-	tristate "ChaCha stream cipher algorithms"
-	select CRYPTO_LIB_CHACHA_GENERIC
-	select CRYPTO_SKCIPHER
-	help
-	  The ChaCha20, XChaCha20, and XChaCha12 stream cipher algorithms.
-
-	  ChaCha20 is a 256-bit high-speed stream cipher designed by Daniel J.
-	  Bernstein and further specified in RFC7539 for use in IETF protocols.
-	  This is the portable C implementation of ChaCha20.  See also:
-	  <https://cr.yp.to/chacha/chacha-20080128.pdf>
-
-	  XChaCha20 is the application of the XSalsa20 construction to ChaCha20
-	  rather than to Salsa20.  XChaCha20 extends ChaCha20's nonce length
-	  from 64 bits (or 96 bits using the RFC7539 convention) to 192 bits,
-	  while provably retaining ChaCha20's security.  See also:
-	  <https://cr.yp.to/snuffle/xsalsa-20081128.pdf>
-
-	  XChaCha12 is XChaCha20 reduced to 12 rounds, with correspondingly
-	  reduced security margin but increased performance.  It can be needed
-	  in some performance-sensitive scenarios.
-
 config CRYPTO_SEED
 	tristate "SEED cipher algorithm"
 	depends on CRYPTO_USER_API_ENABLE_OBSOLETE
@@ -1001,21 +493,6 @@ config CRYPTO_SEED
 
 	  See also:
 	  <http://www.kisa.or.kr/kisa/seed/jsp/seed_eng.jsp>
-
-config CRYPTO_ARIA
-	tristate "ARIA cipher algorithm"
-	select CRYPTO_ALGAPI
-	help
-	  ARIA cipher algorithm (RFC5794).
-
-	  ARIA is a standard encryption algorithm of the Republic of Korea.
-	  The ARIA specifies three key sizes and rounds.
-	  128-bit: 12 rounds.
-	  192-bit: 14 rounds.
-	  256-bit: 16 rounds.
-
-	  See also:
-	  <https://seed.kisa.or.kr/kisa/algorithm/EgovAriaInfo.do>
 
 config CRYPTO_SERPENT
 	tristate "Serpent cipher algorithm"
@@ -1097,7 +574,544 @@ config CRYPTO_TWOFISH_COMMON
 	  Common parts of the Twofish cipher algorithm shared by the
 	  generic c and the assembler implementations.
 
-comment "Compression"
+endmenu
+
+menu "Length-preserving ciphers and modes"
+
+config CRYPTO_ADIANTUM
+	tristate "Adiantum support"
+	select CRYPTO_CHACHA20
+	select CRYPTO_LIB_POLY1305_GENERIC
+	select CRYPTO_NHPOLY1305
+	select CRYPTO_MANAGER
+	help
+	  Adiantum is a tweakable, length-preserving encryption mode
+	  designed for fast and secure disk encryption, especially on
+	  CPUs without dedicated crypto instructions.  It encrypts
+	  each sector using the XChaCha12 stream cipher, two passes of
+	  an ε-almost-∆-universal hash function, and an invocation of
+	  the AES-256 block cipher on a single 16-byte block.  On CPUs
+	  without AES instructions, Adiantum is much faster than
+	  AES-XTS.
+
+	  Adiantum's security is provably reducible to that of its
+	  underlying stream and block ciphers, subject to a security
+	  bound.  Unlike XTS, Adiantum is a true wide-block encryption
+	  mode, so it actually provides an even stronger notion of
+	  security than XTS, subject to the security bound.
+
+	  If unsure, say N.
+
+config CRYPTO_ARC4
+	tristate "ARC4 cipher algorithm"
+	depends on CRYPTO_USER_API_ENABLE_OBSOLETE
+	select CRYPTO_SKCIPHER
+	select CRYPTO_LIB_ARC4
+	help
+	  ARC4 cipher algorithm.
+
+	  ARC4 is a stream cipher using keys ranging from 8 bits to 2048
+	  bits in length.  This algorithm is required for driver-based
+	  WEP, but it should not be for other purposes because of the
+	  weakness of the algorithm.
+
+config CRYPTO_CHACHA20
+	tristate "ChaCha stream cipher algorithms"
+	select CRYPTO_LIB_CHACHA_GENERIC
+	select CRYPTO_SKCIPHER
+	help
+	  The ChaCha20, XChaCha20, and XChaCha12 stream cipher algorithms.
+
+	  ChaCha20 is a 256-bit high-speed stream cipher designed by Daniel J.
+	  Bernstein and further specified in RFC7539 for use in IETF protocols.
+	  This is the portable C implementation of ChaCha20.  See also:
+	  <https://cr.yp.to/chacha/chacha-20080128.pdf>
+
+	  XChaCha20 is the application of the XSalsa20 construction to ChaCha20
+	  rather than to Salsa20.  XChaCha20 extends ChaCha20's nonce length
+	  from 64 bits (or 96 bits using the RFC7539 convention) to 192 bits,
+	  while provably retaining ChaCha20's security.  See also:
+	  <https://cr.yp.to/snuffle/xsalsa-20081128.pdf>
+
+	  XChaCha12 is XChaCha20 reduced to 12 rounds, with correspondingly
+	  reduced security margin but increased performance.  It can be needed
+	  in some performance-sensitive scenarios.
+
+config CRYPTO_CBC
+	tristate "CBC support"
+	select CRYPTO_SKCIPHER
+	select CRYPTO_MANAGER
+	help
+	  CBC: Cipher Block Chaining mode
+	  This block cipher algorithm is required for IPSec.
+
+config CRYPTO_CFB
+	tristate "CFB support"
+	select CRYPTO_SKCIPHER
+	select CRYPTO_MANAGER
+	help
+	  CFB: Cipher FeedBack mode
+	  This block cipher algorithm is required for TPM2 Cryptography.
+
+config CRYPTO_CTR
+	tristate "CTR support"
+	select CRYPTO_SKCIPHER
+	select CRYPTO_MANAGER
+	help
+	  CTR: Counter mode
+	  This block cipher algorithm is required for IPSec.
+
+config CRYPTO_CTS
+	tristate "CTS support"
+	select CRYPTO_SKCIPHER
+	select CRYPTO_MANAGER
+	help
+	  CTS: Cipher Text Stealing
+	  This is the Cipher Text Stealing mode as described by
+	  Section 8 of rfc2040 and referenced by rfc3962
+	  (rfc3962 includes errata information in its Appendix A) or
+	  CBC-CS3 as defined by NIST in Sp800-38A addendum from Oct 2010.
+	  This mode is required for Kerberos gss mechanism support
+	  for AES encryption.
+
+	  See: https://csrc.nist.gov/publications/detail/sp/800-38a/addendum/final
+
+config CRYPTO_ECB
+	tristate "ECB support"
+	select CRYPTO_SKCIPHER
+	select CRYPTO_MANAGER
+	help
+	  ECB: Electronic CodeBook mode
+	  This is the simplest block cipher algorithm.  It simply encrypts
+	  the input block by block.
+
+config CRYPTO_HCTR2
+	tristate "HCTR2 support"
+	select CRYPTO_XCTR
+	select CRYPTO_POLYVAL
+	select CRYPTO_MANAGER
+	help
+	  HCTR2 is a length-preserving encryption mode for storage encryption that
+	  is efficient on processors with instructions to accelerate AES and
+	  carryless multiplication, e.g. x86 processors with AES-NI and CLMUL, and
+	  ARM processors with the ARMv8 crypto extensions.
+
+config CRYPTO_KEYWRAP
+	tristate "Key wrapping support"
+	select CRYPTO_SKCIPHER
+	select CRYPTO_MANAGER
+	help
+	  Support for key wrapping (NIST SP800-38F / RFC3394) without
+	  padding.
+
+config CRYPTO_LRW
+	tristate "LRW support"
+	select CRYPTO_SKCIPHER
+	select CRYPTO_MANAGER
+	select CRYPTO_GF128MUL
+	select CRYPTO_ECB
+	help
+	  LRW: Liskov Rivest Wagner, a tweakable, non malleable, non movable
+	  narrow block cipher mode for dm-crypt.  Use it with cipher
+	  specification string aes-lrw-benbi, the key must be 256, 320 or 384.
+	  The first 128, 192 or 256 bits in the key are used for AES and the
+	  rest is used to tie each cipher block to its logical position.
+
+config CRYPTO_OFB
+	tristate "OFB support"
+	select CRYPTO_SKCIPHER
+	select CRYPTO_MANAGER
+	help
+	  OFB: the Output Feedback mode makes a block cipher into a synchronous
+	  stream cipher. It generates keystream blocks, which are then XORed
+	  with the plaintext blocks to get the ciphertext. Flipping a bit in the
+	  ciphertext produces a flipped bit in the plaintext at the same
+	  location. This property allows many error correcting codes to function
+	  normally even when applied before encryption.
+
+config CRYPTO_PCBC
+	tristate "PCBC support"
+	select CRYPTO_SKCIPHER
+	select CRYPTO_MANAGER
+	help
+	  PCBC: Propagating Cipher Block Chaining mode
+	  This block cipher algorithm is required for RxRPC.
+
+config CRYPTO_XCTR
+	tristate
+	select CRYPTO_SKCIPHER
+	select CRYPTO_MANAGER
+	help
+	  XCTR: XOR Counter mode. This blockcipher mode is a variant of CTR mode
+	  using XORs and little-endian addition rather than big-endian arithmetic.
+	  XCTR mode is used to implement HCTR2.
+
+config CRYPTO_XTS
+	tristate "XTS support"
+	select CRYPTO_SKCIPHER
+	select CRYPTO_MANAGER
+	select CRYPTO_ECB
+	help
+	  XTS: IEEE1619/D16 narrow block cipher use with aes-xts-plain,
+	  key size 256, 384 or 512 bits. This implementation currently
+	  can't handle a sectorsize which is not a multiple of 16 bytes.
+
+config CRYPTO_NHPOLY1305
+	tristate
+	select CRYPTO_HASH
+	select CRYPTO_LIB_POLY1305_GENERIC
+
+endmenu
+
+menu "AEAD (authenticated encryption with associated data) ciphers"
+
+config CRYPTO_AEGIS128
+	tristate "AEGIS-128 AEAD algorithm"
+	select CRYPTO_AEAD
+	select CRYPTO_AES  # for AES S-box tables
+	help
+	 Support for the AEGIS-128 dedicated AEAD algorithm.
+
+config CRYPTO_AEGIS128_SIMD
+	bool "Support SIMD acceleration for AEGIS-128"
+	depends on CRYPTO_AEGIS128 && ((ARM || ARM64) && KERNEL_MODE_NEON)
+	default y
+
+config CRYPTO_CHACHA20POLY1305
+	tristate "ChaCha20-Poly1305 AEAD support"
+	select CRYPTO_CHACHA20
+	select CRYPTO_POLY1305
+	select CRYPTO_AEAD
+	select CRYPTO_MANAGER
+	help
+	  ChaCha20-Poly1305 AEAD support, RFC7539.
+
+	  Support for the AEAD wrapper using the ChaCha20 stream cipher combined
+	  with the Poly1305 authenticator. It is defined in RFC7539 for use in
+	  IETF protocols.
+
+config CRYPTO_CCM
+	tristate "CCM support"
+	select CRYPTO_CTR
+	select CRYPTO_HASH
+	select CRYPTO_AEAD
+	select CRYPTO_MANAGER
+	help
+	  Support for Counter with CBC MAC. Required for IPsec.
+
+config CRYPTO_GCM
+	tristate "GCM/GMAC support"
+	select CRYPTO_CTR
+	select CRYPTO_AEAD
+	select CRYPTO_GHASH
+	select CRYPTO_NULL
+	select CRYPTO_MANAGER
+	help
+	  Support for Galois/Counter Mode (GCM) and Galois Message
+	  Authentication Code (GMAC). Required for IPSec.
+
+config CRYPTO_SEQIV
+	tristate "Sequence Number IV Generator"
+	select CRYPTO_AEAD
+	select CRYPTO_SKCIPHER
+	select CRYPTO_NULL
+	select CRYPTO_RNG_DEFAULT
+	select CRYPTO_MANAGER
+	help
+	  This IV generator generates an IV based on a sequence number by
+	  xoring it with a salt.  This algorithm is mainly useful for CTR
+
+config CRYPTO_ECHAINIV
+	tristate "Encrypted Chain IV Generator"
+	select CRYPTO_AEAD
+	select CRYPTO_NULL
+	select CRYPTO_RNG_DEFAULT
+	select CRYPTO_MANAGER
+	help
+	  This IV generator generates an IV based on the encryption of
+	  a sequence number xored with a salt.  This is the default
+	  algorithm for CBC.
+
+config CRYPTO_ESSIV
+	tristate "ESSIV support for block encryption"
+	select CRYPTO_AUTHENC
+	help
+	  Encrypted salt-sector initialization vector (ESSIV) is an IV
+	  generation method that is used in some cases by fscrypt and/or
+	  dm-crypt. It uses the hash of the block encryption key as the
+	  symmetric key for a block encryption pass applied to the input
+	  IV, making low entropy IV sources more suitable for block
+	  encryption.
+
+	  This driver implements a crypto API template that can be
+	  instantiated either as an skcipher or as an AEAD (depending on the
+	  type of the first template argument), and which defers encryption
+	  and decryption requests to the encapsulated cipher after applying
+	  ESSIV to the input IV. Note that in the AEAD case, it is assumed
+	  that the keys are presented in the same format used by the authenc
+	  template, and that the IV appears at the end of the authenticated
+	  associated data (AAD) region (which is how dm-crypt uses it.)
+
+	  Note that the use of ESSIV is not recommended for new deployments,
+	  and so this only needs to be enabled when interoperability with
+	  existing encrypted volumes of filesystems is required, or when
+	  building for a particular system that requires it (e.g., when
+	  the SoC in question has accelerated CBC but not XTS, making CBC
+	  combined with ESSIV the only feasible mode for h/w accelerated
+	  block encryption)
+
+endmenu
+
+menu "Hashes, digests, and MACs"
+
+config CRYPTO_BLAKE2B
+	tristate "BLAKE2b digest algorithm"
+	select CRYPTO_HASH
+	help
+	  Implementation of cryptographic hash function BLAKE2b (or just BLAKE2),
+	  optimized for 64bit platforms and can produce digests of any size
+	  between 1 to 64.  The keyed hash is also implemented.
+
+	  This module provides the following algorithms:
+
+	  - blake2b-160
+	  - blake2b-256
+	  - blake2b-384
+	  - blake2b-512
+
+	  See https://blake2.net for further information.
+
+config CRYPTO_CMAC
+	tristate "CMAC support"
+	select CRYPTO_HASH
+	select CRYPTO_MANAGER
+	help
+	  Cipher-based Message Authentication Code (CMAC) specified by
+	  The National Institute of Standards and Technology (NIST).
+
+	  https://tools.ietf.org/html/rfc4493
+	  http://csrc.nist.gov/publications/nistpubs/800-38B/SP_800-38B.pdf
+
+config CRYPTO_GHASH
+	tristate "GHASH hash function"
+	select CRYPTO_GF128MUL
+	select CRYPTO_HASH
+	help
+	  GHASH is the hash function used in GCM (Galois/Counter Mode).
+	  It is not a general-purpose cryptographic hash function.
+
+config CRYPTO_HMAC
+	tristate "HMAC support"
+	select CRYPTO_HASH
+	select CRYPTO_MANAGER
+	help
+	  HMAC: Keyed-Hashing for Message Authentication (RFC2104).
+	  This is required for IPSec.
+
+config CRYPTO_MD4
+	tristate "MD4 digest algorithm"
+	select CRYPTO_HASH
+	help
+	  MD4 message digest algorithm (RFC1320).
+
+config CRYPTO_MD5
+	tristate "MD5 digest algorithm"
+	select CRYPTO_HASH
+	help
+	  MD5 message digest algorithm (RFC1321).
+
+config CRYPTO_MICHAEL_MIC
+	tristate "Michael MIC keyed digest algorithm"
+	select CRYPTO_HASH
+	help
+	  Michael MIC is used for message integrity protection in TKIP
+	  (IEEE 802.11i). This algorithm is required for TKIP, but it
+	  should not be used for other purposes because of the weakness
+	  of the algorithm.
+
+config CRYPTO_POLYVAL
+	tristate
+	select CRYPTO_GF128MUL
+	select CRYPTO_HASH
+	help
+	  POLYVAL is the hash function used in HCTR2.  It is not a general-purpose
+	  cryptographic hash function.
+
+config CRYPTO_POLY1305
+	tristate "Poly1305 authenticator algorithm"
+	select CRYPTO_HASH
+	select CRYPTO_LIB_POLY1305_GENERIC
+	help
+	  Poly1305 authenticator algorithm, RFC7539.
+
+	  Poly1305 is an authenticator algorithm designed by Daniel J. Bernstein.
+	  It is used for the ChaCha20-Poly1305 AEAD, specified in RFC7539 for use
+	  in IETF protocols. This is the portable C implementation of Poly1305.
+
+config CRYPTO_RMD160
+	tristate "RIPEMD-160 digest algorithm"
+	select CRYPTO_HASH
+	help
+	  RIPEMD-160 (ISO/IEC 10118-3:2004).
+
+	  RIPEMD-160 is a 160-bit cryptographic hash function. It is intended
+	  to be used as a secure replacement for the 128-bit hash functions
+	  MD4, MD5 and its predecessor RIPEMD
+	  (not to be confused with RIPEMD-128).
+
+	  It's speed is comparable to SHA1 and there are no known attacks
+	  against RIPEMD-160.
+
+	  Developed by Hans Dobbertin, Antoon Bosselaers and Bart Preneel.
+	  See <https://homes.esat.kuleuven.be/~bosselae/ripemd160.html>
+
+config CRYPTO_SHA1
+	tristate "SHA1 digest algorithm"
+	select CRYPTO_HASH
+	select CRYPTO_LIB_SHA1
+	help
+	  SHA-1 secure hash standard (FIPS 180-1/DFIPS 180-2).
+
+config CRYPTO_SHA256
+	tristate "SHA224 and SHA256 digest algorithm"
+	select CRYPTO_HASH
+	select CRYPTO_LIB_SHA256
+	help
+	  SHA256 secure hash standard (DFIPS 180-2).
+
+	  This version of SHA implements a 256 bit hash with 128 bits of
+	  security against collision attacks.
+
+	  This code also includes SHA-224, a 224 bit hash with 112 bits
+	  of security against collision attacks.
+
+config CRYPTO_SHA512
+	tristate "SHA384 and SHA512 digest algorithms"
+	select CRYPTO_HASH
+	help
+	  SHA512 secure hash standard (DFIPS 180-2).
+
+	  This version of SHA implements a 512 bit hash with 256 bits of
+	  security against collision attacks.
+
+	  This code also includes SHA-384, a 384 bit hash with 192 bits
+	  of security against collision attacks.
+
+config CRYPTO_SHA3
+	tristate "SHA3 digest algorithm"
+	select CRYPTO_HASH
+	help
+	  SHA-3 secure hash standard (DFIPS 202). It's based on
+	  cryptographic sponge function family called Keccak.
+
+	  References:
+	  http://keccak.noekeon.org/
+
+config CRYPTO_SM3
+	tristate
+
+config CRYPTO_SM3_GENERIC
+	tristate "SM3 digest algorithm"
+	select CRYPTO_HASH
+	select CRYPTO_SM3
+	help
+	  SM3 secure hash function as defined by OSCCA GM/T 0004-2012 SM3).
+	  It is part of the Chinese Commercial Cryptography suite.
+
+	  References:
+	  http://www.oscca.gov.cn/UpFile/20101222141857786.pdf
+	  https://datatracker.ietf.org/doc/html/draft-shen-sm3-hash
+
+config CRYPTO_STREEBOG
+	tristate "Streebog Hash Function"
+	select CRYPTO_HASH
+	help
+	  Streebog Hash Function (GOST R 34.11-2012, RFC 6986) is one of the Russian
+	  cryptographic standard algorithms (called GOST algorithms).
+	  This setting enables two hash algorithms with 256 and 512 bits output.
+
+	  References:
+	  https://tc26.ru/upload/iblock/fed/feddbb4d26b685903faa2ba11aea43f6.pdf
+	  https://tools.ietf.org/html/rfc6986
+
+config CRYPTO_VMAC
+	tristate "VMAC support"
+	select CRYPTO_HASH
+	select CRYPTO_MANAGER
+	help
+	  VMAC is a message authentication algorithm designed for
+	  very high speed on 64-bit architectures.
+
+	  See also:
+	  <https://fastcrypto.org/vmac>
+
+config CRYPTO_WP512
+	tristate "Whirlpool digest algorithms"
+	select CRYPTO_HASH
+	help
+	  Whirlpool hash algorithm 512, 384 and 256-bit hashes
+
+	  Whirlpool-512 is part of the NESSIE cryptographic primitives.
+	  Whirlpool will be part of the ISO/IEC 10118-3:2003(E) standard
+
+	  See also:
+	  <http://www.larc.usp.br/~pbarreto/WhirlpoolPage.html>
+
+config CRYPTO_XCBC
+	tristate "XCBC support"
+	select CRYPTO_HASH
+	select CRYPTO_MANAGER
+	help
+	  XCBC: Keyed-Hashing with encryption algorithm
+		https://www.ietf.org/rfc/rfc3566.txt
+		http://csrc.nist.gov/encryption/modes/proposedmodes/
+		 xcbc-mac/xcbc-mac-spec.pdf
+
+config CRYPTO_XXHASH
+	tristate "xxHash hash algorithm"
+	select CRYPTO_HASH
+	select XXHASH
+	help
+	  xxHash non-cryptographic hash algorithm. Extremely fast, working at
+	  speeds close to RAM limits.
+
+endmenu
+
+menu "CRCs (cyclic redundancy checks)"
+
+config CRYPTO_CRC32C
+	tristate "CRC32c CRC algorithm"
+	select CRYPTO_HASH
+	select CRC32
+	help
+	  Castagnoli, et al Cyclic Redundancy-Check Algorithm.  Used
+	  by iSCSI for header and data digests and by others.
+	  See Castagnoli93.  Module will be crc32c.
+
+config CRYPTO_CRC32
+	tristate "CRC32 CRC algorithm"
+	select CRYPTO_HASH
+	select CRC32
+	help
+	  CRC-32-IEEE 802.3 cyclic redundancy-check algorithm.
+	  Shash crypto api wrappers to crc32_le function.
+
+config CRYPTO_CRCT10DIF
+	tristate "CRCT10DIF algorithm"
+	select CRYPTO_HASH
+	help
+	  CRC T10 Data Integrity Field computation is being cast as
+	  a crypto transform.  This allows for faster crc t10 diff
+	  transforms to be used if they are available.
+
+config CRYPTO_CRC64_ROCKSOFT
+	tristate "Rocksoft Model CRC64 algorithm"
+	depends on CRC64
+	select CRYPTO_HASH
+
+endmenu
+
+menu "Compression"
 
 config CRYPTO_DEFLATE
 	tristate "Deflate compression algorithm"
@@ -1156,7 +1170,9 @@ config CRYPTO_ZSTD
 	help
 	  This is the zstd algorithm.
 
-comment "Random Number Generation"
+endmenu
+
+menu "Random number generation"
 
 config CRYPTO_ANSI_CPRNG
 	tristate "Pseudo Random Number Generation for Cryptographic modules"
@@ -1217,6 +1233,9 @@ config CRYPTO_KDF800108_CTR
 	tristate
 	select CRYPTO_HMAC
 	select CRYPTO_SHA256
+
+endmenu
+menu "User-space interface"
 
 config CRYPTO_USER_API
 	tristate
@@ -1288,6 +1307,8 @@ config CRYPTO_STATS
 	  - size and numbers of hash operations
 	  - encrypt/decrypt/sign/verify numbers for asymmetric operations
 	  - generate/seed numbers for rng operations
+
+endmenu
 
 config CRYPTO_HASH_INFO
 	bool
