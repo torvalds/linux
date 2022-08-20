@@ -366,6 +366,18 @@ void set_isst_id(struct isst_id *id, int cpu)
 	id->die = get_physical_die_id(cpu);
 }
 
+int is_cpu_in_power_domain(int cpu, struct isst_id *id)
+{
+	struct isst_id tid;
+
+	set_isst_id(&tid, cpu);
+
+	if (id->pkg == tid.pkg && id->die == tid.die)
+		return 1;
+
+	return 0;
+}
+
 int get_cpufreq_base_freq(int cpu)
 {
 	return parse_int_file(0, "/sys/devices/system/cpu/cpu%d/cpufreq/base_frequency", cpu);
@@ -592,9 +604,8 @@ int get_max_punit_core_id(struct isst_id *id)
 		if (!CPU_ISSET_S(i, present_cpumask_size, present_cpumask))
 			continue;
 
-		if (cpu_map[i].pkg_id == id->pkg &&
-			cpu_map[i].die_id == id->die &&
-			cpu_map[i].punit_cpu_core > max_id)
+		if (is_cpu_in_power_domain(i, id) &&
+		    cpu_map[i].punit_cpu_core > max_id)
 			max_id = cpu_map[i].punit_cpu_core;
 	}
 
@@ -688,8 +699,7 @@ void set_cpu_mask_from_punit_coremask(struct isst_id *id, unsigned long long cor
 				if (!CPU_ISSET_S(j, present_cpumask_size, present_cpumask))
 					continue;
 
-				if (cpu_map[j].pkg_id == id->pkg &&
-				    cpu_map[j].die_id == id->die &&
+				if (is_cpu_in_power_domain(j, id) &&
 				    cpu_map[j].punit_cpu_core == i) {
 					CPU_SET_S(j, core_cpumask_size,
 						  core_cpumask);
@@ -1129,8 +1139,7 @@ static int clx_n_config(struct isst_id *id)
 		if (!CPU_ISSET_S(i, present_cpumask_size, present_cpumask))
 			continue;
 
-		if (id->pkg != get_physical_package_id(i) ||
-		    id->die != get_physical_die_id(i))
+		if (!is_cpu_in_power_domain(i, id))
 			continue;
 
 		CPU_SET_S(i, ctdp_level->core_cpumask_size,
@@ -1167,8 +1176,7 @@ static int clx_n_config(struct isst_id *id)
 		if (!CPU_ISSET_S(i, present_cpumask_size, present_cpumask))
 			continue;
 
-		if (id->pkg != get_physical_package_id(i) ||
-		    id->die != get_physical_die_id(i))
+		if (!is_cpu_in_power_domain(i, id))
 			continue;
 
 		cpu_bf = parse_int_file(1,
@@ -1300,7 +1308,7 @@ static void set_tdp_level_for_cpu(struct isst_id *id, void *arg1, void *arg2, vo
 			if (ctdp_level.cpu_count) {
 				int i, max_cpus = get_topo_max_cpus();
 				for (i = 0; i < max_cpus; ++i) {
-					if (id->pkg != get_physical_package_id(i) || id->die != get_physical_die_id(i))
+					if (!is_cpu_in_power_domain(i, id))
 						continue;
 					if (CPU_ISSET_S(i, ctdp_level.core_cpumask_size, ctdp_level.core_cpumask)) {
 						fprintf(stderr, "online cpu %d\n", i);
@@ -1507,8 +1515,7 @@ static int set_clx_pbf_cpufreq_scaling_min_max(struct isst_id *id)
 	freq_low = pbf_info->p1_low * 100000;
 
 	for (i = 0; i < get_topo_max_cpus(); ++i) {
-		if (id->pkg != get_physical_package_id(i) ||
-		    id->die != get_physical_die_id(i))
+		if (!is_cpu_in_power_domain(i, id))
 			continue;
 
 		if (CPU_ISSET_S(i, pbf_info->core_cpumask_size,
@@ -1576,8 +1583,7 @@ static void set_scaling_min_to_cpuinfo_max(struct isst_id *id)
 	int i;
 
 	for (i = 0; i < get_topo_max_cpus(); ++i) {
-		if (id->pkg != get_physical_package_id(i) ||
-		    id->die != get_physical_die_id(i))
+		if (!is_cpu_in_power_domain(i, id))
 			continue;
 
 		adjust_scaling_max_from_base_freq(i);
@@ -1591,8 +1597,7 @@ static void set_scaling_min_to_cpuinfo_min(struct isst_id *id)
 	int i;
 
 	for (i = 0; i < get_topo_max_cpus(); ++i) {
-		if (id->pkg != get_physical_package_id(i) ||
-		    id->die != get_physical_die_id(i))
+		if (!is_cpu_in_power_domain(i, id))
 			continue;
 
 		adjust_scaling_max_from_base_freq(i);
@@ -1605,8 +1610,7 @@ static void set_scaling_max_to_cpuinfo_max(struct isst_id *id)
 	int i;
 
 	for (i = 0; i < get_topo_max_cpus(); ++i) {
-		if (id->pkg != get_physical_package_id(i) ||
-		    id->die != get_physical_die_id(i))
+		if (!is_cpu_in_power_domain(i, id))
 			continue;
 
 		set_cpufreq_scaling_min_max_from_cpuinfo(i, 1, 1);
@@ -1642,8 +1646,7 @@ static int set_core_priority_and_min(struct isst_id *id, int mask_size,
 		int clos;
 		struct isst_id tid;
 
-		if (id->pkg != get_physical_package_id(i) ||
-		    id->die != get_physical_die_id(i))
+		if (!is_cpu_in_power_domain(i, id))
 			continue;
 
 		if (CPU_ISSET_S(i, mask_size, cpu_mask))

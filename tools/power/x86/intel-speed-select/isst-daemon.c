@@ -85,7 +85,7 @@ void process_level_change(struct isst_id *id)
 	if (ctdp_level.cpu_count) {
 		int i, max_cpus = get_topo_max_cpus();
 		for (i = 0; i < max_cpus; ++i) {
-			if (id->pkg != get_physical_package_id(i) || id->die != get_physical_die_id(i))
+			if (!is_cpu_in_power_domain(i, id))
 				continue;
 			if (CPU_ISSET_S(i, ctdp_level.core_cpumask_size, ctdp_level.core_cpumask)) {
 				fprintf(stderr, "online cpu %d\n", i);
