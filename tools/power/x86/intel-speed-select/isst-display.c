@@ -235,6 +235,7 @@ static void _isst_fact_display_information(struct isst_id *id, FILE *outf, int l
 					   int base_level)
 {
 	struct isst_fact_bucket_info *bucket_info = fact_info->bucket_info;
+	int trl_max_levels = isst_get_trl_max_levels();
 	char header[256];
 	char value[256];
 	int print = 0, j;
@@ -243,7 +244,7 @@ static void _isst_fact_display_information(struct isst_id *id, FILE *outf, int l
 		if (fact_bucket != 0xff && fact_bucket != j)
 			continue;
 
-		if (!bucket_info[j].high_priority_cores_count)
+		if (!bucket_info[j].hp_cores)
 			break;
 
 		print = 1;
@@ -256,10 +257,12 @@ static void _isst_fact_display_information(struct isst_id *id, FILE *outf, int l
 	snprintf(header, sizeof(header), "speed-select-turbo-freq-properties");
 	format_and_print(outf, base_level, header, NULL);
 	for (j = 0; j < ISST_FACT_MAX_BUCKETS; ++j) {
+		int i;
+
 		if (fact_bucket != 0xff && fact_bucket != j)
 			continue;
 
-		if (!bucket_info[j].high_priority_cores_count)
+		if (!bucket_info[j].hp_cores)
 			break;
 
 		snprintf(header, sizeof(header), "bucket-%d", j);
@@ -267,54 +270,37 @@ static void _isst_fact_display_information(struct isst_id *id, FILE *outf, int l
 
 		snprintf(header, sizeof(header), "high-priority-cores-count");
 		snprintf(value, sizeof(value), "%d",
-			 bucket_info[j].high_priority_cores_count);
+			 bucket_info[j].hp_cores);
 		format_and_print(outf, base_level + 2, header, value);
-
-		if (fact_avx & 0x01) {
-			snprintf(header, sizeof(header),
-				 "high-priority-max-frequency(MHz)");
+		for (i = 0; i < trl_max_levels; i++) {
+			if (fact_avx != 0xFF && !(fact_avx & (1 << i)))
+				continue;
+			if (i == 0)
+				snprintf(header, sizeof(header),
+					"high-priority-max-frequency(MHz)");
+			else
+				snprintf(header, sizeof(header),
+					"high-priority-max-%s-frequency(MHz)", isst_get_trl_level_name(i));
 			snprintf(value, sizeof(value), "%d",
-				 bucket_info[j].sse_trl * DISP_FREQ_MULTIPLIER);
-			format_and_print(outf, base_level + 2, header, value);
-		}
-
-		if (fact_avx & 0x02) {
-			snprintf(header, sizeof(header),
-				 "high-priority-max-avx2-frequency(MHz)");
-			snprintf(value, sizeof(value), "%d",
-				 bucket_info[j].avx_trl * DISP_FREQ_MULTIPLIER);
-			format_and_print(outf, base_level + 2, header, value);
-		}
-
-		if (fact_avx & 0x04) {
-			snprintf(header, sizeof(header),
-				 "high-priority-max-avx512-frequency(MHz)");
-			snprintf(value, sizeof(value), "%d",
-				 bucket_info[j].avx512_trl *
-					 DISP_FREQ_MULTIPLIER);
+				bucket_info[j].hp_ratios[i] * DISP_FREQ_MULTIPLIER);
 			format_and_print(outf, base_level + 2, header, value);
 		}
 	}
 	snprintf(header, sizeof(header),
 		 "speed-select-turbo-freq-clip-frequencies");
 	format_and_print(outf, base_level + 1, header, NULL);
-	snprintf(header, sizeof(header), "low-priority-max-frequency(MHz)");
-	snprintf(value, sizeof(value), "%d",
-		 fact_info->lp_clipping_ratio_license_sse *
-			 DISP_FREQ_MULTIPLIER);
-	format_and_print(outf, base_level + 2, header, value);
-	snprintf(header, sizeof(header),
-		 "low-priority-max-avx2-frequency(MHz)");
-	snprintf(value, sizeof(value), "%d",
-		 fact_info->lp_clipping_ratio_license_avx2 *
-			 DISP_FREQ_MULTIPLIER);
-	format_and_print(outf, base_level + 2, header, value);
-	snprintf(header, sizeof(header),
-		 "low-priority-max-avx512-frequency(MHz)");
-	snprintf(value, sizeof(value), "%d",
-		 fact_info->lp_clipping_ratio_license_avx512 *
-			 DISP_FREQ_MULTIPLIER);
-	format_and_print(outf, base_level + 2, header, value);
+
+	for (j = 0; j < trl_max_levels; j++) {
+		/* No AVX level name for SSE to be consistent with previous formatting */
+		if (j == 0)
+			snprintf(header, sizeof(header), "low-priority-max-frequency(MHz)");
+		else
+			snprintf(header, sizeof(header), "low-priority-max-%s-frequency(MHz)",
+				isst_get_trl_level_name(j));
+		snprintf(value, sizeof(value), "%d",
+			 fact_info->lp_ratios[j] * DISP_FREQ_MULTIPLIER);
+		format_and_print(outf, base_level + 2, header, value);
+	}
 }
 
 void isst_ctdp_display_core_info(struct isst_id *id, FILE *outf, char *prefix,

@@ -98,10 +98,8 @@ struct isst_clos_config {
 };
 
 struct isst_fact_bucket_info {
-	int high_priority_cores_count;
-	int sse_trl;
-	int avx_trl;
-	int avx512_trl;
+	int hp_cores;
+	int hp_ratios[TRL_MAX_LEVELS];
 };
 
 struct isst_pbf_info {
@@ -119,9 +117,7 @@ struct isst_pbf_info {
 #define ISST_TRL_MAX_ACTIVE_CORES	8
 #define ISST_FACT_MAX_BUCKETS		8
 struct isst_fact_info {
-	int lp_clipping_ratio_license_sse;
-	int lp_clipping_ratio_license_avx2;
-	int lp_clipping_ratio_license_avx512;
+	int lp_ratios[TRL_MAX_LEVELS];
 	struct isst_fact_bucket_info bucket_info[ISST_FACT_MAX_BUCKETS];
 };
 

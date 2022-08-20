@@ -592,7 +592,7 @@ int isst_get_fact_bucket_info(struct isst_id *id, int level,
 			id->cpu, i, level, resp);
 
 		for (j = 0; j < 4; ++j) {
-			bucket_info[j + (i * 4)].high_priority_cores_count =
+			bucket_info[j + (i * 4)].hp_cores =
 				(resp >> (j * 8)) & 0xff;
 		}
 	}
@@ -613,22 +613,8 @@ int isst_get_fact_bucket_info(struct isst_id *id, int level,
 				id->cpu, i, level, k, resp);
 
 			for (j = 0; j < 4; ++j) {
-				switch (k) {
-				case 0:
-					bucket_info[j + (i * 4)].sse_trl =
-						(resp >> (j * 8)) & 0xff;
-					break;
-				case 1:
-					bucket_info[j + (i * 4)].avx_trl =
-						(resp >> (j * 8)) & 0xff;
-					break;
-				case 2:
-					bucket_info[j + (i * 4)].avx512_trl =
-						(resp >> (j * 8)) & 0xff;
-					break;
-				default:
-					break;
-				}
+				bucket_info[j + (i * 4)].hp_ratios[k] =
+					(resp >> (j * 8)) & 0xff;
 			}
 		}
 	}
@@ -672,9 +658,9 @@ int isst_get_fact_info(struct isst_id *id, int level, int fact_bucket, struct is
 	debug_printf("cpu:%d CONFIG_TDP_GET_FACT_LP_CLIPPING_RATIO resp:%x\n",
 		     id->cpu, resp);
 
-	fact_info->lp_clipping_ratio_license_sse = resp & 0xff;
-	fact_info->lp_clipping_ratio_license_avx2 = (resp >> 8) & 0xff;
-	fact_info->lp_clipping_ratio_license_avx512 = (resp >> 16) & 0xff;
+	fact_info->lp_ratios[0] = resp & 0xff;
+	fact_info->lp_ratios[1] = (resp >> 8) & 0xff;
+	fact_info->lp_ratios[2] = (resp >> 16) & 0xff;
 
 	ret = isst_get_fact_bucket_info(id, level, fact_info->bucket_info);
 	if (ret)
@@ -685,7 +671,7 @@ int isst_get_fact_info(struct isst_id *id, int level, int fact_bucket, struct is
 		if (fact_bucket != 0xff && fact_bucket != j)
 			continue;
 
-		if (!fact_info->bucket_info[j].high_priority_cores_count)
+		if (!fact_info->bucket_info[j].hp_cores)
 			break;
 
 		print = 1;
