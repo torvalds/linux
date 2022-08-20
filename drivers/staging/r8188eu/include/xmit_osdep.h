@@ -11,8 +11,6 @@ extern int rtw_ht_enable;
 extern int rtw_cbw40_enable;
 extern int rtw_ampdu_enable;/* for enable tx_ampdu */
 
-#define NR_XMITFRAME	256
-
 struct xmit_priv;
 struct pkt_attrib;
 struct sta_xmit_priv;
@@ -20,7 +18,5 @@ struct xmit_frame;
 struct xmit_buf;
 
 int rtw_xmit_entry(struct sk_buff *pkt, struct  net_device *pnetdev);
-
-void rtw_os_pkt_complete(struct adapter *padapter, struct sk_buff *pkt);
 
 #endif /* __XMIT_OSDEP_H_ */

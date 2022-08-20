@@ -11,26 +11,6 @@
 #include "../include/osdep_intf.h"
 #include "../include/usb_osintf.h"
 
-#define WMM_XMIT_THRESHOLD	(NR_XMITFRAME * 2 / 5)
-
-void rtw_os_pkt_complete(struct adapter *padapter, struct sk_buff *pkt)
-{
-	u16	queue;
-	struct xmit_priv *pxmitpriv = &padapter->xmitpriv;
-
-	queue = skb_get_queue_mapping(pkt);
-	if (padapter->registrypriv.wifi_spec) {
-		if (__netif_subqueue_stopped(padapter->pnetdev, queue) &&
-		    (pxmitpriv->hwxmits[queue].accnt < WMM_XMIT_THRESHOLD))
-			netif_wake_subqueue(padapter->pnetdev, queue);
-	} else {
-		if (__netif_subqueue_stopped(padapter->pnetdev, queue))
-			netif_wake_subqueue(padapter->pnetdev, queue);
-	}
-
-	dev_kfree_skb_any(pkt);
-}
-
 static void rtw_check_xmit_resource(struct adapter *padapter, struct sk_buff *pkt)
 {
 	struct xmit_priv *pxmitpriv = &padapter->xmitpriv;

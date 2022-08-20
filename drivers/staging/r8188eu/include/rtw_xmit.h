@@ -7,6 +7,9 @@
 #include "osdep_service.h"
 #include "drv_types.h"
 
+#define NR_XMITFRAME		256
+#define WMM_XMIT_THRESHOLD	(NR_XMITFRAME * 2 / 5)
+
 #define MAX_XMITBUF_SZ	(20480)	/*  20k */
 #define NR_XMITBUFF		(4)
 
