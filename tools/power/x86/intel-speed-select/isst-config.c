@@ -45,9 +45,6 @@ static int force_online_offline;
 static int auto_mode;
 static int fact_enable_fail;
 
-static int mbox_delay;
-static int mbox_retries = 3;
-
 /* clos related */
 static int current_clos = -1;
 static int clos_epp = -1;
@@ -799,184 +796,7 @@ int find_phy_core_num(int logical_cpu)
 	return -EINVAL;
 }
 
-static int isst_send_mmio_command(unsigned int cpu, unsigned int reg, int write,
-				  unsigned int *value)
-{
-	struct isst_if_io_regs io_regs;
-	const char *pathname = "/dev/isst_interface";
-	int cmd;
-	int fd;
 
-	debug_printf("mmio_cmd cpu:%d reg:%d write:%d\n", cpu, reg, write);
-
-	fd = open(pathname, O_RDWR);
-	if (fd < 0)
-		err(-1, "%s open failed", pathname);
-
-	io_regs.req_count = 1;
-	io_regs.io_reg[0].logical_cpu = cpu;
-	io_regs.io_reg[0].reg = reg;
-	cmd = ISST_IF_IO_CMD;
-	if (write) {
-		io_regs.io_reg[0].read_write = 1;
-		io_regs.io_reg[0].value = *value;
-	} else {
-		io_regs.io_reg[0].read_write = 0;
-	}
-
-	if (ioctl(fd, cmd, &io_regs) == -1) {
-		if (errno == ENOTTY) {
-			perror("ISST_IF_IO_COMMAND\n");
-			fprintf(stderr, "Check presence of kernel modules: isst_if_mmio\n");
-			exit(0);
-		}
-		fprintf(outf, "Error: mmio_cmd cpu:%d reg:%x read_write:%x\n",
-			cpu, reg, write);
-	} else {
-		if (!write)
-			*value = io_regs.io_reg[0].value;
-
-		debug_printf(
-			"mmio_cmd response: cpu:%d reg:%x rd_write:%x resp:%x\n",
-			cpu, reg, write, *value);
-	}
-
-	close(fd);
-
-	return 0;
-}
-
-int isst_send_mbox_command(unsigned int cpu, unsigned char command,
-			   unsigned char sub_command, unsigned int parameter,
-			   unsigned int req_data, unsigned int *resp)
-{
-	const char *pathname = "/dev/isst_interface";
-	int fd, retry;
-	struct isst_if_mbox_cmds mbox_cmds = { 0 };
-
-	debug_printf(
-		"mbox_send: cpu:%d command:%x sub_command:%x parameter:%x req_data:%x\n",
-		cpu, command, sub_command, parameter, req_data);
-
-	if (!is_skx_based_platform() && command == CONFIG_CLOS &&
-	    sub_command != CLOS_PM_QOS_CONFIG) {
-		unsigned int value;
-		int write = 0;
-		int clos_id, core_id, ret = 0;
-
-		debug_printf("CPU %d\n", cpu);
-
-		if (parameter & BIT(MBOX_CMD_WRITE_BIT)) {
-			value = req_data;
-			write = 1;
-		}
-
-		switch (sub_command) {
-		case CLOS_PQR_ASSOC:
-			core_id = parameter & 0xff;
-			ret = isst_send_mmio_command(
-				cpu, PQR_ASSOC_OFFSET + core_id * 4, write,
-				&value);
-			if (!ret && !write)
-				*resp = value;
-			break;
-		case CLOS_PM_CLOS:
-			clos_id = parameter & 0x03;
-			ret = isst_send_mmio_command(
-				cpu, PM_CLOS_OFFSET + clos_id * 4, write,
-				&value);
-			if (!ret && !write)
-				*resp = value;
-			break;
-		case CLOS_STATUS:
-			break;
-		default:
-			break;
-		}
-		return ret;
-	}
-
-	mbox_cmds.cmd_count = 1;
-	mbox_cmds.mbox_cmd[0].logical_cpu = cpu;
-	mbox_cmds.mbox_cmd[0].command = command;
-	mbox_cmds.mbox_cmd[0].sub_command = sub_command;
-	mbox_cmds.mbox_cmd[0].parameter = parameter;
-	mbox_cmds.mbox_cmd[0].req_data = req_data;
-
-	if (mbox_delay)
-		usleep(mbox_delay * 1000);
-
-	fd = open(pathname, O_RDWR);
-	if (fd < 0)
-		err(-1, "%s open failed", pathname);
-
-	retry = mbox_retries;
-
-	do {
-		if (ioctl(fd, ISST_IF_MBOX_COMMAND, &mbox_cmds) == -1) {
-			if (errno == ENOTTY) {
-				perror("ISST_IF_MBOX_COMMAND\n");
-				fprintf(stderr, "Check presence of kernel modules: isst_if_mbox_pci or isst_if_mbox_msr\n");
-				exit(0);
-			}
-			debug_printf(
-				"Error: mbox_cmd cpu:%d command:%x sub_command:%x parameter:%x req_data:%x errorno:%d\n",
-				cpu, command, sub_command, parameter, req_data, errno);
-			--retry;
-		} else {
-			*resp = mbox_cmds.mbox_cmd[0].resp_data;
-			debug_printf(
-				"mbox_cmd response: cpu:%d command:%x sub_command:%x parameter:%x req_data:%x resp:%x\n",
-				cpu, command, sub_command, parameter, req_data, *resp);
-			break;
-		}
-	} while (retry);
-
-	close(fd);
-
-	if (!retry) {
-		debug_printf("Failed mbox command even after retries\n");
-		return -1;
-
-	}
-	return 0;
-}
-
-int isst_send_msr_command(unsigned int cpu, unsigned int msr, int write,
-			  unsigned long long *req_resp)
-{
-	struct isst_if_msr_cmds msr_cmds;
-	const char *pathname = "/dev/isst_interface";
-	int fd;
-
-	fd = open(pathname, O_RDWR);
-	if (fd < 0)
-		err(-1, "%s open failed", pathname);
-
-	msr_cmds.cmd_count = 1;
-	msr_cmds.msr_cmd[0].logical_cpu = cpu;
-	msr_cmds.msr_cmd[0].msr = msr;
-	msr_cmds.msr_cmd[0].read_write = write;
-	if (write)
-		msr_cmds.msr_cmd[0].data = *req_resp;
-
-	if (ioctl(fd, ISST_IF_MSR_COMMAND, &msr_cmds) == -1) {
-		perror("ISST_IF_MSR_COMMAND");
-		fprintf(outf, "Error: msr_cmd cpu:%d msr:%x read_write:%d\n",
-			cpu, msr, write);
-	} else {
-		if (!write)
-			*req_resp = msr_cmds.msr_cmd[0].data;
-
-		debug_printf(
-			"msr_cmd response: cpu:%d msr:%x rd_write:%x resp:%llx %llx\n",
-			cpu, msr, write, *req_resp, msr_cmds.msr_cmd[0].data);
-	}
-
-	close(fd);
-
-	return 0;
-}
 
 static int isst_fill_platform_info(void)
 {
@@ -2971,6 +2791,7 @@ static void cmdline(int argc, char **argv)
 	int oob_mode = 0;
 	int poll_interval = -1;
 	int no_daemon = 0;
+	int mbox_delay = 0, mbox_retries = 3;
 
 	static struct option long_options[] = {
 		{ "all-cpus-online", no_argument, 0, 'a' },
@@ -3080,6 +2901,10 @@ static void cmdline(int argc, char **argv)
 		usage();
 		exit(0);
 	}
+
+	isst_update_platform_param(ISST_PARAM_MBOX_DELAY, mbox_delay);
+	isst_update_platform_param(ISST_PARAM_MBOX_RETRIES, mbox_retries);
+
 	set_max_cpu_num();
 	if (force_cpus_online)
 		force_all_cpus_online();

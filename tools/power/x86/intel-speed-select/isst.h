@@ -176,6 +176,11 @@ struct isst_pkg_ctdp {
 	struct isst_pkg_ctdp_level_info ctdp_level[ISST_MAX_TDP_LEVELS];
 };
 
+enum isst_platform_param {
+	ISST_PARAM_MBOX_DELAY,
+	ISST_PARAM_MBOX_RETRIES,
+};
+
 extern int is_cpu_in_power_domain(int cpu, struct isst_id *id);
 extern int get_topo_max_cpus(void);
 extern int get_cpu_count(struct isst_id *id);
@@ -194,7 +199,6 @@ extern void set_cpu_mask_from_punit_coremask(struct isst_id *id,
 					     size_t core_cpumask_size,
 					     cpu_set_t *core_cpumask,
 					     int *cpu_cnt);
-
 extern int isst_send_mbox_command(unsigned int cpu, unsigned char command,
 				  unsigned char sub_command,
 				  unsigned int write,
@@ -203,6 +207,7 @@ extern int isst_send_mbox_command(unsigned int cpu, unsigned char command,
 extern int isst_send_msr_command(unsigned int cpu, unsigned int command,
 				 int write, unsigned long long *req_resp);
 
+extern void isst_update_platform_param(enum isst_platform_param, int vale);
 extern int isst_get_trl_max_levels(void);
 extern char *isst_get_trl_level_name(int level);
 extern int isst_is_punit_valid(struct isst_id *id);
