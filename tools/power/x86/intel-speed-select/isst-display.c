@@ -172,15 +172,13 @@ static int print_package_info(struct isst_id *id, FILE *outf)
 
 	if (out_format_is_json()) {
 		snprintf(header, sizeof(header), "package-%d:die-%d:cpu-%d",
-			 get_physical_package_id(id->cpu), get_physical_die_id(id->cpu),
-			 id->cpu);
+			 id->pkg, id->die, id->cpu);
 		format_and_print(outf, 1, header, NULL);
 		return 1;
 	}
-	snprintf(header, sizeof(header), "package-%d",
-		 get_physical_package_id(id->cpu));
+	snprintf(header, sizeof(header), "package-%d", id->pkg);
 	format_and_print(outf, 1, header, NULL);
-	snprintf(header, sizeof(header), "die-%d", get_physical_die_id(id->cpu));
+	snprintf(header, sizeof(header), "die-%d", id->die);
 	format_and_print(outf, 2, header, NULL);
 	snprintf(header, sizeof(header), "cpu-%d", id->cpu);
 	format_and_print(outf, 3, header, NULL);
@@ -328,15 +326,12 @@ void isst_ctdp_display_core_info(struct isst_id *id, FILE *outf, char *prefix,
 
 	if (out_format_is_json()) {
 		snprintf(header, sizeof(header), "package-%d:die-%d:cpu-%d",
-			 get_physical_package_id(id->cpu), get_physical_die_id(id->cpu),
-			 id->cpu);
+			 id->pkg, id->die, id->cpu);
 		format_and_print(outf, level++, header, NULL);
 	} else {
-		snprintf(header, sizeof(header), "package-%d",
-			 get_physical_package_id(id->cpu));
+		snprintf(header, sizeof(header), "package-%d", id->pkg);
 		format_and_print(outf, level++, header, NULL);
-		snprintf(header, sizeof(header), "die-%d",
-			 get_physical_die_id(id->cpu));
+		snprintf(header, sizeof(header), "die-%d", id->die);
 		format_and_print(outf, level++, header, NULL);
 		snprintf(header, sizeof(header), "cpu-%d", id->cpu);
 		format_and_print(outf, level++, header, NULL);

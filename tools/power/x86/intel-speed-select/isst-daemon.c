@@ -35,22 +35,20 @@ static void init_levels(void)
 void process_level_change(struct isst_id *id)
 {
 	struct isst_pkg_ctdp_level_info ctdp_level;
-	int pkg_id = get_physical_package_id(id->cpu);
-	int die_id = get_physical_die_id(id->cpu);
 	struct isst_pkg_ctdp pkg_dev;
 	time_t tm;
 	int ret;
 
-	if (pkg_id >= MAX_PACKAGE_COUNT || die_id >= MAX_DIE_PER_PACKAGE) {
+	if (id->pkg >= MAX_PACKAGE_COUNT || id->die >= MAX_DIE_PER_PACKAGE) {
 		debug_printf("Invalid package/die info for cpu:%d\n", id->cpu);
 		return;
 	}
 
 	tm = time(NULL);
-	if (tm - per_package_levels_tm[pkg_id][die_id] < 2 )
+	if (tm - per_package_levels_tm[id->pkg][id->die] < 2)
 		return;
 
-	per_package_levels_tm[pkg_id][die_id] = tm;
+	per_package_levels_tm[id->pkg][id->die] = tm;
 
 	ret = isst_get_ctdp_levels(id, &pkg_dev);
 	if (ret) {
@@ -59,21 +57,21 @@ void process_level_change(struct isst_id *id)
 	}
 
 	debug_printf("Get Config level %d pkg:%d die:%d current_level:%d\n", id->cpu,
-		      pkg_id, die_id, pkg_dev.current_level);
+		      id->pkg, id->die, pkg_dev.current_level);
 
 	if (pkg_dev.locked) {
 		debug_printf("config TDP s locked \n");
 		return;
 	}
 
-	if (per_package_levels_info[pkg_id][die_id] == pkg_dev.current_level)
+	if (per_package_levels_info[id->pkg][id->die] == pkg_dev.current_level)
 		return;
 
 	debug_printf("**Config level change for cpu:%d pkg:%d die:%d from %d to %d\n",
-		      id->cpu, pkg_id, die_id, per_package_levels_info[pkg_id][die_id],
+		      id->cpu, id->pkg, id->die, per_package_levels_info[id->pkg][id->die],
 		      pkg_dev.current_level);
 
-	per_package_levels_info[pkg_id][die_id] = pkg_dev.current_level;
+	per_package_levels_info[id->pkg][id->die] = pkg_dev.current_level;
 
 	ctdp_level.core_cpumask_size =
 		alloc_cpu_set(&ctdp_level.core_cpumask);
@@ -87,7 +85,7 @@ void process_level_change(struct isst_id *id)
 	if (ctdp_level.cpu_count) {
 		int i, max_cpus = get_topo_max_cpus();
 		for (i = 0; i < max_cpus; ++i) {
-			if (pkg_id != get_physical_package_id(i) || die_id != get_physical_die_id(i))
+			if (id->pkg != get_physical_package_id(i) || id->die != get_physical_die_id(i))
 				continue;
 			if (CPU_ISSET_S(i, ctdp_level.core_cpumask_size, ctdp_level.core_cpumask)) {
 				fprintf(stderr, "online cpu %d\n", i);

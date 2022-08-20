@@ -677,11 +677,8 @@ void set_cpu_mask_from_punit_coremask(struct isst_id *id, unsigned long long cor
 				      cpu_set_t *core_cpumask, int *cpu_cnt)
 {
 	int i, cnt = 0;
-	int die_id, pkg_id;
 
 	*cpu_cnt = 0;
-	die_id = get_physical_die_id(id->cpu);
-	pkg_id = get_physical_package_id(id->cpu);
 
 	for (i = 0; i < 64; ++i) {
 		if (core_mask & BIT_ULL(i)) {
@@ -691,8 +688,8 @@ void set_cpu_mask_from_punit_coremask(struct isst_id *id, unsigned long long cor
 				if (!CPU_ISSET_S(j, present_cpumask_size, present_cpumask))
 					continue;
 
-				if (cpu_map[j].pkg_id == pkg_id &&
-				    cpu_map[j].die_id == die_id &&
+				if (cpu_map[j].pkg_id == id->pkg &&
+				    cpu_map[j].die_id == id->die &&
 				    cpu_map[j].punit_cpu_core == i) {
 					CPU_SET_S(j, core_cpumask_size,
 						  core_cpumask);
@@ -1106,7 +1103,7 @@ static int clx_n_get_base_ratio(void)
 
 static int clx_n_config(struct isst_id *id)
 {
-	int i, ret, pkg_id, die_id;
+	int i, ret;
 	unsigned long cpu_bf;
 	struct isst_pkg_ctdp_level_info *ctdp_level;
 	struct isst_pbf_info *pbf_info;
@@ -1128,15 +1125,12 @@ static int clx_n_config(struct isst_id *id)
 	pbf_info->p1_high = 0;
 	pbf_info->p1_low = ~0;
 
-	pkg_id = get_physical_package_id(id->cpu);
-	die_id = get_physical_die_id(id->cpu);
-
 	for (i = 0; i < topo_max_cpus; i++) {
 		if (!CPU_ISSET_S(i, present_cpumask_size, present_cpumask))
 			continue;
 
-		if (pkg_id != get_physical_package_id(i) ||
-		    die_id != get_physical_die_id(i))
+		if (id->pkg != get_physical_package_id(i) ||
+		    id->die != get_physical_die_id(i))
 			continue;
 
 		CPU_SET_S(i, ctdp_level->core_cpumask_size,
@@ -1173,8 +1167,8 @@ static int clx_n_config(struct isst_id *id)
 		if (!CPU_ISSET_S(i, present_cpumask_size, present_cpumask))
 			continue;
 
-		if (pkg_id != get_physical_package_id(i) ||
-		    die_id != get_physical_die_id(i))
+		if (id->pkg != get_physical_package_id(i) ||
+		    id->die != get_physical_die_id(i))
 			continue;
 
 		cpu_bf = parse_int_file(1,
@@ -1291,8 +1285,6 @@ static void set_tdp_level_for_cpu(struct isst_id *id, void *arg1, void *arg2, vo
 				    ret);
 		if (force_online_offline) {
 			struct isst_pkg_ctdp_level_info ctdp_level;
-			int pkg_id = get_physical_package_id(id->cpu);
-			int die_id = get_physical_die_id(id->cpu);
 
 			/* Wait for updated base frequencies */
 			usleep(2000);
@@ -1308,7 +1300,7 @@ static void set_tdp_level_for_cpu(struct isst_id *id, void *arg1, void *arg2, vo
 			if (ctdp_level.cpu_count) {
 				int i, max_cpus = get_topo_max_cpus();
 				for (i = 0; i < max_cpus; ++i) {
-					if (pkg_id != get_physical_package_id(i) || die_id != get_physical_die_id(i))
+					if (id->pkg != get_physical_package_id(i) || id->die != get_physical_die_id(i))
 						continue;
 					if (CPU_ISSET_S(i, ctdp_level.core_cpumask_size, ctdp_level.core_cpumask)) {
 						fprintf(stderr, "online cpu %d\n", i);
@@ -1500,7 +1492,7 @@ static int set_clx_pbf_cpufreq_scaling_min_max(struct isst_id *id)
 {
 	struct isst_pkg_ctdp_level_info *ctdp_level;
 	struct isst_pbf_info *pbf_info;
-	int i, pkg_id, die_id, freq, freq_high, freq_low;
+	int i, freq, freq_high, freq_low;
 	int ret;
 
 	ret = clx_n_config(id);
@@ -1514,11 +1506,9 @@ static int set_clx_pbf_cpufreq_scaling_min_max(struct isst_id *id)
 	freq_high = pbf_info->p1_high * 100000;
 	freq_low = pbf_info->p1_low * 100000;
 
-	pkg_id = get_physical_package_id(id->cpu);
-	die_id = get_physical_die_id(id->cpu);
 	for (i = 0; i < get_topo_max_cpus(); ++i) {
-		if (pkg_id != get_physical_package_id(i) ||
-		    die_id != get_physical_die_id(i))
+		if (id->pkg != get_physical_package_id(i) ||
+		    id->die != get_physical_die_id(i))
 			continue;
 
 		if (CPU_ISSET_S(i, pbf_info->core_cpumask_size,
@@ -1583,13 +1573,11 @@ static int set_cpufreq_scaling_min_max_from_cpuinfo(int cpu, int cpuinfo_max, in
 
 static void set_scaling_min_to_cpuinfo_max(struct isst_id *id)
 {
-	int i, pkg_id, die_id;
+	int i;
 
-	pkg_id = get_physical_package_id(id->cpu);
-	die_id = get_physical_die_id(id->cpu);
 	for (i = 0; i < get_topo_max_cpus(); ++i) {
-		if (pkg_id != get_physical_package_id(i) ||
-		    die_id != get_physical_die_id(i))
+		if (id->pkg != get_physical_package_id(i) ||
+		    id->die != get_physical_die_id(i))
 			continue;
 
 		adjust_scaling_max_from_base_freq(i);
@@ -1600,13 +1588,11 @@ static void set_scaling_min_to_cpuinfo_max(struct isst_id *id)
 
 static void set_scaling_min_to_cpuinfo_min(struct isst_id *id)
 {
-	int i, pkg_id, die_id;
+	int i;
 
-	pkg_id = get_physical_package_id(id->cpu);
-	die_id = get_physical_die_id(id->cpu);
 	for (i = 0; i < get_topo_max_cpus(); ++i) {
-		if (pkg_id != get_physical_package_id(i) ||
-		    die_id != get_physical_die_id(i))
+		if (id->pkg != get_physical_package_id(i) ||
+		    id->die != get_physical_die_id(i))
 			continue;
 
 		adjust_scaling_max_from_base_freq(i);
@@ -1616,13 +1602,11 @@ static void set_scaling_min_to_cpuinfo_min(struct isst_id *id)
 
 static void set_scaling_max_to_cpuinfo_max(struct isst_id *id)
 {
-	int i, pkg_id, die_id;
+	int i;
 
-	pkg_id = get_physical_package_id(id->cpu);
-	die_id = get_physical_die_id(id->cpu);
 	for (i = 0; i < get_topo_max_cpus(); ++i) {
-		if (pkg_id != get_physical_package_id(i) ||
-		    die_id != get_physical_die_id(i))
+		if (id->pkg != get_physical_package_id(i) ||
+		    id->die != get_physical_die_id(i))
 			continue;
 
 		set_cpufreq_scaling_min_max_from_cpuinfo(i, 1, 1);
@@ -1633,7 +1617,7 @@ static int set_core_priority_and_min(struct isst_id *id, int mask_size,
 				     cpu_set_t *cpu_mask, int min_high,
 				     int min_low)
 {
-	int pkg_id, die_id, ret, i;
+	int ret, i;
 
 	if (!CPU_COUNT_S(mask_size, cpu_mask))
 		return -1;
@@ -1654,14 +1638,12 @@ static int set_core_priority_and_min(struct isst_id *id, int mask_size,
 	if (ret)
 		return ret;
 
-	pkg_id = get_physical_package_id(id->cpu);
-	die_id = get_physical_die_id(id->cpu);
 	for (i = 0; i < get_topo_max_cpus(); ++i) {
 		int clos;
 		struct isst_id tid;
 
-		if (pkg_id != get_physical_package_id(i) ||
-		    die_id != get_physical_die_id(i))
+		if (id->pkg != get_physical_package_id(i) ||
+		    id->die != get_physical_die_id(i))
 			continue;
 
 		if (CPU_ISSET_S(i, mask_size, cpu_mask))
@@ -2206,8 +2188,8 @@ static void set_clos_config_for_cpu(struct isst_id *id, void *arg1, void *arg2, 
 	struct isst_clos_config clos_config;
 	int ret;
 
-	clos_config.pkg_id = get_physical_package_id(id->cpu);
-	clos_config.die_id = get_physical_die_id(id->cpu);
+	clos_config.pkg_id = id->pkg;
+	clos_config.die_id = id->die;
 
 	clos_config.epp = clos_epp;
 	clos_config.clos_prop_prio = clos_prop_prio;

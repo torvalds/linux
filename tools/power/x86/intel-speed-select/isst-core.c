@@ -782,8 +782,8 @@ int isst_get_process_ctdp(struct isst_id *id, int tdp_level, struct isst_pkg_ctd
 
 		ctdp_level->level = i;
 		ctdp_level->control_cpu = id->cpu;
-		ctdp_level->pkg_id = get_physical_package_id(id->cpu);
-		ctdp_level->die_id = get_physical_die_id(id->cpu);
+		ctdp_level->pkg_id = id->pkg;
+		ctdp_level->die_id = id->die;
 
 		ret = isst_get_ctdp_control(id, i, ctdp_level);
 		if (ret)
@@ -971,8 +971,8 @@ int isst_pm_get_clos(struct isst_id *id, int clos, struct isst_clos_config *clos
 	if (ret)
 		return ret;
 
-	clos_config->pkg_id = get_physical_package_id(id->cpu);
-	clos_config->die_id = get_physical_die_id(id->cpu);
+	clos_config->pkg_id = id->pkg;
+	clos_config->die_id = id->die;
 
 	clos_config->epp = resp & 0x0f;
 	clos_config->clos_prop_prio = (resp >> 4) & 0x0f;
