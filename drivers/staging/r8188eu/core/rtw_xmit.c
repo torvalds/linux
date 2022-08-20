@@ -402,7 +402,7 @@ u8	qos_acm(u8 acm_mask, u8 priority)
 	return change_priority;
 }
 
-static void _rtw_open_pktfile(struct sk_buff *pktptr, struct pkt_file *pfile)
+static void rtw_open_pktfile(struct sk_buff *pktptr, struct pkt_file *pfile)
 {
 	if (!pktptr) {
 		pr_err("8188eu: pktptr is NULL\n");
@@ -427,7 +427,7 @@ static void set_qos(struct pkt_file *ppktfile, struct pkt_attrib *pattrib)
 	struct iphdr ip_hdr;
 	s32 user_prio = 0;
 
-	_rtw_open_pktfile(ppktfile->pkt, ppktfile);
+	rtw_open_pktfile(ppktfile->pkt, ppktfile);
 	_rtw_pktfile_read(ppktfile, (unsigned char *)&etherhdr, ETH_HLEN);
 
 	/*  get user_prio from IP hdr */
@@ -461,7 +461,7 @@ static s32 update_attrib(struct adapter *padapter, struct sk_buff *pkt, struct p
 
 
 
-	_rtw_open_pktfile(pkt, &pktfile);
+	rtw_open_pktfile(pkt, &pktfile);
 	_rtw_pktfile_read(&pktfile, (u8 *)&etherhdr, ETH_HLEN);
 
 	pattrib->ether_type = ntohs(etherhdr.h_proto);
@@ -940,7 +940,7 @@ s32 rtw_xmitframe_coalesce(struct adapter *padapter, struct sk_buff *pkt, struct
 		goto exit;
 	}
 
-	_rtw_open_pktfile(pkt, &pktfile);
+	rtw_open_pktfile(pkt, &pktfile);
 	_rtw_pktfile_read(&pktfile, NULL, pattrib->pkt_hdrlen);
 
 	frg_inx = 0;
