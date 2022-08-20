@@ -361,30 +361,6 @@ int isst_get_trl_bucket_info(int cpu, unsigned long long *buckets_info)
 	return 0;
 }
 
-int isst_set_tdp_level_msr(int cpu, int tdp_level)
-{
-	unsigned long long level = tdp_level;
-	int ret;
-
-	debug_printf("cpu: tdp_level via MSR %d\n", cpu, tdp_level);
-
-	if (isst_get_config_tdp_lock_status(cpu)) {
-		isst_display_error_info_message(1, "tdp_locked", 0, 0);
-		return -1;
-	}
-
-	if (tdp_level > 2)
-		return -1; /* invalid value */
-
-	ret = isst_send_msr_command(cpu, 0x64b, 1, &level);
-	if (ret)
-		return ret;
-
-	debug_printf("cpu: tdp_level via MSR successful %d\n", cpu, tdp_level);
-
-	return 0;
-}
-
 int isst_set_tdp_level(int cpu, int tdp_level)
 {
 	unsigned int resp;

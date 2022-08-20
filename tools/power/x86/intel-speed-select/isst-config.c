@@ -666,20 +666,6 @@ static void create_cpu_map(void)
 		close(fd);
 }
 
-int find_logical_cpu(int pkg_id, int die_id, int punit_core_id)
-{
-	int i;
-
-	for (i = 0; i < topo_max_cpus; ++i) {
-		if (cpu_map[i].pkg_id == pkg_id &&
-		    cpu_map[i].die_id == die_id &&
-		    cpu_map[i].punit_cpu_core == punit_core_id)
-			return i;
-	}
-
-	return -EINVAL;
-}
-
 void set_cpu_mask_from_punit_coremask(int cpu, unsigned long long core_mask,
 				      size_t core_cpumask_size,
 				      cpu_set_t *core_cpumask, int *cpu_cnt)

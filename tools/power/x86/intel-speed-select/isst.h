@@ -183,8 +183,6 @@ extern int get_physical_package_id(int cpu);
 extern int get_physical_die_id(int cpu);
 extern size_t alloc_cpu_set(cpu_set_t **cpu_set);
 extern void free_cpu_set(cpu_set_t *cpu_set);
-extern int find_logical_cpu(int pkg_id, int die_id, int phy_cpu);
-extern int find_phy_cpu_num(int logical_cpu);
 extern int find_phy_core_num(int logical_cpu);
 extern void set_cpu_mask_from_punit_coremask(int cpu,
 					     unsigned long long core_mask,
@@ -218,7 +216,6 @@ extern void isst_ctdp_display_information_end(FILE *outf);
 extern void isst_pbf_display_information(int cpu, FILE *outf, int level,
 					 struct isst_pbf_info *info);
 extern int isst_set_tdp_level(int cpu, int tdp_level);
-extern int isst_set_tdp_level_msr(int cpu, int tdp_level);
 extern int isst_set_pbf_fact_status(int cpu, int pbf, int enable);
 extern int isst_get_pbf_info(int cpu, int level,
 			     struct isst_pbf_info *pbf_info);
@@ -245,8 +242,6 @@ extern int isst_clos_get_assoc_status(int cpu, int *clos_id);
 extern void isst_clos_display_information(int cpu, FILE *outf, int clos,
 					  struct isst_clos_config *clos_config);
 extern void isst_clos_display_assoc_information(int cpu, FILE *outf, int clos);
-extern int isst_read_reg(unsigned short reg, unsigned int *val);
-extern int isst_write_reg(int reg, unsigned int val);
 
 extern void isst_display_result(int cpu, FILE *outf, char *feature, char *cmd,
 				int result);
