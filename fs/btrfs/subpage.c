@@ -123,7 +123,7 @@ int btrfs_attach_subpage(const struct btrfs_fs_info *fs_info,
 	struct btrfs_subpage *subpage;
 
 	/*
-	 * We have cases like a dummy extent buffer page, which is not mappped
+	 * We have cases like a dummy extent buffer page, which is not mapped
 	 * and doesn't need to be locked.
 	 */
 	if (page->mapping)
@@ -731,7 +731,7 @@ void btrfs_page_assert_not_dirty(const struct btrfs_fs_info *fs_info,
  *   It should not have any subpage::writers count.
  *   Can be unlocked by unlock_page().
  *   This is the most common locked page for __extent_writepage() called
- *   inside extent_write_cache_pages() or extent_write_full_page().
+ *   inside extent_write_cache_pages().
  *   Rarer cases include the @locked_page from extent_write_locked_range().
  *
  * - Page locked by lock_delalloc_pages()

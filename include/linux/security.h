@@ -416,6 +416,7 @@ int security_task_fix_setuid(struct cred *new, const struct cred *old,
 			     int flags);
 int security_task_fix_setgid(struct cred *new, const struct cred *old,
 			     int flags);
+int security_task_fix_setgroups(struct cred *new, const struct cred *old);
 int security_task_setpgid(struct task_struct *p, pid_t pgid);
 int security_task_getpgid(struct task_struct *p);
 int security_task_getsid(struct task_struct *p);
@@ -1096,6 +1097,12 @@ static inline int security_task_fix_setuid(struct cred *new,
 static inline int security_task_fix_setgid(struct cred *new,
 					   const struct cred *old,
 					   int flags)
+{
+	return 0;
+}
+
+static inline int security_task_fix_setgroups(struct cred *new,
+					   const struct cred *old)
 {
 	return 0;
 }

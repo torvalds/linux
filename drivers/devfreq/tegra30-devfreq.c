@@ -922,8 +922,10 @@ static int tegra_devfreq_probe(struct platform_device *pdev)
 
 	devfreq = devm_devfreq_add_device(&pdev->dev, &tegra_devfreq_profile,
 					  "tegra_actmon", NULL);
-	if (IS_ERR(devfreq))
+	if (IS_ERR(devfreq)) {
+		dev_err(&pdev->dev, "Failed to add device: %pe\n", devfreq);
 		return PTR_ERR(devfreq);
+	}
 
 	return 0;
 }

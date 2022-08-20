@@ -59,8 +59,6 @@ acl				Enable POSIX Access Control Lists support
 				(requires CONFIG_EXT2_FS_POSIX_ACL).
 noacl				Don't support POSIX ACLs.
 
-nobh				Do not attach buffer_heads to file pagecache.
-
 quota, usrquota			Enable user disk quota support
 				(requires CONFIG_QUOTA).
 

@@ -410,7 +410,7 @@ restart:
 		spin_unlock(&ip->i_flags_lock);
 
 out:
-	return file_modified(file);
+	return kiocb_modified(iocb);
 }
 
 static int
@@ -700,12 +700,11 @@ xfs_file_buffered_write(
 	bool			cleared_space = false;
 	unsigned int		iolock;
 
-	if (iocb->ki_flags & IOCB_NOWAIT)
-		return -EOPNOTSUPP;
-
 write_retry:
 	iolock = XFS_IOLOCK_EXCL;
-	xfs_ilock(ip, iolock);
+	ret = xfs_ilock_iocb(iocb, iolock);
+	if (ret)
+		return ret;
 
 	ret = xfs_file_write_checks(iocb, from, &iolock);
 	if (ret)
@@ -1165,7 +1164,7 @@ xfs_file_open(
 {
 	if (xfs_is_shutdown(XFS_M(inode->i_sb)))
 		return -EIO;
-	file->f_mode |= FMODE_NOWAIT | FMODE_BUF_RASYNC;
+	file->f_mode |= FMODE_NOWAIT | FMODE_BUF_RASYNC | FMODE_BUF_WASYNC;
 	return generic_file_open(inode, file);
 }
 

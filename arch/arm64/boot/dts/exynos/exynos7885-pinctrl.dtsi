@@ -9,8 +9,8 @@
  * device tree nodes in this file.
  */
 
-#include <dt-bindings/pinctrl/samsung.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
+#include "exynos-pinctrl.h"
 
 &pinctrl_alive {
 	etc0: etc0-gpio-bank {

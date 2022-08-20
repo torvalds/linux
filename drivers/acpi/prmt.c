@@ -53,7 +53,7 @@ static LIST_HEAD(prm_module_list);
 
 struct prm_handler_info {
 	guid_t guid;
-	u64 handler_addr;
+	void *handler_addr;
 	u64 static_data_buffer_addr;
 	u64 acpi_param_buffer_addr;
 
@@ -148,7 +148,7 @@ acpi_parse_prmt(union acpi_subtable_headers *header, const unsigned long end)
 		th = &tm->handlers[cur_handler];
 
 		guid_copy(&th->guid, (guid_t *)handler_info->handler_guid);
-		th->handler_addr = efi_pa_va_lookup(handler_info->handler_address);
+		th->handler_addr = (void *)efi_pa_va_lookup(handler_info->handler_address);
 		th->static_data_buffer_addr = efi_pa_va_lookup(handler_info->static_data_buffer_address);
 		th->acpi_param_buffer_addr = efi_pa_va_lookup(handler_info->acpi_param_buffer_address);
 	} while (++cur_handler < tm->handler_count && (handler_info = get_next_handler(handler_info)));

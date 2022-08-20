@@ -189,31 +189,31 @@
 
 		regulators {
 			regulator-v3 {
-				regulator-compatible= "V3(DCDC)";
+				regulator-compatible = "V3(DCDC)";
 				regulator-min-microvolt = <725000>;
 				regulator-max-microvolt = <1800000>;
 			};
 
 			regulator-v4 {
-				regulator-compatible= "V4(DCDC)";
+				regulator-compatible = "V4(DCDC)";
 				regulator-min-microvolt = <725000>;
 				regulator-max-microvolt = <1800000>;
 			};
 
 			regulator-v5 {
-				regulator-compatible= "V5(LDO)";
+				regulator-compatible = "V5(LDO)";
 				regulator-min-microvolt = <1700000>;
 				regulator-max-microvolt = <2000000>;
 			};
 
 			reg_vcc_sdio: regulator-v6 {
-				regulator-compatible= "V6(LDO)";
+				regulator-compatible = "V6(LDO)";
 				regulator-min-microvolt = <3300000>;
 				regulator-max-microvolt = <3300000>;
 			};
 
 			regulator-v7 {
-				regulator-compatible= "V7(LDO)";
+				regulator-compatible = "V7(LDO)";
 				regulator-min-microvolt = <1800000>;
 				regulator-max-microvolt = <3300000>;
 			};

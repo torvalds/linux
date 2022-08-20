@@ -126,10 +126,7 @@
 #include <asm/mac_baboon.h>
 #include <asm/hwtest.h>
 #include <asm/irq_regs.h>
-
-extern void show_registers(struct pt_regs *);
-
-irqreturn_t mac_nmi_handler(int, void *);
+#include <asm/processor.h>
 
 static unsigned int mac_irq_startup(struct irq_data *);
 static void mac_irq_shutdown(struct irq_data *);
@@ -141,6 +138,21 @@ static struct irq_chip mac_irq_chip = {
 	.irq_startup	= mac_irq_startup,
 	.irq_shutdown	= mac_irq_shutdown,
 };
+
+static irqreturn_t mac_nmi_handler(int irq, void *dev_id)
+{
+	static volatile int in_nmi;
+
+	if (in_nmi)
+		return IRQ_HANDLED;
+	in_nmi = 1;
+
+	pr_info("Non-Maskable Interrupt\n");
+	show_registers(get_irq_regs());
+
+	in_nmi = 0;
+	return IRQ_HANDLED;
+}
 
 void __init mac_init_IRQ(void)
 {
@@ -253,19 +265,4 @@ static void mac_irq_shutdown(struct irq_data *data)
 		via_nubus_irq_shutdown(irq);
 	else
 		mac_irq_disable(data);
-}
-
-static volatile int in_nmi;
-
-irqreturn_t mac_nmi_handler(int irq, void *dev_id)
-{
-	if (in_nmi)
-		return IRQ_HANDLED;
-	in_nmi = 1;
-
-	pr_info("Non-Maskable Interrupt\n");
-	show_registers(get_irq_regs());
-
-	in_nmi = 0;
-	return IRQ_HANDLED;
 }

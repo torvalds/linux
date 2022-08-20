@@ -164,18 +164,21 @@ static struct bio *blk_bio_write_zeroes_split(struct request_queue *q,
 static inline unsigned get_max_io_size(struct request_queue *q,
 				       struct bio *bio)
 {
-	unsigned sectors = blk_max_size_offset(q, bio->bi_iter.bi_sector, 0);
-	unsigned max_sectors = sectors;
 	unsigned pbs = queue_physical_block_size(q) >> SECTOR_SHIFT;
 	unsigned lbs = queue_logical_block_size(q) >> SECTOR_SHIFT;
-	unsigned start_offset = bio->bi_iter.bi_sector & (pbs - 1);
+	unsigned max_sectors = queue_max_sectors(q), start, end;
 
-	max_sectors += start_offset;
-	max_sectors &= ~(pbs - 1);
-	if (max_sectors > start_offset)
-		return max_sectors - start_offset;
+	if (q->limits.chunk_sectors) {
+		max_sectors = min(max_sectors,
+			blk_chunk_sectors_left(bio->bi_iter.bi_sector,
+					       q->limits.chunk_sectors));
+	}
 
-	return sectors & ~(lbs - 1);
+	start = bio->bi_iter.bi_sector & (pbs - 1);
+	end = (start + max_sectors) & ~(pbs - 1);
+	if (end > start)
+		return end - start;
+	return max_sectors & ~(lbs - 1);
 }
 
 static inline unsigned get_max_segment_size(const struct request_queue *q,
@@ -201,11 +204,11 @@ static inline unsigned get_max_segment_size(const struct request_queue *q,
  * @nsegs:    [in,out] Number of segments in the bio being built. Incremented
  *            by the number of segments from @bv that may be appended to that
  *            bio without exceeding @max_segs
- * @sectors:  [in,out] Number of sectors in the bio being built. Incremented
- *            by the number of sectors from @bv that may be appended to that
- *            bio without exceeding @max_sectors
+ * @bytes:    [in,out] Number of bytes in the bio being built. Incremented
+ *            by the number of bytes from @bv that may be appended to that
+ *            bio without exceeding @max_bytes
  * @max_segs: [in] upper bound for *@nsegs
- * @max_sectors: [in] upper bound for *@sectors
+ * @max_bytes: [in] upper bound for *@bytes
  *
  * When splitting a bio, it can happen that a bvec is encountered that is too
  * big to fit in a single segment and hence that it has to be split in the
@@ -216,10 +219,10 @@ static inline unsigned get_max_segment_size(const struct request_queue *q,
  */
 static bool bvec_split_segs(const struct request_queue *q,
 			    const struct bio_vec *bv, unsigned *nsegs,
-			    unsigned *sectors, unsigned max_segs,
-			    unsigned max_sectors)
+			    unsigned *bytes, unsigned max_segs,
+			    unsigned max_bytes)
 {
-	unsigned max_len = (min(max_sectors, UINT_MAX >> 9) - *sectors) << 9;
+	unsigned max_len = min(max_bytes, UINT_MAX) - *bytes;
 	unsigned len = min(bv->bv_len, max_len);
 	unsigned total_len = 0;
 	unsigned seg_size = 0;
@@ -237,7 +240,7 @@ static bool bvec_split_segs(const struct request_queue *q,
 			break;
 	}
 
-	*sectors += total_len >> 9;
+	*bytes += total_len;
 
 	/* tell the caller to split the bvec if it is too big to fit */
 	return len > 0 || bv->bv_len > max_len;
@@ -269,8 +272,8 @@ static struct bio *blk_bio_segment_split(struct request_queue *q,
 {
 	struct bio_vec bv, bvprv, *bvprvp = NULL;
 	struct bvec_iter iter;
-	unsigned nsegs = 0, sectors = 0;
-	const unsigned max_sectors = get_max_io_size(q, bio);
+	unsigned nsegs = 0, bytes = 0;
+	const unsigned max_bytes = get_max_io_size(q, bio) << 9;
 	const unsigned max_segs = queue_max_segments(q);
 
 	bio_for_each_bvec(bv, bio, iter) {
@@ -282,12 +285,12 @@ static struct bio *blk_bio_segment_split(struct request_queue *q,
 			goto split;
 
 		if (nsegs < max_segs &&
-		    sectors + (bv.bv_len >> 9) <= max_sectors &&
+		    bytes + bv.bv_len <= max_bytes &&
 		    bv.bv_offset + bv.bv_len <= PAGE_SIZE) {
 			nsegs++;
-			sectors += bv.bv_len >> 9;
-		} else if (bvec_split_segs(q, &bv, &nsegs, &sectors, max_segs,
-					 max_sectors)) {
+			bytes += bv.bv_len;
+		} else if (bvec_split_segs(q, &bv, &nsegs, &bytes, max_segs,
+					   max_bytes)) {
 			goto split;
 		}
 
@@ -301,12 +304,19 @@ split:
 	*segs = nsegs;
 
 	/*
+	 * Individual bvecs might not be logical block aligned. Round down the
+	 * split size so that each bio is properly block size aligned, even if
+	 * we do not use the full hardware limits.
+	 */
+	bytes = ALIGN_DOWN(bytes, queue_logical_block_size(q));
+
+	/*
 	 * Bio splitting may cause subtle trouble such as hang when doing sync
 	 * iopoll in direct IO routine. Given performance gain of iopoll for
 	 * big IO can be trival, disable iopoll when split needed.
 	 */
 	bio_clear_polled(bio);
-	return bio_split(bio, sectors, GFP_NOIO, bs);
+	return bio_split(bio, bytes >> SECTOR_SHIFT, GFP_NOIO, bs);
 }
 
 /**
@@ -376,7 +386,7 @@ EXPORT_SYMBOL(blk_queue_split);
 unsigned int blk_recalc_rq_segments(struct request *rq)
 {
 	unsigned int nr_phys_segs = 0;
-	unsigned int nr_sectors = 0;
+	unsigned int bytes = 0;
 	struct req_iterator iter;
 	struct bio_vec bv;
 
@@ -396,10 +406,12 @@ unsigned int blk_recalc_rq_segments(struct request *rq)
 		return 1;
 	case REQ_OP_WRITE_ZEROES:
 		return 0;
+	default:
+		break;
 	}
 
 	rq_for_each_bvec(bv, rq, iter)
-		bvec_split_segs(rq->q, &bv, &nr_phys_segs, &nr_sectors,
+		bvec_split_segs(rq->q, &bv, &nr_phys_segs, &bytes,
 				UINT_MAX, UINT_MAX);
 	return nr_phys_segs;
 }
@@ -560,17 +572,18 @@ static inline unsigned int blk_rq_get_max_sectors(struct request *rq,
 						  sector_t offset)
 {
 	struct request_queue *q = rq->q;
+	unsigned int max_sectors;
 
 	if (blk_rq_is_passthrough(rq))
 		return q->limits.max_hw_sectors;
 
+	max_sectors = blk_queue_get_max_sectors(q, req_op(rq));
 	if (!q->limits.chunk_sectors ||
 	    req_op(rq) == REQ_OP_DISCARD ||
 	    req_op(rq) == REQ_OP_SECURE_ERASE)
-		return blk_queue_get_max_sectors(q, req_op(rq));
-
-	return min(blk_max_size_offset(q, offset, 0),
-			blk_queue_get_max_sectors(q, req_op(rq)));
+		return max_sectors;
+	return min(max_sectors,
+		   blk_chunk_sectors_left(offset, q->limits.chunk_sectors));
 }
 
 static inline int ll_new_hw_segment(struct request *req, struct bio *bio,
@@ -700,7 +713,7 @@ static int ll_merge_requests_fn(struct request_queue *q, struct request *req,
  */
 void blk_rq_set_mixed_merge(struct request *rq)
 {
-	unsigned int ff = rq->cmd_flags & REQ_FAILFAST_MASK;
+	blk_opf_t ff = rq->cmd_flags & REQ_FAILFAST_MASK;
 	struct bio *bio;
 
 	if (rq->rq_flags & RQF_MIXED_MERGE)
@@ -916,7 +929,7 @@ enum bio_merge_status {
 static enum bio_merge_status bio_attempt_back_merge(struct request *req,
 		struct bio *bio, unsigned int nr_segs)
 {
-	const int ff = bio->bi_opf & REQ_FAILFAST_MASK;
+	const blk_opf_t ff = bio->bi_opf & REQ_FAILFAST_MASK;
 
 	if (!ll_back_merge_fn(req, bio, nr_segs))
 		return BIO_MERGE_FAILED;
@@ -940,7 +953,7 @@ static enum bio_merge_status bio_attempt_back_merge(struct request *req,
 static enum bio_merge_status bio_attempt_front_merge(struct request *req,
 		struct bio *bio, unsigned int nr_segs)
 {
-	const int ff = bio->bi_opf & REQ_FAILFAST_MASK;
+	const blk_opf_t ff = bio->bi_opf & REQ_FAILFAST_MASK;
 
 	if (!ll_front_merge_fn(req, bio, nr_segs))
 		return BIO_MERGE_FAILED;
@@ -1041,7 +1054,7 @@ bool blk_attempt_plug_merge(struct request_queue *q, struct bio *bio,
 	struct blk_plug *plug;
 	struct request *rq;
 
-	plug = blk_mq_plug(q, bio);
+	plug = blk_mq_plug(bio);
 	if (!plug || rq_list_empty(plug->mq_list))
 		return false;
 

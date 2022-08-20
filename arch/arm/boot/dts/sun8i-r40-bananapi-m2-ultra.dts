@@ -43,6 +43,7 @@
 
 /dts-v1/;
 #include "sun8i-r40.dtsi"
+#include "sun8i-r40-cpu-opp.dtsi"
 
 #include <dt-bindings/gpio/gpio.h>
 
@@ -111,6 +112,10 @@
 	ahci-supply = <&reg_dldo4>;
 	phy-supply = <&reg_eldo3>;
 	status = "okay";
+};
+
+&cpu0 {
+	cpu-supply = <&reg_dcdc2>;
 };
 
 &de {

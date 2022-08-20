@@ -185,7 +185,7 @@ static int hisi_trng_read(struct hwrng *rng, void *buf, size_t max, bool wait)
 	struct hisi_trng *trng;
 	int currsize = 0;
 	u32 val = 0;
-	u32 ret;
+	int ret;
 
 	trng = container_of(rng, struct hisi_trng, rng);
 

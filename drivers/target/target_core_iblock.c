@@ -343,7 +343,7 @@ static void iblock_bio_done(struct bio *bio)
 }
 
 static struct bio *iblock_get_bio(struct se_cmd *cmd, sector_t lba, u32 sg_num,
-				  unsigned int opf)
+				  blk_opf_t opf)
 {
 	struct iblock_dev *ib_dev = IBLOCK_DEV(cmd->se_dev);
 	struct bio *bio;
@@ -723,7 +723,7 @@ iblock_execute_rw(struct se_cmd *cmd, struct scatterlist *sgl, u32 sgl_nents,
 	struct bio_list list;
 	struct scatterlist *sg;
 	u32 sg_num = sgl_nents;
-	unsigned int opf;
+	blk_opf_t opf;
 	unsigned bio_cnt;
 	int i, rc;
 	struct sg_mapping_iter prot_miter;

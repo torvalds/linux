@@ -1,0 +1,92 @@
+.. SPDX-License-Identifier: GPL-2.0
+
+Kernel driver lt7182s
+=====================
+
+Supported chips:
+
+  * ADI LT7182S
+
+    Prefix: 'lt7182s'
+
+    Addresses scanned: -
+
+    Datasheet: https://www.analog.com/en/products/lt7182s.html
+
+Author: Guenter Roeck <linux@roeck-us.net>
+
+
+Description
+-----------
+
+LT7182S is a Dual Channel 6A, 20V PolyPhase Step-Down Silent Switcher with
+Digital Power System Management support.
+
+
+Usage Notes
+-----------
+
+This driver does not probe for PMBus devices. You will have to instantiate
+devices explicitly.
+
+Example: the following commands will load the driver for a LT7182S
+at address 0x4f on I2C bus #4::
+
+    # modprobe lt7182s
+    # echo lt7182s 0x4f > /sys/bus/i2c/devices/i2c-4/new_device
+
+It can also be instantiated by declaring an entry in device tree.
+
+
+Sysfs attributes
+----------------
+
+======================= ====================================
+curr[1-2]_label		"iin[12]"
+curr[1-2]_input		Measured input current
+curr[1-2]_max		Maximum input current
+curr[1-2]_max_alarm	Current high alarm
+
+curr[3-4]_label		"iout[1-2]"
+curr[3-4]_input		Measured output current
+curr[3-4]_highest	Highest measured output current
+curr[3-4]_max		Maximum output current
+curr[3-4]_max_alarm	Output current high alarm
+
+in[1-2]_label		"vin[12]"
+in[1-2]_input		Measured input voltage
+in[1-2]_highest		Highest measured input voltage
+in[1-2]_crit		Critical maximum input voltage
+in[1-2]_crit_alarm	Input voltage critical high alarm
+in[1-2]_min		Minimum input voltage
+in[1-2]_min_alarm	Input voltage low alarm
+in[1-2]_rated_min	Rated minimum input voltage
+in[1-2]_rated_max	Rated maximum input voltage
+in1_reset_history	Write to reset history for all attributes
+
+in[3-5]_label		"vmon[1-3]"
+in[3-5]_input		Measured voltage on ITH1/ITH2/EXTVCC pins
+			Only available if enabled with MFR_ADC_CONTROL_LT7182S
+			command.
+
+in[3-4|6-7]_label	"vout[1-2]"
+in[3-4|6-7]_input	Measured output voltage
+in[3-4|6-7]_highest	Highest measured output voltage
+in[3-4|6-7]_lcrit	Critical minimum output voltage
+in[3-4|6-7]_lcrit_alarm	Output voltage critical low alarm
+in[3-4|6-7]_min		Minimum output voltage
+in[3-4|6-7]_max_alarm	Output voltage low alarm
+in[3-4|6-7]_max		Maximum output voltage
+in[3-4|6-7]_max_alarm	Output voltage high alarm
+in[3-4|6-7]_crit	Critical maximum output voltage
+in[3-4|6-7]_crit_alarm	Output voltage critical high alarm
+
+power[1-2]_label	"pout[1-2]"
+power[1-2]_input	Measured output power
+
+temp1_input		Measured temperature
+temp1_crit		Critical high temperature
+temp1_crit_alarm	Chip temperature critical high alarm
+temp1_max		Maximum temperature
+temp1_max_alarm		Chip temperature high alarm
+======================= ====================================

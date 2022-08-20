@@ -194,7 +194,7 @@ hyperv_root_ir_compose_msi_msg(struct irq_data *irq_data, struct msi_msg *msg)
 	u32 vector;
 	struct irq_cfg *cfg;
 	int ioapic_id;
-	struct cpumask *affinity;
+	const struct cpumask *affinity;
 	int cpu;
 	struct hv_interrupt_entry entry;
 	struct hyperv_root_ir_data *data = irq_data->chip_data;

@@ -201,7 +201,7 @@ static ssize_t __tegra_bpmp_channel_read(struct tegra_bpmp_channel *channel,
 	int err;
 
 	if (data && size > 0)
-		memcpy(data, channel->ib->data, size);
+		memcpy_fromio(data, channel->ib->data, size);
 
 	err = tegra_bpmp_ack_response(channel);
 	if (err < 0)
@@ -245,7 +245,7 @@ static ssize_t __tegra_bpmp_channel_write(struct tegra_bpmp_channel *channel,
 	channel->ob->flags = flags;
 
 	if (data && size > 0)
-		memcpy(channel->ob->data, data, size);
+		memcpy_toio(channel->ob->data, data, size);
 
 	return tegra_bpmp_post_request(channel);
 }
@@ -420,7 +420,7 @@ void tegra_bpmp_mrq_return(struct tegra_bpmp_channel *channel, int code,
 	channel->ob->code = code;
 
 	if (data && size > 0)
-		memcpy(channel->ob->data, data, size);
+		memcpy_toio(channel->ob->data, data, size);
 
 	err = tegra_bpmp_post_response(channel);
 	if (WARN_ON(err < 0))

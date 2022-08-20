@@ -272,25 +272,30 @@ void btrfs_add_ordered_sum(struct btrfs_ordered_extent *entry,
 	spin_unlock_irq(&tree->lock);
 }
 
+static void finish_ordered_fn(struct btrfs_work *work)
+{
+	struct btrfs_ordered_extent *ordered_extent;
+
+	ordered_extent = container_of(work, struct btrfs_ordered_extent, work);
+	btrfs_finish_ordered_io(ordered_extent);
+}
+
 /*
  * Mark all ordered extents io inside the specified range finished.
  *
- * @page:	 The invovled page for the opeartion.
+ * @page:	 The involved page for the operation.
  *		 For uncompressed buffered IO, the page status also needs to be
  *		 updated to indicate whether the pending ordered io is finished.
  *		 Can be NULL for direct IO and compressed write.
  *		 For these cases, callers are ensured they won't execute the
  *		 endio function twice.
- * @finish_func: The function to be executed when all the IO of an ordered
- *		 extent are finished.
  *
  * This function is called for endio, thus the range must have ordered
- * extent(s) coveri it.
+ * extent(s) covering it.
  */
 void btrfs_mark_ordered_io_finished(struct btrfs_inode *inode,
-				struct page *page, u64 file_offset,
-				u64 num_bytes, btrfs_func_t finish_func,
-				bool uptodate)
+				    struct page *page, u64 file_offset,
+				    u64 num_bytes, bool uptodate)
 {
 	struct btrfs_ordered_inode_tree *tree = &inode->ordered_tree;
 	struct btrfs_fs_info *fs_info = inode->root->fs_info;
@@ -401,8 +406,9 @@ void btrfs_mark_ordered_io_finished(struct btrfs_inode *inode,
 			set_bit(BTRFS_ORDERED_IO_DONE, &entry->flags);
 			cond_wake_up(&entry->wait);
 			refcount_inc(&entry->refs);
+			trace_btrfs_ordered_extent_mark_finished(inode, entry);
 			spin_unlock_irqrestore(&tree->lock, flags);
-			btrfs_init_work(&entry->work, finish_func, NULL, NULL);
+			btrfs_init_work(&entry->work, finish_ordered_fn, NULL, NULL);
 			btrfs_queue_work(wq, &entry->work);
 			spin_lock_irqsave(&tree->lock, flags);
 		}
@@ -473,6 +479,7 @@ out:
 	if (finished && cached && entry) {
 		*cached = entry;
 		refcount_inc(&entry->refs);
+		trace_btrfs_ordered_extent_dec_test_pending(inode, entry);
 	}
 	spin_unlock_irqrestore(&tree->lock, flags);
 	return finished;
@@ -807,8 +814,10 @@ struct btrfs_ordered_extent *btrfs_lookup_ordered_extent(struct btrfs_inode *ino
 	entry = rb_entry(node, struct btrfs_ordered_extent, rb_node);
 	if (!in_range(file_offset, entry->file_offset, entry->num_bytes))
 		entry = NULL;
-	if (entry)
+	if (entry) {
 		refcount_inc(&entry->refs);
+		trace_btrfs_ordered_extent_lookup(inode, entry);
+	}
 out:
 	spin_unlock_irqrestore(&tree->lock, flags);
 	return entry;
@@ -848,8 +857,10 @@ struct btrfs_ordered_extent *btrfs_lookup_ordered_range(
 			break;
 	}
 out:
-	if (entry)
+	if (entry) {
 		refcount_inc(&entry->refs);
+		trace_btrfs_ordered_extent_lookup_range(inode, entry);
+	}
 	spin_unlock_irq(&tree->lock);
 	return entry;
 }
@@ -878,6 +889,7 @@ void btrfs_get_ordered_extents_for_logging(struct btrfs_inode *inode,
 		ASSERT(list_empty(&ordered->log_list));
 		list_add_tail(&ordered->log_list, list);
 		refcount_inc(&ordered->refs);
+		trace_btrfs_ordered_extent_lookup_for_logging(inode, ordered);
 	}
 	spin_unlock_irq(&tree->lock);
 }
@@ -901,6 +913,7 @@ btrfs_lookup_first_ordered_extent(struct btrfs_inode *inode, u64 file_offset)
 
 	entry = rb_entry(node, struct btrfs_ordered_extent, rb_node);
 	refcount_inc(&entry->refs);
+	trace_btrfs_ordered_extent_lookup_first(inode, entry);
 out:
 	spin_unlock_irq(&tree->lock);
 	return entry;
@@ -975,8 +988,11 @@ struct btrfs_ordered_extent *btrfs_lookup_first_ordered_range(
 	/* No ordered extent in the range */
 	entry = NULL;
 out:
-	if (entry)
+	if (entry) {
 		refcount_inc(&entry->refs);
+		trace_btrfs_ordered_extent_lookup_first_range(inode, entry);
+	}
+
 	spin_unlock_irq(&tree->lock);
 	return entry;
 }
@@ -1054,6 +1070,8 @@ int btrfs_split_ordered_extent(struct btrfs_ordered_extent *ordered, u64 pre,
 	struct rb_node *node;
 	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
 	int ret = 0;
+
+	trace_btrfs_ordered_extent_split(BTRFS_I(inode), ordered);
 
 	spin_lock_irq(&tree->lock);
 	/* Remove from tree once */

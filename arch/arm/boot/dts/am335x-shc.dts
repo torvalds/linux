@@ -36,10 +36,10 @@
 		};
 	};
 
-	gpio_keys {
+	gpio-keys {
 		compatible = "gpio-keys";
 
-		back_button {
+		back-button {
 			label = "Back Button";
 			gpios = <&gpio1 29 GPIO_ACTIVE_HIGH>;
 			linux,code = <KEY_BACK>;
@@ -47,7 +47,7 @@
 			wakeup-source;
 		};
 
-		front_button {
+		front-button {
 			label = "Front Button";
 			gpios = <&gpio1 25 GPIO_ACTIVE_HIGH>;
 			linux,code = <KEY_FRONT>;

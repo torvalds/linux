@@ -617,7 +617,7 @@ int ntfs_write_bh(struct ntfs_sb_info *sbi, struct NTFS_RECORD_HEADER *rhdr,
 		  struct ntfs_buffers *nb, int sync);
 int ntfs_bio_pages(struct ntfs_sb_info *sbi, const struct runs_tree *run,
 		   struct page **pages, u32 nr_pages, u64 vbo, u32 bytes,
-		   u32 op);
+		   enum req_op op);
 int ntfs_bio_fill_1(struct ntfs_sb_info *sbi, const struct runs_tree *run);
 int ntfs_vbo_to_lbo(struct ntfs_sb_info *sbi, const struct runs_tree *run,
 		    u64 vbo, u64 *lbo, u64 *bytes);
@@ -896,13 +896,8 @@ static inline struct page *ntfs_map_page(struct address_space *mapping,
 {
 	struct page *page = read_mapping_page(mapping, index, NULL);
 
-	if (!IS_ERR(page)) {
+	if (!IS_ERR(page))
 		kmap(page);
-		if (!PageError(page))
-			return page;
-		ntfs_unmap_page(page);
-		return ERR_PTR(-EIO);
-	}
 	return page;
 }
 

@@ -81,10 +81,9 @@ static bool bpf_iter_support_resched(struct seq_file *seq)
 #define MAX_ITER_OBJECTS	1000000
 
 /* bpf_seq_read, a customized and simpler version for bpf iterator.
- * no_llseek is assumed for this file.
  * The following are differences from seq_read():
  *  . fixed buffer size (PAGE_SIZE)
- *  . assuming no_llseek
+ *  . assuming NULL ->llseek()
  *  . stop() may call bpf program, handling potential overflow there
  */
 static ssize_t bpf_seq_read(struct file *file, char __user *buf, size_t size,

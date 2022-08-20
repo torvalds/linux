@@ -1282,8 +1282,7 @@ struct srp_terminate_context {
 	int scsi_result;
 };
 
-static bool srp_terminate_cmd(struct scsi_cmnd *scmnd, void *context_ptr,
-			      bool reserved)
+static bool srp_terminate_cmd(struct scsi_cmnd *scmnd, void *context_ptr)
 {
 	struct srp_terminate_context *context = context_ptr;
 	struct srp_target_port *target = context->srp_target;

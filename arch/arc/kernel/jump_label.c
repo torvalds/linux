@@ -96,19 +96,6 @@ void arch_jump_label_transform(struct jump_entry *entry,
 	flush_icache_range(entry->code, entry->code + JUMP_LABEL_NOP_SIZE);
 }
 
-void arch_jump_label_transform_static(struct jump_entry *entry,
-				      enum jump_label_type type)
-{
-	/*
-	 * We use only one NOP type (1x, 4 byte) in arch_static_branch, so
-	 * there's no need to patch an identical NOP over the top of it here.
-	 * The generic code calls 'arch_jump_label_transform' if the NOP needs
-	 * to be replaced by a branch, so 'arch_jump_label_transform_static' is
-	 * never called with type other than JUMP_LABEL_NOP.
-	 */
-	BUG_ON(type != JUMP_LABEL_NOP);
-}
-
 #ifdef CONFIG_ARC_DBG_JUMP_LABEL
 #define SELFTEST_MSG	"ARC: instruction generation self-test: "
 

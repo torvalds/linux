@@ -67,7 +67,7 @@ struct unwind_hint {
  * It should only be used in special cases where you're 100% sure it won't
  * affect the reliability of frame pointers and kernel stack traces.
  *
- * For more information, see tools/objtool/Documentation/stack-validation.txt.
+ * For more information, see tools/objtool/Documentation/objtool.txt.
  */
 #define STACK_FRAME_NON_STANDARD(func) \
 	static void __used __section(".discard.func_stack_frame_non_standard") \

@@ -12,9 +12,8 @@ This document contains a large number of suggestions in a relatively terse
 format.  For detailed information on how the kernel development process
 works, see Documentation/process/development-process.rst. Also, read
 Documentation/process/submit-checklist.rst
-for a list of items to check before submitting code.  If you are submitting
-a driver, also read Documentation/process/submitting-drivers.rst; for device
-tree binding patches, read
+for a list of items to check before submitting code.
+For device tree binding patches, read
 Documentation/devicetree/bindings/submitting-patches.rst.
 
 This documentation assumes that you're using ``git`` to prepare your patches.

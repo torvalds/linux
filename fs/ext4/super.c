@@ -159,7 +159,7 @@ MODULE_ALIAS("ext3");
 #define IS_EXT3_SB(sb) ((sb)->s_bdev->bd_holder == &ext3_fs_type)
 
 
-static inline void __ext4_read_bh(struct buffer_head *bh, int op_flags,
+static inline void __ext4_read_bh(struct buffer_head *bh, blk_opf_t op_flags,
 				  bh_end_io_t *end_io)
 {
 	/*
@@ -171,10 +171,10 @@ static inline void __ext4_read_bh(struct buffer_head *bh, int op_flags,
 
 	bh->b_end_io = end_io ? end_io : end_buffer_read_sync;
 	get_bh(bh);
-	submit_bh(REQ_OP_READ, op_flags, bh);
+	submit_bh(REQ_OP_READ | op_flags, bh);
 }
 
-void ext4_read_bh_nowait(struct buffer_head *bh, int op_flags,
+void ext4_read_bh_nowait(struct buffer_head *bh, blk_opf_t op_flags,
 			 bh_end_io_t *end_io)
 {
 	BUG_ON(!buffer_locked(bh));
@@ -186,7 +186,7 @@ void ext4_read_bh_nowait(struct buffer_head *bh, int op_flags,
 	__ext4_read_bh(bh, op_flags, end_io);
 }
 
-int ext4_read_bh(struct buffer_head *bh, int op_flags, bh_end_io_t *end_io)
+int ext4_read_bh(struct buffer_head *bh, blk_opf_t op_flags, bh_end_io_t *end_io)
 {
 	BUG_ON(!buffer_locked(bh));
 
@@ -203,7 +203,7 @@ int ext4_read_bh(struct buffer_head *bh, int op_flags, bh_end_io_t *end_io)
 	return -EIO;
 }
 
-int ext4_read_bh_lock(struct buffer_head *bh, int op_flags, bool wait)
+int ext4_read_bh_lock(struct buffer_head *bh, blk_opf_t op_flags, bool wait)
 {
 	if (trylock_buffer(bh)) {
 		if (wait)
@@ -227,8 +227,8 @@ int ext4_read_bh_lock(struct buffer_head *bh, int op_flags, bool wait)
  * return.
  */
 static struct buffer_head *__ext4_sb_bread_gfp(struct super_block *sb,
-					       sector_t block, int op_flags,
-					       gfp_t gfp)
+					       sector_t block,
+					       blk_opf_t op_flags, gfp_t gfp)
 {
 	struct buffer_head *bh;
 	int ret;
@@ -248,7 +248,7 @@ static struct buffer_head *__ext4_sb_bread_gfp(struct super_block *sb,
 }
 
 struct buffer_head *ext4_sb_bread(struct super_block *sb, sector_t block,
-				   int op_flags)
+				   blk_opf_t op_flags)
 {
 	return __ext4_sb_bread_gfp(sb, block, op_flags, __GFP_MOVABLE);
 }
@@ -5939,8 +5939,8 @@ static int ext4_commit_super(struct super_block *sb)
 	/* Clear potential dirty bit if it was journalled update */
 	clear_buffer_dirty(sbh);
 	sbh->b_end_io = end_buffer_write_sync;
-	submit_bh(REQ_OP_WRITE,
-		  REQ_SYNC | (test_opt(sb, BARRIER) ? REQ_FUA : 0), sbh);
+	submit_bh(REQ_OP_WRITE | REQ_SYNC |
+		  (test_opt(sb, BARRIER) ? REQ_FUA : 0), sbh);
 	wait_on_buffer(sbh);
 	if (buffer_write_io_error(sbh)) {
 		ext4_msg(sb, KERN_ERR, "I/O error while writing "

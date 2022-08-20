@@ -7,6 +7,7 @@
  */
 
 /dts-v1/;
+#include <dt-bindings/leds/common.h>
 #include "exynos4412-midas.dtsi"
 
 / {
@@ -25,8 +26,9 @@
 		pinctrl-1 = <&camera_flash_host>;
 		pinctrl-2 = <&camera_flash_isp>;
 
-		flash-led {
-			label = "flash";
+		led {
+			function = LED_FUNCTION_FLASH;
+			color = <LED_COLOR_ID_WHITE>;
 			led-max-microamp = <520833>;
 			flash-max-microamp = <1012500>;
 			flash-max-timeout-us = <1940000>;
@@ -107,7 +109,7 @@
 		vdd3-supply = <&lcd_vdd3_reg>;
 		vci-supply = <&ldo25_reg>;
 		reset-gpios = <&gpf2 1 GPIO_ACTIVE_HIGH>;
-		power-on-delay= <50>;
+		power-on-delay = <50>;
 		reset-delay = <100>;
 		init-delay = <100>;
 		flip-horizontal;

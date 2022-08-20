@@ -40,15 +40,14 @@
 
 	gpio-keys {
 		compatible = "gpio-keys";
-		poll-interval = <100>;
 
-		factory {
+		key-factory {
 			label = "factory";
 			linux,code = <BTN_0>;
 			gpios = <&pio 0 0>;
 		};
 
-		wps {
+		key-wps {
 			label = "wps";
 			linux,code = <KEY_WPS_BUTTON>;
 			gpios = <&pio 102 0>;
@@ -298,14 +297,14 @@
 	i2c1_pins: i2c1-pins {
 		mux {
 			function = "i2c";
-			groups =  "i2c1_0";
+			groups = "i2c1_0";
 		};
 	};
 
 	i2c2_pins: i2c2-pins {
 		mux {
 			function = "i2c";
-			groups =  "i2c2_0";
+			groups = "i2c2_0";
 		};
 	};
 
@@ -328,14 +327,14 @@
 	irrx_pins: irrx-pins {
 		mux {
 			function = "ir";
-			groups =  "ir_1_rx";
+			groups = "ir_1_rx";
 		};
 	};
 
 	irtx_pins: irtx-pins {
 		mux {
 			function = "ir";
-			groups =  "ir_1_tx";
+			groups = "ir_1_tx";
 		};
 	};
 

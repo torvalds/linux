@@ -1,0 +1,284 @@
+// SPDX-License-Identifier: GPL-2.0-or-later OR MIT
+/*
+ * Copyright 2021-2022 TQ-Systems GmbH
+ * Author: Alexander Stein <alexander.stein@tq-group.com>
+ */
+
+#include "imx8mp.dtsi"
+
+/ {
+	model = "TQ-Systems i.MX8MPlus TQMa8MPxL";
+	compatible = "tq,imx8mp-tqma8mpql", "fsl,imx8mp";
+
+	memory@40000000 {
+		device_type = "memory";
+		reg = <0x0 0x40000000 0 0x80000000>;
+	};
+
+	/* identical to buck4_reg, but should never change */
+	reg_vcc3v3: regulator-vcc3v3 {
+		compatible = "regulator-fixed";
+		regulator-name = "VCC3V3";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-always-on;
+	};
+
+	/* e-MMC IO, needed for HS modes */
+	reg_vcc1v8: regulator-vcc1v8 {
+		compatible = "regulator-fixed";
+		regulator-name = "VCC1V8";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		regulator-always-on;
+	};
+};
+
+&A53_0 {
+	cpu-supply = <&buck2_reg>;
+};
+
+&flexspi {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_flexspi0>;
+	status = "okay";
+
+	flash0: flash@0 {
+		reg = <0>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "jedec,spi-nor";
+		spi-max-frequency = <80000000>;
+		spi-tx-bus-width = <1>;
+		spi-rx-bus-width = <4>;
+	};
+};
+
+&i2c1 {
+	clock-frequency = <384000>;
+	pinctrl-names = "default", "gpio";
+	pinctrl-0 = <&pinctrl_i2c1>;
+	pinctrl-1 = <&pinctrl_i2c1_gpio>;
+	scl-gpios = <&gpio5 14 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
+	sda-gpios = <&gpio5 15 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
+	status = "okay";
+
+	/* NXP SE97BTP with temperature sensor + eeprom */
+	se97: temperature-sensor-eeprom@1b {
+		compatible = "nxp,se97", "jedec,jc-42.4-temp";
+		reg = <0x1b>;
+	};
+
+	pmic: pmic@25 {
+		reg = <0x25>;
+		compatible = "nxp,pca9450c";
+
+		/* PMIC PCA9450 PMIC_nINT GPIO1_IO08 */
+		pinctrl-0 = <&pinctrl_pmic>;
+		pinctrl-names = "default";
+		interrupt-parent = <&gpio1>;
+		interrupts = <8 IRQ_TYPE_LEVEL_LOW>;
+
+		regulators {
+			/* V_0V85_SOC: 0.85 .. 0.95 */
+			buck1_reg: BUCK1 {
+				regulator-name = "BUCK1";
+				regulator-min-microvolt = <850000>;
+				regulator-max-microvolt = <950000>;
+				regulator-boot-on;
+				regulator-always-on;
+				regulator-ramp-delay = <3125>;
+			};
+
+			/* VDD_ARM */
+			buck2_reg: BUCK2 {
+				regulator-name = "BUCK2";
+				regulator-min-microvolt = <850000>;
+				regulator-max-microvolt = <1000000>;
+				regulator-boot-on;
+				regulator-always-on;
+				nxp,dvs-run-voltage = <950000>;
+				nxp,dvs-standby-voltage = <850000>;
+				regulator-ramp-delay = <3125>;
+			};
+
+			/* VCC3V3 -> VMMC, ... must not be changed */
+			buck4_reg: BUCK4 {
+				regulator-name = "BUCK4";
+				regulator-min-microvolt = <3300000>;
+				regulator-max-microvolt = <3300000>;
+				regulator-boot-on;
+				regulator-always-on;
+			};
+
+			/* V_1V8 -> VQMMC, SPI-NOR, ... must not be changed */
+			buck5_reg: BUCK5 {
+				regulator-name = "BUCK5";
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <1800000>;
+				regulator-boot-on;
+				regulator-always-on;
+			};
+
+			/* V_1V1 -> RAM, ... must not be changed */
+			buck6_reg: BUCK6 {
+				regulator-name = "BUCK6";
+				regulator-min-microvolt = <1100000>;
+				regulator-max-microvolt = <1100000>;
+				regulator-boot-on;
+				regulator-always-on;
+			};
+
+			/* V_1V8_SNVS */
+			ldo1_reg: LDO1 {
+				regulator-name = "LDO1";
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <1800000>;
+				regulator-boot-on;
+				regulator-always-on;
+			};
+
+			/* V_1V8_ANA */
+			ldo3_reg: LDO3 {
+				regulator-name = "LDO3";
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <1800000>;
+				regulator-boot-on;
+				regulator-always-on;
+			};
+
+			/* unused */
+			ldo4_reg: LDO4 {
+				regulator-name = "LDO4";
+				regulator-min-microvolt = <800000>;
+				regulator-max-microvolt = <3300000>;
+			};
+
+			/* VCC SD IO - switched using SD2 VSELECT */
+			ldo5_reg: LDO5 {
+				regulator-name = "LDO5";
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <3300000>;
+			};
+		};
+	};
+
+	pcf85063: rtc@51 {
+		compatible = "nxp,pcf85063a";
+		reg = <0x51>;
+	};
+
+	at24c02: eeprom@53 {
+		compatible = "nxp,se97b", "atmel,24c02";
+		read-only;
+		reg = <0x53>;
+		pagesize = <16>;
+		vcc-supply = <&reg_vcc3v3>;
+	};
+
+	m24c64: eeprom@57 {
+		compatible = "atmel,24c64";
+		reg = <0x57>;
+		pagesize = <32>;
+		vcc-supply = <&reg_vcc3v3>;
+	};
+};
+
+&usdhc3 {
+	pinctrl-names = "default", "state_100mhz", "state_200mhz";
+	pinctrl-0 = <&pinctrl_usdhc3>;
+	pinctrl-1 = <&pinctrl_usdhc3_100mhz>;
+	pinctrl-2 = <&pinctrl_usdhc3_200mhz>;
+	bus-width = <8>;
+	non-removable;
+	no-sd;
+	no-sdio;
+	vmmc-supply = <&reg_vcc3v3>;
+	vqmmc-supply = <&reg_vcc1v8>;
+	status = "okay";
+};
+
+&wdog1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_wdog>;
+	fsl,ext-reset-output;
+	status = "okay";
+};
+
+&iomuxc {
+	pinctrl_flexspi0: flexspi0grp {
+		fsl,pins = <MX8MP_IOMUXC_NAND_ALE__FLEXSPI_A_SCLK	0x142>,
+			   <MX8MP_IOMUXC_NAND_CE0_B__FLEXSPI_A_SS0_B	0x82>,
+			   <MX8MP_IOMUXC_NAND_DATA00__FLEXSPI_A_DATA00	0x82>,
+			   <MX8MP_IOMUXC_NAND_DATA01__FLEXSPI_A_DATA01	0x82>,
+			   <MX8MP_IOMUXC_NAND_DATA02__FLEXSPI_A_DATA02	0x82>,
+			   <MX8MP_IOMUXC_NAND_DATA03__FLEXSPI_A_DATA03	0x82>;
+	};
+
+	pinctrl_i2c1: i2c1grp {
+		fsl,pins = <MX8MP_IOMUXC_I2C1_SCL__I2C1_SCL		0x400001e2>,
+			   <MX8MP_IOMUXC_I2C1_SDA__I2C1_SDA		0x400001e2>;
+	};
+
+	pinctrl_i2c1_gpio: i2c1-gpiogrp {
+		fsl,pins = <MX8MP_IOMUXC_I2C1_SCL__GPIO5_IO14		0x400001e2>,
+			   <MX8MP_IOMUXC_I2C1_SDA__GPIO5_IO15		0x400001e2>;
+	};
+
+	pinctrl_pmic: pmicirqgrp {
+		fsl,pins = <MX8MP_IOMUXC_GPIO1_IO08__GPIO1_IO08		0x1c0>;
+	};
+
+	pinctrl_reg_usdhc2_vmmc: regusdhc2vmmcgrp {
+		fsl,pins = <MX8MP_IOMUXC_SD2_RESET_B__GPIO2_IO19	0x10>;
+	};
+
+	pinctrl_usdhc3: usdhc3grp {
+		fsl,pins = <MX8MP_IOMUXC_NAND_WE_B__USDHC3_CLK		0x194>,
+			   <MX8MP_IOMUXC_NAND_WP_B__USDHC3_CMD		0x1d4>,
+			   <MX8MP_IOMUXC_NAND_DATA04__USDHC3_DATA0	0x1d4>,
+			   <MX8MP_IOMUXC_NAND_DATA05__USDHC3_DATA1	0x1d4>,
+			   <MX8MP_IOMUXC_NAND_DATA06__USDHC3_DATA2	0x1d4>,
+			   <MX8MP_IOMUXC_NAND_DATA07__USDHC3_DATA3	0x1d4>,
+			   <MX8MP_IOMUXC_NAND_RE_B__USDHC3_DATA4	0x1d4>,
+			   <MX8MP_IOMUXC_NAND_CE2_B__USDHC3_DATA5	0x1d4>,
+			   <MX8MP_IOMUXC_NAND_CE3_B__USDHC3_DATA6	0x1d4>,
+			   <MX8MP_IOMUXC_NAND_CLE__USDHC3_DATA7		0x1d4>,
+			   <MX8MP_IOMUXC_NAND_CE1_B__USDHC3_STROBE	0x84>,
+			   <MX8MP_IOMUXC_NAND_READY_B__USDHC3_RESET_B	0x84>;
+	};
+
+	pinctrl_usdhc3_100mhz: usdhc3-100mhzgrp {
+		fsl,pins = <MX8MP_IOMUXC_NAND_WE_B__USDHC3_CLK		0x194>,
+			   <MX8MP_IOMUXC_NAND_WP_B__USDHC3_CMD		0x1d4>,
+			   <MX8MP_IOMUXC_NAND_DATA04__USDHC3_DATA0	0x1d4>,
+			   <MX8MP_IOMUXC_NAND_DATA05__USDHC3_DATA1	0x1d4>,
+			   <MX8MP_IOMUXC_NAND_DATA06__USDHC3_DATA2	0x1d4>,
+			   <MX8MP_IOMUXC_NAND_DATA07__USDHC3_DATA3	0x1d4>,
+			   <MX8MP_IOMUXC_NAND_RE_B__USDHC3_DATA4	0x1d4>,
+			   <MX8MP_IOMUXC_NAND_CE2_B__USDHC3_DATA5	0x1d4>,
+			   <MX8MP_IOMUXC_NAND_CE3_B__USDHC3_DATA6	0x1d4>,
+			   <MX8MP_IOMUXC_NAND_CLE__USDHC3_DATA7		0x1d4>,
+			   <MX8MP_IOMUXC_NAND_CE1_B__USDHC3_STROBE	0x84>,
+			   <MX8MP_IOMUXC_NAND_READY_B__USDHC3_RESET_B	0x84>;
+	};
+
+	pinctrl_usdhc3_200mhz: usdhc3-200mhzgrp {
+		fsl,pins = <MX8MP_IOMUXC_NAND_WE_B__USDHC3_CLK		0x194>,
+			   <MX8MP_IOMUXC_NAND_WP_B__USDHC3_CMD		0x1d4>,
+			   <MX8MP_IOMUXC_NAND_DATA04__USDHC3_DATA0	0x1d4>,
+			   <MX8MP_IOMUXC_NAND_DATA05__USDHC3_DATA1	0x1d4>,
+			   <MX8MP_IOMUXC_NAND_DATA06__USDHC3_DATA2	0x1d4>,
+			   <MX8MP_IOMUXC_NAND_DATA07__USDHC3_DATA3	0x1d4>,
+			   <MX8MP_IOMUXC_NAND_RE_B__USDHC3_DATA4	0x1d4>,
+			   <MX8MP_IOMUXC_NAND_CE2_B__USDHC3_DATA5	0x1d4>,
+			   <MX8MP_IOMUXC_NAND_CE3_B__USDHC3_DATA6	0x1d4>,
+			   <MX8MP_IOMUXC_NAND_CLE__USDHC3_DATA7		0x1d4>,
+			   <MX8MP_IOMUXC_NAND_CE1_B__USDHC3_STROBE	0x84>,
+			   <MX8MP_IOMUXC_NAND_READY_B__USDHC3_RESET_B	0x84>;
+	};
+
+	pinctrl_wdog: wdoggrp {
+		fsl,pins = <MX8MP_IOMUXC_GPIO1_IO02__WDOG1_WDOG_B	0x1c4>;
+	};
+};

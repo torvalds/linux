@@ -498,7 +498,7 @@ config STACK_VALIDATION
 	  runtime stack traces are more reliable.
 
 	  For more information, see
-	  tools/objtool/Documentation/stack-validation.txt.
+	  tools/objtool/Documentation/objtool.txt.
 
 config NOINSTR_VALIDATION
 	bool

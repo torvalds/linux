@@ -639,7 +639,7 @@ __PAGEFLAG(Reported, reported, PF_NO_COMPOUND)
  * structure which KSM associates with that merged page.  See ksm.h.
  *
  * PAGE_MAPPING_KSM without PAGE_MAPPING_ANON is used for non-lru movable
- * page and then page->mapping points a struct address_space.
+ * page and then page->mapping points to a struct movable_operations.
  *
  * Please note that, confusingly, "page_mapping" refers to the inode
  * address_space which maps the page from disk; whereas "page_mapped"
