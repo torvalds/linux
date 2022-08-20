@@ -219,7 +219,8 @@ config CRYPTO_AUTHENC
 	select CRYPTO_NULL
 	help
 	  Authenc: Combined mode wrapper for IPsec.
-	  This is required for IPSec.
+
+	  This is required for IPSec ESP (XFRM_ESP).
 
 config CRYPTO_TEST
 	tristate "Testing module"
@@ -336,12 +337,11 @@ endmenu
 menu "Block ciphers"
 
 config CRYPTO_AES
-	tristate "AES cipher algorithms"
+	tristate "AES (Advanced Encryption Standard)"
 	select CRYPTO_ALGAPI
 	select CRYPTO_LIB_AES
 	help
-	  AES cipher algorithms (FIPS-197). AES uses the Rijndael
-	  algorithm.
+	  AES cipher algorithms (Rijndael)(FIPS-197, ISO/IEC 18033-3)
 
 	  Rijndael appears to be consistently a very good performer in
 	  both hardware and software across a wide range of computing
@@ -354,13 +354,13 @@ config CRYPTO_AES
 
 	  The AES specifies three key sizes: 128, 192 and 256 bits
 
-	  See <http://csrc.nist.gov/CryptoToolkit/aes/> for more information.
-
 config CRYPTO_AES_TI
-	tristate "Fixed time AES cipher"
+	tristate "AES (Advanced Encryption Standard) (fixed time)"
 	select CRYPTO_ALGAPI
 	select CRYPTO_LIB_AES
 	help
+	  AES cipher algorithms (Rijndael)(FIPS-197, ISO/IEC 18033-3)
+
 	  This is a generic implementation of AES that attempts to eliminate
 	  data dependent latencies as much as possible without affecting
 	  performance too much. It is intended for use by the generic CCM
@@ -376,25 +376,24 @@ config CRYPTO_AES_TI
 	  are evicted when the CPU is interrupted to do something else.
 
 config CRYPTO_ANUBIS
-	tristate "Anubis cipher algorithm"
+	tristate "Anubis"
 	depends on CRYPTO_USER_API_ENABLE_OBSOLETE
 	select CRYPTO_ALGAPI
 	help
-	  Anubis cipher algorithm.
+	  Anubis cipher algorithm
 
 	  Anubis is a variable key length cipher which can use keys from
 	  128 bits to 320 bits in length.  It was evaluated as a entrant
 	  in the NESSIE competition.
 
-	  See also:
-	  <https://www.cosic.esat.kuleuven.be/nessie/reports/>
-	  <http://www.larc.usp.br/~pbarreto/AnubisPage.html>
+	  See https://web.archive.org/web/20160606112246/http://www.larc.usp.br/~pbarreto/AnubisPage.html
+	  for further information.
 
 config CRYPTO_ARIA
-	tristate "ARIA cipher algorithm"
+	tristate "ARIA"
 	select CRYPTO_ALGAPI
 	help
-	  ARIA cipher algorithm (RFC5794).
+	  ARIA cipher algorithm (RFC5794)
 
 	  ARIA is a standard encryption algorithm of the Republic of Korea.
 	  The ARIA specifies three key sizes and rounds.
@@ -402,22 +401,21 @@ config CRYPTO_ARIA
 	  192-bit: 14 rounds.
 	  256-bit: 16 rounds.
 
-	  See also:
-	  <https://seed.kisa.or.kr/kisa/algorithm/EgovAriaInfo.do>
+	  See:
+	  https://seed.kisa.or.kr/kisa/algorithm/EgovAriaInfo.do
 
 config CRYPTO_BLOWFISH
-	tristate "Blowfish cipher algorithm"
+	tristate "Blowfish"
 	select CRYPTO_ALGAPI
 	select CRYPTO_BLOWFISH_COMMON
 	help
-	  Blowfish cipher algorithm, by Bruce Schneier.
+	  Blowfish cipher algorithm, by Bruce Schneier
 
 	  This is a variable key length cipher which can use keys from 32
 	  bits to 448 bits in length.  It's fast, simple and specifically
 	  designed for use on "large microprocessors".
 
-	  See also:
-	  <https://www.schneier.com/blowfish.html>
+	  See https://www.schneier.com/blowfish.html for further information.
 
 config CRYPTO_BLOWFISH_COMMON
 	tristate
@@ -425,22 +423,18 @@ config CRYPTO_BLOWFISH_COMMON
 	  Common parts of the Blowfish cipher algorithm shared by the
 	  generic c and the assembler implementations.
 
-	  See also:
-	  <https://www.schneier.com/blowfish.html>
-
 config CRYPTO_CAMELLIA
-	tristate "Camellia cipher algorithms"
+	tristate "Camellia"
 	select CRYPTO_ALGAPI
 	help
-	  Camellia cipher algorithms module.
+	  Camellia cipher algorithms (ISO/IEC 18033-3)
 
 	  Camellia is a symmetric key block cipher developed jointly
 	  at NTT and Mitsubishi Electric Corporation.
 
 	  The Camellia specifies three key sizes: 128, 192 and 256 bits.
 
-	  See also:
-	  <https://info.isl.ntt.co.jp/crypt/eng/camellia/index_s.html>
+	  See https://info.isl.ntt.co.jp/crypt/eng/camellia/ for further information.
 
 config CRYPTO_CAST_COMMON
 	tristate
@@ -449,85 +443,87 @@ config CRYPTO_CAST_COMMON
 	  generic c and the assembler implementations.
 
 config CRYPTO_CAST5
-	tristate "CAST5 (CAST-128) cipher algorithm"
+	tristate "CAST5 (CAST-128)"
 	select CRYPTO_ALGAPI
 	select CRYPTO_CAST_COMMON
 	help
-	  The CAST5 encryption algorithm (synonymous with CAST-128) is
-	  described in RFC2144.
+	  CAST5 (CAST-128) cipher algorithm (RFC2144, ISO/IEC 18033-3)
 
 config CRYPTO_CAST6
-	tristate "CAST6 (CAST-256) cipher algorithm"
+	tristate "CAST6 (CAST-256)"
 	select CRYPTO_ALGAPI
 	select CRYPTO_CAST_COMMON
 	help
-	  The CAST6 encryption algorithm (synonymous with CAST-256) is
-	  described in RFC2612.
+	  CAST6 (CAST-256) encryption algorithm (RFC2612)
 
 config CRYPTO_DES
-	tristate "DES and Triple DES EDE cipher algorithms"
+	tristate "DES and Triple DES EDE"
 	select CRYPTO_ALGAPI
 	select CRYPTO_LIB_DES
 	help
-	  DES cipher algorithm (FIPS 46-2), and Triple DES EDE (FIPS 46-3).
+	  DES (Data Encryption Standard)(FIPS 46-2, ISO/IEC 18033-3) and
+	  Triple DES EDE (Encrypt/Decrypt/Encrypt) (FIPS 46-3, ISO/IEC 18033-3)
+	  cipher algorithms
 
 config CRYPTO_FCRYPT
-	tristate "FCrypt cipher algorithm"
+	tristate "FCrypt"
 	select CRYPTO_ALGAPI
 	select CRYPTO_SKCIPHER
 	help
-	  FCrypt algorithm used by RxRPC.
+	  FCrypt algorithm used by RxRPC
+
+	  See https://ota.polyonymo.us/fcrypt-paper.txt
 
 config CRYPTO_KHAZAD
-	tristate "Khazad cipher algorithm"
+	tristate "Khazad"
 	depends on CRYPTO_USER_API_ENABLE_OBSOLETE
 	select CRYPTO_ALGAPI
 	help
-	  Khazad cipher algorithm.
+	  Khazad cipher algorithm
 
 	  Khazad was a finalist in the initial NESSIE competition.  It is
 	  an algorithm optimized for 64-bit processors with good performance
 	  on 32-bit processors.  Khazad uses an 128 bit key size.
 
-	  See also:
-	  <http://www.larc.usp.br/~pbarreto/KhazadPage.html>
+	  See https://web.archive.org/web/20171011071731/http://www.larc.usp.br/~pbarreto/KhazadPage.html
+	  for further information.
 
 config CRYPTO_SEED
-	tristate "SEED cipher algorithm"
+	tristate "SEED"
 	depends on CRYPTO_USER_API_ENABLE_OBSOLETE
 	select CRYPTO_ALGAPI
 	help
-	  SEED cipher algorithm (RFC4269).
+	  SEED cipher algorithm (RFC4269, ISO/IEC 18033-3)
 
 	  SEED is a 128-bit symmetric key block cipher that has been
 	  developed by KISA (Korea Information Security Agency) as a
 	  national standard encryption algorithm of the Republic of Korea.
 	  It is a 16 round block cipher with the key size of 128 bit.
 
-	  See also:
-	  <http://www.kisa.or.kr/kisa/seed/jsp/seed_eng.jsp>
+	  See https://seed.kisa.or.kr/kisa/algorithm/EgovSeedInfo.do
+	  for further information.
 
 config CRYPTO_SERPENT
-	tristate "Serpent cipher algorithm"
+	tristate "Serpent"
 	select CRYPTO_ALGAPI
 	help
-	  Serpent cipher algorithm, by Anderson, Biham & Knudsen.
+	  Serpent cipher algorithm, by Anderson, Biham & Knudsen
 
 	  Keys are allowed to be from 0 to 256 bits in length, in steps
 	  of 8 bits.
 
-	  See also:
-	  <https://www.cl.cam.ac.uk/~rja14/serpent.html>
+	  See https://www.cl.cam.ac.uk/~rja14/serpent.html for further information.
 
 config CRYPTO_SM4
 	tristate
 
 config CRYPTO_SM4_GENERIC
-	tristate "SM4 cipher algorithm"
+	tristate "SM4 (ShangMi 4)"
 	select CRYPTO_ALGAPI
 	select CRYPTO_SM4
 	help
-	  SM4 cipher algorithms (OSCCA GB/T 32907-2016).
+	  SM4 cipher algorithms (OSCCA GB/T 32907-2016,
+	  ISO/IEC 18033-3:2010/Amd 1:2021)
 
 	  SM4 (GBT.32907-2016) is a cryptographic standard issued by the
 	  Organization of State Commercial Administration of China (OSCCA)
@@ -544,16 +540,16 @@ config CRYPTO_SM4_GENERIC
 
 	  The input, output, and key of SMS4 are each 128 bits.
 
-	  See also: <https://eprint.iacr.org/2008/329.pdf>
+	  See https://eprint.iacr.org/2008/329.pdf for further information.
 
 	  If unsure, say N.
 
 config CRYPTO_TEA
-	tristate "TEA, XTEA and XETA cipher algorithms"
+	tristate "TEA, XTEA and XETA"
 	depends on CRYPTO_USER_API_ENABLE_OBSOLETE
 	select CRYPTO_ALGAPI
 	help
-	  TEA cipher algorithm.
+	  TEA (Tiny Encryption Algorithm) cipher algorithms
 
 	  Tiny Encryption Algorithm is a simple cipher that uses
 	  many rounds for security.  It is very fast and uses
@@ -567,19 +563,18 @@ config CRYPTO_TEA
 	  of the XTEA algorithm for compatibility purposes.
 
 config CRYPTO_TWOFISH
-	tristate "Twofish cipher algorithm"
+	tristate "Twofish"
 	select CRYPTO_ALGAPI
 	select CRYPTO_TWOFISH_COMMON
 	help
-	  Twofish cipher algorithm.
+	  Twofish cipher algorithm
 
 	  Twofish was submitted as an AES (Advanced Encryption Standard)
 	  candidate cipher by researchers at CounterPane Systems.  It is a
 	  16 round block cipher supporting key sizes of 128, 192, and 256
 	  bits.
 
-	  See also:
-	  <https://www.schneier.com/twofish.html>
+	  See https://www.schneier.com/twofish.html for further information.
 
 config CRYPTO_TWOFISH_COMMON
 	tristate
@@ -592,14 +587,15 @@ endmenu
 menu "Length-preserving ciphers and modes"
 
 config CRYPTO_ADIANTUM
-	tristate "Adiantum support"
+	tristate "Adiantum"
 	select CRYPTO_CHACHA20
 	select CRYPTO_LIB_POLY1305_GENERIC
 	select CRYPTO_NHPOLY1305
 	select CRYPTO_MANAGER
 	help
-	  Adiantum is a tweakable, length-preserving encryption mode
-	  designed for fast and secure disk encryption, especially on
+	  Adiantum tweakable, length-preserving encryption mode
+
+	  Designed for fast and secure disk encryption, especially on
 	  CPUs without dedicated crypto instructions.  It encrypts
 	  each sector using the XChaCha12 stream cipher, two passes of
 	  an ε-almost-∆-universal hash function, and an invocation of
@@ -616,12 +612,12 @@ config CRYPTO_ADIANTUM
 	  If unsure, say N.
 
 config CRYPTO_ARC4
-	tristate "ARC4 cipher algorithm"
+	tristate "ARC4 (Alleged Rivest Cipher 4)"
 	depends on CRYPTO_USER_API_ENABLE_OBSOLETE
 	select CRYPTO_SKCIPHER
 	select CRYPTO_LIB_ARC4
 	help
-	  ARC4 cipher algorithm.
+	  ARC4 cipher algorithm
 
 	  ARC4 is a stream cipher using keys ranging from 8 bits to 2048
 	  bits in length.  This algorithm is required for driver-based
@@ -629,113 +625,118 @@ config CRYPTO_ARC4
 	  weakness of the algorithm.
 
 config CRYPTO_CHACHA20
-	tristate "ChaCha stream cipher algorithms"
+	tristate "ChaCha"
 	select CRYPTO_LIB_CHACHA_GENERIC
 	select CRYPTO_SKCIPHER
 	help
-	  The ChaCha20, XChaCha20, and XChaCha12 stream cipher algorithms.
+	  The ChaCha20, XChaCha20, and XChaCha12 stream cipher algorithms
 
 	  ChaCha20 is a 256-bit high-speed stream cipher designed by Daniel J.
 	  Bernstein and further specified in RFC7539 for use in IETF protocols.
-	  This is the portable C implementation of ChaCha20.  See also:
-	  <https://cr.yp.to/chacha/chacha-20080128.pdf>
+	  This is the portable C implementation of ChaCha20.  See
+	  https://cr.yp.to/chacha/chacha-20080128.pdf for further information.
 
 	  XChaCha20 is the application of the XSalsa20 construction to ChaCha20
 	  rather than to Salsa20.  XChaCha20 extends ChaCha20's nonce length
 	  from 64 bits (or 96 bits using the RFC7539 convention) to 192 bits,
-	  while provably retaining ChaCha20's security.  See also:
-	  <https://cr.yp.to/snuffle/xsalsa-20081128.pdf>
+	  while provably retaining ChaCha20's security.  See
+	  https://cr.yp.to/snuffle/xsalsa-20081128.pdf for further information.
 
 	  XChaCha12 is XChaCha20 reduced to 12 rounds, with correspondingly
 	  reduced security margin but increased performance.  It can be needed
 	  in some performance-sensitive scenarios.
 
 config CRYPTO_CBC
-	tristate "CBC support"
+	tristate "CBC (Cipher Block Chaining)"
 	select CRYPTO_SKCIPHER
 	select CRYPTO_MANAGER
 	help
-	  CBC: Cipher Block Chaining mode
-	  This block cipher algorithm is required for IPSec.
+	  CBC (Cipher Block Chaining) mode (NIST SP800-38A)
+
+	  This block cipher mode is required for IPSec ESP (XFRM_ESP).
 
 config CRYPTO_CFB
-	tristate "CFB support"
+	tristate "CFB (Cipher Feedback)"
 	select CRYPTO_SKCIPHER
 	select CRYPTO_MANAGER
 	help
-	  CFB: Cipher FeedBack mode
-	  This block cipher algorithm is required for TPM2 Cryptography.
+	  CFB (Cipher Feedback) mode (NIST SP800-38A)
+
+	  This block cipher mode is required for TPM2 Cryptography.
 
 config CRYPTO_CTR
-	tristate "CTR support"
+	tristate "CTR (Counter)"
 	select CRYPTO_SKCIPHER
 	select CRYPTO_MANAGER
 	help
-	  CTR: Counter mode
-	  This block cipher algorithm is required for IPSec.
+	  CTR (Counter) mode (NIST SP800-38A)
 
 config CRYPTO_CTS
-	tristate "CTS support"
+	tristate "CTS (Cipher Text Stealing)"
 	select CRYPTO_SKCIPHER
 	select CRYPTO_MANAGER
 	help
-	  CTS: Cipher Text Stealing
-	  This is the Cipher Text Stealing mode as described by
-	  Section 8 of rfc2040 and referenced by rfc3962
-	  (rfc3962 includes errata information in its Appendix A) or
-	  CBC-CS3 as defined by NIST in Sp800-38A addendum from Oct 2010.
+	  CBC-CS3 variant of CTS (Cipher Text Stealing) (NIST
+	  Addendum to SP800-38A (October 2010))
+
 	  This mode is required for Kerberos gss mechanism support
 	  for AES encryption.
 
-	  See: https://csrc.nist.gov/publications/detail/sp/800-38a/addendum/final
-
 config CRYPTO_ECB
-	tristate "ECB support"
+	tristate "ECB (Electronic Codebook)"
 	select CRYPTO_SKCIPHER
 	select CRYPTO_MANAGER
 	help
-	  ECB: Electronic CodeBook mode
-	  This is the simplest block cipher algorithm.  It simply encrypts
-	  the input block by block.
+	  ECB (Electronic Codebook) mode (NIST SP800-38A)
 
 config CRYPTO_HCTR2
-	tristate "HCTR2 support"
+	tristate "HCTR2"
 	select CRYPTO_XCTR
 	select CRYPTO_POLYVAL
 	select CRYPTO_MANAGER
 	help
-	  HCTR2 is a length-preserving encryption mode for storage encryption that
-	  is efficient on processors with instructions to accelerate AES and
-	  carryless multiplication, e.g. x86 processors with AES-NI and CLMUL, and
-	  ARM processors with the ARMv8 crypto extensions.
+	  HCTR2 length-preserving encryption mode
+
+	  A mode for storage encryption that is efficient on processors with
+	  instructions to accelerate AES and carryless multiplication, e.g.
+	  x86 processors with AES-NI and CLMUL, and ARM processors with the
+	  ARMv8 crypto extensions.
+
+	  See https://eprint.iacr.org/2021/1441
 
 config CRYPTO_KEYWRAP
-	tristate "Key wrapping support"
+	tristate "KW (AES Key Wrap)"
 	select CRYPTO_SKCIPHER
 	select CRYPTO_MANAGER
 	help
-	  Support for key wrapping (NIST SP800-38F / RFC3394) without
-	  padding.
+	  KW (AES Key Wrap) authenticated encryption mode (NIST SP800-38F
+	  and RFC3394) without padding.
 
 config CRYPTO_LRW
-	tristate "LRW support"
+	tristate "LRW (Liskov Rivest Wagner)"
 	select CRYPTO_SKCIPHER
 	select CRYPTO_MANAGER
 	select CRYPTO_GF128MUL
 	select CRYPTO_ECB
 	help
-	  LRW: Liskov Rivest Wagner, a tweakable, non malleable, non movable
+	  LRW (Liskov Rivest Wagner) mode
+
+	  A tweakable, non malleable, non movable
 	  narrow block cipher mode for dm-crypt.  Use it with cipher
 	  specification string aes-lrw-benbi, the key must be 256, 320 or 384.
 	  The first 128, 192 or 256 bits in the key are used for AES and the
 	  rest is used to tie each cipher block to its logical position.
 
+	  See https://people.csail.mit.edu/rivest/pubs/LRW02.pdf
+
 config CRYPTO_OFB
-	tristate "OFB support"
+	tristate "OFB (Output Feedback)"
 	select CRYPTO_SKCIPHER
 	select CRYPTO_MANAGER
 	help
-	  OFB: the Output Feedback mode makes a block cipher into a synchronous
+	  OFB (Output Feedback) mode (NIST SP800-38A)
+
+	  This mode makes a block cipher into a synchronous
 	  stream cipher. It generates keystream blocks, which are then XORed
 	  with the plaintext blocks to get the ciphertext. Flipping a bit in the
 	  ciphertext produces a flipped bit in the plaintext at the same
@@ -743,31 +744,38 @@ config CRYPTO_OFB
 	  normally even when applied before encryption.
 
 config CRYPTO_PCBC
-	tristate "PCBC support"
+	tristate "PCBC (Propagating Cipher Block Chaining)"
 	select CRYPTO_SKCIPHER
 	select CRYPTO_MANAGER
 	help
-	  PCBC: Propagating Cipher Block Chaining mode
-	  This block cipher algorithm is required for RxRPC.
+	  PCBC (Propagating Cipher Block Chaining) mode
+
+	  This block cipher mode is required for RxRPC.
 
 config CRYPTO_XCTR
 	tristate
 	select CRYPTO_SKCIPHER
 	select CRYPTO_MANAGER
 	help
-	  XCTR: XOR Counter mode. This blockcipher mode is a variant of CTR mode
-	  using XORs and little-endian addition rather than big-endian arithmetic.
+	  XCTR (XOR Counter) mode for HCTR2
+
+	  This blockcipher mode is a variant of CTR mode using XORs and little-endian
+	  addition rather than big-endian arithmetic.
+
 	  XCTR mode is used to implement HCTR2.
 
 config CRYPTO_XTS
-	tristate "XTS support"
+	tristate "XTS (XOR Encrypt XOR with ciphertext stealing)"
 	select CRYPTO_SKCIPHER
 	select CRYPTO_MANAGER
 	select CRYPTO_ECB
 	help
-	  XTS: IEEE1619/D16 narrow block cipher use with aes-xts-plain,
-	  key size 256, 384 or 512 bits. This implementation currently
-	  can't handle a sectorsize which is not a multiple of 16 bytes.
+	  XTS (XOR Encrypt XOR with ciphertext stealing) mode (NIST SP800-38E
+	  and IEEE 1619)
+
+	  Use with aes-xts-plain, key size 256, 384 or 512 bits. This
+	  implementation currently can't handle a sectorsize which is not a
+	  multiple of 16 bytes.
 
 config CRYPTO_NHPOLY1305
 	tristate
@@ -806,7 +814,7 @@ config CRYPTO_CHACHA20POLY1305
 	  mode (RFC8439)
 
 config CRYPTO_CCM
-	tristate "CCM (Counter with Cipher Block Chaining-Message Authentication Code)"
+	tristate "CCM (Counter with Cipher Block Chaining-MAC)"
 	select CRYPTO_CTR
 	select CRYPTO_HASH
 	select CRYPTO_AEAD
@@ -816,7 +824,7 @@ config CRYPTO_CCM
 	  authenticated encryption mode (NIST SP800-38C)
 
 config CRYPTO_GCM
-	tristate "GCM (Galois/Counter Mode) and GMAC (GCM Message Authentication Code)"
+	tristate "GCM (Galois/Counter Mode) and GMAC (GCM MAC)"
 	select CRYPTO_CTR
 	select CRYPTO_AEAD
 	select CRYPTO_GHASH

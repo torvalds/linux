@@ -73,12 +73,20 @@ config CRYPTO_SHA256_PPC_SPE
 	  - SPE (Signal Processing Engine) extensions
 
 config CRYPTO_AES_PPC_SPE
-	tristate "AES cipher algorithms (PPC SPE)"
+	tristate "Ciphers: AES, modes: ECB/CBC/CTR/XTS (SPE)"
 	depends on PPC && SPE
 	select CRYPTO_SKCIPHER
 	help
-	  AES cipher algorithms (FIPS-197). Additionally the acceleration
-	  for popular block cipher modes ECB, CBC, CTR and XTS is supported.
+	  Block ciphers: AES cipher algorithms (FIPS-197)
+	  Length-preserving ciphers: AES with ECB, CBC, CTR, and XTS modes
+
+	  Architecture: powerpc using:
+	  - SPE (Signal Processing Engine) extensions
+
+	  SPE is available for:
+	  - Processor Type: Freescale 8500
+	  - CPU selection: e500 (8540)
+
 	  This module should only be used for low power (router) devices
 	  without hardware AES acceleration (e.g. caam crypto). It reduces the
 	  size of the AES tables from 16KB to 8KB + 256 bytes and mitigates

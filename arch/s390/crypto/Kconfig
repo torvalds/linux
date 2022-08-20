@@ -81,44 +81,54 @@ config CRYPTO_GHASH_S390
 	  It is available as of z196.
 
 config CRYPTO_AES_S390
-	tristate "AES cipher algorithms"
+	tristate "Ciphers: AES, modes: ECB, CBC, CTR, XTS, GCM"
 	depends on S390
 	select CRYPTO_ALGAPI
 	select CRYPTO_SKCIPHER
 	help
-	  This is the s390 hardware accelerated implementation of the
-	  AES cipher algorithms (FIPS-197).
+	  Block cipher: AES cipher algorithms (FIPS 197)
+	  AEAD cipher: AES with GCM
+	  Length-preserving ciphers: AES with ECB, CBC, XTS, and CTR modes
+
+	  Architecture: s390
 
 	  As of z9 the ECB and CBC modes are hardware accelerated
 	  for 128 bit keys.
+
 	  As of z10 the ECB and CBC modes are hardware accelerated
 	  for all AES key sizes.
+
 	  As of z196 the CTR mode is hardware accelerated for all AES
 	  key sizes and XTS mode is hardware accelerated for 256 and
 	  512 bit keys.
 
 config CRYPTO_DES_S390
-	tristate "DES and Triple DES cipher algorithms"
+	tristate "Ciphers: DES and Triple DES EDE, modes: ECB, CBC, CTR"
 	depends on S390
 	select CRYPTO_ALGAPI
 	select CRYPTO_SKCIPHER
 	select CRYPTO_LIB_DES
 	help
-	  This is the s390 hardware accelerated implementation of the
-	  DES cipher algorithm (FIPS 46-2), and Triple DES EDE (FIPS 46-3).
+	  Block ciphers: DES (FIPS 46-2) cipher algorithm
+	  Block ciphers: Triple DES EDE (FIPS 46-3) cipher algorithm
+	  Length-preserving ciphers: DES with ECB, CBC, and CTR modes
+	  Length-preserving ciphers: Triple DES EDED with ECB, CBC, and CTR modes
+
+	  Architecture: s390
 
 	  As of z990 the ECB and CBC mode are hardware accelerated.
 	  As of z196 the CTR mode is hardware accelerated.
 
 config CRYPTO_CHACHA_S390
-	tristate "ChaCha20 stream cipher"
+	tristate "Ciphers: ChaCha20"
 	depends on S390
 	select CRYPTO_SKCIPHER
 	select CRYPTO_LIB_CHACHA_GENERIC
 	select CRYPTO_ARCH_HAVE_LIB_CHACHA
 	help
-	  This is the s390 SIMD implementation of the ChaCha20 stream
-	  cipher (RFC 7539).
+	  Length-preserving cipher: ChaCha20 stream cipher (RFC 7539)
+
+	  Architecture: s390
 
 	  It is available as of z13.
 

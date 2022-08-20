@@ -14,7 +14,7 @@ config CRYPTO_CURVE25519_X86
 	  - ADX (large integer arithmetic)
 
 config CRYPTO_AES_NI_INTEL
-	tristate "AES cipher algorithms (AES-NI)"
+	tristate "Ciphers: AES, modes: ECB, CBC, CTS, CTR, XTR, XTS, GCM (AES-NI)"
 	depends on X86
 	select CRYPTO_AEAD
 	select CRYPTO_LIB_AES
@@ -22,96 +22,63 @@ config CRYPTO_AES_NI_INTEL
 	select CRYPTO_SKCIPHER
 	select CRYPTO_SIMD
 	help
-	  Use Intel AES-NI instructions for AES algorithm.
+	  Block cipher: AES cipher algorithms
+	  AEAD cipher: AES with GCM
+	  Length-preserving ciphers: AES with ECB, CBC, CTS, CTR, XTR, XTS
 
-	  AES cipher algorithms (FIPS-197). AES uses the Rijndael
-	  algorithm.
-
-	  Rijndael appears to be consistently a very good performer in
-	  both hardware and software across a wide range of computing
-	  environments regardless of its use in feedback or non-feedback
-	  modes. Its key setup time is excellent, and its key agility is
-	  good. Rijndael's very low memory requirements make it very well
-	  suited for restricted-space environments, in which it also
-	  demonstrates excellent performance. Rijndael's operations are
-	  among the easiest to defend against power and timing attacks.
-
-	  The AES specifies three key sizes: 128, 192 and 256 bits
-
-	  See <http://csrc.nist.gov/encryption/aes/> for more information.
-
-	  In addition to AES cipher algorithm support, the acceleration
-	  for some popular block cipher mode is supported too, including
-	  ECB, CBC, LRW, XTS. The 64 bit version has additional
-	  acceleration for CTR and XCTR.
+	  Architecture: x86 (32-bit and 64-bit) using:
+	  - AES-NI (AES new instructions)
 
 config CRYPTO_BLOWFISH_X86_64
-	tristate "Blowfish cipher algorithm (x86_64)"
+	tristate "Ciphers: Blowfish, modes: ECB, CBC"
 	depends on X86 && 64BIT
 	select CRYPTO_SKCIPHER
 	select CRYPTO_BLOWFISH_COMMON
 	imply CRYPTO_CTR
 	help
-	  Blowfish cipher algorithm (x86_64), by Bruce Schneier.
+	  Block cipher: Blowfish cipher algorithm
+	  Length-preserving ciphers: Blowfish with ECB and CBC modes
 
-	  This is a variable key length cipher which can use keys from 32
-	  bits to 448 bits in length.  It's fast, simple and specifically
-	  designed for use on "large microprocessors".
-
-	  See also:
-	  <https://www.schneier.com/blowfish.html>
+	  Architecture: x86_64
 
 config CRYPTO_CAMELLIA_X86_64
-	tristate "Camellia cipher algorithm (x86_64)"
+	tristate "Ciphers: Camellia with modes: ECB, CBC"
 	depends on X86 && 64BIT
 	select CRYPTO_SKCIPHER
 	imply CRYPTO_CTR
 	help
-	  Camellia cipher algorithm module (x86_64).
+	  Block cipher: Camellia cipher algorithms
+	  Length-preserving ciphers: Camellia with ECB and CBC modes
 
-	  Camellia is a symmetric key block cipher developed jointly
-	  at NTT and Mitsubishi Electric Corporation.
-
-	  The Camellia specifies three key sizes: 128, 192 and 256 bits.
-
-	  See also:
-	  <https://info.isl.ntt.co.jp/crypt/eng/camellia/index_s.html>
+	  Architecture: x86_64
 
 config CRYPTO_CAMELLIA_AESNI_AVX_X86_64
-	tristate "Camellia cipher algorithm (x86_64/AES-NI/AVX)"
+	tristate "Ciphers: Camellia with modes: ECB, CBC (AES-NI/AVX)"
 	depends on X86 && 64BIT
 	select CRYPTO_SKCIPHER
 	select CRYPTO_CAMELLIA_X86_64
 	select CRYPTO_SIMD
 	imply CRYPTO_XTS
 	help
-	  Camellia cipher algorithm module (x86_64/AES-NI/AVX).
+	  Length-preserving ciphers: Camellia with ECB and CBC modes
 
-	  Camellia is a symmetric key block cipher developed jointly
-	  at NTT and Mitsubishi Electric Corporation.
-
-	  The Camellia specifies three key sizes: 128, 192 and 256 bits.
-
-	  See also:
-	  <https://info.isl.ntt.co.jp/crypt/eng/camellia/index_s.html>
+	  Architecture: x86_64 using:
+	  - AES-NI (AES New Instructions)
+	  - AVX (Advanced Vector Extensions)
 
 config CRYPTO_CAMELLIA_AESNI_AVX2_X86_64
-	tristate "Camellia cipher algorithm (x86_64/AES-NI/AVX2)"
+	tristate "Ciphers: Camellia with modes: ECB, CBC (AES-NI/AVX2)"
 	depends on X86 && 64BIT
 	select CRYPTO_CAMELLIA_AESNI_AVX_X86_64
 	help
-	  Camellia cipher algorithm module (x86_64/AES-NI/AVX2).
+	  Length-preserving ciphers: Camellia with ECB and CBC modes
 
-	  Camellia is a symmetric key block cipher developed jointly
-	  at NTT and Mitsubishi Electric Corporation.
-
-	  The Camellia specifies three key sizes: 128, 192 and 256 bits.
-
-	  See also:
-	  <https://info.isl.ntt.co.jp/crypt/eng/camellia/index_s.html>
+	  Architecture: x86_64 using:
+	  - AES-NI (AES New Instructions)
+	  - AVX2 (Advanced Vector Extensions 2)
 
 config CRYPTO_CAST5_AVX_X86_64
-	tristate "CAST5 (CAST-128) cipher algorithm (x86_64/AVX)"
+	tristate "Ciphers: CAST5 with modes: ECB, CBC (AVX)"
 	depends on X86 && 64BIT
 	select CRYPTO_SKCIPHER
 	select CRYPTO_CAST5
@@ -119,14 +86,16 @@ config CRYPTO_CAST5_AVX_X86_64
 	select CRYPTO_SIMD
 	imply CRYPTO_CTR
 	help
-	  The CAST5 encryption algorithm (synonymous with CAST-128) is
-	  described in RFC2144.
+	  Length-preserving ciphers: CAST5 (CAST-128) cipher algorithm
+	  (RFC2144) with ECB and CBC modes
 
-	  This module provides the Cast5 cipher algorithm that processes
-	  sixteen blocks parallel using the AVX instruction set.
+	  Architecture: x86_64 using:
+	  - AVX (Advanced Vector Extensions)
+
+	  Processes 16 blocks in parallel.
 
 config CRYPTO_CAST6_AVX_X86_64
-	tristate "CAST6 (CAST-256) cipher algorithm (x86_64/AVX)"
+	tristate "Ciphers: CAST6 with modes: ECB, CBC (AVX)"
 	depends on X86 && 64BIT
 	select CRYPTO_SKCIPHER
 	select CRYPTO_CAST6
@@ -135,66 +104,62 @@ config CRYPTO_CAST6_AVX_X86_64
 	imply CRYPTO_XTS
 	imply CRYPTO_CTR
 	help
-	  The CAST6 encryption algorithm (synonymous with CAST-256) is
-	  described in RFC2612.
+	  Length-preserving ciphers: CAST6 (CAST-256) cipher algorithm
+	  (RFC2612) with ECB and CBC modes
 
-	  This module provides the Cast6 cipher algorithm that processes
-	  eight blocks parallel using the AVX instruction set.
+	  Architecture: x86_64 using:
+	  - AVX (Advanced Vector Extensions)
+
+	  Processes eight blocks in parallel.
 
 config CRYPTO_DES3_EDE_X86_64
-	tristate "Triple DES EDE cipher algorithm (x86-64)"
+	tristate "Ciphers: Triple DES EDE with modes: ECB, CBC"
 	depends on X86 && 64BIT
 	select CRYPTO_SKCIPHER
 	select CRYPTO_LIB_DES
 	imply CRYPTO_CTR
 	help
-	  Triple DES EDE (FIPS 46-3) algorithm.
+	  Block cipher: Triple DES EDE (FIPS 46-3) cipher algorithm
+	  Length-preserving ciphers: Triple DES EDE with ECB and CBC modes
 
-	  This module provides implementation of the Triple DES EDE cipher
-	  algorithm that is optimized for x86-64 processors. Two versions of
-	  algorithm are provided; regular processing one input block and
-	  one that processes three blocks parallel.
+	  Architecture: x86_64
+
+	  Processes one or three blocks in parallel.
 
 config CRYPTO_SERPENT_SSE2_X86_64
-	tristate "Serpent cipher algorithm (x86_64/SSE2)"
+	tristate "Ciphers: Serpent with modes: ECB, CBC (SSE2)"
 	depends on X86 && 64BIT
 	select CRYPTO_SKCIPHER
 	select CRYPTO_SERPENT
 	select CRYPTO_SIMD
 	imply CRYPTO_CTR
 	help
-	  Serpent cipher algorithm, by Anderson, Biham & Knudsen.
+	  Length-preserving ciphers: Serpent cipher algorithm
+	  with ECB and CBC modes
 
-	  Keys are allowed to be from 0 to 256 bits in length, in steps
-	  of 8 bits.
+	  Architecture: x86_64 using:
+	  - SSE2 (Streaming SIMD Extensions 2)
 
-	  This module provides Serpent cipher algorithm that processes eight
-	  blocks parallel using SSE2 instruction set.
-
-	  See also:
-	  <https://www.cl.cam.ac.uk/~rja14/serpent.html>
+	  Processes eight blocks in parallel.
 
 config CRYPTO_SERPENT_SSE2_586
-	tristate "Serpent cipher algorithm (i586/SSE2)"
+	tristate "Ciphers: Serpent with modes: ECB, CBC (32-bit with SSE2)"
 	depends on X86 && !64BIT
 	select CRYPTO_SKCIPHER
 	select CRYPTO_SERPENT
 	select CRYPTO_SIMD
 	imply CRYPTO_CTR
 	help
-	  Serpent cipher algorithm, by Anderson, Biham & Knudsen.
+	  Length-preserving ciphers: Serpent cipher algorithm
+	  with ECB and CBC modes
 
-	  Keys are allowed to be from 0 to 256 bits in length, in steps
-	  of 8 bits.
+	  Architecture: x86 (32-bit) using:
+	  - SSE2 (Streaming SIMD Extensions 2)
 
-	  This module provides Serpent cipher algorithm that processes four
-	  blocks parallel using SSE2 instruction set.
-
-	  See also:
-	  <https://www.cl.cam.ac.uk/~rja14/serpent.html>
+	  Processes four blocks in parallel.
 
 config CRYPTO_SERPENT_AVX_X86_64
-	tristate "Serpent cipher algorithm (x86_64/AVX)"
+	tristate "Ciphers: Serpent with modes: ECB, CBC (AVX)"
 	depends on X86 && 64BIT
 	select CRYPTO_SKCIPHER
 	select CRYPTO_SERPENT
@@ -202,56 +167,50 @@ config CRYPTO_SERPENT_AVX_X86_64
 	imply CRYPTO_XTS
 	imply CRYPTO_CTR
 	help
-	  Serpent cipher algorithm, by Anderson, Biham & Knudsen.
+	  Length-preserving ciphers: Serpent cipher algorithm
+	  with ECB and CBC modes
 
-	  Keys are allowed to be from 0 to 256 bits in length, in steps
-	  of 8 bits.
+	  Architecture: x86_64 using:
+	  - AVX (Advanced Vector Extensions)
 
-	  This module provides the Serpent cipher algorithm that processes
-	  eight blocks parallel using the AVX instruction set.
-
-	  See also:
-	  <https://www.cl.cam.ac.uk/~rja14/serpent.html>
+	  Processes eight blocks in parallel.
 
 config CRYPTO_SERPENT_AVX2_X86_64
-	tristate "Serpent cipher algorithm (x86_64/AVX2)"
+	tristate "Ciphers: Serpent with modes: ECB, CBC (AVX2)"
 	depends on X86 && 64BIT
 	select CRYPTO_SERPENT_AVX_X86_64
 	help
-	  Serpent cipher algorithm, by Anderson, Biham & Knudsen.
+	  Length-preserving ciphers: Serpent cipher algorithm
+	  with ECB and CBC modes
 
-	  Keys are allowed to be from 0 to 256 bits in length, in steps
-	  of 8 bits.
+	  Architecture: x86_64 using:
+	  - AVX2 (Advanced Vector Extensions 2)
 
-	  This module provides Serpent cipher algorithm that processes 16
-	  blocks parallel using AVX2 instruction set.
-
-	  See also:
-	  <https://www.cl.cam.ac.uk/~rja14/serpent.html>
+	  Processes 16 blocks in parallel.
 
 config CRYPTO_SM4_AESNI_AVX_X86_64
-	tristate "SM4 cipher algorithm (x86_64/AES-NI/AVX)"
+	tristate "Ciphers: SM4 with modes: ECB, CBC, CFB, CTR (AES-NI/AVX)"
 	depends on X86 && 64BIT
 	select CRYPTO_SKCIPHER
 	select CRYPTO_SIMD
 	select CRYPTO_ALGAPI
 	select CRYPTO_SM4
 	help
-	  SM4 cipher algorithms (OSCCA GB/T 32907-2016) (x86_64/AES-NI/AVX).
+	  Length-preserving ciphers: SM4 cipher algorithms
+	  (OSCCA GB/T 32907-2016) with ECB, CBC, CFB, and CTR modes
 
-	  SM4 (GBT.32907-2016) is a cryptographic standard issued by the
-	  Organization of State Commercial Administration of China (OSCCA)
-	  as an authorized cryptographic algorithms for the use within China.
+	  Architecture: x86_64 using:
+	  - AES-NI (AES New Instructions)
+	  - AVX (Advanced Vector Extensions)
 
-	  This is SM4 optimized implementation using AES-NI/AVX/x86_64
-	  instruction set for block cipher. Through two affine transforms,
+	  Through two affine transforms,
 	  we can use the AES S-Box to simulate the SM4 S-Box to achieve the
 	  effect of instruction acceleration.
 
 	  If unsure, say N.
 
 config CRYPTO_SM4_AESNI_AVX2_X86_64
-	tristate "SM4 cipher algorithm (x86_64/AES-NI/AVX2)"
+	tristate "Ciphers: SM4 with modes: ECB, CBC, CFB, CTR (AES-NI/AVX2)"
 	depends on X86 && 64BIT
 	select CRYPTO_SKCIPHER
 	select CRYPTO_SIMD
@@ -259,75 +218,58 @@ config CRYPTO_SM4_AESNI_AVX2_X86_64
 	select CRYPTO_SM4
 	select CRYPTO_SM4_AESNI_AVX_X86_64
 	help
-	  SM4 cipher algorithms (OSCCA GB/T 32907-2016) (x86_64/AES-NI/AVX2).
+	  Length-preserving ciphers: SM4 cipher algorithms
+	  (OSCCA GB/T 32907-2016) with ECB, CBC, CFB, and CTR modes
 
-	  SM4 (GBT.32907-2016) is a cryptographic standard issued by the
-	  Organization of State Commercial Administration of China (OSCCA)
-	  as an authorized cryptographic algorithms for the use within China.
+	  Architecture: x86_64 using:
+	  - AES-NI (AES New Instructions)
+	  - AVX2 (Advanced Vector Extensions 2)
 
-	  This is SM4 optimized implementation using AES-NI/AVX2/x86_64
-	  instruction set for block cipher. Through two affine transforms,
+	  Through two affine transforms,
 	  we can use the AES S-Box to simulate the SM4 S-Box to achieve the
 	  effect of instruction acceleration.
 
 	  If unsure, say N.
 
 config CRYPTO_TWOFISH_586
-	tristate "Twofish cipher algorithms (i586)"
+	tristate "Ciphers: Twofish (32-bit)"
 	depends on (X86 || UML_X86) && !64BIT
 	select CRYPTO_ALGAPI
 	select CRYPTO_TWOFISH_COMMON
 	imply CRYPTO_CTR
 	help
-	  Twofish cipher algorithm.
+	  Block cipher: Twofish cipher algorithm
 
-	  Twofish was submitted as an AES (Advanced Encryption Standard)
-	  candidate cipher by researchers at CounterPane Systems.  It is a
-	  16 round block cipher supporting key sizes of 128, 192, and 256
-	  bits.
-
-	  See also:
-	  <https://www.schneier.com/twofish.html>
+	  Architecture: x86 (32-bit)
 
 config CRYPTO_TWOFISH_X86_64
-	tristate "Twofish cipher algorithm (x86_64)"
+	tristate "Ciphers: Twofish"
 	depends on (X86 || UML_X86) && 64BIT
 	select CRYPTO_ALGAPI
 	select CRYPTO_TWOFISH_COMMON
 	imply CRYPTO_CTR
 	help
-	  Twofish cipher algorithm (x86_64).
+	  Block cipher: Twofish cipher algorithm
 
-	  Twofish was submitted as an AES (Advanced Encryption Standard)
-	  candidate cipher by researchers at CounterPane Systems.  It is a
-	  16 round block cipher supporting key sizes of 128, 192, and 256
-	  bits.
-
-	  See also:
-	  <https://www.schneier.com/twofish.html>
+	  Architecture: x86_64
 
 config CRYPTO_TWOFISH_X86_64_3WAY
-	tristate "Twofish cipher algorithm (x86_64, 3-way parallel)"
+	tristate "Ciphers: Twofish with modes: ECB, CBC (3-way parallel)"
 	depends on X86 && 64BIT
 	select CRYPTO_SKCIPHER
 	select CRYPTO_TWOFISH_COMMON
 	select CRYPTO_TWOFISH_X86_64
 	help
-	  Twofish cipher algorithm (x86_64, 3-way parallel).
+	  Length-preserving cipher: Twofish cipher algorithm
+	  with ECB and CBC modes
 
-	  Twofish was submitted as an AES (Advanced Encryption Standard)
-	  candidate cipher by researchers at CounterPane Systems.  It is a
-	  16 round block cipher supporting key sizes of 128, 192, and 256
-	  bits.
+	  Architecture: x86_64
 
-	  This module provides Twofish cipher algorithm that processes three
-	  blocks parallel, utilizing resources of out-of-order CPUs better.
-
-	  See also:
-	  <https://www.schneier.com/twofish.html>
+	  Processes three blocks in parallel, better utilizing resources of
+	  out-of-order CPUs.
 
 config CRYPTO_TWOFISH_AVX_X86_64
-	tristate "Twofish cipher algorithm (x86_64/AVX)"
+	tristate "Ciphers: Twofish with modes: ECB, CBC (AVX)"
 	depends on X86 && 64BIT
 	select CRYPTO_SKCIPHER
 	select CRYPTO_SIMD
@@ -336,28 +278,28 @@ config CRYPTO_TWOFISH_AVX_X86_64
 	select CRYPTO_TWOFISH_X86_64_3WAY
 	imply CRYPTO_XTS
 	help
-	  Twofish cipher algorithm (x86_64/AVX).
+	  Length-preserving cipher: Twofish cipher algorithm
+	  with ECB and CBC modes
 
-	  Twofish was submitted as an AES (Advanced Encryption Standard)
-	  candidate cipher by researchers at CounterPane Systems.  It is a
-	  16 round block cipher supporting key sizes of 128, 192, and 256
-	  bits.
+	  Architecture: x86_64 using:
+	  - AVX (Advanced Vector Extensions)
 
-	  This module provides the Twofish cipher algorithm that processes
-	  eight blocks parallel using the AVX Instruction Set.
-
-	  See also:
-	  <https://www.schneier.com/twofish.html>
+	  Processes eight blocks in parallel.
 
 config CRYPTO_CHACHA20_X86_64
-	tristate "ChaCha stream cipher algorithms (x86_64/SSSE3/AVX2/AVX-512VL)"
+	tristate "Ciphers: ChaCha20, XChaCha20, XChaCha12 (SSSE3/AVX2/AVX-512VL)"
 	depends on X86 && 64BIT
 	select CRYPTO_SKCIPHER
 	select CRYPTO_LIB_CHACHA_GENERIC
 	select CRYPTO_ARCH_HAVE_LIB_CHACHA
 	help
-	  SSSE3, AVX2, and AVX-512VL optimized implementations of the ChaCha20,
-	  XChaCha20, and XChaCha12 stream ciphers.
+	  Length-preserving ciphers: ChaCha20, XChaCha20, and XChaCha12
+	  stream cipher algorithms
+
+	  Architecture: x86_64 using:
+	  - SSSE3 (Supplemental SSE3)
+	  - AVX2 (Advanced Vector Extensions 2)
+	  - AVX-512VL (Advanced Vector Extensions-512VL)
 
 config CRYPTO_AEGIS128_AESNI_SSE2
 	tristate "AEAD ciphers: AEGIS-128 (AES-NI/SSE2)"
