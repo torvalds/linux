@@ -641,6 +641,23 @@ exit:
 	spin_unlock_bh(&pmlmepriv->lock);
 }
 
+static void rtw_os_xmit_schedule(struct adapter *padapter)
+{
+	struct xmit_priv *pxmitpriv;
+
+	if (!padapter)
+		return;
+
+	pxmitpriv = &padapter->xmitpriv;
+
+	spin_lock_bh(&pxmitpriv->lock);
+
+	if (rtw_txframes_pending(padapter))
+		tasklet_hi_schedule(&pxmitpriv->xmit_tasklet);
+
+	spin_unlock_bh(&pxmitpriv->lock);
+}
+
 void rtw_surveydone_event_callback(struct adapter	*adapter, u8 *pbuf)
 {
 	struct	mlme_priv *pmlmepriv = &adapter->mlmepriv;

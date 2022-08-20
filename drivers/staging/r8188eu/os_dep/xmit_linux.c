@@ -105,23 +105,6 @@ void rtw_os_xmit_complete(struct adapter *padapter, struct xmit_frame *pxframe)
 	pxframe->pkt = NULL;
 }
 
-void rtw_os_xmit_schedule(struct adapter *padapter)
-{
-	struct xmit_priv *pxmitpriv;
-
-	if (!padapter)
-		return;
-
-	pxmitpriv = &padapter->xmitpriv;
-
-	spin_lock_bh(&pxmitpriv->lock);
-
-	if (rtw_txframes_pending(padapter))
-		tasklet_hi_schedule(&pxmitpriv->xmit_tasklet);
-
-	spin_unlock_bh(&pxmitpriv->lock);
-}
-
 static void rtw_check_xmit_resource(struct adapter *padapter, struct sk_buff *pkt)
 {
 	struct xmit_priv *pxmitpriv = &padapter->xmitpriv;
