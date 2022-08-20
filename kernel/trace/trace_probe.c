@@ -279,7 +279,14 @@ static int parse_probe_vars(char *arg, const struct fetch_type *t,
 	int ret = 0;
 	int len;
 
-	if (strcmp(arg, "retval") == 0) {
+	if (flags & TPARG_FL_TPOINT) {
+		if (code->data)
+			return -EFAULT;
+		code->data = kstrdup(arg, GFP_KERNEL);
+		if (!code->data)
+			return -ENOMEM;
+		code->op = FETCH_OP_TP_ARG;
+	} else if (strcmp(arg, "retval") == 0) {
 		if (flags & TPARG_FL_RETURN) {
 			code->op = FETCH_OP_RETVAL;
 		} else {
@@ -319,13 +326,6 @@ static int parse_probe_vars(char *arg, const struct fetch_type *t,
 		code->op = FETCH_OP_ARG;
 		code->param = (unsigned int)param - 1;
 #endif
-	} else if (flags & TPARG_FL_TPOINT) {
-		if (code->data)
-			return -EFAULT;
-		code->data = kstrdup(arg, GFP_KERNEL);
-		if (!code->data)
-			return -ENOMEM;
-		code->op = FETCH_OP_TP_ARG;
 	} else
 		goto inval_var;
 
@@ -380,6 +380,11 @@ parse_probe_arg(char *arg, const struct fetch_type *type,
 		break;
 
 	case '%':	/* named register */
+		if (flags & TPARG_FL_TPOINT) {
+			/* eprobes do not handle registers */
+			trace_probe_log_err(offs, BAD_VAR);
+			break;
+		}
 		ret = regs_query_register_offset(arg + 1);
 		if (ret >= 0) {
 			code->op = FETCH_OP_REG;
