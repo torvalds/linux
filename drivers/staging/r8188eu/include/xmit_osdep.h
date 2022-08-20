@@ -22,7 +22,5 @@ struct xmit_buf;
 int rtw_xmit_entry(struct sk_buff *pkt, struct  net_device *pnetdev);
 
 void rtw_os_pkt_complete(struct adapter *padapter, struct sk_buff *pkt);
-void rtw_os_xmit_complete(struct adapter *padapter,
-			  struct xmit_frame *pxframe);
 
 #endif /* __XMIT_OSDEP_H_ */

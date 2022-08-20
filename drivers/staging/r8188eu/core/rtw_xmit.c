@@ -229,6 +229,13 @@ exit:
 	return res;
 }
 
+void rtw_os_xmit_complete(struct adapter *padapter, struct xmit_frame *pxframe)
+{
+	if (pxframe->pkt)
+		rtw_os_pkt_complete(padapter, pxframe->pkt);
+	pxframe->pkt = NULL;
+}
+
 void _rtw_free_xmit_priv(struct xmit_priv *pxmitpriv)
 {
 	int i;

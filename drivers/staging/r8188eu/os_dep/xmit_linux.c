@@ -31,13 +31,6 @@ void rtw_os_pkt_complete(struct adapter *padapter, struct sk_buff *pkt)
 	dev_kfree_skb_any(pkt);
 }
 
-void rtw_os_xmit_complete(struct adapter *padapter, struct xmit_frame *pxframe)
-{
-	if (pxframe->pkt)
-		rtw_os_pkt_complete(padapter, pxframe->pkt);
-	pxframe->pkt = NULL;
-}
-
 static void rtw_check_xmit_resource(struct adapter *padapter, struct sk_buff *pkt)
 {
 	struct xmit_priv *pxmitpriv = &padapter->xmitpriv;
