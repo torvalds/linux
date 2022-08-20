@@ -63,6 +63,7 @@ struct _cpu_map {
 	unsigned short die_id;
 	unsigned short punit_cpu;
 	unsigned short punit_cpu_core;
+	unsigned short initialized;
 };
 struct _cpu_map *cpu_map;
 
@@ -302,6 +303,12 @@ static int get_physical_package_id(int cpu)
 {
 	int ret;
 
+	if (cpu < 0)
+		return -1;
+
+	if (cpu_map && cpu_map[cpu].initialized)
+		return cpu_map[cpu].pkg_id;
+
 	ret = parse_int_file(0,
 			"/sys/devices/system/cpu/cpu%d/topology/physical_package_id",
 			cpu);
@@ -320,6 +327,12 @@ static int get_physical_core_id(int cpu)
 {
 	int ret;
 
+	if (cpu < 0)
+		return -1;
+
+	if (cpu_map && cpu_map[cpu].initialized)
+		return cpu_map[cpu].core_id;
+
 	ret = parse_int_file(0,
 			"/sys/devices/system/cpu/cpu%d/topology/core_id",
 			cpu);
@@ -337,6 +350,12 @@ static int get_physical_core_id(int cpu)
 static int get_physical_die_id(int cpu)
 {
 	int ret;
+
+	if (cpu < 0)
+		return -1;
+
+	if (cpu_map && cpu_map[cpu].initialized)
+		return cpu_map[cpu].die_id;
 
 	ret = parse_int_file(0,
 			"/sys/devices/system/cpu/cpu%d/topology/die_id",
@@ -648,21 +667,28 @@ static void create_cpu_map(void)
 	int i, fd = 0;
 	struct isst_if_cpu_maps map;
 
-	cpu_map = malloc(sizeof(*cpu_map) * topo_max_cpus);
+	/* Use calloc to make sure the memory is initialized to Zero */
+	cpu_map = calloc(topo_max_cpus, sizeof(*cpu_map));
 	if (!cpu_map)
 		err(3, "cpumap");
 
 	fd = open(pathname, O_RDWR);
-	if (fd < 0)
+	if (fd < 0 && !is_clx_n_platform())
 		err(-1, "%s open failed", pathname);
 
 	for (i = 0; i < topo_max_cpus; ++i) {
 		if (!CPU_ISSET_S(i, present_cpumask_size, present_cpumask))
 			continue;
 
+		cpu_map[i].core_id = get_physical_core_id(i);
+		cpu_map[i].pkg_id = get_physical_package_id(i);
+		cpu_map[i].die_id = get_physical_die_id(i);
+		cpu_map[i].initialized = 1;
+
+		if (fd < 0)
+			continue;
 		map.cmd_count = 1;
 		map.cpu_map[0].logical_cpu = i;
-
 		debug_printf(" map logical_cpu:%d\n",
 			     map.cpu_map[0].logical_cpu);
 		if (ioctl(fd, ISST_IF_GET_PHY_ID, &map) == -1) {
@@ -671,9 +697,6 @@ static void create_cpu_map(void)
 				map.cpu_map[0].logical_cpu);
 			continue;
 		}
-		cpu_map[i].core_id = get_physical_core_id(i);
-		cpu_map[i].pkg_id = get_physical_package_id(i);
-		cpu_map[i].die_id = get_physical_die_id(i);
 		cpu_map[i].punit_cpu = map.cpu_map[0].physical_cpu;
 		cpu_map[i].punit_cpu_core = (map.cpu_map[0].physical_cpu >>
 					     1); // shift to get core id
@@ -685,7 +708,7 @@ static void create_cpu_map(void)
 			cpu_map[i].punit_cpu_core);
 	}
 
-	if (fd)
+	if (fd >= 0)
 		close(fd);
 }
 
@@ -1013,6 +1036,11 @@ static void isst_print_platform_information(void)
 		fprintf(stderr, "\nThis option in not supported on this platform\n");
 		exit(0);
 	}
+
+	/* Early initialization to create working cpu_map */
+	set_max_cpu_num();
+	set_cpu_present_cpu_mask();
+	create_cpu_map();
 
 	fd = open(pathname, O_RDWR);
 	if (fd < 0)
@@ -2744,9 +2772,6 @@ void process_command(int argc, char **argv,
 		}
 	}
 
-	if (!is_clx_n_platform())
-		create_cpu_map();
-
 	i = 0;
 	while (cmds[i].feature) {
 		if (!strcmp(cmds[i].feature, feature) &&
@@ -2952,9 +2977,9 @@ static void cmdline(int argc, char **argv)
 	store_cpu_topology();
 	set_cpu_present_cpu_mask();
 	set_cpu_target_cpu_mask();
+	create_cpu_map();
 
 	if (oob_mode) {
-		create_cpu_map();
 		if (debug_flag)
 			fprintf(stderr, "OOB mode is enabled in debug mode\n");
 
