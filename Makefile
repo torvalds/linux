@@ -1110,7 +1110,7 @@ vmlinux-dirs	:= $(patsubst %/,%,$(filter %/, \
 		     $(libs-y) $(libs-m)))
 
 build-dirs	:= $(vmlinux-dirs)
-clean-dirs	:= $(sort $(vmlinux-dirs) Documentation \
+clean-dirs	:= $(sort $(vmlinux-dirs) Documentation . \
 		     $(patsubst %/,%,$(filter %/, $(core-) \
 			$(drivers-) $(libs-))))
 

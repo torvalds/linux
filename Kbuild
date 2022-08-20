@@ -43,17 +43,32 @@ PHONY += missing-syscalls
 missing-syscalls: scripts/checksyscalls.sh $(offsets-file)
 	$(call cmd,syscalls)
 
-# Check atomic headers are up-to-date
+# Check the manual modification of atomic headers
 
-quiet_cmd_atomics = CALL    $<
-      cmd_atomics = $(CONFIG_SHELL) $<
+quiet_cmd_check_sha1 = CHKSHA1 $<
+      cmd_check_sha1 = \
+	if ! command -v sha1sum >/dev/null; then \
+		echo "warning: cannot check the header due to sha1sum missing"; \
+		exit 0; \
+	fi; \
+	if [ "$$(sed -n '$$s:// ::p' $<)" != \
+	     "$$(sed '$$d' $< | sha1sum | sed 's/ .*//')" ]; then \
+		echo "error: $< has been modified." >&2; \
+		exit 1; \
+	fi; \
+	touch $@
 
-PHONY += old-atomics
-old-atomics: scripts/atomic/check-atomics.sh
-	$(call cmd,atomics)
+atomic-checks += $(addprefix $(obj)/.checked-, \
+	  atomic-arch-fallback.h \
+	  atomic-instrumented.h \
+	  atomic-long.h)
+
+targets += $(atomic-checks)
+$(atomic-checks): $(obj)/.checked-%: include/linux/atomic/%  FORCE
+	$(call if_changed,check_sha1)
 
 # A phony target that depends on all the preparation targets
 
 PHONY += prepare
-prepare: $(offsets-file) missing-syscalls old-atomics
+prepare: $(offsets-file) missing-syscalls $(atomic-checks)
 	@:
