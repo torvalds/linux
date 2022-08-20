@@ -229,7 +229,7 @@ exit:
 	return res;
 }
 
-void rtw_os_xmit_complete(struct adapter *padapter, struct xmit_frame *pxframe)
+void rtw_xmit_complete(struct adapter *padapter, struct xmit_frame *pxframe)
 {
 	if (pxframe->pkt)
 		rtw_os_pkt_complete(padapter, pxframe->pkt);
@@ -249,7 +249,7 @@ void _rtw_free_xmit_priv(struct xmit_priv *pxmitpriv)
 		return;
 
 	for (i = 0; i < NR_XMITFRAME; i++) {
-		rtw_os_xmit_complete(padapter, pxmitframe);
+		rtw_xmit_complete(padapter, pxmitframe);
 
 		pxmitframe++;
 	}
@@ -2017,7 +2017,7 @@ void wakeup_sta_to_xmit(struct adapter *padapter, struct sta_info *psta)
 
 		spin_unlock_bh(&psta->sleep_q.lock);
 		if (rtl8188eu_hal_xmit(padapter, pxmitframe))
-			rtw_os_xmit_complete(padapter, pxmitframe);
+			rtw_xmit_complete(padapter, pxmitframe);
 		spin_lock_bh(&psta->sleep_q.lock);
 	}
 
@@ -2067,7 +2067,7 @@ void wakeup_sta_to_xmit(struct adapter *padapter, struct sta_info *psta)
 
 			spin_unlock_bh(&psta_bmc->sleep_q.lock);
 			if (rtl8188eu_hal_xmit(padapter, pxmitframe))
-				rtw_os_xmit_complete(padapter, pxmitframe);
+				rtw_xmit_complete(padapter, pxmitframe);
 			spin_lock_bh(&psta_bmc->sleep_q.lock);
 		}
 
@@ -2141,7 +2141,7 @@ void xmit_delivery_enabled_frames(struct adapter *padapter, struct sta_info *pst
 		pxmitframe->attrib.triggered = 1;
 
 		if (rtl8188eu_hal_xmit(padapter, pxmitframe))
-			rtw_os_xmit_complete(padapter, pxmitframe);
+			rtw_xmit_complete(padapter, pxmitframe);
 
 		if ((psta->sleepq_ac_len == 0) && (!psta->has_legacy_ac) && (wmmps_ac)) {
 			pstapriv->tim_bitmap &= ~BIT(psta->aid);

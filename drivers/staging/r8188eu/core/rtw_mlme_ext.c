@@ -7876,7 +7876,7 @@ u8 tx_beacon_hdl(struct adapter *padapter, unsigned char *pbuf)
 
 				spin_unlock_bh(&psta_bmc->sleep_q.lock);
 				if (rtl8188eu_hal_xmit(padapter, pxmitframe))
-					rtw_os_xmit_complete(padapter, pxmitframe);
+					rtw_xmit_complete(padapter, pxmitframe);
 				spin_lock_bh(&psta_bmc->sleep_q.lock);
 			}
 			spin_unlock_bh(&psta_bmc->sleep_q.lock);
