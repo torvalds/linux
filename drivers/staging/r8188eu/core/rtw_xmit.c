@@ -429,9 +429,9 @@ static uint rtw_remainder_len(struct pkt_file *pfile)
 
 static uint rtw_pktfile_read(struct pkt_file *pfile, u8 *rmem, uint rlen)
 {
-	uint	len = 0;
+	uint len;
 
-	len =  rtw_remainder_len(pfile);
+	len = rtw_remainder_len(pfile);
 	len = (rlen > len) ? len : rlen;
 
 	if (rmem)
