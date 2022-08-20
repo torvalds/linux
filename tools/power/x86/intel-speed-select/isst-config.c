@@ -362,6 +362,8 @@ int get_physical_die_id(int cpu)
 void set_isst_id(struct isst_id *id, int cpu)
 {
 	id->cpu = cpu;
+	id->pkg = get_physical_package_id(cpu);
+	id->die = get_physical_die_id(cpu);
 }
 
 int get_cpufreq_base_freq(int cpu)

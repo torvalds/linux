@@ -82,6 +82,8 @@
 /* Unified structure to specific a CPU or a Power Domain */
 struct isst_id {
 	int cpu;
+	int pkg;
+	int die;
 };
 
 struct isst_clos_config {
