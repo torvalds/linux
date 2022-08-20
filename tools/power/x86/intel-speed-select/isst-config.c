@@ -298,7 +298,7 @@ static void store_cpu_topology(void)
 	fclose(fp);
 }
 
-int get_physical_package_id(int cpu)
+static int get_physical_package_id(int cpu)
 {
 	int ret;
 
@@ -316,7 +316,7 @@ int get_physical_package_id(int cpu)
 	return ret;
 }
 
-int get_physical_core_id(int cpu)
+static int get_physical_core_id(int cpu)
 {
 	int ret;
 
@@ -334,7 +334,7 @@ int get_physical_core_id(int cpu)
 	return ret;
 }
 
-int get_physical_die_id(int cpu)
+static int get_physical_die_id(int cpu)
 {
 	int ret;
 

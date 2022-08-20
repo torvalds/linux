@@ -187,8 +187,6 @@ extern int get_max_punit_core_id(struct isst_id *id);
 FILE *get_output_file(void);
 extern void debug_printf(const char *format, ...);
 extern int out_format_is_json(void);
-extern int get_physical_package_id(int cpu);
-extern int get_physical_die_id(int cpu);
 extern void set_isst_id(struct isst_id *id, int cpu);
 extern size_t alloc_cpu_set(cpu_set_t **cpu_set);
 extern void free_cpu_set(cpu_set_t *cpu_set);
