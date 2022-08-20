@@ -354,6 +354,7 @@ void isst_ctdp_display_information(struct isst_id *id, FILE *outf, int tdp_level
 	char header[256];
 	char value[512];
 	static int level;
+	int trl_max_levels = isst_get_trl_max_levels();
 	int i;
 
 	if (pkg_dev->processed)
@@ -361,7 +362,7 @@ void isst_ctdp_display_information(struct isst_id *id, FILE *outf, int tdp_level
 
 	for (i = 0; i <= pkg_dev->levels; ++i) {
 		struct isst_pkg_ctdp_level_info *ctdp_level;
-		int j;
+		int j, k;
 
 		ctdp_level = &pkg_dev->ctdp_level[i];
 		if (!ctdp_level->processed)
@@ -505,54 +506,21 @@ void isst_ctdp_display_information(struct isst_id *id, FILE *outf, int tdp_level
 			format_and_print(outf, level + 2, header, value);
 		}
 
-		snprintf(header, sizeof(header), "turbo-ratio-limits-sse");
-		format_and_print(outf, level + 2, header, NULL);
-		for (j = 0; j < 8; ++j) {
-			snprintf(header, sizeof(header), "bucket-%d", j);
-			format_and_print(outf, level + 3, header, NULL);
-
-			snprintf(header, sizeof(header), "core-count");
-			snprintf(value, sizeof(value), "%llu", (ctdp_level->buckets_info >> (j * 8)) & 0xff);
-			format_and_print(outf, level + 4, header, value);
-
-			snprintf(header, sizeof(header),
-				"max-turbo-frequency(MHz)");
-			snprintf(value, sizeof(value), "%d",
-				 ctdp_level->trl_sse_active_cores[j] *
-				  DISP_FREQ_MULTIPLIER);
-			format_and_print(outf, level + 4, header, value);
-		}
-
-		if (ctdp_level->trl_avx_active_cores[0]) {
-			snprintf(header, sizeof(header), "turbo-ratio-limits-avx2");
+		for (k = 0; k < trl_max_levels; k++) {
+			snprintf(header, sizeof(header), "turbo-ratio-limits-%s", isst_get_trl_level_name(k));
 			format_and_print(outf, level + 2, header, NULL);
+
 			for (j = 0; j < 8; ++j) {
 				snprintf(header, sizeof(header), "bucket-%d", j);
 				format_and_print(outf, level + 3, header, NULL);
 
 				snprintf(header, sizeof(header), "core-count");
-				snprintf(value, sizeof(value), "%llu", (ctdp_level->buckets_info >> (j * 8)) & 0xff);
+
+				snprintf(value, sizeof(value), "%llu", (ctdp_level->trl_cores >> (j * 8)) & 0xff);
 				format_and_print(outf, level + 4, header, value);
 
 				snprintf(header, sizeof(header), "max-turbo-frequency(MHz)");
-				snprintf(value, sizeof(value), "%d", ctdp_level->trl_avx_active_cores[j] * DISP_FREQ_MULTIPLIER);
-				format_and_print(outf, level + 4, header, value);
-			}
-		}
-
-		if (ctdp_level->trl_avx_512_active_cores[0]) {
-			snprintf(header, sizeof(header), "turbo-ratio-limits-avx512");
-			format_and_print(outf, level + 2, header, NULL);
-			for (j = 0; j < 8; ++j) {
-				snprintf(header, sizeof(header), "bucket-%d", j);
-				format_and_print(outf, level + 3, header, NULL);
-
-				snprintf(header, sizeof(header), "core-count");
-				snprintf(value, sizeof(value), "%llu", (ctdp_level->buckets_info >> (j * 8)) & 0xff);
-				format_and_print(outf, level + 4, header, value);
-
-				snprintf(header, sizeof(header), "max-turbo-frequency(MHz)");
-				snprintf(value, sizeof(value), "%d", ctdp_level->trl_avx_512_active_cores[j] * DISP_FREQ_MULTIPLIER);
+				snprintf(value, sizeof(value), "%d", ctdp_level->trl_ratios[k][j] * DISP_FREQ_MULTIPLIER);
 				format_and_print(outf, level + 4, header, value);
 			}
 		}

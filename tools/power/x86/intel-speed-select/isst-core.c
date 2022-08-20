@@ -6,6 +6,25 @@
 
 #include "isst.h"
 
+int isst_get_trl_max_levels(void)
+{
+	return 3;
+}
+
+char *isst_get_trl_level_name(int level)
+{
+	switch (level) {
+	case 0:
+		return "sse";
+	case 1:
+		return "avx2";
+	case 2:
+		return "avx512";
+	default:
+		return NULL;
+	}
+}
+
 int isst_write_pm_config(struct isst_id *id, int cp_state)
 {
 	unsigned int req, resp;
@@ -795,6 +814,8 @@ int isst_get_process_ctdp(struct isst_id *id, int tdp_level, struct isst_pkg_ctd
 
 	for (i = 0; i <= pkg_dev->levels; ++i) {
 		struct isst_pkg_ctdp_level_info *ctdp_level;
+		int trl_max_levels = isst_get_trl_max_levels();
+		int j;
 
 		if (tdp_level != 0xff && i != tdp_level)
 			continue;
@@ -838,8 +859,8 @@ int isst_get_process_ctdp(struct isst_id *id, int tdp_level, struct isst_pkg_ctd
 				ctdp_level->tdp_ratio = ctdp_level->sse_p1;
 			}
 
-			isst_get_get_trl_from_msr(id, ctdp_level->trl_sse_active_cores);
-			isst_get_trl_bucket_info(id, &ctdp_level->buckets_info);
+			isst_get_get_trl_from_msr(id, ctdp_level->trl_ratios[0]);
+			isst_get_trl_bucket_info(id, &ctdp_level->trl_cores);
 			continue;
 		}
 
@@ -861,24 +882,16 @@ int isst_get_process_ctdp(struct isst_id *id, int tdp_level, struct isst_pkg_ctd
 		if (ret)
 			return ret;
 
-		ret = isst_get_trl_bucket_info(id, &ctdp_level->buckets_info);
+		ret = isst_get_trl_bucket_info(id, &ctdp_level->trl_cores);
 		if (ret)
 			return ret;
 
-		ret = isst_get_get_trl(id, i, 0,
-				       ctdp_level->trl_sse_active_cores);
-		if (ret)
-			return ret;
-
-		ret = isst_get_get_trl(id, i, 1,
-				       ctdp_level->trl_avx_active_cores);
-		if (ret)
-			return ret;
-
-		ret = isst_get_get_trl(id, i, 2,
-				       ctdp_level->trl_avx_512_active_cores);
-		if (ret)
-			return ret;
+		for (j = 0; j < trl_max_levels; j++) {
+			ret = isst_get_get_trl(id, i, j,
+				       ctdp_level->trl_ratios[j]);
+			if (ret)
+				return ret;
+		}
 
 		isst_get_uncore_p0_p1_info(id, i, ctdp_level);
 		isst_get_p1_info(id, i, ctdp_level);

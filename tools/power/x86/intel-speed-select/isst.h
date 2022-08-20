@@ -28,6 +28,8 @@
 #include <stdarg.h>
 #include <sys/ioctl.h>
 
+#include <linux/isst_if.h>
+
 #define BIT(x) (1 << (x))
 #define BIT_ULL(nr) (1ULL << (nr))
 #define GENMASK(h, l) (((~0UL) << (l)) & (~0UL >> (sizeof(long) * 8 - 1 - (h))))
@@ -153,10 +155,8 @@ struct isst_pkg_ctdp_level_info {
 	size_t core_cpumask_size;
 	cpu_set_t *core_cpumask;
 	int cpu_count;
-	unsigned long long buckets_info;
-	int trl_sse_active_cores[ISST_TRL_MAX_ACTIVE_CORES];
-	int trl_avx_active_cores[ISST_TRL_MAX_ACTIVE_CORES];
-	int trl_avx_512_active_cores[ISST_TRL_MAX_ACTIVE_CORES];
+	unsigned long long trl_cores;	/* Buckets info */
+	int trl_ratios[TRL_MAX_LEVELS][ISST_TRL_MAX_ACTIVE_CORES];
 	int kobj_bucket_index;
 	int active_bucket;
 	int fact_max_index;
@@ -204,6 +204,9 @@ extern int isst_send_mbox_command(unsigned int cpu, unsigned char command,
 
 extern int isst_send_msr_command(unsigned int cpu, unsigned int command,
 				 int write, unsigned long long *req_resp);
+
+extern int isst_get_trl_max_levels(void);
+extern char *isst_get_trl_level_name(int level);
 
 extern int isst_get_ctdp_levels(struct isst_id *id, struct isst_pkg_ctdp *pkg_dev);
 extern int isst_get_ctdp_control(struct isst_id *id, int config_index,
