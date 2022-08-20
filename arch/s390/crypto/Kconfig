@@ -15,62 +15,68 @@ config CRYPTO_CRC32_S390
 	  It is available with IBM z13 or later.
 
 config CRYPTO_SHA512_S390
-	tristate "SHA384 and SHA512 digest algorithm"
+	tristate "Hash functions: SHA-384 and SHA-512"
 	depends on S390
 	select CRYPTO_HASH
 	help
-	  This is the s390 hardware accelerated implementation of the
-	  SHA512 secure hash standard.
+	  SHA-384 and SHA-512 secure hash algorithms (FIPS 180)
+
+	  Architecture: s390
 
 	  It is available as of z10.
 
 config CRYPTO_SHA1_S390
-	tristate "SHA1 digest algorithm"
+	tristate "Hash functions: SHA-1"
 	depends on S390
 	select CRYPTO_HASH
 	help
-	  This is the s390 hardware accelerated implementation of the
-	  SHA-1 secure hash standard (FIPS 180-1/DFIPS 180-2).
+	  SHA-1 secure hash algorithm (FIPS 180)
+
+	  Architecture: s390
 
 	  It is available as of z990.
 
 config CRYPTO_SHA256_S390
-	tristate "SHA256 digest algorithm"
+	tristate "Hash functions: SHA-224 and SHA-256"
 	depends on S390
 	select CRYPTO_HASH
 	help
-	  This is the s390 hardware accelerated implementation of the
-	  SHA256 secure hash standard (DFIPS 180-2).
+	  SHA-224 and SHA-256 secure hash algorithms (FIPS 180)
+
+	  Architecture: s390
 
 	  It is available as of z9.
 
 config CRYPTO_SHA3_256_S390
-	tristate "SHA3_224 and SHA3_256 digest algorithm"
+	tristate "Hash functions: SHA3-224 and SHA3-256"
 	depends on S390
 	select CRYPTO_HASH
 	help
-	  This is the s390 hardware accelerated implementation of the
-	  SHA3_256 secure hash standard.
+	  SHA3-224 and SHA3-256 secure hash algorithms (FIPS 202)
+
+	  Architecture: s390
 
 	  It is available as of z14.
 
 config CRYPTO_SHA3_512_S390
-	tristate "SHA3_384 and SHA3_512 digest algorithm"
+	tristate "Hash functions: SHA3-384 and SHA3-512"
 	depends on S390
 	select CRYPTO_HASH
 	help
-	  This is the s390 hardware accelerated implementation of the
-	  SHA3_512 secure hash standard.
+	  SHA3-384 and SHA3-512 secure hash algorithms (FIPS 202)
+
+	  Architecture: s390
 
 	  It is available as of z14.
 
 config CRYPTO_GHASH_S390
-	tristate "GHASH hash function"
+	tristate "Hash functions: GHASH"
 	depends on S390
 	select CRYPTO_HASH
 	help
-	  This is the s390 hardware accelerated implementation of GHASH,
-	  the hash function used in GCM (Galois/Counter mode).
+	  GCM GHASH hash function (NIST SP800-38D)
+
+	  Architecture: s390
 
 	  It is available as of z196.
 

@@ -36,35 +36,41 @@ config CRYPTO_VPMSUM_TESTER
 	  Unless you are testing these algorithms, you don't need this.
 
 config CRYPTO_MD5_PPC
-	tristate "MD5 digest algorithm (PPC)"
+	tristate "Digests: MD5"
 	depends on PPC
 	select CRYPTO_HASH
 	help
-	  MD5 message digest algorithm (RFC1321) implemented
-	  in PPC assembler.
+	  MD5 message digest algorithm (RFC1321)
+
+	  Architecture: powerpc
 
 config CRYPTO_SHA1_PPC
-	tristate "SHA1 digest algorithm (powerpc)"
+	tristate "Hash functions: SHA-1"
 	depends on PPC
 	help
-	  This is the powerpc hardware accelerated implementation of the
-	  SHA-1 secure hash standard (FIPS 180-1/DFIPS 180-2).
+	  SHA-1 secure hash algorithm (FIPS 180)
+
+	  Architecture: powerpc
 
 config CRYPTO_SHA1_PPC_SPE
-	tristate "SHA1 digest algorithm (PPC SPE)"
+	tristate "Hash functions: SHA-1 (SPE)"
 	depends on PPC && SPE
 	help
-	  SHA-1 secure hash standard (DFIPS 180-4) implemented
-	  using powerpc SPE SIMD instruction set.
+	  SHA-1 secure hash algorithm (FIPS 180)
+
+	  Architecture: powerpc using
+	  - SPE (Signal Processing Engine) extensions
 
 config CRYPTO_SHA256_PPC_SPE
-	tristate "SHA224 and SHA256 digest algorithm (PPC SPE)"
+	tristate "Hash functions: SHA-224 and SHA-256 (SPE)"
 	depends on PPC && SPE
 	select CRYPTO_SHA256
 	select CRYPTO_HASH
 	help
-	  SHA224 and SHA256 secure hash standard (DFIPS 180-2)
-	  implemented using powerpc SPE SIMD instruction set.
+	  SHA-224 and SHA-256 secure hash algorithms (FIPS 180)
+
+	  Architecture: powerpc using
+	  - SPE (Signal Processing Engine) extensions
 
 config CRYPTO_AES_PPC_SPE
 	tristate "AES cipher algorithms (PPC SPE)"
