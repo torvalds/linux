@@ -177,10 +177,6 @@ static void max96745_bridge_enable(struct drm_bridge *bridge)
 {
 	struct max96745_bridge *ser = to_max96745_bridge(bridge);
 
-	regmap_update_bits(ser->regmap, 0x0100, VID_TX_EN,
-			   FIELD_PREP(VID_TX_EN, 1));
-	msleep(50);
-
 	if (ser->panel)
 		drm_panel_enable(ser->panel);
 
@@ -205,9 +201,6 @@ static void max96745_bridge_disable(struct drm_bridge *bridge)
 
 	if (ser->panel)
 		drm_panel_disable(ser->panel);
-
-	regmap_update_bits(ser->regmap, 0x0100, VID_TX_EN,
-			   FIELD_PREP(VID_TX_EN, 0));
 }
 
 static void max96745_bridge_post_disable(struct drm_bridge *bridge)

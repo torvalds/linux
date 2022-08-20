@@ -104,15 +104,11 @@ static void max96745_power_on(struct max96745 *max96745)
 	if (!ret && FIELD_GET(VID_TX_ACTIVE_A | VID_TX_ACTIVE_B, val))
 		return;
 
-	if (max96745->enable_gpio)
+	if (max96745->enable_gpio) {
 		gpiod_direction_output(max96745->enable_gpio, 1);
-	else
-		regmap_update_bits(max96745->regmap, 0x0010, RESET_ALL,
-				   FIELD_PREP(RESET_ALL, 1));
-	msleep(200);
+		msleep(200);
+	}
 
-	regmap_update_bits(max96745->regmap, 0x0100, VID_TX_EN,
-			   FIELD_PREP(VID_TX_EN, 0));
 	regmap_update_bits(max96745->regmap, 0x0076, DIS_REM_CC,
 			   FIELD_PREP(DIS_REM_CC, 1));
 	regmap_update_bits(max96745->regmap, 0x0086, DIS_REM_CC,
