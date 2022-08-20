@@ -18,6 +18,7 @@
 #include <linux/workqueue.h>
 #include <linux/rk-camera-module.h>
 #include <linux/rkcif-config.h>
+#include <linux/soc/rockchip/rockchip_thunderboot_service.h>
 
 #include "regs.h"
 #include "version.h"
@@ -813,6 +814,7 @@ struct rkcif_device {
 	struct csi2_dphy_hw		*dphy_hw;
 	phys_addr_t			resmem_pa;
 	size_t				resmem_size;
+	struct rk_tb_client		tb_client;
 	bool				is_start_hdr;
 	bool				reset_work_cancel;
 	bool				iommu_en;

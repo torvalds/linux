@@ -1049,6 +1049,13 @@ static void rkcif_set_sensor_streamon_in_sync_mode(struct rkcif_device *cif_dev)
 	mutex_unlock(&hw->dev_lock);
 }
 
+static void rkcif_sensor_streaming_cb(void *data)
+{
+	struct v4l2_subdev *subdevs = (struct v4l2_subdev *)data;
+
+	v4l2_subdev_call(subdevs, video, s_stream, 1);
+}
+
 /*
  * stream-on order: isp_subdev, mipi dphy, sensor
  * stream-off order: mipi dphy, sensor, isp_subdev
@@ -1057,7 +1064,7 @@ static int rkcif_pipeline_set_stream(struct rkcif_pipeline *p, bool on)
 {
 	struct rkcif_device *cif_dev = container_of(p, struct rkcif_device, pipe);
 	bool can_be_set = false;
-	int i, ret;
+	int i, ret = 0;
 
 	if (cif_dev->hdr.hdr_mode == NO_HDR || cif_dev->hdr.hdr_mode == HDR_COMPR) {
 		if ((on && atomic_inc_return(&p->stream_cnt) > 1) ||
@@ -1086,7 +1093,16 @@ static int rkcif_pipeline_set_stream(struct rkcif_pipeline *p, bool on)
 
 		/* phy -> sensor */
 		for (i = 0; i < p->num_subdevs; i++) {
-			ret = v4l2_subdev_call(p->subdevs[i], video, s_stream, on);
+			if (p->subdevs[i] == cif_dev->terminal_sensor.sd &&
+			    on &&
+			    cif_dev->is_thunderboot &&
+			    !rk_tb_mcu_is_done()) {
+				cif_dev->tb_client.data = p->subdevs[i];
+				cif_dev->tb_client.cb = rkcif_sensor_streaming_cb;
+				rk_tb_client_register_cb(&cif_dev->tb_client);
+			} else {
+				ret = v4l2_subdev_call(p->subdevs[i], video, s_stream, on);
+			}
 			if (on && ret < 0 && ret != -ENOIOCTLCMD && ret != -ENODEV)
 				goto err_stream_off;
 		}
@@ -1150,8 +1166,16 @@ static int rkcif_pipeline_set_stream(struct rkcif_pipeline *p, bool on)
 
 			/* phy -> sensor */
 			for (i = 0; i < p->num_subdevs; i++) {
-				ret = v4l2_subdev_call(p->subdevs[i], video, s_stream, on);
-
+				if (p->subdevs[i] == cif_dev->terminal_sensor.sd &&
+				    on &&
+				    cif_dev->is_thunderboot &&
+				    !rk_tb_mcu_is_done()) {
+					cif_dev->tb_client.data = p->subdevs[i];
+					cif_dev->tb_client.cb = rkcif_sensor_streaming_cb;
+					rk_tb_client_register_cb(&cif_dev->tb_client);
+				} else {
+					ret = v4l2_subdev_call(p->subdevs[i], video, s_stream, on);
+				}
 				if (on && ret < 0 && ret != -ENOIOCTLCMD && ret != -ENODEV)
 					goto err_stream_off;
 			}
