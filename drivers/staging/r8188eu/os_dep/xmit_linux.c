@@ -11,7 +11,7 @@
 #include "../include/osdep_intf.h"
 #include "../include/usb_osintf.h"
 
-uint rtw_remainder_len(struct pkt_file *pfile)
+static uint rtw_remainder_len(struct pkt_file *pfile)
 {
 	return pfile->buf_len - ((size_t)(pfile->cur_addr) -
 	       (size_t)(pfile->buf_start));
