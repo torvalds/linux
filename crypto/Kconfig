@@ -1291,60 +1291,72 @@ config CRYPTO_KDF800108_CTR
 	select CRYPTO_SHA256
 
 endmenu
-menu "User-space interface"
+menu "Userspace interface"
 
 config CRYPTO_USER_API
 	tristate
 
 config CRYPTO_USER_API_HASH
-	tristate "User-space interface for hash algorithms"
+	tristate "Hash algorithms"
 	depends on NET
 	select CRYPTO_HASH
 	select CRYPTO_USER_API
 	help
-	  This option enables the user-spaces interface for hash
-	  algorithms.
+	  Enable the userspace interface for hash algorithms.
+
+	  See Documentation/crypto/userspace-if.rst and
+	  https://www.chronox.de/libkcapi/html/index.html
 
 config CRYPTO_USER_API_SKCIPHER
-	tristate "User-space interface for symmetric key cipher algorithms"
+	tristate "Symmetric key cipher algorithms"
 	depends on NET
 	select CRYPTO_SKCIPHER
 	select CRYPTO_USER_API
 	help
-	  This option enables the user-spaces interface for symmetric
-	  key cipher algorithms.
+	  Enable the userspace interface for symmetric key cipher algorithms.
+
+	  See Documentation/crypto/userspace-if.rst and
+	  https://www.chronox.de/libkcapi/html/index.html
 
 config CRYPTO_USER_API_RNG
-	tristate "User-space interface for random number generator algorithms"
+	tristate "RNG (random number generator) algorithms"
 	depends on NET
 	select CRYPTO_RNG
 	select CRYPTO_USER_API
 	help
-	  This option enables the user-spaces interface for random
-	  number generator algorithms.
+	  Enable the userspace interface for RNG (random number generator)
+	  algorithms.
+
+	  See Documentation/crypto/userspace-if.rst and
+	  https://www.chronox.de/libkcapi/html/index.html
 
 config CRYPTO_USER_API_RNG_CAVP
 	bool "Enable CAVP testing of DRBG"
 	depends on CRYPTO_USER_API_RNG && CRYPTO_DRBG
 	help
-	  This option enables extra API for CAVP testing via the user-space
-	  interface: resetting of DRBG entropy, and providing Additional Data.
+	  Enable extra APIs in the userspace interface for NIST CAVP
+	  (Cryptographic Algorithm Validation Program) testing:
+	  - resetting DRBG entropy
+	  - providing Additional Data
+
 	  This should only be enabled for CAVP testing. You should say
 	  no unless you know what this is.
 
 config CRYPTO_USER_API_AEAD
-	tristate "User-space interface for AEAD cipher algorithms"
+	tristate "AEAD cipher algorithms"
 	depends on NET
 	select CRYPTO_AEAD
 	select CRYPTO_SKCIPHER
 	select CRYPTO_NULL
 	select CRYPTO_USER_API
 	help
-	  This option enables the user-spaces interface for AEAD
-	  cipher algorithms.
+	  Enable the userspace interface for AEAD cipher algorithms.
+
+	  See Documentation/crypto/userspace-if.rst and
+	  https://www.chronox.de/libkcapi/html/index.html
 
 config CRYPTO_USER_API_ENABLE_OBSOLETE
-	bool "Enable obsolete cryptographic algorithms for userspace"
+	bool "Obsolete cryptographic algorithms"
 	depends on CRYPTO_USER_API
 	default y
 	help
@@ -1353,16 +1365,21 @@ config CRYPTO_USER_API_ENABLE_OBSOLETE
 	  only useful for userspace clients that still rely on them.
 
 config CRYPTO_STATS
-	bool "Crypto usage statistics for User-space"
+	bool "Crypto usage statistics"
 	depends on CRYPTO_USER
 	help
-	  This option enables the gathering of crypto stats.
-	  This will collect:
-	  - encrypt/decrypt size and numbers of symmeric operations
-	  - compress/decompress size and numbers of compress operations
-	  - size and numbers of hash operations
-	  - encrypt/decrypt/sign/verify numbers for asymmetric operations
-	  - generate/seed numbers for rng operations
+	  Enable the gathering of crypto stats.
+
+	  This collects data sizes, numbers of requests, and numbers
+	  of errors processed by:
+	  - AEAD ciphers (encrypt, decrypt)
+	  - asymmetric key ciphers (encrypt, decrypt, verify, sign)
+	  - symmetric key ciphers (encrypt, decrypt)
+	  - compression algorithms (compress, decompress)
+	  - hash algorithms (hash)
+	  - key-agreement protocol primitives (setsecret, generate
+	    public key, compute shared secret)
+	  - RNG (generate, seed)
 
 endmenu
 
