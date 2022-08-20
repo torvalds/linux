@@ -584,40 +584,6 @@ void free_cpu_set(cpu_set_t *cpu_set)
 }
 
 static int cpu_cnt[MAX_PACKAGE_COUNT][MAX_DIE_PER_PACKAGE];
-static void set_cpu_present_cpu_mask(void)
-{
-	size_t size;
-	DIR *dir;
-	int i;
-
-	size = alloc_cpu_set(&present_cpumask);
-	present_cpumask_size = size;
-	for (i = 0; i < topo_max_cpus; ++i) {
-		char buffer[256];
-
-		snprintf(buffer, sizeof(buffer),
-			 "/sys/devices/system/cpu/cpu%d", i);
-		dir = opendir(buffer);
-		if (dir) {
-			int pkg_id, die_id;
-
-			CPU_SET_S(i, size, present_cpumask);
-			die_id = get_physical_die_id(i);
-			if (die_id < 0)
-				die_id = 0;
-
-			pkg_id = get_physical_package_id(i);
-			if (pkg_id < 0) {
-				fprintf(stderr, "Failed to get package id, CPU %d may be offline\n", i);
-				continue;
-			}
-			if (pkg_id < MAX_PACKAGE_COUNT &&
-			    die_id < MAX_DIE_PER_PACKAGE)
-				cpu_cnt[pkg_id][die_id]++;
-		}
-		closedir(dir);
-	}
-}
 
 int get_max_punit_core_id(struct isst_id *id)
 {
@@ -645,25 +611,11 @@ int get_cpu_count(struct isst_id *id)
 	return cpu_cnt[id->pkg][id->die];
 }
 
-static void set_cpu_target_cpu_mask(void)
-{
-	size_t size;
-	int i;
-
-	size = alloc_cpu_set(&target_cpumask);
-	target_cpumask_size = size;
-	for (i = 0; i < max_target_cpus; ++i) {
-		if (!CPU_ISSET_S(target_cpus[i], present_cpumask_size,
-				 present_cpumask))
-			continue;
-
-		CPU_SET_S(target_cpus[i], size, target_cpumask);
-	}
-}
-
 static void create_cpu_map(void)
 {
 	const char *pathname = "/dev/isst_interface";
+	size_t size;
+	DIR *dir;
 	int i, fd = 0;
 	struct isst_if_cpu_maps map;
 
@@ -676,14 +628,36 @@ static void create_cpu_map(void)
 	if (fd < 0 && !is_clx_n_platform())
 		err(-1, "%s open failed", pathname);
 
+	size = alloc_cpu_set(&present_cpumask);
+	present_cpumask_size = size;
+
 	for (i = 0; i < topo_max_cpus; ++i) {
-		if (!CPU_ISSET_S(i, present_cpumask_size, present_cpumask))
+		char buffer[256];
+		int pkg_id, die_id, core_id;
+
+		/* check if CPU is online */
+		snprintf(buffer, sizeof(buffer),
+			 "/sys/devices/system/cpu/cpu%d", i);
+		dir = opendir(buffer);
+		if (!dir)
+			continue;
+		closedir(dir);
+
+		CPU_SET_S(i, size, present_cpumask);
+
+		pkg_id = get_physical_package_id(i);
+		die_id = get_physical_die_id(i);
+		core_id = get_physical_core_id(i);
+
+		if (pkg_id < 0 || die_id < 0 || core_id < 0)
 			continue;
 
-		cpu_map[i].core_id = get_physical_core_id(i);
-		cpu_map[i].pkg_id = get_physical_package_id(i);
-		cpu_map[i].die_id = get_physical_die_id(i);
+		cpu_map[i].pkg_id = pkg_id;
+		cpu_map[i].die_id = die_id;
+		cpu_map[i].core_id = core_id;
 		cpu_map[i].initialized = 1;
+
+		cpu_cnt[pkg_id][die_id]++;
 
 		if (fd < 0)
 			continue;
@@ -707,9 +681,18 @@ static void create_cpu_map(void)
 			cpu_map[i].pkg_id, cpu_map[i].punit_cpu,
 			cpu_map[i].punit_cpu_core);
 	}
-
 	if (fd >= 0)
 		close(fd);
+
+	size = alloc_cpu_set(&target_cpumask);
+	target_cpumask_size = size;
+	for (i = 0; i < max_target_cpus; ++i) {
+		if (!CPU_ISSET_S(target_cpus[i], present_cpumask_size,
+				 present_cpumask))
+			continue;
+
+		CPU_SET_S(target_cpus[i], size, target_cpumask);
+	}
 }
 
 void set_cpu_mask_from_punit_coremask(struct isst_id *id, unsigned long long core_mask,
@@ -1039,7 +1022,6 @@ static void isst_print_platform_information(void)
 
 	/* Early initialization to create working cpu_map */
 	set_max_cpu_num();
-	set_cpu_present_cpu_mask();
 	create_cpu_map();
 
 	fd = open(pathname, O_RDWR);
@@ -2975,8 +2957,6 @@ static void cmdline(int argc, char **argv)
 	if (force_cpus_online)
 		force_all_cpus_online();
 	store_cpu_topology();
-	set_cpu_present_cpu_mask();
-	set_cpu_target_cpu_mask();
 	create_cpu_map();
 
 	if (oob_mode) {
