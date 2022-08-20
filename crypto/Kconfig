@@ -779,49 +779,54 @@ endmenu
 menu "AEAD (authenticated encryption with associated data) ciphers"
 
 config CRYPTO_AEGIS128
-	tristate "AEGIS-128 AEAD algorithm"
+	tristate "AEGIS-128"
 	select CRYPTO_AEAD
 	select CRYPTO_AES  # for AES S-box tables
 	help
-	 Support for the AEGIS-128 dedicated AEAD algorithm.
+	  AEGIS-128 AEAD algorithm
 
 config CRYPTO_AEGIS128_SIMD
-	bool "Support SIMD acceleration for AEGIS-128"
+	bool "AEGIS-128 (arm NEON, arm64 NEON)"
 	depends on CRYPTO_AEGIS128 && ((ARM || ARM64) && KERNEL_MODE_NEON)
 	default y
+	help
+	  AEGIS-128 AEAD algorithm
+
+	  Architecture: arm or arm64 using:
+	  - NEON (Advanced SIMD) extension
 
 config CRYPTO_CHACHA20POLY1305
-	tristate "ChaCha20-Poly1305 AEAD support"
+	tristate "ChaCha20-Poly1305"
 	select CRYPTO_CHACHA20
 	select CRYPTO_POLY1305
 	select CRYPTO_AEAD
 	select CRYPTO_MANAGER
 	help
-	  ChaCha20-Poly1305 AEAD support, RFC7539.
-
-	  Support for the AEAD wrapper using the ChaCha20 stream cipher combined
-	  with the Poly1305 authenticator. It is defined in RFC7539 for use in
-	  IETF protocols.
+	  ChaCha20 stream cipher and Poly1305 authenticator combined
+	  mode (RFC8439)
 
 config CRYPTO_CCM
-	tristate "CCM support"
+	tristate "CCM (Counter with Cipher Block Chaining-Message Authentication Code)"
 	select CRYPTO_CTR
 	select CRYPTO_HASH
 	select CRYPTO_AEAD
 	select CRYPTO_MANAGER
 	help
-	  Support for Counter with CBC MAC. Required for IPsec.
+	  CCM (Counter with Cipher Block Chaining-Message Authentication Code)
+	  authenticated encryption mode (NIST SP800-38C)
 
 config CRYPTO_GCM
-	tristate "GCM/GMAC support"
+	tristate "GCM (Galois/Counter Mode) and GMAC (GCM Message Authentication Code)"
 	select CRYPTO_CTR
 	select CRYPTO_AEAD
 	select CRYPTO_GHASH
 	select CRYPTO_NULL
 	select CRYPTO_MANAGER
 	help
-	  Support for Galois/Counter Mode (GCM) and Galois Message
-	  Authentication Code (GMAC). Required for IPSec.
+	  GCM (Galois/Counter Mode) authenticated encryption mode and GMAC
+	  (GCM Message Authentication Code) (NIST SP800-38D)
+
+	  This is required for IPSec ESP (XFRM_ESP).
 
 config CRYPTO_SEQIV
 	tristate "Sequence Number IV Generator"
@@ -831,8 +836,12 @@ config CRYPTO_SEQIV
 	select CRYPTO_RNG_DEFAULT
 	select CRYPTO_MANAGER
 	help
+	  Sequence Number IV generator
+
 	  This IV generator generates an IV based on a sequence number by
-	  xoring it with a salt.  This algorithm is mainly useful for CTR
+	  xoring it with a salt.  This algorithm is mainly useful for CTR.
+
+	  This is required for IPsec ESP (XFRM_ESP).
 
 config CRYPTO_ECHAINIV
 	tristate "Encrypted Chain IV Generator"
@@ -841,16 +850,19 @@ config CRYPTO_ECHAINIV
 	select CRYPTO_RNG_DEFAULT
 	select CRYPTO_MANAGER
 	help
+	  Encrypted Chain IV generator
+
 	  This IV generator generates an IV based on the encryption of
 	  a sequence number xored with a salt.  This is the default
 	  algorithm for CBC.
 
 config CRYPTO_ESSIV
-	tristate "ESSIV support for block encryption"
+	tristate "Encrypted Salt-Sector IV Generator"
 	select CRYPTO_AUTHENC
 	help
-	  Encrypted salt-sector initialization vector (ESSIV) is an IV
-	  generation method that is used in some cases by fscrypt and/or
+	  Encrypted Salt-Sector IV generator
+
+	  This IV generator is used in some cases by fscrypt and/or
 	  dm-crypt. It uses the hash of the block encryption key as the
 	  symmetric key for a block encryption pass applied to the input
 	  IV, making low entropy IV sources more suitable for block

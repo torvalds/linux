@@ -360,12 +360,16 @@ config CRYPTO_CHACHA20_X86_64
 	  XChaCha20, and XChaCha12 stream ciphers.
 
 config CRYPTO_AEGIS128_AESNI_SSE2
-	tristate "AEGIS-128 AEAD algorithm (x86_64 AESNI+SSE2 implementation)"
+	tristate "AEAD ciphers: AEGIS-128 (AES-NI/SSE2)"
 	depends on X86 && 64BIT
 	select CRYPTO_AEAD
 	select CRYPTO_SIMD
 	help
-	 AESNI+SSE2 implementation of the AEGIS-128 dedicated AEAD algorithm.
+	  AEGIS-128 AEAD algorithm
+
+	  Architecture: x86_64 using:
+	  - AES-NI (AES New Instructions)
+	  - SSE2 (Streaming SIMD Extensions 2)
 
 config CRYPTO_NHPOLY1305_SSE2
 	tristate "NHPoly1305 hash function (x86_64 SSE2 implementation)"
