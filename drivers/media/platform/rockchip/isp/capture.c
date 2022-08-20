@@ -1867,8 +1867,18 @@ static void rkisp_stream_fast(struct work_struct *work)
 	struct rkisp_stream *stream = &cap_dev->stream[0];
 	struct rkisp_device *ispdev = cap_dev->ispdev;
 	struct v4l2_subdev *sd = ispdev->active_sensor->sd;
+	int ret;
 
-	v4l2_pipeline_pm_get(&stream->vnode.vdev.entity);
+	if (ispdev->isp_ver != ISP_V30)
+		return;
+
+	ret = v4l2_pipeline_pm_get(&stream->vnode.vdev.entity);
+	if (ret < 0) {
+		dev_err(ispdev->dev, "%s PM get fail:%d\n", __func__, ret);
+		ispdev->is_thunderboot = false;
+		return;
+	}
+
 	rkisp_chk_tb_over(ispdev);
 	if (ispdev->tb_head.complete != RKISP_TB_OK) {
 		v4l2_pipeline_pm_put(&stream->vnode.vdev.entity);
