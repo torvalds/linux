@@ -427,7 +427,7 @@ static uint rtw_remainder_len(struct pkt_file *pfile)
 	       (size_t)(pfile->buf_start));
 }
 
-static uint _rtw_pktfile_read(struct pkt_file *pfile, u8 *rmem, uint rlen)
+static uint rtw_pktfile_read(struct pkt_file *pfile, u8 *rmem, uint rlen)
 {
 	uint	len = 0;
 
@@ -450,11 +450,11 @@ static void set_qos(struct pkt_file *ppktfile, struct pkt_attrib *pattrib)
 	s32 user_prio = 0;
 
 	rtw_open_pktfile(ppktfile->pkt, ppktfile);
-	_rtw_pktfile_read(ppktfile, (unsigned char *)&etherhdr, ETH_HLEN);
+	rtw_pktfile_read(ppktfile, (unsigned char *)&etherhdr, ETH_HLEN);
 
 	/*  get user_prio from IP hdr */
 	if (pattrib->ether_type == 0x0800) {
-		_rtw_pktfile_read(ppktfile, (u8 *)&ip_hdr, sizeof(ip_hdr));
+		rtw_pktfile_read(ppktfile, (u8 *)&ip_hdr, sizeof(ip_hdr));
 /* 		user_prio = (ntohs(ip_hdr.tos) >> 5) & 0x3; */
 		user_prio = ip_hdr.tos >> 5;
 	} else if (pattrib->ether_type == 0x888e) {
@@ -484,7 +484,7 @@ static s32 update_attrib(struct adapter *padapter, struct sk_buff *pkt, struct p
 
 
 	rtw_open_pktfile(pkt, &pktfile);
-	_rtw_pktfile_read(&pktfile, (u8 *)&etherhdr, ETH_HLEN);
+	rtw_pktfile_read(&pktfile, (u8 *)&etherhdr, ETH_HLEN);
 
 	pattrib->ether_type = ntohs(etherhdr.h_proto);
 
@@ -512,7 +512,7 @@ static s32 update_attrib(struct adapter *padapter, struct sk_buff *pkt, struct p
 		/*  to prevent DHCP protocol fail */
 		u8 tmp[24];
 
-		_rtw_pktfile_read(&pktfile, &tmp[0], 24);
+		rtw_pktfile_read(&pktfile, &tmp[0], 24);
 		pattrib->dhcp_pkt = 0;
 		if (pktfile.pkt_len > 282) {/* MINIMUM_DHCP_PACKET_SIZE) { */
 			if (((tmp[21] == 68) && (tmp[23] == 67)) ||
@@ -963,7 +963,7 @@ s32 rtw_xmitframe_coalesce(struct adapter *padapter, struct sk_buff *pkt, struct
 	}
 
 	rtw_open_pktfile(pkt, &pktfile);
-	_rtw_pktfile_read(&pktfile, NULL, pattrib->pkt_hdrlen);
+	rtw_pktfile_read(&pktfile, NULL, pattrib->pkt_hdrlen);
 
 	frg_inx = 0;
 	frg_len = pxmitpriv->frag_len - 4;/* 2346-4 = 2342 */
@@ -1021,9 +1021,9 @@ s32 rtw_xmitframe_coalesce(struct adapter *padapter, struct sk_buff *pkt, struct
 
 		if (bmcst) {
 			/*  don't do fragment to broadcast/multicast packets */
-			mem_sz = _rtw_pktfile_read(&pktfile, pframe, pattrib->pktlen);
+			mem_sz = rtw_pktfile_read(&pktfile, pframe, pattrib->pktlen);
 		} else {
-			mem_sz = _rtw_pktfile_read(&pktfile, pframe, mpdu_len);
+			mem_sz = rtw_pktfile_read(&pktfile, pframe, mpdu_len);
 		}
 
 		pframe += mem_sz;
