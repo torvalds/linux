@@ -27,8 +27,8 @@
 struct max96745_bridge {
 	struct drm_bridge bridge;
 	struct drm_bridge *next_bridge;
-	struct drm_connector connector;
 	struct drm_panel *panel;
+	enum drm_connector_status status;
 
 	struct device *dev;
 	struct regmap *regmap;
@@ -46,46 +46,6 @@ struct max96745_bridge {
 static const unsigned int max96745_bridge_cable[] = {
 	EXTCON_JACK_VIDEO_OUT,
 	EXTCON_NONE,
-};
-
-static int max96745_bridge_connector_get_modes(struct drm_connector *connector)
-{
-	struct max96745_bridge *ser = to_max96745_bridge(connector);
-
-	if (ser->next_bridge)
-		return drm_bridge_get_modes(ser->next_bridge, connector);
-
-	return drm_panel_get_modes(ser->panel, connector);
-}
-
-static const struct drm_connector_helper_funcs
-max96745_bridge_connector_helper_funcs = {
-	.get_modes = max96745_bridge_connector_get_modes,
-};
-
-static enum drm_connector_status
-max96745_bridge_connector_detect(struct drm_connector *connector, bool force)
-{
-	struct max96745_bridge *ser = to_max96745_bridge(connector);
-	struct drm_bridge *bridge = &ser->bridge;
-	struct drm_bridge *prev_bridge = drm_bridge_get_prev_bridge(bridge);
-
-	if (!drm_kms_helper_is_poll_worker())
-		return connector->status;
-
-	if (prev_bridge && (prev_bridge->ops & DRM_BRIDGE_OP_DETECT))
-		return drm_bridge_detect(prev_bridge);
-
-	return drm_bridge_detect(bridge);
-}
-
-static const struct drm_connector_funcs max96745_bridge_connector_funcs = {
-	.reset = drm_atomic_helper_connector_reset,
-	.fill_modes = drm_helper_probe_single_connector_modes,
-	.detect = max96745_bridge_connector_detect,
-	.destroy = drm_connector_cleanup,
-	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state,
-	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
 };
 
 static bool max96745_bridge_link_locked(struct max96745_bridge *ser)
@@ -118,12 +78,11 @@ static int max96745_bridge_attach(struct drm_bridge *bridge,
 				  enum drm_bridge_attach_flags flags)
 {
 	struct max96745_bridge *ser = to_max96745_bridge(bridge);
-	struct drm_connector *connector = &ser->connector;
 	int ret;
 
 	ret = drm_of_find_panel_or_bridge(bridge->of_node, 1, -1, &ser->panel,
 					  &ser->next_bridge);
-	if (ret)
+	if (ret < 0 && ret != -ENODEV)
 		return ret;
 
 	if (ser->next_bridge) {
@@ -133,24 +92,10 @@ static int max96745_bridge_attach(struct drm_bridge *bridge,
 			return ret;
 	}
 
-	connector->polled = DRM_CONNECTOR_POLL_CONNECT |
-			    DRM_CONNECTOR_POLL_DISCONNECT;
-
-	drm_connector_helper_add(connector,
-				 &max96745_bridge_connector_helper_funcs);
-
-	ret = drm_connector_init(bridge->dev, connector,
-				 &max96745_bridge_connector_funcs,
-				 ser->next_bridge ? ser->next_bridge->type : bridge->type);
-	if (ret) {
-		DRM_ERROR("Failed to initialize connector\n");
-		return ret;
-	}
-
 	if (max96745_bridge_link_locked(ser))
-		connector->status = connector_status_connected;
+		ser->status = connector_status_connected;
 	else
-		connector->status = connector_status_disconnected;
+		ser->status = connector_status_disconnected;
 
 	if (max96745_bridge_vid_tx_active(ser)) {
 		extcon_set_state(ser->extcon, EXTCON_JACK_VIDEO_OUT, true);
@@ -159,8 +104,6 @@ static int max96745_bridge_attach(struct drm_bridge *bridge,
 	} else {
 		extcon_set_state(ser->extcon, EXTCON_JACK_VIDEO_OUT, false);
 	}
-
-	drm_connector_attach_encoder(connector, bridge->encoder);
 
 	return 0;
 }
@@ -215,35 +158,65 @@ static enum drm_connector_status
 max96745_bridge_detect(struct drm_bridge *bridge)
 {
 	struct max96745_bridge *ser = to_max96745_bridge(bridge);
-	struct drm_connector *connector = &ser->connector;
+	enum drm_connector_status status = connector_status_connected;
 
-	if (!max96745_bridge_link_locked(ser))
-		return connector_status_disconnected;
+	if (!drm_kms_helper_is_poll_worker())
+		return ser->status;
 
-	if (connector->status == connector_status_connected) {
+	if (!max96745_bridge_link_locked(ser)) {
+		status = connector_status_disconnected;
+		goto out;
+	}
+
+	if (ser->lock.irq_enabled) {
 		u32 dprx_trn_status2;
 
-		if (atomic_cmpxchg(&ser->lock.triggered, 1, 0))
-			return connector_status_disconnected;
+		if (atomic_cmpxchg(&ser->lock.triggered, 1, 0)) {
+			status = connector_status_disconnected;
+			goto out;
+		}
 
-		if (regmap_read(ser->regmap, 0x641a, &dprx_trn_status2))
-			return connector_status_disconnected;
+		if (regmap_read(ser->regmap, 0x641a, &dprx_trn_status2)) {
+			status = connector_status_disconnected;
+			goto out;
+		}
 
-		if ((dprx_trn_status2 & DPRX_TRAIN_STATE) != DPRX_TRAIN_STATE)
-			return connector_status_disconnected;
+		if ((dprx_trn_status2 & DPRX_TRAIN_STATE) != DPRX_TRAIN_STATE) {
+			dev_err(ser->dev, "Training State: 0x%lx\n",
+				FIELD_GET(DPRX_TRAIN_STATE, dprx_trn_status2));
+			status = connector_status_disconnected;
+			goto out;
+		}
 	} else {
 		atomic_set(&ser->lock.triggered, 0);
 	}
 
 	if (ser->next_bridge && (ser->next_bridge->ops & DRM_BRIDGE_OP_DETECT))
-		return drm_bridge_detect(ser->next_bridge);
+		status = drm_bridge_detect(ser->next_bridge);
 
-	return connector_status_connected;
+out:
+	ser->status = status;
+	return status;
+}
+
+static int max96745_bridge_get_modes(struct drm_bridge *bridge,
+				     struct drm_connector *connector)
+{
+	struct max96745_bridge *ser = to_max96745_bridge(bridge);
+
+	if (ser->next_bridge)
+		return drm_bridge_get_modes(ser->next_bridge, connector);
+
+	if (ser->panel)
+		return drm_panel_get_modes(ser->panel, connector);
+
+	return drm_add_modes_noedid(connector, 1920, 1080);
 }
 
 static const struct drm_bridge_funcs max96745_bridge_funcs = {
 	.attach = max96745_bridge_attach,
 	.detect = max96745_bridge_detect,
+	.get_modes = max96745_bridge_get_modes,
 	.pre_enable = max96745_bridge_pre_enable,
 	.enable = max96745_bridge_enable,
 	.disable = max96745_bridge_disable,
@@ -309,7 +282,7 @@ static int max96745_bridge_probe(struct platform_device *pdev)
 
 	ser->bridge.funcs = &max96745_bridge_funcs;
 	ser->bridge.of_node = dev->of_node;
-	ser->bridge.ops = DRM_BRIDGE_OP_DETECT;
+	ser->bridge.ops = DRM_BRIDGE_OP_DETECT | DRM_BRIDGE_OP_MODES;
 	ser->bridge.type = DRM_MODE_CONNECTOR_LVDS;
 
 	drm_bridge_add(&ser->bridge);
