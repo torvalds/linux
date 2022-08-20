@@ -2254,7 +2254,8 @@ EXPORT_SYMBOL_GPL(analogix_dp_bind);
 void analogix_dp_unbind(struct analogix_dp_device *dp)
 {
 	disable_irq(dp->irq);
-	dp->connector.funcs->destroy(&dp->connector);
+	if (dp->connector.funcs->destroy)
+		dp->connector.funcs->destroy(&dp->connector);
 	drm_dp_aux_unregister(&dp->aux);
 	pm_runtime_put(dp->dev);
 	pm_runtime_disable(dp->dev);
