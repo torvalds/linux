@@ -803,8 +803,10 @@ static int isst_fill_platform_info(void)
 	const char *pathname = "/dev/isst_interface";
 	int fd;
 
-	if (is_clx_n_platform())
+	if (is_clx_n_platform()) {
+		isst_platform_info.api_version = 1;
 		goto set_platform_ops;
+	}
 
 	fd = open(pathname, O_RDWR);
 	if (fd < 0)
@@ -824,7 +826,7 @@ static int isst_fill_platform_info(void)
 	}
 
 set_platform_ops:
-	if (isst_set_platform_ops()) {
+	if (isst_set_platform_ops(isst_platform_info.api_version)) {
 		fprintf(stderr, "Failed to set platform callbacks\n");
 		exit(0);
 	}

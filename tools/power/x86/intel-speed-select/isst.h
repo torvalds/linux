@@ -185,6 +185,7 @@ struct isst_platform_ops {
 	int (*get_disp_freq_multiplier)(void);
 	int (*get_trl_max_levels)(void);
 	char *(*get_trl_level_name)(int level);
+	void (*update_platform_param)(enum isst_platform_param param, int value);
 	int (*is_punit_valid)(struct isst_id *id);
 	int (*read_pm_config)(struct isst_id *id, int *cp_state, int *cp_cap);
 	int (*get_config_levels)(struct isst_id *id, struct isst_pkg_ctdp *pkg_ctdp);
@@ -226,15 +227,10 @@ extern void set_cpu_mask_from_punit_coremask(struct isst_id *id,
 					     size_t core_cpumask_size,
 					     cpu_set_t *core_cpumask,
 					     int *cpu_cnt);
-extern int isst_send_mbox_command(unsigned int cpu, unsigned char command,
-				  unsigned char sub_command,
-				  unsigned int write,
-				  unsigned int req_data, unsigned int *resp);
-
 extern int isst_send_msr_command(unsigned int cpu, unsigned int command,
 				 int write, unsigned long long *req_resp);
 
-extern int isst_set_platform_ops(void);
+extern int isst_set_platform_ops(int api_version);
 extern void isst_update_platform_param(enum isst_platform_param, int vale);
 extern int isst_get_disp_freq_multiplier(void);
 extern int isst_get_trl_max_levels(void);

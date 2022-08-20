@@ -16,9 +16,16 @@ static struct isst_platform_ops		*isst_ops;
 		}	\
 	} while (0)
 
-int isst_set_platform_ops(void)
+int isst_set_platform_ops(int api_version)
 {
-	isst_ops = mbox_get_platform_ops();
+	switch (api_version) {
+	case 1:
+		isst_ops = mbox_get_platform_ops();
+		break;
+	default:
+		isst_ops = NULL;
+		break;
+	}
 
 	if (!isst_ops)
 		return -1;
