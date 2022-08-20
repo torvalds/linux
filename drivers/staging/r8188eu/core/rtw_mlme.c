@@ -641,7 +641,7 @@ exit:
 	spin_unlock_bh(&pmlmepriv->lock);
 }
 
-static void rtw_os_xmit_schedule(struct adapter *padapter)
+static void rtw_xmit_schedule(struct adapter *padapter)
 {
 	struct xmit_priv *pxmitpriv;
 
@@ -736,7 +736,7 @@ void rtw_surveydone_event_callback(struct adapter	*adapter, u8 *pbuf)
 	if (check_fwstate(pmlmepriv, _FW_LINKED))
 		p2p_ps_wk_cmd(adapter, P2P_PS_SCAN_DONE, 0);
 
-	rtw_os_xmit_schedule(adapter);
+	rtw_xmit_schedule(adapter);
 }
 
 static void free_scanqueue(struct	mlme_priv *pmlmepriv)
@@ -1134,8 +1134,7 @@ void rtw_joinbss_event_callback(struct adapter *adapter, u8 *pbuf)
 
 	mlmeext_joinbss_event_callback(adapter, pnetwork->join_res);
 
-	rtw_os_xmit_schedule(adapter);
-
+	rtw_xmit_schedule(adapter);
 }
 
 void rtw_set_max_rpt_macid(struct adapter *adapter, u8 macid)
