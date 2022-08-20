@@ -54,14 +54,6 @@ uint _rtw_pktfile_read(struct pkt_file *pfile, u8 *rmem, uint rlen)
 	return len;
 }
 
-void rtw_os_xmit_resource_free(struct adapter *padapter,
-			       struct xmit_buf *pxmitbuf, u32 free_sz)
-{
-	usb_free_urb(pxmitbuf->pxmit_urb);
-
-	kfree(pxmitbuf->pallocated_buf);
-}
-
 #define WMM_XMIT_THRESHOLD	(NR_XMITFRAME * 2 / 5)
 
 void rtw_os_pkt_complete(struct adapter *padapter, struct sk_buff *pkt)
