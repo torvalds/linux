@@ -1297,6 +1297,15 @@ static int analogix_dp_get_modes(struct drm_connector *connector)
 	struct edid *edid;
 	int ret, num_modes = 0;
 
+	if (dp->plat_data->right && dp->plat_data->right->plat_data->bridge) {
+		struct drm_bridge *bridge = dp->plat_data->right->plat_data->bridge;
+
+		if (bridge->ops & DRM_BRIDGE_OP_MODES) {
+			if (!drm_bridge_get_modes(bridge, connector))
+				return 0;
+		}
+	}
+
 	if (dp->plat_data->panel)
 		num_modes += drm_panel_get_modes(dp->plat_data->panel, connector);
 
@@ -1491,6 +1500,9 @@ static int analogix_dp_bridge_attach(struct drm_bridge *bridge,
 
 		connector = &dp->connector;
 		connector->polled = DRM_CONNECTOR_POLL_HPD;
+		if (dp->plat_data->bridge && dp->plat_data->bridge->ops & DRM_BRIDGE_OP_DETECT)
+			connector->polled = DRM_CONNECTOR_POLL_CONNECT |
+					    DRM_CONNECTOR_POLL_DISCONNECT;
 
 		ret = drm_connector_init(dp->drm_dev, connector,
 					 &analogix_dp_connector_funcs,
