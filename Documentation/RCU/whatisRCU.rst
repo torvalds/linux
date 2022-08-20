@@ -6,13 +6,15 @@ What is RCU?  --  "Read, Copy, Update"
 Please note that the "What is RCU?" LWN series is an excellent place
 to start learning about RCU:
 
-| 1.	What is RCU, Fundamentally?  http://lwn.net/Articles/262464/
-| 2.	What is RCU? Part 2: Usage   http://lwn.net/Articles/263130/
-| 3.	RCU part 3: the RCU API      http://lwn.net/Articles/264090/
-| 4.	The RCU API, 2010 Edition    http://lwn.net/Articles/418853/
-| 	2010 Big API Table           http://lwn.net/Articles/419086/
-| 5.	The RCU API, 2014 Edition    http://lwn.net/Articles/609904/
-|	2014 Big API Table           http://lwn.net/Articles/609973/
+| 1.	What is RCU, Fundamentally?  https://lwn.net/Articles/262464/
+| 2.	What is RCU? Part 2: Usage   https://lwn.net/Articles/263130/
+| 3.	RCU part 3: the RCU API      https://lwn.net/Articles/264090/
+| 4.	The RCU API, 2010 Edition    https://lwn.net/Articles/418853/
+| 	2010 Big API Table           https://lwn.net/Articles/419086/
+| 5.	The RCU API, 2014 Edition    https://lwn.net/Articles/609904/
+|	2014 Big API Table           https://lwn.net/Articles/609973/
+| 6.	The RCU API, 2019 Edition    https://lwn.net/Articles/777036/
+|	2019 Big API Table           https://lwn.net/Articles/777165/
 
 
 What is RCU?
