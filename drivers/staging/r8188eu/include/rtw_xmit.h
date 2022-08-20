@@ -304,6 +304,15 @@ struct	xmit_priv {
 	struct submit_ctx ack_tx_ops;
 };
 
+struct pkt_file {
+	struct sk_buff *pkt;
+	size_t pkt_len;	 /* the remainder length of the open_file */
+	unsigned char *cur_buffer;
+	u8 *buf_start;
+	u8 *cur_addr;
+	size_t buf_len;
+};
+
 struct xmit_buf *rtw_alloc_xmitbuf_ext(struct xmit_priv *pxmitpriv);
 s32 rtw_free_xmitbuf_ext(struct xmit_priv *pxmitpriv,
 			 struct xmit_buf *pxmitbuf);

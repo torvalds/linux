@@ -7,15 +7,6 @@
 #include "osdep_service.h"
 #include "drv_types.h"
 
-struct pkt_file {
-	struct sk_buff *pkt;
-	size_t pkt_len;	 /* the remainder length of the open_file */
-	unsigned char *cur_buffer;
-	u8 *buf_start;
-	u8 *cur_addr;
-	size_t buf_len;
-};
-
 extern int rtw_ht_enable;
 extern int rtw_cbw40_enable;
 extern int rtw_ampdu_enable;/* for enable tx_ampdu */
