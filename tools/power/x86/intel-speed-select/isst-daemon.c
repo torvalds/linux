@@ -32,17 +32,17 @@ static void init_levels(void)
 			per_package_levels_info[i][j] = -1;
 }
 
-void process_level_change(int cpu)
+void process_level_change(struct isst_id *id)
 {
 	struct isst_pkg_ctdp_level_info ctdp_level;
-	int pkg_id = get_physical_package_id(cpu);
-	int die_id = get_physical_die_id(cpu);
+	int pkg_id = get_physical_package_id(id->cpu);
+	int die_id = get_physical_die_id(id->cpu);
 	struct isst_pkg_ctdp pkg_dev;
 	time_t tm;
 	int ret;
 
 	if (pkg_id >= MAX_PACKAGE_COUNT || die_id >= MAX_DIE_PER_PACKAGE) {
-		debug_printf("Invalid package/die info for cpu:%d\n", cpu);
+		debug_printf("Invalid package/die info for cpu:%d\n", id->cpu);
 		return;
 	}
 
@@ -52,13 +52,13 @@ void process_level_change(int cpu)
 
 	per_package_levels_tm[pkg_id][die_id] = tm;
 
-	ret = isst_get_ctdp_levels(cpu, &pkg_dev);
+	ret = isst_get_ctdp_levels(id, &pkg_dev);
 	if (ret) {
-		debug_printf("Can't get tdp levels for cpu:%d\n", cpu);
+		debug_printf("Can't get tdp levels for cpu:%d\n", id->cpu);
 		return;
 	}
 
-	debug_printf("Get Config level %d pkg:%d die:%d current_level:%d \n", cpu,
+	debug_printf("Get Config level %d pkg:%d die:%d current_level:%d\n", id->cpu,
 		      pkg_id, die_id, pkg_dev.current_level);
 
 	if (pkg_dev.locked) {
@@ -70,17 +70,17 @@ void process_level_change(int cpu)
 		return;
 
 	debug_printf("**Config level change for cpu:%d pkg:%d die:%d from %d to %d\n",
-		      cpu, pkg_id, die_id, per_package_levels_info[pkg_id][die_id],
+		      id->cpu, pkg_id, die_id, per_package_levels_info[pkg_id][die_id],
 		      pkg_dev.current_level);
 
 	per_package_levels_info[pkg_id][die_id] = pkg_dev.current_level;
 
 	ctdp_level.core_cpumask_size =
 		alloc_cpu_set(&ctdp_level.core_cpumask);
-	ret = isst_get_coremask_info(cpu, pkg_dev.current_level, &ctdp_level);
+	ret = isst_get_coremask_info(id, pkg_dev.current_level, &ctdp_level);
 	if (ret) {
 		free_cpu_set(ctdp_level.core_cpumask);
-		debug_printf("Can't get core_mask:%d\n", cpu);
+		debug_printf("Can't get core_mask:%d\n", id->cpu);
 		return;
 	}
 
@@ -102,10 +102,10 @@ void process_level_change(int cpu)
 	free_cpu_set(ctdp_level.core_cpumask);
 }
 
-static void _poll_for_config_change(int cpu, void *arg1, void *arg2,
+static void _poll_for_config_change(struct isst_id *id, void *arg1, void *arg2,
 				    void *arg3, void *arg4)
 {
-	process_level_change(cpu);
+	process_level_change(id);
 }
 
 static void poll_for_config_change(void)
