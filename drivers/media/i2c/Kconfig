@@ -1886,6 +1886,16 @@ config VIDEO_SC401AI
 	  This is a Video4Linux2 sensor driver for the SmartSens
 	  SC401ai camera.
 
+config VIDEO_SC4210
+	tristate "SmartSens SC4210 sensor support"
+	depends on I2C && VIDEO_V4L2
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
+	select V4L2_FWNODE
+	help
+	  This is a Video4Linux2 sensor driver for the SmartSens
+	  SC4210 camera.
+
 config VIDEO_SC4336
 	tristate "SmartSens SC4336 sensor support"
 	depends on I2C && VIDEO_V4L2
