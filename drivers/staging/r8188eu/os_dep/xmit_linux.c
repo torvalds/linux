@@ -17,27 +17,6 @@ static uint rtw_remainder_len(struct pkt_file *pfile)
 	       (size_t)(pfile->buf_start));
 }
 
-void _rtw_open_pktfile(struct sk_buff *pktptr, struct pkt_file *pfile)
-{
-
-	if (!pktptr) {
-		pr_err("8188eu: pktptr is NULL\n");
-		return;
-	}
-	if (!pfile) {
-		pr_err("8188eu: pfile is NULL\n");
-		return;
-	}
-	pfile->pkt = pktptr;
-	pfile->cur_addr = pktptr->data;
-	pfile->buf_start = pktptr->data;
-	pfile->pkt_len = pktptr->len;
-	pfile->buf_len = pktptr->len;
-
-	pfile->cur_buffer = pfile->buf_start;
-
-}
-
 uint _rtw_pktfile_read(struct pkt_file *pfile, u8 *rmem, uint rlen)
 {
 	uint	len = 0;
