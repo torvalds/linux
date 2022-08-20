@@ -27,7 +27,6 @@ r8188eu-y = \
 		os_dep/osdep_service.o \
 		os_dep/usb_intf.o \
 		os_dep/usb_ops_linux.o \
-		os_dep/xmit_linux.o \
 		core/rtw_ap.o \
 		core/rtw_br_ext.o \
 		core/rtw_cmd.o \
