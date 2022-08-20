@@ -804,7 +804,6 @@ config CRYPTO_DEV_SA2UL
 	depends on ARCH_K3 || COMPILE_TEST
 	select ARM64_CRYPTO
 	select CRYPTO_AES
-	select CRYPTO_AES_ARM64
 	select CRYPTO_ALGAPI
 	select CRYPTO_AUTHENC
 	select CRYPTO_SHA1
