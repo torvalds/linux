@@ -276,17 +276,9 @@ bool ttm_resource_intersects(struct ttm_device *bdev,
 	if (!res)
 		return false;
 
-	if (!place)
-		return true;
-
 	man = ttm_manager_type(bdev, res->mem_type);
-	if (!man->func->intersects) {
-		if (place->fpfn >= (res->start + res->num_pages) ||
-		    (place->lpfn && place->lpfn <= res->start))
-			return false;
-
+	if (!place || !man->func->intersects)
 		return true;
-	}
 
 	return man->func->intersects(man, res, place, size);
 }
@@ -314,13 +306,8 @@ bool ttm_resource_compatible(struct ttm_device *bdev,
 		return false;
 
 	man = ttm_manager_type(bdev, res->mem_type);
-	if (!man->func->compatible) {
-		if (res->start < place->fpfn ||
-		    (place->lpfn && (res->start + res->num_pages) > place->lpfn))
-			return false;
-
+	if (!man->func->compatible)
 		return true;
-	}
 
 	return man->func->compatible(man, res, place, size);
 }
