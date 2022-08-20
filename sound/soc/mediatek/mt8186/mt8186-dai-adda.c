@@ -271,9 +271,6 @@ static int mtk_adda_ul_event(struct snd_soc_dapm_widget *w,
 		/* should delayed 1/fs(smallest is 8k) = 125us before afe off */
 		usleep_range(125, 135);
 		mt8186_afe_gpio_request(afe->dev, false, MT8186_DAI_ADDA, 1);
-
-		/* reset dmic */
-		afe_priv->mtkaif_dmic = 0;
 		break;
 	default:
 		break;
