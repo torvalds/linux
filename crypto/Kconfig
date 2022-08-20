@@ -1178,81 +1178,92 @@ endmenu
 menu "Compression"
 
 config CRYPTO_DEFLATE
-	tristate "Deflate compression algorithm"
+	tristate "Deflate"
 	select CRYPTO_ALGAPI
 	select CRYPTO_ACOMP2
 	select ZLIB_INFLATE
 	select ZLIB_DEFLATE
 	help
-	  This is the Deflate algorithm (RFC1951), specified for use in
-	  IPSec with the IPCOMP protocol (RFC3173, RFC2394).
+	  Deflate compression algorithm (RFC1951)
 
-	  You will most probably want this if using IPSec.
+	  Used by IPSec with the IPCOMP protocol (RFC3173, RFC2394)
 
 config CRYPTO_LZO
-	tristate "LZO compression algorithm"
+	tristate "LZO"
 	select CRYPTO_ALGAPI
 	select CRYPTO_ACOMP2
 	select LZO_COMPRESS
 	select LZO_DECOMPRESS
 	help
-	  This is the LZO algorithm.
+	  LZO compression algorithm
+
+	  See https://www.oberhumer.com/opensource/lzo/ for further information.
 
 config CRYPTO_842
-	tristate "842 compression algorithm"
+	tristate "842"
 	select CRYPTO_ALGAPI
 	select CRYPTO_ACOMP2
 	select 842_COMPRESS
 	select 842_DECOMPRESS
 	help
-	  This is the 842 algorithm.
+	  842 compression algorithm by IBM
+
+	  See https://github.com/plauth/lib842 for further information.
 
 config CRYPTO_LZ4
-	tristate "LZ4 compression algorithm"
+	tristate "LZ4"
 	select CRYPTO_ALGAPI
 	select CRYPTO_ACOMP2
 	select LZ4_COMPRESS
 	select LZ4_DECOMPRESS
 	help
-	  This is the LZ4 algorithm.
+	  LZ4 compression algorithm
+
+	  See https://github.com/lz4/lz4 for further information.
 
 config CRYPTO_LZ4HC
-	tristate "LZ4HC compression algorithm"
+	tristate "LZ4HC"
 	select CRYPTO_ALGAPI
 	select CRYPTO_ACOMP2
 	select LZ4HC_COMPRESS
 	select LZ4_DECOMPRESS
 	help
-	  This is the LZ4 high compression mode algorithm.
+	  LZ4 high compression mode algorithm
+
+	  See https://github.com/lz4/lz4 for further information.
 
 config CRYPTO_ZSTD
-	tristate "Zstd compression algorithm"
+	tristate "Zstd"
 	select CRYPTO_ALGAPI
 	select CRYPTO_ACOMP2
 	select ZSTD_COMPRESS
 	select ZSTD_DECOMPRESS
 	help
-	  This is the zstd algorithm.
+	  zstd compression algorithm
+
+	  See https://github.com/facebook/zstd for further information.
 
 endmenu
 
 menu "Random number generation"
 
 config CRYPTO_ANSI_CPRNG
-	tristate "Pseudo Random Number Generation for Cryptographic modules"
+	tristate "ANSI PRNG (Pseudo Random Number Generator)"
 	select CRYPTO_AES
 	select CRYPTO_RNG
 	help
-	  This option enables the generic pseudo random number generator
-	  for cryptographic modules.  Uses the Algorithm specified in
-	  ANSI X9.31 A.2.4. Note that this option must be enabled if
-	  CRYPTO_FIPS is selected
+	  Pseudo RNG (random number generator) (ANSI X9.31 Appendix A.2.4)
+
+	  This uses the AES cipher algorithm.
+
+	  Note that this option must be enabled if CRYPTO_FIPS is selected
 
 menuconfig CRYPTO_DRBG_MENU
-	tristate "NIST SP800-90A DRBG"
+	tristate "NIST SP800-90A DRBG (Deterministic Random Bit Generator)"
 	help
-	  NIST SP800-90A compliant DRBG. In the following submenu, one or
-	  more of the DRBG types must be selected.
+	  DRBG (Deterministic Random Bit Generator) (NIST SP800-90A)
+
+	  In the following submenu, one or more of the DRBG types must be selected.
 
 if CRYPTO_DRBG_MENU
 
@@ -1263,17 +1274,21 @@ config CRYPTO_DRBG_HMAC
 	select CRYPTO_SHA512
 
 config CRYPTO_DRBG_HASH
-	bool "Enable Hash DRBG"
+	bool "Hash_DRBG"
 	select CRYPTO_SHA256
 	help
-	  Enable the Hash DRBG variant as defined in NIST SP800-90A.
+	  Hash_DRBG variant as defined in NIST SP800-90A.
+
+	  This uses the SHA-1, SHA-256, SHA-384, or SHA-512 hash algorithms.
 
 config CRYPTO_DRBG_CTR
-	bool "Enable CTR DRBG"
+	bool "CTR_DRBG"
 	select CRYPTO_AES
 	select CRYPTO_CTR
 	help
-	  Enable the CTR DRBG variant as defined in NIST SP800-90A.
+	  CTR_DRBG variant as defined in NIST SP800-90A.
+
+	  This uses the AES cipher algorithm with the counter block mode.
 
 config CRYPTO_DRBG
 	tristate
@@ -1284,14 +1299,17 @@ config CRYPTO_DRBG
 endif	# if CRYPTO_DRBG_MENU
 
 config CRYPTO_JITTERENTROPY
-	tristate "Jitterentropy Non-Deterministic Random Number Generator"
+	tristate "CPU Jitter Non-Deterministic RNG (Random Number Generator)"
 	select CRYPTO_RNG
 	help
-	  The Jitterentropy RNG is a noise that is intended
-	  to provide seed to another RNG. The RNG does not
-	  perform any cryptographic whitening of the generated
-	  random numbers. This Jitterentropy RNG registers with
-	  the kernel crypto API and can be used by any caller.
+	  CPU Jitter RNG (Random Number Generator) from the Jitterentropy library
+
+	  A non-physical non-deterministic ("true") RNG (e.g., an entropy source
+	  compliant with NIST SP800-90B) intended to provide a seed to a
+	  deterministic RNG (e.g.  per NIST SP800-90C).
+	  This RNG does not perform any cryptographic whitening of the generated
+
+	  See https://www.chronox.de/jent.html
 
 config CRYPTO_KDF800108_CTR
 	tristate
