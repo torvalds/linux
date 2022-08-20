@@ -362,8 +362,14 @@ static int get_physical_die_id(int cpu)
 void set_isst_id(struct isst_id *id, int cpu)
 {
 	id->cpu = cpu;
+
 	id->pkg = get_physical_package_id(cpu);
+	if (id < 0 || id->pkg >= MAX_PACKAGE_COUNT)
+		id->pkg = -1;
+
 	id->die = get_physical_die_id(cpu);
+	if (id < 0 || id->die >= MAX_DIE_PER_PACKAGE)
+		id->die = -1;
 }
 
 int is_cpu_in_power_domain(int cpu, struct isst_id *id)
@@ -614,10 +620,10 @@ int get_max_punit_core_id(struct isst_id *id)
 
 int get_cpu_count(struct isst_id *id)
 {
-	if (id->pkg < MAX_PACKAGE_COUNT && id->die < MAX_DIE_PER_PACKAGE)
-		return cpu_cnt[id->pkg][id->die];
+	if (id->pkg < 0 || id->die < 0)
+		return 0;
 
-	return 0;
+	return cpu_cnt[id->pkg][id->die];
 }
 
 static void set_cpu_target_cpu_mask(void)

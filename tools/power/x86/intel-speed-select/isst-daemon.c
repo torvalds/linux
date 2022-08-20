@@ -39,7 +39,7 @@ void process_level_change(struct isst_id *id)
 	time_t tm;
 	int ret;
 
-	if (id->pkg >= MAX_PACKAGE_COUNT || id->die >= MAX_DIE_PER_PACKAGE) {
+	if (id->pkg < 0 || id->die < 0) {
 		debug_printf("Invalid package/die info for cpu:%d\n", id->cpu);
 		return;
 	}
