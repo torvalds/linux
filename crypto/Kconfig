@@ -1292,6 +1292,12 @@ config CRYPTO_STATS
 config CRYPTO_HASH_INFO
 	bool
 
+if ARM
+source "arch/arm/crypto/Kconfig"
+endif
+if ARM64
+source "arch/arm64/crypto/Kconfig"
+endif
 if MIPS
 source "arch/mips/crypto/Kconfig"
 endif

@@ -1,13 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
 
-menuconfig ARM64_CRYPTO
-	bool "ARM64 Accelerated Cryptographic Algorithms"
-	depends on ARM64
-	help
-	  Say Y here to choose from a selection of cryptographic algorithms
-	  implemented using ARM64 specific CPU features or instructions.
-
-if ARM64_CRYPTO
+menu "Accelerated Cryptographic Algorithms for CPU (arm64)"
 
 config CRYPTO_SHA256_ARM64
 	tristate "SHA-224/SHA-256 digest algorithm for arm64"
@@ -138,4 +131,4 @@ config CRYPTO_AES_ARM64_BS
 	select CRYPTO_AES_ARM64_NEON_BLK
 	select CRYPTO_LIB_AES
 
-endif
+endmenu

@@ -1,13 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
 
-menuconfig ARM_CRYPTO
-	bool "ARM Accelerated Cryptographic Algorithms"
-	depends on ARM
-	help
-	  Say Y here to choose from a selection of cryptographic algorithms
-	  implemented using ARM specific CPU features or instructions.
-
-if ARM_CRYPTO
+menu "Accelerated Cryptographic Algorithms for CPU (arm)"
 
 config CRYPTO_SHA1_ARM
 	tristate "SHA1 digest algorithm (ARM-asm)"
@@ -170,4 +163,4 @@ config CRYPTO_CURVE25519_NEON
 	select CRYPTO_LIB_CURVE25519_GENERIC
 	select CRYPTO_ARCH_HAVE_LIB_CURVE25519
 
-endif
+endmenu

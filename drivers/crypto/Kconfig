@@ -802,7 +802,6 @@ source "drivers/crypto/amlogic/Kconfig"
 config CRYPTO_DEV_SA2UL
 	tristate "Support for TI security accelerator"
 	depends on ARCH_K3 || COMPILE_TEST
-	select ARM64_CRYPTO
 	select CRYPTO_AES
 	select CRYPTO_ALGAPI
 	select CRYPTO_AUTHENC
