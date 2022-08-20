@@ -240,51 +240,60 @@ endmenu
 menu "Public-key cryptography"
 
 config CRYPTO_RSA
-	tristate "RSA algorithm"
+	tristate "RSA (Rivest-Shamir-Adleman)"
 	select CRYPTO_AKCIPHER
 	select CRYPTO_MANAGER
 	select MPILIB
 	select ASN1
 	help
-	  Generic implementation of the RSA public key algorithm.
+	  RSA (Rivest-Shamir-Adleman) public key algorithm (RFC8017)
 
 config CRYPTO_DH
-	tristate "Diffie-Hellman algorithm"
+	tristate "DH (Diffie-Hellman)"
 	select CRYPTO_KPP
 	select MPILIB
 	help
-	  Generic implementation of the Diffie-Hellman algorithm.
+	  DH (Diffie-Hellman) key exchange algorithm
 
 config CRYPTO_DH_RFC7919_GROUPS
-	bool "Support for RFC 7919 FFDHE group parameters"
+	bool "RFC 7919 FFDHE groups"
 	depends on CRYPTO_DH
 	select CRYPTO_RNG_DEFAULT
 	help
-	  Provide support for RFC 7919 FFDHE group parameters. If unsure, say N.
+	  FFDHE (Finite-Field-based Diffie-Hellman Ephemeral) groups
+	  defined in RFC7919.
+
+	  Support these finite-field groups in DH key exchanges:
+	  - ffdhe2048, ffdhe3072, ffdhe4096, ffdhe6144, ffdhe8192
+
+	  If unsure, say N.
 
 config CRYPTO_ECC
 	tristate
 	select CRYPTO_RNG_DEFAULT
 
 config CRYPTO_ECDH
-	tristate "ECDH algorithm"
+	tristate "ECDH (Elliptic Curve Diffie-Hellman)"
 	select CRYPTO_ECC
 	select CRYPTO_KPP
 	help
-	  Generic implementation of the ECDH algorithm
+	  ECDH (Elliptic Curve Diffie-Hellman) key exchange algorithm
+	  using curves P-192, P-256, and P-384 (FIPS 186)
 
 config CRYPTO_ECDSA
-	tristate "ECDSA (NIST P192, P256 etc.) algorithm"
+	tristate "ECDSA (Elliptic Curve Digital Signature Algorithm)"
 	select CRYPTO_ECC
 	select CRYPTO_AKCIPHER
 	select ASN1
 	help
-	  Elliptic Curve Digital Signature Algorithm (NIST P192, P256 etc.)
-	  is A NIST cryptographic standard algorithm. Only signature verification
-	  is implemented.
+	  ECDSA (Elliptic Curve Digital Signature Algorithm) (FIPS 186,
+	  ISO/IEC 14888-3)
+	  using curves P-192, P-256, and P-384
+
+	  Only signature verification is implemented.
 
 config CRYPTO_ECRDSA
-	tristate "EC-RDSA (GOST 34.10) algorithm"
+	tristate "EC-RDSA (Elliptic Curve Russian Digital Signature Algorithm)"
 	select CRYPTO_ECC
 	select CRYPTO_AKCIPHER
 	select CRYPTO_STREEBOG
@@ -292,31 +301,35 @@ config CRYPTO_ECRDSA
 	select ASN1
 	help
 	  Elliptic Curve Russian Digital Signature Algorithm (GOST R 34.10-2012,
-	  RFC 7091, ISO/IEC 14888-3:2018) is one of the Russian cryptographic
-	  standard algorithms (called GOST algorithms). Only signature verification
-	  is implemented.
+	  RFC 7091, ISO/IEC 14888-3)
+
+	  One of the Russian cryptographic standard algorithms (called GOST
+	  algorithms). Only signature verification is implemented.
 
 config CRYPTO_SM2
-	tristate "SM2 algorithm"
+	tristate "SM2 (ShangMi 2)"
 	select CRYPTO_SM3
 	select CRYPTO_AKCIPHER
 	select CRYPTO_MANAGER
 	select MPILIB
 	select ASN1
 	help
-	  Generic implementation of the SM2 public key algorithm. It was
-	  published by State Encryption Management Bureau, China.
+	  SM2 (ShangMi 2) public key algorithm
+
+	  Published by State Encryption Management Bureau, China,
 	  as specified by OSCCA GM/T 0003.1-2012 -- 0003.5-2012.
 
 	  References:
-	  https://tools.ietf.org/html/draft-shen-sm2-ecdsa-02
+	  https://datatracker.ietf.org/doc/draft-shen-sm2-ecdsa/
 	  http://www.oscca.gov.cn/sca/xxgk/2010-12/17/content_1002386.shtml
 	  http://www.gmbz.org.cn/main/bzlb.html
 
 config CRYPTO_CURVE25519
-	tristate "Curve25519 algorithm"
+	tristate "Curve25519"
 	select CRYPTO_KPP
 	select CRYPTO_LIB_CURVE25519_GENERIC
+	help
+	  Curve25519 elliptic curve (RFC7748)
 
 endmenu
 
