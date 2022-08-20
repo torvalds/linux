@@ -50,8 +50,8 @@ static int rtw_xmit_resource_alloc(struct adapter *padapter, struct xmit_buf *px
 	return _SUCCESS;
 }
 
-static void rtw_os_xmit_resource_free(struct adapter *padapter, struct xmit_buf *pxmitbuf,
-				      u32 free_sz)
+static void rtw_xmit_resource_free(struct adapter *padapter, struct xmit_buf *pxmitbuf,
+				   u32 free_sz)
 {
 	usb_free_urb(pxmitbuf->pxmit_urb);
 	kfree(pxmitbuf->pallocated_buf);
@@ -248,7 +248,7 @@ void _rtw_free_xmit_priv(struct xmit_priv *pxmitpriv)
 	}
 
 	for (i = 0; i < NR_XMITBUFF; i++) {
-		rtw_os_xmit_resource_free(padapter, pxmitbuf, (MAX_XMITBUF_SZ + XMITBUF_ALIGN_SZ));
+		rtw_xmit_resource_free(padapter, pxmitbuf, (MAX_XMITBUF_SZ + XMITBUF_ALIGN_SZ));
 		pxmitbuf++;
 	}
 
@@ -258,7 +258,7 @@ void _rtw_free_xmit_priv(struct xmit_priv *pxmitpriv)
 
 	pxmitbuf = (struct xmit_buf *)pxmitpriv->pxmit_extbuf;
 	for (i = 0; i < num_xmit_extbuf; i++) {
-		rtw_os_xmit_resource_free(padapter, pxmitbuf, (max_xmit_extbuf_size + XMITBUF_ALIGN_SZ));
+		rtw_xmit_resource_free(padapter, pxmitbuf, (max_xmit_extbuf_size + XMITBUF_ALIGN_SZ));
 		pxmitbuf++;
 	}
 
