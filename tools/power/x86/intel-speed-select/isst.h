@@ -185,6 +185,7 @@ struct isst_platform_ops {
 	int (*get_disp_freq_multiplier)(void);
 	int (*get_trl_max_levels)(void);
 	char *(*get_trl_level_name)(int level);
+	int (*is_punit_valid)(struct isst_id *id);
 };
 
 extern int is_cpu_in_power_domain(int cpu, struct isst_id *id);

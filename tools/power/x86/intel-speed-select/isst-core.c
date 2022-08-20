@@ -62,13 +62,8 @@ char *isst_get_trl_level_name(int level)
 
 int isst_is_punit_valid(struct isst_id *id)
 {
-	if (id->cpu < 0)
-		return 0;
-
-	if (id->pkg < 0 || id->die < 0 || id->punit)
-		return 0;
-
-	return 1;
+	CHECK_CB(is_punit_valid);
+	return isst_ops->is_punit_valid(id);
 }
 
 static int isst_send_mmio_command(unsigned int cpu, unsigned int reg, int write,
