@@ -39,16 +39,12 @@ KBUILD_CFLAGS += -G 0
 
 head-y		:= arch/nios2/kernel/head.o
 libs-y		+= arch/nios2/lib/ $(LIBGCC)
-core-y		+= arch/nios2/kernel/ arch/nios2/mm/
-core-y		+= arch/nios2/platform/
 
 INSTALL_PATH ?= /tftpboot
 nios2-boot := arch/$(ARCH)/boot
 BOOT_TARGETS = vmImage zImage
 PHONY += $(BOOT_TARGETS) install
 KBUILD_IMAGE := $(nios2-boot)/vmImage
-
-core-y	+= $(nios2-boot)/dts/
 
 all: vmImage
 
