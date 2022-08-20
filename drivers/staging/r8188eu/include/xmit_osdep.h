@@ -30,8 +30,6 @@ struct xmit_buf;
 
 int rtw_xmit_entry(struct sk_buff *pkt, struct  net_device *pnetdev);
 
-uint _rtw_pktfile_read(struct pkt_file *pfile, u8 *rmem, uint rlen);
-
 void rtw_os_pkt_complete(struct adapter *padapter, struct sk_buff *pkt);
 void rtw_os_xmit_complete(struct adapter *padapter,
 			  struct xmit_frame *pxframe);

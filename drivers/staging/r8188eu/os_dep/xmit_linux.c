@@ -11,28 +11,6 @@
 #include "../include/osdep_intf.h"
 #include "../include/usb_osintf.h"
 
-static uint rtw_remainder_len(struct pkt_file *pfile)
-{
-	return pfile->buf_len - ((size_t)(pfile->cur_addr) -
-	       (size_t)(pfile->buf_start));
-}
-
-uint _rtw_pktfile_read(struct pkt_file *pfile, u8 *rmem, uint rlen)
-{
-	uint	len = 0;
-
-	len =  rtw_remainder_len(pfile);
-	len = (rlen > len) ? len : rlen;
-
-	if (rmem)
-		skb_copy_bits(pfile->pkt, pfile->buf_len - pfile->pkt_len, rmem, len);
-
-	pfile->cur_addr += len;
-	pfile->pkt_len -= len;
-
-	return len;
-}
-
 #define WMM_XMIT_THRESHOLD	(NR_XMITFRAME * 2 / 5)
 
 void rtw_os_pkt_complete(struct adapter *padapter, struct sk_buff *pkt)
