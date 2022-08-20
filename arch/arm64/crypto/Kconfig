@@ -2,13 +2,24 @@
 
 menu "Accelerated Cryptographic Algorithms for CPU (arm64)"
 
-config CRYPTO_SHA256_ARM64
-	tristate "SHA-224/SHA-256 digest algorithm for arm64"
+config CRYPTO_GHASH_ARM64_CE
+	tristate "GHASH/AES-GCM using ARMv8 Crypto Extensions"
+	depends on KERNEL_MODE_NEON
 	select CRYPTO_HASH
+	select CRYPTO_GF128MUL
+	select CRYPTO_LIB_AES
+	select CRYPTO_AEAD
 
-config CRYPTO_SHA512_ARM64
-	tristate "SHA-384/SHA-512 digest algorithm for arm64"
+config CRYPTO_NHPOLY1305_NEON
+	tristate "NHPoly1305 hash function using NEON instructions (for Adiantum)"
+	depends on KERNEL_MODE_NEON
+	select CRYPTO_NHPOLY1305
+
+config CRYPTO_POLY1305_NEON
+	tristate "Poly1305 hash function using scalar or NEON instructions"
+	depends on KERNEL_MODE_NEON
 	select CRYPTO_HASH
+	select CRYPTO_ARCH_HAVE_LIB_POLY1305
 
 config CRYPTO_SHA1_ARM64_CE
 	tristate "SHA-1 digest algorithm (ARMv8 Crypto Extensions)"
@@ -16,11 +27,19 @@ config CRYPTO_SHA1_ARM64_CE
 	select CRYPTO_HASH
 	select CRYPTO_SHA1
 
+config CRYPTO_SHA256_ARM64
+	tristate "SHA-224/SHA-256 digest algorithm for arm64"
+	select CRYPTO_HASH
+
 config CRYPTO_SHA2_ARM64_CE
 	tristate "SHA-224/SHA-256 digest algorithm (ARMv8 Crypto Extensions)"
 	depends on KERNEL_MODE_NEON
 	select CRYPTO_HASH
 	select CRYPTO_SHA256_ARM64
+
+config CRYPTO_SHA512_ARM64
+	tristate "SHA-384/SHA-512 digest algorithm for arm64"
+	select CRYPTO_HASH
 
 config CRYPTO_SHA512_ARM64_CE
 	tristate "SHA-384/SHA-512 digest algorithm (ARMv8 Crypto Extensions)"
@@ -40,41 +59,10 @@ config CRYPTO_SM3_ARM64_CE
 	select CRYPTO_HASH
 	select CRYPTO_SM3
 
-config CRYPTO_SM4_ARM64_CE
-	tristate "SM4 symmetric cipher (ARMv8.2 Crypto Extensions)"
-	depends on KERNEL_MODE_NEON
-	select CRYPTO_ALGAPI
-	select CRYPTO_SM4
-
-config CRYPTO_SM4_ARM64_CE_BLK
-	tristate "SM4 in ECB/CBC/CFB/CTR modes using ARMv8 Crypto Extensions"
-	depends on KERNEL_MODE_NEON
-	select CRYPTO_SKCIPHER
-	select CRYPTO_SM4
-
-config CRYPTO_SM4_ARM64_NEON_BLK
-	tristate "SM4 in ECB/CBC/CFB/CTR modes using NEON instructions"
-	depends on KERNEL_MODE_NEON
-	select CRYPTO_SKCIPHER
-	select CRYPTO_SM4
-
-config CRYPTO_GHASH_ARM64_CE
-	tristate "GHASH/AES-GCM using ARMv8 Crypto Extensions"
-	depends on KERNEL_MODE_NEON
-	select CRYPTO_HASH
-	select CRYPTO_GF128MUL
-	select CRYPTO_LIB_AES
-	select CRYPTO_AEAD
-
 config CRYPTO_POLYVAL_ARM64_CE
 	tristate "POLYVAL using ARMv8 Crypto Extensions (for HCTR2)"
 	depends on KERNEL_MODE_NEON
 	select CRYPTO_POLYVAL
-
-config CRYPTO_CRCT10DIF_ARM64_CE
-	tristate "CRCT10DIF digest algorithm using PMULL instructions"
-	depends on KERNEL_MODE_NEON && CRC_T10DIF
-	select CRYPTO_HASH
 
 config CRYPTO_AES_ARM64
 	tristate "AES core cipher using scalar instructions"
@@ -84,14 +72,6 @@ config CRYPTO_AES_ARM64_CE
 	tristate "AES core cipher using ARMv8 Crypto Extensions"
 	depends on ARM64 && KERNEL_MODE_NEON
 	select CRYPTO_ALGAPI
-	select CRYPTO_LIB_AES
-
-config CRYPTO_AES_ARM64_CE_CCM
-	tristate "AES in CCM mode using ARMv8 Crypto Extensions"
-	depends on ARM64 && KERNEL_MODE_NEON
-	select CRYPTO_ALGAPI
-	select CRYPTO_AES_ARM64_CE
-	select CRYPTO_AEAD
 	select CRYPTO_LIB_AES
 
 config CRYPTO_AES_ARM64_CE_BLK
@@ -113,17 +93,6 @@ config CRYPTO_CHACHA20_NEON
 	select CRYPTO_LIB_CHACHA_GENERIC
 	select CRYPTO_ARCH_HAVE_LIB_CHACHA
 
-config CRYPTO_POLY1305_NEON
-	tristate "Poly1305 hash function using scalar or NEON instructions"
-	depends on KERNEL_MODE_NEON
-	select CRYPTO_HASH
-	select CRYPTO_ARCH_HAVE_LIB_POLY1305
-
-config CRYPTO_NHPOLY1305_NEON
-	tristate "NHPoly1305 hash function using NEON instructions (for Adiantum)"
-	depends on KERNEL_MODE_NEON
-	select CRYPTO_NHPOLY1305
-
 config CRYPTO_AES_ARM64_BS
 	tristate "AES in ECB/CBC/CTR/XTS modes using bit-sliced NEON algorithm"
 	depends on KERNEL_MODE_NEON
@@ -131,4 +100,36 @@ config CRYPTO_AES_ARM64_BS
 	select CRYPTO_AES_ARM64_NEON_BLK
 	select CRYPTO_LIB_AES
 
+config CRYPTO_SM4_ARM64_CE
+	tristate "SM4 symmetric cipher (ARMv8.2 Crypto Extensions)"
+	depends on KERNEL_MODE_NEON
+	select CRYPTO_ALGAPI
+	select CRYPTO_SM4
+
+config CRYPTO_SM4_ARM64_CE_BLK
+	tristate "SM4 in ECB/CBC/CFB/CTR modes using ARMv8 Crypto Extensions"
+	depends on KERNEL_MODE_NEON
+	select CRYPTO_SKCIPHER
+	select CRYPTO_SM4
+
+config CRYPTO_SM4_ARM64_NEON_BLK
+	tristate "SM4 in ECB/CBC/CFB/CTR modes using NEON instructions"
+	depends on KERNEL_MODE_NEON
+	select CRYPTO_SKCIPHER
+	select CRYPTO_SM4
+
+config CRYPTO_AES_ARM64_CE_CCM
+	tristate "AES in CCM mode using ARMv8 Crypto Extensions"
+	depends on ARM64 && KERNEL_MODE_NEON
+	select CRYPTO_ALGAPI
+	select CRYPTO_AES_ARM64_CE
+	select CRYPTO_AEAD
+	select CRYPTO_LIB_AES
+
+config CRYPTO_CRCT10DIF_ARM64_CE
+	tristate "CRCT10DIF digest algorithm using PMULL instructions"
+	depends on KERNEL_MODE_NEON && CRC_T10DIF
+	select CRYPTO_HASH
+
 endmenu
+
