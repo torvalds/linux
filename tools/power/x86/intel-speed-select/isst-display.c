@@ -198,7 +198,7 @@ static void _isst_pbf_display_information(struct isst_id *id, FILE *outf, int le
 
 	snprintf(header, sizeof(header), "high-priority-base-frequency(MHz)");
 	snprintf(value, sizeof(value), "%d",
-		 pbf_info->p1_high * DISP_FREQ_MULTIPLIER);
+		 pbf_info->p1_high * isst_get_disp_freq_multiplier());
 	format_and_print(outf, disp_level + 1, header, value);
 
 	snprintf(header, sizeof(header), "high-priority-cpu-mask");
@@ -214,7 +214,7 @@ static void _isst_pbf_display_information(struct isst_id *id, FILE *outf, int le
 
 	snprintf(header, sizeof(header), "low-priority-base-frequency(MHz)");
 	snprintf(value, sizeof(value), "%d",
-		 pbf_info->p1_low * DISP_FREQ_MULTIPLIER);
+		 pbf_info->p1_low * isst_get_disp_freq_multiplier());
 	format_and_print(outf, disp_level + 1, header, value);
 
 	if (is_clx_n_platform())
@@ -282,7 +282,7 @@ static void _isst_fact_display_information(struct isst_id *id, FILE *outf, int l
 				snprintf(header, sizeof(header),
 					"high-priority-max-%s-frequency(MHz)", isst_get_trl_level_name(i));
 			snprintf(value, sizeof(value), "%d",
-				bucket_info[j].hp_ratios[i] * DISP_FREQ_MULTIPLIER);
+				bucket_info[j].hp_ratios[i] * isst_get_disp_freq_multiplier());
 			format_and_print(outf, base_level + 2, header, value);
 		}
 	}
@@ -298,7 +298,7 @@ static void _isst_fact_display_information(struct isst_id *id, FILE *outf, int l
 			snprintf(header, sizeof(header), "low-priority-max-%s-frequency(MHz)",
 				isst_get_trl_level_name(j));
 		snprintf(value, sizeof(value), "%d",
-			 fact_info->lp_ratios[j] * DISP_FREQ_MULTIPLIER);
+			 fact_info->lp_ratios[j] * isst_get_disp_freq_multiplier());
 		format_and_print(outf, base_level + 2, header, value);
 	}
 }
@@ -393,41 +393,41 @@ void isst_ctdp_display_information(struct isst_id *id, FILE *outf, int tdp_level
 		if (!ctdp_level->sse_p1)
 			ctdp_level->sse_p1 = ctdp_level->tdp_ratio;
 		snprintf(value, sizeof(value), "%d",
-			  ctdp_level->sse_p1 * DISP_FREQ_MULTIPLIER);
+			  ctdp_level->sse_p1 * isst_get_disp_freq_multiplier());
 		format_and_print(outf, level + 2, header, value);
 
 		if (ctdp_level->avx2_p1) {
 			snprintf(header, sizeof(header), "base-frequency-avx2(MHz)");
 			snprintf(value, sizeof(value), "%d",
-				 ctdp_level->avx2_p1 * DISP_FREQ_MULTIPLIER);
+				 ctdp_level->avx2_p1 * isst_get_disp_freq_multiplier());
 			format_and_print(outf, level + 2, header, value);
 		}
 
 		if (ctdp_level->avx512_p1) {
 			snprintf(header, sizeof(header), "base-frequency-avx512(MHz)");
 			snprintf(value, sizeof(value), "%d",
-				 ctdp_level->avx512_p1 * DISP_FREQ_MULTIPLIER);
+				 ctdp_level->avx512_p1 * isst_get_disp_freq_multiplier());
 			format_and_print(outf, level + 2, header, value);
 		}
 
 		if (ctdp_level->uncore_pm) {
 			snprintf(header, sizeof(header), "uncore-frequency-min(MHz)");
 			snprintf(value, sizeof(value), "%d",
-				 ctdp_level->uncore_pm * DISP_FREQ_MULTIPLIER);
+				 ctdp_level->uncore_pm * isst_get_disp_freq_multiplier());
 			format_and_print(outf, level + 2, header, value);
 		}
 
 		if (ctdp_level->uncore_p0) {
 			snprintf(header, sizeof(header), "uncore-frequency-max(MHz)");
 			snprintf(value, sizeof(value), "%d",
-				 ctdp_level->uncore_p0 * DISP_FREQ_MULTIPLIER);
+				 ctdp_level->uncore_p0 * isst_get_disp_freq_multiplier());
 			format_and_print(outf, level + 2, header, value);
 		}
 
 		if (ctdp_level->uncore_p1) {
 			snprintf(header, sizeof(header), "uncore-frequency-base(MHz)");
 			snprintf(value, sizeof(value), "%d",
-				 ctdp_level->uncore_p1 * DISP_FREQ_MULTIPLIER);
+				 ctdp_level->uncore_p1 * isst_get_disp_freq_multiplier());
 			format_and_print(outf, level + 2, header, value);
 		}
 
@@ -506,7 +506,7 @@ void isst_ctdp_display_information(struct isst_id *id, FILE *outf, int tdp_level
 				format_and_print(outf, level + 4, header, value);
 
 				snprintf(header, sizeof(header), "max-turbo-frequency(MHz)");
-				snprintf(value, sizeof(value), "%d", ctdp_level->trl_ratios[k][j] * DISP_FREQ_MULTIPLIER);
+				snprintf(value, sizeof(value), "%d", ctdp_level->trl_ratios[k][j] * isst_get_disp_freq_multiplier());
 				format_and_print(outf, level + 4, header, value);
 			}
 		}
@@ -585,18 +585,18 @@ void isst_clos_display_information(struct isst_id *id, FILE *outf, int clos,
 	format_and_print(outf, level + 2, header, value);
 
 	snprintf(header, sizeof(header), "clos-min");
-	snprintf(value, sizeof(value), "%d MHz", clos_config->clos_min * DISP_FREQ_MULTIPLIER);
+	snprintf(value, sizeof(value), "%d MHz", clos_config->clos_min * isst_get_disp_freq_multiplier());
 	format_and_print(outf, level + 2, header, value);
 
 	snprintf(header, sizeof(header), "clos-max");
 	if (clos_config->clos_max == 0xff)
 		snprintf(value, sizeof(value), "Max Turbo frequency");
 	else
-		snprintf(value, sizeof(value), "%d MHz", clos_config->clos_max * DISP_FREQ_MULTIPLIER);
+		snprintf(value, sizeof(value), "%d MHz", clos_config->clos_max * isst_get_disp_freq_multiplier());
 	format_and_print(outf, level + 2, header, value);
 
 	snprintf(header, sizeof(header), "clos-desired");
-	snprintf(value, sizeof(value), "%d MHz", clos_config->clos_desired * DISP_FREQ_MULTIPLIER);
+	snprintf(value, sizeof(value), "%d MHz", clos_config->clos_desired * isst_get_disp_freq_multiplier());
 	format_and_print(outf, level + 2, header, value);
 
 	format_and_print(outf, level, NULL, NULL);

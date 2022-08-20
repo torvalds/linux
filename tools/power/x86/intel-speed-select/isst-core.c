@@ -23,6 +23,11 @@ void isst_update_platform_param(enum isst_platform_param param, int value)
 	}
 }
 
+int isst_get_disp_freq_multiplier(void)
+{
+	return DISP_FREQ_MULTIPLIER;
+}
+
 int isst_get_trl_max_levels(void)
 {
 	return 3;

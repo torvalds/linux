@@ -2556,7 +2556,7 @@ static void parse_cmd_args(int argc, int start, char **argv)
 			break;
 		case 'd':
 			clos_desired = atoi(optarg);
-			clos_desired /= DISP_FREQ_MULTIPLIER;
+			clos_desired /= isst_get_disp_freq_multiplier();
 			break;
 		case 'e':
 			clos_epp = atoi(optarg);
@@ -2567,11 +2567,11 @@ static void parse_cmd_args(int argc, int start, char **argv)
 			break;
 		case 'n':
 			clos_min = atoi(optarg);
-			clos_min /= DISP_FREQ_MULTIPLIER;
+			clos_min /= isst_get_disp_freq_multiplier();
 			break;
 		case 'm':
 			clos_max = atoi(optarg);
-			clos_max /= DISP_FREQ_MULTIPLIER;
+			clos_max /= isst_get_disp_freq_multiplier();
 			break;
 		case 'p':
 			clos_priority_type = atoi(optarg);
