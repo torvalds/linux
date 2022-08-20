@@ -5,6 +5,9 @@
  */
 #include "isst.h"
 
+static int mbox_delay;
+static int mbox_retries = 3;
+
 static int mbox_get_disp_freq_multiplier(void)
 {
         return DISP_FREQ_MULTIPLIER;
@@ -29,6 +32,20 @@ static char *mbox_get_trl_level_name(int level)
         }
 }
 
+static void mbox_update_platform_param(enum isst_platform_param param, int value)
+{
+	switch (param) {
+	case ISST_PARAM_MBOX_DELAY:
+		mbox_delay = value;
+		break;
+	case ISST_PARAM_MBOX_RETRIES:
+		mbox_retries = value;
+		break;
+	default:
+		break;
+	}
+}
+
 static int mbox_is_punit_valid(struct isst_id *id)
 {
 	if (id->cpu < 0)
@@ -40,12 +57,156 @@ static int mbox_is_punit_valid(struct isst_id *id)
 	return 1;
 }
 
+static int _send_mmio_command(unsigned int cpu, unsigned int reg, int write,
+				  unsigned int *value)
+{
+	struct isst_if_io_regs io_regs;
+	const char *pathname = "/dev/isst_interface";
+	int cmd;
+	FILE *outf = get_output_file();
+	int fd;
+
+	debug_printf("mmio_cmd cpu:%d reg:%d write:%d\n", cpu, reg, write);
+
+	fd = open(pathname, O_RDWR);
+	if (fd < 0)
+		err(-1, "%s open failed", pathname);
+
+	io_regs.req_count = 1;
+	io_regs.io_reg[0].logical_cpu = cpu;
+	io_regs.io_reg[0].reg = reg;
+	cmd = ISST_IF_IO_CMD;
+	if (write) {
+		io_regs.io_reg[0].read_write = 1;
+		io_regs.io_reg[0].value = *value;
+	} else {
+		io_regs.io_reg[0].read_write = 0;
+	}
+
+	if (ioctl(fd, cmd, &io_regs) == -1) {
+		if (errno == ENOTTY) {
+			perror("ISST_IF_IO_COMMAND\n");
+			fprintf(stderr, "Check presence of kernel modules: isst_if_mmio\n");
+			exit(0);
+		}
+		fprintf(outf, "Error: mmio_cmd cpu:%d reg:%x read_write:%x\n",
+			cpu, reg, write);
+	} else {
+		if (!write)
+			*value = io_regs.io_reg[0].value;
+
+		debug_printf(
+			"mmio_cmd response: cpu:%d reg:%x rd_write:%x resp:%x\n",
+			cpu, reg, write, *value);
+	}
+
+	close(fd);
+
+	return 0;
+}
+
+int _send_mbox_command(unsigned int cpu, unsigned char command,
+			   unsigned char sub_command, unsigned int parameter,
+			   unsigned int req_data, unsigned int *resp)
+{
+	const char *pathname = "/dev/isst_interface";
+	int fd, retry;
+	struct isst_if_mbox_cmds mbox_cmds = { 0 };
+
+	debug_printf(
+		"mbox_send: cpu:%d command:%x sub_command:%x parameter:%x req_data:%x\n",
+		cpu, command, sub_command, parameter, req_data);
+
+	if (!is_skx_based_platform() && command == CONFIG_CLOS &&
+	    sub_command != CLOS_PM_QOS_CONFIG) {
+		unsigned int value;
+		int write = 0;
+		int clos_id, core_id, ret = 0;
+
+		debug_printf("CPU %d\n", cpu);
+
+		if (parameter & BIT(MBOX_CMD_WRITE_BIT)) {
+			value = req_data;
+			write = 1;
+		}
+
+		switch (sub_command) {
+		case CLOS_PQR_ASSOC:
+			core_id = parameter & 0xff;
+			ret = _send_mmio_command(
+				cpu, PQR_ASSOC_OFFSET + core_id * 4, write,
+				&value);
+			if (!ret && !write)
+				*resp = value;
+			break;
+		case CLOS_PM_CLOS:
+			clos_id = parameter & 0x03;
+			ret = _send_mmio_command(
+				cpu, PM_CLOS_OFFSET + clos_id * 4, write,
+				&value);
+			if (!ret && !write)
+				*resp = value;
+			break;
+		case CLOS_STATUS:
+			break;
+		default:
+			break;
+		}
+		return ret;
+	}
+
+	mbox_cmds.cmd_count = 1;
+	mbox_cmds.mbox_cmd[0].logical_cpu = cpu;
+	mbox_cmds.mbox_cmd[0].command = command;
+	mbox_cmds.mbox_cmd[0].sub_command = sub_command;
+	mbox_cmds.mbox_cmd[0].parameter = parameter;
+	mbox_cmds.mbox_cmd[0].req_data = req_data;
+
+	if (mbox_delay)
+		usleep(mbox_delay * 1000);
+
+	fd = open(pathname, O_RDWR);
+	if (fd < 0)
+		err(-1, "%s open failed", pathname);
+
+	retry = mbox_retries;
+	do {
+		if (ioctl(fd, ISST_IF_MBOX_COMMAND, &mbox_cmds) == -1) {
+			if (errno == ENOTTY) {
+				perror("ISST_IF_MBOX_COMMAND\n");
+				fprintf(stderr, "Check presence of kernel modules: isst_if_mbox_pci or isst_if_mbox_msr\n");
+				exit(0);
+			}
+			debug_printf(
+				"Error: mbox_cmd cpu:%d command:%x sub_command:%x parameter:%x req_data:%x errorno:%d\n",
+				cpu, command, sub_command, parameter, req_data, errno);
+			--retry;
+		} else {
+			*resp = mbox_cmds.mbox_cmd[0].resp_data;
+			debug_printf(
+				"mbox_cmd response: cpu:%d command:%x sub_command:%x parameter:%x req_data:%x resp:%x\n",
+				cpu, command, sub_command, parameter, req_data, *resp);
+			break;
+		}
+	} while (retry);
+
+	close(fd);
+
+	if (!retry) {
+		debug_printf("Failed mbox command even after retries\n");
+		return -1;
+
+	}
+
+	return 0;
+}
+
 static int mbox_read_pm_config(struct isst_id *id, int *cp_state, int *cp_cap)
 {
 	unsigned int resp;
 	int ret;
 
-	ret = isst_send_mbox_command(id->cpu, READ_PM_CONFIG, PM_FEATURE, 0, 0,
+	ret = _send_mbox_command(id->cpu, READ_PM_CONFIG, PM_FEATURE, 0, 0,
 					&resp);
 	if (ret)
 		return ret;
@@ -63,7 +224,7 @@ static int mbox_get_config_levels(struct isst_id *id, struct isst_pkg_ctdp *pkg_
 	unsigned int resp;
 	int ret;
 
-	ret = isst_send_mbox_command(id->cpu, CONFIG_TDP,
+	ret = _send_mbox_command(id->cpu, CONFIG_TDP,
 				     CONFIG_TDP_GET_LEVELS_INFO, 0, 0, &resp);
 	if (ret) {
 		pkg_dev->levels = 0;
@@ -92,7 +253,7 @@ static int mbox_get_ctdp_control(struct isst_id *id, int config_index,
 	unsigned int resp;
 	int ret;
 
-	ret = isst_send_mbox_command(id->cpu, CONFIG_TDP,
+	ret = _send_mbox_command(id->cpu, CONFIG_TDP,
 				     CONFIG_TDP_GET_TDP_CONTROL, 0,
 				     config_index, &resp);
 	if (ret)
@@ -130,7 +291,7 @@ static void _get_uncore_p0_p1_info(struct isst_id *id, int config_index,
 	ctdp_level->uncore_p0 = 0;
 	ctdp_level->uncore_p1 = 0;
 
-	ret = isst_send_mbox_command(id->cpu, CONFIG_TDP,
+	ret = _send_mbox_command(id->cpu, CONFIG_TDP,
 				     CONFIG_TDP_GET_RATIO_INFO, 0,
 				     (BIT(16) | config_index) , &resp);
 	if (ret) {
@@ -149,7 +310,7 @@ static void _get_uncore_p0_p1_info(struct isst_id *id, int config_index,
 	return;
 
 try_uncore_mbox:
-	ret = isst_send_mbox_command(id->cpu, CONFIG_TDP,
+	ret = _send_mbox_command(id->cpu, CONFIG_TDP,
 				     CONFIG_TDP_GET_UNCORE_P0_P1_INFO, 0,
 				     config_index, &resp);
 	if (ret) {
@@ -210,7 +371,7 @@ static void _get_p1_info(struct isst_id *id, int config_index,
 {
 	unsigned int resp;
 	int ret;
-	ret = isst_send_mbox_command(id->cpu, CONFIG_TDP, CONFIG_TDP_GET_P1_INFO, 0,
+	ret = _send_mbox_command(id->cpu, CONFIG_TDP, CONFIG_TDP_GET_P1_INFO, 0,
 				     config_index, &resp);
 	if (ret) {
 		ctdp_level->sse_p1 = 0;
@@ -234,7 +395,7 @@ static void _get_uncore_mem_freq(struct isst_id *id, int config_index,
 	unsigned int resp;
 	int ret;
 
-	ret = isst_send_mbox_command(id->cpu, CONFIG_TDP, CONFIG_TDP_GET_MEM_FREQ,
+	ret = _send_mbox_command(id->cpu, CONFIG_TDP, CONFIG_TDP_GET_MEM_FREQ,
 				     0, config_index, &resp);
 	if (ret) {
 		ctdp_level->mem_freq = 0;
@@ -267,7 +428,7 @@ static int mbox_get_tdp_info(struct isst_id *id, int config_index,
 	unsigned int resp;
 	int ret;
 
-	ret = isst_send_mbox_command(id->cpu, CONFIG_TDP, CONFIG_TDP_GET_TDP_INFO,
+	ret = _send_mbox_command(id->cpu, CONFIG_TDP, CONFIG_TDP_GET_TDP_INFO,
 				     0, config_index, &resp);
 	if (ret) {
 		isst_display_error_info_message(1, "Invalid level, Can't get TDP information at level", 1, config_index);
@@ -282,7 +443,7 @@ static int mbox_get_tdp_info(struct isst_id *id, int config_index,
 		id->cpu, config_index, resp, ctdp_level->tdp_ratio,
 		ctdp_level->pkg_tdp);
 
-	ret = isst_send_mbox_command(id->cpu, CONFIG_TDP, CONFIG_TDP_GET_TJMAX_INFO,
+	ret = _send_mbox_command(id->cpu, CONFIG_TDP, CONFIG_TDP_GET_TJMAX_INFO,
 				     0, config_index, &resp);
 	if (ret)
 		return ret;
@@ -306,7 +467,7 @@ static int mbox_get_pwr_info(struct isst_id *id, int config_index,
 	unsigned int resp;
 	int ret;
 
-	ret = isst_send_mbox_command(id->cpu, CONFIG_TDP, CONFIG_TDP_GET_PWR_INFO,
+	ret = _send_mbox_command(id->cpu, CONFIG_TDP, CONFIG_TDP_GET_PWR_INFO,
 				     0, config_index, &resp);
 	if (ret)
 		return ret;
@@ -333,7 +494,7 @@ static int mbox_get_coremask_info(struct isst_id *id, int config_index,
 		unsigned long long mask;
 		int cpu_count = 0;
 
-		ret = isst_send_mbox_command(id->cpu, CONFIG_TDP,
+		ret = _send_mbox_command(id->cpu, CONFIG_TDP,
 					     CONFIG_TDP_GET_CORE_MASK, 0,
 					     (i << 8) | config_index, &resp);
 		if (ret)
@@ -362,7 +523,7 @@ static int mbox_get_get_trl(struct isst_id *id, int level, int avx_level, int *t
 	int ret;
 
 	req = level | (avx_level << 16);
-	ret = isst_send_mbox_command(id->cpu, CONFIG_TDP,
+	ret = _send_mbox_command(id->cpu, CONFIG_TDP,
 				     CONFIG_TDP_GET_TURBO_LIMIT_RATIOS, 0, req,
 				     &resp);
 	if (ret)
@@ -378,7 +539,7 @@ static int mbox_get_get_trl(struct isst_id *id, int level, int avx_level, int *t
 	trl[3] = (resp & GENMASK(31, 24)) >> 24;
 
 	req = level | BIT(8) | (avx_level << 16);
-	ret = isst_send_mbox_command(id->cpu, CONFIG_TDP,
+	ret = _send_mbox_command(id->cpu, CONFIG_TDP,
 				     CONFIG_TDP_GET_TURBO_LIMIT_RATIOS, 0, req,
 				     &resp);
 	if (ret)
@@ -438,7 +599,7 @@ static int mbox_set_tdp_level(struct isst_id *id, int tdp_level)
 
 	}
 
-	ret = isst_send_mbox_command(id->cpu, CONFIG_TDP, CONFIG_TDP_SET_LEVEL, 0,
+	ret = _send_mbox_command(id->cpu, CONFIG_TDP, CONFIG_TDP_SET_LEVEL, 0,
 				     tdp_level, &resp);
 	if (ret) {
 		isst_display_error_info_message(1, "Set TDP level failed for level", 1, tdp_level);
@@ -461,7 +622,7 @@ static int mbox_get_pbf_info(struct isst_id *id, int level, struct isst_pbf_info
 		unsigned long long mask;
 		int count;
 
-		ret = isst_send_mbox_command(id->cpu, CONFIG_TDP,
+		ret = _send_mbox_command(id->cpu, CONFIG_TDP,
 					     CONFIG_TDP_PBF_GET_CORE_MASK_INFO,
 					     0, (i << 8) | level, &resp);
 		if (ret)
@@ -479,7 +640,7 @@ static int mbox_get_pbf_info(struct isst_id *id, int level, struct isst_pbf_info
 	}
 
 	req = level;
-	ret = isst_send_mbox_command(id->cpu, CONFIG_TDP,
+	ret = _send_mbox_command(id->cpu, CONFIG_TDP,
 				     CONFIG_TDP_PBF_GET_P1HI_P1LO_INFO, 0, req,
 				     &resp);
 	if (ret)
@@ -492,7 +653,7 @@ static int mbox_get_pbf_info(struct isst_id *id, int level, struct isst_pbf_info
 	pbf_info->p1_high = (resp & GENMASK(15, 8)) >> 8;
 
 	req = level;
-	ret = isst_send_mbox_command(
+	ret = _send_mbox_command(
 		id->cpu, CONFIG_TDP, CONFIG_TDP_PBF_GET_TDP_INFO, 0, req, &resp);
 	if (ret)
 		return ret;
@@ -502,7 +663,7 @@ static int mbox_get_pbf_info(struct isst_id *id, int level, struct isst_pbf_info
 	pbf_info->tdp = resp & 0xffff;
 
 	req = level;
-	ret = isst_send_mbox_command(
+	ret = _send_mbox_command(
 		id->cpu, CONFIG_TDP, CONFIG_TDP_PBF_GET_TJ_MAX_INFO, 0, req, &resp);
 	if (ret)
 		return ret;
@@ -555,7 +716,7 @@ static int mbox_set_pbf_fact_status(struct isst_id *id, int pbf, int enable)
 			req &= ~BIT(16);
 	}
 
-	ret = isst_send_mbox_command(id->cpu, CONFIG_TDP,
+	ret = _send_mbox_command(id->cpu, CONFIG_TDP,
 				     CONFIG_TDP_SET_TDP_CONTROL, 0, req, &resp);
 	if (ret)
 		return ret;
@@ -575,7 +736,7 @@ static int _get_fact_bucket_info(struct isst_id *id, int level,
 	for (i = 0; i < 2; ++i) {
 		int j;
 
-		ret = isst_send_mbox_command(
+		ret = _send_mbox_command(
 			id->cpu, CONFIG_TDP,
 			CONFIG_TDP_GET_FACT_HP_TURBO_LIMIT_NUMCORES, 0,
 			(i << 8) | level, &resp);
@@ -596,7 +757,7 @@ static int _get_fact_bucket_info(struct isst_id *id, int level,
 		for (i = 0; i < 2; ++i) {
 			int j;
 
-			ret = isst_send_mbox_command(
+			ret = _send_mbox_command(
 				id->cpu, CONFIG_TDP,
 				CONFIG_TDP_GET_FACT_HP_TURBO_LIMIT_RATIOS, 0,
 				(k << 16) | (i << 8) | level, &resp);
@@ -622,7 +783,7 @@ static int mbox_get_fact_info(struct isst_id *id, int level, int fact_bucket, st
 	unsigned int resp;
 	int j, ret, print;
 
-	ret = isst_send_mbox_command(id->cpu, CONFIG_TDP,
+	ret = _send_mbox_command(id->cpu, CONFIG_TDP,
 				     CONFIG_TDP_GET_FACT_LP_CLIPPING_RATIO, 0,
 				     level, &resp);
 	if (ret)
@@ -662,7 +823,7 @@ static int mbox_get_clos_information(struct isst_id *id, int *enable, int *type)
 	unsigned int resp;
 	int ret;
 
-	ret = isst_send_mbox_command(id->cpu, CONFIG_CLOS, CLOS_PM_QOS_CONFIG, 0, 0,
+	ret = _send_mbox_command(id->cpu, CONFIG_CLOS, CLOS_PM_QOS_CONFIG, 0, 0,
 				     &resp);
 	if (ret)
 		return ret;
@@ -692,7 +853,7 @@ static int _write_pm_config(struct isst_id *id, int cp_state)
 	else
 		req = 0;
 
-	ret = isst_send_mbox_command(id->cpu, WRITE_PM_CONFIG, PM_FEATURE, 0, req,
+	ret = _send_mbox_command(id->cpu, WRITE_PM_CONFIG, PM_FEATURE, 0, req,
 				     &resp);
 	if (ret)
 		return ret;
@@ -735,7 +896,7 @@ static int mbox_pm_qos_config(struct isst_id *id, int enable_clos, int priority_
 			isst_display_error_info_message(0, "WRITE_PM_CONFIG command failed, ignoring error", 0, 0);
 	}
 
-	ret = isst_send_mbox_command(id->cpu, CONFIG_CLOS, CLOS_PM_QOS_CONFIG, 0, 0,
+	ret = _send_mbox_command(id->cpu, CONFIG_CLOS, CLOS_PM_QOS_CONFIG, 0, 0,
 				     &resp);
 	if (ret) {
 		isst_display_error_info_message(1, "CLOS_PM_QOS_CONFIG command failed", 0, 0);
@@ -759,7 +920,7 @@ static int mbox_pm_qos_config(struct isst_id *id, int enable_clos, int priority_
 	else
 		req = req & ~BIT(2);
 
-	ret = isst_send_mbox_command(id->cpu, CONFIG_CLOS, CLOS_PM_QOS_CONFIG,
+	ret = _send_mbox_command(id->cpu, CONFIG_CLOS, CLOS_PM_QOS_CONFIG,
 				     BIT(MBOX_CMD_WRITE_BIT), req, &resp);
 	if (ret)
 		return ret;
@@ -775,7 +936,7 @@ static int mbox_pm_get_clos(struct isst_id *id, int clos, struct isst_clos_confi
 	unsigned int resp;
 	int ret;
 
-	ret = isst_send_mbox_command(id->cpu, CONFIG_CLOS, CLOS_PM_CLOS, clos, 0,
+	ret = _send_mbox_command(id->cpu, CONFIG_CLOS, CLOS_PM_CLOS, clos, 0,
 				     &resp);
 	if (ret)
 		return ret;
@@ -803,7 +964,7 @@ static int mbox_set_clos(struct isst_id *id, int clos, struct isst_clos_config *
 
 	param = BIT(MBOX_CMD_WRITE_BIT) | clos;
 
-	ret = isst_send_mbox_command(id->cpu, CONFIG_CLOS, CLOS_PM_CLOS, param, req,
+	ret = _send_mbox_command(id->cpu, CONFIG_CLOS, CLOS_PM_CLOS, param, req,
 				     &resp);
 	if (ret)
 		return ret;
@@ -822,7 +983,7 @@ static int mbox_clos_get_assoc_status(struct isst_id *id, int *clos_id)
 	core_id = find_phy_core_num(id->cpu);
 	param = core_id;
 
-	ret = isst_send_mbox_command(id->cpu, CONFIG_CLOS, CLOS_PQR_ASSOC, param, 0,
+	ret = _send_mbox_command(id->cpu, CONFIG_CLOS, CLOS_PQR_ASSOC, param, 0,
 				     &resp);
 	if (ret)
 		return ret;
@@ -844,7 +1005,7 @@ static int mbox_clos_associate(struct isst_id *id, int clos_id)
 	core_id = find_phy_core_num(id->cpu);
 	param = BIT(MBOX_CMD_WRITE_BIT) | core_id;
 
-	ret = isst_send_mbox_command(id->cpu, CONFIG_CLOS, CLOS_PQR_ASSOC, param,
+	ret = _send_mbox_command(id->cpu, CONFIG_CLOS, CLOS_PQR_ASSOC, param,
 				     req, &resp);
 	if (ret)
 		return ret;
@@ -859,6 +1020,7 @@ static struct isst_platform_ops mbox_ops = {
 	.get_disp_freq_multiplier = mbox_get_disp_freq_multiplier,
 	.get_trl_max_levels = mbox_get_trl_max_levels,
 	.get_trl_level_name = mbox_get_trl_level_name,
+	.update_platform_param = mbox_update_platform_param,
 	.is_punit_valid = mbox_is_punit_valid,
 	.read_pm_config = mbox_read_pm_config,
 	.get_config_levels = mbox_get_config_levels,

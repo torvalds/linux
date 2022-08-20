@@ -6,9 +6,6 @@
 
 #include "isst.h"
 
-static int mbox_delay;
-static int mbox_retries = 3;
-
 static struct isst_platform_ops		*isst_ops;
 
 #define CHECK_CB(_name)	\
@@ -30,16 +27,9 @@ int isst_set_platform_ops(void)
 
 void isst_update_platform_param(enum isst_platform_param param, int value)
 {
-	switch (param) {
-	case ISST_PARAM_MBOX_DELAY:
-		mbox_delay = value;
-		break;
-	case ISST_PARAM_MBOX_RETRIES:
-		mbox_retries = value;
-		break;
-	default:
-		break;
-	}
+	CHECK_CB(update_platform_param);
+
+	isst_ops->update_platform_param(param, value);
 }
 
 int isst_get_disp_freq_multiplier(void)
@@ -64,150 +54,6 @@ int isst_is_punit_valid(struct isst_id *id)
 {
 	CHECK_CB(is_punit_valid);
 	return isst_ops->is_punit_valid(id);
-}
-
-static int isst_send_mmio_command(unsigned int cpu, unsigned int reg, int write,
-				  unsigned int *value)
-{
-	struct isst_if_io_regs io_regs;
-	const char *pathname = "/dev/isst_interface";
-	int cmd;
-	FILE *outf = get_output_file();
-	int fd;
-
-	debug_printf("mmio_cmd cpu:%d reg:%d write:%d\n", cpu, reg, write);
-
-	fd = open(pathname, O_RDWR);
-	if (fd < 0)
-		err(-1, "%s open failed", pathname);
-
-	io_regs.req_count = 1;
-	io_regs.io_reg[0].logical_cpu = cpu;
-	io_regs.io_reg[0].reg = reg;
-	cmd = ISST_IF_IO_CMD;
-	if (write) {
-		io_regs.io_reg[0].read_write = 1;
-		io_regs.io_reg[0].value = *value;
-	} else {
-		io_regs.io_reg[0].read_write = 0;
-	}
-
-	if (ioctl(fd, cmd, &io_regs) == -1) {
-		if (errno == ENOTTY) {
-			perror("ISST_IF_IO_COMMAND\n");
-			fprintf(stderr, "Check presence of kernel modules: isst_if_mmio\n");
-			exit(0);
-		}
-		fprintf(outf, "Error: mmio_cmd cpu:%d reg:%x read_write:%x\n",
-			cpu, reg, write);
-	} else {
-		if (!write)
-			*value = io_regs.io_reg[0].value;
-
-		debug_printf(
-			"mmio_cmd response: cpu:%d reg:%x rd_write:%x resp:%x\n",
-			cpu, reg, write, *value);
-	}
-
-	close(fd);
-
-	return 0;
-}
-
-int isst_send_mbox_command(unsigned int cpu, unsigned char command,
-			   unsigned char sub_command, unsigned int parameter,
-			   unsigned int req_data, unsigned int *resp)
-{
-	const char *pathname = "/dev/isst_interface";
-	int fd, retry;
-	struct isst_if_mbox_cmds mbox_cmds = { 0 };
-
-	debug_printf(
-		"mbox_send: cpu:%d command:%x sub_command:%x parameter:%x req_data:%x\n",
-		cpu, command, sub_command, parameter, req_data);
-
-	if (!is_skx_based_platform() && command == CONFIG_CLOS &&
-	    sub_command != CLOS_PM_QOS_CONFIG) {
-		unsigned int value;
-		int write = 0;
-		int clos_id, core_id, ret = 0;
-
-		debug_printf("CPU %d\n", cpu);
-
-		if (parameter & BIT(MBOX_CMD_WRITE_BIT)) {
-			value = req_data;
-			write = 1;
-		}
-
-		switch (sub_command) {
-		case CLOS_PQR_ASSOC:
-			core_id = parameter & 0xff;
-			ret = isst_send_mmio_command(
-				cpu, PQR_ASSOC_OFFSET + core_id * 4, write,
-				&value);
-			if (!ret && !write)
-				*resp = value;
-			break;
-		case CLOS_PM_CLOS:
-			clos_id = parameter & 0x03;
-			ret = isst_send_mmio_command(
-				cpu, PM_CLOS_OFFSET + clos_id * 4, write,
-				&value);
-			if (!ret && !write)
-				*resp = value;
-			break;
-		case CLOS_STATUS:
-			break;
-		default:
-			break;
-		}
-		return ret;
-	}
-
-	mbox_cmds.cmd_count = 1;
-	mbox_cmds.mbox_cmd[0].logical_cpu = cpu;
-	mbox_cmds.mbox_cmd[0].command = command;
-	mbox_cmds.mbox_cmd[0].sub_command = sub_command;
-	mbox_cmds.mbox_cmd[0].parameter = parameter;
-	mbox_cmds.mbox_cmd[0].req_data = req_data;
-
-	if (mbox_delay)
-		usleep(mbox_delay * 1000);
-
-	fd = open(pathname, O_RDWR);
-	if (fd < 0)
-		err(-1, "%s open failed", pathname);
-
-	retry = mbox_retries;
-
-	do {
-		if (ioctl(fd, ISST_IF_MBOX_COMMAND, &mbox_cmds) == -1) {
-			if (errno == ENOTTY) {
-				perror("ISST_IF_MBOX_COMMAND\n");
-				fprintf(stderr, "Check presence of kernel modules: isst_if_mbox_pci or isst_if_mbox_msr\n");
-				exit(0);
-			}
-			debug_printf(
-				"Error: mbox_cmd cpu:%d command:%x sub_command:%x parameter:%x req_data:%x errorno:%d\n",
-				cpu, command, sub_command, parameter, req_data, errno);
-			--retry;
-		} else {
-			*resp = mbox_cmds.mbox_cmd[0].resp_data;
-			debug_printf(
-				"mbox_cmd response: cpu:%d command:%x sub_command:%x parameter:%x req_data:%x resp:%x\n",
-				cpu, command, sub_command, parameter, req_data, *resp);
-			break;
-		}
-	} while (retry);
-
-	close(fd);
-
-	if (!retry) {
-		debug_printf("Failed mbox command even after retries\n");
-		return -1;
-
-	}
-	return 0;
 }
 
 int isst_send_msr_command(unsigned int cpu, unsigned int msr, int write,
