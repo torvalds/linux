@@ -181,6 +181,12 @@ enum isst_platform_param {
 	ISST_PARAM_MBOX_RETRIES,
 };
 
+struct isst_platform_ops {
+	int (*get_disp_freq_multiplier)(void);
+	int (*get_trl_max_levels)(void);
+	char *(*get_trl_level_name)(int level);
+};
+
 extern int is_cpu_in_power_domain(int cpu, struct isst_id *id);
 extern int get_topo_max_cpus(void);
 extern int get_cpu_count(struct isst_id *id);
@@ -207,6 +213,7 @@ extern int isst_send_mbox_command(unsigned int cpu, unsigned char command,
 extern int isst_send_msr_command(unsigned int cpu, unsigned int command,
 				 int write, unsigned long long *req_resp);
 
+extern int isst_set_platform_ops(void);
 extern void isst_update_platform_param(enum isst_platform_param, int vale);
 extern int isst_get_disp_freq_multiplier(void);
 extern int isst_get_trl_max_levels(void);
@@ -285,4 +292,8 @@ extern int isst_daemon(int debug_mode, int poll_interval, int no_daemon);
 extern void process_level_change(struct isst_id *id);
 extern int hfi_main(void);
 extern void hfi_exit(void);
+
+/* Interface specific callbacks */
+extern struct isst_platform_ops *mbox_get_platform_ops(void);
+
 #endif

@@ -9,6 +9,25 @@
 static int mbox_delay;
 static int mbox_retries = 3;
 
+static struct isst_platform_ops		*isst_ops;
+
+#define CHECK_CB(_name)	\
+	do {	\
+		if (!isst_ops || !isst_ops->_name) {	\
+			fprintf(stderr, "Invalid ops\n");	\
+			exit(0);	\
+		}	\
+	} while (0)
+
+int isst_set_platform_ops(void)
+{
+	isst_ops = mbox_get_platform_ops();
+
+	if (!isst_ops)
+		return -1;
+	return 0;
+}
+
 void isst_update_platform_param(enum isst_platform_param param, int value)
 {
 	switch (param) {
@@ -25,26 +44,20 @@ void isst_update_platform_param(enum isst_platform_param param, int value)
 
 int isst_get_disp_freq_multiplier(void)
 {
-	return DISP_FREQ_MULTIPLIER;
+	CHECK_CB(get_disp_freq_multiplier);
+	return isst_ops->get_disp_freq_multiplier();
 }
 
 int isst_get_trl_max_levels(void)
 {
-	return 3;
+	CHECK_CB(get_trl_max_levels);
+	return isst_ops->get_trl_max_levels();
 }
 
 char *isst_get_trl_level_name(int level)
 {
-	switch (level) {
-	case 0:
-		return "sse";
-	case 1:
-		return "avx2";
-	case 2:
-		return "avx512";
-	default:
-		return NULL;
-	}
+	CHECK_CB(get_trl_level_name);
+	return isst_ops->get_trl_level_name(level);
 }
 
 int isst_is_punit_valid(struct isst_id *id)

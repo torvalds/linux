@@ -804,7 +804,7 @@ static int isst_fill_platform_info(void)
 	int fd;
 
 	if (is_clx_n_platform())
-		return 0;
+		goto set_platform_ops;
 
 	fd = open(pathname, O_RDWR);
 	if (fd < 0)
@@ -821,6 +821,12 @@ static int isst_fill_platform_info(void)
 	if (isst_platform_info.api_version > supported_api_ver) {
 		printf("Incompatible API versions; Upgrade of tool is required\n");
 		return -1;
+	}
+
+set_platform_ops:
+	if (isst_set_platform_ops()) {
+		fprintf(stderr, "Failed to set platform callbacks\n");
+		exit(0);
 	}
 	return 0;
 }
