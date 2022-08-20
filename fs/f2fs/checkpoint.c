@@ -89,7 +89,7 @@ repeat:
 		return ERR_PTR(err);
 	}
 
-	f2fs_update_iostat(sbi, FS_META_READ_IO, F2FS_BLKSIZE);
+	f2fs_update_iostat(sbi, NULL, FS_META_READ_IO, F2FS_BLKSIZE);
 
 	lock_page(page);
 	if (unlikely(page->mapping != mapping)) {
@@ -276,7 +276,8 @@ int f2fs_ra_meta_pages(struct f2fs_sb_info *sbi, block_t start, int nrpages,
 		f2fs_put_page(page, err ? 1 : 0);
 
 		if (!err)
-			f2fs_update_iostat(sbi, FS_META_READ_IO, F2FS_BLKSIZE);
+			f2fs_update_iostat(sbi, NULL, FS_META_READ_IO,
+							F2FS_BLKSIZE);
 	}
 out:
 	blk_finish_plug(&plug);

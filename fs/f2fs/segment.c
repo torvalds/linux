@@ -1171,7 +1171,7 @@ submit:
 
 		atomic_inc(&dcc->issued_discard);
 
-		f2fs_update_iostat(sbi, FS_DISCARD, 1);
+		f2fs_update_iostat(sbi, NULL, FS_DISCARD, 1);
 
 		lstart += len;
 		start += len;
@@ -3388,7 +3388,7 @@ void f2fs_do_write_meta_page(struct f2fs_sb_info *sbi, struct page *page,
 	f2fs_submit_page_write(&fio);
 
 	stat_inc_meta_count(sbi, page->index);
-	f2fs_update_iostat(sbi, io_type, F2FS_BLKSIZE);
+	f2fs_update_iostat(sbi, NULL, io_type, F2FS_BLKSIZE);
 }
 
 void f2fs_do_write_node_page(unsigned int nid, struct f2fs_io_info *fio)
@@ -3398,7 +3398,7 @@ void f2fs_do_write_node_page(unsigned int nid, struct f2fs_io_info *fio)
 	set_summary(&sum, nid, 0, 0);
 	do_write_page(&sum, fio);
 
-	f2fs_update_iostat(fio->sbi, fio->io_type, F2FS_BLKSIZE);
+	f2fs_update_iostat(fio->sbi, NULL, fio->io_type, F2FS_BLKSIZE);
 }
 
 void f2fs_outplace_write_data(struct dnode_of_data *dn,
@@ -3412,7 +3412,7 @@ void f2fs_outplace_write_data(struct dnode_of_data *dn,
 	do_write_page(&sum, fio);
 	f2fs_update_data_blkaddr(dn, fio->new_blkaddr);
 
-	f2fs_update_iostat(sbi, fio->io_type, F2FS_BLKSIZE);
+	f2fs_update_iostat(sbi, dn->inode, fio->io_type, F2FS_BLKSIZE);
 }
 
 int f2fs_inplace_write_data(struct f2fs_io_info *fio)
@@ -3453,7 +3453,8 @@ int f2fs_inplace_write_data(struct f2fs_io_info *fio)
 	if (!err) {
 		f2fs_update_device_state(fio->sbi, fio->ino,
 						fio->new_blkaddr, 1);
-		f2fs_update_iostat(fio->sbi, fio->io_type, F2FS_BLKSIZE);
+		f2fs_update_iostat(fio->sbi, fio->page->mapping->host,
+						fio->io_type, F2FS_BLKSIZE);
 	}
 
 	return err;

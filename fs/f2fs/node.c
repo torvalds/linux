@@ -1369,7 +1369,7 @@ static int read_node_page(struct page *page, blk_opf_t op_flags)
 	err = f2fs_submit_page_bio(&fio);
 
 	if (!err)
-		f2fs_update_iostat(sbi, FS_NODE_READ_IO, F2FS_BLKSIZE);
+		f2fs_update_iostat(sbi, NULL, FS_NODE_READ_IO, F2FS_BLKSIZE);
 
 	return err;
 }
