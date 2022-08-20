@@ -1430,14 +1430,11 @@ endif
 
 # Build modules
 #
-# A module can be listed more than once in obj-m resulting in
-# duplicate lines in modules.order files.  Those are removed
-# using awk while concatenating to the final file.
 
 PHONY += modules
 modules: $(if $(KBUILD_BUILTIN),vmlinux) modules_check modules_prepare
 
-cmd_modules_order = $(AWK) '!x[$$0]++' $(real-prereqs) > $@
+cmd_modules_order = cat $(real-prereqs) > $@
 
 modules.order: $(subdir-modorder) FORCE
 	$(call if_changed,modules_order)

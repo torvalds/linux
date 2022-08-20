@@ -374,7 +374,7 @@ $(obj)/built-in.a: $(real-obj-y) FORCE
 
 cmd_modules_order = { $(foreach m, $(real-prereqs), \
 	$(if $(filter %/modules.order, $m), cat $m, echo $(patsubst %.o,%.ko,$m));) :; } \
-	| $(AWK) '!x[$$0]++' - > $@
+	> $@
 
 $(obj)/modules.order: $(obj-m) FORCE
 	$(call if_changed,modules_order)
