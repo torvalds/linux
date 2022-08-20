@@ -803,6 +803,9 @@ static int isst_fill_platform_info(void)
 	const char *pathname = "/dev/isst_interface";
 	int fd;
 
+	if (is_clx_n_platform())
+		return 0;
+
 	fd = open(pathname, O_RDWR);
 	if (fd < 0)
 		err(-1, "%s open failed", pathname);
@@ -911,10 +914,6 @@ static void isst_print_extended_platform_info(void)
 
 static void isst_print_platform_information(void)
 {
-	struct isst_if_platform_info platform_info;
-	const char *pathname = "/dev/isst_interface";
-	int fd;
-
 	if (is_clx_n_platform()) {
 		fprintf(stderr, "\nThis option in not supported on this platform\n");
 		exit(0);
@@ -924,25 +923,15 @@ static void isst_print_platform_information(void)
 	set_max_cpu_num();
 	create_cpu_map();
 
-	fd = open(pathname, O_RDWR);
-	if (fd < 0)
-		err(-1, "%s open failed", pathname);
-
-	if (ioctl(fd, ISST_IF_GET_PLATFORM_INFO, &platform_info) == -1) {
-		perror("ISST_IF_GET_PLATFORM_INFO");
-	} else {
-		fprintf(outf, "Platform: API version : %d\n",
-			platform_info.api_version);
-		fprintf(outf, "Platform: Driver version : %d\n",
-			platform_info.driver_version);
-		fprintf(outf, "Platform: mbox supported : %d\n",
-			platform_info.mbox_supported);
-		fprintf(outf, "Platform: mmio supported : %d\n",
-			platform_info.mmio_supported);
-		isst_print_extended_platform_info();
-	}
-
-	close(fd);
+	fprintf(outf, "Platform: API version : %d\n",
+		isst_platform_info.api_version);
+	fprintf(outf, "Platform: Driver version : %d\n",
+		isst_platform_info.driver_version);
+	fprintf(outf, "Platform: mbox supported : %d\n",
+		isst_platform_info.mbox_supported);
+	fprintf(outf, "Platform: mmio supported : %d\n",
+		isst_platform_info.mmio_supported);
+	isst_print_extended_platform_info();
 
 	exit(0);
 }
@@ -2832,6 +2821,10 @@ static void cmdline(int argc, char **argv)
 		fclose(fp);
 	}
 
+	ret = isst_fill_platform_info();
+	if (ret)
+		goto out;
+
 	progname = argv[0];
 	while ((opt = getopt_long_only(argc, argv, "+c:df:hio:vabw:n", long_options,
 				       &option_index)) != -1) {
@@ -2922,9 +2915,6 @@ static void cmdline(int argc, char **argv)
 	}
 
 	if (!is_clx_n_platform()) {
-		ret = isst_fill_platform_info();
-		if (ret)
-			goto out;
 		process_command(argc, argv, isst_help_cmds, isst_cmds);
 	} else {
 		process_command(argc, argv, clx_n_help_cmds, clx_n_cmds);
