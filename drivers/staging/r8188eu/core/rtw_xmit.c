@@ -229,7 +229,7 @@ exit:
 	return res;
 }
 
-static void rtw_os_pkt_complete(struct adapter *padapter, struct sk_buff *pkt)
+static void rtw_pkt_complete(struct adapter *padapter, struct sk_buff *pkt)
 {
 	u16 queue;
 	struct xmit_priv *pxmitpriv = &padapter->xmitpriv;
@@ -250,7 +250,7 @@ static void rtw_os_pkt_complete(struct adapter *padapter, struct sk_buff *pkt)
 void rtw_xmit_complete(struct adapter *padapter, struct xmit_frame *pxframe)
 {
 	if (pxframe->pkt)
-		rtw_os_pkt_complete(padapter, pxframe->pkt);
+		rtw_pkt_complete(padapter, pxframe->pkt);
 	pxframe->pkt = NULL;
 }
 
@@ -1376,7 +1376,7 @@ s32 rtw_free_xmitframe(struct xmit_priv *pxmitpriv, struct xmit_frame *pxmitfram
 	spin_unlock_bh(&pfree_xmit_queue->lock);
 
 	if (pndis_pkt)
-		rtw_os_pkt_complete(padapter, pndis_pkt);
+		rtw_pkt_complete(padapter, pndis_pkt);
 
 exit:
 
