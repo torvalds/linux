@@ -3,12 +3,13 @@
 menu "Accelerated Cryptographic Algorithms for CPU (mips)"
 
 config CRYPTO_CRC32_MIPS
-	tristate "CRC32c and CRC32 CRC algorithm (MIPS)"
+	tristate "CRC32c and CRC32"
 	depends on MIPS_CRC_SUPPORT
 	select CRYPTO_HASH
 	help
-	  CRC32c and CRC32 CRC algorithms implemented using mips crypto
-	  instructions, when available.
+	  CRC32c and CRC32 CRC algorithms
+
+	  Architecture: mips
 
 config CRYPTO_POLY1305_MIPS
 	tristate "Poly1305 authenticator algorithm (MIPS optimized)"

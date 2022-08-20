@@ -13,13 +13,14 @@ config CRYPTO_DES_SPARC64
 	  optimized using SPARC64 crypto opcodes.
 
 config CRYPTO_CRC32C_SPARC64
-	tristate "CRC32c CRC algorithm (SPARC64)"
+	tristate "CRC32c"
 	depends on SPARC64
 	select CRYPTO_HASH
 	select CRC32
 	help
-	  CRC32c CRC algorithm implemented using sparc64 crypto instructions,
-	  when available.
+	  CRC32c CRC algorithm with the iSCSI polynomial (RFC 3385 and RFC 3720)
+
+	  Architecture: sparc64
 
 config CRYPTO_MD5_SPARC64
 	tristate "MD5 digest algorithm (SPARC64)"

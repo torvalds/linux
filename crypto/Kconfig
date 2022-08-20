@@ -1093,34 +1093,47 @@ endmenu
 menu "CRCs (cyclic redundancy checks)"
 
 config CRYPTO_CRC32C
-	tristate "CRC32c CRC algorithm"
+	tristate "CRC32c"
 	select CRYPTO_HASH
 	select CRC32
 	help
-	  Castagnoli, et al Cyclic Redundancy-Check Algorithm.  Used
-	  by iSCSI for header and data digests and by others.
-	  See Castagnoli93.  Module will be crc32c.
+	  CRC32c CRC algorithm with the iSCSI polynomial (RFC 3385 and RFC 3720)
+
+	  A 32-bit CRC (cyclic redundancy check) with a polynomial defined
+	  by G. Castagnoli, S. Braeuer and M. Herrman in "Optimization of Cyclic
+	  Redundancy-Check Codes with 24 and 32 Parity Bits", IEEE Transactions
+	  on Communications, Vol. 41, No. 6, June 1993, selected for use with
+	  iSCSI.
+
+	  Used by btrfs, ext4, jbd2, NVMeoF/TCP, and iSCSI.
 
 config CRYPTO_CRC32
-	tristate "CRC32 CRC algorithm"
+	tristate "CRC32"
 	select CRYPTO_HASH
 	select CRC32
 	help
-	  CRC-32-IEEE 802.3 cyclic redundancy-check algorithm.
-	  Shash crypto api wrappers to crc32_le function.
+	  CRC32 CRC algorithm (IEEE 802.3)
+
+	  Used by RoCEv2 and f2fs.
 
 config CRYPTO_CRCT10DIF
-	tristate "CRCT10DIF algorithm"
+	tristate "CRCT10DIF"
 	select CRYPTO_HASH
 	help
-	  CRC T10 Data Integrity Field computation is being cast as
-	  a crypto transform.  This allows for faster crc t10 diff
-	  transforms to be used if they are available.
+	  CRC16 CRC algorithm used for the T10 (SCSI) Data Integrity Field (DIF)
+
+	  CRC algorithm used by the SCSI Block Commands standard.
 
 config CRYPTO_CRC64_ROCKSOFT
-	tristate "Rocksoft Model CRC64 algorithm"
+	tristate "CRC64 based on Rocksoft Model algorithm"
 	depends on CRC64
 	select CRYPTO_HASH
+	help
+	  CRC64 CRC algorithm based on the Rocksoft Model CRC Algorithm
+
+	  Used by the NVMe implementation of T10 DIF (BLK_DEV_INTEGRITY)
+
+	  See https://zlib.net/crc_v3.txt
 
 endmenu
 
