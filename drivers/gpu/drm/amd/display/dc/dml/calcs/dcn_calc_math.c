@@ -23,6 +23,7 @@
  *
  */
 
+#include "os_types.h"
 #include "dcn_calc_math.h"
 
 #define isNaN(number) ((number) != (number))
@@ -69,8 +70,8 @@ float dcn_bw_max2(const float arg1, const float arg2)
 
 float dcn_bw_floor2(const float arg, const float significance)
 {
-	if (significance == 0)
-		return 0;
+	ASSERT(significance != 0);
+
 	return ((int) (arg / significance)) * significance;
 }
 float dcn_bw_floor(const float arg)
@@ -80,17 +81,14 @@ float dcn_bw_floor(const float arg)
 
 float dcn_bw_ceil(const float arg)
 {
-	float flr = dcn_bw_floor2(arg, 1);
-
-	return flr + 0.00001 >= arg ? arg : flr + 1;
+	return (int) (arg + 0.99999);
 }
 
 float dcn_bw_ceil2(const float arg, const float significance)
 {
-	float flr = dcn_bw_floor2(arg, significance);
-	if (significance == 0)
-		return 0;
-	return flr + 0.00001 >= arg ? arg : flr + significance;
+	ASSERT(significance != 0);
+
+	return ((int) (arg / significance + 0.99999)) * significance;
 }
 
 float dcn_bw_max3(float v1, float v2, float v3)
