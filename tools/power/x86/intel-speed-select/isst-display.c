@@ -377,8 +377,7 @@ void isst_ctdp_display_information(struct isst_id *id, FILE *outf, int tdp_level
 		format_and_print(outf, level + 1, header, NULL);
 
 		snprintf(header, sizeof(header), "cpu-count");
-		j = get_cpu_count(get_physical_package_id(id->cpu),
-				  get_physical_die_id(id->cpu));
+		j = get_cpu_count(id);
 		snprintf(value, sizeof(value), "%d", j);
 		format_and_print(outf, level + 2, header, value);
 

@@ -412,7 +412,7 @@ int isst_get_pbf_info(struct isst_id *id, int level, struct isst_pbf_info *pbf_i
 
 	pbf_info->core_cpumask_size = alloc_cpu_set(&pbf_info->core_cpumask);
 
-	max_punit_core = get_max_punit_core_id(get_physical_package_id(id->cpu), get_physical_die_id(id->cpu));
+	max_punit_core = get_max_punit_core_id(id);
 	max_mask_index = max_punit_core > 32 ? 2 : 1;
 
 	for (i = 0; i < max_mask_index; ++i) {
