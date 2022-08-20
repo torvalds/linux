@@ -658,17 +658,6 @@ config CRYPTO_CRC32C_INTEL
 	  gain performance compared with software implementation.
 	  Module will be crc32c-intel.
 
-config CRYPTO_CRC32C_VPMSUM
-	tristate "CRC32c CRC algorithm (powerpc64)"
-	depends on PPC64 && ALTIVEC
-	select CRYPTO_HASH
-	select CRC32
-	help
-	  CRC32c algorithm implemented using vector polynomial multiply-sum
-	  (vpmsum) instructions, introduced in POWER8. Enable on POWER8
-	  and newer processors for improved performance.
-
-
 config CRYPTO_CRC32C_SPARC64
 	tristate "CRC32c CRC algorithm (SPARC64)"
 	depends on SPARC64
@@ -762,27 +751,10 @@ config CRYPTO_CRCT10DIF_PCLMUL
 	  'crct10dif-pclmul' module, which is faster when computing the
 	  crct10dif checksum as compared with the generic table implementation.
 
-config CRYPTO_CRCT10DIF_VPMSUM
-	tristate "CRC32T10DIF powerpc64 hardware acceleration"
-	depends on PPC64 && ALTIVEC && CRC_T10DIF
-	select CRYPTO_HASH
-	help
-	  CRC10T10DIF algorithm implemented using vector polynomial
-	  multiply-sum (vpmsum) instructions, introduced in POWER8. Enable on
-	  POWER8 and newer processors for improved performance.
-
 config CRYPTO_CRC64_ROCKSOFT
 	tristate "Rocksoft Model CRC64 algorithm"
 	depends on CRC64
 	select CRYPTO_HASH
-
-config CRYPTO_VPMSUM_TESTER
-	tristate "Powerpc64 vpmsum hardware acceleration tester"
-	depends on CRYPTO_CRCT10DIF_VPMSUM && CRYPTO_CRC32C_VPMSUM
-	help
-	  Stress test for CRC32c and CRC-T10DIF algorithms implemented with
-	  POWER8 vpmsum instructions.
-	  Unless you are testing these algorithms, you don't need this.
 
 config CRYPTO_GHASH
 	tristate "GHASH hash function"
@@ -844,14 +816,6 @@ config CRYPTO_MD5
 	select CRYPTO_HASH
 	help
 	  MD5 message digest algorithm (RFC1321).
-
-config CRYPTO_MD5_PPC
-	tristate "MD5 digest algorithm (PPC)"
-	depends on PPC
-	select CRYPTO_HASH
-	help
-	  MD5 message digest algorithm (RFC1321) implemented
-	  in PPC assembler.
 
 config CRYPTO_MD5_SPARC64
 	tristate "MD5 digest algorithm (SPARC64)"
@@ -948,20 +912,6 @@ config CRYPTO_SHA1_SPARC64
 	  SHA-1 secure hash standard (FIPS 180-1/DFIPS 180-2) implemented
 	  using sparc64 crypto instructions, when available.
 
-config CRYPTO_SHA1_PPC
-	tristate "SHA1 digest algorithm (powerpc)"
-	depends on PPC
-	help
-	  This is the powerpc hardware accelerated implementation of the
-	  SHA-1 secure hash standard (FIPS 180-1/DFIPS 180-2).
-
-config CRYPTO_SHA1_PPC_SPE
-	tristate "SHA1 digest algorithm (PPC SPE)"
-	depends on PPC && SPE
-	help
-	  SHA-1 secure hash standard (DFIPS 180-4) implemented
-	  using powerpc SPE SIMD instruction set.
-
 config CRYPTO_SHA1_S390
 	tristate "SHA1 digest algorithm"
 	depends on S390
@@ -984,15 +934,6 @@ config CRYPTO_SHA256
 
 	  This code also includes SHA-224, a 224 bit hash with 112 bits
 	  of security against collision attacks.
-
-config CRYPTO_SHA256_PPC_SPE
-	tristate "SHA224 and SHA256 digest algorithm (PPC SPE)"
-	depends on PPC && SPE
-	select CRYPTO_SHA256
-	select CRYPTO_HASH
-	help
-	  SHA224 and SHA256 secure hash standard (DFIPS 180-2)
-	  implemented using powerpc SPE SIMD instruction set.
 
 config CRYPTO_SHA256_SPARC64
 	tristate "SHA224 and SHA256 digest algorithm (SPARC64)"
@@ -1234,20 +1175,6 @@ config CRYPTO_AES_SPARC64
 	  In addition to AES cipher algorithm support, the acceleration
 	  for some popular block cipher mode is supported too, including
 	  ECB and CBC.
-
-config CRYPTO_AES_PPC_SPE
-	tristate "AES cipher algorithms (PPC SPE)"
-	depends on PPC && SPE
-	select CRYPTO_SKCIPHER
-	help
-	  AES cipher algorithms (FIPS-197). Additionally the acceleration
-	  for popular block cipher modes ECB, CBC, CTR and XTS is supported.
-	  This module should only be used for low power (router) devices
-	  without hardware AES acceleration (e.g. caam crypto). It reduces the
-	  size of the AES tables from 16KB to 8KB + 256 bytes and mitigates
-	  timining attacks. Nevertheless it might be not as secure as other
-	  architecture specific assembler implementations that work on 1KB
-	  tables or 256 bytes S-boxes.
 
 config CRYPTO_AES_S390
 	tristate "AES cipher algorithms"
@@ -2075,6 +2002,9 @@ config CRYPTO_HASH_INFO
 
 if MIPS
 source "arch/mips/crypto/Kconfig"
+endif
+if PPC
+source "arch/powerpc/crypto/Kconfig"
 endif
 
 source "drivers/crypto/Kconfig"
