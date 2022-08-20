@@ -166,6 +166,11 @@ static int update_cpu_model(void)
 	return 0;
 }
 
+int api_version(void)
+{
+        return isst_platform_info.api_version;
+}
+
 /* Open a file, and exit on failure */
 static FILE *fopen_or_exit(const char *path, const char *mode)
 {
