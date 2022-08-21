@@ -86,8 +86,6 @@ enum hmm_bo_type {
 #define	HMM_BO_VMAPED		0x10
 #define	HMM_BO_VMAPED_CACHED	0x20
 #define	HMM_BO_ACTIVE		0x1000
-#define	HMM_BO_MEM_TYPE_USER     0x1
-#define	HMM_BO_MEM_TYPE_PFN      0x2
 
 struct hmm_bo_device {
 	struct isp_mmu		mmu;
@@ -123,7 +121,6 @@ struct hmm_buffer_object {
 	enum hmm_bo_type	type;
 	int		mmap_count;
 	int		status;
-	int		mem_type;
 	void		*vmap_addr; /* kernel virtual address by vmap */
 
 	struct rb_node	node;

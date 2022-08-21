@@ -656,12 +656,8 @@ static void free_user_pages(struct hmm_buffer_object *bo,
 {
 	int i;
 
-	if (bo->mem_type == HMM_BO_MEM_TYPE_PFN) {
-		unpin_user_pages(bo->pages, page_nr);
-	} else {
-		for (i = 0; i < page_nr; i++)
-			put_page(bo->pages[i]);
-	}
+	for (i = 0; i < page_nr; i++)
+		put_page(bo->pages[i]);
 }
 
 /*
@@ -671,43 +667,13 @@ static int alloc_user_pages(struct hmm_buffer_object *bo,
 			    const void __user *userptr)
 {
 	int page_nr;
-	struct vm_area_struct *vma;
-
-	mutex_unlock(&bo->mutex);
-	mmap_read_lock(current->mm);
-	vma = find_vma(current->mm, (unsigned long)userptr);
-	mmap_read_unlock(current->mm);
-	if (!vma) {
-		dev_err(atomisp_dev, "find_vma failed\n");
-		mutex_lock(&bo->mutex);
-		return -EFAULT;
-	}
-	mutex_lock(&bo->mutex);
-	/*
-	 * Handle frame buffer allocated in other kerenl space driver
-	 * and map to user space
-	 */
 
 	userptr = untagged_addr(userptr);
 
-	if (vma->vm_flags & (VM_IO | VM_PFNMAP)) {
-		page_nr = pin_user_pages((unsigned long)userptr, bo->pgnr,
-					 FOLL_LONGTERM | FOLL_WRITE,
-					 bo->pages, NULL);
-		bo->mem_type = HMM_BO_MEM_TYPE_PFN;
-	} else {
-		/*Handle frame buffer allocated in user space*/
-		mutex_unlock(&bo->mutex);
-		page_nr = get_user_pages_fast((unsigned long)userptr,
-					      (int)(bo->pgnr), 1, bo->pages);
-		mutex_lock(&bo->mutex);
-		bo->mem_type = HMM_BO_MEM_TYPE_USER;
-	}
-
-	dev_dbg(atomisp_dev, "%s: %d %s pages were allocated as 0x%08x\n",
-		__func__,
-		bo->pgnr,
-		bo->mem_type == HMM_BO_MEM_TYPE_USER ? "user" : "pfn", page_nr);
+	/* Handle frame buffer allocated in user space */
+	mutex_unlock(&bo->mutex);
+	page_nr = get_user_pages_fast((unsigned long)userptr, bo->pgnr, 1, bo->pages);
+	mutex_lock(&bo->mutex);
 
 	/* can be written by caller, not forced */
 	if (page_nr != bo->pgnr) {
