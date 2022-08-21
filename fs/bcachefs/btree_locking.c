@@ -61,7 +61,7 @@ void __bch2_btree_node_lock_write(struct btree_trans *trans, struct btree *b)
 	 * locked:
 	 */
 	six_lock_readers_add(&b->c.lock, -readers);
-	six_lock_write(&b->c.lock, NULL, NULL);
+	btree_node_lock_nopath_nofail(trans, &b->c, SIX_LOCK_write);
 	six_lock_readers_add(&b->c.lock, readers);
 }
 

@@ -185,6 +185,24 @@ void bch2_btree_node_unlock_write(struct btree_trans *,
 
 /* lock: */
 
+static inline int __must_check
+btree_node_lock_nopath(struct btree_trans *trans,
+		       struct btree_bkey_cached_common *b,
+		       enum six_lock_type type)
+{
+	six_lock_type(&b->lock, type, NULL, NULL);
+	return 0;
+}
+
+static inline void btree_node_lock_nopath_nofail(struct btree_trans *trans,
+					 struct btree_bkey_cached_common *b,
+					 enum six_lock_type type)
+{
+	int ret = btree_node_lock_nopath(trans, b, type);
+
+	BUG_ON(ret);
+}
+
 static inline int btree_node_lock_type(struct btree_trans *trans,
 				       struct btree_path *path,
 				       struct btree_bkey_cached_common *b,

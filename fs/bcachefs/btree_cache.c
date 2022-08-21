@@ -959,12 +959,13 @@ lock_node:
 	return b;
 }
 
-struct btree *bch2_btree_node_get_noiter(struct bch_fs *c,
+struct btree *bch2_btree_node_get_noiter(struct btree_trans *trans,
 					 const struct bkey_i *k,
 					 enum btree_id btree_id,
 					 unsigned level,
 					 bool nofill)
 {
+	struct bch_fs *c = trans->c;
 	struct btree_cache *bc = &c->btree_cache;
 	struct btree *b;
 	struct bset_tree *t;
@@ -998,9 +999,14 @@ retry:
 			goto out;
 	} else {
 lock_node:
-		ret = six_lock_read(&b->c.lock, lock_node_check_fn, (void *) k);
-		if (ret)
-			goto retry;
+		ret = btree_node_lock_nopath(trans, &b->c, SIX_LOCK_read);
+		if (unlikely(ret)) {
+			if (bch2_err_matches(ret, BCH_ERR_lock_fail_node_reused))
+				goto retry;
+			if (bch2_err_matches(ret, BCH_ERR_transaction_restart))
+				return ERR_PTR(ret);
+			BUG();
+		}
 
 		if (unlikely(b->hash_val != btree_ptr_hash_val(k) ||
 			     b->c.btree_id != btree_id ||
@@ -1062,8 +1068,9 @@ int bch2_btree_node_prefetch(struct bch_fs *c,
 	return PTR_ERR_OR_ZERO(b);
 }
 
-void bch2_btree_node_evict(struct bch_fs *c, const struct bkey_i *k)
+void bch2_btree_node_evict(struct btree_trans *trans, const struct bkey_i *k)
 {
+	struct bch_fs *c = trans->c;
 	struct btree_cache *bc = &c->btree_cache;
 	struct btree *b;
 
@@ -1079,8 +1086,8 @@ wait_on_io:
 	__bch2_btree_node_wait_on_read(b);
 	__bch2_btree_node_wait_on_write(b);
 
-	six_lock_intent(&b->c.lock, NULL, NULL);
-	six_lock_write(&b->c.lock, NULL, NULL);
+	btree_node_lock_nopath_nofail(trans, &b->c, SIX_LOCK_intent);
+	btree_node_lock_nopath_nofail(trans, &b->c, SIX_LOCK_write);
 
 	if (btree_node_dirty(b)) {
 		__bch2_btree_node_write(c, b, 0);

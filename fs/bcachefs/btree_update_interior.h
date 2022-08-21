@@ -117,6 +117,7 @@ struct btree_update {
 };
 
 struct btree *__bch2_btree_node_alloc_replacement(struct btree_update *,
+						  struct btree_trans *,
 						  struct btree *,
 						  struct bkey_format);
 

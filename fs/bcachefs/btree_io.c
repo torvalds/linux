@@ -1652,9 +1652,15 @@ static void __btree_node_write_done(struct bch_fs *c, struct btree *b)
 
 static void btree_node_write_done(struct bch_fs *c, struct btree *b)
 {
-	six_lock_read(&b->c.lock, NULL, NULL);
+	struct btree_trans trans;
+
+	bch2_trans_init(&trans, c, 0, 0);
+
+	btree_node_lock_nopath_nofail(&trans, &b->c, SIX_LOCK_read);
 	__btree_node_write_done(c, b);
 	six_unlock_read(&b->c.lock);
+
+	bch2_trans_exit(&trans);
 }
 
 static void btree_node_write_work(struct work_struct *work)

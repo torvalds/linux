@@ -165,10 +165,11 @@ static void btree_ptr_to_v2(struct btree *b, struct bkey_i_btree_ptr_v2 *dst)
 	}
 }
 
-static void bch2_btree_node_update_key_early(struct bch_fs *c,
+static void bch2_btree_node_update_key_early(struct btree_trans *trans,
 					     enum btree_id btree, unsigned level,
 					     struct bkey_s_c old, struct bkey_i *new)
 {
+	struct bch_fs *c = trans->c;
 	struct btree *b;
 	struct bkey_buf tmp;
 	int ret;
@@ -176,7 +177,7 @@ static void bch2_btree_node_update_key_early(struct bch_fs *c,
 	bch2_bkey_buf_init(&tmp);
 	bch2_bkey_buf_reassemble(&tmp, c, old);
 
-	b = bch2_btree_node_get_noiter(c, tmp.k, btree, level, true);
+	b = bch2_btree_node_get_noiter(trans, tmp.k, btree, level, true);
 	if (!IS_ERR_OR_NULL(b)) {
 		mutex_lock(&c->btree_cache.lock);
 
@@ -352,8 +353,9 @@ fsck_err:
 	return ret;
 }
 
-static int bch2_btree_repair_topology_recurse(struct bch_fs *c, struct btree *b)
+static int bch2_btree_repair_topology_recurse(struct btree_trans *trans, struct btree *b)
 {
+	struct bch_fs *c = trans->c;
 	struct btree_and_journal_iter iter;
 	struct bkey_s_c k;
 	struct bkey_buf prev_k, cur_k;
@@ -378,7 +380,7 @@ again:
 		bch2_btree_and_journal_iter_advance(&iter);
 		bch2_bkey_buf_reassemble(&cur_k, c, k);
 
-		cur = bch2_btree_node_get_noiter(c, cur_k.k,
+		cur = bch2_btree_node_get_noiter(trans, cur_k.k,
 					b->c.btree_id, b->c.level - 1,
 					false);
 		ret = PTR_ERR_OR_ZERO(cur);
@@ -392,7 +394,7 @@ again:
 				bch2_btree_ids[b->c.btree_id],
 				b->c.level - 1,
 				buf.buf)) {
-			bch2_btree_node_evict(c, cur_k.k);
+			bch2_btree_node_evict(trans, cur_k.k);
 			ret = bch2_journal_key_delete(c, b->c.btree_id,
 						      b->c.level, cur_k.k->k.p);
 			cur = NULL;
@@ -411,7 +413,7 @@ again:
 
 		if (ret == DROP_THIS_NODE) {
 			six_unlock_read(&cur->c.lock);
-			bch2_btree_node_evict(c, cur_k.k);
+			bch2_btree_node_evict(trans, cur_k.k);
 			ret = bch2_journal_key_delete(c, b->c.btree_id,
 						      b->c.level, cur_k.k->k.p);
 			cur = NULL;
@@ -425,7 +427,7 @@ again:
 		prev = NULL;
 
 		if (ret == DROP_PREV_NODE) {
-			bch2_btree_node_evict(c, prev_k.k);
+			bch2_btree_node_evict(trans, prev_k.k);
 			ret = bch2_journal_key_delete(c, b->c.btree_id,
 						      b->c.level, prev_k.k->k.p);
 			if (ret)
@@ -465,7 +467,7 @@ again:
 		bch2_bkey_buf_reassemble(&cur_k, c, k);
 		bch2_btree_and_journal_iter_advance(&iter);
 
-		cur = bch2_btree_node_get_noiter(c, cur_k.k,
+		cur = bch2_btree_node_get_noiter(trans, cur_k.k,
 					b->c.btree_id, b->c.level - 1,
 					false);
 		ret = PTR_ERR_OR_ZERO(cur);
@@ -476,12 +478,12 @@ again:
 			goto err;
 		}
 
-		ret = bch2_btree_repair_topology_recurse(c, cur);
+		ret = bch2_btree_repair_topology_recurse(trans, cur);
 		six_unlock_read(&cur->c.lock);
 		cur = NULL;
 
 		if (ret == DROP_THIS_NODE) {
-			bch2_btree_node_evict(c, cur_k.k);
+			bch2_btree_node_evict(trans, cur_k.k);
 			ret = bch2_journal_key_delete(c, b->c.btree_id,
 						      b->c.level, cur_k.k->k.p);
 			dropped_children = true;
@@ -522,17 +524,20 @@ fsck_err:
 
 static int bch2_repair_topology(struct bch_fs *c)
 {
+	struct btree_trans trans;
 	struct btree *b;
 	unsigned i;
 	int ret = 0;
+
+	bch2_trans_init(&trans, c, 0, 0);
 
 	for (i = 0; i < BTREE_ID_NR && !ret; i++) {
 		b = c->btree_roots[i].b;
 		if (btree_node_fake(b))
 			continue;
 
-		six_lock_read(&b->c.lock, NULL, NULL);
-		ret = bch2_btree_repair_topology_recurse(c, b);
+		btree_node_lock_nopath_nofail(&trans, &b->c, SIX_LOCK_read);
+		ret = bch2_btree_repair_topology_recurse(&trans, b);
 		six_unlock_read(&b->c.lock);
 
 		if (ret == DROP_THIS_NODE) {
@@ -541,13 +546,16 @@ static int bch2_repair_topology(struct bch_fs *c)
 		}
 	}
 
+	bch2_trans_exit(&trans);
+
 	return ret;
 }
 
-static int bch2_check_fix_ptrs(struct bch_fs *c, enum btree_id btree_id,
+static int bch2_check_fix_ptrs(struct btree_trans *trans, enum btree_id btree_id,
 			       unsigned level, bool is_root,
 			       struct bkey_s_c *k)
 {
+	struct bch_fs *c = trans->c;
 	struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(*k);
 	const union bch_extent_entry *entry;
 	struct extent_ptr_decoded p = { 0 };
@@ -747,7 +755,7 @@ found:
 		}
 
 		if (level)
-			bch2_btree_node_update_key_early(c, btree_id, level - 1, *k, new);
+			bch2_btree_node_update_key_early(trans, btree_id, level - 1, *k, new);
 
 		if (c->opts.verbose) {
 			printbuf_reset(&buf);
@@ -788,7 +796,7 @@ static int bch2_gc_mark_key(struct btree_trans *trans, enum btree_id btree_id,
 		BUG_ON(bch2_journal_seq_verify &&
 		       k->k->version.lo > atomic64_read(&c->journal.seq));
 
-		ret = bch2_check_fix_ptrs(c, btree_id, level, is_root, k);
+		ret = bch2_check_fix_ptrs(trans, btree_id, level, is_root, k);
 		if (ret)
 			goto err;
 
@@ -941,7 +949,7 @@ static int bch2_gc_btree_init_recurse(struct btree_trans *trans, struct btree *b
 			bch2_bkey_buf_reassemble(&cur, c, k);
 			bch2_btree_and_journal_iter_advance(&iter);
 
-			child = bch2_btree_node_get_noiter(c, cur.k,
+			child = bch2_btree_node_get_noiter(trans, cur.k,
 						b->c.btree_id, b->c.level - 1,
 						false);
 			ret = PTR_ERR_OR_ZERO(child);
