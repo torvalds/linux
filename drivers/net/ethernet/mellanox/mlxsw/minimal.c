@@ -39,6 +39,7 @@ struct mlxsw_m_port {
 	struct net_device *dev;
 	struct mlxsw_m *mlxsw_m;
 	u16 local_port;
+	u8 slot_index;
 	u8 module;
 };
 
@@ -111,8 +112,9 @@ static int mlxsw_m_get_module_info(struct net_device *netdev,
 	struct mlxsw_m_port *mlxsw_m_port = netdev_priv(netdev);
 	struct mlxsw_core *core = mlxsw_m_port->mlxsw_m->core;
 
-	return mlxsw_env_get_module_info(netdev, core, 0, mlxsw_m_port->module,
-					 modinfo);
+	return mlxsw_env_get_module_info(netdev, core,
+					 mlxsw_m_port->slot_index,
+					 mlxsw_m_port->module, modinfo);
 }
 
 static int
@@ -122,7 +124,8 @@ mlxsw_m_get_module_eeprom(struct net_device *netdev, struct ethtool_eeprom *ee,
 	struct mlxsw_m_port *mlxsw_m_port = netdev_priv(netdev);
 	struct mlxsw_core *core = mlxsw_m_port->mlxsw_m->core;
 
-	return mlxsw_env_get_module_eeprom(netdev, core, 0,
+	return mlxsw_env_get_module_eeprom(netdev, core,
+					   mlxsw_m_port->slot_index,
 					   mlxsw_m_port->module, ee, data);
 }
 
@@ -134,7 +137,8 @@ mlxsw_m_get_module_eeprom_by_page(struct net_device *netdev,
 	struct mlxsw_m_port *mlxsw_m_port = netdev_priv(netdev);
 	struct mlxsw_core *core = mlxsw_m_port->mlxsw_m->core;
 
-	return mlxsw_env_get_module_eeprom_by_page(core, 0,
+	return mlxsw_env_get_module_eeprom_by_page(core,
+						   mlxsw_m_port->slot_index,
 						   mlxsw_m_port->module,
 						   page, extack);
 }
@@ -144,7 +148,8 @@ static int mlxsw_m_reset(struct net_device *netdev, u32 *flags)
 	struct mlxsw_m_port *mlxsw_m_port = netdev_priv(netdev);
 	struct mlxsw_core *core = mlxsw_m_port->mlxsw_m->core;
 
-	return mlxsw_env_reset_module(netdev, core, 0, mlxsw_m_port->module,
+	return mlxsw_env_reset_module(netdev, core, mlxsw_m_port->slot_index,
+				      mlxsw_m_port->module,
 				      flags);
 }
 
@@ -156,7 +161,8 @@ mlxsw_m_get_module_power_mode(struct net_device *netdev,
 	struct mlxsw_m_port *mlxsw_m_port = netdev_priv(netdev);
 	struct mlxsw_core *core = mlxsw_m_port->mlxsw_m->core;
 
-	return mlxsw_env_get_module_power_mode(core, 0, mlxsw_m_port->module,
+	return mlxsw_env_get_module_power_mode(core, mlxsw_m_port->slot_index,
+					       mlxsw_m_port->module,
 					       params, extack);
 }
 
@@ -168,7 +174,8 @@ mlxsw_m_set_module_power_mode(struct net_device *netdev,
 	struct mlxsw_m_port *mlxsw_m_port = netdev_priv(netdev);
 	struct mlxsw_core *core = mlxsw_m_port->mlxsw_m->core;
 
-	return mlxsw_env_set_module_power_mode(core, 0, mlxsw_m_port->module,
+	return mlxsw_env_set_module_power_mode(core, mlxsw_m_port->slot_index,
+					       mlxsw_m_port->module,
 					       params->policy, extack);
 }
 
@@ -217,13 +224,14 @@ mlxsw_m_port_dev_addr_get(struct mlxsw_m_port *mlxsw_m_port)
 }
 
 static int
-mlxsw_m_port_create(struct mlxsw_m *mlxsw_m, u16 local_port, u8 module)
+mlxsw_m_port_create(struct mlxsw_m *mlxsw_m, u16 local_port, u8 slot_index,
+		    u8 module)
 {
 	struct mlxsw_m_port *mlxsw_m_port;
 	struct net_device *dev;
 	int err;
 
-	err = mlxsw_core_port_init(mlxsw_m->core, local_port, 0,
+	err = mlxsw_core_port_init(mlxsw_m->core, local_port, slot_index,
 				   module + 1, false, 0, false,
 				   0, mlxsw_m->base_mac,
 				   sizeof(mlxsw_m->base_mac));
@@ -246,6 +254,7 @@ mlxsw_m_port_create(struct mlxsw_m *mlxsw_m, u16 local_port, u8 module)
 	mlxsw_m_port->mlxsw_m = mlxsw_m;
 	mlxsw_m_port->local_port = local_port;
 	mlxsw_m_port->module = module;
+	mlxsw_m_port->slot_index = slot_index;
 
 	dev->netdev_ops = &mlxsw_m_port_netdev_ops;
 	dev->ethtool_ops = &mlxsw_m_port_ethtool_ops;
@@ -319,10 +328,11 @@ static int mlxsw_m_port_module_map(struct mlxsw_m *mlxsw_m, u16 local_port,
 	return 0;
 }
 
-static void mlxsw_m_port_module_unmap(struct mlxsw_m *mlxsw_m, u8 module)
+static void
+mlxsw_m_port_module_unmap(struct mlxsw_m *mlxsw_m, u8 slot_index, u8 module)
 {
 	mlxsw_m->module_to_port[module] = -1;
-	mlxsw_env_module_port_unmap(mlxsw_m->core, 0, module);
+	mlxsw_env_module_port_unmap(mlxsw_m->core, slot_index, module);
 }
 
 static int mlxsw_m_ports_create(struct mlxsw_m *mlxsw_m)
@@ -360,7 +370,7 @@ static int mlxsw_m_ports_create(struct mlxsw_m *mlxsw_m)
 		if (mlxsw_m->module_to_port[i] > 0) {
 			err = mlxsw_m_port_create(mlxsw_m,
 						  mlxsw_m->module_to_port[i],
-						  i);
+						  0, i);
 			if (err)
 				goto err_module_to_port_create;
 		}
@@ -377,7 +387,7 @@ err_module_to_port_create:
 	i = max_ports;
 err_module_to_port_map:
 	for (i--; i > 0; i--)
-		mlxsw_m_port_module_unmap(mlxsw_m, i);
+		mlxsw_m_port_module_unmap(mlxsw_m, 0, i);
 	kfree(mlxsw_m->module_to_port);
 err_module_to_port_alloc:
 	kfree(mlxsw_m->ports);
@@ -392,7 +402,7 @@ static void mlxsw_m_ports_remove(struct mlxsw_m *mlxsw_m)
 		if (mlxsw_m->module_to_port[i] > 0) {
 			mlxsw_m_port_remove(mlxsw_m,
 					    mlxsw_m->module_to_port[i]);
-			mlxsw_m_port_module_unmap(mlxsw_m, i);
+			mlxsw_m_port_module_unmap(mlxsw_m, 0, i);
 		}
 	}
 
