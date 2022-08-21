@@ -21,7 +21,6 @@ generic-y += shmbuf.h
 generic-y += statfs.h
 generic-y += socket.h
 generic-y += sockios.h
-generic-y += termios.h
 generic-y += termbits.h
 generic-y += poll.h
 generic-y += param.h
