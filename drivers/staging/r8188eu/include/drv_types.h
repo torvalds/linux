@@ -37,7 +37,6 @@
 #define FW_RTL8188EU	"rtlwifi/rtl8188eufw.bin"
 
 struct registry_priv {
-	u8	chip_version;
 	u8	rfintfs;
 	u8	lbkmode;
 	u8	hci;
