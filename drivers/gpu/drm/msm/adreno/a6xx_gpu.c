@@ -146,7 +146,7 @@ static void a6xx_set_pagetable(struct a6xx_gpu *a6xx_gpu,
 	 */
 
 	OUT_PKT7(ring, CP_EVENT_WRITE, 1);
-	OUT_RING(ring, 0x31);
+	OUT_RING(ring, CACHE_INVALIDATE);
 
 	if (!sysprof) {
 		/*
