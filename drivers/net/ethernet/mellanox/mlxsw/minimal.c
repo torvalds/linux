@@ -335,12 +335,10 @@ mlxsw_m_port_module_unmap(struct mlxsw_m *mlxsw_m, u8 slot_index, u8 module)
 	mlxsw_env_module_port_unmap(mlxsw_m->core, slot_index, module);
 }
 
-static int mlxsw_m_ports_create(struct mlxsw_m *mlxsw_m)
+static int mlxsw_m_linecards_init(struct mlxsw_m *mlxsw_m)
 {
 	unsigned int max_ports = mlxsw_core_max_ports(mlxsw_m->core);
-	u8 last_module = max_ports;
-	int i;
-	int err;
+	int i, err;
 
 	mlxsw_m->ports = kcalloc(max_ports, sizeof(*mlxsw_m->ports),
 				 GFP_KERNEL);
@@ -357,6 +355,26 @@ static int mlxsw_m_ports_create(struct mlxsw_m *mlxsw_m)
 	/* Invalidate the entries of module to local port mapping array */
 	for (i = 0; i < max_ports; i++)
 		mlxsw_m->module_to_port[i] = -1;
+
+	return 0;
+
+err_module_to_port_alloc:
+	kfree(mlxsw_m->ports);
+	return err;
+}
+
+static void mlxsw_m_linecards_fini(struct mlxsw_m *mlxsw_m)
+{
+	kfree(mlxsw_m->module_to_port);
+	kfree(mlxsw_m->ports);
+}
+
+static int mlxsw_m_ports_create(struct mlxsw_m *mlxsw_m)
+{
+	unsigned int max_ports = mlxsw_core_max_ports(mlxsw_m->core);
+	u8 last_module = max_ports;
+	int i;
+	int err;
 
 	/* Fill out module to local port mapping array */
 	for (i = 1; i < max_ports; i++) {
@@ -388,9 +406,6 @@ err_module_to_port_create:
 err_module_to_port_map:
 	for (i--; i > 0; i--)
 		mlxsw_m_port_module_unmap(mlxsw_m, 0, i);
-	kfree(mlxsw_m->module_to_port);
-err_module_to_port_alloc:
-	kfree(mlxsw_m->ports);
 	return err;
 }
 
@@ -448,13 +463,23 @@ static int mlxsw_m_init(struct mlxsw_core *mlxsw_core,
 		return err;
 	}
 
-	err = mlxsw_m_ports_create(mlxsw_m);
+	err = mlxsw_m_linecards_init(mlxsw_m);
 	if (err) {
-		dev_err(mlxsw_m->bus_info->dev, "Failed to create ports\n");
+		dev_err(mlxsw_m->bus_info->dev, "Failed to create line cards\n");
 		return err;
 	}
 
+	err = mlxsw_m_ports_create(mlxsw_m);
+	if (err) {
+		dev_err(mlxsw_m->bus_info->dev, "Failed to create ports\n");
+		goto err_ports_create;
+	}
+
 	return 0;
+
+err_ports_create:
+	mlxsw_m_linecards_fini(mlxsw_m);
+	return err;
 }
 
 static void mlxsw_m_fini(struct mlxsw_core *mlxsw_core)
@@ -462,6 +487,7 @@ static void mlxsw_m_fini(struct mlxsw_core *mlxsw_core)
 	struct mlxsw_m *mlxsw_m = mlxsw_core_driver_priv(mlxsw_core);
 
 	mlxsw_m_ports_remove(mlxsw_m);
+	mlxsw_m_linecards_fini(mlxsw_m);
 }
 
 static const struct mlxsw_config_profile mlxsw_m_config_profile;
