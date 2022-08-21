@@ -348,7 +348,7 @@ void bch2_assert_pos_locked(struct btree_trans *trans, enum btree_id id,
 		if (cmp < 0)
 			continue;
 
-		if (!(path->nodes_locked & 1) ||
+		if (!btree_node_locked(path, 0) ||
 		    !path->should_be_locked)
 			continue;
 
@@ -3053,8 +3053,8 @@ void bch2_btree_trans_to_text(struct printbuf *out, struct btree_trans *trans)
 		for (l = 0; l < BTREE_MAX_DEPTH; l++) {
 			if (btree_node_locked(path, l) &&
 			    !IS_ERR_OR_NULL(b = (void *) READ_ONCE(path->l[l].b))) {
-				prt_printf(out, "    %s l=%u ",
-				       btree_node_intent_locked(path, l) ? "i" : "r", l);
+				prt_printf(out, "    %c l=%u ",
+					   lock_types[btree_node_locked_type(path, l)], l);
 				bch2_btree_path_node_to_text(out, b, path->cached);
 				prt_printf(out, "\n");
 			}

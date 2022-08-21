@@ -747,11 +747,12 @@ static inline void path_upgrade_readers(struct btree_trans *trans, struct btree_
 static inline void upgrade_readers(struct btree_trans *trans, struct btree_path *path)
 {
 	struct btree *b = path_l(path)->b;
+	unsigned l;
 
 	do {
-		if (path->nodes_locked &&
-		    path->nodes_locked != path->nodes_intent_locked)
-			path_upgrade_readers(trans, path);
+		for (l = 0; l < BTREE_MAX_DEPTH; l++)
+			if (btree_node_read_locked(path, l))
+				path_upgrade_readers(trans, path);
 	} while ((path = prev_btree_path(trans, path)) &&
 		 path_l(path)->b == b);
 }
@@ -770,11 +771,13 @@ static inline void normalize_read_intent_locks(struct btree_trans *trans)
 			? trans->paths + trans->sorted[i + 1]
 			: NULL;
 
-		if (path->nodes_locked) {
-			if (path->nodes_intent_locked)
-				nr_intent++;
-			else
-				nr_read++;
+		switch (btree_node_locked_type(path, path->level)) {
+		case BTREE_NODE_READ_LOCKED:
+			nr_read++;
+			break;
+		case BTREE_NODE_INTENT_LOCKED:
+			nr_intent++;
+			break;
 		}
 
 		if (!next || path_l(path)->b != path_l(next)->b) {
@@ -797,7 +800,7 @@ static inline bool have_conflicting_read_lock(struct btree_trans *trans, struct 
 		//if (path == pos)
 		//	break;
 
-		if (path->nodes_locked != path->nodes_intent_locked &&
+		if (btree_node_read_locked(path, path->level) &&
 		    !bch2_btree_path_upgrade(trans, path, path->level + 1))
 			return true;
 	}

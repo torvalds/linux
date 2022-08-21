@@ -61,6 +61,16 @@ void __bch2_btree_node_lock_write(struct btree_trans *trans, struct btree *b)
 	six_lock_readers_add(&b->c.lock, readers);
 }
 
+static inline bool path_has_read_locks(struct btree_path *path)
+{
+	unsigned l;
+
+	for (l = 0; l < BTREE_MAX_DEPTH; l++)
+		if (btree_node_read_locked(path, l))
+			return true;
+	return false;
+}
+
 /* Slowpath: */
 int __bch2_btree_node_lock(struct btree_trans *trans,
 			   struct btree_path *path,
@@ -91,7 +101,7 @@ int __bch2_btree_node_lock(struct btree_trans *trans,
 		 *   already have read locked - deadlock:
 		 */
 		if (type == SIX_LOCK_intent &&
-		    linked->nodes_locked != linked->nodes_intent_locked) {
+		    path_has_read_locks(linked)) {
 			reason = 1;
 			goto deadlock;
 		}
@@ -121,7 +131,7 @@ int __bch2_btree_node_lock(struct btree_trans *trans,
 		 * another path has possible descendants locked of the node
 		 * we're about to lock, it must have the ancestors locked too:
 		 */
-		if (level > __fls(linked->nodes_locked)) {
+		if (level > btree_path_highest_level_locked(linked)) {
 			reason = 5;
 			goto deadlock;
 		}
@@ -254,7 +264,7 @@ bool bch2_btree_node_upgrade(struct btree_trans *trans,
 	trace_btree_node_upgrade_fail(trans, _RET_IP_, path, level);
 	return false;
 success:
-	mark_btree_node_intent_locked(trans, path, level);
+	mark_btree_node_locked_noreset(path, level, SIX_LOCK_intent);
 	return true;
 }
 
@@ -370,13 +380,13 @@ void __bch2_btree_path_downgrade(struct btree_trans *trans,
 	path->locks_want = new_locks_want;
 
 	while (path->nodes_locked &&
-	       (l = __fls(path->nodes_locked)) >= path->locks_want) {
+	       (l = btree_path_highest_level_locked(path)) >= path->locks_want) {
 		if (l > path->level) {
 			btree_node_unlock(trans, path, l);
 		} else {
 			if (btree_node_intent_locked(path, l)) {
 				six_lock_downgrade(&path->l[l].b->c.lock);
-				path->nodes_intent_locked ^= 1 << l;
+				mark_btree_node_locked_noreset(path, l, SIX_LOCK_read);
 			}
 			break;
 		}
