@@ -190,13 +190,6 @@ void scsi_remove_host(struct Scsi_Host *shost)
 	transport_unregister_device(&shost->shost_gendev);
 	device_unregister(&shost->shost_dev);
 	device_del(&shost->shost_gendev);
-
-	/*
-	 * After scsi_remove_host() has returned the scsi LLD module can be
-	 * unloaded and/or the host resources can be released. Hence wait until
-	 * the dependent SCSI targets and devices are gone before returning.
-	 */
-	wait_event(shost->targets_wq, atomic_read(&shost->target_count) == 0);
 }
 EXPORT_SYMBOL(scsi_remove_host);
 
@@ -406,7 +399,6 @@ struct Scsi_Host *scsi_host_alloc(struct scsi_host_template *sht, int privsize)
 	INIT_LIST_HEAD(&shost->starved_list);
 	init_waitqueue_head(&shost->host_wait);
 	mutex_init(&shost->scan_mutex);
-	init_waitqueue_head(&shost->targets_wq);
 
 	index = ida_alloc(&host_index_ida, GFP_KERNEL);
 	if (index < 0) {
