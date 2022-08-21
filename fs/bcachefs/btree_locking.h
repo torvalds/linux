@@ -37,14 +37,7 @@ enum btree_node_locked_type {
 static inline int btree_node_locked_type(struct btree_path *path,
 					 unsigned level)
 {
-	/*
-	 * We're relying on the fact that if nodes_intent_locked is set
-	 * nodes_locked must be set as well, so that we can compute without
-	 * branches:
-	 */
-	return BTREE_NODE_UNLOCKED +
-		((path->nodes_locked >> level) & 1) +
-		((path->nodes_intent_locked >> level) & 1);
+	return BTREE_NODE_UNLOCKED + ((path->nodes_locked >> (level << 1)) & 3);
 }
 
 static inline bool btree_node_intent_locked(struct btree_path *path,
@@ -65,20 +58,15 @@ static inline bool btree_node_locked(struct btree_path *path, unsigned level)
 }
 
 static inline void mark_btree_node_locked_noreset(struct btree_path *path,
-					  unsigned level,
-					  enum btree_node_locked_type type)
+						  unsigned level,
+						  enum btree_node_locked_type type)
 {
 	/* relying on this to avoid a branch */
 	BUILD_BUG_ON(SIX_LOCK_read   != 0);
 	BUILD_BUG_ON(SIX_LOCK_intent != 1);
 
-	path->nodes_locked &= ~(1 << level);
-	path->nodes_intent_locked &= ~(1 << level);
-
-	if (type != BTREE_NODE_UNLOCKED) {
-		path->nodes_locked |= 1 << level;
-		path->nodes_intent_locked |= type << level;
-	}
+	path->nodes_locked &= ~(3U << (level << 1));
+	path->nodes_locked |= (type + 1) << (level << 1);
 }
 
 static inline void mark_btree_node_unlocked(struct btree_path *path,
@@ -162,12 +150,12 @@ static inline void btree_node_unlock(struct btree_trans *trans,
 
 static inline int btree_path_lowest_level_locked(struct btree_path *path)
 {
-	return __ffs(path->nodes_locked);
+	return __ffs(path->nodes_locked) >> 1;
 }
 
 static inline int btree_path_highest_level_locked(struct btree_path *path)
 {
-	return __fls(path->nodes_locked);
+	return __fls(path->nodes_locked) >> 1;
 }
 
 static inline void __bch2_btree_path_unlock(struct btree_trans *trans,

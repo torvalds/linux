@@ -1519,7 +1519,6 @@ static struct btree_path *btree_path_alloc(struct btree_trans *trans,
 	path->ref		= 0;
 	path->intent_ref	= 0;
 	path->nodes_locked	= 0;
-	path->nodes_intent_locked = 0;
 
 	btree_path_list_add(trans, pos, path);
 	trans->paths_sorted = false;
@@ -1574,7 +1573,6 @@ struct btree_path *bch2_path_get(struct btree_trans *trans,
 		path->level			= level;
 		path->locks_want		= locks_want;
 		path->nodes_locked		= 0;
-		path->nodes_intent_locked	= 0;
 		for (i = 0; i < ARRAY_SIZE(path->l); i++)
 			path->l[i].b		= ERR_PTR(-BCH_ERR_no_btree_node_init);
 #ifdef CONFIG_BCACHEFS_DEBUG

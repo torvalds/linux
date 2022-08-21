@@ -232,9 +232,8 @@ struct btree_path {
 	 */
 	bool			should_be_locked:1;
 	unsigned		level:3,
-				locks_want:4,
-				nodes_locked:4,
-				nodes_intent_locked:4;
+				locks_want:4;
+	u8			nodes_locked;
 
 	struct btree_path_level {
 		struct btree	*b;
