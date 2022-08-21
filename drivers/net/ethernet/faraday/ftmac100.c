@@ -1075,6 +1075,7 @@ static int ftmac100_probe(struct platform_device *pdev)
 	SET_NETDEV_DEV(netdev, &pdev->dev);
 	netdev->ethtool_ops = &ftmac100_ethtool_ops;
 	netdev->netdev_ops = &ftmac100_netdev_ops;
+	netdev->max_mtu = MAX_PKT_SIZE;
 
 	platform_set_drvdata(pdev, netdev);
 
