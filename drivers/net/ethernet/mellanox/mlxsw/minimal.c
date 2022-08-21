@@ -26,13 +26,20 @@ static const struct mlxsw_fw_rev mlxsw_m_fw_rev = {
 
 struct mlxsw_m_port;
 
+struct mlxsw_m_line_card {
+	bool active;
+	int module_to_port[];
+};
+
 struct mlxsw_m {
 	struct mlxsw_m_port **ports;
-	int *module_to_port;
 	struct mlxsw_core *core;
 	const struct mlxsw_bus_info *bus_info;
 	u8 base_mac[ETH_ALEN];
 	u8 max_ports;
+	u8 max_modules_per_slot; /* Maximum number of modules per-slot. */
+	u8 num_of_slots; /* Including the main board. */
+	struct mlxsw_m_line_card **line_cards;
 };
 
 struct mlxsw_m_port {
@@ -191,7 +198,7 @@ static const struct ethtool_ops mlxsw_m_port_ethtool_ops = {
 
 static int
 mlxsw_m_port_module_info_get(struct mlxsw_m *mlxsw_m, u16 local_port,
-			     u8 *p_module, u8 *p_width)
+			     u8 *p_module, u8 *p_width, u8 *p_slot_index)
 {
 	char pmlp_pl[MLXSW_REG_PMLP_LEN];
 	int err;
@@ -202,6 +209,7 @@ mlxsw_m_port_module_info_get(struct mlxsw_m *mlxsw_m, u16 local_port,
 		return err;
 	*p_module = mlxsw_reg_pmlp_module_get(pmlp_pl, 0);
 	*p_width = mlxsw_reg_pmlp_width_get(pmlp_pl);
+	*p_slot_index = mlxsw_reg_pmlp_slot_index_get(pmlp_pl, 0);
 
 	return 0;
 }
@@ -221,6 +229,11 @@ mlxsw_m_port_dev_addr_get(struct mlxsw_m_port *mlxsw_m_port)
 	mlxsw_reg_ppad_mac_memcpy_from(ppad_pl, addr);
 	eth_hw_addr_gen(mlxsw_m_port->dev, addr, mlxsw_m_port->module + 1);
 	return 0;
+}
+
+static bool mlxsw_m_port_created(struct mlxsw_m *mlxsw_m, u16 local_port)
+{
+	return mlxsw_m->ports[local_port];
 }
 
 static int
@@ -300,16 +313,23 @@ static void mlxsw_m_port_remove(struct mlxsw_m *mlxsw_m, u16 local_port)
 	mlxsw_core_port_fini(mlxsw_m->core, local_port);
 }
 
+static int*
+mlxsw_m_port_mapping_get(struct mlxsw_m *mlxsw_m, u8 slot_index, u8 module)
+{
+	return &mlxsw_m->line_cards[slot_index]->module_to_port[module];
+}
+
 static int mlxsw_m_port_module_map(struct mlxsw_m *mlxsw_m, u16 local_port,
 				   u8 *last_module)
 {
 	unsigned int max_ports = mlxsw_core_max_ports(mlxsw_m->core);
-	u8 module, width;
+	u8 module, width, slot_index;
+	int *module_to_port;
 	int err;
 
 	/* Fill out to local port mapping array */
 	err = mlxsw_m_port_module_info_get(mlxsw_m, local_port, &module,
-					   &width);
+					   &width, &slot_index);
 	if (err)
 		return err;
 
@@ -322,8 +342,9 @@ static int mlxsw_m_port_module_map(struct mlxsw_m *mlxsw_m, u16 local_port,
 
 	if (WARN_ON_ONCE(module >= max_ports))
 		return -EINVAL;
-	mlxsw_env_module_port_map(mlxsw_m->core, 0, module);
-	mlxsw_m->module_to_port[module] = ++mlxsw_m->max_ports;
+	mlxsw_env_module_port_map(mlxsw_m->core, slot_index, module);
+	module_to_port = mlxsw_m_port_mapping_get(mlxsw_m, slot_index, module);
+	*module_to_port = local_port;
 
 	return 0;
 }
@@ -331,98 +352,188 @@ static int mlxsw_m_port_module_map(struct mlxsw_m *mlxsw_m, u16 local_port,
 static void
 mlxsw_m_port_module_unmap(struct mlxsw_m *mlxsw_m, u8 slot_index, u8 module)
 {
-	mlxsw_m->module_to_port[module] = -1;
+	int *module_to_port = mlxsw_m_port_mapping_get(mlxsw_m, slot_index,
+						       module);
+	*module_to_port = -1;
 	mlxsw_env_module_port_unmap(mlxsw_m->core, slot_index, module);
 }
 
 static int mlxsw_m_linecards_init(struct mlxsw_m *mlxsw_m)
 {
 	unsigned int max_ports = mlxsw_core_max_ports(mlxsw_m->core);
-	int i, err;
+	char mgpir_pl[MLXSW_REG_MGPIR_LEN];
+	u8 num_of_modules;
+	int i, j, err;
+
+	mlxsw_reg_mgpir_pack(mgpir_pl, 0);
+	err = mlxsw_reg_query(mlxsw_m->core, MLXSW_REG(mgpir), mgpir_pl);
+	if (err)
+		return err;
+
+	mlxsw_reg_mgpir_unpack(mgpir_pl, NULL, NULL, NULL, &num_of_modules,
+			       &mlxsw_m->num_of_slots);
+	/* If the system is modular, get the maximum number of modules per-slot.
+	 * Otherwise, get the maximum number of modules on the main board.
+	 */
+	if (mlxsw_m->num_of_slots)
+		mlxsw_m->max_modules_per_slot =
+			mlxsw_reg_mgpir_max_modules_per_slot_get(mgpir_pl);
+	else
+		mlxsw_m->max_modules_per_slot = num_of_modules;
+	/* Add slot for main board. */
+	mlxsw_m->num_of_slots += 1;
 
 	mlxsw_m->ports = kcalloc(max_ports, sizeof(*mlxsw_m->ports),
 				 GFP_KERNEL);
 	if (!mlxsw_m->ports)
 		return -ENOMEM;
 
-	mlxsw_m->module_to_port = kmalloc_array(max_ports, sizeof(int),
-						GFP_KERNEL);
-	if (!mlxsw_m->module_to_port) {
-		err = -ENOMEM;
-		goto err_module_to_port_alloc;
-	}
+	mlxsw_m->line_cards = kcalloc(mlxsw_m->num_of_slots,
+				      sizeof(*mlxsw_m->line_cards),
+				      GFP_KERNEL);
+	if (!mlxsw_m->line_cards)
+		goto err_kcalloc;
 
-	/* Invalidate the entries of module to local port mapping array */
-	for (i = 0; i < max_ports; i++)
-		mlxsw_m->module_to_port[i] = -1;
+	for (i = 0; i < mlxsw_m->num_of_slots; i++) {
+		mlxsw_m->line_cards[i] =
+			kzalloc(struct_size(mlxsw_m->line_cards[i],
+					    module_to_port,
+					    mlxsw_m->max_modules_per_slot),
+				GFP_KERNEL);
+		if (!mlxsw_m->line_cards[i])
+			goto err_kmalloc_array;
+
+		/* Invalidate the entries of module to local port mapping array. */
+		for (j = 0; j < mlxsw_m->max_modules_per_slot; j++)
+			mlxsw_m->line_cards[i]->module_to_port[j] = -1;
+	}
 
 	return 0;
 
-err_module_to_port_alloc:
+err_kmalloc_array:
+	for (i--; i >= 0; i--)
+		kfree(mlxsw_m->line_cards[i]);
+err_kcalloc:
 	kfree(mlxsw_m->ports);
 	return err;
 }
 
 static void mlxsw_m_linecards_fini(struct mlxsw_m *mlxsw_m)
 {
-	kfree(mlxsw_m->module_to_port);
+	int i = mlxsw_m->num_of_slots;
+
+	for (i--; i >= 0; i--)
+		kfree(mlxsw_m->line_cards[i]);
+	kfree(mlxsw_m->line_cards);
 	kfree(mlxsw_m->ports);
+}
+
+static void
+mlxsw_m_linecard_port_module_unmap(struct mlxsw_m *mlxsw_m, u8 slot_index)
+{
+	int i;
+
+	for (i = mlxsw_m->max_modules_per_slot - 1; i >= 0; i--) {
+		int *module_to_port;
+
+		module_to_port = mlxsw_m_port_mapping_get(mlxsw_m, slot_index, i);
+		if (*module_to_port > 0)
+			mlxsw_m_port_module_unmap(mlxsw_m, slot_index, i);
+	}
+}
+
+static int
+mlxsw_m_linecard_ports_create(struct mlxsw_m *mlxsw_m, u8 slot_index)
+{
+	int *module_to_port;
+	int i, err;
+
+	for (i = 0; i < mlxsw_m->max_modules_per_slot; i++) {
+		module_to_port = mlxsw_m_port_mapping_get(mlxsw_m, slot_index, i);
+		if (*module_to_port > 0) {
+			err = mlxsw_m_port_create(mlxsw_m, *module_to_port,
+						  slot_index, i);
+			if (err)
+				goto err_port_create;
+			/* Mark slot as active */
+			if (!mlxsw_m->line_cards[slot_index]->active)
+				mlxsw_m->line_cards[slot_index]->active = true;
+		}
+	}
+	return 0;
+
+err_port_create:
+	for (i--; i >= 0; i--) {
+		module_to_port = mlxsw_m_port_mapping_get(mlxsw_m, slot_index, i);
+		if (*module_to_port > 0 &&
+		    mlxsw_m_port_created(mlxsw_m, *module_to_port)) {
+			mlxsw_m_port_remove(mlxsw_m, *module_to_port);
+			/* Mark slot as inactive */
+			if (mlxsw_m->line_cards[slot_index]->active)
+				mlxsw_m->line_cards[slot_index]->active = false;
+		}
+	}
+	return err;
+}
+
+static void
+mlxsw_m_linecard_ports_remove(struct mlxsw_m *mlxsw_m, u8 slot_index)
+{
+	int i;
+
+	for (i = 0; i < mlxsw_m->max_modules_per_slot; i++) {
+		int *module_to_port = mlxsw_m_port_mapping_get(mlxsw_m,
+							       slot_index, i);
+
+		if (*module_to_port > 0 &&
+		    mlxsw_m_port_created(mlxsw_m, *module_to_port)) {
+			mlxsw_m_port_remove(mlxsw_m, *module_to_port);
+			mlxsw_m_port_module_unmap(mlxsw_m, slot_index, i);
+		}
+	}
+}
+
+static int mlxsw_m_ports_module_map(struct mlxsw_m *mlxsw_m)
+{
+	unsigned int max_ports = mlxsw_core_max_ports(mlxsw_m->core);
+	u8 last_module = max_ports;
+	int i, err;
+
+	for (i = 1; i < max_ports; i++) {
+		err = mlxsw_m_port_module_map(mlxsw_m, i, &last_module);
+		if (err)
+			return err;
+	}
+
+	return 0;
 }
 
 static int mlxsw_m_ports_create(struct mlxsw_m *mlxsw_m)
 {
-	unsigned int max_ports = mlxsw_core_max_ports(mlxsw_m->core);
-	u8 last_module = max_ports;
-	int i;
 	int err;
 
 	/* Fill out module to local port mapping array */
-	for (i = 1; i < max_ports; i++) {
-		err = mlxsw_m_port_module_map(mlxsw_m, i, &last_module);
-		if (err)
-			goto err_module_to_port_map;
-	}
+	err = mlxsw_m_ports_module_map(mlxsw_m);
+	if (err)
+		goto err_ports_module_map;
 
 	/* Create port objects for each valid entry */
-	for (i = 0; i < mlxsw_m->max_ports; i++) {
-		if (mlxsw_m->module_to_port[i] > 0) {
-			err = mlxsw_m_port_create(mlxsw_m,
-						  mlxsw_m->module_to_port[i],
-						  0, i);
-			if (err)
-				goto err_module_to_port_create;
-		}
-	}
+	err = mlxsw_m_linecard_ports_create(mlxsw_m, 0);
+	if (err)
+		goto err_linecard_ports_create;
 
 	return 0;
 
-err_module_to_port_create:
-	for (i--; i >= 0; i--) {
-		if (mlxsw_m->module_to_port[i] > 0)
-			mlxsw_m_port_remove(mlxsw_m,
-					    mlxsw_m->module_to_port[i]);
-	}
-	i = max_ports;
-err_module_to_port_map:
-	for (i--; i > 0; i--)
-		mlxsw_m_port_module_unmap(mlxsw_m, 0, i);
+err_linecard_ports_create:
+err_ports_module_map:
+	mlxsw_m_linecard_port_module_unmap(mlxsw_m, 0);
+
 	return err;
 }
 
 static void mlxsw_m_ports_remove(struct mlxsw_m *mlxsw_m)
 {
-	int i;
-
-	for (i = 0; i < mlxsw_m->max_ports; i++) {
-		if (mlxsw_m->module_to_port[i] > 0) {
-			mlxsw_m_port_remove(mlxsw_m,
-					    mlxsw_m->module_to_port[i]);
-			mlxsw_m_port_module_unmap(mlxsw_m, 0, i);
-		}
-	}
-
-	kfree(mlxsw_m->module_to_port);
-	kfree(mlxsw_m->ports);
+	mlxsw_m_linecard_ports_remove(mlxsw_m, 0);
 }
 
 static int mlxsw_m_fw_rev_validate(struct mlxsw_m *mlxsw_m)
