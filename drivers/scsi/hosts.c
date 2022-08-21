@@ -197,8 +197,6 @@ void scsi_remove_host(struct Scsi_Host *shost)
 	 * the dependent SCSI targets and devices are gone before returning.
 	 */
 	wait_event(shost->targets_wq, atomic_read(&shost->target_count) == 0);
-
-	scsi_mq_destroy_tags(shost);
 }
 EXPORT_SYMBOL(scsi_remove_host);
 
@@ -309,8 +307,8 @@ int scsi_add_host_with_dma(struct Scsi_Host *shost, struct device *dev,
 	return error;
 
 	/*
-	 * Any resources associated with the SCSI host in this function except
-	 * the tag set will be freed by scsi_host_dev_release().
+	 * Any host allocation in this function will be freed in
+	 * scsi_host_dev_release().
 	 */
  out_del_dev:
 	device_del(&shost->shost_dev);
@@ -326,7 +324,6 @@ int scsi_add_host_with_dma(struct Scsi_Host *shost, struct device *dev,
 	pm_runtime_disable(&shost->shost_gendev);
 	pm_runtime_set_suspended(&shost->shost_gendev);
 	pm_runtime_put_noidle(&shost->shost_gendev);
-	scsi_mq_destroy_tags(shost);
  fail:
 	return error;
 }
@@ -359,6 +356,9 @@ static void scsi_host_dev_release(struct device *dev)
 		 */
 		kfree(dev_name(&shost->shost_dev));
 	}
+
+	if (shost->tag_set.tags)
+		scsi_mq_destroy_tags(shost);
 
 	kfree(shost->shost_data);
 
