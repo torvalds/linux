@@ -1022,11 +1022,14 @@ bool __skb_flow_dissect(const struct net *net,
 			prog = READ_ONCE(run_array->items[0].prog);
 			result = bpf_flow_dissect(prog, &ctx, n_proto, nhoff,
 						  hlen, flags);
+			if (result == BPF_FLOW_DISSECTOR_CONTINUE)
+				goto dissect_continue;
 			__skb_flow_bpf_to_target(&flow_keys, flow_dissector,
 						 target_container);
 			rcu_read_unlock();
 			return result == BPF_OK;
 		}
+dissect_continue:
 		rcu_read_unlock();
 	}
 
