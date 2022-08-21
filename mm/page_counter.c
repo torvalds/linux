@@ -193,7 +193,7 @@ int page_counter_set_max(struct page_counter *counter, unsigned long nr_pages)
 
 		old = xchg(&counter->max, nr_pages);
 
-		if (page_counter_read(counter) <= usage)
+		if (page_counter_read(counter) <= usage || nr_pages >= old)
 			return 0;
 
 		counter->max = old;
