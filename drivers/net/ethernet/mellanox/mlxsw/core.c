@@ -70,6 +70,8 @@ struct mlxsw_core {
 	struct workqueue_struct *emad_wq;
 	struct list_head rx_listener_list;
 	struct list_head event_listener_list;
+	struct list_head irq_event_handler_list;
+	struct mutex irq_event_handler_lock; /* Locks access to handlers list */
 	struct {
 		atomic64_t tid;
 		struct list_head trans_list;
@@ -2090,6 +2092,18 @@ static void mlxsw_core_health_fini(struct mlxsw_core *mlxsw_core)
 	devlink_health_reporter_destroy(mlxsw_core->health.fw_fatal);
 }
 
+static void mlxsw_core_irq_event_handler_init(struct mlxsw_core *mlxsw_core)
+{
+	INIT_LIST_HEAD(&mlxsw_core->irq_event_handler_list);
+	mutex_init(&mlxsw_core->irq_event_handler_lock);
+}
+
+static void mlxsw_core_irq_event_handler_fini(struct mlxsw_core *mlxsw_core)
+{
+	mutex_destroy(&mlxsw_core->irq_event_handler_lock);
+	WARN_ON(!list_empty(&mlxsw_core->irq_event_handler_list));
+}
+
 static int
 __mlxsw_core_bus_device_register(const struct mlxsw_bus_info *mlxsw_bus_info,
 				 const struct mlxsw_bus *mlxsw_bus,
@@ -2125,6 +2139,7 @@ __mlxsw_core_bus_device_register(const struct mlxsw_bus_info *mlxsw_bus_info,
 	mlxsw_core->bus = mlxsw_bus;
 	mlxsw_core->bus_priv = bus_priv;
 	mlxsw_core->bus_info = mlxsw_bus_info;
+	mlxsw_core_irq_event_handler_init(mlxsw_core);
 
 	err = mlxsw_bus->init(bus_priv, mlxsw_core, mlxsw_driver->profile,
 			      &mlxsw_core->res);
@@ -2233,6 +2248,7 @@ err_ports_init:
 err_register_resources:
 	mlxsw_bus->fini(bus_priv);
 err_bus_init:
+	mlxsw_core_irq_event_handler_fini(mlxsw_core);
 	if (!reload) {
 		devl_unlock(devlink);
 		devlink_free(devlink);
@@ -2302,6 +2318,7 @@ void mlxsw_core_bus_device_unregister(struct mlxsw_core *mlxsw_core,
 	if (!reload)
 		devl_resources_unregister(devlink);
 	mlxsw_core->bus->fini(mlxsw_core->bus_priv);
+	mlxsw_core_irq_event_handler_fini(mlxsw_core);
 	if (!reload) {
 		devl_unlock(devlink);
 		devlink_free(devlink);
@@ -2771,6 +2788,57 @@ int mlxsw_reg_trans_bulk_wait(struct list_head *bulk_list)
 	return sum_err;
 }
 EXPORT_SYMBOL(mlxsw_reg_trans_bulk_wait);
+
+struct mlxsw_core_irq_event_handler_item {
+	struct list_head list;
+	void (*cb)(struct mlxsw_core *mlxsw_core);
+};
+
+int mlxsw_core_irq_event_handler_register(struct mlxsw_core *mlxsw_core,
+					  mlxsw_irq_event_cb_t cb)
+{
+	struct mlxsw_core_irq_event_handler_item *item;
+
+	item = kzalloc(sizeof(*item), GFP_KERNEL);
+	if (!item)
+		return -ENOMEM;
+	item->cb = cb;
+	mutex_lock(&mlxsw_core->irq_event_handler_lock);
+	list_add_tail(&item->list, &mlxsw_core->irq_event_handler_list);
+	mutex_unlock(&mlxsw_core->irq_event_handler_lock);
+	return 0;
+}
+EXPORT_SYMBOL(mlxsw_core_irq_event_handler_register);
+
+void mlxsw_core_irq_event_handler_unregister(struct mlxsw_core *mlxsw_core,
+					     mlxsw_irq_event_cb_t cb)
+{
+	struct mlxsw_core_irq_event_handler_item *item, *tmp;
+
+	mutex_lock(&mlxsw_core->irq_event_handler_lock);
+	list_for_each_entry_safe(item, tmp,
+				 &mlxsw_core->irq_event_handler_list, list) {
+		if (item->cb == cb) {
+			list_del(&item->list);
+			kfree(item);
+		}
+	}
+	mutex_unlock(&mlxsw_core->irq_event_handler_lock);
+}
+EXPORT_SYMBOL(mlxsw_core_irq_event_handler_unregister);
+
+void mlxsw_core_irq_event_handlers_call(struct mlxsw_core *mlxsw_core)
+{
+	struct mlxsw_core_irq_event_handler_item *item;
+
+	mutex_lock(&mlxsw_core->irq_event_handler_lock);
+	list_for_each_entry(item, &mlxsw_core->irq_event_handler_list, list) {
+		if (item->cb)
+			item->cb(mlxsw_core);
+	}
+	mutex_unlock(&mlxsw_core->irq_event_handler_lock);
+}
+EXPORT_SYMBOL(mlxsw_core_irq_event_handlers_call);
 
 static int mlxsw_core_reg_access_cmd(struct mlxsw_core *mlxsw_core,
 				     const struct mlxsw_reg_info *reg,
