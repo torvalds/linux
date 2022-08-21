@@ -8,6 +8,8 @@
 
 #include "bpf_flow.skel.h"
 
+#define FLOW_CONTINUE_SADDR 0x7f00007f /* 127.0.0.127 */
+
 #ifndef IP_MF
 #define IP_MF 0x2000
 #endif
@@ -399,6 +401,25 @@ struct test tests[] = {
 		},
 		.flags = BPF_FLOW_DISSECTOR_F_STOP_AT_ENCAP,
 		.retval = BPF_OK,
+	},
+	{
+		.name = "ipip-encap-dissector-continue",
+		.pkt.ipip = {
+			.eth.h_proto = __bpf_constant_htons(ETH_P_IP),
+			.iph.ihl = 5,
+			.iph.protocol = IPPROTO_IPIP,
+			.iph.tot_len = __bpf_constant_htons(MAGIC_BYTES),
+			.iph.saddr = __bpf_constant_htonl(FLOW_CONTINUE_SADDR),
+			.iph_inner.ihl = 5,
+			.iph_inner.protocol = IPPROTO_TCP,
+			.iph_inner.tot_len =
+				__bpf_constant_htons(MAGIC_BYTES) -
+				sizeof(struct iphdr),
+			.tcp.doff = 5,
+			.tcp.source = 99,
+			.tcp.dest = 9090,
+		},
+		.retval = BPF_FLOW_DISSECTOR_CONTINUE,
 	},
 };
 
