@@ -8,8 +8,8 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/qcom-iommu-util.h>
+#include <linux/qcom-io-pgtable.h>
 #include "qcom-dma-iommu-generic.h"
-#include "qcom-io-pgtable.h"
 #include "qcom-io-pgtable-alloc.h"
 
 struct qcom_iommu_range_prop_cb_data {

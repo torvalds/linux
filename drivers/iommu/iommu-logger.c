@@ -1,13 +1,14 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2020-2021, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/bitfield.h>
 #include <linux/module.h>
 #include <linux/iommu.h>
+#include <linux/qcom-io-pgtable.h>
 #include <linux/slab.h>
-#include "qcom-io-pgtable.h"
 
 #include "iommu-logger.h"
 

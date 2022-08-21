@@ -25,8 +25,7 @@
 #include <linux/spinlock.h>
 #include <linux/types.h>
 #include <linux/qcom-iommu-util.h>
-
-#include "../../qcom-io-pgtable.h"
+#include <linux/qcom-io-pgtable.h>
 
 /* Configuration registers */
 #define ARM_SMMU_GR0_sCR0		0x0
