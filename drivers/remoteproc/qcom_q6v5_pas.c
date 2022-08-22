@@ -65,6 +65,7 @@ struct adsp_data {
 	bool auto_boot;
 	bool dma_phys_below_32b;
 	bool decrypt_shutdown;
+	bool needs_dsm_mem_setup;
 
 	char **active_pd_names;
 	char **proxy_pd_names;
@@ -1012,7 +1013,8 @@ static int adsp_probe(struct platform_device *pdev)
 	if (ret < 0 && ret != -EINVAL)
 		return ret;
 
-	if (!mpss_dsm_mem_setup && !strcmp(fw_name, "modem.mdt")) {
+	if (desc->needs_dsm_mem_setup && !mpss_dsm_mem_setup &&
+			!strcmp(fw_name, "modem.mdt")) {
 		ret = setup_mpss_dsm_mem(pdev);
 		if (ret) {
 			dev_err(&pdev->dev, "failed to setup mpss dsm mem\n");
@@ -1514,6 +1516,7 @@ static const struct adsp_data pineapple_mpss_resource = {
 	.uses_elf64 = true,
 	.has_aggre2_clk = false,
 	.auto_boot = false,
+	.needs_dsm_mem_setup = true,
 	.ssr_name = "mpss",
 	.sysmon_name = "modem",
 	.qmp_name = "modem",
