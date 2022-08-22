@@ -1,0 +1,19 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2022 Rockchip Electronics Co., Ltd.
+ */
+
+/dts-v1/;
+
+#include "rv1106g-evb1-v11.dts"
+#include "rv1106-evb-ext-rgb-v10.dtsi"
+
+/ {
+	model = "Rockchip RV1106G EVB1 V11 Board + Rockchip RV1106 RGB 24BIT V10 EVB Ext Board";
+	compatible = "rockchip,rv1106g-evb1-rgb-display-v11", "rockchip,rv1106";
+};
+
+&panel {
+	enable-gpios = <&gpio0 RK_PA5 GPIO_ACTIVE_LOW>;
+	reset-gpios = <&gpio0 RK_PA6 GPIO_ACTIVE_LOW>;
+};
