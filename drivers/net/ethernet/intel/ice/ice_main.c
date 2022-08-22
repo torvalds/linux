@@ -3922,87 +3922,134 @@ static int ice_init_pf(struct ice_pf *pf)
 }
 
 /**
+ * ice_reduce_msix_usage - Reduce usage of MSI-X vectors
+ * @pf: board private structure
+ * @v_remain: number of remaining MSI-X vectors to be distributed
+ *
+ * Reduce the usage of MSI-X vectors when entire request cannot be fulfilled.
+ * pf->num_lan_msix and pf->num_rdma_msix values are set based on number of
+ * remaining vectors.
+ */
+static void ice_reduce_msix_usage(struct ice_pf *pf, int v_remain)
+{
+	int v_rdma;
+
+	if (!ice_is_rdma_ena(pf)) {
+		pf->num_lan_msix = v_remain;
+		return;
+	}
+
+	/* RDMA needs at least 1 interrupt in addition to AEQ MSIX */
+	v_rdma = ICE_RDMA_NUM_AEQ_MSIX + 1;
+
+	if (v_remain < ICE_MIN_LAN_TXRX_MSIX + ICE_MIN_RDMA_MSIX) {
+		dev_warn(ice_pf_to_dev(pf), "Not enough MSI-X vectors to support RDMA.\n");
+		clear_bit(ICE_FLAG_RDMA_ENA, pf->flags);
+
+		pf->num_rdma_msix = 0;
+		pf->num_lan_msix = ICE_MIN_LAN_TXRX_MSIX;
+	} else if ((v_remain < ICE_MIN_LAN_TXRX_MSIX + v_rdma) ||
+		   (v_remain - v_rdma < v_rdma)) {
+		/* Support minimum RDMA and give remaining vectors to LAN MSIX */
+		pf->num_rdma_msix = ICE_MIN_RDMA_MSIX;
+		pf->num_lan_msix = v_remain - ICE_MIN_RDMA_MSIX;
+	} else {
+		/* Split remaining MSIX with RDMA after accounting for AEQ MSIX
+		 */
+		pf->num_rdma_msix = (v_remain - ICE_RDMA_NUM_AEQ_MSIX) / 2 +
+				    ICE_RDMA_NUM_AEQ_MSIX;
+		pf->num_lan_msix = v_remain - pf->num_rdma_msix;
+	}
+}
+
+/**
  * ice_ena_msix_range - Request a range of MSIX vectors from the OS
  * @pf: board private structure
  *
- * compute the number of MSIX vectors required (v_budget) and request from
- * the OS. Return the number of vectors reserved or negative on failure
+ * Compute the number of MSIX vectors wanted and request from the OS. Adjust
+ * device usage if there are not enough vectors. Return the number of vectors
+ * reserved or negative on failure.
  */
 static int ice_ena_msix_range(struct ice_pf *pf)
 {
-	int num_cpus, v_left, v_actual, v_other, v_budget = 0;
+	int num_cpus, hw_num_msix, v_other, v_wanted, v_actual;
 	struct device *dev = ice_pf_to_dev(pf);
-	int needed, err, i;
+	int err, i;
 
-	v_left = pf->hw.func_caps.common_cap.num_msix_vectors;
+	hw_num_msix = pf->hw.func_caps.common_cap.num_msix_vectors;
 	num_cpus = num_online_cpus();
 
-	/* reserve for LAN miscellaneous handler */
-	needed = ICE_MIN_LAN_OICR_MSIX;
-	if (v_left < needed)
-		goto no_hw_vecs_left_err;
-	v_budget += needed;
-	v_left -= needed;
+	/* LAN miscellaneous handler */
+	v_other = ICE_MIN_LAN_OICR_MSIX;
 
-	/* reserve for flow director */
-	if (test_bit(ICE_FLAG_FD_ENA, pf->flags)) {
-		needed = ICE_FDIR_MSIX;
-		if (v_left < needed)
-			goto no_hw_vecs_left_err;
-		v_budget += needed;
-		v_left -= needed;
-	}
+	/* Flow Director */
+	if (test_bit(ICE_FLAG_FD_ENA, pf->flags))
+		v_other += ICE_FDIR_MSIX;
 
-	/* reserve for switchdev */
-	needed = ICE_ESWITCH_MSIX;
-	if (v_left < needed)
-		goto no_hw_vecs_left_err;
-	v_budget += needed;
-	v_left -= needed;
+	/* switchdev */
+	v_other += ICE_ESWITCH_MSIX;
 
-	/* total used for non-traffic vectors */
-	v_other = v_budget;
+	v_wanted = v_other;
 
-	/* reserve vectors for LAN traffic */
-	needed = num_cpus;
-	if (v_left < needed)
-		goto no_hw_vecs_left_err;
-	pf->num_lan_msix = needed;
-	v_budget += needed;
-	v_left -= needed;
+	/* LAN traffic */
+	pf->num_lan_msix = num_cpus;
+	v_wanted += pf->num_lan_msix;
 
-	/* reserve vectors for RDMA auxiliary driver */
+	/* RDMA auxiliary driver */
 	if (ice_is_rdma_ena(pf)) {
-		needed = num_cpus + ICE_RDMA_NUM_AEQ_MSIX;
-		if (v_left < needed)
-			goto no_hw_vecs_left_err;
-		pf->num_rdma_msix = needed;
-		v_budget += needed;
-		v_left -= needed;
+		pf->num_rdma_msix = num_cpus + ICE_RDMA_NUM_AEQ_MSIX;
+		v_wanted += pf->num_rdma_msix;
 	}
 
-	pf->msix_entries = devm_kcalloc(dev, v_budget,
+	if (v_wanted > hw_num_msix) {
+		int v_remain;
+
+		dev_warn(dev, "not enough device MSI-X vectors. wanted = %d, available = %d\n",
+			 v_wanted, hw_num_msix);
+
+		if (hw_num_msix < ICE_MIN_MSIX) {
+			err = -ERANGE;
+			goto exit_err;
+		}
+
+		v_remain = hw_num_msix - v_other;
+		if (v_remain < ICE_MIN_LAN_TXRX_MSIX) {
+			v_other = ICE_MIN_MSIX - ICE_MIN_LAN_TXRX_MSIX;
+			v_remain = ICE_MIN_LAN_TXRX_MSIX;
+		}
+
+		ice_reduce_msix_usage(pf, v_remain);
+		v_wanted = pf->num_lan_msix + pf->num_rdma_msix + v_other;
+
+		dev_notice(dev, "Reducing request to %d MSI-X vectors for LAN traffic.\n",
+			   pf->num_lan_msix);
+		if (ice_is_rdma_ena(pf))
+			dev_notice(dev, "Reducing request to %d MSI-X vectors for RDMA.\n",
+				   pf->num_rdma_msix);
+	}
+
+	pf->msix_entries = devm_kcalloc(dev, v_wanted,
 					sizeof(*pf->msix_entries), GFP_KERNEL);
 	if (!pf->msix_entries) {
 		err = -ENOMEM;
 		goto exit_err;
 	}
 
-	for (i = 0; i < v_budget; i++)
+	for (i = 0; i < v_wanted; i++)
 		pf->msix_entries[i].entry = i;
 
 	/* actually reserve the vectors */
 	v_actual = pci_enable_msix_range(pf->pdev, pf->msix_entries,
-					 ICE_MIN_MSIX, v_budget);
+					 ICE_MIN_MSIX, v_wanted);
 	if (v_actual < 0) {
 		dev_err(dev, "unable to reserve MSI-X vectors\n");
 		err = v_actual;
 		goto msix_err;
 	}
 
-	if (v_actual < v_budget) {
+	if (v_actual < v_wanted) {
 		dev_warn(dev, "not enough OS MSI-X vectors. requested = %d, obtained = %d\n",
-			 v_budget, v_actual);
+			 v_wanted, v_actual);
 
 		if (v_actual < ICE_MIN_MSIX) {
 			/* error if we can't get minimum vectors */
@@ -4011,38 +4058,11 @@ static int ice_ena_msix_range(struct ice_pf *pf)
 			goto msix_err;
 		} else {
 			int v_remain = v_actual - v_other;
-			int v_rdma = 0, v_min_rdma = 0;
 
-			if (ice_is_rdma_ena(pf)) {
-				/* Need at least 1 interrupt in addition to
-				 * AEQ MSIX
-				 */
-				v_rdma = ICE_RDMA_NUM_AEQ_MSIX + 1;
-				v_min_rdma = ICE_MIN_RDMA_MSIX;
-			}
+			if (v_remain < ICE_MIN_LAN_TXRX_MSIX)
+				v_remain = ICE_MIN_LAN_TXRX_MSIX;
 
-			if (v_actual == ICE_MIN_MSIX ||
-			    v_remain < ICE_MIN_LAN_TXRX_MSIX + v_min_rdma) {
-				dev_warn(dev, "Not enough MSI-X vectors to support RDMA.\n");
-				clear_bit(ICE_FLAG_RDMA_ENA, pf->flags);
-
-				pf->num_rdma_msix = 0;
-				pf->num_lan_msix = ICE_MIN_LAN_TXRX_MSIX;
-			} else if ((v_remain < ICE_MIN_LAN_TXRX_MSIX + v_rdma) ||
-				   (v_remain - v_rdma < v_rdma)) {
-				/* Support minimum RDMA and give remaining
-				 * vectors to LAN MSIX
-				 */
-				pf->num_rdma_msix = v_min_rdma;
-				pf->num_lan_msix = v_remain - v_min_rdma;
-			} else {
-				/* Split remaining MSIX with RDMA after
-				 * accounting for AEQ MSIX
-				 */
-				pf->num_rdma_msix = (v_remain - ICE_RDMA_NUM_AEQ_MSIX) / 2 +
-						    ICE_RDMA_NUM_AEQ_MSIX;
-				pf->num_lan_msix = v_remain - pf->num_rdma_msix;
-			}
+			ice_reduce_msix_usage(pf, v_remain);
 
 			dev_notice(dev, "Enabled %d MSI-X vectors for LAN traffic.\n",
 				   pf->num_lan_msix);
@@ -4057,12 +4077,7 @@ static int ice_ena_msix_range(struct ice_pf *pf)
 
 msix_err:
 	devm_kfree(dev, pf->msix_entries);
-	goto exit_err;
 
-no_hw_vecs_left_err:
-	dev_err(dev, "not enough device MSI-X vectors. requested = %d, available = %d\n",
-		needed, v_left);
-	err = -ERANGE;
 exit_err:
 	pf->num_rdma_msix = 0;
 	pf->num_lan_msix = 0;
