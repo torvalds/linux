@@ -15,12 +15,12 @@ struct mm_walk;
  *			this handler is required to be able to handle
  *			pmd_trans_huge() pmds.  They may simply choose to
  *			split_huge_page() instead of handling it explicitly.
- * @pte_entry:		if set, called for each non-empty PTE (lowest-level)
- *			entry
+ * @pte_entry:		if set, called for each PTE (lowest-level) entry,
+ *			including empty ones
  * @pte_hole:		if set, called for each hole at all levels,
- *			depth is -1 if not known, 0:PGD, 1:P4D, 2:PUD, 3:PMD
- *			4:PTE. Any folded depths (where PTRS_PER_P?D is equal
- *			to 1) are skipped.
+ *			depth is -1 if not known, 0:PGD, 1:P4D, 2:PUD, 3:PMD.
+ *			Any folded depths (where PTRS_PER_P?D is equal to 1)
+ *			are skipped.
  * @hugetlb_entry:	if set, called for each hugetlb entry
  * @test_walk:		caller specific callback function to determine whether
  *			we walk over the current vma or not. Returning 0 means
