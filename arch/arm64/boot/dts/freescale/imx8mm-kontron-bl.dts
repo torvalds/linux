@@ -5,11 +5,11 @@
 
 /dts-v1/;
 
-#include "imx8mm-kontron-n801x-som.dtsi"
+#include "imx8mm-kontron-sl.dtsi"
 
 / {
-	model = "Kontron i.MX8MM N801X S";
-	compatible = "kontron,imx8mm-n801x-s", "kontron,imx8mm-n801x-som", "fsl,imx8mm";
+	model = "Kontron BL i.MX8MM (N801X S)";
+	compatible = "kontron,imx8mm-bl", "kontron,imx8mm-sl", "fsl,imx8mm";
 
 	aliases {
 		ethernet1 = &usbnet;

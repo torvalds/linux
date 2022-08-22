@@ -6,8 +6,8 @@
 #include "imx8mm.dtsi"
 
 / {
-	model = "Kontron i.MX8MM N801X SoM";
-	compatible = "kontron,imx8mm-n801x-som", "fsl,imx8mm";
+	model = "Kontron SL i.MX8MM (N801X SOM)";
+	compatible = "kontron,imx8mm-sl", "fsl,imx8mm";
 
 	memory@40000000 {
 		device_type = "memory";
