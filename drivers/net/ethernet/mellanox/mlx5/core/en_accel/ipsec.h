@@ -146,7 +146,7 @@ struct mlx5e_ipsec_sa_entry {
 	struct mlx5e_ipsec_modify_state_work modify_work;
 };
 
-int mlx5e_ipsec_init(struct mlx5e_priv *priv);
+void mlx5e_ipsec_init(struct mlx5e_priv *priv);
 void mlx5e_ipsec_cleanup(struct mlx5e_priv *priv);
 void mlx5e_ipsec_build_netdev(struct mlx5e_priv *priv);
 
@@ -174,9 +174,8 @@ mlx5e_ipsec_sa2dev(struct mlx5e_ipsec_sa_entry *sa_entry)
 	return sa_entry->ipsec->mdev;
 }
 #else
-static inline int mlx5e_ipsec_init(struct mlx5e_priv *priv)
+static inline void mlx5e_ipsec_init(struct mlx5e_priv *priv)
 {
-	return 0;
 }
 
 static inline void mlx5e_ipsec_cleanup(struct mlx5e_priv *priv)

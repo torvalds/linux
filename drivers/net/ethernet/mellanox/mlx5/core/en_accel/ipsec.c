@@ -345,29 +345,27 @@ static void mlx5e_xfrm_free_state(struct xfrm_state *x)
 	kfree(sa_entry);
 }
 
-int mlx5e_ipsec_init(struct mlx5e_priv *priv)
+void mlx5e_ipsec_init(struct mlx5e_priv *priv)
 {
 	struct mlx5e_ipsec *ipsec;
-	int ret;
+	int ret = -ENOMEM;
 
 	if (!mlx5_ipsec_device_caps(priv->mdev)) {
 		netdev_dbg(priv->netdev, "Not an IPSec offload device\n");
-		return 0;
+		return;
 	}
 
 	ipsec = kzalloc(sizeof(*ipsec), GFP_KERNEL);
 	if (!ipsec)
-		return -ENOMEM;
+		return;
 
 	hash_init(ipsec->sadb_rx);
 	spin_lock_init(&ipsec->sadb_rx_lock);
 	ipsec->mdev = priv->mdev;
 	ipsec->wq = alloc_ordered_workqueue("mlx5e_ipsec: %s", 0,
 					    priv->netdev->name);
-	if (!ipsec->wq) {
-		ret = -ENOMEM;
+	if (!ipsec->wq)
 		goto err_wq;
-	}
 
 	ret = mlx5e_accel_ipsec_fs_init(ipsec);
 	if (ret)
@@ -375,13 +373,14 @@ int mlx5e_ipsec_init(struct mlx5e_priv *priv)
 
 	priv->ipsec = ipsec;
 	netdev_dbg(priv->netdev, "IPSec attached to netdevice\n");
-	return 0;
+	return;
 
 err_fs_init:
 	destroy_workqueue(ipsec->wq);
 err_wq:
 	kfree(ipsec);
-	return (ret != -EOPNOTSUPP) ? ret : 0;
+	mlx5_core_err(priv->mdev, "IPSec initialization failed, %d\n", ret);
+	return;
 }
 
 void mlx5e_ipsec_cleanup(struct mlx5e_priv *priv)
