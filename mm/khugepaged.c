@@ -730,8 +730,8 @@ static void khugepaged_alloc_sleep(void)
 	DEFINE_WAIT(wait);
 
 	add_wait_queue(&khugepaged_wait, &wait);
-	freezable_schedule_timeout_interruptible(
-		msecs_to_jiffies(khugepaged_alloc_sleep_millisecs));
+	__set_current_state(TASK_INTERRUPTIBLE|TASK_FREEZABLE);
+	schedule_timeout(msecs_to_jiffies(khugepaged_alloc_sleep_millisecs));
 	remove_wait_queue(&khugepaged_wait, &wait);
 }
 
