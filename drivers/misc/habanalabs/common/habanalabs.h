@@ -3199,6 +3199,7 @@ struct hl_reset_info {
  *                         Used only for testing.
  * @heartbeat: Controls if we want to enable the heartbeat mechanism vs. the f/w, which verifies
  *             that the f/w is always alive. Used only for testing.
+ * @supports_ctx_switch: true if a ctx switch is required upon first submission.
  */
 struct hl_device {
 	struct pci_dev			*pdev;
@@ -3335,6 +3336,7 @@ struct hl_device {
 	u8				compute_ctx_in_release;
 	u8				supports_mmu_prefetch;
 	u8				reset_upon_device_release;
+	u8				supports_ctx_switch;
 
 	/* Parameters for bring-up */
 	u64				nic_ports_mask;

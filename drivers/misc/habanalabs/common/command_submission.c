@@ -1590,13 +1590,14 @@ static int hl_cs_ctx_switch(struct hl_fpriv *hpriv, union hl_cs_args *args,
 	struct hl_device *hdev = hpriv->hdev;
 	struct hl_ctx *ctx = hpriv->ctx;
 	bool need_soft_reset = false;
-	int rc = 0, do_ctx_switch;
+	int rc = 0, do_ctx_switch = 0;
 	void __user *chunks;
 	u32 num_chunks, tmp;
 	u16 sob_count;
 	int ret;
 
-	do_ctx_switch = atomic_cmpxchg(&ctx->thread_ctx_switch_token, 1, 0);
+	if (hdev->supports_ctx_switch)
+		do_ctx_switch = atomic_cmpxchg(&ctx->thread_ctx_switch_token, 1, 0);
 
 	if (do_ctx_switch || (args->in.cs_flags & HL_CS_FLAGS_FORCE_RESTORE)) {
 		mutex_lock(&hpriv->restore_phase_mutex);
@@ -1667,9 +1668,10 @@ wait_again:
 			}
 		}
 
-		ctx->thread_ctx_switch_wait_token = 1;
+		if (hdev->supports_ctx_switch)
+			ctx->thread_ctx_switch_wait_token = 1;
 
-	} else if (!ctx->thread_ctx_switch_wait_token) {
+	} else if (hdev->supports_ctx_switch && !ctx->thread_ctx_switch_wait_token) {
 		rc = hl_poll_timeout_memory(hdev,
 			&ctx->thread_ctx_switch_wait_token, tmp, (tmp == 1),
 			100, jiffies_to_usecs(hdev->timeout_jiffies), false);
