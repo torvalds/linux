@@ -42,7 +42,7 @@ struct test_name_type_v01 {
 	char name[TEST_MAX_NAME_SIZE_V01];
 };
 
-static struct qmi_elem_info test_name_type_v01_ei[] = {
+static const struct qmi_elem_info test_name_type_v01_ei[] = {
 	{
 		.data_type	= QMI_DATA_LEN,
 		.elem_len	= 1,
@@ -71,7 +71,7 @@ struct test_ping_req_msg_v01 {
 	struct test_name_type_v01 client_name;
 };
 
-static struct qmi_elem_info test_ping_req_msg_v01_ei[] = {
+static const struct qmi_elem_info test_ping_req_msg_v01_ei[] = {
 	{
 		.data_type	= QMI_UNSIGNED_1_BYTE,
 		.elem_len	= 4,
@@ -113,7 +113,7 @@ struct test_ping_resp_msg_v01 {
 	struct test_name_type_v01 service_name;
 };
 
-static struct qmi_elem_info test_ping_resp_msg_v01_ei[] = {
+static const struct qmi_elem_info test_ping_resp_msg_v01_ei[] = {
 	{
 		.data_type	= QMI_STRUCT,
 		.elem_len	= 1,
@@ -172,7 +172,7 @@ struct test_data_req_msg_v01 {
 	struct test_name_type_v01 client_name;
 };
 
-static struct qmi_elem_info test_data_req_msg_v01_ei[] = {
+static const struct qmi_elem_info test_data_req_msg_v01_ei[] = {
 	{
 		.data_type	= QMI_DATA_LEN,
 		.elem_len	= 1,
@@ -224,7 +224,7 @@ struct test_data_resp_msg_v01 {
 	struct test_name_type_v01 service_name;
 };
 
-static struct qmi_elem_info test_data_resp_msg_v01_ei[] = {
+static const struct qmi_elem_info test_data_resp_msg_v01_ei[] = {
 	{
 		.data_type	= QMI_STRUCT,
 		.elem_len	= 1,
