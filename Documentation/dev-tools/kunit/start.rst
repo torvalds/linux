@@ -4,6 +4,10 @@
 Getting Started
 ===============
 
+This page contains an overview of the kunit_tool and KUnit framework,
+teaching how to run existing tests and then how to write a simple test case,
+and covers common problems users face when using KUnit for the first time.
+
 Installing Dependencies
 =======================
 KUnit has the same dependencies as the Linux kernel. As long as you can
