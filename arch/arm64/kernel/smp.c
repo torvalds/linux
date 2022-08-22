@@ -852,6 +852,10 @@ void arch_irq_work_raise(void)
 
 static void local_cpu_stop(void)
 {
+	if (system_state <= SYSTEM_RUNNING) {
+		pr_crit("CPU%u: stopping\n", smp_processor_id());
+		dump_stack();
+	}
 	set_cpu_online(smp_processor_id(), false);
 
 	local_daif_mask();
