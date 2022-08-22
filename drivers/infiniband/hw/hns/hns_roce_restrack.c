@@ -198,3 +198,34 @@ err:
 
 	return -EMSGSIZE;
 }
+
+int hns_roce_fill_res_mr_entry_raw(struct sk_buff *msg, struct ib_mr *ib_mr)
+{
+	struct hns_roce_dev *hr_dev = to_hr_dev(ib_mr->device);
+	struct hns_roce_mr *hr_mr = to_hr_mr(ib_mr);
+	struct hns_roce_v2_mpt_entry context;
+	u32 data[MAX_ENTRY_NUM] = {};
+	int offset = 0;
+	int ret;
+
+	if (!hr_dev->hw->query_mpt)
+		return -EINVAL;
+
+	ret = hr_dev->hw->query_mpt(hr_dev, hr_mr->key, &context);
+	if (ret)
+		return -EINVAL;
+
+	data[offset++] = hr_reg_read(&context, MPT_ST);
+	data[offset++] = hr_reg_read(&context, MPT_PD);
+	data[offset++] = hr_reg_read(&context, MPT_LKEY);
+	data[offset++] = hr_reg_read(&context, MPT_LEN_L);
+	data[offset++] = hr_reg_read(&context, MPT_LEN_H);
+	data[offset++] = hr_reg_read(&context, MPT_PBL_SIZE);
+	data[offset++] = hr_reg_read(&context, MPT_PBL_HOP_NUM);
+	data[offset++] = hr_reg_read(&context, MPT_PBL_BA_PG_SZ);
+	data[offset++] = hr_reg_read(&context, MPT_PBL_BUF_PG_SZ);
+
+	ret = nla_put(msg, RDMA_NLDEV_ATTR_RES_RAW, offset * sizeof(u32), data);
+
+	return ret;
+}

@@ -5802,6 +5802,35 @@ err_mailbox:
 	return ret;
 }
 
+static int hns_roce_v2_query_mpt(struct hns_roce_dev *hr_dev, u32 key,
+				 void *buffer)
+{
+	struct hns_roce_v2_mpt_entry *context;
+	struct hns_roce_cmd_mailbox *mailbox;
+	int ret;
+
+	mailbox = hns_roce_alloc_cmd_mailbox(hr_dev);
+	if (IS_ERR(mailbox))
+		return PTR_ERR(mailbox);
+
+	context = mailbox->buf;
+	ret = hns_roce_cmd_mbox(hr_dev, 0, mailbox->dma, HNS_ROCE_CMD_QUERY_MPT,
+				key_to_hw_index(key));
+	if (ret) {
+		ibdev_err(&hr_dev->ib_dev,
+			  "failed to process cmd when querying MPT, ret = %d.\n",
+			  ret);
+		goto err_mailbox;
+	}
+
+	memcpy(buffer, context, sizeof(*context));
+
+err_mailbox:
+	hns_roce_free_cmd_mailbox(hr_dev, mailbox);
+
+	return ret;
+}
+
 static void hns_roce_irq_work_handle(struct work_struct *work)
 {
 	struct hns_roce_work *irq_work =
@@ -6645,6 +6674,7 @@ static const struct hns_roce_hw hns_roce_hw_v2 = {
 	.write_srqc = hns_roce_v2_write_srqc,
 	.query_cqc = hns_roce_v2_query_cqc,
 	.query_qpc = hns_roce_v2_query_qpc,
+	.query_mpt = hns_roce_v2_query_mpt,
 	.hns_roce_dev_ops = &hns_roce_v2_dev_ops,
 	.hns_roce_dev_srq_ops = &hns_roce_v2_dev_srq_ops,
 };
