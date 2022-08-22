@@ -630,7 +630,7 @@ EXPORT_SYMBOL_GPL(devm_thermal_zone_of_sensor_register);
 /**
  * devm_thermal_zone_of_sensor_unregister - Resource managed version of
  *				thermal_zone_of_sensor_unregister().
- * @dev: Device for which which resource was allocated.
+ * @dev: Device for which resource was allocated.
  * @tzd: a pointer to struct thermal_zone_device where the sensor is registered.
  *
  * This function removes the sensor callbacks and private data from the

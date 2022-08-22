@@ -475,7 +475,7 @@ static int cpufreq_set_cur_state(struct thermal_cooling_device *cdev,
 
 /**
  * __cpufreq_cooling_register - helper function to create cpufreq cooling device
- * @np: a valid struct device_node to the cooling device device tree node
+ * @np: a valid struct device_node to the cooling device tree node
  * @policy: cpufreq policy
  * Normally this should be same as cpufreq policy->related_cpus.
  * @em: Energy Model of the cpufreq policy
