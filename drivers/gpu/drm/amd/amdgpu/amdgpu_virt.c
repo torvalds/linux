@@ -835,7 +835,9 @@ bool amdgpu_virt_fw_load_skip_check(struct amdgpu_device *adev, uint32_t ucode_i
 		|| ucode_id == AMDGPU_UCODE_ID_CP_MES
 		|| ucode_id == AMDGPU_UCODE_ID_CP_MES_DATA
 		|| ucode_id == AMDGPU_UCODE_ID_CP_MES1
-		|| ucode_id == AMDGPU_UCODE_ID_CP_MES1_DATA)
+		|| ucode_id == AMDGPU_UCODE_ID_CP_MES1_DATA
+		|| ucode_id == AMDGPU_UCODE_ID_VCN1
+		|| ucode_id == AMDGPU_UCODE_ID_VCN)
 			return false;
 		else
 			return true;
