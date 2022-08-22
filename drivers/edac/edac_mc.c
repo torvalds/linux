@@ -103,7 +103,6 @@ static void edac_mc_dump_dimm(struct dimm_info *dimm)
 	edac_dbg(4, "  dimm->label = '%s'\n", dimm->label);
 	edac_dbg(4, "  dimm->nr_pages = 0x%x\n", dimm->nr_pages);
 	edac_dbg(4, "  dimm->grain = %d\n", dimm->grain);
-	edac_dbg(4, "  dimm->nr_pages = 0x%x\n", dimm->nr_pages);
 }
 
 static void edac_mc_dump_csrow(struct csrow_info *csrow)
