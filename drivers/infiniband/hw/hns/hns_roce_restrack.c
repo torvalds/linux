@@ -112,3 +112,59 @@ err:
 
 	return -EMSGSIZE;
 }
+
+int hns_roce_fill_res_qp_entry_raw(struct sk_buff *msg, struct ib_qp *ib_qp)
+{
+	struct hns_roce_dev *hr_dev = to_hr_dev(ib_qp->device);
+	struct hns_roce_qp *hr_qp = to_hr_qp(ib_qp);
+	struct hns_roce_v2_qp_context context;
+	u32 data[MAX_ENTRY_NUM] = {};
+	int offset = 0;
+	int ret;
+
+	if (!hr_dev->hw->query_qpc)
+		return -EINVAL;
+
+	ret = hr_dev->hw->query_qpc(hr_dev, hr_qp->qpn, &context);
+	if (ret)
+		return -EINVAL;
+
+	data[offset++] = hr_reg_read(&context, QPC_QP_ST);
+	data[offset++] = hr_reg_read(&context, QPC_ERR_TYPE);
+	data[offset++] = hr_reg_read(&context, QPC_CHECK_FLG);
+	data[offset++] = hr_reg_read(&context, QPC_SRQ_EN);
+	data[offset++] = hr_reg_read(&context, QPC_SRQN);
+	data[offset++] = hr_reg_read(&context, QPC_QKEY_XRCD);
+	data[offset++] = hr_reg_read(&context, QPC_TX_CQN);
+	data[offset++] = hr_reg_read(&context, QPC_RX_CQN);
+	data[offset++] = hr_reg_read(&context, QPC_SQ_PRODUCER_IDX);
+	data[offset++] = hr_reg_read(&context, QPC_SQ_CONSUMER_IDX);
+	data[offset++] = hr_reg_read(&context, QPC_RQ_RECORD_EN);
+	data[offset++] = hr_reg_read(&context, QPC_RQ_PRODUCER_IDX);
+	data[offset++] = hr_reg_read(&context, QPC_RQ_CONSUMER_IDX);
+	data[offset++] = hr_reg_read(&context, QPC_SQ_SHIFT);
+	data[offset++] = hr_reg_read(&context, QPC_RQWS);
+	data[offset++] = hr_reg_read(&context, QPC_RQ_SHIFT);
+	data[offset++] = hr_reg_read(&context, QPC_SGE_SHIFT);
+	data[offset++] = hr_reg_read(&context, QPC_SQ_HOP_NUM);
+	data[offset++] = hr_reg_read(&context, QPC_RQ_HOP_NUM);
+	data[offset++] = hr_reg_read(&context, QPC_SGE_HOP_NUM);
+	data[offset++] = hr_reg_read(&context, QPC_WQE_SGE_BA_PG_SZ);
+	data[offset++] = hr_reg_read(&context, QPC_WQE_SGE_BUF_PG_SZ);
+	data[offset++] = hr_reg_read(&context, QPC_RETRY_NUM_INIT);
+	data[offset++] = hr_reg_read(&context, QPC_RETRY_CNT);
+	data[offset++] = hr_reg_read(&context, QPC_SQ_CUR_PSN);
+	data[offset++] = hr_reg_read(&context, QPC_SQ_MAX_PSN);
+	data[offset++] = hr_reg_read(&context, QPC_SQ_FLUSH_IDX);
+	data[offset++] = hr_reg_read(&context, QPC_SQ_MAX_IDX);
+	data[offset++] = hr_reg_read(&context, QPC_SQ_TX_ERR);
+	data[offset++] = hr_reg_read(&context, QPC_SQ_RX_ERR);
+	data[offset++] = hr_reg_read(&context, QPC_RQ_RX_ERR);
+	data[offset++] = hr_reg_read(&context, QPC_RQ_TX_ERR);
+	data[offset++] = hr_reg_read(&context, QPC_RQ_CQE_IDX);
+	data[offset++] = hr_reg_read(&context, QPC_RQ_RTY_TX_ERR);
+
+	ret = nla_put(msg, RDMA_NLDEV_ATTR_RES_RAW, offset * sizeof(u32), data);
+
+	return ret;
+}

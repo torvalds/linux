@@ -5307,9 +5307,8 @@ static int to_ib_qp_st(enum hns_roce_v2_qp_state state)
 	return (state < ARRAY_SIZE(map)) ? map[state] : -1;
 }
 
-static int hns_roce_v2_query_qpc(struct hns_roce_dev *hr_dev,
-				 struct hns_roce_qp *hr_qp,
-				 struct hns_roce_v2_qp_context *hr_context)
+static int hns_roce_v2_query_qpc(struct hns_roce_dev *hr_dev, u32 qpn,
+				 void *buffer)
 {
 	struct hns_roce_cmd_mailbox *mailbox;
 	int ret;
@@ -5319,11 +5318,11 @@ static int hns_roce_v2_query_qpc(struct hns_roce_dev *hr_dev,
 		return PTR_ERR(mailbox);
 
 	ret = hns_roce_cmd_mbox(hr_dev, 0, mailbox->dma, HNS_ROCE_CMD_QUERY_QPC,
-				hr_qp->qpn);
+				qpn);
 	if (ret)
 		goto out;
 
-	memcpy(hr_context, mailbox->buf, hr_dev->caps.qpc_sz);
+	memcpy(buffer, mailbox->buf, hr_dev->caps.qpc_sz);
 
 out:
 	hns_roce_free_cmd_mailbox(hr_dev, mailbox);
@@ -5353,7 +5352,7 @@ static int hns_roce_v2_query_qp(struct ib_qp *ibqp, struct ib_qp_attr *qp_attr,
 		goto done;
 	}
 
-	ret = hns_roce_v2_query_qpc(hr_dev, hr_qp, &context);
+	ret = hns_roce_v2_query_qpc(hr_dev, hr_qp->qpn, &context);
 	if (ret) {
 		ibdev_err(ibdev, "failed to query QPC, ret = %d.\n", ret);
 		ret = -EINVAL;
@@ -6645,6 +6644,7 @@ static const struct hns_roce_hw hns_roce_hw_v2 = {
 	.cleanup_eq = hns_roce_v2_cleanup_eq_table,
 	.write_srqc = hns_roce_v2_write_srqc,
 	.query_cqc = hns_roce_v2_query_cqc,
+	.query_qpc = hns_roce_v2_query_qpc,
 	.hns_roce_dev_ops = &hns_roce_v2_dev_ops,
 	.hns_roce_dev_srq_ops = &hns_roce_v2_dev_srq_ops,
 };

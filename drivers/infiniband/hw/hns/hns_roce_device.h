@@ -895,6 +895,7 @@ struct hns_roce_hw {
 	void (*cleanup_eq)(struct hns_roce_dev *hr_dev);
 	int (*write_srqc)(struct hns_roce_srq *srq, void *mb_buf);
 	int (*query_cqc)(struct hns_roce_dev *hr_dev, u32 cqn, void *buffer);
+	int (*query_qpc)(struct hns_roce_dev *hr_dev, u32 qpn, void *buffer);
 	const struct ib_device_ops *hns_roce_dev_ops;
 	const struct ib_device_ops *hns_roce_dev_srq_ops;
 };
@@ -1226,6 +1227,7 @@ void hns_roce_exit(struct hns_roce_dev *hr_dev);
 int hns_roce_fill_res_cq_entry(struct sk_buff *msg, struct ib_cq *ib_cq);
 int hns_roce_fill_res_cq_entry_raw(struct sk_buff *msg, struct ib_cq *ib_cq);
 int hns_roce_fill_res_qp_entry(struct sk_buff *msg, struct ib_qp *ib_qp);
+int hns_roce_fill_res_qp_entry_raw(struct sk_buff *msg, struct ib_qp *ib_qp);
 struct hns_user_mmap_entry *
 hns_roce_user_mmap_entry_insert(struct ib_ucontext *ucontext, u64 address,
 				size_t length,
