@@ -168,3 +168,33 @@ int hns_roce_fill_res_qp_entry_raw(struct sk_buff *msg, struct ib_qp *ib_qp)
 
 	return ret;
 }
+
+int hns_roce_fill_res_mr_entry(struct sk_buff *msg, struct ib_mr *ib_mr)
+{
+	struct hns_roce_mr *hr_mr = to_hr_mr(ib_mr);
+	struct nlattr *table_attr;
+
+	table_attr = nla_nest_start(msg, RDMA_NLDEV_ATTR_DRIVER);
+	if (!table_attr)
+		return -EMSGSIZE;
+
+	if (rdma_nl_put_driver_u32_hex(msg, "pbl_hop_num", hr_mr->pbl_hop_num))
+		goto err;
+
+	if (rdma_nl_put_driver_u32_hex(msg, "ba_pg_shift",
+				       hr_mr->pbl_mtr.hem_cfg.ba_pg_shift))
+		goto err;
+
+	if (rdma_nl_put_driver_u32_hex(msg, "buf_pg_shift",
+				       hr_mr->pbl_mtr.hem_cfg.buf_pg_shift))
+		goto err;
+
+	nla_nest_end(msg, table_attr);
+
+	return 0;
+
+err:
+	nla_nest_cancel(msg, table_attr);
+
+	return -EMSGSIZE;
+}

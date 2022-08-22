@@ -570,6 +570,7 @@ static const struct ib_device_ops hns_roce_dev_restrack_ops = {
 	.fill_res_cq_entry_raw = hns_roce_fill_res_cq_entry_raw,
 	.fill_res_qp_entry = hns_roce_fill_res_qp_entry,
 	.fill_res_qp_entry_raw = hns_roce_fill_res_qp_entry_raw,
+	.fill_res_mr_entry = hns_roce_fill_res_mr_entry,
 };
 
 static int hns_roce_register_device(struct hns_roce_dev *hr_dev)
