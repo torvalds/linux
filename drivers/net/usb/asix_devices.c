@@ -303,6 +303,24 @@ static int ax88772_ethtool_get_sset_count(struct net_device *ndev, int sset)
 	}
 }
 
+static void ax88772_ethtool_get_pauseparam(struct net_device *ndev,
+					  struct ethtool_pauseparam *pause)
+{
+	struct usbnet *dev = netdev_priv(ndev);
+	struct asix_common_private *priv = dev->driver_priv;
+
+	phylink_ethtool_get_pauseparam(priv->phylink, pause);
+}
+
+static int ax88772_ethtool_set_pauseparam(struct net_device *ndev,
+					 struct ethtool_pauseparam *pause)
+{
+	struct usbnet *dev = netdev_priv(ndev);
+	struct asix_common_private *priv = dev->driver_priv;
+
+	return phylink_ethtool_set_pauseparam(priv->phylink, pause);
+}
+
 static const struct ethtool_ops ax88772_ethtool_ops = {
 	.get_drvinfo		= asix_get_drvinfo,
 	.get_link		= usbnet_get_link,
@@ -319,6 +337,8 @@ static const struct ethtool_ops ax88772_ethtool_ops = {
 	.self_test		= net_selftest,
 	.get_strings		= ax88772_ethtool_get_strings,
 	.get_sset_count		= ax88772_ethtool_get_sset_count,
+	.get_pauseparam		= ax88772_ethtool_get_pauseparam,
+	.set_pauseparam		= ax88772_ethtool_set_pauseparam,
 };
 
 static int ax88772_reset(struct usbnet *dev)
