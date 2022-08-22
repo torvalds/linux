@@ -787,7 +787,7 @@ static inline int btree_path_lock_root(struct btree_trans *trans,
 		}
 
 		lock_type = __btree_lock_want(path, path->level);
-		ret = btree_node_lock(trans, path, b, SPOS_MAX,
+		ret = btree_node_lock(trans, path, &b->c, SPOS_MAX,
 				      path->level, lock_type,
 				      lock_root_check_fn, rootp,
 				      trace_ip);

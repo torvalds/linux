@@ -822,7 +822,7 @@ static inline int trans_lock_write(struct btree_trans *trans)
 				goto fail;
 
 			ret = btree_node_lock_type(trans, i->path,
-					     insert_l(i)->b,
+					     &insert_l(i)->b->c,
 					     i->path->pos, i->level,
 					     SIX_LOCK_write, NULL, NULL);
 			BUG_ON(ret);

@@ -886,7 +886,7 @@ lock_node:
 		if (btree_node_read_locked(path, level + 1))
 			btree_node_unlock(trans, path, level + 1);
 
-		ret = btree_node_lock(trans, path, b, k->k.p, level, lock_type,
+		ret = btree_node_lock(trans, path, &b->c, k->k.p, level, lock_type,
 				      lock_node_check_fn, (void *) k, trace_ip);
 		if (unlikely(ret)) {
 			if (bch2_err_matches(ret, BCH_ERR_lock_fail_node_reused))

@@ -18,7 +18,7 @@ static inline void six_lock_readers_add(struct six_lock *lock, int nr)
 
 struct six_lock_count bch2_btree_node_lock_counts(struct btree_trans *trans,
 						  struct btree_path *skip,
-						  struct btree *b,
+						  struct btree_bkey_cached_common *b,
 						  unsigned level)
 {
 	struct btree_path *path;
@@ -30,7 +30,7 @@ struct six_lock_count bch2_btree_node_lock_counts(struct btree_trans *trans,
 		return ret;
 
 	trans_for_each_path(trans, path)
-		if (path != skip && path->l[level].b == b) {
+		if (path != skip && &path->l[level].b->c == b) {
 			int t = btree_node_locked_type(path, level);
 
 			if (t != BTREE_NODE_UNLOCKED)
@@ -52,7 +52,7 @@ void bch2_btree_node_unlock_write(struct btree_trans *trans,
 
 void __bch2_btree_node_lock_write(struct btree_trans *trans, struct btree *b)
 {
-	int readers = bch2_btree_node_lock_counts(trans, NULL, b, b->c.level).n[SIX_LOCK_read];
+	int readers = bch2_btree_node_lock_counts(trans, NULL, &b->c, b->c.level).n[SIX_LOCK_read];
 
 	/*
 	 * Must drop our read locks before calling six_lock_write() -
@@ -78,7 +78,7 @@ static inline bool path_has_read_locks(struct btree_path *path)
 /* Slowpath: */
 int __bch2_btree_node_lock(struct btree_trans *trans,
 			   struct btree_path *path,
-			   struct btree *b,
+			   struct btree_bkey_cached_common *b,
 			   struct bpos pos, unsigned level,
 			   enum six_lock_type type,
 			   six_lock_should_sleep_fn should_sleep_fn, void *p,
@@ -142,7 +142,7 @@ int __bch2_btree_node_lock(struct btree_trans *trans,
 
 		/* Must lock btree nodes in key order: */
 		if (btree_node_locked(linked, level) &&
-		    bpos_cmp(pos, btree_node_pos((void *) linked->l[level].b,
+		    bpos_cmp(pos, btree_node_pos(&linked->l[level].b->c,
 						 linked->cached)) <= 0) {
 			reason = 7;
 			goto deadlock;
@@ -216,7 +216,7 @@ bool __bch2_btree_node_relock(struct btree_trans *trans,
 
 	if (six_relock_type(&b->c.lock, want, path->l[level].lock_seq) ||
 	    (btree_node_lock_seq_matches(path, b, level) &&
-	     btree_node_lock_increment(trans, b, level, want))) {
+	     btree_node_lock_increment(trans, &b->c, level, want))) {
 		mark_btree_node_locked(trans, path, level, want);
 		return true;
 	}
@@ -260,7 +260,7 @@ bool bch2_btree_node_upgrade(struct btree_trans *trans,
 		goto success;
 
 	if (btree_node_lock_seq_matches(path, b, level) &&
-	    btree_node_lock_increment(trans, b, level, BTREE_NODE_INTENT_LOCKED)) {
+	    btree_node_lock_increment(trans, &b->c, level, BTREE_NODE_INTENT_LOCKED)) {
 		btree_node_unlock(trans, path, level);
 		goto success;
 	}
