@@ -315,6 +315,8 @@ static struct btrfs_delayed_item *btrfs_alloc_delayed_item(u16 data_len,
 		item->bytes_reserved = 0;
 		item->delayed_node = node;
 		RB_CLEAR_NODE(&item->rb_node);
+		INIT_LIST_HEAD(&item->log_list);
+		item->logged = false;
 		refcount_set(&item->refs, 1);
 	}
 	return item;
@@ -2045,3 +2047,113 @@ void btrfs_destroy_delayed_inodes(struct btrfs_fs_info *fs_info)
 	}
 }
 
+void btrfs_log_get_delayed_items(struct btrfs_inode *inode,
+				 struct list_head *ins_list,
+				 struct list_head *del_list)
+{
+	struct btrfs_delayed_node *node;
+	struct btrfs_delayed_item *item;
+
+	node = btrfs_get_delayed_node(inode);
+	if (!node)
+		return;
+
+	mutex_lock(&node->mutex);
+	item = __btrfs_first_delayed_insertion_item(node);
+	while (item) {
+		/*
+		 * It's possible that the item is already in a log list. This
+		 * can happen in case two tasks are trying to log the same
+		 * directory. For example if we have tasks A and task B:
+		 *
+		 * Task A collected the delayed items into a log list while
+		 * under the inode's log_mutex (at btrfs_log_inode()), but it
+		 * only releases the items after logging the inodes they point
+		 * to (if they are new inodes), which happens after unlocking
+		 * the log mutex;
+		 *
+		 * Task B enters btrfs_log_inode() and acquires the log_mutex
+		 * of the same directory inode, before task B releases the
+		 * delayed items. This can happen for example when logging some
+		 * inode we need to trigger logging of its parent directory, so
+		 * logging two files that have the same parent directory can
+		 * lead to this.
+		 *
+		 * If this happens, just ignore delayed items already in a log
+		 * list. All the tasks logging the directory are under a log
+		 * transaction and whichever finishes first can not sync the log
+		 * before the other completes and leaves the log transaction.
+		 */
+		if (!item->logged && list_empty(&item->log_list)) {
+			refcount_inc(&item->refs);
+			list_add_tail(&item->log_list, ins_list);
+		}
+		item = __btrfs_next_delayed_item(item);
+	}
+
+	item = __btrfs_first_delayed_deletion_item(node);
+	while (item) {
+		/* It may be non-empty, for the same reason mentioned above. */
+		if (!item->logged && list_empty(&item->log_list)) {
+			refcount_inc(&item->refs);
+			list_add_tail(&item->log_list, del_list);
+		}
+		item = __btrfs_next_delayed_item(item);
+	}
+	mutex_unlock(&node->mutex);
+
+	/*
+	 * We are called during inode logging, which means the inode is in use
+	 * and can not be evicted before we finish logging the inode. So we never
+	 * have the last reference on the delayed inode.
+	 * Also, we don't use btrfs_release_delayed_node() because that would
+	 * requeue the delayed inode (change its order in the list of prepared
+	 * nodes) and we don't want to do such change because we don't create or
+	 * delete delayed items.
+	 */
+	ASSERT(refcount_read(&node->refs) > 1);
+	refcount_dec(&node->refs);
+}
+
+void btrfs_log_put_delayed_items(struct btrfs_inode *inode,
+				 struct list_head *ins_list,
+				 struct list_head *del_list)
+{
+	struct btrfs_delayed_node *node;
+	struct btrfs_delayed_item *item;
+	struct btrfs_delayed_item *next;
+
+	node = btrfs_get_delayed_node(inode);
+	if (!node)
+		return;
+
+	mutex_lock(&node->mutex);
+
+	list_for_each_entry_safe(item, next, ins_list, log_list) {
+		item->logged = true;
+		list_del_init(&item->log_list);
+		if (refcount_dec_and_test(&item->refs))
+			kfree(item);
+	}
+
+	list_for_each_entry_safe(item, next, del_list, log_list) {
+		item->logged = true;
+		list_del_init(&item->log_list);
+		if (refcount_dec_and_test(&item->refs))
+			kfree(item);
+	}
+
+	mutex_unlock(&node->mutex);
+
+	/*
+	 * We are called during inode logging, which means the inode is in use
+	 * and can not be evicted before we finish logging the inode. So we never
+	 * have the last reference on the delayed inode.
+	 * Also, we don't use btrfs_release_delayed_node() because that would
+	 * requeue the delayed inode (change its order in the list of prepared
+	 * nodes) and we don't want to do such change because we don't create or
+	 * delete delayed items.
+	 */
+	ASSERT(refcount_read(&node->refs) > 1);
+	refcount_dec(&node->refs);
+}
