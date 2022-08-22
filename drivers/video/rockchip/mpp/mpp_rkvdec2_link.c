@@ -1683,7 +1683,7 @@ static int rkvdec2_soft_ccu_reset(struct mpp_taskqueue *queue,
 		struct mpp_dev *mpp = queue->cores[i];
 		struct rkvdec2_dev *dec = to_rkvdec2_dev(mpp);
 
-		if (dec->disable_work)
+		if (mpp->disable)
 			continue;
 
 		dev_info(mpp->dev, "resetting...\n");
@@ -1861,9 +1861,10 @@ static struct mpp_dev *rkvdec2_get_idle_core(struct mpp_taskqueue *queue,
 	struct rkvdec2_dev *dec = NULL;
 
 	for (i = 0; i < queue->core_count; i++) {
-		struct rkvdec2_dev *core = to_rkvdec2_dev(queue->cores[i]);
+		struct mpp_dev *mpp = queue->cores[i];
+		struct rkvdec2_dev *core = to_rkvdec2_dev(mpp);
 
-		if (core->disable_work)
+		if (mpp->disable)
 			continue;
 
 		if (test_bit(i, &queue->core_idle)) {
@@ -1892,13 +1893,13 @@ static struct mpp_dev *rkvdec2_get_idle_core(struct mpp_taskqueue *queue,
 
 static bool rkvdec2_core_working(struct mpp_taskqueue *queue)
 {
-	u32 i = 0;
-	struct rkvdec2_dev *core;
+	struct mpp_dev *mpp;
 	bool flag = false;
+	u32 i = 0;
 
 	for (i = 0; i < queue->core_count; i++) {
-		core = to_rkvdec2_dev(queue->cores[i]);
-		if (core->disable_work)
+		mpp = queue->cores[i];
+		if (mpp->disable)
 			continue;
 		if (!test_bit(i, &queue->core_idle)) {
 			flag = true;

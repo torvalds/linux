@@ -199,7 +199,6 @@ struct rkvdec2_dev {
 	/* for ccu link mode */
 	struct rkvdec2_ccu *ccu;
 	u32 core_mask;
-	bool disable_work;
 	u32 task_index;
 };
 

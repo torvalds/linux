@@ -631,6 +631,10 @@ static int rkvdec2_procfs_init(struct mpp_dev *mpp)
 		dec->procfs = NULL;
 		return -EIO;
 	}
+
+	/* for common mpp_dev options */
+	mpp_procfs_create_common(dec->procfs, mpp);
+
 	mpp_procfs_create_u32("aclk", 0644,
 			      dec->procfs, &dec->aclk_info.debug_rate_hz);
 	mpp_procfs_create_u32("clk_core", 0644,
@@ -645,8 +649,6 @@ static int rkvdec2_procfs_init(struct mpp_dev *mpp)
 			   dec->procfs, rkvdec2_show_pref_sel_offset);
 	mpp_procfs_create_u32("task_count", 0644,
 			      dec->procfs, &mpp->task_index);
-	mpp_procfs_create_u32("disable_work", 0644,
-			      dec->procfs, &dec->disable_work);
 
 	return 0;
 }

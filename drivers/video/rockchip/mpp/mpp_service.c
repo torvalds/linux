@@ -334,6 +334,7 @@ static int mpp_procfs_init(struct mpp_service *srv)
 	/* show support devices */
 	proc_create_single_data("supports-device", 0444,
 				srv->procfs, mpp_show_support_device, srv);
+	mpp_procfs_create_u32("timing_en", 0644, srv->procfs, &srv->timing_en);
 
 	return 0;
 }

@@ -263,7 +263,6 @@ struct rkvenc_dev {
 	/* for ccu */
 	struct rkvenc_ccu *ccu;
 	struct list_head core_link;
-	u32 disable_work;
 
 	/* internal rcb-memory */
 	u32 sram_size;
@@ -818,7 +817,7 @@ static void *rkvenc2_prepare(struct mpp_dev *mpp, struct mpp_task *mpp_task)
 	for (i = 0; i < core_id_max; i++) {
 		struct mpp_dev *mpp = queue->cores[i];
 
-		if (mpp && to_rkvenc_dev(mpp)->disable_work)
+		if (mpp && mpp->disable)
 			clear_bit(i, &core_idle);
 	}
 
@@ -1182,6 +1181,7 @@ static int rkvenc_isr(struct mpp_dev *mpp)
 
 		mpp_task_dump_hw_reg(mpp);
 	}
+
 	mpp_task_finish(mpp_task->session, mpp_task);
 
 	core_idle = queue->core_idle;
@@ -1435,6 +1435,10 @@ static int rkvenc_procfs_init(struct mpp_dev *mpp)
 		enc->procfs = NULL;
 		return -EIO;
 	}
+
+	/* for common mpp_dev options */
+	mpp_procfs_create_common(enc->procfs, mpp);
+
 	/* for debug */
 	mpp_procfs_create_u32("aclk", 0644,
 			      enc->procfs, &enc->aclk_info.debug_rate_hz);
@@ -1445,8 +1449,6 @@ static int rkvenc_procfs_init(struct mpp_dev *mpp)
 	/* for show session info */
 	proc_create_single_data("sessions-info", 0444,
 				enc->procfs, rkvenc_show_session_info, mpp);
-	mpp_procfs_create_u32("disable_work", 0644,
-			      enc->procfs, &enc->disable_work);
 
 	return 0;
 }
