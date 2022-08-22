@@ -2685,6 +2685,7 @@
   __tracepoint_android_vh_cpu_idle_exit
   __tracepoint_android_vh_cpuidle_psci_enter
   __tracepoint_android_vh_cpuidle_psci_exit
+  __tracepoint_android_vh_disable_thermal_cooling_stats
   __tracepoint_android_vh_dump_throttled_rt_tasks
   __tracepoint_android_vh_freq_table_limits
   __tracepoint_android_vh_ftrace_dump_buffer
