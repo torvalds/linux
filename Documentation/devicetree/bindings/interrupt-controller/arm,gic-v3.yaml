@@ -170,7 +170,6 @@ dependencies:
 
 required:
   - compatible
-  - interrupts
   - reg
 
 patternProperties:
