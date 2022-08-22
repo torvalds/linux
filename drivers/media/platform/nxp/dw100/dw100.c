@@ -1623,6 +1623,7 @@ error_m2m_mc:
 error_v4l2:
 	video_unregister_device(vfd);
 err_m2m:
+	media_device_cleanup(&dw_dev->mdev);
 	v4l2_m2m_release(dw_dev->m2m_dev);
 err_v4l2:
 	v4l2_device_unregister(&dw_dev->v4l2_dev);
