@@ -55,6 +55,10 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
+#include <linux/kernel_stat.h>
+#include <linux/irq.h>
+#include <linux/delay.h>
+
 #include "../../staging/android/fiq_debugger/fiq_debugger_priv.h"
 #include "rockchip_debug.h"
 
@@ -76,6 +80,7 @@
 static void __iomem *rockchip_cpu_debug[16];
 static void __iomem *rockchip_cs_pmu[16];
 static bool edpcsr_present;
+static char log_buf[1024];
 
 extern struct atomic_notifier_head hardlock_notifier_list;
 extern struct atomic_notifier_head rcu_stall_notifier_list;
@@ -410,6 +415,86 @@ static int rockchip_panic_notify_pmpcsr(struct notifier_block *nb,
 }
 #endif
 
+static int rockchip_show_interrupts(char *p, int irq)
+{
+	static int prec;
+	char *buf = p;
+	unsigned long any_count = 0;
+	int i = irq, j;
+	struct irqaction *action;
+	struct irq_desc *desc;
+
+	if (i > nr_irqs)
+		return -1;
+
+	/* print header and calculate the width of the first column */
+	if (i == 0) {
+		for (prec = 3, j = 1000; prec < 10 && j <= nr_irqs; ++prec)
+			j *= 10;
+
+		buf += sprintf(buf, "%*s", prec + 8, "");
+		for_each_online_cpu(j)
+			buf += sprintf(buf, "CPU%-8d", j);
+		buf += sprintf(buf, "\n");
+	}
+
+	desc = irq_to_desc(i);
+	if (!desc || (desc->status_use_accessors & IRQ_HIDDEN))
+		goto outsparse;
+
+	if (desc->kstat_irqs)
+		for_each_online_cpu(j)
+			any_count |= *per_cpu_ptr(desc->kstat_irqs, j);
+
+	if ((!desc->action) && !any_count)
+		goto outsparse;
+
+	buf += sprintf(buf, "%*d: ", prec, i);
+	for_each_online_cpu(j)
+		buf += sprintf(buf, "%10u ", desc->kstat_irqs ?
+					*per_cpu_ptr(desc->kstat_irqs, j) : 0);
+
+	if (desc->irq_data.chip) {
+		if (desc->irq_data.chip->name)
+			buf += sprintf(buf, " %8s", desc->irq_data.chip->name);
+		else
+			buf += sprintf(buf, " %8s", "-");
+	} else {
+		buf += sprintf(buf, " %8s", "None");
+	}
+	if (desc->irq_data.domain)
+		buf += sprintf(buf, " %*lu", prec, desc->irq_data.hwirq);
+	else
+		buf += sprintf(buf, " %*s", prec, "");
+#ifdef CONFIG_GENERIC_IRQ_SHOW_LEVEL
+	buf += sprintf(buf, " %-8s", irqd_is_level_type(&desc->irq_data) ? "Level" : "Edge");
+#endif
+	if (desc->name)
+		buf += sprintf(buf, "-%-8s", desc->name);
+
+	action = desc->action;
+	if (action) {
+		buf += sprintf(buf, "  %s", action->name);
+		while ((action = action->next) != NULL)
+			buf += sprintf(buf, ", %s", action->name);
+	}
+
+	sprintf(buf, "\n");
+	return 0;
+outsparse:
+	return -1;
+}
+
+static void rockchip_panic_notify_dump_irqs(void)
+{
+	int i = 0;
+
+	for (i = 0; i < nr_irqs; i++) {
+		if (!rockchip_show_interrupts(log_buf, i) || i == 0)
+			printk("%s", log_buf);
+	}
+}
+
 static int rockchip_panic_notify(struct notifier_block *nb, unsigned long event,
 				 void *p)
 {
@@ -417,6 +502,10 @@ static int rockchip_panic_notify(struct notifier_block *nb, unsigned long event,
 		rockchip_panic_notify_edpcsr(nb, event, p);
 	else
 		rockchip_panic_notify_pmpcsr(nb, event, p);
+
+	rockchip_panic_notify_dump_irqs();
+	mdelay(1000);
+	rockchip_panic_notify_dump_irqs();
 	return NOTIFY_OK;
 }
 static struct notifier_block rockchip_panic_nb = {
