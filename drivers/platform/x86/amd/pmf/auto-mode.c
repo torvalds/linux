@@ -264,7 +264,7 @@ static void amd_pmf_load_defaults_auto_mode(struct amd_pmf_dev *dev)
 	dev->socket_power_history_idx = -1;
 }
 
-void amd_pmf_reset_amt(struct amd_pmf_dev *dev)
+int amd_pmf_reset_amt(struct amd_pmf_dev *dev)
 {
 	/*
 	 * OEM BIOS implementation guide says that if the auto mode is enabled
@@ -275,11 +275,15 @@ void amd_pmf_reset_amt(struct amd_pmf_dev *dev)
 	 */
 
 	if (is_apmf_func_supported(dev, APMF_FUNC_STATIC_SLIDER_GRANULAR)) {
-		u8 mode = amd_pmf_get_pprof_modes(dev);
+		int mode = amd_pmf_get_pprof_modes(dev);
+
+		if (mode < 0)
+			return mode;
 
 		dev_dbg(dev->dev, "resetting AMT thermals\n");
 		amd_pmf_update_slider(dev, SLIDER_OP_SET, mode, NULL);
 	}
+	return 0;
 }
 
 void amd_pmf_handle_amt(struct amd_pmf_dev *dev)

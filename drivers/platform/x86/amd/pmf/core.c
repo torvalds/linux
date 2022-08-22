@@ -65,6 +65,9 @@ static int current_power_limits_show(struct seq_file *seq, void *unused)
 	int mode, src = 0;
 
 	mode = amd_pmf_get_pprof_modes(dev);
+	if (mode < 0)
+		return mode;
+
 	src = amd_pmf_get_power_source();
 	amd_pmf_update_slider(dev, SLIDER_OP_GET, mode, &table);
 	seq_printf(seq, "spl:%u fppt:%u sppt:%u sppt_apu_only:%u stt_min:%u stt[APU]:%u stt[HS2]: %u\n",

@@ -79,9 +79,9 @@ static int amd_pmf_profile_get(struct platform_profile_handler *pprof,
 	return 0;
 }
 
-u8 amd_pmf_get_pprof_modes(struct amd_pmf_dev *pmf)
+int amd_pmf_get_pprof_modes(struct amd_pmf_dev *pmf)
 {
-	u8 mode;
+	int mode;
 
 	switch (pmf->current_profile) {
 	case PLATFORM_PROFILE_PERFORMANCE:
@@ -95,7 +95,7 @@ u8 amd_pmf_get_pprof_modes(struct amd_pmf_dev *pmf)
 		break;
 	default:
 		dev_err(pmf->dev, "Unknown Platform Profile.\n");
-		break;
+		return -EOPNOTSUPP;
 	}
 
 	return mode;
@@ -105,10 +105,13 @@ static int amd_pmf_profile_set(struct platform_profile_handler *pprof,
 			       enum platform_profile_option profile)
 {
 	struct amd_pmf_dev *pmf = container_of(pprof, struct amd_pmf_dev, pprof);
-	u8 mode;
+	int mode;
 
 	pmf->current_profile = profile;
 	mode = amd_pmf_get_pprof_modes(pmf);
+	if (mode < 0)
+		return mode;
+
 	amd_pmf_update_slider(pmf, SLIDER_OP_SET, mode, NULL);
 	return 0;
 }
