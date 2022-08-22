@@ -7,10 +7,13 @@ boot	:= arch/loongarch/boot
 
 KBUILD_DEFCONFIG := loongson3_defconfig
 
+image-name-y			:= vmlinux
+image-name-$(CONFIG_EFI_ZBOOT)	:= vmlinuz
+
 ifndef CONFIG_EFI_STUB
 KBUILD_IMAGE	:= $(boot)/vmlinux.elf
 else
-KBUILD_IMAGE	:= $(boot)/vmlinux.efi
+KBUILD_IMAGE	:= $(boot)/$(image-name-y).efi
 endif
 
 #
@@ -93,11 +96,11 @@ vdso_install:
 
 all:	$(notdir $(KBUILD_IMAGE))
 
-vmlinux.elf vmlinux.efi: vmlinux
+vmlinux.elf vmlinux.efi vmlinuz.efi: vmlinux
 	$(Q)$(MAKE) $(build)=$(boot) $(bootvars-y) $(boot)/$@
 
 install:
-	$(Q)install -D -m 755 $(KBUILD_IMAGE) $(INSTALL_PATH)/vmlinux-$(KERNELRELEASE)
+	$(Q)install -D -m 755 $(KBUILD_IMAGE) $(INSTALL_PATH)/$(image-name-y)-$(KERNELRELEASE)
 	$(Q)install -D -m 644 .config $(INSTALL_PATH)/config-$(KERNELRELEASE)
 	$(Q)install -D -m 644 System.map $(INSTALL_PATH)/System.map-$(KERNELRELEASE)
 
