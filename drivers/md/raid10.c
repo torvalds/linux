@@ -1980,7 +1980,7 @@ static int enough(struct r10conf *conf, int ignore)
  * Otherwise, it must be degraded:
  *	- recovery is interrupted.
  *	- &mddev->degraded is bumped.
-
+ *
  * @rdev is marked as &Faulty excluding case when array is failed and
  * &mddev->fail_last_dev is off.
  */
