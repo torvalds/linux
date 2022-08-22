@@ -87,6 +87,7 @@ struct tsnep_rx_entry {
 struct tsnep_rx {
 	struct tsnep_adapter *adapter;
 	void __iomem *addr;
+	int queue_index;
 
 	void *page[TSNEP_RING_PAGE_COUNT];
 	dma_addr_t page_dma[TSNEP_RING_PAGE_COUNT];

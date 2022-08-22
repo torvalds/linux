@@ -124,28 +124,49 @@ static int tsnep_mdiobus_write(struct mii_bus *bus, int addr, int regnum,
 	return 0;
 }
 
+static void tsnep_set_link_mode(struct tsnep_adapter *adapter)
+{
+	u32 mode;
+
+	switch (adapter->phydev->speed) {
+	case SPEED_100:
+		mode = ECM_LINK_MODE_100;
+		break;
+	case SPEED_1000:
+		mode = ECM_LINK_MODE_1000;
+		break;
+	default:
+		mode = ECM_LINK_MODE_OFF;
+		break;
+	}
+	iowrite32(mode, adapter->addr + ECM_STATUS);
+}
+
 static void tsnep_phy_link_status_change(struct net_device *netdev)
 {
 	struct tsnep_adapter *adapter = netdev_priv(netdev);
 	struct phy_device *phydev = netdev->phydev;
-	u32 mode;
 
-	if (phydev->link) {
-		switch (phydev->speed) {
-		case SPEED_100:
-			mode = ECM_LINK_MODE_100;
-			break;
-		case SPEED_1000:
-			mode = ECM_LINK_MODE_1000;
-			break;
-		default:
-			mode = ECM_LINK_MODE_OFF;
-			break;
-		}
-		iowrite32(mode, adapter->addr + ECM_STATUS);
-	}
+	if (phydev->link)
+		tsnep_set_link_mode(adapter);
 
 	phy_print_status(netdev->phydev);
+}
+
+static int tsnep_phy_loopback(struct tsnep_adapter *adapter, bool enable)
+{
+	int retval;
+
+	retval = phy_loopback(adapter->phydev, enable);
+
+	/* PHY link state change is not signaled if loopback is enabled, it
+	 * would delay a working loopback anyway, let's ensure that loopback
+	 * is working immediately by setting link mode directly
+	 */
+	if (!retval && enable)
+		tsnep_set_link_mode(adapter);
+
+	return retval;
 }
 
 static int tsnep_phy_open(struct tsnep_adapter *adapter)
@@ -241,14 +262,14 @@ alloc_failed:
 	return retval;
 }
 
-static void tsnep_tx_activate(struct tsnep_tx *tx, int index, bool last)
+static void tsnep_tx_activate(struct tsnep_tx *tx, int index, int length,
+			      bool last)
 {
 	struct tsnep_tx_entry *entry = &tx->entry[index];
 
 	entry->properties = 0;
 	if (entry->skb) {
-		entry->properties =
-			skb_pagelen(entry->skb) & TSNEP_DESC_LENGTH_MASK;
+		entry->properties = length & TSNEP_DESC_LENGTH_MASK;
 		entry->properties |= TSNEP_DESC_INTERRUPT_FLAG;
 		if (skb_shinfo(entry->skb)->tx_flags & SKBTX_IN_PROGRESS)
 			entry->properties |= TSNEP_DESC_EXTENDED_WRITEBACK_FLAG;
@@ -313,6 +334,7 @@ static int tsnep_tx_map(struct sk_buff *skb, struct tsnep_tx *tx, int count)
 	struct tsnep_tx_entry *entry;
 	unsigned int len;
 	dma_addr_t dma;
+	int map_len = 0;
 	int i;
 
 	for (i = 0; i < count; i++) {
@@ -335,15 +357,18 @@ static int tsnep_tx_map(struct sk_buff *skb, struct tsnep_tx *tx, int count)
 		dma_unmap_addr_set(entry, dma, dma);
 
 		entry->desc->tx = __cpu_to_le64(dma);
+
+		map_len += len;
 	}
 
-	return 0;
+	return map_len;
 }
 
-static void tsnep_tx_unmap(struct tsnep_tx *tx, int index, int count)
+static int tsnep_tx_unmap(struct tsnep_tx *tx, int index, int count)
 {
 	struct device *dmadev = tx->adapter->dmadev;
 	struct tsnep_tx_entry *entry;
+	int map_len = 0;
 	int i;
 
 	for (i = 0; i < count; i++) {
@@ -360,9 +385,12 @@ static void tsnep_tx_unmap(struct tsnep_tx *tx, int index, int count)
 					       dma_unmap_addr(entry, dma),
 					       dma_unmap_len(entry, len),
 					       DMA_TO_DEVICE);
+			map_len += entry->len;
 			entry->len = 0;
 		}
 	}
+
+	return map_len;
 }
 
 static netdev_tx_t tsnep_xmit_frame_ring(struct sk_buff *skb,
@@ -371,6 +399,7 @@ static netdev_tx_t tsnep_xmit_frame_ring(struct sk_buff *skb,
 	unsigned long flags;
 	int count = 1;
 	struct tsnep_tx_entry *entry;
+	int length;
 	int i;
 	int retval;
 
@@ -394,7 +423,7 @@ static netdev_tx_t tsnep_xmit_frame_ring(struct sk_buff *skb,
 	entry->skb = skb;
 
 	retval = tsnep_tx_map(skb, tx, count);
-	if (retval != 0) {
+	if (retval < 0) {
 		tsnep_tx_unmap(tx, tx->write, count);
 		dev_kfree_skb_any(entry->skb);
 		entry->skb = NULL;
@@ -407,12 +436,13 @@ static netdev_tx_t tsnep_xmit_frame_ring(struct sk_buff *skb,
 
 		return NETDEV_TX_OK;
 	}
+	length = retval;
 
 	if (skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP)
 		skb_shinfo(skb)->tx_flags |= SKBTX_IN_PROGRESS;
 
 	for (i = 0; i < count; i++)
-		tsnep_tx_activate(tx, (tx->write + i) % TSNEP_RING_SIZE,
+		tsnep_tx_activate(tx, (tx->write + i) % TSNEP_RING_SIZE, length,
 				  i == (count - 1));
 	tx->write = (tx->write + count) % TSNEP_RING_SIZE;
 
@@ -428,9 +458,6 @@ static netdev_tx_t tsnep_xmit_frame_ring(struct sk_buff *skb,
 		netif_stop_queue(tx->adapter->netdev);
 	}
 
-	tx->packets++;
-	tx->bytes += skb_pagelen(entry->skb) + ETH_FCS_LEN;
-
 	spin_unlock_irqrestore(&tx->lock, flags);
 
 	return NETDEV_TX_OK;
@@ -442,6 +469,7 @@ static bool tsnep_tx_poll(struct tsnep_tx *tx, int napi_budget)
 	int budget = 128;
 	struct tsnep_tx_entry *entry;
 	int count;
+	int length;
 
 	spin_lock_irqsave(&tx->lock, flags);
 
@@ -464,7 +492,7 @@ static bool tsnep_tx_poll(struct tsnep_tx *tx, int napi_budget)
 		if (skb_shinfo(entry->skb)->nr_frags > 0)
 			count += skb_shinfo(entry->skb)->nr_frags;
 
-		tsnep_tx_unmap(tx, tx->read, count);
+		length = tsnep_tx_unmap(tx, tx->read, count);
 
 		if ((skb_shinfo(entry->skb)->tx_flags & SKBTX_IN_PROGRESS) &&
 		    (__le32_to_cpu(entry->desc_wb->properties) &
@@ -490,6 +518,9 @@ static bool tsnep_tx_poll(struct tsnep_tx *tx, int napi_budget)
 		entry->skb = NULL;
 
 		tx->read = (tx->read + count) % TSNEP_RING_SIZE;
+
+		tx->packets++;
+		tx->bytes += length + ETH_FCS_LEN;
 
 		budget--;
 	} while (likely(budget));
@@ -718,6 +749,7 @@ static int tsnep_rx_poll(struct tsnep_rx *rx, struct napi_struct *napi,
 				hwtstamps->netdev_data = rx_inline;
 			}
 			skb_pull(skb, TSNEP_RX_INLINE_METADATA_SIZE);
+			skb_record_rx_queue(skb, rx->queue_index);
 			skb->protocol = eth_type_trans(skb,
 						       rx->adapter->netdev);
 
@@ -752,7 +784,7 @@ static int tsnep_rx_poll(struct tsnep_rx *rx, struct napi_struct *napi,
 }
 
 static int tsnep_rx_open(struct tsnep_adapter *adapter, void __iomem *addr,
-			 struct tsnep_rx *rx)
+			 int queue_index, struct tsnep_rx *rx)
 {
 	dma_addr_t dma;
 	int i;
@@ -761,6 +793,7 @@ static int tsnep_rx_open(struct tsnep_adapter *adapter, void __iomem *addr,
 	memset(rx, 0, sizeof(*rx));
 	rx->adapter = adapter;
 	rx->addr = addr;
+	rx->queue_index = queue_index;
 
 	retval = tsnep_rx_ring_init(rx);
 	if (retval)
@@ -847,6 +880,7 @@ static int tsnep_netdev_open(struct net_device *netdev)
 		if (adapter->queue[i].rx) {
 			addr = adapter->addr + TSNEP_QUEUE(rx_queue_index);
 			retval = tsnep_rx_open(adapter, addr,
+					       rx_queue_index,
 					       adapter->queue[i].rx);
 			if (retval)
 				goto failed;
@@ -1017,6 +1051,22 @@ static int tsnep_netdev_set_mac_address(struct net_device *netdev, void *addr)
 	return 0;
 }
 
+static int tsnep_netdev_set_features(struct net_device *netdev,
+				     netdev_features_t features)
+{
+	struct tsnep_adapter *adapter = netdev_priv(netdev);
+	netdev_features_t changed = netdev->features ^ features;
+	bool enable;
+	int retval = 0;
+
+	if (changed & NETIF_F_LOOPBACK) {
+		enable = !!(features & NETIF_F_LOOPBACK);
+		retval = tsnep_phy_loopback(adapter, enable);
+	}
+
+	return retval;
+}
+
 static ktime_t tsnep_netdev_get_tstamp(struct net_device *netdev,
 				       const struct skb_shared_hwtstamps *hwtstamps,
 				       bool cycles)
@@ -1038,9 +1088,9 @@ static const struct net_device_ops tsnep_netdev_ops = {
 	.ndo_start_xmit = tsnep_netdev_xmit_frame,
 	.ndo_eth_ioctl = tsnep_netdev_ioctl,
 	.ndo_set_rx_mode = tsnep_netdev_set_multicast,
-
 	.ndo_get_stats64 = tsnep_netdev_get_stats64,
 	.ndo_set_mac_address = tsnep_netdev_set_mac_address,
+	.ndo_set_features = tsnep_netdev_set_features,
 	.ndo_get_tstamp = tsnep_netdev_get_tstamp,
 	.ndo_setup_tc = tsnep_tc_setup,
 };
@@ -1192,6 +1242,13 @@ static int tsnep_probe(struct platform_device *pdev)
 	adapter->queue[0].rx = &adapter->rx[0];
 	adapter->queue[0].irq_mask = ECM_INT_TX_0 | ECM_INT_RX_0;
 
+	retval = dma_set_mask_and_coherent(&adapter->pdev->dev,
+					   DMA_BIT_MASK(64));
+	if (retval) {
+		dev_err(&adapter->pdev->dev, "no usable DMA configuration.\n");
+		return retval;
+	}
+
 	tsnep_disable_irq(adapter, ECM_INT_ALL);
 	retval = devm_request_irq(&adapter->pdev->dev, adapter->irq, tsnep_irq,
 				  0, TSNEP, adapter);
@@ -1225,7 +1282,7 @@ static int tsnep_probe(struct platform_device *pdev)
 	netdev->netdev_ops = &tsnep_netdev_ops;
 	netdev->ethtool_ops = &tsnep_ethtool_ops;
 	netdev->features = NETIF_F_SG;
-	netdev->hw_features = netdev->features;
+	netdev->hw_features = netdev->features | NETIF_F_LOOPBACK;
 
 	/* carrier off reporting is important to ethtool even BEFORE open */
 	netif_carrier_off(netdev);
