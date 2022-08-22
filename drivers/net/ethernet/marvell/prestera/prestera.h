@@ -367,6 +367,8 @@ int prestera_port_learning_set(struct prestera_port *port, bool learn_enable);
 int prestera_port_uc_flood_set(struct prestera_port *port, bool flood);
 int prestera_port_mc_flood_set(struct prestera_port *port, bool flood);
 
+int prestera_port_br_locked_set(struct prestera_port *port, bool br_locked);
+
 int prestera_port_pvid_set(struct prestera_port *port, u16 vid);
 
 bool prestera_netdev_check(const struct net_device *dev);

@@ -183,6 +183,8 @@ int prestera_hw_port_speed_get(const struct prestera_port *port, u32 *speed);
 int prestera_hw_port_learning_set(struct prestera_port *port, bool enable);
 int prestera_hw_port_uc_flood_set(const struct prestera_port *port, bool flood);
 int prestera_hw_port_mc_flood_set(const struct prestera_port *port, bool flood);
+int prestera_hw_port_br_locked_set(const struct prestera_port *port,
+				   bool br_locked);
 int prestera_hw_port_accept_frm_type(struct prestera_port *port,
 				     enum prestera_accept_frm_type type);
 /* Vlan API */

@@ -51,6 +51,11 @@ int prestera_port_mc_flood_set(struct prestera_port *port, bool flood)
 	return prestera_hw_port_mc_flood_set(port, flood);
 }
 
+int prestera_port_br_locked_set(struct prestera_port *port, bool br_locked)
+{
+	return prestera_hw_port_br_locked_set(port, br_locked);
+}
+
 int prestera_port_pvid_set(struct prestera_port *port, u16 vid)
 {
 	enum prestera_accept_frm_type frm_type;
