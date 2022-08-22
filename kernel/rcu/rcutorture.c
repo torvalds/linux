@@ -1196,7 +1196,7 @@ static void rcu_torture_write_types(void)
 
 	/* Initialize synctype[] array.  If none set, take default. */
 	if (!gp_cond1 && !gp_cond_exp1 && !gp_cond_full1 && !gp_cond_exp_full1 && !gp_exp1 &&
-	    !gp_poll_exp && !gp_poll_exp_full1 && !gp_normal1 && !gp_poll1 && !gp_poll_full1 &&
+	    !gp_poll_exp1 && !gp_poll_exp_full1 && !gp_normal1 && !gp_poll1 && !gp_poll_full1 &&
 	    !gp_sync1)
 		gp_cond1 = gp_cond_exp1 = gp_cond_full1 = gp_cond_exp_full1 = gp_exp1 =
 			   gp_poll_exp1 = gp_poll_exp_full1 = gp_normal1 = gp_poll1 =
