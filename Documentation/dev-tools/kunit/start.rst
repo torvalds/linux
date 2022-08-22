@@ -19,7 +19,21 @@ can run kunit_tool:
 
 	./tools/testing/kunit/kunit.py run
 
-For more information on this wrapper, see:
+If everything worked correctly, you should see the following:
+
+.. code-block::
+
+	Configuring KUnit Kernel ...
+	Building KUnit Kernel ...
+	Starting KUnit Kernel ...
+
+The tests will pass or fail.
+
+.. note ::
+   Because it is building a lot of sources for the first time,
+   the ``Building KUnit Kernel`` step may take a while.
+
+For detailed information on this wrapper, see:
 Documentation/dev-tools/kunit/run_wrapper.rst.
 
 Creating a ``.kunitconfig``
@@ -74,28 +88,6 @@ you if you have not included dependencies for the options used.
    tools like ``make menuconfig O=.kunit``. As long as its a superset of
    ``.kunitconfig``, kunit.py won't overwrite your changes.
 
-Running Tests (KUnit Wrapper)
------------------------------
-1. To make sure that everything is set up correctly, invoke the Python
-   wrapper from your kernel repository:
-
-.. code-block:: bash
-
-	./tools/testing/kunit/kunit.py run
-
-If everything worked correctly, you should see the following:
-
-.. code-block::
-
-	Generating .config ...
-	Building KUnit Kernel ...
-	Starting KUnit Kernel ...
-
-The tests will pass or fail.
-
-.. note ::
-   Because it is building a lot of sources for the first time, the
-   ``Building KUnit kernel`` may take a while.
 
 Running Tests without the KUnit Wrapper
 =======================================
