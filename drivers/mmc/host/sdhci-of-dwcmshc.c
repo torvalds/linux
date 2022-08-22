@@ -584,14 +584,11 @@ static int dwcmshc_resume(struct device *dev)
 static int dwcmshc_runtime_suspend(struct device *dev)
 {
 	struct sdhci_host *host = dev_get_drvdata(dev);
-	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
-	struct dwcmshc_priv *priv = sdhci_pltfm_priv(pltfm_host);
+	u16 data;
 
-	priv->actual_clk = host->mmc->actual_clock;
-	sdhci_set_clock(host, 0);
-	priv->cclk_rate = clk_get_rate(pltfm_host->clk);
-	clk_set_rate(pltfm_host->clk, 24000000);
-	clk_bulk_disable_unprepare(ROCKCHIP_MAX_CLKS, priv->rockchip_clks);
+	data = sdhci_readw(host, SDHCI_CLOCK_CONTROL);
+	data &= ~SDHCI_CLOCK_CARD_EN;
+	sdhci_writew(host, data, SDHCI_CLOCK_CONTROL);
 
 	return 0;
 }
@@ -599,20 +596,13 @@ static int dwcmshc_runtime_suspend(struct device *dev)
 static int dwcmshc_runtime_resume(struct device *dev)
 {
 	struct sdhci_host *host = dev_get_drvdata(dev);
-	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
-	struct dwcmshc_priv *priv = sdhci_pltfm_priv(pltfm_host);
-	int ret = 0;
+	u16 data;
 
-	clk_set_rate(pltfm_host->clk, priv->cclk_rate);
-	sdhci_set_clock(host, priv->actual_clk);
-	ret = clk_bulk_prepare_enable(ROCKCHIP_MAX_CLKS, priv->rockchip_clks);
-	/*
-	 * DLL will not LOCK after frequency reduction,
-	 * and it needs to be reconfigured.
-	 */
-	dwcmshc_rk_set_clock(host, priv->cclk_rate);
+	data = sdhci_readw(host, SDHCI_CLOCK_CONTROL);
+	data |= SDHCI_CLOCK_CARD_EN;
+	sdhci_writew(host, data, SDHCI_CLOCK_CONTROL);
 
-	return ret;
+	return 0;
 }
 #endif
 
