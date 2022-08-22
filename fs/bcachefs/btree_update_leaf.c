@@ -740,62 +740,6 @@ bch2_trans_commit_write_locked(struct btree_trans *trans,
 	return ret;
 }
 
-static inline void path_upgrade_readers(struct btree_trans *trans, struct btree_path *path)
-{
-	unsigned l;
-
-	for (l = 0; l < BTREE_MAX_DEPTH; l++)
-		if (btree_node_read_locked(path, l))
-			BUG_ON(!bch2_btree_node_upgrade(trans, path, l));
-}
-
-static inline void upgrade_readers(struct btree_trans *trans, struct btree_path *path)
-{
-	struct btree *b = path_l(path)->b;
-	unsigned l;
-
-	do {
-		for (l = 0; l < BTREE_MAX_DEPTH; l++)
-			if (btree_node_read_locked(path, l))
-				path_upgrade_readers(trans, path);
-	} while ((path = prev_btree_path(trans, path)) &&
-		 path_l(path)->b == b);
-}
-
-/*
- * Check for nodes that we have both read and intent locks on, and upgrade the
- * readers to intent:
- */
-static inline void normalize_read_intent_locks(struct btree_trans *trans)
-{
-	struct btree_path *path;
-	unsigned i, nr_read = 0, nr_intent = 0;
-
-	trans_for_each_path_inorder(trans, path, i) {
-		struct btree_path *next = i + 1 < trans->nr_sorted
-			? trans->paths + trans->sorted[i + 1]
-			: NULL;
-
-		switch (btree_node_locked_type(path, path->level)) {
-		case BTREE_NODE_READ_LOCKED:
-			nr_read++;
-			break;
-		case BTREE_NODE_INTENT_LOCKED:
-			nr_intent++;
-			break;
-		}
-
-		if (!next || path_l(path)->b != path_l(next)->b) {
-			if (nr_read && nr_intent)
-				upgrade_readers(trans, path);
-
-			nr_read = nr_intent = 0;
-		}
-	}
-
-	bch2_trans_verify_locks(trans);
-}
-
 static inline int trans_lock_write(struct btree_trans *trans)
 {
 	struct btree_insert_entry *i;
@@ -898,8 +842,6 @@ static inline int do_bch2_trans_commit(struct btree_trans *trans,
 						trans->journal_preres_u64s, trace_ip);
 	if (unlikely(ret))
 		return ret;
-
-	normalize_read_intent_locks(trans);
 
 	ret = trans_lock_write(trans);
 	if (unlikely(ret))
