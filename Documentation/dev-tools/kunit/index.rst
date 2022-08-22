@@ -13,7 +13,6 @@ KUnit - Linux Kernel Unit Testing
 	run_wrapper
 	run_manual
 	usage
-	kunit-tool
 	api/index
 	style
 	faq
@@ -109,7 +108,5 @@ How do I use it?
     examples.
 *   Documentation/dev-tools/kunit/api/index.rst - KUnit APIs
     used for testing.
-*   Documentation/dev-tools/kunit/kunit-tool.rst - kunit_tool helper
-    script.
 *   Documentation/dev-tools/kunit/faq.rst - KUnit common questions and
     answers.
