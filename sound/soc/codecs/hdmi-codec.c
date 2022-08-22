@@ -20,10 +20,6 @@
 
 #define HDMI_CODEC_CHMAP_IDX_UNKNOWN  -1
 
-struct hdmi_codec_channel_map_table {
-	unsigned char map;	/* ALSA API channel map position */
-};
-
 /*
  * CEA speaker placement for HDMI 1.4:
  *
