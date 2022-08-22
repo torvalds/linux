@@ -310,7 +310,7 @@ static enum usb_device_speed dwc3_qcom_read_usb2_speed(struct dwc3_qcom *qcom)
 {
 	struct dwc3 *dwc = platform_get_drvdata(qcom->dwc3);
 	struct usb_device *udev;
-	struct usb_hcd *hcd;
+	struct usb_hcd __maybe_unused *hcd;
 
 	/*
 	 * FIXME: Fix this layering violation.
