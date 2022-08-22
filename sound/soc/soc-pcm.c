@@ -2907,6 +2907,7 @@ int soc_new_pcm(struct snd_soc_pcm_runtime *rtd, int num)
 	rtd->pcm = pcm;
 	pcm->nonatomic = rtd->dai_link->nonatomic;
 	pcm->private_data = rtd;
+	pcm->no_device_suspend = true;
 
 	if (rtd->dai_link->no_pcm || rtd->dai_link->params) {
 		if (playback)
@@ -2961,8 +2962,6 @@ int soc_new_pcm(struct snd_soc_pcm_runtime *rtd, int num)
 	ret = snd_soc_pcm_component_new(rtd);
 	if (ret < 0)
 		return ret;
-
-	pcm->no_device_suspend = true;
 out:
 	dev_dbg(rtd->card->dev, "%s <-> %s mapping ok\n",
 		soc_codec_dai_name(rtd), soc_cpu_dai_name(rtd));
