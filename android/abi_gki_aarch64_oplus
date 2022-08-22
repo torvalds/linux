@@ -2856,6 +2856,7 @@
   __traceiter_android_vh_rwsem_write_finished
   __traceiter_android_vh_save_track_hash
   __traceiter_android_vh_save_vmalloc_stack
+  __traceiter_android_vh_remove_vmalloc_stack
   __traceiter_android_vh_sched_stat_runtime_rt
   __traceiter_android_vh_scheduler_tick
   __traceiter_android_vh_selinux_avc_insert
@@ -3088,6 +3089,7 @@
   __tracepoint_android_vh_rwsem_write_finished
   __tracepoint_android_vh_save_track_hash
   __tracepoint_android_vh_save_vmalloc_stack
+  __tracepoint_android_vh_remove_vmalloc_stack
   __tracepoint_android_vh_sched_stat_runtime_rt
   __tracepoint_android_vh_scheduler_tick
   __tracepoint_android_vh_selinux_avc_insert
