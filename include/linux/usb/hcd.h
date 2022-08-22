@@ -67,7 +67,6 @@
 
 struct giveback_urb_bh {
 	bool running;
-	bool high_prio;
 	spinlock_t lock;
 	struct list_head  head;
 	struct tasklet_struct bh;
