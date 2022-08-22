@@ -796,23 +796,6 @@ static inline void normalize_read_intent_locks(struct btree_trans *trans)
 	bch2_trans_verify_locks(trans);
 }
 
-static inline bool have_conflicting_read_lock(struct btree_trans *trans, struct btree_path *pos)
-{
-	struct btree_path *path;
-	unsigned i;
-
-	trans_for_each_path_inorder(trans, path, i) {
-		//if (path == pos)
-		//	break;
-
-		if (btree_node_read_locked(path, path->level) &&
-		    !bch2_btree_path_upgrade_noupgrade_sibs(trans, path, path->level + 1))
-			return true;
-	}
-
-	return false;
-}
-
 static inline int trans_lock_write(struct btree_trans *trans)
 {
 	struct btree_insert_entry *i;
@@ -822,31 +805,15 @@ static inline int trans_lock_write(struct btree_trans *trans)
 		if (same_leaf_as_prev(trans, i))
 			continue;
 
-		/*
-		 * six locks are unfair, and read locks block while a thread
-		 * wants a write lock: thus, we need to tell the cycle detector
-		 * we have a write lock _before_ taking the lock:
-		 */
-		mark_btree_node_locked_noreset(i->path, i->level, SIX_LOCK_write);
-
-		if (!six_trylock_write(&insert_l(i)->b->c.lock)) {
-			if (have_conflicting_read_lock(trans, i->path))
-				goto fail;
-
-			ret = btree_node_lock_type(trans, i->path,
-					     &insert_l(i)->b->c,
-					     i->path->pos, i->level,
-					     SIX_LOCK_write, NULL, NULL);
-			BUG_ON(ret);
-		}
+		ret = bch2_btree_node_lock_write(trans, i->path, &insert_l(i)->b->c);
+		if (ret)
+			goto fail;
 
 		bch2_btree_node_prep_for_write(trans, i->path, insert_l(i)->b);
 	}
 
 	return 0;
 fail:
-	mark_btree_node_locked_noreset(i->path, i->level, SIX_LOCK_intent);
-
 	while (--i >= trans->updates) {
 		if (same_leaf_as_prev(trans, i))
 			continue;

@@ -151,8 +151,6 @@ void bch2_btree_node_hash_remove(struct btree_cache *bc, struct btree *b)
 
 	/* Cause future lookups for this node to fail: */
 	b->hash_val = 0;
-
-	six_lock_wakeup_all(&b->c.lock);
 }
 
 int __bch2_btree_node_hash_insert(struct btree_cache *bc, struct btree *b)
@@ -755,16 +753,6 @@ static noinline struct btree *bch2_btree_node_fill(struct bch_fs *c,
 	return b;
 }
 
-static int lock_node_check_fn(struct six_lock *lock, void *p)
-{
-	struct btree *b = container_of(lock, struct btree, c.lock);
-	const struct bkey_i *k = p;
-
-	if (b->hash_val != btree_ptr_hash_val(k))
-		return BCH_ERR_lock_fail_node_reused;
-	return 0;
-}
-
 static noinline void btree_bad_header(struct bch_fs *c, struct btree *b)
 {
 	struct printbuf buf = PRINTBUF;
@@ -886,15 +874,11 @@ lock_node:
 		if (btree_node_read_locked(path, level + 1))
 			btree_node_unlock(trans, path, level + 1);
 
-		ret = btree_node_lock(trans, path, &b->c, k->k.p, level, lock_type,
-				      lock_node_check_fn, (void *) k, trace_ip);
-		if (unlikely(ret)) {
-			if (bch2_err_matches(ret, BCH_ERR_lock_fail_node_reused))
-				goto retry;
-			if (bch2_err_matches(ret, BCH_ERR_transaction_restart))
-				return ERR_PTR(ret);
-			BUG();
-		}
+		ret = btree_node_lock(trans, path, &b->c, level, lock_type, trace_ip);
+		if (bch2_err_matches(ret, BCH_ERR_transaction_restart))
+			return ERR_PTR(ret);
+
+		BUG_ON(ret);
 
 		if (unlikely(b->hash_val != btree_ptr_hash_val(k) ||
 			     b->c.level != level ||
@@ -1000,13 +984,10 @@ retry:
 	} else {
 lock_node:
 		ret = btree_node_lock_nopath(trans, &b->c, SIX_LOCK_read);
-		if (unlikely(ret)) {
-			if (bch2_err_matches(ret, BCH_ERR_lock_fail_node_reused))
-				goto retry;
-			if (bch2_err_matches(ret, BCH_ERR_transaction_restart))
-				return ERR_PTR(ret);
-			BUG();
-		}
+		if (bch2_err_matches(ret, BCH_ERR_transaction_restart))
+			return ERR_PTR(ret);
+
+		BUG_ON(ret);
 
 		if (unlikely(b->hash_val != btree_ptr_hash_val(k) ||
 			     b->c.btree_id != btree_id ||

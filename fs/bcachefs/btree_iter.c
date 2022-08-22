@@ -689,16 +689,6 @@ void bch2_trans_node_reinit_iter(struct btree_trans *trans, struct btree *b)
 
 /* Btree path: traverse, set_pos: */
 
-static int lock_root_check_fn(struct six_lock *lock, void *p)
-{
-	struct btree *b = container_of(lock, struct btree, c.lock);
-	struct btree **rootp = p;
-
-	if (b != *rootp)
-		return BCH_ERR_lock_fail_root_changed;
-	return 0;
-}
-
 static inline int btree_path_lock_root(struct btree_trans *trans,
 				       struct btree_path *path,
 				       unsigned depth_want,
@@ -730,10 +720,8 @@ static inline int btree_path_lock_root(struct btree_trans *trans,
 		}
 
 		lock_type = __btree_lock_want(path, path->level);
-		ret = btree_node_lock(trans, path, &b->c, SPOS_MAX,
-				      path->level, lock_type,
-				      lock_root_check_fn, rootp,
-				      trace_ip);
+		ret = btree_node_lock(trans, path, &b->c,
+				      path->level, lock_type, trace_ip);
 		if (unlikely(ret)) {
 			if (bch2_err_matches(ret, BCH_ERR_lock_fail_root_changed))
 				continue;
@@ -939,7 +927,7 @@ static int btree_path_traverse_one(struct btree_trans *, struct btree_path *,
 static int bch2_btree_path_traverse_all(struct btree_trans *trans)
 {
 	struct bch_fs *c = trans->c;
-	struct btree_path *path, *prev;
+	struct btree_path *path;
 	unsigned long trace_ip = _RET_IP_;
 	int i, ret = 0;
 
@@ -948,25 +936,12 @@ static int bch2_btree_path_traverse_all(struct btree_trans *trans)
 
 	trans->in_traverse_all = true;
 retry_all:
-	prev = NULL;
 	trans->restarted = 0;
 
 	trans_for_each_path(trans, path)
 		path->should_be_locked = false;
 
 	btree_trans_sort_paths(trans);
-
-	trans_for_each_path_inorder_reverse(trans, path, i) {
-		if (prev) {
-			if (path->btree_id == prev->btree_id &&
-			    path->locks_want < prev->locks_want)
-				__bch2_btree_path_upgrade(trans, path, prev->locks_want);
-			else if (!path->locks_want && prev->locks_want)
-				__bch2_btree_path_upgrade(trans, path, 1);
-		}
-
-		prev = path;
-	}
 
 	bch2_trans_unlock(trans);
 	cond_resched();
@@ -3026,16 +3001,7 @@ void bch2_btree_trans_to_text(struct printbuf *out, struct btree_trans *trans)
 
 	b = READ_ONCE(trans->locking);
 	if (b) {
-		path = &trans->paths[trans->locking_path_idx];
-		prt_printf(out, "  locking path %u %c l=%u %c %s:",
-		       trans->locking_path_idx,
-		       path->cached ? 'c' : 'b',
-		       trans->locking_level,
-		       lock_types[trans->locking_wait.lock_want],
-		       bch2_btree_ids[trans->locking_btree_id]);
-		bch2_bpos_to_text(out, trans->locking_pos);
-
-		prt_printf(out, " node ");
+		prt_printf(out, " locking node ");
 		bch2_btree_path_node_to_text(out, b);
 		prt_printf(out, "\n");
 	}

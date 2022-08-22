@@ -92,6 +92,7 @@ static int abort_lock(struct lock_graph *g, struct trans_waiting_for_lock *i)
 	int ret;
 
 	if (i == g->g) {
+		trace_and_count(i->trans->c, trans_restart_would_deadlock, i->trans, _RET_IP_);
 		ret = btree_trans_restart(i->trans, BCH_ERR_transaction_restart_would_deadlock);
 	} else {
 		i->trans->lock_must_abort = true;
@@ -216,8 +217,10 @@ int bch2_check_for_deadlock(struct btree_trans *trans, struct printbuf *cycle)
 	struct btree_path *path;
 	int ret;
 
-	if (trans->lock_must_abort)
+	if (trans->lock_must_abort) {
+		trace_and_count(trans->c, trans_restart_would_deadlock, trans, _RET_IP_);
 		return btree_trans_restart(trans, BCH_ERR_transaction_restart_would_deadlock);
+	}
 
 	g.nr = 0;
 	ret = lock_graph_descend(&g, trans, cycle);
@@ -294,7 +297,7 @@ int bch2_six_check_for_deadlock(struct six_lock *lock, void *p)
 	return bch2_check_for_deadlock(trans, NULL);
 }
 
-int __bch2_btree_node_lock_write(struct btree_trans *trans,
+int __bch2_btree_node_lock_write(struct btree_trans *trans, struct btree_path *path,
 				 struct btree_bkey_cached_common *b,
 				 bool lock_may_not_fail)
 {
@@ -311,97 +314,10 @@ int __bch2_btree_node_lock_write(struct btree_trans *trans,
 	ret = __btree_node_lock_nopath(trans, b, SIX_LOCK_write, lock_may_not_fail);
 	six_lock_readers_add(&b->lock, readers);
 
+	if (ret)
+		mark_btree_node_locked_noreset(path, b->level, SIX_LOCK_intent);
+
 	return ret;
-}
-
-static inline bool path_has_read_locks(struct btree_path *path)
-{
-	unsigned l;
-
-	for (l = 0; l < BTREE_MAX_DEPTH; l++)
-		if (btree_node_read_locked(path, l))
-			return true;
-	return false;
-}
-
-/* Slowpath: */
-int __bch2_btree_node_lock(struct btree_trans *trans,
-			   struct btree_path *path,
-			   struct btree_bkey_cached_common *b,
-			   struct bpos pos, unsigned level,
-			   enum six_lock_type type,
-			   six_lock_should_sleep_fn should_sleep_fn, void *p,
-			   unsigned long ip)
-{
-	struct btree_path *linked;
-	unsigned reason;
-
-	/* Check if it's safe to block: */
-	trans_for_each_path(trans, linked) {
-		if (!linked->nodes_locked)
-			continue;
-
-		/*
-		 * Can't block taking an intent lock if we have _any_ nodes read
-		 * locked:
-		 *
-		 * - Our read lock blocks another thread with an intent lock on
-		 *   the same node from getting a write lock, and thus from
-		 *   dropping its intent lock
-		 *
-		 * - And the other thread may have multiple nodes intent locked:
-		 *   both the node we want to intent lock, and the node we
-		 *   already have read locked - deadlock:
-		 */
-		if (type == SIX_LOCK_intent &&
-		    path_has_read_locks(linked)) {
-			reason = 1;
-			goto deadlock;
-		}
-
-		if (linked->btree_id != path->btree_id) {
-			if (linked->btree_id < path->btree_id)
-				continue;
-
-			reason = 3;
-			goto deadlock;
-		}
-
-		/*
-		 * Within the same btree, non-cached paths come before cached
-		 * paths:
-		 */
-		if (linked->cached != path->cached) {
-			if (!linked->cached)
-				continue;
-
-			reason = 4;
-			goto deadlock;
-		}
-
-		/*
-		 * Interior nodes must be locked before their descendants: if
-		 * another path has possible descendants locked of the node
-		 * we're about to lock, it must have the ancestors locked too:
-		 */
-		if (level > btree_path_highest_level_locked(linked)) {
-			reason = 5;
-			goto deadlock;
-		}
-
-		/* Must lock btree nodes in key order: */
-		if (btree_node_locked(linked, level) &&
-		    bpos_cmp(pos, btree_node_pos(&linked->l[level].b->c)) <= 0) {
-			reason = 7;
-			goto deadlock;
-		}
-	}
-
-	return btree_node_lock_type(trans, path, b, pos, level,
-				    type, should_sleep_fn, p);
-deadlock:
-	trace_and_count(trans->c, trans_restart_would_deadlock, trans, ip, reason, linked, path, &pos);
-	return btree_trans_restart(trans, BCH_ERR_transaction_restart_would_deadlock);
 }
 
 /* relock */

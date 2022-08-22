@@ -1012,57 +1012,10 @@ DEFINE_EVENT(transaction_restart_iter,	trans_restart_memory_allocation_failure,
 	TP_ARGS(trans, caller_ip, path)
 );
 
-TRACE_EVENT(trans_restart_would_deadlock,
+DEFINE_EVENT(transaction_event,	trans_restart_would_deadlock,
 	TP_PROTO(struct btree_trans *trans,
-		 unsigned long	caller_ip,
-		 unsigned	reason,
-		 struct btree_path *have,
-		 struct btree_path *want,
-		 struct bpos	*want_pos),
-	TP_ARGS(trans, caller_ip, reason,
-		have, want, want_pos),
-
-	TP_STRUCT__entry(
-		__array(char,			trans_fn, 32	)
-		__field(unsigned long,		caller_ip	)
-		__field(u8,			in_traverse_all	)
-		__field(u8,			reason		)
-		__field(u8,			have_btree_id	)
-		__field(u8,			have_type	)
-		__field(u8,			want_btree_id	)
-		__field(u8,			want_type	)
-		TRACE_BPOS_entries(have_pos)
-		TRACE_BPOS_entries(want_pos)
-	),
-
-	TP_fast_assign(
-		strlcpy(__entry->trans_fn, trans->fn, sizeof(__entry->trans_fn));
-		__entry->caller_ip		= caller_ip;
-		__entry->in_traverse_all	= trans->in_traverse_all;
-		__entry->reason			= reason;
-		__entry->have_btree_id		= have->btree_id;
-		__entry->have_type		= have->cached;
-		__entry->want_btree_id		= want->btree_id;
-		__entry->want_type		= want->cached;
-		TRACE_BPOS_assign(have_pos, have->pos);
-		TRACE_BPOS_assign(want_pos, *want_pos);
-	),
-
-	TP_printk("%s %pS traverse_all %u because %u have %u:%u %llu:%llu:%u want %u:%u %llu:%llu:%u",
-		  __entry->trans_fn,
-		  (void *) __entry->caller_ip,
-		  __entry->in_traverse_all,
-		  __entry->reason,
-		  __entry->have_btree_id,
-		  __entry->have_type,
-		  __entry->have_pos_inode,
-		  __entry->have_pos_offset,
-		  __entry->have_pos_snapshot,
-		  __entry->want_btree_id,
-		  __entry->want_type,
-		  __entry->want_pos_inode,
-		  __entry->want_pos_offset,
-		  __entry->want_pos_snapshot)
+		 unsigned long caller_ip),
+	TP_ARGS(trans, caller_ip)
 );
 
 DEFINE_EVENT(transaction_event,	trans_restart_would_deadlock_recursion_limit,

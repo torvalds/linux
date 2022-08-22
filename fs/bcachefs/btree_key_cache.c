@@ -398,17 +398,6 @@ err:
 	return ret;
 }
 
-static int bkey_cached_check_fn(struct six_lock *lock, void *p)
-{
-	struct bkey_cached *ck = container_of(lock, struct bkey_cached, c.lock);
-	const struct btree_path *path = p;
-
-	if (ck->key.btree_id != path->btree_id &&
-	    bpos_cmp(ck->key.pos, path->pos))
-		return BCH_ERR_lock_fail_node_reused;
-	return 0;
-}
-
 __flatten
 int bch2_btree_path_traverse_cached(struct btree_trans *trans, struct btree_path *path,
 				    unsigned flags)
@@ -440,16 +429,12 @@ retry:
 	} else {
 		enum six_lock_type lock_want = __btree_lock_want(path, 0);
 
-		ret = btree_node_lock(trans, path, (void *) ck, path->pos, 0,
-				      lock_want,
-				      bkey_cached_check_fn, path, _THIS_IP_);
-		if (ret) {
-			if (bch2_err_matches(ret, BCH_ERR_lock_fail_node_reused))
-				goto retry;
-			if (bch2_err_matches(ret, BCH_ERR_transaction_restart))
-				goto err;
-			BUG();
-		}
+		ret = btree_node_lock(trans, path, (void *) ck, 0,
+				      lock_want, _THIS_IP_);
+		if (bch2_err_matches(ret, BCH_ERR_transaction_restart))
+			goto err;
+
+		BUG_ON(ret);
 
 		if (ck->key.btree_id != path->btree_id ||
 		    bpos_cmp(ck->key.pos, path->pos)) {
