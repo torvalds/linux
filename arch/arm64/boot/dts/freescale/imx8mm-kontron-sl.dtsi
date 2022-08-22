@@ -66,6 +66,27 @@
 		compatible = "mxicy,mx25r1635f", "jedec,spi-nor";
 		spi-max-frequency = <80000000>;
 		reg = <0>;
+
+		partitions {
+			compatible = "fixed-partitions";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			partition@0 {
+				label = "u-boot";
+				reg = <0x0 0x1e0000>;
+			};
+
+			partition@1e0000 {
+				label = "env";
+				reg = <0x1e0000 0x10000>;
+			};
+
+			partition@1f0000 {
+				label = "env_redundant";
+				reg = <0x1f0000 0x10000>;
+			};
+		};
 	};
 };
 
