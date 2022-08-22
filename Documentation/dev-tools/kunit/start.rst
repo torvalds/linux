@@ -52,27 +52,20 @@ The tests will pass or fail.
 For detailed information on this wrapper, see:
 Documentation/dev-tools/kunit/run_wrapper.rst.
 
-Creating a ``.kunitconfig``
----------------------------
+Selecting which tests to run
+----------------------------
 
-By default, kunit_tool runs a selection of tests. However, you can specify which
-unit tests to run by creating a ``.kunitconfig`` file with kernel config options
-that enable only a specific set of tests and their dependencies.
-The ``.kunitconfig`` file contains a list of kconfig options which are required
-to run the desired targets. The ``.kunitconfig`` also contains any other test
-specific config options, such as test dependencies. For example: the
-``FAT_FS`` tests - ``FAT_KUNIT_TEST``, depends on
-``FAT_FS``. ``FAT_FS`` can be enabled by selecting either ``MSDOS_FS``
-or ``VFAT_FS``. To run ``FAT_KUNIT_TEST``, the ``.kunitconfig`` has:
+By default, kunit_tool runs all tests reachable with minimal configuration,
+that is, using default values for most of the kconfig options.  However,
+you can select which tests to run by:
 
-.. code-block:: none
+- `Customizing Kconfig`_ used to compile the kernel, or
+- `Filtering tests by name`_ to select specifically which compiled tests to run.
 
-	CONFIG_KUNIT=y
-	CONFIG_MSDOS_FS=y
-	CONFIG_FAT_KUNIT_TEST=y
-
-1. A good starting point for the ``.kunitconfig`` is the KUnit default config.
-   You can generate it by running:
+Customizing Kconfig
+~~~~~~~~~~~~~~~~~~~
+A good starting point for the ``.kunitconfig`` is the KUnit default config.
+If you didn't run ``kunit.py run`` yet, you can generate it by running:
 
 .. code-block:: bash
 
@@ -84,26 +77,69 @@ or ``VFAT_FS``. To run ``FAT_KUNIT_TEST``, the ``.kunitconfig`` has:
    ``.kunitconfig`` lives in the ``--build_dir`` used by kunit.py, which is
    ``.kunit`` by default.
 
-.. note ::
-   You may want to remove CONFIG_KUNIT_ALL_TESTS from the ``.kunitconfig`` as
-   it will enable a number of additional tests that you may not want.
-
-2. You can then add any other Kconfig options, for example:
-
-.. code-block:: none
-
-	CONFIG_LIST_KUNIT_TEST=y
-
 Before running the tests, kunit_tool ensures that all config options
 set in ``.kunitconfig`` are set in the kernel ``.config``. It will warn
 you if you have not included dependencies for the options used.
 
-.. note ::
-   If you change the ``.kunitconfig``, kunit.py will trigger a rebuild of the
+There are many ways to customize the configurations:
+
+a. Edit ``.kunit/.kunitconfig``. The file should contain the list of kconfig
+   options required to run the desired tests, including their dependencies.
+   You may want to remove CONFIG_KUNIT_ALL_TESTS from the ``.kunitconfig`` as
+   it will enable a number of additional tests that you may not want.
+   If you need to run on an architecture other than UML see :ref:`kunit-on-qemu`.
+
+b. Enable additional kconfig options on top of ``.kunit/.kunitconfig``.
+   For example, to include the kernel's linked-list test you can run::
+
+	./tools/testing/kunit/kunit.py run \
+		--kconfig_add CONFIG_LIST_KUNIT_TEST=y
+
+c. Provide the path of one or more .kunitconfig files from the tree.
+   For example, to run only ``FAT_FS`` and ``EXT4`` tests you can run::
+
+	./tools/testing/kunit/kunit.py run \
+		--kunitconfig ./fs/fat/.kunitconfig \
+		--kunitconfig ./fs/ext4/.kunitconfig
+
+d. If you change the ``.kunitconfig``, kunit.py will trigger a rebuild of the
    ``.config`` file. But you can edit the ``.config`` file directly or with
    tools like ``make menuconfig O=.kunit``. As long as its a superset of
    ``.kunitconfig``, kunit.py won't overwrite your changes.
 
+
+.. note ::
+
+	To save a .kunitconfig after finding a satisfactory configuration::
+
+		make savedefconfig O=.kunit
+		cp .kunit/defconfig .kunit/.kunitconfig
+
+Filtering tests by name
+~~~~~~~~~~~~~~~~~~~~~~~
+If you want to be more specific than Kconfig can provide, it is also possible
+to select which tests to execute at boot-time by passing a glob filter
+(read instructions regarding the pattern in the manpage :manpage:`glob(7)`).
+If there is a ``"."`` (period) in the filter, it will be interpreted as a
+separator between the name of the test suite and the test case,
+otherwise, it will be interpreted as the name of the test suite.
+For example, let's assume we are using the default config:
+
+a. inform the name of a test suite, like ``"kunit_executor_test"``,
+   to run every test case it contains::
+
+	./tools/testing/kunit/kunit.py run "kunit_executor_test"
+
+b. inform the name of a test case prefixed by its test suite,
+   like ``"example.example_simple_test"``, to run specifically that test case::
+
+	./tools/testing/kunit/kunit.py run "example.example_simple_test"
+
+c. use wildcard characters (``*?[``) to run any test case that matches the pattern,
+   like ``"*.*64*"`` to run test cases containing ``"64"`` in the name inside
+   any test suite::
+
+	./tools/testing/kunit/kunit.py run "*.*64*"
 
 Running Tests without the KUnit Wrapper
 =======================================
