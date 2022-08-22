@@ -550,7 +550,7 @@
 		};
 	};
 
-	cpts@39000000 {
+	main_cpts0: cpts@39000000 {
 		compatible = "ti,j721e-cpts";
 		reg = <0x0 0x39000000 0x0 0x400>;
 		reg-names = "cpts";
