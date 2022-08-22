@@ -247,7 +247,10 @@ static int dw_i2s_hw_params(struct snd_pcm_substream *substream,
 	struct i2s_clk_config_data *config = &dev->config;
 	int ret;
 	unsigned int txrx = substream->stream;
+	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
+	struct snd_soc_dai_link *dai_link = rtd->dai_link;
 
+	dai_link->stop_dma_first = 1;
 	config->chan_nr = params_channels(params);
 
 	switch (params_format(params)) {
