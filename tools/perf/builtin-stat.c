@@ -807,6 +807,7 @@ static int __run_perf_stat(int argc, const char **argv, int run_idx)
 		return -1;
 
 	evlist__for_each_entry(evsel_list, counter) {
+		counter->reset_group = false;
 		if (bpf_counter__load(counter, &target))
 			return -1;
 		if (!evsel__is_bpf(counter))
