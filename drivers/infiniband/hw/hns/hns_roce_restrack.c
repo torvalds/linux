@@ -55,45 +55,34 @@ err:
 	return -EMSGSIZE;
 }
 
-int hns_roce_fill_res_cq_entry(struct sk_buff *msg,
-			       struct ib_cq *ib_cq)
+int hns_roce_fill_res_cq_entry(struct sk_buff *msg, struct ib_cq *ib_cq)
 {
 	struct hns_roce_dev *hr_dev = to_hr_dev(ib_cq->device);
 	struct hns_roce_cq *hr_cq = to_hr_cq(ib_cq);
-	struct hns_roce_v2_cq_context *context;
+	struct hns_roce_v2_cq_context context;
 	struct nlattr *table_attr;
 	int ret;
 
-	if (!hr_dev->dfx->query_cqc_info)
+	if (!hr_dev->hw->query_cqc)
 		return -EINVAL;
 
-	context = kzalloc(sizeof(struct hns_roce_v2_cq_context), GFP_KERNEL);
-	if (!context)
-		return -ENOMEM;
-
-	ret = hr_dev->dfx->query_cqc_info(hr_dev, hr_cq->cqn, (int *)context);
+	ret = hr_dev->hw->query_cqc(hr_dev, hr_cq->cqn, &context);
 	if (ret)
-		goto err;
+		return -EINVAL;
 
 	table_attr = nla_nest_start(msg, RDMA_NLDEV_ATTR_DRIVER);
-	if (!table_attr) {
-		ret = -EMSGSIZE;
-		goto err;
-	}
+	if (!table_attr)
+		return -EMSGSIZE;
 
-	if (hns_roce_fill_cq(msg, context)) {
-		ret = -EMSGSIZE;
-		goto err_cancel_table;
-	}
+	if (hns_roce_fill_cq(msg, &context))
+		goto err;
 
 	nla_nest_end(msg, table_attr);
-	kfree(context);
 
 	return 0;
 
-err_cancel_table:
-	nla_nest_cancel(msg, table_attr);
 err:
-	kfree(context);
-	return ret;
+	nla_nest_cancel(msg, table_attr);
+
+	return -EMSGSIZE;
 }
