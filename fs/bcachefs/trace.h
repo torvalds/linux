@@ -1065,6 +1065,12 @@ TRACE_EVENT(trans_restart_would_deadlock,
 		  __entry->want_pos_snapshot)
 );
 
+DEFINE_EVENT(transaction_event,	trans_restart_would_deadlock_recursion_limit,
+	TP_PROTO(struct btree_trans *trans,
+		 unsigned long caller_ip),
+	TP_ARGS(trans, caller_ip)
+);
+
 TRACE_EVENT(trans_restart_would_deadlock_write,
 	TP_PROTO(struct btree_trans *trans),
 	TP_ARGS(trans),

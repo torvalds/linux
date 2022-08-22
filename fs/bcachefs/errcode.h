@@ -35,6 +35,7 @@
 	x(BCH_ERR_transaction_restart,	transaction_restart_in_traverse_all)	\
 	x(BCH_ERR_transaction_restart,	transaction_restart_would_deadlock)	\
 	x(BCH_ERR_transaction_restart,	transaction_restart_would_deadlock_write)\
+	x(BCH_ERR_transaction_restart,	transaction_restart_deadlock_recursion_limit)\
 	x(BCH_ERR_transaction_restart,	transaction_restart_upgrade)		\
 	x(BCH_ERR_transaction_restart,	transaction_restart_key_cache_upgrade)	\
 	x(BCH_ERR_transaction_restart,	transaction_restart_key_cache_fill)	\

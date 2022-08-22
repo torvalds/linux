@@ -534,7 +534,7 @@ static ssize_t bch2_btree_transactions_read(struct file *file, char __user *buf,
 
 	mutex_lock(&c->btree_trans_lock);
 	list_for_each_entry(trans, &c->btree_trans_list, list) {
-		if (trans->task->pid <= i->iter)
+		if (trans->locking_wait.task->pid <= i->iter)
 			continue;
 
 		ret = flush_buf(i);
@@ -546,11 +546,11 @@ static ssize_t bch2_btree_transactions_read(struct file *file, char __user *buf,
 		prt_printf(&i->buf, "backtrace:");
 		prt_newline(&i->buf);
 		printbuf_indent_add(&i->buf, 2);
-		prt_backtrace(&i->buf, trans->task);
+		prt_backtrace(&i->buf, trans->locking_wait.task);
 		printbuf_indent_sub(&i->buf, 2);
 		prt_newline(&i->buf);
 
-		i->iter = trans->task->pid;
+		i->iter = trans->locking_wait.task->pid;
 	}
 	mutex_unlock(&c->btree_trans_lock);
 

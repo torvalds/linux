@@ -81,10 +81,13 @@ __trans_next_path(struct btree_trans *trans, unsigned idx)
 	return &trans->paths[idx];
 }
 
-#define trans_for_each_path(_trans, _path)				\
-	for (_path = __trans_next_path((_trans), 0);			\
+#define trans_for_each_path_from(_trans, _path, _start)			\
+	for (_path = __trans_next_path((_trans), _start);		\
 	     (_path);							\
 	     _path = __trans_next_path((_trans), (_path)->idx + 1))
+
+#define trans_for_each_path(_trans, _path)				\
+	trans_for_each_path_from(_trans, _path, 0)
 
 static inline struct btree_path *next_btree_path(struct btree_trans *trans, struct btree_path *path)
 {
