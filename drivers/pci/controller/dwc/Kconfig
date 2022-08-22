@@ -98,6 +98,13 @@ config PCIE_RK_THREADED_INIT
 	help
 	  Enables threaded initialize Rockchip DW based PCIe controller.
 
+config PCIE_DW_DMATEST
+	bool "DesignWare PCIe DMA test"
+	depends on PCIE_DW_ROCKCHIP
+	depends on !ROCKCHIP_PCIE_DMA_OBJ
+	help
+	  Enables support for the DW PCIe controller DMA test.
+
 config PCI_EXYNOS
 	bool "Samsung Exynos PCIe controller"
 	depends on SOC_EXYNOS5440 || COMPILE_TEST
