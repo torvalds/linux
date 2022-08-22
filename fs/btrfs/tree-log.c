@@ -3875,6 +3875,11 @@ static int process_dir_items_leaf(struct btrfs_trans_handle *trans,
 			*last_old_dentry_offset = key.offset;
 			continue;
 		}
+
+		/* If we logged this dir index item before, we can skip it. */
+		if (key.offset <= inode->last_dir_index_offset)
+			continue;
+
 		/*
 		 * We must make sure that when we log a directory entry, the
 		 * corresponding inode, after log replay, has a matching link
@@ -3905,51 +3910,6 @@ static int process_dir_items_leaf(struct btrfs_trans_handle *trans,
 				ctx->log_new_dentries = true;
 		}
 
-		if (!ctx->logged_before)
-			goto add_to_batch;
-
-		/*
-		 * If we were logged before and have logged dir items, we can skip
-		 * checking if any item with a key offset larger than the last one
-		 * we logged is in the log tree, saving time and avoiding adding
-		 * contention on the log tree. We can only rely on the value of
-		 * last_dir_index_offset when we know for sure that the inode was
-		 * previously logged in the current transaction.
-		 */
-		if (key.offset > inode->last_dir_index_offset)
-			goto add_to_batch;
-		/*
-		 * Check if the key was already logged before. If not we can add
-		 * it to a batch for bulk insertion.
-		 */
-		ret = btrfs_search_slot(NULL, log, &key, dst_path, 0, 0);
-		if (ret < 0) {
-			return ret;
-		} else if (ret > 0) {
-			btrfs_release_path(dst_path);
-			goto add_to_batch;
-		}
-
-		/*
-		 * Item exists in the log. Overwrite the item in the log if it
-		 * has different content or do nothing if it has exactly the same
-		 * content. And then flush the current batch if any - do it after
-		 * overwriting the current item, or we would deadlock otherwise,
-		 * since we are holding a path for the existing item.
-		 */
-		ret = do_overwrite_item(trans, log, dst_path, src, i, &key);
-		if (ret < 0)
-			return ret;
-
-		if (batch_size > 0) {
-			ret = flush_dir_items_batch(trans, log, src, dst_path,
-						    batch_start, batch_size);
-			if (ret < 0)
-				return ret;
-			batch_size = 0;
-		}
-		continue;
-add_to_batch:
 		if (batch_size == 0)
 			batch_start = i;
 		batch_size++;
@@ -4136,6 +4096,71 @@ done:
 }
 
 /*
+ * If the inode was logged before and it was evicted, then its
+ * last_dir_index_offset is (u64)-1, so we don't the value of the last index
+ * key offset. If that's the case, search for it and update the inode. This
+ * is to avoid lookups in the log tree every time we try to insert a dir index
+ * key from a leaf changed in the current transaction, and to allow us to always
+ * do batch insertions of dir index keys.
+ */
+static int update_last_dir_index_offset(struct btrfs_inode *inode,
+					struct btrfs_path *path,
+					const struct btrfs_log_ctx *ctx)
+{
+	const u64 ino = btrfs_ino(inode);
+	struct btrfs_key key;
+	int ret;
+
+	lockdep_assert_held(&inode->log_mutex);
+
+	if (inode->last_dir_index_offset != (u64)-1)
+		return 0;
+
+	if (!ctx->logged_before) {
+		inode->last_dir_index_offset = BTRFS_DIR_START_INDEX - 1;
+		return 0;
+	}
+
+	key.objectid = ino;
+	key.type = BTRFS_DIR_INDEX_KEY;
+	key.offset = (u64)-1;
+
+	ret = btrfs_search_slot(NULL, inode->root->log_root, &key, path, 0, 0);
+	/*
+	 * An error happened or we actually have an index key with an offset
+	 * value of (u64)-1. Bail out, we're done.
+	 */
+	if (ret <= 0)
+		goto out;
+
+	ret = 0;
+	inode->last_dir_index_offset = BTRFS_DIR_START_INDEX - 1;
+
+	/*
+	 * No dir index items, bail out and leave last_dir_index_offset with
+	 * the value right before the first valid index value.
+	 */
+	if (path->slots[0] == 0)
+		goto out;
+
+	/*
+	 * btrfs_search_slot() left us at one slot beyond the slot with the last
+	 * index key, or beyond the last key of the directory that is not an
+	 * index key. If we have an index key before, set last_dir_index_offset
+	 * to its offset value, otherwise leave it with a value right before the
+	 * first valid index value, as it means we have an empty directory.
+	 */
+	btrfs_item_key_to_cpu(path->nodes[0], &key, path->slots[0] - 1);
+	if (key.objectid == ino && key.type == BTRFS_DIR_INDEX_KEY)
+		inode->last_dir_index_offset = key.offset;
+
+out:
+	btrfs_release_path(path);
+
+	return ret;
+}
+
+/*
  * logging directories is very similar to logging inodes, We find all the items
  * from the current transaction and write them to the log.
  *
@@ -4156,6 +4181,10 @@ static noinline int log_directory_changes(struct btrfs_trans_handle *trans,
 	u64 min_key;
 	u64 max_key;
 	int ret;
+
+	ret = update_last_dir_index_offset(inode, path, ctx);
+	if (ret)
+		return ret;
 
 	min_key = BTRFS_DIR_START_INDEX;
 	max_key = 0;
