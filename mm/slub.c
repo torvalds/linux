@@ -5826,7 +5826,6 @@ static ssize_t slab_attr_show(struct kobject *kobj,
 {
 	struct slab_attribute *attribute;
 	struct kmem_cache *s;
-	int err;
 
 	attribute = to_slab_attr(attr);
 	s = to_slab(kobj);
@@ -5834,9 +5833,7 @@ static ssize_t slab_attr_show(struct kobject *kobj,
 	if (!attribute->show)
 		return -EIO;
 
-	err = attribute->show(s, buf);
-
-	return err;
+	return attribute->show(s, buf);
 }
 
 static ssize_t slab_attr_store(struct kobject *kobj,
@@ -5845,7 +5842,6 @@ static ssize_t slab_attr_store(struct kobject *kobj,
 {
 	struct slab_attribute *attribute;
 	struct kmem_cache *s;
-	int err;
 
 	attribute = to_slab_attr(attr);
 	s = to_slab(kobj);
@@ -5853,8 +5849,7 @@ static ssize_t slab_attr_store(struct kobject *kobj,
 	if (!attribute->store)
 		return -EIO;
 
-	err = attribute->store(s, buf, len);
-	return err;
+	return attribute->store(s, buf, len);
 }
 
 static void kmem_cache_release(struct kobject *k)
