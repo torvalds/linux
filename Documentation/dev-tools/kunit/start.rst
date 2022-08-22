@@ -19,6 +19,22 @@ can run kunit_tool:
 
 	./tools/testing/kunit/kunit.py run
 
+.. note ::
+	You may see the following error:
+	"The source tree is not clean, please run 'make ARCH=um mrproper'"
+
+	This happens because internally kunit.py specifies ``.kunit``
+	(default option) as the build directory in the command ``make O=output/dir``
+	through the argument ``--build_dir``.  Hence, before starting an
+	out-of-tree build, the source tree must be clean.
+
+	There is also the same caveat mentioned in the "Build directory for
+	the kernel" section of the :doc:`admin-guide </admin-guide/README>`,
+	that is, its use, it must be used for all invocations of ``make``.
+	The good news is that it can indeed be solved by running
+	``make ARCH=um mrproper``, just be aware that this will delete the
+	current configuration and all generated files.
+
 If everything worked correctly, you should see the following:
 
 .. code-block::
