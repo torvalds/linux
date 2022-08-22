@@ -1251,7 +1251,7 @@ sof_ipc4_prepare_copier_module(struct snd_sof_widget *swidget,
 			if (blob->alh_cfg.count > 1) {
 				int group_id;
 
-				group_id = ida_alloc_max(&alh_group_ida, ALH_MULTI_GTW_COUNT,
+				group_id = ida_alloc_max(&alh_group_ida, ALH_MULTI_GTW_COUNT - 1,
 							 GFP_KERNEL);
 
 				if (group_id < 0)
