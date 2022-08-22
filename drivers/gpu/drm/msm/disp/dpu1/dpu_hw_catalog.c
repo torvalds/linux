@@ -1939,11 +1939,6 @@ static const struct dpu_mdss_hw_cfg_handler cfg_handler[] = {
 const struct dpu_mdss_cfg *dpu_hw_catalog_init(u32 hw_rev)
 {
 	int i;
-	struct dpu_mdss_cfg *dpu_cfg;
-
-	dpu_cfg = kzalloc(sizeof(*dpu_cfg), GFP_KERNEL);
-	if (!dpu_cfg)
-		return ERR_PTR(-ENOMEM);
 
 	for (i = 0; i < ARRAY_SIZE(cfg_handler); i++) {
 		if (cfg_handler[i].hw_rev == hw_rev)
