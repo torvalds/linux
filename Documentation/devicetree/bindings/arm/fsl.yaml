@@ -824,7 +824,7 @@ properties:
               - gw,imx8mm-gw7901          # i.MX8MM Gateworks Board
               - gw,imx8mm-gw7902          # i.MX8MM Gateworks Board
               - gw,imx8mm-gw7903          # i.MX8MM Gateworks Board
-              - kontron,imx8mm-n801x-som  # i.MX8MM Kontron SL (N801X) SOM
+              - kontron,imx8mm-sl         # i.MX8MM Kontron SL (N801X) SOM
               - menlo,mx8menlo            # i.MX8MM Menlo board with Verdin SoM
               - toradex,verdin-imx8mm     # Verdin iMX8M Mini Modules
               - toradex,verdin-imx8mm-nonwifi  # Verdin iMX8M Mini Modules without Wi-Fi / BT
@@ -843,8 +843,8 @@ properties:
 
       - description: Kontron BL i.MX8MM (N801X S) Board
         items:
-          - const: kontron,imx8mm-n801x-s
-          - const: kontron,imx8mm-n801x-som
+          - const: kontron,imx8mm-bl
+          - const: kontron,imx8mm-sl
           - const: fsl,imx8mm
 
       - description: Toradex Boards with Verdin iMX8M Mini Modules
