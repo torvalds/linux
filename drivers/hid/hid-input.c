@@ -1534,7 +1534,10 @@ void hidinput_hid_event(struct hid_device *hid, struct hid_field *field, struct 
 			 * assume ours
 			 */
 			if (!report->tool)
-				hid_report_set_tool(report, input, usage->code);
+				report->tool = usage->code;
+
+			/* drivers may have changed the value behind our back, resend it */
+			hid_report_set_tool(report, input, report->tool);
 		} else {
 			hid_report_release_tool(report, input, usage->code);
 		}
