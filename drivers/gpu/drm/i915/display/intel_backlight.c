@@ -16,6 +16,7 @@
 #include "intel_dsi_dcs_backlight.h"
 #include "intel_panel.h"
 #include "intel_pci_config.h"
+#include "intel_pps.h"
 
 /**
  * scale - scale values from one range to another
@@ -1771,9 +1772,13 @@ void intel_backlight_init_funcs(struct intel_panel *panel)
 		panel->backlight.pwm_funcs = &i9xx_pwm_funcs;
 	}
 
-	if (connector->base.connector_type == DRM_MODE_CONNECTOR_eDP &&
-	    intel_dp_aux_init_backlight_funcs(connector) == 0)
-		return;
+	if (connector->base.connector_type == DRM_MODE_CONNECTOR_eDP) {
+		if (intel_dp_aux_init_backlight_funcs(connector) == 0)
+			return;
+
+		if (!(dev_priv->quirks & QUIRK_NO_PPS_BACKLIGHT_POWER_HOOK))
+			connector->panel.backlight.power = intel_pps_backlight_power;
+	}
 
 	/* We're using a standard PWM backlight interface */
 	panel->backlight.funcs = &pwm_bl_funcs;
