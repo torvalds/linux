@@ -705,6 +705,7 @@ static const struct dmi_system_id msi_dmi_table[] __initconst = {
 	},
 	{ }
 };
+MODULE_DEVICE_TABLE(dmi, msi_dmi_table);
 
 static int rfkill_bluetooth_set(void *data, bool blocked)
 {
@@ -1166,14 +1167,3 @@ MODULE_AUTHOR("Lennart Poettering");
 MODULE_DESCRIPTION("MSI Laptop Support");
 MODULE_VERSION(MSI_DRIVER_VERSION);
 MODULE_LICENSE("GPL");
-
-MODULE_ALIAS("dmi:*:svnMICRO-STARINT'LCO.,LTD:pnMS-1013:pvr0131*:cvnMICRO-STARINT'LCO.,LTD:ct10:*");
-MODULE_ALIAS("dmi:*:svnMicro-StarInternational:pnMS-1058:pvr0581:rvnMSI:rnMS-1058:*:ct10:*");
-MODULE_ALIAS("dmi:*:svnMicro-StarInternational:pnMS-1412:*:rvnMSI:rnMS-1412:*:cvnMICRO-STARINT'LCO.,LTD:ct10:*");
-MODULE_ALIAS("dmi:*:svnNOTEBOOK:pnSAM2000:pvr0131*:cvnMICRO-STARINT'LCO.,LTD:ct10:*");
-MODULE_ALIAS("dmi:*:svnMICRO-STARINTERNATIONAL*:pnMS-N034:*");
-MODULE_ALIAS("dmi:*:svnMICRO-STARINTERNATIONAL*:pnMS-N051:*");
-MODULE_ALIAS("dmi:*:svnMICRO-STARINTERNATIONAL*:pnMS-N014:*");
-MODULE_ALIAS("dmi:*:svnMicro-StarInternational*:pnCR620:*");
-MODULE_ALIAS("dmi:*:svnMicro-StarInternational*:pnU270series:*");
-MODULE_ALIAS("dmi:*:svnMICRO-STARINTERNATIONAL*:pnU90/U100:*");
