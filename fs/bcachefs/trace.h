@@ -453,11 +453,11 @@ TRACE_EVENT(btree_node_upgrade_fail,
 		__entry->locked			= btree_node_locked(path, level);
 
 		c = bch2_btree_node_lock_counts(trans, NULL, path->l[level].b, level),
-		__entry->self_read_count	= c.read;
-		__entry->self_intent_count	= c.intent;
+		__entry->self_read_count	= c.n[SIX_LOCK_read];
+		__entry->self_intent_count	= c.n[SIX_LOCK_intent];
 		c = six_lock_counts(&path->l[level].b->c.lock);
-		__entry->read_count		= c.read;
-		__entry->intent_count		= c.intent;
+		__entry->read_count		= c.n[SIX_LOCK_read];
+		__entry->intent_count		= c.n[SIX_LOCK_read];
 	),
 
 	TP_printk("%s %pS btree %s pos %llu:%llu:%u, locked %u held %u:%u lock count %u:%u",

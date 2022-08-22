@@ -764,15 +764,19 @@ EXPORT_SYMBOL_GPL(six_lock_pcpu_alloc);
  */
 struct six_lock_count six_lock_counts(struct six_lock *lock)
 {
-	struct six_lock_count ret = { 0, lock->state.intent_lock };
+	struct six_lock_count ret;
+
+	ret.n[SIX_LOCK_read]	= 0;
+	ret.n[SIX_LOCK_intent]	= lock->state.intent_lock + lock->intent_lock_recurse;
+	ret.n[SIX_LOCK_write]	= lock->state.seq & 1;
 
 	if (!lock->readers)
-		ret.read += lock->state.read_lock;
+		ret.n[SIX_LOCK_read] += lock->state.read_lock;
 	else {
 		int cpu;
 
 		for_each_possible_cpu(cpu)
-			ret.read += *per_cpu_ptr(lock->readers, cpu);
+			ret.n[SIX_LOCK_read] += *per_cpu_ptr(lock->readers, cpu);
 	}
 
 	return ret;

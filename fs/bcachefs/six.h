@@ -206,8 +206,7 @@ void six_lock_pcpu_free(struct six_lock *);
 void six_lock_pcpu_alloc(struct six_lock *);
 
 struct six_lock_count {
-	unsigned read;
-	unsigned intent;
+	unsigned n[3];
 };
 
 struct six_lock_count six_lock_counts(struct six_lock *);
