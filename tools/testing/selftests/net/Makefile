@@ -66,6 +66,8 @@ TEST_GEN_FILES += stress_reuseport_listen
 TEST_PROGS += test_vxlan_vnifiltering.sh
 TEST_GEN_FILES += io_uring_zerocopy_tx
 TEST_GEN_FILES += bind_bhash
+TEST_GEN_PROGS += sk_bind_sendto_listen
+TEST_GEN_PROGS += sk_connect_zero_addr
 
 TEST_FILES := settings
 
