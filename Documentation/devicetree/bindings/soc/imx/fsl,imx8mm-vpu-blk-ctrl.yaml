@@ -45,6 +45,18 @@ properties:
       - const: g2
       - const: h1
 
+  interconnects:
+    items:
+      - description: G1 decoder interconnect
+      - description: G2 decoder interconnect
+      - description: H1 encoder power domain
+
+  interconnect-names:
+    items:
+      - const: g1
+      - const: g2
+      - const: h1
+
 required:
   - compatible
   - reg
