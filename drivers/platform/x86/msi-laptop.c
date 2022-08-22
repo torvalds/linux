@@ -53,8 +53,6 @@
 #include <linux/input/sparse-keymap.h>
 #include <acpi/video.h>
 
-#define MSI_DRIVER_VERSION "0.5"
-
 #define MSI_LCD_LEVEL_MAX 9
 
 #define MSI_EC_COMMAND_WIRELESS 0x10
@@ -1109,8 +1107,6 @@ static int __init msi_init(void)
 			set_auto_brightness(auto_brightness);
 	}
 
-	pr_info("driver " MSI_DRIVER_VERSION " successfully loaded\n");
-
 	return 0;
 
 fail_create_attr:
@@ -1156,8 +1152,6 @@ static void __exit msi_cleanup(void)
 		if (auto_brightness != 2)
 			set_auto_brightness(1);
 	}
-
-	pr_info("driver unloaded\n");
 }
 
 module_init(msi_init);
@@ -1165,5 +1159,4 @@ module_exit(msi_cleanup);
 
 MODULE_AUTHOR("Lennart Poettering");
 MODULE_DESCRIPTION("MSI Laptop Support");
-MODULE_VERSION(MSI_DRIVER_VERSION);
 MODULE_LICENSE("GPL");
