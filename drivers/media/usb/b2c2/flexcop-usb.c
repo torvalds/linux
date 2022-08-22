@@ -430,7 +430,7 @@ static int flexcop_usb_transfer_init(struct flexcop_usb *fc_usb)
 	int bufsize, i, j, ret;
 	int buffer_offset = 0;
 
-	frame_size = le16_to_cpu(alt->endpoint[0].desc.wMaxPacketSize);
+	frame_size = usb_endpoint_maxp(&alt->endpoint[0].desc);
 	bufsize = B2C2_USB_NUM_ISO_URB * B2C2_USB_FRAMES_PER_ISO * frame_size;
 
 	deb_ts("creating %d iso-urbs with %d frames each of %d bytes size = %d.\n",
