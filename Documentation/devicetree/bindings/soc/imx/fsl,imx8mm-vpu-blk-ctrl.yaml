@@ -27,7 +27,6 @@ properties:
     const: 1
 
   power-domains:
-    minItems: 4
     maxItems: 4
 
   power-domain-names:
@@ -38,7 +37,6 @@ properties:
       - const: h1
 
   clocks:
-    minItems: 3
     maxItems: 3
 
   clock-names:
