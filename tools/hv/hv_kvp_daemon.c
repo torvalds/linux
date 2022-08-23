@@ -772,11 +772,11 @@ static int kvp_process_ip_address(void *addrp,
 	const char *str;
 
 	if (family == AF_INET) {
-		addr = (struct sockaddr_in *)addrp;
+		addr = addrp;
 		str = inet_ntop(family, &addr->sin_addr, tmp, 50);
 		addr_length = INET_ADDRSTRLEN;
 	} else {
-		addr6 = (struct sockaddr_in6 *)addrp;
+		addr6 = addrp;
 		str = inet_ntop(family, &addr6->sin6_addr.s6_addr, tmp, 50);
 		addr_length = INET6_ADDRSTRLEN;
 	}
