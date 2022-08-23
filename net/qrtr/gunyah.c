@@ -64,6 +64,7 @@ struct gunyah_pipe {
  * @label: label for gunyah resources
  * @tx_dbl: doorbell for tx notifications.
  * @rx_dbl: doorbell for rx notifications.
+ * @dbl_lock: lock to prevent read races.
  * @tx_pipe: TX gunyah specific info.
  * @rx_pipe: RX gunyah specific info.
  */
@@ -84,6 +85,8 @@ struct qrtr_gunyah_dev {
 	void *tx_dbl;
 	void *rx_dbl;
 	struct work_struct work;
+	/* lock to protect dbl_running */
+	spinlock_t dbl_lock;
 
 	struct gunyah_pipe tx_pipe;
 	struct gunyah_pipe rx_pipe;
@@ -410,6 +413,9 @@ static void qrtr_gunyah_read_frag(struct qrtr_gunyah_dev *qdev)
 
 static void qrtr_gunyah_read(struct qrtr_gunyah_dev *qdev)
 {
+	unsigned long flags;
+
+	spin_lock_irqsave(&qdev->dbl_lock, flags);
 	wake_up_all(&qdev->tx_avail_notify);
 
 	while (gunyah_rx_avail(&qdev->rx_pipe)) {
@@ -421,6 +427,7 @@ static void qrtr_gunyah_read(struct qrtr_gunyah_dev *qdev)
 		if (gunyah_get_read_notify(qdev))
 			qrtr_gunyah_kick(qdev);
 	}
+	spin_unlock_irqrestore(&qdev->dbl_lock, flags);
 }
 
 static int qrtr_gunyah_share_mem(struct qrtr_gunyah_dev *qdev, gh_vmid_t self,
@@ -699,6 +706,8 @@ static int qrtr_gunyah_probe(struct platform_device *pdev)
 	qdev->ring.buf = devm_kzalloc(&pdev->dev, MAX_PKT_SZ, GFP_KERNEL);
 	if (!qdev->ring.buf)
 		return -ENOMEM;
+
+	spin_lock_init(&qdev->dbl_lock);
 
 	ret = of_property_read_u32(node, "gunyah-label", &qdev->label);
 	if (ret) {
