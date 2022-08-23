@@ -7,11 +7,6 @@
 /dts-v1/;
 #include "jh7110-visionfive-v2.dtsi"
 
-#ifdef AC108_ENABLED
-#define WM8960_AC108_COMMON 1
-#include "codecs/sf_ac108.dtsi"
-#endif
-
 / {
 	model = "StarFive VisionFive V2";
 	compatible = "starfive,visionfive-v2", "starfive,jh7110";
