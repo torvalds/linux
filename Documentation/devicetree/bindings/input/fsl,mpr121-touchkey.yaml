@@ -57,7 +57,7 @@ examples:
         #address-cells = <1>;
         #size-cells = <0>;
 
-        mpr121@5a {
+        touchkey@5a {
             compatible = "fsl,mpr121-touchkey";
             reg = <0x5a>;
             interrupt-parent = <&gpio1>;
@@ -77,7 +77,7 @@ examples:
         #address-cells = <1>;
         #size-cells = <0>;
 
-        mpr121@5a {
+        touchkey@5a {
             compatible = "fsl,mpr121-touchkey";
             reg = <0x5a>;
             poll-interval = <20>;

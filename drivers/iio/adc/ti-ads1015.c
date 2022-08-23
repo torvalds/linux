@@ -1098,6 +1098,7 @@ static int ads1015_remove(struct i2c_client *client)
 {
 	struct iio_dev *indio_dev = i2c_get_clientdata(client);
 	struct ads1015_data *data = iio_priv(indio_dev);
+	int ret;
 
 	iio_device_unregister(indio_dev);
 
@@ -1105,7 +1106,12 @@ static int ads1015_remove(struct i2c_client *client)
 	pm_runtime_set_suspended(&client->dev);
 
 	/* power down single shot mode */
-	return ads1015_set_conv_mode(data, ADS1015_SINGLESHOT);
+	ret = ads1015_set_conv_mode(data, ADS1015_SINGLESHOT);
+	if (ret)
+		dev_warn(&client->dev, "Failed to power down (%pe)\n",
+			 ERR_PTR(ret));
+
+	return 0;
 }
 
 #ifdef CONFIG_PM

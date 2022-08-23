@@ -80,10 +80,9 @@ static int at25_ee_read(void *priv, unsigned int offset,
 	struct at25_data *at25 = priv;
 	char *buf = val;
 	size_t max_chunk = spi_max_transfer_size(at25->spi);
-	size_t num_msgs = DIV_ROUND_UP(count, max_chunk);
-	size_t nr_bytes = 0;
-	unsigned int msg_offset;
-	size_t msg_count;
+	unsigned int msg_offset = offset;
+	size_t bytes_left = count;
+	size_t segment;
 	u8			*cp;
 	ssize_t			status;
 	struct spi_transfer	t[2];
@@ -97,9 +96,8 @@ static int at25_ee_read(void *priv, unsigned int offset,
 	if (unlikely(!count))
 		return -EINVAL;
 
-	msg_offset = (unsigned int)offset;
-	msg_count = min(count, max_chunk);
-	while (num_msgs) {
+	do {
+		segment = min(bytes_left, max_chunk);
 		cp = at25->command;
 
 		instr = AT25_READ;
@@ -131,8 +129,8 @@ static int at25_ee_read(void *priv, unsigned int offset,
 		t[0].len = at25->addrlen + 1;
 		spi_message_add_tail(&t[0], &m);
 
-		t[1].rx_buf = buf + nr_bytes;
-		t[1].len = msg_count;
+		t[1].rx_buf = buf;
+		t[1].len = segment;
 		spi_message_add_tail(&t[1], &m);
 
 		status = spi_sync(at25->spi, &m);
@@ -142,10 +140,10 @@ static int at25_ee_read(void *priv, unsigned int offset,
 		if (status)
 			return status;
 
-		--num_msgs;
-		msg_offset += msg_count;
-		nr_bytes += msg_count;
-	}
+		msg_offset += segment;
+		buf += segment;
+		bytes_left -= segment;
+	} while (bytes_left > 0);
 
 	dev_dbg(&at25->spi->dev, "read %zu bytes at %d\n",
 		count, offset);
@@ -229,7 +227,7 @@ static int at25_ee_write(void *priv, unsigned int off, void *val, size_t count)
 	do {
 		unsigned long	timeout, retries;
 		unsigned	segment;
-		unsigned	offset = (unsigned) off;
+		unsigned	offset = off;
 		u8		*cp = bounce;
 		int		sr;
 		u8		instr;

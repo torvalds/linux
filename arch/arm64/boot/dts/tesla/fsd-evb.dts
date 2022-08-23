@@ -37,3 +37,7 @@
 &serial_0 {
 	status = "okay";
 };
+
+&ufs {
+	status = "okay";
+};

@@ -13,19 +13,6 @@
 #include "json_writer.h"
 #include "main.h"
 
-static const char * const link_type_name[] = {
-	[BPF_LINK_TYPE_UNSPEC]			= "unspec",
-	[BPF_LINK_TYPE_RAW_TRACEPOINT]		= "raw_tracepoint",
-	[BPF_LINK_TYPE_TRACING]			= "tracing",
-	[BPF_LINK_TYPE_CGROUP]			= "cgroup",
-	[BPF_LINK_TYPE_ITER]			= "iter",
-	[BPF_LINK_TYPE_NETNS]			= "netns",
-	[BPF_LINK_TYPE_XDP]			= "xdp",
-	[BPF_LINK_TYPE_PERF_EVENT]		= "perf_event",
-	[BPF_LINK_TYPE_KPROBE_MULTI]		= "kprobe_multi",
-	[BPF_LINK_TYPE_STRUCT_OPS]               = "struct_ops",
-};
-
 static struct hashmap *link_table;
 
 static int link_parse_fd(int *argc, char ***argv)
@@ -67,9 +54,12 @@ static int link_parse_fd(int *argc, char ***argv)
 static void
 show_link_header_json(struct bpf_link_info *info, json_writer_t *wtr)
 {
+	const char *link_type_str;
+
 	jsonw_uint_field(wtr, "id", info->id);
-	if (info->type < ARRAY_SIZE(link_type_name))
-		jsonw_string_field(wtr, "type", link_type_name[info->type]);
+	link_type_str = libbpf_bpf_link_type_str(info->type);
+	if (link_type_str)
+		jsonw_string_field(wtr, "type", link_type_str);
 	else
 		jsonw_uint_field(wtr, "type", info->type);
 
@@ -78,9 +68,11 @@ show_link_header_json(struct bpf_link_info *info, json_writer_t *wtr)
 
 static void show_link_attach_type_json(__u32 attach_type, json_writer_t *wtr)
 {
-	if (attach_type < ARRAY_SIZE(attach_type_name))
-		jsonw_string_field(wtr, "attach_type",
-				   attach_type_name[attach_type]);
+	const char *attach_type_str;
+
+	attach_type_str = libbpf_bpf_attach_type_str(attach_type);
+	if (attach_type_str)
+		jsonw_string_field(wtr, "attach_type", attach_type_str);
 	else
 		jsonw_uint_field(wtr, "attach_type", attach_type);
 }
@@ -121,6 +113,7 @@ static int get_prog_info(int prog_id, struct bpf_prog_info *info)
 static int show_link_close_json(int fd, struct bpf_link_info *info)
 {
 	struct bpf_prog_info prog_info;
+	const char *prog_type_str;
 	int err;
 
 	jsonw_start_object(json_wtr);
@@ -137,12 +130,12 @@ static int show_link_close_json(int fd, struct bpf_link_info *info)
 		if (err)
 			return err;
 
-		if (prog_info.type < prog_type_name_size)
-			jsonw_string_field(json_wtr, "prog_type",
-					   prog_type_name[prog_info.type]);
+		prog_type_str = libbpf_bpf_prog_type_str(prog_info.type);
+		/* libbpf will return NULL for variants unknown to it. */
+		if (prog_type_str)
+			jsonw_string_field(json_wtr, "prog_type", prog_type_str);
 		else
-			jsonw_uint_field(json_wtr, "prog_type",
-					 prog_info.type);
+			jsonw_uint_field(json_wtr, "prog_type", prog_info.type);
 
 		show_link_attach_type_json(info->tracing.attach_type,
 					   json_wtr);
@@ -184,9 +177,12 @@ static int show_link_close_json(int fd, struct bpf_link_info *info)
 
 static void show_link_header_plain(struct bpf_link_info *info)
 {
+	const char *link_type_str;
+
 	printf("%u: ", info->id);
-	if (info->type < ARRAY_SIZE(link_type_name))
-		printf("%s  ", link_type_name[info->type]);
+	link_type_str = libbpf_bpf_link_type_str(info->type);
+	if (link_type_str)
+		printf("%s  ", link_type_str);
 	else
 		printf("type %u  ", info->type);
 
@@ -195,8 +191,11 @@ static void show_link_header_plain(struct bpf_link_info *info)
 
 static void show_link_attach_type_plain(__u32 attach_type)
 {
-	if (attach_type < ARRAY_SIZE(attach_type_name))
-		printf("attach_type %s  ", attach_type_name[attach_type]);
+	const char *attach_type_str;
+
+	attach_type_str = libbpf_bpf_attach_type_str(attach_type);
+	if (attach_type_str)
+		printf("attach_type %s  ", attach_type_str);
 	else
 		printf("attach_type %u  ", attach_type);
 }
@@ -214,6 +213,7 @@ static void show_iter_plain(struct bpf_link_info *info)
 static int show_link_close_plain(int fd, struct bpf_link_info *info)
 {
 	struct bpf_prog_info prog_info;
+	const char *prog_type_str;
 	int err;
 
 	show_link_header_plain(info);
@@ -228,9 +228,10 @@ static int show_link_close_plain(int fd, struct bpf_link_info *info)
 		if (err)
 			return err;
 
-		if (prog_info.type < prog_type_name_size)
-			printf("\n\tprog_type %s  ",
-			       prog_type_name[prog_info.type]);
+		prog_type_str = libbpf_bpf_prog_type_str(prog_info.type);
+		/* libbpf will return NULL for variants unknown to it. */
+		if (prog_type_str)
+			printf("\n\tprog_type %s  ", prog_type_str);
 		else
 			printf("\n\tprog_type %u  ", prog_info.type);
 

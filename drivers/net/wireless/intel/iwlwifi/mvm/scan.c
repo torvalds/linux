@@ -1948,14 +1948,14 @@ static void iwl_mvm_scan_6ghz_passive_scan(struct iwl_mvm *mvm,
 	 * reset or resume flow, or while not associated and a large interval
 	 * has passed since the last 6GHz passive scan.
 	 */
-	if ((vif->bss_conf.assoc ||
+	if ((vif->cfg.assoc ||
 	     time_after(mvm->last_6ghz_passive_scan_jiffies +
 			(IWL_MVM_6GHZ_PASSIVE_SCAN_TIMEOUT * HZ), jiffies)) &&
 	    (time_before(mvm->last_reset_or_resume_time_jiffies +
 			 (IWL_MVM_6GHZ_PASSIVE_SCAN_ASSOC_TIMEOUT * HZ),
 			 jiffies))) {
 		IWL_DEBUG_SCAN(mvm, "6GHz passive scan: %s\n",
-			       vif->bss_conf.assoc ? "associated" :
+			       vif->cfg.assoc ? "associated" :
 			       "timeout did not expire");
 		return;
 	}

@@ -46,23 +46,6 @@ void __exfat_fs_error(struct super_block *sb, int report, const char *fmt, ...)
 	}
 }
 
-/*
- * exfat_msg() - print preformated EXFAT specific messages.
- * All logs except what uses exfat_fs_error() should be written by exfat_msg()
- */
-void exfat_msg(struct super_block *sb, const char *level, const char *fmt, ...)
-{
-	struct va_format vaf;
-	va_list args;
-
-	va_start(args, fmt);
-	vaf.fmt = fmt;
-	vaf.va = &args;
-	/* level means KERN_ pacility level */
-	printk("%sexFAT-fs (%s): %pV\n", level, sb->s_id, &vaf);
-	va_end(args);
-}
-
 #define SECS_PER_MIN    (60)
 #define TIMEZONE_SEC(x)	((x) * 15 * SECS_PER_MIN)
 

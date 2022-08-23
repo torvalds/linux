@@ -23,8 +23,6 @@
  *
  */
 
-#include <linux/slab.h>
-
 #include "reg_helper.h"
 #include "dce_audio.h"
 #include "dce/dce_11_0_d.h"
@@ -322,7 +320,7 @@ static void set_video_latency(
 		value);
 }
 
-/* set audio latency in in ms/2+1 */
+/* set audio latency in ms/2+1 */
 static void set_audio_latency(
 	struct audio *audio,
 	int latency_in_ms)
@@ -485,6 +483,17 @@ void dce_aud_az_configure(
 	}
 
 	AZ_REG_WRITE(AZALIA_F0_CODEC_PIN_CONTROL_CHANNEL_SPEAKER, value);
+
+	/*  ACP Data - Supports AI  */
+	value = AZ_REG_READ(AZALIA_F0_CODEC_PIN_CONTROL_ACP_DATA);
+
+	set_reg_field_value(
+		value,
+		audio_info->flags.info.SUPPORT_AI,
+		AZALIA_F0_CODEC_PIN_CONTROL_ACP_DATA,
+		SUPPORTS_AI);
+
+	AZ_REG_WRITE(AZALIA_F0_CODEC_PIN_CONTROL_ACP_DATA, value);
 
 	/*  Audio Descriptors   */
 	/* pass through all formats */

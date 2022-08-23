@@ -48,6 +48,7 @@ struct machine {
 	bool		  single_address_space;
 	char		  *root_dir;
 	char		  *mmap_name;
+	char		  *kallsyms_filename;
 	struct threads    threads[THREADS__TABLE_SIZE];
 	struct vdso_info  *vdso_info;
 	struct perf_env   *env;
@@ -56,6 +57,7 @@ struct machine {
 	struct map	  *vmlinux_map;
 	u64		  kernel_start;
 	pid_t		  *current_tid;
+	size_t		  current_tid_sz;
 	union { /* Tool specific area */
 		void	  *priv;
 		u64	  db_id;
@@ -262,6 +264,11 @@ typedef int (*machine__dso_t)(struct dso *dso, struct machine *machine, void *pr
 
 int machine__for_each_dso(struct machine *machine, machine__dso_t fn,
 			  void *priv);
+
+typedef int (*machine__map_t)(struct map *map, void *priv);
+int machine__for_each_kernel_map(struct machine *machine, machine__map_t fn,
+				 void *priv);
+
 int machine__for_each_thread(struct machine *machine,
 			     int (*fn)(struct thread *thread, void *p),
 			     void *priv);

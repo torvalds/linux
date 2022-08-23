@@ -8,7 +8,6 @@
 #include <linux/kvm.h>
 
 #include "kvm_util.h"
-#include "../kvm_util_internal.h"
 #include "processor.h"
 
 void ucall_init(struct kvm_vm *vm, void *arg)
@@ -53,7 +52,7 @@ void ucall(uint64_t cmd, int nargs, ...)
 	va_list va;
 	int i;
 
-	nargs = nargs <= UCALL_MAX_ARGS ? nargs : UCALL_MAX_ARGS;
+	nargs = min(nargs, UCALL_MAX_ARGS);
 
 	va_start(va, nargs);
 	for (i = 0; i < nargs; ++i)
@@ -65,9 +64,9 @@ void ucall(uint64_t cmd, int nargs, ...)
 		  (vm_vaddr_t)&uc, 0, 0, 0, 0, 0);
 }
 
-uint64_t get_ucall(struct kvm_vm *vm, uint32_t vcpu_id, struct ucall *uc)
+uint64_t get_ucall(struct kvm_vcpu *vcpu, struct ucall *uc)
 {
-	struct kvm_run *run = vcpu_state(vm, vcpu_id);
+	struct kvm_run *run = vcpu->run;
 	struct ucall ucall = {};
 
 	if (uc)
@@ -77,16 +76,17 @@ uint64_t get_ucall(struct kvm_vm *vm, uint32_t vcpu_id, struct ucall *uc)
 	    run->riscv_sbi.extension_id == KVM_RISCV_SELFTESTS_SBI_EXT) {
 		switch (run->riscv_sbi.function_id) {
 		case KVM_RISCV_SELFTESTS_SBI_UCALL:
-			memcpy(&ucall, addr_gva2hva(vm,
-			       run->riscv_sbi.args[0]), sizeof(ucall));
+			memcpy(&ucall,
+			       addr_gva2hva(vcpu->vm, run->riscv_sbi.args[0]),
+			       sizeof(ucall));
 
-			vcpu_run_complete_io(vm, vcpu_id);
+			vcpu_run_complete_io(vcpu);
 			if (uc)
 				memcpy(uc, &ucall, sizeof(ucall));
 
 			break;
 		case KVM_RISCV_SELFTESTS_SBI_UNEXP:
-			vcpu_dump(stderr, vm, vcpu_id, 2);
+			vcpu_dump(stderr, vcpu, 2);
 			TEST_ASSERT(0, "Unexpected trap taken by guest");
 			break;
 		default:

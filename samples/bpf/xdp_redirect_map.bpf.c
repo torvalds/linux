@@ -33,7 +33,7 @@ struct {
 } tx_port_native SEC(".maps");
 
 /* store egress interface mac address */
-const volatile char tx_mac_addr[ETH_ALEN];
+const volatile __u8 tx_mac_addr[ETH_ALEN];
 
 static __always_inline int xdp_redirect_map(struct xdp_md *ctx, void *redirect_map)
 {
@@ -73,6 +73,7 @@ int xdp_redirect_map_egress(struct xdp_md *ctx)
 {
 	void *data_end = (void *)(long)ctx->data_end;
 	void *data = (void *)(long)ctx->data;
+	u8 *mac_addr = (u8 *) tx_mac_addr;
 	struct ethhdr *eth = data;
 	u64 nh_off;
 
@@ -80,7 +81,8 @@ int xdp_redirect_map_egress(struct xdp_md *ctx)
 	if (data + nh_off > data_end)
 		return XDP_DROP;
 
-	__builtin_memcpy(eth->h_source, (const char *)tx_mac_addr, ETH_ALEN);
+	barrier_var(mac_addr); /* prevent optimizing out memcpy */
+	__builtin_memcpy(eth->h_source, mac_addr, ETH_ALEN);
 
 	return XDP_PASS;
 }

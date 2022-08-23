@@ -136,6 +136,9 @@ enum devlink_command {
 	DEVLINK_CMD_LINECARD_NEW,
 	DEVLINK_CMD_LINECARD_DEL,
 
+	DEVLINK_CMD_SELFTESTS_GET,	/* can dump */
+	DEVLINK_CMD_SELFTESTS_RUN,
+
 	/* add new commands above here */
 	__DEVLINK_CMD_MAX,
 	DEVLINK_CMD_MAX = __DEVLINK_CMD_MAX - 1
@@ -275,6 +278,30 @@ enum {
 
 #define DEVLINK_SUPPORTED_FLASH_OVERWRITE_SECTIONS \
 	(_BITUL(__DEVLINK_FLASH_OVERWRITE_MAX_BIT) - 1)
+
+enum devlink_attr_selftest_id {
+	DEVLINK_ATTR_SELFTEST_ID_UNSPEC,
+	DEVLINK_ATTR_SELFTEST_ID_FLASH,	/* flag */
+
+	__DEVLINK_ATTR_SELFTEST_ID_MAX,
+	DEVLINK_ATTR_SELFTEST_ID_MAX = __DEVLINK_ATTR_SELFTEST_ID_MAX - 1
+};
+
+enum devlink_selftest_status {
+	DEVLINK_SELFTEST_STATUS_SKIP,
+	DEVLINK_SELFTEST_STATUS_PASS,
+	DEVLINK_SELFTEST_STATUS_FAIL
+};
+
+enum devlink_attr_selftest_result {
+	DEVLINK_ATTR_SELFTEST_RESULT_UNSPEC,
+	DEVLINK_ATTR_SELFTEST_RESULT,		/* nested */
+	DEVLINK_ATTR_SELFTEST_RESULT_ID,	/* u32, enum devlink_attr_selftest_id */
+	DEVLINK_ATTR_SELFTEST_RESULT_STATUS,	/* u8, enum devlink_selftest_status */
+
+	__DEVLINK_ATTR_SELFTEST_RESULT_MAX,
+	DEVLINK_ATTR_SELFTEST_RESULT_MAX = __DEVLINK_ATTR_SELFTEST_RESULT_MAX - 1
+};
 
 /**
  * enum devlink_trap_action - Packet trap action.
@@ -575,6 +602,10 @@ enum devlink_attr {
 	DEVLINK_ATTR_LINECARD_STATE,		/* u8 */
 	DEVLINK_ATTR_LINECARD_TYPE,		/* string */
 	DEVLINK_ATTR_LINECARD_SUPPORTED_TYPES,	/* nested */
+
+	DEVLINK_ATTR_NESTED_DEVLINK,		/* nested */
+
+	DEVLINK_ATTR_SELFTESTS,			/* nested */
 
 	/* add new attributes above here, update the policy in devlink.c */
 

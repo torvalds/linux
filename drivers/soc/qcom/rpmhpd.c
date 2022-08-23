@@ -23,8 +23,8 @@
 /**
  * struct rpmhpd - top level RPMh power domain resource data structure
  * @dev:		rpmh power domain controller device
- * @pd:			generic_pm_domain corrresponding to the power domain
- * @parent:		generic_pm_domain corrresponding to the parent's power domain
+ * @pd:			generic_pm_domain corresponding to the power domain
+ * @parent:		generic_pm_domain corresponding to the parent's power domain
  * @peer:		A peer power domain in case Active only Voting is
  *			supported
  * @active_only:	True if it represents an Active only peer

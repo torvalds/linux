@@ -8,7 +8,7 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: Texas Instruments TLV320ADCX140 Quad Channel Analog-to-Digital Converter
 
 maintainers:
-  - Dan Murphy <dmurphy@ti.com>
+  - Andrew Davis <afd@ti.com>
 
 description: |
   The TLV320ADCX140 are multichannel (4-ch analog recording or 8-ch digital
@@ -68,9 +68,9 @@ properties:
        array is defined as <PDMIN1 PDMIN2 PDMIN3 PDMIN4>.
 
        0 - (default) Odd channel is latched on the negative edge and even
-       channel is latched on the the positive edge.
+       channel is latched on the positive edge.
        1 - Odd channel is latched on the positive edge and even channel is
-       latched on the the negative edge.
+       latched on the negative edge.
 
        PDMIN1 - PDMCLK latching edge used for channel 1 and 2 data
        PDMIN2 - PDMCLK latching edge used for channel 3 and 4 data

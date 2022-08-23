@@ -320,8 +320,6 @@ static void b53_spi_remove(struct spi_device *spi)
 
 	if (dev)
 		b53_switch_remove(dev);
-
-	spi_set_drvdata(spi, NULL);
 }
 
 static void b53_spi_shutdown(struct spi_device *spi)

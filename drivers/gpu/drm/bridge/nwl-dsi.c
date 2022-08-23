@@ -12,6 +12,7 @@
 #include <linux/irq.h>
 #include <linux/math64.h>
 #include <linux/mfd/syscon.h>
+#include <linux/media-bus-format.h>
 #include <linux/module.h>
 #include <linux/mux/consumer.h>
 #include <linux/of.h>
@@ -663,6 +664,12 @@ static int nwl_dsi_mode_set(struct nwl_dsi *dsi)
 	if (ret < 0) {
 		DRM_DEV_ERROR(dev, "Failed to init DSI phy: %d\n", ret);
 		return ret;
+	}
+
+	ret = phy_set_mode(dsi->phy, PHY_MODE_MIPI_DPHY);
+	if (ret < 0) {
+		DRM_DEV_ERROR(dev, "Failed to set DSI phy mode: %d\n", ret);
+		goto uninit_phy;
 	}
 
 	ret = phy_configure(dsi->phy, phy_cfg);

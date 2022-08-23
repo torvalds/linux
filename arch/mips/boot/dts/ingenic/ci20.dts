@@ -31,7 +31,7 @@
 	gpio-keys {
 		compatible = "gpio-keys";
 
-		sw1 {
+		switch {
 			label = "ci20:sw1";
 			linux,code = <KEY_F13>;
 			gpios = <&gpd 17 GPIO_ACTIVE_HIGH>;

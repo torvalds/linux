@@ -812,7 +812,7 @@ extern sector_t raid5_compute_sector(struct r5conf *conf, sector_t r_sector,
 				     struct stripe_head *sh);
 extern struct stripe_head *
 raid5_get_active_stripe(struct r5conf *conf, sector_t sector,
-			int previous, int noblock, int noquiesce);
+			bool previous, bool noblock, bool noquiesce);
 extern int raid5_calc_degraded(struct r5conf *conf);
 extern int r5c_journal_mode_set(struct mddev *mddev, int journal_mode);
 #endif

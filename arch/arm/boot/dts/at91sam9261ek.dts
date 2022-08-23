@@ -211,31 +211,31 @@
 		};
 	};
 
-	gpio_keys {
+	gpio-keys {
 		compatible = "gpio-keys";
 
-		button_0 {
+		button-0 {
 			label = "button_0";
 			gpios = <&pioA 27 GPIO_ACTIVE_LOW>;
 			linux,code = <256>;
 			wakeup-source;
 		};
 
-		button_1 {
+		button-1 {
 			label = "button_1";
 			gpios = <&pioA 26 GPIO_ACTIVE_LOW>;
 			linux,code = <257>;
 			wakeup-source;
 		};
 
-		button_2 {
+		button-2 {
 			label = "button_2";
 			gpios = <&pioA 25 GPIO_ACTIVE_LOW>;
 			linux,code = <258>;
 			wakeup-source;
 		};
 
-		button_3 {
+		button-3 {
 			label = "button_3";
 			gpios = <&pioA 24 GPIO_ACTIVE_LOW>;
 			linux,code = <259>;

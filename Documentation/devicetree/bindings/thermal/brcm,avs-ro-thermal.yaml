@@ -16,7 +16,7 @@ description: |+
   - compatible: Should be one of the following:
                 "brcm,bcm2711-avs-monitor", "syscon", "simple-mfd"
 
-  Refer to the the bindings described in
+  Refer to the bindings described in
   Documentation/devicetree/bindings/mfd/syscon.yaml
 
 properties:

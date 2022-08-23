@@ -687,6 +687,9 @@ int acpi_gpio_update_gpiod_lookup_flags(unsigned long *lookupflags,
 	case ACPI_PIN_CONFIG_PULLDOWN:
 		*lookupflags |= GPIO_PULL_DOWN;
 		break;
+	case ACPI_PIN_CONFIG_NOPULL:
+		*lookupflags |= GPIO_PULL_DISABLE;
+		break;
 	default:
 		break;
 	}

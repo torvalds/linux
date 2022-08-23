@@ -36,8 +36,8 @@
 #define MLX5_CT_STATE_RELATED_BIT BIT(5)
 #define MLX5_CT_STATE_INVALID_BIT BIT(6)
 
-#define MLX5_CT_LABELS_BITS (mlx5e_tc_attr_to_reg_mappings[LABELS_TO_REG].mlen)
-#define MLX5_CT_LABELS_MASK GENMASK(MLX5_CT_LABELS_BITS - 1, 0)
+#define MLX5_CT_LABELS_BITS MLX5_REG_MAPPING_MBITS(LABELS_TO_REG)
+#define MLX5_CT_LABELS_MASK MLX5_REG_MAPPING_MASK(LABELS_TO_REG)
 
 /* Statically allocate modify actions for
  * ipv6 and port nat (5) + tuple fields (4) + nic mode zone restore (1) = 10.
@@ -76,6 +76,7 @@ struct mlx5_tc_ct_priv {
 	struct mlx5_ct_fs *fs;
 	struct mlx5_ct_fs_ops *fs_ops;
 	spinlock_t ht_lock; /* protects ft entries */
+	struct workqueue_struct *wq;
 
 	struct mlx5_tc_ct_debugfs debugfs;
 };
@@ -941,14 +942,11 @@ static void mlx5_tc_ct_entry_del_work(struct work_struct *work)
 static void
 __mlx5_tc_ct_entry_put(struct mlx5_ct_entry *entry)
 {
-	struct mlx5e_priv *priv;
-
 	if (!refcount_dec_and_test(&entry->refcnt))
 		return;
 
-	priv = netdev_priv(entry->ct_priv->netdev);
 	INIT_WORK(&entry->work, mlx5_tc_ct_entry_del_work);
-	queue_work(priv->wq, &entry->work);
+	queue_work(entry->ct_priv->wq, &entry->work);
 }
 
 static struct mlx5_ct_counter *
@@ -1759,19 +1757,16 @@ mlx5_tc_ct_flush_ft_entry(void *ptr, void *arg)
 static void
 mlx5_tc_ct_del_ft_cb(struct mlx5_tc_ct_priv *ct_priv, struct mlx5_ct_ft *ft)
 {
-	struct mlx5e_priv *priv;
-
 	if (!refcount_dec_and_test(&ft->refcount))
 		return;
 
+	flush_workqueue(ct_priv->wq);
 	nf_flow_table_offload_del_cb(ft->nf_ft,
 				     mlx5_tc_ct_block_flow_offload, ft);
 	rhashtable_remove_fast(&ct_priv->zone_ht, &ft->node, zone_params);
 	rhashtable_free_and_destroy(&ft->ct_entries_ht,
 				    mlx5_tc_ct_flush_ft_entry,
 				    ct_priv);
-	priv = netdev_priv(ct_priv->netdev);
-	flush_workqueue(priv->wq);
 	mlx5_tc_ct_free_pre_ct_tables(ft);
 	mapping_remove(ct_priv->zone_mapping, ft->zone_restore_id);
 	kfree(ft);
@@ -2067,7 +2062,7 @@ mlx5_tc_ct_init_check_support(struct mlx5e_priv *priv,
 		/* Ignore_flow_level support isn't supported by default for VFs and so post_act
 		 * won't be supported. Skip showing error msg.
 		 */
-		if (priv->mdev->coredev_type != MLX5_COREDEV_VF)
+		if (priv->mdev->coredev_type == MLX5_COREDEV_PF)
 			err_msg = "post action is missing";
 		err = -EOPNOTSUPP;
 		goto out_err;
@@ -2176,6 +2171,12 @@ mlx5_tc_ct_init(struct mlx5e_priv *priv, struct mlx5_fs_chains *chains,
 	if (rhashtable_init(&ct_priv->ct_tuples_nat_ht, &tuples_nat_ht_params))
 		goto err_ct_tuples_nat_ht;
 
+	ct_priv->wq = alloc_ordered_workqueue("mlx5e_ct_priv_wq", 0);
+	if (!ct_priv->wq) {
+		err = -ENOMEM;
+		goto err_wq;
+	}
+
 	err = mlx5_tc_ct_fs_init(ct_priv);
 	if (err)
 		goto err_init_fs;
@@ -2184,6 +2185,8 @@ mlx5_tc_ct_init(struct mlx5e_priv *priv, struct mlx5_fs_chains *chains,
 	return ct_priv;
 
 err_init_fs:
+	destroy_workqueue(ct_priv->wq);
+err_wq:
 	rhashtable_destroy(&ct_priv->ct_tuples_nat_ht);
 err_ct_tuples_nat_ht:
 	rhashtable_destroy(&ct_priv->ct_tuples_ht);
@@ -2213,6 +2216,7 @@ mlx5_tc_ct_clean(struct mlx5_tc_ct_priv *ct_priv)
 	if (!ct_priv)
 		return;
 
+	destroy_workqueue(ct_priv->wq);
 	mlx5_ct_tc_remove_dbgfs(ct_priv);
 	chains = ct_priv->chains;
 

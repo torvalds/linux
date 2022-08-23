@@ -6,8 +6,9 @@
 #include <linux/gpio/driver.h>
 #include <linux/i2c.h>
 #include <linux/interrupt.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
-#include <linux/of_irq.h>
+#include <linux/property.h>
 #include <linux/seq_file.h>
 #include <linux/slab.h>
 
@@ -485,21 +486,16 @@ static int adnp_gpio_setup(struct adnp *adnp, unsigned int num_gpios,
 	return 0;
 }
 
-static int adnp_i2c_probe(struct i2c_client *client,
-				    const struct i2c_device_id *id)
+static int adnp_i2c_probe(struct i2c_client *client)
 {
-	struct device_node *np = client->dev.of_node;
+	struct device *dev = &client->dev;
 	struct adnp *adnp;
 	u32 num_gpios;
 	int err;
 
-	err = of_property_read_u32(np, "nr-gpios", &num_gpios);
+	err = device_property_read_u32(dev, "nr-gpios", &num_gpios);
 	if (err < 0)
 		return err;
-
-	client->irq = irq_of_parse_and_map(np, 0);
-	if (!client->irq)
-		return -EPROBE_DEFER;
 
 	adnp = devm_kzalloc(&client->dev, sizeof(*adnp), GFP_KERNEL);
 	if (!adnp)
@@ -508,8 +504,7 @@ static int adnp_i2c_probe(struct i2c_client *client,
 	mutex_init(&adnp->i2c_lock);
 	adnp->client = client;
 
-	err = adnp_gpio_setup(adnp, num_gpios,
-			of_property_read_bool(np, "interrupt-controller"));
+	err = adnp_gpio_setup(adnp, num_gpios, device_property_read_bool(dev, "interrupt-controller"));
 	if (err)
 		return err;
 
@@ -535,7 +530,7 @@ static struct i2c_driver adnp_i2c_driver = {
 		.name = "gpio-adnp",
 		.of_match_table = adnp_of_match,
 	},
-	.probe = adnp_i2c_probe,
+	.probe_new = adnp_i2c_probe,
 	.id_table = adnp_i2c_id,
 };
 module_i2c_driver(adnp_i2c_driver);

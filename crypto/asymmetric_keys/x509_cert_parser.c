@@ -508,6 +508,9 @@ int x509_extract_key_data(void *context, size_t hdrlen,
 	case OID_gost2012PKey512:
 		ctx->cert->pub->pkey_algo = "ecrdsa";
 		break;
+	case OID_sm2:
+		ctx->cert->pub->pkey_algo = "sm2";
+		break;
 	case OID_id_ecPublicKey:
 		if (parse_OID(ctx->params, ctx->params_size, &oid) != 0)
 			return -EBADMSG;

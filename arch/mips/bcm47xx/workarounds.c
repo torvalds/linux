@@ -22,6 +22,7 @@ void __init bcm47xx_workarounds(void)
 
 	switch (board) {
 	case BCM47XX_BOARD_NETGEAR_WNR3500L:
+	case BCM47XX_BOARD_NETGEAR_WNR3500L_V2:
 		bcm47xx_workarounds_enable_usb_power(12);
 		break;
 	case BCM47XX_BOARD_NETGEAR_WNDR3400V2:

@@ -19,7 +19,7 @@ struct nvbios_source {
 int nvbios_extend(struct nvkm_bios *, u32 length);
 int nvbios_shadow(struct nvkm_bios *);
 
-extern const struct nvbios_source nvbios_rom;
+extern const struct nvbios_source nvbios_prom;
 extern const struct nvbios_source nvbios_ramin;
 extern const struct nvbios_source nvbios_acpi_fast;
 extern const struct nvbios_source nvbios_acpi_slow;

@@ -269,11 +269,7 @@ static int rtw_debugfs_get_rsvd_page(struct seq_file *m, void *v)
 	for (i = 0 ; i < buf_size ; i += 8) {
 		if (i % page_size == 0)
 			seq_printf(m, "PAGE %d\n", (i + offset) / page_size);
-		seq_printf(m, "%2.2x %2.2x %2.2x %2.2x %2.2x %2.2x %2.2x %2.2x\n",
-			   *(buf + i), *(buf + i + 1),
-			   *(buf + i + 2), *(buf + i + 3),
-			   *(buf + i + 4), *(buf + i + 5),
-			   *(buf + i + 6), *(buf + i + 7));
+		seq_printf(m, "%8ph\n", buf + i);
 	}
 	vfree(buf);
 

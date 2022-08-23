@@ -150,7 +150,12 @@ static void vpu_session_handle_eos(struct vpu_inst *inst, struct vpu_rpc_event *
 
 static void vpu_session_handle_error(struct vpu_inst *inst, struct vpu_rpc_event *pkt)
 {
-	dev_err(inst->dev, "unsupported stream\n");
+	char *str = (char *)pkt->data;
+
+	if (strlen(str))
+		dev_err(inst->dev, "instance %d firmware error : %s\n", inst->id, str);
+	else
+		dev_err(inst->dev, "instance %d is unsupported stream\n", inst->id);
 	call_void_vop(inst, event_notify, VPU_MSG_ID_UNSUPPORTED, NULL);
 	vpu_v4l2_set_error(inst);
 }

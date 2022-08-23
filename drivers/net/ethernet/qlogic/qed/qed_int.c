@@ -1110,7 +1110,7 @@ static int qed_int_deassertion(struct qed_hwfn  *p_hwfn,
 								 bit_len);
 
 					/* Some bits represent more than a
-					 * a single interrupt. Correctly print
+					 * single interrupt. Correctly print
 					 * their name.
 					 */
 					if (ATTENTION_LENGTH(flags) > 2 ||

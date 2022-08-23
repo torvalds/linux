@@ -51,6 +51,12 @@
 	status = "disabled";
 };
 
+&spi1 {
+	/delete-property/ pinctrl-0;
+	/delete-property/ pinctrl-names;
+	status = "disabled";
+};
+
 &ssi1 {
 	/delete-property/ pinctrl-0;
 	/delete-property/ pinctrl-names;

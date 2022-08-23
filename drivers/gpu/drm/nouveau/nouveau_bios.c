@@ -1801,6 +1801,8 @@ parse_dcb_entry(struct drm_device *dev, void *data, int idx, u8 *outp)
 			ret = parse_dcb20_entry(dev, dcb, conn, conf, entry);
 		else
 			ret = parse_dcb15_entry(dev, dcb, conn, conf, entry);
+		entry->id = idx;
+
 		if (!ret)
 			return 1; /* stop parsing */
 

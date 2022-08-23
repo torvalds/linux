@@ -2,10 +2,11 @@
 /*
  * Surface System Aggregator Module bus and device integration.
  *
- * Copyright (C) 2019-2021 Maximilian Luz <luzmaximilian@gmail.com>
+ * Copyright (C) 2019-2022 Maximilian Luz <luzmaximilian@gmail.com>
  */
 
 #include <linux/device.h>
+#include <linux/property.h>
 #include <linux/slab.h>
 
 #include <linux/surface_aggregator/controller.h>
@@ -13,6 +14,9 @@
 
 #include "bus.h"
 #include "controller.h"
+
+
+/* -- Device and bus functions. --------------------------------------------- */
 
 static ssize_t modalias_show(struct device *dev, struct device_attribute *attr,
 			     char *buf)
@@ -46,6 +50,7 @@ static void ssam_device_release(struct device *dev)
 	struct ssam_device *sdev = to_ssam_device(dev);
 
 	ssam_controller_put(sdev->ctrl);
+	fwnode_handle_put(sdev->dev.fwnode);
 	kfree(sdev);
 }
 
@@ -363,6 +368,134 @@ void ssam_device_driver_unregister(struct ssam_device_driver *sdrv)
 }
 EXPORT_SYMBOL_GPL(ssam_device_driver_unregister);
 
+
+/* -- Bus registration. ----------------------------------------------------- */
+
+/**
+ * ssam_bus_register() - Register and set-up the SSAM client device bus.
+ */
+int ssam_bus_register(void)
+{
+	return bus_register(&ssam_bus_type);
+}
+
+/**
+ * ssam_bus_unregister() - Unregister the SSAM client device bus.
+ */
+void ssam_bus_unregister(void)
+{
+	return bus_unregister(&ssam_bus_type);
+}
+
+
+/* -- Helpers for controller and hub devices. ------------------------------- */
+
+static int ssam_device_uid_from_string(const char *str, struct ssam_device_uid *uid)
+{
+	u8 d, tc, tid, iid, fn;
+	int n;
+
+	n = sscanf(str, "%hhx:%hhx:%hhx:%hhx:%hhx", &d, &tc, &tid, &iid, &fn);
+	if (n != 5)
+		return -EINVAL;
+
+	uid->domain = d;
+	uid->category = tc;
+	uid->target = tid;
+	uid->instance = iid;
+	uid->function = fn;
+
+	return 0;
+}
+
+static int ssam_get_uid_for_node(struct fwnode_handle *node, struct ssam_device_uid *uid)
+{
+	const char *str = fwnode_get_name(node);
+
+	/*
+	 * To simplify definitions of firmware nodes, we set the device name
+	 * based on the UID of the device, prefixed with "ssam:".
+	 */
+	if (strncmp(str, "ssam:", strlen("ssam:")) != 0)
+		return -ENODEV;
+
+	str += strlen("ssam:");
+	return ssam_device_uid_from_string(str, uid);
+}
+
+static int ssam_add_client_device(struct device *parent, struct ssam_controller *ctrl,
+				  struct fwnode_handle *node)
+{
+	struct ssam_device_uid uid;
+	struct ssam_device *sdev;
+	int status;
+
+	status = ssam_get_uid_for_node(node, &uid);
+	if (status)
+		return status;
+
+	sdev = ssam_device_alloc(ctrl, uid);
+	if (!sdev)
+		return -ENOMEM;
+
+	sdev->dev.parent = parent;
+	sdev->dev.fwnode = fwnode_handle_get(node);
+
+	status = ssam_device_add(sdev);
+	if (status)
+		ssam_device_put(sdev);
+
+	return status;
+}
+
+/**
+ * __ssam_register_clients() - Register client devices defined under the
+ * given firmware node as children of the given device.
+ * @parent: The parent device under which clients should be registered.
+ * @ctrl: The controller with which client should be registered.
+ * @node: The firmware node holding definitions of the devices to be added.
+ *
+ * Register all clients that have been defined as children of the given root
+ * firmware node as children of the given parent device. The respective child
+ * firmware nodes will be associated with the correspondingly created child
+ * devices.
+ *
+ * The given controller will be used to instantiate the new devices. See
+ * ssam_device_add() for details.
+ *
+ * Note that, generally, the use of either ssam_device_register_clients() or
+ * ssam_register_clients() should be preferred as they directly use the
+ * firmware node and/or controller associated with the given device. This
+ * function is only intended for use when different device specifications (e.g.
+ * ACPI and firmware nodes) need to be combined (as is done in the platform hub
+ * of the device registry).
+ *
+ * Return: Returns zero on success, nonzero on failure.
+ */
+int __ssam_register_clients(struct device *parent, struct ssam_controller *ctrl,
+			    struct fwnode_handle *node)
+{
+	struct fwnode_handle *child;
+	int status;
+
+	fwnode_for_each_child_node(node, child) {
+		/*
+		 * Try to add the device specified in the firmware node. If
+		 * this fails with -ENODEV, the node does not specify any SSAM
+		 * device, so ignore it and continue with the next one.
+		 */
+		status = ssam_add_client_device(parent, ctrl, child);
+		if (status && status != -ENODEV)
+			goto err;
+	}
+
+	return 0;
+err:
+	ssam_remove_clients(parent);
+	return status;
+}
+EXPORT_SYMBOL_GPL(__ssam_register_clients);
+
 static int ssam_remove_device(struct device *dev, void *_data)
 {
 	struct ssam_device *sdev = to_ssam_device(dev);
@@ -387,19 +520,3 @@ void ssam_remove_clients(struct device *dev)
 	device_for_each_child_reverse(dev, NULL, ssam_remove_device);
 }
 EXPORT_SYMBOL_GPL(ssam_remove_clients);
-
-/**
- * ssam_bus_register() - Register and set-up the SSAM client device bus.
- */
-int ssam_bus_register(void)
-{
-	return bus_register(&ssam_bus_type);
-}
-
-/**
- * ssam_bus_unregister() - Unregister the SSAM client device bus.
- */
-void ssam_bus_unregister(void)
-{
-	return bus_unregister(&ssam_bus_type);
-}

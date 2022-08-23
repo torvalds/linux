@@ -40,3 +40,13 @@ void switch_pmu_to_guest(struct kvm_vcpu *vcpu,
 			    struct p9_host_os_sprs *host_os_sprs);
 void switch_pmu_to_host(struct kvm_vcpu *vcpu,
 			    struct p9_host_os_sprs *host_os_sprs);
+
+#ifdef CONFIG_KVM_BOOK3S_HV_P9_TIMING
+void accumulate_time(struct kvm_vcpu *vcpu, struct kvmhv_tb_accumulator *next);
+#define start_timing(vcpu, next) accumulate_time(vcpu, next)
+#define end_timing(vcpu) accumulate_time(vcpu, NULL)
+#else
+#define accumulate_time(vcpu, next) do {} while (0)
+#define start_timing(vcpu, next) do {} while (0)
+#define end_timing(vcpu) do {} while (0)
+#endif

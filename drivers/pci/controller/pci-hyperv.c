@@ -642,7 +642,7 @@ static void hv_arch_irq_unmask(struct irq_data *data)
 	struct hv_retarget_device_interrupt *params;
 	struct tran_int_desc *int_desc;
 	struct hv_pcibus_device *hbus;
-	struct cpumask *dest;
+	const struct cpumask *dest;
 	cpumask_var_t tmp;
 	struct pci_bus *pbus;
 	struct pci_dev *pdev;
@@ -1613,7 +1613,7 @@ out:
 }
 
 static u32 hv_compose_msi_req_v1(
-	struct pci_create_interrupt *int_pkt, struct cpumask *affinity,
+	struct pci_create_interrupt *int_pkt, const struct cpumask *affinity,
 	u32 slot, u8 vector, u8 vector_count)
 {
 	int_pkt->message_type.type = PCI_CREATE_INTERRUPT_MESSAGE;
@@ -1635,13 +1635,13 @@ static u32 hv_compose_msi_req_v1(
  * Create MSI w/ dummy vCPU set targeting just one vCPU, overwritten
  * by subsequent retarget in hv_irq_unmask().
  */
-static int hv_compose_msi_req_get_cpu(struct cpumask *affinity)
+static int hv_compose_msi_req_get_cpu(const struct cpumask *affinity)
 {
 	return cpumask_first_and(affinity, cpu_online_mask);
 }
 
 static u32 hv_compose_msi_req_v2(
-	struct pci_create_interrupt2 *int_pkt, struct cpumask *affinity,
+	struct pci_create_interrupt2 *int_pkt, const struct cpumask *affinity,
 	u32 slot, u8 vector, u8 vector_count)
 {
 	int cpu;
@@ -1660,7 +1660,7 @@ static u32 hv_compose_msi_req_v2(
 }
 
 static u32 hv_compose_msi_req_v3(
-	struct pci_create_interrupt3 *int_pkt, struct cpumask *affinity,
+	struct pci_create_interrupt3 *int_pkt, const struct cpumask *affinity,
 	u32 slot, u32 vector, u8 vector_count)
 {
 	int cpu;
@@ -1697,7 +1697,7 @@ static void hv_compose_msi_msg(struct irq_data *data, struct msi_msg *msg)
 	struct hv_pci_dev *hpdev;
 	struct pci_bus *pbus;
 	struct pci_dev *pdev;
-	struct cpumask *dest;
+	const struct cpumask *dest;
 	struct compose_comp_ctxt comp;
 	struct tran_int_desc *int_desc;
 	struct msi_desc *msi_desc;

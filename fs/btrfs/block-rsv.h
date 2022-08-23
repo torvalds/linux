@@ -9,7 +9,7 @@ enum btrfs_reserve_flush_enum;
 /*
  * Types of block reserves
  */
-enum {
+enum btrfs_rsv_type {
 	BTRFS_BLOCK_RSV_GLOBAL,
 	BTRFS_BLOCK_RSV_DELALLOC,
 	BTRFS_BLOCK_RSV_TRANS,
@@ -25,9 +25,10 @@ struct btrfs_block_rsv {
 	u64 reserved;
 	struct btrfs_space_info *space_info;
 	spinlock_t lock;
-	unsigned short full;
-	unsigned short type;
-	unsigned short failfast;
+	bool full;
+	bool failfast;
+	/* Block reserve type, one of BTRFS_BLOCK_RSV_* */
+	enum btrfs_rsv_type type:8;
 
 	/*
 	 * Qgroup equivalent for @size @reserved
@@ -49,13 +50,13 @@ struct btrfs_block_rsv {
 	u64 qgroup_rsv_reserved;
 };
 
-void btrfs_init_block_rsv(struct btrfs_block_rsv *rsv, unsigned short type);
+void btrfs_init_block_rsv(struct btrfs_block_rsv *rsv, enum btrfs_rsv_type type);
 void btrfs_init_root_block_rsv(struct btrfs_root *root);
 struct btrfs_block_rsv *btrfs_alloc_block_rsv(struct btrfs_fs_info *fs_info,
-					      unsigned short type);
+					      enum btrfs_rsv_type type);
 void btrfs_init_metadata_block_rsv(struct btrfs_fs_info *fs_info,
 				   struct btrfs_block_rsv *rsv,
-				   unsigned short type);
+				   enum btrfs_rsv_type type);
 void btrfs_free_block_rsv(struct btrfs_fs_info *fs_info,
 			  struct btrfs_block_rsv *rsv);
 int btrfs_block_rsv_add(struct btrfs_fs_info *fs_info,

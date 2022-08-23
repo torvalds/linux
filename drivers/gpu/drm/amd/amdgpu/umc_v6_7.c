@@ -119,6 +119,24 @@ static void umc_v6_7_ecc_info_query_correctable_error_count(struct amdgpu_device
 		*error_count += 1;
 
 		umc_v6_7_query_error_status_helper(adev, mc_umc_status, umc_reg_offset);
+
+		if (ras->umc_ecc.record_ce_addr_supported)	{
+			uint64_t err_addr, soc_pa;
+			uint32_t channel_index =
+				adev->umc.channel_idx_tbl[umc_inst * adev->umc.channel_inst_num + ch_inst];
+
+			err_addr = ras->umc_ecc.ecc[eccinfo_table_idx].mca_ceumc_addr;
+			err_addr = REG_GET_FIELD(err_addr, MCA_UMC_UMC0_MCUMC_ADDRT0, ErrorAddr);
+			/* translate umc channel address to soc pa, 3 parts are included */
+			soc_pa = ADDR_OF_8KB_BLOCK(err_addr) |
+					ADDR_OF_256B_BLOCK(channel_index) |
+					OFFSET_IN_256B_BLOCK(err_addr);
+
+			/* The umc channel bits are not original values, they are hashed */
+			SET_CHANNEL_HASH(channel_index, soc_pa);
+
+			dev_info(adev->dev, "Error Address(PA): 0x%llx\n", soc_pa);
+		}
 	}
 }
 
@@ -251,7 +269,9 @@ static void umc_v6_7_ecc_info_query_ras_error_address(struct amdgpu_device *adev
 
 static void umc_v6_7_query_correctable_error_count(struct amdgpu_device *adev,
 						   uint32_t umc_reg_offset,
-						   unsigned long *error_count)
+						   unsigned long *error_count,
+						   uint32_t ch_inst,
+						   uint32_t umc_inst)
 {
 	uint32_t ecc_err_cnt_sel, ecc_err_cnt_sel_addr;
 	uint32_t ecc_err_cnt, ecc_err_cnt_addr;
@@ -295,6 +315,31 @@ static void umc_v6_7_query_correctable_error_count(struct amdgpu_device *adev,
 		*error_count += 1;
 
 		umc_v6_7_query_error_status_helper(adev, mc_umc_status, umc_reg_offset);
+
+		{
+			uint64_t err_addr, soc_pa;
+			uint32_t mc_umc_addrt0;
+			uint32_t channel_index;
+
+			mc_umc_addrt0 =
+				SOC15_REG_OFFSET(UMC, 0, regMCA_UMC_UMC0_MCUMC_ADDRT0);
+
+			channel_index =
+				adev->umc.channel_idx_tbl[umc_inst * adev->umc.channel_inst_num + ch_inst];
+
+			err_addr = RREG64_PCIE((mc_umc_addrt0 + umc_reg_offset) * 4);
+			err_addr = REG_GET_FIELD(err_addr, MCA_UMC_UMC0_MCUMC_ADDRT0, ErrorAddr);
+
+			/* translate umc channel address to soc pa, 3 parts are included */
+			soc_pa = ADDR_OF_8KB_BLOCK(err_addr) |
+					ADDR_OF_256B_BLOCK(channel_index) |
+					OFFSET_IN_256B_BLOCK(err_addr);
+
+			/* The umc channel bits are not original values, they are hashed */
+			SET_CHANNEL_HASH(channel_index, soc_pa);
+
+			dev_info(adev->dev, "Error Address(PA): 0x%llx\n", soc_pa);
+		}
 	}
 }
 
@@ -395,7 +440,8 @@ static void umc_v6_7_query_ras_error_count(struct amdgpu_device *adev,
 							 ch_inst);
 		umc_v6_7_query_correctable_error_count(adev,
 						       umc_reg_offset,
-						       &(err_data->ce_count));
+						       &(err_data->ce_count),
+						       ch_inst, umc_inst);
 		umc_v6_7_querry_uncorrectable_error_count(adev,
 							  umc_reg_offset,
 							  &(err_data->ue_count));

@@ -96,15 +96,6 @@
  */
 #define MMU_FTR_NEED_DTLB_SW_LRU	ASM_CONST(0x00200000)
 
-/* Enable use of TLB reservation.  Processor should support tlbsrx.
- * instruction and MAS0[WQ].
- */
-#define MMU_FTR_USE_TLBRSRV		ASM_CONST(0x00800000)
-
-/* Use paired MAS registers (MAS7||MAS3, etc.)
- */
-#define MMU_FTR_USE_PAIRED_MAS		ASM_CONST(0x01000000)
-
 /* Doesn't support the B bit (1T segment) in SLBIE
  */
 #define MMU_FTR_NO_SLBIE_B		ASM_CONST(0x02000000)
@@ -179,9 +170,6 @@ enum {
 #endif
 #ifdef CONFIG_PPC_83xx
 		MMU_FTR_NEED_DTLB_SW_LRU |
-#endif
-#ifdef CONFIG_PPC_BOOK3E_64
-		MMU_FTR_USE_TLBRSRV | MMU_FTR_USE_PAIRED_MAS |
 #endif
 #ifdef CONFIG_PPC_BOOK3S_64
 		MMU_FTR_KERNEL_RO |

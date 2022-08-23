@@ -22,7 +22,6 @@
 :ref:`Documentation/translations/zh_TW/process/howto.rst <tw_process_howto>`
 文件是一個重要的起點；
 :ref:`Documentation/translations/zh_TW/process/submitting-patches.rst <tw_submittingpatches>`
-和 :ref:`Documentation/translations/zh_TW/process/submitting-drivers.rst <tw_submittingdrivers>`
 也是所有內核開發人員都應該閱讀的內容。許多內部內核API都是使用kerneldoc機制
 記錄的；「make htmldocs」或「make pdfdocs」可用於以HTML或PDF格式生成這些文檔
 （儘管某些發行版提供的tex版本會遇到內部限制，無法正確處理文檔）。

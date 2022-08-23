@@ -3380,6 +3380,7 @@ static bool __pr_flush(struct console *con, int timeout_ms, bool reset_on_progre
 		diff = 0;
 
 		console_lock();
+
 		for_each_console(c) {
 			if (con && con != c)
 				continue;
@@ -3389,10 +3390,18 @@ static bool __pr_flush(struct console *con, int timeout_ms, bool reset_on_progre
 			if (printk_seq < seq)
 				diff += seq - printk_seq;
 		}
-		console_unlock();
 
-		if (diff != last_diff && reset_on_progress)
+		/*
+		 * If consoles are suspended, it cannot be expected that they
+		 * make forward progress, so timeout immediately. @diff is
+		 * still used to return a valid flush status.
+		 */
+		if (console_suspended)
+			remaining = 0;
+		else if (diff != last_diff && reset_on_progress)
 			remaining = timeout_ms;
+
+		console_unlock();
 
 		if (diff == 0 || remaining == 0)
 			break;

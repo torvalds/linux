@@ -328,7 +328,9 @@ static int imx_pgc_power_up(struct generic_pm_domain *genpd)
 	if (!IS_ERR(domain->regulator)) {
 		ret = regulator_enable(domain->regulator);
 		if (ret) {
-			dev_err(domain->dev, "failed to enable regulator\n");
+			dev_err(domain->dev,
+				"failed to enable regulator: %pe\n",
+				ERR_PTR(ret));
 			goto out_put_pm;
 		}
 	}
@@ -467,7 +469,9 @@ static int imx_pgc_power_down(struct generic_pm_domain *genpd)
 	if (!IS_ERR(domain->regulator)) {
 		ret = regulator_disable(domain->regulator);
 		if (ret) {
-			dev_err(domain->dev, "failed to disable regulator\n");
+			dev_err(domain->dev,
+				"failed to disable regulator: %pe\n",
+				ERR_PTR(ret));
 			return ret;
 		}
 	}

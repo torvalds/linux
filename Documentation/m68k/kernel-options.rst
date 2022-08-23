@@ -367,8 +367,8 @@ activated by a "external:" sub-option.
 4.1.2) inverse
 --------------
 
-Invert the display. This affects both, text (consoles) and graphics
-(X) display. Usually, the background is chosen to be black. With this
+Invert the display. This affects only text consoles.
+Usually, the background is chosen to be black. With this
 option, you can make the background white.
 
 4.1.3) font

@@ -29,7 +29,7 @@ config BCACHE_CLOSURES_DEBUG
 	operations that get stuck.
 
 config BCACHE_ASYNC_REGISTRATION
-	bool "Asynchronous device registration (EXPERIMENTAL)"
+	bool "Asynchronous device registration"
 	depends on BCACHE
 	help
 	Add a sysfs file /sys/fs/bcache/register_async. Writing registering

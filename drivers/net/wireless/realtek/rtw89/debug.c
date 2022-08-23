@@ -2376,7 +2376,8 @@ static int rtw89_debug_priv_phy_info_get(struct seq_file *m, void *v)
 	seq_printf(m, "TP TX: %u [%u] Mbps (lv: %d), RX: %u [%u] Mbps (lv: %d)\n",
 		   stats->tx_throughput, stats->tx_throughput_raw, stats->tx_tfc_lv,
 		   stats->rx_throughput, stats->rx_throughput_raw, stats->rx_tfc_lv);
-	seq_printf(m, "Beacon: %u\n", pkt_stat->beacon_nr);
+	seq_printf(m, "Beacon: %u, TF: %u\n", pkt_stat->beacon_nr,
+		   stats->rx_tf_periodic);
 	seq_printf(m, "Avg packet length: TX=%u, RX=%u\n", stats->tx_avg_len,
 		   stats->rx_avg_len);
 
@@ -2437,7 +2438,8 @@ static void rtw89_sta_ids_get_iter(void *data, struct ieee80211_sta *sta)
 	struct rtw89_sta *rtwsta = (struct rtw89_sta *)sta->drv_priv;
 	struct seq_file *m = (struct seq_file *)data;
 
-	seq_printf(m, "STA [%d] %pM\n", rtwsta->mac_id, sta->addr);
+	seq_printf(m, "STA [%d] %pM %s\n", rtwsta->mac_id, sta->addr,
+		   sta->tdls ? "(TDLS)" : "");
 	rtw89_dump_addr_cam(m, &rtwsta->addr_cam);
 }
 

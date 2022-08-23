@@ -223,9 +223,12 @@ i915_vma_resource_fence_notify(struct i915_sw_fence *fence,
  * Return: A refcounted pointer to a dma-fence that signals when unbinding is
  * complete.
  */
-struct dma_fence *i915_vma_resource_unbind(struct i915_vma_resource *vma_res)
+struct dma_fence *i915_vma_resource_unbind(struct i915_vma_resource *vma_res,
+					   u32 *tlb)
 {
 	struct i915_address_space *vm = vma_res->vm;
+
+	vma_res->tlb = tlb;
 
 	/* Reference for the sw fence */
 	i915_vma_resource_get(vma_res);

@@ -282,7 +282,7 @@ static struct shrinker erofs_shrinker_info = {
 
 int __init erofs_init_shrinker(void)
 {
-	return register_shrinker(&erofs_shrinker_info);
+	return register_shrinker(&erofs_shrinker_info, "erofs-shrinker");
 }
 
 void erofs_exit_shrinker(void)

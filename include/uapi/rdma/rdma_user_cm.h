@@ -184,7 +184,7 @@ struct rdma_ucm_query_addr_resp {
 struct rdma_ucm_query_path_resp {
 	__u32 num_paths;
 	__u32 reserved;
-	struct ib_path_rec_data path_data[0];
+	struct ib_path_rec_data path_data[];
 };
 
 struct rdma_ucm_conn_param {

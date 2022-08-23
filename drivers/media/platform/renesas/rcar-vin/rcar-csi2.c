@@ -1313,7 +1313,7 @@ static int rcsi2_link_setup(struct media_entity *entity,
 	channel = id % 4;
 
 	if (flags & MEDIA_LNK_FL_ENABLED) {
-		if (media_entity_remote_pad(local)) {
+		if (media_pad_remote_pad_first(local)) {
 			dev_dbg(priv->dev,
 				"Each VC can only be routed to one output channel\n");
 			return -EINVAL;

@@ -75,7 +75,7 @@ we have a dedicated glossary for Display Core at
     PSP
         Platform Security Processor
 
-    RCL
+    RLC
       RunList Controller
 
     SDMA

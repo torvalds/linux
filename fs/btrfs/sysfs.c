@@ -21,6 +21,7 @@
 #include "space-info.h"
 #include "block-group.h"
 #include "qgroup.h"
+#include "misc.h"
 
 /*
  * Structure name                       Path
@@ -61,6 +62,10 @@ struct raid_kobject {
 	.store	= _store,						\
 }
 
+#define BTRFS_ATTR_W(_prefix, _name, _store)			        \
+	static struct kobj_attribute btrfs_attr_##_prefix##_##_name =	\
+			__INIT_KOBJ_ATTR(_name, 0200, NULL, _store)
+
 #define BTRFS_ATTR_RW(_prefix, _name, _show, _store)			\
 	static struct kobj_attribute btrfs_attr_##_prefix##_##_name =	\
 			__INIT_KOBJ_ATTR(_name, 0644, _show, _store)
@@ -92,6 +97,7 @@ static struct btrfs_feature_attr btrfs_attr_features_##_name = {	     \
 
 static inline struct btrfs_fs_info *to_fs_info(struct kobject *kobj);
 static inline struct btrfs_fs_devices *to_fs_devs(struct kobject *kobj);
+static struct kobject *get_btrfs_kobj(struct kobject *kobj);
 
 static struct btrfs_feature_attr *to_btrfs_feature_attr(struct kobj_attribute *a)
 {
@@ -270,12 +276,10 @@ static umode_t btrfs_feature_visible(struct kobject *kobj,
 	return mode;
 }
 
-BTRFS_FEAT_ATTR_INCOMPAT(mixed_backref, MIXED_BACKREF);
 BTRFS_FEAT_ATTR_INCOMPAT(default_subvol, DEFAULT_SUBVOL);
 BTRFS_FEAT_ATTR_INCOMPAT(mixed_groups, MIXED_GROUPS);
 BTRFS_FEAT_ATTR_INCOMPAT(compress_lzo, COMPRESS_LZO);
 BTRFS_FEAT_ATTR_INCOMPAT(compress_zstd, COMPRESS_ZSTD);
-BTRFS_FEAT_ATTR_INCOMPAT(big_metadata, BIG_METADATA);
 BTRFS_FEAT_ATTR_INCOMPAT(extended_iref, EXTENDED_IREF);
 BTRFS_FEAT_ATTR_INCOMPAT(raid56, RAID56);
 BTRFS_FEAT_ATTR_INCOMPAT(skinny_metadata, SKINNY_METADATA);
@@ -283,9 +287,10 @@ BTRFS_FEAT_ATTR_INCOMPAT(no_holes, NO_HOLES);
 BTRFS_FEAT_ATTR_INCOMPAT(metadata_uuid, METADATA_UUID);
 BTRFS_FEAT_ATTR_COMPAT_RO(free_space_tree, FREE_SPACE_TREE);
 BTRFS_FEAT_ATTR_INCOMPAT(raid1c34, RAID1C34);
-#ifdef CONFIG_BTRFS_DEBUG
-/* Remove once support for zoned allocation is feature complete */
+#ifdef CONFIG_BLK_DEV_ZONED
 BTRFS_FEAT_ATTR_INCOMPAT(zoned, ZONED);
+#endif
+#ifdef CONFIG_BTRFS_DEBUG
 /* Remove once support for extent tree v2 is feature complete */
 BTRFS_FEAT_ATTR_INCOMPAT(extent_tree_v2, EXTENT_TREE_V2);
 #endif
@@ -296,17 +301,15 @@ BTRFS_FEAT_ATTR_COMPAT_RO(verity, VERITY);
 /*
  * Features which depend on feature bits and may differ between each fs.
  *
- * /sys/fs/btrfs/features      - all available features implemeted by this version
+ * /sys/fs/btrfs/features      - all available features implemented by this version
  * /sys/fs/btrfs/UUID/features - features of the fs which are enabled or
  *                               can be changed on a mounted filesystem.
  */
 static struct attribute *btrfs_supported_feature_attrs[] = {
-	BTRFS_FEAT_ATTR_PTR(mixed_backref),
 	BTRFS_FEAT_ATTR_PTR(default_subvol),
 	BTRFS_FEAT_ATTR_PTR(mixed_groups),
 	BTRFS_FEAT_ATTR_PTR(compress_lzo),
 	BTRFS_FEAT_ATTR_PTR(compress_zstd),
-	BTRFS_FEAT_ATTR_PTR(big_metadata),
 	BTRFS_FEAT_ATTR_PTR(extended_iref),
 	BTRFS_FEAT_ATTR_PTR(raid56),
 	BTRFS_FEAT_ATTR_PTR(skinny_metadata),
@@ -314,8 +317,10 @@ static struct attribute *btrfs_supported_feature_attrs[] = {
 	BTRFS_FEAT_ATTR_PTR(metadata_uuid),
 	BTRFS_FEAT_ATTR_PTR(free_space_tree),
 	BTRFS_FEAT_ATTR_PTR(raid1c34),
-#ifdef CONFIG_BTRFS_DEBUG
+#ifdef CONFIG_BLK_DEV_ZONED
 	BTRFS_FEAT_ATTR_PTR(zoned),
+#endif
+#ifdef CONFIG_BTRFS_DEBUG
 	BTRFS_FEAT_ATTR_PTR(extent_tree_v2),
 #endif
 #ifdef CONFIG_FS_VERITY
@@ -709,6 +714,112 @@ static ssize_t btrfs_space_info_show_##field(struct kobject *kobj,	\
 }									\
 BTRFS_ATTR(space_info, field, btrfs_space_info_show_##field)
 
+static ssize_t btrfs_chunk_size_show(struct kobject *kobj,
+				     struct kobj_attribute *a, char *buf)
+{
+	struct btrfs_space_info *sinfo = to_space_info(kobj);
+
+	return sysfs_emit(buf, "%llu\n", READ_ONCE(sinfo->chunk_size));
+}
+
+/*
+ * Store new chunk size in space info. Can be called on a read-only filesystem.
+ *
+ * If the new chunk size value is larger than 10% of free space it is reduced
+ * to match that limit. Alignment must be to 256M and the system chunk size
+ * cannot be set.
+ */
+static ssize_t btrfs_chunk_size_store(struct kobject *kobj,
+				      struct kobj_attribute *a,
+				      const char *buf, size_t len)
+{
+	struct btrfs_space_info *space_info = to_space_info(kobj);
+	struct btrfs_fs_info *fs_info = to_fs_info(get_btrfs_kobj(kobj));
+	char *retptr;
+	u64 val;
+
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
+
+	if (!fs_info->fs_devices)
+		return -EINVAL;
+
+	if (btrfs_is_zoned(fs_info))
+		return -EINVAL;
+
+	/* System block type must not be changed. */
+	if (space_info->flags & BTRFS_BLOCK_GROUP_SYSTEM)
+		return -EPERM;
+
+	val = memparse(buf, &retptr);
+	/* There could be trailing '\n', also catch any typos after the value */
+	retptr = skip_spaces(retptr);
+	if (*retptr != 0 || val == 0)
+		return -EINVAL;
+
+	val = min(val, BTRFS_MAX_DATA_CHUNK_SIZE);
+
+	/* Limit stripe size to 10% of available space. */
+	val = min(div_factor(fs_info->fs_devices->total_rw_bytes, 1), val);
+
+	/* Must be multiple of 256M. */
+	val &= ~((u64)SZ_256M - 1);
+
+	/* Must be at least 256M. */
+	if (val < SZ_256M)
+		return -EINVAL;
+
+	btrfs_update_space_info_chunk_size(space_info, val);
+
+	return len;
+}
+
+#ifdef CONFIG_BTRFS_DEBUG
+/*
+ * Request chunk allocation with current chunk size.
+ */
+static ssize_t btrfs_force_chunk_alloc_store(struct kobject *kobj,
+					     struct kobj_attribute *a,
+					     const char *buf, size_t len)
+{
+	struct btrfs_space_info *space_info = to_space_info(kobj);
+	struct btrfs_fs_info *fs_info = to_fs_info(get_btrfs_kobj(kobj));
+	struct btrfs_trans_handle *trans;
+	bool val;
+	int ret;
+
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
+
+	if (sb_rdonly(fs_info->sb))
+		return -EROFS;
+
+	ret = kstrtobool(buf, &val);
+	if (ret)
+		return ret;
+
+	if (!val)
+		return -EINVAL;
+
+	/*
+	 * This is unsafe to be called from sysfs context and may cause
+	 * unexpected problems.
+	 */
+	trans = btrfs_start_transaction(fs_info->tree_root, 0);
+	if (IS_ERR(trans))
+		return PTR_ERR(trans);
+	ret = btrfs_force_chunk_alloc(trans, space_info->flags);
+	btrfs_end_transaction(trans);
+
+	if (ret == 1)
+		return len;
+
+	return -ENOSPC;
+}
+BTRFS_ATTR_W(space_info, force_chunk_alloc, btrfs_force_chunk_alloc_store);
+
+#endif
+
 SPACE_INFO_ATTR(flags);
 SPACE_INFO_ATTR(total_bytes);
 SPACE_INFO_ATTR(bytes_used);
@@ -719,6 +830,7 @@ SPACE_INFO_ATTR(bytes_readonly);
 SPACE_INFO_ATTR(bytes_zone_unusable);
 SPACE_INFO_ATTR(disk_used);
 SPACE_INFO_ATTR(disk_total);
+BTRFS_ATTR_RW(space_info, chunk_size, btrfs_chunk_size_show, btrfs_chunk_size_store);
 
 static ssize_t btrfs_sinfo_bg_reclaim_threshold_show(struct kobject *kobj,
 						     struct kobj_attribute *a,
@@ -773,6 +885,10 @@ static struct attribute *space_info_attrs[] = {
 	BTRFS_ATTR_PTR(space_info, disk_used),
 	BTRFS_ATTR_PTR(space_info, disk_total),
 	BTRFS_ATTR_PTR(space_info, bg_reclaim_threshold),
+	BTRFS_ATTR_PTR(space_info, chunk_size),
+#ifdef CONFIG_BTRFS_DEBUG
+	BTRFS_ATTR_PTR(space_info, force_chunk_alloc),
+#endif
 	NULL,
 };
 ATTRIBUTE_GROUPS(space_info);
@@ -870,6 +986,48 @@ static ssize_t btrfs_sectorsize_show(struct kobject *kobj,
 }
 
 BTRFS_ATTR(, sectorsize, btrfs_sectorsize_show);
+
+static ssize_t btrfs_commit_stats_show(struct kobject *kobj,
+				       struct kobj_attribute *a, char *buf)
+{
+	struct btrfs_fs_info *fs_info = to_fs_info(kobj);
+
+	return sysfs_emit(buf,
+		"commits %llu\n"
+		"last_commit_ms %llu\n"
+		"max_commit_ms %llu\n"
+		"total_commit_ms %llu\n",
+		fs_info->commit_stats.commit_count,
+		div_u64(fs_info->commit_stats.last_commit_dur, NSEC_PER_MSEC),
+		div_u64(fs_info->commit_stats.max_commit_dur, NSEC_PER_MSEC),
+		div_u64(fs_info->commit_stats.total_commit_dur, NSEC_PER_MSEC));
+}
+
+static ssize_t btrfs_commit_stats_store(struct kobject *kobj,
+					struct kobj_attribute *a,
+					const char *buf, size_t len)
+{
+	struct btrfs_fs_info *fs_info = to_fs_info(kobj);
+	unsigned long val;
+	int ret;
+
+	if (!fs_info)
+		return -EPERM;
+
+	if (!capable(CAP_SYS_RESOURCE))
+		return -EPERM;
+
+	ret = kstrtoul(buf, 10, &val);
+	if (ret)
+		return ret;
+	if (val)
+		return -EINVAL;
+
+	WRITE_ONCE(fs_info->commit_stats.max_commit_dur, 0);
+
+	return len;
+}
+BTRFS_ATTR_RW(, commit_stats, btrfs_commit_stats_show, btrfs_commit_stats_store);
 
 static ssize_t btrfs_clone_alignment_show(struct kobject *kobj,
 				struct kobj_attribute *a, char *buf)
@@ -1110,6 +1268,7 @@ static const struct attribute *btrfs_attrs[] = {
 	BTRFS_ATTR_PTR(, generation),
 	BTRFS_ATTR_PTR(, read_policy),
 	BTRFS_ATTR_PTR(, bg_reclaim_threshold),
+	BTRFS_ATTR_PTR(, commit_stats),
 	NULL,
 };
 
@@ -1138,6 +1297,16 @@ static inline struct btrfs_fs_info *to_fs_info(struct kobject *kobj)
 	if (kobj->ktype != &btrfs_ktype)
 		return NULL;
 	return to_fs_devs(kobj)->fs_info;
+}
+
+static struct kobject *get_btrfs_kobj(struct kobject *kobj)
+{
+	while (kobj) {
+		if (kobj->ktype == &btrfs_ktype)
+			return kobj;
+		kobj = kobj->parent;
+	}
+	return NULL;
 }
 
 #define NUM_FEATURE_BITS 64
@@ -2106,4 +2275,3 @@ void __cold btrfs_exit_sysfs(void)
 #endif
 	kset_unregister(btrfs_kset);
 }
-

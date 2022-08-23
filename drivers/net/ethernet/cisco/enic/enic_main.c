@@ -680,11 +680,10 @@ static int enic_queue_wq_skb_tso(struct enic *enic, struct vnic_wq *wq,
 	skb_frag_t *frag;
 
 	if (skb->encapsulation) {
-		hdr_len = skb_inner_transport_header(skb) - skb->data;
-		hdr_len += inner_tcp_hdrlen(skb);
+		hdr_len = skb_inner_tcp_all_headers(skb);
 		enic_preload_tcp_csum_encap(skb);
 	} else {
-		hdr_len = skb_transport_offset(skb) + tcp_hdrlen(skb);
+		hdr_len = skb_tcp_all_headers(skb);
 		enic_preload_tcp_csum(skb);
 	}
 

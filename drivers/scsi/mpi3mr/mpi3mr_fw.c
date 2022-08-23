@@ -2785,6 +2785,27 @@ static void mpi3mr_process_factsdata(struct mpi3mr_ioc *mrioc,
 	mrioc->facts.shutdown_timeout =
 	    le16_to_cpu(facts_data->shutdown_timeout);
 
+	mrioc->facts.max_dev_per_tg =
+	    facts_data->max_devices_per_throttle_group;
+	mrioc->facts.io_throttle_data_length =
+	    le16_to_cpu(facts_data->io_throttle_data_length);
+	mrioc->facts.max_io_throttle_group =
+	    le16_to_cpu(facts_data->max_io_throttle_group);
+	mrioc->facts.io_throttle_low = le16_to_cpu(facts_data->io_throttle_low);
+	mrioc->facts.io_throttle_high =
+	    le16_to_cpu(facts_data->io_throttle_high);
+
+	/* Store in 512b block count */
+	if (mrioc->facts.io_throttle_data_length)
+		mrioc->io_throttle_data_length =
+		    (mrioc->facts.io_throttle_data_length * 2 * 4);
+	else
+		/* set the length to 1MB + 1K to disable throttle */
+		mrioc->io_throttle_data_length = MPI3MR_MAX_SECTORS + 2;
+
+	mrioc->io_throttle_high = (mrioc->facts.io_throttle_high * 2 * 1024);
+	mrioc->io_throttle_low = (mrioc->facts.io_throttle_low * 2 * 1024);
+
 	ioc_info(mrioc, "ioc_num(%d), maxopQ(%d), maxopRepQ(%d), maxdh(%d),",
 	    mrioc->facts.ioc_num, mrioc->facts.max_op_req_q,
 	    mrioc->facts.max_op_reply_q, mrioc->facts.max_devhandle);
@@ -2798,6 +2819,13 @@ static void mpi3mr_process_factsdata(struct mpi3mr_ioc *mrioc,
 	ioc_info(mrioc, "DMA mask %d InitialPE status 0x%x\n",
 	    mrioc->facts.dma_mask, (facts_flags &
 	    MPI3_IOCFACTS_FLAGS_INITIAL_PORT_ENABLE_MASK));
+	ioc_info(mrioc,
+	    "max_dev_per_throttle_group(%d), max_throttle_groups(%d)\n",
+	    mrioc->facts.max_dev_per_tg, mrioc->facts.max_io_throttle_group);
+	ioc_info(mrioc,
+	   "io_throttle_data_len(%dKiB), io_throttle_high(%dMiB), io_throttle_low(%dMiB)\n",
+	   mrioc->facts.io_throttle_data_length * 4,
+	   mrioc->facts.io_throttle_high, mrioc->facts.io_throttle_low);
 }
 
 /**
@@ -3666,6 +3694,7 @@ int mpi3mr_init_ioc(struct mpi3mr_ioc *mrioc)
 	int retval = 0;
 	u8 retry = 0;
 	struct mpi3_ioc_facts_data facts_data;
+	u32 sz;
 
 retry_init:
 	retval = mpi3mr_bring_ioc_ready(mrioc);
@@ -3690,6 +3719,9 @@ retry_init:
 	}
 
 	mrioc->max_host_ios = mrioc->facts.max_reqs - MPI3MR_INTERNAL_CMDS_RESVD;
+
+	mrioc->num_io_throttle_group = mrioc->facts.max_io_throttle_group;
+	atomic_set(&mrioc->pend_large_data_sz, 0);
 
 	if (reset_devices)
 		mrioc->max_host_ios = min_t(int, mrioc->max_host_ios,
@@ -3758,6 +3790,15 @@ retry_init:
 			retval = -ENOMEM;
 			goto out_failed_noretry;
 		}
+	}
+
+	if (!mrioc->throttle_groups && mrioc->num_io_throttle_group) {
+		dprint_init(mrioc, "allocating memory for throttle groups\n");
+		sz = sizeof(struct mpi3mr_throttle_group_info);
+		mrioc->throttle_groups = (struct mpi3mr_throttle_group_info *)
+		    kcalloc(mrioc->num_io_throttle_group, sz, GFP_KERNEL);
+		if (!mrioc->throttle_groups)
+			goto out_failed_noretry;
 	}
 
 	retval = mpi3mr_enable_events(mrioc);
@@ -3981,6 +4022,7 @@ static void mpi3mr_memset_op_req_q_buffers(struct mpi3mr_ioc *mrioc, u16 qidx)
 void mpi3mr_memset_buffers(struct mpi3mr_ioc *mrioc)
 {
 	u16 i;
+	struct mpi3mr_throttle_group_info *tg;
 
 	mrioc->change_count = 0;
 	mrioc->active_poll_qcount = 0;
@@ -4028,6 +4070,22 @@ void mpi3mr_memset_buffers(struct mpi3mr_ioc *mrioc)
 		mrioc->req_qinfo[i].reply_qid = 0;
 		spin_lock_init(&mrioc->req_qinfo[i].q_lock);
 		mpi3mr_memset_op_req_q_buffers(mrioc, i);
+	}
+
+	atomic_set(&mrioc->pend_large_data_sz, 0);
+	if (mrioc->throttle_groups) {
+		tg = mrioc->throttle_groups;
+		for (i = 0; i < mrioc->num_io_throttle_group; i++, tg++) {
+			tg->id = 0;
+			tg->fw_qd = 0;
+			tg->modified_qd = 0;
+			tg->io_divert = 0;
+			tg->need_qd_reduction = 0;
+			tg->high = 0;
+			tg->low = 0;
+			tg->qd_reduction = 0;
+			atomic_set(&tg->pend_large_data_sz, 0);
+		}
 	}
 }
 
@@ -4661,6 +4719,15 @@ int mpi3mr_soft_reset_handler(struct mpi3mr_ioc *mrioc,
 	    MPI3_SYSIF_HOST_DIAG_RESET_ACTION_SOFT_RESET, reset_reason);
 	if (retval) {
 		ioc_err(mrioc, "Failed to issue soft reset to the ioc\n");
+		goto out;
+	}
+	if (mrioc->num_io_throttle_group !=
+	    mrioc->facts.max_io_throttle_group) {
+		ioc_err(mrioc,
+		    "max io throttle group doesn't match old(%d), new(%d)\n",
+		    mrioc->num_io_throttle_group,
+		    mrioc->facts.max_io_throttle_group);
+		retval = -EPERM;
 		goto out;
 	}
 

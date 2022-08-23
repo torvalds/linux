@@ -11,7 +11,7 @@ allOf:
   - $ref: "ethernet-phy.yaml#"
 
 maintainers:
-  - Dan Murphy <dmurphy@ti.com>
+  - Andrew Davis <afd@ti.com>
 
 description: |
   The DP83869HM device is a robust, fully-featured Gigabit (PHY) transceiver

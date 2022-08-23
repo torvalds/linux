@@ -11,7 +11,6 @@
 #include <linux/perf_event.h>
 #include <string.h>
 
-struct list_head;
 struct evsel;
 struct evlist;
 struct parse_events_error;
@@ -19,34 +18,28 @@ struct parse_events_error;
 struct option;
 struct perf_pmu;
 
-struct tracepoint_path {
-	char *system;
-	char *name;
-	struct tracepoint_path *next;
-};
-
-struct tracepoint_path *tracepoint_id_to_path(u64 config);
-struct tracepoint_path *tracepoint_name_to_path(const char *name);
 bool have_tracepoints(struct list_head *evlist);
 
 const char *event_type(int type);
 
 int parse_events_option(const struct option *opt, const char *str, int unset);
 int parse_events_option_new_evlist(const struct option *opt, const char *str, int unset);
+__attribute__((nonnull(1, 2, 3)))
 int __parse_events(struct evlist *evlist, const char *str, struct parse_events_error *error,
 		   struct perf_pmu *fake_pmu);
 
+__attribute__((nonnull))
 static inline int parse_events(struct evlist *evlist, const char *str,
 			       struct parse_events_error *err)
 {
 	return __parse_events(evlist, str, err, NULL);
 }
 
+int parse_event(struct evlist *evlist, const char *str);
+
 int parse_events_terms(struct list_head *terms, const char *str);
 int parse_filter(const struct option *opt, const char *str, int unset);
 int exclude_perf(const struct option *opt, const char *arg, int unset);
-
-#define EVENTS_HELP_MAX (128*1024)
 
 enum perf_pmu_event_symbol_type {
 	PMU_EVENT_SYMBOL_ERR,		/* not a PMU EVENT */
@@ -54,11 +47,6 @@ enum perf_pmu_event_symbol_type {
 	PMU_EVENT_SYMBOL_PREFIX,	/* prefix of pre-suf style event */
 	PMU_EVENT_SYMBOL_SUFFIX,	/* suffix of pre-suf style event */
 	PMU_EVENT_SYMBOL_SUFFIX2,	/* suffix of pre-suf2 style event */
-};
-
-struct perf_pmu_event_symbol {
-	char	*symbol;
-	enum perf_pmu_event_symbol_type	type;
 };
 
 enum {
@@ -219,28 +207,13 @@ void parse_events_update_lists(struct list_head *list_event,
 void parse_events_evlist_error(struct parse_events_state *parse_state,
 			       int idx, const char *str);
 
-void print_events(const char *event_glob, bool name_only, bool quiet,
-		  bool long_desc, bool details_flag, bool deprecated,
-		  const char *pmu_name);
-
 struct event_symbol {
 	const char	*symbol;
 	const char	*alias;
 };
 extern struct event_symbol event_symbols_hw[];
 extern struct event_symbol event_symbols_sw[];
-void print_symbol_events(const char *event_glob, unsigned type,
-				struct event_symbol *syms, unsigned max,
-				bool name_only);
-void print_tool_events(const char *event_glob, bool name_only);
-void print_tracepoint_events(const char *subsys_glob, const char *event_glob,
-			     bool name_only);
-int print_hwcache_events(const char *event_glob, bool name_only);
-void print_sdt_events(const char *subsys_glob, const char *event_glob,
-		      bool name_only);
-int is_valid_tracepoint(const char *event_string);
 
-int valid_event_mount(const char *eventfs);
 char *parse_events_formats_error_string(char *additional_terms);
 
 void parse_events_error__init(struct parse_events_error *err);

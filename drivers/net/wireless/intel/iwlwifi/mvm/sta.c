@@ -1861,6 +1861,7 @@ static void iwl_mvm_disable_sta_queues(struct iwl_mvm *mvm,
 			iwl_mvm_txq_from_mac80211(sta->txq[i]);
 
 		mvmtxq->txq_id = IWL_MVM_INVALID_QUEUE;
+		list_del_init(&mvmtxq->list);
 	}
 }
 
@@ -1948,7 +1949,7 @@ int iwl_mvm_rm_sta(struct iwl_mvm *mvm,
 	if (vif->type == NL80211_IFTYPE_STATION &&
 	    mvmvif->ap_sta_id == sta_id) {
 		/* if associated - we can't remove the AP STA now */
-		if (vif->bss_conf.assoc)
+		if (vif->cfg.assoc)
 			return ret;
 
 		/* unassoc - go ahead - remove the AP STA now */

@@ -173,7 +173,7 @@ struct bnxt_re_dev {
 	/* Max of 2 lossless traffic class supported per port */
 	u16				cosq[2];
 
-	/* QP for for handling QP1 packets */
+	/* QP for handling QP1 packets */
 	struct bnxt_re_gsi_context	gsi_ctx;
 	struct bnxt_re_stats		stats;
 	atomic_t nq_alloc_cnt;

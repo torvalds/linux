@@ -21,7 +21,26 @@ properties:
     $ref: /schemas/types.yaml#/definitions/uint32-array
     items:
       minimum: 0
-      maximum: 0xff
+      maximum: 0x2ff
+
+  linux,code:
+    description:
+      Specifies a single numeric keycode value to be used for reporting
+      button/switch events. Specify KEY_RESERVED (0) to opt out of event
+      reporting.
+    $ref: /schemas/types.yaml#/definitions/uint32
+    maximum: 0x2ff
+
+  linux,input-type:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum:
+      - 1   # EV_KEY
+      - 2   # EV_REL
+      - 3   # EV_ABS
+      - 5   # EV_SW
+    description:
+      Specifies whether the event is to be interpreted as a key, relative,
+      absolute, or switch.
 
   poll-interval:
     description: Poll interval time in milliseconds.
@@ -38,5 +57,8 @@ properties:
       Duration in seconds which the key should be kept pressed for device to
       reset automatically. Device with key pressed reset feature can specify
       this property.
+
+dependencies:
+  linux,input-type: [ "linux,code" ]
 
 additionalProperties: true

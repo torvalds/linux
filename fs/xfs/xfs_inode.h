@@ -33,9 +33,9 @@ typedef struct xfs_inode {
 	struct xfs_imap		i_imap;		/* location for xfs_imap() */
 
 	/* Extent information. */
-	struct xfs_ifork	*i_afp;		/* attribute fork pointer */
 	struct xfs_ifork	*i_cowfp;	/* copy on write extents */
 	struct xfs_ifork	i_df;		/* data fork */
+	struct xfs_ifork	i_af;		/* attribute fork */
 
 	/* Transaction and locking information. */
 	struct xfs_inode_log_item *i_itemp;	/* logging information */
@@ -68,6 +68,10 @@ typedef struct xfs_inode {
 	uint64_t		i_diflags2;	/* XFS_DIFLAG2_... */
 	struct timespec64	i_crtime;	/* time created */
 
+	/* unlinked list pointers */
+	xfs_agino_t		i_next_unlinked;
+	xfs_agino_t		i_prev_unlinked;
+
 	/* VFS inode */
 	struct inode		i_vnode;	/* embedded VFS inode */
 
@@ -76,6 +80,66 @@ typedef struct xfs_inode {
 	struct work_struct	i_ioend_work;
 	struct list_head	i_ioend_list;
 } xfs_inode_t;
+
+static inline bool xfs_inode_has_attr_fork(struct xfs_inode *ip)
+{
+	return ip->i_forkoff > 0;
+}
+
+static inline struct xfs_ifork *
+xfs_ifork_ptr(
+	struct xfs_inode	*ip,
+	int			whichfork)
+{
+	switch (whichfork) {
+	case XFS_DATA_FORK:
+		return &ip->i_df;
+	case XFS_ATTR_FORK:
+		if (!xfs_inode_has_attr_fork(ip))
+			return NULL;
+		return &ip->i_af;
+	case XFS_COW_FORK:
+		return ip->i_cowfp;
+	default:
+		ASSERT(0);
+		return NULL;
+	}
+}
+
+static inline unsigned int xfs_inode_fork_boff(struct xfs_inode *ip)
+{
+	return ip->i_forkoff << 3;
+}
+
+static inline unsigned int xfs_inode_data_fork_size(struct xfs_inode *ip)
+{
+	if (xfs_inode_has_attr_fork(ip))
+		return xfs_inode_fork_boff(ip);
+
+	return XFS_LITINO(ip->i_mount);
+}
+
+static inline unsigned int xfs_inode_attr_fork_size(struct xfs_inode *ip)
+{
+	if (xfs_inode_has_attr_fork(ip))
+		return XFS_LITINO(ip->i_mount) - xfs_inode_fork_boff(ip);
+	return 0;
+}
+
+static inline unsigned int
+xfs_inode_fork_size(
+	struct xfs_inode	*ip,
+	int			whichfork)
+{
+	switch (whichfork) {
+	case XFS_DATA_FORK:
+		return xfs_inode_data_fork_size(ip);
+	case XFS_ATTR_FORK:
+		return xfs_inode_attr_fork_size(ip);
+	default:
+		return 0;
+	}
+}
 
 /* Convert from vfs inode to xfs inode */
 static inline struct xfs_inode *XFS_I(struct inode *inode)
@@ -467,6 +531,7 @@ xfs_itruncate_extents(
 }
 
 /* from xfs_file.c */
+int	xfs_break_dax_layouts(struct inode *inode, bool *retry);
 int	xfs_break_layouts(struct inode *inode, uint *iolock,
 		enum layout_break_reason reason);
 
@@ -504,9 +569,6 @@ extern struct kmem_cache	*xfs_inode_cache;
 #define XFS_DEFAULT_COWEXTSZ_HINT 32
 
 bool xfs_inode_needs_inactive(struct xfs_inode *ip);
-
-int xfs_iunlink_init(struct xfs_perag *pag);
-void xfs_iunlink_destroy(struct xfs_perag *pag);
 
 void xfs_end_io(struct work_struct *work);
 

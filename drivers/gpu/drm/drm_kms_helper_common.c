@@ -27,6 +27,7 @@
 
 #include <linux/module.h>
 
+#include <drm/drm_edid.h>
 #include <drm/drm_print.h>
 
 #include "drm_crtc_helper_internal.h"

@@ -447,7 +447,8 @@ void nfp_tun_unlink_and_update_nn_entries(struct nfp_app *app,
 
 static void
 nfp_tun_write_neigh(struct net_device *netdev, struct nfp_app *app,
-		    void *flow, struct neighbour *neigh, bool is_ipv6)
+		    void *flow, struct neighbour *neigh, bool is_ipv6,
+		    bool override)
 {
 	bool neigh_invalid = !(neigh->nud_state & NUD_VALID) || neigh->dead;
 	size_t neigh_size = is_ipv6 ? sizeof(struct nfp_tun_neigh_v6) :
@@ -546,6 +547,13 @@ nfp_tun_write_neigh(struct net_device *netdev, struct nfp_app *app,
 		if (nn_entry->flow)
 			list_del(&nn_entry->list_head);
 		kfree(nn_entry);
+	} else if (nn_entry && !neigh_invalid && override) {
+		mtype = is_ipv6 ? NFP_FLOWER_CMSG_TYPE_TUN_NEIGH_V6 :
+				NFP_FLOWER_CMSG_TYPE_TUN_NEIGH;
+		nfp_tun_link_predt_entries(app, nn_entry);
+		nfp_flower_xmit_tun_conf(app, mtype, neigh_size,
+					 nn_entry->payload,
+					 GFP_ATOMIC);
 	}
 
 	spin_unlock_bh(&priv->predt_lock);
@@ -610,7 +618,7 @@ nfp_tun_neigh_event_handler(struct notifier_block *nb, unsigned long event,
 
 			dst_release(dst);
 		}
-		nfp_tun_write_neigh(n->dev, app, &flow6, n, true);
+		nfp_tun_write_neigh(n->dev, app, &flow6, n, true, false);
 #else
 		return NOTIFY_DONE;
 #endif /* CONFIG_IPV6 */
@@ -633,7 +641,7 @@ nfp_tun_neigh_event_handler(struct notifier_block *nb, unsigned long event,
 
 			ip_rt_put(rt);
 		}
-		nfp_tun_write_neigh(n->dev, app, &flow4, n, false);
+		nfp_tun_write_neigh(n->dev, app, &flow4, n, false, false);
 	}
 #else
 	return NOTIFY_DONE;
@@ -676,7 +684,7 @@ void nfp_tunnel_request_route_v4(struct nfp_app *app, struct sk_buff *skb)
 	ip_rt_put(rt);
 	if (!n)
 		goto fail_rcu_unlock;
-	nfp_tun_write_neigh(n->dev, app, &flow, n, false);
+	nfp_tun_write_neigh(n->dev, app, &flow, n, false, true);
 	neigh_release(n);
 	rcu_read_unlock();
 	return;
@@ -718,7 +726,7 @@ void nfp_tunnel_request_route_v6(struct nfp_app *app, struct sk_buff *skb)
 	if (!n)
 		goto fail_rcu_unlock;
 
-	nfp_tun_write_neigh(n->dev, app, &flow, n, true);
+	nfp_tun_write_neigh(n->dev, app, &flow, n, true, true);
 	neigh_release(n);
 	rcu_read_unlock();
 	return;
@@ -1064,7 +1072,7 @@ nfp_tunnel_del_shared_mac(struct nfp_app *app, struct net_device *netdev,
 		return 0;
 
 	entry->ref_count--;
-	/* If del is part of a mod then mac_list is still in use elsewheree. */
+	/* If del is part of a mod then mac_list is still in use elsewhere. */
 	if (nfp_netdev_is_nfp_repr(netdev) && !mod) {
 		repr = netdev_priv(netdev);
 		repr_priv = repr->app_priv;

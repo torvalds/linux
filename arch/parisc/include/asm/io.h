@@ -7,8 +7,6 @@
 
 #define virt_to_phys(a) ((unsigned long)__pa(a))
 #define phys_to_virt(a) __va(a)
-#define virt_to_bus virt_to_phys
-#define bus_to_virt phys_to_virt
 
 static inline unsigned long isa_bus_to_virt(unsigned long addr) {
 	BUG();

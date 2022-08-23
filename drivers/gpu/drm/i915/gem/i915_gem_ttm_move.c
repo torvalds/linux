@@ -33,12 +33,18 @@
 #if IS_ENABLED(CONFIG_DRM_I915_SELFTEST)
 static bool fail_gpu_migration;
 static bool fail_work_allocation;
+static bool ban_memcpy;
 
 void i915_ttm_migrate_set_failure_modes(bool gpu_migration,
 					bool work_allocation)
 {
 	fail_gpu_migration = gpu_migration;
 	fail_work_allocation = work_allocation;
+}
+
+void i915_ttm_migrate_set_ban_memcpy(bool ban)
+{
+	ban_memcpy = ban;
 }
 #endif
 
@@ -258,15 +264,23 @@ struct i915_ttm_memcpy_arg {
  * from the callback for lockdep reasons.
  * @cb: Callback for the accelerated migration fence.
  * @arg: The argument for the memcpy functionality.
+ * @i915: The i915 pointer.
+ * @obj: The GEM object.
+ * @memcpy_allowed: Instead of processing the @arg, and falling back to memcpy
+ * or memset, we wedge the device and set the @obj unknown_state, to prevent
+ * further access to the object with the CPU or GPU.  On some devices we might
+ * only be permitted to use the blitter engine for such operations.
  */
 struct i915_ttm_memcpy_work {
 	struct dma_fence fence;
 	struct work_struct work;
-	/* The fence lock */
 	spinlock_t lock;
 	struct irq_work irq_work;
 	struct dma_fence_cb cb;
 	struct i915_ttm_memcpy_arg arg;
+	struct drm_i915_private *i915;
+	struct drm_i915_gem_object *obj;
+	bool memcpy_allowed;
 };
 
 static void i915_ttm_move_memcpy(struct i915_ttm_memcpy_arg *arg)
@@ -317,14 +331,42 @@ static void __memcpy_work(struct work_struct *work)
 	struct i915_ttm_memcpy_work *copy_work =
 		container_of(work, typeof(*copy_work), work);
 	struct i915_ttm_memcpy_arg *arg = &copy_work->arg;
-	bool cookie = dma_fence_begin_signalling();
+	bool cookie;
 
-	i915_ttm_move_memcpy(arg);
+	/*
+	 * FIXME: We need to take a closer look here. We should be able to plonk
+	 * this into the fence critical section.
+	 */
+	if (!copy_work->memcpy_allowed) {
+		struct intel_gt *gt;
+		unsigned int id;
+
+		for_each_gt(gt, copy_work->i915, id)
+			intel_gt_set_wedged(gt);
+	}
+
+	cookie = dma_fence_begin_signalling();
+
+	if (copy_work->memcpy_allowed) {
+		i915_ttm_move_memcpy(arg);
+	} else {
+		/*
+		 * Prevent further use of the object. Any future GTT binding or
+		 * CPU access is not allowed once we signal the fence. Outside
+		 * of the fence critical section, we then also then wedge the gpu
+		 * to indicate the device is not functional.
+		 *
+		 * The below dma_fence_signal() is our write-memory-barrier.
+		 */
+		copy_work->obj->mm.unknown_state = true;
+	}
+
 	dma_fence_end_signalling(cookie);
 
 	dma_fence_signal(&copy_work->fence);
 
 	i915_ttm_memcpy_release(arg);
+	i915_gem_object_put(copy_work->obj);
 	dma_fence_put(&copy_work->fence);
 }
 
@@ -336,6 +378,7 @@ static void __memcpy_irq_work(struct irq_work *irq_work)
 
 	dma_fence_signal(&copy_work->fence);
 	i915_ttm_memcpy_release(arg);
+	i915_gem_object_put(copy_work->obj);
 	dma_fence_put(&copy_work->fence);
 }
 
@@ -389,6 +432,19 @@ i915_ttm_memcpy_work_arm(struct i915_ttm_memcpy_work *work,
 	return &work->fence;
 }
 
+static bool i915_ttm_memcpy_allowed(struct ttm_buffer_object *bo,
+				    struct ttm_resource *dst_mem)
+{
+	if (i915_gem_object_needs_ccs_pages(i915_ttm_to_gem(bo)))
+		return false;
+
+	if (!(i915_ttm_resource_mappable(bo->resource) &&
+	      i915_ttm_resource_mappable(dst_mem)))
+		return false;
+
+	return I915_SELFTEST_ONLY(ban_memcpy) ? false : true;
+}
+
 static struct dma_fence *
 __i915_ttm_move(struct ttm_buffer_object *bo,
 		const struct ttm_operation_ctx *ctx, bool clear,
@@ -396,6 +452,9 @@ __i915_ttm_move(struct ttm_buffer_object *bo,
 		struct i915_refct_sgt *dst_rsgt, bool allow_accel,
 		const struct i915_deps *move_deps)
 {
+	const bool memcpy_allowed = i915_ttm_memcpy_allowed(bo, dst_mem);
+	struct drm_i915_gem_object *obj = i915_ttm_to_gem(bo);
+	struct drm_i915_private *i915 = to_i915(bo->base.dev);
 	struct i915_ttm_memcpy_work *copy_work = NULL;
 	struct i915_ttm_memcpy_arg _arg, *arg = &_arg;
 	struct dma_fence *fence = ERR_PTR(-EINVAL);
@@ -423,9 +482,14 @@ __i915_ttm_move(struct ttm_buffer_object *bo,
 			copy_work = kzalloc(sizeof(*copy_work), GFP_KERNEL);
 
 		if (copy_work) {
+			copy_work->i915 = i915;
+			copy_work->memcpy_allowed = memcpy_allowed;
+			copy_work->obj = i915_gem_object_get(obj);
 			arg = &copy_work->arg;
-			i915_ttm_memcpy_init(arg, bo, clear, dst_mem, dst_ttm,
-					     dst_rsgt);
+			if (memcpy_allowed)
+				i915_ttm_memcpy_init(arg, bo, clear, dst_mem,
+						     dst_ttm, dst_rsgt);
+
 			fence = i915_ttm_memcpy_work_arm(copy_work, dep);
 		} else {
 			dma_fence_wait(dep, false);
@@ -450,17 +514,23 @@ __i915_ttm_move(struct ttm_buffer_object *bo,
 	}
 
 	/* Error intercept failed or no accelerated migration to start with */
-	if (!copy_work)
-		i915_ttm_memcpy_init(arg, bo, clear, dst_mem, dst_ttm,
-				     dst_rsgt);
-	i915_ttm_move_memcpy(arg);
-	i915_ttm_memcpy_release(arg);
+
+	if (memcpy_allowed) {
+		if (!copy_work)
+			i915_ttm_memcpy_init(arg, bo, clear, dst_mem, dst_ttm,
+					     dst_rsgt);
+		i915_ttm_move_memcpy(arg);
+		i915_ttm_memcpy_release(arg);
+	}
+	if (copy_work)
+		i915_gem_object_put(copy_work->obj);
 	kfree(copy_work);
 
-	return NULL;
+	return memcpy_allowed ? NULL : ERR_PTR(-EIO);
 out:
 	if (!fence && copy_work) {
 		i915_ttm_memcpy_release(arg);
+		i915_gem_object_put(copy_work->obj);
 		kfree(copy_work);
 	}
 
@@ -539,8 +609,11 @@ int i915_ttm_move(struct ttm_buffer_object *bo, bool evict,
 	}
 
 	if (migration_fence) {
-		ret = ttm_bo_move_accel_cleanup(bo, migration_fence, evict,
-						true, dst_mem);
+		if (I915_SELFTEST_ONLY(evict && fail_gpu_migration))
+			ret = -EIO; /* never feed non-migrate fences into ttm */
+		else
+			ret = ttm_bo_move_accel_cleanup(bo, migration_fence, evict,
+							true, dst_mem);
 		if (ret) {
 			dma_fence_wait(migration_fence, false);
 			ttm_bo_move_sync_cleanup(bo, dst_mem);

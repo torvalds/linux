@@ -58,6 +58,7 @@ VERSION
 {
 	LINUX_5.10 {
 	global:
+		__vdso_getcpu;
 		__vdso_clock_getres;
 		__vdso_clock_gettime;
 		__vdso_gettimeofday;

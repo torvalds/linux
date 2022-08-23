@@ -239,22 +239,22 @@ static struct tcp_congestion_ops dctcp_reno __read_mostly = {
 	.name		= "dctcp-reno",
 };
 
-BTF_SET_START(tcp_dctcp_check_kfunc_ids)
+BTF_SET8_START(tcp_dctcp_check_kfunc_ids)
 #ifdef CONFIG_X86
 #ifdef CONFIG_DYNAMIC_FTRACE
-BTF_ID(func, dctcp_init)
-BTF_ID(func, dctcp_update_alpha)
-BTF_ID(func, dctcp_cwnd_event)
-BTF_ID(func, dctcp_ssthresh)
-BTF_ID(func, dctcp_cwnd_undo)
-BTF_ID(func, dctcp_state)
+BTF_ID_FLAGS(func, dctcp_init)
+BTF_ID_FLAGS(func, dctcp_update_alpha)
+BTF_ID_FLAGS(func, dctcp_cwnd_event)
+BTF_ID_FLAGS(func, dctcp_ssthresh)
+BTF_ID_FLAGS(func, dctcp_cwnd_undo)
+BTF_ID_FLAGS(func, dctcp_state)
 #endif
 #endif
-BTF_SET_END(tcp_dctcp_check_kfunc_ids)
+BTF_SET8_END(tcp_dctcp_check_kfunc_ids)
 
 static const struct btf_kfunc_id_set tcp_dctcp_kfunc_set = {
-	.owner     = THIS_MODULE,
-	.check_set = &tcp_dctcp_check_kfunc_ids,
+	.owner = THIS_MODULE,
+	.set   = &tcp_dctcp_check_kfunc_ids,
 };
 
 static int __init dctcp_register(void)

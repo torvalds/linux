@@ -240,11 +240,6 @@ void arch_send_call_function_ipi_mask(const struct cpumask *mask)
 	send_ipi(mask, IPI_CALL_FUNC);
 }
 
-int setup_profiling_timer(unsigned int multiplier)
-{
-	return -EINVAL;
-}
-
 void smp_start_cpus(void)
 {
 	int i;

@@ -1721,8 +1721,8 @@ enum qlink_chan_stat {
  * @time_on: amount of time radio operated on that channel.
  * @time_tx: amount of time radio spent transmitting on the channel.
  * @time_rx: amount of time radio spent receiving on the channel.
- * @cca_busy: amount of time the the primary channel was busy.
- * @cca_busy_ext: amount of time the the secondary channel was busy.
+ * @cca_busy: amount of time the primary channel was busy.
+ * @cca_busy_ext: amount of time the secondary channel was busy.
  * @time_scan: amount of radio spent scanning on the channel.
  * @chan_noise: channel noise.
  */

@@ -237,7 +237,7 @@ struct ethnl_req_info {
 
 static inline void ethnl_parse_header_dev_put(struct ethnl_req_info *req_info)
 {
-	dev_put_track(req_info->dev, &req_info->dev_tracker);
+	netdev_put(req_info->dev, &req_info->dev_tracker);
 }
 
 /**

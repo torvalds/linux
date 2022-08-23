@@ -246,6 +246,7 @@ static int iser_create_ib_conn_res(struct ib_conn *ib_conn)
 	device = ib_conn->device;
 	ib_dev = device->ib_device;
 
+	/* +1 for drain */
 	if (ib_conn->pi_support)
 		max_send_wr = ISER_QP_SIG_MAX_REQ_DTOS + 1;
 	else
@@ -267,7 +268,8 @@ static int iser_create_ib_conn_res(struct ib_conn *ib_conn)
 	init_attr.qp_context = (void *)ib_conn;
 	init_attr.send_cq = ib_conn->cq;
 	init_attr.recv_cq = ib_conn->cq;
-	init_attr.cap.max_recv_wr = ISER_QP_MAX_RECV_DTOS;
+	/* +1 for drain */
+	init_attr.cap.max_recv_wr = ISER_QP_MAX_RECV_DTOS + 1;
 	init_attr.cap.max_send_sge = 2;
 	init_attr.cap.max_recv_sge = 1;
 	init_attr.sq_sig_type = IB_SIGNAL_REQ_WR;
@@ -485,7 +487,7 @@ int iser_conn_terminate(struct iser_conn *iser_conn)
 				 iser_conn, err);
 
 		/* block until all flush errors are consumed */
-		ib_drain_sq(ib_conn->qp);
+		ib_drain_qp(ib_conn->qp);
 	}
 
 	return 1;

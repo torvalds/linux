@@ -433,7 +433,7 @@ int ast_mode_config_init(struct ast_private *ast);
  */
 #define ASTDP_MISC0_24bpp			BIT(5)
 #define ASTDP_MISC1				0
-#define ASTDP_CLEAR_MASK			GENMASK(7, 0)
+#define ASTDP_AND_CLEAR_MASK		0x00
 
 /*
  * ASTDP resoultion table:

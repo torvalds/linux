@@ -11,7 +11,7 @@ allOf:
   - $ref: "ethernet-controller.yaml#"
 
 maintainers:
-  - Dan Murphy <dmurphy@ti.com>
+  - Andrew Davis <afd@ti.com>
 
 description: |
   The DP83867 device is a robust, low power, fully featured Physical Layer
@@ -31,6 +31,16 @@ properties:
   reg:
     maxItems: 1
 
+  nvmem-cells:
+    maxItems: 1
+    description:
+      Nvmem data cell containing the value to write to the
+      IO_IMPEDANCE_CTRL field of the IO_MUX_CFG register.
+
+  nvmem-cell-names:
+    items:
+      - const: io_impedance_ctrl
+
   ti,min-output-impedance:
     type: boolean
     description: |
@@ -42,9 +52,11 @@ properties:
     description: |
       MAC Interface Impedance control to set the programmable output impedance
       to a maximum value (70 ohms).
-      Note: ti,min-output-impedance and ti,max-output-impedance are mutually
-        exclusive. When both properties are present ti,max-output-impedance
-        takes precedence.
+      Note: Specifying an io_impedance_ctrl nvmem cell or one of the
+        ti,min-output-impedance, ti,max-output-impedance properties
+        are mutually exclusive. If more than one is present, an nvmem
+        cell takes precedence over ti,max-output-impedance, which in
+        turn takes precedence over ti,min-output-impedance.
 
   tx-fifo-depth:
     $ref: /schemas/types.yaml#/definitions/uint32

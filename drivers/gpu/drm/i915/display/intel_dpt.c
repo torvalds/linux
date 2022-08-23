@@ -4,6 +4,7 @@
  */
 
 #include "gem/i915_gem_domain.h"
+#include "gem/i915_gem_internal.h"
 #include "gt/gen8_ppgtt.h"
 
 #include "i915_drv.h"
@@ -127,7 +128,11 @@ struct i915_vma *intel_dpt_pin(struct i915_address_space *vm)
 	struct i915_vma *vma;
 	void __iomem *iomem;
 	struct i915_gem_ww_ctx ww;
+	u64 pin_flags = 0;
 	int err;
+
+	if (i915_gem_object_is_stolen(dpt->obj))
+		pin_flags |= PIN_MAPPABLE;
 
 	wakeref = intel_runtime_pm_get(&i915->runtime_pm);
 	atomic_inc(&i915->gpu_error.pending_fb_pin);
@@ -138,7 +143,7 @@ struct i915_vma *intel_dpt_pin(struct i915_address_space *vm)
 			continue;
 
 		vma = i915_gem_object_ggtt_pin_ww(dpt->obj, &ww, NULL, 0, 4096,
-						  HAS_LMEM(i915) ? 0 : PIN_MAPPABLE);
+						  pin_flags);
 		if (IS_ERR(vma)) {
 			err = PTR_ERR(vma);
 			continue;
@@ -248,10 +253,13 @@ intel_dpt_create(struct intel_framebuffer *fb)
 
 	size = round_up(size * sizeof(gen8_pte_t), I915_GTT_PAGE_SIZE);
 
-	if (HAS_LMEM(i915))
-		dpt_obj = i915_gem_object_create_lmem(i915, size, I915_BO_ALLOC_CONTIGUOUS);
-	else
+	dpt_obj = i915_gem_object_create_lmem(i915, size, I915_BO_ALLOC_CONTIGUOUS);
+	if (IS_ERR(dpt_obj) && i915_ggtt_has_aperture(to_gt(i915)->ggtt))
 		dpt_obj = i915_gem_object_create_stolen(i915, size);
+	if (IS_ERR(dpt_obj) && !HAS_LMEM(i915)) {
+		drm_dbg_kms(&i915->drm, "Allocating dpt from smem\n");
+		dpt_obj = i915_gem_object_create_internal(i915, size);
+	}
 	if (IS_ERR(dpt_obj))
 		return ERR_CAST(dpt_obj);
 

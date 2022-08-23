@@ -15,6 +15,7 @@ struct tty_buffer {
 	int used;
 	int size;
 	int commit;
+	int lookahead;		/* Lazy update on recv, can become less than "read" */
 	int read;
 	int flags;
 	/* Data points here */

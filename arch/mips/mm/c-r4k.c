@@ -1194,50 +1194,6 @@ static void probe_pcache(void)
 		c->options |= MIPS_CPU_PREFETCH;
 		break;
 
-	case CPU_VR4133:
-		write_c0_config(config & ~VR41_CONF_P4K);
-		fallthrough;
-	case CPU_VR4131:
-		/* Workaround for cache instruction bug of VR4131 */
-		if (c->processor_id == 0x0c80U || c->processor_id == 0x0c81U ||
-		    c->processor_id == 0x0c82U) {
-			config |= 0x00400000U;
-			if (c->processor_id == 0x0c80U)
-				config |= VR41_CONF_BP;
-			write_c0_config(config);
-		} else
-			c->options |= MIPS_CPU_CACHE_CDEX_P;
-
-		icache_size = 1 << (10 + ((config & CONF_IC) >> 9));
-		c->icache.linesz = 16 << ((config & CONF_IB) >> 5);
-		c->icache.ways = 2;
-		c->icache.waybit = __ffs(icache_size/2);
-
-		dcache_size = 1 << (10 + ((config & CONF_DC) >> 6));
-		c->dcache.linesz = 16 << ((config & CONF_DB) >> 4);
-		c->dcache.ways = 2;
-		c->dcache.waybit = __ffs(dcache_size/2);
-		break;
-
-	case CPU_VR41XX:
-	case CPU_VR4111:
-	case CPU_VR4121:
-	case CPU_VR4122:
-	case CPU_VR4181:
-	case CPU_VR4181A:
-		icache_size = 1 << (10 + ((config & CONF_IC) >> 9));
-		c->icache.linesz = 16 << ((config & CONF_IB) >> 5);
-		c->icache.ways = 1;
-		c->icache.waybit = 0;	/* doesn't matter */
-
-		dcache_size = 1 << (10 + ((config & CONF_DC) >> 6));
-		c->dcache.linesz = 16 << ((config & CONF_DB) >> 4);
-		c->dcache.ways = 1;
-		c->dcache.waybit = 0;	/* does not matter */
-
-		c->options |= MIPS_CPU_CACHE_CDEX_P;
-		break;
-
 	case CPU_RM7000:
 		rm7k_erratum31();
 

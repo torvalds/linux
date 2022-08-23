@@ -22,7 +22,7 @@
  * @ctx_len: size of Context Register
  * @import_ctx: true if previous Context Register needs to be restored
  *              must be true for ahash update and final
- *              must be false for for ahash first and digest
+ *              must be false for ahash first and digest
  * @era: SEC Era
  */
 void cnstr_shdsc_ahash(u32 * const desc, struct alginfo *adata, u32 state,

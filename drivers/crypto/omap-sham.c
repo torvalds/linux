@@ -2197,8 +2197,7 @@ static int omap_sham_remove(struct platform_device *pdev)
 	int i, j;
 
 	dd = platform_get_drvdata(pdev);
-	if (!dd)
-		return -ENODEV;
+
 	spin_lock_bh(&sham.lock);
 	list_del(&dd->list);
 	spin_unlock_bh(&sham.lock);

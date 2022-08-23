@@ -145,8 +145,10 @@ void mod_build_vsc_infopacket(const struct dc_stream_state *stream,
 		stereo3dSupport = true;
 	}
 
-	/*VSC packet set to 2 when DP revision >= 1.2*/
-	if (stream->link->psr_settings.psr_version != DC_PSR_VERSION_UNSUPPORTED)
+	/* VSC packet set to 4 for PSR-SU, or 2 for PSR1 */
+	if (stream->link->psr_settings.psr_version == DC_PSR_VERSION_SU_1)
+		vsc_packet_revision = vsc_packet_rev4;
+	else if (stream->link->psr_settings.psr_version == DC_PSR_VERSION_1)
 		vsc_packet_revision = vsc_packet_rev2;
 
 	/* Update to revision 5 for extended colorimetry support */
@@ -158,6 +160,29 @@ void mod_build_vsc_infopacket(const struct dc_stream_state *stream,
 	 */
 	if (vsc_packet_revision == vsc_packet_undefined)
 		return;
+
+	if (vsc_packet_revision == vsc_packet_rev4) {
+		/* Secondary-data Packet ID = 0*/
+		info_packet->hb0 = 0x00;
+		/* 07h - Packet Type Value indicating Video
+		 * Stream Configuration packet
+		 */
+		info_packet->hb1 = 0x07;
+		/* 04h = VSC SDP supporting 3D stereo + PSR/PSR2 + Y-coordinate
+		 * (applies to eDP v1.4 or higher).
+		 */
+		info_packet->hb2 = 0x04;
+		/* 0Eh = VSC SDP supporting 3D stereo + PSR2
+		 * (HB2 = 04h), with Y-coordinate of first scan
+		 * line of the SU region
+		 */
+		info_packet->hb3 = 0x0E;
+
+		for (i = 0; i < 28; i++)
+			info_packet->sb[i] = 0;
+
+		info_packet->valid = true;
+	}
 
 	if (vsc_packet_revision == vsc_packet_rev2) {
 		/* Secondary-data Packet ID = 0*/

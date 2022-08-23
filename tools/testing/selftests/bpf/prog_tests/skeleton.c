@@ -122,6 +122,8 @@ void test_skeleton(void)
 
 	ASSERT_EQ(skel->bss->out_mostly_var, 123, "out_mostly_var");
 
+	ASSERT_EQ(bss->huge_arr[ARRAY_SIZE(bss->huge_arr) - 1], 123, "huge_arr");
+
 	elf_bytes = test_skeleton__elf_bytes(&elf_bytes_sz);
 	ASSERT_OK_PTR(elf_bytes, "elf_bytes");
 	ASSERT_GE(elf_bytes_sz, 0, "elf_bytes_sz");

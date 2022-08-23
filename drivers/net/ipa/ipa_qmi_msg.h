@@ -214,7 +214,7 @@ struct ipa_init_modem_driver_req {
 
 /* The response to a IPA_QMI_INIT_DRIVER request begins with a standard
  * QMI response, but contains other information as well.  Currently we
- * simply wait for the the INIT_DRIVER transaction to complete and
+ * simply wait for the INIT_DRIVER transaction to complete and
  * ignore any other data that might be returned.
  */
 struct ipa_init_modem_driver_rsp {

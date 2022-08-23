@@ -1133,7 +1133,7 @@ static void ccdc_configure(struct isp_ccdc_device *ccdc)
 	ccdc->bt656 = false;
 	ccdc->fields = 0;
 
-	pad = media_entity_remote_pad(&ccdc->pads[CCDC_PAD_SINK]);
+	pad = media_pad_remote_pad_first(&ccdc->pads[CCDC_PAD_SINK]);
 	sensor = media_entity_to_v4l2_subdev(pad->entity);
 	if (ccdc->input == CCDC_INPUT_PARALLEL) {
 		struct v4l2_subdev *sd =

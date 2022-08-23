@@ -20,6 +20,8 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  *
  */
+#include <drm/drm_drv.h>
+#include <linux/vmalloc.h>
 #include "amdgpu.h"
 #include "amdgpu_psp.h"
 #include "amdgpu_ucode.h"
@@ -39,7 +41,9 @@ MODULE_FIRMWARE("amdgpu/psp_13_0_5_ta.bin");
 MODULE_FIRMWARE("amdgpu/psp_13_0_8_toc.bin");
 MODULE_FIRMWARE("amdgpu/psp_13_0_8_ta.bin");
 MODULE_FIRMWARE("amdgpu/psp_13_0_0_sos.bin");
+MODULE_FIRMWARE("amdgpu/psp_13_0_0_ta.bin");
 MODULE_FIRMWARE("amdgpu/psp_13_0_7_sos.bin");
+MODULE_FIRMWARE("amdgpu/psp_13_0_7_ta.bin");
 
 /* For large FW files the time to complete can be very long */
 #define USBC_PD_POLLING_LIMIT_S 240
@@ -55,6 +59,9 @@ MODULE_FIRMWARE("amdgpu/psp_13_0_7_sos.bin");
 #define C2PMSG_CMD_SPI_UPDATE_ROM_IMAGE_ADDR_LO 0x2
 #define C2PMSG_CMD_SPI_UPDATE_ROM_IMAGE_ADDR_HI 0x3
 #define C2PMSG_CMD_SPI_UPDATE_FLASH_IMAGE 0x4
+
+/* memory training timeout define */
+#define MEM_TRAIN_SEND_MSG_TIMEOUT_US	3000000
 
 static int psp_v13_0_init_microcode(struct psp_context *psp)
 {
@@ -103,6 +110,10 @@ static int psp_v13_0_init_microcode(struct psp_context *psp)
 	case IP_VERSION(13, 0, 0):
 	case IP_VERSION(13, 0, 7):
 		err = psp_init_sos_microcode(psp, chip_name);
+		if (err)
+			return err;
+		/* It's not necessary to load ras ta on Guest side */
+		err = psp_init_ta_microcode(psp, chip_name);
 		if (err)
 			return err;
 		break;
@@ -413,6 +424,159 @@ static void psp_v13_0_ring_set_wptr(struct psp_context *psp, uint32_t value)
 		WREG32_SOC15(MP0, 0, regMP0_SMN_C2PMSG_67, value);
 }
 
+static int psp_v13_0_memory_training_send_msg(struct psp_context *psp, int msg)
+{
+	int ret;
+	int i;
+	uint32_t data_32;
+	int max_wait;
+	struct amdgpu_device *adev = psp->adev;
+
+	data_32 = (psp->mem_train_ctx.c2p_train_data_offset >> 20);
+	WREG32_SOC15(MP0, 0, regMP0_SMN_C2PMSG_36, data_32);
+	WREG32_SOC15(MP0, 0, regMP0_SMN_C2PMSG_35, msg);
+
+	max_wait = MEM_TRAIN_SEND_MSG_TIMEOUT_US / adev->usec_timeout;
+	for (i = 0; i < max_wait; i++) {
+		ret = psp_wait_for(psp, SOC15_REG_OFFSET(MP0, 0, regMP0_SMN_C2PMSG_35),
+				   0x80000000, 0x80000000, false);
+		if (ret == 0)
+			break;
+	}
+	if (i < max_wait)
+		ret = 0;
+	else
+		ret = -ETIME;
+
+	dev_dbg(adev->dev, "training %s %s, cost %d @ %d ms\n",
+		  (msg == PSP_BL__DRAM_SHORT_TRAIN) ? "short" : "long",
+		  (ret == 0) ? "succeed" : "failed",
+		  i, adev->usec_timeout/1000);
+	return ret;
+}
+
+
+static int psp_v13_0_memory_training(struct psp_context *psp, uint32_t ops)
+{
+	struct psp_memory_training_context *ctx = &psp->mem_train_ctx;
+	uint32_t *pcache = (uint32_t *)ctx->sys_cache;
+	struct amdgpu_device *adev = psp->adev;
+	uint32_t p2c_header[4];
+	uint32_t sz;
+	void *buf;
+	int ret, idx;
+
+	if (ctx->init == PSP_MEM_TRAIN_NOT_SUPPORT) {
+		dev_dbg(adev->dev, "Memory training is not supported.\n");
+		return 0;
+	} else if (ctx->init != PSP_MEM_TRAIN_INIT_SUCCESS) {
+		dev_err(adev->dev, "Memory training initialization failure.\n");
+		return -EINVAL;
+	}
+
+	if (psp_v13_0_is_sos_alive(psp)) {
+		dev_dbg(adev->dev, "SOS is alive, skip memory training.\n");
+		return 0;
+	}
+
+	amdgpu_device_vram_access(adev, ctx->p2c_train_data_offset, p2c_header, sizeof(p2c_header), false);
+	dev_dbg(adev->dev, "sys_cache[%08x,%08x,%08x,%08x] p2c_header[%08x,%08x,%08x,%08x]\n",
+		  pcache[0], pcache[1], pcache[2], pcache[3],
+		  p2c_header[0], p2c_header[1], p2c_header[2], p2c_header[3]);
+
+	if (ops & PSP_MEM_TRAIN_SEND_SHORT_MSG) {
+		dev_dbg(adev->dev, "Short training depends on restore.\n");
+		ops |= PSP_MEM_TRAIN_RESTORE;
+	}
+
+	if ((ops & PSP_MEM_TRAIN_RESTORE) &&
+	    pcache[0] != MEM_TRAIN_SYSTEM_SIGNATURE) {
+		dev_dbg(adev->dev, "sys_cache[0] is invalid, restore depends on save.\n");
+		ops |= PSP_MEM_TRAIN_SAVE;
+	}
+
+	if (p2c_header[0] == MEM_TRAIN_SYSTEM_SIGNATURE &&
+	    !(pcache[0] == MEM_TRAIN_SYSTEM_SIGNATURE &&
+	      pcache[3] == p2c_header[3])) {
+		dev_dbg(adev->dev, "sys_cache is invalid or out-of-date, need save training data to sys_cache.\n");
+		ops |= PSP_MEM_TRAIN_SAVE;
+	}
+
+	if ((ops & PSP_MEM_TRAIN_SAVE) &&
+	    p2c_header[0] != MEM_TRAIN_SYSTEM_SIGNATURE) {
+		dev_dbg(adev->dev, "p2c_header[0] is invalid, save depends on long training.\n");
+		ops |= PSP_MEM_TRAIN_SEND_LONG_MSG;
+	}
+
+	if (ops & PSP_MEM_TRAIN_SEND_LONG_MSG) {
+		ops &= ~PSP_MEM_TRAIN_SEND_SHORT_MSG;
+		ops |= PSP_MEM_TRAIN_SAVE;
+	}
+
+	dev_dbg(adev->dev, "Memory training ops:%x.\n", ops);
+
+	if (ops & PSP_MEM_TRAIN_SEND_LONG_MSG) {
+		/*
+		 * Long training will encroach a certain amount on the bottom of VRAM;
+		 * save the content from the bottom of VRAM to system memory
+		 * before training, and restore it after training to avoid
+		 * VRAM corruption.
+		 */
+		sz = GDDR6_MEM_TRAINING_ENCROACHED_SIZE;
+
+		if (adev->gmc.visible_vram_size < sz || !adev->mman.aper_base_kaddr) {
+			dev_err(adev->dev, "visible_vram_size %llx or aper_base_kaddr %p is not initialized.\n",
+				  adev->gmc.visible_vram_size,
+				  adev->mman.aper_base_kaddr);
+			return -EINVAL;
+		}
+
+		buf = vmalloc(sz);
+		if (!buf) {
+			dev_err(adev->dev, "failed to allocate system memory.\n");
+			return -ENOMEM;
+		}
+
+		if (drm_dev_enter(adev_to_drm(adev), &idx)) {
+			memcpy_fromio(buf, adev->mman.aper_base_kaddr, sz);
+			ret = psp_v13_0_memory_training_send_msg(psp, PSP_BL__DRAM_LONG_TRAIN);
+			if (ret) {
+				DRM_ERROR("Send long training msg failed.\n");
+				vfree(buf);
+				drm_dev_exit(idx);
+				return ret;
+			}
+
+			memcpy_toio(adev->mman.aper_base_kaddr, buf, sz);
+			adev->hdp.funcs->flush_hdp(adev, NULL);
+			vfree(buf);
+			drm_dev_exit(idx);
+		} else {
+			vfree(buf);
+			return -ENODEV;
+		}
+	}
+
+	if (ops & PSP_MEM_TRAIN_SAVE) {
+		amdgpu_device_vram_access(psp->adev, ctx->p2c_train_data_offset, ctx->sys_cache, ctx->train_data_size, false);
+	}
+
+	if (ops & PSP_MEM_TRAIN_RESTORE) {
+		amdgpu_device_vram_access(psp->adev, ctx->c2p_train_data_offset, ctx->sys_cache, ctx->train_data_size, true);
+	}
+
+	if (ops & PSP_MEM_TRAIN_SEND_SHORT_MSG) {
+		ret = psp_v13_0_memory_training_send_msg(psp, (amdgpu_force_long_training > 0) ?
+							 PSP_BL__DRAM_LONG_TRAIN : PSP_BL__DRAM_SHORT_TRAIN);
+		if (ret) {
+			dev_err(adev->dev, "send training msg failed.\n");
+			return ret;
+		}
+	}
+	ctx->training_cnt++;
+	return 0;
+}
+
 static int psp_v13_0_load_usbc_pd_fw(struct psp_context *psp, uint64_t fw_pri_mc_addr)
 {
 	struct amdgpu_device *adev = psp->adev;
@@ -561,6 +725,7 @@ static const struct psp_funcs psp_v13_0_funcs = {
 	.ring_destroy = psp_v13_0_ring_destroy,
 	.ring_get_wptr = psp_v13_0_ring_get_wptr,
 	.ring_set_wptr = psp_v13_0_ring_set_wptr,
+	.mem_training = psp_v13_0_memory_training,
 	.load_usbc_pd_fw = psp_v13_0_load_usbc_pd_fw,
 	.read_usbc_pd_fw = psp_v13_0_read_usbc_pd_fw,
 	.update_spirom = psp_v13_0_update_spirom,

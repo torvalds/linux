@@ -1076,7 +1076,7 @@ static int rcar_i2c_probe(struct platform_device *pdev)
 	adap->bus_recovery_info = &rcar_i2c_bri;
 	adap->quirks = &rcar_i2c_quirks;
 	i2c_set_adapdata(adap, priv);
-	strlcpy(adap->name, pdev->name, sizeof(adap->name));
+	strscpy(adap->name, pdev->name, sizeof(adap->name));
 
 	/* Init DMA */
 	sg_init_table(&priv->sg, 1);
