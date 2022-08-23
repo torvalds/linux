@@ -91,25 +91,23 @@ properties:
 
   ports:
     description:
-      The ADV7533/35 has two video ports and one audio port. This node
-      models their connections as documented in
-      Documentation/devicetree/bindings/media/video-interfaces.txt
-      Documentation/devicetree/bindings/graph.txt
-    type: object
+      The ADV7533/35 has two video ports and one audio port.
+    $ref: /schemas/graph.yaml#/properties/ports
+
     properties:
       port@0:
         description:
           Video port for the DSI input. The remote endpoint phandle
           should be a reference to a valid mipi_dsi_host_device.
-        type: object
+        $ref: /schemas/graph.yaml#/properties/port
 
       port@1:
         description: Video port for the HDMI output.
-        type: object
+        $ref: /schemas/graph.yaml#/properties/port
 
       port@2:
         description: Audio port for the HDMI output.
-        type: object
+        $ref: /schemas/graph.yaml#/properties/port
 
 required:
   - compatible
