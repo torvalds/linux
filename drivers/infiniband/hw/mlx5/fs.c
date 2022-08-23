@@ -679,7 +679,15 @@ enum flow_table_type {
 #define MLX5_FS_MAX_TYPES	 6
 #define MLX5_FS_MAX_ENTRIES	 BIT(16)
 
-static struct mlx5_ib_flow_prio *_get_prio(struct mlx5_flow_namespace *ns,
+static bool mlx5_ib_shared_ft_allowed(struct ib_device *device)
+{
+	struct mlx5_ib_dev *dev = to_mdev(device);
+
+	return MLX5_CAP_GEN(dev->mdev, shared_object_to_user_object_allowed);
+}
+
+static struct mlx5_ib_flow_prio *_get_prio(struct mlx5_ib_dev *dev,
+					   struct mlx5_flow_namespace *ns,
 					   struct mlx5_ib_flow_prio *prio,
 					   int priority,
 					   int num_entries, int num_groups,
@@ -688,6 +696,8 @@ static struct mlx5_ib_flow_prio *_get_prio(struct mlx5_flow_namespace *ns,
 	struct mlx5_flow_table_attr ft_attr = {};
 	struct mlx5_flow_table *ft;
 
+	if (mlx5_ib_shared_ft_allowed(&dev->ib_dev))
+		ft_attr.uid = MLX5_SHARED_RESOURCE_UID;
 	ft_attr.prio = priority;
 	ft_attr.max_fte = num_entries;
 	ft_attr.flags = flags;
@@ -784,8 +794,8 @@ static struct mlx5_ib_flow_prio *get_flow_table(struct mlx5_ib_dev *dev,
 
 	ft = prio->flow_table;
 	if (!ft)
-		return _get_prio(ns, prio, priority, max_table_size, num_groups,
-				 flags);
+		return _get_prio(dev, ns, prio, priority, max_table_size,
+				 num_groups, flags);
 
 	return prio;
 }
@@ -927,7 +937,7 @@ int mlx5_ib_fs_add_op_fc(struct mlx5_ib_dev *dev, u32 port_num,
 
 	prio = &dev->flow_db->opfcs[type];
 	if (!prio->flow_table) {
-		prio = _get_prio(ns, prio, priority,
+		prio = _get_prio(dev, ns, prio, priority,
 				 dev->num_ports * MAX_OPFC_RULES, 1, 0);
 		if (IS_ERR(prio)) {
 			err = PTR_ERR(prio);
@@ -1407,8 +1417,8 @@ free_ucmd:
 }
 
 static struct mlx5_ib_flow_prio *
-_get_flow_table(struct mlx5_ib_dev *dev,
-		struct mlx5_ib_flow_matcher *fs_matcher,
+_get_flow_table(struct mlx5_ib_dev *dev, u16 user_priority,
+		enum mlx5_flow_namespace_type ns_type,
 		bool mcast)
 {
 	struct mlx5_flow_namespace *ns = NULL;
@@ -1421,11 +1431,11 @@ _get_flow_table(struct mlx5_ib_dev *dev,
 	if (mcast)
 		priority = MLX5_IB_FLOW_MCAST_PRIO;
 	else
-		priority = ib_prio_to_core_prio(fs_matcher->priority, false);
+		priority = ib_prio_to_core_prio(user_priority, false);
 
 	esw_encap = mlx5_eswitch_get_encap_mode(dev->mdev) !=
 		DEVLINK_ESWITCH_ENCAP_MODE_NONE;
-	switch (fs_matcher->ns_type) {
+	switch (ns_type) {
 	case MLX5_FLOW_NAMESPACE_BYPASS:
 		max_table_size = BIT(
 			MLX5_CAP_FLOWTABLE_NIC_RX(dev->mdev, log_max_ft_size));
@@ -1452,17 +1462,17 @@ _get_flow_table(struct mlx5_ib_dev *dev,
 					       reformat_l3_tunnel_to_l2) &&
 		    esw_encap)
 			flags |= MLX5_FLOW_TABLE_TUNNEL_EN_REFORMAT;
-		priority = fs_matcher->priority;
+		priority = user_priority;
 		break;
 	case MLX5_FLOW_NAMESPACE_RDMA_RX:
 		max_table_size = BIT(
 			MLX5_CAP_FLOWTABLE_RDMA_RX(dev->mdev, log_max_ft_size));
-		priority = fs_matcher->priority;
+		priority = user_priority;
 		break;
 	case MLX5_FLOW_NAMESPACE_RDMA_TX:
 		max_table_size = BIT(
 			MLX5_CAP_FLOWTABLE_RDMA_TX(dev->mdev, log_max_ft_size));
-		priority = fs_matcher->priority;
+		priority = user_priority;
 		break;
 	default:
 		break;
@@ -1470,11 +1480,11 @@ _get_flow_table(struct mlx5_ib_dev *dev,
 
 	max_table_size = min_t(int, max_table_size, MLX5_FS_MAX_ENTRIES);
 
-	ns = mlx5_get_flow_namespace(dev->mdev, fs_matcher->ns_type);
+	ns = mlx5_get_flow_namespace(dev->mdev, ns_type);
 	if (!ns)
 		return ERR_PTR(-EOPNOTSUPP);
 
-	switch (fs_matcher->ns_type) {
+	switch (ns_type) {
 	case MLX5_FLOW_NAMESPACE_BYPASS:
 		prio = &dev->flow_db->prios[priority];
 		break;
@@ -1499,7 +1509,7 @@ _get_flow_table(struct mlx5_ib_dev *dev,
 	if (prio->flow_table)
 		return prio;
 
-	return _get_prio(ns, prio, priority, max_table_size,
+	return _get_prio(dev, ns, prio, priority, max_table_size,
 			 MLX5_FS_MAX_TYPES, flags);
 }
 
@@ -1618,7 +1628,8 @@ static struct mlx5_ib_flow_handler *raw_fs_rule_add(
 	mcast = raw_fs_is_multicast(fs_matcher, cmd_in);
 	mutex_lock(&dev->flow_db->lock);
 
-	ft_prio = _get_flow_table(dev, fs_matcher, mcast);
+	ft_prio = _get_flow_table(dev, fs_matcher->priority,
+				  fs_matcher->ns_type, mcast);
 	if (IS_ERR(ft_prio)) {
 		err = PTR_ERR(ft_prio);
 		goto unlock;
@@ -2015,6 +2026,23 @@ static int flow_matcher_cleanup(struct ib_uobject *uobject,
 	return 0;
 }
 
+static int steering_anchor_cleanup(struct ib_uobject *uobject,
+				   enum rdma_remove_reason why,
+				   struct uverbs_attr_bundle *attrs)
+{
+	struct mlx5_ib_steering_anchor *obj = uobject->object;
+
+	if (atomic_read(&obj->usecnt))
+		return -EBUSY;
+
+	mutex_lock(&obj->dev->flow_db->lock);
+	put_flow_table(obj->dev, obj->ft_prio, true);
+	mutex_unlock(&obj->dev->flow_db->lock);
+
+	kfree(obj);
+	return 0;
+}
+
 static int mlx5_ib_matcher_ns(struct uverbs_attr_bundle *attrs,
 			      struct mlx5_ib_flow_matcher *obj)
 {
@@ -2050,12 +2078,10 @@ static int mlx5_ib_matcher_ns(struct uverbs_attr_bundle *attrs,
 		if (err)
 			return err;
 
-		if (flags) {
-			mlx5_ib_ft_type_to_namespace(
+		if (flags)
+			return mlx5_ib_ft_type_to_namespace(
 				MLX5_IB_UAPI_FLOW_TABLE_TYPE_NIC_TX,
 				&obj->ns_type);
-			return 0;
-		}
 	}
 
 	obj->ns_type = MLX5_FLOW_NAMESPACE_BYPASS;
@@ -2118,6 +2144,75 @@ static int UVERBS_HANDLER(MLX5_IB_METHOD_FLOW_MATCHER_CREATE)(
 
 end:
 	kfree(obj);
+	return err;
+}
+
+static int UVERBS_HANDLER(MLX5_IB_METHOD_STEERING_ANCHOR_CREATE)(
+	struct uverbs_attr_bundle *attrs)
+{
+	struct ib_uobject *uobj = uverbs_attr_get_uobject(
+		attrs, MLX5_IB_ATTR_STEERING_ANCHOR_CREATE_HANDLE);
+	struct mlx5_ib_dev *dev = mlx5_udata_to_mdev(&attrs->driver_udata);
+	enum mlx5_ib_uapi_flow_table_type ib_uapi_ft_type;
+	enum mlx5_flow_namespace_type ns_type;
+	struct mlx5_ib_steering_anchor *obj;
+	struct mlx5_ib_flow_prio *ft_prio;
+	u16 priority;
+	u32 ft_id;
+	int err;
+
+	if (!capable(CAP_NET_RAW))
+		return -EPERM;
+
+	err = uverbs_get_const(&ib_uapi_ft_type, attrs,
+			       MLX5_IB_ATTR_STEERING_ANCHOR_FT_TYPE);
+	if (err)
+		return err;
+
+	err = mlx5_ib_ft_type_to_namespace(ib_uapi_ft_type, &ns_type);
+	if (err)
+		return err;
+
+	err = uverbs_copy_from(&priority, attrs,
+			       MLX5_IB_ATTR_STEERING_ANCHOR_PRIORITY);
+	if (err)
+		return err;
+
+	obj = kzalloc(sizeof(*obj), GFP_KERNEL);
+	if (!obj)
+		return -ENOMEM;
+
+	mutex_lock(&dev->flow_db->lock);
+	ft_prio = _get_flow_table(dev, priority, ns_type, 0);
+	if (IS_ERR(ft_prio)) {
+		mutex_unlock(&dev->flow_db->lock);
+		err = PTR_ERR(ft_prio);
+		goto free_obj;
+	}
+
+	ft_prio->refcount++;
+	ft_id = mlx5_flow_table_id(ft_prio->flow_table);
+	mutex_unlock(&dev->flow_db->lock);
+
+	err = uverbs_copy_to(attrs, MLX5_IB_ATTR_STEERING_ANCHOR_FT_ID,
+			     &ft_id, sizeof(ft_id));
+	if (err)
+		goto put_flow_table;
+
+	uobj->object = obj;
+	obj->dev = dev;
+	obj->ft_prio = ft_prio;
+	atomic_set(&obj->usecnt, 0);
+
+	return 0;
+
+put_flow_table:
+	mutex_lock(&dev->flow_db->lock);
+	put_flow_table(dev, ft_prio, true);
+	mutex_unlock(&dev->flow_db->lock);
+free_obj:
+	kfree(obj);
+
 	return err;
 }
 
@@ -2477,6 +2572,35 @@ DECLARE_UVERBS_NAMED_OBJECT(MLX5_IB_OBJECT_FLOW_MATCHER,
 			    &UVERBS_METHOD(MLX5_IB_METHOD_FLOW_MATCHER_CREATE),
 			    &UVERBS_METHOD(MLX5_IB_METHOD_FLOW_MATCHER_DESTROY));
 
+DECLARE_UVERBS_NAMED_METHOD(
+	MLX5_IB_METHOD_STEERING_ANCHOR_CREATE,
+	UVERBS_ATTR_IDR(MLX5_IB_ATTR_STEERING_ANCHOR_CREATE_HANDLE,
+			MLX5_IB_OBJECT_STEERING_ANCHOR,
+			UVERBS_ACCESS_NEW,
+			UA_MANDATORY),
+	UVERBS_ATTR_CONST_IN(MLX5_IB_ATTR_STEERING_ANCHOR_FT_TYPE,
+			     enum mlx5_ib_uapi_flow_table_type,
+			     UA_MANDATORY),
+	UVERBS_ATTR_PTR_IN(MLX5_IB_ATTR_STEERING_ANCHOR_PRIORITY,
+			   UVERBS_ATTR_TYPE(u16),
+			   UA_MANDATORY),
+	UVERBS_ATTR_PTR_IN(MLX5_IB_ATTR_STEERING_ANCHOR_FT_ID,
+			   UVERBS_ATTR_TYPE(u32),
+			   UA_MANDATORY));
+
+DECLARE_UVERBS_NAMED_METHOD_DESTROY(
+	MLX5_IB_METHOD_STEERING_ANCHOR_DESTROY,
+	UVERBS_ATTR_IDR(MLX5_IB_ATTR_STEERING_ANCHOR_DESTROY_HANDLE,
+			MLX5_IB_OBJECT_STEERING_ANCHOR,
+			UVERBS_ACCESS_DESTROY,
+			UA_MANDATORY));
+
+DECLARE_UVERBS_NAMED_OBJECT(
+	MLX5_IB_OBJECT_STEERING_ANCHOR,
+	UVERBS_TYPE_ALLOC_IDR(steering_anchor_cleanup),
+	&UVERBS_METHOD(MLX5_IB_METHOD_STEERING_ANCHOR_CREATE),
+	&UVERBS_METHOD(MLX5_IB_METHOD_STEERING_ANCHOR_DESTROY));
+
 const struct uapi_definition mlx5_ib_flow_defs[] = {
 	UAPI_DEF_CHAIN_OBJ_TREE_NAMED(
 		MLX5_IB_OBJECT_FLOW_MATCHER),
@@ -2485,6 +2609,9 @@ const struct uapi_definition mlx5_ib_flow_defs[] = {
 		&mlx5_ib_fs),
 	UAPI_DEF_CHAIN_OBJ_TREE(UVERBS_OBJECT_FLOW_ACTION,
 				&mlx5_ib_flow_actions),
+	UAPI_DEF_CHAIN_OBJ_TREE_NAMED(
+		MLX5_IB_OBJECT_STEERING_ANCHOR,
+		UAPI_DEF_IS_OBJ_SUPPORTED(mlx5_ib_shared_ft_allowed)),
 	{},
 };
 

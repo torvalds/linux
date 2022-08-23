@@ -1776,11 +1776,11 @@ static int irdma_destroy_cq(struct ib_cq *ib_cq, struct ib_udata *udata)
 	spin_unlock_irqrestore(&iwcq->lock, flags);
 
 	irdma_cq_wq_destroy(iwdev->rf, cq);
-	irdma_cq_free_rsrc(iwdev->rf, iwcq);
 
 	spin_lock_irqsave(&iwceq->ce_lock, flags);
 	irdma_sc_cleanup_ceqes(cq, ceq);
 	spin_unlock_irqrestore(&iwceq->ce_lock, flags);
+	irdma_cq_free_rsrc(iwdev->rf, iwcq);
 
 	return 0;
 }
@@ -2605,7 +2605,7 @@ static struct ib_mr *irdma_alloc_mr(struct ib_pd *pd, enum ib_mr_type mr_type,
 	palloc = &iwpbl->pble_alloc;
 	iwmr->page_cnt = max_num_sg;
 	err_code = irdma_get_pble(iwdev->rf->pble_rsrc, palloc, iwmr->page_cnt,
-				  true);
+				  false);
 	if (err_code)
 		goto err_get_pble;
 
@@ -2641,8 +2641,16 @@ static int irdma_set_page(struct ib_mr *ibmr, u64 addr)
 	if (unlikely(iwmr->npages == iwmr->page_cnt))
 		return -ENOMEM;
 
-	pbl = palloc->level1.addr;
-	pbl[iwmr->npages++] = addr;
+	if (palloc->level == PBLE_LEVEL_2) {
+		struct irdma_pble_info *palloc_info =
+			palloc->level2.leaf + (iwmr->npages >> PBLE_512_SHIFT);
+
+		palloc_info->addr[iwmr->npages & (PBLE_PER_PAGE - 1)] = addr;
+	} else {
+		pbl = palloc->level1.addr;
+		pbl[iwmr->npages] = addr;
+	}
+	iwmr->npages++;
 
 	return 0;
 }

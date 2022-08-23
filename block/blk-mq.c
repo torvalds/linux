@@ -2815,9 +2815,9 @@ void blk_mq_submit_bio(struct bio *bio)
 	unsigned int nr_segs = 1;
 	blk_status_t ret;
 
-	blk_queue_bounce(q, &bio);
-	if (blk_may_split(q, bio))
-		__blk_queue_split(q, &bio, &nr_segs);
+	bio = blk_queue_bounce(bio, q);
+	if (bio_may_exceed_limits(bio, &q->limits))
+		bio = __bio_split_to_limits(bio, &q->limits, &nr_segs);
 
 	if (!bio_integrity_prep(bio))
 		return;

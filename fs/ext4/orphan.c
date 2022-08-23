@@ -181,8 +181,8 @@ int ext4_orphan_add(handle_t *handle, struct inode *inode)
 	} else
 		brelse(iloc.bh);
 
-	jbd_debug(4, "superblock will point to %lu\n", inode->i_ino);
-	jbd_debug(4, "orphan inode %lu will point to %d\n",
+	ext4_debug("superblock will point to %lu\n", inode->i_ino);
+	ext4_debug("orphan inode %lu will point to %d\n",
 			inode->i_ino, NEXT_ORPHAN(inode));
 out:
 	ext4_std_error(sb, err);
@@ -251,7 +251,7 @@ int ext4_orphan_del(handle_t *handle, struct inode *inode)
 	}
 
 	mutex_lock(&sbi->s_orphan_lock);
-	jbd_debug(4, "remove inode %lu from orphan list\n", inode->i_ino);
+	ext4_debug("remove inode %lu from orphan list\n", inode->i_ino);
 
 	prev = ei->i_orphan.prev;
 	list_del_init(&ei->i_orphan);
@@ -267,7 +267,7 @@ int ext4_orphan_del(handle_t *handle, struct inode *inode)
 
 	ino_next = NEXT_ORPHAN(inode);
 	if (prev == &sbi->s_orphan) {
-		jbd_debug(4, "superblock will point to %u\n", ino_next);
+		ext4_debug("superblock will point to %u\n", ino_next);
 		BUFFER_TRACE(sbi->s_sbh, "get_write_access");
 		err = ext4_journal_get_write_access(handle, inode->i_sb,
 						    sbi->s_sbh, EXT4_JTR_NONE);
@@ -286,7 +286,7 @@ int ext4_orphan_del(handle_t *handle, struct inode *inode)
 		struct inode *i_prev =
 			&list_entry(prev, struct ext4_inode_info, i_orphan)->vfs_inode;
 
-		jbd_debug(4, "orphan inode %lu will point to %u\n",
+		ext4_debug("orphan inode %lu will point to %u\n",
 			  i_prev->i_ino, ino_next);
 		err = ext4_reserve_inode_write(handle, i_prev, &iloc2);
 		if (err) {
@@ -332,8 +332,8 @@ static void ext4_process_orphan(struct inode *inode,
 			ext4_msg(sb, KERN_DEBUG,
 				"%s: truncating inode %lu to %lld bytes",
 				__func__, inode->i_ino, inode->i_size);
-		jbd_debug(2, "truncating inode %lu to %lld bytes\n",
-			  inode->i_ino, inode->i_size);
+		ext4_debug("truncating inode %lu to %lld bytes\n",
+			   inode->i_ino, inode->i_size);
 		inode_lock(inode);
 		truncate_inode_pages(inode->i_mapping, inode->i_size);
 		ret = ext4_truncate(inode);
@@ -353,8 +353,8 @@ static void ext4_process_orphan(struct inode *inode,
 			ext4_msg(sb, KERN_DEBUG,
 				"%s: deleting unreferenced inode %lu",
 				__func__, inode->i_ino);
-		jbd_debug(2, "deleting unreferenced inode %lu\n",
-			  inode->i_ino);
+		ext4_debug("deleting unreferenced inode %lu\n",
+			   inode->i_ino);
 		(*nr_orphans)++;
 	}
 	iput(inode);  /* The delete magic happens here! */
@@ -391,7 +391,7 @@ void ext4_orphan_cleanup(struct super_block *sb, struct ext4_super_block *es)
 	int inodes_per_ob = ext4_inodes_per_orphan_block(sb);
 
 	if (!es->s_last_orphan && !oi->of_blocks) {
-		jbd_debug(4, "no orphan inodes to clean up\n");
+		ext4_debug("no orphan inodes to clean up\n");
 		return;
 	}
 
@@ -415,7 +415,7 @@ void ext4_orphan_cleanup(struct super_block *sb, struct ext4_super_block *es)
 				  "clearing orphan list.\n");
 			es->s_last_orphan = 0;
 		}
-		jbd_debug(1, "Skipping orphan recovery on fs with errors.\n");
+		ext4_debug("Skipping orphan recovery on fs with errors.\n");
 		return;
 	}
 
@@ -459,7 +459,7 @@ void ext4_orphan_cleanup(struct super_block *sb, struct ext4_super_block *es)
 		 * so, skip the rest.
 		 */
 		if (EXT4_SB(sb)->s_mount_state & EXT4_ERROR_FS) {
-			jbd_debug(1, "Skipping orphan recovery on fs with errors.\n");
+			ext4_debug("Skipping orphan recovery on fs with errors.\n");
 			es->s_last_orphan = 0;
 			break;
 		}

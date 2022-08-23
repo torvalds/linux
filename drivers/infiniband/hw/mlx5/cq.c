@@ -523,6 +523,10 @@ repoll:
 			    "Requestor" : "Responder", cq->mcq.cqn);
 		mlx5_ib_dbg(dev, "syndrome 0x%x, vendor syndrome 0x%x\n",
 			    err_cqe->syndrome, err_cqe->vendor_err_synd);
+		if (wc->status != IB_WC_WR_FLUSH_ERR &&
+		    (*cur_qp)->type == MLX5_IB_QPT_REG_UMR)
+			dev->umrc.state = MLX5_UMR_STATE_RECOVER;
+
 		if (opcode == MLX5_CQE_REQ_ERR) {
 			wq = &(*cur_qp)->sq;
 			wqe_ctr = be16_to_cpu(cqe64->wqe_counter);
