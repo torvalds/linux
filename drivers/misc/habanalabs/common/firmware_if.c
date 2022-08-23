@@ -573,6 +573,15 @@ static bool fw_report_boot_dev0(struct hl_device *hdev, u32 err_val,
 		dev_dbg(hdev->dev, "Device status0 %#x\n", sts_val);
 
 	/* All warnings should go here in order not to reach the unknown error validation */
+	if (err_val & CPU_BOOT_ERR0_EEPROM_FAIL) {
+		dev_warn(hdev->dev,
+			"Device boot warning - EEPROM failure detected, default settings applied\n");
+		/* This is a warning so we don't want it to disable the
+		 * device
+		 */
+		err_val &= ~CPU_BOOT_ERR0_EEPROM_FAIL;
+	}
+
 	if (err_val & CPU_BOOT_ERR0_DRAM_SKIPPED) {
 		dev_warn(hdev->dev,
 			"Device boot warning - Skipped DRAM initialization\n");
