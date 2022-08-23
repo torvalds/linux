@@ -270,9 +270,9 @@ int hl_device_open_ctrl(struct inode *inode, struct file *filp)
 
 	mutex_lock(&hdev->fpriv_ctrl_list_lock);
 
-	if (!hl_device_operational(hdev, NULL)) {
+	if (!hl_ctrl_device_operational(hdev, NULL)) {
 		dev_dbg_ratelimited(hdev->dev_ctrl,
-			"Can't open %s because it is disabled or in reset\n",
+			"Can't open %s because it is disabled\n",
 			dev_name(hdev->dev_ctrl));
 		rc = -EPERM;
 		goto out_err;
