@@ -3467,6 +3467,9 @@ static int __init of_unittest(void)
 
 	pr_info("start of unittest - you will see error messages\n");
 
+	/* Taint the kernel so we know we've run tests. */
+	add_taint(TAINT_TEST, LOCKDEP_STILL_OK);
+
 	/* adding data for unittest */
 
 	if (IS_ENABLED(CONFIG_UML))
