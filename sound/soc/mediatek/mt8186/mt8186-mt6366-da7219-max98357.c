@@ -962,7 +962,7 @@ mt8186_mt6366_da7219_max98357_controls[] = {
 };
 
 static struct snd_soc_card mt8186_mt6366_da7219_max98357_soc_card = {
-	.name = "mt8186_mt6366_da7219_max98357",
+	.name = "mt8186_da7219_max98357",
 	.owner = THIS_MODULE,
 	.dai_link = mt8186_mt6366_da7219_max98357_dai_links,
 	.num_links = ARRAY_SIZE(mt8186_mt6366_da7219_max98357_dai_links),
