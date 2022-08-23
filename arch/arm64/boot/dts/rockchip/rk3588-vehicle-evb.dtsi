@@ -96,6 +96,8 @@
 
 	sdio_pwrseq: sdio-pwrseq {
 		compatible = "mmc-pwrseq-simple";
+		clocks = <&hym8563>;
+		clock-names = "ext_clock";
 		pinctrl-names = "default";
 		pinctrl-0 = <&wifi_enable_h>;
 		/*
@@ -106,6 +108,7 @@
 		 */
 		post-power-on-delay-ms = <200>;
 		reset-gpios = <&gpio2 RK_PC5 GPIO_ACTIVE_LOW>;
+		status = "disabled";
 	};
 
 	rk_headset: rk-headset {
@@ -137,18 +140,6 @@
 		vin-supply = <&vcc_1v8_s0>;
 	};
 
-	vcc3v3_pcie30: vcc3v3-pcie30 {
-		compatible = "regulator-fixed";
-		regulator-name = "vcc3v3_pcie30";
-		regulator-min-microvolt = <3300000>;
-		regulator-max-microvolt = <3300000>;
-		enable-active-high;
-		gpios = <&gpio2 RK_PC5 GPIO_ACTIVE_HIGH>;
-		startup-delay-us = <5000>;
-		vin-supply = <&vcc12v_dcin>;
-		status = "disabled";
-	};
-
 	vcc5v0_host: vcc5v0-host {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc5v0_host";
@@ -163,24 +154,17 @@
 		pinctrl-0 = <&vcc5v0_host_en>;
 	};
 
-	vcc_mipidcphy0: vcc-mipidcphy0-regulator {
-		compatible = "regulator-fixed";
-		gpio = <&gpio2 RK_PC4 GPIO_ACTIVE_HIGH>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&mipidcphy0_pwr>;
-		regulator-name = "vcc_mipidcphy0";
-		enable-active-high;
-	};
-
 	wireless_bluetooth: wireless-bluetooth {
 		compatible = "bluetooth-platdata";
+		clocks = <&hym8563>;
+		clock-names = "ext_clock";
 		uart_rts_gpios = <&gpio4 RK_PC4 GPIO_ACTIVE_LOW>;
 		pinctrl-names = "default", "rts_gpio";
 		pinctrl-0 = <&uart9m0_rtsn>, <&bt_reset_gpio>, <&bt_wake_gpio>, <&bt_irq_gpio>;
 		pinctrl-1 = <&uart9_gpios>;
-		BT,reset_gpio    = <&gpio0 RK_PC6 GPIO_ACTIVE_HIGH>;
-		BT,wake_gpio     = <&gpio0 RK_PC5 GPIO_ACTIVE_HIGH>;
-		BT,wake_host_irq = <&gpio0 RK_PA0 GPIO_ACTIVE_HIGH>;
+		BT,reset_gpio    = <&gpio4 RK_PC2 GPIO_ACTIVE_HIGH>;
+		BT,wake_gpio     = <&gpio4 RK_PC6 GPIO_ACTIVE_HIGH>;
+		BT,wake_host_irq = <&gpio2 RK_PB4 GPIO_ACTIVE_HIGH>;
 		status = "okay";
 	};
 
@@ -336,19 +320,7 @@
 
 &i2c4 {
 	status = "okay";
-	pinctrl-0 = <&i2c4m1_xfer>;
-
-
-};
-
-&i2c5 {
-	status = "okay";
-
-};
-
-&i2c6 {
-	status = "okay";
-
+	pinctrl-0 = <&i2c4m2_xfer>;
 	hym8563: hym8563@51 {
 		compatible = "haoyu,hym8563";
 		reg = <0x51>;
@@ -361,6 +333,17 @@
 		interrupts = <RK_PB0 IRQ_TYPE_LEVEL_LOW>;
 		wakeup-source;
 	};
+
+};
+
+&i2c5 {
+	status = "okay";
+
+};
+
+&i2c6 {
+	status = "okay";
+
 };
 
 &i2c7 {
@@ -403,6 +386,14 @@
 	status = "disabled";
 };
 
+&pcie2x1l2 {
+	reset-gpios = <&gpio3 RK_PD1 GPIO_ACTIVE_HIGH>;
+	rockchip,skip-scan-in-resume;
+	pinctrl-names = "default";
+	pinctrl-0 = <&wifi_enable_h>;
+	status = "okay";
+};
+
 &pcie30phy {
 	rockchip,pcie30-phymode = <PHY_MODE_PCIE_AGGREGATION>;
 	status = "disabled";
@@ -410,7 +401,6 @@
 
 &pcie3x4 {
 	reset-gpios = <&gpio4 RK_PB3 GPIO_ACTIVE_HIGH>;
-	vpcie3v3-supply = <&vcc3v3_pcie30>;
 	status = "disabled";
 };
 
@@ -478,15 +468,15 @@
 		};
 
 		bt_reset_gpio: bt-reset-gpio {
-			rockchip,pins = <0 RK_PC6 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <4 RK_PC2 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 
 		bt_wake_gpio: bt-wake-gpio {
-			rockchip,pins = <0 RK_PC5 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <4 RK_PC6 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 
 		bt_irq_gpio: bt-irq-gpio {
-			rockchip,pins = <0 RK_PA0 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <2 RK_PB4 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 
@@ -542,7 +532,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&sdiom0_pins>;
 	sd-uhs-sdr104;
-	status = "okay";
+	status = "disabled";
 };
 
 &sdmmc {
