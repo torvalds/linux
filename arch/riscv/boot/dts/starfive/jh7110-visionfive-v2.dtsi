@@ -486,11 +486,11 @@
 				regulator-min-microvolt = <1800000>;
 				regulator-max-microvolt = <3300000>;
 			};
-			cpu_vdd_0p9: DCDC2 {
+			cpu_vdd: DCDC2 {
 				regulator-boot-on;
 				regulator-always-on;
-				regulator-compatible = "cpu_vdd_0p9";
-				regulator-name = "cpu_vdd_0p9";
+				regulator-compatible = "cpu_vdd";
+				regulator-name = "cpu_vdd";
 				regulator-min-microvolt = <500000>;
 				regulator-max-microvolt = <1540000>;
 			};
