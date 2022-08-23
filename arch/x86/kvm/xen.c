@@ -1049,7 +1049,7 @@ static bool kvm_xen_schedop_poll(struct kvm_vcpu *vcpu, bool longmode,
 	else
 		vcpu->arch.xen.poll_evtchn = -1;
 
-	set_bit(kvm_vcpu_get_idx(vcpu), vcpu->kvm->arch.xen.poll_mask);
+	set_bit(vcpu->vcpu_idx, vcpu->kvm->arch.xen.poll_mask);
 
 	if (!wait_pending_event(vcpu, sched_poll.nr_ports, ports)) {
 		vcpu->arch.mp_state = KVM_MP_STATE_HALTED;
@@ -1071,7 +1071,7 @@ static bool kvm_xen_schedop_poll(struct kvm_vcpu *vcpu, bool longmode,
 	*r = 0;
 out:
 	/* Really, this is only needed in case of timeout */
-	clear_bit(kvm_vcpu_get_idx(vcpu), vcpu->kvm->arch.xen.poll_mask);
+	clear_bit(vcpu->vcpu_idx, vcpu->kvm->arch.xen.poll_mask);
 
 	if (unlikely(sched_poll.nr_ports > 1))
 		kfree(ports);
@@ -1311,7 +1311,7 @@ static void kvm_xen_check_poller(struct kvm_vcpu *vcpu, int port)
 	int poll_evtchn = vcpu->arch.xen.poll_evtchn;
 
 	if ((poll_evtchn == port || poll_evtchn == -1) &&
-	    test_and_clear_bit(kvm_vcpu_get_idx(vcpu), vcpu->kvm->arch.xen.poll_mask)) {
+	    test_and_clear_bit(vcpu->vcpu_idx, vcpu->kvm->arch.xen.poll_mask)) {
 		kvm_make_request(KVM_REQ_UNBLOCK, vcpu);
 		kvm_vcpu_kick(vcpu);
 	}
@@ -1344,7 +1344,7 @@ int kvm_xen_set_evtchn_fast(struct kvm_xen_evtchn *xe, struct kvm *kvm)
 		vcpu = kvm_get_vcpu_by_id(kvm, xe->vcpu_id);
 		if (!vcpu)
 			return -EINVAL;
-		WRITE_ONCE(xe->vcpu_idx, kvm_vcpu_get_idx(vcpu));
+		WRITE_ONCE(xe->vcpu_idx, vcpu->vcpu_idx);
 	}
 
 	if (!vcpu->arch.xen.vcpu_info_cache.active)
@@ -1540,7 +1540,7 @@ int kvm_xen_setup_evtchn(struct kvm *kvm,
 	 */
 	vcpu = kvm_get_vcpu_by_id(kvm, ue->u.xen_evtchn.vcpu);
 	if (vcpu)
-		e->xen_evtchn.vcpu_idx = kvm_vcpu_get_idx(vcpu);
+		e->xen_evtchn.vcpu_idx = vcpu->vcpu_idx;
 	else
 		e->xen_evtchn.vcpu_idx = -1;
 

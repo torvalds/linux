@@ -38,6 +38,47 @@
 
 #include "mac.h"
 
+void vt6655_mac_reg_bits_on(void __iomem *iobase, const u8 reg_offset, const u8 bit_mask)
+{
+	unsigned char reg_value;
+
+	reg_value = ioread8(iobase + reg_offset);
+	iowrite8(reg_value | bit_mask, iobase + reg_offset);
+}
+
+void vt6655_mac_word_reg_bits_on(void __iomem *iobase, const u8 reg_offset, const u16 bit_mask)
+{
+	unsigned short reg_value;
+
+	reg_value = ioread16(iobase + reg_offset);
+	iowrite16(reg_value | (bit_mask), iobase + reg_offset);
+}
+
+void vt6655_mac_reg_bits_off(void __iomem *iobase, const u8 reg_offset, const u8 bit_mask)
+{
+	unsigned char reg_value;
+
+	reg_value = ioread8(iobase + reg_offset);
+	iowrite8(reg_value & ~(bit_mask), iobase + reg_offset);
+}
+
+void vt6655_mac_word_reg_bits_off(void __iomem *iobase, const u8 reg_offset, const u16 bit_mask)
+{
+	unsigned short reg_value;
+
+	reg_value = ioread16(iobase + reg_offset);
+	iowrite16(reg_value & ~(bit_mask), iobase + reg_offset);
+}
+
+static void vt6655_mac_clear_stck_ds(void __iomem *iobase)
+{
+	u8 reg_value;
+
+	reg_value = ioread8(iobase + MAC_REG_STICKHW);
+	reg_value = reg_value & 0xFC;
+	iowrite8(reg_value, iobase + MAC_REG_STICKHW);
+}
+
 /*
  * Description:
  *      Test if all test bits off
@@ -337,7 +378,7 @@ bool MACbSafeRxOff(struct vnt_private *priv)
 	}
 
 	/* try to safe shutdown RX */
-	MACvRegBitsOff(io_base, MAC_REG_HOSTCR, HOSTCR_RXON);
+	vt6655_mac_reg_bits_off(io_base, MAC_REG_HOSTCR, HOSTCR_RXON);
 	/* W_MAX_TIMEOUT is the timeout period */
 	for (ww = 0; ww < W_MAX_TIMEOUT; ww++) {
 		if (!(ioread8(io_base + MAC_REG_HOSTCR) & HOSTCR_RXONST))
@@ -392,7 +433,7 @@ bool MACbSafeTxOff(struct vnt_private *priv)
 	}
 
 	/* try to safe shutdown TX */
-	MACvRegBitsOff(io_base, MAC_REG_HOSTCR, HOSTCR_TXON);
+	vt6655_mac_reg_bits_off(io_base, MAC_REG_HOSTCR, HOSTCR_TXON);
 
 	/* W_MAX_TIMEOUT is the timeout period */
 	for (ww = 0; ww < W_MAX_TIMEOUT; ww++) {
@@ -423,7 +464,7 @@ bool MACbSafeStop(struct vnt_private *priv)
 {
 	void __iomem *io_base = priv->port_offset;
 
-	MACvRegBitsOff(io_base, MAC_REG_TCR, TCR_AUTOBCNTX);
+	vt6655_mac_reg_bits_off(io_base, MAC_REG_TCR, TCR_AUTOBCNTX);
 
 	if (!MACbSafeRxOff(priv)) {
 		pr_debug(" MACbSafeRxOff == false)\n");
@@ -436,7 +477,7 @@ bool MACbSafeStop(struct vnt_private *priv)
 		return false;
 	}
 
-	MACvRegBitsOff(io_base, MAC_REG_HOSTCR, HOSTCR_MACEN);
+	vt6655_mac_reg_bits_off(io_base, MAC_REG_HOSTCR, HOSTCR_MACEN);
 
 	return true;
 }
@@ -458,7 +499,7 @@ bool MACbShutdown(struct vnt_private *priv)
 {
 	void __iomem *io_base = priv->port_offset;
 	/* disable MAC IMR */
-	MACvIntDisable(io_base);
+	iowrite32(0, io_base + MAC_REG_IMR);
 	MACvSetLoopbackMode(priv, MAC_LB_INTERNAL);
 	/* stop the adapter */
 	if (!MACbSafeStop(priv)) {
@@ -486,7 +527,7 @@ void MACvInitialize(struct vnt_private *priv)
 {
 	void __iomem *io_base = priv->port_offset;
 	/* clear sticky bits */
-	MACvClearStckDS(io_base);
+	vt6655_mac_clear_stck_ds(io_base);
 	/* disable force PME-enable */
 	iowrite8(PME_OVR, io_base + MAC_REG_PMC1);
 	/* only 3253 A */
@@ -730,7 +771,7 @@ bool MACbPSWakeup(struct vnt_private *priv)
 		return true;
 
 	/* Disable PS */
-	MACvRegBitsOff(io_base, MAC_REG_PSCTL, PSCTL_PSEN);
+	vt6655_mac_reg_bits_off(io_base, MAC_REG_PSCTL, PSCTL_PSEN);
 
 	/* Check if SyncFlushOK */
 	for (ww = 0; ww < W_MAX_TIMEOUT; ww++) {
