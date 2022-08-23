@@ -5097,6 +5097,8 @@ ieee80211_beacon_get_finish(struct ieee80211_hw *hw,
 	rate_control_get_rate(sdata, NULL, &txrc);
 
 	info->control.vif = vif;
+	info->control.flags |= u32_encode_bits(link->link_id,
+					       IEEE80211_TX_CTRL_MLO_LINK);
 	info->flags |= IEEE80211_TX_CTL_CLEAR_PS_FILT |
 		       IEEE80211_TX_CTL_ASSIGN_SEQ |
 		       IEEE80211_TX_CTL_FIRST_FRAGMENT;
