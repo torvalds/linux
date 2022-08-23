@@ -154,6 +154,30 @@ static unsigned int rk_pcie_check_sum(unsigned int *src, int size)
 	return result;
 }
 
+static int rk_pcie_handle_dma_interrupt(struct dma_trx_obj *obj, u32 chn, enum dma_dir dir)
+{
+	struct dma_table *cur;
+
+	cur = obj->cur;
+	if (!cur) {
+		pr_err("no pcie dma table\n");
+		return 0;
+	}
+
+	obj->dma_free = true;
+	obj->irq_num++;
+
+	if (cur->dir == DMA_TO_BUS) {
+		if (list_empty(&obj->tbl_list)) {
+			if (obj->dma_free &&
+			    obj->loop_count >= obj->loop_count_threshold)
+				complete(&obj->done);
+		}
+	}
+
+	return 0;
+}
+
 static void rk_pcie_prepare_dma(struct dma_trx_obj *obj,
 			unsigned int idx, unsigned int bus_idx,
 			unsigned int local_idx, size_t buf_size,
@@ -295,7 +319,7 @@ static void rk_pcie_dma_trx_work(struct work_struct *work)
 				return;
 			}
 			reinit_completion(&obj->done);
-			obj->start_dma_func(obj);
+			obj->start_dma_func(obj, table);
 		}
 	}
 }
@@ -483,7 +507,7 @@ static void rk_pcie_send_addr_to_remote(struct dma_trx_obj *obj)
 	table->chn = PCIE_DMA_DEFAULT_CHN;
 	obj->config_dma_func(table);
 	obj->cur = table;
-	obj->start_dma_func(obj);
+	obj->start_dma_func(obj, table);
 }
 
 static long rk_pcie_misc_ioctl(struct file *filp, unsigned int cmd,
@@ -940,8 +964,9 @@ struct dma_trx_obj *rk_pcie_dma_obj_probe(struct device *dev)
 	obj->irq_num = 0;
 	obj->loop_count_threshold = 0;
 	obj->ref_count = 0;
-	obj->version = 0x3;
+	obj->version = 0x4;
 	init_completion(&obj->done);
+	obj->cb = rk_pcie_handle_dma_interrupt;
 
 	mutex_init(&obj->count_mutex);
 	rk_pcie_add_misc(obj);
