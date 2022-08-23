@@ -3024,9 +3024,21 @@ bch2_btree_path_node_to_text(struct printbuf *out,
 			     struct btree_bkey_cached_common *b,
 			     bool cached)
 {
+	struct six_lock_count c = six_lock_counts(&b->lock);
+	struct task_struct *owner;
+	pid_t pid;
+
+	rcu_read_lock();
+	owner = READ_ONCE(b->lock.owner);
+	pid = owner ? owner->pid : 0;;
+	rcu_read_unlock();
+
 	prt_printf(out, "    l=%u %s:",
 	       b->level, bch2_btree_ids[b->btree_id]);
 	bch2_bpos_to_text(out, btree_node_pos(b, cached));
+
+	prt_printf(out, "    locks %u:%u:%u held by pid %u",
+		   c.n[0], c.n[1], c.n[2], pid);
 }
 
 #ifdef CONFIG_BCACHEFS_DEBUG_TRANSACTIONS
