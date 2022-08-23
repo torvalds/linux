@@ -77,6 +77,8 @@ patternProperties:
       connector:
         type: object
         $ref: /schemas/connector/usb-connector.yaml
+        unevaluatedProperties: false
+
         properties:
           vbus-supply: true
 

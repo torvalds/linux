@@ -83,6 +83,7 @@ properties:
 
   refclk-dig:
     type: object
+    additionalProperties: false
     description: |
       WIZ node should have subnode for refclk_dig to select the reference
       clock source for the reference clock used in the PHY and PMA digital
@@ -118,6 +119,7 @@ properties:
 patternProperties:
   "^pll[0|1]-refclk$":
     type: object
+    additionalProperties: false
     description: |
       WIZ node should have subnodes for each of the PLLs present in
       the SERDES.
@@ -144,6 +146,7 @@ patternProperties:
 
   "^cmn-refclk1?-dig-div$":
     type: object
+    additionalProperties: false
     description:
       WIZ node should have subnodes for each of the PMA common refclock
       provided by the SERDES.
