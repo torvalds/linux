@@ -22,6 +22,7 @@ properties:
 patternProperties:
   "^.*(clk|rst|codec).*$":
     type: object
+    unevaluatedProperties: false
 
     properties:
       compatible:
@@ -36,6 +37,15 @@ patternProperties:
       - compatible
 
     allOf:
+      - if:
+          properties:
+            compatible:
+              contains:
+                const: fixed-factor-clock
+
+        then:
+          $ref: /schemas/clock/fixed-factor-clock.yaml#
+
       - if:
           properties:
             compatible:

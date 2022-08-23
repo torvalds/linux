@@ -87,6 +87,7 @@ properties:
     patternProperties:
       "^(LDO_REG[1-9]|DCDC_REG[1-4]|BOOST|OTG_SWITCH)$":
         type: object
+        unevaluatedProperties: false
         $ref: ../regulator/regulator.yaml#
     unevaluatedProperties: false
 
@@ -111,6 +112,7 @@ properties:
       additional properties are required for the codec, this node can be
       omitted.
     type: object
+    additionalProperties: false
     properties:
       rockchip,mic-in-differential:
         type: boolean
