@@ -32,7 +32,7 @@ int __cifs_calc_signature(struct smb_rqst *rqst,
 	int rc;
 	struct kvec *iov = rqst->rq_iov;
 	int n_vec = rqst->rq_nvec;
-	int is_smb2 = server->vals->header_preamble_size == 0;
+	bool is_smb2 = HEADER_PREAMBLE_SIZE(server) == 0;
 
 	/* iov[0] is actual data and not the rfc1002 length for SMB2+ */
 	if (is_smb2) {
