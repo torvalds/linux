@@ -138,7 +138,7 @@ static int intel_reg_show(struct seq_file *s_file, void *data)
 	if (!buf)
 		return -ENOMEM;
 
-	links = intel_readl(s, SDW_SHIM_LCAP) & GENMASK(2, 0);
+	links = intel_readl(s, SDW_SHIM_LCAP) & SDW_SHIM_LCAP_LCOUNT_MASK;
 
 	ret = scnprintf(buf, RD_BUF, "Register  Value\n");
 	ret += scnprintf(buf + ret, RD_BUF - ret, "\nShim\n");

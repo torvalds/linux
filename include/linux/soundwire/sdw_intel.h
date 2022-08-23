@@ -15,7 +15,10 @@
 #define SDW_LINK_SIZE			0x10000
 
 /* Intel SHIM Registers Definition */
+/* LCAP */
 #define SDW_SHIM_LCAP			0x0
+#define SDW_SHIM_LCAP_LCOUNT_MASK	GENMASK(2, 0)
+
 #define SDW_SHIM_LCTL			0x4
 #define SDW_SHIM_IPPTR			0x8
 #define SDW_SHIM_SYNC			0xC
