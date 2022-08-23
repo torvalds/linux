@@ -68,6 +68,9 @@ properties:
     minItems: 1
     maxItems: 2
 
+  power-domains:
+    maxItems: 1
+
   samsung,uart-fifosize:
     description: The fifo size supported by the UART channel.
     $ref: /schemas/types.yaml#/definitions/uint32
