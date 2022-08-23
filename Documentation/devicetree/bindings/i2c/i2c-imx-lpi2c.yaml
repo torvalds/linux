@@ -44,6 +44,16 @@ properties:
   clocks:
     maxItems: 2
 
+  dmas:
+    items:
+      - description: DMA controller phandle and request line for TX
+      - description: DMA controller phandle and request line for RX
+
+  dma-names:
+    items:
+      - const: tx
+      - const: rx
+
   power-domains:
     maxItems: 1
 
