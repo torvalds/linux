@@ -27,7 +27,6 @@
 #define SDW_SHIM_LCTL_CPA		BIT(8)
 #define SDW_SHIM_LCTL_CPA_MASK		GENMASK(11, 8)
 
-#define SDW_SHIM_IPPTR			0x8
 #define SDW_SHIM_SYNC			0xC
 
 #define SDW_SHIM_CTLSCAP(x)		(0x010 + 0x60 * (x))
