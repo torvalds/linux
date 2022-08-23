@@ -281,7 +281,7 @@ static inline int btree_node_lock(struct btree_trans *trans,
 
 void __bch2_btree_node_lock_write(struct btree_trans *, struct btree *);
 
-static inline void bch2_btree_node_lock_write(struct btree_trans *trans,
+static inline void bch2_btree_node_lock_write_nofail(struct btree_trans *trans,
 					      struct btree_path *path,
 					      struct btree *b)
 {
@@ -298,6 +298,15 @@ static inline void bch2_btree_node_lock_write(struct btree_trans *trans,
 
 	if (unlikely(!six_trylock_write(&b->c.lock)))
 		__bch2_btree_node_lock_write(trans, b);
+}
+
+static inline int __must_check
+bch2_btree_node_lock_write(struct btree_trans *trans,
+			   struct btree_path *path,
+			   struct btree *b)
+{
+	bch2_btree_node_lock_write_nofail(trans, path, b);
+	return 0;
 }
 
 /* relock: */

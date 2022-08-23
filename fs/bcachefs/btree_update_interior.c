@@ -1163,7 +1163,7 @@ static void bch2_btree_set_root(struct btree_update *as,
 	 * Ensure no one is using the old root while we switch to the
 	 * new root:
 	 */
-	bch2_btree_node_lock_write(trans, path, old);
+	bch2_btree_node_lock_write_nofail(trans, path, old);
 
 	bch2_btree_set_root_inmem(c, b);
 
@@ -2002,7 +2002,7 @@ static int __bch2_btree_node_update_key(struct btree_trans *trans,
 	if (ret)
 		goto err;
 
-	bch2_btree_node_lock_write(trans, iter->path, b);
+	bch2_btree_node_lock_write_nofail(trans, iter->path, b);
 
 	if (new_hash) {
 		mutex_lock(&c->btree_cache.lock);

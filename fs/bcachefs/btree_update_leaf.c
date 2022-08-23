@@ -81,7 +81,7 @@ void bch2_btree_node_lock_for_insert(struct btree_trans *trans,
 				     struct btree_path *path,
 				     struct btree *b)
 {
-	bch2_btree_node_lock_write(trans, path, b);
+	bch2_btree_node_lock_write_nofail(trans, path, b);
 	bch2_btree_node_prep_for_write(trans, path, b);
 }
 

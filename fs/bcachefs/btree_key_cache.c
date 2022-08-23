@@ -342,11 +342,12 @@ static int btree_key_cache_fill(struct btree_trans *trans,
 		}
 	}
 
-	/*
-	 * XXX: not allowed to be holding read locks when we take a write lock,
-	 * currently
-	 */
-	bch2_btree_node_lock_write(trans, ck_path, ck_path->l[0].b);
+	ret = bch2_btree_node_lock_write(trans, ck_path, ck_path->l[0].b);
+	if (ret) {
+		kfree(new_k);
+		goto err;
+	}
+
 	if (new_k) {
 		kfree(ck->k);
 		ck->u64s = new_u64s;
