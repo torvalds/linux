@@ -76,8 +76,15 @@
 #define SDW_SHIM_IOCTL_CIBD		BIT(8)
 #define SDW_SHIM_IOCTL_DIBD		BIT(9)
 
+/* Wake Enable*/
 #define SDW_SHIM_WAKEEN			0x190
+
+#define SDW_SHIM_WAKEEN_ENABLE		BIT(0)
+
+/* Wake Status */
 #define SDW_SHIM_WAKESTS		0x192
+
+#define SDW_SHIM_WAKESTS_STATUS		BIT(0)
 
 /* AC Timing control */
 #define SDW_SHIM_CTMCTL(x)		(0x06E + 0x60 * (x))
@@ -85,9 +92,6 @@
 #define SDW_SHIM_CTMCTL_DACTQE		BIT(0)
 #define SDW_SHIM_CTMCTL_DODS		BIT(1)
 #define SDW_SHIM_CTMCTL_DOAIS		GENMASK(4, 3)
-
-#define SDW_SHIM_WAKEEN_ENABLE		BIT(0)
-#define SDW_SHIM_WAKESTS_STATUS		BIT(0)
 
 /* Intel ALH Register definitions */
 #define SDW_ALH_STRMZCFG(x)		(0x000 + (0x4 * (x)))
