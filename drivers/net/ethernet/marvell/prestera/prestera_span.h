@@ -16,7 +16,9 @@ int prestera_span_init(struct prestera_switch *sw);
 void prestera_span_fini(struct prestera_switch *sw);
 
 int prestera_span_rule_add(struct prestera_flow_block_binding *binding,
-			   struct prestera_port *to_port);
-int prestera_span_rule_del(struct prestera_flow_block_binding *binding);
+			   struct prestera_port *to_port,
+			   bool ingress);
+int prestera_span_rule_del(struct prestera_flow_block_binding *binding,
+			   bool ingress);
 
 #endif /* _PRESTERA_SPAN_H_ */

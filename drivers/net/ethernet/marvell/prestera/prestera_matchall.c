@@ -43,7 +43,7 @@ int prestera_mall_replace(struct prestera_flow_block *block,
 	port = netdev_priv(act->dev);
 
 	list_for_each_entry(binding, &block->binding_list, list) {
-		err = prestera_span_rule_add(binding, port);
+		err = prestera_span_rule_add(binding, port, block->ingress);
 		if (err)
 			goto rollback;
 	}
@@ -53,7 +53,7 @@ int prestera_mall_replace(struct prestera_flow_block *block,
 rollback:
 	list_for_each_entry_continue_reverse(binding,
 					     &block->binding_list, list)
-		prestera_span_rule_del(binding);
+		prestera_span_rule_del(binding, block->ingress);
 	return err;
 }
 
@@ -62,5 +62,6 @@ void prestera_mall_destroy(struct prestera_flow_block *block)
 	struct prestera_flow_block_binding *binding;
 
 	list_for_each_entry(binding, &block->binding_list, list)
-		prestera_span_rule_del(binding);
+		prestera_span_rule_del(binding, block->ingress);
+
 }

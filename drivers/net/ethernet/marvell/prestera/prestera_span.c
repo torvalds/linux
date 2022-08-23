@@ -121,7 +121,8 @@ static int prestera_span_put(struct prestera_switch *sw, u8 span_id)
 }
 
 int prestera_span_rule_add(struct prestera_flow_block_binding *binding,
-			   struct prestera_port *to_port)
+			   struct prestera_port *to_port,
+			   bool ingress)
 {
 	struct prestera_switch *sw = binding->port->sw;
 	u8 span_id;
@@ -135,7 +136,7 @@ int prestera_span_rule_add(struct prestera_flow_block_binding *binding,
 	if (err)
 		return err;
 
-	err = prestera_hw_span_bind(binding->port, span_id);
+	err = prestera_hw_span_bind(binding->port, span_id, ingress);
 	if (err) {
 		prestera_span_put(sw, span_id);
 		return err;
@@ -145,11 +146,12 @@ int prestera_span_rule_add(struct prestera_flow_block_binding *binding,
 	return 0;
 }
 
-int prestera_span_rule_del(struct prestera_flow_block_binding *binding)
+int prestera_span_rule_del(struct prestera_flow_block_binding *binding,
+			   bool ingress)
 {
 	int err;
 
-	err = prestera_hw_span_unbind(binding->port);
+	err = prestera_hw_span_unbind(binding->port, ingress);
 	if (err)
 		return err;
 
