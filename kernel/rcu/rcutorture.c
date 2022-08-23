@@ -1195,12 +1195,29 @@ static void rcu_torture_write_types(void)
 	bool gp_poll_full1 = gp_poll_full, gp_sync1 = gp_sync;
 
 	/* Initialize synctype[] array.  If none set, take default. */
-	if (!gp_cond1 && !gp_cond_exp1 && !gp_cond_full1 && !gp_cond_exp_full1 && !gp_exp1 &&
-	    !gp_poll_exp1 && !gp_poll_exp_full1 && !gp_normal1 && !gp_poll1 && !gp_poll_full1 &&
-	    !gp_sync1)
-		gp_cond1 = gp_cond_exp1 = gp_cond_full1 = gp_cond_exp_full1 = gp_exp1 =
-			   gp_poll_exp1 = gp_poll_exp_full1 = gp_normal1 = gp_poll1 =
-			   gp_poll_full1 = gp_sync1 = true;
+	if (!gp_cond1 &&
+	    !gp_cond_exp1 &&
+	    !gp_cond_full1 &&
+	    !gp_cond_exp_full1 &&
+	    !gp_exp1 &&
+	    !gp_poll_exp1 &&
+	    !gp_poll_exp_full1 &&
+	    !gp_normal1 &&
+	    !gp_poll1 &&
+	    !gp_poll_full1 &&
+	    !gp_sync1) {
+		gp_cond1 = true;
+		gp_cond_exp1 = true;
+		gp_cond_full1 = true;
+		gp_cond_exp_full1 = true;
+		gp_exp1 = true;
+		gp_poll_exp1 = true;
+		gp_poll_exp_full1 = true;
+		gp_normal1 = true;
+		gp_poll1 = true;
+		gp_poll_full1 = true;
+		gp_sync1 = true;
+	}
 	if (gp_cond1 && cur_ops->get_gp_state && cur_ops->cond_sync) {
 		synctype[nsynctypes++] = RTWS_COND_GET;
 		pr_info("%s: Testing conditional GPs.\n", __func__);
