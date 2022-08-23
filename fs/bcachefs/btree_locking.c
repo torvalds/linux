@@ -76,6 +76,17 @@ static void lock_graph_pop(struct lock_graph *g)
 	closure_put(&g->g[--g->nr].trans->ref);
 }
 
+static noinline void print_cycle(struct printbuf *out, struct lock_graph *g)
+{
+	struct trans_waiting_for_lock *i;
+
+	prt_printf(out, "Found lock cycle (%u entries):", g->nr);
+	prt_newline(out);
+
+	for (i = g->g; i < g->g + g->nr; i++)
+		bch2_btree_trans_to_text(out, i->trans);
+}
+
 static int abort_lock(struct lock_graph *g, struct trans_waiting_for_lock *i)
 {
 	int ret;
@@ -122,7 +133,8 @@ static noinline int break_cycle(struct lock_graph *g)
 	BUG();
 }
 
-static int lock_graph_descend(struct lock_graph *g, struct btree_trans *trans)
+static int lock_graph_descend(struct lock_graph *g, struct btree_trans *trans,
+			      struct printbuf *cycle)
 {
 	struct btree_trans *orig_trans = g->g->trans;
 	struct trans_waiting_for_lock *i;
@@ -136,7 +148,14 @@ static int lock_graph_descend(struct lock_graph *g, struct btree_trans *trans)
 			}
 
 		if (i->trans == trans) {
-			ret = break_cycle(g);
+			if (cycle) {
+				/* Only checking: */
+				print_cycle(cycle, g);
+				ret = -1;
+			} else {
+				ret = break_cycle(g);
+			}
+
 			if (ret)
 				goto deadlock;
 			/*
@@ -170,19 +189,6 @@ deadlock:
 	return ret;
 }
 
-#if 0
-static void print_cycle(struct printbuf *out, struct lock_graph *g)
-{
-	struct trans_waiting_for_lock *i;
-
-	prt_str(out, "Found lock cycle:");
-	prt_newline(out);
-
-	for (i = g->g; i < g->g + g->nr; i++)
-		bch2_btree_trans_to_text(out, i->trans);
-}
-#endif
-
 static noinline void lock_graph_remove_non_waiters(struct lock_graph *g)
 {
 	struct trans_waiting_for_lock *i;
@@ -202,7 +208,7 @@ static bool lock_type_conflicts(enum six_lock_type t1, enum six_lock_type t2)
 	return t1 + t2 > 1;
 }
 
-static int check_for_deadlock(struct btree_trans *trans)
+int bch2_check_for_deadlock(struct btree_trans *trans, struct printbuf *cycle)
 {
 	struct lock_graph g;
 	struct trans_waiting_for_lock *top;
@@ -214,7 +220,7 @@ static int check_for_deadlock(struct btree_trans *trans)
 		return btree_trans_restart(trans, BCH_ERR_transaction_restart_would_deadlock);
 
 	g.nr = 0;
-	ret = lock_graph_descend(&g, trans);
+	ret = lock_graph_descend(&g, trans, cycle);
 	BUG_ON(ret);
 next:
 	if (!g.nr)
@@ -265,7 +271,7 @@ next:
 				    !lock_type_conflicts(lock_held, trans->locking_wait.lock_want))
 					continue;
 
-				ret = lock_graph_descend(&g, trans);
+				ret = lock_graph_descend(&g, trans, cycle);
 				raw_spin_unlock(&b->lock.wait_lock);
 
 				if (ret)
@@ -285,7 +291,7 @@ int bch2_six_check_for_deadlock(struct six_lock *lock, void *p)
 {
 	struct btree_trans *trans = p;
 
-	return check_for_deadlock(trans);
+	return bch2_check_for_deadlock(trans, NULL);
 }
 
 int __bch2_btree_node_lock_write(struct btree_trans *trans,

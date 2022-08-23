@@ -426,6 +426,7 @@ struct six_lock_count bch2_btree_node_lock_counts(struct btree_trans *,
 				struct btree_bkey_cached_common *b,
 				unsigned);
 
+int bch2_check_for_deadlock(struct btree_trans *, struct printbuf *);
 
 #ifdef CONFIG_BCACHEFS_DEBUG
 void bch2_btree_path_verify_locks(struct btree_path *);

@@ -11,6 +11,7 @@
 #include "btree_cache.h"
 #include "btree_io.h"
 #include "btree_iter.h"
+#include "btree_locking.h"
 #include "btree_update.h"
 #include "buckets.h"
 #include "debug.h"
@@ -708,6 +709,45 @@ static const struct file_operations lock_held_stats_op = {
 	.read = lock_held_stats_read,
 };
 
+static ssize_t bch2_btree_deadlock_read(struct file *file, char __user *buf,
+					    size_t size, loff_t *ppos)
+{
+	struct dump_iter *i = file->private_data;
+	struct bch_fs *c = i->c;
+	struct btree_trans *trans;
+	ssize_t ret = 0;
+
+	i->ubuf = buf;
+	i->size	= size;
+	i->ret	= 0;
+
+	if (i->iter)
+		goto out;
+
+	mutex_lock(&c->btree_trans_lock);
+	list_for_each_entry(trans, &c->btree_trans_list, list)
+		if (bch2_check_for_deadlock(trans, &i->buf)) {
+			i->iter = 1;
+			break;
+		}
+	mutex_unlock(&c->btree_trans_lock);
+out:
+	if (i->buf.allocation_failure)
+		ret = -ENOMEM;
+
+	if (!ret)
+		ret = flush_buf(i);
+
+	return ret ?: i->ret;
+}
+
+static const struct file_operations btree_deadlock_ops = {
+	.owner		= THIS_MODULE,
+	.open		= bch2_dump_open,
+	.release	= bch2_dump_release,
+	.read		= bch2_btree_deadlock_read,
+};
+
 void bch2_fs_debug_exit(struct bch_fs *c)
 {
 	if (!IS_ERR_OR_NULL(c->fs_debug_dir))
@@ -740,6 +780,9 @@ void bch2_fs_debug_init(struct bch_fs *c)
 
 	debugfs_create_file("btree_transaction_stats", 0400, c->fs_debug_dir,
 			    c, &lock_held_stats_op);
+
+	debugfs_create_file("btree_deadlock", 0400, c->fs_debug_dir,
+			    c->btree_debug, &btree_deadlock_ops);
 
 	c->btree_debug_dir = debugfs_create_dir("btrees", c->fs_debug_dir);
 	if (IS_ERR_OR_NULL(c->btree_debug_dir))

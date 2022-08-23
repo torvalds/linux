@@ -2992,7 +2992,6 @@ bch2_btree_path_node_to_text(struct printbuf *out,
 		   c.n[0], c.n[1], c.n[2], pid);
 }
 
-#ifdef CONFIG_BCACHEFS_DEBUG_TRANSACTIONS
 void bch2_btree_trans_to_text(struct printbuf *out, struct btree_trans *trans)
 {
 	struct btree_path *path;
@@ -3041,7 +3040,6 @@ void bch2_btree_trans_to_text(struct printbuf *out, struct btree_trans *trans)
 		prt_printf(out, "\n");
 	}
 }
-#endif
 
 void bch2_fs_btree_iter_exit(struct bch_fs *c)
 {
