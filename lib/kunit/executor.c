@@ -190,6 +190,10 @@ int kunit_run_all_tests(void)
 {
 	struct suite_set suite_set = {__kunit_suites_start, __kunit_suites_end};
 	int err = 0;
+	if (!kunit_enabled()) {
+		pr_info("kunit: disabled\n");
+		goto out;
+	}
 
 	if (filter_glob_param) {
 		suite_set = kunit_filter_suites(&suite_set, filter_glob_param, &err);

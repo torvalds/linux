@@ -359,6 +359,7 @@ class LinuxSourceTree:
 			args = []
 		if filter_glob:
 			args.append('kunit.filter_glob='+filter_glob)
+		args.append('kunit.enable=1')
 
 		process = self._ops.start(args, build_dir)
 		assert process.stdout is not None  # tell mypy it's set

@@ -55,6 +55,17 @@ EXPORT_SYMBOL_GPL(__kunit_fail_current_test);
 #endif
 
 /*
+ * Enable KUnit tests to run.
+ */
+#ifdef CONFIG_KUNIT_DEFAULT_ENABLED
+static bool enable_param = true;
+#else
+static bool enable_param;
+#endif
+module_param_named(enable, enable_param, bool, 0);
+MODULE_PARM_DESC(enable, "Enable KUnit tests");
+
+/*
  * KUnit statistic mode:
  * 0 - disabled
  * 1 - only when there is more than one subtest
@@ -586,9 +597,19 @@ static void kunit_init_suite(struct kunit_suite *suite)
 	suite->suite_init_err = 0;
 }
 
+bool kunit_enabled(void)
+{
+	return enable_param;
+}
+
 int __kunit_test_suites_init(struct kunit_suite * const * const suites, int num_suites)
 {
 	unsigned int i;
+
+	if (!kunit_enabled() && num_suites > 0) {
+		pr_info("kunit: disabled\n");
+		return 0;
+	}
 
 	for (i = 0; i < num_suites; i++) {
 		kunit_init_suite(suites[i]);
@@ -606,6 +627,9 @@ static void kunit_exit_suite(struct kunit_suite *suite)
 void __kunit_test_suites_exit(struct kunit_suite **suites, int num_suites)
 {
 	unsigned int i;
+
+	if (!kunit_enabled())
+		return;
 
 	for (i = 0; i < num_suites; i++)
 		kunit_exit_suite(suites[i]);
