@@ -863,7 +863,6 @@ static int mlxreg_lc_probe(struct platform_device *pdev)
 	if (err) {
 		dev_err(&pdev->dev, "Failed to sync regmap for client %s at bus %d at addr 0x%02x\n",
 			data->hpdev.brdinfo->type, data->hpdev.nr, data->hpdev.brdinfo->addr);
-		err = PTR_ERR(regmap);
 		goto regcache_sync_fail;
 	}
 
