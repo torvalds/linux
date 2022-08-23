@@ -24,8 +24,8 @@
 #include "jh7110-str.h"
 
 #define JH7110_RSA_KEYSZ_LEN			(2048 >> 2)
-#define JH7110_RSA_KEY_SIZE				(JH7110_RSA_KEYSZ_LEN * 3)
-
+#define JH7110_RSA_KEY_SIZE			(JH7110_RSA_KEYSZ_LEN * 3)
+#define JH7110_RSA_MAX_KEYSZ			256
 #define swap32(val) (						\
 		     (((u32)(val) << 24) & (u32)0xFF000000) |	\
 		     (((u32)(val) <<  8) & (u32)0x00FF0000) |	\
@@ -107,7 +107,6 @@ static int jh7110_rsa_domain_transfer(struct jh7110_sec_ctx *ctx, u32 *result, u
 		rctx->csr.pka_csr.ie = 1;
 		rctx->csr.pka_csr.start = 0x1;
 		rctx->csr.pka_csr.not_r2 = 0x1;
-		//rctx->csr.pka_csr.bigendian = 1;
 		jh7110_sec_write(sdev, JH7110_CRYPTO_CACR_OFFSET, rctx->csr.pka_csr.v);
 
 		jh7110_pka_wait_done(sdev);
@@ -387,6 +386,13 @@ static int jh7110_rsa_enc(struct akcipher_request *req)
 	struct jh7110_sec_request_ctx *rctx = akcipher_request_ctx(req);
 	int ret = 0;
 
+	if (key->key_sz > JH7110_RSA_MAX_KEYSZ) {
+		akcipher_request_set_tfm(req, ctx->soft_tfm);
+		ret = crypto_akcipher_encrypt(req);
+		akcipher_request_set_tfm(req, tfm);
+		return ret;
+	}
+
 	if (unlikely(!key->n || !key->e))
 		return -EINVAL;
 
@@ -420,6 +426,13 @@ static int jh7110_rsa_dec(struct akcipher_request *req)
 	struct jh7110_sec_request_ctx *rctx = akcipher_request_ctx(req);
 	int ret = 0;
 
+	if (key->key_sz > JH7110_RSA_MAX_KEYSZ) {
+		akcipher_request_set_tfm(req, ctx->soft_tfm);
+		ret = crypto_akcipher_decrypt(req);
+		akcipher_request_set_tfm(req, tfm);
+		return ret;
+	}
+
 	if (unlikely(!key->n || !key->d))
 		return -EINVAL;
 
@@ -452,10 +465,10 @@ static unsigned long jh7110_rsa_enc_fn_id(unsigned int len)
 	if (bitslen & 0x1f)
 		return -EINVAL;
 
-	if (bitslen < 32 || bitslen > 2048)
-		return -EINVAL;
+	if (bitslen > 2048)
+		return false;
 
-	return 0;
+	return true;
 }
 
 static int jh7110_rsa_set_n(struct jh7110_rsa_key *rsa_key, const char *value,
@@ -471,15 +484,15 @@ static int jh7110_rsa_set_n(struct jh7110_rsa_key *rsa_key, const char *value,
 	rsa_key->key_sz = vlen;
 	ret = -EINVAL;
 	/* invalid key size provided */
-	if (jh7110_rsa_enc_fn_id(rsa_key->key_sz))
-		goto err;
+	if (!jh7110_rsa_enc_fn_id(rsa_key->key_sz))
+		return 0;
 
 	ret = -ENOMEM;
 	rsa_key->n = kmemdup(ptr, rsa_key->key_sz, GFP_KERNEL);
 	if (!rsa_key->n)
 		goto err;
 
-	return 0;
+	return 1;
  err:
 	rsa_key->key_sz = 0;
 	rsa_key->n = NULL;
@@ -578,8 +591,9 @@ static int jh7110_rsa_setkey(struct crypto_akcipher *tfm, const void *key,
 		goto err;
 
 	ret = jh7110_rsa_set_n(rsa_key, raw_key.n, raw_key.n_sz);
-	if (ret < 0)
-		goto err;
+	if (ret <= 0)
+		return ret;
+
 	ret = jh7110_rsa_set_e(rsa_key, raw_key.e, raw_key.e_sz);
 	if (ret < 0)
 		goto err;
@@ -610,18 +624,36 @@ static int jh7110_rsa_setkey(struct crypto_akcipher *tfm, const void *key,
 static int jh7110_rsa_set_pub_key(struct crypto_akcipher *tfm, const void *key,
 			       unsigned int keylen)
 {
+	struct jh7110_sec_ctx *ctx = akcipher_tfm_ctx(tfm);
+	int ret;
+
+	ret = crypto_akcipher_set_pub_key(ctx->soft_tfm, key, keylen);
+	if (ret)
+		return ret;
+
 	return jh7110_rsa_setkey(tfm, key, keylen, false);
 }
 
 static int jh7110_rsa_set_priv_key(struct crypto_akcipher *tfm, const void *key,
 				unsigned int keylen)
 {
+	struct jh7110_sec_ctx *ctx = akcipher_tfm_ctx(tfm);
+	int ret;
+
+	ret = crypto_akcipher_set_priv_key(ctx->soft_tfm, key, keylen);
+	if (ret)
+		return ret;
+
 	return jh7110_rsa_setkey(tfm, key, keylen, true);
 }
 
 static unsigned int jh7110_rsa_max_size(struct crypto_akcipher *tfm)
 {
 	struct jh7110_sec_ctx *ctx = akcipher_tfm_ctx(tfm);
+
+	/* For key sizes > 2Kb, use software tfm */
+	if (ctx->rsa_key.key_sz > JH7110_RSA_MAX_KEYSZ)
+		return crypto_akcipher_maxsize(ctx->soft_tfm);
 
 	return ctx->rsa_key.key_sz;
 }
@@ -631,9 +663,17 @@ static int jh7110_rsa_init_tfm(struct crypto_akcipher *tfm)
 {
 	struct jh7110_sec_ctx *ctx = akcipher_tfm_ctx(tfm);
 
+	ctx->soft_tfm = crypto_alloc_akcipher("rsa-generic", 0, 0);
+	if (IS_ERR(ctx->soft_tfm)) {
+		pr_err("Can not alloc_akcipher!\n");
+		return PTR_ERR(ctx->soft_tfm);
+	}
+
 	ctx->sdev = jh7110_sec_find_dev(ctx);
-	if (!ctx->sdev)
+	if (!ctx->sdev) {
+		crypto_free_akcipher(ctx->soft_tfm);
 		return -ENODEV;
+	}
 
 	akcipher_set_reqsize(tfm, sizeof(struct jh7110_sec_request_ctx));
 
@@ -646,6 +686,7 @@ static void jh7110_rsa_exit_tfm(struct crypto_akcipher *tfm)
 	struct jh7110_sec_ctx *ctx = akcipher_tfm_ctx(tfm);
 	struct jh7110_rsa_key *key = (struct jh7110_rsa_key *)&ctx->rsa_key;
 
+	crypto_free_akcipher(ctx->soft_tfm);
 	jh7110_rsa_free_key(key);
 }
 
@@ -664,7 +705,8 @@ static struct akcipher_alg jh7110_rsa = {
 		.cra_name = "rsa",
 		.cra_driver_name = "rsa-jh7110",
 		.cra_flags = CRYPTO_ALG_TYPE_AKCIPHER |
-						CRYPTO_ALG_ASYNC,
+			     CRYPTO_ALG_ASYNC |
+			     CRYPTO_ALG_NEED_FALLBACK,
 		.cra_priority = 3000,
 		.cra_module = THIS_MODULE,
 		.cra_ctxsize = sizeof(struct jh7110_sec_ctx),

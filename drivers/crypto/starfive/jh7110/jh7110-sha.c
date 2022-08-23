@@ -41,6 +41,7 @@
 #define JH7110_MAX_ALIGN_SIZE	SHA512_BLOCK_SIZE
 
 #define JH7110_HASH_BUFLEN		8192
+#define JH7110_HASH_THRES		2048
 
 static inline int jh7110_hash_wait_hmac_done(struct jh7110_sec_ctx *ctx)
 {
@@ -329,7 +330,6 @@ static int jh7110_hash_xmit(struct jh7110_sec_ctx *ctx, int flags)
 	if (!rctx->csr.sha_csr.hmac) {
 		rctx->csr.sha_csr.start = 1;
 		rctx->csr.sha_csr.firstb = 1;
-		ctx->sec_init = 0;
 		jh7110_sec_write(sdev, JH7110_SHA_SHACSR, rctx->csr.sha_csr.v);
 	}
 
@@ -379,7 +379,7 @@ static int jh7110_hash_update_req(struct jh7110_sec_ctx *ctx)
 
 	if (final) {
 		err = jh7110_hash_xmit(ctx,
-					(rctx->flags & HASH_FLAGS_FINUP));
+				(rctx->flags & HASH_FLAGS_FINUP));
 		rctx->bufcnt = 0;
 	}
 
@@ -567,8 +567,18 @@ static int jh7110_hash_update(struct ahash_request *req)
 static int jh7110_hash_final(struct ahash_request *req)
 {
 	struct jh7110_sec_request_ctx *rctx = ahash_request_ctx(req);
+	struct jh7110_sec_ctx *ctx = crypto_tfm_ctx(req->base.tfm);
 
 	rctx->flags |= HASH_FLAGS_FINUP;
+
+	if (ctx->fallback_available && (rctx->bufcnt < JH7110_HASH_THRES)) {
+		if (ctx->sha_mode & JH7110_SHA_HMAC_FLAGS)
+			crypto_shash_setkey(ctx->fallback, ctx->key,
+					ctx->keylen);
+
+		return crypto_shash_tfm_digest(ctx->fallback, ctx->buffer,
+				rctx->bufcnt, req->result);
+	}
 
 	return jh7110_hash_enqueue(req, HASH_OP_FINAL);
 }
@@ -625,16 +635,25 @@ static int jh7110_hash_cra_init_algs(struct crypto_tfm *tfm,
 					unsigned int mode)
 {
 	struct jh7110_sec_ctx *ctx = crypto_tfm_ctx(tfm);
+	const char *alg_name = crypto_tfm_alg_name(tfm);
 
 	ctx->sdev = jh7110_sec_find_dev(ctx);
+	ctx->fallback_available = true;
 
 	if (!ctx->sdev)
 		return -ENODEV;
 
-	crypto_ahash_set_reqsize(__crypto_ahash_cast(tfm),
-				sizeof(struct jh7110_sec_request_ctx));
+	ctx->fallback = crypto_alloc_shash(alg_name, 0,
+			CRYPTO_ALG_NEED_FALLBACK);
+	
+	if (IS_ERR(ctx->fallback)) {
+		pr_err("fallback unavailable for '%s'\n", alg_name);
+		ctx->fallback_available = false;
+	}
 
-	ctx->sec_init = 1;
+	crypto_ahash_set_reqsize(__crypto_ahash_cast(tfm),
+			sizeof(struct jh7110_sec_request_ctx));
+
 	ctx->keylen   = 0;
 	ctx->sha_mode = mode;
 	ctx->sha_len_total = 0;
@@ -654,6 +673,9 @@ static void jh7110_hash_cra_exit(struct crypto_tfm *tfm)
 {
 	struct jh7110_sec_ctx *ctx = crypto_tfm_ctx(tfm);
 
+	crypto_free_shash(ctx->fallback);
+
+	ctx->fallback = NULL;
 	ctx->enginectx.op.do_one_request = NULL;
 	ctx->enginectx.op.prepare_request = NULL;
 	ctx->enginectx.op.unprepare_request = NULL;
@@ -890,193 +912,199 @@ static int jh7110_hash_cra_hmac_sm3_init(struct crypto_tfm *tfm)
 }
 
 static struct ahash_alg algs_sha0_sha512_sm3[] = {
-	{
-		.init     = jh7110_hash_init,
-		.update   = jh7110_hash_update,
-		.final    = jh7110_hash_final,
-		.finup    = jh7110_hash_finup,
-		.digest   = jh7110_hash_digest,
-		.export   = jh7110_hash_export,
-		.import   = jh7110_hash_import,
-		.halg = {
-			.digestsize = SHA1_DIGEST_SIZE,
-			.statesize  = sizeof(struct jh7110_sec_request_ctx),
-			.base = {
-				.cra_name			= "sha1",
-				.cra_driver_name	= "jh7110-sha1",
-				.cra_priority		= 200,
-				.cra_flags			= CRYPTO_ALG_ASYNC |
-										CRYPTO_ALG_TYPE_AHASH,
-				.cra_blocksize		= SHA1_BLOCK_SIZE,
-				.cra_ctxsize		= sizeof(struct jh7110_sec_ctx),
-				.cra_alignmask		= 3,
-				.cra_init			= jh7110_hash_cra_sha1_init,
-				.cra_exit			= jh7110_hash_cra_exit,
-				.cra_module			= THIS_MODULE,
-			}
+{
+	.init     = jh7110_hash_init,
+	.update   = jh7110_hash_update,
+	.final    = jh7110_hash_final,
+	.finup    = jh7110_hash_finup,
+	.digest   = jh7110_hash_digest,
+	.export   = jh7110_hash_export,
+	.import   = jh7110_hash_import,
+	.halg = {
+		.digestsize = SHA1_DIGEST_SIZE,
+		.statesize  = sizeof(struct jh7110_sec_request_ctx),
+		.base = {
+			.cra_name		= "sha1",
+			.cra_driver_name	= "jh7110-sha1",
+			.cra_priority		= 200,
+			.cra_flags		= CRYPTO_ALG_ASYNC |
+						  CRYPTO_ALG_TYPE_AHASH |
+						  CRYPTO_ALG_NEED_FALLBACK,
+			.cra_blocksize		= SHA1_BLOCK_SIZE,
+			.cra_ctxsize		= sizeof(struct jh7110_sec_ctx),
+			.cra_alignmask		= 3,
+			.cra_init		= jh7110_hash_cra_sha1_init,
+			.cra_exit		= jh7110_hash_cra_exit,
+			.cra_module		= THIS_MODULE,
 		}
-	},
-	{
-		.init     = jh7110_hash_init,
-		.update   = jh7110_hash_update,
-		.final    = jh7110_hash_final,
-		.finup    = jh7110_hash_finup,
-		.digest   = jh7110_hash_digest,
-		.export   = jh7110_hash_export,
-		.import   = jh7110_hash_import,
-		.setkey   = jh7110_hash1_setkey,
-		.halg = {
-			.digestsize = SHA1_DIGEST_SIZE,
-			.statesize  = sizeof(struct jh7110_sec_request_ctx),
-			.base = {
-				.cra_name			= "hmac(sha1)",
-				.cra_driver_name	= "jh7110-hmac-sha1",
-				.cra_priority		= 200,
-				.cra_flags			= CRYPTO_ALG_ASYNC |
-										CRYPTO_ALG_TYPE_AHASH,
-				.cra_blocksize		= SHA1_BLOCK_SIZE,
-				.cra_ctxsize		= sizeof(struct jh7110_sec_ctx),
-				.cra_alignmask		= 3,
-				.cra_init			= jh7110_hash_cra_hmac_sha1_init,
-				.cra_exit			= jh7110_hash_cra_exit,
-				.cra_module			= THIS_MODULE,
-			}
+	}
+},
+{
+	.init     = jh7110_hash_init,
+	.update   = jh7110_hash_update,
+	.final    = jh7110_hash_final,
+	.finup    = jh7110_hash_finup,
+	.digest   = jh7110_hash_digest,
+	.export   = jh7110_hash_export,
+	.import   = jh7110_hash_import,
+	.setkey   = jh7110_hash1_setkey,
+	.halg = {
+		.digestsize = SHA1_DIGEST_SIZE,
+		.statesize  = sizeof(struct jh7110_sec_request_ctx),
+		.base = {
+			.cra_name		= "hmac(sha1)",
+			.cra_driver_name	= "jh7110-hmac-sha1",
+			.cra_priority		= 200,
+			.cra_flags		= CRYPTO_ALG_ASYNC |
+						  CRYPTO_ALG_TYPE_AHASH |
+						  CRYPTO_ALG_NEED_FALLBACK,
+			.cra_blocksize		= SHA1_BLOCK_SIZE,
+			.cra_ctxsize		= sizeof(struct jh7110_sec_ctx),
+			.cra_alignmask		= 3,
+			.cra_init		= jh7110_hash_cra_hmac_sha1_init,
+			.cra_exit		= jh7110_hash_cra_exit,
+			.cra_module		= THIS_MODULE,
 		}
-	},
-
-	{
-		.init     = jh7110_hash_init,
-		.update   = jh7110_hash_update,
-		.final    = jh7110_hash_final,
-		.finup    = jh7110_hash_finup,
-		.digest   = jh7110_hash_digest,
-		.export   = jh7110_hash_export,
-		.import   = jh7110_hash_import,
-		.halg = {
-			.digestsize = SHA224_DIGEST_SIZE,
-			.statesize  = sizeof(struct jh7110_sec_request_ctx),
-			.base = {
-				.cra_name			= "sha224",
-				.cra_driver_name	= "jh7110-sha224",
-				.cra_priority		= 200,
-				.cra_flags			= CRYPTO_ALG_ASYNC |
-										CRYPTO_ALG_TYPE_AHASH,
-				.cra_blocksize		= SHA224_BLOCK_SIZE,
-				.cra_ctxsize		= sizeof(struct jh7110_sec_ctx),
-				.cra_alignmask		= 3,
-				.cra_init			= jh7110_hash_cra_sha224_init,
-				.cra_exit			= jh7110_hash_cra_exit,
-				.cra_module			= THIS_MODULE,
-			}
+	}
+},
+{
+	.init     = jh7110_hash_init,
+	.update   = jh7110_hash_update,
+	.final    = jh7110_hash_final,
+	.finup    = jh7110_hash_finup,
+	.digest   = jh7110_hash_digest,
+	.export   = jh7110_hash_export,
+	.import   = jh7110_hash_import,
+	.halg = {
+		.digestsize = SHA224_DIGEST_SIZE,
+		.statesize  = sizeof(struct jh7110_sec_request_ctx),
+		.base = {
+			.cra_name		= "sha224",
+			.cra_driver_name	= "jh7110-sha224",
+			.cra_priority		= 200,
+			.cra_flags		= CRYPTO_ALG_ASYNC |
+						  CRYPTO_ALG_TYPE_AHASH |
+						  CRYPTO_ALG_NEED_FALLBACK,
+			.cra_blocksize		= SHA224_BLOCK_SIZE,
+			.cra_ctxsize		= sizeof(struct jh7110_sec_ctx),
+			.cra_alignmask		= 3,
+			.cra_init		= jh7110_hash_cra_sha224_init,
+			.cra_exit		= jh7110_hash_cra_exit,
+			.cra_module		= THIS_MODULE,
 		}
-	},
-	{
-		.init     = jh7110_hash_init,
-		.update   = jh7110_hash_update,
-		.final    = jh7110_hash_final,
-		.finup    = jh7110_hash_finup,
-		.digest   = jh7110_hash_digest,
-		.export   = jh7110_hash_export,
-		.import   = jh7110_hash_import,
-		.setkey   = jh7110_hash224_setkey,
-		.halg = {
-			.digestsize = SHA224_DIGEST_SIZE,
-			.statesize  = sizeof(struct jh7110_sec_request_ctx),
-			.base = {
-				.cra_name			= "hmac(sha224)",
-				.cra_driver_name	= "jh7110-hmac-sha224",
-				.cra_priority		= 200,
-				.cra_flags			= CRYPTO_ALG_ASYNC |
-										CRYPTO_ALG_TYPE_AHASH,
-				.cra_blocksize		= SHA224_BLOCK_SIZE,
-				.cra_ctxsize		= sizeof(struct jh7110_sec_ctx),
-				.cra_alignmask		= 3,
-				.cra_init			= jh7110_hash_cra_hmac_sha224_init,
-				.cra_exit			= jh7110_hash_cra_exit,
-				.cra_module			= THIS_MODULE,
-			}
+	}
+},
+{
+	.init     = jh7110_hash_init,
+	.update   = jh7110_hash_update,
+	.final    = jh7110_hash_final,
+	.finup    = jh7110_hash_finup,
+	.digest   = jh7110_hash_digest,
+	.export   = jh7110_hash_export,
+	.import   = jh7110_hash_import,
+	.setkey   = jh7110_hash224_setkey,
+	.halg = {
+		.digestsize = SHA224_DIGEST_SIZE,
+		.statesize  = sizeof(struct jh7110_sec_request_ctx),
+		.base = {
+			.cra_name		= "hmac(sha224)",
+			.cra_driver_name	= "jh7110-hmac-sha224",
+			.cra_priority		= 200,
+			.cra_flags		= CRYPTO_ALG_ASYNC |
+						  CRYPTO_ALG_TYPE_AHASH |
+						  CRYPTO_ALG_NEED_FALLBACK,
+			.cra_blocksize		= SHA224_BLOCK_SIZE,
+			.cra_ctxsize		= sizeof(struct jh7110_sec_ctx),
+			.cra_alignmask		= 3,
+			.cra_init		= jh7110_hash_cra_hmac_sha224_init,
+			.cra_exit		= jh7110_hash_cra_exit,
+			.cra_module		= THIS_MODULE,
 		}
-	},
-	{
-		.init     = jh7110_hash_init,
-		.update   = jh7110_hash_update,
-		.final    = jh7110_hash_final,
-		.finup    = jh7110_hash_finup,
-		.digest   = jh7110_hash_digest,
-		.export   = jh7110_hash_export,
-		.import   = jh7110_hash_import,
-		.halg = {
-			.digestsize = SHA256_DIGEST_SIZE,
-			.statesize  = sizeof(struct jh7110_sec_request_ctx),
-			.base = {
-				.cra_name			= "sha256",
-				.cra_driver_name	= "jh7110-sha256",
-				.cra_priority		= 200,
-				.cra_flags			= CRYPTO_ALG_ASYNC |
-										CRYPTO_ALG_TYPE_AHASH,
-				.cra_blocksize		= SHA256_BLOCK_SIZE,
-				.cra_ctxsize		= sizeof(struct jh7110_sec_ctx),
-				.cra_alignmask		= 3,
-				.cra_init			= jh7110_hash_cra_sha256_init,
-				.cra_exit			= jh7110_hash_cra_exit,
-				.cra_module			= THIS_MODULE,
-			}
+	}
+},
+{
+	.init     = jh7110_hash_init,
+	.update   = jh7110_hash_update,
+	.final    = jh7110_hash_final,
+	.finup    = jh7110_hash_finup,
+	.digest   = jh7110_hash_digest,
+	.export   = jh7110_hash_export,
+	.import   = jh7110_hash_import,
+	.halg = {
+		.digestsize = SHA256_DIGEST_SIZE,
+		.statesize  = sizeof(struct jh7110_sec_request_ctx),
+		.base = {
+			.cra_name		= "sha256",
+			.cra_driver_name	= "jh7110-sha256",
+			.cra_priority		= 200,
+			.cra_flags		= CRYPTO_ALG_ASYNC |
+						  CRYPTO_ALG_TYPE_AHASH |
+						  CRYPTO_ALG_NEED_FALLBACK,
+			.cra_blocksize		= SHA256_BLOCK_SIZE,
+			.cra_ctxsize		= sizeof(struct jh7110_sec_ctx),
+			.cra_alignmask		= 3,
+			.cra_init		= jh7110_hash_cra_sha256_init,
+			.cra_exit		= jh7110_hash_cra_exit,
+			.cra_module		= THIS_MODULE,
 		}
-	},
-	{
-		.init     = jh7110_hash_init,
-		.update   = jh7110_hash_update,
-		.final    = jh7110_hash_final,
-		.finup    = jh7110_hash_finup,
-		.digest   = jh7110_hash_digest,
-		.export   = jh7110_hash_export,
-		.import   = jh7110_hash_import,
-		.setkey   = jh7110_hash256_setkey,
-		.halg = {
-			.digestsize = SHA256_DIGEST_SIZE,
-			.statesize  = sizeof(struct jh7110_sec_request_ctx),
-			.base = {
-				.cra_name			= "hmac(sha256)",
-				.cra_driver_name	= "jh7110-hmac-sha256",
-				.cra_priority		= 200,
-				.cra_flags			= CRYPTO_ALG_ASYNC |
-										CRYPTO_ALG_TYPE_AHASH,
-				.cra_blocksize		= SHA256_BLOCK_SIZE,
-				.cra_ctxsize		= sizeof(struct jh7110_sec_ctx),
-				.cra_alignmask		= 3,
-				.cra_init			= jh7110_hash_cra_hmac_sha256_init,
-				.cra_exit			= jh7110_hash_cra_exit,
-				.cra_module			= THIS_MODULE,
-			}
+	}
+},
+{
+	.init     = jh7110_hash_init,
+	.update   = jh7110_hash_update,
+	.final    = jh7110_hash_final,
+	.finup    = jh7110_hash_finup,
+	.digest   = jh7110_hash_digest,
+	.export   = jh7110_hash_export,
+	.import   = jh7110_hash_import,
+	.setkey   = jh7110_hash256_setkey,
+	.halg = {
+		.digestsize = SHA256_DIGEST_SIZE,
+		.statesize  = sizeof(struct jh7110_sec_request_ctx),
+		.base = {
+			.cra_name		= "hmac(sha256)",
+			.cra_driver_name	= "jh7110-hmac-sha256",
+			.cra_priority		= 200,
+			.cra_flags		= CRYPTO_ALG_ASYNC |
+						  CRYPTO_ALG_TYPE_AHASH |
+						  CRYPTO_ALG_NEED_FALLBACK,
+			.cra_blocksize		= SHA256_BLOCK_SIZE,
+			.cra_ctxsize		= sizeof(struct jh7110_sec_ctx),
+			.cra_alignmask		= 3,
+			.cra_init		= jh7110_hash_cra_hmac_sha256_init,
+			.cra_exit		= jh7110_hash_cra_exit,
+			.cra_module		= THIS_MODULE,
 		}
-	},
-	{
-		.init     = jh7110_hash_init,
-		.update   = jh7110_hash_update,
-		.final    = jh7110_hash_final,
-		.finup    = jh7110_hash_finup,
-		.digest   = jh7110_hash_digest,
-		.export   = jh7110_hash_export,
-		.import   = jh7110_hash_import,
-		.halg = {
-			.digestsize = SHA384_DIGEST_SIZE,
-			.statesize  = sizeof(struct jh7110_sec_request_ctx),
-			.base = {
-				.cra_name			= "sha384",
-				.cra_driver_name	= "jh7110-sha384",
-				.cra_priority		= 200,
-				.cra_flags			= CRYPTO_ALG_ASYNC |
-										CRYPTO_ALG_TYPE_AHASH,
-				.cra_blocksize		= SHA384_BLOCK_SIZE,
-				.cra_ctxsize		= sizeof(struct jh7110_sec_ctx),
-				.cra_alignmask		= 3,
-				.cra_init			= jh7110_hash_cra_sha384_init,
-				.cra_exit			= jh7110_hash_cra_exit,
-				.cra_module			= THIS_MODULE,
-			}
+	}
+},
+{
+	.init     = jh7110_hash_init,
+	.update   = jh7110_hash_update,
+	.final    = jh7110_hash_final,
+	.finup    = jh7110_hash_finup,
+	.digest   = jh7110_hash_digest,
+	.export   = jh7110_hash_export,
+	.import   = jh7110_hash_import,
+	.halg = {
+		.digestsize = SHA384_DIGEST_SIZE,
+		.statesize  = sizeof(struct jh7110_sec_request_ctx),
+		.base = {
+			.cra_name		= "sha384",
+			.cra_driver_name	= "jh7110-sha384",
+			.cra_priority		= 200,
+			.cra_flags		= CRYPTO_ALG_ASYNC |
+						  CRYPTO_ALG_TYPE_AHASH |
+						  CRYPTO_ALG_NEED_FALLBACK,
+			.cra_blocksize		= SHA384_BLOCK_SIZE,
+			.cra_ctxsize		= sizeof(struct jh7110_sec_ctx),
+			.cra_alignmask		= 3,
+			.cra_init		= jh7110_hash_cra_sha384_init,
+			.cra_exit		= jh7110_hash_cra_exit,
+			.cra_module		= THIS_MODULE,
 		}
-	},
-	{
+	}
+},
+{
 		.init     = jh7110_hash_init,
 		.update   = jh7110_hash_update,
 		.final    = jh7110_hash_final,
@@ -1092,123 +1120,127 @@ static struct ahash_alg algs_sha0_sha512_sm3[] = {
 				.cra_name			= "hmac(sha384)",
 				.cra_driver_name	= "jh7110-hmac-sha384",
 				.cra_priority		= 200,
-				.cra_flags			= CRYPTO_ALG_ASYNC |
-										CRYPTO_ALG_TYPE_AHASH,
+				.cra_flags		= CRYPTO_ALG_ASYNC |
+							  CRYPTO_ALG_TYPE_AHASH |
+							  CRYPTO_ALG_NEED_FALLBACK,
 				.cra_blocksize		= SHA384_BLOCK_SIZE,
 				.cra_ctxsize		= sizeof(struct jh7110_sec_ctx),
 				.cra_alignmask		= 3,
-				.cra_init			= jh7110_hash_cra_hmac_sha384_init,
-				.cra_exit			= jh7110_hash_cra_exit,
-				.cra_module			= THIS_MODULE,
+				.cra_init		= jh7110_hash_cra_hmac_sha384_init,
+				.cra_exit		= jh7110_hash_cra_exit,
+				.cra_module		= THIS_MODULE,
 			}
 		}
-	},
-	{
-		.init     = jh7110_hash_init,
-		.update   = jh7110_hash_update,
-		.final    = jh7110_hash_final,
-		.finup    = jh7110_hash_finup,
-		.digest   = jh7110_hash_digest,
-		.export   = jh7110_hash_export,
-		.import   = jh7110_hash_import,
-		.halg = {
-			.digestsize = SHA512_DIGEST_SIZE,
-			.statesize  = sizeof(struct jh7110_sec_request_ctx),
-			.base = {
-				.cra_name			= "sha512",
-				.cra_driver_name	= "jh7110-sha512",
-				.cra_priority		= 200,
-				.cra_flags			= CRYPTO_ALG_ASYNC |
-										CRYPTO_ALG_TYPE_AHASH,
-				.cra_blocksize		= SHA512_BLOCK_SIZE,
-				.cra_ctxsize		= sizeof(struct jh7110_sec_ctx),
-				.cra_alignmask		= 3,
-				.cra_init			= jh7110_hash_cra_sha512_init,
-				.cra_exit			= jh7110_hash_cra_exit,
-				.cra_module			= THIS_MODULE,
-			}
+},
+{
+	.init     = jh7110_hash_init,
+	.update   = jh7110_hash_update,
+	.final    = jh7110_hash_final,
+	.finup    = jh7110_hash_finup,
+	.digest   = jh7110_hash_digest,
+	.export   = jh7110_hash_export,
+	.import   = jh7110_hash_import,
+	.halg = {
+		.digestsize = SHA512_DIGEST_SIZE,
+		.statesize  = sizeof(struct jh7110_sec_request_ctx),
+		.base = {
+			.cra_name			= "sha512",
+			.cra_driver_name	= "jh7110-sha512",
+			.cra_priority		= 200,
+			.cra_flags			= CRYPTO_ALG_ASYNC |
+				CRYPTO_ALG_TYPE_AHASH,
+			.cra_blocksize		= SHA512_BLOCK_SIZE,
+			.cra_ctxsize		= sizeof(struct jh7110_sec_ctx),
+			.cra_alignmask		= 3,
+			.cra_init			= jh7110_hash_cra_sha512_init,
+			.cra_exit			= jh7110_hash_cra_exit,
+			.cra_module			= THIS_MODULE,
 		}
-	},
-	{
-		.init     = jh7110_hash_init,
-		.update   = jh7110_hash_update,
-		.final    = jh7110_hash_final,
-		.finup    = jh7110_hash_finup,
-		.digest   = jh7110_hash_digest,
-		.setkey   = jh7110_hash512_setkey,
-		.export   = jh7110_hash_export,
-		.import   = jh7110_hash_import,
-		.halg = {
-			.digestsize = SHA512_DIGEST_SIZE,
-			.statesize  = sizeof(struct jh7110_sec_request_ctx),
-			.base = {
-				.cra_name			= "hmac(sha512)",
-				.cra_driver_name	= "jh7110-hmac-sha512",
-				.cra_priority		= 200,
-				.cra_flags			= CRYPTO_ALG_ASYNC |
-										CRYPTO_ALG_TYPE_AHASH,
-				.cra_blocksize		= SHA512_BLOCK_SIZE,
-				.cra_ctxsize		= sizeof(struct jh7110_sec_ctx),
-				.cra_alignmask		= 3,
-				.cra_init			= jh7110_hash_cra_hmac_sha512_init,
-				.cra_exit			= jh7110_hash_cra_exit,
-				.cra_module			= THIS_MODULE,
-			}
+	}
+},
+{
+	.init     = jh7110_hash_init,
+	.update   = jh7110_hash_update,
+	.final    = jh7110_hash_final,
+	.finup    = jh7110_hash_finup,
+	.digest   = jh7110_hash_digest,
+	.setkey   = jh7110_hash512_setkey,
+	.export   = jh7110_hash_export,
+	.import   = jh7110_hash_import,
+	.halg = {
+		.digestsize = SHA512_DIGEST_SIZE,
+		.statesize  = sizeof(struct jh7110_sec_request_ctx),
+		.base = {
+			.cra_name		= "hmac(sha512)",
+			.cra_driver_name	= "jh7110-hmac-sha512",
+			.cra_priority		= 200,
+			.cra_flags		= CRYPTO_ALG_ASYNC |
+						  CRYPTO_ALG_TYPE_AHASH |
+						  CRYPTO_ALG_NEED_FALLBACK,
+			.cra_blocksize		= SHA512_BLOCK_SIZE,
+			.cra_ctxsize		= sizeof(struct jh7110_sec_ctx),
+			.cra_alignmask		= 3,
+			.cra_init		= jh7110_hash_cra_hmac_sha512_init,
+			.cra_exit		= jh7110_hash_cra_exit,
+			.cra_module		= THIS_MODULE,
 		}
-	},
-	{
-		.init     = jh7110_hash_init,
-		.update   = jh7110_hash_update,
-		.final    = jh7110_hash_final,
-		.finup    = jh7110_hash_finup,
-		.digest   = jh7110_hash_digest,
-		.export   = jh7110_hash_export,
-		.import   = jh7110_hash_import,
-		.halg = {
-			.digestsize = SM3_DIGEST_SIZE,
-			.statesize  = sizeof(struct jh7110_sec_request_ctx),
-			.base = {
-				.cra_name			= "sm3",
-				.cra_driver_name	= "jh7110-sm3",
-				.cra_priority		= 200,
-				.cra_flags			= CRYPTO_ALG_ASYNC |
-										CRYPTO_ALG_TYPE_AHASH,
-				.cra_blocksize		= SM3_BLOCK_SIZE,
-				.cra_ctxsize		= sizeof(struct jh7110_sec_ctx),
-				.cra_alignmask		= 3,
-				.cra_init			= jh7110_hash_cra_sm3_init,
-				.cra_exit			= jh7110_hash_cra_exit,
-				.cra_module			= THIS_MODULE,
-			}
+	}
+},
+{
+	.init     = jh7110_hash_init,
+	.update   = jh7110_hash_update,
+	.final    = jh7110_hash_final,
+	.finup    = jh7110_hash_finup,
+	.digest   = jh7110_hash_digest,
+	.export   = jh7110_hash_export,
+	.import   = jh7110_hash_import,
+	.halg = {
+		.digestsize = SM3_DIGEST_SIZE,
+		.statesize  = sizeof(struct jh7110_sec_request_ctx),
+		.base = {
+			.cra_name		= "sm3",
+			.cra_driver_name	= "jh7110-sm3",
+			.cra_priority		= 200,
+			.cra_flags		= CRYPTO_ALG_ASYNC |
+						  CRYPTO_ALG_TYPE_AHASH |
+						  CRYPTO_ALG_NEED_FALLBACK,
+			.cra_blocksize		= SM3_BLOCK_SIZE,
+			.cra_ctxsize		= sizeof(struct jh7110_sec_ctx),
+			.cra_alignmask		= 3,
+			.cra_init		= jh7110_hash_cra_sm3_init,
+			.cra_exit		= jh7110_hash_cra_exit,
+			.cra_module		= THIS_MODULE,
 		}
-	},
-	{
-		.init		= jh7110_hash_init,
-		.update		= jh7110_hash_update,
-		.final		= jh7110_hash_final,
-		.finup		= jh7110_hash_finup,
-		.digest		= jh7110_hash_digest,
-		.setkey		= jh7110_sm3_setkey,
-		.export		= jh7110_hash_export,
-		.import		= jh7110_hash_import,
-		.halg = {
-			.digestsize = SM3_DIGEST_SIZE,
-			.statesize  = sizeof(struct jh7110_sec_request_ctx),
-			.base = {
-				.cra_name			= "hmac(sm3)",
-				.cra_driver_name	= "jh7110-hmac-sm3",
-				.cra_priority		= 200,
-				.cra_flags			= CRYPTO_ALG_ASYNC |
-										CRYPTO_ALG_TYPE_AHASH,
-				.cra_blocksize		= SM3_BLOCK_SIZE,
-				.cra_ctxsize		= sizeof(struct jh7110_sec_ctx),
-				.cra_alignmask		= 3,
-				.cra_init			= jh7110_hash_cra_hmac_sm3_init,
-				.cra_exit			= jh7110_hash_cra_exit,
-				.cra_module			= THIS_MODULE,
-			}
+	}
+},
+{
+	.init		= jh7110_hash_init,
+	.update		= jh7110_hash_update,
+	.final		= jh7110_hash_final,
+	.finup		= jh7110_hash_finup,
+	.digest		= jh7110_hash_digest,
+	.setkey		= jh7110_sm3_setkey,
+	.export		= jh7110_hash_export,
+	.import		= jh7110_hash_import,
+	.halg = {
+		.digestsize = SM3_DIGEST_SIZE,
+		.statesize  = sizeof(struct jh7110_sec_request_ctx),
+		.base = {
+			.cra_name		= "hmac(sm3)",
+			.cra_driver_name	= "jh7110-hmac-sm3",
+			.cra_priority		= 200,
+			.cra_flags		= CRYPTO_ALG_ASYNC |
+						  CRYPTO_ALG_TYPE_AHASH |
+						  CRYPTO_ALG_NEED_FALLBACK,
+			.cra_blocksize		= SM3_BLOCK_SIZE,
+			.cra_ctxsize		= sizeof(struct jh7110_sec_ctx),
+			.cra_alignmask		= 3,
+			.cra_init		= jh7110_hash_cra_hmac_sm3_init,
+			.cra_exit		= jh7110_hash_cra_exit,
+			.cra_module		= THIS_MODULE,
 		}
-	},
+	}
+},
 };
 
 int jh7110_hash_register_algs(void)
