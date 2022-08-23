@@ -71,6 +71,8 @@ struct sditf_priv {
 	int num_sensors;
 	int combine_index;
 	bool is_combine_mode;
+	atomic_t power_cnt;
+	atomic_t stream_cnt;
 };
 
 extern struct platform_driver rkcif_subdev_driver;

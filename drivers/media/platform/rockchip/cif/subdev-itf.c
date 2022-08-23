@@ -548,6 +548,12 @@ static int sditf_s_stream(struct v4l2_subdev *sd, int on)
 	struct rkcif_device *cif_dev = priv->cif_dev;
 	int ret = 0;
 
+	if (!on && atomic_dec_return(&priv->stream_cnt))
+		return 0;
+
+	if (on && atomic_inc_return(&priv->stream_cnt) > 1)
+		return 0;
+
 	if (cif_dev->chip_id >= CHIP_RK3588_CIF) {
 		if (priv->mode.rdbk_mode == RKISP_VICAP_RDBK_AIQ)
 			return 0;
@@ -570,6 +576,12 @@ static int sditf_s_power(struct v4l2_subdev *sd, int on)
 	struct sditf_priv *priv = to_sditf_priv(sd);
 	struct rkcif_device *cif_dev = priv->cif_dev;
 	int ret = 0;
+
+	if (!on && atomic_dec_return(&priv->power_cnt))
+		return 0;
+
+	if (on && atomic_inc_return(&priv->power_cnt) > 1)
+		return 0;
 
 	if (cif_dev->chip_id >= CHIP_RK3588_CIF) {
 		v4l2_dbg(3, rkcif_debug, &cif_dev->v4l2_dev,
@@ -981,6 +993,8 @@ static int rkcif_subdev_media_init(struct sditf_priv *priv)
 	priv->toisp_inf.ch_info[2].is_valid = false;
 	if (priv->is_combine_mode)
 		sditf_subdev_notifier(priv);
+	atomic_set(&priv->power_cnt, 0);
+	atomic_set(&priv->stream_cnt, 0);
 	return 0;
 }
 
