@@ -893,10 +893,8 @@ mlxreg_lc_config_init_fail:
 regcache_sync_fail:
 regmap_write_fail:
 devm_regmap_init_i2c_fail:
-	if (data->hpdev.client) {
-		i2c_unregister_device(data->hpdev.client);
-		data->hpdev.client = NULL;
-	}
+	i2c_unregister_device(data->hpdev.client);
+	data->hpdev.client = NULL;
 i2c_new_device_fail:
 	i2c_put_adapter(data->hpdev.adapter);
 	data->hpdev.adapter = NULL;
