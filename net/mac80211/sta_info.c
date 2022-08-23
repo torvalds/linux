@@ -494,7 +494,7 @@ __sta_info_alloc(struct ieee80211_sub_if_data *sdata,
 	sta->sdata = sdata;
 
 	if (sta_info_alloc_link(local, &sta->deflink, gfp))
-		return NULL;
+		goto free;
 
 	if (link_id >= 0) {
 		sta_info_add_link(sta, link_id, &sta->deflink,
