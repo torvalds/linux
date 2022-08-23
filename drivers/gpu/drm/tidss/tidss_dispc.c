@@ -2686,6 +2686,8 @@ int dispc_init(struct tidss_device *tidss)
 			dev_warn(dev, "cannot set DMA masks to 48-bit\n");
 	}
 
+	dma_set_max_seg_size(dev, UINT_MAX);
+
 	dispc = devm_kzalloc(dev, sizeof(*dispc), GFP_KERNEL);
 	if (!dispc)
 		return -ENOMEM;
