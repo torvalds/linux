@@ -4340,7 +4340,6 @@ static unsigned int ata_dev_set_xfermode(struct ata_device *dev)
 unsigned int ata_dev_set_feature(struct ata_device *dev, u8 subcmd, u8 action)
 {
 	struct ata_taskfile tf;
-	unsigned int err_mask;
 	unsigned int timeout = 0;
 
 	/* set up set-features taskfile */
@@ -4356,9 +4355,8 @@ unsigned int ata_dev_set_feature(struct ata_device *dev, u8 subcmd, u8 action)
 	if (subcmd == SETFEATURES_SPINUP)
 		timeout = ata_probe_timeout ?
 			  ata_probe_timeout * 1000 : SETFEATURES_SPINUP_TIMEOUT;
-	err_mask = ata_exec_internal(dev, &tf, NULL, DMA_NONE, NULL, 0, timeout);
 
-	return err_mask;
+	return ata_exec_internal(dev, &tf, NULL, DMA_NONE, NULL, 0, timeout);
 }
 EXPORT_SYMBOL_GPL(ata_dev_set_feature);
 
