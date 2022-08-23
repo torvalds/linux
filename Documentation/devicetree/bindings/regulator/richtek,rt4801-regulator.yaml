@@ -42,6 +42,7 @@ patternProperties:
   "^DSV(P|N)$":
     type: object
     $ref: regulator.yaml#
+    unevaluatedProperties: false
     description:
       Properties for single display bias regulator.
 

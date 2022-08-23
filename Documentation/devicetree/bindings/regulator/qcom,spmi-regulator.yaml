@@ -35,6 +35,7 @@ patternProperties:
     description: List of regulators and its properties
     type: object
     $ref: regulator.yaml#
+    unevaluatedProperties: false
 
     properties:
       qcom,ocp-max-retries:
