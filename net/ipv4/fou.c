@@ -323,12 +323,9 @@ static struct sk_buff *gue_gro_receive(struct sock *sk,
 	off = skb_gro_offset(skb);
 	len = off + sizeof(*guehdr);
 
-	guehdr = skb_gro_header_fast(skb, off);
-	if (skb_gro_header_hard(skb, len)) {
-		guehdr = skb_gro_header_slow(skb, len, off);
-		if (unlikely(!guehdr))
-			goto out;
-	}
+	guehdr = skb_gro_header(skb, len, off);
+	if (unlikely(!guehdr))
+		goto out;
 
 	switch (guehdr->version) {
 	case 0:

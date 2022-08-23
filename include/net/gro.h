@@ -160,6 +160,17 @@ static inline void *skb_gro_header_slow(struct sk_buff *skb, unsigned int hlen,
 	return skb->data + offset;
 }
 
+static inline void *skb_gro_header(struct sk_buff *skb,
+					unsigned int hlen, unsigned int offset)
+{
+	void *ptr;
+
+	ptr = skb_gro_header_fast(skb, offset);
+	if (skb_gro_header_hard(skb, hlen))
+		ptr = skb_gro_header_slow(skb, hlen, offset);
+	return ptr;
+}
+
 static inline void *skb_gro_network_header(struct sk_buff *skb)
 {
 	return (NAPI_GRO_CB(skb)->frag0 ?: skb->data) +
@@ -301,12 +312,9 @@ static inline void *skb_gro_remcsum_process(struct sk_buff *skb, void *ptr,
 		return ptr;
 	}
 
-	ptr = skb_gro_header_fast(skb, off);
-	if (skb_gro_header_hard(skb, off + plen)) {
-		ptr = skb_gro_header_slow(skb, off + plen, off);
-		if (!ptr)
-			return NULL;
-	}
+	ptr = skb_gro_header(skb, off + plen, off);
+	if (!ptr)
+		return NULL;
 
 	delta = remcsum_adjust(ptr + hdrlen, NAPI_GRO_CB(skb)->csum,
 			       start, offset);
@@ -329,12 +337,9 @@ static inline void skb_gro_remcsum_cleanup(struct sk_buff *skb,
 	if (!grc->delta)
 		return;
 
-	ptr = skb_gro_header_fast(skb, grc->offset);
-	if (skb_gro_header_hard(skb, grc->offset + sizeof(u16))) {
-		ptr = skb_gro_header_slow(skb, plen, grc->offset);
-		if (!ptr)
-			return;
-	}
+	ptr = skb_gro_header(skb, plen, grc->offset);
+	if (!ptr)
+		return;
 
 	remcsum_unadjust((__sum16 *)ptr, grc->delta);
 }
@@ -405,9 +410,7 @@ static inline struct udphdr *udp_gro_udphdr(struct sk_buff *skb)
 
 	off  = skb_gro_offset(skb);
 	hlen = off + sizeof(*uh);
-	uh   = skb_gro_header_fast(skb, off);
-	if (skb_gro_header_hard(skb, hlen))
-		uh = skb_gro_header_slow(skb, hlen, off);
+	uh   = skb_gro_header(skb, hlen, off);
 
 	return uh;
 }

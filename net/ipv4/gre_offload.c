@@ -137,12 +137,9 @@ static struct sk_buff *gre_gro_receive(struct list_head *head,
 
 	off = skb_gro_offset(skb);
 	hlen = off + sizeof(*greh);
-	greh = skb_gro_header_fast(skb, off);
-	if (skb_gro_header_hard(skb, hlen)) {
-		greh = skb_gro_header_slow(skb, hlen, off);
-		if (unlikely(!greh))
-			goto out;
-	}
+	greh = skb_gro_header(skb, hlen, off);
+	if (unlikely(!greh))
+		goto out;
 
 	/* Only support version 0 and K (key), C (csum) flags. Note that
 	 * although the support for the S (seq#) flag can be added easily
