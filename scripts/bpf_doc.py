@@ -10,6 +10,8 @@ from __future__ import print_function
 import argparse
 import re
 import sys, os
+import subprocess
+
 
 class NoHelperFound(BaseException):
     pass
@@ -357,6 +359,20 @@ class PrinterRST(Printer):
 
         print('')
 
+    def get_kernel_version(self):
+        try:
+            version = subprocess.run(['git', 'describe'], cwd=linuxRoot,
+                                     capture_output=True, check=True)
+            version = version.stdout.decode().rstrip()
+        except:
+            try:
+                version = subprocess.run(['make', 'kernelversion'], cwd=linuxRoot,
+                                         capture_output=True, check=True)
+                version = version.stdout.decode().rstrip()
+            except:
+                return 'Linux'
+        return 'Linux {version}'.format(version=version)
+
 class PrinterHelpersRST(PrinterRST):
     """
     A printer for dumping collected information about helpers as a ReStructured
@@ -378,6 +394,7 @@ list of eBPF helper functions
 -------------------------------------------------------------------------------
 
 :Manual section: 7
+:Version: {version}
 
 DESCRIPTION
 ===========
@@ -410,8 +427,10 @@ kernel at the top).
 HELPERS
 =======
 '''
+        kernelVersion = self.get_kernel_version()
+
         PrinterRST.print_license(self)
-        print(header)
+        print(header.format(version=kernelVersion))
 
     def print_footer(self):
         footer = '''
