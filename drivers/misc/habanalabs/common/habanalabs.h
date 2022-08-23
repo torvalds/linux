@@ -678,6 +678,7 @@ struct hl_hints_range {
  * @set_max_power_on_device_init: true if need to set max power in F/W on device init.
  * @supports_user_set_page_size: true if user can set the allocation page size.
  * @dma_mask: the dma mask to be set for this device
+ * @supports_advanced_cpucp_rc: true if new cpucp opcodes are supported.
  */
 struct asic_fixed_properties {
 	struct hw_queue_properties	*hw_queues_props;
@@ -785,6 +786,7 @@ struct asic_fixed_properties {
 	u8				set_max_power_on_device_init;
 	u8				supports_user_set_page_size;
 	u8				dma_mask;
+	u8				supports_advanced_cpucp_rc;
 };
 
 /**

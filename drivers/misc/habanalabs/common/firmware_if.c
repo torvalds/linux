@@ -252,7 +252,7 @@ int hl_fw_send_cpu_message(struct hl_device *hdev, u32 hw_queue_id, u32 *msg,
 	struct cpucp_packet *pkt;
 	dma_addr_t pkt_dma_addr;
 	struct hl_bd *sent_bd;
-	u32 tmp, expected_ack_val, pi;
+	u32 tmp, expected_ack_val, pi, opcode;
 	int rc;
 
 	pkt = hl_cpu_accessible_dma_pool_alloc(hdev, len, &pkt_dma_addr);
@@ -319,8 +319,35 @@ int hl_fw_send_cpu_message(struct hl_device *hdev, u32 hw_queue_id, u32 *msg,
 
 	rc = (tmp & CPUCP_PKT_CTL_RC_MASK) >> CPUCP_PKT_CTL_RC_SHIFT;
 	if (rc) {
-		dev_dbg(hdev->dev, "F/W ERROR %d for CPU packet %d\n",
-			rc, (tmp & CPUCP_PKT_CTL_OPCODE_MASK) >> CPUCP_PKT_CTL_OPCODE_SHIFT);
+		opcode = (tmp & CPUCP_PKT_CTL_OPCODE_MASK) >> CPUCP_PKT_CTL_OPCODE_SHIFT;
+
+		if (!prop->supports_advanced_cpucp_rc) {
+			dev_dbg(hdev->dev, "F/W ERROR %d for CPU packet %d\n", rc, opcode);
+			goto scrub_descriptor;
+		}
+
+		switch (rc) {
+		case cpucp_packet_invalid:
+			dev_err(hdev->dev,
+				"CPU packet %d is not supported by F/W\n", opcode);
+			break;
+		case cpucp_packet_fault:
+			dev_err(hdev->dev,
+				"F/W failed processing CPU packet %d\n", opcode);
+			break;
+		case cpucp_packet_invalid_pkt:
+			dev_dbg(hdev->dev,
+				"CPU packet %d is not supported by F/W\n", opcode);
+			break;
+		case cpucp_packet_invalid_params:
+			dev_err(hdev->dev,
+				"F/W reports invalid parameters for CPU packet %d\n", opcode);
+			break;
+
+		default:
+			dev_err(hdev->dev,
+				"Unknown F/W ERROR %d for CPU packet %d\n", rc, opcode);
+		}
 
 		/* propagate the return code from the f/w to the callers who want to check it */
 		if (result)
@@ -332,6 +359,7 @@ int hl_fw_send_cpu_message(struct hl_device *hdev, u32 hw_queue_id, u32 *msg,
 		*result = le64_to_cpu(pkt->result);
 	}
 
+scrub_descriptor:
 	/* Scrub previous buffer descriptor 'ctl' field which contains the
 	 * previous PI value written during packet submission.
 	 * We must do this or else F/W can read an old value upon queue wraparound.

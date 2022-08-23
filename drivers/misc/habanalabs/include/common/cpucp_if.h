@@ -824,10 +824,25 @@ enum cpucp_led_index {
 	CPUCP_LED2_INDEX
 };
 
+/*
+ * enum cpucp_packet_rc - Error return code
+ * @cpucp_packet_success	-> in case of success.
+ * @cpucp_packet_invalid	-> this is to support Goya and Gaudi platform.
+ * @cpucp_packet_fault		-> in case of processing error like failing to
+ *                                 get device binding or semaphore etc.
+ * @cpucp_packet_invalid_pkt	-> when cpucp packet is un-supported. This is
+ *                                 supported Greco onwards.
+ * @cpucp_packet_invalid_params	-> when checking parameter like length of buffer
+ *				   or attribute value etc. Supported Greco onwards.
+ * @cpucp_packet_rc_max		-> It indicates size of enum so should be at last.
+ */
 enum cpucp_packet_rc {
 	cpucp_packet_success,
 	cpucp_packet_invalid,
-	cpucp_packet_fault
+	cpucp_packet_fault,
+	cpucp_packet_invalid_pkt,
+	cpucp_packet_invalid_params,
+	cpucp_packet_rc_max
 };
 
 /*
