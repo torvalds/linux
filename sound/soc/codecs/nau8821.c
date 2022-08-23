@@ -670,28 +670,40 @@ static const struct snd_soc_dapm_route nau8821_dapm_routes[] = {
 	{"HPOR", NULL, "Class G"},
 };
 
-static int nau8821_clock_check(struct nau8821 *nau8821,
-	int stream, int rate, int osr)
+static const struct nau8821_osr_attr *
+nau8821_get_osr(struct nau8821 *nau8821, int stream)
 {
-	int osrate = 0;
+	unsigned int osr;
 
 	if (stream == SNDRV_PCM_STREAM_PLAYBACK) {
+		regmap_read(nau8821->regmap, NAU8821_R2C_DAC_CTRL1, &osr);
+		osr &= NAU8821_DAC_OVERSAMPLE_MASK;
 		if (osr >= ARRAY_SIZE(osr_dac_sel))
-			return -EINVAL;
-		osrate = osr_dac_sel[osr].osr;
+			return NULL;
+		return &osr_dac_sel[osr];
 	} else {
+		regmap_read(nau8821->regmap, NAU8821_R2B_ADC_RATE, &osr);
+		osr &= NAU8821_ADC_SYNC_DOWN_MASK;
 		if (osr >= ARRAY_SIZE(osr_adc_sel))
-			return -EINVAL;
-		osrate = osr_adc_sel[osr].osr;
+			return NULL;
+		return &osr_adc_sel[osr];
 	}
+}
 
-	if (!osrate || rate * osrate > CLK_DA_AD_MAX) {
-		dev_err(nau8821->dev,
-			"exceed the maximum frequency of CLK_ADC or CLK_DAC");
+static int nau8821_dai_startup(struct snd_pcm_substream *substream,
+			       struct snd_soc_dai *dai)
+{
+	struct snd_soc_component *component = dai->component;
+	struct nau8821 *nau8821 = snd_soc_component_get_drvdata(component);
+	const struct nau8821_osr_attr *osr;
+
+	osr = nau8821_get_osr(nau8821, substream->stream);
+	if (!osr || !osr->osr)
 		return -EINVAL;
-	}
 
-	return 0;
+	return snd_pcm_hw_constraint_minmax(substream->runtime,
+					    SNDRV_PCM_HW_PARAM_RATE,
+					    0, CLK_DA_AD_MAX / osr->osr);
 }
 
 static int nau8821_hw_params(struct snd_pcm_substream *substream,
@@ -699,7 +711,8 @@ static int nau8821_hw_params(struct snd_pcm_substream *substream,
 {
 	struct snd_soc_component *component = dai->component;
 	struct nau8821 *nau8821 = snd_soc_component_get_drvdata(component);
-	unsigned int val_len = 0, osr, ctrl_val, bclk_fs, clk_div;
+	unsigned int val_len = 0, ctrl_val, bclk_fs, clk_div;
+	const struct nau8821_osr_attr *osr;
 
 	nau8821->fs = params_rate(params);
 	/* CLK_DAC or CLK_ADC = OSR * FS
@@ -708,27 +721,19 @@ static int nau8821_hw_params(struct snd_pcm_substream *substream,
 	 * values must be selected such that the maximum frequency is less
 	 * than 6.144 MHz.
 	 */
-	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
-		regmap_read(nau8821->regmap, NAU8821_R2C_DAC_CTRL1, &osr);
-		osr &= NAU8821_DAC_OVERSAMPLE_MASK;
-		if (nau8821_clock_check(nau8821, substream->stream,
-			nau8821->fs, osr)) {
-			return -EINVAL;
-		}
+	osr = nau8821_get_osr(nau8821, substream->stream);
+	if (!osr || !osr->osr)
+		return -EINVAL;
+	if (nau8821->fs * osr->osr > CLK_DA_AD_MAX)
+		return -EINVAL;
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
 		regmap_update_bits(nau8821->regmap, NAU8821_R03_CLK_DIVIDER,
 			NAU8821_CLK_DAC_SRC_MASK,
-			osr_dac_sel[osr].clk_src << NAU8821_CLK_DAC_SRC_SFT);
-	} else {
-		regmap_read(nau8821->regmap, NAU8821_R2B_ADC_RATE, &osr);
-		osr &= NAU8821_ADC_SYNC_DOWN_MASK;
-		if (nau8821_clock_check(nau8821, substream->stream,
-			nau8821->fs, osr)) {
-			return -EINVAL;
-		}
+			osr->clk_src << NAU8821_CLK_DAC_SRC_SFT);
+	else
 		regmap_update_bits(nau8821->regmap, NAU8821_R03_CLK_DIVIDER,
 			NAU8821_CLK_ADC_SRC_MASK,
-			osr_adc_sel[osr].clk_src << NAU8821_CLK_ADC_SRC_SFT);
-	}
+			osr->clk_src << NAU8821_CLK_ADC_SRC_SFT);
 
 	/* make BCLK and LRC divde configuration if the codec as master. */
 	regmap_read(nau8821->regmap, NAU8821_R1D_I2S_PCM_CTRL2, &ctrl_val);
@@ -843,6 +848,7 @@ static int nau8821_digital_mute(struct snd_soc_dai *dai, int mute,
 }
 
 static const struct snd_soc_dai_ops nau8821_dai_ops = {
+	.startup = nau8821_dai_startup,
 	.hw_params = nau8821_hw_params,
 	.set_fmt = nau8821_set_dai_fmt,
 	.mute_stream = nau8821_digital_mute,
