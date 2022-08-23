@@ -30,7 +30,6 @@
  * SOFTWARE.
  */
 
-#include <rdma/ib_umem.h>
 #include <rdma/ib_umem_odp.h>
 #include <linux/kernel.h>
 #include <linux/dma-buf.h>
