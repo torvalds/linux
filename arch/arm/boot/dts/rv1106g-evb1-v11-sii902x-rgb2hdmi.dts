@@ -1,0 +1,52 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2022 Rockchip Electronics Co., Ltd.
+ */
+
+/dts-v1/;
+
+#include "rv1106g-evb1-v11.dts"
+#include "rv1106-evb-ext-sii902x-rgb-to-hdmi-v10.dtsi"
+
+/ {
+	model = "Rockchip RV1106G EVB1 V11 Board + RK EVB RGB2HDMI And MCU PANEL V10 Ext Board";
+	compatible = "rockchip,rv1106g-evb1-v11-sii902x-rgb2hdmi", "rockchip,rv1106";
+};
+
+&i2c0 {
+	/delete-node/ sii9022@39;
+};
+
+&i2c1 {
+	clock-frequency = <400000>;
+	status = "okay";
+
+	sii9022: sii9022@39 {
+		compatible = "sil,sii9022";
+		reg = <0x39>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&sii902x_hdmi_int>;
+		interrupt-parent = <&gpio1>;
+		interrupts = <RK_PB0 IRQ_TYPE_LEVEL_HIGH>;
+		reset-gpio = <&gpio0 RK_PA2 GPIO_ACTIVE_LOW>;
+		enable-gpio = <&gpio0 RK_PA0 GPIO_ACTIVE_HIGH>;
+		bus-format = <MEDIA_BUS_FMT_RGB666_1X18>;
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+
+				sii9022_in_rgb: endpoint {
+					remote-endpoint = <&rgb_out_sii9022>;
+				};
+			};
+		};
+	};
+};
+
+&sii902x_hdmi_int {
+	rockchip,pins = <1 RK_PB0 RK_FUNC_GPIO &pcfg_pull_up>;
+};
