@@ -117,8 +117,8 @@
 		#size-cells = <2>;
 		ranges = <0x0 0x04e00000 0x00 0x04e00000 0x0 0x30000>;
 
-		dmas = <&main_udmap 0xc000>, <&main_udmap 0x4000>,
-				<&main_udmap 0x4001>;
+		dmas = <&main_udmap 0xc001>, <&main_udmap 0x4002>,
+				<&main_udmap 0x4003>;
 		dma-names = "tx", "rx1", "rx2";
 		dma-coherent;
 
