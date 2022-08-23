@@ -995,44 +995,6 @@ static void rtl8125_legacy_force_mode(struct phy_device *phydev)
 	phy_modify_paged(phydev, 0xa5b, 0x12, BIT(15), 0);
 }
 
-static void rtl8125a_1_hw_phy_config(struct rtl8169_private *tp,
-				     struct phy_device *phydev)
-{
-	phy_modify_paged(phydev, 0xad4, 0x10, 0x03ff, 0x0084);
-	phy_modify_paged(phydev, 0xad4, 0x17, 0x0000, 0x0010);
-	phy_modify_paged(phydev, 0xad1, 0x13, 0x03ff, 0x0006);
-	phy_modify_paged(phydev, 0xad3, 0x11, 0x003f, 0x0006);
-	phy_modify_paged(phydev, 0xac0, 0x14, 0x0000, 0x1100);
-	phy_modify_paged(phydev, 0xac8, 0x15, 0xf000, 0x7000);
-	phy_modify_paged(phydev, 0xad1, 0x14, 0x0000, 0x0400);
-	phy_modify_paged(phydev, 0xad1, 0x15, 0x0000, 0x03ff);
-	phy_modify_paged(phydev, 0xad1, 0x16, 0x0000, 0x03ff);
-
-	r8168g_phy_param(phydev, 0x80ea, 0xff00, 0xc400);
-	r8168g_phy_param(phydev, 0x80eb, 0x0700, 0x0300);
-	r8168g_phy_param(phydev, 0x80f8, 0xff00, 0x1c00);
-	r8168g_phy_param(phydev, 0x80f1, 0xff00, 0x3000);
-	r8168g_phy_param(phydev, 0x80fe, 0xff00, 0xa500);
-	r8168g_phy_param(phydev, 0x8102, 0xff00, 0x5000);
-	r8168g_phy_param(phydev, 0x8105, 0xff00, 0x3300);
-	r8168g_phy_param(phydev, 0x8100, 0xff00, 0x7000);
-	r8168g_phy_param(phydev, 0x8104, 0xff00, 0xf000);
-	r8168g_phy_param(phydev, 0x8106, 0xff00, 0x6500);
-	r8168g_phy_param(phydev, 0x80dc, 0xff00, 0xed00);
-	r8168g_phy_param(phydev, 0x80df, 0x0000, 0x0100);
-	r8168g_phy_param(phydev, 0x80e1, 0x0100, 0x0000);
-
-	phy_modify_paged(phydev, 0xbf0, 0x13, 0x003f, 0x0038);
-	r8168g_phy_param(phydev, 0x819f, 0xffff, 0xd0b6);
-
-	phy_write_paged(phydev, 0xbc3, 0x12, 0x5555);
-	phy_modify_paged(phydev, 0xbf0, 0x15, 0x0e00, 0x0a00);
-	phy_modify_paged(phydev, 0xa5c, 0x10, 0x0400, 0x0000);
-	rtl8168g_enable_gphy_10m(phydev);
-
-	rtl8125a_config_eee_phy(phydev);
-}
-
 static void rtl8125a_2_hw_phy_config(struct rtl8169_private *tp,
 				     struct phy_device *phydev)
 {
@@ -1188,7 +1150,6 @@ void r8169_hw_phy_config(struct rtl8169_private *tp, struct phy_device *phydev,
 		[RTL_GIGA_MAC_VER_51] = rtl8168ep_2_hw_phy_config,
 		[RTL_GIGA_MAC_VER_52] = rtl8117_hw_phy_config,
 		[RTL_GIGA_MAC_VER_53] = rtl8117_hw_phy_config,
-		[RTL_GIGA_MAC_VER_60] = rtl8125a_1_hw_phy_config,
 		[RTL_GIGA_MAC_VER_61] = rtl8125a_2_hw_phy_config,
 		[RTL_GIGA_MAC_VER_63] = rtl8125b_hw_phy_config,
 	};

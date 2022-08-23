@@ -137,7 +137,6 @@ static const struct {
 	[RTL_GIGA_MAC_VER_51] = {"RTL8168ep/8111ep"			},
 	[RTL_GIGA_MAC_VER_52] = {"RTL8168fp/RTL8117",  FIRMWARE_8168FP_3},
 	[RTL_GIGA_MAC_VER_53] = {"RTL8168fp/RTL8117",			},
-	[RTL_GIGA_MAC_VER_60] = {"RTL8125A"				},
 	[RTL_GIGA_MAC_VER_61] = {"RTL8125A",		FIRMWARE_8125A_3},
 	/* reserve 62 for CFG_METHOD_4 in the vendor driver */
 	[RTL_GIGA_MAC_VER_63] = {"RTL8125B",		FIRMWARE_8125B_2},
@@ -680,7 +679,7 @@ static void rtl_pci_commit(struct rtl8169_private *tp)
 
 static bool rtl_is_8125(struct rtl8169_private *tp)
 {
-	return tp->mac_version >= RTL_GIGA_MAC_VER_60;
+	return tp->mac_version >= RTL_GIGA_MAC_VER_61;
 }
 
 static bool rtl_is_8168evl_up(struct rtl8169_private *tp)
@@ -2258,7 +2257,7 @@ static void rtl_init_rxcfg(struct rtl8169_private *tp)
 	case RTL_GIGA_MAC_VER_40 ... RTL_GIGA_MAC_VER_53:
 		RTL_W32(tp, RxConfig, RX128_INT_EN | RX_MULTI_EN | RX_DMA_BURST | RX_EARLY_OFF);
 		break;
-	case RTL_GIGA_MAC_VER_60 ... RTL_GIGA_MAC_VER_63:
+	case RTL_GIGA_MAC_VER_61 ... RTL_GIGA_MAC_VER_63:
 		RTL_W32(tp, RxConfig, RX_FETCH_DFLT_8125 | RX_DMA_BURST);
 		break;
 	default:
@@ -2442,7 +2441,7 @@ static void rtl_wait_txrx_fifo_empty(struct rtl8169_private *tp)
 		rtl_loop_wait_high(tp, &rtl_txcfg_empty_cond, 100, 42);
 		rtl_loop_wait_high(tp, &rtl_rxtx_empty_cond, 100, 42);
 		break;
-	case RTL_GIGA_MAC_VER_60 ... RTL_GIGA_MAC_VER_61:
+	case RTL_GIGA_MAC_VER_61 ... RTL_GIGA_MAC_VER_61:
 		rtl_loop_wait_high(tp, &rtl_rxtx_empty_cond, 100, 42);
 		break;
 	case RTL_GIGA_MAC_VER_63:
@@ -2688,7 +2687,7 @@ static void rtl_hw_aspm_clkreq_enable(struct rtl8169_private *tp, bool enable)
 
 		switch (tp->mac_version) {
 		case RTL_GIGA_MAC_VER_46 ... RTL_GIGA_MAC_VER_48:
-		case RTL_GIGA_MAC_VER_60 ... RTL_GIGA_MAC_VER_63:
+		case RTL_GIGA_MAC_VER_61 ... RTL_GIGA_MAC_VER_63:
 			/* reset ephy tx/rx disable timer */
 			r8168_mac_ocp_modify(tp, 0xe094, 0xff00, 0);
 			/* chip can trigger L1.2 */
@@ -2700,7 +2699,7 @@ static void rtl_hw_aspm_clkreq_enable(struct rtl8169_private *tp, bool enable)
 	} else {
 		switch (tp->mac_version) {
 		case RTL_GIGA_MAC_VER_46 ... RTL_GIGA_MAC_VER_48:
-		case RTL_GIGA_MAC_VER_60 ... RTL_GIGA_MAC_VER_63:
+		case RTL_GIGA_MAC_VER_61 ... RTL_GIGA_MAC_VER_63:
 			r8168_mac_ocp_modify(tp, 0xe092, 0x00ff, 0);
 			break;
 		default:
@@ -3573,46 +3572,6 @@ static void rtl_hw_start_8125_common(struct rtl8169_private *tp)
 	udelay(10);
 }
 
-static void rtl_hw_start_8125a_1(struct rtl8169_private *tp)
-{
-	static const struct ephy_info e_info_8125a_1[] = {
-		{ 0x01, 0xffff, 0xa812 },
-		{ 0x09, 0xffff, 0x520c },
-		{ 0x04, 0xffff, 0xd000 },
-		{ 0x0d, 0xffff, 0xf702 },
-		{ 0x0a, 0xffff, 0x8653 },
-		{ 0x06, 0xffff, 0x001e },
-		{ 0x08, 0xffff, 0x3595 },
-		{ 0x20, 0xffff, 0x9455 },
-		{ 0x21, 0xffff, 0x99ff },
-		{ 0x02, 0xffff, 0x6046 },
-		{ 0x29, 0xffff, 0xfe00 },
-		{ 0x23, 0xffff, 0xab62 },
-
-		{ 0x41, 0xffff, 0xa80c },
-		{ 0x49, 0xffff, 0x520c },
-		{ 0x44, 0xffff, 0xd000 },
-		{ 0x4d, 0xffff, 0xf702 },
-		{ 0x4a, 0xffff, 0x8653 },
-		{ 0x46, 0xffff, 0x001e },
-		{ 0x48, 0xffff, 0x3595 },
-		{ 0x60, 0xffff, 0x9455 },
-		{ 0x61, 0xffff, 0x99ff },
-		{ 0x42, 0xffff, 0x6046 },
-		{ 0x69, 0xffff, 0xfe00 },
-		{ 0x63, 0xffff, 0xab62 },
-	};
-
-	rtl_set_def_aspm_entry_latency(tp);
-
-	/* disable aspm and clock request before access ephy */
-	rtl_hw_aspm_clkreq_enable(tp, false);
-	rtl_ephy_init(tp, e_info_8125a_1);
-
-	rtl_hw_start_8125_common(tp);
-	rtl_hw_aspm_clkreq_enable(tp, true);
-}
-
 static void rtl_hw_start_8125a_2(struct rtl8169_private *tp)
 {
 	static const struct ephy_info e_info_8125a_2[] = {
@@ -3704,7 +3663,6 @@ static void rtl_hw_config(struct rtl8169_private *tp)
 		[RTL_GIGA_MAC_VER_51] = rtl_hw_start_8168ep_3,
 		[RTL_GIGA_MAC_VER_52] = rtl_hw_start_8117,
 		[RTL_GIGA_MAC_VER_53] = rtl_hw_start_8117,
-		[RTL_GIGA_MAC_VER_60] = rtl_hw_start_8125a_1,
 		[RTL_GIGA_MAC_VER_61] = rtl_hw_start_8125a_2,
 		[RTL_GIGA_MAC_VER_63] = rtl_hw_start_8125b,
 	};
@@ -4099,7 +4057,6 @@ static unsigned int rtl_quirk_packet_padto(struct rtl8169_private *tp,
 
 	switch (tp->mac_version) {
 	case RTL_GIGA_MAC_VER_34:
-	case RTL_GIGA_MAC_VER_60:
 	case RTL_GIGA_MAC_VER_61:
 	case RTL_GIGA_MAC_VER_63:
 		padto = max_t(unsigned int, padto, ETH_ZLEN);
@@ -5143,7 +5100,7 @@ static void rtl_hw_initialize(struct rtl8169_private *tp)
 	case RTL_GIGA_MAC_VER_40 ... RTL_GIGA_MAC_VER_48:
 		rtl_hw_init_8168g(tp);
 		break;
-	case RTL_GIGA_MAC_VER_60 ... RTL_GIGA_MAC_VER_63:
+	case RTL_GIGA_MAC_VER_61 ... RTL_GIGA_MAC_VER_63:
 		rtl_hw_init_8125(tp);
 		break;
 	default:
@@ -5234,7 +5191,7 @@ done:
 /* register is set if system vendor successfully tested ASPM 1.2 */
 static bool rtl_aspm_is_safe(struct rtl8169_private *tp)
 {
-	if (tp->mac_version >= RTL_GIGA_MAC_VER_60 &&
+	if (tp->mac_version >= RTL_GIGA_MAC_VER_61 &&
 	    r8168_mac_ocp_read(tp, 0xc0b2) & 0xf)
 		return true;
 
