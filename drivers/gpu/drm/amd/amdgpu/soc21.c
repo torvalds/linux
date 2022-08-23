@@ -494,6 +494,20 @@ static void soc21_pre_asic_init(struct amdgpu_device *adev)
 {
 }
 
+static int soc21_update_umd_stable_pstate(struct amdgpu_device *adev,
+					  bool enter)
+{
+	if (enter)
+		amdgpu_gfx_rlc_enter_safe_mode(adev);
+	else
+		amdgpu_gfx_rlc_exit_safe_mode(adev);
+
+	if (adev->gfx.funcs->update_perfmon_mgcg)
+		adev->gfx.funcs->update_perfmon_mgcg(adev, !enter);
+
+	return 0;
+}
+
 static const struct amdgpu_asic_funcs soc21_asic_funcs =
 {
 	.read_disabled_bios = &soc21_read_disabled_bios,
@@ -513,6 +527,7 @@ static const struct amdgpu_asic_funcs soc21_asic_funcs =
 	.supports_baco = &amdgpu_dpm_is_baco_supported,
 	.pre_asic_init = &soc21_pre_asic_init,
 	.query_video_codecs = &soc21_query_video_codecs,
+	.update_umd_stable_pstate = &soc21_update_umd_stable_pstate,
 };
 
 static int soc21_common_early_init(void *handle)

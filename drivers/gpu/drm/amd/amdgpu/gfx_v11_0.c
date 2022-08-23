@@ -131,6 +131,8 @@ static void gfx_v11_0_ring_invalidate_tlbs(struct amdgpu_ring *ring,
 					   bool all_hub, uint8_t dst_sel);
 static void gfx_v11_0_set_safe_mode(struct amdgpu_device *adev);
 static void gfx_v11_0_unset_safe_mode(struct amdgpu_device *adev);
+static void gfx_v11_0_update_perf_clk(struct amdgpu_device *adev,
+				      bool enable);
 
 static void gfx11_kiq_set_resources(struct amdgpu_ring *kiq_ring, uint64_t queue_mask)
 {
@@ -1139,6 +1141,7 @@ static const struct amdgpu_gfx_funcs gfx_v11_0_gfx_funcs = {
 	.read_wave_vgprs = &gfx_v11_0_read_wave_vgprs,
 	.select_me_pipe_q = &gfx_v11_0_select_me_pipe_q,
 	.init_spm_golden = &gfx_v11_0_init_spm_golden_registers,
+	.update_perfmon_mgcg = &gfx_v11_0_update_perf_clk,
 };
 
 static int gfx_v11_0_gpu_early_init(struct amdgpu_device *adev)
