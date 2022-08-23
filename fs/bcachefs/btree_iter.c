@@ -2747,8 +2747,10 @@ void bch2_trans_copy_iter(struct btree_iter *dst, struct btree_iter *src)
 
 void *bch2_trans_kmalloc(struct btree_trans *trans, size_t size)
 {
-	size_t new_top = trans->mem_top + size;
+	unsigned new_top = trans->mem_top + size;
 	void *p;
+
+	trans->mem_max = max(trans->mem_max, new_top);
 
 	if (new_top > trans->mem_bytes) {
 		size_t old_bytes = trans->mem_bytes;
@@ -2887,10 +2889,7 @@ static inline unsigned bch2_trans_get_fn_idx(struct btree_trans *trans, struct b
 	return i;
 }
 
-void __bch2_trans_init(struct btree_trans *trans, struct bch_fs *c,
-		       unsigned expected_nr_iters,
-		       size_t expected_mem_bytes,
-		       const char *fn)
+void __bch2_trans_init(struct btree_trans *trans, struct bch_fs *c, const char *fn)
 	__acquires(&c->btree_trans_barrier)
 {
 	struct btree_transaction_stats *s;
@@ -2906,8 +2905,10 @@ void __bch2_trans_init(struct btree_trans *trans, struct bch_fs *c,
 
 	bch2_trans_alloc_paths(trans, c);
 
-	if (expected_mem_bytes) {
-		expected_mem_bytes = roundup_pow_of_two(expected_mem_bytes);
+	s = btree_trans_stats(trans);
+	if (s) {
+		unsigned expected_mem_bytes = roundup_pow_of_two(s->max_mem);
+
 		trans->mem = kmalloc(expected_mem_bytes, GFP_KERNEL);
 
 		if (!unlikely(trans->mem)) {
@@ -2916,11 +2917,9 @@ void __bch2_trans_init(struct btree_trans *trans, struct bch_fs *c,
 		} else {
 			trans->mem_bytes = expected_mem_bytes;
 		}
-	}
 
-	s = btree_trans_stats(trans);
-	if (s)
 		trans->nr_max_paths = s->nr_max_paths;
+	}
 
 	trans->srcu_idx = srcu_read_lock(&c->btree_trans_barrier);
 
@@ -2967,8 +2966,12 @@ void bch2_trans_exit(struct btree_trans *trans)
 {
 	struct btree_insert_entry *i;
 	struct bch_fs *c = trans->c;
+	struct btree_transaction_stats *s = btree_trans_stats(trans);
 
 	bch2_trans_unlock(trans);
+
+	if (s)
+		s->max_mem = max(s->max_mem, trans->mem_max);
 
 	trans_for_each_update(trans, i)
 		__btree_path_put(i->path, true);

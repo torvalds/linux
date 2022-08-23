@@ -667,6 +667,9 @@ static ssize_t lock_held_stats_read(struct file *file, char __user *buf,
 
 		mutex_lock(&s->lock);
 
+		prt_printf(&i->buf, "Max mem used: %u", s->max_mem);
+		prt_newline(&i->buf);
+
 		if (IS_ENABLED(CONFIG_BCACHEFS_LOCK_TIME_STATS)) {
 			prt_printf(&i->buf, "Lock hold times:");
 			prt_newline(&i->buf);
