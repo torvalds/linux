@@ -59,6 +59,11 @@ static int drm_damage_helper_init(struct kunit *test)
 static void set_plane_src(struct drm_plane_state *state, int x1, int y1, int x2,
 			  int y2)
 {
+	state->src_x = x1;
+	state->src_y = y1;
+	state->src_w = x2 - x1;
+	state->src_h = y2 - y1;
+
 	state->src.x1 = x1;
 	state->src.y1 = y1;
 	state->src.x2 = x2;
