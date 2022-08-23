@@ -980,6 +980,7 @@ int blk_rq_map_kern(struct request_queue *, struct request *, void *,
 int blk_rq_append_bio(struct request *rq, struct bio *bio);
 void blk_execute_rq_nowait(struct request *rq, bool at_head);
 blk_status_t blk_execute_rq(struct request *rq, bool at_head);
+bool blk_rq_is_poll(struct request *rq);
 
 struct req_iterator {
 	struct bvec_iter iter;
