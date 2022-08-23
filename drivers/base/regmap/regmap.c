@@ -2193,7 +2193,7 @@ static int regmap_noinc_readwrite(struct regmap *map, unsigned int reg,
 
 	if (!ret && regmap_should_log(map)) {
 		dev_info(map->dev, "%x %s [", reg, write ? "<=" : "=>");
-		for (i = 0; i < val_len; i++) {
+		for (i = 0; i < val_count; i++) {
 			switch (val_bytes) {
 			case 1:
 				pr_cont("%x", u8p[i]);
@@ -2212,7 +2212,7 @@ static int regmap_noinc_readwrite(struct regmap *map, unsigned int reg,
 			default:
 				break;
 			}
-			if (i == (val_len - 1))
+			if (i == (val_count - 1))
 				pr_cont("]\n");
 			else
 				pr_cont(",");
