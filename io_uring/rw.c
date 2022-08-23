@@ -1011,7 +1011,13 @@ int io_do_iopoll(struct io_ring_ctx *ctx, bool force_nonspin)
 		if (READ_ONCE(req->iopoll_completed))
 			break;
 
-		ret = rw->kiocb.ki_filp->f_op->iopoll(&rw->kiocb, &iob, poll_flags);
+		if (req->opcode == IORING_OP_URING_CMD) {
+			struct io_uring_cmd *ioucmd = (struct io_uring_cmd *)rw;
+
+			ret = req->file->f_op->uring_cmd_iopoll(ioucmd);
+		} else
+			ret = rw->kiocb.ki_filp->f_op->iopoll(&rw->kiocb, &iob,
+							poll_flags);
 		if (unlikely(ret < 0))
 			return ret;
 		else if (ret)
