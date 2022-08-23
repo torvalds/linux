@@ -1407,7 +1407,7 @@ static void sci_dma_tx_work_fn(struct work_struct *work)
 	spin_lock_irq(&port->lock);
 	head = xmit->head;
 	tail = xmit->tail;
-	buf = s->tx_dma_addr + (tail & (UART_XMIT_SIZE - 1));
+	buf = s->tx_dma_addr + tail;
 	s->tx_dma_len = CIRC_CNT_TO_END(head, tail, UART_XMIT_SIZE);
 	if (!s->tx_dma_len) {
 		/* Transmit buffer has been flushed */
