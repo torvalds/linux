@@ -18,6 +18,7 @@
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/regulator/driver.h>
+#include <linux/regulator/debug-regulator.h>
 #include <linux/regulator/machine.h>
 #include <linux/regulator/of_regulator.h>
 #include <linux/regulator/rpm-smd-regulator.h>
@@ -1814,6 +1815,10 @@ static int rpm_vreg_device_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, reg);
 
 	rpm_vreg_create_debugfs(reg);
+
+	rc = devm_regulator_debug_register(dev, reg->rdev);
+	if (rc)
+		pr_err("Failed to register debug regulator, rc=%d\n", rc);
 
 	pr_debug("successfully probed: %s\n", reg->rdesc.name);
 
