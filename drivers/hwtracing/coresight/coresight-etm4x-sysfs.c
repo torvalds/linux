@@ -2306,6 +2306,34 @@ static ssize_t cpu_show(struct device *dev,
 }
 static DEVICE_ATTR_RO(cpu);
 
+static ssize_t ts_source_show(struct device *dev,
+			      struct device_attribute *attr,
+			      char *buf)
+{
+	int val;
+	struct etmv4_drvdata *drvdata = dev_get_drvdata(dev->parent);
+
+	if (!drvdata->trfcr) {
+		val = -1;
+		goto out;
+	}
+
+	switch (drvdata->trfcr & TRFCR_ELx_TS_MASK) {
+	case TRFCR_ELx_TS_VIRTUAL:
+	case TRFCR_ELx_TS_GUEST_PHYSICAL:
+	case TRFCR_ELx_TS_PHYSICAL:
+		val = FIELD_GET(TRFCR_ELx_TS_MASK, drvdata->trfcr);
+		break;
+	default:
+		val = -1;
+		break;
+	}
+
+out:
+	return sysfs_emit(buf, "%d\n", val);
+}
+static DEVICE_ATTR_RO(ts_source);
+
 static struct attribute *coresight_etmv4_attrs[] = {
 	&dev_attr_nr_pe_cmp.attr,
 	&dev_attr_nr_addr_cmp.attr,
@@ -2360,6 +2388,7 @@ static struct attribute *coresight_etmv4_attrs[] = {
 	&dev_attr_vmid_val.attr,
 	&dev_attr_vmid_masks.attr,
 	&dev_attr_cpu.attr,
+	&dev_attr_ts_source.attr,
 	NULL,
 };
 
