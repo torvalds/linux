@@ -588,10 +588,12 @@ static int sditf_s_rx_buffer(struct v4l2_subdev *sd,
 {
 	struct sditf_priv *priv = to_sditf_priv(sd);
 	struct rkcif_device *cif_dev = priv->cif_dev;
+	struct rkcif_sensor_info *sensor = &cif_dev->terminal_sensor;
 	struct rkcif_stream *stream = NULL;
 	struct rkisp_rx_buf *dbufs;
 	struct rkcif_rx_buffer *rx_buf = NULL;
 	unsigned long flags;
+	u32 diff_time = 1000000;
 
 	if (!buf) {
 		v4l2_err(&cif_dev->v4l2_dev, "buf is NULL\n");
@@ -637,6 +639,72 @@ static int sditf_s_rx_buffer(struct v4l2_subdev *sd,
 	}
 
 	spin_unlock_irqrestore(&stream->vbq_lock, flags);
+
+	if (dbufs->runtime_us && cif_dev->early_line == 0) {
+		u32 numerator, denominator;
+		u32 def_fps = 0;
+		int line_time = 0;
+		int vblank_def = 0;
+		int vblank_curr = 0;
+
+		numerator = sensor->fi.interval.numerator;
+		denominator = sensor->fi.interval.denominator;
+		if (!numerator || !denominator) {
+			v4l2_err(&cif_dev->v4l2_dev,
+				 "get frame interval fail, numerator %d, denominator %d\n",
+				 numerator, denominator);
+			return -EINVAL;
+		}
+		def_fps = denominator / numerator;
+		if (!def_fps) {
+			v4l2_err(&cif_dev->v4l2_dev,
+				 "get fps fail, numerator %d, denominator %d\n",
+				 numerator, denominator);
+			return -EINVAL;
+		}
+		vblank_def = rkcif_get_sensor_vblank_def(cif_dev);
+		vblank_curr = rkcif_get_sensor_vblank(cif_dev);
+		if (!vblank_def || !vblank_curr) {
+			v4l2_err(&cif_dev->v4l2_dev,
+				 "get vblank fail, vblank_def %d, vblank_curr %d\n",
+				 vblank_def, vblank_curr);
+			return -EINVAL;
+		}
+		line_time = div_u64(1000000000, def_fps);
+		line_time = div_u64(line_time, vblank_def + sensor->raw_rect.height);
+		if (!line_time) {
+			v4l2_err(&cif_dev->v4l2_dev,
+				 "get line time fail, line_time %d\n",
+				 line_time);
+			return -EINVAL;
+		}
+		if (vblank_curr * line_time < 1000)
+			v4l2_warn(&cif_dev->v4l2_dev,
+				  "vblank < 1ms, val %d\n",
+				  vblank_curr * line_time);
+		cif_dev->isp_runtime_max = dbufs->runtime_us;
+		cif_dev->sensor_linetime = line_time;
+		cif_dev->early_line = div_u64(dbufs->runtime_us * 1000 - diff_time, line_time);
+		cif_dev->wait_line_cache = sensor->raw_rect.height - cif_dev->early_line;
+		if (cif_dev->rdbk_debug &&
+		    dbufs->sequence < 15)
+			v4l2_info(&cif_dev->v4l2_dev,
+				  "%s, isp runtime %d, line time %d, early_line %d, line_intr_cnt %d, seq %d, dma_addr %x\n",
+				  __func__, dbufs->runtime_us, line_time,
+				  cif_dev->early_line, cif_dev->wait_line_cache,
+				  dbufs->sequence, (u32)rx_buf->dummy.dma_addr);
+	} else {
+		if (dbufs->runtime_us > cif_dev->isp_runtime_max + cif_dev->sensor_linetime) {
+			cif_dev->isp_runtime_max = dbufs->runtime_us;
+			cif_dev->early_line = div_u64(dbufs->runtime_us * 1000 - diff_time, cif_dev->sensor_linetime);
+			cif_dev->wait_line_cache = sensor->raw_rect.height - cif_dev->early_line;
+		}
+		if (cif_dev->rdbk_debug &&
+		    dbufs->sequence < 15)
+			v4l2_info(&cif_dev->v4l2_dev,
+				  "isp runtime %d, seq %d, dma addr %x\n",
+				  dbufs->runtime_us, dbufs->sequence, (u32)rx_buf->dummy.dma_addr);
+	}
 	return 0;
 }
 

@@ -1848,6 +1848,7 @@ int rkcif_plat_init(struct rkcif_device *cif_dev, struct device_node *node, int 
 	cif_dev->sditf_cnt = 0;
 	cif_dev->is_notifier_isp = false;
 	cif_dev->sensor_linetime = 0;
+	cif_dev->early_line = 0;
 	cif_dev->rdbk_debug = 0;
 	if (cif_dev->chip_id == CHIP_RV1126_CIF_LITE)
 		cif_dev->isr_hdl = rkcif_irq_lite_handler;

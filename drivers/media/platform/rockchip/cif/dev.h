@@ -812,6 +812,8 @@ struct rkcif_device {
 	int				rdbk_debug;
 	int				sync_type;
 	int				sditf_cnt;
+	u32				early_line;
+	int				isp_runtime_max;
 	int				sensor_linetime;
 };
 
