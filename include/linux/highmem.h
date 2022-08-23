@@ -243,6 +243,16 @@ static inline void clear_highpage(struct page *page)
 	kunmap_local(kaddr);
 }
 
+static inline void clear_highpage_kasan_tagged(struct page *page)
+{
+	u8 tag;
+
+	tag = page_kasan_tag(page);
+	page_kasan_tag_reset(page);
+	clear_highpage(page);
+	page_kasan_tag_set(page, tag);
+}
+
 #ifndef __HAVE_ARCH_TAG_CLEAR_HIGHPAGE
 
 static inline void tag_clear_highpage(struct page *page)
@@ -332,19 +342,6 @@ static inline void memcpy_page(struct page *dst_page, size_t dst_off,
 
 	VM_BUG_ON(dst_off + len > PAGE_SIZE || src_off + len > PAGE_SIZE);
 	memcpy(dst + dst_off, src + src_off, len);
-	kunmap_local(src);
-	kunmap_local(dst);
-}
-
-static inline void memmove_page(struct page *dst_page, size_t dst_off,
-			       struct page *src_page, size_t src_off,
-			       size_t len)
-{
-	char *dst = kmap_local_page(dst_page);
-	char *src = kmap_local_page(src_page);
-
-	VM_BUG_ON(dst_off + len > PAGE_SIZE || src_off + len > PAGE_SIZE);
-	memmove(dst + dst_off, src + src_off, len);
 	kunmap_local(src);
 	kunmap_local(dst);
 }

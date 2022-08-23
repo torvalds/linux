@@ -985,8 +985,6 @@ static inline void * bus_to_virt(unsigned long address)
 }
 #define bus_to_virt bus_to_virt
 
-#define page_to_bus(page)	(page_to_phys(page) + PCI_DRAM_OFFSET)
-
 #endif /* CONFIG_PPC32 */
 
 /* access ports */

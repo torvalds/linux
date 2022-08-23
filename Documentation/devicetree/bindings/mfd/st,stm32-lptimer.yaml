@@ -58,24 +58,6 @@ properties:
       - "#pwm-cells"
       - compatible
 
-patternProperties:
-  "^trigger@[0-9]+$":
-    type: object
-
-    properties:
-      compatible:
-        const: st,stm32-lptimer-trigger
-
-      reg:
-        description: Identify trigger hardware block.
-        items:
-          minimum: 0
-          maximum: 2
-
-    required:
-      - compatible
-      - reg
-
   counter:
     type: object
 
@@ -95,6 +77,24 @@ patternProperties:
 
     required:
       - compatible
+
+patternProperties:
+  "^trigger@[0-9]+$":
+    type: object
+
+    properties:
+      compatible:
+        const: st,stm32-lptimer-trigger
+
+      reg:
+        description: Identify trigger hardware block.
+        items:
+          minimum: 0
+          maximum: 2
+
+    required:
+      - compatible
+      - reg
 
 required:
   - "#address-cells"

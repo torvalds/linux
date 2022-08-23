@@ -4439,7 +4439,7 @@ try_smaller_buffer:
 	}
 
 	ic->bufio = dm_bufio_client_create(ic->meta_dev ? ic->meta_dev->bdev : ic->dev->bdev,
-			1U << (SECTOR_SHIFT + ic->log2_buffer_sectors), 1, 0, NULL, NULL);
+			1U << (SECTOR_SHIFT + ic->log2_buffer_sectors), 1, 0, NULL, NULL, 0);
 	if (IS_ERR(ic->bufio)) {
 		r = PTR_ERR(ic->bufio);
 		ti->error = "Cannot initialize dm-bufio";

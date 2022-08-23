@@ -2003,6 +2003,7 @@ static int vc4_hdmi_audio_prepare(struct device *dev, void *data,
 
 static const struct snd_soc_component_driver vc4_hdmi_audio_cpu_dai_comp = {
 	.name = "vc4-hdmi-cpu-dai-component",
+	.legacy_dai_naming = 1,
 };
 
 static int vc4_hdmi_audio_cpu_dai_probe(struct snd_soc_dai *dai)

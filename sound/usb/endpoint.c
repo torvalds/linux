@@ -133,7 +133,7 @@ static inline bool ep_state_running(struct snd_usb_endpoint *ep)
 
 static inline bool ep_state_update(struct snd_usb_endpoint *ep, int old, int new)
 {
-	return atomic_cmpxchg(&ep->state, old, new) == old;
+	return atomic_try_cmpxchg(&ep->state, &old, new);
 }
 
 /**

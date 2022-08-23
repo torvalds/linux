@@ -789,7 +789,6 @@ static const struct snd_soc_component_driver soc_component_dev_wm0010 = {
 	.num_dapm_routes	= ARRAY_SIZE(wm0010_dapm_routes),
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
 };
 
 #define WM0010_RATES (SNDRV_PCM_RATE_44100 | SNDRV_PCM_RATE_48000)

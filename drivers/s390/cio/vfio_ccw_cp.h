@@ -41,11 +41,11 @@ struct channel_program {
 	struct ccw1 *guest_cp;
 };
 
-extern int cp_init(struct channel_program *cp, union orb *orb);
-extern void cp_free(struct channel_program *cp);
-extern int cp_prefetch(struct channel_program *cp);
-extern union orb *cp_get_orb(struct channel_program *cp, u32 intparm, u8 lpm);
-extern void cp_update_scsw(struct channel_program *cp, union scsw *scsw);
-extern bool cp_iova_pinned(struct channel_program *cp, u64 iova);
+int cp_init(struct channel_program *cp, union orb *orb);
+void cp_free(struct channel_program *cp);
+int cp_prefetch(struct channel_program *cp);
+union orb *cp_get_orb(struct channel_program *cp, u32 intparm, u8 lpm);
+void cp_update_scsw(struct channel_program *cp, union scsw *scsw);
+bool cp_iova_pinned(struct channel_program *cp, u64 iova, u64 length);
 
 #endif

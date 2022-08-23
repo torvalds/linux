@@ -764,6 +764,7 @@ static inline u64 acpi_arch_get_root_pointer(void)
 #endif
 
 int acpi_get_local_address(acpi_handle handle, u32 *addr);
+const char *acpi_get_subsystem_id(acpi_handle handle);
 
 #else	/* !CONFIG_ACPI */
 
@@ -1023,6 +1024,11 @@ static inline struct acpi_device *acpi_resource_consumer(struct resource *res)
 static inline int acpi_get_local_address(acpi_handle handle, u32 *addr)
 {
 	return -ENODEV;
+}
+
+static inline const char *acpi_get_subsystem_id(acpi_handle handle)
+{
+	return ERR_PTR(-ENODEV);
 }
 
 static inline int acpi_register_wakeup_handler(int wake_irq,

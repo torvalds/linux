@@ -121,7 +121,7 @@ void evlist__config(struct evlist *evlist, struct record_opts *opts, struct call
 	evlist__for_each_entry(evlist, evsel)
 		evsel__config_leader_sampling(evsel, evlist);
 
-	if (opts->full_auxtrace) {
+	if (opts->full_auxtrace || opts->sample_identifier) {
 		/*
 		 * Need to be able to synthesize and parse selected events with
 		 * arbitrary sample types, which requires always being able to

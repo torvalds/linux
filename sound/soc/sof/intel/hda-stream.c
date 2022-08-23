@@ -116,13 +116,13 @@ int hda_dsp_stream_setup_bdl(struct snd_sof_dev *sdev,
 	int remain, ioc;
 
 	period_bytes = hstream->period_bytes;
-	dev_dbg(sdev->dev, "%s: period_bytes:0x%x\n", __func__, period_bytes);
+	dev_dbg(sdev->dev, "period_bytes:0x%x\n", period_bytes);
 	if (!period_bytes)
 		period_bytes = hstream->bufsize;
 
 	periods = hstream->bufsize / period_bytes;
 
-	dev_dbg(sdev->dev, "%s: periods:%d\n", __func__, periods);
+	dev_dbg(sdev->dev, "periods:%d\n", periods);
 
 	remain = hstream->bufsize % period_bytes;
 	if (remain)
@@ -271,7 +271,7 @@ int hda_dsp_stream_put(struct snd_sof_dev *sdev, int direction, int stream_tag)
 					HDA_VS_INTEL_EM2_L1SEN, HDA_VS_INTEL_EM2_L1SEN);
 
 	if (!found) {
-		dev_dbg(sdev->dev, "%s: stream_tag %d not opened!\n",
+		dev_err(sdev->dev, "%s: stream_tag %d not opened!\n",
 			__func__, stream_tag);
 		return -ENODEV;
 	}
@@ -411,6 +411,11 @@ int hda_dsp_iccmax_stream_hw_params(struct snd_sof_dev *sdev, struct hdac_ext_st
 		return -ENODEV;
 	}
 
+	if (!dmab) {
+		dev_err(sdev->dev, "error: no dma buffer allocated!\n");
+		return -ENODEV;
+	}
+
 	if (hstream->posbuf)
 		*hstream->posbuf = 0;
 
@@ -485,15 +490,15 @@ int hda_dsp_stream_hw_params(struct snd_sof_dev *sdev,
 		return -ENODEV;
 	}
 
-	/* decouple host and link DMA */
-	mask = 0x1 << hstream->index;
-	snd_sof_dsp_update_bits(sdev, HDA_DSP_PP_BAR, SOF_HDA_REG_PP_PPCTL,
-				mask, mask);
-
 	if (!dmab) {
 		dev_err(sdev->dev, "error: no dma buffer allocated!\n");
 		return -ENODEV;
 	}
+
+	/* decouple host and link DMA */
+	mask = 0x1 << hstream->index;
+	snd_sof_dsp_update_bits(sdev, HDA_DSP_PP_BAR, SOF_HDA_REG_PP_PPCTL,
+				mask, mask);
 
 	/* clear stream status */
 	snd_sof_dsp_update_bits(sdev, HDA_DSP_HDA_BAR, sd_offset,

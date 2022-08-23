@@ -30,7 +30,6 @@ config M68K
 	select OLD_SIGACTION
 	select OLD_SIGSUSPEND3
 	select UACCESS_MEMCPY if !MMU
-	select VIRT_TO_BUS
 	select ZONE_DMA
 
 config CPU_BIG_ENDIAN

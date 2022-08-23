@@ -69,8 +69,8 @@ enum {
  * struct mtd_write_req - data structure for requesting a write operation
  *
  * @start:	start address
- * @len:	length of data buffer
- * @ooblen:	length of OOB buffer
+ * @len:	length of data buffer (only lower 32 bits are used)
+ * @ooblen:	length of OOB buffer (only lower 32 bits are used)
  * @usr_data:	user-provided data buffer
  * @usr_oob:	user-provided OOB buffer
  * @mode:	MTD mode (see "MTD operation modes")

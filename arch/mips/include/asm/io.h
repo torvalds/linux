@@ -148,15 +148,6 @@ static inline void *isa_bus_to_virt(unsigned long address)
 }
 
 /*
- * However PCI ones are not necessarily 1:1 and therefore these interfaces
- * are forbidden in portable PCI drivers.
- *
- * Allow them for x86 for legacy drivers, though.
- */
-#define virt_to_bus virt_to_phys
-#define bus_to_virt phys_to_virt
-
-/*
  * Change "struct page" to physical address.
  */
 #define page_to_phys(page)	((dma_addr_t)page_to_pfn(page) << PAGE_SHIFT)

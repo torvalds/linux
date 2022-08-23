@@ -2104,7 +2104,6 @@ static const struct snd_soc_component_driver soc_component_wm2200 = {
 	.dapm_routes		= wm2200_dapm_routes,
 	.num_dapm_routes	= ARRAY_SIZE(wm2200_dapm_routes),
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
 };
 
 static irqreturn_t wm2200_irq(int irq, void *data)

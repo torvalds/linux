@@ -1585,7 +1585,7 @@ static int vmballoon_register_shrinker(struct vmballoon *b)
 	b->shrinker.count_objects = vmballoon_shrinker_count;
 	b->shrinker.seeks = DEFAULT_SEEKS;
 
-	r = register_shrinker(&b->shrinker);
+	r = register_shrinker(&b->shrinker, "vmw-balloon");
 
 	if (r == 0)
 		b->shrinker_registered = true;

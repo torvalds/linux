@@ -47,6 +47,28 @@ static struct acp_card_drvdata rt5682s_rt1019_data = {
 	.dmic_codec_id = DMIC,
 };
 
+static struct acp_card_drvdata max_nau8825_data = {
+	.hs_cpu_id = I2S_HS,
+	.amp_cpu_id = I2S_HS,
+	.dmic_cpu_id = DMIC,
+	.hs_codec_id = NAU8825,
+	.amp_codec_id = MAX98360A,
+	.dmic_codec_id = DMIC,
+	.soc_mclk = true,
+	.platform = REMBRANDT,
+};
+
+static struct acp_card_drvdata rt5682s_rt1019_rmb_data = {
+	.hs_cpu_id = I2S_HS,
+	.amp_cpu_id = I2S_HS,
+	.dmic_cpu_id = DMIC,
+	.hs_codec_id = RT5682S,
+	.amp_codec_id = RT1019,
+	.dmic_codec_id = DMIC,
+	.soc_mclk = true,
+	.platform = REMBRANDT,
+};
+
 static const struct snd_kcontrol_new acp_controls[] = {
 	SOC_DAPM_PIN_SWITCH("Headphone Jack"),
 	SOC_DAPM_PIN_SWITCH("Headset Mic"),
@@ -112,6 +134,14 @@ static const struct platform_device_id board_ids[] = {
 		.name = "acp3xalc5682s1019",
 		.driver_data = (kernel_ulong_t)&rt5682s_rt1019_data,
 	},
+	{
+		.name = "rmb-nau8825-max",
+		.driver_data = (kernel_ulong_t)&max_nau8825_data,
+	},
+	{
+		.name = "rmb-rt5682s-rt1019",
+		.driver_data = (kernel_ulong_t)&rt5682s_rt1019_rmb_data,
+	},
 	{ }
 };
 static struct platform_driver acp_asoc_audio = {
@@ -130,4 +160,6 @@ MODULE_DESCRIPTION("ACP chrome audio support");
 MODULE_ALIAS("platform:acp3xalc56821019");
 MODULE_ALIAS("platform:acp3xalc5682sm98360");
 MODULE_ALIAS("platform:acp3xalc5682s1019");
+MODULE_ALIAS("platform:rmb-nau8825-max");
+MODULE_ALIAS("platform:rmb-rt5682s-rt1019");
 MODULE_LICENSE("GPL v2");

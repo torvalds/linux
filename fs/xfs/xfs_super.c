@@ -351,8 +351,10 @@ xfs_setup_dax_always(
 		goto disable_dax;
 	}
 
-	if (xfs_has_reflink(mp)) {
-		xfs_alert(mp, "DAX and reflink cannot be used together!");
+	if (xfs_has_reflink(mp) &&
+	    bdev_is_partition(mp->m_ddev_targp->bt_bdev)) {
+		xfs_alert(mp,
+			"DAX and reflink cannot work with multi-partitions!");
 		return -EINVAL;
 	}
 

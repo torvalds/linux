@@ -116,8 +116,9 @@ static void __snd_release_dma(struct device *dev, void *data)
  * @dma: the dma number
  * @name: the name string of the requester
  *
- * Returns zero on success, or a negative error code.
  * The requested DMA will be automatically released at unbinding via devres.
+ *
+ * Return: zero on success, or a negative error code
  */
 int snd_devm_request_dma(struct device *dev, int dma, const char *name)
 {

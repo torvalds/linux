@@ -148,6 +148,8 @@ struct perf_sample {
 	u64 code_page_size;
 	u64 cgroup;
 	u32 flags;
+	u32 machine_pid;
+	u32 vcpu;
 	u16 insn_len;
 	u8  cpumode;
 	u16 misc;
@@ -481,5 +483,26 @@ void arch_perf_parse_sample_weight(struct perf_sample *data, const __u64 *array,
 void arch_perf_synthesize_sample_weight(const struct perf_sample *data, __u64 *array, u64 type);
 const char *arch_perf_header_entry(const char *se_header);
 int arch_support_sort_key(const char *sort_key);
+
+static inline bool perf_event_header__cpumode_is_guest(u8 cpumode)
+{
+	return cpumode == PERF_RECORD_MISC_GUEST_KERNEL ||
+	       cpumode == PERF_RECORD_MISC_GUEST_USER;
+}
+
+static inline bool perf_event_header__misc_is_guest(u16 misc)
+{
+	return perf_event_header__cpumode_is_guest(misc & PERF_RECORD_MISC_CPUMODE_MASK);
+}
+
+static inline bool perf_event_header__is_guest(const struct perf_event_header *header)
+{
+	return perf_event_header__misc_is_guest(header->misc);
+}
+
+static inline bool perf_event__is_guest(const union perf_event *event)
+{
+	return perf_event_header__is_guest(&event->header);
+}
 
 #endif /* __PERF_RECORD_H */
