@@ -45,14 +45,6 @@ osi_setup_entries[OSI_STRING_ENTRIES_MAX] __initdata = {
 	{"3.0 _SCP Extensions", true},
 	{"Processor Aggregator Device", true},
 	/*
-	 * Linux-Lenovo-NV-HDMI-Audio is used by BIOS to power on NVidia's HDMI
-	 * audio device which is turned off for power-saving in Windows OS.
-	 * This power management feature observed on some Lenovo Thinkpad
-	 * systems which will not be able to output audio via HDMI without
-	 * a BIOS workaround.
-	 */
-	{"Linux-Lenovo-NV-HDMI-Audio", true},
-	/*
 	 * Linux-HPI-Hybrid-Graphics is used by BIOS to enable dGPU to
 	 * output video directly to external monitors on HP Inc. mobile
 	 * workstations as Nvidia and AMD VGA drivers provide limited
