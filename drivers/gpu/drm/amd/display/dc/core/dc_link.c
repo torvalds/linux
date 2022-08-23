@@ -1307,7 +1307,10 @@ static bool detect_link_and_local_sink(struct dc_link *link,
 		}
 
 		if (link->connector_signal == SIGNAL_TYPE_EDP) {
-			// Init dc_panel_config
+			/* Init dc_panel_config by HW config */
+			if (dc_ctx->dc->res_pool->funcs->get_panel_config_defaults)
+				dc_ctx->dc->res_pool->funcs->get_panel_config_defaults(&link->panel_config);
+			/* Pickup base DM settings */
 			dm_helpers_init_panel_settings(dc_ctx, &link->panel_config, sink);
 			// Override dc_panel_config if system has specific settings
 			dm_helpers_override_panel_settings(dc_ctx, &link->panel_config);

@@ -5795,7 +5795,7 @@ void detect_edp_sink_caps(struct dc_link *link)
 	 * Per VESA eDP spec, "The DPCD revision for eDP v1.4 is 13h"
 	 */
 	if (link->dpcd_caps.dpcd_rev.raw >= DPCD_REV_13 &&
-			(link->dc->debug.optimize_edp_link_rate ||
+			(link->panel_config.ilr.optimize_edp_link_rate ||
 			link->reported_link_cap.link_rate == LINK_RATE_UNKNOWN)) {
 		// Read DPCD 00010h - 0001Fh 16 bytes at one shot
 		core_link_read_dpcd(link, DP_SUPPORTED_LINK_RATES,
@@ -6744,7 +6744,7 @@ bool is_edp_ilr_optimization_required(struct dc_link *link, struct dc_crtc_timin
 	ASSERT(link || crtc_timing); // invalid input
 
 	if (link->dpcd_caps.edp_supported_link_rates_count == 0 ||
-			!link->dc->debug.optimize_edp_link_rate)
+			!link->panel_config.ilr.optimize_edp_link_rate)
 		return false;
 
 

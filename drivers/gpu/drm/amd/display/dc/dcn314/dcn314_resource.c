@@ -914,7 +914,6 @@ static const struct dc_debug_options debug_defaults_drv = {
 			.afmt = true,
 		}
 	},
-	.optimize_edp_link_rate = true,
 	.seamless_boot_odm_combine = true
 };
 
@@ -934,6 +933,12 @@ static const struct dc_debug_options debug_defaults_diags = {
 	.dmub_command_table = true,
 	.enable_tri_buf = true,
 	.use_max_lb = true
+};
+
+static const struct dc_panel_config panel_config_defaults = {
+	.ilr = {
+		.optimize_edp_link_rate = true,
+	},
 };
 
 static void dcn31_dpp_destroy(struct dpp **dpp)
@@ -1675,6 +1680,11 @@ static void dcn314_update_bw_bounding_box(struct dc *dc, struct clk_bw_params *b
 	DC_FP_END();
 }
 
+static void dcn314_get_panel_config_defaults(struct dc_panel_config *panel_config)
+{
+	*panel_config = panel_config_defaults;
+}
+
 static struct resource_funcs dcn314_res_pool_funcs = {
 	.destroy = dcn314_destroy_resource_pool,
 	.link_enc_create = dcn31_link_encoder_create,
@@ -1697,6 +1707,7 @@ static struct resource_funcs dcn314_res_pool_funcs = {
 	.release_post_bldn_3dlut = dcn30_release_post_bldn_3dlut,
 	.update_bw_bounding_box = dcn314_update_bw_bounding_box,
 	.patch_unknown_plane_state = dcn20_patch_unknown_plane_state,
+	.get_panel_config_defaults = dcn314_get_panel_config_defaults,
 };
 
 static struct clock_source *dcn30_clock_source_create(
