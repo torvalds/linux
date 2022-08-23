@@ -34,7 +34,6 @@ properties:
     maxItems: 1
 
   reg-io-width:
-    $ref: /schemas/types.yaml#/definitions/uint32
     description: I/O register width (in bytes) implemented by this device
     default: 1
     enum: [ 1, 2, 4 ]
