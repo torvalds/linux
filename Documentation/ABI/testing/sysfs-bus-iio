@@ -79,6 +79,11 @@ Description:
 		* "accel-base"
 		* "accel-display"
 
+		For devices where an accelerometer is housed in the swivel camera subassembly
+		(for AR application), the following standardized label is used:
+
+		* "accel-camera"
+
 What:		/sys/bus/iio/devices/iio:deviceX/current_timestamp_clock
 KernelVersion:	4.5
 Contact:	linux-iio@vger.kernel.org
@@ -101,6 +106,9 @@ Description:
 		direct access interfaces, it may be found in any of the
 		relevant directories.  If it affects all of the above
 		then it is to be found in the base device directory.
+
+		The stm32-timer-trigger has the additional characteristic that
+		a sampling_frequency of 0 is defined to stop sampling.
 
 What:		/sys/bus/iio/devices/iio:deviceX/sampling_frequency_available
 What:		/sys/bus/iio/devices/iio:deviceX/in_intensity_sampling_frequency_available

@@ -26,7 +26,7 @@ struct max1241 {
 	struct regulator *vref;
 	struct gpio_desc *shutdown;
 
-	__be16 data ____cacheline_aligned;
+	__be16 data __aligned(IIO_DMA_MINALIGN);
 };
 
 static const struct iio_chan_spec max1241_channels[] = {

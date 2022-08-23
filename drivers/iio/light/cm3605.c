@@ -278,7 +278,7 @@ static int cm3605_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static int __maybe_unused cm3605_pm_suspend(struct device *dev)
+static int cm3605_pm_suspend(struct device *dev)
 {
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 	struct cm3605 *cm3605 = iio_priv(indio_dev);
@@ -289,7 +289,7 @@ static int __maybe_unused cm3605_pm_suspend(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused cm3605_pm_resume(struct device *dev)
+static int cm3605_pm_resume(struct device *dev)
 {
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 	struct cm3605 *cm3605 = iio_priv(indio_dev);
@@ -302,11 +302,8 @@ static int __maybe_unused cm3605_pm_resume(struct device *dev)
 
 	return 0;
 }
-
-static const struct dev_pm_ops cm3605_dev_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(cm3605_pm_suspend,
-				cm3605_pm_resume)
-};
+static DEFINE_SIMPLE_DEV_PM_OPS(cm3605_dev_pm_ops, cm3605_pm_suspend,
+				cm3605_pm_resume);
 
 static const struct of_device_id cm3605_of_match[] = {
 	{.compatible = "capella,cm3605"},
@@ -318,7 +315,7 @@ static struct platform_driver cm3605_driver = {
 	.driver = {
 		.name = "cm3605",
 		.of_match_table = cm3605_of_match,
-		.pm = &cm3605_dev_pm_ops,
+		.pm = pm_sleep_ptr(&cm3605_dev_pm_ops),
 	},
 	.probe = cm3605_probe,
 	.remove = cm3605_remove,

@@ -44,7 +44,7 @@ static const struct max5481_cfg max5481_cfg[] = {
 struct max5481_data {
 	struct spi_device *spi;
 	const struct max5481_cfg *cfg;
-	u8 msg[3] ____cacheline_aligned;
+	u8 msg[3] __aligned(IIO_DMA_MINALIGN);
 };
 
 #define MAX5481_CHANNEL {					\
