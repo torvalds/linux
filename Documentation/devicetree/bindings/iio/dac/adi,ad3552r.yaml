@@ -78,6 +78,7 @@ patternProperties:
 
       custom-output-range-config:
         type: object
+        additionalProperties: false
         description: Configuration of custom range when
           adi,output-range-microvolt is not present.
           The formulas for calculation the output voltages are

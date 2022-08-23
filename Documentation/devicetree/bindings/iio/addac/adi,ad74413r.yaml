@@ -63,6 +63,7 @@ additionalProperties: false
 patternProperties:
   "^channel@[0-3]$":
     type: object
+    additionalProperties: false
     description: Represents the external channels which are connected to the device.
 
     properties:
