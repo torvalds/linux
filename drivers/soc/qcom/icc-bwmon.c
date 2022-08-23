@@ -551,7 +551,6 @@ static int bwmon_init_regmap(struct platform_device *pdev,
 	struct device *dev = &pdev->dev;
 	void __iomem *base;
 	struct regmap *map;
-	int ret;
 
 	base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(base))
@@ -565,11 +564,10 @@ static int bwmon_init_regmap(struct platform_device *pdev,
 
 	BUILD_BUG_ON(ARRAY_SIZE(msm8998_bwmon_reg_fields) != F_NUM_FIELDS);
 	BUILD_BUG_ON(ARRAY_SIZE(sdm845_llcc_bwmon_reg_fields) != F_NUM_FIELDS);
-	ret = devm_regmap_field_bulk_alloc(dev, map, bwmon->regs,
+
+	return devm_regmap_field_bulk_alloc(dev, map, bwmon->regs,
 					   bwmon->data->regmap_fields,
 					   F_NUM_FIELDS);
-
-	return ret;
 }
 
 static int bwmon_probe(struct platform_device *pdev)
