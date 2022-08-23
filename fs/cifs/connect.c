@@ -871,7 +871,7 @@ smb2_get_credits_from_hdr(char *buffer, struct TCP_Server_Info *server)
 	/*
 	 * SMB1 does not use credits.
 	 */
-	if (HEADER_PREAMBLE_SIZE(server))
+	if (is_smb1(server))
 		return 0;
 
 	return le16_to_cpu(shdr->CreditRequest);
@@ -1121,7 +1121,7 @@ smb2_add_credits_from_hdr(char *buffer, struct TCP_Server_Info *server)
 	/*
 	 * SMB1 does not use credits.
 	 */
-	if (HEADER_PREAMBLE_SIZE(server))
+	if (is_smb1(server))
 		return;
 
 	if (shdr->CreditRequest) {
@@ -1179,10 +1179,10 @@ cifs_demultiplex_thread(void *p)
 		if (length < 0)
 			continue;
 
-		if (HEADER_PREAMBLE_SIZE(server) == 0)
-			server->total_read = 0;
-		else
+		if (is_smb1(server))
 			server->total_read = length;
+		else
+			server->total_read = 0;
 
 		/*
 		 * The right amount was read from socket - 4 bytes,

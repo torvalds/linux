@@ -752,6 +752,11 @@ struct TCP_Server_Info {
 #endif
 };
 
+static inline bool is_smb1(struct TCP_Server_Info *server)
+{
+	return HEADER_PREAMBLE_SIZE(server) != 0;
+}
+
 static inline void cifs_server_lock(struct TCP_Server_Info *server)
 {
 	unsigned int nofs_flag = memalloc_nofs_save();
