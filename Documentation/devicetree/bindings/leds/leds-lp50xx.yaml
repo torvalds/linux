@@ -56,6 +56,8 @@ patternProperties:
   '^multi-led@[0-9a-f]$':
     type: object
     $ref: leds-class-multicolor.yaml#
+    unevaluatedProperties: false
+
     properties:
       reg:
         minItems: 1
@@ -65,8 +67,14 @@ patternProperties:
           for the child node.  The LED modules can either be used stand alone
           or grouped into a module bank.
 
+      '#address-cells':
+        const: 1
+
+      '#size-cells':
+        const: 0
+
     patternProperties:
-      "(^led-[0-9a-f]$|led)":
+      "^led@[0-9a-f]+$":
         type: object
         $ref: common.yaml#
 

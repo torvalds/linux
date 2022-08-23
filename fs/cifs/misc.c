@@ -69,6 +69,7 @@ sesInfoAlloc(void)
 	ret_buf = kzalloc(sizeof(struct cifs_ses), GFP_KERNEL);
 	if (ret_buf) {
 		atomic_inc(&sesInfoAllocCount);
+		spin_lock_init(&ret_buf->ses_lock);
 		ret_buf->ses_status = SES_NEW;
 		++ret_buf->ses_count;
 		INIT_LIST_HEAD(&ret_buf->smb_ses_list);
@@ -126,6 +127,7 @@ tconInfoAlloc(void)
 	atomic_inc(&tconInfoAllocCount);
 	ret_buf->status = TID_NEW;
 	++ret_buf->tc_count;
+	spin_lock_init(&ret_buf->tc_lock);
 	INIT_LIST_HEAD(&ret_buf->openFileList);
 	INIT_LIST_HEAD(&ret_buf->tcon_list);
 	spin_lock_init(&ret_buf->open_file_lock);
@@ -172,9 +174,9 @@ cifs_buf_get(void)
 	/* clear the first few header bytes */
 	/* for most paths, more is cleared in header_assemble */
 	memset(ret_buf, 0, buf_size + 3);
-	atomic_inc(&bufAllocCount);
+	atomic_inc(&buf_alloc_count);
 #ifdef CONFIG_CIFS_STATS2
-	atomic_inc(&totBufAllocCount);
+	atomic_inc(&total_buf_alloc_count);
 #endif /* CONFIG_CIFS_STATS2 */
 
 	return ret_buf;
@@ -189,7 +191,7 @@ cifs_buf_release(void *buf_to_free)
 	}
 	mempool_free(buf_to_free, cifs_req_poolp);
 
-	atomic_dec(&bufAllocCount);
+	atomic_dec(&buf_alloc_count);
 	return;
 }
 
@@ -205,9 +207,9 @@ cifs_small_buf_get(void)
 	ret_buf = mempool_alloc(cifs_sm_req_poolp, GFP_NOFS);
 	/* No need to clear memory here, cleared in header assemble */
 	/*	memset(ret_buf, 0, sizeof(struct smb_hdr) + 27);*/
-	atomic_inc(&smBufAllocCount);
+	atomic_inc(&small_buf_alloc_count);
 #ifdef CONFIG_CIFS_STATS2
-	atomic_inc(&totSmBufAllocCount);
+	atomic_inc(&total_small_buf_alloc_count);
 #endif /* CONFIG_CIFS_STATS2 */
 
 	return ret_buf;
@@ -223,7 +225,7 @@ cifs_small_buf_release(void *buf_to_free)
 	}
 	mempool_free(buf_to_free, cifs_sm_req_poolp);
 
-	atomic_dec(&smBufAllocCount);
+	atomic_dec(&small_buf_alloc_count);
 	return;
 }
 
@@ -400,7 +402,6 @@ is_valid_oplock_break(char *buffer, struct TCP_Server_Info *srv)
 {
 	struct smb_hdr *buf = (struct smb_hdr *)buffer;
 	struct smb_com_lock_req *pSMB = (struct smb_com_lock_req *)buf;
-	struct list_head *tmp, *tmp1, *tmp2;
 	struct cifs_ses *ses;
 	struct cifs_tcon *tcon;
 	struct cifsInodeInfo *pCifsInode;
@@ -467,18 +468,14 @@ is_valid_oplock_break(char *buffer, struct TCP_Server_Info *srv)
 
 	/* look up tcon based on tid & uid */
 	spin_lock(&cifs_tcp_ses_lock);
-	list_for_each(tmp, &srv->smb_ses_list) {
-		ses = list_entry(tmp, struct cifs_ses, smb_ses_list);
-		list_for_each(tmp1, &ses->tcon_list) {
-			tcon = list_entry(tmp1, struct cifs_tcon, tcon_list);
+	list_for_each_entry(ses, &srv->smb_ses_list, smb_ses_list) {
+		list_for_each_entry(tcon, &ses->tcon_list, tcon_list) {
 			if (tcon->tid != buf->Tid)
 				continue;
 
 			cifs_stats_inc(&tcon->stats.cifs_stats.num_oplock_brks);
 			spin_lock(&tcon->open_file_lock);
-			list_for_each(tmp2, &tcon->openFileList) {
-				netfile = list_entry(tmp2, struct cifsFileInfo,
-						     tlist);
+			list_for_each_entry(netfile, &tcon->openFileList, tlist) {
 				if (pSMB->Fid != netfile->fid.netfid)
 					continue;
 
@@ -763,14 +760,12 @@ void
 cifs_close_all_deferred_files(struct cifs_tcon *tcon)
 {
 	struct cifsFileInfo *cfile;
-	struct list_head *tmp;
 	struct file_list *tmp_list, *tmp_next_list;
 	struct list_head file_head;
 
 	INIT_LIST_HEAD(&file_head);
 	spin_lock(&tcon->open_file_lock);
-	list_for_each(tmp, &tcon->openFileList) {
-		cfile = list_entry(tmp, struct cifsFileInfo, tlist);
+	list_for_each_entry(cfile, &tcon->openFileList, tlist) {
 		if (delayed_work_pending(&cfile->deferred)) {
 			if (cancel_delayed_work(&cfile->deferred)) {
 				tmp_list = kmalloc(sizeof(struct file_list), GFP_ATOMIC);
@@ -793,7 +788,6 @@ void
 cifs_close_deferred_file_under_dentry(struct cifs_tcon *tcon, const char *path)
 {
 	struct cifsFileInfo *cfile;
-	struct list_head *tmp;
 	struct file_list *tmp_list, *tmp_next_list;
 	struct list_head file_head;
 	void *page;
@@ -802,8 +796,7 @@ cifs_close_deferred_file_under_dentry(struct cifs_tcon *tcon, const char *path)
 	INIT_LIST_HEAD(&file_head);
 	page = alloc_dentry_path();
 	spin_lock(&tcon->open_file_lock);
-	list_for_each(tmp, &tcon->openFileList) {
-		cfile = list_entry(tmp, struct cifsFileInfo, tlist);
+	list_for_each_entry(cfile, &tcon->openFileList, tlist) {
 		full_path = build_path_from_dentry(cfile->dentry, page);
 		if (strstr(full_path, path)) {
 			if (delayed_work_pending(&cfile->deferred)) {

@@ -131,7 +131,7 @@ static inline phys_addr_t virt_to_phys(const volatile void *x)
  */
 static inline void * phys_to_virt(unsigned long address)
 {
-	return (void *)(address + PAGE_OFFSET - PHYS_OFFSET);
+	return __va(address);
 }
 
 /*

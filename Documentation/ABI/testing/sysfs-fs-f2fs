@@ -580,3 +580,33 @@ Date:		January 2022
 Contact:	"Jaegeuk Kim" <jaegeuk@kernel.org>
 Description:	Controls max # of node block writes to be used for roll forward
 		recovery. This can limit the roll forward recovery time.
+
+What:		/sys/fs/f2fs/<disk>/unusable_blocks_per_sec
+Date:		June 2022
+Contact:	"Jaegeuk Kim" <jaegeuk@kernel.org>
+Description:	Shows the number of unusable blocks in a section which was defined by
+		the zone capacity reported by underlying zoned device.
+
+What:		/sys/fs/f2fs/<disk>/current_atomic_write
+Date:		July 2022
+Contact:	"Daeho Jeong" <daehojeong@google.com>
+Description:	Show the total current atomic write block count, which is not committed yet.
+		This is a read-only entry.
+
+What:		/sys/fs/f2fs/<disk>/peak_atomic_write
+Date:		July 2022
+Contact:	"Daeho Jeong" <daehojeong@google.com>
+Description:	Show the peak value of total current atomic write block count after boot.
+		If you write "0" here, you can initialize to "0".
+
+What:		/sys/fs/f2fs/<disk>/committed_atomic_block
+Date:		July 2022
+Contact:	"Daeho Jeong" <daehojeong@google.com>
+Description:	Show the accumulated total committed atomic write block count after boot.
+		If you write "0" here, you can initialize to "0".
+
+What:		/sys/fs/f2fs/<disk>/revoked_atomic_block
+Date:		July 2022
+Contact:	"Daeho Jeong" <daehojeong@google.com>
+Description:	Show the accumulated total revoked atomic write block count after boot.
+		If you write "0" here, you can initialize to "0".

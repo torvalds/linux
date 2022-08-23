@@ -12,15 +12,15 @@
 int shm_id;
 unsigned long *cptr, *pptr;
 
-float a = FPR_1;
-float b = FPR_2;
-float c = FPR_3;
+double a = FPR_1;
+double b = FPR_2;
+double c = FPR_3;
 
 void tm_gpr(void)
 {
 	unsigned long gpr_buf[18];
 	unsigned long result, texasr;
-	float fpr_buf[32];
+	double fpr_buf[32];
 
 	printf("Starting the child\n");
 	cptr = (unsigned long *)shmat(shm_id, NULL, 0);
@@ -29,12 +29,12 @@ trans:
 	cptr[1] = 0;
 	asm __volatile__(
 		ASM_LOAD_GPR_IMMED(gpr_1)
-		ASM_LOAD_FPR_SINGLE_PRECISION(flt_1)
+		ASM_LOAD_FPR(flt_1)
 		"1: ;"
 		"tbegin.;"
 		"beq 2f;"
 		ASM_LOAD_GPR_IMMED(gpr_2)
-		ASM_LOAD_FPR_SINGLE_PRECISION(flt_2)
+		ASM_LOAD_FPR(flt_2)
 		"tsuspend.;"
 		"li 7, 1;"
 		"stw 7, 0(%[cptr1]);"
@@ -70,12 +70,12 @@ trans:
 
 		shmdt((void *)cptr);
 		store_gpr(gpr_buf);
-		store_fpr_single_precision(fpr_buf);
+		store_fpr(fpr_buf);
 
 		if (validate_gpr(gpr_buf, GPR_3))
 			exit(1);
 
-		if (validate_fpr_float(fpr_buf, c))
+		if (validate_fpr_double(fpr_buf, c))
 			exit(1);
 
 		exit(0);
@@ -87,7 +87,7 @@ trans:
 int trace_tm_gpr(pid_t child)
 {
 	unsigned long gpr[18];
-	unsigned long fpr[32];
+	__u64 fpr[32];
 
 	FAIL_IF(start_trace(child));
 	FAIL_IF(show_gpr(child, gpr));

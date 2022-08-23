@@ -307,8 +307,6 @@ do {									\
 
 #define net_get_random_once(buf, nbytes)			\
 	get_random_once((buf), (nbytes))
-#define net_get_random_once_wait(buf, nbytes)			\
-	get_random_once_wait((buf), (nbytes))
 
 /*
  * E.g. XFS meta- & log-data is in slab pages, or bcache meta

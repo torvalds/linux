@@ -4457,7 +4457,7 @@ int perf_event_read_local(struct perf_event *event, u64 *value,
 
 	*value = local64_read(&event->count);
 	if (enabled || running) {
-		u64 __enabled, __running, __now;;
+		u64 __enabled, __running, __now;
 
 		calc_timer_values(event, &__now, &__enabled, &__running);
 		if (enabled)

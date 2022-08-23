@@ -17,6 +17,7 @@
 #define EXT_SCCB_READ_CPU	(3 * PAGE_SIZE)
 
 #ifndef __ASSEMBLY__
+#include <linux/uio.h>
 #include <asm/chpid.h>
 #include <asm/cpu.h>
 
@@ -146,8 +147,7 @@ int sclp_pci_deconfigure(u32 fid);
 int sclp_ap_configure(u32 apid);
 int sclp_ap_deconfigure(u32 apid);
 int sclp_pci_report(struct zpci_report_error_header *report, u32 fh, u32 fid);
-int memcpy_hsa_kernel(void *dest, unsigned long src, size_t count);
-int memcpy_hsa_user(void __user *dest, unsigned long src, size_t count);
+size_t memcpy_hsa_iter(struct iov_iter *iter, unsigned long src, size_t count);
 void sclp_ocf_cpc_name_copy(char *dst);
 
 static inline int sclp_get_core_info(struct sclp_core_info *info, int early)

@@ -586,25 +586,6 @@ void build_tlb_write_entry(u32 **p, struct uasm_label **l,
 		tlbw(p);
 		break;
 
-	case CPU_VR4111:
-	case CPU_VR4121:
-	case CPU_VR4122:
-	case CPU_VR4181:
-	case CPU_VR4181A:
-		uasm_i_nop(p);
-		uasm_i_nop(p);
-		tlbw(p);
-		uasm_i_nop(p);
-		uasm_i_nop(p);
-		break;
-
-	case CPU_VR4131:
-	case CPU_VR4133:
-		uasm_i_nop(p);
-		uasm_i_nop(p);
-		tlbw(p);
-		break;
-
 	case CPU_XBURST:
 		tlbw(p);
 		uasm_i_nop(p);
@@ -626,7 +607,7 @@ static __maybe_unused void build_convert_pte_to_entrylo(u32 **p,
 		return;
 	}
 
-	if (cpu_has_rixi && !!_PAGE_NO_EXEC) {
+	if (cpu_has_rixi && _PAGE_NO_EXEC != 0) {
 		if (fill_includes_sw_bits) {
 			UASM_i_ROTR(p, reg, reg, ilog2(_PAGE_GLOBAL));
 		} else {
@@ -994,22 +975,6 @@ static void build_adjust_context(u32 **p, unsigned int ctx)
 {
 	unsigned int shift = 4 - (PTE_T_LOG2 + 1) + PAGE_SHIFT - 12;
 	unsigned int mask = (PTRS_PER_PTE / 2 - 1) << (PTE_T_LOG2 + 1);
-
-	switch (current_cpu_type()) {
-	case CPU_VR41XX:
-	case CPU_VR4111:
-	case CPU_VR4121:
-	case CPU_VR4122:
-	case CPU_VR4131:
-	case CPU_VR4181:
-	case CPU_VR4181A:
-	case CPU_VR4133:
-		shift += 2;
-		break;
-
-	default:
-		break;
-	}
 
 	if (shift)
 		UASM_i_SRL(p, ctx, ctx, shift);
@@ -2565,7 +2530,7 @@ static void check_pabits(void)
 	unsigned long entry;
 	unsigned pabits, fillbits;
 
-	if (!cpu_has_rixi || !_PAGE_NO_EXEC) {
+	if (!cpu_has_rixi || _PAGE_NO_EXEC == 0) {
 		/*
 		 * We'll only be making use of the fact that we can rotate bits
 		 * into the fill if the CPU supports RIXI, so don't bother

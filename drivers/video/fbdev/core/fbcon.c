@@ -1060,9 +1060,9 @@ static void fbcon_init(struct vc_data *vc, int init)
 			vc->vc_complement_mask <<= 1;
 	}
 
-	if (!*svc->vc_uni_pagedir_loc)
+	if (!*svc->uni_pagedict_loc)
 		con_set_default_unimap(svc);
-	if (!*vc->vc_uni_pagedir_loc)
+	if (!*vc->uni_pagedict_loc)
 		con_copy_unimap(vc, svc);
 
 	ops = info->fbcon_par;
@@ -1384,9 +1384,9 @@ static void fbcon_set_disp(struct fb_info *info, struct fb_var_screeninfo *var,
 			vc->vc_complement_mask <<= 1;
 	}
 
-	if (!*svc->vc_uni_pagedir_loc)
+	if (!*svc->uni_pagedict_loc)
 		con_set_default_unimap(svc);
-	if (!*vc->vc_uni_pagedir_loc)
+	if (!*vc->uni_pagedict_loc)
 		con_copy_unimap(vc, svc);
 
 	cols = FBCON_SWAP(ops->rotate, info->var.xres, info->var.yres);

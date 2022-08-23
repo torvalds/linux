@@ -3856,13 +3856,17 @@ bool cpus_share_cache(int this_cpu, int that_cpu)
 	return per_cpu(sd_llc_id, this_cpu) == per_cpu(sd_llc_id, that_cpu);
 }
 
-static inline bool ttwu_queue_cond(int cpu)
+static inline bool ttwu_queue_cond(struct task_struct *p, int cpu)
 {
 	/*
 	 * Do not complicate things with the async wake_list while the CPU is
 	 * in hotplug state.
 	 */
 	if (!cpu_active(cpu))
+		return false;
+
+	/* Ensure the task will still be allowed to run on the CPU. */
+	if (!cpumask_test_cpu(cpu, p->cpus_ptr))
 		return false;
 
 	/*
@@ -3894,7 +3898,7 @@ static inline bool ttwu_queue_cond(int cpu)
 
 static bool ttwu_queue_wakelist(struct task_struct *p, int cpu, int wake_flags)
 {
-	if (sched_feat(TTWU_QUEUE) && ttwu_queue_cond(cpu)) {
+	if (sched_feat(TTWU_QUEUE) && ttwu_queue_cond(p, cpu)) {
 		sched_clock_cpu(cpu); /* Sync clocks across CPUs */
 		__ttwu_queue_wakelist(p, cpu, wake_flags);
 		return true;
@@ -9069,7 +9073,7 @@ int cpuset_cpumask_can_shrink(const struct cpumask *cur,
 }
 
 int task_can_attach(struct task_struct *p,
-		    const struct cpumask *cs_cpus_allowed)
+		    const struct cpumask *cs_effective_cpus)
 {
 	int ret = 0;
 
@@ -9088,9 +9092,11 @@ int task_can_attach(struct task_struct *p,
 	}
 
 	if (dl_task(p) && !cpumask_intersects(task_rq(p)->rd->span,
-					      cs_cpus_allowed)) {
-		int cpu = cpumask_any_and(cpu_active_mask, cs_cpus_allowed);
+					      cs_effective_cpus)) {
+		int cpu = cpumask_any_and(cpu_active_mask, cs_effective_cpus);
 
+		if (unlikely(cpu >= nr_cpu_ids))
+			return -EINVAL;
 		ret = dl_cpu_busy(cpu, p);
 	}
 

@@ -193,7 +193,7 @@ static inline void __set_pte_at(struct mm_struct *mm, unsigned long addr,
 	if (IS_ENABLED(CONFIG_PPC32) && IS_ENABLED(CONFIG_PTE_64BIT) && !percpu) {
 		__asm__ __volatile__("\
 			stw%X0 %2,%0\n\
-			eieio\n\
+			mbar\n\
 			stw%X1 %L2,%1"
 		: "=m" (*ptep), "=m" (*((unsigned char *)ptep+4))
 		: "r" (pte) : "memory");

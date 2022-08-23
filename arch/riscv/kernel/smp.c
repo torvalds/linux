@@ -64,12 +64,6 @@ bool arch_match_cpu_phys_id(int cpu, u64 phys_id)
 	return phys_id == cpuid_to_hartid_map(cpu);
 }
 
-/* Unsupported */
-int setup_profiling_timer(unsigned int multiplier)
-{
-	return -EINVAL;
-}
-
 static void ipi_stop(void)
 {
 	set_cpu_online(smp_processor_id(), false);
