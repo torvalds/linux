@@ -113,6 +113,7 @@ config RISCV
 	select MODULES_USE_ELF_RELA if MODULES
 	select MODULE_SECTIONS if MODULES
 	select OF
+	select OF_DMA_DEFAULT_COHERENT
 	select OF_EARLY_FLATTREE
 	select OF_IRQ
 	select PCI_DOMAINS_GENERIC if PCI
@@ -217,6 +218,14 @@ config PGTABLE_LEVELS
 
 config LOCKDEP_SUPPORT
 	def_bool y
+
+config RISCV_DMA_NONCOHERENT
+	bool
+	select ARCH_HAS_DMA_PREP_COHERENT
+	select ARCH_HAS_SYNC_DMA_FOR_DEVICE
+	select ARCH_HAS_SYNC_DMA_FOR_CPU
+	select ARCH_HAS_SETUP_DMA_OPS
+	select DMA_DIRECT_REMAP
 
 source "arch/riscv/Kconfig.socs"
 source "arch/riscv/Kconfig.erratas"
@@ -392,6 +401,28 @@ config RISCV_ISA_SVPBMT
 
 	   If you don't know what to do here, say Y.
 
+config CC_HAS_ZICBOM
+	bool
+	default y if 64BIT && $(cc-option,-mabi=lp64 -march=rv64ima_zicbom)
+	default y if 32BIT && $(cc-option,-mabi=ilp32 -march=rv32ima_zicbom)
+
+config RISCV_ISA_ZICBOM
+	bool "Zicbom extension support for non-coherent DMA operation"
+	depends on CC_HAS_ZICBOM
+	depends on !XIP_KERNEL && MMU
+	select RISCV_DMA_NONCOHERENT
+	select RISCV_ALTERNATIVE
+	default y
+	help
+	   Adds support to dynamically detect the presence of the ZICBOM
+	   extension (Cache Block Management Operations) and enable its
+	   usage.
+
+	   The Zicbom extension can be used to handle for example
+	   non-coherent DMA support on devices that need it.
+
+	   If you don't know what to do here, say Y.
+
 config FPU
 	bool "FPU support"
 	default y
@@ -463,7 +494,6 @@ config KEXEC_FILE
 
 config ARCH_HAS_KEXEC_PURGATORY
 	def_bool KEXEC_FILE
-	select BUILD_BIN2C
 	depends on CRYPTO=y
 	depends on CRYPTO_SHA256=y
 

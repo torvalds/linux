@@ -1,5 +1,68 @@
 [
     {
+        "BriefDescription": "Counts the number of entries successfully inserted into the TOR that match  qualifications specified by the subevent -IPQ",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x35",
+        "EventName": "UNC_C_TOR_INSERTS.IPQ_HIT",
+        "PerPkg": "1",
+        "UMask": "0x18",
+        "Unit": "CHA"
+    },
+    {
+        "BriefDescription": "Counts the number of entries successfully inserted into the TOR that match  qualifications specified by the subevent -IPQ",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x35",
+        "EventName": "UNC_C_TOR_INSERTS.IPQ_MISS",
+        "PerPkg": "1",
+        "UMask": "0x28",
+        "Unit": "CHA"
+    },
+    {
+        "BriefDescription": "Counts the number of entries successfully inserted into the TOR that match  qualifications specified by the subevent -IRQ",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x35",
+        "EventName": "UNC_C_TOR_INSERTS.IRQ_HIT",
+        "PerPkg": "1",
+        "UMask": "0x11",
+        "Unit": "CHA"
+    },
+    {
+        "BriefDescription": "Counts the number of entries successfully inserted into the TOR that match  qualifications specified by the subevent -IRQ ",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x35",
+        "EventName": "UNC_C_TOR_INSERTS.IRQ_MISS",
+        "PerPkg": "1",
+        "UMask": "0x21",
+        "Unit": "CHA"
+    },
+    {
+        "BriefDescription": "Counts the number of entries successfully inserted into the TOR that match  qualifications specified by the subevent -IRQ or PRQ",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x35",
+        "EventName": "UNC_C_TOR_INSERTS.LOC_ALL",
+        "PerPkg": "1",
+        "UMask": "0x37",
+        "Unit": "CHA"
+    },
+    {
+        "BriefDescription": "Counts the number of entries successfully inserted into the TOR that match  qualifications specified by the subevent -PRQ",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x35",
+        "EventName": "UNC_C_TOR_INSERTS.PRQ_HIT",
+        "PerPkg": "1",
+        "UMask": "0x14",
+        "Unit": "CHA"
+    },
+    {
+        "BriefDescription": "Counts the number of entries successfully inserted into the TOR that match  qualifications specified by the subevent -PRQ",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x35",
+        "EventName": "UNC_C_TOR_INSERTS.PRQ_MISS",
+        "PerPkg": "1",
+        "UMask": "0x24",
+        "Unit": "CHA"
+    },
+    {
         "BriefDescription": "Counts the number of read requests and streaming stores that hit in MCDRAM cache and the data in MCDRAM is clean with respect to DDR. This event is only valid in cache and hybrid memory mode.",
         "Counter": "0,1,2,3",
         "EventCode": "0x02",
@@ -3495,6 +3558,156 @@
         "EventName": "UNC_H_TG_INGRESS_OCCUPANCY.IV_BNC",
         "PerPkg": "1",
         "UMask": "0x08",
+        "Unit": "CHA"
+    },
+    {
+        "BriefDescription": "Counts the number of entries successfully inserted into the TOR that match  qualifications specified by the subevent -SF/LLC Evictions",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x35",
+        "EventName": "UNC_H_TOR_INSERTS.EVICT",
+        "PerPkg": "1",
+        "UMask": "0x32",
+        "Unit": "CHA"
+    },
+    {
+        "BriefDescription": "Counts the number of entries successfully inserted into the TOR that match  qualifications specified by the subevent -Hit (Not a Miss)",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x35",
+        "EventName": "UNC_H_TOR_INSERTS.HIT",
+        "PerPkg": "1",
+        "UMask": "0x1F",
+        "Unit": "CHA"
+    },
+    {
+        "BriefDescription": "Counts the number of entries successfully inserted into the TOR that match  qualifications specified by the subevent -IPQ",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x35",
+        "EventName": "UNC_H_TOR_INSERTS.IPQ",
+        "PerPkg": "1",
+        "UMask": "0x38",
+        "Unit": "CHA"
+    },
+    {
+        "BriefDescription": "Counts the number of entries successfully inserted into the TOR that match  qualifications specified by the subevent -IRQ",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x35",
+        "EventName": "UNC_H_TOR_INSERTS.IRQ",
+        "PerPkg": "1",
+        "UMask": "0x31",
+        "Unit": "CHA"
+    },
+    {
+        "BriefDescription": "Counts the number of entries successfully inserted into the TOR that match  qualifications specified by the subevent -Miss",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x35",
+        "EventName": "UNC_H_TOR_INSERTS.MISS",
+        "PerPkg": "1",
+        "UMask": "0x2F",
+        "Unit": "CHA"
+    },
+    {
+        "BriefDescription": "Counts the number of entries successfully inserted into the TOR that match  qualifications specified by the subevent -PRQ",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x35",
+        "EventName": "UNC_H_TOR_INSERTS.PRQ",
+        "PerPkg": "1",
+        "UMask": "0x34",
+        "Unit": "CHA"
+    },
+    {
+        "BriefDescription": "For each cycle, this event accumulates the number of valid entries in the TOR that match qualifications specified by the subevent -SF/LLC Evictions",
+        "EventCode": "0x36",
+        "EventName": "UNC_H_TOR_OCCUPANCY.EVICT",
+        "PerPkg": "1",
+        "UMask": "0x32",
+        "Unit": "CHA"
+    },
+    {
+        "BriefDescription": "For each cycle, this event accumulates the number of valid entries in the TOR that match qualifications specified by the subevent -Hit (Not a Miss)",
+        "EventCode": "0x36",
+        "EventName": "UNC_H_TOR_OCCUPANCY.HIT",
+        "PerPkg": "1",
+        "UMask": "0x1F",
+        "Unit": "CHA"
+    },
+    {
+        "BriefDescription": "For each cycle, this event accumulates the number of valid entries in the TOR that match qualifications specified by the subevent -IPQ",
+        "EventCode": "0x36",
+        "EventName": "UNC_H_TOR_OCCUPANCY.IPQ",
+        "PerPkg": "1",
+        "UMask": "0x38",
+        "Unit": "CHA"
+    },
+    {
+        "BriefDescription": "For each cycle, this event accumulates the number of valid entries in the TOR that match qualifications specified by the subevent -IPQ hit",
+        "EventCode": "0x36",
+        "EventName": "UNC_H_TOR_OCCUPANCY.IPQ_HIT",
+        "PerPkg": "1",
+        "UMask": "0x18",
+        "Unit": "CHA"
+    },
+    {
+        "BriefDescription": "For each cycle, this event accumulates the number of valid entries in the TOR that match qualifications specified by the subevent -IPQ miss",
+        "EventCode": "0x36",
+        "EventName": "UNC_H_TOR_OCCUPANCY.IPQ_MISS",
+        "PerPkg": "1",
+        "UMask": "0x28",
+        "Unit": "CHA"
+    },
+    {
+        "BriefDescription": "For each cycle, this event accumulates the number of valid entries in the TOR that match qualifications specified by the subevent -IRQ or PRQ",
+        "EventCode": "0x36",
+        "EventName": "UNC_H_TOR_OCCUPANCY.IRQ",
+        "PerPkg": "1",
+        "UMask": "0x31",
+        "Unit": "CHA"
+    },
+    {
+        "BriefDescription": "For each cycle, this event accumulates the number of valid entries in the TOR that match qualifications specified by the subevent -IRQ or PRQ hit",
+        "EventCode": "0x36",
+        "EventName": "UNC_H_TOR_OCCUPANCY.IRQ_HIT",
+        "PerPkg": "1",
+        "UMask": "0x11",
+        "Unit": "CHA"
+    },
+    {
+        "BriefDescription": "For each cycle, this event accumulates the number of valid entries in the TOR that match qualifications specified by the subevent -IRQ or PRQ miss",
+        "EventCode": "0x36",
+        "EventName": "UNC_H_TOR_OCCUPANCY.IRQ_MISS",
+        "PerPkg": "1",
+        "UMask": "0x21",
+        "Unit": "CHA"
+    },
+    {
+        "BriefDescription": "For each cycle, this event accumulates the number of valid entries in the TOR that match qualifications specified by the subevent -Miss",
+        "EventCode": "0x36",
+        "EventName": "UNC_H_TOR_OCCUPANCY.MISS",
+        "PerPkg": "1",
+        "UMask": "0x2F",
+        "Unit": "CHA"
+    },
+    {
+        "BriefDescription": "For each cycle, this event accumulates the number of valid entries in the TOR that match qualifications specified by the subevent -PRQ",
+        "EventCode": "0x36",
+        "EventName": "UNC_H_TOR_OCCUPANCY.PRQ",
+        "PerPkg": "1",
+        "UMask": "0x34",
+        "Unit": "CHA"
+    },
+    {
+        "BriefDescription": "For each cycle, this event accumulates the number of valid entries in the TOR that match qualifications specified by the subevent -PRQ hit",
+        "EventCode": "0x36",
+        "EventName": "UNC_H_TOR_OCCUPANCY.PRQ_HIT",
+        "PerPkg": "1",
+        "UMask": "0x14",
+        "Unit": "CHA"
+    },
+    {
+        "BriefDescription": "For each cycle, this event accumulates the number of valid entries in the TOR that match qualifications specified by the subevent -PRQ miss",
+        "EventCode": "0x36",
+        "EventName": "UNC_H_TOR_OCCUPANCY.PRQ_MISS",
+        "PerPkg": "1",
+        "UMask": "0x24",
         "Unit": "CHA"
     },
     {

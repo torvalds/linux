@@ -1137,6 +1137,7 @@ static void vsc9959_tas_min_gate_lengths(struct tc_taprio_qopt_offload *taprio,
 {
 	struct tc_taprio_sched_entry *entry;
 	u64 gate_len[OCELOT_NUM_TC];
+	u8 gates_ever_opened = 0;
 	int tc, i, n;
 
 	/* Initialize arrays */
@@ -1164,16 +1165,28 @@ static void vsc9959_tas_min_gate_lengths(struct tc_taprio_qopt_offload *taprio,
 		for (tc = 0; tc < OCELOT_NUM_TC; tc++) {
 			if (entry->gate_mask & BIT(tc)) {
 				gate_len[tc] += entry->interval;
+				gates_ever_opened |= BIT(tc);
 			} else {
 				/* Gate closes now, record a potential new
 				 * minimum and reinitialize length
 				 */
-				if (min_gate_len[tc] > gate_len[tc])
+				if (min_gate_len[tc] > gate_len[tc] &&
+				    gate_len[tc])
 					min_gate_len[tc] = gate_len[tc];
 				gate_len[tc] = 0;
 			}
 		}
 	}
+
+	/* min_gate_len[tc] actually tracks minimum *open* gate time, so for
+	 * permanently closed gates, min_gate_len[tc] will still be U64_MAX.
+	 * Therefore they are currently indistinguishable from permanently
+	 * open gates. Overwrite the gate len with 0 when we know they're
+	 * actually permanently closed, i.e. after the loop above.
+	 */
+	for (tc = 0; tc < OCELOT_NUM_TC; tc++)
+		if (!(gates_ever_opened & BIT(tc)))
+			min_gate_len[tc] = 0;
 }
 
 /* Update QSYS_PORT_MAX_SDU to make sure the static guard bands added by the

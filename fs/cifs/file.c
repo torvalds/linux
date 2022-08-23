@@ -34,6 +34,7 @@
 #include "smbdirect.h"
 #include "fs_context.h"
 #include "cifs_ioctl.h"
+#include "cached_dir.h"
 
 /*
  * Mark as invalid, all open files on tree connections since they
@@ -64,13 +65,7 @@ cifs_mark_open_files_invalid(struct cifs_tcon *tcon)
 	}
 	spin_unlock(&tcon->open_file_lock);
 
-	mutex_lock(&tcon->crfid.fid_mutex);
-	tcon->crfid.is_valid = false;
-	/* cached handle is not valid, so SMB2_CLOSE won't be sent below */
-	close_cached_dir_lease_locked(&tcon->crfid);
-	memset(tcon->crfid.fid, 0, sizeof(struct cifs_fid));
-	mutex_unlock(&tcon->crfid.fid_mutex);
-
+	invalidate_all_cached_dirs(tcon);
 	spin_lock(&tcon->tc_lock);
 	if (tcon->status == TID_IN_FILES_INVALIDATE)
 		tcon->status = TID_NEED_TCON;
@@ -969,12 +964,12 @@ int cifs_close(struct inode *inode, struct file *file)
 				 * So, Increase the ref count to avoid use-after-free.
 				 */
 				if (!mod_delayed_work(deferredclose_wq,
-						&cfile->deferred, cifs_sb->ctx->acregmax))
+						&cfile->deferred, cifs_sb->ctx->closetimeo))
 					cifsFileInfo_get(cfile);
 			} else {
 				/* Deferred close for files */
 				queue_delayed_work(deferredclose_wq,
-						&cfile->deferred, cifs_sb->ctx->acregmax);
+						&cfile->deferred, cifs_sb->ctx->closetimeo);
 				cfile->deferred_close_scheduled = true;
 				spin_unlock(&cinode->deferred_lock);
 				return 0;
@@ -1936,9 +1931,9 @@ int cifs_lock(struct file *file, int cmd, struct file_lock *flock)
 	rc = -EACCES;
 	xid = get_xid();
 
-	cifs_dbg(FYI, "Lock parm: 0x%x flockflags: 0x%x flocktype: 0x%x start: %lld end: %lld\n",
-		 cmd, flock->fl_flags, flock->fl_type,
-		 flock->fl_start, flock->fl_end);
+	cifs_dbg(FYI, "%s: %pD2 cmd=0x%x type=0x%x flags=0x%x r=%lld:%lld\n", __func__, file, cmd,
+		 flock->fl_flags, flock->fl_type, (long long)flock->fl_start,
+		 (long long)flock->fl_end);
 
 	cfile = (struct cifsFileInfo *)file->private_data;
 	tcon = tlink_tcon(cfile->tlink);
@@ -3276,7 +3271,7 @@ cifs_write_from_iter(loff_t offset, size_t len, struct iov_iter *from,
 		if (ctx->direct_io) {
 			ssize_t result;
 
-			result = iov_iter_get_pages_alloc(
+			result = iov_iter_get_pages_alloc2(
 				from, &pagevec, cur_len, &start);
 			if (result < 0) {
 				cifs_dbg(VFS,
@@ -3290,7 +3285,6 @@ cifs_write_from_iter(loff_t offset, size_t len, struct iov_iter *from,
 				break;
 			}
 			cur_len = (size_t)result;
-			iov_iter_advance(from, cur_len);
 
 			nr_pages =
 				(cur_len + start + PAGE_SIZE - 1) / PAGE_SIZE;
@@ -4012,7 +4006,7 @@ cifs_send_async_read(loff_t offset, size_t len, struct cifsFileInfo *open_file,
 		if (ctx->direct_io) {
 			ssize_t result;
 
-			result = iov_iter_get_pages_alloc(
+			result = iov_iter_get_pages_alloc2(
 					&direct_iov, &pagevec,
 					cur_len, &start);
 			if (result < 0) {
@@ -4028,7 +4022,6 @@ cifs_send_async_read(loff_t offset, size_t len, struct cifsFileInfo *open_file,
 				break;
 			}
 			cur_len = (size_t)result;
-			iov_iter_advance(&direct_iov, cur_len);
 
 			rdata = cifs_readdata_direct_alloc(
 					pagevec, cifs_uncached_readv_complete);
@@ -4258,7 +4251,7 @@ static ssize_t __cifs_readv(
 	if (!is_sync_kiocb(iocb))
 		ctx->iocb = iocb;
 
-	if (iter_is_iovec(to))
+	if (user_backed_iter(to))
 		ctx->should_dirty = true;
 
 	if (direct) {
@@ -5066,8 +5059,6 @@ void cifs_oplock_break(struct work_struct *work)
 	struct TCP_Server_Info *server = tcon->ses->server;
 	int rc = 0;
 	bool purge_cache = false;
-	bool is_deferred = false;
-	struct cifs_deferred_close *dclose;
 
 	wait_on_bit(&cinode->flags, CIFS_INODE_PENDING_WRITERS,
 			TASK_UNINTERRUPTIBLE);
@@ -5104,22 +5095,6 @@ void cifs_oplock_break(struct work_struct *work)
 
 oplock_break_ack:
 	/*
-	 * When oplock break is received and there are no active
-	 * file handles but cached, then schedule deferred close immediately.
-	 * So, new open will not use cached handle.
-	 */
-	spin_lock(&CIFS_I(inode)->deferred_lock);
-	is_deferred = cifs_is_deferred_close(cfile, &dclose);
-	spin_unlock(&CIFS_I(inode)->deferred_lock);
-	if (is_deferred &&
-	    cfile->deferred_close_scheduled &&
-	    delayed_work_pending(&cfile->deferred)) {
-		if (cancel_delayed_work(&cfile->deferred)) {
-			_cifsFileInfo_put(cfile, false, false);
-			goto oplock_break_done;
-		}
-	}
-	/*
 	 * releasing stale oplock after recent reconnect of smb session using
 	 * a now incorrect file handle is not a data integrity issue but do
 	 * not bother sending an oplock release if session to server still is
@@ -5130,7 +5105,7 @@ oplock_break_ack:
 							     cinode);
 		cifs_dbg(FYI, "Oplock release rc = %d\n", rc);
 	}
-oplock_break_done:
+
 	_cifsFileInfo_put(cfile, false /* do not wait for ourself */, false);
 	cifs_done_oplock_break(cinode);
 }

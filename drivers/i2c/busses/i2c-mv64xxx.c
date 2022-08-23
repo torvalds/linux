@@ -989,7 +989,7 @@ mv64xxx_i2c_probe(struct platform_device *pd)
 	if (IS_ERR(drv_data->reg_base))
 		return PTR_ERR(drv_data->reg_base);
 
-	strlcpy(drv_data->adapter.name, MV64XXX_I2C_CTLR_NAME " adapter",
+	strscpy(drv_data->adapter.name, MV64XXX_I2C_CTLR_NAME " adapter",
 		sizeof(drv_data->adapter.name));
 
 	init_waitqueue_head(&drv_data->waitq);

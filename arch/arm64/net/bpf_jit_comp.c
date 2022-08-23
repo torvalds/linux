@@ -1496,7 +1496,7 @@ struct bpf_prog *bpf_int_jit_compile(struct bpf_prog *prog)
 	memset(&ctx, 0, sizeof(ctx));
 	ctx.prog = prog;
 
-	ctx.offset = kcalloc(prog->len + 1, sizeof(int), GFP_KERNEL);
+	ctx.offset = kvcalloc(prog->len + 1, sizeof(int), GFP_KERNEL);
 	if (ctx.offset == NULL) {
 		prog = orig_prog;
 		goto out_off;
@@ -1601,7 +1601,7 @@ skip_init_ctx:
 			ctx.offset[i] *= AARCH64_INSN_SIZE;
 		bpf_prog_fill_jited_linfo(prog, ctx.offset + 1);
 out_off:
-		kfree(ctx.offset);
+		kvfree(ctx.offset);
 		kfree(jit_data);
 		prog->aux->jit_data = NULL;
 	}
@@ -1643,7 +1643,7 @@ static void invoke_bpf_prog(struct jit_ctx *ctx, struct bpf_tramp_link *l,
 			    int args_off, int retval_off, int run_ctx_off,
 			    bool save_ret)
 {
-	u32 *branch;
+	__le32 *branch;
 	u64 enter_prog;
 	u64 exit_prog;
 	struct bpf_prog *p = l->link.prog;
@@ -1698,7 +1698,7 @@ static void invoke_bpf_prog(struct jit_ctx *ctx, struct bpf_tramp_link *l,
 
 	if (ctx->image) {
 		int offset = &ctx->image[ctx->idx] - branch;
-		*branch = A64_CBZ(1, A64_R(0), offset);
+		*branch = cpu_to_le32(A64_CBZ(1, A64_R(0), offset));
 	}
 
 	/* arg1: prog */
@@ -1713,7 +1713,7 @@ static void invoke_bpf_prog(struct jit_ctx *ctx, struct bpf_tramp_link *l,
 
 static void invoke_bpf_mod_ret(struct jit_ctx *ctx, struct bpf_tramp_links *tl,
 			       int args_off, int retval_off, int run_ctx_off,
-			       u32 **branches)
+			       __le32 **branches)
 {
 	int i;
 
@@ -1784,7 +1784,7 @@ static int prepare_trampoline(struct jit_ctx *ctx, struct bpf_tramp_image *im,
 	struct bpf_tramp_links *fexit = &tlinks[BPF_TRAMP_FEXIT];
 	struct bpf_tramp_links *fmod_ret = &tlinks[BPF_TRAMP_MODIFY_RETURN];
 	bool save_ret;
-	u32 **branches = NULL;
+	__le32 **branches = NULL;
 
 	/* trampoline stack layout:
 	 *                  [ parent ip         ]
@@ -1892,7 +1892,7 @@ static int prepare_trampoline(struct jit_ctx *ctx, struct bpf_tramp_image *im,
 				flags & BPF_TRAMP_F_RET_FENTRY_RET);
 
 	if (fmod_ret->nr_links) {
-		branches = kcalloc(fmod_ret->nr_links, sizeof(u32 *),
+		branches = kcalloc(fmod_ret->nr_links, sizeof(__le32 *),
 				   GFP_KERNEL);
 		if (!branches)
 			return -ENOMEM;
@@ -1916,7 +1916,7 @@ static int prepare_trampoline(struct jit_ctx *ctx, struct bpf_tramp_image *im,
 	/* update the branches saved in invoke_bpf_mod_ret with cbnz */
 	for (i = 0; i < fmod_ret->nr_links && ctx->image != NULL; i++) {
 		int offset = &ctx->image[ctx->idx] - branches[i];
-		*branches[i] = A64_CBNZ(1, A64_R(10), offset);
+		*branches[i] = cpu_to_le32(A64_CBNZ(1, A64_R(10), offset));
 	}
 
 	for (i = 0; i < fexit->nr_links; i++)

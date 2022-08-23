@@ -780,7 +780,7 @@ static inline bool should_fault_in_pages(struct iov_iter *i,
 
 	if (!count)
 		return false;
-	if (!iter_is_iovec(i))
+	if (!user_backed_iter(i))
 		return false;
 
 	size = PAGE_SIZE;

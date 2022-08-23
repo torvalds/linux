@@ -131,7 +131,7 @@ static void handler_call_die(const char *handler_name)
 }
 
 /*
- * Insert val into into the dictionary and decrement the reference counter.
+ * Insert val into the dictionary and decrement the reference counter.
  * This is necessary for dictionaries since PyDict_SetItemString() does not
  * steal a reference, as opposed to PyTuple_SetItem().
  */

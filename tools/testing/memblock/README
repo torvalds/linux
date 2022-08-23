@@ -33,12 +33,23 @@ To run the tests, build the main target and run it:
 
 $ make && ./main
 
-A successful run produces no output. It is also possible to override different
-configuration parameters. For example, to simulate enabled NUMA, use:
+A successful run produces no output. It is possible to control the behavior
+by passing options from command line. For example, to include verbose output,
+append the `-v` options when you run the tests:
+
+$ ./main -v
+
+This will print information about which functions are being tested and the
+number of test cases that passed.
+
+For the full list of options from command line, see `./main --help`.
+
+It is also possible to override different configuration parameters to change
+the test functions. For example, to simulate enabled NUMA, use:
 
 $ make NUMA=1
 
-For the full list of options, see `make help`.
+For the full list of build options, see `make help`.
 
 Project structure
 =================

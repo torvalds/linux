@@ -838,7 +838,7 @@ static int mxs_i2c_probe(struct platform_device *pdev)
 		return err;
 
 	adap = &i2c->adapter;
-	strlcpy(adap->name, "MXS I2C adapter", sizeof(adap->name));
+	strscpy(adap->name, "MXS I2C adapter", sizeof(adap->name));
 	adap->owner = THIS_MODULE;
 	adap->algo = &mxs_i2c_algo;
 	adap->quirks = &mxs_i2c_quirks;

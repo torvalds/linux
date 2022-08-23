@@ -1128,42 +1128,6 @@ struct cifs_fattr {
 	u32             cf_cifstag;
 };
 
-struct cached_dirent {
-	struct list_head entry;
-	char *name;
-	int namelen;
-	loff_t pos;
-
-	struct cifs_fattr fattr;
-};
-
-struct cached_dirents {
-	bool is_valid:1;
-	bool is_failed:1;
-	struct dir_context *ctx; /*
-				  * Only used to make sure we only take entries
-				  * from a single context. Never dereferenced.
-				  */
-	struct mutex de_mutex;
-	int pos;		 /* Expected ctx->pos */
-	struct list_head entries;
-};
-
-struct cached_fid {
-	bool is_valid:1;	/* Do we have a useable root fid */
-	bool file_all_info_is_valid:1;
-	bool has_lease:1;
-	unsigned long time; /* jiffies of when lease was taken */
-	struct kref refcount;
-	struct cifs_fid *fid;
-	struct mutex fid_mutex;
-	struct cifs_tcon *tcon;
-	struct dentry *dentry;
-	struct work_struct lease_break;
-	struct smb2_file_all_info file_all_info;
-	struct cached_dirents dirents;
-};
-
 /*
  * there is one of these for each connection to a resource on a particular
  * session
@@ -1257,7 +1221,7 @@ struct cifs_tcon {
 	struct fscache_volume *fscache;	/* cookie for share */
 #endif
 	struct list_head pending_opens;	/* list of incomplete opens */
-	struct cached_fid crfid; /* Cached root fid */
+	struct cached_fid *cfid; /* Cached root fid */
 	/* BB add field for back pointer to sb struct(s)? */
 #ifdef CONFIG_CIFS_DFS_UPCALL
 	struct list_head ulist; /* cache update list */
@@ -2132,9 +2096,9 @@ static inline bool cifs_is_referral_server(struct cifs_tcon *tcon,
 	return is_tcon_dfs(tcon) || (ref && (ref->flags & DFSREF_REFERRAL_SERVER));
 }
 
-static inline u64 cifs_flock_len(struct file_lock *fl)
+static inline u64 cifs_flock_len(const struct file_lock *fl)
 {
-	return fl->fl_end == OFFSET_MAX ? 0 : fl->fl_end - fl->fl_start + 1;
+	return (u64)fl->fl_end - fl->fl_start + 1;
 }
 
 static inline size_t ntlmssp_workstation_name_size(const struct cifs_ses *ses)

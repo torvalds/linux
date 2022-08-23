@@ -24,14 +24,18 @@ const char *event_type(int type);
 
 int parse_events_option(const struct option *opt, const char *str, int unset);
 int parse_events_option_new_evlist(const struct option *opt, const char *str, int unset);
+__attribute__((nonnull(1, 2, 3)))
 int __parse_events(struct evlist *evlist, const char *str, struct parse_events_error *error,
 		   struct perf_pmu *fake_pmu);
 
+__attribute__((nonnull))
 static inline int parse_events(struct evlist *evlist, const char *str,
 			       struct parse_events_error *err)
 {
 	return __parse_events(evlist, str, err, NULL);
 }
+
+int parse_event(struct evlist *evlist, const char *str);
 
 int parse_events_terms(struct list_head *terms, const char *str);
 int parse_filter(const struct option *opt, const char *str, int unset);

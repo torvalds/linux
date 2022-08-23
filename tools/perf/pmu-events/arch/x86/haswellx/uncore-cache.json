@@ -964,6 +964,15 @@
         "Unit": "CBO"
     },
     {
+        "BriefDescription": "TOR Inserts; Opcode Match",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x35",
+        "EventName": "UNC_C_TOR_INSERTS.OPCODE",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "CBO"
+    },
+    {
         "BriefDescription": "PCIe writes (partial cache line). Derived from unc_c_tor_inserts.opcode",
         "Counter": "0,1,2,3",
         "EventCode": "0x35",
@@ -974,31 +983,10 @@
         "Unit": "CBO"
     },
     {
-        "BriefDescription": "PCIe writes (partial cache line)",
-        "Counter": "0,1,2,3",
-        "EventCode": "0x35",
-        "EventName": "UNC_C_TOR_INSERTS.OPCODE",
-        "Filter": "filter_opc=0x180,filter_tid=0x3e",
-        "PerPkg": "1",
-        "UMask": "0x1",
-        "Unit": "CBO"
-    },
-    {
         "BriefDescription": "L2 demand and L2 prefetch code references to LLC. Derived from unc_c_tor_inserts.opcode",
         "Counter": "0,1,2,3",
         "EventCode": "0x35",
         "EventName": "LLC_REFERENCES.CODE_LLC_PREFETCH",
-        "Filter": "filter_opc=0x181",
-        "PerPkg": "1",
-        "ScaleUnit": "64Bytes",
-        "UMask": "0x1",
-        "Unit": "CBO"
-    },
-    {
-        "BriefDescription": "L2 demand and L2 prefetch code references to LLC",
-        "Counter": "0,1,2,3",
-        "EventCode": "0x35",
-        "EventName": "UNC_C_TOR_INSERTS.OPCODE",
         "Filter": "filter_opc=0x181",
         "PerPkg": "1",
         "ScaleUnit": "64Bytes",
@@ -1017,32 +1005,10 @@
         "Unit": "CBO"
     },
     {
-        "BriefDescription": "Streaming stores (full cache line)",
-        "Counter": "0,1,2,3",
-        "EventCode": "0x35",
-        "EventName": "UNC_C_TOR_INSERTS.OPCODE",
-        "Filter": "filter_opc=0x18c",
-        "PerPkg": "1",
-        "ScaleUnit": "64Bytes",
-        "UMask": "0x1",
-        "Unit": "CBO"
-    },
-    {
         "BriefDescription": "Streaming stores (partial cache line). Derived from unc_c_tor_inserts.opcode",
         "Counter": "0,1,2,3",
         "EventCode": "0x35",
         "EventName": "LLC_REFERENCES.STREAMING_PARTIAL",
-        "Filter": "filter_opc=0x18d",
-        "PerPkg": "1",
-        "ScaleUnit": "64Bytes",
-        "UMask": "0x1",
-        "Unit": "CBO"
-    },
-    {
-        "BriefDescription": "Streaming stores (partial cache line)",
-        "Counter": "0,1,2,3",
-        "EventCode": "0x35",
-        "EventName": "UNC_C_TOR_INSERTS.OPCODE",
         "Filter": "filter_opc=0x18d",
         "PerPkg": "1",
         "ScaleUnit": "64Bytes",
@@ -1061,32 +1027,10 @@
         "Unit": "CBO"
     },
     {
-        "BriefDescription": "PCIe read current",
-        "Counter": "0,1,2,3",
-        "EventCode": "0x35",
-        "EventName": "UNC_C_TOR_INSERTS.OPCODE",
-        "Filter": "filter_opc=0x19e",
-        "PerPkg": "1",
-        "ScaleUnit": "64Bytes",
-        "UMask": "0x1",
-        "Unit": "CBO"
-    },
-    {
         "BriefDescription": "PCIe write references (full cache line). Derived from unc_c_tor_inserts.opcode",
         "Counter": "0,1,2,3",
         "EventCode": "0x35",
         "EventName": "LLC_REFERENCES.PCIE_WRITE",
-        "Filter": "filter_opc=0x1c8,filter_tid=0x3e",
-        "PerPkg": "1",
-        "ScaleUnit": "64Bytes",
-        "UMask": "0x1",
-        "Unit": "CBO"
-    },
-    {
-        "BriefDescription": "PCIe write references (full cache line)",
-        "Counter": "0,1,2,3",
-        "EventCode": "0x35",
-        "EventName": "UNC_C_TOR_INSERTS.OPCODE",
         "Filter": "filter_opc=0x1c8,filter_tid=0x3e",
         "PerPkg": "1",
         "ScaleUnit": "64Bytes",
@@ -1121,21 +1065,19 @@
         "Unit": "CBO"
     },
     {
-        "BriefDescription": "LLC misses - demand and prefetch data reads - excludes LLC prefetches. Derived from unc_c_tor_inserts.miss_opcode",
+        "BriefDescription": "TOR Inserts; Miss Opcode Match",
         "Counter": "0,1,2,3",
         "EventCode": "0x35",
-        "EventName": "LLC_MISSES.DATA_READ",
-        "Filter": "filter_opc=0x182",
+        "EventName": "UNC_C_TOR_INSERTS.MISS_OPCODE",
         "PerPkg": "1",
-        "ScaleUnit": "64Bytes",
         "UMask": "0x3",
         "Unit": "CBO"
     },
     {
-        "BriefDescription": "LLC misses - demand and prefetch data reads - excludes LLC prefetches",
+        "BriefDescription": "LLC misses - demand and prefetch data reads - excludes LLC prefetches. Derived from unc_c_tor_inserts.miss_opcode",
         "Counter": "0,1,2,3",
         "EventCode": "0x35",
-        "EventName": "UNC_C_TOR_INSERTS.MISS_OPCODE",
+        "EventName": "LLC_MISSES.DATA_READ",
         "Filter": "filter_opc=0x182",
         "PerPkg": "1",
         "ScaleUnit": "64Bytes",
@@ -1154,32 +1096,10 @@
         "Unit": "CBO"
     },
     {
-        "BriefDescription": "LLC misses - Uncacheable reads (from cpu) ",
-        "Counter": "0,1,2,3",
-        "EventCode": "0x35",
-        "EventName": "UNC_C_TOR_INSERTS.MISS_OPCODE",
-        "Filter": "filter_opc=0x187",
-        "PerPkg": "1",
-        "ScaleUnit": "64Bytes",
-        "UMask": "0x3",
-        "Unit": "CBO"
-    },
-    {
         "BriefDescription": "MMIO reads. Derived from unc_c_tor_inserts.miss_opcode",
         "Counter": "0,1,2,3",
         "EventCode": "0x35",
         "EventName": "LLC_MISSES.MMIO_READ",
-        "Filter": "filter_opc=0x187,filter_nc=1",
-        "PerPkg": "1",
-        "ScaleUnit": "64Bytes",
-        "UMask": "0x3",
-        "Unit": "CBO"
-    },
-    {
-        "BriefDescription": "MMIO reads",
-        "Counter": "0,1,2,3",
-        "EventCode": "0x35",
-        "EventName": "UNC_C_TOR_INSERTS.MISS_OPCODE",
         "Filter": "filter_opc=0x187,filter_nc=1",
         "PerPkg": "1",
         "ScaleUnit": "64Bytes",
@@ -1198,32 +1118,10 @@
         "Unit": "CBO"
     },
     {
-        "BriefDescription": "MMIO writes",
-        "Counter": "0,1,2,3",
-        "EventCode": "0x35",
-        "EventName": "UNC_C_TOR_INSERTS.MISS_OPCODE",
-        "Filter": "filter_opc=0x18f,filter_nc=1",
-        "PerPkg": "1",
-        "ScaleUnit": "64Bytes",
-        "UMask": "0x3",
-        "Unit": "CBO"
-    },
-    {
         "BriefDescription": "LLC prefetch misses for RFO. Derived from unc_c_tor_inserts.miss_opcode",
         "Counter": "0,1,2,3",
         "EventCode": "0x35",
         "EventName": "LLC_MISSES.RFO_LLC_PREFETCH",
-        "Filter": "filter_opc=0x190",
-        "PerPkg": "1",
-        "ScaleUnit": "64Bytes",
-        "UMask": "0x3",
-        "Unit": "CBO"
-    },
-    {
-        "BriefDescription": "LLC prefetch misses for RFO",
-        "Counter": "0,1,2,3",
-        "EventCode": "0x35",
-        "EventName": "UNC_C_TOR_INSERTS.MISS_OPCODE",
         "Filter": "filter_opc=0x190",
         "PerPkg": "1",
         "ScaleUnit": "64Bytes",
@@ -1242,32 +1140,10 @@
         "Unit": "CBO"
     },
     {
-        "BriefDescription": "LLC prefetch misses for code reads",
-        "Counter": "0,1,2,3",
-        "EventCode": "0x35",
-        "EventName": "UNC_C_TOR_INSERTS.MISS_OPCODE",
-        "Filter": "filter_opc=0x191",
-        "PerPkg": "1",
-        "ScaleUnit": "64Bytes",
-        "UMask": "0x3",
-        "Unit": "CBO"
-    },
-    {
         "BriefDescription": "LLC prefetch misses for data reads. Derived from unc_c_tor_inserts.miss_opcode",
         "Counter": "0,1,2,3",
         "EventCode": "0x35",
         "EventName": "LLC_MISSES.DATA_LLC_PREFETCH",
-        "Filter": "filter_opc=0x192",
-        "PerPkg": "1",
-        "ScaleUnit": "64Bytes",
-        "UMask": "0x3",
-        "Unit": "CBO"
-    },
-    {
-        "BriefDescription": "LLC prefetch misses for data reads",
-        "Counter": "0,1,2,3",
-        "EventCode": "0x35",
-        "EventName": "UNC_C_TOR_INSERTS.MISS_OPCODE",
         "Filter": "filter_opc=0x192",
         "PerPkg": "1",
         "ScaleUnit": "64Bytes",
@@ -1286,17 +1162,6 @@
         "Unit": "CBO"
     },
     {
-        "BriefDescription": "LLC misses for PCIe read current",
-        "Counter": "0,1,2,3",
-        "EventCode": "0x35",
-        "EventName": "UNC_C_TOR_INSERTS.MISS_OPCODE",
-        "Filter": "filter_opc=0x19e",
-        "PerPkg": "1",
-        "ScaleUnit": "64Bytes",
-        "UMask": "0x3",
-        "Unit": "CBO"
-    },
-    {
         "BriefDescription": "ItoM write misses (as part of fast string memcpy stores) + PCIe full line writes. Derived from unc_c_tor_inserts.miss_opcode",
         "Counter": "0,1,2,3",
         "EventCode": "0x35",
@@ -1308,32 +1173,10 @@
         "Unit": "CBO"
     },
     {
-        "BriefDescription": "ItoM write misses (as part of fast string memcpy stores) + PCIe full line writes",
-        "Counter": "0,1,2,3",
-        "EventCode": "0x35",
-        "EventName": "UNC_C_TOR_INSERTS.MISS_OPCODE",
-        "Filter": "filter_opc=0x1c8",
-        "PerPkg": "1",
-        "ScaleUnit": "64Bytes",
-        "UMask": "0x3",
-        "Unit": "CBO"
-    },
-    {
         "BriefDescription": "PCIe write misses (full cache line). Derived from unc_c_tor_inserts.miss_opcode",
         "Counter": "0,1,2,3",
         "EventCode": "0x35",
         "EventName": "LLC_MISSES.PCIE_NON_SNOOP_WRITE",
-        "Filter": "filter_opc=0x1c8,filter_tid=0x3e",
-        "PerPkg": "1",
-        "ScaleUnit": "64Bytes",
-        "UMask": "0x3",
-        "Unit": "CBO"
-    },
-    {
-        "BriefDescription": "PCIe write misses (full cache line)",
-        "Counter": "0,1,2,3",
-        "EventCode": "0x35",
-        "EventName": "UNC_C_TOR_INSERTS.MISS_OPCODE",
         "Filter": "filter_opc=0x1c8,filter_tid=0x3e",
         "PerPkg": "1",
         "ScaleUnit": "64Bytes",

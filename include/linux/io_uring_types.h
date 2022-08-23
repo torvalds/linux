@@ -491,7 +491,14 @@ struct io_cmd_data {
 	__u8			data[56];
 };
 
-#define io_kiocb_to_cmd(req)	((void *) &(req)->cmd)
+static inline void io_kiocb_cmd_sz_check(size_t cmd_sz)
+{
+	BUILD_BUG_ON(cmd_sz > sizeof(struct io_cmd_data));
+}
+#define io_kiocb_to_cmd(req, cmd_type) ( \
+	io_kiocb_cmd_sz_check(sizeof(cmd_type)) , \
+	((cmd_type *)&(req)->cmd) \
+)
 #define cmd_to_io_kiocb(ptr)	((struct io_kiocb *) ptr)
 
 struct io_kiocb {

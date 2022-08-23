@@ -92,7 +92,6 @@
         "Counter": "0,1,2,3",
         "EventCode": "0x1e",
         "EventName": "UNC_P_DEMOTIONS_CORE0",
-        "Filter": "PCUFilter[7:0]",
         "PerPkg": "1",
         "PublicDescription": "Counts the number of times when a configurable cores had a C-state demotion",
         "Unit": "PCU"
@@ -102,7 +101,6 @@
         "Counter": "0,1,2,3",
         "EventCode": "0x1f",
         "EventName": "UNC_P_DEMOTIONS_CORE1",
-        "Filter": "PCUFilter[7:0]",
         "PerPkg": "1",
         "PublicDescription": "Counts the number of times when a configurable cores had a C-state demotion",
         "Unit": "PCU"
@@ -121,7 +119,6 @@
         "Counter": "0,1,2,3",
         "EventCode": "0x21",
         "EventName": "UNC_P_DEMOTIONS_CORE3",
-        "Filter": "PCUFilter[7:0]",
         "PerPkg": "1",
         "PublicDescription": "Counts the number of times when a configurable cores had a C-state demotion",
         "Unit": "PCU"
@@ -131,7 +128,6 @@
         "Counter": "0,1,2,3",
         "EventCode": "0x22",
         "EventName": "UNC_P_DEMOTIONS_CORE4",
-        "Filter": "PCUFilter[7:0]",
         "PerPkg": "1",
         "PublicDescription": "Counts the number of times when a configurable cores had a C-state demotion",
         "Unit": "PCU"
@@ -141,7 +137,6 @@
         "Counter": "0,1,2,3",
         "EventCode": "0x23",
         "EventName": "UNC_P_DEMOTIONS_CORE5",
-        "Filter": "PCUFilter[7:0]",
         "PerPkg": "1",
         "PublicDescription": "Counts the number of times when a configurable cores had a C-state demotion",
         "Unit": "PCU"
@@ -151,7 +146,6 @@
         "Counter": "0,1,2,3",
         "EventCode": "0x24",
         "EventName": "UNC_P_DEMOTIONS_CORE6",
-        "Filter": "PCUFilter[7:0]",
         "PerPkg": "1",
         "PublicDescription": "Counts the number of times when a configurable cores had a C-state demotion",
         "Unit": "PCU"
@@ -161,7 +155,6 @@
         "Counter": "0,1,2,3",
         "EventCode": "0x25",
         "EventName": "UNC_P_DEMOTIONS_CORE7",
-        "Filter": "PCUFilter[7:0]",
         "PerPkg": "1",
         "PublicDescription": "Counts the number of times when a configurable cores had a C-state demotion",
         "Unit": "PCU"
@@ -171,7 +164,6 @@
         "Counter": "0,1,2,3",
         "EventCode": "0xb",
         "EventName": "UNC_P_FREQ_BAND0_CYCLES",
-        "Filter": "PCUFilter[7:0]",
         "PerPkg": "1",
         "PublicDescription": "Counts the number of cycles that the uncore was running at a frequency greater than or equal to the frequency that is configured in the filter.  One can use all four counters with this event, so it is possible to track up to 4 configurable bands.  One can use edge detect in conjunction with this event to track the number of times that we transitioned into a frequency greater than or equal to the configurable frequency. One can also use inversion to track cycles when we were less than the configured frequency.",
         "Unit": "PCU"
@@ -181,7 +173,6 @@
         "Counter": "0,1,2,3",
         "EventCode": "0xc",
         "EventName": "UNC_P_FREQ_BAND1_CYCLES",
-        "Filter": "PCUFilter[15:8]",
         "PerPkg": "1",
         "PublicDescription": "Counts the number of cycles that the uncore was running at a frequency greater than or equal to the frequency that is configured in the filter.  One can use all four counters with this event, so it is possible to track up to 4 configurable bands.  One can use edge detect in conjunction with this event to track the number of times that we transitioned into a frequency greater than or equal to the configurable frequency. One can also use inversion to track cycles when we were less than the configured frequency.",
         "Unit": "PCU"
@@ -191,7 +182,6 @@
         "Counter": "0,1,2,3",
         "EventCode": "0xd",
         "EventName": "UNC_P_FREQ_BAND2_CYCLES",
-        "Filter": "PCUFilter[23:16]",
         "PerPkg": "1",
         "PublicDescription": "Counts the number of cycles that the uncore was running at a frequency greater than or equal to the frequency that is configured in the filter.  One can use all four counters with this event, so it is possible to track up to 4 configurable bands.  One can use edge detect in conjunction with this event to track the number of times that we transitioned into a frequency greater than or equal to the configurable frequency. One can also use inversion to track cycles when we were less than the configured frequency.",
         "Unit": "PCU"
@@ -201,7 +191,6 @@
         "Counter": "0,1,2,3",
         "EventCode": "0xe",
         "EventName": "UNC_P_FREQ_BAND3_CYCLES",
-        "Filter": "PCUFilter[31:24]",
         "PerPkg": "1",
         "PublicDescription": "Counts the number of cycles that the uncore was running at a frequency greater than or equal to the frequency that is configured in the filter.  One can use all four counters with this event, so it is possible to track up to 4 configurable bands.  One can use edge detect in conjunction with this event to track the number of times that we transitioned into a frequency greater than or equal to the configurable frequency. One can also use inversion to track cycles when we were less than the configured frequency.",
         "Unit": "PCU"

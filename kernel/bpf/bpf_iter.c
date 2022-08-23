@@ -68,13 +68,18 @@ static void bpf_iter_done_stop(struct seq_file *seq)
 	iter_priv->done_stop = true;
 }
 
+static inline bool bpf_iter_target_support_resched(const struct bpf_iter_target_info *tinfo)
+{
+	return tinfo->reg_info->feature & BPF_ITER_RESCHED;
+}
+
 static bool bpf_iter_support_resched(struct seq_file *seq)
 {
 	struct bpf_iter_priv_data *iter_priv;
 
 	iter_priv = container_of(seq->private, struct bpf_iter_priv_data,
 				 target_private);
-	return iter_priv->tinfo->reg_info->feature & BPF_ITER_RESCHED;
+	return bpf_iter_target_support_resched(iter_priv->tinfo);
 }
 
 /* maximum visited objects before bailing out */
@@ -536,6 +541,10 @@ int bpf_iter_link_attach(const union bpf_attr *attr, bpfptr_t uattr,
 	mutex_unlock(&targets_mutex);
 	if (!tinfo)
 		return -ENOENT;
+
+	/* Only allow sleepable program for resched-able iterator */
+	if (prog->aux->sleepable && !bpf_iter_target_support_resched(tinfo))
+		return -EINVAL;
 
 	link = kzalloc(sizeof(*link), GFP_USER | __GFP_NOWARN);
 	if (!link)

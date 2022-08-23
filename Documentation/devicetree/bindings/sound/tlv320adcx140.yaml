@@ -8,7 +8,7 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: Texas Instruments TLV320ADCX140 Quad Channel Analog-to-Digital Converter
 
 maintainers:
-  - Dan Murphy <dmurphy@ti.com>
+  - Andrew Davis <afd@ti.com>
 
 description: |
   The TLV320ADCX140 are multichannel (4-ch analog recording or 8-ch digital

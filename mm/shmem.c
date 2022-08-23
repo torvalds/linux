@@ -2626,7 +2626,7 @@ static ssize_t shmem_file_read_iter(struct kiocb *iocb, struct iov_iter *to)
 			ret = copy_page_to_iter(page, offset, nr, to);
 			put_page(page);
 
-		} else if (iter_is_iovec(to)) {
+		} else if (user_backed_iter(to)) {
 			/*
 			 * Copy to user tends to be so well optimized, but
 			 * clear_user() not so much, that it is noticeably

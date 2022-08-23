@@ -635,7 +635,7 @@ static inline void host_int_parse_assoc_resp_info(struct wilc_vif *vif,
 	conn_info->req_ies_len = 0;
 }
 
-inline void wilc_handle_disconnect(struct wilc_vif *vif)
+void wilc_handle_disconnect(struct wilc_vif *vif)
 {
 	struct host_if_drv *hif_drv = vif->hif_drv;
 

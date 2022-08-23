@@ -264,6 +264,11 @@ W:	http://www.adaptec.com/
 F:	Documentation/scsi/aacraid.rst
 F:	drivers/scsi/aacraid/
 
+AB8500 BATTERY AND CHARGER DRIVERS
+M:	Linus Walleij <linus.walleij@linaro.org>
+F:	Documentation/devicetree/bindings/power/supply/*ab8500*
+F:	drivers/power/supply/*ab8500*
+
 ABI/API
 L:	linux-api@vger.kernel.org
 F:	include/linux/syscalls.h
@@ -1390,10 +1395,14 @@ F:	include/uapi/linux/apm_bios.h
 
 APPARMOR SECURITY MODULE
 M:	John Johansen <john.johansen@canonical.com>
-L:	apparmor@lists.ubuntu.com (subscribers-only, general discussion)
+M:	John Johansen <john@apparmor.net>
+L:	apparmor@lists.ubuntu.com (moderated for non-subscribers)
 S:	Supported
-W:	wiki.apparmor.net
+W:	apparmor.net
+B:	https://gitlab.com/apparmor/apparmor-kernel
+C:	irc://irc.oftc.net/apparmor
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jj/linux-apparmor
+T:	https://gitlab.com/apparmor/apparmor-kernel.git
 F:	Documentation/admin-guide/LSM/apparmor.rst
 F:	security/apparmor/
 
@@ -2477,11 +2486,13 @@ S:	Supported
 F:	Documentation/devicetree/bindings/*/*/*npcm*
 F:	Documentation/devicetree/bindings/*/*npcm*
 F:	Documentation/devicetree/bindings/arm/npcm/*
+F:	Documentation/devicetree/bindings/rtc/nuvoton,nct3018y.yaml
 F:	arch/arm/boot/dts/nuvoton-npcm*
 F:	arch/arm/mach-npcm/
 F:	arch/arm64/boot/dts/nuvoton/
 F:	drivers/*/*npcm*
 F:	drivers/*/*/*npcm*
+F:	drivers/rtc/rtc-nct3018y.c
 F:	include/dt-bindings/clock/nuvoton,npcm7xx-clock.h
 F:	include/dt-bindings/clock/nuvoton,npcm845-clk.h
 
@@ -4783,7 +4794,6 @@ L:	keyrings@vger.kernel.org
 S:	Maintained
 F:	Documentation/admin-guide/module-signing.rst
 F:	certs/
-F:	scripts/check-blacklist-hashes.awk
 F:	scripts/sign-file.c
 F:	tools/certs/
 
@@ -9691,7 +9701,7 @@ F:	arch/powerpc/platforms/powernv/copy-paste.h
 F:	arch/powerpc/platforms/powernv/vas*
 
 IBM Power Virtual Ethernet Device Driver
-M:	Cristobal Forno <cforno12@linux.ibm.com>
+M:	Nick Child <nnac123@linux.ibm.com>
 L:	netdev@vger.kernel.org
 S:	Supported
 F:	drivers/net/ethernet/ibm/ibmveth.*
@@ -11070,6 +11080,7 @@ R:	Sergey Senozhatsky <senozhatsky@chromium.org>
 L:	linux-cifs@vger.kernel.org
 S:	Maintained
 T:	git git://git.samba.org/ksmbd.git
+F:	Documentation/filesystems/cifs/ksmbd.rst
 F:	fs/ksmbd/
 F:	fs/smbfs_common/
 
@@ -12846,7 +12857,7 @@ F:	Documentation/devicetree/bindings/net/wireless/mediatek,mt76.yaml
 F:	drivers/net/wireless/mediatek/mt76/
 
 MEDIATEK MT7601U WIRELESS LAN DRIVER
-M:	Jakub Kicinski <kubakici@wp.pl>
+M:	Jakub Kicinski <kuba@kernel.org>
 L:	linux-wireless@vger.kernel.org
 S:	Maintained
 F:	drivers/net/wireless/mediatek/mt7601u/
@@ -14464,6 +14475,7 @@ W:	https://github.com/jonmason/ntb/wiki
 T:	git git://github.com/jonmason/ntb.git
 F:	drivers/net/ntb_netdev.c
 F:	drivers/ntb/
+F:	drivers/pci/endpoint/functions/pci-epf-*ntb.c
 F:	include/linux/ntb.h
 F:	include/linux/ntb_transport.h
 F:	tools/testing/selftests/ntb/
@@ -16064,6 +16076,7 @@ T:	git git://git.kernel.org/pub/scm/linux/kernel/git/linusw/linux-pinctrl.git
 F:	Documentation/devicetree/bindings/pinctrl/
 F:	Documentation/driver-api/pin-control.rst
 F:	drivers/pinctrl/
+F:	include/dt-bindings/pinctrl/
 F:	include/linux/pinctrl/
 
 PIN CONTROLLER - AMD
@@ -16881,7 +16894,7 @@ M:	Robert Foss <robert.foss@linaro.org>
 L:	linux-i2c@vger.kernel.org
 L:	linux-arm-msm@vger.kernel.org
 S:	Maintained
-F:	Documentation/devicetree/bindings/i2c/i2c-qcom-cci.txt
+F:	Documentation/devicetree/bindings/i2c/qcom,i2c-cci.yaml
 F:	drivers/i2c/busses/i2c-qcom-cci.c
 
 QUALCOMM INTERCONNECT BWMON DRIVER
@@ -17526,6 +17539,7 @@ F:	drivers/char/hw_random/mpfs-rng.c
 F:	drivers/clk/microchip/clk-mpfs.c
 F:	drivers/mailbox/mailbox-mpfs.c
 F:	drivers/pci/controller/pcie-microchip-host.c
+F:	drivers/rtc/rtc-mpfs.c
 F:	drivers/soc/microchip/
 F:	drivers/spi/spi-microchip-core.c
 F:	drivers/usb/musb/mpfs.c
@@ -22193,12 +22207,14 @@ F:	drivers/*/xen-*front.c
 F:	drivers/xen/
 F:	include/uapi/xen/
 F:	include/xen/
+F:	kernel/configs/xen.config
 
 XEN HYPERVISOR X86
 M:	Juergen Gross <jgross@suse.com>
 R:	Boris Ostrovsky <boris.ostrovsky@oracle.com>
 L:	xen-devel@lists.xenproject.org (moderated for non-subscribers)
 S:	Supported
+F:	arch/x86/configs/xen.config
 F:	arch/x86/include/asm/pvclock-abi.h
 F:	arch/x86/include/asm/xen/
 F:	arch/x86/platform/pvh/

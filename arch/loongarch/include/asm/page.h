@@ -33,8 +33,6 @@
 #include <linux/kernel.h>
 #include <linux/pfn.h>
 
-#define MAX_DMA32_PFN  (1UL << (32 - PAGE_SHIFT))
-
 /*
  * It's normally defined only for FLATMEM config but it's
  * used in our early mem init code for all memory models.

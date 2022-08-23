@@ -248,17 +248,6 @@
         "Unit": "IRP"
     },
     {
-        "BriefDescription": "Inbound Transaction Count; Select Source",
-        "Counter": "0,1",
-        "EventCode": "0x15",
-        "EventName": "UNC_I_TRANSACTIONS.ORDERINGQ",
-        "Filter": "IRPFilter[4:0]",
-        "PerPkg": "1",
-        "PublicDescription": "Counts the number of 'Inbound' transactions from the IRP to the Uncore.  This can be filtered based on request type in addition to the source queue.  Note the special filtering equation.  We do OR-reduction on the request type.  If the SOURCE bit is set, then we also do AND qualification based on the source portID.",
-        "UMask": "0x8",
-        "Unit": "IRP"
-    },
-    {
         "BriefDescription": "Inbound Transaction Count; Read Prefetches",
         "Counter": "0,1",
         "EventCode": "0x15",
@@ -1378,7 +1367,6 @@
         "Counter": "0,1",
         "EventCode": "0x41",
         "EventName": "UNC_U_FILTER_MATCH.ENABLE",
-        "Filter": "UBoxFilter[3:0]",
         "PerPkg": "1",
         "PublicDescription": "Filter match per thread (w/ or w/o Filter Enable).  Specify the thread to filter on using NCUPMONCTRLGLCTR.ThreadID.",
         "UMask": "0x1",
@@ -1399,7 +1387,6 @@
         "Counter": "0,1",
         "EventCode": "0x41",
         "EventName": "UNC_U_FILTER_MATCH.U2C_ENABLE",
-        "Filter": "UBoxFilter[3:0]",
         "PerPkg": "1",
         "PublicDescription": "Filter match per thread (w/ or w/o Filter Enable).  Specify the thread to filter on using NCUPMONCTRLGLCTR.ThreadID.",
         "UMask": "0x4",

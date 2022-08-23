@@ -1982,15 +1982,6 @@ uses the response as an indication that the link is operating.  This
 gives some assurance that traffic is actually flowing to and from one
 or more peers on the local network.
 
-The ARP monitor relies on the device driver itself to verify
-that traffic is flowing.  In particular, the driver must keep up to
-date the last receive time, dev->last_rx.  Drivers that use NETIF_F_LLTX
-flag must also update netdev_queue->trans_start.  If they do not, then the
-ARP monitor will immediately fail any slaves using that driver, and
-those slaves will stay down.  If networking monitoring (tcpdump, etc)
-shows the ARP requests and replies on the network, then it may be that
-your device driver is not updating last_rx and trans_start.
-
 7.2 Configuring Multiple ARP Targets
 ------------------------------------
 

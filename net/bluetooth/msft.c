@@ -120,7 +120,10 @@ static bool read_supported_features(struct hci_dev *hdev,
 
 	skb = __hci_cmd_sync(hdev, hdev->msft_opcode, sizeof(cp), &cp,
 			     HCI_CMD_TIMEOUT);
-	if (IS_ERR(skb)) {
+	if (IS_ERR_OR_NULL(skb)) {
+		if (!skb)
+			skb = ERR_PTR(-EIO);
+
 		bt_dev_err(hdev, "Failed to read MSFT supported features (%ld)",
 			   PTR_ERR(skb));
 		return false;
@@ -319,8 +322,11 @@ static int msft_remove_monitor_sync(struct hci_dev *hdev,
 
 	skb = __hci_cmd_sync(hdev, hdev->msft_opcode, sizeof(cp), &cp,
 			     HCI_CMD_TIMEOUT);
-	if (IS_ERR(skb))
+	if (IS_ERR_OR_NULL(skb)) {
+		if (!skb)
+			return -EIO;
 		return PTR_ERR(skb);
+	}
 
 	return msft_le_cancel_monitor_advertisement_cb(hdev, hdev->msft_opcode,
 						       monitor, skb);
@@ -432,8 +438,11 @@ static int msft_add_monitor_sync(struct hci_dev *hdev,
 			     HCI_CMD_TIMEOUT);
 	kfree(cp);
 
-	if (IS_ERR(skb))
+	if (IS_ERR_OR_NULL(skb)) {
+		if (!skb)
+			return -EIO;
 		return PTR_ERR(skb);
+	}
 
 	return msft_le_monitor_advertisement_cb(hdev, hdev->msft_opcode,
 						monitor, skb);

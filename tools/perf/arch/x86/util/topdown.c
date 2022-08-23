@@ -122,5 +122,5 @@ int topdown_parse_events(struct evlist *evlist)
 			topdown_events = TOPDOWN_L1_EVENTS;
 	}
 
-	return parse_events(evlist, topdown_events, NULL);
+	return parse_event(evlist, topdown_events);
 }

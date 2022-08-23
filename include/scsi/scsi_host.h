@@ -690,6 +690,9 @@ struct Scsi_Host {
 	/* ldm bits */
 	struct device		shost_gendev, shost_dev;
 
+	atomic_t		target_count;
+	wait_queue_head_t	targets_wq;
+
 	/*
 	 * Points to the transport data (if any) which is allocated
 	 * separately

@@ -92,12 +92,33 @@ examples:
             qcom,ipc = <&apcs 8 0>;
             qcom,smd-edge = <15>;
 
-                rpm-requests {
-                        compatible = "qcom,rpm-msm8974";
-                        qcom,smd-channels = "rpm_requests";
+            rpm-requests {
+                compatible = "qcom,rpm-msm8916";
+                qcom,smd-channels = "rpm_requests";
 
-                        /* Regulator nodes to follow */
+                clock-controller {
+                    compatible = "qcom,rpmcc-msm8916", "qcom,rpmcc";
+                    #clock-cells = <1>;
+                    clocks = <&xo_board>;
+                    clock-names = "xo";
+                };
+
+                power-controller {
+                    compatible = "qcom,msm8916-rpmpd";
+                    #power-domain-cells = <1>;
+                    operating-points-v2 = <&rpmpd_opp_table>;
+
+                    rpmpd_opp_table: opp-table {
+                        compatible = "operating-points-v2";
+
+                        opp-1 {
+                            opp-level = <1>;
+                        };
+                        opp-2 {
+                            opp-level = <2>;
+                        };
+                    };
                 };
             };
-     };
-...
+        };
+    };

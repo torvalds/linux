@@ -160,10 +160,10 @@ static u16 nvmet_auth_reply(struct nvmet_req *req, void *d)
 	pr_debug("%s: ctrl %d qid %d host authenticated\n",
 		 __func__, ctrl->cntlid, req->sq->qid);
 	if (data->cvalid) {
-		req->sq->dhchap_c2 = kmalloc(data->hl, GFP_KERNEL);
+		req->sq->dhchap_c2 = kmemdup(data->rval + data->hl, data->hl,
+					     GFP_KERNEL);
 		if (!req->sq->dhchap_c2)
 			return NVME_AUTH_DHCHAP_FAILURE_FAILED;
-		memcpy(req->sq->dhchap_c2, data->rval + data->hl, data->hl);
 
 		pr_debug("%s: ctrl %d qid %d challenge %*ph\n",
 			 __func__, ctrl->cntlid, req->sq->qid, data->hl,

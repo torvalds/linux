@@ -83,7 +83,7 @@
 struct dm_bufio_client {
 	struct mutex lock;
 	spinlock_t spinlock;
-	unsigned long spinlock_flags;
+	bool no_sleep;
 
 	struct list_head lru[LIST_SIZE];
 	unsigned long n_buffers[LIST_SIZE];
@@ -93,8 +93,6 @@ struct dm_bufio_client {
 	s8 sectors_per_block_bits;
 	void (*alloc_callback)(struct dm_buffer *);
 	void (*write_callback)(struct dm_buffer *);
-	bool no_sleep;
-
 	struct kmem_cache *slab_buffer;
 	struct kmem_cache *slab_cache;
 	struct dm_io_client *dm_io;
@@ -174,7 +172,7 @@ static DEFINE_STATIC_KEY_FALSE(no_sleep_enabled);
 static void dm_bufio_lock(struct dm_bufio_client *c)
 {
 	if (static_branch_unlikely(&no_sleep_enabled) && c->no_sleep)
-		spin_lock_irqsave_nested(&c->spinlock, c->spinlock_flags, dm_bufio_in_request());
+		spin_lock_bh(&c->spinlock);
 	else
 		mutex_lock_nested(&c->lock, dm_bufio_in_request());
 }
@@ -182,7 +180,7 @@ static void dm_bufio_lock(struct dm_bufio_client *c)
 static int dm_bufio_trylock(struct dm_bufio_client *c)
 {
 	if (static_branch_unlikely(&no_sleep_enabled) && c->no_sleep)
-		return spin_trylock_irqsave(&c->spinlock, c->spinlock_flags);
+		return spin_trylock_bh(&c->spinlock);
 	else
 		return mutex_trylock(&c->lock);
 }
@@ -190,7 +188,7 @@ static int dm_bufio_trylock(struct dm_bufio_client *c)
 static void dm_bufio_unlock(struct dm_bufio_client *c)
 {
 	if (static_branch_unlikely(&no_sleep_enabled) && c->no_sleep)
-		spin_unlock_irqrestore(&c->spinlock, c->spinlock_flags);
+		spin_unlock_bh(&c->spinlock);
 	else
 		mutex_unlock(&c->lock);
 }
@@ -817,6 +815,10 @@ static struct dm_buffer *__get_unclaimed_buffer(struct dm_bufio_client *c)
 		BUG_ON(test_bit(B_WRITING, &b->state));
 		BUG_ON(test_bit(B_DIRTY, &b->state));
 
+		if (static_branch_unlikely(&no_sleep_enabled) && c->no_sleep &&
+		    unlikely(test_bit(B_READING, &b->state)))
+			continue;
+
 		if (!b->hold_count) {
 			__make_buffer_clean(b);
 			__unlink_buffer(b);
@@ -824,6 +826,9 @@ static struct dm_buffer *__get_unclaimed_buffer(struct dm_bufio_client *c)
 		}
 		cond_resched();
 	}
+
+	if (static_branch_unlikely(&no_sleep_enabled) && c->no_sleep)
+		return NULL;
 
 	list_for_each_entry_reverse(b, &c->lru[LIST_DIRTY], lru_list) {
 		BUG_ON(test_bit(B_READING, &b->state));
@@ -1632,7 +1637,8 @@ static void drop_buffers(struct dm_bufio_client *c)
  */
 static bool __try_evict_buffer(struct dm_buffer *b, gfp_t gfp)
 {
-	if (!(gfp & __GFP_FS)) {
+	if (!(gfp & __GFP_FS) ||
+	    (static_branch_unlikely(&no_sleep_enabled) && b->c->no_sleep)) {
 		if (test_bit(B_READING, &b->state) ||
 		    test_bit(B_WRITING, &b->state) ||
 		    test_bit(B_DIRTY, &b->state))

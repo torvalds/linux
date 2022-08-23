@@ -1043,17 +1043,17 @@ static int copy_property(void *fdt, int node_offset, const struct device_node *d
 			 const char *propname)
 {
 	const void *prop, *fdtprop;
-	int len = 0, fdtlen = 0, ret;
+	int len = 0, fdtlen = 0;
 
 	prop = of_get_property(dn, propname, &len);
 	fdtprop = fdt_getprop(fdt, node_offset, propname, &fdtlen);
 
 	if (fdtprop && !prop)
-		ret = fdt_delprop(fdt, node_offset, propname);
+		return fdt_delprop(fdt, node_offset, propname);
 	else if (prop)
-		ret = fdt_setprop(fdt, node_offset, propname, prop, len);
-
-	return ret;
+		return fdt_setprop(fdt, node_offset, propname, prop, len);
+	else
+		return -FDT_ERR_NOTFOUND;
 }
 
 static int update_pci_dma_nodes(void *fdt, const char *dmapropname)

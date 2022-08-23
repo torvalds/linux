@@ -808,6 +808,7 @@ bool mlx5e_ktls_handle_tx_skb(struct net_device *netdev, struct mlx5e_txqsq *sq,
 {
 	struct mlx5e_ktls_offload_context_tx *priv_tx;
 	struct mlx5e_sq_stats *stats = sq->stats;
+	struct net_device *tls_netdev;
 	struct tls_context *tls_ctx;
 	int datalen;
 	u32 seq;
@@ -819,7 +820,12 @@ bool mlx5e_ktls_handle_tx_skb(struct net_device *netdev, struct mlx5e_txqsq *sq,
 	mlx5e_tx_mpwqe_ensure_complete(sq);
 
 	tls_ctx = tls_get_ctx(skb->sk);
-	if (WARN_ON_ONCE(tls_ctx->netdev != netdev))
+	tls_netdev = rcu_dereference_bh(tls_ctx->netdev);
+	/* Don't WARN on NULL: if tls_device_down is running in parallel,
+	 * netdev might become NULL, even if tls_is_sk_tx_device_offloaded was
+	 * true. Rather continue processing this packet.
+	 */
+	if (WARN_ON_ONCE(tls_netdev && tls_netdev != netdev))
 		goto err_out;
 
 	priv_tx = mlx5e_get_ktls_tx_priv_ctx(tls_ctx);

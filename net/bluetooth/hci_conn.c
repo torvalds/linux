@@ -1551,8 +1551,8 @@ static void cis_add(struct iso_list_data *d, struct bt_iso_qos *qos)
 	cis->cis_id = qos->cis;
 	cis->c_sdu  = cpu_to_le16(qos->out.sdu);
 	cis->p_sdu  = cpu_to_le16(qos->in.sdu);
-	cis->c_phy  = qos->out.phy;
-	cis->p_phy  = qos->in.phy;
+	cis->c_phy  = qos->out.phy ? qos->out.phy : qos->in.phy;
+	cis->p_phy  = qos->in.phy ? qos->in.phy : qos->out.phy;
 	cis->c_rtn  = qos->out.rtn;
 	cis->p_rtn  = qos->in.rtn;
 
@@ -1734,13 +1734,6 @@ struct hci_conn *hci_bind_cis(struct hci_dev *hdev, bdaddr_t *dst,
 	 */
 	if (!qos->in.latency)
 		qos->in.latency = qos->out.latency;
-
-	/* Mirror PHYs that are disabled as SDU will be set to 0 */
-	if (!qos->in.phy)
-		qos->in.phy = qos->out.phy;
-
-	if (!qos->out.phy)
-		qos->out.phy = qos->in.phy;
 
 	if (!hci_le_set_cig_params(cis, qos)) {
 		hci_conn_drop(cis);

@@ -270,6 +270,12 @@ static void nvmf_log_connect_error(struct nvme_ctrl *ctrl,
 {
 	int err_sctype = errval & ~NVME_SC_DNR;
 
+	if (errval < 0) {
+		dev_err(ctrl->device,
+			"Connect command failed, errno: %d\n", errval);
+		return;
+	}
+
 	switch (err_sctype) {
 	case NVME_SC_CONNECT_INVALID_PARAM:
 		if (offset >> 16) {
@@ -1230,7 +1236,7 @@ static int __init nvmf_init(void)
 	nvmf_device =
 		device_create(nvmf_class, NULL, MKDEV(0, 0), NULL, "ctl");
 	if (IS_ERR(nvmf_device)) {
-		pr_err("couldn't create nvme-fabris device!\n");
+		pr_err("couldn't create nvme-fabrics device!\n");
 		ret = PTR_ERR(nvmf_device);
 		goto out_destroy_class;
 	}

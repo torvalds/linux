@@ -3996,8 +3996,15 @@ int cmd_record(int argc, const char **argv)
 		arch__add_leaf_frame_record_opts(&rec->opts);
 
 	err = -ENOMEM;
-	if (evlist__create_maps(rec->evlist, &rec->opts.target) < 0)
-		usage_with_options(record_usage, record_options);
+	if (evlist__create_maps(rec->evlist, &rec->opts.target) < 0) {
+		if (rec->opts.target.pid != NULL) {
+			pr_err("Couldn't create thread/CPU maps: %s\n",
+				errno == ENOENT ? "No such process" : str_error_r(errno, errbuf, sizeof(errbuf)));
+			goto out;
+		}
+		else
+			usage_with_options(record_usage, record_options);
+	}
 
 	err = auxtrace_record__options(rec->itr, rec->evlist, &rec->opts);
 	if (err)

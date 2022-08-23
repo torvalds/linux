@@ -653,6 +653,7 @@ static struct slave *rlb_choose_channel(struct sk_buff *skb,
 static struct slave *rlb_arp_xmit(struct sk_buff *skb, struct bonding *bond)
 {
 	struct slave *tx_slave = NULL;
+	struct net_device *dev;
 	struct arp_pkt *arp;
 
 	if (!pskb_network_may_pull(skb, sizeof(*arp)))
@@ -664,6 +665,15 @@ static struct slave *rlb_arp_xmit(struct sk_buff *skb, struct bonding *bond)
 	 */
 	if (!bond_slave_has_mac_rx(bond, arp->mac_src))
 		return NULL;
+
+	dev = ip_dev_find(dev_net(bond->dev), arp->ip_src);
+	if (dev) {
+		if (netif_is_bridge_master(dev)) {
+			dev_put(dev);
+			return NULL;
+		}
+		dev_put(dev);
+	}
 
 	if (arp->op_code == htons(ARPOP_REPLY)) {
 		/* the arp must be sent on the selected rx channel */

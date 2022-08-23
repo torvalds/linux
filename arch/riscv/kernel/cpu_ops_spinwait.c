@@ -11,6 +11,8 @@
 #include <asm/sbi.h>
 #include <asm/smp.h>
 
+#include "head.h"
+
 const struct cpu_operations cpu_ops_spinwait;
 void *__cpu_spinwait_stack_pointer[NR_CPUS] __section(".data");
 void *__cpu_spinwait_task_pointer[NR_CPUS] __section(".data");

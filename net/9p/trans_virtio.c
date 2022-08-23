@@ -331,7 +331,7 @@ static int p9_get_mapped_pages(struct virtio_chan *chan,
 			if (err == -ERESTARTSYS)
 				return err;
 		}
-		n = iov_iter_get_pages_alloc(data, pages, count, offs);
+		n = iov_iter_get_pages_alloc2(data, pages, count, offs);
 		if (n < 0)
 			return n;
 		*need_drop = 1;
@@ -373,6 +373,7 @@ static int p9_get_mapped_pages(struct virtio_chan *chan,
 				(*pages)[index] = kmap_to_page(p);
 			p += PAGE_SIZE;
 		}
+		iov_iter_advance(data, len);
 		return len;
 	}
 }

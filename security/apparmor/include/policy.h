@@ -48,6 +48,10 @@ extern const char *const aa_profile_mode_names[];
 
 #define PROFILE_IS_HAT(_profile) ((_profile)->label.flags & FLAG_HAT)
 
+#define CHECK_DEBUG1(_profile) ((_profile)->label.flags & FLAG_DEBUG1)
+
+#define CHECK_DEBUG2(_profile) ((_profile)->label.flags & FLAG_DEBUG2)
+
 #define profile_is_stale(_profile) (label_is_stale(&(_profile)->label))
 
 #define on_list_rcu(X) (!list_empty(X) && (X)->prev != LIST_POISON2)
@@ -135,7 +139,7 @@ struct aa_profile {
 
 	const char *attach;
 	struct aa_dfa *xmatch;
-	int xmatch_len;
+	unsigned int xmatch_len;
 	enum audit_mode audit;
 	long mode;
 	u32 path_flags;

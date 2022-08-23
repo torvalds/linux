@@ -494,12 +494,12 @@ static void geni_i2c_gpi_unmap(struct geni_i2c_dev *gi2c, struct i2c_msg *msg,
 {
 	if (tx_buf) {
 		dma_unmap_single(gi2c->se.dev->parent, tx_addr, msg->len, DMA_TO_DEVICE);
-		i2c_put_dma_safe_msg_buf(tx_buf, msg, false);
+		i2c_put_dma_safe_msg_buf(tx_buf, msg, !gi2c->err);
 	}
 
 	if (rx_buf) {
 		dma_unmap_single(gi2c->se.dev->parent, rx_addr, msg->len, DMA_FROM_DEVICE);
-		i2c_put_dma_safe_msg_buf(rx_buf, msg, false);
+		i2c_put_dma_safe_msg_buf(rx_buf, msg, !gi2c->err);
 	}
 }
 
@@ -563,6 +563,7 @@ static int geni_i2c_gpi(struct geni_i2c_dev *gi2c, struct i2c_msg *msg,
 	desc->callback_param = gi2c;
 
 	dmaengine_submit(desc);
+	*buf = dma_buf;
 	*dma_addr_p = addr;
 
 	return 0;
@@ -816,7 +817,7 @@ static int geni_i2c_probe(struct platform_device *pdev)
 	i2c_set_adapdata(&gi2c->adap, gi2c);
 	gi2c->adap.dev.parent = dev;
 	gi2c->adap.dev.of_node = dev->of_node;
-	strlcpy(gi2c->adap.name, "Geni-I2C", sizeof(gi2c->adap.name));
+	strscpy(gi2c->adap.name, "Geni-I2C", sizeof(gi2c->adap.name));
 
 	ret = geni_icc_get(&gi2c->se, "qup-memory");
 	if (ret)

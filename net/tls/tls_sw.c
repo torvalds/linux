@@ -1352,15 +1352,13 @@ static int tls_setup_from_iter(struct iov_iter *from,
 			rc = -EFAULT;
 			goto out;
 		}
-		copied = iov_iter_get_pages(from, pages,
+		copied = iov_iter_get_pages2(from, pages,
 					    length,
 					    maxpages, &offset);
 		if (copied <= 0) {
 			rc = -EFAULT;
 			goto out;
 		}
-
-		iov_iter_advance(from, copied);
 
 		length -= copied;
 		size += copied;

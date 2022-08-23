@@ -841,7 +841,10 @@ void bpf_trampoline_put(struct bpf_trampoline *tr)
 	 * multiple rcu callbacks.
 	 */
 	hlist_del(&tr->hlist);
-	kfree(tr->fops);
+	if (tr->fops) {
+		ftrace_free_filter(tr->fops);
+		kfree(tr->fops);
+	}
 	kfree(tr);
 out:
 	mutex_unlock(&trampoline_mutex);
