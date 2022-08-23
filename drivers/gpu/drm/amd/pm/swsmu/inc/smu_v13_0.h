@@ -291,5 +291,11 @@ int smu_v13_0_set_default_dpm_tables(struct smu_context *smu);
 void smu_v13_0_set_smu_mailbox_registers(struct smu_context *smu);
 
 int smu_v13_0_mode1_reset(struct smu_context *smu);
+
+int smu_v13_0_get_pptable_from_firmware(struct smu_context *smu,
+					void **table,
+					uint32_t *size,
+					uint32_t pptable_id);
+
 #endif
 #endif
