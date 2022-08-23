@@ -1175,18 +1175,19 @@ void dcn32_determine_det_override(struct dc_state *context, display_e2e_pipe_par
 
 #define I2C_HW_ENGINE_COMMON_REG_LIST_RI(id)                                   \
   ( \
-  SRI_ARR(SETUP, DC_I2C_DDC, id), SRI_ARR(SPEED, DC_I2C_DDC, id),              \
-      SRI_ARR(HW_STATUS, DC_I2C_DDC, id), SR_ARR(DC_I2C_ARBITRATION, id),      \
-      SR_ARR(DC_I2C_CONTROL, id), SR_ARR(DC_I2C_SW_STATUS, id),                \
-      SR_ARR(DC_I2C_TRANSACTION0, id), SR_ARR(DC_I2C_TRANSACTION1, id),        \
-      SR_ARR(DC_I2C_TRANSACTION2, id), SR_ARR(DC_I2C_TRANSACTION3, id),        \
-      SR_ARR(DC_I2C_DATA, id), SR_ARR(MICROSECOND_TIME_BASE_DIV, id)           \
+      SRI_ARR_I2C(SETUP, DC_I2C_DDC, id), SRI_ARR_I2C(SPEED, DC_I2C_DDC, id),  \
+      SRI_ARR_I2C(HW_STATUS, DC_I2C_DDC, id),                                  \
+      SR_ARR_I2C(DC_I2C_ARBITRATION, id),                                      \
+      SR_ARR_I2C(DC_I2C_CONTROL, id), SR_ARR_I2C(DC_I2C_SW_STATUS, id),        \
+      SR_ARR_I2C(DC_I2C_TRANSACTION0, id), SR_ARR_I2C(DC_I2C_TRANSACTION1, id),\
+      SR_ARR_I2C(DC_I2C_TRANSACTION2, id), SR_ARR_I2C(DC_I2C_TRANSACTION3, id),\
+      SR_ARR_I2C(DC_I2C_DATA, id), SR_ARR_I2C(MICROSECOND_TIME_BASE_DIV, id)          \
   )
 
 #define I2C_HW_ENGINE_COMMON_REG_LIST_DCN30_RI(id)                             \
   ( \
-  I2C_HW_ENGINE_COMMON_REG_LIST_RI(id), SR_ARR(DIO_MEM_PWR_CTRL, id),          \
-      SR_ARR(DIO_MEM_PWR_STATUS, id)                                           \
+      I2C_HW_ENGINE_COMMON_REG_LIST_RI(id), SR_ARR_I2C(DIO_MEM_PWR_CTRL, id),  \
+      SR_ARR_I2C(DIO_MEM_PWR_STATUS, id)                                           \
   )
 
 #endif /* _DCN32_RESOURCE_H_ */

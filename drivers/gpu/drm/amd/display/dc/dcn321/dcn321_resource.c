@@ -159,6 +159,13 @@ enum dcn321_clk_src_array_id {
 	REG_STRUCT[id].reg_name = BASE(reg ## block ## id ## _ ## reg_name ## _BASE_IDX) + \
 		reg ## block ## id ## _ ## reg_name
 
+#define SR_ARR_I2C(reg_name, id) \
+	REG_STRUCT[id-1].reg_name = BASE(reg##reg_name##_BASE_IDX) + reg##reg_name
+
+#define SRI_ARR_I2C(reg_name, block, id)\
+	REG_STRUCT[id-1].reg_name = BASE(reg ## block ## id ## _ ## reg_name ## _BASE_IDX) + \
+		reg ## block ## id ## _ ## reg_name
+
 #define SRI_ARR_ALPHABET(reg_name, block, index, id)\
 	REG_STRUCT[index].reg_name = BASE(reg ## block ## id ## _ ## reg_name ## _BASE_IDX) + \
 		reg ## block ## id ## _ ## reg_name
@@ -796,7 +803,7 @@ static struct dce_aux *dcn321_aux_engine_create(
 #define i2c_inst_regs_init(id)\
 	I2C_HW_ENGINE_COMMON_REG_LIST_DCN30_RI(id)
 
-static struct dce_i2c_registers i2c_hw_regs[6];
+static struct dce_i2c_registers i2c_hw_regs[5];
 
 static const struct dce_i2c_shift i2c_shifts = {
 		I2C_COMMON_MASK_SH_LIST_DCN30(__SHIFT)
