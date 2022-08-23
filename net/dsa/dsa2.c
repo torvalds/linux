@@ -1060,26 +1060,24 @@ static int dsa_tree_setup_switches(struct dsa_switch_tree *dst)
 
 static int dsa_tree_setup_master(struct dsa_switch_tree *dst)
 {
-	struct dsa_port *dp;
+	struct dsa_port *cpu_dp;
 	int err = 0;
 
 	rtnl_lock();
 
-	list_for_each_entry(dp, &dst->ports, list) {
-		if (dsa_port_is_cpu(dp)) {
-			struct net_device *master = dp->master;
-			bool admin_up = (master->flags & IFF_UP) &&
-					!qdisc_tx_is_noop(master);
+	dsa_tree_for_each_cpu_port(cpu_dp, dst) {
+		struct net_device *master = cpu_dp->master;
+		bool admin_up = (master->flags & IFF_UP) &&
+				!qdisc_tx_is_noop(master);
 
-			err = dsa_master_setup(master, dp);
-			if (err)
-				break;
+		err = dsa_master_setup(master, cpu_dp);
+		if (err)
+			break;
 
-			/* Replay master state event */
-			dsa_tree_master_admin_state_change(dst, master, admin_up);
-			dsa_tree_master_oper_state_change(dst, master,
-							  netif_oper_up(master));
-		}
+		/* Replay master state event */
+		dsa_tree_master_admin_state_change(dst, master, admin_up);
+		dsa_tree_master_oper_state_change(dst, master,
+						  netif_oper_up(master));
 	}
 
 	rtnl_unlock();
@@ -1089,22 +1087,20 @@ static int dsa_tree_setup_master(struct dsa_switch_tree *dst)
 
 static void dsa_tree_teardown_master(struct dsa_switch_tree *dst)
 {
-	struct dsa_port *dp;
+	struct dsa_port *cpu_dp;
 
 	rtnl_lock();
 
-	list_for_each_entry(dp, &dst->ports, list) {
-		if (dsa_port_is_cpu(dp)) {
-			struct net_device *master = dp->master;
+	dsa_tree_for_each_cpu_port(cpu_dp, dst) {
+		struct net_device *master = cpu_dp->master;
 
-			/* Synthesizing an "admin down" state is sufficient for
-			 * the switches to get a notification if the master is
-			 * currently up and running.
-			 */
-			dsa_tree_master_admin_state_change(dst, master, false);
+		/* Synthesizing an "admin down" state is sufficient for
+		 * the switches to get a notification if the master is
+		 * currently up and running.
+		 */
+		dsa_tree_master_admin_state_change(dst, master, false);
 
-			dsa_master_teardown(master);
-		}
+		dsa_master_teardown(master);
 	}
 
 	rtnl_unlock();
@@ -1252,7 +1248,6 @@ out_disconnect:
  * they would have formed disjoint trees (different "dsa,member" values).
  */
 int dsa_tree_change_tag_proto(struct dsa_switch_tree *dst,
-			      struct net_device *master,
 			      const struct dsa_device_ops *tag_ops,
 			      const struct dsa_device_ops *old_tag_ops)
 {
@@ -1268,14 +1263,11 @@ int dsa_tree_change_tag_proto(struct dsa_switch_tree *dst,
 	 * attempts to change the tagging protocol. If we ever lift the IFF_UP
 	 * restriction, there needs to be another mutex which serializes this.
 	 */
-	if (master->flags & IFF_UP)
-		goto out_unlock;
-
 	list_for_each_entry(dp, &dst->ports, list) {
-		if (!dsa_port_is_user(dp))
-			continue;
+		if (dsa_port_is_cpu(dp) && (dp->master->flags & IFF_UP))
+			goto out_unlock;
 
-		if (dp->slave->flags & IFF_UP)
+		if (dsa_port_is_user(dp) && (dp->slave->flags & IFF_UP))
 			goto out_unlock;
 	}
 

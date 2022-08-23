@@ -2476,6 +2476,9 @@ static int dsa_slave_changeupper(struct net_device *dev,
 	struct netlink_ext_ack *extack;
 	int err = NOTIFY_DONE;
 
+	if (!dsa_slave_dev_check(dev))
+		return err;
+
 	extack = netdev_notifier_info_to_extack(&info->info);
 
 	if (netif_is_bridge_master(info->upper_dev)) {
@@ -2531,6 +2534,9 @@ static int dsa_slave_prechangeupper(struct net_device *dev,
 {
 	struct dsa_port *dp = dsa_slave_to_port(dev);
 
+	if (!dsa_slave_dev_check(dev))
+		return NOTIFY_DONE;
+
 	if (netif_is_bridge_master(info->upper_dev) && !info->linking)
 		dsa_port_pre_bridge_leave(dp, info->upper_dev);
 	else if (netif_is_lag_master(info->upper_dev) && !info->linking)
@@ -2550,6 +2556,9 @@ dsa_slave_lag_changeupper(struct net_device *dev,
 	struct list_head *iter;
 	int err = NOTIFY_DONE;
 	struct dsa_port *dp;
+
+	if (!netif_is_lag_master(dev))
+		return err;
 
 	netdev_for_each_lower_dev(dev, lower, iter) {
 		if (!dsa_slave_dev_check(lower))
@@ -2579,6 +2588,9 @@ dsa_slave_lag_prechangeupper(struct net_device *dev,
 	struct list_head *iter;
 	int err = NOTIFY_DONE;
 	struct dsa_port *dp;
+
+	if (!netif_is_lag_master(dev))
+		return err;
 
 	netdev_for_each_lower_dev(dev, lower, iter) {
 		if (!dsa_slave_dev_check(lower))
@@ -2687,6 +2699,75 @@ dsa_slave_prechangeupper_sanity_check(struct net_device *dev,
 	return NOTIFY_DONE;
 }
 
+static int
+dsa_master_prechangeupper_sanity_check(struct net_device *master,
+				       struct netdev_notifier_changeupper_info *info)
+{
+	struct netlink_ext_ack *extack;
+
+	if (!netdev_uses_dsa(master))
+		return NOTIFY_DONE;
+
+	if (!info->linking)
+		return NOTIFY_DONE;
+
+	/* Allow DSA switch uppers */
+	if (dsa_slave_dev_check(info->upper_dev))
+		return NOTIFY_DONE;
+
+	/* Allow bridge uppers of DSA masters, subject to further
+	 * restrictions in dsa_bridge_prechangelower_sanity_check()
+	 */
+	if (netif_is_bridge_master(info->upper_dev))
+		return NOTIFY_DONE;
+
+	extack = netdev_notifier_info_to_extack(&info->info);
+
+	NL_SET_ERR_MSG_MOD(extack,
+			   "DSA master cannot join unknown upper interfaces");
+	return notifier_from_errno(-EBUSY);
+}
+
+/* Don't allow bridging of DSA masters, since the bridge layer rx_handler
+ * prevents the DSA fake ethertype handler to be invoked, so we don't get the
+ * chance to strip off and parse the DSA switch tag protocol header (the bridge
+ * layer just returns RX_HANDLER_CONSUMED, stopping RX processing for these
+ * frames).
+ * The only case where that would not be an issue is when bridging can already
+ * be offloaded, such as when the DSA master is itself a DSA or plain switchdev
+ * port, and is bridged only with other ports from the same hardware device.
+ */
+static int
+dsa_bridge_prechangelower_sanity_check(struct net_device *new_lower,
+				       struct netdev_notifier_changeupper_info *info)
+{
+	struct net_device *br = info->upper_dev;
+	struct netlink_ext_ack *extack;
+	struct net_device *lower;
+	struct list_head *iter;
+
+	if (!netif_is_bridge_master(br))
+		return NOTIFY_DONE;
+
+	if (!info->linking)
+		return NOTIFY_DONE;
+
+	extack = netdev_notifier_info_to_extack(&info->info);
+
+	netdev_for_each_lower_dev(br, lower, iter) {
+		if (!netdev_uses_dsa(new_lower) && !netdev_uses_dsa(lower))
+			continue;
+
+		if (!netdev_port_same_parent_id(lower, new_lower)) {
+			NL_SET_ERR_MSG(extack,
+				       "Cannot do software bridging with a DSA master");
+			return notifier_from_errno(-EINVAL);
+		}
+	}
+
+	return NOTIFY_DONE;
+}
+
 static int dsa_slave_netdevice_event(struct notifier_block *nb,
 				     unsigned long event, void *ptr)
 {
@@ -2698,25 +2779,40 @@ static int dsa_slave_netdevice_event(struct notifier_block *nb,
 		int err;
 
 		err = dsa_slave_prechangeupper_sanity_check(dev, info);
-		if (err != NOTIFY_DONE)
+		if (notifier_to_errno(err))
 			return err;
 
-		if (dsa_slave_dev_check(dev))
-			return dsa_slave_prechangeupper(dev, ptr);
+		err = dsa_master_prechangeupper_sanity_check(dev, info);
+		if (notifier_to_errno(err))
+			return err;
 
-		if (netif_is_lag_master(dev))
-			return dsa_slave_lag_prechangeupper(dev, ptr);
+		err = dsa_bridge_prechangelower_sanity_check(dev, info);
+		if (notifier_to_errno(err))
+			return err;
+
+		err = dsa_slave_prechangeupper(dev, ptr);
+		if (notifier_to_errno(err))
+			return err;
+
+		err = dsa_slave_lag_prechangeupper(dev, ptr);
+		if (notifier_to_errno(err))
+			return err;
 
 		break;
 	}
-	case NETDEV_CHANGEUPPER:
-		if (dsa_slave_dev_check(dev))
-			return dsa_slave_changeupper(dev, ptr);
+	case NETDEV_CHANGEUPPER: {
+		int err;
 
-		if (netif_is_lag_master(dev))
-			return dsa_slave_lag_changeupper(dev, ptr);
+		err = dsa_slave_changeupper(dev, ptr);
+		if (notifier_to_errno(err))
+			return err;
+
+		err = dsa_slave_lag_changeupper(dev, ptr);
+		if (notifier_to_errno(err))
+			return err;
 
 		break;
+	}
 	case NETDEV_CHANGELOWERSTATE: {
 		struct netdev_notifier_changelowerstate_info *info = ptr;
 		struct dsa_port *dp;
@@ -2775,6 +2871,9 @@ static int dsa_slave_netdevice_event(struct notifier_block *nb,
 
 		list_for_each_entry(dp, &dst->ports, list) {
 			if (!dsa_port_is_user(dp))
+				continue;
+
+			if (dp->cpu_dp != cpu_dp)
 				continue;
 
 			list_add(&dp->slave->close_list, &close_list);
