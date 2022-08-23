@@ -980,6 +980,7 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += \
 	rv1106g-evb1-rgb-display-v11.dtb \
 	rv1106g-evb1-v10.dtb \
 	rv1106g-evb1-v11.dtb \
+	rv1106g-evb1-v11-sii902x-bt11202hdmi.dtb \
 	rv1106g-evb1-v11-sii902x-rgb2hdmi.dtb \
 	rv1106g-evb1-v10-dual-cam.dtb \
 	rv1106g-evb1-v10-facial-gate.dtb \
