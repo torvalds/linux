@@ -38,11 +38,13 @@
 #define SDW_SHIM_SYNC_CMDSYNC		BIT(16)
 #define SDW_SHIM_SYNC_SYNCGO		BIT(24)
 
+/* Control stream capabililities and channel mask */
 #define SDW_SHIM_CTLSCAP(x)		(0x010 + 0x60 * (x))
 #define SDW_SHIM_CTLS0CM(x)		(0x012 + 0x60 * (x))
 #define SDW_SHIM_CTLS1CM(x)		(0x014 + 0x60 * (x))
 #define SDW_SHIM_CTLS2CM(x)		(0x016 + 0x60 * (x))
 #define SDW_SHIM_CTLS3CM(x)		(0x018 + 0x60 * (x))
+
 #define SDW_SHIM_PCMSCAP(x)		(0x020 + 0x60 * (x))
 
 #define SDW_SHIM_PCMSYCHM(x, y)		(0x022 + (0x60 * (x)) + (0x2 * (y)))
