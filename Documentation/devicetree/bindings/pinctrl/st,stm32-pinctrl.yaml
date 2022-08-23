@@ -115,9 +115,12 @@ patternProperties:
 
   '-[0-9]*$':
     type: object
+    additionalProperties: false
+
     patternProperties:
       '^pins':
         type: object
+        additionalProperties: false
         description: |
           A pinctrl node should contain at least one subnode representing the
           pinctrl group available on the machine. Each subnode will list the

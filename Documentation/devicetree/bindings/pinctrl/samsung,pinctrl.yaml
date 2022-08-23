@@ -97,6 +97,9 @@ patternProperties:
         additionalProperties: false
 
   "^(initial|sleep)-state$":
+    type: object
+    additionalProperties: false
+
     patternProperties:
       "^(pin-[a-z0-9-]+|[a-z0-9-]+-pin)$":
         $ref: samsung,pinctrl-pins-cfg.yaml
