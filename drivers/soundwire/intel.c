@@ -170,9 +170,8 @@ static int intel_reg_show(struct seq_file *s_file, void *data)
 			ret += intel_sprintf(s, false, buf, ret,
 					SDW_SHIM_PCMSYCHC(i, j));
 		}
-		ret += scnprintf(buf + ret, RD_BUF - ret, "\n PDMSCAP, IOCTL, CTMCTL\n");
+		ret += scnprintf(buf + ret, RD_BUF - ret, "\n IOCTL, CTMCTL\n");
 
-		ret += intel_sprintf(s, false, buf, ret, SDW_SHIM_PDMSCAP(i));
 		ret += intel_sprintf(s, false, buf, ret, SDW_SHIM_IOCTL(i));
 		ret += intel_sprintf(s, false, buf, ret, SDW_SHIM_CTMCTL(i));
 	}
