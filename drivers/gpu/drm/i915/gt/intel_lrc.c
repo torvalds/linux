@@ -1242,6 +1242,23 @@ dg2_emit_rcs_hang_wabb(const struct intel_context *ce, u32 *cs)
 	return cs;
 }
 
+/*
+ * The bspec's tuning guide asks us to program a vertical watermark value of
+ * 0x3FF.  However this register is not saved/restored properly by the
+ * hardware, so we're required to apply the desired value via INDIRECT_CTX
+ * batch buffer to ensure the value takes effect properly.  All other bits
+ * in this register should remain at 0 (the hardware default).
+ */
+static u32 *
+dg2_emit_draw_watermark_setting(u32 *cs)
+{
+	*cs++ = MI_LOAD_REGISTER_IMM(1);
+	*cs++ = i915_mmio_reg_offset(DRAW_WATERMARK);
+	*cs++ = REG_FIELD_PREP(VERT_WM_VAL, 0x3FF);
+
+	return cs;
+}
+
 static u32 *
 gen12_emit_indirect_ctx_rcs(const struct intel_context *ce, u32 *cs)
 {
@@ -1262,6 +1279,10 @@ gen12_emit_indirect_ctx_rcs(const struct intel_context *ce, u32 *cs)
 	/* hsdes: 1809175790 */
 	if (!HAS_FLAT_CCS(ce->engine->i915))
 		cs = gen12_emit_aux_table_inv(cs, GEN12_GFX_CCS_AUX_NV);
+
+	/* Wa_16014892111 */
+	if (IS_DG2(ce->engine->i915))
+		cs = dg2_emit_draw_watermark_setting(cs);
 
 	return cs;
 }

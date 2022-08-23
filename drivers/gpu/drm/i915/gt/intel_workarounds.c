@@ -2685,8 +2685,6 @@ add_render_compute_tuning_settings(struct drm_i915_private *i915,
 	if (IS_DG2(i915)) {
 		wa_write_or(wal, XEHP_L3SCQREG7, BLEND_FILL_CACHING_OPT_DIS);
 		wa_write_clr_set(wal, RT_CTRL, STACKID_CTRL, STACKID_CTRL_512);
-		wa_write_clr_set(wal, DRAW_WATERMARK, VERT_WM_VAL,
-				 REG_FIELD_PREP(VERT_WM_VAL, 0x3FF));
 
 		/*
 		 * This is also listed as Wa_22012654132 for certain DG2
