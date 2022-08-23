@@ -40,6 +40,17 @@ static size_t sof_ipc4_fw_parse_ext_man(struct snd_sof_dev *sdev)
 
 	ext_man_hdr = (struct sof_ext_manifest4_hdr *)fw->data;
 
+	/*
+	 * At the start of the firmware image we must have an extended manifest.
+	 * Verify that the magic number is correct.
+	 */
+	if (ext_man_hdr->id != SOF_EXT_MAN4_MAGIC_NUMBER) {
+		dev_err(sdev->dev,
+			"Unexpected extended manifest magic number: %#x\n",
+			ext_man_hdr->id);
+		return -EINVAL;
+	}
+
 	fw_hdr_offset = ipc4_data->manifest_fw_hdr_offset;
 	if (!fw_hdr_offset)
 		return -EINVAL;
