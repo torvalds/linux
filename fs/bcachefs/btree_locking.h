@@ -32,6 +32,7 @@ enum btree_node_locked_type {
 	BTREE_NODE_UNLOCKED		= -1,
 	BTREE_NODE_READ_LOCKED		= SIX_LOCK_read,
 	BTREE_NODE_INTENT_LOCKED	= SIX_LOCK_intent,
+	BTREE_NODE_WRITE_LOCKED		= SIX_LOCK_write,
 };
 
 static inline int btree_node_locked_type(struct btree_path *path,
@@ -40,16 +41,19 @@ static inline int btree_node_locked_type(struct btree_path *path,
 	return BTREE_NODE_UNLOCKED + ((path->nodes_locked >> (level << 1)) & 3);
 }
 
-static inline bool btree_node_intent_locked(struct btree_path *path,
-					    unsigned level)
+static inline bool btree_node_write_locked(struct btree_path *path, unsigned l)
 {
-	return btree_node_locked_type(path, level) == BTREE_NODE_INTENT_LOCKED;
+	return btree_node_locked_type(path, l) == BTREE_NODE_WRITE_LOCKED;
 }
 
-static inline bool btree_node_read_locked(struct btree_path *path,
-					  unsigned level)
+static inline bool btree_node_intent_locked(struct btree_path *path, unsigned l)
 {
-	return btree_node_locked_type(path, level) == BTREE_NODE_READ_LOCKED;
+	return btree_node_locked_type(path, l) == BTREE_NODE_INTENT_LOCKED;
+}
+
+static inline bool btree_node_read_locked(struct btree_path *path, unsigned l)
+{
+	return btree_node_locked_type(path, l) == BTREE_NODE_READ_LOCKED;
 }
 
 static inline bool btree_node_locked(struct btree_path *path, unsigned level)
@@ -72,6 +76,7 @@ static inline void mark_btree_node_locked_noreset(struct btree_path *path,
 static inline void mark_btree_node_unlocked(struct btree_path *path,
 					    unsigned level)
 {
+	EBUG_ON(btree_node_write_locked(path, level));
 	mark_btree_node_locked_noreset(path, level, BTREE_NODE_UNLOCKED);
 }
 
@@ -179,6 +184,9 @@ bch2_btree_node_unlock_write_inlined(struct btree_trans *trans, struct btree_pat
 
 	EBUG_ON(path->l[b->c.level].b != b);
 	EBUG_ON(path->l[b->c.level].lock_seq + 1 != b->c.lock.state.seq);
+	EBUG_ON(btree_node_locked_type(path, b->c.level) != SIX_LOCK_write);
+
+	mark_btree_node_locked_noreset(path, b->c.level, SIX_LOCK_intent);
 
 	trans_for_each_path_with_node(trans, b, linked)
 		linked->l[b->c.level].lock_seq += 2;
@@ -288,6 +296,8 @@ static inline void bch2_btree_node_lock_write(struct btree_trans *trans,
 
 	if (unlikely(!six_trylock_write(&b->c.lock)))
 		__bch2_btree_node_lock_write(trans, b);
+
+	mark_btree_node_locked_noreset(path, b->c.level, SIX_LOCK_write);
 }
 
 /* relock: */
@@ -311,8 +321,8 @@ static inline bool bch2_btree_node_relock(struct btree_trans *trans,
 					  struct btree_path *path, unsigned level)
 {
 	EBUG_ON(btree_node_locked(path, level) &&
-		btree_node_locked_type(path, level) !=
-		__btree_lock_want(path, level));
+		!btree_node_write_locked(path, level) &&
+		btree_node_locked_type(path, level) != __btree_lock_want(path, level));
 
 	return likely(btree_node_locked(path, level)) ||
 		__bch2_btree_node_relock(trans, path, level);

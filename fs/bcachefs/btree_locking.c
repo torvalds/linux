@@ -246,6 +246,8 @@ bool bch2_btree_node_upgrade(struct btree_trans *trans,
 		return bch2_btree_node_relock(trans, path, level);
 	case BTREE_NODE_INTENT_LOCKED:
 		break;
+	case BTREE_NODE_WRITE_LOCKED:
+		BUG();
 	}
 
 	if (btree_node_intent_locked(path, level))
@@ -448,9 +450,17 @@ void bch2_btree_path_verify_locks(struct btree_path *path)
 		return;
 	}
 
-	for (l = 0; btree_path_node(path, l); l++)
-		BUG_ON(btree_lock_want(path, l) !=
-		       btree_node_locked_type(path, l));
+	for (l = 0; l < BTREE_MAX_DEPTH; l++) {
+		int want = btree_lock_want(path, l);
+		int have = btree_node_locked_type(path, l);
+
+		BUG_ON(!is_btree_node(path, l) && have != BTREE_NODE_UNLOCKED);
+
+		BUG_ON(is_btree_node(path, l) &&
+		       (want == BTREE_NODE_UNLOCKED ||
+			have != BTREE_NODE_WRITE_LOCKED) &&
+		       want != have);
+	}
 }
 
 void bch2_trans_verify_locks(struct btree_trans *trans)

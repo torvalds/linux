@@ -828,6 +828,8 @@ static inline int trans_lock_write(struct btree_trans *trans)
 			BUG_ON(ret);
 		}
 
+		mark_btree_node_locked_noreset(i->path, i->level, SIX_LOCK_write);
+
 		bch2_btree_node_prep_for_write(trans, i->path, insert_l(i)->b);
 	}
 
