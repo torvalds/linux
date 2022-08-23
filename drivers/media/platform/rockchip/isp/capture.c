@@ -645,10 +645,7 @@ static int rkisp_set_fmt(struct rkisp_stream *stream,
 	if (stream->id == RKISP_STREAM_MP ||
 	    stream->id == RKISP_STREAM_SP ||
 	    (stream->id == RKISP_STREAM_BP && dev->isp_ver != ISP_V30)) {
-		pixm->width = clamp_t(u32, pixm->width,
-				      config->min_rsz_width, max_rsz.width);
-		pixm->height = clamp_t(u32, pixm->height,
-				       config->min_rsz_height, max_rsz.height);
+		pixm->width = clamp_t(u32, pixm->width, config->min_rsz_width, max_rsz.width);
 	} else if (pixm->width != max_rsz.width &&
 		   pixm->height != max_rsz.height &&
 		   (stream->id == RKISP_STREAM_LUMA ||

@@ -192,7 +192,7 @@ int rkisp_align_sensor_resolution(struct rkisp_device *dev,
 	u32 code = dev->isp_sdev.in_frm.code;
 	u32 src_w = dev->isp_sdev.in_frm.width;
 	u32 src_h = dev->isp_sdev.in_frm.height;
-	u32 dest_w, dest_h, w, h;
+	u32 dest_w, dest_h, w, h, max_size, max_h, max_w;
 	int ret = 0;
 
 	if (!crop)
@@ -201,53 +201,38 @@ int rkisp_align_sensor_resolution(struct rkisp_device *dev,
 	memset(&sel, 0, sizeof(sel));
 	switch (dev->isp_ver) {
 	case ISP_V12:
-		w = clamp_t(u32, src_w,
-			    CIF_ISP_INPUT_W_MIN,
-			    CIF_ISP_INPUT_W_MAX_V12);
-		h = clamp_t(u32, src_h,
-			    CIF_ISP_INPUT_H_MIN,
-			    CIF_ISP_INPUT_H_MAX_V12);
+		max_w = CIF_ISP_INPUT_W_MAX_V12;
+		max_h = CIF_ISP_INPUT_H_MAX_V12;
 		break;
 	case ISP_V13:
-		w = clamp_t(u32, src_w,
-			    CIF_ISP_INPUT_W_MIN,
-			    CIF_ISP_INPUT_W_MAX_V13);
-		h = clamp_t(u32, src_h,
-			    CIF_ISP_INPUT_H_MIN,
-			    CIF_ISP_INPUT_H_MAX_V13);
+		max_w = CIF_ISP_INPUT_W_MAX_V13;
+		max_h = CIF_ISP_INPUT_H_MAX_V13;
 		break;
 	case ISP_V21:
-		w = clamp_t(u32, src_w,
-			    CIF_ISP_INPUT_W_MIN,
-			    CIF_ISP_INPUT_W_MAX_V21);
-		h = clamp_t(u32, src_h,
-			    CIF_ISP_INPUT_H_MIN,
-			    CIF_ISP_INPUT_H_MAX_V21);
+		max_w = CIF_ISP_INPUT_W_MAX_V21;
+		max_h = CIF_ISP_INPUT_H_MAX_V21;
 		break;
 	case ISP_V30:
-		w = dev->hw_dev->is_unite ?
-			CIF_ISP_INPUT_W_MAX_V30_UNITE : CIF_ISP_INPUT_W_MAX_V30;
-		w = clamp_t(u32, src_w, CIF_ISP_INPUT_W_MIN, w);
-		h = dev->hw_dev->is_unite ?
-			CIF_ISP_INPUT_H_MAX_V30_UNITE : CIF_ISP_INPUT_H_MAX_V30;
-		h = clamp_t(u32, src_h, CIF_ISP_INPUT_H_MIN, h);
+		if (dev->hw_dev->is_unite) {
+			max_w = CIF_ISP_INPUT_W_MAX_V30_UNITE;
+			max_h = CIF_ISP_INPUT_H_MAX_V30_UNITE;
+		} else {
+			max_w = CIF_ISP_INPUT_W_MAX_V30;
+			max_h = CIF_ISP_INPUT_H_MAX_V30;
+		}
 		break;
 	case ISP_V32:
-		w = clamp_t(u32, src_w,
-			    CIF_ISP_INPUT_W_MIN,
-			    CIF_ISP_INPUT_W_MAX_V32);
-		h = clamp_t(u32, src_h,
-			    CIF_ISP_INPUT_H_MIN,
-			    CIF_ISP_INPUT_H_MAX_V32);
+		max_w = CIF_ISP_INPUT_W_MAX_V32;
+		max_h = CIF_ISP_INPUT_H_MAX_V32;
 		break;
 	default:
-		w  = clamp_t(u32, src_w,
-			     CIF_ISP_INPUT_W_MIN,
-			     CIF_ISP_INPUT_W_MAX);
-		h = clamp_t(u32, src_h,
-			    CIF_ISP_INPUT_H_MIN,
-			    CIF_ISP_INPUT_H_MAX);
+		max_w = CIF_ISP_INPUT_W_MAX;
+		max_h = CIF_ISP_INPUT_H_MAX;
 	}
+	max_size = max_w * max_h;
+	w = clamp_t(u32, src_w, CIF_ISP_INPUT_W_MIN, max_w);
+	max_h = max_size / w;
+	h = clamp_t(u32, src_h, CIF_ISP_INPUT_H_MIN, max_h);
 
 	if (dev->active_sensor)
 		sensor = dev->active_sensor->sd;
@@ -310,8 +295,8 @@ int rkisp_align_sensor_resolution(struct rkisp_device *dev,
 	if ((code & RKISP_MEDIA_BUS_FMT_MASK) != RKISP_MEDIA_BUS_FMT_BAYER) {
 		crop->left = 0;
 		crop->top = 0;
-		crop->width = min_t(u32, src_w, CIF_ISP_INPUT_W_MAX);
-		crop->height = min_t(u32, src_h, CIF_ISP_INPUT_H_MAX);
+		crop->width = min_t(u32, src_w, max_w);
+		crop->height = min_t(u32, src_h, max_h);
 		return 0;
 	}
 
@@ -2486,7 +2471,7 @@ static int rkisp_isp_sd_get_selection(struct v4l2_subdev *sd,
 	struct rkisp_isp_subdev *isp_sd = sd_to_isp_sd(sd);
 	struct rkisp_device *dev = sd_to_isp_dev(sd);
 	struct v4l2_rect *crop;
-	u32 max_w, max_h;
+	u32 max_w, max_h, max_size;
 
 	if (!sel)
 		goto err;
@@ -2534,6 +2519,9 @@ static int rkisp_isp_sd_get_selection(struct v4l2_subdev *sd,
 				max_w = CIF_ISP_INPUT_W_MAX;
 				max_h = CIF_ISP_INPUT_H_MAX;
 			}
+			max_size = max_w * max_h;
+			max_h = max_size / isp_sd->in_frm.width;
+
 			crop->width = min_t(u32, isp_sd->in_frm.width, max_w);
 			crop->height = min_t(u32, isp_sd->in_frm.height, max_h);
 		}
