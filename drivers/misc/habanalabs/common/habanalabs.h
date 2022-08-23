@@ -917,11 +917,11 @@ struct hl_mmap_mem_buf {
  * @buf: back pointer to the parent mappable memory buffer
  * @debugfs_list: node in debugfs list of command buffers.
  * @pool_list: node in pool list of command buffers.
- * @va_block_list: list of virtual addresses blocks of the CB if it is mapped to
- *                 the device's MMU.
  * @kernel_address: Holds the CB's kernel virtual address.
+ * @virtual_addr: Holds the CB's virtual address.
  * @bus_address: Holds the CB's DMA address.
  * @size: holds the CB's size.
+ * @roundup_size: holds the cb size after roundup to page size.
  * @cs_cnt: holds number of CS that this CB participates in.
  * @is_pool: true if CB was acquired from the pool, false otherwise.
  * @is_internal: internally allocated
@@ -933,10 +933,11 @@ struct hl_cb {
 	struct hl_mmap_mem_buf	*buf;
 	struct list_head	debugfs_list;
 	struct list_head	pool_list;
-	struct list_head	va_block_list;
 	void			*kernel_address;
+	u64			virtual_addr;
 	dma_addr_t		bus_address;
 	u32			size;
+	u32			roundup_size;
 	atomic_t		cs_cnt;
 	u8			is_pool;
 	u8			is_internal;
