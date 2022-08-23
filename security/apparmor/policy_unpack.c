@@ -466,13 +466,14 @@ static struct aa_dfa *unpack_dfa(struct aa_ext *e)
 /**
  * unpack_trans_table - unpack a profile transition table
  * @e: serialized data extent information  (NOT NULL)
- * @profile: profile to add the accept table to (NOT NULL)
+ * @table: str table to unpack to (NOT NULL)
  *
- * Returns: true if table successfully unpacked
+ * Returns: true if table successfully unpacked or not present
  */
-static bool unpack_trans_table(struct aa_ext *e, struct aa_profile *profile)
+static bool unpack_trans_table(struct aa_ext *e, struct aa_str_table *strs)
 {
 	void *saved_pos = e->pos;
+	char **table;
 
 	/* exec table is optional */
 	if (unpack_nameX(e, AA_STRUCT, "xtable")) {
@@ -482,12 +483,10 @@ static bool unpack_trans_table(struct aa_ext *e, struct aa_profile *profile)
 		/* currently 2^24 bits entries 0-3 */
 		if (size > (1 << 24))
 			goto fail;
-		profile->file.trans.table = kcalloc(size, sizeof(char *),
-						    GFP_KERNEL);
-		if (!profile->file.trans.table)
+		table = kcalloc(size, sizeof(char *), GFP_KERNEL);
+		if (!table)
 			goto fail;
 
-		profile->file.trans.size = size;
 		for (i = 0; i < size; i++) {
 			char *str;
 			int c, j, pos, size2 = unpack_strdup(e, &str, NULL);
@@ -496,7 +495,7 @@ static bool unpack_trans_table(struct aa_ext *e, struct aa_profile *profile)
 			 */
 			if (!size2)
 				goto fail;
-			profile->file.trans.table[i] = str;
+			table[i] = str;
 			/* verify that name doesn't start with space */
 			if (isspace(*str))
 				goto fail;
@@ -530,11 +529,14 @@ static bool unpack_trans_table(struct aa_ext *e, struct aa_profile *profile)
 			goto fail;
 		if (!unpack_nameX(e, AA_STRUCTEND, NULL))
 			goto fail;
+
+		strs->table = table;
+		strs->size = size;
 	}
 	return true;
 
 fail:
-	aa_free_str_table(&profile->file.trans);
+	kfree_sensitive(table);
 	e->pos = saved_pos;
 	return false;
 }
@@ -880,7 +882,7 @@ static struct aa_profile *unpack_profile(struct aa_ext *e, char **ns_name)
 			info = "failed to remap file permission table";
 			goto fail;
 		}
-		if (!unpack_trans_table(e, profile)) {
+		if (!unpack_trans_table(e, &profile->file.trans)) {
 			info = "failed to unpack profile transition table";
 			goto fail;
 		}
