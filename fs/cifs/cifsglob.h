@@ -558,6 +558,7 @@ struct smb_version_values {
 #define HEADER_SIZE(server) (server->vals->header_size)
 #define MAX_HEADER_SIZE(server) (server->vals->max_header_size)
 #define HEADER_PREAMBLE_SIZE(server) (server->vals->header_preamble_size)
+#define MID_HEADER_SIZE(server) (HEADER_SIZE(server) - 1 - HEADER_PREAMBLE_SIZE(server))
 
 /**
  * CIFS superblock mount flags (mnt_cifs_flags) to consider when

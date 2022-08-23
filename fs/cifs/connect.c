@@ -1065,8 +1065,7 @@ standard_receive3(struct TCP_Server_Info *server, struct mid_q_entry *mid)
 
 	/* now read the rest */
 	length = cifs_read_from_socket(server, buf + HEADER_SIZE(server) - 1,
-				       pdu_length - HEADER_SIZE(server) + 1 +
-				       HEADER_PREAMBLE_SIZE(server));
+				       pdu_length - MID_HEADER_SIZE(server));
 
 	if (length < 0)
 		return length;
@@ -1198,8 +1197,7 @@ next_pdu:
 		server->pdu_size = pdu_length;
 
 		/* make sure we have enough to get to the MID */
-		if (server->pdu_size < HEADER_SIZE(server) - 1 -
-		    HEADER_PREAMBLE_SIZE(server)) {
+		if (server->pdu_size < MID_HEADER_SIZE(server)) {
 			cifs_server_dbg(VFS, "SMB response too short (%u bytes)\n",
 				 server->pdu_size);
 			cifs_reconnect(server, true);
@@ -1209,8 +1207,7 @@ next_pdu:
 		/* read down to the MID */
 		length = cifs_read_from_socket(server,
 			     buf + HEADER_PREAMBLE_SIZE(server),
-			     HEADER_SIZE(server) - 1 -
-			     HEADER_PREAMBLE_SIZE(server));
+			     MID_HEADER_SIZE(server));
 		if (length < 0)
 			continue;
 		server->total_read += length;
