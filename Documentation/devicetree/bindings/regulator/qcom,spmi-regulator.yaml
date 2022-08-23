@@ -12,6 +12,7 @@ maintainers:
 properties:
   compatible:
     enum:
+      - qcom,pm6125-regulators
       - qcom,pm660-regulators
       - qcom,pm660l-regulators
       - qcom,pm8004-regulators
@@ -112,6 +113,25 @@ allOf:
         compatible:
           contains:
             enum:
+              - qcom,pm6125-regulators
+    then:
+      properties:
+        vdd_l1_l7_l17_l18-supply: true
+        vdd_l2_l3_l4-supply: true
+        vdd_l5_l15_l19_l20_l21_l22-supply: true
+        vdd_l6_l8-supply: true
+        vdd_l9_l11-supply: true
+        vdd_l10_l13_l14-supply: true
+        vdd_l12_l16-supply: true
+        vdd_l23_l24-supply: true
+      patternProperties:
+        "^vdd_s[1-8]-supply$": true
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
               - qcom,pm660-regulators
     then:
       properties:
@@ -122,6 +142,7 @@ allOf:
         vdd_l8_l9_l10_l11_l12_l13_l14-supply: true
       patternProperties:
         "^vdd_s[1-6]-supply$": true
+
   - if:
       properties:
         compatible:
@@ -136,6 +157,7 @@ allOf:
         vdd_l4_l6-supply: true
       patternProperties:
         "^vdd_s[1-5]-supply$": true
+
   - if:
       properties:
         compatible:
@@ -145,6 +167,7 @@ allOf:
     then:
       patternProperties:
         "^vdd_s[25]-supply$": true
+
   - if:
       properties:
         compatible:
@@ -154,6 +177,7 @@ allOf:
     then:
       patternProperties:
         "^vdd_s[1-4]-supply$": true
+
   - if:
       properties:
         compatible:
@@ -173,6 +197,7 @@ allOf:
         vdd_lvs1-supply: true
       patternProperties:
         "^vdd_s[1-5]-supply$": true
+
   - if:
       properties:
         compatible:
@@ -182,6 +207,7 @@ allOf:
     then:
       patternProperties:
         "^vdd_s[1-8]-supply$": true
+
   - if:
       properties:
         compatible:
@@ -197,6 +223,7 @@ allOf:
       patternProperties:
         "^vdd_l[27]-supply$": true
         "^vdd_s[1-4]-supply$": true
+
   - if:
       properties:
         compatible:
@@ -225,6 +252,7 @@ allOf:
         vin_5vs-supply: true
       patternProperties:
         "^vdd_s[1-3]-supply$": true
+
   - if:
       properties:
         compatible:
@@ -243,6 +271,7 @@ allOf:
         vdd_l9_l10_l13_l14_l15_l18-supply: true
       patternProperties:
         "^vdd_s[1-6]-supply$": true
+
   - if:
       properties:
         compatible:
@@ -267,6 +296,7 @@ allOf:
         vdd_lvs_1_2-supply: true
       patternProperties:
         "^vdd_s[1-9][0-2]?-supply$": true
+
   - if:
       properties:
         compatible:
@@ -278,6 +308,7 @@ allOf:
         vdd_l1-supply: true
       patternProperties:
         "^vdd_s[1-3]-supply$": true
+
   - if:
       properties:
         compatible:
@@ -293,6 +324,7 @@ allOf:
       patternProperties:
         "^vdd_l[479]-supply$": true
         "^vdd_s[1-5]-supply$": true
+
   - if:
       properties:
         compatible:
