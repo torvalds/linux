@@ -1691,8 +1691,11 @@ static int add_page_for_migration(struct mm_struct *mm, unsigned long addr,
 		goto out;
 
 	err = -ENOENT;
-	if (!page || is_zone_device_page(page))
+	if (!page)
 		goto out;
+
+	if (is_zone_device_page(page))
+		goto out_putpage;
 
 	err = 0;
 	if (page_to_nid(page) == node)
@@ -1891,13 +1894,15 @@ static void do_pages_stat_array(struct mm_struct *mm, unsigned long nr_pages,
 		if (IS_ERR(page))
 			goto set_status;
 
-		if (page && !is_zone_device_page(page)) {
+		err = -ENOENT;
+		if (!page)
+			goto set_status;
+
+		if (!is_zone_device_page(page))
 			err = page_to_nid(page);
-			if (foll_flags & FOLL_GET)
-				put_page(page);
-		} else {
-			err = -ENOENT;
-		}
+
+		if (foll_flags & FOLL_GET)
+			put_page(page);
 set_status:
 		*status = err;
 
