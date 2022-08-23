@@ -60,7 +60,7 @@ enum mac_version {
 	/* support for RTL_GIGA_MAC_VER_47 has been removed */
 	RTL_GIGA_MAC_VER_48,
 	/* support for RTL_GIGA_MAC_VER_49 has been removed */
-	RTL_GIGA_MAC_VER_50,
+	/* support for RTL_GIGA_MAC_VER_50 has been removed */
 	RTL_GIGA_MAC_VER_51,
 	RTL_GIGA_MAC_VER_52,
 	RTL_GIGA_MAC_VER_53,
