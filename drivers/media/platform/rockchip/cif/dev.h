@@ -442,8 +442,10 @@ enum rkcif_capture_mode {
 };
 
 struct rkcif_rx_buffer {
+	int buf_idx;
 	struct rkisp_rx_buf dbufs;
 	struct rkcif_dummy_buffer dummy;
+	struct rkisp_thunderboot_shmem shmem;
 };
 
 enum rkcif_dma_en_mode {
@@ -521,6 +523,8 @@ struct rkcif_stream {
 	int				lack_buf_cnt;
 	unsigned int                    buf_wake_up_cnt;
 	struct rkcif_skip_info		skip_info;
+	int				last_rx_buf_idx;
+	int				last_frame_idx;
 	bool				stopping;
 	bool				crop_enable;
 	bool				crop_dyn_en;
@@ -534,6 +538,8 @@ struct rkcif_stream {
 	bool				is_high_align;
 	bool				to_en_scale;
 	bool				is_finish_stop_dma;
+	bool				is_in_vblank;
+	bool				is_change_toisp;
 };
 
 struct rkcif_lvds_subdev {
@@ -793,6 +799,7 @@ struct rkcif_device {
 	struct proc_dir_entry		*proc_dir;
 	struct rkcif_irq_stats		irq_stats;
 	spinlock_t			hdr_lock; /* lock for hdr buf sync */
+	spinlock_t			buffree_lock;
 	struct rkcif_timer		reset_watchdog_timer;
 	struct rkcif_work_struct	reset_work;
 	int				id_use_cnt;
@@ -804,11 +811,14 @@ struct rkcif_device {
 	struct rkcif_dummy_buffer	dummy_buf;
 	struct completion		cmpl_ntf;
 	struct csi2_dphy_hw		*dphy_hw;
+	phys_addr_t			resmem_pa;
+	size_t				resmem_size;
 	bool				is_start_hdr;
 	bool				reset_work_cancel;
 	bool				iommu_en;
 	bool				is_use_dummybuf;
 	bool				is_notifier_isp;
+	bool				is_thunderboot;
 	int				rdbk_debug;
 	int				sync_type;
 	int				sditf_cnt;
@@ -892,6 +902,7 @@ void rkcif_config_dvp_pin(struct rkcif_device *dev, bool on);
 
 s32 rkcif_get_sensor_vblank_def(struct rkcif_device *dev);
 s32 rkcif_get_sensor_vblank(struct rkcif_device *dev);
+int rkcif_get_linetime(struct rkcif_stream *stream);
 
 void rkcif_assign_check_buffer_update_toisp(struct rkcif_stream *stream);
 

@@ -28,6 +28,8 @@
 #include "procfs.h"
 #include <linux/kthread.h>
 #include "../../../../phy/rockchip/phy-rockchip-csi2-dphy-common.h"
+#include <linux/of_reserved_mem.h>
+#include <linux/of_address.h>
 
 #define RKCIF_VERNO_LEN		10
 
@@ -1833,6 +1835,7 @@ int rkcif_plat_init(struct rkcif_device *cif_dev, struct device_node *node, int 
 	mutex_init(&cif_dev->scale_lock);
 	mutex_init(&cif_dev->tools_lock);
 	spin_lock_init(&cif_dev->hdr_lock);
+	spin_lock_init(&cif_dev->buffree_lock);
 	spin_lock_init(&cif_dev->reset_watchdog_timer.timer_lock);
 	spin_lock_init(&cif_dev->reset_watchdog_timer.csi2_err_lock);
 	atomic_set(&cif_dev->pipe.power_cnt, 0);
@@ -1849,6 +1852,7 @@ int rkcif_plat_init(struct rkcif_device *cif_dev, struct device_node *node, int 
 	cif_dev->is_notifier_isp = false;
 	cif_dev->sensor_linetime = 0;
 	cif_dev->early_line = 0;
+	cif_dev->is_thunderboot = false;
 	cif_dev->rdbk_debug = 0;
 	if (cif_dev->chip_id == CHIP_RV1126_CIF_LITE)
 		cif_dev->isr_hdl = rkcif_irq_lite_handler;
@@ -2003,6 +2007,35 @@ static void rkcif_parse_dts(struct rkcif_device *cif_dev)
 	dev_info(cif_dev->dev, "rkcif wait line %d\n", cif_dev->wait_line);
 }
 
+static int rkcif_get_reserved_mem(struct rkcif_device *cif_dev)
+{
+	struct device *dev = cif_dev->dev;
+	struct device_node *np;
+	struct resource r;
+	int ret;
+
+	/* Get reserved memory region from Device-tree */
+	np = of_parse_phandle(dev->of_node, "memory-region-thunderboot", 0);
+	if (!np) {
+		dev_info(dev, "No memory-region-thunderboot specified\n");
+		return 0;
+	}
+
+	ret = of_address_to_resource(np, 0, &r);
+	if (ret) {
+		dev_err(dev, "No memory address assigned to the region\n");
+		return ret;
+	}
+
+	cif_dev->resmem_pa = r.start;
+	cif_dev->resmem_size = resource_size(&r);
+	cif_dev->is_thunderboot = true;
+	dev_info(dev, "Allocated reserved memory, paddr: 0x%x, size 0x%x\n",
+		 (u32)cif_dev->resmem_pa,
+		 (u32)cif_dev->resmem_size);
+	return ret;
+}
+
 static int rkcif_plat_probe(struct platform_device *pdev)
 {
 	const struct of_device_id *match;
@@ -2043,6 +2076,10 @@ static int rkcif_plat_probe(struct platform_device *pdev)
 		rkcif_detach_hw(cif_dev);
 		return ret;
 	}
+
+	ret = rkcif_get_reserved_mem(cif_dev);
+	if (ret)
+		return ret;
 
 	if (rkcif_proc_init(cif_dev))
 		dev_warn(dev, "dev:%s create proc failed\n", dev_name(dev));

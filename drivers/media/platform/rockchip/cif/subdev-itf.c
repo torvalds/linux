@@ -22,10 +22,39 @@
 #include "dev.h"
 #include <linux/regulator/consumer.h>
 #include <linux/rk-camera-module.h>
+#include "common.h"
 
 static inline struct sditf_priv *to_sditf_priv(struct v4l2_subdev *subdev)
 {
 	return container_of(subdev, struct sditf_priv, sd);
+}
+
+void sditf_buffree_work(struct work_struct *work)
+{
+	struct sditf_work_struct *buffree_work = container_of(work,
+							      struct sditf_work_struct,
+							      work);
+	struct sditf_priv *priv = container_of(buffree_work,
+						struct sditf_priv,
+						buffree_work);
+	struct rkcif_rx_buffer *rx_buf = NULL;
+	struct rkisp_rx_buf *dbufs = NULL;
+	unsigned long flags;
+	LIST_HEAD(local_list);
+
+	spin_lock_irqsave(&priv->cif_dev->buffree_lock, flags);
+	list_replace_init(&priv->buf_free_list, &local_list);
+	while (!list_empty(&local_list)) {
+		dbufs = list_first_entry(&local_list,
+					  struct rkisp_rx_buf, list);
+		if (dbufs) {
+			list_del(&dbufs->list);
+			rx_buf = container_of(dbufs, struct rkcif_rx_buffer, dbufs);
+			if (rx_buf)
+				rkcif_free_reserved_mem_buf(priv->cif_dev, rx_buf);
+		}
+	}
+	spin_unlock_irqrestore(&priv->cif_dev->buffree_lock, flags);
 }
 
 static void sditf_get_hdr_mode(struct sditf_priv *priv)
@@ -474,6 +503,23 @@ static void sditf_channel_disable(struct sditf_priv *priv, int user)
 	priv->toisp_inf.ch_info[2].is_valid = false;
 }
 
+void sditf_change_to_online(struct sditf_priv *priv)
+{
+	struct rkcif_device *cif_dev = priv->cif_dev;
+
+	priv->mode.rdbk_mode = RKISP_VICAP_ONLINE;
+	if (priv->toisp_inf.link_mode == TOISP0) {
+		sditf_channel_enable(priv, 0);
+	} else if (priv->toisp_inf.link_mode == TOISP1) {
+		sditf_channel_enable(priv, 1);
+	} else if (priv->toisp_inf.link_mode == TOISP_UNITE) {
+		sditf_channel_enable(priv, 0);
+		sditf_channel_enable(priv, 1);
+	}
+	if (priv->hdr_cfg.hdr_mode == NO_HDR)
+		rkcif_free_rx_buf(&cif_dev->stream[0], priv->buf_num);
+}
+
 static int sditf_start_stream(struct sditf_priv *priv)
 {
 	struct rkcif_device *cif_dev = priv->cif_dev;
@@ -506,6 +552,7 @@ static int sditf_start_stream(struct sditf_priv *priv)
 		rkcif_do_start_stream(&cif_dev->stream[1], mode);
 		rkcif_do_start_stream(&cif_dev->stream[2], mode);
 	}
+	INIT_LIST_HEAD(&priv->buf_free_list);
 	return 0;
 }
 
@@ -604,8 +651,9 @@ static int sditf_s_rx_buffer(struct v4l2_subdev *sd,
 	struct rkcif_stream *stream = NULL;
 	struct rkisp_rx_buf *dbufs;
 	struct rkcif_rx_buffer *rx_buf = NULL;
-	unsigned long flags;
+	unsigned long flags, buffree_flags;
 	u32 diff_time = 1000000;
+	u32 early_time = 0;
 
 	if (!buf) {
 		v4l2_err(&cif_dev->v4l2_dev, "buf is NULL\n");
@@ -642,80 +690,88 @@ static int sditf_s_rx_buffer(struct v4l2_subdev *sd,
 	rx_buf = to_cif_rx_buf(dbufs);
 
 	spin_lock_irqsave(&stream->vbq_lock, flags);
+	stream->buf_num_toisp++;
+	stream->last_rx_buf_idx = dbufs->sequence + 1;
+
+	if (!list_empty(&stream->rx_buf_head) &&
+	    cif_dev->is_thunderboot) {
+		spin_lock_irqsave(&cif_dev->buffree_lock, buffree_flags);
+		list_add_tail(&dbufs->list, &priv->buf_free_list);
+		spin_unlock_irqrestore(&cif_dev->buffree_lock, buffree_flags);
+		schedule_work(&priv->buffree_work.work);
+	}
+
 	if (!rx_buf->dummy.is_free) {
 		list_add_tail(&dbufs->list, &stream->rx_buf_head);
 		rkcif_assign_check_buffer_update_toisp(stream);
-		if (cif_dev->rdbk_debug)
-			memset(rx_buf->dummy.vaddr + rx_buf->dummy.size - 1920 * 10,
-			       0x00, 1920 * 10);
+		if (cif_dev->rdbk_debug) {
+			u32 offset = 0;
+
+			offset = rx_buf->dummy.size - stream->pixm.plane_fmt[0].bytesperline * 3;
+			memset(rx_buf->dummy.vaddr + offset,
+			       0x00, stream->pixm.plane_fmt[0].bytesperline * 3);
+			if (cif_dev->is_thunderboot)
+				dma_sync_single_for_device(cif_dev->dev,
+							   rx_buf->dummy.dma_addr + rx_buf->dummy.size -
+							   stream->pixm.plane_fmt[0].bytesperline * 3,
+							   stream->pixm.plane_fmt[0].bytesperline * 3,
+							   DMA_FROM_DEVICE);
+			else
+				cif_dev->hw_dev->mem_ops->prepare(rx_buf->dummy.mem_priv);
+		}
 	}
 
+	if (dbufs->is_switch) {
+		if (stream->is_in_vblank)
+			sditf_change_to_online(priv);
+		else
+			stream->is_change_toisp = true;
+		v4l2_dbg(3, rkcif_debug, &cif_dev->v4l2_dev,
+			 "switch to online mode\n");
+	}
 	spin_unlock_irqrestore(&stream->vbq_lock, flags);
 
 	if (dbufs->runtime_us && cif_dev->early_line == 0) {
-		u32 numerator, denominator;
-		u32 def_fps = 0;
-		int line_time = 0;
-		int vblank_def = 0;
-		int vblank_curr = 0;
-
-		numerator = sensor->fi.interval.numerator;
-		denominator = sensor->fi.interval.denominator;
-		if (!numerator || !denominator) {
-			v4l2_err(&cif_dev->v4l2_dev,
-				 "get frame interval fail, numerator %d, denominator %d\n",
-				 numerator, denominator);
-			return -EINVAL;
-		}
-		def_fps = denominator / numerator;
-		if (!def_fps) {
-			v4l2_err(&cif_dev->v4l2_dev,
-				 "get fps fail, numerator %d, denominator %d\n",
-				 numerator, denominator);
-			return -EINVAL;
-		}
-		vblank_def = rkcif_get_sensor_vblank_def(cif_dev);
-		vblank_curr = rkcif_get_sensor_vblank(cif_dev);
-		if (!vblank_def || !vblank_curr) {
-			v4l2_err(&cif_dev->v4l2_dev,
-				 "get vblank fail, vblank_def %d, vblank_curr %d\n",
-				 vblank_def, vblank_curr);
-			return -EINVAL;
-		}
-		line_time = div_u64(1000000000, def_fps);
-		line_time = div_u64(line_time, vblank_def + sensor->raw_rect.height);
-		if (!line_time) {
-			v4l2_err(&cif_dev->v4l2_dev,
-				 "get line time fail, line_time %d\n",
-				 line_time);
-			return -EINVAL;
-		}
-		if (vblank_curr * line_time < 1000)
-			v4l2_warn(&cif_dev->v4l2_dev,
-				  "vblank < 1ms, val %d\n",
-				  vblank_curr * line_time);
+		if (cif_dev->sensor_linetime)
+			cif_dev->sensor_linetime = rkcif_get_linetime(stream);
 		cif_dev->isp_runtime_max = dbufs->runtime_us;
-		cif_dev->sensor_linetime = line_time;
-		cif_dev->early_line = div_u64(dbufs->runtime_us * 1000 - diff_time, line_time);
+		if (cif_dev->is_thunderboot)
+			diff_time = 200000;
+		else
+			diff_time = 1000000;
+		if (dbufs->runtime_us * 1000 + cif_dev->sensor_linetime > diff_time)
+			early_time = dbufs->runtime_us * 1000 - diff_time;
+		else
+			early_time = diff_time;
+		cif_dev->early_line = div_u64(early_time, cif_dev->sensor_linetime);
 		cif_dev->wait_line_cache = sensor->raw_rect.height - cif_dev->early_line;
 		if (cif_dev->rdbk_debug &&
 		    dbufs->sequence < 15)
 			v4l2_info(&cif_dev->v4l2_dev,
 				  "%s, isp runtime %d, line time %d, early_line %d, line_intr_cnt %d, seq %d, dma_addr %x\n",
-				  __func__, dbufs->runtime_us, line_time,
+				  __func__, dbufs->runtime_us, cif_dev->sensor_linetime,
 				  cif_dev->early_line, cif_dev->wait_line_cache,
 				  dbufs->sequence, (u32)rx_buf->dummy.dma_addr);
 	} else {
-		if (dbufs->runtime_us > cif_dev->isp_runtime_max + cif_dev->sensor_linetime) {
+		if (dbufs->runtime_us < cif_dev->isp_runtime_max) {
 			cif_dev->isp_runtime_max = dbufs->runtime_us;
-			cif_dev->early_line = div_u64(dbufs->runtime_us * 1000 - diff_time, cif_dev->sensor_linetime);
+			if (cif_dev->is_thunderboot)
+				diff_time = 200000;
+			else
+				diff_time = 1000000;
+			if (dbufs->runtime_us * 1000 + cif_dev->sensor_linetime > diff_time)
+				early_time = dbufs->runtime_us * 1000 - diff_time;
+			else
+				early_time = diff_time;
+			cif_dev->early_line = div_u64(early_time, cif_dev->sensor_linetime);
 			cif_dev->wait_line_cache = sensor->raw_rect.height - cif_dev->early_line;
 		}
 		if (cif_dev->rdbk_debug &&
 		    dbufs->sequence < 15)
 			v4l2_info(&cif_dev->v4l2_dev,
-				  "isp runtime %d, seq %d, dma addr %x\n",
-				  dbufs->runtime_us, dbufs->sequence, (u32)rx_buf->dummy.dma_addr);
+				  "isp runtime %d, seq %d, early_line %d, dma addr %x\n",
+				  dbufs->runtime_us, dbufs->sequence,
+				  cif_dev->early_line, (u32)rx_buf->dummy.dma_addr);
 	}
 	return 0;
 }
@@ -986,7 +1042,7 @@ static int rkcif_subdev_media_init(struct sditf_priv *priv)
 	strncpy(priv->sd.name, dev_name(cif_dev->dev), sizeof(priv->sd.name));
 	priv->cap_info.width = 0;
 	priv->cap_info.height = 0;
-	priv->mode.rdbk_mode = RKISP_VICAP_ONLINE;
+	priv->mode.rdbk_mode = RKISP_VICAP_RDBK_AIQ;
 	priv->toisp_inf.link_mode = TOISP_NONE;
 	priv->toisp_inf.ch_info[0].is_valid = false;
 	priv->toisp_inf.ch_info[1].is_valid = false;
@@ -995,6 +1051,8 @@ static int rkcif_subdev_media_init(struct sditf_priv *priv)
 		sditf_subdev_notifier(priv);
 	atomic_set(&priv->power_cnt, 0);
 	atomic_set(&priv->stream_cnt, 0);
+	INIT_WORK(&priv->buffree_work.work, sditf_buffree_work);
+	INIT_LIST_HEAD(&priv->buf_free_list);
 	return 0;
 }
 

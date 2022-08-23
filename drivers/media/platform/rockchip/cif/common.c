@@ -186,3 +186,181 @@ void rkcif_free_common_dummy_buf(struct rkcif_device *dev, struct rkcif_dummy_bu
 	mutex_unlock(&hw->dev_lock);
 }
 
+struct rkcif_shm_data {
+	void *vaddr;
+	int vmap_cnt;
+	int npages;
+	struct page *pages[];
+};
+
+static struct sg_table *rkcif_shm_map_dma_buf(struct dma_buf_attachment *attachment,
+					enum dma_data_direction dir)
+{
+	struct rkcif_shm_data *data = attachment->dmabuf->priv;
+	struct sg_table *table;
+
+	table = kmalloc(sizeof(*table), GFP_KERNEL);
+	if (!table)
+		return ERR_PTR(-ENOMEM);
+
+	sg_alloc_table_from_pages(table, data->pages, data->npages, 0,
+				  data->npages << PAGE_SHIFT, GFP_KERNEL);
+
+	dma_map_sgtable(attachment->dev, table, dir, DMA_ATTR_SKIP_CPU_SYNC);
+
+	return table;
+}
+
+static void rkcif_shm_unmap_dma_buf(struct dma_buf_attachment *attachment,
+			      struct sg_table *table,
+			      enum dma_data_direction dir)
+{
+	dma_unmap_sgtable(attachment->dev, table, dir, DMA_ATTR_SKIP_CPU_SYNC);
+	sg_free_table(table);
+	kfree(table);
+}
+
+static void *rkcif_shm_vmap(struct dma_buf *dma_buf)
+{
+	struct rkcif_shm_data *data = dma_buf->priv;
+
+	data->vaddr = vmap(data->pages, data->npages, VM_MAP, PAGE_KERNEL);
+	data->vmap_cnt++;
+	return data->vaddr;
+}
+
+static void rkcif_shm_vunmap(struct dma_buf *dma_buf, void *vaddr)
+{
+	struct rkcif_shm_data *data = dma_buf->priv;
+
+	vunmap(data->vaddr);
+	data->vaddr = NULL;
+	data->vmap_cnt--;
+}
+
+static int rkcif_shm_mmap(struct dma_buf *dma_buf, struct vm_area_struct *vma)
+{
+	struct rkcif_shm_data *data = dma_buf->priv;
+	unsigned long vm_start = vma->vm_start;
+	int i;
+
+	for (i = 0; i < data->npages; i++) {
+		remap_pfn_range(vma, vm_start, page_to_pfn(data->pages[i]),
+				PAGE_SIZE, vma->vm_page_prot);
+		vm_start += PAGE_SIZE;
+	}
+
+	return 0;
+}
+
+static int rkcif_shm_begin_cpu_access(struct dma_buf *dmabuf, enum dma_data_direction dir)
+{
+	struct dma_buf_attachment *attachment;
+	struct sg_table *table;
+
+	attachment = list_first_entry(&dmabuf->attachments, struct dma_buf_attachment, node);
+	table = attachment->priv;
+	dma_sync_sg_for_cpu(NULL, table->sgl, table->nents, dir);
+
+	return 0;
+}
+
+static int rkcif_shm_end_cpu_access(struct dma_buf *dmabuf, enum dma_data_direction dir)
+{
+	struct dma_buf_attachment *attachment;
+	struct sg_table *table;
+
+	attachment = list_first_entry(&dmabuf->attachments, struct dma_buf_attachment, node);
+	table = attachment->priv;
+	dma_sync_sg_for_device(NULL, table->sgl, table->nents, dir);
+
+	return 0;
+}
+
+static void rkcif_shm_release(struct dma_buf *dma_buf)
+{
+	struct rkcif_shm_data *data = dma_buf->priv;
+
+	if (data->vmap_cnt) {
+		WARN(1, "%s: buffer still mapped in the kernel\n", __func__);
+		rkcif_shm_vunmap(dma_buf, data->vaddr);
+	}
+	kfree(data);
+}
+
+static const struct dma_buf_ops rkcif_shm_dmabuf_ops = {
+	.map_dma_buf = rkcif_shm_map_dma_buf,
+	.unmap_dma_buf = rkcif_shm_unmap_dma_buf,
+	.release = rkcif_shm_release,
+	.mmap = rkcif_shm_mmap,
+	.vmap = rkcif_shm_vmap,
+	.vunmap = rkcif_shm_vunmap,
+	.begin_cpu_access = rkcif_shm_begin_cpu_access,
+	.end_cpu_access = rkcif_shm_end_cpu_access,
+};
+
+static struct dma_buf *rkcif_shm_alloc(struct rkisp_thunderboot_shmem *shmem)
+{
+	DEFINE_DMA_BUF_EXPORT_INFO(exp_info);
+	struct dma_buf *dmabuf;
+	struct rkcif_shm_data *data;
+	int i, npages;
+
+	npages = PAGE_ALIGN(shmem->shm_size) / PAGE_SIZE;
+	data = kmalloc(sizeof(*data) + npages * sizeof(struct page *), GFP_KERNEL);
+	if (!data)
+		return ERR_PTR(-ENOMEM);
+	data->vmap_cnt = 0;
+	data->npages = npages;
+	for (i = 0; i < npages; i++)
+		data->pages[i] = phys_to_page(shmem->shm_start + i * PAGE_SIZE);
+
+	exp_info.ops = &rkcif_shm_dmabuf_ops;
+	exp_info.size = npages * PAGE_SIZE;
+	exp_info.flags = O_RDWR;
+	exp_info.priv = data;
+
+	dmabuf = dma_buf_export(&exp_info);
+
+	return dmabuf;
+}
+
+int rkcif_alloc_reserved_mem_buf(struct rkcif_device *dev, struct rkcif_rx_buffer *buf)
+{
+	struct rkcif_dummy_buffer *dummy = &buf->dummy;
+
+	dummy->dma_addr = dev->resmem_pa + dummy->size * buf->buf_idx;
+	if (dummy->dma_addr + dummy->size > dev->resmem_pa + dev->resmem_size)
+		return -EINVAL;
+	buf->dbufs.dma = dummy->dma_addr;
+	buf->dbufs.is_resmem = true;
+	buf->shmem.shm_start = dummy->dma_addr;
+	buf->shmem.shm_size = dummy->size;
+	dummy->dbuf = rkcif_shm_alloc(&buf->shmem);
+	if (dummy->is_need_vaddr)
+		dummy->vaddr = dummy->dbuf->ops->vmap(dummy->dbuf);
+	return 0;
+}
+
+void rkcif_free_reserved_mem_buf(struct rkcif_device *dev, struct rkcif_rx_buffer *buf)
+{
+	struct rkcif_dummy_buffer *dummy = &buf->dummy;
+
+	if (buf->dummy.is_free)
+		return;
+
+	if (dev->rdbk_debug)
+		v4l2_info(&dev->v4l2_dev,
+			  "free reserved mem addr 0x%x\n",
+			  (u32)dummy->dma_addr);
+
+	if (dummy->is_need_vaddr)
+		dummy->dbuf->ops->vunmap(dummy->dbuf, dummy->vaddr);
+#ifdef CONFIG_VIDEO_ROCKCHIP_THUNDER_BOOT_ISP
+	free_reserved_area(phys_to_virt(buf->shmem.shm_start),
+			   phys_to_virt(buf->shmem.shm_start + buf->shmem.shm_size),
+			   -1, "rkisp_thunderboot");
+#endif
+	buf->dummy.is_free = true;
+}
+

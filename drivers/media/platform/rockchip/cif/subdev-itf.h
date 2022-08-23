@@ -54,6 +54,11 @@ struct toisp_info {
 	enum toisp_link_mode link_mode;
 };
 
+struct sditf_work_struct {
+	struct work_struct	work;
+	struct rkisp_rx_buffer *buf;
+};
+
 struct sditf_priv {
 	struct device *dev;
 	struct v4l2_async_notifier notifier;
@@ -67,6 +72,8 @@ struct sditf_priv {
 	struct v4l2_ctrl *pixel_rate;
 	struct v4l2_ctrl_handler ctrl_handler;
 	struct v4l2_subdev *sensor_sd;
+	struct sditf_work_struct buffree_work;
+	struct list_head buf_free_list;
 	int buf_num;
 	int num_sensors;
 	int combine_index;
@@ -76,5 +83,6 @@ struct sditf_priv {
 };
 
 extern struct platform_driver rkcif_subdev_driver;
+void sditf_change_to_online(struct sditf_priv *priv);
 
 #endif
