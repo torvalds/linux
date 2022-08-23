@@ -81,6 +81,7 @@ void rkcif_free_buffer(struct rkcif_device *dev,
 		buf->is_need_dbuf = false;
 		buf->is_need_vaddr = false;
 		buf->is_need_dmafd = false;
+		buf->is_free = true;
 	}
 }
 

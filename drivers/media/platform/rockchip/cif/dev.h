@@ -77,8 +77,6 @@
 #define RKCIF_DEFAULT_HEIGHT	480
 #define RKCIF_FS_DETECTED_NUM	2
 
-#define RKCIF_RX_BUF_MAX	8
-
 #define RKCIF_MAX_INTERVAL_NS	5000000
 /*
  * for HDR mode sync buf
@@ -105,7 +103,8 @@ enum rkcif_stream_mode {
 	RKCIF_STREAM_MODE_NONE = 0x0,
 	RKCIF_STREAM_MODE_CAPTURE = 0x01,
 	RKCIF_STREAM_MODE_TOISP = 0x02,
-	RKCIF_STREAM_MODE_TOSCALE = 0x04
+	RKCIF_STREAM_MODE_TOSCALE = 0x04,
+	RKCIF_STREAM_MODE_TOISP_RDBK = 0x08
 };
 
 enum rkcif_yuvaddr_state {
@@ -201,6 +200,7 @@ struct rkcif_dummy_buffer {
 	bool is_need_vaddr;
 	bool is_need_dbuf;
 	bool is_need_dmafd;
+	bool is_free;
 };
 
 struct rkcif_tools_buffer {
@@ -514,7 +514,7 @@ struct rkcif_stream {
 	int				buf_replace_cnt;
 	struct list_head		rx_buf_head_vicap;
 	unsigned int			cur_stream_mode;
-	struct rkcif_rx_buffer		rx_buf[RKCIF_RX_BUF_MAX];
+	struct rkcif_rx_buffer		rx_buf[RKISP_VICAP_BUF_CNT_MAX];
 	struct list_head		rx_buf_head;
 	int				buf_num_toisp;
 	u64				line_int_cnt;
@@ -809,8 +809,10 @@ struct rkcif_device {
 	bool				iommu_en;
 	bool				is_use_dummybuf;
 	bool				is_notifier_isp;
+	int				rdbk_debug;
 	int				sync_type;
 	int				sditf_cnt;
+	int				sensor_linetime;
 };
 
 extern struct platform_driver rkcif_plat_drv;
@@ -885,5 +887,12 @@ void rkcif_do_soft_reset(struct rkcif_device *dev);
 u32 rkcif_mbus_pixelcode_to_v4l2(u32 pixelcode);
 
 void rkcif_config_dvp_pin(struct rkcif_device *dev, bool on);
+
+s32 rkcif_get_sensor_vblank_def(struct rkcif_device *dev);
+s32 rkcif_get_sensor_vblank(struct rkcif_device *dev);
+
+void rkcif_assign_check_buffer_update_toisp(struct rkcif_stream *stream);
+
+struct rkcif_rx_buffer *to_cif_rx_buf(struct rkisp_rx_buf *dbufs);
 
 #endif

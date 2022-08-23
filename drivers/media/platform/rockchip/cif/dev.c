@@ -118,7 +118,7 @@ static ssize_t rkcif_store_line_int_num(struct device *dev,
 	int val = 0;
 	int ret = 0;
 
-	if (priv->toisp_inf.link_mode != TOISP_NONE) {
+	if (priv && priv->mode.rdbk_mode == RKISP_VICAP_ONLINE) {
 		dev_info(cif_dev->dev,
 			 "current mode is on the fly, wake up mode wouldn't used\n");
 		return len;
@@ -569,6 +569,35 @@ static ssize_t rkcif_store_capture_fps(struct device *dev,
 }
 static DEVICE_ATTR(fps, 0200, NULL, rkcif_store_capture_fps);
 
+static ssize_t rkcif_show_rdbk_debug(struct device *dev,
+					      struct device_attribute *attr,
+					      char *buf)
+{
+	struct rkcif_device *cif_dev = (struct rkcif_device *)dev_get_drvdata(dev);
+	int ret;
+
+	ret = snprintf(buf, PAGE_SIZE, "%d\n",
+		       cif_dev->rdbk_debug);
+	return ret;
+}
+
+static ssize_t rkcif_store_rdbk_debug(struct device *dev,
+					       struct device_attribute *attr,
+					       const char *buf, size_t len)
+{
+	struct rkcif_device *cif_dev = (struct rkcif_device *)dev_get_drvdata(dev);
+	int val = 0;
+	int ret = 0;
+
+	ret = kstrtoint(buf, 0, &val);
+	if (!ret)
+		cif_dev->rdbk_debug = val;
+	else
+		dev_info(cif_dev->dev, "set rdbk debug failed\n");
+	return len;
+}
+static DEVICE_ATTR(rdbk_debug, 0200, rkcif_show_rdbk_debug, rkcif_store_rdbk_debug);
+
 static struct attribute *dev_attrs[] = {
 	&dev_attr_compact_test.attr,
 	&dev_attr_wait_line.attr,
@@ -579,6 +608,7 @@ static struct attribute *dev_attrs[] = {
 	&dev_attr_scale_ch2_blc.attr,
 	&dev_attr_scale_ch3_blc.attr,
 	&dev_attr_fps.attr,
+	&dev_attr_rdbk_debug.attr,
 	NULL,
 };
 
@@ -1817,6 +1847,8 @@ int rkcif_plat_init(struct rkcif_device *cif_dev, struct device_node *node, int 
 	cif_dev->sync_type = NO_SYNC_MODE;
 	cif_dev->sditf_cnt = 0;
 	cif_dev->is_notifier_isp = false;
+	cif_dev->sensor_linetime = 0;
+	cif_dev->rdbk_debug = 0;
 	if (cif_dev->chip_id == CHIP_RV1126_CIF_LITE)
 		cif_dev->isr_hdl = rkcif_irq_lite_handler;
 
