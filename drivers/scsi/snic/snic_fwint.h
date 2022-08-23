@@ -145,7 +145,7 @@ struct snic_exch_ver_req {
  * HBA Capabilities
  * Bit 1: Reserved.
  * Bit 2: Dynamic Discovery of LUNs.
- * Bit 3: Async event notifications on on tgt online/offline events.
+ * Bit 3: Async event notifications on tgt online/offline events.
  * Bit 4: IO timeout support in FW.
  * Bit 5-31: Reserved.
  */

@@ -5511,7 +5511,7 @@ W:	http://www.chelsio.com
 F:	drivers/net/ethernet/chelsio/cxgb3/
 
 CXGB3 ISCSI DRIVER (CXGB3I)
-M:	Karen Xie <kxie@chelsio.com>
+M:	Varun Prakash <varun@chelsio.com>
 L:	linux-scsi@vger.kernel.org
 S:	Supported
 W:	http://www.chelsio.com
@@ -5543,7 +5543,7 @@ W:	http://www.chelsio.com
 F:	drivers/net/ethernet/chelsio/cxgb4/
 
 CXGB4 ISCSI DRIVER (CXGB4I)
-M:	Karen Xie <kxie@chelsio.com>
+M:	Varun Prakash <varun@chelsio.com>
 L:	linux-scsi@vger.kernel.org
 S:	Supported
 W:	http://www.chelsio.com
@@ -6274,14 +6274,6 @@ S:	Maintained
 F:	Documentation/networking/device_drivers/ethernet/freescale/dpaa2/switch-driver.rst
 F:	drivers/net/ethernet/freescale/dpaa2/dpaa2-switch*
 F:	drivers/net/ethernet/freescale/dpaa2/dpsw*
-
-DPT_I2O SCSI RAID DRIVER
-M:	Adaptec OEM Raid Solutions <aacraid@microsemi.com>
-L:	linux-scsi@vger.kernel.org
-S:	Maintained
-W:	http://www.adaptec.com/
-F:	drivers/scsi/dpt*
-F:	drivers/scsi/dpt/
 
 DRBD DRIVER
 M:	Philipp Reisner <philipp.reisner@linbit.com>
@@ -20817,6 +20809,13 @@ L:	linux-scsi@vger.kernel.org
 L:	linux-mediatek@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
 F:	drivers/ufs/host/ufs-mediatek*
+
+UNIVERSAL FLASH STORAGE HOST CONTROLLER DRIVER RENESAS HOOKS
+M:	Yoshihiro Shimoda <yoshihiro.shimoda.uh@renesas.com>
+L:	linux-renesas-soc@vger.kernel.org
+L:	linux-scsi@vger.kernel.org
+S:	Maintained
+F:	drivers/ufs/host/ufs-renesas.c
 
 UNSORTED BLOCK IMAGES (UBI)
 M:	Richard Weinberger <richard@nod.at>
