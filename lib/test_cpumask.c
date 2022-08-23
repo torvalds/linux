@@ -54,7 +54,6 @@ static cpumask_t mask_all;
 static void test_cpumask_weight(struct kunit *test)
 {
 	KUNIT_EXPECT_TRUE(test, cpumask_empty(&mask_empty));
-	KUNIT_EXPECT_TRUE(test, cpumask_full(cpu_possible_mask));
 	KUNIT_EXPECT_TRUE(test, cpumask_full(&mask_all));
 
 	KUNIT_EXPECT_EQ(test, 0, cpumask_weight(&mask_empty));
