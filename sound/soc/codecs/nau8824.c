@@ -1014,27 +1014,42 @@ static irqreturn_t nau8824_interrupt(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static int nau8824_clock_check(struct nau8824 *nau8824,
-	int stream, int rate, int osr)
+static const struct nau8824_osr_attr *
+nau8824_get_osr(struct nau8824 *nau8824, int stream)
 {
-	int osrate;
+	unsigned int osr;
 
 	if (stream == SNDRV_PCM_STREAM_PLAYBACK) {
+		regmap_read(nau8824->regmap,
+			    NAU8824_REG_DAC_FILTER_CTRL_1, &osr);
+		osr &= NAU8824_DAC_OVERSAMPLE_MASK;
 		if (osr >= ARRAY_SIZE(osr_dac_sel))
-			return -EINVAL;
-		osrate = osr_dac_sel[osr].osr;
+			return NULL;
+		return &osr_dac_sel[osr];
 	} else {
+		regmap_read(nau8824->regmap,
+			    NAU8824_REG_ADC_FILTER_CTRL, &osr);
+		osr &= NAU8824_ADC_SYNC_DOWN_MASK;
 		if (osr >= ARRAY_SIZE(osr_adc_sel))
-			return -EINVAL;
-		osrate = osr_adc_sel[osr].osr;
+			return NULL;
+		return &osr_adc_sel[osr];
 	}
+}
 
-	if (!osrate || rate * osr > CLK_DA_AD_MAX) {
-		dev_err(nau8824->dev, "exceed the maximum frequency of CLK_ADC or CLK_DAC\n");
+static int nau8824_dai_startup(struct snd_pcm_substream *substream,
+			       struct snd_soc_dai *dai)
+{
+	struct snd_soc_component *component = dai->component;
+	struct nau8824 *nau8824 = snd_soc_component_get_drvdata(component);
+	const struct nau8824_osr_attr *osr;
+
+	osr = nau8824_get_osr(nau8824, substream->stream);
+	if (!osr || !osr->osr)
 		return -EINVAL;
-	}
 
-	return 0;
+	return snd_pcm_hw_constraint_minmax(substream->runtime,
+					    SNDRV_PCM_HW_PARAM_RATE,
+					    0, CLK_DA_AD_MAX / osr->osr);
 }
 
 static int nau8824_hw_params(struct snd_pcm_substream *substream,
@@ -1042,7 +1057,8 @@ static int nau8824_hw_params(struct snd_pcm_substream *substream,
 {
 	struct snd_soc_component *component = dai->component;
 	struct nau8824 *nau8824 = snd_soc_component_get_drvdata(component);
-	unsigned int val_len = 0, osr, ctrl_val, bclk_fs, bclk_div;
+	unsigned int val_len = 0, ctrl_val, bclk_fs, bclk_div;
+	const struct nau8824_osr_attr *osr;
 	int err = -EINVAL;
 
 	nau8824_sema_acquire(nau8824, HZ);
@@ -1054,27 +1070,19 @@ static int nau8824_hw_params(struct snd_pcm_substream *substream,
 	 * than 6.144 MHz.
 	 */
 	nau8824->fs = params_rate(params);
-	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
-		regmap_read(nau8824->regmap,
-			NAU8824_REG_DAC_FILTER_CTRL_1, &osr);
-		osr &= NAU8824_DAC_OVERSAMPLE_MASK;
-		if (nau8824_clock_check(nau8824, substream->stream,
-			nau8824->fs, osr))
-			goto error;
+	osr = nau8824_get_osr(nau8824, substream->stream);
+	if (!osr || !osr->osr)
+		goto error;
+	if (nau8824->fs * osr->osr > CLK_DA_AD_MAX)
+		goto error;
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
 		regmap_update_bits(nau8824->regmap, NAU8824_REG_CLK_DIVIDER,
 			NAU8824_CLK_DAC_SRC_MASK,
-			osr_dac_sel[osr].clk_src << NAU8824_CLK_DAC_SRC_SFT);
-	} else {
-		regmap_read(nau8824->regmap,
-			NAU8824_REG_ADC_FILTER_CTRL, &osr);
-		osr &= NAU8824_ADC_SYNC_DOWN_MASK;
-		if (nau8824_clock_check(nau8824, substream->stream,
-			nau8824->fs, osr))
-			goto error;
+			osr->clk_src << NAU8824_CLK_DAC_SRC_SFT);
+	else
 		regmap_update_bits(nau8824->regmap, NAU8824_REG_CLK_DIVIDER,
 			NAU8824_CLK_ADC_SRC_MASK,
-			osr_adc_sel[osr].clk_src << NAU8824_CLK_ADC_SRC_SFT);
-	}
+			osr->clk_src << NAU8824_CLK_ADC_SRC_SFT);
 
 	/* make BCLK and LRC divde configuration if the codec as master. */
 	regmap_read(nau8824->regmap,
@@ -1550,6 +1558,7 @@ static const struct snd_soc_component_driver nau8824_component_driver = {
 };
 
 static const struct snd_soc_dai_ops nau8824_dai_ops = {
+	.startup = nau8824_dai_startup,
 	.hw_params = nau8824_hw_params,
 	.set_fmt = nau8824_set_fmt,
 	.set_tdm_slot = nau8824_set_tdm_slot,
