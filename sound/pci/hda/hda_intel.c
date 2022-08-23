@@ -489,14 +489,14 @@ static int intel_ml_lctl_set_power(struct azx *chip, int state)
 	 * If other links are enabled for stream, they need similar fix
 	 */
 	val = readl(bus->mlcap + AZX_ML_BASE + AZX_REG_ML_LCTL);
-	val &= ~AZX_MLCTL_SPA;
-	val |= state << AZX_MLCTL_SPA_SHIFT;
+	val &= ~AZX_ML_LCTL_SPA;
+	val |= state << AZX_ML_LCTL_SPA_SHIFT;
 	writel(val, bus->mlcap + AZX_ML_BASE + AZX_REG_ML_LCTL);
 	/* wait for CPA */
 	timeout = 50;
 	while (timeout) {
 		if (((readl(bus->mlcap + AZX_ML_BASE + AZX_REG_ML_LCTL)) &
-		    AZX_MLCTL_CPA) == (state << AZX_MLCTL_CPA_SHIFT))
+		    AZX_ML_LCTL_CPA) == (state << AZX_ML_LCTL_CPA_SHIFT))
 			return 0;
 		timeout--;
 		udelay(10);
@@ -514,15 +514,15 @@ static void intel_init_lctl(struct azx *chip)
 	/* 0. check lctl register value is correct or not */
 	val = readl(bus->mlcap + AZX_ML_BASE + AZX_REG_ML_LCTL);
 	/* if SCF is already set, let's use it */
-	if ((val & ML_LCTL_SCF_MASK) != 0)
+	if ((val & AZX_ML_LCTL_SCF) != 0)
 		return;
 
 	/*
 	 * Before operating on SPA, CPA must match SPA.
 	 * Any deviation may result in undefined behavior.
 	 */
-	if (((val & AZX_MLCTL_SPA) >> AZX_MLCTL_SPA_SHIFT) !=
-		((val & AZX_MLCTL_CPA) >> AZX_MLCTL_CPA_SHIFT))
+	if (((val & AZX_ML_LCTL_SPA) >> AZX_ML_LCTL_SPA_SHIFT) !=
+		((val & AZX_ML_LCTL_CPA) >> AZX_ML_LCTL_CPA_SHIFT))
 		return;
 
 	/* 1. turn link down: set SPA to 0 and wait CPA to 0 */
@@ -532,7 +532,7 @@ static void intel_init_lctl(struct azx *chip)
 		goto set_spa;
 
 	/* 2. update SCF to select a properly audio clock*/
-	val &= ~ML_LCTL_SCF_MASK;
+	val &= ~AZX_ML_LCTL_SCF;
 	val |= intel_get_lctl_scf(chip);
 	writel(val, bus->mlcap + AZX_ML_BASE + AZX_REG_ML_LCTL);
 
