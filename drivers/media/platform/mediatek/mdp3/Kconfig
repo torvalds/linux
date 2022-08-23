@@ -1,0 +1,21 @@
+# SPDX-License-Identifier: GPL-2.0-only
+config VIDEO_MEDIATEK_MDP3
+	tristate "MediaTek MDP v3 driver"
+	depends on MTK_IOMMU || COMPILE_TEST
+	depends on VIDEO_DEV
+	depends on ARCH_MEDIATEK || COMPILE_TEST
+	depends on HAS_DMA
+	depends on REMOTEPROC
+	select VIDEOBUF2_DMA_CONTIG
+	select V4L2_MEM2MEM_DEV
+	select MTK_MMSYS
+	select VIDEO_MEDIATEK_VPU
+	select MTK_CMDQ
+	select MTK_SCP
+	default n
+	help
+	    It is a v4l2 driver and present in MediaTek MT8183 SoC.
+	    The driver supports scaling and color space conversion.
+
+	    To compile this driver as a module, choose M here: the
+	    module will be called mtk-mdp3.
