@@ -28,6 +28,8 @@ properties:
 patternProperties:
   "^endpoint(@[0-9a-f]+)?":
     $ref: /schemas/graph.yaml#/$defs/endpoint-base
+    unevaluatedProperties: false
+
     properties:
       mclk-fs:
         description: |
