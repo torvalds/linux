@@ -898,9 +898,7 @@ static unsigned int dma_handle_tx(struct eg20t_port *priv)
 		fifo_size--;
 	}
 
-	bytes = min((int)CIRC_CNT(xmit->head, xmit->tail,
-			     UART_XMIT_SIZE), CIRC_CNT_TO_END(xmit->head,
-			     xmit->tail, UART_XMIT_SIZE));
+	bytes = CIRC_CNT_TO_END(xmit->head, xmit->tail, UART_XMIT_SIZE);
 	if (!bytes) {
 		dev_dbg(priv->port.dev, "%s 0 bytes return\n", __func__);
 		pch_uart_hal_disable_interrupt(priv, PCH_UART_HAL_TX_INT);
