@@ -1242,6 +1242,9 @@ static void ice_ptp_wait_for_offset_valid(struct kthread_work *work)
 	hw = &pf->hw;
 	dev = ice_pf_to_dev(pf);
 
+	if (ice_is_reset_in_progress(pf->state))
+		return;
+
 	if (ice_ptp_check_offset_valid(port)) {
 		/* Offsets not ready yet, try again later */
 		kthread_queue_delayed_work(pf->ptp.kworker,
