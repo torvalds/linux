@@ -37,6 +37,7 @@ properties:
 
   i80-if-timings:
     type: object
+    additionalProperties: false
     description: timing configuration for lcd i80 interface support
     properties:
       cs-setup:

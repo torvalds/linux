@@ -40,6 +40,7 @@ properties:
 
   i80-if-timings:
     type: object
+    additionalProperties: false
     description: |
       Timing configuration for lcd i80 interface support.
       The parameters are defined as::
