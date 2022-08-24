@@ -2192,6 +2192,7 @@ int __ceph_setattr(struct inode *inode, struct iattr *attr)
 		inode_dirty_flags = __ceph_mark_dirty_caps(ci, dirtied,
 							   &prealloc_cf);
 		inode->i_ctime = attr->ia_ctime;
+		inode_inc_iversion_raw(inode);
 	}
 
 	release &= issued;
