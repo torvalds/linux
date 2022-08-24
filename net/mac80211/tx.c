@@ -2676,7 +2676,8 @@ static struct sk_buff *ieee80211_build_hdr(struct ieee80211_sub_if_data *sdata,
 				goto free;
 			}
 			memcpy(hdr.addr2, link->conf->addr, ETH_ALEN);
-		} else if (link_id == IEEE80211_LINK_UNSPECIFIED) {
+		} else if (link_id == IEEE80211_LINK_UNSPECIFIED ||
+			   (sta && sta->sta.mlo)) {
 			memcpy(hdr.addr2, sdata->vif.addr, ETH_ALEN);
 		} else {
 			struct ieee80211_bss_conf *conf;
