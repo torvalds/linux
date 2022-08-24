@@ -608,7 +608,8 @@ int evlist__filter_pollfd(struct evlist *evlist, short revents_and_mask)
 int evlist__add_wakeup_eventfd(struct evlist *evlist, int fd)
 {
 	return perf_evlist__add_pollfd(&evlist->core, fd, NULL, POLLIN,
-				       fdarray_flag__nonfilterable);
+				       fdarray_flag__nonfilterable |
+				       fdarray_flag__non_perf_event);
 }
 #endif
 
