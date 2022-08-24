@@ -193,6 +193,7 @@ static int xrx200_alloc_buf(struct xrx200_chan *ch, void *(*alloc)(unsigned int 
 
 	ch->rx_buff[ch->dma.desc] = alloc(priv->rx_skb_size);
 	if (!ch->rx_buff[ch->dma.desc]) {
+		ch->rx_buff[ch->dma.desc] = buf;
 		ret = -ENOMEM;
 		goto skip;
 	}
