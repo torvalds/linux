@@ -17,8 +17,24 @@ struct mlx5e_post_meter_rate_table {
 	struct mlx5_flow_attr *red_attr;
 };
 
+struct mlx5e_post_meter_mtu_table {
+	struct mlx5_flow_table *ft;
+	struct mlx5_flow_group *fg;
+	struct mlx5_flow_handle *rule;
+	struct mlx5_flow_attr *attr;
+};
+
+struct mlx5e_post_meter_mtu_tables {
+	struct mlx5e_post_meter_mtu_table green_table;
+	struct mlx5e_post_meter_mtu_table red_table;
+};
+
 struct mlx5e_post_meter_priv {
-	struct mlx5e_post_meter_rate_table rate_steering_table;
+	enum mlx5e_post_meter_type type;
+	union {
+		struct mlx5e_post_meter_rate_table rate_steering_table;
+		struct mlx5e_post_meter_mtu_tables  mtu_tables;
+	};
 };
 
 struct mlx5_flow_table *
@@ -98,7 +114,6 @@ mlx5e_post_meter_add_rule(struct mlx5e_priv *priv,
 	else
 		attr->counter = act_counter;
 
-	attr->ft = post_meter->rate_steering_table.ft;
 	attr->flags |= MLX5_ATTR_FLAG_NO_IN_PORT;
 	attr->outer_match_level = MLX5_MATCH_NONE;
 	attr->chain = 0;
@@ -134,7 +149,7 @@ mlx5e_post_meter_rate_rules_create(struct mlx5e_priv *priv,
 
 	mlx5e_tc_match_to_reg_match(spec, PACKET_COLOR_TO_REG,
 				    MLX5_FLOW_METER_COLOR_RED, MLX5_PACKET_COLOR_MASK);
-
+	red_attr->ft = post_meter->rate_steering_table.ft;
 	rule = mlx5e_post_meter_add_rule(priv, post_meter, spec, red_attr,
 					 act_counter, drop_counter);
 	if (IS_ERR(rule)) {
@@ -147,6 +162,7 @@ mlx5e_post_meter_rate_rules_create(struct mlx5e_priv *priv,
 
 	mlx5e_tc_match_to_reg_match(spec, PACKET_COLOR_TO_REG,
 				    MLX5_FLOW_METER_COLOR_GREEN, MLX5_PACKET_COLOR_MASK);
+	green_attr->ft = post_meter->rate_steering_table.ft;
 	rule = mlx5e_post_meter_add_rule(priv, post_meter, spec, green_attr,
 					 act_counter, drop_counter);
 	if (IS_ERR(rule)) {
@@ -189,6 +205,33 @@ mlx5e_post_meter_rate_table_destroy(struct mlx5e_post_meter_priv *post_meter)
 	mlx5_destroy_flow_table(post_meter->rate_steering_table.ft);
 }
 
+static void
+mlx5e_post_meter_mtu_rules_destroy(struct mlx5e_post_meter_priv *post_meter)
+{
+	struct mlx5e_post_meter_mtu_tables *mtu_tables = &post_meter->mtu_tables;
+
+	mlx5_del_flow_rules(mtu_tables->green_table.rule);
+	mlx5_del_flow_rules(mtu_tables->red_table.rule);
+}
+
+static void
+mlx5e_post_meter_mtu_fg_destroy(struct mlx5e_post_meter_priv *post_meter)
+{
+	struct mlx5e_post_meter_mtu_tables *mtu_tables = &post_meter->mtu_tables;
+
+	mlx5_destroy_flow_group(mtu_tables->green_table.fg);
+	mlx5_destroy_flow_group(mtu_tables->red_table.fg);
+}
+
+static void
+mlx5e_post_meter_mtu_table_destroy(struct mlx5e_post_meter_priv *post_meter)
+{
+	struct mlx5e_post_meter_mtu_tables *mtu_tables = &post_meter->mtu_tables;
+
+	mlx5_destroy_flow_table(mtu_tables->green_table.ft);
+	mlx5_destroy_flow_table(mtu_tables->red_table.ft);
+}
+
 static int
 mlx5e_post_meter_rate_create(struct mlx5e_priv *priv,
 			     enum mlx5_flow_namespace_type ns_type,
@@ -201,6 +244,8 @@ mlx5e_post_meter_rate_create(struct mlx5e_priv *priv,
 {
 	struct mlx5_flow_table *ft;
 	int err;
+
+	post_meter->type = MLX5E_POST_METER_RATE;
 
 	ft = mlx5e_post_meter_table_create(priv, ns_type);
 	if (IS_ERR(ft)) {
@@ -231,10 +276,111 @@ err_ft:
 	return err;
 }
 
+static int
+mlx5e_post_meter_create_mtu_table(struct mlx5e_priv *priv,
+				  enum mlx5_flow_namespace_type ns_type,
+				  struct mlx5e_post_meter_mtu_table *table)
+{
+	int inlen = MLX5_ST_SZ_BYTES(create_flow_group_in);
+	struct mlx5_flow_group *fg;
+	u32 *flow_group_in;
+	int err;
+
+	flow_group_in = kvzalloc(inlen, GFP_KERNEL);
+	if (!flow_group_in)
+		return -ENOMEM;
+
+	table->ft = mlx5e_post_meter_table_create(priv, ns_type);
+	if (IS_ERR(table->ft)) {
+		err = PTR_ERR(table->ft);
+		goto err_ft;
+	}
+
+	/* create miss group */
+	memset(flow_group_in, 0, inlen);
+	MLX5_SET(create_flow_group_in, flow_group_in, start_flow_index, 1);
+	MLX5_SET(create_flow_group_in, flow_group_in, end_flow_index, 1);
+	fg = mlx5_create_flow_group(table->ft, flow_group_in);
+	if (IS_ERR(fg)) {
+		err = PTR_ERR(fg);
+		goto err_miss_grp;
+	}
+	table->fg = fg;
+
+	kvfree(flow_group_in);
+	return 0;
+
+err_miss_grp:
+	mlx5_destroy_flow_table(table->ft);
+err_ft:
+	kvfree(flow_group_in);
+	return err;
+}
+
+static int
+mlx5e_post_meter_mtu_create(struct mlx5e_priv *priv,
+			    enum mlx5_flow_namespace_type ns_type,
+			    struct mlx5e_post_act *post_act,
+			    struct mlx5_fc *act_counter,
+			    struct mlx5_fc *drop_counter,
+			    struct mlx5e_post_meter_priv *post_meter,
+			    struct mlx5_flow_attr *green_attr,
+			    struct mlx5_flow_attr *red_attr)
+{
+	struct mlx5e_post_meter_mtu_tables *mtu_tables = &post_meter->mtu_tables;
+	static struct mlx5_flow_spec zero_spec = {};
+	struct mlx5_flow_handle *rule;
+	int err;
+
+	post_meter->type = MLX5E_POST_METER_MTU;
+
+	err = mlx5e_post_meter_create_mtu_table(priv, ns_type, &mtu_tables->green_table);
+	if (err)
+		goto err_green_ft;
+
+	green_attr->ft = mtu_tables->green_table.ft;
+	rule = mlx5e_post_meter_add_rule(priv, post_meter, &zero_spec, green_attr,
+					 act_counter, drop_counter);
+	if (IS_ERR(rule)) {
+		mlx5_core_warn(priv->mdev, "Failed to create post_meter conform rule\n");
+		err = PTR_ERR(rule);
+		goto err_green_rule;
+	}
+	mtu_tables->green_table.rule = rule;
+	mtu_tables->green_table.attr = green_attr;
+
+	err = mlx5e_post_meter_create_mtu_table(priv, ns_type, &mtu_tables->red_table);
+	if (err)
+		goto err_red_ft;
+
+	red_attr->ft = mtu_tables->red_table.ft;
+	rule = mlx5e_post_meter_add_rule(priv, post_meter, &zero_spec, red_attr,
+					 act_counter, drop_counter);
+	if (IS_ERR(rule)) {
+		mlx5_core_warn(priv->mdev, "Failed to create post_meter exceed rule\n");
+		err = PTR_ERR(rule);
+		goto err_red_rule;
+	}
+	mtu_tables->red_table.rule = rule;
+	mtu_tables->red_table.attr = red_attr;
+
+	return 0;
+
+err_red_rule:
+	mlx5_destroy_flow_table(mtu_tables->red_table.ft);
+err_red_ft:
+	mlx5_del_flow_rules(mtu_tables->green_table.rule);
+err_green_rule:
+	mlx5_destroy_flow_table(mtu_tables->green_table.ft);
+err_green_ft:
+	return err;
+}
+
 struct mlx5e_post_meter_priv *
 mlx5e_post_meter_init(struct mlx5e_priv *priv,
 		      enum mlx5_flow_namespace_type ns_type,
 		      struct mlx5e_post_act *post_act,
+		      enum mlx5e_post_meter_type type,
 		      struct mlx5_fc *act_counter,
 		      struct mlx5_fc *drop_counter,
 		      struct mlx5_flow_attr *branch_true,
@@ -247,9 +393,21 @@ mlx5e_post_meter_init(struct mlx5e_priv *priv,
 	if (!post_meter)
 		return ERR_PTR(-ENOMEM);
 
-	err = mlx5e_post_meter_rate_create(priv, ns_type, post_act,
-					   act_counter, drop_counter, post_meter,
-					   branch_true, branch_false);
+	switch (type) {
+	case MLX5E_POST_METER_MTU:
+		err = mlx5e_post_meter_mtu_create(priv, ns_type, post_act,
+						  act_counter, drop_counter, post_meter,
+						  branch_true, branch_false);
+		break;
+	case MLX5E_POST_METER_RATE:
+		err = mlx5e_post_meter_rate_create(priv, ns_type, post_act,
+						   act_counter, drop_counter, post_meter,
+						   branch_true, branch_false);
+		break;
+	default:
+		err = -EOPNOTSUPP;
+	}
+
 	if (err)
 		goto err;
 
@@ -268,10 +426,22 @@ mlx5e_post_meter_rate_destroy(struct mlx5_eswitch *esw, struct mlx5e_post_meter_
 	mlx5e_post_meter_rate_table_destroy(post_meter);
 }
 
+static void
+mlx5e_post_meter_mtu_destroy(struct mlx5e_post_meter_priv *post_meter)
+{
+	mlx5e_post_meter_mtu_rules_destroy(post_meter);
+	mlx5e_post_meter_mtu_fg_destroy(post_meter);
+	mlx5e_post_meter_mtu_table_destroy(post_meter);
+}
+
 void
 mlx5e_post_meter_cleanup(struct mlx5_eswitch *esw, struct mlx5e_post_meter_priv *post_meter)
 {
-	mlx5e_post_meter_rate_destroy(esw, post_meter);
+	if (post_meter->type == MLX5E_POST_METER_RATE)
+		mlx5e_post_meter_rate_destroy(esw, post_meter);
+	else
+		mlx5e_post_meter_mtu_destroy(post_meter);
+
 	kfree(post_meter);
 }
 

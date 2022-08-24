@@ -423,6 +423,7 @@ mlx5e_tc_add_flow_meter(struct mlx5e_priv *priv,
 
 	ns_type = mlx5e_tc_meter_get_namespace(meter->flow_meters);
 	post_meter = mlx5e_post_meter_init(priv, ns_type, post_act,
+					   MLX5E_POST_METER_RATE,
 					   meter->act_counter, meter->drop_counter,
 					   attr->branch_true, attr->branch_false);
 	if (IS_ERR(post_meter)) {
