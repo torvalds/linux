@@ -2047,8 +2047,8 @@ static void adv76xx_cec_isr(struct v4l2_subdev *sd, bool *handled)
 		struct cec_msg msg;
 
 		msg.len = cec_read(sd, 0x25) & 0x1f;
-		if (msg.len > 16)
-			msg.len = 16;
+		if (msg.len > CEC_MAX_MSG_SIZE)
+			msg.len = CEC_MAX_MSG_SIZE;
 
 		if (msg.len) {
 			u8 i;
