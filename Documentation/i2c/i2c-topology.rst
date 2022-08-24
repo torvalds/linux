@@ -5,6 +5,8 @@ I2C muxes and complex topologies
 There are a couple of reasons for building more complex I2C topologies
 than a straight-forward I2C bus with one adapter and one or more devices.
 
+Some example use cases are:
+
 1. A mux may be needed on the bus to prevent address collisions.
 
 2. The bus may be accessible from some external bus master, and arbitration
@@ -13,9 +15,6 @@ than a straight-forward I2C bus with one adapter and one or more devices.
 3. A device (particularly RF tuners) may want to avoid the digital noise
    from the I2C bus, at least most of the time, and sits behind a gate
    that has to be operated before the device can be accessed.
-
-Etc
-===
 
 These constructs are represented as I2C adapter trees by Linux, where
 each adapter has a parent adapter (except the root adapter) and zero or
