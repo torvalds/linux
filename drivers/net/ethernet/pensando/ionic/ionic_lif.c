@@ -1692,8 +1692,67 @@ static int ionic_set_features(struct net_device *netdev,
 	return err;
 }
 
+static int ionic_set_attr_mac(struct ionic_lif *lif, u8 *mac)
+{
+	struct ionic_admin_ctx ctx = {
+		.work = COMPLETION_INITIALIZER_ONSTACK(ctx.work),
+		.cmd.lif_setattr = {
+			.opcode = IONIC_CMD_LIF_SETATTR,
+			.index = cpu_to_le16(lif->index),
+			.attr = IONIC_LIF_ATTR_MAC,
+		},
+	};
+
+	ether_addr_copy(ctx.cmd.lif_setattr.mac, mac);
+	return ionic_adminq_post_wait(lif, &ctx);
+}
+
+static int ionic_get_attr_mac(struct ionic_lif *lif, u8 *mac_addr)
+{
+	struct ionic_admin_ctx ctx = {
+		.work = COMPLETION_INITIALIZER_ONSTACK(ctx.work),
+		.cmd.lif_getattr = {
+			.opcode = IONIC_CMD_LIF_GETATTR,
+			.index = cpu_to_le16(lif->index),
+			.attr = IONIC_LIF_ATTR_MAC,
+		},
+	};
+	int err;
+
+	err = ionic_adminq_post_wait(lif, &ctx);
+	if (err)
+		return err;
+
+	ether_addr_copy(mac_addr, ctx.comp.lif_getattr.mac);
+	return 0;
+}
+
+static int ionic_program_mac(struct ionic_lif *lif, u8 *mac)
+{
+	u8  get_mac[ETH_ALEN];
+	int err;
+
+	err = ionic_set_attr_mac(lif, mac);
+	if (err)
+		return err;
+
+	err = ionic_get_attr_mac(lif, get_mac);
+	if (err)
+		return err;
+
+	/* To deal with older firmware that silently ignores the set attr mac:
+	 * doesn't actually change the mac and doesn't return an error, so we
+	 * do the get attr to verify whether or not the set actually happened
+	 */
+	if (!ether_addr_equal(get_mac, mac))
+		return 1;
+
+	return 0;
+}
+
 static int ionic_set_mac_address(struct net_device *netdev, void *sa)
 {
+	struct ionic_lif *lif = netdev_priv(netdev);
 	struct sockaddr *addr = sa;
 	u8 *mac;
 	int err;
@@ -1701,6 +1760,14 @@ static int ionic_set_mac_address(struct net_device *netdev, void *sa)
 	mac = (u8 *)addr->sa_data;
 	if (ether_addr_equal(netdev->dev_addr, mac))
 		return 0;
+
+	err = ionic_program_mac(lif, mac);
+	if (err < 0)
+		return err;
+
+	if (err > 0)
+		netdev_dbg(netdev, "%s: SET and GET ATTR Mac are not equal-due to old FW running\n",
+			   __func__);
 
 	err = eth_prepare_mac_addr_change(netdev, addr);
 	if (err)
@@ -3226,6 +3293,7 @@ static int ionic_station_set(struct ionic_lif *lif)
 			.attr = IONIC_LIF_ATTR_MAC,
 		},
 	};
+	u8 mac_address[ETH_ALEN];
 	struct sockaddr addr;
 	int err;
 
@@ -3234,8 +3302,23 @@ static int ionic_station_set(struct ionic_lif *lif)
 		return err;
 	netdev_dbg(lif->netdev, "found initial MAC addr %pM\n",
 		   ctx.comp.lif_getattr.mac);
-	if (is_zero_ether_addr(ctx.comp.lif_getattr.mac))
-		return 0;
+	ether_addr_copy(mac_address, ctx.comp.lif_getattr.mac);
+
+	if (is_zero_ether_addr(mac_address)) {
+		eth_hw_addr_random(netdev);
+		netdev_dbg(netdev, "Random Mac generated: %pM\n", netdev->dev_addr);
+		ether_addr_copy(mac_address, netdev->dev_addr);
+
+		err = ionic_program_mac(lif, mac_address);
+		if (err < 0)
+			return err;
+
+		if (err > 0) {
+			netdev_dbg(netdev, "%s:SET/GET ATTR Mac are not same-due to old FW running\n",
+				   __func__);
+			return 0;
+		}
+	}
 
 	if (!is_zero_ether_addr(netdev->dev_addr)) {
 		/* If the netdev mac is non-zero and doesn't match the default
@@ -3243,12 +3326,11 @@ static int ionic_station_set(struct ionic_lif *lif)
 		 * likely here again after a fw-upgrade reset.  We need to be
 		 * sure the netdev mac is in our filter list.
 		 */
-		if (!ether_addr_equal(ctx.comp.lif_getattr.mac,
-				      netdev->dev_addr))
+		if (!ether_addr_equal(mac_address, netdev->dev_addr))
 			ionic_lif_addr_add(lif, netdev->dev_addr);
 	} else {
 		/* Update the netdev mac with the device's mac */
-		memcpy(addr.sa_data, ctx.comp.lif_getattr.mac, netdev->addr_len);
+		ether_addr_copy(addr.sa_data, mac_address);
 		addr.sa_family = AF_INET;
 		err = eth_prepare_mac_addr_change(netdev, &addr);
 		if (err) {
