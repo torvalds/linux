@@ -512,9 +512,6 @@ struct drm_i915_private {
 		struct file *mmap_singleton;
 	} gem;
 
-	/* Window2 specifies time required to program DSB (Window2) in number of scan lines */
-	u8 window2_delay;
-
 	u8 pch_ssc_use;
 
 	/* For i915gm/i945gm vblank irq workaround */

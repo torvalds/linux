@@ -8686,8 +8686,6 @@ int intel_modeset_init_noirq(struct drm_i915_private *i915)
 	i915->flip_wq = alloc_workqueue("i915_flip", WQ_HIGHPRI |
 					WQ_UNBOUND, WQ_UNBOUND_MAX_ACTIVE);
 
-	i915->window2_delay = 0; /* No DSB so no window2 delay */
-
 	intel_mode_config_init(i915);
 
 	ret = intel_cdclk_init(i915);
