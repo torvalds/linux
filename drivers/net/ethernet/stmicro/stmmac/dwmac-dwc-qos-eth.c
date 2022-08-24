@@ -37,14 +37,6 @@ struct tegra_eqos {
 	struct gpio_desc *reset;
 };
 
-struct starfive_eqos {
-	struct device *dev;
-	void __iomem *regs;
-	struct clk *clk_tx;
-	struct clk *clk_gtx;
-	struct clk *clk_gtxc;
-};
-
 static int dwc_eth_dwmac_config_dt(struct platform_device *pdev,
 				   struct plat_stmmacenet_data *plat_dat)
 {
@@ -405,135 +397,6 @@ static int tegra_eqos_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static void starfive_eqos_fix_speed(void *priv, unsigned int speed)
-{
-	struct starfive_eqos *eqos = priv;
-	unsigned long rate;
-	int err;
-
-	switch (speed) {
-	case SPEED_1000:
-		rate = 125000000;
-		break;
-	case SPEED_100:
-		rate = 25000000;
-		break;
-	case SPEED_10:
-		rate = 2500000;
-		break;
-	default:
-		dev_err(eqos->dev, "invalid speed %u\n", speed);
-		return;
-	}
-
-	err = clk_set_rate(eqos->clk_gtx, rate);
-	if (err < 0)
-		dev_err(eqos->dev, "failed to set tx rate %lu\n", rate);
-}
-
-static int starfive_eqos_probe(struct platform_device *pdev,
-			       struct plat_stmmacenet_data *data,
-			       struct stmmac_resources *res)
-{
-	struct device *dev = &pdev->dev;
-	struct starfive_eqos *eqos;
-	int err;
-
-	/* Get IRQ information early to have an ability to ask for deferred
-	 * probe if needed before we went too far with resource allocation.
-	 */
-	res->irq = platform_get_irq_byname(pdev, "macirq");
-	if (res->irq < 0)
-		return res->irq;
-
-	/* On some platforms e.g. SPEAr the wake up irq differs from the mac irq
-	 * The external wake up irq can be passed through the platform code
-	 * named as "eth_wake_irq"
-	 *
-	 * In case the wake up interrupt is not passed from the platform
-	 * so the driver will continue to use the mac irq (ndev->irq)
-	 */
-	res->wol_irq =
-		platform_get_irq_byname_optional(pdev, "eth_wake_irq");
-	if (res->wol_irq < 0) {
-		if (res->wol_irq == -EPROBE_DEFER)
-			return -EPROBE_DEFER;
-		dev_info(&pdev->dev, "IRQ eth_wake_irq not found\n");
-		res->wol_irq = res->irq;
-	}
-
-	res->lpi_irq =
-		platform_get_irq_byname_optional(pdev, "eth_lpi");
-	if (res->lpi_irq < 0) {
-		if (res->lpi_irq == -EPROBE_DEFER)
-			return -EPROBE_DEFER;
-		dev_info(&pdev->dev, "IRQ eth_lpi not found\n");
-	}
-
-	eqos = devm_kzalloc(&pdev->dev, sizeof(*eqos), GFP_KERNEL);
-	if (!eqos)
-		return -ENOMEM;
-
-	eqos->dev = &pdev->dev;
-	eqos->regs = res->addr;
-
-	if (!is_of_node(dev->fwnode))
-		goto bypass_clk_reset_gpio;
-
-	eqos->clk_tx = devm_clk_get(&pdev->dev, "tx");
-	if (IS_ERR(eqos->clk_tx)) {
-		err = PTR_ERR(eqos->clk_tx);
-		goto err;
-	}
-
-	err = clk_prepare_enable(eqos->clk_tx);
-	if (err < 0)
-		goto err;
-
-	eqos->clk_gtx = devm_clk_get(&pdev->dev, "gtx");
-	if (IS_ERR(eqos->clk_gtx)) {
-		err = PTR_ERR(eqos->clk_gtx);
-		goto disable_tx;
-	}
-
-	err = clk_prepare_enable(eqos->clk_gtx);
-	if (err < 0)
-		goto disable_tx;
-
-	eqos->clk_gtxc = devm_clk_get(&pdev->dev, "gtxc");
-	if (IS_ERR(eqos->clk_gtxc)) {
-		err = PTR_ERR(eqos->clk_gtxc);
-		goto disable_gtx;
-	}
-
-	err = clk_prepare_enable(eqos->clk_gtxc);
-	if (err < 0)
-		goto disable_gtx;
-
-bypass_clk_reset_gpio:
-	data->fix_mac_speed = starfive_eqos_fix_speed;
-	data->init = NULL;
-	data->bsp_priv = eqos;
-	return 0;
-
-disable_gtx:
-	clk_disable_unprepare(eqos->clk_gtx);
-disable_tx:
-	clk_disable_unprepare(eqos->clk_tx);
-err:
-	return err;
-}
-
-static int starfive_eqos_remove(struct platform_device *pdev)
-{
-	struct starfive_eqos *eqos = get_stmmac_bsp_priv(&pdev->dev);
-
-	clk_disable_unprepare(eqos->clk_tx);
-	clk_disable_unprepare(eqos->clk_gtx);
-
-	return 0;
-}
-
 struct dwc_eth_dwmac_data {
 	int (*probe)(struct platform_device *pdev,
 		     struct plat_stmmacenet_data *data,
@@ -549,11 +412,6 @@ static const struct dwc_eth_dwmac_data dwc_qos_data = {
 static const struct dwc_eth_dwmac_data tegra_eqos_data = {
 	.probe = tegra_eqos_probe,
 	.remove = tegra_eqos_remove,
-};
-
-static const struct dwc_eth_dwmac_data starfive_eqos_data = {
-	.probe = starfive_eqos_probe,
-	.remove = starfive_eqos_remove,
 };
 
 static int dwc_eth_dwmac_probe(struct platform_device *pdev)
@@ -636,7 +494,6 @@ static int dwc_eth_dwmac_remove(struct platform_device *pdev)
 static const struct of_device_id dwc_eth_dwmac_match[] = {
 	{ .compatible = "snps,dwc-qos-ethernet-4.10", .data = &dwc_qos_data },
 	{ .compatible = "nvidia,tegra186-eqos", .data = &tegra_eqos_data },
-	{ .compatible = "starfive,jh7110-eqos-5.20", .data = &starfive_eqos_data },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, dwc_eth_dwmac_match);
