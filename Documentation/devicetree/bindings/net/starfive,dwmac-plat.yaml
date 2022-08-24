@@ -1,0 +1,105 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/net/starfive,dwmac-plat.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: StarFive DWMAC glue layer Device Tree Bindings
+
+maintainers:
+  - Tan Chun Hau <chunhau.tan@starfivetech.com>
+
+select:
+  properties:
+    compatible:
+      contains:
+        enum:
+          - starfive,dwmac
+  required:
+    - compatible
+
+allOf:
+  - $ref: "snps,dwmac.yaml#"
+
+properties:
+  compatible:
+    oneOf:
+      - items:
+          - enum:
+              - starfive,dwmac
+          - const: snps,dwmac-5.10a
+
+  clocks:
+    items:
+      - description: Gtx clock
+      - description: Tx clock
+      - description: PTP reference clock
+      - description: GMAC main clock
+      - description: PTP reference clock
+      - description: Gtxc clock
+
+  clock-names:
+    items:
+      - const: gtx
+      - const: tx
+      - const: ptp_ref
+      - const: stmmaceth
+      - const: pclk
+      - const: gtxc
+
+required:
+  - compatible
+  - clocks
+  - clock-names
+
+unevaluatedProperties: false
+
+Example:
+  - |
+    #include <dt-bindings/reset/starfive-jh7110.h>
+    #include <dt-bindings/clock/starfive-jh7110-clkgen.h>
+
+    /* gmac device configuration */
+    stmmac_axi_setup: stmmac-axi-config {
+      snps,wr_osr_lmt = <0xf>;
+      snps,rd_osr_lmt = <0xf>;
+      snps,blen = <256 128 64 32 0 0 0>;
+    };
+
+    gmac0: gmac@17020000 {
+      compatible = "starfive,dwmac","snps,dwmac-5.10a";
+      reg = <0x0 0x17020000 0x0 0x10000>;
+      interrupts = <7>, <6>, <5>;
+      interrupt-names = "macirq", "eth_wake_irq", "eth_lpi";
+      phy-reset-gpios = <&gpio 63 0>;
+      clock-names = "gtx",
+        "tx",
+        "ptp_ref",
+        "stmmaceth",
+        "pclk",
+        "gtxc";
+      clocks = <&clkgen JH7110_GMAC0_GTXCLK>,
+         <&clkgen JH7110_U0_GMAC5_CLK_TX>,
+         <&clkgen JH7110_GMAC0_PTP>,
+         <&clkgen JH7110_U0_GMAC5_CLK_AHB>,
+         <&clkgen JH7110_U0_GMAC5_CLK_AXI>,
+         <&clkgen JH7110_GMAC0_GTXC>;
+      resets = <&rstgen RSTN_U0_DW_GMAC5_AXI64_AHB>,
+         <&rstgen RSTN_U0_DW_GMAC5_AXI64_AXI>;
+      reset-names = "ahb", "stmmaceth";
+      max-frame-size = <1500>;
+      phy-mode = "rgmii-id";
+      snps,multicast-filter-bins = <64>;
+      snps,perfect-filter-entries = <128>;
+      rx-fifo-depth = <2048>;
+      tx-fifo-depth = <2048>;
+      snps,fixed-burst;
+      snps,no-pbl-x8;
+      snps,force_thresh_dma_mode;
+      snps,axi-config = <&stmmac_axi_setup>;
+      snps,tso;
+      snps,en-tx-lpi-clockgating;
+      snps,txpbl = <4>;
+      snps,rxpbl = <4>;
+    };
+
