@@ -205,6 +205,8 @@ void evlist__enable(struct evlist *evlist);
 void evlist__toggle_enable(struct evlist *evlist);
 void evlist__disable_evsel(struct evlist *evlist, char *evsel_name);
 void evlist__enable_evsel(struct evlist *evlist, char *evsel_name);
+void evlist__disable_non_dummy(struct evlist *evlist);
+void evlist__enable_non_dummy(struct evlist *evlist);
 
 void evlist__set_selected(struct evlist *evlist, struct evsel *evsel);
 

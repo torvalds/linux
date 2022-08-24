@@ -480,7 +480,7 @@ static int evlist__is_enabled(struct evlist *evlist)
 	return false;
 }
 
-static void __evlist__disable(struct evlist *evlist, char *evsel_name)
+static void __evlist__disable(struct evlist *evlist, char *evsel_name, bool excl_dummy)
 {
 	struct evsel *pos;
 	struct evlist_cpu_iterator evlist_cpu_itr;
@@ -502,6 +502,8 @@ static void __evlist__disable(struct evlist *evlist, char *evsel_name)
 				continue;
 			if (pos->disabled || !evsel__is_group_leader(pos) || !pos->core.fd)
 				continue;
+			if (excl_dummy && evsel__is_dummy_event(pos))
+				continue;
 			if (pos->immediate)
 				has_imm = true;
 			if (pos->immediate != imm)
@@ -518,6 +520,8 @@ static void __evlist__disable(struct evlist *evlist, char *evsel_name)
 			continue;
 		if (!evsel__is_group_leader(pos) || !pos->core.fd)
 			continue;
+		if (excl_dummy && evsel__is_dummy_event(pos))
+			continue;
 		pos->disabled = true;
 	}
 
@@ -533,15 +537,20 @@ static void __evlist__disable(struct evlist *evlist, char *evsel_name)
 
 void evlist__disable(struct evlist *evlist)
 {
-	__evlist__disable(evlist, NULL);
+	__evlist__disable(evlist, NULL, false);
+}
+
+void evlist__disable_non_dummy(struct evlist *evlist)
+{
+	__evlist__disable(evlist, NULL, true);
 }
 
 void evlist__disable_evsel(struct evlist *evlist, char *evsel_name)
 {
-	__evlist__disable(evlist, evsel_name);
+	__evlist__disable(evlist, evsel_name, false);
 }
 
-static void __evlist__enable(struct evlist *evlist, char *evsel_name)
+static void __evlist__enable(struct evlist *evlist, char *evsel_name, bool excl_dummy)
 {
 	struct evsel *pos;
 	struct evlist_cpu_iterator evlist_cpu_itr;
@@ -560,6 +569,8 @@ static void __evlist__enable(struct evlist *evlist, char *evsel_name)
 			continue;
 		if (!evsel__is_group_leader(pos) || !pos->core.fd)
 			continue;
+		if (excl_dummy && evsel__is_dummy_event(pos))
+			continue;
 		evsel__enable_cpu(pos, evlist_cpu_itr.cpu_map_idx);
 	}
 	affinity__cleanup(affinity);
@@ -567,6 +578,8 @@ static void __evlist__enable(struct evlist *evlist, char *evsel_name)
 		if (evsel__strcmp(pos, evsel_name))
 			continue;
 		if (!evsel__is_group_leader(pos) || !pos->core.fd)
+			continue;
+		if (excl_dummy && evsel__is_dummy_event(pos))
 			continue;
 		pos->disabled = false;
 	}
@@ -581,12 +594,17 @@ static void __evlist__enable(struct evlist *evlist, char *evsel_name)
 
 void evlist__enable(struct evlist *evlist)
 {
-	__evlist__enable(evlist, NULL);
+	__evlist__enable(evlist, NULL, false);
+}
+
+void evlist__enable_non_dummy(struct evlist *evlist)
+{
+	__evlist__enable(evlist, NULL, true);
 }
 
 void evlist__enable_evsel(struct evlist *evlist, char *evsel_name)
 {
-	__evlist__enable(evlist, evsel_name);
+	__evlist__enable(evlist, evsel_name, false);
 }
 
 void evlist__toggle_enable(struct evlist *evlist)
