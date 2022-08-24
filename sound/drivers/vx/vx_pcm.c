@@ -1215,8 +1215,7 @@ int snd_vx_pcm_new(struct vx_core *chip)
 		if (ins)
 			snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE, &vx_pcm_capture_ops);
 		snd_pcm_set_managed_buffer_all(pcm, SNDRV_DMA_TYPE_VMALLOC,
-					       snd_dma_continuous_data(GFP_KERNEL | GFP_DMA32),
-					       0, 0);
+					       NULL, 0, 0);
 
 		pcm->private_data = chip;
 		pcm->private_free = snd_vx_pcm_free;
