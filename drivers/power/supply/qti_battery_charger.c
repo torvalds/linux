@@ -2190,8 +2190,11 @@ static int battery_chg_probe(struct platform_device *pdev)
 	INIT_WORK(&bcdev->subsys_up_work, battery_chg_subsys_up_work);
 	INIT_WORK(&bcdev->usb_type_work, battery_chg_update_usb_type_work);
 	INIT_WORK(&bcdev->battery_check_work, battery_chg_check_status_work);
-	atomic_set(&bcdev->state, PMIC_GLINK_STATE_UP);
 	bcdev->dev = dev;
+
+	rc = battery_chg_register_panel_notifier(bcdev);
+	if (rc < 0)
+		return rc;
 
 	client_data.id = MSG_OWNER_BC;
 	client_data.name = "battery_charger";
@@ -2208,6 +2211,7 @@ static int battery_chg_probe(struct platform_device *pdev)
 		return rc;
 	}
 
+	atomic_set(&bcdev->state, PMIC_GLINK_STATE_UP);
 	bcdev->initialized = true;
 	bcdev->reboot_notifier.notifier_call = battery_chg_ship_mode;
 	bcdev->reboot_notifier.priority = 255;
@@ -2218,10 +2222,6 @@ static int battery_chg_probe(struct platform_device *pdev)
 		dev_err(dev, "Failed to parse dt rc=%d\n", rc);
 		goto error;
 	}
-
-	rc = battery_chg_register_panel_notifier(bcdev);
-	if (rc < 0)
-		goto error;
 
 	bcdev->restrict_fcc_ua = DEFAULT_RESTRICT_FCC_UA;
 	platform_set_drvdata(pdev, bcdev);
@@ -2247,6 +2247,7 @@ static int battery_chg_probe(struct platform_device *pdev)
 
 	return 0;
 error:
+	cancel_work_sync(&bcdev->subsys_up_work);
 	bcdev->initialized = false;
 	complete(&bcdev->ack);
 	pmic_glink_unregister_client(bcdev->client);
@@ -2264,6 +2265,7 @@ static int battery_chg_remove(struct platform_device *pdev)
 
 	device_init_wakeup(bcdev->dev, false);
 	debugfs_remove_recursive(bcdev->debugfs_dir);
+	cancel_work_sync(&bcdev->subsys_up_work);
 	class_unregister(&bcdev->battery_class);
 	unregister_reboot_notifier(&bcdev->reboot_notifier);
 	rc = pmic_glink_unregister_client(bcdev->client);
