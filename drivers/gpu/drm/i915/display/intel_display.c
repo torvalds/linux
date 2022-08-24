@@ -165,16 +165,16 @@ static void ilk_pfit_enable(const struct intel_crtc_state *crtc_state);
  */
 void intel_update_watermarks(struct drm_i915_private *dev_priv)
 {
-	if (dev_priv->wm_disp->update_wm)
-		dev_priv->wm_disp->update_wm(dev_priv);
+	if (dev_priv->display.funcs.wm->update_wm)
+		dev_priv->display.funcs.wm->update_wm(dev_priv);
 }
 
 static int intel_compute_pipe_wm(struct intel_atomic_state *state,
 				 struct intel_crtc *crtc)
 {
 	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
-	if (dev_priv->wm_disp->compute_pipe_wm)
-		return dev_priv->wm_disp->compute_pipe_wm(state, crtc);
+	if (dev_priv->display.funcs.wm->compute_pipe_wm)
+		return dev_priv->display.funcs.wm->compute_pipe_wm(state, crtc);
 	return 0;
 }
 
@@ -182,20 +182,20 @@ static int intel_compute_intermediate_wm(struct intel_atomic_state *state,
 					 struct intel_crtc *crtc)
 {
 	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
-	if (!dev_priv->wm_disp->compute_intermediate_wm)
+	if (!dev_priv->display.funcs.wm->compute_intermediate_wm)
 		return 0;
 	if (drm_WARN_ON(&dev_priv->drm,
-			!dev_priv->wm_disp->compute_pipe_wm))
+			!dev_priv->display.funcs.wm->compute_pipe_wm))
 		return 0;
-	return dev_priv->wm_disp->compute_intermediate_wm(state, crtc);
+	return dev_priv->display.funcs.wm->compute_intermediate_wm(state, crtc);
 }
 
 static bool intel_initial_watermarks(struct intel_atomic_state *state,
 				     struct intel_crtc *crtc)
 {
 	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
-	if (dev_priv->wm_disp->initial_watermarks) {
-		dev_priv->wm_disp->initial_watermarks(state, crtc);
+	if (dev_priv->display.funcs.wm->initial_watermarks) {
+		dev_priv->display.funcs.wm->initial_watermarks(state, crtc);
 		return true;
 	}
 	return false;
@@ -205,23 +205,23 @@ static void intel_atomic_update_watermarks(struct intel_atomic_state *state,
 					   struct intel_crtc *crtc)
 {
 	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
-	if (dev_priv->wm_disp->atomic_update_watermarks)
-		dev_priv->wm_disp->atomic_update_watermarks(state, crtc);
+	if (dev_priv->display.funcs.wm->atomic_update_watermarks)
+		dev_priv->display.funcs.wm->atomic_update_watermarks(state, crtc);
 }
 
 static void intel_optimize_watermarks(struct intel_atomic_state *state,
 				      struct intel_crtc *crtc)
 {
 	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
-	if (dev_priv->wm_disp->optimize_watermarks)
-		dev_priv->wm_disp->optimize_watermarks(state, crtc);
+	if (dev_priv->display.funcs.wm->optimize_watermarks)
+		dev_priv->display.funcs.wm->optimize_watermarks(state, crtc);
 }
 
 static int intel_compute_global_watermarks(struct intel_atomic_state *state)
 {
 	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
-	if (dev_priv->wm_disp->compute_global_watermarks)
-		return dev_priv->wm_disp->compute_global_watermarks(state);
+	if (dev_priv->display.funcs.wm->compute_global_watermarks)
+		return dev_priv->display.funcs.wm->compute_global_watermarks(state);
 	return 0;
 }
 
@@ -2401,7 +2401,7 @@ static void i9xx_crtc_disable(struct intel_atomic_state *state,
 	if (DISPLAY_VER(dev_priv) != 2)
 		intel_set_cpu_fifo_underrun_reporting(dev_priv, pipe, false);
 
-	if (!dev_priv->wm_disp->initial_watermarks)
+	if (!dev_priv->display.funcs.wm->initial_watermarks)
 		intel_update_watermarks(dev_priv);
 
 	/* clock the pipe down to 640x480@60 to potentially save power */
@@ -8455,7 +8455,7 @@ static void sanitize_watermarks(struct drm_i915_private *dev_priv)
 	int i;
 
 	/* Only supported on platforms that use atomic watermark design */
-	if (!dev_priv->wm_disp->optimize_watermarks)
+	if (!dev_priv->display.funcs.wm->optimize_watermarks)
 		return;
 
 	state = drm_atomic_state_alloc(&dev_priv->drm);

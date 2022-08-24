@@ -8,6 +8,7 @@
 
 #include <linux/types.h>
 
+struct drm_i915_private;
 struct intel_atomic_state;
 struct intel_cdclk_funcs;
 struct intel_crtc;
@@ -32,6 +33,23 @@ struct intel_display_funcs {
 	void (*commit_modeset_enables)(struct intel_atomic_state *state);
 };
 
+/* functions used for watermark calcs for display. */
+struct intel_wm_funcs {
+	/* update_wm is for legacy wm management */
+	void (*update_wm)(struct drm_i915_private *dev_priv);
+	int (*compute_pipe_wm)(struct intel_atomic_state *state,
+			       struct intel_crtc *crtc);
+	int (*compute_intermediate_wm)(struct intel_atomic_state *state,
+				       struct intel_crtc *crtc);
+	void (*initial_watermarks)(struct intel_atomic_state *state,
+				   struct intel_crtc *crtc);
+	void (*atomic_update_watermarks)(struct intel_atomic_state *state,
+					 struct intel_crtc *crtc);
+	void (*optimize_watermarks)(struct intel_atomic_state *state,
+				    struct intel_crtc *crtc);
+	int (*compute_global_watermarks)(struct intel_atomic_state *state);
+};
+
 struct intel_display {
 	/* Display functions */
 	struct {
@@ -46,6 +64,9 @@ struct intel_display {
 
 		/* irq display functions */
 		const struct intel_hotplug_funcs *hotplug;
+
+		/* pm display functions */
+		const struct intel_wm_funcs *wm;
 	} funcs;
 };
 

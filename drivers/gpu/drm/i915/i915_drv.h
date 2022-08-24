@@ -81,14 +81,12 @@ struct dpll;
 struct drm_i915_clock_gating_funcs;
 struct drm_i915_gem_object;
 struct drm_i915_private;
-struct intel_atomic_state;
 struct intel_audio_funcs;
 struct intel_cdclk_config;
 struct intel_cdclk_state;
 struct intel_cdclk_vals;
 struct intel_color_funcs;
 struct intel_connector;
-struct intel_crtc;
 struct intel_dp;
 struct intel_encoder;
 struct intel_fbdev;
@@ -155,23 +153,6 @@ struct sdvo_device_mapping {
 	u8 dvo_wiring;
 	u8 i2c_pin;
 	u8 ddc_pin;
-};
-
-/* functions used for watermark calcs for display. */
-struct drm_i915_wm_disp_funcs {
-	/* update_wm is for legacy wm management */
-	void (*update_wm)(struct drm_i915_private *dev_priv);
-	int (*compute_pipe_wm)(struct intel_atomic_state *state,
-			       struct intel_crtc *crtc);
-	int (*compute_intermediate_wm)(struct intel_atomic_state *state,
-				       struct intel_crtc *crtc);
-	void (*initial_watermarks)(struct intel_atomic_state *state,
-				   struct intel_crtc *crtc);
-	void (*atomic_update_watermarks)(struct intel_atomic_state *state,
-					 struct intel_crtc *crtc);
-	void (*optimize_watermarks)(struct intel_atomic_state *state,
-				    struct intel_crtc *crtc);
-	int (*compute_global_watermarks)(struct intel_atomic_state *state);
 };
 
 #define I915_COLOR_UNEVICTABLE (-1) /* a non-vma sharing the address space */
@@ -504,9 +485,6 @@ struct drm_i915_private {
 
 	/* pm private clock gating functions */
 	const struct drm_i915_clock_gating_funcs *clock_gating_funcs;
-
-	/* pm display functions */
-	const struct drm_i915_wm_disp_funcs *wm_disp;
 
 	/* fdi display functions */
 	const struct intel_fdi_funcs *fdi_funcs;
