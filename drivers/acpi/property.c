@@ -304,8 +304,10 @@ static void acpi_init_of_compatible(struct acpi_device *adev)
 		ret = acpi_dev_get_property(adev, "compatible",
 					    ACPI_TYPE_STRING, &of_compatible);
 		if (ret) {
-			if (adev->parent
-			    && adev->parent->flags.of_compatible_ok)
+			struct acpi_device *parent;
+
+			parent = acpi_dev_parent(adev);
+			if (parent && parent->flags.of_compatible_ok)
 				goto out;
 
 			return;

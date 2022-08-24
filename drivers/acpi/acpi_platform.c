@@ -78,7 +78,7 @@ static void acpi_platform_fill_resource(struct acpi_device *adev,
 	 * If the device has parent we need to take its resources into
 	 * account as well because this device might consume part of those.
 	 */
-	parent = acpi_get_first_physical_node(adev->parent);
+	parent = acpi_get_first_physical_node(acpi_dev_parent(adev));
 	if (parent && dev_is_pci(parent))
 		dest->parent = pci_find_resource(to_pci_dev(parent), dest);
 }
@@ -97,6 +97,7 @@ static void acpi_platform_fill_resource(struct acpi_device *adev,
 struct platform_device *acpi_create_platform_device(struct acpi_device *adev,
 						    const struct property_entry *properties)
 {
+	struct acpi_device *parent = acpi_dev_parent(adev);
 	struct platform_device *pdev = NULL;
 	struct platform_device_info pdevinfo;
 	struct resource_entry *rentry;
@@ -137,8 +138,7 @@ struct platform_device *acpi_create_platform_device(struct acpi_device *adev,
 	 * attached to it, that physical device should be the parent of the
 	 * platform device we are about to create.
 	 */
-	pdevinfo.parent = adev->parent ?
-		acpi_get_first_physical_node(adev->parent) : NULL;
+	pdevinfo.parent = parent ? acpi_get_first_physical_node(parent) : NULL;
 	pdevinfo.name = dev_name(&adev->dev);
 	pdevinfo.id = -1;
 	pdevinfo.res = resources;

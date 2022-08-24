@@ -29,8 +29,6 @@ extern struct acpi_device *acpi_root;
 #define ACPI_BUS_HID			"LNXSYBUS"
 #define ACPI_BUS_DEVICE_NAME		"System Bus"
 
-#define ACPI_IS_ROOT_DEVICE(device)    (!(device)->parent)
-
 #define INVALID_ACPI_HANDLE	((acpi_handle)empty_zero_page)
 
 static const char *dummy_hid = "device";
@@ -1110,7 +1108,7 @@ static void acpi_device_get_busid(struct acpi_device *device)
 	 * The device's Bus ID is simply the object name.
 	 * TBD: Shouldn't this value be unique (within the ACPI namespace)?
 	 */
-	if (ACPI_IS_ROOT_DEVICE(device)) {
+	if (!acpi_dev_parent(device)) {
 		strcpy(device->pnp.bus_id, "ACPI");
 		return;
 	}
@@ -1646,7 +1644,7 @@ static void acpi_init_coherency(struct acpi_device *adev)
 {
 	unsigned long long cca = 0;
 	acpi_status status;
-	struct acpi_device *parent = adev->parent;
+	struct acpi_device *parent = acpi_dev_parent(adev);
 
 	if (parent && parent->flags.cca_seen) {
 		/*
@@ -1690,7 +1688,7 @@ static int acpi_check_serial_bus_slave(struct acpi_resource *ares, void *data)
 
 static bool acpi_is_indirect_io_slave(struct acpi_device *device)
 {
-	struct acpi_device *parent = device->parent;
+	struct acpi_device *parent = acpi_dev_parent(device);
 	static const struct acpi_device_id indirect_io_hosts[] = {
 		{"HISI0191", 0},
 		{}
@@ -1767,10 +1765,7 @@ void acpi_init_device_object(struct acpi_device *device, acpi_handle handle,
 	INIT_LIST_HEAD(&device->pnp.ids);
 	device->device_type = type;
 	device->handle = handle;
-	if (parent) {
-		device->parent = parent;
-		device->dev.parent = &parent->dev;
-	}
+	device->dev.parent = parent ? &parent->dev : NULL;
 	device->dev.release = release;
 	device->dev.bus = &acpi_bus_type;
 	fwnode_init(&device->fwnode, &acpi_device_fwnode_ops);
@@ -1867,8 +1862,8 @@ static int acpi_add_single_object(struct acpi_device **child,
 	acpi_device_add_finalize(device);
 
 	acpi_handle_debug(handle, "Added as %s, parent %s\n",
-			  dev_name(&device->dev), device->parent ?
-				dev_name(&device->parent->dev) : "(null)");
+			  dev_name(&device->dev), device->dev.parent ?
+				dev_name(device->dev.parent) : "(null)");
 
 	*child = device;
 	return 0;

@@ -74,6 +74,7 @@ static int acpi_dev_pm_explicit_get(struct acpi_device *device, int *state)
  */
 int acpi_device_get_power(struct acpi_device *device, int *state)
 {
+	struct acpi_device *parent = acpi_dev_parent(device);
 	int result = ACPI_STATE_UNKNOWN;
 	int error;
 
@@ -82,8 +83,7 @@ int acpi_device_get_power(struct acpi_device *device, int *state)
 
 	if (!device->flags.power_manageable) {
 		/* TBD: Non-recursive algorithm for walking up hierarchy. */
-		*state = device->parent ?
-			device->parent->power.state : ACPI_STATE_D0;
+		*state = parent ? parent->power.state : ACPI_STATE_D0;
 		goto out;
 	}
 
@@ -122,10 +122,10 @@ int acpi_device_get_power(struct acpi_device *device, int *state)
 	 * point, the fact that the device is in D0 implies that the parent has
 	 * to be in D0 too, except if ignore_parent is set.
 	 */
-	if (!device->power.flags.ignore_parent && device->parent
-	    && device->parent->power.state == ACPI_STATE_UNKNOWN
-	    && result == ACPI_STATE_D0)
-		device->parent->power.state = ACPI_STATE_D0;
+	if (!device->power.flags.ignore_parent && parent &&
+	    parent->power.state == ACPI_STATE_UNKNOWN &&
+	    result == ACPI_STATE_D0)
+		parent->power.state = ACPI_STATE_D0;
 
 	*state = result;
 
@@ -159,6 +159,7 @@ static int acpi_dev_pm_explicit_set(struct acpi_device *adev, int state)
  */
 int acpi_device_set_power(struct acpi_device *device, int state)
 {
+	struct acpi_device *parent = acpi_dev_parent(device);
 	int target_state = state;
 	int result = 0;
 
@@ -191,12 +192,12 @@ int acpi_device_set_power(struct acpi_device *device, int state)
 		return -ENODEV;
 	}
 
-	if (!device->power.flags.ignore_parent && device->parent &&
-	    state < device->parent->power.state) {
+	if (!device->power.flags.ignore_parent && parent &&
+	    state < parent->power.state) {
 		acpi_handle_debug(device->handle,
 				  "Cannot transition to %s for parent in %s\n",
 				  acpi_power_state_string(state),
-				  acpi_power_state_string(device->parent->power.state));
+				  acpi_power_state_string(parent->power.state));
 		return -ENODEV;
 	}
 

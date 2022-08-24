@@ -48,6 +48,7 @@ static void amba_register_dummy_clk(void)
 static int amba_handler_attach(struct acpi_device *adev,
 				const struct acpi_device_id *id)
 {
+	struct acpi_device *parent = acpi_dev_parent(adev);
 	struct amba_device *dev;
 	struct resource_entry *rentry;
 	struct list_head resource_list;
@@ -97,8 +98,8 @@ static int amba_handler_attach(struct acpi_device *adev,
 	 * attached to it, that physical device should be the parent of
 	 * the amba device we are about to create.
 	 */
-	if (adev->parent)
-		dev->dev.parent = acpi_get_first_physical_node(adev->parent);
+	if (parent)
+		dev->dev.parent = acpi_get_first_physical_node(parent);
 
 	ACPI_COMPANION_SET(&dev->dev, adev);
 
