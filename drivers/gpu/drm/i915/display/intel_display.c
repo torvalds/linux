@@ -4145,7 +4145,7 @@ bool intel_crtc_get_pipe_config(struct intel_crtc_state *crtc_state)
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
 
-	if (!i915->display->get_pipe_config(crtc, crtc_state))
+	if (!i915->display.funcs.display->get_pipe_config(crtc, crtc_state))
 		return false;
 
 	crtc_state->hw.active = true;
@@ -7120,7 +7120,7 @@ static void intel_enable_crtc(struct intel_atomic_state *state,
 
 	intel_crtc_update_active_timings(new_crtc_state);
 
-	dev_priv->display->crtc_enable(state, crtc);
+	dev_priv->display.funcs.display->crtc_enable(state, crtc);
 
 	if (intel_crtc_is_bigjoiner_slave(new_crtc_state))
 		return;
@@ -7199,7 +7199,7 @@ static void intel_old_crtc_state_disables(struct intel_atomic_state *state,
 	 */
 	intel_crtc_disable_pipe_crc(crtc);
 
-	dev_priv->display->crtc_disable(state, crtc);
+	dev_priv->display.funcs.display->crtc_disable(state, crtc);
 	crtc->active = false;
 	intel_fbc_disable(crtc);
 	intel_disable_shared_dpll(old_crtc_state);
@@ -7587,7 +7587,7 @@ static void intel_atomic_commit_tail(struct intel_atomic_state *state)
 	}
 
 	/* Now enable the clocks, plane, pipe, and connectors that we set up. */
-	dev_priv->display->commit_modeset_enables(state);
+	dev_priv->display.funcs.display->commit_modeset_enables(state);
 
 	intel_encoders_update_complete(state);
 
@@ -8318,7 +8318,7 @@ static const struct drm_mode_config_funcs intel_mode_funcs = {
 	.atomic_state_free = intel_atomic_state_free,
 };
 
-static const struct drm_i915_display_funcs skl_display_funcs = {
+static const struct intel_display_funcs skl_display_funcs = {
 	.get_pipe_config = hsw_get_pipe_config,
 	.crtc_enable = hsw_crtc_enable,
 	.crtc_disable = hsw_crtc_disable,
@@ -8326,7 +8326,7 @@ static const struct drm_i915_display_funcs skl_display_funcs = {
 	.get_initial_plane_config = skl_get_initial_plane_config,
 };
 
-static const struct drm_i915_display_funcs ddi_display_funcs = {
+static const struct intel_display_funcs ddi_display_funcs = {
 	.get_pipe_config = hsw_get_pipe_config,
 	.crtc_enable = hsw_crtc_enable,
 	.crtc_disable = hsw_crtc_disable,
@@ -8334,7 +8334,7 @@ static const struct drm_i915_display_funcs ddi_display_funcs = {
 	.get_initial_plane_config = i9xx_get_initial_plane_config,
 };
 
-static const struct drm_i915_display_funcs pch_split_display_funcs = {
+static const struct intel_display_funcs pch_split_display_funcs = {
 	.get_pipe_config = ilk_get_pipe_config,
 	.crtc_enable = ilk_crtc_enable,
 	.crtc_disable = ilk_crtc_disable,
@@ -8342,7 +8342,7 @@ static const struct drm_i915_display_funcs pch_split_display_funcs = {
 	.get_initial_plane_config = i9xx_get_initial_plane_config,
 };
 
-static const struct drm_i915_display_funcs vlv_display_funcs = {
+static const struct intel_display_funcs vlv_display_funcs = {
 	.get_pipe_config = i9xx_get_pipe_config,
 	.crtc_enable = valleyview_crtc_enable,
 	.crtc_disable = i9xx_crtc_disable,
@@ -8350,7 +8350,7 @@ static const struct drm_i915_display_funcs vlv_display_funcs = {
 	.get_initial_plane_config = i9xx_get_initial_plane_config,
 };
 
-static const struct drm_i915_display_funcs i9xx_display_funcs = {
+static const struct intel_display_funcs i9xx_display_funcs = {
 	.get_pipe_config = i9xx_get_pipe_config,
 	.crtc_enable = i9xx_crtc_enable,
 	.crtc_disable = i9xx_crtc_disable,
@@ -8373,16 +8373,16 @@ void intel_init_display_hooks(struct drm_i915_private *dev_priv)
 	intel_dpll_init_clock_hook(dev_priv);
 
 	if (DISPLAY_VER(dev_priv) >= 9) {
-		dev_priv->display = &skl_display_funcs;
+		dev_priv->display.funcs.display = &skl_display_funcs;
 	} else if (HAS_DDI(dev_priv)) {
-		dev_priv->display = &ddi_display_funcs;
+		dev_priv->display.funcs.display = &ddi_display_funcs;
 	} else if (HAS_PCH_SPLIT(dev_priv)) {
-		dev_priv->display = &pch_split_display_funcs;
+		dev_priv->display.funcs.display = &pch_split_display_funcs;
 	} else if (IS_CHERRYVIEW(dev_priv) ||
 		   IS_VALLEYVIEW(dev_priv)) {
-		dev_priv->display = &vlv_display_funcs;
+		dev_priv->display.funcs.display = &vlv_display_funcs;
 	} else {
-		dev_priv->display = &i9xx_display_funcs;
+		dev_priv->display.funcs.display = &i9xx_display_funcs;
 	}
 
 	intel_fdi_init_hook(dev_priv);

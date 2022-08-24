@@ -70,7 +70,7 @@ static void intel_crtc_disable_noatomic(struct intel_crtc *crtc,
 
 	drm_WARN_ON(&i915->drm, IS_ERR(temp_crtc_state) || ret);
 
-	i915->display->crtc_disable(to_intel_atomic_state(state), crtc);
+	i915->display.funcs.display->crtc_disable(to_intel_atomic_state(state), crtc);
 
 	drm_atomic_state_put(state);
 

@@ -39,6 +39,7 @@
 
 #include "display/intel_cdclk.h"
 #include "display/intel_display.h"
+#include "display/intel_display_core.h"
 #include "display/intel_display_power.h"
 #include "display/intel_dmc.h"
 #include "display/intel_dpll_mgr.h"
@@ -96,7 +97,6 @@ struct intel_fbdev;
 struct intel_fdi_funcs;
 struct intel_gmbus;
 struct intel_hotplug_funcs;
-struct intel_initial_plane_config;
 struct intel_limit;
 struct intel_overlay;
 struct intel_overlay_error_state;
@@ -175,20 +175,6 @@ struct drm_i915_wm_disp_funcs {
 	void (*optimize_watermarks)(struct intel_atomic_state *state,
 				    struct intel_crtc *crtc);
 	int (*compute_global_watermarks)(struct intel_atomic_state *state);
-};
-
-struct drm_i915_display_funcs {
-	/* Returns the active state of the crtc, and if the crtc is active,
-	 * fills out the pipe-config with the hw state. */
-	bool (*get_pipe_config)(struct intel_crtc *,
-				struct intel_crtc_state *);
-	void (*get_initial_plane_config)(struct intel_crtc *,
-					 struct intel_initial_plane_config *);
-	void (*crtc_enable)(struct intel_atomic_state *state,
-			    struct intel_crtc *crtc);
-	void (*crtc_disable)(struct intel_atomic_state *state,
-			     struct intel_crtc *crtc);
-	void (*commit_modeset_enables)(struct intel_atomic_state *state);
 };
 
 #define I915_COLOR_UNEVICTABLE (-1) /* a non-vma sharing the address space */
@@ -374,6 +360,8 @@ struct intel_audio_private {
 struct drm_i915_private {
 	struct drm_device drm;
 
+	struct intel_display display;
+
 	/* FIXME: Device release actions should all be moved to drmm_ */
 	bool do_release;
 
@@ -531,9 +519,6 @@ struct drm_i915_private {
 
 	/* display pll funcs */
 	const struct intel_dpll_funcs *dpll_funcs;
-
-	/* Display functions */
-	const struct drm_i915_display_funcs *display;
 
 	/* Display internal color functions */
 	const struct intel_color_funcs *color_funcs;
