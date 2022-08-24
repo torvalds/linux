@@ -56,7 +56,7 @@
 #define CFO_TRK_STOP_TH (2 << 2)
 #define CFO_SW_COMP_FINE_TUNE (2 << 2)
 #define CFO_PERIOD_CNT 15
-#define CFO_BOUND 32
+#define CFO_BOUND 64
 #define CFO_TP_UPPER 100
 #define CFO_TP_LOWER 50
 #define CFO_COMP_PERIOD 250
