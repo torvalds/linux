@@ -1844,7 +1844,10 @@ static int haptics_update_pat_mem_samples(struct haptics_chip *chip,
 	if (rc < 0)
 		return rc;
 
-	return haptics_update_memory_data(chip, samples, length);
+	rc = haptics_update_memory_data(chip, samples, length);
+	rc |= haptics_masked_write(chip, chip->ptn_addr_base,
+			HAP_PTN_MEM_OP_ACCESS_REG, MEM_PAT_ACCESS_BIT, 0);
+	return rc;
 }
 
 static int haptics_get_fifo_fill_status(struct haptics_chip *chip, u32 *fill)
@@ -2181,6 +2184,11 @@ static int haptics_load_predefined_effect(struct haptics_chip *chip,
 					play->effect->id);
 			return -EINVAL;
 		}
+
+		/* disable auto resonance for PATx_MEM mode */
+		rc = haptics_enable_autores(chip, false);
+		if (rc < 0)
+			return rc;
 
 		dev_dbg(chip->dev, "Ignore loading data for preload FIFO effect: %d\n",
 				play->effect->id);
