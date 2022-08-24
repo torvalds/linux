@@ -11,6 +11,7 @@
 struct drm_i915_private;
 struct intel_atomic_state;
 struct intel_cdclk_funcs;
+struct intel_color_funcs;
 struct intel_crtc;
 struct intel_crtc_state;
 struct intel_dpll_funcs;
@@ -71,6 +72,9 @@ struct intel_display {
 
 		/* fdi display functions */
 		const struct intel_fdi_funcs *fdi;
+
+		/* Display internal color functions */
+		const struct intel_color_funcs *color;
 	} funcs;
 };
 
