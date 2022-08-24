@@ -193,23 +193,6 @@ static int mpfs_rtc_alarm_irq_enable(struct device *dev, unsigned int enabled)
 	return 0;
 }
 
-static inline struct clk *mpfs_rtc_init_clk(struct device *dev)
-{
-	struct clk *clk;
-	int ret;
-
-	clk = devm_clk_get(dev, "rtc");
-	if (IS_ERR(clk))
-		return clk;
-
-	ret = clk_prepare_enable(clk);
-	if (ret)
-		return ERR_PTR(ret);
-
-	devm_add_action_or_reset(dev, (void (*) (void *))clk_disable_unprepare, clk);
-	return clk;
-}
-
 static irqreturn_t mpfs_rtc_wakeup_irq_handler(int irq, void *dev)
 {
 	struct mpfs_rtc_dev *rtcdev = dev;
@@ -251,7 +234,7 @@ static int mpfs_rtc_probe(struct platform_device *pdev)
 	/* range is capped by alarm max, lower reg is 31:0 & upper is 10:0 */
 	rtcdev->rtc->range_max = GENMASK_ULL(42, 0);
 
-	clk = mpfs_rtc_init_clk(&pdev->dev);
+	clk = devm_clk_get_enabled(&pdev->dev, "rtc");
 	if (IS_ERR(clk))
 		return PTR_ERR(clk);
 
