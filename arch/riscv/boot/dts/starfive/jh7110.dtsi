@@ -1017,7 +1017,7 @@
 		};
 
 		gmac0: ethernet@16030000 {
-			compatible = "starfive,jh7110-eqos-5.20";
+			compatible = "starfive,dwmac","snps,dwmac-5.10a";
 			reg = <0x0 0x16030000 0x0 0x10000>;
 			clock-names = "gtx",
 				"tx",
@@ -1058,7 +1058,7 @@
 		};
 
 		gmac1: ethernet@16040000 {
-			compatible = "starfive,jh7110-eqos-5.20";
+			compatible = "starfive,dwmac","snps,dwmac-5.10a";
 			reg = <0x0 0x16040000 0x0 0x10000>;
 			clock-names = "gtx",
 				"tx",
