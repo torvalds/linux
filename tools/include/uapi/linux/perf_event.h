@@ -204,6 +204,8 @@ enum perf_branch_sample_type_shift {
 
 	PERF_SAMPLE_BRANCH_HW_INDEX_SHIFT	= 17, /* save low level index of raw branch records */
 
+	PERF_SAMPLE_BRANCH_PRIV_SAVE_SHIFT	= 18, /* save privilege mode */
+
 	PERF_SAMPLE_BRANCH_MAX_SHIFT		/* non-ABI */
 };
 
@@ -232,6 +234,8 @@ enum perf_branch_sample_type {
 		1U << PERF_SAMPLE_BRANCH_TYPE_SAVE_SHIFT,
 
 	PERF_SAMPLE_BRANCH_HW_INDEX	= 1U << PERF_SAMPLE_BRANCH_HW_INDEX_SHIFT,
+
+	PERF_SAMPLE_BRANCH_PRIV_SAVE	= 1U << PERF_SAMPLE_BRANCH_PRIV_SAVE_SHIFT,
 
 	PERF_SAMPLE_BRANCH_MAX		= 1U << PERF_SAMPLE_BRANCH_MAX_SHIFT,
 };
@@ -269,6 +273,13 @@ enum {
 	PERF_BR_NEW_ARCH_4		= 6,    /* Architecture specific */
 	PERF_BR_NEW_ARCH_5		= 7,    /* Architecture specific */
 	PERF_BR_NEW_MAX,
+};
+
+enum {
+	PERF_BR_PRIV_UNKNOWN	= 0,
+	PERF_BR_PRIV_USER	= 1,
+	PERF_BR_PRIV_KERNEL	= 2,
+	PERF_BR_PRIV_HV		= 3,
 };
 
 #define PERF_SAMPLE_BRANCH_PLM_ALL \
@@ -1389,7 +1400,8 @@ struct perf_branch_entry {
 		cycles:16,  /* cycle count to last branch */
 		type:4,     /* branch type */
 		new_type:4, /* additional branch type */
-		reserved:36;
+		priv:3,     /* privilege level */
+		reserved:33;
 };
 
 union perf_sample_weight {

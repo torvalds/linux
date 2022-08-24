@@ -400,6 +400,7 @@ following filters are defined:
 		     For the platforms with Intel Arch LBR support (12th-Gen+ client or
 		     4th-Gen Xeon+ server), the save branch type is unconditionally enabled
 		     when the taken branch stack sampling is enabled.
+	- priv: save privilege state during sampling in case binary is not available later
 
 +
 The option requires at least one branch type among any, any_call, any_ret, ind_call, cond.
