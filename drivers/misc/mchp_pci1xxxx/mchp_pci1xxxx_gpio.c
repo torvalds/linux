@@ -13,6 +13,10 @@
 #include "mchp_pci1xxxx_gp.h"
 
 #define PCI1XXXX_NR_PINS		93
+#define OUT_EN_OFFSET(x)		((((x) / 32) * 4) + 0x400)
+#define INP_EN_OFFSET(x)		((((x) / 32) * 4) + 0x400 + 0x10)
+#define OUT_OFFSET(x)			((((x) / 32) * 4) + 0x400 + 0x20)
+#define INP_OFFSET(x)			((((x) / 32) * 4) + 0x400 + 0x30)
 #define PULLUP_OFFSET(x)		((((x) / 32) * 4) + 0x400 + 0x40)
 #define PULLDOWN_OFFSET(x)		((((x) / 32) * 4) + 0x400 + 0x50)
 #define OPENDRAIN_OFFSET(x)		((((x) / 32) * 4) + 0x400 + 0x60)
@@ -30,6 +34,24 @@ struct pci1xxxx_gpio {
 	int irq_base;
 };
 
+static int pci1xxxx_gpio_get_direction(struct gpio_chip *gpio, unsigned int nr)
+{
+	struct pci1xxxx_gpio *priv = gpiochip_get_data(gpio);
+	u32 data;
+	int ret = -EINVAL;
+
+	data = readl(priv->reg_base + INP_EN_OFFSET(nr));
+	if (data & BIT(nr % 32)) {
+		ret =  1;
+	} else {
+		data = readl(priv->reg_base + OUT_EN_OFFSET(nr));
+		if (data & BIT(nr % 32))
+			ret =  0;
+	}
+
+	return ret;
+}
+
 static inline void pci1xxx_assign_bit(void __iomem *base_addr, unsigned int reg_offset,
 				      unsigned int bitpos, bool set)
 {
@@ -41,6 +63,58 @@ static inline void pci1xxx_assign_bit(void __iomem *base_addr, unsigned int reg_
 	else
 		data &= ~BIT(bitpos);
 	writel(data, base_addr + reg_offset);
+}
+
+static int pci1xxxx_gpio_direction_input(struct gpio_chip *gpio, unsigned int nr)
+{
+	struct pci1xxxx_gpio *priv = gpiochip_get_data(gpio);
+	unsigned long flags;
+
+	spin_lock_irqsave(&priv->lock, flags);
+	pci1xxx_assign_bit(priv->reg_base, INP_EN_OFFSET(nr), (nr % 32), true);
+	pci1xxx_assign_bit(priv->reg_base, OUT_EN_OFFSET(nr), (nr % 32), false);
+	spin_unlock_irqrestore(&priv->lock, flags);
+
+	return 0;
+}
+
+static int pci1xxxx_gpio_get(struct gpio_chip *gpio, unsigned int nr)
+{
+	struct pci1xxxx_gpio *priv = gpiochip_get_data(gpio);
+
+	return (readl(priv->reg_base + INP_OFFSET(nr)) >> (nr % 32)) & 1;
+}
+
+static int pci1xxxx_gpio_direction_output(struct gpio_chip *gpio,
+					  unsigned int nr, int val)
+{
+	struct pci1xxxx_gpio *priv = gpiochip_get_data(gpio);
+	unsigned long flags;
+	u32 data;
+
+	spin_lock_irqsave(&priv->lock, flags);
+	pci1xxx_assign_bit(priv->reg_base, INP_EN_OFFSET(nr), (nr % 32), false);
+	pci1xxx_assign_bit(priv->reg_base, OUT_EN_OFFSET(nr), (nr % 32), true);
+	data = readl(priv->reg_base + OUT_OFFSET(nr));
+	if (val)
+		data |= (1 << (nr % 32));
+	else
+		data &= ~(1 << (nr % 32));
+	writel(data, priv->reg_base + OUT_OFFSET(nr));
+	spin_unlock_irqrestore(&priv->lock, flags);
+
+	return 0;
+}
+
+static void pci1xxxx_gpio_set(struct gpio_chip *gpio,
+			      unsigned int nr, int val)
+{
+	struct pci1xxxx_gpio *priv = gpiochip_get_data(gpio);
+	unsigned long flags;
+
+	spin_lock_irqsave(&priv->lock, flags);
+	pci1xxx_assign_bit(priv->reg_base, OUT_OFFSET(nr), (nr % 32), val);
+	spin_unlock_irqrestore(&priv->lock, flags);
 }
 
 static int pci1xxxx_gpio_set_config(struct gpio_chip *gpio, unsigned int offset,
@@ -81,6 +155,11 @@ static int pci1xxxx_gpio_setup(struct pci1xxxx_gpio *priv, int irq)
 	gchip->label = dev_name(&priv->aux_dev->dev);
 	gchip->parent = &priv->aux_dev->dev;
 	gchip->owner = THIS_MODULE;
+	gchip->direction_input = pci1xxxx_gpio_direction_input;
+	gchip->direction_output = pci1xxxx_gpio_direction_output;
+	gchip->get_direction = pci1xxxx_gpio_get_direction;
+	gchip->get = pci1xxxx_gpio_get;
+	gchip->set = pci1xxxx_gpio_set;
 	gchip->set_config = pci1xxxx_gpio_set_config;
 	gchip->dbg_show = NULL;
 	gchip->base = -1;
