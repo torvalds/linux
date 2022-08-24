@@ -215,6 +215,14 @@ int mlxsw_reg_trans_write(struct mlxsw_core *mlxsw_core,
 			  mlxsw_reg_trans_cb_t *cb, unsigned long cb_priv);
 int mlxsw_reg_trans_bulk_wait(struct list_head *bulk_list);
 
+typedef void mlxsw_irq_event_cb_t(struct mlxsw_core *mlxsw_core);
+
+int mlxsw_core_irq_event_handler_register(struct mlxsw_core *mlxsw_core,
+					  mlxsw_irq_event_cb_t cb);
+void mlxsw_core_irq_event_handler_unregister(struct mlxsw_core *mlxsw_core,
+					     mlxsw_irq_event_cb_t cb);
+void mlxsw_core_irq_event_handlers_call(struct mlxsw_core *mlxsw_core);
+
 int mlxsw_reg_query(struct mlxsw_core *mlxsw_core,
 		    const struct mlxsw_reg_info *reg, char *payload);
 int mlxsw_reg_write(struct mlxsw_core *mlxsw_core,
