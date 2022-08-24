@@ -13,6 +13,7 @@ struct intel_cdclk_funcs;
 struct intel_crtc;
 struct intel_crtc_state;
 struct intel_dpll_funcs;
+struct intel_hotplug_funcs;
 struct intel_initial_plane_config;
 
 struct intel_display_funcs {
@@ -42,6 +43,9 @@ struct intel_display {
 
 		/* Display pll funcs */
 		const struct intel_dpll_funcs *dpll;
+
+		/* irq display functions */
+		const struct intel_hotplug_funcs *hotplug;
 	} funcs;
 };
 

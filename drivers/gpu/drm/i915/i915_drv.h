@@ -94,7 +94,6 @@ struct intel_encoder;
 struct intel_fbdev;
 struct intel_fdi_funcs;
 struct intel_gmbus;
-struct intel_hotplug_funcs;
 struct intel_limit;
 struct intel_overlay;
 struct intel_overlay_error_state;
@@ -508,9 +507,6 @@ struct drm_i915_private {
 
 	/* pm display functions */
 	const struct drm_i915_wm_disp_funcs *wm_disp;
-
-	/* irq display functions */
-	const struct intel_hotplug_funcs *hotplug_funcs;
 
 	/* fdi display functions */
 	const struct intel_fdi_funcs *fdi_funcs;
