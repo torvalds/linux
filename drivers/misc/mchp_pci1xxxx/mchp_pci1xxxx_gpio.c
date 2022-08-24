@@ -14,6 +14,7 @@
 #include "mchp_pci1xxxx_gp.h"
 
 #define PCI1XXXX_NR_PINS		93
+#define PERI_GEN_RESET			0
 #define OUT_EN_OFFSET(x)		((((x) / 32) * 4) + 0x400)
 #define INP_EN_OFFSET(x)		((((x) / 32) * 4) + 0x400 + 0x10)
 #define OUT_OFFSET(x)			((((x) / 32) * 4) + 0x400 + 0x20)
@@ -291,6 +292,38 @@ static struct irq_chip pci1xxxx_gpio_irqchip = {
 	.irq_set_type = pci1xxxx_gpio_set_type,
 };
 
+static int pci1xxxx_gpio_suspend(struct device *dev)
+{
+	struct pci1xxxx_gpio *priv = dev_get_drvdata(dev);
+	unsigned long flags;
+
+	spin_lock_irqsave(&priv->lock, flags);
+	pci1xxx_assign_bit(priv->reg_base, PIO_GLOBAL_CONFIG_OFFSET,
+			   16, true);
+	pci1xxx_assign_bit(priv->reg_base, PIO_GLOBAL_CONFIG_OFFSET,
+			   17, false);
+	pci1xxx_assign_bit(priv->reg_base, PERI_GEN_RESET, 16, true);
+	spin_unlock_irqrestore(&priv->lock, flags);
+
+	return 0;
+}
+
+static int pci1xxxx_gpio_resume(struct device *dev)
+{
+	struct pci1xxxx_gpio *priv = dev_get_drvdata(dev);
+	unsigned long flags;
+
+	spin_lock_irqsave(&priv->lock, flags);
+	pci1xxx_assign_bit(priv->reg_base, PIO_GLOBAL_CONFIG_OFFSET,
+			   17, true);
+	pci1xxx_assign_bit(priv->reg_base, PIO_GLOBAL_CONFIG_OFFSET,
+			   16, false);
+	pci1xxx_assign_bit(priv->reg_base, PERI_GEN_RESET, 16, false);
+	spin_unlock_irqrestore(&priv->lock, flags);
+
+	return 0;
+}
+
 static int pci1xxxx_gpio_setup(struct pci1xxxx_gpio *priv, int irq)
 {
 	struct gpio_chip *gchip = &priv->gpio;
@@ -325,6 +358,7 @@ static int pci1xxxx_gpio_setup(struct pci1xxxx_gpio *priv, int irq)
 	girq->parents = NULL;
 	girq->default_type = IRQ_TYPE_NONE;
 	girq->handler = handle_bad_irq;
+
 	return 0;
 }
 
@@ -370,6 +404,8 @@ static int pci1xxxx_gpio_probe(struct auxiliary_device *aux_dev,
 	return devm_gpiochip_add_data(&aux_dev->dev, &priv->gpio, priv);
 }
 
+static SIMPLE_DEV_PM_OPS(pci1xxxx_gpio_pm_ops, pci1xxxx_gpio_suspend, pci1xxxx_gpio_resume);
+
 const struct auxiliary_device_id pci1xxxx_gpio_auxiliary_id_table[] = {
 	{.name = "mchp_pci1xxxx_gp.gp_gpio"},
 	{}
@@ -378,6 +414,7 @@ const struct auxiliary_device_id pci1xxxx_gpio_auxiliary_id_table[] = {
 static struct auxiliary_driver pci1xxxx_gpio_driver = {
 	.driver = {
 		.name = "PCI1xxxxGPIO",
+		.pm = &pci1xxxx_gpio_pm_ops,
 		},
 	.probe = pci1xxxx_gpio_probe,
 	.id_table = pci1xxxx_gpio_auxiliary_id_table
