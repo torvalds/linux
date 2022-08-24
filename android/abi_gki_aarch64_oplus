@@ -2783,6 +2783,7 @@
   __traceiter_android_vh_cpu_idle_enter
   __traceiter_android_vh_cpu_idle_exit
   __traceiter_android_vh_cpu_up
+  __traceiter_android_vh_do_futex
   __traceiter_android_vh_do_send_sig_info
   __traceiter_android_vh_drain_all_pages_bypass
   __traceiter_android_vh_em_cpu_energy
@@ -2797,6 +2798,11 @@
   __traceiter_android_vh_ftrace_oops_exit
   __traceiter_android_vh_ftrace_size_check
   __traceiter_android_vh_futex_sleep_start
+  __traceiter_android_vh_futex_wait_end
+  __traceiter_android_vh_futex_wait_start
+  __traceiter_android_vh_futex_wake_this
+  __traceiter_android_vh_futex_wake_traverse_plist
+  __traceiter_android_vh_futex_wake_up_q_finish
   __traceiter_android_vh_get_from_fragment_pool
   __traceiter_android_vh_gpio_block_read
   __traceiter_android_vh_handle_failed_page_trylock
@@ -3016,6 +3022,7 @@
   __tracepoint_android_vh_cpu_idle_enter
   __tracepoint_android_vh_cpu_idle_exit
   __tracepoint_android_vh_cpu_up
+  __tracepoint_android_vh_do_futex
   __tracepoint_android_vh_do_send_sig_info
   __tracepoint_android_vh_drain_all_pages_bypass
   __tracepoint_android_vh_em_cpu_energy
@@ -3030,6 +3037,11 @@
   __tracepoint_android_vh_ftrace_oops_exit
   __tracepoint_android_vh_ftrace_size_check
   __tracepoint_android_vh_futex_sleep_start
+  __tracepoint_android_vh_futex_wait_end
+  __tracepoint_android_vh_futex_wait_start
+  __tracepoint_android_vh_futex_wake_this
+  __tracepoint_android_vh_futex_wake_traverse_plist
+  __tracepoint_android_vh_futex_wake_up_q_finish
   __tracepoint_android_vh_get_from_fragment_pool
   __tracepoint_android_vh_gpio_block_read
   __tracepoint_android_vh_handle_failed_page_trylock
