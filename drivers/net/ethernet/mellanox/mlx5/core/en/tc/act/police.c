@@ -79,6 +79,10 @@ tc_act_police_offload(struct mlx5e_priv *priv,
 	struct mlx5e_flow_meter_handle *meter;
 	int err = 0;
 
+	err = mlx5e_policer_validate(&fl_act->action, act, fl_act->extack);
+	if (err)
+		return err;
+
 	err = fill_meter_params_from_act(act, &params);
 	if (err)
 		return err;
