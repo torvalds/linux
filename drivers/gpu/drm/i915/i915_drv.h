@@ -602,26 +602,6 @@ static inline struct intel_gt *to_gt(struct drm_i915_private *i915)
 
 #define I915_GTT_OFFSET_NONE ((u32)-1)
 
-/*
- * Frontbuffer tracking bits. Set in obj->frontbuffer_bits while a gem bo is
- * considered to be the frontbuffer for the given plane interface-wise. This
- * doesn't mean that the hw necessarily already scans it out, but that any
- * rendering (by the cpu or gpu) will land in the frontbuffer eventually.
- *
- * We have one bit per pipe and per scanout plane type.
- */
-#define INTEL_FRONTBUFFER_BITS_PER_PIPE 8
-#define INTEL_FRONTBUFFER(pipe, plane_id) ({ \
-	BUILD_BUG_ON(INTEL_FRONTBUFFER_BITS_PER_PIPE * I915_MAX_PIPES > 32); \
-	BUILD_BUG_ON(I915_MAX_PLANES > INTEL_FRONTBUFFER_BITS_PER_PIPE); \
-	BIT((plane_id) + INTEL_FRONTBUFFER_BITS_PER_PIPE * (pipe)); \
-})
-#define INTEL_FRONTBUFFER_OVERLAY(pipe) \
-	BIT(INTEL_FRONTBUFFER_BITS_PER_PIPE - 1 + INTEL_FRONTBUFFER_BITS_PER_PIPE * (pipe))
-#define INTEL_FRONTBUFFER_ALL_MASK(pipe) \
-	GENMASK(INTEL_FRONTBUFFER_BITS_PER_PIPE * ((pipe) + 1) - 1, \
-		INTEL_FRONTBUFFER_BITS_PER_PIPE * (pipe))
-
 #define INTEL_INFO(dev_priv)	(&(dev_priv)->__info)
 #define RUNTIME_INFO(dev_priv)	(&(dev_priv)->__runtime)
 #define DRIVER_CAPS(dev_priv)	(&(dev_priv)->caps)
