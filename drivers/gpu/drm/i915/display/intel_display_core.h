@@ -12,6 +12,7 @@
 
 #include "intel_display.h"
 #include "intel_dmc.h"
+#include "intel_dpll_mgr.h"
 #include "intel_gmbus.h"
 
 struct drm_i915_private;
@@ -23,6 +24,7 @@ struct intel_color_funcs;
 struct intel_crtc;
 struct intel_crtc_state;
 struct intel_dpll_funcs;
+struct intel_dpll_mgr;
 struct intel_fdi_funcs;
 struct intel_hotplug_funcs;
 struct intel_initial_plane_config;
@@ -77,6 +79,24 @@ struct intel_audio {
 		struct platform_device *platdev;
 		int irq;
 	} lpe;
+};
+
+/*
+ * dpll and cdclk state is protected by connection_mutex dpll.lock serializes
+ * intel_{prepare,enable,disable}_shared_dpll.  Must be global rather than per
+ * dpll, because on some platforms plls share registers.
+ */
+struct intel_dpll {
+	struct mutex lock;
+
+	int num_shared_dpll;
+	struct intel_shared_dpll shared_dplls[I915_NUM_PLLS];
+	const struct intel_dpll_mgr *mgr;
+
+	struct {
+		int nssc;
+		int ssc;
+	} ref_clks;
 };
 
 struct intel_display {
@@ -136,6 +156,7 @@ struct intel_display {
 	/* Grouping using named structs. Keep sorted. */
 	struct intel_audio audio;
 	struct intel_dmc dmc;
+	struct intel_dpll dpll;
 };
 
 #endif /* __INTEL_DISPLAY_CORE_H__ */

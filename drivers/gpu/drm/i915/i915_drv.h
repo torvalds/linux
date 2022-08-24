@@ -41,7 +41,6 @@
 #include "display/intel_display.h"
 #include "display/intel_display_core.h"
 #include "display/intel_display_power.h"
-#include "display/intel_dpll_mgr.h"
 #include "display/intel_dsb.h"
 #include "display/intel_fbc.h"
 #include "display/intel_frontbuffer.h"
@@ -75,7 +74,6 @@
 #include "intel_uncore.h"
 #include "intel_wopcm.h"
 
-struct dpll;
 struct drm_i915_clock_gating_funcs;
 struct drm_i915_gem_object;
 struct drm_i915_private;
@@ -448,25 +446,6 @@ struct drm_i915_private {
 	struct i915_gem_mm mm;
 
 	/* Kernel Modesetting */
-
-	/**
-	 * dpll and cdclk state is protected by connection_mutex
-	 * dpll.lock serializes intel_{prepare,enable,disable}_shared_dpll.
-	 * Must be global rather than per dpll, because on some platforms plls
-	 * share registers.
-	 */
-	struct {
-		struct mutex lock;
-
-		int num_shared_dpll;
-		struct intel_shared_dpll shared_dplls[I915_NUM_PLLS];
-		const struct intel_dpll_mgr *mgr;
-
-		struct {
-			int nssc;
-			int ssc;
-		} ref_clks;
-	} dpll;
 
 	struct list_head global_obj_list;
 
