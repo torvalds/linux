@@ -66,3 +66,4 @@ select_reuseport                         # intermittently fails on new s390x set
 xdp_synproxy                             # JIT does not support calling kernel function                                (kfunc)
 unpriv_bpf_disabled                      # fentry
 setget_sockopt                           # attach unexpected error: -524                                               (trampoline)
+cb_refs                                  # expected error message unexpected error: -524                               (trampoline)
