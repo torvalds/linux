@@ -30,14 +30,20 @@
 #define FF_LAYOUT_POLL_RETRY_MAX     (15*HZ)
 #define FF_LAYOUTRETURN_MAXERR 20
 
+enum nfs4_ff_op_type {
+	NFS4_FF_OP_LAYOUTSTATS,
+	NFS4_FF_OP_LAYOUTRETURN,
+};
+
 static unsigned short io_maxretrans;
 
 static const struct pnfs_commit_ops ff_layout_commit_ops;
 static void ff_layout_read_record_layoutstats_done(struct rpc_task *task,
 		struct nfs_pgio_header *hdr);
-static int ff_layout_mirror_prepare_stats(struct pnfs_layout_hdr *lo,
+static int
+ff_layout_mirror_prepare_stats(struct pnfs_layout_hdr *lo,
 			       struct nfs42_layoutstat_devinfo *devinfo,
-			       int dev_limit);
+			       int dev_limit, enum nfs4_ff_op_type type);
 static void ff_layout_encode_ff_layoutupdate(struct xdr_stream *xdr,
 			      const struct nfs42_layoutstat_devinfo *devinfo,
 			      struct nfs4_ff_layout_mirror *mirror);
@@ -2161,8 +2167,9 @@ ff_layout_prepare_layoutreturn(struct nfs4_layoutreturn_args *args)
 			FF_LAYOUTRETURN_MAXERR);
 
 	spin_lock(&args->inode->i_lock);
-	ff_args->num_dev = ff_layout_mirror_prepare_stats(&ff_layout->generic_hdr,
-			&ff_args->devinfo[0], ARRAY_SIZE(ff_args->devinfo));
+	ff_args->num_dev = ff_layout_mirror_prepare_stats(
+		&ff_layout->generic_hdr, &ff_args->devinfo[0],
+		ARRAY_SIZE(ff_args->devinfo), NFS4_FF_OP_LAYOUTRETURN);
 	spin_unlock(&args->inode->i_lock);
 
 	args->ld_private->ops = &layoutreturn_ops;
@@ -2396,7 +2403,7 @@ static const struct nfs4_xdr_opaque_ops layoutstat_ops = {
 static int
 ff_layout_mirror_prepare_stats(struct pnfs_layout_hdr *lo,
 			       struct nfs42_layoutstat_devinfo *devinfo,
-			       int dev_limit)
+			       int dev_limit, enum nfs4_ff_op_type type)
 {
 	struct nfs4_flexfile_layout *ff_layout = FF_LAYOUT_FROM_HDR(lo);
 	struct nfs4_ff_layout_mirror *mirror;
@@ -2408,7 +2415,9 @@ ff_layout_mirror_prepare_stats(struct pnfs_layout_hdr *lo,
 			break;
 		if (IS_ERR_OR_NULL(mirror->mirror_ds))
 			continue;
-		if (!test_and_clear_bit(NFS4_FF_MIRROR_STAT_AVAIL, &mirror->flags))
+		if (!test_and_clear_bit(NFS4_FF_MIRROR_STAT_AVAIL,
+					&mirror->flags) &&
+		    type != NFS4_FF_OP_LAYOUTRETURN)
 			continue;
 		/* mirror refcount put in cleanup_layoutstats */
 		if (!refcount_inc_not_zero(&mirror->ref))
@@ -2448,7 +2457,9 @@ ff_layout_prepare_layoutstats(struct nfs42_layoutstat_args *args)
 	spin_lock(&args->inode->i_lock);
 	ff_layout = FF_LAYOUT_FROM_HDR(NFS_I(args->inode)->layout);
 	args->num_dev = ff_layout_mirror_prepare_stats(&ff_layout->generic_hdr,
-			&args->devinfo[0], dev_count);
+						       &args->devinfo[0],
+						       dev_count,
+						       NFS4_FF_OP_LAYOUTSTATS);
 	spin_unlock(&args->inode->i_lock);
 	if (!args->num_dev) {
 		kfree(args->devinfo);
