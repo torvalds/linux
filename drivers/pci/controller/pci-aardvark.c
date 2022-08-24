@@ -1078,6 +1078,7 @@ static int advk_sw_pci_bridge_init(struct advk_pcie *pcie)
 	bridge->pcie_conf.rootcap = cpu_to_le16(PCI_EXP_RTCAP_CRSVIS);
 
 	bridge->has_pcie = true;
+	bridge->pcie_start = PCIE_CORE_PCIEXP_CAP;
 	bridge->data = pcie;
 	bridge->ops = &advk_pci_bridge_emul_ops;
 

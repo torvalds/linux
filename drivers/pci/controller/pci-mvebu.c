@@ -946,6 +946,7 @@ static int mvebu_pci_bridge_emul_init(struct mvebu_pcie_port *port)
 	bridge->subsystem_vendor_id = ssdev_id & 0xffff;
 	bridge->subsystem_id = ssdev_id >> 16;
 	bridge->has_pcie = true;
+	bridge->pcie_start = PCIE_CAP_PCIEXP;
 	bridge->data = port;
 	bridge->ops = &mvebu_pci_bridge_emul_ops;
 
