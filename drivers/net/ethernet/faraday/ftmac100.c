@@ -1077,6 +1077,10 @@ static int ftmac100_probe(struct platform_device *pdev)
 	netdev->netdev_ops = &ftmac100_netdev_ops;
 	netdev->max_mtu = MAX_PKT_SIZE;
 
+	err = platform_get_ethdev_address(&pdev->dev, netdev);
+	if (err == -EPROBE_DEFER)
+		goto defer_get_mac;
+
 	platform_set_drvdata(pdev, netdev);
 
 	/* setup private data */
@@ -1138,6 +1142,7 @@ err_ioremap:
 	release_resource(priv->res);
 err_req_mem:
 	netif_napi_del(&priv->napi);
+defer_get_mac:
 	free_netdev(netdev);
 err_alloc_etherdev:
 	return err;
