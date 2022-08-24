@@ -13428,6 +13428,7 @@ L:	linux-gpio@vger.kernel.org
 S:	Supported
 F:	drivers/misc/mchp_pci1xxxx/mchp_pci1xxxx_gp.c
 F:	drivers/misc/mchp_pci1xxxx/mchp_pci1xxxx_gp.h
+F:	drivers/misc/mchp_pci1xxxx/mchp_pci1xxxx_gpio.c
 
 MICROCHIP OTPC DRIVER
 M:	Claudiu Beznea <claudiu.beznea@microchip.com>
