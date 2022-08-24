@@ -99,6 +99,13 @@ struct intel_display {
 
 		wait_queue_head_t wait_queue;
 	} gmbus;
+
+	struct {
+		u32 mmio_base;
+
+		/* protects panel power sequencer state */
+		struct mutex mutex;
+	} pps;
 };
 
 #endif /* __INTEL_DISPLAY_CORE_H__ */

@@ -384,8 +384,6 @@ struct drm_i915_private {
 	/* MMIO base address for MIPI regs */
 	u32 mipi_mmio_base;
 
-	u32 pps_mmio_base;
-
 	struct pci_dev *bridge_dev;
 
 	struct rb_root uabi_engines;
@@ -421,9 +419,6 @@ struct drm_i915_private {
 
 	/* backlight registers and fields in struct intel_panel */
 	struct mutex backlight_lock;
-
-	/* protects panel power sequencer state */
-	struct mutex pps_mutex;
 
 	unsigned int fsb_freq, mem_freq, is_ddr3;
 	unsigned int skl_preferred_vco_freq;

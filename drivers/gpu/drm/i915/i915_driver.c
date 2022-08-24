@@ -337,7 +337,7 @@ static int i915_driver_early_probe(struct drm_i915_private *dev_priv)
 
 	mutex_init(&dev_priv->audio.mutex);
 	mutex_init(&dev_priv->wm.wm_mutex);
-	mutex_init(&dev_priv->pps_mutex);
+	mutex_init(&dev_priv->display.pps.mutex);
 	mutex_init(&dev_priv->hdcp_comp_mutex);
 
 	i915_memcpy_init_early(dev_priv);
