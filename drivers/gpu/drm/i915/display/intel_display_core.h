@@ -6,7 +6,11 @@
 #ifndef __INTEL_DISPLAY_CORE_H__
 #define __INTEL_DISPLAY_CORE_H__
 
+#include <linux/mutex.h>
 #include <linux/types.h>
+#include <linux/wait.h>
+
+#include "intel_gmbus.h"
 
 struct drm_i915_private;
 struct intel_atomic_state;
@@ -76,6 +80,25 @@ struct intel_display {
 		/* Display internal color functions */
 		const struct intel_color_funcs *color;
 	} funcs;
+
+	/* Grouping using anonymous structs. Keep sorted. */
+	struct {
+		/*
+		 * Base address of where the gmbus and gpio blocks are located
+		 * (either on PCH or on SoC for platforms without PCH).
+		 */
+		u32 mmio_base;
+
+		/*
+		 * gmbus.mutex protects against concurrent usage of the single
+		 * hw gmbus controller on different i2c buses.
+		 */
+		struct mutex mutex;
+
+		struct intel_gmbus *bus[GMBUS_NUM_PINS];
+
+		wait_queue_head_t wait_queue;
+	} gmbus;
 };
 
 #endif /* __INTEL_DISPLAY_CORE_H__ */

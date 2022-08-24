@@ -47,7 +47,6 @@
 #include "display/intel_fbc.h"
 #include "display/intel_frontbuffer.h"
 #include "display/intel_global_state.h"
-#include "display/intel_gmbus.h"
 #include "display/intel_opregion.h"
 
 #include "gem/i915_gem_context_types.h"
@@ -89,7 +88,6 @@ struct intel_connector;
 struct intel_dp;
 struct intel_encoder;
 struct intel_fbdev;
-struct intel_gmbus;
 struct intel_limit;
 struct intel_overlay;
 struct intel_overlay_error_state;
@@ -383,24 +381,10 @@ struct drm_i915_private {
 
 	struct intel_dmc dmc;
 
-	struct intel_gmbus *gmbus[GMBUS_NUM_PINS];
-
-	/** gmbus_mutex protects against concurrent usage of the single hw gmbus
-	 * controller on different i2c buses. */
-	struct mutex gmbus_mutex;
-
-	/**
-	 * Base address of where the gmbus and gpio blocks are located (either
-	 * on PCH or on SoC for platforms without PCH).
-	 */
-	u32 gpio_mmio_base;
-
 	/* MMIO base address for MIPI regs */
 	u32 mipi_mmio_base;
 
 	u32 pps_mmio_base;
-
-	wait_queue_head_t gmbus_wait_queue;
 
 	struct pci_dev *bridge_dev;
 
