@@ -73,7 +73,7 @@ struct io_kiocb *io_alloc_notif(struct io_ring_ctx *ctx,
 }
 
 void io_notif_slot_flush(struct io_notif_slot *slot)
-	__must_hold(&ctx->uring_lock)
+	__must_hold(&slot->notif->ctx->uring_lock)
 {
 	struct io_kiocb *notif = slot->notif;
 	struct io_notif_data *nd = io_notif_to_data(notif);
