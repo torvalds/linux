@@ -1,12 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Chip specific defines for DA8XX/OMAP L1XX SoC
  *
  * Author: Mark A. Greer <mgreer@mvista.com>
  *
- * 2007, 2009-2010 (c) MontaVista Software, Inc. This file is licensed under
- * the terms of the GNU General Public License version 2. This program
- * is licensed "as is" without any warranty of any kind, whether express
- * or implied.
+ * 2007, 2009-2010 (c) MontaVista Software, Inc.
  */
 #ifndef __ASM_ARCH_DAVINCI_DA8XX_H
 #define __ASM_ARCH_DAVINCI_DA8XX_H

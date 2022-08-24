@@ -76,6 +76,14 @@ free_dev:
 	return NULL;
 }
 
+static bool iblock_configure_unmap(struct se_device *dev)
+{
+	struct iblock_dev *ib_dev = IBLOCK_DEV(dev);
+
+	return target_configure_unmap_from_queue(&dev->dev_attrib,
+						 ib_dev->ibd_bd);
+}
+
 static int iblock_configure_device(struct se_device *dev)
 {
 	struct iblock_dev *ib_dev = IBLOCK_DEV(dev);
@@ -118,10 +126,6 @@ static int iblock_configure_device(struct se_device *dev)
 	dev->dev_attrib.hw_block_size = bdev_logical_block_size(bd);
 	dev->dev_attrib.hw_max_sectors = queue_max_hw_sectors(q);
 	dev->dev_attrib.hw_queue_depth = q->nr_requests;
-
-	if (target_configure_unmap_from_queue(&dev->dev_attrib, bd))
-		pr_debug("IBLOCK: BLOCK Discard support available,"
-			 " disabled by default\n");
 
 	/*
 	 * Enable write same emulation for IBLOCK and use 0xFFFF as
@@ -903,6 +907,7 @@ static const struct target_backend_ops iblock_ops = {
 	.configure_device	= iblock_configure_device,
 	.destroy_device		= iblock_destroy_device,
 	.free_device		= iblock_free_device,
+	.configure_unmap	= iblock_configure_unmap,
 	.plug_device		= iblock_plug_device,
 	.unplug_device		= iblock_unplug_device,
 	.parse_cdb		= iblock_parse_cdb,

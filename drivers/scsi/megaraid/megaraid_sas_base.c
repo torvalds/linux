@@ -3950,9 +3950,9 @@ process_fw_state_change_wq(struct work_struct *work)
 	u32 wait;
 	unsigned long flags;
 
-    if (atomic_read(&instance->adprecovery) != MEGASAS_ADPRESET_SM_INFAULT) {
+	if (atomic_read(&instance->adprecovery) != MEGASAS_ADPRESET_SM_INFAULT) {
 		dev_notice(&instance->pdev->dev, "error, recovery st %x\n",
-				atomic_read(&instance->adprecovery));
+			   atomic_read(&instance->adprecovery));
 		return ;
 	}
 

@@ -250,8 +250,8 @@ static int ec_device_probe(struct platform_device *pdev)
 	 * The PCHG device cannot be detected by sending EC_FEATURE_GET_CMD, but
 	 * it can be detected by querying the number of peripheral chargers.
 	 */
-	retval = cros_ec_command(ec->ec_dev, 0, EC_CMD_PCHG_COUNT, NULL, 0,
-				 &pchg_count, sizeof(pchg_count));
+	retval = cros_ec_cmd(ec->ec_dev, 0, EC_CMD_PCHG_COUNT, NULL, 0,
+			     &pchg_count, sizeof(pchg_count));
 	if (retval >= 0 && pchg_count.port_count) {
 		retval = mfd_add_hotplug_devices(ec->dev,
 					cros_ec_pchg_cells,

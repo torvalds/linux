@@ -10,7 +10,7 @@ maintainers:
   - Hector Martin <marcan@marcan.st>
 
 allOf:
-  - $ref: "power-domain.yaml#"
+  - $ref: power-domain.yaml#
 
 description: |
   Apple SoCs include PMGR blocks responsible for power management,

@@ -220,6 +220,8 @@ static void rtrs_srv_path_stats_release(struct kobject *kobj)
 
 	stats = container_of(kobj, struct rtrs_srv_stats, kobj_stats);
 
+	free_percpu(stats->rdma_stats);
+
 	kfree(stats);
 }
 

@@ -178,6 +178,7 @@ struct mlx5_flow_table_attr {
 	int max_fte;
 	u32 level;
 	u32 flags;
+	u16 uid;
 	struct mlx5_flow_table *next_ft;
 
 	struct {
@@ -315,4 +316,5 @@ struct mlx5_pkt_reformat *mlx5_packet_reformat_alloc(struct mlx5_core_dev *dev,
 void mlx5_packet_reformat_dealloc(struct mlx5_core_dev *dev,
 				  struct mlx5_pkt_reformat *reformat);
 
+u32 mlx5_flow_table_id(struct mlx5_flow_table *ft);
 #endif

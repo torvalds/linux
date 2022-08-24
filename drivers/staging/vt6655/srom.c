@@ -27,7 +27,7 @@
  *
  */
 
-#include "upc.h"
+#include "device.h"
 #include "mac.h"
 #include "srom.h"
 

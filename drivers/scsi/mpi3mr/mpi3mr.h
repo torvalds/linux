@@ -66,12 +66,14 @@ extern atomic64_t event_counter;
 #define MPI3MR_NAME_LENGTH	32
 #define IOCNAME			"%s: "
 
+#define MPI3MR_MAX_SECTORS	2048
+
 /* Definitions for internal SGL and Chain SGL buffers */
 #define MPI3MR_PAGE_SIZE_4K		4096
 #define MPI3MR_SG_DEPTH		(MPI3MR_PAGE_SIZE_4K / sizeof(struct mpi3_sge_common))
 
 /* Definitions for MAX values for shost */
-#define MPI3MR_MAX_CMDS_LUN	7
+#define MPI3MR_MAX_CMDS_LUN	128
 #define MPI3MR_MAX_CDB_LENGTH	32
 
 /* Admin queue management definitions */
@@ -333,6 +335,12 @@ struct mpi3mr_ioc_facts {
 	u8 sge_mod_mask;
 	u8 sge_mod_value;
 	u8 sge_mod_shift;
+	u8 max_dev_per_tg;
+	u16 max_io_throttle_group;
+	u16 io_throttle_data_length;
+	u16 io_throttle_low;
+	u16 io_throttle_high;
+
 };
 
 /**
@@ -425,6 +433,31 @@ struct mpi3mr_intr_info {
 };
 
 /**
+ * struct mpi3mr_throttle_group_info - Throttle group info
+ *
+ * @io_divert: Flag indicates io divert is on or off for the TG
+ * @need_qd_reduction: Flag to indicate QD reduction is needed
+ * @qd_reduction: Queue Depth reduction in units of 10%
+ * @fw_qd: QueueDepth value reported by the firmware
+ * @modified_qd: Modified QueueDepth value due to throttling
+ * @id: Throttle Group ID.
+ * @high: High limit to turn on throttling in 512 byte blocks
+ * @low: Low limit to turn off throttling in 512 byte blocks
+ * @pend_large_data_sz: Counter to track pending large data
+ */
+struct mpi3mr_throttle_group_info {
+	u8 io_divert;
+	u8 need_qd_reduction;
+	u8 qd_reduction;
+	u16 fw_qd;
+	u16 modified_qd;
+	u16 id;
+	u32 high;
+	u32 low;
+	atomic_t pend_large_data_sz;
+};
+
+/**
  * struct tgt_dev_sas_sata - SAS/SATA device specific
  * information cached from firmware given data
  *
@@ -457,14 +490,25 @@ struct tgt_dev_pcie {
 };
 
 /**
- * struct tgt_dev_volume - virtual device specific information
+ * struct tgt_dev_vd - virtual device specific information
  * cached from firmware given data
  *
  * @state: State of the VD
+ * @tg_qd_reduction: Queue Depth reduction in units of 10%
+ * @tg_id: VDs throttle group ID
+ * @high: High limit to turn on throttling in 512 byte blocks
+ * @low: Low limit to turn off throttling in 512 byte blocks
+ * @tg: Pointer to throttle group info
  */
-struct tgt_dev_volume {
+struct tgt_dev_vd {
 	u8 state;
+	u8 tg_qd_reduction;
+	u16 tg_id;
+	u32 tg_high;
+	u32 tg_low;
+	struct mpi3mr_throttle_group_info *tg;
 };
+
 
 /**
  * union _form_spec_inf - union of device specific information
@@ -472,7 +516,7 @@ struct tgt_dev_volume {
 union _form_spec_inf {
 	struct tgt_dev_sas_sata sas_sata_inf;
 	struct tgt_dev_pcie pcie_inf;
-	struct tgt_dev_volume vol_inf;
+	struct tgt_dev_vd vd_inf;
 };
 
 
@@ -490,6 +534,7 @@ union _form_spec_inf {
  * @dev_type: SAS/SATA/PCIE device type
  * @is_hidden: Should be exposed to upper layers or not
  * @host_exposed: Already exposed to host or not
+ * @io_throttle_enabled: I/O throttling needed or not
  * @q_depth: Device specific Queue Depth
  * @wwid: World wide ID
  * @dev_spec: Device type specific information
@@ -506,6 +551,7 @@ struct mpi3mr_tgt_dev {
 	u8 dev_type;
 	u8 is_hidden;
 	u8 host_exposed;
+	u8 io_throttle_enabled;
 	u16 q_depth;
 	u64 wwid;
 	union _form_spec_inf dev_spec;
@@ -557,6 +603,9 @@ static inline void mpi3mr_tgtdev_put(struct mpi3mr_tgt_dev *s)
  * @dev_removed: Device removed in the Firmware
  * @dev_removedelay: Device is waiting to be removed in FW
  * @dev_type: Device type
+ * @io_throttle_enabled: I/O throttling needed or not
+ * @io_divert: Flag indicates io divert is on or off for the dev
+ * @throttle_group: Pointer to throttle group info
  * @tgt_dev: Internal target device pointer
  * @pend_count: Counter to track pending I/Os during error
  *		handling
@@ -570,6 +619,9 @@ struct mpi3mr_stgt_priv_data {
 	u8 dev_removed;
 	u8 dev_removedelay;
 	u8 dev_type;
+	u8 io_throttle_enabled;
+	u8 io_divert;
+	struct mpi3mr_throttle_group_info *throttle_group;
 	struct mpi3mr_tgt_dev *tgt_dev;
 	u32 pend_count;
 };
@@ -796,6 +848,12 @@ struct scmd_priv {
  * @logdata_buf: Circular buffer to store log data entries
  * @logdata_buf_idx: Index of entry in buffer to store
  * @logdata_entry_sz: log data entry size
+ * @pend_large_data_sz: Counter to track pending large data
+ * @io_throttle_data_length: I/O size to track in 512b blocks
+ * @io_throttle_high: I/O size to start throttle in 512b blocks
+ * @io_throttle_low: I/O size to stop throttle in 512b blocks
+ * @num_io_throttle_group: Maximum number of throttle groups
+ * @throttle_groups: Pointer to throttle group info structures
  */
 struct mpi3mr_ioc {
 	struct list_head list;
@@ -960,6 +1018,13 @@ struct mpi3mr_ioc {
 	u8 *logdata_buf;
 	u16 logdata_buf_idx;
 	u16 logdata_entry_sz;
+
+	atomic_t pend_large_data_sz;
+	u32 io_throttle_data_length;
+	u32 io_throttle_high;
+	u32 io_throttle_low;
+	u16 num_io_throttle_group;
+	struct mpi3mr_throttle_group_info *throttle_groups;
 };
 
 /**
