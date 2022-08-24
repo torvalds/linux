@@ -704,31 +704,29 @@ flags(void)
 
 static void __init fwnode_pointer(void)
 {
-	const struct software_node softnodes[] = {
-		{ .name = "first", },
-		{ .name = "second", .parent = &softnodes[0], },
-		{ .name = "third", .parent = &softnodes[1], },
-		{ NULL /* Guardian */ }
-	};
-	const char * const full_name = "first/second/third";
+	const struct software_node first = { .name = "first" };
+	const struct software_node second = { .name = "second", .parent = &first };
+	const struct software_node third = { .name = "third", .parent = &second };
+	const struct software_node *group[] = { &first, &second, &third, NULL };
 	const char * const full_name_second = "first/second";
+	const char * const full_name_third = "first/second/third";
 	const char * const second_name = "second";
 	const char * const third_name = "third";
 	int rval;
 
-	rval = software_node_register_nodes(softnodes);
+	rval = software_node_register_node_group(group);
 	if (rval) {
 		pr_warn("cannot register softnodes; rval %d\n", rval);
 		return;
 	}
 
-	test(full_name_second, "%pfw", software_node_fwnode(&softnodes[1]));
-	test(full_name, "%pfw", software_node_fwnode(&softnodes[2]));
-	test(full_name, "%pfwf", software_node_fwnode(&softnodes[2]));
-	test(second_name, "%pfwP", software_node_fwnode(&softnodes[1]));
-	test(third_name, "%pfwP", software_node_fwnode(&softnodes[2]));
+	test(full_name_second, "%pfw", software_node_fwnode(&second));
+	test(full_name_third, "%pfw", software_node_fwnode(&third));
+	test(full_name_third, "%pfwf", software_node_fwnode(&third));
+	test(second_name, "%pfwP", software_node_fwnode(&second));
+	test(third_name, "%pfwP", software_node_fwnode(&third));
 
-	software_node_unregister_nodes(softnodes);
+	software_node_unregister_node_group(group);
 }
 
 static void __init fourcc_pointer(void)
