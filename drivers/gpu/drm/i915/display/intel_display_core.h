@@ -12,6 +12,7 @@ struct intel_atomic_state;
 struct intel_cdclk_funcs;
 struct intel_crtc;
 struct intel_crtc_state;
+struct intel_dpll_funcs;
 struct intel_initial_plane_config;
 
 struct intel_display_funcs {
@@ -38,6 +39,9 @@ struct intel_display {
 
 		/* Display CDCLK functions */
 		const struct intel_cdclk_funcs *cdclk;
+
+		/* Display pll funcs */
+		const struct intel_dpll_funcs *dpll;
 	} funcs;
 };
 

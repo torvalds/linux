@@ -90,7 +90,6 @@ struct intel_color_funcs;
 struct intel_connector;
 struct intel_crtc;
 struct intel_dp;
-struct intel_dpll_funcs;
 struct intel_encoder;
 struct intel_fbdev;
 struct intel_fdi_funcs;
@@ -515,9 +514,6 @@ struct drm_i915_private {
 
 	/* fdi display functions */
 	const struct intel_fdi_funcs *fdi_funcs;
-
-	/* display pll funcs */
-	const struct intel_dpll_funcs *dpll_funcs;
 
 	/* Display internal color functions */
 	const struct intel_color_funcs *color_funcs;
