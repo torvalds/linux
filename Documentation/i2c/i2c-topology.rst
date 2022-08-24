@@ -103,7 +103,7 @@ ML2. It is not safe to build arbitrary topologies with two (or more)
      I.e. the select-transfer-deselect transaction targeting e.g. device
      address 0x42 behind mux-one may be interleaved with a similar
      operation targeting device address 0x42 behind mux-two. The
-     intension with such a topology would in this hypothetical example
+     intent with such a topology would in this hypothetical example
      be that mux-one and mux-two should not be selected simultaneously,
      but mux-locked muxes do not guarantee that in all topologies.
 
