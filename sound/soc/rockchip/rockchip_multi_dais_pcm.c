@@ -119,6 +119,18 @@ static void dmaengine_mpcm_dma_complete(void *arg)
 	snd_pcm_period_elapsed(substream);
 }
 
+static void dmaengine_mpcm_get_master_chan(struct dmaengine_mpcm_runtime_data *prtd)
+{
+	int i;
+
+	for (i = prtd->num_chans; i > 0; i--) {
+		if (prtd->chans[i - 1]) {
+			prtd->master_chan = i - 1;
+			break;
+		}
+	}
+}
+
 static int dmaengine_mpcm_prepare_and_submit(struct snd_pcm_substream *substream)
 {
 	struct dmaengine_mpcm_runtime_data *prtd = substream_to_prtd(substream);
@@ -157,7 +169,9 @@ static int dmaengine_mpcm_prepare_and_submit(struct snd_pcm_substream *substream
 	if (desc) {
 		desc->callback = dmaengine_mpcm_dma_complete;
 		desc->callback_param = substream;
-		prtd->master_chan = i - 1;
+		dmaengine_mpcm_get_master_chan(prtd);
+	} else {
+		return -ENOMEM;
 	}
 
 	return 0;
