@@ -143,6 +143,11 @@ static const char *thread_spec_tags[THREAD_SPEC__MAX] = {
 	"undefined", "cpu", "core", "package", "numa", "user"
 };
 
+struct pollfd_index_map {
+	int evlist_pollfd_index;
+	int thread_pollfd_index;
+};
+
 struct record {
 	struct perf_tool	tool;
 	struct record_opts	opts;
@@ -171,6 +176,9 @@ struct record {
 	int			nr_threads;
 	struct thread_mask	*thread_masks;
 	struct record_thread	*thread_data;
+	struct pollfd_index_map	*index_map;
+	size_t			index_map_sz;
+	size_t			index_map_cnt;
 };
 
 static volatile int done;
@@ -1074,6 +1082,70 @@ static void record__free_thread_data(struct record *rec)
 	zfree(&rec->thread_data);
 }
 
+static int record__map_thread_evlist_pollfd_indexes(struct record *rec,
+						    int evlist_pollfd_index,
+						    int thread_pollfd_index)
+{
+	size_t x = rec->index_map_cnt;
+
+	if (realloc_array_as_needed(rec->index_map, rec->index_map_sz, x, NULL))
+		return -ENOMEM;
+	rec->index_map[x].evlist_pollfd_index = evlist_pollfd_index;
+	rec->index_map[x].thread_pollfd_index = thread_pollfd_index;
+	rec->index_map_cnt += 1;
+	return 0;
+}
+
+static int record__update_evlist_pollfd_from_thread(struct record *rec,
+						    struct evlist *evlist,
+						    struct record_thread *thread_data)
+{
+	struct pollfd *e_entries = evlist->core.pollfd.entries;
+	struct pollfd *t_entries = thread_data->pollfd.entries;
+	int err = 0;
+	size_t i;
+
+	for (i = 0; i < rec->index_map_cnt; i++) {
+		int e_pos = rec->index_map[i].evlist_pollfd_index;
+		int t_pos = rec->index_map[i].thread_pollfd_index;
+
+		if (e_entries[e_pos].fd != t_entries[t_pos].fd ||
+		    e_entries[e_pos].events != t_entries[t_pos].events) {
+			pr_err("Thread and evlist pollfd index mismatch\n");
+			err = -EINVAL;
+			continue;
+		}
+		e_entries[e_pos].revents = t_entries[t_pos].revents;
+	}
+	return err;
+}
+
+static int record__dup_non_perf_events(struct record *rec,
+				       struct evlist *evlist,
+				       struct record_thread *thread_data)
+{
+	struct fdarray *fda = &evlist->core.pollfd;
+	int i, ret;
+
+	for (i = 0; i < fda->nr; i++) {
+		if (!(fda->priv[i].flags & fdarray_flag__non_perf_event))
+			continue;
+		ret = fdarray__dup_entry_from(&thread_data->pollfd, i, fda);
+		if (ret < 0) {
+			pr_err("Failed to duplicate descriptor in main thread pollfd\n");
+			return ret;
+		}
+		pr_debug2("thread_data[%p]: pollfd[%d] <- non_perf_event fd=%d\n",
+			  thread_data, ret, fda->entries[i].fd);
+		ret = record__map_thread_evlist_pollfd_indexes(rec, i, ret);
+		if (ret < 0) {
+			pr_err("Failed to map thread and evlist pollfd indexes\n");
+			return ret;
+		}
+	}
+	return 0;
+}
+
 static int record__alloc_thread_data(struct record *rec, struct evlist *evlist)
 {
 	int t, ret;
@@ -1121,6 +1193,11 @@ static int record__alloc_thread_data(struct record *rec, struct evlist *evlist)
 				 thread_data[t].pipes.msg[0]);
 		} else {
 			thread_data[t].tid = gettid();
+
+			ret = record__dup_non_perf_events(rec, evlist, &thread_data[t]);
+			if (ret < 0)
+				goto out_free;
+
 			if (evlist->ctl_fd.pos == -1)
 				continue;
 			ret = fdarray__dup_entry_from(&thread_data[t].pollfd, evlist->ctl_fd.pos,
@@ -2534,6 +2611,9 @@ static int __cmd_record(struct record *rec, int argc, const char **argv)
 					    record__thread_munmap_filtered, NULL) == 0)
 				draining = true;
 
+			err = record__update_evlist_pollfd_from_thread(rec, rec->evlist, thread);
+			if (err)
+				goto out_child;
 			evlist__ctlfd_update(rec->evlist,
 				&thread->pollfd.entries[thread->ctlfd_pos]);
 		}
