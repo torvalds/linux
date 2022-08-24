@@ -872,6 +872,7 @@ static const struct dc_debug_options debug_defaults_drv = {
 	.exit_idle_opt_for_cursor_updates = true,
 	.enable_single_display_2to1_odm_policy = true,
 	.enable_dp_dig_pixel_rate_div_policy = 1,
+	.allow_sw_cursor_fallback = false,
 };
 
 static const struct dc_debug_options debug_defaults_diags = {
