@@ -43,9 +43,6 @@ DECLARE_HOOK(android_vh_page_trylock_clear,
 DECLARE_HOOK(android_vh_shrink_node_memcgs,
 	TP_PROTO(struct mem_cgroup *memcg, bool *skip),
 	TP_ARGS(memcg, skip));
-DECLARE_HOOK(android_vh_tune_memcg_scan_type,
-	TP_PROTO(struct mem_cgroup *memcg, char *scan_type),
-	TP_ARGS(memcg, scan_type));
 DECLARE_HOOK(android_vh_inactive_is_low,
 	TP_PROTO(unsigned long gb, unsigned long *inactive_ratio,
 		enum lru_list inactive_lru, bool *skip),
