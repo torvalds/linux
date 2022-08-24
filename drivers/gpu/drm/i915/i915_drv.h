@@ -68,7 +68,6 @@
 #include "intel_device_info.h"
 #include "intel_memory_region.h"
 #include "intel_pch.h"
-#include "intel_pm_types.h"
 #include "intel_runtime_pm.h"
 #include "intel_step.h"
 #include "intel_uncore.h"
@@ -504,42 +503,6 @@ struct drm_i915_private {
 	} sagv_status;
 
 	u32 sagv_block_time_us;
-
-	struct {
-		/*
-		 * Raw watermark latency values:
-		 * in 0.1us units for WM0,
-		 * in 0.5us units for WM1+.
-		 */
-		/* primary */
-		u16 pri_latency[5];
-		/* sprite */
-		u16 spr_latency[5];
-		/* cursor */
-		u16 cur_latency[5];
-		/*
-		 * Raw watermark memory latency values
-		 * for SKL for all 8 levels
-		 * in 1us units.
-		 */
-		u16 skl_latency[8];
-
-		/* current hardware state */
-		union {
-			struct ilk_wm_values hw;
-			struct vlv_wm_values vlv;
-			struct g4x_wm_values g4x;
-		};
-
-		u8 max_level;
-
-		/*
-		 * Should be held around atomic WM register writing; also
-		 * protects * intel_crtc->wm.active and
-		 * crtc_state->wm.need_postvbl_update.
-		 */
-		struct mutex wm_mutex;
-	} wm;
 
 	struct dram_info {
 		bool wm_lv_0_adjust_needed;

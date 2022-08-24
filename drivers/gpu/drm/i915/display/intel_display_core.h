@@ -15,6 +15,7 @@
 #include "intel_dmc.h"
 #include "intel_dpll_mgr.h"
 #include "intel_gmbus.h"
+#include "intel_pm_types.h"
 
 struct drm_i915_private;
 struct i915_audio_component;
@@ -101,6 +102,42 @@ struct intel_dpll {
 	} ref_clks;
 };
 
+struct intel_wm {
+	/*
+	 * Raw watermark latency values:
+	 * in 0.1us units for WM0,
+	 * in 0.5us units for WM1+.
+	 */
+	/* primary */
+	u16 pri_latency[5];
+	/* sprite */
+	u16 spr_latency[5];
+	/* cursor */
+	u16 cur_latency[5];
+	/*
+	 * Raw watermark memory latency values
+	 * for SKL for all 8 levels
+	 * in 1us units.
+	 */
+	u16 skl_latency[8];
+
+	/* current hardware state */
+	union {
+		struct ilk_wm_values hw;
+		struct vlv_wm_values vlv;
+		struct g4x_wm_values g4x;
+	};
+
+	u8 max_level;
+
+	/*
+	 * Should be held around atomic WM register writing; also
+	 * protects * intel_crtc->wm.active and
+	 * crtc_state->wm.need_postvbl_update.
+	 */
+	struct mutex wm_mutex;
+};
+
 struct intel_display {
 	/* Display functions */
 	struct {
@@ -165,6 +202,7 @@ struct intel_display {
 	struct intel_audio audio;
 	struct intel_dmc dmc;
 	struct intel_dpll dpll;
+	struct intel_wm wm;
 };
 
 #endif /* __INTEL_DISPLAY_CORE_H__ */

@@ -336,7 +336,7 @@ static int i915_driver_early_probe(struct drm_i915_private *dev_priv)
 	cpu_latency_qos_add_request(&dev_priv->sb_qos, PM_QOS_DEFAULT_VALUE);
 
 	mutex_init(&dev_priv->display.audio.mutex);
-	mutex_init(&dev_priv->wm.wm_mutex);
+	mutex_init(&dev_priv->display.wm.wm_mutex);
 	mutex_init(&dev_priv->display.pps.mutex);
 	mutex_init(&dev_priv->hdcp_comp_mutex);
 
