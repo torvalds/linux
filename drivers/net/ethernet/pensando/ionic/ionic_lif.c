@@ -3016,6 +3016,9 @@ static void ionic_lif_handle_fw_up(struct ionic_lif *lif)
 
 	mutex_lock(&lif->queue_lock);
 
+	if (test_and_clear_bit(IONIC_LIF_F_BROKEN, lif->state))
+		dev_info(ionic->dev, "FW Up: clearing broken state\n");
+
 	err = ionic_qcqs_alloc(lif);
 	if (err)
 		goto err_unlock;
