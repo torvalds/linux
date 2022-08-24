@@ -598,6 +598,6 @@ bool rtl92e_enable_nic(struct net_device *dev);
 bool rtl92e_disable_nic(struct net_device *dev);
 
 bool rtl92e_set_rf_state(struct net_device *dev,
-			 enum rt_rf_power_state StateToSet,
+			 enum rt_rf_power_state state_to_set,
 			 RT_RF_CHANGE_SOURCE ChangeSource);
 #endif

@@ -132,7 +132,7 @@ void rtl92e_writew(struct net_device *dev, int x, u16 y)
  *  -----------------------------GENERAL FUNCTION-------------------------
  ****************************************************************************/
 bool rtl92e_set_rf_state(struct net_device *dev,
-			 enum rt_rf_power_state StateToSet,
+			 enum rt_rf_power_state state_to_set,
 			 RT_RF_CHANGE_SOURCE ChangeSource)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
@@ -168,7 +168,7 @@ bool rtl92e_set_rf_state(struct net_device *dev,
 
 	rtState = priv->rtllib->eRFPowerState;
 
-	switch (StateToSet) {
+	switch (state_to_set) {
 	case eRfOn:
 		priv->rtllib->RfOffReason &= (~ChangeSource);
 
@@ -215,8 +215,8 @@ bool rtl92e_set_rf_state(struct net_device *dev,
 	}
 
 	if (bActionAllowed) {
-		PHY_SetRFPowerState(dev, StateToSet);
-		if (StateToSet == eRfOn) {
+		rtl92e_set_rf_power_state(dev, state_to_set);
+		if (state_to_set == eRfOn) {
 			if (bConnectBySSID && priv->blinked_ingpio) {
 				schedule_delayed_work(
 					 &ieee->associate_procedure_wq, 0);
