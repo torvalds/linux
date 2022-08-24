@@ -252,8 +252,8 @@ static int i915_workqueues_init(struct drm_i915_private *dev_priv)
 	if (dev_priv->wq == NULL)
 		goto out_err;
 
-	dev_priv->hotplug.dp_wq = alloc_ordered_workqueue("i915-dp", 0);
-	if (dev_priv->hotplug.dp_wq == NULL)
+	dev_priv->display.hotplug.dp_wq = alloc_ordered_workqueue("i915-dp", 0);
+	if (dev_priv->display.hotplug.dp_wq == NULL)
 		goto out_free_wq;
 
 	return 0;
@@ -268,7 +268,7 @@ out_err:
 
 static void i915_workqueues_cleanup(struct drm_i915_private *dev_priv)
 {
-	destroy_workqueue(dev_priv->hotplug.dp_wq);
+	destroy_workqueue(dev_priv->display.hotplug.dp_wq);
 	destroy_workqueue(dev_priv->wq);
 }
 

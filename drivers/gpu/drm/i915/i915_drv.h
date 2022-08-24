@@ -90,45 +90,6 @@ struct vlv_s0ix_state;
 /* Threshold == 5 for long IRQs, 50 for short */
 #define HPD_STORM_DEFAULT_THRESHOLD 50
 
-struct i915_hotplug {
-	struct delayed_work hotplug_work;
-
-	const u32 *hpd, *pch_hpd;
-
-	struct {
-		unsigned long last_jiffies;
-		int count;
-		enum {
-			HPD_ENABLED = 0,
-			HPD_DISABLED = 1,
-			HPD_MARK_DISABLED = 2
-		} state;
-	} stats[HPD_NUM_PINS];
-	u32 event_bits;
-	u32 retry_bits;
-	struct delayed_work reenable_work;
-
-	u32 long_port_mask;
-	u32 short_port_mask;
-	struct work_struct dig_port_work;
-
-	struct work_struct poll_init_work;
-	bool poll_enabled;
-
-	unsigned int hpd_storm_threshold;
-	/* Whether or not to count short HPD IRQs in HPD storms */
-	u8 hpd_short_storm_enabled;
-
-	/*
-	 * if we get a HPD irq from DP and a HPD irq from non-DP
-	 * the non-DP HPD could block the workqueue on a mode config
-	 * mutex getting, that userspace may have taken. However
-	 * userspace is waiting on the DP workqueue to run which is
-	 * blocked behind the non-DP one.
-	 */
-	struct workqueue_struct *dp_wq;
-};
-
 #define I915_GEM_GPU_DOMAINS \
 	(I915_GEM_DOMAIN_RENDER | \
 	 I915_GEM_DOMAIN_SAMPLER | \
@@ -376,7 +337,6 @@ struct drm_i915_private {
 	};
 	u32 pipestat_irq_mask[I915_MAX_PIPES];
 
-	struct i915_hotplug hotplug;
 	struct intel_fbc *fbc[I915_MAX_FBCS];
 	struct intel_opregion opregion;
 	struct intel_vbt_data vbt;

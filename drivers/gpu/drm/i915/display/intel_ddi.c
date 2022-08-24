@@ -4038,7 +4038,7 @@ intel_ddi_hotplug(struct intel_encoder *encoder,
 static bool lpt_digital_port_connected(struct intel_encoder *encoder)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
-	u32 bit = dev_priv->hotplug.pch_hpd[encoder->hpd_pin];
+	u32 bit = dev_priv->display.hotplug.pch_hpd[encoder->hpd_pin];
 
 	return intel_de_read(dev_priv, SDEISR) & bit;
 }
@@ -4046,7 +4046,7 @@ static bool lpt_digital_port_connected(struct intel_encoder *encoder)
 static bool hsw_digital_port_connected(struct intel_encoder *encoder)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
-	u32 bit = dev_priv->hotplug.hpd[encoder->hpd_pin];
+	u32 bit = dev_priv->display.hotplug.hpd[encoder->hpd_pin];
 
 	return intel_de_read(dev_priv, DEISR) & bit;
 }
@@ -4054,7 +4054,7 @@ static bool hsw_digital_port_connected(struct intel_encoder *encoder)
 static bool bdw_digital_port_connected(struct intel_encoder *encoder)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
-	u32 bit = dev_priv->hotplug.hpd[encoder->hpd_pin];
+	u32 bit = dev_priv->display.hotplug.hpd[encoder->hpd_pin];
 
 	return intel_de_read(dev_priv, GEN8_DE_PORT_ISR) & bit;
 }

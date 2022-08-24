@@ -1618,14 +1618,14 @@ static const struct file_operations i915_cur_wm_latency_fops = {
 static int i915_hpd_storm_ctl_show(struct seq_file *m, void *data)
 {
 	struct drm_i915_private *dev_priv = m->private;
-	struct i915_hotplug *hotplug = &dev_priv->hotplug;
+	struct intel_hotplug *hotplug = &dev_priv->display.hotplug;
 
 	/* Synchronize with everything first in case there's been an HPD
 	 * storm, but we haven't finished handling it in the kernel yet
 	 */
 	intel_synchronize_irq(dev_priv);
-	flush_work(&dev_priv->hotplug.dig_port_work);
-	flush_delayed_work(&dev_priv->hotplug.hotplug_work);
+	flush_work(&dev_priv->display.hotplug.dig_port_work);
+	flush_delayed_work(&dev_priv->display.hotplug.hotplug_work);
 
 	seq_printf(m, "Threshold: %d\n", hotplug->hpd_storm_threshold);
 	seq_printf(m, "Detected: %s\n",
@@ -1640,7 +1640,7 @@ static ssize_t i915_hpd_storm_ctl_write(struct file *file,
 {
 	struct seq_file *m = file->private_data;
 	struct drm_i915_private *dev_priv = m->private;
-	struct i915_hotplug *hotplug = &dev_priv->hotplug;
+	struct intel_hotplug *hotplug = &dev_priv->display.hotplug;
 	unsigned int new_threshold;
 	int i;
 	char *newline;
@@ -1679,7 +1679,7 @@ static ssize_t i915_hpd_storm_ctl_write(struct file *file,
 	spin_unlock_irq(&dev_priv->irq_lock);
 
 	/* Re-enable hpd immediately if we were in an irq storm */
-	flush_delayed_work(&dev_priv->hotplug.reenable_work);
+	flush_delayed_work(&dev_priv->display.hotplug.reenable_work);
 
 	return len;
 }
@@ -1703,7 +1703,7 @@ static int i915_hpd_short_storm_ctl_show(struct seq_file *m, void *data)
 	struct drm_i915_private *dev_priv = m->private;
 
 	seq_printf(m, "Enabled: %s\n",
-		   str_yes_no(dev_priv->hotplug.hpd_short_storm_enabled));
+		   str_yes_no(dev_priv->display.hotplug.hpd_short_storm_enabled));
 
 	return 0;
 }
@@ -1721,7 +1721,7 @@ static ssize_t i915_hpd_short_storm_ctl_write(struct file *file,
 {
 	struct seq_file *m = file->private_data;
 	struct drm_i915_private *dev_priv = m->private;
-	struct i915_hotplug *hotplug = &dev_priv->hotplug;
+	struct intel_hotplug *hotplug = &dev_priv->display.hotplug;
 	char *newline;
 	char tmp[16];
 	int i;
@@ -1757,7 +1757,7 @@ static ssize_t i915_hpd_short_storm_ctl_write(struct file *file,
 	spin_unlock_irq(&dev_priv->irq_lock);
 
 	/* Re-enable hpd immediately if we were in an irq storm */
-	flush_delayed_work(&dev_priv->hotplug.reenable_work);
+	flush_delayed_work(&dev_priv->display.hotplug.reenable_work);
 
 	return len;
 }

@@ -185,7 +185,7 @@ static const u32 hpd_sde_dg1[HPD_NUM_PINS] = {
 
 static void intel_hpd_init_pins(struct drm_i915_private *dev_priv)
 {
-	struct i915_hotplug *hpd = &dev_priv->hotplug;
+	struct intel_hotplug *hpd = &dev_priv->display.hotplug;
 
 	if (HAS_GMCH(dev_priv)) {
 		if (IS_G4X(dev_priv) || IS_VALLEYVIEW(dev_priv) ||
@@ -1272,7 +1272,7 @@ static u32 intel_hpd_enabled_irqs(struct drm_i915_private *dev_priv,
 	u32 enabled_irqs = 0;
 
 	for_each_intel_encoder(&dev_priv->drm, encoder)
-		if (dev_priv->hotplug.stats[encoder->hpd_pin].state == HPD_ENABLED)
+		if (dev_priv->display.hotplug.stats[encoder->hpd_pin].state == HPD_ENABLED)
 			enabled_irqs |= hpd[encoder->hpd_pin];
 
 	return enabled_irqs;
@@ -1637,7 +1637,7 @@ static void i9xx_hpd_irq_handler(struct drm_i915_private *dev_priv,
 	if (hotplug_trigger) {
 		intel_get_hpd_pins(dev_priv, &pin_mask, &long_mask,
 				   hotplug_trigger, hotplug_trigger,
-				   dev_priv->hotplug.hpd,
+				   dev_priv->display.hotplug.hpd,
 				   i9xx_port_hotplug_long_detect);
 
 		intel_hpd_irq_handler(dev_priv, pin_mask, long_mask);
@@ -1841,7 +1841,7 @@ static void ibx_hpd_irq_handler(struct drm_i915_private *dev_priv,
 
 	intel_get_hpd_pins(dev_priv, &pin_mask, &long_mask,
 			   hotplug_trigger, dig_hotplug_reg,
-			   dev_priv->hotplug.pch_hpd,
+			   dev_priv->display.hotplug.pch_hpd,
 			   pch_port_hotplug_long_detect);
 
 	intel_hpd_irq_handler(dev_priv, pin_mask, long_mask);
@@ -1986,7 +1986,7 @@ static void icp_irq_handler(struct drm_i915_private *dev_priv, u32 pch_iir)
 
 		intel_get_hpd_pins(dev_priv, &pin_mask, &long_mask,
 				   ddi_hotplug_trigger, dig_hotplug_reg,
-				   dev_priv->hotplug.pch_hpd,
+				   dev_priv->display.hotplug.pch_hpd,
 				   icp_ddi_port_hotplug_long_detect);
 	}
 
@@ -1998,7 +1998,7 @@ static void icp_irq_handler(struct drm_i915_private *dev_priv, u32 pch_iir)
 
 		intel_get_hpd_pins(dev_priv, &pin_mask, &long_mask,
 				   tc_hotplug_trigger, dig_hotplug_reg,
-				   dev_priv->hotplug.pch_hpd,
+				   dev_priv->display.hotplug.pch_hpd,
 				   icp_tc_port_hotplug_long_detect);
 	}
 
@@ -2024,7 +2024,7 @@ static void spt_irq_handler(struct drm_i915_private *dev_priv, u32 pch_iir)
 
 		intel_get_hpd_pins(dev_priv, &pin_mask, &long_mask,
 				   hotplug_trigger, dig_hotplug_reg,
-				   dev_priv->hotplug.pch_hpd,
+				   dev_priv->display.hotplug.pch_hpd,
 				   spt_port_hotplug_long_detect);
 	}
 
@@ -2036,7 +2036,7 @@ static void spt_irq_handler(struct drm_i915_private *dev_priv, u32 pch_iir)
 
 		intel_get_hpd_pins(dev_priv, &pin_mask, &long_mask,
 				   hotplug2_trigger, dig_hotplug_reg,
-				   dev_priv->hotplug.pch_hpd,
+				   dev_priv->display.hotplug.pch_hpd,
 				   spt_port_hotplug2_long_detect);
 	}
 
@@ -2057,7 +2057,7 @@ static void ilk_hpd_irq_handler(struct drm_i915_private *dev_priv,
 
 	intel_get_hpd_pins(dev_priv, &pin_mask, &long_mask,
 			   hotplug_trigger, dig_hotplug_reg,
-			   dev_priv->hotplug.hpd,
+			   dev_priv->display.hotplug.hpd,
 			   ilk_port_hotplug_long_detect);
 
 	intel_hpd_irq_handler(dev_priv, pin_mask, long_mask);
@@ -2237,7 +2237,7 @@ static void bxt_hpd_irq_handler(struct drm_i915_private *dev_priv,
 
 	intel_get_hpd_pins(dev_priv, &pin_mask, &long_mask,
 			   hotplug_trigger, dig_hotplug_reg,
-			   dev_priv->hotplug.hpd,
+			   dev_priv->display.hotplug.hpd,
 			   bxt_port_hotplug_long_detect);
 
 	intel_hpd_irq_handler(dev_priv, pin_mask, long_mask);
@@ -2257,7 +2257,7 @@ static void gen11_hpd_irq_handler(struct drm_i915_private *dev_priv, u32 iir)
 
 		intel_get_hpd_pins(dev_priv, &pin_mask, &long_mask,
 				   trigger_tc, dig_hotplug_reg,
-				   dev_priv->hotplug.hpd,
+				   dev_priv->display.hotplug.hpd,
 				   gen11_port_hotplug_long_detect);
 	}
 
@@ -2269,7 +2269,7 @@ static void gen11_hpd_irq_handler(struct drm_i915_private *dev_priv, u32 iir)
 
 		intel_get_hpd_pins(dev_priv, &pin_mask, &long_mask,
 				   trigger_tbt, dig_hotplug_reg,
-				   dev_priv->hotplug.hpd,
+				   dev_priv->display.hotplug.hpd,
 				   gen11_port_hotplug_long_detect);
 	}
 
@@ -3313,8 +3313,8 @@ static void ibx_hpd_irq_setup(struct drm_i915_private *dev_priv)
 {
 	u32 hotplug_irqs, enabled_irqs;
 
-	enabled_irqs = intel_hpd_enabled_irqs(dev_priv, dev_priv->hotplug.pch_hpd);
-	hotplug_irqs = intel_hpd_hotplug_irqs(dev_priv, dev_priv->hotplug.pch_hpd);
+	enabled_irqs = intel_hpd_enabled_irqs(dev_priv, dev_priv->display.hotplug.pch_hpd);
+	hotplug_irqs = intel_hpd_hotplug_irqs(dev_priv, dev_priv->display.hotplug.pch_hpd);
 
 	ibx_display_interrupt_update(dev_priv, hotplug_irqs, enabled_irqs);
 
@@ -3383,8 +3383,8 @@ static void icp_hpd_irq_setup(struct drm_i915_private *dev_priv)
 {
 	u32 hotplug_irqs, enabled_irqs;
 
-	enabled_irqs = intel_hpd_enabled_irqs(dev_priv, dev_priv->hotplug.pch_hpd);
-	hotplug_irqs = intel_hpd_hotplug_irqs(dev_priv, dev_priv->hotplug.pch_hpd);
+	enabled_irqs = intel_hpd_enabled_irqs(dev_priv, dev_priv->display.hotplug.pch_hpd);
+	hotplug_irqs = intel_hpd_hotplug_irqs(dev_priv, dev_priv->display.hotplug.pch_hpd);
 
 	if (INTEL_PCH_TYPE(dev_priv) <= PCH_TGP)
 		intel_uncore_write(&dev_priv->uncore, SHPD_FILTER_CNT, SHPD_FILTER_CNT_500_ADJ);
@@ -3460,8 +3460,8 @@ static void gen11_hpd_irq_setup(struct drm_i915_private *dev_priv)
 	u32 hotplug_irqs, enabled_irqs;
 	u32 val;
 
-	enabled_irqs = intel_hpd_enabled_irqs(dev_priv, dev_priv->hotplug.hpd);
-	hotplug_irqs = intel_hpd_hotplug_irqs(dev_priv, dev_priv->hotplug.hpd);
+	enabled_irqs = intel_hpd_enabled_irqs(dev_priv, dev_priv->display.hotplug.hpd);
+	hotplug_irqs = intel_hpd_hotplug_irqs(dev_priv, dev_priv->display.hotplug.hpd);
 
 	val = intel_uncore_read(&dev_priv->uncore, GEN11_DE_HPD_IMR);
 	val &= ~hotplug_irqs;
@@ -3538,8 +3538,8 @@ static void spt_hpd_irq_setup(struct drm_i915_private *dev_priv)
 	if (INTEL_PCH_TYPE(dev_priv) >= PCH_CNP)
 		intel_uncore_write(&dev_priv->uncore, SHPD_FILTER_CNT, SHPD_FILTER_CNT_500_ADJ);
 
-	enabled_irqs = intel_hpd_enabled_irqs(dev_priv, dev_priv->hotplug.pch_hpd);
-	hotplug_irqs = intel_hpd_hotplug_irqs(dev_priv, dev_priv->hotplug.pch_hpd);
+	enabled_irqs = intel_hpd_enabled_irqs(dev_priv, dev_priv->display.hotplug.pch_hpd);
+	hotplug_irqs = intel_hpd_hotplug_irqs(dev_priv, dev_priv->display.hotplug.pch_hpd);
 
 	ibx_display_interrupt_update(dev_priv, hotplug_irqs, enabled_irqs);
 
@@ -3578,8 +3578,8 @@ static void ilk_hpd_irq_setup(struct drm_i915_private *dev_priv)
 {
 	u32 hotplug_irqs, enabled_irqs;
 
-	enabled_irqs = intel_hpd_enabled_irqs(dev_priv, dev_priv->hotplug.hpd);
-	hotplug_irqs = intel_hpd_hotplug_irqs(dev_priv, dev_priv->hotplug.hpd);
+	enabled_irqs = intel_hpd_enabled_irqs(dev_priv, dev_priv->display.hotplug.hpd);
+	hotplug_irqs = intel_hpd_hotplug_irqs(dev_priv, dev_priv->display.hotplug.hpd);
 
 	if (DISPLAY_VER(dev_priv) >= 8)
 		bdw_update_port_irq(dev_priv, hotplug_irqs, enabled_irqs);
@@ -3636,8 +3636,8 @@ static void bxt_hpd_irq_setup(struct drm_i915_private *dev_priv)
 {
 	u32 hotplug_irqs, enabled_irqs;
 
-	enabled_irqs = intel_hpd_enabled_irqs(dev_priv, dev_priv->hotplug.hpd);
-	hotplug_irqs = intel_hpd_hotplug_irqs(dev_priv, dev_priv->hotplug.hpd);
+	enabled_irqs = intel_hpd_enabled_irqs(dev_priv, dev_priv->display.hotplug.hpd);
+	hotplug_irqs = intel_hpd_hotplug_irqs(dev_priv, dev_priv->display.hotplug.hpd);
 
 	bdw_update_port_irq(dev_priv, hotplug_irqs, enabled_irqs);
 
@@ -4413,14 +4413,14 @@ void intel_irq_init(struct drm_i915_private *dev_priv)
 	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
 		dev_priv->display_irqs_enabled = false;
 
-	dev_priv->hotplug.hpd_storm_threshold = HPD_STORM_DEFAULT_THRESHOLD;
+	dev_priv->display.hotplug.hpd_storm_threshold = HPD_STORM_DEFAULT_THRESHOLD;
 	/* If we have MST support, we want to avoid doing short HPD IRQ storm
 	 * detection, as short HPD storms will occur as a natural part of
 	 * sideband messaging with MST.
 	 * On older platforms however, IRQ storms can occur with both long and
 	 * short pulses, as seen on some G4x systems.
 	 */
-	dev_priv->hotplug.hpd_short_storm_enabled = !HAS_DP_MST(dev_priv);
+	dev_priv->display.hotplug.hpd_short_storm_enabled = !HAS_DP_MST(dev_priv);
 
 	if (HAS_GMCH(dev_priv)) {
 		if (I915_HAS_HOTPLUG(dev_priv))
