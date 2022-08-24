@@ -2045,6 +2045,44 @@ static ssize_t qgroup_inconsistent_show(struct kobject *qgroups_kobj,
 }
 BTRFS_ATTR(qgroups, inconsistent, qgroup_inconsistent_show);
 
+static ssize_t qgroup_drop_subtree_thres_show(struct kobject *qgroups_kobj,
+					      struct kobj_attribute *a,
+					      char *buf)
+{
+	struct btrfs_fs_info *fs_info = to_fs_info(qgroups_kobj->parent);
+	u8 result;
+
+	spin_lock(&fs_info->qgroup_lock);
+	result = fs_info->qgroup_drop_subtree_thres;
+	spin_unlock(&fs_info->qgroup_lock);
+
+	return sysfs_emit(buf, "%d\n", result);
+}
+
+static ssize_t qgroup_drop_subtree_thres_store(struct kobject *qgroups_kobj,
+					       struct kobj_attribute *a,
+					       const char *buf, size_t len)
+{
+	struct btrfs_fs_info *fs_info = to_fs_info(qgroups_kobj->parent);
+	u8 new_thres;
+	int ret;
+
+	ret = kstrtou8(buf, 10, &new_thres);
+	if (ret)
+		return -EINVAL;
+
+	if (new_thres > BTRFS_MAX_LEVEL)
+		return -EINVAL;
+
+	spin_lock(&fs_info->qgroup_lock);
+	fs_info->qgroup_drop_subtree_thres = new_thres;
+	spin_unlock(&fs_info->qgroup_lock);
+
+	return len;
+}
+BTRFS_ATTR_RW(qgroups, drop_subtree_threshold, qgroup_drop_subtree_thres_show,
+	      qgroup_drop_subtree_thres_store);
+
 /*
  * Qgroups global info
  *
@@ -2053,6 +2091,7 @@ BTRFS_ATTR(qgroups, inconsistent, qgroup_inconsistent_show);
 static struct attribute *qgroups_attrs[] = {
 	BTRFS_ATTR_PTR(qgroups, enabled),
 	BTRFS_ATTR_PTR(qgroups, inconsistent),
+	BTRFS_ATTR_PTR(qgroups, drop_subtree_threshold),
 	NULL
 };
 ATTRIBUTE_GROUPS(qgroups);
