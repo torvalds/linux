@@ -989,7 +989,7 @@ int io_sendzc(struct io_kiocb *req, unsigned int issue_flags)
 		ret = io_import_fixed(WRITE, &msg.msg_iter, req->imu,
 					(u64)(uintptr_t)zc->buf, zc->len);
 		if (unlikely(ret))
-				return ret;
+			return ret;
 	} else {
 		ret = import_single_range(WRITE, zc->buf, zc->len, &iov,
 					  &msg.msg_iter);
