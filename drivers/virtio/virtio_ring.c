@@ -2426,6 +2426,14 @@ static inline bool more_used(const struct vring_virtqueue *vq)
 	return vq->packed_ring ? more_used_packed(vq) : more_used_split(vq);
 }
 
+/**
+ * vring_interrupt - notify a virtqueue on an interrupt
+ * @irq: the IRQ number (ignored)
+ * @_vq: the struct virtqueue to notify
+ *
+ * Calls the callback function of @_vq to process the virtqueue
+ * notification.
+ */
 irqreturn_t vring_interrupt(int irq, void *_vq)
 {
 	struct vring_virtqueue *vq = to_vvq(_vq);

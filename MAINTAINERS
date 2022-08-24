@@ -2178,7 +2178,7 @@ M:	Jean-Marie Verdun <verdun@hpe.com>
 M:	Nick Hawkins <nick.hawkins@hpe.com>
 S:	Maintained
 F:	Documentation/devicetree/bindings/arm/hpe,gxp.yaml
-F:	Documentation/devicetree/bindings/spi/hpe,gxp-spi.yaml
+F:	Documentation/devicetree/bindings/spi/hpe,gxp-spifi.yaml
 F:	Documentation/devicetree/bindings/timer/hpe,gxp-timer.yaml
 F:	arch/arm/boot/dts/hpe-bmc*
 F:	arch/arm/boot/dts/hpe-gxp*
@@ -5145,6 +5145,7 @@ T:	git git://git.samba.org/sfrench/cifs-2.6.git
 F:	Documentation/admin-guide/cifs/
 F:	fs/cifs/
 F:	fs/smbfs_common/
+F:	include/uapi/linux/cifs
 
 COMPACTPCI HOTPLUG CORE
 M:	Scott Murray <scott@spiteful.org>

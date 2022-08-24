@@ -2086,6 +2086,9 @@ static inline void ap_scan_adapter(int ap)
  */
 static bool ap_get_configuration(void)
 {
+	if (!ap_qci_info)	/* QCI not supported */
+		return false;
+
 	memcpy(ap_qci_info_old, ap_qci_info, sizeof(*ap_qci_info));
 	ap_fetch_qci_info(ap_qci_info);
 
