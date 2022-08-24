@@ -487,7 +487,7 @@ static int intel_overlay_release_old_vid(struct intel_overlay *overlay)
 
 void intel_overlay_reset(struct drm_i915_private *dev_priv)
 {
-	struct intel_overlay *overlay = dev_priv->overlay;
+	struct intel_overlay *overlay = dev_priv->display.overlay;
 
 	if (!overlay)
 		return;
@@ -1113,7 +1113,7 @@ int intel_overlay_put_image_ioctl(struct drm_device *dev, void *data,
 	struct drm_i915_gem_object *new_bo;
 	int ret;
 
-	overlay = dev_priv->overlay;
+	overlay = dev_priv->display.overlay;
 	if (!overlay) {
 		drm_dbg(&dev_priv->drm, "userspace bug: no overlay\n");
 		return -ENODEV;
@@ -1273,7 +1273,7 @@ int intel_overlay_attrs_ioctl(struct drm_device *dev, void *data,
 	struct intel_overlay *overlay;
 	int ret;
 
-	overlay = dev_priv->overlay;
+	overlay = dev_priv->display.overlay;
 	if (!overlay) {
 		drm_dbg(&dev_priv->drm, "userspace bug: no overlay\n");
 		return -ENODEV;
@@ -1416,7 +1416,7 @@ void intel_overlay_setup(struct drm_i915_private *dev_priv)
 	update_polyphase_filter(overlay->regs);
 	update_reg_attrs(overlay, overlay->regs);
 
-	dev_priv->overlay = overlay;
+	dev_priv->display.overlay = overlay;
 	drm_info(&dev_priv->drm, "Initialized overlay support.\n");
 	return;
 
@@ -1428,7 +1428,7 @@ void intel_overlay_cleanup(struct drm_i915_private *dev_priv)
 {
 	struct intel_overlay *overlay;
 
-	overlay = fetch_and_zero(&dev_priv->overlay);
+	overlay = fetch_and_zero(&dev_priv->display.overlay);
 	if (!overlay)
 		return;
 
@@ -1457,7 +1457,7 @@ struct intel_overlay_error_state {
 struct intel_overlay_error_state *
 intel_overlay_capture_error_state(struct drm_i915_private *dev_priv)
 {
-	struct intel_overlay *overlay = dev_priv->overlay;
+	struct intel_overlay *overlay = dev_priv->display.overlay;
 	struct intel_overlay_error_state *error;
 
 	if (!overlay || !overlay->active)

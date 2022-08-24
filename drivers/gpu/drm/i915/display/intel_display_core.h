@@ -31,6 +31,7 @@ struct intel_fbdev;
 struct intel_fdi_funcs;
 struct intel_hotplug_funcs;
 struct intel_initial_plane_config;
+struct intel_overlay;
 
 struct intel_display_funcs {
 	/*
@@ -242,6 +243,7 @@ struct intel_display {
 	struct intel_dmc dmc;
 	struct intel_dpll dpll;
 	struct intel_hotplug hotplug;
+	struct intel_overlay *overlay;
 	struct intel_wm wm;
 };
 

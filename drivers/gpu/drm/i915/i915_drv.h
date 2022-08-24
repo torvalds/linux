@@ -83,7 +83,6 @@ struct intel_connector;
 struct intel_dp;
 struct intel_encoder;
 struct intel_limit;
-struct intel_overlay;
 struct intel_overlay_error_state;
 struct vlv_s0ix_state;
 
@@ -342,9 +341,6 @@ struct drm_i915_private {
 	struct intel_vbt_data vbt;
 
 	bool preserve_bios_swizzle;
-
-	/* overlay */
-	struct intel_overlay *overlay;
 
 	/* backlight registers and fields in struct intel_panel */
 	struct mutex backlight_lock;
