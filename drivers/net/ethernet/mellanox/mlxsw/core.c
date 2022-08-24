@@ -1307,21 +1307,6 @@ mlxsw_devlink_sb_pool_set(struct devlink *devlink,
 					 extack);
 }
 
-static int mlxsw_devlink_port_type_set(struct devlink_port *devlink_port,
-				       enum devlink_port_type port_type)
-{
-	struct mlxsw_core *mlxsw_core = devlink_priv(devlink_port->devlink);
-	struct mlxsw_driver *mlxsw_driver = mlxsw_core->driver;
-	struct mlxsw_core_port *mlxsw_core_port = __dl_port(devlink_port);
-
-	if (!mlxsw_driver->port_type_set)
-		return -EOPNOTSUPP;
-
-	return mlxsw_driver->port_type_set(mlxsw_core,
-					   mlxsw_core_port->local_port,
-					   port_type);
-}
-
 static int mlxsw_devlink_sb_port_pool_get(struct devlink_port *devlink_port,
 					  unsigned int sb_index, u16 pool_index,
 					  u32 *p_threshold)
@@ -1652,7 +1637,6 @@ static const struct devlink_ops mlxsw_devlink_ops = {
 				  BIT(DEVLINK_RELOAD_ACTION_FW_ACTIVATE),
 	.reload_down		= mlxsw_devlink_core_bus_device_reload_down,
 	.reload_up		= mlxsw_devlink_core_bus_device_reload_up,
-	.port_type_set			= mlxsw_devlink_port_type_set,
 	.port_split			= mlxsw_devlink_port_split,
 	.port_unsplit			= mlxsw_devlink_port_unsplit,
 	.sb_pool_get			= mlxsw_devlink_sb_pool_get,
