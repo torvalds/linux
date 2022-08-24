@@ -45,11 +45,24 @@ const char *branch_new_type_name(int new_type)
 		"FAULT_ALGN",
 		"FAULT_DATA",
 		"FAULT_INST",
+/*
+ * TODO: This switch should happen on 'session->header.env.arch'
+ * instead, because an arm64 platform perf recording could be
+ * opened for analysis on other platforms as well.
+ */
+#ifdef __aarch64__
+		"ARM64_FIQ",
+		"ARM64_DEBUG_HALT",
+		"ARM64_DEBUG_EXIT",
+		"ARM64_DEBUG_INST",
+		"ARM64_DEBUG_DATA"
+#else
 		"ARCH_1",
 		"ARCH_2",
 		"ARCH_3",
 		"ARCH_4",
 		"ARCH_5"
+#endif
 	};
 
 	if (new_type >= 0 && new_type < PERF_BR_NEW_MAX)
