@@ -48,6 +48,8 @@ enum bkw_mmap_state {
 	BKW_MMAP_EMPTY,
 };
 
+struct event_enable_timer;
+
 struct evlist {
 	struct perf_evlist core;
 	bool		 enabled;
@@ -79,6 +81,7 @@ struct evlist {
 		int	ack;	/* ack file descriptor for control commands */
 		int	pos;	/* index at evlist core object to check signals */
 	} ctl_fd;
+	struct event_enable_timer *eet;
 };
 
 struct evsel_str_handler {
@@ -425,6 +428,12 @@ int evlist__ctlfd_ack(struct evlist *evlist);
 
 #define EVLIST_ENABLED_MSG "Events enabled\n"
 #define EVLIST_DISABLED_MSG "Events disabled\n"
+
+int evlist__parse_event_enable_time(struct evlist *evlist, struct record_opts *opts,
+				    const char *str, int unset);
+int event_enable_timer__start(struct event_enable_timer *eet);
+void event_enable_timer__exit(struct event_enable_timer **ep);
+int event_enable_timer__process(struct event_enable_timer *eet);
 
 struct evsel *evlist__find_evsel(struct evlist *evlist, int idx);
 

@@ -433,8 +433,10 @@ if combined with -a or -C options.
 -D::
 --delay=::
 After starting the program, wait msecs before measuring (-1: start with events
-disabled). This is useful to filter out the startup phase of the program, which
-is often very different.
+disabled), or enable events only for specified ranges of msecs (e.g.
+-D 10-20,30-40 means wait 10 msecs, enable for 10 msecs, wait 10 msecs, enable
+for 10 msecs, then stop). Note, delaying enabling of events is useful to filter
+out the startup phase of the program, which is often very different.
 
 -I::
 --intr-regs::

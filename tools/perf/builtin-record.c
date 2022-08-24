@@ -2502,6 +2502,10 @@ static int __cmd_record(struct record *rec, int argc, const char **argv)
 		}
 	}
 
+	err = event_enable_timer__start(rec->evlist->eet);
+	if (err)
+		goto out_child;
+
 	trigger_ready(&auxtrace_snapshot_trigger);
 	trigger_ready(&switch_output_trigger);
 	perf_hooks__invoke_record_start();
@@ -2623,6 +2627,14 @@ static int __cmd_record(struct record *rec, int argc, const char **argv)
 			default:
 				break;
 			}
+		}
+
+		err = event_enable_timer__process(rec->evlist->eet);
+		if (err < 0)
+			goto out_child;
+		if (err) {
+			err = 0;
+			done = 1;
 		}
 
 		/*
@@ -2846,6 +2858,12 @@ static int perf_record_config(const char *var, const char *value, void *cb)
 	return 0;
 }
 
+static int record__parse_event_enable_time(const struct option *opt, const char *str, int unset)
+{
+	struct record *rec = (struct record *)opt->value;
+
+	return evlist__parse_event_enable_time(rec->evlist, &rec->opts, str, unset);
+}
 
 static int record__parse_affinity(const struct option *opt, const char *str, int unset)
 {
@@ -3307,8 +3325,10 @@ static struct option __record_options[] = {
 	OPT_CALLBACK('G', "cgroup", &record.evlist, "name",
 		     "monitor event in cgroup name only",
 		     parse_cgroups),
-	OPT_INTEGER('D', "delay", &record.opts.initial_delay,
-		  "ms to wait before starting measurement after program start (-1: start with events disabled)"),
+	OPT_CALLBACK('D', "delay", &record, "ms",
+		     "ms to wait before starting measurement after program start (-1: start with events disabled), "
+		     "or ranges of time to enable events e.g. '-D 10-20,30-40'",
+		     record__parse_event_enable_time),
 	OPT_BOOLEAN(0, "kcore", &record.opts.kcore, "copy /proc/kcore"),
 	OPT_STRING('u', "uid", &record.opts.target.uid_str, "user",
 		   "user to profile"),
