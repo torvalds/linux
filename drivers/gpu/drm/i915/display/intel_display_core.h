@@ -9,6 +9,7 @@
 #include <linux/mutex.h>
 #include <linux/types.h>
 #include <linux/wait.h>
+#include <linux/workqueue.h>
 
 #include "intel_display.h"
 #include "intel_dmc.h"
@@ -25,6 +26,7 @@ struct intel_crtc;
 struct intel_crtc_state;
 struct intel_dpll_funcs;
 struct intel_dpll_mgr;
+struct intel_fbdev;
 struct intel_fdi_funcs;
 struct intel_hotplug_funcs;
 struct intel_initial_plane_config;
@@ -128,6 +130,12 @@ struct intel_display {
 	} funcs;
 
 	/* Grouping using anonymous structs. Keep sorted. */
+	struct {
+		/* list of fbdev register on this device */
+		struct intel_fbdev *fbdev;
+		struct work_struct suspend_work;
+	} fbdev;
+
 	struct {
 		/*
 		 * Base address of where the gmbus and gpio blocks are located

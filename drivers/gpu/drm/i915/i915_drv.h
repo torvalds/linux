@@ -83,7 +83,6 @@ struct intel_cdclk_vals;
 struct intel_connector;
 struct intel_dp;
 struct intel_encoder;
-struct intel_fbdev;
 struct intel_limit;
 struct intel_overlay;
 struct intel_overlay_error_state;
@@ -477,10 +476,6 @@ struct drm_i915_private {
 	struct i915_power_domains power_domains;
 
 	struct i915_gpu_error gpu_error;
-
-	/* list of fbdev register on this device */
-	struct intel_fbdev *fbdev;
-	struct work_struct fbdev_suspend_work;
 
 	struct drm_property *broadcast_rgb_property;
 	struct drm_property *force_audio_property;
