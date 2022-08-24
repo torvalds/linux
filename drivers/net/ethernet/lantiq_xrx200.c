@@ -239,6 +239,12 @@ static int xrx200_hw_receive(struct xrx200_chan *ch)
 	}
 
 	skb = build_skb(buf, priv->rx_skb_size);
+	if (!skb) {
+		skb_free_frag(buf);
+		net_dev->stats.rx_dropped++;
+		return -ENOMEM;
+	}
+
 	skb_reserve(skb, NET_SKB_PAD);
 	skb_put(skb, len);
 
