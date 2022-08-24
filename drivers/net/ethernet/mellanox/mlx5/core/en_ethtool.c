@@ -38,6 +38,7 @@
 #include "en/xsk/pool.h"
 #include "en/ptp.h"
 #include "lib/clock.h"
+#include "en/fs_ethtool.h"
 
 void mlx5e_ethtool_get_drvinfo(struct mlx5e_priv *priv,
 			       struct ethtool_drvinfo *drvinfo)
@@ -494,14 +495,14 @@ int mlx5e_ethtool_set_channels(struct mlx5e_priv *priv,
 
 	arfs_enabled = opened && (priv->netdev->features & NETIF_F_NTUPLE);
 	if (arfs_enabled)
-		mlx5e_arfs_disable(priv);
+		mlx5e_arfs_disable(priv->fs);
 
 	/* Switch to new channels, set new parameters and close old ones */
 	err = mlx5e_safe_switch_params(priv, &new_params,
 				       mlx5e_num_channels_changed_ctx, NULL, true);
 
 	if (arfs_enabled) {
-		int err2 = mlx5e_arfs_enable(priv);
+		int err2 = mlx5e_arfs_enable(priv->fs);
 
 		if (err2)
 			netdev_err(priv->netdev, "%s: mlx5e_arfs_enable failed: %d\n",

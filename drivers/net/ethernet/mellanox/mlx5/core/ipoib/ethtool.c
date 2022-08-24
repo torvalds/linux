@@ -32,6 +32,7 @@
 
 #include "en.h"
 #include "ipoib.h"
+#include "en/fs_ethtool.h"
 
 static void mlx5i_get_drvinfo(struct net_device *dev,
 			      struct ethtool_drvinfo *drvinfo)

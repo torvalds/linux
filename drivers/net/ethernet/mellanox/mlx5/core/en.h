@@ -856,11 +856,6 @@ enum {
 	MLX5E_STATE_XDP_ACTIVE,
 };
 
-enum {
-	MLX5E_TC_PRIO = 0,
-	MLX5E_NIC_PRIO
-};
-
 struct mlx5e_modify_sq_param {
 	int curr_state;
 	int next_state;
