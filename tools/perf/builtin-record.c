@@ -1198,18 +1198,7 @@ static int record__alloc_thread_data(struct record *rec, struct evlist *evlist)
 			if (ret < 0)
 				goto out_free;
 
-			if (evlist->ctl_fd.pos == -1)
-				continue;
-			ret = fdarray__dup_entry_from(&thread_data[t].pollfd, evlist->ctl_fd.pos,
-						      &evlist->core.pollfd);
-			if (ret < 0) {
-				pr_err("Failed to duplicate descriptor in main thread pollfd\n");
-				goto out_free;
-			}
-			thread_data[t].ctlfd_pos = ret;
-			pr_debug2("thread_data[%p]: pollfd[%d] <- ctl_fd=%d\n",
-				 thread_data, thread_data[t].ctlfd_pos,
-				 evlist->core.pollfd.entries[evlist->ctl_fd.pos].fd);
+			thread_data[t].ctlfd_pos = -1; /* Not used */
 		}
 	}
 
@@ -2614,8 +2603,6 @@ static int __cmd_record(struct record *rec, int argc, const char **argv)
 			err = record__update_evlist_pollfd_from_thread(rec, rec->evlist, thread);
 			if (err)
 				goto out_child;
-			evlist__ctlfd_update(rec->evlist,
-				&thread->pollfd.entries[thread->ctlfd_pos]);
 		}
 
 		if (evlist__ctlfd_process(rec->evlist, &cmd) > 0) {

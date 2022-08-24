@@ -1898,7 +1898,8 @@ int evlist__initialize_ctlfd(struct evlist *evlist, int fd, int ack)
 	}
 
 	evlist->ctl_fd.pos = perf_evlist__add_pollfd(&evlist->core, fd, NULL, POLLIN,
-						     fdarray_flag__nonfilterable);
+						     fdarray_flag__nonfilterable |
+						     fdarray_flag__non_perf_event);
 	if (evlist->ctl_fd.pos < 0) {
 		evlist->ctl_fd.pos = -1;
 		pr_err("Failed to add ctl fd entry: %m\n");
@@ -2146,22 +2147,6 @@ int evlist__ctlfd_process(struct evlist *evlist, enum evlist_ctl_cmd *cmd)
 		entries[ctlfd_pos].revents = 0;
 
 	return err;
-}
-
-int evlist__ctlfd_update(struct evlist *evlist, struct pollfd *update)
-{
-	int ctlfd_pos = evlist->ctl_fd.pos;
-	struct pollfd *entries = evlist->core.pollfd.entries;
-
-	if (!evlist__ctlfd_initialized(evlist))
-		return 0;
-
-	if (entries[ctlfd_pos].fd != update->fd ||
-	    entries[ctlfd_pos].events != update->events)
-		return -1;
-
-	entries[ctlfd_pos].revents = update->revents;
-	return 0;
 }
 
 struct evsel *evlist__find_evsel(struct evlist *evlist, int idx)
