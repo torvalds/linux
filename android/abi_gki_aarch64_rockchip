@@ -1400,6 +1400,9 @@
   mmc_sw_reset
   mmc_wait_for_req
   netdev_update_features
+  netif_napi_add
+  __netif_napi_del
+  netif_set_xps_queue
   __netlink_kernel_create
   netlink_kernel_release
   nla_append
