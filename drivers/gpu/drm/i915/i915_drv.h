@@ -451,15 +451,6 @@ struct drm_i915_private {
 	struct i915_suspend_saved_registers regfile;
 	struct vlv_s0ix_state *vlv_s0ix_state;
 
-	enum {
-		I915_SAGV_UNKNOWN = 0,
-		I915_SAGV_DISABLED,
-		I915_SAGV_ENABLED,
-		I915_SAGV_NOT_CONTROLLED
-	} sagv_status;
-
-	u32 sagv_block_time_us;
-
 	struct dram_info {
 		bool wm_lv_0_adjust_needed;
 		u8 num_channels;

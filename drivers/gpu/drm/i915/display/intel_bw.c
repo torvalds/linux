@@ -378,9 +378,9 @@ static int icl_get_bw_info(struct drm_i915_private *dev_priv, const struct intel
 	 * as it will fail and pointless anyway.
 	 */
 	if (qi.num_points == 1)
-		dev_priv->sagv_status = I915_SAGV_NOT_CONTROLLED;
+		dev_priv->display.sagv.status = I915_SAGV_NOT_CONTROLLED;
 	else
-		dev_priv->sagv_status = I915_SAGV_ENABLED;
+		dev_priv->display.sagv.status = I915_SAGV_ENABLED;
 
 	return 0;
 }
@@ -490,9 +490,9 @@ static int tgl_get_bw_info(struct drm_i915_private *dev_priv, const struct intel
 	 * as it will fail and pointless anyway.
 	 */
 	if (qi.num_points == 1)
-		dev_priv->sagv_status = I915_SAGV_NOT_CONTROLLED;
+		dev_priv->display.sagv.status = I915_SAGV_NOT_CONTROLLED;
 	else
-		dev_priv->sagv_status = I915_SAGV_ENABLED;
+		dev_priv->display.sagv.status = I915_SAGV_ENABLED;
 
 	return 0;
 }
@@ -519,7 +519,7 @@ static void dg2_get_bw_info(struct drm_i915_private *i915)
 		bi->deratedbw[0] = deratedbw;
 	}
 
-	i915->sagv_status = I915_SAGV_NOT_CONTROLLED;
+	i915->display.sagv.status = I915_SAGV_NOT_CONTROLLED;
 }
 
 static unsigned int icl_max_bw(struct drm_i915_private *dev_priv,

@@ -3692,7 +3692,7 @@ static bool
 intel_has_sagv(struct drm_i915_private *dev_priv)
 {
 	return DISPLAY_VER(dev_priv) >= 9 && !IS_LP(dev_priv) &&
-		dev_priv->sagv_status != I915_SAGV_NOT_CONTROLLED;
+		dev_priv->display.sagv.status != I915_SAGV_NOT_CONTROLLED;
 }
 
 static u32
@@ -3723,7 +3723,7 @@ intel_sagv_block_time(struct drm_i915_private *dev_priv)
 static void intel_sagv_init(struct drm_i915_private *i915)
 {
 	if (!intel_has_sagv(i915))
-		i915->sagv_status = I915_SAGV_NOT_CONTROLLED;
+		i915->display.sagv.status = I915_SAGV_NOT_CONTROLLED;
 
 	/*
 	 * Probe to see if we have working SAGV control.
@@ -3732,21 +3732,21 @@ static void intel_sagv_init(struct drm_i915_private *i915)
 	if (DISPLAY_VER(i915) < 11)
 		skl_sagv_disable(i915);
 
-	drm_WARN_ON(&i915->drm, i915->sagv_status == I915_SAGV_UNKNOWN);
+	drm_WARN_ON(&i915->drm, i915->display.sagv.status == I915_SAGV_UNKNOWN);
 
-	i915->sagv_block_time_us = intel_sagv_block_time(i915);
+	i915->display.sagv.block_time_us = intel_sagv_block_time(i915);
 
 	drm_dbg_kms(&i915->drm, "SAGV supported: %s, original SAGV block time: %u us\n",
-		    str_yes_no(intel_has_sagv(i915)), i915->sagv_block_time_us);
+		    str_yes_no(intel_has_sagv(i915)), i915->display.sagv.block_time_us);
 
 	/* avoid overflow when adding with wm0 latency/etc. */
-	if (drm_WARN(&i915->drm, i915->sagv_block_time_us > U16_MAX,
+	if (drm_WARN(&i915->drm, i915->display.sagv.block_time_us > U16_MAX,
 		     "Excessive SAGV block time %u, ignoring\n",
-		     i915->sagv_block_time_us))
-		i915->sagv_block_time_us = 0;
+		     i915->display.sagv.block_time_us))
+		i915->display.sagv.block_time_us = 0;
 
 	if (!intel_has_sagv(i915))
-		i915->sagv_block_time_us = 0;
+		i915->display.sagv.block_time_us = 0;
 }
 
 /*
@@ -3767,7 +3767,7 @@ static void skl_sagv_enable(struct drm_i915_private *dev_priv)
 	if (!intel_has_sagv(dev_priv))
 		return;
 
-	if (dev_priv->sagv_status == I915_SAGV_ENABLED)
+	if (dev_priv->display.sagv.status == I915_SAGV_ENABLED)
 		return;
 
 	drm_dbg_kms(&dev_priv->drm, "Enabling SAGV\n");
@@ -3782,14 +3782,14 @@ static void skl_sagv_enable(struct drm_i915_private *dev_priv)
 	 */
 	if (IS_SKYLAKE(dev_priv) && ret == -ENXIO) {
 		drm_dbg(&dev_priv->drm, "No SAGV found on system, ignoring\n");
-		dev_priv->sagv_status = I915_SAGV_NOT_CONTROLLED;
+		dev_priv->display.sagv.status = I915_SAGV_NOT_CONTROLLED;
 		return;
 	} else if (ret < 0) {
 		drm_err(&dev_priv->drm, "Failed to enable SAGV\n");
 		return;
 	}
 
-	dev_priv->sagv_status = I915_SAGV_ENABLED;
+	dev_priv->display.sagv.status = I915_SAGV_ENABLED;
 }
 
 static void skl_sagv_disable(struct drm_i915_private *dev_priv)
@@ -3799,7 +3799,7 @@ static void skl_sagv_disable(struct drm_i915_private *dev_priv)
 	if (!intel_has_sagv(dev_priv))
 		return;
 
-	if (dev_priv->sagv_status == I915_SAGV_DISABLED)
+	if (dev_priv->display.sagv.status == I915_SAGV_DISABLED)
 		return;
 
 	drm_dbg_kms(&dev_priv->drm, "Disabling SAGV\n");
@@ -3814,14 +3814,14 @@ static void skl_sagv_disable(struct drm_i915_private *dev_priv)
 	 */
 	if (IS_SKYLAKE(dev_priv) && ret == -ENXIO) {
 		drm_dbg(&dev_priv->drm, "No SAGV found on system, ignoring\n");
-		dev_priv->sagv_status = I915_SAGV_NOT_CONTROLLED;
+		dev_priv->display.sagv.status = I915_SAGV_NOT_CONTROLLED;
 		return;
 	} else if (ret < 0) {
 		drm_err(&dev_priv->drm, "Failed to disable SAGV (%d)\n", ret);
 		return;
 	}
 
-	dev_priv->sagv_status = I915_SAGV_DISABLED;
+	dev_priv->display.sagv.status = I915_SAGV_DISABLED;
 }
 
 static void skl_sagv_pre_plane_update(struct intel_atomic_state *state)
@@ -5583,8 +5583,8 @@ static void skl_compute_plane_wm(const struct intel_crtc_state *crtc_state,
 	result->min_ddb_alloc = max(min_ddb_alloc, blocks) + 1;
 	result->enable = true;
 
-	if (DISPLAY_VER(dev_priv) < 12 && dev_priv->sagv_block_time_us)
-		result->can_sagv = latency >= dev_priv->sagv_block_time_us;
+	if (DISPLAY_VER(dev_priv) < 12 && dev_priv->display.sagv.block_time_us)
+		result->can_sagv = latency >= dev_priv->display.sagv.block_time_us;
 }
 
 static void
@@ -5618,8 +5618,8 @@ static void tgl_compute_sagv_wm(const struct intel_crtc_state *crtc_state,
 	struct skl_wm_level *levels = plane_wm->wm;
 	unsigned int latency = 0;
 
-	if (dev_priv->sagv_block_time_us)
-		latency = dev_priv->sagv_block_time_us + dev_priv->display.wm.skl_latency[0];
+	if (dev_priv->display.sagv.block_time_us)
+		latency = dev_priv->display.sagv.block_time_us + dev_priv->display.wm.skl_latency[0];
 
 	skl_compute_plane_wm(crtc_state, plane, 0, latency,
 			     wm_params, &levels[0],

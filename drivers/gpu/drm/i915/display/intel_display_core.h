@@ -238,6 +238,17 @@ struct intel_display {
 		struct mutex mutex;
 	} pps;
 
+	struct {
+		enum {
+			I915_SAGV_UNKNOWN = 0,
+			I915_SAGV_DISABLED,
+			I915_SAGV_ENABLED,
+			I915_SAGV_NOT_CONTROLLED
+		} status;
+
+		u32 block_time_us;
+	} sagv;
+
 	/* Grouping using named structs. Keep sorted. */
 	struct intel_audio audio;
 	struct intel_dmc dmc;
