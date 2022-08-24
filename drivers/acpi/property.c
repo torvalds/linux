@@ -370,7 +370,7 @@ static bool acpi_tie_nondev_subnodes(struct acpi_device_data *data)
 		bool ret;
 
 		status = acpi_attach_data(dn->handle, acpi_nondev_subnode_tag, dn);
-		if (ACPI_FAILURE(status)) {
+		if (ACPI_FAILURE(status) && status != AE_ALREADY_EXISTS) {
 			acpi_handle_err(dn->handle, "Can't tag data node\n");
 			return false;
 		}
