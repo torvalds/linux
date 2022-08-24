@@ -2,14 +2,11 @@
 #ifndef PARSE_CTX_H
 #define PARSE_CTX_H 1
 
-// There are fixes that need to land upstream before we can use libbpf's headers,
-// for now use our copy unconditionally, since the data structures at this point
-// are exactly the same, no problem.
-//#ifdef HAVE_LIBBPF_SUPPORT
-//#include <bpf/hashmap.h>
-//#else
+#ifdef HAVE_LIBBPF_SUPPORT
+#include <bpf/hashmap.h>
+#else
 #include "util/hashmap.h"
-//#endif
+#endif
 
 struct metric_ref;
 
