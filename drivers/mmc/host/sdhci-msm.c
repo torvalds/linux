@@ -2389,6 +2389,11 @@ static int sdhci_msm_setup_vreg(struct sdhci_msm_host *msm_host,
 	if (!enable && vreg_table[1]->is_always_on && !mmc->card)
 		vreg_table[1]->is_always_on = false;
 
+	/* Disable always_on regulator during reboot/shutdown */
+	if (mmc->card &&
+		mmc->card->ext_csd.power_off_notification == EXT_CSD_NO_POWER_NOTIFICATION)
+		vreg_table[1]->is_always_on = false;
+
 	for (i = 0; i < ARRAY_SIZE(vreg_table); i++) {
 		if (vreg_table[i]) {
 			if (enable)
