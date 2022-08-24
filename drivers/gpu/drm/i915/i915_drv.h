@@ -107,10 +107,11 @@ struct sdvo_device_mapping {
 
 #define I915_COLOR_UNEVICTABLE (-1) /* a non-vma sharing the address space */
 
+#define GEM_QUIRK_PIN_SWIZZLED_PAGES	BIT(0)
+
 #define QUIRK_LVDS_SSC_DISABLE (1<<1)
 #define QUIRK_INVERT_BRIGHTNESS (1<<2)
 #define QUIRK_BACKLIGHT_PRESENT (1<<3)
-#define QUIRK_PIN_SWIZZLED_PAGES (1<<5)
 #define QUIRK_INCREASE_T12_DELAY (1<<6)
 #define QUIRK_INCREASE_DDI_DISABLED_TIME (1<<7)
 #define QUIRK_NO_PPS_BACKLIGHT_POWER_HOOK (1<<8)
@@ -392,6 +393,7 @@ struct drm_i915_private {
 	enum intel_pch pch_type;
 	unsigned short pch_id;
 
+	unsigned long gem_quirks;
 	unsigned long quirks;
 
 	struct drm_atomic_state *modeset_restore_state;

@@ -1035,7 +1035,7 @@ i915_gem_madvise_ioctl(struct drm_device *dev, void *data,
 
 	if (i915_gem_object_has_pages(obj) &&
 	    i915_gem_object_is_tiled(obj) &&
-	    i915->quirks & QUIRK_PIN_SWIZZLED_PAGES) {
+	    i915->gem_quirks & GEM_QUIRK_PIN_SWIZZLED_PAGES) {
 		if (obj->mm.madv == I915_MADV_WILLNEED) {
 			GEM_BUG_ON(!i915_gem_object_has_tiling_quirk(obj));
 			i915_gem_object_clear_tiling_quirk(obj);

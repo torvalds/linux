@@ -410,7 +410,7 @@ static int i915_swizzle_info(struct seq_file *m, void *data)
 	seq_printf(m, "bit6 swizzle for Y-tiling = %s\n",
 		   swizzle_string(to_gt(dev_priv)->ggtt->bit_6_swizzle_y));
 
-	if (dev_priv->quirks & QUIRK_PIN_SWIZZLED_PAGES)
+	if (dev_priv->gem_quirks & GEM_QUIRK_PIN_SWIZZLED_PAGES)
 		seq_puts(m, "L-shaped memory detected\n");
 
 	/* On BDW+, swizzling is not used. See detect_bit_6_swizzle() */
