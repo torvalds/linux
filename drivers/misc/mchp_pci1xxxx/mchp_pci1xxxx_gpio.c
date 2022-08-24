@@ -9,6 +9,7 @@
 #include <linux/spinlock.h>
 #include <linux/mutex.h>
 #include <linux/kthread.h>
+#include <linux/interrupt.h>
 
 #include "mchp_pci1xxxx_gp.h"
 
@@ -20,6 +21,13 @@
 #define PULLUP_OFFSET(x)		((((x) / 32) * 4) + 0x400 + 0x40)
 #define PULLDOWN_OFFSET(x)		((((x) / 32) * 4) + 0x400 + 0x50)
 #define OPENDRAIN_OFFSET(x)		((((x) / 32) * 4) + 0x400 + 0x60)
+#define WAKEMASK_OFFSET(x)		((((x) / 32) * 4) + 0x400 + 0x70)
+#define MODE_OFFSET(x)			((((x) / 32) * 4) + 0x400 + 0x80)
+#define INTR_LO_TO_HI_EDGE_CONFIG(x)	((((x) / 32) * 4) + 0x400 + 0x90)
+#define INTR_HI_TO_LO_EDGE_CONFIG(x)	((((x) / 32) * 4) + 0x400 + 0xA0)
+#define INTR_LEVEL_CONFIG_OFFSET(x)	((((x) / 32) * 4) + 0x400 + 0xB0)
+#define INTR_LEVEL_MASK_OFFSET(x)	((((x) / 32) * 4) + 0x400 + 0xC0)
+#define INTR_STAT_OFFSET(x)		((((x) / 32) * 4) + 0x400 + 0xD0)
 #define DEBOUNCE_OFFSET(x)		((((x) / 32) * 4) + 0x400 + 0xE0)
 #define PIO_GLOBAL_CONFIG_OFFSET	(0x400 + 0xF0)
 #define PIO_PCI_CTRL_REG_OFFSET	(0x400 + 0xF4)
@@ -148,9 +156,146 @@ static int pci1xxxx_gpio_set_config(struct gpio_chip *gpio, unsigned int offset,
 	return ret;
 }
 
+static void pci1xxxx_gpio_irq_ack(struct irq_data *data)
+{
+	struct gpio_chip *chip = irq_data_get_irq_chip_data(data);
+	struct pci1xxxx_gpio *priv = gpiochip_get_data(chip);
+	unsigned int gpio = irqd_to_hwirq(data);
+	unsigned long flags;
+
+	spin_lock_irqsave(&priv->lock, flags);
+	pci1xxx_assign_bit(priv->reg_base, INTR_STAT_OFFSET(gpio), (gpio % 32), true);
+	spin_unlock_irqrestore(&priv->lock, flags);
+}
+
+static void pci1xxxx_gpio_irq_set_mask(struct irq_data *data, bool set)
+{
+	struct gpio_chip *chip = irq_data_get_irq_chip_data(data);
+	struct pci1xxxx_gpio *priv = gpiochip_get_data(chip);
+	unsigned int gpio = irqd_to_hwirq(data);
+	unsigned long flags;
+
+	spin_lock_irqsave(&priv->lock, flags);
+	pci1xxx_assign_bit(priv->reg_base, INTR_MASK_OFFSET(gpio), (gpio % 32), set);
+	spin_unlock_irqrestore(&priv->lock, flags);
+}
+
+static void pci1xxxx_gpio_irq_mask(struct irq_data *data)
+{
+	pci1xxxx_gpio_irq_set_mask(data, true);
+}
+
+static void pci1xxxx_gpio_irq_unmask(struct irq_data *data)
+{
+	pci1xxxx_gpio_irq_set_mask(data, false);
+}
+
+static int pci1xxxx_gpio_set_type(struct irq_data *data, unsigned int trigger_type)
+{
+	struct gpio_chip *chip = irq_data_get_irq_chip_data(data);
+	struct pci1xxxx_gpio *priv = gpiochip_get_data(chip);
+	unsigned int gpio = irqd_to_hwirq(data);
+	unsigned int bitpos = gpio % 32;
+
+	if (trigger_type & IRQ_TYPE_EDGE_FALLING) {
+		pci1xxx_assign_bit(priv->reg_base, INTR_HI_TO_LO_EDGE_CONFIG(gpio),
+				   bitpos, false);
+		pci1xxx_assign_bit(priv->reg_base, MODE_OFFSET(gpio),
+				   bitpos, false);
+		irq_set_handler_locked(data, handle_edge_irq);
+	} else {
+		pci1xxx_assign_bit(priv->reg_base, INTR_HI_TO_LO_EDGE_CONFIG(gpio),
+				   bitpos, true);
+	}
+
+	if (trigger_type & IRQ_TYPE_EDGE_RISING) {
+		pci1xxx_assign_bit(priv->reg_base, INTR_LO_TO_HI_EDGE_CONFIG(gpio),
+				   bitpos, false);
+		pci1xxx_assign_bit(priv->reg_base, MODE_OFFSET(gpio), bitpos,
+				   false);
+		irq_set_handler_locked(data, handle_edge_irq);
+	} else {
+		pci1xxx_assign_bit(priv->reg_base, INTR_LO_TO_HI_EDGE_CONFIG(gpio),
+				   bitpos, true);
+	}
+
+	if (trigger_type & IRQ_TYPE_LEVEL_LOW) {
+		pci1xxx_assign_bit(priv->reg_base, INTR_LEVEL_CONFIG_OFFSET(gpio),
+				   bitpos, true);
+		pci1xxx_assign_bit(priv->reg_base, INTR_LEVEL_MASK_OFFSET(gpio),
+				   bitpos, false);
+		pci1xxx_assign_bit(priv->reg_base, MODE_OFFSET(gpio), bitpos,
+				   true);
+		irq_set_handler_locked(data, handle_edge_irq);
+	}
+
+	if (trigger_type & IRQ_TYPE_LEVEL_HIGH) {
+		pci1xxx_assign_bit(priv->reg_base, INTR_LEVEL_CONFIG_OFFSET(gpio),
+				   bitpos, false);
+		pci1xxx_assign_bit(priv->reg_base, INTR_LEVEL_MASK_OFFSET(gpio),
+				   bitpos, false);
+		pci1xxx_assign_bit(priv->reg_base, MODE_OFFSET(gpio), bitpos,
+				   true);
+		irq_set_handler_locked(data, handle_edge_irq);
+	}
+
+	if ((!(trigger_type & IRQ_TYPE_LEVEL_LOW)) && (!(trigger_type & IRQ_TYPE_LEVEL_HIGH)))
+		pci1xxx_assign_bit(priv->reg_base, INTR_LEVEL_MASK_OFFSET(gpio), bitpos, true);
+
+	return true;
+}
+
+static irqreturn_t pci1xxxx_gpio_irq_handler(int irq, void *dev_id)
+{
+	struct pci1xxxx_gpio *priv = dev_id;
+	struct gpio_chip *gc =  &priv->gpio;
+	unsigned long int_status = 0;
+	unsigned long flags;
+	u8 pincount;
+	int bit;
+	u8 gpiobank;
+
+	spin_lock_irqsave(&priv->lock, flags);
+	pci1xxx_assign_bit(priv->reg_base, PIO_GLOBAL_CONFIG_OFFSET, 16, true);
+	spin_unlock_irqrestore(&priv->lock, flags);
+	for (gpiobank = 0; gpiobank < 3; gpiobank++) {
+		spin_lock_irqsave(&priv->lock, flags);
+		int_status = readl(priv->reg_base + INTR_STATUS_OFFSET(gpiobank));
+		spin_unlock_irqrestore(&priv->lock, flags);
+		if (gpiobank == 2)
+			pincount = 29;
+		else
+			pincount = 32;
+		for_each_set_bit(bit, &int_status, pincount) {
+			unsigned int irq;
+
+			spin_lock_irqsave(&priv->lock, flags);
+			writel(BIT(bit), priv->reg_base + INTR_STATUS_OFFSET(gpiobank));
+			spin_unlock_irqrestore(&priv->lock, flags);
+			irq = irq_find_mapping(gc->irq.domain, (bit + (gpiobank * 32)));
+			generic_handle_irq(irq);
+		}
+	}
+	spin_lock_irqsave(&priv->lock, flags);
+	pci1xxx_assign_bit(priv->reg_base, PIO_GLOBAL_CONFIG_OFFSET, 16, false);
+	spin_unlock_irqrestore(&priv->lock, flags);
+
+	return IRQ_HANDLED;
+}
+
+static struct irq_chip pci1xxxx_gpio_irqchip = {
+	.name = "pci1xxxx_gpio",
+	.irq_ack = pci1xxxx_gpio_irq_ack,
+	.irq_mask = pci1xxxx_gpio_irq_mask,
+	.irq_unmask = pci1xxxx_gpio_irq_unmask,
+	.irq_set_type = pci1xxxx_gpio_set_type,
+};
+
 static int pci1xxxx_gpio_setup(struct pci1xxxx_gpio *priv, int irq)
 {
 	struct gpio_chip *gchip = &priv->gpio;
+	struct gpio_irq_chip *girq;
+	int retval;
 
 	gchip->label = dev_name(&priv->aux_dev->dev);
 	gchip->parent = &priv->aux_dev->dev;
@@ -166,6 +311,20 @@ static int pci1xxxx_gpio_setup(struct pci1xxxx_gpio *priv, int irq)
 	gchip->ngpio =  PCI1XXXX_NR_PINS;
 	gchip->can_sleep = false;
 
+	retval = devm_request_threaded_irq(&priv->aux_dev->dev, irq,
+					   NULL, pci1xxxx_gpio_irq_handler,
+					   IRQF_ONESHOT, "PCI1xxxxGPIO", priv);
+
+	if (retval)
+		return retval;
+
+	girq = &priv->gpio.irq;
+	girq->chip = &pci1xxxx_gpio_irqchip;
+	girq->parent_handler = NULL;
+	girq->num_parents = 0;
+	girq->parents = NULL;
+	girq->default_type = IRQ_TYPE_NONE;
+	girq->handler = handle_bad_irq;
 	return 0;
 }
 
