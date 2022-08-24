@@ -1907,8 +1907,7 @@ early_param("memblock", early_memblock);
 
 static int __init early_memblock_nomap(char *str)
 {
-	kstrtobool(str, &memblock_nomap_remove);
-	return 0;
+	return kstrtobool(str, &memblock_nomap_remove);
 }
 early_param("android12_only.will_be_removed_soon.memblock_nomap_remove", early_memblock_nomap);
 
