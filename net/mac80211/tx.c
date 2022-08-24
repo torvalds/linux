@@ -3772,8 +3772,8 @@ begin:
 			     !test_sta_flag(tx.sta, WLAN_STA_AUTHORIZED) &&
 			     (!(info->control.flags &
 				IEEE80211_TX_CTRL_PORT_CTRL_PROTO) ||
-			      !ether_addr_equal(tx.sdata->vif.addr,
-						hdr->addr2)))) {
+			      !ieee80211_is_our_addr(tx.sdata, hdr->addr2,
+						     NULL)))) {
 			I802_DEBUG_INC(local->tx_handlers_drop_unauth_port);
 			ieee80211_free_txskb(&local->hw, skb);
 			goto begin;
