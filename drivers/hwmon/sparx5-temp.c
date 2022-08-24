@@ -26,13 +26,6 @@ struct s5_hwmon {
 	struct clk *clk;
 };
 
-static void s5_temp_clk_disable(void *data)
-{
-	struct clk *clk = data;
-
-	clk_disable_unprepare(clk);
-}
-
 static void s5_temp_enable(struct s5_hwmon *hwmon)
 {
 	u32 val = readl(hwmon->base + TEMP_CFG);
@@ -113,7 +106,6 @@ static int s5_temp_probe(struct platform_device *pdev)
 {
 	struct device *hwmon_dev;
 	struct s5_hwmon *hwmon;
-	int ret;
 
 	hwmon = devm_kzalloc(&pdev->dev, sizeof(*hwmon), GFP_KERNEL);
 	if (!hwmon)
@@ -123,18 +115,9 @@ static int s5_temp_probe(struct platform_device *pdev)
 	if (IS_ERR(hwmon->base))
 		return PTR_ERR(hwmon->base);
 
-	hwmon->clk = devm_clk_get(&pdev->dev, NULL);
+	hwmon->clk = devm_clk_get_enabled(&pdev->dev, NULL);
 	if (IS_ERR(hwmon->clk))
 		return PTR_ERR(hwmon->clk);
-
-	ret = clk_prepare_enable(hwmon->clk);
-	if (ret)
-		return ret;
-
-	ret = devm_add_action_or_reset(&pdev->dev, s5_temp_clk_disable,
-				       hwmon->clk);
-	if (ret)
-		return ret;
 
 	s5_temp_enable(hwmon);
 
