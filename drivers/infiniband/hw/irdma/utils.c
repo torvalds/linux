@@ -2598,7 +2598,7 @@ void irdma_generate_flush_completions(struct irdma_qp *iwqp)
 		spin_unlock_irqrestore(&iwqp->lock, flags2);
 		spin_unlock_irqrestore(&iwqp->iwscq->lock, flags1);
 		if (compl_generated)
-			irdma_comp_handler(iwqp->iwrcq);
+			irdma_comp_handler(iwqp->iwscq);
 	} else {
 		spin_unlock_irqrestore(&iwqp->iwscq->lock, flags1);
 		mod_delayed_work(iwqp->iwdev->cleanup_wq, &iwqp->dwork_flush,
