@@ -43,8 +43,8 @@ static const struct rtl819x_ops rtl819xp_ops = {
 	.rx_enable			= rtl92e_enable_rx,
 	.tx_enable			= rtl92e_enable_tx,
 	.interrupt_recognized		= rtl92e_ack_irq,
-	.TxCheckStuckHandler		= rtl92e_is_tx_stuck,
-	.RxCheckStuckHandler		= rtl92e_is_rx_stuck,
+	.tx_check_stuck_handler	= rtl92e_is_tx_stuck,
+	.rx_check_stuck_handler	= rtl92e_is_rx_stuck,
 };
 
 static struct pci_device_id rtl8192_pci_id_tbl[] = {
@@ -1143,7 +1143,7 @@ static enum reset_type _rtl92e_tx_check_stuck(struct net_device *dev)
 	spin_unlock_irqrestore(&priv->irq_th_lock, flags);
 
 	if (bCheckFwTxCnt) {
-		if (priv->ops->TxCheckStuckHandler(dev)) {
+		if (priv->ops->tx_check_stuck_handler(dev)) {
 			RT_TRACE(COMP_RESET,
 				 "TxCheckStuck(): Fw indicates no Tx condition!\n");
 			return RESET_TYPE_SILENT;
@@ -1157,7 +1157,7 @@ static enum reset_type _rtl92e_rx_check_stuck(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 
-	if (priv->ops->RxCheckStuckHandler(dev)) {
+	if (priv->ops->rx_check_stuck_handler(dev)) {
 		RT_TRACE(COMP_RESET, "RxStuck Condition\n");
 		return RESET_TYPE_SILENT;
 	}
