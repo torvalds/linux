@@ -79,7 +79,6 @@ struct dpll;
 struct drm_i915_clock_gating_funcs;
 struct drm_i915_gem_object;
 struct drm_i915_private;
-struct intel_audio_funcs;
 struct intel_cdclk_config;
 struct intel_cdclk_state;
 struct intel_cdclk_vals;
@@ -305,29 +304,6 @@ struct i915_virtual_gpu {
 struct i915_selftest_stash {
 	atomic_t counter;
 	struct ida mock_region_instances;
-};
-
-/* intel_audio.c private */
-struct intel_audio_private {
-	/* Display internal audio functions */
-	const struct intel_audio_funcs *funcs;
-
-	/* hda/i915 audio component */
-	struct i915_audio_component *component;
-	bool component_registered;
-	/* mutex for audio/video sync */
-	struct mutex mutex;
-	int power_refcount;
-	u32 freq_cntrl;
-
-	/* Used to save the pipe-to-encoder mapping for audio */
-	struct intel_encoder *encoder_map[I915_MAX_PIPES];
-
-	/* necessary resource sharing with HDMI LPE audio driver. */
-	struct {
-		struct platform_device *platdev;
-		int irq;
-	} lpe;
 };
 
 struct drm_i915_private {
@@ -674,8 +650,6 @@ struct drm_i915_private {
 	};
 
 	bool ipc_enabled;
-
-	struct intel_audio_private audio;
 
 	struct i915_pmu pmu;
 
