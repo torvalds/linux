@@ -294,7 +294,7 @@ static int xrx200_poll_rx(struct napi_struct *napi, int budget)
 			if (ret == XRX200_DMA_PACKET_IN_PROGRESS)
 				continue;
 			if (ret != XRX200_DMA_PACKET_COMPLETE)
-				return ret;
+				break;
 			rx++;
 		} else {
 			break;
