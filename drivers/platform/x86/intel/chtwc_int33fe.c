@@ -219,7 +219,7 @@ static int cht_int33fe_add_nodes(struct cht_int33fe_data *data)
 
 	/*
 	 * Update node used in "usb-role-switch" property. Note that we
-	 * rely on software_node_register_nodes() to use the original
+	 * rely on software_node_register_node_group() to use the original
 	 * instance of properties instead of copying them.
 	 */
 	fusb302_mux_refs[0].node = mux_ref_node;
