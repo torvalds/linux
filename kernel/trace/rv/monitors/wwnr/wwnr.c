@@ -15,7 +15,7 @@
 
 #include "wwnr.h"
 
-struct rv_monitor rv_wwnr;
+static struct rv_monitor rv_wwnr;
 DECLARE_DA_MON_PER_TASK(wwnr, unsigned char);
 
 static void handle_switch(void *data, bool preempt, struct task_struct *p,
@@ -59,7 +59,7 @@ static void disable_wwnr(void)
 	da_monitor_destroy_wwnr();
 }
 
-struct rv_monitor rv_wwnr = {
+static struct rv_monitor rv_wwnr = {
 	.name = "wwnr",
 	.description = "wakeup while not running per-task testing model.",
 	.enable = enable_wwnr,

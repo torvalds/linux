@@ -16,7 +16,7 @@
 
 #include "wip.h"
 
-struct rv_monitor rv_wip;
+static struct rv_monitor rv_wip;
 DECLARE_DA_MON_PER_CPU(wip, unsigned char);
 
 static void handle_preempt_disable(void *data, unsigned long ip, unsigned long parent_ip)
@@ -60,7 +60,7 @@ static void disable_wip(void)
 	da_monitor_destroy_wip();
 }
 
-struct rv_monitor rv_wip = {
+static struct rv_monitor rv_wip = {
 	.name = "wip",
 	.description = "wakeup in preemptive per-cpu testing monitor.",
 	.enable = enable_wip,
