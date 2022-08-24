@@ -41,7 +41,6 @@
 #include "display/intel_display.h"
 #include "display/intel_display_core.h"
 #include "display/intel_display_power.h"
-#include "display/intel_dmc.h"
 #include "display/intel_dpll_mgr.h"
 #include "display/intel_dsb.h"
 #include "display/intel_fbc.h"
@@ -378,8 +377,6 @@ struct drm_i915_private {
 	struct intel_gvt *gvt;
 
 	struct intel_wopcm wopcm;
-
-	struct intel_dmc dmc;
 
 	/* MMIO base address for MIPI regs */
 	u32 mipi_mmio_base;

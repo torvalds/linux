@@ -10,6 +10,7 @@
 #include <linux/types.h>
 #include <linux/wait.h>
 
+#include "intel_dmc.h"
 #include "intel_gmbus.h"
 
 struct drm_i915_private;
@@ -106,6 +107,9 @@ struct intel_display {
 		/* protects panel power sequencer state */
 		struct mutex mutex;
 	} pps;
+
+	/* Grouping using named structs. Keep sorted. */
+	struct intel_dmc dmc;
 };
 
 #endif /* __INTEL_DISPLAY_CORE_H__ */
