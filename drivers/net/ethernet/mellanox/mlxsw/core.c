@@ -3183,18 +3183,6 @@ void mlxsw_core_port_eth_set(struct mlxsw_core *mlxsw_core, u16 local_port,
 }
 EXPORT_SYMBOL(mlxsw_core_port_eth_set);
 
-void mlxsw_core_port_ib_set(struct mlxsw_core *mlxsw_core, u16 local_port,
-			    void *port_driver_priv)
-{
-	struct mlxsw_core_port *mlxsw_core_port =
-					&mlxsw_core->ports[local_port];
-	struct devlink_port *devlink_port = &mlxsw_core_port->devlink_port;
-
-	mlxsw_core_port->port_driver_priv = port_driver_priv;
-	devlink_port_type_ib_set(devlink_port, NULL);
-}
-EXPORT_SYMBOL(mlxsw_core_port_ib_set);
-
 void mlxsw_core_port_clear(struct mlxsw_core *mlxsw_core, u16 local_port,
 			   void *port_driver_priv)
 {

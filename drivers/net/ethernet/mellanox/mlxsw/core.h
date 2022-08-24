@@ -264,8 +264,6 @@ int mlxsw_core_cpu_port_init(struct mlxsw_core *mlxsw_core,
 void mlxsw_core_cpu_port_fini(struct mlxsw_core *mlxsw_core);
 void mlxsw_core_port_eth_set(struct mlxsw_core *mlxsw_core, u16 local_port,
 			     void *port_driver_priv, struct net_device *dev);
-void mlxsw_core_port_ib_set(struct mlxsw_core *mlxsw_core, u16 local_port,
-			    void *port_driver_priv);
 void mlxsw_core_port_clear(struct mlxsw_core *mlxsw_core, u16 local_port,
 			   void *port_driver_priv);
 enum devlink_port_type mlxsw_core_port_type_get(struct mlxsw_core *mlxsw_core,
