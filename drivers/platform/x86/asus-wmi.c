@@ -222,6 +222,9 @@ struct asus_wmi {
 	struct asus_rfkill gps;
 	struct asus_rfkill uwb;
 
+	int tablet_switch_event_code;
+	u32 tablet_switch_dev_id;
+
 	enum fan_type fan_type;
 	int fan_pwm_mode;
 	int agfn_pwm;
@@ -490,11 +493,11 @@ static void asus_wmi_tablet_sw_init(struct asus_wmi *asus, u32 dev_id, int event
 	int result;
 
 	result = asus_wmi_get_devstate_simple(asus, dev_id);
-	if (result < 0)
-		asus->driver->quirks->tablet_switch_mode = asus_wmi_no_tablet_switch;
 	if (result >= 0) {
 		input_set_capability(asus->inputdev, EV_SW, SW_TABLET_MODE);
 		input_report_switch(asus->inputdev, SW_TABLET_MODE, result);
+		asus->tablet_switch_dev_id = dev_id;
+		asus->tablet_switch_event_code = event_code;
 	} else if (result == -ENODEV) {
 		dev_err(dev, "This device has tablet-mode-switch quirk but got ENODEV checking it. This is a bug.");
 	} else {
@@ -556,22 +559,14 @@ static void asus_wmi_input_exit(struct asus_wmi *asus)
 
 /* Tablet mode ****************************************************************/
 
-static void lid_flip_tablet_mode_get_state(struct asus_wmi *asus)
+static void asus_wmi_tablet_mode_get_state(struct asus_wmi *asus)
 {
 	int result;
 
-	result = asus_wmi_get_devstate_simple(asus, ASUS_WMI_DEVID_LID_FLIP);
-	if (result >= 0) {
-		input_report_switch(asus->inputdev, SW_TABLET_MODE, result);
-		input_sync(asus->inputdev);
-	}
-}
+	if (!asus->tablet_switch_dev_id)
+		return;
 
-static void lid_flip_rog_tablet_mode_get_state(struct asus_wmi *asus)
-{
-	int result;
-
-	result = asus_wmi_get_devstate_simple(asus, ASUS_WMI_DEVID_LID_FLIP_ROG);
+	result = asus_wmi_get_devstate_simple(asus, asus->tablet_switch_dev_id);
 	if (result >= 0) {
 		input_report_switch(asus->inputdev, SW_TABLET_MODE, result);
 		input_sync(asus->inputdev);
@@ -3020,9 +3015,7 @@ static void asus_wmi_handle_event_code(int code, struct asus_wmi *asus)
 {
 	unsigned int key_value = 1;
 	bool autorelease = 1;
-	int result, orig_code;
-
-	orig_code = code;
+	int orig_code = code;
 
 	if (asus->driver->key_filter) {
 		asus->driver->key_filter(asus->driver, &code, &key_value,
@@ -3065,27 +3058,8 @@ static void asus_wmi_handle_event_code(int code, struct asus_wmi *asus)
 		return;
 	}
 
-	if (asus->driver->quirks->tablet_switch_mode == asus_wmi_kbd_dock_devid &&
-	    code == NOTIFY_KBD_DOCK_CHANGE) {
-		result = asus_wmi_get_devstate_simple(asus,
-						      ASUS_WMI_DEVID_KBD_DOCK);
-		if (result >= 0) {
-			input_report_switch(asus->inputdev, SW_TABLET_MODE,
-					    !result);
-			input_sync(asus->inputdev);
-		}
-		return;
-	}
-
-	if (asus->driver->quirks->tablet_switch_mode == asus_wmi_lid_flip_devid &&
-	    code == NOTIFY_LID_FLIP) {
-		lid_flip_tablet_mode_get_state(asus);
-		return;
-	}
-
-	if (asus->driver->quirks->tablet_switch_mode == asus_wmi_lid_flip_rog_devid &&
-	    code == NOTIFY_LID_FLIP_ROG) {
-		lid_flip_rog_tablet_mode_get_state(asus);
+	if (code == asus->tablet_switch_event_code) {
+		asus_wmi_tablet_mode_get_state(asus);
 		return;
 	}
 
@@ -3714,18 +3688,7 @@ static int asus_hotk_resume(struct device *device)
 	if (asus_wmi_has_fnlock_key(asus))
 		asus_wmi_fnlock_update(asus);
 
-	switch (asus->driver->quirks->tablet_switch_mode) {
-	case asus_wmi_no_tablet_switch:
-	case asus_wmi_kbd_dock_devid:
-		break;
-	case asus_wmi_lid_flip_devid:
-		lid_flip_tablet_mode_get_state(asus);
-		break;
-	case asus_wmi_lid_flip_rog_devid:
-		lid_flip_rog_tablet_mode_get_state(asus);
-		break;
-	}
-
+	asus_wmi_tablet_mode_get_state(asus);
 	return 0;
 }
 
@@ -3765,18 +3728,7 @@ static int asus_hotk_restore(struct device *device)
 	if (asus_wmi_has_fnlock_key(asus))
 		asus_wmi_fnlock_update(asus);
 
-	switch (asus->driver->quirks->tablet_switch_mode) {
-	case asus_wmi_no_tablet_switch:
-	case asus_wmi_kbd_dock_devid:
-		break;
-	case asus_wmi_lid_flip_devid:
-		lid_flip_tablet_mode_get_state(asus);
-		break;
-	case asus_wmi_lid_flip_rog_devid:
-		lid_flip_rog_tablet_mode_get_state(asus);
-		break;
-	}
-
+	asus_wmi_tablet_mode_get_state(asus);
 	return 0;
 }
 

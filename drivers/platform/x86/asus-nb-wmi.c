@@ -504,17 +504,8 @@ static void asus_nb_wmi_quirks(struct asus_wmi_driver *driver)
 	else
 		wapf = quirks->wapf;
 
-	switch (tablet_mode_sw) {
-	case 0:
-		quirks->tablet_switch_mode = asus_wmi_no_tablet_switch;
-		break;
-	case 1:
-		quirks->tablet_switch_mode = asus_wmi_kbd_dock_devid;
-		break;
-	case 2:
-		quirks->tablet_switch_mode = asus_wmi_lid_flip_devid;
-		break;
-	}
+	if (tablet_mode_sw != -1)
+		quirks->tablet_switch_mode = tablet_mode_sw;
 
 	if (quirks->i8042_filter) {
 		ret = i8042_install_filter(quirks->i8042_filter);
