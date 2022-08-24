@@ -9,6 +9,7 @@
 #include <linux/types.h>
 
 struct intel_atomic_state;
+struct intel_cdclk_funcs;
 struct intel_crtc;
 struct intel_crtc_state;
 struct intel_initial_plane_config;
@@ -34,6 +35,9 @@ struct intel_display {
 	struct {
 		/* Top level crtc-ish functions */
 		const struct intel_display_funcs *display;
+
+		/* Display CDCLK functions */
+		const struct intel_cdclk_funcs *cdclk;
 	} funcs;
 };
 

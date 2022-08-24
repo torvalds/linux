@@ -79,26 +79,26 @@ struct intel_cdclk_funcs {
 void intel_cdclk_get_cdclk(struct drm_i915_private *dev_priv,
 			   struct intel_cdclk_config *cdclk_config)
 {
-	dev_priv->cdclk_funcs->get_cdclk(dev_priv, cdclk_config);
+	dev_priv->display.funcs.cdclk->get_cdclk(dev_priv, cdclk_config);
 }
 
 static void intel_cdclk_set_cdclk(struct drm_i915_private *dev_priv,
 				  const struct intel_cdclk_config *cdclk_config,
 				  enum pipe pipe)
 {
-	dev_priv->cdclk_funcs->set_cdclk(dev_priv, cdclk_config, pipe);
+	dev_priv->display.funcs.cdclk->set_cdclk(dev_priv, cdclk_config, pipe);
 }
 
 static int intel_cdclk_modeset_calc_cdclk(struct drm_i915_private *dev_priv,
 					  struct intel_cdclk_state *cdclk_config)
 {
-	return dev_priv->cdclk_funcs->modeset_calc_cdclk(cdclk_config);
+	return dev_priv->display.funcs.cdclk->modeset_calc_cdclk(cdclk_config);
 }
 
 static u8 intel_cdclk_calc_voltage_level(struct drm_i915_private *dev_priv,
 					 int cdclk)
 {
-	return dev_priv->cdclk_funcs->calc_voltage_level(cdclk);
+	return dev_priv->display.funcs.cdclk->calc_voltage_level(cdclk);
 }
 
 static void fixed_133mhz_get_cdclk(struct drm_i915_private *dev_priv,
@@ -2080,7 +2080,7 @@ static void intel_set_cdclk(struct drm_i915_private *dev_priv,
 	if (!intel_cdclk_changed(&dev_priv->cdclk.hw, cdclk_config))
 		return;
 
-	if (drm_WARN_ON_ONCE(&dev_priv->drm, !dev_priv->cdclk_funcs->set_cdclk))
+	if (drm_WARN_ON_ONCE(&dev_priv->drm, !dev_priv->display.funcs.cdclk->set_cdclk))
 		return;
 
 	intel_cdclk_dump_config(dev_priv, cdclk_config, "Changing CDCLK to");
@@ -3194,78 +3194,78 @@ static const struct intel_cdclk_funcs i830_cdclk_funcs = {
 void intel_init_cdclk_hooks(struct drm_i915_private *dev_priv)
 {
 	if (IS_DG2(dev_priv)) {
-		dev_priv->cdclk_funcs = &tgl_cdclk_funcs;
+		dev_priv->display.funcs.cdclk = &tgl_cdclk_funcs;
 		dev_priv->cdclk.table = dg2_cdclk_table;
 	} else if (IS_ALDERLAKE_P(dev_priv)) {
-		dev_priv->cdclk_funcs = &tgl_cdclk_funcs;
+		dev_priv->display.funcs.cdclk = &tgl_cdclk_funcs;
 		/* Wa_22011320316:adl-p[a0] */
 		if (IS_ADLP_DISPLAY_STEP(dev_priv, STEP_A0, STEP_B0))
 			dev_priv->cdclk.table = adlp_a_step_cdclk_table;
 		else
 			dev_priv->cdclk.table = adlp_cdclk_table;
 	} else if (IS_ROCKETLAKE(dev_priv)) {
-		dev_priv->cdclk_funcs = &tgl_cdclk_funcs;
+		dev_priv->display.funcs.cdclk = &tgl_cdclk_funcs;
 		dev_priv->cdclk.table = rkl_cdclk_table;
 	} else if (DISPLAY_VER(dev_priv) >= 12) {
-		dev_priv->cdclk_funcs = &tgl_cdclk_funcs;
+		dev_priv->display.funcs.cdclk = &tgl_cdclk_funcs;
 		dev_priv->cdclk.table = icl_cdclk_table;
 	} else if (IS_JSL_EHL(dev_priv)) {
-		dev_priv->cdclk_funcs = &ehl_cdclk_funcs;
+		dev_priv->display.funcs.cdclk = &ehl_cdclk_funcs;
 		dev_priv->cdclk.table = icl_cdclk_table;
 	} else if (DISPLAY_VER(dev_priv) >= 11) {
-		dev_priv->cdclk_funcs = &icl_cdclk_funcs;
+		dev_priv->display.funcs.cdclk = &icl_cdclk_funcs;
 		dev_priv->cdclk.table = icl_cdclk_table;
 	} else if (IS_GEMINILAKE(dev_priv) || IS_BROXTON(dev_priv)) {
-		dev_priv->cdclk_funcs = &bxt_cdclk_funcs;
+		dev_priv->display.funcs.cdclk = &bxt_cdclk_funcs;
 		if (IS_GEMINILAKE(dev_priv))
 			dev_priv->cdclk.table = glk_cdclk_table;
 		else
 			dev_priv->cdclk.table = bxt_cdclk_table;
 	} else if (DISPLAY_VER(dev_priv) == 9) {
-		dev_priv->cdclk_funcs = &skl_cdclk_funcs;
+		dev_priv->display.funcs.cdclk = &skl_cdclk_funcs;
 	} else if (IS_BROADWELL(dev_priv)) {
-		dev_priv->cdclk_funcs = &bdw_cdclk_funcs;
+		dev_priv->display.funcs.cdclk = &bdw_cdclk_funcs;
 	} else if (IS_HASWELL(dev_priv)) {
-		dev_priv->cdclk_funcs = &hsw_cdclk_funcs;
+		dev_priv->display.funcs.cdclk = &hsw_cdclk_funcs;
 	} else if (IS_CHERRYVIEW(dev_priv)) {
-		dev_priv->cdclk_funcs = &chv_cdclk_funcs;
+		dev_priv->display.funcs.cdclk = &chv_cdclk_funcs;
 	} else if (IS_VALLEYVIEW(dev_priv)) {
-		dev_priv->cdclk_funcs = &vlv_cdclk_funcs;
+		dev_priv->display.funcs.cdclk = &vlv_cdclk_funcs;
 	} else if (IS_SANDYBRIDGE(dev_priv) || IS_IVYBRIDGE(dev_priv)) {
-		dev_priv->cdclk_funcs = &fixed_400mhz_cdclk_funcs;
+		dev_priv->display.funcs.cdclk = &fixed_400mhz_cdclk_funcs;
 	} else if (IS_IRONLAKE(dev_priv)) {
-		dev_priv->cdclk_funcs = &ilk_cdclk_funcs;
+		dev_priv->display.funcs.cdclk = &ilk_cdclk_funcs;
 	} else if (IS_GM45(dev_priv)) {
-		dev_priv->cdclk_funcs = &gm45_cdclk_funcs;
+		dev_priv->display.funcs.cdclk = &gm45_cdclk_funcs;
 	} else if (IS_G45(dev_priv)) {
-		dev_priv->cdclk_funcs = &g33_cdclk_funcs;
+		dev_priv->display.funcs.cdclk = &g33_cdclk_funcs;
 	} else if (IS_I965GM(dev_priv)) {
-		dev_priv->cdclk_funcs = &i965gm_cdclk_funcs;
+		dev_priv->display.funcs.cdclk = &i965gm_cdclk_funcs;
 	} else if (IS_I965G(dev_priv)) {
-		dev_priv->cdclk_funcs = &fixed_400mhz_cdclk_funcs;
+		dev_priv->display.funcs.cdclk = &fixed_400mhz_cdclk_funcs;
 	} else if (IS_PINEVIEW(dev_priv)) {
-		dev_priv->cdclk_funcs = &pnv_cdclk_funcs;
+		dev_priv->display.funcs.cdclk = &pnv_cdclk_funcs;
 	} else if (IS_G33(dev_priv)) {
-		dev_priv->cdclk_funcs = &g33_cdclk_funcs;
+		dev_priv->display.funcs.cdclk = &g33_cdclk_funcs;
 	} else if (IS_I945GM(dev_priv)) {
-		dev_priv->cdclk_funcs = &i945gm_cdclk_funcs;
+		dev_priv->display.funcs.cdclk = &i945gm_cdclk_funcs;
 	} else if (IS_I945G(dev_priv)) {
-		dev_priv->cdclk_funcs = &fixed_400mhz_cdclk_funcs;
+		dev_priv->display.funcs.cdclk = &fixed_400mhz_cdclk_funcs;
 	} else if (IS_I915GM(dev_priv)) {
-		dev_priv->cdclk_funcs = &i915gm_cdclk_funcs;
+		dev_priv->display.funcs.cdclk = &i915gm_cdclk_funcs;
 	} else if (IS_I915G(dev_priv)) {
-		dev_priv->cdclk_funcs = &i915g_cdclk_funcs;
+		dev_priv->display.funcs.cdclk = &i915g_cdclk_funcs;
 	} else if (IS_I865G(dev_priv)) {
-		dev_priv->cdclk_funcs = &i865g_cdclk_funcs;
+		dev_priv->display.funcs.cdclk = &i865g_cdclk_funcs;
 	} else if (IS_I85X(dev_priv)) {
-		dev_priv->cdclk_funcs = &i85x_cdclk_funcs;
+		dev_priv->display.funcs.cdclk = &i85x_cdclk_funcs;
 	} else if (IS_I845G(dev_priv)) {
-		dev_priv->cdclk_funcs = &i845g_cdclk_funcs;
+		dev_priv->display.funcs.cdclk = &i845g_cdclk_funcs;
 	} else if (IS_I830(dev_priv)) {
-		dev_priv->cdclk_funcs = &i830_cdclk_funcs;
+		dev_priv->display.funcs.cdclk = &i830_cdclk_funcs;
 	}
 
-	if (drm_WARN(&dev_priv->drm, !dev_priv->cdclk_funcs,
+	if (drm_WARN(&dev_priv->drm, !dev_priv->display.funcs.cdclk,
 		     "Unknown platform. Assuming i830\n"))
-		dev_priv->cdclk_funcs = &i830_cdclk_funcs;
+		dev_priv->display.funcs.cdclk = &i830_cdclk_funcs;
 }

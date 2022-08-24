@@ -84,7 +84,6 @@ struct drm_i915_private;
 struct intel_atomic_state;
 struct intel_audio_funcs;
 struct intel_cdclk_config;
-struct intel_cdclk_funcs;
 struct intel_cdclk_state;
 struct intel_cdclk_vals;
 struct intel_color_funcs;
@@ -522,9 +521,6 @@ struct drm_i915_private {
 
 	/* Display internal color functions */
 	const struct intel_color_funcs *color_funcs;
-
-	/* Display CDCLK functions */
-	const struct intel_cdclk_funcs *cdclk_funcs;
 
 	/* PCH chipset type */
 	enum intel_pch pch_type;
