@@ -18,6 +18,20 @@ struct rcu_gp_oldstate {
 	unsigned long rgos_norm;
 };
 
+// Maximum number of rcu_gp_oldstate values corresponding to
+// not-yet-completed RCU grace periods.
+#define NUM_ACTIVE_RCU_POLL_FULL_OLDSTATE 2
+
+/*
+ * Are the two oldstate values the same?  See the Tree RCU version for
+ * docbook header.
+ */
+static inline bool same_state_synchronize_rcu_full(struct rcu_gp_oldstate *rgosp1,
+						   struct rcu_gp_oldstate *rgosp2)
+{
+	return rgosp1->rgos_norm == rgosp2->rgos_norm;
+}
+
 unsigned long get_state_synchronize_rcu(void);
 
 static inline void get_state_synchronize_rcu_full(struct rcu_gp_oldstate *rgosp)

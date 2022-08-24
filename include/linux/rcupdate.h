@@ -47,6 +47,27 @@ struct rcu_gp_oldstate;
 unsigned long get_completed_synchronize_rcu(void);
 void get_completed_synchronize_rcu_full(struct rcu_gp_oldstate *rgosp);
 
+// Maximum number of unsigned long values corresponding to
+// not-yet-completed RCU grace periods.
+#define NUM_ACTIVE_RCU_POLL_OLDSTATE 2
+
+/**
+ * same_state_synchronize_rcu - Are two old-state values identical?
+ * @oldstate1: First old-state value.
+ * @oldstate2: Second old-state value.
+ *
+ * The two old-state values must have been obtained from either
+ * get_state_synchronize_rcu(), start_poll_synchronize_rcu(), or
+ * get_completed_synchronize_rcu().  Returns @true if the two values are
+ * identical and @false otherwise.  This allows structures whose lifetimes
+ * are tracked by old-state values to push these values to a list header,
+ * allowing those structures to be slightly smaller.
+ */
+static inline bool same_state_synchronize_rcu(unsigned long oldstate1, unsigned long oldstate2)
+{
+	return oldstate1 == oldstate2;
+}
+
 #ifdef CONFIG_PREEMPT_RCU
 
 void __rcu_read_lock(void);
