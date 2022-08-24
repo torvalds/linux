@@ -25,7 +25,6 @@
 int hwwep = 1;
 static char *ifname = "wlan%d";
 
-
 static const struct rtl819x_ops rtl819xp_ops = {
 	.nic_type			= NIC_8192E,
 	.get_eeprom_size		= rtl92e_get_eeprom_size,
@@ -189,7 +188,6 @@ bool rtl92e_set_rf_state(struct net_device *dev,
 			priv->rtllib->RfOffReason = 0;
 			bActionAllowed = true;
 
-
 			if (rtState == eRfOff &&
 			    ChangeSource >= RF_CHANGE_BY_HW)
 				bConnectBySSID = true;
@@ -236,7 +234,6 @@ bool rtl92e_set_rf_state(struct net_device *dev,
 			 __func__, StateToSet, priv->rtllib->RfOffReason);
 		PHY_SetRFPowerState(dev, StateToSet);
 		if (StateToSet == eRfOn) {
-
 			if (bConnectBySSID && priv->blinked_ingpio) {
 				schedule_delayed_work(
 					 &ieee->associate_procedure_wq, 0);
@@ -395,7 +392,6 @@ static void _rtl92e_qos_activate(void *data)
 	for (i = 0; i <  QOS_QUEUE_NUM; i++)
 		priv->rtllib->SetHwRegHandler(dev, HW_VAR_AC_PARAM, (u8 *)(&i));
 
-
 success:
 	mutex_unlock(&priv->mutex);
 }
@@ -455,7 +451,6 @@ static int _rtl92e_handle_beacon(struct net_device *dev,
 
 	schedule_delayed_work(&priv->update_beacon_wq, 0);
 	return 0;
-
 }
 
 static int _rtl92e_qos_assoc_resp(struct r8192_priv *priv,
@@ -883,7 +878,6 @@ static void _rtl92e_init_priv_constant(struct net_device *dev)
 	pPSC->RegMaxLPSAwakeIntvl = 5;
 }
 
-
 static void _rtl92e_init_priv_variable(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
@@ -1201,7 +1195,6 @@ static enum reset_type _rtl92e_if_check_reset(struct net_device *dev)
 	} else {
 		return RESET_TYPE_NORESET;
 	}
-
 }
 
 static void _rtl92e_if_silent_reset(struct net_device *dev)
@@ -1407,7 +1400,6 @@ static void _rtl92e_watchdog_wq_cb(void *data)
 		ieee->LinkDetectInfo.NumTxOkInPeriod > 100)
 			bBusyTraffic = true;
 
-
 		if (ieee->LinkDetectInfo.NumRxOkInPeriod > 4000 ||
 		    ieee->LinkDetectInfo.NumTxOkInPeriod > 4000) {
 			bHigherBusyTraffic = true;
@@ -1456,7 +1448,6 @@ static void _rtl92e_watchdog_wq_cb(void *data)
 		else
 			priv->check_roaming_cnt = 0;
 
-
 		if (priv->check_roaming_cnt > 0) {
 			if (ieee->eRFPowerState == eRfOff)
 				netdev_info(dev, "%s(): RF is off\n", __func__);
@@ -1487,7 +1478,6 @@ static void _rtl92e_watchdog_wq_cb(void *data)
 		}
 		ieee->LinkDetectInfo.NumRecvBcnInPeriod = 0;
 		ieee->LinkDetectInfo.NumRecvDataInPeriod = 0;
-
 	}
 
 	spin_lock_irqsave(&priv->tx_lock, flags);
@@ -1540,7 +1530,6 @@ void rtl92e_tx_enable(struct net_device *dev)
 
 	rtllib_reset_queue(priv->rtllib);
 }
-
 
 static void _rtl92e_free_rx_ring(struct net_device *dev)
 {
@@ -1936,12 +1925,10 @@ long rtl92e_translate_to_dbm(struct r8192_priv *priv, u8 signal_strength_index)
 	return signal_power;
 }
 
-
 void rtl92e_update_rx_statistics(struct r8192_priv *priv,
 				 struct rtllib_rx_stats *pprevious_stats)
 {
 	int weighting = 0;
-
 
 	if (priv->stats.recv_signal_power == 0)
 		priv->stats.recv_signal_power =
@@ -1984,8 +1971,6 @@ void rtl92e_copy_mpdu_stats(struct rtllib_rx_stats *psrc_stats,
 	ptarget_stats->bIsAMPDU = psrc_stats->bIsAMPDU;
 	ptarget_stats->bFirstMPDU = psrc_stats->bFirstMPDU;
 }
-
-
 
 static void _rtl92e_rx_normal(struct net_device *dev)
 {
@@ -2086,7 +2071,6 @@ done:
 		priv->rx_idx[rx_queue_idx] = (priv->rx_idx[rx_queue_idx] + 1) %
 					      priv->rxringcount;
 	}
-
 }
 
 static void _rtl92e_tx_resume(struct net_device *dev)
@@ -2151,7 +2135,6 @@ static int _rtl92e_open(struct net_device *dev)
 	ret = _rtl92e_try_up(dev);
 	mutex_unlock(&priv->wx_mutex);
 	return ret;
-
 }
 
 static int _rtl92e_try_up(struct net_device *dev)
@@ -2162,7 +2145,6 @@ static int _rtl92e_try_up(struct net_device *dev)
 		return -1;
 	return _rtl92e_up(dev, false);
 }
-
 
 static int _rtl92e_close(struct net_device *dev)
 {
@@ -2181,7 +2163,6 @@ static int _rtl92e_close(struct net_device *dev)
 	mutex_unlock(&priv->wx_mutex);
 
 	return ret;
-
 }
 
 static int _rtl92e_down(struct net_device *dev, bool shutdownrf)
@@ -2224,9 +2205,7 @@ static void _rtl92e_set_multicast(struct net_device *dev)
 
 	promisc = (dev->flags & IFF_PROMISC) ? 1 : 0;
 	priv->promisc = promisc;
-
 }
-
 
 static int _rtl92e_set_mac_adr(struct net_device *dev, void *mac)
 {
@@ -2376,8 +2355,6 @@ done:
 	return IRQ_HANDLED;
 }
 
-
-
 /****************************************************************************
  * ---------------------------- PCI_STUFF---------------------------
  ****************************************************************************/
@@ -2451,7 +2428,6 @@ static int _rtl92e_pci_probe(struct pci_dev *pdev,
 		netdev_err(dev, "request_mem_region failed!");
 		goto err_rel_rtllib;
 	}
-
 
 	ioaddr = (unsigned long)ioremap(pmem_start, pmem_len);
 	if (ioaddr == (unsigned long)NULL) {
