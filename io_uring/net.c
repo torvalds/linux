@@ -1023,6 +1023,7 @@ int io_sendzc(struct io_kiocb *req, unsigned int issue_flags)
 		}
 		if (ret == -ERESTARTSYS)
 			ret = -EINTR;
+		req_set_fail(req);
 	} else if (zc->flags & IORING_RECVSEND_NOTIF_FLUSH) {
 		io_notif_slot_flush_submit(notif_slot, 0);
 	}
