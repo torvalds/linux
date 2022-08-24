@@ -940,13 +940,6 @@ static inline void qdisc_purge_queue(struct Qdisc *sch)
 	qdisc_tree_reduce_backlog(sch, qlen, backlog);
 }
 
-static inline void qdisc_skb_head_init(struct qdisc_skb_head *qh)
-{
-	qh->head = NULL;
-	qh->tail = NULL;
-	qh->qlen = 0;
-}
-
 static inline void __qdisc_enqueue_tail(struct sk_buff *skb,
 					struct qdisc_skb_head *qh)
 {

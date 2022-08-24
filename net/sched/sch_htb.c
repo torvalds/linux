@@ -1104,8 +1104,6 @@ static int htb_init(struct Qdisc *sch, struct nlattr *opt,
 	if (err < 0)
 		goto err_free_direct_qdiscs;
 
-	qdisc_skb_head_init(&q->direct_queue);
-
 	if (tb[TCA_HTB_DIRECT_QLEN])
 		q->direct_qlen = nla_get_u32(tb[TCA_HTB_DIRECT_QLEN]);
 	else
