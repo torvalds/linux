@@ -13422,6 +13422,13 @@ S:	Supported
 F:	Documentation/devicetree/bindings/mtd/atmel-nand.txt
 F:	drivers/mtd/nand/raw/atmel/*
 
+MICROCHIP PCI1XXXX GP DRIVER
+M:	Kumaravel Thiagarajan <kumaravel.thiagarajan@microchip.com>
+L:	linux-gpio@vger.kernel.org
+S:	Supported
+F:	drivers/misc/mchp_pci1xxxx/mchp_pci1xxxx_gp.c
+F:	drivers/misc/mchp_pci1xxxx/mchp_pci1xxxx_gp.h
+
 MICROCHIP OTPC DRIVER
 M:	Claudiu Beznea <claudiu.beznea@microchip.com>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
