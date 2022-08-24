@@ -46,6 +46,7 @@
 #include "pcie-designware.h"
 #include "../../pci.h"
 #include "../rockchip-pcie-dma.h"
+#include "pcie-dw-dmatest.h"
 
 enum rk_pcie_device_mode {
 	RK_PCIE_EP_TYPE,
@@ -837,7 +838,7 @@ static bool rk_pcie_udma_enabled(struct rk_pcie *rk_pcie)
 				 PCIE_DMA_CTRL_OFF);
 }
 
-static int rk_pcie_host_init_dma_trx(struct rk_pcie *rk_pcie)
+static int rk_pcie_init_dma_trx(struct rk_pcie *rk_pcie)
 {
 	if (!rk_pcie_udma_enabled(rk_pcie))
 		return 0;
@@ -845,6 +846,12 @@ static int rk_pcie_host_init_dma_trx(struct rk_pcie *rk_pcie)
 	rk_pcie->dma_obj = rk_pcie_dma_obj_probe(rk_pcie->pci->dev);
 	if (IS_ERR(rk_pcie->dma_obj)) {
 		dev_err(rk_pcie->pci->dev, "failed to prepare dma object\n");
+		return -EINVAL;
+	}
+
+	rk_pcie->dma_obj = pcie_dw_dmatest_register(rk_pcie->pci, true);
+	if (IS_ERR(rk_pcie->dma_obj)) {
+		dev_err(rk_pcie->pci->dev, "failed to prepare dmatest\n");
 		return -EINVAL;
 	}
 
@@ -1132,11 +1139,6 @@ static int rk_add_pcie_port(struct rk_pcie *rk_pcie, struct platform_device *pde
 		return ret;
 	}
 
-	ret = rk_pcie_host_init_dma_trx(rk_pcie);
-	if (ret) {
-		dev_err(dev, "failed to init host dma trx\n");
-		return ret;
-	}
 	return 0;
 }
 
@@ -2079,6 +2081,12 @@ retry_regulator:
 
 	if (ret)
 		goto remove_irq_domain;
+
+	ret = rk_pcie_init_dma_trx(rk_pcie);
+	if (ret) {
+		dev_err(dev, "failed to add dma extension\n");
+		return ret;
+	}
 
 	if (rk_pcie->dma_obj) {
 		rk_pcie->dma_obj->start_dma_func = rk_pcie_start_dma_dwc;
