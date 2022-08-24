@@ -1965,7 +1965,6 @@
   register_kretprobe
   register_memory_notifier
   register_module_notifier
-  register_qdisc
   register_netdev
   register_netdevice
   register_netdevice_notifier
@@ -1973,6 +1972,7 @@
   register_oom_notifier
   register_pernet_device
   register_pm_notifier
+  register_qdisc
   register_reboot_notifier
   register_restart_handler
   __register_rpmsg_driver
@@ -2194,6 +2194,7 @@
   sg_init_one
   sg_init_table
   sg_miter_next
+  sg_miter_skip
   sg_miter_start
   sg_miter_stop
   sg_next
@@ -2233,6 +2234,7 @@
   skb_complete_wifi_ack
   skb_copy
   skb_copy_bits
+  skb_copy_datagram_from_iter
   skb_copy_datagram_iter
   skb_copy_expand
   skb_dequeue
@@ -2321,6 +2323,7 @@
   snprintf
   soc_device_register
   soc_device_unregister
+  sock_alloc_send_pskb
   sock_alloc_send_skb
   __sock_create
   sock_create_kern
@@ -2682,6 +2685,7 @@
   __tracepoint_android_vh_cpu_idle_exit
   __tracepoint_android_vh_cpuidle_psci_enter
   __tracepoint_android_vh_cpuidle_psci_exit
+  __tracepoint_android_vh_disable_thermal_cooling_stats
   __tracepoint_android_vh_dump_throttled_rt_tasks
   __tracepoint_android_vh_freq_table_limits
   __tracepoint_android_vh_ftrace_dump_buffer

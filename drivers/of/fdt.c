@@ -1181,6 +1181,9 @@ int __init __weak early_init_dt_reserve_memory_arch(phys_addr_t base,
 		if (memblock_is_region_reserved(base, size))
 			return -EBUSY;
 
+		if (memblock_is_nomap_remove())
+			return memblock_remove(base, size);
+
 		return memblock_mark_nomap(base, size);
 	}
 	return memblock_reserve(base, size);
