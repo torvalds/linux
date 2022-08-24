@@ -151,18 +151,10 @@ static void nbio_v7_9_sdma_doorbell_range(struct amdgpu_device *adev, int instan
 					S2A_DOORBELL_ENTRY_1_CTRL,
 					S2A_DOORBELL_PORT1_AWADDR_31_28_VALUE,
 					0x8);
-		if (aid_id != 0)
-			WREG32_PCIE_EXT((SOC15_REG_OFFSET(NBIO, 0,
-				regS2A_DOORBELL_ENTRY_3_CTRL)
-				+ S2A_DOORBELL_REG_LSD_OFFSET) * 4
-				+ AMDGPU_SMN_TARGET_AID(aid_id)
-				+ AMDGPU_SMN_CROSS_AID * !!aid_id,
-				doorbell_ctrl);
-		else
-			WREG32(SOC15_REG_OFFSET(NBIO, 0,
-				regS2A_DOORBELL_ENTRY_5_CTRL)
-				+ S2A_DOORBELL_REG_LSD_OFFSET,
-				doorbell_ctrl);
+		WREG32_PCIE_EXT(SOC15_REG_OFFSET(NBIO, 0, regS2A_DOORBELL_ENTRY_5_CTRL) * 4
+			+ AMDGPU_SMN_TARGET_AID(aid_id)
+			+ AMDGPU_SMN_CROSS_AID * !!aid_id,
+			doorbell_ctrl);
 		break;
 	case 3:
 		WREG32(SOC15_REG_OFFSET(NBIO, 0, regDOORBELL0_CTRL_ENTRY_4) +
@@ -178,18 +170,10 @@ static void nbio_v7_9_sdma_doorbell_range(struct amdgpu_device *adev, int instan
 					S2A_DOORBELL_ENTRY_1_CTRL,
 					S2A_DOORBELL_PORT1_AWADDR_31_28_VALUE,
 					0x9);
-		if (aid_id != 0)
-			WREG32_PCIE_EXT((SOC15_REG_OFFSET(NBIO, 0,
-				regS2A_DOORBELL_ENTRY_4_CTRL)
-				+ S2A_DOORBELL_REG_LSD_OFFSET) * 4
-				+ AMDGPU_SMN_TARGET_AID(aid_id)
-				+ AMDGPU_SMN_CROSS_AID * !!aid_id,
-				doorbell_ctrl);
-		else
-			WREG32(SOC15_REG_OFFSET(NBIO, 0,
-				regS2A_DOORBELL_ENTRY_6_CTRL)
-				+ S2A_DOORBELL_REG_LSD_OFFSET,
-				doorbell_ctrl);
+		WREG32_PCIE_EXT(SOC15_REG_OFFSET(NBIO, 0, regS2A_DOORBELL_ENTRY_6_CTRL) * 4
+			+ AMDGPU_SMN_TARGET_AID(aid_id)
+			+ AMDGPU_SMN_CROSS_AID * !!aid_id,
+			doorbell_ctrl);
 		break;
 	default:
 		break;
