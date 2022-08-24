@@ -1806,10 +1806,10 @@ void dml32_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 				&mode_lib->vba.Read256BlockHeightC[k],
 				&mode_lib->vba.Read256BlockWidthY[k],
 				&mode_lib->vba.Read256BlockWidthC[k],
-				&mode_lib->vba.MicroTileHeightY[k],
-				&mode_lib->vba.MicroTileHeightC[k],
-				&mode_lib->vba.MicroTileWidthY[k],
-				&mode_lib->vba.MicroTileWidthC[k]);
+				&mode_lib->vba.MacroTileHeightY[k],
+				&mode_lib->vba.MacroTileHeightC[k],
+				&mode_lib->vba.MacroTileWidthY[k],
+				&mode_lib->vba.MacroTileWidthC[k]);
 	}
 
 	/*Bandwidth Support Check*/
@@ -2659,10 +2659,10 @@ void dml32_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 			mode_lib->vba.Read256BlockWidthC,
 			mode_lib->vba.Read256BlockHeightY,
 			mode_lib->vba.Read256BlockHeightC,
-			mode_lib->vba.MicroTileWidthY,
-			mode_lib->vba.MicroTileWidthC,
-			mode_lib->vba.MicroTileHeightY,
-			mode_lib->vba.MicroTileHeightC,
+			mode_lib->vba.MacroTileWidthY,
+			mode_lib->vba.MacroTileWidthC,
+			mode_lib->vba.MacroTileHeightY,
+			mode_lib->vba.MacroTileHeightC,
 
 			/* Output */
 			mode_lib->vba.SurfaceSizeInMALL,
@@ -2709,10 +2709,10 @@ void dml32_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 				v->dummy_vars.dml32_ModeSupportAndSystemConfigurationFull.SurfParameters[k].BlockHeight256BytesY = mode_lib->vba.Read256BlockHeightY[k];
 				v->dummy_vars.dml32_ModeSupportAndSystemConfigurationFull.SurfParameters[k].BlockWidth256BytesC = mode_lib->vba.Read256BlockWidthC[k];
 				v->dummy_vars.dml32_ModeSupportAndSystemConfigurationFull.SurfParameters[k].BlockHeight256BytesC = mode_lib->vba.Read256BlockHeightC[k];
-				v->dummy_vars.dml32_ModeSupportAndSystemConfigurationFull.SurfParameters[k].BlockWidthY = mode_lib->vba.MicroTileWidthY[k];
-				v->dummy_vars.dml32_ModeSupportAndSystemConfigurationFull.SurfParameters[k].BlockHeightY = mode_lib->vba.MicroTileHeightY[k];
-				v->dummy_vars.dml32_ModeSupportAndSystemConfigurationFull.SurfParameters[k].BlockWidthC = mode_lib->vba.MicroTileWidthC[k];
-				v->dummy_vars.dml32_ModeSupportAndSystemConfigurationFull.SurfParameters[k].BlockHeightC = mode_lib->vba.MicroTileHeightC[k];
+				v->dummy_vars.dml32_ModeSupportAndSystemConfigurationFull.SurfParameters[k].BlockWidthY = mode_lib->vba.MacroTileWidthY[k];
+				v->dummy_vars.dml32_ModeSupportAndSystemConfigurationFull.SurfParameters[k].BlockHeightY = mode_lib->vba.MacroTileHeightY[k];
+				v->dummy_vars.dml32_ModeSupportAndSystemConfigurationFull.SurfParameters[k].BlockWidthC = mode_lib->vba.MacroTileWidthC[k];
+				v->dummy_vars.dml32_ModeSupportAndSystemConfigurationFull.SurfParameters[k].BlockHeightC = mode_lib->vba.MacroTileHeightC[k];
 				v->dummy_vars.dml32_ModeSupportAndSystemConfigurationFull.SurfParameters[k].InterlaceEnable = mode_lib->vba.Interlace[k];
 				v->dummy_vars.dml32_ModeSupportAndSystemConfigurationFull.SurfParameters[k].HTotal = mode_lib->vba.HTotal[k];
 				v->dummy_vars.dml32_ModeSupportAndSystemConfigurationFull.SurfParameters[k].DCCEnable = mode_lib->vba.DCCEnable[k];
