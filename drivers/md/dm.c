@@ -864,7 +864,7 @@ int dm_set_geometry(struct mapped_device *md, struct hd_geometry *geo)
 	sector_t sz = (sector_t)geo->cylinders * geo->heads * geo->sectors;
 
 	if (geo->start > sz) {
-		DMWARN("Start sector is beyond the geometry limits.");
+		DMERR("Start sector is beyond the geometry limits.");
 		return -EINVAL;
 	}
 
@@ -1149,7 +1149,7 @@ static void clone_endio(struct bio *bio)
 			/* The target will handle the io */
 			return;
 		default:
-			DMWARN("unimplemented target endio return value: %d", r);
+			DMCRIT("unimplemented target endio return value: %d", r);
 			BUG();
 		}
 	}
@@ -1455,7 +1455,7 @@ static void __map_bio(struct bio *clone)
 			dm_io_dec_pending(io, BLK_STS_DM_REQUEUE);
 		break;
 	default:
-		DMWARN("unimplemented target map return value: %d", r);
+		DMCRIT("unimplemented target map return value: %d", r);
 		BUG();
 	}
 }
@@ -2005,7 +2005,7 @@ static struct mapped_device *alloc_dev(int minor)
 
 	md = kvzalloc_node(sizeof(*md), GFP_KERNEL, numa_node_id);
 	if (!md) {
-		DMWARN("unable to allocate device, out of memory.");
+		DMERR("unable to allocate device, out of memory.");
 		return NULL;
 	}
 
