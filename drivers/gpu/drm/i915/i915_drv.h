@@ -90,7 +90,6 @@ struct intel_connector;
 struct intel_dp;
 struct intel_encoder;
 struct intel_fbdev;
-struct intel_fdi_funcs;
 struct intel_gmbus;
 struct intel_limit;
 struct intel_overlay;
@@ -485,9 +484,6 @@ struct drm_i915_private {
 
 	/* pm private clock gating functions */
 	const struct drm_i915_clock_gating_funcs *clock_gating_funcs;
-
-	/* fdi display functions */
-	const struct intel_fdi_funcs *fdi_funcs;
 
 	/* Display internal color functions */
 	const struct intel_color_funcs *color_funcs;
