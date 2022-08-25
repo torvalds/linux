@@ -1362,7 +1362,7 @@ static int genl_bind(struct net *net, int group)
 	unsigned int id;
 	int ret = 0;
 
-	genl_lock_all();
+	down_read(&cb_lock);
 
 	idr_for_each_entry(&genl_fam_idr, family, id) {
 		const struct genl_multicast_group *grp;
@@ -1383,7 +1383,7 @@ static int genl_bind(struct net *net, int group)
 		break;
 	}
 
-	genl_unlock_all();
+	up_read(&cb_lock);
 	return ret;
 }
 
