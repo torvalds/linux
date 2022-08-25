@@ -25,6 +25,7 @@ Linux驱动实现者的API指南
    :maxdepth: 2
 
    gpio/index
+   io_ordering
 
 Todolist:
 
@@ -97,7 +98,6 @@ Todolist:
 *   isa
 *   isapnp
 *   io-mapping
-*   io_ordering
 *   generic-counter
 *   memory-devices/index
 *   men-chameleon-bus
