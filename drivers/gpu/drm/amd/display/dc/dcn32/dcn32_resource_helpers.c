@@ -54,13 +54,14 @@ uint32_t dcn32_helper_calculate_num_ways_for_subvp(struct dc *dc, struct dc_stat
 	uint32_t num_mblks = 0;
 	uint32_t cache_lines_per_plane = 0;
 	uint32_t i = 0, j = 0;
-	uint32_t mblk_width = 0;
-	uint32_t mblk_height = 0;
+	uint16_t mblk_width = 0;
+	uint16_t mblk_height = 0;
 	uint32_t full_vp_width_blk_aligned = 0;
 	uint32_t full_vp_height_blk_aligned = 0;
 	uint32_t mall_alloc_width_blk_aligned = 0;
 	uint32_t mall_alloc_height_blk_aligned = 0;
-	uint32_t full_vp_height = 0;
+	uint16_t full_vp_height = 0;
+	bool subvp_in_use = false;
 
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
 		struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
@@ -70,6 +71,7 @@ uint32_t dcn32_helper_calculate_num_ways_for_subvp(struct dc *dc, struct dc_stat
 				pipe->stream->mall_stream_config.type == SUBVP_PHANTOM) {
 			struct pipe_ctx *main_pipe = NULL;
 
+			subvp_in_use = true;
 			/* Get full viewport height from main pipe (required for MBLK calculation) */
 			for (j = 0; j < dc->res_pool->pipe_count; j++) {
 				main_pipe = &context->res_ctx.pipe_ctx[j];
@@ -128,6 +130,9 @@ uint32_t dcn32_helper_calculate_num_ways_for_subvp(struct dc *dc, struct dc_stat
 	num_ways = cache_lines_used / lines_per_way;
 	if (cache_lines_used % lines_per_way > 0)
 		num_ways++;
+
+	if (subvp_in_use && dc->debug.force_subvp_num_ways > 0)
+		num_ways = dc->debug.force_subvp_num_ways;
 
 	return num_ways;
 }
