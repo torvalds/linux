@@ -925,6 +925,7 @@ struct mlx5dr_domain {
 	struct mlx5dr_ste_ctx *ste_ctx;
 	struct list_head dbg_tbl_list;
 	struct mlx5dr_dbg_dump_info dump_info;
+	struct xarray definers_xa;
 };
 
 struct mlx5dr_table_rx_tx {
