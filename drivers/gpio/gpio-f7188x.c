@@ -7,14 +7,15 @@
  * Author: Simon Guinot <simon.guinot@sequanux.org>
  */
 
+#define DRVNAME "gpio-f7188x"
+#define pr_fmt(fmt) DRVNAME ": " fmt
+
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/io.h>
 #include <linux/gpio/driver.h>
 #include <linux/bitops.h>
-
-#define DRVNAME "gpio-f7188x"
 
 /*
  * Super-I/O registers
@@ -110,7 +111,7 @@ static inline int superio_enter(int base)
 {
 	/* Don't step on other drivers' I/O space by accident. */
 	if (!request_muxed_region(base, 2, DRVNAME)) {
-		pr_err(DRVNAME "I/O address 0x%04x already in use\n", base);
+		pr_err("I/O address 0x%04x already in use\n", base);
 		return -EBUSY;
 	}
 
@@ -487,7 +488,7 @@ static int __init f7188x_find(int addr, struct f7188x_sio *sio)
 	err = -ENODEV;
 	devid = superio_inw(addr, SIO_MANID);
 	if (devid != SIO_FINTEK_ID) {
-		pr_debug(DRVNAME ": Not a Fintek device at 0x%08x\n", addr);
+		pr_debug("Not a Fintek device at 0x%08x\n", addr);
 		goto err;
 	}
 
@@ -518,13 +519,13 @@ static int __init f7188x_find(int addr, struct f7188x_sio *sio)
 		sio->type = f81865;
 		break;
 	default:
-		pr_info(DRVNAME ": Unsupported Fintek device 0x%04x\n", devid);
+		pr_info("Unsupported Fintek device 0x%04x\n", devid);
 		goto err;
 	}
 	sio->addr = addr;
 	err = 0;
 
-	pr_info(DRVNAME ": Found %s at %#x, revision %d\n",
+	pr_info("Found %s at %#x, revision %d\n",
 		f7188x_names[sio->type],
 		(unsigned int) addr,
 		(int) superio_inb(addr, SIO_DEVREV));
@@ -548,13 +549,13 @@ f7188x_gpio_device_add(const struct f7188x_sio *sio)
 	err = platform_device_add_data(f7188x_gpio_pdev,
 				       sio, sizeof(*sio));
 	if (err) {
-		pr_err(DRVNAME "Platform data allocation failed\n");
+		pr_err("Platform data allocation failed\n");
 		goto err;
 	}
 
 	err = platform_device_add(f7188x_gpio_pdev);
 	if (err) {
-		pr_err(DRVNAME "Device addition failed\n");
+		pr_err("Device addition failed\n");
 		goto err;
 	}
 
