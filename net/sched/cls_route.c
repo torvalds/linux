@@ -488,7 +488,7 @@ static int route4_change(struct net *net, struct sk_buff *in_skb,
 	}
 
 	if (opt == NULL)
-		return handle ? -EINVAL : 0;
+		return -EINVAL;
 
 	err = nla_parse_nested_deprecated(tb, TCA_ROUTE4_MAX, opt,
 					  route4_policy, NULL);
@@ -496,7 +496,7 @@ static int route4_change(struct net *net, struct sk_buff *in_skb,
 		return err;
 
 	fold = *arg;
-	if (fold && handle && fold->handle != handle)
+	if (fold && fold->handle != handle)
 			return -EINVAL;
 
 	err = -ENOBUFS;
