@@ -596,8 +596,10 @@ TRACE_EVENT(kvm_pv_eoi,
  */
 TRACE_EVENT(kvm_nested_vmenter,
 	    TP_PROTO(__u64 rip, __u64 vmcb, __u64 nested_rip, __u32 int_ctl,
-		     __u32 event_inj, bool tdp_enabled, __u32 isa),
-	    TP_ARGS(rip, vmcb, nested_rip, int_ctl, event_inj, tdp_enabled, isa),
+		     __u32 event_inj, bool tdp_enabled, __u64 guest_tdp_pgd,
+		     __u64 guest_cr3, __u32 isa),
+	    TP_ARGS(rip, vmcb, nested_rip, int_ctl, event_inj, tdp_enabled,
+		    guest_tdp_pgd, guest_cr3, isa),
 
 	TP_STRUCT__entry(
 		__field(	__u64,		rip		)
@@ -606,6 +608,7 @@ TRACE_EVENT(kvm_nested_vmenter,
 		__field(	__u32,		int_ctl		)
 		__field(	__u32,		event_inj	)
 		__field(	bool,		tdp_enabled	)
+		__field(	__u64,		guest_pgd	)
 		__field(	__u32,		isa		)
 	),
 
@@ -616,11 +619,12 @@ TRACE_EVENT(kvm_nested_vmenter,
 		__entry->int_ctl	= int_ctl;
 		__entry->event_inj	= event_inj;
 		__entry->tdp_enabled	= tdp_enabled;
+		__entry->guest_pgd	= tdp_enabled ? guest_tdp_pgd : guest_cr3;
 		__entry->isa		= isa;
 	),
 
 	TP_printk("rip: 0x%016llx %s: 0x%016llx nested_rip: 0x%016llx "
-		  "int_ctl: 0x%08x event_inj: 0x%08x nested_%s: %s",
+		  "int_ctl: 0x%08x event_inj: 0x%08x nested_%s=%s %s: 0x%016llx",
 		  __entry->rip,
 		  __entry->isa == KVM_ISA_VMX ? "vmcs" : "vmcb",
 		  __entry->vmcb,
@@ -628,7 +632,10 @@ TRACE_EVENT(kvm_nested_vmenter,
 		  __entry->int_ctl,
 		  __entry->event_inj,
 		  __entry->isa == KVM_ISA_VMX ? "ept" : "npt",
-		  __entry->tdp_enabled ? "on" : "off")
+		  __entry->tdp_enabled ? "y" : "n",
+		  !__entry->tdp_enabled ? "guest_cr3" :
+		  __entry->isa == KVM_ISA_VMX ? "nested_eptp" : "nested_cr3",
+		  __entry->guest_pgd)
 );
 
 TRACE_EVENT(kvm_nested_intercepts,

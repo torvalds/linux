@@ -787,6 +787,8 @@ int enter_svm_guest_mode(struct kvm_vcpu *vcpu, u64 vmcb12_gpa,
 				 vmcb12->control.int_ctl,
 				 vmcb12->control.event_inj,
 				 vmcb12->control.nested_ctl,
+				 vmcb12->control.nested_cr3,
+				 vmcb12->save.cr3,
 				 KVM_ISA_SVM);
 
 	trace_kvm_nested_intercepts(vmcb12->control.intercepts[INTERCEPT_CR] & 0xffff,
