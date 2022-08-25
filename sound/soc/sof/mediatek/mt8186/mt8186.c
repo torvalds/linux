@@ -468,6 +468,37 @@ static int mt8186_ipc_msg_data(struct snd_sof_dev *sdev,
 	return 0;
 }
 
+static struct snd_soc_dai_driver mt8186_dai[] = {
+{
+	.name = "SOF_DL1",
+	.playback = {
+		.channels_min = 1,
+		.channels_max = 2,
+	},
+},
+{
+	.name = "SOF_DL2",
+	.playback = {
+		.channels_min = 1,
+		.channels_max = 2,
+	},
+},
+{
+	.name = "SOF_UL1",
+	.capture = {
+		.channels_min = 1,
+		.channels_max = 2,
+	},
+},
+{
+	.name = "SOF_UL2",
+	.capture = {
+		.channels_min = 1,
+		.channels_max = 2,
+	},
+},
+};
+
 /* mt8186 ops */
 static struct snd_sof_dsp_ops sof_mt8186_ops = {
 	/* probe and remove */
@@ -502,6 +533,10 @@ static struct snd_sof_dsp_ops sof_mt8186_ops = {
 
 	/* Firmware ops */
 	.dsp_arch_ops = &sof_xtensa_arch_ops,
+
+	/* DAI drivers */
+	.drv		= mt8186_dai,
+	.num_drv	= ARRAY_SIZE(mt8186_dai),
 
 	/* PM */
 	.suspend	= mt8186_dsp_suspend,
