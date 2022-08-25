@@ -190,4 +190,7 @@ int nfp_shared_buf_pool_set(struct nfp_pf *pf, unsigned int sb,
 
 int nfp_devlink_params_register(struct nfp_pf *pf);
 void nfp_devlink_params_unregister(struct nfp_pf *pf);
+
+unsigned int nfp_net_lr2speed(unsigned int linkrate);
+unsigned int nfp_net_speed2lr(unsigned int speed);
 #endif /* NFP_MAIN_H */
