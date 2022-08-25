@@ -127,10 +127,11 @@ static int nfp_policer_validate(const struct flow_action *action,
 		return -EOPNOTSUPP;
 	}
 
-	if (act->police.notexceed.act_id != FLOW_ACTION_PIPE &&
+	if (act->police.notexceed.act_id != FLOW_ACTION_CONTINUE &&
+	    act->police.notexceed.act_id != FLOW_ACTION_PIPE &&
 	    act->police.notexceed.act_id != FLOW_ACTION_ACCEPT) {
 		NL_SET_ERR_MSG_MOD(extack,
-				   "Offload not supported when conform action is not pipe or ok");
+				   "Offload not supported when conform action is not continue, pipe or ok");
 		return -EOPNOTSUPP;
 	}
 
