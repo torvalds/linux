@@ -4005,6 +4005,7 @@ static struct genl_family ip_vs_genl_family __ro_after_init = {
 	.module		= THIS_MODULE,
 	.small_ops	= ip_vs_genl_ops,
 	.n_small_ops	= ARRAY_SIZE(ip_vs_genl_ops),
+	.resv_start_op	= IPVS_CMD_FLUSH + 1,
 };
 
 static int __init ip_vs_genl_register(void)

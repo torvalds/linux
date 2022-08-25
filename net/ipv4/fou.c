@@ -928,6 +928,7 @@ static struct genl_family fou_nl_family __ro_after_init = {
 	.module		= THIS_MODULE,
 	.small_ops	= fou_nl_ops,
 	.n_small_ops	= ARRAY_SIZE(fou_nl_ops),
+	.resv_start_op	= FOU_CMD_GET + 1,
 };
 
 size_t fou_encap_hlen(struct ip_tunnel_encap *e)

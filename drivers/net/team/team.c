@@ -2840,6 +2840,7 @@ static struct genl_family team_nl_family __ro_after_init = {
 	.module		= THIS_MODULE,
 	.small_ops	= team_nl_ops,
 	.n_small_ops	= ARRAY_SIZE(team_nl_ops),
+	.resv_start_op	= TEAM_CMD_PORT_LIST_GET + 1,
 	.mcgrps		= team_nl_mcgrps,
 	.n_mcgrps	= ARRAY_SIZE(team_nl_mcgrps),
 };

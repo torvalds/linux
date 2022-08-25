@@ -3404,6 +3404,7 @@ static struct genl_family macsec_fam __ro_after_init = {
 	.module		= THIS_MODULE,
 	.small_ops	= macsec_genl_ops,
 	.n_small_ops	= ARRAY_SIZE(macsec_genl_ops),
+	.resv_start_op	= MACSEC_CMD_UPD_OFFLOAD + 1,
 };
 
 static netdev_tx_t macsec_start_xmit(struct sk_buff *skb,

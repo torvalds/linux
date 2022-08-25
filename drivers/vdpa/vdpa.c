@@ -1183,6 +1183,7 @@ static struct genl_family vdpa_nl_family __ro_after_init = {
 	.module = THIS_MODULE,
 	.ops = vdpa_nl_ops,
 	.n_ops = ARRAY_SIZE(vdpa_nl_ops),
+	.resv_start_op = VDPA_CMD_DEV_VSTATS_GET + 1,
 };
 
 static int vdpa_init(void)

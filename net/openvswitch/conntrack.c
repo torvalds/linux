@@ -2283,6 +2283,7 @@ struct genl_family dp_ct_limit_genl_family __ro_after_init = {
 	.parallel_ops = true,
 	.small_ops = ct_limit_genl_ops,
 	.n_small_ops = ARRAY_SIZE(ct_limit_genl_ops),
+	.resv_start_op = OVS_CT_LIMIT_CMD_GET + 1,
 	.mcgrps = &ovs_ct_limit_multicast_group,
 	.n_mcgrps = 1,
 	.module = THIS_MODULE,

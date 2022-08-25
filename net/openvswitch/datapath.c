@@ -692,6 +692,7 @@ static struct genl_family dp_packet_genl_family __ro_after_init = {
 	.parallel_ops = true,
 	.small_ops = dp_packet_genl_ops,
 	.n_small_ops = ARRAY_SIZE(dp_packet_genl_ops),
+	.resv_start_op = OVS_PACKET_CMD_EXECUTE + 1,
 	.module = THIS_MODULE,
 };
 
@@ -1509,6 +1510,7 @@ static struct genl_family dp_flow_genl_family __ro_after_init = {
 	.parallel_ops = true,
 	.small_ops = dp_flow_genl_ops,
 	.n_small_ops = ARRAY_SIZE(dp_flow_genl_ops),
+	.resv_start_op = OVS_FLOW_CMD_SET + 1,
 	.mcgrps = &ovs_dp_flow_multicast_group,
 	.n_mcgrps = 1,
 	.module = THIS_MODULE,
@@ -2051,6 +2053,7 @@ static struct genl_family dp_datapath_genl_family __ro_after_init = {
 	.parallel_ops = true,
 	.small_ops = dp_datapath_genl_ops,
 	.n_small_ops = ARRAY_SIZE(dp_datapath_genl_ops),
+	.resv_start_op = OVS_DP_CMD_SET + 1,
 	.mcgrps = &ovs_dp_datapath_multicast_group,
 	.n_mcgrps = 1,
 	.module = THIS_MODULE,

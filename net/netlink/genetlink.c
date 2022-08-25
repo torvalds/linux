@@ -757,6 +757,9 @@ static int genl_family_rcv_msg(const struct genl_family *family,
 	if (nlh->nlmsg_len < nlmsg_msg_size(hdrlen))
 		return -EINVAL;
 
+	if (hdr->cmd >= family->resv_start_op && hdr->reserved)
+		return -EINVAL;
+
 	if (genl_get_cmd(hdr->cmd, family, &op))
 		return -EOPNOTSUPP;
 
@@ -1348,6 +1351,7 @@ static struct genl_family genl_ctrl __ro_after_init = {
 	.module = THIS_MODULE,
 	.ops = genl_ctrl_ops,
 	.n_ops = ARRAY_SIZE(genl_ctrl_ops),
+	.resv_start_op = CTRL_CMD_GETPOLICY + 1,
 	.mcgrps = genl_ctrl_groups,
 	.n_mcgrps = ARRAY_SIZE(genl_ctrl_groups),
 	.id = GENL_ID_CTRL,

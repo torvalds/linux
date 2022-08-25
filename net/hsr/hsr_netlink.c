@@ -522,6 +522,7 @@ static struct genl_family hsr_genl_family __ro_after_init = {
 	.module = THIS_MODULE,
 	.small_ops = hsr_ops,
 	.n_small_ops = ARRAY_SIZE(hsr_ops),
+	.resv_start_op = HSR_C_SET_NODE_LIST + 1,
 	.mcgrps = hsr_mcgrps,
 	.n_mcgrps = ARRAY_SIZE(hsr_mcgrps),
 };

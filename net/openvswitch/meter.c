@@ -720,6 +720,7 @@ struct genl_family dp_meter_genl_family __ro_after_init = {
 	.parallel_ops = true,
 	.small_ops = dp_meter_genl_ops,
 	.n_small_ops = ARRAY_SIZE(dp_meter_genl_ops),
+	.resv_start_op = OVS_METER_CMD_GET + 1,
 	.mcgrps = &ovs_meter_multicast_group,
 	.n_mcgrps = 1,
 	.module = THIS_MODULE,

@@ -142,7 +142,8 @@ struct genl_family smc_gen_nl_family __ro_after_init = {
 	.netnsok =	true,
 	.module =	THIS_MODULE,
 	.ops =		smc_gen_nl_ops,
-	.n_ops =	ARRAY_SIZE(smc_gen_nl_ops)
+	.n_ops =	ARRAY_SIZE(smc_gen_nl_ops),
+	.resv_start_op = SMC_NETLINK_DISABLE_HS_LIMITATION + 1,
 };
 
 int __init smc_nl_init(void)

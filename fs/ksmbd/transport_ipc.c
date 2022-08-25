@@ -197,6 +197,7 @@ static struct genl_family ksmbd_genl_family = {
 	.module		= THIS_MODULE,
 	.ops		= ksmbd_genl_ops,
 	.n_ops		= ARRAY_SIZE(ksmbd_genl_ops),
+	.resv_start_op	= KSMBD_EVENT_SPNEGO_AUTHEN_RESPONSE + 1,
 };
 
 static void ksmbd_nl_init_fixup(void)
