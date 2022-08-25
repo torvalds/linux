@@ -1219,6 +1219,7 @@ EXPORT_SYMBOL(inet_unregister_protosw);
 
 static int inet_sk_reselect_saddr(struct sock *sk)
 {
+	struct inet_bind_hashbucket *prev_addr_hashbucket;
 	struct inet_sock *inet = inet_sk(sk);
 	__be32 old_saddr = inet->inet_saddr;
 	__be32 daddr = inet->inet_daddr;
@@ -1226,6 +1227,7 @@ static int inet_sk_reselect_saddr(struct sock *sk)
 	struct rtable *rt;
 	__be32 new_saddr;
 	struct ip_options_rcu *inet_opt;
+	int err;
 
 	inet_opt = rcu_dereference_protected(inet->inet_opt,
 					     lockdep_sock_is_held(sk));
@@ -1240,19 +1242,33 @@ static int inet_sk_reselect_saddr(struct sock *sk)
 	if (IS_ERR(rt))
 		return PTR_ERR(rt);
 
-	sk_setup_caps(sk, &rt->dst);
-
 	new_saddr = fl4->saddr;
 
-	if (new_saddr == old_saddr)
+	if (new_saddr == old_saddr) {
+		sk_setup_caps(sk, &rt->dst);
 		return 0;
+	}
+
+	prev_addr_hashbucket =
+		inet_bhashfn_portaddr(sk->sk_prot->h.hashinfo, sk,
+				      sock_net(sk), inet->inet_num);
+
+	inet->inet_saddr = inet->inet_rcv_saddr = new_saddr;
+
+	err = inet_bhash2_update_saddr(prev_addr_hashbucket, sk);
+	if (err) {
+		inet->inet_saddr = old_saddr;
+		inet->inet_rcv_saddr = old_saddr;
+		ip_rt_put(rt);
+		return err;
+	}
+
+	sk_setup_caps(sk, &rt->dst);
 
 	if (READ_ONCE(sock_net(sk)->ipv4.sysctl_ip_dynaddr) > 1) {
 		pr_info("%s(): shifting inet->saddr from %pI4 to %pI4\n",
 			__func__, &old_saddr, &new_saddr);
 	}
-
-	inet->inet_saddr = inet->inet_rcv_saddr = new_saddr;
 
 	/*
 	 * XXX The only one ugly spot where we need to

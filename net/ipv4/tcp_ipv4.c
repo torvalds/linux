@@ -199,11 +199,12 @@ static int tcp_v4_pre_connect(struct sock *sk, struct sockaddr *uaddr,
 /* This will initiate an outgoing connection. */
 int tcp_v4_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 {
+	struct inet_bind_hashbucket *prev_addr_hashbucket = NULL;
 	struct sockaddr_in *usin = (struct sockaddr_in *)uaddr;
+	__be32 daddr, nexthop, prev_sk_rcv_saddr;
 	struct inet_sock *inet = inet_sk(sk);
 	struct tcp_sock *tp = tcp_sk(sk);
 	__be16 orig_sport, orig_dport;
-	__be32 daddr, nexthop;
 	struct flowi4 *fl4;
 	struct rtable *rt;
 	int err;
@@ -246,9 +247,27 @@ int tcp_v4_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 	if (!inet_opt || !inet_opt->opt.srr)
 		daddr = fl4->daddr;
 
-	if (!inet->inet_saddr)
+	if (!inet->inet_saddr) {
+		if (inet_csk(sk)->icsk_bind2_hash) {
+			prev_addr_hashbucket = inet_bhashfn_portaddr(&tcp_hashinfo,
+								     sk, sock_net(sk),
+								     inet->inet_num);
+			prev_sk_rcv_saddr = sk->sk_rcv_saddr;
+		}
 		inet->inet_saddr = fl4->saddr;
+	}
+
 	sk_rcv_saddr_set(sk, inet->inet_saddr);
+
+	if (prev_addr_hashbucket) {
+		err = inet_bhash2_update_saddr(prev_addr_hashbucket, sk);
+		if (err) {
+			inet->inet_saddr = 0;
+			sk_rcv_saddr_set(sk, prev_sk_rcv_saddr);
+			ip_rt_put(rt);
+			return err;
+		}
+	}
 
 	if (tp->rx_opt.ts_recent_stamp && inet->inet_daddr != daddr) {
 		/* Reset inherited state */

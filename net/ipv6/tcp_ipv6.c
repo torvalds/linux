@@ -287,8 +287,25 @@ static int tcp_v6_connect(struct sock *sk, struct sockaddr *uaddr,
 	}
 
 	if (!saddr) {
+		struct inet_bind_hashbucket *prev_addr_hashbucket = NULL;
+		struct in6_addr prev_v6_rcv_saddr;
+
+		if (icsk->icsk_bind2_hash) {
+			prev_addr_hashbucket = inet_bhashfn_portaddr(&tcp_hashinfo,
+								     sk, sock_net(sk),
+								     inet->inet_num);
+			prev_v6_rcv_saddr = sk->sk_v6_rcv_saddr;
+		}
 		saddr = &fl6.saddr;
 		sk->sk_v6_rcv_saddr = *saddr;
+
+		if (prev_addr_hashbucket) {
+			err = inet_bhash2_update_saddr(prev_addr_hashbucket, sk);
+			if (err) {
+				sk->sk_v6_rcv_saddr = prev_v6_rcv_saddr;
+				goto failure;
+			}
+		}
 	}
 
 	/* set the source address */

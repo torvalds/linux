@@ -40,3 +40,6 @@ tun
 cmsg_sender
 unix_connect
 tap
+bind_bhash
+sk_bind_sendto_listen
+sk_connect_zero_addr
