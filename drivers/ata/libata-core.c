@@ -4295,7 +4295,6 @@ static void ata_dev_xfermask(struct ata_device *dev)
 static unsigned int ata_dev_set_xfermode(struct ata_device *dev)
 {
 	struct ata_taskfile tf;
-	unsigned int err_mask;
 
 	/* set up set-features taskfile */
 	ata_dev_dbg(dev, "set features - xfer mode\n");
@@ -4317,10 +4316,11 @@ static unsigned int ata_dev_set_xfermode(struct ata_device *dev)
 	else /* In the ancient relic department - skip all of this */
 		return 0;
 
-	/* On some disks, this command causes spin-up, so we need longer timeout */
-	err_mask = ata_exec_internal(dev, &tf, NULL, DMA_NONE, NULL, 0, 15000);
-
-	return err_mask;
+	/*
+	 * On some disks, this command causes spin-up, so we need longer
+	 * timeout.
+	 */
+	return ata_exec_internal(dev, &tf, NULL, DMA_NONE, NULL, 0, 15000);
 }
 
 /**
