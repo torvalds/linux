@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/sound/mchp,spdifrx.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Microchip S/PDIF Rx Controller Device Tree Bindings
+title: Microchip S/PDIF Rx Controller
 
 maintainers:
   - Codrin Ciubotariu <codrin.ciubotariu@microchip.com>

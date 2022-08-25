@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/sram/allwinner,sun4i-a10-system-control.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Allwinner A10 System Control Device Tree Bindings
+title: Allwinner A10 System Control
 
 maintainers:
   - Chen-Yu Tsai <wens@csie.org>

@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/usb/smsc,usb3503.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: SMSC USB3503 High-Speed Hub Controller Device Tree Bindings
+title: SMSC USB3503 High-Speed Hub Controller
 
 maintainers:
   - Dongjin Kim <tobetter@gmail.com>

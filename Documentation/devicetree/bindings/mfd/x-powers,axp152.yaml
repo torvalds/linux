@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/mfd/x-powers,axp152.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: X-Powers AXP PMIC Device Tree Bindings
+title: X-Powers AXP PMIC
 
 maintainers:
   - Chen-Yu Tsai <wens@csie.org>

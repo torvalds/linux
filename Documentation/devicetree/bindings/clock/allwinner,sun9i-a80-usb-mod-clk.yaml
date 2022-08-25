@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/clock/allwinner,sun9i-a80-usb-mod-clk.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Allwinner A80 USB Module Clock Device Tree Bindings
+title: Allwinner A80 USB Module Clock
 
 maintainers:
   - Chen-Yu Tsai <wens@csie.org>

@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/pci/microchip,pcie-host.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Microchip PCIe Root Port Bridge Controller Device Tree Bindings
+title: Microchip PCIe Root Port Bridge Controller
 
 maintainers:
   - Daire McNamara <daire.mcnamara@microchip.com>

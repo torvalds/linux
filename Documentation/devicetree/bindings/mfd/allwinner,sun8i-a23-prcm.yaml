@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/mfd/allwinner,sun8i-a23-prcm.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Allwinner A23 PRCM Device Tree Bindings
+title: Allwinner A23 PRCM
 
 maintainers:
   - Chen-Yu Tsai <wens@csie.org>

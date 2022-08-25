@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/clock/allwinner,sun7i-a20-out-clk.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Allwinner A20 Output Clock Device Tree Bindings
+title: Allwinner A20 Output Clock
 
 maintainers:
   - Chen-Yu Tsai <wens@csie.org>

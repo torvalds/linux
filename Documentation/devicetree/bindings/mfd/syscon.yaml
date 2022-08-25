@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/mfd/syscon.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: System Controller Registers R/W Device Tree Bindings
+title: System Controller Registers R/W
 
 description: |
   System controller node represents a register region containing a set

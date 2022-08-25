@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/pinctrl/mediatek,mt7986-pinctrl.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Mediatek MT7986 Pin Controller Device Tree Bindings
+title: Mediatek MT7986 Pin Controller
 
 maintainers:
   - Sean Wang <sean.wang@kernel.org>

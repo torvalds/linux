@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/clock/allwinner,sun4i-a10-ccu.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Allwinner Clock Control Unit Device Tree Bindings
+title: Allwinner Clock Control Unit
 
 maintainers:
   - Chen-Yu Tsai <wens@csie.org>

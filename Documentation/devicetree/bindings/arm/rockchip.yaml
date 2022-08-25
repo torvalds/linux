@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/arm/rockchip.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Rockchip platforms device tree bindings
+title: Rockchip platforms
 
 maintainers:
   - Heiko Stuebner <heiko@sntech.de>

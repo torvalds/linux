@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/sound/adi,max98396.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Analog Devices MAX98396 Speaker Amplifier Device Tree Bindings
+title: Analog Devices MAX98396 Speaker Amplifier
 
 maintainers:
   - Ryan Lee <ryans.lee@analog.com>

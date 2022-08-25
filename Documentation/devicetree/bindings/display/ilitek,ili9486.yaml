@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/display/ilitek,ili9486.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Ilitek ILI9486 display panels device tree bindings
+title: Ilitek ILI9486 display panels
 
 maintainers:
   - Kamlesh Gurudasani <kamlesh.gurudasani@gmail.com>

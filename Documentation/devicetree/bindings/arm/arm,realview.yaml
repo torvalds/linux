@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/arm/arm,realview.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: ARM RealView Boards Device Tree Bindings
+title: ARM RealView Boards
 
 maintainers:
   - Linus Walleij <linus.walleij@linaro.org>

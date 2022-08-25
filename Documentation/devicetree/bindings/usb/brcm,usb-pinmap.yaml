@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/usb/brcm,usb-pinmap.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Broadcom USB pin map Controller Device Tree Bindings
+title: Broadcom USB pin map Controller
 
 maintainers:
   - Al Cooper <alcooperx@gmail.com>

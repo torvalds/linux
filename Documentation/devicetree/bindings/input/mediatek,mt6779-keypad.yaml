@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/input/mediatek,mt6779-keypad.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Mediatek's Keypad Controller device tree bindings
+title: Mediatek's Keypad Controller
 
 maintainers:
   - Mattijs Korpershoek <mkorpershoek@baylibre.com>

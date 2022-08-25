@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/phy/cdns,dphy-rx.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Cadence DPHY Rx Device Tree Bindings
+title: Cadence DPHY Rx
 
 maintainers:
   - Pratyush Yadav <p.yadav@ti.com>

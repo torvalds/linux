@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/reserved-memory/reserved-memory.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: /reserved-memory Child Node Common Device Tree Bindings
+title: /reserved-memory Child Node Common
 
 maintainers:
   - devicetree-spec@vger.kernel.org

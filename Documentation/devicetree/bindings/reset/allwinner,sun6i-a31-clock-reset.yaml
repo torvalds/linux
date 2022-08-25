@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/reset/allwinner,sun6i-a31-clock-reset.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Allwinner A31 Peripheral Reset Controller Device Tree Bindings
+title: Allwinner A31 Peripheral Reset Controller
 
 maintainers:
   - Chen-Yu Tsai <wens@csie.org>

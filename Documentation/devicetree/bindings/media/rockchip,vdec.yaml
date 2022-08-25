@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/media/rockchip,vdec.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Rockchip Video Decoder (VDec) Device Tree Bindings
+title: Rockchip Video Decoder (VDec)
 
 maintainers:
   - Heiko Stuebner <heiko@sntech.de>

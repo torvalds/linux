@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/watchdog/mstar,msc313e-wdt.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: MStar Watchdog Device Tree Bindings
+title: MStar Watchdog
 
 maintainers:
   - Daniel Palmer <daniel@0x0f.com>
