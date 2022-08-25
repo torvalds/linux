@@ -11,56 +11,56 @@
 		__overlay__ {
 			dt_sdcard1_pins: dt-sdcard1-pins {
 				sdcard1-pins0 {
-					sf,pins = <PAD_GPIO56>;
-					sf,pinmux = <PAD_GPIO56_FUNC_SEL 0>;
-					sf,pin-ioconfig = <IO(GPIO_IE(1) | (GPIO_PU(1)))>;
-					sf,pin-gpio-dout = <GPO_SDIO1_CCLK_OUT>;
-					sf,pin-gpio-doen = <OEN_LOW>;
+					starfive,pins = <PAD_GPIO56>;
+					starfive,pinmux = <PAD_GPIO56_FUNC_SEL 0>;
+					starfive,pin-ioconfig = <IO(GPIO_IE(1) | (GPIO_PU(1)))>;
+					starfive,pin-gpio-dout = <GPO_SDIO1_CCLK_OUT>;
+					starfive,pin-gpio-doen = <OEN_LOW>;
 				};
 
 				sdcard1-pins1 {
-					sf,pins = <PAD_GPIO50>;
-					sf,pinmux = <PAD_GPIO50_FUNC_SEL 0>;
-					sf,pin-ioconfig = <IO(GPIO_IE(1) | (GPIO_PU(1)))>;
-					sf,pin-gpio-dout = <GPO_SDIO1_CCMD_OUT>;
-					sf,pin-gpio-doen = <OEN_SDIO1_CCMD_OUT_EN>;
-					sf,pin-gpio-din =  <GPI_SDIO1_CCMD_IN>;
+					starfive,pins = <PAD_GPIO50>;
+					starfive,pinmux = <PAD_GPIO50_FUNC_SEL 0>;
+					starfive,pin-ioconfig = <IO(GPIO_IE(1) | (GPIO_PU(1)))>;
+					starfive,pin-gpio-dout = <GPO_SDIO1_CCMD_OUT>;
+					starfive,pin-gpio-doen = <OEN_SDIO1_CCMD_OUT_EN>;
+					starfive,pin-gpio-din =  <GPI_SDIO1_CCMD_IN>;
 				};
 
 				sdcard1-pins2 {
-					sf,pins = <PAD_GPIO49>;
-					sf,pinmux = <PAD_GPIO49_FUNC_SEL 0>;
-					sf,pin-ioconfig = <IO(GPIO_IE(1) | (GPIO_PU(1)))>;
-					sf,pin-gpio-dout = <GPO_SDIO1_CDATA_OUT_0>;
-					sf,pin-gpio-doen = <OEN_SDIO1_CDATA_OUT_EN_0>;
-					sf,pin-gpio-din =  <GPI_SDIO1_CDATA_IN_0>;
+					starfive,pins = <PAD_GPIO49>;
+					starfive,pinmux = <PAD_GPIO49_FUNC_SEL 0>;
+					starfive,pin-ioconfig = <IO(GPIO_IE(1) | (GPIO_PU(1)))>;
+					starfive,pin-gpio-dout = <GPO_SDIO1_CDATA_OUT_0>;
+					starfive,pin-gpio-doen = <OEN_SDIO1_CDATA_OUT_EN_0>;
+					starfive,pin-gpio-din =  <GPI_SDIO1_CDATA_IN_0>;
 				};
 
 				sdcard1-pins3 {
-					sf,pins = <PAD_GPIO45>;
-					sf,pinmux = <PAD_GPIO45_FUNC_SEL 0>;
-					sf,pin-ioconfig = <IO(GPIO_IE(1) | (GPIO_PU(1)))>;
-					sf,pin-gpio-dout = <GPO_SDIO1_CDATA_OUT_1>;
-					sf,pin-gpio-doen = <OEN_SDIO1_CDATA_OUT_EN_1>;
-					sf,pin-gpio-din =  <GPI_SDIO1_CDATA_IN_1>;
+					starfive,pins = <PAD_GPIO45>;
+					starfive,pinmux = <PAD_GPIO45_FUNC_SEL 0>;
+					starfive,pin-ioconfig = <IO(GPIO_IE(1) | (GPIO_PU(1)))>;
+					starfive,pin-gpio-dout = <GPO_SDIO1_CDATA_OUT_1>;
+					starfive,pin-gpio-doen = <OEN_SDIO1_CDATA_OUT_EN_1>;
+					starfive,pin-gpio-din =  <GPI_SDIO1_CDATA_IN_1>;
 				};
 
 				sdcard1-pins4 {
-					sf,pins = <PAD_GPIO62>;
-					sf,pinmux = <PAD_GPIO62_FUNC_SEL 0>;
-					sf,pin-ioconfig = <IO(GPIO_IE(1) | (GPIO_PU(1)))>;
-					sf,pin-gpio-dout = <GPO_SDIO1_CDATA_OUT_2>;
-					sf,pin-gpio-doen = <OEN_SDIO1_CDATA_OUT_EN_2>;
-					sf,pin-gpio-din =  <GPI_SDIO1_CDATA_IN_2>;
+					starfive,pins = <PAD_GPIO62>;
+					starfive,pinmux = <PAD_GPIO62_FUNC_SEL 0>;
+					starfive,pin-ioconfig = <IO(GPIO_IE(1) | (GPIO_PU(1)))>;
+					starfive,pin-gpio-dout = <GPO_SDIO1_CDATA_OUT_2>;
+					starfive,pin-gpio-doen = <OEN_SDIO1_CDATA_OUT_EN_2>;
+					starfive,pin-gpio-din =  <GPI_SDIO1_CDATA_IN_2>;
 				};
 
 				sdcard1-pins5 {
-					sf,pins = <PAD_GPIO40>;
-					sf,pinmux = <PAD_GPIO40_FUNC_SEL 0>;
-					sf,pin-ioconfig = <IO(GPIO_IE(1) | (GPIO_PU(1)))>;
-					sf,pin-gpio-dout = <GPO_SDIO1_CDATA_OUT_3>;
-					sf,pin-gpio-doen = <OEN_SDIO1_CDATA_OUT_EN_3>;
-					sf,pin-gpio-din =  <GPI_SDIO1_CDATA_IN_3>;
+					starfive,pins = <PAD_GPIO40>;
+					starfive,pinmux = <PAD_GPIO40_FUNC_SEL 0>;
+					starfive,pin-ioconfig = <IO(GPIO_IE(1) | (GPIO_PU(1)))>;
+					starfive,pin-gpio-dout = <GPO_SDIO1_CDATA_OUT_3>;
+					starfive,pin-gpio-doen = <OEN_SDIO1_CDATA_OUT_EN_3>;
+					starfive,pin-gpio-din =  <GPI_SDIO1_CDATA_IN_3>;
 				};
 			};
 		};

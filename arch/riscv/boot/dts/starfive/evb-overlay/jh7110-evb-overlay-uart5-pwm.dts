@@ -11,35 +11,35 @@
 		__overlay__ {
 			dt_pwm_ch0to3_pins: dt-pwm-ch0to3-pins {
 				pwm_ch0-pins {
-					sf,pins = <PAD_GPIO45>;
-					sf,pinmux = <PAD_GPIO45_FUNC_SEL 0>;
-					sf,pin-ioconfig = <IO(GPIO_IE(1))>;
-					sf,pin-gpio-dout = <GPO_PTC0_PWM_0>;
-					sf,pin-gpio-doen = <OEN_PTC0_PWM_0_OE_N>;
+					starfive,pins = <PAD_GPIO45>;
+					starfive,pinmux = <PAD_GPIO45_FUNC_SEL 0>;
+					starfive,pin-ioconfig = <IO(GPIO_IE(1))>;
+					starfive,pin-gpio-dout = <GPO_PTC0_PWM_0>;
+					starfive,pin-gpio-doen = <OEN_PTC0_PWM_0_OE_N>;
 				};
 
 				pwm_ch1-pins {
-					sf,pins = <PAD_GPIO46>;
-					sf,pinmux = <PAD_GPIO46_FUNC_SEL 0>;
-					sf,pin-ioconfig = <IO(GPIO_IE(1))>;
-					sf,pin-gpio-dout = <GPO_PTC0_PWM_1>;
-					sf,pin-gpio-doen = <OEN_PTC0_PWM_1_OE_N>;
+					starfive,pins = <PAD_GPIO46>;
+					starfive,pinmux = <PAD_GPIO46_FUNC_SEL 0>;
+					starfive,pin-ioconfig = <IO(GPIO_IE(1))>;
+					starfive,pin-gpio-dout = <GPO_PTC0_PWM_1>;
+					starfive,pin-gpio-doen = <OEN_PTC0_PWM_1_OE_N>;
 				};
 
 				pwm_ch2-pins {
-					sf,pins = <PAD_GPIO47>;
-					sf,pinmux = <PAD_GPIO47_FUNC_SEL 0>;
-					sf,pin-ioconfig = <IO(GPIO_IE(1))>;
-					sf,pin-gpio-dout = <GPO_PTC0_PWM_2>;
-					sf,pin-gpio-doen = <OEN_PTC0_PWM_2_OE_N>;
+					starfive,pins = <PAD_GPIO47>;
+					starfive,pinmux = <PAD_GPIO47_FUNC_SEL 0>;
+					starfive,pin-ioconfig = <IO(GPIO_IE(1))>;
+					starfive,pin-gpio-dout = <GPO_PTC0_PWM_2>;
+					starfive,pin-gpio-doen = <OEN_PTC0_PWM_2_OE_N>;
 				};
 
 				pwm_ch3-pins {
-					sf,pins = <PAD_GPIO48>;
-					sf,pinmux = <PAD_GPIO48_FUNC_SEL 0>;
-					sf,pin-ioconfig = <IO(GPIO_IE(1))>;
-					sf,pin-gpio-dout = <GPO_PTC0_PWM_3>;
-					sf,pin-gpio-doen = <OEN_PTC0_PWM_3_OE_N>;
+					starfive,pins = <PAD_GPIO48>;
+					starfive,pinmux = <PAD_GPIO48_FUNC_SEL 0>;
+					starfive,pin-ioconfig = <IO(GPIO_IE(1))>;
+					starfive,pin-gpio-dout = <GPO_PTC0_PWM_3>;
+					starfive,pin-gpio-doen = <OEN_PTC0_PWM_3_OE_N>;
 				};
 			};
 		};
@@ -51,17 +51,17 @@
 		__overlay__ {
 			dt_pwm_ch4to5_pins: dt-pwm-ch4to5-pins {
 				pwm-ch4-pins {
-					sf,pins = <PAD_RGPIO0>;
-					sf,pin-ioconfig = <IO(GPIO_IE(1))>;
-					sf,pin-gpio-dout = <U0_PWM_8CH_PTC_PWM_4>;
-					sf,pin-gpio-doen = <U0_PWM_8CH_PTC_OE_N_4>;
+					starfive,pins = <PAD_RGPIO0>;
+					starfive,pin-ioconfig = <IO(GPIO_IE(1))>;
+					starfive,pin-gpio-dout = <U0_PWM_8CH_PTC_PWM_4>;
+					starfive,pin-gpio-doen = <U0_PWM_8CH_PTC_OE_N_4>;
 				};
 
 				pwm-ch5-pins {
-					sf,pins = <PAD_RGPIO1>;
-					sf,pin-ioconfig = <IO(GPIO_IE(1))>;
-					sf,pin-gpio-dout = <U0_PWM_8CH_PTC_PWM_5>;
-					sf,pin-gpio-doen = <U0_PWM_8CH_PTC_OE_N_5>;
+					starfive,pins = <PAD_RGPIO1>;
+					starfive,pin-ioconfig = <IO(GPIO_IE(1))>;
+					starfive,pin-gpio-dout = <U0_PWM_8CH_PTC_PWM_5>;
+					starfive,pin-gpio-doen = <U0_PWM_8CH_PTC_OE_N_5>;
 				};
 			};
 		};

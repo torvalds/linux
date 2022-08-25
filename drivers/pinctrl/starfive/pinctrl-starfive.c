@@ -79,10 +79,10 @@ static int starfive_dt_node_to_map(struct pinctrl_dev *pctldev,
 	pin_size = STARFIVE_PINS_SIZE;
 
 	for_each_child_of_node(np, child) {
-		list = of_get_property(child, "sf,pins", &psize);
+		list = of_get_property(child, "starfive,pins", &psize);
 		if (!list) {
 			dev_err(sfp->dev,
-				"no sf,pins and pins property in node %pOF\n", np);
+				"no starfive,pins and pins property in node %pOF\n", np);
 			return -EINVAL;
 		}
 		size += psize;
@@ -90,7 +90,7 @@ static int starfive_dt_node_to_map(struct pinctrl_dev *pctldev,
 
 	if (!size || size % pin_size) {
 		dev_err(sfp->dev,
-			"Invalid sf,pins or pins property in node %pOF\n", np);
+			"Invalid starfive,pins or pins property in node %pOF\n", np);
 		return -EINVAL;
 	}
 
@@ -139,10 +139,10 @@ static int starfive_dt_node_to_map(struct pinctrl_dev *pctldev,
 		nmaps += 1;
 
 
-		list = of_get_property(child, "sf,pins", &psize);
+		list = of_get_property(child, "starfive,pins", &psize);
 		if (!list) {
 			dev_err(sfp->dev,
-				"no sf,pins and pins property in node %pOF\n", np);
+				"no starfive,pins and pins property in node %pOF\n", np);
 			goto put_child;
 		}
 		child_num_pins = psize / pin_size;
@@ -171,36 +171,13 @@ static int starfive_dt_node_to_map(struct pinctrl_dev *pctldev,
 			list++;
 		}
 		offset += i;
-/*
-		map[nmaps].type = PIN_MAP_TYPE_MUX_GROUP;
-		map[nmaps].data.mux.function = np->name;
-		map[nmaps].data.mux.group = grpname;
-		nmaps += 1;
-*/
+
 		ret = pinctrl_generic_add_group(pctldev,
 				grpname, pins_id, child_num_pins, pin_data);
 		if (ret < 0) {
 			dev_err(dev, "error adding group %s: %d\n", grpname, ret);
 			goto put_child;
 		}
-#if 0
-		ret = pinconf_generic_parse_dt_config(child, pctldev,
-				&map[nmaps].data.configs.configs,
-				&map[nmaps].data.configs.num_configs);
-		if (ret) {
-			dev_err(dev, "error parsing pin config of group %s: %d\n",
-					grpname, ret);
-			goto put_child;
-		}
-
-		/* don't create a map if there are no pinconf settings */
-		if (map[nmaps].data.configs.num_configs == 0)
-			continue;
-
-		map[nmaps].type = PIN_MAP_TYPE_CONFIGS_GROUP;
-		map[nmaps].data.configs.group_or_pin = grpname;
-		nmaps += 1;
-#endif
 	}
 
 	ret = pinmux_generic_add_function(pctldev, np->name, pgnames, ngroups, NULL);

@@ -1069,10 +1069,10 @@ static void starfive_jh7110_sys_parse_pin_config(
 			+ SYS_GPO_PDA_89_94_CFG_BASE_REG;
 	}
 
-	if (!of_property_read_u32(np, "sf,pin-ioconfig", &value))
+	if (!of_property_read_u32(np, "starfive,pin-ioconfig", &value))
 		pin_data->pin_config.io_config = value;
 
-	list = of_get_property(np, "sf,pinmux", &size);
+	list = of_get_property(np, "starfive,pinmux", &size);
 	if (list) {
 		pin_reg->func_sel_reg = be32_to_cpu(*list++);
 		pin_reg->func_sel_shift = be32_to_cpu(*list++);
@@ -1080,7 +1080,7 @@ static void starfive_jh7110_sys_parse_pin_config(
 		pin_data->pin_config.pinmux_func = be32_to_cpu(*list++);
 	}
 
-	list = of_get_property(np, "sf,padmux", &size);
+	list = of_get_property(np, "starfive,padmux", &size);
 	if (list) {
 		pin_reg->pad_sel_reg = be32_to_cpu(*list++);
 		pin_reg->pad_sel_shift = be32_to_cpu(*list++);
@@ -1088,7 +1088,7 @@ static void starfive_jh7110_sys_parse_pin_config(
 		pin_data->pin_config.padmux_func = be32_to_cpu(*list++);
 	}
 
-	list = of_get_property(np, "sf,pin-syscon", &size);
+	list = of_get_property(np, "starfive,pin-syscon", &size);
 	if (list) {
 		pin_reg->syscon_reg = be32_to_cpu(*list++);
 		pin_data->pin_config.syscon = be32_to_cpu(*list++);
@@ -1098,21 +1098,21 @@ static void starfive_jh7110_sys_parse_pin_config(
 		pin_data->pin_config.gpio_num = pin_data->pin;
 		n = pin_data->pin_config.gpio_num >> GPIO_NUM_SHIFT;
 
-		if (!of_property_read_u32(np, "sf,pin-gpio-dout", &value)) {
+		if (!of_property_read_u32(np, "starfive,pin-gpio-dout", &value)) {
 			pin_data->pin_config.gpio_dout = value;
 			pin_reg->gpo_dout_reg = info->dout_reg_base + n * 4;
 		}
 
-		if (!of_property_read_u32(np, "sf,pin-gpio-doen", &value)) {
+		if (!of_property_read_u32(np, "starfive,pin-gpio-doen", &value)) {
 			pin_data->pin_config.gpio_doen = value;
 			pin_reg->gpo_doen_reg = info->doen_reg_base + n * 4;
 		}
 
-		list_din = of_get_property(np, "sf,pin-gpio-din", &size_din);
+		list_din = of_get_property(np, "starfive,pin-gpio-din", &size_din);
 		if (list_din) {
 			if (!size_din || size_din % pin_size) {
 				dev_err(pctl->dev,
-					"Invalid sf,pin-gpio-din property in node\n");
+					"Invalid starfive,pin-gpio-din property in node\n");
 				return;
 			}
 
@@ -1232,10 +1232,10 @@ static void starfive_jh7110_aon_parse_pin_config(
 					AON_GPO_PDA_0_5_CFG_BASE_REG;
 	}
 
-	if (!of_property_read_u32(np, "sf,pin-ioconfig", &value))
+	if (!of_property_read_u32(np, "starfive,pin-ioconfig", &value))
 		pin_data->pin_config.io_config = value;
 
-	list = of_get_property(np, "sf,pinmux", &size);
+	list = of_get_property(np, "starfive,pinmux", &size);
 	if (list) {
 		pin_reg->func_sel_reg = be32_to_cpu(*list++);
 		pin_reg->func_sel_shift = be32_to_cpu(*list++);
@@ -1243,7 +1243,7 @@ static void starfive_jh7110_aon_parse_pin_config(
 		pin_data->pin_config.pinmux_func = be32_to_cpu(*list++);
 	}
 
-	list = of_get_property(np, "sf,pin-syscon", &size);
+	list = of_get_property(np, "starfive,pin-syscon", &size);
 	if (list) {
 		pin_reg->syscon_reg = be32_to_cpu(*list++);
 		pin_data->pin_config.syscon = be32_to_cpu(*list++);
@@ -1254,17 +1254,17 @@ static void starfive_jh7110_aon_parse_pin_config(
 		pin_reg->gpo_dout_reg = info->dout_reg_base;
 		pin_reg->gpo_doen_reg = info->doen_reg_base;
 
-		if (!of_property_read_u32(np, "sf,pin-gpio-dout", &value))
+		if (!of_property_read_u32(np, "starfive,pin-gpio-dout", &value))
 			pin_data->pin_config.gpio_dout = value;
 
-		if (!of_property_read_u32(np, "sf,pin-gpio-doen", &value))
+		if (!of_property_read_u32(np, "starfive,pin-gpio-doen", &value))
 			pin_data->pin_config.gpio_doen = value;
 
-		list_din = of_get_property(np, "sf,pin-gpio-din", &size_din);
+		list_din = of_get_property(np, "starfive,pin-gpio-din", &size_din);
 		if (list_din) {
 			if (!size_din || size_din % pin_size) {
 				dev_err(pctl->dev,
-					"Invalid sf,pin-gpio-din property in node\n");
+					"Invalid starfive,pin-gpio-din property in node\n");
 				return;
 			}
 			pin_data->pin_config.gpio_din_num = size_din / pin_size;
