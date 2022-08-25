@@ -3625,11 +3625,13 @@ bool dc_update_planes_and_stream(struct dc *dc,
 			dc->current_state->stream_count > 0 &&
 			dc->debug.pipe_split_policy != MPC_SPLIT_AVOID) {
 		/* determine if minimal transition is required */
-		if (cur_stream_status->plane_count > surface_count) {
-			force_minimal_pipe_splitting = true;
-		} else if (cur_stream_status->plane_count < surface_count) {
-			force_minimal_pipe_splitting = true;
-			is_plane_addition = true;
+		if (surface_count > 0) {
+			if (cur_stream_status->plane_count > surface_count) {
+				force_minimal_pipe_splitting = true;
+			} else if (cur_stream_status->plane_count < surface_count) {
+				force_minimal_pipe_splitting = true;
+				is_plane_addition = true;
+			}
 		}
 	}
 
