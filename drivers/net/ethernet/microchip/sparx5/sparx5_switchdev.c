@@ -29,14 +29,23 @@ static int sparx5_port_attr_pre_bridge_flags(struct sparx5_port *port,
 	return 0;
 }
 
+static void sparx5_port_update_mcast_ip_flood(struct sparx5_port *port, bool flood_flag)
+{
+	bool should_flood = flood_flag || port->is_mrouter;
+	int pgid;
+
+	for (pgid = PGID_IPV4_MC_DATA; pgid <= PGID_IPV6_MC_CTRL; pgid++)
+		sparx5_pgid_update_mask(port, pgid, should_flood);
+}
+
 static void sparx5_port_attr_bridge_flags(struct sparx5_port *port,
 					  struct switchdev_brport_flags flags)
 {
-	int pgid;
+	if (flags.mask & BR_MCAST_FLOOD) {
+		sparx5_pgid_update_mask(port, PGID_MC_FLOOD, !!(flags.val & BR_MCAST_FLOOD));
+		sparx5_port_update_mcast_ip_flood(port, !!(flags.val & BR_MCAST_FLOOD));
+	}
 
-	if (flags.mask & BR_MCAST_FLOOD)
-		for (pgid = PGID_MC_FLOOD; pgid <= PGID_IPV6_MC_CTRL; pgid++)
-			sparx5_pgid_update_mask(port, pgid, !!(flags.val & BR_MCAST_FLOOD));
 	if (flags.mask & BR_FLOOD)
 		sparx5_pgid_update_mask(port, PGID_UC_FLOOD, !!(flags.val & BR_FLOOD));
 	if (flags.mask & BR_BCAST_FLOOD)
@@ -82,6 +91,37 @@ static void sparx5_port_attr_ageing_set(struct sparx5_port *port,
 	sparx5_set_ageing(port->sparx5, ageing_time);
 }
 
+static void sparx5_port_attr_mrouter_set(struct sparx5_port *port,
+					 struct net_device *orig_dev,
+					 bool enable)
+{
+	struct sparx5 *sparx5 = port->sparx5;
+	struct sparx5_mdb_entry *e;
+	bool flood_flag;
+
+	if ((enable && port->is_mrouter) || (!enable && !port->is_mrouter))
+		return;
+
+	/* Add/del mrouter port on all active mdb entries in HW.
+	 * Don't change entry port mask, since that represents
+	 * ports that actually joined that group.
+	 */
+	mutex_lock(&sparx5->mdb_lock);
+	list_for_each_entry(e, &sparx5->mdb_entries, list) {
+		if (!test_bit(port->portno, e->port_mask) &&
+		    ether_addr_is_ip_mcast(e->addr))
+			sparx5_pgid_update_mask(port, e->pgid_idx, enable);
+	}
+	mutex_unlock(&sparx5->mdb_lock);
+
+	/* Enable/disable flooding depending on if port is mrouter port
+	 * or if mcast flood is enabled.
+	 */
+	port->is_mrouter = enable;
+	flood_flag = br_port_flag_is_set(port->ndev, BR_MCAST_FLOOD);
+	sparx5_port_update_mcast_ip_flood(port, flood_flag);
+}
+
 static int sparx5_port_attr_set(struct net_device *dev, const void *ctx,
 				const struct switchdev_attr *attr,
 				struct netlink_ext_ack *extack)
@@ -109,6 +149,11 @@ static int sparx5_port_attr_set(struct net_device *dev, const void *ctx,
 			port->pvid = 1;
 		port->vlan_aware = attr->u.vlan_filtering;
 		sparx5_vlan_port_apply(port->sparx5, port);
+		break;
+	case SWITCHDEV_ATTR_ID_PORT_MROUTER:
+		sparx5_port_attr_mrouter_set(port,
+					     attr->orig_dev,
+					     attr->u.mrouter);
 		break;
 	default:
 		return -EOPNOTSUPP;
@@ -472,8 +517,8 @@ static int sparx5_handle_port_mdb_add(struct net_device *dev,
 	struct sparx5_port *port = netdev_priv(dev);
 	struct sparx5 *spx5 = port->sparx5;
 	struct sparx5_mdb_entry *entry;
-	bool is_host;
-	int err;
+	bool is_host, is_new;
+	int err, i;
 	u16 vid;
 
 	if (!sparx5_netdevice_check(dev))
@@ -489,14 +534,25 @@ static int sparx5_handle_port_mdb_add(struct net_device *dev,
 	else
 		vid = v->vid;
 
+	is_new = false;
 	entry = sparx5_mdb_get_entry(spx5, v->addr, vid);
 	if (!entry) {
 		err = sparx5_alloc_mdb_entry(spx5, v->addr, vid, &entry);
+		is_new = true;
 		if (err)
 			return err;
 	}
 
 	mutex_lock(&spx5->mdb_lock);
+
+	/* Add any mrouter ports to the new entry */
+	if (is_new && ether_addr_is_ip_mcast(v->addr))
+		for (i = 0; i < SPX5_PORTS; i++)
+			if (spx5->ports[i] && spx5->ports[i]->is_mrouter)
+				sparx5_pgid_update_mask(spx5->ports[i],
+							entry->pgid_idx,
+							true);
+
 	if (is_host && !entry->cpu_copy) {
 		sparx5_cpu_copy_ena(spx5, entry->pgid_idx, true);
 		entry->cpu_copy = true;
@@ -541,11 +597,18 @@ static int sparx5_handle_port_mdb_del(struct net_device *dev,
 		entry->cpu_copy = false;
 	} else if (!is_host) {
 		clear_bit(port->portno, entry->port_mask);
-		sparx5_pgid_update_mask(port, entry->pgid_idx, false);
+
+		/* Port not mrouter port or addr is L2 mcast, remove port from mask. */
+		if (!port->is_mrouter || !ether_addr_is_ip_mcast(v->addr))
+			sparx5_pgid_update_mask(port, entry->pgid_idx, false);
 	}
 	mutex_unlock(&spx5->mdb_lock);
 
 	if (bitmap_empty(entry->port_mask, SPX5_PORTS) && !entry->cpu_copy) {
+		 /* Clear pgid in case mrouter ports exists
+		  * that are not part of the group.
+		  */
+		sparx5_pgid_clear(spx5, entry->pgid_idx);
 		sparx5_mact_forget(spx5, entry->addr, entry->vid);
 		sparx5_free_mdb_entry(spx5, entry->addr, entry->vid);
 	}

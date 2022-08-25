@@ -190,6 +190,7 @@ struct sparx5_port {
 	u8 ptp_cmd;
 	u16 ts_id;
 	struct sk_buff_head tx_skbs;
+	bool is_mrouter;
 };
 
 enum sparx5_core_clockfreq {
@@ -338,6 +339,7 @@ void sparx5_mact_init(struct sparx5 *sparx5);
 
 /* sparx5_vlan.c */
 void sparx5_pgid_update_mask(struct sparx5_port *port, int pgid, bool enable);
+void sparx5_pgid_clear(struct sparx5 *spx5, int pgid);
 void sparx5_pgid_read_mask(struct sparx5 *sparx5, int pgid, u32 portmask[3]);
 void sparx5_update_fwd(struct sparx5 *sparx5);
 void sparx5_vlan_init(struct sparx5 *sparx5);
