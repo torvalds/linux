@@ -26,6 +26,27 @@ struct ceph_fname {
 	bool		no_copy;
 };
 
+/*
+ * Header for the crypted file when truncating the size, this
+ * will be sent to MDS, and the MDS will update the encrypted
+ * last block and then truncate the size.
+ */
+struct ceph_fscrypt_truncate_size_header {
+	__u8  ver;
+	__u8  compat;
+
+	/*
+	 * It will be sizeof(assert_ver + file_offset + block_size)
+	 * if the last block is empty when it's located in a file
+	 * hole. Or the data_len will plus CEPH_FSCRYPT_BLOCK_SIZE.
+	 */
+	__le32 data_len;
+
+	__le64 change_attr;
+	__le64 file_offset;
+	__le32 block_size;
+} __packed;
+
 struct ceph_fscrypt_auth {
 	__le32	cfa_version;
 	__le32	cfa_blob_len;
