@@ -856,18 +856,33 @@ static int hdmirx_query_dv_timings(struct file *file, void *_fh,
 	return 0;
 }
 
+static void hdmirx_cec_state_reconfiguration(struct rk_hdmirx_dev *hdmirx_dev, bool en)
+{
+	unsigned int irqs;
+
+	if (en) {
+		hdmirx_update_bits(hdmirx_dev, GLOBAL_SWENABLE, CEC_ENABLE, CEC_ENABLE);
+		hdmirx_update_bits(hdmirx_dev, CEC_CONFIG, RX_AUTO_DRIVE_ACKNOWLEDGE,
+				   RX_AUTO_DRIVE_ACKNOWLEDGE);
+		irqs = CECTX_LINE_ERR | CECTX_NACK | CECRX_EOM | CECTX_DONE;
+		hdmirx_writel(hdmirx_dev, CEC_INT_MASK_N, irqs);
+	}
+	cec_queue_pin_hpd_event(hdmirx_dev->cec->adap, en, ktime_get());
+}
+
 static void hdmirx_hpd_config(struct rk_hdmirx_dev *hdmirx_dev, bool en)
 {
 	struct v4l2_device *v4l2_dev = &hdmirx_dev->v4l2_dev;
+	u32 level;
 
 	v4l2_dbg(1, debug, v4l2_dev, "%s: %sable, hpd_trigger_level:%d\n",
 			__func__, en ? "en" : "dis",
 			hdmirx_dev->hpd_trigger_level);
 	hdmirx_update_bits(hdmirx_dev, SCDC_CONFIG, HPDLOW, en ? 0 : HPDLOW);
-	en = hdmirx_dev->hpd_trigger_level ? en : !en;
-	hdmirx_writel(hdmirx_dev, CORE_CONFIG, en);
+	level = hdmirx_dev->hpd_trigger_level ? en : !en;
+	hdmirx_writel(hdmirx_dev, CORE_CONFIG, level);
 	if (hdmirx_dev->cec && hdmirx_dev->cec->adap)
-		cec_queue_pin_hpd_event(hdmirx_dev->cec->adap, en, ktime_get());
+		hdmirx_cec_state_reconfiguration(hdmirx_dev, en);
 }
 
 static void hdmirx_hpd_ctrl(struct rk_hdmirx_dev *hdmirx_dev, bool en)
