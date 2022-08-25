@@ -63,39 +63,6 @@ enum tas256x_model {
 	TAS2110,
 };
 
-static int tas2562_set_bias_level(struct snd_soc_component *component,
-				 enum snd_soc_bias_level level)
-{
-	struct tas2562_data *tas2562 =
-			snd_soc_component_get_drvdata(component);
-
-	switch (level) {
-	case SND_SOC_BIAS_ON:
-		snd_soc_component_update_bits(component,
-			TAS2562_PWR_CTRL,
-			TAS2562_MODE_MASK, TAS2562_ACTIVE);
-		break;
-	case SND_SOC_BIAS_STANDBY:
-	case SND_SOC_BIAS_PREPARE:
-		snd_soc_component_update_bits(component,
-			TAS2562_PWR_CTRL,
-			TAS2562_MODE_MASK, TAS2562_MUTE);
-		break;
-	case SND_SOC_BIAS_OFF:
-		snd_soc_component_update_bits(component,
-			TAS2562_PWR_CTRL,
-			TAS2562_MODE_MASK, TAS2562_SHUTDOWN);
-		break;
-
-	default:
-		dev_err(tas2562->dev,
-				"wrong power level setting %d\n", level);
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
 static int tas2562_set_samplerate(struct tas2562_data *tas2562, int samplerate)
 {
 	int samp_rate;
@@ -579,7 +546,6 @@ static const struct snd_soc_component_driver soc_component_dev_tas2110 = {
 	.probe			= tas2562_codec_probe,
 	.suspend		= tas2562_suspend,
 	.resume			= tas2562_resume,
-	.set_bias_level		= tas2562_set_bias_level,
 	.controls		= tas2562_snd_controls,
 	.num_controls		= ARRAY_SIZE(tas2562_snd_controls),
 	.dapm_widgets		= tas2110_dapm_widgets,
@@ -618,7 +584,6 @@ static const struct snd_soc_component_driver soc_component_dev_tas2562 = {
 	.probe			= tas2562_codec_probe,
 	.suspend		= tas2562_suspend,
 	.resume			= tas2562_resume,
-	.set_bias_level		= tas2562_set_bias_level,
 	.controls		= tas2562_snd_controls,
 	.num_controls		= ARRAY_SIZE(tas2562_snd_controls),
 	.dapm_widgets		= tas2562_dapm_widgets,
