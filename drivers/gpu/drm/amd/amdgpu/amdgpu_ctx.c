@@ -402,7 +402,7 @@ static void amdgpu_ctx_fini(struct kref *ref)
 		}
 	}
 
-	if (drm_dev_enter(&adev->ddev, &idx)) {
+	if (drm_dev_enter(adev_to_drm(adev), &idx)) {
 		amdgpu_ctx_set_stable_pstate(ctx, ctx->stable_pstate);
 		drm_dev_exit(idx);
 	}
