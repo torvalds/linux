@@ -1002,7 +1002,6 @@ static inline int walt_find_and_choose_cluster_packing_cpu(int start_cpu, struct
 	struct walt_rq *wrq = (struct walt_rq *)rq->android_vendor_data1;
 	struct walt_sched_cluster *cluster = wrq->cluster;
 	cpumask_t unhalted_cpus;
-	cpumask_t cluster_32bit_cpus;
 	int packing_cpu;
 
 	/* if idle_enough feature is not enabled */
@@ -1011,22 +1010,19 @@ static inline int walt_find_and_choose_cluster_packing_cpu(int start_cpu, struct
 	if (!sysctl_sched_cluster_util_thres_pct)
 		return -1;
 
-	/* find all 32 bit capable cpus in this cluster */
-	cpumask_and(&cluster_32bit_cpus, &cluster->cpus, system_32bit_el0_cpumask());
 
-	/* pack 32 bit and 64 bit tasks on the same cpu, if possible */
-	if (cpumask_weight(&cluster_32bit_cpus) > 0) {
-		packing_cpu = cpumask_first(&cluster_32bit_cpus);
-	} else {
-		/* find all unhalted active cpus */
-		cpumask_andnot(&unhalted_cpus, cpu_active_mask, cpu_halt_mask);
+	/* find all unhalted active cpus */
+	cpumask_andnot(&unhalted_cpus, cpu_active_mask, cpu_halt_mask);
 
-		/* find all unhalted active cpus in this cluster */
-		cpumask_and(&unhalted_cpus, &unhalted_cpus, &cluster->cpus);
+	/* find all unhalted active cpus in this cluster */
+	cpumask_and(&unhalted_cpus, &unhalted_cpus, &cluster->cpus);
 
-		/* return the first found unhalted, active cpu, in this cluster */
-		packing_cpu = cpumask_first(&unhalted_cpus);
-	}
+	if (is_compat_thread(task_thread_info(p)))
+		/* try to find a packing cpu within 32 bit subset */
+		cpumask_and(&unhalted_cpus, &unhalted_cpus, system_32bit_el0_cpumask());
+
+	/* return the first found unhalted, active cpu, in this cluster */
+	packing_cpu = cpumask_first(&unhalted_cpus);
 
 	/* packing cpu must be a valid cpu for runqueue lookup */
 	if (packing_cpu >= nr_cpu_ids)
