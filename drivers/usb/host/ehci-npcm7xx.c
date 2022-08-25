@@ -141,8 +141,6 @@ static int __init ehci_npcm7xx_init(void)
 	if (usb_disabled())
 		return -ENODEV;
 
-	pr_info("%s: " DRIVER_DESC "\n", hcd_name);
-
 	ehci_init_driver(&ehci_npcm7xx_hc_driver, NULL);
 	return platform_driver_register(&npcm7xx_ehci_hcd_driver);
 }

@@ -423,8 +423,6 @@ static int __init ehci_pci_init(void)
 	if (usb_disabled())
 		return -ENODEV;
 
-	pr_info("%s: " DRIVER_DESC "\n", hcd_name);
-
 	ehci_init_driver(&ehci_pci_hc_driver, &pci_overrides);
 
 	/* Entries for the PCI suspend/resume callbacks are special */

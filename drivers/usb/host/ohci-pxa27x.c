@@ -608,8 +608,6 @@ static int __init ohci_pxa27x_init(void)
 	if (usb_disabled())
 		return -ENODEV;
 
-	pr_info("%s: " DRIVER_DESC "\n", hcd_name);
-
 	ohci_init_driver(&ohci_pxa27x_hc_driver, &pxa27x_overrides);
 	ohci_pxa27x_hc_driver.hub_control = pxa27x_ohci_hub_control;
 

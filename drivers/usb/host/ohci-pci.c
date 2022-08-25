@@ -306,8 +306,6 @@ static int __init ohci_pci_init(void)
 	if (usb_disabled())
 		return -ENODEV;
 
-	pr_info("%s: " DRIVER_DESC "\n", hcd_name);
-
 	ohci_init_driver(&ohci_pci_hc_driver, &pci_overrides);
 
 #ifdef	CONFIG_PM

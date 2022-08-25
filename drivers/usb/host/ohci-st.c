@@ -324,8 +324,6 @@ static int __init ohci_platform_init(void)
 	if (usb_disabled())
 		return -ENODEV;
 
-	pr_info("%s: " DRIVER_DESC "\n", hcd_name);
-
 	ohci_init_driver(&ohci_platform_hc_driver, &platform_overrides);
 	return platform_driver_register(&ohci_platform_driver);
 }

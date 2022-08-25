@@ -167,8 +167,6 @@ static int __init ehci_spear_init(void)
 	if (usb_disabled())
 		return -ENODEV;
 
-	pr_info("%s: " DRIVER_DESC "\n", hcd_name);
-
 	ehci_init_driver(&ehci_spear_hc_driver, &spear_overrides);
 	return platform_driver_register(&spear_ehci_hcd_driver);
 }

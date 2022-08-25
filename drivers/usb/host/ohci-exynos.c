@@ -310,7 +310,6 @@ static int __init ohci_exynos_init(void)
 	if (usb_disabled())
 		return -ENODEV;
 
-	pr_info("%s: " DRIVER_DESC "\n", hcd_name);
 	ohci_init_driver(&exynos_ohci_hc_driver, &exynos_overrides);
 	return platform_driver_register(&exynos_ohci_driver);
 }

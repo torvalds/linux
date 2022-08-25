@@ -699,7 +699,6 @@ static int __init ohci_at91_init(void)
 	if (usb_disabled())
 		return -ENODEV;
 
-	pr_info("%s: " DRIVER_DESC "\n", hcd_name);
 	ohci_init_driver(&ohci_at91_hc_driver, &ohci_at91_drv_overrides);
 
 	/*
