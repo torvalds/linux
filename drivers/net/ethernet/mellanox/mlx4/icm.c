@@ -208,7 +208,7 @@ struct mlx4_icm *mlx4_alloc_icm(struct mlx4_dev *dev, int npages,
 						chunk->sg, chunk->npages,
 						DMA_BIDIRECTIONAL);
 
-			if (chunk->nsg <= 0)
+			if (!chunk->nsg)
 				goto fail;
 		}
 
@@ -222,7 +222,7 @@ struct mlx4_icm *mlx4_alloc_icm(struct mlx4_dev *dev, int npages,
 		chunk->nsg = dma_map_sg(&dev->persist->pdev->dev, chunk->sg,
 					chunk->npages, DMA_BIDIRECTIONAL);
 
-		if (chunk->nsg <= 0)
+		if (!chunk->nsg)
 			goto fail;
 	}
 
