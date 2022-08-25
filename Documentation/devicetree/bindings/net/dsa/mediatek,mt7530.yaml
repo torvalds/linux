@@ -111,6 +111,11 @@ properties:
       switch is a part of the multi-chip module.
 
   reset-gpios:
+    description:
+      GPIO to reset the switch. Use this if mediatek,mcm is not used.
+      This property is optional because some boards share the reset line with
+      other components which makes it impossible to probe the switch if the
+      reset line is used.
     maxItems: 1
 
   reset-names:
@@ -165,6 +170,9 @@ allOf:
       required:
         - mediatek,mcm
     then:
+      properties:
+        reset-gpios: false
+
       required:
         - resets
         - reset-names
@@ -180,6 +188,22 @@ allOf:
       required:
         - core-supply
         - io-supply
+
+  - if:
+      properties:
+        compatible:
+          const: mediatek,mt7531
+    then:
+      properties:
+        mediatek,mcm: false
+
+  - if:
+      properties:
+        compatible:
+          const: mediatek,mt7621
+    then:
+      required:
+        - mediatek,mcm
 
 unevaluatedProperties: false
 
