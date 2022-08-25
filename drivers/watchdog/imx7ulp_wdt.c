@@ -255,7 +255,7 @@ static int imx7ulp_wdt_probe(struct platform_device *pdev)
 	return devm_watchdog_register_device(dev, wdog);
 }
 
-static int __maybe_unused imx7ulp_wdt_suspend(struct device *dev)
+static int __maybe_unused imx7ulp_wdt_suspend_noirq(struct device *dev)
 {
 	struct imx7ulp_wdt_device *imx7ulp_wdt = dev_get_drvdata(dev);
 
@@ -267,7 +267,7 @@ static int __maybe_unused imx7ulp_wdt_suspend(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused imx7ulp_wdt_resume(struct device *dev)
+static int __maybe_unused imx7ulp_wdt_resume_noirq(struct device *dev)
 {
 	struct imx7ulp_wdt_device *imx7ulp_wdt = dev_get_drvdata(dev);
 	u32 timeout = imx7ulp_wdt->wdd.timeout * WDOG_CLOCK_RATE;
@@ -286,8 +286,10 @@ static int __maybe_unused imx7ulp_wdt_resume(struct device *dev)
 	return 0;
 }
 
-static SIMPLE_DEV_PM_OPS(imx7ulp_wdt_pm_ops, imx7ulp_wdt_suspend,
-			 imx7ulp_wdt_resume);
+static const struct dev_pm_ops imx7ulp_wdt_pm_ops = {
+	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(imx7ulp_wdt_suspend_noirq,
+				      imx7ulp_wdt_resume_noirq)
+};
 
 static const struct of_device_id imx7ulp_wdt_dt_ids[] = {
 	{ .compatible = "fsl,imx7ulp-wdt", },
