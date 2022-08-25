@@ -255,6 +255,15 @@ static int dw_i2s_hw_params(struct snd_pcm_substream *substream,
 
 	switch (params_format(params)) {
 	case SNDRV_PCM_FORMAT_S16_LE:
+		if (params_rate(params) == 8000) {
+			dev_err(dev->dev, "I2S: unsupported 8000 rate with S16_LE, Stereo.\n");
+			return -EINVAL;
+		}
+
+		if (txrx == SNDRV_PCM_STREAM_PLAYBACK)
+			dev->play_dma_data.dt.addr_width = DMA_SLAVE_BUSWIDTH_2_BYTES;
+		else
+			dev->capture_dma_data.dt.addr_width = DMA_SLAVE_BUSWIDTH_2_BYTES;
 		config->data_width = 16;
 		dev->ccr = 0x00;
 		dev->xfer_resolution = 0x02;
@@ -1018,6 +1027,9 @@ static int dw_configure_dai(struct dw_i2s_dev *dev,
 		dw_i2s_dai->playback.channels_max =
 				1 << (COMP1_TX_CHANNELS(comp1) + 1);
 		dw_i2s_dai->playback.formats = formats[idx];
+		for (;idx > 0; idx--)
+			dw_i2s_dai->playback.formats |= formats[idx - 1];
+
 		dw_i2s_dai->playback.rates = rates;
 	}
 
@@ -1032,6 +1044,9 @@ static int dw_configure_dai(struct dw_i2s_dev *dev,
 		dw_i2s_dai->capture.channels_max =
 				1 << (COMP1_RX_CHANNELS(comp1) + 1);
 		dw_i2s_dai->capture.formats = formats[idx];
+		for (;idx > 0; idx--)
+			dw_i2s_dai->capture.formats |= formats[idx - 1];
+
 		dw_i2s_dai->capture.rates = rates;
 	}
 
