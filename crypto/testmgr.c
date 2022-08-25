@@ -3322,7 +3322,7 @@ out:
 }
 
 static int test_acomp(struct crypto_acomp *tfm,
-			      const struct comp_testvec *ctemplate,
+		      const struct comp_testvec *ctemplate,
 		      const struct comp_testvec *dtemplate,
 		      int ctcount, int dtcount)
 {
