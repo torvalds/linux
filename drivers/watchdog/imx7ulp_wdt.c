@@ -39,7 +39,7 @@
 #define DEFAULT_TIMEOUT	60
 #define MAX_TIMEOUT	128
 #define WDOG_CLOCK_RATE	1000
-#define WDOG_WAIT_TIMEOUT	20
+#define WDOG_WAIT_TIMEOUT	10000
 
 static bool nowayout = WATCHDOG_NOWAYOUT;
 module_param(nowayout, bool, 0000);
@@ -80,7 +80,7 @@ static int imx7ulp_wdt_enable(struct watchdog_device *wdog, bool enable)
 		writel(val | WDOG_CS_EN, wdt->base + WDOG_CS);
 	else
 		writel(val & ~WDOG_CS_EN, wdt->base + WDOG_CS);
-	imx7ulp_wdt_wait(wdt->base, WDOG_CS_RCS);
+	ret = imx7ulp_wdt_wait(wdt->base, WDOG_CS_RCS);
 
 enable_out:
 	local_irq_enable();
@@ -127,7 +127,9 @@ static int imx7ulp_wdt_set_timeout(struct watchdog_device *wdog,
 	if (ret)
 		goto timeout_out;
 	writel(val, wdt->base + WDOG_TOVAL);
-	imx7ulp_wdt_wait(wdt->base, WDOG_CS_RCS);
+	ret = imx7ulp_wdt_wait(wdt->base, WDOG_CS_RCS);
+	if (ret)
+		goto timeout_out;
 
 	wdog->timeout = timeout;
 
