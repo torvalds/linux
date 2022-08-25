@@ -590,6 +590,14 @@ static int dmi_check_cb(const struct dmi_system_id *dmi)
 	return 1;
 }
 
+static unsigned long msi_work_delay(int msecs)
+{
+	if (quirks->ec_delay)
+		return msecs_to_jiffies(msecs);
+
+	return 0;
+}
+
 static const struct dmi_system_id msi_dmi_table[] __initconst = {
 	{
 		.ident = "MSI S270",
@@ -784,7 +792,6 @@ static void msi_update_rfkill(struct work_struct *ignored)
 		msi_rfkill_set_state(rfk_threeg, !threeg_s);
 }
 static DECLARE_DELAYED_WORK(msi_rfkill_dwork, msi_update_rfkill);
-static DECLARE_WORK(msi_rfkill_work, msi_update_rfkill);
 
 static void msi_send_touchpad_key(struct work_struct *ignored)
 {
@@ -800,7 +807,6 @@ static void msi_send_touchpad_key(struct work_struct *ignored)
 		KEY_TOUCHPAD_ON : KEY_TOUCHPAD_OFF, 1, true);
 }
 static DECLARE_DELAYED_WORK(msi_touchpad_dwork, msi_send_touchpad_key);
-static DECLARE_WORK(msi_touchpad_work, msi_send_touchpad_key);
 
 static bool msi_laptop_i8042_filter(unsigned char data, unsigned char str,
 				struct serio *port)
@@ -818,20 +824,12 @@ static bool msi_laptop_i8042_filter(unsigned char data, unsigned char str,
 		extended = false;
 		switch (data) {
 		case 0xE4:
-			if (quirks->ec_delay) {
-				schedule_delayed_work(&msi_touchpad_dwork,
-					round_jiffies_relative(0.5 * HZ));
-			} else
-				schedule_work(&msi_touchpad_work);
+			schedule_delayed_work(&msi_touchpad_dwork, msi_work_delay(500));
 			break;
 		case 0x54:
 		case 0x62:
 		case 0x76:
-			if (quirks->ec_delay) {
-				schedule_delayed_work(&msi_rfkill_dwork,
-					round_jiffies_relative(0.5 * HZ));
-			} else
-				schedule_work(&msi_rfkill_work);
+			schedule_delayed_work(&msi_rfkill_dwork, msi_work_delay(500));
 			break;
 		}
 	}
@@ -898,12 +896,7 @@ static int rfkill_init(struct platform_device *sdev)
 	}
 
 	/* schedule to run rfkill state initial */
-	if (quirks->ec_delay) {
-		schedule_delayed_work(&msi_rfkill_init,
-			round_jiffies_relative(1 * HZ));
-	} else
-		schedule_work(&msi_rfkill_work);
-
+	schedule_delayed_work(&msi_rfkill_init, msi_work_delay(1000));
 	return 0;
 
 err_threeg:
@@ -1114,7 +1107,6 @@ fail_create_group:
 	if (quirks->load_scm_model) {
 		i8042_remove_filter(msi_laptop_i8042_filter);
 		cancel_delayed_work_sync(&msi_rfkill_dwork);
-		cancel_work_sync(&msi_rfkill_work);
 		rfkill_cleanup();
 	}
 fail_scm_model_init:
@@ -1135,7 +1127,6 @@ static void __exit msi_cleanup(void)
 		i8042_remove_filter(msi_laptop_i8042_filter);
 		input_unregister_device(msi_laptop_input_dev);
 		cancel_delayed_work_sync(&msi_rfkill_dwork);
-		cancel_work_sync(&msi_rfkill_work);
 		rfkill_cleanup();
 	}
 
