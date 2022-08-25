@@ -767,9 +767,31 @@ static void es8316_remove(struct snd_soc_component *component)
 	clk_disable_unprepare(es8316->mclk);
 }
 
+static int es8316_resume(struct snd_soc_component *component)
+{
+	struct es8316_priv *es8316 = snd_soc_component_get_drvdata(component);
+
+	regcache_cache_only(es8316->regmap, false);
+	regcache_sync(es8316->regmap);
+
+	return 0;
+}
+
+static int es8316_suspend(struct snd_soc_component *component)
+{
+	struct es8316_priv *es8316 = snd_soc_component_get_drvdata(component);
+
+	regcache_cache_only(es8316->regmap, true);
+	regcache_mark_dirty(es8316->regmap);
+
+	return 0;
+}
+
 static const struct snd_soc_component_driver soc_component_dev_es8316 = {
 	.probe			= es8316_probe,
 	.remove			= es8316_remove,
+	.resume			= es8316_resume,
+	.suspend		= es8316_suspend,
 	.set_jack		= es8316_set_jack,
 	.controls		= es8316_snd_controls,
 	.num_controls		= ARRAY_SIZE(es8316_snd_controls),
