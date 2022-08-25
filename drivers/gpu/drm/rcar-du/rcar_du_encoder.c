@@ -9,18 +9,13 @@
 
 #include <linux/export.h>
 #include <linux/of.h>
-#include <linux/slab.h>
 
 #include <drm/drm_bridge.h>
 #include <drm/drm_bridge_connector.h>
-#include <drm/drm_crtc.h>
-#include <drm/drm_managed.h>
-#include <drm/drm_modeset_helper_vtables.h>
 #include <drm/drm_panel.h>
 
 #include "rcar_du_drv.h"
 #include "rcar_du_encoder.h"
-#include "rcar_du_kms.h"
 #include "rcar_lvds.h"
 
 /* -----------------------------------------------------------------------------
