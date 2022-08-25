@@ -180,11 +180,16 @@ static int imx7ulp_wdt_init(void __iomem *base, unsigned int timeout)
 
 	local_irq_disable();
 
-	mb();
-	/* unlock the wdog for reconfiguration */
-	writel_relaxed(UNLOCK_SEQ0, base + WDOG_CNT);
-	writel_relaxed(UNLOCK_SEQ1, base + WDOG_CNT);
-	mb();
+	val = readl(base + WDOG_CS);
+	if (val & WDOG_CS_CMD32EN) {
+		writel(UNLOCK, base + WDOG_CNT);
+	} else {
+		mb();
+		/* unlock the wdog for reconfiguration */
+		writel_relaxed(UNLOCK_SEQ0, base + WDOG_CNT);
+		writel_relaxed(UNLOCK_SEQ1, base + WDOG_CNT);
+		mb();
+	}
 
 	ret = imx7ulp_wdt_wait(base, WDOG_CS_ULK);
 	if (ret)
