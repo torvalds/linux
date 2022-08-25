@@ -1664,6 +1664,160 @@ static int nfp_net_set_phys_id(struct net_device *netdev,
 	return err;
 }
 
+#define NFP_EEPROM_LEN ETH_ALEN
+
+static int
+nfp_net_get_eeprom_len(struct net_device *netdev)
+{
+	struct nfp_eth_table_port *eth_port;
+	struct nfp_port *port;
+
+	port = nfp_port_from_netdev(netdev);
+	eth_port = __nfp_port_get_eth_port(port);
+	if (!eth_port)
+		return 0;
+
+	return NFP_EEPROM_LEN;
+}
+
+static int
+nfp_net_get_nsp_hwindex(struct net_device *netdev,
+			struct nfp_nsp **nspptr,
+			u32 *index)
+{
+	struct nfp_eth_table_port *eth_port;
+	struct nfp_port *port;
+	struct nfp_nsp *nsp;
+	int err;
+
+	port = nfp_port_from_netdev(netdev);
+	eth_port = __nfp_port_get_eth_port(port);
+	if (!eth_port)
+		return -EOPNOTSUPP;
+
+	nsp = nfp_nsp_open(port->app->cpp);
+	if (IS_ERR(nsp)) {
+		err = PTR_ERR(nsp);
+		netdev_err(netdev, "Failed to access the NSP: %d\n", err);
+		return err;
+	}
+
+	if (!nfp_nsp_has_hwinfo_lookup(nsp)) {
+		netdev_err(netdev, "NSP doesn't support PF MAC generation\n");
+		nfp_nsp_close(nsp);
+		return -EOPNOTSUPP;
+	}
+
+	*nspptr = nsp;
+	*index = eth_port->eth_index;
+
+	return 0;
+}
+
+static int
+nfp_net_get_port_mac_by_hwinfo(struct net_device *netdev,
+			       u8 *mac_addr)
+{
+	char hwinfo[32] = {};
+	struct nfp_nsp *nsp;
+	u32 index;
+	int err;
+
+	err = nfp_net_get_nsp_hwindex(netdev, &nsp, &index);
+	if (err)
+		return err;
+
+	snprintf(hwinfo, sizeof(hwinfo), "eth%u.mac", index);
+	err = nfp_nsp_hwinfo_lookup(nsp, hwinfo, sizeof(hwinfo));
+	nfp_nsp_close(nsp);
+	if (err) {
+		netdev_err(netdev, "Reading persistent MAC address failed: %d\n",
+			   err);
+		return -EOPNOTSUPP;
+	}
+
+	if (sscanf(hwinfo, "%02hhx:%02hhx:%02hhx:%02hhx:%02hhx:%02hhx",
+		   &mac_addr[0], &mac_addr[1], &mac_addr[2],
+		   &mac_addr[3], &mac_addr[4], &mac_addr[5]) != 6) {
+		netdev_err(netdev, "Can't parse persistent MAC address (%s)\n",
+			   hwinfo);
+		return -EOPNOTSUPP;
+	}
+
+	return 0;
+}
+
+static int
+nfp_net_set_port_mac_by_hwinfo(struct net_device *netdev,
+			       u8 *mac_addr)
+{
+	char hwinfo[32] = {};
+	struct nfp_nsp *nsp;
+	u32 index;
+	int err;
+
+	err = nfp_net_get_nsp_hwindex(netdev, &nsp, &index);
+	if (err)
+		return err;
+
+	snprintf(hwinfo, sizeof(hwinfo),
+		 "eth%u.mac=%02hhx:%02hhx:%02hhx:%02hhx:%02hhx:%02hhx",
+		 index, mac_addr[0], mac_addr[1], mac_addr[2], mac_addr[3],
+		 mac_addr[4], mac_addr[5]);
+
+	err = nfp_nsp_hwinfo_set(nsp, hwinfo, sizeof(hwinfo));
+	nfp_nsp_close(nsp);
+	if (err) {
+		netdev_err(netdev, "HWinfo set failed: %d, hwinfo: %s\n",
+			   err, hwinfo);
+		return -EOPNOTSUPP;
+	}
+
+	return 0;
+}
+
+static int
+nfp_net_get_eeprom(struct net_device *netdev,
+		   struct ethtool_eeprom *eeprom, u8 *bytes)
+{
+	struct nfp_net *nn = netdev_priv(netdev);
+	u8 buf[NFP_EEPROM_LEN] = {};
+
+	if (eeprom->len == 0)
+		return -EINVAL;
+
+	if (nfp_net_get_port_mac_by_hwinfo(netdev, buf))
+		return -EOPNOTSUPP;
+
+	eeprom->magic = nn->pdev->vendor | (nn->pdev->device << 16);
+	memcpy(bytes, buf + eeprom->offset, eeprom->len);
+
+	return 0;
+}
+
+static int
+nfp_net_set_eeprom(struct net_device *netdev,
+		   struct ethtool_eeprom *eeprom, u8 *bytes)
+{
+	struct nfp_net *nn = netdev_priv(netdev);
+	u8 buf[NFP_EEPROM_LEN] = {};
+
+	if (eeprom->len == 0)
+		return -EINVAL;
+
+	if (eeprom->magic != (nn->pdev->vendor | nn->pdev->device << 16))
+		return -EINVAL;
+
+	if (nfp_net_get_port_mac_by_hwinfo(netdev, buf))
+		return -EOPNOTSUPP;
+
+	memcpy(buf + eeprom->offset, bytes, eeprom->len);
+	if (nfp_net_set_port_mac_by_hwinfo(netdev, buf))
+		return -EOPNOTSUPP;
+
+	return 0;
+}
+
 static const struct ethtool_ops nfp_net_ethtool_ops = {
 	.supported_coalesce_params = ETHTOOL_COALESCE_USECS |
 				     ETHTOOL_COALESCE_MAX_FRAMES |
@@ -1687,6 +1841,9 @@ static const struct ethtool_ops nfp_net_ethtool_ops = {
 	.set_dump		= nfp_app_set_dump,
 	.get_dump_flag		= nfp_app_get_dump_flag,
 	.get_dump_data		= nfp_app_get_dump_data,
+	.get_eeprom_len         = nfp_net_get_eeprom_len,
+	.get_eeprom             = nfp_net_get_eeprom,
+	.set_eeprom             = nfp_net_set_eeprom,
 	.get_module_info	= nfp_port_get_module_info,
 	.get_module_eeprom	= nfp_port_get_module_eeprom,
 	.get_coalesce           = nfp_net_get_coalesce,
