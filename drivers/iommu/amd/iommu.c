@@ -1597,6 +1597,9 @@ static void set_dte_entry(struct amd_iommu *iommu, u16 devid,
 
 		tmp = DTE_GCR3_VAL_C(gcr3) << DTE_GCR3_SHIFT_C;
 		flags    |= tmp;
+
+		if (domain->flags & PD_GIOV_MASK)
+			pte_root |= DTE_FLAG_GIOV;
 	}
 
 	flags &= ~DEV_DOMID_MASK;
