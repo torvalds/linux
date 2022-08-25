@@ -30,10 +30,6 @@
 
 #define BUILD_ID_URANDOM /* different uuid for each run */
 
-// FIXME, remove this and fix the deprecation warnings before its removed and
-// We'll break for good here...
-#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
-
 #ifdef HAVE_LIBCRYPTO_SUPPORT
 
 #define BUILD_ID_MD5
@@ -45,6 +41,7 @@
 #endif
 
 #ifdef BUILD_ID_MD5
+#include <openssl/evp.h>
 #include <openssl/md5.h>
 #endif
 #endif
@@ -142,15 +139,20 @@ gen_build_id(struct buildid_note *note,
 static void
 gen_build_id(struct buildid_note *note, unsigned long load_addr, const void *code, size_t csize)
 {
-	MD5_CTX context;
+	EVP_MD_CTX *mdctx;
 
 	if (sizeof(note->build_id) < 16)
 		errx(1, "build_id too small for MD5");
 
-	MD5_Init(&context);
-	MD5_Update(&context, &load_addr, sizeof(load_addr));
-	MD5_Update(&context, code, csize);
-	MD5_Final((unsigned char *)note->build_id, &context);
+	mdctx = EVP_MD_CTX_new();
+	if (!mdctx)
+		errx(2, "failed to create EVP_MD_CTX");
+
+	EVP_DigestInit_ex(mdctx, EVP_md5(), NULL);
+	EVP_DigestUpdate(mdctx, &load_addr, sizeof(load_addr));
+	EVP_DigestUpdate(mdctx, code, csize);
+	EVP_DigestFinal_ex(mdctx, (unsigned char *)note->build_id, NULL);
+	EVP_MD_CTX_free(mdctx);
 }
 #endif
 
