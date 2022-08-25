@@ -54,6 +54,8 @@ struct tas2562_data {
 	int i_sense_slot;
 	int volume_lvl;
 	int model_id;
+	bool dac_powered;
+	bool unmuted;
 };
 
 enum tas256x_model {
@@ -351,29 +353,42 @@ static int tas2562_set_dai_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	return 0;
 }
 
+static int tas2562_update_pwr_ctrl(struct tas2562_data *tas2562)
+{
+	struct snd_soc_component *component = tas2562->component;
+	unsigned int val;
+	int ret;
+
+	if (tas2562->dac_powered)
+		val = tas2562->unmuted ?
+			TAS2562_ACTIVE : TAS2562_MUTE;
+	else
+		val = TAS2562_SHUTDOWN;
+
+	ret = snd_soc_component_update_bits(component, TAS2562_PWR_CTRL,
+					    TAS2562_MODE_MASK, val);
+	if (ret < 0)
+		return ret;
+
+	return 0;
+}
+
 static int tas2562_mute(struct snd_soc_dai *dai, int mute, int direction)
 {
-	struct snd_soc_component *component = dai->component;
+	struct tas2562_data *tas2562 = snd_soc_component_get_drvdata(dai->component);
 
-	return snd_soc_component_update_bits(component, TAS2562_PWR_CTRL,
-					     TAS2562_MODE_MASK,
-					     mute ? TAS2562_MUTE : 0);
+	tas2562->unmuted = !mute;
+	return tas2562_update_pwr_ctrl(tas2562);
 }
 
 static int tas2562_codec_probe(struct snd_soc_component *component)
 {
 	struct tas2562_data *tas2562 = snd_soc_component_get_drvdata(component);
-	int ret;
 
 	tas2562->component = component;
 
 	if (tas2562->sdz_gpio)
 		gpiod_set_value_cansleep(tas2562->sdz_gpio, 1);
-
-	ret = snd_soc_component_update_bits(component, TAS2562_PWR_CTRL,
-					    TAS2562_MODE_MASK, TAS2562_MUTE);
-	if (ret < 0)
-		return ret;
 
 	return 0;
 }
@@ -428,29 +443,17 @@ static int tas2562_dac_event(struct snd_soc_dapm_widget *w,
 
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
-		ret = snd_soc_component_update_bits(component,
-			TAS2562_PWR_CTRL,
-			TAS2562_MODE_MASK,
-			TAS2562_MUTE);
-		if (ret)
-			goto end;
+		tas2562->dac_powered = true;
+		ret = tas2562_update_pwr_ctrl(tas2562);
 		break;
 	case SND_SOC_DAPM_PRE_PMD:
-		ret = snd_soc_component_update_bits(component,
-			TAS2562_PWR_CTRL,
-			TAS2562_MODE_MASK,
-			TAS2562_SHUTDOWN);
-		if (ret)
-			goto end;
+		tas2562->dac_powered = false;
+		ret = tas2562_update_pwr_ctrl(tas2562);
 		break;
 	default:
 		dev_err(tas2562->dev, "Not supported evevt\n");
 		return -EINVAL;
 	}
-
-end:
-	if (ret < 0)
-		return ret;
 
 	return 0;
 }
