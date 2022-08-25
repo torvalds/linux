@@ -429,75 +429,6 @@ static int gfx_v9_4_3_init_microcode(struct amdgpu_device *adev)
 	return r;
 }
 
-static u32 gfx_v9_4_3_get_csb_size(struct amdgpu_device *adev)
-{
-	u32 count = 0;
-	const struct cs_section_def *sect = NULL;
-	const struct cs_extent_def *ext = NULL;
-
-	/* begin clear state */
-	count += 2;
-	/* context control state */
-	count += 3;
-
-	for (sect = gfx9_cs_data; sect->section != NULL; ++sect) {
-		for (ext = sect->section; ext->extent != NULL; ++ext) {
-			if (sect->id == SECT_CONTEXT)
-				count += 2 + ext->reg_count;
-			else
-				return 0;
-		}
-	}
-
-	/* end clear state */
-	count += 2;
-	/* clear state */
-	count += 2;
-
-	return count;
-}
-
-static void gfx_v9_4_3_get_csb_buffer(struct amdgpu_device *adev,
-				    volatile u32 *buffer)
-{
-	u32 count = 0, i;
-	const struct cs_section_def *sect = NULL;
-	const struct cs_extent_def *ext = NULL;
-
-	if (adev->gfx.rlc.cs_data == NULL)
-		return;
-	if (buffer == NULL)
-		return;
-
-	buffer[count++] = cpu_to_le32(PACKET3(PACKET3_PREAMBLE_CNTL, 0));
-	buffer[count++] = cpu_to_le32(PACKET3_PREAMBLE_BEGIN_CLEAR_STATE);
-
-	buffer[count++] = cpu_to_le32(PACKET3(PACKET3_CONTEXT_CONTROL, 1));
-	buffer[count++] = cpu_to_le32(0x80000000);
-	buffer[count++] = cpu_to_le32(0x80000000);
-
-	for (sect = adev->gfx.rlc.cs_data; sect->section != NULL; ++sect) {
-		for (ext = sect->section; ext->extent != NULL; ++ext) {
-			if (sect->id == SECT_CONTEXT) {
-				buffer[count++] =
-					cpu_to_le32(PACKET3(PACKET3_SET_CONTEXT_REG, ext->reg_count));
-				buffer[count++] = cpu_to_le32(ext->reg_index -
-						PACKET3_SET_CONTEXT_REG_START);
-				for (i = 0; i < ext->reg_count; i++)
-					buffer[count++] = cpu_to_le32(ext->extent[i]);
-			} else {
-				return;
-			}
-		}
-	}
-
-	buffer[count++] = cpu_to_le32(PACKET3(PACKET3_PREAMBLE_CNTL, 0));
-	buffer[count++] = cpu_to_le32(PACKET3_PREAMBLE_END_CLEAR_STATE);
-
-	buffer[count++] = cpu_to_le32(PACKET3(PACKET3_CLEAR_STATE, 0));
-	buffer[count++] = cpu_to_le32(0);
-}
-
 static void gfx_v9_4_3_mec_fini(struct amdgpu_device *adev)
 {
 	amdgpu_bo_free_kernel(&adev->gfx.mec.hpd_eop_obj, NULL, NULL);
@@ -1112,22 +1043,8 @@ static void gfx_v9_4_3_enable_save_restore_machine(struct amdgpu_device *adev,
 	WREG32_FIELD15_PREREG(GC, GET_INST(GC, xcc_id), RLC_SRM_CNTL, SRM_ENABLE, 1);
 }
 
-static void gfx_v9_4_3_init_csb(struct amdgpu_device *adev, int xcc_id)
-{
-	adev->gfx.rlc.funcs->get_csb_buffer(adev, adev->gfx.rlc.cs_ptr);
-	/* csib */
-	WREG32_RLC(SOC15_REG_OFFSET(GC, GET_INST(GC, xcc_id), regRLC_CSIB_ADDR_HI),
-			adev->gfx.rlc.clear_state_gpu_addr >> 32);
-	WREG32_RLC(SOC15_REG_OFFSET(GC, GET_INST(GC, xcc_id), regRLC_CSIB_ADDR_LO),
-			adev->gfx.rlc.clear_state_gpu_addr & 0xfffffffc);
-	WREG32_RLC(SOC15_REG_OFFSET(GC, GET_INST(GC, xcc_id), regRLC_CSIB_LENGTH),
-			adev->gfx.rlc.clear_state_size);
-}
-
 static void gfx_v9_4_3_init_pg(struct amdgpu_device *adev, int xcc_id)
 {
-	gfx_v9_4_3_init_csb(adev, xcc_id);
-
 	/*
 	 * Rlc save restore list is workable since v2_1.
 	 * And it's needed by gfxoff feature.
@@ -1219,20 +1136,6 @@ static void gfx_v9_4_3_unset_safe_mode(struct amdgpu_device *adev, int xcc_id)
 
 static int gfx_v9_4_3_rlc_init(struct amdgpu_device *adev)
 {
-	const struct cs_section_def *cs_data;
-	int r;
-
-	adev->gfx.rlc.cs_data = gfx9_cs_data;
-
-	cs_data = adev->gfx.rlc.cs_data;
-
-	if (cs_data) {
-		/* init clear state block */
-		r = amdgpu_gfx_rlc_init_csb(adev);
-		if (r)
-			return r;
-	}
-
 	/* init spm vmid with 0xf */
 	if (adev->gfx.rlc.funcs->update_spm_vmid)
 		adev->gfx.rlc.funcs->update_spm_vmid(adev, 0xf);
@@ -2406,8 +2309,6 @@ static const struct amdgpu_rlc_funcs gfx_v9_4_3_rlc_funcs = {
 	.set_safe_mode = gfx_v9_4_3_set_safe_mode,
 	.unset_safe_mode = gfx_v9_4_3_unset_safe_mode,
 	.init = gfx_v9_4_3_rlc_init,
-	.get_csb_size = gfx_v9_4_3_get_csb_size,
-	.get_csb_buffer = gfx_v9_4_3_get_csb_buffer,
 	.resume = gfx_v9_4_3_rlc_resume,
 	.stop = gfx_v9_4_3_rlc_stop,
 	.reset = gfx_v9_4_3_rlc_reset,
