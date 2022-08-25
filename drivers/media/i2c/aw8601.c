@@ -41,6 +41,7 @@ enum mode_e {
 /* aw8601 device structure */
 struct aw8601_device {
 	struct v4l2_ctrl_handler ctrls_vcm;
+	struct v4l2_ctrl *focus;
 	struct v4l2_subdev sd;
 	struct v4l2_device vdev;
 	u16 current_val;
@@ -49,11 +50,11 @@ struct aw8601_device {
 	unsigned short current_lens_pos;
 	unsigned int start_current;
 	unsigned int rated_current;
-	unsigned int step;
 	unsigned int step_mode;
 	unsigned int vcm_movefull_t;
 	unsigned int t_src;
 	unsigned int t_div;
+	unsigned int max_logicalpos;
 
 	struct __kernel_old_timeval start_move_tv;
 	struct __kernel_old_timeval end_move_tv;
@@ -207,20 +208,23 @@ static int aw8601_get_pos(struct aw8601_device *dev_vcm,
 	unsigned int *cur_pos)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(&dev_vcm->sd);
+	unsigned int abs_step, range;
 	int ret;
-	unsigned int abs_step;
 
+	range = dev_vcm->rated_current - dev_vcm->start_current;
 	ret = aw8601_read_reg(client, 0x03, 2, &abs_step);
 	if (ret != 0)
 		goto err;
 
-	if (abs_step <= dev_vcm->start_current)
-		abs_step = VCMDRV_MAX_LOG;
-	else if ((abs_step > dev_vcm->start_current) &&
-		 (abs_step <= dev_vcm->rated_current))
-		abs_step = (dev_vcm->rated_current - abs_step) / dev_vcm->step;
-	else
+	if (abs_step <= dev_vcm->start_current) {
+		abs_step = dev_vcm->max_logicalpos;
+	} else if ((abs_step > dev_vcm->start_current) &&
+		 (abs_step <= dev_vcm->rated_current)) {
+		abs_step = (abs_step - dev_vcm->start_current) * dev_vcm->max_logicalpos / range;
+		abs_step = dev_vcm->max_logicalpos - abs_step;
+	} else {
 		abs_step = 0;
+	}
 
 	*cur_pos = abs_step;
 	dev_dbg(&client->dev, "%s: get position %d\n", __func__, *cur_pos);
@@ -242,11 +246,11 @@ static int aw8601_set_pos(struct aw8601_device *dev_vcm,
 	u32 range;
 
 	range = dev_vcm->rated_current - dev_vcm->start_current;
-	if (dest_pos >= VCMDRV_MAX_LOG)
+	if (dest_pos >= dev_vcm->max_logicalpos)
 		position = dev_vcm->start_current;
 	else
 		position = dev_vcm->start_current +
-			   (range * (VCMDRV_MAX_LOG - dest_pos) / VCMDRV_MAX_LOG);
+			   (range * (dev_vcm->max_logicalpos - dest_pos) / dev_vcm->max_logicalpos);
 
 	if (position > AW8601_MAX_REG)
 		position = AW8601_MAX_REG;
@@ -291,10 +295,10 @@ static int aw8601_set_ctrl(struct v4l2_ctrl *ctrl)
 	int ret = 0;
 
 	if (ctrl->id == V4L2_CID_FOCUS_ABSOLUTE) {
-		if (dest_pos > VCMDRV_MAX_LOG) {
+		if (dest_pos > dev_vcm->max_logicalpos) {
 			dev_info(&client->dev,
 				"%s dest_pos is error. %d > %d\n",
-				__func__, dest_pos, VCMDRV_MAX_LOG);
+				__func__, dest_pos, dev_vcm->max_logicalpos);
 			return -EINVAL;
 		}
 		/* calculate move time */
@@ -306,7 +310,7 @@ static int aw8601_set_ctrl(struct v4l2_ctrl *ctrl)
 
 		if (dev_vcm->step_mode == LSC_MODE)
 			dev_vcm->move_us = ((dev_vcm->vcm_movefull_t * (uint32_t)move_pos) /
-					   VCMDRV_MAX_LOG);
+					   dev_vcm->max_logicalpos);
 		else
 			dev_vcm->move_us = dev_vcm->vcm_movefull_t;
 
@@ -364,16 +368,12 @@ static const struct v4l2_subdev_internal_ops aw8601_int_ops = {
 static void aw8601_update_vcm_cfg(struct aw8601_device *dev_vcm)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(&dev_vcm->sd);
-	int cur_dist;
 
 	if (dev_vcm->max_ma == 0) {
 		dev_err(&client->dev, "max current is zero");
 		return;
 	}
 
-	cur_dist = dev_vcm->vcm_cfg.rated_ma - dev_vcm->vcm_cfg.start_ma;
-	cur_dist = cur_dist * AW8601_MAX_REG / dev_vcm->max_ma;
-	dev_vcm->step = (cur_dist + (VCMDRV_MAX_LOG - 1)) / VCMDRV_MAX_LOG;
 	dev_vcm->start_current = dev_vcm->vcm_cfg.start_ma *
 				 AW8601_MAX_REG / dev_vcm->max_ma;
 	dev_vcm->rated_current = dev_vcm->vcm_cfg.rated_ma *
@@ -394,6 +394,7 @@ static long aw8601_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct rk_cam_vcm_tim *vcm_tim;
 	struct rk_cam_vcm_cfg *vcm_cfg;
+	unsigned int max_logicalpos;
 	int ret = 0;
 
 	if (cmd == RK_VIDIOC_VCM_TIMEINFO) {
@@ -429,6 +430,16 @@ static long aw8601_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 		dev_vcm->vcm_cfg.rated_ma = vcm_cfg->rated_ma;
 		dev_vcm->vcm_cfg.step_mode = vcm_cfg->step_mode;
 		aw8601_update_vcm_cfg(dev_vcm);
+	} else if (cmd == RK_VIDIOC_SET_VCM_MAX_LOGICALPOS) {
+		max_logicalpos = *(unsigned int *)arg;
+
+		if (max_logicalpos > 0) {
+			dev_vcm->max_logicalpos = max_logicalpos;
+			__v4l2_ctrl_modify_range(dev_vcm->focus,
+				0, dev_vcm->max_logicalpos, 1, dev_vcm->max_logicalpos);
+		}
+		dev_dbg(&client->dev,
+			"max_logicalpos %d\n", max_logicalpos);
 	} else {
 		dev_err(&client->dev,
 			"cmd 0x%x not supported\n", cmd);
@@ -447,6 +458,7 @@ static long aw8601_compat_ioctl32(struct v4l2_subdev *sd,
 	struct rk_cam_compat_vcm_tim compat_vcm_tim;
 	struct rk_cam_vcm_tim vcm_tim;
 	struct rk_cam_vcm_cfg vcm_cfg;
+	unsigned int max_logicalpos;
 	long ret;
 
 	if (cmd == RK_VIDIOC_COMPAT_VCM_TIMEINFO) {
@@ -477,6 +489,12 @@ static long aw8601_compat_ioctl32(struct v4l2_subdev *sd,
 		ret = copy_from_user(&vcm_cfg, up, sizeof(vcm_cfg));
 		if (!ret)
 			ret = aw8601_ioctl(sd, cmd, &vcm_cfg);
+		else
+			ret = -EFAULT;
+	} else if (cmd == RK_VIDIOC_SET_VCM_MAX_LOGICALPOS) {
+		ret = copy_from_user(&max_logicalpos, up, sizeof(max_logicalpos));
+		if (!ret)
+			ret = aw8601_ioctl(sd, cmd, &max_logicalpos);
 		else
 			ret = -EFAULT;
 	} else {
@@ -515,8 +533,8 @@ static int aw8601_init_controls(struct aw8601_device *dev_vcm)
 
 	v4l2_ctrl_handler_init(hdl, 1);
 
-	v4l2_ctrl_new_std(hdl, ops, V4L2_CID_FOCUS_ABSOLUTE,
-			  0, VCMDRV_MAX_LOG, 1, 0);
+	dev_vcm->focus = v4l2_ctrl_new_std(hdl, ops, V4L2_CID_FOCUS_ABSOLUTE,
+					   0, dev_vcm->max_logicalpos, 1, 0);
 
 	if (hdl->error)
 		dev_err(dev_vcm->sd.dev, "%s fail error: 0x%x\n",
@@ -610,6 +628,7 @@ static int aw8601_probe(struct i2c_client *client,
 	aw8601_dev->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
 	aw8601_dev->sd.internal_ops = &aw8601_int_ops;
 
+	aw8601_dev->max_logicalpos = VCMDRV_MAX_LOG;
 	ret = aw8601_init_controls(aw8601_dev);
 	if (ret)
 		goto err_cleanup;
@@ -640,7 +659,7 @@ static int aw8601_probe(struct i2c_client *client,
 	aw8601_dev->vcm_cfg.step_mode = step_mode;
 	aw8601_update_vcm_cfg(aw8601_dev);
 	aw8601_dev->move_us	= 0;
-	aw8601_dev->current_related_pos = VCMDRV_MAX_LOG;
+	aw8601_dev->current_related_pos = aw8601_dev->max_logicalpos;
 	aw8601_dev->start_move_tv = ns_to_kernel_old_timeval(ktime_get_ns());
 	aw8601_dev->end_move_tv = ns_to_kernel_old_timeval(ktime_get_ns());
 
