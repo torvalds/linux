@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * GPIO driver for Fintek Super-I/O F71869, F71869A, F71882, F71889 and F81866
+ * GPIO driver for Fintek and Nuvoton Super-I/O chips
  *
  * Copyright (C) 2010-2013 LaCie
  *
@@ -22,22 +22,35 @@
  */
 #define SIO_LDSEL		0x07	/* Logical device select */
 #define SIO_DEVID		0x20	/* Device ID (2 bytes) */
-#define SIO_DEVREV		0x22	/* Device revision */
-#define SIO_MANID		0x23	/* Fintek ID (2 bytes) */
 
-#define SIO_LD_GPIO		0x06	/* GPIO logical device */
 #define SIO_UNLOCK_KEY		0x87	/* Key to enable Super-I/O */
 #define SIO_LOCK_KEY		0xAA	/* Key to disable Super-I/O */
 
-#define SIO_FINTEK_ID		0x1934	/* Manufacturer ID */
+/*
+ * Fintek devices.
+ */
+#define SIO_FINTEK_DEVREV	0x22	/* Fintek Device revision */
+#define SIO_FINTEK_MANID	0x23    /* Fintek ID (2 bytes) */
+
+#define SIO_FINTEK_ID		0x1934  /* Manufacturer ID */
+
 #define SIO_F71869_ID		0x0814	/* F71869 chipset ID */
 #define SIO_F71869A_ID		0x1007	/* F71869A chipset ID */
 #define SIO_F71882_ID		0x0541	/* F71882 chipset ID */
 #define SIO_F71889_ID		0x0909	/* F71889 chipset ID */
 #define SIO_F71889A_ID		0x1005	/* F71889A chipset ID */
 #define SIO_F81866_ID		0x1010	/* F81866 chipset ID */
-#define SIO_F81804_ID		0x1502  /* F81804 chipset ID, same for f81966 */
+#define SIO_F81804_ID		0x1502  /* F81804 chipset ID, same for F81966 */
 #define SIO_F81865_ID		0x0704	/* F81865 chipset ID */
+
+#define SIO_LD_GPIO_FINTEK	0x06	/* GPIO logical device */
+
+/*
+ * Nuvoton devices.
+ */
+#define SIO_NCT6116D_ID		0xD283  /* NCT6116D chipset ID */
+
+#define SIO_LD_GPIO_NUVOTON	0x07	/* GPIO logical device */
 
 
 enum chips {
@@ -49,6 +62,7 @@ enum chips {
 	f81866,
 	f81804,
 	f81865,
+	nct6116d,
 };
 
 static const char * const f7188x_names[] = {
@@ -60,10 +74,12 @@ static const char * const f7188x_names[] = {
 	"f81866",
 	"f81804",
 	"f81865",
+	"nct6116d",
 };
 
 struct f7188x_sio {
 	int addr;
+	int device;
 	enum chips type;
 };
 
@@ -171,6 +187,9 @@ static int f7188x_gpio_set_config(struct gpio_chip *chip, unsigned offset,
 /* Output mode register (0:open drain 1:push-pull). */
 #define f7188x_gpio_out_mode(base) ((base) + 3)
 
+#define f7188x_gpio_dir_invert(type)	((type) == nct6116d)
+#define f7188x_gpio_data_single(type)	((type) == nct6116d)
+
 static struct f7188x_gpio_bank f71869_gpio_bank[] = {
 	F7188X_GPIO_BANK(0, 6, 0xF0),
 	F7188X_GPIO_BANK(10, 8, 0xE0),
@@ -255,6 +274,17 @@ static struct f7188x_gpio_bank f81865_gpio_bank[] = {
 	F7188X_GPIO_BANK(60, 5, 0x90),
 };
 
+static struct f7188x_gpio_bank nct6116d_gpio_bank[] = {
+	F7188X_GPIO_BANK(0, 8, 0xE0),
+	F7188X_GPIO_BANK(10, 8, 0xE4),
+	F7188X_GPIO_BANK(20, 8, 0xE8),
+	F7188X_GPIO_BANK(30, 8, 0xEC),
+	F7188X_GPIO_BANK(40, 8, 0xF0),
+	F7188X_GPIO_BANK(50, 8, 0xF4),
+	F7188X_GPIO_BANK(60, 8, 0xF8),
+	F7188X_GPIO_BANK(70, 1, 0xFC),
+};
+
 static int f7188x_gpio_get_direction(struct gpio_chip *chip, unsigned offset)
 {
 	int err;
@@ -265,13 +295,16 @@ static int f7188x_gpio_get_direction(struct gpio_chip *chip, unsigned offset)
 	err = superio_enter(sio->addr);
 	if (err)
 		return err;
-	superio_select(sio->addr, SIO_LD_GPIO);
+	superio_select(sio->addr, sio->device);
 
 	dir = superio_inb(sio->addr, f7188x_gpio_dir(bank->regbase));
 
 	superio_exit(sio->addr);
 
-	if (dir & 1 << offset)
+	if (f7188x_gpio_dir_invert(sio->type))
+		dir = ~dir;
+
+	if (dir & BIT(offset))
 		return GPIO_LINE_DIRECTION_OUT;
 
 	return GPIO_LINE_DIRECTION_IN;
@@ -287,10 +320,14 @@ static int f7188x_gpio_direction_in(struct gpio_chip *chip, unsigned offset)
 	err = superio_enter(sio->addr);
 	if (err)
 		return err;
-	superio_select(sio->addr, SIO_LD_GPIO);
+	superio_select(sio->addr, sio->device);
 
 	dir = superio_inb(sio->addr, f7188x_gpio_dir(bank->regbase));
-	dir &= ~BIT(offset);
+
+	if (f7188x_gpio_dir_invert(sio->type))
+		dir |= BIT(offset);
+	else
+		dir &= ~BIT(offset);
 	superio_outb(sio->addr, f7188x_gpio_dir(bank->regbase), dir);
 
 	superio_exit(sio->addr);
@@ -308,11 +345,11 @@ static int f7188x_gpio_get(struct gpio_chip *chip, unsigned offset)
 	err = superio_enter(sio->addr);
 	if (err)
 		return err;
-	superio_select(sio->addr, SIO_LD_GPIO);
+	superio_select(sio->addr, sio->device);
 
 	dir = superio_inb(sio->addr, f7188x_gpio_dir(bank->regbase));
 	dir = !!(dir & BIT(offset));
-	if (dir)
+	if (f7188x_gpio_data_single(sio->type) || dir)
 		data = superio_inb(sio->addr, f7188x_gpio_data_out(bank->regbase));
 	else
 		data = superio_inb(sio->addr, f7188x_gpio_data_in(bank->regbase));
@@ -333,7 +370,7 @@ static int f7188x_gpio_direction_out(struct gpio_chip *chip,
 	err = superio_enter(sio->addr);
 	if (err)
 		return err;
-	superio_select(sio->addr, SIO_LD_GPIO);
+	superio_select(sio->addr, sio->device);
 
 	data_out = superio_inb(sio->addr, f7188x_gpio_data_out(bank->regbase));
 	if (value)
@@ -343,7 +380,10 @@ static int f7188x_gpio_direction_out(struct gpio_chip *chip,
 	superio_outb(sio->addr, f7188x_gpio_data_out(bank->regbase), data_out);
 
 	dir = superio_inb(sio->addr, f7188x_gpio_dir(bank->regbase));
-	dir |= BIT(offset);
+	if (f7188x_gpio_dir_invert(sio->type))
+		dir &= ~BIT(offset);
+	else
+		dir |= BIT(offset);
 	superio_outb(sio->addr, f7188x_gpio_dir(bank->regbase), dir);
 
 	superio_exit(sio->addr);
@@ -361,7 +401,7 @@ static void f7188x_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
 	err = superio_enter(sio->addr);
 	if (err)
 		return;
-	superio_select(sio->addr, SIO_LD_GPIO);
+	superio_select(sio->addr, sio->device);
 
 	data_out = superio_inb(sio->addr, f7188x_gpio_data_out(bank->regbase));
 	if (value)
@@ -389,7 +429,7 @@ static int f7188x_gpio_set_config(struct gpio_chip *chip, unsigned offset,
 	err = superio_enter(sio->addr);
 	if (err)
 		return err;
-	superio_select(sio->addr, SIO_LD_GPIO);
+	superio_select(sio->addr, sio->device);
 
 	data = superio_inb(sio->addr, f7188x_gpio_out_mode(bank->regbase));
 	if (param == PIN_CONFIG_DRIVE_OPEN_DRAIN)
@@ -450,6 +490,10 @@ static int f7188x_gpio_probe(struct platform_device *pdev)
 		data->nr_bank = ARRAY_SIZE(f81865_gpio_bank);
 		data->bank = f81865_gpio_bank;
 		break;
+	case nct6116d:
+		data->nr_bank = ARRAY_SIZE(nct6116d_gpio_bank);
+		data->bank = nct6116d_gpio_bank;
+		break;
 	default:
 		return -ENODEV;
 	}
@@ -480,18 +524,15 @@ static int __init f7188x_find(int addr, struct f7188x_sio *sio)
 {
 	int err;
 	u16 devid;
+	u16 manid;
 
 	err = superio_enter(addr);
 	if (err)
 		return err;
 
 	err = -ENODEV;
-	devid = superio_inw(addr, SIO_MANID);
-	if (devid != SIO_FINTEK_ID) {
-		pr_debug("Not a Fintek device at 0x%08x\n", addr);
-		goto err;
-	}
 
+	sio->device = SIO_LD_GPIO_FINTEK;
 	devid = superio_inw(addr, SIO_DEVID);
 	switch (devid) {
 	case SIO_F71869_ID:
@@ -518,17 +559,30 @@ static int __init f7188x_find(int addr, struct f7188x_sio *sio)
 	case SIO_F81865_ID:
 		sio->type = f81865;
 		break;
+	case SIO_NCT6116D_ID:
+		sio->device = SIO_LD_GPIO_NUVOTON;
+		sio->type = nct6116d;
+		break;
 	default:
 		pr_info("Unsupported Fintek device 0x%04x\n", devid);
 		goto err;
 	}
+
+	/* double check manufacturer where possible */
+	if (sio->type != nct6116d) {
+		manid = superio_inw(addr, SIO_FINTEK_MANID);
+		if (manid != SIO_FINTEK_ID) {
+			pr_debug("Not a Fintek device at 0x%08x\n", addr);
+			goto err;
+		}
+	}
+
 	sio->addr = addr;
 	err = 0;
 
-	pr_info("Found %s at %#x, revision %d\n",
-		f7188x_names[sio->type],
-		(unsigned int) addr,
-		(int) superio_inb(addr, SIO_DEVREV));
+	pr_info("Found %s at %#x\n", f7188x_names[sio->type], (unsigned int)addr);
+	if (sio->type != nct6116d)
+		pr_info("   revision %d\n", superio_inb(addr, SIO_FINTEK_DEVREV));
 
 err:
 	superio_exit(addr);
