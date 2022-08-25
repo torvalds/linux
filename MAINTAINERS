@@ -11625,6 +11625,7 @@ F:	Documentation/process/license-rules.rst
 F:	LICENSES/
 F:	scripts/spdxcheck-test.sh
 F:	scripts/spdxcheck.py
+F:	scripts/spdxexclude
 
 LINEAR RANGES HELPERS
 M:	Mark Brown <broonie@kernel.org>
