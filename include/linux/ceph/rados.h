@@ -524,6 +524,10 @@ struct ceph_osd_op {
 			__le64 cookie;
 		} __attribute__ ((packed)) notify;
 		struct {
+			__le64 unused;
+			__le64 ver;
+		} __attribute__ ((packed)) assert_ver;
+		struct {
 			__le64 offset, length;
 			__le64 src_offset;
 		} __attribute__ ((packed)) clonerange;
