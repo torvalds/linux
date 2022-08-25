@@ -1046,8 +1046,7 @@ static int acpi_data_prop_read_single(const struct acpi_device_data *data,
 								u8 *: U8_MAX, \
 								u16 *: U16_MAX, \
 								u32 *: U32_MAX, \
-								u64 *: U64_MAX, \
-								default: 0U)) { \
+								u64 *: U64_MAX)) { \
 				ret = -EOVERFLOW;			\
 				break;					\
 			}						\
