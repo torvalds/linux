@@ -36,8 +36,14 @@ struct page_ext {
 	unsigned long flags;
 };
 
+extern bool early_page_ext;
 extern unsigned long page_ext_size;
 extern void pgdat_page_ext_init(struct pglist_data *pgdat);
+
+static inline bool early_page_ext_enabled(void)
+{
+	return early_page_ext;
+}
 
 #ifdef CONFIG_SPARSEMEM
 static inline void page_ext_init_flatmem(void)
@@ -67,6 +73,11 @@ static inline struct page_ext *page_ext_next(struct page_ext *curr)
 
 #else /* !CONFIG_PAGE_EXTENSION */
 struct page_ext;
+
+static inline bool early_page_ext_enabled(void)
+{
+	return false;
+}
 
 static inline void pgdat_page_ext_init(struct pglist_data *pgdat)
 {
