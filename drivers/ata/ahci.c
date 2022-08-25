@@ -1609,15 +1609,12 @@ static void ahci_update_initial_lpm_policy(struct ata_port *ap,
 		goto update_policy;
 	}
 
-#ifdef CONFIG_ACPI
-	if (policy > ATA_LPM_MED_POWER &&
-	    (acpi_gbl_FADT.flags & ACPI_FADT_LOW_POWER_S0)) {
+	if (policy > ATA_LPM_MED_POWER && pm_suspend_default_s2idle()) {
 		if (hpriv->cap & HOST_CAP_PART)
 			policy = ATA_LPM_MIN_POWER_WITH_PARTIAL;
 		else if (hpriv->cap & HOST_CAP_SSC)
 			policy = ATA_LPM_MIN_POWER;
 	}
-#endif
 
 update_policy:
 	if (policy >= ATA_LPM_UNKNOWN && policy <= ATA_LPM_MIN_POWER)
