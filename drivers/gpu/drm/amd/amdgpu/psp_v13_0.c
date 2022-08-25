@@ -108,6 +108,7 @@ static int psp_v13_0_init_microcode(struct psp_context *psp)
 		break;
 	case IP_VERSION(13, 0, 0):
 	case IP_VERSION(13, 0, 7):
+	case IP_VERSION(13, 0, 10):
 		err = psp_init_sos_microcode(psp, chip_name);
 		if (err)
 			return err;
