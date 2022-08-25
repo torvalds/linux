@@ -781,11 +781,13 @@ int enter_svm_guest_mode(struct kvm_vcpu *vcpu, u64 vmcb12_gpa,
 	struct vcpu_svm *svm = to_svm(vcpu);
 	int ret;
 
-	trace_kvm_nested_vmrun(svm->vmcb->save.rip, vmcb12_gpa,
-			       vmcb12->save.rip,
-			       vmcb12->control.int_ctl,
-			       vmcb12->control.event_inj,
-			       vmcb12->control.nested_ctl);
+	trace_kvm_nested_vmenter(svm->vmcb->save.rip,
+				 vmcb12_gpa,
+				 vmcb12->save.rip,
+				 vmcb12->control.int_ctl,
+				 vmcb12->control.event_inj,
+				 vmcb12->control.nested_ctl,
+				 KVM_ISA_SVM);
 
 	trace_kvm_nested_intercepts(vmcb12->control.intercepts[INTERCEPT_CR] & 0xffff,
 				    vmcb12->control.intercepts[INTERCEPT_CR] >> 16,
