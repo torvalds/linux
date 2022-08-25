@@ -298,6 +298,33 @@ config RCAR_REMOTEPROC
 	  This can be either built-in or a loadable module.
 	  If compiled as module (M), the module name is rcar_rproc.
 
+config QCOM_PANIC_ON_NOTIF_TIMEOUT
+	bool "Trigger kernel panic when notification timeout expires"
+	help
+	  This is a debug feature where a kernel panic is triggered when
+	  communication between subsystems through sysmon is taking too
+	  long. This scneario can happen if the peripheral has died and
+	  is no longer responsive.
+	  Also trigger a kernel panic if invoking the callbacks registered
+	  with a particular subsystem's notifications by the subsystem
+	  notifier framework is taking too long.
+
+config RPROC_SYSMON_NOTIF_TIMEOUT
+	int "Sysmon notifications timeout in ms"
+	default 10000
+	help
+	  The amount of time, in milliseconds, that should elapse between
+	  the start and end of sysmon notifications, before a warning
+	  is emitted.
+
+config RPROC_SSR_NOTIF_TIMEOUT
+	int "SSR notifier timeout in ms"
+	default 10000
+	help
+	  The amount of time, in milliseconds, that should elapse between
+	  the start and end of SSR notifications through the subsystem
+	  notifier, before a warning is emitted.
+
 config ST_REMOTEPROC
 	tristate "ST remoteproc support"
 	depends on ARCH_STI
