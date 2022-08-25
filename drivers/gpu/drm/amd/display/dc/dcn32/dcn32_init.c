@@ -105,6 +105,7 @@ static const struct hw_sequencer_funcs dcn32_funcs = {
 	.subvp_pipe_control_lock = dcn32_subvp_pipe_control_lock,
 	.update_visual_confirm_color = dcn20_update_visual_confirm_color,
 	.update_phy_state = dcn32_update_phy_state,
+	.update_phantom_vp_position = dcn32_update_phantom_vp_position,
 };
 
 static const struct hwseq_private_funcs dcn32_private_funcs = {

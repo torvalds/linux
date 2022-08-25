@@ -1301,3 +1301,35 @@ void dcn32_update_phy_state(struct dc_state *state, struct pipe_ctx *pipe_ctx,
 	} else
 		BREAK_TO_DEBUGGER();
 }
+
+/* For SubVP the main pipe can have a viewport position change
+ * without a full update. In this case we must also update the
+ * viewport positions for the phantom pipe accordingly.
+ */
+void dcn32_update_phantom_vp_position(struct dc *dc,
+		struct dc_state *context,
+		struct pipe_ctx *phantom_pipe)
+{
+	uint8_t i;
+	struct dc_plane_state *phantom_plane = phantom_pipe->plane_state;
+
+	for (i = 0; i < dc->res_pool->pipe_count; i++) {
+		struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
+
+		if (pipe->stream && pipe->stream->mall_stream_config.type == SUBVP_MAIN &&
+				pipe->stream->mall_stream_config.paired_stream == phantom_pipe->stream) {
+			if (pipe->plane_state && pipe->plane_state->update_flags.bits.position_change) {
+
+				phantom_plane->src_rect.x = pipe->plane_state->src_rect.x;
+				phantom_plane->src_rect.y = pipe->plane_state->src_rect.y;
+				phantom_plane->clip_rect.x = pipe->plane_state->clip_rect.x;
+				phantom_plane->dst_rect.x = pipe->plane_state->dst_rect.x;
+				phantom_plane->dst_rect.y = pipe->plane_state->dst_rect.y;
+
+				phantom_pipe->plane_state->update_flags.bits.position_change = 1;
+				resource_build_scaling_params(phantom_pipe);
+				return;
+			}
+		}
+	}
+}

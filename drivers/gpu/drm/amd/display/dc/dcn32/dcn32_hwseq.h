@@ -87,4 +87,8 @@ bool dcn32_is_dp_dig_pixel_rate_div_policy(struct pipe_ctx *pipe_ctx);
 void dcn32_update_phy_state(struct dc_state *state, struct pipe_ctx *pipe_ctx,
 		enum phy_state target_state);
 
+void dcn32_update_phantom_vp_position(struct dc *dc,
+		struct dc_state *context,
+		struct pipe_ctx *phantom_pipe);
+
 #endif /* __DC_HWSS_DCN32_H__ */
