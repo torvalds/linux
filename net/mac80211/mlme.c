@@ -695,6 +695,7 @@ static bool ieee80211_add_vht_ie(struct ieee80211_sub_if_data *sdata,
 static void ieee80211_add_he_ie(struct ieee80211_sub_if_data *sdata,
 				struct sk_buff *skb,
 				struct ieee80211_supported_band *sband,
+				enum ieee80211_smps_mode smps_mode,
 				ieee80211_conn_flags_t conn_flags)
 {
 	u8 *pos, *pre_he_pos;
@@ -719,7 +720,7 @@ static void ieee80211_add_he_ie(struct ieee80211_sub_if_data *sdata,
 	/* trim excess if any */
 	skb_trim(skb, skb->len - (pre_he_pos + he_cap_size - pos));
 
-	ieee80211_ie_build_he_6ghz_cap(sdata, skb);
+	ieee80211_ie_build_he_6ghz_cap(sdata, smps_mode, skb);
 }
 
 static void ieee80211_add_eht_ie(struct ieee80211_sub_if_data *sdata,
@@ -1100,7 +1101,7 @@ static size_t ieee80211_assoc_link_elems(struct ieee80211_sub_if_data *sdata,
 					       offset);
 
 	if (!(assoc_data->link[link_id].conn_flags & IEEE80211_CONN_DISABLE_HE)) {
-		ieee80211_add_he_ie(sdata, skb, sband,
+		ieee80211_add_he_ie(sdata, skb, sband, smps_mode,
 				    assoc_data->link[link_id].conn_flags);
 		ADD_PRESENT_EXT_ELEM(WLAN_EID_EXT_HE_CAPABILITY);
 	}

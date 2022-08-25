@@ -3084,6 +3084,7 @@ end:
 }
 
 void ieee80211_ie_build_he_6ghz_cap(struct ieee80211_sub_if_data *sdata,
+				    enum ieee80211_smps_mode smps_mode,
 				    struct sk_buff *skb)
 {
 	struct ieee80211_supported_band *sband;
@@ -3110,7 +3111,7 @@ void ieee80211_ie_build_he_6ghz_cap(struct ieee80211_sub_if_data *sdata,
 	cap = le16_to_cpu(iftd->he_6ghz_capa.capa);
 	cap &= ~IEEE80211_HE_6GHZ_CAP_SM_PS;
 
-	switch (sdata->deflink.smps_mode) {
+	switch (smps_mode) {
 	case IEEE80211_SMPS_AUTOMATIC:
 	case IEEE80211_SMPS_NUM_MODES:
 		WARN_ON(1);
