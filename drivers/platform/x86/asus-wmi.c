@@ -240,6 +240,7 @@ struct asus_wmi {
 	bool gpu_mux_mode_available;
 
 	bool kbd_rgb_mode_available;
+	bool kbd_rgb_state_available;
 
 	bool throttle_thermal_policy_available;
 	u8 throttle_thermal_policy_mode;
@@ -782,7 +783,60 @@ static const struct attribute_group kbd_rgb_mode_group = {
 	.attrs = kbd_rgb_mode_attrs,
 };
 
+/* TUF Laptop Keyboard RGB State **********************************************/
+static ssize_t kbd_rgb_state_store(struct device *dev,
+				 struct device_attribute *attr,
+				 const char *buf, size_t count)
+{
+	u32 flags, cmd, boot, awake, sleep, keyboard;
+	int err;
+
+	if (sscanf(buf, "%d %d %d %d %d", &cmd, &boot, &awake, &sleep, &keyboard) != 5)
+		return -EINVAL;
+
+	if (cmd)
+		cmd = BIT(2);
+
+	flags = 0;
+	if (boot)
+		flags |= BIT(1);
+	if (awake)
+		flags |= BIT(3);
+	if (sleep)
+		flags |= BIT(5);
+	if (keyboard)
+		flags |= BIT(7);
+
+	/* 0xbd is the required default arg0 for the method. Nothing happens otherwise */
+	err = asus_wmi_evaluate_method3(ASUS_WMI_METHODID_DEVS,
+			ASUS_WMI_DEVID_TUF_RGB_STATE, 0xbd | cmd << 8 | (flags << 16), 0, NULL);
+	if (err)
+		return err;
+
+	return count;
+}
+static DEVICE_ATTR_WO(kbd_rgb_state);
+
+static ssize_t kbd_rgb_state_index_show(struct device *device,
+						 struct device_attribute *attr,
+						 char *buf)
+{
+	return sysfs_emit(buf, "%s\n", "cmd boot awake sleep keyboard");
+}
+static DEVICE_ATTR_RO(kbd_rgb_state_index);
+
+static struct attribute *kbd_rgb_state_attrs[] = {
+	&dev_attr_kbd_rgb_state.attr,
+	&dev_attr_kbd_rgb_state_index.attr,
+	NULL,
+};
+
+static const struct attribute_group kbd_rgb_state_group = {
+	.attrs = kbd_rgb_state_attrs,
+};
+
 const struct attribute_group *kbd_rgb_mode_groups[] = {
+	NULL,
 	NULL,
 	NULL,
 };
@@ -1109,6 +1163,8 @@ static int asus_wmi_led_init(struct asus_wmi *asus)
 
 	if (asus->kbd_rgb_mode_available)
 		kbd_rgb_mode_groups[num_rgb_groups++] = &kbd_rgb_mode_group;
+	if (asus->kbd_rgb_state_available)
+		kbd_rgb_mode_groups[num_rgb_groups++] = &kbd_rgb_state_group;
 
 	asus->led_workqueue = create_singlethread_workqueue("led_workqueue");
 	if (!asus->led_workqueue)
@@ -3661,6 +3717,7 @@ static int asus_wmi_add(struct platform_device *pdev)
 	asus->dgpu_disable_available = asus_wmi_dev_is_present(asus, ASUS_WMI_DEVID_DGPU);
 	asus->gpu_mux_mode_available = asus_wmi_dev_is_present(asus, ASUS_WMI_DEVID_GPU_MUX);
 	asus->kbd_rgb_mode_available = asus_wmi_dev_is_present(asus, ASUS_WMI_DEVID_TUF_RGB_MODE);
+	asus->kbd_rgb_state_available = asus_wmi_dev_is_present(asus, ASUS_WMI_DEVID_TUF_RGB_STATE);
 	asus->panel_overdrive_available = asus_wmi_dev_is_present(asus, ASUS_WMI_DEVID_PANEL_OD);
 
 	err = fan_boost_mode_check_present(asus);
