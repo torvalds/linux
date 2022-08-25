@@ -32,9 +32,6 @@ enum ucode_state {
 };
 
 struct microcode_ops {
-	enum ucode_state (*request_microcode_user) (int cpu,
-				const void __user *buf, size_t size);
-
 	enum ucode_state (*request_microcode_fw) (int cpu, struct device *,
 						  bool refresh_fw);
 
