@@ -27,6 +27,8 @@
 #define CREATE_TRACE_POINTS
 #include "trace_arm.h"
 
+#include "hyp_trace.h"
+
 #include <linux/uaccess.h>
 #include <asm/ptrace.h>
 #include <asm/mman.h>
@@ -2391,6 +2393,10 @@ int kvm_arch_init(void *opaque)
 			kvm_err("Failed to finalize Hyp protection\n");
 			goto out_hyp;
 		}
+
+		err = init_hyp_tracefs();
+		if (err)
+			kvm_err("Failed to initialize Hyp tracing\n");
 	}
 
 	if (is_protected_kvm_enabled()) {
