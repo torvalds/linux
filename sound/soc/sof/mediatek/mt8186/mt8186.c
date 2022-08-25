@@ -512,6 +512,10 @@ static struct snd_sof_dsp_ops sof_mt8186_ops = {
 	.block_read	= sof_block_read,
 	.block_write	= sof_block_write,
 
+	/* Mailbox IO */
+	.mailbox_read	= sof_mailbox_read,
+	.mailbox_write	= sof_mailbox_write,
+
 	/* Register IO */
 	.write		= sof_io_write,
 	.read		= sof_io_read,
@@ -527,6 +531,10 @@ static struct snd_sof_dsp_ops sof_mt8186_ops = {
 
 	/* misc */
 	.get_bar_index	= mt8186_get_bar_index,
+
+	/* stream callbacks */
+	.pcm_open	= sof_stream_pcm_open,
+	.pcm_close	= sof_stream_pcm_close,
 
 	/* firmware loading */
 	.load_firmware	= snd_sof_load_firmware_memcpy,
