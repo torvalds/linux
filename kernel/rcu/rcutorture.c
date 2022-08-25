@@ -357,6 +357,8 @@ struct rcu_torture_ops {
 	bool (*poll_gp_state_exp)(unsigned long oldstate);
 	void (*cond_sync_exp)(unsigned long oldstate);
 	void (*cond_sync_exp_full)(struct rcu_gp_oldstate *rgosp);
+	void (*get_comp_state_full)(struct rcu_gp_oldstate *rgosp);
+	bool (*same_gp_state_full)(struct rcu_gp_oldstate *rgosp1, struct rcu_gp_oldstate *rgosp2);
 	unsigned long (*get_gp_state)(void);
 	void (*get_gp_state_full)(struct rcu_gp_oldstate *rgosp);
 	unsigned long (*get_gp_completed)(void);
@@ -535,6 +537,8 @@ static struct rcu_torture_ops rcu_ops = {
 	.deferred_free		= rcu_torture_deferred_free,
 	.sync			= synchronize_rcu,
 	.exp_sync		= synchronize_rcu_expedited,
+	.same_gp_state_full	= same_state_synchronize_rcu_full,
+	.get_comp_state_full	= get_completed_synchronize_rcu_full,
 	.get_gp_state		= get_state_synchronize_rcu,
 	.get_gp_state_full	= get_state_synchronize_rcu_full,
 	.get_gp_completed	= get_completed_synchronize_rcu,
@@ -1264,7 +1268,8 @@ static void rcu_torture_write_types(void)
 	} else if (gp_poll && (!cur_ops->start_gp_poll || !cur_ops->poll_gp_state)) {
 		pr_alert("%s: gp_poll without primitives.\n", __func__);
 	}
-	if (gp_poll_full1 && cur_ops->start_gp_poll_full && cur_ops->poll_gp_state_full) {
+	if (gp_poll_full1 && cur_ops->get_comp_state_full && cur_ops->same_gp_state_full
+	    && cur_ops->start_gp_poll_full && cur_ops->poll_gp_state_full) {
 		synctype[nsynctypes++] = RTWS_POLL_GET_FULL;
 		pr_info("%s: Testing polling full-state GPs.\n", __func__);
 	} else if (gp_poll_full && (!cur_ops->start_gp_poll_full || !cur_ops->poll_gp_state_full)) {
@@ -1340,9 +1345,11 @@ rcu_torture_writer(void *arg)
 	int expediting = 0;
 	unsigned long gp_snap;
 	struct rcu_gp_oldstate gp_snap_full;
+	struct rcu_gp_oldstate gp_snap1_full;
 	int i;
 	int idx;
 	int oldnice = task_nice(current);
+	struct rcu_gp_oldstate rgo[NUM_ACTIVE_RCU_POLL_FULL_OLDSTATE];
 	struct rcu_torture *rp;
 	struct rcu_torture *old_rp;
 	static DEFINE_TORTURE_RANDOM(rand);
@@ -1472,11 +1479,23 @@ rcu_torture_writer(void *arg)
 				break;
 			case RTWS_POLL_GET_FULL:
 				rcu_torture_writer_state = RTWS_POLL_GET_FULL;
+				for (i = 0; i < ARRAY_SIZE(rgo); i++)
+					cur_ops->get_comp_state_full(&rgo[i]);
 				cur_ops->start_gp_poll_full(&gp_snap_full);
 				rcu_torture_writer_state = RTWS_POLL_WAIT_FULL;
-				while (!cur_ops->poll_gp_state_full(&gp_snap_full))
+				while (!cur_ops->poll_gp_state_full(&gp_snap_full)) {
+					cur_ops->get_gp_state_full(&gp_snap1_full);
+					for (i = 0; i < ARRAY_SIZE(rgo); i++)
+						if (cur_ops->poll_gp_state_full(&rgo[i]) ||
+						    cur_ops->same_gp_state_full(&rgo[i],
+										&gp_snap1_full)) {
+							rgo[i] = gp_snap1_full;
+							break;
+						}
+					WARN_ON_ONCE(i >= ARRAY_SIZE(rgo));
 					torture_hrtimeout_jiffies(torture_random(&rand) % 16,
 								  &rand);
+				}
 				rcu_torture_pipe_update(old_rp);
 				break;
 			case RTWS_POLL_GET_EXP:
