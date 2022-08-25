@@ -116,10 +116,16 @@ struct six_lock {
 	unsigned __percpu	*readers;
 
 	raw_spinlock_t		wait_lock;
-	struct list_head	wait_list[2];
+	struct list_head	wait_list;
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
 	struct lockdep_map	dep_map;
 #endif
+};
+
+struct six_lock_waiter {
+	struct list_head	list;
+	struct task_struct	*task;
+	enum six_lock_type	lock_want;
 };
 
 typedef int (*six_lock_should_sleep_fn)(struct six_lock *lock, void *);
@@ -130,8 +136,7 @@ static __always_inline void __six_lock_init(struct six_lock *lock,
 {
 	atomic64_set(&lock->state.counter, 0);
 	raw_spin_lock_init(&lock->wait_lock);
-	INIT_LIST_HEAD(&lock->wait_list[SIX_LOCK_read]);
-	INIT_LIST_HEAD(&lock->wait_list[SIX_LOCK_intent]);
+	INIT_LIST_HEAD(&lock->wait_list);
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
 	debug_check_no_locks_freed((void *) lock, sizeof(*lock));
 	lockdep_init_map(&lock->dep_map, name, key, 0);
