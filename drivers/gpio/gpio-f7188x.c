@@ -165,11 +165,11 @@ static int f7188x_gpio_set_config(struct gpio_chip *chip, unsigned offset,
 		.regbase = _regbase,					\
 	}
 
-#define gpio_dir(base) (base + 0)
-#define gpio_data_out(base) (base + 1)
-#define gpio_data_in(base) (base + 2)
+#define f7188x_gpio_dir(base) ((base) + 0)
+#define f7188x_gpio_data_out(base) ((base) + 1)
+#define f7188x_gpio_data_in(base) ((base) + 2)
 /* Output mode register (0:open drain 1:push-pull). */
-#define gpio_out_mode(base) (base + 3)
+#define f7188x_gpio_out_mode(base) ((base) + 3)
 
 static struct f7188x_gpio_bank f71869_gpio_bank[] = {
 	F7188X_GPIO_BANK(0, 6, 0xF0),
@@ -267,7 +267,7 @@ static int f7188x_gpio_get_direction(struct gpio_chip *chip, unsigned offset)
 		return err;
 	superio_select(sio->addr, SIO_LD_GPIO);
 
-	dir = superio_inb(sio->addr, gpio_dir(bank->regbase));
+	dir = superio_inb(sio->addr, f7188x_gpio_dir(bank->regbase));
 
 	superio_exit(sio->addr);
 
@@ -289,9 +289,9 @@ static int f7188x_gpio_direction_in(struct gpio_chip *chip, unsigned offset)
 		return err;
 	superio_select(sio->addr, SIO_LD_GPIO);
 
-	dir = superio_inb(sio->addr, gpio_dir(bank->regbase));
+	dir = superio_inb(sio->addr, f7188x_gpio_dir(bank->regbase));
 	dir &= ~BIT(offset);
-	superio_outb(sio->addr, gpio_dir(bank->regbase), dir);
+	superio_outb(sio->addr, f7188x_gpio_dir(bank->regbase), dir);
 
 	superio_exit(sio->addr);
 
@@ -310,12 +310,12 @@ static int f7188x_gpio_get(struct gpio_chip *chip, unsigned offset)
 		return err;
 	superio_select(sio->addr, SIO_LD_GPIO);
 
-	dir = superio_inb(sio->addr, gpio_dir(bank->regbase));
+	dir = superio_inb(sio->addr, f7188x_gpio_dir(bank->regbase));
 	dir = !!(dir & BIT(offset));
 	if (dir)
-		data = superio_inb(sio->addr, gpio_data_out(bank->regbase));
+		data = superio_inb(sio->addr, f7188x_gpio_data_out(bank->regbase));
 	else
-		data = superio_inb(sio->addr, gpio_data_in(bank->regbase));
+		data = superio_inb(sio->addr, f7188x_gpio_data_in(bank->regbase));
 
 	superio_exit(sio->addr);
 
@@ -335,16 +335,16 @@ static int f7188x_gpio_direction_out(struct gpio_chip *chip,
 		return err;
 	superio_select(sio->addr, SIO_LD_GPIO);
 
-	data_out = superio_inb(sio->addr, gpio_data_out(bank->regbase));
+	data_out = superio_inb(sio->addr, f7188x_gpio_data_out(bank->regbase));
 	if (value)
 		data_out |= BIT(offset);
 	else
 		data_out &= ~BIT(offset);
-	superio_outb(sio->addr, gpio_data_out(bank->regbase), data_out);
+	superio_outb(sio->addr, f7188x_gpio_data_out(bank->regbase), data_out);
 
-	dir = superio_inb(sio->addr, gpio_dir(bank->regbase));
+	dir = superio_inb(sio->addr, f7188x_gpio_dir(bank->regbase));
 	dir |= BIT(offset);
-	superio_outb(sio->addr, gpio_dir(bank->regbase), dir);
+	superio_outb(sio->addr, f7188x_gpio_dir(bank->regbase), dir);
 
 	superio_exit(sio->addr);
 
@@ -363,12 +363,12 @@ static void f7188x_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
 		return;
 	superio_select(sio->addr, SIO_LD_GPIO);
 
-	data_out = superio_inb(sio->addr, gpio_data_out(bank->regbase));
+	data_out = superio_inb(sio->addr, f7188x_gpio_data_out(bank->regbase));
 	if (value)
 		data_out |= BIT(offset);
 	else
 		data_out &= ~BIT(offset);
-	superio_outb(sio->addr, gpio_data_out(bank->regbase), data_out);
+	superio_outb(sio->addr, f7188x_gpio_data_out(bank->regbase), data_out);
 
 	superio_exit(sio->addr);
 }
@@ -391,12 +391,12 @@ static int f7188x_gpio_set_config(struct gpio_chip *chip, unsigned offset,
 		return err;
 	superio_select(sio->addr, SIO_LD_GPIO);
 
-	data = superio_inb(sio->addr, gpio_out_mode(bank->regbase));
+	data = superio_inb(sio->addr, f7188x_gpio_out_mode(bank->regbase));
 	if (param == PIN_CONFIG_DRIVE_OPEN_DRAIN)
 		data &= ~BIT(offset);
 	else
 		data |= BIT(offset);
-	superio_outb(sio->addr, gpio_out_mode(bank->regbase), data);
+	superio_outb(sio->addr, f7188x_gpio_out_mode(bank->regbase), data);
 
 	superio_exit(sio->addr);
 	return 0;
