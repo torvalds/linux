@@ -3181,8 +3181,13 @@ static void srp_release_dev(struct device *dev)
 	kfree(host);
 }
 
+static struct attribute *srp_class_attrs[];
+
+ATTRIBUTE_GROUPS(srp_class);
+
 static struct class srp_class = {
 	.name    = "infiniband_srp",
+	.dev_groups = srp_class_groups,
 	.dev_release = srp_release_dev
 };
 
@@ -3888,6 +3893,13 @@ static ssize_t port_show(struct device *dev, struct device_attribute *attr,
 
 static DEVICE_ATTR_RO(port);
 
+static struct attribute *srp_class_attrs[] = {
+	&dev_attr_add_target.attr,
+	&dev_attr_ibdev.attr,
+	&dev_attr_port.attr,
+	NULL
+};
+
 static struct srp_host *srp_add_port(struct srp_device *device, u8 port)
 {
 	struct srp_host *host;
@@ -3909,12 +3921,6 @@ static struct srp_host *srp_add_port(struct srp_device *device, u8 port)
 			 port))
 		goto put_host;
 	if (device_add(&host->dev))
-		goto put_host;
-	if (device_create_file(&host->dev, &dev_attr_add_target))
-		goto put_host;
-	if (device_create_file(&host->dev, &dev_attr_ibdev))
-		goto put_host;
-	if (device_create_file(&host->dev, &dev_attr_port))
 		goto put_host;
 
 	return host;
