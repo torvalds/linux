@@ -579,6 +579,12 @@ config COMPACTION
 	  it and then we would be really interested to hear about that at
 	  linux-mm@kvack.org.
 
+config COMPACT_UNEVICTABLE_DEFAULT
+	int
+	depends on COMPACTION
+	default 0 if PREEMPT_RT
+	default 1
+
 #
 # support for free page reporting
 config PAGE_REPORTING
