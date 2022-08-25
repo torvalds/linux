@@ -501,14 +501,10 @@ static const struct vas_user_win_ops vops_pseries = {
 int vas_register_api_pseries(struct module *mod, enum vas_cop_type cop_type,
 			     const char *name)
 {
-	int rc;
-
 	if (!copypaste_feat)
 		return -ENOTSUPP;
 
-	rc = vas_register_coproc_api(mod, cop_type, name, &vops_pseries);
-
-	return rc;
+	return vas_register_coproc_api(mod, cop_type, name, &vops_pseries);
 }
 EXPORT_SYMBOL_GPL(vas_register_api_pseries);
 
