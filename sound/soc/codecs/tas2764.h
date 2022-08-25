@@ -33,6 +33,10 @@
 #define TAS2764_VSENSE_POWER_EN		3
 #define TAS2764_ISENSE_POWER_EN		4
 
+/* DC Blocker Control */
+#define TAS2764_DC_BLK0			TAS2764_REG(0x0, 0x04)
+#define TAS2764_DC_BLK0_HPF_FREQ_PB_SHIFT  0
+
 /* Digital Volume Control */
 #define TAS2764_DVC	TAS2764_REG(0X0, 0x1a)
 #define TAS2764_DVC_MAX	0xc9

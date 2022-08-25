@@ -593,11 +593,21 @@ static int tas2764_codec_probe(struct snd_soc_component *component)
 static DECLARE_TLV_DB_SCALE(tas2764_digital_tlv, 1100, 50, 0);
 static DECLARE_TLV_DB_SCALE(tas2764_playback_volume, -10050, 50, 1);
 
+static const char * const tas2764_hpf_texts[] = {
+	"Disabled", "2 Hz", "50 Hz", "100 Hz", "200 Hz",
+	"400 Hz", "800 Hz"
+};
+
+static SOC_ENUM_SINGLE_DECL(
+	tas2764_hpf_enum, TAS2764_DC_BLK0,
+	TAS2764_DC_BLK0_HPF_FREQ_PB_SHIFT, tas2764_hpf_texts);
+
 static const struct snd_kcontrol_new tas2764_snd_controls[] = {
 	SOC_SINGLE_TLV("Speaker Volume", TAS2764_DVC, 0,
 		       TAS2764_DVC_MAX, 1, tas2764_playback_volume),
 	SOC_SINGLE_TLV("Amp Gain Volume", TAS2764_CHNL_0, 1, 0x14, 0,
 		       tas2764_digital_tlv),
+	SOC_ENUM("HPF Corner Frequency", tas2764_hpf_enum),
 };
 
 static const struct snd_soc_component_driver soc_component_driver_tas2764 = {
