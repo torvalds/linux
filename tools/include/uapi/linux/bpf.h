@@ -88,11 +88,11 @@ struct bpf_cgroup_storage_key {
 };
 
 enum bpf_cgroup_iter_order {
-	BPF_ITER_ORDER_UNSPEC = 0,
-	BPF_ITER_SELF_ONLY,		/* process only a single object. */
-	BPF_ITER_DESCENDANTS_PRE,	/* walk descendants in pre-order. */
-	BPF_ITER_DESCENDANTS_POST,	/* walk descendants in post-order. */
-	BPF_ITER_ANCESTORS_UP,		/* walk ancestors upward. */
+	BPF_CGROUP_ITER_ORDER_UNSPEC = 0,
+	BPF_CGROUP_ITER_SELF_ONLY,		/* process only a single object. */
+	BPF_CGROUP_ITER_DESCENDANTS_PRE,	/* walk descendants in pre-order. */
+	BPF_CGROUP_ITER_DESCENDANTS_POST,	/* walk descendants in post-order. */
+	BPF_CGROUP_ITER_ANCESTORS_UP,		/* walk ancestors upward. */
 };
 
 union bpf_iter_link_info {

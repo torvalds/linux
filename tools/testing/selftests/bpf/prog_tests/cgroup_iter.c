@@ -134,7 +134,7 @@ static void test_walk_preorder(struct cgroup_iter *skel)
 		 cg_id[PARENT], cg_id[CHILD1], cg_id[CHILD2]);
 
 	read_from_cgroup_iter(skel->progs.cgroup_id_printer, cg_fd[PARENT],
-			      BPF_ITER_DESCENDANTS_PRE, "preorder");
+			      BPF_CGROUP_ITER_DESCENDANTS_PRE, "preorder");
 }
 
 /* Postorder walk prints child and parent in order. */
@@ -145,7 +145,7 @@ static void test_walk_postorder(struct cgroup_iter *skel)
 		 cg_id[CHILD1], cg_id[CHILD2], cg_id[PARENT]);
 
 	read_from_cgroup_iter(skel->progs.cgroup_id_printer, cg_fd[PARENT],
-			      BPF_ITER_DESCENDANTS_POST, "postorder");
+			      BPF_CGROUP_ITER_DESCENDANTS_POST, "postorder");
 }
 
 /* Walking parents prints parent and then root. */
@@ -159,7 +159,7 @@ static void test_walk_ancestors_up(struct cgroup_iter *skel)
 		 cg_id[PARENT], cg_id[ROOT]);
 
 	read_from_cgroup_iter(skel->progs.cgroup_id_printer, cg_fd[PARENT],
-			      BPF_ITER_ANCESTORS_UP, "ancestors_up");
+			      BPF_CGROUP_ITER_ANCESTORS_UP, "ancestors_up");
 
 	skel->bss->terminal_cgroup = 0;
 }
@@ -174,7 +174,7 @@ static void test_early_termination(struct cgroup_iter *skel)
 		 PROLOGUE "%8llu\n" EPILOGUE, cg_id[PARENT]);
 
 	read_from_cgroup_iter(skel->progs.cgroup_id_printer, cg_fd[PARENT],
-			      BPF_ITER_DESCENDANTS_PRE, "early_termination");
+			      BPF_CGROUP_ITER_DESCENDANTS_PRE, "early_termination");
 
 	skel->bss->terminate_early = 0;
 }
@@ -186,7 +186,7 @@ static void test_walk_self_only(struct cgroup_iter *skel)
 		 PROLOGUE "%8llu\n" EPILOGUE, cg_id[PARENT]);
 
 	read_from_cgroup_iter(skel->progs.cgroup_id_printer, cg_fd[PARENT],
-			      BPF_ITER_SELF_ONLY, "self_only");
+			      BPF_CGROUP_ITER_SELF_ONLY, "self_only");
 }
 
 void test_cgroup_iter(void)

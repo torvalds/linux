@@ -275,7 +275,7 @@ static int setup_cgroup_iter(struct cgroup_hierarchical_stats *obj,
 	 * traverse one cgroup, so set the traversal order to "self".
 	 */
 	linfo.cgroup.cgroup_fd = cgroup_fd;
-	linfo.cgroup.order = BPF_ITER_SELF_ONLY;
+	linfo.cgroup.order = BPF_CGROUP_ITER_SELF_ONLY;
 	opts.link_info = &linfo;
 	opts.link_info_len = sizeof(linfo);
 	link = bpf_program__attach_iter(obj->progs.dump_vmscan, &opts);

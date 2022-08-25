@@ -74,13 +74,13 @@ static void *cgroup_iter_seq_start(struct seq_file *seq, loff_t *pos)
 	++*pos;
 	p->terminate = false;
 	p->visited_all = false;
-	if (p->order == BPF_ITER_DESCENDANTS_PRE)
+	if (p->order == BPF_CGROUP_ITER_DESCENDANTS_PRE)
 		return css_next_descendant_pre(NULL, p->start_css);
-	else if (p->order == BPF_ITER_DESCENDANTS_POST)
+	else if (p->order == BPF_CGROUP_ITER_DESCENDANTS_POST)
 		return css_next_descendant_post(NULL, p->start_css);
-	else if (p->order == BPF_ITER_ANCESTORS_UP)
+	else if (p->order == BPF_CGROUP_ITER_ANCESTORS_UP)
 		return p->start_css;
-	else /* BPF_ITER_SELF_ONLY */
+	else /* BPF_CGROUP_ITER_SELF_ONLY */
 		return p->start_css;
 }
 
@@ -109,13 +109,13 @@ static void *cgroup_iter_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 	if (p->terminate)
 		return NULL;
 
-	if (p->order == BPF_ITER_DESCENDANTS_PRE)
+	if (p->order == BPF_CGROUP_ITER_DESCENDANTS_PRE)
 		return css_next_descendant_pre(curr, p->start_css);
-	else if (p->order == BPF_ITER_DESCENDANTS_POST)
+	else if (p->order == BPF_CGROUP_ITER_DESCENDANTS_POST)
 		return css_next_descendant_post(curr, p->start_css);
-	else if (p->order == BPF_ITER_ANCESTORS_UP)
+	else if (p->order == BPF_CGROUP_ITER_ANCESTORS_UP)
 		return curr->parent;
-	else  /* BPF_ITER_SELF_ONLY */
+	else  /* BPF_CGROUP_ITER_SELF_ONLY */
 		return NULL;
 }
 
@@ -188,10 +188,10 @@ static int bpf_iter_attach_cgroup(struct bpf_prog *prog,
 	int order = linfo->cgroup.order;
 	struct cgroup *cgrp;
 
-	if (order != BPF_ITER_DESCENDANTS_PRE &&
-	    order != BPF_ITER_DESCENDANTS_POST &&
-	    order != BPF_ITER_ANCESTORS_UP &&
-	    order != BPF_ITER_SELF_ONLY)
+	if (order != BPF_CGROUP_ITER_DESCENDANTS_PRE &&
+	    order != BPF_CGROUP_ITER_DESCENDANTS_POST &&
+	    order != BPF_CGROUP_ITER_ANCESTORS_UP &&
+	    order != BPF_CGROUP_ITER_SELF_ONLY)
 		return -EINVAL;
 
 	if (fd && id)
@@ -239,13 +239,13 @@ static void bpf_iter_cgroup_show_fdinfo(const struct bpf_iter_aux_info *aux,
 	kfree(buf);
 
 show_order:
-	if (aux->cgroup.order == BPF_ITER_DESCENDANTS_PRE)
+	if (aux->cgroup.order == BPF_CGROUP_ITER_DESCENDANTS_PRE)
 		seq_puts(seq, "order: descendants_pre\n");
-	else if (aux->cgroup.order == BPF_ITER_DESCENDANTS_POST)
+	else if (aux->cgroup.order == BPF_CGROUP_ITER_DESCENDANTS_POST)
 		seq_puts(seq, "order: descendants_post\n");
-	else if (aux->cgroup.order == BPF_ITER_ANCESTORS_UP)
+	else if (aux->cgroup.order == BPF_CGROUP_ITER_ANCESTORS_UP)
 		seq_puts(seq, "order: ancestors_up\n");
-	else /* BPF_ITER_SELF_ONLY */
+	else /* BPF_CGROUP_ITER_SELF_ONLY */
 		seq_puts(seq, "order: self_only\n");
 }
 
