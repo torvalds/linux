@@ -116,7 +116,7 @@ static void io_netmsg_recycle(struct io_kiocb *req, unsigned int issue_flags)
 {
 	struct io_async_msghdr *hdr = req->async_data;
 
-	if (!hdr || issue_flags & IO_URING_F_UNLOCKED)
+	if (!req_has_async_data(req) || issue_flags & IO_URING_F_UNLOCKED)
 		return;
 
 	/* Let normal cleanup path reap it if we fail adding to the cache */
@@ -152,9 +152,9 @@ static int io_setup_async_msg(struct io_kiocb *req,
 			      struct io_async_msghdr *kmsg,
 			      unsigned int issue_flags)
 {
-	struct io_async_msghdr *async_msg = req->async_data;
+	struct io_async_msghdr *async_msg;
 
-	if (async_msg)
+	if (req_has_async_data(req))
 		return -EAGAIN;
 	async_msg = io_recvmsg_alloc_async(req, issue_flags);
 	if (!async_msg) {
@@ -977,6 +977,14 @@ int io_sendzc(struct io_kiocb *req, unsigned int issue_flags)
 	msg.msg_controllen = 0;
 	msg.msg_namelen = 0;
 
+	if (zc->addr) {
+		ret = move_addr_to_kernel(zc->addr, zc->addr_len, &address);
+		if (unlikely(ret < 0))
+			return ret;
+		msg.msg_name = (struct sockaddr *)&address;
+		msg.msg_namelen = zc->addr_len;
+	}
+
 	if (zc->flags & IORING_RECVSEND_FIXED_BUF) {
 		ret = io_import_fixed(WRITE, &msg.msg_iter, req->imu,
 					(u64)(uintptr_t)zc->buf, zc->len);
@@ -990,14 +998,6 @@ int io_sendzc(struct io_kiocb *req, unsigned int issue_flags)
 		ret = io_notif_account_mem(notif, zc->len);
 		if (unlikely(ret))
 			return ret;
-	}
-
-	if (zc->addr) {
-		ret = move_addr_to_kernel(zc->addr, zc->addr_len, &address);
-		if (unlikely(ret < 0))
-			return ret;
-		msg.msg_name = (struct sockaddr *)&address;
-		msg.msg_namelen = zc->addr_len;
 	}
 
 	msg_flags = zc->msg_flags | MSG_ZEROCOPY;
