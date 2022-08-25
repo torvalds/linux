@@ -3902,12 +3902,13 @@ static struct srp_host *srp_add_port(struct srp_device *device, u8 port)
 	host->srp_dev = device;
 	host->port = port;
 
+	device_initialize(&host->dev);
 	host->dev.class = &srp_class;
 	host->dev.parent = device->dev->dev.parent;
-	dev_set_name(&host->dev, "srp-%s-%d", dev_name(&device->dev->dev),
-		     port);
-
-	if (device_register(&host->dev))
+	if (dev_set_name(&host->dev, "srp-%s-%d", dev_name(&device->dev->dev),
+			 port))
+		goto put_host;
+	if (device_add(&host->dev))
 		goto put_host;
 	if (device_create_file(&host->dev, &dev_attr_add_target))
 		goto put_host;
