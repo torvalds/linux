@@ -1523,6 +1523,7 @@ static size_t ovs_dp_cmd_msg_size(void)
 	msgsize += nla_total_size_64bit(sizeof(struct ovs_dp_megaflow_stats));
 	msgsize += nla_total_size(sizeof(u32)); /* OVS_DP_ATTR_USER_FEATURES */
 	msgsize += nla_total_size(sizeof(u32)); /* OVS_DP_ATTR_MASKS_CACHE_SIZE */
+	msgsize += nla_total_size(sizeof(u32) * nr_cpu_ids); /* OVS_DP_ATTR_PER_CPU_PIDS */
 
 	return msgsize;
 }
@@ -1534,7 +1535,8 @@ static int ovs_dp_cmd_fill_info(struct datapath *dp, struct sk_buff *skb,
 	struct ovs_header *ovs_header;
 	struct ovs_dp_stats dp_stats;
 	struct ovs_dp_megaflow_stats dp_megaflow_stats;
-	int err;
+	struct dp_nlsk_pids *pids = ovsl_dereference(dp->upcall_portids);
+	int err, pids_len;
 
 	ovs_header = genlmsg_put(skb, portid, seq, &dp_datapath_genl_family,
 				 flags, cmd);
@@ -1563,6 +1565,12 @@ static int ovs_dp_cmd_fill_info(struct datapath *dp, struct sk_buff *skb,
 	if (nla_put_u32(skb, OVS_DP_ATTR_MASKS_CACHE_SIZE,
 			ovs_flow_tbl_masks_cache_size(&dp->table)))
 		goto nla_put_failure;
+
+	if (dp->user_features & OVS_DP_F_DISPATCH_UPCALL_PER_CPU && pids) {
+		pids_len = min(pids->n_pids, nr_cpu_ids) * sizeof(u32);
+		if (nla_put(skb, OVS_DP_ATTR_PER_CPU_PIDS, pids_len, &pids->pids))
+			goto nla_put_failure;
+	}
 
 	genlmsg_end(skb, ovs_header);
 	return 0;
