@@ -95,6 +95,7 @@ properties:
 
   refclk-mux:
     type: object
+    additionalProperties: false
     description: CPTS reference clock multiplexer clock
     properties:
       '#clock-cells':

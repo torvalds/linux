@@ -116,6 +116,7 @@ properties:
         description: CPSWxG NUSS external ports
 
         $ref: ethernet-controller.yaml#
+        unevaluatedProperties: false
 
         properties:
           reg:

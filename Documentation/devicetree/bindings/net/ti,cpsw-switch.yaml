@@ -77,6 +77,8 @@ properties:
 
   ethernet-ports:
     type: object
+    additionalProperties: false
+
     properties:
       '#address-cells':
         const: 1
@@ -89,6 +91,7 @@ properties:
         description: CPSW external ports
 
         $ref: ethernet-controller.yaml#
+        unevaluatedProperties: false
 
         properties:
           reg:
@@ -117,6 +120,7 @@ properties:
 
   cpts:
     type: object
+    unevaluatedProperties: false
     description:
       The Common Platform Time Sync (CPTS) module
 

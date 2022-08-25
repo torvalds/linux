@@ -32,6 +32,7 @@ properties:
 
   ethernet-ports:
     type: object
+    additionalProperties: false
     description: Ethernet ports to PHY
 
     properties:
@@ -44,6 +45,7 @@ properties:
     patternProperties:
       "^port@[0-1]$":
         type: object
+        additionalProperties: false
         description: Port to PHY
 
         properties:

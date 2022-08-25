@@ -37,6 +37,7 @@ properties:
 patternProperties:
   "^ethernet-port@[0-9]+$":
     type: object
+    unevaluatedProperties: false
     description: contains the resources for ethernet port
     allOf:
       - $ref: ethernet-controller.yaml#
