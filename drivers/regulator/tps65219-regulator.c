@@ -363,11 +363,9 @@ static int tps65219_regulator_probe(struct platform_device *pdev)
 		irq_type = &tps65219_regulator_irq_types[i];
 
 		irq = platform_get_irq_byname(pdev, irq_type->irq_name);
-		if (irq < 0) {
-			dev_err(tps->dev, "Failed to get IRQ %s: %d\n",
-				irq_type->irq_name, irq);
+		if (irq < 0)
 			return -EINVAL;
-		}
+
 		irq_data[i].dev = tps->dev;
 		irq_data[i].type = irq_type;
 
