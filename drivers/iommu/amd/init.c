@@ -3379,17 +3379,30 @@ static int __init parse_amd_iommu_intr(char *str)
 
 static int __init parse_amd_iommu_options(char *str)
 {
-	for (; *str; ++str) {
+	if (!str)
+		return -EINVAL;
+
+	while (*str) {
 		if (strncmp(str, "fullflush", 9) == 0) {
 			pr_warn("amd_iommu=fullflush deprecated; use iommu.strict=1 instead\n");
 			iommu_set_dma_strict();
-		}
-		if (strncmp(str, "force_enable", 12) == 0)
+		} else if (strncmp(str, "force_enable", 12) == 0) {
 			amd_iommu_force_enable = true;
-		if (strncmp(str, "off", 3) == 0)
+		} else if (strncmp(str, "off", 3) == 0) {
 			amd_iommu_disabled = true;
-		if (strncmp(str, "force_isolation", 15) == 0)
+		} else if (strncmp(str, "force_isolation", 15) == 0) {
 			amd_iommu_force_isolation = true;
+		} else if (strncmp(str, "pgtbl_v1", 8) == 0) {
+			amd_iommu_pgtable = AMD_IOMMU_V1;
+		} else if (strncmp(str, "pgtbl_v2", 8) == 0) {
+			amd_iommu_pgtable = AMD_IOMMU_V2;
+		} else {
+			pr_notice("Unknown option - '%s'\n", str);
+		}
+
+		str += strcspn(str, ",");
+		while (*str == ',')
+			str++;
 	}
 
 	return 1;
