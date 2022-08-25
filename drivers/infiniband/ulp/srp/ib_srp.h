@@ -124,7 +124,6 @@ struct srp_host {
 	struct device		dev;
 	struct list_head	target_list;
 	spinlock_t		target_lock;
-	struct completion	released;
 	struct list_head	list;
 	struct mutex		add_target_mutex;
 };
