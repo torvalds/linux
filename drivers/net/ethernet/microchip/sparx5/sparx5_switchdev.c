@@ -386,16 +386,95 @@ static int sparx5_handle_port_vlan_add(struct net_device *dev,
 				  v->flags & BRIDGE_VLAN_INFO_UNTAGGED);
 }
 
+static int sparx5_alloc_mdb_entry(struct sparx5 *sparx5,
+				  const unsigned char *addr,
+				  u16 vid,
+				  struct sparx5_mdb_entry **entry_out)
+{
+	struct sparx5_mdb_entry *entry;
+	u16 pgid_idx;
+	int err;
+
+	entry = kzalloc(sizeof(*entry), GFP_KERNEL);
+	if (!entry)
+		return -ENOMEM;
+
+	err = sparx5_pgid_alloc_mcast(sparx5, &pgid_idx);
+	if (err) {
+		kfree(entry);
+		return err;
+	}
+
+	memcpy(entry->addr, addr, ETH_ALEN);
+	entry->vid = vid;
+	entry->pgid_idx = pgid_idx;
+
+	mutex_lock(&sparx5->mdb_lock);
+	list_add_tail(&entry->list, &sparx5->mdb_entries);
+	mutex_unlock(&sparx5->mdb_lock);
+
+	*entry_out = entry;
+	return 0;
+}
+
+static void sparx5_free_mdb_entry(struct sparx5 *sparx5,
+				  const unsigned char *addr,
+				  u16 vid)
+{
+	struct sparx5_mdb_entry *entry, *tmp;
+
+	mutex_lock(&sparx5->mdb_lock);
+	list_for_each_entry_safe(entry, tmp, &sparx5->mdb_entries, list) {
+		if ((vid == 0 || entry->vid == vid) &&
+		    ether_addr_equal(addr, entry->addr)) {
+			list_del(&entry->list);
+
+			sparx5_pgid_free(sparx5, entry->pgid_idx);
+			kfree(entry);
+			goto out;
+		}
+	}
+
+out:
+	mutex_unlock(&sparx5->mdb_lock);
+}
+
+static struct sparx5_mdb_entry *sparx5_mdb_get_entry(struct sparx5 *sparx5,
+						     const unsigned char *addr,
+						     u16 vid)
+{
+	struct sparx5_mdb_entry *e, *found = NULL;
+
+	mutex_lock(&sparx5->mdb_lock);
+	list_for_each_entry(e, &sparx5->mdb_entries, list) {
+		if (ether_addr_equal(e->addr, addr) && e->vid == vid) {
+			found = e;
+			goto out;
+		}
+	}
+
+out:
+	mutex_unlock(&sparx5->mdb_lock);
+	return found;
+}
+
+static void sparx5_cpu_copy_ena(struct sparx5 *spx5, u16 pgid, bool enable)
+{
+	spx5_rmw(ANA_AC_PGID_MISC_CFG_PGID_CPU_COPY_ENA_SET(enable),
+		 ANA_AC_PGID_MISC_CFG_PGID_CPU_COPY_ENA, spx5,
+		 ANA_AC_PGID_MISC_CFG(pgid));
+}
+
 static int sparx5_handle_port_mdb_add(struct net_device *dev,
 				      struct notifier_block *nb,
 				      const struct switchdev_obj_port_mdb *v)
 {
 	struct sparx5_port *port = netdev_priv(dev);
 	struct sparx5 *spx5 = port->sparx5;
-	u16 pgid_idx, vid;
-	u32 mact_entry;
+	struct sparx5_mdb_entry *entry;
 	bool is_host;
-	int res, err;
+	int err;
+	u16 vid;
 
 	if (!sparx5_netdevice_check(dev))
 		return -EOPNOTSUPP;
@@ -410,66 +489,25 @@ static int sparx5_handle_port_mdb_add(struct net_device *dev,
 	else
 		vid = v->vid;
 
-	res = sparx5_mact_find(spx5, v->addr, vid, &mact_entry);
-
-	if (res == 0) {
-		pgid_idx = LRN_MAC_ACCESS_CFG_2_MAC_ENTRY_ADDR_GET(mact_entry);
-
-		/* MC_IDX starts after the port masks in the PGID table */
-		pgid_idx += SPX5_PORTS;
-
-		if (is_host)
-			spx5_rmw(ANA_AC_PGID_MISC_CFG_PGID_CPU_COPY_ENA_SET(1),
-				 ANA_AC_PGID_MISC_CFG_PGID_CPU_COPY_ENA, spx5,
-				 ANA_AC_PGID_MISC_CFG(pgid_idx));
-		else
-			sparx5_pgid_update_mask(port, pgid_idx, true);
-
-	} else {
-		err = sparx5_pgid_alloc_mcast(spx5, &pgid_idx);
-		if (err) {
-			netdev_warn(dev, "multicast pgid table full\n");
+	entry = sparx5_mdb_get_entry(spx5, v->addr, vid);
+	if (!entry) {
+		err = sparx5_alloc_mdb_entry(spx5, v->addr, vid, &entry);
+		if (err)
 			return err;
-		}
-
-		if (is_host)
-			spx5_rmw(ANA_AC_PGID_MISC_CFG_PGID_CPU_COPY_ENA_SET(1),
-				 ANA_AC_PGID_MISC_CFG_PGID_CPU_COPY_ENA, spx5,
-				 ANA_AC_PGID_MISC_CFG(pgid_idx));
-		else
-			sparx5_pgid_update_mask(port, pgid_idx, true);
-
-		err = sparx5_mact_learn(spx5, pgid_idx, v->addr, vid);
-
-		if (err) {
-			netdev_warn(dev, "could not learn mac address %pM\n", v->addr);
-			sparx5_pgid_free(spx5, pgid_idx);
-			sparx5_pgid_update_mask(port, pgid_idx, false);
-			return err;
-		}
 	}
 
-	return 0;
-}
-
-static int sparx5_mdb_del_entry(struct net_device *dev,
-				struct sparx5 *spx5,
-				const unsigned char mac[ETH_ALEN],
-				const u16 vid,
-				u16 pgid_idx)
-{
-	int err;
-
-	err = sparx5_mact_forget(spx5, mac, vid);
-	if (err) {
-		netdev_warn(dev, "could not forget mac address %pM", mac);
-		return err;
+	mutex_lock(&spx5->mdb_lock);
+	if (is_host && !entry->cpu_copy) {
+		sparx5_cpu_copy_ena(spx5, entry->pgid_idx, true);
+		entry->cpu_copy = true;
+	} else if (!is_host) {
+		sparx5_pgid_update_mask(port, entry->pgid_idx, true);
+		set_bit(port->portno, entry->port_mask);
 	}
-	err = sparx5_pgid_free(spx5, pgid_idx);
-	if (err) {
-		netdev_err(dev, "attempted to free already freed pgid\n");
-		return err;
-	}
+	mutex_unlock(&spx5->mdb_lock);
+
+	sparx5_mact_learn(spx5, entry->pgid_idx, entry->addr, entry->vid);
+
 	return 0;
 }
 
@@ -479,42 +517,38 @@ static int sparx5_handle_port_mdb_del(struct net_device *dev,
 {
 	struct sparx5_port *port = netdev_priv(dev);
 	struct sparx5 *spx5 = port->sparx5;
-	u16 pgid_idx, vid;
-	u32 mact_entry, res, pgid_entry[3], misc_cfg;
-	bool host_ena;
+	struct sparx5_mdb_entry *entry;
+	bool is_host;
+	u16 vid;
 
 	if (!sparx5_netdevice_check(dev))
 		return -EOPNOTSUPP;
+
+	is_host = netif_is_bridge_master(v->obj.orig_dev);
 
 	if (!br_vlan_enabled(spx5->hw_bridge_dev))
 		vid = 1;
 	else
 		vid = v->vid;
 
-	res = sparx5_mact_find(spx5, v->addr, vid, &mact_entry);
+	entry = sparx5_mdb_get_entry(spx5, v->addr, vid);
+	if (!entry)
+		return 0;
 
-	if (res == 0) {
-		pgid_idx = LRN_MAC_ACCESS_CFG_2_MAC_ENTRY_ADDR_GET(mact_entry);
-
-		/* MC_IDX starts after the port masks in the PGID table */
-		pgid_idx += SPX5_PORTS;
-
-		if (netif_is_bridge_master(v->obj.orig_dev))
-			spx5_rmw(ANA_AC_PGID_MISC_CFG_PGID_CPU_COPY_ENA_SET(0),
-				 ANA_AC_PGID_MISC_CFG_PGID_CPU_COPY_ENA, spx5,
-				 ANA_AC_PGID_MISC_CFG(pgid_idx));
-		else
-			sparx5_pgid_update_mask(port, pgid_idx, false);
-
-		misc_cfg = spx5_rd(spx5, ANA_AC_PGID_MISC_CFG(pgid_idx));
-		host_ena = ANA_AC_PGID_MISC_CFG_PGID_CPU_COPY_ENA_GET(misc_cfg);
-
-		sparx5_pgid_read_mask(spx5, pgid_idx, pgid_entry);
-		if (bitmap_empty((unsigned long *)pgid_entry, SPX5_PORTS) && !host_ena)
-			/* No ports or CPU are in MC group. Remove entry */
-			return sparx5_mdb_del_entry(dev, spx5, v->addr, vid, pgid_idx);
+	mutex_lock(&spx5->mdb_lock);
+	if (is_host && entry->cpu_copy) {
+		sparx5_cpu_copy_ena(spx5, entry->pgid_idx, false);
+		entry->cpu_copy = false;
+	} else if (!is_host) {
+		clear_bit(port->portno, entry->port_mask);
+		sparx5_pgid_update_mask(port, entry->pgid_idx, false);
 	}
+	mutex_unlock(&spx5->mdb_lock);
 
+	if (bitmap_empty(entry->port_mask, SPX5_PORTS) && !entry->cpu_copy) {
+		sparx5_mact_forget(spx5, entry->addr, entry->vid);
+		sparx5_free_mdb_entry(spx5, entry->addr, entry->vid);
+	}
 	return 0;
 }
 

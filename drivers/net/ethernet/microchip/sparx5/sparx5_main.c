@@ -661,6 +661,9 @@ static int sparx5_start(struct sparx5 *sparx5)
 	queue_delayed_work(sparx5->mact_queue, &sparx5->mact_work,
 			   SPX5_MACT_PULL_DELAY);
 
+	mutex_init(&sparx5->mdb_lock);
+	INIT_LIST_HEAD(&sparx5->mdb_entries);
+
 	err = sparx5_register_netdevs(sparx5);
 	if (err)
 		return err;
