@@ -389,7 +389,7 @@ static int memac_initialization(struct mac_device *mac_dev,
 {
 	int			 err;
 	struct fman_mac_params	 params;
-	struct fixed_phy_status *fixed_link;
+	struct fixed_phy_status *fixed_link = NULL;
 
 	mac_dev->set_promisc		= memac_set_promiscuous;
 	mac_dev->change_addr		= memac_modify_mac_address;
