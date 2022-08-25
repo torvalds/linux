@@ -471,22 +471,18 @@ mlx5e_rep_add_meta_tunnel_rule(struct mlx5e_priv *priv)
 	struct mlx5_eswitch_rep *rep = rpriv->rep;
 	struct mlx5_flow_handle *flow_rule;
 	struct mlx5_flow_group *g;
-	int err;
 
 	g = esw->fdb_table.offloads.send_to_vport_meta_grp;
 	if (!g)
 		return 0;
 
 	flow_rule = mlx5_eswitch_add_send_to_vport_meta_rule(esw, rep->vport);
-	if (IS_ERR(flow_rule)) {
-		err = PTR_ERR(flow_rule);
-		goto out;
-	}
+	if (IS_ERR(flow_rule))
+		return PTR_ERR(flow_rule);
 
 	rpriv->send_to_vport_meta_rule = flow_rule;
 
-out:
-	return err;
+	return 0;
 }
 
 static void
