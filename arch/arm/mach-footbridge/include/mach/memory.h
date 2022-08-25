@@ -17,15 +17,6 @@
 #define __ASM_ARCH_MEMORY_H
 
 /*
- * The footbridge is programmed to expose the system RAM at 0xe0000000.
- * The requirement is that the RAM isn't placed at bus address 0, which
- * would clash with VGA cards.
- */
-#define BUS_OFFSET		0xe0000000
-#define __virt_to_bus(x)	((x) + (BUS_OFFSET - PAGE_OFFSET))
-#define __bus_to_virt(x)	((x) - (BUS_OFFSET - PAGE_OFFSET))
-
-/*
  * Cache flushing area.
  */
 #define FLUSH_BASE		0xf9000000

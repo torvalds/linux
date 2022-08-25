@@ -22,6 +22,13 @@
 #define DC21285_IO(x)		(x)
 #endif
 
+/*
+ * The footbridge is programmed to expose the system RAM at 0xe0000000.
+ * The requirement is that the RAM isn't placed at bus address 0, which
+ * would clash with VGA cards.
+ */
+#define BUS_OFFSET 0xe0000000
+
 #define CSR_PCICMD		DC21285_IO(0x0004)
 #define CSR_CLASSREV		DC21285_IO(0x0008)
 #define CSR_PCICACHELINESIZE	DC21285_IO(0x000c)

@@ -46,7 +46,6 @@ endmenu
 # Footbridge support
 config FOOTBRIDGE
 	def_bool y
-	select ARCH_HAS_PHYS_TO_DMA
 	select ARCH_MIGHT_HAVE_PC_SERIO
 	select ISA_DMA_API
 

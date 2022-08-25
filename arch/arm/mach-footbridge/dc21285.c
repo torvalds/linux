@@ -5,6 +5,7 @@
  *  Copyright (C) 1998-2001 Russell King
  *  Copyright (C) 1998-2000 Phil Blundell
  */
+#include <linux/dma-map-ops.h>
 #include <linux/kernel.h>
 #include <linux/pci.h>
 #include <linux/interrupt.h>
@@ -241,6 +242,22 @@ static irqreturn_t dc21285_parity_irq(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
+static int dc21285_pci_bus_notifier(struct notifier_block *nb,
+				    unsigned long action,
+				    void *data)
+{
+	if (action != BUS_NOTIFY_ADD_DEVICE)
+		return NOTIFY_DONE;
+
+	dma_direct_set_offset(data, PHYS_OFFSET, BUS_OFFSET, SZ_256M);
+
+	return NOTIFY_OK;
+}
+
+static struct notifier_block dc21285_pci_bus_nb = {
+	.notifier_call = dc21285_pci_bus_notifier,
+};
+
 int __init dc21285_setup(int nr, struct pci_sys_data *sys)
 {
 	struct resource *res;
@@ -265,6 +282,8 @@ int __init dc21285_setup(int nr, struct pci_sys_data *sys)
 
 	pci_add_resource_offset(&sys->resources, &res[0], sys->mem_offset);
 	pci_add_resource_offset(&sys->resources, &res[1], sys->mem_offset);
+
+	bus_register_notifier(&pci_bus_type, &dc21285_pci_bus_nb);
 
 	return 1;
 }
@@ -329,7 +348,7 @@ void __init dc21285_preinit(void)
 	 */
 	*CSR_PCICSRBASE       = 0xf4000000;
 	*CSR_PCICSRIOBASE     = 0;
-	*CSR_PCISDRAMBASE     = __virt_to_bus(PAGE_OFFSET);
+	*CSR_PCISDRAMBASE     = BUS_OFFSET;
 	*CSR_PCIROMBASE       = 0;
 	*CSR_PCICMD = PCI_COMMAND_MEMORY | PCI_COMMAND_MASTER |
 		      PCI_COMMAND_INVALIDATE | PCICMD_ERROR_BITS;

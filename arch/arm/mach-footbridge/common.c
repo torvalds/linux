@@ -281,13 +281,3 @@ void footbridge_restart(enum reboot_mode mode, const char *cmd)
 		*CSR_SA110_CNTL |= (1 << 13);
 	}
 }
-
-dma_addr_t phys_to_dma(struct device *dev, phys_addr_t paddr)
-{
-	return paddr + (BUS_OFFSET - PHYS_OFFSET);
-}
-
-phys_addr_t dma_to_phys(struct device *dev, dma_addr_t dev_addr)
-{
-	return dev_addr - (BUS_OFFSET - PHYS_OFFSET);
-}
