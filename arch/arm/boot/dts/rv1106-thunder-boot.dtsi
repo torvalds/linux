@@ -69,7 +69,7 @@
 		status = "okay";
 	};
 
-	thunder_boot_serivce: thunder-boot-service {
+	thunder_boot_service: thunder-boot-service {
 		compatible = "rockchip,thunder-boot-service";
 		mbox-names = "amp-rx";
 		mboxes = <&mailbox 1>;

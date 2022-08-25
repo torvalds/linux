@@ -314,6 +314,6 @@
 	};
 };
 
-&thunder_boot_serivce {
+&thunder_boot_service {
 	status = "okay";
 };
