@@ -136,13 +136,6 @@ static int imx7ulp_wdt_enable(struct watchdog_device *wdog, bool enable)
 	return ret;
 }
 
-static bool imx7ulp_wdt_is_enabled(void __iomem *base)
-{
-	u32 val = readl(base + WDOG_CS);
-
-	return val & WDOG_CS_EN;
-}
-
 static int imx7ulp_wdt_ping(struct watchdog_device *wdog)
 {
 	struct imx7ulp_wdt_device *wdt = watchdog_get_drvdata(wdog);
@@ -382,11 +375,11 @@ static int __maybe_unused imx7ulp_wdt_resume_noirq(struct device *dev)
 	if (ret)
 		return ret;
 
-	if (imx7ulp_wdt_is_enabled(imx7ulp_wdt->base))
+	if (watchdog_active(&imx7ulp_wdt->wdd)) {
 		imx7ulp_wdt_init(imx7ulp_wdt, timeout);
-
-	if (watchdog_active(&imx7ulp_wdt->wdd))
 		imx7ulp_wdt_start(&imx7ulp_wdt->wdd);
+		imx7ulp_wdt_ping(&imx7ulp_wdt->wdd);
+	}
 
 	return 0;
 }
