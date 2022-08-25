@@ -605,6 +605,7 @@ static int smu_set_funcs(struct amdgpu_device *adev)
 		smu->od_enabled = true;
 		break;
 	case IP_VERSION(13, 0, 0):
+	case IP_VERSION(13, 0, 10):
 		smu_v13_0_0_set_ppt_funcs(smu);
 		break;
 	case IP_VERSION(13, 0, 7):
