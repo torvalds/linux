@@ -134,6 +134,7 @@ struct rockchip_rgb {
 	struct phy *phy;
 	struct regmap *grf;
 	bool data_sync_bypass;
+	bool is_mcu_panel;
 	const struct rockchip_rgb_funcs *funcs;
 	struct rockchip_drm_sub_dev sub_dev;
 };
@@ -146,6 +147,11 @@ static inline struct rockchip_rgb *connector_to_rgb(struct drm_connector *c)
 static inline struct rockchip_rgb *encoder_to_rgb(struct drm_encoder *e)
 {
 	return container_of(e, struct rockchip_rgb, encoder);
+}
+
+static inline struct rockchip_mcu_panel *to_rockchip_mcu_panel(struct drm_panel *panel)
+{
+	return container_of(panel, struct rockchip_mcu_panel, base);
 }
 
 static enum drm_connector_status
@@ -307,6 +313,15 @@ static void rockchip_rgb_encoder_loader_protect(struct drm_encoder *encoder,
 {
 	struct rockchip_rgb *rgb = encoder_to_rgb(encoder);
 
+	if (rgb->is_mcu_panel) {
+		struct rockchip_mcu_panel *mcu_panel = to_rockchip_mcu_panel(rgb->panel);
+
+		mcu_panel->prepared = true;
+		mcu_panel->enabled = true;
+
+		return;
+	}
+
 	if (rgb->panel)
 		panel_simple_loader_protect(rgb->panel);
 }
@@ -401,11 +416,6 @@ static int rockchip_mcu_panel_parse_cmd_seq(struct device *dev,
 	}
 
 	return 0;
-}
-
-static inline struct rockchip_mcu_panel *to_rockchip_mcu_panel(struct drm_panel *panel)
-{
-	return container_of(panel, struct rockchip_mcu_panel, base);
 }
 
 static int rockchip_mcu_panel_init(struct rockchip_rgb *rgb, struct device_node *np_mcu_panel)
@@ -761,6 +771,8 @@ static int rockchip_rgb_bind(struct device *dev, struct device *master,
 			       DRM_MODE_CONNECTOR_DPI);
 
 		drm_panel_add(&mcu_panel->base);
+
+		rgb->is_mcu_panel = true;
 	} else {
 		ret = drm_of_find_panel_or_bridge(dev->of_node, 1, -1,
 						  &rgb->panel, &rgb->bridge);
