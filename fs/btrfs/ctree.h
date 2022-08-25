@@ -3828,7 +3828,7 @@ const char * __attribute_const__ btrfs_decode_error(int errno);
 __cold
 void __btrfs_abort_transaction(struct btrfs_trans_handle *trans,
 			       const char *function,
-			       unsigned int line, int errno);
+			       unsigned int line, int errno, bool first_hit);
 
 /*
  * Call btrfs_abort_transaction as early as possible when an error condition is
@@ -3836,9 +3836,11 @@ void __btrfs_abort_transaction(struct btrfs_trans_handle *trans,
  */
 #define btrfs_abort_transaction(trans, errno)		\
 do {								\
+	bool first = false;					\
 	/* Report first abort since mount */			\
 	if (!test_and_set_bit(BTRFS_FS_STATE_TRANS_ABORTED,	\
 			&((trans)->fs_info->fs_state))) {	\
+		first = true;					\
 		if ((errno) != -EIO && (errno) != -EROFS) {		\
 			WARN(1, KERN_DEBUG				\
 			"BTRFS: Transaction aborted (error %d)\n",	\
@@ -3850,7 +3852,7 @@ do {								\
 		}						\
 	}							\
 	__btrfs_abort_transaction((trans), __func__,		\
-				  __LINE__, (errno));		\
+				  __LINE__, (errno), first);	\
 } while (0)
 
 #ifdef CONFIG_PRINTK_INDEX

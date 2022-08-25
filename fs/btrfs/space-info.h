@@ -157,4 +157,6 @@ static inline void btrfs_space_info_free_bytes_may_use(
 }
 int btrfs_reserve_data_bytes(struct btrfs_fs_info *fs_info, u64 bytes,
 			     enum btrfs_reserve_flush_enum flush);
+void btrfs_dump_space_info_for_trans_abort(struct btrfs_fs_info *fs_info);
+
 #endif /* BTRFS_SPACE_INFO_H */
