@@ -119,7 +119,6 @@ struct ksz_device {
 	unsigned long mib_read_interval;
 	u16 mirror_rx;
 	u16 mirror_tx;
-	u32 features;			/* chip specific features */
 	u16 port_mask;
 };
 
@@ -541,9 +540,6 @@ static inline int is_lan937x(struct ksz_device *dev)
 #define MULTICAST_STORM_DISABLE		BIT(6)
 
 #define SW_START			0x01
-
-/* Used with variable features to indicate capabilities. */
-#define IS_9893				BIT(2)
 
 /* xMII configuration */
 #define P_MII_DUPLEX_M			BIT(6)

@@ -1164,9 +1164,6 @@ int ksz9477_switch_init(struct ksz_device *dev)
 	if (ret)
 		return ret;
 
-	if (dev->chip_id == KSZ9893_CHIP_ID)
-		dev->features |= IS_9893;
-
 	return 0;
 }
 

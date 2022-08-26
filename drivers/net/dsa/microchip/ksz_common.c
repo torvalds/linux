@@ -1912,7 +1912,8 @@ static void ksz_set_xmii(struct ksz_device *dev, int port,
 	case PHY_INTERFACE_MODE_RGMII_RXID:
 		data8 |= bitval[P_RGMII_SEL];
 		/* On KSZ9893, disable RGMII in-band status support */
-		if (dev->features & IS_9893)
+		if (dev->chip_id == KSZ9893_CHIP_ID ||
+		    dev->chip_id == KSZ8563_CHIP_ID)
 			data8 &= ~P_MII_MAC_MODE;
 		break;
 	default:
