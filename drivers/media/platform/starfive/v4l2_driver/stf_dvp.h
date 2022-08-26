@@ -33,7 +33,8 @@ struct dvp_cfg {
 struct stf_dvp_dev;
 
 struct dvp_hw_ops {
-	int (*dvp_clk_init)(struct stf_dvp_dev *dvp_dev);
+	int (*dvp_clk_enable)(struct stf_dvp_dev *dvp_dev);
+	int (*dvp_clk_disable)(struct stf_dvp_dev *dvp_dev);
 	int (*dvp_config_set)(struct stf_dvp_dev *dvp_dev);
 	int (*dvp_set_format)(struct stf_dvp_dev *dvp_dev,
 			u32 pix_width, u8 bpp);

@@ -4,11 +4,35 @@
  */
 #include "stfcamss.h"
 
-static int stf_dvp_clk_init(struct stf_dvp_dev *dvp_dev)
+static int stf_dvp_clk_enable(struct stf_dvp_dev *dvp_dev)
 {
 	struct stfcamss *stfcamss = dvp_dev->stfcamss;
 
-	clk_set_phase(stfcamss->sys_clk[STFCLK_DVP_INV].clk, 0);
+	switch (dvp_dev->s_type) {
+	case SENSOR_VIN:
+		clk_set_phase(stfcamss->sys_clk[STFCLK_DVP_INV].clk, 0);
+		clk_set_parent(stfcamss->sys_clk[STFCLK_AXIWR].clk,
+			stfcamss->sys_clk[STFCLK_DVP_INV].clk);
+		reset_control_deassert(stfcamss->sys_rst[STFRST_AXIWR].rstc);
+		break;
+	case SENSOR_ISP:
+		clk_set_phase(stfcamss->sys_clk[STFCLK_DVP_INV].clk, 0);
+		clk_set_parent(stfcamss->sys_clk[STFCLK_WRAPPER_CLK_C].clk,
+			stfcamss->sys_clk[STFCLK_DVP_INV].clk);
+		break;
+	default:
+		break;
+	}
+
+	return 0;
+}
+
+static int stf_dvp_clk_disable(struct stf_dvp_dev *dvp_dev)
+{
+	struct stfcamss *stfcamss = dvp_dev->stfcamss;
+
+	if (dvp_dev->s_type == SENSOR_VIN)
+		reset_control_assert(stfcamss->sys_rst[STFRST_AXIWR].rstc);
 
 	return 0;
 }
@@ -120,9 +144,6 @@ static int stf_dvp_stream_set(struct stf_dvp_dev *dvp_dev, int on)
 
 	switch (dvp_dev->s_type) {
 	case SENSOR_VIN:
-		clk_set_parent(stfcamss->sys_clk[STFCLK_AXIWR].clk,
-			stfcamss->sys_clk[STFCLK_DVP_INV].clk);
-
 		reg_set_bit(vin->sysctrl_base, SYSCONSAIF_SYSCFG_36,
 			U0_VIN_CNFG_ISP_DVP_EN0,
 			0);
@@ -131,9 +152,6 @@ static int stf_dvp_stream_set(struct stf_dvp_dev *dvp_dev, int on)
 			!!on<<2);
 		break;
 	case SENSOR_ISP:
-		clk_set_parent(stfcamss->sys_clk[STFCLK_WRAPPER_CLK_C].clk,
-			stfcamss->sys_clk[STFCLK_DVP_INV].clk);
-
 		reg_set_bit(vin->sysctrl_base, SYSCONSAIF_SYSCFG_36,
 			U0_VIN_CNFG_ISP_DVP_EN0,
 			!!on<<5);
@@ -155,7 +173,8 @@ static int stf_dvp_stream_set(struct stf_dvp_dev *dvp_dev, int on)
 }
 
 struct dvp_hw_ops dvp_ops = {
-	.dvp_clk_init          = stf_dvp_clk_init,
+	.dvp_clk_enable        = stf_dvp_clk_enable,
+	.dvp_clk_disable       = stf_dvp_clk_disable,
 	.dvp_config_set        = stf_dvp_config_set,
 	.dvp_set_format        = stf_dvp_set_format,
 	.dvp_stream_set        = stf_dvp_stream_set,

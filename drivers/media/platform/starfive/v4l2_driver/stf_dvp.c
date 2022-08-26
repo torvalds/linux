@@ -86,7 +86,7 @@ static int dvp_set_stream(struct v4l2_subdev *sd, int enable)
 	mutex_lock(&dvp_dev->stream_lock);
 	if (enable) {
 		if (dvp_dev->stream_count == 0) {
-			dvp_dev->hw_ops->dvp_clk_init(dvp_dev);
+			dvp_dev->hw_ops->dvp_clk_enable(dvp_dev);
 			dvp_dev->hw_ops->dvp_config_set(dvp_dev);
 			dvp_dev->hw_ops->dvp_set_format(dvp_dev,
 				format->width, dvp_dev->formats[ret].bpp);
@@ -96,8 +96,10 @@ static int dvp_set_stream(struct v4l2_subdev *sd, int enable)
 	} else {
 		if (dvp_dev->stream_count == 0)
 			goto exit;
-		if (dvp_dev->stream_count == 1)
+		if (dvp_dev->stream_count == 1) {
 			dvp_dev->hw_ops->dvp_stream_set(dvp_dev, 0);
+			dvp_dev->hw_ops->dvp_clk_disable(dvp_dev);
+		}
 		dvp_dev->stream_count--;
 	}
 exit:
