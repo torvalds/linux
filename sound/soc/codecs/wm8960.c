@@ -881,28 +881,26 @@ static int wm8960_hw_params(struct snd_pcm_substream *substream,
 		snd_soc_component_update_bits(component, WM8960_CLOCK1, 0x7 << 6, j << 6);
 		snd_soc_component_update_bits(component, WM8960_CLOCK2, 0xf, k);
 
-		snd_soc_component_write(component, WM8960_POWER3, 0x3c);
-
 		if (tx) {
 			snd_soc_component_write(component, WM8960_LOUTMIX, 0x100);
 			snd_soc_component_write(component, WM8960_ROUTMIX, 0x100);
-			snd_soc_component_write(component, WM8960_POWER3, 0xc);
+			snd_soc_component_update_bits(component, WM8960_POWER3, 0xc, 0xc);
 			snd_soc_component_write(component, WM8960_POWER2, 0x1f9);
 			snd_soc_component_write(component, WM8960_POWER2, 0x1f9);
 			snd_soc_component_write(component, WM8960_IFACE1, 0x3);
 			snd_soc_component_write(component, WM8960_IFACE1, 0x43 | word_length);
 			snd_soc_component_write(component, WM8960_POWER1, 0xd6);
-			snd_soc_component_write(component, WM8960_POWER1, 0xc6);
+			snd_soc_component_write(component, WM8960_POWER1, 0xfe);
 			snd_soc_component_write(component, WM8960_ADDCTL2, 0x4);
 		} else {
-			snd_soc_component_write(component, WM8960_POWER3, 0x30);
+			snd_soc_component_update_bits(component, WM8960_POWER3, 0x30, 0x30);
 			snd_soc_component_write(component, WM8960_POWER1, 0xfe);
 			snd_soc_component_write(component, WM8960_POWER1, 0xfe);
-			snd_soc_component_write(component, WM8960_POWER3, 0x30);
-			snd_soc_component_write(component, WM8960_POWER3, 0x30);
+			snd_soc_component_update_bits(component, WM8960_POWER3, 0x30, 0x30);
+			snd_soc_component_update_bits(component, WM8960_POWER3, 0x30, 0x30);
 			snd_soc_component_write(component, WM8960_POWER1, 0xfe);
 			snd_soc_component_write(component, WM8960_POWER1, 0xfe);
-			snd_soc_component_write(component, WM8960_ADDCTL2, 0x0);
+			snd_soc_component_write(component, WM8960_ADDCTL2, 0x4);
 			snd_soc_component_write(component, WM8960_IFACE1, 0x3);
 			snd_soc_component_write(component, WM8960_IFACE1, 0x43 | word_length);
 			snd_soc_component_write(component, WM8960_POWER1, 0xfe);
@@ -1419,11 +1417,6 @@ static int wm8960_set_dai_sysclk(struct snd_soc_dai *dai, int clk_id,
 }
 
 #define WM8960_RATES SNDRV_PCM_RATE_8000_48000
-/*
-#define WM8960_FORMATS \
-	(SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S20_3LE | \
-	SNDRV_PCM_FMTBIT_S24_LE | SNDRV_PCM_FMTBIT_S32_LE)
-*/
 
 #define WM8960_FORMATS \
 	(SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S32_LE)

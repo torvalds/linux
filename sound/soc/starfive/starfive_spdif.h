@@ -158,7 +158,7 @@ struct sf_spdif_dev {
 	struct snd_dmaengine_dai_dma_data dma_data;
 };
 
-#if IS_ENABLED(CONFIG_SND_STARFIVE_SPDIF_PCM)
+#if IS_ENABLED(CONFIG_SND_SOC_STARFIVE_SPDIF_PCM)
 void sf_spdif_pcm_push_tx(struct sf_spdif_dev *dev);
 void sf_spdif_pcm_pop_rx(struct sf_spdif_dev *dev);
 int sf_spdif_pcm_register(struct platform_device *pdev);
