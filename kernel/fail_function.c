@@ -295,7 +295,7 @@ static ssize_t fei_write(struct file *file, const char __user *buffer,
 
 	ret = register_kprobe(&attr->kp);
 	if (ret) {
-		fei_attr_remove(attr);
+		fei_attr_free(attr);
 		goto out;
 	}
 	fei_debugfs_add_attr(attr);
