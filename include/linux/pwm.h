@@ -408,8 +408,6 @@ struct pwm_device *of_pwm_get(struct device *dev, struct device_node *np,
 void pwm_put(struct pwm_device *pwm);
 
 struct pwm_device *devm_pwm_get(struct device *dev, const char *con_id);
-struct pwm_device *devm_of_pwm_get(struct device *dev, struct device_node *np,
-				   const char *con_id);
 struct pwm_device *devm_fwnode_pwm_get(struct device *dev,
 				       struct fwnode_handle *fwnode,
 				       const char *con_id);
@@ -512,14 +510,6 @@ static inline void pwm_put(struct pwm_device *pwm)
 
 static inline struct pwm_device *devm_pwm_get(struct device *dev,
 					      const char *consumer)
-{
-	might_sleep();
-	return ERR_PTR(-ENODEV);
-}
-
-static inline struct pwm_device *devm_of_pwm_get(struct device *dev,
-						 struct device_node *np,
-						 const char *con_id)
 {
 	might_sleep();
 	return ERR_PTR(-ENODEV);

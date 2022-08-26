@@ -1071,36 +1071,6 @@ struct pwm_device *devm_pwm_get(struct device *dev, const char *con_id)
 EXPORT_SYMBOL_GPL(devm_pwm_get);
 
 /**
- * devm_of_pwm_get() - resource managed of_pwm_get()
- * @dev: device for PWM consumer
- * @np: device node to get the PWM from
- * @con_id: consumer name
- *
- * This function performs like of_pwm_get() but the acquired PWM device will
- * automatically be released on driver detach.
- *
- * Returns: A pointer to the requested PWM device or an ERR_PTR()-encoded
- * error code on failure.
- */
-struct pwm_device *devm_of_pwm_get(struct device *dev, struct device_node *np,
-				   const char *con_id)
-{
-	struct pwm_device *pwm;
-	int ret;
-
-	pwm = of_pwm_get(dev, np, con_id);
-	if (IS_ERR(pwm))
-		return pwm;
-
-	ret = devm_add_action_or_reset(dev, devm_pwm_release, pwm);
-	if (ret)
-		return ERR_PTR(ret);
-
-	return pwm;
-}
-EXPORT_SYMBOL_GPL(devm_of_pwm_get);
-
-/**
  * devm_fwnode_pwm_get() - request a resource managed PWM from firmware node
  * @dev: device for PWM consumer
  * @fwnode: firmware node to get the PWM from
