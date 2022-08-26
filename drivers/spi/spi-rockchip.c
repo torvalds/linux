@@ -169,6 +169,10 @@
 #define ROCKCHIP_SPI_VER2_TYPE1			0x05EC0002
 #define ROCKCHIP_SPI_VER2_TYPE2			0x00110002
 
+struct rockchip_spi_quirks {
+	u32 max_baud_div_in_cpha;
+};
+
 struct rockchip_spi {
 	struct device *dev;
 
@@ -191,6 +195,8 @@ struct rockchip_spi {
 	u32 fifo_len;
 	/* frequency of spiclk */
 	u32 freq;
+	/* speed of io rate */
+	u32 speed_hz;
 
 	u8 n_bytes;
 	u8 rsd;
@@ -203,6 +209,9 @@ struct rockchip_spi {
 	bool cs_high_supported; /* native CS supports active-high polarity */
 
 	struct spi_transfer *xfer; /* Store xfer temporarily */
+
+	/* quirks */
+	u32 max_baud_div_in_cpha;
 };
 
 static inline void spi_enable_chip(struct rockchip_spi *rs, bool enable)
@@ -614,12 +623,26 @@ static int rockchip_spi_config(struct rockchip_spi *rs,
 		       rs->regs + ROCKCHIP_SPI_DMARDLR);
 	writel_relaxed(dmacr, rs->regs + ROCKCHIP_SPI_DMACR);
 
+	if (rs->max_baud_div_in_cpha && xfer->speed_hz != rs->speed_hz) {
+		/* the minimum divisor is 2 */
+		if (rs->freq < 2 * xfer->speed_hz) {
+			clk_set_rate(rs->spiclk, 2 * xfer->speed_hz);
+			rs->freq = clk_get_rate(rs->spiclk);
+		}
+
+		if ((spi->mode & SPI_CPHA) && (DIV_ROUND_UP(rs->freq, xfer->speed_hz) > rs->max_baud_div_in_cpha)) {
+			clk_set_rate(rs->spiclk, rs->max_baud_div_in_cpha * xfer->speed_hz);
+			rs->freq = clk_get_rate(rs->spiclk);
+		}
+	}
+
 	/* the hardware only supports an even clock divisor, so
 	 * round divisor = spiclk / speed up to nearest even number
 	 * so that the resulting speed is <= the requested speed
 	 */
 	writel_relaxed(2 * DIV_ROUND_UP(rs->freq, 2 * xfer->speed_hz),
 			rs->regs + ROCKCHIP_SPI_BAUDR);
+	rs->speed_hz = xfer->speed_hz;
 
 	return 0;
 }
@@ -772,6 +795,7 @@ static int rockchip_spi_probe(struct platform_device *pdev)
 	u32 rsd_nsecs, num_cs;
 	bool slave_mode;
 	struct pinctrl *pinctrl = NULL;
+	const struct rockchip_spi_quirks *quirks_cfg;
 
 	slave_mode = of_property_read_bool(np, "spi-slave");
 
@@ -883,6 +907,9 @@ static int rockchip_spi_probe(struct platform_device *pdev)
 		ret = -EINVAL;
 		goto err_disable_sclk_in;
 	}
+	quirks_cfg = device_get_match_data(&pdev->dev);
+	if (quirks_cfg)
+		rs->max_baud_div_in_cpha = quirks_cfg->max_baud_div_in_cpha;
 
 	pm_runtime_set_active(&pdev->dev);
 	pm_runtime_enable(&pdev->dev);
