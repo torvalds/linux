@@ -4772,6 +4772,9 @@ static int msm_pcie_enable(struct msm_pcie_dev_t *dev)
 			goto link_fail;
 	}
 
+	/* Disable override for fal10_veto logic to de-assert Qactive signal */
+	msm_pcie_write_mask(dev->parf + PCIE20_PARF_CFG_BITS_3, BIT(0), 0);
+
 	/**
 	 * configure LANE_SKEW_OFF BIT-5 and PARF_CFG_BITS_3 BIT-8 to support
 	 * dynamic link width upscaling.
@@ -4898,6 +4901,10 @@ static void msm_pcie_disable(struct msm_pcie_dev_t *dev)
 
 	msm_pcie_write_mask(dev->parf + PCIE20_PARF_PHY_CTRL, 0,
 				BIT(0));
+
+	/* Enable override for fal10_veto logic to assert Qactive signal.*/
+	msm_pcie_write_mask(dev->parf + PCIE20_PARF_CFG_BITS_3, 0, BIT(0));
+
 	msm_pcie_clk_deinit(dev);
 	msm_pcie_vreg_deinit(dev);
 	msm_pcie_pipe_clk_deinit(dev);
