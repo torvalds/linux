@@ -294,14 +294,13 @@ static ssize_t fei_write(struct file *file, const char __user *buffer,
 	}
 
 	ret = register_kprobe(&attr->kp);
-	if (!ret)
-		fei_debugfs_add_attr(attr);
-	if (ret < 0)
+	if (ret) {
 		fei_attr_remove(attr);
-	else {
-		list_add_tail(&attr->list, &fei_attr_list);
-		ret = count;
+		goto out;
 	}
+	fei_debugfs_add_attr(attr);
+	list_add_tail(&attr->list, &fei_attr_list);
+	ret = count;
 out:
 	mutex_unlock(&fei_lock);
 	kfree(buf);
