@@ -394,40 +394,42 @@ static inline int ksz_write64(struct ksz_device *dev, u32 reg, u64 value)
 	return regmap_bulk_write(dev->regmap[2], reg, val, 2);
 }
 
-static inline void ksz_pread8(struct ksz_device *dev, int port, int offset,
-			      u8 *data)
+static inline int ksz_pread8(struct ksz_device *dev, int port, int offset,
+			     u8 *data)
 {
-	ksz_read8(dev, dev->dev_ops->get_port_addr(port, offset), data);
+	return ksz_read8(dev, dev->dev_ops->get_port_addr(port, offset), data);
 }
 
-static inline void ksz_pread16(struct ksz_device *dev, int port, int offset,
-			       u16 *data)
+static inline int ksz_pread16(struct ksz_device *dev, int port, int offset,
+			      u16 *data)
 {
-	ksz_read16(dev, dev->dev_ops->get_port_addr(port, offset), data);
+	return ksz_read16(dev, dev->dev_ops->get_port_addr(port, offset), data);
 }
 
-static inline void ksz_pread32(struct ksz_device *dev, int port, int offset,
-			       u32 *data)
+static inline int ksz_pread32(struct ksz_device *dev, int port, int offset,
+			      u32 *data)
 {
-	ksz_read32(dev, dev->dev_ops->get_port_addr(port, offset), data);
+	return ksz_read32(dev, dev->dev_ops->get_port_addr(port, offset), data);
 }
 
-static inline void ksz_pwrite8(struct ksz_device *dev, int port, int offset,
-			       u8 data)
+static inline int ksz_pwrite8(struct ksz_device *dev, int port, int offset,
+			      u8 data)
 {
-	ksz_write8(dev, dev->dev_ops->get_port_addr(port, offset), data);
+	return ksz_write8(dev, dev->dev_ops->get_port_addr(port, offset), data);
 }
 
-static inline void ksz_pwrite16(struct ksz_device *dev, int port, int offset,
-				u16 data)
+static inline int ksz_pwrite16(struct ksz_device *dev, int port, int offset,
+			       u16 data)
 {
-	ksz_write16(dev, dev->dev_ops->get_port_addr(port, offset), data);
+	return ksz_write16(dev, dev->dev_ops->get_port_addr(port, offset),
+			   data);
 }
 
-static inline void ksz_pwrite32(struct ksz_device *dev, int port, int offset,
-				u32 data)
+static inline int ksz_pwrite32(struct ksz_device *dev, int port, int offset,
+			       u32 data)
 {
-	ksz_write32(dev, dev->dev_ops->get_port_addr(port, offset), data);
+	return ksz_write32(dev, dev->dev_ops->get_port_addr(port, offset),
+			   data);
 }
 
 static inline void ksz_prmw8(struct ksz_device *dev, int port, int offset,
