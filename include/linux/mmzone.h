@@ -121,20 +121,6 @@ static inline bool free_area_empty(struct free_area *area, int migratetype)
 
 struct pglist_data;
 
-/*
- * Add a wild amount of padding here to ensure data fall into separate
- * cachelines.  There are very few zone structures in the machine, so space
- * consumption is not a concern here.
- */
-#if defined(CONFIG_SMP)
-struct zone_padding {
-	char x[0];
-} ____cacheline_internodealigned_in_smp;
-#define ZONE_PADDING(name)	struct zone_padding name;
-#else
-#define ZONE_PADDING(name)
-#endif
-
 #ifdef CONFIG_NUMA
 enum numa_stat_item {
 	NUMA_HIT,		/* allocated in intended node */
@@ -837,7 +823,7 @@ struct zone {
 	int initialized;
 
 	/* Write-intensive fields used from the page allocator */
-	ZONE_PADDING(_pad1_)
+	CACHELINE_PADDING(_pad1_);
 
 	/* free areas of different sizes */
 	struct free_area	free_area[MAX_ORDER];
@@ -849,7 +835,7 @@ struct zone {
 	spinlock_t		lock;
 
 	/* Write-intensive fields used by compaction and vmstats. */
-	ZONE_PADDING(_pad2_)
+	CACHELINE_PADDING(_pad2_);
 
 	/*
 	 * When free pages are below this point, additional steps are taken
@@ -886,7 +872,7 @@ struct zone {
 
 	bool			contiguous;
 
-	ZONE_PADDING(_pad3_)
+	CACHELINE_PADDING(_pad3_);
 	/* Zone statistics */
 	atomic_long_t		vm_stat[NR_VM_ZONE_STAT_ITEMS];
 	atomic_long_t		vm_numa_event[NR_VM_NUMA_EVENT_ITEMS];
@@ -1196,7 +1182,7 @@ typedef struct pglist_data {
 #endif /* CONFIG_NUMA */
 
 	/* Write-intensive fields used by page reclaim */
-	ZONE_PADDING(_pad1_)
+	CACHELINE_PADDING(_pad1_);
 
 #ifdef CONFIG_DEFERRED_STRUCT_PAGE_INIT
 	/*
@@ -1241,7 +1227,7 @@ typedef struct pglist_data {
 	struct lru_gen_mm_walk	mm_walk;
 #endif
 
-	ZONE_PADDING(_pad2_)
+	CACHELINE_PADDING(_pad2_);
 
 	/* Per-node vmstats */
 	struct per_cpu_nodestat __percpu *per_cpu_nodestats;

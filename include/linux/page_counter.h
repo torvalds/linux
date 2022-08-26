@@ -7,22 +7,13 @@
 #include <linux/kernel.h>
 #include <asm/page.h>
 
-#if defined(CONFIG_SMP)
-struct pc_padding {
-	char x[0];
-} ____cacheline_internodealigned_in_smp;
-#define PC_PADDING(name)	struct pc_padding name
-#else
-#define PC_PADDING(name)
-#endif
-
 struct page_counter {
 	/*
 	 * Make sure 'usage' does not share cacheline with any other field. The
 	 * memcg->memory.usage is a hot member of struct mem_cgroup.
 	 */
 	atomic_long_t usage;
-	PC_PADDING(_pad1_);
+	CACHELINE_PADDING(_pad1_);
 
 	/* effective memory.min and memory.min usage tracking */
 	unsigned long emin;
@@ -38,7 +29,7 @@ struct page_counter {
 	unsigned long failcnt;
 
 	/* Keep all the read most fields in a separete cacheline. */
-	PC_PADDING(_pad2_);
+	CACHELINE_PADDING(_pad2_);
 
 	unsigned long min;
 	unsigned long low;
