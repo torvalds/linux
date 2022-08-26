@@ -22,6 +22,11 @@ struct prestera_flow_block {
 	struct prestera_acl_ruleset *ruleset_zero;
 	struct flow_block_cb *block_cb;
 	struct list_head template_list;
+	struct {
+		u32 prio_min;
+		u32 prio_max;
+		bool bound;
+	} mall;
 	unsigned int rule_count;
 	bool ingress;
 };

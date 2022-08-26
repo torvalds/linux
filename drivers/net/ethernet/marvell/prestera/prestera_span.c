@@ -120,8 +120,9 @@ static int prestera_span_put(struct prestera_switch *sw, u8 span_id)
 	return 0;
 }
 
-static int prestera_span_rule_add(struct prestera_flow_block_binding *binding,
-				  struct prestera_port *to_port)
+int prestera_span_rule_add(struct prestera_flow_block_binding *binding,
+			   struct prestera_port *to_port,
+			   bool ingress)
 {
 	struct prestera_switch *sw = binding->port->sw;
 	u8 span_id;
@@ -135,7 +136,7 @@ static int prestera_span_rule_add(struct prestera_flow_block_binding *binding,
 	if (err)
 		return err;
 
-	err = prestera_hw_span_bind(binding->port, span_id);
+	err = prestera_hw_span_bind(binding->port, span_id, ingress);
 	if (err) {
 		prestera_span_put(sw, span_id);
 		return err;
@@ -145,11 +146,12 @@ static int prestera_span_rule_add(struct prestera_flow_block_binding *binding,
 	return 0;
 }
 
-static int prestera_span_rule_del(struct prestera_flow_block_binding *binding)
+int prestera_span_rule_del(struct prestera_flow_block_binding *binding,
+			   bool ingress)
 {
 	int err;
 
-	err = prestera_hw_span_unbind(binding->port);
+	err = prestera_hw_span_unbind(binding->port, ingress);
 	if (err)
 		return err;
 
@@ -159,60 +161,6 @@ static int prestera_span_rule_del(struct prestera_flow_block_binding *binding)
 
 	binding->span_id = PRESTERA_SPAN_INVALID_ID;
 	return 0;
-}
-
-int prestera_span_replace(struct prestera_flow_block *block,
-			  struct tc_cls_matchall_offload *f)
-{
-	struct prestera_flow_block_binding *binding;
-	__be16 protocol = f->common.protocol;
-	struct flow_action_entry *act;
-	struct prestera_port *port;
-	int err;
-
-	if (!flow_offload_has_one_action(&f->rule->action)) {
-		NL_SET_ERR_MSG(f->common.extack,
-			       "Only singular actions are supported");
-		return -EOPNOTSUPP;
-	}
-
-	act = &f->rule->action.entries[0];
-
-	if (!prestera_netdev_check(act->dev)) {
-		NL_SET_ERR_MSG(f->common.extack,
-			       "Only Marvell Prestera port is supported");
-		return -EINVAL;
-	}
-	if (!tc_cls_can_offload_and_chain0(act->dev, &f->common))
-		return -EOPNOTSUPP;
-	if (act->id != FLOW_ACTION_MIRRED)
-		return -EOPNOTSUPP;
-	if (protocol != htons(ETH_P_ALL))
-		return -EOPNOTSUPP;
-
-	port = netdev_priv(act->dev);
-
-	list_for_each_entry(binding, &block->binding_list, list) {
-		err = prestera_span_rule_add(binding, port);
-		if (err)
-			goto rollback;
-	}
-
-	return 0;
-
-rollback:
-	list_for_each_entry_continue_reverse(binding,
-					     &block->binding_list, list)
-		prestera_span_rule_del(binding);
-	return err;
-}
-
-void prestera_span_destroy(struct prestera_flow_block *block)
-{
-	struct prestera_flow_block_binding *binding;
-
-	list_for_each_entry(binding, &block->binding_list, list)
-		prestera_span_rule_del(binding);
 }
 
 int prestera_span_init(struct prestera_switch *sw)

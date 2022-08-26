@@ -245,8 +245,9 @@ int prestera_hw_counter_clear(struct prestera_switch *sw, u32 block_id,
 
 /* SPAN API */
 int prestera_hw_span_get(const struct prestera_port *port, u8 *span_id);
-int prestera_hw_span_bind(const struct prestera_port *port, u8 span_id);
-int prestera_hw_span_unbind(const struct prestera_port *port);
+int prestera_hw_span_bind(const struct prestera_port *port, u8 span_id,
+			  bool ingress);
+int prestera_hw_span_unbind(const struct prestera_port *port, bool ingress);
 int prestera_hw_span_release(struct prestera_switch *sw, u8 span_id);
 
 /* Router API */

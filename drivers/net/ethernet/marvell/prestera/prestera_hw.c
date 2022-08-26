@@ -78,9 +78,11 @@ enum prestera_cmd_type_t {
 	PRESTERA_CMD_TYPE_STP_PORT_SET = 0x1000,
 
 	PRESTERA_CMD_TYPE_SPAN_GET = 0x1100,
-	PRESTERA_CMD_TYPE_SPAN_BIND = 0x1101,
-	PRESTERA_CMD_TYPE_SPAN_UNBIND = 0x1102,
+	PRESTERA_CMD_TYPE_SPAN_INGRESS_BIND = 0x1101,
+	PRESTERA_CMD_TYPE_SPAN_INGRESS_UNBIND = 0x1102,
 	PRESTERA_CMD_TYPE_SPAN_RELEASE = 0x1103,
+	PRESTERA_CMD_TYPE_SPAN_EGRESS_BIND = 0x1104,
+	PRESTERA_CMD_TYPE_SPAN_EGRESS_UNBIND = 0x1105,
 
 	PRESTERA_CMD_TYPE_POLICER_CREATE = 0x1500,
 	PRESTERA_CMD_TYPE_POLICER_RELEASE = 0x1501,
@@ -1434,27 +1436,39 @@ int prestera_hw_span_get(const struct prestera_port *port, u8 *span_id)
 	return 0;
 }
 
-int prestera_hw_span_bind(const struct prestera_port *port, u8 span_id)
+int prestera_hw_span_bind(const struct prestera_port *port, u8 span_id,
+			  bool ingress)
 {
 	struct prestera_msg_span_req req = {
 		.port = __cpu_to_le32(port->hw_id),
 		.dev = __cpu_to_le32(port->dev_id),
 		.id = span_id,
 	};
+	enum prestera_cmd_type_t cmd_type;
 
-	return prestera_cmd(port->sw, PRESTERA_CMD_TYPE_SPAN_BIND,
-			    &req.cmd, sizeof(req));
+	if (ingress)
+		cmd_type = PRESTERA_CMD_TYPE_SPAN_INGRESS_BIND;
+	else
+		cmd_type = PRESTERA_CMD_TYPE_SPAN_EGRESS_BIND;
+
+	return prestera_cmd(port->sw, cmd_type, &req.cmd, sizeof(req));
+
 }
 
-int prestera_hw_span_unbind(const struct prestera_port *port)
+int prestera_hw_span_unbind(const struct prestera_port *port, bool ingress)
 {
 	struct prestera_msg_span_req req = {
 		.port = __cpu_to_le32(port->hw_id),
 		.dev = __cpu_to_le32(port->dev_id),
 	};
+	enum prestera_cmd_type_t cmd_type;
 
-	return prestera_cmd(port->sw, PRESTERA_CMD_TYPE_SPAN_UNBIND,
-			    &req.cmd, sizeof(req));
+	if (ingress)
+		cmd_type = PRESTERA_CMD_TYPE_SPAN_INGRESS_UNBIND;
+	else
+		cmd_type = PRESTERA_CMD_TYPE_SPAN_EGRESS_UNBIND;
+
+	return prestera_cmd(port->sw, cmd_type, &req.cmd, sizeof(req));
 }
 
 int prestera_hw_span_release(struct prestera_switch *sw, u8 span_id)
