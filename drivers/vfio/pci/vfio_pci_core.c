@@ -662,10 +662,10 @@ static int msix_mmappable_cap(struct vfio_pci_core_device *vdev,
 	return vfio_info_add_capability(caps, &header, sizeof(header));
 }
 
-int vfio_pci_register_dev_region(struct vfio_pci_core_device *vdev,
-				 unsigned int type, unsigned int subtype,
-				 const struct vfio_pci_regops *ops,
-				 size_t size, u32 flags, void *data)
+int vfio_pci_core_register_dev_region(struct vfio_pci_core_device *vdev,
+				      unsigned int type, unsigned int subtype,
+				      const struct vfio_pci_regops *ops,
+				      size_t size, u32 flags, void *data)
 {
 	struct vfio_pci_region *region;
 
@@ -687,7 +687,7 @@ int vfio_pci_register_dev_region(struct vfio_pci_core_device *vdev,
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(vfio_pci_register_dev_region);
+EXPORT_SYMBOL_GPL(vfio_pci_core_register_dev_region);
 
 long vfio_pci_core_ioctl(struct vfio_device *core_vdev, unsigned int cmd,
 		unsigned long arg)
