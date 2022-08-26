@@ -30,7 +30,7 @@ struct tps65219_regulator_irq_type {
 	unsigned long event;
 };
 
-struct tps65219_regulator_irq_type tps65219_regulator_irq_types[] = {
+static struct tps65219_regulator_irq_type tps65219_regulator_irq_types[] = {
 	{ "LDO3_SCG", "LDO3", "short circuit to ground", REGULATOR_EVENT_REGULATION_OUT },
 	{ "LDO3_OC", "LDO3", "overcurrent", REGULATOR_EVENT_OVER_CURRENT },
 	{ "LDO3_UV", "LDO3", "undervoltage", REGULATOR_EVENT_UNDER_VOLTAGE },
