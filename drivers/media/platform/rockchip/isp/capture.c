@@ -455,349 +455,7 @@ int rkisp_stream_frame_start(struct rkisp_device *dev, u32 isp_mis)
 	return 0;
 }
 
-static const struct capture_fmt mp_fmts[] = {
-	/* yuv422 */
-	{
-		.fourcc = V4L2_PIX_FMT_UYVY,
-		.fmt_type = FMT_YUV,
-		.bpp = { 16 },
-		.cplanes = 1,
-		.mplanes = 1,
-		.uv_swap = 0,
-		.write_format = MI_CTRL_MP_WRITE_YUVINT,
-		.output_format = ISP32_MI_OUTPUT_YUV422,
-	}, {
-		.fourcc = V4L2_PIX_FMT_YUV422P,
-		.fmt_type = FMT_YUV,
-		.bpp = { 8, 4, 4 },
-		.cplanes = 3,
-		.mplanes = 1,
-		.uv_swap = 0,
-		.write_format = MI_CTRL_MP_WRITE_YUV_PLA_OR_RAW8,
-		.output_format = ISP32_MI_OUTPUT_YUV422,
-	}, {
-		.fourcc = V4L2_PIX_FMT_NV16,
-		.fmt_type = FMT_YUV,
-		.bpp = { 8, 16 },
-		.cplanes = 2,
-		.mplanes = 1,
-		.uv_swap = 0,
-		.write_format = MI_CTRL_MP_WRITE_YUV_SPLA,
-		.output_format = ISP32_MI_OUTPUT_YUV422,
-	}, {
-		.fourcc = V4L2_PIX_FMT_NV61,
-		.fmt_type = FMT_YUV,
-		.bpp = { 8, 16 },
-		.cplanes = 2,
-		.mplanes = 1,
-		.uv_swap = 1,
-		.write_format = MI_CTRL_MP_WRITE_YUV_SPLA,
-		.output_format = ISP32_MI_OUTPUT_YUV422,
-	}, {
-		.fourcc = V4L2_PIX_FMT_YUV422M,
-		.fmt_type = FMT_YUV,
-		.bpp = { 8, 8, 8 },
-		.cplanes = 3,
-		.mplanes = 3,
-		.uv_swap = 0,
-		.write_format = MI_CTRL_MP_WRITE_YUV_PLA_OR_RAW8,
-		.output_format = ISP32_MI_OUTPUT_YUV422,
-	},
-	/* yuv420 */
-	{
-		.fourcc = V4L2_PIX_FMT_NV21,
-		.fmt_type = FMT_YUV,
-		.bpp = { 8, 16 },
-		.cplanes = 2,
-		.mplanes = 1,
-		.uv_swap = 1,
-		.write_format = MI_CTRL_MP_WRITE_YUV_SPLA,
-		.output_format = ISP32_MI_OUTPUT_YUV420,
-	}, {
-		.fourcc = V4L2_PIX_FMT_NV12,
-		.fmt_type = FMT_YUV,
-		.bpp = { 8, 16 },
-		.cplanes = 2,
-		.mplanes = 1,
-		.uv_swap = 0,
-		.write_format = MI_CTRL_MP_WRITE_YUV_SPLA,
-		.output_format = ISP32_MI_OUTPUT_YUV420,
-	}, {
-		.fourcc = V4L2_PIX_FMT_NV21M,
-		.fmt_type = FMT_YUV,
-		.bpp = { 8, 16 },
-		.cplanes = 2,
-		.mplanes = 2,
-		.uv_swap = 1,
-		.write_format = MI_CTRL_MP_WRITE_YUV_SPLA,
-		.output_format = ISP32_MI_OUTPUT_YUV420,
-	}, {
-		.fourcc = V4L2_PIX_FMT_NV12M,
-		.fmt_type = FMT_YUV,
-		.bpp = { 8, 16 },
-		.cplanes = 2,
-		.mplanes = 2,
-		.uv_swap = 0,
-		.write_format = MI_CTRL_MP_WRITE_YUV_SPLA,
-		.output_format = ISP32_MI_OUTPUT_YUV420,
-	}, {
-		.fourcc = V4L2_PIX_FMT_YUV420,
-		.fmt_type = FMT_YUV,
-		.bpp = { 8, 8, 8 },
-		.cplanes = 3,
-		.mplanes = 1,
-		.uv_swap = 0,
-		.write_format = MI_CTRL_MP_WRITE_YUV_PLA_OR_RAW8,
-		.output_format = ISP32_MI_OUTPUT_YUV420,
-	},
-	/* yuv444 */
-	{
-		.fourcc = V4L2_PIX_FMT_YUV444M,
-		.fmt_type = FMT_YUV,
-		.bpp = { 8, 8, 8 },
-		.cplanes = 3,
-		.mplanes = 3,
-		.uv_swap = 0,
-		.write_format = MI_CTRL_MP_WRITE_YUV_PLA_OR_RAW8,
-		.output_format = 0,
-	},
-	/* raw */
-	{
-		.fourcc = V4L2_PIX_FMT_SRGGB8,
-		.fmt_type = FMT_BAYER,
-		.bpp = { 8 },
-		.mplanes = 1,
-		.write_format = MI_CTRL_MP_WRITE_YUV_PLA_OR_RAW8,
-		.output_format = 0,
-	}, {
-		.fourcc = V4L2_PIX_FMT_SGRBG8,
-		.fmt_type = FMT_BAYER,
-		.bpp = { 8 },
-		.mplanes = 1,
-		.write_format = MI_CTRL_MP_WRITE_YUV_PLA_OR_RAW8,
-		.output_format = 0,
-	}, {
-		.fourcc = V4L2_PIX_FMT_SGBRG8,
-		.fmt_type = FMT_BAYER,
-		.bpp = { 8 },
-		.mplanes = 1,
-		.write_format = MI_CTRL_MP_WRITE_YUV_PLA_OR_RAW8,
-		.output_format = 0,
-	}, {
-		.fourcc = V4L2_PIX_FMT_SBGGR8,
-		.fmt_type = FMT_BAYER,
-		.bpp = { 8 },
-		.mplanes = 1,
-		.write_format = MI_CTRL_MP_WRITE_YUV_PLA_OR_RAW8,
-		.output_format = 0,
-	}, {
-		.fourcc = V4L2_PIX_FMT_SRGGB10,
-		.fmt_type = FMT_BAYER,
-		.bpp = { 10 },
-		.mplanes = 1,
-		.write_format = MI_CTRL_MP_WRITE_RAW12,
-		.output_format = 0,
-	}, {
-		.fourcc = V4L2_PIX_FMT_SGRBG10,
-		.fmt_type = FMT_BAYER,
-		.bpp = { 10 },
-		.mplanes = 1,
-		.write_format = MI_CTRL_MP_WRITE_RAW12,
-		.output_format = 0,
-	}, {
-		.fourcc = V4L2_PIX_FMT_SGBRG10,
-		.fmt_type = FMT_BAYER,
-		.bpp = { 10 },
-		.mplanes = 1,
-		.write_format = MI_CTRL_MP_WRITE_RAW12,
-		.output_format = 0,
-	}, {
-		.fourcc = V4L2_PIX_FMT_SBGGR10,
-		.fmt_type = FMT_BAYER,
-		.bpp = { 10 },
-		.mplanes = 1,
-		.write_format = MI_CTRL_MP_WRITE_RAW12,
-		.output_format = 0,
-	}, {
-		.fourcc = V4L2_PIX_FMT_SRGGB12,
-		.fmt_type = FMT_BAYER,
-		.bpp = { 12 },
-		.mplanes = 1,
-		.write_format = MI_CTRL_MP_WRITE_RAW12,
-		.output_format = 0,
-	}, {
-		.fourcc = V4L2_PIX_FMT_SGRBG12,
-		.fmt_type = FMT_BAYER,
-		.bpp = { 12 },
-		.mplanes = 1,
-		.write_format = MI_CTRL_MP_WRITE_RAW12,
-		.output_format = 0,
-	}, {
-		.fourcc = V4L2_PIX_FMT_SGBRG12,
-		.fmt_type = FMT_BAYER,
-		.bpp = { 12 },
-		.mplanes = 1,
-		.write_format = MI_CTRL_MP_WRITE_RAW12,
-		.output_format = 0,
-	}, {
-		.fourcc = V4L2_PIX_FMT_SBGGR12,
-		.fmt_type = FMT_BAYER,
-		.bpp = { 12 },
-		.mplanes = 1,
-		.write_format = MI_CTRL_MP_WRITE_RAW12,
-		.output_format = 0,
-	},
-};
-
-static const struct capture_fmt sp_fmts[] = {
-	/* yuv422 */
-	{
-		.fourcc = V4L2_PIX_FMT_UYVY,
-		.fmt_type = FMT_YUV,
-		.bpp = { 16 },
-		.cplanes = 1,
-		.mplanes = 1,
-		.uv_swap = 0,
-		.write_format = MI_CTRL_SP_WRITE_INT,
-		.output_format = MI_CTRL_SP_OUTPUT_YUV422,
-	}, {
-		.fourcc = V4L2_PIX_FMT_YUV422P,
-		.fmt_type = FMT_YUV,
-		.bpp = { 8, 8, 8 },
-		.cplanes = 3,
-		.mplanes = 1,
-		.uv_swap = 0,
-		.write_format = MI_CTRL_SP_WRITE_PLA,
-		.output_format = MI_CTRL_SP_OUTPUT_YUV422,
-	}, {
-		.fourcc = V4L2_PIX_FMT_NV16,
-		.fmt_type = FMT_YUV,
-		.bpp = { 8, 16 },
-		.cplanes = 2,
-		.mplanes = 1,
-		.uv_swap = 0,
-		.write_format = MI_CTRL_SP_WRITE_SPLA,
-		.output_format = MI_CTRL_SP_OUTPUT_YUV422,
-	}, {
-		.fourcc = V4L2_PIX_FMT_NV61,
-		.fmt_type = FMT_YUV,
-		.bpp = { 8, 16 },
-		.cplanes = 2,
-		.mplanes = 1,
-		.uv_swap = 1,
-		.write_format = MI_CTRL_SP_WRITE_SPLA,
-		.output_format = MI_CTRL_SP_OUTPUT_YUV422,
-	}, {
-		.fourcc = V4L2_PIX_FMT_YUV422M,
-		.fmt_type = FMT_YUV,
-		.bpp = { 8, 8, 8 },
-		.cplanes = 3,
-		.mplanes = 3,
-		.uv_swap = 0,
-		.write_format = MI_CTRL_SP_WRITE_PLA,
-		.output_format = MI_CTRL_SP_OUTPUT_YUV422,
-	},
-	/* yuv420 */
-	{
-		.fourcc = V4L2_PIX_FMT_NV21,
-		.fmt_type = FMT_YUV,
-		.bpp = { 8, 16 },
-		.cplanes = 2,
-		.mplanes = 1,
-		.uv_swap = 1,
-		.write_format = MI_CTRL_SP_WRITE_SPLA,
-		.output_format = MI_CTRL_SP_OUTPUT_YUV420,
-	}, {
-		.fourcc = V4L2_PIX_FMT_NV12,
-		.fmt_type = FMT_YUV,
-		.bpp = { 8, 16 },
-		.cplanes = 2,
-		.mplanes = 1,
-		.uv_swap = 0,
-		.write_format = MI_CTRL_SP_WRITE_SPLA,
-		.output_format = MI_CTRL_SP_OUTPUT_YUV420,
-	}, {
-		.fourcc = V4L2_PIX_FMT_NV21M,
-		.fmt_type = FMT_YUV,
-		.bpp = { 8, 16 },
-		.cplanes = 2,
-		.mplanes = 2,
-		.uv_swap = 1,
-		.write_format = MI_CTRL_SP_WRITE_SPLA,
-		.output_format = MI_CTRL_SP_OUTPUT_YUV420,
-	}, {
-		.fourcc = V4L2_PIX_FMT_NV12M,
-		.fmt_type = FMT_YUV,
-		.bpp = { 8, 16 },
-		.cplanes = 2,
-		.mplanes = 2,
-		.uv_swap = 0,
-		.write_format = MI_CTRL_SP_WRITE_SPLA,
-		.output_format = MI_CTRL_SP_OUTPUT_YUV420,
-	}, {
-		.fourcc = V4L2_PIX_FMT_YUV420,
-		.fmt_type = FMT_YUV,
-		.bpp = { 8, 8, 8 },
-		.cplanes = 3,
-		.mplanes = 1,
-		.uv_swap = 0,
-		.write_format = MI_CTRL_SP_WRITE_PLA,
-		.output_format = MI_CTRL_SP_OUTPUT_YUV420,
-	},
-	/* yuv444 */
-	{
-		.fourcc = V4L2_PIX_FMT_YUV444M,
-		.fmt_type = FMT_YUV,
-		.bpp = { 8, 8, 8 },
-		.cplanes = 3,
-		.mplanes = 3,
-		.uv_swap = 0,
-		.write_format = MI_CTRL_SP_WRITE_PLA,
-		.output_format = MI_CTRL_SP_OUTPUT_YUV444,
-	},
-	/* yuv400 */
-	{
-		.fourcc = V4L2_PIX_FMT_GREY,
-		.fmt_type = FMT_YUV,
-		.bpp = { 8 },
-		.cplanes = 1,
-		.mplanes = 1,
-		.uv_swap = 0,
-		.write_format = MI_CTRL_SP_WRITE_PLA,
-		.output_format = MI_CTRL_SP_OUTPUT_YUV400,
-	},
-	/* rgb */
-	{
-		.fourcc = V4L2_PIX_FMT_XBGR32,
-		.fmt_type = FMT_RGB,
-		.bpp = { 32 },
-		.mplanes = 1,
-		.write_format = MI_CTRL_SP_WRITE_PLA,
-		.output_format = MI_CTRL_SP_OUTPUT_RGB888,
-	}, {
-		.fourcc = V4L2_PIX_FMT_RGB565,
-		.fmt_type = FMT_RGB,
-		.bpp = { 16 },
-		.mplanes = 1,
-		.write_format = MI_CTRL_SP_WRITE_PLA,
-		.output_format = MI_CTRL_SP_OUTPUT_RGB565,
-	},
-	/* fbcg */
-	{
-		.fourcc = V4L2_PIX_FMT_FBCG,
-		.fmt_type = FMT_FBCGAIN,
-		.bpp = { 8, 16 },
-		.cplanes = 2,
-		.mplanes = 2,
-		.uv_swap = 0,
-		.write_format = MI_CTRL_SP_WRITE_SPLA,
-		.output_format = MI_CTRL_SP_OUTPUT_YUV420,
-	}
-};
-
 struct stream_config rkisp_mp_stream_config = {
-	.fmts = mp_fmts,
-	.fmt_size = ARRAY_SIZE(mp_fmts),
 	/* constraints */
 	.max_rsz_width = STREAM_MAX_MP_RSZ_OUTPUT_WIDTH,
 	.max_rsz_height = STREAM_MAX_MP_RSZ_OUTPUT_HEIGHT,
@@ -854,8 +512,6 @@ struct stream_config rkisp_mp_stream_config = {
 };
 
 struct stream_config rkisp_sp_stream_config = {
-	.fmts = sp_fmts,
-	.fmt_size = ARRAY_SIZE(sp_fmts),
 	/* constraints */
 	.max_rsz_width = STREAM_MAX_SP_RSZ_OUTPUT_WIDTH,
 	.max_rsz_height = STREAM_MAX_SP_RSZ_OUTPUT_HEIGHT,
@@ -1629,11 +1285,37 @@ static int rkisp_enum_fmt_vid_cap_mplane(struct file *file, void *priv,
 {
 	struct rkisp_stream *stream = video_drvdata(file);
 	const struct capture_fmt *fmt = NULL;
+	struct rkisp_device *dev = stream->ispdev;
+	struct ispsd_in_fmt *isp_in_fmt = &dev->isp_sdev.in_fmt;
+	struct ispsd_out_fmt *isp_out_fmt = &dev->isp_sdev.out_fmt;
+	int ret = -EINVAL;
+
+	/* only one output format for raw */
+	if (isp_out_fmt->fmt_type == FMT_BAYER ||
+	    stream->id == RKISP_STREAM_DMATX0 ||
+	    stream->id == RKISP_STREAM_DMATX1 ||
+	    stream->id == RKISP_STREAM_DMATX2 ||
+	    stream->id == RKISP_STREAM_DMATX3) {
+		u32 pixelformat = rkisp_mbus_pixelcode_to_v4l2(isp_in_fmt->mbus_code);
+
+		if (f->index == 0) {
+			fmt = find_fmt(stream, pixelformat);
+			if (fmt) {
+				f->pixelformat = pixelformat;
+				ret = 0;
+			}
+		}
+		return ret;
+	}
 
 	if (f->index >= stream->config->fmt_size)
 		return -EINVAL;
 
 	fmt = &stream->config->fmts[f->index];
+	/* only output yuv format */
+	if (isp_out_fmt->fmt_type == FMT_YUV && fmt->fmt_type == FMT_BAYER)
+		return -EINVAL;
+
 	f->pixelformat = fmt->fourcc;
 	switch (f->pixelformat) {
 	case V4L2_PIX_FMT_FBC2:
