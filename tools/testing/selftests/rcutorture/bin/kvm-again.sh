@@ -51,6 +51,7 @@ RCUTORTURE="`pwd`/tools/testing/selftests/rcutorture"; export RCUTORTURE
 PATH=${RCUTORTURE}/bin:$PATH; export PATH
 . functions.sh
 
+bootargs=
 dryrun=
 dur=
 default_link="cp -R"
@@ -61,6 +62,7 @@ starttime="`get_starttime`"
 
 usage () {
 	echo "Usage: $scriptname $oldrun [ arguments ]:"
+	echo "       --bootargs kernel-boot-arguments"
 	echo "       --dryrun"
 	echo "       --duration minutes | <seconds>s | <hours>h | <days>d"
 	echo "       --link hard|soft|copy"
@@ -72,6 +74,11 @@ usage () {
 while test $# -gt 0
 do
 	case "$1" in
+	--bootargs|--bootarg)
+		checkarg --bootargs "(list of kernel boot arguments)" "$#" "$2" '.*' '^--'
+		bootargs="$bootargs $2"
+		shift
+		;;
 	--dryrun)
 		dryrun=1
 		;;
@@ -156,7 +163,7 @@ do
 	qemu_cmd_dir="`dirname "$i"`"
 	kernel_dir="`echo $qemu_cmd_dir | sed -e 's/\.[0-9]\+$//'`"
 	jitter_dir="`dirname "$kernel_dir"`"
-	kvm-transform.sh "$kernel_dir/bzImage" "$qemu_cmd_dir/console.log" "$jitter_dir" $dur < $T/qemu-cmd > $i
+	kvm-transform.sh "$kernel_dir/bzImage" "$qemu_cmd_dir/console.log" "$jitter_dir" $dur "$bootargs" < $T/qemu-cmd > $i
 	if test -n "$arg_remote"
 	then
 		echo "# TORTURE_KCONFIG_GDB_ARG=''" >> $i
