@@ -292,10 +292,8 @@ static int stf_vin_wr_stream_set(struct stf_vin2_dev *vin_dev, int on)
 	struct stf_vin_dev *vin = vin_dev->stfcamss->vin;
 
 	//make the axiwr alway on
-	if (on) {
-		reset_control_deassert(stfcamss->sys_rst[STFRST_AXIWR].rstc);
+	if (on)
 		reg_set(vin->sysctrl_base, SYSCONSAIF_SYSCFG_20, U0_VIN_CNFG_AXIWR0_EN);
-	}
 
 	return 0;
 }
