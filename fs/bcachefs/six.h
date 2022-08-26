@@ -110,11 +110,10 @@ struct six_lock {
 	union six_lock_state	state;
 	unsigned		intent_lock_recurse;
 	struct task_struct	*owner;
+	unsigned __percpu	*readers;
 #ifdef CONFIG_SIX_LOCK_SPIN_ON_OWNER
 	struct optimistic_spin_queue osq;
 #endif
-	unsigned __percpu	*readers;
-
 	raw_spinlock_t		wait_lock;
 	struct list_head	wait_list;
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
@@ -126,6 +125,7 @@ struct six_lock_waiter {
 	struct list_head	list;
 	struct task_struct	*task;
 	enum six_lock_type	lock_want;
+	bool			lock_acquired;
 	u64			start_time;
 };
 
