@@ -181,7 +181,7 @@ bkey_cached_alloc(struct btree_key_cache *c)
 	ck = kmem_cache_alloc(bch2_key_cache, GFP_NOFS|__GFP_ZERO);
 	if (likely(ck)) {
 		INIT_LIST_HEAD(&ck->list);
-		six_lock_init(&ck->c.lock);
+		__six_lock_init(&ck->c.lock, "b->c.lock", &bch2_btree_node_lock_key);
 		lockdep_set_novalidate_class(&ck->c.lock);
 		BUG_ON(!six_trylock_intent(&ck->c.lock));
 		BUG_ON(!six_trylock_write(&ck->c.lock));
