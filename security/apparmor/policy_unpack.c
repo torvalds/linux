@@ -781,8 +781,9 @@ static int unpack_pdb(struct aa_ext *e, struct aa_policydb *policy,
 		*info = "failed to unpack profile transition table";
 		goto fail;
 	}
-	/* TODO: move compat mapping here, requires dfa merging first */
 
+	/* TODO: move compat mapping here, requires dfa merging first */
+	/* TODO: move verify here, it has to be done after compat mappings */
 out:
 	return 0;
 
@@ -1149,6 +1150,22 @@ static bool verify_dfa_xindex(struct aa_dfa *dfa, int table_size)
 	return true;
 }
 
+static bool verify_perm_indexes(struct aa_policydb *pdb)
+{
+	int i;
+
+	for (i = 0; i < pdb->size; i++) {
+		if (pdb->perms[i].xindex >= pdb->trans.size)
+			return false;
+		if (pdb->perms[i].tag >= pdb->trans.size)
+			return false;
+		if (pdb->perms[i].label >= pdb->trans.size)
+			return false;
+	}
+
+	return true;
+}
+
 /**
  * verify_profile - Do post unpack analysis to verify profile consistency
  * @profile: profile to verify (NOT NULL)
@@ -1167,6 +1184,22 @@ static int verify_profile(struct aa_profile *profile)
 				profile->policy.trans.size))) {
 		audit_iface(profile, NULL, NULL,
 			    "Unpack: Invalid named transition", NULL, -EPROTO);
+		return -EPROTO;
+	}
+
+	if (!verify_perm_indexes(&profile->file)) {
+		audit_iface(profile, NULL, NULL,
+			    "Unpack: Invalid perm index", NULL, -EPROTO);
+		return -EPROTO;
+	}
+	if (!verify_perm_indexes(&profile->policy)) {
+		audit_iface(profile, NULL, NULL,
+			    "Unpack: Invalid perm index", NULL, -EPROTO);
+		return -EPROTO;
+	}
+	if (!verify_perm_indexes(&profile->xmatch)) {
+		audit_iface(profile, NULL, NULL,
+			    "Unpack: Invalid perm index", NULL, -EPROTO);
 		return -EPROTO;
 	}
 
