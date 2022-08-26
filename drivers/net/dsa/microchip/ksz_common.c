@@ -1132,8 +1132,11 @@ static int ksz_phy_read16(struct dsa_switch *ds, int addr, int reg)
 {
 	struct ksz_device *dev = ds->priv;
 	u16 val = 0xffff;
+	int ret;
 
-	dev->dev_ops->r_phy(dev, addr, reg, &val);
+	ret = dev->dev_ops->r_phy(dev, addr, reg, &val);
+	if (ret)
+		return ret;
 
 	return val;
 }
@@ -1141,8 +1144,11 @@ static int ksz_phy_read16(struct dsa_switch *ds, int addr, int reg)
 static int ksz_phy_write16(struct dsa_switch *ds, int addr, int reg, u16 val)
 {
 	struct ksz_device *dev = ds->priv;
+	int ret;
 
-	dev->dev_ops->w_phy(dev, addr, reg, val);
+	ret = dev->dev_ops->w_phy(dev, addr, reg, val);
+	if (ret)
+		return ret;
 
 	return 0;
 }

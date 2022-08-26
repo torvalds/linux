@@ -274,7 +274,7 @@ static void ksz9477_r_phy_quirks(struct ksz_device *dev, u16 addr, u16 reg,
 		*data &= ~(BMSR_ESTATEN | BMSR_ERCAP);
 }
 
-void ksz9477_r_phy(struct ksz_device *dev, u16 addr, u16 reg, u16 *data)
+int ksz9477_r_phy(struct ksz_device *dev, u16 addr, u16 reg, u16 *data)
 {
 	u16 val = 0xffff;
 
@@ -322,19 +322,23 @@ void ksz9477_r_phy(struct ksz_device *dev, u16 addr, u16 reg, u16 *data)
 	}
 
 	*data = val;
+
+	return 0;
 }
 
-void ksz9477_w_phy(struct ksz_device *dev, u16 addr, u16 reg, u16 val)
+int ksz9477_w_phy(struct ksz_device *dev, u16 addr, u16 reg, u16 val)
 {
 	/* No real PHY after this. */
 	if (addr >= dev->phy_port_cnt)
-		return;
+		return 0;
 
 	/* No gigabit support.  Do not write to this register. */
 	if (!dev->info->gbit_capable[addr] && reg == MII_CTRL1000)
-		return;
+		return 0;
 
 	ksz_pwrite16(dev, addr, 0x100 + (reg << 1), val);
+
+	return 0;
 }
 
 void ksz9477_cfg_port_member(struct ksz_device *dev, int port, u8 member)

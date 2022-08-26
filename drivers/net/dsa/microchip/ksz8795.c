@@ -552,7 +552,7 @@ static void ksz8_w_vlan_table(struct ksz_device *dev, u16 vid, u16 vlan)
 	ksz8_w_table(dev, TABLE_VLAN, addr, buf);
 }
 
-void ksz8_r_phy(struct ksz_device *dev, u16 phy, u16 reg, u16 *val)
+int ksz8_r_phy(struct ksz_device *dev, u16 phy, u16 reg, u16 *val)
 {
 	u8 restart, speed, ctrl, link;
 	int processed = true;
@@ -674,9 +674,11 @@ void ksz8_r_phy(struct ksz_device *dev, u16 phy, u16 reg, u16 *val)
 	}
 	if (processed)
 		*val = data;
+
+	return 0;
 }
 
-void ksz8_w_phy(struct ksz_device *dev, u16 phy, u16 reg, u16 val)
+int ksz8_w_phy(struct ksz_device *dev, u16 phy, u16 reg, u16 val)
 {
 	u8 restart, speed, ctrl, data;
 	const u16 *regs;
@@ -787,6 +789,8 @@ void ksz8_w_phy(struct ksz_device *dev, u16 phy, u16 reg, u16 val)
 	default:
 		break;
 	}
+
+	return 0;
 }
 
 void ksz8_cfg_port_member(struct ksz_device *dev, int port, u8 member)

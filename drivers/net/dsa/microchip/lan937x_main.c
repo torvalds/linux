@@ -128,14 +128,14 @@ static int lan937x_internal_phy_read(struct ksz_device *dev, int addr, int reg,
 	return ksz_read16(dev, REG_VPHY_IND_DATA__2, val);
 }
 
-void lan937x_r_phy(struct ksz_device *dev, u16 addr, u16 reg, u16 *data)
+int lan937x_r_phy(struct ksz_device *dev, u16 addr, u16 reg, u16 *data)
 {
-	lan937x_internal_phy_read(dev, addr, reg, data);
+	return lan937x_internal_phy_read(dev, addr, reg, data);
 }
 
-void lan937x_w_phy(struct ksz_device *dev, u16 addr, u16 reg, u16 val)
+int lan937x_w_phy(struct ksz_device *dev, u16 addr, u16 reg, u16 val)
 {
-	lan937x_internal_phy_write(dev, addr, reg, val);
+	return lan937x_internal_phy_write(dev, addr, reg, val);
 }
 
 static int lan937x_sw_mdio_read(struct mii_bus *bus, int addr, int regnum)
