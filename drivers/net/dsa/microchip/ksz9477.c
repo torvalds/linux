@@ -341,10 +341,6 @@ int ksz9477_w_phy(struct ksz_device *dev, u16 addr, u16 reg, u16 val)
 	if (addr >= dev->phy_port_cnt)
 		return 0;
 
-	/* No gigabit support.  Do not write to this register. */
-	if (!dev->info->gbit_capable[addr] && reg == MII_CTRL1000)
-		return -ENXIO;
-
 	return ksz_pwrite16(dev, addr, 0x100 + (reg << 1), val);
 }
 
