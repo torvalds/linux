@@ -137,6 +137,7 @@ static int rxrpc_open_socket(struct rxrpc_local *local, struct net *net)
 
 	tuncfg.encap_type = UDP_ENCAP_RXRPC;
 	tuncfg.encap_rcv = rxrpc_input_packet;
+	tuncfg.encap_err_rcv = rxrpc_encap_err_rcv;
 	tuncfg.sk_user_data = local;
 	setup_udp_tunnel_sock(net, local->socket, &tuncfg);
 
