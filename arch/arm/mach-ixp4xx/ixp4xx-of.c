@@ -46,7 +46,7 @@ static void __init ixp4xx_of_map_io(void)
 }
 
 /*
- * We handle 4 differen SoC families. These compatible strings are enough
+ * We handle 4 different SoC families. These compatible strings are enough
  * to provide the core so that different boards can add their more detailed
  * specifics.
  */
