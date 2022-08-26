@@ -153,25 +153,25 @@ int sun6i_csi_set_power(struct sun6i_csi_device *csi_dev, bool enable)
 	if (!enable) {
 		regmap_update_bits(regmap, CSI_EN_REG, CSI_EN_CSI_EN, 0);
 
-		clk_disable_unprepare(csi_dev->clk_ram);
+		clk_disable_unprepare(csi_dev->clock_ram);
 		if (of_device_is_compatible(dev->of_node,
 					    "allwinner,sun50i-a64-csi"))
-			clk_rate_exclusive_put(csi_dev->clk_mod);
-		clk_disable_unprepare(csi_dev->clk_mod);
+			clk_rate_exclusive_put(csi_dev->clock_mod);
+		clk_disable_unprepare(csi_dev->clock_mod);
 		reset_control_assert(csi_dev->reset);
 		return 0;
 	}
 
-	ret = clk_prepare_enable(csi_dev->clk_mod);
+	ret = clk_prepare_enable(csi_dev->clock_mod);
 	if (ret) {
 		dev_err(csi_dev->dev, "Enable csi clk err %d\n", ret);
 		return ret;
 	}
 
 	if (of_device_is_compatible(dev->of_node, "allwinner,sun50i-a64-csi"))
-		clk_set_rate_exclusive(csi_dev->clk_mod, 300000000);
+		clk_set_rate_exclusive(csi_dev->clock_mod, 300000000);
 
-	ret = clk_prepare_enable(csi_dev->clk_ram);
+	ret = clk_prepare_enable(csi_dev->clock_ram);
 	if (ret) {
 		dev_err(csi_dev->dev, "Enable clk_dram_csi clk err %d\n", ret);
 		goto clk_mod_disable;
@@ -188,11 +188,11 @@ int sun6i_csi_set_power(struct sun6i_csi_device *csi_dev, bool enable)
 	return 0;
 
 clk_ram_disable:
-	clk_disable_unprepare(csi_dev->clk_ram);
+	clk_disable_unprepare(csi_dev->clock_ram);
 clk_mod_disable:
 	if (of_device_is_compatible(dev->of_node, "allwinner,sun50i-a64-csi"))
-		clk_rate_exclusive_put(csi_dev->clk_mod);
-	clk_disable_unprepare(csi_dev->clk_mod);
+		clk_rate_exclusive_put(csi_dev->clock_mod);
+	clk_disable_unprepare(csi_dev->clock_mod);
 	return ret;
 }
 
@@ -773,12 +773,11 @@ clean_media:
 	return ret;
 }
 
-/* -----------------------------------------------------------------------------
- * Resources and IRQ
- */
-static irqreturn_t sun6i_csi_isr(int irq, void *dev_id)
+/* Platform */
+
+static irqreturn_t sun6i_csi_interrupt(int irq, void *private)
 {
-	struct sun6i_csi_device *csi_dev = (struct sun6i_csi_device *)dev_id;
+	struct sun6i_csi_device *csi_dev = private;
 	struct regmap *regmap = csi_dev->regmap;
 	u32 status;
 
@@ -813,72 +812,81 @@ static const struct regmap_config sun6i_csi_regmap_config = {
 	.max_register	= 0x9c,
 };
 
-static int sun6i_csi_resource_request(struct sun6i_csi_device *csi_dev,
-				      struct platform_device *pdev)
+static int sun6i_csi_resources_setup(struct sun6i_csi_device *csi_dev,
+				     struct platform_device *platform_dev)
 {
+	struct device *dev = csi_dev->dev;
 	void __iomem *io_base;
 	int ret;
 	int irq;
 
-	io_base = devm_platform_ioremap_resource(pdev, 0);
+	/* Registers */
+
+	io_base = devm_platform_ioremap_resource(platform_dev, 0);
 	if (IS_ERR(io_base))
 		return PTR_ERR(io_base);
 
-	csi_dev->regmap = devm_regmap_init_mmio_clk(&pdev->dev, "bus", io_base,
+	csi_dev->regmap = devm_regmap_init_mmio_clk(dev, "bus", io_base,
 						    &sun6i_csi_regmap_config);
 	if (IS_ERR(csi_dev->regmap)) {
-		dev_err(&pdev->dev, "Failed to init register map\n");
+		dev_err(dev, "failed to init register map\n");
 		return PTR_ERR(csi_dev->regmap);
 	}
 
-	csi_dev->clk_mod = devm_clk_get(&pdev->dev, "mod");
-	if (IS_ERR(csi_dev->clk_mod)) {
-		dev_err(&pdev->dev, "Unable to acquire csi clock\n");
-		return PTR_ERR(csi_dev->clk_mod);
+	/* Clocks */
+
+	csi_dev->clock_mod = devm_clk_get(dev, "mod");
+	if (IS_ERR(csi_dev->clock_mod)) {
+		dev_err(dev, "failed to acquire module clock\n");
+		return PTR_ERR(csi_dev->clock_mod);
 	}
 
-	csi_dev->clk_ram = devm_clk_get(&pdev->dev, "ram");
-	if (IS_ERR(csi_dev->clk_ram)) {
-		dev_err(&pdev->dev, "Unable to acquire dram-csi clock\n");
-		return PTR_ERR(csi_dev->clk_ram);
+	csi_dev->clock_ram = devm_clk_get(dev, "ram");
+	if (IS_ERR(csi_dev->clock_ram)) {
+		dev_err(dev, "failed to acquire ram clock\n");
+		return PTR_ERR(csi_dev->clock_ram);
 	}
 
-	csi_dev->reset = devm_reset_control_get_shared(&pdev->dev, NULL);
+	/* Reset */
+
+	csi_dev->reset = devm_reset_control_get_shared(dev, NULL);
 	if (IS_ERR(csi_dev->reset)) {
-		dev_err(&pdev->dev, "Cannot get reset controller\n");
+		dev_err(dev, "failed to acquire reset\n");
 		return PTR_ERR(csi_dev->reset);
 	}
 
-	irq = platform_get_irq(pdev, 0);
+	/* Interrupt */
+
+	irq = platform_get_irq(platform_dev, 0);
 	if (irq < 0)
 		return -ENXIO;
 
-	ret = devm_request_irq(&pdev->dev, irq, sun6i_csi_isr, 0,
-			       SUN6I_CSI_NAME, csi_dev);
+	ret = devm_request_irq(dev, irq, sun6i_csi_interrupt, 0, SUN6I_CSI_NAME,
+			       csi_dev);
 	if (ret) {
-		dev_err(&pdev->dev, "Cannot request csi IRQ\n");
+		dev_err(dev, "failed to request interrupt\n");
 		return ret;
 	}
 
 	return 0;
 }
 
-static int sun6i_csi_probe(struct platform_device *pdev)
+static int sun6i_csi_probe(struct platform_device *platform_dev)
 {
 	struct sun6i_csi_device *csi_dev;
+	struct device *dev = &platform_dev->dev;
 	int ret;
 
-	csi_dev = devm_kzalloc(&pdev->dev, sizeof(*csi_dev), GFP_KERNEL);
+	csi_dev = devm_kzalloc(dev, sizeof(*csi_dev), GFP_KERNEL);
 	if (!csi_dev)
 		return -ENOMEM;
 
-	csi_dev->dev = &pdev->dev;
+	csi_dev->dev = &platform_dev->dev;
+	platform_set_drvdata(platform_dev, csi_dev);
 
-	ret = sun6i_csi_resource_request(csi_dev, pdev);
+	ret = sun6i_csi_resources_setup(csi_dev, platform_dev);
 	if (ret)
 		return ret;
-
-	platform_set_drvdata(pdev, csi_dev);
 
 	return sun6i_csi_v4l2_init(csi_dev);
 }
@@ -900,16 +908,18 @@ static const struct of_device_id sun6i_csi_of_match[] = {
 	{ .compatible = "allwinner,sun50i-a64-csi", },
 	{},
 };
+
 MODULE_DEVICE_TABLE(of, sun6i_csi_of_match);
 
 static struct platform_driver sun6i_csi_platform_driver = {
-	.probe = sun6i_csi_probe,
-	.remove = sun6i_csi_remove,
-	.driver = {
-		.name = SUN6I_CSI_NAME,
-		.of_match_table = of_match_ptr(sun6i_csi_of_match),
+	.probe	= sun6i_csi_probe,
+	.remove	= sun6i_csi_remove,
+	.driver	= {
+		.name		= SUN6I_CSI_NAME,
+		.of_match_table	= of_match_ptr(sun6i_csi_of_match),
 	},
 };
+
 module_platform_driver(sun6i_csi_platform_driver);
 
 MODULE_DESCRIPTION("Allwinner A31 Camera Sensor Interface driver");

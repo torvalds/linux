@@ -51,8 +51,8 @@ struct sun6i_csi_device {
 	struct sun6i_video		video;
 
 	struct regmap			*regmap;
-	struct clk			*clk_mod;
-	struct clk			*clk_ram;
+	struct clk			*clock_mod;
+	struct clk			*clock_ram;
 	struct reset_control		*reset;
 
 	int				planar_offset[3];
