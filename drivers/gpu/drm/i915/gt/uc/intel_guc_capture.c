@@ -600,10 +600,8 @@ intel_guc_capture_getnullheader(struct intel_guc *guc,
 	return 0;
 }
 
-#define GUC_CAPTURE_OVERBUFFER_MULTIPLIER 3
-
-int
-intel_guc_capture_output_min_size_est(struct intel_guc *guc)
+static int
+guc_capture_output_min_size_est(struct intel_guc *guc)
 {
 	struct intel_gt *gt = guc_to_gt(guc);
 	struct intel_engine_cs *engine;
@@ -623,13 +621,8 @@ intel_guc_capture_output_min_size_est(struct intel_guc *guc)
 	 * For each engine instance, there would be 1 x guc_state_capture_group_t output
 	 * followed by 3 x guc_state_capture_t lists. The latter is how the register
 	 * dumps are split across different register types (where the '3' are global vs class
-	 * vs instance). Finally, let's multiply the whole thing by 3x (just so we are
-	 * not limited to just 1 round of data in a worst case full register dump log)
-	 *
-	 * NOTE: intel_guc_log that allocates the log buffer would round this size up to
-	 * a power of two.
+	 * vs instance).
 	 */
-
 	for_each_engine(engine, gt, id) {
 		worst_min_size += sizeof(struct guc_state_capture_group_header_t) +
 					 (3 * sizeof(struct guc_state_capture_header_t));
@@ -649,7 +642,30 @@ intel_guc_capture_output_min_size_est(struct intel_guc *guc)
 
 	worst_min_size += (num_regs * sizeof(struct guc_mmio_reg));
 
-	return (worst_min_size * GUC_CAPTURE_OVERBUFFER_MULTIPLIER);
+	return worst_min_size;
+}
+
+/*
+ * Add on a 3x multiplier to allow for multiple back-to-back captures occurring
+ * before the i915 can read the data out and process it
+ */
+#define GUC_CAPTURE_OVERBUFFER_MULTIPLIER 3
+
+static void check_guc_capture_size(struct intel_guc *guc)
+{
+	struct drm_i915_private *i915 = guc_to_gt(guc)->i915;
+	int min_size = guc_capture_output_min_size_est(guc);
+	int spare_size = min_size * GUC_CAPTURE_OVERBUFFER_MULTIPLIER;
+
+	if (min_size < 0)
+		drm_warn(&i915->drm, "Failed to calculate GuC error state capture buffer minimum size: %d!\n",
+			 min_size);
+	else if (min_size > CAPTURE_BUFFER_SIZE)
+		drm_warn(&i915->drm, "GuC error state capture buffer is too small: %d < %d\n",
+			 CAPTURE_BUFFER_SIZE, min_size);
+	else if (spare_size > CAPTURE_BUFFER_SIZE)
+		drm_notice(&i915->drm, "GuC error state capture buffer maybe too small: %d < %d (min = %d)\n",
+			   CAPTURE_BUFFER_SIZE, spare_size, min_size);
 }
 
 /*
@@ -1579,6 +1595,8 @@ int intel_guc_capture_init(struct intel_guc *guc)
 
 	INIT_LIST_HEAD(&guc->capture->outlist);
 	INIT_LIST_HEAD(&guc->capture->cachelist);
+
+	check_guc_capture_size(guc);
 
 	return 0;
 }

@@ -115,30 +115,30 @@ static int __intel_guc_multi_lrc_basic(struct intel_gt *gt, unsigned int class)
 
 	parent = multi_lrc_create_parent(gt, class, 0);
 	if (IS_ERR(parent)) {
-		pr_err("Failed creating contexts: %ld", PTR_ERR(parent));
+		drm_err(&gt->i915->drm, "Failed creating contexts: %ld", PTR_ERR(parent));
 		return PTR_ERR(parent);
 	} else if (!parent) {
-		pr_debug("Not enough engines in class: %d", class);
+		drm_dbg(&gt->i915->drm, "Not enough engines in class: %d", class);
 		return 0;
 	}
 
 	rq = multi_lrc_nop_request(parent);
 	if (IS_ERR(rq)) {
 		ret = PTR_ERR(rq);
-		pr_err("Failed creating requests: %d", ret);
+		drm_err(&gt->i915->drm, "Failed creating requests: %d", ret);
 		goto out;
 	}
 
 	ret = intel_selftest_wait_for_rq(rq);
 	if (ret)
-		pr_err("Failed waiting on request: %d", ret);
+		drm_err(&gt->i915->drm, "Failed waiting on request: %d", ret);
 
 	i915_request_put(rq);
 
 	if (ret >= 0) {
 		ret = intel_gt_wait_for_idle(gt, HZ * 5);
 		if (ret < 0)
-			pr_err("GT failed to idle: %d\n", ret);
+			drm_err(&gt->i915->drm, "GT failed to idle: %d\n", ret);
 	}
 
 out:

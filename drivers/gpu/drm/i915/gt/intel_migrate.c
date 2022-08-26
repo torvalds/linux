@@ -511,44 +511,16 @@ static inline u32 *i915_flush_dw(u32 *cmd, u32 flags)
 	return cmd;
 }
 
-static u32 calc_ctrl_surf_instr_size(struct drm_i915_private *i915, int size)
-{
-	u32 num_cmds, num_blks, total_size;
-
-	if (!GET_CCS_BYTES(i915, size))
-		return 0;
-
-	/*
-	 * XY_CTRL_SURF_COPY_BLT transfers CCS in 256 byte
-	 * blocks. one XY_CTRL_SURF_COPY_BLT command can
-	 * transfer upto 1024 blocks.
-	 */
-	num_blks = DIV_ROUND_UP(GET_CCS_BYTES(i915, size),
-				NUM_CCS_BYTES_PER_BLOCK);
-	num_cmds = DIV_ROUND_UP(num_blks, NUM_CCS_BLKS_PER_XFER);
-	total_size = XY_CTRL_SURF_INSTR_SIZE * num_cmds;
-
-	/*
-	 * Adding a flush before and after XY_CTRL_SURF_COPY_BLT
-	 */
-	total_size += 2 * MI_FLUSH_DW_SIZE;
-
-	return total_size;
-}
-
 static int emit_copy_ccs(struct i915_request *rq,
 			 u32 dst_offset, u8 dst_access,
 			 u32 src_offset, u8 src_access, int size)
 {
 	struct drm_i915_private *i915 = rq->engine->i915;
 	int mocs = rq->engine->gt->mocs.uc_index << 1;
-	u32 num_ccs_blks, ccs_ring_size;
+	u32 num_ccs_blks;
 	u32 *cs;
 
-	ccs_ring_size = calc_ctrl_surf_instr_size(i915, size);
-	WARN_ON(!ccs_ring_size);
-
-	cs = intel_ring_begin(rq, round_up(ccs_ring_size, 2));
+	cs = intel_ring_begin(rq, 12);
 	if (IS_ERR(cs))
 		return PTR_ERR(cs);
 
@@ -583,8 +555,7 @@ static int emit_copy_ccs(struct i915_request *rq,
 		FIELD_PREP(XY_CTRL_SURF_MOCS_MASK, mocs);
 
 	cs = i915_flush_dw(cs, MI_FLUSH_DW_LLC | MI_FLUSH_DW_CCS);
-	if (ccs_ring_size & 1)
-		*cs++ = MI_NOOP;
+	*cs++ = MI_NOOP;
 
 	intel_ring_advance(rq, cs);
 
@@ -638,40 +609,38 @@ static int emit_copy(struct i915_request *rq,
 	return 0;
 }
 
-static int scatter_list_length(struct scatterlist *sg)
+static u64 scatter_list_length(struct scatterlist *sg)
 {
-	int len = 0;
+	u64 len = 0;
 
 	while (sg && sg_dma_len(sg)) {
 		len += sg_dma_len(sg);
 		sg = sg_next(sg);
-	};
+	}
 
 	return len;
 }
 
-static void
+static int
 calculate_chunk_sz(struct drm_i915_private *i915, bool src_is_lmem,
-		   int *src_sz, u32 bytes_to_cpy, u32 ccs_bytes_to_cpy)
+		   u64 bytes_to_cpy, u64 ccs_bytes_to_cpy)
 {
-	if (ccs_bytes_to_cpy) {
-		if (!src_is_lmem)
-			/*
-			 * When CHUNK_SZ is passed all the pages upto CHUNK_SZ
-			 * will be taken for the blt. in Flat-ccs supported
-			 * platform Smem obj will have more pages than required
-			 * for main meory hence limit it to the required size
-			 * for main memory
-			 */
-			*src_sz = min_t(int, bytes_to_cpy, CHUNK_SZ);
-	} else { /* ccs handling is not required */
-		*src_sz = CHUNK_SZ;
-	}
+	if (ccs_bytes_to_cpy && !src_is_lmem)
+		/*
+		 * When CHUNK_SZ is passed all the pages upto CHUNK_SZ
+		 * will be taken for the blt. in Flat-ccs supported
+		 * platform Smem obj will have more pages than required
+		 * for main meory hence limit it to the required size
+		 * for main memory
+		 */
+		return min_t(u64, bytes_to_cpy, CHUNK_SZ);
+	else
+		return CHUNK_SZ;
 }
 
-static void get_ccs_sg_sgt(struct sgt_dma *it, u32 bytes_to_cpy)
+static void get_ccs_sg_sgt(struct sgt_dma *it, u64 bytes_to_cpy)
 {
-	u32 len;
+	u64 len;
 
 	do {
 		GEM_BUG_ON(!it->sg || !sg_dma_len(it->sg));
@@ -702,12 +671,12 @@ intel_context_migrate_copy(struct intel_context *ce,
 {
 	struct sgt_dma it_src = sg_sgt(src), it_dst = sg_sgt(dst), it_ccs;
 	struct drm_i915_private *i915 = ce->engine->i915;
-	u32 ccs_bytes_to_cpy = 0, bytes_to_cpy;
+	u64 ccs_bytes_to_cpy = 0, bytes_to_cpy;
 	enum i915_cache_level ccs_cache_level;
 	u32 src_offset, dst_offset;
 	u8 src_access, dst_access;
 	struct i915_request *rq;
-	int src_sz, dst_sz;
+	u64 src_sz, dst_sz;
 	bool ccs_is_src, overwrite_ccs;
 	int err;
 
@@ -790,8 +759,8 @@ intel_context_migrate_copy(struct intel_context *ce,
 		if (err)
 			goto out_rq;
 
-		calculate_chunk_sz(i915, src_is_lmem, &src_sz,
-				   bytes_to_cpy, ccs_bytes_to_cpy);
+		src_sz = calculate_chunk_sz(i915, src_is_lmem,
+					    bytes_to_cpy, ccs_bytes_to_cpy);
 
 		len = emit_pte(rq, &it_src, src_cache_level, src_is_lmem,
 			       src_offset, src_sz);

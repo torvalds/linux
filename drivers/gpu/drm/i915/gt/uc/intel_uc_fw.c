@@ -53,7 +53,7 @@ void intel_uc_fw_change_status(struct intel_uc_fw *uc_fw,
  * firmware as TGL.
  */
 #define INTEL_GUC_FIRMWARE_DEFS(fw_def, guc_def) \
-	fw_def(DG2,          0, guc_def(dg2,  70, 1, 2)) \
+	fw_def(DG2,          0, guc_def(dg2,  70, 4, 1)) \
 	fw_def(ALDERLAKE_P,  0, guc_def(adlp, 70, 1, 1)) \
 	fw_def(ALDERLAKE_S,  0, guc_def(tgl,  70, 1, 1)) \
 	fw_def(DG1,          0, guc_def(dg1,  70, 1, 1)) \
@@ -220,11 +220,11 @@ __uc_fw_auto_select(struct drm_i915_private *i915, struct intel_uc_fw *uc_fw)
 			    fw_blobs[i].rev < fw_blobs[i - 1].rev)
 				continue;
 
-			pr_err("invalid FW blob order: %s r%u comes before %s r%u\n",
-			       intel_platform_name(fw_blobs[i - 1].p),
-			       fw_blobs[i - 1].rev,
-			       intel_platform_name(fw_blobs[i].p),
-			       fw_blobs[i].rev);
+			drm_err(&i915->drm, "Invalid FW blob order: %s r%u comes before %s r%u\n",
+				intel_platform_name(fw_blobs[i - 1].p),
+				fw_blobs[i - 1].rev,
+				intel_platform_name(fw_blobs[i].p),
+				fw_blobs[i].rev);
 
 			uc_fw->path = NULL;
 		}

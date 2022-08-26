@@ -389,6 +389,25 @@ void intel_guc_write_params(struct intel_guc *guc)
 	intel_uncore_forcewake_put(uncore, FORCEWAKE_GT);
 }
 
+void intel_guc_dump_time_info(struct intel_guc *guc, struct drm_printer *p)
+{
+	struct intel_gt *gt = guc_to_gt(guc);
+	intel_wakeref_t wakeref;
+	u32 stamp = 0;
+	u64 ktime;
+
+	intel_device_info_print_runtime(RUNTIME_INFO(gt->i915), p);
+
+	with_intel_runtime_pm(&gt->i915->runtime_pm, wakeref)
+		stamp = intel_uncore_read(gt->uncore, GUCPMTIMESTAMP);
+	ktime = ktime_get_boottime_ns();
+
+	drm_printf(p, "Kernel timestamp: 0x%08llX [%llu]\n", ktime, ktime);
+	drm_printf(p, "GuC timestamp: 0x%08X [%u]\n", stamp, stamp);
+	drm_printf(p, "CS timestamp frequency: %u Hz, %u ns\n",
+		   gt->clock_frequency, gt->clock_period_ns);
+}
+
 int intel_guc_init(struct intel_guc *guc)
 {
 	struct intel_gt *gt = guc_to_gt(guc);
