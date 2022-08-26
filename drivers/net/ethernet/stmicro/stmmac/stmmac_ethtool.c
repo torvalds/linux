@@ -392,6 +392,11 @@ stmmac_ethtool_set_link_ksettings(struct net_device *dev,
 		return 0;
 	}
 
+	if (priv->plat->tx_queues_to_use > 1 && cmd->base.duplex == DUPLEX_HALF) {
+		netdev_warn(priv->dev, "Half-Duplex can only work with single queue\n");
+		return -EINVAL;
+	}
+
 	return phylink_ethtool_ksettings_set(priv->phylink, cmd);
 }
 
