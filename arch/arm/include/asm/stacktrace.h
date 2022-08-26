@@ -21,6 +21,9 @@ struct stackframe {
 	struct llist_node *kr_cur;
 	struct task_struct *tsk;
 #endif
+#ifdef CONFIG_UNWINDER_FRAME_POINTER
+	bool ex_frame;
+#endif
 };
 
 static __always_inline
@@ -33,6 +36,9 @@ void arm_get_current_stackframe(struct pt_regs *regs, struct stackframe *frame)
 #ifdef CONFIG_KRETPROBES
 		frame->kr_cur = NULL;
 		frame->tsk = current;
+#endif
+#ifdef CONFIG_UNWINDER_FRAME_POINTER
+		frame->ex_frame = in_entry_text(frame->pc);
 #endif
 }
 
