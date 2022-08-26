@@ -1075,12 +1075,7 @@ void ksz9477_config_cpu_port(struct dsa_switch *ds)
 	for (i = 0; i < dev->info->port_cnt; i++) {
 		if (i == dev->cpu_port)
 			continue;
-		p = &dev->ports[i];
-
 		ksz_port_stp_state_set(ds, i, BR_STATE_DISABLED);
-		if (dev->chip_id == 0x00947700 && i == 6) {
-			p->sgmii = 1;
-		}
 	}
 }
 

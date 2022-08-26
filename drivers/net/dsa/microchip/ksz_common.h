@@ -74,7 +74,6 @@ struct ksz_port {
 
 	u32 on:1;			/* port is not disabled by hardware */
 	u32 fiber:1;			/* port is fiber */
-	u32 sgmii:1;			/* port is SGMII */
 	u32 force:1;
 	u32 read:1;			/* read MIB counters in background */
 	u32 freeze:1;			/* MIB counter freeze is enabled */
