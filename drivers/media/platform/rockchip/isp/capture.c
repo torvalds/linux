@@ -885,6 +885,7 @@ static int rkisp_enum_framesizes(struct file *file, void *prov,
 	struct v4l2_frmsize_discrete *d = &fsize->discrete;
 	struct rkisp_device *dev = stream->ispdev;
 	struct v4l2_rect max_rsz;
+	struct v4l2_rect *input_win = rkisp_get_isp_sd_win(&dev->isp_sdev);
 
 	if (fsize->index != 0)
 		return -EINVAL;
@@ -908,8 +909,8 @@ static int rkisp_enum_framesizes(struct file *file, void *prov,
 		fsize->type = V4L2_FRMSIZE_TYPE_STEPWISE;
 		s->min_width = STREAM_MIN_RSZ_OUTPUT_WIDTH;
 		s->min_height = STREAM_MIN_RSZ_OUTPUT_HEIGHT;
-		s->max_width = max_rsz.width;
-		s->max_height = max_rsz.height;
+		s->max_width = min_t(u32, max_rsz.width, input_win->width);
+		s->max_height = input_win->height;
 		s->step_width = STREAM_OUTPUT_STEP_WISE;
 		s->step_height = STREAM_OUTPUT_STEP_WISE;
 	}

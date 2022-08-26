@@ -295,8 +295,8 @@ int rkisp_align_sensor_resolution(struct rkisp_device *dev,
 	if ((code & RKISP_MEDIA_BUS_FMT_MASK) != RKISP_MEDIA_BUS_FMT_BAYER) {
 		crop->left = 0;
 		crop->top = 0;
-		crop->width = min_t(u32, src_w, max_w);
-		crop->height = min_t(u32, src_h, max_h);
+		crop->width = min_t(u32, src_w, CIF_ISP_INPUT_W_MAX);
+		crop->height = min_t(u32, src_h, CIF_ISP_INPUT_H_MAX);
 		return 0;
 	}
 
