@@ -1,5 +1,52 @@
-config SND_STARFIVE_SPDIF
-	tristate "starfive spdif"
+# SPDX-License-Identifier: GPL-2.0-only
+config SND_SOC_STARFIVE
+	tristate "Audio support for Starfive"
+	depends on COMPILE_TEST || SOC_STARFIVE
+	help
+	  Say Y or M if you want to add support for codecs attached to
+	  the Starfive SoCs' Audio interfaces. You will also need to
+	  select the audio interfaces to support below.
+
+config SND_SOC_STARFIVE_PWMDAC
+	tristate "Starfive PWMDAC module"
+	depends on HAVE_CLK && SND_SOC_STARFIVE
+	select SND_SOC_GENERIC_DMAENGINE_PCM
+	help
+	 Say Y or M if you want to add support for sf pwmdac driver.
+
+config SND_SOC_STARFIVE_PWMDAC_PCM
+	bool "PCM PIO extension for PWMDAC"
+	depends on SND_SOC_STARFIVE_PWMDAC
+	help
+	 Say Y or N if you want to add a custom ALSA extension that registers
+	 a PCM and uses PIO to transfer data.
+	 
+config SND_SOC_STARFIVE_I2S_MASTER
+	tristate "Starfive I2S_Rx Master module"
+	depends on HAVE_CLK && SND_SOC_STARFIVE
+	select SND_SOC_GENERIC_DMAENGINE_PCM
+	help
+	  Say 'Y' or 'M' here if you are building for StarFive SoCs
+	  platforms that contain i2srx_3ch controller core.
+
+config SND_SOC_STARFIVE_PDM
+	tristate "Starfive PDM module"
+	depends on HAVE_CLK && SND_SOC_STARFIVE
+	select SND_SOC_STARFIVE_I2S_MASTER
+	select REGMAP_MMIO
+	help
+	 Say Y or M if you want to add support for sf pdm driver.
+	 
+config SND_SOC_STARFIVE_TDM
+	tristate "Starfive TDM module"
+	depends on HAVE_CLK && SND_SOC_STARFIVE
+	select SND_SOC_GENERIC_DMAENGINE_PCM
+	help
+	 Say Y or M if you want to add support for sf tdm driver.
+
+config SND_SOC_STARFIVE_SPDIF
+	tristate "Starfive SPDIF module"
+	depends on HAVE_CLK && SND_SOC_STARFIVE
 	select SND_SOC_GENERIC_DMAENGINE_PCM
 	select REGMAP_MMIO
 	help
@@ -7,34 +54,9 @@ config SND_STARFIVE_SPDIF
 	  I2S interface on VIC vic_starlight board. You will also need to select
 	  the drivers for the rest of VIC audio subsystem.
 	  
-config SND_STARFIVE_SPDIF_PCM
-	bool "PCM PIO extension for spdif driver"
-	depends on SND_STARFIVE_SPDIF
+config SND_SOC_STARFIVE_SPDIF_PCM
+	bool "PCM PIO extension for SPDIF"
+	depends on SND_SOC_STARFIVE_SPDIF
 	help
 	 Say Y or N if you want to add a custom ALSA extension that registers
-	 a PCM and uses PIO to transfer data.
-	 
-config SND_STARFIVE_PWMDAC
-	tristate "starfive pwmdac Device Driver"
-	select SND_SOC_GENERIC_DMAENGINE_PCM
-	help
-	 Say Y or M if you want to add support for sf pwmdac driver.
-
-config SND_STARFIVE_PWMDAC_PCM
-	bool "PCM PIO extension for pwmdac driver"
-	depends on SND_STARFIVE_PWMDAC
-	help
-	 Say Y or N if you want to add a custom ALSA extension that registers
-	 a PCM and uses PIO to transfer data.
-	 
-config SND_STARFIVE_PDM
-	tristate "starfive pdm Device Driver"
-	select REGMAP_MMIO
-	help
-	 Say Y or M if you want to add support for sf pdm driver.
-	 
-config SND_STARFIVE_TDM
-	tristate "starfive tdm Device Driver"
-	select SND_SOC_GENERIC_DMAENGINE_PCM
-	help
-	 Say Y or M if you want to add support for sf tdm driver.
+	 a PCM and uses PIO to transfer data. 

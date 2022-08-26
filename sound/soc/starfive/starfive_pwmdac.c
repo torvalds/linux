@@ -12,12 +12,13 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/pm_runtime.h>
+#include <linux/kthread.h>
+#include <linux/reset.h>
+#include <linux/dma/starfive-dma.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
 #include <sound/dmaengine_pcm.h>
-#include <linux/kthread.h>
-#include <linux/reset.h>
 #include "pwmdac.h"
 
 struct ct_pwmdac {
@@ -523,6 +524,7 @@ static int sf_pwmdac_trigger(struct snd_pcm_substream *substream,
 		int cmd, struct snd_soc_dai *dai)
 {
 	struct sf_pwmdac_dev *dev = snd_soc_dai_get_drvdata(dai);
+	struct dma_chan *chan = snd_dmaengine_pcm_get_chan(substream);
 	int ret = 0;
 	
 	switch (cmd) {
@@ -545,6 +547,7 @@ static int sf_pwmdac_trigger(struct snd_pcm_substream *substream,
 	case SNDRV_PCM_TRIGGER_SUSPEND:
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
 		dev->active--;
+		axi_dma_cyclic_stop(chan);
 		pwmdac_stop(dev);
 		if (dev->use_pio) {
 			if (dev->tx_thread) {  
