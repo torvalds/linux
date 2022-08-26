@@ -35,7 +35,6 @@
 #include "arch/common.h"
 #include "namespaces.h"
 #include <regex.h>
-#include <pthread.h>
 #include <linux/bitops.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
@@ -821,7 +820,7 @@ void symbol__annotate_zero_histograms(struct symbol *sym)
 {
 	struct annotation *notes = symbol__annotation(sym);
 
-	pthread_mutex_lock(&notes->lock);
+	mutex_lock(&notes->lock);
 	if (notes->src != NULL) {
 		memset(notes->src->histograms, 0,
 		       notes->src->nr_histograms * notes->src->sizeof_sym_hist);
@@ -829,7 +828,7 @@ void symbol__annotate_zero_histograms(struct symbol *sym)
 			memset(notes->src->cycles_hist, 0,
 				symbol__size(sym) * sizeof(struct cyc_hist));
 	}
-	pthread_mutex_unlock(&notes->lock);
+	mutex_unlock(&notes->lock);
 }
 
 static int __symbol__account_cycles(struct cyc_hist *ch,
@@ -1086,7 +1085,7 @@ void annotation__compute_ipc(struct annotation *notes, size_t size)
 	notes->hit_insn = 0;
 	notes->cover_insn = 0;
 
-	pthread_mutex_lock(&notes->lock);
+	mutex_lock(&notes->lock);
 	for (offset = size - 1; offset >= 0; --offset) {
 		struct cyc_hist *ch;
 
@@ -1105,7 +1104,7 @@ void annotation__compute_ipc(struct annotation *notes, size_t size)
 			notes->have_cycles = true;
 		}
 	}
-	pthread_mutex_unlock(&notes->lock);
+	mutex_unlock(&notes->lock);
 }
 
 int addr_map_symbol__inc_samples(struct addr_map_symbol *ams, struct perf_sample *sample,
@@ -1258,13 +1257,13 @@ int disasm_line__scnprintf(struct disasm_line *dl, char *bf, size_t size, bool r
 
 void annotation__init(struct annotation *notes)
 {
-	pthread_mutex_init(&notes->lock, NULL);
+	mutex_init(&notes->lock);
 }
 
 void annotation__exit(struct annotation *notes)
 {
 	annotated_source__delete(notes->src);
-	pthread_mutex_destroy(&notes->lock);
+	mutex_destroy(&notes->lock);
 }
 
 static void annotation_line__add(struct annotation_line *al, struct list_head *head)

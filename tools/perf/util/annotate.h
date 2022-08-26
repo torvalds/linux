@@ -8,9 +8,9 @@
 #include <linux/types.h>
 #include <linux/list.h>
 #include <linux/rbtree.h>
-#include <pthread.h>
 #include <asm/bug.h>
 #include "symbol_conf.h"
+#include "mutex.h"
 #include "spark.h"
 
 struct hist_browser_timer;
@@ -273,7 +273,7 @@ struct annotated_source {
 };
 
 struct annotation {
-	pthread_mutex_t		lock;
+	struct mutex lock;
 	u64			max_coverage;
 	u64			start;
 	u64			hit_cycles;
