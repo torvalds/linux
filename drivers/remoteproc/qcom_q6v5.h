@@ -1,13 +1,20 @@
 /* SPDX-License-Identifier: GPL-2.0 */
+/*
+ * Copyright (c) 2020-2021, The Linux Foundation. All rights reserved.
+ */
 
 #ifndef __QCOM_Q6V5_H__
 #define __QCOM_Q6V5_H__
 
 #include <linux/kernel.h>
 #include <linux/completion.h>
-#include <linux/soc/qcom/qcom_aoss.h>
 
-struct icc_path;
+#define RMB_BOOT_WAIT_REG 0x8
+#define RMB_BOOT_CONT_REG 0xC
+#define RMB_Q6_BOOT_STATUS_REG 0x10
+
+#define RMB_POLL_MAX_TIMES 250
+
 struct rproc;
 struct qcom_smem_state;
 struct qcom_sysmon;
@@ -16,11 +23,9 @@ struct qcom_q6v5 {
 	struct device *dev;
 	struct rproc *rproc;
 
+	void __iomem *rmb_base;
+
 	struct qcom_smem_state *state;
-	struct qmp *qmp;
-
-	struct icc_path *path;
-
 	unsigned stop_bit;
 
 	int wdog_irq;
@@ -28,6 +33,10 @@ struct qcom_q6v5 {
 	int ready_irq;
 	int handover_irq;
 	int stop_irq;
+
+	struct rproc_subdev *ssr_subdev;
+
+	struct work_struct crash_handler;
 
 	bool handover_issued;
 
@@ -38,15 +47,13 @@ struct qcom_q6v5 {
 
 	bool running;
 
-	const char *load_state;
 	void (*handover)(struct qcom_q6v5 *q6v5);
 };
 
 int qcom_q6v5_init(struct qcom_q6v5 *q6v5, struct platform_device *pdev,
-		   struct rproc *rproc, int crash_reason, const char *load_state,
+		   struct rproc *rproc, int crash_reason,
 		   void (*handover)(struct qcom_q6v5 *q6v5));
-void qcom_q6v5_deinit(struct qcom_q6v5 *q6v5);
-
+void qcom_q6v5_register_ssr_subdev(struct qcom_q6v5 *q6v5, struct rproc_subdev *ssr_subdev);
 int qcom_q6v5_prepare(struct qcom_q6v5 *q6v5);
 int qcom_q6v5_unprepare(struct qcom_q6v5 *q6v5);
 int qcom_q6v5_request_stop(struct qcom_q6v5 *q6v5, struct qcom_sysmon *sysmon);

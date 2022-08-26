@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2019-2020 Linaro Ltd.
+ * Copyright (c) 2020-2021, The Linux Foundation. All rights reserved.
  */
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -26,6 +27,53 @@ struct pil_reloc {
 
 static struct pil_reloc _reloc __read_mostly;
 static DEFINE_MUTEX(pil_reloc_lock);
+static bool timeouts_disabled;
+
+/**
+ * qcom_pil_timeouts_disabled() - Check if pil timeouts are disabled in imem
+ *
+ * Return: true if the value 0x53444247 is set in the disable timeout pil
+ * imem region, false otherwise.
+ */
+bool qcom_pil_timeouts_disabled(void)
+{
+	struct device_node *np;
+	struct resource imem;
+	void __iomem *base;
+	int ret;
+	const char *prop = "qcom,msm-imem-pil-disable-timeout";
+
+	np = of_find_compatible_node(NULL, NULL, prop);
+	if (!np) {
+		pr_err("%s entry missing!\n", prop);
+		goto out;
+	}
+
+	ret = of_address_to_resource(np, 0, &imem);
+	of_node_put(np);
+	if (ret < 0) {
+		pr_err("address to resource conversion failed for %s\n", prop);
+		goto out;
+	}
+
+	base = ioremap(imem.start, resource_size(&imem));
+	if (!base) {
+		pr_err("failed to map PIL disable timeouts region\n");
+		goto out;
+	}
+
+	if (__raw_readl(base) == 0x53444247) {
+		pr_info("pil-imem set to disable pil timeouts\n");
+		timeouts_disabled = true;
+	} else
+		timeouts_disabled = false;
+
+	iounmap(base);
+
+out:
+	return timeouts_disabled;
+}
+EXPORT_SYMBOL(qcom_pil_timeouts_disabled);
 
 static int qcom_pil_info_init(void)
 {
@@ -73,6 +121,7 @@ int qcom_pil_info_store(const char *image, phys_addr_t base, size_t size)
 {
 	char buf[PIL_RELOC_NAME_LEN];
 	void __iomem *entry;
+	size_t entry_size;
 	int ret;
 	int i;
 
@@ -104,7 +153,8 @@ int qcom_pil_info_store(const char *image, phys_addr_t base, size_t size)
 	return -ENOMEM;
 
 found_unused:
-	memcpy_toio(entry, image, strnlen(image, PIL_RELOC_NAME_LEN));
+	entry_size = min(strlen(image), PIL_RELOC_ENTRY_SIZE - 1);
+	memcpy_toio(entry, image, entry_size);
 found_existing:
 	/* Use two writel() as base is only aligned to 4 bytes on odd entries */
 	writel(base, entry + PIL_RELOC_NAME_LEN);
