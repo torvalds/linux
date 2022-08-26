@@ -14,8 +14,6 @@
 struct sun6i_csi_device;
 
 struct sun6i_video {
-	struct sun6i_csi_device		*csi_dev;
-
 	struct video_device		video_dev;
 	struct vb2_queue		queue;
 	struct mutex			lock; /* Queue lock. */
@@ -29,10 +27,9 @@ struct sun6i_video {
 	unsigned int			sequence;
 };
 
-int sun6i_video_setup(struct sun6i_video *video,
-		      struct sun6i_csi_device *csi_dev);
-void sun6i_video_cleanup(struct sun6i_video *video);
+int sun6i_video_setup(struct sun6i_csi_device *csi_dev);
+void sun6i_video_cleanup(struct sun6i_csi_device *csi_dev);
 
-void sun6i_video_frame_done(struct sun6i_video *video);
+void sun6i_video_frame_done(struct sun6i_csi_device *csi_dev);
 
 #endif /* __SUN6I_VIDEO_H__ */

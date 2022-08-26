@@ -706,7 +706,7 @@ static int sun6i_csi_v4l2_setup(struct sun6i_csi_device *csi_dev)
 
 	/* Video */
 
-	ret = sun6i_video_setup(&csi_dev->video, csi_dev);
+	ret = sun6i_video_setup(csi_dev);
 	if (ret)
 		goto error_v4l2_device;
 
@@ -735,7 +735,7 @@ error_v4l2_async_notifier:
 	v4l2_async_nf_cleanup(notifier);
 
 error_video:
-	sun6i_video_cleanup(&csi_dev->video);
+	sun6i_video_cleanup(csi_dev);
 
 error_v4l2_device:
 	v4l2_device_unregister(&v4l2->v4l2_dev);
@@ -756,7 +756,7 @@ static void sun6i_csi_v4l2_cleanup(struct sun6i_csi_device *csi_dev)
 	media_device_unregister(&v4l2->media_dev);
 	v4l2_async_nf_unregister(&v4l2->notifier);
 	v4l2_async_nf_cleanup(&v4l2->notifier);
-	sun6i_video_cleanup(&csi_dev->video);
+	sun6i_video_cleanup(csi_dev);
 	v4l2_device_unregister(&v4l2->v4l2_dev);
 	v4l2_ctrl_handler_free(&v4l2->ctrl_handler);
 	media_device_cleanup(&v4l2->media_dev);
@@ -787,7 +787,7 @@ static irqreturn_t sun6i_csi_interrupt(int irq, void *private)
 	}
 
 	if (status & CSI_CH_INT_STA_FD_PD)
-		sun6i_video_frame_done(&csi_dev->video);
+		sun6i_video_frame_done(csi_dev);
 
 	regmap_write(regmap, CSI_CH_INT_STA_REG, status);
 
