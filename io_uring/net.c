@@ -182,6 +182,37 @@ static int io_sendmsg_copy_hdr(struct io_kiocb *req,
 					&iomsg->free_iov);
 }
 
+int io_sendzc_prep_async(struct io_kiocb *req)
+{
+	struct io_sendzc *zc = io_kiocb_to_cmd(req, struct io_sendzc);
+	struct io_async_msghdr *io;
+	int ret;
+
+	if (!zc->addr || req_has_async_data(req))
+		return 0;
+	if (io_alloc_async_data(req))
+		return -ENOMEM;
+
+	io = req->async_data;
+	ret = move_addr_to_kernel(zc->addr, zc->addr_len, &io->addr);
+	return ret;
+}
+
+static int io_setup_async_addr(struct io_kiocb *req,
+			      struct sockaddr_storage *addr,
+			      unsigned int issue_flags)
+{
+	struct io_async_msghdr *io;
+
+	if (!addr || req_has_async_data(req))
+		return -EAGAIN;
+	if (io_alloc_async_data(req))
+		return -ENOMEM;
+	io = req->async_data;
+	memcpy(&io->addr, addr, sizeof(io->addr));
+	return -EAGAIN;
+}
+
 int io_sendmsg_prep_async(struct io_kiocb *req)
 {
 	int ret;
@@ -944,7 +975,7 @@ static int io_sg_from_iter(struct sock *sk, struct sk_buff *skb,
 
 int io_sendzc(struct io_kiocb *req, unsigned int issue_flags)
 {
-	struct sockaddr_storage address;
+	struct sockaddr_storage __address, *addr = NULL;
 	struct io_ring_ctx *ctx = req->ctx;
 	struct io_sendzc *zc = io_kiocb_to_cmd(req, struct io_sendzc);
 	struct io_notif_slot *notif_slot;
@@ -978,10 +1009,17 @@ int io_sendzc(struct io_kiocb *req, unsigned int issue_flags)
 	msg.msg_namelen = 0;
 
 	if (zc->addr) {
-		ret = move_addr_to_kernel(zc->addr, zc->addr_len, &address);
-		if (unlikely(ret < 0))
-			return ret;
-		msg.msg_name = (struct sockaddr *)&address;
+		if (req_has_async_data(req)) {
+			struct io_async_msghdr *io = req->async_data;
+
+			msg.msg_name = addr = &io->addr;
+		} else {
+			ret = move_addr_to_kernel(zc->addr, zc->addr_len, &__address);
+			if (unlikely(ret < 0))
+				return ret;
+			msg.msg_name = (struct sockaddr *)&__address;
+			addr = &__address;
+		}
 		msg.msg_namelen = zc->addr_len;
 	}
 
@@ -989,7 +1027,7 @@ int io_sendzc(struct io_kiocb *req, unsigned int issue_flags)
 		ret = io_import_fixed(WRITE, &msg.msg_iter, req->imu,
 					(u64)(uintptr_t)zc->buf, zc->len);
 		if (unlikely(ret))
-				return ret;
+			return ret;
 	} else {
 		ret = import_single_range(WRITE, zc->buf, zc->len, &iov,
 					  &msg.msg_iter);
@@ -1013,16 +1051,18 @@ int io_sendzc(struct io_kiocb *req, unsigned int issue_flags)
 
 	if (unlikely(ret < min_ret)) {
 		if (ret == -EAGAIN && (issue_flags & IO_URING_F_NONBLOCK))
-			return -EAGAIN;
+			return io_setup_async_addr(req, addr, issue_flags);
+
 		if (ret > 0 && io_net_retry(sock, msg.msg_flags)) {
 			zc->len -= ret;
 			zc->buf += ret;
 			zc->done_io += ret;
 			req->flags |= REQ_F_PARTIAL_IO;
-			return -EAGAIN;
+			return io_setup_async_addr(req, addr, issue_flags);
 		}
 		if (ret == -ERESTARTSYS)
 			ret = -EINTR;
+		req_set_fail(req);
 	} else if (zc->flags & IORING_RECVSEND_NOTIF_FLUSH) {
 		io_notif_slot_flush_submit(notif_slot, 0);
 	}
