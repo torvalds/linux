@@ -6005,7 +6005,7 @@ void cgroup_path_from_kernfs_id(u64 id, char *buf, size_t buflen)
 /*
  * cgroup_get_from_id : get the cgroup associated with cgroup id
  * @id: cgroup id
- * On success return the cgrp, on failure return NULL
+ * On success return the cgrp or ERR_PTR on failure
  * Only cgroups within current task's cgroup NS are valid.
  */
 struct cgroup *cgroup_get_from_id(u64 id)
@@ -6037,7 +6037,7 @@ struct cgroup *cgroup_get_from_id(u64 id)
 		cgrp = NULL;
 	}
 out:
-	return cgrp;
+	return cgrp ?: ERR_PTR(-ENOENT);
 }
 EXPORT_SYMBOL_GPL(cgroup_get_from_id);
 

@@ -750,11 +750,6 @@ static inline bool task_under_cgroup_hierarchy(struct task_struct *task,
 
 static inline void cgroup_path_from_kernfs_id(u64 id, char *buf, size_t buflen)
 {}
-
-static inline struct cgroup *cgroup_get_from_id(u64 id)
-{
-	return NULL;
-}
 #endif /* !CONFIG_CGROUPS */
 
 #ifdef CONFIG_CGROUPS
