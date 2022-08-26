@@ -1587,17 +1587,9 @@ void find_vault_key(struct aspeed_hace_dev *hace_dev)
 {
 	struct aspeed_engine_crypto *crypto_engine = &hace_dev->crypto_engine;
 	u32 otp_data[16];
-	unsigned int val;
 	int i;
 
 	crypto_engine->load_vault_key = 0;
-	writel(SEC_UNLOCK_PASSWORD, hace_dev->sec_regs + ASPEED_SEC_PROTECTION);
-	val = readl(hace_dev->sec_regs + ASPEED_VAULT_KEY_CTRL);
-	if (!(val & BIT(1))) {
-		CIPHER_DBG("Vault key not loaded\n");
-		return;
-	}
-	writel(0x0, hace_dev->sec_regs + ASPEED_SEC_PROTECTION);
 
 	otp_read_data_buf(0, otp_data, 16);
 	for (i = 0; i < 16; i++) {
