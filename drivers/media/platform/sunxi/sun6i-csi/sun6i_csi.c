@@ -595,7 +595,7 @@ static int sun6i_csi_link_entity(struct sun6i_csi_device *csi_dev,
 
 	src_pad_index = ret;
 
-	sink = &csi_dev->video.vdev.entity;
+	sink = &csi_dev->video.video_dev.entity;
 	sink_pad = &csi_dev->video.pad;
 
 	dev_dbg(csi_dev->dev, "creating %s:%u -> %s:%u link\n",
@@ -706,7 +706,7 @@ static int sun6i_csi_v4l2_setup(struct sun6i_csi_device *csi_dev)
 
 	/* Video */
 
-	ret = sun6i_video_init(&csi_dev->video, csi_dev, SUN6I_CSI_NAME);
+	ret = sun6i_video_setup(&csi_dev->video, csi_dev);
 	if (ret)
 		goto error_v4l2_device;
 
