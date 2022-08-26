@@ -8995,6 +8995,13 @@ void intel_modeset_driver_remove(struct drm_i915_private *i915)
 
 	flush_work(&i915->display.atomic_helper.free_work);
 	drm_WARN_ON(&i915->drm, !llist_empty(&i915->display.atomic_helper.free_list));
+
+	/*
+	 * MST topology needs to be suspended so we don't have any calls to
+	 * fbdev after it's finalized. MST will be destroyed later as part of
+	 * drm_mode_config_cleanup()
+	 */
+	intel_dp_mst_suspend(i915);
 }
 
 /* part #2: call after irq uninstall */
@@ -9008,13 +9015,6 @@ void intel_modeset_driver_remove_noirq(struct drm_i915_private *i915)
 	 * poll handlers. Hence disable polling after hpd handling is shut down.
 	 */
 	intel_hpd_poll_fini(i915);
-
-	/*
-	 * MST topology needs to be suspended so we don't have any calls to
-	 * fbdev after it's finalized. MST will be destroyed later as part of
-	 * drm_mode_config_cleanup()
-	 */
-	intel_dp_mst_suspend(i915);
 
 	/* poll work can call into fbdev, hence clean that up afterwards */
 	intel_fbdev_fini(i915);
