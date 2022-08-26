@@ -60,6 +60,7 @@ struct walt_cpu_load {
 	bool		rtgb_active;
 	u64		ws;
 	bool		ed_active;
+	bool		big_task_rotation;
 };
 
 #define DECLARE_BITMAP_ARRAY(name, nr, bits) \
@@ -307,6 +308,7 @@ extern unsigned int sched_lib_mask_force;
 #define WALT_CPUFREQ_BOOST_UPDATE	0x20
 
 #define CPUFREQ_REASON_LOAD		0
+#define CPUFREQ_REASON_BTR		0x1
 #define CPUFREQ_REASON_PL		0x2
 #define CPUFREQ_REASON_EARLY_DET	0x4
 #define CPUFREQ_REASON_RTG_BOOST	0x8
