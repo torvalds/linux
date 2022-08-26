@@ -2423,6 +2423,10 @@ netlink_ack_tlv_len(struct netlink_sock *nlk, int err,
 		tlvlen += nla_total_size(sizeof(u32));
 	if (extack->policy)
 		tlvlen += netlink_policy_dump_attr_size_estimate(extack->policy);
+	if (extack->miss_type)
+		tlvlen += nla_total_size(sizeof(u32));
+	if (extack->miss_nest)
+		tlvlen += nla_total_size(sizeof(u32));
 
 	return tlvlen;
 }
@@ -2449,6 +2453,14 @@ netlink_ack_tlv_fill(struct sk_buff *in_skb, struct sk_buff *skb,
 	if (extack->policy)
 		netlink_policy_dump_write_attr(skb, extack->policy,
 					       NLMSGERR_ATTR_POLICY);
+	if (extack->miss_type)
+		WARN_ON(nla_put_u32(skb, NLMSGERR_ATTR_MISS_TYPE,
+				    extack->miss_type));
+	if (extack->miss_nest &&
+	    !WARN_ON((u8 *)extack->miss_nest < in_skb->data ||
+		     (u8 *)extack->miss_nest > in_skb->data + in_skb->len))
+		WARN_ON(nla_put_u32(skb, NLMSGERR_ATTR_MISS_NEST,
+				    (u8 *)extack->miss_nest - (u8 *)nlh));
 }
 
 void netlink_ack(struct sk_buff *in_skb, struct nlmsghdr *nlh, int err,

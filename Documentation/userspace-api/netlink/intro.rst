@@ -359,14 +359,17 @@ compatibility this feature has to be explicitly enabled by setting
 the ``NETLINK_EXT_ACK`` setsockopt() to ``1``.
 
 Types of extended ack attributes are defined in enum nlmsgerr_attrs.
-The two most commonly used attributes are ``NLMSGERR_ATTR_MSG``
-and ``NLMSGERR_ATTR_OFFS``.
+The most commonly used attributes are ``NLMSGERR_ATTR_MSG``,
+``NLMSGERR_ATTR_OFFS`` and ``NLMSGERR_ATTR_MISS_*``.
 
 ``NLMSGERR_ATTR_MSG`` carries a message in English describing
 the encountered problem. These messages are far more detailed
 than what can be expressed thru standard UNIX error codes.
 
 ``NLMSGERR_ATTR_OFFS`` points to the attribute which caused the problem.
+
+``NLMSGERR_ATTR_MISS_TYPE`` and ``NLMSGERR_ATTR_MISS_NEST``
+inform about a missing attribute.
 
 Extended ACKs can be reported on errors as well as in case of success.
 The latter should be treated as a warning.
