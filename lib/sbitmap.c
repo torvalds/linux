@@ -533,10 +533,9 @@ unsigned long __sbitmap_queue_get_batch(struct sbitmap_queue *sbq, int nr_tags,
 		nr = find_first_zero_bit(&map->word, map_depth);
 		if (nr + nr_tags <= map_depth) {
 			atomic_long_t *ptr = (atomic_long_t *) &map->word;
-			int map_tags = min_t(int, nr_tags, map_depth);
 			unsigned long val, ret;
 
-			get_mask = ((1UL << map_tags) - 1) << nr;
+			get_mask = ((1UL << nr_tags) - 1) << nr;
 			do {
 				val = READ_ONCE(map->word);
 				if ((val & ~get_mask) != val)
@@ -547,7 +546,7 @@ unsigned long __sbitmap_queue_get_batch(struct sbitmap_queue *sbq, int nr_tags,
 			if (get_mask) {
 				*offset = nr + (index << sb->shift);
 				update_alloc_hint_after_get(sb, depth, hint,
-							*offset + map_tags - 1);
+							*offset + nr_tags - 1);
 				return get_mask;
 			}
 		}
