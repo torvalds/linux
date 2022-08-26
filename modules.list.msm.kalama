@@ -52,3 +52,4 @@ phy-msm-snps-hs.ko
 phy-msm-ssusb-qmp.ko
 repeater.ko
 repeater-qti-pmic-eusb2.ko
+qcom-cpufreq-hw.ko
