@@ -27,6 +27,8 @@
 #include "sun6i_csi.h"
 #include "sun6i_csi_reg.h"
 
+/* Helpers */
+
 /* TODO add 10&12 bit YUV, RGB support */
 bool sun6i_csi_is_format_supported(struct sun6i_csi_device *csi_dev,
 				   u32 pixformat, u32 mbus_code)
@@ -572,9 +574,8 @@ void sun6i_csi_set_stream(struct sun6i_csi_device *csi_dev, bool enable)
 			   CSI_CAP_CH0_VCAP_ON);
 }
 
-/* -----------------------------------------------------------------------------
- * Media Controller and V4L2
- */
+/* V4L2 */
+
 static int sun6i_csi_link_entity(struct sun6i_csi_device *csi_dev,
 				 struct media_entity *entity,
 				 struct fwnode_handle *fwnode)
@@ -666,6 +667,88 @@ static int sun6i_csi_fwnode_parse(struct device *dev,
 	}
 }
 
+static int sun6i_csi_v4l2_setup(struct sun6i_csi_device *csi_dev)
+{
+	struct sun6i_csi_v4l2 *v4l2 = &csi_dev->v4l2;
+	struct media_device *media_dev = &v4l2->media_dev;
+	struct v4l2_device *v4l2_dev = &v4l2->v4l2_dev;
+	struct v4l2_async_notifier *notifier = &v4l2->notifier;
+	struct device *dev = csi_dev->dev;
+	int ret;
+
+	/* Media Device */
+
+	strscpy(media_dev->model, SUN6I_CSI_DESCRIPTION,
+		sizeof(media_dev->model));
+	media_dev->hw_revision = 0;
+	media_dev->dev = dev;
+
+	media_device_init(media_dev);
+
+	/* V4L2 Control Handler */
+
+	ret = v4l2_ctrl_handler_init(&v4l2->ctrl_handler, 0);
+	if (ret) {
+		dev_err(dev, "failed to init v4l2 control handler: %d\n", ret);
+		goto error_media;
+	}
+
+	/* V4L2 Device */
+
+	v4l2_dev->mdev = media_dev;
+	v4l2_dev->ctrl_handler = &v4l2->ctrl_handler;
+
+	ret = v4l2_device_register(dev, v4l2_dev);
+	if (ret) {
+		dev_err(dev, "failed to register v4l2 device: %d\n", ret);
+		goto error_v4l2_ctrl;
+	}
+
+	/* Video */
+
+	ret = sun6i_video_init(&csi_dev->video, csi_dev, SUN6I_CSI_NAME);
+	if (ret)
+		goto error_v4l2_device;
+
+	/* V4L2 Async */
+
+	v4l2_async_nf_init(notifier);
+	notifier->ops = &sun6i_csi_async_ops;
+
+	ret = v4l2_async_nf_parse_fwnode_endpoints(dev, notifier,
+						   sizeof(struct
+							  v4l2_async_subdev),
+						   sun6i_csi_fwnode_parse);
+	if (ret)
+		goto error_video;
+
+	ret = v4l2_async_nf_register(v4l2_dev, notifier);
+	if (ret) {
+		dev_err(dev, "failed to register v4l2 async notifier: %d\n",
+			ret);
+		goto error_v4l2_async_notifier;
+	}
+
+	return 0;
+
+error_v4l2_async_notifier:
+	v4l2_async_nf_cleanup(notifier);
+
+error_video:
+	sun6i_video_cleanup(&csi_dev->video);
+
+error_v4l2_device:
+	v4l2_device_unregister(&v4l2->v4l2_dev);
+
+error_v4l2_ctrl:
+	v4l2_ctrl_handler_free(&v4l2->ctrl_handler);
+
+error_media:
+	media_device_cleanup(media_dev);
+
+	return ret;
+}
+
 static void sun6i_csi_v4l2_cleanup(struct sun6i_csi_device *csi_dev)
 {
 	struct sun6i_csi_v4l2 *v4l2 = &csi_dev->v4l2;
@@ -677,70 +760,6 @@ static void sun6i_csi_v4l2_cleanup(struct sun6i_csi_device *csi_dev)
 	v4l2_device_unregister(&v4l2->v4l2_dev);
 	v4l2_ctrl_handler_free(&v4l2->ctrl_handler);
 	media_device_cleanup(&v4l2->media_dev);
-}
-
-static int sun6i_csi_v4l2_init(struct sun6i_csi_device *csi_dev)
-{
-	struct sun6i_csi_v4l2 *v4l2 = &csi_dev->v4l2;
-	int ret;
-
-	v4l2->media_dev.dev = csi_dev->dev;
-	strscpy(v4l2->media_dev.model, SUN6I_CSI_DESCRIPTION,
-		sizeof(v4l2->media_dev.model));
-	v4l2->media_dev.hw_revision = 0;
-
-	media_device_init(&v4l2->media_dev);
-	v4l2_async_nf_init(&v4l2->notifier);
-
-	ret = v4l2_ctrl_handler_init(&v4l2->ctrl_handler, 0);
-	if (ret) {
-		dev_err(csi_dev->dev, "V4L2 controls handler init failed (%d)\n",
-			ret);
-		goto clean_media;
-	}
-
-	v4l2->v4l2_dev.mdev = &v4l2->media_dev;
-	v4l2->v4l2_dev.ctrl_handler = &v4l2->ctrl_handler;
-	ret = v4l2_device_register(csi_dev->dev, &v4l2->v4l2_dev);
-	if (ret) {
-		dev_err(csi_dev->dev, "V4L2 device registration failed (%d)\n",
-			ret);
-		goto free_ctrl;
-	}
-
-	ret = sun6i_video_init(&csi_dev->video, csi_dev, SUN6I_CSI_NAME);
-	if (ret)
-		goto unreg_v4l2;
-
-	ret = v4l2_async_nf_parse_fwnode_endpoints(csi_dev->dev,
-						   &v4l2->notifier,
-						   sizeof(struct
-							  v4l2_async_subdev),
-						   sun6i_csi_fwnode_parse);
-	if (ret)
-		goto clean_video;
-
-	v4l2->notifier.ops = &sun6i_csi_async_ops;
-
-	ret = v4l2_async_nf_register(&v4l2->v4l2_dev, &v4l2->notifier);
-	if (ret) {
-		dev_err(csi_dev->dev, "notifier registration failed\n");
-		goto clean_video;
-	}
-
-	return 0;
-
-clean_video:
-	sun6i_video_cleanup(&csi_dev->video);
-unreg_v4l2:
-	v4l2_device_unregister(&v4l2->v4l2_dev);
-free_ctrl:
-	v4l2_ctrl_handler_free(&v4l2->ctrl_handler);
-clean_media:
-	v4l2_async_nf_cleanup(&v4l2->notifier);
-	media_device_cleanup(&v4l2->media_dev);
-
-	return ret;
 }
 
 /* Platform */
@@ -939,7 +958,7 @@ static int sun6i_csi_probe(struct platform_device *platform_dev)
 	if (ret)
 		return ret;
 
-	ret = sun6i_csi_v4l2_init(csi_dev);
+	ret = sun6i_csi_v4l2_setup(csi_dev);
 	if (ret)
 		goto error_resources;
 
