@@ -1616,10 +1616,9 @@ static int rkisp_config_isp(struct rkisp_device *dev)
 	if (dev->isp_ver == ISP_V20 || dev->isp_ver == ISP_V21 ||
 	    dev->isp_ver == ISP_V30 || dev->isp_ver == ISP_V32)
 		irq_mask |= ISP2X_LSC_LUT_ERR;
-	if (is_unite)
-		rkisp_next_write(dev, CIF_ISP_IMSC, irq_mask, true);
-	else
-		rkisp_write(dev, CIF_ISP_IMSC, irq_mask, true);
+	if (dev->is_pre_on)
+		irq_mask |= CIF_ISP_FRAME_IN;
+	rkisp_unite_write(dev, CIF_ISP_IMSC, irq_mask, true, is_unite);
 
 	if ((dev->isp_ver == ISP_V20 ||
 	     dev->isp_ver == ISP_V21) &&
@@ -3938,6 +3937,8 @@ vs_skip:
 
 	/* sampled input frame is complete */
 	if (isp_mis & CIF_ISP_FRAME_IN) {
+		dev->isp_sdev.dbg.interval =
+			ktime_get_ns() - dev->isp_sdev.dbg.timestamp;
 		rkisp_set_state(&dev->isp_state, ISP_FRAME_IN);
 		writel(CIF_ISP_FRAME_IN, base + CIF_ISP_ICR);
 		isp_mis_tmp = readl(base + CIF_ISP_MIS);
@@ -3948,8 +3949,9 @@ vs_skip:
 
 	/* frame was completely put out */
 	if (isp_mis & CIF_ISP_FRAME) {
-		dev->isp_sdev.dbg.interval =
-			ktime_get_ns() - dev->isp_sdev.dbg.timestamp;
+		if (!dev->is_pre_on || !IS_HDR_RDBK(dev->rd_mode))
+			dev->isp_sdev.dbg.interval =
+				ktime_get_ns() - dev->isp_sdev.dbg.timestamp;
 		/* Clear Frame In (ISP) */
 		rkisp_set_state(&dev->isp_state, ISP_FRAME_END);
 		writel(CIF_ISP_FRAME, base + CIF_ISP_ICR);

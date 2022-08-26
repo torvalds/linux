@@ -471,6 +471,8 @@ static int dmarx_frame_end(struct rkisp_stream *stream)
 				rkisp_unite_set_bits(dev, CSI2RX_MASK_STAT,
 						     0, ISP21_MIPI_DROP_FRM,
 						     true, dev->hw_dev->is_unite);
+				rkisp_unite_clear_bits(dev, CIF_ISP_IMSC, CIF_ISP_FRAME_IN,
+						       true, dev->hw_dev->is_unite);
 			}
 			rx_buf->runtime_us = dev->isp_sdev.dbg.interval / 1000;
 			v4l2_subdev_call(sd, video, s_rx_buffer, rx_buf, NULL);
