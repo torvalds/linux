@@ -14,23 +14,14 @@
 static u16 get_max_amsdu_len(struct rtw89_dev *rtwdev,
 			     const struct rtw89_ra_report *report)
 {
-	const struct rate_info *txrate = &report->txrate;
 	u32 bit_rate = report->bit_rate;
-	u8 mcs;
 
 	/* lower than ofdm, do not aggregate */
 	if (bit_rate < 550)
 		return 1;
 
-	/* prevent hardware rate fallback to G mode rate */
-	if (txrate->flags & RATE_INFO_FLAGS_MCS)
-		mcs = txrate->mcs & 0x07;
-	else if (txrate->flags & (RATE_INFO_FLAGS_VHT_MCS | RATE_INFO_FLAGS_HE_MCS))
-		mcs = txrate->mcs;
-	else
-		mcs = 0;
-
-	if (mcs <= 2)
+	/* avoid AMSDU for legacy rate */
+	if (report->might_fallback_legacy)
 		return 1;
 
 	/* lower than 20M vht 2ss mcs8, make it small */
@@ -1978,6 +1969,7 @@ static void rtw89_phy_c2h_ra_rpt_iter(void *data, struct ieee80211_sta *sta)
 	u8 mode, rate, bw, giltf, mac_id;
 	u16 legacy_bitrate;
 	bool valid;
+	u8 mcs = 0;
 
 	mac_id = RTW89_GET_PHY_C2H_RA_RPT_MACID(c2h->data);
 	if (mac_id != rtwsta->mac_id)
@@ -1994,7 +1986,7 @@ static void rtw89_phy_c2h_ra_rpt_iter(void *data, struct ieee80211_sta *sta)
 			return;
 	}
 
-	memset(ra_report, 0, sizeof(*ra_report));
+	memset(&ra_report->txrate, 0, sizeof(ra_report->txrate));
 
 	switch (mode) {
 	case RTW89_RA_RPT_MODE_LEGACY:
@@ -2010,6 +2002,7 @@ static void rtw89_phy_c2h_ra_rpt_iter(void *data, struct ieee80211_sta *sta)
 		ra_report->txrate.mcs = rate;
 		if (giltf)
 			ra_report->txrate.flags |= RATE_INFO_FLAGS_SHORT_GI;
+		mcs = ra_report->txrate.mcs & 0x07;
 		break;
 	case RTW89_RA_RPT_MODE_VHT:
 		ra_report->txrate.flags |= RATE_INFO_FLAGS_VHT_MCS;
@@ -2017,6 +2010,7 @@ static void rtw89_phy_c2h_ra_rpt_iter(void *data, struct ieee80211_sta *sta)
 		ra_report->txrate.nss = FIELD_GET(RTW89_RA_RATE_MASK_NSS, rate) + 1;
 		if (giltf)
 			ra_report->txrate.flags |= RATE_INFO_FLAGS_SHORT_GI;
+		mcs = ra_report->txrate.mcs;
 		break;
 	case RTW89_RA_RPT_MODE_HE:
 		ra_report->txrate.flags |= RATE_INFO_FLAGS_HE_MCS;
@@ -2028,6 +2022,7 @@ static void rtw89_phy_c2h_ra_rpt_iter(void *data, struct ieee80211_sta *sta)
 			ra_report->txrate.he_gi = NL80211_RATE_INFO_HE_GI_1_6;
 		else
 			ra_report->txrate.he_gi = NL80211_RATE_INFO_HE_GI_3_2;
+		mcs = ra_report->txrate.mcs;
 		break;
 	}
 
@@ -2035,6 +2030,7 @@ static void rtw89_phy_c2h_ra_rpt_iter(void *data, struct ieee80211_sta *sta)
 	ra_report->bit_rate = cfg80211_calculate_bitrate(&ra_report->txrate);
 	ra_report->hw_rate = FIELD_PREP(RTW89_HW_RATE_MASK_MOD, mode) |
 			     FIELD_PREP(RTW89_HW_RATE_MASK_VAL, rate);
+	ra_report->might_fallback_legacy = mcs <= 2;
 	sta->max_rc_amsdu_len = get_max_amsdu_len(rtwdev, ra_report);
 	rtwsta->max_agg_wait = sta->max_rc_amsdu_len / 1500 - 1;
 }

@@ -2079,6 +2079,7 @@ struct rtw89_ra_report {
 	struct rate_info txrate;
 	u32 bit_rate;
 	u16 hw_rate;
+	bool might_fallback_legacy;
 };
 
 DECLARE_EWMA(rssi, 10, 16);

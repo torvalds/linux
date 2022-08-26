@@ -585,6 +585,7 @@ __rtw89_core_tx_check_he_qos_htc(struct rtw89_dev *rtwdev,
 				 enum btc_pkt_type pkt_type)
 {
 	struct ieee80211_sta *sta = tx_req->sta;
+	struct rtw89_sta *rtwsta = sta_to_rtwsta_safe(sta);
 	struct sk_buff *skb = tx_req->skb;
 	struct ieee80211_hdr *hdr = (void *)skb->data;
 	__le16 fc = hdr->frame_control;
@@ -600,6 +601,9 @@ __rtw89_core_tx_check_he_qos_htc(struct rtw89_dev *rtwdev,
 		return false;
 
 	if (skb_headroom(skb) < IEEE80211_HT_CTL_LEN)
+		return false;
+
+	if (rtwsta && rtwsta->ra_report.might_fallback_legacy)
 		return false;
 
 	return true;
