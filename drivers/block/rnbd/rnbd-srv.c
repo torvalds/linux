@@ -359,10 +359,9 @@ static int process_msg_sess_info(struct rnbd_srv_session *srv_sess,
 				 const void *msg, size_t len,
 				 void *data, size_t datalen);
 
-static int rnbd_srv_rdma_ev(void *priv,
-			    struct rtrs_srv_op *id, int dir,
-			    void *data, size_t datalen, const void *usr,
-			    size_t usrlen)
+static int rnbd_srv_rdma_ev(void *priv, struct rtrs_srv_op *id,
+			    void *data, size_t datalen,
+			    const void *usr, size_t usrlen)
 {
 	struct rnbd_srv_session *srv_sess = priv;
 	const struct rnbd_msg_hdr *hdr = usr;
@@ -388,8 +387,8 @@ static int rnbd_srv_rdma_ev(void *priv,
 					    datalen);
 		break;
 	default:
-		pr_warn("Received unexpected message type %d with dir %d from session %s\n",
-			type, dir, srv_sess->sessname);
+		pr_warn("Received unexpected message type %d from session %s\n",
+			type, srv_sess->sessname);
 		return -EINVAL;
 	}
 
