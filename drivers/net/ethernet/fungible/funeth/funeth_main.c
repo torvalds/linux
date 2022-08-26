@@ -1802,16 +1802,14 @@ static int fun_create_netdev(struct fun_ethdev *ed, unsigned int portid)
 	if (rc)
 		goto unreg_devlink;
 
-	if (fp->dl_port.devlink)
-		devlink_port_type_eth_set(&fp->dl_port, netdev);
+	devlink_port_type_eth_set(&fp->dl_port, netdev);
 
 	return 0;
 
 unreg_devlink:
 	ed->netdevs[portid] = NULL;
 	fun_ktls_cleanup(fp);
-	if (fp->dl_port.devlink)
-		devlink_port_unregister(&fp->dl_port);
+	devlink_port_unregister(&fp->dl_port);
 free_stats:
 	fun_free_stats_area(fp);
 free_rss:
@@ -1830,10 +1828,8 @@ static void fun_destroy_netdev(struct net_device *netdev)
 	struct funeth_priv *fp;
 
 	fp = netdev_priv(netdev);
-	if (fp->dl_port.devlink) {
-		devlink_port_type_clear(&fp->dl_port);
-		devlink_port_unregister(&fp->dl_port);
-	}
+	devlink_port_type_clear(&fp->dl_port);
+	devlink_port_unregister(&fp->dl_port);
 	unregister_netdev(netdev);
 	fun_ktls_cleanup(fp);
 	fun_free_stats_area(fp);
