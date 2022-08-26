@@ -933,16 +933,15 @@ static int wm8960_hw_params(struct snd_pcm_substream *substream,
 		if (!tx) {
 			snd_soc_component_update_bits(component, WM8960_LINVOL, 0x1<<7, 0x1<<7);
 			snd_soc_component_update_bits(component, WM8960_RINVOL, 0x1<<7, 0x1<<7);
-			snd_soc_component_write(component, WM8960_CLOCK1, 0x00); //0xd8
 			snd_soc_component_write(component, WM8960_ALC1, 0x1bb);
 			snd_soc_component_write(component, WM8960_ALC2, 0x30);
 			snd_soc_component_write(component, WM8960_ALC3, 0x30);
 			snd_soc_component_write(component, WM8960_NOISEG, 0xf9);
-			snd_soc_component_write(component, WM8960_ADDCTL1, 0xc0);
-			snd_soc_component_write(component, WM8960_ADDCTL3, 0x03);
+			snd_soc_component_update_bits(component, WM8960_ADDCTL1, 0x1cf, 0xc0);
+			snd_soc_component_update_bits(component, WM8960_ADDCTL3, 0x47, 0x03);
 			snd_soc_component_write(component, WM8960_BYPASS1, 0x00);
 			snd_soc_component_write(component, WM8960_BYPASS2, 0x00);
-			snd_soc_component_write(component, WM8960_ADDCTL4, 0x00);
+			snd_soc_component_update_bits(component, WM8960_ADDCTL4, 0x73, 0);
 		} else {
 			if (params_channels(params) == 1)
 				snd_soc_component_write(component, WM8960_LOUT1, 0x100);
