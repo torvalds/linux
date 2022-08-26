@@ -8,11 +8,68 @@
 
 #include <linux/bitfield.h>
 #include <linux/errno.h>
+#include <linux/interrupt.h>
 #include <linux/limits.h>
+#include <linux/mailbox_controller.h>
+#include <linux/mailbox_client.h>
 #include <linux/types.h>
+
+/* Follows resource manager's resource types for VM_GET_HYP_RESOURCES */
+enum gh_resource_type {
+	GH_RESOURCE_TYPE_BELL_TX	= 0,
+	GH_RESOURCE_TYPE_BELL_RX	= 1,
+	GH_RESOURCE_TYPE_MSGQ_TX	= 2,
+	GH_RESOURCE_TYPE_MSGQ_RX	= 3,
+	GH_RESOURCE_TYPE_VCPU	= 4,
+};
+
+struct gh_resource {
+	enum gh_resource_type type;
+	u64 capid;
+	unsigned int irq;
+};
+
+/**
+ * Gunyah Message Queues
+ */
+
+#define GH_MSGQ_MAX_MSG_SIZE	240
+
+struct gh_msgq_tx_data {
+	size_t length;
+	bool push;
+	char data[];
+};
+
+struct gh_msgq_rx_data {
+	size_t length;
+	char data[GH_MSGQ_MAX_MSG_SIZE];
+};
+
+struct gh_msgq {
+	struct gh_resource *tx_ghrsc;
+	struct gh_resource *rx_ghrsc;
+
+	/* msgq private */
+	int last_ret; /* Linux error, not GH_STATUS_* */
+	struct mbox_chan mbox_chan;
+	struct mbox_controller mbox;
+	struct tasklet_struct txdone_tasklet;
+};
+
+
+int gh_msgq_init(struct device *parent, struct gh_msgq *msgq, struct mbox_client *cl,
+		     struct gh_resource *tx_ghrsc, struct gh_resource *rx_ghrsc);
+void gh_msgq_remove(struct gh_msgq *msgq);
+
+static inline struct mbox_chan *gh_msgq_chan(struct gh_msgq *msgq)
+{
+	return &msgq->mbox.chans[0];
+}
 
 /******************************************************************************/
 /* Common arch-independent definitions for Gunyah hypercalls                  */
+
 #define GH_CAPID_INVAL	U64_MAX
 #define GH_VMID_ROOT_VM	0xff
 
