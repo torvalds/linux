@@ -139,6 +139,17 @@ struct netlink_ext_ack {
 	}						\
 } while (0)
 
+#define NL_REQ_ATTR_CHECK(extack, nest, tb, type) ({		\
+	struct nlattr **__tb = (tb);				\
+	u32 __attr = (type);					\
+	int __retval;						\
+								\
+	__retval = !__tb[__attr];				\
+	if (__retval)						\
+		NL_SET_ERR_ATTR_MISS((extack), (nest), __attr);	\
+	__retval;						\
+})
+
 static inline void nl_set_extack_cookie_u64(struct netlink_ext_ack *extack,
 					    u64 cookie)
 {
