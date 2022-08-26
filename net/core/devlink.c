@@ -5635,89 +5635,22 @@ static int devlink_nl_cmd_param_set_doit(struct sk_buff *skb,
 static int devlink_nl_cmd_port_param_get_dumpit(struct sk_buff *msg,
 						struct netlink_callback *cb)
 {
-	struct devlink_param_item *param_item;
-	struct devlink_port *devlink_port;
-	struct devlink *devlink;
-	int start = cb->args[0];
-	unsigned long index;
-	int idx = 0;
-	int err = 0;
-
-	devlinks_xa_for_each_registered_get(sock_net(msg->sk), index, devlink) {
-		devl_lock(devlink);
-		list_for_each_entry(devlink_port, &devlink->port_list, list) {
-			list_for_each_entry(param_item,
-					    &devlink_port->param_list, list) {
-				if (idx < start) {
-					idx++;
-					continue;
-				}
-				err = devlink_nl_param_fill(msg,
-						devlink_port->devlink,
-						devlink_port->index, param_item,
-						DEVLINK_CMD_PORT_PARAM_GET,
-						NETLINK_CB(cb->skb).portid,
-						cb->nlh->nlmsg_seq,
-						NLM_F_MULTI);
-				if (err == -EOPNOTSUPP) {
-					err = 0;
-				} else if (err) {
-					devl_unlock(devlink);
-					devlink_put(devlink);
-					goto out;
-				}
-				idx++;
-			}
-		}
-		devl_unlock(devlink);
-		devlink_put(devlink);
-	}
-out:
-	if (err != -EMSGSIZE)
-		return err;
-
-	cb->args[0] = idx;
+	NL_SET_ERR_MSG_MOD(cb->extack, "Port params are not supported");
 	return msg->len;
 }
 
 static int devlink_nl_cmd_port_param_get_doit(struct sk_buff *skb,
 					      struct genl_info *info)
 {
-	struct devlink_port *devlink_port = info->user_ptr[1];
-	struct devlink_param_item *param_item;
-	struct sk_buff *msg;
-	int err;
-
-	param_item = devlink_param_get_from_info(&devlink_port->param_list,
-						 info);
-	if (!param_item)
-		return -EINVAL;
-
-	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
-	if (!msg)
-		return -ENOMEM;
-
-	err = devlink_nl_param_fill(msg, devlink_port->devlink,
-				    devlink_port->index, param_item,
-				    DEVLINK_CMD_PORT_PARAM_GET,
-				    info->snd_portid, info->snd_seq, 0);
-	if (err) {
-		nlmsg_free(msg);
-		return err;
-	}
-
-	return genlmsg_reply(msg, info);
+	NL_SET_ERR_MSG_MOD(info->extack, "Port params are not supported");
+	return -EINVAL;
 }
 
 static int devlink_nl_cmd_port_param_set_doit(struct sk_buff *skb,
 					      struct genl_info *info)
 {
-	struct devlink_port *devlink_port = info->user_ptr[1];
-
-	return __devlink_nl_cmd_param_set_doit(devlink_port->devlink,
-					       devlink_port->index,
-					       &devlink_port->param_list, info,
-					       DEVLINK_CMD_PORT_PARAM_NEW);
+	NL_SET_ERR_MSG_MOD(info->extack, "Port params are not supported");
+	return -EINVAL;
 }
 
 static int devlink_nl_region_snapshot_id_put(struct sk_buff *msg,
@@ -9943,7 +9876,6 @@ int devl_port_register(struct devlink *devlink,
 	INIT_LIST_HEAD(&devlink_port->reporter_list);
 	mutex_init(&devlink_port->reporters_lock);
 	list_add_tail(&devlink_port->list, &devlink->port_list);
-	INIT_LIST_HEAD(&devlink_port->param_list);
 	INIT_LIST_HEAD(&devlink_port->region_list);
 
 	INIT_DELAYED_WORK(&devlink_port->type_warn_dw, &devlink_port_type_warn);

@@ -118,7 +118,6 @@ struct devlink_rate {
 
 struct devlink_port {
 	struct list_head list;
-	struct list_head param_list;
 	struct list_head region_list;
 	struct devlink *devlink;
 	unsigned int index;
