@@ -606,18 +606,6 @@ ap_ec_spi: &spi10 {
 	status = "okay";
 };
 
-&usb_2 {
-	status = "okay";
-};
-
-&usb_2_dwc3 {
-	dr_mode = "host";
-};
-
-&usb_2_hsphy {
-	status = "okay";
-};
-
 /* PINCTRL - ADDITIONS TO NODES IN PARENT DEVICE TREE FILES */
 
 &dp_hot_plug_det {
