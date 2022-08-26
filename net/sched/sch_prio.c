@@ -185,7 +185,7 @@ static int prio_tune(struct Qdisc *sch, struct nlattr *opt,
 		return -EINVAL;
 	qopt = nla_data(opt);
 
-	if (qopt->bands > TCQ_PRIO_BANDS || qopt->bands < 2)
+	if (qopt->bands > TCQ_PRIO_BANDS || qopt->bands < TCQ_MIN_PRIO_BANDS)
 		return -EINVAL;
 
 	for (i = 0; i <= TC_PRIO_MAX; i++) {
