@@ -691,23 +691,14 @@ static int sun6i_csi_v4l2_setup(struct sun6i_csi_device *csi_dev)
 		goto error_media;
 	}
 
-	/* V4L2 Control Handler */
-
-	ret = v4l2_ctrl_handler_init(&v4l2->ctrl_handler, 0);
-	if (ret) {
-		dev_err(dev, "failed to init v4l2 control handler: %d\n", ret);
-		goto error_media;
-	}
-
 	/* V4L2 Device */
 
 	v4l2_dev->mdev = media_dev;
-	v4l2_dev->ctrl_handler = &v4l2->ctrl_handler;
 
 	ret = v4l2_device_register(dev, v4l2_dev);
 	if (ret) {
 		dev_err(dev, "failed to register v4l2 device: %d\n", ret);
-		goto error_v4l2_ctrl;
+		goto error_media;
 	}
 
 	/* Video */
@@ -746,9 +737,6 @@ error_video:
 error_v4l2_device:
 	v4l2_device_unregister(&v4l2->v4l2_dev);
 
-error_v4l2_ctrl:
-	v4l2_ctrl_handler_free(&v4l2->ctrl_handler);
-
 error_media:
 	media_device_unregister(media_dev);
 	media_device_cleanup(media_dev);
@@ -765,7 +753,6 @@ static void sun6i_csi_v4l2_cleanup(struct sun6i_csi_device *csi_dev)
 	v4l2_async_nf_cleanup(&v4l2->notifier);
 	sun6i_video_cleanup(csi_dev);
 	v4l2_device_unregister(&v4l2->v4l2_dev);
-	v4l2_ctrl_handler_free(&v4l2->ctrl_handler);
 	media_device_cleanup(&v4l2->media_dev);
 }
 

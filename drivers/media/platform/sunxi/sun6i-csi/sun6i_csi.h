@@ -8,7 +8,6 @@
 #ifndef __SUN6I_CSI_H__
 #define __SUN6I_CSI_H__
 
-#include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-fwnode.h>
 
@@ -35,7 +34,6 @@ struct sun6i_csi_config {
 
 struct sun6i_csi_v4l2 {
 	struct v4l2_device		v4l2_dev;
-	struct v4l2_ctrl_handler	ctrl_handler;
 	struct media_device		media_dev;
 
 	struct v4l2_async_notifier	notifier;
