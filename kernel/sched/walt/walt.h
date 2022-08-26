@@ -1048,6 +1048,10 @@ static inline int walt_find_and_choose_cluster_packing_cpu(int start_cpu, struct
 	if (task_util(p) >= sysctl_sched_idle_enough)
 		return -1;
 
+	/* don't pack if running at a freq higher than 43.9pct of its fmax */
+	if (arch_scale_freq_capacity(packing_cpu) > 450)
+		return -1;
+
 	/* the packing cpu can be used, so pack! */
 	return packing_cpu;
 }
