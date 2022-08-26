@@ -290,7 +290,7 @@ int ksz9477_r_phy(struct ksz_device *dev, u16 addr, u16 reg, u16 *data)
 	 * For RGMII PHY there is no way to access it so the fixed PHY should
 	 * be used.  For SGMII PHY the supporting code will be added later.
 	 */
-	if (addr >= dev->phy_port_cnt) {
+	if (!dev->info->internal_phy[addr]) {
 		struct ksz_port *p = &dev->ports[addr];
 
 		switch (reg) {
@@ -338,7 +338,7 @@ int ksz9477_r_phy(struct ksz_device *dev, u16 addr, u16 reg, u16 *data)
 int ksz9477_w_phy(struct ksz_device *dev, u16 addr, u16 reg, u16 val)
 {
 	/* No real PHY after this. */
-	if (addr >= dev->phy_port_cnt)
+	if (!dev->info->internal_phy[addr])
 		return 0;
 
 	return ksz_pwrite16(dev, addr, 0x100 + (reg << 1), val);
@@ -887,7 +887,7 @@ static phy_interface_t ksz9477_get_interface(struct ksz_device *dev, int port)
 	phy_interface_t interface;
 	bool gbit;
 
-	if (port < dev->phy_port_cnt)
+	if (dev->info->internal_phy[port])
 		return PHY_INTERFACE_MODE_NA;
 
 	gbit = ksz_get_gbit(dev, port);
@@ -994,7 +994,7 @@ void ksz9477_port_setup(struct ksz_device *dev, int port, bool cpu_port)
 	/* enable 802.1p priority */
 	ksz_port_cfg(dev, port, P_PRIO_CTRL, PORT_802_1P_PRIO_ENABLE, true);
 
-	if (port < dev->phy_port_cnt) {
+	if (dev->info->internal_phy[port]) {
 		/* do not force flow control */
 		ksz_port_cfg(dev, port, REG_PORT_CTRL_0,
 			     PORT_FORCE_TX_FLOW_CTRL | PORT_FORCE_RX_FLOW_CTRL,
@@ -1017,7 +1017,7 @@ void ksz9477_port_setup(struct ksz_device *dev, int port, bool cpu_port)
 	ksz9477_cfg_port_member(dev, port, member);
 
 	/* clear pending interrupts */
-	if (port < dev->phy_port_cnt)
+	if (dev->info->internal_phy[port])
 		ksz_pread16(dev, port, REG_PORT_PHY_INT_ENABLE, &data16);
 }
 
@@ -1080,7 +1080,7 @@ void ksz9477_config_cpu_port(struct dsa_switch *ds)
 
 		ksz_port_stp_state_set(ds, i, BR_STATE_DISABLED);
 		p->on = 1;
-		if (i < dev->phy_port_cnt)
+		if (dev->info->internal_phy[i])
 			p->phy = 1;
 		if (dev->chip_id == 0x00947700 && i == 6) {
 			p->sgmii = 1;
@@ -1176,14 +1176,8 @@ int ksz9477_switch_init(struct ksz_device *dev)
 	if (ret)
 		return ret;
 
-	/* Number of ports can be reduced depending on chip. */
-	dev->phy_port_cnt = 5;
-
-	if (dev->chip_id == KSZ9893_CHIP_ID) {
+	if (dev->chip_id == KSZ9893_CHIP_ID)
 		dev->features |= IS_9893;
-
-		dev->phy_port_cnt = 2;
-	}
 
 	return 0;
 }
