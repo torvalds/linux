@@ -106,7 +106,7 @@ static int msm_hdmi_get_phy(struct hdmi *hdmi)
 		return -EPROBE_DEFER;
 	}
 
-	hdmi->phy_dev = get_device(&phy_pdev->dev);
+	hdmi->phy_dev = &phy_pdev->dev;
 
 	return 0;
 }
