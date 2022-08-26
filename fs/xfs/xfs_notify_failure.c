@@ -175,7 +175,7 @@ xfs_dax_notify_failure(
 	u64			ddev_start;
 	u64			ddev_end;
 
-	if (!(mp->m_sb.sb_flags & SB_BORN)) {
+	if (!(mp->m_super->s_flags & SB_BORN)) {
 		xfs_warn(mp, "filesystem is not ready for notify_failure()!");
 		return -EIO;
 	}
