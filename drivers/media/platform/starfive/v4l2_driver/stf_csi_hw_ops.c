@@ -59,7 +59,8 @@ static int stf_csi_power_on(struct stf_csi_dev *csi_dev, u8 on)
 		regulator_disable(csi_dev->mipirx_0p9);
 	}
 
-	regmap_write(stfcamss->stf_aon_syscon, stfcamss->aon_gp_reg, 0x80000000);
+	regmap_update_bits(stfcamss->stf_aon_syscon, stfcamss->aon_gp_reg,
+				BIT(31), BIT(31));
 
 	return 0;
 
