@@ -247,15 +247,11 @@ static ssize_t fei_write(struct file *file, const char __user *buffer,
 	/* cut off if it is too long */
 	if (count > KSYM_NAME_LEN)
 		count = KSYM_NAME_LEN;
-	buf = kmalloc(count + 1, GFP_KERNEL);
-	if (!buf)
-		return -ENOMEM;
 
-	if (copy_from_user(buf, buffer, count)) {
-		ret = -EFAULT;
-		goto out_free;
-	}
-	buf[count] = '\0';
+	buf = memdup_user_nul(buffer, count);
+	if (IS_ERR(buf))
+		return PTR_ERR(buf);
+
 	sym = strstrip(buf);
 
 	mutex_lock(&fei_lock);
@@ -308,7 +304,6 @@ static ssize_t fei_write(struct file *file, const char __user *buffer,
 	}
 out:
 	mutex_unlock(&fei_lock);
-out_free:
 	kfree(buf);
 	return ret;
 }
