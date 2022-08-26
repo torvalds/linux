@@ -1352,14 +1352,12 @@ err_exit:
 	return ret;
 }
 
-static int cy8c95x0_remove(struct i2c_client *client)
+static void cy8c95x0_remove(struct i2c_client *client)
 {
 	struct cy8c95x0_pinctrl *chip = i2c_get_clientdata(client);
 
 	if (!IS_ERR_OR_NULL(chip->regulator))
 		regulator_disable(chip->regulator);
-
-	return 0;
 }
 
 static struct i2c_driver cy8c95x0_driver = {
