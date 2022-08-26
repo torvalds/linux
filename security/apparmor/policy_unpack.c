@@ -435,10 +435,11 @@ static int unpack_strdup(struct aa_ext *e, char **string, const char *name)
 /**
  * unpack_dfa - unpack a file rule dfa
  * @e: serialized data extent information (NOT NULL)
+ * @flags: dfa flags to check
  *
  * returns dfa or ERR_PTR or NULL if no dfa
  */
-static struct aa_dfa *unpack_dfa(struct aa_ext *e)
+static struct aa_dfa *unpack_dfa(struct aa_ext *e, int flags)
 {
 	char *blob = NULL;
 	size_t size;
@@ -454,8 +455,6 @@ static struct aa_dfa *unpack_dfa(struct aa_ext *e)
 		size_t sz = blob - (char *) e->start -
 			((e->pos - e->start) & 7);
 		size_t pad = ALIGN(sz, 8) - sz;
-		int flags = TO_ACCEPT1_FLAG(YYTD_DATA32) |
-			TO_ACCEPT2_FLAG(YYTD_DATA32);
 		if (aa_g_paranoid_load)
 			flags |= DFA_FLAG_VERIFY_STATES;
 		dfa = aa_dfa_unpack(blob + pad, size - pad, flags);
@@ -659,23 +658,104 @@ fail:
 	return false;
 }
 
+static bool unpack_perm(struct aa_ext *e, u32 version, struct aa_perms *perm)
+{
+	bool res;
+
+	if (version != 1)
+		return false;
+
+	res = unpack_u32(e, &perm->allow, NULL);
+	res = res && unpack_u32(e, &perm->allow, NULL);
+	res = res && unpack_u32(e, &perm->deny, NULL);
+	res = res && unpack_u32(e, &perm->subtree, NULL);
+	res = res && unpack_u32(e, &perm->cond, NULL);
+	res = res && unpack_u32(e, &perm->kill, NULL);
+	res = res && unpack_u32(e, &perm->complain, NULL);
+	res = res && unpack_u32(e, &perm->prompt, NULL);
+	res = res && unpack_u32(e, &perm->audit, NULL);
+	res = res && unpack_u32(e, &perm->quiet, NULL);
+	res = res && unpack_u32(e, &perm->hide, NULL);
+	res = res && unpack_u32(e, &perm->xindex, NULL);
+	res = res && unpack_u32(e, &perm->tag, NULL);
+	res = res && unpack_u32(e, &perm->label, NULL);
+
+	return res;
+}
+
+static ssize_t unpack_perms_table(struct aa_ext *e, struct aa_perms **perms)
+{
+	void *pos = e->pos;
+	u16 size = 0;
+
+	AA_BUG(!perms);
+	/*
+	 * policy perms are optional, in which case perms are embedded
+	 * in the dfa accept table
+	 */
+	if (unpack_nameX(e, AA_STRUCT, "perms")) {
+		int i;
+		u32 version;
+
+		if (!unpack_u32(e, &version, "version"))
+			goto fail_reset;
+		if (unpack_array(e, NULL, &size) != TRI_TRUE)
+			goto fail_reset;
+		*perms = kcalloc(size, sizeof(struct aa_perms), GFP_KERNEL);
+		if (!*perms)
+			goto fail_reset;
+		for (i = 0; i < size; i++) {
+			if (!unpack_perm(e, version, &(*perms)[i]))
+				goto fail;
+		}
+		if (!unpack_nameX(e, AA_ARRAYEND, NULL))
+			goto fail;
+		if (!unpack_nameX(e, AA_STRUCTEND, NULL))
+			goto fail;
+	} else
+		*perms = NULL;
+
+	return size;
+
+fail:
+	kfree(*perms);
+fail_reset:
+	e->pos = pos;
+	return -EPROTO;
+}
+
 static int unpack_pdb(struct aa_ext *e, struct aa_policydb *policy,
 		      bool required_dfa, bool required_trans,
 		      const char **info)
 {
-	int i;
+	void *pos = e->pos;
+	int i, flags, error = -EPROTO;
 
-	policy->dfa = unpack_dfa(e);
+	policy->size = unpack_perms_table(e, &policy->perms);
+	if (policy->size < 0) {
+		error = policy->size;
+		policy->perms = NULL;
+		*info = "failed to unpack - perms";
+		goto fail;
+	} else if (policy->perms) {
+		/* perms table present accept is index */
+		flags = TO_ACCEPT1_FLAG(YYTD_DATA32);
+	} else {
+		/* packed perms in accept1 and accept2 */
+		flags = TO_ACCEPT1_FLAG(YYTD_DATA32) |
+			TO_ACCEPT2_FLAG(YYTD_DATA32);
+	}
+
+	policy->dfa = unpack_dfa(e, flags);
 	if (IS_ERR(policy->dfa)) {
-		int error = PTR_ERR(policy->dfa);
-
+		error = PTR_ERR(policy->dfa);
 		policy->dfa = NULL;
 		*info = "failed to unpack - dfa";
-		return error;
+		goto fail;
 	} else if (!policy->dfa) {
 		if (required_dfa) {
 			*info = "missing required dfa";
-			return -EPROTO;
+			goto fail;
 		}
 		goto out;
 	}
@@ -699,12 +779,16 @@ static int unpack_pdb(struct aa_ext *e, struct aa_policydb *policy,
 	}
 	if (!unpack_trans_table(e, &policy->trans) && required_trans) {
 		*info = "failed to unpack profile transition table";
-		return -EPROTO;
+		goto fail;
 	}
 	/* TODO: move compat mapping here, requires dfa merging first */
 
 out:
 	return 0;
+
+fail:
+	e->pos = pos;
+	return error;
 }
 
 static u32 strhash(const void *data, u32 len, u32 seed)
