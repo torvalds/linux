@@ -2706,6 +2706,8 @@ static void rtw89_init_he_cap(struct rtw89_dev *rtwdev,
 			phy_cap_info[3] |= IEEE80211_HE_PHY_CAP3_RX_PARTIAL_BW_SU_IN_20MHZ_MU;
 		phy_cap_info[4] = IEEE80211_HE_PHY_CAP4_SU_BEAMFORMEE |
 				  IEEE80211_HE_PHY_CAP4_BEAMFORMEE_MAX_STS_UNDER_80MHZ_4;
+		if (chip->support_bw160)
+			phy_cap_info[4] |= IEEE80211_HE_PHY_CAP4_BEAMFORMEE_MAX_STS_ABOVE_80MHZ_4;
 		phy_cap_info[5] = no_ng16 ? 0 :
 				  IEEE80211_HE_PHY_CAP5_NG16_SU_FEEDBACK |
 				  IEEE80211_HE_PHY_CAP5_NG16_MU_FEEDBACK;
