@@ -913,8 +913,7 @@ err_bluetooth:
 	return retval;
 }
 
-#ifdef CONFIG_PM_SLEEP
-static int msi_laptop_resume(struct device *device)
+static int msi_scm_disable_hw_fn_handling(void)
 {
 	u8 data;
 	int result;
@@ -933,6 +932,12 @@ static int msi_laptop_resume(struct device *device)
 		return result;
 
 	return 0;
+}
+
+#ifdef CONFIG_PM_SLEEP
+static int msi_laptop_resume(struct device *device)
+{
+	return msi_scm_disable_hw_fn_handling();
 }
 #endif
 
@@ -966,7 +971,6 @@ err_free_dev:
 
 static int __init load_scm_model_init(struct platform_device *sdev)
 {
-	u8 data;
 	int result;
 
 	if (!quirks->ec_read_only) {
@@ -980,12 +984,7 @@ static int __init load_scm_model_init(struct platform_device *sdev)
 	}
 
 	/* disable hardware control by fn key */
-	result = ec_read(MSI_STANDARD_EC_SCM_LOAD_ADDRESS, &data);
-	if (result < 0)
-		return result;
-
-	result = ec_write(MSI_STANDARD_EC_SCM_LOAD_ADDRESS,
-		data | MSI_STANDARD_EC_SCM_LOAD_MASK);
+	result = msi_scm_disable_hw_fn_handling();
 	if (result < 0)
 		return result;
 
