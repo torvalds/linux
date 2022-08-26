@@ -817,6 +817,13 @@ static inline int trans_lock_write(struct btree_trans *trans)
 		if (same_leaf_as_prev(trans, i))
 			continue;
 
+		/*
+		 * six locks are unfair, and read locks block while a thread
+		 * wants a write lock: thus, we need to tell the cycle detector
+		 * we have a write lock _before_ taking the lock:
+		 */
+		mark_btree_node_locked_noreset(i->path, i->level, SIX_LOCK_write);
+
 		if (!six_trylock_write(&insert_l(i)->b->c.lock)) {
 			if (have_conflicting_read_lock(trans, i->path))
 				goto fail;
@@ -828,13 +835,13 @@ static inline int trans_lock_write(struct btree_trans *trans)
 			BUG_ON(ret);
 		}
 
-		mark_btree_node_locked_noreset(i->path, i->level, SIX_LOCK_write);
-
 		bch2_btree_node_prep_for_write(trans, i->path, insert_l(i)->b);
 	}
 
 	return 0;
 fail:
+	mark_btree_node_locked_noreset(i->path, i->level, SIX_LOCK_intent);
+
 	while (--i >= trans->updates) {
 		if (same_leaf_as_prev(trans, i))
 			continue;

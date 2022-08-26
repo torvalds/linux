@@ -271,10 +271,15 @@ static inline void bch2_btree_node_lock_write(struct btree_trans *trans,
 	EBUG_ON(path->l[b->c.level].lock_seq != b->c.lock.state.seq);
 	EBUG_ON(!btree_node_intent_locked(path, b->c.level));
 
+	/*
+	 * six locks are unfair, and read locks block while a thread wants a
+	 * write lock: thus, we need to tell the cycle detector we have a write
+	 * lock _before_ taking the lock:
+	 */
+	mark_btree_node_locked_noreset(path, b->c.level, SIX_LOCK_write);
+
 	if (unlikely(!six_trylock_write(&b->c.lock)))
 		__bch2_btree_node_lock_write(trans, b);
-
-	mark_btree_node_locked_noreset(path, b->c.level, SIX_LOCK_write);
 }
 
 /* relock: */
