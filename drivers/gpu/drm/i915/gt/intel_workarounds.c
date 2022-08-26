@@ -2700,6 +2700,15 @@ add_render_compute_tuning_settings(struct drm_i915_private *i915,
 		       0 /* write-only, so skip validation */,
 		       true);
 	}
+
+	/*
+	 * This tuning setting proves beneficial only on ATS-M designs; the
+	 * default "age based" setting is optimal on regular DG2 and other
+	 * platforms.
+	 */
+	if (INTEL_INFO(i915)->tuning_thread_rr_after_dep)
+		wa_masked_field_set(wal, GEN9_ROW_CHICKEN4, THREAD_EX_ARB_MODE,
+				    THREAD_EX_ARB_MODE_RR_AFTER_DEP);
 }
 
 /*
