@@ -124,6 +124,7 @@ struct ksz_device {
 
 /* List of supported models */
 enum ksz_model {
+	KSZ8563,
 	KSZ8795,
 	KSZ8794,
 	KSZ8765,
@@ -140,6 +141,7 @@ enum ksz_model {
 };
 
 enum ksz_chip_id {
+	KSZ8563_CHIP_ID = 0x8563,
 	KSZ8795_CHIP_ID = 0x8795,
 	KSZ8794_CHIP_ID = 0x8794,
 	KSZ8765_CHIP_ID = 0x8765,
@@ -482,6 +484,10 @@ static inline int is_lan937x(struct ksz_device *dev)
 #define KSZ88_CHIP_ID_63		0x3
 
 #define SW_REV_ID_M			GENMASK(7, 4)
+
+/* KSZ9893, KSZ9563, KSZ8563 specific register  */
+#define REG_CHIP_ID4			0x0f
+#define SKU_ID_KSZ8563			0x3c
 
 /* Driver set switch broadcast storm protection at 10% rate. */
 #define BROADCAST_STORM_PROT_RATE	10

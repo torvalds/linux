@@ -413,6 +413,29 @@ static const u8 lan937x_shifts[] = {
 };
 
 const struct ksz_chip_data ksz_switch_chips[] = {
+	[KSZ8563] = {
+		.chip_id = KSZ8563_CHIP_ID,
+		.dev_name = "KSZ8563",
+		.num_vlans = 4096,
+		.num_alus = 4096,
+		.num_statics = 16,
+		.cpu_ports = 0x07,	/* can be configured as cpu port */
+		.port_cnt = 3,		/* total port count */
+		.ops = &ksz9477_dev_ops,
+		.mib_names = ksz9477_mib_names,
+		.mib_cnt = ARRAY_SIZE(ksz9477_mib_names),
+		.reg_mib_cnt = MIB_COUNTER_NUM,
+		.regs = ksz9477_regs,
+		.masks = ksz9477_masks,
+		.shifts = ksz9477_shifts,
+		.xmii_ctrl0 = ksz9477_xmii_ctrl0,
+		.xmii_ctrl1 = ksz8795_xmii_ctrl1, /* Same as ksz8795 */
+		.supports_mii = {false, false, true},
+		.supports_rmii = {false, false, true},
+		.supports_rgmii = {false, false, true},
+		.internal_phy = {true, true, false},
+	},
+
 	[KSZ8795] = {
 		.chip_id = KSZ8795_CHIP_ID,
 		.dev_name = "KSZ8795",
@@ -1366,6 +1389,7 @@ static enum dsa_tag_protocol ksz_get_tag_protocol(struct dsa_switch *ds,
 		proto = DSA_TAG_PROTO_KSZ8795;
 
 	if (dev->chip_id == KSZ8830_CHIP_ID ||
+	    dev->chip_id == KSZ8563_CHIP_ID ||
 	    dev->chip_id == KSZ9893_CHIP_ID)
 		proto = DSA_TAG_PROTO_KSZ9893;
 
@@ -1685,7 +1709,7 @@ static void ksz_phylink_mac_link_up(struct dsa_switch *ds, int port,
 
 static int ksz_switch_detect(struct ksz_device *dev)
 {
-	u8 id1, id2;
+	u8 id1, id2, id4;
 	u16 id16;
 	u32 id32;
 	int ret;
@@ -1731,7 +1755,6 @@ static int ksz_switch_detect(struct ksz_device *dev)
 		switch (id32) {
 		case KSZ9477_CHIP_ID:
 		case KSZ9897_CHIP_ID:
-		case KSZ9893_CHIP_ID:
 		case KSZ9567_CHIP_ID:
 		case LAN9370_CHIP_ID:
 		case LAN9371_CHIP_ID:
@@ -1739,6 +1762,18 @@ static int ksz_switch_detect(struct ksz_device *dev)
 		case LAN9373_CHIP_ID:
 		case LAN9374_CHIP_ID:
 			dev->chip_id = id32;
+			break;
+		case KSZ9893_CHIP_ID:
+			ret = ksz_read8(dev, REG_CHIP_ID4,
+					&id4);
+			if (ret)
+				return ret;
+
+			if (id4 == SKU_ID_KSZ8563)
+				dev->chip_id = KSZ8563_CHIP_ID;
+			else
+				dev->chip_id = KSZ9893_CHIP_ID;
+
 			break;
 		default:
 			dev_err(dev->dev,
