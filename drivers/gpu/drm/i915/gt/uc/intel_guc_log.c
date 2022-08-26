@@ -79,9 +79,9 @@ static void _guc_log_init_sizes(struct intel_guc_log *log)
 		}
 	};
 	s32 params[GUC_LOG_SECTIONS_LIMIT] = {
-		i915->params.guc_log_size_crash,
-		i915->params.guc_log_size_debug,
-		i915->params.guc_log_size_capture,
+		GUC_LOG_DEFAULT_CRASH_BUFFER_SIZE / SZ_1M,
+		GUC_LOG_DEFAULT_DEBUG_BUFFER_SIZE / SZ_1M,
+		GUC_LOG_DEFAULT_CAPTURE_BUFFER_SIZE / SZ_1M,
 	};
 	int i;
 
@@ -90,7 +90,6 @@ static void _guc_log_init_sizes(struct intel_guc_log *log)
 
 	/* If debug size > 1MB then bump default crash size to keep the same units */
 	if (log->sizes[GUC_LOG_SECTIONS_DEBUG].bytes >= SZ_1M &&
-	    (i915->params.guc_log_size_crash == -1) &&
 	    GUC_LOG_DEFAULT_CRASH_BUFFER_SIZE < SZ_1M)
 		log->sizes[GUC_LOG_SECTIONS_CRASH].bytes = SZ_1M;
 

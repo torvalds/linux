@@ -61,9 +61,6 @@ struct drm_printer;
 	param(int, invert_brightness, 0, 0600) \
 	param(int, enable_guc, -1, 0400) \
 	param(int, guc_log_level, -1, 0400) \
-	param(int, guc_log_size_crash, -1, 0400) \
-	param(int, guc_log_size_debug, -1, 0400) \
-	param(int, guc_log_size_capture, -1, 0400) \
 	param(char *, guc_firmware_path, NULL, 0400) \
 	param(char *, huc_firmware_path, NULL, 0400) \
 	param(char *, dmc_firmware_path, NULL, 0400) \
