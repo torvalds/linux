@@ -1697,6 +1697,7 @@ fallback:
 		 */
 		__symbol__join_symfs(filename, filename_size, dso->long_name);
 
+		mutex_lock(&dso->lock);
 		if (access(filename, R_OK) && errno == ENOENT && dso->nsinfo) {
 			char *new_name = filename_with_chroot(dso->nsinfo->pid,
 							      filename);
@@ -1705,6 +1706,7 @@ fallback:
 				free(new_name);
 			}
 		}
+		mutex_unlock(&dso->lock);
 	}
 
 	free(build_id_path);
