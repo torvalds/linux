@@ -277,6 +277,7 @@ static void ksz9477_r_phy_quirks(struct ksz_device *dev, u16 addr, u16 reg,
 int ksz9477_r_phy(struct ksz_device *dev, u16 addr, u16 reg, u16 *data)
 {
 	u16 val = 0xffff;
+	int ret;
 
 	/* No real PHY after this. Simulate the PHY.
 	 * A fixed PHY can be setup in the device tree, but this function is
@@ -317,7 +318,10 @@ int ksz9477_r_phy(struct ksz_device *dev, u16 addr, u16 reg, u16 *data)
 			break;
 		}
 	} else {
-		ksz_pread16(dev, addr, 0x100 + (reg << 1), &val);
+		ret = ksz_pread16(dev, addr, 0x100 + (reg << 1), &val);
+		if (ret)
+			return ret;
+
 		ksz9477_r_phy_quirks(dev, addr, reg, &val);
 	}
 
@@ -334,11 +338,9 @@ int ksz9477_w_phy(struct ksz_device *dev, u16 addr, u16 reg, u16 val)
 
 	/* No gigabit support.  Do not write to this register. */
 	if (!dev->info->gbit_capable[addr] && reg == MII_CTRL1000)
-		return 0;
+		return -ENXIO;
 
-	ksz_pwrite16(dev, addr, 0x100 + (reg << 1), val);
-
-	return 0;
+	return ksz_pwrite16(dev, addr, 0x100 + (reg << 1), val);
 }
 
 void ksz9477_cfg_port_member(struct ksz_device *dev, int port, u8 member)
