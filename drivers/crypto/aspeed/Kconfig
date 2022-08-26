@@ -1,6 +1,6 @@
 config CRYPTO_DEV_ASPEED
 	tristate "Support for Aspeed cryptographic engine driver"
-	depends on ARCH_ASPEED
+	depends on ARCH_ASPEED || COMPILE_TEST
 	help
 	  Hash and Crypto Engine (HACE) is designed to accelerate the
 	  throughput of hash data digest, encryption and decryption.
