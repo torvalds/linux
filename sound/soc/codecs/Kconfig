@@ -610,7 +610,7 @@ config SND_SOC_BT_SCO
 
 config SND_SOC_CPCAP
 	tristate "Motorola CPCAP codec"
-	depends on MFD_CPCAP
+	depends on MFD_CPCAP || COMPILE_TEST
 
 config SND_SOC_CQ0093VC
 	tristate
@@ -972,7 +972,7 @@ config SND_SOC_LM49453
 
 config SND_SOC_LOCHNAGAR_SC
 	tristate "Lochnagar Sound Card"
-	depends on MFD_LOCHNAGAR
+	depends on MFD_LOCHNAGAR || COMPILE_TEST
 	help
 	  This driver support the sound card functionality of the Cirrus
 	  Logic Lochnagar audio development board.
@@ -1197,7 +1197,7 @@ config SND_SOC_RK3328
 
 config SND_SOC_RK817
 	tristate "Rockchip RK817 audio CODEC"
-	depends on MFD_RK808
+	depends on MFD_RK808 || COMPILE_TEST
 	select REGMAP_I2C
 
 config SND_SOC_RL6231
@@ -1745,7 +1745,7 @@ config SND_SOC_WCD934X
 	tristate "WCD9340/WCD9341 Codec"
 	depends on COMMON_CLK
 	select SND_SOC_WCD_MBHC
-	depends on MFD_WCD934X
+	depends on MFD_WCD934X || COMPILE_TEST
 	help
 	  The WCD9340/9341 is a audio codec IC Integrated in
 	  Qualcomm SoCs like SDM845.
