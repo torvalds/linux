@@ -77,6 +77,38 @@ extern char *__underlying_strncpy(char *p, const char *q, __kernel_size_t size) 
 #define POS	__pass_object_size(1)
 #define POS0	__pass_object_size(0)
 
+/**
+ * strncpy - Copy a string to memory with non-guaranteed NUL padding
+ *
+ * @p: pointer to destination of copy
+ * @q: pointer to NUL-terminated source string to copy
+ * @size: bytes to write at @p
+ *
+ * If strlen(@q) >= @size, the copy of @q will stop after @size bytes,
+ * and @p will NOT be NUL-terminated
+ *
+ * If strlen(@q) < @size, following the copy of @q, trailing NUL bytes
+ * will be written to @p until @size total bytes have been written.
+ *
+ * Do not use this function. While FORTIFY_SOURCE tries to avoid
+ * over-reads of @q, it cannot defend against writing unterminated
+ * results to @p. Using strncpy() remains ambiguous and fragile.
+ * Instead, please choose an alternative, so that the expectation
+ * of @p's contents is unambiguous:
+ *
+ * +--------------------+-----------------+------------+
+ * | @p needs to be:    | padded to @size | not padded |
+ * +====================+=================+============+
+ * |     NUL-terminated | strscpy_pad()   | strscpy()  |
+ * +--------------------+-----------------+------------+
+ * | not NUL-terminated | strtomem_pad()  | strtomem() |
+ * +--------------------+-----------------+------------+
+ *
+ * Note strscpy*()'s differing return values for detecting truncation,
+ * and strtomem*()'s expectation that the destination is marked with
+ * __nonstring when it is a character array.
+ *
+ */
 __FORTIFY_INLINE __diagnose_as(__builtin_strncpy, 1, 2, 3)
 char *strncpy(char * const POS p, const char *q, __kernel_size_t size)
 {
