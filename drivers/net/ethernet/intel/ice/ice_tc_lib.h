@@ -26,8 +26,14 @@
 #define ICE_TC_FLWR_FIELD_CVLAN			BIT(19)
 #define ICE_TC_FLWR_FIELD_PPPOE_SESSID		BIT(20)
 #define ICE_TC_FLWR_FIELD_PPP_PROTO		BIT(21)
+#define ICE_TC_FLWR_FIELD_IP_TOS		BIT(22)
+#define ICE_TC_FLWR_FIELD_IP_TTL		BIT(23)
+#define ICE_TC_FLWR_FIELD_ENC_IP_TOS		BIT(24)
+#define ICE_TC_FLWR_FIELD_ENC_IP_TTL		BIT(25)
 
 #define ICE_TC_FLOWER_MASK_32   0xFFFFFFFF
+
+#define ICE_IPV6_HDR_TC_MASK 0xFF00000
 
 struct ice_indr_block_priv {
 	struct net_device *netdev;
