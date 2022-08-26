@@ -956,7 +956,7 @@ static int io_sg_from_iter(struct sock *sk, struct sk_buff *skb,
 	shinfo->nr_frags = frag;
 	from->bvec += bi.bi_idx;
 	from->nr_segs -= bi.bi_idx;
-	from->count = bi.bi_size;
+	from->count -= copied;
 	from->iov_offset = bi.bi_bvec_done;
 
 	skb->data_len += copied;
