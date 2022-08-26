@@ -1069,7 +1069,6 @@ void ksz9477_config_cpu_port(struct dsa_switch *ds)
 
 			/* enable cpu port */
 			ksz9477_port_setup(dev, i, true);
-			p->on = 1;
 		}
 	}
 
@@ -1079,7 +1078,6 @@ void ksz9477_config_cpu_port(struct dsa_switch *ds)
 		p = &dev->ports[i];
 
 		ksz_port_stp_state_set(ds, i, BR_STATE_DISABLED);
-		p->on = 1;
 		if (dev->chip_id == 0x00947700 && i == 6) {
 			p->sgmii = 1;
 		}
