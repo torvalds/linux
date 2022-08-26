@@ -264,6 +264,16 @@ void ksz9477_port_init_cnt(struct ksz_device *dev, int port)
 	mutex_unlock(&mib->cnt_mutex);
 }
 
+static void ksz9477_r_phy_quirks(struct ksz_device *dev, u16 addr, u16 reg,
+				 u16 *data)
+{
+	/* KSZ8563R do not have extended registers but BMSR_ESTATEN and
+	 * BMSR_ERCAP bits are set.
+	 */
+	if (dev->chip_id == KSZ8563_CHIP_ID && reg == MII_BMSR)
+		*data &= ~(BMSR_ESTATEN | BMSR_ERCAP);
+}
+
 void ksz9477_r_phy(struct ksz_device *dev, u16 addr, u16 reg, u16 *data)
 {
 	u16 val = 0xffff;
@@ -308,6 +318,7 @@ void ksz9477_r_phy(struct ksz_device *dev, u16 addr, u16 reg, u16 *data)
 		}
 	} else {
 		ksz_pread16(dev, addr, 0x100 + (reg << 1), &val);
+		ksz9477_r_phy_quirks(dev, addr, reg, &val);
 	}
 
 	*data = val;
