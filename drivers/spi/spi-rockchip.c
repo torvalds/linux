@@ -1122,8 +1122,15 @@ static const struct dev_pm_ops rockchip_spi_pm = {
 			   rockchip_spi_runtime_resume, NULL)
 };
 
+static const struct rockchip_spi_quirks rockchip_spi_quirks_cfg = {
+	.max_baud_div_in_cpha	= 4,
+};
+
 static const struct of_device_id rockchip_spi_dt_match[] = {
-	{ .compatible = "rockchip,px30-spi", },
+	{
+		.compatible = "rockchip,px30-spi",
+		.data = &rockchip_spi_quirks_cfg,
+	},
 	{ .compatible = "rockchip,rk3036-spi", },
 	{ .compatible = "rockchip,rk3066-spi", },
 	{ .compatible = "rockchip,rk3188-spi", },
