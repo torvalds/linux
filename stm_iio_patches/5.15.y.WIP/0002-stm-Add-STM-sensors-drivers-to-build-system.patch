@@ -1,0 +1,34 @@
+From 7c1c2733aab26eb55a95540696d924c4b86cef22 Mon Sep 17 00:00:00 2001
+From: Denis Ciocca <denis.ciocca@st.com>
+Date: Thu, 2 Sep 2021 10:13:15 -0700
+Subject: [PATCH 2/3] Add STM sensors drivers to build system
+
+Signed-off-by: Denis Ciocca <denis.ciocca@st.com>
+---
+ drivers/iio/Kconfig  | 1 +
+ drivers/iio/Makefile | 1 +
+ 2 files changed, 2 insertions(+)
+
+diff --git a/drivers/iio/Kconfig b/drivers/iio/Kconfig
+index 2334ad249b46..ebb5fe2f4473 100644
+--- a/drivers/iio/Kconfig
++++ b/drivers/iio/Kconfig
+@@ -97,5 +97,6 @@ source "drivers/iio/pressure/Kconfig"
+ source "drivers/iio/proximity/Kconfig"
+ source "drivers/iio/resolver/Kconfig"
+ source "drivers/iio/temperature/Kconfig"
++source "drivers/iio/stm/Kconfig"
+ 
+ endif # IIO
+diff --git a/drivers/iio/Makefile b/drivers/iio/Makefile
+index 65e39bd4f934..c96ed231d22a 100644
+--- a/drivers/iio/Makefile
++++ b/drivers/iio/Makefile
+@@ -41,3 +41,4 @@ obj-y += resolver/
+ obj-y += temperature/
+ obj-y += test/
+ obj-y += trigger/
++obj-y += stm/
+-- 
+2.25.1
+

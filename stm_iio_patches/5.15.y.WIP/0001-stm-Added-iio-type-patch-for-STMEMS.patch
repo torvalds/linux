@@ -1,0 +1,49 @@
+From b33998f4362832bf9e49a8252d4ddba493ed399c Mon Sep 17 00:00:00 2001
+From: mario tesi <mario.tesi@st.com>
+Date: Thu, 2 Sep 2021 14:04:40 +0200
+Subject: [PATCH 1/3] Added iio type patch for STMEMS
+
+Signed-off-by: mario tesi <mario.tesi@st.com>
+---
+ include/uapi/linux/iio/types.h | 11 +++++++++++
+ 1 file changed, 11 insertions(+)
+
+diff --git a/include/uapi/linux/iio/types.h b/include/uapi/linux/iio/types.h
+index 48c13147c0a8..b31c0fddba0a 100644
+--- a/include/uapi/linux/iio/types.h
++++ b/include/uapi/linux/iio/types.h
+@@ -43,6 +43,14 @@ enum iio_chan_type {
+ 	IIO_ELECTRICALCONDUCTIVITY,
+ 	IIO_COUNT,
+ 	IIO_INDEX,
++	IIO_SIGN_MOTION,
++	IIO_STEP_DETECTOR,
++	IIO_STEP_COUNTER,
++	IIO_TILT,
++	IIO_TAP,
++	IIO_TAP_TAP,
++	IIO_WRIST_TILT_GESTURE,
++	IIO_GESTURE,
+ 	IIO_GRAVITY,
+ 	IIO_POSITIONRELATIVE,
+ 	IIO_PHASE,
+@@ -104,6 +112,7 @@ enum iio_event_type {
+ 	IIO_EV_TYPE_THRESH_ADAPTIVE,
+ 	IIO_EV_TYPE_MAG_ADAPTIVE,
+ 	IIO_EV_TYPE_CHANGE,
++	IIO_EV_TYPE_FIFO_FLUSH,
+ };
+ 
+ enum iio_event_direction {
+@@ -111,6 +120,8 @@ enum iio_event_direction {
+ 	IIO_EV_DIR_RISING,
+ 	IIO_EV_DIR_FALLING,
+ 	IIO_EV_DIR_NONE,
++	IIO_EV_DIR_FIFO_EMPTY,
++	IIO_EV_DIR_FIFO_DATA,
+ };
+ 
+ #endif /* _UAPI_IIO_TYPES_H_ */
+-- 
+2.25.1
+
