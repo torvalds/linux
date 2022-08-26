@@ -1014,9 +1014,19 @@ fail_input:
 	rfkill_cleanup();
 
 fail_rfkill:
-
 	return result;
+}
 
+static void msi_scm_model_exit(void)
+{
+	if (!quirks->load_scm_model)
+		return;
+
+	i8042_remove_filter(msi_laptop_i8042_filter);
+	cancel_delayed_work_sync(&msi_touchpad_dwork);
+	input_unregister_device(msi_laptop_input_dev);
+	cancel_delayed_work_sync(&msi_rfkill_dwork);
+	rfkill_cleanup();
 }
 
 static int __init msi_init(void)
@@ -1104,13 +1114,7 @@ static int __init msi_init(void)
 fail_create_attr:
 	sysfs_remove_group(&msipf_device->dev.kobj, &msipf_attribute_group);
 fail_create_group:
-	if (quirks->load_scm_model) {
-		i8042_remove_filter(msi_laptop_i8042_filter);
-		cancel_delayed_work_sync(&msi_touchpad_dwork);
-		input_unregister_device(msi_laptop_input_dev);
-		cancel_delayed_work_sync(&msi_rfkill_dwork);
-		rfkill_cleanup();
-	}
+	msi_scm_model_exit();
 fail_scm_model_init:
 	platform_device_del(msipf_device);
 fail_device_add:
@@ -1125,14 +1129,7 @@ fail_backlight:
 
 static void __exit msi_cleanup(void)
 {
-	if (quirks->load_scm_model) {
-		i8042_remove_filter(msi_laptop_i8042_filter);
-		cancel_delayed_work_sync(&msi_touchpad_dwork);
-		input_unregister_device(msi_laptop_input_dev);
-		cancel_delayed_work_sync(&msi_rfkill_dwork);
-		rfkill_cleanup();
-	}
-
+	msi_scm_model_exit();
 	sysfs_remove_group(&msipf_device->dev.kobj, &msipf_attribute_group);
 	if (!quirks->old_ec_model && threeg_exists)
 		device_remove_file(&msipf_device->dev, &dev_attr_threeg);
