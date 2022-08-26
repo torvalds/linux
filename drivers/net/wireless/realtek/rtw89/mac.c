@@ -1745,7 +1745,7 @@ static int addr_cam_init(struct rtw89_dev *rtwdev, u8 mac_idx)
 	rtw89_write32(rtwdev, reg, val);
 
 	ret = read_poll_timeout(rtw89_read16, p_val, !(p_val & B_AX_ADDR_CAM_CLR),
-				1, TRXCFG_WAIT_CNT, false, rtwdev, B_AX_ADDR_CAM_CLR);
+				1, TRXCFG_WAIT_CNT, false, rtwdev, reg);
 	if (ret) {
 		rtw89_err(rtwdev, "[ERR]ADDR_CAM reset\n");
 		return ret;
