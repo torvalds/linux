@@ -717,6 +717,63 @@ tcp_in_window(struct nf_conn *ct, enum ip_conntrack_dir dir,
 	return NFCT_TCP_ACCEPT;
 }
 
+static void __cold nf_tcp_handle_invalid(struct nf_conn *ct,
+					 enum ip_conntrack_dir dir,
+					 int index,
+					 const struct sk_buff *skb,
+					 const struct nf_hook_state *hook_state)
+{
+	const unsigned int *timeouts;
+	const struct nf_tcp_net *tn;
+	unsigned int timeout;
+	u32 expires;
+
+	if (!test_bit(IPS_ASSURED_BIT, &ct->status) ||
+	    test_bit(IPS_FIXED_TIMEOUT_BIT, &ct->status))
+		return;
+
+	/* We don't want to have connections hanging around in ESTABLISHED
+	 * state for long time 'just because' conntrack deemed a FIN/RST
+	 * out-of-window.
+	 *
+	 * Shrink the timeout just like when there is unacked data.
+	 * This speeds up eviction of 'dead' connections where the
+	 * connection and conntracks internal state are out of sync.
+	 */
+	switch (index) {
+	case TCP_RST_SET:
+	case TCP_FIN_SET:
+		break;
+	default:
+		return;
+	}
+
+	if (ct->proto.tcp.last_dir != dir &&
+	    (ct->proto.tcp.last_index == TCP_FIN_SET ||
+	     ct->proto.tcp.last_index == TCP_RST_SET)) {
+		expires = nf_ct_expires(ct);
+		if (expires < 120 * HZ)
+			return;
+
+		tn = nf_tcp_pernet(nf_ct_net(ct));
+		timeouts = nf_ct_timeout_lookup(ct);
+		if (!timeouts)
+			timeouts = tn->timeouts;
+
+		timeout = READ_ONCE(timeouts[TCP_CONNTRACK_UNACK]);
+		if (expires > timeout) {
+			nf_ct_l4proto_log_invalid(skb, ct, hook_state,
+					  "packet (index %d, dir %d) response for index %d lower timeout to %u",
+					  index, dir, ct->proto.tcp.last_index, timeout);
+
+			WRITE_ONCE(ct->timeout, timeout + nfct_time_stamp);
+		}
+	} else {
+		ct->proto.tcp.last_index = index;
+		ct->proto.tcp.last_dir = dir;
+	}
+}
+
 /* table of valid flag combinations - PUSH, ECE and CWR are always valid */
 static const u8 tcp_valid_flags[(TCPHDR_FIN|TCPHDR_SYN|TCPHDR_RST|TCPHDR_ACK|
 				 TCPHDR_URG) + 1] =
@@ -1149,6 +1206,7 @@ int nf_conntrack_tcp_packet(struct nf_conn *ct,
 		spin_unlock_bh(&ct->lock);
 		return NF_ACCEPT;
 	case NFCT_TCP_INVALID:
+		nf_tcp_handle_invalid(ct, dir, index, skb, state);
 		spin_unlock_bh(&ct->lock);
 		return -NF_ACCEPT;
 	case NFCT_TCP_ACCEPT:
