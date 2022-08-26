@@ -820,6 +820,7 @@ static int wm8960_hw_params(struct snd_pcm_substream *substream,
 	int freq_out, freq_in;
 	int i, j, k;
 	u16 word_length = 0;
+	int ret;
 
 	wm8960->bclk = snd_soc_params_to_bclk(params);
 	if (params_channels(params) == 1)
@@ -956,8 +957,18 @@ static int wm8960_hw_params(struct snd_pcm_substream *substream,
 
 	wm8960->is_stream_in_use[tx] = true;
 
-	if (!wm8960->is_stream_in_use[!tx])
-		return wm8960_configure_clocking(component);
+	if (!wm8960->is_stream_in_use[!tx]) {
+		ret = wm8960_configure_clocking(component);
+		if (ret)
+			return ret;
+	}
+
+	if (tx) {
+		snd_soc_component_update_bits(component, WM8960_POWER3, 0xc, 0xc);
+		msleep(100);
+		snd_soc_component_update_bits(component, WM8960_POWER2, 0x1e0, 0x1e0);
+		msleep(100);
+	}
 
 	return 0;
 }
@@ -969,6 +980,8 @@ static int wm8960_hw_free(struct snd_pcm_substream *substream,
 	struct wm8960_priv *wm8960 = snd_soc_component_get_drvdata(component);
 	bool tx = substream->stream == SNDRV_PCM_STREAM_PLAYBACK;
 
+	if (tx)
+		snd_soc_component_update_bits(component, WM8960_POWER2, 0x1e0, 0);
 	wm8960->is_stream_in_use[tx] = false;
 
 	return 0;
@@ -1013,6 +1026,8 @@ static int wm8960_set_bias_level_out3(struct snd_soc_component *component,
 			if (ret)
 				return ret;
 
+			snd_soc_component_update_bits(component, WM8960_POWER3, 0xc, 0xc);
+			msleep(100);
 			/* Set VMID to 2x50k */
 			snd_soc_component_update_bits(component, WM8960_POWER1, 0x180, 0x80);
 			break;
