@@ -320,7 +320,7 @@ void ksz9477_w_phy(struct ksz_device *dev, u16 addr, u16 reg, u16 val)
 		return;
 
 	/* No gigabit support.  Do not write to this register. */
-	if (!(dev->features & GBIT_SUPPORT) && reg == MII_CTRL1000)
+	if (!dev->info->gbit_capable[addr] && reg == MII_CTRL1000)
 		return;
 
 	ksz_pwrite16(dev, addr, 0x100 + (reg << 1), val);
@@ -914,7 +914,7 @@ static void ksz9477_phy_errata_setup(struct ksz_device *dev, int port)
 	/* Energy Efficient Ethernet (EEE) feature select must
 	 * be manually disabled (except on KSZ8565 which is 100Mbit)
 	 */
-	if (dev->features & GBIT_SUPPORT)
+	if (dev->info->gbit_capable[port])
 		ksz9477_port_mmd_write(dev, port, 0x07, 0x3c, 0x0000);
 
 	/* Register settings are required to meet data sheet
@@ -941,7 +941,7 @@ void ksz9477_get_caps(struct ksz_device *dev, int port,
 	config->mac_capabilities = MAC_10 | MAC_100 | MAC_ASYM_PAUSE |
 				   MAC_SYM_PAUSE;
 
-	if (dev->features & GBIT_SUPPORT)
+	if (dev->info->gbit_capable[port])
 		config->mac_capabilities |= MAC_1000FD;
 }
 
@@ -1158,27 +1158,13 @@ int ksz9477_switch_init(struct ksz_device *dev)
 	if (ret)
 		return ret;
 
-	ret = ksz_read8(dev, REG_GLOBAL_OPTIONS, &data8);
-	if (ret)
-		return ret;
-
 	/* Number of ports can be reduced depending on chip. */
 	dev->phy_port_cnt = 5;
-
-	/* Default capability is gigabit capable. */
-	dev->features = GBIT_SUPPORT;
 
 	if (dev->chip_id == KSZ9893_CHIP_ID) {
 		dev->features |= IS_9893;
 
-		/* Chip does not support gigabit. */
-		if (data8 & SW_QW_ABLE)
-			dev->features &= ~GBIT_SUPPORT;
 		dev->phy_port_cnt = 2;
-	} else {
-		/* Chip does not support gigabit. */
-		if (!(data8 & SW_GIGABIT_ABLE))
-			dev->features &= ~GBIT_SUPPORT;
 	}
 
 	return 0;

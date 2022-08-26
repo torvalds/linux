@@ -61,6 +61,7 @@ struct ksz_chip_data {
 	bool supports_rmii[KSZ_MAX_NUM_PORTS];
 	bool supports_rgmii[KSZ_MAX_NUM_PORTS];
 	bool internal_phy[KSZ_MAX_NUM_PORTS];
+	bool gbit_capable[KSZ_MAX_NUM_PORTS];
 };
 
 struct ksz_port {
@@ -504,7 +505,6 @@ static inline int is_lan937x(struct ksz_device *dev)
 #define SW_START			0x01
 
 /* Used with variable features to indicate capabilities. */
-#define GBIT_SUPPORT			BIT(0)
 #define IS_9893				BIT(2)
 
 /* xMII configuration */

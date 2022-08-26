@@ -434,6 +434,7 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.supports_rmii = {false, false, true},
 		.supports_rgmii = {false, false, true},
 		.internal_phy = {true, true, false},
+		.gbit_capable = {false, false, true},
 	},
 
 	[KSZ8795] = {
@@ -568,6 +569,7 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 				   false, true, false},
 		.internal_phy	= {true, true, true, true,
 				   true, false, false},
+		.gbit_capable	= {true, true, true, true, true, true, true},
 	},
 
 	[KSZ9897] = {
@@ -596,6 +598,7 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 				   false, true, true},
 		.internal_phy	= {true, true, true, true,
 				   true, false, false},
+		.gbit_capable	= {true, true, true, true, true, true, true},
 	},
 
 	[KSZ9893] = {
@@ -619,6 +622,7 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.supports_rmii = {false, false, true},
 		.supports_rgmii = {false, false, true},
 		.internal_phy = {true, true, false},
+		.gbit_capable = {true, true, true},
 	},
 
 	[KSZ9567] = {
@@ -647,6 +651,7 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 				   false, true, true},
 		.internal_phy	= {true, true, true, true,
 				   true, false, false},
+		.gbit_capable	= {true, true, true, true, true, true, true},
 	},
 
 	[LAN9370] = {
