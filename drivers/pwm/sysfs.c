@@ -42,7 +42,7 @@ static ssize_t period_show(struct device *child,
 
 	pwm_get_state(pwm, &state);
 
-	return sprintf(buf, "%llu\n", state.period);
+	return sysfs_emit(buf, "%llu\n", state.period);
 }
 
 static ssize_t period_store(struct device *child,
@@ -77,7 +77,7 @@ static ssize_t duty_cycle_show(struct device *child,
 
 	pwm_get_state(pwm, &state);
 
-	return sprintf(buf, "%llu\n", state.duty_cycle);
+	return sysfs_emit(buf, "%llu\n", state.duty_cycle);
 }
 
 static ssize_t duty_cycle_store(struct device *child,
@@ -112,7 +112,7 @@ static ssize_t enable_show(struct device *child,
 
 	pwm_get_state(pwm, &state);
 
-	return sprintf(buf, "%d\n", state.enabled);
+	return sysfs_emit(buf, "%d\n", state.enabled);
 }
 
 static ssize_t enable_store(struct device *child,
@@ -171,7 +171,7 @@ static ssize_t polarity_show(struct device *child,
 		break;
 	}
 
-	return sprintf(buf, "%s\n", polarity);
+	return sysfs_emit(buf, "%s\n", polarity);
 }
 
 static ssize_t polarity_store(struct device *child,
@@ -212,7 +212,7 @@ static ssize_t capture_show(struct device *child,
 	if (ret)
 		return ret;
 
-	return sprintf(buf, "%u %u\n", result.period, result.duty_cycle);
+	return sysfs_emit(buf, "%u %u\n", result.period, result.duty_cycle);
 }
 
 static DEVICE_ATTR_RW(period);
@@ -361,7 +361,7 @@ static ssize_t npwm_show(struct device *parent, struct device_attribute *attr,
 {
 	const struct pwm_chip *chip = dev_get_drvdata(parent);
 
-	return sprintf(buf, "%u\n", chip->npwm);
+	return sysfs_emit(buf, "%u\n", chip->npwm);
 }
 static DEVICE_ATTR_RO(npwm);
 
