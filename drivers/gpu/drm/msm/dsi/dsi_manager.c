@@ -141,14 +141,11 @@ static int enable_phy(struct msm_dsi *msm_dsi,
 		      struct msm_dsi_phy_shared_timings *shared_timings)
 {
 	struct msm_dsi_phy_clk_request clk_req;
-	int ret;
 	bool is_bonded_dsi = IS_BONDED_DSI();
 
 	msm_dsi_host_get_phy_clk_req(msm_dsi->host, &clk_req, is_bonded_dsi);
 
-	ret = msm_dsi_phy_enable(msm_dsi->phy, &clk_req, shared_timings);
-
-	return ret;
+	return msm_dsi_phy_enable(msm_dsi->phy, &clk_req, shared_timings);
 }
 
 static int
