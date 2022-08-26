@@ -701,14 +701,13 @@ err_regulator:
 	return ret;
 }
 
-static int max9860_remove(struct i2c_client *i2c)
+static void max9860_remove(struct i2c_client *i2c)
 {
 	struct device *dev = &i2c->dev;
 	struct max9860_priv *max9860 = dev_get_drvdata(dev);
 
 	pm_runtime_disable(dev);
 	regulator_disable(max9860->dvddio);
-	return 0;
 }
 
 static const struct i2c_device_id max9860_i2c_id[] = {

@@ -350,7 +350,7 @@ error_unconfigure_buffer:
 	return ret;
 }
 
-static int itg3200_remove(struct i2c_client *client)
+static void itg3200_remove(struct i2c_client *client)
 {
 	struct iio_dev *indio_dev = i2c_get_clientdata(client);
 
@@ -360,8 +360,6 @@ static int itg3200_remove(struct i2c_client *client)
 		itg3200_remove_trigger(indio_dev);
 
 	itg3200_buffer_unconfigure(indio_dev);
-
-	return 0;
 }
 
 static int itg3200_suspend(struct device *dev)

@@ -738,11 +738,9 @@ static int stmfts_probe(struct i2c_client *client,
 	return 0;
 }
 
-static int stmfts_remove(struct i2c_client *client)
+static void stmfts_remove(struct i2c_client *client)
 {
 	pm_runtime_disable(&client->dev);
-
-	return 0;
 }
 
 static int __maybe_unused stmfts_runtime_suspend(struct device *dev)

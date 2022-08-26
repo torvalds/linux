@@ -778,7 +778,7 @@ err_irq:
 	return ret;
 }
 
-static int rk808_remove(struct i2c_client *client)
+static void rk808_remove(struct i2c_client *client)
 {
 	struct rk808 *rk808 = i2c_get_clientdata(client);
 
@@ -792,8 +792,6 @@ static int rk808_remove(struct i2c_client *client)
 		pm_power_off = NULL;
 
 	unregister_restart_handler(&rk808_restart_handler);
-
-	return 0;
 }
 
 static int __maybe_unused rk8xx_suspend(struct device *dev)

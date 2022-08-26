@@ -228,11 +228,10 @@ static int ds1682_probe(struct i2c_client *client,
 	return rc;
 }
 
-static int ds1682_remove(struct i2c_client *client)
+static void ds1682_remove(struct i2c_client *client)
 {
 	sysfs_remove_bin_file(&client->dev.kobj, &ds1682_eeprom_attr);
 	sysfs_remove_group(&client->dev.kobj, &ds1682_group);
-	return 0;
 }
 
 static const struct i2c_device_id ds1682_id[] = {

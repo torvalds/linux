@@ -1541,7 +1541,7 @@ free_i2c_dummy:
 	return ret;
 }
 
-static int anx7411_i2c_remove(struct i2c_client *client)
+static void anx7411_i2c_remove(struct i2c_client *client)
 {
 	struct anx7411_data *plat = i2c_get_clientdata(client);
 
@@ -1565,8 +1565,6 @@ static int anx7411_i2c_remove(struct i2c_client *client)
 		typec_unregister_port(plat->typec.port);
 
 	anx7411_port_unregister_altmodes(plat->typec.port_amode);
-
-	return 0;
 }
 
 static const struct i2c_device_id anx7411_id[] = {

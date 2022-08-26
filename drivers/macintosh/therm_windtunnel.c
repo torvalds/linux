@@ -334,7 +334,7 @@ static void do_attach(struct i2c_adapter *adapter)
 	}
 }
 
-static int
+static void
 do_remove(struct i2c_client *client)
 {
 	if (x.running) {
@@ -348,8 +348,6 @@ do_remove(struct i2c_client *client)
 		x.fan = NULL;
 	else
 		printk(KERN_ERR "g4fan: bad client\n");
-
-	return 0;
 }
 
 static int

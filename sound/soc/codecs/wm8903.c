@@ -2182,7 +2182,7 @@ err:
 	return ret;
 }
 
-static int wm8903_i2c_remove(struct i2c_client *client)
+static void wm8903_i2c_remove(struct i2c_client *client)
 {
 	struct wm8903_priv *wm8903 = i2c_get_clientdata(client);
 
@@ -2191,8 +2191,6 @@ static int wm8903_i2c_remove(struct i2c_client *client)
 	if (client->irq)
 		free_irq(client->irq, wm8903);
 	wm8903_free_gpio(wm8903);
-
-	return 0;
 }
 
 static const struct of_device_id wm8903_of_match[] = {

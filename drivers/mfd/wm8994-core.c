@@ -657,13 +657,11 @@ static int wm8994_i2c_probe(struct i2c_client *i2c,
 	return wm8994_device_init(wm8994, i2c->irq);
 }
 
-static int wm8994_i2c_remove(struct i2c_client *i2c)
+static void wm8994_i2c_remove(struct i2c_client *i2c)
 {
 	struct wm8994 *wm8994 = i2c_get_clientdata(i2c);
 
 	wm8994_device_exit(wm8994);
-
-	return 0;
 }
 
 static const struct i2c_device_id wm8994_i2c_id[] = {

@@ -478,14 +478,12 @@ static int tda9950_probe(struct i2c_client *client,
 	return 0;
 }
 
-static int tda9950_remove(struct i2c_client *client)
+static void tda9950_remove(struct i2c_client *client)
 {
 	struct tda9950_priv *priv = i2c_get_clientdata(client);
 
 	cec_notifier_cec_adap_unregister(priv->notify, priv->adap);
 	cec_unregister_adapter(priv->adap);
-
-	return 0;
 }
 
 static struct i2c_device_id tda9950_ids[] = {

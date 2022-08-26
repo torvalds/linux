@@ -417,11 +417,9 @@ fail:
 	return -ENODEV;
 }
 
-static int ch7006_remove(struct i2c_client *client)
+static void ch7006_remove(struct i2c_client *client)
 {
 	ch7006_dbg(client, "\n");
-
-	return 0;
 }
 
 static int ch7006_resume(struct device *dev)

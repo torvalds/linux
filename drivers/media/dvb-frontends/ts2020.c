@@ -696,7 +696,7 @@ err:
 	return ret;
 }
 
-static int ts2020_remove(struct i2c_client *client)
+static void ts2020_remove(struct i2c_client *client)
 {
 	struct ts2020_priv *dev = i2c_get_clientdata(client);
 
@@ -708,7 +708,6 @@ static int ts2020_remove(struct i2c_client *client)
 
 	regmap_exit(dev->regmap);
 	kfree(dev);
-	return 0;
 }
 
 static const struct i2c_device_id ts2020_id_table[] = {

@@ -1403,7 +1403,7 @@ out_ucsi_destroy:
 	return status;
 }
 
-static int ucsi_ccg_remove(struct i2c_client *client)
+static void ucsi_ccg_remove(struct i2c_client *client)
 {
 	struct ucsi_ccg *uc = i2c_get_clientdata(client);
 
@@ -1413,8 +1413,6 @@ static int ucsi_ccg_remove(struct i2c_client *client)
 	ucsi_unregister(uc->ucsi);
 	ucsi_destroy(uc->ucsi);
 	free_irq(uc->irq, uc);
-
-	return 0;
 }
 
 static const struct i2c_device_id ucsi_ccg_device_id[] = {

@@ -1163,7 +1163,7 @@ err:
 	return ret;
 }
 
-static int af9033_remove(struct i2c_client *client)
+static void af9033_remove(struct i2c_client *client)
 {
 	struct af9033_dev *dev = i2c_get_clientdata(client);
 
@@ -1171,8 +1171,6 @@ static int af9033_remove(struct i2c_client *client)
 
 	regmap_exit(dev->regmap);
 	kfree(dev);
-
-	return 0;
 }
 
 static const struct i2c_device_id af9033_id_table[] = {

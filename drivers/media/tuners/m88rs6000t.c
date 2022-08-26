@@ -697,7 +697,7 @@ err:
 	return ret;
 }
 
-static int m88rs6000t_remove(struct i2c_client *client)
+static void m88rs6000t_remove(struct i2c_client *client)
 {
 	struct m88rs6000t_dev *dev = i2c_get_clientdata(client);
 	struct dvb_frontend *fe = dev->cfg.fe;
@@ -707,8 +707,6 @@ static int m88rs6000t_remove(struct i2c_client *client)
 	memset(&fe->ops.tuner_ops, 0, sizeof(struct dvb_tuner_ops));
 	fe->tuner_priv = NULL;
 	kfree(dev);
-
-	return 0;
 }
 
 static const struct i2c_device_id m88rs6000t_id[] = {

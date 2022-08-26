@@ -986,7 +986,7 @@ out:
 	return rc;
 }
 
-static int mctp_i2c_remove(struct i2c_client *client)
+static void mctp_i2c_remove(struct i2c_client *client)
 {
 	struct mctp_i2c_client *mcli = i2c_get_clientdata(client);
 	struct mctp_i2c_dev *midev = NULL, *tmp = NULL;
@@ -999,8 +999,6 @@ static int mctp_i2c_remove(struct i2c_client *client)
 
 	mctp_i2c_free_client(mcli);
 	mutex_unlock(&driver_clients_lock);
-	/* Callers ignore return code */
-	return 0;
 }
 
 /* We look for a 'mctp-controller' property on I2C busses as they are

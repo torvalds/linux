@@ -583,7 +583,7 @@ out_init:
 	return ret;
 }
 
-static int pm800_remove(struct i2c_client *client)
+static void pm800_remove(struct i2c_client *client)
 {
 	struct pm80x_chip *chip = i2c_get_clientdata(client);
 
@@ -592,8 +592,6 @@ static int pm800_remove(struct i2c_client *client)
 
 	pm800_pages_exit(chip);
 	pm80x_deinit();
-
-	return 0;
 }
 
 static struct i2c_driver pm800_driver = {

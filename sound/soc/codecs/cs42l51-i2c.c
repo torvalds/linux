@@ -28,11 +28,9 @@ static int cs42l51_i2c_probe(struct i2c_client *i2c)
 	return cs42l51_probe(&i2c->dev, devm_regmap_init_i2c(i2c, &config));
 }
 
-static int cs42l51_i2c_remove(struct i2c_client *i2c)
+static void cs42l51_i2c_remove(struct i2c_client *i2c)
 {
 	cs42l51_remove(&i2c->dev);
-
-	return 0;
 }
 
 static const struct dev_pm_ops cs42l51_pm_ops = {

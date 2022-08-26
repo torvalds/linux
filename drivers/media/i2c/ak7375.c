@@ -169,7 +169,7 @@ err_cleanup:
 	return ret;
 }
 
-static int ak7375_remove(struct i2c_client *client)
+static void ak7375_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 	struct ak7375_device *ak7375_dev = sd_to_ak7375_vcm(sd);
@@ -177,8 +177,6 @@ static int ak7375_remove(struct i2c_client *client)
 	ak7375_subdev_cleanup(ak7375_dev);
 	pm_runtime_disable(&client->dev);
 	pm_runtime_set_suspended(&client->dev);
-
-	return 0;
 }
 
 /*

@@ -978,7 +978,7 @@ err_of_put:
 	return ret;
 }
 
-static int lt9611uxc_remove(struct i2c_client *client)
+static void lt9611uxc_remove(struct i2c_client *client)
 {
 	struct lt9611uxc *lt9611uxc = i2c_get_clientdata(client);
 
@@ -993,8 +993,6 @@ static int lt9611uxc_remove(struct i2c_client *client)
 
 	of_node_put(lt9611uxc->dsi1_node);
 	of_node_put(lt9611uxc->dsi0_node);
-
-	return 0;
 }
 
 static struct i2c_device_id lt9611uxc_id[] = {

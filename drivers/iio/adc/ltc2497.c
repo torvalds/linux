@@ -74,13 +74,11 @@ static int ltc2497_probe(struct i2c_client *client,
 	return ltc2497core_probe(dev, indio_dev);
 }
 
-static int ltc2497_remove(struct i2c_client *client)
+static void ltc2497_remove(struct i2c_client *client)
 {
 	struct iio_dev *indio_dev = i2c_get_clientdata(client);
 
 	ltc2497core_remove(indio_dev);
-
-	return 0;
 }
 
 static const struct i2c_device_id ltc2497_id[] = {

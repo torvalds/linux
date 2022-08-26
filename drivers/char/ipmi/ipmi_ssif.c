@@ -1281,13 +1281,13 @@ static void shutdown_ssif(void *send_info)
 	}
 }
 
-static int ssif_remove(struct i2c_client *client)
+static void ssif_remove(struct i2c_client *client)
 {
 	struct ssif_info *ssif_info = i2c_get_clientdata(client);
 	struct ssif_addr_info *addr_info;
 
 	if (!ssif_info)
-		return 0;
+		return;
 
 	/*
 	 * After this point, we won't deliver anything asychronously
@@ -1303,8 +1303,6 @@ static int ssif_remove(struct i2c_client *client)
 	}
 
 	kfree(ssif_info);
-
-	return 0;
 }
 
 static int read_response(struct i2c_client *client, unsigned char *resp)

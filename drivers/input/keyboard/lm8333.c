@@ -200,15 +200,13 @@ static int lm8333_probe(struct i2c_client *client,
 	return err;
 }
 
-static int lm8333_remove(struct i2c_client *client)
+static void lm8333_remove(struct i2c_client *client)
 {
 	struct lm8333 *lm8333 = i2c_get_clientdata(client);
 
 	free_irq(client->irq, lm8333);
 	input_unregister_device(lm8333->input);
 	kfree(lm8333);
-
-	return 0;
 }
 
 static const struct i2c_device_id lm8333_id[] = {

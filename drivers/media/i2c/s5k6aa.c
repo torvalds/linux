@@ -1621,15 +1621,13 @@ out_err:
 	return ret;
 }
 
-static int s5k6aa_remove(struct i2c_client *client)
+static void s5k6aa_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 
 	v4l2_device_unregister_subdev(sd);
 	v4l2_ctrl_handler_free(sd->ctrl_handler);
 	media_entity_cleanup(&sd->entity);
-
-	return 0;
 }
 
 static const struct i2c_device_id s5k6aa_id[] = {

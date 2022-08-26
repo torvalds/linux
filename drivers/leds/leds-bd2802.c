@@ -722,7 +722,7 @@ failed_unregister_dev_file:
 	return ret;
 }
 
-static int bd2802_remove(struct i2c_client *client)
+static void bd2802_remove(struct i2c_client *client)
 {
 	struct bd2802_led *led = i2c_get_clientdata(client);
 	int i;
@@ -733,8 +733,6 @@ static int bd2802_remove(struct i2c_client *client)
 		bd2802_disable_adv_conf(led);
 	for (i = 0; i < ARRAY_SIZE(bd2802_attributes); i++)
 		device_remove_file(&led->client->dev, bd2802_attributes[i]);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP

@@ -2440,7 +2440,7 @@ check_hwcfg_error:
 	return ret;
 }
 
-static int ov8856_remove(struct i2c_client *client)
+static void ov8856_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 	struct ov8856 *ov8856 = to_ov8856(sd);
@@ -2452,8 +2452,6 @@ static int ov8856_remove(struct i2c_client *client)
 	mutex_destroy(&ov8856->mutex);
 
 	__ov8856_power_off(ov8856);
-
-	return 0;
 }
 
 static int ov8856_probe(struct i2c_client *client)

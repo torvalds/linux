@@ -1072,13 +1072,11 @@ static int tc358768_i2c_probe(struct i2c_client *client,
 	return mipi_dsi_host_register(&priv->dsi_host);
 }
 
-static int tc358768_i2c_remove(struct i2c_client *client)
+static void tc358768_i2c_remove(struct i2c_client *client)
 {
 	struct tc358768_priv *priv = i2c_get_clientdata(client);
 
 	mipi_dsi_host_unregister(&priv->dsi_host);
-
-	return 0;
 }
 
 static struct i2c_driver tc358768_driver = {

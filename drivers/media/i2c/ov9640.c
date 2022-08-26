@@ -744,15 +744,13 @@ ectrlinit:
 	return ret;
 }
 
-static int ov9640_remove(struct i2c_client *client)
+static void ov9640_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 	struct ov9640_priv *priv = to_ov9640_sensor(sd);
 
 	v4l2_async_unregister_subdev(&priv->subdev);
 	v4l2_ctrl_handler_free(&priv->hdl);
-
-	return 0;
 }
 
 static const struct i2c_device_id ov9640_id[] = {

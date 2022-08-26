@@ -656,14 +656,12 @@ errout:
 	return err;
 }
 
-static int mlxsw_i2c_remove(struct i2c_client *client)
+static void mlxsw_i2c_remove(struct i2c_client *client)
 {
 	struct mlxsw_i2c *mlxsw_i2c = i2c_get_clientdata(client);
 
 	mlxsw_core_bus_device_unregister(mlxsw_i2c->core, false);
 	mutex_destroy(&mlxsw_i2c->cmd.lock);
-
-	return 0;
 }
 
 int mlxsw_i2c_driver_register(struct i2c_driver *i2c_driver)

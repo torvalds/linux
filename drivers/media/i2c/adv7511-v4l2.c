@@ -1923,7 +1923,7 @@ err_hdl:
 
 /* ----------------------------------------------------------------------- */
 
-static int adv7511_remove(struct i2c_client *client)
+static void adv7511_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 	struct adv7511_state *state = get_adv7511_state(sd);
@@ -1943,7 +1943,6 @@ static int adv7511_remove(struct i2c_client *client)
 	v4l2_device_unregister_subdev(sd);
 	media_entity_cleanup(&sd->entity);
 	v4l2_ctrl_handler_free(sd->ctrl_handler);
-	return 0;
 }
 
 /* ----------------------------------------------------------------------- */

@@ -1770,7 +1770,7 @@ out_err:
 	return ret;
 }
 
-static int s5c73m3_remove(struct i2c_client *client)
+static void s5c73m3_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *oif_sd = i2c_get_clientdata(client);
 	struct s5c73m3 *state = oif_sd_to_s5c73m3(oif_sd);
@@ -1785,8 +1785,6 @@ static int s5c73m3_remove(struct i2c_client *client)
 	media_entity_cleanup(&sensor_sd->entity);
 
 	s5c73m3_unregister_spi_driver(state);
-
-	return 0;
 }
 
 static const struct i2c_device_id s5c73m3_id[] = {

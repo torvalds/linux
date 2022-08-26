@@ -1388,10 +1388,8 @@ static int rt5616_i2c_probe(struct i2c_client *i2c)
 				      rt5616_dai, ARRAY_SIZE(rt5616_dai));
 }
 
-static int rt5616_i2c_remove(struct i2c_client *i2c)
-{
-	return 0;
-}
+static void rt5616_i2c_remove(struct i2c_client *i2c)
+{}
 
 static void rt5616_i2c_shutdown(struct i2c_client *client)
 {

@@ -126,13 +126,11 @@ static int tpic2810_probe(struct i2c_client *client,
 	return 0;
 }
 
-static int tpic2810_remove(struct i2c_client *client)
+static void tpic2810_remove(struct i2c_client *client)
 {
 	struct tpic2810 *gpio = i2c_get_clientdata(client);
 
 	gpiochip_remove(&gpio->chip);
-
-	return 0;
 }
 
 static const struct i2c_device_id tpic2810_id_table[] = {

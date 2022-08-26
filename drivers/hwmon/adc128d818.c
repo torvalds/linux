@@ -495,14 +495,12 @@ error:
 	return err;
 }
 
-static int adc128_remove(struct i2c_client *client)
+static void adc128_remove(struct i2c_client *client)
 {
 	struct adc128_data *data = i2c_get_clientdata(client);
 
 	if (data->regulator)
 		regulator_disable(data->regulator);
-
-	return 0;
 }
 
 static const struct i2c_device_id adc128_id[] = {

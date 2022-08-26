@@ -3119,7 +3119,7 @@ error_endpoint:
 	return ret;
 }
 
-static int ov8865_remove(struct i2c_client *client)
+static void ov8865_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *subdev = i2c_get_clientdata(client);
 	struct ov8865_sensor *sensor = ov8865_subdev_sensor(subdev);
@@ -3131,8 +3131,6 @@ static int ov8865_remove(struct i2c_client *client)
 	media_entity_cleanup(&subdev->entity);
 
 	v4l2_fwnode_endpoint_free(&sensor->endpoint);
-
-	return 0;
 }
 
 static const struct dev_pm_ops ov8865_pm_ops = {

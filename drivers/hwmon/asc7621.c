@@ -1165,7 +1165,7 @@ static int asc7621_detect(struct i2c_client *client,
 	return -ENODEV;
 }
 
-static int asc7621_remove(struct i2c_client *client)
+static void asc7621_remove(struct i2c_client *client)
 {
 	struct asc7621_data *data = i2c_get_clientdata(client);
 	int i;
@@ -1176,8 +1176,6 @@ static int asc7621_remove(struct i2c_client *client)
 		device_remove_file(&client->dev,
 				   &(asc7621_params[i].sda.dev_attr));
 	}
-
-	return 0;
 }
 
 static const struct i2c_device_id asc7621_id[] = {

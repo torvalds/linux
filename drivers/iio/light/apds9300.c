@@ -452,7 +452,7 @@ err:
 	return ret;
 }
 
-static int apds9300_remove(struct i2c_client *client)
+static void apds9300_remove(struct i2c_client *client)
 {
 	struct iio_dev *indio_dev = i2c_get_clientdata(client);
 	struct apds9300_data *data = iio_priv(indio_dev);
@@ -462,8 +462,6 @@ static int apds9300_remove(struct i2c_client *client)
 	/* Ensure that power off and interrupts are disabled */
 	apds9300_set_intr_state(data, 0);
 	apds9300_set_power_state(data, 0);
-
-	return 0;
 }
 
 static int apds9300_suspend(struct device *dev)

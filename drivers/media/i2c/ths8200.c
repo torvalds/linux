@@ -468,7 +468,7 @@ static int ths8200_probe(struct i2c_client *client)
 	return 0;
 }
 
-static int ths8200_remove(struct i2c_client *client)
+static void ths8200_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 	struct ths8200_state *decoder = to_state(sd);
@@ -478,8 +478,6 @@ static int ths8200_remove(struct i2c_client *client)
 
 	ths8200_s_power(sd, false);
 	v4l2_async_unregister_subdev(&decoder->sd);
-
-	return 0;
 }
 
 static const struct i2c_device_id ths8200_id[] = {

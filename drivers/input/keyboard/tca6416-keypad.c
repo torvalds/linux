@@ -307,7 +307,7 @@ fail1:
 	return error;
 }
 
-static int tca6416_keypad_remove(struct i2c_client *client)
+static void tca6416_keypad_remove(struct i2c_client *client)
 {
 	struct tca6416_keypad_chip *chip = i2c_get_clientdata(client);
 
@@ -318,8 +318,6 @@ static int tca6416_keypad_remove(struct i2c_client *client)
 
 	input_unregister_device(chip->input);
 	kfree(chip);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP

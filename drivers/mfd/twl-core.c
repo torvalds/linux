@@ -727,7 +727,7 @@ static void clocks_init(struct device *dev)
 /*----------------------------------------------------------------------*/
 
 
-static int twl_remove(struct i2c_client *client)
+static void twl_remove(struct i2c_client *client)
 {
 	unsigned i, num_slaves;
 
@@ -745,7 +745,6 @@ static int twl_remove(struct i2c_client *client)
 		twl->client = NULL;
 	}
 	twl_priv->ready = false;
-	return 0;
 }
 
 static struct of_dev_auxdata twl_auxdata_lookup[] = {

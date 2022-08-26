@@ -723,14 +723,12 @@ static int da9062_i2c_probe(struct i2c_client *i2c,
 	return ret;
 }
 
-static int da9062_i2c_remove(struct i2c_client *i2c)
+static void da9062_i2c_remove(struct i2c_client *i2c)
 {
 	struct da9062 *chip = i2c_get_clientdata(i2c);
 
 	mfd_remove_devices(chip->dev);
 	regmap_del_irq_chip(i2c->irq, chip->regmap_irq);
-
-	return 0;
 }
 
 static const struct i2c_device_id da9062_i2c_id[] = {

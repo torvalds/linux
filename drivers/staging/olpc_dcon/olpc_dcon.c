@@ -668,7 +668,7 @@ static int dcon_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	return rc;
 }
 
-static int dcon_remove(struct i2c_client *client)
+static void dcon_remove(struct i2c_client *client)
 {
 	struct dcon_priv *dcon = i2c_get_clientdata(client);
 
@@ -684,8 +684,6 @@ static int dcon_remove(struct i2c_client *client)
 	cancel_work_sync(&dcon->switch_source);
 
 	kfree(dcon);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM

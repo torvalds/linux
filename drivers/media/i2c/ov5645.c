@@ -1256,7 +1256,7 @@ free_ctrl:
 	return ret;
 }
 
-static int ov5645_remove(struct i2c_client *client)
+static void ov5645_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 	struct ov5645 *ov5645 = to_ov5645(sd);
@@ -1265,8 +1265,6 @@ static int ov5645_remove(struct i2c_client *client)
 	media_entity_cleanup(&ov5645->sd.entity);
 	v4l2_ctrl_handler_free(&ov5645->ctrls);
 	mutex_destroy(&ov5645->power_lock);
-
-	return 0;
 }
 
 static const struct i2c_device_id ov5645_id[] = {

@@ -1209,7 +1209,7 @@ done:
 	return ret;
 }
 
-static int mt9p031_remove(struct i2c_client *client)
+static void mt9p031_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *subdev = i2c_get_clientdata(client);
 	struct mt9p031 *mt9p031 = to_mt9p031(subdev);
@@ -1218,8 +1218,6 @@ static int mt9p031_remove(struct i2c_client *client)
 	v4l2_async_unregister_subdev(subdev);
 	media_entity_cleanup(&subdev->entity);
 	mutex_destroy(&mt9p031->power_lock);
-
-	return 0;
 }
 
 static const struct i2c_device_id mt9p031_id[] = {

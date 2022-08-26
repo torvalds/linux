@@ -32,11 +32,9 @@ static int kxsd9_i2c_probe(struct i2c_client *i2c,
 				  i2c->name);
 }
 
-static int kxsd9_i2c_remove(struct i2c_client *client)
+static void kxsd9_i2c_remove(struct i2c_client *client)
 {
 	kxsd9_common_remove(&client->dev);
-
-	return 0;
 }
 
 static const struct of_device_id kxsd9_of_match[] = {

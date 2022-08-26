@@ -859,7 +859,7 @@ static int msp_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	return 0;
 }
 
-static int msp_remove(struct i2c_client *client)
+static void msp_remove(struct i2c_client *client)
 {
 	struct msp_state *state = to_state(i2c_get_clientdata(client));
 
@@ -872,7 +872,6 @@ static int msp_remove(struct i2c_client *client)
 	msp_reset(client);
 
 	v4l2_ctrl_handler_free(&state->hdl);
-	return 0;
 }
 
 /* ----------------------------------------------------------------------- */

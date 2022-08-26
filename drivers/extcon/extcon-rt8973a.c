@@ -646,13 +646,11 @@ static int rt8973a_muic_i2c_probe(struct i2c_client *i2c,
 	return 0;
 }
 
-static int rt8973a_muic_i2c_remove(struct i2c_client *i2c)
+static void rt8973a_muic_i2c_remove(struct i2c_client *i2c)
 {
 	struct rt8973a_muic_info *info = i2c_get_clientdata(i2c);
 
 	regmap_del_irq_chip(info->irq, info->irq_data);
-
-	return 0;
 }
 
 static const struct of_device_id rt8973a_dt_match[] = {

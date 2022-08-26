@@ -461,7 +461,7 @@ err_initial:
 /*
  * si470x_i2c_remove - remove the device
  */
-static int si470x_i2c_remove(struct i2c_client *client)
+static void si470x_i2c_remove(struct i2c_client *client)
 {
 	struct si470x_device *radio = i2c_get_clientdata(client);
 
@@ -472,7 +472,6 @@ static int si470x_i2c_remove(struct i2c_client *client)
 
 	v4l2_ctrl_handler_free(&radio->hdl);
 	v4l2_device_unregister(&radio->v4l2_dev);
-	return 0;
 }
 
 

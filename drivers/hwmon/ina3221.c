@@ -913,7 +913,7 @@ fail:
 	return ret;
 }
 
-static int ina3221_remove(struct i2c_client *client)
+static void ina3221_remove(struct i2c_client *client)
 {
 	struct ina3221_data *ina = dev_get_drvdata(&client->dev);
 	int i;
@@ -926,8 +926,6 @@ static int ina3221_remove(struct i2c_client *client)
 		pm_runtime_put_noidle(ina->pm_dev);
 
 	mutex_destroy(&ina->lock);
-
-	return 0;
 }
 
 static int __maybe_unused ina3221_suspend(struct device *dev)

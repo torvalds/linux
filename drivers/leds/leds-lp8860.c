@@ -445,7 +445,7 @@ static int lp8860_probe(struct i2c_client *client,
 	return 0;
 }
 
-static int lp8860_remove(struct i2c_client *client)
+static void lp8860_remove(struct i2c_client *client)
 {
 	struct lp8860_led *led = i2c_get_clientdata(client);
 	int ret;
@@ -461,8 +461,6 @@ static int lp8860_remove(struct i2c_client *client)
 	}
 
 	mutex_destroy(&led->lock);
-
-	return 0;
 }
 
 static const struct i2c_device_id lp8860_id[] = {

@@ -1320,13 +1320,12 @@ err_enable:
 	return ret;
 }
 
-static int cs42l56_i2c_remove(struct i2c_client *client)
+static void cs42l56_i2c_remove(struct i2c_client *client)
 {
 	struct cs42l56_private *cs42l56 = i2c_get_clientdata(client);
 
 	regulator_bulk_disable(ARRAY_SIZE(cs42l56->supplies),
 			       cs42l56->supplies);
-	return 0;
 }
 
 static const struct of_device_id cs42l56_of_match[] = {

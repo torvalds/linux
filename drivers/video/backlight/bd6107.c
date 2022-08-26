@@ -175,14 +175,12 @@ static int bd6107_probe(struct i2c_client *client,
 	return 0;
 }
 
-static int bd6107_remove(struct i2c_client *client)
+static void bd6107_remove(struct i2c_client *client)
 {
 	struct backlight_device *backlight = i2c_get_clientdata(client);
 
 	backlight->props.brightness = 0;
 	backlight_update_status(backlight);
-
-	return 0;
 }
 
 static const struct i2c_device_id bd6107_ids[] = {

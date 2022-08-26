@@ -1096,13 +1096,12 @@ ectlhdlfree:
 	return ret;
 }
 
-static int ov6650_remove(struct i2c_client *client)
+static void ov6650_remove(struct i2c_client *client)
 {
 	struct ov6650 *priv = to_ov6650(client);
 
 	v4l2_async_unregister_subdev(&priv->subdev);
 	v4l2_ctrl_handler_free(&priv->hdl);
-	return 0;
 }
 
 static const struct i2c_device_id ov6650_id[] = {

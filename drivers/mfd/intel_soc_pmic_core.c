@@ -81,7 +81,7 @@ err_del_irq_chip:
 	return ret;
 }
 
-static int intel_soc_pmic_i2c_remove(struct i2c_client *i2c)
+static void intel_soc_pmic_i2c_remove(struct i2c_client *i2c)
 {
 	struct intel_soc_pmic *pmic = dev_get_drvdata(&i2c->dev);
 
@@ -91,8 +91,6 @@ static int intel_soc_pmic_i2c_remove(struct i2c_client *i2c)
 	pwm_remove_table(crc_pwm_lookup, ARRAY_SIZE(crc_pwm_lookup));
 
 	mfd_remove_devices(&i2c->dev);
-
-	return 0;
 }
 
 static void intel_soc_pmic_shutdown(struct i2c_client *i2c)

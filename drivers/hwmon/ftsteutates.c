@@ -744,12 +744,11 @@ static int fts_detect(struct i2c_client *client,
 	return 0;
 }
 
-static int fts_remove(struct i2c_client *client)
+static void fts_remove(struct i2c_client *client)
 {
 	struct fts_data *data = dev_get_drvdata(&client->dev);
 
 	watchdog_unregister_device(&data->wdd);
-	return 0;
 }
 
 static int fts_probe(struct i2c_client *client)

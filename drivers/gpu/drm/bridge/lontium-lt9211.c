@@ -766,13 +766,11 @@ static int lt9211_probe(struct i2c_client *client,
 	return ret;
 }
 
-static int lt9211_remove(struct i2c_client *client)
+static void lt9211_remove(struct i2c_client *client)
 {
 	struct lt9211 *ctx = i2c_get_clientdata(client);
 
 	drm_bridge_remove(&ctx->bridge);
-
-	return 0;
 }
 
 static struct i2c_device_id lt9211_id[] = {
