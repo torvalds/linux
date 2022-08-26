@@ -404,8 +404,10 @@ static int mlxsw_m_linecards_init(struct mlxsw_m *mlxsw_m)
 	mlxsw_m->line_cards = kcalloc(mlxsw_m->num_of_slots,
 				      sizeof(*mlxsw_m->line_cards),
 				      GFP_KERNEL);
-	if (!mlxsw_m->line_cards)
+	if (!mlxsw_m->line_cards) {
+		err = -ENOMEM;
 		goto err_kcalloc;
+	}
 
 	for (i = 0; i < mlxsw_m->num_of_slots; i++) {
 		mlxsw_m->line_cards[i] =
@@ -413,8 +415,10 @@ static int mlxsw_m_linecards_init(struct mlxsw_m *mlxsw_m)
 					    module_to_port,
 					    mlxsw_m->max_modules_per_slot),
 				GFP_KERNEL);
-		if (!mlxsw_m->line_cards[i])
+		if (!mlxsw_m->line_cards[i]) {
+			err = -ENOMEM;
 			goto err_kmalloc_array;
+		}
 
 		/* Invalidate the entries of module to local port mapping array. */
 		for (j = 0; j < mlxsw_m->max_modules_per_slot; j++)
