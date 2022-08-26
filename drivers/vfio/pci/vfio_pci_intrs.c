@@ -22,11 +22,6 @@
 
 #include "vfio_pci_priv.h"
 
-#define is_intx(vdev) (vdev->irq_type == VFIO_PCI_INTX_IRQ_INDEX)
-#define is_msix(vdev) (vdev->irq_type == VFIO_PCI_MSIX_IRQ_INDEX)
-#define is_irq_none(vdev) (!(is_intx(vdev) || is_msi(vdev) || is_msix(vdev)))
-#define irq_is(vdev, type) (vdev->irq_type == type)
-
 struct vfio_pci_irq_ctx {
 	struct eventfd_ctx	*trigger;
 	struct virqfd		*unmask;
@@ -35,6 +30,23 @@ struct vfio_pci_irq_ctx {
 	bool			masked;
 	struct irq_bypass_producer	producer;
 };
+
+static bool irq_is(struct vfio_pci_core_device *vdev, int type)
+{
+	return vdev->irq_type == type;
+}
+
+static bool is_intx(struct vfio_pci_core_device *vdev)
+{
+	return vdev->irq_type == VFIO_PCI_INTX_IRQ_INDEX;
+}
+
+static bool is_irq_none(struct vfio_pci_core_device *vdev)
+{
+	return !(vdev->irq_type == VFIO_PCI_INTX_IRQ_INDEX ||
+		 vdev->irq_type == VFIO_PCI_MSI_IRQ_INDEX ||
+		 vdev->irq_type == VFIO_PCI_MSIX_IRQ_INDEX);
+}
 
 /*
  * INTx

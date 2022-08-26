@@ -23,8 +23,6 @@ struct vfio_pci_ioeventfd {
 	bool			test_mem;
 };
 
-#define is_msi(vdev) (vdev->irq_type == VFIO_PCI_MSI_IRQ_INDEX)
-
 void vfio_pci_intx_mask(struct vfio_pci_core_device *vdev);
 void vfio_pci_intx_unmask(struct vfio_pci_core_device *vdev);
 
