@@ -210,6 +210,12 @@ static int intelfb_create(struct drm_fb_helper *helper,
 	struct drm_i915_gem_object *obj;
 	int ret;
 
+	mutex_lock(&ifbdev->hpd_lock);
+	ret = ifbdev->hpd_suspended ? -EAGAIN : 0;
+	mutex_unlock(&ifbdev->hpd_lock);
+	if (ret)
+		return ret;
+
 	if (intel_fb &&
 	    (sizes->fb_width > intel_fb->base.width ||
 	     sizes->fb_height > intel_fb->base.height)) {
