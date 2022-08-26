@@ -94,6 +94,12 @@ properties:
   resets:
     maxItems: 1
 
+  reg-io-width:
+    description:
+      The size (in bytes) of the IO accesses that should be performed
+      on the device.
+    enum: [1, 4]
+
 required:
   - compatible
   - reg
