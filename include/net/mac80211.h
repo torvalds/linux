@@ -1480,6 +1480,10 @@ enum mac80211_rx_encoding {
  *	each A-MPDU but the same for each subframe within one A-MPDU
  * @ampdu_delimiter_crc: A-MPDU delimiter CRC
  * @zero_length_psdu_type: radiotap type of the 0-length PSDU
+ * @link_valid: if the link which is identified by @link_id is valid. This flag
+ *	is set only when connection is MLO.
+ * @link_id: id of the link used to receive the packet. This is used along with
+ *	@link_valid.
  */
 struct ieee80211_rx_status {
 	u64 mactime;
@@ -1504,6 +1508,7 @@ struct ieee80211_rx_status {
 	s8 chain_signal[IEEE80211_MAX_CHAINS];
 	u8 ampdu_delimiter_crc;
 	u8 zero_length_psdu_type;
+	u8 link_valid:1, link_id:4;
 };
 
 static inline u32
@@ -1975,6 +1980,7 @@ enum ieee80211_key_flags {
  * 	- Temporal Authenticator Rx MIC Key (64 bits)
  * @icv_len: The ICV length for this key type
  * @iv_len: The IV length for this key type
+ * @link_id: the link ID for MLO, or -1 for non-MLO or pairwise keys
  */
 struct ieee80211_key_conf {
 	atomic64_t tx_pn;
@@ -1984,6 +1990,7 @@ struct ieee80211_key_conf {
 	u8 hw_key_idx;
 	s8 keyidx;
 	u16 flags;
+	s8 link_id;
 	u8 keylen;
 	u8 key[];
 };
@@ -2128,6 +2135,7 @@ struct ieee80211_sta_txpwr {
  * @addr: MAC address of the Link STA. For non-MLO STA this is same as the addr
  *	in ieee80211_sta. For MLO Link STA this addr can be same or different
  *	from addr in ieee80211_sta (representing MLD STA addr)
+ * @link_id: the link ID for this link STA (0 for deflink)
  * @supp_rates: Bitmap of supported rates
  * @ht_cap: HT capabilities of this STA; restricted to our own capabilities
  * @vht_cap: VHT capabilities of this STA; restricted to our own capabilities
@@ -2144,6 +2152,7 @@ struct ieee80211_sta_txpwr {
  */
 struct ieee80211_link_sta {
 	u8 addr[ETH_ALEN];
+	u8 link_id;
 
 	u32 supp_rates[NUM_NL80211_BANDS];
 	struct ieee80211_sta_ht_cap ht_cap;

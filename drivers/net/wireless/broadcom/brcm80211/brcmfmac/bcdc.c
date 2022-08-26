@@ -368,8 +368,7 @@ brcmf_proto_bcdc_txcomplete(struct device *dev, struct sk_buff *txp,
 
 	/* await txstatus signal for firmware if active */
 	if (brcmf_fws_fc_active(bcdc->fws)) {
-		if (!success)
-			brcmf_fws_bustxfail(bcdc->fws, txp);
+		brcmf_fws_bustxcomplete(bcdc->fws, txp, success);
 	} else {
 		if (brcmf_proto_bcdc_hdrpull(bus_if->drvr, false, txp, &ifp))
 			brcmu_pkt_buf_free_skb(txp);

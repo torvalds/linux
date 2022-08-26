@@ -127,7 +127,6 @@ static void rtw89_leave_lps_vif(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwv
 	if (rtwvif->wifi_role != RTW89_WIFI_ROLE_STATION)
 		return;
 
-	__rtw89_leave_ps_mode(rtwdev);
 	__rtw89_leave_lps(rtwdev, rtwvif->mac_id);
 }
 
@@ -139,6 +138,8 @@ void rtw89_leave_lps(struct rtw89_dev *rtwdev)
 
 	if (!test_and_clear_bit(RTW89_FLAG_LEISURE_PS, rtwdev->flags))
 		return;
+
+	__rtw89_leave_ps_mode(rtwdev);
 
 	rtw89_for_each_rtwvif(rtwdev, rtwvif)
 		rtw89_leave_lps_vif(rtwdev, rtwvif);

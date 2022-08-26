@@ -695,6 +695,7 @@ static bool ieee80211_add_vht_ie(struct ieee80211_sub_if_data *sdata,
 static void ieee80211_add_he_ie(struct ieee80211_sub_if_data *sdata,
 				struct sk_buff *skb,
 				struct ieee80211_supported_band *sband,
+				enum ieee80211_smps_mode smps_mode,
 				ieee80211_conn_flags_t conn_flags)
 {
 	u8 *pos, *pre_he_pos;
@@ -719,7 +720,7 @@ static void ieee80211_add_he_ie(struct ieee80211_sub_if_data *sdata,
 	/* trim excess if any */
 	skb_trim(skb, skb->len - (pre_he_pos + he_cap_size - pos));
 
-	ieee80211_ie_build_he_6ghz_cap(sdata, skb);
+	ieee80211_ie_build_he_6ghz_cap(sdata, smps_mode, skb);
 }
 
 static void ieee80211_add_eht_ie(struct ieee80211_sub_if_data *sdata,
@@ -746,11 +747,13 @@ static void ieee80211_add_eht_ie(struct ieee80211_sub_if_data *sdata,
 	eht_cap_size =
 		2 + 1 + sizeof(eht_cap->eht_cap_elem) +
 		ieee80211_eht_mcs_nss_size(&he_cap->he_cap_elem,
-					   &eht_cap->eht_cap_elem) +
+					   &eht_cap->eht_cap_elem,
+					   false) +
 		ieee80211_eht_ppe_size(eht_cap->eht_ppe_thres[0],
 				       eht_cap->eht_cap_elem.phy_cap_info);
 	pos = skb_put(skb, eht_cap_size);
-	ieee80211_ie_build_eht_cap(pos, he_cap, eht_cap, pos + eht_cap_size);
+	ieee80211_ie_build_eht_cap(pos, he_cap, eht_cap, pos + eht_cap_size,
+				   false);
 }
 
 static void ieee80211_assoc_add_rates(struct sk_buff *skb,
@@ -1098,7 +1101,7 @@ static size_t ieee80211_assoc_link_elems(struct ieee80211_sub_if_data *sdata,
 					       offset);
 
 	if (!(assoc_data->link[link_id].conn_flags & IEEE80211_CONN_DISABLE_HE)) {
-		ieee80211_add_he_ie(sdata, skb, sband,
+		ieee80211_add_he_ie(sdata, skb, sband, smps_mode,
 				    assoc_data->link[link_id].conn_flags);
 		ADD_PRESENT_EXT_ELEM(WLAN_EID_EXT_HE_CAPABILITY);
 	}
@@ -1220,14 +1223,21 @@ static void ieee80211_assoc_add_ml_elem(struct ieee80211_sub_if_data *sdata,
 	ml_elem = skb_put(skb, sizeof(*ml_elem));
 	ml_elem->control =
 		cpu_to_le16(IEEE80211_ML_CONTROL_TYPE_BASIC |
-			    IEEE80211_MLC_BASIC_PRES_EML_CAPA |
 			    IEEE80211_MLC_BASIC_PRES_MLD_CAPA_OP);
 	common = skb_put(skb, sizeof(*common));
 	common->len = sizeof(*common) +
-		      2 + /* EML capabilities */
 		      2;  /* MLD capa/ops */
 	memcpy(common->mld_mac_addr, sdata->vif.addr, ETH_ALEN);
-	skb_put_data(skb, &eml_capa, sizeof(eml_capa));
+
+	/* add EML_CAPA only if needed, see Draft P802.11be_D2.1, 35.3.17 */
+	if (eml_capa &
+	    cpu_to_le16((IEEE80211_EML_CAP_EMLSR_SUPP |
+			 IEEE80211_EML_CAP_EMLMR_SUPPORT))) {
+		common->len += 2; /* EML capabilities */
+		ml_elem->control |=
+			cpu_to_le16(IEEE80211_MLC_BASIC_PRES_EML_CAPA);
+		skb_put_data(skb, &eml_capa, sizeof(eml_capa));
+	}
 	/* need indication from userspace to support this */
 	mld_capa_ops &= ~cpu_to_le16(IEEE80211_MLD_CAP_OP_TID_TO_LINK_MAP_NEG_SUPP);
 	skb_put_data(skb, &mld_capa_ops, sizeof(mld_capa_ops));
@@ -1902,7 +1912,7 @@ ieee80211_sta_process_chanswitch(struct ieee80211_link_data *link,
 					  IEEE80211_QUEUE_STOP_REASON_CSA);
 	mutex_unlock(&local->mtx);
 
-	cfg80211_ch_switch_started_notify(sdata->dev, &csa_ie.chandef,
+	cfg80211_ch_switch_started_notify(sdata->dev, &csa_ie.chandef, 0,
 					  csa_ie.count, csa_ie.mode);
 
 	if (local->ops->channel_switch) {
@@ -3905,6 +3915,7 @@ static bool ieee80211_assoc_config_link(struct ieee80211_link_data *link,
 		.len = elem_len,
 		.bss = cbss,
 		.link_id = link == &sdata->deflink ? -1 : link->link_id,
+		.from_ap = true,
 	};
 	bool is_6ghz = cbss->channel->band == NL80211_BAND_6GHZ;
 	bool is_s1g = cbss->channel->band == NL80211_BAND_S1GHZ;
@@ -4573,6 +4584,11 @@ static int ieee80211_prep_channel(struct ieee80211_sub_if_data *sdata,
 	bool is_6ghz = cbss->channel->band == NL80211_BAND_6GHZ;
 	bool is_5ghz = cbss->channel->band == NL80211_BAND_5GHZ;
 	struct ieee80211_bss *bss = (void *)cbss->priv;
+	struct ieee80211_elems_parse_params parse_params = {
+		.bss = cbss,
+		.link_id = -1,
+		.from_ap = true,
+	};
 	struct ieee802_11_elems *elems;
 	const struct cfg80211_bss_ies *ies;
 	int ret;
@@ -4582,7 +4598,9 @@ static int ieee80211_prep_channel(struct ieee80211_sub_if_data *sdata,
 	rcu_read_lock();
 
 	ies = rcu_dereference(cbss->ies);
-	elems = ieee802_11_parse_elems(ies->data, ies->len, false, cbss);
+	parse_params.start = ies->data;
+	parse_params.len = ies->len;
+	elems = ieee802_11_parse_elems_full(&parse_params);
 	if (!elems) {
 		rcu_read_unlock();
 		return -ENOMEM;
@@ -4937,6 +4955,11 @@ static void ieee80211_rx_mgmt_assoc_resp(struct ieee80211_sub_if_data *sdata,
 	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
 	struct ieee80211_mgd_assoc_data *assoc_data = ifmgd->assoc_data;
 	u16 capab_info, status_code, aid;
+	struct ieee80211_elems_parse_params parse_params = {
+		.bss = NULL,
+		.link_id = -1,
+		.from_ap = true,
+	};
 	struct ieee802_11_elems *elems;
 	int ac;
 	const u8 *elem_start;
@@ -4991,7 +5014,9 @@ static void ieee80211_rx_mgmt_assoc_resp(struct ieee80211_sub_if_data *sdata,
 		return;
 
 	elem_len = len - (elem_start - (u8 *)mgmt);
-	elems = ieee802_11_parse_elems(elem_start, elem_len, false, NULL);
+	parse_params.start = elem_start;
+	parse_params.len = elem_len;
+	elems = ieee802_11_parse_elems_full(&parse_params);
 	if (!elems)
 		goto notify_driver;
 
@@ -5124,7 +5149,7 @@ static void ieee80211_rx_mgmt_assoc_resp(struct ieee80211_sub_if_data *sdata,
 	resp.req_ies = ifmgd->assoc_req_ies;
 	resp.req_ies_len = ifmgd->assoc_req_ies_len;
 	if (sdata->vif.valid_links)
-		resp.ap_mld_addr = assoc_data->ap_addr;
+		resp.ap_mld_addr = sdata->vif.cfg.ap_addr;
 	cfg80211_rx_assoc_resp(sdata->dev, &resp);
 notify_driver:
 	drv_mgd_complete_tx(sdata->local, sdata, &info);
@@ -5356,6 +5381,10 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_link_data *link,
 	u32 ncrc = 0;
 	u8 *bssid, *variable = mgmt->u.beacon.variable;
 	u8 deauth_buf[IEEE80211_DEAUTH_FRAME_LEN];
+	struct ieee80211_elems_parse_params parse_params = {
+		.link_id = -1,
+		.from_ap = true,
+	};
 
 	sdata_assert_lock(sdata);
 
@@ -5373,6 +5402,9 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_link_data *link,
 	baselen = (u8 *) variable - (u8 *) mgmt;
 	if (baselen > len)
 		return;
+
+	parse_params.start = variable;
+	parse_params.len = len - baselen;
 
 	rcu_read_lock();
 	chanctx_conf = rcu_dereference(link->conf->chanctx_conf);
@@ -5392,8 +5424,8 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_link_data *link,
 	if (ifmgd->assoc_data && ifmgd->assoc_data->need_beacon &&
 	    !WARN_ON(sdata->vif.valid_links) &&
 	    ieee80211_rx_our_beacon(bssid, ifmgd->assoc_data->link[0].bss)) {
-		elems = ieee802_11_parse_elems(variable, len - baselen, false,
-					       ifmgd->assoc_data->link[0].bss);
+		parse_params.bss = ifmgd->assoc_data->link[0].bss;
+		elems = ieee802_11_parse_elems_full(&parse_params);
 		if (!elems)
 			return;
 
@@ -5459,9 +5491,10 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_link_data *link,
 	 */
 	if (!ieee80211_is_s1g_beacon(hdr->frame_control))
 		ncrc = crc32_be(0, (void *)&mgmt->u.beacon.beacon_int, 4);
-	elems = ieee802_11_parse_elems_crc(variable, len - baselen,
-					   false, care_about_ies, ncrc,
-					   link->u.mgd.bss);
+	parse_params.bss = link->u.mgd.bss;
+	parse_params.filter = care_about_ies;
+	parse_params.crc = ncrc;
+	elems = ieee802_11_parse_elems_full(&parse_params);
 	if (!elems)
 		return;
 	ncrc = elems->crc;
@@ -5671,6 +5704,13 @@ void ieee80211_sta_rx_queued_mgmt(struct ieee80211_sub_if_data *sdata,
 
 	sdata_lock(sdata);
 
+	if (rx_status->link_valid) {
+		link = sdata_dereference(sdata->link[rx_status->link_id],
+					 sdata);
+		if (!link)
+			goto out;
+	}
+
 	switch (fc & IEEE80211_FCTL_STYPE) {
 	case IEEE80211_STYPE_BEACON:
 		ieee80211_rx_mgmt_beacon(link, (void *)mgmt,
@@ -5747,6 +5787,7 @@ void ieee80211_sta_rx_queued_mgmt(struct ieee80211_sub_if_data *sdata,
 		}
 		break;
 	}
+out:
 	sdata_unlock(sdata);
 }
 

@@ -86,7 +86,7 @@ static int rtw_dump_logical_efuse_map(struct rtw_dev *rtwdev, u8 *phy_map,
 
 static int rtw_dump_physical_efuse_map(struct rtw_dev *rtwdev, u8 *map)
 {
-	struct rtw_chip_info *chip = rtwdev->chip;
+	const struct rtw_chip_info *chip = rtwdev->chip;
 	u32 size = rtwdev->efuse.physical_size;
 	u32 efuse_ctl;
 	u32 addr;
@@ -145,7 +145,7 @@ EXPORT_SYMBOL(rtw_read8_physical_efuse);
 
 int rtw_parse_efuse_map(struct rtw_dev *rtwdev)
 {
-	struct rtw_chip_info *chip = rtwdev->chip;
+	const struct rtw_chip_info *chip = rtwdev->chip;
 	struct rtw_efuse *efuse = &rtwdev->efuse;
 	u32 phy_size = efuse->physical_size;
 	u32 log_size = efuse->logical_size;

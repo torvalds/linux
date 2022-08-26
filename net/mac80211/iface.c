@@ -406,9 +406,11 @@ static void ieee80211_link_init(struct ieee80211_sub_if_data *sdata,
 		case NL80211_IFTYPE_AP:
 			ether_addr_copy(link_conf->addr,
 					sdata->wdev.links[link_id].addr);
+			link_conf->bssid = link_conf->addr;
 			WARN_ON(!(sdata->wdev.valid_links & BIT(link_id)));
 			break;
 		case NL80211_IFTYPE_STATION:
+			/* station sets the bssid in ieee80211_mgd_setup_link */
 			break;
 		default:
 			WARN_ON(1);
@@ -432,9 +434,18 @@ struct link_container {
 static void ieee80211_free_links(struct ieee80211_sub_if_data *sdata,
 				 struct link_container **links)
 {
+	LIST_HEAD(keys);
 	unsigned int link_id;
 
+	for (link_id = 0; link_id < IEEE80211_MLD_MAX_NUM_LINKS; link_id++) {
+		if (!links[link_id])
+			continue;
+		ieee80211_remove_link_keys(&links[link_id]->data, &keys);
+	}
+
 	synchronize_rcu();
+
+	ieee80211_free_key_list(sdata->local, &keys);
 
 	for (link_id = 0; link_id < IEEE80211_MLD_MAX_NUM_LINKS; link_id++) {
 		if (!links[link_id])
@@ -2267,7 +2278,7 @@ int ieee80211_if_add(struct ieee80211_local *local, const char *name,
 		wdev = &sdata->wdev;
 
 		sdata->dev = NULL;
-		strlcpy(sdata->name, name, IFNAMSIZ);
+		strscpy(sdata->name, name, IFNAMSIZ);
 		ieee80211_assign_perm_addr(local, wdev->address, type);
 		memcpy(sdata->vif.addr, wdev->address, ETH_ALEN);
 		ether_addr_copy(sdata->vif.bss_conf.addr, sdata->vif.addr);

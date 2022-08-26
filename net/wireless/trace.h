@@ -434,13 +434,14 @@ TRACE_EVENT(rdev_change_virtual_intf,
 );
 
 DECLARE_EVENT_CLASS(key_handle,
-	TP_PROTO(struct wiphy *wiphy, struct net_device *netdev, u8 key_index,
-		 bool pairwise, const u8 *mac_addr),
-	TP_ARGS(wiphy, netdev, key_index, pairwise, mac_addr),
+	TP_PROTO(struct wiphy *wiphy, struct net_device *netdev, int link_id,
+		 u8 key_index, bool pairwise, const u8 *mac_addr),
+	TP_ARGS(wiphy, netdev, link_id, key_index, pairwise, mac_addr),
 	TP_STRUCT__entry(
 		WIPHY_ENTRY
 		NETDEV_ENTRY
 		MAC_ENTRY(mac_addr)
+		__field(int, link_id)
 		__field(u8, key_index)
 		__field(bool, pairwise)
 	),
@@ -448,34 +449,38 @@ DECLARE_EVENT_CLASS(key_handle,
 		WIPHY_ASSIGN;
 		NETDEV_ASSIGN;
 		MAC_ASSIGN(mac_addr, mac_addr);
+		__entry->link_id = link_id;
 		__entry->key_index = key_index;
 		__entry->pairwise = pairwise;
 	),
-	TP_printk(WIPHY_PR_FMT ", " NETDEV_PR_FMT ", key_index: %u, pairwise: %s, mac addr: " MAC_PR_FMT,
-		  WIPHY_PR_ARG, NETDEV_PR_ARG, __entry->key_index,
-		  BOOL_TO_STR(__entry->pairwise), MAC_PR_ARG(mac_addr))
+	TP_printk(WIPHY_PR_FMT ", " NETDEV_PR_FMT ", link_id: %d, "
+		  "key_index: %u, pairwise: %s, mac addr: " MAC_PR_FMT,
+		  WIPHY_PR_ARG, NETDEV_PR_ARG, __entry->link_id,
+		  __entry->key_index, BOOL_TO_STR(__entry->pairwise),
+		  MAC_PR_ARG(mac_addr))
 );
 
 DEFINE_EVENT(key_handle, rdev_get_key,
-	TP_PROTO(struct wiphy *wiphy, struct net_device *netdev, u8 key_index,
-		 bool pairwise, const u8 *mac_addr),
-	TP_ARGS(wiphy, netdev, key_index, pairwise, mac_addr)
+	TP_PROTO(struct wiphy *wiphy, struct net_device *netdev, int link_id,
+		 u8 key_index, bool pairwise, const u8 *mac_addr),
+	TP_ARGS(wiphy, netdev, link_id, key_index, pairwise, mac_addr)
 );
 
 DEFINE_EVENT(key_handle, rdev_del_key,
-	TP_PROTO(struct wiphy *wiphy, struct net_device *netdev, u8 key_index,
-		 bool pairwise, const u8 *mac_addr),
-	TP_ARGS(wiphy, netdev, key_index, pairwise, mac_addr)
+	TP_PROTO(struct wiphy *wiphy, struct net_device *netdev, int link_id,
+		 u8 key_index, bool pairwise, const u8 *mac_addr),
+	TP_ARGS(wiphy, netdev, link_id, key_index, pairwise, mac_addr)
 );
 
 TRACE_EVENT(rdev_add_key,
-	TP_PROTO(struct wiphy *wiphy, struct net_device *netdev, u8 key_index,
-		 bool pairwise, const u8 *mac_addr, u8 mode),
-	TP_ARGS(wiphy, netdev, key_index, pairwise, mac_addr, mode),
+	TP_PROTO(struct wiphy *wiphy, struct net_device *netdev, int link_id,
+		 u8 key_index, bool pairwise, const u8 *mac_addr, u8 mode),
+	TP_ARGS(wiphy, netdev, link_id, key_index, pairwise, mac_addr, mode),
 	TP_STRUCT__entry(
 		WIPHY_ENTRY
 		NETDEV_ENTRY
 		MAC_ENTRY(mac_addr)
+		__field(int, link_id)
 		__field(u8, key_index)
 		__field(bool, pairwise)
 		__field(u8, mode)
@@ -484,24 +489,27 @@ TRACE_EVENT(rdev_add_key,
 		WIPHY_ASSIGN;
 		NETDEV_ASSIGN;
 		MAC_ASSIGN(mac_addr, mac_addr);
+		__entry->link_id = link_id;
 		__entry->key_index = key_index;
 		__entry->pairwise = pairwise;
 		__entry->mode = mode;
 	),
-	TP_printk(WIPHY_PR_FMT ", " NETDEV_PR_FMT ", key_index: %u, "
-		  "mode: %u, pairwise: %s, mac addr: " MAC_PR_FMT,
-		  WIPHY_PR_ARG, NETDEV_PR_ARG, __entry->key_index,
-		  __entry->mode, BOOL_TO_STR(__entry->pairwise),
-		  MAC_PR_ARG(mac_addr))
+	TP_printk(WIPHY_PR_FMT ", " NETDEV_PR_FMT ", link_id: %d, "
+		  "key_index: %u, mode: %u, pairwise: %s, "
+		  "mac addr: " MAC_PR_FMT,
+		  WIPHY_PR_ARG, NETDEV_PR_ARG, __entry->link_id,
+		  __entry->key_index, __entry->mode,
+		  BOOL_TO_STR(__entry->pairwise), MAC_PR_ARG(mac_addr))
 );
 
 TRACE_EVENT(rdev_set_default_key,
-	TP_PROTO(struct wiphy *wiphy, struct net_device *netdev, u8 key_index,
-		 bool unicast, bool multicast),
-	TP_ARGS(wiphy, netdev, key_index, unicast, multicast),
+	TP_PROTO(struct wiphy *wiphy, struct net_device *netdev, int link_id,
+		 u8 key_index, bool unicast, bool multicast),
+	TP_ARGS(wiphy, netdev, link_id, key_index, unicast, multicast),
 	TP_STRUCT__entry(
 		WIPHY_ENTRY
 		NETDEV_ENTRY
+		__field(int, link_id)
 		__field(u8, key_index)
 		__field(bool, unicast)
 		__field(bool, multicast)
@@ -509,48 +517,58 @@ TRACE_EVENT(rdev_set_default_key,
 	TP_fast_assign(
 		WIPHY_ASSIGN;
 		NETDEV_ASSIGN;
+		__entry->link_id = link_id;
 		__entry->key_index = key_index;
 		__entry->unicast = unicast;
 		__entry->multicast = multicast;
 	),
-	TP_printk(WIPHY_PR_FMT ", " NETDEV_PR_FMT ", key index: %u, unicast: %s, multicast: %s",
-		  WIPHY_PR_ARG, NETDEV_PR_ARG, __entry->key_index,
-		  BOOL_TO_STR(__entry->unicast),
+	TP_printk(WIPHY_PR_FMT ", " NETDEV_PR_FMT ", link_id: %d, "
+		  "key index: %u, unicast: %s, multicast: %s",
+		  WIPHY_PR_ARG, NETDEV_PR_ARG, __entry->link_id,
+		  __entry->key_index, BOOL_TO_STR(__entry->unicast),
 		  BOOL_TO_STR(__entry->multicast))
 );
 
 TRACE_EVENT(rdev_set_default_mgmt_key,
-	TP_PROTO(struct wiphy *wiphy, struct net_device *netdev, u8 key_index),
-	TP_ARGS(wiphy, netdev, key_index),
+	TP_PROTO(struct wiphy *wiphy, struct net_device *netdev, int link_id,
+		 u8 key_index),
+	TP_ARGS(wiphy, netdev, link_id, key_index),
 	TP_STRUCT__entry(
 		WIPHY_ENTRY
 		NETDEV_ENTRY
+		__field(int, link_id)
 		__field(u8, key_index)
 	),
 	TP_fast_assign(
 		WIPHY_ASSIGN;
 		NETDEV_ASSIGN;
+		__entry->link_id = link_id;
 		__entry->key_index = key_index;
 	),
-	TP_printk(WIPHY_PR_FMT ", " NETDEV_PR_FMT ", key index: %u",
-		  WIPHY_PR_ARG, NETDEV_PR_ARG, __entry->key_index)
+	TP_printk(WIPHY_PR_FMT ", " NETDEV_PR_FMT ", link_id: %d, "
+		  "key index: %u", WIPHY_PR_ARG, NETDEV_PR_ARG,
+		  __entry->link_id, __entry->key_index)
 );
 
 TRACE_EVENT(rdev_set_default_beacon_key,
-	TP_PROTO(struct wiphy *wiphy, struct net_device *netdev, u8 key_index),
-	TP_ARGS(wiphy, netdev, key_index),
+	TP_PROTO(struct wiphy *wiphy, struct net_device *netdev, int link_id,
+		 u8 key_index),
+	TP_ARGS(wiphy, netdev, link_id, key_index),
 	TP_STRUCT__entry(
 		WIPHY_ENTRY
 		NETDEV_ENTRY
+		__field(int, link_id)
 		__field(u8, key_index)
 	),
 	TP_fast_assign(
 		WIPHY_ASSIGN;
 		NETDEV_ASSIGN;
+		__entry->link_id = link_id;
 		__entry->key_index = key_index;
 	),
-	TP_printk(WIPHY_PR_FMT ", " NETDEV_PR_FMT ", key index: %u",
-		  WIPHY_PR_ARG, NETDEV_PR_ARG, __entry->key_index)
+	TP_printk(WIPHY_PR_FMT ", " NETDEV_PR_FMT ", link_id: %d, "
+		  "key index: %u", WIPHY_PR_ARG, NETDEV_PR_ARG,
+		  __entry->link_id, __entry->key_index)
 );
 
 TRACE_EVENT(rdev_start_ap,
@@ -3245,18 +3263,21 @@ TRACE_EVENT(cfg80211_ch_switch_notify,
 
 TRACE_EVENT(cfg80211_ch_switch_started_notify,
 	TP_PROTO(struct net_device *netdev,
-		 struct cfg80211_chan_def *chandef),
-	TP_ARGS(netdev, chandef),
+		 struct cfg80211_chan_def *chandef,
+		 unsigned int link_id),
+	TP_ARGS(netdev, chandef, link_id),
 	TP_STRUCT__entry(
 		NETDEV_ENTRY
 		CHAN_DEF_ENTRY
+		__field(unsigned int, link_id)
 	),
 	TP_fast_assign(
 		NETDEV_ASSIGN;
 		CHAN_DEF_ASSIGN(chandef);
+		__entry->link_id = link_id;
 	),
-	TP_printk(NETDEV_PR_FMT ", " CHAN_DEF_PR_FMT,
-		  NETDEV_PR_ARG, CHAN_DEF_PR_ARG)
+	TP_printk(NETDEV_PR_FMT ", " CHAN_DEF_PR_FMT ", link:%d",
+		  NETDEV_PR_ARG, CHAN_DEF_PR_ARG, __entry->link_id)
 );
 
 TRACE_EVENT(cfg80211_radar_event,
