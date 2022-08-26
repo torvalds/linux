@@ -68,14 +68,17 @@ static void msm_hdmi_destroy(struct hdmi *hdmi)
 		destroy_workqueue(hdmi->workq);
 	msm_hdmi_hdcp_destroy(hdmi);
 
+	if (hdmi->i2c)
+		msm_hdmi_i2c_destroy(hdmi->i2c);
+}
+
+static void msm_hdmi_put_phy(struct hdmi *hdmi)
+{
 	if (hdmi->phy_dev) {
 		put_device(hdmi->phy_dev);
 		hdmi->phy = NULL;
 		hdmi->phy_dev = NULL;
 	}
-
-	if (hdmi->i2c)
-		msm_hdmi_i2c_destroy(hdmi->i2c);
 }
 
 static int msm_hdmi_get_phy(struct hdmi *hdmi)
@@ -91,19 +94,15 @@ static int msm_hdmi_get_phy(struct hdmi *hdmi)
 	}
 
 	phy_pdev = of_find_device_by_node(phy_node);
-	if (phy_pdev)
-		hdmi->phy = platform_get_drvdata(phy_pdev);
-
 	of_node_put(phy_node);
 
-	if (!phy_pdev) {
-		DRM_DEV_ERROR(&pdev->dev, "phy driver is not ready\n");
-		return -EPROBE_DEFER;
-	}
+	if (!phy_pdev)
+		return dev_err_probe(&pdev->dev, -EPROBE_DEFER, "phy driver is not ready\n");
+
+	hdmi->phy = platform_get_drvdata(phy_pdev);
 	if (!hdmi->phy) {
-		DRM_DEV_ERROR(&pdev->dev, "phy driver is not ready\n");
 		put_device(&phy_pdev->dev);
-		return -EPROBE_DEFER;
+		return dev_err_probe(&pdev->dev, -EPROBE_DEFER, "phy driver is not ready\n");
 	}
 
 	hdmi->phy_dev = &phy_pdev->dev;
@@ -127,12 +126,6 @@ static int msm_hdmi_init(struct hdmi *hdmi)
 		ret = PTR_ERR(hdmi->i2c);
 		DRM_DEV_ERROR(&pdev->dev, "failed to get i2c: %d\n", ret);
 		hdmi->i2c = NULL;
-		goto fail;
-	}
-
-	ret = msm_hdmi_get_phy(hdmi);
-	if (ret) {
-		DRM_DEV_ERROR(&pdev->dev, "failed to get phy\n");
 		goto fail;
 	}
 
@@ -532,6 +525,12 @@ static int msm_hdmi_dev_probe(struct platform_device *pdev)
 	if (hdmi->hpd_gpiod)
 		gpiod_set_consumer_name(hdmi->hpd_gpiod, "HDMI_HPD");
 
+	ret = msm_hdmi_get_phy(hdmi);
+	if (ret) {
+		DRM_DEV_ERROR(&pdev->dev, "failed to get phy\n");
+		return ret;
+	}
+
 	ret = devm_pm_runtime_enable(&pdev->dev);
 	if (ret)
 		return ret;
@@ -543,7 +542,12 @@ static int msm_hdmi_dev_probe(struct platform_device *pdev)
 
 static int msm_hdmi_dev_remove(struct platform_device *pdev)
 {
+	struct hdmi *hdmi = dev_get_drvdata(&pdev->dev);
+
 	component_del(&pdev->dev, &msm_hdmi_ops);
+
+	msm_hdmi_put_phy(hdmi);
+
 	return 0;
 }
 
