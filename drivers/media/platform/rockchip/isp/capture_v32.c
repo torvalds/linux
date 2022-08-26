@@ -1297,12 +1297,19 @@ static void rkisp_stream_stop(struct rkisp_stream *stream)
 {
 	struct rkisp_device *dev = stream->ispdev;
 	struct v4l2_device *v4l2_dev = &dev->v4l2_dev;
+	unsigned long lock_flags = 0;
 	int ret = 0;
 
 	stream->stopping = true;
 	stream->is_pause = false;
 	if (dev->hw_dev->is_single && stream->ops->disable_mi)
 		stream->ops->disable_mi(stream);
+	if (IS_HDR_RDBK(dev->rd_mode)) {
+		spin_lock_irqsave(&dev->hw_dev->rdbk_lock, lock_flags);
+		if (dev->hw_dev->cur_dev_id != dev->dev_id || dev->hw_dev->is_idle)
+			dev->isp_state = ISP_STOP;
+		spin_unlock_irqrestore(&dev->hw_dev->rdbk_lock, lock_flags);
+	}
 	if (dev->isp_state & ISP_START &&
 	    !stream->ops->is_stream_stopped(stream)) {
 		ret = wait_event_timeout(stream->done,
