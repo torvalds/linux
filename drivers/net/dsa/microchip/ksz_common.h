@@ -62,6 +62,8 @@ struct ksz_chip_data {
 	bool supports_rgmii[KSZ_MAX_NUM_PORTS];
 	bool internal_phy[KSZ_MAX_NUM_PORTS];
 	bool gbit_capable[KSZ_MAX_NUM_PORTS];
+	const struct regmap_access_table *wr_table;
+	const struct regmap_access_table *rd_table;
 };
 
 struct ksz_port {
@@ -333,6 +335,10 @@ static inline int ksz_read8(struct ksz_device *dev, u32 reg, u8 *val)
 	unsigned int value;
 	int ret = regmap_read(dev->regmap[0], reg, &value);
 
+	if (ret)
+		dev_err(dev->dev, "can't read 8bit reg: 0x%x %pe\n", reg,
+			ERR_PTR(ret));
+
 	*val = value;
 	return ret;
 }
@@ -342,6 +348,10 @@ static inline int ksz_read16(struct ksz_device *dev, u32 reg, u16 *val)
 	unsigned int value;
 	int ret = regmap_read(dev->regmap[1], reg, &value);
 
+	if (ret)
+		dev_err(dev->dev, "can't read 16bit reg: 0x%x %pe\n", reg,
+			ERR_PTR(ret));
+
 	*val = value;
 	return ret;
 }
@@ -350,6 +360,10 @@ static inline int ksz_read32(struct ksz_device *dev, u32 reg, u32 *val)
 {
 	unsigned int value;
 	int ret = regmap_read(dev->regmap[2], reg, &value);
+
+	if (ret)
+		dev_err(dev->dev, "can't read 32bit reg: 0x%x %pe\n", reg,
+			ERR_PTR(ret));
 
 	*val = value;
 	return ret;
@@ -361,7 +375,10 @@ static inline int ksz_read64(struct ksz_device *dev, u32 reg, u64 *val)
 	int ret;
 
 	ret = regmap_bulk_read(dev->regmap[2], reg, value, 2);
-	if (!ret)
+	if (ret)
+		dev_err(dev->dev, "can't read 64bit reg: 0x%x %pe\n", reg,
+			ERR_PTR(ret));
+	else
 		*val = (u64)value[0] << 32 | value[1];
 
 	return ret;
@@ -369,17 +386,38 @@ static inline int ksz_read64(struct ksz_device *dev, u32 reg, u64 *val)
 
 static inline int ksz_write8(struct ksz_device *dev, u32 reg, u8 value)
 {
-	return regmap_write(dev->regmap[0], reg, value);
+	int ret;
+
+	ret = regmap_write(dev->regmap[0], reg, value);
+	if (ret)
+		dev_err(dev->dev, "can't write 8bit reg: 0x%x %pe\n", reg,
+			ERR_PTR(ret));
+
+	return ret;
 }
 
 static inline int ksz_write16(struct ksz_device *dev, u32 reg, u16 value)
 {
-	return regmap_write(dev->regmap[1], reg, value);
+	int ret;
+
+	ret = regmap_write(dev->regmap[1], reg, value);
+	if (ret)
+		dev_err(dev->dev, "can't write 16bit reg: 0x%x %pe\n", reg,
+			ERR_PTR(ret));
+
+	return ret;
 }
 
 static inline int ksz_write32(struct ksz_device *dev, u32 reg, u32 value)
 {
-	return regmap_write(dev->regmap[2], reg, value);
+	int ret;
+
+	ret = regmap_write(dev->regmap[2], reg, value);
+	if (ret)
+		dev_err(dev->dev, "can't write 32bit reg: 0x%x %pe\n", reg,
+			ERR_PTR(ret));
+
+	return ret;
 }
 
 static inline int ksz_write64(struct ksz_device *dev, u32 reg, u64 value)
