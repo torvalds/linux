@@ -60,6 +60,88 @@ struct xfrmi_net {
 	struct xfrm_if __rcu *collect_md_xfrmi;
 };
 
+static const struct nla_policy xfrm_lwt_policy[LWT_XFRM_MAX + 1] = {
+	[LWT_XFRM_IF_ID]	= NLA_POLICY_MIN(NLA_U32, 1),
+	[LWT_XFRM_LINK]		= NLA_POLICY_MIN(NLA_U32, 1),
+};
+
+static void xfrmi_destroy_state(struct lwtunnel_state *lwt)
+{
+}
+
+static int xfrmi_build_state(struct net *net, struct nlattr *nla,
+			     unsigned int family, const void *cfg,
+			     struct lwtunnel_state **ts,
+			     struct netlink_ext_ack *extack)
+{
+	struct nlattr *tb[LWT_XFRM_MAX + 1];
+	struct lwtunnel_state *new_state;
+	struct xfrm_md_info *info;
+	int ret;
+
+	ret = nla_parse_nested(tb, LWT_XFRM_MAX, nla, xfrm_lwt_policy, extack);
+	if (ret < 0)
+		return ret;
+
+	if (!tb[LWT_XFRM_IF_ID]) {
+		NL_SET_ERR_MSG(extack, "if_id must be set");
+		return -EINVAL;
+	}
+
+	new_state = lwtunnel_state_alloc(sizeof(*info));
+	if (!new_state) {
+		NL_SET_ERR_MSG(extack, "failed to create encap info");
+		return -ENOMEM;
+	}
+
+	new_state->type = LWTUNNEL_ENCAP_XFRM;
+
+	info = lwt_xfrm_info(new_state);
+
+	info->if_id = nla_get_u32(tb[LWT_XFRM_IF_ID]);
+
+	if (tb[LWT_XFRM_LINK])
+		info->link = nla_get_u32(tb[LWT_XFRM_LINK]);
+
+	*ts = new_state;
+	return 0;
+}
+
+static int xfrmi_fill_encap_info(struct sk_buff *skb,
+				 struct lwtunnel_state *lwt)
+{
+	struct xfrm_md_info *info = lwt_xfrm_info(lwt);
+
+	if (nla_put_u32(skb, LWT_XFRM_IF_ID, info->if_id) ||
+	    (info->link && nla_put_u32(skb, LWT_XFRM_LINK, info->link)))
+		return -EMSGSIZE;
+
+	return 0;
+}
+
+static int xfrmi_encap_nlsize(struct lwtunnel_state *lwtstate)
+{
+	return nla_total_size(sizeof(u32)) + /* LWT_XFRM_IF_ID */
+		nla_total_size(sizeof(u32)); /* LWT_XFRM_LINK */
+}
+
+static int xfrmi_encap_cmp(struct lwtunnel_state *a, struct lwtunnel_state *b)
+{
+	struct xfrm_md_info *a_info = lwt_xfrm_info(a);
+	struct xfrm_md_info *b_info = lwt_xfrm_info(b);
+
+	return memcmp(a_info, b_info, sizeof(*a_info));
+}
+
+static const struct lwtunnel_encap_ops xfrmi_encap_ops = {
+	.build_state	= xfrmi_build_state,
+	.destroy_state	= xfrmi_destroy_state,
+	.fill_encap	= xfrmi_fill_encap_info,
+	.get_encap_size = xfrmi_encap_nlsize,
+	.cmp_encap	= xfrmi_encap_cmp,
+	.owner		= THIS_MODULE,
+};
+
 #define for_each_xfrmi_rcu(start, xi) \
 	for (xi = rcu_dereference(start); xi; xi = rcu_dereference(xi->next))
 
@@ -1080,6 +1162,8 @@ static int __init xfrmi_init(void)
 	if (err < 0)
 		goto rtnl_link_failed;
 
+	lwtunnel_encap_add_ops(&xfrmi_encap_ops, LWTUNNEL_ENCAP_XFRM);
+
 	xfrm_if_register_cb(&xfrm_if_cb);
 
 	return err;
@@ -1098,6 +1182,7 @@ pernet_dev_failed:
 static void __exit xfrmi_fini(void)
 {
 	xfrm_if_unregister_cb();
+	lwtunnel_encap_del_ops(&xfrmi_encap_ops, LWTUNNEL_ENCAP_XFRM);
 	rtnl_link_unregister(&xfrmi_link_ops);
 	xfrmi4_fini();
 	xfrmi6_fini();
