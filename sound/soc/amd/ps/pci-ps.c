@@ -13,6 +13,7 @@
 #include <linux/acpi.h>
 #include <linux/interrupt.h>
 #include <sound/pcm_params.h>
+#include <linux/pm_runtime.h>
 
 #include "acp62.h"
 
@@ -253,6 +254,10 @@ static int snd_acp62_probe(struct pci_dev *pci,
 		}
 		break;
 	}
+	pm_runtime_set_autosuspend_delay(&pci->dev, ACP_SUSPEND_DELAY_MS);
+	pm_runtime_use_autosuspend(&pci->dev);
+	pm_runtime_put_noidle(&pci->dev);
+	pm_runtime_allow(&pci->dev);
 	return 0;
 unregister_devs:
 	for (--index; index >= 0; index--)
@@ -268,6 +273,35 @@ disable_pci:
 	return ret;
 }
 
+static int __maybe_unused snd_acp62_suspend(struct device *dev)
+{
+	struct acp62_dev_data *adata;
+	int ret;
+
+	adata = dev_get_drvdata(dev);
+	ret = acp62_deinit(adata->acp62_base, dev);
+	if (ret)
+		dev_err(dev, "ACP de-init failed\n");
+	return ret;
+}
+
+static int __maybe_unused snd_acp62_resume(struct device *dev)
+{
+	struct acp62_dev_data *adata;
+	int ret;
+
+	adata = dev_get_drvdata(dev);
+	ret = acp62_init(adata->acp62_base, dev);
+	if (ret)
+		dev_err(dev, "ACP init failed\n");
+	return ret;
+}
+
+static const struct dev_pm_ops acp62_pm_ops = {
+	SET_RUNTIME_PM_OPS(snd_acp62_suspend, snd_acp62_resume, NULL)
+	SET_SYSTEM_SLEEP_PM_OPS(snd_acp62_suspend, snd_acp62_resume)
+};
+
 static void snd_acp62_remove(struct pci_dev *pci)
 {
 	struct acp62_dev_data *adata;
@@ -281,6 +315,8 @@ static void snd_acp62_remove(struct pci_dev *pci)
 	ret = acp62_deinit(adata->acp62_base, &pci->dev);
 	if (ret)
 		dev_err(&pci->dev, "ACP de-init failed\n");
+	pm_runtime_forbid(&pci->dev);
+	pm_runtime_get_noresume(&pci->dev);
 	pci_release_regions(pci);
 	pci_disable_device(pci);
 }
@@ -298,6 +334,9 @@ static struct pci_driver ps_acp62_driver  = {
 	.id_table = snd_acp62_ids,
 	.probe = snd_acp62_probe,
 	.remove = snd_acp62_remove,
+	.driver = {
+		.pm = &acp62_pm_ops,
+	}
 };
 
 module_pci_driver(ps_acp62_driver);
