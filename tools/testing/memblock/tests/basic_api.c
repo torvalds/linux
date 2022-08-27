@@ -1679,6 +1679,50 @@ static int memblock_free_checks(void)
 	return 0;
 }
 
+static int memblock_set_bottom_up_check(void)
+{
+	prefix_push("memblock_set_bottom_up");
+
+	memblock_set_bottom_up(false);
+	ASSERT_EQ(memblock.bottom_up, false);
+	memblock_set_bottom_up(true);
+	ASSERT_EQ(memblock.bottom_up, true);
+
+	reset_memblock_attributes();
+	test_pass_pop();
+
+	return 0;
+}
+
+static int memblock_bottom_up_check(void)
+{
+	prefix_push("memblock_bottom_up");
+
+	memblock_set_bottom_up(false);
+	ASSERT_EQ(memblock_bottom_up(), memblock.bottom_up);
+	ASSERT_EQ(memblock_bottom_up(), false);
+	memblock_set_bottom_up(true);
+	ASSERT_EQ(memblock_bottom_up(), memblock.bottom_up);
+	ASSERT_EQ(memblock_bottom_up(), true);
+
+	reset_memblock_attributes();
+	test_pass_pop();
+
+	return 0;
+}
+
+static int memblock_bottom_up_checks(void)
+{
+	test_print("Running memblock_*bottom_up tests...\n");
+
+	prefix_reset();
+	memblock_set_bottom_up_check();
+	prefix_reset();
+	memblock_bottom_up_check();
+
+	return 0;
+}
+
 int memblock_basic_checks(void)
 {
 	memblock_initialization_check();
@@ -1686,6 +1730,7 @@ int memblock_basic_checks(void)
 	memblock_reserve_checks();
 	memblock_remove_checks();
 	memblock_free_checks();
+	memblock_bottom_up_checks();
 
 	return 0;
 }
