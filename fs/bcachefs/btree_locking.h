@@ -325,7 +325,8 @@ static inline bool bch2_btree_node_relock(struct btree_trans *trans,
 		btree_node_locked_type(path, level) != __btree_lock_want(path, level));
 
 	return likely(btree_node_locked(path, level)) ||
-		__bch2_btree_node_relock(trans, path, level);
+		(!IS_ERR_OR_NULL(path->l[level].b) &&
+		 __bch2_btree_node_relock(trans, path, level));
 }
 
 /* upgrade */

@@ -208,9 +208,6 @@ bool __bch2_btree_node_relock(struct btree_trans *trans,
 	struct btree *b = btree_path_node(path, level);
 	int want = __btree_lock_want(path, level);
 
-	if (!is_btree_node(path, level))
-		goto fail;
-
 	if (race_fault())
 		goto fail;
 
@@ -221,10 +218,7 @@ bool __bch2_btree_node_relock(struct btree_trans *trans,
 		return true;
 	}
 fail:
-	if (b != ERR_PTR(-BCH_ERR_no_btree_node_cached) &&
-	    b != ERR_PTR(-BCH_ERR_no_btree_node_init) &&
-	    b != ERR_PTR(-BCH_ERR_no_btree_node_up))
-		trace_btree_node_relock_fail(trans, _RET_IP_, path, level);
+	trace_btree_node_relock_fail(trans, _RET_IP_, path, level);
 	return false;
 }
 
