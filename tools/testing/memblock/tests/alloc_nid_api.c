@@ -19,7 +19,6 @@ static int alloc_try_nid_top_down_simple_check(void)
 {
 	struct memblock_region *rgn = &memblock.reserved.regions[0];
 	void *allocated_ptr = NULL;
-	char *b;
 
 	PREFIX_PUSH();
 
@@ -35,11 +34,10 @@ static int alloc_try_nid_top_down_simple_check(void)
 
 	allocated_ptr = memblock_alloc_try_nid(size, SMP_CACHE_BYTES,
 					       min_addr, max_addr, NUMA_NO_NODE);
-	b = (char *)allocated_ptr;
 	rgn_end = rgn->base + rgn->size;
 
 	ASSERT_NE(allocated_ptr, NULL);
-	ASSERT_EQ(*b, 0);
+	ASSERT_MEM_EQ(allocated_ptr, 0, size);
 
 	ASSERT_EQ(rgn->size, size);
 	ASSERT_EQ(rgn->base, max_addr - size);
@@ -74,7 +72,6 @@ static int alloc_try_nid_top_down_end_misaligned_check(void)
 {
 	struct memblock_region *rgn = &memblock.reserved.regions[0];
 	void *allocated_ptr = NULL;
-	char *b;
 
 	PREFIX_PUSH();
 
@@ -91,11 +88,10 @@ static int alloc_try_nid_top_down_end_misaligned_check(void)
 
 	allocated_ptr = memblock_alloc_try_nid(size, SMP_CACHE_BYTES,
 					       min_addr, max_addr, NUMA_NO_NODE);
-	b = (char *)allocated_ptr;
 	rgn_end = rgn->base + rgn->size;
 
 	ASSERT_NE(allocated_ptr, NULL);
-	ASSERT_EQ(*b, 0);
+	ASSERT_MEM_EQ(allocated_ptr, 0, size);
 
 	ASSERT_EQ(rgn->size, size);
 	ASSERT_EQ(rgn->base, max_addr - size - misalign);
@@ -128,7 +124,6 @@ static int alloc_try_nid_exact_address_generic_check(void)
 {
 	struct memblock_region *rgn = &memblock.reserved.regions[0];
 	void *allocated_ptr = NULL;
-	char *b;
 
 	PREFIX_PUSH();
 
@@ -144,11 +139,10 @@ static int alloc_try_nid_exact_address_generic_check(void)
 
 	allocated_ptr = memblock_alloc_try_nid(size, SMP_CACHE_BYTES,
 					       min_addr, max_addr, NUMA_NO_NODE);
-	b = (char *)allocated_ptr;
 	rgn_end = rgn->base + rgn->size;
 
 	ASSERT_NE(allocated_ptr, NULL);
-	ASSERT_EQ(*b, 0);
+	ASSERT_MEM_EQ(allocated_ptr, 0, size);
 
 	ASSERT_EQ(rgn->size, size);
 	ASSERT_EQ(rgn->base, min_addr);
@@ -183,7 +177,6 @@ static int alloc_try_nid_top_down_narrow_range_check(void)
 {
 	struct memblock_region *rgn = &memblock.reserved.regions[0];
 	void *allocated_ptr = NULL;
-	char *b;
 
 	PREFIX_PUSH();
 
@@ -198,10 +191,9 @@ static int alloc_try_nid_top_down_narrow_range_check(void)
 
 	allocated_ptr = memblock_alloc_try_nid(size, SMP_CACHE_BYTES,
 					       min_addr, max_addr, NUMA_NO_NODE);
-	b = (char *)allocated_ptr;
 
 	ASSERT_NE(allocated_ptr, NULL);
-	ASSERT_EQ(*b, 0);
+	ASSERT_MEM_EQ(allocated_ptr, 0, size);
 
 	ASSERT_EQ(rgn->size, size);
 	ASSERT_EQ(rgn->base, max_addr - size);
@@ -277,7 +269,6 @@ static int alloc_try_nid_min_reserved_generic_check(void)
 {
 	struct memblock_region *rgn = &memblock.reserved.regions[0];
 	void *allocated_ptr = NULL;
-	char *b;
 
 	PREFIX_PUSH();
 
@@ -298,10 +289,9 @@ static int alloc_try_nid_min_reserved_generic_check(void)
 
 	allocated_ptr = memblock_alloc_try_nid(r2_size, SMP_CACHE_BYTES,
 					       min_addr, max_addr, NUMA_NO_NODE);
-	b = (char *)allocated_ptr;
 
 	ASSERT_NE(allocated_ptr, NULL);
-	ASSERT_EQ(*b, 0);
+	ASSERT_MEM_EQ(allocated_ptr, 0, r2_size);
 
 	ASSERT_EQ(rgn->size, total_size);
 	ASSERT_EQ(rgn->base, reserved_base);
@@ -332,7 +322,6 @@ static int alloc_try_nid_max_reserved_generic_check(void)
 {
 	struct memblock_region *rgn = &memblock.reserved.regions[0];
 	void *allocated_ptr = NULL;
-	char *b;
 
 	PREFIX_PUSH();
 
@@ -351,10 +340,9 @@ static int alloc_try_nid_max_reserved_generic_check(void)
 
 	allocated_ptr = memblock_alloc_try_nid(r2_size, SMP_CACHE_BYTES,
 					       min_addr, max_addr, NUMA_NO_NODE);
-	b = (char *)allocated_ptr;
 
 	ASSERT_NE(allocated_ptr, NULL);
-	ASSERT_EQ(*b, 0);
+	ASSERT_MEM_EQ(allocated_ptr, 0, r2_size);
 
 	ASSERT_EQ(rgn->size, total_size);
 	ASSERT_EQ(rgn->base, min_addr);
@@ -389,7 +377,6 @@ static int alloc_try_nid_top_down_reserved_with_space_check(void)
 	struct memblock_region *rgn1 = &memblock.reserved.regions[1];
 	struct memblock_region *rgn2 = &memblock.reserved.regions[0];
 	void *allocated_ptr = NULL;
-	char *b;
 	struct region r1, r2;
 
 	PREFIX_PUSH();
@@ -417,10 +404,9 @@ static int alloc_try_nid_top_down_reserved_with_space_check(void)
 
 	allocated_ptr = memblock_alloc_try_nid(r3_size, SMP_CACHE_BYTES,
 					       min_addr, max_addr, NUMA_NO_NODE);
-	b = (char *)allocated_ptr;
 
 	ASSERT_NE(allocated_ptr, NULL);
-	ASSERT_EQ(*b, 0);
+	ASSERT_MEM_EQ(allocated_ptr, 0, r3_size);
 
 	ASSERT_EQ(rgn1->size, r1.size + r3_size);
 	ASSERT_EQ(rgn1->base, max_addr - r3_size);
@@ -456,7 +442,6 @@ static int alloc_try_nid_reserved_full_merge_generic_check(void)
 {
 	struct memblock_region *rgn = &memblock.reserved.regions[0];
 	void *allocated_ptr = NULL;
-	char *b;
 	struct region r1, r2;
 
 	PREFIX_PUSH();
@@ -483,10 +468,9 @@ static int alloc_try_nid_reserved_full_merge_generic_check(void)
 
 	allocated_ptr = memblock_alloc_try_nid(r3_size, SMP_CACHE_BYTES,
 					       min_addr, max_addr, NUMA_NO_NODE);
-	b = (char *)allocated_ptr;
 
 	ASSERT_NE(allocated_ptr, NULL);
-	ASSERT_EQ(*b, 0);
+	ASSERT_MEM_EQ(allocated_ptr, 0, r3_size);
 
 	ASSERT_EQ(rgn->size, total_size);
 	ASSERT_EQ(rgn->base, r2.base);
@@ -522,7 +506,6 @@ static int alloc_try_nid_top_down_reserved_no_space_check(void)
 	struct memblock_region *rgn1 = &memblock.reserved.regions[1];
 	struct memblock_region *rgn2 = &memblock.reserved.regions[0];
 	void *allocated_ptr = NULL;
-	char *b;
 	struct region r1, r2;
 
 	PREFIX_PUSH();
@@ -550,10 +533,9 @@ static int alloc_try_nid_top_down_reserved_no_space_check(void)
 
 	allocated_ptr = memblock_alloc_try_nid(r3_size, SMP_CACHE_BYTES,
 					       min_addr, max_addr, NUMA_NO_NODE);
-	b = (char *)allocated_ptr;
 
 	ASSERT_NE(allocated_ptr, NULL);
-	ASSERT_EQ(*b, 0);
+	ASSERT_MEM_EQ(allocated_ptr, 0, r3_size);
 
 	ASSERT_EQ(rgn1->size, r1.size);
 	ASSERT_EQ(rgn1->base, r1.base);
@@ -634,7 +616,6 @@ static int alloc_try_nid_top_down_cap_max_check(void)
 {
 	struct memblock_region *rgn = &memblock.reserved.regions[0];
 	void *allocated_ptr = NULL;
-	char *b;
 
 	PREFIX_PUSH();
 
@@ -649,10 +630,9 @@ static int alloc_try_nid_top_down_cap_max_check(void)
 
 	allocated_ptr = memblock_alloc_try_nid(size, SMP_CACHE_BYTES,
 					       min_addr, max_addr, NUMA_NO_NODE);
-	b = (char *)allocated_ptr;
 
 	ASSERT_NE(allocated_ptr, NULL);
-	ASSERT_EQ(*b, 0);
+	ASSERT_MEM_EQ(allocated_ptr, 0, size);
 
 	ASSERT_EQ(rgn->size, size);
 	ASSERT_EQ(rgn->base, memblock_end_of_DRAM() - size);
@@ -674,7 +654,6 @@ static int alloc_try_nid_top_down_cap_min_check(void)
 {
 	struct memblock_region *rgn = &memblock.reserved.regions[0];
 	void *allocated_ptr = NULL;
-	char *b;
 
 	PREFIX_PUSH();
 
@@ -689,10 +668,9 @@ static int alloc_try_nid_top_down_cap_min_check(void)
 
 	allocated_ptr = memblock_alloc_try_nid(size, SMP_CACHE_BYTES,
 					       min_addr, max_addr, NUMA_NO_NODE);
-	b = (char *)allocated_ptr;
 
 	ASSERT_NE(allocated_ptr, NULL);
-	ASSERT_EQ(*b, 0);
+	ASSERT_MEM_EQ(allocated_ptr, 0, size);
 
 	ASSERT_EQ(rgn->size, size);
 	ASSERT_EQ(rgn->base, memblock_end_of_DRAM() - size);
@@ -723,7 +701,6 @@ static int alloc_try_nid_bottom_up_simple_check(void)
 {
 	struct memblock_region *rgn = &memblock.reserved.regions[0];
 	void *allocated_ptr = NULL;
-	char *b;
 
 	PREFIX_PUSH();
 
@@ -740,11 +717,10 @@ static int alloc_try_nid_bottom_up_simple_check(void)
 	allocated_ptr = memblock_alloc_try_nid(size, SMP_CACHE_BYTES,
 					       min_addr, max_addr,
 					       NUMA_NO_NODE);
-	b = (char *)allocated_ptr;
 	rgn_end = rgn->base + rgn->size;
 
 	ASSERT_NE(allocated_ptr, NULL);
-	ASSERT_EQ(*b, 0);
+	ASSERT_MEM_EQ(allocated_ptr, 0, size);
 
 	ASSERT_EQ(rgn->size, size);
 	ASSERT_EQ(rgn->base, min_addr);
@@ -779,7 +755,6 @@ static int alloc_try_nid_bottom_up_start_misaligned_check(void)
 {
 	struct memblock_region *rgn = &memblock.reserved.regions[0];
 	void *allocated_ptr = NULL;
-	char *b;
 
 	PREFIX_PUSH();
 
@@ -797,11 +772,10 @@ static int alloc_try_nid_bottom_up_start_misaligned_check(void)
 	allocated_ptr = memblock_alloc_try_nid(size, SMP_CACHE_BYTES,
 					       min_addr, max_addr,
 					       NUMA_NO_NODE);
-	b = (char *)allocated_ptr;
 	rgn_end = rgn->base + rgn->size;
 
 	ASSERT_NE(allocated_ptr, NULL);
-	ASSERT_EQ(*b, 0);
+	ASSERT_MEM_EQ(allocated_ptr, 0, size);
 
 	ASSERT_EQ(rgn->size, size);
 	ASSERT_EQ(rgn->base, min_addr + (SMP_CACHE_BYTES - misalign));
@@ -836,7 +810,6 @@ static int alloc_try_nid_bottom_up_narrow_range_check(void)
 {
 	struct memblock_region *rgn = &memblock.reserved.regions[0];
 	void *allocated_ptr = NULL;
-	char *b;
 
 	PREFIX_PUSH();
 
@@ -852,10 +825,9 @@ static int alloc_try_nid_bottom_up_narrow_range_check(void)
 	allocated_ptr = memblock_alloc_try_nid(size, SMP_CACHE_BYTES,
 					       min_addr, max_addr,
 					       NUMA_NO_NODE);
-	b = (char *)allocated_ptr;
 
 	ASSERT_NE(allocated_ptr, NULL);
-	ASSERT_EQ(*b, 0);
+	ASSERT_MEM_EQ(allocated_ptr, 0, size);
 
 	ASSERT_EQ(rgn->size, size);
 	ASSERT_EQ(rgn->base, memblock_start_of_DRAM());
@@ -890,7 +862,6 @@ static int alloc_try_nid_bottom_up_reserved_with_space_check(void)
 	struct memblock_region *rgn1 = &memblock.reserved.regions[1];
 	struct memblock_region *rgn2 = &memblock.reserved.regions[0];
 	void *allocated_ptr = NULL;
-	char *b;
 	struct region r1, r2;
 
 	PREFIX_PUSH();
@@ -919,10 +890,9 @@ static int alloc_try_nid_bottom_up_reserved_with_space_check(void)
 	allocated_ptr = memblock_alloc_try_nid(r3_size, SMP_CACHE_BYTES,
 					       min_addr, max_addr,
 					       NUMA_NO_NODE);
-	b = (char *)allocated_ptr;
 
 	ASSERT_NE(allocated_ptr, NULL);
-	ASSERT_EQ(*b, 0);
+	ASSERT_MEM_EQ(allocated_ptr, 0, r3_size);
 
 	ASSERT_EQ(rgn1->size, r1.size);
 	ASSERT_EQ(rgn1->base, max_addr);
@@ -964,7 +934,6 @@ static int alloc_try_nid_bottom_up_reserved_no_space_check(void)
 	struct memblock_region *rgn2 = &memblock.reserved.regions[1];
 	struct memblock_region *rgn3 = &memblock.reserved.regions[0];
 	void *allocated_ptr = NULL;
-	char *b;
 	struct region r1, r2;
 
 	PREFIX_PUSH();
@@ -993,10 +962,9 @@ static int alloc_try_nid_bottom_up_reserved_no_space_check(void)
 	allocated_ptr = memblock_alloc_try_nid(r3_size, SMP_CACHE_BYTES,
 					       min_addr, max_addr,
 					       NUMA_NO_NODE);
-	b = (char *)allocated_ptr;
 
 	ASSERT_NE(allocated_ptr, NULL);
-	ASSERT_EQ(*b, 0);
+	ASSERT_MEM_EQ(allocated_ptr, 0, r3_size);
 
 	ASSERT_EQ(rgn3->size, r3_size);
 	ASSERT_EQ(rgn3->base, memblock_start_of_DRAM());
@@ -1024,7 +992,6 @@ static int alloc_try_nid_bottom_up_cap_max_check(void)
 {
 	struct memblock_region *rgn = &memblock.reserved.regions[0];
 	void *allocated_ptr = NULL;
-	char *b;
 
 	PREFIX_PUSH();
 
@@ -1040,10 +1007,9 @@ static int alloc_try_nid_bottom_up_cap_max_check(void)
 	allocated_ptr = memblock_alloc_try_nid(size, SMP_CACHE_BYTES,
 					       min_addr, max_addr,
 					       NUMA_NO_NODE);
-	b = (char *)allocated_ptr;
 
 	ASSERT_NE(allocated_ptr, NULL);
-	ASSERT_EQ(*b, 0);
+	ASSERT_MEM_EQ(allocated_ptr, 0, size);
 
 	ASSERT_EQ(rgn->size, size);
 	ASSERT_EQ(rgn->base, min_addr);
@@ -1065,7 +1031,6 @@ static int alloc_try_nid_bottom_up_cap_min_check(void)
 {
 	struct memblock_region *rgn = &memblock.reserved.regions[0];
 	void *allocated_ptr = NULL;
-	char *b;
 
 	PREFIX_PUSH();
 
@@ -1081,10 +1046,9 @@ static int alloc_try_nid_bottom_up_cap_min_check(void)
 	allocated_ptr = memblock_alloc_try_nid(size, SMP_CACHE_BYTES,
 					       min_addr, max_addr,
 					       NUMA_NO_NODE);
-	b = (char *)allocated_ptr;
 
 	ASSERT_NE(allocated_ptr, NULL);
-	ASSERT_EQ(*b, 0);
+	ASSERT_MEM_EQ(allocated_ptr, 0, size);
 
 	ASSERT_EQ(rgn->size, size);
 	ASSERT_EQ(rgn->base, memblock_start_of_DRAM());
