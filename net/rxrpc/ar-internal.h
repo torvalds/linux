@@ -198,7 +198,6 @@ struct rxrpc_skb_priv {
 	u16		remain;
 	u16		offset;		/* Offset of data */
 	u16		len;		/* Length of data */
-	u8		rx_flags;	/* Received packet flags */
 	u8		flags;
 #define RXRPC_RX_VERIFIED	0x01
 
@@ -644,8 +643,20 @@ struct rxrpc_call {
 	rxrpc_seq_t		tx_hard_ack;	/* Dead slot in buffer; the first transmitted but
 						 * not hard-ACK'd packet follows this.
 						 */
+
+	/* Transmitted data tracking. */
 	rxrpc_seq_t		tx_top;		/* Highest Tx slot allocated. */
 	u16			tx_backoff;	/* Delay to insert due to Tx failure */
+	u8			tx_winsize;	/* Maximum size of Tx window */
+
+	/* Received data tracking */
+	struct sk_buff_head	recvmsg_queue;	/* Queue of packets ready for recvmsg() */
+	struct sk_buff_head	rx_oos_queue;	/* Queue of out of sequence packets */
+
+	rxrpc_seq_t		rx_highest_seq;	/* Higest sequence number received */
+	rxrpc_seq_t		rx_consumed;	/* Highest packet consumed */
+	rxrpc_serial_t		rx_serial;	/* Highest serial received for this call */
+	u8			rx_winsize;	/* Size of Rx window */
 
 	/* TCP-style slow-start congestion control [RFC5681].  Since the SMSS
 	 * is fixed, we keep these numbers in terms of segments (ie. DATA
@@ -660,23 +671,19 @@ struct rxrpc_call {
 	u8			cong_cumul_acks; /* Cumulative ACK count */
 	ktime_t			cong_tstamp;	/* Last time cwnd was changed */
 
-	rxrpc_seq_t		rx_hard_ack;	/* Dead slot in buffer; the first received but not
-						 * consumed packet follows this.
-						 */
-	rxrpc_seq_t		rx_top;		/* Highest Rx slot allocated. */
-	rxrpc_seq_t		rx_expect_next;	/* Expected next packet sequence number */
-	rxrpc_serial_t		rx_serial;	/* Highest serial received for this call */
-	u8			rx_winsize;	/* Size of Rx window */
-	u8			tx_winsize;	/* Maximum size of Tx window */
-
 	spinlock_t		input_lock;	/* Lock for packet input to this call */
 
 	/* Receive-phase ACK management (ACKs we send). */
 	u8			ackr_reason;	/* reason to ACK */
 	rxrpc_serial_t		ackr_serial;	/* serial of packet being ACK'd */
-	rxrpc_seq_t		ackr_highest_seq; /* Higest sequence number received */
+	atomic64_t		ackr_window;	/* Base (in LSW) and top (in MSW) of SACK window */
 	atomic_t		ackr_nr_unacked; /* Number of unacked packets */
 	atomic_t		ackr_nr_consumed; /* Number of packets needing hard ACK */
+	struct {
+#define RXRPC_SACK_SIZE 256
+		 /* SACK table for soft-acked packets */
+		u8		ackr_sack_table[RXRPC_SACK_SIZE];
+	} __aligned(8);
 
 	/* RTT management */
 	rxrpc_serial_t		rtt_serial[4];	/* Serial number of DATA or PING sent */

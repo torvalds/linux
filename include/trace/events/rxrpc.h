@@ -104,7 +104,12 @@
 	EM(rxrpc_receive_incoming,		"INC") \
 	EM(rxrpc_receive_queue,			"QUE") \
 	EM(rxrpc_receive_queue_last,		"QLS") \
-	E_(rxrpc_receive_rotate,		"ROT")
+	EM(rxrpc_receive_queue_oos,		"QUO") \
+	EM(rxrpc_receive_queue_oos_last,	"QOL") \
+	EM(rxrpc_receive_oos,			"OOS") \
+	EM(rxrpc_receive_oos_last,		"OSL") \
+	EM(rxrpc_receive_rotate,		"ROT") \
+	E_(rxrpc_receive_rotate_last,		"RLS")
 
 #define rxrpc_recvmsg_traces \
 	EM(rxrpc_recvmsg_cont,			"CONT") \
@@ -860,8 +865,7 @@ TRACE_EVENT(rxrpc_receive,
 		    __field(enum rxrpc_receive_trace,	why		)
 		    __field(rxrpc_serial_t,		serial		)
 		    __field(rxrpc_seq_t,		seq		)
-		    __field(rxrpc_seq_t,		hard_ack	)
-		    __field(rxrpc_seq_t,		top		)
+		    __field(u64,			window		)
 			     ),
 
 	    TP_fast_assign(
@@ -869,8 +873,7 @@ TRACE_EVENT(rxrpc_receive,
 		    __entry->why = why;
 		    __entry->serial = serial;
 		    __entry->seq = seq;
-		    __entry->hard_ack = call->rx_hard_ack;
-		    __entry->top = call->rx_top;
+		    __entry->window = atomic64_read(&call->ackr_window);
 			   ),
 
 	    TP_printk("c=%08x %s r=%08x q=%08x w=%08x-%08x",
@@ -878,8 +881,8 @@ TRACE_EVENT(rxrpc_receive,
 		      __print_symbolic(__entry->why, rxrpc_receive_traces),
 		      __entry->serial,
 		      __entry->seq,
-		      __entry->hard_ack,
-		      __entry->top)
+		      lower_32_bits(__entry->window),
+		      upper_32_bits(__entry->window))
 	    );
 
 TRACE_EVENT(rxrpc_recvmsg,
@@ -1459,7 +1462,7 @@ TRACE_EVENT(rxrpc_call_reset,
 		    __entry->call_serial = call->rx_serial;
 		    __entry->conn_serial = call->conn->hi_serial;
 		    __entry->tx_seq = call->tx_hard_ack;
-		    __entry->rx_seq = call->rx_hard_ack;
+		    __entry->rx_seq = call->rx_highest_seq;
 			   ),
 
 	    TP_printk("c=%08x %08x:%08x r=%08x/%08x tx=%08x rx=%08x",

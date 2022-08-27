@@ -155,6 +155,8 @@ struct rxrpc_call *rxrpc_alloc_call(struct rxrpc_sock *rx, gfp_t gfp,
 	INIT_LIST_HEAD(&call->accept_link);
 	INIT_LIST_HEAD(&call->recvmsg_link);
 	INIT_LIST_HEAD(&call->sock_link);
+	skb_queue_head_init(&call->recvmsg_queue);
+	skb_queue_head_init(&call->rx_oos_queue);
 	init_waitqueue_head(&call->waitq);
 	spin_lock_init(&call->lock);
 	spin_lock_init(&call->notify_lock);
@@ -165,13 +167,12 @@ struct rxrpc_call *rxrpc_alloc_call(struct rxrpc_sock *rx, gfp_t gfp,
 	call->tx_total_len = -1;
 	call->next_rx_timo = 20 * HZ;
 	call->next_req_timo = 1 * HZ;
+	atomic64_set(&call->ackr_window, 0x100000001ULL);
 
 	memset(&call->sock_node, 0xed, sizeof(call->sock_node));
 
-	/* Leave space in the ring to handle a maxed-out jumbo packet */
 	call->rx_winsize = rxrpc_rx_window_size;
 	call->tx_winsize = 16;
-	call->rx_expect_next = 1;
 
 	call->cong_cwnd = 2;
 	call->cong_ssthresh = RXRPC_RXTX_BUFF_SIZE - 1;
@@ -519,6 +520,8 @@ static void rxrpc_cleanup_ring(struct rxrpc_call *call)
 		rxrpc_free_skb(call->rxtx_buffer[i], rxrpc_skb_cleaned);
 		call->rxtx_buffer[i] = NULL;
 	}
+	skb_queue_purge(&call->recvmsg_queue);
+	skb_queue_purge(&call->rx_oos_queue);
 }
 
 /*

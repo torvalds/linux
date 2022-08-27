@@ -1191,7 +1191,6 @@ static int rxkad_verify_response(struct rxrpc_connection *conn,
 	abort_code = RXKADPACKETSHORT;
 	if (skb_copy_bits(skb, sizeof(struct rxrpc_wire_header) + sizeof(*response),
 			  ticket, ticket_len) < 0)
-		goto protocol_error_free;
 
 	ret = rxkad_decrypt_ticket(conn, server_key, skb, ticket, ticket_len,
 				   &session_key, &expiry, _abort_code);
