@@ -91,7 +91,6 @@
 
 #define ATOMISP_ISP_TIMEOUT_DURATION		(2 * HZ)
 #define ATOMISP_EXT_ISP_TIMEOUT_DURATION        (6 * HZ)
-#define ATOMISP_ISP_FILE_TIMEOUT_DURATION	(60 * HZ)
 #define ATOMISP_WDT_KEEP_CURRENT_DELAY          0
 #define ATOMISP_ISP_MAX_TIMEOUT_COUNT	2
 #define ATOMISP_CSS_STOP_TIMEOUT_US	200000
@@ -202,7 +201,6 @@ struct atomisp_regs {
 };
 
 struct atomisp_sw_contex {
-	bool file_input;
 	int power_state;
 	int running_freq;
 };

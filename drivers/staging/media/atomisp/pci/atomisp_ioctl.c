@@ -737,7 +737,7 @@ static int atomisp_s_input(struct file *file, void *fh, unsigned int input)
 			ret = v4l2_subdev_call(motor, core, s_power, 1);
 	}
 
-	if (!isp->sw_contex.file_input && motor)
+	if (motor)
 		ret = v4l2_subdev_call(motor, core, init, 1);
 
 	asd->input_curr = input;
@@ -1841,8 +1841,6 @@ static int atomisp_streamon(struct file *file, void *fh,
 	atomic_set(&asd->sof_count, -1);
 	atomic_set(&asd->sequence, -1);
 	atomic_set(&asd->sequence_temp, -1);
-	if (isp->sw_contex.file_input)
-		wdt_duration = ATOMISP_ISP_FILE_TIMEOUT_DURATION;
 
 	asd->params.dis_proj_data_valid = false;
 	asd->latest_preview_exp_id = 0;
@@ -1865,26 +1863,21 @@ start_sensor:
 		atomisp_setup_flash(asd);
 	}
 
-	if (!isp->sw_contex.file_input) {
-		atomisp_css_irq_enable(isp, IA_CSS_IRQ_INFO_CSS_RECEIVER_SOF,
-				       atomisp_css_valid_sof(isp));
-		atomisp_csi2_configure(asd);
-		/*
-		 * set freq to max when streaming count > 1 which indicate
-		 * dual camera would run
-		 */
-		if (atomisp_streaming_count(isp) > 1) {
-			if (atomisp_freq_scaling(isp,
-						 ATOMISP_DFS_MODE_MAX, false) < 0)
-				dev_dbg(isp->dev, "DFS max mode failed!\n");
-		} else {
-			if (atomisp_freq_scaling(isp,
-						 ATOMISP_DFS_MODE_AUTO, false) < 0)
-				dev_dbg(isp->dev, "DFS auto mode failed!\n");
-		}
-	} else {
-		if (atomisp_freq_scaling(isp, ATOMISP_DFS_MODE_MAX, false) < 0)
+	atomisp_css_irq_enable(isp, IA_CSS_IRQ_INFO_CSS_RECEIVER_SOF,
+			       atomisp_css_valid_sof(isp));
+	atomisp_csi2_configure(asd);
+	/*
+	 * set freq to max when streaming count > 1 which indicate
+	 * dual camera would run
+	 */
+	if (atomisp_streaming_count(isp) > 1) {
+		if (atomisp_freq_scaling(isp,
+					 ATOMISP_DFS_MODE_MAX, false) < 0)
 			dev_dbg(isp->dev, "DFS max mode failed!\n");
+	} else {
+		if (atomisp_freq_scaling(isp,
+					 ATOMISP_DFS_MODE_AUTO, false) < 0)
+			dev_dbg(isp->dev, "DFS auto mode failed!\n");
 	}
 
 	if (asd->depth_mode->val && atomisp_streaming_count(isp) ==
@@ -2047,15 +2040,6 @@ int __atomisp_streamoff(struct file *file, void *fh, enum v4l2_buf_type type)
 		/* if other streams are running, should not disable watch dog */
 		rt_mutex_unlock(&isp->mutex);
 		atomisp_wdt_stop(asd, true);
-
-		/*
-		 * must stop sending pixels into GP_FIFO before stop
-		 * the pipeline.
-		 */
-		if (isp->sw_contex.file_input)
-			v4l2_subdev_call(isp->inputs[asd->input_curr].camera,
-					 video, s_stream, 0);
-
 		rt_mutex_lock(&isp->mutex);
 	}
 
@@ -2072,10 +2056,7 @@ int __atomisp_streamoff(struct file *file, void *fh, enum v4l2_buf_type type)
 	}
 
 	atomisp_clear_css_buffer_counters(asd);
-
-	if (!isp->sw_contex.file_input)
-		atomisp_css_irq_enable(isp, IA_CSS_IRQ_INFO_CSS_RECEIVER_SOF,
-				       false);
+	atomisp_css_irq_enable(isp, IA_CSS_IRQ_INFO_CSS_RECEIVER_SOF, false);
 
 	if (asd->delayed_init == ATOMISP_DELAYED_INIT_QUEUED) {
 		cancel_work_sync(&asd->delayed_init_work);
@@ -2128,9 +2109,8 @@ stopsensor:
 	    != atomisp_sensor_start_stream(asd))
 		return 0;
 
-	if (!isp->sw_contex.file_input)
-		ret = v4l2_subdev_call(isp->inputs[asd->input_curr].camera,
-				       video, s_stream, 0);
+	ret = v4l2_subdev_call(isp->inputs[asd->input_curr].camera,
+			       video, s_stream, 0);
 
 	if (isp->flash) {
 		asd->params.num_flash_frames = 0;

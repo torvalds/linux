@@ -1308,9 +1308,7 @@ static void __atomisp_css_recover(struct atomisp_device *isp, bool isp_timeout)
 	bool depth_mode = false;
 	int i, ret, depth_cnt = 0;
 
-	if (!isp->sw_contex.file_input)
-		atomisp_css_irq_enable(isp,
-				       IA_CSS_IRQ_INFO_CSS_RECEIVER_SOF, false);
+	atomisp_css_irq_enable(isp, IA_CSS_IRQ_INFO_CSS_RECEIVER_SOF, false);
 
 	BUG_ON(isp->num_of_streams > MAX_STREAM_NUM);
 
@@ -1396,16 +1394,11 @@ static void __atomisp_css_recover(struct atomisp_device *isp, bool isp_timeout)
 		atomisp_csi2_configure(asd);
 	}
 
-	if (!isp->sw_contex.file_input) {
-		atomisp_css_irq_enable(isp, IA_CSS_IRQ_INFO_CSS_RECEIVER_SOF,
-				       atomisp_css_valid_sof(isp));
+	atomisp_css_irq_enable(isp, IA_CSS_IRQ_INFO_CSS_RECEIVER_SOF,
+			       atomisp_css_valid_sof(isp));
 
-		if (atomisp_freq_scaling(isp, ATOMISP_DFS_MODE_AUTO, true) < 0)
-			dev_dbg(isp->dev, "DFS auto failed while recovering!\n");
-	} else {
-		if (atomisp_freq_scaling(isp, ATOMISP_DFS_MODE_MAX, true) < 0)
-			dev_dbg(isp->dev, "DFS max failed while recovering!\n");
-	}
+	if (atomisp_freq_scaling(isp, ATOMISP_DFS_MODE_AUTO, true) < 0)
+		dev_dbg(isp->dev, "DFS auto failed while recovering!\n");
 
 	for (i = 0; i < isp->num_of_streams; i++) {
 		struct atomisp_sub_device *asd;
@@ -1610,10 +1603,7 @@ void atomisp_wdt_work(struct work_struct *work)
 			if (asd->streaming != ATOMISP_DEVICE_STREAMING_ENABLED)
 				continue;
 
-			atomisp_wdt_refresh(asd,
-					    isp->sw_contex.file_input ?
-					    ATOMISP_ISP_FILE_TIMEOUT_DURATION :
-					    ATOMISP_ISP_TIMEOUT_DURATION);
+			atomisp_wdt_refresh(asd, ATOMISP_ISP_TIMEOUT_DURATION);
 		}
 	}
 
@@ -1643,14 +1633,10 @@ void atomisp_css_flush(struct atomisp_device *isp)
 	for (i = 0; i < isp->num_of_streams; i++) {
 		struct atomisp_sub_device *asd = &isp->asd[i];
 
-		if (asd->streaming !=
-		    ATOMISP_DEVICE_STREAMING_ENABLED)
+		if (asd->streaming != ATOMISP_DEVICE_STREAMING_ENABLED)
 			continue;
 
-		atomisp_wdt_refresh(asd,
-				    isp->sw_contex.file_input ?
-				    ATOMISP_ISP_FILE_TIMEOUT_DURATION :
-				    ATOMISP_ISP_TIMEOUT_DURATION);
+		atomisp_wdt_refresh(asd, ATOMISP_ISP_TIMEOUT_DURATION);
 	}
 	dev_dbg(isp->dev, "atomisp css flush done\n");
 }
@@ -1896,14 +1882,6 @@ irqreturn_t atomisp_isr_thread(int irq, void *isp_ptr)
 	}
 out:
 	rt_mutex_unlock(&isp->mutex);
-	for (i = 0; i < isp->num_of_streams; i++) {
-		asd = &isp->asd[i];
-		if (asd->streaming == ATOMISP_DEVICE_STREAMING_ENABLED
-		    && css_pipe_done[asd->index]
-		    && isp->sw_contex.file_input)
-			v4l2_subdev_call(isp->inputs[asd->input_curr].camera,
-					 video, s_stream, 1);
-	}
 	dev_dbg(isp->dev, "<%s\n", __func__);
 
 	return IRQ_HANDLED;
@@ -5377,8 +5355,7 @@ static int atomisp_set_fmt_to_isp(struct video_device *vdev,
 	ia_css_frame_free(asd->raw_output_frame);
 	asd->raw_output_frame = NULL;
 
-	if (!asd->continuous_mode->val &&
-	    !asd->params.online_process && !isp->sw_contex.file_input &&
+	if (!asd->continuous_mode->val && !asd->params.online_process &&
 	    ia_css_frame_allocate_from_info(&asd->raw_output_frame,
 		    raw_output_info))
 		return -ENOMEM;
