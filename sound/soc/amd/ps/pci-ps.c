@@ -11,6 +11,8 @@
 #include <linux/delay.h>
 #include <linux/platform_device.h>
 #include <linux/acpi.h>
+#include <linux/interrupt.h>
+#include <sound/pcm_params.h>
 
 #include "acp62.h"
 
@@ -115,6 +117,27 @@ static int acp62_deinit(void __iomem *acp_base, struct device *dev)
 	return 0;
 }
 
+static irqreturn_t acp62_irq_handler(int irq, void *dev_id)
+{
+	struct acp62_dev_data *adata;
+	struct pdm_dev_data *ps_pdm_data;
+	u32 val;
+
+	adata = dev_id;
+	if (!adata)
+		return IRQ_NONE;
+
+	val = acp62_readl(adata->acp62_base + ACP_EXTERNAL_INTR_STAT);
+	if (val & BIT(PDM_DMA_STAT)) {
+		ps_pdm_data = dev_get_drvdata(&adata->pdev[0]->dev);
+		acp62_writel(BIT(PDM_DMA_STAT), adata->acp62_base + ACP_EXTERNAL_INTR_STAT);
+		if (ps_pdm_data->capture_stream)
+			snd_pcm_period_elapsed(ps_pdm_data->capture_stream);
+		return IRQ_HANDLED;
+	}
+	return IRQ_NONE;
+}
+
 static int snd_acp62_probe(struct pci_dev *pci,
 			   const struct pci_device_id *pci_id)
 {
@@ -125,7 +148,9 @@ static int snd_acp62_probe(struct pci_dev *pci,
 	struct acpi_device *adev;
 	const union acpi_object *obj;
 	u32 addr;
+	unsigned int irqflags;
 
+	irqflags = IRQF_SHARED;
 	/* Pink Sardine device check */
 	switch (pci->revision) {
 	case 0x63:
@@ -216,6 +241,12 @@ static int snd_acp62_probe(struct pci_dev *pci,
 						"cannot register %s device\n",
 						 pdevinfo[index].name);
 					ret = PTR_ERR(adata->pdev[index]);
+					goto unregister_devs;
+				}
+				ret = devm_request_irq(&pci->dev, pci->irq, acp62_irq_handler,
+						       irqflags, "ACP_PCI_IRQ", adata);
+				if (ret) {
+					dev_err(&pci->dev, "ACP PCI IRQ request failed\n");
 					goto unregister_devs;
 				}
 			}
