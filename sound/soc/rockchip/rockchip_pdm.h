@@ -82,6 +82,9 @@
 #define PDM_HPF_243HZ		(0x2 << 0)
 #define PDM_HPF_493HZ		(0x3 << 0)
 
+/* PDM FIFO CTRL */
+#define PDM_FIFO_CNT(x)		((x) & 0xff)
+
 /* PDM DMA CTRL */
 #define PDM_DMA_RD_MSK		BIT(8)
 #define PDM_DMA_RD_EN		BIT(8)
