@@ -373,20 +373,7 @@ static int mt7621_spi_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	ret = spi_register_controller(master);
-
-	return ret;
-}
-
-static int mt7621_spi_remove(struct platform_device *pdev)
-{
-	struct spi_controller *master;
-
-	master = dev_get_drvdata(&pdev->dev);
-
-	spi_unregister_controller(master);
-
-	return 0;
+	return devm_spi_register_controller(&pdev->dev, master);
 }
 
 MODULE_ALIAS("platform:" DRIVER_NAME);
@@ -397,7 +384,6 @@ static struct platform_driver mt7621_spi_driver = {
 		.of_match_table = mt7621_spi_match,
 	},
 	.probe = mt7621_spi_probe,
-	.remove = mt7621_spi_remove,
 };
 
 module_platform_driver(mt7621_spi_driver);
