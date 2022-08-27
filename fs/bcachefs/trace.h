@@ -781,10 +781,28 @@ DEFINE_EVENT(transaction_event,	trans_restart_journal_res_get,
 	TP_ARGS(trans, caller_ip)
 );
 
-DEFINE_EVENT(transaction_event,	trans_restart_journal_preres_get,
+
+TRACE_EVENT(trans_restart_journal_preres_get,
 	TP_PROTO(struct btree_trans *trans,
-		 unsigned long caller_ip),
-	TP_ARGS(trans, caller_ip)
+		 unsigned long caller_ip,
+		 unsigned flags),
+	TP_ARGS(trans, caller_ip, flags),
+
+	TP_STRUCT__entry(
+		__array(char,			trans_fn, 32	)
+		__field(unsigned long,		caller_ip	)
+		__field(unsigned,		flags		)
+	),
+
+	TP_fast_assign(
+		strlcpy(__entry->trans_fn, trans->fn, sizeof(__entry->trans_fn));
+		__entry->caller_ip		= caller_ip;
+		__entry->flags			= flags;
+	),
+
+	TP_printk("%s %pS %x", __entry->trans_fn,
+		  (void *) __entry->caller_ip,
+		  __entry->flags)
 );
 
 DEFINE_EVENT(transaction_event,	trans_restart_journal_reclaim,

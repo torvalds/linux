@@ -285,7 +285,7 @@ bch2_trans_journal_preres_get_cold(struct btree_trans *trans, unsigned u64s,
 
 	ret = bch2_trans_relock(trans);
 	if (ret) {
-		trace_trans_restart_journal_preres_get(trans, trace_ip);
+		trace_trans_restart_journal_preres_get(trans, trace_ip, 0);
 		return ret;
 	}
 
