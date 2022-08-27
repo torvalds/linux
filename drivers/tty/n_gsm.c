@@ -2501,13 +2501,6 @@ static int gsm_activate_mux(struct gsm_mux *gsm)
 	if (dlci == NULL)
 		return -ENOMEM;
 
-	timer_setup(&gsm->kick_timer, gsm_kick_timer, 0);
-	timer_setup(&gsm->t2_timer, gsm_control_retransmit, 0);
-	INIT_WORK(&gsm->tx_work, gsmld_write_task);
-	init_waitqueue_head(&gsm->event);
-	spin_lock_init(&gsm->control_lock);
-	spin_lock_init(&gsm->tx_lock);
-
 	if (gsm->encoding == 0)
 		gsm->receive = gsm0_receive;
 	else
@@ -2612,6 +2605,12 @@ static struct gsm_mux *gsm_alloc_mux(void)
 	kref_init(&gsm->ref);
 	INIT_LIST_HEAD(&gsm->tx_ctrl_list);
 	INIT_LIST_HEAD(&gsm->tx_data_list);
+	timer_setup(&gsm->kick_timer, gsm_kick_timer, 0);
+	timer_setup(&gsm->t2_timer, gsm_control_retransmit, 0);
+	INIT_WORK(&gsm->tx_work, gsmld_write_task);
+	init_waitqueue_head(&gsm->event);
+	spin_lock_init(&gsm->control_lock);
+	spin_lock_init(&gsm->tx_lock);
 
 	gsm->t1 = T1;
 	gsm->t2 = T2;
@@ -2946,10 +2945,6 @@ static int gsmld_open(struct tty_struct *tty)
 	gsm->encoding = 1;
 
 	gsmld_attach_gsm(tty, gsm);
-
-	timer_setup(&gsm->kick_timer, gsm_kick_timer, 0);
-	timer_setup(&gsm->t2_timer, gsm_control_retransmit, 0);
-	INIT_WORK(&gsm->tx_work, gsmld_write_task);
 
 	return 0;
 }
