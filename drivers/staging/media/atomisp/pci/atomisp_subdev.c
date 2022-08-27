@@ -1314,15 +1314,11 @@ int atomisp_subdev_register_entities(struct atomisp_sub_device *asd,
 				     struct v4l2_device *vdev)
 {
 	int ret;
-	u32 device_caps;
 
 	/*
 	 * FIXME: check if all device caps are properly initialized.
-	 * Should any of those use V4L2_CAP_META_OUTPUT? Probably yes.
+	 * Should any of those use V4L2_CAP_META_CAPTURE? Probably yes.
 	 */
-
-	device_caps = V4L2_CAP_VIDEO_CAPTURE |
-		      V4L2_CAP_STREAMING;
 
 	/* Register the subdev and video node. */
 
@@ -1331,39 +1327,34 @@ int atomisp_subdev_register_entities(struct atomisp_sub_device *asd,
 		goto error;
 
 	asd->video_out_preview.vdev.v4l2_dev = vdev;
-	asd->video_out_preview.vdev.device_caps = device_caps |
-						  V4L2_CAP_VIDEO_OUTPUT;
+	asd->video_out_preview.vdev.device_caps = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_STREAMING;
 	ret = video_register_device(&asd->video_out_preview.vdev,
 				    VFL_TYPE_VIDEO, -1);
 	if (ret < 0)
 		goto error;
 
 	asd->video_out_capture.vdev.v4l2_dev = vdev;
-	asd->video_out_capture.vdev.device_caps = device_caps |
-						  V4L2_CAP_VIDEO_OUTPUT;
+	asd->video_out_capture.vdev.device_caps = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_STREAMING;
 	ret = video_register_device(&asd->video_out_capture.vdev,
 				    VFL_TYPE_VIDEO, -1);
 	if (ret < 0)
 		goto error;
 
 	asd->video_out_vf.vdev.v4l2_dev = vdev;
-	asd->video_out_vf.vdev.device_caps = device_caps |
-					     V4L2_CAP_VIDEO_OUTPUT;
+	asd->video_out_vf.vdev.device_caps = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_STREAMING;
 	ret = video_register_device(&asd->video_out_vf.vdev,
 				    VFL_TYPE_VIDEO, -1);
 	if (ret < 0)
 		goto error;
 
 	asd->video_out_video_capture.vdev.v4l2_dev = vdev;
-	asd->video_out_video_capture.vdev.device_caps = device_caps |
-							V4L2_CAP_VIDEO_OUTPUT;
+	asd->video_out_video_capture.vdev.device_caps = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_STREAMING;
 	ret = video_register_device(&asd->video_out_video_capture.vdev,
 				    VFL_TYPE_VIDEO, -1);
 	if (ret < 0)
 		goto error;
 	asd->video_acc.vdev.v4l2_dev = vdev;
-	asd->video_acc.vdev.device_caps = device_caps |
-					  V4L2_CAP_VIDEO_OUTPUT;
+	asd->video_acc.vdev.device_caps = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_STREAMING;
 	ret = video_register_device(&asd->video_acc.vdev,
 				    VFL_TYPE_VIDEO, -1);
 	if (ret < 0)
@@ -1377,8 +1368,7 @@ int atomisp_subdev_register_entities(struct atomisp_sub_device *asd,
 		return 0;
 
 	asd->video_in.vdev.v4l2_dev = vdev;
-	asd->video_in.vdev.device_caps = device_caps |
-					  V4L2_CAP_VIDEO_CAPTURE;
+	asd->video_in.vdev.device_caps = V4L2_CAP_VIDEO_OUT | V4L2_CAP_STREAMING;
 	ret = video_register_device(&asd->video_in.vdev,
 				    VFL_TYPE_VIDEO, -1);
 	if (ret < 0)
