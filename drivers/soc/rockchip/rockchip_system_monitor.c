@@ -362,6 +362,14 @@ void rockchip_update_system_status(const char *buf)
 		/* clear performance flag */
 		rockchip_clear_system_status(SYS_STATUS_PERFORMANCE);
 		break;
+	case 'S':
+		/* set video svep flag */
+		rockchip_set_system_status(SYS_STATUS_VIDEO_SVEP);
+		break;
+	case 's':
+		/* clear video svep flag */
+		rockchip_clear_system_status(SYS_STATUS_VIDEO_SVEP);
+		break;
 	default:
 		break;
 	}
