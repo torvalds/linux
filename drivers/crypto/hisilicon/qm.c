@@ -4766,7 +4766,13 @@ int hisi_qm_sriov_enable(struct pci_dev *pdev, int max_vfs)
 		goto err_put_sync;
 	}
 
-	num_vfs = min_t(int, max_vfs, total_vfs);
+	if (max_vfs > total_vfs) {
+		pci_err(pdev, "%d VFs is more than total VFs %d!\n", max_vfs, total_vfs);
+		ret = -ERANGE;
+		goto err_put_sync;
+	}
+
+	num_vfs = max_vfs;
 	ret = qm_vf_q_assign(qm, num_vfs);
 	if (ret) {
 		pci_err(pdev, "Can't assign queues for VF!\n");
