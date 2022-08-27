@@ -201,7 +201,6 @@ void six_lock_increment(struct six_lock *, enum six_lock_type);
 
 void six_lock_wakeup_all(struct six_lock *);
 
-void six_lock_pcpu_free_rcu(struct six_lock *);
 void six_lock_pcpu_free(struct six_lock *);
 void six_lock_pcpu_alloc(struct six_lock *);
 

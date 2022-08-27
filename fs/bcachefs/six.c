@@ -712,34 +712,6 @@ void six_lock_wakeup_all(struct six_lock *lock)
 }
 EXPORT_SYMBOL_GPL(six_lock_wakeup_all);
 
-struct free_pcpu_rcu {
-	struct rcu_head		rcu;
-	void __percpu		*p;
-};
-
-static void free_pcpu_rcu_fn(struct rcu_head *_rcu)
-{
-	struct free_pcpu_rcu *rcu =
-		container_of(_rcu, struct free_pcpu_rcu, rcu);
-
-	free_percpu(rcu->p);
-	kfree(rcu);
-}
-
-void six_lock_pcpu_free_rcu(struct six_lock *lock)
-{
-	struct free_pcpu_rcu *rcu = kzalloc(sizeof(*rcu), GFP_KERNEL);
-
-	if (!rcu)
-		return;
-
-	rcu->p = lock->readers;
-	lock->readers = NULL;
-
-	call_rcu(&rcu->rcu, free_pcpu_rcu_fn);
-}
-EXPORT_SYMBOL_GPL(six_lock_pcpu_free_rcu);
-
 void six_lock_pcpu_free(struct six_lock *lock)
 {
 	BUG_ON(lock->readers && pcpu_read_count(lock));
