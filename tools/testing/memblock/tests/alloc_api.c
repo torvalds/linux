@@ -470,6 +470,40 @@ static int alloc_no_memory_generic_check(void)
 }
 
 /*
+ * A test that tries to allocate a region that is larger than the total size of
+ * available memory (memblock.memory):
+ *
+ *  +-----------------------------------+
+ *  |                 new               |
+ *  +-----------------------------------+
+ *  |                                 |
+ *  |                                 |
+ *  +---------------------------------+
+ *
+ * Expect no allocation to happen.
+ */
+static int alloc_too_large_generic_check(void)
+{
+	struct memblock_region *rgn = &memblock.reserved.regions[0];
+	void *allocated_ptr = NULL;
+
+	PREFIX_PUSH();
+
+	setup_memblock();
+
+	allocated_ptr = memblock_alloc(MEM_SIZE + SZ_2, SMP_CACHE_BYTES);
+
+	ASSERT_EQ(allocated_ptr, NULL);
+	ASSERT_EQ(rgn->size, 0);
+	ASSERT_EQ(rgn->base, 0);
+	ASSERT_EQ(memblock.reserved.total_size, 0);
+
+	test_pass_pop();
+
+	return 0;
+}
+
+/*
  * A simple test that tries to allocate a small memory region.
  * Expect to allocate an aligned region at the beginning of the available
  * memory.
@@ -813,6 +847,15 @@ static int alloc_no_memory_check(void)
 	return 0;
 }
 
+static int alloc_too_large_check(void)
+{
+	test_print("\tRunning %s...\n", __func__);
+	run_top_down(alloc_too_large_generic_check);
+	run_bottom_up(alloc_too_large_generic_check);
+
+	return 0;
+}
+
 int memblock_alloc_checks(void)
 {
 	const char *func_testing = "memblock_alloc";
@@ -835,6 +878,7 @@ int memblock_alloc_checks(void)
 	alloc_no_space_check();
 	alloc_limited_space_check();
 	alloc_no_memory_check();
+	alloc_too_large_check();
 
 	dummy_physical_memory_cleanup();
 
