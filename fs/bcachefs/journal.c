@@ -390,12 +390,12 @@ retry:
 	ret = journal_entry_open(j);
 
 	if (ret == JOURNAL_ERR_max_in_flight)
-		trace_journal_entry_full(c);
+		trace_and_count(c, journal_entry_full, c);
 unlock:
 	if ((ret && ret != JOURNAL_ERR_insufficient_devices) &&
 	    !j->res_get_blocked_start) {
 		j->res_get_blocked_start = local_clock() ?: 1;
-		trace_journal_full(c);
+		trace_and_count(c, journal_full, c);
 	}
 
 	can_discard = j->can_discard;

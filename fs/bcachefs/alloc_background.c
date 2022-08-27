@@ -1134,8 +1134,7 @@ static int invalidate_one_bucket(struct btree_trans *trans,
 	if (ret)
 		goto out;
 
-	trace_invalidate_bucket(c, bucket.inode, bucket.offset, cached_sectors);
-	this_cpu_inc(c->counters[BCH_COUNTER_bucket_invalidate]);
+	trace_and_count(c, bucket_invalidate, c, bucket.inode, bucket.offset, cached_sectors);
 	--*nr_to_invalidate;
 out:
 	bch2_trans_iter_exit(trans, &alloc_iter);

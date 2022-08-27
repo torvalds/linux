@@ -1931,7 +1931,7 @@ int bch2_gc_gens(struct bch_fs *c)
 	if (!mutex_trylock(&c->gc_gens_lock))
 		return 0;
 
-	trace_gc_gens_start(c);
+	trace_and_count(c, gc_gens_start, c);
 	down_read(&c->gc_lock);
 	bch2_trans_init(&trans, c, 0, 0);
 
@@ -1992,7 +1992,7 @@ int bch2_gc_gens(struct bch_fs *c)
 	c->gc_count++;
 
 	bch2_time_stats_update(&c->times[BCH_TIME_btree_gc], start_time);
-	trace_gc_gens_end(c);
+	trace_and_count(c, gc_gens_end, c);
 err:
 	for_each_member_device(ca, c, i) {
 		kvfree(ca->oldest_gen);

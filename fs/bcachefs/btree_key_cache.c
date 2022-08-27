@@ -291,7 +291,7 @@ static int btree_key_cache_fill(struct btree_trans *trans,
 	k = bch2_btree_path_peek_slot(path, &u);
 
 	if (!bch2_btree_node_relock(trans, ck_path, 0)) {
-		trace_trans_restart_relock_key_cache_fill(trans, _THIS_IP_, ck_path);
+		trace_and_count(trans->c, trans_restart_relock_key_cache_fill, trans, _THIS_IP_, ck_path);
 		ret = btree_trans_restart(trans, BCH_ERR_transaction_restart_key_cache_raced);
 		goto err;
 	}
@@ -414,7 +414,7 @@ fill:
 		 */
 		if (!path->locks_want &&
 		    !__bch2_btree_path_upgrade(trans, path, 1)) {
-			trace_transaction_restart_key_cache_upgrade(trans, _THIS_IP_);
+			trace_and_count(trans->c, trans_restart_key_cache_upgrade, trans, _THIS_IP_);
 			ret = btree_trans_restart(trans, BCH_ERR_transaction_restart_key_cache_upgrade);
 			goto err;
 		}

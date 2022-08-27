@@ -1072,7 +1072,7 @@ err:
 
 	trans->in_traverse_all = false;
 
-	trace_trans_traverse_all(trans, trace_ip);
+	trace_and_count(c, trans_traverse_all, trans, trace_ip);
 	return ret;
 }
 
@@ -1209,7 +1209,7 @@ int __must_check bch2_btree_path_traverse(struct btree_trans *trans,
 		u64 max = ~(~0ULL << restart_probability_bits);
 
 		if (!get_random_u32_below(max)) {
-			trace_transaction_restart_injected(trans, _RET_IP_);
+			trace_and_count(trans->c, trans_restart_injected, trans, _RET_IP_);
 			return btree_trans_restart(trans, BCH_ERR_transaction_restart_fault_inject);
 		}
 	}
@@ -1728,7 +1728,7 @@ struct btree *bch2_btree_iter_next_node(struct btree_iter *iter)
 		path->l[path->level].b		= ERR_PTR(-BCH_ERR_no_btree_node_relock);
 		path->l[path->level + 1].b	= ERR_PTR(-BCH_ERR_no_btree_node_relock);
 		btree_path_set_dirty(path, BTREE_ITER_NEED_TRAVERSE);
-		trace_trans_restart_relock_next_node(trans, _THIS_IP_, path);
+		trace_and_count(trans->c, trans_restart_relock_next_node, trans, _THIS_IP_, path);
 		ret = btree_trans_restart(trans, BCH_ERR_transaction_restart_relock);
 		goto err;
 	}
@@ -2773,7 +2773,7 @@ void *bch2_trans_kmalloc(struct btree_trans *trans, size_t size)
 		trans->mem_bytes = new_bytes;
 
 		if (old_bytes) {
-			trace_trans_restart_mem_realloced(trans, _RET_IP_, new_bytes);
+			trace_and_count(trans->c, trans_restart_mem_realloced, trans, _RET_IP_, new_bytes);
 			return ERR_PTR(btree_trans_restart(trans, BCH_ERR_transaction_restart_mem_realloced));
 		}
 	}

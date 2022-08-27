@@ -801,7 +801,7 @@ int bch2_write_super(struct bch_fs *c)
 	unsigned degraded_flags = BCH_FORCE_IF_DEGRADED;
 	int ret = 0;
 
-	trace_write_super(c, _RET_IP_);
+	trace_and_count(c, write_super, c, _RET_IP_);
 
 	if (c->opts.very_degraded)
 		degraded_flags |= BCH_FORCE_IF_LOST;

@@ -190,11 +190,6 @@ read_attribute(internal_uuid);
 read_attribute(has_data);
 read_attribute(alloc_debug);
 
-read_attribute(read_realloc_races);
-read_attribute(extent_migrate_done);
-read_attribute(extent_migrate_raced);
-read_attribute(bucket_alloc_fail);
-
 #define x(t, n, ...) read_attribute(t);
 BCH_PERSISTENT_COUNTERS()
 #undef x
@@ -377,15 +372,6 @@ SHOW(bch2_fs)
 
 	sysfs_hprint(btree_cache_size,		bch2_btree_cache_size(c));
 	sysfs_hprint(btree_avg_write_size,	bch2_btree_avg_write_size(c));
-
-	sysfs_print(read_realloc_races,
-		    atomic_long_read(&c->read_realloc_races));
-	sysfs_print(extent_migrate_done,
-		    atomic_long_read(&c->extent_migrate_done));
-	sysfs_print(extent_migrate_raced,
-		    atomic_long_read(&c->extent_migrate_raced));
-	sysfs_print(bucket_alloc_fail,
-		    atomic_long_read(&c->bucket_alloc_fail));
 
 	sysfs_printf(btree_gc_periodic, "%u",	(int) c->btree_gc_periodic);
 
@@ -628,11 +614,6 @@ struct attribute *bch2_fs_internal_files[] = {
 	&sysfs_trigger_discards,
 	&sysfs_trigger_invalidates,
 	&sysfs_prune_cache,
-
-	&sysfs_read_realloc_races,
-	&sysfs_extent_migrate_done,
-	&sysfs_extent_migrate_raced,
-	&sysfs_bucket_alloc_fail,
 
 	&sysfs_gc_gens_pos,
 

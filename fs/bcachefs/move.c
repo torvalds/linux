@@ -245,8 +245,8 @@ static int bch2_move_extent(struct btree_trans *trans,
 	atomic64_inc(&ctxt->stats->keys_moved);
 	atomic64_add(k.k->size, &ctxt->stats->sectors_moved);
 	this_cpu_add(c->counters[BCH_COUNTER_io_move], k.k->size);
-
-	trace_move_extent(k.k);
+	this_cpu_add(c->counters[BCH_COUNTER_move_extent_read], k.k->size);
+	trace_move_extent_read(k.k);
 
 	atomic_add(io->read_sectors, &ctxt->read_sectors);
 	list_add_tail(&io->list, &ctxt->reads);
@@ -268,7 +268,7 @@ err_free:
 	kfree(io);
 err:
 	percpu_ref_put(&c->writes);
-	trace_move_alloc_mem_fail(k.k);
+	trace_and_count(c, move_extent_alloc_mem_fail, k.k);
 	return ret;
 }
 

@@ -642,7 +642,8 @@ static int __bch2_journal_reclaim(struct journal *j, bool direct, bool kicked)
 
 		min_key_cache = min(bch2_nr_btree_keys_need_flush(c), (size_t) 128);
 
-		trace_journal_reclaim_start(c, direct, kicked,
+		trace_and_count(c, journal_reclaim_start, c,
+				direct, kicked,
 				min_nr, min_key_cache,
 				j->prereserved.reserved,
 				j->prereserved.remaining,
@@ -658,7 +659,7 @@ static int __bch2_journal_reclaim(struct journal *j, bool direct, bool kicked)
 			j->nr_direct_reclaim += nr_flushed;
 		else
 			j->nr_background_reclaim += nr_flushed;
-		trace_journal_reclaim_finish(c, nr_flushed);
+		trace_and_count(c, journal_reclaim_finish, c, nr_flushed);
 
 		if (nr_flushed)
 			wake_up(&j->reclaim_wait);

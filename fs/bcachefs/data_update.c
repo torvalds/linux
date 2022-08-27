@@ -231,9 +231,12 @@ int bch2_data_update_index_update(struct bch_write_op *op)
 				m->data_opts.btree_insert_flags);
 		if (!ret) {
 			bch2_btree_iter_set_pos(&iter, next_pos);
-			atomic_long_inc(&c->extent_migrate_done);
+
 			if (ec_ob)
 				bch2_ob_add_backpointer(c, ec_ob, &insert->k);
+
+			this_cpu_add(c->counters[BCH_COUNTER_move_extent_finish], new->k.size);
+			trace_move_extent_finish(&new->k);
 		}
 err:
 		if (bch2_err_matches(ret, BCH_ERR_transaction_restart))
@@ -248,16 +251,16 @@ next:
 		}
 		continue;
 nomatch:
-		trace_data_update_fail(&old.k->p);
-
 		if (m->ctxt) {
 			BUG_ON(k.k->p.offset <= iter.pos.offset);
 			atomic64_inc(&m->ctxt->stats->keys_raced);
 			atomic64_add(k.k->p.offset - iter.pos.offset,
 				     &m->ctxt->stats->sectors_raced);
 		}
-		atomic_long_inc(&c->extent_migrate_raced);
-		trace_move_race(&new->k);
+
+		this_cpu_add(c->counters[BCH_COUNTER_move_extent_fail], new->k.size);
+		trace_move_extent_fail(&new->k);
+
 		bch2_btree_iter_advance(&iter);
 		goto next;
 	}

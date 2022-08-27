@@ -143,7 +143,7 @@ bool bch2_btree_node_format_fits(struct bch_fs *c, struct btree *b,
 
 static void __btree_node_free(struct bch_fs *c, struct btree *b)
 {
-	trace_btree_node_free(c, b);
+	trace_and_count(c, btree_node_free, c, b);
 
 	BUG_ON(btree_node_dirty(b));
 	BUG_ON(btree_node_need_write(b));
@@ -305,7 +305,7 @@ static struct btree *bch2_btree_node_alloc(struct btree_update *as, unsigned lev
 	ret = bch2_btree_node_hash_insert(&c->btree_cache, b, level, as->btree_id);
 	BUG_ON(ret);
 
-	trace_btree_node_alloc(c, b);
+	trace_and_count(c, btree_node_alloc, c, b);
 	return b;
 }
 
@@ -995,7 +995,7 @@ bch2_btree_update_start(struct btree_trans *trans, struct btree_path *path,
 		nr_nodes[1] += 1;
 
 	if (!bch2_btree_path_upgrade(trans, path, U8_MAX)) {
-		trace_trans_restart_iter_upgrade(trans, _RET_IP_, path);
+		trace_and_count(c, trans_restart_iter_upgrade, trans, _RET_IP_, path);
 		ret = btree_trans_restart(trans, BCH_ERR_transaction_restart_upgrade);
 		return ERR_PTR(ret);
 	}
@@ -1058,7 +1058,7 @@ bch2_btree_update_start(struct btree_trans *trans, struct btree_path *path,
 					      BTREE_UPDATE_JOURNAL_RES,
 					      journal_flags);
 		if (ret) {
-			trace_trans_restart_journal_preres_get(trans, _RET_IP_, journal_flags);
+			trace_and_count(c, trans_restart_journal_preres_get, trans, _RET_IP_, journal_flags);
 			ret = btree_trans_restart(trans, BCH_ERR_transaction_restart_journal_preres_get);
 			goto err;
 		}
@@ -1091,8 +1091,7 @@ bch2_btree_update_start(struct btree_trans *trans, struct btree_path *path,
 	}
 
 	if (ret) {
-		trace_btree_reserve_get_fail(trans->fn, _RET_IP_,
-					     nr_nodes[0] + nr_nodes[1]);
+		trace_and_count(c, btree_reserve_get_fail, trans->fn, _RET_IP_, nr_nodes[0] + nr_nodes[1]);
 		goto err;
 	}
 
@@ -1147,7 +1146,7 @@ static void bch2_btree_set_root(struct btree_update *as,
 	struct bch_fs *c = as->c;
 	struct btree *old;
 
-	trace_btree_set_root(c, b);
+	trace_and_count(c, btree_node_set_root, c, b);
 	BUG_ON(!b->written);
 
 	old = btree_node_root(c, b);
@@ -1434,7 +1433,7 @@ static void btree_split(struct btree_update *as, struct btree_trans *trans,
 		btree_split_insert_keys(as, trans, path, n1, keys);
 
 	if (bset_u64s(&n1->set[0]) > BTREE_SPLIT_THRESHOLD(c)) {
-		trace_btree_split(c, b);
+		trace_and_count(c, btree_node_split, c, b);
 
 		n2 = __btree_split_node(as, n1);
 
@@ -1468,7 +1467,7 @@ static void btree_split(struct btree_update *as, struct btree_trans *trans,
 			bch2_btree_node_write(c, n3, SIX_LOCK_intent, 0);
 		}
 	} else {
-		trace_btree_compact(c, b);
+		trace_and_count(c, btree_node_compact, c, b);
 
 		bch2_btree_build_aux_trees(n1);
 		six_unlock_write(&n1->c.lock);
@@ -1737,7 +1736,7 @@ int __bch2_foreground_maybe_merge(struct btree_trans *trans,
 	if (ret)
 		goto err;
 
-	trace_btree_merge(c, b);
+	trace_and_count(c, btree_node_merge, c, b);
 
 	bch2_btree_interior_update_will_free_node(as, b);
 	bch2_btree_interior_update_will_free_node(as, m);
@@ -1829,7 +1828,7 @@ int bch2_btree_node_rewrite(struct btree_trans *trans,
 	bch2_btree_build_aux_trees(n);
 	six_unlock_write(&n->c.lock);
 
-	trace_btree_rewrite(c, b);
+	trace_and_count(c, btree_node_rewrite, c, b);
 
 	bch2_btree_node_write(c, n, SIX_LOCK_intent, 0);
 

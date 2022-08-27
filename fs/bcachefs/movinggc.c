@@ -339,7 +339,7 @@ static int bch2_copygc(struct bch_fs *c)
 			 atomic64_read(&move_stats.keys_raced),
 			 atomic64_read(&move_stats.sectors_raced));
 
-	trace_copygc(c,
+	trace_and_count(c, copygc, c,
 		     atomic64_read(&move_stats.sectors_moved), sectors_not_moved,
 		     buckets_to_move, buckets_not_moved);
 	return 0;
@@ -397,7 +397,7 @@ static int bch2_copygc_thread(void *arg)
 		wait = bch2_copygc_wait_amount(c);
 
 		if (wait > clock->max_slop) {
-			trace_copygc_wait(c, wait, last + wait);
+			trace_and_count(c, copygc_wait, c, wait, last + wait);
 			c->copygc_wait = last + wait;
 			bch2_kthread_io_clock_wait(clock, last + wait,
 					MAX_SCHEDULE_TIMEOUT);

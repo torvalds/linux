@@ -285,7 +285,7 @@ bch2_trans_journal_preres_get_cold(struct btree_trans *trans, unsigned u64s,
 
 	ret = bch2_trans_relock(trans);
 	if (ret) {
-		trace_trans_restart_journal_preres_get(trans, trace_ip, 0);
+		trace_and_count(c, trans_restart_journal_preres_get, trans, trace_ip, 0);
 		return ret;
 	}
 
@@ -375,7 +375,7 @@ btree_key_can_insert_cached(struct btree_trans *trans,
 	 * Keys returned by peek() are no longer valid pointers, so we need a
 	 * transaction restart:
 	 */
-	trace_trans_restart_key_cache_key_realloced(trans, _RET_IP_, path, old_u64s, new_u64s);
+	trace_and_count(c, trans_restart_key_cache_key_realloced, trans, _RET_IP_, path, old_u64s, new_u64s);
 	return btree_trans_restart_nounlock(trans, BCH_ERR_transaction_restart_key_cache_realloced);
 }
 
@@ -567,7 +567,7 @@ bch2_trans_commit_write_locked(struct btree_trans *trans,
 	int ret;
 
 	if (race_fault()) {
-		trace_trans_restart_fault_inject(trans, trace_ip);
+		trace_and_count(c, trans_restart_fault_inject, trans, trace_ip);
 		return btree_trans_restart_nounlock(trans, BCH_ERR_transaction_restart_fault_inject);
 	}
 
@@ -842,7 +842,7 @@ fail:
 		bch2_btree_node_unlock_write_inlined(trans, i->path, insert_l(i)->b);
 	}
 
-	trace_trans_restart_would_deadlock_write(trans);
+	trace_and_count(trans->c, trans_restart_would_deadlock_write, trans);
 	return btree_trans_restart(trans, BCH_ERR_transaction_restart_would_deadlock_write);
 }
 
@@ -975,7 +975,7 @@ int bch2_trans_commit_error(struct btree_trans *trans,
 	case BTREE_INSERT_BTREE_NODE_FULL:
 		ret = bch2_btree_split_leaf(trans, i->path, trans->flags);
 		if (bch2_err_matches(ret, BCH_ERR_transaction_restart))
-			trace_trans_restart_btree_node_split(trans, trace_ip, i->path);
+			trace_and_count(c, trans_restart_btree_node_split, trans, trace_ip, i->path);
 		break;
 	case BTREE_INSERT_NEED_MARK_REPLICAS:
 		bch2_trans_unlock(trans);
@@ -986,7 +986,7 @@ int bch2_trans_commit_error(struct btree_trans *trans,
 
 		ret = bch2_trans_relock(trans);
 		if (ret)
-			trace_trans_restart_mark_replicas(trans, trace_ip);
+			trace_and_count(c, trans_restart_mark_replicas, trans, trace_ip);
 		break;
 	case BTREE_INSERT_NEED_JOURNAL_RES:
 		bch2_trans_unlock(trans);
@@ -1003,12 +1003,12 @@ int bch2_trans_commit_error(struct btree_trans *trans,
 
 		ret = bch2_trans_relock(trans);
 		if (ret)
-			trace_trans_restart_journal_res_get(trans, trace_ip);
+			trace_and_count(c, trans_restart_journal_res_get, trans, trace_ip);
 		break;
 	case BTREE_INSERT_NEED_JOURNAL_RECLAIM:
 		bch2_trans_unlock(trans);
 
-		trace_trans_blocked_journal_reclaim(trans, trace_ip);
+		trace_and_count(c, trans_blocked_journal_reclaim, trans, trace_ip);
 
 		wait_event_freezable(c->journal.reclaim_wait,
 				     (ret = journal_reclaim_wait_done(c)));
@@ -1017,7 +1017,7 @@ int bch2_trans_commit_error(struct btree_trans *trans,
 
 		ret = bch2_trans_relock(trans);
 		if (ret)
-			trace_trans_restart_journal_reclaim(trans, trace_ip);
+			trace_and_count(c, trans_restart_journal_reclaim, trans, trace_ip);
 		break;
 	default:
 		BUG_ON(ret >= 0);
@@ -1120,7 +1120,7 @@ int __bch2_trans_commit(struct btree_trans *trans)
 		BUG_ON(!i->path->should_be_locked);
 
 		if (unlikely(!bch2_btree_path_upgrade(trans, i->path, i->level + 1))) {
-			trace_trans_restart_upgrade(trans, _RET_IP_, i->path);
+			trace_and_count(c, trans_restart_upgrade, trans, _RET_IP_, i->path);
 			ret = btree_trans_restart(trans, BCH_ERR_transaction_restart_upgrade);
 			goto out;
 		}
@@ -1166,7 +1166,7 @@ retry:
 	if (ret)
 		goto err;
 
-	trace_transaction_commit(trans, _RET_IP_);
+	trace_and_count(c, transaction_commit, trans, _RET_IP_);
 out:
 	bch2_journal_preres_put(&c->journal, &trans->journal_preres);
 
@@ -1642,7 +1642,7 @@ int __must_check bch2_trans_update(struct btree_trans *trans, struct btree_iter 
 			ck = (void *) iter->key_cache_path->l[0].b;
 
 			if (test_bit(BKEY_CACHED_DIRTY, &ck->flags)) {
-				trace_trans_restart_key_cache_raced(trans, _RET_IP_);
+				trace_and_count(trans->c, trans_restart_key_cache_raced, trans, _RET_IP_);
 				return btree_trans_restart(trans, BCH_ERR_transaction_restart_key_cache_raced);
 			}
 

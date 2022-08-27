@@ -1552,7 +1552,7 @@ static void do_journal_write(struct closure *cl)
 
 		bch2_bio_map(bio, w->data, sectors << 9);
 
-		trace_journal_write(bio);
+		trace_and_count(c, journal_write, bio);
 		closure_bio_submit(bio, cl);
 
 		ca->journal.bucket_seq[ca->journal.cur_idx] =

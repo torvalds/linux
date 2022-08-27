@@ -1496,7 +1496,7 @@ static void promote_start(struct promote_op *op, struct bch_read_bio *rbio)
 {
 	struct bio *bio = &op->write.op.wbio.bio;
 
-	trace_promote(&rbio->bio);
+	trace_and_count(op->write.op.c, read_promote, &rbio->bio);
 
 	/* we now own pages: */
 	BUG_ON(!rbio->bounce);
@@ -1761,7 +1761,7 @@ static void bch2_rbio_retry(struct work_struct *work)
 	};
 	struct bch_io_failures failed = { .nr = 0 };
 
-	trace_read_retry(&rbio->bio);
+	trace_and_count(c, read_retry, &rbio->bio);
 
 	if (rbio->retry == READ_RETRY_AVOID)
 		bch2_mark_io_failure(&failed, &rbio->pick);
@@ -2017,7 +2017,7 @@ static void bch2_read_endio(struct bio *bio)
 
 	if (((rbio->flags & BCH_READ_RETRY_IF_STALE) && race_fault()) ||
 	    ptr_stale(ca, &rbio->pick.ptr)) {
-		atomic_long_inc(&c->read_realloc_races);
+		trace_and_count(c, read_reuse_race, &rbio->bio);
 
 		if (rbio->flags & BCH_READ_RETRY_IF_STALE)
 			bch2_rbio_error(rbio, READ_RETRY, BLK_STS_AGAIN);
@@ -2305,7 +2305,7 @@ get_bio:
 	rbio->bio.bi_end_io	= bch2_read_endio;
 
 	if (rbio->bounce)
-		trace_read_bounce(&rbio->bio);
+		trace_and_count(c, read_bounce, &rbio->bio);
 
 	this_cpu_add(c->counters[BCH_COUNTER_io_read], bio_sectors(&rbio->bio));
 	bch2_increment_clock(c, bio_sectors(&rbio->bio), READ);
@@ -2320,7 +2320,7 @@ get_bio:
 
 	if (!(flags & (BCH_READ_IN_RETRY|BCH_READ_LAST_FRAGMENT))) {
 		bio_inc_remaining(&orig->bio);
-		trace_read_split(&orig->bio);
+		trace_and_count(c, read_split, &orig->bio);
 	}
 
 	if (!rbio->pick.idx) {

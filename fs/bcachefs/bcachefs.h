@@ -212,6 +212,12 @@
 #define dynamic_fault(...)		0
 #define race_fault(...)			0
 
+#define trace_and_count(_c, _name, ...)					\
+do {									\
+	this_cpu_inc((_c)->counters[BCH_COUNTER_##_name]);		\
+	trace_##_name(__VA_ARGS__);					\
+} while (0)
+
 #define bch2_fs_init_fault(name)					\
 	dynamic_fault("bcachefs:bch_fs_init:" name)
 #define bch2_meta_read_fault(name)					\
@@ -915,12 +921,6 @@ mempool_t		bio_bounce_pages;
 	struct list_head	journal_iters;
 
 	u64			last_bucket_seq_cleanup;
-
-	/* TODO rewrite as counters - The rest of this all shows up in sysfs */
-	atomic_long_t		read_realloc_races;
-	atomic_long_t		extent_migrate_done;
-	atomic_long_t		extent_migrate_raced;
-	atomic_long_t		bucket_alloc_fail;
 
 	u64			counters_on_mount[BCH_COUNTER_NR];
 	u64 __percpu		*counters;

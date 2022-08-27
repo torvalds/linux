@@ -152,7 +152,7 @@ int __bch2_btree_node_lock(struct btree_trans *trans,
 	return btree_node_lock_type(trans, path, b, pos, level,
 				    type, should_sleep_fn, p);
 deadlock:
-	trace_trans_restart_would_deadlock(trans, ip, reason, linked, path, &pos);
+	trace_and_count(trans->c, trans_restart_would_deadlock, trans, ip, reason, linked, path, &pos);
 	return btree_trans_restart(trans, BCH_ERR_transaction_restart_would_deadlock);
 }
 
@@ -218,7 +218,7 @@ bool __bch2_btree_node_relock(struct btree_trans *trans,
 		return true;
 	}
 fail:
-	trace_btree_node_relock_fail(trans, _RET_IP_, path, level);
+	trace_and_count(trans->c, btree_path_relock_fail, trans, _RET_IP_, path, level);
 	return false;
 }
 
@@ -262,7 +262,7 @@ bool bch2_btree_node_upgrade(struct btree_trans *trans,
 		goto success;
 	}
 
-	trace_btree_node_upgrade_fail(trans, _RET_IP_, path, level);
+	trace_and_count(trans->c, btree_path_upgrade_fail, trans, _RET_IP_, path, level);
 	return false;
 success:
 	mark_btree_node_locked_noreset(path, level, SIX_LOCK_intent);
@@ -285,7 +285,7 @@ int bch2_btree_path_relock_intent(struct btree_trans *trans,
 		if (!bch2_btree_node_relock(trans, path, l)) {
 			__bch2_btree_path_unlock(trans, path);
 			btree_path_set_dirty(path, BTREE_ITER_NEED_TRAVERSE);
-			trace_trans_restart_relock_path_intent(trans, _RET_IP_, path);
+			trace_and_count(trans->c, trans_restart_relock_path_intent, trans, _RET_IP_, path);
 			return btree_trans_restart(trans, BCH_ERR_transaction_restart_relock_path_intent);
 		}
 	}
@@ -304,7 +304,7 @@ int __bch2_btree_path_relock(struct btree_trans *trans,
 			struct btree_path *path, unsigned long trace_ip)
 {
 	if (!bch2_btree_path_relock_norestart(trans, path, trace_ip)) {
-		trace_trans_restart_relock_path(trans, trace_ip, path);
+		trace_and_count(trans->c, trans_restart_relock_path, trans, trace_ip, path);
 		return btree_trans_restart(trans, BCH_ERR_transaction_restart_relock_path);
 	}
 
@@ -416,7 +416,7 @@ int bch2_trans_relock(struct btree_trans *trans)
 	trans_for_each_path(trans, path)
 		if (path->should_be_locked &&
 		    bch2_btree_path_relock(trans, path, _RET_IP_)) {
-			trace_trans_restart_relock(trans, _RET_IP_, path);
+			trace_and_count(trans->c, trans_restart_relock, trans, _RET_IP_, path);
 			BUG_ON(!trans->restarted);
 			return -BCH_ERR_transaction_restart_relock;
 		}
