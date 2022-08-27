@@ -4643,16 +4643,17 @@ void kswapd_run(int nid)
 {
 	pg_data_t *pgdat = NODE_DATA(nid);
 
-	if (pgdat->kswapd)
-		return;
-
-	pgdat->kswapd = kthread_run(kswapd, pgdat, "kswapd%d", nid);
-	if (IS_ERR(pgdat->kswapd)) {
-		/* failure at boot is fatal */
-		BUG_ON(system_state < SYSTEM_RUNNING);
-		pr_err("Failed to start kswapd on node %d\n", nid);
-		pgdat->kswapd = NULL;
+	pgdat_kswapd_lock(pgdat);
+	if (!pgdat->kswapd) {
+		pgdat->kswapd = kthread_run(kswapd, pgdat, "kswapd%d", nid);
+		if (IS_ERR(pgdat->kswapd)) {
+			/* failure at boot is fatal */
+			BUG_ON(system_state < SYSTEM_RUNNING);
+			pr_err("Failed to start kswapd on node %d\n", nid);
+			pgdat->kswapd = NULL;
+		}
 	}
+	pgdat_kswapd_unlock(pgdat);
 }
 
 /*
@@ -4661,12 +4662,16 @@ void kswapd_run(int nid)
  */
 void kswapd_stop(int nid)
 {
-	struct task_struct *kswapd = NODE_DATA(nid)->kswapd;
+	pg_data_t *pgdat = NODE_DATA(nid);
+	struct task_struct *kswapd;
 
+	pgdat_kswapd_lock(pgdat);
+	kswapd = pgdat->kswapd;
 	if (kswapd) {
 		kthread_stop(kswapd);
-		NODE_DATA(nid)->kswapd = NULL;
+		pgdat->kswapd = NULL;
 	}
+	pgdat_kswapd_unlock(pgdat);
 }
 
 static int __init kswapd_init(void)

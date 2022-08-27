@@ -956,8 +956,10 @@ typedef struct pglist_data {
 	atomic_t nr_writeback_throttled;/* nr of writeback-throttled tasks */
 	unsigned long nr_reclaim_start;	/* nr pages written while throttled
 					 * when throttling started. */
-	struct task_struct *kswapd;	/* Protected by
-					   mem_hotplug_begin/done() */
+#ifdef CONFIG_MEMORY_HOTPLUG
+	struct mutex kswapd_lock;
+#endif
+	struct task_struct *kswapd;	/* Protected by kswapd_lock */
 	int kswapd_order;
 	enum zone_type kswapd_highest_zoneidx;
 

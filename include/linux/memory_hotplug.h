@@ -215,6 +215,22 @@ void put_online_mems(void);
 void mem_hotplug_begin(void);
 void mem_hotplug_done(void);
 
+/* See kswapd_is_running() */
+static inline void pgdat_kswapd_lock(pg_data_t *pgdat)
+{
+	mutex_lock(&pgdat->kswapd_lock);
+}
+
+static inline void pgdat_kswapd_unlock(pg_data_t *pgdat)
+{
+	mutex_unlock(&pgdat->kswapd_lock);
+}
+
+static inline void pgdat_kswapd_lock_init(pg_data_t *pgdat)
+{
+	mutex_init(&pgdat->kswapd_lock);
+}
+
 #else /* ! CONFIG_MEMORY_HOTPLUG */
 #define pfn_to_online_page(pfn)			\
 ({						\
@@ -251,6 +267,10 @@ static inline bool movable_node_is_enabled(void)
 {
 	return false;
 }
+
+static inline void pgdat_kswapd_lock(pg_data_t *pgdat) {}
+static inline void pgdat_kswapd_unlock(pg_data_t *pgdat) {}
+static inline void pgdat_kswapd_lock_init(pg_data_t *pgdat) {}
 #endif /* ! CONFIG_MEMORY_HOTPLUG */
 
 /*
