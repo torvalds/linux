@@ -942,12 +942,20 @@ static __init int raw_module_init(void)
 
 	pr_info("can: raw protocol\n");
 
-	err = can_proto_register(&raw_can_proto);
-	if (err < 0)
-		pr_err("can: registration of raw protocol failed\n");
-	else
-		register_netdevice_notifier(&canraw_notifier);
+	err = register_netdevice_notifier(&canraw_notifier);
+	if (err)
+		return err;
 
+	err = can_proto_register(&raw_can_proto);
+	if (err < 0) {
+		pr_err("can: registration of raw protocol failed\n");
+		goto register_proto_failed;
+	}
+
+	return 0;
+
+register_proto_failed:
+	unregister_netdevice_notifier(&canraw_notifier);
 	return err;
 }
 
