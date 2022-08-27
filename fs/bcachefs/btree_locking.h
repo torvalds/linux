@@ -123,20 +123,6 @@ static void btree_trans_lock_hold_time_update(struct btree_trans *trans,
 #endif
 }
 
-static inline enum bch_time_stats lock_to_time_stat(enum six_lock_type type)
-{
-	switch (type) {
-	case SIX_LOCK_read:
-		return BCH_TIME_btree_lock_contended_read;
-	case SIX_LOCK_intent:
-		return BCH_TIME_btree_lock_contended_intent;
-	case SIX_LOCK_write:
-		return BCH_TIME_btree_lock_contended_write;
-	default:
-		BUG();
-	}
-}
-
 /* unlock: */
 
 static inline void btree_node_unlock(struct btree_trans *trans,
@@ -206,14 +192,10 @@ static inline int btree_node_lock_type(struct btree_trans *trans,
 				       enum six_lock_type type,
 				       six_lock_should_sleep_fn should_sleep_fn, void *p)
 {
-	struct bch_fs *c = trans->c;
-	u64 start_time;
 	int ret;
 
 	if (six_trylock_type(&b->lock, type))
 		return 0;
-
-	start_time = local_clock();
 
 	trans->locking_path_idx = path->idx;
 	trans->locking_pos	= pos;
@@ -223,12 +205,7 @@ static inline int btree_node_lock_type(struct btree_trans *trans,
 	trans->locking		= b;
 	ret = six_lock_type(&b->lock, type, should_sleep_fn, p);
 	trans->locking = NULL;
-
-	if (ret)
-		return ret;
-
-	bch2_time_stats_update(&c->times[lock_to_time_stat(type)], start_time);
-	return 0;
+	return ret;
 }
 
 /*

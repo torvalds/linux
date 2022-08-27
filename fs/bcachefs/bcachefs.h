@@ -335,9 +335,6 @@ BCH_DEBUG_PARAMS_DEBUG()
 	x(btree_interior_update_foreground)	\
 	x(btree_interior_update_total)		\
 	x(btree_gc)				\
-	x(btree_lock_contended_read)		\
-	x(btree_lock_contended_intent)		\
-	x(btree_lock_contended_write)		\
 	x(data_write)				\
 	x(data_read)				\
 	x(data_promote)				\
