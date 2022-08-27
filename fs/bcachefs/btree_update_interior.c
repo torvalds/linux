@@ -1049,6 +1049,11 @@ bch2_btree_update_start(struct btree_trans *trans, struct btree_path *path,
 	if (ret) {
 		bch2_trans_unlock(trans);
 
+		if (flags & BTREE_INSERT_JOURNAL_RECLAIM) {
+			ret = -BCH_ERR_journal_reclaim_would_deadlock;
+			goto err;
+		}
+
 		ret = bch2_journal_preres_get(&c->journal, &as->journal_preres,
 					      BTREE_UPDATE_JOURNAL_RES,
 					      journal_flags);
