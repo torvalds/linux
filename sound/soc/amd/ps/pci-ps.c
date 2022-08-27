@@ -9,11 +9,16 @@
 #include <linux/module.h>
 #include <linux/io.h>
 #include <linux/delay.h>
+#include <linux/platform_device.h>
+#include <linux/acpi.h>
 
 #include "acp62.h"
 
 struct acp62_dev_data {
 	void __iomem *acp62_base;
+	struct resource *res;
+	bool acp62_audio_mode;
+	struct platform_device *pdev[ACP6x_DEVS];
 };
 
 static int acp62_power_on(void __iomem *acp_base)
@@ -114,8 +119,12 @@ static int snd_acp62_probe(struct pci_dev *pci,
 			   const struct pci_device_id *pci_id)
 {
 	struct acp62_dev_data *adata;
+	struct platform_device_info pdevinfo[ACP6x_DEVS];
+	int index, ret;
+	int val = 0x00;
+	struct acpi_device *adev;
+	const union acpi_object *obj;
 	u32 addr;
-	int ret;
 
 	/* Pink Sardine device check */
 	switch (pci->revision) {
@@ -154,8 +163,72 @@ static int snd_acp62_probe(struct pci_dev *pci,
 	ret = acp62_init(adata->acp62_base, &pci->dev);
 	if (ret)
 		goto release_regions;
+	val = acp62_readl(adata->acp62_base + ACP_PIN_CONFIG);
+	switch (val) {
+	case ACP_CONFIG_0:
+	case ACP_CONFIG_1:
+	case ACP_CONFIG_2:
+	case ACP_CONFIG_3:
+	case ACP_CONFIG_9:
+	case ACP_CONFIG_15:
+		dev_info(&pci->dev, "Audio Mode %d\n", val);
+		break;
+	default:
 
+		/* Checking DMIC hardware*/
+		adev = acpi_find_child_device(ACPI_COMPANION(&pci->dev), 0x02, 0);
+
+		if (!adev)
+			break;
+
+		if (!acpi_dev_get_property(adev, "acp-audio-device-type",
+					   ACPI_TYPE_INTEGER, &obj) &&
+					   obj->integer.value == 2) {
+			adata->res = devm_kzalloc(&pci->dev, sizeof(struct resource), GFP_KERNEL);
+			if (!adata->res) {
+				ret = -ENOMEM;
+				goto de_init;
+			}
+
+			adata->res->name = "acp_iomem";
+			adata->res->flags = IORESOURCE_MEM;
+			adata->res->start = addr;
+			adata->res->end = addr + (ACP6x_REG_END - ACP6x_REG_START);
+			adata->acp62_audio_mode = ACP6x_PDM_MODE;
+
+			memset(&pdevinfo, 0, sizeof(pdevinfo));
+			pdevinfo[0].name = "acp_ps_pdm_dma";
+			pdevinfo[0].id = 0;
+			pdevinfo[0].parent = &pci->dev;
+			pdevinfo[0].num_res = 1;
+			pdevinfo[0].res = adata->res;
+
+			pdevinfo[1].name = "dmic-codec";
+			pdevinfo[1].id = 0;
+			pdevinfo[1].parent = &pci->dev;
+
+			for (index = 0; index < ACP6x_DEVS; index++) {
+				adata->pdev[index] =
+					platform_device_register_full(&pdevinfo[index]);
+
+				if (IS_ERR(adata->pdev[index])) {
+					dev_err(&pci->dev,
+						"cannot register %s device\n",
+						 pdevinfo[index].name);
+					ret = PTR_ERR(adata->pdev[index]);
+					goto unregister_devs;
+				}
+			}
+		}
+		break;
+	}
 	return 0;
+unregister_devs:
+	for (--index; index >= 0; index--)
+		platform_device_unregister(adata->pdev[index]);
+de_init:
+	if (acp62_deinit(adata->acp62_base, &pci->dev))
+		dev_err(&pci->dev, "ACP de-init failed\n");
 release_regions:
 	pci_release_regions(pci);
 disable_pci:
@@ -167,9 +240,13 @@ disable_pci:
 static void snd_acp62_remove(struct pci_dev *pci)
 {
 	struct acp62_dev_data *adata;
-	int ret;
+	int ret, index;
 
 	adata = pci_get_drvdata(pci);
+	if (adata->acp62_audio_mode == ACP6x_PDM_MODE) {
+		for (index = 0; index < ACP6x_DEVS; index++)
+			platform_device_unregister(adata->pdev[index]);
+	}
 	ret = acp62_deinit(adata->acp62_base, &pci->dev);
 	if (ret)
 		dev_err(&pci->dev, "ACP de-init failed\n");
