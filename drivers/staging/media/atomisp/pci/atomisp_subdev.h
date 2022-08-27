@@ -70,9 +70,7 @@ struct atomisp_video_pipe {
 	enum v4l2_buf_type type;
 	struct media_pad pad;
 	struct videobuf_queue capq;
-	struct videobuf_queue outq;
 	struct list_head activeq;
-	struct list_head activeq_out;
 	/*
 	 * the buffers waiting for per-frame parameters, this is only valid
 	 * in per-frame setting mode.
@@ -86,9 +84,10 @@ struct atomisp_video_pipe {
 
 	unsigned int buffers_in_css;
 
-	/* irq_lock is used to protect video buffer state change operations and
-	 * also to make activeq, activeq_out, capq and outq list
-	 * operations atomic. */
+	/*
+	 * irq_lock is used to protect video buffer state change operations and
+	 * also to make activeq and capq operations atomic.
+	 */
 	spinlock_t irq_lock;
 	unsigned int users;
 

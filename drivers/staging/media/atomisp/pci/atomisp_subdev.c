@@ -1066,7 +1066,6 @@ static void atomisp_init_subdev_pipe(struct atomisp_sub_device *asd,
 	pipe->isp = asd->isp;
 	spin_lock_init(&pipe->irq_lock);
 	INIT_LIST_HEAD(&pipe->activeq);
-	INIT_LIST_HEAD(&pipe->activeq_out);
 	INIT_LIST_HEAD(&pipe->buffers_waiting_for_param);
 	INIT_LIST_HEAD(&pipe->per_frame_params);
 	memset(pipe->frame_request_config_id,

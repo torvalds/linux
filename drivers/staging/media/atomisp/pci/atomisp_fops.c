@@ -593,59 +593,11 @@ static void atomisp_buf_release(struct videobuf_queue *vq,
 	atomisp_videobuf_free_buf(vb);
 }
 
-static int atomisp_buf_setup_output(struct videobuf_queue *vq,
-				    unsigned int *count, unsigned int *size)
-{
-	struct atomisp_video_pipe *pipe = vq->priv_data;
-
-	*size = pipe->pix.sizeimage;
-
-	return 0;
-}
-
-static int atomisp_buf_prepare_output(struct videobuf_queue *vq,
-				      struct videobuf_buffer *vb,
-				      enum v4l2_field field)
-{
-	struct atomisp_video_pipe *pipe = vq->priv_data;
-
-	vb->size = pipe->pix.sizeimage;
-	vb->width = pipe->pix.width;
-	vb->height = pipe->pix.height;
-	vb->field = field;
-	vb->state = VIDEOBUF_PREPARED;
-
-	return 0;
-}
-
-static void atomisp_buf_queue_output(struct videobuf_queue *vq,
-				     struct videobuf_buffer *vb)
-{
-	struct atomisp_video_pipe *pipe = vq->priv_data;
-
-	list_add_tail(&vb->queue, &pipe->activeq_out);
-	vb->state = VIDEOBUF_QUEUED;
-}
-
-static void atomisp_buf_release_output(struct videobuf_queue *vq,
-				       struct videobuf_buffer *vb)
-{
-	videobuf_vmalloc_free(vb);
-	vb->state = VIDEOBUF_NEEDS_INIT;
-}
-
 static const struct videobuf_queue_ops videobuf_qops = {
 	.buf_setup	= atomisp_buf_setup,
 	.buf_prepare	= atomisp_buf_prepare,
 	.buf_queue	= atomisp_buf_queue,
 	.buf_release	= atomisp_buf_release,
-};
-
-static const struct videobuf_queue_ops videobuf_qops_output = {
-	.buf_setup	= atomisp_buf_setup_output,
-	.buf_prepare	= atomisp_buf_prepare_output,
-	.buf_queue	= atomisp_buf_queue_output,
-	.buf_release	= atomisp_buf_release_output,
 };
 
 static int atomisp_init_pipe(struct atomisp_video_pipe *pipe)
@@ -660,15 +612,7 @@ static int atomisp_init_pipe(struct atomisp_video_pipe *pipe)
 				    sizeof(struct atomisp_buffer), pipe,
 				    NULL);	/* ext_lock: NULL */
 
-	videobuf_queue_vmalloc_init(&pipe->outq, &videobuf_qops_output, NULL,
-				    &pipe->irq_lock,
-				    V4L2_BUF_TYPE_VIDEO_OUTPUT,
-				    V4L2_FIELD_NONE,
-				    sizeof(struct atomisp_buffer), pipe,
-				    NULL);	/* ext_lock: NULL */
-
 	INIT_LIST_HEAD(&pipe->activeq);
-	INIT_LIST_HEAD(&pipe->activeq_out);
 	INIT_LIST_HEAD(&pipe->buffers_waiting_for_param);
 	INIT_LIST_HEAD(&pipe->per_frame_params);
 	memset(pipe->frame_request_config_id, 0,
@@ -962,12 +906,6 @@ static int atomisp_release(struct file *file)
 		dev_err(isp->dev,
 			"atomisp_reqbufs failed on release, driver bug");
 		goto done;
-	}
-
-	if (pipe->outq.bufs[0]) {
-		mutex_lock(&pipe->outq.vb_lock);
-		videobuf_queue_cancel(&pipe->outq);
-		mutex_unlock(&pipe->outq.vb_lock);
 	}
 
 	/*
