@@ -123,8 +123,20 @@ autosectionlabel_maxdepth = 2
 # mathjax is the default math renderer since Sphinx 1.8.
 have_latex =  have_command('latex')
 have_dvipng = have_command('dvipng')
-load_imgmath = ((have_latex and have_dvipng)
-                or (major == 1 and minor < 8)
+load_imgmath = have_latex and have_dvipng
+
+# Respect SPHINX_IMGMATH (for html docs only)
+if 'SPHINX_IMGMATH' in os.environ:
+    env_sphinx_imgmath = os.environ['SPHINX_IMGMATH']
+    if 'yes' in env_sphinx_imgmath:
+        load_imgmath = True
+    elif 'no' in env_sphinx_imgmath:
+        load_imgmath = False
+    else:
+        sys.stderr.write("Unknown env SPHINX_IMGMATH=%s ignored.\n" % env_sphinx_imgmath)
+
+# Always load imgmath for Sphinx <1.8 or for epub docs
+load_imgmath = (load_imgmath or (major == 1 and minor < 8)
                 or 'epub' in sys.argv)
 
 if load_imgmath:
