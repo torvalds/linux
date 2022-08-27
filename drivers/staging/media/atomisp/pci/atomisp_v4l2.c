@@ -34,7 +34,6 @@
 #include "atomisp_cmd.h"
 #include "atomisp_common.h"
 #include "atomisp_fops.h"
-#include "atomisp_file.h"
 #include "atomisp_ioctl.h"
 #include "atomisp_internal.h"
 #include "atomisp-regs.h"
@@ -1158,7 +1157,6 @@ static void atomisp_unregister_entities(struct atomisp_device *isp)
 	for (i = 0; i < isp->num_of_streams; i++)
 		atomisp_subdev_unregister_entities(&isp->asd[i]);
 	atomisp_tpg_unregister_entities(&isp->tpg);
-	atomisp_file_input_unregister_entities(&isp->file_dev);
 	for (i = 0; i < ATOMISP_CAMERA_NR_PORTS; i++)
 		atomisp_mipi_csi2_unregister_entities(&isp->csi2_port[i]);
 
@@ -1208,13 +1206,6 @@ static int atomisp_register_entities(struct atomisp_device *isp)
 			    &isp->csi2_port[i]);
 
 		goto csi_and_subdev_probe_failed;
-	}
-
-	ret =
-	    atomisp_file_input_register_entities(&isp->file_dev, &isp->v4l2_dev);
-	if (ret < 0) {
-		dev_err(isp->dev, "atomisp_file_input_register_entities\n");
-		goto file_input_register_failed;
 	}
 
 	ret = atomisp_tpg_register_entities(&isp->tpg, &isp->v4l2_dev);
@@ -1267,14 +1258,6 @@ static int atomisp_register_entities(struct atomisp_device *isp)
 		}
 	}
 
-	dev_dbg(isp->dev,
-		"FILE_INPUT enable, camera_cnt: %d\n", isp->input_cnt);
-	isp->inputs[isp->input_cnt].type = FILE_INPUT;
-	isp->inputs[isp->input_cnt].port = -1;
-	isp->inputs[isp->input_cnt].camera_caps =
-	    atomisp_get_default_camera_caps();
-	isp->inputs[isp->input_cnt++].camera = &isp->file_dev.sd;
-
 	if (isp->input_cnt < ATOM_ISP_MAX_INPUTS) {
 		dev_dbg(isp->dev,
 			"TPG detected, camera_cnt: %d\n", isp->input_cnt);
@@ -1304,8 +1287,6 @@ wq_alloc_failed:
 subdev_register_failed:
 	atomisp_tpg_unregister_entities(&isp->tpg);
 tpg_register_failed:
-	atomisp_file_input_unregister_entities(&isp->file_dev);
-file_input_register_failed:
 	for (i = 0; i < ATOMISP_CAMERA_NR_PORTS; i++)
 		atomisp_mipi_csi2_unregister_entities(&isp->csi2_port[i]);
 csi_and_subdev_probe_failed:
@@ -1326,13 +1307,6 @@ static int atomisp_initialize_modules(struct atomisp_device *isp)
 		goto error_mipi_csi2;
 	}
 
-	ret = atomisp_file_input_init(isp);
-	if (ret < 0) {
-		dev_err(isp->dev,
-			"file input device initialization failed\n");
-		goto error_file_input;
-	}
-
 	ret = atomisp_tpg_init(isp);
 	if (ret < 0) {
 		dev_err(isp->dev, "tpg initialization failed\n");
@@ -1350,8 +1324,6 @@ static int atomisp_initialize_modules(struct atomisp_device *isp)
 error_isp_subdev:
 error_tpg:
 	atomisp_tpg_cleanup(isp);
-error_file_input:
-	atomisp_file_input_cleanup(isp);
 error_mipi_csi2:
 	atomisp_mipi_csi2_cleanup(isp);
 	return ret;
@@ -1360,7 +1332,6 @@ error_mipi_csi2:
 static void atomisp_uninitialize_modules(struct atomisp_device *isp)
 {
 	atomisp_tpg_cleanup(isp);
-	atomisp_file_input_cleanup(isp);
 	atomisp_mipi_csi2_cleanup(isp);
 }
 
@@ -1852,7 +1823,6 @@ static void atomisp_pci_remove(struct pci_dev *pdev)
 	atomisp_unregister_entities(isp);
 
 	destroy_workqueue(isp->wdt_work_queue);
-	atomisp_file_input_cleanup(isp);
 
 	release_firmware(isp->firmware);
 }

@@ -609,8 +609,7 @@ atomisp_subdev_streaming_count(struct atomisp_sub_device *asd)
 	return asd->video_out_preview.capq.streaming
 	       + asd->video_out_capture.capq.streaming
 	       + asd->video_out_video_capture.capq.streaming
-	       + asd->video_out_vf.capq.streaming
-	       + asd->video_in.capq.streaming;
+	       + asd->video_out_vf.capq.streaming;
 }
 
 unsigned int atomisp_streaming_count(struct atomisp_device *isp)

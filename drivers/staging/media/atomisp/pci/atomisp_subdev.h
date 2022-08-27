@@ -297,7 +297,6 @@ struct atomisp_sub_device {
 
 	enum atomisp_subdev_input_entity input;
 	unsigned int output;
-	struct atomisp_video_pipe video_in;
 	struct atomisp_video_pipe video_out_capture; /* capture output */
 	struct atomisp_video_pipe video_out_vf;      /* viewfinder output */
 	struct atomisp_video_pipe video_out_preview; /* preview output */

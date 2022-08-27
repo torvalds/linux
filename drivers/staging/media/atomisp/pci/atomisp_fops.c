@@ -742,8 +742,7 @@ static unsigned int atomisp_subdev_users(struct atomisp_sub_device *asd)
 	       asd->video_out_vf.users +
 	       asd->video_out_capture.users +
 	       asd->video_out_video_capture.users +
-	       asd->video_acc.users +
-	       asd->video_in.users;
+	       asd->video_acc.users;
 }
 
 unsigned int atomisp_dev_users(struct atomisp_device *isp)

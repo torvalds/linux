@@ -34,7 +34,6 @@
 #include "sh_css_legacy.h"
 
 #include "atomisp_csi2.h"
-#include "atomisp_file.h"
 #include "atomisp_subdev.h"
 #include "atomisp_tpg.h"
 #include "atomisp_compat.h"
@@ -86,7 +85,7 @@
 #define ATOM_ISP_POWER_DOWN	0
 #define ATOM_ISP_POWER_UP	1
 
-#define ATOM_ISP_MAX_INPUTS	4
+#define ATOM_ISP_MAX_INPUTS	3
 
 #define ATOMISP_SC_TYPE_SIZE	2
 
@@ -241,7 +240,6 @@ struct atomisp_device {
 
 	struct atomisp_mipi_csi2_device csi2_port[ATOMISP_CAMERA_NR_PORTS];
 	struct atomisp_tpg_device tpg;
-	struct atomisp_file_device file_dev;
 
 	/* Purpose of mutex is to protect and serialize use of isp data
 	 * structures and css API calls. */

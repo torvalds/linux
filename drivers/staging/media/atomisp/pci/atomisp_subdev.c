@@ -1126,9 +1126,6 @@ static int isp_subdev_init_entities(struct atomisp_sub_device *asd)
 	if (ret < 0)
 		return ret;
 
-	atomisp_init_subdev_pipe(asd, &asd->video_in,
-				 V4L2_BUF_TYPE_VIDEO_OUTPUT);
-
 	atomisp_init_subdev_pipe(asd, &asd->video_out_preview,
 				 V4L2_BUF_TYPE_VIDEO_CAPTURE);
 
@@ -1142,11 +1139,6 @@ static int isp_subdev_init_entities(struct atomisp_sub_device *asd)
 				 V4L2_BUF_TYPE_VIDEO_CAPTURE);
 
 	atomisp_init_acc_pipe(asd, &asd->video_acc);
-
-	ret = atomisp_video_init(&asd->video_in, "MEMORY",
-				 ATOMISP_RUN_MODE_SDV);
-	if (ret < 0)
-		return ret;
 
 	ret = atomisp_video_init(&asd->video_out_capture, "CAPTURE",
 				 ATOMISP_RUN_MODE_STILL_CAPTURE);
@@ -1226,7 +1218,11 @@ int atomisp_create_pads_links(struct atomisp_device *isp)
 				return ret;
 		}
 	}
-	for (i = 0; i < isp->input_cnt - 2; i++) {
+	for (i = 0; i < isp->input_cnt; i++) {
+		/* Don't create links for the test-pattern-generator */
+		if (isp->inputs[i].type == TEST_PATTERN)
+			continue;
+
 		ret = media_create_pad_link(&isp->inputs[i].camera->entity, 0,
 					    &isp->csi2_port[isp->inputs[i].
 						    port].subdev.entity,
@@ -1262,17 +1258,6 @@ int atomisp_create_pads_links(struct atomisp_device *isp)
 					    entity, 0, 0);
 		if (ret < 0)
 			return ret;
-		/*
-		 * file input only supported on subdev0
-		 * so do not create pad link for subdevs other then subdev0
-		 */
-		if (asd->index)
-			return 0;
-		ret = media_create_pad_link(&asd->video_in.vdev.entity,
-					    0, &asd->subdev.entity,
-					    ATOMISP_SUBDEV_PAD_SINK, 0);
-		if (ret < 0)
-			return ret;
 	}
 	return 0;
 }
@@ -1302,7 +1287,6 @@ void atomisp_subdev_unregister_entities(struct atomisp_sub_device *asd)
 {
 	atomisp_subdev_cleanup_entities(asd);
 	v4l2_device_unregister_subdev(&asd->subdev);
-	atomisp_video_unregister(&asd->video_in);
 	atomisp_video_unregister(&asd->video_out_preview);
 	atomisp_video_unregister(&asd->video_out_vf);
 	atomisp_video_unregister(&asd->video_out_capture);
@@ -1356,20 +1340,6 @@ int atomisp_subdev_register_entities(struct atomisp_sub_device *asd,
 	asd->video_acc.vdev.v4l2_dev = vdev;
 	asd->video_acc.vdev.device_caps = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_STREAMING;
 	ret = video_register_device(&asd->video_acc.vdev,
-				    VFL_TYPE_VIDEO, -1);
-	if (ret < 0)
-		goto error;
-
-	/*
-	 * file input only supported on subdev0
-	 * so do not create video node for subdevs other then subdev0
-	 */
-	if (asd->index)
-		return 0;
-
-	asd->video_in.vdev.v4l2_dev = vdev;
-	asd->video_in.vdev.device_caps = V4L2_CAP_VIDEO_OUT | V4L2_CAP_STREAMING;
-	ret = video_register_device(&asd->video_in.vdev,
 				    VFL_TYPE_VIDEO, -1);
 	if (ret < 0)
 		goto error;
