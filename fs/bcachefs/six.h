@@ -156,6 +156,8 @@ do {									\
 bool six_trylock_##type(struct six_lock *);				\
 bool six_relock_##type(struct six_lock *, u32);				\
 int six_lock_##type(struct six_lock *, six_lock_should_sleep_fn, void *);\
+int six_lock_waiter_##type(struct six_lock *, struct six_lock_waiter *,	\
+			   six_lock_should_sleep_fn, void *);		\
 void six_unlock_##type(struct six_lock *);
 
 __SIX_LOCK(read)
@@ -190,6 +192,13 @@ static inline int six_lock_type(struct six_lock *lock, enum six_lock_type type,
 				six_lock_should_sleep_fn should_sleep_fn, void *p)
 {
 	SIX_LOCK_DISPATCH(type, six_lock, lock, should_sleep_fn, p);
+}
+
+static inline int six_lock_type_waiter(struct six_lock *lock, enum six_lock_type type,
+				struct six_lock_waiter *wait,
+				six_lock_should_sleep_fn should_sleep_fn, void *p)
+{
+	SIX_LOCK_DISPATCH(type, six_lock_waiter, lock, wait, should_sleep_fn, p);
 }
 
 static inline void six_unlock_type(struct six_lock *lock, enum six_lock_type type)
