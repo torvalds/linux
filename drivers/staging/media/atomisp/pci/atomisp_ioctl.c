@@ -871,20 +871,6 @@ static int atomisp_enum_fmt_cap(struct file *file, void *fh,
 	return -EINVAL;
 }
 
-static int atomisp_g_fmt_file(struct file *file, void *fh,
-			      struct v4l2_format *f)
-{
-	struct video_device *vdev = video_devdata(file);
-	struct atomisp_device *isp = video_get_drvdata(vdev);
-	struct atomisp_video_pipe *pipe = atomisp_to_video_pipe(vdev);
-
-	rt_mutex_lock(&isp->mutex);
-	f->fmt.pix = pipe->pix;
-	rt_mutex_unlock(&isp->mutex);
-
-	return 0;
-}
-
 static int atomisp_adjust_fmt(struct v4l2_format *f)
 {
 	const struct atomisp_format_bridge *format_bridge;
@@ -1014,19 +1000,6 @@ static int atomisp_s_fmt_cap(struct file *file, void *fh,
 		return ret;
 	}
 	ret = atomisp_set_fmt(vdev, f);
-	rt_mutex_unlock(&isp->mutex);
-	return ret;
-}
-
-static int atomisp_s_fmt_file(struct file *file, void *fh,
-			      struct v4l2_format *f)
-{
-	struct video_device *vdev = video_devdata(file);
-	struct atomisp_device *isp = video_get_drvdata(vdev);
-	int ret;
-
-	rt_mutex_lock(&isp->mutex);
-	ret = atomisp_set_fmt_file(vdev, f);
 	rt_mutex_unlock(&isp->mutex);
 	return ret;
 }
@@ -1258,22 +1231,6 @@ int atomisp_reqbufs(struct file *file, void *fh,
 	return ret;
 }
 
-static int atomisp_reqbufs_file(struct file *file, void *fh,
-				struct v4l2_requestbuffers *req)
-{
-	struct video_device *vdev = video_devdata(file);
-	struct atomisp_video_pipe *pipe = atomisp_to_video_pipe(vdev);
-
-	if (req->count == 0) {
-		mutex_lock(&pipe->outq.vb_lock);
-		atomisp_videobuf_free_queue(&pipe->outq);
-		mutex_unlock(&pipe->outq.vb_lock);
-		return 0;
-	}
-
-	return videobuf_reqbufs(&pipe->outq, req);
-}
-
 /* application query the status of a buffer */
 static int atomisp_querybuf(struct file *file, void *fh,
 			    struct v4l2_buffer *buf)
@@ -1282,15 +1239,6 @@ static int atomisp_querybuf(struct file *file, void *fh,
 	struct atomisp_video_pipe *pipe = atomisp_to_video_pipe(vdev);
 
 	return videobuf_querybuf(&pipe->capq, buf);
-}
-
-static int atomisp_querybuf_file(struct file *file, void *fh,
-				 struct v4l2_buffer *buf)
-{
-	struct video_device *vdev = video_devdata(file);
-	struct atomisp_video_pipe *pipe = atomisp_to_video_pipe(vdev);
-
-	return videobuf_querybuf(&pipe->outq, buf);
 }
 
 /*
@@ -1470,48 +1418,6 @@ done:
 
 error:
 	rt_mutex_unlock(&isp->mutex);
-	return ret;
-}
-
-static int atomisp_qbuf_file(struct file *file, void *fh,
-			     struct v4l2_buffer *buf)
-{
-	struct video_device *vdev = video_devdata(file);
-	struct atomisp_device *isp = video_get_drvdata(vdev);
-	struct atomisp_video_pipe *pipe = atomisp_to_video_pipe(vdev);
-	int ret;
-
-	rt_mutex_lock(&isp->mutex);
-	if (isp->isp_fatal_error) {
-		ret = -EIO;
-		goto error;
-	}
-
-	if (!buf || buf->index >= VIDEO_MAX_FRAME ||
-	    !pipe->outq.bufs[buf->index]) {
-		dev_err(isp->dev, "Invalid index for qbuf.\n");
-		ret = -EINVAL;
-		goto error;
-	}
-
-	if (buf->memory != V4L2_MEMORY_MMAP) {
-		dev_err(isp->dev, "Unsupported memory method\n");
-		ret = -EINVAL;
-		goto error;
-	}
-
-	if (buf->type != V4L2_BUF_TYPE_VIDEO_OUTPUT) {
-		dev_err(isp->dev, "Unsupported buffer type\n");
-		ret = -EINVAL;
-		goto error;
-	}
-	rt_mutex_unlock(&isp->mutex);
-
-	return videobuf_qbuf(&pipe->outq, buf);
-
-error:
-	rt_mutex_unlock(&isp->mutex);
-
 	return ret;
 }
 
@@ -2882,24 +2788,6 @@ out:
 	return rval == -ENOIOCTLCMD ? 0 : rval;
 }
 
-static int atomisp_s_parm_file(struct file *file, void *fh,
-			       struct v4l2_streamparm *parm)
-{
-	struct video_device *vdev = video_devdata(file);
-	struct atomisp_device *isp = video_get_drvdata(vdev);
-
-	if (parm->type != V4L2_BUF_TYPE_VIDEO_OUTPUT) {
-		dev_err(isp->dev, "unsupported v4l2 buf type for output\n");
-		return -EINVAL;
-	}
-
-	rt_mutex_lock(&isp->mutex);
-	isp->sw_contex.file_input = true;
-	rt_mutex_unlock(&isp->mutex);
-
-	return 0;
-}
-
 static long atomisp_vidioc_default(struct file *file, void *fh,
 				   bool valid_prio, unsigned int cmd, void *arg)
 {
@@ -3229,14 +3117,4 @@ const struct v4l2_ioctl_ops atomisp_ioctl_ops = {
 	.vidioc_default = atomisp_vidioc_default,
 	.vidioc_s_parm = atomisp_s_parm,
 	.vidioc_g_parm = atomisp_g_parm,
-};
-
-const struct v4l2_ioctl_ops atomisp_file_ioctl_ops = {
-	.vidioc_querycap = atomisp_querycap,
-	.vidioc_g_fmt_vid_out = atomisp_g_fmt_file,
-	.vidioc_s_fmt_vid_out = atomisp_s_fmt_file,
-	.vidioc_s_parm = atomisp_s_parm_file,
-	.vidioc_reqbufs = atomisp_reqbufs_file,
-	.vidioc_querybuf = atomisp_querybuf_file,
-	.vidioc_qbuf = atomisp_qbuf_file,
 };

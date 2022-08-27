@@ -1269,14 +1269,6 @@ error:
 	return ret;
 }
 
-static int atomisp_file_mmap(struct file *file, struct vm_area_struct *vma)
-{
-	struct video_device *vdev = video_devdata(file);
-	struct atomisp_video_pipe *pipe = atomisp_to_video_pipe(vdev);
-
-	return videobuf_mmap_mapper(&pipe->outq, vma);
-}
-
 static __poll_t atomisp_poll(struct file *file,
 			     struct poll_table_struct *pt)
 {
@@ -1306,18 +1298,6 @@ const struct v4l2_file_operations atomisp_fops = {
 	 * needs to be made safe for compat tasks instead.
 	.compat_ioctl32 = atomisp_compat_ioctl32,
 	 */
-#endif
-	.poll = atomisp_poll,
-};
-
-const struct v4l2_file_operations atomisp_file_fops = {
-	.owner = THIS_MODULE,
-	.open = atomisp_open,
-	.release = atomisp_release,
-	.mmap = atomisp_file_mmap,
-	.unlocked_ioctl = video_ioctl2,
-#ifdef CONFIG_COMPAT
-	/* .compat_ioctl32 = atomisp_compat_ioctl32, */
 #endif
 	.poll = atomisp_poll,
 };

@@ -4906,41 +4906,6 @@ int atomisp_try_fmt(struct video_device *vdev, struct v4l2_pix_format *f,
 	return 0;
 }
 
-static int
-atomisp_try_fmt_file(struct atomisp_device *isp, struct v4l2_format *f)
-{
-	u32 width = f->fmt.pix.width;
-	u32 height = f->fmt.pix.height;
-	u32 pixelformat = f->fmt.pix.pixelformat;
-	enum v4l2_field field = f->fmt.pix.field;
-	u32 depth;
-
-	if (!atomisp_get_format_bridge(pixelformat)) {
-		dev_err(isp->dev, "Wrong output pixelformat\n");
-		return -EINVAL;
-	}
-
-	depth = atomisp_get_pixel_depth(pixelformat);
-
-	if (field == V4L2_FIELD_ANY) {
-		field = V4L2_FIELD_NONE;
-	} else if (field != V4L2_FIELD_NONE) {
-		dev_err(isp->dev, "Wrong output field\n");
-		return -EINVAL;
-	}
-
-	f->fmt.pix.field = field;
-	f->fmt.pix.width = clamp_t(u32,
-				   rounddown(width, (u32)ATOM_ISP_STEP_WIDTH),
-				   ATOM_ISP_MIN_WIDTH, ATOM_ISP_MAX_WIDTH);
-	f->fmt.pix.height = clamp_t(u32, rounddown(height,
-				    (u32)ATOM_ISP_STEP_HEIGHT),
-				    ATOM_ISP_MIN_HEIGHT, ATOM_ISP_MAX_HEIGHT);
-	f->fmt.pix.bytesperline = (width * depth) >> 3;
-
-	return 0;
-}
-
 enum mipi_port_id __get_mipi_port(struct atomisp_device *isp,
 				  enum atomisp_camera_port port)
 {
@@ -6074,55 +6039,6 @@ done:
 		__func__,
 		f->fmt.pix.width, f->fmt.pix.height,
 		f->fmt.pix.sizeimage, f->fmt.pix.bytesperline);
-
-	return 0;
-}
-
-int atomisp_set_fmt_file(struct video_device *vdev, struct v4l2_format *f)
-{
-	struct atomisp_device *isp = video_get_drvdata(vdev);
-	struct atomisp_video_pipe *pipe = atomisp_to_video_pipe(vdev);
-	struct atomisp_sub_device *asd = pipe->asd;
-	struct v4l2_mbus_framefmt ffmt = {0};
-	const struct atomisp_format_bridge *format_bridge;
-	struct v4l2_subdev_fh fh;
-	int ret;
-
-	if (!asd) {
-		dev_err(isp->dev, "%s(): asd is NULL, device is %s\n",
-			__func__, vdev->name);
-		return -EINVAL;
-	}
-
-	v4l2_fh_init(&fh.vfh, vdev);
-
-	dev_dbg(isp->dev, "setting fmt %ux%u 0x%x for file inject\n",
-		f->fmt.pix.width, f->fmt.pix.height, f->fmt.pix.pixelformat);
-	ret = atomisp_try_fmt_file(isp, f);
-	if (ret) {
-		dev_err(isp->dev, "atomisp_try_fmt_file err: %d\n", ret);
-		return ret;
-	}
-
-	format_bridge = atomisp_get_format_bridge(f->fmt.pix.pixelformat);
-	if (!format_bridge) {
-		dev_dbg(isp->dev, "atomisp_get_format_bridge err! fmt:0x%x\n",
-			f->fmt.pix.pixelformat);
-		return -EINVAL;
-	}
-
-	pipe->pix = f->fmt.pix;
-	atomisp_css_input_set_mode(asd, IA_CSS_INPUT_MODE_FIFO);
-	atomisp_css_input_configure_port(asd,
-					 __get_mipi_port(isp, ATOMISP_CAMERA_PORT_PRIMARY), 2, 0xffff4,
-					 0, 0, 0, 0);
-	ffmt.width = f->fmt.pix.width;
-	ffmt.height = f->fmt.pix.height;
-	ffmt.code = format_bridge->mbus_code;
-
-	atomisp_subdev_set_ffmt(&asd->subdev, fh.state,
-				V4L2_SUBDEV_FORMAT_ACTIVE,
-				ATOMISP_SUBDEV_PAD_SINK, &ffmt);
 
 	return 0;
 }

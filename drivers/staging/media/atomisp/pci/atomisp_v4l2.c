@@ -442,12 +442,6 @@ int atomisp_video_init(struct atomisp_video_pipe *video, const char *name,
 		video->vdev.fops = &atomisp_fops;
 		video->vdev.ioctl_ops = &atomisp_ioctl_ops;
 		break;
-	case V4L2_BUF_TYPE_VIDEO_OUTPUT:
-		direction = "input";
-		video->pad.flags = MEDIA_PAD_FL_SOURCE;
-		video->vdev.fops = &atomisp_file_fops;
-		video->vdev.ioctl_ops = &atomisp_file_ioctl_ops;
-		break;
 	default:
 		return -EINVAL;
 	}

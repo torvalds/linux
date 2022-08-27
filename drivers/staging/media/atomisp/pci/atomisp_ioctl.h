@@ -49,11 +49,7 @@ enum ia_css_pipe_id atomisp_get_css_pipe_id(struct atomisp_sub_device
 
 void atomisp_videobuf_free_buf(struct videobuf_buffer *vb);
 
-extern const struct v4l2_file_operations atomisp_file_fops;
-
 extern const struct v4l2_ioctl_ops atomisp_ioctl_ops;
-
-extern const struct v4l2_ioctl_ops atomisp_file_ioctl_ops;
 
 unsigned int atomisp_streaming_count(struct atomisp_device *isp);
 
