@@ -189,7 +189,6 @@
 
 	vcc3v3_sd: vcc3v3_sd {
 		compatible = "regulator-fixed";
-		enable-active-low;
 		gpio = <&gpio0 RK_PA5 GPIO_ACTIVE_LOW>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&vcc_sd_h>;
