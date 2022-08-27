@@ -22,8 +22,8 @@
 #include <linux/can/error.h>
 
 /* Device specific constants */
-#define USB_GSUSB_1_VENDOR_ID 0x1d50
-#define USB_GSUSB_1_PRODUCT_ID 0x606f
+#define USB_GS_USB_1_VENDOR_ID 0x1d50
+#define USB_GS_USB_1_PRODUCT_ID 0x606f
 
 #define USB_CANDLELIGHT_VENDOR_ID 0x1209
 #define USB_CANDLELIGHT_PRODUCT_ID 0x2323
@@ -34,8 +34,8 @@
 #define USB_ABE_CANDEBUGGER_FD_VENDOR_ID 0x16d0
 #define USB_ABE_CANDEBUGGER_FD_PRODUCT_ID 0x10b8
 
-#define GSUSB_ENDPOINT_IN 1
-#define GSUSB_ENDPOINT_OUT 2
+#define GS_USB_ENDPOINT_IN 1
+#define GS_USB_ENDPOINT_OUT 2
 
 /* Device specific constants */
 enum gs_usb_breq {
@@ -491,7 +491,7 @@ static void gs_usb_receive_bulk_callback(struct urb *urb)
 
  resubmit_urb:
 	usb_fill_bulk_urb(urb, usbcan->udev,
-			  usb_rcvbulkpipe(usbcan->udev, GSUSB_ENDPOINT_IN),
+			  usb_rcvbulkpipe(usbcan->udev, GS_USB_ENDPOINT_IN),
 			  hf, dev->parent->hf_size_rx,
 			  gs_usb_receive_bulk_callback, usbcan);
 
@@ -659,7 +659,7 @@ static netdev_tx_t gs_can_start_xmit(struct sk_buff *skb,
 	}
 
 	usb_fill_bulk_urb(urb, dev->udev,
-			  usb_sndbulkpipe(dev->udev, GSUSB_ENDPOINT_OUT),
+			  usb_sndbulkpipe(dev->udev, GS_USB_ENDPOINT_OUT),
 			  hf, dev->hf_size_tx,
 			  gs_usb_xmit_callback, txc);
 
@@ -769,7 +769,7 @@ static int gs_can_open(struct net_device *netdev)
 			usb_fill_bulk_urb(urb,
 					  dev->udev,
 					  usb_rcvbulkpipe(dev->udev,
-							  GSUSB_ENDPOINT_IN),
+							  GS_USB_ENDPOINT_IN),
 					  buf,
 					  dev->parent->hf_size_rx,
 					  gs_usb_receive_bulk_callback, parent);
@@ -1063,8 +1063,8 @@ static struct gs_can *gs_make_candev(unsigned int channel,
 	 * GS_CAN_FEATURE_QUIRK_BREQ_CANTACT_PRO to workaround this
 	 * issue.
 	 */
-	if (dev->udev->descriptor.idVendor == cpu_to_le16(USB_GSUSB_1_VENDOR_ID) &&
-	    dev->udev->descriptor.idProduct == cpu_to_le16(USB_GSUSB_1_PRODUCT_ID) &&
+	if (dev->udev->descriptor.idVendor == cpu_to_le16(USB_GS_USB_1_VENDOR_ID) &&
+	    dev->udev->descriptor.idProduct == cpu_to_le16(USB_GS_USB_1_PRODUCT_ID) &&
 	    dev->udev->manufacturer && dev->udev->product &&
 	    !strcmp(dev->udev->manufacturer, "LinkLayer Labs") &&
 	    !strcmp(dev->udev->product, "CANtact Pro") &&
@@ -1258,8 +1258,8 @@ static void gs_usb_disconnect(struct usb_interface *intf)
 }
 
 static const struct usb_device_id gs_usb_table[] = {
-	{ USB_DEVICE_INTERFACE_NUMBER(USB_GSUSB_1_VENDOR_ID,
-				      USB_GSUSB_1_PRODUCT_ID, 0) },
+	{ USB_DEVICE_INTERFACE_NUMBER(USB_GS_USB_1_VENDOR_ID,
+				      USB_GS_USB_1_PRODUCT_ID, 0) },
 	{ USB_DEVICE_INTERFACE_NUMBER(USB_CANDLELIGHT_VENDOR_ID,
 				      USB_CANDLELIGHT_PRODUCT_ID, 0) },
 	{ USB_DEVICE_INTERFACE_NUMBER(USB_CES_CANEXT_FD_VENDOR_ID,
