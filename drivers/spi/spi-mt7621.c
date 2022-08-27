@@ -55,7 +55,6 @@ struct mt7621_spi {
 	void __iomem		*base;
 	unsigned int		sys_freq;
 	unsigned int		speed;
-	struct clk		*clk;
 	int			pending_write;
 };
 
@@ -361,9 +360,8 @@ static int mt7621_spi_probe(struct platform_device *pdev)
 
 	rs = spi_controller_get_devdata(master);
 	rs->base = base;
-	rs->clk = clk;
 	rs->master = master;
-	rs->sys_freq = clk_get_rate(rs->clk);
+	rs->sys_freq = clk_get_rate(clk);
 	rs->pending_write = 0;
 	dev_info(&pdev->dev, "sys_freq: %u\n", rs->sys_freq);
 
