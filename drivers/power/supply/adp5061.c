@@ -493,6 +493,9 @@ static int adp5061_get_battery_status(struct adp5061_state *st,
 	case 0x4: /* VBAT_SNS > VWEAK */
 		val->intval = POWER_SUPPLY_CAPACITY_LEVEL_NORMAL;
 		break;
+	default:
+		val->intval = POWER_SUPPLY_CAPACITY_LEVEL_UNKNOWN;
+		break;
 	}
 
 	return ret;
