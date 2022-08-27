@@ -256,6 +256,7 @@ enum mes_misc_opcode {
 	MES_MISC_OP_READ_REG,
 	MES_MISC_OP_WRM_REG_WAIT,
 	MES_MISC_OP_WRM_REG_WR_WAIT,
+	MES_MISC_OP_SET_SHADER_DEBUGGER,
 };
 
 struct mes_misc_op_input {
@@ -278,6 +279,20 @@ struct mes_misc_op_input {
 			uint32_t                   reg0;
 			uint32_t                   reg1;
 		} wrm_reg;
+
+		struct {
+			uint64_t process_context_addr;
+			union {
+				struct {
+					uint64_t single_memop : 1;
+					uint64_t single_alu_op : 1;
+					uint64_t reserved: 30;
+				};
+				uint32_t u32all;
+			} flags;
+			uint32_t spi_gdbg_per_vmid_cntl;
+			uint32_t tcp_watch_cntl[4];
+		} set_shader_debugger;
 	};
 };
 
@@ -340,6 +355,11 @@ int amdgpu_mes_reg_wait(struct amdgpu_device *adev, uint32_t reg,
 int amdgpu_mes_reg_write_reg_wait(struct amdgpu_device *adev,
 				  uint32_t reg0, uint32_t reg1,
 				  uint32_t ref, uint32_t mask);
+int amdgpu_mes_set_shader_debugger(struct amdgpu_device *adev,
+				uint64_t process_context_addr,
+				uint32_t spi_gdbg_per_vmid_cntl,
+				const uint32_t *tcp_watch_cntl,
+				uint32_t flags);
 
 int amdgpu_mes_add_ring(struct amdgpu_device *adev, int gang_id,
 			int queue_type, int idx,
