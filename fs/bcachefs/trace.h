@@ -323,7 +323,7 @@ TRACE_EVENT(btree_reserve_get_fail,
 	TP_ARGS(trans_fn, caller_ip, required),
 
 	TP_STRUCT__entry(
-		__array(char,			trans_fn, 24	)
+		__array(char,			trans_fn, 32	)
 		__field(unsigned long,		caller_ip	)
 		__field(size_t,			required	)
 	),
@@ -393,26 +393,31 @@ TRACE_EVENT(btree_node_relock_fail,
 	TP_ARGS(trans, caller_ip, path, level),
 
 	TP_STRUCT__entry(
-		__array(char,			trans_fn, 24	)
+		__array(char,			trans_fn, 32	)
 		__field(unsigned long,		caller_ip	)
 		__field(u8,			btree_id	)
 		TRACE_BPOS_entries(pos)
-		__field(unsigned long,		node		)
+		__array(char,			node, 24	)
 		__field(u32,			iter_lock_seq	)
 		__field(u32,			node_lock_seq	)
 	),
 
 	TP_fast_assign(
+		struct btree *b = btree_path_node(path, level);
+
 		strlcpy(__entry->trans_fn, trans->fn, sizeof(__entry->trans_fn));
 		__entry->caller_ip		= caller_ip;
 		__entry->btree_id		= path->btree_id;
 		TRACE_BPOS_assign(pos, path->pos);
-		__entry->node			= (unsigned long) btree_path_node(path, level);
+		if (IS_ERR(b))
+			strscpy(__entry->node, bch2_err_str(PTR_ERR(b)), sizeof(__entry->node));
+		else
+			scnprintf(__entry->node, sizeof(__entry->node), "%px", b);
 		__entry->iter_lock_seq		= path->l[level].lock_seq;
 		__entry->node_lock_seq		= is_btree_node(path, level) ? path->l[level].b->c.lock.state.seq : 0;
 	),
 
-	TP_printk("%s %pS btree %s pos %llu:%llu:%u, node %lu iter seq %u lock seq %u",
+	TP_printk("%s %pS btree %s pos %llu:%llu:%u, node %s iter seq %u lock seq %u",
 		  __entry->trans_fn,
 		  (void *) __entry->caller_ip,
 		  bch2_btree_ids[__entry->btree_id],
@@ -432,7 +437,7 @@ TRACE_EVENT(btree_node_upgrade_fail,
 	TP_ARGS(trans, caller_ip, path, level),
 
 	TP_STRUCT__entry(
-		__array(char,			trans_fn, 24	)
+		__array(char,			trans_fn, 32	)
 		__field(unsigned long,		caller_ip	)
 		__field(u8,			btree_id	)
 		TRACE_BPOS_entries(pos)
@@ -740,7 +745,7 @@ DECLARE_EVENT_CLASS(transaction_event,
 	TP_ARGS(trans, caller_ip),
 
 	TP_STRUCT__entry(
-		__array(char,			trans_fn, 24	)
+		__array(char,			trans_fn, 32	)
 		__field(unsigned long,		caller_ip	)
 	),
 
@@ -825,7 +830,7 @@ DECLARE_EVENT_CLASS(transaction_restart_iter,
 	TP_ARGS(trans, caller_ip, path),
 
 	TP_STRUCT__entry(
-		__array(char,			trans_fn, 24	)
+		__array(char,			trans_fn, 32	)
 		__field(unsigned long,		caller_ip	)
 		__field(u8,			btree_id	)
 		TRACE_BPOS_entries(pos)
@@ -955,7 +960,7 @@ TRACE_EVENT(trans_restart_would_deadlock,
 		have, want, want_pos),
 
 	TP_STRUCT__entry(
-		__array(char,			trans_fn, 24	)
+		__array(char,			trans_fn, 32	)
 		__field(unsigned long,		caller_ip	)
 		__field(u8,			in_traverse_all	)
 		__field(u8,			reason		)
@@ -1002,7 +1007,7 @@ TRACE_EVENT(trans_restart_would_deadlock_write,
 	TP_ARGS(trans),
 
 	TP_STRUCT__entry(
-		__array(char,			trans_fn, 24	)
+		__array(char,			trans_fn, 32	)
 	),
 
 	TP_fast_assign(
@@ -1019,7 +1024,7 @@ TRACE_EVENT(trans_restart_mem_realloced,
 	TP_ARGS(trans, caller_ip, bytes),
 
 	TP_STRUCT__entry(
-		__array(char,			trans_fn, 24	)
+		__array(char,			trans_fn, 32	)
 		__field(unsigned long,		caller_ip	)
 		__field(unsigned long,		bytes		)
 	),
@@ -1045,7 +1050,7 @@ TRACE_EVENT(trans_restart_key_cache_key_realloced,
 	TP_ARGS(trans, caller_ip, path, old_u64s, new_u64s),
 
 	TP_STRUCT__entry(
-		__array(char,			trans_fn, 24	)
+		__array(char,			trans_fn, 32	)
 		__field(unsigned long,		caller_ip	)
 		__field(enum btree_id,		btree_id	)
 		TRACE_BPOS_entries(pos)

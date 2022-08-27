@@ -222,7 +222,8 @@ bool __bch2_btree_node_relock(struct btree_trans *trans,
 	}
 fail:
 	if (b != ERR_PTR(-BCH_ERR_no_btree_node_cached) &&
-	    b != ERR_PTR(-BCH_ERR_no_btree_node_init))
+	    b != ERR_PTR(-BCH_ERR_no_btree_node_init) &&
+	    b != ERR_PTR(-BCH_ERR_no_btree_node_up))
 		trace_btree_node_relock_fail(trans, _RET_IP_, path, level);
 	return false;
 }
