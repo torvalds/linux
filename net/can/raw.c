@@ -136,14 +136,13 @@ static void raw_rcv(struct sk_buff *oskb, void *data)
 	/* eliminate multiple filter matches for the same skb */
 	if (this_cpu_ptr(ro->uniq)->skb == oskb &&
 	    this_cpu_ptr(ro->uniq)->skbcnt == can_skb_prv(oskb)->skbcnt) {
-		if (ro->join_filters) {
-			this_cpu_inc(ro->uniq->join_rx_count);
-			/* drop frame until all enabled filters matched */
-			if (this_cpu_ptr(ro->uniq)->join_rx_count < ro->count)
-				return;
-		} else {
+		if (!ro->join_filters)
 			return;
-		}
+
+		this_cpu_inc(ro->uniq->join_rx_count);
+		/* drop frame until all enabled filters matched */
+		if (this_cpu_ptr(ro->uniq)->join_rx_count < ro->count)
+			return;
 	} else {
 		this_cpu_ptr(ro->uniq)->skb = oskb;
 		this_cpu_ptr(ro->uniq)->skbcnt = can_skb_prv(oskb)->skbcnt;
