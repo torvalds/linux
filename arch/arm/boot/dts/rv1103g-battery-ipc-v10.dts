@@ -287,7 +287,7 @@
 };
 
 &sdio {
-	max-frequency = <50000000>;
+	max-frequency = <30000000>;
 	no-sd;
 	no-mmc;
 	bus-width = <4>;
@@ -297,6 +297,8 @@
 	non-removable;
 	pinctrl-names = "default";
 	pinctrl-0 = <&sdmmc1m1_cmd &sdmmc1m1_clk &sdmmc1m1_bus4>;
+	no-prescan-powerup;
+	post-power-on-delay-ms = <0>;
 	status = "okay";
 };
 
