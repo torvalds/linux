@@ -36,6 +36,7 @@
 #define QM_MB_PING_ALL_VFS		0xffff
 #define QM_MB_CMD_DATA_SHIFT		32
 #define QM_MB_CMD_DATA_MASK		GENMASK(31, 0)
+#define QM_MB_STATUS_MASK		GENMASK(12, 9)
 
 /* sqc shift */
 #define QM_SQ_HOP_NUM_SHIFT		0
@@ -728,8 +729,12 @@ static void qm_mb_write(struct hisi_qm *qm, const void *src)
 
 static int qm_mb_nolock(struct hisi_qm *qm, struct qm_mailbox *mailbox)
 {
+	int ret;
+	u32 val;
+
 	if (unlikely(hisi_qm_wait_mb_ready(qm))) {
 		dev_err(&qm->pdev->dev, "QM mailbox is busy to start!\n");
+		ret = -EBUSY;
 		goto mb_busy;
 	}
 
@@ -737,6 +742,14 @@ static int qm_mb_nolock(struct hisi_qm *qm, struct qm_mailbox *mailbox)
 
 	if (unlikely(hisi_qm_wait_mb_ready(qm))) {
 		dev_err(&qm->pdev->dev, "QM mailbox operation timeout!\n");
+		ret = -ETIMEDOUT;
+		goto mb_busy;
+	}
+
+	val = readl(qm->io_base + QM_MB_CMD_SEND_BASE);
+	if (val & QM_MB_STATUS_MASK) {
+		dev_err(&qm->pdev->dev, "QM mailbox operation failed!\n");
+		ret = -EIO;
 		goto mb_busy;
 	}
 
@@ -744,7 +757,7 @@ static int qm_mb_nolock(struct hisi_qm *qm, struct qm_mailbox *mailbox)
 
 mb_busy:
 	atomic64_inc(&qm->debug.dfx.mb_err_cnt);
-	return -EBUSY;
+	return ret;
 }
 
 int hisi_qm_mb(struct hisi_qm *qm, u8 cmd, dma_addr_t dma_addr, u16 queue,
