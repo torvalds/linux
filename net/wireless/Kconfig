@@ -91,7 +91,7 @@ config CFG80211_CERTIFICATION_ONUS
 
 config CFG80211_REQUIRE_SIGNED_REGDB
 	bool "require regdb signature" if CFG80211_CERTIFICATION_ONUS
-	default y
+	default y if !ROCKCHIP_THUNDER_BOOT
 	select SYSTEM_DATA_VERIFICATION
 	help
 	  Require that in addition to the "regulatory.db" file a
@@ -101,7 +101,7 @@ config CFG80211_REQUIRE_SIGNED_REGDB
 
 config CFG80211_USE_KERNEL_REGDB_KEYS
 	bool "allow regdb keys shipped with the kernel" if CFG80211_CERTIFICATION_ONUS
-	default y
+	default y if !ROCKCHIP_THUNDER_BOOT
 	depends on CFG80211_REQUIRE_SIGNED_REGDB
 	help
 	  Allow the regulatory database to be signed by one of the keys for
