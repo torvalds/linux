@@ -8,6 +8,7 @@
 #define FUNC_RESERVE					"memblock_reserve"
 #define FUNC_REMOVE					"memblock_remove"
 #define FUNC_FREE					"memblock_free"
+#define FUNC_TRIM					"memblock_trim_memory"
 
 static int memblock_initialization_check(void)
 {
@@ -1723,6 +1724,227 @@ static int memblock_bottom_up_checks(void)
 	return 0;
 }
 
+/*
+ * A test that tries to trim memory when both ends of the memory region are
+ * aligned. Expect that the memory will not be trimmed. Expect the counter to
+ * not be updated.
+ */
+static int memblock_trim_memory_aligned_check(void)
+{
+	struct memblock_region *rgn;
+	const phys_addr_t alignment = SMP_CACHE_BYTES;
+
+	rgn = &memblock.memory.regions[0];
+
+	struct region r = {
+		.base = alignment,
+		.size = alignment * 4
+	};
+
+	PREFIX_PUSH();
+
+	reset_memblock_regions();
+	memblock_add(r.base, r.size);
+	memblock_trim_memory(alignment);
+
+	ASSERT_EQ(rgn->base, r.base);
+	ASSERT_EQ(rgn->size, r.size);
+
+	ASSERT_EQ(memblock.memory.cnt, 1);
+
+	test_pass_pop();
+
+	return 0;
+}
+
+/*
+ * A test that tries to trim memory when there are two available regions, r1 and
+ * r2. Region r1 is aligned on both ends and region r2 is unaligned on one end
+ * and smaller than the alignment:
+ *
+ *                                     alignment
+ *                                     |--------|
+ * |        +-----------------+        +------+   |
+ * |        |        r1       |        |  r2  |   |
+ * +--------+-----------------+--------+------+---+
+ *          ^        ^        ^        ^      ^
+ *          |________|________|________|      |
+ *                            |               Unaligned address
+ *                Aligned addresses
+ *
+ * Expect that r1 will not be trimmed and r2 will be removed. Expect the
+ * counter to be updated.
+ */
+static int memblock_trim_memory_too_small_check(void)
+{
+	struct memblock_region *rgn;
+	const phys_addr_t alignment = SMP_CACHE_BYTES;
+
+	rgn = &memblock.memory.regions[0];
+
+	struct region r1 = {
+		.base = alignment,
+		.size = alignment * 2
+	};
+	struct region r2 = {
+		.base = alignment * 4,
+		.size = alignment - SZ_2
+	};
+
+	PREFIX_PUSH();
+
+	reset_memblock_regions();
+	memblock_add(r1.base, r1.size);
+	memblock_add(r2.base, r2.size);
+	memblock_trim_memory(alignment);
+
+	ASSERT_EQ(rgn->base, r1.base);
+	ASSERT_EQ(rgn->size, r1.size);
+
+	ASSERT_EQ(memblock.memory.cnt, 1);
+
+	test_pass_pop();
+
+	return 0;
+}
+
+/*
+ * A test that tries to trim memory when there are two available regions, r1 and
+ * r2. Region r1 is aligned on both ends and region r2 is unaligned at the base
+ * and aligned at the end:
+ *
+ *                               Unaligned address
+ *                                       |
+ *                                       v
+ * |        +-----------------+          +---------------+   |
+ * |        |        r1       |          |      r2       |   |
+ * +--------+-----------------+----------+---------------+---+
+ *          ^        ^        ^        ^        ^        ^
+ *          |________|________|________|________|________|
+ *                            |
+ *                    Aligned addresses
+ *
+ * Expect that r1 will not be trimmed and r2 will be trimmed at the base.
+ * Expect the counter to not be updated.
+ */
+static int memblock_trim_memory_unaligned_base_check(void)
+{
+	struct memblock_region *rgn1, *rgn2;
+	const phys_addr_t alignment = SMP_CACHE_BYTES;
+	phys_addr_t offset = SZ_2;
+	phys_addr_t new_r2_base, new_r2_size;
+
+	rgn1 = &memblock.memory.regions[0];
+	rgn2 = &memblock.memory.regions[1];
+
+	struct region r1 = {
+		.base = alignment,
+		.size = alignment * 2
+	};
+	struct region r2 = {
+		.base = alignment * 4 + offset,
+		.size = alignment * 2 - offset
+	};
+
+	PREFIX_PUSH();
+
+	new_r2_base = r2.base + (alignment - offset);
+	new_r2_size = r2.size - (alignment - offset);
+
+	reset_memblock_regions();
+	memblock_add(r1.base, r1.size);
+	memblock_add(r2.base, r2.size);
+	memblock_trim_memory(alignment);
+
+	ASSERT_EQ(rgn1->base, r1.base);
+	ASSERT_EQ(rgn1->size, r1.size);
+
+	ASSERT_EQ(rgn2->base, new_r2_base);
+	ASSERT_EQ(rgn2->size, new_r2_size);
+
+	ASSERT_EQ(memblock.memory.cnt, 2);
+
+	test_pass_pop();
+
+	return 0;
+}
+
+/*
+ * A test that tries to trim memory when there are two available regions, r1 and
+ * r2. Region r1 is aligned on both ends and region r2 is aligned at the base
+ * and unaligned at the end:
+ *
+ *                                             Unaligned address
+ *                                                     |
+ *                                                     v
+ * |        +-----------------+        +---------------+   |
+ * |        |        r1       |        |      r2       |   |
+ * +--------+-----------------+--------+---------------+---+
+ *          ^        ^        ^        ^        ^        ^
+ *          |________|________|________|________|________|
+ *                            |
+ *                    Aligned addresses
+ *
+ * Expect that r1 will not be trimmed and r2 will be trimmed at the end.
+ * Expect the counter to not be updated.
+ */
+static int memblock_trim_memory_unaligned_end_check(void)
+{
+	struct memblock_region *rgn1, *rgn2;
+	const phys_addr_t alignment = SMP_CACHE_BYTES;
+	phys_addr_t offset = SZ_2;
+	phys_addr_t new_r2_size;
+
+	rgn1 = &memblock.memory.regions[0];
+	rgn2 = &memblock.memory.regions[1];
+
+	struct region r1 = {
+		.base = alignment,
+		.size = alignment * 2
+	};
+	struct region r2 = {
+		.base = alignment * 4,
+		.size = alignment * 2 - offset
+	};
+
+	PREFIX_PUSH();
+
+	new_r2_size = r2.size - (alignment - offset);
+
+	reset_memblock_regions();
+	memblock_add(r1.base, r1.size);
+	memblock_add(r2.base, r2.size);
+	memblock_trim_memory(alignment);
+
+	ASSERT_EQ(rgn1->base, r1.base);
+	ASSERT_EQ(rgn1->size, r1.size);
+
+	ASSERT_EQ(rgn2->base, r2.base);
+	ASSERT_EQ(rgn2->size, new_r2_size);
+
+	ASSERT_EQ(memblock.memory.cnt, 2);
+
+	test_pass_pop();
+
+	return 0;
+}
+
+static int memblock_trim_memory_checks(void)
+{
+	prefix_reset();
+	prefix_push(FUNC_TRIM);
+	test_print("Running %s tests...\n", FUNC_TRIM);
+
+	memblock_trim_memory_aligned_check();
+	memblock_trim_memory_too_small_check();
+	memblock_trim_memory_unaligned_base_check();
+	memblock_trim_memory_unaligned_end_check();
+
+	prefix_pop();
+
+	return 0;
+}
+
 int memblock_basic_checks(void)
 {
 	memblock_initialization_check();
@@ -1731,6 +1953,7 @@ int memblock_basic_checks(void)
 	memblock_remove_checks();
 	memblock_free_checks();
 	memblock_bottom_up_checks();
+	memblock_trim_memory_checks();
 
 	return 0;
 }
