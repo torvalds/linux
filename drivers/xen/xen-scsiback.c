@@ -1121,7 +1121,7 @@ static void scsiback_do_1lun_hotplug(struct vscsibk_info *info, int op,
 				"%s: writing %s", __func__, state);
 		return;
 	}
-	strlcpy(phy, val, VSCSI_NAMELEN);
+	strscpy(phy, val, VSCSI_NAMELEN);
 	kfree(val);
 
 	/* virtual SCSI device */
