@@ -12,6 +12,13 @@
 
 #define MEM_SIZE SZ_16K
 
+enum test_flags {
+	/* No special request. */
+	TEST_F_NONE = 0x0,
+	/* Perform raw allocations (no zeroing of memory). */
+	TEST_F_RAW = 0x1,
+};
+
 /**
  * ASSERT_EQ():
  * Check the condition
@@ -60,6 +67,18 @@
 #define ASSERT_MEM_EQ(_seen, _expected, _size) do { \
 	for (int _i = 0; _i < (_size); _i++) { \
 		ASSERT_EQ(((char *)_seen)[_i], (_expected)); \
+	} \
+} while (0)
+
+/**
+ * ASSERT_MEM_NE():
+ * Check that none of the first @_size bytes of @_seen are equal to @_expected.
+ * If false, print failed test message (if running with --verbose) and then
+ * assert.
+ */
+#define ASSERT_MEM_NE(_seen, _expected, _size) do { \
+	for (int _i = 0; _i < (_size); _i++) { \
+		ASSERT_NE(((char *)_seen)[_i], (_expected)); \
 	} \
 } while (0)
 
@@ -114,6 +133,14 @@ static inline void run_bottom_up(int (*func)())
 	prefix_push("bottom-up");
 	func();
 	prefix_pop();
+}
+
+static inline void assert_mem_content(void *mem, int size, int flags)
+{
+	if (flags & TEST_F_RAW)
+		ASSERT_MEM_NE(mem, 0, size);
+	else
+		ASSERT_MEM_EQ(mem, 0, size);
 }
 
 #endif
