@@ -1,6 +1,26 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 #include "alloc_nid_api.h"
 
+static int alloc_nid_test_flags = TEST_F_NONE;
+
+static inline const char * const get_memblock_alloc_try_nid_name(int flags)
+{
+	if (flags & TEST_F_RAW)
+		return "memblock_alloc_try_nid_raw";
+	return "memblock_alloc_try_nid";
+}
+
+static inline void *run_memblock_alloc_try_nid(phys_addr_t size,
+					       phys_addr_t align,
+					       phys_addr_t min_addr,
+					       phys_addr_t max_addr, int nid)
+{
+	if (alloc_nid_test_flags & TEST_F_RAW)
+		return memblock_alloc_try_nid_raw(size, align, min_addr,
+						  max_addr, nid);
+	return memblock_alloc_try_nid(size, align, min_addr, max_addr, nid);
+}
+
 /*
  * A simple test that tries to allocate a memory region within min_addr and
  * max_addr range:
@@ -32,12 +52,13 @@ static int alloc_try_nid_top_down_simple_check(void)
 	min_addr = memblock_start_of_DRAM() + SMP_CACHE_BYTES * 2;
 	max_addr = min_addr + SZ_512;
 
-	allocated_ptr = memblock_alloc_try_nid(size, SMP_CACHE_BYTES,
-					       min_addr, max_addr, NUMA_NO_NODE);
+	allocated_ptr = run_memblock_alloc_try_nid(size, SMP_CACHE_BYTES,
+						   min_addr, max_addr,
+						   NUMA_NO_NODE);
 	rgn_end = rgn->base + rgn->size;
 
 	ASSERT_NE(allocated_ptr, NULL);
-	ASSERT_MEM_EQ(allocated_ptr, 0, size);
+	assert_mem_content(allocated_ptr, size, alloc_nid_test_flags);
 
 	ASSERT_EQ(rgn->size, size);
 	ASSERT_EQ(rgn->base, max_addr - size);
@@ -86,12 +107,13 @@ static int alloc_try_nid_top_down_end_misaligned_check(void)
 	min_addr = memblock_start_of_DRAM() + SMP_CACHE_BYTES * 2;
 	max_addr = min_addr + SZ_512 + misalign;
 
-	allocated_ptr = memblock_alloc_try_nid(size, SMP_CACHE_BYTES,
-					       min_addr, max_addr, NUMA_NO_NODE);
+	allocated_ptr = run_memblock_alloc_try_nid(size, SMP_CACHE_BYTES,
+						   min_addr, max_addr,
+						   NUMA_NO_NODE);
 	rgn_end = rgn->base + rgn->size;
 
 	ASSERT_NE(allocated_ptr, NULL);
-	ASSERT_MEM_EQ(allocated_ptr, 0, size);
+	assert_mem_content(allocated_ptr, size, alloc_nid_test_flags);
 
 	ASSERT_EQ(rgn->size, size);
 	ASSERT_EQ(rgn->base, max_addr - size - misalign);
@@ -137,12 +159,13 @@ static int alloc_try_nid_exact_address_generic_check(void)
 	min_addr = memblock_start_of_DRAM() + SMP_CACHE_BYTES;
 	max_addr = min_addr + size;
 
-	allocated_ptr = memblock_alloc_try_nid(size, SMP_CACHE_BYTES,
-					       min_addr, max_addr, NUMA_NO_NODE);
+	allocated_ptr = run_memblock_alloc_try_nid(size, SMP_CACHE_BYTES,
+						   min_addr, max_addr,
+						   NUMA_NO_NODE);
 	rgn_end = rgn->base + rgn->size;
 
 	ASSERT_NE(allocated_ptr, NULL);
-	ASSERT_MEM_EQ(allocated_ptr, 0, size);
+	assert_mem_content(allocated_ptr, size, alloc_nid_test_flags);
 
 	ASSERT_EQ(rgn->size, size);
 	ASSERT_EQ(rgn->base, min_addr);
@@ -189,11 +212,12 @@ static int alloc_try_nid_top_down_narrow_range_check(void)
 	min_addr = memblock_start_of_DRAM() + SZ_512;
 	max_addr = min_addr + SMP_CACHE_BYTES;
 
-	allocated_ptr = memblock_alloc_try_nid(size, SMP_CACHE_BYTES,
-					       min_addr, max_addr, NUMA_NO_NODE);
+	allocated_ptr = run_memblock_alloc_try_nid(size, SMP_CACHE_BYTES,
+						   min_addr, max_addr,
+						   NUMA_NO_NODE);
 
 	ASSERT_NE(allocated_ptr, NULL);
-	ASSERT_MEM_EQ(allocated_ptr, 0, size);
+	assert_mem_content(allocated_ptr, size, alloc_nid_test_flags);
 
 	ASSERT_EQ(rgn->size, size);
 	ASSERT_EQ(rgn->base, max_addr - size);
@@ -241,8 +265,9 @@ static int alloc_try_nid_low_max_generic_check(void)
 	min_addr = memblock_start_of_DRAM();
 	max_addr = min_addr + SMP_CACHE_BYTES;
 
-	allocated_ptr = memblock_alloc_try_nid(size, SMP_CACHE_BYTES,
-					       min_addr, max_addr, NUMA_NO_NODE);
+	allocated_ptr = run_memblock_alloc_try_nid(size, SMP_CACHE_BYTES,
+						   min_addr, max_addr,
+						   NUMA_NO_NODE);
 
 	ASSERT_EQ(allocated_ptr, NULL);
 
@@ -287,11 +312,12 @@ static int alloc_try_nid_min_reserved_generic_check(void)
 
 	memblock_reserve(reserved_base, r1_size);
 
-	allocated_ptr = memblock_alloc_try_nid(r2_size, SMP_CACHE_BYTES,
-					       min_addr, max_addr, NUMA_NO_NODE);
+	allocated_ptr = run_memblock_alloc_try_nid(r2_size, SMP_CACHE_BYTES,
+						   min_addr, max_addr,
+						   NUMA_NO_NODE);
 
 	ASSERT_NE(allocated_ptr, NULL);
-	ASSERT_MEM_EQ(allocated_ptr, 0, r2_size);
+	assert_mem_content(allocated_ptr, r2_size, alloc_nid_test_flags);
 
 	ASSERT_EQ(rgn->size, total_size);
 	ASSERT_EQ(rgn->base, reserved_base);
@@ -338,11 +364,12 @@ static int alloc_try_nid_max_reserved_generic_check(void)
 
 	memblock_reserve(max_addr, r1_size);
 
-	allocated_ptr = memblock_alloc_try_nid(r2_size, SMP_CACHE_BYTES,
-					       min_addr, max_addr, NUMA_NO_NODE);
+	allocated_ptr = run_memblock_alloc_try_nid(r2_size, SMP_CACHE_BYTES,
+						   min_addr, max_addr,
+						   NUMA_NO_NODE);
 
 	ASSERT_NE(allocated_ptr, NULL);
-	ASSERT_MEM_EQ(allocated_ptr, 0, r2_size);
+	assert_mem_content(allocated_ptr, r2_size, alloc_nid_test_flags);
 
 	ASSERT_EQ(rgn->size, total_size);
 	ASSERT_EQ(rgn->base, min_addr);
@@ -402,11 +429,12 @@ static int alloc_try_nid_top_down_reserved_with_space_check(void)
 	memblock_reserve(r1.base, r1.size);
 	memblock_reserve(r2.base, r2.size);
 
-	allocated_ptr = memblock_alloc_try_nid(r3_size, SMP_CACHE_BYTES,
-					       min_addr, max_addr, NUMA_NO_NODE);
+	allocated_ptr = run_memblock_alloc_try_nid(r3_size, SMP_CACHE_BYTES,
+						   min_addr, max_addr,
+						   NUMA_NO_NODE);
 
 	ASSERT_NE(allocated_ptr, NULL);
-	ASSERT_MEM_EQ(allocated_ptr, 0, r3_size);
+	assert_mem_content(allocated_ptr, r3_size, alloc_nid_test_flags);
 
 	ASSERT_EQ(rgn1->size, r1.size + r3_size);
 	ASSERT_EQ(rgn1->base, max_addr - r3_size);
@@ -466,11 +494,12 @@ static int alloc_try_nid_reserved_full_merge_generic_check(void)
 	memblock_reserve(r1.base, r1.size);
 	memblock_reserve(r2.base, r2.size);
 
-	allocated_ptr = memblock_alloc_try_nid(r3_size, SMP_CACHE_BYTES,
-					       min_addr, max_addr, NUMA_NO_NODE);
+	allocated_ptr = run_memblock_alloc_try_nid(r3_size, SMP_CACHE_BYTES,
+						   min_addr, max_addr,
+						   NUMA_NO_NODE);
 
 	ASSERT_NE(allocated_ptr, NULL);
-	ASSERT_MEM_EQ(allocated_ptr, 0, r3_size);
+	assert_mem_content(allocated_ptr, r3_size, alloc_nid_test_flags);
 
 	ASSERT_EQ(rgn->size, total_size);
 	ASSERT_EQ(rgn->base, r2.base);
@@ -531,11 +560,12 @@ static int alloc_try_nid_top_down_reserved_no_space_check(void)
 	memblock_reserve(r1.base, r1.size);
 	memblock_reserve(r2.base, r2.size);
 
-	allocated_ptr = memblock_alloc_try_nid(r3_size, SMP_CACHE_BYTES,
-					       min_addr, max_addr, NUMA_NO_NODE);
+	allocated_ptr = run_memblock_alloc_try_nid(r3_size, SMP_CACHE_BYTES,
+						   min_addr, max_addr,
+						   NUMA_NO_NODE);
 
 	ASSERT_NE(allocated_ptr, NULL);
-	ASSERT_MEM_EQ(allocated_ptr, 0, r3_size);
+	assert_mem_content(allocated_ptr, r3_size, alloc_nid_test_flags);
 
 	ASSERT_EQ(rgn1->size, r1.size);
 	ASSERT_EQ(rgn1->base, r1.base);
@@ -597,8 +627,9 @@ static int alloc_try_nid_reserved_all_generic_check(void)
 	memblock_reserve(r1.base, r1.size);
 	memblock_reserve(r2.base, r2.size);
 
-	allocated_ptr = memblock_alloc_try_nid(r3_size, SMP_CACHE_BYTES,
-					       min_addr, max_addr, NUMA_NO_NODE);
+	allocated_ptr = run_memblock_alloc_try_nid(r3_size, SMP_CACHE_BYTES,
+						   min_addr, max_addr,
+						   NUMA_NO_NODE);
 
 	ASSERT_EQ(allocated_ptr, NULL);
 
@@ -628,11 +659,12 @@ static int alloc_try_nid_top_down_cap_max_check(void)
 	min_addr = memblock_end_of_DRAM() - SZ_1K;
 	max_addr = memblock_end_of_DRAM() + SZ_256;
 
-	allocated_ptr = memblock_alloc_try_nid(size, SMP_CACHE_BYTES,
-					       min_addr, max_addr, NUMA_NO_NODE);
+	allocated_ptr = run_memblock_alloc_try_nid(size, SMP_CACHE_BYTES,
+						   min_addr, max_addr,
+						   NUMA_NO_NODE);
 
 	ASSERT_NE(allocated_ptr, NULL);
-	ASSERT_MEM_EQ(allocated_ptr, 0, size);
+	assert_mem_content(allocated_ptr, size, alloc_nid_test_flags);
 
 	ASSERT_EQ(rgn->size, size);
 	ASSERT_EQ(rgn->base, memblock_end_of_DRAM() - size);
@@ -666,11 +698,12 @@ static int alloc_try_nid_top_down_cap_min_check(void)
 	min_addr = memblock_start_of_DRAM() - SZ_256;
 	max_addr = memblock_end_of_DRAM();
 
-	allocated_ptr = memblock_alloc_try_nid(size, SMP_CACHE_BYTES,
-					       min_addr, max_addr, NUMA_NO_NODE);
+	allocated_ptr = run_memblock_alloc_try_nid(size, SMP_CACHE_BYTES,
+						   min_addr, max_addr,
+						   NUMA_NO_NODE);
 
 	ASSERT_NE(allocated_ptr, NULL);
-	ASSERT_MEM_EQ(allocated_ptr, 0, size);
+	assert_mem_content(allocated_ptr, size, alloc_nid_test_flags);
 
 	ASSERT_EQ(rgn->size, size);
 	ASSERT_EQ(rgn->base, memblock_end_of_DRAM() - size);
@@ -714,13 +747,13 @@ static int alloc_try_nid_bottom_up_simple_check(void)
 	min_addr = memblock_start_of_DRAM() + SMP_CACHE_BYTES * 2;
 	max_addr = min_addr + SZ_512;
 
-	allocated_ptr = memblock_alloc_try_nid(size, SMP_CACHE_BYTES,
-					       min_addr, max_addr,
-					       NUMA_NO_NODE);
+	allocated_ptr = run_memblock_alloc_try_nid(size, SMP_CACHE_BYTES,
+						   min_addr, max_addr,
+						   NUMA_NO_NODE);
 	rgn_end = rgn->base + rgn->size;
 
 	ASSERT_NE(allocated_ptr, NULL);
-	ASSERT_MEM_EQ(allocated_ptr, 0, size);
+	assert_mem_content(allocated_ptr, size, alloc_nid_test_flags);
 
 	ASSERT_EQ(rgn->size, size);
 	ASSERT_EQ(rgn->base, min_addr);
@@ -769,13 +802,13 @@ static int alloc_try_nid_bottom_up_start_misaligned_check(void)
 	min_addr = memblock_start_of_DRAM() + misalign;
 	max_addr = min_addr + SZ_512;
 
-	allocated_ptr = memblock_alloc_try_nid(size, SMP_CACHE_BYTES,
-					       min_addr, max_addr,
-					       NUMA_NO_NODE);
+	allocated_ptr = run_memblock_alloc_try_nid(size, SMP_CACHE_BYTES,
+						   min_addr, max_addr,
+						   NUMA_NO_NODE);
 	rgn_end = rgn->base + rgn->size;
 
 	ASSERT_NE(allocated_ptr, NULL);
-	ASSERT_MEM_EQ(allocated_ptr, 0, size);
+	assert_mem_content(allocated_ptr, size, alloc_nid_test_flags);
 
 	ASSERT_EQ(rgn->size, size);
 	ASSERT_EQ(rgn->base, min_addr + (SMP_CACHE_BYTES - misalign));
@@ -822,12 +855,12 @@ static int alloc_try_nid_bottom_up_narrow_range_check(void)
 	min_addr = memblock_start_of_DRAM() + SZ_512;
 	max_addr = min_addr + SMP_CACHE_BYTES;
 
-	allocated_ptr = memblock_alloc_try_nid(size, SMP_CACHE_BYTES,
-					       min_addr, max_addr,
-					       NUMA_NO_NODE);
+	allocated_ptr = run_memblock_alloc_try_nid(size, SMP_CACHE_BYTES,
+						   min_addr, max_addr,
+						   NUMA_NO_NODE);
 
 	ASSERT_NE(allocated_ptr, NULL);
-	ASSERT_MEM_EQ(allocated_ptr, 0, size);
+	assert_mem_content(allocated_ptr, size, alloc_nid_test_flags);
 
 	ASSERT_EQ(rgn->size, size);
 	ASSERT_EQ(rgn->base, memblock_start_of_DRAM());
@@ -887,12 +920,12 @@ static int alloc_try_nid_bottom_up_reserved_with_space_check(void)
 	memblock_reserve(r1.base, r1.size);
 	memblock_reserve(r2.base, r2.size);
 
-	allocated_ptr = memblock_alloc_try_nid(r3_size, SMP_CACHE_BYTES,
-					       min_addr, max_addr,
-					       NUMA_NO_NODE);
+	allocated_ptr = run_memblock_alloc_try_nid(r3_size, SMP_CACHE_BYTES,
+						   min_addr, max_addr,
+						   NUMA_NO_NODE);
 
 	ASSERT_NE(allocated_ptr, NULL);
-	ASSERT_MEM_EQ(allocated_ptr, 0, r3_size);
+	assert_mem_content(allocated_ptr, r3_size, alloc_nid_test_flags);
 
 	ASSERT_EQ(rgn1->size, r1.size);
 	ASSERT_EQ(rgn1->base, max_addr);
@@ -959,12 +992,12 @@ static int alloc_try_nid_bottom_up_reserved_no_space_check(void)
 	memblock_reserve(r1.base, r1.size);
 	memblock_reserve(r2.base, r2.size);
 
-	allocated_ptr = memblock_alloc_try_nid(r3_size, SMP_CACHE_BYTES,
-					       min_addr, max_addr,
-					       NUMA_NO_NODE);
+	allocated_ptr = run_memblock_alloc_try_nid(r3_size, SMP_CACHE_BYTES,
+						   min_addr, max_addr,
+						   NUMA_NO_NODE);
 
 	ASSERT_NE(allocated_ptr, NULL);
-	ASSERT_MEM_EQ(allocated_ptr, 0, r3_size);
+	assert_mem_content(allocated_ptr, r3_size, alloc_nid_test_flags);
 
 	ASSERT_EQ(rgn3->size, r3_size);
 	ASSERT_EQ(rgn3->base, memblock_start_of_DRAM());
@@ -1004,12 +1037,12 @@ static int alloc_try_nid_bottom_up_cap_max_check(void)
 	min_addr = memblock_start_of_DRAM() + SZ_1K;
 	max_addr = memblock_end_of_DRAM() + SZ_256;
 
-	allocated_ptr = memblock_alloc_try_nid(size, SMP_CACHE_BYTES,
-					       min_addr, max_addr,
-					       NUMA_NO_NODE);
+	allocated_ptr = run_memblock_alloc_try_nid(size, SMP_CACHE_BYTES,
+						   min_addr, max_addr,
+						   NUMA_NO_NODE);
 
 	ASSERT_NE(allocated_ptr, NULL);
-	ASSERT_MEM_EQ(allocated_ptr, 0, size);
+	assert_mem_content(allocated_ptr, size, alloc_nid_test_flags);
 
 	ASSERT_EQ(rgn->size, size);
 	ASSERT_EQ(rgn->base, min_addr);
@@ -1043,12 +1076,12 @@ static int alloc_try_nid_bottom_up_cap_min_check(void)
 	min_addr = memblock_start_of_DRAM();
 	max_addr = memblock_end_of_DRAM() - SZ_256;
 
-	allocated_ptr = memblock_alloc_try_nid(size, SMP_CACHE_BYTES,
-					       min_addr, max_addr,
-					       NUMA_NO_NODE);
+	allocated_ptr = run_memblock_alloc_try_nid(size, SMP_CACHE_BYTES,
+						   min_addr, max_addr,
+						   NUMA_NO_NODE);
 
 	ASSERT_NE(allocated_ptr, NULL);
-	ASSERT_MEM_EQ(allocated_ptr, 0, size);
+	assert_mem_content(allocated_ptr, size, alloc_nid_test_flags);
 
 	ASSERT_EQ(rgn->size, size);
 	ASSERT_EQ(rgn->base, memblock_start_of_DRAM());
@@ -1193,13 +1226,14 @@ static int alloc_try_nid_low_max_check(void)
 	return 0;
 }
 
-int memblock_alloc_nid_checks(void)
+static int memblock_alloc_nid_checks_internal(int flags)
 {
-	const char *func_testing = "memblock_alloc_try_nid";
+	const char *func = get_memblock_alloc_try_nid_name(flags);
 
+	alloc_nid_test_flags = flags;
 	prefix_reset();
-	prefix_push(func_testing);
-	test_print("Running %s tests...\n", func_testing);
+	prefix_push(func);
+	test_print("Running %s tests...\n", func);
 
 	reset_memblock_attributes();
 	dummy_physical_memory_init();
@@ -1222,6 +1256,14 @@ int memblock_alloc_nid_checks(void)
 	dummy_physical_memory_cleanup();
 
 	prefix_pop();
+
+	return 0;
+}
+
+int memblock_alloc_nid_checks(void)
+{
+	memblock_alloc_nid_checks_internal(TEST_F_NONE);
+	memblock_alloc_nid_checks_internal(TEST_F_RAW);
 
 	return 0;
 }
