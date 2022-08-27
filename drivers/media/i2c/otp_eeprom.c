@@ -9,8 +9,11 @@
  * 3. add version control.
  * V0.0X01.0X02
  * 1. fix otp info null issue.
+ * V0.0X01.0X03
+ * 1. add buf read optimize otp read speed.
+ * 2. add mutex for otp read.
  */
-
+//#define DEBUG
 #include <linux/delay.h>
 #include <linux/i2c.h>
 #include <linux/module.h>
@@ -24,7 +27,7 @@
 #include <linux/version.h>
 #include "otp_eeprom.h"
 
-#define DRIVER_VERSION		KERNEL_VERSION(0, 0x01, 0x02)
+#define DRIVER_VERSION		KERNEL_VERSION(0, 0x01, 0x03)
 #define DEVICE_NAME			"otp_eeprom"
 
 static inline struct eeprom_device
@@ -64,6 +67,33 @@ static int read_reg_otp(struct i2c_client *client, u16 reg,
 		return -EIO;
 
 	*val = be32_to_cpu(data_be);
+
+	return 0;
+}
+
+/* Read registers buffers at a time */
+static int read_reg_otp_buf(struct i2c_client *client, u16 reg,
+	unsigned int len, u8 *buf)
+{
+	struct i2c_msg msgs[2];
+	__be16 reg_addr_be = cpu_to_be16(reg);
+	int ret;
+
+	/* Write register address */
+	msgs[0].addr = client->addr;
+	msgs[0].flags = 0;
+	msgs[0].len = 2;
+	msgs[0].buf = (u8 *)&reg_addr_be;
+
+	/* Read data from register */
+	msgs[1].addr = client->addr;
+	msgs[1].flags = I2C_M_RD;
+	msgs[1].len = len;
+	msgs[1].buf = buf;
+
+	ret = i2c_transfer(client->adapter, msgs, ARRAY_SIZE(msgs));
+	if (ret != ARRAY_SIZE(msgs))
+		return -EIO;
 
 	return 0;
 }
@@ -448,12 +478,18 @@ static void rkotp_read_lsc(struct eeprom_device *eeprom_dev,
 	struct i2c_client *client = eeprom_dev->client;
 	struct device *dev = &eeprom_dev->client->dev;
 	u32 checksum = 0;
-	u32 temp = 0;
+	u8 *lsc_buf;
 	int i = 0;
 	int ret = 0;
 #ifdef DEBUG
 	int w, h, j;
 #endif
+
+	lsc_buf = kzalloc(LSC_DATA_SIZE, GFP_KERNEL);
+	if (!lsc_buf) {
+		dev_err(dev, "%s ENOMEM!\n", __func__);
+		return;
+	}
 
 	ret = read_reg_otp(client, base_addr,
 		4, &otp_ptr->lsc_data.size);
@@ -463,12 +499,14 @@ static void rkotp_read_lsc(struct eeprom_device *eeprom_dev,
 		2, &otp_ptr->lsc_data.version);
 	checksum += otp_ptr->lsc_data.version;
 	base_addr += 2;
+
+	ret |= read_reg_otp_buf(client, base_addr,
+	       LSC_DATA_SIZE, lsc_buf);
+	base_addr += LSC_DATA_SIZE;
+
 	for (i = 0; i < LSC_DATA_SIZE; i++) {
-		ret |= read_reg_otp(client, base_addr,
-			1, &temp);
-		otp_ptr->lsc_data.data[i] = temp;
-		checksum += temp;
-		base_addr += 1;
+		otp_ptr->lsc_data.data[i] = lsc_buf[i];
+		checksum += lsc_buf[i];
 	}
 	otp_ptr->lsc_data.table_size = LSC_DATA_SIZE;
 #ifdef DEBUG
@@ -482,12 +520,15 @@ static void rkotp_read_lsc(struct eeprom_device *eeprom_dev,
 			dev_info(dev, "\n");
 	}
 #endif
+
+	memset(lsc_buf, 0, LSC_DATA_SIZE);
+	ret |= read_reg_otp_buf(client, base_addr,
+	       RK_LSC_RESERVED_SIZE, lsc_buf);
+
 	for (i = 0; i < RK_LSC_RESERVED_SIZE; i++) {
-		ret |= read_reg_otp(client, base_addr,
-			1, &temp);
-		checksum += temp;
-		base_addr += 1;
+		checksum += lsc_buf[i];
 	}
+	base_addr += RK_LSC_RESERVED_SIZE;
 	ret |= read_reg_otp(client, base_addr,
 		1, &otp_ptr->lsc_data.checksum);
 	if ((checksum % 255 + 1) == otp_ptr->lsc_data.checksum && (!ret)) {
@@ -502,6 +543,7 @@ static void rkotp_read_lsc(struct eeprom_device *eeprom_dev,
 			 (int)(checksum % 255 + 1),
 			 (int)otp_ptr->lsc_data.checksum);
 	}
+	kfree(lsc_buf);
 }
 
 static void rkotp_read_pdaf(struct eeprom_device *eeprom_dev,
@@ -511,12 +553,18 @@ static void rkotp_read_pdaf(struct eeprom_device *eeprom_dev,
 	struct i2c_client *client = eeprom_dev->client;
 	struct device *dev = &eeprom_dev->client->dev;
 	u32 checksum = 0;
-	u32 temp = 0;
+	u8 *pdaf_buf;
 	int i = 0;
 	int ret = 0;
 #ifdef DEBUG
 	int w, h, j;
 #endif
+
+	pdaf_buf = kzalloc(RK_GAINMAP_SIZE, GFP_KERNEL);
+	if (!pdaf_buf) {
+		dev_err(dev, "%s ENOMEM!\n", __func__);
+		return;
+	}
 
 	ret = read_reg_otp(client, base_addr,
 		4, &otp_ptr->pdaf_data.size);
@@ -534,11 +582,14 @@ static void rkotp_read_pdaf(struct eeprom_device *eeprom_dev,
 		1, &otp_ptr->pdaf_data.gainmap_height);
 	checksum += otp_ptr->pdaf_data.gainmap_height;
 	base_addr += 1;
+
+	ret |= read_reg_otp_buf(client, base_addr,
+	       RK_GAINMAP_SIZE, pdaf_buf);
+	base_addr += RK_GAINMAP_SIZE;
+
 	for (i = 0; i < RK_GAINMAP_SIZE; i++) {
-		ret |= read_reg_otp(client, base_addr,
-			1, &otp_ptr->pdaf_data.gainmap[i]);
+		otp_ptr->pdaf_data.gainmap[i] = pdaf_buf[i];
 		checksum += otp_ptr->pdaf_data.gainmap[i];
-		base_addr += 1;
 	}
 #ifdef DEBUG
 	w = 64;
@@ -571,12 +622,17 @@ static void rkotp_read_pdaf(struct eeprom_device *eeprom_dev,
 		1, &otp_ptr->pdaf_data.dccmap_height);
 	checksum += otp_ptr->pdaf_data.dccmap_height;
 	base_addr += 1;
+
+	memset(pdaf_buf, 0, RK_DCCMAP_SIZE);
+	ret |= read_reg_otp_buf(client, base_addr,
+	       RK_DCCMAP_SIZE, pdaf_buf);
+
 	for (i = 0; i < RK_DCCMAP_SIZE; i++) {
-		ret |= read_reg_otp(client, base_addr,
-			1, &otp_ptr->pdaf_data.dccmap[i]);
+		otp_ptr->pdaf_data.dccmap[i] = pdaf_buf[i];
 		checksum += otp_ptr->pdaf_data.dccmap[i];
-		base_addr += 1;
 	}
+	base_addr += RK_DCCMAP_SIZE;
+
 #ifdef DEBUG
 	w = 32;
 	h = 16;
@@ -592,12 +648,16 @@ static void rkotp_read_pdaf(struct eeprom_device *eeprom_dev,
 		1, &otp_ptr->pdaf_data.dccmap_checksum);
 	checksum += otp_ptr->pdaf_data.dccmap_checksum;
 	base_addr += 1;
+
+	memset(pdaf_buf, 0, RK_PDAF_RESERVED_SIZE);
+	ret |= read_reg_otp_buf(client, base_addr,
+	       RK_PDAF_RESERVED_SIZE, pdaf_buf);
+
 	for (i = 0; i < RK_PDAF_RESERVED_SIZE; i++) {
-		ret |= read_reg_otp(client, base_addr,
-			1, &temp);
-		checksum += temp;
-		base_addr += 1;
+		checksum += pdaf_buf[i];
 	}
+	base_addr += RK_PDAF_RESERVED_SIZE;
+
 	ret |= read_reg_otp(client, base_addr,
 		1, &otp_ptr->pdaf_data.checksum);
 	if ((checksum % 255 + 1) == otp_ptr->pdaf_data.checksum && (!ret)) {
@@ -612,6 +672,7 @@ static void rkotp_read_pdaf(struct eeprom_device *eeprom_dev,
 			 (int)(checksum % 255 + 1),
 			 (int)otp_ptr->pdaf_data.checksum);
 	}
+	kfree(pdaf_buf);
 }
 
 static void rkotp_read_af(struct eeprom_device *eeprom_dev,
@@ -738,6 +799,7 @@ static int otp_read(struct eeprom_device *eeprom_dev)
 	u8 vendor_flag = 0;
 	struct i2c_client *client = eeprom_dev->client;
 
+	mutex_lock(&eeprom_dev->mutex);
 	vendor_flag = get_vendor_flag(client);
 	if (vendor_flag == 0x80)
 		otp_read_data(eeprom_dev);
@@ -745,8 +807,11 @@ static int otp_read(struct eeprom_device *eeprom_dev)
 		rkotp_read_data(eeprom_dev);
 	else {
 		dev_warn(&client->dev, "no vendor flag infos!\n");
+		mutex_unlock(&eeprom_dev->mutex);
 		return -1;
 	}
+
+	mutex_unlock(&eeprom_dev->mutex);
 	return 0;
 }
 
@@ -973,6 +1038,7 @@ static int eeprom_probe(struct i2c_client *client,
 		dev_err(&client->dev, "Probe failed\n");
 		return -ENOMEM;
 	}
+	mutex_init(&eeprom_dev->mutex);
 	v4l2_i2c_subdev_init(&eeprom_dev->sd,
 		client, &eeprom_ops);
 	eeprom_dev->client = client;
@@ -994,6 +1060,7 @@ static int eeprom_remove(struct i2c_client *client)
 	struct eeprom_device *eeprom_dev =
 		sd_to_eeprom(sd);
 	kfree(eeprom_dev->otp);
+	mutex_destroy(&eeprom_dev->mutex);
 	pm_runtime_disable(&client->dev);
 	eeprom_subdev_cleanup(eeprom_dev);
 	eeprom_proc_cleanup(eeprom_dev);
