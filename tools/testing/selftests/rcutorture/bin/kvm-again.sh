@@ -12,9 +12,8 @@
 scriptname=$0
 args="$*"
 
-T=${TMPDIR-/tmp}/kvm-again.sh.$$
+T="`mktemp -d ${TMPDIR-/tmp}/kvm-again.sh.XXXXXX`"
 trap 'rm -rf $T' 0
-mkdir $T
 
 if ! test -d tools/testing/selftests/rcutorture/bin
 then

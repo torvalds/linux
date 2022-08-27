@@ -15,9 +15,8 @@
 #
 # Authors: Paul E. McKenney <paulmck@linux.ibm.com>
 
-T=${TMPDIR-/tmp}/configinit.sh.$$
+T="`mktemp -d ${TMPDIR-/tmp}/configinit.sh.XXXXXX`"
 trap 'rm -rf $T' 0
-mkdir $T
 
 # Capture config spec file.
 

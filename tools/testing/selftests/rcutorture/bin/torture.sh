@@ -206,9 +206,8 @@ ds="`date +%Y.%m.%d-%H.%M.%S`-torture"
 startdate="`date`"
 starttime="`get_starttime`"
 
-T=/tmp/torture.sh.$$
+T="`mktemp -d ${TMPDIR-/tmp}/torture.sh.XXXXXX`"
 trap 'rm -rf $T' 0 2
-mkdir $T
 
 echo " --- " $scriptname $args | tee -a $T/log
 echo " --- Results directory: " $ds | tee -a $T/log

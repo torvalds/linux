@@ -17,9 +17,8 @@
 #
 # Authors: Paul E. McKenney <paulmck@kernel.org>
 
-T=${TMPDIR-/tmp}/kvm-test-1-run-qemu.sh.$$
+T="`mktemp -d ${TMPDIR-/tmp}/kvm-test-1-run-qemu.sh.XXXXXX`"
 trap 'rm -rf $T' 0
-mkdir $T
 
 resdir="$1"
 if ! test -d "$resdir"
