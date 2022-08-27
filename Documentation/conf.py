@@ -15,6 +15,18 @@
 import sys
 import os
 import sphinx
+import shutil
+
+# helper
+# ------
+
+def have_command(cmd):
+    """Search ``cmd`` in the ``PATH`` environment.
+
+    If found, return True.
+    If not found, return False.
+    """
+    return shutil.which(cmd) is not None
 
 # Get Sphinx version
 major, minor, patch = sphinx.version_info[:3]
@@ -106,7 +118,20 @@ else:
 autosectionlabel_prefix_document = True
 autosectionlabel_maxdepth = 2
 
-extensions.append("sphinx.ext.imgmath")
+# Load math renderer:
+# For html builder, load imgmath only when its dependencies are met.
+# mathjax is the default math renderer since Sphinx 1.8.
+have_latex =  have_command('latex')
+have_dvipng = have_command('dvipng')
+load_imgmath = ((have_latex and have_dvipng)
+                or (major == 1 and minor < 8)
+                or 'epub' in sys.argv)
+
+if load_imgmath:
+    extensions.append("sphinx.ext.imgmath")
+    math_renderer = 'imgmath'
+else:
+    math_renderer = 'mathjax'
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
