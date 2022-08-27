@@ -90,12 +90,14 @@ struct vport {
  * @type: New vport's type.
  * @options: %OVS_VPORT_ATTR_OPTIONS attribute from Netlink message, %NULL if
  * none was supplied.
+ * @desired_ifindex: New vport's ifindex.
  * @dp: New vport's datapath.
  * @port_no: New vport's port number.
  */
 struct vport_parms {
 	const char *name;
 	enum ovs_vport_type type;
+	int desired_ifindex;
 	struct nlattr *options;
 
 	/* For ovs_vport_alloc(). */

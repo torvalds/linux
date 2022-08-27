@@ -147,6 +147,7 @@ static struct vport *internal_dev_create(const struct vport_parms *parms)
 	}
 
 	dev_net_set(vport->dev, ovs_dp_get_net(vport->dp));
+	dev->ifindex = parms->desired_ifindex;
 	internal_dev = internal_dev_priv(vport->dev);
 	internal_dev->vport = vport;
 

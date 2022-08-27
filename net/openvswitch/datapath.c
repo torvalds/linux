@@ -1523,6 +1523,7 @@ static size_t ovs_dp_cmd_msg_size(void)
 	msgsize += nla_total_size_64bit(sizeof(struct ovs_dp_megaflow_stats));
 	msgsize += nla_total_size(sizeof(u32)); /* OVS_DP_ATTR_USER_FEATURES */
 	msgsize += nla_total_size(sizeof(u32)); /* OVS_DP_ATTR_MASKS_CACHE_SIZE */
+	msgsize += nla_total_size(sizeof(u32) * nr_cpu_ids); /* OVS_DP_ATTR_PER_CPU_PIDS */
 
 	return msgsize;
 }
@@ -1534,7 +1535,8 @@ static int ovs_dp_cmd_fill_info(struct datapath *dp, struct sk_buff *skb,
 	struct ovs_header *ovs_header;
 	struct ovs_dp_stats dp_stats;
 	struct ovs_dp_megaflow_stats dp_megaflow_stats;
-	int err;
+	struct dp_nlsk_pids *pids = ovsl_dereference(dp->upcall_portids);
+	int err, pids_len;
 
 	ovs_header = genlmsg_put(skb, portid, seq, &dp_datapath_genl_family,
 				 flags, cmd);
@@ -1563,6 +1565,12 @@ static int ovs_dp_cmd_fill_info(struct datapath *dp, struct sk_buff *skb,
 	if (nla_put_u32(skb, OVS_DP_ATTR_MASKS_CACHE_SIZE,
 			ovs_flow_tbl_masks_cache_size(&dp->table)))
 		goto nla_put_failure;
+
+	if (dp->user_features & OVS_DP_F_DISPATCH_UPCALL_PER_CPU && pids) {
+		pids_len = min(pids->n_pids, nr_cpu_ids) * sizeof(u32);
+		if (nla_put(skb, OVS_DP_ATTR_PER_CPU_PIDS, pids_len, &pids->pids))
+			goto nla_put_failure;
+	}
 
 	genlmsg_end(skb, ovs_header);
 	return 0;
@@ -1787,6 +1795,8 @@ static int ovs_dp_cmd_new(struct sk_buff *skb, struct genl_info *info)
 	parms.dp = dp;
 	parms.port_no = OVSP_LOCAL;
 	parms.upcall_portids = a[OVS_DP_ATTR_UPCALL_PID];
+	parms.desired_ifindex = a[OVS_DP_ATTR_IFINDEX]
+		? nla_get_u32(a[OVS_DP_ATTR_IFINDEX]) : 0;
 
 	/* So far only local changes have been made, now need the lock. */
 	ovs_lock();
@@ -2004,6 +2014,7 @@ static const struct nla_policy datapath_policy[OVS_DP_ATTR_MAX + 1] = {
 	[OVS_DP_ATTR_USER_FEATURES] = { .type = NLA_U32 },
 	[OVS_DP_ATTR_MASKS_CACHE_SIZE] =  NLA_POLICY_RANGE(NLA_U32, 0,
 		PCPU_MIN_UNIT_SIZE / sizeof(struct mask_cache_entry)),
+	[OVS_DP_ATTR_IFINDEX] = {.type = NLA_U32 },
 };
 
 static const struct genl_small_ops dp_datapath_genl_ops[] = {
@@ -2207,7 +2218,10 @@ static int ovs_vport_cmd_new(struct sk_buff *skb, struct genl_info *info)
 	if (!a[OVS_VPORT_ATTR_NAME] || !a[OVS_VPORT_ATTR_TYPE] ||
 	    !a[OVS_VPORT_ATTR_UPCALL_PID])
 		return -EINVAL;
-	if (a[OVS_VPORT_ATTR_IFINDEX])
+
+	parms.type = nla_get_u32(a[OVS_VPORT_ATTR_TYPE]);
+
+	if (a[OVS_VPORT_ATTR_IFINDEX] && parms.type != OVS_VPORT_TYPE_INTERNAL)
 		return -EOPNOTSUPP;
 
 	port_no = a[OVS_VPORT_ATTR_PORT_NO]
@@ -2244,11 +2258,12 @@ restart:
 	}
 
 	parms.name = nla_data(a[OVS_VPORT_ATTR_NAME]);
-	parms.type = nla_get_u32(a[OVS_VPORT_ATTR_TYPE]);
 	parms.options = a[OVS_VPORT_ATTR_OPTIONS];
 	parms.dp = dp;
 	parms.port_no = port_no;
 	parms.upcall_portids = a[OVS_VPORT_ATTR_UPCALL_PID];
+	parms.desired_ifindex = a[OVS_VPORT_ATTR_IFINDEX]
+		? nla_get_u32(a[OVS_VPORT_ATTR_IFINDEX]) : 0;
 
 	vport = new_vport(&parms);
 	err = PTR_ERR(vport);
