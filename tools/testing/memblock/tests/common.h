@@ -100,4 +100,20 @@ static inline void test_pass_pop(void)
 	prefix_pop();
 }
 
+static inline void run_top_down(int (*func)())
+{
+	memblock_set_bottom_up(false);
+	prefix_push("top-down");
+	func();
+	prefix_pop();
+}
+
+static inline void run_bottom_up(int (*func)())
+{
+	memblock_set_bottom_up(true);
+	prefix_push("bottom-up");
+	func();
+	prefix_pop();
+}
+
 #endif

@@ -357,10 +357,8 @@ static int alloc_from_bottom_up_min_addr_cap_check(void)
 static int alloc_from_simple_check(void)
 {
 	test_print("\tRunning %s...\n", __func__);
-	memblock_set_bottom_up(false);
-	alloc_from_simple_generic_check();
-	memblock_set_bottom_up(true);
-	alloc_from_simple_generic_check();
+	run_top_down(alloc_from_simple_generic_check);
+	run_bottom_up(alloc_from_simple_generic_check);
 
 	return 0;
 }
@@ -368,10 +366,8 @@ static int alloc_from_simple_check(void)
 static int alloc_from_misaligned_check(void)
 {
 	test_print("\tRunning %s...\n", __func__);
-	memblock_set_bottom_up(false);
-	alloc_from_misaligned_generic_check();
-	memblock_set_bottom_up(true);
-	alloc_from_misaligned_generic_check();
+	run_top_down(alloc_from_misaligned_generic_check);
+	run_bottom_up(alloc_from_misaligned_generic_check);
 
 	return 0;
 }
