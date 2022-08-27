@@ -22,6 +22,8 @@ static int alloc_top_down_simple_check(void)
 	allocated_ptr = memblock_alloc(size, SMP_CACHE_BYTES);
 
 	ASSERT_NE(allocated_ptr, NULL);
+	ASSERT_MEM_EQ(allocated_ptr, 0, size);
+
 	ASSERT_EQ(rgn->size, size);
 	ASSERT_EQ(rgn->base, expected_start);
 
@@ -80,6 +82,8 @@ static int alloc_top_down_disjoint_check(void)
 	allocated_ptr = memblock_alloc(r2_size, alignment);
 
 	ASSERT_NE(allocated_ptr, NULL);
+	ASSERT_MEM_EQ(allocated_ptr, 0, r2_size);
+
 	ASSERT_EQ(rgn1->size, r1.size);
 	ASSERT_EQ(rgn1->base, r1.base);
 
@@ -125,6 +129,8 @@ static int alloc_top_down_before_check(void)
 	allocated_ptr = memblock_alloc(r2_size, SMP_CACHE_BYTES);
 
 	ASSERT_NE(allocated_ptr, NULL);
+	ASSERT_MEM_EQ(allocated_ptr, 0, r2_size);
+
 	ASSERT_EQ(rgn->size, total_size);
 	ASSERT_EQ(rgn->base, memblock_end_of_DRAM() - total_size);
 
@@ -173,6 +179,8 @@ static int alloc_top_down_after_check(void)
 	allocated_ptr = memblock_alloc(r2_size, SMP_CACHE_BYTES);
 
 	ASSERT_NE(allocated_ptr, NULL);
+	ASSERT_MEM_EQ(allocated_ptr, 0, r2_size);
+
 	ASSERT_EQ(rgn->size, total_size);
 	ASSERT_EQ(rgn->base, r1.base - r2_size);
 
@@ -223,6 +231,8 @@ static int alloc_top_down_second_fit_check(void)
 	allocated_ptr = memblock_alloc(r3_size, SMP_CACHE_BYTES);
 
 	ASSERT_NE(allocated_ptr, NULL);
+	ASSERT_MEM_EQ(allocated_ptr, 0, r3_size);
+
 	ASSERT_EQ(rgn->size, r2.size + r3_size);
 	ASSERT_EQ(rgn->base, r2.base - r3_size);
 
@@ -277,6 +287,8 @@ static int alloc_in_between_generic_check(void)
 	allocated_ptr = memblock_alloc(r3_size, SMP_CACHE_BYTES);
 
 	ASSERT_NE(allocated_ptr, NULL);
+	ASSERT_MEM_EQ(allocated_ptr, 0, r3_size);
+
 	ASSERT_EQ(rgn->size, total_size);
 	ASSERT_EQ(rgn->base, r1.base - r2.size - r3_size);
 
@@ -418,6 +430,8 @@ static int alloc_limited_space_generic_check(void)
 	allocated_ptr = memblock_alloc(available_size, SMP_CACHE_BYTES);
 
 	ASSERT_NE(allocated_ptr, NULL);
+	ASSERT_MEM_EQ(allocated_ptr, 0, available_size);
+
 	ASSERT_EQ(rgn->size, MEM_SIZE);
 	ASSERT_EQ(rgn->base, memblock_start_of_DRAM());
 
@@ -472,6 +486,8 @@ static int alloc_bottom_up_simple_check(void)
 	allocated_ptr = memblock_alloc(SZ_2, SMP_CACHE_BYTES);
 
 	ASSERT_NE(allocated_ptr, NULL);
+	ASSERT_MEM_EQ(allocated_ptr, 0, SZ_2);
+
 	ASSERT_EQ(rgn->size, SZ_2);
 	ASSERT_EQ(rgn->base, memblock_start_of_DRAM());
 
@@ -528,6 +544,7 @@ static int alloc_bottom_up_disjoint_check(void)
 	allocated_ptr = memblock_alloc(r2_size, alignment);
 
 	ASSERT_NE(allocated_ptr, NULL);
+	ASSERT_MEM_EQ(allocated_ptr, 0, r2_size);
 
 	ASSERT_EQ(rgn1->size, r1.size);
 	ASSERT_EQ(rgn1->base, r1.base);
@@ -571,6 +588,8 @@ static int alloc_bottom_up_before_check(void)
 	allocated_ptr = memblock_alloc(r1_size, SMP_CACHE_BYTES);
 
 	ASSERT_NE(allocated_ptr, NULL);
+	ASSERT_MEM_EQ(allocated_ptr, 0, r1_size);
+
 	ASSERT_EQ(rgn->size, total_size);
 	ASSERT_EQ(rgn->base, memblock_start_of_DRAM());
 
@@ -618,6 +637,8 @@ static int alloc_bottom_up_after_check(void)
 	allocated_ptr = memblock_alloc(r2_size, SMP_CACHE_BYTES);
 
 	ASSERT_NE(allocated_ptr, NULL);
+	ASSERT_MEM_EQ(allocated_ptr, 0, r2_size);
+
 	ASSERT_EQ(rgn->size, total_size);
 	ASSERT_EQ(rgn->base, r1.base);
 
@@ -669,6 +690,8 @@ static int alloc_bottom_up_second_fit_check(void)
 	allocated_ptr = memblock_alloc(r3_size, SMP_CACHE_BYTES);
 
 	ASSERT_NE(allocated_ptr, NULL);
+	ASSERT_MEM_EQ(allocated_ptr, 0, r3_size);
+
 	ASSERT_EQ(rgn->size, r2.size + r3_size);
 	ASSERT_EQ(rgn->base, r2.base);
 

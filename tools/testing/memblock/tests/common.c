@@ -60,16 +60,23 @@ void reset_memblock_attributes(void)
 	memblock.current_limit	= MEMBLOCK_ALLOC_ANYWHERE;
 }
 
+static inline void fill_memblock(void)
+{
+	memset(memory_block.base, 1, MEM_SIZE);
+}
+
 void setup_memblock(void)
 {
 	reset_memblock_regions();
 	memblock_add((phys_addr_t)memory_block.base, MEM_SIZE);
+	fill_memblock();
 }
 
 void dummy_physical_memory_init(void)
 {
 	memory_block.base = malloc(MEM_SIZE);
 	assert(memory_block.base);
+	fill_memblock();
 }
 
 void dummy_physical_memory_cleanup(void)

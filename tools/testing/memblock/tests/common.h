@@ -51,6 +51,18 @@
 	assert((_expected) < (_seen)); \
 } while (0)
 
+/**
+ * ASSERT_MEM_EQ():
+ * Check that the first @_size bytes of @_seen are all equal to @_expected.
+ * If false, print failed test message (if running with --verbose) and then
+ * assert.
+ */
+#define ASSERT_MEM_EQ(_seen, _expected, _size) do { \
+	for (int _i = 0; _i < (_size); _i++) { \
+		ASSERT_EQ(((char *)_seen)[_i], (_expected)); \
+	} \
+} while (0)
+
 #define PREFIX_PUSH() prefix_push(__func__)
 
 /*
