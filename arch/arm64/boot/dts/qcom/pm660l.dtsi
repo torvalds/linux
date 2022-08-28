@@ -81,7 +81,7 @@
 			status = "disabled";
 		};
 
-		pm660l_spmi_regulators: pm660l-regulators {
+		pm660l_spmi_regulators: regulators {
 			compatible = "qcom,pm660l-regulators";
 		};
 	};
