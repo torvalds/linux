@@ -522,7 +522,7 @@
 };
 
 &pm8998_gpio {
-	volume_up_gpio: pm8998_gpio6 {
+	volume_up_gpio: pm8998-gpio6-state {
 		pinconf {
 			qcom,drive-strength = <PMIC_GPIO_STRENGTH_NO>;
 			function = "normal";

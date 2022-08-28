@@ -167,7 +167,7 @@ ap_ts_pen_1v8: &i2c13 {
 			  "PMIC_EDP_BL_PWM",
 			  "";
 
-	edp_bl_reg_en: edp-bl-reg-en {
+	edp_bl_reg_en: edp-bl-reg-en-state {
 		pins = "gpio6";
 		function = "normal";
 		bias-disable;
