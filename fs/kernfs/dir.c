@@ -1311,7 +1311,7 @@ static void kernfs_activate_one(struct kernfs_node *kn)
 
 	kn->flags |= KERNFS_ACTIVATED;
 
-	if (kernfs_active(kn) || (kn->flags & KERNFS_REMOVING))
+	if (kernfs_active(kn) || (kn->flags & (KERNFS_HIDDEN | KERNFS_REMOVING)))
 		return;
 
 	WARN_ON_ONCE(kn->parent && RB_EMPTY_NODE(&kn->rb));
@@ -1343,6 +1343,41 @@ void kernfs_activate(struct kernfs_node *kn)
 	pos = NULL;
 	while ((pos = kernfs_next_descendant_post(pos, kn)))
 		kernfs_activate_one(pos);
+
+	up_write(&root->kernfs_rwsem);
+}
+
+/**
+ * kernfs_show - show or hide a node
+ * @kn: kernfs_node to show or hide
+ * @show: whether to show or hide
+ *
+ * If @show is %false, @kn is marked hidden and deactivated. A hidden node is
+ * ignored in future activaitons. If %true, the mark is removed and activation
+ * state is restored. This function won't implicitly activate a new node in a
+ * %KERNFS_ROOT_CREATE_DEACTIVATED root which hasn't been activated yet.
+ *
+ * To avoid recursion complexities, directories aren't supported for now.
+ */
+void kernfs_show(struct kernfs_node *kn, bool show)
+{
+	struct kernfs_root *root = kernfs_root(kn);
+
+	if (WARN_ON_ONCE(kernfs_type(kn) == KERNFS_DIR))
+		return;
+
+	down_write(&root->kernfs_rwsem);
+
+	if (show) {
+		kn->flags &= ~KERNFS_HIDDEN;
+		if (kn->flags & KERNFS_ACTIVATED)
+			kernfs_activate_one(kn);
+	} else {
+		kn->flags |= KERNFS_HIDDEN;
+		if (kernfs_active(kn))
+			atomic_add(KN_DEACTIVATED_BIAS, &kn->active);
+		kernfs_drain(kn);
+	}
 
 	up_write(&root->kernfs_rwsem);
 }
