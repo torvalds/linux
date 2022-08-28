@@ -8,10 +8,6 @@ LD=$3
 # Do not expand names
 set -f
 
-# Fix the language to get consistent output
-LC_ALL=C
-export LC_ALL
-
 if test -z "$KBUILD_BUILD_USER"; then
 	LINUX_COMPILE_BY=$(whoami | sed 's/\\/\\\\/')
 else
@@ -23,8 +19,8 @@ else
 	LINUX_COMPILE_HOST=$KBUILD_BUILD_HOST
 fi
 
-LD_VERSION=$($LD -v | head -n1 | sed 's/(compatible with [^)]*)//' \
-	      | sed 's/[[:space:]]*$//')
+LD_VERSION=$(LC_ALL=C $LD -v | head -n1 |
+		sed -e 's/(compatible with [^)]*)//' -e 's/[[:space:]]*$//')
 
 cat <<EOF
 #define UTS_MACHINE		"${UTS_MACHINE}"
