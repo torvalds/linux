@@ -400,7 +400,7 @@ static void device_init_registers(struct vnt_private *priv)
 	}
 
 	if (priv->local_id > REV_ID_VT3253_B1) {
-		MACvSelectPage1(priv->port_offset);
+		VT6655_MAC_SELECT_PAGE1(priv->port_offset);
 
 		iowrite8(MSRCTL1_TXPWR | MSRCTL1_CSAPAREN, priv->port_offset + MAC_REG_MSRCTL + 1);
 
@@ -1587,14 +1587,14 @@ static void vnt_configure(struct ieee80211_hw *hw,
 			spin_lock_irqsave(&priv->lock, flags);
 
 			if (priv->mc_list_count > 2) {
-				MACvSelectPage1(priv->port_offset);
+				VT6655_MAC_SELECT_PAGE1(priv->port_offset);
 
 				iowrite32(0xffffffff, priv->port_offset + MAC_REG_MAR0);
 				iowrite32(0xffffffff, priv->port_offset + MAC_REG_MAR0 + 4);
 
 				VT6655_MAC_SELECT_PAGE0(priv->port_offset);
 			} else {
-				MACvSelectPage1(priv->port_offset);
+				VT6655_MAC_SELECT_PAGE1(priv->port_offset);
 
 				multicast =  le64_to_cpu(multicast);
 				iowrite32((u32)multicast, priv->port_offset +  MAC_REG_MAR0);
