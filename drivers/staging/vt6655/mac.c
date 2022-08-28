@@ -10,7 +10,7 @@
  * Date: May 21, 1996
  *
  * Functions:
- *      MACbIsRegBitsOff - Test if All test Bits Off
+ *      vt6655_mac_is_reg_bits_off - Test if All test Bits Off
  *      MACbIsIntDisable - Test if MAC interrupt disable
  *      MACvSetShortRetryLimit - Set 802.11 Short Retry limit
  *      MACvSetLongRetryLimit - Set 802.11 Long Retry limit
@@ -86,20 +86,21 @@ static void vt6655_mac_clear_stck_ds(void __iomem *iobase)
  * Parameters:
  *  In:
  *      io_base    - Base Address for MAC
- *      byRegOfs    - Offset of MAC Register
- *      byTestBits  - Test bits
+ *      reg_offset - Offset of MAC Register
+ *      mask       - Test bits
  *  Out:
  *      none
  *
  * Return Value: true if all test bits Off; otherwise false
  *
  */
-bool MACbIsRegBitsOff(struct vnt_private *priv, unsigned char byRegOfs,
-		      unsigned char byTestBits)
+static bool vt6655_mac_is_reg_bits_off(struct vnt_private *priv,
+				       unsigned char reg_offset,
+				       unsigned char mask)
 {
 	void __iomem *io_base = priv->port_offset;
 
-	return !(ioread8(io_base + byRegOfs) & byTestBits);
+	return !(ioread8(io_base + reg_offset) & mask);
 }
 
 /*
@@ -767,7 +768,7 @@ bool MACbPSWakeup(struct vnt_private *priv)
 	void __iomem *io_base = priv->port_offset;
 	unsigned int ww;
 	/* Read PSCTL */
-	if (MACbIsRegBitsOff(priv, MAC_REG_PSCTL, PSCTL_PS))
+	if (vt6655_mac_is_reg_bits_off(priv, MAC_REG_PSCTL, PSCTL_PS))
 		return true;
 
 	/* Disable PS */
