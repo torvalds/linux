@@ -117,7 +117,6 @@ struct tps65219_regulator_irq_data {
 		.fixed_uV		= _fuv,				\
 		.bypass_reg		= _vr,				\
 		.bypass_mask		= _bpm,				\
-		.bypass_val_on		= 1,				\
 	}								\
 
 static const struct linear_range bucks_ranges[] = {
