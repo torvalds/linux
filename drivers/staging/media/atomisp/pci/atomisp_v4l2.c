@@ -460,30 +460,12 @@ int atomisp_video_init(struct atomisp_video_pipe *video, const char *name,
 	return 0;
 }
 
-void atomisp_acc_init(struct atomisp_acc_pipe *video, const char *name)
-{
-	video->vdev.fops = &atomisp_fops;
-	video->vdev.ioctl_ops = &atomisp_ioctl_ops;
-
-	/* Initialize the video device. */
-	snprintf(video->vdev.name, sizeof(video->vdev.name),
-		 "ATOMISP ISP %s", name);
-	video->vdev.release = video_device_release_empty;
-	video_set_drvdata(&video->vdev, video->isp);
-}
-
 void atomisp_video_unregister(struct atomisp_video_pipe *video)
 {
 	if (video_is_registered(&video->vdev)) {
 		media_entity_cleanup(&video->vdev.entity);
 		video_unregister_device(&video->vdev);
 	}
-}
-
-void atomisp_acc_unregister(struct atomisp_acc_pipe *video)
-{
-	if (video_is_registered(&video->vdev))
-		video_unregister_device(&video->vdev);
 }
 
 static int atomisp_save_iunit_reg(struct atomisp_device *isp)

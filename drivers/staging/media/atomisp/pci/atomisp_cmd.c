@@ -98,15 +98,6 @@ struct atomisp_video_pipe *atomisp_to_video_pipe(struct video_device *dev)
 	       container_of(dev, struct atomisp_video_pipe, vdev);
 }
 
-/*
- * get struct atomisp_acc_pipe from v4l2 video_device
- */
-struct atomisp_acc_pipe *atomisp_to_acc_pipe(struct video_device *dev)
-{
-	return (struct atomisp_acc_pipe *)
-	       container_of(dev, struct atomisp_acc_pipe, vdev);
-}
-
 static unsigned short atomisp_get_sensor_fps(struct atomisp_sub_device *asd)
 {
 	struct v4l2_subdev_frame_interval fi = { 0 };

@@ -2773,16 +2773,9 @@ static long atomisp_vidioc_default(struct file *file, void *fh,
 {
 	struct video_device *vdev = video_devdata(file);
 	struct atomisp_device *isp = video_get_drvdata(vdev);
-	struct atomisp_sub_device *asd;
+	struct atomisp_sub_device *asd = atomisp_to_video_pipe(vdev)->asd;
 	struct v4l2_subdev *motor;
-	bool acc_node;
 	int err;
-
-	acc_node = !strcmp(vdev->name, "ATOMISP ISP ACC");
-	if (acc_node)
-		asd = atomisp_to_acc_pipe(vdev)->asd;
-	else
-		asd = atomisp_to_video_pipe(vdev)->asd;
 
 	if (!IS_ISP2401)
 		motor = isp->inputs[asd->input_curr].motor;

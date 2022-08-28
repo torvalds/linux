@@ -684,8 +684,7 @@ static unsigned int atomisp_subdev_users(struct atomisp_sub_device *asd)
 	return asd->video_out_preview.users +
 	       asd->video_out_vf.users +
 	       asd->video_out_capture.users +
-	       asd->video_out_video_capture.users +
-	       asd->video_acc.users;
+	       asd->video_out_video_capture.users;
 }
 
 unsigned int atomisp_dev_users(struct atomisp_device *isp)
@@ -702,10 +701,8 @@ static int atomisp_open(struct file *file)
 {
 	struct video_device *vdev = video_devdata(file);
 	struct atomisp_device *isp = video_get_drvdata(vdev);
-	struct atomisp_video_pipe *pipe = NULL;
-	struct atomisp_acc_pipe *acc_pipe = NULL;
-	struct atomisp_sub_device *asd;
-	bool acc_node = false;
+	struct atomisp_video_pipe *pipe = atomisp_to_video_pipe(vdev);
+	struct atomisp_sub_device *asd = pipe->asd;
 	int ret;
 
 	dev_dbg(isp->dev, "open device %s\n", vdev->name);
@@ -736,14 +733,6 @@ static int atomisp_open(struct file *file)
 
 	rt_mutex_lock(&isp->mutex);
 
-	acc_node = !strcmp(vdev->name, "ATOMISP ISP ACC");
-	if (acc_node) {
-		acc_pipe = atomisp_to_acc_pipe(vdev);
-		asd = acc_pipe->asd;
-	} else {
-		pipe = atomisp_to_video_pipe(vdev);
-		asd = pipe->asd;
-	}
 	asd->subdev.devnode = vdev;
 	/* Deferred firmware loading case. */
 	if (isp->css_env.isp_css_fw.bytes == 0) {
@@ -765,14 +754,6 @@ static int atomisp_open(struct file *file)
 		isp->css_env.isp_css_fw.data = NULL;
 	}
 
-	if (acc_node && acc_pipe->users) {
-		dev_dbg(isp->dev, "acc node already opened\n");
-		rt_mutex_unlock(&isp->mutex);
-		return -EBUSY;
-	} else if (acc_node) {
-		goto dev_init;
-	}
-
 	if (!isp->input_cnt) {
 		dev_err(isp->dev, "no camera attached\n");
 		ret = -EINVAL;
@@ -792,7 +773,6 @@ static int atomisp_open(struct file *file)
 	if (ret)
 		goto error;
 
-dev_init:
 	if (atomisp_dev_users(isp)) {
 		dev_dbg(isp->dev, "skip init isp in open\n");
 		goto init_subdev;
@@ -827,16 +807,11 @@ init_subdev:
 	atomisp_subdev_init_struct(asd);
 
 done:
-
-	if (acc_node)
-		acc_pipe->users++;
-	else
-		pipe->users++;
+	pipe->users++;
 	rt_mutex_unlock(&isp->mutex);
 
 	/* Ensure that a mode is set */
-	if (!acc_node)
-		v4l2_ctrl_s_ctrl(asd->run_mode, pipe->default_run_mode);
+	v4l2_ctrl_s_ctrl(asd->run_mode, pipe->default_run_mode);
 
 	return 0;
 
@@ -852,10 +827,8 @@ static int atomisp_release(struct file *file)
 {
 	struct video_device *vdev = video_devdata(file);
 	struct atomisp_device *isp = video_get_drvdata(vdev);
-	struct atomisp_video_pipe *pipe;
-	struct atomisp_acc_pipe *acc_pipe;
-	struct atomisp_sub_device *asd;
-	bool acc_node;
+	struct atomisp_video_pipe *pipe = atomisp_to_video_pipe(vdev);
+	struct atomisp_sub_device *asd = pipe->asd;
 	struct v4l2_requestbuffers req;
 	struct v4l2_subdev_fh fh;
 	struct v4l2_rect clear_compose = {0};
@@ -871,19 +844,9 @@ static int atomisp_release(struct file *file)
 	rt_mutex_lock(&isp->mutex);
 
 	dev_dbg(isp->dev, "release device %s\n", vdev->name);
-	acc_node = !strcmp(vdev->name, "ATOMISP ISP ACC");
-	if (acc_node) {
-		acc_pipe = atomisp_to_acc_pipe(vdev);
-		asd = acc_pipe->asd;
-	} else {
-		pipe = atomisp_to_video_pipe(vdev);
-		asd = pipe->asd;
-	}
+
 	asd->subdev.devnode = vdev;
-	if (acc_node) {
-		acc_pipe->users--;
-		goto subdev_uninit;
-	}
+
 	pipe->users--;
 
 	if (pipe->capq.streaming)
@@ -921,7 +884,7 @@ static int atomisp_release(struct file *file)
 					V4L2_SUBDEV_FORMAT_ACTIVE,
 					ATOMISP_SUBDEV_PAD_SINK, &isp_sink_fmt);
 	}
-subdev_uninit:
+
 	if (atomisp_subdev_users(asd))
 		goto done;
 
@@ -956,13 +919,11 @@ subdev_uninit:
 		dev_err(isp->dev, "Failed to power off device\n");
 
 done:
-	if (!acc_node) {
-		atomisp_subdev_set_selection(&asd->subdev, fh.state,
-					     V4L2_SUBDEV_FORMAT_ACTIVE,
-					     atomisp_subdev_source_pad(vdev),
-					     V4L2_SEL_TGT_COMPOSE, 0,
-					     &clear_compose);
-	}
+	atomisp_subdev_set_selection(&asd->subdev, fh.state,
+				     V4L2_SUBDEV_FORMAT_ACTIVE,
+				     atomisp_subdev_source_pad(vdev),
+				     V4L2_SEL_TGT_COMPOSE, 0,
+				     &clear_compose);
 	rt_mutex_unlock(&isp->mutex);
 	mutex_unlock(&isp->streamoff_mutex);
 

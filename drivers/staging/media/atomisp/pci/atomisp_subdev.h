@@ -119,14 +119,6 @@ struct atomisp_video_pipe {
 	atomic_t wdt_count;
 };
 
-struct atomisp_acc_pipe {
-	struct video_device vdev;
-	unsigned int users;
-	bool running;
-	struct atomisp_sub_device *asd;
-	struct atomisp_device *isp;
-};
-
 struct atomisp_pad_format {
 	struct v4l2_mbus_framefmt fmt;
 	struct v4l2_rect crop;
@@ -299,7 +291,6 @@ struct atomisp_sub_device {
 	struct atomisp_video_pipe video_out_capture; /* capture output */
 	struct atomisp_video_pipe video_out_vf;      /* viewfinder output */
 	struct atomisp_video_pipe video_out_preview; /* preview output */
-	struct atomisp_acc_pipe video_acc;
 	/* video pipe main output */
 	struct atomisp_video_pipe video_out_video_capture;
 	/* struct isp_subdev_params params; */

@@ -1075,13 +1075,6 @@ static void atomisp_init_subdev_pipe(struct atomisp_sub_device *asd,
 	       sizeof(struct atomisp_css_params_with_list *));
 }
 
-static void atomisp_init_acc_pipe(struct atomisp_sub_device *asd,
-				  struct atomisp_acc_pipe *pipe)
-{
-	pipe->asd = asd;
-	pipe->isp = asd->isp;
-}
-
 /*
  * isp_subdev_init_entities - Initialize V4L2 subdev and media entity
  * @asd: ISP CCDC module
@@ -1137,8 +1130,6 @@ static int isp_subdev_init_entities(struct atomisp_sub_device *asd)
 	atomisp_init_subdev_pipe(asd, &asd->video_out_video_capture,
 				 V4L2_BUF_TYPE_VIDEO_CAPTURE);
 
-	atomisp_init_acc_pipe(asd, &asd->video_acc);
-
 	ret = atomisp_video_init(&asd->video_out_capture, "CAPTURE",
 				 ATOMISP_RUN_MODE_STILL_CAPTURE);
 	if (ret < 0)
@@ -1158,8 +1149,6 @@ static int isp_subdev_init_entities(struct atomisp_sub_device *asd)
 				 ATOMISP_RUN_MODE_VIDEO);
 	if (ret < 0)
 		return ret;
-
-	atomisp_acc_init(&asd->video_acc, "ACC");
 
 	ret = v4l2_ctrl_handler_init(&asd->ctrl_handler, 1);
 	if (ret)
@@ -1290,7 +1279,6 @@ void atomisp_subdev_unregister_entities(struct atomisp_sub_device *asd)
 	atomisp_video_unregister(&asd->video_out_vf);
 	atomisp_video_unregister(&asd->video_out_capture);
 	atomisp_video_unregister(&asd->video_out_video_capture);
-	atomisp_acc_unregister(&asd->video_acc);
 }
 
 int atomisp_subdev_register_entities(struct atomisp_sub_device *asd,
@@ -1333,12 +1321,6 @@ int atomisp_subdev_register_entities(struct atomisp_sub_device *asd,
 	asd->video_out_video_capture.vdev.v4l2_dev = vdev;
 	asd->video_out_video_capture.vdev.device_caps = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_STREAMING;
 	ret = video_register_device(&asd->video_out_video_capture.vdev,
-				    VFL_TYPE_VIDEO, -1);
-	if (ret < 0)
-		goto error;
-	asd->video_acc.vdev.v4l2_dev = vdev;
-	asd->video_acc.vdev.device_caps = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_STREAMING;
-	ret = video_register_device(&asd->video_acc.vdev,
 				    VFL_TYPE_VIDEO, -1);
 	if (ret < 0)
 		goto error;
