@@ -55,10 +55,6 @@ static const unsigned short cwRXBCNTSFOff[MAX_RATE] = {
 
 /*---------------------  Static Functions  --------------------------*/
 
-static void s_vCalculateOFDMRParameter(unsigned char rate, u8 bb_type,
-				       unsigned char *pbyTxRate,
-				       unsigned char *pbyRsvTime);
-
 /*---------------------  Export Functions  --------------------------*/
 
 /*
