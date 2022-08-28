@@ -1281,8 +1281,14 @@ void atomisp_subdev_unregister_entities(struct atomisp_sub_device *asd)
 	atomisp_video_unregister(&asd->video_out_video_capture);
 }
 
-int atomisp_subdev_register_entities(struct atomisp_sub_device *asd,
-				     struct v4l2_device *vdev)
+int atomisp_subdev_register_subdev(struct atomisp_sub_device *asd,
+				   struct v4l2_device *vdev)
+{
+	return v4l2_device_register_subdev(vdev, &asd->subdev);
+}
+
+int atomisp_subdev_register_video_nodes(struct atomisp_sub_device *asd,
+					struct v4l2_device *vdev)
 {
 	int ret;
 
@@ -1290,12 +1296,6 @@ int atomisp_subdev_register_entities(struct atomisp_sub_device *asd,
 	 * FIXME: check if all device caps are properly initialized.
 	 * Should any of those use V4L2_CAP_META_CAPTURE? Probably yes.
 	 */
-
-	/* Register the subdev and video node. */
-
-	ret = v4l2_device_register_subdev(vdev, &asd->subdev);
-	if (ret < 0)
-		goto error;
 
 	asd->video_out_preview.vdev.v4l2_dev = vdev;
 	asd->video_out_preview.vdev.device_caps = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_STREAMING;

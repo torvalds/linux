@@ -1193,7 +1193,9 @@ static int atomisp_register_entities(struct atomisp_device *isp)
 	for (i = 0; i < isp->num_of_streams; i++) {
 		struct atomisp_sub_device *asd = &isp->asd[i];
 
-		ret = atomisp_subdev_register_entities(asd, &isp->v4l2_dev);
+		ret = atomisp_subdev_register_subdev(asd, &isp->v4l2_dev);
+		if (ret == 0)
+			ret = atomisp_subdev_register_video_nodes(asd, &isp->v4l2_dev);
 		if (ret < 0) {
 			dev_err(isp->dev,
 				"atomisp_subdev_register_entities fail\n");
