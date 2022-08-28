@@ -75,6 +75,8 @@ vmlinux_link()
 		objs="${objs} .vmlinux.export.o"
 	fi
 
+	objs="${objs} init/version-timestamp.o"
+
 	if [ "${SRCARCH}" = "um" ]; then
 		wl=-Wl,
 		ld="${CC}"
@@ -213,19 +215,6 @@ if [ "$1" = "clean" ]; then
 	exit 0
 fi
 
-# Update version
-info GEN .version
-if [ -r .version ]; then
-	VERSION=$(expr 0$(cat .version) + 1)
-	echo $VERSION > .version
-else
-	rm -f .version
-	echo 1 > .version
-fi;
-
-# final build of init/
-${MAKE} -f "${srctree}/scripts/Makefile.build" obj=init need-builtin=1
-
 #link vmlinux.o
 ${MAKE} -f "${srctree}/scripts/Makefile.vmlinux_o"
 
@@ -259,6 +248,8 @@ tr '\0' '\n' < modules.builtin.modinfo | sed -n 's/^[[:alnum:]:_]*\.file=//p' |
 if is_enabled CONFIG_MODULES; then
 	${MAKE} -f "${srctree}/scripts/Makefile.vmlinux" .vmlinux.export.o
 fi
+
+${MAKE} -f "${srctree}/scripts/Makefile.build" obj=init init/version-timestamp.o
 
 btf_vmlinux_bin_o=""
 if is_enabled CONFIG_DEBUG_INFO_BTF; then
