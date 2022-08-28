@@ -55,6 +55,16 @@ static const unsigned short cwRXBCNTSFOff[MAX_RATE] = {
 
 /*---------------------  Static Functions  --------------------------*/
 
+static void MACvSetBBType(void __iomem *iobase, u32 mask)
+{
+	u32 reg_value;
+
+	reg_value = ioread32(iobase + MAC_REG_ENCFG);
+	reg_value = reg_value & ~ENCFG_BBTYPE_MASK;
+	reg_value = reg_value | mask;
+	iowrite32(reg_value, iobase + MAC_REG_ENCFG);
+}
+
 /*---------------------  Export Functions  --------------------------*/
 
 /*
