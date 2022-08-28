@@ -219,7 +219,7 @@ void MACvSaveContext(struct vnt_private *priv, unsigned char *cxt_buf)
 	memcpy_fromio(cxt_buf + MAC_MAX_CONTEXT_SIZE_PAGE0, io_base,
 		      MAC_MAX_CONTEXT_SIZE_PAGE1);
 
-	MACvSelectPage0(io_base);
+	VT6655_MAC_SELECT_PAGE0(io_base);
 }
 
 /*
@@ -245,7 +245,7 @@ void MACvRestoreContext(struct vnt_private *priv, unsigned char *cxt_buf)
 	memcpy_toio(io_base, cxt_buf + MAC_MAX_CONTEXT_SIZE_PAGE0,
 		    MAC_MAX_CONTEXT_SIZE_PAGE1);
 
-	MACvSelectPage0(io_base);
+	VT6655_MAC_SELECT_PAGE0(io_base);
 
 	/* restore RCR,TCR,IMR... */
 	memcpy_toio(io_base + MAC_REG_RCR, cxt_buf + MAC_REG_RCR,

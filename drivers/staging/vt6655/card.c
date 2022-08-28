@@ -643,7 +643,7 @@ void CARDvSetRSPINF(struct vnt_private *priv, u8 bb_type)
 				   &byRsvTime);
 	iowrite16(MAKEWORD(byTxRate, byRsvTime), priv->port_offset + MAC_REG_RSPINF_A_72);
 	/* Set to Page0 */
-	MACvSelectPage0(priv->port_offset);
+	VT6655_MAC_SELECT_PAGE0(priv->port_offset);
 
 	spin_unlock_irqrestore(&priv->lock, flags);
 }

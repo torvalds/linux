@@ -404,7 +404,7 @@ static void device_init_registers(struct vnt_private *priv)
 
 		iowrite8(MSRCTL1_TXPWR | MSRCTL1_CSAPAREN, priv->port_offset + MAC_REG_MSRCTL + 1);
 
-		MACvSelectPage0(priv->port_offset);
+		VT6655_MAC_SELECT_PAGE0(priv->port_offset);
 	}
 
 	/* use relative tx timeout and 802.11i D4 */
@@ -1592,7 +1592,7 @@ static void vnt_configure(struct ieee80211_hw *hw,
 				iowrite32(0xffffffff, priv->port_offset + MAC_REG_MAR0);
 				iowrite32(0xffffffff, priv->port_offset + MAC_REG_MAR0 + 4);
 
-				MACvSelectPage0(priv->port_offset);
+				VT6655_MAC_SELECT_PAGE0(priv->port_offset);
 			} else {
 				MACvSelectPage1(priv->port_offset);
 
@@ -1601,7 +1601,7 @@ static void vnt_configure(struct ieee80211_hw *hw,
 				iowrite32((u32)(multicast >> 32),
 					  priv->port_offset + MAC_REG_MAR0 + 4);
 
-				MACvSelectPage0(priv->port_offset);
+				VT6655_MAC_SELECT_PAGE0(priv->port_offset);
 			}
 
 			spin_unlock_irqrestore(&priv->lock, flags);
