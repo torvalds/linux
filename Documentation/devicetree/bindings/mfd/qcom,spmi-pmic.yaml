@@ -94,7 +94,7 @@ properties:
 
   regulators:
     type: object
-    $ref: /schemas/regulator/regulator.yaml#
+    $ref: /schemas/regulator/qcom,spmi-regulator.yaml#
 
 patternProperties:
   "^adc@[0-9a-f]+$":
