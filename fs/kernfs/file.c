@@ -554,31 +554,28 @@ out_unlock:
 static int kernfs_get_open_node(struct kernfs_node *kn,
 				struct kernfs_open_file *of)
 {
-	struct kernfs_open_node *on, *new_on = NULL;
+	struct kernfs_open_node *on;
 	struct mutex *mutex;
 
 	mutex = kernfs_open_file_mutex_lock(kn);
 	on = kernfs_deref_open_node_locked(kn);
 
-	if (on) {
-		list_add_tail(&of->list, &on->files);
-		mutex_unlock(mutex);
-		return 0;
-	} else {
+	if (!on) {
 		/* not there, initialize a new one */
-		new_on = kmalloc(sizeof(*new_on), GFP_KERNEL);
-		if (!new_on) {
+		on = kmalloc(sizeof(*on), GFP_KERNEL);
+		if (!on) {
 			mutex_unlock(mutex);
 			return -ENOMEM;
 		}
-		atomic_set(&new_on->event, 1);
-		init_waitqueue_head(&new_on->poll);
-		INIT_LIST_HEAD(&new_on->files);
-		list_add_tail(&of->list, &new_on->files);
-		rcu_assign_pointer(kn->attr.open, new_on);
+		atomic_set(&on->event, 1);
+		init_waitqueue_head(&on->poll);
+		INIT_LIST_HEAD(&on->files);
+		rcu_assign_pointer(kn->attr.open, on);
 	}
-	mutex_unlock(mutex);
 
+	list_add_tail(&of->list, &on->files);
+
+	mutex_unlock(mutex);
 	return 0;
 }
 
