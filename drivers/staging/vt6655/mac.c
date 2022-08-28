@@ -11,7 +11,6 @@
  *
  * Functions:
  *      vt6655_mac_is_reg_bits_off - Test if All test Bits Off
- *      MACbIsIntDisable - Test if MAC interrupt disable
  *      MACvSetShortRetryLimit - Set 802.11 Short Retry limit
  *      MACvSetLongRetryLimit - Set 802.11 Long Retry limit
  *      MACvSetLoopbackMode - Set MAC Loopback Mode
@@ -101,29 +100,6 @@ static bool vt6655_mac_is_reg_bits_off(struct vnt_private *priv,
 	void __iomem *io_base = priv->port_offset;
 
 	return !(ioread8(io_base + reg_offset) & mask);
-}
-
-/*
- * Description:
- *      Test if MAC interrupt disable
- *
- * Parameters:
- *  In:
- *      io_base    - Base Address for MAC
- *  Out:
- *      none
- *
- * Return Value: true if interrupt is disable; otherwise false
- *
- */
-bool MACbIsIntDisable(struct vnt_private *priv)
-{
-	void __iomem *io_base = priv->port_offset;
-
-	if (ioread32(io_base + MAC_REG_IMR))
-		return false;
-
-	return true;
 }
 
 /*
