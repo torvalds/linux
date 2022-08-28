@@ -1194,11 +1194,8 @@ static int atomisp_register_entities(struct atomisp_device *isp)
 		struct atomisp_sub_device *asd = &isp->asd[i];
 
 		ret = atomisp_subdev_register_subdev(asd, &isp->v4l2_dev);
-		if (ret == 0)
-			ret = atomisp_subdev_register_video_nodes(asd, &isp->v4l2_dev);
 		if (ret < 0) {
-			dev_err(isp->dev,
-				"atomisp_subdev_register_entities fail\n");
+			dev_err(isp->dev, "atomisp_subdev_register_subdev fail\n");
 			for (; i > 0; i--)
 				atomisp_subdev_unregister_entities(
 				    &isp->asd[i - 1]);
@@ -1248,11 +1245,7 @@ static int atomisp_register_entities(struct atomisp_device *isp)
 		dev_warn(isp->dev, "too many atomisp inputs, TPG ignored.\n");
 	}
 
-	ret = v4l2_device_register_subdev_nodes(&isp->v4l2_dev);
-	if (ret < 0)
-		goto link_failed;
-
-	return media_device_register(&isp->media_dev);
+	return 0;
 
 link_failed:
 	for (i = 0; i < isp->num_of_streams; i++)
@@ -1273,6 +1266,27 @@ v4l2_device_failed:
 	media_device_unregister(&isp->media_dev);
 	media_device_cleanup(&isp->media_dev);
 	return ret;
+}
+
+static int atomisp_register_device_nodes(struct atomisp_device *isp)
+{
+	int i, err;
+
+	for (i = 0; i < isp->num_of_streams; i++) {
+		err = atomisp_subdev_register_video_nodes(&isp->asd[i], &isp->v4l2_dev);
+		if (err)
+			return err;
+	}
+
+	err = atomisp_create_pads_links(isp);
+	if (err)
+		return err;
+
+	err = v4l2_device_register_subdev_nodes(&isp->v4l2_dev);
+	if (err)
+		return err;
+
+	return media_device_register(&isp->media_dev);
 }
 
 static int atomisp_initialize_modules(struct atomisp_device *isp)
@@ -1687,9 +1701,6 @@ static int atomisp_pci_probe(struct pci_dev *pdev, const struct pci_device_id *i
 		dev_err(&pdev->dev, "atomisp_register_entities failed (%d)\n", err);
 		goto register_entities_fail;
 	}
-	err = atomisp_create_pads_links(isp);
-	if (err < 0)
-		goto register_entities_fail;
 	/* init atomisp wdts */
 	err = init_atomisp_wdts(isp);
 	if (err != 0)
@@ -1727,7 +1738,12 @@ static int atomisp_pci_probe(struct pci_dev *pdev, const struct pci_device_id *i
 	isp->firmware = NULL;
 	isp->css_env.isp_css_fw.data = NULL;
 	isp->ready = true;
+
 	rt_mutex_unlock(&isp->loading);
+
+	err = atomisp_register_device_nodes(isp);
+	if (err)
+		goto css_init_fail;
 
 	atomisp_drvfs_init(isp);
 
