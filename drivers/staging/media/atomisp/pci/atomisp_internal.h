@@ -105,9 +105,6 @@
 #define ATOMISP_DELAYED_INIT_QUEUED	1
 #define ATOMISP_DELAYED_INIT_DONE	2
 
-#define ATOMISP_CALC_CSS_PREV_OVERLAP(lines) \
-	((lines) * 38 / 100 & 0xfffffe)
-
 /*
  * Define how fast CPU should be able to serve ISP interrupts.
  * The bigger the value, the higher risk that the ISP is not
