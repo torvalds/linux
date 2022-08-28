@@ -921,6 +921,9 @@ static int gs_can_open(struct net_device *netdev)
 	if (ctrlmode & CAN_CTRLMODE_ONE_SHOT)
 		flags |= GS_CAN_MODE_ONE_SHOT;
 
+	if (ctrlmode & CAN_CTRLMODE_BERR_REPORTING)
+		flags |= GS_CAN_MODE_BERR_REPORTING;
+
 	if (ctrlmode & CAN_CTRLMODE_FD)
 		flags |= GS_CAN_MODE_FD;
 
@@ -1225,6 +1228,9 @@ static struct gs_can *gs_make_candev(unsigned int channel,
 			dev->can.do_set_termination = gs_usb_set_termination;
 		}
 	}
+
+	if (feature & GS_CAN_FEATURE_BERR_REPORTING)
+		dev->can.ctrlmode_supported |= CAN_CTRLMODE_BERR_REPORTING;
 
 	/* The CANtact Pro from LinkLayer Labs is based on the
 	 * LPC54616 µC, which is affected by the NXP LPC USB transfer
