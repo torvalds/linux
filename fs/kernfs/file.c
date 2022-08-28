@@ -57,31 +57,17 @@ static inline struct mutex *kernfs_open_file_mutex_lock(struct kernfs_node *kn)
 }
 
 /**
- * kernfs_deref_open_node - Get kernfs_open_node corresponding to @kn.
- *
- * @of: associated kernfs_open_file instance.
- * @kn: target kernfs_node.
- *
- * Fetch and return ->attr.open of @kn if @of->list is non empty.
- * If @of->list is not empty we can safely assume that @of is on
- * @kn->attr.open->files list and this guarantees that @kn->attr.open
- * will not vanish i.e. dereferencing outside RCU read-side critical
- * section is safe here.
- *
- * The caller needs to make sure that @of->list is not empty.
+ * of_on - Return the kernfs_open_node of the specified kernfs_open_file
+ * @of: taret kernfs_open_file
  */
-static struct kernfs_open_node *
-kernfs_deref_open_node(struct kernfs_open_file *of, struct kernfs_node *kn)
+static struct kernfs_open_node *of_on(struct kernfs_open_file *of)
 {
-	struct kernfs_open_node *on;
-
-	on = rcu_dereference_check(kn->attr.open, !list_empty(&of->list));
-
-	return on;
+	return rcu_dereference_protected(of->kn->attr.open,
+					 !list_empty(&of->list));
 }
 
 /**
- * kernfs_deref_open_node_protected - Get kernfs_open_node corresponding to @kn
+ * kernfs_deref_open_node_locked - Get kernfs_open_node corresponding to @kn
  *
  * @kn: target kernfs_node.
  *
@@ -96,7 +82,7 @@ kernfs_deref_open_node(struct kernfs_open_file *of, struct kernfs_node *kn)
  * The caller needs to make sure that kernfs_open_file_mutex is held.
  */
 static struct kernfs_open_node *
-kernfs_deref_open_node_protected(struct kernfs_node *kn)
+kernfs_deref_open_node_locked(struct kernfs_node *kn)
 {
 	return rcu_dereference_protected(kn->attr.open,
 				lockdep_is_held(kernfs_open_file_mutex_ptr(kn)));
@@ -207,12 +193,8 @@ static void kernfs_seq_stop(struct seq_file *sf, void *v)
 static int kernfs_seq_show(struct seq_file *sf, void *v)
 {
 	struct kernfs_open_file *of = sf->private;
-	struct kernfs_open_node *on = kernfs_deref_open_node(of, of->kn);
 
-	if (!on)
-		return -EINVAL;
-
-	of->event = atomic_read(&on->event);
+	of->event = atomic_read(&of_on(of)->event);
 
 	return of->kn->attr.ops->seq_show(sf, v);
 }
@@ -235,7 +217,6 @@ static ssize_t kernfs_file_read_iter(struct kiocb *iocb, struct iov_iter *iter)
 	struct kernfs_open_file *of = kernfs_of(iocb->ki_filp);
 	ssize_t len = min_t(size_t, iov_iter_count(iter), PAGE_SIZE);
 	const struct kernfs_ops *ops;
-	struct kernfs_open_node *on;
 	char *buf;
 
 	buf = of->prealloc_buf;
@@ -257,14 +238,7 @@ static ssize_t kernfs_file_read_iter(struct kiocb *iocb, struct iov_iter *iter)
 		goto out_free;
 	}
 
-	on = kernfs_deref_open_node(of, of->kn);
-	if (!on) {
-		len = -EINVAL;
-		mutex_unlock(&of->mutex);
-		goto out_free;
-	}
-
-	of->event = atomic_read(&on->event);
+	of->event = atomic_read(&of_on(of)->event);
 
 	ops = kernfs_ops(of->kn);
 	if (ops->read)
@@ -584,7 +558,7 @@ static int kernfs_get_open_node(struct kernfs_node *kn,
 	struct mutex *mutex = NULL;
 
 	mutex = kernfs_open_file_mutex_lock(kn);
-	on = kernfs_deref_open_node_protected(kn);
+	on = kernfs_deref_open_node_locked(kn);
 
 	if (on) {
 		list_add_tail(&of->list, &on->files);
@@ -629,7 +603,7 @@ static void kernfs_unlink_open_file(struct kernfs_node *kn,
 
 	mutex = kernfs_open_file_mutex_lock(kn);
 
-	on = kernfs_deref_open_node_protected(kn);
+	on = kernfs_deref_open_node_locked(kn);
 	if (!on) {
 		mutex_unlock(mutex);
 		return;
@@ -839,7 +813,7 @@ void kernfs_drain_open_files(struct kernfs_node *kn)
 		return;
 
 	mutex = kernfs_open_file_mutex_lock(kn);
-	on = kernfs_deref_open_node_protected(kn);
+	on = kernfs_deref_open_node_locked(kn);
 	if (!on) {
 		mutex_unlock(mutex);
 		return;
@@ -874,11 +848,7 @@ void kernfs_drain_open_files(struct kernfs_node *kn)
  */
 __poll_t kernfs_generic_poll(struct kernfs_open_file *of, poll_table *wait)
 {
-	struct kernfs_node *kn = kernfs_dentry_node(of->file->f_path.dentry);
-	struct kernfs_open_node *on = kernfs_deref_open_node(of, kn);
-
-	if (!on)
-		return EPOLLERR;
+	struct kernfs_open_node *on = of_on(of);
 
 	poll_wait(of->file, &on->poll, wait);
 
