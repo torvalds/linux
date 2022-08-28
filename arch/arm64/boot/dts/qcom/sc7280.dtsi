@@ -2357,11 +2357,19 @@
 					opp-supported-hw = <0x03>;
 				};
 
-				opp-550000000 {
+				/* Only applicable for SKUs which has 550Mhz as Fmax */
+				opp-550000000-0 {
+					opp-hz = /bits/ 64 <550000000>;
+					opp-level = <RPMH_REGULATOR_LEVEL_SVS_L1>;
+					opp-peak-kBps = <8368000>;
+					opp-supported-hw = <0x01>;
+				};
+
+				opp-550000000-1 {
 					opp-hz = /bits/ 64 <550000000>;
 					opp-level = <RPMH_REGULATOR_LEVEL_SVS_L1>;
 					opp-peak-kBps = <6832000>;
-					opp-supported-hw = <0x03>;
+					opp-supported-hw = <0x02>;
 				};
 
 				opp-608000000 {
