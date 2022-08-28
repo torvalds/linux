@@ -788,8 +788,20 @@ static const struct vsp1_device_info vsp1_device_infos[] = {
 	}, {
 		.version = VI6_IP_VERSION_MODEL_VSPD_V3,
 		.model = "VSP2-D",
+		.soc = VI6_IP_VERSION_SOC_V3H,
 		.gen = 3,
 		.features = VSP1_HAS_BRS | VSP1_HAS_BRU,
+		.lif_count = 1,
+		.rpf_count = 5,
+		.uif_count = 1,
+		.wpf_count = 1,
+		.num_bru_inputs = 5,
+	}, {
+		.version = VI6_IP_VERSION_MODEL_VSPD_V3,
+		.model = "VSP2-D",
+		.soc = VI6_IP_VERSION_SOC_V3M,
+		.gen = 3,
+		.features = VSP1_HAS_BRS | VSP1_HAS_BRU | VSP1_HAS_NON_ZERO_LBA,
 		.lif_count = 1,
 		.rpf_count = 5,
 		.uif_count = 1,
@@ -822,6 +834,8 @@ static const struct vsp1_device_info *vsp1_lookup_info(struct vsp1_device *vsp1)
 {
 	const struct vsp1_device_info *info;
 	unsigned int i;
+	u32 model;
+	u32 soc;
 
 	/*
 	 * Try the info stored in match data first for devices that don't have
@@ -834,11 +848,13 @@ static const struct vsp1_device_info *vsp1_lookup_info(struct vsp1_device *vsp1)
 	}
 
 	vsp1->version = vsp1_read(vsp1, VI6_IP_VERSION);
+	model = vsp1->version & VI6_IP_VERSION_MODEL_MASK;
+	soc = vsp1->version & VI6_IP_VERSION_SOC_MASK;
 
 	for (i = 0; i < ARRAY_SIZE(vsp1_device_infos); ++i) {
 		info = &vsp1_device_infos[i];
 
-		if ((vsp1->version & VI6_IP_VERSION_MODEL_MASK) == info->version)
+		if (model == info->version && (!info->soc || soc == info->soc))
 			return info;
 	}
 
