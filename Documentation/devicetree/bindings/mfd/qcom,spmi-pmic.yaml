@@ -103,7 +103,7 @@ patternProperties:
 
   "^adc-tm@[0-9a-f]+$":
     type: object
-    $ref: /schemas/thermal/qcom-spmi-adc-tm5.yaml#
+    # ref depends on compatible, see allOf below
 
   "^audio-codec@[0-9a-f]+$":
     type: object
@@ -149,6 +149,22 @@ patternProperties:
 required:
   - compatible
   - reg
+
+allOf:
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - qcom,pm8998
+    then:
+      patternProperties:
+        "^adc-tm@[0-9a-f]+$":
+          $ref: /schemas/thermal/qcom-spmi-adc-tm-hc.yaml#
+    else:
+      patternProperties:
+        "^adc-tm@[0-9a-f]+$":
+          $ref: /schemas/thermal/qcom-spmi-adc-tm5.yaml#
 
 additionalProperties: false
 
