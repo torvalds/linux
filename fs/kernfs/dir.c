@@ -1305,6 +1305,21 @@ static struct kernfs_node *kernfs_next_descendant_post(struct kernfs_node *pos,
 	return pos->parent;
 }
 
+static void kernfs_activate_one(struct kernfs_node *kn)
+{
+	lockdep_assert_held_write(&kernfs_root(kn)->kernfs_rwsem);
+
+	kn->flags |= KERNFS_ACTIVATED;
+
+	if (kernfs_active(kn) || (kn->flags & KERNFS_REMOVING))
+		return;
+
+	WARN_ON_ONCE(kn->parent && RB_EMPTY_NODE(&kn->rb));
+	WARN_ON_ONCE(atomic_read(&kn->active) != KN_DEACTIVATED_BIAS);
+
+	atomic_sub(KN_DEACTIVATED_BIAS, &kn->active);
+}
+
 /**
  * kernfs_activate - activate a node which started deactivated
  * @kn: kernfs_node whose subtree is to be activated
@@ -1326,16 +1341,8 @@ void kernfs_activate(struct kernfs_node *kn)
 	down_write(&root->kernfs_rwsem);
 
 	pos = NULL;
-	while ((pos = kernfs_next_descendant_post(pos, kn))) {
-		if (kernfs_active(pos) || (pos->flags & KERNFS_REMOVING))
-			continue;
-
-		WARN_ON_ONCE(pos->parent && RB_EMPTY_NODE(&pos->rb));
-		WARN_ON_ONCE(atomic_read(&pos->active) != KN_DEACTIVATED_BIAS);
-
-		atomic_sub(KN_DEACTIVATED_BIAS, &pos->active);
-		pos->flags |= KERNFS_ACTIVATED;
-	}
+	while ((pos = kernfs_next_descendant_post(pos, kn)))
+		kernfs_activate_one(pos);
 
 	up_write(&root->kernfs_rwsem);
 }
