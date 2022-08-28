@@ -134,6 +134,7 @@ struct gs_device_config {
 /* GS_CAN_FEATURE_REQ_USB_QUIRK_LPC546XX BIT(9) */
 /* GS_CAN_FEATURE_BT_CONST_EXT BIT(10) */
 /* GS_CAN_FEATURE_TERMINATION BIT(11) */
+#define GS_CAN_MODE_BERR_REPORTING BIT(12)
 
 struct gs_device_mode {
 	__le32 mode;
@@ -174,7 +175,8 @@ struct gs_device_termination_state {
 #define GS_CAN_FEATURE_REQ_USB_QUIRK_LPC546XX BIT(9)
 #define GS_CAN_FEATURE_BT_CONST_EXT BIT(10)
 #define GS_CAN_FEATURE_TERMINATION BIT(11)
-#define GS_CAN_FEATURE_MASK GENMASK(11, 0)
+#define GS_CAN_FEATURE_BERR_REPORTING BIT(12)
+#define GS_CAN_FEATURE_MASK GENMASK(12, 0)
 
 /* internal quirks - keep in GS_CAN_FEATURE space for now */
 
