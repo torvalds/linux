@@ -472,6 +472,16 @@ static void kernfs_drain(struct kernfs_node *kn)
 	lockdep_assert_held_write(&root->kernfs_rwsem);
 	WARN_ON_ONCE(kernfs_active(kn));
 
+	/*
+	 * Skip draining if already fully drained. This avoids draining and its
+	 * lockdep annotations for nodes which have never been activated
+	 * allowing embedding kernfs_remove() in create error paths without
+	 * worrying about draining.
+	 */
+	if (atomic_read(&kn->active) == KN_DEACTIVATED_BIAS &&
+	    !kernfs_should_drain_open_files(kn))
+		return;
+
 	up_write(&root->kernfs_rwsem);
 
 	if (kernfs_lockdep(kn)) {
@@ -480,7 +490,6 @@ static void kernfs_drain(struct kernfs_node *kn)
 			lock_contended(&kn->dep_map, _RET_IP_);
 	}
 
-	/* but everyone should wait for draining */
 	wait_event(root->deactivate_waitq,
 		   atomic_read(&kn->active) == KN_DEACTIVATED_BIAS);
 
@@ -1370,23 +1379,14 @@ static void __kernfs_remove(struct kernfs_node *kn)
 		pos = kernfs_leftmost_descendant(kn);
 
 		/*
-		 * kernfs_drain() drops kernfs_rwsem temporarily and @pos's
+		 * kernfs_drain() may drop kernfs_rwsem temporarily and @pos's
 		 * base ref could have been put by someone else by the time
 		 * the function returns.  Make sure it doesn't go away
 		 * underneath us.
 		 */
 		kernfs_get(pos);
 
-		/*
-		 * Drain iff @kn was activated.  This avoids draining and
-		 * its lockdep annotations for nodes which have never been
-		 * activated and allows embedding kernfs_remove() in create
-		 * error paths without worrying about draining.
-		 */
-		if (kn->flags & KERNFS_ACTIVATED)
-			kernfs_drain(pos);
-		else
-			WARN_ON_ONCE(atomic_read(&kn->active) != KN_DEACTIVATED_BIAS);
+		kernfs_drain(pos);
 
 		/*
 		 * kernfs_unlink_sibling() succeeds once per node.  Use it
