@@ -1431,8 +1431,7 @@ endif
 # Build modules
 #
 
-PHONY += modules
-modules: $(if $(KBUILD_BUILTIN),vmlinux) modules_check modules_prepare
+modules: $(if $(KBUILD_BUILTIN),vmlinux) modules_prepare
 
 cmd_modules_order = cat $(real-prereqs) > $@
 
