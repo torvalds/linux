@@ -45,14 +45,8 @@ $(obj)/utsversion-tmp.h: FORCE
 
 clean-files += utsversion-tmp.h
 
-$(obj)/version.o: include/generated/compile.h $(obj)/utsversion-tmp.h
+$(obj)/version.o: $(obj)/utsversion-tmp.h
 CFLAGS_version.o := -include $(obj)/utsversion-tmp.h
-
-filechk_compile.h = $(srctree)/scripts/mkcompile_h \
-	"$(UTS_MACHINE)" "$(CONFIG_CC_VERSION_TEXT)" "$(LD)"
-
-include/generated/compile.h: FORCE
-	$(call filechk,compile.h)
 
 #
 # Build version-timestamp.c with final UTS_VERSION
