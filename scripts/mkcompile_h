@@ -5,9 +5,6 @@ UTS_MACHINE=$1
 CC_VERSION="$2"
 LD=$3
 
-# Do not expand names
-set -f
-
 if test -z "$KBUILD_BUILD_USER"; then
 	LINUX_COMPILE_BY=$(whoami | sed 's/\\/\\\\/')
 else
