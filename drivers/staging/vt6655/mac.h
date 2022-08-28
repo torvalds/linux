@@ -549,8 +549,7 @@ void vt6655_mac_word_reg_bits_on(void __iomem *iobase, const u8 reg_offset, cons
 void vt6655_mac_reg_bits_off(void __iomem *iobase, const u8 reg_offset, const u8 bit_mask);
 void vt6655_mac_word_reg_bits_off(void __iomem *iobase, const u8 reg_offset, const u16 bit_mask);
 
-void MACvSetShortRetryLimit(struct vnt_private *priv,
-			    unsigned char byRetryLimit);
+void vt6655_mac_set_short_retry_limit(struct vnt_private *priv, unsigned char retry_limit);
 
 void MACvSetLongRetryLimit(struct vnt_private *priv, unsigned char byRetryLimit);
 

@@ -11,7 +11,7 @@
  *
  * Functions:
  *      vt6655_mac_is_reg_bits_off - Test if All test Bits Off
- *      MACvSetShortRetryLimit - Set 802.11 Short Retry limit
+ *      vt6655_mac_set_short_retry_limit - Set 802.11 Short Retry limit
  *      MACvSetLongRetryLimit - Set 802.11 Long Retry limit
  *      MACvSetLoopbackMode - Set MAC Loopback Mode
  *      MACvSaveContext - Save Context of MAC Registers
@@ -109,19 +109,18 @@ static bool vt6655_mac_is_reg_bits_off(struct vnt_private *priv,
  * Parameters:
  *  In:
  *      io_base    - Base Address for MAC
- *      byRetryLimit- Retry Limit
+ *      retry_limit - Retry Limit
  *  Out:
  *      none
  *
  * Return Value: none
  *
  */
-void MACvSetShortRetryLimit(struct vnt_private *priv,
-			    unsigned char byRetryLimit)
+void vt6655_mac_set_short_retry_limit(struct vnt_private *priv, unsigned char retry_limit)
 {
 	void __iomem *io_base = priv->port_offset;
 	/* set SRT */
-	iowrite8(byRetryLimit, io_base + MAC_REG_SRT);
+	iowrite8(retry_limit, io_base + MAC_REG_SRT);
 }
 
 /*

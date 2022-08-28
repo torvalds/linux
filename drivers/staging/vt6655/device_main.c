@@ -412,7 +412,7 @@ static void device_init_registers(struct vnt_private *priv)
 				    (CFG_TKIPOPT | CFG_NOTXTIMEOUT));
 
 	/* set performance parameter by registry */
-	MACvSetShortRetryLimit(priv, priv->byShortRetryLimit);
+	vt6655_mac_set_short_retry_limit(priv, priv->byShortRetryLimit);
 	MACvSetLongRetryLimit(priv, priv->byLongRetryLimit);
 
 	/* reset TSF counter */
