@@ -3771,24 +3771,6 @@ void atomisp_css_set_cont_prev_start_time(struct atomisp_device *isp,
 	return;
 }
 
-/* Set the ACC binary arguments */
-int atomisp_css_set_acc_parameters(struct atomisp_acc_fw *acc_fw)
-{
-	unsigned int mem;
-
-	for (mem = 0; mem < ATOMISP_ACC_NR_MEMORY; mem++) {
-		if (acc_fw->args[mem].length == 0)
-			continue;
-
-		ia_css_isp_param_set_css_mem_init(&acc_fw->fw->mem_initializers,
-						  IA_CSS_PARAM_CLASS_PARAM, mem,
-						  acc_fw->args[mem].css_ptr,
-						  acc_fw->args[mem].length);
-	}
-
-	return 0;
-}
-
 static struct atomisp_sub_device *__get_atomisp_subdev(
     struct ia_css_pipe *css_pipe,
     struct atomisp_device *isp,

@@ -258,28 +258,6 @@ struct atomisp_css_params_with_list {
 	struct list_head list;
 };
 
-struct atomisp_acc_fw {
-	struct ia_css_fw_info *fw;
-	unsigned int handle;
-	unsigned int flags;
-	unsigned int type;
-	struct {
-		size_t length;
-		unsigned long css_ptr;
-	} args[ATOMISP_ACC_NR_MEMORY];
-	struct list_head list;
-};
-
-struct atomisp_map {
-	ia_css_ptr ptr;
-	size_t length;
-	struct list_head list;
-	/* FIXME: should keep book which maps are currently used
-	 * by binaries and not allow releasing those
-	 * which are in use. Implement by reference counting.
-	 */
-};
-
 struct atomisp_sub_device {
 	struct v4l2_subdev subdev;
 	struct media_pad pads[ATOMISP_SUBDEV_PADS_NUM];

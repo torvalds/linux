@@ -442,9 +442,6 @@ int atomisp_css_get_dis_stat(struct atomisp_sub_device *asd,
 
 int atomisp_css_update_stream(struct atomisp_sub_device *asd);
 
-struct atomisp_acc_fw;
-int atomisp_css_set_acc_parameters(struct atomisp_acc_fw *acc_fw);
-
 int atomisp_css_isr_thread(struct atomisp_device *isp,
 			   bool *frame_done_found,
 			   bool *css_pipe_done);
