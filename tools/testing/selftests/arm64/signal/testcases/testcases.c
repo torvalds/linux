@@ -105,6 +105,7 @@ bool validate_reserved(ucontext_t *uc, size_t resv_sz, char **err)
 	bool terminated = false;
 	size_t offs = 0;
 	int flags = 0;
+	int new_flags;
 	struct extra_context *extra = NULL;
 	struct sve_context *sve = NULL;
 	struct za_context *za = NULL;
@@ -120,6 +121,8 @@ bool validate_reserved(ucontext_t *uc, size_t resv_sz, char **err)
 			return false;
 		}
 
+		new_flags = 0;
+
 		switch (head->magic) {
 		case 0:
 			if (head->size)
@@ -133,7 +136,7 @@ bool validate_reserved(ucontext_t *uc, size_t resv_sz, char **err)
 			else if (head->size !=
 				 sizeof(struct fpsimd_context))
 				*err = "Bad size for fpsimd_context";
-			flags |= FPSIMD_CTX;
+			new_flags |= FPSIMD_CTX;
 			break;
 		case ESR_MAGIC:
 			if (head->size != sizeof(struct esr_context))
@@ -144,14 +147,14 @@ bool validate_reserved(ucontext_t *uc, size_t resv_sz, char **err)
 				*err = "Multiple SVE_MAGIC";
 			/* Size is validated in validate_sve_context() */
 			sve = (struct sve_context *)head;
-			flags |= SVE_CTX;
+			new_flags |= SVE_CTX;
 			break;
 		case ZA_MAGIC:
 			if (flags & ZA_CTX)
 				*err = "Multiple ZA_MAGIC";
 			/* Size is validated in validate_za_context() */
 			za = (struct za_context *)head;
-			flags |= ZA_CTX;
+			new_flags |= ZA_CTX;
 			break;
 		case EXTRA_MAGIC:
 			if (flags & EXTRA_CTX)
@@ -159,7 +162,7 @@ bool validate_reserved(ucontext_t *uc, size_t resv_sz, char **err)
 			else if (head->size !=
 				 sizeof(struct extra_context))
 				*err = "Bad size for extra_context";
-			flags |= EXTRA_CTX;
+			new_flags |= EXTRA_CTX;
 			extra = (struct extra_context *)head;
 			break;
 		case KSFT_BAD_MAGIC:
@@ -192,15 +195,17 @@ bool validate_reserved(ucontext_t *uc, size_t resv_sz, char **err)
 			return false;
 		}
 
-		if (flags & EXTRA_CTX)
+		if (new_flags & EXTRA_CTX)
 			if (!validate_extra_context(extra, err))
 				return false;
-		if (flags & SVE_CTX)
+		if (new_flags & SVE_CTX)
 			if (!validate_sve_context(sve, err))
 				return false;
-		if (flags & ZA_CTX)
+		if (new_flags & ZA_CTX)
 			if (!validate_za_context(za, err))
 				return false;
+
+		flags |= new_flags;
 
 		head = GET_RESV_NEXT_HEAD(head);
 	}
