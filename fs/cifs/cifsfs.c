@@ -1219,8 +1219,6 @@ ssize_t cifs_file_copychunk_range(unsigned int xid,
 
 	cifs_dbg(FYI, "copychunk range\n");
 
-	filemap_write_and_wait(src_inode->i_mapping);
-
 	if (!src_file->private_data || !dst_file->private_data) {
 		rc = -EBADF;
 		cifs_dbg(VFS, "missing cifsFileInfo on copy range src file\n");
@@ -1250,6 +1248,12 @@ ssize_t cifs_file_copychunk_range(unsigned int xid,
 	lock_two_nondirectories(target_inode, src_inode);
 
 	cifs_dbg(FYI, "about to flush pages\n");
+
+	rc = filemap_write_and_wait_range(src_inode->i_mapping, off,
+					  off + len - 1);
+	if (rc)
+		goto out;
+
 	/* should we flush first and last page first */
 	truncate_inode_pages(&target_inode->i_data, 0);
 

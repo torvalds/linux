@@ -3687,7 +3687,10 @@ static long smb3_collapse_range(struct file *file, struct cifs_tcon *tcon,
 	}
 
 	filemap_invalidate_lock(inode->i_mapping);
-	filemap_write_and_wait(inode->i_mapping);
+	rc = filemap_write_and_wait_range(inode->i_mapping, off, old_eof - 1);
+	if (rc < 0)
+		goto out_2;
+
 	truncate_pagecache_range(inode, off, old_eof);
 
 	rc = smb2_copychunk_range(xid, cfile, cfile, off + len,
@@ -3738,7 +3741,9 @@ static long smb3_insert_range(struct file *file, struct cifs_tcon *tcon,
 	eof = cpu_to_le64(old_eof + len);
 
 	filemap_invalidate_lock(inode->i_mapping);
-	filemap_write_and_wait(inode->i_mapping);
+	rc = filemap_write_and_wait_range(inode->i_mapping, off, old_eof + len - 1);
+	if (rc < 0)
+		goto out_2;
 	truncate_pagecache_range(inode, off, old_eof);
 
 	rc = SMB2_set_eof(xid, tcon, cfile->fid.persistent_fid,
