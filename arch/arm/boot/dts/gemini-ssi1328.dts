@@ -40,10 +40,6 @@
 		phy0: ethernet-phy@1 {
 			reg = <1>;
 			device_type = "ethernet-phy";
-			/* We lack the knowledge of necessary GPIO to achieve
-			 * Gigabit
-			 */
-			max-speed = <100>;
 		};
 		/* WAN ICPlus IP101A */
 		phy1: ethernet-phy@2 {
