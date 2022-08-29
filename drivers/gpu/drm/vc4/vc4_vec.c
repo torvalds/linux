@@ -375,7 +375,8 @@ static int vc4_vec_connector_init(struct drm_device *dev, struct vc4_vec *vec)
 	return 0;
 }
 
-static void vc4_vec_encoder_disable(struct drm_encoder *encoder)
+static void vc4_vec_encoder_disable(struct drm_encoder *encoder,
+				    struct drm_atomic_state *state)
 {
 	struct drm_device *drm = encoder->dev;
 	struct vc4_vec *vec = encoder_to_vc4_vec(encoder);
@@ -406,7 +407,8 @@ err_dev_exit:
 	drm_dev_exit(idx);
 }
 
-static void vc4_vec_encoder_enable(struct drm_encoder *encoder)
+static void vc4_vec_encoder_enable(struct drm_encoder *encoder,
+				   struct drm_atomic_state *state)
 {
 	struct drm_device *drm = encoder->dev;
 	struct vc4_vec *vec = encoder_to_vc4_vec(encoder);
@@ -508,9 +510,9 @@ static int vc4_vec_encoder_atomic_check(struct drm_encoder *encoder,
 }
 
 static const struct drm_encoder_helper_funcs vc4_vec_encoder_helper_funcs = {
-	.disable = vc4_vec_encoder_disable,
-	.enable = vc4_vec_encoder_enable,
 	.atomic_check = vc4_vec_encoder_atomic_check,
+	.atomic_disable = vc4_vec_encoder_disable,
+	.atomic_enable = vc4_vec_encoder_enable,
 	.atomic_mode_set = vc4_vec_encoder_atomic_mode_set,
 };
 
