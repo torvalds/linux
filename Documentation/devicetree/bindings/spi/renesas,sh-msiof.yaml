@@ -74,6 +74,12 @@ properties:
   clocks:
     maxItems: 1
 
+  power-domains:
+    maxItems: 1
+
+  resets:
+    maxItems: 1
+
   num-cs:
     description: |
       Total number of chip selects (default is 1).
