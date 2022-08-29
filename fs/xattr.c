@@ -305,9 +305,6 @@ vfs_setxattr(struct user_namespace *mnt_userns, struct dentry *dentry,
 		size = error;
 	}
 
-	if (size && is_posix_acl_xattr(name))
-		posix_acl_setxattr_idmapped_mnt(mnt_userns, inode, value, size);
-
 retry_deleg:
 	inode_lock(inode);
 	error = __vfs_setxattr_locked(mnt_userns, dentry, name, value, size,

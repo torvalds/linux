@@ -771,46 +771,6 @@ void posix_acl_getxattr_idmapped_mnt(struct user_namespace *mnt_userns,
 	}
 }
 
-void posix_acl_setxattr_idmapped_mnt(struct user_namespace *mnt_userns,
-				     const struct inode *inode,
-				     void *value, size_t size)
-{
-	struct posix_acl_xattr_header *header = value;
-	struct posix_acl_xattr_entry *entry = (void *)(header + 1), *end;
-	struct user_namespace *fs_userns = i_user_ns(inode);
-	int count;
-	vfsuid_t vfsuid;
-	vfsgid_t vfsgid;
-	kuid_t uid;
-	kgid_t gid;
-
-	if (no_idmapping(mnt_userns, i_user_ns(inode)))
-		return;
-
-	count = posix_acl_fix_xattr_common(value, size);
-	if (count <= 0)
-		return;
-
-	for (end = entry + count; entry != end; entry++) {
-		switch (le16_to_cpu(entry->e_tag)) {
-		case ACL_USER:
-			uid = make_kuid(&init_user_ns, le32_to_cpu(entry->e_id));
-			vfsuid = VFSUIDT_INIT(uid);
-			uid = from_vfsuid(mnt_userns, fs_userns, vfsuid);
-			entry->e_id = cpu_to_le32(from_kuid(&init_user_ns, uid));
-			break;
-		case ACL_GROUP:
-			gid = make_kgid(&init_user_ns, le32_to_cpu(entry->e_id));
-			vfsgid = VFSGIDT_INIT(gid);
-			gid = from_vfsgid(mnt_userns, fs_userns, vfsgid);
-			entry->e_id = cpu_to_le32(from_kgid(&init_user_ns, gid));
-			break;
-		default:
-			break;
-		}
-	}
-}
-
 static void posix_acl_fix_xattr_userns(
 	struct user_namespace *to, struct user_namespace *from,
 	void *value, size_t size)
@@ -1211,7 +1171,17 @@ posix_acl_xattr_set(const struct xattr_handler *handler,
 	int ret;
 
 	if (value) {
-		acl = posix_acl_from_xattr(&init_user_ns, value, size);
+		/*
+		 * By the time we end up here the {g,u}ids stored in
+		 * ACL_{GROUP,USER} have already been mapped according to the
+		 * caller's idmapping. The vfs_set_acl_prepare() helper will
+		 * recover them and take idmapped mounts into account. The
+		 * filesystem will receive the POSIX ACLs in in the correct
+		 * format ready to be cached or written to the backing store
+		 * taking the filesystem idmapping into account.
+		 */
+		acl = vfs_set_acl_prepare(mnt_userns, i_user_ns(inode),
+					  value, size);
 		if (IS_ERR(acl))
 			return PTR_ERR(acl);
 	}
