@@ -289,20 +289,26 @@ static const struct dma_map_ops xen_grant_dma_ops = {
 	.dma_supported = xen_grant_dma_supported,
 };
 
-bool xen_is_grant_dma_device(struct device *dev)
+static bool xen_is_dt_grant_dma_device(struct device *dev)
 {
 	struct device_node *iommu_np;
 	bool has_iommu;
 
-	/* XXX Handle only DT devices for now */
-	if (!dev->of_node)
-		return false;
-
 	iommu_np = of_parse_phandle(dev->of_node, "iommus", 0);
-	has_iommu = iommu_np && of_device_is_compatible(iommu_np, "xen,grant-dma");
+	has_iommu = iommu_np &&
+		    of_device_is_compatible(iommu_np, "xen,grant-dma");
 	of_node_put(iommu_np);
 
 	return has_iommu;
+}
+
+bool xen_is_grant_dma_device(struct device *dev)
+{
+	/* XXX Handle only DT devices for now */
+	if (dev->of_node)
+		return xen_is_dt_grant_dma_device(dev);
+
+	return false;
 }
 
 bool xen_virtio_mem_acc(struct virtio_device *dev)
@@ -313,10 +319,38 @@ bool xen_virtio_mem_acc(struct virtio_device *dev)
 	return xen_is_grant_dma_device(dev->dev.parent);
 }
 
+static int xen_dt_grant_init_backend_domid(struct device *dev,
+					   struct xen_grant_dma_data *data)
+{
+	struct of_phandle_args iommu_spec;
+
+	if (of_parse_phandle_with_args(dev->of_node, "iommus", "#iommu-cells",
+			0, &iommu_spec)) {
+		dev_err(dev, "Cannot parse iommus property\n");
+		return -ESRCH;
+	}
+
+	if (!of_device_is_compatible(iommu_spec.np, "xen,grant-dma") ||
+			iommu_spec.args_count != 1) {
+		dev_err(dev, "Incompatible IOMMU node\n");
+		of_node_put(iommu_spec.np);
+		return -ESRCH;
+	}
+
+	of_node_put(iommu_spec.np);
+
+	/*
+	 * The endpoint ID here means the ID of the domain where the
+	 * corresponding backend is running
+	 */
+	data->backend_domid = iommu_spec.args[0];
+
+	return 0;
+}
+
 void xen_grant_setup_dma_ops(struct device *dev)
 {
 	struct xen_grant_dma_data *data;
-	struct of_phandle_args iommu_spec;
 
 	data = find_xen_grant_dma_data(dev);
 	if (data) {
@@ -324,34 +358,17 @@ void xen_grant_setup_dma_ops(struct device *dev)
 		return;
 	}
 
-	/* XXX ACPI device unsupported for now */
-	if (!dev->of_node)
-		goto err;
-
-	if (of_parse_phandle_with_args(dev->of_node, "iommus", "#iommu-cells",
-			0, &iommu_spec)) {
-		dev_err(dev, "Cannot parse iommus property\n");
-		goto err;
-	}
-
-	if (!of_device_is_compatible(iommu_spec.np, "xen,grant-dma") ||
-			iommu_spec.args_count != 1) {
-		dev_err(dev, "Incompatible IOMMU node\n");
-		of_node_put(iommu_spec.np);
-		goto err;
-	}
-
-	of_node_put(iommu_spec.np);
-
 	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
 		goto err;
 
-	/*
-	 * The endpoint ID here means the ID of the domain where the corresponding
-	 * backend is running
-	 */
-	data->backend_domid = iommu_spec.args[0];
+	if (dev->of_node) {
+		if (xen_dt_grant_init_backend_domid(dev, data))
+			goto err;
+	} else {
+		/* XXX ACPI device unsupported for now */
+		goto err;
+	}
 
 	if (store_xen_grant_dma_data(dev, data)) {
 		dev_err(dev, "Cannot store Xen grant DMA data\n");
@@ -363,6 +380,7 @@ void xen_grant_setup_dma_ops(struct device *dev)
 	return;
 
 err:
+	devm_kfree(dev, data);
 	dev_err(dev, "Cannot set up Xen grant DMA ops, retain platform DMA ops\n");
 }
 
