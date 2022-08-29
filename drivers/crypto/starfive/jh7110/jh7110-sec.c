@@ -77,7 +77,6 @@ static irqreturn_t jh7110_cryp_irq(int irq, void *arg)
 	struct jh7110_sec_dev *sdev = (struct jh7110_sec_dev *) arg;
 	union jh7110_sha_shacsr sha_csr;
 	union jh7110_aes_csr   aes_csr;
-	union jh7110_des_daecsr   des_csr;
 	union jh7110_crypto_cacr  cry_cacr;
 	union jh7110_crypto_casr  cry_casr;
 	irqreturn_t ret = IRQ_WAKE_THREAD;
@@ -97,14 +96,6 @@ static irqreturn_t jh7110_cryp_irq(int irq, void *arg)
 		if (aes_csr.done) {
 			sdev->done_flags |= JH7110_AES_DONE;
 			jh7110_sec_write(sdev, JH7110_AES_CSR, aes_csr.v);
-		}
-
-		break;
-	case JH7110_DES_TYPE:
-		des_csr.v = jh7110_sec_read(sdev, JH7110_DES_DAECSR_OFFSET);
-		if (des_csr.done) {
-			sdev->done_flags |= JH7110_DES_DONE;
-			jh7110_sec_write(sdev, JH7110_DES_DAECSR_OFFSET, des_csr.v);
 		}
 
 		break;
@@ -188,7 +179,6 @@ static int jh7110_cryp_probe(struct platform_device *pdev)
 	mutex_init(&sdev->pl080_doing);
 	mutex_init(&sdev->sha_lock);
 	mutex_init(&sdev->aes_lock);
-	mutex_init(&sdev->des_lock);
 	mutex_init(&sdev->rsa_lock);
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "secreg");
@@ -271,12 +261,6 @@ static int jh7110_cryp_probe(struct platform_device *pdev)
 		goto err_aes_data;
 	}
 
-	sdev->des_data = (void *)__get_free_pages(GFP_KERNEL | GFP_DMA32, pages);
-	if (!sdev->des_data) {
-		dev_err(sdev->dev, "Can't allocate des buffer pages when unaligned\n");
-		goto err_des_data;
-	}
-
 	sdev->pka_data = (void *)__get_free_pages(GFP_KERNEL | GFP_DMA32, pages);
 	if (!sdev->pka_data) {
 		dev_err(sdev->dev, "Can't allocate pka buffer pages when unaligned\n");
@@ -305,10 +289,6 @@ static int jh7110_cryp_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_algs_aes;
 
-	ret = jh7110_des_register_algs();
-	if (ret)
-		goto err_algs_des;
-
 	ret = jh7110_pka_register_algs();
 	if (ret)
 		goto err_algs_pka;
@@ -317,8 +297,6 @@ static int jh7110_cryp_probe(struct platform_device *pdev)
 
 	return 0;
  err_algs_pka:
-	jh7110_des_unregister_algs();
- err_algs_des:
 	jh7110_aes_unregister_algs();
  err_algs_aes:
 	jh7110_hash_unregister_algs();
@@ -329,8 +307,6 @@ static int jh7110_cryp_probe(struct platform_device *pdev)
  err_engine:
 	free_pages((unsigned long)sdev->pka_data, pages);
  err_pka_data:
-	free_pages((unsigned long)sdev->des_data, pages);
- err_des_data:
 	free_pages((unsigned long)sdev->aes_data, pages);
  err_aes_data:
 	free_pages((unsigned long)sdev->sha_data, pages);
@@ -352,7 +328,6 @@ static int jh7110_cryp_remove(struct platform_device *pdev)
 		return -ENODEV;
 
 	jh7110_pka_unregister_algs();
-	jh7110_des_unregister_algs();
 	jh7110_aes_unregister_algs();
 	jh7110_hash_unregister_algs();
 
@@ -362,11 +337,9 @@ static int jh7110_cryp_remove(struct platform_device *pdev)
 	jh7110_dma_cleanup(sdev);
 
 	free_pages((unsigned long)sdev->pka_data, sdev->pages_count);
-	free_pages((unsigned long)sdev->des_data, sdev->pages_count);
 	free_pages((unsigned long)sdev->aes_data, sdev->pages_count);
 	free_pages((unsigned long)sdev->sha_data, sdev->pages_count);
 	sdev->pka_data = NULL;
-	sdev->des_data = NULL;
 	sdev->aes_data = NULL;
 	sdev->sha_data = NULL;
 
@@ -433,4 +406,4 @@ module_platform_driver(jh7110_cryp_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Huan Feng <huan.feng@starfivetech.com>");
-MODULE_DESCRIPTION("Starfive JH7110 CRYP DES SHA and AES driver");
+MODULE_DESCRIPTION("Starfive JH7110 CRYP SHA and AES driver");

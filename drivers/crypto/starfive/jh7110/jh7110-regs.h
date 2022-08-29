@@ -6,7 +6,6 @@
 #define __JH7110_REGS_H__
 
 #include <crypto/aes.h>
-#include <crypto/des.h>
 #include <crypto/sha.h>
 
 #define JH7110_ALG_CR_OFFSET					0x0
@@ -17,7 +16,6 @@
 #define JH7110_DMA_OUT_LEN_OFFSET				0x14
 
 #define JH7110_AES_REGS_OFFSET					0x100
-#define JH7110_DES_REGS_OFFSET					0x200
 #define JH7110_SHA_REGS_OFFSET					0x300
 #define JH7110_CRYPTO_REGS_OFFSET				0x400
 
@@ -121,52 +119,6 @@ union jh7110_crypto_casr {
 #define JH7110_PKA_DONE_FLAGS					BIT(0)
 		u32 done			:1;
 		u32 rsvd_0			:31;
-	};
-};
-
-#define JH7110_DES_DAEDINR_HI_OFFSET				(JH7110_DES_REGS_OFFSET + 0x0)
-#define JH7110_DES_DAEDINR_LO_OFFSET				(JH7110_DES_REGS_OFFSET + 0x4)
-#define JH7110_DES_DAEKIN1R_HI_OFFSET				(JH7110_DES_REGS_OFFSET + 0x8)
-#define JH7110_DES_DAEKIN1R_LO_OFFSET				(JH7110_DES_REGS_OFFSET + 0xC)
-#define JH7110_DES_DAEKIN2R_HI_OFFSET				(JH7110_DES_REGS_OFFSET + 0x10)
-#define JH7110_DES_DAEKIN2R_LO_OFFSET				(JH7110_DES_REGS_OFFSET + 0x14)
-#define JH7110_DES_DAEKIN3R_HI_OFFSET				(JH7110_DES_REGS_OFFSET + 0x18)
-#define JH7110_DES_DAEKIN3R_LO_OFFSET				(JH7110_DES_REGS_OFFSET + 0x1C)
-#define JH7110_DES_DAEIVINR_HI_OFFSET				(JH7110_DES_REGS_OFFSET + 0x20)
-#define JH7110_DES_DAEIVINR_LO_OFFSET				(JH7110_DES_REGS_OFFSET + 0x24)
-#define JH7110_DES_DAECSR_OFFSET				(JH7110_DES_REGS_OFFSET + 0x28)
-#define JH7110_DES_KEY0						(JH7110_DES_REGS_OFFSET + 0X2C)
-#define	JH7110_DES_KEY1						(JH7110_DES_REGS_OFFSET + 0X30)
-#define JH7110_DES_IV0						(JH7110_DES_REGS_OFFSET + 0X34)
-#define JH7110_DES_IV1						(JH7110_DES_REGS_OFFSET + 0X38)
-
-union jh7110_des_daecsr {
-	u32 v;
-	struct {
-#define JH7110_DES_BUSY						BIT(0)
-		u32 busy			:1;
-		u32 en				:1;
-		u32 encryt			:1;
-		u32 reset			:1;
-		u32 disturb			:1;
-#define JH7110_DES_KS_64					0x0
-#define JH7110_DES_KS_128					0x2
-#define JH7110_DES_KS_192					0x3
-		u32 ks				:2;
-		u32 vdes_en			:1;
-
-#define JH7110_DES_MODE_ECB					0x0
-#define JH7110_DES_MODE_CBC					0x1
-#define JH7110_DES_MODE_CFB					0x2
-#define JH7110_DES_MODE_OFB					0x3
-		u32 mode			:2;
-		u32 ie				:1;
-#define JH7110_DES_CSR_DONE					BIT(11)
-		u32 done			:1;
-#define JH7110_DES_BITMODE_1					0x0
-#define JH7110_DES_BITMODE_64					0x4
-		u32 bitmode			:3;
-		u32 rsvd_0			:17;
 	};
 };
 
