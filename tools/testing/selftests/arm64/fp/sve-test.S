@@ -314,6 +314,15 @@ function irritator_handler
 	ret
 endfunction
 
+function tickle_handler
+	// Increment the signal count (x23):
+	ldr	x0, [x2, #ucontext_regs + 8 * 23]
+	add	x0, x0, #1
+	str	x0, [x2, #ucontext_regs + 8 * 23]
+
+	ret
+endfunction
+
 function terminate_handler
 	mov	w21, w0
 	mov	x20, x2
@@ -419,6 +428,12 @@ _start:
 
 	mov	w0, #SIGUSR1
 	adr	x1, irritator_handler
+	mov	w2, #SA_SIGINFO
+	orr	w2, w2, #SA_NODEFER
+	bl	setsignal
+
+	mov	w0, #SIGUSR2
+	adr	x1, tickle_handler
 	mov	w2, #SA_SIGINFO
 	orr	w2, w2, #SA_NODEFER
 	bl	setsignal
