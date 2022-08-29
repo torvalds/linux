@@ -225,36 +225,106 @@ bool dcn32_mpo_in_use(struct dc_state *context)
 	return false;
 }
 
-void dcn32_determine_det_override(struct dc_state *context, display_e2e_pipe_params_st *pipes,
-		bool *is_pipe_split_expected, int pipe_cnt)
+/**
+ * *******************************************************************************************
+ * dcn32_determine_det_override: Determine DET allocation for each pipe
+ *
+ * This function determines how much DET to allocate for each pipe. The total number of
+ * DET segments will be split equally among each of the streams, and after that the DET
+ * segments per stream will be split equally among the planes for the given stream.
+ *
+ * If there is a plane that's driven by more than 1 pipe (i.e. pipe split), then the
+ * number of DET for that given plane will be split among the pipes driving that plane.
+ *
+ * The pipe split prediction (is_pipe_split_expected) has to work 100% of the time in
+ * order for this function to work properly.
+ *
+ * High level algorithm:
+ * 1. Split total DET among number of streams
+ * 2. For each stream, split DET among the planes
+ * 3. For each plane, check if pipe split is expected. If yes, split the DET for that plane
+ *    among the number of splits we expect (i.e. 2 [2:1] or 4 [4:1])
+ *    - NOTE: Make sure not to double count the pipe splits (i.e. the pipes could
+ *            already be split in the context).
+ * 4. Assign the DET override to the DML pipes.
+ *
+ * @param [in]: dc: Current DC state
+ * @param [in]: context: New DC state to be programmed
+ * @param [in]: pipes: Array of DML pipes
+ * @param [in]: is_pipe_split_expected: Array indicating pipe split prediction for each pipe
+ *
+ * @return: void
+ *
+ * *******************************************************************************************
+ */
+void dcn32_determine_det_override(struct dc *dc,
+		struct dc_state *context,
+		display_e2e_pipe_params_st *pipes,
+		uint8_t *is_pipe_split_expected)
 {
-	int i, j, count, stream_segments, pipe_segments[MAX_PIPES];
+	uint8_t i, j, pipe_plane_count, stream_segments, plane_segments, pipe_segments[MAX_PIPES] = {0};
+	uint8_t pipe_counted[MAX_PIPES] = {0};
+	uint8_t pipe_cnt = 0;
+	struct dc_plane_state *current_plane = NULL;
+	struct pipe_ctx *next_odm_pipe = NULL;
+	struct pipe_ctx *bottom_pipe = NULL;
 
 	if (context->stream_count > 0) {
 		stream_segments = 18 / context->stream_count;
 		for (i = 0; i < context->stream_count; i++) {
-			count = 0;
-			for (j = 0; j < pipe_cnt; j++) {
-				if (context->res_ctx.pipe_ctx[j].stream == context->streams[i]) {
-					count++;
-					if (is_pipe_split_expected[j])
-						count++;
+			if (context->stream_status[i].plane_count > 0)
+				plane_segments = stream_segments / context->stream_status[i].plane_count;
+			else
+				plane_segments = stream_segments;
+			for (j = 0; j < dc->res_pool->pipe_count; j++) {
+				pipe_plane_count = 0;
+				if (context->res_ctx.pipe_ctx[j].stream == context->streams[i] &&
+						pipe_counted[j] != 1) {
+					/* Note: pipe_plane_count indicates the number of pipes to be used for a
+					 * given plane. e.g. pipe_plane_count = 1 means single pipe (i.e. not split),
+					 * pipe_plane_count = 2 means 2:1 split, etc.
+					 */
+					pipe_plane_count++;
+					pipe_counted[j] = 1;
+					current_plane = context->res_ctx.pipe_ctx[j].plane_state;
+					if (is_pipe_split_expected[j] != 0) {
+						pipe_plane_count += is_pipe_split_expected[j];
+
+						next_odm_pipe = context->res_ctx.pipe_ctx[j].next_odm_pipe;
+						bottom_pipe = context->res_ctx.pipe_ctx[j].bottom_pipe;
+
+						/* If pipe already happens to be split in context, mark as already
+						 * counted so we don't double count the pipe split.
+						 */
+						while (next_odm_pipe) {
+							if (next_odm_pipe->plane_state == current_plane) {
+								pipe_counted[next_odm_pipe->pipe_idx] = 1;
+								pipe_segments[next_odm_pipe->pipe_idx] = plane_segments / pipe_plane_count;
+							}
+							next_odm_pipe = next_odm_pipe->next_odm_pipe;
+						}
+
+						while (bottom_pipe) {
+							if (bottom_pipe->plane_state == current_plane) {
+								pipe_counted[bottom_pipe->pipe_idx] = 1;
+								pipe_segments[bottom_pipe->pipe_idx] = plane_segments / pipe_plane_count;
+							}
+							bottom_pipe = bottom_pipe->bottom_pipe;
+						}
+					}
+					pipe_segments[j] = plane_segments / pipe_plane_count;
 				}
 			}
-			pipe_segments[i] = stream_segments / count;
 		}
 
-		for (i = 0; i < pipe_cnt; i++) {
-			pipes[i].pipe.src.det_size_override = 0;
-			for (j = 0; j < context->stream_count; j++) {
-				if (context->res_ctx.pipe_ctx[i].stream == context->streams[j]) {
-					pipes[i].pipe.src.det_size_override = pipe_segments[j] * DCN3_2_DET_SEG_SIZE;
-					break;
-				}
-			}
+		for (i = 0, pipe_cnt = 0; i < dc->res_pool->pipe_count; i++) {
+			if (!context->res_ctx.pipe_ctx[i].stream)
+				continue;
+			pipes[pipe_cnt].pipe.src.det_size_override = pipe_segments[i] * DCN3_2_DET_SEG_SIZE;
+			pipe_cnt++;
 		}
 	} else {
-		for (i = 0; i < pipe_cnt; i++)
+		for (i = 0; i < dc->res_pool->pipe_count; i++)
 			pipes[i].pipe.src.det_size_override = 4 * DCN3_2_DET_SEG_SIZE; //DCN3_2_DEFAULT_DET_SIZE
 	}
 }
