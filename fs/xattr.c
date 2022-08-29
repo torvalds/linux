@@ -290,7 +290,7 @@ static inline bool is_posix_acl_xattr(const char *name)
 
 int
 vfs_setxattr(struct user_namespace *mnt_userns, struct dentry *dentry,
-	     const char *name, void *value, size_t size, int flags)
+	     const char *name, const void *value, size_t size, int flags)
 {
 	struct inode *inode = dentry->d_inode;
 	struct inode *delegated_inode = NULL;
@@ -298,8 +298,7 @@ vfs_setxattr(struct user_namespace *mnt_userns, struct dentry *dentry,
 	int error;
 
 	if (size && strcmp(name, XATTR_NAME_CAPS) == 0) {
-		error = cap_convert_nscap(mnt_userns, dentry,
-					  (const void **)&value, size);
+		error = cap_convert_nscap(mnt_userns, dentry, &value, size);
 		if (error < 0)
 			return error;
 		size = error;
