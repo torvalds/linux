@@ -368,9 +368,6 @@ static int red_change(struct Qdisc *sch, struct nlattr *opt,
 	struct nlattr *tb[TCA_RED_MAX + 1];
 	int err;
 
-	if (!opt)
-		return -EINVAL;
-
 	err = nla_parse_nested_deprecated(tb, TCA_RED_MAX, opt, red_policy,
 					  extack);
 	if (err < 0)

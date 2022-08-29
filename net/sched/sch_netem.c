@@ -961,9 +961,6 @@ static int netem_change(struct Qdisc *sch, struct nlattr *opt,
 	int old_loss_model = CLG_RANDOM;
 	int ret;
 
-	if (opt == NULL)
-		return -EINVAL;
-
 	qopt = nla_data(opt);
 	ret = parse_attr(tb, TCA_NETEM_MAX, opt, netem_policy, sizeof(*qopt));
 	if (ret < 0)

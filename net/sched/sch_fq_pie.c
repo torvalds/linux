@@ -283,9 +283,6 @@ static int fq_pie_change(struct Qdisc *sch, struct nlattr *opt,
 	unsigned int num_dropped = 0;
 	int err;
 
-	if (!opt)
-		return -EINVAL;
-
 	err = nla_parse_nested(tb, TCA_FQ_PIE_MAX, opt, fq_pie_policy, extack);
 	if (err < 0)
 		return err;

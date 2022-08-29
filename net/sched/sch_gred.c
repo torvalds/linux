@@ -648,9 +648,6 @@ static int gred_change(struct Qdisc *sch, struct nlattr *opt,
 	u32 max_P;
 	struct gred_sched_data *prealloc;
 
-	if (opt == NULL)
-		return -EINVAL;
-
 	err = nla_parse_nested_deprecated(tb, TCA_GRED_MAX, opt, gred_policy,
 					  extack);
 	if (err < 0)

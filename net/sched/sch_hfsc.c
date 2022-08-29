@@ -1430,7 +1430,7 @@ hfsc_change_qdisc(struct Qdisc *sch, struct nlattr *opt,
 	struct hfsc_sched *q = qdisc_priv(sch);
 	struct tc_hfsc_qopt *qopt;
 
-	if (opt == NULL || nla_len(opt) < sizeof(*qopt))
+	if (nla_len(opt) < sizeof(*qopt))
 		return -EINVAL;
 	qopt = nla_data(opt);
 
