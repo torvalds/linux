@@ -313,7 +313,7 @@ bool xen_is_grant_dma_device(struct device *dev)
 
 bool xen_virtio_mem_acc(struct virtio_device *dev)
 {
-	if (IS_ENABLED(CONFIG_XEN_VIRTIO_FORCE_GRANT))
+	if (IS_ENABLED(CONFIG_XEN_VIRTIO_FORCE_GRANT) || xen_pv_domain())
 		return true;
 
 	return xen_is_grant_dma_device(dev->dev.parent);
@@ -385,6 +385,16 @@ void xen_grant_setup_dma_ops(struct device *dev)
 err:
 	devm_kfree(dev, data);
 	dev_err(dev, "Cannot set up Xen grant DMA ops, retain platform DMA ops\n");
+}
+
+bool xen_virtio_restricted_mem_acc(struct virtio_device *dev)
+{
+	bool ret = xen_virtio_mem_acc(dev);
+
+	if (ret)
+		xen_grant_setup_dma_ops(dev->dev.parent);
+
+	return ret;
 }
 
 MODULE_DESCRIPTION("Xen grant DMA-mapping layer");
