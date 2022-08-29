@@ -610,6 +610,7 @@ static void sun4i_tv_unbind(struct device *dev, struct device *master,
 	drm_connector_cleanup(&tv->connector);
 	drm_encoder_cleanup(&tv->encoder);
 	clk_disable_unprepare(tv->clk);
+	reset_control_assert(tv->reset);
 }
 
 static const struct component_ops sun4i_tv_ops = {
