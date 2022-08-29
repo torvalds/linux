@@ -30,6 +30,13 @@
 #define GET_SF_RESV_SIZE(sf) \
 	sizeof((sf).uc.uc_mcontext.__reserved)
 
+#define GET_BUF_RESV_HEAD(buf) \
+	(struct _aarch64_ctx *)(&(buf).uc.uc_mcontext.__reserved)
+
+#define GET_BUF_RESV_SIZE(buf) \
+	(sizeof(buf) - sizeof(buf.uc) +	\
+	 sizeof((buf).uc.uc_mcontext.__reserved))
+
 #define GET_UCP_RESV_SIZE(ucp) \
 	sizeof((ucp)->uc_mcontext.__reserved)
 
