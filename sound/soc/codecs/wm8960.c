@@ -940,15 +940,15 @@ static int wm8960_hw_params(struct snd_pcm_substream *substream,
 			snd_soc_component_write(component, WM8960_BYPASS1, 0x00);
 			snd_soc_component_write(component, WM8960_BYPASS2, 0x00);
 			snd_soc_component_update_bits(component, WM8960_ADDCTL4, 0x73, 0);
-		} else {
+
 			if (params_channels(params) == 1)
-				snd_soc_component_write(component, WM8960_LOUT1, 0x100);
-			else {
-				if (snd_soc_component_read(component, WM8960_LOUT1) & 0x7f)
-					snd_soc_component_update_bits(component, WM8960_LOUT1, 0x100, 0x100);
-				else
-					snd_soc_component_write(component, WM8960_LOUT1, 0x170);
-			}
+				wm8960->lrclk /= 2;
+		} else {
+			if (params_channels(params) == 1) {
+				snd_soc_component_update_bits(component, WM8960_ADDCTL1, 0x10, 0x10);
+				wm8960->lrclk /= 2;
+			} else
+				snd_soc_component_update_bits(component, WM8960_ADDCTL1, 0x10, 0);
 		}
 	}
 

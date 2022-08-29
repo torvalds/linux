@@ -252,10 +252,11 @@ static int dw_i2s_hw_params(struct snd_pcm_substream *substream,
 
 	dai_link->stop_dma_first = 1;
 	config->chan_nr = params_channels(params);
+	config->sample_rate = params_rate(params);
 
 	switch (params_format(params)) {
 	case SNDRV_PCM_FORMAT_S16_LE:
-		if (params_rate(params) == 8000) {
+		if (config->sample_rate == 8000) {
 			dev_err(dev->dev, "I2S: unsupported 8000 rate with S16_LE, Stereo.\n");
 			return -EINVAL;
 		}
@@ -276,25 +277,18 @@ static int dw_i2s_hw_params(struct snd_pcm_substream *substream,
 		break;
 
 	case SNDRV_PCM_FORMAT_S32_LE:
-		if (config->chan_nr == 1) {
-			if (txrx == SNDRV_PCM_STREAM_PLAYBACK)
-				dev->play_dma_data.dt.addr_width = DMA_SLAVE_BUSWIDTH_2_BYTES;
-			else
-				dev->capture_dma_data.dt.addr_width = DMA_SLAVE_BUSWIDTH_2_BYTES;
-
-			config->data_width = 16;
-			dev->ccr = 0x00;
-			dev->xfer_resolution = 0x02;
-		} else if (config->chan_nr == 2) {
-			if (txrx == SNDRV_PCM_STREAM_PLAYBACK)
-				dev->play_dma_data.dt.addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
-			else
-				dev->capture_dma_data.dt.addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
-
-			config->data_width = 32;
-			dev->ccr = 0x10;
-			dev->xfer_resolution = 0x05;
+		if ((config->sample_rate == 16000) && (config->chan_nr == 1)) {
+			dev_err(dev->dev, "I2S: unsupported 16000 rate with S32_LE, Mono.\n");
+			return -EINVAL;
 		}
+		if (txrx == SNDRV_PCM_STREAM_PLAYBACK)
+			dev->play_dma_data.dt.addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
+		else
+			dev->capture_dma_data.dt.addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
+
+		config->data_width = 32;
+		dev->ccr = 0x10;
+		dev->xfer_resolution = 0x05;
 		break;
 
 	default:
@@ -368,8 +362,6 @@ static int dw_i2s_hw_params(struct snd_pcm_substream *substream,
 	dw_i2s_config(dev, substream->stream);
 
 	i2s_write_reg(dev->i2s_base, CCR, dev->ccr);
-
-	config->sample_rate = params_rate(params);
 
 	if (dev->capability & DW_I2S_MASTER) {
 		if (dev->i2s_clk_cfg) {
