@@ -12,7 +12,8 @@
 
 bool mlx5dr_domain_is_support_ptrn_arg(struct mlx5dr_domain *dmn)
 {
-	return false;
+	return dmn->info.caps.sw_format_ver >= MLX5_STEERING_FORMAT_CONNECTX_6DX &&
+	       dmn->info.caps.support_modify_argument;
 }
 
 static int dr_domain_init_modify_header_resources(struct mlx5dr_domain *dmn)
