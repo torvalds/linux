@@ -595,7 +595,7 @@ void i915_disable_pipestat(struct drm_i915_private *dev_priv,
 
 static bool i915_has_asle(struct drm_i915_private *dev_priv)
 {
-	if (!dev_priv->opregion.asle)
+	if (!dev_priv->display.opregion.asle)
 		return false;
 
 	return IS_PINEVIEW(dev_priv) || IS_MOBILE(dev_priv);

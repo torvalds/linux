@@ -16,6 +16,7 @@
 #include "intel_dpll_mgr.h"
 #include "intel_global_state.h"
 #include "intel_gmbus.h"
+#include "intel_opregion.h"
 #include "intel_pm_types.h"
 
 struct drm_i915_private;
@@ -284,6 +285,7 @@ struct intel_display {
 	struct intel_dmc dmc;
 	struct intel_dpll dpll;
 	struct intel_hotplug hotplug;
+	struct intel_opregion opregion;
 	struct intel_overlay *overlay;
 	struct intel_wm wm;
 };
