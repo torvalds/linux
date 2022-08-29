@@ -1782,6 +1782,7 @@ static int shmem_swapin_folio(struct inode *inode, pgoff_t index,
 
 	if (shmem_should_replace_folio(folio, gfp)) {
 		error = shmem_replace_page(&page, gfp, info, index);
+		folio = page_folio(page);
 		if (error)
 			goto failed;
 	}

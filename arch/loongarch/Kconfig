@@ -111,6 +111,7 @@ config LOONGARCH
 	select PCI_ECAM if ACPI
 	select PCI_LOONGSON
 	select PCI_MSI_ARCH_FALLBACKS
+	select PCI_QUIRKS
 	select PERF_USE_VMALLOC
 	select RTC_LIB
 	select SMP

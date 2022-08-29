@@ -4,6 +4,7 @@
 #define __ASM_GENERIC_BITOPS_GENERIC_NON_ATOMIC_H
 
 #include <linux/bits.h>
+#include <asm/barrier.h>
 
 #ifndef _LINUX_BITOPS_H
 #error only <linux/bitops.h> can be included directly
@@ -127,6 +128,18 @@ generic_test_bit(unsigned long nr, const volatile unsigned long *addr)
 	return 1UL & (addr[BIT_WORD(nr)] >> (nr & (BITS_PER_LONG-1)));
 }
 
+/**
+ * generic_test_bit_acquire - Determine, with acquire semantics, whether a bit is set
+ * @nr: bit number to test
+ * @addr: Address to start counting from
+ */
+static __always_inline bool
+generic_test_bit_acquire(unsigned long nr, const volatile unsigned long *addr)
+{
+	unsigned long *p = ((unsigned long *)addr) + BIT_WORD(nr);
+	return 1UL & (smp_load_acquire(p) >> (nr & (BITS_PER_LONG-1)));
+}
+
 /*
  * const_*() definitions provide good compile-time optimizations when
  * the passed arguments can be resolved at compile time.
@@ -137,6 +150,7 @@ generic_test_bit(unsigned long nr, const volatile unsigned long *addr)
 #define const___test_and_set_bit	generic___test_and_set_bit
 #define const___test_and_clear_bit	generic___test_and_clear_bit
 #define const___test_and_change_bit	generic___test_and_change_bit
+#define const_test_bit_acquire		generic_test_bit_acquire
 
 /**
  * const_test_bit - Determine whether a bit is set

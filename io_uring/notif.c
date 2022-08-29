@@ -73,7 +73,7 @@ struct io_kiocb *io_alloc_notif(struct io_ring_ctx *ctx,
 }
 
 void io_notif_slot_flush(struct io_notif_slot *slot)
-	__must_hold(&ctx->uring_lock)
+	__must_hold(&slot->notif->ctx->uring_lock)
 {
 	struct io_kiocb *notif = slot->notif;
 	struct io_notif_data *nd = io_notif_to_data(notif);
@@ -81,8 +81,10 @@ void io_notif_slot_flush(struct io_notif_slot *slot)
 	slot->notif = NULL;
 
 	/* drop slot's master ref */
-	if (refcount_dec_and_test(&nd->uarg.refcnt))
-		io_notif_complete(notif);
+	if (refcount_dec_and_test(&nd->uarg.refcnt)) {
+		notif->io_task_work.func = __io_notif_complete_tw;
+		io_req_task_work_add(notif);
+	}
 }
 
 __cold int io_notif_unregister(struct io_ring_ctx *ctx)

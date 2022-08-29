@@ -557,6 +557,8 @@ struct smb_version_values {
 
 #define HEADER_SIZE(server) (server->vals->header_size)
 #define MAX_HEADER_SIZE(server) (server->vals->max_header_size)
+#define HEADER_PREAMBLE_SIZE(server) (server->vals->header_preamble_size)
+#define MID_HEADER_SIZE(server) (HEADER_SIZE(server) - 1 - HEADER_PREAMBLE_SIZE(server))
 
 /**
  * CIFS superblock mount flags (mnt_cifs_flags) to consider when
@@ -749,6 +751,11 @@ struct TCP_Server_Info {
 	char *origin_fullpath, *leaf_fullpath, *current_fullpath;
 #endif
 };
+
+static inline bool is_smb1(struct TCP_Server_Info *server)
+{
+	return HEADER_PREAMBLE_SIZE(server) != 0;
+}
 
 static inline void cifs_server_lock(struct TCP_Server_Info *server)
 {

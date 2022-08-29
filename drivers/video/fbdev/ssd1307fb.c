@@ -450,7 +450,7 @@ static int ssd1307fb_init(struct ssd1307fb_par *par)
 	if (ret < 0)
 		return ret;
 
-	/* Set Set Area Color Mode ON/OFF & Low Power Display Mode */
+	/* Set Area Color Mode ON/OFF & Low Power Display Mode */
 	if (par->area_color_enable || par->low_power) {
 		u32 mode;
 
