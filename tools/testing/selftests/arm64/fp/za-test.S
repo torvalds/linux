@@ -287,12 +287,7 @@ _start:
 	subs	x21, x21, #1
 	b.ne	0b
 
-	and	x8, x22, #127		// Every 128 interations...
-	cbz	x8, 0f
-	mov	x8, #__NR_getpid	// (otherwise minimal syscall)
-	b	1f
-0:
-	mov	x8, #__NR_sched_yield	// ...encourage preemption
+	mov	x8, #__NR_sched_yield	// encourage preemption
 1:
 	svc	#0
 
