@@ -28,7 +28,7 @@
 		enable-gpios = <&gpio4 28 GPIO_ACTIVE_HIGH>;
 	};
 
-	backlight_led: backlight_led {
+	backlight_led: backlight-led {
 		compatible = "pwm-backlight";
 		pwms = <&pwm3 0 5000000 0>;
 		brightness-levels = <0 16 64 255>;

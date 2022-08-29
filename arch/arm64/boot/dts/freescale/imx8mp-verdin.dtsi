@@ -628,7 +628,7 @@
 		interrupts = <5 IRQ_TYPE_EDGE_FALLING>;
 		reg = <0x4a>;
 		/* Verdin GPIO_2 (SODIMM 208) */
-		reset-gpios = <&gpio1 1 GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&gpio1 1 GPIO_ACTIVE_LOW>;
 		status = "disabled";
 	};
 };
@@ -705,7 +705,7 @@
 		pinctrl-0 = <&pinctrl_gpio_9_dsi>, <&pinctrl_i2s_2_bclk_touch_reset>;
 		reg = <0x4a>;
 		/* Verdin I2S_2_BCLK (TOUCH_RESET#, SODIMM 42) */
-		reset-gpios = <&gpio5 0 GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&gpio5 0 GPIO_ACTIVE_LOW>;
 		status = "disabled";
 	};
 
