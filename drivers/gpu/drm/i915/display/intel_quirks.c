@@ -11,7 +11,7 @@
 
 static void intel_set_quirk(struct drm_i915_private *i915, enum intel_quirk_id quirk)
 {
-	i915->quirks |= BIT(quirk);
+	i915->display.quirks.mask |= BIT(quirk);
 }
 
 /*
@@ -224,5 +224,5 @@ void intel_init_quirks(struct drm_i915_private *i915)
 
 bool intel_has_quirk(struct drm_i915_private *i915, enum intel_quirk_id quirk)
 {
-	return i915->quirks & BIT(quirk);
+	return i915->display.quirks.mask & BIT(quirk);
 }

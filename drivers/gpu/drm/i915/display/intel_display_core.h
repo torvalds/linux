@@ -366,6 +366,10 @@ struct intel_display {
 	} pps;
 
 	struct {
+		unsigned long mask;
+	} quirks;
+
+	struct {
 		enum {
 			I915_SAGV_UNKNOWN = 0,
 			I915_SAGV_DISABLED,

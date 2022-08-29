@@ -291,7 +291,6 @@ struct drm_i915_private {
 	unsigned short pch_id;
 
 	unsigned long gem_quirks;
-	unsigned long quirks;
 
 	struct drm_atomic_state *modeset_restore_state;
 	struct drm_modeset_acquire_ctx reset_ctx;
