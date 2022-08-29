@@ -10,17 +10,15 @@ static int stf_dvp_clk_enable(struct stf_dvp_dev *dvp_dev)
 
 	switch (dvp_dev->s_type) {
 	case SENSOR_VIN:
+		reset_control_deassert(stfcamss->sys_rst[STFRST_AXIWR].rstc);
 		clk_set_phase(stfcamss->sys_clk[STFCLK_DVP_INV].clk, 0);
 		clk_set_parent(stfcamss->sys_clk[STFCLK_AXIWR].clk,
 			stfcamss->sys_clk[STFCLK_DVP_INV].clk);
-		reset_control_deassert(stfcamss->sys_rst[STFRST_AXIWR].rstc);
 		break;
 	case SENSOR_ISP:
 		clk_set_phase(stfcamss->sys_clk[STFCLK_DVP_INV].clk, 0);
 		clk_set_parent(stfcamss->sys_clk[STFCLK_WRAPPER_CLK_C].clk,
 			stfcamss->sys_clk[STFCLK_DVP_INV].clk);
-		break;
-	default:
 		break;
 	}
 
@@ -31,8 +29,17 @@ static int stf_dvp_clk_disable(struct stf_dvp_dev *dvp_dev)
 {
 	struct stfcamss *stfcamss = dvp_dev->stfcamss;
 
-	if (dvp_dev->s_type == SENSOR_VIN)
+	switch (dvp_dev->s_type) {
+	case SENSOR_VIN:
+		clk_set_parent(stfcamss->sys_clk[STFCLK_AXIWR].clk,
+			stfcamss->sys_clk[STFCLK_MIPI_RX0_PXL].clk);
 		reset_control_assert(stfcamss->sys_rst[STFRST_AXIWR].rstc);
+		break;
+	case SENSOR_ISP:
+		clk_set_parent(stfcamss->sys_clk[STFCLK_WRAPPER_CLK_C].clk,
+			stfcamss->sys_clk[STFCLK_MIPI_RX0_PXL].clk);
+		break;
+	}
 
 	return 0;
 }
@@ -139,7 +146,6 @@ static int stf_dvp_set_format(struct stf_dvp_dev *dvp_dev,
 
 static int stf_dvp_stream_set(struct stf_dvp_dev *dvp_dev, int on)
 {
-	struct stfcamss *stfcamss = dvp_dev->stfcamss;
 	struct stf_vin_dev *vin = dvp_dev->stfcamss->vin;
 
 	switch (dvp_dev->s_type) {
@@ -164,8 +170,6 @@ static int stf_dvp_stream_set(struct stf_dvp_dev *dvp_dev, int on)
 		reg_set_bit(vin->sysctrl_base, SYSCONSAIF_SYSCFG_36,
 			U0_VIN_CNFG_GEN_EN_AXIRD,
 			0);
-		break;
-	default:
 		break;
 	}
 

@@ -85,8 +85,18 @@ static int stf_csi_clk_enable(struct stf_csi_dev *csi_dev)
 	reset_control_deassert(stfcamss->sys_rst[STFRST_PIXEL_CLK_IF1].rstc);
 	reset_control_deassert(stfcamss->sys_rst[STFRST_PIXEL_CLK_IF2].rstc);
 	reset_control_deassert(stfcamss->sys_rst[STFRST_PIXEL_CLK_IF3].rstc);
-	reset_control_deassert(stfcamss->sys_rst[STFRST_AXIRD].rstc);
-	reset_control_deassert(stfcamss->sys_rst[STFRST_AXIWR].rstc);
+
+	switch (csi_dev->s_type) {
+	case SENSOR_VIN:
+		reset_control_deassert(stfcamss->sys_rst[STFRST_AXIWR].rstc);
+		clk_set_parent(stfcamss->sys_clk[STFCLK_AXIWR].clk,
+			stfcamss->sys_clk[STFCLK_MIPI_RX0_PXL].clk);
+		break;
+	case SENSOR_ISP:
+		clk_set_parent(stfcamss->sys_clk[STFCLK_WRAPPER_CLK_C].clk,
+			stfcamss->sys_clk[STFCLK_MIPI_RX0_PXL].clk);
+		break;
+	}
 
 	return 0;
 }
@@ -95,17 +105,23 @@ static int stf_csi_clk_disable(struct stf_csi_dev *csi_dev)
 {
 	struct stfcamss *stfcamss = csi_dev->stfcamss;
 
-	reset_control_assert(stfcamss->sys_rst[STFRST_AXIWR].rstc);
-	reset_control_assert(stfcamss->sys_rst[STFRST_AXIRD].rstc);
+	switch (csi_dev->s_type) {
+	case SENSOR_VIN:
+		reset_control_assert(stfcamss->sys_rst[STFRST_AXIWR].rstc);
+		break;
+	case SENSOR_ISP:
+		break;
+	}
+
 	reset_control_assert(stfcamss->sys_rst[STFRST_PIXEL_CLK_IF3].rstc);
 	reset_control_assert(stfcamss->sys_rst[STFRST_PIXEL_CLK_IF2].rstc);
 	reset_control_assert(stfcamss->sys_rst[STFRST_PIXEL_CLK_IF1].rstc);
 	reset_control_assert(stfcamss->sys_rst[STFRST_PIXEL_CLK_IF0].rstc);
 
-	clk_disable_unprepare(stfcamss->sys_clk[STFCLK_PIXEL_CLK_IF0].clk);
-	clk_disable_unprepare(stfcamss->sys_clk[STFCLK_PIXEL_CLK_IF1].clk);
-	clk_disable_unprepare(stfcamss->sys_clk[STFCLK_PIXEL_CLK_IF2].clk);
 	clk_disable_unprepare(stfcamss->sys_clk[STFCLK_PIXEL_CLK_IF3].clk);
+	clk_disable_unprepare(stfcamss->sys_clk[STFCLK_PIXEL_CLK_IF2].clk);
+	clk_disable_unprepare(stfcamss->sys_clk[STFCLK_PIXEL_CLK_IF1].clk);
+	clk_disable_unprepare(stfcamss->sys_clk[STFCLK_PIXEL_CLK_IF0].clk);
 
 	return 0;
 }
@@ -214,15 +230,11 @@ static void csi2rx_stop(struct stf_csi_dev *csi_dev, void *reg_base)
 static int stf_csi_stream_set(struct stf_csi_dev *csi_dev,
 					int on, u32 dt, u32 width)
 {
-	struct stfcamss *stfcamss = csi_dev->stfcamss;
 	struct stf_vin_dev *vin = csi_dev->stfcamss->vin;
 	void __iomem *reg_base = vin->csi2rx_base;
 
 	switch (csi_dev->s_type) {
 	case SENSOR_VIN:
-		clk_set_parent(stfcamss->sys_clk[STFCLK_AXIWR].clk,
-			stfcamss->sys_clk[STFCLK_MIPI_RX0_PXL].clk);
-
 		reg_set_bit(vin->sysctrl_base, SYSCONSAIF_SYSCFG_20,
 			BIT(3)|BIT(2)|BIT(1)|BIT(0),
 			0<<0);		//u0_vin_cnfg_axiwr0_channel_sel
@@ -237,9 +249,6 @@ static int stf_csi_stream_set(struct stf_csi_dev *csi_dev,
 			(width / 4 - 1)<<2);	//u0_vin_cnfg_axiwr0_pix_cnt_end
 		break;
 	case SENSOR_ISP:
-		clk_set_parent(stfcamss->sys_clk[STFCLK_WRAPPER_CLK_C].clk,
-			stfcamss->sys_clk[STFCLK_MIPI_RX0_PXL].clk);
-
 		reg_set_bit(vin->sysctrl_base,	SYSCONSAIF_SYSCFG_36,
 			BIT(7)|BIT(6),
 			0<<6);		//u0_vin_cnfg_mipi_byte_en_isp
@@ -254,8 +263,6 @@ static int stf_csi_stream_set(struct stf_csi_dev *csi_dev,
 			reg_set_bit(vin->sysctrl_base,	SYSCONSAIF_SYSCFG_36,
 				BIT(12),
 				1<<12);		//u0_vin_cnfg_p_i_mipi_header_en0
-		break;
-	default:
 		break;
 	}
 
