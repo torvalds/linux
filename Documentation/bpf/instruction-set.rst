@@ -133,7 +133,7 @@ code field of ``BPF_END``.
 The byte swap instructions operate on the destination register
 only and do not use a separate source register or immediate value.
 
-The 1-bit source operand field in the opcode is used to to select what byte
+The 1-bit source operand field in the opcode is used to select what byte
 order the operation convert from or to:
 
   =========  =====  =================================================
