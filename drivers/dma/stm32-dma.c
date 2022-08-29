@@ -32,8 +32,10 @@
 
 #define STM32_DMA_LISR			0x0000 /* DMA Low Int Status Reg */
 #define STM32_DMA_HISR			0x0004 /* DMA High Int Status Reg */
+#define STM32_DMA_ISR(n)		(((n) & 4) ? STM32_DMA_HISR : STM32_DMA_LISR)
 #define STM32_DMA_LIFCR			0x0008 /* DMA Low Int Flag Clear Reg */
 #define STM32_DMA_HIFCR			0x000c /* DMA High Int Flag Clear Reg */
+#define STM32_DMA_IFCR(n)		(((n) & 4) ? STM32_DMA_HIFCR : STM32_DMA_LIFCR)
 #define STM32_DMA_TCI			BIT(5) /* Transfer Complete Interrupt */
 #define STM32_DMA_HTI			BIT(4) /* Half Transfer Interrupt */
 #define STM32_DMA_TEI			BIT(3) /* Transfer Error Interrupt */
@@ -43,6 +45,12 @@
 					 | STM32_DMA_TEI \
 					 | STM32_DMA_DMEI \
 					 | STM32_DMA_FEI)
+/*
+ * If (chan->id % 4) is 2 or 3, left shift the mask by 16 bits;
+ * if (ch % 4) is 1 or 3, additionally left shift the mask by 6 bits.
+ */
+#define STM32_DMA_FLAGS_SHIFT(n)	({ typeof(n) (_n) = (n); \
+					   (((_n) & 2) << 3) | (((_n) & 1) * 6); })
 
 /* DMA Stream x Configuration Register */
 #define STM32_DMA_SCR(x)		(0x0010 + 0x18 * (x)) /* x = 0..7 */
@@ -401,17 +409,10 @@ static u32 stm32_dma_irq_status(struct stm32_dma_chan *chan)
 	/*
 	 * Read "flags" from DMA_xISR register corresponding to the selected
 	 * DMA channel at the correct bit offset inside that register.
-	 *
-	 * If (ch % 4) is 2 or 3, left shift the mask by 16 bits.
-	 * If (ch % 4) is 1 or 3, additionally left shift the mask by 6 bits.
 	 */
 
-	if (chan->id & 4)
-		dma_isr = stm32_dma_read(dmadev, STM32_DMA_HISR);
-	else
-		dma_isr = stm32_dma_read(dmadev, STM32_DMA_LISR);
-
-	flags = dma_isr >> (((chan->id & 2) << 3) | ((chan->id & 1) * 6));
+	dma_isr = stm32_dma_read(dmadev, STM32_DMA_ISR(chan->id));
+	flags = dma_isr >> STM32_DMA_FLAGS_SHIFT(chan->id);
 
 	return flags & STM32_DMA_MASKI;
 }
@@ -424,17 +425,11 @@ static void stm32_dma_irq_clear(struct stm32_dma_chan *chan, u32 flags)
 	/*
 	 * Write "flags" to the DMA_xIFCR register corresponding to the selected
 	 * DMA channel at the correct bit offset inside that register.
-	 *
-	 * If (ch % 4) is 2 or 3, left shift the mask by 16 bits.
-	 * If (ch % 4) is 1 or 3, additionally left shift the mask by 6 bits.
 	 */
 	flags &= STM32_DMA_MASKI;
-	dma_ifcr = flags << (((chan->id & 2) << 3) | ((chan->id & 1) * 6));
+	dma_ifcr = flags << STM32_DMA_FLAGS_SHIFT(chan->id);
 
-	if (chan->id & 4)
-		stm32_dma_write(dmadev, STM32_DMA_HIFCR, dma_ifcr);
-	else
-		stm32_dma_write(dmadev, STM32_DMA_LIFCR, dma_ifcr);
+	stm32_dma_write(dmadev, STM32_DMA_IFCR(chan->id), dma_ifcr);
 }
 
 static int stm32_dma_disable_chan(struct stm32_dma_chan *chan)
