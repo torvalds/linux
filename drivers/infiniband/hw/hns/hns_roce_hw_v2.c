@@ -637,7 +637,7 @@ static inline void update_sq_db(struct hns_roce_dev *hr_dev,
 	} else {
 		struct hns_roce_v2_db sq_db = {};
 
-		hr_reg_write(&sq_db, DB_TAG, qp->doorbell_qpn);
+		hr_reg_write(&sq_db, DB_TAG, qp->qpn);
 		hr_reg_write(&sq_db, DB_CMD, HNS_ROCE_V2_SQ_DB);
 		hr_reg_write(&sq_db, DB_PI, qp->sq.head);
 		hr_reg_write(&sq_db, DB_SL, qp->sl);
