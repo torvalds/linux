@@ -277,7 +277,8 @@ int vfio_pci_set_power_state(struct vfio_pci_core_device *vdev, pci_power_t stat
 	return ret;
 }
 
-static int vfio_pci_runtime_pm_entry(struct vfio_pci_core_device *vdev)
+static int vfio_pci_runtime_pm_entry(struct vfio_pci_core_device *vdev,
+				     struct eventfd_ctx *efdctx)
 {
 	/*
 	 * The vdev power related flags are protected with 'memory_lock'
@@ -290,6 +291,7 @@ static int vfio_pci_runtime_pm_entry(struct vfio_pci_core_device *vdev)
 	}
 
 	vdev->pm_runtime_engaged = true;
+	vdev->pm_wake_eventfd_ctx = efdctx;
 	pm_runtime_put_noidle(&vdev->pdev->dev);
 	up_write(&vdev->memory_lock);
 
@@ -313,7 +315,40 @@ static int vfio_pci_core_pm_entry(struct vfio_device *device, u32 flags,
 	 * while returning from the ioctl and then the device can go into
 	 * runtime suspended state.
 	 */
-	return vfio_pci_runtime_pm_entry(vdev);
+	return vfio_pci_runtime_pm_entry(vdev, NULL);
+}
+
+static int vfio_pci_core_pm_entry_with_wakeup(
+	struct vfio_device *device, u32 flags,
+	struct vfio_device_low_power_entry_with_wakeup __user *arg,
+	size_t argsz)
+{
+	struct vfio_pci_core_device *vdev =
+		container_of(device, struct vfio_pci_core_device, vdev);
+	struct vfio_device_low_power_entry_with_wakeup entry;
+	struct eventfd_ctx *efdctx;
+	int ret;
+
+	ret = vfio_check_feature(flags, argsz, VFIO_DEVICE_FEATURE_SET,
+				 sizeof(entry));
+	if (ret != 1)
+		return ret;
+
+	if (copy_from_user(&entry, arg, sizeof(entry)))
+		return -EFAULT;
+
+	if (entry.wakeup_eventfd < 0)
+		return -EINVAL;
+
+	efdctx = eventfd_ctx_fdget(entry.wakeup_eventfd);
+	if (IS_ERR(efdctx))
+		return PTR_ERR(efdctx);
+
+	ret = vfio_pci_runtime_pm_entry(vdev, efdctx);
+	if (ret)
+		eventfd_ctx_put(efdctx);
+
+	return ret;
 }
 
 static void __vfio_pci_runtime_pm_exit(struct vfio_pci_core_device *vdev)
@@ -321,6 +356,11 @@ static void __vfio_pci_runtime_pm_exit(struct vfio_pci_core_device *vdev)
 	if (vdev->pm_runtime_engaged) {
 		vdev->pm_runtime_engaged = false;
 		pm_runtime_get_noresume(&vdev->pdev->dev);
+
+		if (vdev->pm_wake_eventfd_ctx) {
+			eventfd_ctx_put(vdev->pm_wake_eventfd_ctx);
+			vdev->pm_wake_eventfd_ctx = NULL;
+		}
 	}
 }
 
@@ -348,7 +388,10 @@ static int vfio_pci_core_pm_exit(struct vfio_device *device, u32 flags,
 
 	/*
 	 * The device is always in the active state here due to pm wrappers
-	 * around ioctls.
+	 * around ioctls. If the device had entered a low power state and
+	 * pm_wake_eventfd_ctx is valid, vfio_pci_core_runtime_resume() has
+	 * already signaled the eventfd and exited low power mode itself.
+	 * pm_runtime_engaged protects the redundant call here.
 	 */
 	vfio_pci_runtime_pm_exit(vdev);
 	return 0;
@@ -387,6 +430,17 @@ static int vfio_pci_core_runtime_suspend(struct device *dev)
 static int vfio_pci_core_runtime_resume(struct device *dev)
 {
 	struct vfio_pci_core_device *vdev = dev_get_drvdata(dev);
+
+	/*
+	 * Resume with a pm_wake_eventfd_ctx signals the eventfd and exit
+	 * low power mode.
+	 */
+	down_write(&vdev->memory_lock);
+	if (vdev->pm_wake_eventfd_ctx) {
+		eventfd_signal(vdev->pm_wake_eventfd_ctx, 1);
+		__vfio_pci_runtime_pm_exit(vdev);
+	}
+	up_write(&vdev->memory_lock);
 
 	if (vdev->pm_intx_masked)
 		vfio_pci_intx_unmask(vdev);
@@ -1376,6 +1430,9 @@ int vfio_pci_core_ioctl_feature(struct vfio_device *device, u32 flags,
 	switch (flags & VFIO_DEVICE_FEATURE_MASK) {
 	case VFIO_DEVICE_FEATURE_LOW_POWER_ENTRY:
 		return vfio_pci_core_pm_entry(device, flags, arg, argsz);
+	case VFIO_DEVICE_FEATURE_LOW_POWER_ENTRY_WITH_WAKEUP:
+		return vfio_pci_core_pm_entry_with_wakeup(device, flags,
+							  arg, argsz);
 	case VFIO_DEVICE_FEATURE_LOW_POWER_EXIT:
 		return vfio_pci_core_pm_exit(device, flags, arg, argsz);
 	case VFIO_DEVICE_FEATURE_PCI_VF_TOKEN:
