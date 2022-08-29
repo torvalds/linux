@@ -693,6 +693,49 @@ int mlx5dr_cmd_query_gid(struct mlx5_core_dev *mdev, u8 vhca_port_num,
 	return 0;
 }
 
+int mlx5dr_cmd_create_modify_header_arg(struct mlx5_core_dev *dev,
+					u16 log_obj_range, u32 pd,
+					u32 *obj_id)
+{
+	u32 in[MLX5_ST_SZ_DW(create_modify_header_arg_in)] = {};
+	u32 out[MLX5_ST_SZ_DW(general_obj_out_cmd_hdr)] = {};
+	void *attr;
+	int ret;
+
+	attr = MLX5_ADDR_OF(create_modify_header_arg_in, in, hdr);
+	MLX5_SET(general_obj_in_cmd_hdr, attr, opcode,
+		 MLX5_CMD_OP_CREATE_GENERAL_OBJECT);
+	MLX5_SET(general_obj_in_cmd_hdr, attr, obj_type,
+		 MLX5_OBJ_TYPE_HEADER_MODIFY_ARGUMENT);
+	MLX5_SET(general_obj_in_cmd_hdr, attr,
+		 op_param.create.log_obj_range, log_obj_range);
+
+	attr = MLX5_ADDR_OF(create_modify_header_arg_in, in, arg);
+	MLX5_SET(modify_header_arg, attr, access_pd, pd);
+
+	ret = mlx5_cmd_exec(dev, in, sizeof(in), out, sizeof(out));
+	if (ret)
+		return ret;
+
+	*obj_id = MLX5_GET(general_obj_out_cmd_hdr, out, obj_id);
+	return 0;
+}
+
+void mlx5dr_cmd_destroy_modify_header_arg(struct mlx5_core_dev *dev,
+					  u32 obj_id)
+{
+	u32 out[MLX5_ST_SZ_DW(general_obj_out_cmd_hdr)] = {};
+	u32 in[MLX5_ST_SZ_DW(general_obj_in_cmd_hdr)] = {};
+
+	MLX5_SET(general_obj_in_cmd_hdr, in, opcode,
+		 MLX5_CMD_OP_DESTROY_GENERAL_OBJECT);
+	MLX5_SET(general_obj_in_cmd_hdr, in, obj_type,
+		 MLX5_OBJ_TYPE_HEADER_MODIFY_ARGUMENT);
+	MLX5_SET(general_obj_in_cmd_hdr, in, obj_id, obj_id);
+
+	mlx5_cmd_exec(dev, in, sizeof(in), out, sizeof(out));
+}
+
 static int mlx5dr_cmd_set_extended_dest(struct mlx5_core_dev *dev,
 					struct mlx5dr_cmd_fte_info *fte,
 					bool *extended_dest)

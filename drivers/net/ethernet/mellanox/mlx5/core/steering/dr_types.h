@@ -1357,6 +1357,12 @@ struct mlx5dr_cmd_gid_attr {
 int mlx5dr_cmd_query_gid(struct mlx5_core_dev *mdev, u8 vhca_port_num,
 			 u16 index, struct mlx5dr_cmd_gid_attr *attr);
 
+int mlx5dr_cmd_create_modify_header_arg(struct mlx5_core_dev *dev,
+					u16 log_obj_range, u32 pd,
+					u32 *obj_id);
+void mlx5dr_cmd_destroy_modify_header_arg(struct mlx5_core_dev *dev,
+					  u32 obj_id);
+
 struct mlx5dr_icm_pool *mlx5dr_icm_pool_create(struct mlx5dr_domain *dmn,
 					       enum mlx5dr_icm_type icm_type);
 void mlx5dr_icm_pool_destroy(struct mlx5dr_icm_pool *pool);
