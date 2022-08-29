@@ -38,7 +38,6 @@
 
 #include "display/intel_display.h"
 #include "display/intel_display_core.h"
-#include "display/intel_display_power.h"
 #include "display/intel_dsb.h"
 #include "display/intel_frontbuffer.h"
 
@@ -360,8 +359,6 @@ struct drm_i915_private {
 	 */
 	u32 edram_size_mb;
 
-	struct i915_power_domains power_domains;
-
 	struct i915_gpu_error gpu_error;
 
 	struct drm_property *broadcast_rgb_property;
@@ -369,8 +366,6 @@ struct drm_i915_private {
 
 	u32 fdi_rx_config;
 
-	/* Shadow for DISPLAY_PHY_CONTROL which can't be safely read */
-	u32 chv_phy_control;
 	/*
 	 * Shadows for CHV DPLL_MD regs to keep the state
 	 * checker somewhat working in the presence hardware
@@ -439,16 +434,11 @@ struct drm_i915_private {
 
 	bool irq_enabled;
 
-	union {
-		/* perform PHY state sanity checks? */
-		bool chv_phy_assert[2];
-
-		/*
-		 * DG2: Mask of PHYs that were not calibrated by the firmware
-		 * and should not be used.
-		 */
-		u8 snps_phy_failed_calibration;
-	};
+	/*
+	 * DG2: Mask of PHYs that were not calibrated by the firmware
+	 * and should not be used.
+	 */
+	u8 snps_phy_failed_calibration;
 
 	bool ipc_enabled;
 

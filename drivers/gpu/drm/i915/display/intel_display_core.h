@@ -16,6 +16,7 @@
 
 #include "intel_cdclk.h"
 #include "intel_display.h"
+#include "intel_display_power.h"
 #include "intel_dmc.h"
 #include "intel_dpll_mgr.h"
 #include "intel_fbc.h"
@@ -323,6 +324,16 @@ struct intel_display {
 		/* Mutex to protect the above hdcp component related values. */
 		struct mutex comp_mutex;
 	} hdcp;
+
+	struct {
+		struct i915_power_domains domains;
+
+		/* Shadow for DISPLAY_PHY_CONTROL which can't be safely read */
+		u32 chv_phy_control;
+
+		/* perform PHY state sanity checks? */
+		bool chv_phy_assert[2];
+	} power;
 
 	struct {
 		u32 mmio_base;
