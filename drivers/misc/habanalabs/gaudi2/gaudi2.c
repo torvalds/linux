@@ -5439,7 +5439,10 @@ static void gaudi2_execute_soft_reset(struct hl_device *hdev, u32 reset_sleep_ms
 
 	if (!driver_performs_reset) {
 		/* set SP to indicate reset request sent to FW */
-		WREG32(mmCPU_RST_STATUS_TO_HOST, CPU_RST_STATUS_NA);
+		if (dyn_regs->cpu_rst_status)
+			WREG32(le32_to_cpu(dyn_regs->cpu_rst_status), CPU_RST_STATUS_NA);
+		else
+			WREG32(mmCPU_RST_STATUS_TO_HOST, CPU_RST_STATUS_NA);
 
 		WREG32(le32_to_cpu(dyn_regs->gic_host_soft_rst_irq),
 			gaudi2_irq_map_table[GAUDI2_EVENT_CPU_SOFT_RESET].cpu_id);
