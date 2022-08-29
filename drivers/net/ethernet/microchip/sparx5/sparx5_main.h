@@ -190,6 +190,7 @@ struct sparx5_port {
 	u8 ptp_cmd;
 	u16 ts_id;
 	struct sk_buff_head tx_skbs;
+	bool is_mrouter;
 };
 
 enum sparx5_core_clockfreq {
@@ -213,6 +214,15 @@ struct sparx5_skb_cb {
 	u8 pdu_w16_offset;
 	u16 ts_id;
 	unsigned long jiffies;
+};
+
+struct sparx5_mdb_entry {
+	struct list_head list;
+	DECLARE_BITMAP(port_mask, SPX5_PORTS);
+	unsigned char addr[ETH_ALEN];
+	bool cpu_copy;
+	u16 vid;
+	u16 pgid_idx;
 };
 
 #define SPARX5_PTP_TIMEOUT		msecs_to_jiffies(10)
@@ -256,6 +266,10 @@ struct sparx5 {
 	struct list_head mact_entries;
 	/* mac table list (mact_entries) mutex */
 	struct mutex mact_lock;
+	/* SW MDB table */
+	struct list_head mdb_entries;
+	/* mdb list mutex */
+	struct mutex mdb_lock;
 	struct delayed_work mact_work;
 	struct workqueue_struct *mact_queue;
 	/* Board specifics */
@@ -325,6 +339,7 @@ void sparx5_mact_init(struct sparx5 *sparx5);
 
 /* sparx5_vlan.c */
 void sparx5_pgid_update_mask(struct sparx5_port *port, int pgid, bool enable);
+void sparx5_pgid_clear(struct sparx5 *spx5, int pgid);
 void sparx5_pgid_read_mask(struct sparx5 *sparx5, int pgid, u32 portmask[3]);
 void sparx5_update_fwd(struct sparx5 *sparx5);
 void sparx5_vlan_init(struct sparx5 *sparx5);
