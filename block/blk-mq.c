@@ -1931,7 +1931,8 @@ out:
 	/* If we didn't flush the entire list, we could have told the driver
 	 * there was more coming, but that turned out to be a lie.
 	 */
-	if ((!list_empty(list) || errors) && q->mq_ops->commit_rqs && queued)
+	if ((!list_empty(list) || errors || needs_resource ||
+	     ret == BLK_STS_DEV_RESOURCE) && q->mq_ops->commit_rqs && queued)
 		q->mq_ops->commit_rqs(hctx);
 	/*
 	 * Any items that need requeuing? Stuff them into hctx->dispatch,
@@ -2228,26 +2229,6 @@ void blk_mq_delay_run_hw_queues(struct request_queue *q, unsigned long msecs)
 	}
 }
 EXPORT_SYMBOL(blk_mq_delay_run_hw_queues);
-
-/**
- * blk_mq_queue_stopped() - check whether one or more hctxs have been stopped
- * @q: request queue.
- *
- * The caller is responsible for serializing this function against
- * blk_mq_{start,stop}_hw_queue().
- */
-bool blk_mq_queue_stopped(struct request_queue *q)
-{
-	struct blk_mq_hw_ctx *hctx;
-	unsigned long i;
-
-	queue_for_each_hw_ctx(q, hctx, i)
-		if (blk_mq_hctx_stopped(hctx))
-			return true;
-
-	return false;
-}
-EXPORT_SYMBOL(blk_mq_queue_stopped);
 
 /*
  * This function is often used for pausing .queue_rq() by driver when
@@ -2570,7 +2551,7 @@ static void blk_mq_plug_issue_direct(struct blk_plug *plug, bool from_schedule)
 			break;
 		case BLK_STS_RESOURCE:
 		case BLK_STS_DEV_RESOURCE:
-			blk_mq_request_bypass_insert(rq, false, last);
+			blk_mq_request_bypass_insert(rq, false, true);
 			blk_mq_commit_rqs(hctx, &queued, from_schedule);
 			return;
 		default:
@@ -2680,6 +2661,7 @@ void blk_mq_try_issue_list_directly(struct blk_mq_hw_ctx *hctx,
 		list_del_init(&rq->queuelist);
 		ret = blk_mq_request_issue_directly(rq, list_empty(list));
 		if (ret != BLK_STS_OK) {
+			errors++;
 			if (ret == BLK_STS_RESOURCE ||
 					ret == BLK_STS_DEV_RESOURCE) {
 				blk_mq_request_bypass_insert(rq, false,
@@ -2687,7 +2669,6 @@ void blk_mq_try_issue_list_directly(struct blk_mq_hw_ctx *hctx,
 				break;
 			}
 			blk_mq_end_request(rq, ret);
-			errors++;
 		} else
 			queued++;
 	}

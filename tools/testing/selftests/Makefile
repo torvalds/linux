@@ -12,6 +12,7 @@ TARGETS += cpu-hotplug
 TARGETS += damon
 TARGETS += drivers/dma-buf
 TARGETS += drivers/s390x/uvdevice
+TARGETS += drivers/net/bonding
 TARGETS += efivarfs
 TARGETS += exec
 TARGETS += filesystems

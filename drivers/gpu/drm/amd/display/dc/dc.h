@@ -47,7 +47,7 @@ struct aux_payload;
 struct set_config_cmd_payload;
 struct dmub_notification;
 
-#define DC_VER "3.2.196"
+#define DC_VER "3.2.198"
 
 #define MAX_SURFACES 3
 #define MAX_PLANES 6
@@ -213,6 +213,7 @@ struct dc_caps {
 	uint32_t cache_num_ways;
 	uint16_t subvp_fw_processing_delay_us;
 	uint16_t subvp_prefetch_end_to_mall_start_us;
+	uint8_t subvp_swath_height_margin_lines; // subvp start line must be aligned to 2 x swath height
 	uint16_t subvp_pstate_allow_width_us;
 	uint16_t subvp_vertical_int_margin_us;
 	bool seamless_odm;
@@ -352,6 +353,7 @@ struct dc_config {
 	bool use_pipe_ctx_sync_logic;
 	bool ignore_dpref_ss;
 	bool enable_mipi_converter_optimization;
+	bool use_default_clock_table;
 };
 
 enum visual_confirm {
@@ -609,6 +611,7 @@ struct dc_bounding_box_overrides {
 	int percent_of_ideal_drambw;
 	int dram_clock_change_latency_ns;
 	int dummy_clock_change_latency_ns;
+	int fclk_clock_change_latency_ns;
 	/* This forces a hard min on the DCFCLK we use
 	 * for DML.  Unlike the debug option for forcing
 	 * DCFCLK, this override affects watermark calculations
@@ -751,6 +754,7 @@ struct dc_debug_options {
 	uint32_t mst_start_top_delay;
 	uint8_t psr_power_use_phy_fsm;
 	enum dml_hostvm_override_opts dml_hostvm_override;
+	bool dml_disallow_alternate_prefetch_modes;
 	bool use_legacy_soc_bb_mechanism;
 	bool exit_idle_opt_for_cursor_updates;
 	bool enable_single_display_2to1_odm_policy;

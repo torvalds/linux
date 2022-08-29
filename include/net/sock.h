@@ -578,6 +578,31 @@ static inline bool sk_user_data_is_nocopy(const struct sock *sk)
 #define __sk_user_data(sk) ((*((void __rcu **)&(sk)->sk_user_data)))
 
 /**
+ * __locked_read_sk_user_data_with_flags - return the pointer
+ * only if argument flags all has been set in sk_user_data. Otherwise
+ * return NULL
+ *
+ * @sk: socket
+ * @flags: flag bits
+ *
+ * The caller must be holding sk->sk_callback_lock.
+ */
+static inline void *
+__locked_read_sk_user_data_with_flags(const struct sock *sk,
+				      uintptr_t flags)
+{
+	uintptr_t sk_user_data =
+		(uintptr_t)rcu_dereference_check(__sk_user_data(sk),
+						 lockdep_is_held(&sk->sk_callback_lock));
+
+	WARN_ON_ONCE(flags & SK_USER_DATA_PTRMASK);
+
+	if ((sk_user_data & flags) == flags)
+		return (void *)(sk_user_data & SK_USER_DATA_PTRMASK);
+	return NULL;
+}
+
+/**
  * __rcu_dereference_sk_user_data_with_flags - return the pointer
  * only if argument flags all has been set in sk_user_data. Otherwise
  * return NULL

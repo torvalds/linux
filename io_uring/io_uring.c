@@ -1450,9 +1450,10 @@ int io_req_prep_async(struct io_kiocb *req)
 		return 0;
 	if (WARN_ON_ONCE(req_has_async_data(req)))
 		return -EFAULT;
-	if (io_alloc_async_data(req))
-		return -EAGAIN;
-
+	if (!io_op_defs[req->opcode].manual_alloc) {
+		if (io_alloc_async_data(req))
+			return -EAGAIN;
+	}
 	return def->prep_async(req);
 }
 

@@ -103,7 +103,6 @@ static void sd_config_discard(struct scsi_disk *, unsigned int);
 static void sd_config_write_same(struct scsi_disk *);
 static int  sd_revalidate_disk(struct gendisk *);
 static void sd_unlock_native_capacity(struct gendisk *disk);
-static void sd_start_done_work(struct work_struct *work);
 static int  sd_probe(struct device *);
 static int  sd_remove(struct device *);
 static void sd_shutdown(struct device *);
@@ -3471,7 +3470,6 @@ static int sd_probe(struct device *dev)
 	sdkp->max_retries = SD_MAX_RETRIES;
 	atomic_set(&sdkp->openers, 0);
 	atomic_set(&sdkp->device->ioerr_cnt, 0);
-	INIT_WORK(&sdkp->start_done_work, sd_start_done_work);
 
 	if (!sdp->request_queue->rq_timeout) {
 		if (sdp->type != TYPE_MOD)
@@ -3594,69 +3592,12 @@ static void scsi_disk_release(struct device *dev)
 	kfree(sdkp);
 }
 
-/* Process sense data after a START command finished. */
-static void sd_start_done_work(struct work_struct *work)
-{
-	struct scsi_disk *sdkp = container_of(work, typeof(*sdkp),
-					      start_done_work);
-	struct scsi_sense_hdr sshdr;
-	int res = sdkp->start_result;
-
-	if (res == 0)
-		return;
-
-	sd_print_result(sdkp, "Start/Stop Unit failed", res);
-
-	if (res < 0)
-		return;
-
-	if (scsi_normalize_sense(sdkp->start_sense_buffer,
-				 sdkp->start_sense_len, &sshdr))
-		sd_print_sense_hdr(sdkp, &sshdr);
-}
-
-/* A START command finished. May be called from interrupt context. */
-static void sd_start_done(struct request *req, blk_status_t status)
-{
-	const struct scsi_cmnd *scmd = blk_mq_rq_to_pdu(req);
-	struct scsi_disk *sdkp = scsi_disk(req->q->disk);
-
-	sdkp->start_result = scmd->result;
-	WARN_ON_ONCE(scmd->sense_len > SCSI_SENSE_BUFFERSIZE);
-	sdkp->start_sense_len = scmd->sense_len;
-	memcpy(sdkp->start_sense_buffer, scmd->sense_buffer,
-	       ARRAY_SIZE(sdkp->start_sense_buffer));
-	WARN_ON_ONCE(!schedule_work(&sdkp->start_done_work));
-}
-
-/* Submit a START command asynchronously. */
-static int sd_submit_start(struct scsi_disk *sdkp, u8 cmd[], u8 cmd_len)
-{
-	struct scsi_device *sdev = sdkp->device;
-	struct request_queue *q = sdev->request_queue;
-	struct request *req;
-	struct scsi_cmnd *scmd;
-
-	req = scsi_alloc_request(q, REQ_OP_DRV_IN, BLK_MQ_REQ_PM);
-	if (IS_ERR(req))
-		return PTR_ERR(req);
-
-	scmd = blk_mq_rq_to_pdu(req);
-	scmd->cmd_len = cmd_len;
-	memcpy(scmd->cmnd, cmd, cmd_len);
-	scmd->allowed = sdkp->max_retries;
-	req->timeout = SD_TIMEOUT;
-	req->rq_flags |= RQF_PM | RQF_QUIET;
-	req->end_io = sd_start_done;
-	blk_execute_rq_nowait(req, /*at_head=*/true);
-
-	return 0;
-}
-
 static int sd_start_stop_device(struct scsi_disk *sdkp, int start)
 {
 	unsigned char cmd[6] = { START_STOP };	/* START_VALID */
+	struct scsi_sense_hdr sshdr;
 	struct scsi_device *sdp = sdkp->device;
+	int res;
 
 	if (start)
 		cmd[4] |= 1;	/* START */
@@ -3667,10 +3608,23 @@ static int sd_start_stop_device(struct scsi_disk *sdkp, int start)
 	if (!scsi_device_online(sdp))
 		return -ENODEV;
 
-	/* Wait until processing of sense data has finished. */
-	flush_work(&sdkp->start_done_work);
+	res = scsi_execute(sdp, cmd, DMA_NONE, NULL, 0, NULL, &sshdr,
+			SD_TIMEOUT, sdkp->max_retries, 0, RQF_PM, NULL);
+	if (res) {
+		sd_print_result(sdkp, "Start/Stop Unit failed", res);
+		if (res > 0 && scsi_sense_valid(&sshdr)) {
+			sd_print_sense_hdr(sdkp, &sshdr);
+			/* 0x3a is medium not present */
+			if (sshdr.asc == 0x3a)
+				res = 0;
+		}
+	}
 
-	return sd_submit_start(sdkp, cmd, sizeof(cmd));
+	/* SCSI error codes must not go to the generic layer */
+	if (res)
+		return -EIO;
+
+	return 0;
 }
 
 /*
@@ -3697,8 +3651,6 @@ static void sd_shutdown(struct device *dev)
 		sd_printk(KERN_NOTICE, sdkp, "Stopping disk\n");
 		sd_start_stop_device(sdkp, 0);
 	}
-
-	flush_work(&sdkp->start_done_work);
 }
 
 static int sd_suspend_common(struct device *dev, bool ignore_stop_errors)
