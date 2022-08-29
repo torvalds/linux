@@ -702,8 +702,12 @@ drm_atomic_helper_check_modeset(struct drm_device *dev,
 
 		if (funcs->atomic_check)
 			ret = funcs->atomic_check(connector, state);
-		if (ret)
+		if (ret) {
+			drm_dbg_atomic(dev,
+				       "[CONNECTOR:%d:%s] driver check failed\n",
+				       connector->base.id, connector->name);
 			return ret;
+		}
 
 		connectors_mask |= BIT(i);
 	}
@@ -745,8 +749,12 @@ drm_atomic_helper_check_modeset(struct drm_device *dev,
 
 		if (funcs->atomic_check)
 			ret = funcs->atomic_check(connector, state);
-		if (ret)
+		if (ret) {
+			drm_dbg_atomic(dev,
+				       "[CONNECTOR:%d:%s] driver check failed\n",
+				       connector->base.id, connector->name);
 			return ret;
+		}
 	}
 
 	/*
