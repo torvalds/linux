@@ -6,6 +6,7 @@
 
 #define SEC_IV_SIZE		24
 #define SEC_MAX_KEY_SIZE	64
+#define SEC_MAX_AKEY_SIZE	128
 #define SEC_COMM_SCENE		0
 
 enum sec_calg {
@@ -64,7 +65,6 @@ enum sec_addr_type {
 };
 
 struct sec_sqe_type2 {
-
 	/*
 	 * mac_len: 0~4 bits
 	 * a_key_len: 5~10 bits
@@ -119,7 +119,6 @@ struct sec_sqe_type2 {
 
 	/* c_pad_len_field: 0~1 bits */
 	__le16 c_pad_len_field;
-
 
 	__le64 long_a_data_len;
 	__le64 a_ivin_addr;

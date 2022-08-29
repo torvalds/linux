@@ -4,8 +4,6 @@
 #ifndef __HISI_SEC_V2_H
 #define __HISI_SEC_V2_H
 
-#include <linux/list.h>
-
 #include "../qm.h"
 #include "sec_crypto.h"
 
@@ -50,7 +48,7 @@ struct sec_req {
 
 	int err_type;
 	int req_id;
-	int flag;
+	u32 flag;
 
 	/* Status of the SEC request */
 	bool fake_busy;
@@ -105,7 +103,7 @@ struct sec_qp_ctx {
 	struct idr req_idr;
 	struct sec_alg_res res[QM_Q_DEPTH];
 	struct sec_ctx *ctx;
-	struct mutex req_lock;
+	spinlock_t req_lock;
 	struct list_head backlog;
 	struct hisi_acc_sgl_pool *c_in_pool;
 	struct hisi_acc_sgl_pool *c_out_pool;
@@ -140,6 +138,7 @@ struct sec_ctx {
 	bool pbuf_supported;
 	struct sec_cipher_ctx c_ctx;
 	struct sec_auth_ctx a_ctx;
+	struct device *dev;
 };
 
 enum sec_endian {

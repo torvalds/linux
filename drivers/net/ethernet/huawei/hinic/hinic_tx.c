@@ -97,7 +97,6 @@ void hinic_txq_get_stats(struct hinic_txq *txq, struct hinic_txq_stats *stats)
 	struct hinic_txq_stats *txq_stats = &txq->txq_stats;
 	unsigned int start;
 
-	u64_stats_update_begin(&stats->syncp);
 	do {
 		start = u64_stats_fetch_begin(&txq_stats->syncp);
 		stats->pkts    = txq_stats->pkts;
@@ -107,7 +106,6 @@ void hinic_txq_get_stats(struct hinic_txq *txq, struct hinic_txq_stats *stats)
 		stats->tx_dropped = txq_stats->tx_dropped;
 		stats->big_frags_pkts = txq_stats->big_frags_pkts;
 	} while (u64_stats_fetch_retry(&txq_stats->syncp, start));
-	u64_stats_update_end(&stats->syncp);
 }
 
 /**

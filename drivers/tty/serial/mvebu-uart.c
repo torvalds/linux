@@ -238,6 +238,7 @@ static void mvebu_uart_rx_chars(struct uart_port *port, unsigned int status)
 	struct tty_port *tport = &port->state->port;
 	unsigned char ch = 0;
 	char flag = 0;
+	int ret;
 
 	do {
 		if (status & STAT_RX_RDY(port)) {
@@ -248,6 +249,16 @@ static void mvebu_uart_rx_chars(struct uart_port *port, unsigned int status)
 
 			if (status & STAT_PAR_ERR)
 				port->icount.parity++;
+		}
+
+		/*
+		 * For UART2, error bits are not cleared on buffer read.
+		 * This causes interrupt loop and system hang.
+		 */
+		if (IS_EXTENDED(port) && (status & STAT_BRK_ERR)) {
+			ret = readl(port->membase + UART_STAT);
+			ret |= STAT_BRK_ERR;
+			writel(ret, port->membase + UART_STAT);
 		}
 
 		if (status & STAT_BRK_DET) {

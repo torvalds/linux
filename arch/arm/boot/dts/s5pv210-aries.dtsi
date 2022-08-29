@@ -631,7 +631,7 @@
 		interrupts = <5 IRQ_TYPE_EDGE_FALLING>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&ts_irq>;
-		reset-gpios = <&gpj1 3 GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&gpj1 3 GPIO_ACTIVE_LOW>;
 	};
 };
 
