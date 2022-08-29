@@ -708,8 +708,7 @@ static void vc4_hdmi_set_infoframes(struct drm_encoder *encoder)
 	vc4_hdmi_set_hdr_infoframe(encoder);
 }
 
-static bool vc4_hdmi_supports_scrambling(struct drm_encoder *encoder,
-					 const struct drm_display_mode *mode)
+static bool vc4_hdmi_supports_scrambling(struct drm_encoder *encoder)
 {
 	struct vc4_hdmi *vc4_hdmi = encoder_to_vc4_hdmi(encoder);
 	struct drm_display_info *display = &vc4_hdmi->connector.display_info;
@@ -738,7 +737,7 @@ static void vc4_hdmi_enable_scrambling(struct drm_encoder *encoder)
 
 	lockdep_assert_held(&vc4_hdmi->mutex);
 
-	if (!vc4_hdmi_supports_scrambling(encoder, mode))
+	if (!vc4_hdmi_supports_scrambling(encoder))
 		return;
 
 	if (!vc4_hdmi_mode_needs_scrambling(mode,
