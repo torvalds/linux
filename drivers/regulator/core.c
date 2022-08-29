@@ -5409,6 +5409,7 @@ regulator_register(const struct regulator_desc *regulator_desc,
 	bool dangling_of_gpiod = false;
 	struct device *dev;
 	int ret, i;
+	bool resolved_early = false;
 
 	if (cfg == NULL)
 		return ERR_PTR(-EINVAL);
@@ -5512,6 +5513,18 @@ regulator_register(const struct regulator_desc *regulator_desc,
 	BLOCKING_INIT_NOTIFIER_HEAD(&rdev->notifier);
 	INIT_DELAYED_WORK(&rdev->disable_work, regulator_disable_work);
 
+	if (init_data && init_data->supply_regulator)
+		rdev->supply_name = init_data->supply_regulator;
+	else if (regulator_desc->supply_name)
+		rdev->supply_name = regulator_desc->supply_name;
+
+	/* register with sysfs */
+	rdev->dev.class = &regulator_class;
+	rdev->dev.parent = dev;
+	dev_set_name(&rdev->dev, "regulator.%lu",
+		    (unsigned long) atomic_inc_return(&regulator_no));
+	dev_set_drvdata(&rdev->dev, rdev);
+
 	/* set regulator constraints */
 	if (init_data)
 		rdev->constraints = kmemdup(&init_data->constraints,
@@ -5522,33 +5535,25 @@ regulator_register(const struct regulator_desc *regulator_desc,
 					    GFP_KERNEL);
 	if (!rdev->constraints) {
 		ret = -ENOMEM;
-		goto clean;
+		goto wash;
 	}
 
-	if (init_data && init_data->supply_regulator)
-		rdev->supply_name = init_data->supply_regulator;
-	else if (regulator_desc->supply_name)
-		rdev->supply_name = regulator_desc->supply_name;
-
 	if ((rdev->supply_name && !rdev->supply) &&
-			(rdev->constraints->always_on ||
-			 rdev->constraints->boot_on)) {
-		/* Try to resolve the name of the supplying regulator here first
-		 * so we prevent double-initializing the regulator, which may
-		 * cause timing-specific voltage brownouts/glitches that are
-		 * hard to debug.
-		 */
+		(rdev->constraints->always_on ||
+		 rdev->constraints->boot_on)) {
 		ret = regulator_resolve_supply(rdev);
 		if (ret)
 			rdev_dbg(rdev, "unable to resolve supply early: %pe\n",
 					 ERR_PTR(ret));
+
+		resolved_early = true;
 	}
 
 	/* perform any regulator specific init */
 	if (init_data && init_data->regulator_init) {
 		ret = init_data->regulator_init(rdev->reg_data);
 		if (ret < 0)
-			goto clean;
+			goto wash;
 	}
 
 	if (config->ena_gpiod) {
@@ -5556,22 +5561,15 @@ regulator_register(const struct regulator_desc *regulator_desc,
 		if (ret != 0) {
 			rdev_err(rdev, "Failed to request enable GPIO: %pe\n",
 				 ERR_PTR(ret));
-			goto clean;
+			goto wash;
 		}
 		/* The regulator core took over the GPIO descriptor */
 		dangling_cfg_gpiod = false;
 		dangling_of_gpiod = false;
 	}
 
-	/* register with sysfs */
-	rdev->dev.class = &regulator_class;
-	rdev->dev.parent = dev;
-	dev_set_name(&rdev->dev, "regulator.%lu",
-		    (unsigned long) atomic_inc_return(&regulator_no));
-	dev_set_drvdata(&rdev->dev, rdev);
-
 	ret = set_machine_constraints(rdev);
-	if (ret == -EPROBE_DEFER) {
+	if (ret == -EPROBE_DEFER && !resolved_early) {
 		/* Regulator might be in bypass mode and so needs its supply
 		 * to set the constraints
 		 */
