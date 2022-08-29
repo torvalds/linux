@@ -10,5 +10,5 @@
 
 / {
 	model = "Google Villager (rev1+) with LTE";
-	compatible = "google,villager-sku0", "qcom,sc7280";
+	compatible = "google,villager-sku512", "qcom,sc7280";
 };

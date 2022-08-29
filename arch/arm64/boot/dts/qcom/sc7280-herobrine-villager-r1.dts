@@ -5,7 +5,9 @@
  * Copyright 2022 Google LLC.
  */
 
-#include "sc7280-herobrine-villager-r0.dts"
+/dts-v1/;
+
+#include "sc7280-herobrine-villager.dtsi"
 #include "sc7280-herobrine-audio-wcd9385.dtsi"
 
 / {
