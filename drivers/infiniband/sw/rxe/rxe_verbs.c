@@ -1007,7 +1007,6 @@ static int rxe_map_mr_sg(struct ib_mr *ibmr, struct scatterlist *sg,
 
 	n = ib_sg_to_pages(ibmr, sg, sg_nents, sg_offset, rxe_set_page);
 
-	mr->va = ibmr->iova;
 	mr->iova = ibmr->iova;
 	mr->length = ibmr->length;
 	mr->page_shift = ilog2(ibmr->page_size);
