@@ -699,8 +699,6 @@ static int vepu_procfs_ccu_init(struct mpp_dev *mpp)
 	if (!enc->procfs)
 		goto done;
 
-	mpp_procfs_create_u32("disable_work", 0644,
-			      enc->procfs, &enc->disable_work);
 done:
 	return 0;
 }
