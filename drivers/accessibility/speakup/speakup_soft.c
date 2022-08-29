@@ -34,6 +34,9 @@ static int init_pos;
 static int misc_registered;
 
 static struct var_t vars[] = {
+	/* DIRECT is put first so that module_param_named can access it easily */
+	{ DIRECT, .u.n = {NULL, 0, 0, 1, 0, 0, NULL } },
+
 	{ CAPS_START, .u.s = {"\x01+3p" } },
 	{ CAPS_STOP, .u.s = {"\x01-3p" } },
 	{ PAUSE, .u.n = {"\x01P" } },
@@ -45,7 +48,6 @@ static struct var_t vars[] = {
 	{ PUNCT, .u.n = {"\x01%db", 0, 0, 3, 0, 0, NULL } },
 	{ VOICE, .u.n = {"\x01%do", 0, 0, 7, 0, 0, NULL } },
 	{ FREQUENCY, .u.n = {"\x01%df", 5, 0, 9, 0, 0, NULL } },
-	{ DIRECT, .u.n = {NULL, 0, 0, 1, 0, 0, NULL } },
 	V_LAST_VAR
 };
 
@@ -449,8 +451,10 @@ static int softsynth_adjust(struct spk_synth *synth, struct st_var_header *var)
 }
 
 module_param_named(start, synth_soft.startup, short, 0444);
+module_param_named(direct, vars[0].u.n.default_val, int, 0444);
 
 MODULE_PARM_DESC(start, "Start the synthesizer once it is loaded.");
+MODULE_PARM_DESC(direct, "Set the direct variable on load.");
 
 module_spk_synth(synth_soft);
 
