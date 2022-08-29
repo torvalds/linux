@@ -3,6 +3,7 @@
  * Copyright (C) 2022 MediaTek Inc.
  */
 
+#include <linux/bitfield.h>
 #include <linux/bits.h>
 #include <linux/clk.h>
 #include <linux/completion.h>
