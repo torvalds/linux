@@ -299,9 +299,6 @@ struct drm_i915_private {
 
 	struct intel_wopcm wopcm;
 
-	/* MMIO base address for MIPI regs */
-	u32 mipi_mmio_base;
-
 	struct pci_dev *bridge_dev;
 
 	struct rb_root uabi_engines;

@@ -250,6 +250,11 @@ struct intel_display {
 	} cdclk;
 
 	struct {
+		/* VLV/CHV/BXT/GLK DSI MMIO register base address */
+		u32 mmio_base;
+	} dsi;
+
+	struct {
 		/* list of fbdev register on this device */
 		struct intel_fbdev *fbdev;
 		struct work_struct suspend_work;
