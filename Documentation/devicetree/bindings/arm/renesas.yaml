@@ -292,6 +292,13 @@ properties:
               - renesas,v3hsk # V3HSK (Y-ASK-RCAR-V3H-WS10)
           - const: renesas,r8a77980
 
+      - description: R-Car V3H2 (R8A77980A)
+        items:
+          - enum:
+              - renesas,condor-i # Condor-I (RTP0RC77980SEBS012SA01)
+          - const: renesas,r8a77980a
+          - const: renesas,r8a77980
+
       - description: R-Car E3 (R8A77990)
         items:
           - enum:
