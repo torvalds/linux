@@ -365,6 +365,9 @@ void xen_grant_setup_dma_ops(struct device *dev)
 	if (dev->of_node) {
 		if (xen_dt_grant_init_backend_domid(dev, data))
 			goto err;
+	} else if (IS_ENABLED(CONFIG_XEN_VIRTIO_FORCE_GRANT)) {
+		dev_info(dev, "Using dom0 as backend\n");
+		data->backend_domid = 0;
 	} else {
 		/* XXX ACPI device unsupported for now */
 		goto err;
