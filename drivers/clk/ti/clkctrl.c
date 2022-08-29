@@ -511,10 +511,6 @@ static void __init _ti_omap4_clkctrl_setup(struct device_node *node)
 	char *c;
 	u16 soc_mask = 0;
 
-	if (!(ti_clk_get_features()->flags & TI_CLK_CLKCTRL_COMPAT) &&
-	    of_node_name_eq(node, "clk"))
-		ti_clk_features.flags |= TI_CLK_CLKCTRL_COMPAT;
-
 	addrp = of_get_address(node, 0, NULL, NULL);
 	addr = (u32)of_translate_address(node, addrp);
 
