@@ -63,10 +63,10 @@ struct ad5110_data {
 	struct mutex            lock;
 	const struct ad5110_cfg	*cfg;
 	/*
-	 * DMA (thus cache coherency maintenance) requires the
+	 * DMA (thus cache coherency maintenance) may require the
 	 * transfer buffers to live in their own cache lines.
 	 */
-	u8			buf[2] ____cacheline_aligned;
+	u8			buf[2] __aligned(IIO_DMA_MINALIGN);
 };
 
 static const struct iio_chan_spec ad5110_channels[] = {

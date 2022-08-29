@@ -1106,8 +1106,7 @@ struct qib_devdata *qib_alloc_devdata(struct pci_dev *pdev, size_t extra)
 	if (!qib_cpulist_count) {
 		u32 count = num_online_cpus();
 
-		qib_cpulist = kcalloc(BITS_TO_LONGS(count), sizeof(long),
-				      GFP_KERNEL);
+		qib_cpulist = bitmap_zalloc(count, GFP_KERNEL);
 		if (qib_cpulist)
 			qib_cpulist_count = count;
 	}
@@ -1279,7 +1278,7 @@ static void __exit qib_ib_cleanup(void)
 #endif
 
 	qib_cpulist_count = 0;
-	kfree(qib_cpulist);
+	bitmap_free(qib_cpulist);
 
 	WARN_ON(!xa_empty(&qib_dev_table));
 	qib_dev_cleanup();

@@ -385,6 +385,14 @@ struct sof_ipc4_fw_version {
 	uint16_t build;
 } __packed;
 
+/* Payload data for SOF_IPC4_MOD_SET_DX */
+struct sof_ipc4_dx_state_info {
+	/* core(s) to apply the change */
+	uint32_t core_mask;
+	/* core state: 0: put core_id to D3; 1: put core_id to D0 */
+	uint32_t dx_mask;
+} __packed __aligned(4);
+
 /* Reply messages */
 
 /*

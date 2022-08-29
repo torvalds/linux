@@ -222,7 +222,7 @@ struct gsc_m2m_device {
  *  @org_scaler_input_w: max pixel width when the scaler is enabled
  *  @org_scaler_input_h: max pixel height when the scaler is enabled
  *  @real_rot_dis_w: max pixel src cropped height with the rotator is off
- *  @real_rot_dis_h: max pixel src croppped width with the rotator is off
+ *  @real_rot_dis_h: max pixel src cropped width with the rotator is off
  *  @real_rot_en_w: max pixel src cropped width with the rotator is on
  *  @real_rot_en_h: max pixel src cropped height with the rotator is on
  *  @target_rot_dis_w: max pixel dst scaled width with the rotator is off

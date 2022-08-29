@@ -93,6 +93,11 @@ static inline void iio_trigger_put(struct iio_trigger *trig)
 static inline struct iio_trigger *iio_trigger_get(struct iio_trigger *trig)
 {
 	get_device(&trig->dev);
+
+	WARN_ONCE(list_empty(&trig->list),
+		  "Getting non-registered iio trigger %s is prohibited\n",
+		  trig->name);
+
 	__module_get(trig->owner);
 
 	return trig;
@@ -126,16 +131,10 @@ static inline void *iio_trigger_get_drvdata(struct iio_trigger *trig)
  * iio_trigger_register() - register a trigger with the IIO core
  * @trig_info:	trigger to be registered
  **/
-#define iio_trigger_register(trig_info) \
-	__iio_trigger_register((trig_info), THIS_MODULE)
-int __iio_trigger_register(struct iio_trigger *trig_info,
-			   struct module *this_mod);
+int iio_trigger_register(struct iio_trigger *trig_info);
 
-#define devm_iio_trigger_register(dev, trig_info) \
-	__devm_iio_trigger_register((dev), (trig_info), THIS_MODULE)
-int __devm_iio_trigger_register(struct device *dev,
-				struct iio_trigger *trig_info,
-				struct module *this_mod);
+int devm_iio_trigger_register(struct device *dev,
+			      struct iio_trigger *trig_info);
 
 /**
  * iio_trigger_unregister() - unregister a trigger from the core
@@ -163,8 +162,13 @@ void iio_trigger_poll_chained(struct iio_trigger *trig);
 
 irqreturn_t iio_trigger_generic_data_rdy_poll(int irq, void *private);
 
-__printf(2, 3)
-struct iio_trigger *iio_trigger_alloc(struct device *parent, const char *fmt, ...);
+#define iio_trigger_alloc(parent, fmt, ...) \
+	__iio_trigger_alloc((parent), THIS_MODULE, (fmt), ##__VA_ARGS__)
+
+__printf(3, 4)
+struct iio_trigger *__iio_trigger_alloc(struct device *parent,
+					struct module *this_mod,
+					const char *fmt, ...);
 void iio_trigger_free(struct iio_trigger *trig);
 
 /**

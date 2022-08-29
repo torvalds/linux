@@ -111,9 +111,9 @@ static loff_t snd_info_entry_llseek(struct file *file, loff_t offset, int orig)
 	entry = data->entry;
 	mutex_lock(&entry->access);
 	if (entry->c.ops->llseek) {
-		offset = entry->c.ops->llseek(entry,
-					      data->file_private_data,
-					      file, offset, orig);
+		ret = entry->c.ops->llseek(entry,
+					   data->file_private_data,
+					   file, offset, orig);
 		goto out;
 	}
 
@@ -868,6 +868,8 @@ EXPORT_SYMBOL(snd_info_register);
  *
  * This proc file entry will be registered via snd_card_register() call, and
  * it will be removed automatically at the card removal, too.
+ *
+ * Return: zero if successful, or a negative error code
  */
 int snd_card_rw_proc_new(struct snd_card *card, const char *name,
 			 void *private_data,

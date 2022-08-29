@@ -65,8 +65,7 @@ static int i2s_pinctrl_select_bclk_on(struct rk_i2s_dev *i2s)
 	int ret = 0;
 
 	if (!IS_ERR(i2s->pinctrl) && !IS_ERR_OR_NULL(i2s->bclk_on))
-		ret = pinctrl_select_state(i2s->pinctrl,
-				     i2s->bclk_on);
+		ret = pinctrl_select_state(i2s->pinctrl, i2s->bclk_on);
 
 	if (ret)
 		dev_err(i2s->dev, "bclk enable failed %d\n", ret);
@@ -80,8 +79,7 @@ static int i2s_pinctrl_select_bclk_off(struct rk_i2s_dev *i2s)
 	int ret = 0;
 
 	if (!IS_ERR(i2s->pinctrl) && !IS_ERR_OR_NULL(i2s->bclk_off))
-		ret = pinctrl_select_state(i2s->pinctrl,
-				     i2s->bclk_off);
+		ret = pinctrl_select_state(i2s->pinctrl, i2s->bclk_off);
 
 	if (ret)
 		dev_err(i2s->dev, "bclk disable failed %d\n", ret);
@@ -134,41 +132,37 @@ static int rockchip_snd_txctrl(struct rk_i2s_dev *i2s, int on)
 	spin_lock(&i2s->lock);
 	if (on) {
 		ret = regmap_update_bits(i2s->regmap, I2S_DMACR,
-				I2S_DMACR_TDE_ENABLE, I2S_DMACR_TDE_ENABLE);
+					 I2S_DMACR_TDE_ENABLE,
+					 I2S_DMACR_TDE_ENABLE);
 		if (ret < 0)
 			goto end;
-
 		ret = regmap_update_bits(i2s->regmap, I2S_XFER,
-				I2S_XFER_TXS_START | I2S_XFER_RXS_START,
-				I2S_XFER_TXS_START | I2S_XFER_RXS_START);
+					 I2S_XFER_TXS_START | I2S_XFER_RXS_START,
+					 I2S_XFER_TXS_START | I2S_XFER_RXS_START);
 		if (ret < 0)
 			goto end;
-
 		i2s->tx_start = true;
 	} else {
 		i2s->tx_start = false;
 
 		ret = regmap_update_bits(i2s->regmap, I2S_DMACR,
-				I2S_DMACR_TDE_ENABLE, I2S_DMACR_TDE_DISABLE);
+					 I2S_DMACR_TDE_ENABLE,
+					 I2S_DMACR_TDE_DISABLE);
 		if (ret < 0)
 			goto end;
 
 		if (!i2s->rx_start) {
 			ret = regmap_update_bits(i2s->regmap, I2S_XFER,
-					I2S_XFER_TXS_START |
-					I2S_XFER_RXS_START,
-					I2S_XFER_TXS_STOP |
-					I2S_XFER_RXS_STOP);
+						 I2S_XFER_TXS_START | I2S_XFER_RXS_START,
+						 I2S_XFER_TXS_STOP | I2S_XFER_RXS_STOP);
 			if (ret < 0)
 				goto end;
-
 			udelay(150);
 			ret = regmap_update_bits(i2s->regmap, I2S_CLR,
-					I2S_CLR_TXC | I2S_CLR_RXC,
-					I2S_CLR_TXC | I2S_CLR_RXC);
+						 I2S_CLR_TXC | I2S_CLR_RXC,
+						 I2S_CLR_TXC | I2S_CLR_RXC);
 			if (ret < 0)
 				goto end;
-
 			regmap_read(i2s->regmap, I2S_CLR, &val);
 
 			/* Should wait for clear operation to finish */
@@ -177,6 +171,7 @@ static int rockchip_snd_txctrl(struct rk_i2s_dev *i2s, int on)
 				retry--;
 				if (!retry) {
 					dev_warn(i2s->dev, "fail to clear\n");
+					ret = -EBUSY;
 					break;
 				}
 			}
@@ -199,37 +194,36 @@ static int rockchip_snd_rxctrl(struct rk_i2s_dev *i2s, int on)
 	spin_lock(&i2s->lock);
 	if (on) {
 		ret = regmap_update_bits(i2s->regmap, I2S_DMACR,
-				   I2S_DMACR_RDE_ENABLE, I2S_DMACR_RDE_ENABLE);
+					 I2S_DMACR_RDE_ENABLE,
+					 I2S_DMACR_RDE_ENABLE);
 		if (ret < 0)
 			goto end;
 
 		ret = regmap_update_bits(i2s->regmap, I2S_XFER,
-				   I2S_XFER_TXS_START | I2S_XFER_RXS_START,
-				   I2S_XFER_TXS_START | I2S_XFER_RXS_START);
+					 I2S_XFER_TXS_START | I2S_XFER_RXS_START,
+					 I2S_XFER_TXS_START | I2S_XFER_RXS_START);
 		if (ret < 0)
 			goto end;
-
 		i2s->rx_start = true;
 	} else {
 		i2s->rx_start = false;
 
 		ret = regmap_update_bits(i2s->regmap, I2S_DMACR,
-				   I2S_DMACR_RDE_ENABLE, I2S_DMACR_RDE_DISABLE);
+					 I2S_DMACR_RDE_ENABLE,
+					 I2S_DMACR_RDE_DISABLE);
 		if (ret < 0)
 			goto end;
 
 		if (!i2s->tx_start) {
 			ret = regmap_update_bits(i2s->regmap, I2S_XFER,
-					   I2S_XFER_TXS_START |
-					   I2S_XFER_RXS_START,
-					   I2S_XFER_TXS_STOP |
-					   I2S_XFER_RXS_STOP);
+						 I2S_XFER_TXS_START | I2S_XFER_RXS_START,
+						 I2S_XFER_TXS_STOP | I2S_XFER_RXS_STOP);
 			if (ret < 0)
 				goto end;
 			udelay(150);
 			ret = regmap_update_bits(i2s->regmap, I2S_CLR,
-					   I2S_CLR_TXC | I2S_CLR_RXC,
-					   I2S_CLR_TXC | I2S_CLR_RXC);
+						 I2S_CLR_TXC | I2S_CLR_RXC,
+						 I2S_CLR_TXC | I2S_CLR_RXC);
 			if (ret < 0)
 				goto end;
 			regmap_read(i2s->regmap, I2S_CLR, &val);
@@ -239,6 +233,7 @@ static int rockchip_snd_rxctrl(struct rk_i2s_dev *i2s, int on)
 				retry--;
 				if (!retry) {
 					dev_warn(i2s->dev, "fail to clear\n");
+					ret = -EBUSY;
 					break;
 				}
 			}
@@ -261,13 +256,13 @@ static int rockchip_i2s_set_fmt(struct snd_soc_dai *cpu_dai,
 
 	pm_runtime_get_sync(cpu_dai->dev);
 	mask = I2S_CKR_MSS_MASK;
-	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
-	case SND_SOC_DAIFMT_CBS_CFS:
+	switch (fmt & SND_SOC_DAIFMT_CLOCK_PROVIDER_MASK) {
+	case SND_SOC_DAIFMT_BP_FP:
 		/* Set source clock in Master mode */
 		val = I2S_CKR_MSS_MASTER;
 		i2s->is_master_mode = true;
 		break;
-	case SND_SOC_DAIFMT_CBM_CFM:
+	case SND_SOC_DAIFMT_BC_FC:
 		val = I2S_CKR_MSS_SLAVE;
 		i2s->is_master_mode = false;
 		break;
@@ -490,7 +485,6 @@ static int rockchip_i2s_trigger(struct snd_pcm_substream *substream,
 			ret = rockchip_snd_rxctrl(i2s, 1);
 		else
 			ret = rockchip_snd_txctrl(i2s, 1);
-		/* Do not turn on bclk if lrclk open fails. */
 		if (ret < 0)
 			return ret;
 		i2s_pinctrl_select_bclk_on(i2s);
@@ -569,6 +563,7 @@ static struct snd_soc_dai_driver rockchip_i2s_dai = {
 
 static const struct snd_soc_component_driver rockchip_i2s_component = {
 	.name = DRV_NAME,
+	.legacy_dai_naming = 1,
 };
 
 static bool rockchip_i2s_wr_reg(struct device *dev, unsigned int reg)
@@ -808,32 +803,21 @@ static int rockchip_i2s_probe(struct platform_device *pdev)
 
 	i2s->bclk_ratio = 64;
 	i2s->pinctrl = devm_pinctrl_get(&pdev->dev);
-	if (IS_ERR(i2s->pinctrl))
-		dev_err(&pdev->dev, "failed to find i2s pinctrl\n");
-
-	i2s->bclk_on = pinctrl_lookup_state(i2s->pinctrl,
-				   "bclk_on");
-	if (IS_ERR_OR_NULL(i2s->bclk_on))
-		dev_err(&pdev->dev, "failed to find i2s default state\n");
-	else
-		dev_dbg(&pdev->dev, "find i2s bclk state\n");
-
-	i2s->bclk_off = pinctrl_lookup_state(i2s->pinctrl,
-				  "bclk_off");
-	if (IS_ERR_OR_NULL(i2s->bclk_off))
-		dev_err(&pdev->dev, "failed to find i2s gpio state\n");
-	else
-		dev_dbg(&pdev->dev, "find i2s bclk_off state\n");
+	if (!IS_ERR(i2s->pinctrl)) {
+		i2s->bclk_on = pinctrl_lookup_state(i2s->pinctrl, "bclk_on");
+		if (!IS_ERR_OR_NULL(i2s->bclk_on)) {
+			i2s->bclk_off = pinctrl_lookup_state(i2s->pinctrl, "bclk_off");
+			if (IS_ERR_OR_NULL(i2s->bclk_off)) {
+				dev_err(&pdev->dev, "failed to find i2s bclk_off\n");
+				ret = -EINVAL;
+				goto err_clk;
+			}
+		}
+	} else {
+		dev_dbg(&pdev->dev, "failed to find i2s pinctrl\n");
+	}
 
 	i2s_pinctrl_select_bclk_off(i2s);
-
-	i2s->playback_dma_data.addr = res->start + I2S_TXDR;
-	i2s->playback_dma_data.addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
-	i2s->playback_dma_data.maxburst = 4;
-
-	i2s->capture_dma_data.addr = res->start + I2S_RXDR;
-	i2s->capture_dma_data.addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
-	i2s->capture_dma_data.maxburst = 4;
 
 	dev_set_drvdata(&pdev->dev, i2s);
 

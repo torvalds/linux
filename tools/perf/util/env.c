@@ -179,7 +179,7 @@ static void perf_env__purge_bpf(struct perf_env *env __maybe_unused)
 
 void perf_env__exit(struct perf_env *env)
 {
-	int i;
+	int i, j;
 
 	perf_env__purge_bpf(env);
 	perf_env__purge_cgroups(env);
@@ -196,6 +196,8 @@ void perf_env__exit(struct perf_env *env)
 	zfree(&env->sibling_threads);
 	zfree(&env->pmu_mappings);
 	zfree(&env->cpu);
+	for (i = 0; i < env->nr_cpu_pmu_caps; i++)
+		zfree(&env->cpu_pmu_caps[i]);
 	zfree(&env->cpu_pmu_caps);
 	zfree(&env->numa_map);
 
@@ -217,11 +219,13 @@ void perf_env__exit(struct perf_env *env)
 	}
 	zfree(&env->hybrid_nodes);
 
-	for (i = 0; i < env->nr_hybrid_cpc_nodes; i++) {
-		zfree(&env->hybrid_cpc_nodes[i].cpu_pmu_caps);
-		zfree(&env->hybrid_cpc_nodes[i].pmu_name);
+	for (i = 0; i < env->nr_pmus_with_caps; i++) {
+		for (j = 0; j < env->pmu_caps[i].nr_caps; j++)
+			zfree(&env->pmu_caps[i].caps[j]);
+		zfree(&env->pmu_caps[i].caps);
+		zfree(&env->pmu_caps[i].pmu_name);
 	}
-	zfree(&env->hybrid_cpc_nodes);
+	zfree(&env->pmu_caps);
 }
 
 void perf_env__init(struct perf_env *env)
@@ -526,4 +530,52 @@ int perf_env__numa_node(struct perf_env *env, struct perf_cpu cpu)
 	}
 
 	return cpu.cpu >= 0 && cpu.cpu < env->nr_numa_map ? env->numa_map[cpu.cpu] : -1;
+}
+
+char *perf_env__find_pmu_cap(struct perf_env *env, const char *pmu_name,
+			     const char *cap)
+{
+	char *cap_eq;
+	int cap_size;
+	char **ptr;
+	int i, j;
+
+	if (!pmu_name || !cap)
+		return NULL;
+
+	cap_size = strlen(cap);
+	cap_eq = zalloc(cap_size + 2);
+	if (!cap_eq)
+		return NULL;
+
+	memcpy(cap_eq, cap, cap_size);
+	cap_eq[cap_size] = '=';
+
+	if (!strcmp(pmu_name, "cpu")) {
+		for (i = 0; i < env->nr_cpu_pmu_caps; i++) {
+			if (!strncmp(env->cpu_pmu_caps[i], cap_eq, cap_size + 1)) {
+				free(cap_eq);
+				return &env->cpu_pmu_caps[i][cap_size + 1];
+			}
+		}
+		goto out;
+	}
+
+	for (i = 0; i < env->nr_pmus_with_caps; i++) {
+		if (strcmp(env->pmu_caps[i].pmu_name, pmu_name))
+			continue;
+
+		ptr = env->pmu_caps[i].caps;
+
+		for (j = 0; j < env->pmu_caps[i].nr_caps; j++) {
+			if (!strncmp(ptr[j], cap_eq, cap_size + 1)) {
+				free(cap_eq);
+				return &ptr[j][cap_size + 1];
+			}
+		}
+	}
+
+out:
+	free(cap_eq);
+	return NULL;
 }

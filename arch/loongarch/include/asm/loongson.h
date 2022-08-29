@@ -39,18 +39,6 @@ extern const struct plat_smp_ops loongson3_smp_ops;
 
 #define MAX_PACKAGES 16
 
-/* Chip Config register of each physical cpu package */
-extern u64 loongson_chipcfg[MAX_PACKAGES];
-#define LOONGSON_CHIPCFG(id) (*(volatile u32 *)(loongson_chipcfg[id]))
-
-/* Chip Temperature register of each physical cpu package */
-extern u64 loongson_chiptemp[MAX_PACKAGES];
-#define LOONGSON_CHIPTEMP(id) (*(volatile u32 *)(loongson_chiptemp[id]))
-
-/* Freq Control register of each physical cpu package */
-extern u64 loongson_freqctrl[MAX_PACKAGES];
-#define LOONGSON_FREQCTRL(id) (*(volatile u32 *)(loongson_freqctrl[id]))
-
 #define xconf_readl(addr) readl(addr)
 #define xconf_readq(addr) readq(addr)
 
@@ -58,7 +46,7 @@ static inline void xconf_writel(u32 val, volatile void __iomem *addr)
 {
 	asm volatile (
 	"	st.w	%[v], %[hw], 0	\n"
-	"	ld.b	$r0, %[hw], 0	\n"
+	"	ld.b	$zero, %[hw], 0	\n"
 	:
 	: [hw] "r" (addr), [v] "r" (val)
 	);
@@ -68,7 +56,7 @@ static inline void xconf_writeq(u64 val64, volatile void __iomem *addr)
 {
 	asm volatile (
 	"	st.d	%[v], %[hw], 0	\n"
-	"	ld.b	$r0, %[hw], 0	\n"
+	"	ld.b	$zero, %[hw], 0	\n"
 	:
 	: [hw] "r" (addr),  [v] "r" (val64)
 	);

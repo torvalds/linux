@@ -416,7 +416,7 @@ config TI_DAC5571
 	help
 	  Driver for the Texas Instruments
 	  DAC5571, DAC6571, DAC7571, DAC5574, DAC6574, DAC7574, DAC5573,
-	  DAC6573, DAC7573, DAC8571, DAC8574.
+	  DAC6573, DAC7573, DAC8571, DAC8574, DAC121C081.
 
 	  If compiled as a module, it will be called ti-dac5571.
 

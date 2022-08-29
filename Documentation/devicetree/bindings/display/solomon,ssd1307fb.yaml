@@ -49,9 +49,6 @@ properties:
   vbat-supply:
     description: The supply for VBAT
 
-  # Only required for SPI
-  spi-max-frequency: true
-
   solomon,height:
     $ref: /schemas/types.yaml#/definitions/uint32
     default: 16
@@ -153,6 +150,8 @@ required:
   - reg
 
 allOf:
+  - $ref: /schemas/spi/spi-peripheral-props.yaml#
+
   - if:
       properties:
         compatible:
@@ -223,7 +222,7 @@ allOf:
         solomon,dclk-frq:
           default: 10
 
-additionalProperties: false
+unevaluatedProperties: false
 
 examples:
   - |

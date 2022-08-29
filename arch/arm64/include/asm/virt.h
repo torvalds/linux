@@ -36,9 +36,9 @@
 #define HVC_RESET_VECTORS 2
 
 /*
- * HVC_VHE_RESTART - Upgrade the CPU from EL1 to EL2, if possible
+ * HVC_FINALISE_EL2 - Upgrade the CPU from EL1 to EL2, if possible
  */
-#define HVC_VHE_RESTART	3
+#define HVC_FINALISE_EL2	3
 
 /* Max number of HYP stub hypercalls */
 #define HVC_STUB_HCALL_NR 4
@@ -48,6 +48,13 @@
 
 #define BOOT_CPU_MODE_EL1	(0xe11)
 #define BOOT_CPU_MODE_EL2	(0xe12)
+
+/*
+ * Flags returned together with the boot mode, but not preserved in
+ * __boot_cpu_mode. Used by the idreg override code to work out the
+ * boot state.
+ */
+#define BOOT_CPU_FLAG_E2H	BIT_ULL(32)
 
 #ifndef __ASSEMBLY__
 

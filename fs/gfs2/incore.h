@@ -219,7 +219,8 @@ struct gfs2_glock_operations {
 	int (*go_xmote_bh)(struct gfs2_glock *gl);
 	void (*go_inval) (struct gfs2_glock *gl, int flags);
 	int (*go_demote_ok) (const struct gfs2_glock *gl);
-	int (*go_instantiate) (struct gfs2_holder *gh);
+	int (*go_instantiate) (struct gfs2_glock *gl);
+	int (*go_held)(struct gfs2_holder *gh);
 	void (*go_dump)(struct seq_file *seq, struct gfs2_glock *gl,
 			const char *fs_id_buf);
 	void (*go_callback)(struct gfs2_glock *gl, bool remote);
@@ -396,7 +397,6 @@ struct gfs2_inode {
 	atomic_t i_sizehint;  /* hint of the write size */
 	struct rw_semaphore i_rw_mutex;
 	struct list_head i_ordered;
-	struct list_head i_trunc_list;
 	__be64 *i_hash_cache;
 	u32 i_entries;
 	u32 i_diskflags;
@@ -784,8 +784,6 @@ struct gfs2_sbd {
 	struct mutex sd_quota_mutex;
 	struct mutex sd_quota_sync_mutex;
 	wait_queue_head_t sd_quota_wait;
-	struct list_head sd_trunc_list;
-	spinlock_t sd_trunc_lock;
 
 	unsigned int sd_quota_slots;
 	unsigned long *sd_quota_bitmap;

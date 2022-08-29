@@ -9,9 +9,7 @@
 #include <ucontext.h>
 
 /*
- * Using ARCH specific and sanitized Kernel headers installed by KSFT
- * framework since we asked for it by setting flag KSFT_KHDR_INSTALL
- * in our Makefile.
+ * Using ARCH specific and sanitized Kernel headers from the tree.
  */
 #include <asm/ptrace.h>
 #include <asm/hwcap.h>

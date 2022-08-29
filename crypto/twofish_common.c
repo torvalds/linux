@@ -298,7 +298,7 @@ static const u32 mds[4][256] = {
  * multiplication is inefficient without hardware support.  To multiply
  * faster, I make use of the fact x is a generator for the nonzero elements,
  * so that every element p of GF(2)[x]/w(x) is either 0 or equal to (x)^n for
- * some n in 0..254.  Note that that caret is exponentiation in GF(2^8),
+ * some n in 0..254.  Note that caret is exponentiation in GF(2^8),
  * *not* polynomial notation.  So if I want to compute pq where p and q are
  * in GF(2^8), I can just say:
  *    1. if p=0 or q=0 then pq=0

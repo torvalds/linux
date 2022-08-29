@@ -40,8 +40,6 @@ properties:
   reg:
     maxItems: 1
 
-  spi-max-frequency: true
-
   ti,enable-gpios:
     minItems: 1
     maxItems: 2
@@ -65,7 +63,10 @@ required:
   - ti,enable-gpios
   - vin-supply
 
-additionalProperties: false
+allOf:
+  - $ref: /schemas/spi/spi-peripheral-props.yaml#
+
+unevaluatedProperties: false
 
 examples:
   - |

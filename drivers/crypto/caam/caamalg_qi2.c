@@ -29,7 +29,7 @@
 				 SHA512_DIGEST_SIZE * 2)
 
 /*
- * This is a a cache of buffers, from which the users of CAAM QI driver
+ * This is a cache of buffers, from which the users of CAAM QI driver
  * can allocate short buffers. It's speedier than doing kmalloc on the hotpath.
  * NOTE: A more elegant solution would be to have some headroom in the frames
  *       being processed. This can be added by the dpaa2-eth driver. This would
@@ -5083,8 +5083,9 @@ static int __cold dpaa2_dpseci_setup(struct fsl_mc_device *ls_dev)
 
 		ppriv->net_dev.dev = *dev;
 		INIT_LIST_HEAD(&ppriv->net_dev.napi_list);
-		netif_napi_add(&ppriv->net_dev, &ppriv->napi, dpaa2_dpseci_poll,
-			       DPAA2_CAAM_NAPI_WEIGHT);
+		netif_napi_add_tx_weight(&ppriv->net_dev, &ppriv->napi,
+					 dpaa2_dpseci_poll,
+					 DPAA2_CAAM_NAPI_WEIGHT);
 	}
 
 	return 0;

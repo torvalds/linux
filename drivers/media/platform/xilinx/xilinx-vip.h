@@ -28,8 +28,8 @@ struct clk;
 #define XVIP_MAX_HEIGHT			7680
 
 /*
- * Pad IDs. IP cores with with multiple inputs or outputs should define
- * their own values.
+ * Pad IDs. IP cores with multiple inputs or outputs should define their own
+ * values.
  */
 #define XVIP_PAD_SINK			0
 #define XVIP_PAD_SOURCE			1

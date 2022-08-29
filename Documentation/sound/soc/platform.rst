@@ -46,7 +46,7 @@ snd_soc_component_driver:-
   };
 
 Please refer to the ALSA driver documentation for details of audio DMA.
-http://www.alsa-project.org/~iwai/writing-an-alsa-driver/
+https://www.kernel.org/doc/html/latest/sound/kernel-api/writing-an-alsa-driver.html
 
 An example DMA driver is soc/pxa/pxa2xx-pcm.c
 

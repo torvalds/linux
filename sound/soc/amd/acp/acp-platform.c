@@ -91,25 +91,38 @@ EXPORT_SYMBOL_NS_GPL(acp_machine_select, SND_SOC_ACP_COMMON);
 static irqreturn_t i2s_irq_handler(int irq, void *data)
 {
 	struct acp_dev_data *adata = data;
+	struct acp_resource *rsrc = adata->rsrc;
 	struct acp_stream *stream;
 	u16 i2s_flag = 0;
-	u32 val, i;
+	u32 ext_intr_stat, ext_intr_stat1, i;
 
 	if (!adata)
 		return IRQ_NONE;
 
-	val = readl(adata->acp_base + ACP_EXTERNAL_INTR_STAT);
+	if (adata->rsrc->no_of_ctrls == 2)
+		ext_intr_stat1 = readl(ACP_EXTERNAL_INTR_STAT(adata, (rsrc->irqp_used - 1)));
+
+	ext_intr_stat = readl(ACP_EXTERNAL_INTR_STAT(adata, rsrc->irqp_used));
 
 	for (i = 0; i < ACP_MAX_STREAM; i++) {
 		stream = adata->stream[i];
-		if (stream && (val & stream->irq_bit)) {
-			writel(stream->irq_bit, adata->acp_base + ACP_EXTERNAL_INTR_STAT);
+		if (stream && (ext_intr_stat & stream->irq_bit)) {
+			writel(stream->irq_bit,
+			       ACP_EXTERNAL_INTR_STAT(adata, rsrc->irqp_used));
 			snd_pcm_period_elapsed(stream->substream);
 			i2s_flag = 1;
 			break;
 		}
+		if (adata->rsrc->no_of_ctrls == 2) {
+			if (stream && (ext_intr_stat1 & stream->irq_bit)) {
+				writel(stream->irq_bit, ACP_EXTERNAL_INTR_STAT(adata,
+				       (rsrc->irqp_used - 1)));
+				snd_pcm_period_elapsed(stream->substream);
+				i2s_flag = 1;
+				break;
+			}
+		}
 	}
-
 	if (i2s_flag)
 		return IRQ_HANDLED;
 
@@ -118,6 +131,7 @@ static irqreturn_t i2s_irq_handler(int irq, void *data)
 
 static void config_pte_for_stream(struct acp_dev_data *adata, struct acp_stream *stream)
 {
+	struct acp_resource *rsrc = adata->rsrc;
 	u32 pte_reg, pte_size, reg_val;
 
 	/* Use ATU base Group5 */
@@ -126,15 +140,17 @@ static void config_pte_for_stream(struct acp_dev_data *adata, struct acp_stream 
 	stream->reg_offset = 0x02000000;
 
 	/* Group Enable */
-	reg_val = ACP_SRAM_PTE_OFFSET;
+	reg_val = rsrc->sram_pte_offset;
 	writel(reg_val | BIT(31), adata->acp_base + pte_reg);
 	writel(PAGE_SIZE_4K_ENABLE,  adata->acp_base + pte_size);
+	writel(0x01, adata->acp_base + ACPAXI2AXI_ATU_CTRL);
 }
 
 static void config_acp_dma(struct acp_dev_data *adata, int cpu_id, int size)
 {
 	struct acp_stream *stream = adata->stream[cpu_id];
 	struct snd_pcm_substream *substream = stream->substream;
+	struct acp_resource *rsrc = adata->rsrc;
 	dma_addr_t addr = substream->dma_buffer.addr;
 	int num_pages = (PAGE_ALIGN(size) >> PAGE_SHIFT);
 	u32 low, high, val;
@@ -146,9 +162,9 @@ static void config_acp_dma(struct acp_dev_data *adata, int cpu_id, int size)
 		/* Load the low address of page int ACP SRAM through SRBM */
 		low = lower_32_bits(addr);
 		high = upper_32_bits(addr);
-		writel(low, adata->acp_base + ACP_SCRATCH_REG_0 + val);
+		writel(low, adata->acp_base + rsrc->scratch_reg_offset + val);
 		high |= BIT(31);
-		writel(high, adata->acp_base + ACP_SCRATCH_REG_0 + val + 4);
+		writel(high, adata->acp_base + rsrc->scratch_reg_offset + val + 4);
 
 		/* Move to next physically contiguous page */
 		val += 8;
@@ -187,7 +203,7 @@ static int acp_dma_open(struct snd_soc_component *component, struct snd_pcm_subs
 	}
 	runtime->private_data = stream;
 
-	writel(1, adata->acp_base + ACP_EXTERNAL_INTR_ENB);
+	writel(1, ACP_EXTERNAL_INTR_ENB(adata));
 
 	return ret;
 }
@@ -242,13 +258,6 @@ static int acp_dma_new(struct snd_soc_component *component,
 	return 0;
 }
 
-static int acp_dma_mmap(struct snd_soc_component *component,
-			struct snd_pcm_substream *substream,
-			struct vm_area_struct *vma)
-{
-	return snd_pcm_lib_default_mmap(substream, vma);
-}
-
 static int acp_dma_close(struct snd_soc_component *component,
 			 struct snd_pcm_substream *substream)
 {
@@ -267,13 +276,13 @@ static int acp_dma_close(struct snd_soc_component *component,
 }
 
 static const struct snd_soc_component_driver acp_pcm_component = {
-	.name		= DRV_NAME,
-	.open		= acp_dma_open,
-	.close		= acp_dma_close,
-	.hw_params	= acp_dma_hw_params,
-	.pointer	= acp_dma_pointer,
-	.mmap		= acp_dma_mmap,
-	.pcm_construct	= acp_dma_new,
+	.name			= DRV_NAME,
+	.open			= acp_dma_open,
+	.close			= acp_dma_close,
+	.hw_params		= acp_dma_hw_params,
+	.pointer		= acp_dma_pointer,
+	.pcm_construct		= acp_dma_new,
+	.legacy_dai_naming	= 1,
 };
 
 int acp_platform_register(struct device *dev)

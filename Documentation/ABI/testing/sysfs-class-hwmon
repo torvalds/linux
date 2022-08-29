@@ -938,3 +938,12 @@ Description:
 		- 1: enable
 
 		RW
+
+What:		/sys/class/hwmon/hwmonX/device/pec
+Description:
+		PEC support on I2C devices
+
+		- 0, off, n: disable
+		- 1, on, y: enable
+
+		RW

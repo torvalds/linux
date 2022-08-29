@@ -18,6 +18,7 @@ properties:
     enum:
       - mediatek,mt8183-scp
       - mediatek,mt8186-scp
+      - mediatek,mt8188-scp
       - mediatek,mt8192-scp
       - mediatek,mt8195-scp
 
@@ -80,6 +81,7 @@ allOf:
           enum:
             - mediatek,mt8183-scp
             - mediatek,mt8186-scp
+            - mediatek,mt8188-scp
     then:
       properties:
         reg:

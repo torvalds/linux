@@ -474,18 +474,17 @@ static void __init setup_lowcore_dat_off(void)
 	lc->restart_data = 0;
 	lc->restart_source = -1U;
 
-	mcck_stack = (unsigned long)memblock_alloc(THREAD_SIZE, THREAD_SIZE);
-	if (!mcck_stack)
-		panic("%s: Failed to allocate %lu bytes align=0x%lx\n",
-		      __func__, THREAD_SIZE, THREAD_SIZE);
-	lc->mcck_stack = mcck_stack + STACK_INIT_OFFSET;
-
-	/* Setup absolute zero lowcore */
 	put_abs_lowcore(restart_stack, lc->restart_stack);
 	put_abs_lowcore(restart_fn, lc->restart_fn);
 	put_abs_lowcore(restart_data, lc->restart_data);
 	put_abs_lowcore(restart_source, lc->restart_source);
 	put_abs_lowcore(restart_psw, lc->restart_psw);
+
+	mcck_stack = (unsigned long)memblock_alloc(THREAD_SIZE, THREAD_SIZE);
+	if (!mcck_stack)
+		panic("%s: Failed to allocate %lu bytes align=0x%lx\n",
+		      __func__, THREAD_SIZE, THREAD_SIZE);
+	lc->mcck_stack = mcck_stack + STACK_INIT_OFFSET;
 
 	lc->spinlock_lockval = arch_spin_lockval(0);
 	lc->spinlock_index = 0;
@@ -876,10 +875,8 @@ static void __init setup_randomness(void)
 		add_device_randomness(&vmms->vm, sizeof(vmms->vm[0]) * vmms->count);
 	memblock_free(vmms, PAGE_SIZE);
 
-#ifdef CONFIG_ARCH_RANDOM
 	if (cpacf_query_func(CPACF_PRNO, CPACF_PRNO_TRNG))
 		static_branch_enable(&s390_arch_random_available);
-#endif
 }
 
 /*

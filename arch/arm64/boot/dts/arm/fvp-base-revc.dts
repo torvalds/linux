@@ -186,7 +186,7 @@
 	};
 
 	panel {
-		compatible = "arm,rtsm-display", "panel-dpi";
+		compatible = "arm,rtsm-display";
 		port {
 			panel_in: endpoint {
 				remote-endpoint = <&clcd_pads>;

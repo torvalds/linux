@@ -147,7 +147,7 @@ static void __snd_release_pages(struct device *dev, void *res)
  * hence it can't work with SNDRV_DMA_TYPE_CONTINUOUS or
  * SNDRV_DMA_TYPE_VMALLOC type.
  *
- * The function returns the snd_dma_buffer object at success, or NULL if failed.
+ * Return: the snd_dma_buffer object at success, or NULL if failed
  */
 struct snd_dma_buffer *
 snd_devm_alloc_dir_pages(struct device *dev, int type,
@@ -179,6 +179,8 @@ EXPORT_SYMBOL_GPL(snd_devm_alloc_dir_pages);
  * snd_dma_buffer_mmap - perform mmap of the given DMA buffer
  * @dmab: buffer allocation information
  * @area: VM area information
+ *
+ * Return: zero if successful, or a negative error code
  */
 int snd_dma_buffer_mmap(struct snd_dma_buffer *dmab,
 			struct vm_area_struct *area)
@@ -219,6 +221,8 @@ EXPORT_SYMBOL_GPL(snd_dma_buffer_sync);
  * snd_sgbuf_get_addr - return the physical address at the corresponding offset
  * @dmab: buffer allocation information
  * @offset: offset in the ring buffer
+ *
+ * Return: the physical address
  */
 dma_addr_t snd_sgbuf_get_addr(struct snd_dma_buffer *dmab, size_t offset)
 {
@@ -235,6 +239,8 @@ EXPORT_SYMBOL(snd_sgbuf_get_addr);
  * snd_sgbuf_get_page - return the physical page at the corresponding offset
  * @dmab: buffer allocation information
  * @offset: offset in the ring buffer
+ *
+ * Return: the page pointer
  */
 struct page *snd_sgbuf_get_page(struct snd_dma_buffer *dmab, size_t offset)
 {
@@ -253,6 +259,8 @@ EXPORT_SYMBOL(snd_sgbuf_get_page);
  * @dmab: buffer allocation information
  * @ofs: offset in the ring buffer
  * @size: the requested size
+ *
+ * Return: the chunk size
  */
 unsigned int snd_sgbuf_get_chunk_size(struct snd_dma_buffer *dmab,
 				      unsigned int ofs, unsigned int size)

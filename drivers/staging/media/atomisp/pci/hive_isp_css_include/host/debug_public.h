@@ -25,7 +25,7 @@
  * Simple queuing trace buffer for debug data
  * instantiatable in SP DMEM
  *
- * The buffer has a remote and and a local store
+ * The buffer has a remote and a local store
  * which contain duplicate data (when in sync).
  * The buffers are automatically synched when the
  * user dequeues, or manualy using the synch function

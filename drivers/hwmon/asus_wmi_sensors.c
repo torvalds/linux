@@ -514,22 +514,20 @@ static int asus_wmi_configure_sensor_setup(struct device *dev,
 	int i, idx;
 	int err;
 
-	temp_sensor = devm_kcalloc(dev, 1, sizeof(*temp_sensor), GFP_KERNEL);
-	if (!temp_sensor)
-		return -ENOMEM;
-
 	for (i = 0; i < sensor_data->wmi.sensor_count; i++) {
-		err = asus_wmi_sensor_info(i, temp_sensor);
+		struct asus_wmi_sensor_info sensor;
+
+		err = asus_wmi_sensor_info(i, &sensor);
 		if (err)
 			return err;
 
-		switch (temp_sensor->data_type) {
+		switch (sensor.data_type) {
 		case TEMPERATURE_C:
 		case VOLTAGE:
 		case CURRENT:
 		case FAN_RPM:
 		case WATER_FLOW:
-			type = asus_data_types[temp_sensor->data_type];
+			type = asus_data_types[sensor.data_type];
 			if (!nr_count[type])
 				nr_types++;
 			nr_count[type]++;

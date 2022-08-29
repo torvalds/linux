@@ -274,6 +274,9 @@
 #define MAX98396_DSP_SPK_SAFE_EN_SHIFT		(5)
 #define MAX98396_DSP_SPK_WB_FLT_EN_SHIFT	(6)
 
+/* MAX98396_R20A0_AMP_SUPPLY_CTL */
+#define MAX98396_AMP_SUPPLY_NOVBAT		(0x1 << 0)
+
 /* MAX98396_R20E0_IV_SENSE_PATH_CFG */
 #define MAX98396_IV_SENSE_DCBLK_EN_MASK		(0x3 << 0)
 #define MAX98396_IV_SENSE_DCBLK_EN_SHIFT	(0)
@@ -291,15 +294,20 @@ enum {
 	CODEC_TYPE_MAX98397,
 };
 
+#define  MAX98396_NUM_CORE_SUPPLIES 3
+
 struct max98396_priv {
 	struct regmap *regmap;
 	struct gpio_desc *reset_gpio;
+	struct regulator_bulk_data core_supplies[MAX98396_NUM_CORE_SUPPLIES];
+	struct regulator *pvdd, *vbat;
 	unsigned int v_slot;
 	unsigned int i_slot;
+	unsigned int spkfb_slot;
 	unsigned int bypass_slot;
 	bool interleave_mode;
-	unsigned int ch_size;
 	bool tdm_mode;
+	int tdm_max_samplerate;
 	int device_id;
 };
 #endif

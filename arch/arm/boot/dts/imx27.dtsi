@@ -74,14 +74,14 @@
 		};
 	};
 
-	soc {
+	soc: soc {
 		#address-cells = <1>;
 		#size-cells = <1>;
 		compatible = "simple-bus";
 		interrupt-parent = <&aitc>;
 		ranges;
 
-		aipi@10000000 { /* AIPI1 */
+		aipi1: aipi@10000000 { /* AIPI1 */
 			compatible = "fsl,aipi-bus", "simple-bus";
 			#address-cells = <1>;
 			#size-cells = <1>;
@@ -453,7 +453,7 @@
 			};
 		};
 
-		aipi@10020000 { /* AIPI2 */
+		aipi2: aipi@10020000 { /* AIPI2 */
 			compatible = "fsl,aipi-bus", "simple-bus";
 			#address-cells = <1>;
 			#size-cells = <1>;

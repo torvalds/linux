@@ -333,9 +333,3 @@ smp_send_stop (void)
 {
 	send_IPI_allbutself(IPI_CPU_STOP);
 }
-
-int
-setup_profiling_timer (unsigned int multiplier)
-{
-	return -EINVAL;
-}

@@ -53,6 +53,7 @@
 #include "trace-event.h"
 #include "util/parse-events.h"
 #include "util/bpf-loader.h"
+#include "util/tracepoint.h"
 #include "callchain.h"
 #include "print_binary.h"
 #include "string2.h"
@@ -2748,7 +2749,7 @@ static size_t trace__fprintf_tp_fields(struct trace *trace, struct evsel *evsel,
 
 		/*
 		 * Suppress this argument if its value is zero and
-		 * and we don't have a string associated in an
+		 * we don't have a string associated in an
 		 * strarray for it.
 		 */
 		if (val == 0 &&
@@ -4280,6 +4281,7 @@ static int trace__replay(struct trace *trace)
 		goto out;
 
 	evsel = evlist__find_tracepoint_by_name(session->evlist, "raw_syscalls:sys_enter");
+	trace->syscalls.events.sys_enter = evsel;
 	/* older kernels have syscalls tp versus raw_syscalls */
 	if (evsel == NULL)
 		evsel = evlist__find_tracepoint_by_name(session->evlist, "syscalls:sys_enter");
@@ -4292,6 +4294,7 @@ static int trace__replay(struct trace *trace)
 	}
 
 	evsel = evlist__find_tracepoint_by_name(session->evlist, "raw_syscalls:sys_exit");
+	trace->syscalls.events.sys_exit = evsel;
 	if (evsel == NULL)
 		evsel = evlist__find_tracepoint_by_name(session->evlist, "syscalls:sys_exit");
 	if (evsel &&

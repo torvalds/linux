@@ -37,6 +37,7 @@ struct amdgpu_reset_context {
 	struct amdgpu_device *reset_req_dev;
 	struct amdgpu_job *job;
 	struct amdgpu_hive_info *hive;
+	struct list_head *reset_device_list;
 	unsigned long flags;
 };
 

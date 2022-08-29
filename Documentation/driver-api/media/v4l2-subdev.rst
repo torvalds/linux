@@ -243,6 +243,12 @@ notifier callback is called. After all subdevices have been located the
 .complete() callback is called. When a subdevice is removed from the
 system the .unbind() method is called. All three callbacks are optional.
 
+Drivers can store any type of custom data in their driver-specific
+:c:type:`v4l2_async_subdev` wrapper. If any of that data requires special
+handling when the structure is freed, drivers must implement the ``.destroy()``
+notifier callback. The framework will call it right before freeing the
+:c:type:`v4l2_async_subdev`.
+
 Calling subdev operations
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 

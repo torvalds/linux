@@ -118,6 +118,8 @@ enum rtw8822c_dpk_one_shot_action {
 void rtw8822c_parse_tbl_dpk(struct rtw_dev *rtwdev,
 			    const struct rtw_table *tbl);
 
+extern const struct rtw_chip_info rtw8822c_hw_spec;
+
 #define RTW_DECL_TABLE_DPK(name)			\
 const struct rtw_table name ## _tbl = {			\
 	.data = name,					\

@@ -279,6 +279,7 @@ struct nfsd4_open {
 	struct nfs4_clnt_odstate *op_odstate; /* used during processing */
 	struct nfs4_acl *op_acl;
 	struct xdr_netobj op_label;
+	struct svc_rqst *op_rqstp;
 };
 
 struct nfsd4_open_confirm {
@@ -302,9 +303,10 @@ struct nfsd4_read {
 	u32			rd_length;          /* request */
 	int			rd_vlen;
 	struct nfsd_file	*rd_nf;
-	
+
 	struct svc_rqst		*rd_rqstp;          /* response */
-	struct svc_fh		*rd_fhp;             /* response */
+	struct svc_fh		*rd_fhp;            /* response */
+	u32			rd_eof;             /* response */
 };
 
 struct nfsd4_readdir {
@@ -532,6 +534,13 @@ struct nfsd42_write_res {
 	stateid_t		cb_stateid;
 };
 
+struct nfsd4_cb_offload {
+	struct nfsd4_callback	co_cb;
+	struct nfsd42_write_res	co_res;
+	__be32			co_nfserr;
+	struct knfsd_fh		co_fh;
+};
+
 struct nfsd4_copy {
 	/* request */
 	stateid_t		cp_src_stateid;
@@ -539,18 +548,16 @@ struct nfsd4_copy {
 	u64			cp_src_pos;
 	u64			cp_dst_pos;
 	u64			cp_count;
-	struct nl4_server	cp_src;
-	bool			cp_intra;
+	struct nl4_server	*cp_src;
 
-	/* both */
-	u32			cp_synchronous;
+	unsigned long		cp_flags;
+#define NFSD4_COPY_F_STOPPED		(0)
+#define NFSD4_COPY_F_INTRA		(1)
+#define NFSD4_COPY_F_SYNCHRONOUS	(2)
+#define NFSD4_COPY_F_COMMITTED		(3)
 
 	/* response */
 	struct nfsd42_write_res	cp_res;
-
-	/* for cb_offload */
-	struct nfsd4_callback	cp_cb;
-	__be32			nfserr;
 	struct knfsd_fh		fh;
 
 	struct nfs4_client      *cp_clp;
@@ -563,13 +570,34 @@ struct nfsd4_copy {
 	struct list_head	copies;
 	struct task_struct	*copy_task;
 	refcount_t		refcount;
-	bool			stopped;
 
 	struct vfsmount		*ss_mnt;
 	struct nfs_fh		c_fh;
 	nfs4_stateid		stateid;
-	bool			committed;
 };
+
+static inline void nfsd4_copy_set_sync(struct nfsd4_copy *copy, bool sync)
+{
+	if (sync)
+		set_bit(NFSD4_COPY_F_SYNCHRONOUS, &copy->cp_flags);
+	else
+		clear_bit(NFSD4_COPY_F_SYNCHRONOUS, &copy->cp_flags);
+}
+
+static inline bool nfsd4_copy_is_sync(const struct nfsd4_copy *copy)
+{
+	return test_bit(NFSD4_COPY_F_SYNCHRONOUS, &copy->cp_flags);
+}
+
+static inline bool nfsd4_copy_is_async(const struct nfsd4_copy *copy)
+{
+	return !test_bit(NFSD4_COPY_F_SYNCHRONOUS, &copy->cp_flags);
+}
+
+static inline bool nfsd4_ssc_is_inter(const struct nfsd4_copy *copy)
+{
+	return !test_bit(NFSD4_COPY_F_INTRA, &copy->cp_flags);
+}
 
 struct nfsd4_seek {
 	/* request */
@@ -594,19 +622,20 @@ struct nfsd4_offload_status {
 struct nfsd4_copy_notify {
 	/* request */
 	stateid_t		cpn_src_stateid;
-	struct nl4_server	cpn_dst;
+	struct nl4_server	*cpn_dst;
 
 	/* response */
 	stateid_t		cpn_cnr_stateid;
 	u64			cpn_sec;
 	u32			cpn_nsec;
-	struct nl4_server	cpn_src;
+	struct nl4_server	*cpn_src;
 };
 
 struct nfsd4_op {
 	u32					opnum;
-	const struct nfsd4_operation *		opdesc;
 	__be32					status;
+	const struct nfsd4_operation		*opdesc;
+	struct nfs4_replay			*replay;
 	union nfsd4_op_u {
 		struct nfsd4_access		access;
 		struct nfsd4_close		close;
@@ -670,7 +699,6 @@ struct nfsd4_op {
 		struct nfsd4_listxattrs		listxattrs;
 		struct nfsd4_removexattr	removexattr;
 	} u;
-	struct nfs4_replay *			replay;
 };
 
 bool nfsd4_cache_this_op(struct nfsd4_op *);

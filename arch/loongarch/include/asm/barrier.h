@@ -48,9 +48,9 @@ static inline unsigned long array_index_mask_nospec(unsigned long index,
 	__asm__ __volatile__(
 		"sltu	%0, %1, %2\n\t"
 #if (__SIZEOF_LONG__ == 4)
-		"sub.w	%0, $r0, %0\n\t"
+		"sub.w	%0, $zero, %0\n\t"
 #elif (__SIZEOF_LONG__ == 8)
-		"sub.d	%0, $r0, %0\n\t"
+		"sub.d	%0, $zero, %0\n\t"
 #endif
 		: "=r" (mask)
 		: "r" (index), "r" (size)

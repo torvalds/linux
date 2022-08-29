@@ -44,14 +44,13 @@ properties:
 patternProperties:
   "^button-[0-9]+$":
     type: object
+    $ref: input.yaml#
     properties:
       label:
         $ref: /schemas/types.yaml#/definitions/string
         description: Descriptive name of the key
 
-      linux,code:
-        $ref: /schemas/types.yaml#/definitions/uint32
-        description: Keycode to emit
+      linux,code: true
 
       channel:
         $ref: /schemas/types.yaml#/definitions/uint32

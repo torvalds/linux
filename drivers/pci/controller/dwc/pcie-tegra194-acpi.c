@@ -39,7 +39,8 @@ static int tegra194_acpi_init(struct pci_config_window *cfg)
 static void atu_reg_write(struct tegra194_pcie_ecam *pcie_ecam, int index,
 			  u32 val, u32 reg)
 {
-	u32 offset = PCIE_GET_ATU_OUTB_UNR_REG_OFFSET(index);
+	u32 offset = PCIE_ATU_UNROLL_BASE(PCIE_ATU_REGION_DIR_OB, index) +
+		     PCIE_ATU_VIEWPORT_BASE;
 
 	writel(val, pcie_ecam->iatu_base + offset + reg);
 }
@@ -58,8 +59,8 @@ static void program_outbound_atu(struct tegra194_pcie_ecam *pcie_ecam,
 		      PCIE_ATU_LIMIT);
 	atu_reg_write(pcie_ecam, index, upper_32_bits(pci_addr),
 		      PCIE_ATU_UPPER_TARGET);
-	atu_reg_write(pcie_ecam, index, type, PCIE_ATU_CR1);
-	atu_reg_write(pcie_ecam, index, PCIE_ATU_ENABLE, PCIE_ATU_CR2);
+	atu_reg_write(pcie_ecam, index, type, PCIE_ATU_REGION_CTRL1);
+	atu_reg_write(pcie_ecam, index, PCIE_ATU_ENABLE, PCIE_ATU_REGION_CTRL2);
 }
 
 static void __iomem *tegra194_map_bus(struct pci_bus *bus,

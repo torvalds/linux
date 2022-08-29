@@ -1918,21 +1918,29 @@ static void rtw89_phy_c2h_ra_rpt_iter(void *data, struct ieee80211_sta *sta)
 	struct rtw89_ra_report *ra_report = &rtwsta->ra_report;
 	struct sk_buff *c2h = ra_data->c2h;
 	u8 mode, rate, bw, giltf, mac_id;
+	u16 legacy_bitrate;
+	bool valid;
 
 	mac_id = RTW89_GET_PHY_C2H_RA_RPT_MACID(c2h->data);
 	if (mac_id != rtwsta->mac_id)
 		return;
-
-	memset(ra_report, 0, sizeof(*ra_report));
 
 	rate = RTW89_GET_PHY_C2H_RA_RPT_MCSNSS(c2h->data);
 	bw = RTW89_GET_PHY_C2H_RA_RPT_BW(c2h->data);
 	giltf = RTW89_GET_PHY_C2H_RA_RPT_GILTF(c2h->data);
 	mode = RTW89_GET_PHY_C2H_RA_RPT_MD_SEL(c2h->data);
 
+	if (mode == RTW89_RA_RPT_MODE_LEGACY) {
+		valid = rtw89_ra_report_to_bitrate(rtwdev, rate, &legacy_bitrate);
+		if (!valid)
+			return;
+	}
+
+	memset(ra_report, 0, sizeof(*ra_report));
+
 	switch (mode) {
 	case RTW89_RA_RPT_MODE_LEGACY:
-		ra_report->txrate.legacy = rtw89_ra_report_to_bitrate(rtwdev, rate);
+		ra_report->txrate.legacy = legacy_bitrate;
 		break;
 	case RTW89_RA_RPT_MODE_HT:
 		ra_report->txrate.flags |= RATE_INFO_FLAGS_MCS;
@@ -2151,6 +2159,7 @@ static void rtw89_phy_cfo_init(struct rtw89_dev *rtwdev)
 	cfo->cfo_trig_by_timer_en = false;
 	cfo->phy_cfo_trk_cnt = 0;
 	cfo->phy_cfo_status = RTW89_PHY_DCFO_STATE_NORMAL;
+	cfo->cfo_ul_ofdma_acc_mode = RTW89_CFO_UL_OFDMA_ACC_ENABLE;
 }
 
 static void rtw89_phy_cfo_crystal_cap_adjust(struct rtw89_dev *rtwdev,
@@ -2419,6 +2428,13 @@ void rtw89_phy_cfo_track(struct rtw89_dev *rtwdev)
 {
 	struct rtw89_cfo_tracking_info *cfo = &rtwdev->cfo_tracking;
 	struct rtw89_traffic_stats *stats = &rtwdev->stats;
+	bool is_ul_ofdma = false, ofdma_acc_en = false;
+
+	if (stats->rx_tf_periodic > CFO_TF_CNT_TH)
+		is_ul_ofdma = true;
+	if (cfo->cfo_ul_ofdma_acc_mode == RTW89_CFO_UL_OFDMA_ACC_ENABLE &&
+	    is_ul_ofdma)
+		ofdma_acc_en = true;
 
 	switch (cfo->phy_cfo_status) {
 	case RTW89_PHY_DCFO_STATE_NORMAL:
@@ -2430,16 +2446,26 @@ void rtw89_phy_cfo_track(struct rtw89_dev *rtwdev)
 		}
 		break;
 	case RTW89_PHY_DCFO_STATE_ENHANCE:
-		if (cfo->phy_cfo_trk_cnt >= CFO_PERIOD_CNT) {
+		if (stats->tx_throughput <= CFO_TP_LOWER)
+			cfo->phy_cfo_status = RTW89_PHY_DCFO_STATE_NORMAL;
+		else if (ofdma_acc_en &&
+			 cfo->phy_cfo_trk_cnt >= CFO_PERIOD_CNT)
+			cfo->phy_cfo_status = RTW89_PHY_DCFO_STATE_HOLD;
+		else
+			cfo->phy_cfo_trk_cnt++;
+
+		if (cfo->phy_cfo_status == RTW89_PHY_DCFO_STATE_NORMAL) {
 			cfo->phy_cfo_trk_cnt = 0;
 			cfo->cfo_trig_by_timer_en = false;
 		}
-		if (cfo->cfo_trig_by_timer_en == 1)
-			cfo->phy_cfo_trk_cnt++;
+		break;
+	case RTW89_PHY_DCFO_STATE_HOLD:
 		if (stats->tx_throughput <= CFO_TP_LOWER) {
 			cfo->phy_cfo_status = RTW89_PHY_DCFO_STATE_NORMAL;
 			cfo->phy_cfo_trk_cnt = 0;
 			cfo->cfo_trig_by_timer_en = false;
+		} else {
+			cfo->phy_cfo_trk_cnt++;
 		}
 		break;
 	default:
@@ -3099,11 +3125,9 @@ static void rtw89_physts_enable_fail_report(struct rtw89_dev *rtwdev,
 
 static void rtw89_physts_parsing_init(struct rtw89_dev *rtwdev)
 {
-	const struct rtw89_chip_info *chip = rtwdev->chip;
 	u8 i;
 
-	if (chip->chip_id == RTL8852A && rtwdev->hal.cv == CHIP_CBV)
-		rtw89_physts_enable_fail_report(rtwdev, false, RTW89_PHY_0);
+	rtw89_physts_enable_fail_report(rtwdev, false, RTW89_PHY_0);
 
 	for (i = 0; i < RTW89_PHYSTS_BITMAP_NUM; i++) {
 		if (i >= RTW89_CCK_PKT)
@@ -3612,7 +3636,7 @@ void rtw89_phy_set_bss_color(struct rtw89_dev *rtwdev, struct ieee80211_vif *vif
 	enum rtw89_phy_idx phy_idx = RTW89_PHY_0;
 	u8 bss_color;
 
-	if (!vif->bss_conf.he_support || !vif->bss_conf.assoc)
+	if (!vif->bss_conf.he_support || !vif->cfg.assoc)
 		return;
 
 	bss_color = vif->bss_conf.he_bss_color.color;
@@ -3622,7 +3646,7 @@ void rtw89_phy_set_bss_color(struct rtw89_dev *rtwdev, struct ieee80211_vif *vif
 	rtw89_phy_write32_idx(rtwdev, R_BSS_CLR_MAP, B_BSS_CLR_MAP_TGT, bss_color,
 			      phy_idx);
 	rtw89_phy_write32_idx(rtwdev, R_BSS_CLR_MAP, B_BSS_CLR_MAP_STAID,
-			      vif->bss_conf.aid, phy_idx);
+			      vif->cfg.aid, phy_idx);
 }
 
 static void

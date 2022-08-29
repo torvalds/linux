@@ -170,6 +170,11 @@ struct intel_guc {
 	/** @ads_engine_usage_size: size of engine usage in the ADS */
 	u32 ads_engine_usage_size;
 
+	/** @lrc_desc_pool_v69: object allocated to hold the GuC LRC descriptor pool */
+	struct i915_vma *lrc_desc_pool_v69;
+	/** @lrc_desc_pool_vaddr_v69: contents of the GuC LRC descriptor pool */
+	void *lrc_desc_pool_vaddr_v69;
+
 	/**
 	 * @context_lookup: used to resolve intel_context from guc_id, if a
 	 * context is present in this structure it is registered with the GuC
@@ -458,5 +463,7 @@ void intel_guc_submission_cancel_requests(struct intel_guc *guc);
 void intel_guc_load_status(struct intel_guc *guc, struct drm_printer *p);
 
 void intel_guc_write_barrier(struct intel_guc *guc);
+
+void intel_guc_dump_time_info(struct intel_guc *guc, struct drm_printer *p);
 
 #endif

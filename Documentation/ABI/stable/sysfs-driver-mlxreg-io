@@ -1,7 +1,7 @@
 What:		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/asic_health
 Date:		June 2018
 KernelVersion:	4.19
-Contact:	Vadim Pasternak <vadimpmellanox.com>
+Contact:	Vadim Pasternak <vadimp@nvidia.com>
 Description:	This file shows ASIC health status. The possible values are:
 		0 - health failed, 2 - health OK, 3 - ASIC in booting state.
 
@@ -11,7 +11,7 @@ What:		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/cpld1_version
 What:		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/cpld2_version
 Date:		June 2018
 KernelVersion:	4.19
-Contact:	Vadim Pasternak <vadimpmellanox.com>
+Contact:	Vadim Pasternak <vadimp@nvidia.com>
 Description:	These files show with which CPLD versions have been burned
 		on carrier and switch boards.
 
@@ -20,7 +20,7 @@ Description:	These files show with which CPLD versions have been burned
 What:		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/fan_dir
 Date:		December 2018
 KernelVersion:	5.0
-Contact:	Vadim Pasternak <vadimpmellanox.com>
+Contact:	Vadim Pasternak <vadimp@nvidia.com>
 Description:	This file shows the system fans direction:
 		forward direction - relevant bit is set 0;
 		reversed direction - relevant bit is set 1.
@@ -30,7 +30,7 @@ Description:	This file shows the system fans direction:
 What:		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/cpld3_version
 Date:		November 2018
 KernelVersion:	5.0
-Contact:	Vadim Pasternak <vadimpmellanox.com>
+Contact:	Vadim Pasternak <vadimp@nvidia.com>
 Description:	These files show with which CPLD versions have been burned
 		on LED or Gearbox board.
 
@@ -39,7 +39,7 @@ Description:	These files show with which CPLD versions have been burned
 What:		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/jtag_enable
 Date:		November 2018
 KernelVersion:	5.0
-Contact:	Vadim Pasternak <vadimpmellanox.com>
+Contact:	Vadim Pasternak <vadimp@nvidia.com>
 Description:	These files enable and disable the access to the JTAG domain.
 		By default access to the JTAG domain is disabled.
 
@@ -48,7 +48,7 @@ Description:	These files enable and disable the access to the JTAG domain.
 What:		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/select_iio
 Date:		June 2018
 KernelVersion:	4.19
-Contact:	Vadim Pasternak <vadimpmellanox.com>
+Contact:	Vadim Pasternak <vadimp@nvidia.com>
 Description:	This file allows iio devices selection.
 
 		Attribute select_iio can be written with 0 or with 1. It
@@ -62,7 +62,7 @@ What:		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/psu1_on
 		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/pwr_down
 Date:		June 2018
 KernelVersion:	4.19
-Contact:	Vadim Pasternak <vadimpmellanox.com>
+Contact:	Vadim Pasternak <vadimp@nvidia.com>
 Description:	These files allow asserting system power cycling, switching
 		power supply units on and off and system's main power domain
 		shutdown.
@@ -89,7 +89,7 @@ What:		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/reset_short_pb
 What:		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/reset_sw_reset
 Date:		June 2018
 KernelVersion:	4.19
-Contact:	Vadim Pasternak <vadimpmellanox.com>
+Contact:	Vadim Pasternak <vadimp@nvidia.com>
 Description:	These files show the system reset cause, as following: power
 		auxiliary outage or power refresh, ASIC thermal shutdown, halt,
 		hotswap, watchdog, firmware reset, long press power button,
@@ -106,7 +106,7 @@ What:		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/reset_system
 What:		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/reset_voltmon_upgrade_fail
 Date:		November 2018
 KernelVersion:	5.0
-Contact:	Vadim Pasternak <vadimpmellanox.com>
+Contact:	Vadim Pasternak <vadimp@nvidia.com>
 Description:	These files show the system reset cause, as following: ComEx
 		power fail, reset from ComEx, system platform reset, reset
 		due to voltage monitor devices upgrade failure,
@@ -119,7 +119,7 @@ Description:	These files show the system reset cause, as following: ComEx
 What:		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/cpld4_version
 Date:		November 2018
 KernelVersion:	5.0
-Contact:	Vadim Pasternak <vadimpmellanox.com>
+Contact:	Vadim Pasternak <vadimp@nvidia.com>
 Description:	These files show with which CPLD versions have been burned
 		on LED board.
 
@@ -133,7 +133,7 @@ What:		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/reset_sff_wd
 What:		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/reset_swb_wd
 Date:		June 2019
 KernelVersion:	5.3
-Contact:	Vadim Pasternak <vadimpmellanox.com>
+Contact:	Vadim Pasternak <vadimp@nvidia.com>
 Description:	These files show the system reset cause, as following:
 		COMEX thermal shutdown; wathchdog power off or reset was derived
 		by one of the next components: COMEX, switch board or by Small Form
@@ -148,7 +148,7 @@ What:		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/config1
 What:		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/config2
 Date:		January 2020
 KernelVersion:	5.6
-Contact:	Vadim Pasternak <vadimpmellanox.com>
+Contact:	Vadim Pasternak <vadimp@nvidia.com>
 Description:	These files show system static topology identification
 		like system's static I2C topology, number and type of FPGA
 		devices within the system and so on.
@@ -161,7 +161,7 @@ What:		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/reset_soc
 What:		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/reset_sw_pwr_off
 Date:		January 2020
 KernelVersion:	5.6
-Contact:	Vadim Pasternak <vadimpmellanox.com>
+Contact:	Vadim Pasternak <vadimp@nvidia.com>
 Description:	These files show the system reset causes, as following: reset
 		due to AC power failure, reset invoked from software by
 		assertion reset signal through CPLD. reset caused by signal
@@ -173,7 +173,7 @@ Description:	These files show the system reset causes, as following: reset
 What:		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/pcie_asic_reset_dis
 Date:		January 2020
 KernelVersion:	5.6
-Contact:	Vadim Pasternak <vadimpmellanox.com>
+Contact:	Vadim Pasternak <vadimp@nvidia.com>
 Description:	This file allows to retain ASIC up during PCIe root complex
 		reset, when attribute is set 1.
 
@@ -182,7 +182,7 @@ Description:	This file allows to retain ASIC up during PCIe root complex
 What:		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/vpd_wp
 Date:		January 2020
 KernelVersion:	5.6
-Contact:	Vadim Pasternak <vadimpmellanox.com>
+Contact:	Vadim Pasternak <vadimp@nvidia.com>
 Description:	This file allows to overwrite system VPD hardware write
 		protection when attribute is set 1.
 
@@ -191,7 +191,7 @@ Description:	This file allows to overwrite system VPD hardware write
 What:		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/voltreg_update_status
 Date:		January 2020
 KernelVersion:	5.6
-Contact:	Vadim Pasternak <vadimpmellanox.com>
+Contact:	Vadim Pasternak <vadimp@nvidia.com>
 Description:	This file exposes the configuration update status of burnable
 		voltage regulator devices. The status values are as following:
 		0 - OK; 1 - CRC failure; 2 = I2C failure; 3 - in progress.
@@ -201,7 +201,7 @@ Description:	This file exposes the configuration update status of burnable
 What:		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/ufm_version
 Date:		January 2020
 KernelVersion:	5.6
-Contact:	Vadim Pasternak <vadimpmellanox.com>
+Contact:	Vadim Pasternak <vadimp@nvidia.com>
 Description:	This file exposes the firmware version of burnable voltage
 		regulator devices.
 
@@ -217,7 +217,7 @@ What:		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/cpld3_version_min
 What:		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/cpld4_version_min
 Date:		July 2020
 KernelVersion:	5.9
-Contact:	Vadim Pasternak <vadimpmellanox.com>
+Contact:	Vadim Pasternak <vadimp@nvidia.com>
 Description:	These files show with which CPLD part numbers and minor
 		versions have been burned CPLD devices equipped on a
 		system.
@@ -471,7 +471,7 @@ Description:	These files provide the maximum powered required for line card
 What:		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/phy_reset
 Date:		May 2022
 KernelVersion:	5.19
-Contact:	Vadim Pasternak <vadimpmellanox.com>
+Contact:	Vadim Pasternak <vadimp@nvidia.com>
 Description:	This file allows to reset PHY 88E1548 when attribute is set 0
 		due to some abnormal PHY behavior.
 		Expected behavior:
@@ -483,7 +483,7 @@ Description:	This file allows to reset PHY 88E1548 when attribute is set 0
 What:		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/mac_reset
 Date:		May 2022
 KernelVersion:	5.19
-Contact:	Vadim Pasternak <vadimpmellanox.com>
+Contact:	Vadim Pasternak <vadimp@nvidia.com>
 Description:	This file allows to reset ASIC MT52132 when attribute is set 0
 		due to some abnormal ASIC behavior.
 		Expected behavior:
@@ -495,7 +495,7 @@ Description:	This file allows to reset ASIC MT52132 when attribute is set 0
 What:		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/qsfp_pwr_good
 Date:		May 2022
 KernelVersion:	5.19
-Contact:	Vadim Pasternak <vadimpmellanox.com>
+Contact:	Vadim Pasternak <vadimp@nvidia.com>
 Description:	This file shows QSFP ports power status. The value is set to 0
 		when one of any QSFP ports is plugged. The value is set to 1 when
 		there are no any QSFP ports are plugged.
@@ -503,3 +503,42 @@ Description:	This file shows QSFP ports power status. The value is set to 0
 		0 - Power good, 1 - Not power good.
 
 		The files are read only.
+
+What:		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/asic2_health
+Date:		July 2022
+KernelVersion:	5.20
+Contact:	Vadim Pasternak <vadimp@nvidia.com>
+Description:	This file shows 2-nd ASIC health status. The possible values are:
+		0 - health failed, 2 - health OK, 3 - ASIC in booting state.
+
+		The file is read only.
+
+What:		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/asic_reset
+What:		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/asic2_reset
+Date:		July 2022
+KernelVersion:	5.20
+Contact:	Vadim Pasternak <vadimp@nvidia.com>
+Description:	These files allow to each of ASICs by writing 1.
+
+		The files are write only.
+
+
+What:		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/comm_chnl_ready
+Date:		July 2022
+KernelVersion:	5.20
+Contact:	Vadim Pasternak <vadimp@nvidia.com>
+Description:	This file is used to indicate remote end (for example BMC) that system
+	        host CPU is ready for sending telemetry data to remote end.
+		For indication the file should be written 1.
+
+		The file is write only.
+
+What:		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/config3
+Date:		January 2020
+KernelVersion:	5.6
+Contact:	Vadim Pasternak <vadimp@nvidia.com>
+Description:	The file indicates COME module hardware configuration.
+		The value is pushed by hardware through GPIO pins.
+		The purpose is to expose some minor BOM changes for the same system SKU.
+
+		The file is read only.

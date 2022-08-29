@@ -2031,7 +2031,7 @@ static void ataflop_probe(dev_t dev)
 	return;
 
 cleanup_disk:
-	blk_cleanup_disk(unit[drive].disk[type]);
+	put_disk(unit[drive].disk[type]);
 	unit[drive].disk[type] = NULL;
 }
 
@@ -2045,7 +2045,6 @@ static void atari_floppy_cleanup(void)
 			if (!unit[i].disk[type])
 				continue;
 			del_gendisk(unit[i].disk[type]);
-			blk_cleanup_queue(unit[i].disk[type]->queue);
 			put_disk(unit[i].disk[type]);
 		}
 		blk_mq_free_tag_set(&unit[i].tag_set);
@@ -2064,7 +2063,7 @@ static void atari_cleanup_floppy_disk(struct atari_floppy_struct *fs)
 			continue;
 		if (fs->registered[type])
 			del_gendisk(fs->disk[type]);
-		blk_cleanup_disk(fs->disk[type]);
+		put_disk(fs->disk[type]);
 	}
 	blk_mq_free_tag_set(&fs->tag_set);
 }

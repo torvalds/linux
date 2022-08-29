@@ -344,7 +344,7 @@ static int neo1973_probe(struct platform_device *pdev)
 	return devm_snd_soc_register_card(dev, &neo1973);
 }
 
-struct platform_driver neo1973_audio = {
+static struct platform_driver neo1973_audio = {
 	.driver = {
 		.name = "neo1973-audio",
 		.pm = &snd_soc_pm_ops,

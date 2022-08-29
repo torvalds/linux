@@ -1,19 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright 2008 Cisco Systems, Inc.  All rights reserved.
  * Copyright 2007 Nuova Systems, Inc.  All rights reserved.
- *
- * This program is free software; you may redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
- * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
- * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
  */
 #include <linux/mempool.h>
 #include <linux/errno.h>
@@ -1350,8 +1338,7 @@ int fnic_wq_copy_cmpl_handler(struct fnic *fnic, int copy_work_to_do)
 	return wq_work_done;
 }
 
-static bool fnic_cleanup_io_iter(struct scsi_cmnd *sc, void *data,
-				 bool reserved)
+static bool fnic_cleanup_io_iter(struct scsi_cmnd *sc, void *data)
 {
 	const int tag = scsi_cmd_to_rq(sc)->tag;
 	struct fnic *fnic = data;
@@ -1548,8 +1535,7 @@ struct fnic_rport_abort_io_iter_data {
 	int term_cnt;
 };
 
-static bool fnic_rport_abort_io_iter(struct scsi_cmnd *sc, void *data,
-				     bool reserved)
+static bool fnic_rport_abort_io_iter(struct scsi_cmnd *sc, void *data)
 {
 	struct fnic_rport_abort_io_iter_data *iter_data = data;
 	struct fnic *fnic = iter_data->fnic;
@@ -2003,8 +1989,7 @@ struct fnic_pending_aborts_iter_data {
 	int ret;
 };
 
-static bool fnic_pending_aborts_iter(struct scsi_cmnd *sc,
-				     void *data, bool reserved)
+static bool fnic_pending_aborts_iter(struct scsi_cmnd *sc, void *data)
 {
 	struct fnic_pending_aborts_iter_data *iter_data = data;
 	struct fnic *fnic = iter_data->fnic;
@@ -2018,8 +2003,6 @@ static bool fnic_pending_aborts_iter(struct scsi_cmnd *sc,
 	enum fnic_ioreq_state old_ioreq_state;
 
 	if (sc == iter_data->lr_sc || sc->device != lun_dev)
-		return true;
-	if (reserved)
 		return true;
 
 	io_lock = fnic_io_lock_tag(fnic, abt_tag);
@@ -2670,8 +2653,7 @@ call_fc_exch_mgr_reset:
 
 }
 
-static bool fnic_abts_pending_iter(struct scsi_cmnd *sc, void *data,
-				   bool reserved)
+static bool fnic_abts_pending_iter(struct scsi_cmnd *sc, void *data)
 {
 	struct fnic_pending_aborts_iter_data *iter_data = data;
 	struct fnic *fnic = iter_data->fnic;

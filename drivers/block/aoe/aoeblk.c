@@ -427,7 +427,7 @@ aoeblk_gdalloc(void *vp)
 	return;
 
 out_disk_cleanup:
-	blk_cleanup_disk(gd);
+	put_disk(gd);
 err_tagset:
 	blk_mq_free_tag_set(set);
 err_mempool:

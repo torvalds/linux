@@ -9,8 +9,6 @@
  *
  * This file contains definitions taken from the
  * USB Mass Storage Class Specification Overview
- *
- * Distributed under the terms of the GNU GPL, version two.
  */
 
 /* Storage subclass codes */

@@ -282,6 +282,8 @@ int wfx_hif_stop_scan(struct wfx_vif *wvif)
 int wfx_hif_join(struct wfx_vif *wvif, const struct ieee80211_bss_conf *conf,
 		 struct ieee80211_channel *channel, const u8 *ssid, int ssid_len)
 {
+	struct ieee80211_vif *vif = container_of(conf, struct ieee80211_vif,
+						 bss_conf);
 	int ret;
 	struct wfx_hif_msg *hif;
 	struct wfx_hif_req_join *body = wfx_alloc_hif(sizeof(*body), &hif);
@@ -289,10 +291,10 @@ int wfx_hif_join(struct wfx_vif *wvif, const struct ieee80211_bss_conf *conf,
 	WARN_ON(!conf->beacon_int);
 	WARN_ON(!conf->basic_rates);
 	WARN_ON(sizeof(body->ssid) < ssid_len);
-	WARN(!conf->ibss_joined && !ssid_len, "joining an unknown BSS");
+	WARN(!vif->cfg.ibss_joined && !ssid_len, "joining an unknown BSS");
 	if (!hif)
 		return -ENOMEM;
-	body->infrastructure_bss_mode = !conf->ibss_joined;
+	body->infrastructure_bss_mode = !vif->cfg.ibss_joined;
 	body->short_preamble = conf->use_short_preamble;
 	body->probe_for_join = !(channel->flags & IEEE80211_CHAN_NO_IR);
 	body->channel_number = channel->hw_value;
@@ -417,6 +419,8 @@ int wfx_hif_set_pm(struct wfx_vif *wvif, bool ps, int dynamic_ps_timeout)
 int wfx_hif_start(struct wfx_vif *wvif, const struct ieee80211_bss_conf *conf,
 		  const struct ieee80211_channel *channel)
 {
+        struct ieee80211_vif *vif = container_of(conf, struct ieee80211_vif,
+						 bss_conf);
 	int ret;
 	struct wfx_hif_msg *hif;
 	struct wfx_hif_req_start *body = wfx_alloc_hif(sizeof(*body), &hif);
@@ -429,8 +433,8 @@ int wfx_hif_start(struct wfx_vif *wvif, const struct ieee80211_bss_conf *conf,
 	body->channel_number = channel->hw_value;
 	body->beacon_interval = cpu_to_le32(conf->beacon_int);
 	body->basic_rate_set = cpu_to_le32(wfx_rate_mask_to_hw(wvif->wdev, conf->basic_rates));
-	body->ssid_length = conf->ssid_len;
-	memcpy(body->ssid, conf->ssid, conf->ssid_len);
+	body->ssid_length = vif->cfg.ssid_len;
+	memcpy(body->ssid, vif->cfg.ssid, vif->cfg.ssid_len);
 	wfx_fill_header(hif, wvif->id, HIF_REQ_ID_START, sizeof(*body));
 	ret = wfx_cmd_send(wvif->wdev, hif, NULL, 0, false);
 	kfree(hif);

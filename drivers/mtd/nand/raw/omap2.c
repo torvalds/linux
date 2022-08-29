@@ -2278,16 +2278,14 @@ static int omap_nand_remove(struct platform_device *pdev)
 	struct mtd_info *mtd = platform_get_drvdata(pdev);
 	struct nand_chip *nand_chip = mtd_to_nand(mtd);
 	struct omap_nand_info *info = mtd_to_omap(mtd);
-	int ret;
 
 	rawnand_sw_bch_cleanup(nand_chip);
 
 	if (info->dma)
 		dma_release_channel(info->dma);
-	ret = mtd_device_unregister(mtd);
-	WARN_ON(ret);
+	WARN_ON(mtd_device_unregister(mtd));
 	nand_cleanup(nand_chip);
-	return ret;
+	return 0;
 }
 
 /* omap_nand_ids defined in linux/platform_data/mtd-nand-omap2.h */

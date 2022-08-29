@@ -277,36 +277,61 @@ Thunderbird (GUI)
 Thunderbird is an Outlook clone that likes to mangle text, but there are ways
 to coerce it into behaving.
 
-- Allow use of an external editor:
-  The easiest thing to do with Thunderbird and patches is to use an
-  "external editor" extension and then just use your favorite ``$EDITOR``
-  for reading/merging patches into the body text.  To do this, download
-  and install the extension, then add a button for it using
-  :menuselection:`View-->Toolbars-->Customize...` and finally just click on it
-  when in the :menuselection:`Compose` dialog.
+After doing the modifications, this includes installing the extensions,
+you need to restart Thunderbird.
 
-  Please note that "external editor" requires that your editor must not
-  fork, or in other words, the editor must not return before closing.
-  You may have to pass additional flags or change the settings of your
-  editor. Most notably if you are using gvim then you must pass the -f
-  option to gvim by putting ``/usr/bin/gvim -f`` (if the binary is in
-  ``/usr/bin``) to the text editor field in :menuselection:`external editor`
-  settings. If you are using some other editor then please read its manual
-  to find out how to do this.
+- Allow use of an external editor:
+
+  The easiest thing to do with Thunderbird and patches is to use extensions
+  which open your favorite external editor.
+
+  Here are some example extensions which are capable of doing this.
+
+  - "External Editor Revived"
+
+    https://github.com/Frederick888/external-editor-revived
+
+    https://addons.thunderbird.net/en-GB/thunderbird/addon/external-editor-revived/
+
+    It requires installing a "native messaging host".
+    Please read the wiki which can be found here:
+    https://github.com/Frederick888/external-editor-revived/wiki
+
+  - "External Editor"
+
+    https://github.com/exteditor/exteditor
+
+    To do this, download and install the extension, then open the
+    :menuselection:`compose` window, add a button for it using
+    :menuselection:`View-->Toolbars-->Customize...`
+    then just click on the new button when you wish to use the external editor.
+
+    Please note that "External Editor" requires that your editor must not
+    fork, or in other words, the editor must not return before closing.
+    You may have to pass additional flags or change the settings of your
+    editor. Most notably if you are using gvim then you must pass the -f
+    option to gvim by putting ``/usr/bin/gvim --nofork"`` (if the binary is in
+    ``/usr/bin``) to the text editor field in :menuselection:`external editor`
+    settings. If you are using some other editor then please read its manual
+    to find out how to do this.
 
 To beat some sense out of the internal editor, do this:
 
-- Edit your Thunderbird config settings so that it won't use ``format=flowed``.
-  Go to :menuselection:`edit-->preferences-->advanced-->config editor` to bring up
-  the thunderbird's registry editor.
+- Edit your Thunderbird config settings so that it won't use ``format=flowed``!
+  Go to your main window and find the button for your main dropdown menu.
+  :menuselection:`Main Menu-->Preferences-->General-->Config Editor...`
+  to bring up the thunderbird's registry editor.
 
-- Set ``mailnews.send_plaintext_flowed`` to ``false``
+  - Set ``mailnews.send_plaintext_flowed`` to ``false``
 
-- Set ``mailnews.wraplength`` from ``72`` to ``0``
+  - Set ``mailnews.wraplength`` from ``72`` to ``0``
 
-- :menuselection:`View-->Message Body As-->Plain Text`
+- Don't write HTML messages! Go to the main window
+  :menuselection:`Main Menu-->Account Settings-->youracc@server.something-->Composition & Addressing`!
+  There you can disable the option "Compose messages in HTML format".
 
-- :menuselection:`View-->Character Encoding-->Unicode (UTF-8)`
+- Open messages only as plain text! Go to the main window
+  :menuselection:`Main Menu-->View-->Message Body As-->Plain Text`!
 
 TkRat (GUI)
 ***********

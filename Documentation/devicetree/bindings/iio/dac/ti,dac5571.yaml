@@ -21,6 +21,7 @@ properties:
       - ti,dac5573
       - ti,dac6573
       - ti,dac7573
+      - ti,dac121c081
 
   reg:
     maxItems: 1

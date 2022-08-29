@@ -24,7 +24,10 @@
 struct a2091_hostdata {
 	struct WD33C93_hostdata wh;
 	struct a2091_scsiregs *regs;
+	struct device *dev;
 };
+
+#define DMA_DIR(d)   ((d == DATA_OUT_DIR) ? DMA_TO_DEVICE : DMA_FROM_DEVICE)
 
 static irqreturn_t a2091_intr(int irq, void *data)
 {
@@ -45,15 +48,31 @@ static irqreturn_t a2091_intr(int irq, void *data)
 static int dma_setup(struct scsi_cmnd *cmd, int dir_in)
 {
 	struct scsi_pointer *scsi_pointer = WD33C93_scsi_pointer(cmd);
+	unsigned long len = scsi_pointer->this_residual;
 	struct Scsi_Host *instance = cmd->device->host;
 	struct a2091_hostdata *hdata = shost_priv(instance);
 	struct WD33C93_hostdata *wh = &hdata->wh;
 	struct a2091_scsiregs *regs = hdata->regs;
 	unsigned short cntr = CNTR_PDMD | CNTR_INTEN;
-	unsigned long addr = virt_to_bus(scsi_pointer->ptr);
+	dma_addr_t addr;
+
+	addr = dma_map_single(hdata->dev, scsi_pointer->ptr,
+			      len, DMA_DIR(dir_in));
+	if (dma_mapping_error(hdata->dev, addr)) {
+		dev_warn(hdata->dev, "cannot map SCSI data block %p\n",
+			 scsi_pointer->ptr);
+		return 1;
+	}
+	scsi_pointer->dma_handle = addr;
 
 	/* don't allow DMA if the physical address is bad */
 	if (addr & A2091_XFER_MASK) {
+		/* drop useless mapping */
+		dma_unmap_single(hdata->dev, scsi_pointer->dma_handle,
+				 scsi_pointer->this_residual,
+				 DMA_DIR(dir_in));
+		scsi_pointer->dma_handle = (dma_addr_t) NULL;
+
 		wh->dma_bounce_len = (scsi_pointer->this_residual + 511) & ~0x1ff;
 		wh->dma_bounce_buffer = kmalloc(wh->dma_bounce_len,
 						GFP_KERNEL);
@@ -64,8 +83,21 @@ static int dma_setup(struct scsi_cmnd *cmd, int dir_in)
 			return 1;
 		}
 
-		/* get the physical address of the bounce buffer */
-		addr = virt_to_bus(wh->dma_bounce_buffer);
+		if (!dir_in) {
+			/* copy to bounce buffer for a write */
+			memcpy(wh->dma_bounce_buffer, scsi_pointer->ptr,
+			       scsi_pointer->this_residual);
+		}
+
+		/* will flush/invalidate cache for us */
+		addr = dma_map_single(hdata->dev, wh->dma_bounce_buffer,
+				      wh->dma_bounce_len, DMA_DIR(dir_in));
+		/* can't map buffer; use PIO */
+		if (dma_mapping_error(hdata->dev, addr)) {
+			dev_warn(hdata->dev, "cannot map bounce buffer %p\n",
+				 wh->dma_bounce_buffer);
+			return 1;
+		}
 
 		/* the bounce buffer may not be in the first 16M of physmem */
 		if (addr & A2091_XFER_MASK) {
@@ -76,11 +108,7 @@ static int dma_setup(struct scsi_cmnd *cmd, int dir_in)
 			return 1;
 		}
 
-		if (!dir_in) {
-			/* copy to bounce buffer for a write */
-			memcpy(wh->dma_bounce_buffer, scsi_pointer->ptr,
-			       scsi_pointer->this_residual);
-		}
+		scsi_pointer->dma_handle = addr;
 	}
 
 	/* setup dma direction */
@@ -95,13 +123,8 @@ static int dma_setup(struct scsi_cmnd *cmd, int dir_in)
 	/* setup DMA *physical* address */
 	regs->ACR = addr;
 
-	if (dir_in) {
-		/* invalidate any cache */
-		cache_clear(addr, scsi_pointer->this_residual);
-	} else {
-		/* push any dirty cache */
-		cache_push(addr, scsi_pointer->this_residual);
-	}
+	/* no more cache flush here - dma_map_single() takes care */
+
 	/* start DMA */
 	regs->ST_DMA = 1;
 
@@ -142,6 +165,10 @@ static void dma_stop(struct Scsi_Host *instance, struct scsi_cmnd *SCpnt,
 	/* restore the CONTROL bits (minus the direction flag) */
 	regs->CNTR = CNTR_PDMD | CNTR_INTEN;
 
+	dma_unmap_single(hdata->dev, scsi_pointer->dma_handle,
+			 scsi_pointer->this_residual,
+			 DMA_DIR(wh->dma_dir));
+
 	/* copy from a bounce buffer, if necessary */
 	if (status && wh->dma_bounce_buffer) {
 		if (wh->dma_dir)
@@ -178,6 +205,11 @@ static int a2091_probe(struct zorro_dev *z, const struct zorro_device_id *ent)
 	wd33c93_regs wdregs;
 	struct a2091_hostdata *hdata;
 
+	if (dma_set_mask_and_coherent(&z->dev, DMA_BIT_MASK(24))) {
+		dev_warn(&z->dev, "cannot use 24 bit DMA\n");
+		return -ENODEV;
+	}
+
 	if (!request_mem_region(z->resource.start, 256, "wd33c93"))
 		return -EBUSY;
 
@@ -198,6 +230,7 @@ static int a2091_probe(struct zorro_dev *z, const struct zorro_device_id *ent)
 	wdregs.SCMD = &regs->SCMD;
 
 	hdata = shost_priv(instance);
+	hdata->dev = &z->dev;
 	hdata->wh.no_sync = 0xff;
 	hdata->wh.fast = 0;
 	hdata->wh.dma_mode = CTRL_DMA;
