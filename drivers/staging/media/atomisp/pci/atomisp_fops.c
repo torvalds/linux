@@ -804,6 +804,7 @@ css_error:
 	pm_runtime_put(vdev->v4l2_dev->dev);
 error:
 	rt_mutex_unlock(&isp->mutex);
+	v4l2_fh_release(file);
 	return ret;
 }
 
