@@ -707,29 +707,13 @@ static int atomisp_open(struct file *file)
 
 	dev_dbg(isp->dev, "open device %s\n", vdev->name);
 
-	/*
-	 * Ensure that if we are still loading we block. Once the loading
-	 * is over we can proceed. We can't blindly hold the lock until
-	 * that occurs as if the load fails we'll deadlock the unload
-	 */
-	rt_mutex_lock(&isp->loading);
-	/*
-	 * FIXME: revisit this with a better check once the code structure
-	 * is cleaned up a bit more
-	 */
 	ret = v4l2_fh_open(file);
 	if (ret) {
 		dev_err(isp->dev,
 			"%s: v4l2_fh_open() returned error %d\n",
 		       __func__, ret);
-		rt_mutex_unlock(&isp->loading);
 		return ret;
 	}
-	if (!isp->ready) {
-		rt_mutex_unlock(&isp->loading);
-		return -ENXIO;
-	}
-	rt_mutex_unlock(&isp->loading);
 
 	rt_mutex_lock(&isp->mutex);
 
