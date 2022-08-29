@@ -28,6 +28,7 @@
 		bluetooth0 = &bluetooth;
 		serial0 = &uart5;
 		serial1 = &uart7;
+		wifi0 = &wifi;
 	};
 
 	pm8350c_pwm_backlight: backlight {
