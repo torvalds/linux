@@ -19,6 +19,7 @@
 
 struct drm_i915_private;
 struct i915_audio_component;
+struct i915_hdcp_comp_master;
 struct intel_atomic_state;
 struct intel_audio_funcs;
 struct intel_cdclk_funcs;
@@ -230,6 +231,14 @@ struct intel_display {
 
 		wait_queue_head_t wait_queue;
 	} gmbus;
+
+	struct {
+		struct i915_hdcp_comp_master *master;
+		bool comp_added;
+
+		/* Mutex to protect the above hdcp component related values. */
+		struct mutex comp_mutex;
+	} hdcp;
 
 	struct {
 		u32 mmio_base;

@@ -538,12 +538,6 @@ struct drm_i915_private {
 
 	struct i915_drm_clients clients;
 
-	struct i915_hdcp_comp_master *hdcp_master;
-	bool hdcp_comp_added;
-
-	/* Mutex to protect the above hdcp component related values. */
-	struct mutex hdcp_comp_mutex;
-
 	/* The TTM device structure. */
 	struct ttm_device bdev;
 
