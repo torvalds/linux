@@ -221,6 +221,12 @@ extern unsigned int sysctl_sched_hyst_min_coloc_ns;
 extern unsigned int sysctl_sched_long_running_rt_task_ms;
 extern unsigned int sysctl_ed_boost_pct;
 
+extern int cpufreq_walt_set_adaptive_freq(unsigned int cpu, unsigned int adaptive_low_freq,
+					  unsigned int adaptive_high_freq);
+extern int cpufreq_walt_get_adaptive_freq(unsigned int cpu, unsigned int *adaptive_low_freq,
+					  unsigned int *adaptive_high_freq);
+extern int cpufreq_walt_reset_adaptive_freq(unsigned int cpu);
+
 #define WALT_MANY_WAKEUP_DEFAULT 1000
 extern unsigned int sysctl_sched_many_wakeup_threshold;
 extern unsigned int sysctl_walt_rtg_cfs_boost_prio;
