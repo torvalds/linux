@@ -1186,7 +1186,7 @@ static int rknpu_devfreq_init(struct rknpu_device *rknpu_dev)
 	opp = devfreq_recommended_opp(dev, &rknpu_dev->current_freq, 0);
 	if (IS_ERR(opp)) {
 		ret = PTR_ERR(opp);
-		return ret;
+		goto err_remove_table;
 	}
 	dev_pm_opp_put(opp);
 	dp->initial_freq = rknpu_dev->current_freq;
@@ -1313,7 +1313,6 @@ static int rknpu_devfreq_init(struct rknpu_device *rknpu_dev)
 	int ret = -EINVAL;
 
 	ret = rockchip_init_opp_table(dev, NULL, "npu_leakage", "rknpu");
-
 	if (ret) {
 		LOG_DEV_ERROR(dev, "failed to init_opp_table\n");
 		return ret;
@@ -1322,7 +1321,7 @@ static int rknpu_devfreq_init(struct rknpu_device *rknpu_dev)
 	ret = npu_devfreq_adjust_current_freq_volt(dev, rknpu_dev);
 	if (ret) {
 		LOG_DEV_ERROR(dev, "failed to adjust current freq volt\n");
-		return ret;
+		goto err_remove_table;
 	}
 	dp->initial_freq = rknpu_dev->current_freq;
 
@@ -1706,9 +1705,7 @@ static int rknpu_probe(struct platform_device *pdev)
 		goto err_remove_drv;
 
 #ifndef FPGA_PLATFORM
-	ret = rknpu_devfreq_init(rknpu_dev);
-	if (ret)
-		goto err_remove_drv;
+	rknpu_devfreq_init(rknpu_dev);
 #endif
 
 	// set default power put delay to 3s
