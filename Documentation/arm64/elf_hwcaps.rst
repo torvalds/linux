@@ -272,6 +272,9 @@ HWCAP2_WFXT
 HWCAP2_EBF16
     Functionality implied by ID_AA64ISAR1_EL1.BF16 == 0b0010.
 
+HWCAP2_SVE_EBF16
+    Functionality implied by ID_AA64ZFR0_EL1.BF16 == 0b0010.
+
 4. Unused AT_HWCAP bits
 -----------------------
 
