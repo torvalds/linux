@@ -330,9 +330,6 @@ struct drm_i915_private {
 
 	bool preserve_bios_swizzle;
 
-	/* backlight registers and fields in struct intel_panel */
-	struct mutex backlight_lock;
-
 	unsigned int fsb_freq, mem_freq, is_ddr3;
 	unsigned int skl_preferred_vco_freq;
 

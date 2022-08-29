@@ -219,6 +219,11 @@ struct intel_display {
 
 	/* Grouping using anonymous structs. Keep sorted. */
 	struct {
+		/* backlight registers and fields in struct intel_panel */
+		struct mutex lock;
+	} backlight;
+
+	struct {
 		struct intel_global_obj obj;
 
 		struct intel_bw_info {
