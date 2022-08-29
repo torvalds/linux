@@ -2176,6 +2176,32 @@ dr_ste_v1_build_tnl_gtpu_flex_parser_1_init(struct mlx5dr_ste_build *sb,
 	sb->ste_build_tag_func = &dr_ste_v1_build_tnl_gtpu_flex_parser_1_tag;
 }
 
+int dr_ste_v1_alloc_modify_hdr_ptrn_arg(struct mlx5dr_action *action)
+{
+	struct mlx5dr_ptrn_mgr *ptrn_mgr;
+
+	ptrn_mgr = action->rewrite->dmn->ptrn_mgr;
+	if (!ptrn_mgr)
+		return -EOPNOTSUPP;
+
+	action->rewrite->ptrn =
+		mlx5dr_ptrn_cache_get_pattern(ptrn_mgr,
+					      action->rewrite->num_of_actions,
+					      action->rewrite->data);
+	if (!action->rewrite->ptrn) {
+		mlx5dr_err(action->rewrite->dmn, "Failed to get pattern\n");
+		return -EAGAIN;
+	}
+
+	return 0;
+}
+
+void dr_ste_v1_free_modify_hdr_ptrn_arg(struct mlx5dr_action *action)
+{
+	mlx5dr_ptrn_cache_put_pattern(action->rewrite->dmn->ptrn_mgr,
+				      action->rewrite->ptrn);
+}
+
 static struct mlx5dr_ste_ctx ste_ctx_v1 = {
 	/* Builders */
 	.build_eth_l2_src_dst_init	= &dr_ste_v1_build_eth_l2_src_dst_init,
@@ -2232,6 +2258,9 @@ static struct mlx5dr_ste_ctx ste_ctx_v1 = {
 	.set_action_add			= &dr_ste_v1_set_action_add,
 	.set_action_copy		= &dr_ste_v1_set_action_copy,
 	.set_action_decap_l3_list	= &dr_ste_v1_set_action_decap_l3_list,
+	.alloc_modify_hdr_chunk		= &dr_ste_v1_alloc_modify_hdr_ptrn_arg,
+	.dealloc_modify_hdr_chunk	= &dr_ste_v1_free_modify_hdr_ptrn_arg,
+
 	/* Send */
 	.prepare_for_postsend		= &dr_ste_v1_prepare_for_postsend,
 };

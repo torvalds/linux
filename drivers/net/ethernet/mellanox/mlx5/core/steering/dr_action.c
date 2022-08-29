@@ -1961,7 +1961,6 @@ static int dr_action_create_modify_action(struct mlx5dr_domain *dmn,
 					  __be64 actions[],
 					  struct mlx5dr_action *action)
 {
-	struct mlx5dr_icm_chunk *chunk;
 	u32 max_hw_actions;
 	u32 num_hw_actions;
 	u32 num_sw_actions;
@@ -1978,15 +1977,9 @@ static int dr_action_create_modify_action(struct mlx5dr_domain *dmn,
 		return -EINVAL;
 	}
 
-	chunk = mlx5dr_icm_alloc_chunk(dmn->action_icm_pool, DR_CHUNK_SIZE_16);
-	if (!chunk)
-		return -ENOMEM;
-
 	hw_actions = kcalloc(1, max_hw_actions * DR_MODIFY_ACTION_SIZE, GFP_KERNEL);
-	if (!hw_actions) {
-		ret = -ENOMEM;
-		goto free_chunk;
-	}
+	if (!hw_actions)
+		return -ENOMEM;
 
 	ret = dr_actions_convert_modify_header(action,
 					       max_hw_actions,
@@ -1998,15 +1991,11 @@ static int dr_action_create_modify_action(struct mlx5dr_domain *dmn,
 	if (ret)
 		goto free_hw_actions;
 
-	action->rewrite->chunk = chunk;
 	action->rewrite->modify_ttl = modify_ttl;
 	action->rewrite->data = (u8 *)hw_actions;
 	action->rewrite->num_of_actions = num_hw_actions;
-	action->rewrite->index = (mlx5dr_icm_pool_get_chunk_icm_addr(chunk) -
-				  dmn->info.caps.hdr_modify_icm_addr) /
-				  DR_ACTION_CACHE_LINE_SIZE;
 
-	ret = mlx5dr_send_postsend_action(dmn, action);
+	ret = mlx5dr_ste_alloc_modify_hdr(action);
 	if (ret)
 		goto free_hw_actions;
 
@@ -2014,8 +2003,6 @@ static int dr_action_create_modify_action(struct mlx5dr_domain *dmn,
 
 free_hw_actions:
 	kfree(hw_actions);
-free_chunk:
-	mlx5dr_icm_free_chunk(chunk);
 	return ret;
 }
 
@@ -2171,8 +2158,7 @@ int mlx5dr_action_destroy(struct mlx5dr_action *action)
 		refcount_dec(&action->reformat->dmn->refcount);
 		break;
 	case DR_ACTION_TYP_MODIFY_HDR:
-		mlx5dr_icm_free_chunk(action->rewrite->chunk);
-		kfree(action->rewrite->data);
+		mlx5dr_ste_free_modify_hdr(action);
 		refcount_dec(&action->rewrite->dmn->refcount);
 		break;
 	case DR_ACTION_TYP_SAMPLER:

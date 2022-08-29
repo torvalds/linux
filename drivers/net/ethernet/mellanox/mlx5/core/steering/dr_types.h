@@ -335,6 +335,8 @@ int mlx5dr_ste_set_action_decap_l3_list(struct mlx5dr_ste_ctx *ste_ctx,
 					u8 *hw_action,
 					u32 hw_action_sz,
 					u16 *used_hw_action_num);
+int mlx5dr_ste_alloc_modify_hdr(struct mlx5dr_action *action);
+void mlx5dr_ste_free_modify_hdr(struct mlx5dr_action *action);
 
 const struct mlx5dr_ste_action_modify_field *
 mlx5dr_ste_conv_modify_hdr_sw_field(struct mlx5dr_ste_ctx *ste_ctx, u16 sw_field);
