@@ -710,9 +710,9 @@ EXPORT_SYMBOL(posix_acl_update_mode);
 /*
  * Fix up the uids and gids in posix acl extended attributes in place.
  */
-static int posix_acl_fix_xattr_common(void *value, size_t size)
+static int posix_acl_fix_xattr_common(const void *value, size_t size)
 {
-	struct posix_acl_xattr_header *header = value;
+	const struct posix_acl_xattr_header *header = value;
 	int count;
 
 	if (!header)
@@ -720,13 +720,13 @@ static int posix_acl_fix_xattr_common(void *value, size_t size)
 	if (size < sizeof(struct posix_acl_xattr_header))
 		return -EINVAL;
 	if (header->a_version != cpu_to_le32(POSIX_ACL_XATTR_VERSION))
-		return -EINVAL;
+		return -EOPNOTSUPP;
 
 	count = posix_acl_xattr_count(size);
 	if (count < 0)
 		return -EINVAL;
 	if (count == 0)
-		return -EINVAL;
+		return 0;
 
 	return count;
 }
@@ -748,7 +748,7 @@ void posix_acl_getxattr_idmapped_mnt(struct user_namespace *mnt_userns,
 		return;
 
 	count = posix_acl_fix_xattr_common(value, size);
-	if (count < 0)
+	if (count <= 0)
 		return;
 
 	for (end = entry + count; entry != end; entry++) {
@@ -788,7 +788,7 @@ void posix_acl_setxattr_idmapped_mnt(struct user_namespace *mnt_userns,
 		return;
 
 	count = posix_acl_fix_xattr_common(value, size);
-	if (count < 0)
+	if (count <= 0)
 		return;
 
 	for (end = entry + count; entry != end; entry++) {
@@ -822,7 +822,7 @@ static void posix_acl_fix_xattr_userns(
 	kgid_t gid;
 
 	count = posix_acl_fix_xattr_common(value, size);
-	if (count < 0)
+	if (count <= 0)
 		return;
 
 	for (end = entry + count; entry != end; entry++) {
@@ -870,16 +870,9 @@ posix_acl_from_xattr(struct user_namespace *user_ns,
 	struct posix_acl *acl;
 	struct posix_acl_entry *acl_e;
 
-	if (!value)
-		return NULL;
-	if (size < sizeof(struct posix_acl_xattr_header))
-		 return ERR_PTR(-EINVAL);
-	if (header->a_version != cpu_to_le32(POSIX_ACL_XATTR_VERSION))
-		return ERR_PTR(-EOPNOTSUPP);
-
-	count = posix_acl_xattr_count(size);
+	count = posix_acl_fix_xattr_common(value, size);
 	if (count < 0)
-		return ERR_PTR(-EINVAL);
+		return ERR_PTR(count);
 	if (count == 0)
 		return NULL;
 	
