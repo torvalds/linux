@@ -59,10 +59,12 @@ static void vfio_send_intx_eventfd(void *opaque, void *unused)
 		eventfd_signal(vdev->ctx[0].trigger, 1);
 }
 
-void vfio_pci_intx_mask(struct vfio_pci_core_device *vdev)
+/* Returns true if the INTx vfio_pci_irq_ctx.masked value is changed. */
+bool vfio_pci_intx_mask(struct vfio_pci_core_device *vdev)
 {
 	struct pci_dev *pdev = vdev->pdev;
 	unsigned long flags;
+	bool masked_changed = false;
 
 	spin_lock_irqsave(&vdev->irqlock, flags);
 
@@ -86,9 +88,11 @@ void vfio_pci_intx_mask(struct vfio_pci_core_device *vdev)
 			disable_irq_nosync(pdev->irq);
 
 		vdev->ctx[0].masked = true;
+		masked_changed = true;
 	}
 
 	spin_unlock_irqrestore(&vdev->irqlock, flags);
+	return masked_changed;
 }
 
 /*
