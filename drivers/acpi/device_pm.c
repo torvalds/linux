@@ -74,12 +74,14 @@ static int acpi_dev_pm_explicit_get(struct acpi_device *device, int *state)
  */
 int acpi_device_get_power(struct acpi_device *device, int *state)
 {
-	struct acpi_device *parent = acpi_dev_parent(device);
 	int result = ACPI_STATE_UNKNOWN;
+	struct acpi_device *parent;
 	int error;
 
 	if (!device || !state)
 		return -EINVAL;
+
+	parent = acpi_dev_parent(device);
 
 	if (!device->flags.power_manageable) {
 		/* TBD: Non-recursive algorithm for walking up hierarchy. */
@@ -159,7 +161,6 @@ static int acpi_dev_pm_explicit_set(struct acpi_device *adev, int state)
  */
 int acpi_device_set_power(struct acpi_device *device, int state)
 {
-	struct acpi_device *parent = acpi_dev_parent(device);
 	int target_state = state;
 	int result = 0;
 
@@ -192,13 +193,17 @@ int acpi_device_set_power(struct acpi_device *device, int state)
 		return -ENODEV;
 	}
 
-	if (!device->power.flags.ignore_parent && parent &&
-	    state < parent->power.state) {
-		acpi_handle_debug(device->handle,
-				  "Cannot transition to %s for parent in %s\n",
-				  acpi_power_state_string(state),
-				  acpi_power_state_string(parent->power.state));
-		return -ENODEV;
+	if (!device->power.flags.ignore_parent) {
+		struct acpi_device *parent;
+
+		parent = acpi_dev_parent(device);
+		if (parent && state < parent->power.state) {
+			acpi_handle_debug(device->handle,
+					  "Cannot transition to %s for parent in %s\n",
+					  acpi_power_state_string(state),
+					  acpi_power_state_string(parent->power.state));
+			return -ENODEV;
+		}
 	}
 
 	/*
