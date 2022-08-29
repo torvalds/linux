@@ -108,7 +108,7 @@ do
 		if test $kruntime -lt $seconds
 		then
 			echo Completed in $kruntime vs. $seconds >> $resdir/Warnings 2>&1
-			grep "^(qemu) qemu:" $resdir/kvm-test-1-run.sh.out >> $resdir/Warnings 2>&1
+			grep "^(qemu) qemu:" $resdir/kvm-test-1-run*.sh.out >> $resdir/Warnings 2>&1
 			killpid="`sed -n "s/^(qemu) qemu: terminating on signal [0-9]* from pid \([0-9]*\).*$/\1/p" $resdir/Warnings`"
 			if test -n "$killpid"
 			then
