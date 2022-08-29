@@ -376,6 +376,14 @@ struct intel_display {
 		u32 block_time_us;
 	} sagv;
 
+	struct {
+		/* ordered wq for modesets */
+		struct workqueue_struct *modeset;
+
+		/* unbound hipri wq for page flips/plane updates */
+		struct workqueue_struct *flip;
+	} wq;
+
 	/* Grouping using named structs. Keep sorted. */
 	struct intel_audio audio;
 	struct intel_dmc dmc;

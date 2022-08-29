@@ -290,11 +290,6 @@ struct drm_i915_private {
 	 */
 	struct workqueue_struct *wq;
 
-	/* ordered wq for modesets */
-	struct workqueue_struct *modeset_wq;
-	/* unbound hipri wq for page flips/plane updates */
-	struct workqueue_struct *flip_wq;
-
 	/* pm private clock gating functions */
 	const struct drm_i915_clock_gating_funcs *clock_gating_funcs;
 
