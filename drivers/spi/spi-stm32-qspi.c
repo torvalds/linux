@@ -567,6 +567,10 @@ static int stm32_qspi_transfer_one_message(struct spi_controller *ctrl,
 	if (!spi->cs_gpiod)
 		return -EOPNOTSUPP;
 
+	ret = pm_runtime_resume_and_get(qspi->dev);
+	if (ret < 0)
+		return ret;
+
 	mutex_lock(&qspi->lock);
 
 	gpiod_set_value_cansleep(spi->cs_gpiod, true);
@@ -628,6 +632,9 @@ end_of_transfer:
 
 	msg->status = ret;
 	spi_finalize_current_message(ctrl);
+
+	pm_runtime_mark_last_busy(qspi->dev);
+	pm_runtime_put_autosuspend(qspi->dev);
 
 	return ret;
 }
@@ -847,7 +854,6 @@ static int stm32_qspi_probe(struct platform_device *pdev)
 	ctrl->mem_ops = &stm32_qspi_mem_ops;
 	ctrl->use_gpio_descriptors = true;
 	ctrl->transfer_one_message = stm32_qspi_transfer_one_message;
-	ctrl->auto_runtime_pm = true;
 	ctrl->num_chipselect = STM32_QSPI_MAX_NORCHIP;
 	ctrl->dev.of_node = dev->of_node;
 
