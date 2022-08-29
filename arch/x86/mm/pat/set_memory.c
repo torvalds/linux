@@ -580,6 +580,33 @@ static inline pgprot_t static_protections(pgprot_t prot, unsigned long start,
 }
 
 /*
+ * Validate and enforce strict W^X semantics.
+ */
+static inline pgprot_t verify_rwx(pgprot_t old, pgprot_t new, unsigned long start,
+				  unsigned long pfn, unsigned long npg)
+{
+	unsigned long end;
+
+	if (!cpu_feature_enabled(X86_FEATURE_NX))
+		return new;
+
+	if (!((pgprot_val(old) ^ pgprot_val(new)) & (_PAGE_RW | _PAGE_NX)))
+		return new;
+
+	if ((pgprot_val(new) & (_PAGE_RW | _PAGE_NX)) != _PAGE_RW)
+		return new;
+
+	end = start + npg * PAGE_SIZE - 1;
+	WARN_ONCE(1, "CPA refuse W^X violation: %016llx -> %016llx range: 0x%016lx - 0x%016lx PFN %lx\n",
+		  (unsigned long long)pgprot_val(old),
+		  (unsigned long long)pgprot_val(new),
+		  start, end, pfn);
+
+	/* refuse the transition into WX */
+	return old;
+}
+
+/*
  * Lookup the page table entry for a virtual address in a specific pgd.
  * Return a pointer to the entry and the level of the mapping.
  */
@@ -884,6 +911,8 @@ static int __should_split_large_page(pte_t *kpte, unsigned long address,
 	 */
 	new_prot = static_protections(req_prot, lpaddr, old_pfn, numpages,
 				      psize, CPA_DETECT);
+
+	new_prot = verify_rwx(old_prot, new_prot, lpaddr, old_pfn, numpages);
 
 	/*
 	 * If there is a conflict, split the large page.
@@ -1525,6 +1554,7 @@ repeat:
 
 	if (level == PG_LEVEL_4K) {
 		pte_t new_pte;
+		pgprot_t old_prot = pte_pgprot(old_pte);
 		pgprot_t new_prot = pte_pgprot(old_pte);
 		unsigned long pfn = pte_pfn(old_pte);
 
@@ -1535,6 +1565,8 @@ repeat:
 		/* Hand in lpsize = 0 to enforce the protection mechanism */
 		new_prot = static_protections(new_prot, address, pfn, 1, 0,
 					      CPA_PROTECT);
+
+		new_prot = verify_rwx(old_prot, new_prot, address, pfn, 1);
 
 		new_prot = pgprot_clear_protnone_bits(new_prot);
 
