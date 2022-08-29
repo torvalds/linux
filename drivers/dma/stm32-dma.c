@@ -140,6 +140,7 @@
 #define STM32_DMA_THRESHOLD_FTR_MASK	GENMASK(1, 0)
 #define STM32_DMA_DIRECT_MODE_MASK	BIT(2)
 #define STM32_DMA_ALT_ACK_MODE_MASK	BIT(4)
+#define STM32_DMA_MDMA_STREAM_ID_MASK	GENMASK(19, 16)
 
 enum stm32_dma_width {
 	STM32_DMA_BYTE,
@@ -193,6 +194,19 @@ struct stm32_dma_desc {
 	struct stm32_dma_sg_req sg_req[];
 };
 
+/**
+ * struct stm32_dma_mdma_config - STM32 DMA MDMA configuration
+ * @stream_id: DMA request to trigger STM32 MDMA transfer
+ * @ifcr: DMA interrupt flag clear register address,
+ *        used by STM32 MDMA to clear DMA Transfer Complete flag
+ * @tcf: DMA Transfer Complete flag
+ */
+struct stm32_dma_mdma_config {
+	u32 stream_id;
+	u32 ifcr;
+	u32 tcf;
+};
+
 struct stm32_dma_chan {
 	struct virt_dma_chan vchan;
 	bool config_init;
@@ -207,6 +221,8 @@ struct stm32_dma_chan {
 	u32 mem_burst;
 	u32 mem_width;
 	enum dma_status status;
+	bool trig_mdma;
+	struct stm32_dma_mdma_config mdma_config;
 };
 
 struct stm32_dma_device {
@@ -386,6 +402,13 @@ static int stm32_dma_slave_config(struct dma_chan *c,
 
 	memcpy(&chan->dma_sconfig, config, sizeof(*config));
 
+	/* Check if user is requesting DMA to trigger STM32 MDMA */
+	if (config->peripheral_size) {
+		config->peripheral_config = &chan->mdma_config;
+		config->peripheral_size = sizeof(chan->mdma_config);
+		chan->trig_mdma = true;
+	}
+
 	chan->config_init = true;
 
 	return 0;
@@ -561,6 +584,10 @@ static void stm32_dma_start_transfer(struct stm32_dma_chan *chan)
 	sg_req = &chan->desc->sg_req[chan->next_sg];
 	reg = &sg_req->chan_reg;
 
+	/* When DMA triggers STM32 MDMA, DMA Transfer Complete is managed by STM32 MDMA */
+	if (chan->trig_mdma && chan->dma_sconfig.direction != DMA_MEM_TO_DEV)
+		reg->dma_scr &= ~STM32_DMA_SCR_TCIE;
+
 	reg->dma_scr &= ~STM32_DMA_SCR_EN;
 	stm32_dma_write(dmadev, STM32_DMA_SCR(chan->id), reg->dma_scr);
 	stm32_dma_write(dmadev, STM32_DMA_SPAR(chan->id), reg->dma_spar);
@@ -710,6 +737,8 @@ static void stm32_dma_handle_chan_done(struct stm32_dma_chan *chan, u32 scr)
 
 	if (chan->desc->cyclic) {
 		vchan_cyclic_callback(&chan->desc->vdesc);
+		if (chan->trig_mdma)
+			return;
 		stm32_dma_sg_inc(chan);
 		/* cyclic while CIRC/DBM disable => post resume reconfiguration needed */
 		if (!(scr & (STM32_DMA_SCR_CIRC | STM32_DMA_SCR_DBM)))
@@ -1085,6 +1114,10 @@ static struct dma_async_tx_descriptor *stm32_dma_prep_slave_sg(
 	else
 		chan->chan_reg.dma_scr &= ~STM32_DMA_SCR_PFCTRL;
 
+	/* Activate Double Buffer Mode if DMA triggers STM32 MDMA and more than 1 sg */
+	if (chan->trig_mdma && sg_len > 1)
+		chan->chan_reg.dma_scr |= STM32_DMA_SCR_DBM;
+
 	for_each_sg(sgl, sg, sg_len, i) {
 		ret = stm32_dma_set_xfer_param(chan, direction, &buswidth,
 					       sg_dma_len(sg),
@@ -1106,6 +1139,8 @@ static struct dma_async_tx_descriptor *stm32_dma_prep_slave_sg(
 		desc->sg_req[i].chan_reg.dma_spar = chan->chan_reg.dma_spar;
 		desc->sg_req[i].chan_reg.dma_sm0ar = sg_dma_address(sg);
 		desc->sg_req[i].chan_reg.dma_sm1ar = sg_dma_address(sg);
+		if (chan->trig_mdma)
+			desc->sg_req[i].chan_reg.dma_sm1ar += sg_dma_len(sg);
 		desc->sg_req[i].chan_reg.dma_sndtr = nb_data_items;
 	}
 
@@ -1193,8 +1228,11 @@ static struct dma_async_tx_descriptor *stm32_dma_prep_dma_cyclic(
 		desc->sg_req[i].chan_reg.dma_spar = chan->chan_reg.dma_spar;
 		desc->sg_req[i].chan_reg.dma_sm0ar = buf_addr;
 		desc->sg_req[i].chan_reg.dma_sm1ar = buf_addr;
+		if (chan->trig_mdma)
+			desc->sg_req[i].chan_reg.dma_sm1ar += period_len;
 		desc->sg_req[i].chan_reg.dma_sndtr = nb_data_items;
-		buf_addr += period_len;
+		if (!chan->trig_mdma)
+			buf_addr += period_len;
 	}
 
 	desc->num_sgs = num_periods;
@@ -1476,6 +1514,7 @@ static void stm32_dma_set_config(struct stm32_dma_chan *chan,
 		chan->threshold = STM32_DMA_FIFO_THRESHOLD_NONE;
 	if (FIELD_GET(STM32_DMA_ALT_ACK_MODE_MASK, cfg->features))
 		chan->chan_reg.dma_scr |= STM32_DMA_SCR_TRBUFF;
+	chan->mdma_config.stream_id = FIELD_GET(STM32_DMA_MDMA_STREAM_ID_MASK, cfg->features);
 }
 
 static struct dma_chan *stm32_dma_of_xlate(struct of_phandle_args *dma_spec,
@@ -1615,6 +1654,12 @@ static int stm32_dma_probe(struct platform_device *pdev)
 		chan->id = i;
 		chan->vchan.desc_free = stm32_dma_desc_free;
 		vchan_init(&chan->vchan, dd);
+
+		chan->mdma_config.ifcr = res->start;
+		chan->mdma_config.ifcr += STM32_DMA_IFCR(chan->id);
+
+		chan->mdma_config.tcf = STM32_DMA_TCI;
+		chan->mdma_config.tcf <<= STM32_DMA_FLAGS_SHIFT(chan->id);
 	}
 
 	ret = dma_async_device_register(dd);
