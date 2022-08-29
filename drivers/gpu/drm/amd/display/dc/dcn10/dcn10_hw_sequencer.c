@@ -3776,7 +3776,6 @@ int dcn10_get_vupdate_offset_from_vsync(struct pipe_ctx *pipe_ctx)
 	int vesa_sync_start;
 	int asic_blank_end;
 	int interlace_factor;
-	int vertical_line_start;
 
 	patched_crtc_timing = *dc_crtc_timing;
 	apply_front_porch_workaround(&patched_crtc_timing);
@@ -3792,10 +3791,8 @@ int dcn10_get_vupdate_offset_from_vsync(struct pipe_ctx *pipe_ctx)
 			patched_crtc_timing.v_border_top)
 			* interlace_factor;
 
-	vertical_line_start = asic_blank_end -
+	return asic_blank_end -
 			pipe_ctx->pipe_dlg_param.vstartup_start + 1;
-
-	return vertical_line_start;
 }
 
 void dcn10_calc_vupdate_position(
