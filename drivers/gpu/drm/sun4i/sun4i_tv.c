@@ -497,16 +497,8 @@ static int sun4i_tv_comp_get_modes(struct drm_connector *connector)
 	return i;
 }
 
-static int sun4i_tv_comp_mode_valid(struct drm_connector *connector,
-				    struct drm_display_mode *mode)
-{
-	/* TODO */
-	return MODE_OK;
-}
-
 static const struct drm_connector_helper_funcs sun4i_tv_comp_connector_helper_funcs = {
 	.get_modes	= sun4i_tv_comp_get_modes,
-	.mode_valid	= sun4i_tv_comp_mode_valid,
 };
 
 static void
