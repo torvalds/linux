@@ -352,22 +352,12 @@ static void sun4i_tv_enable(struct drm_encoder *encoder,
 {
 	struct sun4i_tv *tv = drm_encoder_to_sun4i_tv(encoder);
 	struct sun4i_crtc *crtc = drm_crtc_to_sun4i_crtc(encoder->crtc);
+	struct drm_crtc_state *crtc_state =
+		drm_atomic_get_new_crtc_state(state, encoder->crtc);
+	struct drm_display_mode *mode = &crtc_state->mode;
+	const struct tv_mode *tv_mode = sun4i_tv_find_tv_by_mode(mode);
 
 	DRM_DEBUG_DRIVER("Enabling the TV Output\n");
-
-	sunxi_engine_apply_color_correction(crtc->engine);
-
-	regmap_update_bits(tv->regs, SUN4I_TVE_EN_REG,
-			   SUN4I_TVE_EN_ENABLE,
-			   SUN4I_TVE_EN_ENABLE);
-}
-
-static void sun4i_tv_mode_set(struct drm_encoder *encoder,
-			      struct drm_display_mode *mode,
-			      struct drm_display_mode *adjusted_mode)
-{
-	struct sun4i_tv *tv = drm_encoder_to_sun4i_tv(encoder);
-	const struct tv_mode *tv_mode = sun4i_tv_find_tv_by_mode(mode);
 
 	/* Enable and map the DAC to the output */
 	regmap_update_bits(tv->regs, SUN4I_TVE_EN_REG,
@@ -461,12 +451,17 @@ static void sun4i_tv_mode_set(struct drm_encoder *encoder,
 		      SUN4I_TVE_RESYNC_FIELD : 0));
 
 	regmap_write(tv->regs, SUN4I_TVE_SLAVE_REG, 0);
+
+	sunxi_engine_apply_color_correction(crtc->engine);
+
+	regmap_update_bits(tv->regs, SUN4I_TVE_EN_REG,
+			   SUN4I_TVE_EN_ENABLE,
+			   SUN4I_TVE_EN_ENABLE);
 }
 
 static const struct drm_encoder_helper_funcs sun4i_tv_helper_funcs = {
 	.atomic_disable	= sun4i_tv_disable,
 	.atomic_enable	= sun4i_tv_enable,
-	.mode_set	= sun4i_tv_mode_set,
 };
 
 static int sun4i_tv_comp_get_modes(struct drm_connector *connector)
