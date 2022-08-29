@@ -708,12 +708,8 @@ static int atomisp_open(struct file *file)
 	dev_dbg(isp->dev, "open device %s\n", vdev->name);
 
 	ret = v4l2_fh_open(file);
-	if (ret) {
-		dev_err(isp->dev,
-			"%s: v4l2_fh_open() returned error %d\n",
-		       __func__, ret);
+	if (ret)
 		return ret;
-	}
 
 	rt_mutex_lock(&isp->mutex);
 
