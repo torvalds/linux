@@ -7,6 +7,7 @@
 #define __INTEL_DISPLAY_CORE_H__
 
 #include <linux/list.h>
+#include <linux/llist.h>
 #include <linux/mutex.h>
 #include <linux/types.h>
 #include <linux/wait.h>
@@ -268,6 +269,11 @@ struct intel_display {
 	} funcs;
 
 	/* Grouping using anonymous structs. Keep sorted. */
+	struct intel_atomic_helper {
+		struct llist_head free_list;
+		struct work_struct free_work;
+	} atomic_helper;
+
 	struct {
 		/* backlight registers and fields in struct intel_panel */
 		struct mutex lock;

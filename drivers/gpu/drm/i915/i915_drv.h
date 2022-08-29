@@ -301,11 +301,6 @@ struct drm_i915_private {
 
 	struct list_head global_obj_list;
 
-	struct intel_atomic_helper {
-		struct llist_head free_list;
-		struct work_struct free_work;
-	} atomic_helper;
-
 	bool mchbar_need_disable;
 
 	struct intel_l3_parity l3_parity;
