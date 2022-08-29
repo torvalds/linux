@@ -1867,7 +1867,7 @@ static int dsi_host_parse_dt(struct msm_dsi_host *msm_host)
 {
 	struct device *dev = &msm_host->pdev->dev;
 	struct device_node *np = dev->of_node;
-	struct device_node *endpoint, *device_node;
+	struct device_node *endpoint;
 	int ret = 0;
 
 	/*
@@ -1899,8 +1899,6 @@ static int dsi_host_parse_dt(struct msm_dsi_host *msm_host)
 			ret = PTR_ERR(msm_host->sfpb);
 		}
 	}
-
-	of_node_put(device_node);
 
 err:
 	of_node_put(endpoint);
