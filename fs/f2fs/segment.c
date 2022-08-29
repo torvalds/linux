@@ -481,7 +481,7 @@ do_sync:
 
 		mutex_unlock(&sbi->flush_lock);
 	}
-	f2fs_sync_fs(sbi->sb, true);
+	f2fs_sync_fs(sbi->sb, 1);
 	stat_inc_bg_cp_count(sbi->stat_info);
 }
 
