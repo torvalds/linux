@@ -656,16 +656,14 @@ static int acpi_lpss_create_device(struct acpi_device *adev,
 	if (ret < 0)
 		goto err_out;
 
-	list_for_each_entry(rentry, &resource_list, node)
-		if (resource_type(rentry->res) == IORESOURCE_MEM) {
-			if (dev_desc->prv_size_override)
-				pdata->mmio_size = dev_desc->prv_size_override;
-			else
-				pdata->mmio_size = resource_size(rentry->res);
-			pdata->mmio_base = ioremap(rentry->res->start,
-						   pdata->mmio_size);
-			break;
-		}
+	rentry = list_first_entry_or_null(&resource_list, struct resource_entry, node);
+	if (rentry) {
+		if (dev_desc->prv_size_override)
+			pdata->mmio_size = dev_desc->prv_size_override;
+		else
+			pdata->mmio_size = resource_size(rentry->res);
+		pdata->mmio_base = ioremap(rentry->res->start, pdata->mmio_size);
+	}
 
 	acpi_dev_free_resource_list(&resource_list);
 
