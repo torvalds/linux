@@ -5447,16 +5447,6 @@ static bool __io_poll_complete(struct io_kiocb *req, __poll_t mask)
 	return !(flags & IORING_CQE_F_MORE);
 }
 
-static inline bool io_poll_complete(struct io_kiocb *req, __poll_t mask)
-	__must_hold(&req->ctx->completion_lock)
-{
-	bool done;
-
-	done = __io_poll_complete(req, mask);
-	io_commit_cqring(req->ctx);
-	return done;
-}
-
 static void io_poll_task_func(struct io_kiocb *req, bool *locked)
 {
 	struct io_ring_ctx *ctx = req->ctx;
@@ -5910,7 +5900,8 @@ static int io_poll_add(struct io_kiocb *req, unsigned int issue_flags)
 
 	if (mask) { /* no async, we'd stolen it */
 		ipt.error = 0;
-		done = io_poll_complete(req, mask);
+		done = __io_poll_complete(req, mask);
+		io_commit_cqring(req->ctx);
 	}
 	spin_unlock(&ctx->completion_lock);
 
