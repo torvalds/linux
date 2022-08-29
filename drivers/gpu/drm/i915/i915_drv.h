@@ -39,7 +39,6 @@
 #include "display/intel_display.h"
 #include "display/intel_display_core.h"
 #include "display/intel_dsb.h"
-#include "display/intel_frontbuffer.h"
 
 #include "gem/i915_gem_context_types.h"
 #include "gem/i915_gem_lmem.h"
@@ -188,17 +187,6 @@ i915_fence_timeout(const struct drm_i915_private *i915)
 
 #define HAS_HW_SAGV_WM(i915) (DISPLAY_VER(i915) >= 13 && !IS_DGFX(i915))
 
-struct i915_frontbuffer_tracking {
-	spinlock_t lock;
-
-	/*
-	 * Tracking bits for delayed frontbuffer flushing du to gpu activity or
-	 * scheduled flips.
-	 */
-	unsigned busy_bits;
-	unsigned flip_bits;
-};
-
 struct i915_virtual_gpu {
 	struct mutex lock; /* serialises sending of g2v_notify command pkts */
 	bool active;
@@ -332,8 +320,6 @@ struct drm_i915_private {
 	/* Kernel Modesetting */
 
 	struct list_head global_obj_list;
-
-	struct i915_frontbuffer_tracking fb_tracking;
 
 	struct intel_atomic_helper {
 		struct llist_head free_list;

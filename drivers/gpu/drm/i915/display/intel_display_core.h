@@ -120,6 +120,17 @@ struct intel_dpll {
 	} ref_clks;
 };
 
+struct intel_frontbuffer_tracking {
+	spinlock_t lock;
+
+	/*
+	 * Tracking bits for delayed frontbuffer flushing du to gpu activity or
+	 * scheduled flips.
+	 */
+	unsigned busy_bits;
+	unsigned flip_bits;
+};
+
 struct intel_hotplug {
 	struct delayed_work hotplug_work;
 
@@ -363,6 +374,7 @@ struct intel_display {
 	struct intel_dmc dmc;
 	struct intel_dpll dpll;
 	struct intel_fbc *fbc[I915_MAX_FBCS];
+	struct intel_frontbuffer_tracking fb_tracking;
 	struct intel_hotplug hotplug;
 	struct intel_opregion opregion;
 	struct intel_overlay *overlay;
