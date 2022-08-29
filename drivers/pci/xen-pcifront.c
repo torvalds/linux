@@ -981,13 +981,26 @@ static int pcifront_detach_devices(struct pcifront_device *pdev)
 {
 	int err = 0;
 	int i, num_devs;
+	enum xenbus_state state;
 	unsigned int domain, bus, slot, func;
 	struct pci_dev *pci_dev;
 	char str[64];
 
-	if (xenbus_read_driver_state(pdev->xdev->nodename) !=
-	    XenbusStateConnected)
+	state = xenbus_read_driver_state(pdev->xdev->nodename);
+	if (state == XenbusStateInitialised) {
+		dev_dbg(&pdev->xdev->dev, "Handle skipped connect.\n");
+		/* We missed Connected and need to initialize. */
+		err = pcifront_connect_and_init_dma(pdev);
+		if (err && err != -EEXIST) {
+			xenbus_dev_fatal(pdev->xdev, err,
+					 "Error setting up PCI Frontend");
+			goto out;
+		}
+
+		goto out_switch_state;
+	} else if (state != XenbusStateConnected) {
 		goto out;
+	}
 
 	err = xenbus_scanf(XBT_NIL, pdev->xdev->otherend, "num_devs", "%d",
 			   &num_devs);
@@ -1048,6 +1061,7 @@ static int pcifront_detach_devices(struct pcifront_device *pdev)
 			domain, bus, slot, func);
 	}
 
+ out_switch_state:
 	err = xenbus_switch_state(pdev->xdev, XenbusStateReconfiguring);
 
 out:
