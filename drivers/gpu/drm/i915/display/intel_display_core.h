@@ -11,6 +11,7 @@
 #include <linux/wait.h>
 #include <linux/workqueue.h>
 
+#include "intel_cdclk.h"
 #include "intel_display.h"
 #include "intel_dmc.h"
 #include "intel_dpll_mgr.h"
@@ -25,6 +26,7 @@ struct i915_hdcp_comp_master;
 struct intel_atomic_state;
 struct intel_audio_funcs;
 struct intel_cdclk_funcs;
+struct intel_cdclk_vals;
 struct intel_color_funcs;
 struct intel_crtc;
 struct intel_crtc_state;
@@ -229,6 +231,18 @@ struct intel_display {
 			u8 num_planes;
 		} max[6];
 	} bw;
+
+	struct {
+		/* The current hardware cdclk configuration */
+		struct intel_cdclk_config hw;
+
+		/* cdclk, divider, and ratio table from bspec */
+		const struct intel_cdclk_vals *table;
+
+		struct intel_global_obj obj;
+
+		unsigned int max_cdclk_freq;
+	} cdclk;
 
 	struct {
 		/* list of fbdev register on this device */

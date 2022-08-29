@@ -532,7 +532,7 @@ static unsigned int calc_hblank_early_prog(struct intel_encoder *encoder,
 	h_total = crtc_state->hw.adjusted_mode.crtc_htotal;
 	pixel_clk = crtc_state->hw.adjusted_mode.crtc_clock;
 	vdsc_bpp = crtc_state->dsc.compressed_bpp;
-	cdclk = i915->cdclk.hw.cdclk;
+	cdclk = i915->display.cdclk.hw.cdclk;
 	/* fec= 0.972261, using rounding multiplier of 1000000 */
 	fec_coeff = 972261;
 	link_clk = crtc_state->port_clock;
@@ -971,7 +971,7 @@ void intel_audio_cdclk_change_post(struct drm_i915_private *i915)
 	struct aud_ts_cdclk_m_n aud_ts;
 
 	if (DISPLAY_VER(i915) >= 13) {
-		get_aud_ts_cdclk_m_n(i915->cdclk.hw.ref, i915->cdclk.hw.cdclk, &aud_ts);
+		get_aud_ts_cdclk_m_n(i915->display.cdclk.hw.ref, i915->display.cdclk.hw.cdclk, &aud_ts);
 
 		intel_de_write(i915, AUD_TS_CDCLK_N, aud_ts.n);
 		intel_de_write(i915, AUD_TS_CDCLK_M, aud_ts.m | AUD_TS_CDCLK_M_EN);
@@ -1119,7 +1119,7 @@ static int i915_audio_component_get_cdclk_freq(struct device *kdev)
 	if (drm_WARN_ON_ONCE(&dev_priv->drm, !HAS_DDI(dev_priv)))
 		return -ENODEV;
 
-	return dev_priv->cdclk.hw.cdclk;
+	return dev_priv->display.cdclk.hw.cdclk;
 }
 
 /*
