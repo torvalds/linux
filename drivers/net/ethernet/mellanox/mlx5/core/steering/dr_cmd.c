@@ -200,6 +200,12 @@ int mlx5dr_cmd_query_device(struct mlx5_core_dev *mdev,
 	caps->hdr_modify_icm_addr =
 		MLX5_CAP64_DEV_MEM(mdev, header_modify_sw_icm_start_address);
 
+	caps->log_modify_pattern_icm_size =
+		MLX5_CAP_DEV_MEM(mdev, log_header_modify_pattern_sw_icm_size);
+
+	caps->hdr_modify_pattern_icm_addr =
+		MLX5_CAP64_DEV_MEM(mdev, header_modify_pattern_sw_icm_start_address);
+
 	caps->roce_min_src_udp = MLX5_CAP_ROCE(mdev, r_roce_min_src_udp_port);
 
 	caps->is_ecpf = mlx5_core_is_ecpf_esw_manager(mdev);

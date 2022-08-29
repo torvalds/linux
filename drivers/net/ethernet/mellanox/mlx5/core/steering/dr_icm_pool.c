@@ -107,9 +107,9 @@ static struct mlx5dr_icm_mr *
 dr_icm_pool_mr_create(struct mlx5dr_icm_pool *pool)
 {
 	struct mlx5_core_dev *mdev = pool->dmn->mdev;
-	enum mlx5_sw_icm_type dm_type;
+	enum mlx5_sw_icm_type dm_type = 0;
 	struct mlx5dr_icm_mr *icm_mr;
-	size_t log_align_base;
+	size_t log_align_base = 0;
 	int err;
 
 	icm_mr = kvzalloc(sizeof(*icm_mr), GFP_KERNEL);
@@ -121,14 +121,25 @@ dr_icm_pool_mr_create(struct mlx5dr_icm_pool *pool)
 	icm_mr->dm.length = mlx5dr_icm_pool_chunk_size_to_byte(pool->max_log_chunk_sz,
 							       pool->icm_type);
 
-	if (pool->icm_type == DR_ICM_TYPE_STE) {
+	switch (pool->icm_type) {
+	case DR_ICM_TYPE_STE:
 		dm_type = MLX5_SW_ICM_TYPE_STEERING;
 		log_align_base = ilog2(icm_mr->dm.length);
-	} else {
+		break;
+	case DR_ICM_TYPE_MODIFY_ACTION:
 		dm_type = MLX5_SW_ICM_TYPE_HEADER_MODIFY;
 		/* Align base is 64B */
 		log_align_base = ilog2(DR_ICM_MODIFY_HDR_ALIGN_BASE);
+		break;
+	case DR_ICM_TYPE_MODIFY_HDR_PTRN:
+		dm_type = MLX5_SW_ICM_TYPE_HEADER_MODIFY_PATTERN;
+		/* Align base is 64B */
+		log_align_base = ilog2(DR_ICM_MODIFY_HDR_ALIGN_BASE);
+		break;
+	default:
+		WARN_ON(pool->icm_type);
 	}
+
 	icm_mr->dm.type = dm_type;
 
 	err = mlx5_dm_sw_icm_alloc(mdev, icm_mr->dm.type, icm_mr->dm.length,
@@ -493,13 +504,7 @@ struct mlx5dr_icm_pool *mlx5dr_icm_pool_create(struct mlx5dr_domain *dmn,
 					       enum mlx5dr_icm_type icm_type)
 {
 	u32 num_of_chunks, entry_size, max_hot_size;
-	enum mlx5dr_icm_chunk_size max_log_chunk_sz;
 	struct mlx5dr_icm_pool *pool;
-
-	if (icm_type == DR_ICM_TYPE_STE)
-		max_log_chunk_sz = dmn->info.max_log_sw_icm_sz;
-	else
-		max_log_chunk_sz = dmn->info.max_log_action_icm_sz;
 
 	pool = kvzalloc(sizeof(*pool), GFP_KERNEL);
 	if (!pool)
@@ -507,12 +512,24 @@ struct mlx5dr_icm_pool *mlx5dr_icm_pool_create(struct mlx5dr_domain *dmn,
 
 	pool->dmn = dmn;
 	pool->icm_type = icm_type;
-	pool->max_log_chunk_sz = max_log_chunk_sz;
 	pool->chunks_kmem_cache = dmn->chunks_kmem_cache;
 
 	INIT_LIST_HEAD(&pool->buddy_mem_list);
-
 	mutex_init(&pool->mutex);
+
+	switch (icm_type) {
+	case DR_ICM_TYPE_STE:
+		pool->max_log_chunk_sz = dmn->info.max_log_sw_icm_sz;
+		break;
+	case DR_ICM_TYPE_MODIFY_ACTION:
+		pool->max_log_chunk_sz = dmn->info.max_log_action_icm_sz;
+		break;
+	case DR_ICM_TYPE_MODIFY_HDR_PTRN:
+		pool->max_log_chunk_sz = dmn->info.max_log_modify_hdr_pattern_icm_sz;
+		break;
+	default:
+		WARN_ON(icm_type);
+	}
 
 	entry_size = mlx5dr_icm_pool_dm_type_to_entry_size(pool->icm_type);
 
