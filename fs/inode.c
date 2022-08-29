@@ -2018,23 +2018,25 @@ static int __file_remove_privs(struct file *file, unsigned int flags)
 {
 	struct dentry *dentry = file_dentry(file);
 	struct inode *inode = file_inode(file);
-	int error;
+	int error = 0;
 	int kill;
 
 	if (IS_NOSEC(inode) || !S_ISREG(inode->i_mode))
 		return 0;
 
 	kill = dentry_needs_remove_privs(dentry);
-	if (kill <= 0)
+	if (kill < 0)
 		return kill;
 
-	if (flags & IOCB_NOWAIT)
-		return -EAGAIN;
+	if (kill) {
+		if (flags & IOCB_NOWAIT)
+			return -EAGAIN;
 
-	error = __remove_privs(file_mnt_user_ns(file), dentry, kill);
+		error = __remove_privs(file_mnt_user_ns(file), dentry, kill);
+	}
+
 	if (!error)
 		inode_has_no_xattr(inode);
-
 	return error;
 }
 
