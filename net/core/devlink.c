@@ -12437,8 +12437,6 @@ int devlink_compat_switch_id_get(struct net_device *dev,
 	 * devlink_port instance cannot disappear in the middle. No need to take
 	 * any devlink lock as only permanent values are accessed.
 	 */
-	ASSERT_RTNL();
-
 	devlink_port = netdev_to_devlink_port(dev);
 	if (!devlink_port || !devlink_port->switch_port)
 		return -EOPNOTSUPP;
