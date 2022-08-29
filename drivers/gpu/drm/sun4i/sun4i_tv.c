@@ -585,7 +585,7 @@ static int sun4i_tv_bind(struct device *dev, struct device *master,
 	if (ret) {
 		dev_err(dev,
 			"Couldn't initialise the Composite connector\n");
-		goto err_cleanup_connector;
+		goto err_cleanup_encoder;
 	}
 	tv->connector.interlace_allowed = true;
 
@@ -593,7 +593,7 @@ static int sun4i_tv_bind(struct device *dev, struct device *master,
 
 	return 0;
 
-err_cleanup_connector:
+err_cleanup_encoder:
 	drm_encoder_cleanup(&tv->encoder);
 err_disable_clk:
 	clk_disable_unprepare(tv->clk);
