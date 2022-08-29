@@ -20,9 +20,9 @@
 
 #include "../../kselftest.h"
 
-#define EXPECTED_TESTS 3
+#define EXPECTED_TESTS 7
 
-#define MAX_TPIDRS 1
+#define MAX_TPIDRS 2
 
 static bool have_sme(void)
 {
@@ -34,7 +34,8 @@ static void test_tpidr(pid_t child)
 	uint64_t read_val[MAX_TPIDRS];
 	uint64_t write_val[MAX_TPIDRS];
 	struct iovec read_iov, write_iov;
-	int ret;
+	bool test_tpidr2 = false;
+	int ret, i;
 
 	read_iov.iov_base = read_val;
 	write_iov.iov_base = write_val;
@@ -54,6 +55,81 @@ static void test_tpidr(pid_t child)
 	ret = ptrace(PTRACE_GETREGSET, child, NT_ARM_TLS, &read_iov);
 	ksft_test_result(ret == 0 && write_val[0] == read_val[0],
 			 "verify_tpidr_one\n");
+
+	/* If we have TPIDR2 we should be able to read it */
+	read_iov.iov_len = sizeof(read_val);
+	ret = ptrace(PTRACE_GETREGSET, child, NT_ARM_TLS, &read_iov);
+	if (ret == 0) {
+		/* If we have SME there should be two TPIDRs */
+		if (read_iov.iov_len >= sizeof(read_val))
+			test_tpidr2 = true;
+
+		if (have_sme() && test_tpidr2) {
+			ksft_test_result(test_tpidr2, "count_tpidrs\n");
+		} else {
+			ksft_test_result(read_iov.iov_len % sizeof(uint64_t) == 0,
+					 "count_tpidrs\n");
+		}
+	} else {
+		ksft_test_result_fail("count_tpidrs\n");
+	}
+
+	if (test_tpidr2) {
+		/* Try to write new values to all known TPIDRs... */
+		write_iov.iov_len = sizeof(write_val);
+		for (i = 0; i < MAX_TPIDRS; i++)
+			write_val[i] = read_val[i] + 1;
+		ret = ptrace(PTRACE_SETREGSET, child, NT_ARM_TLS, &write_iov);
+
+		ksft_test_result(ret == 0 &&
+				 write_iov.iov_len == sizeof(write_val),
+				 "tpidr2_write\n");
+
+		/* ...then read them back */
+		read_iov.iov_len = sizeof(read_val);
+		ret = ptrace(PTRACE_GETREGSET, child, NT_ARM_TLS, &read_iov);
+
+		if (have_sme()) {
+			/* Should read back the written value */
+			ksft_test_result(ret == 0 &&
+					 read_iov.iov_len >= sizeof(read_val) &&
+					 memcmp(read_val, write_val,
+						sizeof(read_val)) == 0,
+					 "tpidr2_read\n");
+		} else {
+			/* TPIDR2 should read as zero */
+			ksft_test_result(ret == 0 &&
+					 read_iov.iov_len >= sizeof(read_val) &&
+					 read_val[0] == write_val[0] &&
+					 read_val[1] == 0,
+					 "tpidr2_read\n");
+		}
+
+		/* Writing only TPIDR... */
+		write_iov.iov_len = sizeof(uint64_t);
+		memcpy(write_val, read_val, sizeof(read_val));
+		write_val[0] += 1;
+		ret = ptrace(PTRACE_SETREGSET, child, NT_ARM_TLS, &write_iov);
+
+		if (ret == 0) {
+			/* ...should leave TPIDR2 untouched */
+			read_iov.iov_len = sizeof(read_val);
+			ret = ptrace(PTRACE_GETREGSET, child, NT_ARM_TLS,
+				     &read_iov);
+
+			ksft_test_result(ret == 0 &&
+					 read_iov.iov_len >= sizeof(read_val) &&
+					 memcmp(read_val, write_val,
+						sizeof(read_val)) == 0,
+					 "write_tpidr_only\n");
+		} else {
+			ksft_test_result_fail("write_tpidr_only\n");
+		}
+	} else {
+		ksft_test_result_skip("tpidr2_write\n");
+		ksft_test_result_skip("tpidr2_read\n");
+		ksft_test_result_skip("write_tpidr_only\n");
+	}
 }
 
 static int do_child(void)
