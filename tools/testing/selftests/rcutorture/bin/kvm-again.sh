@@ -54,7 +54,10 @@ bootargs=
 dryrun=
 dur=
 default_link="cp -R"
-rundir="`pwd`/tools/testing/selftests/rcutorture/res/`date +%Y.%m.%d-%H.%M.%S-again`"
+resdir="`pwd`/tools/testing/selftests/rcutorture/res"
+rundir="$resdir/`date +%Y.%m.%d-%H.%M.%S-again`"
+got_datestamp=
+got_rundir=
 
 startdate="`date`"
 starttime="`get_starttime`"
@@ -62,11 +65,13 @@ starttime="`get_starttime`"
 usage () {
 	echo "Usage: $scriptname $oldrun [ arguments ]:"
 	echo "       --bootargs kernel-boot-arguments"
+	echo "       --datestamp string"
 	echo "       --dryrun"
 	echo "       --duration minutes | <seconds>s | <hours>h | <days>d"
 	echo "       --link hard|soft|copy"
 	echo "       --remote"
 	echo "       --rundir /new/res/path"
+	echo "Command line: $scriptname $args"
 	exit 1
 }
 
@@ -76,6 +81,23 @@ do
 	--bootargs|--bootarg)
 		checkarg --bootargs "(list of kernel boot arguments)" "$#" "$2" '.*' '^--'
 		bootargs="$bootargs $2"
+		shift
+		;;
+	--datestamp)
+		checkarg --datestamp "(relative pathname)" "$#" "$2" '^[a-zA-Z0-9._/-]*$' '^--'
+		if test -n "$got_rundir" || test -n "$got_datestamp"
+		then
+			echo Only one of --datestamp or --rundir may be specified
+			usage
+		fi
+		got_datestamp=y
+		ds=$2
+		rundir="$resdir/$ds"
+		if test -e "$rundir"
+		then
+			echo "--datestamp $2: Already exists."
+			usage
+		fi
 		shift
 		;;
 	--dryrun)
@@ -119,6 +141,12 @@ do
 		;;
 	--rundir)
 		checkarg --rundir "(absolute pathname)" "$#" "$2" '^/' '^error'
+		if test -n "$got_rundir" || test -n "$got_datestamp"
+		then
+			echo Only one of --datestamp or --rundir may be specified
+			usage
+		fi
+		got_rundir=y
 		rundir=$2
 		if test -e "$rundir"
 		then
@@ -128,8 +156,11 @@ do
 		shift
 		;;
 	*)
-		echo Unknown argument $1
-		usage
+		if test -n "$1"
+		then
+			echo Unknown argument $1
+			usage
+		fi
 		;;
 	esac
 	shift
