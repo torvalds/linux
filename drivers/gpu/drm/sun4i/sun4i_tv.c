@@ -275,13 +275,6 @@ drm_encoder_to_sun4i_tv(struct drm_encoder *encoder)
 			    encoder);
 }
 
-static inline struct sun4i_tv *
-drm_connector_to_sun4i_tv(struct drm_connector *connector)
-{
-	return container_of(connector, struct sun4i_tv,
-			    connector);
-}
-
 /*
  * FIXME: If only the drm_display_mode private field was usable, this
  * could go away...
