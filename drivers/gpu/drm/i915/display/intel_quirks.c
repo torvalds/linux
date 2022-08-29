@@ -216,3 +216,8 @@ void intel_init_quirks(struct drm_i915_private *i915)
 			intel_dmi_quirks[i].hook(i915);
 	}
 }
+
+bool intel_has_quirk(struct drm_i915_private *i915, unsigned long quirk)
+{
+	return i915->quirks & quirk;
+}
