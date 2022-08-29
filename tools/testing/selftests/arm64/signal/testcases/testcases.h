@@ -79,8 +79,6 @@ struct fake_sigframe {
 
 bool validate_reserved(ucontext_t *uc, size_t resv_sz, char **err);
 
-bool validate_extra_context(struct extra_context *extra, char **err);
-
 struct _aarch64_ctx *get_header(struct _aarch64_ctx *head, uint32_t magic,
 				size_t resv_sz, size_t *offset);
 
