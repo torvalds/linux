@@ -165,12 +165,15 @@ static bool handle_signal_ok(struct tdescr *td,
 }
 
 static bool handle_signal_copyctx(struct tdescr *td,
-				  siginfo_t *si, void *uc)
+				  siginfo_t *si, void *uc_in)
 {
+	ucontext_t *uc = uc_in;
+
+	ASSERT_GOOD_CONTEXT(uc);
+
 	/* Mangling PC to avoid loops on original BRK instr */
-	((ucontext_t *)uc)->uc_mcontext.pc += 4;
+	uc->uc_mcontext.pc += 4;
 	memcpy(td->live_uc, uc, td->live_sz);
-	ASSERT_GOOD_CONTEXT(td->live_uc);
 	td->live_uc_valid = 1;
 	fprintf(stderr,
 		"GOOD CONTEXT grabbed from sig_copyctx handler\n");
