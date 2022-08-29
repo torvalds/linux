@@ -206,7 +206,7 @@
 	status = "okay";
 
 	sc2235: sc2235@30 {
-		compatible = "sc2235";
+		compatible = "smartsens,sc2235";
 		reg = <0x30>;
 		clocks = <&clk_ext_camera>;
 		clock-names = "xclk";
@@ -277,8 +277,8 @@
 		};
 	};
 
-	imx219@10 {
-		compatible = "imx219";
+	imx219: imx219@10 {
+		compatible = "sony,imx219";
 		reg = <0x10>;
 		clocks = <&clk_ext_camera>;
 		clock-names = "xclk";

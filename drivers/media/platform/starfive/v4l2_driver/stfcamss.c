@@ -1182,7 +1182,7 @@ static int stfcamss_remove(struct platform_device *pdev)
 }
 
 static const struct of_device_id stfcamss_of_match[] = {
-	{.compatible = "starfive,stf-vin"},
+	{ .compatible = "starfive,jh7110-vin" },
 	{ /* end node */ },
 };
 

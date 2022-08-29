@@ -15,7 +15,7 @@
 
 #include <linux/cdev.h>
 
-#define DRV_NAME "stf-vin"
+#define DRV_NAME "jh7110-vin"
 #define FB_FIRST_ADDR      0xf9000000
 #define FB_SECOND_ADDR     0xf97e9000
 
