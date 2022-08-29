@@ -52,6 +52,8 @@ static void setup_za_regs(void)
 	asm volatile(".inst 0xd503457f" : : : );
 }
 
+static char zeros[ZA_SIG_REGS_SIZE(SVE_VQ_MAX)];
+
 static int do_one_sme_vl(struct tdescr *td, siginfo_t *si, ucontext_t *uc,
 			 unsigned int vl)
 {
@@ -87,9 +89,21 @@ static int do_one_sme_vl(struct tdescr *td, siginfo_t *si, ucontext_t *uc,
 		return 1;
 	}
 
-	/* The actual size validation is done in get_current_context() */
+	if (head->size != ZA_SIG_CONTEXT_SIZE(sve_vq_from_vl(vl))) {
+		fprintf(stderr, "ZA context size %u, expected %lu\n",
+			head->size, ZA_SIG_CONTEXT_SIZE(sve_vq_from_vl(vl)));
+		return 1;
+	}
+
 	fprintf(stderr, "Got expected size %u and VL %d\n",
 		head->size, za->vl);
+
+	/* We didn't load any data into ZA so it should be all zeros */
+	if (memcmp(zeros, (char *)za + ZA_SIG_REGS_OFFSET,
+		   ZA_SIG_REGS_SIZE(sve_vq_from_vl(za->vl))) != 0) {
+		fprintf(stderr, "ZA data invalid\n");
+		return 1;
+	}
 
 	return 0;
 }
