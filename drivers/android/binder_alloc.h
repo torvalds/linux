@@ -109,7 +109,6 @@ struct binder_alloc {
 	size_t free_async_space;
 	struct binder_lru_page *pages;
 	size_t buffer_size;
-	uint32_t buffer_free;
 	int pid;
 	size_t pages_high;
 	bool oneway_spam_detected;
