@@ -300,6 +300,11 @@ struct intel_display {
 	} fbdev;
 
 	struct {
+		unsigned int pll_freq;
+		u32 rx_config;
+	} fdi;
+
+	struct {
 		/*
 		 * Base address of where the gmbus and gpio blocks are located
 		 * (either on PCH or on SoC for platforms without PCH).

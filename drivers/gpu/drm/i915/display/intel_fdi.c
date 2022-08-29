@@ -210,14 +210,14 @@ void intel_fdi_pll_freq_update(struct drm_i915_private *i915)
 		u32 fdi_pll_clk =
 			intel_de_read(i915, FDI_PLL_BIOS_0) & FDI_PLL_FB_CLOCK_MASK;
 
-		i915->fdi_pll_freq = (fdi_pll_clk + 2) * 10000;
+		i915->display.fdi.pll_freq = (fdi_pll_clk + 2) * 10000;
 	} else if (IS_SANDYBRIDGE(i915) || IS_IVYBRIDGE(i915)) {
-		i915->fdi_pll_freq = 270000;
+		i915->display.fdi.pll_freq = 270000;
 	} else {
 		return;
 	}
 
-	drm_dbg(&i915->drm, "FDI PLL freq=%d\n", i915->fdi_pll_freq);
+	drm_dbg(&i915->drm, "FDI PLL freq=%d\n", i915->display.fdi.pll_freq);
 }
 
 int intel_fdi_link_freq(struct drm_i915_private *i915,
@@ -226,7 +226,7 @@ int intel_fdi_link_freq(struct drm_i915_private *i915,
 	if (HAS_DDI(i915))
 		return pipe_config->port_clock; /* SPLL */
 	else
-		return i915->fdi_pll_freq;
+		return i915->display.fdi.pll_freq;
 }
 
 int ilk_fdi_compute_config(struct intel_crtc *crtc,
@@ -789,7 +789,7 @@ void hsw_fdi_link_train(struct intel_encoder *encoder,
 		       FDI_RX_PWRDN_LANE1_VAL(2) | FDI_RX_PWRDN_LANE0_VAL(2) | FDI_RX_TP1_TO_TP2_48 | FDI_RX_FDI_DELAY_90);
 
 	/* Enable the PCH Receiver FDI PLL */
-	rx_ctl_val = dev_priv->fdi_rx_config | FDI_RX_ENHANCE_FRAME_ENABLE |
+	rx_ctl_val = dev_priv->display.fdi.rx_config | FDI_RX_ENHANCE_FRAME_ENABLE |
 		     FDI_RX_PLL_ENABLE |
 		     FDI_DP_PORT_WIDTH(crtc_state->fdi_lanes);
 	intel_de_write(dev_priv, FDI_RX_CTL(PIPE_A), rx_ctl_val);
