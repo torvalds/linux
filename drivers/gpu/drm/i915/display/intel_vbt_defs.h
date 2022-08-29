@@ -362,10 +362,10 @@ enum vbt_gmbus_ddi {
  * basically any of the fields to ensure the correct interpretation for the BDB
  * version in question.
  *
- * When we copy the child device configs to dev_priv->vbt.child_dev, we reserve
- * space for the full structure below, and initialize the tail not actually
- * present in VBT to zeros. Accessing those fields is fine, as long as the
- * default zero is taken into account, again according to the BDB version.
+ * When we copy the child device configs to dev_priv->display.vbt.child_dev, we
+ * reserve space for the full structure below, and initialize the tail not
+ * actually present in VBT to zeros. Accessing those fields is fine, as long as
+ * the default zero is taken into account, again according to the BDB version.
  *
  * BDB versions 155 and below are considered legacy, and version 155 seems to be
  * a baseline for some of the VBT documentation. When adding new fields, please

@@ -42,7 +42,7 @@ bool intel_panel_use_ssc(struct drm_i915_private *i915)
 {
 	if (i915->params.panel_use_ssc >= 0)
 		return i915->params.panel_use_ssc != 0;
-	return i915->vbt.lvds_use_ssc
+	return i915->display.vbt.lvds_use_ssc
 		&& !(i915->quirks & QUIRK_LVDS_SSC_DISABLE);
 }
 

@@ -34,7 +34,6 @@
 
 #include <linux/pm_qos.h>
 
-#include <drm/drm_connector.h>
 #include <drm/ttm/ttm_device.h>
 
 #include "display/intel_display.h"
@@ -89,15 +88,6 @@ struct vlv_s0ix_state;
 	 I915_GEM_DOMAIN_COMMAND | \
 	 I915_GEM_DOMAIN_INSTRUCTION | \
 	 I915_GEM_DOMAIN_VERTEX)
-
-struct sdvo_device_mapping {
-	u8 initialized;
-	u8 dvo_port;
-	u8 slave_addr;
-	u8 dvo_wiring;
-	u8 i2c_pin;
-	u8 ddc_pin;
-};
 
 #define I915_COLOR_UNEVICTABLE (-1) /* a non-vma sharing the address space */
 
@@ -200,32 +190,6 @@ i915_fence_timeout(const struct drm_i915_private *i915)
 
 #define HAS_HW_SAGV_WM(i915) (DISPLAY_VER(i915) >= 13 && !IS_DGFX(i915))
 
-struct intel_vbt_data {
-	/* bdb version */
-	u16 version;
-
-	/* Feature bits */
-	unsigned int int_tv_support:1;
-	unsigned int int_crt_support:1;
-	unsigned int lvds_use_ssc:1;
-	unsigned int int_lvds_support:1;
-	unsigned int display_clock_mode:1;
-	unsigned int fdi_rx_polarity_inverted:1;
-	int lvds_ssc_freq;
-	enum drm_panel_orientation orientation;
-
-	bool override_afc_startup;
-	u8 override_afc_startup_val;
-
-	int crt_ddc_pin;
-
-	struct list_head display_devices;
-	struct list_head bdb_blocks;
-
-	struct intel_bios_encoder_data *ports[I915_MAX_PORTS]; /* Non-NULL if port present. */
-	struct sdvo_device_mapping sdvo_mappings[2];
-};
-
 struct i915_frontbuffer_tracking {
 	spinlock_t lock;
 
@@ -323,7 +287,6 @@ struct drm_i915_private {
 	u32 pipestat_irq_mask[I915_MAX_PIPES];
 
 	struct intel_fbc *fbc[I915_MAX_FBCS];
-	struct intel_vbt_data vbt;
 
 	bool preserve_bios_swizzle;
 

@@ -6,10 +6,13 @@
 #ifndef __INTEL_DISPLAY_CORE_H__
 #define __INTEL_DISPLAY_CORE_H__
 
+#include <linux/list.h>
 #include <linux/mutex.h>
 #include <linux/types.h>
 #include <linux/wait.h>
 #include <linux/workqueue.h>
+
+#include <drm/drm_connector.h>
 
 #include "intel_cdclk.h"
 #include "intel_display.h"
@@ -25,6 +28,7 @@ struct i915_audio_component;
 struct i915_hdcp_comp_master;
 struct intel_atomic_state;
 struct intel_audio_funcs;
+struct intel_bios_encoder_data;
 struct intel_cdclk_funcs;
 struct intel_cdclk_vals;
 struct intel_color_funcs;
@@ -151,6 +155,39 @@ struct intel_hotplug {
 	 * blocked behind the non-DP one.
 	 */
 	struct workqueue_struct *dp_wq;
+};
+
+struct intel_vbt_data {
+	/* bdb version */
+	u16 version;
+
+	/* Feature bits */
+	unsigned int int_tv_support:1;
+	unsigned int int_crt_support:1;
+	unsigned int lvds_use_ssc:1;
+	unsigned int int_lvds_support:1;
+	unsigned int display_clock_mode:1;
+	unsigned int fdi_rx_polarity_inverted:1;
+	int lvds_ssc_freq;
+	enum drm_panel_orientation orientation;
+
+	bool override_afc_startup;
+	u8 override_afc_startup_val;
+
+	int crt_ddc_pin;
+
+	struct list_head display_devices;
+	struct list_head bdb_blocks;
+
+	struct intel_bios_encoder_data *ports[I915_MAX_PORTS]; /* Non-NULL if port present. */
+	struct sdvo_device_mapping {
+		u8 initialized;
+		u8 dvo_port;
+		u8 slave_addr;
+		u8 dvo_wiring;
+		u8 i2c_pin;
+		u8 ddc_pin;
+	} sdvo_mappings[2];
 };
 
 struct intel_wm {
@@ -311,6 +348,7 @@ struct intel_display {
 	struct intel_hotplug hotplug;
 	struct intel_opregion opregion;
 	struct intel_overlay *overlay;
+	struct intel_vbt_data vbt;
 	struct intel_wm wm;
 };
 
