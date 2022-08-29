@@ -29,6 +29,9 @@
 
 #include "core_types.h"
 
+extern struct _vcs_dpi_ip_params_st dcn3_14_ip;
+extern struct _vcs_dpi_soc_bounding_box_st dcn3_14_soc;
+
 #define TO_DCN314_RES_POOL(pool)\
 	container_of(pool, struct dcn314_resource_pool, base)
 
