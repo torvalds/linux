@@ -61,6 +61,10 @@
 #define CXL_HDM_DECODER0_SKIP_LOW(i) CXL_HDM_DECODER0_TL_LOW(i)
 #define CXL_HDM_DECODER0_SKIP_HIGH(i) CXL_HDM_DECODER0_TL_HIGH(i)
 
+/* HDM decoder control register constants CXL 3.0 8.2.5.19.7 */
+#define CXL_DECODER_MIN_GRANULARITY 256
+#define CXL_DECODER_MAX_ENCODED_IG 6
+
 static inline int cxl_hdm_decoder_count(u32 cap_hdr)
 {
 	int val = FIELD_GET(CXL_HDM_DECODER_COUNT_MASK, cap_hdr);
@@ -71,9 +75,9 @@ static inline int cxl_hdm_decoder_count(u32 cap_hdr)
 /* Encode defined in CXL 2.0 8.2.5.12.7 HDM Decoder Control Register */
 static inline int cxl_to_granularity(u16 ig, unsigned int *val)
 {
-	if (ig > 6)
+	if (ig > CXL_DECODER_MAX_ENCODED_IG)
 		return -EINVAL;
-	*val = 256 << ig;
+	*val = CXL_DECODER_MIN_GRANULARITY << ig;
 	return 0;
 }
 
@@ -96,7 +100,7 @@ static inline int cxl_to_ways(u8 eniw, unsigned int *val)
 
 static inline int granularity_to_cxl(int g, u16 *ig)
 {
-	if (g > SZ_16K || g < 256 || !is_power_of_2(g))
+	if (g > SZ_16K || g < CXL_DECODER_MIN_GRANULARITY || !is_power_of_2(g))
 		return -EINVAL;
 	*ig = ilog2(g) - 8;
 	return 0;
@@ -246,7 +250,6 @@ enum cxl_decoder_type {
  */
 #define CXL_DECODER_MAX_INTERLEAVE 16
 
-#define CXL_DECODER_MIN_GRANULARITY 256
 
 /**
  * struct cxl_decoder - Common CXL HDM Decoder Attributes
