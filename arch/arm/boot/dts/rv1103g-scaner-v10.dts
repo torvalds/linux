@@ -1,0 +1,242 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2022 Rockchip Electronics Co., Ltd.
+ */
+
+/dts-v1/;
+#include <dt-bindings/input/input.h>
+#include "rv1103.dtsi"
+#include "rv1103-evb-v10.dtsi"
+
+/ {
+	model = "Rockchip RV1103G SCANER V10 Board";
+	compatible = "rockchip,rv1103g-scaner-v10", "rockchip,rv1103";
+
+	buzzer {
+		compatible = "regulator-gpio";
+		gpio = <&gpio0 RK_PA4 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&gpio_buzzer>;
+	};
+
+	gpio-keys {
+		compatible = "gpio-keys";
+		autorepeat;
+
+		key {
+			gpios = <&gpio1 RK_PC6 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_1>;
+			label = "GPIO Key";
+			linux,input-type = <1>;
+			wakeup-source;
+			debounce-interval = <100>;
+		};
+	};
+
+	leds: gpio-leds {
+		compatible = "gpio-leds";
+		pinctrl-names = "default";
+		pinctrl-0 = <&gpio_leds>;
+
+		led_light {
+			gpios = <&gpio1 RK_PD0 GPIO_ACTIVE_HIGH>;
+			label = "led_light";
+		};
+
+		led_red {
+			gpios = <&gpio1 RK_PD1 GPIO_ACTIVE_HIGH>;
+			label = "led_red";
+		};
+
+		work_led {
+			gpios = <&gpio1 RK_PC7 GPIO_ACTIVE_HIGH>;
+			label = "work_led";
+		};
+	};
+
+	vcc_1v8: vcc-1v8 {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc_1v8";
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+	};
+
+	vcc_3v3: vcc-3v3 {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc_3v3";
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+	};
+
+	vcc3v3_sd: vcc3v3-sd {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc3v3_sd";
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+	};
+};
+
+&acodec {
+	status = "disabled";
+};
+
+&csi2_dphy_hw {
+	status = "okay";
+};
+
+&csi2_dphy0 {
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			csi_dphy_input1: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&sc031gs_out>;
+				data-lanes = <1>;
+			};
+		};
+
+		port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			csi_dphy_output: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&mipi_csi2_input>;
+			};
+		};
+	};
+};
+
+&i2c4 {
+	status = "okay";
+	clock-frequency = <400000>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c4m2_xfer>;
+
+	sc031gs: sc031gs@30 {
+		compatible = "smartsens,sc031gs";
+		status = "okay";
+		reg = <0x30>;
+		clocks = <&cru MCLK_REF_MIPI0>;
+		clock-names = "xvclk";
+		pwdn-gpios = <&gpio3 RK_PC5 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&mipi_refclk_out0>;
+		rockchip,camera-module-index = <0>;
+		rockchip,camera-module-facing = "back";
+		rockchip,camera-module-name = "CMK-HRG537A5-H211";
+		rockchip,camera-module-lens-name = "12IR-F24";
+		port {
+			sc031gs_out: endpoint {
+				remote-endpoint = <&csi_dphy_input1>;
+				data-lanes = <1>;
+			};
+		};
+	};
+};
+
+&mipi0_csi2 {
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mipi_csi2_input: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&csi_dphy_output>;
+			};
+		};
+
+		port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mipi_csi2_output: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&cif_mipi_in>;
+			};
+		};
+	};
+};
+
+&pinctrl {
+	buzzer {
+		gpio_buzzer: gpio-buzzer {
+			rockchip,pins = <0 RK_PA4 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+
+	gpio-leds {
+		gpio_leds: gpio-leds {
+			rockchip,pins =
+			<1 RK_PC7 RK_FUNC_GPIO &pcfg_pull_none>,
+			<1 RK_PD0 RK_FUNC_GPIO &pcfg_pull_none>,
+			<1 RK_PD1 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+};
+
+&rkcif {
+	status = "okay";
+};
+
+&rkcif_mipi_lvds {
+	status = "okay";
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&mipi_pins>;
+	port {
+		/* MIPI CSI-2 endpoint */
+		cif_mipi_in: endpoint {
+			remote-endpoint = <&mipi_csi2_output>;
+		};
+	};
+};
+
+&rkcif_mipi_lvds_sditf {
+	status = "okay";
+
+	port {
+		/* MIPI CSI-2 endpoint */
+		mipi_lvds_sditf: endpoint {
+			remote-endpoint = <&isp_in>;
+		};
+	};
+};
+
+&rkisp {
+	status = "okay";
+};
+
+&rkisp_vir0 {
+	status = "okay";
+
+	port@0 {
+		isp_in: endpoint {
+			remote-endpoint = <&mipi_lvds_sditf>;
+		};
+	};
+};
+
