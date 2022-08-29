@@ -47,8 +47,13 @@ properties:
               - renesas,msiof-r8a77980      # R-Car V3H
               - renesas,msiof-r8a77990      # R-Car E3
               - renesas,msiof-r8a77995      # R-Car D3
-              - renesas,msiof-r8a779a0      # R-Car V3U
           - const: renesas,rcar-gen3-msiof  # generic R-Car Gen3 and RZ/G2
+                                            # compatible device
+      - items:
+          - enum:
+              - renesas,msiof-r8a779a0      # R-Car V3U
+              - renesas,msiof-r8a779f0      # R-Car S4-8
+          - const: renesas,rcar-gen4-msiof  # generic R-Car Gen4
                                             # compatible device
       - items:
           - const: renesas,sh-msiof  # deprecated
