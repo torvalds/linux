@@ -277,6 +277,8 @@ function torture_one {
 	then
 		cat $T/$curflavor.out | tee -a $T/log
 		echo retcode=$retcode | tee -a $T/log
+	else
+		echo $resdir > $T/last-resdir
 	fi
 	if test "$retcode" == 0
 	then
@@ -302,10 +304,12 @@ function torture_set {
 	shift
 	curflavor=$flavor
 	torture_one "$@"
+	mv $T/last-resdir $T/last-resdir-nodebug || :
 	if test "$do_kasan" = "yes"
 	then
 		curflavor=${flavor}-kasan
 		torture_one "$@" --kasan
+		mv $T/last-resdir $T/last-resdir-kasan || :
 	fi
 	if test "$do_kcsan" = "yes"
 	then
@@ -316,6 +320,7 @@ function torture_set {
 			cur_kcsan_kmake_args="$kcsan_kmake_args"
 		fi
 		torture_one "$@" --kconfig "CONFIG_DEBUG_LOCK_ALLOC=y CONFIG_PROVE_LOCKING=y" $kcsan_kmake_tag $cur_kcsan_kmake_args --kcsan
+		mv $T/last-resdir $T/last-resdir-kcsan || :
 	fi
 }
 
@@ -378,11 +383,48 @@ then
 else
 	primlist=
 fi
+firsttime=1
+do_kasan_save="$do_kasan"
+do_kcsan_save="$do_kcsan"
 for prim in $primlist
 do
-	torture_bootargs="refscale.scale_type="$prim" refscale.nreaders=$HALF_ALLOTED_CPUS refscale.loops=10000 refscale.holdoff=20 torture.disable_onoff_at_boot"
-	torture_set "refscale-$prim" tools/testing/selftests/rcutorture/bin/kvm.sh --torture refscale --allcpus --duration 5 --kconfig "CONFIG_TASKS_TRACE_RCU=y CONFIG_NR_CPUS=$HALF_ALLOTED_CPUS" --bootargs "verbose_batched=$VERBOSE_BATCH_CPUS torture.verbose_sleep_frequency=8 torture.verbose_sleep_duration=$VERBOSE_BATCH_CPUS" --trust-make
+	if test -n "$firsttime"
+	then
+		torture_bootargs="refscale.scale_type="$prim" refscale.nreaders=$HALF_ALLOTED_CPUS refscale.loops=10000 refscale.holdoff=20 torture.disable_onoff_at_boot"
+		torture_set "refscale-$prim" tools/testing/selftests/rcutorture/bin/kvm.sh --torture refscale --allcpus --duration 5 --kconfig "CONFIG_TASKS_TRACE_RCU=y CONFIG_NR_CPUS=$HALF_ALLOTED_CPUS" --bootargs "verbose_batched=$VERBOSE_BATCH_CPUS torture.verbose_sleep_frequency=8 torture.verbose_sleep_duration=$VERBOSE_BATCH_CPUS" --trust-make
+		mv $T/last-resdir-nodebug $T/first-resdir-nodebug || :
+		if test -f "$T/last-resdir-kasan"
+		then
+			mv $T/last-resdir-kasan $T/first-resdir-kasan || :
+		fi
+		if test -f "$T/last-resdir-kcsan"
+		then
+			mv $T/last-resdir-kcsan $T/first-resdir-kcsan || :
+		fi
+		firsttime=
+		do_kasan=
+		do_kcsan=
+	else
+		torture_bootargs=
+		for i in $T/first-resdir-*
+		do
+			case "$i" in
+			*-nodebug)
+				torture_suffix=
+				;;
+			*-kasan)
+				torture_suffix="-kasan"
+				;;
+			*-kcsan)
+				torture_suffix="-kcsan"
+				;;
+			esac
+			torture_set "refscale-$prim$torture_suffix" tools/testing/selftests/rcutorture/bin/kvm-again.sh "`cat "$i"`" --duration 5 --bootargs "refscale.scale_type=$prim"
+		done
+	fi
 done
+do_kasan="$do_kasan_save"
+do_kcsan="$do_kcsan_save"
 
 if test "$do_rcuscale" = yes
 then
@@ -390,11 +432,48 @@ then
 else
 	primlist=
 fi
+firsttime=1
+do_kasan_save="$do_kasan"
+do_kcsan_save="$do_kcsan"
 for prim in $primlist
 do
-	torture_bootargs="rcuscale.scale_type="$prim" rcuscale.nwriters=$HALF_ALLOTED_CPUS rcuscale.holdoff=20 torture.disable_onoff_at_boot"
-	torture_set "rcuscale-$prim" tools/testing/selftests/rcutorture/bin/kvm.sh --torture rcuscale --allcpus --duration 5 --kconfig "CONFIG_TASKS_TRACE_RCU=y CONFIG_NR_CPUS=$HALF_ALLOTED_CPUS" --trust-make
+	if test -n "$firsttime"
+	then
+		torture_bootargs="rcuscale.scale_type="$prim" rcuscale.nwriters=$HALF_ALLOTED_CPUS rcuscale.holdoff=20 torture.disable_onoff_at_boot"
+		torture_set "rcuscale-$prim" tools/testing/selftests/rcutorture/bin/kvm.sh --torture rcuscale --allcpus --duration 5 --kconfig "CONFIG_TASKS_TRACE_RCU=y CONFIG_NR_CPUS=$HALF_ALLOTED_CPUS" --trust-make
+		mv $T/last-resdir-nodebug $T/first-resdir-nodebug || :
+		if test -f "$T/last-resdir-kasan"
+		then
+			mv $T/last-resdir-kasan $T/first-resdir-kasan || :
+		fi
+		if test -f "$T/last-resdir-kcsan"
+		then
+			mv $T/last-resdir-kcsan $T/first-resdir-kcsan || :
+		fi
+		firsttime=
+		do_kasan=
+		do_kcsan=
+	else
+		torture_bootargs=
+		for i in $T/first-resdir-*
+		do
+			case "$i" in
+			*-nodebug)
+				torture_suffix=
+				;;
+			*-kasan)
+				torture_suffix="-kasan"
+				;;
+			*-kcsan)
+				torture_suffix="-kcsan"
+				;;
+			esac
+			torture_set "rcuscale-$prim$torture_suffix" tools/testing/selftests/rcutorture/bin/kvm-again.sh "`cat "$i"`" --duration 5 --bootargs "rcuscale.scale_type=$prim"
+		done
+	fi
 done
+do_kasan="$do_kasan_save"
+do_kcsan="$do_kcsan_save"
 
 if test "$do_kvfree" = "yes"
 then
