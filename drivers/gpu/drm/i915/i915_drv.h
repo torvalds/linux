@@ -40,7 +40,6 @@
 #include "display/intel_display_core.h"
 #include "display/intel_display_power.h"
 #include "display/intel_dsb.h"
-#include "display/intel_fbc.h"
 #include "display/intel_frontbuffer.h"
 
 #include "gem/i915_gem_context_types.h"
@@ -285,8 +284,6 @@ struct drm_i915_private {
 		u32 de_irq_mask[I915_MAX_PIPES];
 	};
 	u32 pipestat_irq_mask[I915_MAX_PIPES];
-
-	struct intel_fbc *fbc[I915_MAX_FBCS];
 
 	bool preserve_bios_swizzle;
 
