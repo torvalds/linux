@@ -27,6 +27,7 @@
 #include "intel_pm_types.h"
 
 struct drm_i915_private;
+struct drm_property;
 struct i915_audio_component;
 struct i915_hdcp_comp_master;
 struct intel_atomic_state;
@@ -370,6 +371,11 @@ struct intel_display {
 		/* protects panel power sequencer state */
 		struct mutex mutex;
 	} pps;
+
+	struct {
+		struct drm_property *broadcast_rgb;
+		struct drm_property *force_audio;
+	} properties;
 
 	struct {
 		unsigned long mask;
