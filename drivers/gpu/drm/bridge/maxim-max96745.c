@@ -35,7 +35,6 @@ struct max96745_bridge {
 	struct {
 		struct gpio_desc *gpio;
 		int irq;
-		bool irq_enabled;
 		atomic_t triggered;
 	} lock;
 	struct extcon_dev *extcon;
@@ -97,13 +96,8 @@ static int max96745_bridge_attach(struct drm_bridge *bridge,
 	else
 		ser->status = connector_status_disconnected;
 
-	if (max96745_bridge_vid_tx_active(ser)) {
-		extcon_set_state(ser->extcon, EXTCON_JACK_VIDEO_OUT, true);
-		enable_irq(ser->lock.irq);
-		ser->lock.irq_enabled = true;
-	} else {
-		extcon_set_state(ser->extcon, EXTCON_JACK_VIDEO_OUT, false);
-	}
+	extcon_set_state(ser->extcon, EXTCON_JACK_VIDEO_OUT,
+			 max96745_bridge_vid_tx_active(ser));
 
 	return 0;
 }
@@ -124,21 +118,11 @@ static void max96745_bridge_enable(struct drm_bridge *bridge)
 		drm_panel_enable(ser->panel);
 
 	extcon_set_state_sync(ser->extcon, EXTCON_JACK_VIDEO_OUT, true);
-
-	if (!ser->lock.irq_enabled) {
-		enable_irq(ser->lock.irq);
-		ser->lock.irq_enabled = true;
-	}
 }
 
 static void max96745_bridge_disable(struct drm_bridge *bridge)
 {
 	struct max96745_bridge *ser = to_max96745_bridge(bridge);
-
-	if (ser->lock.irq_enabled) {
-		disable_irq(ser->lock.irq);
-		ser->lock.irq_enabled = false;
-	}
 
 	extcon_set_state_sync(ser->extcon, EXTCON_JACK_VIDEO_OUT, false);
 
@@ -168,7 +152,7 @@ max96745_bridge_detect(struct drm_bridge *bridge)
 		goto out;
 	}
 
-	if (ser->lock.irq_enabled) {
+	if (extcon_get_state(ser->extcon, EXTCON_JACK_VIDEO_OUT)) {
 		u32 dprx_trn_status2;
 
 		if (atomic_cmpxchg(&ser->lock.triggered, 1, 0)) {
@@ -231,7 +215,8 @@ static irqreturn_t max96745_bridge_lock_irq_handler(int irq, void *arg)
 {
 	struct max96745_bridge *ser = arg;
 
-	atomic_set(&ser->lock.triggered, 1);
+	if (extcon_get_state(ser->extcon, EXTCON_JACK_VIDEO_OUT))
+		atomic_set(&ser->lock.triggered, 1);
 
 	return IRQ_HANDLED;
 }
@@ -272,7 +257,6 @@ static int max96745_bridge_probe(struct platform_device *pdev)
 	if (ser->lock.irq < 0)
 		return ser->lock.irq;
 
-	irq_set_status_flags(ser->lock.irq, IRQ_NOAUTOEN);
 	ret = devm_request_threaded_irq(dev, ser->lock.irq, NULL,
 					max96745_bridge_lock_irq_handler,
 					IRQF_TRIGGER_RISING | IRQF_ONESHOT,
