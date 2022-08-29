@@ -1796,7 +1796,7 @@ int drm_atomic_helper_async_check(struct drm_device *dev,
 	struct drm_plane_state *old_plane_state = NULL;
 	struct drm_plane_state *new_plane_state = NULL;
 	const struct drm_plane_helper_funcs *funcs;
-	int i, n_planes = 0;
+	int i, ret, n_planes = 0;
 
 	for_each_new_crtc_in_state(state, crtc, crtc_state, i) {
 		if (drm_atomic_crtc_needs_modeset(crtc_state))
@@ -1807,19 +1807,34 @@ int drm_atomic_helper_async_check(struct drm_device *dev,
 		n_planes++;
 
 	/* FIXME: we support only single plane updates for now */
-	if (n_planes != 1)
+	if (n_planes != 1) {
+		drm_dbg_atomic(dev,
+			       "only single plane async updates are supported\n");
 		return -EINVAL;
+	}
 
 	if (!new_plane_state->crtc ||
-	    old_plane_state->crtc != new_plane_state->crtc)
+	    old_plane_state->crtc != new_plane_state->crtc) {
+		drm_dbg_atomic(dev,
+			       "[PLANE:%d:%s] async update cannot change CRTC\n",
+			       plane->base.id, plane->name);
 		return -EINVAL;
+	}
 
 	funcs = plane->helper_private;
-	if (!funcs->atomic_async_update)
+	if (!funcs->atomic_async_update) {
+		drm_dbg_atomic(dev,
+			       "[PLANE:%d:%s] driver does not support async updates\n",
+			       plane->base.id, plane->name);
 		return -EINVAL;
+	}
 
-	if (new_plane_state->fence)
+	if (new_plane_state->fence) {
+		drm_dbg_atomic(dev,
+			       "[PLANE:%d:%s] missing fence for async update\n",
+			       plane->base.id, plane->name);
 		return -EINVAL;
+	}
 
 	/*
 	 * Don't do an async update if there is an outstanding commit modifying
@@ -1834,7 +1849,12 @@ int drm_atomic_helper_async_check(struct drm_device *dev,
 		return -EBUSY;
 	}
 
-	return funcs->atomic_async_check(plane, state);
+	ret = funcs->atomic_async_check(plane, state);
+	if (ret != 0)
+		drm_dbg_atomic(dev,
+			       "[PLANE:%d:%s] driver async check failed\n",
+			       plane->base.id, plane->name);
+	return ret;
 }
 EXPORT_SYMBOL(drm_atomic_helper_async_check);
 
