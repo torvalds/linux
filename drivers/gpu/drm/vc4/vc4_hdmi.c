@@ -273,17 +273,50 @@ static void vc4_hdmi_cec_update_clk_div(struct vc4_hdmi *vc4_hdmi) {}
 
 static void vc4_hdmi_enable_scrambling(struct drm_encoder *encoder);
 
+static void vc4_hdmi_handle_hotplug(struct vc4_hdmi *vc4_hdmi,
+				    enum drm_connector_status status)
+{
+	struct drm_connector *connector = &vc4_hdmi->connector;
+	struct edid *edid;
+
+	/*
+	 * NOTE: This function should really be called with
+	 * vc4_hdmi->mutex held, but doing so results in reentrancy
+	 * issues since cec_s_phys_addr_from_edid might call
+	 * .adap_enable, which leads to that funtion being called with
+	 * our mutex held.
+	 *
+	 * Concurrency isn't an issue at the moment since we don't share
+	 * any state with any of the other frameworks so we can ignore
+	 * the lock for now.
+	 */
+
+	if (status == connector_status_disconnected) {
+		cec_phys_addr_invalidate(vc4_hdmi->cec_adap);
+		return;
+	}
+
+	edid = drm_get_edid(connector, vc4_hdmi->ddc);
+	if (!edid)
+		return;
+
+	cec_s_phys_addr_from_edid(vc4_hdmi->cec_adap, edid);
+	kfree(edid);
+
+	vc4_hdmi_enable_scrambling(&vc4_hdmi->encoder.base.base);
+}
+
 static enum drm_connector_status
 vc4_hdmi_connector_detect(struct drm_connector *connector, bool force)
 {
 	struct vc4_hdmi *vc4_hdmi = connector_to_vc4_hdmi(connector);
-	bool connected = false;
+	enum drm_connector_status status = connector_status_disconnected;
 
 	/*
 	 * NOTE: This function should really take vc4_hdmi->mutex, but
 	 * doing so results in reentrancy issues since
-	 * cec_s_phys_addr_from_edid might call .adap_enable, which
-	 * leads to that funtion being called with our mutex held.
+	 * vc4_hdmi_handle_hotplug() can call into other functions that
+	 * would take the mutex while it's held here.
 	 *
 	 * Concurrency isn't an issue at the moment since we don't share
 	 * any state with any of the other frameworks so we can ignore
@@ -294,31 +327,17 @@ vc4_hdmi_connector_detect(struct drm_connector *connector, bool force)
 
 	if (vc4_hdmi->hpd_gpio) {
 		if (gpiod_get_value_cansleep(vc4_hdmi->hpd_gpio))
-			connected = true;
+			status = connector_status_connected;
 	} else {
 		if (vc4_hdmi->variant->hp_detect &&
 		    vc4_hdmi->variant->hp_detect(vc4_hdmi))
-			connected = true;
+			status = connector_status_connected;
 	}
 
-	if (connected) {
-		if (connector->status != connector_status_connected) {
-			struct edid *edid = drm_get_edid(connector, vc4_hdmi->ddc);
-
-			if (edid) {
-				cec_s_phys_addr_from_edid(vc4_hdmi->cec_adap, edid);
-				kfree(edid);
-			}
-		}
-
-		vc4_hdmi_enable_scrambling(&vc4_hdmi->encoder.base);
-		pm_runtime_put(&vc4_hdmi->pdev->dev);
-		return connector_status_connected;
-	}
-
-	cec_phys_addr_invalidate(vc4_hdmi->cec_adap);
+	vc4_hdmi_handle_hotplug(vc4_hdmi, status);
 	pm_runtime_put(&vc4_hdmi->pdev->dev);
-	return connector_status_disconnected;
+
+	return status;
 }
 
 static int vc4_hdmi_connector_get_modes(struct drm_connector *connector)
