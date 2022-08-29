@@ -194,7 +194,9 @@ enum vc4_vec_tv_mode_id {
 
 struct vc4_vec_tv_mode {
 	const struct drm_display_mode *mode;
-	void (*mode_set)(struct vc4_vec *vec);
+	u32 config0;
+	u32 config1;
+	u32 custom_freq;
 };
 
 static const struct debugfs_reg32 vec_regs[] = {
@@ -224,71 +226,12 @@ static const struct debugfs_reg32 vec_regs[] = {
 	VC4_REG32(VEC_DAC_MISC),
 };
 
-static void vc4_vec_ntsc_mode_set(struct vc4_vec *vec)
-{
-	struct drm_device *drm = vec->connector.dev;
-	int idx;
-
-	if (!drm_dev_enter(drm, &idx))
-		return;
-
-	VEC_WRITE(VEC_CONFIG0, VEC_CONFIG0_NTSC_STD | VEC_CONFIG0_PDEN);
-	VEC_WRITE(VEC_CONFIG1, VEC_CONFIG1_C_CVBS_CVBS);
-
-	drm_dev_exit(idx);
-}
-
-static void vc4_vec_ntsc_j_mode_set(struct vc4_vec *vec)
-{
-	struct drm_device *drm = vec->connector.dev;
-	int idx;
-
-	if (!drm_dev_enter(drm, &idx))
-		return;
-
-	VEC_WRITE(VEC_CONFIG0, VEC_CONFIG0_NTSC_STD);
-	VEC_WRITE(VEC_CONFIG1, VEC_CONFIG1_C_CVBS_CVBS);
-
-	drm_dev_exit(idx);
-}
-
 static const struct drm_display_mode ntsc_mode = {
 	DRM_MODE("720x480", DRM_MODE_TYPE_DRIVER, 13500,
 		 720, 720 + 14, 720 + 14 + 64, 720 + 14 + 64 + 60, 0,
 		 480, 480 + 3, 480 + 3 + 3, 480 + 3 + 3 + 16, 0,
 		 DRM_MODE_FLAG_INTERLACE)
 };
-
-static void vc4_vec_pal_mode_set(struct vc4_vec *vec)
-{
-	struct drm_device *drm = vec->connector.dev;
-	int idx;
-
-	if (!drm_dev_enter(drm, &idx))
-		return;
-
-	VEC_WRITE(VEC_CONFIG0, VEC_CONFIG0_PAL_BDGHI_STD);
-	VEC_WRITE(VEC_CONFIG1, VEC_CONFIG1_C_CVBS_CVBS);
-
-	drm_dev_exit(idx);
-}
-
-static void vc4_vec_pal_m_mode_set(struct vc4_vec *vec)
-{
-	struct drm_device *drm = vec->connector.dev;
-	int idx;
-
-	if (!drm_dev_enter(drm, &idx))
-		return;
-
-	VEC_WRITE(VEC_CONFIG0, VEC_CONFIG0_PAL_BDGHI_STD);
-	VEC_WRITE(VEC_CONFIG1,
-		  VEC_CONFIG1_C_CVBS_CVBS | VEC_CONFIG1_CUSTOM_FREQ);
-	VEC_WRITE(VEC_FREQ3_2, 0x223b);
-	VEC_WRITE(VEC_FREQ1_0, 0x61d1);
-
-	drm_dev_exit(idx);
-}
 
 static const struct drm_display_mode pal_mode = {
 	DRM_MODE("720x576", DRM_MODE_TYPE_DRIVER, 13500,
@@ -300,19 +243,24 @@ static const struct drm_display_mode pal_mode = {
 static const struct vc4_vec_tv_mode vc4_vec_tv_modes[] = {
 	[VC4_VEC_TV_MODE_NTSC] = {
 		.mode = &ntsc_mode,
-		.mode_set = vc4_vec_ntsc_mode_set,
+		.config0 = VEC_CONFIG0_NTSC_STD | VEC_CONFIG0_PDEN,
+		.config1 = VEC_CONFIG1_C_CVBS_CVBS,
 	},
 	[VC4_VEC_TV_MODE_NTSC_J] = {
 		.mode = &ntsc_mode,
-		.mode_set = vc4_vec_ntsc_j_mode_set,
+		.config0 = VEC_CONFIG0_NTSC_STD,
+		.config1 = VEC_CONFIG1_C_CVBS_CVBS,
 	},
 	[VC4_VEC_TV_MODE_PAL] = {
 		.mode = &pal_mode,
-		.mode_set = vc4_vec_pal_mode_set,
+		.config0 = VEC_CONFIG0_PAL_BDGHI_STD,
+		.config1 = VEC_CONFIG1_C_CVBS_CVBS,
 	},
 	[VC4_VEC_TV_MODE_PAL_M] = {
 		.mode = &pal_mode,
-		.mode_set = vc4_vec_pal_m_mode_set,
+		.config0 = VEC_CONFIG0_PAL_BDGHI_STD,
+		.config1 = VEC_CONFIG1_C_CVBS_CVBS | VEC_CONFIG1_CUSTOM_FREQ,
+		.custom_freq = 0x223b61d1,
 	},
 };
 
@@ -412,6 +360,8 @@ static void vc4_vec_encoder_enable(struct drm_encoder *encoder,
 {
 	struct drm_device *drm = encoder->dev;
 	struct vc4_vec *vec = encoder_to_vc4_vec(encoder);
+	const struct vc4_vec_tv_mode *tv_mode =
+		vec->tv_mode;
 	int idx, ret;
 
 	if (!drm_dev_enter(drm, &idx))
@@ -470,7 +420,15 @@ static void vc4_vec_encoder_enable(struct drm_encoder *encoder,
 	/* Mask all interrupts. */
 	VEC_WRITE(VEC_MASK0, 0);
 
-	vec->tv_mode->mode_set(vec);
+	VEC_WRITE(VEC_CONFIG0, tv_mode->config0);
+	VEC_WRITE(VEC_CONFIG1, tv_mode->config1);
+
+	if (tv_mode->custom_freq) {
+		VEC_WRITE(VEC_FREQ3_2,
+			  (tv_mode->custom_freq >> 16) & 0xffff);
+		VEC_WRITE(VEC_FREQ1_0,
+			  tv_mode->custom_freq & 0xffff);
+	}
 
 	VEC_WRITE(VEC_DAC_MISC,
 		  VEC_DAC_MISC_VID_ACT | VEC_DAC_MISC_DAC_RST_N);
