@@ -339,7 +339,8 @@ static void sun4i_tv_mode_to_drm_mode(const struct tv_mode *tv_mode,
 	mode->vtotal = mode->vsync_end  + tv_mode->vback_porch;
 }
 
-static void sun4i_tv_disable(struct drm_encoder *encoder)
+static void sun4i_tv_disable(struct drm_encoder *encoder,
+			    struct drm_atomic_state *state)
 {
 	struct sun4i_tv *tv = drm_encoder_to_sun4i_tv(encoder);
 	struct sun4i_crtc *crtc = drm_crtc_to_sun4i_crtc(encoder->crtc);
@@ -353,7 +354,8 @@ static void sun4i_tv_disable(struct drm_encoder *encoder)
 	sunxi_engine_disable_color_correction(crtc->engine);
 }
 
-static void sun4i_tv_enable(struct drm_encoder *encoder)
+static void sun4i_tv_enable(struct drm_encoder *encoder,
+			    struct drm_atomic_state *state)
 {
 	struct sun4i_tv *tv = drm_encoder_to_sun4i_tv(encoder);
 	struct sun4i_crtc *crtc = drm_crtc_to_sun4i_crtc(encoder->crtc);
@@ -469,8 +471,8 @@ static void sun4i_tv_mode_set(struct drm_encoder *encoder,
 }
 
 static const struct drm_encoder_helper_funcs sun4i_tv_helper_funcs = {
-	.disable	= sun4i_tv_disable,
-	.enable		= sun4i_tv_enable,
+	.atomic_disable	= sun4i_tv_disable,
+	.atomic_enable	= sun4i_tv_enable,
 	.mode_set	= sun4i_tv_mode_set,
 };
 
