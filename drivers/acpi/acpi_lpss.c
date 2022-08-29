@@ -670,9 +670,7 @@ static int acpi_lpss_create_device(struct acpi_device *adev,
 	if (!pdata->mmio_base) {
 		/* Avoid acpi_bus_attach() instantiating a pdev for this dev. */
 		adev->pnp.type.platform_id = 0;
-		/* Skip the device, but continue the namespace scan. */
-		ret = 0;
-		goto err_out;
+		goto out_free;
 	}
 
 	pdata->adev = adev;
@@ -683,11 +681,8 @@ static int acpi_lpss_create_device(struct acpi_device *adev,
 
 	if (dev_desc->flags & LPSS_CLK) {
 		ret = register_device_clock(adev, pdata);
-		if (ret) {
-			/* Skip the device, but continue the namespace scan. */
-			ret = 0;
-			goto err_out;
-		}
+		if (ret)
+			goto out_free;
 	}
 
 	/*
@@ -699,15 +694,19 @@ static int acpi_lpss_create_device(struct acpi_device *adev,
 
 	adev->driver_data = pdata;
 	pdev = acpi_create_platform_device(adev, dev_desc->properties);
-	if (!IS_ERR_OR_NULL(pdev)) {
-		acpi_lpss_create_device_links(adev, pdev);
-		return 1;
+	if (IS_ERR_OR_NULL(pdev)) {
+		adev->driver_data = NULL;
+		ret = PTR_ERR(pdev);
+		goto err_out;
 	}
 
-	ret = PTR_ERR(pdev);
-	adev->driver_data = NULL;
+	acpi_lpss_create_device_links(adev, pdev);
+	return 1;
 
- err_out:
+out_free:
+	/* Skip the device, but continue the namespace scan */
+	ret = 0;
+err_out:
 	kfree(pdata);
 	return ret;
 }
