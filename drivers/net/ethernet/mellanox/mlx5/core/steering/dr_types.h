@@ -896,6 +896,9 @@ struct mlx5dr_cmd_caps {
 	struct mlx5dr_vports vports;
 	bool prio_tag_required;
 	struct mlx5dr_roce_cap roce_caps;
+	u16 log_header_modify_argument_granularity;
+	u16 log_header_modify_argument_max_alloc;
+	bool support_modify_argument;
 	u8 is_ecpf:1;
 	u8 isolate_vl_tc:1;
 };

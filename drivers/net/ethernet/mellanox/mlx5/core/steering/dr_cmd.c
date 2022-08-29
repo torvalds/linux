@@ -132,6 +132,17 @@ int mlx5dr_cmd_query_device(struct mlx5_core_dev *mdev,
 
 	caps->isolate_vl_tc = MLX5_CAP_GEN(mdev, isolate_vl_tc_new);
 
+	caps->support_modify_argument =
+		MLX5_CAP_GEN_64(mdev, general_obj_types) &
+		MLX5_GENERAL_OBJ_TYPES_CAP_HEADER_MODIFY_ARGUMENT;
+
+	if (caps->support_modify_argument) {
+		caps->log_header_modify_argument_granularity =
+			MLX5_CAP_GEN(mdev, log_header_modify_argument_granularity);
+		caps->log_header_modify_argument_max_alloc =
+			MLX5_CAP_GEN(mdev, log_header_modify_argument_max_alloc);
+	}
+
 	/* geneve_tlv_option_0_exist is the indication of
 	 * STE support for lookup type flex_parser_ok
 	 */
