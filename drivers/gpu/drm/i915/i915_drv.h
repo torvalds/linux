@@ -281,13 +281,6 @@ struct drm_i915_private {
 	unsigned int hpll_freq;
 	unsigned int czclk_freq;
 
-	struct {
-		/* The current hardware dbuf configuration */
-		u8 enabled_slices;
-
-		struct intel_global_obj obj;
-	} dbuf;
-
 	/**
 	 * wq - Driver workqueue for GEM.
 	 *

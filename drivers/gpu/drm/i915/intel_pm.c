@@ -6569,7 +6569,7 @@ static void skl_pipe_wm_get_hw_state(struct intel_crtc *crtc,
 void skl_wm_get_hw_state(struct drm_i915_private *dev_priv)
 {
 	struct intel_dbuf_state *dbuf_state =
-		to_intel_dbuf_state(dev_priv->dbuf.obj.state);
+		to_intel_dbuf_state(dev_priv->display.dbuf.obj.state);
 	struct intel_crtc *crtc;
 
 	if (HAS_MBUS_JOINING(dev_priv))
@@ -6631,13 +6631,13 @@ void skl_wm_get_hw_state(struct drm_i915_private *dev_priv)
 			    str_yes_no(dbuf_state->joined_mbus));
 	}
 
-	dbuf_state->enabled_slices = dev_priv->dbuf.enabled_slices;
+	dbuf_state->enabled_slices = dev_priv->display.dbuf.enabled_slices;
 }
 
 static bool skl_dbuf_is_misconfigured(struct drm_i915_private *i915)
 {
 	const struct intel_dbuf_state *dbuf_state =
-		to_intel_dbuf_state(i915->dbuf.obj.state);
+		to_intel_dbuf_state(i915->display.dbuf.obj.state);
 	struct skl_ddb_entry entries[I915_MAX_PIPES] = {};
 	struct intel_crtc *crtc;
 
@@ -7223,10 +7223,10 @@ void intel_wm_state_verify(struct intel_crtc *crtc,
 	hw_enabled_slices = intel_enabled_dbuf_slices_mask(dev_priv);
 
 	if (DISPLAY_VER(dev_priv) >= 11 &&
-	    hw_enabled_slices != dev_priv->dbuf.enabled_slices)
+	    hw_enabled_slices != dev_priv->display.dbuf.enabled_slices)
 		drm_err(&dev_priv->drm,
 			"mismatch in DBUF Slices (expected 0x%x, got 0x%x)\n",
-			dev_priv->dbuf.enabled_slices,
+			dev_priv->display.dbuf.enabled_slices,
 			hw_enabled_slices);
 
 	for_each_intel_plane_on_crtc(&dev_priv->drm, crtc, plane) {
@@ -8343,7 +8343,7 @@ intel_atomic_get_dbuf_state(struct intel_atomic_state *state)
 	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
 	struct intel_global_state *dbuf_state;
 
-	dbuf_state = intel_atomic_get_global_obj_state(state, &dev_priv->dbuf.obj);
+	dbuf_state = intel_atomic_get_global_obj_state(state, &dev_priv->display.dbuf.obj);
 	if (IS_ERR(dbuf_state))
 		return ERR_CAST(dbuf_state);
 
@@ -8358,7 +8358,7 @@ int intel_dbuf_init(struct drm_i915_private *dev_priv)
 	if (!dbuf_state)
 		return -ENOMEM;
 
-	intel_atomic_global_obj_init(dev_priv, &dev_priv->dbuf.obj,
+	intel_atomic_global_obj_init(dev_priv, &dev_priv->display.dbuf.obj,
 				     &dbuf_state->base, &intel_dbuf_funcs);
 
 	return 0;

@@ -1061,14 +1061,14 @@ void gen9_dbuf_slices_update(struct drm_i915_private *dev_priv,
 	for_each_dbuf_slice(dev_priv, slice)
 		gen9_dbuf_slice_set(dev_priv, slice, req_slices & BIT(slice));
 
-	dev_priv->dbuf.enabled_slices = req_slices;
+	dev_priv->display.dbuf.enabled_slices = req_slices;
 
 	mutex_unlock(&power_domains->lock);
 }
 
 static void gen9_dbuf_enable(struct drm_i915_private *dev_priv)
 {
-	dev_priv->dbuf.enabled_slices =
+	dev_priv->display.dbuf.enabled_slices =
 		intel_enabled_dbuf_slices_mask(dev_priv);
 
 	/*
@@ -1076,7 +1076,7 @@ static void gen9_dbuf_enable(struct drm_i915_private *dev_priv)
 	 * figure out later which slices we have and what we need.
 	 */
 	gen9_dbuf_slices_update(dev_priv, BIT(DBUF_S1) |
-				dev_priv->dbuf.enabled_slices);
+				dev_priv->display.dbuf.enabled_slices);
 }
 
 static void gen9_dbuf_disable(struct drm_i915_private *dev_priv)
