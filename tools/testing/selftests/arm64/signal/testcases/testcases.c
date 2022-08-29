@@ -25,7 +25,8 @@ struct _aarch64_ctx *get_header(struct _aarch64_ctx *head, uint32_t magic,
 	return found;
 }
 
-bool validate_extra_context(struct extra_context *extra, char **err)
+bool validate_extra_context(struct extra_context *extra, char **err,
+			    void **extra_data, size_t *extra_size)
 {
 	struct _aarch64_ctx *term;
 
@@ -46,6 +47,9 @@ bool validate_extra_context(struct extra_context *extra, char **err)
 		*err = "Extra DATAP misplaced (not contiguous)";
 	if (*err)
 		return false;
+
+	*extra_data = (void *)extra->datap;
+	*extra_size = extra->size;
 
 	return true;
 }
@@ -111,6 +115,8 @@ bool validate_reserved(ucontext_t *uc, size_t resv_sz, char **err)
 	struct za_context *za = NULL;
 	struct _aarch64_ctx *head =
 		(struct _aarch64_ctx *)uc->uc_mcontext.__reserved;
+	void *extra_data = NULL;
+	size_t extra_sz = 0;
 
 	if (!err)
 		return false;
@@ -125,10 +131,20 @@ bool validate_reserved(ucontext_t *uc, size_t resv_sz, char **err)
 
 		switch (head->magic) {
 		case 0:
-			if (head->size)
+			if (head->size) {
 				*err = "Bad size for terminator";
-			else
+			} else if (extra_data) {
+				/* End of main data, walking the extra data */
+				head = extra_data;
+				resv_sz = extra_sz;
+				offs = 0;
+
+				extra_data = NULL;
+				extra_sz = 0;
+				continue;
+			} else {
 				terminated = true;
+			}
 			break;
 		case FPSIMD_MAGIC:
 			if (flags & FPSIMD_CTX)
@@ -196,7 +212,8 @@ bool validate_reserved(ucontext_t *uc, size_t resv_sz, char **err)
 		}
 
 		if (new_flags & EXTRA_CTX)
-			if (!validate_extra_context(extra, err))
+			if (!validate_extra_context(extra, err,
+						    &extra_data, &extra_sz))
 				return false;
 		if (new_flags & SVE_CTX)
 			if (!validate_sve_context(sve, err))
