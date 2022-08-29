@@ -267,6 +267,7 @@
   destroy_workqueue
   dev_change_flags
   dev_coredumpm
+  dev_coredumpv
   dev_driver_string
   _dev_err
   dev_err_probe
@@ -1449,6 +1450,7 @@
   remove_wait_queue
   report_iommu_fault
   request_firmware
+  request_firmware_direct
   request_firmware_into_buf
   __request_module
   __request_percpu_irq
@@ -1457,6 +1459,7 @@
   resched_curr
   reset_control_assert
   reset_control_deassert
+  reset_control_reset
   root_task_group
   round_jiffies_relative
   rpmsg_poll
