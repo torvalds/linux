@@ -1626,6 +1626,8 @@ static void iio_dev_release(struct device *device)
 
 	iio_device_detach_buffers(indio_dev);
 
+	lockdep_unregister_key(&iio_dev_opaque->mlock_key);
+
 	ida_free(&iio_ida, iio_dev_opaque->id);
 	kfree(iio_dev_opaque);
 }
@@ -1684,6 +1686,9 @@ struct iio_dev *iio_device_alloc(struct device *parent, int sizeof_priv)
 
 	INIT_LIST_HEAD(&iio_dev_opaque->buffer_list);
 	INIT_LIST_HEAD(&iio_dev_opaque->ioctl_handlers);
+
+	lockdep_register_key(&iio_dev_opaque->mlock_key);
+	lockdep_set_class(&indio_dev->mlock, &iio_dev_opaque->mlock_key);
 
 	return indio_dev;
 }
