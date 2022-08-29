@@ -14,6 +14,7 @@
 #include "intel_display.h"
 #include "intel_dmc.h"
 #include "intel_dpll_mgr.h"
+#include "intel_global_state.h"
 #include "intel_gmbus.h"
 #include "intel_pm_types.h"
 
@@ -33,6 +34,12 @@ struct intel_fdi_funcs;
 struct intel_hotplug_funcs;
 struct intel_initial_plane_config;
 struct intel_overlay;
+
+/* Amount of SAGV/QGV points, BSpec precisely defines this */
+#define I915_NUM_QGV_POINTS 8
+
+/* Amount of PSF GV points, BSpec precisely defines this */
+#define I915_NUM_PSF_GV_POINTS 3
 
 struct intel_display_funcs {
 	/*
@@ -208,6 +215,20 @@ struct intel_display {
 	} funcs;
 
 	/* Grouping using anonymous structs. Keep sorted. */
+	struct {
+		struct intel_global_obj obj;
+
+		struct intel_bw_info {
+			/* for each QGV point */
+			unsigned int deratedbw[I915_NUM_QGV_POINTS];
+			/* for each PSF GV point */
+			unsigned int psf_bw[I915_NUM_PSF_GV_POINTS];
+			u8 num_qgv_points;
+			u8 num_psf_gv_points;
+			u8 num_planes;
+		} max[6];
+	} bw;
+
 	struct {
 		/* list of fbdev register on this device */
 		struct intel_fbdev *fbdev;
