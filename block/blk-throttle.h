@@ -121,6 +121,15 @@ struct throtl_grp {
 	uint64_t last_bytes_disp[2];
 	unsigned int last_io_disp[2];
 
+	/*
+	 * The following two fields are updated when new configuration is
+	 * submitted while some bios are still throttled, they record how many
+	 * bytes/ios are waited already in previous configuration, and they will
+	 * be used to calculate wait time under new configuration.
+	 */
+	uint64_t carryover_bytes[2];
+	unsigned int carryover_ios[2];
+
 	unsigned long last_check_time;
 
 	unsigned long latency_target; /* us */
