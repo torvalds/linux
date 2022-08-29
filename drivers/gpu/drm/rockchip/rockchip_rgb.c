@@ -316,14 +316,18 @@ rockchip_rgb_encoder_mode_valid(struct drm_encoder *encoder,
 				 const struct drm_display_mode *mode)
 {
 	struct rockchip_rgb *rgb = encoder_to_rgb(encoder);
+	struct device *dev = rgb->dev;
 	u32 request_clock = mode->clock;
 	u32 max_clock = rgb->max_dclk_rate;
 
 	if (mode->flags & DRM_MODE_FLAG_DBLCLK)
 		request_clock *= 2;
 
-	if (max_clock != 0 && request_clock > max_clock)
+	if (max_clock != 0 && request_clock > max_clock) {
+		DRM_DEV_ERROR(dev, "mode [%dx%d] clock %d is higher than max_clock %d\n",
+			      mode->hdisplay, mode->vdisplay, request_clock, max_clock);
 		return MODE_CLOCK_HIGH;
+	}
 
 	return MODE_OK;
 }
