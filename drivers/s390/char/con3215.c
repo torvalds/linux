@@ -736,19 +736,10 @@ static struct ccw_driver raw3215_ccw_driver = {
 	.int_class	= IRQIO_C15,
 };
 
-#ifdef CONFIG_TN3215_CONSOLE
-/*
- * Write a string to the 3215 console
- */
-static void con3215_write(struct console *co, const char *str,
-			  unsigned int count)
+static void handle_write(struct raw3215_info *raw, const char *str, int count)
 {
-	struct raw3215_info *raw;
 	int i;
 
-	if (count <= 0)
-		return;
-	raw = raw3215[0];	/* console 3215 is the first one */
 	while (count > 0) {
 		for (i = 0; i < count; i++)
 			if (str[i] == '\t' || str[i] == '\n')
@@ -762,6 +753,15 @@ static void con3215_write(struct console *co, const char *str,
 			str++;
 		}
 	}
+}
+
+#ifdef CONFIG_TN3215_CONSOLE
+/*
+ * Write a string to the 3215 console
+ */
+static void con3215_write(struct console *co, const char *str, unsigned int count)
+{
+	handle_write(raw3215[0], str, count);
 }
 
 static struct tty_driver *con3215_device(struct console *c, int *index)
@@ -943,24 +943,8 @@ static unsigned int tty3215_write_room(struct tty_struct *tty)
 static int tty3215_write(struct tty_struct * tty,
 			 const unsigned char *buf, int count)
 {
-	struct raw3215_info *raw = tty->driver_data;
-	int i, written;
-
-	written = count;
-	while (count > 0) {
-		for (i = 0; i < count; i++)
-			if (buf[i] == '\t' || buf[i] == '\n')
-				break;
-		raw3215_write(raw, buf, i);
-		count -= i;
-		buf += i;
-		if (count > 0) {
-			raw3215_putchar(raw, *buf);
-			count--;
-			buf++;
-		}
-	}
-	return written;
+	handle_write(tty->driver_data, buf, count);
+	return count;
 }
 
 /*
