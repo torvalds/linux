@@ -701,7 +701,7 @@
 		};
 
 		trng: trng@1600C000 {
-			compatible = "starfive,trng";
+			compatible = "starfive,jh7110-trng";
 			reg = <0x0 0x1600C000 0x0 0x4000>;
 			clocks = <&clkgen JH7110_SEC_HCLK>,
 				 <&clkgen JH7110_SEC_MISCAHB_CLK>;
