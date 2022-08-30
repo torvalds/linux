@@ -146,6 +146,7 @@ static const struct imx93_clk_ccgr {
 	char *parent_name;
 	u32 off;
 	unsigned long flags;
+	u32 *shared_count;
 } ccgr_array[] = {
 	{ IMX93_CLK_A55_GATE,		"a55",		"a55_root",		0x8000, },
 	/* M33 critical clk for system run */
@@ -299,10 +300,9 @@ static int imx93_clocks_probe(struct platform_device *pdev)
 
 	for (i = 0; i < ARRAY_SIZE(ccgr_array); i++) {
 		ccgr = &ccgr_array[i];
-		clks[ccgr->clk] = imx_clk_hw_gate4_flags(ccgr->name,
-							 ccgr->parent_name,
-							 base + ccgr->off, 0,
-							 ccgr->flags);
+		clks[ccgr->clk] = imx93_clk_gate(NULL, ccgr->name, ccgr->parent_name,
+						 ccgr->flags, base + ccgr->off, 0, 1, 1, 3,
+						 ccgr->shared_count);
 	}
 
 	imx_check_clk_hws(clks, IMX93_CLK_END);
