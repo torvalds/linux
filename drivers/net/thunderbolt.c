@@ -30,6 +30,7 @@
 #define TBNET_RING_SIZE		256
 #define TBNET_LOGIN_RETRIES	60
 #define TBNET_LOGOUT_RETRIES	10
+#define TBNET_E2E		BIT(0)
 #define TBNET_MATCH_FRAGS_ID	BIT(1)
 #define TBNET_64K_FRAMES	BIT(2)
 #define TBNET_MAX_MTU		SZ_64K
@@ -208,6 +209,10 @@ static const uuid_t tbnet_svc_uuid =
 		  0x97, 0xc6, 0x56, 0x64, 0xa9, 0x20, 0xc8, 0xdd);
 
 static struct tb_property_dir *tbnet_dir;
+
+static bool tbnet_e2e = true;
+module_param_named(e2e, tbnet_e2e, bool, 0444);
+MODULE_PARM_DESC(e2e, "USB4NET full end-to-end flow control (default: true)");
 
 static void tbnet_fill_header(struct thunderbolt_ip_header *hdr, u64 route,
 	u8 sequence, const uuid_t *initiator_uuid, const uuid_t *target_uuid,
@@ -873,6 +878,7 @@ static int tbnet_open(struct net_device *dev)
 	struct tb_xdomain *xd = net->xd;
 	u16 sof_mask, eof_mask;
 	struct tb_ring *ring;
+	unsigned int flags;
 	int hopid;
 
 	netif_carrier_off(dev);
@@ -897,9 +903,14 @@ static int tbnet_open(struct net_device *dev)
 	sof_mask = BIT(TBIP_PDF_FRAME_START);
 	eof_mask = BIT(TBIP_PDF_FRAME_END);
 
-	ring = tb_ring_alloc_rx(xd->tb->nhi, -1, TBNET_RING_SIZE,
-				RING_FLAG_FRAME, 0, sof_mask, eof_mask,
-				tbnet_start_poll, net);
+	flags = RING_FLAG_FRAME;
+	/* Only enable full E2E if the other end supports it too */
+	if (tbnet_e2e && net->svc->prtcstns & TBNET_E2E)
+		flags |= RING_FLAG_E2E;
+
+	ring = tb_ring_alloc_rx(xd->tb->nhi, -1, TBNET_RING_SIZE, flags,
+				net->tx_ring.ring->hop, sof_mask,
+				eof_mask, tbnet_start_poll, net);
 	if (!ring) {
 		netdev_err(dev, "failed to allocate Rx ring\n");
 		tb_ring_free(net->tx_ring.ring);
@@ -1362,6 +1373,7 @@ static struct tb_service_driver tbnet_driver = {
 
 static int __init tbnet_init(void)
 {
+	unsigned int flags;
 	int ret;
 
 	tbnet_dir = tb_property_create_dir(&tbnet_dir_uuid);
@@ -1371,12 +1383,11 @@ static int __init tbnet_init(void)
 	tb_property_add_immediate(tbnet_dir, "prtcid", 1);
 	tb_property_add_immediate(tbnet_dir, "prtcvers", 1);
 	tb_property_add_immediate(tbnet_dir, "prtcrevs", 1);
-	/* Currently only announce support for match frags ID (bit 1). Bit 0
-	 * is reserved for full E2E flow control which we do not support at
-	 * the moment.
-	 */
-	tb_property_add_immediate(tbnet_dir, "prtcstns",
-				  TBNET_MATCH_FRAGS_ID | TBNET_64K_FRAMES);
+
+	flags = TBNET_MATCH_FRAGS_ID | TBNET_64K_FRAMES;
+	if (tbnet_e2e)
+		flags |= TBNET_E2E;
+	tb_property_add_immediate(tbnet_dir, "prtcstns", flags);
 
 	ret = tb_register_property_dir("network", tbnet_dir);
 	if (ret) {
