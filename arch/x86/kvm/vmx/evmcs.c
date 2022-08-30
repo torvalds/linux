@@ -412,10 +412,28 @@ static u32 evmcs_get_unsupported_ctls(enum evmcs_ctrl_type ctrl_type)
 	return evmcs_unsupported_ctrls[ctrl_type][evmcs_rev];
 }
 
-void nested_evmcs_filter_control_msr(u32 msr_index, u64 *pdata)
+static bool evmcs_has_perf_global_ctrl(struct kvm_vcpu *vcpu)
+{
+	struct kvm_vcpu_hv *hv_vcpu = to_hv_vcpu(vcpu);
+
+	/*
+	 * PERF_GLOBAL_CTRL has a quirk where some Windows guests may fail to
+	 * boot if a PV CPUID feature flag is not also set.  Treat the fields
+	 * as unsupported if the flag is not set in guest CPUID.  This should
+	 * be called only for guest accesses, and all guest accesses should be
+	 * gated on Hyper-V being enabled and initialized.
+	 */
+	if (WARN_ON_ONCE(!hv_vcpu))
+		return false;
+
+	return hv_vcpu->cpuid_cache.nested_ebx & HV_X64_NESTED_EVMCS1_PERF_GLOBAL_CTRL;
+}
+
+void nested_evmcs_filter_control_msr(struct kvm_vcpu *vcpu, u32 msr_index, u64 *pdata)
 {
 	u32 ctl_low = (u32)*pdata;
 	u32 ctl_high = (u32)(*pdata >> 32);
+	u32 unsupported_ctrls;
 
 	/*
 	 * Hyper-V 2016 and 2019 try using these features even when eVMCS
@@ -424,11 +442,17 @@ void nested_evmcs_filter_control_msr(u32 msr_index, u64 *pdata)
 	switch (msr_index) {
 	case MSR_IA32_VMX_EXIT_CTLS:
 	case MSR_IA32_VMX_TRUE_EXIT_CTLS:
-		ctl_high &= ~evmcs_get_unsupported_ctls(EVMCS_EXIT_CTRLS);
+		unsupported_ctrls = evmcs_get_unsupported_ctls(EVMCS_EXIT_CTRLS);
+		if (!evmcs_has_perf_global_ctrl(vcpu))
+			unsupported_ctrls |= VM_EXIT_LOAD_IA32_PERF_GLOBAL_CTRL;
+		ctl_high &= ~unsupported_ctrls;
 		break;
 	case MSR_IA32_VMX_ENTRY_CTLS:
 	case MSR_IA32_VMX_TRUE_ENTRY_CTLS:
-		ctl_high &= ~evmcs_get_unsupported_ctls(EVMCS_ENTRY_CTRLS);
+		unsupported_ctrls = evmcs_get_unsupported_ctls(EVMCS_ENTRY_CTRLS);
+		if (!evmcs_has_perf_global_ctrl(vcpu))
+			unsupported_ctrls |= VM_ENTRY_LOAD_IA32_PERF_GLOBAL_CTRL;
+		ctl_high &= ~unsupported_ctrls;
 		break;
 	case MSR_IA32_VMX_PROCBASED_CTLS2:
 		ctl_high &= ~evmcs_get_unsupported_ctls(EVMCS_2NDEXEC);
