@@ -238,8 +238,6 @@ btree_key_cache_create(struct bch_fs *c,
 	} else {
 		if (btree_id == BTREE_ID_subvolumes)
 			six_lock_pcpu_alloc(&ck->c.lock);
-		else
-			six_lock_pcpu_free(&ck->c.lock);
 	}
 
 	ck->c.level		= 0;
@@ -688,6 +686,7 @@ static unsigned long bch2_btree_key_cache_scan(struct shrinker *shrink,
 			break;
 
 		list_del(&ck->list);
+		six_lock_pcpu_free(&ck->c.lock);
 		kmem_cache_free(bch2_key_cache, ck);
 		atomic_long_dec(&bc->nr_freed);
 		scanned++;
