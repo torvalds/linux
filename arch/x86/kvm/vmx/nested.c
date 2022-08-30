@@ -446,29 +446,27 @@ static bool nested_vmx_is_page_fault_vmexit(struct vmcs12 *vmcs12,
  */
 static int nested_vmx_check_exception(struct kvm_vcpu *vcpu, unsigned long *exit_qual)
 {
+	struct kvm_queued_exception *ex = &vcpu->arch.exception;
 	struct vmcs12 *vmcs12 = get_vmcs12(vcpu);
-	unsigned int nr = vcpu->arch.exception.nr;
-	bool has_payload = vcpu->arch.exception.has_payload;
-	unsigned long payload = vcpu->arch.exception.payload;
 
-	if (nr == PF_VECTOR) {
-		if (vcpu->arch.exception.nested_apf) {
+	if (ex->vector == PF_VECTOR) {
+		if (ex->nested_apf) {
 			*exit_qual = vcpu->arch.apf.nested_apf_token;
 			return 1;
 		}
-		if (nested_vmx_is_page_fault_vmexit(vmcs12,
-						    vcpu->arch.exception.error_code)) {
-			*exit_qual = has_payload ? payload : vcpu->arch.cr2;
+		if (nested_vmx_is_page_fault_vmexit(vmcs12, ex->error_code)) {
+			*exit_qual = ex->has_payload ? ex->payload : vcpu->arch.cr2;
 			return 1;
 		}
-	} else if (vmcs12->exception_bitmap & (1u << nr)) {
-		if (nr == DB_VECTOR) {
-			if (!has_payload) {
-				payload = vcpu->arch.dr6;
-				payload &= ~DR6_BT;
-				payload ^= DR6_ACTIVE_LOW;
+	} else if (vmcs12->exception_bitmap & (1u << ex->vector)) {
+		if (ex->vector == DB_VECTOR) {
+			if (ex->has_payload) {
+				*exit_qual = ex->payload;
+			} else {
+				*exit_qual = vcpu->arch.dr6;
+				*exit_qual &= ~DR6_BT;
+				*exit_qual ^= DR6_ACTIVE_LOW;
 			}
-			*exit_qual = payload;
 		} else
 			*exit_qual = 0;
 		return 1;
@@ -3764,7 +3762,7 @@ static void vmcs12_save_pending_event(struct kvm_vcpu *vcpu,
 	     is_double_fault(exit_intr_info))) {
 		vmcs12->idt_vectoring_info_field = 0;
 	} else if (vcpu->arch.exception.injected) {
-		nr = vcpu->arch.exception.nr;
+		nr = vcpu->arch.exception.vector;
 		idt_vectoring = nr | VECTORING_INFO_VALID_MASK;
 
 		if (kvm_exception_is_soft(nr)) {
@@ -3868,11 +3866,11 @@ mmio_needed:
 static void nested_vmx_inject_exception_vmexit(struct kvm_vcpu *vcpu,
 					       unsigned long exit_qual)
 {
+	struct kvm_queued_exception *ex = &vcpu->arch.exception;
+	u32 intr_info = ex->vector | INTR_INFO_VALID_MASK;
 	struct vmcs12 *vmcs12 = get_vmcs12(vcpu);
-	unsigned int nr = vcpu->arch.exception.nr;
-	u32 intr_info = nr | INTR_INFO_VALID_MASK;
 
-	if (vcpu->arch.exception.has_error_code) {
+	if (ex->has_error_code) {
 		/*
 		 * Intel CPUs do not generate error codes with bits 31:16 set,
 		 * and more importantly VMX disallows setting bits 31:16 in the
@@ -3882,11 +3880,11 @@ static void nested_vmx_inject_exception_vmexit(struct kvm_vcpu *vcpu,
 		 * generate "full" 32-bit error codes, so KVM allows userspace
 		 * to inject exception error codes with bits 31:16 set.
 		 */
-		vmcs12->vm_exit_intr_error_code = (u16)vcpu->arch.exception.error_code;
+		vmcs12->vm_exit_intr_error_code = (u16)ex->error_code;
 		intr_info |= INTR_INFO_DELIVER_CODE_MASK;
 	}
 
-	if (kvm_exception_is_soft(nr))
+	if (kvm_exception_is_soft(ex->vector))
 		intr_info |= INTR_TYPE_SOFT_EXCEPTION;
 	else
 		intr_info |= INTR_TYPE_HARD_EXCEPTION;
@@ -3917,7 +3915,7 @@ static void nested_vmx_inject_exception_vmexit(struct kvm_vcpu *vcpu,
 static inline unsigned long vmx_get_pending_dbg_trap(struct kvm_vcpu *vcpu)
 {
 	if (!vcpu->arch.exception.pending ||
-	    vcpu->arch.exception.nr != DB_VECTOR)
+	    vcpu->arch.exception.vector != DB_VECTOR)
 		return 0;
 
 	/* General Detect #DBs are always fault-like. */

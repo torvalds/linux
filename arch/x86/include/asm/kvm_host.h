@@ -641,6 +641,17 @@ struct kvm_vcpu_xen {
 	struct timer_list poll_timer;
 };
 
+struct kvm_queued_exception {
+	bool pending;
+	bool injected;
+	bool has_error_code;
+	u8 vector;
+	u32 error_code;
+	unsigned long payload;
+	bool has_payload;
+	u8 nested_apf;
+};
+
 struct kvm_vcpu_arch {
 	/*
 	 * rip and regs accesses must go through
@@ -739,16 +750,8 @@ struct kvm_vcpu_arch {
 
 	u8 event_exit_inst_len;
 
-	struct kvm_queued_exception {
-		bool pending;
-		bool injected;
-		bool has_error_code;
-		u8 nr;
-		u32 error_code;
-		unsigned long payload;
-		bool has_payload;
-		u8 nested_apf;
-	} exception;
+	/* Exceptions to be injected to the guest. */
+	struct kvm_queued_exception exception;
 
 	struct kvm_queued_interrupt {
 		bool injected;
