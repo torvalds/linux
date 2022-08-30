@@ -1259,9 +1259,9 @@ static int tb_port_pm_secondary_disable(struct tb_port *port)
 }
 
 /* Called for USB4 or Titan Ridge routers only */
-static bool tb_port_clx_supported(struct tb_port *port, enum tb_clx clx)
+static bool tb_port_clx_supported(struct tb_port *port, unsigned int clx_mask)
 {
-	u32 mask, val;
+	u32 val, mask = 0;
 	bool ret;
 
 	/* Don't enable CLx in case of two single-lane links */
@@ -1279,17 +1279,12 @@ static bool tb_port_clx_supported(struct tb_port *port, enum tb_clx clx)
 		return false;
 	}
 
-	switch (clx) {
-	case TB_CL1:
+	if (clx_mask & TB_CL1) {
 		/* CL0s and CL1 are enabled and supported together */
-		mask = LANE_ADP_CS_0_CL0S_SUPPORT | LANE_ADP_CS_0_CL1_SUPPORT;
-		break;
-
-	/* For now we support only CL0s and CL1. Not CL2 */
-	case TB_CL2:
-	default:
-		return false;
+		mask |= LANE_ADP_CS_0_CL0S_SUPPORT | LANE_ADP_CS_0_CL1_SUPPORT;
 	}
+	if (clx_mask & TB_CL2)
+		mask |= LANE_ADP_CS_0_CL2_SUPPORT;
 
 	ret = tb_port_read(port, &val, TB_CFG_PORT,
 			   port->cap_phy + LANE_ADP_CS_0, 1);

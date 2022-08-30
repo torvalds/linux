@@ -113,8 +113,8 @@ struct tb_switch_tmu {
 enum tb_clx {
 	TB_CLX_DISABLE,
 	/* CL0s and CL1 are enabled and supported together */
-	TB_CL1,
-	TB_CL2,
+	TB_CL1 = BIT(0),
+	TB_CL2 = BIT(1),
 };
 
 /**
