@@ -509,15 +509,12 @@ static ssize_t align_store(struct device *dev,
 {
 	struct nd_region *nd_region = to_nd_region(dev);
 	unsigned long val, dpa;
-	u32 remainder;
+	u32 mappings, remainder;
 	int rc;
 
 	rc = kstrtoul(buf, 0, &val);
 	if (rc)
 		return rc;
-
-	if (!nd_region->ndr_mappings)
-		return -ENXIO;
 
 	/*
 	 * Ensure space-align is evenly divisible by the region
@@ -526,7 +523,8 @@ static ssize_t align_store(struct device *dev,
 	 * contribute to the tail capacity in system-physical-address
 	 * space for the namespace.
 	 */
-	dpa = div_u64_rem(val, nd_region->ndr_mappings, &remainder);
+	mappings = max_t(u32, 1, nd_region->ndr_mappings);
+	dpa = div_u64_rem(val, mappings, &remainder);
 	if (!is_power_of_2(dpa) || dpa < PAGE_SIZE
 			|| val > region_size(nd_region) || remainder)
 		return -EINVAL;
