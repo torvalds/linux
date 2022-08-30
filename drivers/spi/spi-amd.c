@@ -240,9 +240,6 @@ static int amd_set_spi_freq(struct amd_spi *amd_spi, u32 speed_hz)
 {
 	unsigned int i, spd7_val, alt_spd;
 
-	if (speed_hz == amd_spi->speed_hz)
-		return 0;
-
 	if (speed_hz < AMD_SPI_MIN_HZ)
 		return -EINVAL;
 
@@ -250,7 +247,7 @@ static int amd_set_spi_freq(struct amd_spi *amd_spi, u32 speed_hz)
 		if (speed_hz >= amd_spi_freq[i].speed_hz)
 			break;
 
-	if (speed_hz == amd_spi_freq[i].speed_hz)
+	if (amd_spi->speed_hz == amd_spi_freq[i].speed_hz)
 		return 0;
 
 	amd_spi->speed_hz = amd_spi_freq[i].speed_hz;
