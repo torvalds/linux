@@ -334,6 +334,9 @@ uint16_t nested_get_evmcs_version(struct kvm_vcpu *vcpu)
 	 * versions: lower 8 bits is the minimal version, higher 8 bits is the
 	 * maximum supported version. KVM supports versions from 1 to
 	 * KVM_EVMCS_VERSION.
+	 *
+	 * Note, do not check the Hyper-V is fully enabled in guest CPUID, this
+	 * helper is used to _get_ the vCPU's supported CPUID.
 	 */
 	if (kvm_cpu_cap_get(X86_FEATURE_VMX) &&
 	    (!vcpu || to_vmx(vcpu)->nested.enlightened_vmcs_enabled))
