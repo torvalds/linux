@@ -4276,8 +4276,6 @@ void rcu_report_dead(unsigned int cpu)
 	// Do any dangling deferred wakeups.
 	do_nocb_deferred_wakeup(rdp);
 
-	/* QS for any half-done expedited grace period. */
-	rcu_report_exp_rdp(rdp);
 	rcu_preempt_deferred_qs(current);
 
 	/* Remove outgoing CPU from mask in the leaf rcu_node structure. */
