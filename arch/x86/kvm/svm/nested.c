@@ -1316,7 +1316,7 @@ static void nested_svm_inject_exception_vmexit(struct kvm_vcpu *vcpu)
 		else
 			vmcb->control.exit_info_2 = vcpu->arch.cr2;
 	} else if (ex->vector == DB_VECTOR) {
-		/* See inject_pending_event.  */
+		/* See kvm_check_and_inject_events().  */
 		kvm_deliver_exception_payload(vcpu, ex);
 
 		if (vcpu->arch.dr7 & DR7_GD) {
