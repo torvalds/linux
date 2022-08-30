@@ -613,6 +613,21 @@ void kvm_deliver_exception_payload(struct kvm_vcpu *vcpu,
 }
 EXPORT_SYMBOL_GPL(kvm_deliver_exception_payload);
 
+static void kvm_queue_exception_vmexit(struct kvm_vcpu *vcpu, unsigned int vector,
+				       bool has_error_code, u32 error_code,
+				       bool has_payload, unsigned long payload)
+{
+	struct kvm_queued_exception *ex = &vcpu->arch.exception_vmexit;
+
+	ex->vector = vector;
+	ex->injected = false;
+	ex->pending = true;
+	ex->has_error_code = has_error_code;
+	ex->error_code = error_code;
+	ex->has_payload = has_payload;
+	ex->payload = payload;
+}
+
 static void kvm_multiple_exception(struct kvm_vcpu *vcpu,
 		unsigned nr, bool has_error, u32 error_code,
 	        bool has_payload, unsigned long payload, bool reinject)
@@ -622,18 +637,31 @@ static void kvm_multiple_exception(struct kvm_vcpu *vcpu,
 
 	kvm_make_request(KVM_REQ_EVENT, vcpu);
 
+	/*
+	 * If the exception is destined for L2 and isn't being reinjected,
+	 * morph it to a VM-Exit if L1 wants to intercept the exception.  A
+	 * previously injected exception is not checked because it was checked
+	 * when it was original queued, and re-checking is incorrect if _L1_
+	 * injected the exception, in which case it's exempt from interception.
+	 */
+	if (!reinject && is_guest_mode(vcpu) &&
+	    kvm_x86_ops.nested_ops->is_exception_vmexit(vcpu, nr, error_code)) {
+		kvm_queue_exception_vmexit(vcpu, nr, has_error, error_code,
+					   has_payload, payload);
+		return;
+	}
+
 	if (!vcpu->arch.exception.pending && !vcpu->arch.exception.injected) {
 	queue:
 		if (reinject) {
 			/*
-			 * On vmentry, vcpu->arch.exception.pending is only
-			 * true if an event injection was blocked by
-			 * nested_run_pending.  In that case, however,
-			 * vcpu_enter_guest requests an immediate exit,
-			 * and the guest shouldn't proceed far enough to
-			 * need reinjection.
+			 * On VM-Entry, an exception can be pending if and only
+			 * if event injection was blocked by nested_run_pending.
+			 * In that case, however, vcpu_enter_guest() requests an
+			 * immediate exit, and the guest shouldn't proceed far
+			 * enough to need reinjection.
 			 */
-			WARN_ON_ONCE(vcpu->arch.exception.pending);
+			WARN_ON_ONCE(kvm_is_exception_pending(vcpu));
 			vcpu->arch.exception.injected = true;
 			if (WARN_ON_ONCE(has_payload)) {
 				/*
@@ -736,20 +764,22 @@ static int complete_emulated_insn_gp(struct kvm_vcpu *vcpu, int err)
 void kvm_inject_page_fault(struct kvm_vcpu *vcpu, struct x86_exception *fault)
 {
 	++vcpu->stat.pf_guest;
-	vcpu->arch.exception.nested_apf =
-		is_guest_mode(vcpu) && fault->async_page_fault;
-	if (vcpu->arch.exception.nested_apf) {
-		vcpu->arch.apf.nested_apf_token = fault->address;
-		kvm_queue_exception_e(vcpu, PF_VECTOR, fault->error_code);
-	} else {
+
+	/*
+	 * Async #PF in L2 is always forwarded to L1 as a VM-Exit regardless of
+	 * whether or not L1 wants to intercept "regular" #PF.
+	 */
+	if (is_guest_mode(vcpu) && fault->async_page_fault)
+		kvm_queue_exception_vmexit(vcpu, PF_VECTOR,
+					   true, fault->error_code,
+					   true, fault->address);
+	else
 		kvm_queue_exception_e_p(vcpu, PF_VECTOR, fault->error_code,
 					fault->address);
-	}
 }
 EXPORT_SYMBOL_GPL(kvm_inject_page_fault);
 
-/* Returns true if the page fault was immediately morphed into a VM-Exit. */
-bool kvm_inject_emulated_page_fault(struct kvm_vcpu *vcpu,
+void kvm_inject_emulated_page_fault(struct kvm_vcpu *vcpu,
 				    struct x86_exception *fault)
 {
 	struct kvm_mmu *fault_mmu;
@@ -767,26 +797,7 @@ bool kvm_inject_emulated_page_fault(struct kvm_vcpu *vcpu,
 		kvm_mmu_invalidate_gva(vcpu, fault_mmu, fault->address,
 				       fault_mmu->root.hpa);
 
-	/*
-	 * A workaround for KVM's bad exception handling.  If KVM injected an
-	 * exception into L2, and L2 encountered a #PF while vectoring the
-	 * injected exception, manually check to see if L1 wants to intercept
-	 * #PF, otherwise queuing the #PF will lead to #DF or a lost exception.
-	 * In all other cases, defer the check to nested_ops->check_events(),
-	 * which will correctly handle priority (this does not).  Note, other
-	 * exceptions, e.g. #GP, are theoretically affected, #PF is simply the
-	 * most problematic, e.g. when L0 and L1 are both intercepting #PF for
-	 * shadow paging.
-	 *
-	 * TODO: Rewrite exception handling to track injected and pending
-	 *       (VM-Exit) exceptions separately.
-	 */
-	if (unlikely(vcpu->arch.exception.injected && is_guest_mode(vcpu)) &&
-	    kvm_x86_ops.nested_ops->handle_page_fault_workaround(vcpu, fault))
-		return true;
-
 	fault_mmu->inject_page_fault(vcpu, fault);
-	return false;
 }
 EXPORT_SYMBOL_GPL(kvm_inject_emulated_page_fault);
 
@@ -4835,7 +4846,7 @@ static int kvm_vcpu_ready_for_interrupt_injection(struct kvm_vcpu *vcpu)
 	return (kvm_arch_interrupt_allowed(vcpu) &&
 		kvm_cpu_accept_dm_intr(vcpu) &&
 		!kvm_event_needs_reinjection(vcpu) &&
-		!vcpu->arch.exception.pending);
+		!kvm_is_exception_pending(vcpu));
 }
 
 static int kvm_vcpu_ioctl_interrupt(struct kvm_vcpu *vcpu,
@@ -5010,12 +5021,26 @@ static int kvm_vcpu_ioctl_x86_set_mce(struct kvm_vcpu *vcpu,
 static void kvm_vcpu_ioctl_x86_get_vcpu_events(struct kvm_vcpu *vcpu,
 					       struct kvm_vcpu_events *events)
 {
-	struct kvm_queued_exception *ex = &vcpu->arch.exception;
+	struct kvm_queued_exception *ex;
 
 	process_nmi(vcpu);
 
 	if (kvm_check_request(KVM_REQ_SMI, vcpu))
 		process_smi(vcpu);
+
+	/*
+	 * KVM's ABI only allows for one exception to be migrated.  Luckily,
+	 * the only time there can be two queued exceptions is if there's a
+	 * non-exiting _injected_ exception, and a pending exiting exception.
+	 * In that case, ignore the VM-Exiting exception as it's an extension
+	 * of the injected exception.
+	 */
+	if (vcpu->arch.exception_vmexit.pending &&
+	    !vcpu->arch.exception.pending &&
+	    !vcpu->arch.exception.injected)
+		ex = &vcpu->arch.exception_vmexit;
+	else
+		ex = &vcpu->arch.exception;
 
 	/*
 	 * In guest mode, payload delivery should be deferred if the exception
@@ -5123,6 +5148,19 @@ static int kvm_vcpu_ioctl_x86_set_vcpu_events(struct kvm_vcpu *vcpu,
 		return -EINVAL;
 
 	process_nmi(vcpu);
+
+	/*
+	 * Flag that userspace is stuffing an exception, the next KVM_RUN will
+	 * morph the exception to a VM-Exit if appropriate.  Do this only for
+	 * pending exceptions, already-injected exceptions are not subject to
+	 * intercpetion.  Note, userspace that conflates pending and injected
+	 * is hosed, and will incorrectly convert an injected exception into a
+	 * pending exception, which in turn may cause a spurious VM-Exit.
+	 */
+	vcpu->arch.exception_from_userspace = events->exception.pending;
+
+	vcpu->arch.exception_vmexit.pending = false;
+
 	vcpu->arch.exception.injected = events->exception.injected;
 	vcpu->arch.exception.pending = events->exception.pending;
 	vcpu->arch.exception.vector = events->exception.nr;
@@ -8167,18 +8205,17 @@ static void toggle_interruptibility(struct kvm_vcpu *vcpu, u32 mask)
 	}
 }
 
-static bool inject_emulated_exception(struct kvm_vcpu *vcpu)
+static void inject_emulated_exception(struct kvm_vcpu *vcpu)
 {
 	struct x86_emulate_ctxt *ctxt = vcpu->arch.emulate_ctxt;
-	if (ctxt->exception.vector == PF_VECTOR)
-		return kvm_inject_emulated_page_fault(vcpu, &ctxt->exception);
 
-	if (ctxt->exception.error_code_valid)
+	if (ctxt->exception.vector == PF_VECTOR)
+		kvm_inject_emulated_page_fault(vcpu, &ctxt->exception);
+	else if (ctxt->exception.error_code_valid)
 		kvm_queue_exception_e(vcpu, ctxt->exception.vector,
 				      ctxt->exception.error_code);
 	else
 		kvm_queue_exception(vcpu, ctxt->exception.vector);
-	return false;
 }
 
 static struct x86_emulate_ctxt *alloc_emulate_ctxt(struct kvm_vcpu *vcpu)
@@ -8813,8 +8850,7 @@ restart:
 
 	if (ctxt->have_exception) {
 		r = 1;
-		if (inject_emulated_exception(vcpu))
-			return r;
+		inject_emulated_exception(vcpu);
 	} else if (vcpu->arch.pio.count) {
 		if (!vcpu->arch.pio.in) {
 			/* FIXME: return into emulator if single-stepping.  */
@@ -9761,7 +9797,7 @@ static int inject_pending_event(struct kvm_vcpu *vcpu, bool *req_immediate_exit)
 	 */
 	if (vcpu->arch.exception.injected)
 		kvm_inject_exception(vcpu);
-	else if (vcpu->arch.exception.pending)
+	else if (kvm_is_exception_pending(vcpu))
 		; /* see above */
 	else if (vcpu->arch.nmi_injected)
 		static_call(kvm_x86_inject_nmi)(vcpu);
@@ -9787,6 +9823,14 @@ static int inject_pending_event(struct kvm_vcpu *vcpu, bool *req_immediate_exit)
 	 */
 	if (r < 0)
 		goto out;
+
+	/*
+	 * A pending exception VM-Exit should either result in nested VM-Exit
+	 * or force an immediate re-entry and exit to/from L2, and exception
+	 * VM-Exits cannot be injected (flag should _never_ be set).
+	 */
+	WARN_ON_ONCE(vcpu->arch.exception_vmexit.injected ||
+		     vcpu->arch.exception_vmexit.pending);
 
 	/*
 	 * New events, other than exceptions, cannot be injected if KVM needs
@@ -9887,7 +9931,7 @@ static int inject_pending_event(struct kvm_vcpu *vcpu, bool *req_immediate_exit)
 	    kvm_x86_ops.nested_ops->hv_timer_pending(vcpu))
 		*req_immediate_exit = true;
 
-	WARN_ON(vcpu->arch.exception.pending);
+	WARN_ON(kvm_is_exception_pending(vcpu));
 	return 0;
 
 out:
@@ -10905,6 +10949,7 @@ static void kvm_put_guest_fpu(struct kvm_vcpu *vcpu)
 
 int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu)
 {
+	struct kvm_queued_exception *ex = &vcpu->arch.exception;
 	struct kvm_run *kvm_run = vcpu->run;
 	int r;
 
@@ -10962,6 +11007,21 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu)
 			goto out;
 		}
 	}
+
+	/*
+	 * If userspace set a pending exception and L2 is active, convert it to
+	 * a pending VM-Exit if L1 wants to intercept the exception.
+	 */
+	if (vcpu->arch.exception_from_userspace && is_guest_mode(vcpu) &&
+	    kvm_x86_ops.nested_ops->is_exception_vmexit(vcpu, ex->vector,
+							ex->error_code)) {
+		kvm_queue_exception_vmexit(vcpu, ex->vector,
+					   ex->has_error_code, ex->error_code,
+					   ex->has_payload, ex->payload);
+		ex->injected = false;
+		ex->pending = false;
+	}
+	vcpu->arch.exception_from_userspace = false;
 
 	if (unlikely(vcpu->arch.complete_userspace_io)) {
 		int (*cui)(struct kvm_vcpu *) = vcpu->arch.complete_userspace_io;
@@ -11069,6 +11129,7 @@ static void __set_regs(struct kvm_vcpu *vcpu, struct kvm_regs *regs)
 	kvm_set_rflags(vcpu, regs->rflags | X86_EFLAGS_FIXED);
 
 	vcpu->arch.exception.pending = false;
+	vcpu->arch.exception_vmexit.pending = false;
 
 	kvm_make_request(KVM_REQ_EVENT, vcpu);
 }
@@ -11436,7 +11497,7 @@ int kvm_arch_vcpu_ioctl_set_guest_debug(struct kvm_vcpu *vcpu,
 
 	if (dbg->control & (KVM_GUESTDBG_INJECT_DB | KVM_GUESTDBG_INJECT_BP)) {
 		r = -EBUSY;
-		if (vcpu->arch.exception.pending)
+		if (kvm_is_exception_pending(vcpu))
 			goto out;
 		if (dbg->control & KVM_GUESTDBG_INJECT_DB)
 			kvm_queue_exception(vcpu, DB_VECTOR);
@@ -12670,7 +12731,7 @@ static inline bool kvm_vcpu_has_events(struct kvm_vcpu *vcpu)
 	if (vcpu->arch.pv.pv_unhalted)
 		return true;
 
-	if (vcpu->arch.exception.pending)
+	if (kvm_is_exception_pending(vcpu))
 		return true;
 
 	if (kvm_test_request(KVM_REQ_NMI, vcpu) ||
@@ -12925,7 +12986,7 @@ bool kvm_can_do_async_pf(struct kvm_vcpu *vcpu)
 {
 	if (unlikely(!lapic_in_kernel(vcpu) ||
 		     kvm_event_needs_reinjection(vcpu) ||
-		     vcpu->arch.exception.pending))
+		     kvm_is_exception_pending(vcpu)))
 		return false;
 
 	if (kvm_hlt_in_guest(vcpu->kvm) && !kvm_can_deliver_async_pf(vcpu))
