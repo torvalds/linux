@@ -39,24 +39,30 @@
 
 #define ETM_MODE_EXCL_KERN	BIT(30)
 #define ETM_MODE_EXCL_USER	BIT(31)
+struct cs_pair_attribute {
+	struct device_attribute attr;
+	s32 lo_off;
+	s32 hi_off;
+};
 
-#define __coresight_simple_show(name, lo_off, hi_off)		\
-static ssize_t name##_show(struct device *_dev,				\
-			   struct device_attribute *attr, char *buf)	\
-{									\
-	struct coresight_device *csdev = container_of(_dev, struct coresight_device, dev); \
-	u64 val;							\
-	pm_runtime_get_sync(_dev->parent);				\
-	val = csdev_access_relaxed_read_pair(&csdev->access, lo_off, hi_off);	\
-	pm_runtime_put_sync(_dev->parent);				\
-	return scnprintf(buf, PAGE_SIZE, "0x%llx\n", val);		\
-}									\
-static DEVICE_ATTR_RO(name)
+extern ssize_t coresight_simple_show(struct device *_dev,
+				     struct device_attribute *attr, char *buf);
 
-#define coresight_simple_reg32(name, offset)			\
-	__coresight_simple_show(name, offset, -1)
-#define coresight_simple_reg64(name, lo_off, hi_off)		\
-	__coresight_simple_show(name, lo_off, hi_off)
+#define coresight_simple_reg32(name, offset)				\
+	(&((struct cs_pair_attribute[]) {				\
+	   {								\
+		__ATTR(name, 0444, coresight_simple_show, NULL),	\
+		offset, -1						\
+	   }								\
+	})[0].attr.attr)
+
+#define coresight_simple_reg64(name, lo_off, hi_off)			\
+	(&((struct cs_pair_attribute[]) {				\
+	   {								\
+		__ATTR(name, 0444, coresight_simple_show, NULL),	\
+		lo_off, hi_off						\
+	   }								\
+	})[0].attr.attr)
 
 extern const u32 coresight_barrier_pkt[4];
 #define CORESIGHT_BARRIER_PKT_SIZE (sizeof(coresight_barrier_pkt))

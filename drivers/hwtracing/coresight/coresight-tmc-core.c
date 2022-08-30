@@ -251,36 +251,21 @@ static enum tmc_mem_intf_width tmc_get_memwidth(u32 devid)
 	return memwidth;
 }
 
-coresight_simple_reg32(rsz, TMC_RSZ);
-coresight_simple_reg32(sts, TMC_STS);
-coresight_simple_reg32(trg, TMC_TRG);
-coresight_simple_reg32(ctl, TMC_CTL);
-coresight_simple_reg32(ffsr, TMC_FFSR);
-coresight_simple_reg32(ffcr, TMC_FFCR);
-coresight_simple_reg32(mode, TMC_MODE);
-coresight_simple_reg32(pscr, TMC_PSCR);
-coresight_simple_reg32(axictl, TMC_AXICTL);
-coresight_simple_reg32(authstatus, TMC_AUTHSTATUS);
-coresight_simple_reg32(devid, CORESIGHT_DEVID);
-coresight_simple_reg64(rrp, TMC_RRP, TMC_RRPHI);
-coresight_simple_reg64(rwp, TMC_RWP, TMC_RWPHI);
-coresight_simple_reg64(dba, TMC_DBALO, TMC_DBAHI);
-
 static struct attribute *coresight_tmc_mgmt_attrs[] = {
-	&dev_attr_rsz.attr,
-	&dev_attr_sts.attr,
-	&dev_attr_rrp.attr,
-	&dev_attr_rwp.attr,
-	&dev_attr_trg.attr,
-	&dev_attr_ctl.attr,
-	&dev_attr_ffsr.attr,
-	&dev_attr_ffcr.attr,
-	&dev_attr_mode.attr,
-	&dev_attr_pscr.attr,
-	&dev_attr_devid.attr,
-	&dev_attr_dba.attr,
-	&dev_attr_axictl.attr,
-	&dev_attr_authstatus.attr,
+	coresight_simple_reg32(rsz, TMC_RSZ),
+	coresight_simple_reg32(sts, TMC_STS),
+	coresight_simple_reg64(rrp, TMC_RRP, TMC_RRPHI),
+	coresight_simple_reg64(rwp, TMC_RWP, TMC_RWPHI),
+	coresight_simple_reg32(trg, TMC_TRG),
+	coresight_simple_reg32(ctl, TMC_CTL),
+	coresight_simple_reg32(ffsr, TMC_FFSR),
+	coresight_simple_reg32(ffcr, TMC_FFCR),
+	coresight_simple_reg32(mode, TMC_MODE),
+	coresight_simple_reg32(pscr, TMC_PSCR),
+	coresight_simple_reg32(devid, CORESIGHT_DEVID),
+	coresight_simple_reg64(dba, TMC_DBALO, TMC_DBAHI),
+	coresight_simple_reg32(axictl, TMC_AXICTL),
+	coresight_simple_reg32(authstatus, TMC_AUTHSTATUS),
 	NULL,
 };
 

@@ -1252,28 +1252,17 @@ static struct attribute *coresight_etm_attrs[] = {
 	NULL,
 };
 
-coresight_simple_reg32(etmccr, ETMCCR);
-coresight_simple_reg32(etmccer, ETMCCER);
-coresight_simple_reg32(etmscr, ETMSCR);
-coresight_simple_reg32(etmidr, ETMIDR);
-coresight_simple_reg32(etmcr, ETMCR);
-coresight_simple_reg32(etmtraceidr, ETMTRACEIDR);
-coresight_simple_reg32(etmteevr, ETMTEEVR);
-coresight_simple_reg32(etmtssvr, ETMTSSCR);
-coresight_simple_reg32(etmtecr1, ETMTECR1);
-coresight_simple_reg32(etmtecr2, ETMTECR2);
-
 static struct attribute *coresight_etm_mgmt_attrs[] = {
-	&dev_attr_etmccr.attr,
-	&dev_attr_etmccer.attr,
-	&dev_attr_etmscr.attr,
-	&dev_attr_etmidr.attr,
-	&dev_attr_etmcr.attr,
-	&dev_attr_etmtraceidr.attr,
-	&dev_attr_etmteevr.attr,
-	&dev_attr_etmtssvr.attr,
-	&dev_attr_etmtecr1.attr,
-	&dev_attr_etmtecr2.attr,
+	coresight_simple_reg32(etmccr, ETMCCR),
+	coresight_simple_reg32(etmccer, ETMCCER),
+	coresight_simple_reg32(etmscr, ETMSCR),
+	coresight_simple_reg32(etmidr, ETMIDR),
+	coresight_simple_reg32(etmcr, ETMCR),
+	coresight_simple_reg32(etmtraceidr, ETMTRACEIDR),
+	coresight_simple_reg32(etmteevr, ETMTEEVR),
+	coresight_simple_reg32(etmtssvr, ETMTSSCR),
+	coresight_simple_reg32(etmtecr1, ETMTECR1),
+	coresight_simple_reg32(etmtecr2, ETMTECR2),
 	NULL,
 };
 
