@@ -244,7 +244,7 @@ static int cros_typec_register_switches(struct cros_typec_switch_data *sdata)
 		}
 
 		if (index < 0 || index >= EC_USB_PD_MAX_PORTS) {
-			dev_err(fwnode->dev, "Invalid port index number: %llu", index);
+			dev_err(fwnode->dev, "Invalid port index number: %llu\n", index);
 			ret = -EINVAL;
 			goto err_switch;
 		}
