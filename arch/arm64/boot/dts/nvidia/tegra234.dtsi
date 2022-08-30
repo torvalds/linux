@@ -914,6 +914,7 @@
 			interconnects = <&mc TEGRA234_MEMORY_CLIENT_HDAR &emc>,
 					<&mc TEGRA234_MEMORY_CLIENT_HDAW &emc>;
 			interconnect-names = "dma-mem", "write";
+			iommus = <&smmu_niso0 TEGRA234_SID_HDA>;
 			status = "disabled";
 		};
 
