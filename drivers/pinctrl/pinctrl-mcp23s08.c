@@ -549,9 +549,6 @@ int mcp23s08_probe_one(struct mcp23s08 *mcp, struct device *dev,
 	mcp->chip.get = mcp23s08_get;
 	mcp->chip.direction_output = mcp23s08_direction_output;
 	mcp->chip.set = mcp23s08_set;
-#ifdef CONFIG_OF_GPIO
-	mcp->chip.of_gpio_n_cells = 2;
-#endif
 
 	mcp->chip.base = base;
 	mcp->chip.can_sleep = true;
