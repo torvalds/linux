@@ -126,7 +126,7 @@ static inline void put_unaligned_le24(const u32 val, void *p)
 	__put_unaligned_le24(val, p);
 }
 
-static inline void __put_unaligned_be48(const u64 val, __u8 *p)
+static inline void __put_unaligned_be48(const u64 val, u8 *p)
 {
 	*p++ = val >> 40;
 	*p++ = val >> 32;
