@@ -469,6 +469,14 @@ int nested_evmcs_check_controls(struct vmcs12 *vmcs12)
 					       vmcs12->vm_entry_controls)))
 		return -EINVAL;
 
+	/*
+	 * VM-Func controls are 64-bit, but KVM currently doesn't support any
+	 * controls in bits 63:32, i.e. dropping those bits on the consistency
+	 * check is intentional.
+	 */
+	if (WARN_ON_ONCE(vmcs12->vm_function_control >> 32))
+		return -EINVAL;
+
 	if (CC(!nested_evmcs_is_valid_controls(EVMCS_VMFUNC,
 					       vmcs12->vm_function_control)))
 		return -EINVAL;
