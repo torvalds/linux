@@ -1471,8 +1471,10 @@
   rproc_add_subdev
   rproc_alloc
   rproc_boot
+  rproc_coredump
   rproc_coredump_add_custom_segment
   rproc_coredump_add_segment
+  rproc_coredump_cleanup
   rproc_coredump_set_elf_info
   rproc_coredump_using_sections
   rproc_del
@@ -1704,6 +1706,7 @@
   sysrq_mask
   system_freezable_wq
   system_highpri_wq
+  system_state
   system_unbound_wq
   system_wq
   task_active_pid_ns
@@ -1776,6 +1779,8 @@
   __tracepoint_android_vh_ipi_stop
   __tracepoint_android_vh_jiffies_update
   __tracepoint_android_vh_printk_hotplug
+  __tracepoint_android_vh_rproc_recovery
+  __tracepoint_android_vh_rproc_recovery_set
   __tracepoint_android_vh_scheduler_tick
   __tracepoint_android_vh_show_resume_epoch_val
   __tracepoint_android_vh_show_suspend_epoch_val

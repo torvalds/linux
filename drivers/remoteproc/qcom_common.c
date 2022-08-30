@@ -391,6 +391,7 @@ static void smd_subdev_stop(struct rproc_subdev *subdev, bool crashed)
 
 	if (!smd->edge)
 		return;
+
 	trace_rproc_qcom_event(dev_name(smd->dev->parent), SMD_SUBDEV_NAME,
 			       crashed ? "crash stop" : "stop");
 
