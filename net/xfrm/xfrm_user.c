@@ -1497,7 +1497,7 @@ static int verify_policy_dir(u8 dir, struct netlink_ext_ack *extack)
 	return 0;
 }
 
-static int verify_policy_type(u8 type)
+static int verify_policy_type(u8 type, struct netlink_ext_ack *extack)
 {
 	switch (type) {
 	case XFRM_POLICY_TYPE_MAIN:
@@ -1507,6 +1507,7 @@ static int verify_policy_type(u8 type)
 		break;
 
 	default:
+		NL_SET_ERR_MSG(extack, "Invalid policy type");
 		return -EINVAL;
 	}
 
@@ -1688,7 +1689,8 @@ static int copy_from_user_tmpl(struct xfrm_policy *pol, struct nlattr **attrs)
 	return 0;
 }
 
-static int copy_from_user_policy_type(u8 *tp, struct nlattr **attrs)
+static int copy_from_user_policy_type(u8 *tp, struct nlattr **attrs,
+				      struct netlink_ext_ack *extack)
 {
 	struct nlattr *rt = attrs[XFRMA_POLICY_TYPE];
 	struct xfrm_userpolicy_type *upt;
@@ -1700,7 +1702,7 @@ static int copy_from_user_policy_type(u8 *tp, struct nlattr **attrs)
 		type = upt->type;
 	}
 
-	err = verify_policy_type(type);
+	err = verify_policy_type(type, extack);
 	if (err)
 		return err;
 
@@ -1735,7 +1737,11 @@ static void copy_to_user_policy(struct xfrm_policy *xp, struct xfrm_userpolicy_i
 	p->share = XFRM_SHARE_ANY; /* XXX xp->share */
 }
 
-static struct xfrm_policy *xfrm_policy_construct(struct net *net, struct xfrm_userpolicy_info *p, struct nlattr **attrs, int *errp)
+static struct xfrm_policy *xfrm_policy_construct(struct net *net,
+						 struct xfrm_userpolicy_info *p,
+						 struct nlattr **attrs,
+						 int *errp,
+						 struct netlink_ext_ack *extack)
 {
 	struct xfrm_policy *xp = xfrm_policy_alloc(net, GFP_KERNEL);
 	int err;
@@ -1747,7 +1753,7 @@ static struct xfrm_policy *xfrm_policy_construct(struct net *net, struct xfrm_us
 
 	copy_from_user_policy(xp, p);
 
-	err = copy_from_user_policy_type(&xp->type, attrs);
+	err = copy_from_user_policy_type(&xp->type, attrs, extack);
 	if (err)
 		goto error;
 
@@ -1787,7 +1793,7 @@ static int xfrm_add_policy(struct sk_buff *skb, struct nlmsghdr *nlh,
 	if (err)
 		return err;
 
-	xp = xfrm_policy_construct(net, p, attrs, &err);
+	xp = xfrm_policy_construct(net, p, attrs, &err, extack);
 	if (!xp)
 		return err;
 
@@ -2099,7 +2105,7 @@ static int xfrm_get_policy(struct sk_buff *skb, struct nlmsghdr *nlh,
 	p = nlmsg_data(nlh);
 	delete = nlh->nlmsg_type == XFRM_MSG_DELPOLICY;
 
-	err = copy_from_user_policy_type(&type, attrs);
+	err = copy_from_user_policy_type(&type, attrs, extack);
 	if (err)
 		return err;
 
@@ -2371,7 +2377,7 @@ static int xfrm_flush_policy(struct sk_buff *skb, struct nlmsghdr *nlh,
 	u8 type = XFRM_POLICY_TYPE_MAIN;
 	int err;
 
-	err = copy_from_user_policy_type(&type, attrs);
+	err = copy_from_user_policy_type(&type, attrs, extack);
 	if (err)
 		return err;
 
@@ -2404,7 +2410,7 @@ static int xfrm_add_pol_expire(struct sk_buff *skb, struct nlmsghdr *nlh,
 	struct xfrm_mark m;
 	u32 if_id = 0;
 
-	err = copy_from_user_policy_type(&type, attrs);
+	err = copy_from_user_policy_type(&type, attrs, extack);
 	if (err)
 		return err;
 
@@ -2521,7 +2527,7 @@ static int xfrm_add_acquire(struct sk_buff *skb, struct nlmsghdr *nlh,
 		goto free_state;
 
 	/*   build an XP */
-	xp = xfrm_policy_construct(net, &ua->policy, attrs, &err);
+	xp = xfrm_policy_construct(net, &ua->policy, attrs, &err, extack);
 	if (!xp)
 		goto free_state;
 
@@ -2617,7 +2623,7 @@ static int xfrm_do_migrate(struct sk_buff *skb, struct nlmsghdr *nlh,
 
 	kmp = attrs[XFRMA_KMADDRESS] ? &km : NULL;
 
-	err = copy_from_user_policy_type(&type, attrs);
+	err = copy_from_user_policy_type(&type, attrs, extack);
 	if (err)
 		return err;
 
