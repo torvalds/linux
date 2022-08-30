@@ -755,11 +755,12 @@ static int ar0521_power_on(struct device *dev)
 		gpiod_set_value(sensor->reset_gpio, 0);
 	usleep_range(4500, 5000); /* min 45000 clocks */
 
-	for (cnt = 0; cnt < ARRAY_SIZE(initial_regs); cnt++)
+	for (cnt = 0; cnt < ARRAY_SIZE(initial_regs); cnt++) {
 		ret = ar0521_write_regs(sensor, initial_regs[cnt].data,
 					initial_regs[cnt].count);
 		if (ret)
 			goto off;
+	}
 
 	ret = ar0521_write_reg(sensor, AR0521_REG_SERIAL_FORMAT,
 			       AR0521_REG_SERIAL_FORMAT_MIPI |
