@@ -616,7 +616,7 @@ static const char * const guadi2_mme_error_cause[GAUDI2_NUM_OF_MME_ERR_CAUSE] = 
 	"qman_axi_err",
 	"wap sei (wbc axi err)",
 	"arc sei",
-	"mme_cfg_unalign_addr",
+	"cfg access error",
 	"qm_sw_err",
 	"sbte_dbg_intr_0",
 	"sbte_dbg_intr_1",
