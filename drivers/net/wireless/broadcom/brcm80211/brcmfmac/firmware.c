@@ -769,7 +769,7 @@ brcmf_fw_alloc_request(u32 chip, u32 chiprev,
 		fwnames[j].path[0] = '\0';
 		/* check if firmware path is provided by module parameter */
 		if (brcmf_mp_global.firmware_path[0] != '\0') {
-			strlcpy(fwnames[j].path, mp_path,
+			strscpy(fwnames[j].path, mp_path,
 				BRCMF_FW_NAME_LEN);
 
 			if (end != '/') {
