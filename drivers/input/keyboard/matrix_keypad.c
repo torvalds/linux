@@ -416,9 +416,9 @@ matrix_keypad_parse_dt(struct device *dev)
 		return ERR_PTR(-ENOMEM);
 	}
 
-	pdata->num_row_gpios = nrow = of_gpio_named_count(np, "row-gpios");
-	pdata->num_col_gpios = ncol = of_gpio_named_count(np, "col-gpios");
-	if (nrow <= 0 || ncol <= 0) {
+	pdata->num_row_gpios = nrow = gpiod_count(dev, "row");
+	pdata->num_col_gpios = ncol = gpiod_count(dev, "col");
+	if (nrow < 0 || ncol < 0) {
 		dev_err(dev, "number of keypad rows/columns not specified\n");
 		return ERR_PTR(-EINVAL);
 	}
