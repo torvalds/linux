@@ -22,6 +22,8 @@ static const struct regmap_config st_lsm6dsrx_spi_regmap_config = {
 
 static int st_lsm6dsrx_spi_probe(struct spi_device *spi)
 {
+	const struct spi_device_id *id = spi_get_device_id(spi);
+	int hw_id = id->driver_data;
 	struct regmap *regmap;
 
 	regmap = devm_regmap_init_spi(spi, &st_lsm6dsrx_spi_regmap_config);
@@ -31,7 +33,7 @@ static int st_lsm6dsrx_spi_probe(struct spi_device *spi)
 		return PTR_ERR(regmap);
 	}
 
-	return st_lsm6dsrx_probe(&spi->dev, spi->irq, regmap);
+	return st_lsm6dsrx_probe(&spi->dev, spi->irq, hw_id, regmap);
 }
 
 static int st_lsm6dsrx_spi_remove(struct spi_device *spi)
@@ -46,13 +48,14 @@ static int st_lsm6dsrx_spi_remove(struct spi_device *spi)
 static const struct of_device_id st_lsm6dsrx_spi_of_match[] = {
 	{
 		.compatible = "st," ST_LSM6DSRX_DEV_NAME,
+		.data = (void *)ST_LSM6DSRX_ID,
 	},
 	{},
 };
 MODULE_DEVICE_TABLE(of, st_lsm6dsrx_spi_of_match);
 
 static const struct spi_device_id st_lsm6dsrx_spi_id_table[] = {
-	{ ST_LSM6DSRX_DEV_NAME },
+	{ ST_LSM6DSRX_DEV_NAME, ST_LSM6DSRX_ID },
 	{},
 };
 MODULE_DEVICE_TABLE(spi, st_lsm6dsrx_spi_id_table);

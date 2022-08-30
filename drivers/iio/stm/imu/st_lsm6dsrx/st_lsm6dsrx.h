@@ -488,6 +488,26 @@ struct st_lsm6dsrx_ext_dev_info {
 	u8 ext_dev_i2c_addr;
 };
 
+enum st_lsm6dsrx_hw_id {
+	ST_LSM6DSRX_ID,
+	ST_LSM6DSRX_MAX_ID,
+};
+
+/**
+ * struct st_lsm6dsrx_settings - ST IMU sensor settings
+ *
+ * @hw_id: Hw id supported by the driver configuration.
+ * @name: Device name supported by the driver configuration.
+ * @st_mlc_probe: MLC probe flag.
+ */
+struct st_lsm6dsrx_settings {
+	struct {
+		enum st_lsm6dsrx_hw_id hw_id;
+		const char *name;
+	} id;
+	bool st_mlc_probe;
+};
+
 /**
  * struct st_lsm6dsrx_sensor - ST IMU sensor instance
  * @name: Sensor name.
@@ -564,6 +584,7 @@ struct st_lsm6dsrx_sensor {
  * @mlc_config:
  * @odr_table_entry: Sensors ODR table.
  * @iio_devs: Pointers to acc/gyro iio_dev instances.
+ * @settings: ST IMU sensor settings.
  */
 struct st_lsm6dsrx_hw {
 	struct device *dev;
@@ -593,6 +614,8 @@ struct st_lsm6dsrx_hw {
 	bool preload_mlc;
 
 	struct iio_dev *iio_devs[ST_LSM6DSRX_ID_MAX];
+
+	const struct st_lsm6dsrx_settings *settings;
 };
 
 extern const struct dev_pm_ops st_lsm6dsrx_pm_ops;
@@ -681,7 +704,7 @@ static inline int st_lsm6dsrx_set_page_access(struct st_lsm6dsrx_hw *hw,
 				 ST_LSM6DSRX_SHIFT_VAL(val, mask));
 }
 
-int st_lsm6dsrx_probe(struct device *dev, int irq,
+int st_lsm6dsrx_probe(struct device *dev, int irq, int hw_id,
 		      struct regmap *regmap);
 int st_lsm6dsrx_sensor_set_enable(struct st_lsm6dsrx_sensor *sensor,
 				  bool enable);

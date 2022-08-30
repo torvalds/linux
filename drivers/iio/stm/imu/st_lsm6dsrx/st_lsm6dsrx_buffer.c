@@ -478,7 +478,8 @@ static irqreturn_t st_lsm6dsrx_handler_thread(int irq, void *private)
 {
 	struct st_lsm6dsrx_hw *hw = (struct st_lsm6dsrx_hw *)private;
 
-	st_lsm6dsrx_mlc_check_status(hw);
+	if (hw->settings->st_mlc_probe)
+		st_lsm6dsrx_mlc_check_status(hw);
 
 	mutex_lock(&hw->fifo_lock);
 	st_lsm6dsrx_read_fifo(hw);
@@ -552,7 +553,7 @@ int st_lsm6dsrx_buffers_setup(struct st_lsm6dsrx_hw *hw)
 					st_lsm6dsrx_handler_irq,
 					st_lsm6dsrx_handler_thread,
 					irq_type | IRQF_ONESHOT,
-					ST_LSM6DSRX_DEV_NAME, hw);
+					hw->settings->id.name, hw);
 	if (err) {
 		dev_err(hw->dev, "failed to request trigger irq %d\n",
 			hw->irq);

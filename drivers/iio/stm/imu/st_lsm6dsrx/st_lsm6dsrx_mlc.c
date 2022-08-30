@@ -577,7 +577,7 @@ struct iio_dev *st_lsm6dsrx_mlc_alloc_iio_dev(struct st_lsm6dsrx_hw *hw,
 		iio_dev->num_channels = ARRAY_SIZE(st_lsm6dsrx_mlc_channels);
 		iio_dev->info = &st_lsm6dsrx_mlc_event_info;
 		scnprintf(sensor->name, sizeof(sensor->name),
-			  ST_LSM6DSRX_DEV_NAME "_mlc");
+			  "%s_loader", hw->settings->id.name);
 		break;
 	}
 	case ST_LSM6DSRX_ID_MLC_0:
@@ -605,7 +605,7 @@ struct iio_dev *st_lsm6dsrx_mlc_alloc_iio_dev(struct st_lsm6dsrx_hw *hw,
 		iio_dev->num_channels = ARRAY_SIZE(st_lsm6dsrx_mlc_x_ch);
 		iio_dev->info = &st_lsm6dsrx_mlc_x_event_info;
 		scnprintf(sensor->name, sizeof(sensor->name),
-			  ST_LSM6DSRX_DEV_NAME "_mlc_%d",
+			  "%s_mlc_%d", hw->settings->id.name,
 			  id - ST_LSM6DSRX_ID_MLC_0);
 		sensor->outreg_addr = ST_LSM6DSRX_REG_MLC0_SRC_ADDR +
 				id - ST_LSM6DSRX_ID_MLC_0;
@@ -648,7 +648,7 @@ struct iio_dev *st_lsm6dsrx_mlc_alloc_iio_dev(struct st_lsm6dsrx_hw *hw,
 		iio_dev->num_channels = ARRAY_SIZE(st_lsm6dsrx_fsm_x_ch);
 		iio_dev->info = &st_lsm6dsrx_mlc_x_event_info;
 		scnprintf(sensor->name, sizeof(sensor->name),
-			  ST_LSM6DSRX_DEV_NAME "_fsm_%d",
+			  "%s_fsm_%d", hw->settings->id.name,
 			  id - ST_LSM6DSRX_ID_FSM_0);
 		sensor->outreg_addr = ST_LSM6DSRX_FSM_OUTS1_ADDR +
 				id - ST_LSM6DSRX_ID_FSM_0;

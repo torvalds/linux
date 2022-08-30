@@ -18,7 +18,7 @@
 #include "st_lsm6dsrx.h"
 
 static const struct i3c_device_id st_lsm6dsrx_i3c_ids[] = {
-	I3C_DEVICE(0x0104, ST_LSM6DSRX_WHOAMI_VAL, NULL),
+	I3C_DEVICE(0x0104, ST_LSM6DSRX_WHOAMI_VAL, (void *)ST_LSM6DSRX_ID),
 	{},
 };
 MODULE_DEVICE_TABLE(i3c, st_lsm6dsrx_i3c_ids);
@@ -40,7 +40,7 @@ static int st_lsm6dsrx_i3c_probe(struct i3c_device *i3cdev)
 		return PTR_ERR(regmap);
 	}
 
-	return st_lsm6dsrx_probe(&i3cdev->dev, 0, regmap);
+	return st_lsm6dsrx_probe(&i3cdev->dev, 0, (uintptr_t)id->data, regmap);
 }
 
 static struct i3c_driver st_lsm6dsrx_driver = {

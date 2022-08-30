@@ -231,6 +231,22 @@ static const struct st_lsm6dsrx_odr_table_entry st_lsm6dsrx_odr_table[] = {
 	},
 };
 
+/**
+ * List of supported supported device settings
+ *
+ * The following table list all device features in terms of supported
+ * MLC and SHUB.
+ */
+static const struct st_lsm6dsrx_settings st_lsm6dsrx_sensor_settings[] = {
+	{
+		.id = {
+			.hw_id = ST_LSM6DSRX_ID,
+			.name = ST_LSM6DSRX_DEV_NAME,
+		},
+		.st_mlc_probe = true,
+	},
+};
+
 static const struct st_lsm6dsrx_fs_table_entry st_lsm6dsrx_fs_table[] = {
 	[ST_LSM6DSRX_ID_ACC] = {
 		.size = 4,
@@ -410,10 +426,23 @@ static int st_lsm6dsrx_set_page_0(struct st_lsm6dsrx_hw *hw)
 			    ST_LSM6DSRX_REG_FUNC_CFG_ACCESS_ADDR, 0);
 }
 
-static int st_lsm6dsrx_check_whoami(struct st_lsm6dsrx_hw *hw)
+static int st_lsm6dsrx_check_whoami(struct st_lsm6dsrx_hw *hw,
+				      int id)
 {
-	int err;
+	int err, i;
 	int data;
+
+	for (i = 0; i < ARRAY_SIZE(st_lsm6dsrx_sensor_settings); i++) {
+			if (st_lsm6dsrx_sensor_settings[i].id.name &&
+			    st_lsm6dsrx_sensor_settings[i].id.hw_id == id)
+				break;
+	}
+
+	if (i == ARRAY_SIZE(st_lsm6dsrx_sensor_settings)) {
+		dev_err(hw->dev, "unsupported hw id [%02x]\n", id);
+
+		return -ENODEV;
+	}
 
 	err = regmap_read(hw->regmap, ST_LSM6DSRX_REG_WHOAMI_ADDR, &data);
 	if (err < 0) {
@@ -425,6 +454,8 @@ static int st_lsm6dsrx_check_whoami(struct st_lsm6dsrx_hw *hw)
 		dev_err(hw->dev, "unsupported whoami [%02x]\n", data);
 		return -ENODEV;
 	}
+
+	hw->settings = &st_lsm6dsrx_sensor_settings[i];
 
 	return 0;
 }
@@ -1559,7 +1590,8 @@ static struct iio_dev *st_lsm6dsrx_alloc_iiodev(struct st_lsm6dsrx_hw *hw,
 	case ST_LSM6DSRX_ID_ACC:
 		iio_dev->channels = st_lsm6dsrx_acc_channels;
 		iio_dev->num_channels = ARRAY_SIZE(st_lsm6dsrx_acc_channels);
-		iio_dev->name = ST_LSM6DSRX_DEV_NAME "_accel";
+		scnprintf(sensor->name, sizeof(sensor->name),
+			 "%s_accel", hw->settings->id.name);
 		iio_dev->info = &st_lsm6dsrx_acc_info;
 		iio_dev->available_scan_masks =
 					st_lsm6dsrx_available_scan_masks;
@@ -1574,7 +1606,8 @@ static struct iio_dev *st_lsm6dsrx_alloc_iiodev(struct st_lsm6dsrx_hw *hw,
 	case ST_LSM6DSRX_ID_GYRO:
 		iio_dev->channels = st_lsm6dsrx_gyro_channels;
 		iio_dev->num_channels = ARRAY_SIZE(st_lsm6dsrx_gyro_channels);
-		iio_dev->name = ST_LSM6DSRX_DEV_NAME "_gyro";
+		scnprintf(sensor->name, sizeof(sensor->name),
+			  "%s_gyro", hw->settings->id.name);
 		iio_dev->info = &st_lsm6dsrx_gyro_info;
 		iio_dev->available_scan_masks =
 					st_lsm6dsrx_available_scan_masks;
@@ -1589,7 +1622,8 @@ static struct iio_dev *st_lsm6dsrx_alloc_iiodev(struct st_lsm6dsrx_hw *hw,
 	case ST_LSM6DSRX_ID_TEMP:
 		iio_dev->channels = st_lsm6dsrx_temp_channels;
 		iio_dev->num_channels = ARRAY_SIZE(st_lsm6dsrx_temp_channels);
-		iio_dev->name = ST_LSM6DSRX_DEV_NAME "_temp";
+		scnprintf(sensor->name, sizeof(sensor->name),
+			  "%s_temp", hw->settings->id.name);
 		iio_dev->info = &st_lsm6dsrx_temp_info;
 		iio_dev->available_scan_masks =
 					st_lsm6dsrx_temp_available_scan_masks;
@@ -1602,6 +1636,8 @@ static struct iio_dev *st_lsm6dsrx_alloc_iiodev(struct st_lsm6dsrx_hw *hw,
 	default:
 		return NULL;
 	}
+
+	iio_dev->name = sensor->name;
 
 	return iio_dev;
 }
@@ -1660,7 +1696,8 @@ static int st_lsm6dsrx_power_enable(struct st_lsm6dsrx_hw *hw)
 	return 0;
 }
 
-int st_lsm6dsrx_probe(struct device *dev, int irq, struct regmap *regmap)
+int st_lsm6dsrx_probe(struct device *dev, int irq, int hw_id,
+			struct regmap *regmap)
 {
 	struct st_lsm6dsrx_hw *hw;
 	int i, err;
@@ -1687,7 +1724,7 @@ int st_lsm6dsrx_probe(struct device *dev, int irq, struct regmap *regmap)
 	if (err < 0)
 		return err;
 
-	err = st_lsm6dsrx_check_whoami(hw);
+	err = st_lsm6dsrx_check_whoami(hw, hw_id);
 	if (err < 0)
 		return err;
 
@@ -1734,9 +1771,11 @@ int st_lsm6dsrx_probe(struct device *dev, int irq, struct regmap *regmap)
 			return err;
 	}
 
-	err = st_lsm6dsrx_mlc_probe(hw);
-	if (err < 0)
-		return err;
+	if (hw->settings->st_mlc_probe) {
+		err = st_lsm6dsrx_mlc_probe(hw);
+		if (err < 0)
+			return err;
+	}
 
 	for (i = 0; i < ST_LSM6DSRX_ID_MAX; i++) {
 		if (!hw->iio_devs[i])
@@ -1747,9 +1786,11 @@ int st_lsm6dsrx_probe(struct device *dev, int irq, struct regmap *regmap)
 			return err;
 	}
 
-	err = st_lsm6dsrx_mlc_init_preload(hw);
-	if (err)
-		return err;
+	if (hw->settings->st_mlc_probe) {
+		err = st_lsm6dsrx_mlc_init_preload(hw);
+		if (err)
+			return err;
+	}
 
 #if defined(CONFIG_PM) && defined(CONFIG_IIO_ST_LSM6DSRX_MAY_WAKEUP)
 	err = device_init_wakeup(dev, 1);
