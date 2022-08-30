@@ -52,9 +52,9 @@ void hclge_comm_cmd_reuse_desc(struct hclge_desc *desc, bool is_read)
 static void hclge_comm_set_default_capability(struct hnae3_ae_dev *ae_dev,
 					      bool is_pf)
 {
-	set_bit(HNAE3_DEV_SUPPORT_FD_B, ae_dev->caps);
 	set_bit(HNAE3_DEV_SUPPORT_GRO_B, ae_dev->caps);
-	if (is_pf && ae_dev->dev_version == HNAE3_DEVICE_VERSION_V2) {
+	if (is_pf) {
+		set_bit(HNAE3_DEV_SUPPORT_FD_B, ae_dev->caps);
 		set_bit(HNAE3_DEV_SUPPORT_FEC_B, ae_dev->caps);
 		set_bit(HNAE3_DEV_SUPPORT_PAUSE_B, ae_dev->caps);
 	}
@@ -150,6 +150,8 @@ static const struct hclge_comm_caps_bit_map hclge_pf_cmd_caps[] = {
 	 HNAE3_DEV_SUPPORT_PORT_VLAN_BYPASS_B},
 	{HCLGE_COMM_CAP_PORT_VLAN_BYPASS_B, HNAE3_DEV_SUPPORT_VLAN_FLTR_MDF_B},
 	{HCLGE_COMM_CAP_CQ_B, HNAE3_DEV_SUPPORT_CQ_B},
+	{HCLGE_COMM_CAP_GRO_B, HNAE3_DEV_SUPPORT_GRO_B},
+	{HCLGE_COMM_CAP_FD_B, HNAE3_DEV_SUPPORT_FD_B},
 };
 
 static const struct hclge_comm_caps_bit_map hclge_vf_cmd_caps[] = {
@@ -162,6 +164,7 @@ static const struct hclge_comm_caps_bit_map hclge_vf_cmd_caps[] = {
 	{HCLGE_COMM_CAP_TX_PUSH_B, HNAE3_DEV_SUPPORT_TX_PUSH_B},
 	{HCLGE_COMM_CAP_RXD_ADV_LAYOUT_B, HNAE3_DEV_SUPPORT_RXD_ADV_LAYOUT_B},
 	{HCLGE_COMM_CAP_CQ_B, HNAE3_DEV_SUPPORT_CQ_B},
+	{HCLGE_COMM_CAP_GRO_B, HNAE3_DEV_SUPPORT_GRO_B},
 };
 
 static void
@@ -220,8 +223,10 @@ int hclge_comm_cmd_query_version_and_capability(struct hnae3_ae_dev *ae_dev,
 					 HNAE3_PCI_REVISION_BIT_SIZE;
 	ae_dev->dev_version |= ae_dev->pdev->revision;
 
-	if (ae_dev->dev_version >= HNAE3_DEVICE_VERSION_V2)
+	if (ae_dev->dev_version == HNAE3_DEVICE_VERSION_V2) {
 		hclge_comm_set_default_capability(ae_dev, is_pf);
+		return 0;
+	}
 
 	hclge_comm_parse_capability(ae_dev, is_pf, resp);
 
