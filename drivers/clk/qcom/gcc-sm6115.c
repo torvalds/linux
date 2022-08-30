@@ -65,6 +65,16 @@ static const u8 clk_alpha_pll_regs_offset[][PLL_OFF_MAX_REGS] = {
 		[PLL_OFF_CONFIG_CTL] = 0x20,
 		[PLL_OFF_STATUS] = 0x24,
 	},
+	[CLK_ALPHA_PLL_TYPE_BRAMMO] =  {
+		[PLL_OFF_L_VAL] = 0x04,
+		[PLL_OFF_ALPHA_VAL] = 0x08,
+		[PLL_OFF_ALPHA_VAL_U] = 0x0c,
+		[PLL_OFF_TEST_CTL] = 0x10,
+		[PLL_OFF_TEST_CTL_U] = 0x14,
+		[PLL_OFF_USER_CTL] = 0x18,
+		[PLL_OFF_CONFIG_CTL] = 0x1C,
+		[PLL_OFF_STATUS] = 0x20,
+	},
 };
 
 static struct clk_alpha_pll gpll0 = {
@@ -104,18 +114,6 @@ static struct clk_alpha_pll_postdiv gpll0_out_aux2 = {
 		.num_parents = 1,
 		.ops = &clk_alpha_pll_postdiv_ro_ops,
 	},
-};
-
-/* listed as BRAMMO, but it doesn't really match */
-static const u8 clk_gpll9_regs[PLL_OFF_MAX_REGS] = {
-	[PLL_OFF_L_VAL] = 0x04,
-	[PLL_OFF_ALPHA_VAL] = 0x08,
-	[PLL_OFF_ALPHA_VAL_U] = 0x0c,
-	[PLL_OFF_TEST_CTL] = 0x10,
-	[PLL_OFF_TEST_CTL_U] = 0x14,
-	[PLL_OFF_USER_CTL] = 0x18,
-	[PLL_OFF_CONFIG_CTL] = 0x1C,
-	[PLL_OFF_STATUS] = 0x20,
 };
 
 static const struct clk_div_table post_div_table_gpll0_out_main[] = {
@@ -445,7 +443,7 @@ static struct clk_alpha_pll gpll9 = {
 	.offset = 0x9000,
 	.vco_table = gpll9_vco,
 	.num_vco = ARRAY_SIZE(gpll9_vco),
-	.regs = clk_gpll9_regs,
+	.regs = clk_alpha_pll_regs_offset[CLK_ALPHA_PLL_TYPE_BRAMMO],
 	.clkr = {
 		.enable_reg = 0x79000,
 		.enable_mask = BIT(9),
@@ -471,7 +469,7 @@ static struct clk_alpha_pll_postdiv gpll9_out_main = {
 	.post_div_table = post_div_table_gpll9_out_main,
 	.num_post_div = ARRAY_SIZE(post_div_table_gpll9_out_main),
 	.width = 2,
-	.regs = clk_gpll9_regs,
+	.regs = clk_alpha_pll_regs_offset[CLK_ALPHA_PLL_TYPE_BRAMMO],
 	.clkr.hw.init = &(struct clk_init_data){
 		.name = "gpll9_out_main",
 		.parent_hws = (const struct clk_hw *[]){ &gpll9.clkr.hw },
