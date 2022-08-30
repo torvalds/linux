@@ -12,6 +12,8 @@
 #define ROCKIT_ISP_NUM_MAX	3
 #define ROCKIT_STREAM_NUM_MAX	12
 
+#define ROCKIT_VICAP_NUM_MAX	6
+
 enum function_cmd {
 	ROCKIT_BUF_QUE,
 	ROCKIT_MPIBUF_DONE
@@ -74,6 +76,42 @@ struct rockit_cfg {
 	int (*rkisp_rockit_mpibuf_done)(struct rockit_cfg *rockit_isp_cfg);
 };
 
+struct rkcif_stream_cfg {
+	struct rkcif_rockit_buffer *rkcif_buff[ROCKIT_BUF_NUM_MAX];
+	int buff_id[ROCKIT_BUF_NUM_MAX];
+	void *node;
+	int fps_cnt;
+	int dst_fps;
+	int cur_fps;
+	u64 old_time;
+	bool is_discard;
+};
+
+struct rkcif_dev_cfg {
+	const char *cif_name;
+	void *cif_dev;
+	struct rkcif_stream_cfg rkcif_stream_cfg[ROCKIT_STREAM_NUM_MAX];
+};
+
+struct rockit_rkcif_cfg {
+	bool is_alloc;
+	bool is_empty;
+	bool is_qbuf;
+	const char *cur_name;
+	int *buff_id;
+	int mpi_id;
+	u32 nick_id;
+	u32 event;
+	int cif_num;
+	void *node;
+	void *mpibuf;
+	void *vvi_dev[ROCKIT_VICAP_NUM_MAX];
+	struct dma_buf *buf;
+	struct ISP_VIDEO_FRAMES frame;
+	struct rkcif_dev_cfg rkcif_dev_cfg[ROCKIT_VICAP_NUM_MAX];
+	int (*rkcif_rockit_mpibuf_done)(struct rockit_rkcif_cfg *rockit_cif_cfg);
+};
+
 #if IS_ENABLED(CONFIG_VIDEO_ROCKCHIP_ISP_VERSION_V32)
 
 void *rkisp_rockit_function_register(void *function, int cmd);
@@ -86,6 +124,15 @@ int rkisp_rockit_config_stream(struct rockit_cfg *input_rockit_cfg,
 int rkisp_rockit_get_tb_stream_info(struct rockit_cfg *input_rockit_cfg,
 				    struct rkisp_tb_stream_info *info);
 int rkisp_rockit_free_tb_stream_buf(struct rockit_cfg *input_rockit_cfg);
+
+void *rkcif_rockit_function_register(void *function, int cmd);
+int rkcif_rockit_get_cifdev(char **name);
+int rkcif_rockit_buf_queue(struct rockit_rkcif_cfg *input_rockit_cfg);
+int rkcif_rockit_config_stream(struct rockit_rkcif_cfg *input_rockit_cfg,
+				int width, int height, int v4l2_fmt);
+int rkcif_rockit_resume_stream(struct rockit_rkcif_cfg *input_rockit_cfg);
+int rkcif_rockit_pause_stream(struct rockit_rkcif_cfg *input_rockit_cfg);
+
 #else
 
 static inline void *rkisp_rockit_function_register(void *function, int cmd) { return NULL; }
