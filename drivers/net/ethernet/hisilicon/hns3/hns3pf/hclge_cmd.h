@@ -347,7 +347,8 @@ struct hclge_sfp_info_cmd {
 	u8 autoneg_ability; /* whether support autoneg */
 	__le32 speed_ability; /* speed ability for current media */
 	__le32 module_type;
-	u8 rsv[8];
+	u8 fec_ability;
+	u8 rsv[7];
 };
 
 #define HCLGE_MAC_CFG_FEC_AUTO_EN_B	0

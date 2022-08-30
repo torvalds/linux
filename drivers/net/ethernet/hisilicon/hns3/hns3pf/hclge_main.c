@@ -1003,6 +1003,19 @@ static int hclge_check_port_speed(struct hnae3_handle *handle, u32 speed)
 	return -EINVAL;
 }
 
+static void hclge_update_fec_support(struct hclge_mac *mac)
+{
+	linkmode_clear_bit(ETHTOOL_LINK_MODE_FEC_BASER_BIT, mac->supported);
+	linkmode_clear_bit(ETHTOOL_LINK_MODE_FEC_RS_BIT, mac->supported);
+
+	if (mac->fec_ability & BIT(HNAE3_FEC_BASER))
+		linkmode_set_bit(ETHTOOL_LINK_MODE_FEC_BASER_BIT,
+				 mac->supported);
+	if (mac->fec_ability & BIT(HNAE3_FEC_RS))
+		linkmode_set_bit(ETHTOOL_LINK_MODE_FEC_RS_BIT,
+				 mac->supported);
+}
+
 static void hclge_convert_setting_sr(u16 speed_ability,
 				     unsigned long *link_mode)
 {
@@ -1101,34 +1114,33 @@ static void hclge_convert_setting_kr(u16 speed_ability,
 
 static void hclge_convert_setting_fec(struct hclge_mac *mac)
 {
-	linkmode_clear_bit(ETHTOOL_LINK_MODE_FEC_BASER_BIT, mac->supported);
-	linkmode_clear_bit(ETHTOOL_LINK_MODE_FEC_RS_BIT, mac->supported);
+	/* If firmware has reported fec_ability, don't need to convert by speed */
+	if (mac->fec_ability)
+		goto out;
 
 	switch (mac->speed) {
 	case HCLGE_MAC_SPEED_10G:
 	case HCLGE_MAC_SPEED_40G:
-		linkmode_set_bit(ETHTOOL_LINK_MODE_FEC_BASER_BIT,
-				 mac->supported);
 		mac->fec_ability =
 			BIT(HNAE3_FEC_BASER) | BIT(HNAE3_FEC_AUTO);
 		break;
 	case HCLGE_MAC_SPEED_25G:
 	case HCLGE_MAC_SPEED_50G:
-		linkmode_set_bit(ETHTOOL_LINK_MODE_FEC_RS_BIT,
-				 mac->supported);
 		mac->fec_ability =
 			BIT(HNAE3_FEC_BASER) | BIT(HNAE3_FEC_RS) |
 			BIT(HNAE3_FEC_AUTO);
 		break;
 	case HCLGE_MAC_SPEED_100G:
 	case HCLGE_MAC_SPEED_200G:
-		linkmode_set_bit(ETHTOOL_LINK_MODE_FEC_RS_BIT, mac->supported);
 		mac->fec_ability = BIT(HNAE3_FEC_RS) | BIT(HNAE3_FEC_AUTO);
 		break;
 	default:
 		mac->fec_ability = 0;
 		break;
 	}
+
+out:
+	hclge_update_fec_support(mac);
 }
 
 static void hclge_parse_fiber_link_mode(struct hclge_dev *hdev,
@@ -3037,7 +3049,6 @@ static void hclge_update_port_capability(struct hclge_dev *hdev,
 					 struct hclge_mac *mac)
 {
 	if (hnae3_dev_fec_supported(hdev))
-		/* update fec ability by speed */
 		hclge_convert_setting_fec(mac);
 
 	/* firmware can not identify back plane type, the media type
@@ -3123,6 +3134,7 @@ static int hclge_get_sfp_info(struct hclge_dev *hdev, struct hclge_mac *mac)
 			mac->fec_mode = 0;
 		else
 			mac->fec_mode = BIT(resp->active_fec);
+		mac->fec_ability = resp->fec_ability;
 	} else {
 		mac->speed_type = QUERY_SFP_SPEED;
 	}
@@ -11449,6 +11461,10 @@ static int hclge_init_ae_dev(struct hnae3_ae_dev *ae_dev)
 	}
 
 	ret = hclge_ptp_init(hdev);
+	if (ret)
+		goto err_mdiobus_unreg;
+
+	ret = hclge_update_port_info(hdev);
 	if (ret)
 		goto err_mdiobus_unreg;
 
