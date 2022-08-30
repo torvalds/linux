@@ -246,6 +246,13 @@ static const struct st_lsm6dsrx_settings st_lsm6dsrx_sensor_settings[] = {
 		.st_mlc_probe = true,
 		.st_fsm_probe = true,
 	},
+	{
+		.id = {
+			.hw_id = ST_LSM6DSR_ID,
+			.name = ST_LSM6DSR_DEV_NAME,
+		},
+		.st_fsm_probe = true,
+	},
 };
 
 static const struct st_lsm6dsrx_fs_table_entry st_lsm6dsrx_fs_table[] = {

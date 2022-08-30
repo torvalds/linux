@@ -18,6 +18,7 @@
 
 #define ST_LSM6DSRX_ODR_EXPAND(odr, uodr)	(((odr) * 1000000) + (uodr))
 
+#define ST_LSM6DSR_DEV_NAME			"lsm6dsr"
 #define ST_LSM6DSRX_DEV_NAME			"lsm6dsrx"
 #define ST_LSM6DSRX_DRV_VERSION			"1.1"
 
@@ -489,6 +490,7 @@ struct st_lsm6dsrx_ext_dev_info {
 };
 
 enum st_lsm6dsrx_hw_id {
+	ST_LSM6DSR_ID,
 	ST_LSM6DSRX_ID,
 	ST_LSM6DSRX_MAX_ID,
 };

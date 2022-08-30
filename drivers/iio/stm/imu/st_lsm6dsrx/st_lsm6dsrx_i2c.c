@@ -51,12 +51,17 @@ static const struct of_device_id st_lsm6dsrx_i2c_of_match[] = {
 		.compatible = "st," ST_LSM6DSRX_DEV_NAME,
 		.data = (void *)ST_LSM6DSRX_ID,
 	},
+	{
+		.compatible = "st," ST_LSM6DSR_DEV_NAME,
+		.data = (void *)ST_LSM6DSR_ID,
+	},
 	{},
 };
 MODULE_DEVICE_TABLE(of, st_lsm6dsrx_i2c_of_match);
 
 static const struct i2c_device_id st_lsm6dsrx_i2c_id_table[] = {
 	{ ST_LSM6DSRX_DEV_NAME, ST_LSM6DSRX_ID },
+	{ ST_LSM6DSR_DEV_NAME, ST_LSM6DSR_ID },
 	{},
 };
 MODULE_DEVICE_TABLE(i2c, st_lsm6dsrx_i2c_id_table);
