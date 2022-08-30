@@ -1900,50 +1900,36 @@ static int hl_fw_dynamic_validate_descriptor(struct hl_device *hdev,
 	u64 addr;
 	int rc;
 
-	if (le32_to_cpu(fw_desc->header.magic) != HL_COMMS_DESC_MAGIC) {
-		dev_err(hdev->dev, "Invalid magic for dynamic FW descriptor (%x)\n",
+	if (le32_to_cpu(fw_desc->header.magic) != HL_COMMS_DESC_MAGIC)
+		dev_warn(hdev->dev, "Invalid magic for dynamic FW descriptor (%x)\n",
 				fw_desc->header.magic);
-		return -EIO;
-	}
 
-	if (fw_desc->header.version != HL_COMMS_DESC_VER) {
-		dev_err(hdev->dev, "Invalid version for dynamic FW descriptor (%x)\n",
+	if (fw_desc->header.version != HL_COMMS_DESC_VER)
+		dev_warn(hdev->dev, "Invalid version for dynamic FW descriptor (%x)\n",
 				fw_desc->header.version);
-		return -EIO;
-	}
 
 	/*
-	 * calc CRC32 of data without header.
+	 * Calc CRC32 of data without header. use the size of the descriptor
+	 * reported by firmware, without calculating it ourself, to allow adding
+	 * more fields to the lkd_fw_comms_desc structure.
 	 * note that no alignment/stride address issues here as all structures
-	 * are 64 bit padded
+	 * are 64 bit padded.
 	 */
-	data_size = sizeof(struct lkd_fw_comms_desc) -
-					sizeof(struct comms_desc_header);
 	data_ptr = (u8 *)fw_desc + sizeof(struct comms_desc_header);
-
-	if (le16_to_cpu(fw_desc->header.size) != data_size) {
-		dev_err(hdev->dev,
-			"Invalid descriptor size 0x%x, expected size 0x%zx\n",
-				le16_to_cpu(fw_desc->header.size), data_size);
-		return -EIO;
-	}
+	data_size = le16_to_cpu(fw_desc->header.size);
 
 	data_crc32 = hl_fw_compat_crc32(data_ptr, data_size);
-
 	if (data_crc32 != le32_to_cpu(fw_desc->header.crc32)) {
-		dev_err(hdev->dev,
-			"CRC32 mismatch for dynamic FW descriptor (%x:%x)\n",
-					data_crc32, fw_desc->header.crc32);
+		dev_err(hdev->dev, "CRC32 mismatch for dynamic FW descriptor (%x:%x)\n",
+			data_crc32, fw_desc->header.crc32);
 		return -EIO;
 	}
 
 	/* find memory region to which to copy the image */
 	addr = le64_to_cpu(fw_desc->img_addr);
 	region_id = hl_get_pci_memory_region(hdev, addr);
-	if ((region_id != PCI_REGION_SRAM) &&
-			((region_id != PCI_REGION_DRAM))) {
-		dev_err(hdev->dev,
-			"Invalid region to copy FW image address=%llx\n", addr);
+	if ((region_id != PCI_REGION_SRAM) && ((region_id != PCI_REGION_DRAM))) {
+		dev_err(hdev->dev, "Invalid region to copy FW image address=%llx\n", addr);
 		return -EIO;
 	}
 
@@ -1960,8 +1946,7 @@ static int hl_fw_dynamic_validate_descriptor(struct hl_device *hdev,
 					fw_loader->dynamic_loader.fw_image_size,
 					region);
 	if (rc) {
-		dev_err(hdev->dev,
-			"invalid mem transfer request for FW image\n");
+		dev_err(hdev->dev, "invalid mem transfer request for FW image\n");
 		return rc;
 	}
 
