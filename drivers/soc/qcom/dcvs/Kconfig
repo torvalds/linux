@@ -1,0 +1,91 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# QCOM DCVS drivers
+#
+config QCOM_PMU_LIB
+	tristate "QCOM PMU Driver"
+	depends on ARCH_QCOM
+	default n
+	help
+	  This enables the QCOM PMU driver which manages and maintains
+	  per-CPU performance counters that are available on some
+	  Qualcomm Technologies, Inc. (QTI) chipsets. This includes
+	  preserving them across CPU idle and hotplug events.
+
+config QCOM_DCVS_FP
+	tristate "Enable QCOM DCVS Fast Path Interface"
+	depends on ARCH_QCOM && QCOM_RPMH
+	default n
+	help
+	  This enables the QCOM DCVS FP (Fast Path) driver which relies on
+	  certain "fast path" APIs from QCOM_RPMH to vote for various DCVS HW
+	  blocks in a faster scheme than standard voting paths. This requires a
+	  Qualcomm Technologies, Inc. (QTI) chipset that supports this feature.
+
+config QCOM_DCVS
+	tristate "QCOM DCVS Driver"
+	select INTERCONNECT
+	default n
+	help
+	  This enables the main QCOM DCVS framework which supports various
+	  DCVS HW blocks and voting interfaces that are supported on some
+	  Qualcomm Technologies, Inc. (QTI) chipsets. This includes voting
+	  interfaces from both QCOM_DCVS_FP and INTERCONNECT.
+
+config QCOM_MEMLAT
+	tristate "QCOM Memlat Driver"
+	depends on QCOM_DCVS && QCOM_PMU_LIB
+	default n
+	help
+	  This enables the QCOM Memlat driver which monitors CPU performance
+	  counters to identify memory latency bound workloads and vote for
+	  DCVS HW (memory) frequencies through the QCOM DCVS framework. This
+	  driver also configures epss memlat if enabled.
+
+config QCOM_BWMON
+	tristate "QCOM BWMON Driver"
+	depends on QCOM_DCVS
+	default n
+	help
+	  This enables the QCOM BWMON driver which monitors bandwidth counters
+	  to identify memory bandwidth bound workloads and vote for DCVS HW
+	  (memory) frequencies through the QCOM DCVS framework. This driver
+	  handles voting for DDR and LLCC.
+
+config QTI_HW_MEMLAT_SCMI_CLIENT
+	tristate "Qualcomm Technologies Inc. SCMI client driver for HW MEMLAT"
+	depends on QCOM_MEMLAT && QTI_SCMI_MEMLAT_PROTOCOL
+	default n
+	help
+	  SCMI client driver registers itself with SCMI framework for memlat
+	  vendor protocol, and also registers with the memlat interface
+	  driver.
+
+	  This driver delivers the memlat vendor protocol handle to interface
+	  driver, and interface driver will use this handle to communicate with
+	  memlat HW.
+
+
+config QTI_PMU_SCMI_CLIENT
+	tristate "Qualcomm Technologies Inc. SCMI client driver for PMU"
+	depends on QTI_SCMI_PMU_PROTOCOL && QCOM_PMU_LIB
+	default n
+	help
+	  SCMI client driver registers itself with SCMI framework for pmu
+	  vendor protocol.
+
+	  This driver delivers the pmu vendor protocol handle to interface
+	  driver, and interface driver will use this handle to communicate with
+	  rimps.
+
+config QTI_C1DCVS_SCMI_CLIENT
+	tristate "Qualcomm Technologies Inc. SCMI client driver for cpudcvs"
+	depends on QTI_SCMI_C1DCVS_PROTOCOL
+	default n
+	help
+	  SCMI client driver registers itself with SCMI framework for c1dcvs
+	  vendor protocol.
+
+	  This driver delivers the cpudcvs protocol handle to interface
+	  driver, and interface driver will use this handle to communicate with
+	  cpucp.

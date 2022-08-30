@@ -392,6 +392,8 @@ config MINIDUMP_ALL_TASK_INFO
 	  collection during panic. This can provide more
 	  debug info.
 
+source "drivers/soc/qcom/dcvs/Kconfig"
+
 config QCOM_LOGBUF_VENDOR_HOOKS
 	tristate "QTI Logbuf Vendor Hooks Support"
 	depends on ARCH_QCOM && ANDROID_VENDOR_HOOKS
