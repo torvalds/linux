@@ -680,8 +680,7 @@ static int stm32_qspi_setup(struct spi_device *spi)
 	 * Dual flash mode is only enable in case SPI_TX_OCTAL and SPI_TX_OCTAL
 	 * are both set in spi->mode and "cs-gpios" properties is found in DT
 	 */
-	if (((spi->mode & (SPI_TX_OCTAL | SPI_RX_OCTAL)) == (SPI_TX_OCTAL | SPI_RX_OCTAL)) &&
-	    gpiod_count(qspi->dev, "cs")) {
+	if (mode == (SPI_TX_OCTAL | SPI_RX_OCTAL)) {
 		qspi->cr_reg |= CR_DFM;
 		dev_dbg(qspi->dev, "Dual flash mode enable");
 	}
