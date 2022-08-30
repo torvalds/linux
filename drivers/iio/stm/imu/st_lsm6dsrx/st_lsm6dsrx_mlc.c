@@ -218,6 +218,51 @@ static int st_lsm6dsrx_mlc_read_event_config(struct iio_dev *iio_dev,
 	return !!(hw->enable_mask & BIT(sensor->id));
 }
 
+/*
+ * st_lsm6dsrx_verify_mlc_fsm_support - Verify device supports MLC/FSM
+ *
+ * Before to load a MLC/FSM configuration check the MLC/FSM HW block
+ * available for this hw device id.
+ */
+static int st_lsm6dsrx_verify_mlc_fsm_support(const struct firmware *fw,
+					      struct st_lsm6dsrx_hw *hw)
+{
+	int i;
+
+	for (i = 0; i < fw->size; i++) {
+		bool stmc_page = false;
+		uint8_t reg, val;
+
+		reg = fw->data[i];
+		val = fw->data[i];
+
+		if (reg == 0x01 && val == 0x80) {
+			stmc_page = true;
+		} else if (reg == 0x01 && val == 0x00) {
+			stmc_page = false;
+		} else if (stmc_page) {
+			switch (reg) {
+			case ST_LSM6DSRX_MLC_INT1_ADDR:
+			case ST_LSM6DSRX_MLC_INT2_ADDR:
+				if (!hw->settings->st_mlc_probe)
+					return -ENODEV;
+				break;
+			case ST_LSM6DSRX_FSM_INT1_A_ADDR:
+			case ST_LSM6DSRX_FSM_INT2_A_ADDR:
+			case ST_LSM6DSRX_FSM_INT1_B_ADDR:
+			case ST_LSM6DSRX_FSM_INT2_B_ADDR:
+				if (!hw->settings->st_fsm_probe)
+					return -ENODEV;
+				break;
+			default:
+				break;
+			}
+		}
+	}
+
+	return 0;
+}
+
 /* parse and program mlc fragments */
 static int st_lsm6dsrx_program_mlc(const struct firmware *fw,
 				   struct st_lsm6dsrx_hw *hw)
@@ -337,6 +382,12 @@ static void st_lsm6dsrx_mlc_update(const struct firmware *fw, void *context)
 		return;
 	}
 
+	ret = st_lsm6dsrx_verify_mlc_fsm_support(fw, hw);
+	if (ret) {
+		dev_err(hw->dev, "invalid file format for device\n");
+		return;
+	}
+
 	ret = st_lsm6dsrx_program_mlc(fw, hw);
 	if (ret > 0) {
 		u16 fsm_mask = *(u16 *)hw->mlc_config->fsm_int_mask;
@@ -425,7 +476,7 @@ static ssize_t st_lsm6dsrx_mlc_get_version(struct device *dev,
 					   struct device_attribute *attr,
 					   char *buf)
 {
-	return scnprintf(buf, PAGE_SIZE, "mlc loader Version %s\n",
+	return scnprintf(buf, PAGE_SIZE, "loader version %s\n",
 			 ST_LSM6DSRX_MLC_LOADER_VERSION);
 }
 
@@ -469,23 +520,23 @@ static ssize_t st_lsm6dsrx_mlc_odr(struct device *dev,
 	return scnprintf(buf, PAGE_SIZE, "%d\n", hw->mlc_config->requested_odr);
 }
 
-static IIO_DEVICE_ATTR(mlc_info, 0444,
+static IIO_DEVICE_ATTR(config_info, 0444,
 		       st_lsm6dsrx_mlc_info, NULL, 0);
-static IIO_DEVICE_ATTR(mlc_flush, 0200,
+static IIO_DEVICE_ATTR(flush_config, 0200,
 		       NULL, st_lsm6dsrx_mlc_flush, 0);
-static IIO_DEVICE_ATTR(mlc_version, 0444,
+static IIO_DEVICE_ATTR(loader_version, 0444,
 		       st_lsm6dsrx_mlc_get_version, NULL, 0);
 static IIO_DEVICE_ATTR(load_mlc, 0200,
 		       NULL, st_lsm6dsrx_mlc_upload_firmware, 0);
-static IIO_DEVICE_ATTR(mlc_odr, 0444,
+static IIO_DEVICE_ATTR(odr, 0444,
 		       st_lsm6dsrx_mlc_odr, NULL, 0);
 
 static struct attribute *st_lsm6dsrx_mlc_event_attributes[] = {
-	&iio_dev_attr_mlc_info.dev_attr.attr,
-	&iio_dev_attr_mlc_version.dev_attr.attr,
+	&iio_dev_attr_config_info.dev_attr.attr,
+	&iio_dev_attr_loader_version.dev_attr.attr,
 	&iio_dev_attr_load_mlc.dev_attr.attr,
-	&iio_dev_attr_mlc_flush.dev_attr.attr,
-	&iio_dev_attr_mlc_odr.dev_attr.attr,
+	&iio_dev_attr_flush_config.dev_attr.attr,
+	&iio_dev_attr_odr.dev_attr.attr,
 	NULL,
 };
 
@@ -509,11 +560,11 @@ static ssize_t st_lsm6dsrx_mlc_x_odr(struct device *dev,
 			 sensor->odr, sensor->uodr);
 }
 
-static IIO_DEVICE_ATTR(mlc_x_odr, 0444,
+static IIO_DEVICE_ATTR(odr_x, 0444,
 		       st_lsm6dsrx_mlc_x_odr, NULL, 0);
 
 static struct attribute *st_lsm6dsrx_mlc_x_event_attributes[] = {
-	&iio_dev_attr_mlc_x_odr.dev_attr.attr,
+	&iio_dev_attr_odr_x.dev_attr.attr,
 	NULL,
 };
 
@@ -790,6 +841,6 @@ int st_lsm6dsrx_mlc_init_preload(struct st_lsm6dsrx_hw *hw)
 	st_lsm6dsrx_mlc_update(&st_lsm6dsrx_mlc_preload, hw);
 #endif /* CONFIG_IIO_ST_LSM6DSRX_MLC_PRELOAD */
 
-	return 0;
+	return hw->preload_mlc;
 }
 

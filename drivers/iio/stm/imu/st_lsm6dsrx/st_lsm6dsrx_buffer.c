@@ -478,7 +478,7 @@ static irqreturn_t st_lsm6dsrx_handler_thread(int irq, void *private)
 {
 	struct st_lsm6dsrx_hw *hw = (struct st_lsm6dsrx_hw *)private;
 
-	if (hw->settings->st_mlc_probe)
+	if (st_lsm6dsrx_run_mlc_task(hw))
 		st_lsm6dsrx_mlc_check_status(hw);
 
 	mutex_lock(&hw->fifo_lock);

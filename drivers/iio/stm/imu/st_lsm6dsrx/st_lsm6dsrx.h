@@ -498,7 +498,8 @@ enum st_lsm6dsrx_hw_id {
  *
  * @hw_id: Hw id supported by the driver configuration.
  * @name: Device name supported by the driver configuration.
- * @st_mlc_probe: MLC probe flag.
+ * @st_mlc_probe: MLC probe flag, indicate if MLC feature is supported.
+ * @st_fsm_probe: FSM probe flag, indicate if FSM feature is supported.
  */
 struct st_lsm6dsrx_settings {
 	struct {
@@ -506,6 +507,7 @@ struct st_lsm6dsrx_settings {
 		const char *name;
 	} id;
 	bool st_mlc_probe;
+	bool st_fsm_probe;
 };
 
 /**
@@ -624,6 +626,11 @@ static inline bool st_lsm6dsrx_is_fifo_enabled(struct st_lsm6dsrx_hw *hw)
 {
 	return hw->enable_mask & (BIT(ST_LSM6DSRX_ID_GYRO) |
 				  BIT(ST_LSM6DSRX_ID_ACC));
+}
+
+static inline bool st_lsm6dsrx_run_mlc_task(struct st_lsm6dsrx_hw *hw)
+{
+	return hw->settings->st_mlc_probe || hw->settings->st_fsm_probe;
 }
 
 static inline int __st_lsm6dsrx_write_with_mask(struct st_lsm6dsrx_hw *hw,
