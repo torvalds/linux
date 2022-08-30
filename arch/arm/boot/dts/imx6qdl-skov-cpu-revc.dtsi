@@ -2,35 +2,60 @@
 //
 // Copyright (C) 2020 Pengutronix, Ulrich Oelmann <kernel@pengutronix.de>
 
+/ {
+	touchscreen {
+		compatible = "resistive-adc-touch";
+		io-channels = <&adc_ts 1>, <&adc_ts 3>, <&adc_ts 4>, <&adc_ts 5>;
+		io-channel-names = "y", "z1", "z2", "x";
+		touchscreen-min-pressure = <65000>;
+		touchscreen-inverted-y;
+		touchscreen-swapped-x-y;
+		touchscreen-x-plate-ohms = <300>;
+		touchscreen-y-plate-ohms = <800>;
+	};
+};
+
 &ecspi4 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_ecspi4>;
 	cs-gpios = <&gpio3 20 GPIO_ACTIVE_LOW>;
 	status = "okay";
 
-	touchscreen@0 {
-		pinctrl-names = "default";
-		pinctrl-0 = <&pinctrl_touch>;
-		compatible = "ti,tsc2046";
+	adc_ts: adc@0 {
+		compatible = "ti,tsc2046e-adc";
 		reg = <0>;
+		pinctrl-0 = <&pinctrl_touch>;
+		pinctrl-names ="default";
 		spi-max-frequency = <1000000>;
 		interrupts-extended = <&gpio3 19 IRQ_TYPE_LEVEL_LOW>;
-		vcc-supply = <&reg_3v3>;
-		pendown-gpio = <&gpio3 19 GPIO_ACTIVE_LOW>;
-		ti,x-plate-ohms = /bits/ 16 <850>;
-		ti,y-plate-ohms = /bits/ 16 <295>;
-		ti,pressure-min = /bits/ 16 <2>;
-		ti,pressure-max = /bits/ 16 <1500>;
-		ti,vref-mv = /bits/ 16 <3300>;
-		ti,settle-delay-usec = /bits/ 16 <15>;
-		ti,vref-delay-usecs = /bits/ 16 <0>;
-		ti,penirq-recheck-delay-usecs = /bits/ 16 <100>;
-		ti,debounce-max = /bits/ 16 <100>;
-		ti,debounce-tol = /bits/ 16 <(~0)>;
-		ti,debounce-rep = /bits/ 16 <4>;
-		touchscreen-swapped-x-y;
-		touchscreen-inverted-y;
-		wakeup-source;
+		#io-channel-cells = <1>;
+
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		channel@1 {
+			reg = <1>;
+			settling-time-us = <700>;
+			oversampling-ratio = <5>;
+		};
+
+		channel@3 {
+			reg = <3>;
+			settling-time-us = <700>;
+			oversampling-ratio = <5>;
+		};
+
+		channel@4 {
+			reg = <4>;
+			settling-time-us = <700>;
+			oversampling-ratio = <5>;
+		};
+
+		channel@5 {
+			reg = <5>;
+			settling-time-us = <700>;
+			oversampling-ratio = <5>;
+		};
 	};
 };
 
