@@ -171,10 +171,10 @@ to_intel_gmbus(struct i2c_adapter *i2c)
 }
 
 void
-intel_gmbus_reset(struct drm_i915_private *dev_priv)
+intel_gmbus_reset(struct drm_i915_private *i915)
 {
-	intel_de_write(dev_priv, GMBUS0, 0);
-	intel_de_write(dev_priv, GMBUS4, 0);
+	intel_de_write(i915, GMBUS0(i915), 0);
+	intel_de_write(i915, GMBUS4(i915), 0);
 }
 
 static void pnv_gmbus_clock_gating(struct drm_i915_private *dev_priv,
@@ -371,16 +371,16 @@ static int gmbus_wait(struct drm_i915_private *dev_priv, u32 status, u32 irq_en)
 		irq_en = 0;
 
 	add_wait_queue(&dev_priv->display.gmbus.wait_queue, &wait);
-	intel_de_write_fw(dev_priv, GMBUS4, irq_en);
+	intel_de_write_fw(dev_priv, GMBUS4(dev_priv), irq_en);
 
 	status |= GMBUS_SATOER;
-	ret = wait_for_us((gmbus2 = intel_de_read_fw(dev_priv, GMBUS2)) & status,
+	ret = wait_for_us((gmbus2 = intel_de_read_fw(dev_priv, GMBUS2(dev_priv))) & status,
 			  2);
 	if (ret)
-		ret = wait_for((gmbus2 = intel_de_read_fw(dev_priv, GMBUS2)) & status,
+		ret = wait_for((gmbus2 = intel_de_read_fw(dev_priv, GMBUS2(dev_priv))) & status,
 			       50);
 
-	intel_de_write_fw(dev_priv, GMBUS4, 0);
+	intel_de_write_fw(dev_priv, GMBUS4(dev_priv), 0);
 	remove_wait_queue(&dev_priv->display.gmbus.wait_queue, &wait);
 
 	if (gmbus2 & GMBUS_SATOER)
@@ -402,13 +402,13 @@ gmbus_wait_idle(struct drm_i915_private *dev_priv)
 		irq_enable = GMBUS_IDLE_EN;
 
 	add_wait_queue(&dev_priv->display.gmbus.wait_queue, &wait);
-	intel_de_write_fw(dev_priv, GMBUS4, irq_enable);
+	intel_de_write_fw(dev_priv, GMBUS4(dev_priv), irq_enable);
 
 	ret = intel_wait_for_register_fw(&dev_priv->uncore,
-					 GMBUS2, GMBUS_ACTIVE, 0,
+					 GMBUS2(dev_priv), GMBUS_ACTIVE, 0,
 					 10);
 
-	intel_de_write_fw(dev_priv, GMBUS4, 0);
+	intel_de_write_fw(dev_priv, GMBUS4(dev_priv), 0);
 	remove_wait_queue(&dev_priv->display.gmbus.wait_queue, &wait);
 
 	return ret;
@@ -439,11 +439,11 @@ gmbus_xfer_read_chunk(struct drm_i915_private *dev_priv,
 			len++;
 		}
 		size = len % 256 + 256;
-		intel_de_write_fw(dev_priv, GMBUS0,
+		intel_de_write_fw(dev_priv, GMBUS0(dev_priv),
 				  gmbus0_reg | GMBUS_BYTE_CNT_OVERRIDE);
 	}
 
-	intel_de_write_fw(dev_priv, GMBUS1,
+	intel_de_write_fw(dev_priv, GMBUS1(dev_priv),
 			  gmbus1_index | GMBUS_CYCLE_WAIT | (size << GMBUS_BYTE_COUNT_SHIFT) | (addr << GMBUS_SLAVE_ADDR_SHIFT) | GMBUS_SLAVE_READ | GMBUS_SW_RDY);
 	while (len) {
 		int ret;
@@ -453,7 +453,7 @@ gmbus_xfer_read_chunk(struct drm_i915_private *dev_priv,
 		if (ret)
 			return ret;
 
-		val = intel_de_read_fw(dev_priv, GMBUS3);
+		val = intel_de_read_fw(dev_priv, GMBUS3(dev_priv));
 		do {
 			if (extra_byte_added && len == 1)
 				break;
@@ -464,7 +464,7 @@ gmbus_xfer_read_chunk(struct drm_i915_private *dev_priv,
 
 		if (burst_read && len == size - 4)
 			/* Reset the override bit */
-			intel_de_write_fw(dev_priv, GMBUS0, gmbus0_reg);
+			intel_de_write_fw(dev_priv, GMBUS0(dev_priv), gmbus0_reg);
 	}
 
 	return 0;
@@ -521,8 +521,8 @@ gmbus_xfer_write_chunk(struct drm_i915_private *dev_priv,
 		len -= 1;
 	}
 
-	intel_de_write_fw(dev_priv, GMBUS3, val);
-	intel_de_write_fw(dev_priv, GMBUS1,
+	intel_de_write_fw(dev_priv, GMBUS3(dev_priv), val);
+	intel_de_write_fw(dev_priv, GMBUS1(dev_priv),
 			  gmbus1_index | GMBUS_CYCLE_WAIT | (chunk_size << GMBUS_BYTE_COUNT_SHIFT) | (addr << GMBUS_SLAVE_ADDR_SHIFT) | GMBUS_SLAVE_WRITE | GMBUS_SW_RDY);
 	while (len) {
 		int ret;
@@ -532,7 +532,7 @@ gmbus_xfer_write_chunk(struct drm_i915_private *dev_priv,
 			val |= *buf++ << (8 * loop);
 		} while (--len && ++loop < 4);
 
-		intel_de_write_fw(dev_priv, GMBUS3, val);
+		intel_de_write_fw(dev_priv, GMBUS3(dev_priv), val);
 
 		ret = gmbus_wait(dev_priv, GMBUS_HW_RDY, GMBUS_HW_RDY_EN);
 		if (ret)
@@ -597,7 +597,7 @@ gmbus_index_xfer(struct drm_i915_private *dev_priv, struct i2c_msg *msgs,
 
 	/* GMBUS5 holds 16-bit index */
 	if (gmbus5)
-		intel_de_write_fw(dev_priv, GMBUS5, gmbus5);
+		intel_de_write_fw(dev_priv, GMBUS5(dev_priv), gmbus5);
 
 	if (msgs[1].flags & I2C_M_RD)
 		ret = gmbus_xfer_read(dev_priv, &msgs[1], gmbus0_reg,
@@ -607,7 +607,7 @@ gmbus_index_xfer(struct drm_i915_private *dev_priv, struct i2c_msg *msgs,
 
 	/* Clear GMBUS5 after each index transfer */
 	if (gmbus5)
-		intel_de_write_fw(dev_priv, GMBUS5, 0);
+		intel_de_write_fw(dev_priv, GMBUS5(dev_priv), 0);
 
 	return ret;
 }
@@ -628,7 +628,7 @@ do_gmbus_xfer(struct i2c_adapter *adapter, struct i2c_msg *msgs, int num,
 		pch_gmbus_clock_gating(dev_priv, false);
 
 retry:
-	intel_de_write_fw(dev_priv, GMBUS0, gmbus0_source | bus->reg0);
+	intel_de_write_fw(dev_priv, GMBUS0(dev_priv), gmbus0_source | bus->reg0);
 
 	for (; i < num; i += inc) {
 		inc = 1;
@@ -656,7 +656,7 @@ retry:
 	 * a STOP on the very first cycle. To simplify the code we
 	 * unconditionally generate the STOP condition with an additional gmbus
 	 * cycle. */
-	intel_de_write_fw(dev_priv, GMBUS1, GMBUS_CYCLE_STOP | GMBUS_SW_RDY);
+	intel_de_write_fw(dev_priv, GMBUS1(dev_priv), GMBUS_CYCLE_STOP | GMBUS_SW_RDY);
 
 	/* Mark the GMBUS interface as disabled after waiting for idle.
 	 * We will re-enable it at the start of the next xfer,
@@ -668,7 +668,7 @@ retry:
 			    adapter->name);
 		ret = -ETIMEDOUT;
 	}
-	intel_de_write_fw(dev_priv, GMBUS0, 0);
+	intel_de_write_fw(dev_priv, GMBUS0(dev_priv), 0);
 	ret = ret ?: i;
 	goto out;
 
@@ -698,9 +698,9 @@ clear_err:
 	 * of resetting the GMBUS controller and so clearing the
 	 * BUS_ERROR raised by the slave's NAK.
 	 */
-	intel_de_write_fw(dev_priv, GMBUS1, GMBUS_SW_CLR_INT);
-	intel_de_write_fw(dev_priv, GMBUS1, 0);
-	intel_de_write_fw(dev_priv, GMBUS0, 0);
+	intel_de_write_fw(dev_priv, GMBUS1(dev_priv), GMBUS_SW_CLR_INT);
+	intel_de_write_fw(dev_priv, GMBUS1(dev_priv), 0);
+	intel_de_write_fw(dev_priv, GMBUS0(dev_priv), 0);
 
 	drm_dbg_kms(&dev_priv->drm, "GMBUS [%s] NAK for addr: %04x %c(%d)\n",
 		    adapter->name, msgs[i].addr,
@@ -725,7 +725,7 @@ timeout:
 	drm_dbg_kms(&dev_priv->drm,
 		    "GMBUS [%s] timed out, falling back to bit banging on pin %d\n",
 		    bus->adapter.name, bus->reg0 & 0xff);
-	intel_de_write_fw(dev_priv, GMBUS0, 0);
+	intel_de_write_fw(dev_priv, GMBUS0(dev_priv), 0);
 
 	/*
 	 * Hardware may not support GMBUS over these pins? Try GPIO bitbanging
@@ -915,7 +915,7 @@ int intel_gmbus_setup(struct drm_i915_private *dev_priv)
 		if (IS_I830(dev_priv))
 			bus->force_bit = 1;
 
-		intel_gpio_setup(bus, GPIO(gmbus_pin->gpio));
+		intel_gpio_setup(bus, GPIO(dev_priv, gmbus_pin->gpio));
 
 		ret = i2c_add_adapter(&bus->adapter);
 		if (ret) {
