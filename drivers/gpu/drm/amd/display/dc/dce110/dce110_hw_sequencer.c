@@ -722,7 +722,6 @@ void dce110_edp_wait_for_hpd_ready(
 	struct dc_context *ctx = link->ctx;
 	struct graphics_object_id connector = link->link_enc->connector;
 	struct gpio *hpd;
-	struct dc_sink *sink = link->local_sink;
 	bool edp_hpd_high = false;
 	uint32_t time_elapsed = 0;
 	uint32_t timeout = power_up ?
@@ -755,9 +754,9 @@ void dce110_edp_wait_for_hpd_ready(
 		return;
 	}
 
-	if (sink != NULL) {
-		if (sink->edid_caps.panel_patch.extra_t3_ms > 0) {
-			int extra_t3_in_ms = sink->edid_caps.panel_patch.extra_t3_ms;
+	if (link != NULL) {
+		if (link->panel_config.pps.extra_t3_ms > 0) {
+			int extra_t3_in_ms = link->panel_config.pps.extra_t3_ms;
 
 			msleep(extra_t3_in_ms);
 		}
@@ -842,7 +841,7 @@ void dce110_edp_power_control(
 			/* add time defined by a patch, if any (usually patch extra_t12_ms is 0) */
 			if (link->local_sink != NULL)
 				remaining_min_edp_poweroff_time_ms +=
-					link->local_sink->edid_caps.panel_patch.extra_t12_ms;
+					link->panel_config.pps.extra_t12_ms;
 
 			/* Adjust remaining_min_edp_poweroff_time_ms if this is not the first time. */
 			if (dp_trace_get_edp_poweroff_timestamp(link) != 0) {
@@ -946,7 +945,7 @@ void dce110_edp_wait_for_T12(
 						current_ts,
 						dp_trace_get_edp_poweroff_timestamp(link)), 1000000);
 
-		t12_duration += link->local_sink->edid_caps.panel_patch.extra_t12_ms; // Add extra T12
+		t12_duration += link->panel_config.pps.extra_t12_ms; // Add extra T12
 
 		if (time_since_edp_poweroff_ms < t12_duration)
 			msleep(t12_duration - time_since_edp_poweroff_ms);
@@ -965,6 +964,8 @@ void dce110_edp_backlight_control(
 	struct dc_context *ctx = link->ctx;
 	struct bp_transmitter_control cntl = { 0 };
 	uint8_t panel_instance;
+	unsigned int pre_T11_delay = OLED_PRE_T11_DELAY;
+	unsigned int post_T7_delay = OLED_POST_T7_DELAY;
 
 	if (dal_graphics_object_id_get_connector_id(link->link_enc->connector)
 		!= CONNECTOR_ID_EDP) {
@@ -1043,8 +1044,10 @@ void dce110_edp_backlight_control(
 
 	link_transmitter_control(ctx->dc_bios, &cntl);
 
-	if (enable && link->dpcd_sink_ext_caps.bits.oled)
-		msleep(OLED_POST_T7_DELAY);
+	if (enable && link->dpcd_sink_ext_caps.bits.oled) {
+		post_T7_delay += link->panel_config.pps.extra_post_t7_ms;
+		msleep(post_T7_delay);
+	}
 
 	if (link->dpcd_sink_ext_caps.bits.oled ||
 		link->dpcd_sink_ext_caps.bits.hdr_aux_backlight_control == 1 ||
@@ -1066,8 +1069,10 @@ void dce110_edp_backlight_control(
 			DC_LOG_DC("edp_receiver_ready_T9 skipped\n");
 	}
 
-	if (!enable && link->dpcd_sink_ext_caps.bits.oled)
-		msleep(OLED_PRE_T11_DELAY);
+	if (!enable && link->dpcd_sink_ext_caps.bits.oled) {
+		pre_T11_delay += link->panel_config.pps.extra_pre_t11_ms;
+		msleep(pre_T11_delay);
+	}
 }
 
 void dce110_enable_audio_stream(struct pipe_ctx *pipe_ctx)
