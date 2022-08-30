@@ -1115,12 +1115,14 @@ static int usb4_set_xdomain_configured(struct tb_port *port, bool configured)
 /**
  * usb4_port_configure_xdomain() - Configure port for XDomain
  * @port: USB4 port connected to another host
+ * @xd: XDomain that is connected to the port
  *
- * Marks the USB4 port as being connected to another host. Returns %0 in
- * success and negative errno in failure.
+ * Marks the USB4 port as being connected to another host and updates
+ * the link type. Returns %0 in success and negative errno in failure.
  */
-int usb4_port_configure_xdomain(struct tb_port *port)
+int usb4_port_configure_xdomain(struct tb_port *port, struct tb_xdomain *xd)
 {
+	xd->link_usb4 = link_is_usb4(port);
 	return usb4_set_xdomain_configured(port, true);
 }
 
