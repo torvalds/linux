@@ -123,9 +123,9 @@ static int aspeed_hace_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, hace_dev);
 
 	hace_dev->regs = devm_ioremap_resource(&pdev->dev, res);
-	if (!hace_dev->regs) {
+	if (IS_ERR(hace_dev->regs)) {
 		dev_err(&pdev->dev, "Failed to map resources\n");
-		return -ENOMEM;
+		return PTR_ERR(hace_dev->regs);
 	}
 
 	/* Get irq number and register it */
