@@ -241,6 +241,7 @@
 &rkcif_mipi_lvds {
 	status = "okay";
 
+	memory-region-thunderboot = <&rkisp_thunderboot>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&mipi_pins>;
 	port {
@@ -267,8 +268,8 @@
 };
 
 &rkisp_thunderboot {
-	/* 6M for NV12 (w*h*1.5*2) w and h 16 align, 1920/1088 */
-	reg = <0x01e60000 (6 * 0x00100000)>;
+	/* vicap, capture raw10, ceil(w*10/8/256)*256*h *4(buf num) */
+	reg = <0x01e60000 0xa8c000>;
 };
 
 &rkisp_vir0 {
