@@ -1,3 +1,5 @@
+qcom_wdt_core.ko
+gh_virt_wdt.ko
 clk-rpmh.ko
 gcc-kalama.ko
 icc-rpmh.ko
@@ -25,6 +27,7 @@ mem_buf_dev.ko
 mem_buf.ko
 msm_dma_iommu_mapping.ko
 pinctrl-kalama.ko
+qcom-dload-mode.ko
 qnoc-kalama.ko
 phy-qcom-ufs.ko
 phy-qcom-ufs-qmp-v4-kalama.ko
