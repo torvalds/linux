@@ -9,4 +9,5 @@ video_rkcif-objs += dev.o \
 			procfs.o \
 			cif-scale.o \
 			common.o \
-			cif-tools.o
+			cif-tools.o \
+			cif-rockit.o

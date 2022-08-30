@@ -101,11 +101,12 @@ enum rkcif_workmode {
 };
 
 enum rkcif_stream_mode {
-	RKCIF_STREAM_MODE_NONE = 0x0,
-	RKCIF_STREAM_MODE_CAPTURE = 0x01,
-	RKCIF_STREAM_MODE_TOISP = 0x02,
-	RKCIF_STREAM_MODE_TOSCALE = 0x04,
-	RKCIF_STREAM_MODE_TOISP_RDBK = 0x08
+	RKCIF_STREAM_MODE_NONE       = 0x0,
+	RKCIF_STREAM_MODE_CAPTURE    = 0x01,
+	RKCIF_STREAM_MODE_TOISP      = 0x02,
+	RKCIF_STREAM_MODE_TOSCALE    = 0x04,
+	RKCIF_STREAM_MODE_TOISP_RDBK = 0x08,
+	RKCIF_STREAM_MODE_ROCKIT     = 0x10
 };
 
 enum rkcif_yuvaddr_state {
@@ -445,6 +446,7 @@ enum rkcif_dma_en_mode {
 	RKCIF_DMAEN_BY_ISP = 0x2,
 	RKCIF_DMAEN_BY_VICAP_TO_ISP = 0x4,
 	RKCIF_DMAEN_BY_ISP_TO_VICAP = 0x8,
+	RKCIF_DMAEN_BY_ROCKIT = 0x10,
 };
 
 struct rkcif_skip_info {
@@ -484,6 +486,9 @@ struct rkcif_stream {
 	struct rkcif_buffer		*next_buf;
 	struct rkcif_rx_buffer		*curr_buf_toisp;
 	struct rkcif_rx_buffer		*next_buf_toisp;
+	struct list_head		rockit_buf_head;
+	struct rkcif_buffer		*curr_buf_rockit;
+	struct rkcif_buffer		*next_buf_rockit;
 
 	spinlock_t vbq_lock; /* vfd lock */
 	spinlock_t fps_lock;
@@ -909,5 +914,9 @@ int rkcif_clr_unready_dev(void);
 
 const struct
 cif_output_fmt *rkcif_find_output_fmt(struct rkcif_stream *stream, u32 pixelfmt);
+/* Rockit */
+int rkcif_rockit_buf_done(struct rkcif_stream *stream, struct rkcif_buffer *buf);
+void rkcif_rockit_dev_init(struct rkcif_device *dev);
+void rkcif_rockit_dev_deinit(void);
 
 #endif
