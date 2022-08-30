@@ -1710,7 +1710,7 @@ static int devlink_nl_cmd_port_split_doit(struct sk_buff *skb,
 	struct devlink *devlink = info->user_ptr[0];
 	u32 count;
 
-	if (!info->attrs[DEVLINK_ATTR_PORT_SPLIT_COUNT])
+	if (GENL_REQ_ATTR_CHECK(info, DEVLINK_ATTR_PORT_SPLIT_COUNT))
 		return -EINVAL;
 	if (!devlink->ops->port_split)
 		return -EOPNOTSUPP;
@@ -1838,7 +1838,7 @@ static int devlink_nl_cmd_port_del_doit(struct sk_buff *skb,
 	if (!devlink->ops->port_del)
 		return -EOPNOTSUPP;
 
-	if (!info->attrs[DEVLINK_ATTR_PORT_INDEX]) {
+	if (GENL_REQ_ATTR_CHECK(info, DEVLINK_ATTR_PORT_INDEX)) {
 		NL_SET_ERR_MSG_MOD(extack, "Port index is not specified");
 		return -EINVAL;
 	}
@@ -2690,7 +2690,7 @@ static int devlink_nl_cmd_sb_pool_set_doit(struct sk_buff *skb,
 	if (err)
 		return err;
 
-	if (!info->attrs[DEVLINK_ATTR_SB_POOL_SIZE])
+	if (GENL_REQ_ATTR_CHECK(info, DEVLINK_ATTR_SB_POOL_SIZE))
 		return -EINVAL;
 
 	size = nla_get_u32(info->attrs[DEVLINK_ATTR_SB_POOL_SIZE]);
@@ -2900,7 +2900,7 @@ static int devlink_nl_cmd_sb_port_pool_set_doit(struct sk_buff *skb,
 	if (err)
 		return err;
 
-	if (!info->attrs[DEVLINK_ATTR_SB_THRESHOLD])
+	if (GENL_REQ_ATTR_CHECK(info, DEVLINK_ATTR_SB_THRESHOLD))
 		return -EINVAL;
 
 	threshold = nla_get_u32(info->attrs[DEVLINK_ATTR_SB_THRESHOLD]);
@@ -3156,7 +3156,7 @@ static int devlink_nl_cmd_sb_tc_pool_bind_set_doit(struct sk_buff *skb,
 	if (err)
 		return err;
 
-	if (!info->attrs[DEVLINK_ATTR_SB_THRESHOLD])
+	if (GENL_REQ_ATTR_CHECK(info, DEVLINK_ATTR_SB_THRESHOLD))
 		return -EINVAL;
 
 	threshold = nla_get_u32(info->attrs[DEVLINK_ATTR_SB_THRESHOLD]);
@@ -3845,7 +3845,7 @@ static int devlink_nl_cmd_dpipe_entries_get(struct sk_buff *skb,
 	struct devlink_dpipe_table *table;
 	const char *table_name;
 
-	if (!info->attrs[DEVLINK_ATTR_DPIPE_TABLE_NAME])
+	if (GENL_REQ_ATTR_CHECK(info, DEVLINK_ATTR_DPIPE_TABLE_NAME))
 		return -EINVAL;
 
 	table_name = nla_data(info->attrs[DEVLINK_ATTR_DPIPE_TABLE_NAME]);
@@ -4029,8 +4029,9 @@ static int devlink_nl_cmd_dpipe_table_counters_set(struct sk_buff *skb,
 	const char *table_name;
 	bool counters_enable;
 
-	if (!info->attrs[DEVLINK_ATTR_DPIPE_TABLE_NAME] ||
-	    !info->attrs[DEVLINK_ATTR_DPIPE_TABLE_COUNTERS_ENABLED])
+	if (GENL_REQ_ATTR_CHECK(info, DEVLINK_ATTR_DPIPE_TABLE_NAME) ||
+	    GENL_REQ_ATTR_CHECK(info,
+				DEVLINK_ATTR_DPIPE_TABLE_COUNTERS_ENABLED))
 		return -EINVAL;
 
 	table_name = nla_data(info->attrs[DEVLINK_ATTR_DPIPE_TABLE_NAME]);
@@ -4119,8 +4120,8 @@ static int devlink_nl_cmd_resource_set(struct sk_buff *skb,
 	u64 size;
 	int err;
 
-	if (!info->attrs[DEVLINK_ATTR_RESOURCE_ID] ||
-	    !info->attrs[DEVLINK_ATTR_RESOURCE_SIZE])
+	if (GENL_REQ_ATTR_CHECK(info, DEVLINK_ATTR_RESOURCE_ID) ||
+	    GENL_REQ_ATTR_CHECK(info, DEVLINK_ATTR_RESOURCE_SIZE))
 		return -EINVAL;
 	resource_id = nla_get_u64(info->attrs[DEVLINK_ATTR_RESOURCE_ID]);
 
@@ -4821,7 +4822,7 @@ static int devlink_nl_cmd_flash_update(struct sk_buff *skb,
 	if (!devlink->ops->flash_update)
 		return -EOPNOTSUPP;
 
-	if (!info->attrs[DEVLINK_ATTR_FLASH_UPDATE_FILE_NAME])
+	if (GENL_REQ_ATTR_CHECK(info, DEVLINK_ATTR_FLASH_UPDATE_FILE_NAME))
 		return -EINVAL;
 
 	ret = devlink_flash_component_get(devlink,
@@ -4998,10 +4999,8 @@ static int devlink_nl_cmd_selftests_run(struct sk_buff *skb,
 	if (!devlink->ops->selftest_run || !devlink->ops->selftest_check)
 		return -EOPNOTSUPP;
 
-	if (!info->attrs[DEVLINK_ATTR_SELFTESTS]) {
-		NL_SET_ERR_MSG_MOD(info->extack, "selftest required");
+	if (GENL_REQ_ATTR_CHECK(info, DEVLINK_ATTR_SELFTESTS))
 		return -EINVAL;
-	}
 
 	attrs = info->attrs[DEVLINK_ATTR_SELFTESTS];
 
@@ -5455,7 +5454,7 @@ static int
 devlink_param_type_get_from_info(struct genl_info *info,
 				 enum devlink_param_type *param_type)
 {
-	if (!info->attrs[DEVLINK_ATTR_PARAM_TYPE])
+	if (GENL_REQ_ATTR_CHECK(info, DEVLINK_ATTR_PARAM_TYPE))
 		return -EINVAL;
 
 	switch (nla_get_u8(info->attrs[DEVLINK_ATTR_PARAM_TYPE])) {
@@ -5532,7 +5531,7 @@ devlink_param_get_from_info(struct list_head *param_list,
 {
 	char *param_name;
 
-	if (!info->attrs[DEVLINK_ATTR_PARAM_NAME])
+	if (GENL_REQ_ATTR_CHECK(info, DEVLINK_ATTR_PARAM_NAME))
 		return NULL;
 
 	param_name = nla_data(info->attrs[DEVLINK_ATTR_PARAM_NAME]);
@@ -5598,7 +5597,7 @@ static int __devlink_nl_cmd_param_set_doit(struct devlink *devlink,
 			return err;
 	}
 
-	if (!info->attrs[DEVLINK_ATTR_PARAM_VALUE_CMODE])
+	if (GENL_REQ_ATTR_CHECK(info, DEVLINK_ATTR_PARAM_VALUE_CMODE))
 		return -EINVAL;
 	cmode = nla_get_u8(info->attrs[DEVLINK_ATTR_PARAM_VALUE_CMODE]);
 	if (!devlink_param_cmode_is_supported(param, cmode))
@@ -6118,7 +6117,7 @@ static int devlink_nl_cmd_region_get_doit(struct sk_buff *skb,
 	unsigned int index;
 	int err;
 
-	if (!info->attrs[DEVLINK_ATTR_REGION_NAME])
+	if (GENL_REQ_ATTR_CHECK(info, DEVLINK_ATTR_REGION_NAME))
 		return -EINVAL;
 
 	if (info->attrs[DEVLINK_ATTR_PORT_INDEX]) {
@@ -6251,8 +6250,8 @@ static int devlink_nl_cmd_region_del(struct sk_buff *skb,
 	unsigned int index;
 	u32 snapshot_id;
 
-	if (!info->attrs[DEVLINK_ATTR_REGION_NAME] ||
-	    !info->attrs[DEVLINK_ATTR_REGION_SNAPSHOT_ID])
+	if (GENL_REQ_ATTR_CHECK(info, DEVLINK_ATTR_REGION_NAME) ||
+	    GENL_REQ_ATTR_CHECK(info, DEVLINK_ATTR_REGION_SNAPSHOT_ID))
 		return -EINVAL;
 
 	region_name = nla_data(info->attrs[DEVLINK_ATTR_REGION_NAME]);
@@ -6300,7 +6299,7 @@ devlink_nl_cmd_region_new(struct sk_buff *skb, struct genl_info *info)
 	u8 *data;
 	int err;
 
-	if (!info->attrs[DEVLINK_ATTR_REGION_NAME]) {
+	if (GENL_REQ_ATTR_CHECK(info, DEVLINK_ATTR_REGION_NAME)) {
 		NL_SET_ERR_MSG_MOD(info->extack, "No region name provided");
 		return -EINVAL;
 	}
