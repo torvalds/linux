@@ -183,12 +183,12 @@ static void pnv_gmbus_clock_gating(struct drm_i915_private *dev_priv,
 	u32 val;
 
 	/* When using bit bashing for I2C, this bit needs to be set to 1 */
-	val = intel_de_read(dev_priv, DSPCLK_GATE_D);
+	val = intel_de_read(dev_priv, DSPCLK_GATE_D(dev_priv));
 	if (!enable)
 		val |= PNV_GMBUSUNIT_CLOCK_GATE_DISABLE;
 	else
 		val &= ~PNV_GMBUSUNIT_CLOCK_GATE_DISABLE;
-	intel_de_write(dev_priv, DSPCLK_GATE_D, val);
+	intel_de_write(dev_priv, DSPCLK_GATE_D(dev_priv), val);
 }
 
 static void pch_gmbus_clock_gating(struct drm_i915_private *dev_priv,

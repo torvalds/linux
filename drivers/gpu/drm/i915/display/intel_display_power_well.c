@@ -1157,10 +1157,10 @@ static void vlv_init_display_clock_gating(struct drm_i915_private *dev_priv)
 	 * (and never recovering) in this case. intel_dsi_post_disable() will
 	 * clear it when we turn off the display.
 	 */
-	val = intel_de_read(dev_priv, DSPCLK_GATE_D);
+	val = intel_de_read(dev_priv, DSPCLK_GATE_D(dev_priv));
 	val &= DPOUNIT_CLOCK_GATE_DISABLE;
 	val |= VRHUNIT_CLOCK_GATE_DISABLE;
-	intel_de_write(dev_priv, DSPCLK_GATE_D, val);
+	intel_de_write(dev_priv, DSPCLK_GATE_D(dev_priv), val);
 
 	/*
 	 * Disable trickle feed and enable pnd deadline calculation

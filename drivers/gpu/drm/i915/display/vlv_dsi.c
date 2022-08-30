@@ -822,9 +822,9 @@ static void intel_dsi_pre_enable(struct intel_atomic_state *state,
 		u32 val;
 
 		/* Disable DPOunit clock gating, can stall pipe */
-		val = intel_de_read(dev_priv, DSPCLK_GATE_D);
+		val = intel_de_read(dev_priv, DSPCLK_GATE_D(dev_priv));
 		val |= DPOUNIT_CLOCK_GATE_DISABLE;
-		intel_de_write(dev_priv, DSPCLK_GATE_D, val);
+		intel_de_write(dev_priv, DSPCLK_GATE_D(dev_priv), val);
 	}
 
 	if (!IS_GEMINILAKE(dev_priv))
@@ -998,9 +998,9 @@ static void intel_dsi_post_disable(struct intel_atomic_state *state,
 
 		vlv_dsi_pll_disable(encoder);
 
-		val = intel_de_read(dev_priv, DSPCLK_GATE_D);
+		val = intel_de_read(dev_priv, DSPCLK_GATE_D(dev_priv));
 		val &= ~DPOUNIT_CLOCK_GATE_DISABLE;
-		intel_de_write(dev_priv, DSPCLK_GATE_D, val);
+		intel_de_write(dev_priv, DSPCLK_GATE_D(dev_priv), val);
 	}
 
 	/* Assert reset */
