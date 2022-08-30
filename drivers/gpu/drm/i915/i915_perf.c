@@ -1376,7 +1376,8 @@ static void i915_oa_stream_destroy(struct i915_perf_stream *stream)
 {
 	struct i915_perf *perf = stream->perf;
 
-	BUG_ON(stream != perf->exclusive_stream);
+	if (WARN_ON(stream != perf->exclusive_stream))
+		return;
 
 	/*
 	 * Unset exclusive_stream first, it will be checked while disabling
