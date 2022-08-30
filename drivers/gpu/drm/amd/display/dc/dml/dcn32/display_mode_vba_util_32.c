@@ -3363,28 +3363,14 @@ double dml32_CalculateExtraLatency(
 } // CalculateExtraLatency
 
 bool dml32_CalculatePrefetchSchedule(
+		struct vba_vars_st *v,
+		unsigned int k,
 		double HostVMInefficiencyFactor,
 		DmlPipe *myPipe,
 		unsigned int DSCDelay,
-		double DPPCLKDelaySubtotalPlusCNVCFormater,
-		double DPPCLKDelaySCL,
-		double DPPCLKDelaySCLLBOnly,
-		double DPPCLKDelayCNVCCursor,
-		double DISPCLKDelaySubtotal,
 		unsigned int DPP_RECOUT_WIDTH,
-		enum output_format_class OutputFormat,
-		unsigned int MaxInterDCNTileRepeaters,
 		unsigned int VStartup,
 		unsigned int MaxVStartup,
-		unsigned int GPUVMPageTableLevels,
-		bool GPUVMEnable,
-		bool HostVMEnable,
-		unsigned int HostVMMaxNonCachedPageTableLevels,
-		double HostVMMinPageSize,
-		bool DynamicMetadataEnable,
-		bool DynamicMetadataVMEnabled,
-		int DynamicMetadataLinesBeforeActiveRequired,
-		unsigned int DynamicMetadataTransmittedBytes,
 		double UrgentLatency,
 		double UrgentExtraLatency,
 		double TCalc,
@@ -3425,6 +3411,7 @@ bool dml32_CalculatePrefetchSchedule(
 		double   *VUpdateWidthPix,
 		double   *VReadyOffsetPix)
 {
+	double DPPCLKDelaySubtotalPlusCNVCFormater = v->DPPCLKDelaySubtotal + v->DPPCLKDelayCNVCFormater;
 	bool MyError = false;
 	unsigned int DPPCycles, DISPCLKCycles;
 	double DSTTotalPixelsAfterScaler;
@@ -3461,27 +3448,27 @@ bool dml32_CalculatePrefetchSchedule(
 	double  Tsw_est1 = 0;
 	double  Tsw_est3 = 0;
 
-	if (GPUVMEnable == true && HostVMEnable == true)
-		HostVMDynamicLevelsTrips = HostVMMaxNonCachedPageTableLevels;
+	if (v->GPUVMEnable == true && v->HostVMEnable == true)
+		HostVMDynamicLevelsTrips = v->HostVMMaxNonCachedPageTableLevels;
 	else
 		HostVMDynamicLevelsTrips = 0;
 #ifdef __DML_VBA_DEBUG__
-	dml_print("DML::%s: GPUVMEnable = %d\n", __func__, GPUVMEnable);
-	dml_print("DML::%s: GPUVMPageTableLevels = %d\n", __func__, GPUVMPageTableLevels);
+	dml_print("DML::%s: v->GPUVMEnable = %d\n", __func__, v->GPUVMEnable);
+	dml_print("DML::%s: v->GPUVMMaxPageTableLevels = %d\n", __func__, v->GPUVMMaxPageTableLevels);
 	dml_print("DML::%s: DCCEnable = %d\n", __func__, myPipe->DCCEnable);
-	dml_print("DML::%s: HostVMEnable=%d HostVMInefficiencyFactor=%f\n",
-			__func__, HostVMEnable, HostVMInefficiencyFactor);
+	dml_print("DML::%s: v->HostVMEnable=%d HostVMInefficiencyFactor=%f\n",
+			__func__, v->HostVMEnable, HostVMInefficiencyFactor);
 #endif
 	dml32_CalculateVUpdateAndDynamicMetadataParameters(
-			MaxInterDCNTileRepeaters,
+			v->MaxInterDCNTileRepeaters,
 			myPipe->Dppclk,
 			myPipe->Dispclk,
 			myPipe->DCFClkDeepSleep,
 			myPipe->PixelClock,
 			myPipe->HTotal,
 			myPipe->VBlank,
-			DynamicMetadataTransmittedBytes,
-			DynamicMetadataLinesBeforeActiveRequired,
+			v->DynamicMetadataTransmittedBytes[k],
+			v->DynamicMetadataLinesBeforeActiveRequired[k],
 			myPipe->InterlaceEnable,
 			myPipe->ProgressiveToInterlaceUnitInOPP,
 			TSetup,
@@ -3496,19 +3483,19 @@ bool dml32_CalculatePrefetchSchedule(
 
 	LineTime = myPipe->HTotal / myPipe->PixelClock;
 	trip_to_mem = UrgentLatency;
-	Tvm_trips = UrgentExtraLatency + trip_to_mem * (GPUVMPageTableLevels * (HostVMDynamicLevelsTrips + 1) - 1);
+	Tvm_trips = UrgentExtraLatency + trip_to_mem * (v->GPUVMMaxPageTableLevels * (HostVMDynamicLevelsTrips + 1) - 1);
 
-	if (DynamicMetadataVMEnabled == true)
+	if (v->DynamicMetadataVMEnabled == true)
 		*Tdmdl = TWait + Tvm_trips + trip_to_mem;
 	else
 		*Tdmdl = TWait + UrgentExtraLatency;
 
 #ifdef __DML_VBA_ALLOW_DELTA__
-	if (DynamicMetadataEnable == false)
+	if (v->DynamicMetadataEnable[k] == false)
 		*Tdmdl = 0.0;
 #endif
 
-	if (DynamicMetadataEnable == true) {
+	if (v->DynamicMetadataEnable[k] == true) {
 		if (VStartup * LineTime < *TSetup + *Tdmdl + Tdmbf + Tdmec + Tdmsks) {
 			*NotEnoughTimeForDynamicMetadata = true;
 #ifdef __DML_VBA_DEBUG__
@@ -3528,17 +3515,17 @@ bool dml32_CalculatePrefetchSchedule(
 		*NotEnoughTimeForDynamicMetadata = false;
 	}
 
-	*Tdmdl_vm =  (DynamicMetadataEnable == true && DynamicMetadataVMEnabled == true &&
-			GPUVMEnable == true ? TWait + Tvm_trips : 0);
+	*Tdmdl_vm =  (v->DynamicMetadataEnable[k] == true && v->DynamicMetadataVMEnabled == true &&
+			v->GPUVMEnable == true ? TWait + Tvm_trips : 0);
 
 	if (myPipe->ScalerEnabled)
-		DPPCycles = DPPCLKDelaySubtotalPlusCNVCFormater + DPPCLKDelaySCL;
+		DPPCycles = DPPCLKDelaySubtotalPlusCNVCFormater + v->DPPCLKDelaySCL;
 	else
-		DPPCycles = DPPCLKDelaySubtotalPlusCNVCFormater + DPPCLKDelaySCLLBOnly;
+		DPPCycles = DPPCLKDelaySubtotalPlusCNVCFormater + v->DPPCLKDelaySCLLBOnly;
 
-	DPPCycles = DPPCycles + myPipe->NumberOfCursors * DPPCLKDelayCNVCCursor;
+	DPPCycles = DPPCycles + myPipe->NumberOfCursors * v->DPPCLKDelayCNVCCursor;
 
-	DISPCLKCycles = DISPCLKDelaySubtotal;
+	DISPCLKCycles = v->DISPCLKDelaySubtotal;
 
 	if (myPipe->Dppclk == 0.0 || myPipe->Dispclk == 0.0)
 		return true;
@@ -3564,7 +3551,7 @@ bool dml32_CalculatePrefetchSchedule(
 	dml_print("DML::%s: DSTXAfterScaler: %d\n", __func__,  *DSTXAfterScaler);
 #endif
 
-	if (OutputFormat == dm_420 || (myPipe->InterlaceEnable && myPipe->ProgressiveToInterlaceUnitInOPP))
+	if (v->OutputFormat[k] == dm_420 || (myPipe->InterlaceEnable && myPipe->ProgressiveToInterlaceUnitInOPP))
 		*DSTYAfterScaler = 1;
 	else
 		*DSTYAfterScaler = 0;
@@ -3581,13 +3568,13 @@ bool dml32_CalculatePrefetchSchedule(
 
 	Tr0_trips = trip_to_mem * (HostVMDynamicLevelsTrips + 1);
 
-	if (GPUVMEnable == true) {
+	if (v->GPUVMEnable == true) {
 		Tvm_trips_rounded = dml_ceil(4.0 * Tvm_trips / LineTime, 1.0) / 4.0 * LineTime;
 		Tr0_trips_rounded = dml_ceil(4.0 * Tr0_trips / LineTime, 1.0) / 4.0 * LineTime;
-		if (GPUVMPageTableLevels >= 3) {
+		if (v->GPUVMMaxPageTableLevels >= 3) {
 			*Tno_bw = UrgentExtraLatency + trip_to_mem *
-					(double) ((GPUVMPageTableLevels - 2) * (HostVMDynamicLevelsTrips + 1) - 1);
-		} else if (GPUVMPageTableLevels == 1 && myPipe->DCCEnable != true) {
+					(double) ((v->GPUVMMaxPageTableLevels - 2) * (HostVMDynamicLevelsTrips + 1) - 1);
+		} else if (v->GPUVMMaxPageTableLevels == 1 && myPipe->DCCEnable != true) {
 			Tr0_trips_rounded = dml_ceil(4.0 * UrgentExtraLatency / LineTime, 1.0) /
 					4.0 * LineTime; // VBA_ERROR
 			*Tno_bw = UrgentExtraLatency;
@@ -3622,7 +3609,7 @@ bool dml32_CalculatePrefetchSchedule(
 	min_Lsw = dml_max(min_Lsw, 1.0);
 	Lsw_oto = dml_ceil(4.0 * dml_max(prefetch_sw_bytes / prefetch_bw_oto / LineTime, min_Lsw), 1.0) / 4.0;
 
-	if (GPUVMEnable == true) {
+	if (v->GPUVMEnable == true) {
 		Tvm_oto = dml_max3(
 				Tvm_trips,
 				*Tno_bw + PDEAndMetaPTEBytesFrame * HostVMInefficiencyFactor / prefetch_bw_oto,
@@ -3630,7 +3617,7 @@ bool dml32_CalculatePrefetchSchedule(
 	} else
 		Tvm_oto = LineTime / 4.0;
 
-	if ((GPUVMEnable == true || myPipe->DCCEnable == true)) {
+	if ((v->GPUVMEnable == true || myPipe->DCCEnable == true)) {
 		Tr0_oto = dml_max4(
 				Tr0_trips,
 				(MetaRowByte + PixelPTEBytesPerRow * HostVMInefficiencyFactor) / prefetch_bw_oto,
@@ -3833,7 +3820,7 @@ bool dml32_CalculatePrefetchSchedule(
 #endif
 
 			if (prefetch_bw_equ > 0) {
-				if (GPUVMEnable == true) {
+				if (v->GPUVMEnable == true) {
 					Tvm_equ = dml_max3(*Tno_bw + PDEAndMetaPTEBytesFrame *
 							HostVMInefficiencyFactor / prefetch_bw_equ,
 							Tvm_trips, LineTime / 4);
@@ -3841,7 +3828,7 @@ bool dml32_CalculatePrefetchSchedule(
 					Tvm_equ = LineTime / 4;
 				}
 
-				if ((GPUVMEnable == true || myPipe->DCCEnable == true)) {
+				if ((v->GPUVMEnable == true || myPipe->DCCEnable == true)) {
 					Tr0_equ = dml_max4((MetaRowByte + PixelPTEBytesPerRow *
 							HostVMInefficiencyFactor) / prefetch_bw_equ, Tr0_trips,
 							(LineTime - Tvm_equ) / 2, LineTime / 4);
