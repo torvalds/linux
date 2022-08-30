@@ -489,8 +489,10 @@ static void papr_scm_pmu_register(struct papr_scm_priv *p)
 		goto pmu_err_print;
 	}
 
-	if (!p->stat_buffer_len)
+	if (!p->stat_buffer_len) {
+		rc = -ENOENT;
 		goto pmu_check_events_err;
+	}
 
 	nd_pmu->pmu.task_ctx_nr = perf_invalid_context;
 	nd_pmu->pmu.name = nvdimm_name(p->nvdimm);
