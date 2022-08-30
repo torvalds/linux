@@ -32,6 +32,7 @@ struct sockopt_test {
 	unsigned int flip:1;
 };
 
+static const char not_exist_cc[] = "not_exist";
 static const char cubic_cc[] = "cubic";
 static const char reno_cc[] = "reno";
 
@@ -307,6 +308,9 @@ static int bpf_test_tcp_sockopt(__u32 i, struct loop_ctx *lc)
 		const char *new_cc;
 		int new_cc_len;
 
+		if (!bpf_setsockopt(ctx, IPPROTO_TCP, TCP_CONGESTION,
+				    (void *)not_exist_cc, sizeof(not_exist_cc)))
+			return 1;
 		if (bpf_getsockopt(ctx, IPPROTO_TCP, TCP_CONGESTION, old_cc, sizeof(old_cc)))
 			return 1;
 		if (!bpf_strncmp(old_cc, sizeof(old_cc), cubic_cc)) {
