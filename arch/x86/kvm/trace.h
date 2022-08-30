@@ -394,15 +394,14 @@ TRACE_EVENT(kvm_inj_exception,
  * Tracepoint for page fault.
  */
 TRACE_EVENT(kvm_page_fault,
-	TP_PROTO(struct kvm_vcpu *vcpu, unsigned long fault_address,
-		 unsigned int error_code),
+	TP_PROTO(struct kvm_vcpu *vcpu, u64 fault_address, u64 error_code),
 	TP_ARGS(vcpu, fault_address, error_code),
 
 	TP_STRUCT__entry(
 		__field(	unsigned int,	vcpu_id		)
 		__field(	unsigned long,	guest_rip	)
-		__field(	unsigned long,	fault_address	)
-		__field(	unsigned int,	error_code	)
+		__field(	u64,		fault_address	)
+		__field(	u64,		error_code	)
 	),
 
 	TP_fast_assign(
@@ -412,7 +411,7 @@ TRACE_EVENT(kvm_page_fault,
 		__entry->error_code	= error_code;
 	),
 
-	TP_printk("vcpu %u rip 0x%lx address 0x%lx error_code %x",
+	TP_printk("vcpu %u rip 0x%lx address 0x%016llx error_code 0x%llx",
 		  __entry->vcpu_id, __entry->guest_rip,
 		  __entry->fault_address, __entry->error_code)
 );
