@@ -154,6 +154,7 @@ static void console_callback(struct work_struct *ignored);
 static void con_driver_unregister_callback(struct work_struct *ignored);
 static void blank_screen_t(struct timer_list *unused);
 static void set_palette(struct vc_data *vc);
+static void unblank_screen(void);
 
 #define vt_get_kmsg_redirect() vt_kmsg_redirect(-1)
 
@@ -4448,7 +4449,7 @@ EXPORT_SYMBOL(do_unblank_screen);
  * call it with 1 as an argument and so force a mode restore... that may kill
  * X or at least garbage the screen but would also make the Oops visible...
  */
-void unblank_screen(void)
+static void unblank_screen(void)
 {
 	do_unblank_screen(0);
 }
