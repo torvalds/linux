@@ -185,10 +185,8 @@ static int cros_typec_register_mode_switch(struct cros_typec_port *port,
 	};
 
 	port->mode_switch = typec_mux_register(port->sdata->dev, &mode_switch_desc);
-	if (IS_ERR(port->mode_switch))
-		return PTR_ERR(port->mode_switch);
 
-	return 0;
+	return PTR_ERR_OR_ZERO(port->mode_switch);
 }
 
 static int cros_typec_register_retimer(struct cros_typec_port *port, struct fwnode_handle *fwnode)
@@ -201,10 +199,8 @@ static int cros_typec_register_retimer(struct cros_typec_port *port, struct fwno
 	};
 
 	port->retimer = typec_retimer_register(port->sdata->dev, &retimer_desc);
-	if (IS_ERR(port->retimer))
-		return PTR_ERR(port->retimer);
 
-	return 0;
+	return PTR_ERR_OR_ZERO(port->retimer);
 }
 
 static int cros_typec_register_switches(struct cros_typec_switch_data *sdata)
