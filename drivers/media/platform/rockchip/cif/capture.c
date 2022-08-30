@@ -3917,6 +3917,10 @@ void rkcif_do_stop_stream(struct rkcif_stream *stream,
 	bool can_reset = true;
 	int i;
 	unsigned long flags;
+	u32 vblank = 0;
+	u32 vblank_ns = 0;
+	u64 cur_time = 0;
+	u64 fe_time = 0;
 
 	mutex_lock(&dev->stream_lock);
 
@@ -3925,13 +3929,25 @@ void rkcif_do_stop_stream(struct rkcif_stream *stream,
 
 	if (mode == stream->cur_stream_mode) {
 		stream->stopping = true;
-
-		ret = wait_event_timeout(stream->wq_stopped,
-					 stream->state != RKCIF_STATE_STREAMING,
-					 msecs_to_jiffies(1000));
-		if (!ret) {
+		if (!dev->sensor_linetime)
+			dev->sensor_linetime = rkcif_get_linetime(stream);
+		vblank = rkcif_get_sensor_vblank(dev);
+		vblank_ns = vblank * dev->sensor_linetime;
+		spin_lock_irqsave(&stream->fps_lock, flags);
+		fe_time = stream->readout.fe_timestamp;
+		spin_unlock_irqrestore(&stream->fps_lock, flags);
+		cur_time = ktime_get_ns();
+		if (cur_time > fe_time && cur_time - fe_time < (vblank_ns - 200000)) {
 			rkcif_stream_stop(stream);
 			stream->stopping = false;
+		} else {
+			ret = wait_event_timeout(stream->wq_stopped,
+						 stream->state != RKCIF_STATE_STREAMING,
+						 msecs_to_jiffies(1000));
+			if (!ret) {
+				rkcif_stream_stop(stream);
+				stream->stopping = false;
+			}
 		}
 
 		media_pipeline_stop(&node->vdev.entity);
@@ -7477,6 +7493,12 @@ static void rkcif_deal_readout_time(struct rkcif_stream *stream)
 
 	spin_lock_irqsave(&stream->fps_lock, flags);
 	stream->readout.fe_timestamp = ktime_get_ns();
+
+	if (cif_dev->inf_id == RKCIF_DVP) {
+		spin_unlock_irqrestore(&stream->fps_lock, flags);
+		return;
+	}
+
 	if (stream->id == RKCIF_STREAM_MIPI_ID0)
 		detect_stream->readout.readout_time = stream->readout.fe_timestamp - stream->readout.fs_timestamp;
 
@@ -7527,8 +7549,7 @@ static void rkcif_update_stream(struct rkcif_device *cif_dev,
 		spin_unlock_irqrestore(&stream->fps_lock, flags);
 	}
 
-	if (cif_dev->inf_id == RKCIF_MIPI_LVDS)
-		rkcif_deal_readout_time(stream);
+	rkcif_deal_readout_time(stream);
 
 	if (!stream->is_line_wake_up) {
 		ret = rkcif_assign_new_buffer_pingpong(stream,
