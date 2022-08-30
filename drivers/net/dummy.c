@@ -102,7 +102,7 @@ static const struct net_device_ops dummy_netdev_ops = {
 static void dummy_get_drvinfo(struct net_device *dev,
 			      struct ethtool_drvinfo *info)
 {
-	strlcpy(info->driver, DRV_NAME, sizeof(info->driver));
+	strscpy(info->driver, DRV_NAME, sizeof(info->driver));
 }
 
 static const struct ethtool_ops dummy_ethtool_ops = {

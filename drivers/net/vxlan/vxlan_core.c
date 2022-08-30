@@ -3310,8 +3310,8 @@ static int vxlan_validate(struct nlattr *tb[], struct nlattr *data[],
 static void vxlan_get_drvinfo(struct net_device *netdev,
 			      struct ethtool_drvinfo *drvinfo)
 {
-	strlcpy(drvinfo->version, VXLAN_VERSION, sizeof(drvinfo->version));
-	strlcpy(drvinfo->driver, "vxlan", sizeof(drvinfo->driver));
+	strscpy(drvinfo->version, VXLAN_VERSION, sizeof(drvinfo->version));
+	strscpy(drvinfo->driver, "vxlan", sizeof(drvinfo->driver));
 }
 
 static int vxlan_get_link_ksettings(struct net_device *dev,

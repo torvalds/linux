@@ -1197,8 +1197,8 @@ static const struct net_device_ops geneve_netdev_ops = {
 static void geneve_get_drvinfo(struct net_device *dev,
 			       struct ethtool_drvinfo *drvinfo)
 {
-	strlcpy(drvinfo->version, GENEVE_NETDEV_VER, sizeof(drvinfo->version));
-	strlcpy(drvinfo->driver, "geneve", sizeof(drvinfo->driver));
+	strscpy(drvinfo->version, GENEVE_NETDEV_VER, sizeof(drvinfo->version));
+	strscpy(drvinfo->driver, "geneve", sizeof(drvinfo->driver));
 }
 
 static const struct ethtool_ops geneve_ethtool_ops = {

@@ -935,8 +935,8 @@ int netvsc_recv_callback(struct net_device *net,
 static void netvsc_get_drvinfo(struct net_device *net,
 			       struct ethtool_drvinfo *info)
 {
-	strlcpy(info->driver, KBUILD_MODNAME, sizeof(info->driver));
-	strlcpy(info->fw_version, "N/A", sizeof(info->fw_version));
+	strscpy(info->driver, KBUILD_MODNAME, sizeof(info->driver));
+	strscpy(info->fw_version, "N/A", sizeof(info->fw_version));
 }
 
 static void netvsc_get_channels(struct net_device *net,

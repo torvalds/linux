@@ -962,7 +962,7 @@ static void peak_usb_disconnect(struct usb_interface *intf)
 
 		dev_prev_siblings = dev->prev_siblings;
 		dev->state &= ~PCAN_USB_STATE_CONNECTED;
-		strlcpy(name, netdev->name, IFNAMSIZ);
+		strscpy(name, netdev->name, IFNAMSIZ);
 
 		unregister_netdev(netdev);
 

@@ -1296,7 +1296,7 @@ void bcm_sf2_cfp_get_strings(struct dsa_switch *ds, int port,
 				 "CFP%03d_%sCntr",
 				 i, bcm_sf2_cfp_stats[j].name);
 			iter = (i - 1) * s + j;
-			strlcpy(data + iter * ETH_GSTRING_LEN,
+			strscpy(data + iter * ETH_GSTRING_LEN,
 				buf, ETH_GSTRING_LEN);
 		}
 	}
