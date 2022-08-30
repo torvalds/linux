@@ -41,6 +41,9 @@ module_param(disable_tap_to_click, bool, 0644);
 MODULE_PARM_DESC(disable_tap_to_click,
 	"Disable Tap-To-Click mode reporting for touchpads (only on the K400 currently).");
 
+/* Define a non-zero software ID to identify our own requests */
+#define LINUX_KERNEL_SW_ID			0x01
+
 #define REPORT_ID_HIDPP_SHORT			0x10
 #define REPORT_ID_HIDPP_LONG			0x11
 #define REPORT_ID_HIDPP_VERY_LONG		0x12
@@ -343,7 +346,7 @@ static int hidpp_send_fap_command_sync(struct hidpp_device *hidpp,
 	else
 		message->report_id = REPORT_ID_HIDPP_LONG;
 	message->fap.feature_index = feat_index;
-	message->fap.funcindex_clientid = funcindex_clientid;
+	message->fap.funcindex_clientid = funcindex_clientid | LINUX_KERNEL_SW_ID;
 	memcpy(&message->fap.params, params, param_count);
 
 	ret = hidpp_send_message_sync(hidpp, message, response);
