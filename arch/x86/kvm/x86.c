@@ -179,7 +179,7 @@ EXPORT_SYMBOL_GPL(enable_vmware_backdoor);
  */
 #define KVM_FEP_CLEAR_RFLAGS_RF	BIT(1)
 static int __read_mostly force_emulation_prefix;
-module_param(force_emulation_prefix, int, 0444);
+module_param(force_emulation_prefix, int, 0644);
 
 int __read_mostly pi_inject_timer = -1;
 module_param(pi_inject_timer, bint, S_IRUGO | S_IWUSR);
@@ -7287,6 +7287,7 @@ static int kvm_can_emulate_insn(struct kvm_vcpu *vcpu, int emul_type,
 int handle_ud(struct kvm_vcpu *vcpu)
 {
 	static const char kvm_emulate_prefix[] = { __KVM_EMULATE_PREFIX };
+	int fep_flags = READ_ONCE(force_emulation_prefix);
 	int emul_type = EMULTYPE_TRAP_UD;
 	char sig[5]; /* ud2; .ascii "kvm" */
 	struct x86_exception e;
@@ -7294,11 +7295,11 @@ int handle_ud(struct kvm_vcpu *vcpu)
 	if (unlikely(!kvm_can_emulate_insn(vcpu, emul_type, NULL, 0)))
 		return 1;
 
-	if (force_emulation_prefix &&
+	if (fep_flags &&
 	    kvm_read_guest_virt(vcpu, kvm_get_linear_rip(vcpu),
 				sig, sizeof(sig), &e) == 0 &&
 	    memcmp(sig, kvm_emulate_prefix, sizeof(sig)) == 0) {
-		if (force_emulation_prefix & KVM_FEP_CLEAR_RFLAGS_RF)
+		if (fep_flags & KVM_FEP_CLEAR_RFLAGS_RF)
 			kvm_set_rflags(vcpu, kvm_get_rflags(vcpu) & ~X86_EFLAGS_RF);
 		kvm_rip_write(vcpu, kvm_rip_read(vcpu) + sizeof(sig));
 		emul_type = EMULTYPE_TRAP_UD_FORCED;
