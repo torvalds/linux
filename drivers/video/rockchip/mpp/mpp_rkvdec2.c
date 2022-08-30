@@ -478,6 +478,18 @@ static int rkvdec2_finish(struct mpp_dev *mpp, struct mpp_task *mpp_task)
 	task->reg[RKVDEC_REG_RLC_BASE_INDEX] = dec_length << 10;
 	mpp_debug(DEBUG_REGISTER, "dec_get %08x dec_length %d\n", dec_get, dec_length);
 
+	if (mpp->srv->timing_en) {
+		s64 time_diff;
+
+		mpp_task->on_finish = ktime_get();
+		set_bit(TASK_TIMING_FINISH, &mpp_task->state);
+
+		time_diff = ktime_us_delta(mpp_task->on_finish, mpp_task->on_create);
+
+		if (mpp->timing_check && time_diff > (s64)mpp->timing_check)
+			mpp_task_dump_timing(mpp_task, time_diff);
+	}
+
 	mpp_debug_leave();
 
 	return 0;

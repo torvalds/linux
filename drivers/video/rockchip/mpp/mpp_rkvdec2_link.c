@@ -1637,9 +1637,21 @@ static int rkvdec2_soft_ccu_dequeue(struct mpp_taskqueue *queue)
 		u32 irq_status = mpp->irq_status;
 		u32 timeout_flag = test_bit(TASK_STATE_TIMEOUT, &mpp_task->state);
 		u32 abort_flag = test_bit(TASK_STATE_ABORT, &mpp_task->state);
+		u32 timing_en = mpp->srv->timing_en;
 
 		if (irq_status || timeout_flag || abort_flag) {
 			struct rkvdec2_task *task = to_rkvdec2_task(mpp_task);
+
+			if (timing_en) {
+				mpp_task->on_irq = ktime_get();
+				set_bit(TASK_TIMING_IRQ, &mpp_task->state);
+
+				mpp_task->on_cancel_timeout = mpp_task->on_irq;
+				set_bit(TASK_TIMING_TO_CANCEL, &mpp_task->state);
+
+				mpp_task->on_isr = mpp_task->on_irq;
+				set_bit(TASK_TIMING_ISR, &mpp_task->state);
+			}
 
 			set_bit(TASK_STATE_HANDLE, &mpp_task->state);
 			cancel_delayed_work(&mpp_task->timeout_work);
@@ -1916,6 +1928,7 @@ void rkvdec2_soft_ccu_worker(struct kthread_work *work_s)
 	struct mpp_dev *mpp = container_of(work_s, struct mpp_dev, work);
 	struct mpp_taskqueue *queue = mpp->queue;
 	struct rkvdec2_dev *dec = to_rkvdec2_dev(mpp);
+	u32 timing_en = mpp->srv->timing_en;
 
 	mpp_debug_enter();
 
@@ -1959,6 +1972,11 @@ get_task:
 	if (!mpp)
 		goto out;
 
+	if (timing_en) {
+		mpp_task->on_run = ktime_get();
+		set_bit(TASK_TIMING_RUN, &mpp_task->state);
+	}
+
 	/* set session index */
 	rkvdec2_set_core_info(mpp_task->reg, mpp_task->session->index);
 	/* set rcb buffer */
@@ -1976,8 +1994,20 @@ get_task:
 	set_bit(TASK_STATE_START, &mpp_task->state);
 	INIT_DELAYED_WORK(&mpp_task->timeout_work, rkvdec2_ccu_link_timeout_work);
 	schedule_delayed_work(&mpp_task->timeout_work, msecs_to_jiffies(WORK_TIMEOUT_MS));
+
+	if (timing_en) {
+		mpp_task->on_sched_timeout = ktime_get();
+		set_bit(TASK_TIMING_TO_SCHED, &mpp_task->state);
+	}
+
 	rkvdec2_ccu_power_on(queue, dec->ccu);
 	rkvdec2_soft_ccu_enqueue(mpp, mpp_task);
+
+	if (timing_en) {
+		mpp_task->on_run_end = ktime_get();
+		set_bit(TASK_TIMING_RUN_END, &mpp_task->state);
+	}
+
 done:
 	if (list_empty(&queue->running_list) &&
 	    list_empty(&queue->pending_list))
