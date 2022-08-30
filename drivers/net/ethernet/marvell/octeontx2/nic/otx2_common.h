@@ -40,6 +40,11 @@
 
 #define NAME_SIZE                               32
 
+#ifdef CONFIG_DCB
+/* Max priority supported for PFC */
+#define NIX_PF_PFC_PRIO_MAX			8
+#endif
+
 enum arua_mapped_qtypes {
 	AURA_NIX_RQ,
 	AURA_NIX_SQ,
@@ -196,7 +201,7 @@ struct otx2_hw {
 
 	/* NIX */
 	u8			txschq_link_cfg_lvl;
-	u16		txschq_list[NIX_TXSCH_LVL_CNT][MAX_TXSCHQ_PER_FUNC];
+	u16			txschq_list[NIX_TXSCH_LVL_CNT][MAX_TXSCHQ_PER_FUNC];
 	u16			matchall_ipolicer;
 	u32			dwrr_mtu;
 
@@ -415,6 +420,8 @@ struct otx2_nic {
 	/* PFC */
 	u8			pfc_en;
 	u8			*queue_to_pfc_map;
+	u16			pfc_schq_list[NIX_TXSCH_LVL_CNT][MAX_TXSCHQ_PER_FUNC];
+	bool			pfc_alloc_status[NIX_PF_PFC_PRIO_MAX];
 #endif
 
 	/* napi event count. It is needed for adaptive irq coalescing. */
@@ -785,6 +792,16 @@ static inline void otx2_dma_unmap_page(struct otx2_nic *pfvf,
 			     dir, DMA_ATTR_SKIP_CPU_SYNC);
 }
 
+static inline u16 otx2_get_smq_idx(struct otx2_nic *pfvf, u16 qidx)
+{
+#ifdef CONFIG_DCB
+	if (pfvf->pfc_alloc_status[qidx])
+		return pfvf->pfc_schq_list[NIX_TXSCH_LVL_SMQ][qidx];
+#endif
+
+	return pfvf->hw.txschq_list[NIX_TXSCH_LVL_SMQ][0];
+}
+
 /* MSI-X APIs */
 void otx2_free_cints(struct otx2_nic *pfvf, int n);
 void otx2_set_cints_affinity(struct otx2_nic *pfvf);
@@ -807,7 +824,7 @@ void otx2_free_aura_ptr(struct otx2_nic *pfvf, int type);
 void otx2_sq_free_sqbs(struct otx2_nic *pfvf);
 int otx2_config_nix(struct otx2_nic *pfvf);
 int otx2_config_nix_queues(struct otx2_nic *pfvf);
-int otx2_txschq_config(struct otx2_nic *pfvf, int lvl);
+int otx2_txschq_config(struct otx2_nic *pfvf, int lvl, int prio, bool pfc_en);
 int otx2_txsch_alloc(struct otx2_nic *pfvf);
 int otx2_txschq_stop(struct otx2_nic *pfvf);
 void otx2_sqb_flush(struct otx2_nic *pfvf);
@@ -888,6 +905,8 @@ bool otx2_xdp_sq_append_pkt(struct otx2_nic *pfvf, u64 iova, int len, u16 qidx);
 u16 otx2_get_max_mtu(struct otx2_nic *pfvf);
 int otx2_handle_ntuple_tc_features(struct net_device *netdev,
 				   netdev_features_t features);
+int otx2_smq_flush(struct otx2_nic *pfvf, int smq);
+
 /* tc support */
 int otx2_init_tc(struct otx2_nic *nic);
 void otx2_shutdown_tc(struct otx2_nic *nic);
@@ -907,5 +926,10 @@ void otx2_dmacflt_update_pfmac_flow(struct otx2_nic *pfvf);
 void otx2_update_bpid_in_rqctx(struct otx2_nic *pfvf, int vlan_prio, int qidx, bool pfc_enable);
 int otx2_config_priority_flow_ctrl(struct otx2_nic *pfvf);
 int otx2_dcbnl_set_ops(struct net_device *dev);
+/* PFC support */
+int otx2_pfc_txschq_config(struct otx2_nic *pfvf);
+int otx2_pfc_txschq_alloc(struct otx2_nic *pfvf);
+int otx2_pfc_txschq_update(struct otx2_nic *pfvf);
+int otx2_pfc_txschq_stop(struct otx2_nic *pfvf);
 #endif
 #endif /* OTX2_COMMON_H */
