@@ -37,6 +37,7 @@
 #include "intel_de.h"
 #include "intel_display_types.h"
 #include "intel_gmbus.h"
+#include "intel_gmbus_regs.h"
 
 struct intel_gmbus {
 	struct i2c_adapter adapter;
