@@ -3660,7 +3660,7 @@ int rkcif_init_rx_buf(struct rkcif_stream *stream, int buf_num)
 		else
 			return -EINVAL;
 	}
-	for (i = 0; i < buf_num; i++) {
+	while (true) {
 		buf = &stream->rx_buf[i];
 		memset(buf, 0, sizeof(*buf));
 		dummy = &buf->dummy;
@@ -3697,6 +3697,9 @@ int rkcif_init_rx_buf(struct rkcif_stream *stream, int buf_num)
 			rkcif_s_rx_buffer(dev, &buf->dbufs);
 			stream->buf_num_toisp--;
 		}
+		i++;
+		if (!dev->is_thunderboot && i >= buf_num)
+			break;
 		v4l2_dbg(3, rkcif_debug, &dev->v4l2_dev,
 			"init rx_buf,dma_addr 0x%llx size: 0x%x\n",
 			(u64)dummy->dma_addr, pixm->plane_fmt[0].sizeimage);

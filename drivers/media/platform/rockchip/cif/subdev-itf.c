@@ -29,7 +29,7 @@ static inline struct sditf_priv *to_sditf_priv(struct v4l2_subdev *subdev)
 	return container_of(subdev, struct sditf_priv, sd);
 }
 
-void sditf_buffree_work(struct work_struct *work)
+static void sditf_buffree_work(struct work_struct *work)
 {
 	struct sditf_work_struct *buffree_work = container_of(work,
 							      struct sditf_work_struct,
