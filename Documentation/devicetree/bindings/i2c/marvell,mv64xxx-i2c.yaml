@@ -66,6 +66,19 @@ properties:
   resets:
     maxItems: 1
 
+  dmas:
+    items:
+      - description: RX DMA Channel
+      - description: TX DMA Channel
+
+  dma-names:
+    items:
+      - const: rx
+      - const: tx
+
+dependencies:
+  dmas: [ dma-names ]
+
 required:
   - compatible
   - reg
