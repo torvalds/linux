@@ -1055,6 +1055,28 @@ TRACE_EVENT(sched_compute_energy,
 		__entry->cluster_first_cpu2, __entry->s2, __entry->m2, __entry->c2)
 )
 
+TRACE_EVENT(sched_select_task_rt,
+
+	TP_PROTO(struct task_struct *p, int fastpath),
+
+	TP_ARGS(p, fastpath),
+
+	TP_STRUCT__entry(
+		__field(int,		pid)
+		__array(char,		comm, TASK_COMM_LEN)
+		__field(int,		fastpath)
+	),
+
+	TP_fast_assign(
+		__entry->pid			= p->pid;
+		memcpy(__entry->comm, p->comm, TASK_COMM_LEN);
+		__entry->fastpath		= fastpath;
+	),
+
+	TP_printk("pid=%d comm=%s fastpath=%u",
+		__entry->pid, __entry->comm, __entry->fastpath)
+);
+
 TRACE_EVENT(sched_task_util,
 
 	TP_PROTO(struct task_struct *p, unsigned long candidates,
