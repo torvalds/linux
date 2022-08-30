@@ -1621,6 +1621,8 @@ static unsigned int loc_to_eth_fec(u8 loc_fec)
 		eth_fec |= ETHTOOL_FEC_AUTO;
 	if (loc_fec & BIT(HNAE3_FEC_RS))
 		eth_fec |= ETHTOOL_FEC_RS;
+	if (loc_fec & BIT(HNAE3_FEC_LLRS))
+		eth_fec |= ETHTOOL_FEC_LLRS;
 	if (loc_fec & BIT(HNAE3_FEC_BASER))
 		eth_fec |= ETHTOOL_FEC_BASER;
 
@@ -1643,6 +1645,8 @@ static unsigned int eth_to_loc_fec(unsigned int eth_fec)
 		loc_fec |= BIT(HNAE3_FEC_AUTO);
 	if (eth_fec & ETHTOOL_FEC_RS)
 		loc_fec |= BIT(HNAE3_FEC_RS);
+	if (eth_fec & ETHTOOL_FEC_LLRS)
+		loc_fec |= BIT(HNAE3_FEC_LLRS);
 	if (eth_fec & ETHTOOL_FEC_BASER)
 		loc_fec |= BIT(HNAE3_FEC_BASER);
 

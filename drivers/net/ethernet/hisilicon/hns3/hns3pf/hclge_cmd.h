@@ -360,6 +360,7 @@ struct hclge_sfp_info_cmd {
 #define HCLGE_MAC_FEC_OFF		0
 #define HCLGE_MAC_FEC_BASER		1
 #define HCLGE_MAC_FEC_RS		2
+#define HCLGE_MAC_FEC_LLRS		3
 struct hclge_config_fec_cmd {
 	u8 fec_mode;
 	u8 default_config;

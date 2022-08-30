@@ -91,6 +91,7 @@ int hclge_comm_firmware_compat_config(struct hnae3_ae_dev *ae_dev,
 			hnae3_set_bit(compat, HCLGE_COMM_PHY_IMP_EN_B, 1);
 		hnae3_set_bit(compat, HCLGE_COMM_MAC_STATS_EXT_EN_B, 1);
 		hnae3_set_bit(compat, HCLGE_COMM_SYNC_RX_RING_HEAD_EN_B, 1);
+		hnae3_set_bit(compat, HCLGE_COMM_LLRS_FEC_EN_B, 1);
 
 		req->compat = cpu_to_le32(compat);
 	}
