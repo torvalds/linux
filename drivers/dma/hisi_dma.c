@@ -36,6 +36,9 @@
 
 #define PCI_BAR_2			2
 
+#define HISI_DMA_POLL_Q_STS_DELAY_US	10
+#define HISI_DMA_POLL_Q_STS_TIME_OUT_US	1000
+
 enum hisi_dma_mode {
 	EP = 0,
 	RC,
@@ -185,15 +188,19 @@ static void hisi_dma_reset_or_disable_hw_chan(struct hisi_dma_chan *chan,
 {
 	struct hisi_dma_dev *hdma_dev = chan->hdma_dev;
 	u32 index = chan->qp_num, tmp;
+	void __iomem *addr;
 	int ret;
 
 	hisi_dma_pause_dma(hdma_dev, index, true);
 	hisi_dma_enable_dma(hdma_dev, index, false);
 	hisi_dma_mask_irq(hdma_dev, index);
 
-	ret = readl_relaxed_poll_timeout(hdma_dev->base +
-		HISI_DMA_Q_FSM_STS + index * HISI_DMA_OFFSET, tmp,
-		FIELD_GET(HISI_DMA_FSM_STS_MASK, tmp) != RUN, 10, 1000);
+	addr = hdma_dev->base +
+	       HISI_DMA_Q_FSM_STS + index * HISI_DMA_OFFSET;
+
+	ret = readl_relaxed_poll_timeout(addr, tmp,
+		FIELD_GET(HISI_DMA_FSM_STS_MASK, tmp) != RUN,
+		HISI_DMA_POLL_Q_STS_DELAY_US, HISI_DMA_POLL_Q_STS_TIME_OUT_US);
 	if (ret) {
 		dev_err(&hdma_dev->pdev->dev, "disable channel timeout!\n");
 		WARN_ON(1);
@@ -208,9 +215,9 @@ static void hisi_dma_reset_or_disable_hw_chan(struct hisi_dma_chan *chan,
 		hisi_dma_unmask_irq(hdma_dev, index);
 	}
 
-	ret = readl_relaxed_poll_timeout(hdma_dev->base +
-		HISI_DMA_Q_FSM_STS + index * HISI_DMA_OFFSET, tmp,
-		FIELD_GET(HISI_DMA_FSM_STS_MASK, tmp) == IDLE, 10, 1000);
+	ret = readl_relaxed_poll_timeout(addr, tmp,
+		FIELD_GET(HISI_DMA_FSM_STS_MASK, tmp) == IDLE,
+		HISI_DMA_POLL_Q_STS_DELAY_US, HISI_DMA_POLL_Q_STS_TIME_OUT_US);
 	if (ret) {
 		dev_err(&hdma_dev->pdev->dev, "reset channel timeout!\n");
 		WARN_ON(1);
