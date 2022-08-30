@@ -40,31 +40,23 @@
 #define ETM_MODE_EXCL_KERN	BIT(30)
 #define ETM_MODE_EXCL_USER	BIT(31)
 
-typedef u32 (*coresight_read_fn)(const struct device *, u32 offset);
-#define __coresight_simple_func(type, func, name, lo_off, hi_off)	\
+#define __coresight_simple_show(type, name, lo_off, hi_off)		\
 static ssize_t name##_show(struct device *_dev,				\
 			   struct device_attribute *attr, char *buf)	\
 {									\
 	type *drvdata = dev_get_drvdata(_dev->parent);			\
-	coresight_read_fn fn = func;					\
 	u64 val;							\
 	pm_runtime_get_sync(_dev->parent);				\
-	if (fn)								\
-		val = (u64)fn(_dev->parent, lo_off);			\
-	else								\
-		val = coresight_read_reg_pair(drvdata->base,		\
-						 lo_off, hi_off);	\
+	val = coresight_read_reg_pair(drvdata->base, lo_off, hi_off);	\
 	pm_runtime_put_sync(_dev->parent);				\
 	return scnprintf(buf, PAGE_SIZE, "0x%llx\n", val);		\
 }									\
 static DEVICE_ATTR_RO(name)
 
-#define coresight_simple_func(type, func, name, offset)			\
-	__coresight_simple_func(type, func, name, offset, -1)
 #define coresight_simple_reg32(type, name, offset)			\
-	__coresight_simple_func(type, NULL, name, offset, -1)
+	__coresight_simple_show(type, name, offset, -1)
 #define coresight_simple_reg64(type, name, lo_off, hi_off)		\
-	__coresight_simple_func(type, NULL, name, lo_off, hi_off)
+	__coresight_simple_show(type, name, lo_off, hi_off)
 
 extern const u32 coresight_barrier_pkt[4];
 #define CORESIGHT_BARRIER_PKT_SIZE (sizeof(coresight_barrier_pkt))
