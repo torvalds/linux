@@ -332,7 +332,7 @@ static struct platform_driver imx93_clk_driver = {
 	.driver = {
 		.name = "imx93-ccm",
 		.suppress_bind_attrs = true,
-		.of_match_table = of_match_ptr(imx93_clk_of_match),
+		.of_match_table = imx93_clk_of_match,
 	},
 };
 module_platform_driver(imx93_clk_driver);
