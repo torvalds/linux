@@ -26,7 +26,8 @@ enum {
 
 struct io_uring_cqe *__io_get_cqe(struct io_ring_ctx *ctx);
 bool io_req_cqe_overflow(struct io_kiocb *req);
-int io_run_task_work_sig(void);
+int io_run_task_work_sig(struct io_ring_ctx *ctx);
+int io_run_local_work(struct io_ring_ctx *ctx);
 void io_req_complete_failed(struct io_kiocb *req, s32 res);
 void __io_req_complete(struct io_kiocb *req, unsigned issue_flags);
 void io_req_complete_post(struct io_kiocb *req);
@@ -221,17 +222,37 @@ static inline unsigned int io_sqring_entries(struct io_ring_ctx *ctx)
 	return smp_load_acquire(&rings->sq.tail) - ctx->cached_sq_head;
 }
 
-static inline bool io_run_task_work(void)
+static inline int io_run_task_work(void)
 {
 	if (test_thread_flag(TIF_NOTIFY_SIGNAL)) {
 		__set_current_state(TASK_RUNNING);
 		clear_notify_signal();
 		if (task_work_pending(current))
 			task_work_run();
-		return true;
+		return 1;
 	}
 
-	return false;
+	return 0;
+}
+
+static inline int io_run_task_work_ctx(struct io_ring_ctx *ctx)
+{
+	int ret = 0;
+	int ret2;
+
+	if (ctx->flags & IORING_SETUP_DEFER_TASKRUN)
+		ret = io_run_local_work(ctx);
+
+	/* want to run this after in case more is added */
+	ret2 = io_run_task_work();
+
+	/* Try propagate error in favour of if tasks were run,
+	 * but still make sure to run them if requested
+	 */
+	if (ret >= 0)
+		ret += ret2;
+
+	return ret;
 }
 
 static inline void io_tw_lock(struct io_ring_ctx *ctx, bool *locked)
