@@ -12,6 +12,7 @@ mxc-clk-objs += clk-fixup-div.o
 mxc-clk-objs += clk-fixup-mux.o
 mxc-clk-objs += clk-frac-pll.o
 mxc-clk-objs += clk-gate2.o
+mxc-clk-objs += clk-gate-93.o
 mxc-clk-objs += clk-gate-exclusive.o
 mxc-clk-objs += clk-pfd.o
 mxc-clk-objs += clk-pfdv2.o
