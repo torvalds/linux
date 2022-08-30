@@ -634,21 +634,18 @@ static ssize_t traceid_store(struct device *dev,
 }
 static DEVICE_ATTR_RW(traceid);
 
-#define coresight_stm_reg(name, offset)	\
-	coresight_simple_reg32(struct stm_drvdata, name, offset)
-
-coresight_stm_reg(tcsr, STMTCSR);
-coresight_stm_reg(tsfreqr, STMTSFREQR);
-coresight_stm_reg(syncr, STMSYNCR);
-coresight_stm_reg(sper, STMSPER);
-coresight_stm_reg(spter, STMSPTER);
-coresight_stm_reg(privmaskr, STMPRIVMASKR);
-coresight_stm_reg(spscr, STMSPSCR);
-coresight_stm_reg(spmscr, STMSPMSCR);
-coresight_stm_reg(spfeat1r, STMSPFEAT1R);
-coresight_stm_reg(spfeat2r, STMSPFEAT2R);
-coresight_stm_reg(spfeat3r, STMSPFEAT3R);
-coresight_stm_reg(devid, CORESIGHT_DEVID);
+coresight_simple_reg32(tcsr, STMTCSR);
+coresight_simple_reg32(tsfreqr, STMTSFREQR);
+coresight_simple_reg32(syncr, STMSYNCR);
+coresight_simple_reg32(sper, STMSPER);
+coresight_simple_reg32(spter, STMSPTER);
+coresight_simple_reg32(privmaskr, STMPRIVMASKR);
+coresight_simple_reg32(spscr, STMSPSCR);
+coresight_simple_reg32(spmscr, STMSPMSCR);
+coresight_simple_reg32(spfeat1r, STMSPFEAT1R);
+coresight_simple_reg32(spfeat2r, STMSPFEAT2R);
+coresight_simple_reg32(spfeat3r, STMSPFEAT3R);
+coresight_simple_reg32(devid, CORESIGHT_DEVID);
 
 static struct attribute *coresight_stm_attrs[] = {
 	&dev_attr_hwevent_enable.attr,

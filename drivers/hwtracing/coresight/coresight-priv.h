@@ -40,23 +40,23 @@
 #define ETM_MODE_EXCL_KERN	BIT(30)
 #define ETM_MODE_EXCL_USER	BIT(31)
 
-#define __coresight_simple_show(type, name, lo_off, hi_off)		\
+#define __coresight_simple_show(name, lo_off, hi_off)		\
 static ssize_t name##_show(struct device *_dev,				\
 			   struct device_attribute *attr, char *buf)	\
 {									\
-	type *drvdata = dev_get_drvdata(_dev->parent);			\
+	struct coresight_device *csdev = container_of(_dev, struct coresight_device, dev); \
 	u64 val;							\
 	pm_runtime_get_sync(_dev->parent);				\
-	val = coresight_read_reg_pair(drvdata->base, lo_off, hi_off);	\
+	val = csdev_access_relaxed_read_pair(&csdev->access, lo_off, hi_off);	\
 	pm_runtime_put_sync(_dev->parent);				\
 	return scnprintf(buf, PAGE_SIZE, "0x%llx\n", val);		\
 }									\
 static DEVICE_ATTR_RO(name)
 
-#define coresight_simple_reg32(type, name, offset)			\
-	__coresight_simple_show(type, name, offset, -1)
-#define coresight_simple_reg64(type, name, lo_off, hi_off)		\
-	__coresight_simple_show(type, name, lo_off, hi_off)
+#define coresight_simple_reg32(name, offset)			\
+	__coresight_simple_show(name, offset, -1)
+#define coresight_simple_reg64(name, lo_off, hi_off)		\
+	__coresight_simple_show(name, lo_off, hi_off)
 
 extern const u32 coresight_barrier_pkt[4];
 #define CORESIGHT_BARRIER_PKT_SIZE (sizeof(coresight_barrier_pkt))

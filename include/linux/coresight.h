@@ -372,6 +372,24 @@ static inline u32 csdev_access_relaxed_read32(struct csdev_access *csa,
 	return csa->read(offset, true, false);
 }
 
+static inline u64 csdev_access_relaxed_read_pair(struct csdev_access *csa,
+						 s32 lo_offset, s32 hi_offset)
+{
+	u64 val;
+
+	if (likely(csa->io_mem)) {
+		val = readl_relaxed(csa->base + lo_offset);
+		val |= (hi_offset < 0) ? 0 :
+		       (u64)readl_relaxed(csa->base + hi_offset) << 32;
+		return val;
+	}
+
+	val = csa->read(lo_offset, true, false);
+	val |= (hi_offset < 0) ? 0 :
+	       (u64)csa->read(hi_offset, true, false) << 32;
+	return val;
+}
+
 static inline u32 csdev_access_read32(struct csdev_access *csa, u32 offset)
 {
 	if (likely(csa->io_mem))

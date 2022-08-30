@@ -1252,19 +1252,16 @@ static struct attribute *coresight_etm_attrs[] = {
 	NULL,
 };
 
-#define coresight_etm3x_reg(name, offset)			\
-	coresight_simple_reg32(struct etm_drvdata, name, offset)
-
-coresight_etm3x_reg(etmccr, ETMCCR);
-coresight_etm3x_reg(etmccer, ETMCCER);
-coresight_etm3x_reg(etmscr, ETMSCR);
-coresight_etm3x_reg(etmidr, ETMIDR);
-coresight_etm3x_reg(etmcr, ETMCR);
-coresight_etm3x_reg(etmtraceidr, ETMTRACEIDR);
-coresight_etm3x_reg(etmteevr, ETMTEEVR);
-coresight_etm3x_reg(etmtssvr, ETMTSSCR);
-coresight_etm3x_reg(etmtecr1, ETMTECR1);
-coresight_etm3x_reg(etmtecr2, ETMTECR2);
+coresight_simple_reg32(etmccr, ETMCCR);
+coresight_simple_reg32(etmccer, ETMCCER);
+coresight_simple_reg32(etmscr, ETMSCR);
+coresight_simple_reg32(etmidr, ETMIDR);
+coresight_simple_reg32(etmcr, ETMCR);
+coresight_simple_reg32(etmtraceidr, ETMTRACEIDR);
+coresight_simple_reg32(etmteevr, ETMTEEVR);
+coresight_simple_reg32(etmtssvr, ETMTSSCR);
+coresight_simple_reg32(etmtecr1, ETMTECR1);
+coresight_simple_reg32(etmtecr2, ETMTECR2);
 
 static struct attribute *coresight_etm_mgmt_attrs[] = {
 	&dev_attr_etmccr.attr,
