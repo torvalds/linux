@@ -39,6 +39,11 @@
  * 3. Length info of each component can be found in header, in dwords.
  * 4. Modulus and exponent key are not required by driver. They may not appear
  *    in fw. So driver will load a truncated firmware in this case.
+ *
+ * Starting from DG2, the HuC is loaded by the GSC instead of i915. The GSC
+ * firmware performs all the required integrity checks, we just need to check
+ * the version. Note that the header for GSC-managed blobs is different from the
+ * CSS used for dma-loaded firmwares.
  */
 
 struct uc_css_header {
@@ -77,5 +82,9 @@ struct uc_css_header {
 	u32 header_info;
 } __packed;
 static_assert(sizeof(struct uc_css_header) == 128);
+
+#define HUC_GSC_VERSION_DW		44
+#define   HUC_GSC_MAJOR_VER_MASK	(0xFF << 0)
+#define   HUC_GSC_MINOR_VER_MASK	(0xFF << 16)
 
 #endif /* _INTEL_UC_FW_ABI_H */

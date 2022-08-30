@@ -65,3 +65,10 @@ __weak bool arch_topdown_sample_read(struct evsel *leader __maybe_unused)
 {
 	return false;
 }
+
+__weak const char *arch_get_topdown_pmu_name(struct evlist *evlist
+					     __maybe_unused,
+					     bool warn __maybe_unused)
+{
+	return "cpu";
+}

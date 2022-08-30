@@ -140,6 +140,8 @@ struct gendisk {
 	struct request_queue *queue;
 	void *private_data;
 
+	struct bio_set bio_split;
+
 	int flags;
 	unsigned long state;
 #define GD_NEED_PART_SCAN		0
@@ -531,7 +533,6 @@ struct request_queue {
 
 	struct blk_mq_tag_set	*tag_set;
 	struct list_head	tag_set_list;
-	struct bio_set		bio_split;
 
 	struct dentry		*debugfs_dir;
 	struct dentry		*sched_debugfs_dir;
@@ -864,9 +865,9 @@ void blk_request_module(dev_t devt);
 extern int blk_register_queue(struct gendisk *disk);
 extern void blk_unregister_queue(struct gendisk *disk);
 void submit_bio_noacct(struct bio *bio);
+struct bio *bio_split_to_limits(struct bio *bio);
 
 extern int blk_lld_busy(struct request_queue *q);
-extern void blk_queue_split(struct bio **);
 extern int blk_queue_enter(struct request_queue *q, blk_mq_req_flags_t flags);
 extern void blk_queue_exit(struct request_queue *q);
 extern void blk_sync_queue(struct request_queue *q);

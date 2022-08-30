@@ -812,7 +812,7 @@ static int ispif_set_stream(struct v4l2_subdev *sd, int enable)
 	int ret;
 
 	if (enable) {
-		if (!media_entity_remote_pad(&line->pads[MSM_ISPIF_PAD_SINK]))
+		if (!media_pad_remote_pad_first(&line->pads[MSM_ISPIF_PAD_SINK]))
 			return -ENOLINK;
 
 		/* Config */
@@ -1253,6 +1253,41 @@ static enum ispif_intf ispif_get_intf(enum vfe_line_id line_id)
 }
 
 /*
+ * ispif_get_vfe_id - Get VFE HW module id
+ * @entity: Pointer to VFE media entity structure
+ * @id: Return CSID HW module id here
+ */
+static void ispif_get_vfe_id(struct media_entity *entity, u8 *id)
+{
+	struct v4l2_subdev *sd;
+	struct vfe_line *line;
+	struct vfe_device *vfe;
+
+	sd = media_entity_to_v4l2_subdev(entity);
+	line = v4l2_get_subdevdata(sd);
+	vfe = to_vfe(line);
+
+	*id = vfe->id;
+}
+
+/*
+ * ispif_get_vfe_line_id - Get VFE line id by media entity
+ * @entity: Pointer to VFE media entity structure
+ * @id: Return VFE line id here
+ */
+static void ispif_get_vfe_line_id(struct media_entity *entity,
+				  enum vfe_line_id *id)
+{
+	struct v4l2_subdev *sd;
+	struct vfe_line *line;
+
+	sd = media_entity_to_v4l2_subdev(entity);
+	line = v4l2_get_subdevdata(sd);
+
+	*id = line->id;
+}
+
+/*
  * ispif_link_setup - Setup ISPIF connections
  * @entity: Pointer to media entity structure
  * @local: Pointer to local pad
@@ -1266,7 +1301,7 @@ static int ispif_link_setup(struct media_entity *entity,
 			    const struct media_pad *remote, u32 flags)
 {
 	if (flags & MEDIA_LNK_FL_ENABLED) {
-		if (media_entity_remote_pad(local))
+		if (media_pad_remote_pad_first(local))
 			return -EBUSY;
 
 		if (local->flags & MEDIA_PAD_FL_SINK) {
@@ -1285,8 +1320,8 @@ static int ispif_link_setup(struct media_entity *entity,
 			sd = media_entity_to_v4l2_subdev(entity);
 			line = v4l2_get_subdevdata(sd);
 
-			msm_vfe_get_vfe_id(remote->entity, &line->vfe_id);
-			msm_vfe_get_vfe_line_id(remote->entity, &id);
+			ispif_get_vfe_id(remote->entity, &line->vfe_id);
+			ispif_get_vfe_line_id(remote->entity, &id);
 			line->interface = ispif_get_intf(id);
 		}
 	}

@@ -584,6 +584,7 @@ struct usb3_lpm_parameters {
  * @authenticated: Crypto authentication passed
  * @wusb: device is Wireless USB
  * @lpm_capable: device supports LPM
+ * @lpm_devinit_allow: Allow USB3 device initiated LPM, exit latency is in range
  * @usb2_hw_lpm_capable: device can perform USB2 hardware LPM
  * @usb2_hw_lpm_besl_capable: device can perform USB2 hardware BESL LPM
  * @usb2_hw_lpm_enabled: USB2 hardware LPM is enabled
@@ -666,6 +667,7 @@ struct usb_device {
 	unsigned authenticated:1;
 	unsigned wusb:1;
 	unsigned lpm_capable:1;
+	unsigned lpm_devinit_allow:1;
 	unsigned usb2_hw_lpm_capable:1;
 	unsigned usb2_hw_lpm_besl_capable:1;
 	unsigned usb2_hw_lpm_enabled:1;

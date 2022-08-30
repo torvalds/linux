@@ -74,6 +74,15 @@ static inline int fpga_mgr_write_complete(struct fpga_manager *mgr,
 	return 0;
 }
 
+static inline int fpga_mgr_parse_header(struct fpga_manager *mgr,
+					struct fpga_image_info *info,
+					const char *buf, size_t count)
+{
+	if (mgr->mops->parse_header)
+		return mgr->mops->parse_header(mgr, info, buf, count);
+	return 0;
+}
+
 static inline int fpga_mgr_write_init(struct fpga_manager *mgr,
 				      struct fpga_image_info *info,
 				      const char *buf, size_t count)
@@ -136,24 +145,141 @@ void fpga_image_info_free(struct fpga_image_info *info)
 EXPORT_SYMBOL_GPL(fpga_image_info_free);
 
 /*
- * Call the low level driver's write_init function.  This will do the
+ * Call the low level driver's parse_header function with entire FPGA image
+ * buffer on the input. This will set info->header_size and info->data_size.
+ */
+static int fpga_mgr_parse_header_mapped(struct fpga_manager *mgr,
+					struct fpga_image_info *info,
+					const char *buf, size_t count)
+{
+	int ret;
+
+	mgr->state = FPGA_MGR_STATE_PARSE_HEADER;
+	ret = fpga_mgr_parse_header(mgr, info, buf, count);
+
+	if (info->header_size + info->data_size > count) {
+		dev_err(&mgr->dev, "Bitstream data outruns FPGA image\n");
+		ret = -EINVAL;
+	}
+
+	if (ret) {
+		dev_err(&mgr->dev, "Error while parsing FPGA image header\n");
+		mgr->state = FPGA_MGR_STATE_PARSE_HEADER_ERR;
+	}
+
+	return ret;
+}
+
+/*
+ * Call the low level driver's parse_header function with first fragment of
+ * scattered FPGA image on the input. If header fits first fragment,
+ * parse_header will set info->header_size and info->data_size. If it is not,
+ * parse_header will set desired size to info->header_size and -EAGAIN will be
+ * returned.
+ */
+static int fpga_mgr_parse_header_sg_first(struct fpga_manager *mgr,
+					  struct fpga_image_info *info,
+					  struct sg_table *sgt)
+{
+	struct sg_mapping_iter miter;
+	int ret;
+
+	mgr->state = FPGA_MGR_STATE_PARSE_HEADER;
+
+	sg_miter_start(&miter, sgt->sgl, sgt->nents, SG_MITER_FROM_SG);
+	if (sg_miter_next(&miter) &&
+	    miter.length >= info->header_size)
+		ret = fpga_mgr_parse_header(mgr, info, miter.addr, miter.length);
+	else
+		ret = -EAGAIN;
+	sg_miter_stop(&miter);
+
+	if (ret && ret != -EAGAIN) {
+		dev_err(&mgr->dev, "Error while parsing FPGA image header\n");
+		mgr->state = FPGA_MGR_STATE_PARSE_HEADER_ERR;
+	}
+
+	return ret;
+}
+
+/*
+ * Copy scattered FPGA image fragments to temporary buffer and call the
+ * low level driver's parse_header function. This should be called after
+ * fpga_mgr_parse_header_sg_first() returned -EAGAIN. In case of success,
+ * pointer to the newly allocated image header copy will be returned and
+ * its size will be set into *ret_size. Returned buffer needs to be freed.
+ */
+static void *fpga_mgr_parse_header_sg(struct fpga_manager *mgr,
+				      struct fpga_image_info *info,
+				      struct sg_table *sgt, size_t *ret_size)
+{
+	size_t len, new_header_size, header_size = 0;
+	char *new_buf, *buf = NULL;
+	int ret;
+
+	do {
+		new_header_size = info->header_size;
+		if (new_header_size <= header_size) {
+			dev_err(&mgr->dev, "Requested invalid header size\n");
+			ret = -EFAULT;
+			break;
+		}
+
+		new_buf = krealloc(buf, new_header_size, GFP_KERNEL);
+		if (!new_buf) {
+			ret = -ENOMEM;
+			break;
+		}
+
+		buf = new_buf;
+
+		len = sg_pcopy_to_buffer(sgt->sgl, sgt->nents,
+					 buf + header_size,
+					 new_header_size - header_size,
+					 header_size);
+		if (len != new_header_size - header_size) {
+			ret = -EFAULT;
+			break;
+		}
+
+		header_size = new_header_size;
+		ret = fpga_mgr_parse_header(mgr, info, buf, header_size);
+	} while (ret == -EAGAIN);
+
+	if (ret) {
+		dev_err(&mgr->dev, "Error while parsing FPGA image header\n");
+		mgr->state = FPGA_MGR_STATE_PARSE_HEADER_ERR;
+		kfree(buf);
+		buf = ERR_PTR(ret);
+	}
+
+	*ret_size = header_size;
+
+	return buf;
+}
+
+/*
+ * Call the low level driver's write_init function. This will do the
  * device-specific things to get the FPGA into the state where it is ready to
- * receive an FPGA image. The low level driver only gets to see the first
- * initial_header_size bytes in the buffer.
+ * receive an FPGA image. The low level driver gets to see at least first
+ * info->header_size bytes in the buffer. If info->header_size is 0,
+ * write_init will not get any bytes of image buffer.
  */
 static int fpga_mgr_write_init_buf(struct fpga_manager *mgr,
 				   struct fpga_image_info *info,
 				   const char *buf, size_t count)
 {
+	size_t header_size = info->header_size;
 	int ret;
 
 	mgr->state = FPGA_MGR_STATE_WRITE_INIT;
-	if (!mgr->mops->initial_header_size) {
+
+	if (header_size > count)
+		ret = -EINVAL;
+	else if (!header_size)
 		ret = fpga_mgr_write_init(mgr, info, NULL, 0);
-	} else {
-		count = min(mgr->mops->initial_header_size, count);
+	else
 		ret = fpga_mgr_write_init(mgr, info, buf, count);
-	}
 
 	if (ret) {
 		dev_err(&mgr->dev, "Error preparing FPGA for writing\n");
@@ -164,39 +290,50 @@ static int fpga_mgr_write_init_buf(struct fpga_manager *mgr,
 	return 0;
 }
 
-static int fpga_mgr_write_init_sg(struct fpga_manager *mgr,
-				  struct fpga_image_info *info,
-				  struct sg_table *sgt)
+static int fpga_mgr_prepare_sg(struct fpga_manager *mgr,
+			       struct fpga_image_info *info,
+			       struct sg_table *sgt)
 {
 	struct sg_mapping_iter miter;
 	size_t len;
 	char *buf;
 	int ret;
 
-	if (!mgr->mops->initial_header_size)
+	/* Short path. Low level driver don't care about image header. */
+	if (!mgr->mops->initial_header_size && !mgr->mops->parse_header)
 		return fpga_mgr_write_init_buf(mgr, info, NULL, 0);
 
 	/*
 	 * First try to use miter to map the first fragment to access the
 	 * header, this is the typical path.
 	 */
-	sg_miter_start(&miter, sgt->sgl, sgt->nents, SG_MITER_FROM_SG);
-	if (sg_miter_next(&miter) &&
-	    miter.length >= mgr->mops->initial_header_size) {
-		ret = fpga_mgr_write_init_buf(mgr, info, miter.addr,
-					      miter.length);
+	ret = fpga_mgr_parse_header_sg_first(mgr, info, sgt);
+	/* If 0, header fits first fragment, call write_init on it */
+	if (!ret) {
+		sg_miter_start(&miter, sgt->sgl, sgt->nents, SG_MITER_FROM_SG);
+		if (sg_miter_next(&miter)) {
+			ret = fpga_mgr_write_init_buf(mgr, info, miter.addr,
+						      miter.length);
+			sg_miter_stop(&miter);
+			return ret;
+		}
 		sg_miter_stop(&miter);
+	/*
+	 * If -EAGAIN, more sg buffer is needed,
+	 * otherwise an error has occurred.
+	 */
+	} else if (ret != -EAGAIN) {
 		return ret;
 	}
-	sg_miter_stop(&miter);
 
-	/* Otherwise copy the fragments into temporary memory. */
-	buf = kmalloc(mgr->mops->initial_header_size, GFP_KERNEL);
-	if (!buf)
-		return -ENOMEM;
+	/*
+	 * Copy the fragments into temporary memory.
+	 * Copying is done inside fpga_mgr_parse_header_sg().
+	 */
+	buf = fpga_mgr_parse_header_sg(mgr, info, sgt, &len);
+	if (IS_ERR(buf))
+		return PTR_ERR(buf);
 
-	len = sg_copy_to_buffer(sgt->sgl, sgt->nents, buf,
-				mgr->mops->initial_header_size);
 	ret = fpga_mgr_write_init_buf(mgr, info, buf, len);
 
 	kfree(buf);
@@ -227,7 +364,7 @@ static int fpga_mgr_buf_load_sg(struct fpga_manager *mgr,
 {
 	int ret;
 
-	ret = fpga_mgr_write_init_sg(mgr, info, sgt);
+	ret = fpga_mgr_prepare_sg(mgr, info, sgt);
 	if (ret)
 		return ret;
 
@@ -236,17 +373,35 @@ static int fpga_mgr_buf_load_sg(struct fpga_manager *mgr,
 	if (mgr->mops->write_sg) {
 		ret = fpga_mgr_write_sg(mgr, sgt);
 	} else {
+		size_t length, count = 0, data_size = info->data_size;
 		struct sg_mapping_iter miter;
 
 		sg_miter_start(&miter, sgt->sgl, sgt->nents, SG_MITER_FROM_SG);
+
+		if (mgr->mops->skip_header &&
+		    !sg_miter_skip(&miter, info->header_size)) {
+			ret = -EINVAL;
+			goto out;
+		}
+
 		while (sg_miter_next(&miter)) {
-			ret = fpga_mgr_write(mgr, miter.addr, miter.length);
+			if (data_size)
+				length = min(miter.length, data_size - count);
+			else
+				length = miter.length;
+
+			ret = fpga_mgr_write(mgr, miter.addr, length);
 			if (ret)
+				break;
+
+			count += length;
+			if (data_size && count >= data_size)
 				break;
 		}
 		sg_miter_stop(&miter);
 	}
 
+out:
 	if (ret) {
 		dev_err(&mgr->dev, "Error while writing image data to FPGA\n");
 		mgr->state = FPGA_MGR_STATE_WRITE_ERR;
@@ -262,9 +417,21 @@ static int fpga_mgr_buf_load_mapped(struct fpga_manager *mgr,
 {
 	int ret;
 
+	ret = fpga_mgr_parse_header_mapped(mgr, info, buf, count);
+	if (ret)
+		return ret;
+
 	ret = fpga_mgr_write_init_buf(mgr, info, buf, count);
 	if (ret)
 		return ret;
+
+	if (mgr->mops->skip_header) {
+		buf += info->header_size;
+		count -= info->header_size;
+	}
+
+	if (info->data_size)
+		count = info->data_size;
 
 	/*
 	 * Write the FPGA image to the FPGA.
@@ -404,6 +571,8 @@ static int fpga_mgr_firmware_load(struct fpga_manager *mgr,
  */
 int fpga_mgr_load(struct fpga_manager *mgr, struct fpga_image_info *info)
 {
+	info->header_size = mgr->mops->initial_header_size;
+
 	if (info->sgt)
 		return fpga_mgr_buf_load_sg(mgr, info, info->sgt);
 	if (info->buf && info->count)
@@ -423,6 +592,10 @@ static const char * const state_str[] = {
 	/* requesting FPGA image from firmware */
 	[FPGA_MGR_STATE_FIRMWARE_REQ] =		"firmware request",
 	[FPGA_MGR_STATE_FIRMWARE_REQ_ERR] =	"firmware request error",
+
+	/* Parse FPGA image header */
+	[FPGA_MGR_STATE_PARSE_HEADER] =		"parse header",
+	[FPGA_MGR_STATE_PARSE_HEADER_ERR] =	"parse header error",
 
 	/* Preparing FPGA to receive image */
 	[FPGA_MGR_STATE_WRITE_INIT] =		"write init",
@@ -623,7 +796,7 @@ fpga_mgr_register_full(struct device *parent, const struct fpga_manager_info *in
 	if (!mgr)
 		return ERR_PTR(-ENOMEM);
 
-	id = ida_simple_get(&fpga_mgr_ida, 0, 0, GFP_KERNEL);
+	id = ida_alloc(&fpga_mgr_ida, GFP_KERNEL);
 	if (id < 0) {
 		ret = id;
 		goto error_kfree;
@@ -662,7 +835,7 @@ fpga_mgr_register_full(struct device *parent, const struct fpga_manager_info *in
 	return mgr;
 
 error_device:
-	ida_simple_remove(&fpga_mgr_ida, id);
+	ida_free(&fpga_mgr_ida, id);
 error_kfree:
 	kfree(mgr);
 
@@ -790,7 +963,7 @@ static void fpga_mgr_dev_release(struct device *dev)
 {
 	struct fpga_manager *mgr = to_fpga_manager(dev);
 
-	ida_simple_remove(&fpga_mgr_ida, mgr->dev.id);
+	ida_free(&fpga_mgr_ida, mgr->dev.id);
 	kfree(mgr);
 }
 

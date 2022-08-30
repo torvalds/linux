@@ -86,10 +86,13 @@
 
 static bool psr_global_enabled(struct intel_dp *intel_dp)
 {
+	struct intel_connector *connector = intel_dp->attached_connector;
 	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
 
 	switch (intel_dp->psr.debug & I915_PSR_DEBUG_MODE_MASK) {
 	case I915_PSR_DEBUG_DEFAULT:
+		if (i915->params.enable_psr == -1)
+			return connector->panel.vbt.psr.enable;
 		return i915->params.enable_psr;
 	case I915_PSR_DEBUG_DISABLE:
 		return false;
@@ -399,6 +402,7 @@ static void intel_psr_enable_sink(struct intel_dp *intel_dp)
 
 static u32 intel_psr1_get_tp_time(struct intel_dp *intel_dp)
 {
+	struct intel_connector *connector = intel_dp->attached_connector;
 	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
 	u32 val = 0;
 
@@ -411,20 +415,20 @@ static u32 intel_psr1_get_tp_time(struct intel_dp *intel_dp)
 		goto check_tp3_sel;
 	}
 
-	if (dev_priv->vbt.psr.tp1_wakeup_time_us == 0)
+	if (connector->panel.vbt.psr.tp1_wakeup_time_us == 0)
 		val |= EDP_PSR_TP1_TIME_0us;
-	else if (dev_priv->vbt.psr.tp1_wakeup_time_us <= 100)
+	else if (connector->panel.vbt.psr.tp1_wakeup_time_us <= 100)
 		val |= EDP_PSR_TP1_TIME_100us;
-	else if (dev_priv->vbt.psr.tp1_wakeup_time_us <= 500)
+	else if (connector->panel.vbt.psr.tp1_wakeup_time_us <= 500)
 		val |= EDP_PSR_TP1_TIME_500us;
 	else
 		val |= EDP_PSR_TP1_TIME_2500us;
 
-	if (dev_priv->vbt.psr.tp2_tp3_wakeup_time_us == 0)
+	if (connector->panel.vbt.psr.tp2_tp3_wakeup_time_us == 0)
 		val |= EDP_PSR_TP2_TP3_TIME_0us;
-	else if (dev_priv->vbt.psr.tp2_tp3_wakeup_time_us <= 100)
+	else if (connector->panel.vbt.psr.tp2_tp3_wakeup_time_us <= 100)
 		val |= EDP_PSR_TP2_TP3_TIME_100us;
-	else if (dev_priv->vbt.psr.tp2_tp3_wakeup_time_us <= 500)
+	else if (connector->panel.vbt.psr.tp2_tp3_wakeup_time_us <= 500)
 		val |= EDP_PSR_TP2_TP3_TIME_500us;
 	else
 		val |= EDP_PSR_TP2_TP3_TIME_2500us;
@@ -441,13 +445,14 @@ check_tp3_sel:
 
 static u8 psr_compute_idle_frames(struct intel_dp *intel_dp)
 {
+	struct intel_connector *connector = intel_dp->attached_connector;
 	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
 	int idle_frames;
 
 	/* Let's use 6 as the minimum to cover all known cases including the
 	 * off-by-one issue that HW has in some cases.
 	 */
-	idle_frames = max(6, dev_priv->vbt.psr.idle_frames);
+	idle_frames = max(6, connector->panel.vbt.psr.idle_frames);
 	idle_frames = max(idle_frames, intel_dp->psr.sink_sync_latency + 1);
 
 	if (drm_WARN_ON(&dev_priv->drm, idle_frames > 0xf))
@@ -483,18 +488,19 @@ static void hsw_activate_psr1(struct intel_dp *intel_dp)
 
 static u32 intel_psr2_get_tp_time(struct intel_dp *intel_dp)
 {
+	struct intel_connector *connector = intel_dp->attached_connector;
 	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
 	u32 val = 0;
 
 	if (dev_priv->params.psr_safest_params)
 		return EDP_PSR2_TP2_TIME_2500us;
 
-	if (dev_priv->vbt.psr.psr2_tp2_tp3_wakeup_time_us >= 0 &&
-	    dev_priv->vbt.psr.psr2_tp2_tp3_wakeup_time_us <= 50)
+	if (connector->panel.vbt.psr.psr2_tp2_tp3_wakeup_time_us >= 0 &&
+	    connector->panel.vbt.psr.psr2_tp2_tp3_wakeup_time_us <= 50)
 		val |= EDP_PSR2_TP2_TIME_50us;
-	else if (dev_priv->vbt.psr.psr2_tp2_tp3_wakeup_time_us <= 100)
+	else if (connector->panel.vbt.psr.psr2_tp2_tp3_wakeup_time_us <= 100)
 		val |= EDP_PSR2_TP2_TIME_100us;
-	else if (dev_priv->vbt.psr.psr2_tp2_tp3_wakeup_time_us <= 500)
+	else if (connector->panel.vbt.psr.psr2_tp2_tp3_wakeup_time_us <= 500)
 		val |= EDP_PSR2_TP2_TIME_500us;
 	else
 		val |= EDP_PSR2_TP2_TIME_2500us;
@@ -549,7 +555,7 @@ static void hsw_activate_psr2(struct intel_dp *intel_dp)
 		/*
 		 * TODO: 7 lines of IO_BUFFER_WAKE and FAST_WAKE are default
 		 * values from BSpec. In order to setting an optimal power
-		 * consumption, lower than 4k resoluition mode needs to decrese
+		 * consumption, lower than 4k resolution mode needs to decrease
 		 * IO_BUFFER_WAKE and FAST_WAKE. And higher than 4K resolution
 		 * mode needs to increase IO_BUFFER_WAKE and FAST_WAKE.
 		 */
@@ -953,7 +959,7 @@ void intel_psr_compute_config(struct intel_dp *intel_dp,
 	int psr_setup_time;
 
 	/*
-	 * Current PSR panels dont work reliably with VRR enabled
+	 * Current PSR panels don't work reliably with VRR enabled
 	 * So if VRR is enabled, do not enable PSR.
 	 */
 	if (crtc_state->vrr.enable)
@@ -1618,8 +1624,12 @@ exit:
 }
 
 static void clip_area_update(struct drm_rect *overlap_damage_area,
-			     struct drm_rect *damage_area)
+			     struct drm_rect *damage_area,
+			     struct drm_rect *pipe_src)
 {
+	if (!drm_rect_intersect(damage_area, pipe_src))
+		return;
+
 	if (overlap_damage_area->y1 == -1) {
 		overlap_damage_area->y1 = damage_area->y1;
 		overlap_damage_area->y2 = damage_area->y2;
@@ -1654,7 +1664,7 @@ static void intel_psr2_sel_fetch_pipe_alignment(const struct intel_crtc_state *c
  *
  * Plane scaling and rotation is not supported by selective fetch and both
  * properties can change without a modeset, so need to be check at every
- * atomic commmit.
+ * atomic commit.
  */
 static bool psr2_sel_fetch_plane_state_supported(const struct intel_plane_state *plane_state)
 {
@@ -1685,6 +1695,7 @@ static bool psr2_sel_fetch_pipe_state_supported(const struct intel_crtc_state *c
 int intel_psr2_sel_fetch_update(struct intel_atomic_state *state,
 				struct intel_crtc *crtc)
 {
+	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
 	struct intel_crtc_state *crtc_state = intel_atomic_get_new_crtc_state(state, crtc);
 	struct drm_rect pipe_clip = { .x1 = 0, .y1 = -1, .x2 = INT_MAX, .y2 = -1 };
 	struct intel_plane_state *new_plane_state, *old_plane_state;
@@ -1708,7 +1719,8 @@ int intel_psr2_sel_fetch_update(struct intel_atomic_state *state,
 	 */
 	for_each_oldnew_intel_plane_in_state(state, plane, old_plane_state,
 					     new_plane_state, i) {
-		struct drm_rect src, damaged_area = { .y1 = -1 };
+		struct drm_rect src, damaged_area = { .x1 = 0, .y1 = -1,
+						      .x2 = INT_MAX };
 		struct drm_atomic_helper_damage_iter iter;
 		struct drm_rect clip;
 
@@ -1735,20 +1747,23 @@ int intel_psr2_sel_fetch_update(struct intel_atomic_state *state,
 			if (old_plane_state->uapi.visible) {
 				damaged_area.y1 = old_plane_state->uapi.dst.y1;
 				damaged_area.y2 = old_plane_state->uapi.dst.y2;
-				clip_area_update(&pipe_clip, &damaged_area);
+				clip_area_update(&pipe_clip, &damaged_area,
+						 &crtc_state->pipe_src);
 			}
 
 			if (new_plane_state->uapi.visible) {
 				damaged_area.y1 = new_plane_state->uapi.dst.y1;
 				damaged_area.y2 = new_plane_state->uapi.dst.y2;
-				clip_area_update(&pipe_clip, &damaged_area);
+				clip_area_update(&pipe_clip, &damaged_area,
+						 &crtc_state->pipe_src);
 			}
 			continue;
 		} else if (new_plane_state->uapi.alpha != old_plane_state->uapi.alpha) {
 			/* If alpha changed mark the whole plane area as damaged */
 			damaged_area.y1 = new_plane_state->uapi.dst.y1;
 			damaged_area.y2 = new_plane_state->uapi.dst.y2;
-			clip_area_update(&pipe_clip, &damaged_area);
+			clip_area_update(&pipe_clip, &damaged_area,
+					 &crtc_state->pipe_src);
 			continue;
 		}
 
@@ -1759,7 +1774,8 @@ int intel_psr2_sel_fetch_update(struct intel_atomic_state *state,
 						   &new_plane_state->uapi);
 		drm_atomic_for_each_plane_damage(&iter, &clip) {
 			if (drm_rect_intersect(&clip, &src))
-				clip_area_update(&damaged_area, &clip);
+				clip_area_update(&damaged_area, &clip,
+						 &crtc_state->pipe_src);
 		}
 
 		if (damaged_area.y1 == -1)
@@ -1767,7 +1783,20 @@ int intel_psr2_sel_fetch_update(struct intel_atomic_state *state,
 
 		damaged_area.y1 += new_plane_state->uapi.dst.y1 - src.y1;
 		damaged_area.y2 += new_plane_state->uapi.dst.y1 - src.y1;
-		clip_area_update(&pipe_clip, &damaged_area);
+		clip_area_update(&pipe_clip, &damaged_area, &crtc_state->pipe_src);
+	}
+
+	/*
+	 * TODO: For now we are just using full update in case
+	 * selective fetch area calculation fails. To optimize this we
+	 * should identify cases where this happens and fix the area
+	 * calculation for those.
+	 */
+	if (pipe_clip.y1 == -1) {
+		drm_info_once(&dev_priv->drm,
+			      "Selective fetch area calculation failed in pipe %c\n",
+			      pipe_name(crtc->pipe));
+		full_update = true;
 	}
 
 	if (full_update)
@@ -2174,7 +2203,7 @@ static void _psr_invalidate_handle(struct intel_dp *intel_dp)
 }
 
 /**
- * intel_psr_invalidate - Invalidade PSR
+ * intel_psr_invalidate - Invalidate PSR
  * @dev_priv: i915 device
  * @frontbuffer_bits: frontbuffer plane tracking bits
  * @origin: which operation caused the invalidate
@@ -2344,6 +2373,7 @@ unlock:
  */
 void intel_psr_init(struct intel_dp *intel_dp)
 {
+	struct intel_connector *connector = intel_dp->attached_connector;
 	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
 	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
 
@@ -2367,14 +2397,10 @@ void intel_psr_init(struct intel_dp *intel_dp)
 
 	intel_dp->psr.source_support = true;
 
-	if (dev_priv->params.enable_psr == -1)
-		if (!dev_priv->vbt.psr.enable)
-			dev_priv->params.enable_psr = 0;
-
 	/* Set link_standby x link_off defaults */
 	if (DISPLAY_VER(dev_priv) < 12)
 		/* For new platforms up to TGL let's respect VBT back again */
-		intel_dp->psr.link_standby = dev_priv->vbt.psr.full_link;
+		intel_dp->psr.link_standby = connector->panel.vbt.psr.full_link;
 
 	INIT_WORK(&intel_dp->psr.work, intel_psr_work);
 	INIT_DELAYED_WORK(&intel_dp->psr.dc3co_work, tgl_dc3co_disable_work);

@@ -1004,8 +1004,10 @@ int iscsit_setup_scsi_cmd(struct iscsit_conn *conn, struct iscsit_cmd *cmd,
 			  unsigned char *buf)
 {
 	int data_direction, payload_length;
+	struct iscsi_ecdb_ahdr *ecdb_ahdr;
 	struct iscsi_scsi_req *hdr;
 	int iscsi_task_attr;
+	unsigned char *cdb;
 	int sam_task_attr;
 
 	atomic_long_inc(&conn->sess->cmd_pdus);
@@ -1106,6 +1108,27 @@ int iscsit_setup_scsi_cmd(struct iscsit_conn *conn, struct iscsit_cmd *cmd,
 					     ISCSI_REASON_BOOKMARK_INVALID, buf);
 	}
 
+	cdb = hdr->cdb;
+
+	if (hdr->hlength) {
+		ecdb_ahdr = (struct iscsi_ecdb_ahdr *) (hdr + 1);
+		if (ecdb_ahdr->ahstype != ISCSI_AHSTYPE_CDB) {
+			pr_err("Additional Header Segment type %d not supported!\n",
+			       ecdb_ahdr->ahstype);
+			return iscsit_add_reject_cmd(cmd,
+				ISCSI_REASON_CMD_NOT_SUPPORTED, buf);
+		}
+
+		cdb = kmalloc(be16_to_cpu(ecdb_ahdr->ahslength) + 15,
+			      GFP_KERNEL);
+		if (cdb == NULL)
+			return iscsit_add_reject_cmd(cmd,
+				ISCSI_REASON_BOOKMARK_NO_RESOURCES, buf);
+		memcpy(cdb, hdr->cdb, ISCSI_CDB_SIZE);
+		memcpy(cdb + ISCSI_CDB_SIZE, ecdb_ahdr->ecdb,
+		       be16_to_cpu(ecdb_ahdr->ahslength) - 1);
+	}
+
 	data_direction = (hdr->flags & ISCSI_FLAG_CMD_WRITE) ? DMA_TO_DEVICE :
 			 (hdr->flags & ISCSI_FLAG_CMD_READ) ? DMA_FROM_DEVICE :
 			  DMA_NONE;
@@ -1153,9 +1176,12 @@ int iscsit_setup_scsi_cmd(struct iscsit_conn *conn, struct iscsit_cmd *cmd,
 		struct iscsi_datain_req *dr;
 
 		dr = iscsit_allocate_datain_req();
-		if (!dr)
+		if (!dr) {
+			if (cdb != hdr->cdb)
+				kfree(cdb);
 			return iscsit_add_reject_cmd(cmd,
 					ISCSI_REASON_BOOKMARK_NO_RESOURCES, buf);
+		}
 
 		iscsit_attach_datain_req(cmd, dr);
 	}
@@ -1176,8 +1202,11 @@ int iscsit_setup_scsi_cmd(struct iscsit_conn *conn, struct iscsit_cmd *cmd,
 	target_get_sess_cmd(&cmd->se_cmd, true);
 
 	cmd->se_cmd.tag = (__force u32)cmd->init_task_tag;
-	cmd->sense_reason = target_cmd_init_cdb(&cmd->se_cmd, hdr->cdb,
+	cmd->sense_reason = target_cmd_init_cdb(&cmd->se_cmd, cdb,
 						GFP_KERNEL);
+
+	if (cdb != hdr->cdb)
+		kfree(cdb);
 
 	if (cmd->sense_reason) {
 		if (cmd->sense_reason == TCM_OUT_OF_RESOURCES) {
@@ -4036,8 +4065,9 @@ static bool iscsi_target_check_conn_state(struct iscsit_conn *conn)
 static void iscsit_get_rx_pdu(struct iscsit_conn *conn)
 {
 	int ret;
-	u8 *buffer, opcode;
+	u8 *buffer, *tmp_buf, opcode;
 	u32 checksum = 0, digest = 0;
+	struct iscsi_hdr *hdr;
 	struct kvec iov;
 
 	buffer = kcalloc(ISCSI_HDR_LEN, sizeof(*buffer), GFP_KERNEL);
@@ -4060,6 +4090,25 @@ static void iscsit_get_rx_pdu(struct iscsit_conn *conn)
 		if (ret != ISCSI_HDR_LEN) {
 			iscsit_rx_thread_wait_for_tcp(conn);
 			break;
+		}
+
+		hdr = (struct iscsi_hdr *) buffer;
+		if (hdr->hlength) {
+			iov.iov_len = hdr->hlength * 4;
+			tmp_buf = krealloc(buffer,
+					  ISCSI_HDR_LEN + iov.iov_len,
+					  GFP_KERNEL);
+			if (!tmp_buf)
+				break;
+
+			buffer = tmp_buf;
+			iov.iov_base = &buffer[ISCSI_HDR_LEN];
+
+			ret = rx_data(conn, &iov, 1, iov.iov_len);
+			if (ret != iov.iov_len) {
+				iscsit_rx_thread_wait_for_tcp(conn);
+				break;
+			}
 		}
 
 		if (conn->conn_ops->HeaderDigest) {
@@ -4361,7 +4410,7 @@ int iscsit_close_connection(
 
 	spin_lock_bh(&sess->conn_lock);
 	atomic_dec(&sess->nconn);
-	pr_debug("Decremented iSCSI connection count to %hu from node:"
+	pr_debug("Decremented iSCSI connection count to %d from node:"
 		" %s\n", atomic_read(&sess->nconn),
 		sess->sess_ops->InitiatorName);
 	/*

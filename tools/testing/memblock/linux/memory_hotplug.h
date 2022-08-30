@@ -7,13 +7,11 @@
 #include <linux/cache.h>
 #include <linux/types.h>
 
+extern bool movable_node_enabled;
+
 static inline bool movable_node_is_enabled(void)
 {
-#ifdef MOVABLE_NODE
-	return true;
-#else
-	return false;
-#endif
+	return movable_node_enabled;
 }
 
 #endif

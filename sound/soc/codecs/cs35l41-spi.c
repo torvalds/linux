@@ -74,6 +74,7 @@ MODULE_DEVICE_TABLE(of, cs35l41_of_match);
 #ifdef CONFIG_ACPI
 static const struct acpi_device_id cs35l41_acpi_match[] = {
 	{ "CSC3541", 0 }, /* Cirrus Logic PnP ID + part ID */
+	{ "CLSA3541", 0 }, /* Cirrus Logic PnP ID + part ID */
 	{},
 };
 MODULE_DEVICE_TABLE(acpi, cs35l41_acpi_match);

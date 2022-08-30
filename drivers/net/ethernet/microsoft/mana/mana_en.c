@@ -6,6 +6,7 @@
 #include <linux/inetdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/ethtool.h>
+#include <linux/filter.h>
 #include <linux/mm.h>
 
 #include <net/checksum.h>
@@ -382,6 +383,7 @@ static const struct net_device_ops mana_devops = {
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_get_stats64	= mana_get_stats64,
 	.ndo_bpf		= mana_bpf,
+	.ndo_xdp_xmit		= mana_xdp_xmit,
 };
 
 static void mana_cleanup_port_context(struct mana_port_context *apc)
@@ -444,6 +446,119 @@ static int mana_verify_resp_hdr(const struct gdma_resp_hdr *resp_hdr,
 		return -EPROTO;
 
 	return 0;
+}
+
+static int mana_pf_register_hw_vport(struct mana_port_context *apc)
+{
+	struct mana_register_hw_vport_resp resp = {};
+	struct mana_register_hw_vport_req req = {};
+	int err;
+
+	mana_gd_init_req_hdr(&req.hdr, MANA_REGISTER_HW_PORT,
+			     sizeof(req), sizeof(resp));
+	req.attached_gfid = 1;
+	req.is_pf_default_vport = 1;
+	req.allow_all_ether_types = 1;
+
+	err = mana_send_request(apc->ac, &req, sizeof(req), &resp,
+				sizeof(resp));
+	if (err) {
+		netdev_err(apc->ndev, "Failed to register hw vPort: %d\n", err);
+		return err;
+	}
+
+	err = mana_verify_resp_hdr(&resp.hdr, MANA_REGISTER_HW_PORT,
+				   sizeof(resp));
+	if (err || resp.hdr.status) {
+		netdev_err(apc->ndev, "Failed to register hw vPort: %d, 0x%x\n",
+			   err, resp.hdr.status);
+		return err ? err : -EPROTO;
+	}
+
+	apc->port_handle = resp.hw_vport_handle;
+	return 0;
+}
+
+static void mana_pf_deregister_hw_vport(struct mana_port_context *apc)
+{
+	struct mana_deregister_hw_vport_resp resp = {};
+	struct mana_deregister_hw_vport_req req = {};
+	int err;
+
+	mana_gd_init_req_hdr(&req.hdr, MANA_DEREGISTER_HW_PORT,
+			     sizeof(req), sizeof(resp));
+	req.hw_vport_handle = apc->port_handle;
+
+	err = mana_send_request(apc->ac, &req, sizeof(req), &resp,
+				sizeof(resp));
+	if (err) {
+		netdev_err(apc->ndev, "Failed to unregister hw vPort: %d\n",
+			   err);
+		return;
+	}
+
+	err = mana_verify_resp_hdr(&resp.hdr, MANA_DEREGISTER_HW_PORT,
+				   sizeof(resp));
+	if (err || resp.hdr.status)
+		netdev_err(apc->ndev,
+			   "Failed to deregister hw vPort: %d, 0x%x\n",
+			   err, resp.hdr.status);
+}
+
+static int mana_pf_register_filter(struct mana_port_context *apc)
+{
+	struct mana_register_filter_resp resp = {};
+	struct mana_register_filter_req req = {};
+	int err;
+
+	mana_gd_init_req_hdr(&req.hdr, MANA_REGISTER_FILTER,
+			     sizeof(req), sizeof(resp));
+	req.vport = apc->port_handle;
+	memcpy(req.mac_addr, apc->mac_addr, ETH_ALEN);
+
+	err = mana_send_request(apc->ac, &req, sizeof(req), &resp,
+				sizeof(resp));
+	if (err) {
+		netdev_err(apc->ndev, "Failed to register filter: %d\n", err);
+		return err;
+	}
+
+	err = mana_verify_resp_hdr(&resp.hdr, MANA_REGISTER_FILTER,
+				   sizeof(resp));
+	if (err || resp.hdr.status) {
+		netdev_err(apc->ndev, "Failed to register filter: %d, 0x%x\n",
+			   err, resp.hdr.status);
+		return err ? err : -EPROTO;
+	}
+
+	apc->pf_filter_handle = resp.filter_handle;
+	return 0;
+}
+
+static void mana_pf_deregister_filter(struct mana_port_context *apc)
+{
+	struct mana_deregister_filter_resp resp = {};
+	struct mana_deregister_filter_req req = {};
+	int err;
+
+	mana_gd_init_req_hdr(&req.hdr, MANA_DEREGISTER_FILTER,
+			     sizeof(req), sizeof(resp));
+	req.filter_handle = apc->pf_filter_handle;
+
+	err = mana_send_request(apc->ac, &req, sizeof(req), &resp,
+				sizeof(resp));
+	if (err) {
+		netdev_err(apc->ndev, "Failed to unregister filter: %d\n",
+			   err);
+		return;
+	}
+
+	err = mana_verify_resp_hdr(&resp.hdr, MANA_DEREGISTER_FILTER,
+				   sizeof(resp));
+	if (err || resp.hdr.status)
+		netdev_err(apc->ndev,
+			   "Failed to deregister filter: %d, 0x%x\n",
+			   err, resp.hdr.status);
 }
 
 static int mana_query_device_cfg(struct mana_context *ac, u32 proto_major_ver,
@@ -1007,6 +1122,9 @@ static void mana_rx_skb(void *buf_va, struct mana_rxcomp_oob *cqe,
 
 	act = mana_run_xdp(ndev, rxq, &xdp, buf_va, pkt_len);
 
+	if (act == XDP_REDIRECT && !rxq->xdp_rc)
+		return;
+
 	if (act != XDP_PASS && act != XDP_TX)
 		goto drop_xdp;
 
@@ -1162,10 +1280,13 @@ drop:
 static void mana_poll_rx_cq(struct mana_cq *cq)
 {
 	struct gdma_comp *comp = cq->gdma_comp_buf;
+	struct mana_rxq *rxq = cq->rxq;
 	int comp_read, i;
 
 	comp_read = mana_gd_poll_cq(cq->gdma_cq, comp, CQE_POLLING_BUFFER);
 	WARN_ON_ONCE(comp_read > CQE_POLLING_BUFFER);
+
+	rxq->xdp_flush = false;
 
 	for (i = 0; i < comp_read; i++) {
 		if (WARN_ON_ONCE(comp[i].is_sq))
@@ -1175,8 +1296,11 @@ static void mana_poll_rx_cq(struct mana_cq *cq)
 		if (WARN_ON_ONCE(comp[i].wq_num != cq->rxq->gdma_id))
 			return;
 
-		mana_process_rx_cqe(cq->rxq, cq, &comp[i]);
+		mana_process_rx_cqe(rxq, cq, &comp[i]);
 	}
+
+	if (rxq->xdp_flush)
+		xdp_do_flush();
 }
 
 static void mana_cq_handler(void *context, struct gdma_queue *gdma_queue)
@@ -1653,6 +1777,7 @@ out:
 
 static void mana_destroy_vport(struct mana_port_context *apc)
 {
+	struct gdma_dev *gd = apc->ac->gdma_dev;
 	struct mana_rxq *rxq;
 	u32 rxq_idx;
 
@@ -1666,6 +1791,9 @@ static void mana_destroy_vport(struct mana_port_context *apc)
 	}
 
 	mana_destroy_txq(apc);
+
+	if (gd->gdma_context->is_pf)
+		mana_pf_deregister_hw_vport(apc);
 }
 
 static int mana_create_vport(struct mana_port_context *apc,
@@ -1675,6 +1803,12 @@ static int mana_create_vport(struct mana_port_context *apc,
 	int err;
 
 	apc->default_rxobj = INVALID_MANA_HANDLE;
+
+	if (gd->gdma_context->is_pf) {
+		err = mana_pf_register_hw_vport(apc);
+		if (err)
+			return err;
+	}
 
 	err = mana_cfg_vport(apc, gd->pdid, gd->doorbell);
 	if (err)
@@ -1755,6 +1889,7 @@ reset_apc:
 int mana_alloc_queues(struct net_device *ndev)
 {
 	struct mana_port_context *apc = netdev_priv(ndev);
+	struct gdma_dev *gd = apc->ac->gdma_dev;
 	int err;
 
 	err = mana_create_vport(apc, ndev);
@@ -1780,6 +1915,12 @@ int mana_alloc_queues(struct net_device *ndev)
 	err = mana_config_rss(apc, TRI_STATE_TRUE, true, true);
 	if (err)
 		goto destroy_vport;
+
+	if (gd->gdma_context->is_pf) {
+		err = mana_pf_register_filter(apc);
+		if (err)
+			goto destroy_vport;
+	}
 
 	mana_chn_setxdp(apc, mana_xdp_get(apc));
 
@@ -1825,6 +1966,7 @@ int mana_attach(struct net_device *ndev)
 static int mana_dealloc_queues(struct net_device *ndev)
 {
 	struct mana_port_context *apc = netdev_priv(ndev);
+	struct gdma_dev *gd = apc->ac->gdma_dev;
 	struct mana_txq *txq;
 	int i, err;
 
@@ -1832,6 +1974,9 @@ static int mana_dealloc_queues(struct net_device *ndev)
 		return -EINVAL;
 
 	mana_chn_setxdp(apc, NULL);
+
+	if (gd->gdma_context->is_pf)
+		mana_pf_deregister_filter(apc);
 
 	/* No packet can be transmitted now since apc->port_is_up is false.
 	 * There is still a tiny chance that mana_poll_tx_cq() can re-enable
@@ -1915,6 +2060,7 @@ static int mana_probe_port(struct mana_context *ac, int port_idx,
 	apc->max_queues = gc->max_num_queues;
 	apc->num_queues = gc->max_num_queues;
 	apc->port_handle = INVALID_MANA_HANDLE;
+	apc->pf_filter_handle = INVALID_MANA_HANDLE;
 	apc->port_idx = port_idx;
 
 	ndev->netdev_ops = &mana_devops;

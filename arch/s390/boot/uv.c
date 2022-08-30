@@ -41,6 +41,12 @@ void uv_query_info(void)
 		uv_info.max_num_sec_conf = uvcb.max_num_sec_conf;
 		uv_info.max_guest_cpu_id = uvcb.max_guest_cpu_id;
 		uv_info.uv_feature_indications = uvcb.uv_feature_indications;
+		uv_info.supp_se_hdr_ver = uvcb.supp_se_hdr_versions;
+		uv_info.supp_se_hdr_pcf = uvcb.supp_se_hdr_pcf;
+		uv_info.conf_dump_storage_state_len = uvcb.conf_dump_storage_state_len;
+		uv_info.conf_dump_finalize_len = uvcb.conf_dump_finalize_len;
+		uv_info.supp_att_req_hdr_ver = uvcb.supp_att_req_hdr_ver;
+		uv_info.supp_att_pflags = uvcb.supp_att_pflags;
 	}
 
 #ifdef CONFIG_PROTECTED_VIRTUALIZATION_GUEST
@@ -51,10 +57,11 @@ void uv_query_info(void)
 }
 
 #if IS_ENABLED(CONFIG_KVM)
-void adjust_to_uv_max(unsigned long *vmax)
+unsigned long adjust_to_uv_max(unsigned long limit)
 {
 	if (is_prot_virt_host() && uv_info.max_sec_stor_addr)
-		*vmax = min_t(unsigned long, *vmax, uv_info.max_sec_stor_addr);
+		limit = min_t(unsigned long, limit, uv_info.max_sec_stor_addr);
+	return limit;
 }
 
 static int is_prot_virt_host_capable(void)

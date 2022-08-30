@@ -1307,7 +1307,7 @@ static void ext4_put_super(struct super_block *sb)
 	if (sbi->s_chksum_driver)
 		crypto_free_shash(sbi->s_chksum_driver);
 	kfree(sbi->s_blockgroup_lock);
-	fs_put_dax(sbi->s_daxdev);
+	fs_put_dax(sbi->s_daxdev, NULL);
 	fscrypt_free_dummy_policy(&sbi->s_dummy_enc_policy);
 #if IS_ENABLED(CONFIG_UNICODE)
 	utf8_unload(sb->s_encoding);
@@ -3011,6 +3011,15 @@ static int _ext4_show_options(struct seq_file *seq, struct super_block *sb,
 	} else if (test_opt2(sb, DAX_INODE)) {
 		SEQ_OPTS_PUTS("dax=inode");
 	}
+
+	if (sbi->s_groups_count >= MB_DEFAULT_LINEAR_SCAN_THRESHOLD &&
+			!test_opt2(sb, MB_OPTIMIZE_SCAN)) {
+		SEQ_OPTS_PUTS("mb_optimize_scan=0");
+	} else if (sbi->s_groups_count < MB_DEFAULT_LINEAR_SCAN_THRESHOLD &&
+			test_opt2(sb, MB_OPTIMIZE_SCAN)) {
+		SEQ_OPTS_PUTS("mb_optimize_scan=1");
+	}
+
 	ext4_show_quota_options(seq, sb);
 	return 0;
 }
@@ -4272,7 +4281,7 @@ static void ext4_free_sbi(struct ext4_sb_info *sbi)
 		return;
 
 	kfree(sbi->s_blockgroup_lock);
-	fs_put_dax(sbi->s_daxdev);
+	fs_put_dax(sbi->s_daxdev, NULL);
 	kfree(sbi);
 }
 
@@ -4284,7 +4293,8 @@ static struct ext4_sb_info *ext4_alloc_sbi(struct super_block *sb)
 	if (!sbi)
 		return NULL;
 
-	sbi->s_daxdev = fs_dax_get_by_bdev(sb->s_bdev, &sbi->s_dax_part_off);
+	sbi->s_daxdev = fs_dax_get_by_bdev(sb->s_bdev, &sbi->s_dax_part_off,
+					   NULL, NULL);
 
 	sbi->s_blockgroup_lock =
 		kzalloc(sizeof(struct blockgroup_lock), GFP_KERNEL);
@@ -4296,7 +4306,7 @@ static struct ext4_sb_info *ext4_alloc_sbi(struct super_block *sb)
 	sbi->s_sb = sb;
 	return sbi;
 err_out:
-	fs_put_dax(sbi->s_daxdev);
+	fs_put_dax(sbi->s_daxdev, NULL);
 	kfree(sbi);
 	return NULL;
 }
@@ -5523,7 +5533,7 @@ static int ext4_fill_super(struct super_block *sb, struct fs_context *fc)
 			 "Quota mode: %s.", descr, ext4_quota_mode(sb));
 
 	/* Update the s_overhead_clusters if necessary */
-	ext4_update_overhead(sb);
+	ext4_update_overhead(sb, false);
 	return 0;
 
 free_sbi:
@@ -5585,7 +5595,7 @@ static struct inode *ext4_get_journal_inode(struct super_block *sb,
 		return NULL;
 	}
 
-	jbd_debug(2, "Journal inode found at %p: %lld bytes\n",
+	ext4_debug("Journal inode found at %p: %lld bytes\n",
 		  journal_inode, journal_inode->i_size);
 	if (!S_ISREG(journal_inode->i_mode)) {
 		ext4_msg(sb, KERN_ERR, "invalid journal inode");

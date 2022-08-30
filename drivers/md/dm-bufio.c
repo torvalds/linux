@@ -18,6 +18,7 @@
 #include <linux/module.h>
 #include <linux/rbtree.h>
 #include <linux/stacktrace.h>
+#include <linux/jump_label.h>
 
 #define DM_MSG_PREFIX "bufio"
 
@@ -81,6 +82,8 @@
  */
 struct dm_bufio_client {
 	struct mutex lock;
+	spinlock_t spinlock;
+	bool no_sleep;
 
 	struct list_head lru[LIST_SIZE];
 	unsigned long n_buffers[LIST_SIZE];
@@ -90,7 +93,6 @@ struct dm_bufio_client {
 	s8 sectors_per_block_bits;
 	void (*alloc_callback)(struct dm_buffer *);
 	void (*write_callback)(struct dm_buffer *);
-
 	struct kmem_cache *slab_buffer;
 	struct kmem_cache *slab_cache;
 	struct dm_io_client *dm_io;
@@ -161,23 +163,34 @@ struct dm_buffer {
 #endif
 };
 
+static DEFINE_STATIC_KEY_FALSE(no_sleep_enabled);
+
 /*----------------------------------------------------------------*/
 
 #define dm_bufio_in_request()	(!!current->bio_list)
 
 static void dm_bufio_lock(struct dm_bufio_client *c)
 {
-	mutex_lock_nested(&c->lock, dm_bufio_in_request());
+	if (static_branch_unlikely(&no_sleep_enabled) && c->no_sleep)
+		spin_lock_bh(&c->spinlock);
+	else
+		mutex_lock_nested(&c->lock, dm_bufio_in_request());
 }
 
 static int dm_bufio_trylock(struct dm_bufio_client *c)
 {
-	return mutex_trylock(&c->lock);
+	if (static_branch_unlikely(&no_sleep_enabled) && c->no_sleep)
+		return spin_trylock_bh(&c->spinlock);
+	else
+		return mutex_trylock(&c->lock);
 }
 
 static void dm_bufio_unlock(struct dm_bufio_client *c)
 {
-	mutex_unlock(&c->lock);
+	if (static_branch_unlikely(&no_sleep_enabled) && c->no_sleep)
+		spin_unlock_bh(&c->spinlock);
+	else
+		mutex_unlock(&c->lock);
 }
 
 /*----------------------------------------------------------------*/
@@ -802,6 +815,10 @@ static struct dm_buffer *__get_unclaimed_buffer(struct dm_bufio_client *c)
 		BUG_ON(test_bit(B_WRITING, &b->state));
 		BUG_ON(test_bit(B_DIRTY, &b->state));
 
+		if (static_branch_unlikely(&no_sleep_enabled) && c->no_sleep &&
+		    unlikely(test_bit(B_READING, &b->state)))
+			continue;
+
 		if (!b->hold_count) {
 			__make_buffer_clean(b);
 			__unlink_buffer(b);
@@ -809,6 +826,9 @@ static struct dm_buffer *__get_unclaimed_buffer(struct dm_bufio_client *c)
 		}
 		cond_resched();
 	}
+
+	if (static_branch_unlikely(&no_sleep_enabled) && c->no_sleep)
+		return NULL;
 
 	list_for_each_entry_reverse(b, &c->lru[LIST_DIRTY], lru_list) {
 		BUG_ON(test_bit(B_READING, &b->state));
@@ -1617,7 +1637,8 @@ static void drop_buffers(struct dm_bufio_client *c)
  */
 static bool __try_evict_buffer(struct dm_buffer *b, gfp_t gfp)
 {
-	if (!(gfp & __GFP_FS)) {
+	if (!(gfp & __GFP_FS) ||
+	    (static_branch_unlikely(&no_sleep_enabled) && b->c->no_sleep)) {
 		if (test_bit(B_READING, &b->state) ||
 		    test_bit(B_WRITING, &b->state) ||
 		    test_bit(B_DIRTY, &b->state))
@@ -1715,7 +1736,8 @@ static unsigned long dm_bufio_shrink_count(struct shrinker *shrink, struct shrin
 struct dm_bufio_client *dm_bufio_client_create(struct block_device *bdev, unsigned block_size,
 					       unsigned reserved_buffers, unsigned aux_size,
 					       void (*alloc_callback)(struct dm_buffer *),
-					       void (*write_callback)(struct dm_buffer *))
+					       void (*write_callback)(struct dm_buffer *),
+					       unsigned int flags)
 {
 	int r;
 	struct dm_bufio_client *c;
@@ -1745,12 +1767,18 @@ struct dm_bufio_client *dm_bufio_client_create(struct block_device *bdev, unsign
 	c->alloc_callback = alloc_callback;
 	c->write_callback = write_callback;
 
+	if (flags & DM_BUFIO_CLIENT_NO_SLEEP) {
+		c->no_sleep = true;
+		static_branch_inc(&no_sleep_enabled);
+	}
+
 	for (i = 0; i < LIST_SIZE; i++) {
 		INIT_LIST_HEAD(&c->lru[i]);
 		c->n_buffers[i] = 0;
 	}
 
 	mutex_init(&c->lock);
+	spin_lock_init(&c->spinlock);
 	INIT_LIST_HEAD(&c->reserved_buffers);
 	c->need_reserved_buffers = reserved_buffers;
 
@@ -1804,7 +1832,8 @@ struct dm_bufio_client *dm_bufio_client_create(struct block_device *bdev, unsign
 	c->shrinker.scan_objects = dm_bufio_shrink_scan;
 	c->shrinker.seeks = 1;
 	c->shrinker.batch = 0;
-	r = register_shrinker(&c->shrinker);
+	r = register_shrinker(&c->shrinker, "md-%s:(%u:%u)", slab_name,
+			      MAJOR(bdev->bd_dev), MINOR(bdev->bd_dev));
 	if (r)
 		goto bad;
 
@@ -1876,6 +1905,8 @@ void dm_bufio_client_destroy(struct dm_bufio_client *c)
 	kmem_cache_destroy(c->slab_buffer);
 	dm_io_client_destroy(c->dm_io);
 	mutex_destroy(&c->lock);
+	if (c->no_sleep)
+		static_branch_dec(&no_sleep_enabled);
 	kfree(c);
 }
 EXPORT_SYMBOL_GPL(dm_bufio_client_destroy);

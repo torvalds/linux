@@ -291,15 +291,13 @@ void tcp_delack_timer_handler(struct sock *sk)
 {
 	struct inet_connection_sock *icsk = inet_csk(sk);
 
-	sk_mem_reclaim_partial(sk);
-
 	if (((1 << sk->sk_state) & (TCPF_CLOSE | TCPF_LISTEN)) ||
 	    !(icsk->icsk_ack.pending & ICSK_ACK_TIMER))
-		goto out;
+		return;
 
 	if (time_after(icsk->icsk_ack.timeout, jiffies)) {
 		sk_reset_timer(sk, &icsk->icsk_delack_timer, icsk->icsk_ack.timeout);
-		goto out;
+		return;
 	}
 	icsk->icsk_ack.pending &= ~ICSK_ACK_TIMER;
 
@@ -318,10 +316,6 @@ void tcp_delack_timer_handler(struct sock *sk)
 		tcp_send_ack(sk);
 		__NET_INC_STATS(sock_net(sk), LINUX_MIB_DELAYEDACKS);
 	}
-
-out:
-	if (tcp_under_memory_pressure(sk))
-		sk_mem_reclaim(sk);
 }
 
 
@@ -604,11 +598,11 @@ void tcp_write_timer_handler(struct sock *sk)
 
 	if (((1 << sk->sk_state) & (TCPF_CLOSE | TCPF_LISTEN)) ||
 	    !icsk->icsk_pending)
-		goto out;
+		return;
 
 	if (time_after(icsk->icsk_timeout, jiffies)) {
 		sk_reset_timer(sk, &icsk->icsk_retransmit_timer, icsk->icsk_timeout);
-		goto out;
+		return;
 	}
 
 	tcp_mstamp_refresh(tcp_sk(sk));
@@ -630,9 +624,6 @@ void tcp_write_timer_handler(struct sock *sk)
 		tcp_probe_timer(sk);
 		break;
 	}
-
-out:
-	sk_mem_reclaim(sk);
 }
 
 static void tcp_write_timer(struct timer_list *t)
@@ -746,8 +737,6 @@ static void tcp_keepalive_timer (struct timer_list *t)
 		/* It is tp->rcv_tstamp + keepalive_time_when(tp) */
 		elapsed = keepalive_time_when(tp) - elapsed;
 	}
-
-	sk_mem_reclaim(sk);
 
 resched:
 	inet_csk_reset_keepalive_timer (sk, elapsed);

@@ -12,6 +12,17 @@
 
 #include "coresight-config.h"
 
+/*
+ * Load operation types.
+ * When loading or unloading, another load operation cannot be run.
+ * When unloading configurations cannot be activated.
+ */
+enum cscfg_load_ops {
+	CSCFG_NONE,
+	CSCFG_LOAD,
+	CSCFG_UNLOAD
+};
+
 /**
  * System configuration manager device.
  *
@@ -30,6 +41,7 @@
  * @cfgfs_subsys:	configfs subsystem used to manage configurations.
  * @sysfs_active_config:Active config hash used if CoreSight controlled from sysfs.
  * @sysfs_active_preset:Active preset index used if CoreSight controlled from sysfs.
+ * @load_state:		A multi-stage load/unload operation is in progress.
  */
 struct cscfg_manager {
 	struct device dev;
@@ -41,6 +53,7 @@ struct cscfg_manager {
 	struct configfs_subsystem cfgfs_subsys;
 	u32 sysfs_active_config;
 	int sysfs_active_preset;
+	enum cscfg_load_ops load_state;
 };
 
 /* get reference to dev in cscfg_manager */

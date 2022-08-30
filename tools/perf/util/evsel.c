@@ -594,9 +594,14 @@ static int evsel__add_modifiers(struct evsel *evsel, char *bf, size_t size)
 	return r;
 }
 
+int __weak arch_evsel__hw_name(struct evsel *evsel, char *bf, size_t size)
+{
+	return scnprintf(bf, size, "%s", __evsel__hw_name(evsel->core.attr.config));
+}
+
 static int evsel__hw_name(struct evsel *evsel, char *bf, size_t size)
 {
-	int r = scnprintf(bf, size, "%s", __evsel__hw_name(evsel->core.attr.config));
+	int r = arch_evsel__hw_name(evsel, bf, size);
 	return r + evsel__add_modifiers(evsel, bf + r, size - r);
 }
 
@@ -1092,6 +1097,11 @@ void __weak arch_evsel__fixup_new_cycles(struct perf_event_attr *attr __maybe_un
 {
 }
 
+void __weak arch__post_evsel_config(struct evsel *evsel __maybe_unused,
+				    struct perf_event_attr *attr __maybe_unused)
+{
+}
+
 static void evsel__set_default_freq_period(struct record_opts *opts,
 					   struct perf_event_attr *attr)
 {
@@ -1375,6 +1385,8 @@ void evsel__config(struct evsel *evsel, struct record_opts *opts,
 
 	if (evsel__is_offcpu_event(evsel))
 		evsel->core.attr.sample_type &= OFFCPU_SAMPLE_TYPES;
+
+	arch__post_evsel_config(evsel, attr);
 }
 
 int evsel__set_filter(struct evsel *evsel, const char *filter)
@@ -1529,7 +1541,7 @@ static int evsel__read_one(struct evsel *evsel, int cpu_map_idx, int thread)
 }
 
 static void evsel__set_count(struct evsel *counter, int cpu_map_idx, int thread,
-			     u64 val, u64 ena, u64 run)
+			     u64 val, u64 ena, u64 run, u64 lost)
 {
 	struct perf_counts_values *count;
 
@@ -1538,6 +1550,7 @@ static void evsel__set_count(struct evsel *counter, int cpu_map_idx, int thread,
 	count->val    = val;
 	count->ena    = ena;
 	count->run    = run;
+	count->lost   = lost;
 
 	perf_counts__set_loaded(counter->counts, cpu_map_idx, thread, true);
 }
@@ -1546,7 +1559,7 @@ static int evsel__process_group_data(struct evsel *leader, int cpu_map_idx, int 
 {
 	u64 read_format = leader->core.attr.read_format;
 	struct sample_read_value *v;
-	u64 nr, ena = 0, run = 0, i;
+	u64 nr, ena = 0, run = 0, lost = 0;
 
 	nr = *data++;
 
@@ -1559,18 +1572,18 @@ static int evsel__process_group_data(struct evsel *leader, int cpu_map_idx, int 
 	if (read_format & PERF_FORMAT_TOTAL_TIME_RUNNING)
 		run = *data++;
 
-	v = (struct sample_read_value *) data;
-
-	evsel__set_count(leader, cpu_map_idx, thread, v[0].value, ena, run);
-
-	for (i = 1; i < nr; i++) {
+	v = (void *)data;
+	sample_read_group__for_each(v, nr, read_format) {
 		struct evsel *counter;
 
-		counter = evlist__id2evsel(leader->evlist, v[i].id);
+		counter = evlist__id2evsel(leader->evlist, v->id);
 		if (!counter)
 			return -EINVAL;
 
-		evsel__set_count(counter, cpu_map_idx, thread, v[i].value, ena, run);
+		if (read_format & PERF_FORMAT_LOST)
+			lost = v->lost;
+
+		evsel__set_count(counter, cpu_map_idx, thread, v->value, ena, run, lost);
 	}
 
 	return 0;
@@ -2358,6 +2371,7 @@ int evsel__parse_sample(struct evsel *evsel, union perf_event *event,
 	data->misc    = event->header.misc;
 	data->id = -1ULL;
 	data->data_src = PERF_MEM_DATA_SRC_NONE;
+	data->vcpu = -1;
 
 	if (event->header.type != PERF_RECORD_SAMPLE) {
 		if (!evsel->core.attr.sample_id_all)
@@ -2462,8 +2476,8 @@ int evsel__parse_sample(struct evsel *evsel, union perf_event *event,
 
 			if (data->read.group.nr > max_group_nr)
 				return -EFAULT;
-			sz = data->read.group.nr *
-			     sizeof(struct sample_read_value);
+
+			sz = data->read.group.nr * sample_read_value_size(read_format);
 			OVERFLOW_CHECK(array, sz, max_size);
 			data->read.group.values =
 					(struct sample_read_value *)array;
@@ -2472,6 +2486,12 @@ int evsel__parse_sample(struct evsel *evsel, union perf_event *event,
 			OVERFLOW_CHECK_u64(array);
 			data->read.one.id = *array;
 			array++;
+
+			if (read_format & PERF_FORMAT_LOST) {
+				OVERFLOW_CHECK_u64(array);
+				data->read.one.lost = *array;
+				array++;
+			}
 		}
 	}
 
@@ -2715,6 +2735,32 @@ int evsel__parse_sample_timestamp(struct evsel *evsel, union perf_event *event,
 		*timestamp = *array;
 
 	return 0;
+}
+
+u16 evsel__id_hdr_size(struct evsel *evsel)
+{
+	u64 sample_type = evsel->core.attr.sample_type;
+	u16 size = 0;
+
+	if (sample_type & PERF_SAMPLE_TID)
+		size += sizeof(u64);
+
+	if (sample_type & PERF_SAMPLE_TIME)
+		size += sizeof(u64);
+
+	if (sample_type & PERF_SAMPLE_ID)
+		size += sizeof(u64);
+
+	if (sample_type & PERF_SAMPLE_STREAM_ID)
+		size += sizeof(u64);
+
+	if (sample_type & PERF_SAMPLE_CPU)
+		size += sizeof(u64);
+
+	if (sample_type & PERF_SAMPLE_IDENTIFIER)
+		size += sizeof(u64);
+
+	return size;
 }
 
 struct tep_format_field *evsel__field(struct evsel *evsel, const char *name)

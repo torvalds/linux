@@ -766,7 +766,7 @@ static int lg_g15_probe(struct hid_device *hdev, const struct hid_device_id *id)
 
 	/*
 	 * Some models have multiple interfaces, we want the interface with
-	 * with the f000.0000 application input report.
+	 * the f000.0000 application input report.
 	 */
 	rep_enum = &hdev->report_enum[HID_INPUT_REPORT];
 	list_for_each_entry(rep, &rep_enum->report_list, list) {

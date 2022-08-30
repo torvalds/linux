@@ -170,15 +170,6 @@ static inline unsigned int isa_virt_to_bus(volatile void *address)
 #define isa_bus_to_virt		phys_to_virt
 
 /*
- * However PCI ones are not necessarily 1:1 and therefore these interfaces
- * are forbidden in portable PCI drivers.
- *
- * Allow them on x86 for legacy drivers, though.
- */
-#define virt_to_bus virt_to_phys
-#define bus_to_virt phys_to_virt
-
-/*
  * The default ioremap() behavior is non-cached; if you need something
  * else, you probably want one of the following.
  */

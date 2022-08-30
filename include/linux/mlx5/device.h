@@ -387,21 +387,6 @@ enum {
 };
 
 enum {
-	MLX5_DEV_CAP_FLAG_XRC		= 1LL <<  3,
-	MLX5_DEV_CAP_FLAG_BAD_PKEY_CNTR	= 1LL <<  8,
-	MLX5_DEV_CAP_FLAG_BAD_QKEY_CNTR	= 1LL <<  9,
-	MLX5_DEV_CAP_FLAG_APM		= 1LL << 17,
-	MLX5_DEV_CAP_FLAG_ATOMIC	= 1LL << 18,
-	MLX5_DEV_CAP_FLAG_BLOCK_MCAST	= 1LL << 23,
-	MLX5_DEV_CAP_FLAG_ON_DMND_PG	= 1LL << 24,
-	MLX5_DEV_CAP_FLAG_CQ_MODER	= 1LL << 29,
-	MLX5_DEV_CAP_FLAG_RESIZE_CQ	= 1LL << 30,
-	MLX5_DEV_CAP_FLAG_DCT		= 1LL << 37,
-	MLX5_DEV_CAP_FLAG_SIG_HAND_OVER	= 1LL << 40,
-	MLX5_DEV_CAP_FLAG_CMDIF_CSUM	= 3LL << 46,
-};
-
-enum {
 	MLX5_ROCE_VERSION_1		= 0,
 	MLX5_ROCE_VERSION_2		= 2,
 };
@@ -455,6 +440,7 @@ enum {
 
 	MLX5_OPCODE_UMR			= 0x25,
 
+	MLX5_OPCODE_ACCESS_ASO		= 0x2d,
 };
 
 enum {
@@ -493,10 +479,6 @@ enum {
 
 enum {
 	MLX5_MAX_PAGE_SHIFT		= 31
-};
-
-enum {
-	MLX5_CAP_OFF_CMDIF_CSUM		= 46,
 };
 
 enum {
@@ -840,7 +822,10 @@ struct mlx5_cqe64 {
 	__be32		timestamp_l;
 	__be32		sop_drop_qpn;
 	__be16		wqe_counter;
-	u8		signature;
+	union {
+		u8	signature;
+		u8	validity_iteration_count;
+	};
 	u8		op_own;
 };
 
@@ -872,6 +857,11 @@ enum {
 	MLX5_CQE_FORMAT_CSUM_STRIDX = 0x3,
 };
 
+enum {
+	MLX5_CQE_COMPRESS_LAYOUT_BASIC = 0,
+	MLX5_CQE_COMPRESS_LAYOUT_ENHANCED = 1,
+};
+
 #define MLX5_MINI_CQE_ARRAY_SIZE 8
 
 static inline u8 mlx5_get_cqe_format(struct mlx5_cqe64 *cqe)
@@ -882,6 +872,12 @@ static inline u8 mlx5_get_cqe_format(struct mlx5_cqe64 *cqe)
 static inline u8 get_cqe_opcode(struct mlx5_cqe64 *cqe)
 {
 	return cqe->op_own >> 4;
+}
+
+static inline u8 get_cqe_enhanced_num_mini_cqes(struct mlx5_cqe64 *cqe)
+{
+	/* num_of_mini_cqes is zero based */
+	return get_cqe_opcode(cqe) + 1;
 }
 
 static inline u8 get_cqe_lro_tcppsh(struct mlx5_cqe64 *cqe)

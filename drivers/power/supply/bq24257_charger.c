@@ -287,7 +287,7 @@ static int bq24257_set_input_current_limit(struct bq24257_device *bq,
 {
 	/*
 	 * Address the case where the user manually sets an input current limit
-	 * while the charger auto-detection mechanism is is active. In this
+	 * while the charger auto-detection mechanism is active. In this
 	 * case we want to abort and go straight to the user-specified value.
 	 */
 	if (bq->iilimit_autoset_enable)

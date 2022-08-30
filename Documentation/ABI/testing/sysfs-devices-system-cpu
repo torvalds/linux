@@ -67,8 +67,7 @@ Description:	Discover NUMA node a CPU belongs to
 		/sys/devices/system/cpu/cpu42/node2 -> ../../node/node2
 
 
-What:		/sys/devices/system/cpu/cpuX/topology/core_id
-		/sys/devices/system/cpu/cpuX/topology/core_siblings
+What:		/sys/devices/system/cpu/cpuX/topology/core_siblings
 		/sys/devices/system/cpu/cpuX/topology/core_siblings_list
 		/sys/devices/system/cpu/cpuX/topology/physical_package_id
 		/sys/devices/system/cpu/cpuX/topology/thread_siblings
@@ -83,10 +82,6 @@ Description:	CPU topology files that describe a logical CPU's relationship
 		e.g. /sys/devices/system/cpu/cpu42/.
 
 		Briefly, the files above are:
-
-		core_id: the CPU core ID of cpuX. Typically it is the
-		hardware platform's identifier (rather than the kernel's).
-		The actual value is architecture and platform dependent.
 
 		core_siblings: internal kernel map of cpuX's hardware threads
 		within the same physical_package_id.
@@ -528,6 +523,7 @@ What:		/sys/devices/system/cpu/vulnerabilities
 		/sys/devices/system/cpu/vulnerabilities/tsx_async_abort
 		/sys/devices/system/cpu/vulnerabilities/itlb_multihit
 		/sys/devices/system/cpu/vulnerabilities/mmio_stale_data
+		/sys/devices/system/cpu/vulnerabilities/retbleed
 Date:		January 2018
 Contact:	Linux kernel mailing list <linux-kernel@vger.kernel.org>
 Description:	Information about CPU vulnerabilities

@@ -876,6 +876,9 @@ static void stm32h7_adc_disable(struct iio_dev *indio_dev)
 	int ret;
 	u32 val;
 
+	if (!(stm32_adc_readl(adc, STM32H7_ADC_CR) & STM32H7_ADEN))
+		return;
+
 	/* Disable ADC and wait until it's effectively disabled */
 	stm32_adc_set_bits(adc, STM32H7_ADC_CR, STM32H7_ADDIS);
 	ret = stm32_adc_readl_poll_timeout(STM32H7_ADC_CR, val,
@@ -1015,6 +1018,9 @@ static int stm32h7_adc_selfcalib(struct iio_dev *indio_dev)
 
 	if (adc->cal.calibrated)
 		return true;
+
+	/* ADC must be disabled for calibration */
+	stm32h7_adc_disable(indio_dev);
 
 	/*
 	 * Select calibration mode:

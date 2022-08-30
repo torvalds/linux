@@ -1390,6 +1390,8 @@ static const struct usb_device_id products[] = {
 	{QMI_QUIRK_SET_DTR(0x1e2d, 0x00b0, 4)},	/* Cinterion CLS8 */
 	{QMI_FIXED_INTF(0x1e2d, 0x00b7, 0)},	/* Cinterion MV31 RmNet */
 	{QMI_FIXED_INTF(0x1e2d, 0x00b9, 0)},	/* Cinterion MV31 RmNet based on new baseline */
+	{QMI_FIXED_INTF(0x1e2d, 0x00f3, 0)},	/* Cinterion MV32-W-A RmNet */
+	{QMI_FIXED_INTF(0x1e2d, 0x00f4, 0)},	/* Cinterion MV32-W-B RmNet */
 	{QMI_FIXED_INTF(0x413c, 0x81a2, 8)},	/* Dell Wireless 5806 Gobi(TM) 4G LTE Mobile Broadband Card */
 	{QMI_FIXED_INTF(0x413c, 0x81a3, 8)},	/* Dell Wireless 5570 HSPA+ (42Mbps) Mobile Broadband Card */
 	{QMI_FIXED_INTF(0x413c, 0x81a4, 8)},	/* Dell Wireless 5570e HSPA+ (42Mbps) Mobile Broadband Card */

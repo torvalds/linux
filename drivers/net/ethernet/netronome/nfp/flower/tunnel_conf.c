@@ -1072,7 +1072,7 @@ nfp_tunnel_del_shared_mac(struct nfp_app *app, struct net_device *netdev,
 		return 0;
 
 	entry->ref_count--;
-	/* If del is part of a mod then mac_list is still in use elsewheree. */
+	/* If del is part of a mod then mac_list is still in use elsewhere. */
 	if (nfp_netdev_is_nfp_repr(netdev) && !mod) {
 		repr = netdev_priv(netdev);
 		repr_priv = repr->app_priv;

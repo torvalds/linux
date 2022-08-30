@@ -653,8 +653,8 @@ block might fail:
 - Concurrent activity that operates on the same physical memory area, such as
   allocating gigantic pages, can result in temporary offlining failures.
 
-- Out of memory when dissolving huge pages, especially when freeing unused
-  vmemmap pages associated with each hugetlb page is enabled.
+- Out of memory when dissolving huge pages, especially when HugeTLB Vmemmap
+  Optimization (HVO) is enabled.
 
   Offlining code may be able to migrate huge page contents, but may not be able
   to dissolve the source huge page because it fails allocating (unmovable) pages

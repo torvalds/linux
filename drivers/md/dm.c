@@ -752,7 +752,7 @@ static int open_table_device(struct table_device *td, dev_t dev,
 	}
 
 	td->dm_dev.bdev = bdev;
-	td->dm_dev.dax_dev = fs_dax_get_by_bdev(bdev, &part_off);
+	td->dm_dev.dax_dev = fs_dax_get_by_bdev(bdev, &part_off, NULL, NULL);
 	return 0;
 }
 
@@ -1016,7 +1016,7 @@ static void dm_wq_requeue_work(struct work_struct *work)
 	while (io) {
 		struct dm_io *next = io->next;
 
-		dm_io_rewind(io, &md->queue->bio_split);
+		dm_io_rewind(io, &md->disk->bio_split);
 
 		io->next = NULL;
 		__dm_io_complete(io, false);
@@ -1181,7 +1181,7 @@ static sector_t max_io_len(struct dm_target *ti, sector_t sector)
 	 * Does the target need to split IO even further?
 	 * - varied (per target) IO splitting is a tenet of DM; this
 	 *   explains why stacked chunk_sectors based splitting via
-	 *   blk_queue_split() isn't possible here.
+	 *   bio_split_to_limits() isn't possible here.
 	 */
 	if (!ti->max_io_len)
 		return len;
@@ -1751,10 +1751,10 @@ static void dm_split_and_process_bio(struct mapped_device *md,
 	is_abnormal = is_abnormal_io(bio);
 	if (unlikely(is_abnormal)) {
 		/*
-		 * Use blk_queue_split() for abnormal IO (e.g. discard, etc)
+		 * Use bio_split_to_limits() for abnormal IO (e.g. discard, etc)
 		 * otherwise associated queue_limits won't be imposed.
 		 */
-		blk_queue_split(&bio);
+		bio = bio_split_to_limits(bio);
 	}
 
 	init_clone_info(&ci, md, map, bio, is_abnormal);

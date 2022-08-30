@@ -29,6 +29,7 @@ enum bpf_type_id_kind {
 enum bpf_type_info_kind {
 	BPF_TYPE_EXISTS = 0,		/* type existence in target kernel */
 	BPF_TYPE_SIZE = 1,		/* type size in target kernel */
+	BPF_TYPE_MATCHES = 2,		/* type match in target kernel */
 };
 
 /* second argument to __builtin_preserve_enum_value() built-in */
@@ -182,6 +183,16 @@ enum bpf_enum_value_kind {
  */
 #define bpf_core_type_exists(type)					    \
 	__builtin_preserve_type_info(*(typeof(type) *)0, BPF_TYPE_EXISTS)
+
+/*
+ * Convenience macro to check that provided named type
+ * (struct/union/enum/typedef) "matches" that in a target kernel.
+ * Returns:
+ *    1, if the type matches in the target kernel's BTF;
+ *    0, if the type does not match any in the target kernel
+ */
+#define bpf_core_type_matches(type)					    \
+	__builtin_preserve_type_info(*(typeof(type) *)0, BPF_TYPE_MATCHES)
 
 /*
  * Convenience macro to get the byte size of a provided named type

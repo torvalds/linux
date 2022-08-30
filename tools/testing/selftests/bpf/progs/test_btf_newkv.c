@@ -9,19 +9,6 @@ struct ipv_counts {
 	unsigned int v6;
 };
 
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
-/* just to validate we can handle maps in multiple sections */
-struct bpf_map_def SEC("maps") btf_map_legacy = {
-	.type = BPF_MAP_TYPE_ARRAY,
-	.key_size = sizeof(int),
-	.value_size = sizeof(long long),
-	.max_entries = 4,
-};
-#pragma GCC diagnostic pop
-
-BPF_ANNOTATE_KV_PAIR(btf_map_legacy, int, struct ipv_counts);
-
 struct {
 	__uint(type, BPF_MAP_TYPE_ARRAY);
 	__uint(max_entries, 4);
@@ -40,11 +27,6 @@ int test_long_fname_2(void)
 		return 0;
 
 	counts->v6++;
-
-	/* just verify we can reference both maps */
-	counts = bpf_map_lookup_elem(&btf_map_legacy, &key);
-	if (!counts)
-		return 0;
 
 	return 0;
 }

@@ -11,7 +11,7 @@
 #include <linux/spinlock.h>
 #include <linux/xarray.h>
 
-#include "gt/intel_engine_types.h"
+#include <uapi/drm/i915_drm.h>
 
 #define I915_LAST_UABI_ENGINE_CLASS I915_ENGINE_CLASS_COMPUTE
 

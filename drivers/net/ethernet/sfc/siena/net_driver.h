@@ -838,7 +838,7 @@ enum efx_xdp_tx_queues_mode {
  * @xdp_channel_offset: Offset of zeroth channel used for XPD TX.
  * @xdp_tx_per_channel: Max number of TX queues on an XDP TX channel.
  * @rx_ip_align: RX DMA address offset to have IP header aligned in
- *	in accordance with NET_IP_ALIGN
+ *	accordance with NET_IP_ALIGN
  * @rx_dma_len: Current maximum RX DMA length
  * @rx_buffer_order: Order (log2) of number of pages for each RX buffer
  * @rx_buffer_truesize: Amortised allocation size of an RX buffer,

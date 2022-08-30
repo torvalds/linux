@@ -2533,6 +2533,8 @@ __nvme_fc_abort_outstanding_ios(struct nvme_fc_ctrl *ctrl, bool start_queues)
 	blk_mq_tagset_busy_iter(&ctrl->admin_tag_set,
 				nvme_fc_terminate_exchange, &ctrl->ctrl);
 	blk_mq_tagset_wait_completed_request(&ctrl->admin_tag_set);
+	if (start_queues)
+		nvme_start_admin_queue(&ctrl->ctrl);
 }
 
 static void
@@ -3878,6 +3880,7 @@ static int fc_parse_cgrpid(const char *buf, u64 *id)
 static ssize_t fc_appid_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t count)
 {
+	size_t orig_count = count;
 	u64 cgrp_id;
 	int appid_len = 0;
 	int cgrpid_len = 0;
@@ -3902,7 +3905,7 @@ static ssize_t fc_appid_store(struct device *dev,
 	ret = blkcg_set_fc_appid(app_id, cgrp_id, sizeof(app_id));
 	if (ret < 0)
 		return ret;
-	return count;
+	return orig_count;
 }
 static DEVICE_ATTR(appid_store, 0200, NULL, fc_appid_store);
 #endif /* CONFIG_BLK_CGROUP_FC_APPID */

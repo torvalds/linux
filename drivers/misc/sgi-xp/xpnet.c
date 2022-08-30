@@ -285,7 +285,7 @@ xpnet_connection_activity(enum xp_retval reason, short partid, int channel,
 		__clear_bit(partid, xpnet_broadcast_partitions);
 		spin_unlock_bh(&xpnet_broadcast_lock);
 
-		if (bitmap_empty((unsigned long *)xpnet_broadcast_partitions,
+		if (bitmap_empty(xpnet_broadcast_partitions,
 				 xp_max_npartitions)) {
 			netif_carrier_off(xpnet_device);
 		}
@@ -522,9 +522,8 @@ xpnet_init(void)
 
 	dev_info(xpnet, "registering network device %s\n", XPNET_DEVICE_NAME);
 
-	xpnet_broadcast_partitions = kcalloc(BITS_TO_LONGS(xp_max_npartitions),
-					     sizeof(long),
-					     GFP_KERNEL);
+	xpnet_broadcast_partitions = bitmap_zalloc(xp_max_npartitions,
+						   GFP_KERNEL);
 	if (xpnet_broadcast_partitions == NULL)
 		return -ENOMEM;
 
@@ -535,7 +534,7 @@ xpnet_init(void)
 	xpnet_device = alloc_netdev(0, XPNET_DEVICE_NAME, NET_NAME_UNKNOWN,
 				    ether_setup);
 	if (xpnet_device == NULL) {
-		kfree(xpnet_broadcast_partitions);
+		bitmap_free(xpnet_broadcast_partitions);
 		return -ENOMEM;
 	}
 
@@ -574,7 +573,7 @@ xpnet_init(void)
 	result = register_netdev(xpnet_device);
 	if (result != 0) {
 		free_netdev(xpnet_device);
-		kfree(xpnet_broadcast_partitions);
+		bitmap_free(xpnet_broadcast_partitions);
 	}
 
 	return result;
@@ -590,7 +589,7 @@ xpnet_exit(void)
 
 	unregister_netdev(xpnet_device);
 	free_netdev(xpnet_device);
-	kfree(xpnet_broadcast_partitions);
+	bitmap_free(xpnet_broadcast_partitions);
 }
 
 module_exit(xpnet_exit);

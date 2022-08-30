@@ -286,6 +286,7 @@ int pcibus_to_node(struct pci_bus *bus)
 EXPORT_SYMBOL(pcibus_to_node);
 #endif
 
+#ifdef CONFIG_PPC_PMAC
 int pci_device_from_OF_node(struct device_node *np, u8 *bus, u8 *devfn)
 {
 	if (!PCI_DN(np))
@@ -294,3 +295,4 @@ int pci_device_from_OF_node(struct device_node *np, u8 *bus, u8 *devfn)
 	*devfn = PCI_DN(np)->devfn;
 	return 0;
 }
+#endif

@@ -344,8 +344,9 @@ struct acpi_device_physical_node {
 
 struct acpi_device_properties {
 	const guid_t *guid;
-	const union acpi_object *properties;
+	union acpi_object *properties;
 	struct list_head list;
+	void **bufs;
 };
 
 /* ACPI Device Specific Data (_DSD) */

@@ -310,11 +310,12 @@ BPF_CALL_2(bpf_sk_storage_delete, struct bpf_map *, map, struct sock *, sk)
 static int bpf_sk_storage_charge(struct bpf_local_storage_map *smap,
 				 void *owner, u32 size)
 {
+	int optmem_max = READ_ONCE(sysctl_optmem_max);
 	struct sock *sk = (struct sock *)owner;
 
 	/* same check as in sock_kmalloc() */
-	if (size <= sysctl_optmem_max &&
-	    atomic_read(&sk->sk_omem_alloc) + size < sysctl_optmem_max) {
+	if (size <= optmem_max &&
+	    atomic_read(&sk->sk_omem_alloc) + size < optmem_max) {
 		atomic_add(size, &sk->sk_omem_alloc);
 		return 0;
 	}
@@ -875,8 +876,16 @@ static int bpf_iter_init_sk_storage_map(void *priv_data,
 {
 	struct bpf_iter_seq_sk_storage_map_info *seq_info = priv_data;
 
+	bpf_map_inc_with_uref(aux->map);
 	seq_info->map = aux->map;
 	return 0;
+}
+
+static void bpf_iter_fini_sk_storage_map(void *priv_data)
+{
+	struct bpf_iter_seq_sk_storage_map_info *seq_info = priv_data;
+
+	bpf_map_put_with_uref(seq_info->map);
 }
 
 static int bpf_iter_attach_map(struct bpf_prog *prog,
@@ -896,7 +905,7 @@ static int bpf_iter_attach_map(struct bpf_prog *prog,
 	if (map->map_type != BPF_MAP_TYPE_SK_STORAGE)
 		goto put_map;
 
-	if (prog->aux->max_rdonly_access > map->value_size) {
+	if (prog->aux->max_rdwr_access > map->value_size) {
 		err = -EACCES;
 		goto put_map;
 	}
@@ -924,7 +933,7 @@ static const struct seq_operations bpf_sk_storage_map_seq_ops = {
 static const struct bpf_iter_seq_info iter_seq_info = {
 	.seq_ops		= &bpf_sk_storage_map_seq_ops,
 	.init_seq_private	= bpf_iter_init_sk_storage_map,
-	.fini_seq_private	= NULL,
+	.fini_seq_private	= bpf_iter_fini_sk_storage_map,
 	.seq_priv_size		= sizeof(struct bpf_iter_seq_sk_storage_map_info),
 };
 

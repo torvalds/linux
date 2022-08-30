@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
 %YAML 1.2
 ---
-$id: "http://devicetree.org/schemas/power/supply/summit,smb347-charger.yaml#"
-$schema: "http://devicetree.org/meta-schemas/core.yaml#"
+$id: http://devicetree.org/schemas/power/supply/summit,smb347-charger.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
 
 title: Battery charger driver for SMB345, SMB347 and SMB358
 
@@ -82,7 +82,7 @@ properties:
       - 1 # SMB3XX_SYSOK_INOK_ACTIVE_HIGH
 
   usb-vbus:
-    $ref: "../../regulator/regulator.yaml#"
+    $ref: /schemas/regulator/regulator.yaml#
     type: object
 
     properties:

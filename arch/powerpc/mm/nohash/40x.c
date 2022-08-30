@@ -43,7 +43,6 @@
 
 #include <mm/mmu_decl.h>
 
-extern int __map_without_ltlbs;
 /*
  * MMU_init_hw does the chip-specific initialization of the MMU hardware.
  */
@@ -94,7 +93,13 @@ unsigned long __init mmu_mapin_ram(unsigned long base, unsigned long top)
 	p = 0;
 	s = total_lowmem;
 
-	if (__map_without_ltlbs)
+	if (IS_ENABLED(CONFIG_KFENCE))
+		return 0;
+
+	if (debug_pagealloc_enabled())
+		return 0;
+
+	if (strict_kernel_rwx_enabled())
 		return 0;
 
 	while (s >= LARGE_PAGE_SIZE_16M) {

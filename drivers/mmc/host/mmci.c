@@ -762,7 +762,7 @@ int mmci_dmae_setup(struct mmci_host *host)
 
 	/*
 	 * If only an RX channel is specified, the driver will
-	 * attempt to use it bidirectionally, however if it is
+	 * attempt to use it bidirectionally, however if it
 	 * is specified but cannot be located, DMA will be disabled.
 	 */
 	if (dmae->rx_channel && !dmae->tx_channel)

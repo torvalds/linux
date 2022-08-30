@@ -172,7 +172,7 @@ Interrupt controller (fsl,mpc5200-pic) node
 The mpc5200 pic binding splits hardware IRQ numbers into two levels.  The
 split reflects the layout of the PIC hardware itself, which groups
 interrupts into one of three groups; CRIT, MAIN or PERP.  Also, the
-Bestcomm dma engine has it's own set of interrupt sources which are
+Bestcomm dma engine has its own set of interrupt sources which are
 cascaded off of peripheral interrupt 0, which the driver interprets as a
 fourth group, SDMA.
 

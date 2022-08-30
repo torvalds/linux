@@ -72,16 +72,7 @@ new_port_store(struct device *dev, struct device_attribute *attr,
 	if (ret)
 		return ret;
 
-	if (!mutex_trylock(&nsim_bus_dev->nsim_bus_reload_lock))
-		return -EBUSY;
-
-	if (nsim_bus_dev->in_reload) {
-		mutex_unlock(&nsim_bus_dev->nsim_bus_reload_lock);
-		return -EBUSY;
-	}
-
 	ret = nsim_drv_port_add(nsim_bus_dev, NSIM_DEV_PORT_TYPE_PF, port_index);
-	mutex_unlock(&nsim_bus_dev->nsim_bus_reload_lock);
 	return ret ? ret : count;
 }
 
@@ -102,16 +93,7 @@ del_port_store(struct device *dev, struct device_attribute *attr,
 	if (ret)
 		return ret;
 
-	if (!mutex_trylock(&nsim_bus_dev->nsim_bus_reload_lock))
-		return -EBUSY;
-
-	if (nsim_bus_dev->in_reload) {
-		mutex_unlock(&nsim_bus_dev->nsim_bus_reload_lock);
-		return -EBUSY;
-	}
-
 	ret = nsim_drv_port_del(nsim_bus_dev, NSIM_DEV_PORT_TYPE_PF, port_index);
-	mutex_unlock(&nsim_bus_dev->nsim_bus_reload_lock);
 	return ret ? ret : count;
 }
 
@@ -298,7 +280,6 @@ nsim_bus_dev_new(unsigned int id, unsigned int port_count, unsigned int num_queu
 	nsim_bus_dev->num_queues = num_queues;
 	nsim_bus_dev->initial_net = current->nsproxy->net_ns;
 	nsim_bus_dev->max_vfs = NSIM_BUS_DEV_MAX_VFS;
-	mutex_init(&nsim_bus_dev->nsim_bus_reload_lock);
 	/* Disallow using nsim_bus_dev */
 	smp_store_release(&nsim_bus_dev->init, false);
 

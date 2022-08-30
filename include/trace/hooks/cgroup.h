@@ -17,9 +17,6 @@ struct cgroup_taskset;
 DECLARE_HOOK(android_vh_cgroup_attach,
 	TP_PROTO(struct cgroup_subsys *ss, struct cgroup_taskset *tset),
 	TP_ARGS(ss, tset))
-DECLARE_RESTRICTED_HOOK(android_rvh_cgroup_force_kthread_migration,
-	TP_PROTO(struct task_struct *tsk, struct cgroup *dst_cgrp, bool *force_migration),
-	TP_ARGS(tsk, dst_cgrp, force_migration), 1);
 #endif
 
 #include <trace/define_trace.h>

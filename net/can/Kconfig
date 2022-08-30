@@ -15,7 +15,8 @@ menuconfig CAN
 	  PF_CAN is contained in <Documentation/networking/can.rst>.
 
 	  If you want CAN support you should say Y here and also to the
-	  specific driver for your controller(s) below.
+	  specific driver for your controller(s) under the Network device
+	  support section.
 
 if CAN
 
@@ -68,7 +69,5 @@ config CAN_ISOTP
 	  ISO 15765-2:2016 for 'classic' CAN and CAN FD frame types.
 	  If you want to perform automotive vehicle diagnostic services (UDS),
 	  say 'y'.
-
-source "drivers/net/can/Kconfig"
 
 endif

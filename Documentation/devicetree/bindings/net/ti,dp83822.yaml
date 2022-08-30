@@ -8,7 +8,7 @@ $schema: "http://devicetree.org/meta-schemas/core.yaml#"
 title: TI DP83822 ethernet PHY
 
 maintainers:
-  - Dan Murphy <dmurphy@ti.com>
+  - Andrew Davis <afd@ti.com>
 
 description: |
   The DP83822 is a low-power, single-port, 10/100 Mbps Ethernet PHY. It

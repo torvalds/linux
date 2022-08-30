@@ -144,7 +144,7 @@ examples:
               #interrupt-cells = <2>;
               gpio-controller;
               #gpio-cells = <2>;
-              gpio-ranges = <&tlmm 0 80>;
+              gpio-ranges = <&tlmm 0 0 80>;
 
               serial3-pinmux {
                       pins = "gpio44", "gpio45";

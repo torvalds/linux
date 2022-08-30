@@ -21,6 +21,9 @@ Required properties:
   - clock-names		: Must include the "bus" for register access and
 			  "mclk1", "mclk2", "mclk3" for bit clock and frame
 			  clock providing.
+                          "pll8k", "pll11k" are optional, they are the clock
+                          source for root clock, one is for 8kHz series rates
+                          another one is for 11kHz series rates.
   - dmas		: Generic dma devicetree binding as described in
 			  Documentation/devicetree/bindings/dma/dma.txt.
 
@@ -48,6 +51,14 @@ Required properties:
 			  means both transmitter and receiver will send and
 			  receive data by following their own bit clocks and
 			  frame sync clocks separately.
+
+  - fsl,dataline        : configure the dataline. it has 3 value for each configuration
+                          first one means the type: I2S(1) or PDM(2)
+                          second one is dataline mask for 'rx'
+                          third one is dataline mask for 'tx'.
+                          for example: fsl,dataline = <1 0xff 0xff 2 0xff 0x11>;
+                          it means I2S type rx mask is 0xff, tx mask is 0xff, PDM type
+                          rx mask is 0xff, tx mask is 0x11 (dataline 1 and 4 enabled).
 
 Optional properties:
 

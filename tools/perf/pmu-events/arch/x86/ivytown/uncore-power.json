@@ -1,176 +1,520 @@
 [
     {
-        "BriefDescription": "PCU clock ticks. Use to get percentages of PCU cycles events",
+        "BriefDescription": "pclk Cycles",
         "Counter": "0,1,2,3",
         "EventName": "UNC_P_CLOCKTICKS",
         "PerPkg": "1",
+        "PublicDescription": "The PCU runs off a fixed 800 MHz clock.  This event counts the number of pclk cycles measured while the counter was enabled.  The pclk, like the Memory Controller's dclk, counts at a constant rate making it a good measure of actual wall time.",
         "Unit": "PCU"
     },
     {
-        "BriefDescription": "Counts the number of cycles that the uncore was running at a frequency greater than or equal to the frequency that is configured in the filter.  (filter_band0=XXX, with XXX in 100Mhz units). One can also use inversion (filter_inv=1) to track cycles when we were less than the configured frequency",
+        "BriefDescription": "Core 0 C State Transition Cycles",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x70",
+        "EventName": "UNC_P_CORE0_TRANSITION_CYCLES",
+        "PerPkg": "1",
+        "PublicDescription": "Number of cycles spent performing core C state transitions.  There is one event per core.",
+        "Unit": "PCU"
+    },
+    {
+        "BriefDescription": "Core 10 C State Transition Cycles",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x7a",
+        "EventName": "UNC_P_CORE10_TRANSITION_CYCLES",
+        "PerPkg": "1",
+        "PublicDescription": "Number of cycles spent performing core C state transitions.  There is one event per core.",
+        "Unit": "PCU"
+    },
+    {
+        "BriefDescription": "Core 11 C State Transition Cycles",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x7b",
+        "EventName": "UNC_P_CORE11_TRANSITION_CYCLES",
+        "PerPkg": "1",
+        "PublicDescription": "Number of cycles spent performing core C state transitions.  There is one event per core.",
+        "Unit": "PCU"
+    },
+    {
+        "BriefDescription": "Core 12 C State Transition Cycles",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x7c",
+        "EventName": "UNC_P_CORE12_TRANSITION_CYCLES",
+        "PerPkg": "1",
+        "PublicDescription": "Number of cycles spent performing core C state transitions.  There is one event per core.",
+        "Unit": "PCU"
+    },
+    {
+        "BriefDescription": "Core 13 C State Transition Cycles",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x7d",
+        "EventName": "UNC_P_CORE13_TRANSITION_CYCLES",
+        "PerPkg": "1",
+        "PublicDescription": "Number of cycles spent performing core C state transitions.  There is one event per core.",
+        "Unit": "PCU"
+    },
+    {
+        "BriefDescription": "Core 14 C State Transition Cycles",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x7e",
+        "EventName": "UNC_P_CORE14_TRANSITION_CYCLES",
+        "PerPkg": "1",
+        "PublicDescription": "Number of cycles spent performing core C state transitions.  There is one event per core.",
+        "Unit": "PCU"
+    },
+    {
+        "BriefDescription": "Core 1 C State Transition Cycles",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x71",
+        "EventName": "UNC_P_CORE1_TRANSITION_CYCLES",
+        "PerPkg": "1",
+        "PublicDescription": "Number of cycles spent performing core C state transitions.  There is one event per core.",
+        "Unit": "PCU"
+    },
+    {
+        "BriefDescription": "Core 2 C State Transition Cycles",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x72",
+        "EventName": "UNC_P_CORE2_TRANSITION_CYCLES",
+        "PerPkg": "1",
+        "PublicDescription": "Number of cycles spent performing core C state transitions.  There is one event per core.",
+        "Unit": "PCU"
+    },
+    {
+        "BriefDescription": "Core 3 C State Transition Cycles",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x73",
+        "EventName": "UNC_P_CORE3_TRANSITION_CYCLES",
+        "PerPkg": "1",
+        "PublicDescription": "Number of cycles spent performing core C state transitions.  There is one event per core.",
+        "Unit": "PCU"
+    },
+    {
+        "BriefDescription": "Core 4 C State Transition Cycles",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x74",
+        "EventName": "UNC_P_CORE4_TRANSITION_CYCLES",
+        "PerPkg": "1",
+        "PublicDescription": "Number of cycles spent performing core C state transitions.  There is one event per core.",
+        "Unit": "PCU"
+    },
+    {
+        "BriefDescription": "Core 5 C State Transition Cycles",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x75",
+        "EventName": "UNC_P_CORE5_TRANSITION_CYCLES",
+        "PerPkg": "1",
+        "PublicDescription": "Number of cycles spent performing core C state transitions.  There is one event per core.",
+        "Unit": "PCU"
+    },
+    {
+        "BriefDescription": "Core 6 C State Transition Cycles",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x76",
+        "EventName": "UNC_P_CORE6_TRANSITION_CYCLES",
+        "PerPkg": "1",
+        "PublicDescription": "Number of cycles spent performing core C state transitions.  There is one event per core.",
+        "Unit": "PCU"
+    },
+    {
+        "BriefDescription": "Core 7 C State Transition Cycles",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x77",
+        "EventName": "UNC_P_CORE7_TRANSITION_CYCLES",
+        "PerPkg": "1",
+        "PublicDescription": "Number of cycles spent performing core C state transitions.  There is one event per core.",
+        "Unit": "PCU"
+    },
+    {
+        "BriefDescription": "Core 8 C State Transition Cycles",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x78",
+        "EventName": "UNC_P_CORE8_TRANSITION_CYCLES",
+        "PerPkg": "1",
+        "PublicDescription": "Number of cycles spent performing core C state transitions.  There is one event per core.",
+        "Unit": "PCU"
+    },
+    {
+        "BriefDescription": "Core 9 C State Transition Cycles",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x79",
+        "EventName": "UNC_P_CORE9_TRANSITION_CYCLES",
+        "PerPkg": "1",
+        "PublicDescription": "Number of cycles spent performing core C state transitions.  There is one event per core.",
+        "Unit": "PCU"
+    },
+    {
+        "BriefDescription": "Deep C State Rejection - Core 0",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x17",
+        "EventName": "UNC_P_DELAYED_C_STATE_ABORT_CORE0",
+        "ExtSel": "1",
+        "PerPkg": "1",
+        "PublicDescription": "Number of times that a deep C state was requested, but the delayed C state algorithm rejected the deep sleep state.  In other words, a wake event occurred before the timer expired that causes a transition into the deeper C state.",
+        "Unit": "PCU"
+    },
+    {
+        "BriefDescription": "Deep C State Rejection - Core 1",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x18",
+        "EventName": "UNC_P_DELAYED_C_STATE_ABORT_CORE1",
+        "ExtSel": "1",
+        "PerPkg": "1",
+        "PublicDescription": "Number of times that a deep C state was requested, but the delayed C state algorithm rejected the deep sleep state.  In other words, a wake event occurred before the timer expired that causes a transition into the deeper C state.",
+        "Unit": "PCU"
+    },
+    {
+        "BriefDescription": "Deep C State Rejection - Core 10",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x21",
+        "EventName": "UNC_P_DELAYED_C_STATE_ABORT_CORE10",
+        "ExtSel": "1",
+        "PerPkg": "1",
+        "PublicDescription": "Number of times that a deep C state was requested, but the delayed C state algorithm rejected the deep sleep state.  In other words, a wake event occurred before the timer expired that causes a transition into the deeper C state.",
+        "Unit": "PCU"
+    },
+    {
+        "BriefDescription": "Deep C State Rejection - Core 11",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x22",
+        "EventName": "UNC_P_DELAYED_C_STATE_ABORT_CORE11",
+        "ExtSel": "1",
+        "PerPkg": "1",
+        "PublicDescription": "Number of times that a deep C state was requested, but the delayed C state algorithm rejected the deep sleep state.  In other words, a wake event occurred before the timer expired that causes a transition into the deeper C state.",
+        "Unit": "PCU"
+    },
+    {
+        "BriefDescription": "Deep C State Rejection - Core 12",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x23",
+        "EventName": "UNC_P_DELAYED_C_STATE_ABORT_CORE12",
+        "ExtSel": "1",
+        "PerPkg": "1",
+        "PublicDescription": "Number of times that a deep C state was requested, but the delayed C state algorithm rejected the deep sleep state.  In other words, a wake event occurred before the timer expired that causes a transition into the deeper C state.",
+        "Unit": "PCU"
+    },
+    {
+        "BriefDescription": "Deep C State Rejection - Core 13",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x24",
+        "EventName": "UNC_P_DELAYED_C_STATE_ABORT_CORE13",
+        "ExtSel": "1",
+        "PerPkg": "1",
+        "PublicDescription": "Number of times that a deep C state was requested, but the delayed C state algorithm rejected the deep sleep state.  In other words, a wake event occurred before the timer expired that causes a transition into the deeper C state.",
+        "Unit": "PCU"
+    },
+    {
+        "BriefDescription": "Deep C State Rejection - Core 14",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x25",
+        "EventName": "UNC_P_DELAYED_C_STATE_ABORT_CORE14",
+        "ExtSel": "1",
+        "PerPkg": "1",
+        "PublicDescription": "Number of times that a deep C state was requested, but the delayed C state algorithm rejected the deep sleep state.  In other words, a wake event occurred before the timer expired that causes a transition into the deeper C state.",
+        "Unit": "PCU"
+    },
+    {
+        "BriefDescription": "Deep C State Rejection - Core 2",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x19",
+        "EventName": "UNC_P_DELAYED_C_STATE_ABORT_CORE2",
+        "ExtSel": "1",
+        "PerPkg": "1",
+        "PublicDescription": "Number of times that a deep C state was requested, but the delayed C state algorithm rejected the deep sleep state.  In other words, a wake event occurred before the timer expired that causes a transition into the deeper C state.",
+        "Unit": "PCU"
+    },
+    {
+        "BriefDescription": "Deep C State Rejection - Core 3",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x1a",
+        "EventName": "UNC_P_DELAYED_C_STATE_ABORT_CORE3",
+        "ExtSel": "1",
+        "PerPkg": "1",
+        "PublicDescription": "Number of times that a deep C state was requested, but the delayed C state algorithm rejected the deep sleep state.  In other words, a wake event occurred before the timer expired that causes a transition into the deeper C state.",
+        "Unit": "PCU"
+    },
+    {
+        "BriefDescription": "Deep C State Rejection - Core 4",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x1b",
+        "EventName": "UNC_P_DELAYED_C_STATE_ABORT_CORE4",
+        "ExtSel": "1",
+        "PerPkg": "1",
+        "PublicDescription": "Number of times that a deep C state was requested, but the delayed C state algorithm rejected the deep sleep state.  In other words, a wake event occurred before the timer expired that causes a transition into the deeper C state.",
+        "Unit": "PCU"
+    },
+    {
+        "BriefDescription": "Deep C State Rejection - Core 5",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x1c",
+        "EventName": "UNC_P_DELAYED_C_STATE_ABORT_CORE5",
+        "ExtSel": "1",
+        "PerPkg": "1",
+        "PublicDescription": "Number of times that a deep C state was requested, but the delayed C state algorithm rejected the deep sleep state.  In other words, a wake event occurred before the timer expired that causes a transition into the deeper C state.",
+        "Unit": "PCU"
+    },
+    {
+        "BriefDescription": "Deep C State Rejection - Core 6",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x1d",
+        "EventName": "UNC_P_DELAYED_C_STATE_ABORT_CORE6",
+        "ExtSel": "1",
+        "PerPkg": "1",
+        "PublicDescription": "Number of times that a deep C state was requested, but the delayed C state algorithm rejected the deep sleep state.  In other words, a wake event occurred before the timer expired that causes a transition into the deeper C state.",
+        "Unit": "PCU"
+    },
+    {
+        "BriefDescription": "Deep C State Rejection - Core 7",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x1e",
+        "EventName": "UNC_P_DELAYED_C_STATE_ABORT_CORE7",
+        "ExtSel": "1",
+        "PerPkg": "1",
+        "PublicDescription": "Number of times that a deep C state was requested, but the delayed C state algorithm rejected the deep sleep state.  In other words, a wake event occurred before the timer expired that causes a transition into the deeper C state.",
+        "Unit": "PCU"
+    },
+    {
+        "BriefDescription": "Deep C State Rejection - Core 8",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x1f",
+        "EventName": "UNC_P_DELAYED_C_STATE_ABORT_CORE8",
+        "ExtSel": "1",
+        "PerPkg": "1",
+        "PublicDescription": "Number of times that a deep C state was requested, but the delayed C state algorithm rejected the deep sleep state.  In other words, a wake event occurred before the timer expired that causes a transition into the deeper C state.",
+        "Unit": "PCU"
+    },
+    {
+        "BriefDescription": "Deep C State Rejection - Core 9",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x20",
+        "EventName": "UNC_P_DELAYED_C_STATE_ABORT_CORE9",
+        "ExtSel": "1",
+        "PerPkg": "1",
+        "PublicDescription": "Number of times that a deep C state was requested, but the delayed C state algorithm rejected the deep sleep state.  In other words, a wake event occurred before the timer expired that causes a transition into the deeper C state.",
+        "Unit": "PCU"
+    },
+    {
+        "BriefDescription": "Core 0 C State Demotions",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x1e",
+        "EventName": "UNC_P_DEMOTIONS_CORE0",
+        "PerPkg": "1",
+        "PublicDescription": "Counts the number of times when a configurable cores had a C-state demotion",
+        "Unit": "PCU"
+    },
+    {
+        "BriefDescription": "Core 1 C State Demotions",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x1f",
+        "EventName": "UNC_P_DEMOTIONS_CORE1",
+        "PerPkg": "1",
+        "PublicDescription": "Counts the number of times when a configurable cores had a C-state demotion",
+        "Unit": "PCU"
+    },
+    {
+        "BriefDescription": "Core 10 C State Demotions",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x42",
+        "EventName": "UNC_P_DEMOTIONS_CORE10",
+        "PerPkg": "1",
+        "PublicDescription": "Counts the number of times when a configurable cores had a C-state demotion",
+        "Unit": "PCU"
+    },
+    {
+        "BriefDescription": "Core 11 C State Demotions",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x43",
+        "EventName": "UNC_P_DEMOTIONS_CORE11",
+        "PerPkg": "1",
+        "PublicDescription": "Counts the number of times when a configurable cores had a C-state demotion",
+        "Unit": "PCU"
+    },
+    {
+        "BriefDescription": "Core 12 C State Demotions",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x44",
+        "EventName": "UNC_P_DEMOTIONS_CORE12",
+        "PerPkg": "1",
+        "PublicDescription": "Counts the number of times when a configurable cores had a C-state demotion",
+        "Unit": "PCU"
+    },
+    {
+        "BriefDescription": "Core 13 C State Demotions",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x45",
+        "EventName": "UNC_P_DEMOTIONS_CORE13",
+        "PerPkg": "1",
+        "PublicDescription": "Counts the number of times when a configurable cores had a C-state demotion",
+        "Unit": "PCU"
+    },
+    {
+        "BriefDescription": "Core 14 C State Demotions",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x46",
+        "EventName": "UNC_P_DEMOTIONS_CORE14",
+        "PerPkg": "1",
+        "PublicDescription": "Counts the number of times when a configurable cores had a C-state demotion",
+        "Unit": "PCU"
+    },
+    {
+        "BriefDescription": "Core 2 C State Demotions",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x20",
+        "EventName": "UNC_P_DEMOTIONS_CORE2",
+        "PerPkg": "1",
+        "PublicDescription": "Counts the number of times when a configurable cores had a C-state demotion",
+        "Unit": "PCU"
+    },
+    {
+        "BriefDescription": "Core 3 C State Demotions",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x21",
+        "EventName": "UNC_P_DEMOTIONS_CORE3",
+        "PerPkg": "1",
+        "PublicDescription": "Counts the number of times when a configurable cores had a C-state demotion",
+        "Unit": "PCU"
+    },
+    {
+        "BriefDescription": "Core 4 C State Demotions",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x22",
+        "EventName": "UNC_P_DEMOTIONS_CORE4",
+        "PerPkg": "1",
+        "PublicDescription": "Counts the number of times when a configurable cores had a C-state demotion",
+        "Unit": "PCU"
+    },
+    {
+        "BriefDescription": "Core 5 C State Demotions",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x23",
+        "EventName": "UNC_P_DEMOTIONS_CORE5",
+        "PerPkg": "1",
+        "PublicDescription": "Counts the number of times when a configurable cores had a C-state demotion",
+        "Unit": "PCU"
+    },
+    {
+        "BriefDescription": "Core 6 C State Demotions",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x24",
+        "EventName": "UNC_P_DEMOTIONS_CORE6",
+        "PerPkg": "1",
+        "PublicDescription": "Counts the number of times when a configurable cores had a C-state demotion",
+        "Unit": "PCU"
+    },
+    {
+        "BriefDescription": "Core 7 C State Demotions",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x25",
+        "EventName": "UNC_P_DEMOTIONS_CORE7",
+        "PerPkg": "1",
+        "PublicDescription": "Counts the number of times when a configurable cores had a C-state demotion",
+        "Unit": "PCU"
+    },
+    {
+        "BriefDescription": "Core 8 C State Demotions",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x40",
+        "EventName": "UNC_P_DEMOTIONS_CORE8",
+        "PerPkg": "1",
+        "PublicDescription": "Counts the number of times when a configurable cores had a C-state demotion",
+        "Unit": "PCU"
+    },
+    {
+        "BriefDescription": "Core 9 C State Demotions",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x41",
+        "EventName": "UNC_P_DEMOTIONS_CORE9",
+        "PerPkg": "1",
+        "PublicDescription": "Counts the number of times when a configurable cores had a C-state demotion",
+        "Unit": "PCU"
+    },
+    {
+        "BriefDescription": "Frequency Residency",
         "Counter": "0,1,2,3",
         "EventCode": "0xb",
         "EventName": "UNC_P_FREQ_BAND0_CYCLES",
-        "MetricExpr": "(UNC_P_FREQ_BAND0_CYCLES / UNC_P_CLOCKTICKS) * 100.",
-        "MetricName": "freq_band0_cycles %",
         "PerPkg": "1",
+        "PublicDescription": "Counts the number of cycles that the uncore was running at a frequency greater than or equal to the frequency that is configured in the filter.  One can use all four counters with this event, so it is possible to track up to 4 configurable bands.  One can use edge detect in conjunction with this event to track the number of times that we transitioned into a frequency greater than or equal to the configurable frequency. One can also use inversion to track cycles when we were less than the configured frequency.",
         "Unit": "PCU"
     },
     {
-        "BriefDescription": "Counts the number of cycles that the uncore was running at a frequency greater than or equal to the frequency that is configured in the filter.  (filter_band1=XXX, with XXX in 100Mhz units). One can also use inversion (filter_inv=1) to track cycles when we were less than the configured frequency",
+        "BriefDescription": "Frequency Residency",
         "Counter": "0,1,2,3",
         "EventCode": "0xc",
         "EventName": "UNC_P_FREQ_BAND1_CYCLES",
-        "MetricExpr": "(UNC_P_FREQ_BAND1_CYCLES / UNC_P_CLOCKTICKS) * 100.",
-        "MetricName": "freq_band1_cycles %",
         "PerPkg": "1",
+        "PublicDescription": "Counts the number of cycles that the uncore was running at a frequency greater than or equal to the frequency that is configured in the filter.  One can use all four counters with this event, so it is possible to track up to 4 configurable bands.  One can use edge detect in conjunction with this event to track the number of times that we transitioned into a frequency greater than or equal to the configurable frequency. One can also use inversion to track cycles when we were less than the configured frequency.",
         "Unit": "PCU"
     },
     {
-        "BriefDescription": "Counts the number of cycles that the uncore was running at a frequency greater than or equal to the frequency that is configured in the filter.  (filter_band2=XXX, with XXX in 100Mhz units). One can also use inversion (filter_inv=1) to track cycles when we were less than the configured frequency",
+        "BriefDescription": "Frequency Residency",
         "Counter": "0,1,2,3",
         "EventCode": "0xd",
         "EventName": "UNC_P_FREQ_BAND2_CYCLES",
-        "MetricExpr": "(UNC_P_FREQ_BAND2_CYCLES / UNC_P_CLOCKTICKS) * 100.",
-        "MetricName": "freq_band2_cycles %",
         "PerPkg": "1",
+        "PublicDescription": "Counts the number of cycles that the uncore was running at a frequency greater than or equal to the frequency that is configured in the filter.  One can use all four counters with this event, so it is possible to track up to 4 configurable bands.  One can use edge detect in conjunction with this event to track the number of times that we transitioned into a frequency greater than or equal to the configurable frequency. One can also use inversion to track cycles when we were less than the configured frequency.",
         "Unit": "PCU"
     },
     {
-        "BriefDescription": "Counts the number of cycles that the uncore was running at a frequency greater than or equal to the frequency that is configured in the filter.  (filter_band3=XXX, with XXX in 100Mhz units). One can also use inversion (filter_inv=1) to track cycles when we were less than the configured frequency",
+        "BriefDescription": "Frequency Residency",
         "Counter": "0,1,2,3",
         "EventCode": "0xe",
         "EventName": "UNC_P_FREQ_BAND3_CYCLES",
-        "MetricExpr": "(UNC_P_FREQ_BAND3_CYCLES / UNC_P_CLOCKTICKS) * 100.",
-        "MetricName": "freq_band3_cycles %",
         "PerPkg": "1",
+        "PublicDescription": "Counts the number of cycles that the uncore was running at a frequency greater than or equal to the frequency that is configured in the filter.  One can use all four counters with this event, so it is possible to track up to 4 configurable bands.  One can use edge detect in conjunction with this event to track the number of times that we transitioned into a frequency greater than or equal to the configurable frequency. One can also use inversion to track cycles when we were less than the configured frequency.",
         "Unit": "PCU"
     },
     {
-        "BriefDescription": "Counts the number of times that the uncore transitioned a frequency greater than or equal to the frequency that is configured in the filter.  (filter_band0=XXX, with XXX in 100Mhz units). One can also use inversion (filter_inv=1) to track cycles when we were less than the configured frequency. Derived from unc_p_freq_band0_cycles",
-        "Counter": "0,1,2,3",
-        "EventCode": "0xb",
-        "EventName": "UNC_P_FREQ_BAND0_TRANSITIONS",
-        "Filter": "edge=1",
-        "MetricExpr": "(UNC_P_FREQ_BAND0_CYCLES / UNC_P_CLOCKTICKS) * 100.",
-        "MetricName": "freq_band0_cycles %",
-        "PerPkg": "1",
-        "Unit": "PCU"
-    },
-    {
-        "BriefDescription": "Counts the number of times that the uncore transitioned to a frequency greater than or equal to the frequency that is configured in the filter.  (filter_band1=XXX, with XXX in 100Mhz units). One can also use inversion (filter_inv=1) to track cycles when we were less than the configured frequency. Derived from unc_p_freq_band1_cycles",
-        "Counter": "0,1,2,3",
-        "EventCode": "0xc",
-        "EventName": "UNC_P_FREQ_BAND1_TRANSITIONS",
-        "Filter": "edge=1",
-        "MetricExpr": "(UNC_P_FREQ_BAND1_CYCLES / UNC_P_CLOCKTICKS) * 100.",
-        "MetricName": "freq_band1_cycles %",
-        "PerPkg": "1",
-        "Unit": "PCU"
-    },
-    {
-        "BriefDescription": "Counts the number of cycles that the uncore transitioned to a frequency greater than or equal to the frequency that is configured in the filter.  (filter_band2=XXX, with XXX in 100Mhz units). One can also use inversion (filter_inv=1) to track cycles when we were less than the configured frequency. Derived from unc_p_freq_band2_cycles",
-        "Counter": "0,1,2,3",
-        "EventCode": "0xd",
-        "EventName": "UNC_P_FREQ_BAND2_TRANSITIONS",
-        "Filter": "edge=1",
-        "MetricExpr": "(UNC_P_FREQ_BAND2_CYCLES / UNC_P_CLOCKTICKS) * 100.",
-        "MetricName": "freq_band2_cycles %",
-        "PerPkg": "1",
-        "Unit": "PCU"
-    },
-    {
-        "BriefDescription": "Counts the number of cycles that the uncore transitioned to a frequency greater than or equal to the frequency that is configured in the filter.  (filter_band3=XXX, with XXX in 100Mhz units). One can also use inversion (filter_inv=1) to track cycles when we were less than the configured frequency. Derived from unc_p_freq_band3_cycles",
-        "Counter": "0,1,2,3",
-        "EventCode": "0xe",
-        "EventName": "UNC_P_FREQ_BAND3_TRANSITIONS",
-        "Filter": "edge=1",
-        "MetricExpr": "(UNC_P_FREQ_BAND3_CYCLES / UNC_P_CLOCKTICKS) * 100.",
-        "MetricName": "freq_band3_cycles %",
-        "PerPkg": "1",
-        "Unit": "PCU"
-    },
-    {
-        "BriefDescription": "This is an occupancy event that tracks the number of cores that are in C0.  It can be used by itself to get the average number of cores in C0, with threshholding to generate histograms, or with other PCU events and occupancy triggering to capture other details",
-        "Counter": "0,1,2,3",
-        "EventCode": "0x80",
-        "EventName": "UNC_P_POWER_STATE_OCCUPANCY.CORES_C0",
-        "Filter": "occ_sel=1",
-        "MetricExpr": "(UNC_P_POWER_STATE_OCCUPANCY.CORES_C0 / UNC_P_CLOCKTICKS) * 100.",
-        "MetricName": "power_state_occupancy.cores_c0 %",
-        "PerPkg": "1",
-        "Unit": "PCU"
-    },
-    {
-        "BriefDescription": "This is an occupancy event that tracks the number of cores that are in C3.  It can be used by itself to get the average number of cores in C0, with threshholding to generate histograms, or with other PCU events and occupancy triggering to capture other details",
-        "Counter": "0,1,2,3",
-        "EventCode": "0x80",
-        "EventName": "UNC_P_POWER_STATE_OCCUPANCY.CORES_C3",
-        "Filter": "occ_sel=2",
-        "MetricExpr": "(UNC_P_POWER_STATE_OCCUPANCY.CORES_C3 / UNC_P_CLOCKTICKS) * 100.",
-        "MetricName": "power_state_occupancy.cores_c3 %",
-        "PerPkg": "1",
-        "Unit": "PCU"
-    },
-    {
-        "BriefDescription": "This is an occupancy event that tracks the number of cores that are in C6.  It can be used by itself to get the average number of cores in C0, with threshholding to generate histograms, or with other PCU events ",
-        "Counter": "0,1,2,3",
-        "EventCode": "0x80",
-        "EventName": "UNC_P_POWER_STATE_OCCUPANCY.CORES_C6",
-        "Filter": "occ_sel=3",
-        "MetricExpr": "(UNC_P_POWER_STATE_OCCUPANCY.CORES_C6 / UNC_P_CLOCKTICKS) * 100.",
-        "MetricName": "power_state_occupancy.cores_c6 %",
-        "PerPkg": "1",
-        "Unit": "PCU"
-    },
-    {
-        "BriefDescription": "Counts the number of cycles that we are in external PROCHOT mode.  This mode is triggered when a sensor off the die determines that something off-die (like DRAM) is too hot and must throttle to avoid damaging the chip",
-        "Counter": "0,1,2,3",
-        "EventCode": "0xa",
-        "EventName": "UNC_P_PROCHOT_EXTERNAL_CYCLES",
-        "MetricExpr": "(UNC_P_PROCHOT_EXTERNAL_CYCLES / UNC_P_CLOCKTICKS) * 100.",
-        "MetricName": "prochot_external_cycles %",
-        "PerPkg": "1",
-        "Unit": "PCU"
-    },
-    {
-        "BriefDescription": "Counts the number of cycles when temperature is the upper limit on frequency",
-        "Counter": "0,1,2,3",
-        "EventCode": "0x4",
-        "EventName": "UNC_P_FREQ_MAX_LIMIT_THERMAL_CYCLES",
-        "MetricExpr": "(UNC_P_FREQ_MAX_LIMIT_THERMAL_CYCLES / UNC_P_CLOCKTICKS) * 100.",
-        "MetricName": "freq_max_limit_thermal_cycles %",
-        "PerPkg": "1",
-        "Unit": "PCU"
-    },
-    {
-        "BriefDescription": "Counts the number of cycles when the OS is the upper limit on frequency",
-        "Counter": "0,1,2,3",
-        "EventCode": "0x6",
-        "EventName": "UNC_P_FREQ_MAX_OS_CYCLES",
-        "MetricExpr": "(UNC_P_FREQ_MAX_OS_CYCLES / UNC_P_CLOCKTICKS) * 100.",
-        "MetricName": "freq_max_os_cycles %",
-        "PerPkg": "1",
-        "Unit": "PCU"
-    },
-    {
-        "BriefDescription": "Counts the number of cycles when power is the upper limit on frequency",
-        "Counter": "0,1,2,3",
-        "EventCode": "0x5",
-        "EventName": "UNC_P_FREQ_MAX_POWER_CYCLES",
-        "MetricExpr": "(UNC_P_FREQ_MAX_POWER_CYCLES / UNC_P_CLOCKTICKS) * 100.",
-        "MetricName": "freq_max_power_cycles %",
-        "PerPkg": "1",
-        "Unit": "PCU"
-    },
-    {
-        "BriefDescription": "Counts the number of cycles when current is the upper limit on frequency",
+        "BriefDescription": "Current Strongest Upper Limit Cycles",
         "Counter": "0,1,2,3",
         "EventCode": "0x7",
         "EventName": "UNC_P_FREQ_MAX_CURRENT_CYCLES",
-        "MetricExpr": "(UNC_P_FREQ_MAX_CURRENT_CYCLES / UNC_P_CLOCKTICKS) * 100.",
-        "MetricName": "freq_max_current_cycles %",
         "PerPkg": "1",
+        "PublicDescription": "Counts the number of cycles when current is the upper limit on frequency.",
+        "Unit": "PCU"
+    },
+    {
+        "BriefDescription": "Thermal Strongest Upper Limit Cycles",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x4",
+        "EventName": "UNC_P_FREQ_MAX_LIMIT_THERMAL_CYCLES",
+        "PerPkg": "1",
+        "PublicDescription": "Counts the number of cycles when thermal conditions are the upper limit on frequency.  This is related to the THERMAL_THROTTLE CYCLES_ABOVE_TEMP event, which always counts cycles when we are above the thermal temperature.  This event (STRONGEST_UPPER_LIMIT) is sampled at the output of the algorithm that determines the actual frequency, while THERMAL_THROTTLE looks at the input.",
+        "Unit": "PCU"
+    },
+    {
+        "BriefDescription": "OS Strongest Upper Limit Cycles",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x6",
+        "EventName": "UNC_P_FREQ_MAX_OS_CYCLES",
+        "PerPkg": "1",
+        "PublicDescription": "Counts the number of cycles when the OS is the upper limit on frequency.",
+        "Unit": "PCU"
+    },
+    {
+        "BriefDescription": "Power Strongest Upper Limit Cycles",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x5",
+        "EventName": "UNC_P_FREQ_MAX_POWER_CYCLES",
+        "PerPkg": "1",
+        "PublicDescription": "Counts the number of cycles when power is the upper limit on frequency.",
+        "Unit": "PCU"
+    },
+    {
+        "BriefDescription": "IO P Limit Strongest Lower Limit Cycles",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x61",
+        "EventName": "UNC_P_FREQ_MIN_IO_P_CYCLES",
+        "PerPkg": "1",
+        "PublicDescription": "Counts the number of cycles when IO P Limit is preventing us from dropping the frequency lower.  This algorithm monitors the needs to the IO subsystem on both local and remote sockets and will maintain a frequency high enough to maintain good IO BW.  This is necessary for when all the IA cores on a socket are idle but a user still would like to maintain high IO Bandwidth.",
+        "Unit": "PCU"
+    },
+    {
+        "BriefDescription": "Perf P Limit Strongest Lower Limit Cycles",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x62",
+        "EventName": "UNC_P_FREQ_MIN_PERF_P_CYCLES",
+        "PerPkg": "1",
+        "PublicDescription": "Counts the number of cycles when Perf P Limit is preventing us from dropping the frequency lower.  Perf P Limit is an algorithm that takes input from remote sockets when determining if a socket should drop it's frequency down.  This is largely to minimize increases in snoop and remote read latencies.",
         "Unit": "PCU"
     },
     {
@@ -178,96 +522,165 @@
         "Counter": "0,1,2,3",
         "EventCode": "0x60",
         "EventName": "UNC_P_FREQ_TRANS_CYCLES",
-        "MetricExpr": "(UNC_P_FREQ_TRANS_CYCLES / UNC_P_CLOCKTICKS) * 100.",
-        "MetricName": "freq_trans_cycles %",
         "PerPkg": "1",
+        "PublicDescription": "Counts the number of cycles when the system is changing frequency.  This can not be filtered by thread ID.  One can also use it with the occupancy counter that monitors number of threads in C0 to estimate the performance impact that frequency transitions had on the system.",
         "Unit": "PCU"
     },
     {
-        "BriefDescription": "Counts the number of cycles that the uncore was running at a frequency greater than or equal to 1.2Ghz. Derived from unc_p_freq_band0_cycles",
+        "BriefDescription": "Memory Phase Shedding Cycles",
         "Counter": "0,1,2,3",
-        "EventCode": "0xb",
-        "EventName": "UNC_P_FREQ_GE_1200MHZ_CYCLES",
-        "Filter": "filter_band0=12",
-        "MetricExpr": "(UNC_P_FREQ_GE_1200MHZ_CYCLES / UNC_P_CLOCKTICKS) * 100.",
-        "MetricName": "freq_ge_1200mhz_cycles %",
+        "EventCode": "0x2f",
+        "EventName": "UNC_P_MEMORY_PHASE_SHEDDING_CYCLES",
         "PerPkg": "1",
+        "PublicDescription": "Counts the number of cycles that the PCU has triggered memory phase shedding.  This is a mode that can be run in the iMC physicals that saves power at the expense of additional latency.",
         "Unit": "PCU"
     },
     {
-        "BriefDescription": "Counts the number of cycles that the uncore was running at a frequency greater than or equal to 2Ghz. Derived from unc_p_freq_band1_cycles",
+        "BriefDescription": "Package C State Exit Latency",
         "Counter": "0,1,2,3",
-        "EventCode": "0xc",
-        "EventName": "UNC_P_FREQ_GE_2000MHZ_CYCLES",
-        "Filter": "filter_band1=20",
-        "MetricExpr": "(UNC_P_FREQ_GE_2000MHZ_CYCLES / UNC_P_CLOCKTICKS) * 100.",
-        "MetricName": "freq_ge_2000mhz_cycles %",
+        "EventCode": "0x26",
+        "EventName": "UNC_P_PKG_C_EXIT_LATENCY",
+        "ExtSel": "1",
         "PerPkg": "1",
+        "PublicDescription": "Counts the number of cycles that the package is transitioning from package C2 to C3.",
         "Unit": "PCU"
     },
     {
-        "BriefDescription": "Counts the number of cycles that the uncore was running at a frequency greater than or equal to 3Ghz. Derived from unc_p_freq_band2_cycles",
+        "BriefDescription": "Package C State Exit Latency",
         "Counter": "0,1,2,3",
-        "EventCode": "0xd",
-        "EventName": "UNC_P_FREQ_GE_3000MHZ_CYCLES",
-        "Filter": "filter_band2=30",
-        "MetricExpr": "(UNC_P_FREQ_GE_3000MHZ_CYCLES / UNC_P_CLOCKTICKS) * 100.",
-        "MetricName": "freq_ge_3000mhz_cycles %",
+        "EventCode": "0x26",
+        "EventName": "UNC_P_PKG_C_EXIT_LATENCY_SEL",
+        "ExtSel": "1",
         "PerPkg": "1",
+        "PublicDescription": "Counts the number of cycles that the package is transitioning from package C2 to C3.",
         "Unit": "PCU"
     },
     {
-        "BriefDescription": "Counts the number of cycles that the uncore was running at a frequency greater than or equal to 4Ghz. Derived from unc_p_freq_band3_cycles",
+        "BriefDescription": "Package C State Residency - C0",
         "Counter": "0,1,2,3",
-        "EventCode": "0xe",
-        "EventName": "UNC_P_FREQ_GE_4000MHZ_CYCLES",
-        "Filter": "filter_band3=40",
-        "MetricExpr": "(UNC_P_FREQ_GE_4000MHZ_CYCLES / UNC_P_CLOCKTICKS) * 100.",
-        "MetricName": "freq_ge_4000mhz_cycles %",
+        "EventCode": "0x2a",
+        "EventName": "UNC_P_PKG_C_STATE_RESIDENCY_C0_CYCLES",
+        "ExtSel": "1",
         "PerPkg": "1",
+        "PublicDescription": "Counts the number of cycles that the package is in C0",
         "Unit": "PCU"
     },
     {
-        "BriefDescription": "Counts the number of times that the uncore transitioned to a frequency greater than or equal to 1.2Ghz. Derived from unc_p_freq_band0_cycles",
+        "BriefDescription": "Package C State Residency - C2",
         "Counter": "0,1,2,3",
-        "EventCode": "0xb",
-        "EventName": "UNC_P_FREQ_GE_1200MHZ_TRANSITIONS",
-        "Filter": "edge=1,filter_band0=12",
-        "MetricExpr": "(UNC_P_FREQ_GE_1200MHZ_CYCLES / UNC_P_CLOCKTICKS) * 100.",
-        "MetricName": "freq_ge_1200mhz_cycles %",
+        "EventCode": "0x2b",
+        "EventName": "UNC_P_PKG_C_STATE_RESIDENCY_C2_CYCLES",
+        "ExtSel": "1",
         "PerPkg": "1",
+        "PublicDescription": "Counts the number of cycles that the package is in C2",
         "Unit": "PCU"
     },
     {
-        "BriefDescription": "Counts the number of times that the uncore transitioned to a frequency greater than or equal to 2Ghz. Derived from unc_p_freq_band1_cycles",
+        "BriefDescription": "Package C State Residency - C3",
         "Counter": "0,1,2,3",
-        "EventCode": "0xc",
-        "EventName": "UNC_P_FREQ_GE_2000MHZ_TRANSITIONS",
-        "Filter": "edge=1,filter_band1=20",
-        "MetricExpr": "(UNC_P_FREQ_GE_2000MHZ_CYCLES / UNC_P_CLOCKTICKS) * 100.",
-        "MetricName": "freq_ge_2000mhz_cycles %",
+        "EventCode": "0x2c",
+        "EventName": "UNC_P_PKG_C_STATE_RESIDENCY_C3_CYCLES",
+        "ExtSel": "1",
         "PerPkg": "1",
+        "PublicDescription": "Counts the number of cycles that the package is in C3",
         "Unit": "PCU"
     },
     {
-        "BriefDescription": "Counts the number of cycles that the uncore transitioned to a frequency greater than or equal to 3Ghz. Derived from unc_p_freq_band2_cycles",
+        "BriefDescription": "Package C State Residency - C6",
         "Counter": "0,1,2,3",
-        "EventCode": "0xd",
-        "EventName": "UNC_P_FREQ_GE_3000MHZ_TRANSITIONS",
-        "Filter": "edge=1,filter_band2=30",
-        "MetricExpr": "(UNC_P_FREQ_GE_3000MHZ_CYCLES / UNC_P_CLOCKTICKS) * 100.",
-        "MetricName": "freq_ge_3000mhz_cycles %",
+        "EventCode": "0x2d",
+        "EventName": "UNC_P_PKG_C_STATE_RESIDENCY_C6_CYCLES",
+        "ExtSel": "1",
         "PerPkg": "1",
+        "PublicDescription": "Counts the number of cycles that the package is in C6",
         "Unit": "PCU"
     },
     {
-        "BriefDescription": "Counts the number of cycles that the uncore transitioned to a frequency greater than or equal to 4Ghz. Derived from unc_p_freq_band3_cycles",
+        "BriefDescription": "Number of cores in C-State; C0 and C1",
         "Counter": "0,1,2,3",
-        "EventCode": "0xe",
-        "EventName": "UNC_P_FREQ_GE_4000MHZ_TRANSITIONS",
-        "Filter": "edge=1,filter_band3=40",
-        "MetricExpr": "(UNC_P_FREQ_GE_4000MHZ_CYCLES / UNC_P_CLOCKTICKS) * 100.",
-        "MetricName": "freq_ge_4000mhz_cycles %",
+        "EventCode": "0x80",
+        "EventName": "UNC_P_POWER_STATE_OCCUPANCY.CORES_C0",
+        "PerPkg": "1",
+        "PublicDescription": "This is an occupancy event that tracks the number of cores that are in the chosen C-State.  It can be used by itself to get the average number of cores in that C-state with threshholding to generate histograms, or with other PCU events and occupancy triggering to capture other details.",
+        "Unit": "PCU"
+    },
+    {
+        "BriefDescription": "Number of cores in C-State; C3",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x80",
+        "EventName": "UNC_P_POWER_STATE_OCCUPANCY.CORES_C3",
+        "PerPkg": "1",
+        "PublicDescription": "This is an occupancy event that tracks the number of cores that are in the chosen C-State.  It can be used by itself to get the average number of cores in that C-state with threshholding to generate histograms, or with other PCU events and occupancy triggering to capture other details.",
+        "Unit": "PCU"
+    },
+    {
+        "BriefDescription": "Number of cores in C-State; C6 and C7",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x80",
+        "EventName": "UNC_P_POWER_STATE_OCCUPANCY.CORES_C6",
+        "PerPkg": "1",
+        "PublicDescription": "This is an occupancy event that tracks the number of cores that are in the chosen C-State.  It can be used by itself to get the average number of cores in that C-state with threshholding to generate histograms, or with other PCU events and occupancy triggering to capture other details.",
+        "Unit": "PCU"
+    },
+    {
+        "BriefDescription": "External Prochot",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xa",
+        "EventName": "UNC_P_PROCHOT_EXTERNAL_CYCLES",
+        "PerPkg": "1",
+        "PublicDescription": "Counts the number of cycles that we are in external PROCHOT mode.  This mode is triggered when a sensor off the die determines that something off-die (like DRAM) is too hot and must throttle to avoid damaging the chip.",
+        "Unit": "PCU"
+    },
+    {
+        "BriefDescription": "Internal Prochot",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x9",
+        "EventName": "UNC_P_PROCHOT_INTERNAL_CYCLES",
+        "PerPkg": "1",
+        "PublicDescription": "Counts the number of cycles that we are in Interal PROCHOT mode.  This mode is triggered when a sensor on the die determines that we are too hot and must throttle to avoid damaging the chip.",
+        "Unit": "PCU"
+    },
+    {
+        "BriefDescription": "Total Core C State Transition Cycles",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x63",
+        "EventName": "UNC_P_TOTAL_TRANSITION_CYCLES",
+        "PerPkg": "1",
+        "PublicDescription": "Number of cycles spent performing core C state transitions across all cores.",
+        "Unit": "PCU"
+    },
+    {
+        "BriefDescription": "Cycles Changing Voltage",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x3",
+        "EventName": "UNC_P_VOLT_TRANS_CYCLES_CHANGE",
+        "PerPkg": "1",
+        "PublicDescription": "Counts the number of cycles when the system is changing voltage.  There is no filtering supported with this event.  One can use it as a simple event, or use it conjunction with the occupancy events to monitor the number of cores or threads that were impacted by the transition.  This event is calculated by or'ing together the increasing and decreasing events.",
+        "Unit": "PCU"
+    },
+    {
+        "BriefDescription": "Cycles Decreasing Voltage",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x2",
+        "EventName": "UNC_P_VOLT_TRANS_CYCLES_DECREASE",
+        "PerPkg": "1",
+        "PublicDescription": "Counts the number of cycles when the system is decreasing voltage.  There is no filtering supported with this event.  One can use it as a simple event, or use it conjunction with the occupancy events to monitor the number of cores or threads that were impacted by the transition.",
+        "Unit": "PCU"
+    },
+    {
+        "BriefDescription": "Cycles Increasing Voltage",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x1",
+        "EventName": "UNC_P_VOLT_TRANS_CYCLES_INCREASE",
+        "PerPkg": "1",
+        "PublicDescription": "Counts the number of cycles when the system is increasing voltage.  There is no filtering supported with this event.  One can use it as a simple event, or use it conjunction with the occupancy events to monitor the number of cores or threads that were impacted by the transition.",
+        "Unit": "PCU"
+    },
+    {
+        "BriefDescription": "VR Hot",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x32",
+        "EventName": "UNC_P_VR_HOT_CYCLES",
         "PerPkg": "1",
         "Unit": "PCU"
     }

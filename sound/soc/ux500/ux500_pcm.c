@@ -5,8 +5,6 @@
  * Author: Ola Lilja <ola.o.lilja@stericsson.com>,
  *         Roger Nilsson <roger.xr.nilsson@stericsson.com>
  *         for ST-Ericsson.
- *
- * License terms:
  */
 
 #include <asm/page.h>

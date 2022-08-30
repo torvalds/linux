@@ -415,7 +415,7 @@ static const struct of_device_id afe4404_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, afe4404_of_match);
 
-static int __maybe_unused afe4404_suspend(struct device *dev)
+static int afe4404_suspend(struct device *dev)
 {
 	struct iio_dev *indio_dev = i2c_get_clientdata(to_i2c_client(dev));
 	struct afe4404_data *afe = iio_priv(indio_dev);
@@ -436,7 +436,7 @@ static int __maybe_unused afe4404_suspend(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused afe4404_resume(struct device *dev)
+static int afe4404_resume(struct device *dev)
 {
 	struct iio_dev *indio_dev = i2c_get_clientdata(to_i2c_client(dev));
 	struct afe4404_data *afe = iio_priv(indio_dev);
@@ -456,7 +456,8 @@ static int __maybe_unused afe4404_resume(struct device *dev)
 	return 0;
 }
 
-static SIMPLE_DEV_PM_OPS(afe4404_pm_ops, afe4404_suspend, afe4404_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(afe4404_pm_ops, afe4404_suspend,
+				afe4404_resume);
 
 static int afe4404_probe(struct i2c_client *client,
 			 const struct i2c_device_id *id)
@@ -591,10 +592,8 @@ static int afe4404_remove(struct i2c_client *client)
 		iio_trigger_unregister(afe->trig);
 
 	ret = regulator_disable(afe->regulator);
-	if (ret) {
+	if (ret)
 		dev_err(afe->dev, "Unable to disable regulator\n");
-		return ret;
-	}
 
 	return 0;
 }
@@ -609,7 +608,7 @@ static struct i2c_driver afe4404_i2c_driver = {
 	.driver = {
 		.name = AFE4404_DRIVER_NAME,
 		.of_match_table = afe4404_of_match,
-		.pm = &afe4404_pm_ops,
+		.pm = pm_sleep_ptr(&afe4404_pm_ops),
 	},
 	.probe = afe4404_probe,
 	.remove = afe4404_remove,

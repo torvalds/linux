@@ -144,7 +144,6 @@ config NF_CONNTRACK_ZONES
 
 config NF_CONNTRACK_PROCFS
 	bool "Supply CT list in procfs (OBSOLETE)"
-	default y
 	depends on PROC_FS
 	help
 	This option enables for the list of known conntrack entries
@@ -733,6 +732,14 @@ config NF_FLOW_TABLE
 	  This option adds the flow table core infrastructure.
 
 	  To compile it as a module, choose M here.
+
+config NF_FLOW_TABLE_PROCFS
+	bool "Supply flow table statistics in procfs"
+	depends on NF_FLOW_TABLE
+	depends on PROC_FS
+	help
+	  This option enables for the flow table offload statistics
+	  to be shown in procfs under net/netfilter/nf_flowtable.
 
 config NETFILTER_XTABLES
 	tristate "Netfilter Xtables support (required for ip_tables)"

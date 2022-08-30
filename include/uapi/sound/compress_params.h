@@ -250,7 +250,7 @@ struct snd_enc_wma {
 
 
 /**
- * struct snd_enc_vorbis
+ * struct snd_enc_vorbis - Vorbis encoder parameters
  * @quality: Sets encoding quality to n, between -1 (low) and 10 (high).
  * In the default mode of operation, the quality level is 3.
  * Normal quality range is 0 - 10.
@@ -279,7 +279,7 @@ struct snd_enc_vorbis {
 
 
 /**
- * struct snd_enc_real
+ * struct snd_enc_real - RealAudio encoder parameters
  * @quant_bits: number of coupling quantization bits in the stream
  * @start_region: coupling start region in the stream
  * @num_regions: number of regions value
@@ -294,7 +294,7 @@ struct snd_enc_real {
 } __attribute__((packed, aligned(4)));
 
 /**
- * struct snd_enc_flac
+ * struct snd_enc_flac - FLAC encoder parameters
  * @num: serial number, valid only for OGG formats
  *	needs to be set by application
  * @gain: Add replay gain tags

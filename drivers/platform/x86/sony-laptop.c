@@ -4341,7 +4341,7 @@ sony_pic_read_possible_resource(struct acpi_resource *resource, void *context)
 		{
 			struct acpi_resource_irq *p = &resource->data.irq;
 			struct sony_pic_irq *interrupt = NULL;
-			if (!p || !p->interrupt_count) {
+			if (!p->interrupt_count) {
 				/*
 				 * IRQ descriptors may have no IRQ# bits set,
 				 * particularly those those w/ _STA disabled
@@ -4374,11 +4374,6 @@ sony_pic_read_possible_resource(struct acpi_resource *resource, void *context)
 			struct acpi_resource_io *io = &resource->data.io;
 			struct sony_pic_ioport *ioport =
 				list_first_entry(&dev->ioports, struct sony_pic_ioport, list);
-			if (!io) {
-				dprintk("Blank IO resource\n");
-				return AE_OK;
-			}
-
 			if (!ioport->io1.minimum) {
 				memcpy(&ioport->io1, io, sizeof(*io));
 				dprintk("IO1 at 0x%.4x (0x%.2x)\n", ioport->io1.minimum,

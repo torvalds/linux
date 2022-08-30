@@ -20,6 +20,9 @@ test_mma:
 	/* xvi16ger2s */
 	.long	0xec042958
 
+	/* Deprime the accumulator - xxmfacc 0 */
+	.long 0x7c000162
+
 	/* Store result in image passed in r5 */
 	stxvw4x	0,0,5
 	addi	5,5,16

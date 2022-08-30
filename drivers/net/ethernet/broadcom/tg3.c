@@ -7944,7 +7944,7 @@ static netdev_tx_t tg3_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		iph = ip_hdr(skb);
 		tcp_opt_len = tcp_optlen(skb);
 
-		hdr_len = skb_transport_offset(skb) + tcp_hdrlen(skb) - ETH_HLEN;
+		hdr_len = skb_tcp_all_headers(skb) - ETH_HLEN;
 
 		/* HW/FW can not correctly segment packets that have been
 		 * vlan encapsulated.

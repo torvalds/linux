@@ -256,7 +256,7 @@ xfs_bmap_count_blocks(
 	xfs_filblks_t		*count)
 {
 	struct xfs_mount	*mp = ip->i_mount;
-	struct xfs_ifork	*ifp = XFS_IFORK_PTR(ip, whichfork);
+	struct xfs_ifork	*ifp = xfs_ifork_ptr(ip, whichfork);
 	struct xfs_btree_cur	*cur;
 	xfs_extlen_t		btblocks = 0;
 	int			error;
@@ -439,29 +439,28 @@ xfs_getbmap(
 		whichfork = XFS_COW_FORK;
 	else
 		whichfork = XFS_DATA_FORK;
-	ifp = XFS_IFORK_PTR(ip, whichfork);
 
 	xfs_ilock(ip, XFS_IOLOCK_SHARED);
 	switch (whichfork) {
 	case XFS_ATTR_FORK:
-		if (!XFS_IFORK_Q(ip))
-			goto out_unlock_iolock;
+		lock = xfs_ilock_attr_map_shared(ip);
+		if (!xfs_inode_has_attr_fork(ip))
+			goto out_unlock_ilock;
 
 		max_len = 1LL << 32;
-		lock = xfs_ilock_attr_map_shared(ip);
 		break;
 	case XFS_COW_FORK:
+		lock = XFS_ILOCK_SHARED;
+		xfs_ilock(ip, lock);
+
 		/* No CoW fork? Just return */
-		if (!ifp)
-			goto out_unlock_iolock;
+		if (!xfs_ifork_ptr(ip, whichfork))
+			goto out_unlock_ilock;
 
 		if (xfs_get_cowextsz_hint(ip))
 			max_len = mp->m_super->s_maxbytes;
 		else
 			max_len = XFS_ISIZE(ip);
-
-		lock = XFS_ILOCK_SHARED;
-		xfs_ilock(ip, lock);
 		break;
 	case XFS_DATA_FORK:
 		if (!(iflags & BMV_IF_DELALLOC) &&
@@ -490,6 +489,8 @@ xfs_getbmap(
 		lock = xfs_ilock_data_map_shared(ip);
 		break;
 	}
+
+	ifp = xfs_ifork_ptr(ip, whichfork);
 
 	switch (ifp->if_format) {
 	case XFS_DINODE_FMT_EXTENTS:
@@ -1320,8 +1321,8 @@ xfs_swap_extents_check_format(
 	 * extent format...
 	 */
 	if (tifp->if_format == XFS_DINODE_FMT_BTREE) {
-		if (XFS_IFORK_Q(ip) &&
-		    XFS_BMAP_BMDR_SPACE(tifp->if_broot) > XFS_IFORK_BOFF(ip))
+		if (xfs_inode_has_attr_fork(ip) &&
+		    XFS_BMAP_BMDR_SPACE(tifp->if_broot) > xfs_inode_fork_boff(ip))
 			return -EINVAL;
 		if (tifp->if_nextents <= XFS_IFORK_MAXEXT(ip, XFS_DATA_FORK))
 			return -EINVAL;
@@ -1329,8 +1330,8 @@ xfs_swap_extents_check_format(
 
 	/* Reciprocal target->temp btree format checks */
 	if (ifp->if_format == XFS_DINODE_FMT_BTREE) {
-		if (XFS_IFORK_Q(tip) &&
-		    XFS_BMAP_BMDR_SPACE(ip->i_df.if_broot) > XFS_IFORK_BOFF(tip))
+		if (xfs_inode_has_attr_fork(tip) &&
+		    XFS_BMAP_BMDR_SPACE(ip->i_df.if_broot) > xfs_inode_fork_boff(tip))
 			return -EINVAL;
 		if (ifp->if_nextents <= XFS_IFORK_MAXEXT(tip, XFS_DATA_FORK))
 			return -EINVAL;
@@ -1506,15 +1507,15 @@ xfs_swap_extent_forks(
 	/*
 	 * Count the number of extended attribute blocks
 	 */
-	if (XFS_IFORK_Q(ip) && ip->i_afp->if_nextents > 0 &&
-	    ip->i_afp->if_format != XFS_DINODE_FMT_LOCAL) {
+	if (xfs_inode_has_attr_fork(ip) && ip->i_af.if_nextents > 0 &&
+	    ip->i_af.if_format != XFS_DINODE_FMT_LOCAL) {
 		error = xfs_bmap_count_blocks(tp, ip, XFS_ATTR_FORK, &junk,
 				&aforkblks);
 		if (error)
 			return error;
 	}
-	if (XFS_IFORK_Q(tip) && tip->i_afp->if_nextents > 0 &&
-	    tip->i_afp->if_format != XFS_DINODE_FMT_LOCAL) {
+	if (xfs_inode_has_attr_fork(tip) && tip->i_af.if_nextents > 0 &&
+	    tip->i_af.if_format != XFS_DINODE_FMT_LOCAL) {
 		error = xfs_bmap_count_blocks(tp, tip, XFS_ATTR_FORK, &junk,
 				&taforkblks);
 		if (error)

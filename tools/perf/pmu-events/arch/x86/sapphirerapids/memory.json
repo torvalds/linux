@@ -8,6 +8,7 @@
         "EventName": "CYCLE_ACTIVITY.STALLS_L3_MISS",
         "PEBScounters": "0,1,2,3",
         "SampleAfterValue": "1000003",
+        "Speculative": "1",
         "UMask": "0x6"
     },
     {
@@ -19,6 +20,7 @@
         "PEBScounters": "0,1,2,3,4,5,6,7",
         "PublicDescription": "Counts the number of Machine Clears detected dye to memory ordering. Memory Ordering Machine Clears may apply when a memory read may not conform to the memory ordering rules of the x86 architecture",
         "SampleAfterValue": "100003",
+        "Speculative": "1",
         "UMask": "0x2"
     },
     {
@@ -30,6 +32,7 @@
         "EventName": "MEMORY_ACTIVITY.CYCLES_L1D_MISS",
         "PEBScounters": "0,1,2,3",
         "SampleAfterValue": "1000003",
+        "Speculative": "1",
         "UMask": "0x2"
     },
     {
@@ -41,6 +44,7 @@
         "EventName": "MEMORY_ACTIVITY.STALLS_L1D_MISS",
         "PEBScounters": "0,1,2,3",
         "SampleAfterValue": "1000003",
+        "Speculative": "1",
         "UMask": "0x3"
     },
     {
@@ -52,6 +56,7 @@
         "EventName": "MEMORY_ACTIVITY.STALLS_L2_MISS",
         "PEBScounters": "0,1,2,3",
         "SampleAfterValue": "1000003",
+        "Speculative": "1",
         "UMask": "0x5"
     },
     {
@@ -63,6 +68,7 @@
         "EventName": "MEMORY_ACTIVITY.STALLS_L3_MISS",
         "PEBScounters": "0,1,2,3",
         "SampleAfterValue": "1000003",
+        "Speculative": "1",
         "UMask": "0x9"
     },
     {
@@ -194,12 +200,13 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Retired instructions with at least 1 store uop. This PEBS event is the trigger for stores sampled by the PEBS Store Facility.",
+        "BriefDescription": "Retired memory store access operations. A PDist event for PEBS Store Latency Facility.",
         "CollectPEBSRecord": "2",
         "Data_LA": "1",
         "EventCode": "0xcd",
         "EventName": "MEM_TRANS_RETIRED.STORE_SAMPLE",
         "PEBS": "2",
+        "PublicDescription": "Counts Retired memory accesses with at least 1 store operation. This PEBS event is the precisely-distributed (PDist) trigger covering all stores uops for sampling by the PEBS Store Latency Facility. The facility is described in Intel SDM Volume 3 section 19.9.8",
         "SampleAfterValue": "1000003",
         "UMask": "0x2"
     },
@@ -265,6 +272,17 @@
         "EventName": "OCR.READS_TO_CORE.L3_MISS",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x3F3FC04477",
+        "Offcore": "1",
+        "SampleAfterValue": "100003",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts all (cacheable) data read, code read and RFO requests including demands and prefetches to the core caches (L1 or L2) that were not supplied by the local socket's L1, L2, or L3 caches and the cacheline is homed locally.",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x2A,0x2B",
+        "EventName": "OCR.READS_TO_CORE.L3_MISS_LOCAL",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x3F04C04477",
         "Offcore": "1",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
@@ -388,6 +406,7 @@
         "PEBScounters": "0,1,2,3",
         "PublicDescription": "Speculatively counts the number of Transactional Synchronization Extensions (TSX) aborts due to a data capacity limitation for transactional reads",
         "SampleAfterValue": "100003",
+        "Speculative": "1",
         "UMask": "0x80"
     },
     {
@@ -399,6 +418,7 @@
         "PEBScounters": "0,1,2,3",
         "PublicDescription": "Speculatively counts the number of Transactional Synchronization Extensions (TSX) aborts due to a data capacity limitation for transactional writes.",
         "SampleAfterValue": "100003",
+        "Speculative": "1",
         "UMask": "0x2"
     },
     {
@@ -410,6 +430,7 @@
         "PEBScounters": "0,1,2,3",
         "PublicDescription": "Counts the number of times a TSX line had a cache conflict.",
         "SampleAfterValue": "100003",
+        "Speculative": "1",
         "UMask": "0x1"
     }
 ]

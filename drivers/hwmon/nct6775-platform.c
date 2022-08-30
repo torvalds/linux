@@ -359,7 +359,7 @@ static int __maybe_unused nct6775_suspend(struct device *dev)
 {
 	int err;
 	u16 tmp;
-	struct nct6775_data *data = dev_get_drvdata(dev);
+	struct nct6775_data *data = nct6775_update_device(dev);
 
 	if (IS_ERR(data))
 		return PTR_ERR(data);

@@ -59,9 +59,6 @@
 #define IGC_IVAR_MISC		0x01740  /* IVAR for "other" causes - RW */
 #define IGC_GPIE		0x01514  /* General Purpose Intr Enable - RW */
 
-/* MSI-X Table Register Descriptions */
-#define IGC_PBACL		0x05B68  /* MSIx PBA Clear - R/W 1 to clear */
-
 /* RSS registers */
 #define IGC_MRQC		0x05818 /* Multiple Receive Control - RW */
 

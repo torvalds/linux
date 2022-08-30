@@ -27,6 +27,26 @@ struct gpio_chip;
 struct device_node;
 
 /**
+ * struct pingroup - provides information on pingroup
+ * @name: a name for pingroup
+ * @pins: an array of pins in the pingroup
+ * @npins: number of pins in the pingroup
+ */
+struct pingroup {
+	const char *name;
+	const unsigned int *pins;
+	size_t npins;
+};
+
+/* Convenience macro to define a single named or anonymous pingroup */
+#define PINCTRL_PINGROUP(_name, _pins, _npins)	\
+(struct pingroup){				\
+	.name = _name,				\
+	.pins = _pins,				\
+	.npins = _npins,			\
+}
+
+/**
  * struct pinctrl_pin_desc - boards/machines provide information on their
  * pins, pads or other muxable units in this struct
  * @number: unique pin number from the global pin number space

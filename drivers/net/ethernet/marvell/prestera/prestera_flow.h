@@ -23,6 +23,7 @@ struct prestera_flow_block {
 	struct flow_block_cb *block_cb;
 	struct list_head template_list;
 	unsigned int rule_count;
+	bool ingress;
 };
 
 int prestera_flow_block_setup(struct prestera_port *port,

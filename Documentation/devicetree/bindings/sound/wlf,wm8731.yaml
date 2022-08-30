@@ -52,10 +52,6 @@ properties:
   DCVDD-supply:
     description: Digital core supply regulator for the DCVDD pin.
 
-  spi-max-frequency: true
-
-additionalProperties: false
-
 required:
   - reg
   - compatible
@@ -63,6 +59,11 @@ required:
   - HPVDD-supply
   - DBVDD-supply
   - DCVDD-supply
+
+allOf:
+  - $ref: /schemas/spi/spi-peripheral-props.yaml#
+
+unevaluatedProperties: false
 
 examples:
   - |

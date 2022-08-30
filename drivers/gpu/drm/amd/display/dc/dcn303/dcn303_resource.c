@@ -372,7 +372,7 @@ static struct stream_encoder *dcn303_stream_encoder_create(enum engine_id eng_id
 	int afmt_inst;
 
 	/* Mapping of VPG, AFMT, DME register blocks to DIO block instance */
-	if (eng_id <= ENGINE_ID_DIGE) {
+	if (eng_id <= ENGINE_ID_DIGB) {
 		vpg_inst = eng_id;
 		afmt_inst = eng_id;
 	} else
@@ -819,7 +819,9 @@ static const struct dcn10_link_enc_hpd_registers link_enc_hpd_regs[] = {
 		hpd_regs(1)
 };
 
-static struct link_encoder *dcn303_link_encoder_create(const struct encoder_init_data *enc_init_data)
+static struct link_encoder *dcn303_link_encoder_create(
+	struct dc_context *ctx,
+	const struct encoder_init_data *enc_init_data)
 {
 	struct dcn20_link_encoder *enc20 = kzalloc(sizeof(struct dcn20_link_encoder), GFP_KERNEL);
 

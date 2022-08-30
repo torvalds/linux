@@ -282,7 +282,7 @@ static const char *lp_get_group_name(struct pinctrl_dev *pctldev,
 {
 	struct intel_pinctrl *lg = pinctrl_dev_get_drvdata(pctldev);
 
-	return lg->soc->groups[selector].name;
+	return lg->soc->groups[selector].grp.name;
 }
 
 static int lp_get_group_pins(struct pinctrl_dev *pctldev,
@@ -292,8 +292,8 @@ static int lp_get_group_pins(struct pinctrl_dev *pctldev,
 {
 	struct intel_pinctrl *lg = pinctrl_dev_get_drvdata(pctldev);
 
-	*pins		= lg->soc->groups[selector].pins;
-	*num_pins	= lg->soc->groups[selector].npins;
+	*pins		= lg->soc->groups[selector].grp.pins;
+	*num_pins	= lg->soc->groups[selector].grp.npins;
 
 	return 0;
 }
@@ -366,8 +366,8 @@ static int lp_pinmux_set_mux(struct pinctrl_dev *pctldev,
 	raw_spin_lock_irqsave(&lg->lock, flags);
 
 	/* Now enable the mux setting for each pin in the group */
-	for (i = 0; i < grp->npins; i++) {
-		void __iomem *reg = lp_gpio_reg(&lg->chip, grp->pins[i], LP_CONFIG1);
+	for (i = 0; i < grp->grp.npins; i++) {
+		void __iomem *reg = lp_gpio_reg(&lg->chip, grp->grp.pins[i], LP_CONFIG1);
 		u32 value;
 
 		value = ioread32(reg);

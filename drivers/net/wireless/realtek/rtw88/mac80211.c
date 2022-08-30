@@ -355,7 +355,7 @@ static void rtw_conf_tx(struct rtw_dev *rtwdev,
 static void rtw_ops_bss_info_changed(struct ieee80211_hw *hw,
 				     struct ieee80211_vif *vif,
 				     struct ieee80211_bss_conf *conf,
-				     u32 changed)
+				     u64 changed)
 {
 	struct rtw_dev *rtwdev = hw->priv;
 	struct rtw_vif *rtwvif = (struct rtw_vif *)vif->drv_priv;
@@ -369,12 +369,12 @@ static void rtw_ops_bss_info_changed(struct ieee80211_hw *hw,
 
 	if (changed & BSS_CHANGED_ASSOC) {
 		rtw_vif_assoc_changed(rtwvif, conf);
-		if (conf->assoc) {
+		if (vif->cfg.assoc) {
 			rtw_coex_connect_notify(rtwdev, COEX_ASSOCIATE_FINISH);
 
 			rtw_fw_download_rsvd_page(rtwdev);
 			rtw_send_rsvd_page_h2c(rtwdev);
-			rtw_coex_media_status_notify(rtwdev, conf->assoc);
+			rtw_coex_media_status_notify(rtwdev, vif->cfg.assoc);
 			if (rtw_bf_support)
 				rtw_bf_assoc(rtwdev, vif, conf);
 			rtw_store_op_chan(rtwdev);
@@ -429,7 +429,9 @@ static void rtw_ops_bss_info_changed(struct ieee80211_hw *hw,
 	mutex_unlock(&rtwdev->mutex);
 }
 
-static int rtw_ops_start_ap(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
+static int rtw_ops_start_ap(struct ieee80211_hw *hw,
+			    struct ieee80211_vif *vif,
+			    struct ieee80211_bss_conf *link_conf)
 {
 	struct rtw_dev *rtwdev = hw->priv;
 	struct rtw_chip_info *chip = rtwdev->chip;
@@ -442,7 +444,8 @@ static int rtw_ops_start_ap(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 }
 
 static int rtw_ops_conf_tx(struct ieee80211_hw *hw,
-			   struct ieee80211_vif *vif, u16 ac,
+			   struct ieee80211_vif *vif,
+			   unsigned int link_id, u16 ac,
 			   const struct ieee80211_tx_queue_params *params)
 {
 	struct rtw_dev *rtwdev = hw->priv;

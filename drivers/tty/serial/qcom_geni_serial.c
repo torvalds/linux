@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0
 // Copyright (c) 2017-2018, The Linux foundation. All rights reserved.
 
+/* Disable MMIO tracing to prevent excessive logging of unwanted MMIO traces */
+#define __DISABLE_TRACE_MMIO__
+
 #include <linux/clk.h>
 #include <linux/console.h>
 #include <linux/io.h>
@@ -940,52 +943,63 @@ static int qcom_geni_serial_startup(struct uart_port *uport)
 	return 0;
 }
 
+static unsigned long find_clk_rate_in_tol(struct clk *clk, unsigned int desired_clk,
+			unsigned int *clk_div, unsigned int percent_tol)
+{
+	unsigned long freq;
+	unsigned long div, maxdiv;
+	u64 mult;
+	unsigned long offset, abs_tol, achieved;
+
+	abs_tol = div_u64((u64)desired_clk * percent_tol, 100);
+	maxdiv = CLK_DIV_MSK >> CLK_DIV_SHFT;
+	div = 1;
+	while (div <= maxdiv) {
+		mult = (u64)div * desired_clk;
+		if (mult != (unsigned long)mult)
+			break;
+
+		offset = div * abs_tol;
+		freq = clk_round_rate(clk, mult - offset);
+
+		/* Can only get lower if we're done */
+		if (freq < mult - offset)
+			break;
+
+		/*
+		 * Re-calculate div in case rounding skipped rates but we
+		 * ended up at a good one, then check for a match.
+		 */
+		div = DIV_ROUND_CLOSEST(freq, desired_clk);
+		achieved = DIV_ROUND_CLOSEST(freq, div);
+		if (achieved <= desired_clk + abs_tol &&
+		    achieved >= desired_clk - abs_tol) {
+			*clk_div = div;
+			return freq;
+		}
+
+		div = DIV_ROUND_UP(freq, desired_clk);
+	}
+
+	return 0;
+}
+
 static unsigned long get_clk_div_rate(struct clk *clk, unsigned int baud,
 			unsigned int sampling_rate, unsigned int *clk_div)
 {
 	unsigned long ser_clk;
 	unsigned long desired_clk;
-	unsigned long freq, prev;
-	unsigned long div, maxdiv;
-	int64_t mult;
 
 	desired_clk = baud * sampling_rate;
-	if (!desired_clk) {
-		pr_err("%s: Invalid frequency\n", __func__);
+	if (!desired_clk)
 		return 0;
-	}
 
-	maxdiv = CLK_DIV_MSK >> CLK_DIV_SHFT;
-	prev = 0;
-
-	for (div = 1; div <= maxdiv; div++) {
-		mult = div * desired_clk;
-		if (mult > ULONG_MAX)
-			break;
-
-		freq = clk_round_rate(clk, (unsigned long)mult);
-		if (!(freq % desired_clk)) {
-			ser_clk = freq;
-			break;
-		}
-
-		if (!prev)
-			ser_clk = freq;
-		else if (prev == freq)
-			break;
-
-		prev = freq;
-	}
-
-	if (!ser_clk) {
-		pr_err("%s: Can't find matching DFS entry for baud %d\n",
-								__func__, baud);
-		return ser_clk;
-	}
-
-	*clk_div = ser_clk / desired_clk;
-	if (!(*clk_div))
-		*clk_div = 1;
+	/*
+	 * try to find a clock rate within 2% tolerance, then within 5%
+	 */
+	ser_clk = find_clk_rate_in_tol(clk, desired_clk, clk_div, 2);
+	if (!ser_clk)
+		ser_clk = find_clk_rate_in_tol(clk, desired_clk, clk_div, 5);
 
 	return ser_clk;
 }
@@ -1020,8 +1034,15 @@ static void qcom_geni_serial_set_termios(struct uart_port *uport,
 
 	clk_rate = get_clk_div_rate(port->se.clk, baud,
 		sampling_rate, &clk_div);
-	if (!clk_rate)
+	if (!clk_rate) {
+		dev_err(port->se.dev,
+			"Couldn't find suitable clock rate for %u\n",
+			baud * sampling_rate);
 		goto out_restart_rx;
+	}
+
+	dev_dbg(port->se.dev, "desired_rate-%u, clk_rate-%lu, clk_div-%u\n",
+			baud * sampling_rate, clk_rate, clk_div);
 
 	uport->uartclk = clk_rate;
 	dev_pm_opp_set_rate(uport->dev, clk_rate);

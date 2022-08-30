@@ -123,7 +123,7 @@ struct snd_compr_codec_caps {
 } __attribute__((packed, aligned(4)));
 
 /**
- * enum sndrv_compress_encoder
+ * enum sndrv_compress_encoder - encoder metadata key
  * @SNDRV_COMPRESS_ENCODER_PADDING: no of samples appended by the encoder at the
  * end of the track
  * @SNDRV_COMPRESS_ENCODER_DELAY: no of samples inserted by the encoder at the

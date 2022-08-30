@@ -33,17 +33,6 @@ int smc_ism_cantalk(u64 peer_gid, unsigned short vlan_id, struct smcd_dev *smcd)
 					   vlan_id);
 }
 
-int smc_ism_write(struct smcd_dev *smcd, const struct smc_ism_position *pos,
-		  void *data, size_t len)
-{
-	int rc;
-
-	rc = smcd->ops->move_data(smcd, pos->token, pos->index, pos->signal,
-				  pos->offset, data, len);
-
-	return rc < 0 ? rc : 0;
-}
-
 void smc_ism_get_system_eid(u8 **eid)
 {
 	if (!smc_ism_v2_capable)
@@ -440,7 +429,7 @@ int smcd_register_dev(struct smcd_dev *smcd)
 	if (list_empty(&smcd_dev_list.list)) {
 		u8 *system_eid = NULL;
 
-		smcd->ops->get_system_eid(smcd, &system_eid);
+		system_eid = smcd->ops->get_system_eid();
 		if (system_eid[24] != '0' || system_eid[28] != '0') {
 			smc_ism_v2_capable = true;
 			memcpy(smc_ism_v2_system_eid, system_eid,
@@ -519,13 +508,13 @@ void smcd_handle_event(struct smcd_dev *smcd, struct smcd_event *event)
 EXPORT_SYMBOL_GPL(smcd_handle_event);
 
 /* SMCD Device interrupt handler. Called from ISM device interrupt handler.
- * Parameters are smcd device pointer and DMB number. Find the connection and
- * schedule the tasklet for this connection.
+ * Parameters are smcd device pointer, DMB number, and the DMBE bitmask.
+ * Find the connection and schedule the tasklet for this connection.
  *
  * Context:
  * - Function called in IRQ context from ISM device driver IRQ handler.
  */
-void smcd_handle_irq(struct smcd_dev *smcd, unsigned int dmbno)
+void smcd_handle_irq(struct smcd_dev *smcd, unsigned int dmbno, u16 dmbemask)
 {
 	struct smc_connection *conn = NULL;
 	unsigned long flags;

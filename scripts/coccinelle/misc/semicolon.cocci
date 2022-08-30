@@ -4,7 +4,7 @@
 ///
 // Confidence: Moderate
 // Copyright: (C) 2012 Peter Senna Tschudin, INRIA/LIP6.
-// URL: http://coccinelle.lip6.fr/
+// URL: https://coccinelle.gitlabpages.inria.fr/website
 // Comments: Some false positives on empty default cases in switch statements.
 // Options: --no-includes --include-headers
 

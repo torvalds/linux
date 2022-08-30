@@ -38,6 +38,39 @@
 
 #include "internal.h"
 
+static inline bool can_change_pte_writable(struct vm_area_struct *vma,
+					   unsigned long addr, pte_t pte)
+{
+	struct page *page;
+
+	VM_BUG_ON(!(vma->vm_flags & VM_WRITE) || pte_write(pte));
+
+	if (pte_protnone(pte) || !pte_dirty(pte))
+		return false;
+
+	/* Do we need write faults for softdirty tracking? */
+	if (vma_soft_dirty_enabled(vma) && !pte_soft_dirty(pte))
+		return false;
+
+	/* Do we need write faults for uffd-wp tracking? */
+	if (userfaultfd_pte_wp(vma, pte))
+		return false;
+
+	if (!(vma->vm_flags & VM_SHARED)) {
+		/*
+		 * We can only special-case on exclusive anonymous pages,
+		 * because we know that our write-fault handler similarly would
+		 * map them writable without any additional checks while holding
+		 * the PT lock.
+		 */
+		page = vm_normal_page(vma, addr, pte);
+		if (!page || !PageAnon(page) || !PageAnonExclusive(page))
+			return false;
+	}
+
+	return true;
+}
+
 static unsigned long change_pte_range(struct mmu_gather *tlb,
 		struct vm_area_struct *vma, pmd_t *pmd, unsigned long addr,
 		unsigned long end, pgprot_t newprot, unsigned long cp_flags)
@@ -46,7 +79,6 @@ static unsigned long change_pte_range(struct mmu_gather *tlb,
 	spinlock_t *ptl;
 	unsigned long pages = 0;
 	int target_node = NUMA_NO_NODE;
-	bool dirty_accountable = cp_flags & MM_CP_DIRTY_ACCT;
 	bool prot_numa = cp_flags & MM_CP_PROT_NUMA;
 	bool uffd_wp = cp_flags & MM_CP_UFFD_WP;
 	bool uffd_wp_resolve = cp_flags & MM_CP_UFFD_WP_RESOLVE;
@@ -95,7 +127,7 @@ static unsigned long change_pte_range(struct mmu_gather *tlb,
 					continue;
 
 				page = vm_normal_page(vma, addr, oldpte);
-				if (!page || PageKsm(page))
+				if (!page || is_zone_device_page(page) || PageKsm(page))
 					continue;
 
 				/* Also skip shared copy-on-write pages */
@@ -137,31 +169,38 @@ static unsigned long change_pte_range(struct mmu_gather *tlb,
 				ptent = pte_wrprotect(ptent);
 				ptent = pte_mkuffd_wp(ptent);
 			} else if (uffd_wp_resolve) {
-				/*
-				 * Leave the write bit to be handled
-				 * by PF interrupt handler, then
-				 * things like COW could be properly
-				 * handled.
-				 */
 				ptent = pte_clear_uffd_wp(ptent);
 			}
 
-			/* Avoid taking write faults for known dirty pages */
-			if (dirty_accountable && pte_dirty(ptent) &&
-					(pte_soft_dirty(ptent) ||
-					 !(vma->vm_flags & VM_SOFTDIRTY))) {
+			/*
+			 * In some writable, shared mappings, we might want
+			 * to catch actual write access -- see
+			 * vma_wants_writenotify().
+			 *
+			 * In all writable, private mappings, we have to
+			 * properly handle COW.
+			 *
+			 * In both cases, we can sometimes still change PTEs
+			 * writable and avoid the write-fault handler, for
+			 * example, if a PTE is already dirty and no other
+			 * COW or special handling is required.
+			 */
+			if ((cp_flags & MM_CP_TRY_CHANGE_WRITABLE) &&
+			    !pte_write(ptent) &&
+			    can_change_pte_writable(vma, addr, ptent))
 				ptent = pte_mkwrite(ptent);
-			}
+
 			ptep_modify_prot_commit(vma, addr, pte, oldpte, ptent);
 			if (pte_needs_flush(oldpte, ptent))
 				tlb_flush_pte_range(tlb, addr, PAGE_SIZE);
 			pages++;
 		} else if (is_swap_pte(oldpte)) {
 			swp_entry_t entry = pte_to_swp_entry(oldpte);
-			struct page *page = pfn_swap_entry_to_page(entry);
 			pte_t newpte;
 
 			if (is_writable_migration_entry(entry)) {
+				struct page *page = pfn_swap_entry_to_page(entry);
+
 				/*
 				 * A protection check is difficult so
 				 * just be safe and disable write
@@ -505,9 +544,9 @@ mprotect_fixup(struct mmu_gather *tlb, struct vm_area_struct *vma,
 	unsigned long oldflags = vma->vm_flags;
 	long nrpages = (end - start) >> PAGE_SHIFT;
 	unsigned long charged = 0;
+	bool try_change_writable;
 	pgoff_t pgoff;
 	int error;
-	int dirty_accountable = 0;
 
 	if (newflags == oldflags) {
 		*pprev = vma;
@@ -583,11 +622,20 @@ success:
 	 * held in write mode.
 	 */
 	vma->vm_flags = newflags;
-	dirty_accountable = vma_wants_writenotify(vma, vma->vm_page_prot);
+	/*
+	 * We want to check manually if we can change individual PTEs writable
+	 * if we can't do that automatically for all PTEs in a mapping. For
+	 * private mappings, that's always the case when we have write
+	 * permissions as we properly have to handle COW.
+	 */
+	if (vma->vm_flags & VM_SHARED)
+		try_change_writable = vma_wants_writenotify(vma, vma->vm_page_prot);
+	else
+		try_change_writable = !!(vma->vm_flags & VM_WRITE);
 	vma_set_page_prot(vma);
 
 	change_protection(tlb, vma, start, end, vma->vm_page_prot,
-			  dirty_accountable ? MM_CP_DIRTY_ACCT : 0);
+			  try_change_writable ? MM_CP_TRY_CHANGE_WRITABLE : 0);
 
 	/*
 	 * Private VM_LOCKED VMA becoming writable: trigger COW to avoid major
@@ -616,7 +664,7 @@ static int do_mprotect_pkey(unsigned long start, size_t len,
 {
 	unsigned long nstart, end, tmp, reqprot;
 	struct vm_area_struct *vma, *prev;
-	int error = -EINVAL;
+	int error;
 	const int grows = prot & (PROT_GROWSDOWN|PROT_GROWSUP);
 	const bool rier = (current->personality & READ_IMPLIES_EXEC) &&
 				(prot & PROT_READ);

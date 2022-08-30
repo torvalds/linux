@@ -23,7 +23,7 @@ struct io_epoll {
 
 int io_epoll_ctl_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 {
-	struct io_epoll *epoll = io_kiocb_to_cmd(req);
+	struct io_epoll *epoll = io_kiocb_to_cmd(req, struct io_epoll);
 
 	pr_warn_once("%s: epoll_ctl support in io_uring is deprecated and will "
 		     "be removed in a future Linux kernel version.\n",
@@ -49,7 +49,7 @@ int io_epoll_ctl_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 
 int io_epoll_ctl(struct io_kiocb *req, unsigned int issue_flags)
 {
-	struct io_epoll *ie = io_kiocb_to_cmd(req);
+	struct io_epoll *ie = io_kiocb_to_cmd(req, struct io_epoll);
 	int ret;
 	bool force_nonblock = issue_flags & IO_URING_F_NONBLOCK;
 

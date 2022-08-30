@@ -1084,7 +1084,7 @@ static void nfs_do_filldir(struct nfs_readdir_descriptor *desc,
 	struct nfs_cache_array *array;
 	unsigned int i;
 
-	array = kmap(desc->page);
+	array = kmap_local_page(desc->page);
 	for (i = desc->cache_entry_index; i < array->size; i++) {
 		struct nfs_cache_array_entry *ent;
 
@@ -1110,7 +1110,7 @@ static void nfs_do_filldir(struct nfs_readdir_descriptor *desc,
 	if (array->page_is_eof)
 		desc->eof = !desc->eob;
 
-	kunmap(desc->page);
+	kunmap_local(array);
 	dfprintk(DIRCACHE, "NFS: nfs_do_filldir() filling ended @ cookie %llu\n",
 			(unsigned long long)desc->dir_cookie);
 }
@@ -1739,6 +1739,10 @@ nfs_do_lookup_revalidate(struct inode *dir, struct dentry *dentry,
 		goto out_bad;
 	}
 
+	if ((flags & LOOKUP_RENAME_TARGET) && d_count(dentry) < 2 &&
+	    nfs_server_capable(dir, NFS_CAP_CASE_INSENSITIVE))
+		goto out_bad;
+
 	if (nfs_verifier_is_delegated(dentry))
 		return nfs_lookup_revalidate_delegated(dir, dentry, inode);
 
@@ -1778,6 +1782,8 @@ __nfs_lookup_revalidate(struct dentry *dentry, unsigned int flags,
 	int ret;
 
 	if (flags & LOOKUP_RCU) {
+		if (dentry->d_fsdata == NFS_FSDATA_BLOCKED)
+			return -ECHILD;
 		parent = READ_ONCE(dentry->d_parent);
 		dir = d_inode_rcu(parent);
 		if (!dir)
@@ -1786,6 +1792,9 @@ __nfs_lookup_revalidate(struct dentry *dentry, unsigned int flags,
 		if (parent != READ_ONCE(dentry->d_parent))
 			return -ECHILD;
 	} else {
+		/* Wait for unlink to complete */
+		wait_var_event(&dentry->d_fsdata,
+			       dentry->d_fsdata != NFS_FSDATA_BLOCKED);
 		parent = dget_parent(dentry);
 		ret = reval(d_inode(parent), dentry, flags);
 		dput(parent);
@@ -2373,7 +2382,8 @@ static void nfs_dentry_remove_handle_error(struct inode *dir,
 {
 	switch (error) {
 	case -ENOENT:
-		d_delete(dentry);
+		if (d_really_is_positive(dentry))
+			d_delete(dentry);
 		nfs_set_verifier(dentry, nfs_save_change_attribute(dir));
 		break;
 	case 0:
@@ -2454,7 +2464,6 @@ out:
 int nfs_unlink(struct inode *dir, struct dentry *dentry)
 {
 	int error;
-	int need_rehash = 0;
 
 	dfprintk(VFS, "NFS: unlink(%s/%lu, %pd)\n", dir->i_sb->s_id,
 		dir->i_ino, dentry);
@@ -2469,15 +2478,27 @@ int nfs_unlink(struct inode *dir, struct dentry *dentry)
 		error = nfs_sillyrename(dir, dentry);
 		goto out;
 	}
-	if (!d_unhashed(dentry)) {
-		__d_drop(dentry);
-		need_rehash = 1;
+	/* We must prevent any concurrent open until the unlink
+	 * completes.  ->d_revalidate will wait for ->d_fsdata
+	 * to clear.  We set it here to ensure no lookup succeeds until
+	 * the unlink is complete on the server.
+	 */
+	error = -ETXTBSY;
+	if (WARN_ON(dentry->d_flags & DCACHE_NFSFS_RENAMED) ||
+	    WARN_ON(dentry->d_fsdata == NFS_FSDATA_BLOCKED)) {
+		spin_unlock(&dentry->d_lock);
+		goto out;
 	}
+	if (dentry->d_fsdata)
+		/* old devname */
+		kfree(dentry->d_fsdata);
+	dentry->d_fsdata = NFS_FSDATA_BLOCKED;
+
 	spin_unlock(&dentry->d_lock);
 	error = nfs_safe_remove(dentry);
 	nfs_dentry_remove_handle_error(dir, dentry, error);
-	if (need_rehash)
-		d_rehash(dentry);
+	dentry->d_fsdata = NULL;
+	wake_up_var(&dentry->d_fsdata);
 out:
 	trace_nfs_unlink_exit(dir, dentry, error);
 	return error;
@@ -2584,6 +2605,15 @@ nfs_link(struct dentry *old_dentry, struct inode *dir, struct dentry *dentry)
 }
 EXPORT_SYMBOL_GPL(nfs_link);
 
+static void
+nfs_unblock_rename(struct rpc_task *task, struct nfs_renamedata *data)
+{
+	struct dentry *new_dentry = data->new_dentry;
+
+	new_dentry->d_fsdata = NULL;
+	wake_up_var(&new_dentry->d_fsdata);
+}
+
 /*
  * RENAME
  * FIXME: Some nfsds, like the Linux user space nfsd, may generate a
@@ -2614,8 +2644,9 @@ int nfs_rename(struct user_namespace *mnt_userns, struct inode *old_dir,
 {
 	struct inode *old_inode = d_inode(old_dentry);
 	struct inode *new_inode = d_inode(new_dentry);
-	struct dentry *dentry = NULL, *rehash = NULL;
+	struct dentry *dentry = NULL;
 	struct rpc_task *task;
+	bool must_unblock = false;
 	int error = -EBUSY;
 
 	if (flags)
@@ -2633,17 +2664,26 @@ int nfs_rename(struct user_namespace *mnt_userns, struct inode *old_dir,
 	 * the new target.
 	 */
 	if (new_inode && !S_ISDIR(new_inode->i_mode)) {
-		/*
-		 * To prevent any new references to the target during the
-		 * rename, we unhash the dentry in advance.
+		/* We must prevent any concurrent open until the unlink
+		 * completes.  ->d_revalidate will wait for ->d_fsdata
+		 * to clear.  We set it here to ensure no lookup succeeds until
+		 * the unlink is complete on the server.
 		 */
-		if (!d_unhashed(new_dentry)) {
-			d_drop(new_dentry);
-			rehash = new_dentry;
+		error = -ETXTBSY;
+		if (WARN_ON(new_dentry->d_flags & DCACHE_NFSFS_RENAMED) ||
+		    WARN_ON(new_dentry->d_fsdata == NFS_FSDATA_BLOCKED))
+			goto out;
+		if (new_dentry->d_fsdata) {
+			/* old devname */
+			kfree(new_dentry->d_fsdata);
+			new_dentry->d_fsdata = NULL;
 		}
 
+		spin_lock(&new_dentry->d_lock);
 		if (d_count(new_dentry) > 2) {
 			int err;
+
+			spin_unlock(&new_dentry->d_lock);
 
 			/* copy the target dentry's name */
 			dentry = d_alloc(new_dentry->d_parent,
@@ -2657,14 +2697,19 @@ int nfs_rename(struct user_namespace *mnt_userns, struct inode *old_dir,
 				goto out;
 
 			new_dentry = dentry;
-			rehash = NULL;
 			new_inode = NULL;
+		} else {
+			new_dentry->d_fsdata = NFS_FSDATA_BLOCKED;
+			must_unblock = true;
+			spin_unlock(&new_dentry->d_lock);
 		}
+
 	}
 
 	if (S_ISREG(old_inode->i_mode))
 		nfs_sync_inode(old_inode);
-	task = nfs_async_rename(old_dir, new_dir, old_dentry, new_dentry, NULL);
+	task = nfs_async_rename(old_dir, new_dir, old_dentry, new_dentry,
+				must_unblock ? nfs_unblock_rename : NULL);
 	if (IS_ERR(task)) {
 		error = PTR_ERR(task);
 		goto out;
@@ -2688,8 +2733,6 @@ int nfs_rename(struct user_namespace *mnt_userns, struct inode *old_dir,
 		spin_unlock(&old_inode->i_lock);
 	}
 out:
-	if (rehash)
-		d_rehash(rehash);
 	trace_nfs_rename_exit(old_dir, old_dentry,
 			new_dir, new_dentry, error);
 	if (!error) {

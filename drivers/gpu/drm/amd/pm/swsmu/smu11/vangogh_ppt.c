@@ -46,6 +46,18 @@
 #undef pr_info
 #undef pr_debug
 
+// Registers related to GFXOFF
+// addressBlock: smuio_smuio_SmuSmuioDec
+// base address: 0x5a000
+#define mmSMUIO_GFX_MISC_CNTL			0x00c5
+#define mmSMUIO_GFX_MISC_CNTL_BASE_IDX		0
+
+//SMUIO_GFX_MISC_CNTL
+#define SMUIO_GFX_MISC_CNTL__SMU_GFX_cold_vs_gfxoff__SHIFT	0x0
+#define SMUIO_GFX_MISC_CNTL__PWR_GFXOFF_STATUS__SHIFT		0x1
+#define SMUIO_GFX_MISC_CNTL__SMU_GFX_cold_vs_gfxoff_MASK	0x00000001L
+#define SMUIO_GFX_MISC_CNTL__PWR_GFXOFF_STATUS_MASK		0x00000006L
+
 #define FEATURE_MASK(feature) (1ULL << feature)
 #define SMC_DPM_FEATURE ( \
 	FEATURE_MASK(FEATURE_CCLK_DPM_BIT) | \
@@ -2045,6 +2057,31 @@ static int vangogh_mode2_reset(struct smu_context *smu)
 	return vangogh_mode_reset(smu, SMU_RESET_MODE_2);
 }
 
+/**
+ * vangogh_get_gfxoff_status - Get gfxoff status
+ *
+ * @smu: amdgpu_device pointer
+ *
+ * Get current gfxoff status
+ *
+ * Return:
+ * * 0	- GFXOFF (default if enabled).
+ * * 1	- Transition out of GFX State.
+ * * 2	- Not in GFXOFF.
+ * * 3	- Transition into GFXOFF.
+ */
+static u32 vangogh_get_gfxoff_status(struct smu_context *smu)
+{
+	struct amdgpu_device *adev = smu->adev;
+	u32 reg, gfxoff_status;
+
+	reg = RREG32_SOC15(SMUIO, 0, mmSMUIO_GFX_MISC_CNTL);
+	gfxoff_status = (reg & SMUIO_GFX_MISC_CNTL__PWR_GFXOFF_STATUS_MASK)
+		>> SMUIO_GFX_MISC_CNTL__PWR_GFXOFF_STATUS__SHIFT;
+
+	return gfxoff_status;
+}
+
 static int vangogh_get_power_limit(struct smu_context *smu,
 				   uint32_t *current_power_limit,
 				   uint32_t *default_power_limit,
@@ -2199,6 +2236,7 @@ static const struct pptable_funcs vangogh_ppt_funcs = {
 	.post_init = vangogh_post_smu_init,
 	.mode2_reset = vangogh_mode2_reset,
 	.gfx_off_control = smu_v11_0_gfx_off_control,
+	.get_gfx_off_status = vangogh_get_gfxoff_status,
 	.get_ppt_limit = vangogh_get_ppt_limit,
 	.get_power_limit = vangogh_get_power_limit,
 	.set_power_limit = vangogh_set_power_limit,
@@ -2213,4 +2251,5 @@ void vangogh_set_ppt_funcs(struct smu_context *smu)
 	smu->table_map = vangogh_table_map;
 	smu->workload_map = vangogh_workload_map;
 	smu->is_apu = true;
+	smu_v11_0_set_smu_mailbox_registers(smu);
 }

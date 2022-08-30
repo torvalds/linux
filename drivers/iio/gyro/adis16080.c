@@ -45,7 +45,7 @@ struct adis16080_state {
 	const struct adis16080_chip_info *info;
 	struct mutex			lock;
 
-	__be16 buf ____cacheline_aligned;
+	__be16 buf __aligned(IIO_DMA_MINALIGN);
 };
 
 static int adis16080_read_sample(struct iio_dev *indio_dev,

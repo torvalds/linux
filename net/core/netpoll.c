@@ -853,7 +853,7 @@ void netpoll_cleanup(struct netpoll *np)
 	if (!np->dev)
 		goto out;
 	__netpoll_cleanup(np);
-	dev_put_track(np->dev, &np->dev_tracker);
+	netdev_put(np->dev, &np->dev_tracker);
 	np->dev = NULL;
 out:
 	rtnl_unlock();

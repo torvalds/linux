@@ -252,6 +252,13 @@ config SND_SOC_SOF_PROBE_WORK_QUEUE
 	  When selected, the probe is handled in two steps, for example to
 	  avoid lockdeps if request_module is used in the probe.
 
+# Supported IPC versions
+config SND_SOC_SOF_IPC3
+	bool
+
+config SND_SOC_SOF_INTEL_IPC4
+	bool
+
 source "sound/soc/sof/amd/Kconfig"
 source "sound/soc/sof/imx/Kconfig"
 source "sound/soc/sof/intel/Kconfig"

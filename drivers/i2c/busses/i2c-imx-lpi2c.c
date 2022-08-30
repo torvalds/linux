@@ -558,7 +558,7 @@ static int lpi2c_imx_probe(struct platform_device *pdev)
 	lpi2c_imx->adapter.algo		= &lpi2c_imx_algo;
 	lpi2c_imx->adapter.dev.parent	= &pdev->dev;
 	lpi2c_imx->adapter.dev.of_node	= pdev->dev.of_node;
-	strlcpy(lpi2c_imx->adapter.name, pdev->name,
+	strscpy(lpi2c_imx->adapter.name, pdev->name,
 		sizeof(lpi2c_imx->adapter.name));
 
 	lpi2c_imx->clk = devm_clk_get(&pdev->dev, NULL);

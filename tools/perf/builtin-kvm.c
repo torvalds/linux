@@ -1638,14 +1638,14 @@ int cmd_kvm(int argc, const char **argv)
 		return __cmd_record(file_name, argc, argv);
 	else if (strlen(argv[0]) > 2 && strstarts("report", argv[0]))
 		return __cmd_report(file_name, argc, argv);
-	else if (!strncmp(argv[0], "diff", 4))
+	else if (strlen(argv[0]) > 2 && strstarts("diff", argv[0]))
 		return cmd_diff(argc, argv);
-	else if (!strncmp(argv[0], "top", 3))
+	else if (!strcmp(argv[0], "top"))
 		return cmd_top(argc, argv);
-	else if (!strncmp(argv[0], "buildid-list", 12))
+	else if (strlen(argv[0]) > 2 && strstarts("buildid-list", argv[0]))
 		return __cmd_buildid_list(file_name, argc, argv);
 #ifdef HAVE_KVM_STAT_SUPPORT
-	else if (!strncmp(argv[0], "stat", 4))
+	else if (strlen(argv[0]) > 2 && strstarts("stat", argv[0]))
 		return kvm_cmd_stat(file_name, argc, argv);
 #endif
 	else

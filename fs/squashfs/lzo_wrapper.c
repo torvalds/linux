@@ -93,10 +93,12 @@ static int lzo_uncompress(struct squashfs_sb_info *msblk, void *strm,
 	buff = stream->output;
 	while (data) {
 		if (bytes <= PAGE_SIZE) {
-			memcpy(data, buff, bytes);
+			if (!IS_ERR(data))
+				memcpy(data, buff, bytes);
 			break;
 		} else {
-			memcpy(data, buff, PAGE_SIZE);
+			if (!IS_ERR(data))
+				memcpy(data, buff, PAGE_SIZE);
 			buff += PAGE_SIZE;
 			bytes -= PAGE_SIZE;
 			data = squashfs_next_page(output);
@@ -116,5 +118,6 @@ const struct squashfs_decompressor squashfs_lzo_comp_ops = {
 	.decompress = lzo_uncompress,
 	.id = LZO_COMPRESSION,
 	.name = "lzo",
+	.alloc_buffer = 0,
 	.supported = 1
 };

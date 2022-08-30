@@ -1894,11 +1894,8 @@ static int hellcreek_probe(struct platform_device *pdev)
 		if (!port->counter_values)
 			return -ENOMEM;
 
-		port->vlan_dev_bitmap =
-			devm_kcalloc(dev,
-				     BITS_TO_LONGS(VLAN_N_VID),
-				     sizeof(unsigned long),
-				     GFP_KERNEL);
+		port->vlan_dev_bitmap = devm_bitmap_zalloc(dev, VLAN_N_VID,
+							   GFP_KERNEL);
 		if (!port->vlan_dev_bitmap)
 			return -ENOMEM;
 

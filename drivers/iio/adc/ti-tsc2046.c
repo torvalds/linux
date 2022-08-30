@@ -776,7 +776,7 @@ static int tsc2046_adc_probe(struct spi_device *spi)
 	priv->spi = spi;
 
 	indio_dev->name = TI_TSC2046_NAME;
-	indio_dev->modes = INDIO_DIRECT_MODE | INDIO_BUFFER_TRIGGERED;
+	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->channels = dcfg->channels;
 	indio_dev->num_channels = dcfg->num_channels;
 	indio_dev->info = &tsc2046_adc_info;

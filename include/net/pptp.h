@@ -2,6 +2,9 @@
 #ifndef _NET_PPTP_H
 #define _NET_PPTP_H
 
+#include <linux/types.h>
+#include <net/gre.h>
+
 #define PPP_LCP_ECHOREQ 0x09
 #define PPP_LCP_ECHOREP 0x0A
 #define SC_RCV_BITS     (SC_RCV_B7_1|SC_RCV_B7_0|SC_RCV_ODDP|SC_RCV_EVNP)

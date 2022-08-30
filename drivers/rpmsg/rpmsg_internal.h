@@ -41,8 +41,8 @@ struct rpmsg_device_ops {
 					    rpmsg_rx_cb_t cb, void *priv,
 					    struct rpmsg_channel_info chinfo);
 
-	int (*announce_create)(struct rpmsg_device *ept);
-	int (*announce_destroy)(struct rpmsg_device *ept);
+	int (*announce_create)(struct rpmsg_device *rpdev);
+	int (*announce_destroy)(struct rpmsg_device *rpdev);
 };
 
 /**

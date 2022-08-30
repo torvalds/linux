@@ -27,6 +27,7 @@ int intel_huc_init(struct intel_huc *huc);
 void intel_huc_fini(struct intel_huc *huc);
 int intel_huc_auth(struct intel_huc *huc);
 int intel_huc_check_status(struct intel_huc *huc);
+void intel_huc_update_auth_status(struct intel_huc *huc);
 
 static inline int intel_huc_sanitize(struct intel_huc *huc)
 {
@@ -50,9 +51,9 @@ static inline bool intel_huc_is_used(struct intel_huc *huc)
 	return intel_uc_fw_is_available(&huc->fw);
 }
 
-static inline bool intel_huc_is_authenticated(struct intel_huc *huc)
+static inline bool intel_huc_is_loaded_by_gsc(const struct intel_huc *huc)
 {
-	return intel_uc_fw_is_running(&huc->fw);
+	return huc->fw.loaded_via_gsc;
 }
 
 void intel_huc_load_status(struct intel_huc *huc, struct drm_printer *p);

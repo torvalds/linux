@@ -408,7 +408,7 @@ repeat:
 					       ssize);
 		if (ret == -1) {
 			/*
-			 * Try to to keep bolted entries in primary.
+			 * Try to keep bolted entries in primary.
 			 * Remove non bolted entries and try insert again
 			 */
 			ret = mmu_hash_ops.hpte_remove(hpteg);

@@ -1201,9 +1201,7 @@ static int xenvif_tx_submit(struct xenvif_queue *queue)
 			}
 
 			mss = skb_shinfo(skb)->gso_size;
-			hdrlen = skb_transport_header(skb) -
-				skb_mac_header(skb) +
-				tcp_hdrlen(skb);
+			hdrlen = skb_tcp_all_headers(skb);
 
 			skb_shinfo(skb)->gso_segs =
 				DIV_ROUND_UP(skb->len - hdrlen, mss);

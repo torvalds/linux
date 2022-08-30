@@ -632,7 +632,7 @@ static struct clk_rcg2 system_noc_bfdcd_clk_src = {
 };
 
 static struct clk_rcg2 bimc_ddr_clk_src = {
-	.cmd_rcgr = 0x32004,
+	.cmd_rcgr = 0x32024,
 	.hid_width = 5,
 	.parent_map = gcc_xo_gpll0_bimc_map,
 	.clkr.hw.init = &(struct clk_init_data){
@@ -641,6 +641,18 @@ static struct clk_rcg2 bimc_ddr_clk_src = {
 		.num_parents = 3,
 		.ops = &clk_rcg2_ops,
 		.flags = CLK_GET_RATE_NOCACHE,
+	},
+};
+
+static struct clk_rcg2 system_mm_noc_bfdcd_clk_src = {
+	.cmd_rcgr = 0x2600c,
+	.hid_width = 5,
+	.parent_map = gcc_xo_gpll0_gpll6a_map,
+	.clkr.hw.init = &(struct clk_init_data){
+		.name = "system_mm_noc_bfdcd_clk_src",
+		.parent_data = gcc_xo_gpll0_gpll6a_parent_data,
+		.num_parents = 3,
+		.ops = &clk_rcg2_ops,
 	},
 };
 
@@ -1002,7 +1014,8 @@ static struct clk_rcg2 blsp1_uart2_apps_clk_src = {
 };
 
 static const struct freq_tbl ftbl_gcc_camss_cci_clk[] = {
-	F(19200000,	P_XO, 1, 0,	0),
+	F(19200000, P_XO, 1, 0, 0),
+	F(37500000, P_GPLL0, 1, 3, 64),
 	{ }
 };
 
@@ -1142,6 +1155,9 @@ static struct clk_rcg2 csi1phytimer_clk_src = {
 
 static const struct freq_tbl ftbl_gcc_camss_cpp_clk[] = {
 	F(160000000, P_GPLL0, 5, 0, 0),
+	F(200000000, P_GPLL0, 4, 0, 0),
+	F(228570000, P_GPLL0, 3.5, 0, 0),
+	F(266670000, P_GPLL0, 3, 0, 0),
 	F(320000000, P_GPLL0, 2.5, 0, 0),
 	F(465000000, P_GPLL2, 2, 0, 0),
 	{ }
@@ -1290,6 +1306,8 @@ static const struct freq_tbl ftbl_gcc_mdss_mdp_clk[] = {
 	F(50000000, P_GPLL0_AUX, 16, 0, 0),
 	F(80000000, P_GPLL0_AUX, 10, 0, 0),
 	F(100000000, P_GPLL0_AUX, 8, 0, 0),
+	F(145500000, P_GPLL0_AUX, 5.5, 0, 0),
+	F(153600000, P_GPLL0, 4, 0, 0),
 	F(160000000, P_GPLL0_AUX, 5, 0, 0),
 	F(177780000, P_GPLL0_AUX, 4.5, 0, 0),
 	F(200000000, P_GPLL0_AUX, 4, 0, 0),
@@ -1462,7 +1480,9 @@ static struct clk_rcg2 bimc_gpu_clk_src = {
 };
 
 static const struct freq_tbl ftbl_gcc_usb_hs_system_clk[] = {
+	F(57140000, P_GPLL0, 14, 0, 0),
 	F(80000000, P_GPLL0, 10, 0, 0),
+	F(100000000, P_GPLL0, 8, 0, 0),
 	{ }
 };
 
@@ -1823,9 +1843,9 @@ static struct clk_branch gcc_ultaudio_pcnoc_sway_clk = {
 };
 
 static const struct freq_tbl ftbl_gcc_venus0_vcodec0_clk[] = {
-	F(100000000, P_GPLL0, 8, 0, 0),
-	F(160000000, P_GPLL0, 5, 0, 0),
-	F(228570000, P_GPLL0, 3.5, 0, 0),
+	F(133330000, P_GPLL0, 6, 0, 0),
+	F(200000000, P_GPLL0, 4, 0, 0),
+	F(266670000, P_GPLL0, 3, 0, 0),
 	{ }
 };
 
@@ -2441,7 +2461,7 @@ static struct clk_branch gcc_camss_jpeg_axi_clk = {
 		.hw.init = &(struct clk_init_data){
 			.name = "gcc_camss_jpeg_axi_clk",
 			.parent_data = &(const struct clk_parent_data){
-				.hw = &system_noc_bfdcd_clk_src.clkr.hw,
+				.hw = &system_mm_noc_bfdcd_clk_src.clkr.hw,
 			},
 			.num_parents = 1,
 			.flags = CLK_SET_RATE_PARENT,
@@ -2645,7 +2665,7 @@ static struct clk_branch gcc_camss_vfe_axi_clk = {
 		.hw.init = &(struct clk_init_data){
 			.name = "gcc_camss_vfe_axi_clk",
 			.parent_data = &(const struct clk_parent_data){
-				.hw = &system_noc_bfdcd_clk_src.clkr.hw,
+				.hw = &system_mm_noc_bfdcd_clk_src.clkr.hw,
 			},
 			.num_parents = 1,
 			.flags = CLK_SET_RATE_PARENT,
@@ -2801,7 +2821,7 @@ static struct clk_branch gcc_mdss_axi_clk = {
 		.hw.init = &(struct clk_init_data){
 			.name = "gcc_mdss_axi_clk",
 			.parent_data = &(const struct clk_parent_data){
-				.hw = &system_noc_bfdcd_clk_src.clkr.hw,
+				.hw = &system_mm_noc_bfdcd_clk_src.clkr.hw,
 			},
 			.num_parents = 1,
 			.flags = CLK_SET_RATE_PARENT,
@@ -3193,7 +3213,7 @@ static struct clk_branch gcc_mdp_tbu_clk = {
 		.hw.init = &(struct clk_init_data){
 			.name = "gcc_mdp_tbu_clk",
 			.parent_data = &(const struct clk_parent_data){
-				.hw = &system_noc_bfdcd_clk_src.clkr.hw,
+				.hw = &system_mm_noc_bfdcd_clk_src.clkr.hw,
 			},
 			.num_parents = 1,
 			.flags = CLK_SET_RATE_PARENT,
@@ -3211,7 +3231,7 @@ static struct clk_branch gcc_venus_tbu_clk = {
 		.hw.init = &(struct clk_init_data){
 			.name = "gcc_venus_tbu_clk",
 			.parent_data = &(const struct clk_parent_data){
-				.hw = &system_noc_bfdcd_clk_src.clkr.hw,
+				.hw = &system_mm_noc_bfdcd_clk_src.clkr.hw,
 			},
 			.num_parents = 1,
 			.flags = CLK_SET_RATE_PARENT,
@@ -3229,7 +3249,7 @@ static struct clk_branch gcc_vfe_tbu_clk = {
 		.hw.init = &(struct clk_init_data){
 			.name = "gcc_vfe_tbu_clk",
 			.parent_data = &(const struct clk_parent_data){
-				.hw = &system_noc_bfdcd_clk_src.clkr.hw,
+				.hw = &system_mm_noc_bfdcd_clk_src.clkr.hw,
 			},
 			.num_parents = 1,
 			.flags = CLK_SET_RATE_PARENT,
@@ -3247,7 +3267,7 @@ static struct clk_branch gcc_jpeg_tbu_clk = {
 		.hw.init = &(struct clk_init_data){
 			.name = "gcc_jpeg_tbu_clk",
 			.parent_data = &(const struct clk_parent_data){
-				.hw = &system_noc_bfdcd_clk_src.clkr.hw,
+				.hw = &system_mm_noc_bfdcd_clk_src.clkr.hw,
 			},
 			.num_parents = 1,
 			.flags = CLK_SET_RATE_PARENT,
@@ -3484,7 +3504,7 @@ static struct clk_branch gcc_venus0_axi_clk = {
 		.hw.init = &(struct clk_init_data){
 			.name = "gcc_venus0_axi_clk",
 			.parent_data = &(const struct clk_parent_data){
-				.hw = &system_noc_bfdcd_clk_src.clkr.hw,
+				.hw = &system_mm_noc_bfdcd_clk_src.clkr.hw,
 			},
 			.num_parents = 1,
 			.flags = CLK_SET_RATE_PARENT,
@@ -3623,6 +3643,7 @@ static struct clk_regmap *gcc_msm8939_clocks[] = {
 	[GPLL2_VOTE] = &gpll2_vote,
 	[PCNOC_BFDCD_CLK_SRC] = &pcnoc_bfdcd_clk_src.clkr,
 	[SYSTEM_NOC_BFDCD_CLK_SRC] = &system_noc_bfdcd_clk_src.clkr,
+	[SYSTEM_MM_NOC_BFDCD_CLK_SRC] = &system_mm_noc_bfdcd_clk_src.clkr,
 	[CAMSS_AHB_CLK_SRC] = &camss_ahb_clk_src.clkr,
 	[APSS_AHB_CLK_SRC] = &apss_ahb_clk_src.clkr,
 	[CSI0_CLK_SRC] = &csi0_clk_src.clkr,

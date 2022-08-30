@@ -92,6 +92,8 @@ enum label_flags {
 	FLAG_STALE = 0x800,		/* replaced/removed */
 	FLAG_RENAMED = 0x1000,		/* label has renaming in it */
 	FLAG_REVOKED = 0x2000,		/* label has revocation in it */
+	FLAG_DEBUG1 = 0x4000,
+	FLAG_DEBUG2 = 0x8000,
 
 	/* These flags must correspond with PATH_flags */
 	/* TODO: add new path flags */

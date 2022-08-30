@@ -27,8 +27,7 @@ struct ltv350qv {
 /*
  * The power-on and power-off sequences are taken from the
  * LTV350QV-F04 data sheet from Samsung. The register definitions are
- * taken from the S6F2002 command list also from Samsung. Both
- * documents are distributed with the AVR32 Linux BSP CD from Atmel.
+ * taken from the S6F2002 command list also from Samsung.
  *
  * There's still some voodoo going on here, but it's a lot better than
  * in the first incarnation of the driver where all we had was the raw

@@ -92,4 +92,7 @@ static inline bool i915_ttm_cpu_maps_iomem(struct ttm_resource *mem)
 	/* Once / if we support GGTT, this is also false for cached ttm_tts */
 	return mem->mem_type != I915_PL_SYSTEM;
 }
+
+bool i915_ttm_resource_mappable(struct ttm_resource *res);
+
 #endif

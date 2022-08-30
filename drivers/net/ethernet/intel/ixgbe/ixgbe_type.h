@@ -2533,6 +2533,13 @@ enum {
 #define IXGBE_PVFTXDCTL(P)	(0x06028 + (0x40 * (P)))
 #define IXGBE_PVFTDWBAL(P)	(0x06038 + (0x40 * (P)))
 #define IXGBE_PVFTDWBAH(P)	(0x0603C + (0x40 * (P)))
+#define IXGBE_PVFGPRC(x)	(0x0101C + (0x40 * (x)))
+#define IXGBE_PVFGPTC(x)	(0x08300 + (0x04 * (x)))
+#define IXGBE_PVFGORC_LSB(x)	(0x01020 + (0x40 * (x)))
+#define IXGBE_PVFGORC_MSB(x)	(0x0D020 + (0x40 * (x)))
+#define IXGBE_PVFGOTC_LSB(x)	(0x08400 + (0x08 * (x)))
+#define IXGBE_PVFGOTC_MSB(x)	(0x08404 + (0x08 * (x)))
+#define IXGBE_PVFMPRC(x)	(0x0D01C + (0x40 * (x)))
 
 #define IXGBE_PVFTDWBALn(q_per_pool, vf_number, vf_q_index) \
 		(IXGBE_PVFTDWBAL((q_per_pool)*(vf_number) + (vf_q_index)))

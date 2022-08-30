@@ -8,7 +8,7 @@
 #include "rsrc.h"
 
 #define IO_NOTIF_SPLICE_BATCH	32
-#define IORING_MAX_NOTIF_SLOTS (1U << 10)
+#define IORING_MAX_NOTIF_SLOTS	(1U << 15)
 
 struct io_notif_data {
 	struct file		*file;
@@ -46,7 +46,7 @@ struct io_kiocb *io_alloc_notif(struct io_ring_ctx *ctx,
 
 static inline struct io_notif_data *io_notif_to_data(struct io_kiocb *notif)
 {
-	return io_kiocb_to_cmd(notif);
+	return io_kiocb_to_cmd(notif, struct io_notif_data);
 }
 
 static inline struct io_kiocb *io_get_notif(struct io_ring_ctx *ctx,

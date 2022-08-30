@@ -27,7 +27,7 @@ void dump_trace(struct task_struct *tsk,
 
 	frame = (struct stack_frame *)bp;
 	while (((long) sp & (THREAD_SIZE-1)) != 0) {
-		addr = *sp;
+		addr = READ_ONCE_NOCHECK(*sp);
 		if (__kernel_text_address(addr)) {
 			reliable = 0;
 			if ((unsigned long) sp == bp + sizeof(long)) {

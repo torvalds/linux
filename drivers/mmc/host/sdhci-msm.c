@@ -2435,33 +2435,12 @@ static const struct sdhci_msm_variant_info sdm845_sdhci_var = {
 };
 
 static const struct of_device_id sdhci_msm_dt_match[] = {
-	 /* Following two entries are deprecated (kept only for backward compatibility) */
+	/*
+	 * Do not add new variants to the driver which are compatible with
+	 * generic ones, unless they need customization.
+	 */
 	{.compatible = "qcom,sdhci-msm-v4", .data = &sdhci_msm_mci_var},
 	{.compatible = "qcom,sdhci-msm-v5", .data = &sdhci_msm_v5_var},
-	/* Add entries for sdcc versions less than 5.0 here */
-	{.compatible = "qcom,apq8084-sdhci", .data = &sdhci_msm_mci_var},
-	{.compatible = "qcom,msm8226-sdhci", .data = &sdhci_msm_mci_var},
-	{.compatible = "qcom,msm8916-sdhci", .data = &sdhci_msm_mci_var},
-	{.compatible = "qcom,msm8953-sdhci", .data = &sdhci_msm_mci_var},
-	{.compatible = "qcom,msm8974-sdhci", .data = &sdhci_msm_mci_var},
-	{.compatible = "qcom,msm8992-sdhci", .data = &sdhci_msm_mci_var},
-	{.compatible = "qcom,msm8994-sdhci", .data = &sdhci_msm_mci_var},
-	{.compatible = "qcom,msm8996-sdhci", .data = &sdhci_msm_mci_var},
-	/*
-	 * Add entries for sdcc version 5.0 here. For SDCC version 5.0.0,
-	 * MCI registers are removed from SDCC interface and some registers
-	 * are moved to HC.
-	 */
-	{.compatible = "qcom,qcs404-sdhci", .data = &sdhci_msm_v5_var},
-	{.compatible = "qcom,sdx55-sdhci",  .data = &sdhci_msm_v5_var},
-	{.compatible = "qcom,sdx65-sdhci",  .data = &sdhci_msm_v5_var},
-	{.compatible = "qcom,sdm630-sdhci", .data = &sdhci_msm_v5_var},
-	{.compatible = "qcom,sm6125-sdhci", .data = &sdhci_msm_v5_var},
-	{.compatible = "qcom,sm6350-sdhci", .data = &sdhci_msm_v5_var},
-	{.compatible = "qcom,sm8150-sdhci", .data = &sdhci_msm_v5_var},
-	{.compatible = "qcom,sm8250-sdhci", .data = &sdhci_msm_v5_var},
-	{.compatible = "qcom,sc7280-sdhci", .data = &sdhci_msm_v5_var},
-	/* Add entries where soc specific handling is required, here */
 	{.compatible = "qcom,sdm845-sdhci", .data = &sdm845_sdhci_var},
 	{.compatible = "qcom,sc7180-sdhci", .data = &sdm845_sdhci_var},
 	{},

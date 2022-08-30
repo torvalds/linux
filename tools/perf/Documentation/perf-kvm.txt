@@ -77,26 +77,11 @@ OPTIONS
         Collect host side performance profile.
 --guest::
         Collect guest side performance profile.
---guestmount=<path>::
-	Guest os root file system mount directory. Users mounts guest os
-        root directories under <path> by a specific filesystem access method,
-	typically, sshfs. For example, start 2 guest os. The one's pid is 8888
-	and the other's is 9999.
-        #mkdir ~/guestmount; cd ~/guestmount
-        #sshfs -o allow_other,direct_io -p 5551 localhost:/ 8888/
-        #sshfs -o allow_other,direct_io -p 5552 localhost:/ 9999/
-        #perf kvm --host --guest --guestmount=~/guestmount top
---guestkallsyms=<path>::
-        Guest os /proc/kallsyms file copy. 'perf' kvm' reads it to get guest
-	kernel symbols. Users copy it out from guest os.
---guestmodules=<path>::
-	Guest os /proc/modules file copy. 'perf' kvm' reads it to get guest
-	kernel module information. Users copy it out from guest os.
---guestvmlinux=<path>::
-	Guest os kernel vmlinux.
---guest-code::
-	Indicate that guest code can be found in the hypervisor process,
-	which is a common case for KVM test programs.
+
+:GMEXAMPLECMD: kvm --host --guest
+:GMEXAMPLESUBCMD: top
+include::guest-files.txt[]
+
 -v::
 --verbose::
 	Be more verbose (show counter open errors, etc).

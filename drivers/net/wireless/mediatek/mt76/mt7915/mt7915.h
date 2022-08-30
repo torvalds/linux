@@ -10,7 +10,6 @@
 #include "regs.h"
 
 #define MT7915_MAX_INTERFACES		19
-#define MT7915_MAX_WMM_SETS		4
 #define MT7915_WTBL_SIZE		288
 #define MT7916_WTBL_SIZE		544
 #define MT7915_WTBL_RESERVED		(mt7915_wtbl_size(dev) - 1)
@@ -67,7 +66,7 @@
 #define MT7915_MAX_TWT_AGRT		16
 #define MT7915_MAX_STA_TWT_AGRT		8
 #define MT7915_MIN_TWT_DUR 64
-#define MT7915_MAX_QUEUE		(__MT_RXQ_MAX + __MT_MCUQ_MAX + 2)
+#define MT7915_MAX_QUEUE		(MT_RXQ_BAND2 + __MT_MCUQ_MAX + 2)
 
 struct mt7915_vif;
 struct mt7915_sta;
@@ -200,8 +199,15 @@ struct mib_stats {
 	/* rx stats */
 	u32 rx_fifo_full_cnt;
 	u32 channel_idle_cnt;
+	u32 primary_cca_busy_time;
+	u32 secondary_cca_busy_time;
+	u32 primary_energy_detect_time;
+	u32 cck_mdrdy_time;
+	u32 ofdm_mdrdy_time;
+	u32 green_mdrdy_time;
 	u32 rx_vector_mismatch_cnt;
 	u32 rx_delimiter_fail_cnt;
+	u32 rx_mrdy_cnt;
 	u32 rx_len_mismatch_cnt;
 	u32 rx_mpdu_cnt;
 	u32 rx_ampdu_cnt;
@@ -342,20 +348,6 @@ enum {
 };
 
 enum {
-	MT_CTX0,
-	MT_HIF0 = 0x0,
-
-	MT_LMAC_AC00 = 0x0,
-	MT_LMAC_AC01,
-	MT_LMAC_AC02,
-	MT_LMAC_AC03,
-	MT_LMAC_ALTX0 = 0x10,
-	MT_LMAC_BMC0,
-	MT_LMAC_BCN0,
-	MT_LMAC_PSMP0,
-};
-
-enum {
 	MT_RX_SEL0,
 	MT_RX_SEL1,
 	MT_RX_SEL2, /* monitor chain */
@@ -396,7 +388,7 @@ mt7915_hw_dev(struct ieee80211_hw *hw)
 static inline struct mt7915_phy *
 mt7915_ext_phy(struct mt7915_dev *dev)
 {
-	struct mt76_phy *phy = dev->mt76.phy2;
+	struct mt76_phy *phy = dev->mt76.phys[MT_BAND1];
 
 	if (!phy)
 		return NULL;
@@ -557,9 +549,10 @@ bool mt7915_mac_wtbl_update(struct mt7915_dev *dev, int idx, u32 mask);
 void mt7915_mac_reset_counters(struct mt7915_phy *phy);
 void mt7915_mac_cca_stats_reset(struct mt7915_phy *phy);
 void mt7915_mac_enable_nf(struct mt7915_dev *dev, bool ext_phy);
-void mt7915_mac_write_txwi(struct mt7915_dev *dev, __le32 *txwi,
+void mt7915_mac_write_txwi(struct mt76_dev *dev, __le32 *txwi,
 			   struct sk_buff *skb, struct mt76_wcid *wcid, int pid,
-			   struct ieee80211_key_conf *key, u32 changed);
+			   struct ieee80211_key_conf *key,
+			   enum mt76_txq_id qid, u32 changed);
 void mt7915_mac_set_timing(struct mt7915_phy *phy);
 int mt7915_mac_sta_add(struct mt76_dev *mdev, struct ieee80211_vif *vif,
 		       struct ieee80211_sta *sta);
@@ -579,7 +572,6 @@ int mt7915_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
 			  enum mt76_txq_id qid, struct mt76_wcid *wcid,
 			  struct ieee80211_sta *sta,
 			  struct mt76_tx_info *tx_info);
-void mt7915_tx_complete_skb(struct mt76_dev *mdev, struct mt76_queue_entry *e);
 void mt7915_tx_token_put(struct mt7915_dev *dev);
 void mt7915_queue_rx_skb(struct mt76_dev *mdev, enum mt76_rxq_id q,
 			 struct sk_buff *skb);

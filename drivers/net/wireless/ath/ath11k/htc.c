@@ -258,8 +258,10 @@ void ath11k_htc_tx_completion_handler(struct ath11k_base *ab,
 	u8 eid;
 
 	eid = ATH11K_SKB_CB(skb)->eid;
-	if (eid >= ATH11K_HTC_EP_COUNT)
+	if (eid >= ATH11K_HTC_EP_COUNT) {
+		dev_kfree_skb_any(skb);
 		return;
+	}
 
 	ep = &htc->endpoint[eid];
 	spin_lock_bh(&htc->tx_lock);
