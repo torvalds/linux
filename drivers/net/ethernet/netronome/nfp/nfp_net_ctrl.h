@@ -193,6 +193,10 @@
 #define   NFP_NET_CFG_STS_LINK_RATE_40G		  5
 #define   NFP_NET_CFG_STS_LINK_RATE_50G		  6
 #define   NFP_NET_CFG_STS_LINK_RATE_100G	  7
+/* NSP Link rate is a 16-bit word. It's determined by NSP and
+ * written to CFG BAR by NFP driver.
+ */
+#define NFP_NET_CFG_STS_NSP_LINK_RATE	0x0036
 #define NFP_NET_CFG_CAP			0x0038
 #define NFP_NET_CFG_MAX_TXRINGS		0x003c
 #define NFP_NET_CFG_MAX_RXRINGS		0x0040
@@ -488,6 +492,10 @@
  * %NFP_NET_CFG_TLV_TYPE_CRYPTO_OPS_RX_SCAN:
  * Same as %NFP_NET_CFG_TLV_TYPE_CRYPTO_OPS, but crypto TLS does stream scan
  * RX sync, rather than kernel-assisted sync.
+ *
+ * %NFP_NET_CFG_TLV_TYPE_SP_INDIFF:
+ * Empty, indicate the firmware is indifferent to port speed. Then no need to
+ * reload driver and firmware when port speed is changed.
  */
 #define NFP_NET_CFG_TLV_TYPE_UNKNOWN		0
 #define NFP_NET_CFG_TLV_TYPE_RESERVED		1
@@ -501,6 +509,7 @@
 #define NFP_NET_CFG_TLV_TYPE_CRYPTO_OPS		11 /* see crypto/fw.h */
 #define NFP_NET_CFG_TLV_TYPE_VNIC_STATS		12
 #define NFP_NET_CFG_TLV_TYPE_CRYPTO_OPS_RX_SCAN	13
+#define NFP_NET_CFG_TLV_TYPE_SP_INDIFF		14
 
 struct device;
 
@@ -515,6 +524,7 @@ struct device;
  * @vnic_stats_off:	offset of vNIC stats area
  * @vnic_stats_cnt:	number of vNIC stats
  * @tls_resync_ss:	TLS resync will be performed via stream scan
+ * @sp_indiff:		Firmware is indifferent to port speed
  */
 struct nfp_net_tlv_caps {
 	u32 me_freq_mhz;
@@ -527,6 +537,7 @@ struct nfp_net_tlv_caps {
 	unsigned int vnic_stats_off;
 	unsigned int vnic_stats_cnt;
 	unsigned int tls_resync_ss:1;
+	unsigned int sp_indiff:1;
 };
 
 int nfp_net_tlv_caps_parse(struct device *dev, u8 __iomem *ctrl_mem,

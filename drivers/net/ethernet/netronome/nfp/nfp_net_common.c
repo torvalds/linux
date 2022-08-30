@@ -474,19 +474,22 @@ static void nfp_net_read_link_status(struct nfp_net *nn)
 {
 	unsigned long flags;
 	bool link_up;
-	u32 sts;
+	u16 sts;
 
 	spin_lock_irqsave(&nn->link_status_lock, flags);
 
-	sts = nn_readl(nn, NFP_NET_CFG_STS);
+	sts = nn_readw(nn, NFP_NET_CFG_STS);
 	link_up = !!(sts & NFP_NET_CFG_STS_LINK);
 
 	if (nn->link_up == link_up)
 		goto out;
 
 	nn->link_up = link_up;
-	if (nn->port)
+	if (nn->port) {
 		set_bit(NFP_PORT_CHANGED, &nn->port->flags);
+		if (nn->port->link_cb)
+			nn->port->link_cb(nn->port);
+	}
 
 	if (nn->link_up) {
 		netif_carrier_on(nn->dp.netdev);

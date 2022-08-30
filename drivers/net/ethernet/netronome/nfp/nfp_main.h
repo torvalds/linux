@@ -65,6 +65,7 @@ struct nfp_dumpspec {
  * @num_vfs:		Number of SR-IOV VFs enabled
  * @fw_loaded:		Is the firmware loaded?
  * @unload_fw_on_remove:Do we need to unload firmware on driver removal?
+ * @sp_indiff:		Is the firmware indifferent to physical port speed?
  * @ctrl_vnic:		Pointer to the control vNIC if available
  * @mip:		MIP handle
  * @rtbl:		RTsym table
@@ -114,6 +115,7 @@ struct nfp_pf {
 
 	bool fw_loaded;
 	bool unload_fw_on_remove;
+	bool sp_indiff;
 
 	struct nfp_net *ctrl_vnic;
 
@@ -190,4 +192,7 @@ int nfp_shared_buf_pool_set(struct nfp_pf *pf, unsigned int sb,
 
 int nfp_devlink_params_register(struct nfp_pf *pf);
 void nfp_devlink_params_unregister(struct nfp_pf *pf);
+
+unsigned int nfp_net_lr2speed(unsigned int linkrate);
+unsigned int nfp_net_speed2lr(unsigned int speed);
 #endif /* NFP_MAIN_H */

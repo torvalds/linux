@@ -202,7 +202,11 @@ nfp_net_pf_alloc_vnics(struct nfp_pf *pf, void __iomem *ctrl_bar,
 			goto err_free_prev;
 		}
 
+		if (nn->port)
+			nn->port->link_cb = nfp_net_refresh_port_table;
+
 		ctrl_bar += NFP_PF_CSR_SLICE_SIZE;
+		pf->sp_indiff |= nn->tlv_caps.sp_indiff;
 
 		/* Kill the vNIC if app init marked it as invalid */
 		if (nn->port && nn->port->type == NFP_PORT_INVALID)
@@ -304,6 +308,37 @@ err_prev_deinit:
 	return err;
 }
 
+static int nfp_net_pf_cfg_nsp(struct nfp_pf *pf, bool sp_indiff)
+{
+	struct nfp_nsp *nsp;
+	char hwinfo[32];
+	int err;
+
+	nsp = nfp_nsp_open(pf->cpp);
+	if (IS_ERR(nsp)) {
+		err = PTR_ERR(nsp);
+		return err;
+	}
+
+	snprintf(hwinfo, sizeof(hwinfo), "sp_indiff=%d", sp_indiff);
+	err = nfp_nsp_hwinfo_set(nsp, hwinfo, sizeof(hwinfo));
+	if (err)
+		nfp_warn(pf->cpp, "HWinfo(sp_indiff=%d) set failed: %d\n", sp_indiff, err);
+
+	nfp_nsp_close(nsp);
+	return err;
+}
+
+static int nfp_net_pf_init_nsp(struct nfp_pf *pf)
+{
+	return nfp_net_pf_cfg_nsp(pf, pf->sp_indiff);
+}
+
+static void nfp_net_pf_clean_nsp(struct nfp_pf *pf)
+{
+	(void)nfp_net_pf_cfg_nsp(pf, false);
+}
+
 static int
 nfp_net_pf_app_init(struct nfp_pf *pf, u8 __iomem *qc_bar, unsigned int stride)
 {
@@ -314,6 +349,8 @@ nfp_net_pf_app_init(struct nfp_pf *pf, u8 __iomem *qc_bar, unsigned int stride)
 	pf->app = nfp_app_alloc(pf, nfp_net_pf_get_app_id(pf));
 	if (IS_ERR(pf->app))
 		return PTR_ERR(pf->app);
+
+	pf->sp_indiff |= pf->app->type->id == NFP_APP_FLOWER_NIC;
 
 	devl_lock(devlink);
 	err = nfp_app_init(pf->app);
@@ -523,6 +560,57 @@ err_unmap_ctrl:
 	return err;
 }
 
+static const unsigned int lr_to_speed[] = {
+	[NFP_NET_CFG_STS_LINK_RATE_UNSUPPORTED]	= 0,
+	[NFP_NET_CFG_STS_LINK_RATE_UNKNOWN]	= SPEED_UNKNOWN,
+	[NFP_NET_CFG_STS_LINK_RATE_1G]		= SPEED_1000,
+	[NFP_NET_CFG_STS_LINK_RATE_10G]		= SPEED_10000,
+	[NFP_NET_CFG_STS_LINK_RATE_25G]		= SPEED_25000,
+	[NFP_NET_CFG_STS_LINK_RATE_40G]		= SPEED_40000,
+	[NFP_NET_CFG_STS_LINK_RATE_50G]		= SPEED_50000,
+	[NFP_NET_CFG_STS_LINK_RATE_100G]	= SPEED_100000,
+};
+
+unsigned int nfp_net_lr2speed(unsigned int linkrate)
+{
+	if (linkrate < ARRAY_SIZE(lr_to_speed))
+		return lr_to_speed[linkrate];
+
+	return SPEED_UNKNOWN;
+}
+
+unsigned int nfp_net_speed2lr(unsigned int speed)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(lr_to_speed); i++) {
+		if (speed == lr_to_speed[i])
+			return i;
+	}
+
+	return NFP_NET_CFG_STS_LINK_RATE_UNKNOWN;
+}
+
+static void nfp_net_notify_port_speed(struct nfp_port *port)
+{
+	struct net_device *netdev = port->netdev;
+	struct nfp_net *nn;
+	u16 sts;
+
+	if (!nfp_netdev_is_nfp_net(netdev))
+		return;
+
+	nn = netdev_priv(netdev);
+	sts = nn_readw(nn, NFP_NET_CFG_STS);
+
+	if (!(sts & NFP_NET_CFG_STS_LINK)) {
+		nn_writew(nn, NFP_NET_CFG_STS_NSP_LINK_RATE, NFP_NET_CFG_STS_LINK_RATE_UNKNOWN);
+		return;
+	}
+
+	nn_writew(nn, NFP_NET_CFG_STS_NSP_LINK_RATE, nfp_net_speed2lr(port->eth_port->speed));
+}
+
 static int
 nfp_net_eth_port_update(struct nfp_cpp *cpp, struct nfp_port *port,
 			struct nfp_eth_table *eth_table)
@@ -544,6 +632,7 @@ nfp_net_eth_port_update(struct nfp_cpp *cpp, struct nfp_port *port,
 	}
 
 	memcpy(port->eth_port, eth_port, sizeof(*eth_port));
+	nfp_net_notify_port_speed(port);
 
 	return 0;
 }
@@ -725,9 +814,13 @@ int nfp_net_pci_probe(struct nfp_pf *pf)
 	if (err)
 		goto err_clean_ddir;
 
-	err = nfp_net_pf_alloc_irqs(pf);
+	err = nfp_net_pf_init_nsp(pf);
 	if (err)
 		goto err_free_vnics;
+
+	err = nfp_net_pf_alloc_irqs(pf);
+	if (err)
+		goto err_clean_nsp;
 
 	err = nfp_net_pf_app_start(pf);
 	if (err)
@@ -746,6 +839,8 @@ err_stop_app:
 	nfp_net_pf_app_stop(pf);
 err_free_irqs:
 	nfp_net_pf_free_irqs(pf);
+err_clean_nsp:
+	nfp_net_pf_clean_nsp(pf);
 err_free_vnics:
 	nfp_net_pf_free_vnics(pf);
 err_clean_ddir:
@@ -776,6 +871,7 @@ void nfp_net_pci_remove(struct nfp_pf *pf)
 		nfp_net_pf_free_vnic(pf, nn);
 	}
 
+	nfp_net_pf_clean_nsp(pf);
 	nfp_net_pf_app_stop(pf);
 	/* stop app first, to avoid double free of ctrl vNIC's ddir */
 	nfp_net_debugfs_dir_clean(&pf->ddir);

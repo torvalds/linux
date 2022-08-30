@@ -148,6 +148,14 @@ int nfp_net_tlv_caps_parse(struct device *dev, u8 __iomem *ctrl_mem,
 							  true))
 				return -EINVAL;
 			break;
+		case NFP_NET_CFG_TLV_TYPE_SP_INDIFF:
+			if (length) {
+				dev_err(dev, "Unexpected len of SP_INDIFF TLV:%u\n", length);
+				return -EINVAL;
+			}
+
+			caps->sp_indiff = true;
+			break;
 		default:
 			if (!FIELD_GET(NFP_NET_CFG_TLV_HEADER_REQUIRED, hdr))
 				break;
