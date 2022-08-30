@@ -156,7 +156,7 @@ static struct cpufreq_driver bmips_cpufreq_driver = {
 	.name		= BMIPS_CPUFREQ_PREFIX,
 };
 
-static int __init bmips_cpufreq_probe(void)
+static int __init bmips_cpufreq_driver_init(void)
 {
 	struct cpufreq_compat *cc;
 	struct device_node *np;
@@ -176,7 +176,13 @@ static int __init bmips_cpufreq_probe(void)
 
 	return cpufreq_register_driver(&bmips_cpufreq_driver);
 }
-device_initcall(bmips_cpufreq_probe);
+module_init(bmips_cpufreq_driver_init);
+
+static void __exit bmips_cpufreq_driver_exit(void)
+{
+	cpufreq_unregister_driver(&bmips_cpufreq_driver);
+}
+module_exit(bmips_cpufreq_driver_exit);
 
 MODULE_AUTHOR("Markus Mayer <mmayer@broadcom.com>");
 MODULE_DESCRIPTION("CPUfreq driver for Broadcom BMIPS SoCs");
