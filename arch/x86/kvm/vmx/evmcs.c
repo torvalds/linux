@@ -10,6 +10,8 @@
 #include "vmx.h"
 #include "trace.h"
 
+#define CC KVM_NESTED_VMENTER_CONSISTENCY_CHECK
+
 DEFINE_STATIC_KEY_FALSE(enable_evmcs);
 
 #define EVMCS1_OFFSET(x) offsetof(struct hv_enlightened_vmcs, x)
@@ -417,57 +419,35 @@ void nested_evmcs_filter_control_msr(u32 msr_index, u64 *pdata)
 	*pdata = ctl_low | ((u64)ctl_high << 32);
 }
 
+static bool nested_evmcs_is_valid_controls(enum evmcs_ctrl_type ctrl_type,
+					   u32 val)
+{
+	return !(val & evmcs_get_unsupported_ctls(ctrl_type));
+}
+
 int nested_evmcs_check_controls(struct vmcs12 *vmcs12)
 {
-	int ret = 0;
-	u32 unsupp_ctl;
+	if (CC(!nested_evmcs_is_valid_controls(EVMCS_PINCTRL,
+					       vmcs12->pin_based_vm_exec_control)))
+		return -EINVAL;
 
-	unsupp_ctl = vmcs12->pin_based_vm_exec_control &
-		evmcs_get_unsupported_ctls(EVMCS_PINCTRL);
-	if (unsupp_ctl) {
-		trace_kvm_nested_vmenter_failed(
-			"eVMCS: unsupported pin-based VM-execution controls",
-			unsupp_ctl);
-		ret = -EINVAL;
-	}
+	if (CC(!nested_evmcs_is_valid_controls(EVMCS_2NDEXEC,
+					       vmcs12->secondary_vm_exec_control)))
+		return -EINVAL;
 
-	unsupp_ctl = vmcs12->secondary_vm_exec_control &
-		evmcs_get_unsupported_ctls(EVMCS_2NDEXEC);
-	if (unsupp_ctl) {
-		trace_kvm_nested_vmenter_failed(
-			"eVMCS: unsupported secondary VM-execution controls",
-			unsupp_ctl);
-		ret = -EINVAL;
-	}
+	if (CC(!nested_evmcs_is_valid_controls(EVMCS_EXIT_CTRLS,
+					       vmcs12->vm_exit_controls)))
+		return -EINVAL;
 
-	unsupp_ctl = vmcs12->vm_exit_controls &
-		evmcs_get_unsupported_ctls(EVMCS_EXIT_CTRLS);
-	if (unsupp_ctl) {
-		trace_kvm_nested_vmenter_failed(
-			"eVMCS: unsupported VM-exit controls",
-			unsupp_ctl);
-		ret = -EINVAL;
-	}
+	if (CC(!nested_evmcs_is_valid_controls(EVMCS_ENTRY_CTRLS,
+					       vmcs12->vm_entry_controls)))
+		return -EINVAL;
 
-	unsupp_ctl = vmcs12->vm_entry_controls &
-		evmcs_get_unsupported_ctls(EVMCS_ENTRY_CTRLS);
-	if (unsupp_ctl) {
-		trace_kvm_nested_vmenter_failed(
-			"eVMCS: unsupported VM-entry controls",
-			unsupp_ctl);
-		ret = -EINVAL;
-	}
+	if (CC(!nested_evmcs_is_valid_controls(EVMCS_VMFUNC,
+					       vmcs12->vm_function_control)))
+		return -EINVAL;
 
-	unsupp_ctl = vmcs12->vm_function_control &
-		evmcs_get_unsupported_ctls(EVMCS_VMFUNC);
-	if (unsupp_ctl) {
-		trace_kvm_nested_vmenter_failed(
-			"eVMCS: unsupported VM-function controls",
-			unsupp_ctl);
-		ret = -EINVAL;
-	}
-
-	return ret;
+	return 0;
 }
 
 int nested_enable_evmcs(struct kvm_vcpu *vcpu,
