@@ -1695,7 +1695,7 @@ static const struct dev_pm_ops dw_axi_dma_pm_ops = {
 static const struct of_device_id dw_dma_of_id_table[] = {
 	{ .compatible = "snps,axi-dma-1.01a" },
 	{ .compatible = "intel,kmb-axi-dma" },
-	{ .compatible = "starfive,axi-dma" },
+	{ .compatible = "starfive,jh7110-dma" },
 	{}
 };
 MODULE_DEVICE_TABLE(of, dw_dma_of_id_table);

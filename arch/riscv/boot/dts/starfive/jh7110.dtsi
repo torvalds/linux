@@ -613,7 +613,7 @@
 		};
 
 		dma: dma-controller@16050000 {
-			compatible = "starfive,axi-dma";
+			compatible = "starfive,jh7110-dma", "snps,axi-dma-1.01a";
 			reg = <0x0 0x16050000 0x0 0x10000>;
 			clocks = <&clkgen JH7110_DMA1P_CLK_AXI>,
 				 <&clkgen JH7110_DMA1P_CLK_AHB>;
