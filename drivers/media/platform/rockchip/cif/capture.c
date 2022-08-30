@@ -3988,18 +3988,6 @@ void rkcif_do_stop_stream(struct rkcif_stream *stream,
 		ret = dev->pipe.close(&dev->pipe);
 		if (ret < 0)
 			v4l2_err(v4l2_dev, "pipeline close failed error:%d\n", ret);
-		pm_runtime_put_sync(dev->dev);
-		v4l2_pipeline_pm_put(&node->vdev.entity);
-		if (dev->sditf_cnt > 1) {
-			for (i = 0; i < dev->sditf_cnt; i++)
-				ret |= v4l2_subdev_call(dev->sditf[i]->sensor_sd,
-							core,
-							s_power,
-							0);
-			if (ret < 0)
-				v4l2_err(v4l2_dev, "set power off fail, ret %d\n",
-					 ret);
-		}
 		if (dev->hdr.hdr_mode == HDR_X2) {
 			if (dev->stream[RKCIF_STREAM_MIPI_ID0].state == RKCIF_STATE_READY &&
 			    dev->stream[RKCIF_STREAM_MIPI_ID1].state == RKCIF_STATE_READY) {
@@ -4949,7 +4937,6 @@ int rkcif_do_start_stream(struct rkcif_stream *stream, unsigned int mode)
 	struct rkmodule_hdr_cfg hdr_cfg;
 	int rkmodule_stream_seq = RKMODULE_START_STREAM_DEFAULT;
 	int ret;
-	int i = 0;
 
 	v4l2_info(&dev->v4l2_dev, "stream[%d] start streaming\n", stream->id);
 
@@ -5018,29 +5005,6 @@ int rkcif_do_start_stream(struct rkcif_stream *stream, unsigned int mode)
 	}
 
 	if (stream->cur_stream_mode == RKCIF_STREAM_MODE_NONE) {
-		/* enable clocks/power-domains */
-		ret = pm_runtime_resume_and_get(dev->dev);
-		if (ret < 0) {
-			v4l2_err(v4l2_dev, "Failed to get runtime pm, %d\n",
-				 ret);
-			goto  destroy_buf;
-		}
-		ret = v4l2_pipeline_pm_get(&node->vdev.entity);
-		if (ret < 0) {
-			v4l2_err(v4l2_dev, "cif pipeline_pm_get fail %d\n",
-				 ret);
-			goto destroy_buf;
-		}
-		if (dev->sditf_cnt > 1) {
-			for (i = 0; i < dev->sditf_cnt; i++)
-				ret |= v4l2_subdev_call(dev->sditf[i]->sensor_sd,
-							core,
-							s_power,
-							1);
-			if (ret < 0)
-				v4l2_err(v4l2_dev, "set power on fail, ret %d\n",
-					 ret);
-		}
 		ret = dev->pipe.open(&dev->pipe, &node->vdev.entity, true);
 		if (ret < 0) {
 			v4l2_err(v4l2_dev, "open cif pipeline failed %d\n",
@@ -5438,6 +5402,7 @@ static int rkcif_fh_open(struct file *filp)
 	struct rkcif_stream *stream = to_rkcif_stream(vnode);
 	struct rkcif_device *cifdev = stream->cifdev;
 	int ret;
+	int i = 0;
 
 	ret = rkcif_attach_hw(cifdev);
 	if (ret)
@@ -5466,7 +5431,18 @@ static int rkcif_fh_open(struct file *filp)
 		if (ret < 0)
 			vb2_fop_release(filp);
 	}
-
+	if (cifdev->sditf_cnt > 1) {
+		for (i = 0; i < cifdev->sditf_cnt; i++) {
+			if (cifdev->sditf[i]->sensor_sd)
+				ret |= v4l2_subdev_call(cifdev->sditf[i]->sensor_sd,
+							core,
+							s_power,
+							1);
+		}
+		if (ret < 0)
+			v4l2_err(vdev, "set sensor power on fail, ret %d\n",
+				 ret);
+	}
 	return ret;
 }
 
@@ -5477,12 +5453,25 @@ static int rkcif_fh_release(struct file *filp)
 	struct rkcif_stream *stream = to_rkcif_stream(vnode);
 	struct rkcif_device *cifdev = stream->cifdev;
 	int ret = 0;
+	int i = 0;
 
 	ret = vb2_fop_release(filp);
 	if (!ret)
 		v4l2_pipeline_pm_put(&vnode->vdev.entity);
 
 	pm_runtime_put_sync(cifdev->dev);
+	if (cifdev->sditf_cnt > 1) {
+		for (i = 0; i < cifdev->sditf_cnt; i++) {
+			if (cifdev->sditf[i]->sensor_sd)
+				ret |= v4l2_subdev_call(cifdev->sditf[i]->sensor_sd,
+							core,
+							s_power,
+							0);
+		}
+		if (ret < 0)
+			v4l2_err(vdev, "set sensor power on fail, ret %d\n",
+				 ret);
+	}
 	return ret;
 }
 

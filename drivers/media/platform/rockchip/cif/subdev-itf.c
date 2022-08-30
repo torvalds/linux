@@ -622,6 +622,7 @@ static int sditf_s_power(struct v4l2_subdev *sd, int on)
 {
 	struct sditf_priv *priv = to_sditf_priv(sd);
 	struct rkcif_device *cif_dev = priv->cif_dev;
+	struct rkcif_vdev_node *node = &cif_dev->stream[0].vnode;
 	int ret = 0;
 
 	if (!on && atomic_dec_return(&priv->power_cnt))
@@ -634,10 +635,13 @@ static int sditf_s_power(struct v4l2_subdev *sd, int on)
 		v4l2_dbg(3, rkcif_debug, &cif_dev->v4l2_dev,
 			"%s, toisp mode %d, hdr %d, set power %d\n",
 			__func__, priv->toisp_inf.link_mode, priv->hdr_cfg.hdr_mode, on);
-		if (on)
+		if (on) {
 			ret = pm_runtime_resume_and_get(cif_dev->dev);
-		else
+			ret |= v4l2_pipeline_pm_get(&node->vdev.entity);
+		} else {
+			v4l2_pipeline_pm_put(&node->vdev.entity);
 			pm_runtime_put_sync(cif_dev->dev);
+		}
 	}
 	return ret;
 }
