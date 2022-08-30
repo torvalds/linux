@@ -536,7 +536,10 @@ if test -n "$tdir" && test $compress_concurrency -gt 0
 then
 	# KASAN vmlinux files can approach 1GB in size, so compress them.
 	echo Looking for K[AC]SAN files to compress: `date` > "$tdir/log-xz" 2>&1
-	find "$tdir" -type d -name '*-k[ac]san' -print > $T/xz-todo
+	find "$tdir" -type d -name '*-k[ac]san' -print > $T/xz-todo-all
+	find "$tdir" -type f -name 're-run' -print | sed -e 's,/re-run,,' |
+		grep -e '-k[ac]san$' > $T/xz-todo-copy
+	sort $T/xz-todo-all $T/xz-todo-copy | uniq -u > $T/xz-todo
 	ncompresses=0
 	batchno=1
 	if test -s $T/xz-todo
@@ -568,6 +571,24 @@ then
 			echo Waiting for final batch $batchno of $ncompresses compressions `date` | tee -a "$tdir/log-xz" | tee -a $T/log
 		fi
 		wait
+		if test -s $T/xz-todo-copy
+		then
+			# The trick here is that we need corresponding
+			# vmlinux files from corresponding scenarios.
+			echo Linking vmlinux.xz files to re-use scenarios `date` | tee -a "$tdir/log-xz" | tee -a $T/log
+			dirstash="`pwd`"
+			for i in `cat $T/xz-todo-copy`
+			do
+				cd $i
+				find . -name vmlinux -print > $T/xz-todo-copy-vmlinux
+				for v in `cat $T/xz-todo-copy-vmlinux`
+				do
+					rm -f "$v"
+					cp -l `cat $i/re-run`/"$i/$v".xz "`dirname "$v"`"
+				done
+				cd "$dirstash"
+			done
+		fi
 		echo Size after compressing $n2compress files: `du -sh $tdir | awk '{ print $1 }'` `date` 2>&1 | tee -a "$tdir/log-xz" | tee -a $T/log
 		echo Total duration `get_starttime_duration $starttime`. | tee -a $T/log
 	else
