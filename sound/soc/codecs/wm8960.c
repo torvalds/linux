@@ -962,9 +962,9 @@ static int wm8960_hw_params(struct snd_pcm_substream *substream,
 
 	if (tx) {
 		snd_soc_component_update_bits(component, WM8960_POWER3, 0xc, 0xc);
-		msleep(100);
+		msleep(20);
 		snd_soc_component_update_bits(component, WM8960_POWER2, 0x1e0, 0x1e0);
-		msleep(100);
+		msleep(20);
 	}
 
 	return 0;
@@ -1024,7 +1024,7 @@ static int wm8960_set_bias_level_out3(struct snd_soc_component *component,
 				return ret;
 
 			snd_soc_component_update_bits(component, WM8960_POWER3, 0xc, 0xc);
-			msleep(100);
+			msleep(20);
 			/* Set VMID to 2x50k */
 			snd_soc_component_update_bits(component, WM8960_POWER1, 0x180, 0x80);
 			break;
@@ -1325,7 +1325,7 @@ static int wm8960_set_pll(struct snd_soc_component *component,
 
 	/* Turn it on */
 	snd_soc_component_update_bits(component, WM8960_POWER2, 0x1, 0x1);
-	msleep(250);
+	msleep(150);
 	snd_soc_component_update_bits(component, WM8960_CLOCK1, 0x1, 0x1);
 
 	return 0;
