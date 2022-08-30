@@ -1512,7 +1512,8 @@ static int verify_policy_type(u8 type)
 	return 0;
 }
 
-static int verify_newpolicy_info(struct xfrm_userpolicy_info *p)
+static int verify_newpolicy_info(struct xfrm_userpolicy_info *p,
+				 struct netlink_ext_ack *extack)
 {
 	int ret;
 
@@ -1524,6 +1525,7 @@ static int verify_newpolicy_info(struct xfrm_userpolicy_info *p)
 		break;
 
 	default:
+		NL_SET_ERR_MSG(extack, "Invalid policy share");
 		return -EINVAL;
 	}
 
@@ -1533,35 +1535,44 @@ static int verify_newpolicy_info(struct xfrm_userpolicy_info *p)
 		break;
 
 	default:
+		NL_SET_ERR_MSG(extack, "Invalid policy action");
 		return -EINVAL;
 	}
 
 	switch (p->sel.family) {
 	case AF_INET:
-		if (p->sel.prefixlen_d > 32 || p->sel.prefixlen_s > 32)
+		if (p->sel.prefixlen_d > 32 || p->sel.prefixlen_s > 32) {
+			NL_SET_ERR_MSG(extack, "Invalid prefix length in selector (must be <= 32 for IPv4)");
 			return -EINVAL;
+		}
 
 		break;
 
 	case AF_INET6:
 #if IS_ENABLED(CONFIG_IPV6)
-		if (p->sel.prefixlen_d > 128 || p->sel.prefixlen_s > 128)
+		if (p->sel.prefixlen_d > 128 || p->sel.prefixlen_s > 128) {
+			NL_SET_ERR_MSG(extack, "Invalid prefix length in selector (must be <= 128 for IPv6)");
 			return -EINVAL;
+		}
 
 		break;
 #else
+		NL_SET_ERR_MSG(extack, "IPv6 support disabled");
 		return  -EAFNOSUPPORT;
 #endif
 
 	default:
+		NL_SET_ERR_MSG(extack, "Invalid selector family");
 		return -EINVAL;
 	}
 
 	ret = verify_policy_dir(p->dir);
 	if (ret)
 		return ret;
-	if (p->index && (xfrm_policy_id2dir(p->index) != p->dir))
+	if (p->index && (xfrm_policy_id2dir(p->index) != p->dir)) {
+		NL_SET_ERR_MSG(extack, "Policy index doesn't match direction");
 		return -EINVAL;
+	}
 
 	return 0;
 }
@@ -1768,7 +1779,7 @@ static int xfrm_add_policy(struct sk_buff *skb, struct nlmsghdr *nlh,
 	int err;
 	int excl;
 
-	err = verify_newpolicy_info(p);
+	err = verify_newpolicy_info(p, extack);
 	if (err)
 		return err;
 	err = verify_sec_ctx_len(attrs);
@@ -2501,7 +2512,7 @@ static int xfrm_add_acquire(struct sk_buff *skb, struct nlmsghdr *nlh,
 
 	xfrm_mark_get(attrs, &mark);
 
-	err = verify_newpolicy_info(&ua->policy);
+	err = verify_newpolicy_info(&ua->policy, extack);
 	if (err)
 		goto free_state;
 	err = verify_sec_ctx_len(attrs);
@@ -3284,7 +3295,7 @@ static struct xfrm_policy *xfrm_compile_policy(struct sock *sk, int opt,
 	*dir = -EINVAL;
 
 	if (len < sizeof(*p) ||
-	    verify_newpolicy_info(p))
+	    verify_newpolicy_info(p, NULL))
 		return NULL;
 
 	nr = ((len - sizeof(*p)) / sizeof(*ut));
