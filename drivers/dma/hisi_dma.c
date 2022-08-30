@@ -78,6 +78,8 @@
 #define HISI_DMA_POLL_Q_STS_DELAY_US		10
 #define HISI_DMA_POLL_Q_STS_TIME_OUT_US		1000
 
+#define HISI_DMA_MAX_DIR_NAME_LEN		128
+
 /*
  * The HIP08B(HiSilicon IP08) and HIP09A(HiSilicon IP09) are DMA iEPs, they
  * have the same pci device id but different pci revision.
@@ -163,6 +165,123 @@ struct hisi_dma_dev {
 	void __iomem *queue_base; /* queue region start of register */
 	struct hisi_dma_chan chan[];
 };
+
+#ifdef CONFIG_DEBUG_FS
+
+static const struct debugfs_reg32 hisi_dma_comm_chan_regs[] = {
+	{"DMA_QUEUE_SQ_DEPTH                ", 0x0008ull},
+	{"DMA_QUEUE_SQ_TAIL_PTR             ", 0x000Cull},
+	{"DMA_QUEUE_CQ_DEPTH                ", 0x0018ull},
+	{"DMA_QUEUE_CQ_HEAD_PTR             ", 0x001Cull},
+	{"DMA_QUEUE_CTRL0                   ", 0x0020ull},
+	{"DMA_QUEUE_CTRL1                   ", 0x0024ull},
+	{"DMA_QUEUE_FSM_STS                 ", 0x0030ull},
+	{"DMA_QUEUE_SQ_STS                  ", 0x0034ull},
+	{"DMA_QUEUE_CQ_TAIL_PTR             ", 0x003Cull},
+	{"DMA_QUEUE_INT_STS                 ", 0x0040ull},
+	{"DMA_QUEUE_INT_MSK                 ", 0x0044ull},
+	{"DMA_QUEUE_INT_RO                  ", 0x006Cull},
+};
+
+static const struct debugfs_reg32 hisi_dma_hip08_chan_regs[] = {
+	{"DMA_QUEUE_BYTE_CNT                ", 0x0038ull},
+	{"DMA_ERR_INT_NUM6                  ", 0x0048ull},
+	{"DMA_QUEUE_DESP0                   ", 0x0050ull},
+	{"DMA_QUEUE_DESP1                   ", 0x0054ull},
+	{"DMA_QUEUE_DESP2                   ", 0x0058ull},
+	{"DMA_QUEUE_DESP3                   ", 0x005Cull},
+	{"DMA_QUEUE_DESP4                   ", 0x0074ull},
+	{"DMA_QUEUE_DESP5                   ", 0x0078ull},
+	{"DMA_QUEUE_DESP6                   ", 0x007Cull},
+	{"DMA_QUEUE_DESP7                   ", 0x0080ull},
+	{"DMA_ERR_INT_NUM0                  ", 0x0084ull},
+	{"DMA_ERR_INT_NUM1                  ", 0x0088ull},
+	{"DMA_ERR_INT_NUM2                  ", 0x008Cull},
+	{"DMA_ERR_INT_NUM3                  ", 0x0090ull},
+	{"DMA_ERR_INT_NUM4                  ", 0x0094ull},
+	{"DMA_ERR_INT_NUM5                  ", 0x0098ull},
+	{"DMA_QUEUE_SQ_STS2                 ", 0x00A4ull},
+};
+
+static const struct debugfs_reg32 hisi_dma_hip09_chan_regs[] = {
+	{"DMA_QUEUE_ERR_INT_STS             ", 0x0048ull},
+	{"DMA_QUEUE_ERR_INT_MSK             ", 0x004Cull},
+	{"DFX_SQ_READ_ERR_PTR               ", 0x0068ull},
+	{"DFX_DMA_ERR_INT_NUM0              ", 0x0084ull},
+	{"DFX_DMA_ERR_INT_NUM1              ", 0x0088ull},
+	{"DFX_DMA_ERR_INT_NUM2              ", 0x008Cull},
+	{"DFX_DMA_QUEUE_SQ_STS2             ", 0x00A4ull},
+};
+
+static const struct debugfs_reg32 hisi_dma_hip08_comm_regs[] = {
+	{"DMA_ECC_ERR_ADDR                  ", 0x2004ull},
+	{"DMA_ECC_ECC_CNT                   ", 0x2014ull},
+	{"COMMON_AND_CH_ERR_STS             ", 0x2030ull},
+	{"LOCAL_CPL_ID_STS_0                ", 0x20E0ull},
+	{"LOCAL_CPL_ID_STS_1                ", 0x20E4ull},
+	{"LOCAL_CPL_ID_STS_2                ", 0x20E8ull},
+	{"LOCAL_CPL_ID_STS_3                ", 0x20ECull},
+	{"LOCAL_TLP_NUM                     ", 0x2158ull},
+	{"SQCQ_TLP_NUM                      ", 0x2164ull},
+	{"CPL_NUM                           ", 0x2168ull},
+	{"INF_BACK_PRESS_STS                ", 0x2170ull},
+	{"DMA_CH_RAS_LEVEL                  ", 0x2184ull},
+	{"DMA_CM_RAS_LEVEL                  ", 0x2188ull},
+	{"DMA_CH_ERR_STS                    ", 0x2190ull},
+	{"DMA_CH_DONE_STS                   ", 0x2194ull},
+	{"DMA_SQ_TAG_STS_0                  ", 0x21A0ull},
+	{"DMA_SQ_TAG_STS_1                  ", 0x21A4ull},
+	{"DMA_SQ_TAG_STS_2                  ", 0x21A8ull},
+	{"DMA_SQ_TAG_STS_3                  ", 0x21ACull},
+	{"LOCAL_P_ID_STS_0                  ", 0x21B0ull},
+	{"LOCAL_P_ID_STS_1                  ", 0x21B4ull},
+	{"LOCAL_P_ID_STS_2                  ", 0x21B8ull},
+	{"LOCAL_P_ID_STS_3                  ", 0x21BCull},
+	{"DMA_PREBUFF_INFO_0                ", 0x2200ull},
+	{"DMA_CM_TABLE_INFO_0               ", 0x2220ull},
+	{"DMA_CM_CE_RO                      ", 0x2244ull},
+	{"DMA_CM_NFE_RO                     ", 0x2248ull},
+	{"DMA_CM_FE_RO                      ", 0x224Cull},
+};
+
+static const struct debugfs_reg32 hisi_dma_hip09_comm_regs[] = {
+	{"COMMON_AND_CH_ERR_STS             ", 0x0030ull},
+	{"DMA_PORT_IDLE_STS                 ", 0x0150ull},
+	{"DMA_CH_RAS_LEVEL                  ", 0x0184ull},
+	{"DMA_CM_RAS_LEVEL                  ", 0x0188ull},
+	{"DMA_CM_CE_RO                      ", 0x0244ull},
+	{"DMA_CM_NFE_RO                     ", 0x0248ull},
+	{"DMA_CM_FE_RO                      ", 0x024Cull},
+	{"DFX_INF_BACK_PRESS_STS0           ", 0x1A40ull},
+	{"DFX_INF_BACK_PRESS_STS1           ", 0x1A44ull},
+	{"DFX_INF_BACK_PRESS_STS2           ", 0x1A48ull},
+	{"DFX_DMA_WRR_DISABLE               ", 0x1A4Cull},
+	{"DFX_PA_REQ_TLP_NUM                ", 0x1C00ull},
+	{"DFX_PA_BACK_TLP_NUM               ", 0x1C04ull},
+	{"DFX_PA_RETRY_TLP_NUM              ", 0x1C08ull},
+	{"DFX_LOCAL_NP_TLP_NUM              ", 0x1C0Cull},
+	{"DFX_LOCAL_CPL_HEAD_TLP_NUM        ", 0x1C10ull},
+	{"DFX_LOCAL_CPL_DATA_TLP_NUM        ", 0x1C14ull},
+	{"DFX_LOCAL_CPL_EXT_DATA_TLP_NUM    ", 0x1C18ull},
+	{"DFX_LOCAL_P_HEAD_TLP_NUM          ", 0x1C1Cull},
+	{"DFX_LOCAL_P_ACK_TLP_NUM           ", 0x1C20ull},
+	{"DFX_BUF_ALOC_PORT_REQ_NUM         ", 0x1C24ull},
+	{"DFX_BUF_ALOC_PORT_RESULT_NUM      ", 0x1C28ull},
+	{"DFX_BUF_FAIL_SIZE_NUM             ", 0x1C2Cull},
+	{"DFX_BUF_ALOC_SIZE_NUM             ", 0x1C30ull},
+	{"DFX_BUF_NP_RELEASE_SIZE_NUM       ", 0x1C34ull},
+	{"DFX_BUF_P_RELEASE_SIZE_NUM        ", 0x1C38ull},
+	{"DFX_BUF_PORT_RELEASE_SIZE_NUM     ", 0x1C3Cull},
+	{"DFX_DMA_PREBUF_MEM0_ECC_ERR_ADDR  ", 0x1CA8ull},
+	{"DFX_DMA_PREBUF_MEM0_ECC_CNT       ", 0x1CACull},
+	{"DFX_DMA_LOC_NP_OSTB_ECC_ERR_ADDR  ", 0x1CB0ull},
+	{"DFX_DMA_LOC_NP_OSTB_ECC_CNT       ", 0x1CB4ull},
+	{"DFX_DMA_PREBUF_MEM1_ECC_ERR_ADDR  ", 0x1CC0ull},
+	{"DFX_DMA_PREBUF_MEM1_ECC_CNT       ", 0x1CC4ull},
+	{"DMA_CH_DONE_STS                   ", 0x02E0ull},
+	{"DMA_CH_ERR_STS                    ", 0x0320ull},
+};
+#endif /* CONFIG_DEBUG_FS*/
 
 static enum hisi_dma_reg_layout hisi_dma_get_reg_layout(struct pci_dev *pdev)
 {
@@ -717,6 +836,117 @@ static void hisi_dma_init_dma_dev(struct hisi_dma_dev *hdma_dev)
 	INIT_LIST_HEAD(&dma_dev->channels);
 }
 
+/* --- debugfs implementation --- */
+#ifdef CONFIG_DEBUG_FS
+#include <linux/debugfs.h>
+static struct debugfs_reg32 *hisi_dma_get_ch_regs(struct hisi_dma_dev *hdma_dev,
+						  u32 *regs_sz)
+{
+	struct device *dev = &hdma_dev->pdev->dev;
+	struct debugfs_reg32 *regs;
+	u32 regs_sz_comm;
+
+	regs_sz_comm = ARRAY_SIZE(hisi_dma_comm_chan_regs);
+
+	if (hdma_dev->reg_layout == HISI_DMA_REG_LAYOUT_HIP08)
+		*regs_sz = regs_sz_comm + ARRAY_SIZE(hisi_dma_hip08_chan_regs);
+	else
+		*regs_sz = regs_sz_comm + ARRAY_SIZE(hisi_dma_hip09_chan_regs);
+
+	regs = devm_kcalloc(dev, *regs_sz, sizeof(struct debugfs_reg32),
+			    GFP_KERNEL);
+	if (!regs)
+		return NULL;
+	memcpy(regs, hisi_dma_comm_chan_regs, sizeof(hisi_dma_comm_chan_regs));
+
+	if (hdma_dev->reg_layout == HISI_DMA_REG_LAYOUT_HIP08)
+		memcpy(regs + regs_sz_comm, hisi_dma_hip08_chan_regs,
+		       sizeof(hisi_dma_hip08_chan_regs));
+	else
+		memcpy(regs + regs_sz_comm, hisi_dma_hip09_chan_regs,
+		       sizeof(hisi_dma_hip09_chan_regs));
+
+	return regs;
+}
+
+static int hisi_dma_create_chan_dir(struct hisi_dma_dev *hdma_dev)
+{
+	char dir_name[HISI_DMA_MAX_DIR_NAME_LEN];
+	struct debugfs_regset32 *regsets;
+	struct debugfs_reg32 *regs;
+	struct dentry *chan_dir;
+	struct device *dev;
+	u32 regs_sz;
+	int ret;
+	int i;
+
+	dev = &hdma_dev->pdev->dev;
+
+	regsets = devm_kcalloc(dev, hdma_dev->chan_num,
+			       sizeof(*regsets), GFP_KERNEL);
+	if (!regsets)
+		return -ENOMEM;
+
+	regs = hisi_dma_get_ch_regs(hdma_dev, &regs_sz);
+	if (!regs)
+		return -ENOMEM;
+
+	for (i = 0; i < hdma_dev->chan_num; i++) {
+		regsets[i].regs = regs;
+		regsets[i].nregs = regs_sz;
+		regsets[i].base = hdma_dev->queue_base + i * HISI_DMA_Q_OFFSET;
+		regsets[i].dev = dev;
+
+		memset(dir_name, 0, HISI_DMA_MAX_DIR_NAME_LEN);
+		ret = sprintf(dir_name, "channel%d", i);
+		if (ret < 0)
+			return ret;
+
+		chan_dir = debugfs_create_dir(dir_name,
+					      hdma_dev->dma_dev.dbg_dev_root);
+		debugfs_create_regset32("regs", 0444, chan_dir, &regsets[i]);
+	}
+
+	return 0;
+}
+
+static void hisi_dma_create_debugfs(struct hisi_dma_dev *hdma_dev)
+{
+	struct debugfs_regset32 *regset;
+	struct device *dev;
+	int ret;
+
+	dev = &hdma_dev->pdev->dev;
+
+	if (hdma_dev->dma_dev.dbg_dev_root == NULL)
+		return;
+
+	regset = devm_kzalloc(dev, sizeof(*regset), GFP_KERNEL);
+	if (!regset)
+		return;
+
+	if (hdma_dev->reg_layout == HISI_DMA_REG_LAYOUT_HIP08) {
+		regset->regs = hisi_dma_hip08_comm_regs;
+		regset->nregs = ARRAY_SIZE(hisi_dma_hip08_comm_regs);
+	} else {
+		regset->regs = hisi_dma_hip09_comm_regs;
+		regset->nregs = ARRAY_SIZE(hisi_dma_hip09_comm_regs);
+	}
+	regset->base = hdma_dev->base;
+	regset->dev = dev;
+
+	debugfs_create_regset32("regs", 0444,
+				hdma_dev->dma_dev.dbg_dev_root, regset);
+
+	ret = hisi_dma_create_chan_dir(hdma_dev);
+	if (ret < 0)
+		dev_info(&hdma_dev->pdev->dev, "fail to create debugfs for channels!\n");
+}
+#else
+static void hisi_dma_create_debugfs(struct hisi_dma_dev *hdma_dev) { }
+#endif /* CONFIG_DEBUG_FS*/
+/* --- debugfs implementation --- */
+
 static int hisi_dma_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	enum hisi_dma_reg_layout reg_layout;
@@ -793,10 +1023,14 @@ static int hisi_dma_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	dma_dev = &hdma_dev->dma_dev;
 	ret = dmaenginem_async_device_register(dma_dev);
-	if (ret < 0)
+	if (ret < 0) {
 		dev_err(dev, "failed to register device!\n");
+		return ret;
+	}
 
-	return ret;
+	hisi_dma_create_debugfs(hdma_dev);
+
+	return 0;
 }
 
 static const struct pci_device_id hisi_dma_pci_tbl[] = {
