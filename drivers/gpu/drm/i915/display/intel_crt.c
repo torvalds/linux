@@ -643,8 +643,6 @@ static bool intel_crt_detect_ddc(struct drm_connector *connector)
 	struct i2c_adapter *i2c;
 	bool ret = false;
 
-	BUG_ON(crt->base.type != INTEL_OUTPUT_ANALOG);
-
 	i2c = intel_gmbus_get_adapter(dev_priv, dev_priv->display.vbt.crt_ddc_pin);
 	edid = intel_crt_get_edid(connector, i2c);
 
