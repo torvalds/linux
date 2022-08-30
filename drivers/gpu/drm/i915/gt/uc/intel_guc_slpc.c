@@ -467,32 +467,32 @@ int intel_guc_slpc_set_min_freq(struct intel_guc_slpc *slpc, u32 val)
 
 	/* Need a lock now since waitboost can be modifying min as well */
 	mutex_lock(&slpc->lock);
+	wakeref = intel_runtime_pm_get(&i915->runtime_pm);
 
-	with_intel_runtime_pm(&i915->runtime_pm, wakeref) {
-
-		/* Ignore efficient freq if lower min freq is requested */
-		ret = slpc_set_param(slpc,
-				     SLPC_PARAM_IGNORE_EFFICIENT_FREQUENCY,
-				     val < slpc->rp1_freq);
-		if (unlikely(ret)) {
-			i915_probe_error(i915, "Failed to toggle efficient freq (%pe)\n",
-					 ERR_PTR(ret));
-			return ret;
-		}
-
-		ret = slpc_set_param(slpc,
-				     SLPC_PARAM_GLOBAL_MIN_GT_UNSLICE_FREQ_MHZ,
-				     val);
-
-		/* Return standardized err code for sysfs calls */
-		if (ret)
-			ret = -EIO;
+	/* Ignore efficient freq if lower min freq is requested */
+	ret = slpc_set_param(slpc,
+			     SLPC_PARAM_IGNORE_EFFICIENT_FREQUENCY,
+			     val < slpc->rp1_freq);
+	if (ret) {
+		i915_probe_error(i915, "Failed to toggle efficient freq (%pe)\n",
+				 ERR_PTR(ret));
+		goto out;
 	}
+
+	ret = slpc_set_param(slpc,
+			     SLPC_PARAM_GLOBAL_MIN_GT_UNSLICE_FREQ_MHZ,
+			     val);
 
 	if (!ret)
 		slpc->min_freq_softlimit = val;
 
+out:
+	intel_runtime_pm_put(&i915->runtime_pm, wakeref);
 	mutex_unlock(&slpc->lock);
+
+	/* Return standardized err code for sysfs calls */
+	if (ret)
+		ret = -EIO;
 
 	return ret;
 }
