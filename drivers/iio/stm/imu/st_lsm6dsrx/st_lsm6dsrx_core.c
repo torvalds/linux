@@ -559,7 +559,6 @@ static int st_lsm6dsrx_set_odr(struct st_lsm6dsrx_sensor *sensor, int req_odr,
 	case ST_LSM6DSRX_ID_EXT0:
 	case ST_LSM6DSRX_ID_EXT1:
 	case ST_LSM6DSRX_ID_TEMP:
-#ifdef CONFIG_IIO_ST_LSM6DSRX_MLC
 	case ST_LSM6DSRX_ID_FSM_0:
 	case ST_LSM6DSRX_ID_FSM_1:
 	case ST_LSM6DSRX_ID_FSM_2:
@@ -584,7 +583,6 @@ static int st_lsm6dsrx_set_odr(struct st_lsm6dsrx_sensor *sensor, int req_odr,
 	case ST_LSM6DSRX_ID_MLC_5:
 	case ST_LSM6DSRX_ID_MLC_6:
 	case ST_LSM6DSRX_ID_MLC_7:
-#endif /* CONFIG_IIO_ST_LSM6DSRX_MLC */
 	case ST_LSM6DSRX_ID_ACC: {
 		int odr;
 		int i;
@@ -1736,11 +1734,9 @@ int st_lsm6dsrx_probe(struct device *dev, int irq, struct regmap *regmap)
 			return err;
 	}
 
-#ifdef CONFIG_IIO_ST_LSM6DSRX_MLC
 	err = st_lsm6dsrx_mlc_probe(hw);
 	if (err < 0)
 		return err;
-#endif /* CONFIG_IIO_ST_LSM6DSRX_MLC */
 
 	for (i = 0; i < ST_LSM6DSRX_ID_MAX; i++) {
 		if (!hw->iio_devs[i])
@@ -1751,11 +1747,9 @@ int st_lsm6dsrx_probe(struct device *dev, int irq, struct regmap *regmap)
 			return err;
 	}
 
-#ifdef CONFIG_IIO_ST_LSM6DSRX_MLC
 	err = st_lsm6dsrx_mlc_init_preload(hw);
 	if (err)
 		return err;
-#endif /* CONFIG_IIO_ST_LSM6DSRX_MLC */
 
 #if defined(CONFIG_PM) && defined(CONFIG_IIO_ST_LSM6DSRX_MAY_WAKEUP)
 	err = device_init_wakeup(dev, 1);

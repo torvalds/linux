@@ -30,20 +30,9 @@ config IIO_ST_LSM6DSRX_I3C
 	depends on IIO_ST_LSM6DSRX
 	select REGMAP_I3C
 
-config IIO_ST_LSM6DSRX_MLC
-	bool "Enable machine learning core"
-	depends on IIO_ST_LSM6DSRX
-	help
-	  Enable support to loading MLC binary for internal hw machine learning
-	  core. The configuration code is loaded via the firmware support upload
-	  the file st_lsm6dsrx_mlc.bin in / etc / firmware
-
-	  The binary configuration code must be generated using the ST UNICO tool
-	  application
-
 config IIO_ST_LSM6DSRX_MLC_PRELOAD
 	bool "Preload some examples on MLC/FSM core"
-	depends on IIO_ST_LSM6DSRX_MLC
+	depends on IIO_ST_LSM6DSRX
 	help
 	  Select yes if you want to preload some examples on machine learning core
 	  and finite state machine.

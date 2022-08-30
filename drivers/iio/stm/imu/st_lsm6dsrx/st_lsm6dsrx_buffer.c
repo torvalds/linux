@@ -478,9 +478,7 @@ static irqreturn_t st_lsm6dsrx_handler_thread(int irq, void *private)
 {
 	struct st_lsm6dsrx_hw *hw = (struct st_lsm6dsrx_hw *)private;
 
-#ifdef CONFIG_IIO_ST_LSM6DSRX_MLC
 	st_lsm6dsrx_mlc_check_status(hw);
-#endif /* CONFIG_IIO_ST_LSM6DSRX_MLC */
 
 	mutex_lock(&hw->fifo_lock);
 	st_lsm6dsrx_read_fifo(hw);

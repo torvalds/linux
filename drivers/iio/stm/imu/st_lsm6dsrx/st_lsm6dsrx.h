@@ -235,7 +235,6 @@ enum st_lsm6dsrx_fsm_mlc_enable_id {
 	ST_LSM6DSRX_FSM_ENABLED = BIT(1),
 };
 
-#ifdef CONFIG_IIO_ST_LSM6DSRX_MLC
 /**
  * struct mlc_config_t -
  * @mlc_int_addr: interrupt register address.
@@ -259,7 +258,6 @@ struct st_lsm6dsrx_mlc_config_t {
 	uint16_t requested_odr;
 	enum st_lsm6dsrx_fsm_mlc_enable_id status;
 };
-#endif /* CONFIG_IIO_ST_LSM6DSRX_MLC */
 
 /**
  * struct st_lsm6dsrx_reg - Generic sensor register description (addr + mask)
@@ -382,7 +380,6 @@ enum st_lsm6dsrx_sensor_id {
 	ST_LSM6DSRX_ID_TEMP,
 	ST_LSM6DSRX_ID_EXT0,
 	ST_LSM6DSRX_ID_EXT1,
-#ifdef CONFIG_IIO_ST_LSM6DSRX_MLC
 	ST_LSM6DSRX_ID_MLC,
 	ST_LSM6DSRX_ID_MLC_0,
 	ST_LSM6DSRX_ID_MLC_1,
@@ -408,11 +405,9 @@ enum st_lsm6dsrx_sensor_id {
 	ST_LSM6DSRX_ID_FSM_13,
 	ST_LSM6DSRX_ID_FSM_14,
 	ST_LSM6DSRX_ID_FSM_15,
-#endif /* CONFIG_IIO_ST_LSM6DSRX_MLC */
 	ST_LSM6DSRX_ID_MAX,
 };
 
-#ifdef CONFIG_IIO_ST_LSM6DSRX_MLC
 static const enum st_lsm6dsrx_sensor_id st_lsm6dsrx_mlc_sensor_list[] = {
 	 [0] = ST_LSM6DSRX_ID_MLC_0,
 	 [1] = ST_LSM6DSRX_ID_MLC_1,
@@ -474,10 +469,6 @@ static const enum st_lsm6dsrx_sensor_id st_lsm6dsrx_fsm_sensor_list[] = {
 #define ST_LSM6DSRX_WAKE_UP_SENSORS (BIT(ST_LSM6DSRX_ID_GYRO) | \
 				     BIT(ST_LSM6DSRX_ID_ACC)  | \
 				     ST_LSM6DSRX_ID_ALL_FSM_MLC)
-#else /* CONFIG_IIO_ST_LSM6DSRX_MLC */
-#define ST_LSM6DSRX_WAKE_UP_SENSORS (BIT(ST_LSM6DSRX_ID_GYRO) | \
-		                     BIT(ST_LSM6DSRX_ID_ACC))
-#endif /* CONFIG_IIO_ST_LSM6DSRX_MLC */
 
 /* this is the minimal ODR for wake-up sensors and dependencies */
 #define ST_LSM6DSRX_MIN_ODR_IN_WAKEUP	26
@@ -719,11 +710,9 @@ int st_lsm6dsrx_shub_probe(struct st_lsm6dsrx_hw *hw);
 int st_lsm6dsrx_shub_set_enable(struct st_lsm6dsrx_sensor *sensor,
 				bool enable);
 
-#ifdef CONFIG_IIO_ST_LSM6DSRX_MLC
 int st_lsm6dsrx_mlc_probe(struct st_lsm6dsrx_hw *hw);
 int st_lsm6dsrx_mlc_remove(struct device *dev);
 int st_lsm6dsrx_mlc_check_status(struct st_lsm6dsrx_hw *hw);
 int st_lsm6dsrx_mlc_init_preload(struct st_lsm6dsrx_hw *hw);
-#endif /* CONFIG_IIO_ST_LSM6DSRX_MLC */
 
 #endif /* ST_LSM6DSRX_H */
