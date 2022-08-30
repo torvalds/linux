@@ -3503,7 +3503,7 @@ int do_tcp_setsockopt(struct sock *sk, int level, int optname,
 		name[val] = 0;
 
 		sockopt_lock_sock(sk);
-		err = tcp_set_congestion_control(sk, name, true,
+		err = tcp_set_congestion_control(sk, name, !has_current_bpf_ctx(),
 						 sockopt_ns_capable(sock_net(sk)->user_ns,
 								    CAP_NET_ADMIN));
 		sockopt_release_sock(sk);
