@@ -1,13 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (C) 2021 StarFive, Inc
+ * TRNG driver for the StarFive JH7110 SoC
  *
- * THE PRESENT SOFTWARE WHICH IS FOR GUIDANCE ONLY AIMS AT PROVIDING CUSTOMERS
- * WITH CODING INFORMATION REGARDING THEIR PRODUCTS IN ORDER FOR THEM TO SAVE
- * TIME. AS A RESULT, STARFIVE SHALL NOT BE HELD LIABLE FOR ANY
- * DIRECT, INDIRECT OR CONSEQUENTIAL DAMAGES WITH RESPECT TO ANY CLAIMS ARISING
- * FROM THE CONTENT OF SUCH SOFTWARE AND/OR THE USE MADE BY CUSTOMERS OF THE
- * CODING INFORMATION CONTAINED HEREIN IN CONNECTION WITH THEIR PRODUCTS.
+ * Copyright (C) 2021 StarFive Technology Co., Ltd.
  */
 
 #include <linux/err.h>
@@ -84,7 +79,7 @@ static inline int is_reseed_done(struct trng *hrng)
 
 static inline void trng_irq_mask_clear(struct trng *hrng)
 {
-	// clear register: ISTAT
+	/* clear register: ISTAT */
 	u32 data = readl(hrng->base + CCORE_ISTAT);
 
 	writel(data, hrng->base + CCORE_ISTAT);
@@ -99,7 +94,7 @@ static int trng_random_reseed(struct trng *hrng)
 	} while (!is_reseed_done(hrng));
 	hrng->trng_reseed_done = 0;
 
-	// start random
+	/* start random */
 	writel(CCORE_CTRL_GENE_RANDOM, hrng->base + CCORE_CTRL);
 	return 0;
 }
@@ -114,7 +109,7 @@ static int trng_nonce_reseed(struct trng *hrng, const void *nonce_in, int len)
 	} while (!is_reseed_done(hrng));
 	hrng->trng_reseed_done = 0;
 
-	// start random
+	/* start random */
 	writel(CCORE_CTRL_GENE_RANDOM, hrng->base + CCORE_CTRL);
 	return 0;
 }
@@ -127,10 +122,10 @@ static int trng_cmd(struct trng *hrng, u32 cmd)
 		0xd2daadab, 0x00000000, 0x00000000, 0x00000000,
 	};
 
-	// wait till idle
+	/* wait till idle */
 	trng_wait_till_idle(hrng);
 
-	//start trng
+	/* start trng */
 	switch (cmd) {
 	case CCORE_CTRL_EXEC_NOP:
 	case CCORE_CTRL_GENE_RANDOM:
@@ -157,14 +152,14 @@ static int trng_init(struct hwrng *rng)
 	struct trng *hrng = to_trng(rng);
 	u32 mode, smode = 0;
 
-	//disable Auto Request/Age register
+	/* disable Auto Request/Age register */
 	writel(AUTOAGE_DISABLED, hrng->base + CCORE_AUTO_AGE);
 	writel(AUTOREQ_DISABLED, hrng->base + CCORE_AUTO_RQSTS);
 
-	// clear register: ISTAT
+	/* clear register: ISTAT */
 	trng_irq_mask_clear(hrng);
 
-	//set smode/mode
+	/* set smode/mode */
 	mode  = readl(hrng->base + CCORE_MODE);
 	smode = readl(hrng->base + CCORE_SMODE);
 
@@ -190,7 +185,7 @@ static int trng_init(struct hwrng *rng)
 	writel(mode, hrng->base + CCORE_MODE);
 	writel(smode, hrng->base + CCORE_SMODE);
 
-	//clear int_mode
+	/* clear int_mode */
 	if (hrng->opmode == int_mode)
 		writel(0, hrng->base + CCORE_IE);
 
@@ -205,25 +200,19 @@ static irqreturn_t trng_irq(int irq, void *priv)
 	status = readl(hrng->base + CCORE_ISTAT);
 	if (status & CCORE_ISTAT_RAND_RDY) {
 		writel(CCORE_ISTAT_RAND_RDY, hrng->base + CCORE_ISTAT);
-		//dev_info(hrng->dev, "rand ready\r\n");
 		hrng->trng_random_done = 1;
 	}
 
 	if (status & CCORE_ISTAT_SEED_DONE) {
 		writel(CCORE_ISTAT_SEED_DONE, hrng->base + CCORE_ISTAT);
-		//dev_info(hrng->dev, "seed ready\r\n");
 		hrng->trng_reseed_done = 1;
 	}
 
-	if (status & CCORE_ISTAT_AGE_ALARM) {
+	if (status & CCORE_ISTAT_AGE_ALARM)
 		writel(CCORE_ISTAT_AGE_ALARM, hrng->base + CCORE_ISTAT);
-		//dev_info(hrng->dev, "age alarm\r\n");
-	}
 
-	if (status & CCORE_ISTAT_LFSR_LOOKUP) {
+	if (status & CCORE_ISTAT_LFSR_LOOKUP)
 		writel(CCORE_ISTAT_LFSR_LOOKUP, hrng->base + CCORE_ISTAT);
-		//dev_info(hrng->dev, "lfsr lookup\r\n");
-	}
 
 	trng_irq_mask_clear(hrng);
 
@@ -243,7 +232,6 @@ static int trng_read(struct hwrng *rng, void *buf, size_t max, bool wait)
 	u32 intr = 0;
 
 	trng_cmd(hrng, CCORE_CTRL_EXEC_NOP);
-	//trng_wait_till_idle(hrng);
 
 	if (hrng->mode == PRNG_256BIT)
 		max = min_t(size_t, max, (CCORE_RAND_LEN * 4));
@@ -257,7 +245,6 @@ static int trng_read(struct hwrng *rng, void *buf, size_t max, bool wait)
 	writel(intr, hrng->base + CCORE_IE);
 
 	trng_cmd(hrng, hrng->ctl_cmd);
-	//trng_wait_till_idle(hrng);
 
 	if (wait) {
 		do {
@@ -341,7 +328,7 @@ static int trng_probe(struct platform_device *pdev)
 	if (ret) {
 		dev_err(&pdev->dev,
 			"Failed to enable the trng miscahb_clk clock, %d\n", ret);
-		return ret;
+		goto err_disable_hclk;
 	}
 
 	reset_control_deassert(rng->rst);
@@ -367,10 +354,18 @@ static int trng_probe(struct platform_device *pdev)
 	ret = devm_hwrng_register(&pdev->dev, &rng->rng);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to register hwrng\n");
-		return ret;
+		goto err_disable_miscahb_clk;
 	}
 
 	return 0;
+
+err_disable_miscahb_clk:
+	clk_disable_unprepare(rng->miscahb_clk);
+
+err_disable_hclk:
+	clk_disable_unprepare(rng->hclk);
+
+	return ret;
 }
 
 static const struct of_device_id trng_dt_ids[] = {
