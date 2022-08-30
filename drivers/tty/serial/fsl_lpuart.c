@@ -1284,17 +1284,12 @@ static inline int lpuart_start_rx_dma(struct lpuart_port *sport)
 	struct dma_slave_config dma_rx_sconfig = {};
 	struct circ_buf *ring = &sport->rx_ring;
 	int ret, nent;
-	int bits, baud;
 	struct tty_port *port = &sport->port.state->port;
 	struct tty_struct *tty = port->tty;
 	struct ktermios *termios = &tty->termios;
 	struct dma_chan *chan = sport->dma_rx_chan;
-
-	baud = tty_get_baud_rate(tty);
-
-	bits = (termios->c_cflag & CSIZE) == CS7 ? 9 : 10;
-	if (termios->c_cflag & PARENB)
-		bits++;
+	unsigned int bits = tty_get_frame_size(termios->c_cflag);
+	unsigned int baud = tty_get_baud_rate(tty);
 
 	/*
 	 * Calculate length of one DMA buffer size to keep latency below
