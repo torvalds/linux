@@ -73,6 +73,11 @@ struct cros_typec_port {
 	struct ec_response_typec_discovery *disc_data;
 	struct list_head partner_mode_list;
 	struct list_head plug_mode_list;
+
+	/* PDO-related structs */
+	struct usb_power_delivery *partner_pd;
+	struct usb_power_delivery_capabilities *partner_src_caps;
+	struct usb_power_delivery_capabilities *partner_sink_caps;
 };
 
 /* Platform-specific data for the Chrome OS EC Type C controller. */
@@ -252,6 +257,14 @@ static void cros_typec_remove_partner(struct cros_typec_data *typec,
 		return;
 
 	cros_typec_unregister_altmodes(typec, port_num, true);
+
+	typec_partner_set_usb_power_delivery(port->partner, NULL);
+	usb_power_delivery_unregister_capabilities(port->partner_sink_caps);
+	port->partner_sink_caps = NULL;
+	usb_power_delivery_unregister_capabilities(port->partner_src_caps);
+	port->partner_src_caps = NULL;
+	usb_power_delivery_unregister(port->partner_pd);
+	port->partner_pd = NULL;
 
 	cros_typec_usb_disconnect_state(port);
 	port->mux_flags = USB_PD_MUX_NONE;
@@ -939,6 +952,46 @@ static int cros_typec_send_clear_event(struct cros_typec_data *typec, int port_n
 			   sizeof(req), NULL, 0);
 }
 
+static void cros_typec_register_partner_pdos(struct cros_typec_data *typec,
+					     struct ec_response_typec_status *resp, int port_num)
+{
+	struct usb_power_delivery_capabilities_desc caps_desc = {};
+	struct usb_power_delivery_desc desc = {
+		.revision = (le16_to_cpu(resp->sop_revision) & 0xff00) >> 4,
+	};
+	struct cros_typec_port *port = typec->ports[port_num];
+
+	if (!port->partner || port->partner_pd)
+		return;
+
+	/* If no caps are available, don't bother creating a device. */
+	if (!resp->source_cap_count && !resp->sink_cap_count)
+		return;
+
+	port->partner_pd = usb_power_delivery_register(NULL, &desc);
+	if (IS_ERR(port->partner_pd)) {
+		dev_warn(typec->dev, "Failed to register partner PD device, port: %d\n", port_num);
+		return;
+	}
+
+	typec_partner_set_usb_power_delivery(port->partner, port->partner_pd);
+
+	memcpy(caps_desc.pdo, resp->source_cap_pdos, sizeof(u32) * resp->source_cap_count);
+	caps_desc.role = TYPEC_SOURCE;
+	port->partner_src_caps = usb_power_delivery_register_capabilities(port->partner_pd,
+									  &caps_desc);
+	if (IS_ERR(port->partner_src_caps))
+		dev_warn(typec->dev, "Failed to register source caps, port: %d\n", port_num);
+
+	memset(&caps_desc, 0, sizeof(caps_desc));
+	memcpy(caps_desc.pdo, resp->sink_cap_pdos, sizeof(u32) * resp->sink_cap_count);
+	caps_desc.role = TYPEC_SINK;
+	port->partner_sink_caps = usb_power_delivery_register_capabilities(port->partner_pd,
+									   &caps_desc);
+	if (IS_ERR(port->partner_sink_caps))
+		dev_warn(typec->dev, "Failed to register sink caps, port: %d\n", port_num);
+}
+
 static void cros_typec_handle_status(struct cros_typec_data *typec, int port_num)
 {
 	struct ec_response_typec_status resp;
@@ -986,6 +1039,8 @@ static void cros_typec_handle_status(struct cros_typec_data *typec, int port_num
 		}
 		if (resp.sop_connected)
 			typec_set_pwr_opmode(typec->ports[port_num]->port, TYPEC_PWR_MODE_PD);
+
+		cros_typec_register_partner_pdos(typec, &resp, port_num);
 	}
 
 	if (resp.events & PD_STATUS_EVENT_SOP_PRIME_DISC_DONE &&
