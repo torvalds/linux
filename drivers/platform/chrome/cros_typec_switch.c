@@ -18,8 +18,6 @@
 #include <linux/usb/typec_mux.h>
 #include <linux/usb/typec_retimer.h>
 
-#define DRV_NAME "cros-typec-switch"
-
 /* Handles and other relevant data required for each port's switches. */
 struct cros_typec_port {
 	int port_num;
@@ -309,7 +307,7 @@ MODULE_DEVICE_TABLE(acpi, cros_typec_switch_acpi_id);
 
 static struct platform_driver cros_typec_switch_driver = {
 	.driver	= {
-		.name = DRV_NAME,
+		.name = "cros-typec-switch",
 		.acpi_match_table = ACPI_PTR(cros_typec_switch_acpi_id),
 	},
 	.probe = cros_typec_switch_probe,
