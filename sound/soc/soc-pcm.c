@@ -852,16 +852,6 @@ static int soc_pcm_open(struct snd_pcm_substream *substream)
 	return ret;
 }
 
-static void codec2codec_close_delayed_work(struct snd_soc_pcm_runtime *rtd)
-{
-	/*
-	 * Currently nothing to do for c2c links
-	 * Since c2c links are internal nodes in the DAPM graph and
-	 * don't interface with the outside world or application layer
-	 * we don't have to do any special handling on close.
-	 */
-}
-
 /*
  * Called by ALSA when the PCM substream is prepared, can set format, sample
  * rate, etc.  This function is non atomic and can be called multiple times,
@@ -2899,9 +2889,13 @@ int soc_new_pcm(struct snd_soc_pcm_runtime *rtd, int num)
 		return ret;
 
 	/* DAPM dai link stream work */
-	if (rtd->dai_link->params)
-		rtd->close_delayed_work_func = codec2codec_close_delayed_work;
-	else
+	/*
+	 * Currently nothing to do for c2c links
+	 * Since c2c links are internal nodes in the DAPM graph and
+	 * don't interface with the outside world or application layer
+	 * we don't have to do any special handling on close.
+	 */
+	if (!rtd->dai_link->params)
 		rtd->close_delayed_work_func = snd_soc_close_delayed_work;
 
 	rtd->pcm = pcm;
