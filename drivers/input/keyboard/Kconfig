@@ -186,7 +186,7 @@ config KEYBOARD_QT2160
 
 config KEYBOARD_CLPS711X
 	tristate "CLPS711X Keypad support"
-	depends on OF_GPIO && (ARCH_CLPS711X || COMPILE_TEST)
+	depends on ARCH_CLPS711X || COMPILE_TEST
 	select INPUT_MATRIXKMAP
 	help
 	  Say Y here to enable the matrix keypad on the Cirrus Logic
