@@ -656,7 +656,7 @@ static int stm32_qspi_setup(struct spi_device *spi)
 	mode = spi->mode & (SPI_TX_OCTAL | SPI_RX_OCTAL);
 	if ((mode == SPI_TX_OCTAL || mode == SPI_RX_OCTAL) ||
 	    ((mode == (SPI_TX_OCTAL | SPI_RX_OCTAL)) &&
-	    of_gpio_named_count(qspi->dev->of_node, "cs-gpios") == -ENOENT)) {
+	    gpiod_count(qspi->dev, "cs") == -ENOENT)) {
 		dev_err(qspi->dev, "spi-rx-bus-width\\/spi-tx-bus-width\\/cs-gpios\n");
 		dev_err(qspi->dev, "configuration not supported\n");
 
@@ -681,7 +681,7 @@ static int stm32_qspi_setup(struct spi_device *spi)
 	 * are both set in spi->mode and "cs-gpios" properties is found in DT
 	 */
 	if (((spi->mode & (SPI_TX_OCTAL | SPI_RX_OCTAL)) == (SPI_TX_OCTAL | SPI_RX_OCTAL)) &&
-	    of_gpio_named_count(qspi->dev->of_node, "cs-gpios")) {
+	    gpiod_count(qspi->dev, "cs")) {
 		qspi->cr_reg |= CR_DFM;
 		dev_dbg(qspi->dev, "Dual flash mode enable");
 	}
