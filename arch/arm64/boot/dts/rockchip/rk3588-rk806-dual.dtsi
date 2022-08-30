@@ -371,8 +371,8 @@
 			vdd_0v75_hdmi_edp_s0: NLDO_REG3 {
 				regulator-always-on;
 				regulator-boot-on;
-				regulator-min-microvolt = <750000>;
-				regulator-max-microvolt = <750000>;
+				regulator-min-microvolt = <837500>;
+				regulator-max-microvolt = <837500>;
 				regulator-name = "vdd_0v75_hdmi_edp_s0";
 				regulator-state-mem {
 					regulator-off-in-suspend;
