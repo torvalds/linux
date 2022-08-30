@@ -2146,6 +2146,11 @@ struct io_wait_queue {
 	unsigned nr_timeouts;
 };
 
+static inline bool io_has_work(struct io_ring_ctx *ctx)
+{
+	return test_bit(IO_CHECK_CQ_OVERFLOW_BIT, &ctx->check_cq);
+}
+
 static inline bool io_should_wake(struct io_wait_queue *iowq)
 {
 	struct io_ring_ctx *ctx = iowq->ctx;
@@ -2164,13 +2169,13 @@ static int io_wake_function(struct wait_queue_entry *curr, unsigned int mode,
 {
 	struct io_wait_queue *iowq = container_of(curr, struct io_wait_queue,
 							wq);
+	struct io_ring_ctx *ctx = iowq->ctx;
 
 	/*
 	 * Cannot safely flush overflowed CQEs from here, ensure we wake up
 	 * the task, and the next invocation will do it.
 	 */
-	if (io_should_wake(iowq) ||
-	    test_bit(IO_CHECK_CQ_OVERFLOW_BIT, &iowq->ctx->check_cq))
+	if (io_should_wake(iowq) || io_has_work(ctx))
 		return autoremove_wake_function(curr, mode, wake_flags, key);
 	return -1;
 }
@@ -2506,8 +2511,8 @@ static __poll_t io_uring_poll(struct file *file, poll_table *wait)
 	 * Users may get EPOLLIN meanwhile seeing nothing in cqring, this
 	 * pushs them to do the flush.
 	 */
-	if (io_cqring_events(ctx) ||
-	    test_bit(IO_CHECK_CQ_OVERFLOW_BIT, &ctx->check_cq))
+
+	if (io_cqring_events(ctx) || io_has_work(ctx))
 		mask |= EPOLLIN | EPOLLRDNORM;
 
 	return mask;
