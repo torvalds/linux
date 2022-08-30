@@ -6,6 +6,7 @@
 #include <linux/types.h>
 #include <linux/limits.h>
 #include <linux/bpf.h>
+#include <linux/compiler.h>
 #include <sys/types.h> /* pid_t */
 
 #define event_contains(obj, mem) ((obj).header.size > offsetof(typeof(obj), mem))
@@ -76,7 +77,7 @@ struct perf_record_lost_samples {
 };
 
 /*
- * PERF_FORMAT_ENABLED | PERF_FORMAT_RUNNING | PERF_FORMAT_ID
+ * PERF_FORMAT_ENABLED | PERF_FORMAT_RUNNING | PERF_FORMAT_ID | PERF_FORMAT_LOST
  */
 struct perf_record_read {
 	struct perf_event_header header;
@@ -85,6 +86,7 @@ struct perf_record_read {
 	__u64			 time_enabled;
 	__u64			 time_running;
 	__u64			 id;
+	__u64			 lost;
 };
 
 struct perf_record_throttle {
@@ -153,21 +155,59 @@ enum {
 	PERF_CPU_MAP__MASK = 1,
 };
 
+/*
+ * Array encoding of a perf_cpu_map where nr is the number of entries in cpu[]
+ * and each entry is a value for a CPU in the map.
+ */
 struct cpu_map_entries {
 	__u16			 nr;
 	__u16			 cpu[];
 };
 
-struct perf_record_record_cpu_map {
+/* Bitmap encoding of a perf_cpu_map where bitmap entries are 32-bit. */
+struct perf_record_mask_cpu_map32 {
+	/* Number of mask values. */
 	__u16			 nr;
+	/* Constant 4. */
 	__u16			 long_size;
-	unsigned long		 mask[];
+	/* Bitmap data. */
+	__u32			 mask[];
 };
 
-struct perf_record_cpu_map_data {
-	__u16			 type;
-	char			 data[];
+/* Bitmap encoding of a perf_cpu_map where bitmap entries are 64-bit. */
+struct perf_record_mask_cpu_map64 {
+	/* Number of mask values. */
+	__u16			 nr;
+	/* Constant 8. */
+	__u16			 long_size;
+	/* Legacy padding. */
+	char                     __pad[4];
+	/* Bitmap data. */
+	__u64			 mask[];
 };
+
+/*
+ * 'struct perf_record_cpu_map_data' is packed as unfortunately an earlier
+ * version had unaligned data and we wish to retain file format compatibility.
+ * -irogers
+ */
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wpacked"
+#pragma GCC diagnostic ignored "-Wattributes"
+
+struct __packed perf_record_cpu_map_data {
+	__u16			 type;
+	union {
+		/* Used when type == PERF_CPU_MAP__CPUS. */
+		struct cpu_map_entries cpus_data;
+		/* Used when type == PERF_CPU_MAP__MASK and long_size == 4. */
+		struct perf_record_mask_cpu_map32 mask32_data;
+		/* Used when type == PERF_CPU_MAP__MASK and long_size == 8. */
+		struct perf_record_mask_cpu_map64 mask64_data;
+	};
+};
+
+#pragma GCC diagnostic pop
 
 struct perf_record_cpu_map {
 	struct perf_event_header	 header;

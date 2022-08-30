@@ -356,13 +356,11 @@ static long dm_verity_ioctl(struct file *filp, unsigned int cmd, unsigned long a
 {
 	void __user *uarg = (void __user *)arg;
 	unsigned int fd;
-	int rc;
 
 	switch (cmd) {
 	case LOADPIN_IOC_SET_TRUSTED_VERITY_DIGESTS:
-		rc = copy_from_user(&fd, uarg, sizeof(fd));
-		if (rc)
-			return rc;
+		if (copy_from_user(&fd, uarg, sizeof(fd)))
+			return -EFAULT;
 
 		return read_trusted_verity_root_digests(fd);
 
