@@ -1146,7 +1146,7 @@ static const struct bcmgenet_stats bcmgenet_gstrings_stats[] = {
 static void bcmgenet_get_drvinfo(struct net_device *dev,
 				 struct ethtool_drvinfo *info)
 {
-	strlcpy(info->driver, "bcmgenet", sizeof(info->driver));
+	strscpy(info->driver, "bcmgenet", sizeof(info->driver));
 }
 
 static int bcmgenet_get_sset_count(struct net_device *dev, int string_set)

@@ -652,7 +652,7 @@ static void mlxsw_emad_process_string_tlv(const struct sk_buff *skb,
 		return;
 
 	string = mlxsw_emad_string_tlv_string_data(string_tlv);
-	strlcpy(trans->emad_err_string, string,
+	strscpy(trans->emad_err_string, string,
 		MLXSW_EMAD_STRING_TLV_STRING_LEN);
 }
 

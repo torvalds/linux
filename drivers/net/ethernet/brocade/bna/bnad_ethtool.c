@@ -283,7 +283,7 @@ bnad_get_drvinfo(struct net_device *netdev, struct ethtool_drvinfo *drvinfo)
 	struct bfa_ioc_attr *ioc_attr;
 	unsigned long flags;
 
-	strlcpy(drvinfo->driver, BNAD_NAME, sizeof(drvinfo->driver));
+	strscpy(drvinfo->driver, BNAD_NAME, sizeof(drvinfo->driver));
 
 	ioc_attr = kzalloc(sizeof(*ioc_attr), GFP_KERNEL);
 	if (ioc_attr) {
@@ -291,12 +291,12 @@ bnad_get_drvinfo(struct net_device *netdev, struct ethtool_drvinfo *drvinfo)
 		bfa_nw_ioc_get_attr(&bnad->bna.ioceth.ioc, ioc_attr);
 		spin_unlock_irqrestore(&bnad->bna_lock, flags);
 
-		strlcpy(drvinfo->fw_version, ioc_attr->adapter_attr.fw_ver,
+		strscpy(drvinfo->fw_version, ioc_attr->adapter_attr.fw_ver,
 			sizeof(drvinfo->fw_version));
 		kfree(ioc_attr);
 	}
 
-	strlcpy(drvinfo->bus_info, pci_name(bnad->pcidev),
+	strscpy(drvinfo->bus_info, pci_name(bnad->pcidev),
 		sizeof(drvinfo->bus_info));
 }
 

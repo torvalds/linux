@@ -703,9 +703,9 @@ static const struct net_device_ops ks8851_netdev_ops = {
 static void ks8851_get_drvinfo(struct net_device *dev,
 			       struct ethtool_drvinfo *di)
 {
-	strlcpy(di->driver, "KS8851", sizeof(di->driver));
-	strlcpy(di->version, "1.00", sizeof(di->version));
-	strlcpy(di->bus_info, dev_name(dev->dev.parent), sizeof(di->bus_info));
+	strscpy(di->driver, "KS8851", sizeof(di->driver));
+	strscpy(di->version, "1.00", sizeof(di->version));
+	strscpy(di->bus_info, dev_name(dev->dev.parent), sizeof(di->bus_info));
 }
 
 static u32 ks8851_get_msglevel(struct net_device *dev)

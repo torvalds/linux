@@ -2138,13 +2138,13 @@ static int fec_enet_mii_probe(struct net_device *ndev)
 				continue;
 			if (dev_id--)
 				continue;
-			strlcpy(mdio_bus_id, fep->mii_bus->id, MII_BUS_ID_SIZE);
+			strscpy(mdio_bus_id, fep->mii_bus->id, MII_BUS_ID_SIZE);
 			break;
 		}
 
 		if (phy_id >= PHY_MAX_ADDR) {
 			netdev_info(ndev, "no PHY, assuming direct connection to switch\n");
-			strlcpy(mdio_bus_id, "fixed-0", MII_BUS_ID_SIZE);
+			strscpy(mdio_bus_id, "fixed-0", MII_BUS_ID_SIZE);
 			phy_id = 0;
 		}
 
@@ -2328,9 +2328,9 @@ static void fec_enet_get_drvinfo(struct net_device *ndev,
 {
 	struct fec_enet_private *fep = netdev_priv(ndev);
 
-	strlcpy(info->driver, fep->pdev->dev.driver->name,
+	strscpy(info->driver, fep->pdev->dev.driver->name,
 		sizeof(info->driver));
-	strlcpy(info->bus_info, dev_name(&ndev->dev), sizeof(info->bus_info));
+	strscpy(info->bus_info, dev_name(&ndev->dev), sizeof(info->bus_info));
 }
 
 static int fec_enet_get_regs_len(struct net_device *ndev)

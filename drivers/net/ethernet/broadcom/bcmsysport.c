@@ -308,8 +308,8 @@ static const struct bcm_sysport_stats bcm_sysport_gstrings_stats[] = {
 static void bcm_sysport_get_drvinfo(struct net_device *dev,
 				    struct ethtool_drvinfo *info)
 {
-	strlcpy(info->driver, KBUILD_MODNAME, sizeof(info->driver));
-	strlcpy(info->bus_info, "platform", sizeof(info->bus_info));
+	strscpy(info->driver, KBUILD_MODNAME, sizeof(info->driver));
+	strscpy(info->bus_info, "platform", sizeof(info->bus_info));
 }
 
 static u32 bcm_sysport_get_msglvl(struct net_device *dev)

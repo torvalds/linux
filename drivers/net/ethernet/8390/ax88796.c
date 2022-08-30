@@ -579,9 +579,9 @@ static void ax_get_drvinfo(struct net_device *dev,
 {
 	struct platform_device *pdev = to_platform_device(dev->dev.parent);
 
-	strlcpy(info->driver, DRV_NAME, sizeof(info->driver));
-	strlcpy(info->version, DRV_VERSION, sizeof(info->version));
-	strlcpy(info->bus_info, pdev->name, sizeof(info->bus_info));
+	strscpy(info->driver, DRV_NAME, sizeof(info->driver));
+	strscpy(info->version, DRV_VERSION, sizeof(info->version));
+	strscpy(info->bus_info, pdev->name, sizeof(info->bus_info));
 }
 
 static u32 ax_get_msglevel(struct net_device *dev)

@@ -1255,7 +1255,7 @@ static const struct net_device_ops mtk_star_netdev_ops = {
 static void mtk_star_get_drvinfo(struct net_device *dev,
 				 struct ethtool_drvinfo *info)
 {
-	strlcpy(info->driver, MTK_STAR_DRVNAME, sizeof(info->driver));
+	strscpy(info->driver, MTK_STAR_DRVNAME, sizeof(info->driver));
 }
 
 /* TODO Add ethtool stats. */

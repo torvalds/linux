@@ -222,7 +222,7 @@ static int bnxt_vf_rep_get_phys_port_name(struct net_device *dev, char *buf,
 static void bnxt_vf_rep_get_drvinfo(struct net_device *dev,
 				    struct ethtool_drvinfo *info)
 {
-	strlcpy(info->driver, DRV_MODULE_NAME, sizeof(info->driver));
+	strscpy(info->driver, DRV_MODULE_NAME, sizeof(info->driver));
 }
 
 static int bnxt_vf_rep_get_port_parent_id(struct net_device *dev,

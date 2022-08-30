@@ -1317,8 +1317,8 @@ static const struct net_device_ops axienet_netdev_ops = {
 static void axienet_ethtools_get_drvinfo(struct net_device *ndev,
 					 struct ethtool_drvinfo *ed)
 {
-	strlcpy(ed->driver, DRIVER_NAME, sizeof(ed->driver));
-	strlcpy(ed->version, DRIVER_VERSION, sizeof(ed->version));
+	strscpy(ed->driver, DRIVER_NAME, sizeof(ed->driver));
+	strscpy(ed->version, DRIVER_VERSION, sizeof(ed->version));
 }
 
 /**

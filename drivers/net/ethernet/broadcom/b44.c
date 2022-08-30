@@ -1790,13 +1790,13 @@ static void b44_get_drvinfo (struct net_device *dev, struct ethtool_drvinfo *inf
 	struct b44 *bp = netdev_priv(dev);
 	struct ssb_bus *bus = bp->sdev->bus;
 
-	strlcpy(info->driver, DRV_MODULE_NAME, sizeof(info->driver));
+	strscpy(info->driver, DRV_MODULE_NAME, sizeof(info->driver));
 	switch (bus->bustype) {
 	case SSB_BUSTYPE_PCI:
-		strlcpy(info->bus_info, pci_name(bus->host_pci), sizeof(info->bus_info));
+		strscpy(info->bus_info, pci_name(bus->host_pci), sizeof(info->bus_info));
 		break;
 	case SSB_BUSTYPE_SSB:
-		strlcpy(info->bus_info, "SSB", sizeof(info->bus_info));
+		strscpy(info->bus_info, "SSB", sizeof(info->bus_info));
 		break;
 	case SSB_BUSTYPE_PCMCIA:
 	case SSB_BUSTYPE_SDIO:

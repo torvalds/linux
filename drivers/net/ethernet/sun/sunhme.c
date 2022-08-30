@@ -2467,11 +2467,11 @@ static void hme_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info
 {
 	struct happy_meal *hp = netdev_priv(dev);
 
-	strlcpy(info->driver, "sunhme", sizeof(info->driver));
-	strlcpy(info->version, "2.02", sizeof(info->version));
+	strscpy(info->driver, "sunhme", sizeof(info->driver));
+	strscpy(info->version, "2.02", sizeof(info->version));
 	if (hp->happy_flags & HFLAG_PCI) {
 		struct pci_dev *pdev = hp->happy_dev;
-		strlcpy(info->bus_info, pci_name(pdev), sizeof(info->bus_info));
+		strscpy(info->bus_info, pci_name(pdev), sizeof(info->bus_info));
 	}
 #ifdef CONFIG_SBUS
 	else {

@@ -2133,10 +2133,10 @@ bdx_get_drvinfo(struct net_device *netdev, struct ethtool_drvinfo *drvinfo)
 {
 	struct bdx_priv *priv = netdev_priv(netdev);
 
-	strlcpy(drvinfo->driver, BDX_DRV_NAME, sizeof(drvinfo->driver));
-	strlcpy(drvinfo->version, BDX_DRV_VERSION, sizeof(drvinfo->version));
-	strlcpy(drvinfo->fw_version, "N/A", sizeof(drvinfo->fw_version));
-	strlcpy(drvinfo->bus_info, pci_name(priv->pdev),
+	strscpy(drvinfo->driver, BDX_DRV_NAME, sizeof(drvinfo->driver));
+	strscpy(drvinfo->version, BDX_DRV_VERSION, sizeof(drvinfo->version));
+	strscpy(drvinfo->fw_version, "N/A", sizeof(drvinfo->fw_version));
+	strscpy(drvinfo->bus_info, pci_name(priv->pdev),
 		sizeof(drvinfo->bus_info));
 }
 

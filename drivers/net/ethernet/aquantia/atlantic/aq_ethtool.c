@@ -238,7 +238,7 @@ static void aq_ethtool_get_drvinfo(struct net_device *ndev,
 		 "%u.%u.%u", firmware_version >> 24,
 		 (firmware_version >> 16) & 0xFFU, firmware_version & 0xFFFFU);
 
-	strlcpy(drvinfo->bus_info, pdev ? pci_name(pdev) : "",
+	strscpy(drvinfo->bus_info, pdev ? pci_name(pdev) : "",
 		sizeof(drvinfo->bus_info));
 	drvinfo->n_stats = aq_ethtool_n_stats(ndev);
 	drvinfo->testinfo_len = 0;

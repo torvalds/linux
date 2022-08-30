@@ -54,8 +54,8 @@ static void xlgmac_default_config(struct xlgmac_pdata *pdata)
 	pdata->phy_speed = SPEED_25000;
 	pdata->sysclk_rate = XLGMAC_SYSCLOCK;
 
-	strlcpy(pdata->drv_name, XLGMAC_DRV_NAME, sizeof(pdata->drv_name));
-	strlcpy(pdata->drv_ver, XLGMAC_DRV_VERSION, sizeof(pdata->drv_ver));
+	strscpy(pdata->drv_name, XLGMAC_DRV_NAME, sizeof(pdata->drv_name));
+	strscpy(pdata->drv_ver, XLGMAC_DRV_VERSION, sizeof(pdata->drv_ver));
 }
 
 static void xlgmac_init_all_ops(struct xlgmac_pdata *pdata)

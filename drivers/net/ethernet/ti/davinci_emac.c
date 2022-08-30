@@ -374,8 +374,8 @@ static char *emac_rxhost_errcodes[16] = {
 static void emac_get_drvinfo(struct net_device *ndev,
 			     struct ethtool_drvinfo *info)
 {
-	strlcpy(info->driver, emac_version_string, sizeof(info->driver));
-	strlcpy(info->version, EMAC_MODULE_VERSION, sizeof(info->version));
+	strscpy(info->driver, emac_version_string, sizeof(info->driver));
+	strscpy(info->version, EMAC_MODULE_VERSION, sizeof(info->version));
 }
 
 /**

@@ -5348,9 +5348,9 @@ static void s2io_ethtool_gdrvinfo(struct net_device *dev,
 {
 	struct s2io_nic *sp = netdev_priv(dev);
 
-	strlcpy(info->driver, s2io_driver_name, sizeof(info->driver));
-	strlcpy(info->version, s2io_driver_version, sizeof(info->version));
-	strlcpy(info->bus_info, pci_name(sp->pdev), sizeof(info->bus_info));
+	strscpy(info->driver, s2io_driver_name, sizeof(info->driver));
+	strscpy(info->version, s2io_driver_version, sizeof(info->version));
+	strscpy(info->bus_info, pci_name(sp->pdev), sizeof(info->bus_info));
 }
 
 /**

@@ -526,8 +526,8 @@ static int netsec_phy_read(struct mii_bus *bus, int phy_addr, int reg_addr)
 static void netsec_et_get_drvinfo(struct net_device *net_device,
 				  struct ethtool_drvinfo *info)
 {
-	strlcpy(info->driver, "netsec", sizeof(info->driver));
-	strlcpy(info->bus_info, dev_name(net_device->dev.parent),
+	strscpy(info->driver, "netsec", sizeof(info->driver));
+	strscpy(info->bus_info, dev_name(net_device->dev.parent),
 		sizeof(info->bus_info));
 }
 

@@ -191,8 +191,8 @@ static void nicvf_get_drvinfo(struct net_device *netdev,
 {
 	struct nicvf *nic = netdev_priv(netdev);
 
-	strlcpy(info->driver, DRV_NAME, sizeof(info->driver));
-	strlcpy(info->bus_info, pci_name(nic->pdev), sizeof(info->bus_info));
+	strscpy(info->driver, DRV_NAME, sizeof(info->driver));
+	strscpy(info->bus_info, pci_name(nic->pdev), sizeof(info->bus_info));
 }
 
 static u32 nicvf_get_msglevel(struct net_device *netdev)

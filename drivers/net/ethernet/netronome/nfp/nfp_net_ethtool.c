@@ -205,7 +205,7 @@ nfp_get_drvinfo(struct nfp_app *app, struct pci_dev *pdev,
 {
 	char nsp_version[ETHTOOL_FWVERS_LEN] = {};
 
-	strlcpy(drvinfo->driver, dev_driver_string(&pdev->dev),
+	strscpy(drvinfo->driver, dev_driver_string(&pdev->dev),
 		sizeof(drvinfo->driver));
 	nfp_net_get_nspinfo(app, nsp_version);
 	snprintf(drvinfo->fw_version, sizeof(drvinfo->fw_version),
@@ -222,7 +222,7 @@ nfp_net_get_drvinfo(struct net_device *netdev, struct ethtool_drvinfo *drvinfo)
 	snprintf(vnic_version, sizeof(vnic_version), "%d.%d.%d.%d",
 		 nn->fw_ver.extend, nn->fw_ver.class,
 		 nn->fw_ver.major, nn->fw_ver.minor);
-	strlcpy(drvinfo->bus_info, pci_name(nn->pdev),
+	strscpy(drvinfo->bus_info, pci_name(nn->pdev),
 		sizeof(drvinfo->bus_info));
 
 	nfp_get_drvinfo(nn->app, nn->pdev, vnic_version, drvinfo);
@@ -233,7 +233,7 @@ nfp_app_get_drvinfo(struct net_device *netdev, struct ethtool_drvinfo *drvinfo)
 {
 	struct nfp_app *app = nfp_app_from_netdev(netdev);
 
-	strlcpy(drvinfo->bus_info, pci_name(app->pdev),
+	strscpy(drvinfo->bus_info, pci_name(app->pdev),
 		sizeof(drvinfo->bus_info));
 	nfp_get_drvinfo(app, app->pdev, "*", drvinfo);
 }

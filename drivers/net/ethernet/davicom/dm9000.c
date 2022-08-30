@@ -540,8 +540,8 @@ static void dm9000_get_drvinfo(struct net_device *dev,
 {
 	struct board_info *dm = to_dm9000_board(dev);
 
-	strlcpy(info->driver, CARDNAME, sizeof(info->driver));
-	strlcpy(info->bus_info, to_platform_device(dm->dev)->name,
+	strscpy(info->driver, CARDNAME, sizeof(info->driver));
+	strscpy(info->bus_info, to_platform_device(dm->dev)->name,
 		sizeof(info->bus_info));
 }
 

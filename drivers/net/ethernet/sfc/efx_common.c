@@ -996,7 +996,7 @@ int efx_init_struct(struct efx_nic *efx, struct pci_dev *pci_dev)
 	efx->pci_dev = pci_dev;
 	efx->msg_enable = debug;
 	efx->state = STATE_UNINIT;
-	strlcpy(efx->name, pci_name(pci_dev), sizeof(efx->name));
+	strscpy(efx->name, pci_name(pci_dev), sizeof(efx->name));
 
 	efx->rx_prefix_size = efx->type->rx_prefix_size;
 	efx->rx_ip_align =

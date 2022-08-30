@@ -1531,8 +1531,8 @@ static void slic_get_drvinfo(struct net_device *dev,
 {
 	struct slic_device *sdev = netdev_priv(dev);
 
-	strlcpy(info->driver, DRV_NAME, sizeof(info->driver));
-	strlcpy(info->bus_info, pci_name(sdev->pdev), sizeof(info->bus_info));
+	strscpy(info->driver, DRV_NAME, sizeof(info->driver));
+	strscpy(info->bus_info, pci_name(sdev->pdev), sizeof(info->bus_info));
 }
 
 static const struct ethtool_ops slic_ethtool_ops = {

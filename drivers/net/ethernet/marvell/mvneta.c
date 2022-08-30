@@ -4656,11 +4656,11 @@ mvneta_ethtool_get_coalesce(struct net_device *dev,
 static void mvneta_ethtool_get_drvinfo(struct net_device *dev,
 				    struct ethtool_drvinfo *drvinfo)
 {
-	strlcpy(drvinfo->driver, MVNETA_DRIVER_NAME,
+	strscpy(drvinfo->driver, MVNETA_DRIVER_NAME,
 		sizeof(drvinfo->driver));
-	strlcpy(drvinfo->version, MVNETA_DRIVER_VERSION,
+	strscpy(drvinfo->version, MVNETA_DRIVER_VERSION,
 		sizeof(drvinfo->version));
-	strlcpy(drvinfo->bus_info, dev_name(&dev->dev),
+	strscpy(drvinfo->bus_info, dev_name(&dev->dev),
 		sizeof(drvinfo->bus_info));
 }
 

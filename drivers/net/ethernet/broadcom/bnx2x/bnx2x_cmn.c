@@ -150,7 +150,7 @@ void bnx2x_fill_fw_str(struct bnx2x *bp, char *buf, size_t buf_len)
 		phy_fw_ver[0] = '\0';
 		bnx2x_get_ext_phy_fw_version(&bp->link_params,
 					     phy_fw_ver, PHY_FW_VER_LEN);
-		strlcpy(buf, bp->fw_ver, buf_len);
+		strscpy(buf, bp->fw_ver, buf_len);
 		snprintf(buf + strlen(bp->fw_ver), 32 - strlen(bp->fw_ver),
 			 "bc %d.%d.%d%s%s",
 			 (bp->common.bc_ver & 0xff0000) >> 16,

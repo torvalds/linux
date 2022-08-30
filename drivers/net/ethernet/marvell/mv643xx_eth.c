@@ -1603,12 +1603,12 @@ mv643xx_eth_set_link_ksettings(struct net_device *dev,
 static void mv643xx_eth_get_drvinfo(struct net_device *dev,
 				    struct ethtool_drvinfo *drvinfo)
 {
-	strlcpy(drvinfo->driver, mv643xx_eth_driver_name,
+	strscpy(drvinfo->driver, mv643xx_eth_driver_name,
 		sizeof(drvinfo->driver));
-	strlcpy(drvinfo->version, mv643xx_eth_driver_version,
+	strscpy(drvinfo->version, mv643xx_eth_driver_version,
 		sizeof(drvinfo->version));
-	strlcpy(drvinfo->fw_version, "N/A", sizeof(drvinfo->fw_version));
-	strlcpy(drvinfo->bus_info, "platform", sizeof(drvinfo->bus_info));
+	strscpy(drvinfo->fw_version, "N/A", sizeof(drvinfo->fw_version));
+	strscpy(drvinfo->bus_info, "platform", sizeof(drvinfo->bus_info));
 }
 
 static int mv643xx_eth_get_coalesce(struct net_device *dev,

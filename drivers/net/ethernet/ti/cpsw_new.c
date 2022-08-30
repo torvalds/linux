@@ -1146,9 +1146,9 @@ static void cpsw_get_drvinfo(struct net_device *ndev,
 	struct platform_device *pdev;
 
 	pdev = to_platform_device(cpsw->dev);
-	strlcpy(info->driver, "cpsw-switch", sizeof(info->driver));
-	strlcpy(info->version, "2.0", sizeof(info->version));
-	strlcpy(info->bus_info, pdev->name, sizeof(info->bus_info));
+	strscpy(info->driver, "cpsw-switch", sizeof(info->driver));
+	strscpy(info->version, "2.0", sizeof(info->version));
+	strscpy(info->bus_info, pdev->name, sizeof(info->bus_info));
 }
 
 static int cpsw_set_pauseparam(struct net_device *ndev,

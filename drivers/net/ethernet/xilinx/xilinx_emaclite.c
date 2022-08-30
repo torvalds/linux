@@ -1060,7 +1060,7 @@ static bool get_bool(struct platform_device *ofdev, const char *s)
 static void xemaclite_ethtools_get_drvinfo(struct net_device *ndev,
 					   struct ethtool_drvinfo *ed)
 {
-	strlcpy(ed->driver, DRIVER_NAME, sizeof(ed->driver));
+	strscpy(ed->driver, DRIVER_NAME, sizeof(ed->driver));
 }
 
 static const struct ethtool_ops xemaclite_ethtool_ops = {

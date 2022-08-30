@@ -3558,8 +3558,8 @@ static void mtk_get_drvinfo(struct net_device *dev,
 {
 	struct mtk_mac *mac = netdev_priv(dev);
 
-	strlcpy(info->driver, mac->hw->dev->driver->name, sizeof(info->driver));
-	strlcpy(info->bus_info, dev_name(mac->hw->dev), sizeof(info->bus_info));
+	strscpy(info->driver, mac->hw->dev->driver->name, sizeof(info->driver));
+	strscpy(info->bus_info, dev_name(mac->hw->dev), sizeof(info->bus_info));
 	info->n_stats = ARRAY_SIZE(mtk_ethtool_stats);
 }
 

@@ -395,8 +395,8 @@ static void ave_ethtool_get_drvinfo(struct net_device *ndev,
 {
 	struct device *dev = ndev->dev.parent;
 
-	strlcpy(info->driver, dev->driver->name, sizeof(info->driver));
-	strlcpy(info->bus_info, dev_name(dev), sizeof(info->bus_info));
+	strscpy(info->driver, dev->driver->name, sizeof(info->driver));
+	strscpy(info->bus_info, dev_name(dev), sizeof(info->bus_info));
 	ave_hw_read_version(ndev, info->fw_version, sizeof(info->fw_version));
 }
 

@@ -778,7 +778,7 @@ static void efx_unregister_netdev(struct efx_nic *efx)
 		return;
 
 	if (efx_dev_registered(efx)) {
-		strlcpy(efx->name, pci_name(efx->pci_dev), sizeof(efx->name));
+		strscpy(efx->name, pci_name(efx->pci_dev), sizeof(efx->name));
 		efx_fini_mcdi_logging(efx);
 		device_remove_file(&efx->pci_dev->dev, &dev_attr_phy_type);
 		unregister_netdev(efx->net_dev);

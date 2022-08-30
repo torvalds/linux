@@ -990,8 +990,8 @@ static const struct net_device_ops nixge_netdev_ops = {
 static void nixge_ethtools_get_drvinfo(struct net_device *ndev,
 				       struct ethtool_drvinfo *ed)
 {
-	strlcpy(ed->driver, "nixge", sizeof(ed->driver));
-	strlcpy(ed->bus_info, "platform", sizeof(ed->bus_info));
+	strscpy(ed->driver, "nixge", sizeof(ed->driver));
+	strscpy(ed->bus_info, "platform", sizeof(ed->bus_info));
 }
 
 static int

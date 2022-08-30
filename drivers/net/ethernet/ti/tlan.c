@@ -762,12 +762,12 @@ static void tlan_get_drvinfo(struct net_device *dev,
 {
 	struct tlan_priv *priv = netdev_priv(dev);
 
-	strlcpy(info->driver, KBUILD_MODNAME, sizeof(info->driver));
+	strscpy(info->driver, KBUILD_MODNAME, sizeof(info->driver));
 	if (priv->pci_dev)
-		strlcpy(info->bus_info, pci_name(priv->pci_dev),
+		strscpy(info->bus_info, pci_name(priv->pci_dev),
 			sizeof(info->bus_info));
 	else
-		strlcpy(info->bus_info, "EISA",	sizeof(info->bus_info));
+		strscpy(info->bus_info, "EISA",	sizeof(info->bus_info));
 }
 
 static int tlan_get_eeprom_len(struct net_device *dev)

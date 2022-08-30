@@ -236,7 +236,7 @@ static void enetc_get_strings(struct net_device *ndev, u32 stringset, u8 *data)
 	switch (stringset) {
 	case ETH_SS_STATS:
 		for (i = 0; i < ARRAY_SIZE(enetc_si_counters); i++) {
-			strlcpy(p, enetc_si_counters[i].name, ETH_GSTRING_LEN);
+			strscpy(p, enetc_si_counters[i].name, ETH_GSTRING_LEN);
 			p += ETH_GSTRING_LEN;
 		}
 		for (i = 0; i < priv->num_tx_rings; i++) {
@@ -258,7 +258,7 @@ static void enetc_get_strings(struct net_device *ndev, u32 stringset, u8 *data)
 			break;
 
 		for (i = 0; i < ARRAY_SIZE(enetc_port_counters); i++) {
-			strlcpy(p, enetc_port_counters[i].name,
+			strscpy(p, enetc_port_counters[i].name,
 				ETH_GSTRING_LEN);
 			p += ETH_GSTRING_LEN;
 		}

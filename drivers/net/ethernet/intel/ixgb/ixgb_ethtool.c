@@ -456,9 +456,9 @@ ixgb_get_drvinfo(struct net_device *netdev,
 {
 	struct ixgb_adapter *adapter = netdev_priv(netdev);
 
-	strlcpy(drvinfo->driver,  ixgb_driver_name,
+	strscpy(drvinfo->driver,  ixgb_driver_name,
 		sizeof(drvinfo->driver));
-	strlcpy(drvinfo->bus_info, pci_name(adapter->pdev),
+	strscpy(drvinfo->bus_info, pci_name(adapter->pdev),
 		sizeof(drvinfo->bus_info));
 }
 

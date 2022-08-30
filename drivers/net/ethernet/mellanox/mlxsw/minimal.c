@@ -103,14 +103,14 @@ static void mlxsw_m_module_get_drvinfo(struct net_device *dev,
 	struct mlxsw_m_port *mlxsw_m_port = netdev_priv(dev);
 	struct mlxsw_m *mlxsw_m = mlxsw_m_port->mlxsw_m;
 
-	strlcpy(drvinfo->driver, mlxsw_m->bus_info->device_kind,
+	strscpy(drvinfo->driver, mlxsw_m->bus_info->device_kind,
 		sizeof(drvinfo->driver));
 	snprintf(drvinfo->fw_version, sizeof(drvinfo->fw_version),
 		 "%d.%d.%d",
 		 mlxsw_m->bus_info->fw_rev.major,
 		 mlxsw_m->bus_info->fw_rev.minor,
 		 mlxsw_m->bus_info->fw_rev.subminor);
-	strlcpy(drvinfo->bus_info, mlxsw_m->bus_info->device_name,
+	strscpy(drvinfo->bus_info, mlxsw_m->bus_info->device_name,
 		sizeof(drvinfo->bus_info));
 }
 

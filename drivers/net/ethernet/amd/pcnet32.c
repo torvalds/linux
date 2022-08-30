@@ -797,9 +797,9 @@ static void pcnet32_get_drvinfo(struct net_device *dev,
 {
 	struct pcnet32_private *lp = netdev_priv(dev);
 
-	strlcpy(info->driver, DRV_NAME, sizeof(info->driver));
+	strscpy(info->driver, DRV_NAME, sizeof(info->driver));
 	if (lp->pci_dev)
-		strlcpy(info->bus_info, pci_name(lp->pci_dev),
+		strscpy(info->bus_info, pci_name(lp->pci_dev),
 			sizeof(info->bus_info));
 	else
 		snprintf(info->bus_info, sizeof(info->bus_info),

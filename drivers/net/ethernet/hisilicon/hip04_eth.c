@@ -830,8 +830,8 @@ static int hip04_set_coalesce(struct net_device *netdev,
 static void hip04_get_drvinfo(struct net_device *netdev,
 			      struct ethtool_drvinfo *drvinfo)
 {
-	strlcpy(drvinfo->driver, DRV_NAME, sizeof(drvinfo->driver));
-	strlcpy(drvinfo->version, DRV_VERSION, sizeof(drvinfo->version));
+	strscpy(drvinfo->driver, DRV_NAME, sizeof(drvinfo->driver));
+	strscpy(drvinfo->version, DRV_VERSION, sizeof(drvinfo->version));
 }
 
 static const struct ethtool_ops hip04_ethtool_ops = {

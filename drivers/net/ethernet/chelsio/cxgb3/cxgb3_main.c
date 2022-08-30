@@ -1627,8 +1627,8 @@ static void get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info)
 	t3_get_tp_version(adapter, &tp_vers);
 	spin_unlock(&adapter->stats_lock);
 
-	strlcpy(info->driver, DRV_NAME, sizeof(info->driver));
-	strlcpy(info->bus_info, pci_name(adapter->pdev),
+	strscpy(info->driver, DRV_NAME, sizeof(info->driver));
+	strscpy(info->bus_info, pci_name(adapter->pdev),
 		sizeof(info->bus_info));
 	if (fw_vers)
 		snprintf(info->fw_version, sizeof(info->fw_version),
