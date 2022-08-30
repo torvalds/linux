@@ -775,7 +775,7 @@ txq_put_hdr_tso(struct sk_buff *skb, struct tx_queue *txq, int length,
 		u32 *first_cmd_sts, bool first_desc)
 {
 	struct mv643xx_eth_private *mp = txq_to_mp(txq);
-	int hdr_len = skb_transport_offset(skb) + tcp_hdrlen(skb);
+	int hdr_len = skb_tcp_all_headers(skb);
 	int tx_index;
 	struct tx_desc *desc;
 	int ret;

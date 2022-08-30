@@ -247,6 +247,7 @@ static const struct of_device_id imx93_pinctrl_of_match[] = {
 	{ .compatible = "fsl,imx93-iomuxc", },
 	{ /* sentinel */ }
 };
+MODULE_DEVICE_TABLE(of, imx93_pinctrl_of_match);
 
 static int imx93_pinctrl_probe(struct platform_device *pdev)
 {

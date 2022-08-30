@@ -142,6 +142,7 @@ static inline u16 dfa_map_xindex(u16 mask)
  */
 #define dfa_user_allow(dfa, state) (((ACCEPT_TABLE(dfa)[state]) & 0x7f) | \
 				    ((ACCEPT_TABLE(dfa)[state]) & 0x80000000))
+#define dfa_user_xbits(dfa, state) (((ACCEPT_TABLE(dfa)[state]) >> 7) & 0x7f)
 #define dfa_user_audit(dfa, state) ((ACCEPT_TABLE2(dfa)[state]) & 0x7f)
 #define dfa_user_quiet(dfa, state) (((ACCEPT_TABLE2(dfa)[state]) >> 7) & 0x7f)
 #define dfa_user_xindex(dfa, state) \
@@ -150,6 +151,8 @@ static inline u16 dfa_map_xindex(u16 mask)
 #define dfa_other_allow(dfa, state) ((((ACCEPT_TABLE(dfa)[state]) >> 14) & \
 				      0x7f) |				\
 				     ((ACCEPT_TABLE(dfa)[state]) & 0x80000000))
+#define dfa_other_xbits(dfa, state) \
+	((((ACCEPT_TABLE(dfa)[state]) >> 7) >> 14) & 0x7f)
 #define dfa_other_audit(dfa, state) (((ACCEPT_TABLE2(dfa)[state]) >> 14) & 0x7f)
 #define dfa_other_quiet(dfa, state) \
 	((((ACCEPT_TABLE2(dfa)[state]) >> 7) >> 14) & 0x7f)

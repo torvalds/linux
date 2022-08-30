@@ -24,10 +24,10 @@ struct ltc2496_driverdata {
 	struct spi_device *spi;
 
 	/*
-	 * DMA (thus cache coherency maintenance) requires the
+	 * DMA (thus cache coherency maintenance) may require the
 	 * transfer buffers to live in their own cache lines.
 	 */
-	unsigned char rxbuf[3] ____cacheline_aligned;
+	unsigned char rxbuf[3] __aligned(IIO_DMA_MINALIGN);
 	unsigned char txbuf[3];
 };
 

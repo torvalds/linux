@@ -702,6 +702,13 @@
  *	@old is the set of credentials that are being replaced.
  *	@flags contains one of the LSM_SETID_* values.
  *	Return 0 on success.
+ * @task_fix_setgroups:
+ *	Update the module's state after setting the supplementary group
+ *	identity attributes of the current process.
+ *	@new is the set of credentials that will be installed.  Modifications
+ *	should be made to this rather than to @current->cred.
+ *	@old is the set of credentials that are being replaced.
+ *	Return 0 on success.
  * @task_setpgid:
  *	Check permission before setting the process group identifier of the
  *	process @p to @pgid.

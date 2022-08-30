@@ -2397,7 +2397,7 @@ static void blkfront_connect(struct blkfront_info *info)
 
 	err = device_add_disk(&info->xbdev->dev, info->gd, NULL);
 	if (err) {
-		blk_cleanup_disk(info->gd);
+		put_disk(info->gd);
 		blk_mq_free_tag_set(&info->tag_set);
 		info->rq = NULL;
 		goto fail;
@@ -2482,7 +2482,7 @@ static int blkfront_remove(struct xenbus_device *xbdev)
 	blkif_free(info, 0);
 	if (info->gd) {
 		xlbd_release_minors(info->gd->first_minor, info->gd->minors);
-		blk_cleanup_disk(info->gd);
+		put_disk(info->gd);
 		blk_mq_free_tag_set(&info->tag_set);
 	}
 

@@ -340,11 +340,11 @@ static int tas2770_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	u8 tdm_rx_start_slot = 0, asi_cfg_1 = 0;
 	int ret;
 
-	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
-	case SND_SOC_DAIFMT_CBS_CFS:
+	switch (fmt & SND_SOC_DAIFMT_CLOCK_PROVIDER_MASK) {
+	case SND_SOC_DAIFMT_CBC_CFC:
 		break;
 	default:
-		dev_err(tas2770->dev, "ASI format master is not found\n");
+		dev_err(tas2770->dev, "ASI invalid DAI clocking\n");
 		return -EINVAL;
 	}
 
@@ -546,7 +546,6 @@ static const struct snd_soc_component_driver soc_component_driver_tas2770 = {
 	.num_dapm_routes	= ARRAY_SIZE(tas2770_audio_map),
 	.idle_bias_on		= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
 };
 
 static int tas2770_register_codec(struct tas2770_priv *tas2770)

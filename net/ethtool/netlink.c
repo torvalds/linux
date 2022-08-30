@@ -402,7 +402,7 @@ static int ethnl_default_doit(struct sk_buff *skb, struct genl_info *info)
 		ops->cleanup_data(reply_data);
 
 	genlmsg_end(rskb, reply_payload);
-	dev_put_track(req_info->dev, &req_info->dev_tracker);
+	netdev_put(req_info->dev, &req_info->dev_tracker);
 	kfree(reply_data);
 	kfree(req_info);
 	return genlmsg_reply(rskb, info);
@@ -414,7 +414,7 @@ err_cleanup:
 	if (ops->cleanup_data)
 		ops->cleanup_data(reply_data);
 err_dev:
-	dev_put_track(req_info->dev, &req_info->dev_tracker);
+	netdev_put(req_info->dev, &req_info->dev_tracker);
 	kfree(reply_data);
 	kfree(req_info);
 	return ret;
@@ -550,7 +550,7 @@ static int ethnl_default_start(struct netlink_callback *cb)
 		 * same parser as for non-dump (doit) requests is used, it
 		 * would take reference to the device if it finds one
 		 */
-		dev_put_track(req_info->dev, &req_info->dev_tracker);
+		netdev_put(req_info->dev, &req_info->dev_tracker);
 		req_info->dev = NULL;
 	}
 	if (ret < 0)

@@ -1634,7 +1634,7 @@ int mptcp_subflow_create_socket(struct sock *sk, struct socket **new_sock)
 	/* the newly created socket really belongs to the owning MPTCP master
 	 * socket, even if for additional subflows the allocation is performed
 	 * by a kernel workqueue. Adjust inode references, so that the
-	 * procfs/diag interaces really show this one belonging to the correct
+	 * procfs/diag interfaces really show this one belonging to the correct
 	 * user.
 	 */
 	SOCK_INODE(sf)->i_ino = SOCK_INODE(sk->sk_socket)->i_ino;

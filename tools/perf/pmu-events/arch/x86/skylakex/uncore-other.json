@@ -156,6 +156,15 @@
         "Unit": "CHA"
     },
     {
+        "BriefDescription": "write requests from remote home agent",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x50",
+        "EventName": "UNC_CHA_REQUESTS.WRITES_REMOTE",
+        "PerPkg": "1",
+        "UMask": "0x08",
+        "Unit": "CHA"
+    },
+    {
         "BriefDescription": "UPI interconnect send bandwidth for payload. Derived from unc_upi_txl_flits.all_data",
         "Counter": "0,1,2,3",
         "EventCode": "0x2",
@@ -621,6 +630,576 @@
         "Unit": "CHA"
     },
     {
+        "BriefDescription": "TOR Inserts : CRds issued by iA Cores that Hit the LLC",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x35",
+        "EventName": "UNC_CHA_TOR_INSERTS.IA_HIT_CRD",
+        "Filter": "config1=0x40233",
+        "PerPkg": "1",
+        "PublicDescription": "TOR Inserts : CRds issued by iA Cores that Hit the LLC : Counts the number of entries successfully inserted into the TOR that match qualifications specified by the subevent.   Does not include addressless requests such as locks and interrupts.",
+        "UMask": "0x11",
+        "Unit": "CHA"
+    },
+    {
+        "BriefDescription": "TOR Inserts : DRds issued by iA Cores that Hit the LLC",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x35",
+        "EventName": "UNC_CHA_TOR_INSERTS.IA_HIT_DRD",
+        "Filter": "config1=0x40433",
+        "PerPkg": "1",
+        "PublicDescription": "TOR Inserts : DRds issued by iA Cores that Hit the LLC : Counts the number of entries successfully inserted into the TOR that match qualifications specified by the subevent.   Does not include addressless requests such as locks and interrupts.",
+        "UMask": "0x11",
+        "Unit": "CHA"
+    },
+    {
+        "BriefDescription": "UNC_CHA_TOR_INSERTS.IA_HIT_LlcPrefCRD",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x35",
+        "EventName": "UNC_CHA_TOR_INSERTS.IA_HIT_LlcPrefCRD",
+        "Filter": "config1=0x4b233",
+        "PerPkg": "1",
+        "PublicDescription": "UNC_CHA_TOR_INSERTS.IA_HIT_LlcPrefCRD",
+        "UMask": "0x11",
+        "Unit": "CHA"
+    },
+    {
+        "BriefDescription": "UNC_CHA_TOR_INSERTS.IA_HIT_LlcPrefDRD",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x35",
+        "EventName": "UNC_CHA_TOR_INSERTS.IA_HIT_LlcPrefDRD",
+        "Filter": "config1=0x4b433",
+        "PerPkg": "1",
+        "PublicDescription": "UNC_CHA_TOR_INSERTS.IA_HIT_LlcPrefDRD",
+        "UMask": "0x11",
+        "Unit": "CHA"
+    },
+    {
+        "BriefDescription": "TOR Inserts : LLCPrefRFO issued by iA Cores that hit the LLC",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x35",
+        "EventName": "UNC_CHA_TOR_INSERTS.IA_HIT_LlcPrefRFO",
+        "Filter": "config1=0x4b033",
+        "PerPkg": "1",
+        "PublicDescription": "TOR Inserts : LLCPrefRFO issued by iA Cores that hit the LLC : Counts the number of entries successfully inserted into the TOR that match qualifications specified by the subevent.   Does not include addressless requests such as locks and interrupts.",
+        "UMask": "0x11",
+        "Unit": "CHA"
+    },
+    {
+        "BriefDescription": "TOR Inserts : RFOs issued by iA Cores that Hit the LLC",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x35",
+        "EventName": "UNC_CHA_TOR_INSERTS.IA_HIT_RFO",
+        "Filter": "config1=0x40033",
+        "PerPkg": "1",
+        "PublicDescription": "TOR Inserts : RFOs issued by iA Cores that Hit the LLC : Counts the number of entries successfully inserted into the TOR that match qualifications specified by the subevent.   Does not include addressless requests such as locks and interrupts.",
+        "UMask": "0x11",
+        "Unit": "CHA"
+    },
+    {
+        "BriefDescription": "TOR Inserts : CRds issued by iA Cores that Missed the LLC",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x35",
+        "EventName": "UNC_CHA_TOR_INSERTS.IA_MISS_CRD",
+        "Filter": "config1=0x40233",
+        "PerPkg": "1",
+        "PublicDescription": "TOR Inserts : CRds issued by iA Cores that Missed the LLC : Counts the number of entries successfully inserted into the TOR that match qualifications specified by the subevent.   Does not include addressless requests such as locks and interrupts.",
+        "UMask": "0x21",
+        "Unit": "CHA"
+    },
+    {
+        "BriefDescription": "TOR Inserts : DRds issued by iA Cores that Missed the LLC",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x35",
+        "EventName": "UNC_CHA_TOR_INSERTS.IA_MISS_DRD",
+        "Filter": "config1=0x40433",
+        "PerPkg": "1",
+        "PublicDescription": "TOR Inserts : DRds issued by iA Cores that Missed the LLC : Counts the number of entries successfully inserted into the TOR that match qualifications specified by the subevent.   Does not include addressless requests such as locks and interrupts.",
+        "UMask": "0x21",
+        "Unit": "CHA"
+    },
+    {
+        "BriefDescription": "UNC_CHA_TOR_INSERTS.IA_MISS_LlcPrefCRD",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x35",
+        "EventName": "UNC_CHA_TOR_INSERTS.IA_MISS_LlcPrefCRD",
+        "Filter": "config1=0x4b233",
+        "PerPkg": "1",
+        "PublicDescription": "UNC_CHA_TOR_INSERTS.IA_MISS_LlcPrefCRD",
+        "UMask": "0x21",
+        "Unit": "CHA"
+    },
+    {
+        "BriefDescription": "UNC_CHA_TOR_INSERTS.IA_MISS_LlcPrefDRD",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x35",
+        "EventName": "UNC_CHA_TOR_INSERTS.IA_MISS_LlcPrefDRD",
+        "Filter": "config1=0x4b433",
+        "PerPkg": "1",
+        "PublicDescription": "UNC_CHA_TOR_INSERTS.IA_MISS_LlcPrefDRD",
+        "UMask": "0x21",
+        "Unit": "CHA"
+    },
+    {
+        "BriefDescription": "TOR Inserts : LLCPrefRFO issued by iA Cores that missed the LLC",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x35",
+        "EventName": "UNC_CHA_TOR_INSERTS.IA_MISS_LlcPrefRFO",
+        "Filter": "config1=0x4b033",
+        "PerPkg": "1",
+        "PublicDescription": "TOR Inserts : LLCPrefRFO issued by iA Cores that missed the LLC : Counts the number of entries successfully inserted into the TOR that match qualifications specified by the subevent.   Does not include addressless requests such as locks and interrupts.",
+        "UMask": "0x21",
+        "Unit": "CHA"
+    },
+    {
+        "BriefDescription": "TOR Inserts : RFOs issued by iA Cores that Missed the LLC",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x35",
+        "EventName": "UNC_CHA_TOR_INSERTS.IA_MISS_RFO",
+        "Filter": "config1=0x40033",
+        "PerPkg": "1",
+        "PublicDescription": "TOR Inserts : RFOs issued by iA Cores that Missed the LLC : Counts the number of entries successfully inserted into the TOR that match qualifications specified by the subevent.   Does not include addressless requests such as locks and interrupts.",
+        "UMask": "0x21",
+        "Unit": "CHA"
+    },
+    {
+        "BriefDescription": "This event is deprecated. ",
+        "Counter": "0,1,2,3",
+        "Deprecated": "1",
+        "EventCode": "0x35",
+        "EventName": "UNC_CHA_TOR_INSERTS.REM_ALL",
+        "Filter": "CHAfilter1",
+        "PerPkg": "1",
+        "PublicDescription": "This event is deprecated. ",
+        "UMask": "0x30",
+        "Unit": "CHA"
+    },
+    {
+        "BriefDescription": "UNC_CHA_TOR_OCCUPANCY.IA_HIT_CRD",
+        "EventCode": "0x36",
+        "EventName": "UNC_CHA_TOR_OCCUPANCY.IA_HIT_CRD",
+        "Filter": "config1=0x40233",
+        "PerPkg": "1",
+        "PublicDescription": "UNC_CHA_TOR_OCCUPANCY.IA_HIT_CRD",
+        "UMask": "0x11",
+        "Unit": "CHA"
+    },
+    {
+        "BriefDescription": "UNC_CHA_TOR_OCCUPANCY.IA_HIT_DRD",
+        "EventCode": "0x36",
+        "EventName": "UNC_CHA_TOR_OCCUPANCY.IA_HIT_DRD",
+        "Filter": "config1=0x40433",
+        "PerPkg": "1",
+        "PublicDescription": "UNC_CHA_TOR_OCCUPANCY.IA_HIT_DRD",
+        "UMask": "0x11",
+        "Unit": "CHA"
+    },
+    {
+        "BriefDescription": "UNC_CHA_TOR_OCCUPANCY.IA_HIT_LlcPrefCRD",
+        "EventCode": "0x36",
+        "EventName": "UNC_CHA_TOR_OCCUPANCY.IA_HIT_LlcPrefCRD",
+        "Filter": "config1=0x4b233",
+        "PerPkg": "1",
+        "PublicDescription": "UNC_CHA_TOR_OCCUPANCY.IA_HIT_LlcPrefCRD",
+        "UMask": "0x11",
+        "Unit": "CHA"
+    },
+    {
+        "BriefDescription": "UNC_CHA_TOR_OCCUPANCY.IA_HIT_LlcPrefDRD",
+        "EventCode": "0x36",
+        "EventName": "UNC_CHA_TOR_OCCUPANCY.IA_HIT_LlcPrefDRD",
+        "Filter": "config1=0x4b433",
+        "PerPkg": "1",
+        "PublicDescription": "UNC_CHA_TOR_OCCUPANCY.IA_HIT_LlcPrefDRD",
+        "UMask": "0x11",
+        "Unit": "CHA"
+    },
+    {
+        "BriefDescription": "UNC_CHA_TOR_OCCUPANCY.IA_HIT_LlcPrefRFO",
+        "EventCode": "0x36",
+        "EventName": "UNC_CHA_TOR_OCCUPANCY.IA_HIT_LlcPrefRFO",
+        "Filter": "config1=0x4b033",
+        "PerPkg": "1",
+        "PublicDescription": "UNC_CHA_TOR_OCCUPANCY.IA_HIT_LlcPrefRFO",
+        "UMask": "0x11",
+        "Unit": "CHA"
+    },
+    {
+        "BriefDescription": "UNC_CHA_TOR_OCCUPANCY.IA_HIT_RFO",
+        "EventCode": "0x36",
+        "EventName": "UNC_CHA_TOR_OCCUPANCY.IA_HIT_RFO",
+        "Filter": "config1=0x40033",
+        "PerPkg": "1",
+        "PublicDescription": "UNC_CHA_TOR_OCCUPANCY.IA_HIT_RFO",
+        "UMask": "0x11",
+        "Unit": "CHA"
+    },
+    {
+        "BriefDescription": "UNC_CHA_TOR_OCCUPANCY.IA_MISS_CRD",
+        "EventCode": "0x36",
+        "EventName": "UNC_CHA_TOR_OCCUPANCY.IA_MISS_CRD",
+        "Filter": "config1=0x40233",
+        "PerPkg": "1",
+        "PublicDescription": "UNC_CHA_TOR_OCCUPANCY.IA_MISS_CRD",
+        "UMask": "0x21",
+        "Unit": "CHA"
+    },
+    {
+        "BriefDescription": "UNC_CHA_TOR_OCCUPANCY.IA_MISS_DRD",
+        "EventCode": "0x36",
+        "EventName": "UNC_CHA_TOR_OCCUPANCY.IA_MISS_DRD",
+        "Filter": "config1=0x40433",
+        "PerPkg": "1",
+        "PublicDescription": "UNC_CHA_TOR_OCCUPANCY.IA_MISS_DRD",
+        "UMask": "0x21",
+        "Unit": "CHA"
+    },
+    {
+        "BriefDescription": "UNC_CHA_TOR_OCCUPANCY.IA_MISS_LlcPrefCRD",
+        "EventCode": "0x36",
+        "EventName": "UNC_CHA_TOR_OCCUPANCY.IA_MISS_LlcPrefCRD",
+        "Filter": "config1=0x4b233",
+        "PerPkg": "1",
+        "PublicDescription": "UNC_CHA_TOR_OCCUPANCY.IA_MISS_LlcPrefCRD",
+        "UMask": "0x21",
+        "Unit": "CHA"
+    },
+    {
+        "BriefDescription": "UNC_CHA_TOR_OCCUPANCY.IA_MISS_LlcPrefDRD",
+        "EventCode": "0x36",
+        "EventName": "UNC_CHA_TOR_OCCUPANCY.IA_MISS_LlcPrefDRD",
+        "Filter": "config1=0x4b433",
+        "PerPkg": "1",
+        "PublicDescription": "UNC_CHA_TOR_OCCUPANCY.IA_MISS_LlcPrefDRD",
+        "UMask": "0x21",
+        "Unit": "CHA"
+    },
+    {
+        "BriefDescription": "UNC_CHA_TOR_OCCUPANCY.IA_MISS_LlcPrefRFO",
+        "EventCode": "0x36",
+        "EventName": "UNC_CHA_TOR_OCCUPANCY.IA_MISS_LlcPrefRFO",
+        "Filter": "config1=0x4b033",
+        "PerPkg": "1",
+        "PublicDescription": "UNC_CHA_TOR_OCCUPANCY.IA_MISS_LlcPrefRFO",
+        "UMask": "0x21",
+        "Unit": "CHA"
+    },
+    {
+        "BriefDescription": "UNC_CHA_TOR_OCCUPANCY.IA_MISS_RFO",
+        "EventCode": "0x36",
+        "EventName": "UNC_CHA_TOR_OCCUPANCY.IA_MISS_RFO",
+        "Filter": "config1=0x40033",
+        "PerPkg": "1",
+        "PublicDescription": "UNC_CHA_TOR_OCCUPANCY.IA_MISS_RFO",
+        "UMask": "0x21",
+        "Unit": "CHA"
+    },
+    {
+        "BriefDescription": "This event is deprecated. Refer to new event UNC_CHA_CLOCKTICKS",
+        "Counter": "0,1,2,3",
+        "Deprecated": "1",
+        "EventName": "UNC_C_CLOCKTICKS",
+        "PerPkg": "1",
+        "PublicDescription": "This event is deprecated. Refer to new event UNC_CHA_CLOCKTICKS",
+        "Unit": "CHA"
+    },
+    {
+        "BriefDescription": "This event is deprecated. Refer to new event UNC_CHA_FAST_ASSERTED.HORZ",
+        "Counter": "0,1,2,3",
+        "Deprecated": "1",
+        "EventCode": "0xA5",
+        "EventName": "UNC_C_FAST_ASSERTED",
+        "PerPkg": "1",
+        "PublicDescription": "This event is deprecated. Refer to new event UNC_CHA_FAST_ASSERTED.HORZ",
+        "UMask": "0x02",
+        "Unit": "CHA"
+    },
+    {
+        "BriefDescription": "This event is deprecated. Refer to new event UNC_CHA_LLC_VICTIMS.TOTAL_E",
+        "Counter": "0,1,2,3",
+        "Deprecated": "1",
+        "EventCode": "0x37",
+        "EventName": "UNC_C_LLC_VICTIMS.E_STATE",
+        "PerPkg": "1",
+        "PublicDescription": "This event is deprecated. Refer to new event UNC_CHA_LLC_VICTIMS.TOTAL_E",
+        "UMask": "0x2",
+        "Unit": "CHA"
+    },
+    {
+        "BriefDescription": "This event is deprecated. Refer to new event UNC_CHA_LLC_VICTIMS.TOTAL_F",
+        "Counter": "0,1,2,3",
+        "Deprecated": "1",
+        "EventCode": "0x37",
+        "EventName": "UNC_C_LLC_VICTIMS.F_STATE",
+        "PerPkg": "1",
+        "PublicDescription": "This event is deprecated. Refer to new event UNC_CHA_LLC_VICTIMS.TOTAL_F",
+        "UMask": "0x8",
+        "Unit": "CHA"
+    },
+    {
+        "BriefDescription": "This event is deprecated. Refer to new event UNC_CHA_LLC_VICTIMS.TOTAL_M",
+        "Counter": "0,1,2,3",
+        "Deprecated": "1",
+        "EventCode": "0x37",
+        "EventName": "UNC_C_LLC_VICTIMS.M_STATE",
+        "PerPkg": "1",
+        "PublicDescription": "This event is deprecated. Refer to new event UNC_CHA_LLC_VICTIMS.TOTAL_M",
+        "UMask": "0x1",
+        "Unit": "CHA"
+    },
+    {
+        "BriefDescription": "This event is deprecated. Refer to new event UNC_CHA_LLC_VICTIMS.TOTAL_S",
+        "Counter": "0,1,2,3",
+        "Deprecated": "1",
+        "EventCode": "0x37",
+        "EventName": "UNC_C_LLC_VICTIMS.S_STATE",
+        "PerPkg": "1",
+        "PublicDescription": "This event is deprecated. Refer to new event UNC_CHA_LLC_VICTIMS.TOTAL_S",
+        "UMask": "0x4",
+        "Unit": "CHA"
+    },
+    {
+        "BriefDescription": "This event is deprecated. ",
+        "Counter": "0,1,2,3",
+        "Deprecated": "1",
+        "EventCode": "0x35",
+        "EventName": "UNC_C_TOR_INSERTS.REM_ALL",
+        "Filter": "CHAfilter1",
+        "PerPkg": "1",
+        "PublicDescription": "This event is deprecated. ",
+        "UMask": "0x30",
+        "Unit": "CHA"
+    },
+    {
+        "BriefDescription": "This event is deprecated. Refer to new event UNC_CHA_CORE_SNP.CORE_GTONE",
+        "Counter": "0,1,2,3",
+        "Deprecated": "1",
+        "EventCode": "0x33",
+        "EventName": "UNC_H_CORE_SNP.CORE_GTONE",
+        "PerPkg": "1",
+        "PublicDescription": "This event is deprecated. Refer to new event UNC_CHA_CORE_SNP.CORE_GTONE",
+        "UMask": "0x42",
+        "Unit": "CHA"
+    },
+    {
+        "BriefDescription": "This event is deprecated. Refer to new event UNC_CHA_CORE_SNP.EVICT_GTONE",
+        "Counter": "0,1,2,3",
+        "Deprecated": "1",
+        "EventCode": "0x33",
+        "EventName": "UNC_H_CORE_SNP.EVICT_GTONE",
+        "PerPkg": "1",
+        "PublicDescription": "This event is deprecated. Refer to new event UNC_CHA_CORE_SNP.EVICT_GTONE",
+        "UMask": "0x82",
+        "Unit": "CHA"
+    },
+    {
+        "BriefDescription": "This event is deprecated. Refer to new event UNC_CHA_DIR_LOOKUP.NO_SNP",
+        "Counter": "0,1,2,3",
+        "Deprecated": "1",
+        "EventCode": "0x53",
+        "EventName": "UNC_H_DIR_LOOKUP.NO_SNP",
+        "PerPkg": "1",
+        "PublicDescription": "This event is deprecated. Refer to new event UNC_CHA_DIR_LOOKUP.NO_SNP",
+        "UMask": "0x2",
+        "Unit": "CHA"
+    },
+    {
+        "BriefDescription": "This event is deprecated. Refer to new event UNC_CHA_DIR_LOOKUP.SNP",
+        "Counter": "0,1,2,3",
+        "Deprecated": "1",
+        "EventCode": "0x53",
+        "EventName": "UNC_H_DIR_LOOKUP.SNP",
+        "PerPkg": "1",
+        "PublicDescription": "This event is deprecated. Refer to new event UNC_CHA_DIR_LOOKUP.SNP",
+        "UMask": "0x1",
+        "Unit": "CHA"
+    },
+    {
+        "BriefDescription": "This event is deprecated. Refer to new event UNC_CHA_DIR_UPDATE.HA",
+        "Counter": "0,1,2,3",
+        "Deprecated": "1",
+        "EventCode": "0x54",
+        "EventName": "UNC_H_DIR_UPDATE.HA",
+        "PerPkg": "1",
+        "PublicDescription": "This event is deprecated. Refer to new event UNC_CHA_DIR_UPDATE.HA",
+        "UMask": "0x1",
+        "Unit": "CHA"
+    },
+    {
+        "BriefDescription": "This event is deprecated. Refer to new event UNC_CHA_DIR_UPDATE.TOR",
+        "Counter": "0,1,2,3",
+        "Deprecated": "1",
+        "EventCode": "0x54",
+        "EventName": "UNC_H_DIR_UPDATE.TOR",
+        "PerPkg": "1",
+        "PublicDescription": "This event is deprecated. Refer to new event UNC_CHA_DIR_UPDATE.TOR",
+        "UMask": "0x2",
+        "Unit": "CHA"
+    },
+    {
+        "BriefDescription": "This event is deprecated. Refer to new event UNC_CHA_HITME_HIT.EX_RDS",
+        "Counter": "0,1,2,3",
+        "Deprecated": "1",
+        "EventCode": "0x5F",
+        "EventName": "UNC_H_HITME_HIT.EX_RDS",
+        "PerPkg": "1",
+        "PublicDescription": "This event is deprecated. Refer to new event UNC_CHA_HITME_HIT.EX_RDS",
+        "UMask": "0x1",
+        "Unit": "CHA"
+    },
+    {
+        "BriefDescription": "This event is deprecated. Refer to new event UNC_CHA_MISC.RFO_HIT_S",
+        "Counter": "0,1,2,3",
+        "Deprecated": "1",
+        "EventCode": "0x39",
+        "EventName": "UNC_H_MISC.RFO_HIT_S",
+        "PerPkg": "1",
+        "PublicDescription": "This event is deprecated. Refer to new event UNC_CHA_MISC.RFO_HIT_S",
+        "UMask": "0x8",
+        "Unit": "CHA"
+    },
+    {
+        "BriefDescription": "This event is deprecated. Refer to new event UNC_CHA_REQUESTS.INVITOE_LOCAL",
+        "Counter": "0,1,2,3",
+        "Deprecated": "1",
+        "EventCode": "0x50",
+        "EventName": "UNC_H_REQUESTS.INVITOE_LOCAL",
+        "PerPkg": "1",
+        "PublicDescription": "This event is deprecated. Refer to new event UNC_CHA_REQUESTS.INVITOE_LOCAL",
+        "UMask": "0x10",
+        "Unit": "CHA"
+    },
+    {
+        "BriefDescription": "This event is deprecated. Refer to new event UNC_CHA_REQUESTS.INVITOE_REMOTE",
+        "Counter": "0,1,2,3",
+        "Deprecated": "1",
+        "EventCode": "0x50",
+        "EventName": "UNC_H_REQUESTS.INVITOE_REMOTE",
+        "PerPkg": "1",
+        "PublicDescription": "This event is deprecated. Refer to new event UNC_CHA_REQUESTS.INVITOE_REMOTE",
+        "UMask": "0x20",
+        "Unit": "CHA"
+    },
+    {
+        "BriefDescription": "This event is deprecated. Refer to new event UNC_CHA_REQUESTS.READS",
+        "Counter": "0,1,2,3",
+        "Deprecated": "1",
+        "EventCode": "0x50",
+        "EventName": "UNC_H_REQUESTS.READS",
+        "PerPkg": "1",
+        "PublicDescription": "This event is deprecated. Refer to new event UNC_CHA_REQUESTS.READS",
+        "UMask": "0x3",
+        "Unit": "CHA"
+    },
+    {
+        "BriefDescription": "This event is deprecated. Refer to new event UNC_CHA_REQUESTS.READS_LOCAL",
+        "Counter": "0,1,2,3",
+        "Deprecated": "1",
+        "EventCode": "0x50",
+        "EventName": "UNC_H_REQUESTS.READS_LOCAL",
+        "PerPkg": "1",
+        "PublicDescription": "This event is deprecated. Refer to new event UNC_CHA_REQUESTS.READS_LOCAL",
+        "UMask": "0x1",
+        "Unit": "CHA"
+    },
+    {
+        "BriefDescription": "This event is deprecated. Refer to new event UNC_CHA_REQUESTS.WRITES",
+        "Counter": "0,1,2,3",
+        "Deprecated": "1",
+        "EventCode": "0x50",
+        "EventName": "UNC_H_REQUESTS.WRITES",
+        "PerPkg": "1",
+        "PublicDescription": "This event is deprecated. Refer to new event UNC_CHA_REQUESTS.WRITES",
+        "UMask": "0xC",
+        "Unit": "CHA"
+    },
+    {
+        "BriefDescription": "This event is deprecated. Refer to new event UNC_CHA_REQUESTS.WRITES_LOCAL",
+        "Counter": "0,1,2,3",
+        "Deprecated": "1",
+        "EventCode": "0x50",
+        "EventName": "UNC_H_REQUESTS.WRITES_LOCAL",
+        "PerPkg": "1",
+        "PublicDescription": "This event is deprecated. Refer to new event UNC_CHA_REQUESTS.WRITES_LOCAL",
+        "UMask": "0x4",
+        "Unit": "CHA"
+    },
+    {
+        "BriefDescription": "This event is deprecated. Refer to new event UNC_CHA_RxC_INSERTS.IRQ",
+        "Counter": "0,1,2,3",
+        "Deprecated": "1",
+        "EventCode": "0x13",
+        "EventName": "UNC_H_RxC_INSERTS.IRQ",
+        "PerPkg": "1",
+        "PublicDescription": "This event is deprecated. Refer to new event UNC_CHA_RxC_INSERTS.IRQ",
+        "UMask": "0x1",
+        "Unit": "CHA"
+    },
+    {
+        "BriefDescription": "This event is deprecated. Refer to new event UNC_CHA_RxC_IRQ1_REJECT.PA_MATCH",
+        "Counter": "0,1,2,3",
+        "Deprecated": "1",
+        "EventCode": "0x19",
+        "EventName": "UNC_H_RxC_IRQ1_REJECT.PA_MATCH",
+        "PerPkg": "1",
+        "PublicDescription": "This event is deprecated. Refer to new event UNC_CHA_RxC_IRQ1_REJECT.PA_MATCH",
+        "UMask": "0x80",
+        "Unit": "CHA"
+    },
+    {
+        "BriefDescription": "This event is deprecated. Refer to new event UNC_CHA_RxC_OCCUPANCY.IRQ",
+        "Deprecated": "1",
+        "EventCode": "0x11",
+        "EventName": "UNC_H_RxC_OCCUPANCY.IRQ",
+        "PerPkg": "1",
+        "PublicDescription": "This event is deprecated. Refer to new event UNC_CHA_RxC_OCCUPANCY.IRQ",
+        "UMask": "0x1",
+        "Unit": "CHA"
+    },
+    {
+        "BriefDescription": "This event is deprecated. Refer to new event UNC_CHA_SNOOP_RESP.RSPCNFLCTS",
+        "Counter": "0,1,2,3",
+        "Deprecated": "1",
+        "EventCode": "0x5C",
+        "EventName": "UNC_H_SNOOP_RESP.RSPCNFLCT",
+        "PerPkg": "1",
+        "PublicDescription": "This event is deprecated. Refer to new event UNC_CHA_SNOOP_RESP.RSPCNFLCTS",
+        "UMask": "0x40",
+        "Unit": "CHA"
+    },
+    {
+        "BriefDescription": "This event is deprecated. Refer to new event UNC_CHA_SNOOP_RESP.RSPIFWD",
+        "Counter": "0,1,2,3",
+        "Deprecated": "1",
+        "EventCode": "0x5C",
+        "EventName": "UNC_H_SNOOP_RESP.RSPIFWD",
+        "PerPkg": "1",
+        "PublicDescription": "This event is deprecated. Refer to new event UNC_CHA_SNOOP_RESP.RSPIFWD",
+        "UMask": "0x4",
+        "Unit": "CHA"
+    },
+    {
+        "BriefDescription": "This event is deprecated. Refer to new event UNC_CHA_SNOOP_RESP.RSPSFWD",
+        "Counter": "0,1,2,3",
+        "Deprecated": "1",
+        "EventCode": "0x5C",
+        "EventName": "UNC_H_SNOOP_RESP.RSPSFWD",
+        "PerPkg": "1",
+        "PublicDescription": "This event is deprecated. Refer to new event UNC_CHA_SNOOP_RESP.RSPSFWD",
+        "UMask": "0x8",
+        "Unit": "CHA"
+    },
+    {
+        "BriefDescription": "This event is deprecated. Refer to new event UNC_CHA_SNOOP_RESP.RSP_FWD_WB",
+        "Counter": "0,1,2,3",
+        "Deprecated": "1",
+        "EventCode": "0x5C",
+        "EventName": "UNC_H_SNOOP_RESP.RSP_FWD_WB",
+        "PerPkg": "1",
+        "PublicDescription": "This event is deprecated. Refer to new event UNC_CHA_SNOOP_RESP.RSP_FWD_WB",
+        "UMask": "0x20",
+        "Unit": "CHA"
+    },
+    {
         "BriefDescription": "Clockticks of the IIO Traffic Controller",
         "Counter": "0,1,2,3",
         "EventCode": "0x1",
@@ -1030,6 +1609,110 @@
         "PortMask": "0x08",
         "PublicDescription": "Counts every peer to peer write request of 4 bytes of data made by IIO Part3 to the MMIO space of an IIO target. In the general case, Part3 refers to a x4 PCIe card plugged into the fourth slot of a PCIe riser card, but it could brefer to  any device attached to the IIO unit using the lanes starting at lane 12 of the 16 lanes supported by the bus.",
         "UMask": "0x02",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "This event is deprecated. Refer to new event UNC_IIO_DATA_REQ_OF_CPU.MEM_READ.PART0",
+        "Counter": "0,1",
+        "Deprecated": "1",
+        "EventCode": "0x83",
+        "EventName": "UNC_IIO_PAYLOAD_BYTES_IN.MEM_READ.PART0",
+        "FCMask": "0x7",
+        "PerPkg": "1",
+        "PortMask": "0x1",
+        "PublicDescription": "This event is deprecated. Refer to new event UNC_IIO_DATA_REQ_OF_CPU.MEM_READ.PART0",
+        "UMask": "0x4",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "This event is deprecated. Refer to new event UNC_IIO_DATA_REQ_OF_CPU.MEM_READ.PART1",
+        "Counter": "0,1",
+        "Deprecated": "1",
+        "EventCode": "0x83",
+        "EventName": "UNC_IIO_PAYLOAD_BYTES_IN.MEM_READ.PART1",
+        "FCMask": "0x7",
+        "PerPkg": "1",
+        "PortMask": "0x2",
+        "PublicDescription": "This event is deprecated. Refer to new event UNC_IIO_DATA_REQ_OF_CPU.MEM_READ.PART1",
+        "UMask": "0x4",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "This event is deprecated. Refer to new event UNC_IIO_DATA_REQ_OF_CPU.MEM_READ.PART2",
+        "Counter": "0,1",
+        "Deprecated": "1",
+        "EventCode": "0x83",
+        "EventName": "UNC_IIO_PAYLOAD_BYTES_IN.MEM_READ.PART2",
+        "FCMask": "0x7",
+        "PerPkg": "1",
+        "PortMask": "0x4",
+        "PublicDescription": "This event is deprecated. Refer to new event UNC_IIO_DATA_REQ_OF_CPU.MEM_READ.PART2",
+        "UMask": "0x4",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "This event is deprecated. Refer to new event UNC_IIO_DATA_REQ_OF_CPU.MEM_READ.PART3",
+        "Counter": "0,1",
+        "Deprecated": "1",
+        "EventCode": "0x83",
+        "EventName": "UNC_IIO_PAYLOAD_BYTES_IN.MEM_READ.PART3",
+        "FCMask": "0x7",
+        "PerPkg": "1",
+        "PortMask": "0x8",
+        "PublicDescription": "This event is deprecated. Refer to new event UNC_IIO_DATA_REQ_OF_CPU.MEM_READ.PART3",
+        "UMask": "0x4",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "This event is deprecated. Refer to new event UNC_IIO_DATA_REQ_OF_CPU.MEM_WRITE.PART0",
+        "Counter": "0,1",
+        "Deprecated": "1",
+        "EventCode": "0x83",
+        "EventName": "UNC_IIO_PAYLOAD_BYTES_IN.MEM_WRITE.PART0",
+        "FCMask": "0x7",
+        "PerPkg": "1",
+        "PortMask": "0x1",
+        "PublicDescription": "This event is deprecated. Refer to new event UNC_IIO_DATA_REQ_OF_CPU.MEM_WRITE.PART0",
+        "UMask": "0x1",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "This event is deprecated. Refer to new event UNC_IIO_DATA_REQ_OF_CPU.MEM_WRITE.PART1",
+        "Counter": "0,1",
+        "Deprecated": "1",
+        "EventCode": "0x83",
+        "EventName": "UNC_IIO_PAYLOAD_BYTES_IN.MEM_WRITE.PART1",
+        "FCMask": "0x7",
+        "PerPkg": "1",
+        "PortMask": "0x2",
+        "PublicDescription": "This event is deprecated. Refer to new event UNC_IIO_DATA_REQ_OF_CPU.MEM_WRITE.PART1",
+        "UMask": "0x1",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "This event is deprecated. Refer to new event UNC_IIO_DATA_REQ_OF_CPU.MEM_WRITE.PART2",
+        "Counter": "0,1",
+        "Deprecated": "1",
+        "EventCode": "0x83",
+        "EventName": "UNC_IIO_PAYLOAD_BYTES_IN.MEM_WRITE.PART2",
+        "FCMask": "0x7",
+        "PerPkg": "1",
+        "PortMask": "0x4",
+        "PublicDescription": "This event is deprecated. Refer to new event UNC_IIO_DATA_REQ_OF_CPU.MEM_WRITE.PART2",
+        "UMask": "0x1",
+        "Unit": "IIO"
+    },
+    {
+        "BriefDescription": "This event is deprecated. Refer to new event UNC_IIO_DATA_REQ_OF_CPU.MEM_WRITE.PART3",
+        "Counter": "0,1",
+        "Deprecated": "1",
+        "EventCode": "0x83",
+        "EventName": "UNC_IIO_PAYLOAD_BYTES_IN.MEM_WRITE.PART3",
+        "FCMask": "0x7",
+        "PerPkg": "1",
+        "PortMask": "0x8",
+        "PublicDescription": "This event is deprecated. Refer to new event UNC_IIO_DATA_REQ_OF_CPU.MEM_WRITE.PART3",
+        "UMask": "0x1",
         "Unit": "IIO"
     },
     {
@@ -1708,12 +2391,12 @@
         "Unit": "M2M"
     },
     {
-        "BriefDescription": "Prefecth requests that got turn into a demand request",
+        "BriefDescription": "Prefetch requests that got turn into a demand request",
         "Counter": "0,1,2,3",
         "EventCode": "0x56",
         "EventName": "UNC_M2M_PREFCAM_DEMAND_PROMOTIONS",
         "PerPkg": "1",
-        "PublicDescription": "Counts when the M2M (Mesh to Memory) promotes a outstanding request in the prefetch queue due to a subsequent demand read request that entered the M2M with the same address.  Explanatory Side Note: The Prefecth queue is made of CAM (Content Addressable Memory)",
+        "PublicDescription": "Counts when the M2M (Mesh to Memory) promotes a outstanding request in the prefetch queue due to a subsequent demand read request that entered the M2M with the same address.  Explanatory Side Note: The Prefetch queue is made of CAM (Content Addressable Memory)",
         "Unit": "M2M"
     },
     {
@@ -1722,7 +2405,7 @@
         "EventCode": "0x57",
         "EventName": "UNC_M2M_PREFCAM_INSERTS",
         "PerPkg": "1",
-        "PublicDescription": "Counts when the M2M (Mesh to Memory) recieves a prefetch request and inserts it into its outstanding prefetch queue.  Explanatory Side Note: the prefect queue is made from CAM: Content Addressable Memory",
+        "PublicDescription": "Counts when the M2M (Mesh to Memory) receives a prefetch request and inserts it into its outstanding prefetch queue.  Explanatory Side Note: the prefect queue is made from CAM: Content Addressable Memory",
         "Unit": "M2M"
     },
     {
@@ -1828,6 +2511,17 @@
         "Unit": "UPI LL"
     },
     {
+        "BriefDescription": "This event is deprecated. Refer to new event UNC_UPI_DIRECT_ATTEMPTS.D2U",
+        "Counter": "0,1,2,3",
+        "Deprecated": "1",
+        "EventCode": "0x12",
+        "EventName": "UNC_UPI_DIRECT_ATTEMPTS.D2K",
+        "PerPkg": "1",
+        "PublicDescription": "This event is deprecated. Refer to new event UNC_UPI_DIRECT_ATTEMPTS.D2U",
+        "UMask": "0x2",
+        "Unit": "UPI LL"
+    },
+    {
         "BriefDescription": "Data Response packets that go direct to Intel UPI",
         "Counter": "0,1,2,3",
         "EventCode": "0x12",
@@ -1861,7 +2555,7 @@
         "EventCode": "0x31",
         "EventName": "UNC_UPI_RxL_BYPASSED.SLOT0",
         "PerPkg": "1",
-        "PublicDescription": "Counts incoming FLITs (FLow control unITs) which bypassed the slot0 RxQ buffer (Receive Queue) and passed directly to the Egress.  This is a latency optimization, and should generally be the common case.  If this value is less than the number of FLITs transfered, it implies that there was queueing getting onto the ring, and thus the transactions saw higher latency.",
+        "PublicDescription": "Counts incoming FLITs (FLow control unITs) which bypassed the slot0 RxQ buffer (Receive Queue) and passed directly to the Egress.  This is a latency optimization, and should generally be the common case.  If this value is less than the number of FLITs transferred, it implies that there was queueing getting onto the ring, and thus the transactions saw higher latency.",
         "UMask": "0x1",
         "Unit": "UPI LL"
     },
@@ -1871,17 +2565,17 @@
         "EventCode": "0x31",
         "EventName": "UNC_UPI_RxL_BYPASSED.SLOT1",
         "PerPkg": "1",
-        "PublicDescription": "Counts incoming FLITs (FLow control unITs) which bypassed the slot1 RxQ buffer  (Receive Queue) and passed directly across the BGF and into the Egress.  This is a latency optimization, and should generally be the common case.  If this value is less than the number of FLITs transfered, it implies that there was queueing getting onto the ring, and thus the transactions saw higher latency.",
+        "PublicDescription": "Counts incoming FLITs (FLow control unITs) which bypassed the slot1 RxQ buffer  (Receive Queue) and passed directly across the BGF and into the Egress.  This is a latency optimization, and should generally be the common case.  If this value is less than the number of FLITs transferred, it implies that there was queueing getting onto the ring, and thus the transactions saw higher latency.",
         "UMask": "0x2",
         "Unit": "UPI LL"
     },
     {
-        "BriefDescription": "FLITs received which bypassed the Slot0 Recieve Buffer",
+        "BriefDescription": "FLITs received which bypassed the Slot0 Receive Buffer",
         "Counter": "0,1,2,3",
         "EventCode": "0x31",
         "EventName": "UNC_UPI_RxL_BYPASSED.SLOT2",
         "PerPkg": "1",
-        "PublicDescription": "Counts incoming FLITs (FLow control unITs) whcih bypassed the slot2 RxQ buffer (Receive Queue)  and passed directly to the Egress.  This is a latency optimization, and should generally be the common case.  If this value is less than the number of FLITs transfered, it implies that there was queueing getting onto the ring, and thus the transactions saw higher latency.",
+        "PublicDescription": "Counts incoming FLITs (FLow control unITs) which bypassed the slot2 RxQ buffer (Receive Queue)  and passed directly to the Egress.  This is a latency optimization, and should generally be the common case.  If this value is less than the number of FLITs transferred, it implies that there was queueing getting onto the ring, and thus the transactions saw higher latency.",
         "UMask": "0x4",
         "Unit": "UPI LL"
     },
@@ -1913,6 +2607,17 @@
         "PerPkg": "1",
         "PublicDescription": "Counts protocol header and credit FLITs  (80 bit FLow control unITs) received from any of the 3 UPI slots on this UPI unit.",
         "UMask": "0x97",
+        "Unit": "UPI LL"
+    },
+    {
+        "BriefDescription": "This event is deprecated. Refer to new event UNC_UPI_RxL_FLITS.ALL_NULL",
+        "Counter": "0,1,2,3",
+        "Deprecated": "1",
+        "EventCode": "0x3",
+        "EventName": "UNC_UPI_RxL_FLITS.NULL",
+        "PerPkg": "1",
+        "PublicDescription": "This event is deprecated. Refer to new event UNC_UPI_RxL_FLITS.ALL_NULL",
+        "UMask": "0x20",
         "Unit": "UPI LL"
     },
     {
@@ -1971,6 +2676,17 @@
         "PerPkg": "1",
         "PublicDescription": "Counts protocol header and credit FLITs (80 bit FLow control unITs) transmitted across any of the 3 UPI (Ultra Path Interconnect) slots on this UPI unit.",
         "UMask": "0x97",
+        "Unit": "UPI LL"
+    },
+    {
+        "BriefDescription": "This event is deprecated. Refer to new event UNC_UPI_TxL_FLITS.ALL_NULL",
+        "Counter": "0,1,2,3",
+        "Deprecated": "1",
+        "EventCode": "0x2",
+        "EventName": "UNC_UPI_TxL_FLITS.NULL",
+        "PerPkg": "1",
+        "PublicDescription": "This event is deprecated. Refer to new event UNC_UPI_TxL_FLITS.ALL_NULL",
+        "UMask": "0x20",
         "Unit": "UPI LL"
     }
 ]

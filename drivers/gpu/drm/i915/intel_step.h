@@ -11,9 +11,10 @@
 struct drm_i915_private;
 
 struct intel_step_info {
-	u8 graphics_step;
+	u8 graphics_step;	/* Represents the compute tile on Xe_HPC */
 	u8 display_step;
 	u8 media_step;
+	u8 basedie_step;
 };
 
 #define STEP_ENUM_VAL(name)  STEP_##name,
@@ -25,6 +26,7 @@ struct intel_step_info {
 	func(B0)			\
 	func(B1)			\
 	func(B2)			\
+	func(B3)			\
 	func(C0)			\
 	func(C1)			\
 	func(D0)			\

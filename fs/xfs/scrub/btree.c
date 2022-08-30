@@ -462,7 +462,7 @@ xchk_btree_check_iroot_minrecs(
 	 */
 	if (bs->cur->bc_btnum == XFS_BTNUM_BMAP &&
 	    bs->cur->bc_ino.whichfork == XFS_DATA_FORK &&
-	    XFS_IFORK_Q(bs->sc->ip))
+	    xfs_inode_has_attr_fork(bs->sc->ip))
 		return false;
 
 	return true;

@@ -221,13 +221,3 @@ nvkm_falcon_ctor(const struct nvkm_falcon_func *func,
 	mutex_init(&falcon->dmem_mutex);
 	return 0;
 }
-
-void
-nvkm_falcon_del(struct nvkm_falcon **pfalcon)
-{
-	if (*pfalcon) {
-		nvkm_falcon_dtor(*pfalcon);
-		kfree(*pfalcon);
-		*pfalcon = NULL;
-	}
-}

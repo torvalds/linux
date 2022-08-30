@@ -62,17 +62,14 @@ static ssize_t audmux_read_file(struct file *file, char __user *user_buf,
 	uintptr_t port = (uintptr_t)file->private_data;
 	u32 pdcr, ptcr;
 
-	if (audmux_clk) {
-		ret = clk_prepare_enable(audmux_clk);
-		if (ret)
-			return ret;
-	}
+	ret = clk_prepare_enable(audmux_clk);
+	if (ret)
+		return ret;
 
 	ptcr = readl(audmux_base + IMX_AUDMUX_V2_PTCR(port));
 	pdcr = readl(audmux_base + IMX_AUDMUX_V2_PDCR(port));
 
-	if (audmux_clk)
-		clk_disable_unprepare(audmux_clk);
+	clk_disable_unprepare(audmux_clk);
 
 	buf = kmalloc(PAGE_SIZE, GFP_KERNEL);
 	if (!buf)
@@ -209,17 +206,14 @@ int imx_audmux_v2_configure_port(unsigned int port, unsigned int ptcr,
 	if (!audmux_base)
 		return -ENOSYS;
 
-	if (audmux_clk) {
-		ret = clk_prepare_enable(audmux_clk);
-		if (ret)
-			return ret;
-	}
+	ret = clk_prepare_enable(audmux_clk);
+	if (ret)
+		return ret;
 
 	writel(ptcr, audmux_base + IMX_AUDMUX_V2_PTCR(port));
 	writel(pdcr, audmux_base + IMX_AUDMUX_V2_PDCR(port));
 
-	if (audmux_clk)
-		clk_disable_unprepare(audmux_clk);
+	clk_disable_unprepare(audmux_clk);
 
 	return 0;
 }
@@ -298,7 +292,7 @@ static int imx_audmux_probe(struct platform_device *pdev)
 		audmux_clk = NULL;
 	}
 
-	audmux_type = (enum imx_audmux_type)of_device_get_match_data(&pdev->dev);
+	audmux_type = (uintptr_t)of_device_get_match_data(&pdev->dev);
 
 	switch (audmux_type) {
 	case IMX31_AUDMUX:

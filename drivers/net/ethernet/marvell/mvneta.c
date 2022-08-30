@@ -2664,8 +2664,8 @@ err_drop_frame:
 static inline void
 mvneta_tso_put_hdr(struct sk_buff *skb, struct mvneta_tx_queue *txq)
 {
-	int hdr_len = skb_transport_offset(skb) + tcp_hdrlen(skb);
 	struct mvneta_tx_buf *buf = &txq->buf[txq->txq_put_index];
+	int hdr_len = skb_tcp_all_headers(skb);
 	struct mvneta_tx_desc *tx_desc;
 
 	tx_desc = mvneta_txq_next_desc_get(txq);
@@ -2727,7 +2727,7 @@ static int mvneta_tx_tso(struct sk_buff *skb, struct net_device *dev,
 	if ((txq->count + tso_count_descs(skb)) >= txq->size)
 		return 0;
 
-	if (skb_headlen(skb) < (skb_transport_offset(skb) + tcp_hdrlen(skb))) {
+	if (skb_headlen(skb) < skb_tcp_all_headers(skb)) {
 		pr_info("*** Is this even possible?\n");
 		return 0;
 	}

@@ -37,6 +37,16 @@
 #define QSPI_RX_EN				BIT(12)
 #define QSPI_CS_SW_VAL				BIT(20)
 #define QSPI_CS_SW_HW				BIT(21)
+
+#define QSPI_CS_POL_INACTIVE(n)			(1 << (22 + (n)))
+#define QSPI_CS_POL_INACTIVE_MASK		(0xF << 22)
+#define QSPI_CS_SEL_0				(0 << 26)
+#define QSPI_CS_SEL_1				(1 << 26)
+#define QSPI_CS_SEL_2				(2 << 26)
+#define QSPI_CS_SEL_3				(3 << 26)
+#define QSPI_CS_SEL_MASK			(3 << 26)
+#define QSPI_CS_SEL(x)				(((x) & 0x3) << 26)
+
 #define QSPI_CONTROL_MODE_0			(0 << 28)
 #define QSPI_CONTROL_MODE_3			(3 << 28)
 #define QSPI_CONTROL_MODE_MASK			(3 << 28)
@@ -154,6 +164,7 @@
 struct tegra_qspi_soc_data {
 	bool has_dma;
 	bool cmb_xfer_capable;
+	unsigned int cs_count;
 };
 
 struct tegra_qspi_client_data {
@@ -812,6 +823,7 @@ static u32 tegra_qspi_setup_transfer_one(struct spi_device *spi, struct spi_tran
 		tegra_qspi_mask_clear_irq(tqspi);
 
 		command1 = tqspi->def_command1_reg;
+		command1 |= QSPI_CS_SEL(spi->chip_select);
 		command1 |= QSPI_BIT_LENGTH(bits_per_word - 1);
 
 		command1 &= ~QSPI_CONTROL_MODE_MASK;
@@ -941,10 +953,11 @@ static int tegra_qspi_setup(struct spi_device *spi)
 
 	/* keep default cs state to inactive */
 	val = tqspi->def_command1_reg;
+	val |= QSPI_CS_SEL(spi->chip_select);
 	if (spi->mode & SPI_CS_HIGH)
-		val &= ~QSPI_CS_SW_VAL;
+		val &= ~QSPI_CS_POL_INACTIVE(spi->chip_select);
 	else
-		val |= QSPI_CS_SW_VAL;
+		val |= QSPI_CS_POL_INACTIVE(spi->chip_select);
 
 	tqspi->def_command1_reg = val;
 	tegra_qspi_writel(tqspi, tqspi->def_command1_reg, QSPI_COMMAND1);
@@ -1425,16 +1438,25 @@ static irqreturn_t tegra_qspi_isr_thread(int irq, void *context_data)
 static struct tegra_qspi_soc_data tegra210_qspi_soc_data = {
 	.has_dma = true,
 	.cmb_xfer_capable = false,
+	.cs_count = 1,
 };
 
 static struct tegra_qspi_soc_data tegra186_qspi_soc_data = {
 	.has_dma = true,
 	.cmb_xfer_capable = true,
+	.cs_count = 1,
 };
 
 static struct tegra_qspi_soc_data tegra234_qspi_soc_data = {
 	.has_dma = false,
 	.cmb_xfer_capable = true,
+	.cs_count = 1,
+};
+
+static struct tegra_qspi_soc_data tegra241_qspi_soc_data = {
+	.has_dma = false,
+	.cmb_xfer_capable = true,
+	.cs_count = 4,
 };
 
 static const struct of_device_id tegra_qspi_of_match[] = {
@@ -1450,6 +1472,9 @@ static const struct of_device_id tegra_qspi_of_match[] = {
 	}, {
 		.compatible = "nvidia,tegra234-qspi",
 		.data	    = &tegra234_qspi_soc_data,
+	}, {
+		.compatible = "nvidia,tegra241-qspi",
+		.data	    = &tegra241_qspi_soc_data,
 	},
 	{}
 };
@@ -1467,6 +1492,9 @@ static const struct acpi_device_id tegra_qspi_acpi_match[] = {
 	}, {
 		.id = "NVDA1413",
 		.driver_data = (kernel_ulong_t)&tegra234_qspi_soc_data,
+	}, {
+		.id = "NVDA1513",
+		.driver_data = (kernel_ulong_t)&tegra241_qspi_soc_data,
 	},
 	{}
 };
@@ -1506,6 +1534,7 @@ static int tegra_qspi_probe(struct platform_device *pdev)
 	spin_lock_init(&tqspi->lock);
 
 	tqspi->soc_data = device_get_match_data(&pdev->dev);
+	master->num_chipselect = tqspi->soc_data->cs_count;
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	tqspi->base = devm_ioremap_resource(&pdev->dev, r);
 	if (IS_ERR(tqspi->base))

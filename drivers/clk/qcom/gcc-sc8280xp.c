@@ -20,6 +20,7 @@
 #include "clk-regmap.h"
 #include "clk-regmap-divider.h"
 #include "clk-regmap-mux.h"
+#include "clk-regmap-phy-mux.h"
 #include "common.h"
 #include "gdsc.h"
 #include "reset.h"
@@ -82,11 +83,6 @@ enum {
 	P_GCC_USB4_PHY_PCIE_PIPEGMUX_CLK_SRC,
 	P_GCC_USB4_PHY_PIPEGMUX_CLK_SRC,
 	P_GCC_USB4_PHY_SYS_PIPEGMUX_CLK_SRC,
-	P_PCIE_2A_PIPE_CLK,
-	P_PCIE_2B_PIPE_CLK,
-	P_PCIE_3A_PIPE_CLK,
-	P_PCIE_3B_PIPE_CLK,
-	P_PCIE_4_PIPE_CLK,
 	P_QUSB4PHY_1_GCC_USB4_RX0_CLK,
 	P_QUSB4PHY_1_GCC_USB4_RX1_CLK,
 	P_QUSB4PHY_GCC_USB4_RX0_CLK,
@@ -349,56 +345,6 @@ static const struct clk_parent_data gcc_parent_data_9[] = {
 	{ .hw = &gcc_gpll7.clkr.hw },
 	{ .index = DT_RXC1_REF_CLK },
 	{ .hw = &gcc_gpll0_out_even.clkr.hw },
-};
-
-static const struct parent_map gcc_parent_map_10[] = {
-	{ P_PCIE_2A_PIPE_CLK, 0 },
-	{ P_BI_TCXO, 2 },
-};
-
-static const struct clk_parent_data gcc_parent_data_10[] = {
-	{ .index = DT_PCIE_2A_PIPE_CLK },
-	{ .index = DT_BI_TCXO },
-};
-
-static const struct parent_map gcc_parent_map_11[] = {
-	{ P_PCIE_2B_PIPE_CLK, 0 },
-	{ P_BI_TCXO, 2 },
-};
-
-static const struct clk_parent_data gcc_parent_data_11[] = {
-	{ .index = DT_PCIE_2B_PIPE_CLK },
-	{ .index = DT_BI_TCXO },
-};
-
-static const struct parent_map gcc_parent_map_12[] = {
-	{ P_PCIE_3A_PIPE_CLK, 0 },
-	{ P_BI_TCXO, 2 },
-};
-
-static const struct clk_parent_data gcc_parent_data_12[] = {
-	{ .index = DT_PCIE_3A_PIPE_CLK },
-	{ .index = DT_BI_TCXO },
-};
-
-static const struct parent_map gcc_parent_map_13[] = {
-	{ P_PCIE_3B_PIPE_CLK, 0 },
-	{ P_BI_TCXO, 2 },
-};
-
-static const struct clk_parent_data gcc_parent_data_13[] = {
-	{ .index = DT_PCIE_3B_PIPE_CLK },
-	{ .index = DT_BI_TCXO },
-};
-
-static const struct parent_map gcc_parent_map_14[] = {
-	{ P_PCIE_4_PIPE_CLK, 0 },
-	{ P_BI_TCXO, 2 },
-};
-
-static const struct clk_parent_data gcc_parent_data_14[] = {
-	{ .index = DT_PCIE_4_PIPE_CLK },
-	{ .index = DT_BI_TCXO },
 };
 
 static const struct parent_map gcc_parent_map_15[] = {
@@ -741,77 +687,72 @@ static const struct clk_parent_data gcc_parent_data_41[] = {
 	{ .index = DT_USB4_PHY_GCC_USB4_PCIE_PIPE_CLK },
 };
 
-static struct clk_regmap_mux gcc_pcie_2a_pipe_clk_src = {
+static struct clk_regmap_phy_mux gcc_pcie_2a_pipe_clk_src = {
 	.reg = 0x9d05c,
-	.shift = 0,
-	.width = 2,
-	.parent_map = gcc_parent_map_10,
 	.clkr = {
 		.hw.init = &(const struct clk_init_data) {
 			.name = "gcc_pcie_2a_pipe_clk_src",
-			.parent_data = gcc_parent_data_10,
-			.num_parents = ARRAY_SIZE(gcc_parent_data_10),
-			.ops = &clk_regmap_mux_closest_ops,
+			.parent_data = &(const struct clk_parent_data){
+				.index = DT_PCIE_2A_PIPE_CLK,
+			},
+			.num_parents = 1,
+			.ops = &clk_regmap_phy_mux_ops,
 		},
 	},
 };
 
-static struct clk_regmap_mux gcc_pcie_2b_pipe_clk_src = {
+static struct clk_regmap_phy_mux gcc_pcie_2b_pipe_clk_src = {
 	.reg = 0x9e05c,
-	.shift = 0,
-	.width = 2,
-	.parent_map = gcc_parent_map_11,
 	.clkr = {
 		.hw.init = &(const struct clk_init_data) {
 			.name = "gcc_pcie_2b_pipe_clk_src",
-			.parent_data = gcc_parent_data_11,
-			.num_parents = ARRAY_SIZE(gcc_parent_data_11),
-			.ops = &clk_regmap_mux_closest_ops,
+			.parent_data = &(const struct clk_parent_data){
+				.index = DT_PCIE_2B_PIPE_CLK,
+			},
+			.num_parents = 1,
+			.ops = &clk_regmap_phy_mux_ops,
 		},
 	},
 };
 
-static struct clk_regmap_mux gcc_pcie_3a_pipe_clk_src = {
+static struct clk_regmap_phy_mux gcc_pcie_3a_pipe_clk_src = {
 	.reg = 0xa005c,
-	.shift = 0,
-	.width = 2,
-	.parent_map = gcc_parent_map_12,
 	.clkr = {
 		.hw.init = &(const struct clk_init_data) {
 			.name = "gcc_pcie_3a_pipe_clk_src",
-			.parent_data = gcc_parent_data_12,
-			.num_parents = ARRAY_SIZE(gcc_parent_data_12),
-			.ops = &clk_regmap_mux_closest_ops,
+			.parent_data = &(const struct clk_parent_data){
+				.index = DT_PCIE_3A_PIPE_CLK,
+			},
+			.num_parents = 1,
+			.ops = &clk_regmap_phy_mux_ops,
 		},
 	},
 };
 
-static struct clk_regmap_mux gcc_pcie_3b_pipe_clk_src = {
+static struct clk_regmap_phy_mux gcc_pcie_3b_pipe_clk_src = {
 	.reg = 0xa205c,
-	.shift = 0,
-	.width = 2,
-	.parent_map = gcc_parent_map_13,
 	.clkr = {
 		.hw.init = &(const struct clk_init_data) {
 			.name = "gcc_pcie_3b_pipe_clk_src",
-			.parent_data = gcc_parent_data_13,
-			.num_parents = ARRAY_SIZE(gcc_parent_data_13),
-			.ops = &clk_regmap_mux_closest_ops,
+			.parent_data = &(const struct clk_parent_data){
+				.index = DT_PCIE_3B_PIPE_CLK,
+			},
+			.num_parents = 1,
+			.ops = &clk_regmap_phy_mux_ops,
 		},
 	},
 };
 
-static struct clk_regmap_mux gcc_pcie_4_pipe_clk_src = {
+static struct clk_regmap_phy_mux gcc_pcie_4_pipe_clk_src = {
 	.reg = 0x6b05c,
-	.shift = 0,
-	.width = 2,
-	.parent_map = gcc_parent_map_14,
 	.clkr = {
 		.hw.init = &(const struct clk_init_data) {
 			.name = "gcc_pcie_4_pipe_clk_src",
-			.parent_data = gcc_parent_data_14,
-			.num_parents = ARRAY_SIZE(gcc_parent_data_14),
-			.ops = &clk_regmap_mux_closest_ops,
+			.parent_data = &(const struct clk_parent_data){
+				.index = DT_PCIE_4_PIPE_CLK,
+			},
+			.num_parents = 1,
+			.ops = &clk_regmap_phy_mux_ops,
 		},
 	},
 };
@@ -6807,58 +6748,79 @@ static struct clk_branch gcc_video_vcodec_throttle_clk = {
 
 static struct gdsc pcie_0_tunnel_gdsc = {
 	.gdscr = 0xa4004,
+	.collapse_ctrl = 0x52128,
+	.collapse_mask = BIT(0),
 	.pd = {
 		.name = "pcie_0_tunnel_gdsc",
 	},
 	.pwrsts = PWRSTS_OFF_ON,
+	.flags = VOTABLE,
 };
 
 static struct gdsc pcie_1_tunnel_gdsc = {
 	.gdscr = 0x8d004,
+	.collapse_ctrl = 0x52128,
+	.collapse_mask = BIT(1),
 	.pd = {
 		.name = "pcie_1_tunnel_gdsc",
 	},
 	.pwrsts = PWRSTS_OFF_ON,
+	.flags = VOTABLE,
 };
 
 static struct gdsc pcie_2a_gdsc = {
 	.gdscr = 0x9d004,
+	.collapse_ctrl = 0x52128,
+	.collapse_mask = BIT(2),
 	.pd = {
 		.name = "pcie_2a_gdsc",
 	},
 	.pwrsts = PWRSTS_OFF_ON,
+	.flags = VOTABLE,
 };
 
 static struct gdsc pcie_2b_gdsc = {
 	.gdscr = 0x9e004,
+	.collapse_ctrl = 0x52128,
+	.collapse_mask = BIT(3),
 	.pd = {
 		.name = "pcie_2b_gdsc",
 	},
 	.pwrsts = PWRSTS_OFF_ON,
+	.flags = VOTABLE,
 };
 
 static struct gdsc pcie_3a_gdsc = {
 	.gdscr = 0xa0004,
+	.collapse_ctrl = 0x52128,
+	.collapse_mask = BIT(4),
 	.pd = {
 		.name = "pcie_3a_gdsc",
 	},
 	.pwrsts = PWRSTS_OFF_ON,
+	.flags = VOTABLE,
 };
 
 static struct gdsc pcie_3b_gdsc = {
 	.gdscr = 0xa2004,
+	.collapse_ctrl = 0x52128,
+	.collapse_mask = BIT(5),
 	.pd = {
 		.name = "pcie_3b_gdsc",
 	},
 	.pwrsts = PWRSTS_OFF_ON,
+	.flags = VOTABLE,
 };
 
 static struct gdsc pcie_4_gdsc = {
 	.gdscr = 0x6b004,
+	.collapse_ctrl = 0x52128,
+	.collapse_mask = BIT(6),
 	.pd = {
 		.name = "pcie_4_gdsc",
 	},
 	.pwrsts = PWRSTS_OFF_ON,
+	.flags = VOTABLE,
 };
 
 static struct gdsc ufs_card_gdsc = {

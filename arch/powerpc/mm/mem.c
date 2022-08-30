@@ -25,6 +25,7 @@
 #include <asm/mmzone.h>
 #include <asm/ftrace.h>
 #include <asm/code-patching.h>
+#include <asm/setup.h>
 
 #include <mm/mmu_decl.h>
 
@@ -54,6 +55,7 @@ int memory_add_physaddr_to_nid(u64 start)
 {
 	return hot_add_scn_to_nid(start);
 }
+EXPORT_SYMBOL_GPL(memory_add_physaddr_to_nid);
 #endif
 
 int __weak create_section_mapping(unsigned long start, unsigned long end,

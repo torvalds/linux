@@ -23,6 +23,8 @@ properties:
       - brcm,bcm4345c5
       - brcm,bcm43540-bt
       - brcm,bcm4335a0
+      - brcm,bcm4349-bt
+      - infineon,cyw55572-bt
 
   shutdown-gpios:
     maxItems: 1
@@ -92,6 +94,13 @@ properties:
        pcm-sync-mode: slave, master
        pcm-clock-mode: slave, master
 
+  brcm,requires-autobaud-mode:
+    type: boolean
+    description:
+      Set this property if autobaud mode is required. Autobaud mode is required
+      if the device's initial baud rate in normal mode is not supported by the
+      host or if the device requires autobaud mode startup before loading FW.
+
   interrupts:
     items:
       - description: Handle to the line HOST_WAKE used to wake
@@ -107,6 +116,22 @@ properties:
 
 required:
   - compatible
+
+dependencies:
+  brcm,requires-autobaud-mode: [ 'shutdown-gpios' ]
+
+if:
+  not:
+    properties:
+      compatible:
+        contains:
+          enum:
+            - brcm,bcm20702a1
+            - brcm,bcm4329-bt
+            - brcm,bcm4330-bt
+then:
+  properties:
+    reset-gpios: false
 
 additionalProperties: false
 

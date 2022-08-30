@@ -118,7 +118,7 @@ TODOList:
    sound/index
    filesystems/index
    scheduler/index
-   vm/index
+   mm/index
    peci/index
 
 TODOList:

@@ -1106,7 +1106,7 @@ struct snd_ctl_elem_value {
 struct snd_ctl_tlv {
 	unsigned int numid;	/* control element numeric identification */
 	unsigned int length;	/* in bytes aligned to 4 */
-	unsigned int tlv[0];	/* first TLV */
+	unsigned int tlv[];	/* first TLV */
 };
 
 #define SNDRV_CTL_IOCTL_PVERSION	_IOR('U', 0x00, int)

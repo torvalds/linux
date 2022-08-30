@@ -503,7 +503,7 @@ static int pic32_uart_startup(struct uart_port *port)
 	if (!sport->irq_fault_name) {
 		dev_err(port->dev, "%s: kasprintf err!", __func__);
 		ret = -ENOMEM;
-		goto out_done;
+		goto out_disable_clk;
 	}
 	irq_set_status_flags(sport->irq_fault, IRQ_NOAUTOEN);
 	ret = request_irq(sport->irq_fault, pic32_uart_fault_interrupt,
@@ -579,6 +579,8 @@ out_r:
 out_f:
 	free_irq(sport->irq_fault, port);
 	kfree(sport->irq_fault_name);
+out_disable_clk:
+	clk_disable_unprepare(sport->clk);
 out_done:
 	return ret;
 }

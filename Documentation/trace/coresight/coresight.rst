@@ -130,7 +130,7 @@ Misc:
 Device Tree Bindings
 --------------------
 
-See Documentation/devicetree/bindings/arm/coresight.txt for details.
+See Documentation/devicetree/bindings/arm/arm,coresight-\*.yaml for details.
 
 As of this writing drivers for ITM, STMs and CTIs are not provided but are
 expected to be added as the solution matures.
@@ -339,7 +339,8 @@ Preference is given to the former as using the sysFS interface
 requires a deep understanding of the Coresight HW.  The following sections
 provide details on using both methods.
 
-1) Using the sysFS interface:
+Using the sysFS interface
+~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Before trace collection can start, a coresight sink needs to be identified.
 There is no limit on the amount of sinks (nor sources) that can be enabled at
@@ -446,7 +447,8 @@ wealth of possibilities that coresight provides.
     Instruction     0       0x8026B588      E8BD8000        true    LDM      sp!,{pc}
     Timestamp                                       Timestamp: 17107041535
 
-2) Using perf framework:
+Using perf framework
+~~~~~~~~~~~~~~~~~~~~
 
 Coresight tracers are represented using the Perf framework's Performance
 Monitoring Unit (PMU) abstraction.  As such the perf framework takes charge of
@@ -495,7 +497,11 @@ More information on the above and other example on how to use Coresight with
 the perf tools can be found in the "HOWTO.md" file of the openCSD gitHub
 repository [#third]_.
 
-2.1) AutoFDO analysis using the perf tools:
+Advanced perf framework usage
+-----------------------------
+
+AutoFDO analysis using the perf tools
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 perf can be used to record and analyze trace of programs.
 
@@ -513,7 +519,8 @@ The --itrace option controls the type and frequency of synthesized events
 Note that only 64-bit programs are currently supported - further work is
 required to support instruction decode of 32-bit Arm programs.
 
-2.2) Tracing PID
+Tracing PID
+~~~~~~~~~~~
 
 The kernel can be built to write the PID value into the PE ContextID registers.
 For a kernel running at EL1, the PID is stored in CONTEXTIDR_EL1.  A PE may
@@ -547,7 +554,7 @@ wants to trace PIDs for both host and guest, the two configs "contextid1" and
 
 
 Generating coverage files for Feedback Directed Optimization: AutoFDO
----------------------------------------------------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 'perf inject' accepts the --itrace option in which case tracing data is
 removed and replaced with the synthesized events. e.g.
@@ -578,6 +585,45 @@ sort example is from the AutoFDO tutorial (https://gcc.gnu.org/wiki/AutoFDO/Tuto
 	Bubble sorting array of 30000 elements
 	5806 ms
 
+Config option formats
+~~~~~~~~~~~~~~~~~~~~~
+
+The following strings can be provided between // on the perf command line to enable various options.
+They are also listed in the folder /sys/bus/event_source/devices/cs_etm/format/
+
+.. list-table::
+   :header-rows: 1
+
+   * - Option
+     - Description
+   * - branch_broadcast
+     - Session local version of the system wide setting:
+       :ref:`ETM_MODE_BB <coresight-branch-broadcast>`
+   * - contextid
+     - See `Tracing PID`_
+   * - contextid1
+     - See `Tracing PID`_
+   * - contextid2
+     - See `Tracing PID`_
+   * - configid
+     - Selection for a custom configuration. This is an implementation detail and not used directly,
+       see :ref:`trace/coresight/coresight-config:Using Configurations in perf`
+   * - preset
+     - Override for parameters in a custom configuration, see
+       :ref:`trace/coresight/coresight-config:Using Configurations in perf`
+   * - sinkid
+     - Hashed version of the string to select a sink, automatically set when using the @ notation.
+       This is an internal implementation detail and is not used directly, see `Using perf
+       framework`_.
+   * - cycacc
+     - Session local version of the system wide setting: :ref:`ETMv4_MODE_CYCACC
+       <coresight-cycle-accurate>`
+   * - retstack
+     - Session local version of the system wide setting: :ref:`ETM_MODE_RETURNSTACK
+       <coresight-return-stack>`
+   * - timestamp
+     - Session local version of the system wide setting: :ref:`ETMv4_MODE_TIMESTAMP
+       <coresight-timestamp>`
 
 How to use the STM module
 -------------------------

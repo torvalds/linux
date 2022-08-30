@@ -1208,10 +1208,13 @@ static struct vio_driver nx842_vio_driver = {
 static int __init nx842_pseries_init(void)
 {
 	struct nx842_devdata *new_devdata;
+	struct device_node *np;
 	int ret;
 
-	if (!of_find_compatible_node(NULL, NULL, "ibm,compression"))
+	np = of_find_compatible_node(NULL, NULL, "ibm,compression");
+	if (!np)
 		return -ENODEV;
+	of_node_put(np);
 
 	RCU_INIT_POINTER(devdata, NULL);
 	new_devdata = kzalloc(sizeof(*new_devdata), GFP_KERNEL);

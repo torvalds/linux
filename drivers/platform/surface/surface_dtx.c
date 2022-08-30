@@ -8,7 +8,7 @@
  * acknowledge (to speed things up), abort (e.g. in case the dGPU is still in
  * use), or request detachment via user-space.
  *
- * Copyright (C) 2019-2021 Maximilian Luz <luzmaximilian@gmail.com>
+ * Copyright (C) 2019-2022 Maximilian Luz <luzmaximilian@gmail.com>
  */
 
 #include <linux/fs.h>

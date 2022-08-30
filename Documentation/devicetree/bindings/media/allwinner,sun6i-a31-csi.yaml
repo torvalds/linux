@@ -42,6 +42,7 @@ properties:
 
   port:
     $ref: /schemas/graph.yaml#/$defs/port-base
+    description: Parallel input port, connect to a parallel sensor
 
     properties:
       endpoint:
@@ -59,7 +60,24 @@ properties:
         required:
           - bus-width
 
-    additionalProperties: false
+    unevaluatedProperties: false
+
+  ports:
+    $ref: /schemas/graph.yaml#/properties/ports
+
+    properties:
+      port@0:
+        $ref: "#/properties/port"
+
+      port@1:
+        $ref: /schemas/graph.yaml#/properties/port
+        description: MIPI CSI-2 bridge input port
+
+    anyOf:
+      - required:
+          - port@0
+      - required:
+          - port@1
 
 required:
   - compatible
@@ -68,6 +86,12 @@ required:
   - clocks
   - clock-names
   - resets
+
+oneOf:
+  - required:
+      - ports
+  - required:
+      - port
 
 additionalProperties: false
 
@@ -89,19 +113,25 @@ examples:
                       "ram";
         resets = <&ccu RST_BUS_CSI>;
 
-        port {
-            /* Parallel bus endpoint */
-            csi1_ep: endpoint {
-                remote-endpoint = <&adv7611_ep>;
-                bus-width = <16>;
+        ports {
+            #address-cells = <1>;
+            #size-cells = <0>;
 
-                /*
-                 * If hsync-active/vsync-active are missing,
-                 * embedded BT.656 sync is used.
-                 */
-                 hsync-active = <0>; /* Active low */
-                 vsync-active = <0>; /* Active low */
-                 pclk-sample = <1>;  /* Rising */
+            port@0 {
+                reg = <0>;
+                /* Parallel bus endpoint */
+                csi1_ep: endpoint {
+                    remote-endpoint = <&adv7611_ep>;
+                    bus-width = <16>;
+
+                    /*
+                     * If hsync-active/vsync-active are missing,
+                     * embedded BT.656 sync is used.
+                     */
+                    hsync-active = <0>; /* Active low */
+                    vsync-active = <0>; /* Active low */
+                    pclk-sample = <1>;  /* Rising */
+                };
             };
         };
     };

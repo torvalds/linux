@@ -60,11 +60,11 @@ static inline void kmap_flush_unused(void);
 
 /**
  * kmap_local_page - Map a page for temporary usage
- * @page:	Pointer to the page to be mapped
+ * @page: Pointer to the page to be mapped
  *
  * Returns: The virtual address of the mapping
  *
- * Can be invoked from any context.
+ * Can be invoked from any context, including interrupts.
  *
  * Requires careful handling when nesting multiple mappings because the map
  * management is stack based. The unmap has to be in the reverse order of
@@ -86,8 +86,7 @@ static inline void kmap_flush_unused(void);
  * temporarily mapped.
  *
  * While it is significantly faster than kmap() for the higmem case it
- * comes with restrictions about the pointer validity. Only use when really
- * necessary.
+ * comes with restrictions about the pointer validity.
  *
  * On HIGHMEM enabled systems mapping a highmem page has the side effect of
  * disabling migration in order to keep the virtual address stable across
@@ -243,6 +242,16 @@ static inline void clear_highpage(struct page *page)
 	kunmap_local(kaddr);
 }
 
+static inline void clear_highpage_kasan_tagged(struct page *page)
+{
+	u8 tag;
+
+	tag = page_kasan_tag(page);
+	page_kasan_tag_reset(page);
+	clear_highpage(page);
+	page_kasan_tag_set(page, tag);
+}
+
 #ifndef __HAVE_ARCH_TAG_CLEAR_HIGHPAGE
 
 static inline void tag_clear_highpage(struct page *page)
@@ -332,19 +341,6 @@ static inline void memcpy_page(struct page *dst_page, size_t dst_off,
 
 	VM_BUG_ON(dst_off + len > PAGE_SIZE || src_off + len > PAGE_SIZE);
 	memcpy(dst + dst_off, src + src_off, len);
-	kunmap_local(src);
-	kunmap_local(dst);
-}
-
-static inline void memmove_page(struct page *dst_page, size_t dst_off,
-			       struct page *src_page, size_t src_off,
-			       size_t len)
-{
-	char *dst = kmap_local_page(dst_page);
-	char *src = kmap_local_page(src_page);
-
-	VM_BUG_ON(dst_off + len > PAGE_SIZE || src_off + len > PAGE_SIZE);
-	memmove(dst + dst_off, src + src_off, len);
 	kunmap_local(src);
 	kunmap_local(dst);
 }

@@ -22,20 +22,36 @@
 #define MMD_ACCESS_WRITE	1
 #define MMD_ACCESS_READ		2
 #define MMD_ACCESS_READ_INC	3
+#define PCS_POWER_STATE_DOWN	0x6
+#define PCS_POWER_STATE_UP	0x4
 
 static void pci11x1x_strap_get_status(struct lan743x_adapter *adapter)
 {
 	u32 chip_rev;
+	u32 cfg_load;
+	u32 hw_cfg;
 	u32 strap;
+	int ret;
 
-	strap = lan743x_csr_read(adapter, STRAP_READ);
-	if (strap & STRAP_READ_USE_SGMII_EN_) {
+	/* Timeout = 100 (i.e. 1 sec (10 msce * 100)) */
+	ret = lan743x_hs_syslock_acquire(adapter, 100);
+	if (ret < 0) {
+		netif_err(adapter, drv, adapter->netdev,
+			  "Sys Lock acquire failed ret:%d\n", ret);
+		return;
+	}
+
+	cfg_load = lan743x_csr_read(adapter, ETH_SYS_CONFIG_LOAD_STARTED_REG);
+	lan743x_hs_syslock_release(adapter);
+	hw_cfg = lan743x_csr_read(adapter, HW_CFG);
+
+	if (cfg_load & GEN_SYS_LOAD_STARTED_REG_ETH_ ||
+	    hw_cfg & HW_CFG_RST_PROTECT_) {
+		strap = lan743x_csr_read(adapter, STRAP_READ);
 		if (strap & STRAP_READ_SGMII_EN_)
 			adapter->is_sgmii_en = true;
 		else
 			adapter->is_sgmii_en = false;
-		netif_dbg(adapter, drv, adapter->netdev,
-			  "STRAP_READ: 0x%08X\n", strap);
 	} else {
 		chip_rev = lan743x_csr_read(adapter, FPGA_REV);
 		if (chip_rev) {
@@ -43,12 +59,12 @@ static void pci11x1x_strap_get_status(struct lan743x_adapter *adapter)
 				adapter->is_sgmii_en = true;
 			else
 				adapter->is_sgmii_en = false;
-			netif_dbg(adapter, drv, adapter->netdev,
-				  "FPGA_REV: 0x%08X\n", chip_rev);
 		} else {
 			adapter->is_sgmii_en = false;
 		}
 	}
+	netif_dbg(adapter, drv, adapter->netdev,
+		  "SGMII I/F %sable\n", adapter->is_sgmii_en ? "En" : "Dis");
 }
 
 static bool is_pci11x1x_chip(struct lan743x_adapter *adapter)
@@ -909,6 +925,318 @@ static int lan743x_mdiobus_c45_write(struct mii_bus *bus,
 	return ret;
 }
 
+static int lan743x_sgmii_wait_till_not_busy(struct lan743x_adapter *adapter)
+{
+	u32 data;
+	int ret;
+
+	ret = readx_poll_timeout(LAN743X_CSR_READ_OP, SGMII_ACC, data,
+				 !(data & SGMII_ACC_SGMII_BZY_), 100, 1000000);
+	if (ret < 0)
+		netif_err(adapter, drv, adapter->netdev,
+			  "%s: error %d sgmii wait timeout\n", __func__, ret);
+
+	return ret;
+}
+
+static int lan743x_sgmii_read(struct lan743x_adapter *adapter, u8 mmd, u16 addr)
+{
+	u32 mmd_access;
+	int ret;
+	u32 val;
+
+	if (mmd > 31) {
+		netif_err(adapter, probe, adapter->netdev,
+			  "%s mmd should <= 31\n", __func__);
+		return -EINVAL;
+	}
+
+	mutex_lock(&adapter->sgmii_rw_lock);
+	/* Load Register Address */
+	mmd_access = mmd << SGMII_ACC_SGMII_MMD_SHIFT_;
+	mmd_access |= (addr | SGMII_ACC_SGMII_BZY_);
+	lan743x_csr_write(adapter, SGMII_ACC, mmd_access);
+	ret = lan743x_sgmii_wait_till_not_busy(adapter);
+	if (ret < 0)
+		goto sgmii_unlock;
+
+	val = lan743x_csr_read(adapter, SGMII_DATA);
+	ret = (int)(val & SGMII_DATA_MASK_);
+
+sgmii_unlock:
+	mutex_unlock(&adapter->sgmii_rw_lock);
+
+	return ret;
+}
+
+static int lan743x_sgmii_write(struct lan743x_adapter *adapter,
+			       u8 mmd, u16 addr, u16 val)
+{
+	u32 mmd_access;
+	int ret;
+
+	if (mmd > 31) {
+		netif_err(adapter, probe, adapter->netdev,
+			  "%s mmd should <= 31\n", __func__);
+		return -EINVAL;
+	}
+	mutex_lock(&adapter->sgmii_rw_lock);
+	/* Load Register Data */
+	lan743x_csr_write(adapter, SGMII_DATA, (u32)(val & SGMII_DATA_MASK_));
+	/* Load Register Address */
+	mmd_access = mmd << SGMII_ACC_SGMII_MMD_SHIFT_;
+	mmd_access |= (addr | SGMII_ACC_SGMII_BZY_ | SGMII_ACC_SGMII_WR_);
+	lan743x_csr_write(adapter, SGMII_ACC, mmd_access);
+	ret = lan743x_sgmii_wait_till_not_busy(adapter);
+	mutex_unlock(&adapter->sgmii_rw_lock);
+
+	return ret;
+}
+
+static int lan743x_sgmii_mpll_set(struct lan743x_adapter *adapter,
+				  u16 baud)
+{
+	int mpllctrl0;
+	int mpllctrl1;
+	int miscctrl1;
+	int ret;
+
+	mpllctrl0 = lan743x_sgmii_read(adapter, MDIO_MMD_VEND2,
+				       VR_MII_GEN2_4_MPLL_CTRL0);
+	if (mpllctrl0 < 0)
+		return mpllctrl0;
+
+	mpllctrl0 &= ~VR_MII_MPLL_CTRL0_USE_REFCLK_PAD_;
+	if (baud == VR_MII_BAUD_RATE_1P25GBPS) {
+		mpllctrl1 = VR_MII_MPLL_MULTIPLIER_100;
+		/* mpll_baud_clk/4 */
+		miscctrl1 = 0xA;
+	} else {
+		mpllctrl1 = VR_MII_MPLL_MULTIPLIER_125;
+		/* mpll_baud_clk/2 */
+		miscctrl1 = 0x5;
+	}
+
+	ret = lan743x_sgmii_write(adapter, MDIO_MMD_VEND2,
+				  VR_MII_GEN2_4_MPLL_CTRL0, mpllctrl0);
+	if (ret < 0)
+		return ret;
+
+	ret = lan743x_sgmii_write(adapter, MDIO_MMD_VEND2,
+				  VR_MII_GEN2_4_MPLL_CTRL1, mpllctrl1);
+	if (ret < 0)
+		return ret;
+
+	return lan743x_sgmii_write(adapter, MDIO_MMD_VEND2,
+				  VR_MII_GEN2_4_MISC_CTRL1, miscctrl1);
+}
+
+static int lan743x_sgmii_2_5G_mode_set(struct lan743x_adapter *adapter,
+				       bool enable)
+{
+	if (enable)
+		return lan743x_sgmii_mpll_set(adapter,
+					      VR_MII_BAUD_RATE_3P125GBPS);
+	else
+		return lan743x_sgmii_mpll_set(adapter,
+					      VR_MII_BAUD_RATE_1P25GBPS);
+}
+
+static int lan743x_is_sgmii_2_5G_mode(struct lan743x_adapter *adapter,
+				      bool *status)
+{
+	int ret;
+
+	ret = lan743x_sgmii_read(adapter, MDIO_MMD_VEND2,
+				 VR_MII_GEN2_4_MPLL_CTRL1);
+	if (ret < 0)
+		return ret;
+
+	if (ret == VR_MII_MPLL_MULTIPLIER_125 ||
+	    ret == VR_MII_MPLL_MULTIPLIER_50)
+		*status = true;
+	else
+		*status = false;
+
+	return 0;
+}
+
+static int lan743x_sgmii_aneg_update(struct lan743x_adapter *adapter)
+{
+	enum lan743x_sgmii_lsd lsd = adapter->sgmii_lsd;
+	int mii_ctrl;
+	int dgt_ctrl;
+	int an_ctrl;
+	int ret;
+
+	if (lsd == LINK_2500_MASTER || lsd == LINK_2500_SLAVE)
+		/* Switch to 2.5 Gbps */
+		ret = lan743x_sgmii_2_5G_mode_set(adapter, true);
+	else
+		/* Switch to 10/100/1000 Mbps clock */
+		ret = lan743x_sgmii_2_5G_mode_set(adapter, false);
+	if (ret < 0)
+		return ret;
+
+	/* Enable SGMII Auto NEG */
+	mii_ctrl = lan743x_sgmii_read(adapter, MDIO_MMD_VEND2, MII_BMCR);
+	if (mii_ctrl < 0)
+		return mii_ctrl;
+
+	an_ctrl = lan743x_sgmii_read(adapter, MDIO_MMD_VEND2, VR_MII_AN_CTRL);
+	if (an_ctrl < 0)
+		return an_ctrl;
+
+	dgt_ctrl = lan743x_sgmii_read(adapter, MDIO_MMD_VEND2,
+				      VR_MII_DIG_CTRL1);
+	if (dgt_ctrl < 0)
+		return dgt_ctrl;
+
+	if (lsd == LINK_2500_MASTER || lsd == LINK_2500_SLAVE) {
+		mii_ctrl &= ~(BMCR_ANENABLE | BMCR_ANRESTART | BMCR_SPEED100);
+		mii_ctrl |= BMCR_SPEED1000;
+		dgt_ctrl |= VR_MII_DIG_CTRL1_CL37_TMR_OVR_RIDE_;
+		dgt_ctrl &= ~VR_MII_DIG_CTRL1_MAC_AUTO_SW_;
+		/* In order for Auto-Negotiation to operate properly at
+		 * 2.5 Gbps the 1.6ms link timer values must be adjusted
+		 * The VR_MII_LINK_TIMER_CTRL Register must be set to
+		 * 16'h7A1 and The CL37_TMR_OVR_RIDE bit of the
+		 * VR_MII_DIG_CTRL1 Register set to 1
+		 */
+		ret = lan743x_sgmii_write(adapter, MDIO_MMD_VEND2,
+					  VR_MII_LINK_TIMER_CTRL, 0x7A1);
+		if (ret < 0)
+			return ret;
+	} else {
+		mii_ctrl |= (BMCR_ANENABLE | BMCR_ANRESTART);
+		an_ctrl &= ~VR_MII_AN_CTRL_SGMII_LINK_STS_;
+		dgt_ctrl &= ~VR_MII_DIG_CTRL1_CL37_TMR_OVR_RIDE_;
+		dgt_ctrl |= VR_MII_DIG_CTRL1_MAC_AUTO_SW_;
+	}
+
+	ret = lan743x_sgmii_write(adapter, MDIO_MMD_VEND2, MII_BMCR,
+				  mii_ctrl);
+	if (ret < 0)
+		return ret;
+
+	ret = lan743x_sgmii_write(adapter, MDIO_MMD_VEND2,
+				  VR_MII_DIG_CTRL1, dgt_ctrl);
+	if (ret < 0)
+		return ret;
+
+	return lan743x_sgmii_write(adapter, MDIO_MMD_VEND2,
+				  VR_MII_AN_CTRL, an_ctrl);
+}
+
+static int lan743x_pcs_seq_state(struct lan743x_adapter *adapter, u8 state)
+{
+	u8 wait_cnt = 0;
+	u32 dig_sts;
+
+	do {
+		dig_sts = lan743x_sgmii_read(adapter, MDIO_MMD_VEND2,
+					     VR_MII_DIG_STS);
+		if (((dig_sts & VR_MII_DIG_STS_PSEQ_STATE_MASK_) >>
+		      VR_MII_DIG_STS_PSEQ_STATE_POS_) == state)
+			break;
+		usleep_range(1000, 2000);
+	} while (wait_cnt++ < 10);
+
+	if (wait_cnt >= 10)
+		return -ETIMEDOUT;
+
+	return 0;
+}
+
+static int lan743x_sgmii_config(struct lan743x_adapter *adapter)
+{
+	struct net_device *netdev = adapter->netdev;
+	struct phy_device *phydev = netdev->phydev;
+	enum lan743x_sgmii_lsd lsd = POWER_DOWN;
+	int mii_ctl;
+	bool status;
+	int ret;
+
+	switch (phydev->speed) {
+	case SPEED_2500:
+		if (phydev->master_slave_state == MASTER_SLAVE_STATE_MASTER)
+			lsd = LINK_2500_MASTER;
+		else
+			lsd = LINK_2500_SLAVE;
+		break;
+	case SPEED_1000:
+		if (phydev->master_slave_state == MASTER_SLAVE_STATE_MASTER)
+			lsd = LINK_1000_MASTER;
+		else
+			lsd = LINK_1000_SLAVE;
+		break;
+	case SPEED_100:
+		if (phydev->duplex)
+			lsd = LINK_100FD;
+		else
+			lsd = LINK_100HD;
+		break;
+	case SPEED_10:
+		if (phydev->duplex)
+			lsd = LINK_10FD;
+		else
+			lsd = LINK_10HD;
+		break;
+	default:
+		netif_err(adapter, drv, adapter->netdev,
+			  "Invalid speed %d\n", phydev->speed);
+		return -EINVAL;
+	}
+
+	adapter->sgmii_lsd = lsd;
+	ret = lan743x_sgmii_aneg_update(adapter);
+	if (ret < 0) {
+		netif_err(adapter, drv, adapter->netdev,
+			  "error %d SGMII cfg failed\n", ret);
+		return ret;
+	}
+
+	ret = lan743x_is_sgmii_2_5G_mode(adapter, &status);
+	if (ret < 0) {
+		netif_err(adapter, drv, adapter->netdev,
+			  "erro %d SGMII get mode failed\n", ret);
+		return ret;
+	}
+
+	if (status)
+		netif_dbg(adapter, drv, adapter->netdev,
+			  "SGMII 2.5G mode enable\n");
+	else
+		netif_dbg(adapter, drv, adapter->netdev,
+			  "SGMII 1G mode enable\n");
+
+	/* SGMII/1000/2500BASE-X PCS power down */
+	mii_ctl = lan743x_sgmii_read(adapter, MDIO_MMD_VEND2, MII_BMCR);
+	if (mii_ctl < 0)
+		return mii_ctl;
+
+	mii_ctl |= BMCR_PDOWN;
+	ret = lan743x_sgmii_write(adapter, MDIO_MMD_VEND2, MII_BMCR, mii_ctl);
+	if (ret < 0)
+		return ret;
+
+	ret = lan743x_pcs_seq_state(adapter, PCS_POWER_STATE_DOWN);
+	if (ret < 0)
+		return ret;
+
+	/* SGMII/1000/2500BASE-X PCS power up */
+	mii_ctl &= ~BMCR_PDOWN;
+	ret = lan743x_sgmii_write(adapter, MDIO_MMD_VEND2, MII_BMCR, mii_ctl);
+	if (ret < 0)
+		return ret;
+
+	ret = lan743x_pcs_seq_state(adapter, PCS_POWER_STATE_UP);
+	if (ret < 0)
+		return ret;
+
+	return 0;
+}
+
 static void lan743x_mac_set_address(struct lan743x_adapter *adapter,
 				    u8 *addr)
 {
@@ -1124,6 +1452,10 @@ static void lan743x_phy_link_status_change(struct net_device *netdev)
 			data |= MAC_CR_CFG_H_;
 			data &= ~MAC_CR_CFG_L_;
 		break;
+		case SPEED_2500:
+			data |= MAC_CR_CFG_H_;
+			data |= MAC_CR_CFG_L_;
+		break;
 		}
 		lan743x_csr_write(adapter, MAC_CR, data);
 
@@ -1135,6 +1467,10 @@ static void lan743x_phy_link_status_change(struct net_device *netdev)
 		lan743x_phy_update_flowcontrol(adapter, local_advertisement,
 					       remote_advertisement);
 		lan743x_ptp_update_latency(adapter, phydev->speed);
+		if (phydev->interface == PHY_INTERFACE_MODE_SGMII ||
+		    phydev->interface == PHY_INTERFACE_MODE_1000BASEX ||
+		    phydev->interface == PHY_INTERFACE_MODE_2500BASEX)
+			lan743x_sgmii_config(adapter);
 	}
 }
 
@@ -2875,6 +3211,7 @@ static int lan743x_hardware_init(struct lan743x_adapter *adapter,
 		adapter->max_vector_count = PCI11X1X_MAX_VECTOR_COUNT;
 		pci11x1x_strap_get_status(adapter);
 		spin_lock_init(&adapter->eth_syslock_spinlock);
+		mutex_init(&adapter->sgmii_rw_lock);
 	} else {
 		adapter->max_tx_channels = LAN743X_MAX_TX_CHANNELS;
 		adapter->used_tx_channels = LAN743X_USED_TX_CHANNELS;
@@ -3124,6 +3461,7 @@ static void lan743x_pm_set_wol(struct lan743x_adapter *adapter)
 	const u8 ipv6_multicast[3] = { 0x33, 0x33 };
 	const u8 arp_type[2] = { 0x08, 0x06 };
 	int mask_index;
+	u32 sopass;
 	u32 pmtctl;
 	u32 wucsr;
 	u32 macrx;
@@ -3218,6 +3556,14 @@ static void lan743x_pm_set_wol(struct lan743x_adapter *adapter)
 		pmtctl |= PMT_CTL_RX_FCT_RFE_D3_CLK_OVR_;
 	}
 
+	if (adapter->wolopts & WAKE_MAGICSECURE) {
+		sopass = *(u32 *)adapter->sopass;
+		lan743x_csr_write(adapter, MAC_MP_SO_LO, sopass);
+		sopass = *(u16 *)&adapter->sopass[4];
+		lan743x_csr_write(adapter, MAC_MP_SO_HI, sopass);
+		wucsr |= MAC_MP_SO_EN_;
+	}
+
 	lan743x_csr_write(adapter, MAC_WUCSR, wucsr);
 	lan743x_csr_write(adapter, PMT_CTL, pmtctl);
 	lan743x_csr_write(adapter, MAC_RX, macrx);
@@ -3228,6 +3574,7 @@ static int lan743x_pm_suspend(struct device *dev)
 	struct pci_dev *pdev = to_pci_dev(dev);
 	struct net_device *netdev = pci_get_drvdata(pdev);
 	struct lan743x_adapter *adapter = netdev_priv(netdev);
+	u32 data;
 
 	lan743x_pcidev_shutdown(pdev);
 
@@ -3238,6 +3585,18 @@ static int lan743x_pm_suspend(struct device *dev)
 
 	if (adapter->wolopts)
 		lan743x_pm_set_wol(adapter);
+
+	if (adapter->is_pci11x1x) {
+		/* Save HW_CFG to config again in PM resume */
+		data = lan743x_csr_read(adapter, HW_CFG);
+		adapter->hw_cfg = data;
+		data |= (HW_CFG_RST_PROTECT_PCIE_ |
+			 HW_CFG_D3_RESET_DIS_ |
+			 HW_CFG_D3_VAUX_OVR_ |
+			 HW_CFG_HOT_RESET_DIS_ |
+			 HW_CFG_RST_PROTECT_);
+		lan743x_csr_write(adapter, HW_CFG, data);
+	}
 
 	/* Host sets PME_En, put D3hot */
 	return pci_prepare_to_sleep(pdev);
@@ -3253,6 +3612,10 @@ static int lan743x_pm_resume(struct device *dev)
 	pci_set_power_state(pdev, PCI_D0);
 	pci_restore_state(pdev);
 	pci_save_state(pdev);
+
+	/* Restore HW_CFG that was saved during pm suspend */
+	if (adapter->is_pci11x1x)
+		lan743x_csr_write(adapter, HW_CFG, adapter->hw_cfg);
 
 	ret = lan743x_hardware_init(adapter, pdev);
 	if (ret) {
@@ -3270,6 +3633,9 @@ static int lan743x_pm_resume(struct device *dev)
 		lan743x_netdev_open(netdev);
 
 	netif_device_attach(netdev);
+	ret = lan743x_csr_read(adapter, MAC_WK_SRC);
+	netif_info(adapter, drv, adapter->netdev,
+		   "Wakeup source : 0x%08X\n", ret);
 
 	return 0;
 }

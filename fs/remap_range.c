@@ -14,6 +14,7 @@
 #include <linux/compat.h>
 #include <linux/mount.h>
 #include <linux/fs.h>
+#include <linux/dax.h>
 #include "internal.h"
 
 #include <linux/uaccess.h>
@@ -149,16 +150,7 @@ static int generic_remap_check_len(struct inode *inode_in,
 /* Read a page's worth of file data into the page cache. */
 static struct folio *vfs_dedupe_get_folio(struct file *file, loff_t pos)
 {
-	struct folio *folio;
-
-	folio = read_mapping_folio(file->f_mapping, pos >> PAGE_SHIFT, file);
-	if (IS_ERR(folio))
-		return folio;
-	if (!folio_test_uptodate(folio)) {
-		folio_put(folio);
-		return ERR_PTR(-EIO);
-	}
-	return folio;
+	return read_mapping_folio(file->f_mapping, pos >> PAGE_SHIFT, file);
 }
 
 /*
@@ -272,9 +264,11 @@ out_error:
  * If there's an error, then the usual negative error code is returned.
  * Otherwise returns 0 with *len set to the request length.
  */
-int generic_remap_file_range_prep(struct file *file_in, loff_t pos_in,
-				  struct file *file_out, loff_t pos_out,
-				  loff_t *len, unsigned int remap_flags)
+int
+__generic_remap_file_range_prep(struct file *file_in, loff_t pos_in,
+				struct file *file_out, loff_t pos_out,
+				loff_t *len, unsigned int remap_flags,
+				const struct iomap_ops *dax_read_ops)
 {
 	struct inode *inode_in = file_inode(file_in);
 	struct inode *inode_out = file_inode(file_out);
@@ -334,8 +328,18 @@ int generic_remap_file_range_prep(struct file *file_in, loff_t pos_in,
 	if (remap_flags & REMAP_FILE_DEDUP) {
 		bool		is_same = false;
 
-		ret = vfs_dedupe_file_range_compare(file_in, pos_in,
-				file_out, pos_out, *len, &is_same);
+		if (*len == 0)
+			return 0;
+
+		if (!IS_DAX(inode_in))
+			ret = vfs_dedupe_file_range_compare(file_in, pos_in,
+					file_out, pos_out, *len, &is_same);
+		else if (dax_read_ops)
+			ret = dax_dedupe_file_range_compare(inode_in, pos_in,
+					inode_out, pos_out, *len, &is_same,
+					dax_read_ops);
+		else
+			return -EINVAL;
 		if (ret)
 			return ret;
 		if (!is_same)
@@ -352,6 +356,14 @@ int generic_remap_file_range_prep(struct file *file_in, loff_t pos_in,
 		ret = file_modified(file_out);
 
 	return ret;
+}
+
+int generic_remap_file_range_prep(struct file *file_in, loff_t pos_in,
+				  struct file *file_out, loff_t pos_out,
+				  loff_t *len, unsigned int remap_flags)
+{
+	return __generic_remap_file_range_prep(file_in, pos_in, file_out,
+					       pos_out, len, remap_flags, NULL);
 }
 EXPORT_SYMBOL(generic_remap_file_range_prep);
 

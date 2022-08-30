@@ -26,7 +26,6 @@
 #define __I915_GEM_H__
 
 #include <linux/bug.h>
-#include <linux/interrupt.h>
 
 #include <drm/drm_drv.h>
 
@@ -54,9 +53,6 @@ struct drm_i915_private;
 	} while(0)
 #define GEM_WARN_ON(expr) WARN_ON(expr)
 
-#define GEM_DEBUG_DECL(var) var
-#define GEM_DEBUG_EXEC(expr) expr
-#define GEM_DEBUG_BUG_ON(expr) GEM_BUG_ON(expr)
 #define GEM_DEBUG_WARN_ON(expr) GEM_WARN_ON(expr)
 
 #else
@@ -66,9 +62,6 @@ struct drm_i915_private;
 #define GEM_BUG_ON(expr) BUILD_BUG_ON_INVALID(expr)
 #define GEM_WARN_ON(expr) ({ unlikely(!!(expr)); })
 
-#define GEM_DEBUG_DECL(var)
-#define GEM_DEBUG_EXEC(expr) do { } while (0)
-#define GEM_DEBUG_BUG_ON(expr)
 #define GEM_DEBUG_WARN_ON(expr) ({ BUILD_BUG_ON_INVALID(expr); 0; })
 #endif
 
@@ -90,37 +83,5 @@ struct drm_i915_private;
 #endif
 
 #define I915_GEM_IDLE_TIMEOUT (HZ / 5)
-
-static inline void tasklet_lock(struct tasklet_struct *t)
-{
-	while (!tasklet_trylock(t))
-		cpu_relax();
-}
-
-static inline bool tasklet_is_locked(const struct tasklet_struct *t)
-{
-	return test_bit(TASKLET_STATE_RUN, &t->state);
-}
-
-static inline void __tasklet_disable_sync_once(struct tasklet_struct *t)
-{
-	if (!atomic_fetch_inc(&t->count))
-		tasklet_unlock_spin_wait(t);
-}
-
-static inline bool __tasklet_is_enabled(const struct tasklet_struct *t)
-{
-	return !atomic_read(&t->count);
-}
-
-static inline bool __tasklet_enable(struct tasklet_struct *t)
-{
-	return atomic_dec_and_test(&t->count);
-}
-
-static inline bool __tasklet_is_scheduled(struct tasklet_struct *t)
-{
-	return test_bit(TASKLET_STATE_SCHED, &t->state);
-}
 
 #endif /* __I915_GEM_H__ */

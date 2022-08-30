@@ -147,7 +147,7 @@ int cpupri_find_fitness(struct cpupri *cp, struct task_struct *p,
 	int task_pri = convert_prio(p->prio);
 	int idx, cpu;
 
-	BUG_ON(task_pri >= CPUPRI_NR_PRIORITIES);
+	WARN_ON_ONCE(task_pri >= CPUPRI_NR_PRIORITIES);
 
 	for (idx = 0; idx < task_pri; idx++) {
 

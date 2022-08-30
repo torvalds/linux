@@ -74,7 +74,7 @@ static inline int current_is_kswapd(void)
 
 /*
  * Unaddressable device memory support. See include/linux/hmm.h and
- * Documentation/vm/hmm.rst. Short description is we need struct pages for
+ * Documentation/mm/hmm.rst. Short description is we need struct pages for
  * device memory that is unaddressable (inaccessible) by CPU, so that we can
  * migrate part of a process memory to device memory.
  *
@@ -411,10 +411,13 @@ extern void lru_cache_add_inactive_or_unevictable(struct page *page,
 extern unsigned long zone_reclaimable_pages(struct zone *zone);
 extern unsigned long try_to_free_pages(struct zonelist *zonelist, int order,
 					gfp_t gfp_mask, nodemask_t *mask);
+
+#define MEMCG_RECLAIM_MAY_SWAP (1 << 1)
+#define MEMCG_RECLAIM_PROACTIVE (1 << 2)
 extern unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *memcg,
 						  unsigned long nr_pages,
 						  gfp_t gfp_mask,
-						  bool may_swap);
+						  unsigned int reclaim_options);
 extern unsigned long mem_cgroup_shrink_node(struct mem_cgroup *mem,
 						gfp_t gfp_mask, bool noswap,
 						pg_data_t *pgdat,
@@ -438,7 +441,8 @@ static inline bool node_reclaim_enabled(void)
 	return node_reclaim_mode & (RECLAIM_ZONE|RECLAIM_WRITE|RECLAIM_UNMAP);
 }
 
-extern void check_move_unevictable_pages(struct pagevec *pvec);
+void check_move_unevictable_folios(struct folio_batch *fbatch);
+void check_move_unevictable_pages(struct pagevec *pvec);
 
 extern void kswapd_run(int nid);
 extern void kswapd_stop(int nid);
@@ -455,6 +459,7 @@ static inline unsigned long total_swapcache_pages(void)
 	return global_node_page_state(NR_SWAPCACHE);
 }
 
+extern void free_swap_cache(struct page *page);
 extern void free_page_and_swap_cache(struct page *);
 extern void free_pages_and_swap_cache(struct page **, int);
 /* linux/mm/swapfile.c */
@@ -538,6 +543,10 @@ static inline void put_swap_device(struct swap_info_struct *si)
 
 /* used to sanity check ptes in zap_pte_range when CONFIG_SWAP=0 */
 #define free_swap_and_cache(e) is_pfn_swap_entry(e)
+
+static inline void free_swap_cache(struct page *page)
+{
+}
 
 static inline int add_swap_count_continuation(swp_entry_t swp, gfp_t gfp_mask)
 {

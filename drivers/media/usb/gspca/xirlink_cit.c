@@ -817,7 +817,7 @@ static void cit_model2_Packet1(struct gspca_dev *gspca_dev, u16 v1, u16 v2)
  * 00_d141_0124
  * 00_0096_0127
  * 00_fea8_0124
-*/
+ */
 static void cit_model3_Packet1(struct gspca_dev *gspca_dev, u16 v1, u16 v2)
 {
 	cit_write_reg(gspca_dev, 0x0078, 0x012d);

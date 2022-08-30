@@ -138,6 +138,7 @@ properties:
       - arm,cortex-a76
       - arm,cortex-a77
       - arm,cortex-a78
+      - arm,cortex-a78ae
       - arm,cortex-a510
       - arm,cortex-a710
       - arm,cortex-m0
@@ -221,6 +222,7 @@ properties:
           - qcom,kpss-acc-v1
           - qcom,kpss-acc-v2
           - qcom,msm8226-smp
+          - qcom,msm8909-smp
           # Only valid on ARM 32-bit, see above for ARM v8 64-bit
           - qcom,msm8916-smp
           - renesas,apmu

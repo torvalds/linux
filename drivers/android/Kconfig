@@ -1,13 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
 menu "Android"
 
-config ANDROID
-	bool "Android Drivers"
-	help
-	  Enable support for various drivers needed on the Android platform
-
-if ANDROID
-
 config ANDROID_BINDER_IPC
 	bool "Android Binder IPC Driver"
 	depends on MMU
@@ -53,7 +46,5 @@ config ANDROID_BINDER_IPC_SELFTEST
 	  Binder selftest checks the allocation and free of binder buffers
 	  exhaustively with combinations of various buffer sizes and
 	  alignments.
-
-endif # if ANDROID
 
 endmenu

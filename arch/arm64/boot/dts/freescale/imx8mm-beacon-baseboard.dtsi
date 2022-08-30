@@ -285,14 +285,14 @@
 &usbotg1 {
 	vbus-supply = <&reg_usbotg1>;
 	disable-over-current;
-	dr_mode="otg";
+	dr_mode = "otg";
 	status = "okay";
 };
 
 &usbotg2 {
 	pinctrl-names = "default";
 	disable-over-current;
-	dr_mode="host";
+	dr_mode = "host";
 	status = "okay";
 };
 

@@ -97,6 +97,7 @@ static struct cmn2asic_msg_mapping smu_v13_0_7_message_map[SMU_MSG_MAX_COUNT] = 
 	MSG_MAP(UseDefaultPPTable,		PPSMC_MSG_UseDefaultPPTable,           0),
 	MSG_MAP(RunDcBtc,			PPSMC_MSG_RunDcBtc,                    0),
 	MSG_MAP(EnterBaco,			PPSMC_MSG_EnterBaco,                   0),
+	MSG_MAP(ExitBaco,           PPSMC_MSG_ExitBaco,        			   0),
 	MSG_MAP(SetSoftMinByFreq,		PPSMC_MSG_SetSoftMinByFreq,            1),
 	MSG_MAP(SetSoftMaxByFreq,		PPSMC_MSG_SetSoftMaxByFreq,            1),
 	MSG_MAP(SetHardMinByFreq,		PPSMC_MSG_SetHardMinByFreq,            1),
@@ -110,11 +111,15 @@ static struct cmn2asic_msg_mapping smu_v13_0_7_message_map[SMU_MSG_MAX_COUNT] = 
 	MSG_MAP(PowerDownJpeg,			PPSMC_MSG_PowerDownJpeg,               0),
 	MSG_MAP(GetDcModeMaxDpmFreq,		PPSMC_MSG_GetDcModeMaxDpmFreq,         1),
 	MSG_MAP(OverridePcieParameters,		PPSMC_MSG_OverridePcieParameters,      0),
+	MSG_MAP(ReenableAcDcInterrupt,		PPSMC_MSG_ReenableAcDcInterrupt,       0),
+	MSG_MAP(AllowIHHostInterrupt,		PPSMC_MSG_AllowIHHostInterrupt,       0),
 	MSG_MAP(DramLogSetDramAddrHigh,		PPSMC_MSG_DramLogSetDramAddrHigh,      0),
 	MSG_MAP(DramLogSetDramAddrLow,		PPSMC_MSG_DramLogSetDramAddrLow,       0),
 	MSG_MAP(DramLogSetDramSize,		PPSMC_MSG_DramLogSetDramSize,          0),
 	MSG_MAP(AllowGfxOff,			PPSMC_MSG_AllowGfxOff,                 0),
 	MSG_MAP(DisallowGfxOff,			PPSMC_MSG_DisallowGfxOff,              0),
+	MSG_MAP(Mode1Reset,             PPSMC_MSG_Mode1Reset,                  0),
+	MSG_MAP(PrepareMp1ForUnload,		PPSMC_MSG_PrepareMp1ForUnload,         0),
 };
 
 static struct cmn2asic_mapping smu_v13_0_7_clk_map[SMU_CLK_COUNT] = {
@@ -246,7 +251,11 @@ smu_v13_0_7_get_allowed_feature_mask(struct smu_context *smu,
 	if (adev->pm.pp_feature & PP_SCLK_DPM_MASK) {
 		*(uint64_t *)feature_mask |= FEATURE_MASK(FEATURE_DPM_GFXCLK_BIT);
 		*(uint64_t *)feature_mask |= FEATURE_MASK(FEATURE_GFX_IMU_BIT);
+		*(uint64_t *)feature_mask |= FEATURE_MASK(FEATURE_DPM_GFX_POWER_OPTIMIZER_BIT);
 	}
+
+	if (adev->pm.pp_feature & PP_GFXOFF_MASK)
+		*(uint64_t *)feature_mask |= FEATURE_MASK(FEATURE_GFXOFF_BIT);
 
 	if (adev->pm.pp_feature & PP_MCLK_DPM_MASK) {
 		*(uint64_t *)feature_mask |= FEATURE_MASK(FEATURE_DPM_UCLK_BIT);
@@ -262,6 +271,9 @@ smu_v13_0_7_get_allowed_feature_mask(struct smu_context *smu,
 
 	if (adev->pm.pp_feature & PP_SCLK_DEEP_SLEEP_MASK)
 		*(uint64_t *)feature_mask |= FEATURE_MASK(FEATURE_DS_GFXCLK_BIT);
+
+	if (adev->pm.pp_feature & PP_ULV_MASK)
+		*(uint64_t *)feature_mask |= FEATURE_MASK(FEATURE_GFX_ULV_BIT);
 
 	*(uint64_t *)feature_mask |= FEATURE_MASK(FEATURE_DS_LCLK_BIT);
 	*(uint64_t *)feature_mask |= FEATURE_MASK(FEATURE_DPM_MP0CLK_BIT);
@@ -281,6 +293,7 @@ smu_v13_0_7_get_allowed_feature_mask(struct smu_context *smu,
 	*(uint64_t *)feature_mask |= FEATURE_MASK(FEATURE_BACO_MPCLK_DS_BIT);
 	*(uint64_t *)feature_mask |= FEATURE_MASK(FEATURE_GFX_PCC_DFLL_BIT);
 	*(uint64_t *)feature_mask |= FEATURE_MASK(FEATURE_SOC_CG_BIT);
+	*(uint64_t *)feature_mask |= FEATURE_MASK(FEATURE_BACO_BIT);
 
 	if (adev->pm.pp_feature & PP_DCEFCLK_DPM_MASK)
 		*(uint64_t *)feature_mask |= FEATURE_MASK(FEATURE_DPM_DCN_BIT);
@@ -298,6 +311,8 @@ static int smu_v13_0_7_check_powerplay_table(struct smu_context *smu)
 	struct smu_13_0_7_powerplay_table *powerplay_table =
 		table_context->power_play_table;
 	struct smu_baco_context *smu_baco = &smu->smu_baco;
+	PPTable_t *smc_pptable = table_context->driver_pptable;
+	BoardTable_t *BoardTable = &smc_pptable->BoardTable;
 
 	if (powerplay_table->platform_caps & SMU_13_0_7_PP_PLATFORM_CAP_HARDWAREDC)
 		smu->dc_controlled_by_gpio = true;
@@ -305,6 +320,9 @@ static int smu_v13_0_7_check_powerplay_table(struct smu_context *smu)
 	if (powerplay_table->platform_caps & SMU_13_0_7_PP_PLATFORM_CAP_BACO ||
 	    powerplay_table->platform_caps & SMU_13_0_7_PP_PLATFORM_CAP_MACO)
 		smu_baco->platform_support = true;
+
+	if (smu_baco->platform_support && (BoardTable->HsrEnabled || BoardTable->VddqOffEnabled))
+		smu_baco->maco_support = true;
 
 	table_context->thermal_controller_type =
 		powerplay_table->thermal_controller_type;
@@ -1532,6 +1550,23 @@ static int smu_v13_0_7_set_power_profile_mode(struct smu_context *smu, long *inp
 	return ret;
 }
 
+static int smu_v13_0_7_set_mp1_state(struct smu_context *smu,
+				     enum pp_mp1_state mp1_state)
+{
+	int ret;
+
+	switch (mp1_state) {
+	case PP_MP1_STATE_UNLOAD:
+		ret = smu_cmn_set_mp1_state(smu, mp1_state);
+		break;
+	default:
+		/* Ignore others */
+		ret = 0;
+	}
+
+	return ret;
+}
+
 static const struct pptable_funcs smu_v13_0_7_ppt_funcs = {
 	.get_allowed_feature_mask = smu_v13_0_7_get_allowed_feature_mask,
 	.set_default_dpm_table = smu_v13_0_7_set_default_dpm_table,
@@ -1541,6 +1576,7 @@ static const struct pptable_funcs smu_v13_0_7_ppt_funcs = {
 	.load_microcode = smu_v13_0_load_microcode,
 	.init_smc_tables = smu_v13_0_7_init_smc_tables,
 	.init_power = smu_v13_0_init_power,
+	.fini_power = smu_v13_0_fini_power,
 	.check_fw_status = smu_v13_0_7_check_fw_status,
 	.setup_pptable = smu_v13_0_7_setup_pptable,
 	.check_fw_version = smu_v13_0_check_fw_version,
@@ -1583,6 +1619,12 @@ static const struct pptable_funcs smu_v13_0_7_ppt_funcs = {
 	.set_tool_table_location = smu_v13_0_set_tool_table_location,
 	.get_pp_feature_mask = smu_cmn_get_pp_feature_mask,
 	.set_pp_feature_mask = smu_cmn_set_pp_feature_mask,
+	.baco_is_support = smu_v13_0_baco_is_support,
+	.baco_get_state = smu_v13_0_baco_get_state,
+	.baco_set_state = smu_v13_0_baco_set_state,
+	.baco_enter = smu_v13_0_baco_enter,
+	.baco_exit = smu_v13_0_baco_exit,
+	.set_mp1_state = smu_v13_0_7_set_mp1_state,
 };
 
 void smu_v13_0_7_set_ppt_funcs(struct smu_context *smu)
@@ -1594,4 +1636,5 @@ void smu_v13_0_7_set_ppt_funcs(struct smu_context *smu)
 	smu->table_map = smu_v13_0_7_table_map;
 	smu->pwr_src_map = smu_v13_0_7_pwr_src_map;
 	smu->workload_map = smu_v13_0_7_workload_map;
+	smu_v13_0_set_smu_mailbox_registers(smu);
 }

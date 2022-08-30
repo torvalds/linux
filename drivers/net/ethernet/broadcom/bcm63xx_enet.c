@@ -388,7 +388,7 @@ static int bcm_enet_receive_queue(struct net_device *dev, int budget)
 					 priv->rx_buf_size, DMA_FROM_DEVICE);
 			priv->rx_buf[desc_idx] = NULL;
 
-			skb = build_skb(buf, priv->rx_frag_size);
+			skb = napi_build_skb(buf, priv->rx_frag_size);
 			if (unlikely(!skb)) {
 				skb_free_frag(buf);
 				dev->stats.rx_dropped++;
@@ -423,7 +423,7 @@ static int bcm_enet_receive_queue(struct net_device *dev, int budget)
 /*
  * try to or force reclaim of transmitted buffers
  */
-static int bcm_enet_tx_reclaim(struct net_device *dev, int force)
+static int bcm_enet_tx_reclaim(struct net_device *dev, int force, int budget)
 {
 	struct bcm_enet_priv *priv;
 	unsigned int bytes;
@@ -468,7 +468,7 @@ static int bcm_enet_tx_reclaim(struct net_device *dev, int force)
 			dev->stats.tx_errors++;
 
 		bytes += skb->len;
-		dev_kfree_skb(skb);
+		napi_consume_skb(skb, budget);
 		released++;
 	}
 
@@ -499,7 +499,7 @@ static int bcm_enet_poll(struct napi_struct *napi, int budget)
 			 ENETDMAC_IR, priv->tx_chan);
 
 	/* reclaim sent skb */
-	bcm_enet_tx_reclaim(dev, 0);
+	bcm_enet_tx_reclaim(dev, 0, budget);
 
 	spin_lock(&priv->rx_lock);
 	rx_work_done = bcm_enet_receive_queue(dev, budget);
@@ -1211,7 +1211,7 @@ static int bcm_enet_stop(struct net_device *dev)
 	bcm_enet_disable_mac(priv);
 
 	/* force reclaim of all tx buffers */
-	bcm_enet_tx_reclaim(dev, 1);
+	bcm_enet_tx_reclaim(dev, 1, 0);
 
 	/* free the rx buffer ring */
 	bcm_enet_free_rx_buf_ring(kdev, priv);
@@ -1935,7 +1935,7 @@ static int bcm_enet_remove(struct platform_device *pdev)
 	return 0;
 }
 
-struct platform_driver bcm63xx_enet_driver = {
+static struct platform_driver bcm63xx_enet_driver = {
 	.probe	= bcm_enet_probe,
 	.remove	= bcm_enet_remove,
 	.driver	= {
@@ -2362,7 +2362,7 @@ static int bcm_enetsw_stop(struct net_device *dev)
 	bcm_enet_disable_dma(priv, priv->rx_chan);
 
 	/* force reclaim of all tx buffers */
-	bcm_enet_tx_reclaim(dev, 1);
+	bcm_enet_tx_reclaim(dev, 1, 0);
 
 	/* free the rx buffer ring */
 	bcm_enet_free_rx_buf_ring(kdev, priv);
@@ -2756,7 +2756,7 @@ static int bcm_enetsw_remove(struct platform_device *pdev)
 	return 0;
 }
 
-struct platform_driver bcm63xx_enetsw_driver = {
+static struct platform_driver bcm63xx_enetsw_driver = {
 	.probe	= bcm_enetsw_probe,
 	.remove	= bcm_enetsw_remove,
 	.driver	= {

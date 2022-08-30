@@ -896,7 +896,7 @@ static int ad799x_remove(struct i2c_client *client)
 	return 0;
 }
 
-static int __maybe_unused ad799x_suspend(struct device *dev)
+static int ad799x_suspend(struct device *dev)
 {
 	struct iio_dev *indio_dev = i2c_get_clientdata(to_i2c_client(dev));
 	struct ad799x_state *st = iio_priv(indio_dev);
@@ -908,7 +908,7 @@ static int __maybe_unused ad799x_suspend(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused ad799x_resume(struct device *dev)
+static int ad799x_resume(struct device *dev)
 {
 	struct iio_dev *indio_dev = i2c_get_clientdata(to_i2c_client(dev));
 	struct ad799x_state *st = iio_priv(indio_dev);
@@ -941,7 +941,7 @@ static int __maybe_unused ad799x_resume(struct device *dev)
 	return 0;
 }
 
-static SIMPLE_DEV_PM_OPS(ad799x_pm_ops, ad799x_suspend, ad799x_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(ad799x_pm_ops, ad799x_suspend, ad799x_resume);
 
 static const struct i2c_device_id ad799x_id[] = {
 	{ "ad7991", ad7991 },
@@ -960,7 +960,7 @@ MODULE_DEVICE_TABLE(i2c, ad799x_id);
 static struct i2c_driver ad799x_driver = {
 	.driver = {
 		.name = "ad799x",
-		.pm = &ad799x_pm_ops,
+		.pm = pm_sleep_ptr(&ad799x_pm_ops),
 	},
 	.probe = ad799x_probe,
 	.remove = ad799x_remove,

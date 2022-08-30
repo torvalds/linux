@@ -55,4 +55,4 @@ config ERRATA_THEAD_PBMT
 
 	  If you don't know what to do here, say "Y".
 
-endmenu
+endmenu # "CPU errata selection"

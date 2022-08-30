@@ -151,7 +151,7 @@ static inline struct tracepoint *tracepoint_ptr_deref(tracepoint_ptr_t *p)
 /*
  * Individual subsystem my have a separate configuration to
  * enable their tracepoints. By default, this file will create
- * the tracepoints if CONFIG_TRACEPOINT is defined. If a subsystem
+ * the tracepoints if CONFIG_TRACEPOINTS is defined. If a subsystem
  * wants to be able to disable its tracepoints from being created
  * it can define NOTRACE before including the tracepoint headers.
  */
@@ -200,13 +200,13 @@ static inline struct tracepoint *tracepoint_ptr_deref(tracepoint_ptr_t *p)
 		 */							\
 		if (rcuidle) {						\
 			__idx = srcu_read_lock_notrace(&tracepoint_srcu);\
-			rcu_irq_enter_irqson();				\
+			ct_irq_enter_irqson();				\
 		}							\
 									\
 		__DO_TRACE_CALL(name, TP_ARGS(args));			\
 									\
 		if (rcuidle) {						\
-			rcu_irq_exit_irqson();				\
+			ct_irq_exit_irqson();				\
 			srcu_read_unlock_notrace(&tracepoint_srcu, __idx);\
 		}							\
 									\

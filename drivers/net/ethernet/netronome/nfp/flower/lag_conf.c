@@ -234,7 +234,7 @@ nfp_fl_lag_config_group(struct nfp_fl_lag *lag, struct nfp_fl_lag_group *group,
 	}
 
 	/* To signal the end of a batch, both the switch and last flags are set
-	 * and the the reserved SYNC group ID is used.
+	 * and the reserved SYNC group ID is used.
 	 */
 	if (*batch == NFP_FL_LAG_BATCH_FINISHED) {
 		flags |= NFP_FL_LAG_SWITCH | NFP_FL_LAG_LAST;
@@ -576,7 +576,7 @@ nfp_fl_lag_changeupper_event(struct nfp_fl_lag *lag,
 	group->dirty = true;
 	group->slave_cnt = slave_count;
 
-	/* Group may have been on queue for removal but is now offloable. */
+	/* Group may have been on queue for removal but is now offloadable. */
 	group->to_remove = false;
 	mutex_unlock(&lag->lock);
 

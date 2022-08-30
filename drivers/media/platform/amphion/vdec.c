@@ -63,6 +63,7 @@ struct vdec_t {
 	bool is_source_changed;
 	u32 source_change;
 	u32 drain;
+	bool aborting;
 };
 
 static const struct vpu_format vdec_formats[] = {
@@ -104,7 +105,6 @@ static const struct vpu_format vdec_formats[] = {
 		.pixfmt = V4L2_PIX_FMT_VC1_ANNEX_L,
 		.num_planes = 1,
 		.type = V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE,
-		.flags = V4L2_FMT_FLAG_DYN_RESOLUTION
 	},
 	{
 		.pixfmt = V4L2_PIX_FMT_MPEG2,
@@ -178,16 +178,6 @@ static int vdec_ctrl_init(struct vpu_inst *inst)
 	return 0;
 }
 
-static void vdec_set_last_buffer_dequeued(struct vpu_inst *inst)
-{
-	struct vdec_t *vdec = inst->priv;
-
-	if (vdec->eos_received) {
-		if (!vpu_set_last_buffer_dequeued(inst))
-			vdec->eos_received--;
-	}
-}
-
 static void vdec_handle_resolution_change(struct vpu_inst *inst)
 {
 	struct vdec_t *vdec = inst->priv;
@@ -232,6 +222,21 @@ static int vdec_update_state(struct vpu_inst *inst, enum vpu_codec_state state, 
 		vdec_handle_resolution_change(inst);
 
 	return 0;
+}
+
+static void vdec_set_last_buffer_dequeued(struct vpu_inst *inst)
+{
+	struct vdec_t *vdec = inst->priv;
+
+	if (inst->state == VPU_CODEC_STATE_DYAMIC_RESOLUTION_CHANGE)
+		return;
+
+	if (vdec->eos_received) {
+		if (!vpu_set_last_buffer_dequeued(inst)) {
+			vdec->eos_received--;
+			vdec_update_state(inst, VPU_CODEC_STATE_DRAIN, 0);
+		}
+	}
 }
 
 static int vdec_querycap(struct file *file, void *fh, struct v4l2_capability *cap)
@@ -493,6 +498,8 @@ static int vdec_drain(struct vpu_inst *inst)
 
 static int vdec_cmd_start(struct vpu_inst *inst)
 {
+	struct vdec_t *vdec = inst->priv;
+
 	switch (inst->state) {
 	case VPU_CODEC_STATE_STARTED:
 	case VPU_CODEC_STATE_DRAIN:
@@ -503,6 +510,8 @@ static int vdec_cmd_start(struct vpu_inst *inst)
 		break;
 	}
 	vpu_process_capture_buffer(inst);
+	if (vdec->eos_received)
+		vdec_set_last_buffer_dequeued(inst);
 	return 0;
 }
 
@@ -731,6 +740,7 @@ static void vdec_stop_done(struct vpu_inst *inst)
 	vdec->eos_received = 0;
 	vdec->is_source_changed = false;
 	vdec->source_change = 0;
+	inst->total_input_count = 0;
 	vpu_inst_unlock(inst);
 }
 
@@ -939,6 +949,9 @@ static int vdec_response_frame(struct vpu_inst *inst, struct vb2_v4l2_buffer *vb
 	if (inst->state != VPU_CODEC_STATE_ACTIVE)
 		return -EINVAL;
 
+	if (vdec->aborting)
+		return -EINVAL;
+
 	if (!vdec->req_frame_count)
 		return -EINVAL;
 
@@ -1048,6 +1061,8 @@ static void vdec_clear_slots(struct vpu_inst *inst)
 		vpu_buf = vdec->slots[i];
 		vbuf = &vpu_buf->m2m_buf.vb;
 
+		vpu_trace(inst->dev, "clear slot %d\n", i);
+		vdec_response_fs_release(inst, i, vpu_buf->tag);
 		vdec_recycle_buffer(inst, vbuf);
 		vdec->slots[i]->state = VPU_BUF_STATE_IDLE;
 		vdec->slots[i] = NULL;
@@ -1203,7 +1218,6 @@ static void vdec_event_eos(struct vpu_inst *inst)
 	vdec->eos_received++;
 	vdec->fixed_fmt = false;
 	inst->min_buffer_cap = VDEC_MIN_BUFFER_CAP;
-	vdec_update_state(inst, VPU_CODEC_STATE_DRAIN, 0);
 	vdec_set_last_buffer_dequeued(inst);
 	vpu_inst_unlock(inst);
 }
@@ -1310,6 +1324,8 @@ static void vdec_abort(struct vpu_inst *inst)
 	int ret;
 
 	vpu_trace(inst->dev, "[%d] state = %d\n", inst->id, inst->state);
+
+	vdec->aborting = true;
 	vpu_iface_add_scode(inst, SCODE_PADDING_ABORT);
 	vdec->params.end_flag = 1;
 	vpu_iface_set_decode_params(inst, &vdec->params, 1);
@@ -1333,6 +1349,7 @@ static void vdec_abort(struct vpu_inst *inst)
 	vdec->decoded_frame_count = 0;
 	vdec->display_frame_count = 0;
 	vdec->sequence = 0;
+	vdec->aborting = false;
 }
 
 static void vdec_stop(struct vpu_inst *inst, bool free)
@@ -1369,8 +1386,7 @@ static void vdec_cleanup(struct vpu_inst *inst)
 		return;
 
 	vdec = inst->priv;
-	if (vdec)
-		vfree(vdec);
+	vfree(vdec);
 	inst->priv = NULL;
 	vfree(inst);
 }
@@ -1480,10 +1496,10 @@ static int vdec_stop_session(struct vpu_inst *inst, u32 type)
 		vdec_update_state(inst, VPU_CODEC_STATE_SEEK, 0);
 		vdec->drain = 0;
 	} else {
-		if (inst->state != VPU_CODEC_STATE_DYAMIC_RESOLUTION_CHANGE)
+		if (inst->state != VPU_CODEC_STATE_DYAMIC_RESOLUTION_CHANGE) {
 			vdec_abort(inst);
-
-		vdec->eos_received = 0;
+			vdec->eos_received = 0;
+		}
 		vdec_clear_slots(inst);
 	}
 

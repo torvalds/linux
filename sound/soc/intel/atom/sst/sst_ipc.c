@@ -28,7 +28,7 @@
 struct sst_block *sst_create_block(struct intel_sst_drv *ctx,
 					u32 msg_id, u32 drv_id)
 {
-	struct sst_block *msg = NULL;
+	struct sst_block *msg;
 
 	dev_dbg(ctx->dev, "Enter\n");
 	msg = kzalloc(sizeof(*msg), GFP_KERNEL);
@@ -63,7 +63,7 @@ struct sst_block *sst_create_block(struct intel_sst_drv *ctx,
 int sst_wake_up_block(struct intel_sst_drv *ctx, int result,
 		u32 drv_id, u32 ipc, void *data, u32 size)
 {
-	struct sst_block *block = NULL;
+	struct sst_block *block;
 
 	dev_dbg(ctx->dev, "Enter\n");
 
@@ -91,7 +91,7 @@ int sst_wake_up_block(struct intel_sst_drv *ctx, int result,
 
 int sst_free_block(struct intel_sst_drv *ctx, struct sst_block *freed)
 {
-	struct sst_block *block = NULL, *__block;
+	struct sst_block *block, *__block;
 
 	dev_dbg(ctx->dev, "Enter\n");
 	spin_lock_bh(&ctx->block_lock);
@@ -341,7 +341,7 @@ void sst_process_reply_mrfld(struct intel_sst_drv *sst_drv_ctx,
 	}
 
 	/* FW sent short error response for an IPC */
-	if (msg_high.part.result && drv_id && !msg_high.part.large) {
+	if (msg_high.part.result && !msg_high.part.large) {
 		/* 32-bit FW error code in msg_low */
 		dev_err(sst_drv_ctx->dev, "FW sent error response 0x%x", msg_low);
 		sst_wake_up_block(sst_drv_ctx, msg_high.part.result,

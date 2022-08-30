@@ -3927,7 +3927,7 @@ int dev_loopback_xmit(struct net *net, struct sock *sk, struct sk_buff *skb)
 	skb->pkt_type = PACKET_LOOPBACK;
 	if (skb->ip_summed == CHECKSUM_NONE)
 		skb->ip_summed = CHECKSUM_UNNECESSARY;
-	WARN_ON(!skb_dst(skb));
+	DEBUG_NET_WARN_ON_ONCE(!skb_dst(skb));
 	skb_dst_force(skb);
 	netif_rx(skb);
 	return 0;
@@ -4168,6 +4168,7 @@ int __dev_queue_xmit(struct sk_buff *skb, struct net_device *sb_dev)
 	bool again = false;
 
 	skb_reset_mac_header(skb);
+	skb_assert_len(skb);
 
 	if (unlikely(skb_shinfo(skb)->tx_flags & SKBTX_SCHED_TSTAMP))
 		__skb_tstamp_tx(skb, NULL, NULL, skb->sk, SCM_TSTAMP_SCHED);
@@ -6357,6 +6358,23 @@ int dev_set_threaded(struct net_device *dev, bool threaded)
 }
 EXPORT_SYMBOL(dev_set_threaded);
 
+/* Double check that napi_get_frags() allocates skbs with
+ * skb->head being backed by slab, not a page fragment.
+ * This is to make sure bug fixed in 3226b158e67c
+ * ("net: avoid 32 x truesize under-estimation for tiny skbs")
+ * does not accidentally come back.
+ */
+static void napi_get_frags_check(struct napi_struct *napi)
+{
+	struct sk_buff *skb;
+
+	local_bh_disable();
+	skb = napi_get_frags(napi);
+	WARN_ON_ONCE(skb && skb->head_frag);
+	napi_free_frags(napi);
+	local_bh_enable();
+}
+
 void netif_napi_add_weight(struct net_device *dev, struct napi_struct *napi,
 			   int (*poll)(struct napi_struct *, int), int weight)
 {
@@ -6384,6 +6402,7 @@ void netif_napi_add_weight(struct net_device *dev, struct napi_struct *napi,
 	set_bit(NAPI_STATE_NPSVC, &napi->state);
 	list_add_rcu(&napi->dev_list, &dev->napi_list);
 	napi_hash_add(napi);
+	napi_get_frags_check(napi);
 	/* Create kthread for this napi if dev->threaded is set.
 	 * Clear dev->threaded if kthread creation failed so that
 	 * threaded mode will not be enabled in napi_enable().
@@ -7469,7 +7488,7 @@ static int __netdev_adjacent_dev_insert(struct net_device *dev,
 	adj->ref_nr = 1;
 	adj->private = private;
 	adj->ignore = false;
-	dev_hold_track(adj_dev, &adj->dev_tracker, GFP_KERNEL);
+	netdev_hold(adj_dev, &adj->dev_tracker, GFP_KERNEL);
 
 	pr_debug("Insert adjacency: dev %s adj_dev %s adj->ref_nr %d; dev_hold on %s\n",
 		 dev->name, adj_dev->name, adj->ref_nr, adj_dev->name);
@@ -7498,7 +7517,7 @@ remove_symlinks:
 	if (netdev_adjacent_is_neigh_list(dev, adj_dev, dev_list))
 		netdev_adjacent_sysfs_del(dev, adj_dev->name, dev_list);
 free_adj:
-	dev_put_track(adj_dev, &adj->dev_tracker);
+	netdev_put(adj_dev, &adj->dev_tracker);
 	kfree(adj);
 
 	return ret;
@@ -7540,7 +7559,7 @@ static void __netdev_adjacent_dev_remove(struct net_device *dev,
 	list_del_rcu(&adj->list);
 	pr_debug("adjacency: dev_put for %s, because link removed from %s to %s\n",
 		 adj_dev->name, dev->name, adj_dev->name);
-	dev_put_track(adj_dev, &adj->dev_tracker);
+	netdev_put(adj_dev, &adj->dev_tracker);
 	kfree_rcu(adj, rcu);
 }
 
@@ -10068,7 +10087,7 @@ int register_netdevice(struct net_device *dev)
 
 	dev_init_scheduler(dev);
 
-	dev_hold_track(dev, &dev->dev_registered_tracker, GFP_KERNEL);
+	netdev_hold(dev, &dev->dev_registered_tracker, GFP_KERNEL);
 	list_netdevice(dev);
 
 	add_device_randomness(dev->dev_addr, dev->addr_len);
@@ -10467,23 +10486,23 @@ void dev_fetch_sw_netstats(struct rtnl_link_stats64 *s,
 	int cpu;
 
 	for_each_possible_cpu(cpu) {
+		u64 rx_packets, rx_bytes, tx_packets, tx_bytes;
 		const struct pcpu_sw_netstats *stats;
-		struct pcpu_sw_netstats tmp;
 		unsigned int start;
 
 		stats = per_cpu_ptr(netstats, cpu);
 		do {
 			start = u64_stats_fetch_begin_irq(&stats->syncp);
-			tmp.rx_packets = stats->rx_packets;
-			tmp.rx_bytes   = stats->rx_bytes;
-			tmp.tx_packets = stats->tx_packets;
-			tmp.tx_bytes   = stats->tx_bytes;
+			rx_packets = u64_stats_read(&stats->rx_packets);
+			rx_bytes   = u64_stats_read(&stats->rx_bytes);
+			tx_packets = u64_stats_read(&stats->tx_packets);
+			tx_bytes   = u64_stats_read(&stats->tx_bytes);
 		} while (u64_stats_fetch_retry_irq(&stats->syncp, start));
 
-		s->rx_packets += tmp.rx_packets;
-		s->rx_bytes   += tmp.rx_bytes;
-		s->tx_packets += tmp.tx_packets;
-		s->tx_bytes   += tmp.tx_bytes;
+		s->rx_packets += rx_packets;
+		s->rx_bytes   += rx_bytes;
+		s->tx_packets += tx_packets;
+		s->tx_bytes   += tx_bytes;
 	}
 }
 EXPORT_SYMBOL_GPL(dev_fetch_sw_netstats);
@@ -10877,7 +10896,7 @@ void unregister_netdevice_many(struct list_head *head)
 	synchronize_net();
 
 	list_for_each_entry(dev, head, unreg_list) {
-		dev_put_track(dev, &dev->dev_registered_tracker);
+		netdev_put(dev, &dev->dev_registered_tracker);
 		net_set_todo(dev);
 	}
 

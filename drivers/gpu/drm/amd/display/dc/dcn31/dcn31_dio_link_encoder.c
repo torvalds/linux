@@ -458,6 +458,7 @@ void dcn31_link_encoder_enable_dp_output(
 	/* Enable transmitter and encoder. */
 	if (!link_enc_cfg_is_transmitter_mappable(enc->ctx->dc, enc)) {
 
+		DC_LOG_DEBUG("%s: enc_id(%d)\n", __func__, enc->preferred_engine);
 		dcn20_link_encoder_enable_dp_output(enc, link_settings, clock_source);
 
 	} else {
@@ -489,6 +490,7 @@ void dcn31_link_encoder_enable_dp_output(
 			return;
 		}
 
+		DC_LOG_DEBUG("%s: DPIA(%d) - enc_id(%d)\n", __func__, dpia_control.dpia_id, dpia_control.enc_id);
 		link_dpia_control(enc->ctx, &dpia_control);
 	}
 }
@@ -503,6 +505,7 @@ void dcn31_link_encoder_enable_dp_mst_output(
 	/* Enable transmitter and encoder. */
 	if (!link_enc_cfg_is_transmitter_mappable(enc->ctx->dc, enc)) {
 
+		DC_LOG_DEBUG("%s: enc_id(%d)\n", __func__, enc->preferred_engine);
 		dcn10_link_encoder_enable_dp_mst_output(enc, link_settings, clock_source);
 
 	} else {
@@ -534,6 +537,7 @@ void dcn31_link_encoder_enable_dp_mst_output(
 			return;
 		}
 
+		DC_LOG_DEBUG("%s: DPIA(%d) - enc_id(%d)\n", __func__, dpia_control.dpia_id, dpia_control.enc_id);
 		link_dpia_control(enc->ctx, &dpia_control);
 	}
 }
@@ -547,6 +551,7 @@ void dcn31_link_encoder_disable_output(
 	/* Disable transmitter and encoder. */
 	if (!link_enc_cfg_is_transmitter_mappable(enc->ctx->dc, enc)) {
 
+		DC_LOG_DEBUG("%s: enc_id(%d)\n", __func__, enc->preferred_engine);
 		dcn10_link_encoder_disable_output(enc, signal);
 
 	} else {
@@ -578,6 +583,7 @@ void dcn31_link_encoder_disable_output(
 			return;
 		}
 
+		DC_LOG_DEBUG("%s: DPIA(%d) - enc_id(%d)\n", __func__, dpia_control.dpia_id, dpia_control.enc_id);
 		link_dpia_control(enc->ctx, &dpia_control);
 
 		link_encoder_disable(enc10);

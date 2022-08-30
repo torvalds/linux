@@ -48,7 +48,7 @@ static void cedrus_mpeg2_irq_disable(struct cedrus_ctx *ctx)
 	cedrus_write(dev, VE_DEC_MPEG_CTRL, reg);
 }
 
-static void cedrus_mpeg2_setup(struct cedrus_ctx *ctx, struct cedrus_run *run)
+static int cedrus_mpeg2_setup(struct cedrus_ctx *ctx, struct cedrus_run *run)
 {
 	const struct v4l2_ctrl_mpeg2_sequence *seq;
 	const struct v4l2_ctrl_mpeg2_picture *pic;
@@ -185,6 +185,8 @@ static void cedrus_mpeg2_setup(struct cedrus_ctx *ctx, struct cedrus_run *run)
 	      VE_DEC_MPEG_CTRL_MC_CACHE_EN;
 
 	cedrus_write(dev, VE_DEC_MPEG_CTRL, reg);
+
+	return 0;
 }
 
 static void cedrus_mpeg2_trigger(struct cedrus_ctx *ctx)

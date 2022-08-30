@@ -1040,7 +1040,6 @@ static int kfd_parse_subtype_iolink(struct crat_subtype_iolink *iolink,
 			props->rec_transfer_size =
 					iolink->recommended_transfer_size;
 
-			dev->io_link_count++;
 			dev->node_props.io_links_count++;
 			list_add_tail(&props->list, &dev->io_link_props);
 			break;
@@ -1067,7 +1066,6 @@ static int kfd_parse_subtype_iolink(struct crat_subtype_iolink *iolink,
 		props2->node_from = id_to;
 		props2->node_to = id_from;
 		props2->kobj = NULL;
-		to_dev->io_link_count++;
 		to_dev->node_props.io_links_count++;
 		list_add_tail(&props2->list, &to_dev->io_link_props);
 	}

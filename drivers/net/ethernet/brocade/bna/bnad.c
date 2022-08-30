@@ -2823,8 +2823,7 @@ bnad_txq_wi_prepare(struct bnad *bnad, struct bna_tcb *tcb,
 			BNAD_UPDATE_CTR(bnad, tx_skb_mss_too_long);
 			return -EINVAL;
 		}
-		if (unlikely((gso_size + skb_transport_offset(skb) +
-			      tcp_hdrlen(skb)) >= skb->len)) {
+		if (unlikely((gso_size + skb_tcp_all_headers(skb)) >= skb->len)) {
 			txqent->hdr.wi.opcode = htons(BNA_TXQ_WI_SEND);
 			txqent->hdr.wi.lso_mss = 0;
 			BNAD_UPDATE_CTR(bnad, tx_skb_tso_too_short);
@@ -2872,8 +2871,7 @@ bnad_txq_wi_prepare(struct bnad *bnad, struct bna_tcb *tcb,
 				BNAD_UPDATE_CTR(bnad, tcpcsum_offload);
 
 				if (unlikely(skb_headlen(skb) <
-					    skb_transport_offset(skb) +
-				    tcp_hdrlen(skb))) {
+					    skb_tcp_all_headers(skb))) {
 					BNAD_UPDATE_CTR(bnad, tx_skb_tcp_hdr);
 					return -EINVAL;
 				}

@@ -49,9 +49,9 @@
 		ramoops@32000000 {
 			compatible = "ramoops";
 			reg = <0x0 0x32000000 0x0 0x00100000>;
-			record-size	= <0x00020000>;
-			console-size	= <0x00020000>;
-			ftrace-size	= <0x00020000>;
+			record-size = <0x00020000>;
+			console-size = <0x00020000>;
+			ftrace-size = <0x00020000>;
 		};
 	};
 
@@ -63,9 +63,9 @@
 			compatible = "syscon-reboot-mode";
 			offset = <0x0>;
 
-			mode-normal	= <0x77665501>;
-			mode-bootloader	= <0x77665500>;
-			mode-recovery	= <0x77665502>;
+			mode-normal = <0x77665501>;
+			mode-bootloader = <0x77665500>;
+			mode-recovery = <0x77665502>;
 		};
 	};
 
@@ -74,7 +74,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&pwr_key_pmx_func &pwr_key_cfg_func>;
 
-		power {
+		key-power {
 			wakeup-source;
 			gpios = <&gpio4 2 GPIO_ACTIVE_LOW>;
 			label = "GPIO Power";

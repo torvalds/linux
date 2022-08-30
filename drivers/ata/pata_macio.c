@@ -1028,7 +1028,7 @@ static void pmac_macio_calc_timing_masks(struct pata_macio_priv *priv,
 		}
 		i++;
 	}
-	dev_dbg(priv->dev, "Supported masks: PIO=%lx, MWDMA=%lx, UDMA=%lx\n",
+	dev_dbg(priv->dev, "Supported masks: PIO=%x, MWDMA=%x, UDMA=%x\n",
 		pinfo->pio_mask, pinfo->mwdma_mask, pinfo->udma_mask);
 }
 

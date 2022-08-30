@@ -668,19 +668,19 @@ static bool bfqq_request_over_limit(struct bfq_queue *bfqq, int limit)
  * significantly affect service guarantees coming from the BFQ scheduling
  * algorithm.
  */
-static void bfq_limit_depth(unsigned int op, struct blk_mq_alloc_data *data)
+static void bfq_limit_depth(blk_opf_t opf, struct blk_mq_alloc_data *data)
 {
 	struct bfq_data *bfqd = data->q->elevator->elevator_data;
 	struct bfq_io_cq *bic = bfq_bic_lookup(data->q);
-	struct bfq_queue *bfqq = bic ? bic_to_bfqq(bic, op_is_sync(op)) : NULL;
+	struct bfq_queue *bfqq = bic ? bic_to_bfqq(bic, op_is_sync(opf)) : NULL;
 	int depth;
 	unsigned limit = data->q->nr_requests;
 
 	/* Sync reads have full depth available */
-	if (op_is_sync(op) && !op_is_write(op)) {
+	if (op_is_sync(opf) && !op_is_write(opf)) {
 		depth = 0;
 	} else {
-		depth = bfqd->word_depths[!!bfqd->wr_busy_queues][op_is_sync(op)];
+		depth = bfqd->word_depths[!!bfqd->wr_busy_queues][op_is_sync(opf)];
 		limit = (limit * depth) >> bfqd->full_depth_shift;
 	}
 
@@ -693,7 +693,7 @@ static void bfq_limit_depth(unsigned int op, struct blk_mq_alloc_data *data)
 		depth = 1;
 
 	bfq_log(bfqd, "[%s] wr_busy %d sync %d depth %u",
-		__func__, bfqd->wr_busy_queues, op_is_sync(op), depth);
+		__func__, bfqd->wr_busy_queues, op_is_sync(opf), depth);
 	if (depth)
 		data->shallow_depth = depth;
 }
@@ -6104,7 +6104,7 @@ static bool __bfq_insert_request(struct bfq_data *bfqd, struct request *rq)
 static void bfq_update_insert_stats(struct request_queue *q,
 				    struct bfq_queue *bfqq,
 				    bool idle_timer_disabled,
-				    unsigned int cmd_flags)
+				    blk_opf_t cmd_flags)
 {
 	if (!bfqq)
 		return;
@@ -6129,7 +6129,7 @@ static void bfq_update_insert_stats(struct request_queue *q,
 static inline void bfq_update_insert_stats(struct request_queue *q,
 					   struct bfq_queue *bfqq,
 					   bool idle_timer_disabled,
-					   unsigned int cmd_flags) {}
+					   blk_opf_t cmd_flags) {}
 #endif /* CONFIG_BFQ_CGROUP_DEBUG */
 
 static struct bfq_queue *bfq_init_rq(struct request *rq);
@@ -6141,7 +6141,7 @@ static void bfq_insert_request(struct blk_mq_hw_ctx *hctx, struct request *rq,
 	struct bfq_data *bfqd = q->elevator->elevator_data;
 	struct bfq_queue *bfqq;
 	bool idle_timer_disabled = false;
-	unsigned int cmd_flags;
+	blk_opf_t cmd_flags;
 	LIST_HEAD(free);
 
 #ifdef CONFIG_BFQ_GROUP_IOSCHED

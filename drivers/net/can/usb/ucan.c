@@ -28,6 +28,7 @@
 #include <linux/can.h>
 #include <linux/can/dev.h>
 #include <linux/can/error.h>
+#include <linux/ethtool.h>
 #include <linux/module.h>
 #include <linux/netdevice.h>
 #include <linux/signal.h>
@@ -1233,6 +1234,10 @@ static const struct net_device_ops ucan_netdev_ops = {
 	.ndo_change_mtu = can_change_mtu,
 };
 
+static const struct ethtool_ops ucan_ethtool_ops = {
+	.get_ts_info = ethtool_op_get_ts_info,
+};
+
 /* Request to set bittiming
  *
  * This function generates an USB set bittiming message and transmits
@@ -1512,6 +1517,7 @@ static int ucan_probe(struct usb_interface *intf,
 	spin_lock_init(&up->context_lock);
 	spin_lock_init(&up->echo_skb_lock);
 	netdev->netdev_ops = &ucan_netdev_ops;
+	netdev->ethtool_ops = &ucan_ethtool_ops;
 
 	usb_set_intfdata(intf, up);
 	SET_NETDEV_DEV(netdev, &intf->dev);

@@ -143,6 +143,26 @@ config PM_AUTOSLEEP
 	Allow the kernel to trigger a system transition into a global sleep
 	state automatically whenever there are no active wakeup sources.
 
+config PM_USERSPACE_AUTOSLEEP
+	bool "Userspace opportunistic sleep"
+	depends on PM_SLEEP
+	help
+	Notify kernel of aggressive userspace autosleep power management policy.
+
+	This option changes the behavior of various sleep-sensitive code to deal
+	with frequent userspace-initiated transitions into a global sleep state.
+
+	Saying Y here, disables code paths that most users really should keep
+	enabled. In particular, only enable this if it is very common to be
+	asleep/awake for very short periods of time (<= 2 seconds).
+
+	Only platforms, such as Android, that implement opportunistic sleep from
+	a userspace power manager service should enable this option; and not
+	other machines. Therefore, you should say N here, unless you are
+	extremely certain that this is what you want. The option otherwise has
+	bad, undesirable effects, and should not be enabled just for fun.
+
+
 config PM_WAKELOCKS
 	bool "User space wakeup sources interface"
 	depends on PM_SLEEP

@@ -535,12 +535,9 @@ normal_tx:
 		u32 hdr_len;
 
 		if (skb->encapsulation)
-			hdr_len = skb_inner_network_offset(skb) +
-				skb_inner_network_header_len(skb) +
-				inner_tcp_hdrlen(skb);
+			hdr_len = skb_inner_tcp_all_headers(skb);
 		else
-			hdr_len = skb_transport_offset(skb) +
-				tcp_hdrlen(skb);
+			hdr_len = skb_tcp_all_headers(skb);
 
 		txbd1->tx_bd_hsize_lflags |= cpu_to_le32(TX_BD_FLAGS_LSO |
 					TX_BD_FLAGS_T_IPID |
@@ -4480,7 +4477,7 @@ static void bnxt_free_ntp_fltrs(struct bnxt *bp, bool irq_reinit)
 		}
 	}
 	if (irq_reinit) {
-		kfree(bp->ntp_fltr_bmap);
+		bitmap_free(bp->ntp_fltr_bmap);
 		bp->ntp_fltr_bmap = NULL;
 	}
 	bp->ntp_fltr_count = 0;
@@ -4499,9 +4496,7 @@ static int bnxt_alloc_ntp_fltrs(struct bnxt *bp)
 		INIT_HLIST_HEAD(&bp->ntp_fltr_hash_tbl[i]);
 
 	bp->ntp_fltr_count = 0;
-	bp->ntp_fltr_bmap = kcalloc(BITS_TO_LONGS(BNXT_NTP_FLTR_MAX_FLTR),
-				    sizeof(long),
-				    GFP_KERNEL);
+	bp->ntp_fltr_bmap = bitmap_zalloc(BNXT_NTP_FLTR_MAX_FLTR, GFP_KERNEL);
 
 	if (!bp->ntp_fltr_bmap)
 		rc = -ENOMEM;
@@ -10659,7 +10654,7 @@ static void __bnxt_close_nic(struct bnxt *bp, bool irq_re_init,
 	while (bnxt_drv_busy(bp))
 		msleep(20);
 
-	/* Flush rings and and disable interrupts */
+	/* Flush rings and disable interrupts */
 	bnxt_shutdown_nic(bp, irq_re_init);
 
 	/* TODO CHIMP_FW: Link/PHY related cleanup if (link_re_init) */

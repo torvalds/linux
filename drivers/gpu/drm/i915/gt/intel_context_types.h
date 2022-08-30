@@ -40,7 +40,8 @@ struct intel_context_ops {
 
 	int (*alloc)(struct intel_context *ce);
 
-	void (*ban)(struct intel_context *ce, struct i915_request *rq);
+	void (*revoke)(struct intel_context *ce, struct i915_request *rq,
+		       unsigned int preempt_timeout_ms);
 
 	int (*pre_pin)(struct intel_context *ce, struct i915_gem_ww_ctx *ww, void **vaddr);
 	int (*pin)(struct intel_context *ce, void *vaddr);
@@ -122,6 +123,7 @@ struct intel_context {
 #define CONTEXT_GUC_INIT		10
 #define CONTEXT_PERMA_PIN		11
 #define CONTEXT_IS_PARKING		12
+#define CONTEXT_EXITING			13
 
 	struct {
 		u64 timeout_us;

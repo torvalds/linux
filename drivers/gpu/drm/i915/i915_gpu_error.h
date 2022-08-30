@@ -84,6 +84,13 @@ struct intel_engine_coredump {
 	u32 fault_reg;
 	u64 faddr;
 	u32 rc_psmi; /* sleep state */
+	u32 nopid;
+	u32 excc;
+	u32 cmd_cctl;
+	u32 cscmdop;
+	u32 ctx_sr_ctl;
+	u32 dma_faddr_hi;
+	u32 dma_faddr_lo;
 	struct intel_instdone instdone;
 
 	/* GuC matched capture-lists info */

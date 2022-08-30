@@ -1075,7 +1075,9 @@ static u32 intel_rps_read_state_cap(struct intel_rps *rps)
 	struct drm_i915_private *i915 = rps_to_i915(rps);
 	struct intel_uncore *uncore = rps_to_uncore(rps);
 
-	if (IS_XEHPSDV(i915))
+	if (IS_PONTEVECCHIO(i915))
+		return intel_uncore_read(uncore, PVC_RP_STATE_CAP);
+	else if (IS_XEHPSDV(i915))
 		return intel_uncore_read(uncore, XEHPSDV_RP_STATE_CAP);
 	else if (IS_GEN9_LP(i915))
 		return intel_uncore_read(uncore, BXT_RP_STATE_CAP);
@@ -1142,7 +1144,8 @@ static void gen6_rps_init(struct intel_rps *rps)
 
 		if (IS_GEN9_BC(i915) || GRAPHICS_VER(i915) >= 11)
 			mult = GEN9_FREQ_SCALER;
-		if (snb_pcode_read(i915, HSW_PCODE_DYNAMIC_DUTY_CYCLE_CONTROL,
+		if (snb_pcode_read(rps_to_gt(rps)->uncore,
+				   HSW_PCODE_DYNAMIC_DUTY_CYCLE_CONTROL,
 				   &ddcc_status, NULL) == 0)
 			rps->efficient_freq =
 				clamp_t(u32,
@@ -1982,7 +1985,7 @@ void intel_rps_init(struct intel_rps *rps)
 	if (GRAPHICS_VER(i915) == 6 || IS_IVYBRIDGE(i915) || IS_HASWELL(i915)) {
 		u32 params = 0;
 
-		snb_pcode_read(i915, GEN6_READ_OC_PARAMS, &params, NULL);
+		snb_pcode_read(rps_to_gt(rps)->uncore, GEN6_READ_OC_PARAMS, &params, NULL);
 		if (params & BIT(31)) { /* OC supported */
 			drm_dbg(&i915->drm,
 				"Overclocking supported, max: %dMHz, overclock: %dMHz\n",

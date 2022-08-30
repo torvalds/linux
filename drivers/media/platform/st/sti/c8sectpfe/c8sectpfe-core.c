@@ -107,7 +107,7 @@ static void channel_swdemux_tsklet(struct tasklet_struct *t)
 				size,
 				DMA_FROM_DEVICE);
 
-	buf = (u8 *) channel->back_buffer_aligned;
+	buf = channel->back_buffer_aligned;
 
 	dev_dbg(fei->dev,
 		"chan=%d channel=%p num_packets = %d, buf = %p, pos = 0x%x\n\trp=0x%lx, wp=0x%lx\n",
@@ -176,7 +176,7 @@ static int c8sectpfe_start_feed(struct dvb_demux_feed *dvbdmxfeed)
 
 	channel = fei->channel_data[stdemux->tsin_index];
 
-	bitmap = (unsigned long *) channel->pid_buffer_aligned;
+	bitmap = channel->pid_buffer_aligned;
 
 	/* 8192 is a special PID */
 	if (dvbdmxfeed->pid == 8192) {
@@ -272,7 +272,7 @@ static int c8sectpfe_stop_feed(struct dvb_demux_feed *dvbdmxfeed)
 
 	channel = fei->channel_data[stdemux->tsin_index];
 
-	bitmap = (unsigned long *) channel->pid_buffer_aligned;
+	bitmap = channel->pid_buffer_aligned;
 
 	if (dvbdmxfeed->pid == 8192) {
 		tmp = readl(fei->io + C8SECTPFE_IB_PID_SET(channel->tsin_id));
@@ -333,8 +333,7 @@ static int c8sectpfe_stop_feed(struct dvb_demux_feed *dvbdmxfeed)
 			__func__, __LINE__, stdemux, channel->tsin_id);
 
 		/* turn off all PIDS in the bitmap */
-		memset((void *)channel->pid_buffer_aligned
-			, 0x00, PID_TABLE_SIZE);
+		memset(channel->pid_buffer_aligned, 0, PID_TABLE_SIZE);
 
 		/* manage cache so data is visible to HW */
 		dma_sync_single_for_device(fei->dev,
@@ -458,23 +457,19 @@ static int configure_memdma_and_inputblock(struct c8sectpfei *fei,
 
 	init_completion(&tsin->idle_completion);
 
-	tsin->back_buffer_start = kzalloc(FEI_BUFFER_SIZE +
-					FEI_ALIGNMENT, GFP_KERNEL);
-
+	tsin->back_buffer_start = kzalloc(FEI_BUFFER_SIZE + FEI_ALIGNMENT, GFP_KERNEL);
 	if (!tsin->back_buffer_start) {
 		ret = -ENOMEM;
 		goto err_unmap;
 	}
 
 	/* Ensure backbuffer is 32byte aligned */
-	tsin->back_buffer_aligned = tsin->back_buffer_start
-		+ FEI_ALIGNMENT;
+	tsin->back_buffer_aligned = tsin->back_buffer_start + FEI_ALIGNMENT;
 
-	tsin->back_buffer_aligned = (void *)
-		(((uintptr_t) tsin->back_buffer_aligned) & ~0x1F);
+	tsin->back_buffer_aligned = PTR_ALIGN(tsin->back_buffer_aligned, FEI_ALIGNMENT);
 
 	tsin->back_buffer_busaddr = dma_map_single(fei->dev,
-					(void *)tsin->back_buffer_aligned,
+					tsin->back_buffer_aligned,
 					FEI_BUFFER_SIZE,
 					DMA_BIDIRECTIONAL);
 
@@ -489,8 +484,7 @@ static int configure_memdma_and_inputblock(struct c8sectpfei *fei,
 	 * per pid. By powers of deduction we conclude stih407 family
 	 * is configured (at SoC design stage) for bit per pid.
 	 */
-	tsin->pid_buffer_start = kzalloc(2048, GFP_KERNEL);
-
+	tsin->pid_buffer_start = kzalloc(PID_TABLE_SIZE + PID_TABLE_SIZE, GFP_KERNEL);
 	if (!tsin->pid_buffer_start) {
 		ret = -ENOMEM;
 		goto err_unmap;
@@ -503,11 +497,9 @@ static int configure_memdma_and_inputblock(struct c8sectpfei *fei,
 	 * the register.
 	 */
 
-	tsin->pid_buffer_aligned = tsin->pid_buffer_start +
-		PID_TABLE_SIZE;
+	tsin->pid_buffer_aligned = tsin->pid_buffer_start + PID_TABLE_SIZE;
 
-	tsin->pid_buffer_aligned = (void *)
-		(((uintptr_t) tsin->pid_buffer_aligned) & ~0x3ff);
+	tsin->pid_buffer_aligned = PTR_ALIGN(tsin->pid_buffer_aligned, PID_TABLE_SIZE);
 
 	tsin->pid_buffer_busaddr = dma_map_single(fei->dev,
 						tsin->pid_buffer_aligned,
@@ -915,8 +907,7 @@ static int c8sectpfe_remove(struct platform_device *pdev)
 	if (readl(fei->io + SYS_OTHER_CLKEN))
 		writel(0, fei->io + SYS_OTHER_CLKEN);
 
-	if (fei->c8sectpfeclk)
-		clk_disable_unprepare(fei->c8sectpfeclk);
+	clk_disable_unprepare(fei->c8sectpfeclk);
 
 	return 0;
 }

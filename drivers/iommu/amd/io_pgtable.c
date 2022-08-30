@@ -258,7 +258,7 @@ static u64 *alloc_pte(struct protection_domain *domain,
 			__npte = PM_LEVEL_PDE(level, iommu_virt_to_phys(page));
 
 			/* pte could have been changed somewhere. */
-			if (cmpxchg64(pte, __pte, __npte) != __pte)
+			if (!try_cmpxchg64(pte, &__pte, __npte))
 				free_page((unsigned long)page);
 			else if (IOMMU_PTE_PRESENT(__pte))
 				*updated = true;
@@ -341,10 +341,8 @@ static void free_clear_pte(u64 *pte, u64 pteval, struct list_head *freelist)
 	u64 *pt;
 	int mode;
 
-	while (cmpxchg64(pte, pteval, 0) != pteval) {
+	while (!try_cmpxchg64(pte, &pteval, 0))
 		pr_warn("AMD-Vi: IOMMU pte changed since we read it\n");
-		pteval = *pte;
-	}
 
 	if (!IOMMU_PTE_PRESENT(pteval))
 		return;

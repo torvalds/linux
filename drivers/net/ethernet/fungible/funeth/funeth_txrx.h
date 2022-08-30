@@ -82,6 +82,7 @@ struct funeth_txq_stats {  /* per Tx queue SW counters */
 	u64 tx_cso;        /* # of packets with checksum offload */
 	u64 tx_tso;        /* # of non-encapsulated TSO super-packets */
 	u64 tx_encap_tso;  /* # of encapsulated TSO super-packets */
+	u64 tx_uso;        /* # of non-encapsulated UDP LSO super-packets */
 	u64 tx_more;       /* # of DBs elided due to xmit_more */
 	u64 tx_nstops;     /* # of times the queue has stopped */
 	u64 tx_nrestarts;  /* # of times the queue has restarted */

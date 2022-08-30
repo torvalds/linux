@@ -480,9 +480,9 @@ __execlists_schedule_in(struct i915_request *rq)
 
 	if (unlikely(intel_context_is_closed(ce) &&
 		     !intel_engine_has_heartbeat(engine)))
-		intel_context_set_banned(ce);
+		intel_context_set_exiting(ce);
 
-	if (unlikely(intel_context_is_banned(ce) || bad_request(rq)))
+	if (unlikely(!intel_context_is_schedulable(ce) || bad_request(rq)))
 		reset_active(rq, engine);
 
 	if (IS_ENABLED(CONFIG_DRM_I915_DEBUG_GEM))
@@ -1243,7 +1243,7 @@ static unsigned long active_preempt_timeout(struct intel_engine_cs *engine,
 
 	/* Force a fast reset for terminated contexts (ignoring sysfs!) */
 	if (unlikely(intel_context_is_banned(rq->context) || bad_request(rq)))
-		return 1;
+		return INTEL_CONTEXT_BANNED_PREEMPT_TIMEOUT_MS;
 
 	return READ_ONCE(engine->props.preempt_timeout_ms);
 }
@@ -1360,7 +1360,7 @@ static void execlists_dequeue(struct intel_engine_cs *engine)
 			 * submission. If we don't cancel the timer now,
 			 * we will see that the timer has expired and
 			 * reschedule the tasklet; continually until the
-			 * next context switch or other preeemption event.
+			 * next context switch or other preemption event.
 			 *
 			 * Since we have decided to reschedule based on
 			 * consumption of this timeslice, if we submit the

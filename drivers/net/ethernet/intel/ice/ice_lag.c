@@ -447,11 +447,9 @@ void ice_deinit_lag(struct ice_pf *pf)
 	if (lag->pf)
 		ice_unregister_lag_handler(lag);
 
-	if (lag->upper_netdev)
-		dev_put(lag->upper_netdev);
+	dev_put(lag->upper_netdev);
 
-	if (lag->peer_netdev)
-		dev_put(lag->peer_netdev);
+	dev_put(lag->peer_netdev);
 
 	kfree(lag);
 

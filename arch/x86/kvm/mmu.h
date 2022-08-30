@@ -6,11 +6,6 @@
 #include "kvm_cache_regs.h"
 #include "cpuid.h"
 
-#define PT64_PT_BITS 9
-#define PT64_ENT_PER_PAGE (1 << PT64_PT_BITS)
-#define PT32_PT_BITS 10
-#define PT32_ENT_PER_PAGE (1 << PT32_PT_BITS)
-
 #define PT_WRITABLE_SHIFT 1
 #define PT_USER_SHIFT 2
 
@@ -33,11 +28,6 @@
 #define PT_PAT_SHIFT 7
 #define PT_DIR_PAT_SHIFT 12
 #define PT_DIR_PAT_MASK (1ULL << PT_DIR_PAT_SHIFT)
-
-#define PT32_DIR_PSE36_SIZE 4
-#define PT32_DIR_PSE36_SHIFT 13
-#define PT32_DIR_PSE36_MASK \
-	(((1ULL << PT32_DIR_PSE36_SIZE) - 1) << PT32_DIR_PSE36_SHIFT)
 
 #define PT64_ROOT_5LEVEL 5
 #define PT64_ROOT_4LEVEL 4

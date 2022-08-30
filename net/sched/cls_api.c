@@ -194,7 +194,7 @@ EXPORT_SYMBOL(register_tcf_proto_ops);
 
 static struct workqueue_struct *tc_filter_wq;
 
-int unregister_tcf_proto_ops(struct tcf_proto_ops *ops)
+void unregister_tcf_proto_ops(struct tcf_proto_ops *ops)
 {
 	struct tcf_proto_ops *t;
 	int rc = -ENOENT;
@@ -214,7 +214,8 @@ int unregister_tcf_proto_ops(struct tcf_proto_ops *ops)
 		}
 	}
 	write_unlock(&cls_mod_lock);
-	return rc;
+
+	WARN(rc, "unregister tc filter kind(%s) failed %d\n", ops->kind, rc);
 }
 EXPORT_SYMBOL(unregister_tcf_proto_ops);
 

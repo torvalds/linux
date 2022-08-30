@@ -365,18 +365,24 @@ mt7915_init_wiphy(struct ieee80211_hw *hw)
 	ieee80211_hw_set(hw, SUPPORTS_RX_DECAP_OFFLOAD);
 	ieee80211_hw_set(hw, SUPPORTS_MULTI_BSSID);
 	ieee80211_hw_set(hw, WANT_MONITOR_VIF);
+	ieee80211_hw_set(hw, SUPPORTS_VHT_EXT_NSS_BW);
 
 	hw->max_tx_fragments = 4;
 
-	if (phy->mt76->cap.has_2ghz)
+	if (phy->mt76->cap.has_2ghz) {
 		phy->mt76->sband_2g.sband.ht_cap.cap |=
 			IEEE80211_HT_CAP_LDPC_CODING |
 			IEEE80211_HT_CAP_MAX_AMSDU;
+		phy->mt76->sband_2g.sband.ht_cap.ampdu_density =
+			IEEE80211_HT_MPDU_DENSITY_4;
+	}
 
 	if (phy->mt76->cap.has_5ghz) {
 		phy->mt76->sband_5g.sband.ht_cap.cap |=
 			IEEE80211_HT_CAP_LDPC_CODING |
 			IEEE80211_HT_CAP_MAX_AMSDU;
+		phy->mt76->sband_5g.sband.ht_cap.ampdu_density =
+			IEEE80211_HT_MPDU_DENSITY_4;
 
 		if (is_mt7915(&dev->mt76)) {
 			phy->mt76->sband_5g.sband.vht_cap.cap |=
@@ -498,7 +504,7 @@ mt7915_alloc_ext_phy(struct mt7915_dev *dev)
 	if (!dev->dbdc_support)
 		return NULL;
 
-	mphy = mt76_alloc_phy(&dev->mt76, sizeof(*phy), &mt7915_ops);
+	mphy = mt76_alloc_phy(&dev->mt76, sizeof(*phy), &mt7915_ops, MT_BAND1);
 	if (!mphy)
 		return ERR_PTR(-ENOMEM);
 
@@ -752,9 +758,10 @@ mt7915_set_stream_he_txbf_caps(struct mt7915_dev *dev,
 
 	elem->phy_cap_info[7] &= ~IEEE80211_HE_PHY_CAP7_MAX_NC_MASK;
 
-	c = IEEE80211_HE_PHY_CAP2_NDP_4x_LTF_AND_3_2US |
-	    IEEE80211_HE_PHY_CAP2_UL_MU_FULL_MU_MIMO |
-	    IEEE80211_HE_PHY_CAP2_UL_MU_PARTIAL_MU_MIMO;
+	c = IEEE80211_HE_PHY_CAP2_NDP_4x_LTF_AND_3_2US;
+	if (!is_mt7915(&dev->mt76))
+		c |= IEEE80211_HE_PHY_CAP2_UL_MU_FULL_MU_MIMO |
+		     IEEE80211_HE_PHY_CAP2_UL_MU_PARTIAL_MU_MIMO;
 	elem->phy_cap_info[2] |= c;
 
 	c = IEEE80211_HE_PHY_CAP4_SU_BEAMFORMEE |
@@ -978,7 +985,7 @@ mt7915_init_he_caps(struct mt7915_phy *phy, enum nl80211_band band,
 			u16 cap = IEEE80211_HE_6GHZ_CAP_TX_ANTPAT_CONS |
 				  IEEE80211_HE_6GHZ_CAP_RX_ANTPAT_CONS;
 
-			cap |= u16_encode_bits(IEEE80211_HT_MPDU_DENSITY_8,
+			cap |= u16_encode_bits(IEEE80211_HT_MPDU_DENSITY_2,
 					       IEEE80211_HE_6GHZ_CAP_MIN_MPDU_START) |
 			       u16_encode_bits(IEEE80211_VHT_MAX_AMPDU_1024K,
 					       IEEE80211_HE_6GHZ_CAP_MAX_AMPDU_LEN_EXP) |
@@ -1031,7 +1038,7 @@ void mt7915_set_stream_he_caps(struct mt7915_phy *phy)
 static void mt7915_unregister_ext_phy(struct mt7915_dev *dev)
 {
 	struct mt7915_phy *phy = mt7915_ext_phy(dev);
-	struct mt76_phy *mphy = dev->mt76.phy2;
+	struct mt76_phy *mphy = dev->mt76.phys[MT_BAND1];
 
 	if (!phy)
 		return;

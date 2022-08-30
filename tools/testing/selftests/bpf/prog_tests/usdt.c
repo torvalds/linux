@@ -12,7 +12,7 @@ int lets_test_this(int);
 
 static volatile int idx = 2;
 static volatile __u64 bla = 0xFEDCBA9876543210ULL;
-static volatile short nums[] = {-1, -2, -3, };
+static volatile short nums[] = {-1, -2, -3, -4};
 
 static volatile struct {
 	int x;

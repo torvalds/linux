@@ -18,6 +18,7 @@ FILES=                                          \
          test-libbfd.bin                        \
          test-libbfd-buildid.bin		\
          test-disassembler-four-args.bin        \
+         test-disassembler-init-styled.bin	\
          test-reallocarray.bin			\
          test-libbfd-liberty.bin                \
          test-libbfd-liberty-z.bin              \
@@ -246,6 +247,9 @@ $(OUTPUT)test-libbfd-buildid.bin:
 	$(BUILD) -DPACKAGE='"perf"' -lbfd -ldl
 
 $(OUTPUT)test-disassembler-four-args.bin:
+	$(BUILD) -DPACKAGE='"perf"' -lbfd -lopcodes
+
+$(OUTPUT)test-disassembler-init-styled.bin:
 	$(BUILD) -DPACKAGE='"perf"' -lbfd -lopcodes
 
 $(OUTPUT)test-reallocarray.bin:

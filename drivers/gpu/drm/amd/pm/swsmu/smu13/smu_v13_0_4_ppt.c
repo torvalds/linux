@@ -43,6 +43,15 @@
 #undef pr_info
 #undef pr_debug
 
+#define mmMP1_SMN_C2PMSG_66			0x0282
+#define mmMP1_SMN_C2PMSG_66_BASE_IDX            1
+
+#define mmMP1_SMN_C2PMSG_82			0x0292
+#define mmMP1_SMN_C2PMSG_82_BASE_IDX            1
+
+#define mmMP1_SMN_C2PMSG_90			0x029a
+#define mmMP1_SMN_C2PMSG_90_BASE_IDX		1
+
 #define FEATURE_MASK(feature) (1ULL << feature)
 
 #define SMC_DPM_FEATURE ( \
@@ -210,15 +219,10 @@ static int smu_v13_0_4_system_features_control(struct smu_context *smu, bool en)
 {
 	struct amdgpu_device *adev = smu->adev;
 	int ret = 0;
-	/* SMU fw need this message to trigger IMU to complete the initialization */
-	if (en)
-		ret = smu_cmn_send_smc_msg(smu, SMU_MSG_EnableGfxImu, NULL);
-	else {
-		if (!adev->in_s0ix)
-			ret = smu_cmn_send_smc_msg(smu,
-						   SMU_MSG_PrepareMp1ForUnload,
-						   NULL);
-	}
+
+	if (!en && !adev->in_s0ix)
+		ret = smu_cmn_send_smc_msg(smu, SMU_MSG_PrepareMp1ForUnload, NULL);
+
 	return ret;
 }
 
@@ -1030,13 +1034,19 @@ static const struct pptable_funcs smu_v13_0_4_ppt_funcs = {
 	.force_clk_levels = smu_v13_0_4_force_clk_levels,
 	.set_performance_level = smu_v13_0_4_set_performance_level,
 	.set_fine_grain_gfx_freq_parameters = smu_v13_0_4_set_fine_grain_gfx_freq_parameters,
+	.set_gfx_power_up_by_imu = smu_v13_0_set_gfx_power_up_by_imu,
 };
 
 void smu_v13_0_4_set_ppt_funcs(struct smu_context *smu)
 {
+	struct amdgpu_device *adev = smu->adev;
+
 	smu->ppt_funcs = &smu_v13_0_4_ppt_funcs;
 	smu->message_map = smu_v13_0_4_message_map;
 	smu->feature_map = smu_v13_0_4_feature_mask_map;
 	smu->table_map = smu_v13_0_4_table_map;
 	smu->is_apu = true;
+	smu->param_reg = SOC15_REG_OFFSET(MP1, 0, mmMP1_SMN_C2PMSG_82);
+	smu->msg_reg = SOC15_REG_OFFSET(MP1, 0, mmMP1_SMN_C2PMSG_66);
+	smu->resp_reg = SOC15_REG_OFFSET(MP1, 0, mmMP1_SMN_C2PMSG_90);
 }

@@ -35,6 +35,10 @@
 #define XILINX_CPM_PCIE_MISC_IR_ENABLE	0x00000348
 #define XILINX_CPM_PCIE_MISC_IR_LOCAL	BIT(1)
 
+#define XILINX_CPM_PCIE_IR_STATUS       0x000002A0
+#define XILINX_CPM_PCIE_IR_ENABLE       0x000002A8
+#define XILINX_CPM_PCIE_IR_LOCAL        BIT(0)
+
 /* Interrupt registers definitions */
 #define XILINX_CPM_PCIE_INTR_LINK_DOWN		0
 #define XILINX_CPM_PCIE_INTR_HOT_RESET		3
@@ -98,6 +102,19 @@
 /* Phy Status/Control Register definitions */
 #define XILINX_CPM_PCIE_REG_PSCR_LNKUP		BIT(11)
 
+enum xilinx_cpm_version {
+	CPM,
+	CPM5,
+};
+
+/**
+ * struct xilinx_cpm_variant - CPM variant information
+ * @version: CPM version
+ */
+struct xilinx_cpm_variant {
+	enum xilinx_cpm_version version;
+};
+
 /**
  * struct xilinx_cpm_pcie - PCIe port information
  * @dev: Device pointer
@@ -109,6 +126,7 @@
  * @intx_irq: legacy interrupt number
  * @irq: Error interrupt number
  * @lock: lock protecting shared register access
+ * @variant: CPM version check pointer
  */
 struct xilinx_cpm_pcie {
 	struct device			*dev;
@@ -120,6 +138,7 @@ struct xilinx_cpm_pcie {
 	int				intx_irq;
 	int				irq;
 	raw_spinlock_t			lock;
+	const struct xilinx_cpm_variant   *variant;
 };
 
 static u32 pcie_read(struct xilinx_cpm_pcie *port, u32 reg)
@@ -284,6 +303,13 @@ static void xilinx_cpm_pcie_event_flow(struct irq_desc *desc)
 	for_each_set_bit(i, &val, 32)
 		generic_handle_domain_irq(port->cpm_domain, i);
 	pcie_write(port, val, XILINX_CPM_PCIE_REG_IDR);
+
+	if (port->variant->version == CPM5) {
+		val = readl_relaxed(port->cpm_base + XILINX_CPM_PCIE_IR_STATUS);
+		if (val)
+			writel_relaxed(val, port->cpm_base +
+					    XILINX_CPM_PCIE_IR_STATUS);
+	}
 
 	/*
 	 * XILINX_CPM_PCIE_MISC_IR_STATUS register is mapped to
@@ -484,6 +510,12 @@ static void xilinx_cpm_pcie_init_port(struct xilinx_cpm_pcie *port)
 	 */
 	writel(XILINX_CPM_PCIE_MISC_IR_LOCAL,
 	       port->cpm_base + XILINX_CPM_PCIE_MISC_IR_ENABLE);
+
+	if (port->variant->version == CPM5) {
+		writel(XILINX_CPM_PCIE_IR_LOCAL,
+		       port->cpm_base + XILINX_CPM_PCIE_IR_ENABLE);
+	}
+
 	/* Enable the Bridge enable bit */
 	pcie_write(port, pcie_read(port, XILINX_CPM_PCIE_REG_RPSC) |
 		   XILINX_CPM_PCIE_REG_RPSC_BEN,
@@ -518,7 +550,14 @@ static int xilinx_cpm_pcie_parse_dt(struct xilinx_cpm_pcie *port,
 	if (IS_ERR(port->cfg))
 		return PTR_ERR(port->cfg);
 
-	port->reg_base = port->cfg->win;
+	if (port->variant->version == CPM5) {
+		port->reg_base = devm_platform_ioremap_resource_byname(pdev,
+								    "cpm_csr");
+		if (IS_ERR(port->reg_base))
+			return PTR_ERR(port->reg_base);
+	} else {
+		port->reg_base = port->cfg->win;
+	}
 
 	return 0;
 }
@@ -559,6 +598,8 @@ static int xilinx_cpm_pcie_probe(struct platform_device *pdev)
 	if (!bus)
 		return -ENODEV;
 
+	port->variant = of_device_get_match_data(dev);
+
 	err = xilinx_cpm_pcie_parse_dt(port, bus->res);
 	if (err) {
 		dev_err(dev, "Parsing DT failed\n");
@@ -591,8 +632,23 @@ err_parse_dt:
 	return err;
 }
 
+static const struct xilinx_cpm_variant cpm_host = {
+	.version = CPM,
+};
+
+static const struct xilinx_cpm_variant cpm5_host = {
+	.version = CPM5,
+};
+
 static const struct of_device_id xilinx_cpm_pcie_of_match[] = {
-	{ .compatible = "xlnx,versal-cpm-host-1.00", },
+	{
+		.compatible = "xlnx,versal-cpm-host-1.00",
+		.data = &cpm_host,
+	},
+	{
+		.compatible = "xlnx,versal-cpm5-host",
+		.data = &cpm5_host,
+	},
 	{}
 };
 

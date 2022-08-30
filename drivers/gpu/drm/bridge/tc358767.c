@@ -3,10 +3,7 @@
  * TC358767/TC358867/TC9595 DSI/DPI-to-DPI/(e)DP bridge driver
  *
  * The TC358767/TC358867/TC9595 can operate in multiple modes.
- * The following modes are supported:
- *   DPI->(e)DP -- supported
- *   DSI->DPI .... supported
- *   DSI->(e)DP .. NOT supported
+ * All modes are supported -- DPI->(e)DP / DSI->DPI / DSI->(e)DP .
  *
  * Copyright (C) 2016 CogentEmbedded Inc
  * Author: Andrey Gusakov <andrey.gusakov@cogentembedded.com>
@@ -27,6 +24,7 @@
 #include <linux/gpio/consumer.h>
 #include <linux/i2c.h>
 #include <linux/kernel.h>
+#include <linux/media-bus-format.h>
 #include <linux/module.h>
 #include <linux/regmap.h>
 #include <linux/slab.h>
@@ -291,7 +289,6 @@ struct tc_data {
 	struct drm_connector	connector;
 
 	struct mipi_dsi_device	*dsi;
-	u8			dsi_lanes;
 
 	/* link settings */
 	struct tc_edp_link	link;
@@ -308,6 +305,9 @@ struct tc_data {
 
 	/* do we have IRQ */
 	bool			have_irq;
+
+	/* Input connector type, DSI and not DPI. */
+	bool			input_connector_dsi;
 
 	/* HPD pin number (0 or 1) or -ENODEV */
 	int			hpd_pin;
@@ -1247,10 +1247,59 @@ static int tc_main_link_disable(struct tc_data *tc)
 	return regmap_write(tc->regmap, DP0CTL, 0);
 }
 
+static int tc_dsi_rx_enable(struct tc_data *tc)
+{
+	u32 value;
+	int ret;
+
+	regmap_write(tc->regmap, PPI_D0S_CLRSIPOCOUNT, 3);
+	regmap_write(tc->regmap, PPI_D1S_CLRSIPOCOUNT, 3);
+	regmap_write(tc->regmap, PPI_D2S_CLRSIPOCOUNT, 3);
+	regmap_write(tc->regmap, PPI_D3S_CLRSIPOCOUNT, 3);
+	regmap_write(tc->regmap, PPI_D0S_ATMR, 0);
+	regmap_write(tc->regmap, PPI_D1S_ATMR, 0);
+	regmap_write(tc->regmap, PPI_TX_RX_TA, TTA_GET | TTA_SURE);
+	regmap_write(tc->regmap, PPI_LPTXTIMECNT, LPX_PERIOD);
+
+	value = ((LANEENABLE_L0EN << tc->dsi->lanes) - LANEENABLE_L0EN) |
+		LANEENABLE_CLEN;
+	regmap_write(tc->regmap, PPI_LANEENABLE, value);
+	regmap_write(tc->regmap, DSI_LANEENABLE, value);
+
+	/* Set input interface */
+	value = DP0_AUDSRC_NO_INPUT;
+	if (tc_test_pattern)
+		value |= DP0_VIDSRC_COLOR_BAR;
+	else
+		value |= DP0_VIDSRC_DSI_RX;
+	ret = regmap_write(tc->regmap, SYSCTRL, value);
+	if (ret)
+		return ret;
+
+	usleep_range(120, 150);
+
+	regmap_write(tc->regmap, PPI_STARTPPI, PPI_START_FUNCTION);
+	regmap_write(tc->regmap, DSI_STARTDSI, DSI_RX_START);
+
+	return 0;
+}
+
+static int tc_dpi_rx_enable(struct tc_data *tc)
+{
+	u32 value;
+
+	/* Set input interface */
+	value = DP0_AUDSRC_NO_INPUT;
+	if (tc_test_pattern)
+		value |= DP0_VIDSRC_COLOR_BAR;
+	else
+		value |= DP0_VIDSRC_DPI_RX;
+	return regmap_write(tc->regmap, SYSCTRL, value);
+}
+
 static int tc_dpi_stream_enable(struct tc_data *tc)
 {
 	int ret;
-	u32 value;
 
 	dev_dbg(tc->dev, "enable video stream\n");
 
@@ -1277,20 +1326,6 @@ static int tc_dpi_stream_enable(struct tc_data *tc)
 	if (ret)
 		return ret;
 
-	regmap_write(tc->regmap, PPI_D0S_CLRSIPOCOUNT, 3);
-	regmap_write(tc->regmap, PPI_D1S_CLRSIPOCOUNT, 3);
-	regmap_write(tc->regmap, PPI_D2S_CLRSIPOCOUNT, 3);
-	regmap_write(tc->regmap, PPI_D3S_CLRSIPOCOUNT, 3);
-	regmap_write(tc->regmap, PPI_D0S_ATMR, 0);
-	regmap_write(tc->regmap, PPI_D1S_ATMR, 0);
-	regmap_write(tc->regmap, PPI_TX_RX_TA, TTA_GET | TTA_SURE);
-	regmap_write(tc->regmap, PPI_LPTXTIMECNT, LPX_PERIOD);
-
-	value = ((LANEENABLE_L0EN << tc->dsi_lanes) - LANEENABLE_L0EN) |
-		LANEENABLE_CLEN;
-	regmap_write(tc->regmap, PPI_LANEENABLE, value);
-	regmap_write(tc->regmap, DSI_LANEENABLE, value);
-
 	ret = tc_set_common_video_mode(tc, &tc->mode);
 	if (ret)
 		return ret;
@@ -1299,22 +1334,7 @@ static int tc_dpi_stream_enable(struct tc_data *tc)
 	if (ret)
 		return ret;
 
-	/* Set input interface */
-	value = DP0_AUDSRC_NO_INPUT;
-	if (tc_test_pattern)
-		value |= DP0_VIDSRC_COLOR_BAR;
-	else
-		value |= DP0_VIDSRC_DSI_RX;
-	ret = regmap_write(tc->regmap, SYSCTRL, value);
-	if (ret)
-		return ret;
-
-	usleep_range(120, 150);
-
-	regmap_write(tc->regmap, PPI_STARTPPI, PPI_START_FUNCTION);
-	regmap_write(tc->regmap, DSI_STARTDSI, DSI_RX_START);
-
-	return 0;
+	return tc_dsi_rx_enable(tc);
 }
 
 static int tc_dpi_stream_disable(struct tc_data *tc)
@@ -1333,8 +1353,18 @@ static int tc_edp_stream_enable(struct tc_data *tc)
 
 	dev_dbg(tc->dev, "enable video stream\n");
 
-	/* PXL PLL setup */
-	if (tc_test_pattern) {
+	/*
+	 * Pixel PLL must be enabled for DSI input mode and test pattern.
+	 *
+	 * Per TC9595XBG datasheet Revision 0.1 2018-12-27 Figure 4.18
+	 * "Clock Mode Selection and Clock Sources", either Pixel PLL
+	 * or DPI_PCLK supplies StrmClk. DPI_PCLK is only available in
+	 * case valid Pixel Clock are supplied to the chip DPI input.
+	 * In case built-in test pattern is desired OR DSI input mode
+	 * is used, DPI_PCLK is not available and thus Pixel PLL must
+	 * be used instead.
+	 */
+	if (tc->input_connector_dsi || tc_test_pattern) {
 		ret = tc_pxl_pll_en(tc, clk_get_rate(tc->refclk),
 				    1000 * tc->mode.clock);
 		if (ret)
@@ -1372,17 +1402,12 @@ static int tc_edp_stream_enable(struct tc_data *tc)
 	ret = regmap_write(tc->regmap, DP0CTL, value);
 	if (ret)
 		return ret;
-	/* Set input interface */
-	value = DP0_AUDSRC_NO_INPUT;
-	if (tc_test_pattern)
-		value |= DP0_VIDSRC_COLOR_BAR;
-	else
-		value |= DP0_VIDSRC_DPI_RX;
-	ret = regmap_write(tc->regmap, SYSCTRL, value);
-	if (ret)
-		return ret;
 
-	return 0;
+	/* Set input interface */
+	if (tc->input_connector_dsi)
+		return tc_dsi_rx_enable(tc);
+	else
+		return tc_dpi_rx_enable(tc);
 }
 
 static int tc_edp_stream_disable(struct tc_data *tc)
@@ -1865,17 +1890,17 @@ static int tc_mipi_dsi_host_attach(struct tc_data *tc)
 	int dsi_lanes, ret;
 
 	endpoint = of_graph_get_endpoint_by_regs(dev->of_node, 0, -1);
-	dsi_lanes = of_property_count_u32_elems(endpoint, "data-lanes");
+	dsi_lanes = drm_of_get_data_lanes_count(endpoint, 1, 4);
 	host_node = of_graph_get_remote_port_parent(endpoint);
 	host = of_find_mipi_dsi_host_by_node(host_node);
 	of_node_put(host_node);
 	of_node_put(endpoint);
 
-	if (dsi_lanes < 0 || dsi_lanes > 4)
-		return -EINVAL;
-
 	if (!host)
 		return -EPROBE_DEFER;
+
+	if (dsi_lanes < 0)
+		return dsi_lanes;
 
 	dsi = mipi_dsi_device_register_full(host, &info);
 	if (IS_ERR(dsi))
@@ -1884,8 +1909,7 @@ static int tc_mipi_dsi_host_attach(struct tc_data *tc)
 
 	tc->dsi = dsi;
 
-	tc->dsi_lanes = dsi_lanes;
-	dsi->lanes = tc->dsi_lanes;
+	dsi->lanes = dsi_lanes;
 	dsi->format = MIPI_DSI_FMT_RGB888;
 	dsi->mode_flags = MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_SYNC_PULSE;
 
@@ -1992,16 +2016,27 @@ static int tc_probe_bridge_endpoint(struct tc_data *tc)
 		mode |= BIT(endpoint.port);
 	}
 
-	if (mode == mode_dpi_to_edp || mode == mode_dpi_to_dp)
+	if (mode == mode_dpi_to_edp || mode == mode_dpi_to_dp) {
+		tc->input_connector_dsi = false;
 		return tc_probe_edp_bridge_endpoint(tc);
-	else if (mode == mode_dsi_to_dpi)
+	} else if (mode == mode_dsi_to_dpi) {
+		tc->input_connector_dsi = true;
 		return tc_probe_dpi_bridge_endpoint(tc);
-	else if (mode == mode_dsi_to_edp || mode == mode_dsi_to_dp)
-		dev_warn(dev, "The mode DSI-to-(e)DP is not supported!\n");
-	else
-		dev_warn(dev, "Invalid mode (0x%x) is not supported!\n", mode);
+	} else if (mode == mode_dsi_to_edp || mode == mode_dsi_to_dp) {
+		tc->input_connector_dsi = true;
+		return tc_probe_edp_bridge_endpoint(tc);
+	}
+
+	dev_warn(dev, "Invalid mode (0x%x) is not supported!\n", mode);
 
 	return -EINVAL;
+}
+
+static void tc_clk_disable(void *data)
+{
+	struct clk *refclk = data;
+
+	clk_disable_unprepare(refclk);
 }
 
 static int tc_probe(struct i2c_client *client, const struct i2c_device_id *id)
@@ -2019,6 +2054,24 @@ static int tc_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	ret = tc_probe_bridge_endpoint(tc);
 	if (ret)
 		return ret;
+
+	tc->refclk = devm_clk_get(dev, "ref");
+	if (IS_ERR(tc->refclk)) {
+		ret = PTR_ERR(tc->refclk);
+		dev_err(dev, "Failed to get refclk: %d\n", ret);
+		return ret;
+	}
+
+	ret = clk_prepare_enable(tc->refclk);
+	if (ret)
+		return ret;
+
+	ret = devm_add_action_or_reset(dev, tc_clk_disable, tc->refclk);
+	if (ret)
+		return ret;
+
+	/* tRSTW = 100 cycles , at 13 MHz that is ~7.69 us */
+	usleep_range(10, 15);
 
 	/* Shut down GPIO is optional */
 	tc->sd_gpio = devm_gpiod_get_optional(dev, "shutdown", GPIOD_OUT_HIGH);
@@ -2038,13 +2091,6 @@ static int tc_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	if (tc->reset_gpio) {
 		gpiod_set_value_cansleep(tc->reset_gpio, 1);
 		usleep_range(5000, 10000);
-	}
-
-	tc->refclk = devm_clk_get(dev, "ref");
-	if (IS_ERR(tc->refclk)) {
-		ret = PTR_ERR(tc->refclk);
-		dev_err(dev, "Failed to get refclk: %d\n", ret);
-		return ret;
 	}
 
 	tc->regmap = devm_regmap_init_i2c(client, &tc_regmap_config);
@@ -2137,7 +2183,7 @@ static int tc_probe(struct i2c_client *client, const struct i2c_device_id *id)
 
 	i2c_set_clientdata(client, tc);
 
-	if (tc->bridge.type == DRM_MODE_CONNECTOR_DPI) { /* DPI output */
+	if (tc->input_connector_dsi) {			/* DSI input */
 		ret = tc_mipi_dsi_host_attach(tc);
 		if (ret) {
 			drm_bridge_remove(&tc->bridge);

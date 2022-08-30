@@ -6,6 +6,11 @@
 #ifndef	LAPB_KERNEL_H
 #define	LAPB_KERNEL_H
 
+#include <linux/skbuff.h>
+#include <linux/timer.h>
+
+struct net_device;
+
 #define	LAPB_OK			0
 #define	LAPB_BADTOKEN		1
 #define	LAPB_INVALUE		2

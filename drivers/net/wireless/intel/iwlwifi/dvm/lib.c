@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /******************************************************************************
  *
- * Copyright(c) 2008 - 2014 Intel Corporation. All rights reserved.
+ * Copyright(c) 2008 - 2014, 2022 Intel Corporation. All rights reserved.
  *****************************************************************************/
 #include <linux/etherdevice.h>
 #include <linux/kernel.h>
@@ -441,7 +441,7 @@ static void iwlagn_bt_traffic_change_work(struct work_struct *work)
 		priv->current_ht_config.smps = smps_request;
 		for_each_context(priv, ctx) {
 			if (ctx->vif && ctx->vif->type == NL80211_IFTYPE_STATION)
-				ieee80211_request_smps(ctx->vif, smps_request);
+				ieee80211_request_smps(ctx->vif, 0, smps_request);
 		}
 	}
 

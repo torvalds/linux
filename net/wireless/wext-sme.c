@@ -3,7 +3,7 @@
  * cfg80211 wext compat for managed mode.
  *
  * Copyright 2009	Johannes Berg <johannes@sipsolutions.net>
- * Copyright (C) 2009, 2020-2021 Intel Corporation.
+ * Copyright (C) 2009, 2020-2022 Intel Corporation
  */
 
 #include <linux/export.h>
@@ -124,9 +124,12 @@ int cfg80211_mgd_wext_giwfreq(struct net_device *dev,
 	if (WARN_ON(wdev->iftype != NL80211_IFTYPE_STATION))
 		return -EINVAL;
 
+	if (wdev->valid_links)
+		return -EOPNOTSUPP;
+
 	wdev_lock(wdev);
-	if (wdev->current_bss)
-		chan = wdev->current_bss->pub.channel;
+	if (wdev->links[0].client.current_bss)
+		chan = wdev->links[0].client.current_bss->pub.channel;
 	else if (wdev->wext.connect.channel)
 		chan = wdev->wext.connect.channel;
 	wdev_unlock(wdev);
@@ -208,15 +211,19 @@ int cfg80211_mgd_wext_giwessid(struct net_device *dev,
 	if (WARN_ON(wdev->iftype != NL80211_IFTYPE_STATION))
 		return -EINVAL;
 
+	if (wdev->valid_links)
+		return -EINVAL;
+
 	data->flags = 0;
 
 	wdev_lock(wdev);
-	if (wdev->current_bss) {
+	if (wdev->links[0].client.current_bss) {
 		const struct element *ssid_elem;
 
 		rcu_read_lock();
-		ssid_elem = ieee80211_bss_get_elem(&wdev->current_bss->pub,
-						   WLAN_EID_SSID);
+		ssid_elem = ieee80211_bss_get_elem(
+				&wdev->links[0].client.current_bss->pub,
+				WLAN_EID_SSID);
 		if (ssid_elem) {
 			data->flags = 1;
 			data->length = ssid_elem->datalen;
@@ -300,8 +307,14 @@ int cfg80211_mgd_wext_giwap(struct net_device *dev,
 	ap_addr->sa_family = ARPHRD_ETHER;
 
 	wdev_lock(wdev);
-	if (wdev->current_bss)
-		memcpy(ap_addr->sa_data, wdev->current_bss->pub.bssid, ETH_ALEN);
+	if (wdev->valid_links) {
+		wdev_unlock(wdev);
+		return -EOPNOTSUPP;
+	}
+	if (wdev->links[0].client.current_bss)
+		memcpy(ap_addr->sa_data,
+		       wdev->links[0].client.current_bss->pub.bssid,
+		       ETH_ALEN);
 	else
 		eth_zero_addr(ap_addr->sa_data);
 	wdev_unlock(wdev);

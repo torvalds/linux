@@ -54,6 +54,7 @@ struct nsim_fib_data {
 	struct rhashtable nexthop_ht;
 	struct devlink *devlink;
 	struct work_struct fib_event_work;
+	struct work_struct fib_flush_work;
 	struct list_head fib_event_queue;
 	spinlock_t fib_event_queue_lock; /* Protects fib event queue list */
 	struct mutex nh_lock; /* Protects NH HT */
@@ -61,6 +62,7 @@ struct nsim_fib_data {
 	bool fail_route_offload;
 	bool fail_res_nexthop_group_replace;
 	bool fail_nexthop_bucket_replace;
+	bool fail_route_delete;
 };
 
 struct nsim_fib_rt_key {
@@ -914,6 +916,10 @@ static int nsim_fib4_prepare_event(struct fib_notifier_info *info,
 		}
 		break;
 	case FIB_EVENT_ENTRY_DEL:
+		if (data->fail_route_delete) {
+			NL_SET_ERR_MSG_MOD(extack, "Failed to process route deletion");
+			return -EINVAL;
+		}
 		nsim_fib_account(&data->ipv4.fib, false);
 		break;
 	}
@@ -952,6 +958,11 @@ static int nsim_fib6_prepare_event(struct fib_notifier_info *info,
 		}
 		break;
 	case FIB_EVENT_ENTRY_DEL:
+		if (data->fail_route_delete) {
+			err = -EINVAL;
+			NL_SET_ERR_MSG_MOD(extack, "Failed to process route deletion");
+			goto err_fib6_event_fini;
+		}
 		nsim_fib_account(&data->ipv6.fib, false);
 		break;
 	}
@@ -978,7 +989,7 @@ static int nsim_fib_event_schedule_work(struct nsim_fib_data *data,
 
 	fib_event = kzalloc(sizeof(*fib_event), GFP_ATOMIC);
 	if (!fib_event)
-		return NOTIFY_BAD;
+		goto err_fib_event_alloc;
 
 	fib_event->data = data;
 	fib_event->event = event;
@@ -1006,6 +1017,9 @@ static int nsim_fib_event_schedule_work(struct nsim_fib_data *data,
 
 err_fib_prepare_event:
 	kfree(fib_event);
+err_fib_event_alloc:
+	if (event == FIB_EVENT_ENTRY_DEL)
+		schedule_work(&data->fib_flush_work);
 	return NOTIFY_BAD;
 }
 
@@ -1453,7 +1467,7 @@ static void nsim_fib_set_max_all(struct nsim_fib_data *data,
 		int err;
 		u64 val;
 
-		err = devlink_resource_size_get(devlink, res_ids[i], &val);
+		err = devl_resource_size_get(devlink, res_ids[i], &val);
 		if (err)
 			val = (u64) -1;
 		nsim_fib_set_max(data, res_ids[i], val);
@@ -1483,6 +1497,24 @@ static void nsim_fib_event_work(struct work_struct *work)
 	mutex_unlock(&data->fib_lock);
 }
 
+static void nsim_fib_flush_work(struct work_struct *work)
+{
+	struct nsim_fib_data *data = container_of(work, struct nsim_fib_data,
+						  fib_flush_work);
+	struct nsim_fib_rt *fib_rt, *fib_rt_tmp;
+
+	/* Process pending work. */
+	flush_work(&data->fib_event_work);
+
+	mutex_lock(&data->fib_lock);
+	list_for_each_entry_safe(fib_rt, fib_rt_tmp, &data->fib_rt_list, list) {
+		rhashtable_remove_fast(&data->fib_rt_ht, &fib_rt->ht_node,
+				       nsim_fib_rt_ht_params);
+		nsim_fib_rt_free(fib_rt, data);
+	}
+	mutex_unlock(&data->fib_lock);
+}
+
 static int
 nsim_fib_debugfs_init(struct nsim_fib_data *data, struct nsim_dev *nsim_dev)
 {
@@ -1504,6 +1536,10 @@ nsim_fib_debugfs_init(struct nsim_fib_data *data, struct nsim_dev *nsim_dev)
 
 	debugfs_create_file("nexthop_bucket_activity", 0200, data->ddir,
 			    data, &nsim_nexthop_bucket_activity_fops);
+
+	data->fail_route_delete = false;
+	debugfs_create_bool("fail_route_delete", 0600, data->ddir,
+			    &data->fail_route_delete);
 	return 0;
 }
 
@@ -1541,6 +1577,7 @@ struct nsim_fib_data *nsim_fib_create(struct devlink *devlink,
 		goto err_rhashtable_nexthop_destroy;
 
 	INIT_WORK(&data->fib_event_work, nsim_fib_event_work);
+	INIT_WORK(&data->fib_flush_work, nsim_fib_flush_work);
 	INIT_LIST_HEAD(&data->fib_event_queue);
 	spin_lock_init(&data->fib_event_queue_lock);
 
@@ -1562,31 +1599,32 @@ struct nsim_fib_data *nsim_fib_create(struct devlink *devlink,
 		goto err_nexthop_nb_unregister;
 	}
 
-	devlink_resource_occ_get_register(devlink,
-					  NSIM_RESOURCE_IPV4_FIB,
-					  nsim_fib_ipv4_resource_occ_get,
-					  data);
-	devlink_resource_occ_get_register(devlink,
-					  NSIM_RESOURCE_IPV4_FIB_RULES,
-					  nsim_fib_ipv4_rules_res_occ_get,
-					  data);
-	devlink_resource_occ_get_register(devlink,
-					  NSIM_RESOURCE_IPV6_FIB,
-					  nsim_fib_ipv6_resource_occ_get,
-					  data);
-	devlink_resource_occ_get_register(devlink,
-					  NSIM_RESOURCE_IPV6_FIB_RULES,
-					  nsim_fib_ipv6_rules_res_occ_get,
-					  data);
-	devlink_resource_occ_get_register(devlink,
-					  NSIM_RESOURCE_NEXTHOPS,
-					  nsim_fib_nexthops_res_occ_get,
-					  data);
+	devl_resource_occ_get_register(devlink,
+				       NSIM_RESOURCE_IPV4_FIB,
+				       nsim_fib_ipv4_resource_occ_get,
+				       data);
+	devl_resource_occ_get_register(devlink,
+				       NSIM_RESOURCE_IPV4_FIB_RULES,
+				       nsim_fib_ipv4_rules_res_occ_get,
+				       data);
+	devl_resource_occ_get_register(devlink,
+				       NSIM_RESOURCE_IPV6_FIB,
+				       nsim_fib_ipv6_resource_occ_get,
+				       data);
+	devl_resource_occ_get_register(devlink,
+				       NSIM_RESOURCE_IPV6_FIB_RULES,
+				       nsim_fib_ipv6_rules_res_occ_get,
+				       data);
+	devl_resource_occ_get_register(devlink,
+				       NSIM_RESOURCE_NEXTHOPS,
+				       nsim_fib_nexthops_res_occ_get,
+				       data);
 	return data;
 
 err_nexthop_nb_unregister:
 	unregister_nexthop_notifier(devlink_net(devlink), &data->nexthop_nb);
 err_rhashtable_fib_destroy:
+	cancel_work_sync(&data->fib_flush_work);
 	flush_work(&data->fib_event_work);
 	rhashtable_free_and_destroy(&data->fib_rt_ht, nsim_fib_rt_free,
 				    data);
@@ -1604,18 +1642,19 @@ err_data_free:
 
 void nsim_fib_destroy(struct devlink *devlink, struct nsim_fib_data *data)
 {
-	devlink_resource_occ_get_unregister(devlink,
-					    NSIM_RESOURCE_NEXTHOPS);
-	devlink_resource_occ_get_unregister(devlink,
-					    NSIM_RESOURCE_IPV6_FIB_RULES);
-	devlink_resource_occ_get_unregister(devlink,
-					    NSIM_RESOURCE_IPV6_FIB);
-	devlink_resource_occ_get_unregister(devlink,
-					    NSIM_RESOURCE_IPV4_FIB_RULES);
-	devlink_resource_occ_get_unregister(devlink,
-					    NSIM_RESOURCE_IPV4_FIB);
+	devl_resource_occ_get_unregister(devlink,
+					 NSIM_RESOURCE_NEXTHOPS);
+	devl_resource_occ_get_unregister(devlink,
+					 NSIM_RESOURCE_IPV6_FIB_RULES);
+	devl_resource_occ_get_unregister(devlink,
+					 NSIM_RESOURCE_IPV6_FIB);
+	devl_resource_occ_get_unregister(devlink,
+					 NSIM_RESOURCE_IPV4_FIB_RULES);
+	devl_resource_occ_get_unregister(devlink,
+					 NSIM_RESOURCE_IPV4_FIB);
 	unregister_fib_notifier(devlink_net(devlink), &data->fib_nb);
 	unregister_nexthop_notifier(devlink_net(devlink), &data->nexthop_nb);
+	cancel_work_sync(&data->fib_flush_work);
 	flush_work(&data->fib_event_work);
 	rhashtable_free_and_destroy(&data->fib_rt_ht, nsim_fib_rt_free,
 				    data);

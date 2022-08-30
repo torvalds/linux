@@ -163,7 +163,8 @@ static bool trace_kprobe_match(const char *system, const char *event,
 {
 	struct trace_kprobe *tk = to_trace_kprobe(ev);
 
-	return strcmp(trace_probe_name(&tk->tp), event) == 0 &&
+	return (event[0] == '\0' ||
+		strcmp(trace_probe_name(&tk->tp), event) == 0) &&
 	    (!system || strcmp(trace_probe_group_name(&tk->tp), system) == 0) &&
 	    trace_kprobe_match_command_head(tk, argc, argv);
 }
@@ -708,11 +709,11 @@ static int __trace_kprobe_create(int argc, const char *argv[])
 	/*
 	 * Argument syntax:
 	 *  - Add kprobe:
-	 *      p[:[GRP/]EVENT] [MOD:]KSYM[+OFFS]|KADDR [FETCHARGS]
+	 *      p[:[GRP/][EVENT]] [MOD:]KSYM[+OFFS]|KADDR [FETCHARGS]
 	 *  - Add kretprobe:
-	 *      r[MAXACTIVE][:[GRP/]EVENT] [MOD:]KSYM[+0] [FETCHARGS]
+	 *      r[MAXACTIVE][:[GRP/][EVENT]] [MOD:]KSYM[+0] [FETCHARGS]
 	 *    Or
-	 *      p:[GRP/]EVENT] [MOD:]KSYM[+0]%return [FETCHARGS]
+	 *      p[:[GRP/][EVENT]] [MOD:]KSYM[+0]%return [FETCHARGS]
 	 *
 	 * Fetch args:
 	 *  $retval	: fetch return value
@@ -739,6 +740,7 @@ static int __trace_kprobe_create(int argc, const char *argv[])
 	long offset = 0;
 	void *addr = NULL;
 	char buf[MAX_EVENT_NAME_LEN];
+	char gbuf[MAX_EVENT_NAME_LEN];
 	unsigned int flags = TPARG_FL_KERNEL;
 
 	switch (argv[0][0]) {
@@ -833,11 +835,13 @@ static int __trace_kprobe_create(int argc, const char *argv[])
 
 	trace_probe_log_set_index(0);
 	if (event) {
-		ret = traceprobe_parse_event_name(&event, &group, buf,
+		ret = traceprobe_parse_event_name(&event, &group, gbuf,
 						  event - argv[0]);
 		if (ret)
 			goto parse_error;
-	} else {
+	}
+
+	if (!event) {
 		/* Make a new event name */
 		if (symbol)
 			snprintf(buf, MAX_EVENT_NAME_LEN, "%c_%s_%ld",

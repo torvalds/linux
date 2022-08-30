@@ -2,7 +2,7 @@
 /*
  * Copyright 2002-2004, Instant802 Networks, Inc.
  * Copyright 2005, Devicescape Software, Inc.
- * Copyright (C) 2019 Intel Corporation
+ * Copyright (C) 2019, 2022 Intel Corporation
  */
 
 #ifndef IEEE80211_KEY_H
@@ -30,12 +30,10 @@ struct sta_info;
  * @KEY_FLAG_UPLOADED_TO_HARDWARE: Indicates that this key is present
  *	in the hardware for TX crypto hardware acceleration.
  * @KEY_FLAG_TAINTED: Key is tainted and packets should be dropped.
- * @KEY_FLAG_CIPHER_SCHEME: This key is for a hardware cipher scheme
  */
 enum ieee80211_internal_key_flags {
 	KEY_FLAG_UPLOADED_TO_HARDWARE	= BIT(0),
 	KEY_FLAG_TAINTED		= BIT(1),
-	KEY_FLAG_CIPHER_SCHEME		= BIT(2),
 };
 
 enum ieee80211_internal_tkip_state {
@@ -140,8 +138,7 @@ struct ieee80211_key {
 struct ieee80211_key *
 ieee80211_key_alloc(u32 cipher, int idx, size_t key_len,
 		    const u8 *key_data,
-		    size_t seq_len, const u8 *seq,
-		    const struct ieee80211_cipher_scheme *cs);
+		    size_t seq_len, const u8 *seq);
 /*
  * Insert a key into data structures (sdata, sta if necessary)
  * to make it used, free old key. On failure, also free the new key.
@@ -166,6 +163,8 @@ void ieee80211_reenable_keys(struct ieee80211_sub_if_data *sdata);
 
 #define key_mtx_dereference(local, ref) \
 	rcu_dereference_protected(ref, lockdep_is_held(&((local)->key_mtx)))
+#define rcu_dereference_check_key_mtx(local, ref) \
+	rcu_dereference_check(ref, lockdep_is_held(&((local)->key_mtx)))
 
 void ieee80211_delayed_tailroom_dec(struct work_struct *wk);
 

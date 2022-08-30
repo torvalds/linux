@@ -125,7 +125,7 @@ struct svm_range {
 	uint32_t			actual_loc;
 	uint8_t				granularity;
 	atomic_t			invalid;
-	uint64_t			validate_timestamp;
+	ktime_t				validate_timestamp;
 	struct mmu_interval_notifier	notifier;
 	struct svm_work_list_item	work_item;
 	struct list_head		deferred_list;
@@ -204,6 +204,9 @@ void svm_range_list_lock_and_flush_work(struct svm_range_list *svms, struct mm_s
 #define KFD_IS_SVM_API_SUPPORTED(dev) ((dev)->pgmap.type != 0)
 
 void svm_range_bo_unref_async(struct svm_range_bo *svm_bo);
+
+void svm_range_set_max_pages(struct amdgpu_device *adev);
+
 #else
 
 struct kfd_process;

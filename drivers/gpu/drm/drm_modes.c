@@ -34,6 +34,7 @@
 #include <linux/list.h>
 #include <linux/list_sort.h>
 #include <linux/export.h>
+#include <linux/fb.h>
 
 #include <video/of_display_timing.h>
 #include <video/of_videomode.h>
@@ -41,6 +42,7 @@
 
 #include <drm/drm_crtc.h>
 #include <drm/drm_device.h>
+#include <drm/drm_edid.h>
 #include <drm/drm_modes.h>
 #include <drm/drm_print.h>
 
@@ -1328,6 +1330,10 @@ void drm_mode_prune_invalid(struct drm_device *dev,
 	list_for_each_entry_safe(mode, t, mode_list, head) {
 		if (mode->status != MODE_OK) {
 			list_del(&mode->head);
+			if (mode->type & DRM_MODE_TYPE_USERDEF) {
+				drm_warn(dev, "User-defined mode not supported: "
+					 DRM_MODE_FMT "\n", DRM_MODE_ARG(mode));
+			}
 			if (verbose) {
 				drm_mode_debug_printmodeline(mode);
 				DRM_DEBUG_KMS("Not using %s mode: %s\n",

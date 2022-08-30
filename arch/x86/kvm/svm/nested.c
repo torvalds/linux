@@ -230,6 +230,11 @@ static bool nested_svm_vmrun_msrpm(struct vcpu_svm *svm)
 			break;
 
 		p      = msrpm_offsets[i];
+
+		/* x2apic msrs are intercepted always for the nested guest */
+		if (is_x2apic_msrpm_offset(p))
+			continue;
+
 		offset = svm->nested.ctl.msrpm_base_pa + (p * 4);
 
 		if (kvm_vcpu_read_guest(&svm->vcpu, offset, &value, 4))
@@ -320,7 +325,8 @@ static bool __nested_vmcb_check_save(struct kvm_vcpu *vcpu,
 			return false;
 	}
 
-	if (CC(!kvm_is_valid_cr4(vcpu, save->cr4)))
+	/* Note, SVM doesn't have any additional restrictions on CR4. */
+	if (CC(!__kvm_is_valid_cr4(vcpu, save->cr4)))
 		return false;
 
 	if (CC(!kvm_valid_efer(vcpu, save->efer)))
@@ -371,6 +377,7 @@ void __nested_copy_vmcb_control_to_cache(struct kvm_vcpu *vcpu,
 	to->nested_ctl          = from->nested_ctl;
 	to->event_inj           = from->event_inj;
 	to->event_inj_err       = from->event_inj_err;
+	to->next_rip            = from->next_rip;
 	to->nested_cr3          = from->nested_cr3;
 	to->virt_ext            = from->virt_ext;
 	to->pause_filter_count  = from->pause_filter_count;
@@ -608,7 +615,33 @@ static void nested_vmcb02_prepare_save(struct vcpu_svm *svm, struct vmcb *vmcb12
 	}
 }
 
-static void nested_vmcb02_prepare_control(struct vcpu_svm *svm)
+static inline bool is_evtinj_soft(u32 evtinj)
+{
+	u32 type = evtinj & SVM_EVTINJ_TYPE_MASK;
+	u8 vector = evtinj & SVM_EVTINJ_VEC_MASK;
+
+	if (!(evtinj & SVM_EVTINJ_VALID))
+		return false;
+
+	if (type == SVM_EVTINJ_TYPE_SOFT)
+		return true;
+
+	return type == SVM_EVTINJ_TYPE_EXEPT && kvm_exception_is_soft(vector);
+}
+
+static bool is_evtinj_nmi(u32 evtinj)
+{
+	u32 type = evtinj & SVM_EVTINJ_TYPE_MASK;
+
+	if (!(evtinj & SVM_EVTINJ_VALID))
+		return false;
+
+	return type == SVM_EVTINJ_TYPE_NMI;
+}
+
+static void nested_vmcb02_prepare_control(struct vcpu_svm *svm,
+					  unsigned long vmcb12_rip,
+					  unsigned long vmcb12_csbase)
 {
 	u32 int_ctl_vmcb01_bits = V_INTR_MASKING_MASK;
 	u32 int_ctl_vmcb12_bits = V_TPR_MASK | V_IRQ_INJECTION_BITS_MASK;
@@ -650,7 +683,7 @@ static void nested_vmcb02_prepare_control(struct vcpu_svm *svm)
 
 	vmcb02->control.tsc_offset = vcpu->arch.tsc_offset;
 
-	if (svm->tsc_ratio_msr != kvm_default_tsc_scaling_ratio) {
+	if (svm->tsc_ratio_msr != kvm_caps.default_tsc_scaling_ratio) {
 		WARN_ON(!svm->tsc_scaling_enabled);
 		nested_svm_update_tsc_ratio_msr(vcpu);
 	}
@@ -663,6 +696,30 @@ static void nested_vmcb02_prepare_control(struct vcpu_svm *svm)
 	vmcb02->control.int_state           = svm->nested.ctl.int_state;
 	vmcb02->control.event_inj           = svm->nested.ctl.event_inj;
 	vmcb02->control.event_inj_err       = svm->nested.ctl.event_inj_err;
+
+	/*
+	 * next_rip is consumed on VMRUN as the return address pushed on the
+	 * stack for injected soft exceptions/interrupts.  If nrips is exposed
+	 * to L1, take it verbatim from vmcb12.  If nrips is supported in
+	 * hardware but not exposed to L1, stuff the actual L2 RIP to emulate
+	 * what a nrips=0 CPU would do (L1 is responsible for advancing RIP
+	 * prior to injecting the event).
+	 */
+	if (svm->nrips_enabled)
+		vmcb02->control.next_rip    = svm->nested.ctl.next_rip;
+	else if (boot_cpu_has(X86_FEATURE_NRIPS))
+		vmcb02->control.next_rip    = vmcb12_rip;
+
+	svm->nmi_l1_to_l2 = is_evtinj_nmi(vmcb02->control.event_inj);
+	if (is_evtinj_soft(vmcb02->control.event_inj)) {
+		svm->soft_int_injected = true;
+		svm->soft_int_csbase = vmcb12_csbase;
+		svm->soft_int_old_rip = vmcb12_rip;
+		if (svm->nrips_enabled)
+			svm->soft_int_next_rip = svm->nested.ctl.next_rip;
+		else
+			svm->soft_int_next_rip = vmcb12_rip;
+	}
 
 	vmcb02->control.virt_ext            = vmcb01->control.virt_ext &
 					      LBR_CTL_ENABLE_MASK;
@@ -745,7 +802,7 @@ int enter_svm_guest_mode(struct kvm_vcpu *vcpu, u64 vmcb12_gpa,
 	nested_svm_copy_common_state(svm->vmcb01.ptr, svm->nested.vmcb02.ptr);
 
 	svm_switch_vmcb(svm, &svm->nested.vmcb02);
-	nested_vmcb02_prepare_control(svm);
+	nested_vmcb02_prepare_control(svm, vmcb12->save.rip, vmcb12->save.cs.base);
 	nested_vmcb02_prepare_save(svm, vmcb12);
 
 	ret = nested_svm_load_cr3(&svm->vcpu, svm->nested.save.cr3,
@@ -834,6 +891,8 @@ int nested_svm_vmrun(struct kvm_vcpu *vcpu)
 
 out_exit_err:
 	svm->nested.nested_run_pending = 0;
+	svm->nmi_l1_to_l2 = false;
+	svm->soft_int_injected = false;
 
 	svm->vmcb->control.exit_code    = SVM_EXIT_ERR;
 	svm->vmcb->control.exit_code_hi = 0;
@@ -982,7 +1041,7 @@ int nested_svm_vmexit(struct vcpu_svm *svm)
 		vmcb_mark_dirty(vmcb01, VMCB_INTERCEPTS);
 	}
 
-	if (svm->tsc_ratio_msr != kvm_default_tsc_scaling_ratio) {
+	if (svm->tsc_ratio_msr != kvm_caps.default_tsc_scaling_ratio) {
 		WARN_ON(!svm->tsc_scaling_enabled);
 		vcpu->arch.tsc_scaling_ratio = vcpu->arch.l1_tsc_scaling_ratio;
 		__svm_write_tsc_multiplier(vcpu->arch.tsc_scaling_ratio);
@@ -1421,6 +1480,7 @@ static void nested_copy_vmcb_cache_to_control(struct vmcb_control_area *dst,
 	dst->nested_ctl           = from->nested_ctl;
 	dst->event_inj            = from->event_inj;
 	dst->event_inj_err        = from->event_inj_err;
+	dst->next_rip             = from->next_rip;
 	dst->nested_cr3           = from->nested_cr3;
 	dst->virt_ext              = from->virt_ext;
 	dst->pause_filter_count   = from->pause_filter_count;
@@ -1605,7 +1665,7 @@ static int svm_set_nested_state(struct kvm_vcpu *vcpu,
 	nested_copy_vmcb_control_to_cache(svm, ctl);
 
 	svm_switch_vmcb(svm, &svm->nested.vmcb02);
-	nested_vmcb02_prepare_control(svm);
+	nested_vmcb02_prepare_control(svm, svm->vmcb->save.rip, svm->vmcb->save.cs.base);
 
 	/*
 	 * While the nested guest CR3 is already checked and set by

@@ -142,6 +142,30 @@
 				interrupt-controller;
 			};
 		};
+
+		cpu-map {
+			cluster0 {
+				core0 {
+					cpu = <&cpu0>;
+				};
+
+				core1 {
+					cpu = <&cpu1>;
+				};
+
+				core2 {
+					cpu = <&cpu2>;
+				};
+
+				core3 {
+					cpu = <&cpu3>;
+				};
+
+				core4 {
+					cpu = <&cpu4>;
+				};
+			};
+		};
 	};
 
 	refclk: mssrefclk {
@@ -291,7 +315,6 @@
 			interrupt-parent = <&plic>;
 			interrupts = <54>;
 			clocks = <&clkcfg CLK_SPI0>;
-			spi-max-frequency = <25000000>;
 			status = "disabled";
 		};
 
@@ -303,7 +326,6 @@
 			interrupt-parent = <&plic>;
 			interrupts = <55>;
 			clocks = <&clkcfg CLK_SPI1>;
-			spi-max-frequency = <25000000>;
 			status = "disabled";
 		};
 
@@ -315,7 +337,6 @@
 			interrupt-parent = <&plic>;
 			interrupts = <85>;
 			clocks = <&clkcfg CLK_QSPI>;
-			spi-max-frequency = <25000000>;
 			status = "disabled";
 		};
 
@@ -340,6 +361,24 @@
 			interrupts = <61>;
 			clocks = <&clkcfg CLK_I2C1>;
 			clock-frequency = <100000>;
+			status = "disabled";
+		};
+
+		can0: can@2010c000 {
+			compatible = "microchip,mpfs-can";
+			reg = <0x0 0x2010c000 0x0 0x1000>;
+			clocks = <&clkcfg CLK_CAN0>;
+			interrupt-parent = <&plic>;
+			interrupts = <56>;
+			status = "disabled";
+		};
+
+		can1: can@2010d000 {
+			compatible = "microchip,mpfs-can";
+			reg = <0x0 0x2010d000 0x0 0x1000>;
+			clocks = <&clkcfg CLK_CAN1>;
+			interrupt-parent = <&plic>;
+			interrupts = <57>;
 			status = "disabled";
 		};
 

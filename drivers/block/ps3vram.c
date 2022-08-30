@@ -586,7 +586,7 @@ static void ps3vram_submit_bio(struct bio *bio)
 
 	dev_dbg(&dev->core, "%s\n", __func__);
 
-	blk_queue_split(&bio);
+	bio = bio_split_to_limits(bio);
 
 	spin_lock_irq(&priv->lock);
 	busy = !bio_list_empty(&priv->list);
@@ -761,7 +761,7 @@ static int ps3vram_probe(struct ps3_system_bus_device *dev)
 	return 0;
 
 out_cleanup_disk:
-	blk_cleanup_disk(gendisk);
+	put_disk(gendisk);
 out_cache_cleanup:
 	remove_proc_entry(DEVICE_NAME, NULL);
 	ps3vram_cache_cleanup(dev);
@@ -792,7 +792,7 @@ static void ps3vram_remove(struct ps3_system_bus_device *dev)
 	struct ps3vram_priv *priv = ps3_system_bus_get_drvdata(dev);
 
 	del_gendisk(priv->gendisk);
-	blk_cleanup_disk(priv->gendisk);
+	put_disk(priv->gendisk);
 	remove_proc_entry(DEVICE_NAME, NULL);
 	ps3vram_cache_cleanup(dev);
 	iounmap(priv->reports);

@@ -16,6 +16,7 @@ properties:
 
   compatible:
     enum:
+      - brcm,2711-v3d
       - brcm,7268-v3d
       - brcm,7278-v3d
 

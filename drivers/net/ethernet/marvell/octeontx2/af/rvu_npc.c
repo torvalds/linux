@@ -15,6 +15,7 @@
 #include "npc.h"
 #include "cgx.h"
 #include "npc_profile.h"
+#include "rvu_npc_hash.h"
 
 #define RSVD_MCAM_ENTRIES_PER_PF	3 /* Broadcast, Promisc and AllMulticast */
 #define RSVD_MCAM_ENTRIES_PER_NIXLF	1 /* Ucast for LFs */
@@ -1105,6 +1106,34 @@ void rvu_npc_disable_default_entries(struct rvu *rvu, u16 pcifunc, int nixlf)
 				     NIXLF_PROMISC_ENTRY, false);
 }
 
+bool rvu_npc_enable_mcam_by_entry_index(struct rvu *rvu, int entry, int intf, bool enable)
+{
+	int blkaddr = rvu_get_blkaddr(rvu, BLKTYPE_NPC, 0);
+	struct npc_mcam *mcam = &rvu->hw->mcam;
+	struct rvu_npc_mcam_rule *rule, *tmp;
+
+	mutex_lock(&mcam->lock);
+
+	list_for_each_entry_safe(rule, tmp, &mcam->mcam_rules, list) {
+		if (rule->intf != intf)
+			continue;
+
+		if (rule->entry != entry)
+			continue;
+
+		rule->enable = enable;
+		mutex_unlock(&mcam->lock);
+
+		npc_enable_mcam_entry(rvu, mcam, blkaddr,
+				      entry, enable);
+
+		return true;
+	}
+
+	mutex_unlock(&mcam->lock);
+	return false;
+}
+
 void rvu_npc_enable_default_entries(struct rvu *rvu, u16 pcifunc, int nixlf)
 {
 	/* Enables only broadcast match entry. Promisc/Allmulti are enabled
@@ -1181,14 +1210,6 @@ void rvu_npc_free_mcam_entries(struct rvu *rvu, u16 pcifunc, int nixlf)
 	rvu_npc_disable_default_entries(rvu, pcifunc, nixlf);
 }
 
-#define SET_KEX_LD(intf, lid, ltype, ld, cfg)	\
-	rvu_write64(rvu, blkaddr,			\
-		NPC_AF_INTFX_LIDX_LTX_LDX_CFG(intf, lid, ltype, ld), cfg)
-
-#define SET_KEX_LDFLAGS(intf, ld, flags, cfg)	\
-	rvu_write64(rvu, blkaddr,			\
-		NPC_AF_INTFX_LDATAX_FLAGSX_CFG(intf, ld, flags), cfg)
-
 static void npc_program_mkex_rx(struct rvu *rvu, int blkaddr,
 				struct npc_mcam_kex *mkex, u8 intf)
 {
@@ -1262,6 +1283,9 @@ static void npc_program_mkex_profile(struct rvu *rvu, int blkaddr,
 		npc_program_mkex_rx(rvu, blkaddr, mkex, intf);
 		npc_program_mkex_tx(rvu, blkaddr, mkex, intf);
 	}
+
+	/* Programme mkex hash profile */
+	npc_program_mkex_hash(rvu, blkaddr);
 }
 
 static int npc_fwdb_prfl_img_map(struct rvu *rvu, void __iomem **prfl_img_addr,
@@ -1463,6 +1487,7 @@ static int npc_prepare_default_kpu(struct npc_kpu_profile_adapter *profile)
 	profile->kpus = ARRAY_SIZE(npc_kpu_profiles);
 	profile->lt_def = &npc_lt_defaults;
 	profile->mkex = &npc_mkex_default;
+	profile->mkex_hash = &npc_mkex_hash_default;
 
 	return 0;
 }
@@ -1819,7 +1844,6 @@ static int npc_mcam_rsrcs_init(struct rvu *rvu, int blkaddr)
 	mcam->hprio_count = mcam->lprio_count;
 	mcam->hprio_end = mcam->hprio_count;
 
-
 	/* Allocate bitmap for managing MCAM counters and memory
 	 * for saving counter to RVU PFFUNC allocation mapping.
 	 */
@@ -2047,6 +2071,7 @@ int rvu_npc_init(struct rvu *rvu)
 
 	rvu_npc_setup_interfaces(rvu, blkaddr);
 
+	npc_config_secret_key(rvu, blkaddr);
 	/* Configure MKEX profile */
 	npc_load_mkex_profile(rvu, blkaddr, rvu->mkex_pfl_name);
 
@@ -2534,7 +2559,7 @@ alloc:
 
 	/* Copy MCAM entry indices into mbox response entry_list.
 	 * Requester always expects indices in ascending order, so
-	 * so reverse the list if reverse bitmap is used for allocation.
+	 * reverse the list if reverse bitmap is used for allocation.
 	 */
 	if (!req->contig && rsp->count) {
 		index = 0;
@@ -2560,6 +2585,14 @@ alloc:
 
 	mutex_unlock(&mcam->lock);
 	return 0;
+}
+
+/* Marks bitmaps to reserved the mcam slot */
+void npc_mcam_rsrcs_reserve(struct rvu *rvu, int blkaddr, int entry_idx)
+{
+	struct npc_mcam *mcam = &rvu->hw->mcam;
+
+	npc_mcam_set_bit(mcam, entry_idx);
 }
 
 int rvu_mbox_handler_npc_mcam_alloc_entry(struct rvu *rvu,

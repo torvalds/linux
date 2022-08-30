@@ -40,14 +40,23 @@
 #define AMD_SPI_XFER_TX		1
 #define AMD_SPI_XFER_RX		2
 
+/**
+ * enum amd_spi_versions - SPI controller versions
+ * @AMD_SPI_V1:		AMDI0061 hardware version
+ * @AMD_SPI_V2:		AMDI0062 hardware version
+ */
 enum amd_spi_versions {
-	AMD_SPI_V1 = 1,	/* AMDI0061 */
-	AMD_SPI_V2,	/* AMDI0062 */
+	AMD_SPI_V1 = 1,
+	AMD_SPI_V2,
 };
 
+/**
+ * struct amd_spi - SPI driver instance
+ * @io_remap_addr:	Start address of the SPI controller registers
+ * @version:		SPI controller hardware version
+ */
 struct amd_spi {
 	void __iomem *io_remap_addr;
-	unsigned long io_base_addr;
 	enum amd_spi_versions version;
 };
 
@@ -281,22 +290,19 @@ static int amd_spi_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct spi_master *master;
 	struct amd_spi *amd_spi;
-	int err = 0;
+	int err;
 
 	/* Allocate storage for spi_master and driver private data */
-	master = spi_alloc_master(dev, sizeof(struct amd_spi));
-	if (!master) {
-		dev_err(dev, "Error allocating SPI master\n");
-		return -ENOMEM;
-	}
+	master = devm_spi_alloc_master(dev, sizeof(struct amd_spi));
+	if (!master)
+		return dev_err_probe(dev, -ENOMEM, "Error allocating SPI master\n");
 
 	amd_spi = spi_master_get_devdata(master);
 	amd_spi->io_remap_addr = devm_platform_ioremap_resource(pdev, 0);
-	if (IS_ERR(amd_spi->io_remap_addr)) {
-		err = PTR_ERR(amd_spi->io_remap_addr);
-		dev_err(dev, "error %d ioremap of SPI registers failed\n", err);
-		goto err_free_master;
-	}
+	if (IS_ERR(amd_spi->io_remap_addr))
+		return dev_err_probe(dev, PTR_ERR(amd_spi->io_remap_addr),
+				     "ioremap of SPI registers failed\n");
+
 	dev_dbg(dev, "io_remap_address: %p\n", amd_spi->io_remap_addr);
 
 	amd_spi->version = (enum amd_spi_versions) device_get_match_data(dev);
@@ -313,17 +319,10 @@ static int amd_spi_probe(struct platform_device *pdev)
 
 	/* Register the controller with SPI framework */
 	err = devm_spi_register_master(dev, master);
-	if (err) {
-		dev_err(dev, "error %d registering SPI controller\n", err);
-		goto err_free_master;
-	}
+	if (err)
+		return dev_err_probe(dev, err, "error registering SPI controller\n");
 
 	return 0;
-
-err_free_master:
-	spi_master_put(master);
-
-	return err;
 }
 
 #ifdef CONFIG_ACPI

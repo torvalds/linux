@@ -125,11 +125,10 @@
  * shared blocks.  If there are no shared extents, fbno and flen will
  * be set to NULLAGBLOCK and 0, respectively.
  */
-int
+static int
 xfs_reflink_find_shared(
-	struct xfs_mount	*mp,
+	struct xfs_perag	*pag,
 	struct xfs_trans	*tp,
-	xfs_agnumber_t		agno,
 	xfs_agblock_t		agbno,
 	xfs_extlen_t		aglen,
 	xfs_agblock_t		*fbno,
@@ -140,11 +139,11 @@ xfs_reflink_find_shared(
 	struct xfs_btree_cur	*cur;
 	int			error;
 
-	error = xfs_alloc_read_agf(mp, tp, agno, 0, &agbp);
+	error = xfs_alloc_read_agf(pag, tp, 0, &agbp);
 	if (error)
 		return error;
 
-	cur = xfs_refcountbt_init_cursor(mp, tp, agbp, agbp->b_pag);
+	cur = xfs_refcountbt_init_cursor(pag->pag_mount, tp, agbp, pag);
 
 	error = xfs_refcount_find_shared(cur, agbno, aglen, fbno, flen,
 			find_end_of_shared);
@@ -171,7 +170,8 @@ xfs_reflink_trim_around_shared(
 	struct xfs_bmbt_irec	*irec,
 	bool			*shared)
 {
-	xfs_agnumber_t		agno;
+	struct xfs_mount	*mp = ip->i_mount;
+	struct xfs_perag	*pag;
 	xfs_agblock_t		agbno;
 	xfs_extlen_t		aglen;
 	xfs_agblock_t		fbno;
@@ -186,12 +186,13 @@ xfs_reflink_trim_around_shared(
 
 	trace_xfs_reflink_trim_around_shared(ip, irec);
 
-	agno = XFS_FSB_TO_AGNO(ip->i_mount, irec->br_startblock);
-	agbno = XFS_FSB_TO_AGBNO(ip->i_mount, irec->br_startblock);
+	pag = xfs_perag_get(mp, XFS_FSB_TO_AGNO(mp, irec->br_startblock));
+	agbno = XFS_FSB_TO_AGBNO(mp, irec->br_startblock);
 	aglen = irec->br_blockcount;
 
-	error = xfs_reflink_find_shared(ip->i_mount, NULL, agno, agbno,
-			aglen, &fbno, &flen, true);
+	error = xfs_reflink_find_shared(pag, NULL, agbno, aglen, &fbno, &flen,
+			true);
+	xfs_perag_put(pag);
 	if (error)
 		return error;
 
@@ -452,7 +453,7 @@ xfs_reflink_cancel_cow_blocks(
 	xfs_fileoff_t			end_fsb,
 	bool				cancel_real)
 {
-	struct xfs_ifork		*ifp = XFS_IFORK_PTR(ip, XFS_COW_FORK);
+	struct xfs_ifork		*ifp = xfs_ifork_ptr(ip, XFS_COW_FORK);
 	struct xfs_bmbt_irec		got, del;
 	struct xfs_iext_cursor		icur;
 	int				error = 0;
@@ -593,7 +594,7 @@ xfs_reflink_end_cow_extent(
 	struct xfs_bmbt_irec	got, del, data;
 	struct xfs_mount	*mp = ip->i_mount;
 	struct xfs_trans	*tp;
-	struct xfs_ifork	*ifp = XFS_IFORK_PTR(ip, XFS_COW_FORK);
+	struct xfs_ifork	*ifp = xfs_ifork_ptr(ip, XFS_COW_FORK);
 	unsigned int		resblks;
 	int			nmaps;
 	int			error;
@@ -1363,12 +1364,16 @@ xfs_reflink_remap_prep(
 	if (XFS_IS_REALTIME_INODE(src) || XFS_IS_REALTIME_INODE(dest))
 		goto out_unlock;
 
-	/* Don't share DAX file data for now. */
-	if (IS_DAX(inode_in) || IS_DAX(inode_out))
+	/* Don't share DAX file data with non-DAX file. */
+	if (IS_DAX(inode_in) != IS_DAX(inode_out))
 		goto out_unlock;
 
-	ret = generic_remap_file_range_prep(file_in, pos_in, file_out, pos_out,
-			len, remap_flags);
+	if (!IS_DAX(inode_in))
+		ret = generic_remap_file_range_prep(file_in, pos_in, file_out,
+				pos_out, len, remap_flags);
+	else
+		ret = dax_remap_file_range_prep(file_in, pos_in, file_out,
+				pos_out, len, remap_flags, &xfs_read_iomap_ops);
 	if (ret || *len == 0)
 		goto out_unlock;
 
@@ -1420,16 +1425,11 @@ xfs_reflink_inode_has_shared_extents(
 	struct xfs_bmbt_irec		got;
 	struct xfs_mount		*mp = ip->i_mount;
 	struct xfs_ifork		*ifp;
-	xfs_agnumber_t			agno;
-	xfs_agblock_t			agbno;
-	xfs_extlen_t			aglen;
-	xfs_agblock_t			rbno;
-	xfs_extlen_t			rlen;
 	struct xfs_iext_cursor		icur;
 	bool				found;
 	int				error;
 
-	ifp = XFS_IFORK_PTR(ip, XFS_DATA_FORK);
+	ifp = xfs_ifork_ptr(ip, XFS_DATA_FORK);
 	error = xfs_iread_extents(tp, ip, XFS_DATA_FORK);
 	if (error)
 		return error;
@@ -1437,17 +1437,25 @@ xfs_reflink_inode_has_shared_extents(
 	*has_shared = false;
 	found = xfs_iext_lookup_extent(ip, ifp, 0, &icur, &got);
 	while (found) {
+		struct xfs_perag	*pag;
+		xfs_agblock_t		agbno;
+		xfs_extlen_t		aglen;
+		xfs_agblock_t		rbno;
+		xfs_extlen_t		rlen;
+
 		if (isnullstartblock(got.br_startblock) ||
 		    got.br_state != XFS_EXT_NORM)
 			goto next;
-		agno = XFS_FSB_TO_AGNO(mp, got.br_startblock);
+
+		pag = xfs_perag_get(mp, XFS_FSB_TO_AGNO(mp, got.br_startblock));
 		agbno = XFS_FSB_TO_AGBNO(mp, got.br_startblock);
 		aglen = got.br_blockcount;
-
-		error = xfs_reflink_find_shared(mp, tp, agno, agbno, aglen,
+		error = xfs_reflink_find_shared(pag, tp, agbno, aglen,
 				&rbno, &rlen, false);
+		xfs_perag_put(pag);
 		if (error)
 			return error;
+
 		/* Is there still a shared block here? */
 		if (rbno != NULLAGBLOCK) {
 			*has_shared = true;

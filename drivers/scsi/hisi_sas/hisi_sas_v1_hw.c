@@ -1282,8 +1282,6 @@ static void slot_complete_v1_hw(struct hisi_hba *hisi_hba,
 
 		ts->stat = SAS_SAM_STAT_GOOD;
 
-		dma_unmap_sg(dev, &task->smp_task.smp_req, 1,
-			     DMA_TO_DEVICE);
 		memcpy(to + sg_resp->offset,
 		       hisi_sas_status_buf_addr_mem(slot) +
 		       sizeof(struct hisi_sas_err_record),

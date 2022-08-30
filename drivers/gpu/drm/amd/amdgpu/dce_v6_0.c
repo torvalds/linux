@@ -339,7 +339,7 @@ static void dce_v6_0_hpd_fini(struct amdgpu_device *adev)
 
 		tmp = RREG32(mmDC_HPD1_CONTROL + hpd_offsets[amdgpu_connector->hpd.hpd]);
 		tmp &= ~DC_HPD1_CONTROL__DC_HPD1_EN_MASK;
-		WREG32(mmDC_HPD1_CONTROL + hpd_offsets[amdgpu_connector->hpd.hpd], 0);
+		WREG32(mmDC_HPD1_CONTROL + hpd_offsets[amdgpu_connector->hpd.hpd], tmp);
 
 		amdgpu_irq_put(adev, &adev->hpd_irq, amdgpu_connector->hpd.hpd);
 	}

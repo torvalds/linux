@@ -23,8 +23,6 @@
  *
  */
 
-#include <linux/slab.h>
-
 #include "dm_services.h"
 
 #include "ObjectID.h"
@@ -165,9 +163,21 @@ static uint8_t bios_parser_get_connectors_number(struct dc_bios *dcb)
 	unsigned int count = 0;
 	unsigned int i;
 
-	for (i = 0; i < bp->object_info_tbl.v1_4->number_of_path; i++) {
-		if (bp->object_info_tbl.v1_4->display_path[i].encoderobjid != 0)
-			count++;
+	switch (bp->object_info_tbl.revision.minor) {
+	default:
+	case 4:
+		for (i = 0; i < bp->object_info_tbl.v1_4->number_of_path; i++)
+			if (bp->object_info_tbl.v1_4->display_path[i].encoderobjid != 0)
+				count++;
+
+		break;
+
+	case 5:
+		for (i = 0; i < bp->object_info_tbl.v1_5->number_of_path; i++)
+			if (bp->object_info_tbl.v1_5->display_path[i].encoderobjid != 0)
+				count++;
+
+		break;
 	}
 	return count;
 }
@@ -182,16 +192,34 @@ static struct graphics_object_id bios_parser_get_connector_id(
 	struct object_info_table *tbl = &bp->object_info_tbl;
 	struct display_object_info_table_v1_4 *v1_4 = tbl->v1_4;
 
-	if (v1_4->number_of_path > i) {
-		/* If display_objid is generic object id,  the encoderObj
-		 * /extencoderobjId should be 0
-		 */
-		if (v1_4->display_path[i].encoderobjid != 0 &&
-				v1_4->display_path[i].display_objid != 0)
-			object_id = object_id_from_bios_object_id(
-					v1_4->display_path[i].display_objid);
-	}
+	struct display_object_info_table_v1_5 *v1_5 = tbl->v1_5;
 
+	switch (bp->object_info_tbl.revision.minor) {
+	default:
+	case 4:
+		if (v1_4->number_of_path > i) {
+			/* If display_objid is generic object id,  the encoderObj
+			 * /extencoderobjId should be 0
+			 */
+			if (v1_4->display_path[i].encoderobjid != 0 &&
+			    v1_4->display_path[i].display_objid != 0)
+				object_id = object_id_from_bios_object_id(
+					v1_4->display_path[i].display_objid);
+		}
+		break;
+
+	case 5:
+		if (v1_5->number_of_path > i) {
+			/* If display_objid is generic object id,  the encoderObjId
+		 * should be 0
+		 */
+			if (v1_5->display_path[i].encoderobjid != 0 &&
+			    v1_5->display_path[i].display_objid != 0)
+				object_id = object_id_from_bios_object_id(
+					v1_5->display_path[i].display_objid);
+		}
+		break;
+	}
 	return object_id;
 }
 
@@ -201,8 +229,8 @@ static enum bp_result bios_parser_get_src_obj(struct dc_bios *dcb,
 {
 	struct bios_parser *bp = BP_FROM_DCB(dcb);
 	unsigned int i;
-	enum bp_result  bp_result = BP_RESULT_BADINPUT;
-	struct graphics_object_id obj_id = {0};
+	enum bp_result bp_result = BP_RESULT_BADINPUT;
+	struct graphics_object_id obj_id = { 0 };
 	struct object_info_table *tbl = &bp->object_info_tbl;
 
 	if (!src_object_id)
@@ -217,37 +245,84 @@ static enum bp_result bios_parser_get_src_obj(struct dc_bios *dcb,
 		 * If found in for loop, should break.
 		 * DAL2 implementation may be changed too
 		 */
-		for (i = 0; i < tbl->v1_4->number_of_path; i++) {
-			obj_id = object_id_from_bios_object_id(
-			tbl->v1_4->display_path[i].encoderobjid);
-			if (object_id.type == obj_id.type &&
-					object_id.id == obj_id.id &&
-						object_id.enum_id ==
-							obj_id.enum_id) {
-				*src_object_id =
-				object_id_from_bios_object_id(0x1100);
-				/* break; */
+		switch (bp->object_info_tbl.revision.minor) {
+		default:
+		case 4:
+			for (i = 0; i < tbl->v1_4->number_of_path; i++) {
+				obj_id = object_id_from_bios_object_id(
+					tbl->v1_4->display_path[i].encoderobjid);
+				if (object_id.type == obj_id.type &&
+				    object_id.id == obj_id.id &&
+				    object_id.enum_id == obj_id.enum_id) {
+					*src_object_id =
+						object_id_from_bios_object_id(
+							0x1100);
+					/* break; */
+				}
 			}
+			bp_result = BP_RESULT_OK;
+			break;
+
+		case 5:
+			for (i = 0; i < tbl->v1_5->number_of_path; i++) {
+				obj_id = object_id_from_bios_object_id(
+					tbl->v1_5->display_path[i].encoderobjid);
+				if (object_id.type == obj_id.type &&
+				    object_id.id == obj_id.id &&
+				    object_id.enum_id == obj_id.enum_id) {
+					*src_object_id =
+						object_id_from_bios_object_id(
+							0x1100);
+					/* break; */
+				}
+			}
+			bp_result = BP_RESULT_OK;
+			break;
 		}
-		bp_result = BP_RESULT_OK;
 		break;
 	case OBJECT_TYPE_CONNECTOR:
-		for (i = 0; i < tbl->v1_4->number_of_path; i++) {
-			obj_id = object_id_from_bios_object_id(
-				tbl->v1_4->display_path[i].display_objid);
+		switch (bp->object_info_tbl.revision.minor) {
+		default:
+		case 4:
+			for (i = 0; i < tbl->v1_4->number_of_path; i++) {
+				obj_id = object_id_from_bios_object_id(
+					tbl->v1_4->display_path[i]
+						.display_objid);
 
-			if (object_id.type == obj_id.type &&
-				object_id.id == obj_id.id &&
-					object_id.enum_id == obj_id.enum_id) {
-				*src_object_id =
-				object_id_from_bios_object_id(
-				tbl->v1_4->display_path[i].encoderobjid);
-				/* break; */
+				if (object_id.type == obj_id.type &&
+				    object_id.id == obj_id.id &&
+				    object_id.enum_id == obj_id.enum_id) {
+					*src_object_id =
+						object_id_from_bios_object_id(
+							tbl->v1_4
+								->display_path[i]
+								.encoderobjid);
+					/* break; */
+				}
 			}
+			bp_result = BP_RESULT_OK;
+			break;
 		}
 		bp_result = BP_RESULT_OK;
 		break;
+		case 5:
+			for (i = 0; i < tbl->v1_5->number_of_path; i++) {
+				obj_id = object_id_from_bios_object_id(
+								       tbl->v1_5->display_path[i].display_objid);
+
+				if (object_id.type == obj_id.type &&
+				    object_id.id == obj_id.id &&
+				    object_id.enum_id == obj_id.enum_id) {
+					*src_object_id = object_id_from_bios_object_id(
+										       tbl->v1_5->display_path[i].encoderobjid);
+					/* break; */
+				}
+			}
+		bp_result = BP_RESULT_OK;
+		break;
+
 	default:
+		bp_result = BP_RESULT_OK;
 		break;
 	}
 
@@ -290,12 +365,55 @@ static struct atom_display_object_path_v2 *get_bios_object(
 	}
 }
 
+/* from graphics_object_id, find display path which includes the object_id */
+static struct atom_display_object_path_v3 *get_bios_object_from_path_v3(
+	struct bios_parser *bp,
+	struct graphics_object_id id)
+{
+	unsigned int i;
+	struct graphics_object_id obj_id = {0};
+
+	switch (id.type) {
+	case OBJECT_TYPE_ENCODER:
+		for (i = 0; i < bp->object_info_tbl.v1_5->number_of_path; i++) {
+			obj_id = object_id_from_bios_object_id(
+					bp->object_info_tbl.v1_5->display_path[i].encoderobjid);
+			if (id.type == obj_id.type && id.id == obj_id.id
+					&& id.enum_id == obj_id.enum_id)
+				return &bp->object_info_tbl.v1_5->display_path[i];
+		}
+        break;
+
+	case OBJECT_TYPE_CONNECTOR:
+	case OBJECT_TYPE_GENERIC:
+		/* Both Generic and Connector Object ID
+		 * will be stored on display_objid
+		 */
+		for (i = 0; i < bp->object_info_tbl.v1_5->number_of_path; i++) {
+			obj_id = object_id_from_bios_object_id(
+					bp->object_info_tbl.v1_5->display_path[i].display_objid);
+			if (id.type == obj_id.type && id.id == obj_id.id
+					&& id.enum_id == obj_id.enum_id)
+				return &bp->object_info_tbl.v1_5->display_path[i];
+		}
+        break;
+
+	default:
+		return NULL;
+	}
+
+	return NULL;
+}
+
 static enum bp_result bios_parser_get_i2c_info(struct dc_bios *dcb,
 	struct graphics_object_id id,
 	struct graphics_object_i2c_info *info)
 {
 	uint32_t offset;
 	struct atom_display_object_path_v2 *object;
+
+	struct atom_display_object_path_v3 *object_path_v3;
+
 	struct atom_common_record_header *header;
 	struct atom_i2c_record *record;
 	struct atom_i2c_record dummy_record = {0};
@@ -313,12 +431,25 @@ static enum bp_result bios_parser_get_i2c_info(struct dc_bios *dcb,
 			return BP_RESULT_NORECORD;
 	}
 
-	object = get_bios_object(bp, id);
+	switch (bp->object_info_tbl.revision.minor) {
+	    case 4:
+	    default:
+	        object = get_bios_object(bp, id);
 
-	if (!object)
-		return BP_RESULT_BADINPUT;
+	        if (!object)
+				return BP_RESULT_BADINPUT;
 
-	offset = object->disp_recordoffset + bp->object_info_tbl_offset;
+	        offset = object->disp_recordoffset + bp->object_info_tbl_offset;
+	        break;
+	    case 5:
+		object_path_v3 = get_bios_object_from_path_v3(bp, id);
+
+		if (!object_path_v3)
+			return BP_RESULT_BADINPUT;
+
+		offset = object_path_v3->disp_recordoffset + bp->object_info_tbl_offset;
+		break;
+	}
 
 	for (;;) {
 		header = GET_IMAGE(struct atom_common_record_header, offset);
@@ -421,6 +552,41 @@ static enum bp_result get_gpio_i2c_info(
 	return BP_RESULT_OK;
 }
 
+static struct atom_hpd_int_record *get_hpd_record_for_path_v3(
+	struct bios_parser *bp,
+	struct atom_display_object_path_v3 *object)
+{
+	struct atom_common_record_header *header;
+	uint32_t offset;
+
+	if (!object) {
+		BREAK_TO_DEBUGGER(); /* Invalid object */
+		return NULL;
+	}
+
+	offset = object->disp_recordoffset + bp->object_info_tbl_offset;
+
+	for (;;) {
+		header = GET_IMAGE(struct atom_common_record_header, offset);
+
+		if (!header)
+			return NULL;
+
+		if (header->record_type == ATOM_RECORD_END_TYPE ||
+			!header->record_size)
+			break;
+
+		if (header->record_type == ATOM_HPD_INT_RECORD_TYPE
+			&& sizeof(struct atom_hpd_int_record) <=
+							header->record_size)
+			return (struct atom_hpd_int_record *) header;
+
+		offset += header->record_size;
+	}
+
+	return NULL;
+}
+
 static enum bp_result bios_parser_get_hpd_info(
 	struct dc_bios *dcb,
 	struct graphics_object_id id,
@@ -428,17 +594,32 @@ static enum bp_result bios_parser_get_hpd_info(
 {
 	struct bios_parser *bp = BP_FROM_DCB(dcb);
 	struct atom_display_object_path_v2 *object;
+	struct atom_display_object_path_v3 *object_path_v3;
 	struct atom_hpd_int_record *record = NULL;
 
 	if (!info)
 		return BP_RESULT_BADINPUT;
 
-	object = get_bios_object(bp, id);
+	switch (bp->object_info_tbl.revision.minor) {
+	    case 4:
+	    default:
+	        object = get_bios_object(bp, id);
 
-	if (!object)
-		return BP_RESULT_BADINPUT;
+		if (!object)
+			return BP_RESULT_BADINPUT;
 
-	record = get_hpd_record(bp, object);
+	        record = get_hpd_record(bp, object);
+
+	        break;
+	    case 5:
+		object_path_v3 = get_bios_object_from_path_v3(bp, id);
+
+		if (!object_path_v3)
+			return BP_RESULT_BADINPUT;
+
+		record = get_hpd_record_for_path_v3(bp, object_path_v3);
+		break;
+	}
 
 	if (record != NULL) {
 		info->hpd_int_gpio_uid = record->pin_id;
@@ -526,25 +707,9 @@ static enum bp_result bios_parser_get_gpio_pin_info(
 		return BP_RESULT_UNSUPPORTED;
 
 	/* Temporary hard code gpio pin info */
-#if defined(FOR_SIMNOW_BOOT)
-	{
-		struct  atom_gpio_pin_assignment  gpio_pin[8] = {
-				{0x5db5, 0, 0, 1, 0},
-				{0x5db5, 8, 8, 2, 0},
-				{0x5db5, 0x10, 0x10, 3, 0},
-				{0x5db5, 0x18, 0x14, 4, 0},
-				{0x5db5, 0x1A, 0x18, 5, 0},
-				{0x5db5, 0x1C, 0x1C, 6, 0},
-		};
-
-		count = 6;
-		memmove(header->gpio_pin, gpio_pin, sizeof(gpio_pin));
-	}
-#else
 	count = (le16_to_cpu(header->table_header.structuresize)
 			- sizeof(struct atom_common_table_header))
 				/ sizeof(struct atom_gpio_pin_assignment);
-#endif
 	for (i = 0; i < count; ++i) {
 		if (header->gpio_pin[i].gpio_id != gpio_id)
 			continue;
@@ -633,19 +798,37 @@ static enum bp_result bios_parser_get_device_tag(
 	struct bios_parser *bp = BP_FROM_DCB(dcb);
 	struct atom_display_object_path_v2 *object;
 
+	struct atom_display_object_path_v3 *object_path_v3;
+
+
 	if (!info)
 		return BP_RESULT_BADINPUT;
 
-	/* getBiosObject will return MXM object */
-	object = get_bios_object(bp, connector_object_id);
+	switch (bp->object_info_tbl.revision.minor) {
+	    case 4:
+	    default:
+	        /* getBiosObject will return MXM object */
+	        object = get_bios_object(bp, connector_object_id);
 
-	if (!object) {
-		BREAK_TO_DEBUGGER(); /* Invalid object id */
-		return BP_RESULT_BADINPUT;
+		if (!object) {
+			BREAK_TO_DEBUGGER(); /* Invalid object id */
+			return BP_RESULT_BADINPUT;
+		}
+
+	        info->acpi_device = 0; /* BIOS no longer provides this */
+	        info->dev_id = device_type_from_device_id(object->device_tag);
+	        break;
+	    case 5:
+		object_path_v3 = get_bios_object_from_path_v3(bp, connector_object_id);
+
+		if (!object_path_v3) {
+			BREAK_TO_DEBUGGER(); /* Invalid object id */
+			return BP_RESULT_BADINPUT;
+		}
+		info->acpi_device = 0; /* BIOS no longer provides this */
+		info->dev_id = device_type_from_device_id(object_path_v3->device_tag);
+		break;
 	}
-
-	info->acpi_device = 0; /* BIOS no longer provides this */
-	info->dev_id = device_type_from_device_id(object->device_tag);
 
 	return BP_RESULT_OK;
 }
@@ -803,6 +986,71 @@ static enum bp_result get_ss_info_v4_2(
 	return result;
 }
 
+static enum bp_result get_ss_info_v4_5(
+	struct bios_parser *bp,
+	uint32_t id,
+	uint32_t index,
+	struct spread_spectrum_info *ss_info)
+{
+	enum bp_result result = BP_RESULT_OK;
+	struct atom_display_controller_info_v4_5 *disp_cntl_tbl = NULL;
+
+	if (!ss_info)
+		return BP_RESULT_BADINPUT;
+
+	if (!DATA_TABLES(dce_info))
+		return BP_RESULT_BADBIOSTABLE;
+
+	disp_cntl_tbl =  GET_IMAGE(struct atom_display_controller_info_v4_5,
+							DATA_TABLES(dce_info));
+	if (!disp_cntl_tbl)
+		return BP_RESULT_BADBIOSTABLE;
+
+	ss_info->type.STEP_AND_DELAY_INFO = false;
+	ss_info->spread_percentage_divider = 1000;
+	/* BIOS no longer uses target clock.  Always enable for now */
+	ss_info->target_clock_range = 0xffffffff;
+
+	switch (id) {
+	case AS_SIGNAL_TYPE_DVI:
+		ss_info->spread_spectrum_percentage =
+				disp_cntl_tbl->dvi_ss_percentage;
+		ss_info->spread_spectrum_range =
+				disp_cntl_tbl->dvi_ss_rate_10hz * 10;
+		if (disp_cntl_tbl->dvi_ss_mode & ATOM_SS_CENTRE_SPREAD_MODE)
+			ss_info->type.CENTER_MODE = true;
+		break;
+	case AS_SIGNAL_TYPE_HDMI:
+		ss_info->spread_spectrum_percentage =
+				disp_cntl_tbl->hdmi_ss_percentage;
+		ss_info->spread_spectrum_range =
+				disp_cntl_tbl->hdmi_ss_rate_10hz * 10;
+		if (disp_cntl_tbl->hdmi_ss_mode & ATOM_SS_CENTRE_SPREAD_MODE)
+			ss_info->type.CENTER_MODE = true;
+		break;
+	case AS_SIGNAL_TYPE_DISPLAY_PORT:
+		ss_info->spread_spectrum_percentage =
+				disp_cntl_tbl->dp_ss_percentage;
+		ss_info->spread_spectrum_range =
+				disp_cntl_tbl->dp_ss_rate_10hz * 10;
+		if (disp_cntl_tbl->dp_ss_mode & ATOM_SS_CENTRE_SPREAD_MODE)
+			ss_info->type.CENTER_MODE = true;
+		break;
+	case AS_SIGNAL_TYPE_GPU_PLL:
+		/* atom_smu_info_v4_0 does not have fields for SS for SMU Display PLL anymore.
+		 * SMU Display PLL supposed to be without spread.
+		 * Better place for it would be in atom_display_controller_info_v4_5 table.
+		 */
+		result = BP_RESULT_UNSUPPORTED;
+		break;
+	default:
+		result = BP_RESULT_UNSUPPORTED;
+		break;
+	}
+
+	return result;
+}
+
 /**
  * bios_parser_get_spread_spectrum_info
  * Get spread spectrum information from the ASIC_InternalSS_Info(ver 2.1 or
@@ -847,6 +1095,9 @@ static enum bp_result bios_parser_get_spread_spectrum_info(
 		case 3:
 		case 4:
 			return get_ss_info_v4_2(bp, signal, index, ss_info);
+		case 5:
+			return get_ss_info_v4_5(bp, signal, index, ss_info);
+
 		default:
 			ASSERT(0);
 			break;
@@ -887,6 +1138,31 @@ static enum bp_result get_soc_bb_info_v4_4(
 	return result;
 }
 
+static enum bp_result get_soc_bb_info_v4_5(
+	struct bios_parser *bp,
+	struct bp_soc_bb_info *soc_bb_info)
+{
+	enum bp_result result = BP_RESULT_OK;
+	struct atom_display_controller_info_v4_5 *disp_cntl_tbl = NULL;
+
+	if (!soc_bb_info)
+		return BP_RESULT_BADINPUT;
+
+	if (!DATA_TABLES(dce_info))
+		return BP_RESULT_BADBIOSTABLE;
+
+	disp_cntl_tbl =  GET_IMAGE(struct atom_display_controller_info_v4_5,
+							DATA_TABLES(dce_info));
+	if (!disp_cntl_tbl)
+		return BP_RESULT_BADBIOSTABLE;
+
+	soc_bb_info->dram_clock_change_latency_100ns = disp_cntl_tbl->max_mclk_chg_lat;
+	soc_bb_info->dram_sr_enter_exit_latency_100ns = disp_cntl_tbl->max_sr_enter_exit_lat;
+	soc_bb_info->dram_sr_exit_latency_100ns = disp_cntl_tbl->max_sr_exit_lat;
+
+	return result;
+}
+
 static enum bp_result bios_parser_get_soc_bb_info(
 	struct dc_bios *dcb,
 	struct bp_soc_bb_info *soc_bb_info)
@@ -915,6 +1191,9 @@ static enum bp_result bios_parser_get_soc_bb_info(
 			break;
 		case 4:
 			result = get_soc_bb_info_v4_4(bp, soc_bb_info);
+			break;
+		case 5:
+			result = get_soc_bb_info_v4_5(bp, soc_bb_info);
 			break;
 		default:
 			break;
@@ -1023,6 +1302,30 @@ static enum bp_result get_disp_caps_v4_4(
 	return result;
 }
 
+static enum bp_result get_disp_caps_v4_5(
+	struct bios_parser *bp,
+	uint8_t *dce_caps)
+{
+	enum bp_result result = BP_RESULT_OK;
+	struct atom_display_controller_info_v4_5 *disp_cntl_tbl = NULL;
+
+	if (!dce_caps)
+		return BP_RESULT_BADINPUT;
+
+	if (!DATA_TABLES(dce_info))
+		return BP_RESULT_BADBIOSTABLE;
+
+	disp_cntl_tbl = GET_IMAGE(struct atom_display_controller_info_v4_5,
+							DATA_TABLES(dce_info));
+
+	if (!disp_cntl_tbl)
+		return BP_RESULT_BADBIOSTABLE;
+
+	*dce_caps = disp_cntl_tbl->display_caps;
+
+	return result;
+}
+
 static enum bp_result bios_parser_get_lttpr_interop(
 	struct dc_bios *dcb,
 	uint8_t *dce_caps)
@@ -1057,6 +1360,11 @@ static enum bp_result bios_parser_get_lttpr_interop(
 			result = get_disp_caps_v4_4(bp, dce_caps);
 			*dce_caps = !!(*dce_caps & DCE_INFO_CAPS_VBIOS_LTTPR_TRANSPARENT_ENABLE);
 			break;
+		case 5:
+			result = get_disp_caps_v4_5(bp, dce_caps);
+			*dce_caps = !!(*dce_caps & DCE_INFO_CAPS_VBIOS_LTTPR_TRANSPARENT_ENABLE);
+			break;
+
 		default:
 			break;
 		}
@@ -1100,6 +1408,10 @@ static enum bp_result bios_parser_get_lttpr_caps(
 			break;
 		case 4:
 			result = get_disp_caps_v4_4(bp, dce_caps);
+			*dce_caps = !!(*dce_caps & DCE_INFO_CAPS_LTTPR_SUPPORT_ENABLE);
+			break;
+		case 5:
+			result = get_disp_caps_v4_5(bp, dce_caps);
 			*dce_caps = !!(*dce_caps & DCE_INFO_CAPS_LTTPR_SUPPORT_ENABLE);
 			break;
 		default:
@@ -1274,8 +1586,17 @@ static bool bios_parser_is_device_id_supported(
 
 	uint32_t mask = get_support_mask_for_device_id(id);
 
-	return (le16_to_cpu(bp->object_info_tbl.v1_4->supporteddevices) &
-								mask) != 0;
+	switch (bp->object_info_tbl.revision.minor) {
+	    case 4:
+	    default:
+	        return (le16_to_cpu(bp->object_info_tbl.v1_4->supporteddevices) & mask) != 0;
+			break;
+	    case 5:
+			return (le16_to_cpu(bp->object_info_tbl.v1_5->supporteddevices) & mask) != 0;
+			break;
+	}
+
+	return false;
 }
 
 static uint32_t bios_parser_get_ss_entry_number(
@@ -1408,12 +1729,21 @@ static void bios_parser_set_scratch_critical_state(
 	bios_set_scratch_critical_state(dcb, state);
 }
 
+struct atom_dig_transmitter_info_header_v5_3 {
+    struct atom_common_table_header table_header;
+    uint16_t dpphy_hdmi_settings_offset;
+    uint16_t dpphy_dvi_settings_offset;
+    uint16_t dpphy_dp_setting_table_offset;
+    uint16_t uniphy_xbar_settings_v2_table_offset;
+    uint16_t dpphy_internal_reg_overide_offset;
+};
+
 static enum bp_result bios_parser_get_firmware_info(
 	struct dc_bios *dcb,
 	struct dc_firmware_info *info)
 {
 	struct bios_parser *bp = BP_FROM_DCB(dcb);
-	enum bp_result result = BP_RESULT_BADBIOSTABLE;
+	static enum bp_result result = BP_RESULT_BADBIOSTABLE;
 	struct atom_common_table_header *header;
 
 	struct atom_data_revision revision;
@@ -1590,6 +1920,11 @@ static enum bp_result get_firmware_info_v3_4(
 	struct atom_data_revision revision;
 	struct atom_display_controller_info_v4_1 *dce_info_v4_1 = NULL;
 	struct atom_display_controller_info_v4_4 *dce_info_v4_4 = NULL;
+
+	struct atom_smu_info_v3_5 *smu_info_v3_5 = NULL;
+	struct atom_display_controller_info_v4_5 *dce_info_v4_5 = NULL;
+	struct atom_smu_info_v4_0 *smu_info_v4_0 = NULL;
+
 	if (!info)
 		return BP_RESULT_BADINPUT;
 
@@ -1609,6 +1944,22 @@ static enum bp_result get_firmware_info_v3_4(
 	switch (revision.major) {
 	case 4:
 		switch (revision.minor) {
+		case 5:
+			dce_info_v4_5 = GET_IMAGE(struct atom_display_controller_info_v4_5,
+							DATA_TABLES(dce_info));
+
+			if (!dce_info_v4_5)
+				return BP_RESULT_BADBIOSTABLE;
+
+			 /* 100MHz expected */
+			info->pll_info.crystal_frequency = dce_info_v4_5->dce_refclk_10khz * 10;
+			info->dp_phy_ref_clk             = dce_info_v4_5->dpphy_refclk_10khz * 10;
+			 /* 50MHz expected */
+			info->i2c_engine_ref_clk         = dce_info_v4_5->i2c_engine_refclk_10khz * 10;
+
+			/* For DCN32/321 Display PLL VCO Frequency from dce_info_v4_5 may not be reliable */
+			break;
+
 		case 4:
 			dce_info_v4_4 = GET_IMAGE(struct atom_display_controller_info_v4_4,
 							DATA_TABLES(dce_info));
@@ -1650,6 +2001,45 @@ static enum bp_result get_firmware_info_v3_4(
 					DATA_TABLES(smu_info));
 	get_atom_data_table_revision(header, &revision);
 
+	switch (revision.major) {
+	case 3:
+		switch (revision.minor) {
+		case 5:
+			smu_info_v3_5 = GET_IMAGE(struct atom_smu_info_v3_5,
+							DATA_TABLES(smu_info));
+
+			if (!smu_info_v3_5)
+				return BP_RESULT_BADBIOSTABLE;
+
+			info->default_engine_clk = smu_info_v3_5->bootup_dcefclk_10khz * 10;
+			break;
+
+		default:
+			break;
+		}
+		break;
+
+	case 4:
+		switch (revision.minor) {
+		case 0:
+			smu_info_v4_0 = GET_IMAGE(struct atom_smu_info_v4_0,
+							DATA_TABLES(smu_info));
+
+			if (!smu_info_v4_0)
+				return BP_RESULT_BADBIOSTABLE;
+
+			/* For DCN32/321 bootup DCFCLK from smu_info_v4_0 may not be reliable */
+			break;
+
+		default:
+			break;
+		}
+		break;
+
+	default:
+		break;
+	}
+
 	 // We need to convert from 10KHz units into KHz units.
 	info->default_memory_clk = firmware_info->bootup_mclk_in10khz * 10;
 
@@ -1675,6 +2065,12 @@ static enum bp_result bios_parser_get_encoder_cap_info(
 	if (!info)
 		return BP_RESULT_BADINPUT;
 
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+	/* encoder cap record not available in v1_5 */
+	if (bp->object_info_tbl.revision.minor == 5)
+		return BP_RESULT_NORECORD;
+#endif
+
 	object = get_bios_object(bp, object_id);
 
 	if (!object)
@@ -1683,6 +2079,7 @@ static enum bp_result bios_parser_get_encoder_cap_info(
 	record = get_encoder_cap_record(bp, object);
 	if (!record)
 		return BP_RESULT_NORECORD;
+	DC_LOG_BIOS("record->encodercaps 0x%x for object_id 0x%x", record->encodercaps, object_id.id);
 
 	info->DP_HBR2_CAP = (record->encodercaps &
 			ATOM_ENCODER_CAP_RECORD_HBR2) ? 1 : 0;
@@ -1702,6 +2099,7 @@ static enum bp_result bios_parser_get_encoder_cap_info(
 			ATOM_ENCODER_CAP_RECORD_UHBR20_EN) ? 1 : 0;
 	info->DP_IS_USB_C = (record->encodercaps &
 			ATOM_ENCODER_CAP_RECORD_USB_C_TYPE) ? 1 : 0;
+	DC_LOG_BIOS("\t info->DP_IS_USB_C %d", info->DP_IS_USB_C);
 
 	return BP_RESULT_OK;
 }
@@ -1781,6 +2179,42 @@ static struct atom_disp_connector_caps_record *get_disp_connector_caps_record(
 	return NULL;
 }
 
+static struct atom_connector_caps_record *get_connector_caps_record(
+	struct bios_parser *bp,
+	struct atom_display_object_path_v3 *object)
+{
+	struct atom_common_record_header *header;
+	uint32_t offset;
+
+	if (!object) {
+		BREAK_TO_DEBUGGER(); /* Invalid object */
+		return NULL;
+	}
+
+	offset = object->disp_recordoffset + bp->object_info_tbl_offset;
+
+	for (;;) {
+		header = GET_IMAGE(struct atom_common_record_header, offset);
+
+		if (!header)
+			return NULL;
+
+		offset += header->record_size;
+
+		if (header->record_type == ATOM_RECORD_END_TYPE ||
+				!header->record_size)
+			break;
+
+		if (header->record_type != ATOM_CONNECTOR_CAP_RECORD_TYPE)
+			continue;
+
+		if (sizeof(struct atom_connector_caps_record) <= header->record_size)
+			return (struct atom_connector_caps_record *)header;
+	}
+
+	return NULL;
+}
+
 static enum bp_result bios_parser_get_disp_connector_caps_info(
 	struct dc_bios *dcb,
 	struct graphics_object_id object_id,
@@ -1788,25 +2222,116 @@ static enum bp_result bios_parser_get_disp_connector_caps_info(
 {
 	struct bios_parser *bp = BP_FROM_DCB(dcb);
 	struct atom_display_object_path_v2 *object;
+
+	struct atom_display_object_path_v3 *object_path_v3;
+	struct atom_connector_caps_record *record_path_v3;
+
 	struct atom_disp_connector_caps_record *record = NULL;
 
 	if (!info)
 		return BP_RESULT_BADINPUT;
 
-	object = get_bios_object(bp, object_id);
+	switch (bp->object_info_tbl.revision.minor) {
+	    case 4:
+	    default:
+		    object = get_bios_object(bp, object_id);
 
-	if (!object)
+		    if (!object)
+			    return BP_RESULT_BADINPUT;
+
+		    record = get_disp_connector_caps_record(bp, object);
+		    if (!record)
+			    return BP_RESULT_NORECORD;
+
+		    info->INTERNAL_DISPLAY =
+			    (record->connectcaps & ATOM_CONNECTOR_CAP_INTERNAL_DISPLAY) ? 1 : 0;
+		    info->INTERNAL_DISPLAY_BL =
+			    (record->connectcaps & ATOM_CONNECTOR_CAP_INTERNAL_DISPLAY_BL) ? 1 : 0;
+		    break;
+	    case 5:
+		object_path_v3 = get_bios_object_from_path_v3(bp, object_id);
+
+		if (!object_path_v3)
+			return BP_RESULT_BADINPUT;
+
+		record_path_v3 = get_connector_caps_record(bp, object_path_v3);
+		if (!record_path_v3)
+			return BP_RESULT_NORECORD;
+
+		info->INTERNAL_DISPLAY = (record_path_v3->connector_caps & ATOM_CONNECTOR_CAP_INTERNAL_DISPLAY)
+									? 1 : 0;
+		info->INTERNAL_DISPLAY_BL = (record_path_v3->connector_caps & ATOM_CONNECTOR_CAP_INTERNAL_DISPLAY_BL)
+										? 1 : 0;
+		break;
+	}
+
+	return BP_RESULT_OK;
+}
+
+static struct atom_connector_speed_record *get_connector_speed_cap_record(
+	struct bios_parser *bp,
+	struct atom_display_object_path_v3 *object)
+{
+	struct atom_common_record_header *header;
+	uint32_t offset;
+
+	if (!object) {
+		BREAK_TO_DEBUGGER(); /* Invalid object */
+		return NULL;
+	}
+
+	offset = object->disp_recordoffset + bp->object_info_tbl_offset;
+
+	for (;;) {
+		header = GET_IMAGE(struct atom_common_record_header, offset);
+
+		if (!header)
+			return NULL;
+
+		offset += header->record_size;
+
+		if (header->record_type == ATOM_RECORD_END_TYPE ||
+				!header->record_size)
+			break;
+
+		if (header->record_type != ATOM_CONNECTOR_SPEED_UPTO)
+			continue;
+
+		if (sizeof(struct atom_connector_speed_record) <= header->record_size)
+			return (struct atom_connector_speed_record *)header;
+	}
+
+	return NULL;
+}
+
+static enum bp_result bios_parser_get_connector_speed_cap_info(
+	struct dc_bios *dcb,
+	struct graphics_object_id object_id,
+	struct bp_connector_speed_cap_info *info)
+{
+	struct bios_parser *bp = BP_FROM_DCB(dcb);
+	struct atom_display_object_path_v3 *object_path_v3;
+	//struct atom_connector_speed_record *record = NULL;
+	struct atom_connector_speed_record *record;
+
+	if (!info)
 		return BP_RESULT_BADINPUT;
 
-	record = get_disp_connector_caps_record(bp, object);
+	object_path_v3 = get_bios_object_from_path_v3(bp, object_id);
+
+	if (!object_path_v3)
+		return BP_RESULT_BADINPUT;
+
+	record = get_connector_speed_cap_record(bp, object_path_v3);
 	if (!record)
 		return BP_RESULT_NORECORD;
 
-	info->INTERNAL_DISPLAY = (record->connectcaps & ATOM_CONNECTOR_CAP_INTERNAL_DISPLAY)
-									? 1 : 0;
-	info->INTERNAL_DISPLAY_BL = (record->connectcaps & ATOM_CONNECTOR_CAP_INTERNAL_DISPLAY_BL)
-											? 1 : 0;
-
+	info->DP_HBR2_EN = (record->connector_max_speed >= 5400) ? 1 : 0;
+	info->DP_HBR3_EN = (record->connector_max_speed >= 8100) ? 1 : 0;
+	info->HDMI_6GB_EN = (record->connector_max_speed >= 5940) ? 1 : 0;
+	info->DP_UHBR10_EN = (record->connector_max_speed >= 10000) ? 1 : 0;
+	info->DP_UHBR13_5_EN = (record->connector_max_speed >= 13500) ? 1 : 0;
+	info->DP_UHBR20_EN = (record->connector_max_speed >= 20000) ? 1 : 0;
 	return BP_RESULT_OK;
 }
 
@@ -1815,7 +2340,7 @@ static enum bp_result get_vram_info_v23(
 	struct dc_vram_info *info)
 {
 	struct atom_vram_info_header_v2_3 *info_v23;
-	enum bp_result result = BP_RESULT_OK;
+	static enum bp_result result = BP_RESULT_OK;
 
 	info_v23 = GET_IMAGE(struct atom_vram_info_header_v2_3,
 						DATA_TABLES(vram_info));
@@ -1834,7 +2359,7 @@ static enum bp_result get_vram_info_v24(
 	struct dc_vram_info *info)
 {
 	struct atom_vram_info_header_v2_4 *info_v24;
-	enum bp_result result = BP_RESULT_OK;
+	static enum bp_result result = BP_RESULT_OK;
 
 	info_v24 = GET_IMAGE(struct atom_vram_info_header_v2_4,
 						DATA_TABLES(vram_info));
@@ -1853,7 +2378,7 @@ static enum bp_result get_vram_info_v25(
 	struct dc_vram_info *info)
 {
 	struct atom_vram_info_header_v2_5 *info_v25;
-	enum bp_result result = BP_RESULT_OK;
+	static enum bp_result result = BP_RESULT_OK;
 
 	info_v25 = GET_IMAGE(struct atom_vram_info_header_v2_5,
 						DATA_TABLES(vram_info));
@@ -1878,7 +2403,7 @@ static enum bp_result get_vram_info_v25(
  * integrated_info *info - [out] store and output integrated info
  *
  * @return
- * enum bp_result - BP_RESULT_OK if information is available,
+ * static enum bp_result - BP_RESULT_OK if information is available,
  *                  BP_RESULT_BADBIOSTABLE otherwise.
  */
 static enum bp_result get_integrated_info_v11(
@@ -2369,17 +2894,19 @@ static enum bp_result get_integrated_info_v2_2(
  * integrated_info *info - [out] store and output integrated info
  *
  * @return
- * enum bp_result - BP_RESULT_OK if information is available,
+ * static enum bp_result - BP_RESULT_OK if information is available,
  *                  BP_RESULT_BADBIOSTABLE otherwise.
  */
 static enum bp_result construct_integrated_info(
 	struct bios_parser *bp,
 	struct integrated_info *info)
 {
-	enum bp_result result = BP_RESULT_BADBIOSTABLE;
+	static enum bp_result result = BP_RESULT_BADBIOSTABLE;
 
 	struct atom_common_table_header *header;
 	struct atom_data_revision revision;
+
+	struct clock_voltage_caps temp = {0, 0};
 	uint32_t i;
 	uint32_t j;
 
@@ -2419,7 +2946,35 @@ static enum bp_result construct_integrated_info(
 
 	if (result != BP_RESULT_OK)
 		return result;
+	else {
+		// Log each external path
+		for (i = 0; i < MAX_NUMBER_OF_EXT_DISPLAY_PATH; i++) {
+			if (info->ext_disp_conn_info.path[i].device_tag != 0)
+				DC_LOG_BIOS("integrated_info:For EXTERNAL DISPLAY PATH %d --------------\n"
+						"DEVICE_TAG: 0x%x\n"
+						"DEVICE_ACPI_ENUM: 0x%x\n"
+						"DEVICE_CONNECTOR_ID: 0x%x\n"
+						"EXT_AUX_DDC_LUT_INDEX: %d\n"
+						"EXT_HPD_PIN_LUT_INDEX: %d\n"
+						"EXT_ENCODER_OBJ_ID: 0x%x\n"
+						"Encoder CAPS: 0x%x\n",
+						i,
+						info->ext_disp_conn_info.path[i].device_tag,
+						info->ext_disp_conn_info.path[i].device_acpi_enum,
+						info->ext_disp_conn_info.path[i].device_connector_id.id,
+						info->ext_disp_conn_info.path[i].ext_aux_ddc_lut_index,
+						info->ext_disp_conn_info.path[i].ext_hpd_pin_lut_index,
+						info->ext_disp_conn_info.path[i].ext_encoder_obj_id.id,
+						info->ext_disp_conn_info.path[i].caps
+						);
+		}
 
+		// Log the Checksum and Voltage Swing
+		DC_LOG_BIOS("Integrated info table CHECKSUM: %d\n"
+					"Integrated info table FIX_DP_VOLTAGE_SWING: %d\n",
+					info->ext_disp_conn_info.checksum,
+					info->ext_disp_conn_info.fixdpvoltageswing);
+	}
 	/* Sort voltage table from low to high*/
 	for (i = 1; i < NUMBER_OF_DISP_CLK_VOLTAGE; ++i) {
 		for (j = i; j > 0; --j) {
@@ -2427,8 +2982,10 @@ static enum bp_result construct_integrated_info(
 				info->disp_clk_voltage[j-1].max_supported_clk
 				) {
 				/* swap j and j - 1*/
-				swap(info->disp_clk_voltage[j - 1],
-				     info->disp_clk_voltage[j]);
+				temp = info->disp_clk_voltage[j-1];
+				info->disp_clk_voltage[j-1] =
+					info->disp_clk_voltage[j];
+				info->disp_clk_voltage[j] = temp;
 			}
 		}
 	}
@@ -2441,7 +2998,7 @@ static enum bp_result bios_parser_get_vram_info(
 		struct dc_vram_info *info)
 {
 	struct bios_parser *bp = BP_FROM_DCB(dcb);
-	enum bp_result result = BP_RESULT_BADBIOSTABLE;
+	static enum bp_result result = BP_RESULT_BADBIOSTABLE;
 	struct atom_common_table_header *header;
 	struct atom_data_revision revision;
 
@@ -2507,7 +3064,7 @@ static enum bp_result update_slot_layout_info(
 	struct atom_display_object_path_v2 *object;
 	struct atom_bracket_layout_record *record;
 	struct atom_common_record_header *record_header;
-	enum bp_result result;
+	static enum bp_result result;
 	struct bios_parser *bp;
 	struct object_info_table *tbl;
 	struct display_object_info_table_v1_4 *v1_4;
@@ -2613,6 +3170,105 @@ static enum bp_result update_slot_layout_info(
 	return result;
 }
 
+static enum bp_result update_slot_layout_info_v2(
+	struct dc_bios *dcb,
+	unsigned int i,
+	struct slot_layout_info *slot_layout_info)
+{
+	unsigned int record_offset;
+	struct atom_display_object_path_v3 *object;
+	struct atom_bracket_layout_record_v2 *record;
+	struct atom_common_record_header *record_header;
+	static enum bp_result result;
+	struct bios_parser *bp;
+	struct object_info_table *tbl;
+	struct display_object_info_table_v1_5 *v1_5;
+	struct graphics_object_id connector_id;
+
+	record = NULL;
+	record_header = NULL;
+	result = BP_RESULT_NORECORD;
+
+	bp = BP_FROM_DCB(dcb);
+	tbl = &bp->object_info_tbl;
+	v1_5 = tbl->v1_5;
+
+	object = &v1_5->display_path[i];
+	record_offset = (unsigned int)
+		(object->disp_recordoffset) +
+		(unsigned int)(bp->object_info_tbl_offset);
+
+	for (;;) {
+
+		record_header = (struct atom_common_record_header *)
+			GET_IMAGE(struct atom_common_record_header,
+			record_offset);
+		if (record_header == NULL) {
+			result = BP_RESULT_BADBIOSTABLE;
+			break;
+		}
+
+		/* the end of the list */
+		if (record_header->record_type == ATOM_RECORD_END_TYPE ||
+			record_header->record_size == 0)	{
+			break;
+		}
+
+		if (record_header->record_type ==
+			ATOM_BRACKET_LAYOUT_V2_RECORD_TYPE &&
+			sizeof(struct atom_bracket_layout_record_v2)
+			<= record_header->record_size) {
+			record = (struct atom_bracket_layout_record_v2 *)
+				(record_header);
+			result = BP_RESULT_OK;
+			break;
+		}
+
+		record_offset += record_header->record_size;
+	}
+
+	/* return if the record not found */
+	if (result != BP_RESULT_OK)
+		return result;
+
+	/* get slot sizes */
+	connector_id = object_id_from_bios_object_id(object->display_objid);
+
+	slot_layout_info->length = record->bracketlen;
+	slot_layout_info->width = record->bracketwidth;
+	slot_layout_info->num_of_connectors = v1_5->number_of_path;
+	slot_layout_info->connectors[i].position = record->conn_num;
+	slot_layout_info->connectors[i].connector_id = connector_id;
+
+	switch (connector_id.id) {
+	case CONNECTOR_ID_SINGLE_LINK_DVID:
+	case CONNECTOR_ID_DUAL_LINK_DVID:
+		slot_layout_info->connectors[i].connector_type = CONNECTOR_LAYOUT_TYPE_DVI_D;
+		slot_layout_info->connectors[i].length = CONNECTOR_SIZE_DVI;
+		break;
+
+	case CONNECTOR_ID_HDMI_TYPE_A:
+		slot_layout_info->connectors[i].connector_type = CONNECTOR_LAYOUT_TYPE_HDMI;
+		slot_layout_info->connectors[i].length = CONNECTOR_SIZE_HDMI;
+		break;
+
+	case CONNECTOR_ID_DISPLAY_PORT:
+	case CONNECTOR_ID_USBC:
+		if (record->mini_type == MINI_TYPE_NORMAL) {
+			slot_layout_info->connectors[i].connector_type = CONNECTOR_LAYOUT_TYPE_DP;
+			slot_layout_info->connectors[i].length = CONNECTOR_SIZE_DP;
+		} else {
+			slot_layout_info->connectors[i].connector_type = CONNECTOR_LAYOUT_TYPE_MINI_DP;
+			slot_layout_info->connectors[i].length = CONNECTOR_SIZE_MINI_DP;
+		}
+		break;
+
+	default:
+		slot_layout_info->connectors[i].connector_type = CONNECTOR_LAYOUT_TYPE_UNKNOWN;
+		slot_layout_info->connectors[i].length = CONNECTOR_SIZE_UNKNOWN;
+	}
+	return result;
+}
 
 static enum bp_result get_bracket_layout_record(
 	struct dc_bios *dcb,
@@ -2621,9 +3277,10 @@ static enum bp_result get_bracket_layout_record(
 {
 	unsigned int i;
 	struct bios_parser *bp = BP_FROM_DCB(dcb);
-	enum bp_result result;
+	static enum bp_result result;
 	struct object_info_table *tbl;
 	struct display_object_info_table_v1_4 *v1_4;
+	struct display_object_info_table_v1_5 *v1_5;
 
 	if (slot_layout_info == NULL) {
 		DC_LOG_DETECTION_EDID_PARSER("Invalid slot_layout_info\n");
@@ -2631,16 +3288,24 @@ static enum bp_result get_bracket_layout_record(
 	}
 	tbl = &bp->object_info_tbl;
 	v1_4 = tbl->v1_4;
+	v1_5 = tbl->v1_5;
 
 	result = BP_RESULT_NORECORD;
-	for (i = 0; i < v1_4->number_of_path; ++i)	{
-
-		if (bracket_layout_id ==
-			v1_4->display_path[i].display_objid) {
-			result = update_slot_layout_info(dcb, i,
-				slot_layout_info);
+	switch (bp->object_info_tbl.revision.minor) {
+		case 4:
+		default:
+			for (i = 0; i < v1_4->number_of_path; ++i)	{
+				if (bracket_layout_id ==
+					v1_4->display_path[i].display_objid) {
+					result = update_slot_layout_info(dcb, i, slot_layout_info);
+					break;
+				}
+			}
+		    break;
+		case 5:
+			for (i = 0; i < v1_5->number_of_path; ++i)
+				result = update_slot_layout_info_v2(dcb, i, slot_layout_info);
 			break;
-		}
 	}
 	return result;
 }
@@ -2650,13 +3315,19 @@ static enum bp_result bios_get_board_layout_info(
 	struct board_layout_info *board_layout_info)
 {
 	unsigned int i;
-	enum bp_result record_result;
+
+	struct bios_parser *bp;
+
+	static enum bp_result record_result;
 
 	const unsigned int slot_index_to_vbios_id[MAX_BOARD_SLOTS] = {
 		GENERICOBJECT_BRACKET_LAYOUT_ENUM_ID1,
 		GENERICOBJECT_BRACKET_LAYOUT_ENUM_ID2,
 		0, 0
 	};
+
+
+	bp = BP_FROM_DCB(dcb);
 
 	if (board_layout_info == NULL) {
 		DC_LOG_DETECTION_EDID_PARSER("Invalid board_layout_info\n");
@@ -2692,99 +3363,6 @@ static uint16_t bios_parser_pack_data_tables(
 	struct dc_bios *dcb,
 	void *dst)
 {
-#ifdef PACK_BIOS_DATA
-	struct bios_parser *bp = BP_FROM_DCB(dcb);
-	struct atom_rom_header_v2_2 *rom_header = NULL;
-	struct atom_rom_header_v2_2 *packed_rom_header = NULL;
-	struct atom_common_table_header *data_tbl_header = NULL;
-	struct atom_master_list_of_data_tables_v2_1 *data_tbl_list = NULL;
-	struct atom_master_data_table_v2_1 *packed_master_data_tbl = NULL;
-	struct atom_data_revision tbl_rev = {0};
-	uint16_t *rom_header_offset = NULL;
-	const uint8_t *bios = bp->base.bios;
-	uint8_t *bios_dst = (uint8_t *)dst;
-	uint16_t packed_rom_header_offset;
-	uint16_t packed_masterdatatable_offset;
-	uint16_t packed_data_tbl_offset;
-	uint16_t data_tbl_offset;
-	unsigned int i;
-
-	rom_header_offset =
-		GET_IMAGE(uint16_t, OFFSET_TO_ATOM_ROM_HEADER_POINTER);
-
-	if (!rom_header_offset)
-		return 0;
-
-	rom_header = GET_IMAGE(struct atom_rom_header_v2_2, *rom_header_offset);
-
-	if (!rom_header)
-		return 0;
-
-	get_atom_data_table_revision(&rom_header->table_header, &tbl_rev);
-	if (!(tbl_rev.major >= 2 && tbl_rev.minor >= 2))
-		return 0;
-
-	get_atom_data_table_revision(&bp->master_data_tbl->table_header, &tbl_rev);
-	if (!(tbl_rev.major >= 2 && tbl_rev.minor >= 1))
-		return 0;
-
-	packed_rom_header_offset =
-		OFFSET_TO_ATOM_ROM_HEADER_POINTER + sizeof(*rom_header_offset);
-
-	packed_masterdatatable_offset =
-		packed_rom_header_offset + rom_header->table_header.structuresize;
-
-	packed_data_tbl_offset =
-		packed_masterdatatable_offset +
-		bp->master_data_tbl->table_header.structuresize;
-
-	packed_rom_header =
-		(struct atom_rom_header_v2_2 *)(bios_dst + packed_rom_header_offset);
-
-	packed_master_data_tbl =
-		(struct atom_master_data_table_v2_1 *)(bios_dst +
-		packed_masterdatatable_offset);
-
-	memcpy(bios_dst, bios, OFFSET_TO_ATOM_ROM_HEADER_POINTER);
-
-	*((uint16_t *)(bios_dst + OFFSET_TO_ATOM_ROM_HEADER_POINTER)) =
-		packed_rom_header_offset;
-
-	memcpy(bios_dst + packed_rom_header_offset, rom_header,
-		rom_header->table_header.structuresize);
-
-	packed_rom_header->masterdatatable_offset = packed_masterdatatable_offset;
-
-	memcpy(&packed_master_data_tbl->table_header,
-		&bp->master_data_tbl->table_header,
-		sizeof(bp->master_data_tbl->table_header));
-
-	data_tbl_list = &bp->master_data_tbl->listOfdatatables;
-
-	/* Each data table offset in data table list is 2 bytes,
-	 * we can use that to iterate through listOfdatatables
-	 * without knowing the name of each member.
-	 */
-	for (i = 0; i < sizeof(*data_tbl_list)/sizeof(uint16_t); i++) {
-		data_tbl_offset = *((uint16_t *)data_tbl_list + i);
-
-		if (data_tbl_offset) {
-			data_tbl_header =
-				(struct atom_common_table_header *)(bios + data_tbl_offset);
-
-			memcpy(bios_dst + packed_data_tbl_offset, data_tbl_header,
-				data_tbl_header->structuresize);
-
-			*((uint16_t *)&packed_master_data_tbl->listOfdatatables + i) =
-				packed_data_tbl_offset;
-
-			packed_data_tbl_offset += data_tbl_header->structuresize;
-		} else {
-			*((uint16_t *)&packed_master_data_tbl->listOfdatatables + i) = 0;
-		}
-	}
-	return packed_data_tbl_offset;
-#endif
 	// TODO: There is data bytes alignment issue, disable it for now.
 	return 0;
 }
@@ -2813,6 +3391,13 @@ static struct atom_dc_golden_table_v1 *bios_get_golden_table(
 				return NULL;
 			dc_golden_offset = DATA_TABLES(dce_info) + disp_cntl_tbl_4_4->dc_golden_table_offset;
 			*dc_golden_table_ver = disp_cntl_tbl_4_4->dc_golden_table_ver;
+			break;
+		case 5:
+		default:
+			/* For atom_display_controller_info_v4_5 there is no need to get golden table from
+			 * dc_golden_table_offset as all these fields previously in golden table used for AUX
+			 * pre-charge settings are now available directly in atom_display_controller_info_v4_5.
+			 */
 			break;
 		}
 		break;
@@ -2916,6 +3501,7 @@ static const struct dc_vbios_funcs vbios_funcs = {
 	.bios_parser_destroy = firmware_parser_destroy,
 
 	.get_board_layout_info = bios_get_board_layout_info,
+	/* TODO: use this fn in hw init?*/
 	.pack_data_tables = bios_parser_pack_data_tables,
 
 	.get_atom_dc_golden_table = bios_get_atom_dc_golden_table,
@@ -2929,6 +3515,8 @@ static const struct dc_vbios_funcs vbios_funcs = {
 	.get_lttpr_caps = bios_parser_get_lttpr_caps,
 
 	.get_lttpr_interop = bios_parser_get_lttpr_interop,
+
+	.get_connector_speed_cap_info = bios_parser_get_connector_speed_cap_info,
 };
 
 static bool bios_parser2_construct(
@@ -3002,6 +3590,16 @@ static bool bios_parser2_construct(
 			return false;
 
 		bp->object_info_tbl.v1_4 = tbl_v1_4;
+	} else if (bp->object_info_tbl.revision.major == 1
+		&& bp->object_info_tbl.revision.minor == 5) {
+		struct display_object_info_table_v1_5 *tbl_v1_5;
+
+		tbl_v1_5 = GET_IMAGE(struct display_object_info_table_v1_5,
+			bp->object_info_tbl_offset);
+		if (!tbl_v1_5)
+			return false;
+
+		bp->object_info_tbl.v1_5 = tbl_v1_5;
 	} else {
 		ASSERT(0);
 		return false;

@@ -27,6 +27,7 @@
 #include <linux/capability.h>
 #include <linux/cgroup_api.h>
 #include <linux/cgroup.h>
+#include <linux/context_tracking.h>
 #include <linux/cpufreq.h>
 #include <linux/cpumask_api.h>
 #include <linux/ctype.h>
@@ -465,9 +466,6 @@ extern void __refill_cfs_bandwidth_runtime(struct cfs_bandwidth *cfs_b);
 extern void start_cfs_bandwidth(struct cfs_bandwidth *cfs_b);
 extern void unthrottle_cfs_rq(struct cfs_rq *cfs_rq);
 
-extern void unregister_rt_sched_group(struct task_group *tg);
-extern void free_rt_sched_group(struct task_group *tg);
-extern int alloc_rt_sched_group(struct task_group *tg, struct task_group *parent);
 extern void init_tg_rt_entry(struct task_group *tg, struct rt_rq *rt_rq,
 		struct sched_rt_entity *rt_se, int cpu,
 		struct sched_rt_entity *parent);
@@ -504,6 +502,10 @@ static inline void set_task_rq_fair(struct sched_entity *se,
 struct cfs_bandwidth { };
 
 #endif	/* CONFIG_CGROUP_SCHED */
+
+extern void unregister_rt_sched_group(struct task_group *tg);
+extern void free_rt_sched_group(struct task_group *tg);
+extern int alloc_rt_sched_group(struct task_group *tg, struct task_group *parent);
 
 /*
  * u64_u32_load/u64_u32_store
@@ -2695,8 +2697,8 @@ static inline void double_rq_lock(struct rq *rq1, struct rq *rq2)
 	__acquires(rq1->lock)
 	__acquires(rq2->lock)
 {
-	BUG_ON(!irqs_disabled());
-	BUG_ON(rq1 != rq2);
+	WARN_ON_ONCE(!irqs_disabled());
+	WARN_ON_ONCE(rq1 != rq2);
 	raw_spin_rq_lock(rq1);
 	__acquire(rq2->lock);	/* Fake it out ;) */
 	double_rq_clock_clear_update(rq1, rq2);
@@ -2712,7 +2714,7 @@ static inline void double_rq_unlock(struct rq *rq1, struct rq *rq2)
 	__releases(rq1->lock)
 	__releases(rq2->lock)
 {
-	BUG_ON(rq1 != rq2);
+	WARN_ON_ONCE(rq1 != rq2);
 	raw_spin_rq_unlock(rq1);
 	__release(rq2->lock);
 }

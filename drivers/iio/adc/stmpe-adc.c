@@ -333,7 +333,7 @@ static int stmpe_adc_probe(struct platform_device *pdev)
 	return devm_iio_device_register(&pdev->dev, indio_dev);
 }
 
-static int __maybe_unused stmpe_adc_resume(struct device *dev)
+static int stmpe_adc_resume(struct device *dev)
 {
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 	struct stmpe_adc *info = iio_priv(indio_dev);
@@ -343,7 +343,7 @@ static int __maybe_unused stmpe_adc_resume(struct device *dev)
 	return 0;
 }
 
-static SIMPLE_DEV_PM_OPS(stmpe_adc_pm_ops, NULL, stmpe_adc_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(stmpe_adc_pm_ops, NULL, stmpe_adc_resume);
 
 static const struct of_device_id stmpe_adc_ids[] = {
 	{ .compatible = "st,stmpe-adc", },
@@ -355,7 +355,7 @@ static struct platform_driver stmpe_adc_driver = {
 	.probe		= stmpe_adc_probe,
 	.driver		= {
 		.name	= "stmpe-adc",
-		.pm	= &stmpe_adc_pm_ops,
+		.pm	= pm_sleep_ptr(&stmpe_adc_pm_ops),
 		.of_match_table = stmpe_adc_ids,
 	},
 };

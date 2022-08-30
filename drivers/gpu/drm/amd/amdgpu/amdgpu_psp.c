@@ -37,6 +37,7 @@
 #include "psp_v11_0_8.h"
 #include "psp_v12_0.h"
 #include "psp_v13_0.h"
+#include "psp_v13_0_4.h"
 
 #include "amdgpu_ras.h"
 #include "amdgpu_securedisplay.h"
@@ -149,6 +150,10 @@ static int psp_early_init(void *handle)
 	case IP_VERSION(13, 0, 0):
 	case IP_VERSION(13, 0, 7):
 		psp_v13_0_set_psp_funcs(psp);
+		psp->autoload_supported = true;
+		break;
+	case IP_VERSION(13, 0, 4):
+		psp_v13_0_4_set_psp_funcs(psp);
 		psp->autoload_supported = true;
 		break;
 	default:
@@ -1292,6 +1297,8 @@ static void psp_xgmi_reflect_topology_info(struct psp_context *psp,
 
 		break;
 	}
+
+	amdgpu_put_xgmi_hive(hive);
 }
 
 int psp_xgmi_get_topology_info(struct psp_context *psp,
@@ -2168,6 +2175,21 @@ static int psp_get_fw_type(struct amdgpu_firmware_info *ucode,
 	case AMDGPU_UCODE_ID_RLC_DRAM:
 		*type = GFX_FW_TYPE_RLC_DRAM_BOOT;
 		break;
+	case AMDGPU_UCODE_ID_GLOBAL_TAP_DELAYS:
+		*type = GFX_FW_TYPE_GLOBAL_TAP_DELAYS;
+		break;
+	case AMDGPU_UCODE_ID_SE0_TAP_DELAYS:
+		*type = GFX_FW_TYPE_SE0_TAP_DELAYS;
+		break;
+	case AMDGPU_UCODE_ID_SE1_TAP_DELAYS:
+		*type = GFX_FW_TYPE_SE1_TAP_DELAYS;
+		break;
+	case AMDGPU_UCODE_ID_SE2_TAP_DELAYS:
+		*type = GFX_FW_TYPE_SE2_TAP_DELAYS;
+		break;
+	case AMDGPU_UCODE_ID_SE3_TAP_DELAYS:
+		*type = GFX_FW_TYPE_SE3_TAP_DELAYS;
+		break;
 	case AMDGPU_UCODE_ID_SMC:
 		*type = GFX_FW_TYPE_SMU;
 		break;
@@ -2347,6 +2369,13 @@ static int psp_load_smu_fw(struct psp_context *psp)
 	struct amdgpu_firmware_info *ucode =
 			&adev->firmware.ucode[AMDGPU_UCODE_ID_SMC];
 	struct amdgpu_ras *ras = psp->ras_context.ras;
+
+	/*
+	 * Skip SMU FW reloading in case of using BACO for runpm only,
+	 * as SMU is always alive.
+	 */
+	if (adev->in_runpm && (adev->pm.rpm_mode == AMDGPU_RUNPM_BACO))
+		return 0;
 
 	if (!ucode->fw || amdgpu_sriov_vf(psp->adev))
 		return 0;
@@ -3668,5 +3697,13 @@ const struct amdgpu_ip_block_version psp_v13_0_ip_block = {
 	.major = 13,
 	.minor = 0,
 	.rev = 0,
+	.funcs = &psp_ip_funcs,
+};
+
+const struct amdgpu_ip_block_version psp_v13_0_4_ip_block = {
+	.type = AMD_IP_BLOCK_TYPE_PSP,
+	.major = 13,
+	.minor = 0,
+	.rev = 4,
 	.funcs = &psp_ip_funcs,
 };

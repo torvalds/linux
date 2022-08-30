@@ -140,7 +140,8 @@ static int tps23861_read_temp(struct tps23861_data *data, long *val)
 static int tps23861_read_voltage(struct tps23861_data *data, int channel,
 				 long *val)
 {
-	unsigned int regval;
+	__le16 regval;
+	long raw_val;
 	int err;
 
 	if (channel < TPS23861_NUM_PORTS) {
@@ -155,7 +156,8 @@ static int tps23861_read_voltage(struct tps23861_data *data, int channel,
 	if (err < 0)
 		return err;
 
-	*val = (FIELD_GET(VOLTAGE_CURRENT_MASK, regval) * VOLTAGE_LSB) / 1000;
+	raw_val = le16_to_cpu(regval);
+	*val = (FIELD_GET(VOLTAGE_CURRENT_MASK, raw_val) * VOLTAGE_LSB) / 1000;
 
 	return 0;
 }
@@ -163,8 +165,9 @@ static int tps23861_read_voltage(struct tps23861_data *data, int channel,
 static int tps23861_read_current(struct tps23861_data *data, int channel,
 				 long *val)
 {
-	unsigned int current_lsb;
-	unsigned int regval;
+	long raw_val, current_lsb;
+	__le16 regval;
+
 	int err;
 
 	if (data->shunt_resistor == SHUNT_RESISTOR_DEFAULT)
@@ -178,7 +181,8 @@ static int tps23861_read_current(struct tps23861_data *data, int channel,
 	if (err < 0)
 		return err;
 
-	*val = (FIELD_GET(VOLTAGE_CURRENT_MASK, regval) * current_lsb) / 1000000;
+	raw_val = le16_to_cpu(regval);
+	*val = (FIELD_GET(VOLTAGE_CURRENT_MASK, raw_val) * current_lsb) / 1000000;
 
 	return 0;
 }

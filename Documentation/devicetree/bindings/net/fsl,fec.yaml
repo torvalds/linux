@@ -58,6 +58,11 @@ properties:
               - fsl,imx8qxp-fec
           - const: fsl,imx8qm-fec
           - const: fsl,imx6sx-fec
+      - items:
+          - enum:
+              - fsl,imx8ulp-fec
+          - const: fsl,imx6ul-fec
+          - const: fsl,imx6q-fec
 
   reg:
     maxItems: 1
@@ -120,6 +125,10 @@ properties:
   local-mac-address: true
 
   mac-address: true
+
+  nvmem-cells: true
+
+  nvmem-cell-names: true
 
   tx-internal-delay-ps:
     enum: [0, 2000]
@@ -216,7 +225,7 @@ required:
 # least undocumented properties. However, PHY may have a deprecated option to
 # place PHY OF properties in the MAC node, such as Micrel PHY, and we can find
 # these boards which is based on i.MX6QDL.
-additionalProperties: false
+unevaluatedProperties: false
 
 examples:
   - |

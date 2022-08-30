@@ -784,7 +784,7 @@ config HAVE_ARCH_WITHIN_STACK_FRAMES
 	  and similar) by implementing an inline arch_within_stack_frames(),
 	  which is used by CONFIG_HARDENED_USERCOPY.
 
-config HAVE_CONTEXT_TRACKING
+config HAVE_CONTEXT_TRACKING_USER
 	bool
 	help
 	  Provide kernel/user boundaries probes necessary for subsystems
@@ -792,10 +792,10 @@ config HAVE_CONTEXT_TRACKING
 	  Syscalls need to be wrapped inside user_exit()-user_enter(), either
 	  optimized behind static key or through the slow path using TIF_NOHZ
 	  flag. Exceptions handlers must be wrapped as well. Irqs are already
-	  protected inside rcu_irq_enter/rcu_irq_exit() but preemption or signal
+	  protected inside ct_irq_enter/ct_irq_exit() but preemption or signal
 	  handling on irq exit still need to be protected.
 
-config HAVE_CONTEXT_TRACKING_OFFSTACK
+config HAVE_CONTEXT_TRACKING_USER_OFFSTACK
 	bool
 	help
 	  Architecture neither relies on exception_enter()/exception_exit()
@@ -807,7 +807,7 @@ config HAVE_CONTEXT_TRACKING_OFFSTACK
 
 	  - Critical entry code isn't preemptible (or better yet:
 	    not interruptible).
-	  - No use of RCU read side critical sections, unless rcu_nmi_enter()
+	  - No use of RCU read side critical sections, unless ct_nmi_enter()
 	    got called.
 	  - No use of instrumentation, unless instrumentation_begin() got
 	    called.
@@ -1404,6 +1404,9 @@ config ARCH_HAS_ELFCORE_COMPAT
 	bool
 
 config ARCH_HAS_PARANOID_L1D_FLUSH
+	bool
+
+config ARCH_HAVE_TRACE_MMIO_ACCESS
 	bool
 
 config DYNAMIC_SIGFRAME

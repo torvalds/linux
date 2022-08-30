@@ -898,7 +898,8 @@ static int vmd_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	if (vmd->instance < 0)
 		return vmd->instance;
 
-	vmd->name = kasprintf(GFP_KERNEL, "vmd%d", vmd->instance);
+	vmd->name = devm_kasprintf(&dev->dev, GFP_KERNEL, "vmd%d",
+				   vmd->instance);
 	if (!vmd->name) {
 		err = -ENOMEM;
 		goto out_release_instance;
@@ -936,7 +937,6 @@ static int vmd_probe(struct pci_dev *dev, const struct pci_device_id *id)
 
  out_release_instance:
 	ida_simple_remove(&vmd_instance_ida, vmd->instance);
-	kfree(vmd->name);
 	return err;
 }
 
@@ -959,7 +959,6 @@ static void vmd_remove(struct pci_dev *dev)
 	vmd_detach_resources(vmd);
 	vmd_remove_irq_domain(vmd);
 	ida_simple_remove(&vmd_instance_ida, vmd->instance);
-	kfree(vmd->name);
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -1010,6 +1009,14 @@ static const struct pci_device_id vmd_ids[] = {
 				VMD_FEAT_HAS_BUS_RESTRICTIONS |
 				VMD_FEAT_OFFSET_FIRST_VECTOR,},
 	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0xa77f),
+		.driver_data = VMD_FEAT_HAS_MEMBAR_SHADOW_VSCAP |
+				VMD_FEAT_HAS_BUS_RESTRICTIONS |
+				VMD_FEAT_OFFSET_FIRST_VECTOR,},
+	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x7d0b),
+		.driver_data = VMD_FEAT_HAS_MEMBAR_SHADOW_VSCAP |
+				VMD_FEAT_HAS_BUS_RESTRICTIONS |
+				VMD_FEAT_OFFSET_FIRST_VECTOR,},
+	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0xad0b),
 		.driver_data = VMD_FEAT_HAS_MEMBAR_SHADOW_VSCAP |
 				VMD_FEAT_HAS_BUS_RESTRICTIONS |
 				VMD_FEAT_OFFSET_FIRST_VECTOR,},

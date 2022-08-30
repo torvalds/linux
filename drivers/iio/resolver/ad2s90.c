@@ -24,7 +24,7 @@
 struct ad2s90_state {
 	struct mutex lock; /* lock to protect rx buffer */
 	struct spi_device *sdev;
-	u8 rx[2] ____cacheline_aligned;
+	u8 rx[2] __aligned(IIO_DMA_MINALIGN);
 };
 
 static int ad2s90_read_raw(struct iio_dev *indio_dev,

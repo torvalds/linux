@@ -171,7 +171,7 @@ static void ext2_put_super (struct super_block * sb)
 	brelse (sbi->s_sbh);
 	sb->s_fs_info = NULL;
 	kfree(sbi->s_blockgroup_lock);
-	fs_put_dax(sbi->s_daxdev);
+	fs_put_dax(sbi->s_daxdev, NULL);
 	kfree(sbi);
 }
 
@@ -295,9 +295,6 @@ static int ext2_show_options(struct seq_file *seq, struct dentry *root)
 	if (!test_opt(sb, POSIX_ACL) && (def_mount_opts & EXT2_DEFM_ACL))
 		seq_puts(seq, ",noacl");
 #endif
-
-	if (test_opt(sb, NOBH))
-		seq_puts(seq, ",nobh");
 
 	if (test_opt(sb, USRQUOTA))
 		seq_puts(seq, ",usrquota");
@@ -551,7 +548,8 @@ static int parse_options(char *options, struct super_block *sb,
 			clear_opt (opts->s_mount_opt, OLDALLOC);
 			break;
 		case Opt_nobh:
-			set_opt (opts->s_mount_opt, NOBH);
+			ext2_msg(sb, KERN_INFO,
+				"nobh option not supported");
 			break;
 #ifdef CONFIG_EXT2_FS_XATTR
 		case Opt_user_xattr:
@@ -835,7 +833,8 @@ static int ext2_fill_super(struct super_block *sb, void *data, int silent)
 	}
 	sb->s_fs_info = sbi;
 	sbi->s_sb_block = sb_block;
-	sbi->s_daxdev = fs_dax_get_by_bdev(sb->s_bdev, &sbi->s_dax_part_off);
+	sbi->s_daxdev = fs_dax_get_by_bdev(sb->s_bdev, &sbi->s_dax_part_off,
+					   NULL, NULL);
 
 	spin_lock_init(&sbi->s_lock);
 	ret = -EINVAL;
@@ -1212,7 +1211,7 @@ failed_mount_group_desc:
 failed_mount:
 	brelse(bh);
 failed_sbi:
-	fs_put_dax(sbi->s_daxdev);
+	fs_put_dax(sbi->s_daxdev, NULL);
 	sb->s_fs_info = NULL;
 	kfree(sbi->s_blockgroup_lock);
 	kfree(sbi);

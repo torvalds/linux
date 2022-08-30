@@ -38,11 +38,11 @@ struct snd_efw_transaction {
 	__be32 category;
 	__be32 command;
 	__be32 status;
-	__be32 params[0];
+	__be32 params[];
 };
 struct snd_firewire_event_efw_response {
 	unsigned int type;
-	__be32 response[0];	/* some responses */
+	__be32 response[];	/* some responses */
 };
 
 struct snd_firewire_event_digi00x_message {
@@ -63,7 +63,7 @@ struct snd_firewire_tascam_change {
 
 struct snd_firewire_event_tascam_control {
 	unsigned int type;
-	struct snd_firewire_tascam_change changes[0];
+	struct snd_firewire_tascam_change changes[];
 };
 
 struct snd_firewire_event_motu_register_dsp_change {

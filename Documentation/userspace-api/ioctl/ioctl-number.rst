@@ -120,7 +120,7 @@ Code  Seq#    Include File                                           Comments
 'C'   01-2F  linux/capi.h                                            conflict!
 'C'   F0-FF  drivers/net/wan/cosa.h                                  conflict!
 'D'   all    arch/s390/include/asm/dasd.h
-'D'   40-5F  drivers/scsi/dpt/dtpi_ioctl.h
+'D'   40-5F  drivers/scsi/dpt/dtpi_ioctl.h                           Dead since 2022
 'D'   05     drivers/scsi/pmcraid.h
 'E'   all    linux/input.h                                           conflict!
 'E'   00-0F  xen/evtchn.h                                            conflict!

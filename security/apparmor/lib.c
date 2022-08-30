@@ -136,7 +136,7 @@ __counted char *aa_str_alloc(int size, gfp_t gfp)
 {
 	struct counted_str *str;
 
-	str = kmalloc(sizeof(struct counted_str) + size, gfp);
+	str = kmalloc(struct_size(str, name, size), gfp);
 	if (!str)
 		return NULL;
 
@@ -322,22 +322,39 @@ static u32 map_other(u32 x)
 		((x & 0x60) << 19);	/* SETOPT/GETOPT */
 }
 
+static u32 map_xbits(u32 x)
+{
+	return ((x & 0x1) << 7) |
+		((x & 0x7e) << 9);
+}
+
 void aa_compute_perms(struct aa_dfa *dfa, unsigned int state,
 		      struct aa_perms *perms)
 {
+	/* This mapping is convulated due to history.
+	 * v1-v4: only file perms
+	 * v5: added policydb which dropped in perm user conditional to
+	 *     gain new perm bits, but had to map around the xbits because
+	 *     the userspace compiler was still munging them.
+	 * v9: adds using the xbits in policydb because the compiler now
+	 *     supports treating policydb permission bits different.
+	 *     Unfortunately there is not way to force auditing on the
+	 *     perms represented by the xbits
+	 */
 	*perms = (struct aa_perms) {
-		.allow = dfa_user_allow(dfa, state),
+		.allow = dfa_user_allow(dfa, state) |
+			 map_xbits(dfa_user_xbits(dfa, state)),
 		.audit = dfa_user_audit(dfa, state),
-		.quiet = dfa_user_quiet(dfa, state),
+		.quiet = dfa_user_quiet(dfa, state) |
+			 map_xbits(dfa_other_xbits(dfa, state)),
 	};
 
-	/* for v5 perm mapping in the policydb, the other set is used
+	/* for v5-v9 perm mapping in the policydb, the other set is used
 	 * to extend the general perm set
 	 */
 	perms->allow |= map_other(dfa_other_allow(dfa, state));
 	perms->audit |= map_other(dfa_other_audit(dfa, state));
 	perms->quiet |= map_other(dfa_other_quiet(dfa, state));
-//	perms->xindex = dfa_user_xindex(dfa, state);
 }
 
 /**

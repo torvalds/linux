@@ -23,8 +23,6 @@
  *
  */
 
-#include <linux/delay.h>
-
 #include "dm_services.h"
 
 /* include DCE11 register header files */

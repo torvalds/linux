@@ -3105,17 +3105,17 @@ void __trace_stack(struct trace_array *tr, unsigned int trace_ctx,
 	}
 
 	/*
-	 * When an NMI triggers, RCU is enabled via rcu_nmi_enter(),
+	 * When an NMI triggers, RCU is enabled via ct_nmi_enter(),
 	 * but if the above rcu_is_watching() failed, then the NMI
-	 * triggered someplace critical, and rcu_irq_enter() should
+	 * triggered someplace critical, and ct_irq_enter() should
 	 * not be called from NMI.
 	 */
 	if (unlikely(in_nmi()))
 		return;
 
-	rcu_irq_enter_irqson();
+	ct_irq_enter_irqson();
 	__ftrace_trace_stack(buffer, trace_ctx, skip, NULL);
-	rcu_irq_exit_irqson();
+	ct_irq_exit_irqson();
 }
 
 /**
@@ -5569,13 +5569,13 @@ static const char readme_msg[] =
 #endif
 #if defined(CONFIG_KPROBE_EVENTS) || defined(CONFIG_UPROBE_EVENTS)
 	"\t  accepts: event-definitions (one definition per line)\n"
-	"\t   Format: p[:[<group>/]<event>] <place> [<args>]\n"
-	"\t           r[maxactive][:[<group>/]<event>] <place> [<args>]\n"
+	"\t   Format: p[:[<group>/][<event>]] <place> [<args>]\n"
+	"\t           r[maxactive][:[<group>/][<event>]] <place> [<args>]\n"
 #ifdef CONFIG_HIST_TRIGGERS
 	"\t           s:[synthetic/]<event> <field> [<field>]\n"
 #endif
-	"\t           e[:[<group>/]<event>] <attached-group>.<attached-event> [<args>]\n"
-	"\t           -:[<group>/]<event>\n"
+	"\t           e[:[<group>/][<event>]] <attached-group>.<attached-event> [<args>]\n"
+	"\t           -:[<group>/][<event>]\n"
 #ifdef CONFIG_KPROBE_EVENTS
 	"\t    place: [<module>:]<symbol>[+<offset>]|<memaddr>\n"
   "place (kretprobe): [<module>:]<symbol>[+<offset>]%return|<memaddr>\n"
@@ -9101,6 +9101,16 @@ allocate_trace_buffer(struct trace_array *tr, struct array_buffer *buf, int size
 	return 0;
 }
 
+static void free_trace_buffer(struct array_buffer *buf)
+{
+	if (buf->buffer) {
+		ring_buffer_free(buf->buffer);
+		buf->buffer = NULL;
+		free_percpu(buf->data);
+		buf->data = NULL;
+	}
+}
+
 static int allocate_trace_buffers(struct trace_array *tr, int size)
 {
 	int ret;
@@ -9113,10 +9123,7 @@ static int allocate_trace_buffers(struct trace_array *tr, int size)
 	ret = allocate_trace_buffer(tr, &tr->max_buffer,
 				    allocate_snapshot ? size : 1);
 	if (MEM_FAIL(ret, "Failed to allocate trace buffer\n")) {
-		ring_buffer_free(tr->array_buffer.buffer);
-		tr->array_buffer.buffer = NULL;
-		free_percpu(tr->array_buffer.data);
-		tr->array_buffer.data = NULL;
+		free_trace_buffer(&tr->array_buffer);
 		return -ENOMEM;
 	}
 	tr->allocated_snapshot = allocate_snapshot;
@@ -9129,16 +9136,6 @@ static int allocate_trace_buffers(struct trace_array *tr, int size)
 #endif
 
 	return 0;
-}
-
-static void free_trace_buffer(struct array_buffer *buf)
-{
-	if (buf->buffer) {
-		ring_buffer_free(buf->buffer);
-		buf->buffer = NULL;
-		free_percpu(buf->data);
-		buf->data = NULL;
-	}
 }
 
 static void free_trace_buffers(struct trace_array *tr)
@@ -9771,6 +9768,8 @@ static __init int tracer_init_tracefs(void)
 	} else {
 		tracer_init_tracefs_work_func(NULL);
 	}
+
+	rv_init_interface();
 
 	return 0;
 }

@@ -82,6 +82,7 @@ struct amdgpu_reset_domain {
 	enum amdgpu_reset_domain_type type;
 	struct rw_semaphore sem;
 	atomic_t in_gpu_reset;
+	atomic_t reset_res;
 };
 
 

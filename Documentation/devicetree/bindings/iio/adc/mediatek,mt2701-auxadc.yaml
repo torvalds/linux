@@ -35,6 +35,7 @@ properties:
           - enum:
               - mediatek,mt8183-auxadc
               - mediatek,mt8186-auxadc
+              - mediatek,mt8188-auxadc
               - mediatek,mt8195-auxadc
               - mediatek,mt8516-auxadc
           - const: mediatek,mt8173-auxadc

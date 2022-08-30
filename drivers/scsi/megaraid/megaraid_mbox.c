@@ -181,7 +181,7 @@ MODULE_PARM_DESC(cmd_per_lun,
  * This would result in non-disk devices being skipped during driver load
  * time. These can be later added though, using /proc/scsi/scsi
  */
-static unsigned int megaraid_fast_load = 0;
+static unsigned int megaraid_fast_load;
 module_param_named(fast_load, megaraid_fast_load, int, 0);
 MODULE_PARM_DESC(fast_load,
 	"Faster loading of the driver, skips physical devices! (default=0)");

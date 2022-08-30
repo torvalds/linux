@@ -83,7 +83,7 @@ static void mlx5i_get_ringparam(struct net_device *dev,
 {
 	struct mlx5e_priv *priv = mlx5i_epriv(dev);
 
-	mlx5e_ethtool_get_ringparam(priv, param);
+	mlx5e_ethtool_get_ringparam(priv, param, kernel_param);
 }
 
 static int mlx5i_set_channels(struct net_device *dev,

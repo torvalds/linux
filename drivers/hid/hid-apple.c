@@ -36,7 +36,7 @@
 #define APPLE_NUMLOCK_EMULATION	BIT(8)
 #define APPLE_RDESC_BATTERY	BIT(9)
 #define APPLE_BACKLIGHT_CTL	BIT(10)
-#define APPLE_IS_KEYCHRON	BIT(11)
+#define APPLE_IS_NON_APPLE	BIT(11)
 
 #define APPLE_FLAG_FKEY		0x01
 
@@ -64,6 +64,10 @@ module_param(swap_fn_leftctrl, uint, 0644);
 MODULE_PARM_DESC(swap_fn_leftctrl, "Swap the Fn and left Control keys. "
 		"(For people who want to keep PC keyboard muscle memory. "
 		"[0] = as-is, Mac layout, 1 = swapped, PC layout)");
+
+struct apple_non_apple_keyboard {
+	char *name;
+};
 
 struct apple_sc_backlight {
 	struct led_classdev cdev;
@@ -313,6 +317,27 @@ static const struct apple_key_translation swapped_fn_leftctrl_keys[] = {
 	{ }
 };
 
+static const struct apple_non_apple_keyboard non_apple_keyboards[] = {
+	{ "SONiX USB DEVICE" },
+	{ "Keychron" },
+	{ "AONE" },
+	{ "GANSS" }
+};
+
+static bool apple_is_non_apple_keyboard(struct hid_device *hdev)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(non_apple_keyboards); i++) {
+		char *non_apple = non_apple_keyboards[i].name;
+
+		if (strncmp(hdev->name, non_apple, strlen(non_apple)) == 0)
+			return true;
+	}
+
+	return false;
+}
+
 static inline void apple_setup_key_translation(struct input_dev *input,
 		const struct apple_key_translation *table)
 {
@@ -363,7 +388,7 @@ static int hidinput_apple_event(struct hid_device *hid, struct input_dev *input,
 	}
 
 	if (fnmode == 3) {
-		real_fnmode = (asc->quirks & APPLE_IS_KEYCHRON) ? 2 : 1;
+		real_fnmode = (asc->quirks & APPLE_IS_NON_APPLE) ? 2 : 1;
 	} else {
 		real_fnmode = fnmode;
 	}
@@ -669,9 +694,9 @@ static int apple_input_configured(struct hid_device *hdev,
 		asc->quirks &= ~APPLE_HAS_FN;
 	}
 
-	if (strncmp(hdev->name, "Keychron", 8) == 0) {
-		hid_info(hdev, "Keychron keyboard detected; function keys will default to fnmode=2 behavior\n");
-		asc->quirks |= APPLE_IS_KEYCHRON;
+	if (apple_is_non_apple_keyboard(hdev)) {
+		hid_info(hdev, "Non-apple keyboard detected; function keys will default to fnmode=2 behavior\n");
+		asc->quirks |= APPLE_IS_NON_APPLE;
 	}
 
 	return 0;

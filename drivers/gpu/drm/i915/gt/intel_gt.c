@@ -4,6 +4,7 @@
  */
 
 #include <drm/drm_managed.h>
+#include <drm/intel-gtt.h>
 
 #include "gem/i915_gem_internal.h"
 #include "gem/i915_gem_lmem.h"
@@ -12,11 +13,12 @@
 #include "i915_drv.h"
 #include "intel_context.h"
 #include "intel_engine_regs.h"
+#include "intel_ggtt_gmch.h"
 #include "intel_gt.h"
 #include "intel_gt_buffer_pool.h"
 #include "intel_gt_clock_utils.h"
 #include "intel_gt_debugfs.h"
-#include "intel_gt_gmch.h"
+#include "intel_gt_mcr.h"
 #include "intel_gt_pm.h"
 #include "intel_gt_regs.h"
 #include "intel_gt_requests.h"
@@ -102,78 +104,13 @@ int intel_gt_assign_ggtt(struct intel_gt *gt)
 	return gt->ggtt ? 0 : -ENOMEM;
 }
 
-static const char * const intel_steering_types[] = {
-	"L3BANK",
-	"MSLICE",
-	"LNCF",
-};
-
-static const struct intel_mmio_range icl_l3bank_steering_table[] = {
-	{ 0x00B100, 0x00B3FF },
-	{},
-};
-
-static const struct intel_mmio_range xehpsdv_mslice_steering_table[] = {
-	{ 0x004000, 0x004AFF },
-	{ 0x00C800, 0x00CFFF },
-	{ 0x00DD00, 0x00DDFF },
-	{ 0x00E900, 0x00FFFF }, /* 0xEA00 - OxEFFF is unused */
-	{},
-};
-
-static const struct intel_mmio_range xehpsdv_lncf_steering_table[] = {
-	{ 0x00B000, 0x00B0FF },
-	{ 0x00D800, 0x00D8FF },
-	{},
-};
-
-static const struct intel_mmio_range dg2_lncf_steering_table[] = {
-	{ 0x00B000, 0x00B0FF },
-	{ 0x00D880, 0x00D8FF },
-	{},
-};
-
-static u16 slicemask(struct intel_gt *gt, int count)
-{
-	u64 dss_mask = intel_sseu_get_subslices(&gt->info.sseu, 0);
-
-	return intel_slicemask_from_dssmask(dss_mask, count);
-}
-
 int intel_gt_init_mmio(struct intel_gt *gt)
 {
-	struct drm_i915_private *i915 = gt->i915;
-
 	intel_gt_init_clock_frequency(gt);
 
 	intel_uc_init_mmio(&gt->uc);
 	intel_sseu_info_init(gt);
-
-	/*
-	 * An mslice is unavailable only if both the meml3 for the slice is
-	 * disabled *and* all of the DSS in the slice (quadrant) are disabled.
-	 */
-	if (HAS_MSLICES(i915))
-		gt->info.mslice_mask =
-			slicemask(gt, GEN_DSS_PER_MSLICE) |
-			(intel_uncore_read(gt->uncore, GEN10_MIRROR_FUSE3) &
-			 GEN12_MEML3_EN_MASK);
-
-	if (IS_DG2(i915)) {
-		gt->steering_table[MSLICE] = xehpsdv_mslice_steering_table;
-		gt->steering_table[LNCF] = dg2_lncf_steering_table;
-	} else if (IS_XEHPSDV(i915)) {
-		gt->steering_table[MSLICE] = xehpsdv_mslice_steering_table;
-		gt->steering_table[LNCF] = xehpsdv_lncf_steering_table;
-	} else if (GRAPHICS_VER(i915) >= 11 &&
-		   GRAPHICS_VER_FULL(i915) < IP_VER(12, 50)) {
-		gt->steering_table[L3BANK] = icl_l3bank_steering_table;
-		gt->info.l3bank_mask =
-			~intel_uncore_read(gt->uncore, GEN10_MIRROR_FUSE3) &
-			GEN10_L3BANK_MASK;
-	} else if (HAS_MSLICES(i915)) {
-		MISSING_CASE(INTEL_INFO(i915)->platform);
-	}
+	intel_gt_mcr_init(gt);
 
 	return intel_engines_init_mmio(gt);
 }
@@ -451,7 +388,7 @@ void intel_gt_chipset_flush(struct intel_gt *gt)
 {
 	wmb();
 	if (GRAPHICS_VER(gt->i915) < 6)
-		intel_gt_gmch_gen5_chipset_flush(gt);
+		intel_ggtt_gmch_flush();
 }
 
 void intel_gt_driver_register(struct intel_gt *gt)
@@ -832,200 +769,6 @@ void intel_gt_driver_late_release_all(struct drm_i915_private *i915)
 		intel_gt_fini_reset(gt);
 		intel_gt_fini_timelines(gt);
 		intel_engines_free(gt);
-	}
-}
-
-/**
- * intel_gt_reg_needs_read_steering - determine whether a register read
- *     requires explicit steering
- * @gt: GT structure
- * @reg: the register to check steering requirements for
- * @type: type of multicast steering to check
- *
- * Determines whether @reg needs explicit steering of a specific type for
- * reads.
- *
- * Returns false if @reg does not belong to a register range of the given
- * steering type, or if the default (subslice-based) steering IDs are suitable
- * for @type steering too.
- */
-static bool intel_gt_reg_needs_read_steering(struct intel_gt *gt,
-					     i915_reg_t reg,
-					     enum intel_steering_type type)
-{
-	const u32 offset = i915_mmio_reg_offset(reg);
-	const struct intel_mmio_range *entry;
-
-	if (likely(!intel_gt_needs_read_steering(gt, type)))
-		return false;
-
-	for (entry = gt->steering_table[type]; entry->end; entry++) {
-		if (offset >= entry->start && offset <= entry->end)
-			return true;
-	}
-
-	return false;
-}
-
-/**
- * intel_gt_get_valid_steering - determines valid IDs for a class of MCR steering
- * @gt: GT structure
- * @type: multicast register type
- * @sliceid: Slice ID returned
- * @subsliceid: Subslice ID returned
- *
- * Determines sliceid and subsliceid values that will steer reads
- * of a specific multicast register class to a valid value.
- */
-static void intel_gt_get_valid_steering(struct intel_gt *gt,
-					enum intel_steering_type type,
-					u8 *sliceid, u8 *subsliceid)
-{
-	switch (type) {
-	case L3BANK:
-		GEM_DEBUG_WARN_ON(!gt->info.l3bank_mask); /* should be impossible! */
-
-		*sliceid = 0;		/* unused */
-		*subsliceid = __ffs(gt->info.l3bank_mask);
-		break;
-	case MSLICE:
-		GEM_DEBUG_WARN_ON(!gt->info.mslice_mask); /* should be impossible! */
-
-		*sliceid = __ffs(gt->info.mslice_mask);
-		*subsliceid = 0;	/* unused */
-		break;
-	case LNCF:
-		GEM_DEBUG_WARN_ON(!gt->info.mslice_mask); /* should be impossible! */
-
-		/*
-		 * An LNCF is always present if its mslice is present, so we
-		 * can safely just steer to LNCF 0 in all cases.
-		 */
-		*sliceid = __ffs(gt->info.mslice_mask) << 1;
-		*subsliceid = 0;	/* unused */
-		break;
-	default:
-		MISSING_CASE(type);
-		*sliceid = 0;
-		*subsliceid = 0;
-	}
-}
-
-/**
- * intel_gt_read_register_fw - reads a GT register with support for multicast
- * @gt: GT structure
- * @reg: register to read
- *
- * This function will read a GT register.  If the register is a multicast
- * register, the read will be steered to a valid instance (i.e., one that
- * isn't fused off or powered down by power gating).
- *
- * Returns the value from a valid instance of @reg.
- */
-u32 intel_gt_read_register_fw(struct intel_gt *gt, i915_reg_t reg)
-{
-	int type;
-	u8 sliceid, subsliceid;
-
-	for (type = 0; type < NUM_STEERING_TYPES; type++) {
-		if (intel_gt_reg_needs_read_steering(gt, reg, type)) {
-			intel_gt_get_valid_steering(gt, type, &sliceid,
-						    &subsliceid);
-			return intel_uncore_read_with_mcr_steering_fw(gt->uncore,
-								      reg,
-								      sliceid,
-								      subsliceid);
-		}
-	}
-
-	return intel_uncore_read_fw(gt->uncore, reg);
-}
-
-/**
- * intel_gt_get_valid_steering_for_reg - get a valid steering for a register
- * @gt: GT structure
- * @reg: register for which the steering is required
- * @sliceid: return variable for slice steering
- * @subsliceid: return variable for subslice steering
- *
- * This function returns a slice/subslice pair that is guaranteed to work for
- * read steering of the given register. Note that a value will be returned even
- * if the register is not replicated and therefore does not actually require
- * steering.
- */
-void intel_gt_get_valid_steering_for_reg(struct intel_gt *gt, i915_reg_t reg,
-					 u8 *sliceid, u8 *subsliceid)
-{
-	int type;
-
-	for (type = 0; type < NUM_STEERING_TYPES; type++) {
-		if (intel_gt_reg_needs_read_steering(gt, reg, type)) {
-			intel_gt_get_valid_steering(gt, type, sliceid,
-						    subsliceid);
-			return;
-		}
-	}
-
-	*sliceid = gt->default_steering.groupid;
-	*subsliceid = gt->default_steering.instanceid;
-}
-
-u32 intel_gt_read_register(struct intel_gt *gt, i915_reg_t reg)
-{
-	int type;
-	u8 sliceid, subsliceid;
-
-	for (type = 0; type < NUM_STEERING_TYPES; type++) {
-		if (intel_gt_reg_needs_read_steering(gt, reg, type)) {
-			intel_gt_get_valid_steering(gt, type, &sliceid,
-						    &subsliceid);
-			return intel_uncore_read_with_mcr_steering(gt->uncore,
-								   reg,
-								   sliceid,
-								   subsliceid);
-		}
-	}
-
-	return intel_uncore_read(gt->uncore, reg);
-}
-
-static void report_steering_type(struct drm_printer *p,
-				 struct intel_gt *gt,
-				 enum intel_steering_type type,
-				 bool dump_table)
-{
-	const struct intel_mmio_range *entry;
-	u8 slice, subslice;
-
-	BUILD_BUG_ON(ARRAY_SIZE(intel_steering_types) != NUM_STEERING_TYPES);
-
-	if (!gt->steering_table[type]) {
-		drm_printf(p, "%s steering: uses default steering\n",
-			   intel_steering_types[type]);
-		return;
-	}
-
-	intel_gt_get_valid_steering(gt, type, &slice, &subslice);
-	drm_printf(p, "%s steering: sliceid=0x%x, subsliceid=0x%x\n",
-		   intel_steering_types[type], slice, subslice);
-
-	if (!dump_table)
-		return;
-
-	for (entry = gt->steering_table[type]; entry->end; entry++)
-		drm_printf(p, "\t0x%06x - 0x%06x\n", entry->start, entry->end);
-}
-
-void intel_gt_report_steering(struct drm_printer *p, struct intel_gt *gt,
-			      bool dump_table)
-{
-	drm_printf(p, "Default steering: sliceid=0x%x, subsliceid=0x%x\n",
-		   gt->default_steering.groupid,
-		   gt->default_steering.instanceid);
-
-	if (HAS_MSLICES(gt->i915)) {
-		report_steering_type(p, gt, MSLICE, dump_table);
-		report_steering_type(p, gt, LNCF, dump_table);
 	}
 }
 

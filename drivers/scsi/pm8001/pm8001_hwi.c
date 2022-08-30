@@ -699,6 +699,10 @@ static int pm8001_chip_init(struct pm8001_hba_info *pm8001_ha)
 	return 0;
 }
 
+static void pm8001_chip_post_init(struct pm8001_hba_info *pm8001_ha)
+{
+}
+
 static int mpi_uninit_check(struct pm8001_hba_info *pm8001_ha)
 {
 	u32 max_wait_count;
@@ -4934,6 +4938,7 @@ pm8001_chip_sas_re_initialization(struct pm8001_hba_info *pm8001_ha)
 const struct pm8001_dispatch pm8001_8001_dispatch = {
 	.name			= "pmc8001",
 	.chip_init		= pm8001_chip_init,
+	.chip_post_init		= pm8001_chip_post_init,
 	.chip_soft_rst		= pm8001_chip_soft_rst,
 	.chip_rst		= pm8001_hw_chip_rst,
 	.chip_iounmap		= pm8001_chip_iounmap,

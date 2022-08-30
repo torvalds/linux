@@ -62,9 +62,9 @@ extern int add_temporary_entry(unsigned long entrylo0, unsigned long entrylo1,
 
 /* PGDIR_SHIFT determines what a third-level page table entry can map */
 #if defined(CONFIG_MIPS_HUGE_TLB_SUPPORT) && !defined(CONFIG_PHYS_ADDR_T_64BIT)
-# define PGDIR_SHIFT	(2 * PAGE_SHIFT + PTE_ORDER - PTE_T_LOG2 - 1)
+# define PGDIR_SHIFT	(2 * PAGE_SHIFT - PTE_T_LOG2 - 1)
 #else
-# define PGDIR_SHIFT	(2 * PAGE_SHIFT + PTE_ORDER - PTE_T_LOG2)
+# define PGDIR_SHIFT	(2 * PAGE_SHIFT - PTE_T_LOG2)
 #endif
 
 #define PGDIR_SIZE	(1UL << PGDIR_SHIFT)
@@ -75,21 +75,20 @@ extern int add_temporary_entry(unsigned long entrylo0, unsigned long entrylo1,
  * we don't really have any PUD/PMD directory physically.
  */
 #if defined(CONFIG_MIPS_HUGE_TLB_SUPPORT) && !defined(CONFIG_PHYS_ADDR_T_64BIT)
-# define __PGD_ORDER	(32 - 3 * PAGE_SHIFT + PGD_T_LOG2 + PTE_T_LOG2 + 1)
+# define __PGD_TABLE_ORDER (32 - 3 * PAGE_SHIFT + PGD_T_LOG2 + PTE_T_LOG2 + 1)
 #else
-# define __PGD_ORDER	(32 - 3 * PAGE_SHIFT + PGD_T_LOG2 + PTE_T_LOG2)
+# define __PGD_TABLE_ORDER (32 - 3 * PAGE_SHIFT + PGD_T_LOG2 + PTE_T_LOG2)
 #endif
 
-#define PGD_ORDER	(__PGD_ORDER >= 0 ? __PGD_ORDER : 0)
-#define PUD_ORDER	aieeee_attempt_to_allocate_pud
-#define PMD_ORDER	aieeee_attempt_to_allocate_pmd
-#define PTE_ORDER	0
+#define PGD_TABLE_ORDER	(__PGD_TABLE_ORDER >= 0 ? __PGD_TABLE_ORDER : 0)
+#define PUD_TABLE_ORDER	aieeee_attempt_to_allocate_pud
+#define PMD_TABLE_ORDER	aieeee_attempt_to_allocate_pmd
 
 #define PTRS_PER_PGD	(USER_PTRS_PER_PGD * 2)
 #if defined(CONFIG_MIPS_HUGE_TLB_SUPPORT) && !defined(CONFIG_PHYS_ADDR_T_64BIT)
-# define PTRS_PER_PTE	((PAGE_SIZE << PTE_ORDER) / sizeof(pte_t) / 2)
+# define PTRS_PER_PTE	(PAGE_SIZE / sizeof(pte_t) / 2)
 #else
-# define PTRS_PER_PTE	((PAGE_SIZE << PTE_ORDER) / sizeof(pte_t))
+# define PTRS_PER_PTE	(PAGE_SIZE / sizeof(pte_t))
 #endif
 
 #define USER_PTRS_PER_PGD	(0x80000000UL/PGDIR_SIZE)
@@ -185,14 +184,9 @@ static inline pte_t pfn_pte(unsigned long pfn, pgprot_t prot)
 #else
 
 #define MAX_POSSIBLE_PHYSMEM_BITS 32
-#ifdef CONFIG_CPU_VR41XX
-#define pte_pfn(x)		((unsigned long)((x).pte >> (PAGE_SHIFT + 2)))
-#define pfn_pte(pfn, prot)	__pte(((pfn) << (PAGE_SHIFT + 2)) | pgprot_val(prot))
-#else
 #define pte_pfn(x)		((unsigned long)((x).pte >> _PFN_SHIFT))
 #define pfn_pte(pfn, prot)	__pte(((unsigned long long)(pfn) << _PFN_SHIFT) | pgprot_val(prot))
 #define pfn_pmd(pfn, prot)	__pmd(((unsigned long long)(pfn) << _PFN_SHIFT) | pgprot_val(prot))
-#endif
 #endif /* defined(CONFIG_PHYS_ADDR_T_64BIT) && defined(CONFIG_CPU_MIPS32) */
 
 #define pte_page(x)		pfn_to_page(pte_pfn(x))

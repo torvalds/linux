@@ -141,6 +141,27 @@
  *         In most cases, the __assign_str() macro will take the same
  *         parameters as the __string() macro had to declare the string.
  *
+ *   __vstring: This is similar to __string() but instead of taking a
+ *         dynamic length, it takes a variable list va_list 'va' variable.
+ *         Some event callers already have a message from parameters saved
+ *         in a va_list. Passing in the format and the va_list variable
+ *         will save just enough on the ring buffer for that string.
+ *         Note, the va variable used is a pointer to a va_list, not
+ *         to the va_list directly.
+ *
+ *           (va_list *va)
+ *
+ *         __vstring(foo, fmt, va)  is similar to:  vsnprintf(foo, fmt, va)
+ *
+ *         To assign the string, use the helper macro __assign_vstr().
+ *
+ *         __assign_vstr(foo, fmt, va);
+ *
+ *         In most cases, the __assign_vstr() macro will take the same
+ *         parameters as the __vstring() macro had to declare the string.
+ *         Use __get_str() to retrieve the __vstring() just like it would for
+ *         __string().
+ *
  *   __string_len: This is a helper to a __dynamic_array, but it understands
  *	   that the array has characters in it, and with the combined
  *         use of __assign_str_len(), it will allocate 'len' + 1 bytes
@@ -256,9 +277,10 @@ TRACE_DEFINE_ENUM(TRACE_SAMPLE_ZOO);
 TRACE_EVENT(foo_bar,
 
 	TP_PROTO(const char *foo, int bar, const int *lst,
-		 const char *string, const struct cpumask *mask),
+		 const char *string, const struct cpumask *mask,
+		 const char *fmt, va_list *va),
 
-	TP_ARGS(foo, bar, lst, string, mask),
+	TP_ARGS(foo, bar, lst, string, mask, fmt, va),
 
 	TP_STRUCT__entry(
 		__array(	char,	foo,    10		)
@@ -266,6 +288,7 @@ TRACE_EVENT(foo_bar,
 		__dynamic_array(int,	list,   __length_of(lst))
 		__string(	str,	string			)
 		__bitmask(	cpus,	num_possible_cpus()	)
+		__vstring(	vstr,	fmt,	va		)
 	),
 
 	TP_fast_assign(
@@ -274,10 +297,11 @@ TRACE_EVENT(foo_bar,
 		memcpy(__get_dynamic_array(list), lst,
 		       __length_of(lst) * sizeof(int));
 		__assign_str(str, string);
+		__assign_vstr(vstr, fmt, va);
 		__assign_bitmask(cpus, cpumask_bits(mask), num_possible_cpus());
 	),
 
-	TP_printk("foo %s %d %s %s %s %s (%s)", __entry->foo, __entry->bar,
+	TP_printk("foo %s %d %s %s %s %s (%s) %s", __entry->foo, __entry->bar,
 
 /*
  * Notice here the use of some helper functions. This includes:
@@ -321,7 +345,7 @@ TRACE_EVENT(foo_bar,
 		  __print_array(__get_dynamic_array(list),
 				__get_dynamic_array_len(list) / sizeof(int),
 				sizeof(int)),
-		  __get_str(str), __get_bitmask(cpus))
+		  __get_str(str), __get_bitmask(cpus), __get_str(vstr))
 );
 
 /*

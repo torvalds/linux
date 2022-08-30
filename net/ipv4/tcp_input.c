@@ -806,7 +806,6 @@ static void tcp_event_data_recv(struct sock *sk, struct sk_buff *skb)
 			 * restart window, so that we send ACKs quickly.
 			 */
 			tcp_incr_quickack(sk, TCP_MAX_QUICKACKS);
-			sk_mem_reclaim(sk);
 		}
 	}
 	icsk->icsk_ack.lrcvtime = now;
@@ -3974,7 +3973,7 @@ static bool smc_parse_options(const struct tcphdr *th,
 /* Try to parse the MSS option from the TCP header. Return 0 on failure, clamped
  * value on success.
  */
-static u16 tcp_parse_mss_option(const struct tcphdr *th, u16 user_mss)
+u16 tcp_parse_mss_option(const struct tcphdr *th, u16 user_mss)
 {
 	const unsigned char *ptr = (const unsigned char *)(th + 1);
 	int length = (th->doff * 4) - sizeof(struct tcphdr);
@@ -4013,6 +4012,7 @@ static u16 tcp_parse_mss_option(const struct tcphdr *th, u16 user_mss)
 	}
 	return mss;
 }
+EXPORT_SYMBOL_GPL(tcp_parse_mss_option);
 
 /* Look for tcp options. Normally only called on SYN and SYNACK packets.
  * But, this can also be called on packets in the established flow when
@@ -4397,7 +4397,6 @@ void tcp_fin(struct sock *sk)
 	skb_rbtree_purge(&tp->out_of_order_queue);
 	if (tcp_is_sack(tp))
 		tcp_sack_reset(&tp->rx_opt);
-	sk_mem_reclaim(sk);
 
 	if (!sock_flag(sk, SOCK_DEAD)) {
 		sk->sk_state_change(sk);
@@ -5294,7 +5293,7 @@ new_range:
 		    before(TCP_SKB_CB(skb)->end_seq, start)) {
 			/* Do not attempt collapsing tiny skbs */
 			if (range_truesize != head->truesize ||
-			    end - start >= SKB_WITH_OVERHEAD(SK_MEM_QUANTUM)) {
+			    end - start >= SKB_WITH_OVERHEAD(PAGE_SIZE)) {
 				tcp_collapse(sk, NULL, &tp->out_of_order_queue,
 					     head, skb, start, end);
 			} else {
@@ -5343,7 +5342,6 @@ static bool tcp_prune_ofo_queue(struct sock *sk)
 		tcp_drop_reason(sk, rb_to_skb(node),
 				SKB_DROP_REASON_TCP_OFO_QUEUE_PRUNE);
 		if (!prev || goal <= 0) {
-			sk_mem_reclaim(sk);
 			if (atomic_read(&sk->sk_rmem_alloc) <= sk->sk_rcvbuf &&
 			    !tcp_under_memory_pressure(sk))
 				break;
@@ -5390,7 +5388,6 @@ static int tcp_prune_queue(struct sock *sk)
 			     skb_peek(&sk->sk_receive_queue),
 			     NULL,
 			     tp->copied_seq, tp->rcv_nxt);
-	sk_mem_reclaim(sk);
 
 	if (atomic_read(&sk->sk_rmem_alloc) <= sk->sk_rcvbuf)
 		return 0;

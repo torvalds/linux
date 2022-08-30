@@ -594,9 +594,14 @@ static int evsel__add_modifiers(struct evsel *evsel, char *bf, size_t size)
 	return r;
 }
 
+int __weak arch_evsel__hw_name(struct evsel *evsel, char *bf, size_t size)
+{
+	return scnprintf(bf, size, "%s", __evsel__hw_name(evsel->core.attr.config));
+}
+
 static int evsel__hw_name(struct evsel *evsel, char *bf, size_t size)
 {
-	int r = scnprintf(bf, size, "%s", __evsel__hw_name(evsel->core.attr.config));
+	int r = arch_evsel__hw_name(evsel, bf, size);
 	return r + evsel__add_modifiers(evsel, bf + r, size - r);
 }
 
@@ -1092,6 +1097,11 @@ void __weak arch_evsel__fixup_new_cycles(struct perf_event_attr *attr __maybe_un
 {
 }
 
+void __weak arch__post_evsel_config(struct evsel *evsel __maybe_unused,
+				    struct perf_event_attr *attr __maybe_unused)
+{
+}
+
 static void evsel__set_default_freq_period(struct record_opts *opts,
 					   struct perf_event_attr *attr)
 {
@@ -1375,6 +1385,8 @@ void evsel__config(struct evsel *evsel, struct record_opts *opts,
 
 	if (evsel__is_offcpu_event(evsel))
 		evsel->core.attr.sample_type &= OFFCPU_SAMPLE_TYPES;
+
+	arch__post_evsel_config(evsel, attr);
 }
 
 int evsel__set_filter(struct evsel *evsel, const char *filter)
@@ -2358,6 +2370,7 @@ int evsel__parse_sample(struct evsel *evsel, union perf_event *event,
 	data->misc    = event->header.misc;
 	data->id = -1ULL;
 	data->data_src = PERF_MEM_DATA_SRC_NONE;
+	data->vcpu = -1;
 
 	if (event->header.type != PERF_RECORD_SAMPLE) {
 		if (!evsel->core.attr.sample_id_all)
@@ -2715,6 +2728,32 @@ int evsel__parse_sample_timestamp(struct evsel *evsel, union perf_event *event,
 		*timestamp = *array;
 
 	return 0;
+}
+
+u16 evsel__id_hdr_size(struct evsel *evsel)
+{
+	u64 sample_type = evsel->core.attr.sample_type;
+	u16 size = 0;
+
+	if (sample_type & PERF_SAMPLE_TID)
+		size += sizeof(u64);
+
+	if (sample_type & PERF_SAMPLE_TIME)
+		size += sizeof(u64);
+
+	if (sample_type & PERF_SAMPLE_ID)
+		size += sizeof(u64);
+
+	if (sample_type & PERF_SAMPLE_STREAM_ID)
+		size += sizeof(u64);
+
+	if (sample_type & PERF_SAMPLE_CPU)
+		size += sizeof(u64);
+
+	if (sample_type & PERF_SAMPLE_IDENTIFIER)
+		size += sizeof(u64);
+
+	return size;
 }
 
 struct tep_format_field *evsel__field(struct evsel *evsel, const char *name)

@@ -424,6 +424,9 @@ void invalidate_cam_all(struct adapter *padapter);
 int allocate_fw_sta_entry(struct adapter *padapter);
 void flush_all_cam_entry(struct adapter *padapter);
 
+void rtw_mlme_under_site_survey(struct adapter *adapter);
+void rtw_mlme_site_survey_done(struct adapter *adapter);
+
 void site_survey(struct adapter *padapter);
 u8 collect_bss_info(struct adapter *padapter, struct recv_frame *precv_frame,
 		    struct wlan_bssid_ex *bssid);
@@ -455,6 +458,7 @@ int rtw_check_bcn_info(struct adapter  *Adapter, u8 *pframe, u32 packet_len);
 void update_IOT_info(struct adapter *padapter);
 void update_capinfo(struct adapter *adapter, u16 updatecap);
 void update_wireless_mode(struct adapter *padapter);
+void rtw_set_basic_rate(struct adapter *adapter, u8 *rates);
 void update_tx_basic_rate(struct adapter *padapter, u8 modulation);
 void update_bmc_sta_support_rate(struct adapter *padapter, u32 mac_id);
 int update_sta_support_rate(struct adapter *padapter, u8 *pvar_ie,
@@ -468,8 +472,7 @@ unsigned int update_MSC_rate(struct HT_caps_element *pHT_caps);
 void Update_RA_Entry(struct adapter *padapter, u32 mac_id);
 void set_sta_rate(struct adapter *padapter, struct sta_info *psta);
 
-unsigned int receive_disconnect(struct adapter *padapter,
-				unsigned char *macaddr, unsigned short reason);
+void receive_disconnect(struct adapter *padapter, unsigned char *macaddr, unsigned short reason);
 
 unsigned char get_highest_rate_idx(u32 mask);
 int support_short_GI(struct adapter *padapter, struct HT_caps_element *caps);
@@ -524,12 +527,13 @@ int issue_deauth(struct adapter *padapter, unsigned char *da,
 		 unsigned short reason);
 int issue_deauth_ex(struct adapter *padapter, u8 *da, unsigned short reason,
 		    int try_cnt, int wait_ms);
-void issue_action_BA(struct adapter *padapter, unsigned char *raddr,
-		     unsigned char action, unsigned short status);
+void issue_action_BA(struct adapter *padapter, unsigned char *raddr, u8 action, u16 status);
 unsigned int send_delba(struct adapter *padapter, u8 initiator, u8 *addr);
 unsigned int send_beacon(struct adapter *padapter);
 bool get_beacon_valid_bit(struct adapter *adapter);
 void clear_beacon_valid_bit(struct adapter *adapter);
+void rtw_resume_tx_beacon(struct adapter *adapt);
+void rtw_stop_tx_beacon(struct adapter *adapt);
 
 void start_clnt_assoc(struct adapter *padapter);
 void start_clnt_auth(struct adapter *padapter);
@@ -544,12 +548,8 @@ unsigned int OnProbeReq(struct adapter *padapter,
 			struct recv_frame *precv_frame);
 unsigned int OnProbeRsp(struct adapter *padapter,
 			struct recv_frame *precv_frame);
-unsigned int DoReserved(struct adapter *padapter,
-			struct recv_frame *precv_frame);
 unsigned int OnBeacon(struct adapter *padapter,
 		      struct recv_frame *precv_frame);
-unsigned int OnAtim(struct adapter *padapter,
-		    struct recv_frame *precv_frame);
 unsigned int OnDisassoc(struct adapter *padapter,
 			struct recv_frame *precv_frame);
 unsigned int OnAuth(struct adapter *padapter,
@@ -591,9 +591,6 @@ void addba_timer_hdl(struct sta_info *psta);
 
 bool cckrates_included(unsigned char *rate, int ratelen);
 bool cckratesonly_included(unsigned char *rate, int ratelen);
-
-void update_TSF(struct mlme_ext_priv *pmlmeext, u8 *pframe, uint len);
-void correct_TSF(struct adapter *padapter, struct mlme_ext_priv *pmlmeext);
 
 struct cmd_hdl {
 	uint	parmsize;

@@ -61,8 +61,6 @@ struct rpc_task {
 		struct rpc_wait		tk_wait;	/* RPC wait */
 	} u;
 
-	int			tk_rpc_status;	/* Result of last RPC operation */
-
 	/*
 	 * RPC call state
 	 */
@@ -82,6 +80,8 @@ struct rpc_task {
 	ktime_t			tk_start;	/* RPC task init timestamp */
 
 	pid_t			tk_owner;	/* Process id for batching tasks */
+
+	int			tk_rpc_status;	/* Result of last RPC operation */
 	unsigned short		tk_flags;	/* misc flags */
 	unsigned short		tk_timeouts;	/* maj timeouts */
 

@@ -131,7 +131,7 @@ static inline phys_addr_t virt_to_phys(const volatile void *x)
  */
 static inline void * phys_to_virt(unsigned long address)
 {
-	return (void *)(address + PAGE_OFFSET - PHYS_OFFSET);
+	return __va(address);
 }
 
 /*
@@ -146,15 +146,6 @@ static inline void *isa_bus_to_virt(unsigned long address)
 {
 	return phys_to_virt(address);
 }
-
-/*
- * However PCI ones are not necessarily 1:1 and therefore these interfaces
- * are forbidden in portable PCI drivers.
- *
- * Allow them for x86 for legacy drivers, though.
- */
-#define virt_to_bus virt_to_phys
-#define bus_to_virt phys_to_virt
 
 /*
  * Change "struct page" to physical address.

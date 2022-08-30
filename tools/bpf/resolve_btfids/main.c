@@ -45,6 +45,19 @@
  *             .zero 4
  *             __BTF_ID__func__vfs_fallocate__4:
  *             .zero 4
+ *
+ *   set8    - store symbol size into first 4 bytes and sort following
+ *             ID list
+ *
+ *             __BTF_ID__set8__list:
+ *             .zero 8
+ *             list:
+ *             __BTF_ID__func__vfs_getattr__3:
+ *             .zero 4
+ *	       .word (1 << 0) | (1 << 2)
+ *             __BTF_ID__func__vfs_fallocate__5:
+ *             .zero 4
+ *	       .word (1 << 3) | (1 << 1) | (1 << 2)
  */
 
 #define  _GNU_SOURCE
@@ -72,6 +85,7 @@
 #define BTF_TYPEDEF	"typedef"
 #define BTF_FUNC	"func"
 #define BTF_SET		"set"
+#define BTF_SET8	"set8"
 
 #define ADDR_CNT	100
 
@@ -84,6 +98,7 @@ struct btf_id {
 	};
 	int		 addr_cnt;
 	bool		 is_set;
+	bool		 is_set8;
 	Elf64_Addr	 addr[ADDR_CNT];
 };
 
@@ -231,14 +246,14 @@ static char *get_id(const char *prefix_end)
 	return id;
 }
 
-static struct btf_id *add_set(struct object *obj, char *name)
+static struct btf_id *add_set(struct object *obj, char *name, bool is_set8)
 {
 	/*
 	 * __BTF_ID__set__name
 	 * name =    ^
 	 * id   =         ^
 	 */
-	char *id = name + sizeof(BTF_SET "__") - 1;
+	char *id = name + (is_set8 ? sizeof(BTF_SET8 "__") : sizeof(BTF_SET "__")) - 1;
 	int len = strlen(name);
 
 	if (id >= name + len) {
@@ -444,9 +459,21 @@ static int symbols_collect(struct object *obj)
 		} else if (!strncmp(prefix, BTF_FUNC, sizeof(BTF_FUNC) - 1)) {
 			obj->nr_funcs++;
 			id = add_symbol(&obj->funcs, prefix, sizeof(BTF_FUNC) - 1);
+		/* set8 */
+		} else if (!strncmp(prefix, BTF_SET8, sizeof(BTF_SET8) - 1)) {
+			id = add_set(obj, prefix, true);
+			/*
+			 * SET8 objects store list's count, which is encoded
+			 * in symbol's size, together with 'cnt' field hence
+			 * that - 1.
+			 */
+			if (id) {
+				id->cnt = sym.st_size / sizeof(uint64_t) - 1;
+				id->is_set8 = true;
+			}
 		/* set */
 		} else if (!strncmp(prefix, BTF_SET, sizeof(BTF_SET) - 1)) {
-			id = add_set(obj, prefix);
+			id = add_set(obj, prefix, false);
 			/*
 			 * SET objects store list's count, which is encoded
 			 * in symbol's size, together with 'cnt' field hence
@@ -571,7 +598,8 @@ static int id_patch(struct object *obj, struct btf_id *id)
 	int *ptr = data->d_buf;
 	int i;
 
-	if (!id->id && !id->is_set)
+	/* For set, set8, id->id may be 0 */
+	if (!id->id && !id->is_set && !id->is_set8)
 		pr_err("WARN: resolve_btfids: unresolved symbol %s\n", id->name);
 
 	for (i = 0; i < id->addr_cnt; i++) {
@@ -643,13 +671,13 @@ static int sets_patch(struct object *obj)
 		}
 
 		idx = idx / sizeof(int);
-		base = &ptr[idx] + 1;
+		base = &ptr[idx] + (id->is_set8 ? 2 : 1);
 		cnt = ptr[idx];
 
 		pr_debug("sorting  addr %5lu: cnt %6d [%s]\n",
 			 (idx + 1) * sizeof(int), cnt, id->name);
 
-		qsort(base, cnt, sizeof(int), cmp_id);
+		qsort(base, cnt, id->is_set8 ? sizeof(uint64_t) : sizeof(int), cmp_id);
 
 		next = rb_next(next);
 	}

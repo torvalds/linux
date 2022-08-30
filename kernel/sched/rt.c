@@ -843,7 +843,7 @@ static void __disable_runtime(struct rq *rq)
 		 * We cannot be left wanting - that would mean some runtime
 		 * leaked out of the system.
 		 */
-		BUG_ON(want);
+		WARN_ON_ONCE(want);
 balanced:
 		/*
 		 * Disable all the borrow logic by pretending we have inf

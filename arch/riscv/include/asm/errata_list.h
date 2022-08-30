@@ -68,13 +68,7 @@ asm(ALTERNATIVE_2("li %0, 0\t\nnop",					\
  */
 #define ALT_THEAD_PMA(_val)						\
 asm volatile(ALTERNATIVE(						\
-	"nop\n\t"							\
-	"nop\n\t"							\
-	"nop\n\t"							\
-	"nop\n\t"							\
-	"nop\n\t"							\
-	"nop\n\t"							\
-	"nop",								\
+	__nops(7),							\
 	"li      t3, %1\n\t"						\
 	"slli    t3, t3, %3\n\t"					\
 	"and     t3, %0, t3\n\t"					\
