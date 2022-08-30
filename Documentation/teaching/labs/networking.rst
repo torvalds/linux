@@ -856,7 +856,8 @@ Registering/unregistering a hook is done using the functions defined in
 
 .. attention::
 
-  There are some restrictions related to the use of header extraction functions
+  Prior to version 3.11-rc2 of the Linux kernel,
+  there are some restrictions related to the use of header extraction functions
   from a :c:type:`struct sk_buff` structure set as a parameter in a netfilter
   hook. While the IP header can be obtained each time using :c:func:`ip_hdr`,
   the TCP and UDP headers can be obtained with :c:func:`tcp_hdr` and
