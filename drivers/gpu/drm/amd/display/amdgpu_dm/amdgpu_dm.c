@@ -9936,7 +9936,8 @@ static int parse_hdmi_amd_vsdb(struct amdgpu_dm_connector *aconnector,
 /**
  * amdgpu_dm_update_freesync_caps - Update Freesync capabilities
  *
- * @aconnector: Connector to query.
+ * @connector: Connector to query.
+ * @edid: EDID from monitor
  *
  * Amdgpu supports Freesync in DP and HDMI displays, and it is required to keep
  * track of some of the display information in the internal data struct used by
