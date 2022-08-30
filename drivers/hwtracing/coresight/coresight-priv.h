@@ -45,6 +45,11 @@ struct cs_pair_attribute {
 	s32 hi_off;
 };
 
+struct cs_off_attribute {
+	struct device_attribute attr;
+	u32 off;
+};
+
 extern ssize_t coresight_simple_show(struct device *_dev,
 				     struct device_attribute *attr, char *buf);
 
