@@ -4199,6 +4199,10 @@ void intel_shared_dpll_init(struct drm_i915_private *dev_priv)
 	dpll_info = dpll_mgr->dpll_info;
 
 	for (i = 0; dpll_info[i].name; i++) {
+		if (drm_WARN_ON(&dev_priv->drm,
+				i >= ARRAY_SIZE(dev_priv->display.dpll.shared_dplls)))
+			break;
+
 		drm_WARN_ON(&dev_priv->drm, i != dpll_info[i].id);
 		dev_priv->display.dpll.shared_dplls[i].info = &dpll_info[i];
 	}
@@ -4206,8 +4210,6 @@ void intel_shared_dpll_init(struct drm_i915_private *dev_priv)
 	dev_priv->display.dpll.mgr = dpll_mgr;
 	dev_priv->display.dpll.num_shared_dpll = i;
 	mutex_init(&dev_priv->display.dpll.lock);
-
-	BUG_ON(dev_priv->display.dpll.num_shared_dpll > I915_NUM_PLLS);
 }
 
 /**
