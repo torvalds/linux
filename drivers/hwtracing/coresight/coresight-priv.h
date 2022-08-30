@@ -41,8 +41,8 @@
 #define ETM_MODE_EXCL_USER	BIT(31)
 struct cs_pair_attribute {
 	struct device_attribute attr;
-	s32 lo_off;
-	s32 hi_off;
+	u32 lo_off;
+	u32 hi_off;
 };
 
 struct cs_off_attribute {
@@ -50,21 +50,23 @@ struct cs_off_attribute {
 	u32 off;
 };
 
-extern ssize_t coresight_simple_show(struct device *_dev,
+extern ssize_t coresight_simple_show32(struct device *_dev,
+				     struct device_attribute *attr, char *buf);
+extern ssize_t coresight_simple_show_pair(struct device *_dev,
 				     struct device_attribute *attr, char *buf);
 
 #define coresight_simple_reg32(name, offset)				\
-	(&((struct cs_pair_attribute[]) {				\
+	(&((struct cs_off_attribute[]) {				\
 	   {								\
-		__ATTR(name, 0444, coresight_simple_show, NULL),	\
-		offset, -1						\
+		__ATTR(name, 0444, coresight_simple_show32, NULL),	\
+		offset							\
 	   }								\
 	})[0].attr.attr)
 
 #define coresight_simple_reg64(name, lo_off, hi_off)			\
 	(&((struct cs_pair_attribute[]) {				\
 	   {								\
-		__ATTR(name, 0444, coresight_simple_show, NULL),	\
+		__ATTR(name, 0444, coresight_simple_show_pair, NULL),	\
 		lo_off, hi_off						\
 	   }								\
 	})[0].attr.attr)
@@ -128,25 +130,6 @@ static inline void CS_UNLOCK(void __iomem *addr)
 		/* Make sure everyone has seen this */
 		mb();
 	} while (0);
-}
-
-static inline u64
-coresight_read_reg_pair(void __iomem *addr, s32 lo_offset, s32 hi_offset)
-{
-	u64 val;
-
-	val = readl_relaxed(addr + lo_offset);
-	val |= (hi_offset < 0) ? 0 :
-	       (u64)readl_relaxed(addr + hi_offset) << 32;
-	return val;
-}
-
-static inline void coresight_write_reg_pair(void __iomem *addr, u64 val,
-						 s32 lo_offset, s32 hi_offset)
-{
-	writel_relaxed((u32)val, addr + lo_offset);
-	if (hi_offset >= 0)
-		writel_relaxed((u32)(val >> 32), addr + hi_offset);
 }
 
 void coresight_disable_path(struct list_head *path);
