@@ -64,6 +64,7 @@ DEFINE_EVENT(block_buffer, block_dirty_buffer,
 
 /**
  * block_rq_requeue - place block IO request back on a queue
+ * @q: queue holding operation
  * @rq: block IO operation request
  *
  * The block operation request @rq is being placed back into queue
@@ -72,9 +73,9 @@ DEFINE_EVENT(block_buffer, block_dirty_buffer,
  */
 TRACE_EVENT(block_rq_requeue,
 
-	TP_PROTO(struct request *rq),
+	TP_PROTO(struct request_queue *q, struct request *rq),
 
-	TP_ARGS(rq),
+	TP_ARGS(q, rq),
 
 	TP_STRUCT__entry(
 		__field(  dev_t,	dev			)
@@ -146,9 +147,9 @@ TRACE_EVENT(block_rq_complete,
 
 DECLARE_EVENT_CLASS(block_rq,
 
-	TP_PROTO(struct request *rq),
+	TP_PROTO(struct request_queue *q, struct request *rq),
 
-	TP_ARGS(rq),
+	TP_ARGS(q, rq),
 
 	TP_STRUCT__entry(
 		__field(  dev_t,	dev			)
@@ -180,6 +181,7 @@ DECLARE_EVENT_CLASS(block_rq,
 
 /**
  * block_rq_insert - insert block operation request into queue
+ * @q: target queue
  * @rq: block IO operation request
  *
  * Called immediately before block operation request @rq is inserted
@@ -189,13 +191,14 @@ DECLARE_EVENT_CLASS(block_rq,
  */
 DEFINE_EVENT(block_rq, block_rq_insert,
 
-	TP_PROTO(struct request *rq),
+	TP_PROTO(struct request_queue *q, struct request *rq),
 
-	TP_ARGS(rq)
+	TP_ARGS(q, rq)
 );
 
 /**
  * block_rq_issue - issue pending block IO request operation to device driver
+ * @q: queue holding operation
  * @rq: block IO operation operation request
  *
  * Called when block operation request @rq from queue @q is sent to a
@@ -203,13 +206,14 @@ DEFINE_EVENT(block_rq, block_rq_insert,
  */
 DEFINE_EVENT(block_rq, block_rq_issue,
 
-	TP_PROTO(struct request *rq),
+	TP_PROTO(struct request_queue *q, struct request *rq),
 
-	TP_ARGS(rq)
+	TP_ARGS(q, rq)
 );
 
 /**
  * block_rq_merge - merge request with another one in the elevator
+ * @q: queue holding operation
  * @rq: block IO operation operation request
  *
  * Called when block operation request @rq from queue @q is merged to another
@@ -217,9 +221,9 @@ DEFINE_EVENT(block_rq, block_rq_issue,
  */
 DEFINE_EVENT(block_rq, block_rq_merge,
 
-	TP_PROTO(struct request *rq),
+	TP_PROTO(struct request_queue *q, struct request *rq),
 
-	TP_ARGS(rq)
+	TP_ARGS(q, rq)
 );
 
 /**
@@ -601,6 +605,7 @@ TRACE_EVENT(block_bio_remap,
 
 /**
  * block_rq_remap - map request for a block operation request
+ * @q: queue holding the operation
  * @rq: block IO operation request
  * @dev: device for the operation
  * @from: original sector for the operation
@@ -611,9 +616,10 @@ TRACE_EVENT(block_bio_remap,
  */
 TRACE_EVENT(block_rq_remap,
 
-	TP_PROTO(struct request *rq, dev_t dev, sector_t from),
+	TP_PROTO(struct request_queue *q, struct request *rq, dev_t dev,
+		 sector_t from),
 
-	TP_ARGS(rq, dev, from),
+	TP_ARGS(q, rq, dev, from),
 
 	TP_STRUCT__entry(
 		__field( dev_t,		dev		)
