@@ -2727,22 +2727,26 @@ static void _rtl8152_set_rx_mode(struct net_device *netdev)
 		ocp_data |= RCR_AM | RCR_AAP;
 		mc_filter[1] = 0xffffffff;
 		mc_filter[0] = 0xffffffff;
-	} else if ((netdev_mc_count(netdev) > multicast_filter_limit) ||
-		   (netdev->flags & IFF_ALLMULTI)) {
+	} else if ((netdev->flags & IFF_MULTICAST &&
+				netdev_mc_count(netdev) > multicast_filter_limit) ||
+			   (netdev->flags & IFF_ALLMULTI)) {
 		/* Too many to filter perfectly -- accept all multicasts. */
 		ocp_data |= RCR_AM;
 		mc_filter[1] = 0xffffffff;
 		mc_filter[0] = 0xffffffff;
 	} else {
-		struct netdev_hw_addr *ha;
-
 		mc_filter[1] = 0;
 		mc_filter[0] = 0;
-		netdev_for_each_mc_addr(ha, netdev) {
-			int bit_nr = ether_crc(ETH_ALEN, ha->addr) >> 26;
 
-			mc_filter[bit_nr >> 5] |= 1 << (bit_nr & 31);
-			ocp_data |= RCR_AM;
+		if (netdev->flags & IFF_MULTICAST) {
+			struct netdev_hw_addr *ha;
+
+			netdev_for_each_mc_addr(ha, netdev) {
+				int bit_nr = ether_crc(ETH_ALEN, ha->addr) >> 26;
+
+				mc_filter[bit_nr >> 5] |= 1 << (bit_nr & 31);
+				ocp_data |= RCR_AM;
+			}
 		}
 	}
 
