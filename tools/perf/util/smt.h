@@ -1,6 +1,7 @@
-#ifndef SMT_H
-#define SMT_H 1
+/* SPDX-License-Identifier: GPL-2.0 */
+#ifndef __SMT_H
+#define __SMT_H 1
 
 int smt_on(void);
 
-#endif
+#endif /* __SMT_H */
