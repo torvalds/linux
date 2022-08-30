@@ -505,7 +505,7 @@
 		};
 
 		rtc: rtc@17040000 {
-			compatible = "starfive,rtc_hms";
+			compatible = "starfive,jh7110-rtc";
 			reg = <0x0 0x17040000 0x0 0x10000>;
 			interrupts = <10>, <11>, <12>;
 			interrupt-names = "rtc_ms_pulse", "rtc_sec_pulse", "rtc";
