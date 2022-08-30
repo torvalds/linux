@@ -28,6 +28,8 @@
 #define TZ_NS_SHIFT	9
 #define TZ_NS_MASK	BIT(9)
 
+#define WHITE_LIST_SHIFT	16
+
 static int imx93_clk_composite_wait_ready(struct clk_hw *hw, void __iomem *reg)
 {
 	int ret;
@@ -180,7 +182,7 @@ static const struct clk_ops imx93_clk_composite_mux_ops = {
 };
 
 struct clk_hw *imx93_clk_composite_flags(const char *name, const char * const *parent_names,
-					 int num_parents, void __iomem *reg,
+					 int num_parents, void __iomem *reg, u32 domain_id,
 					 unsigned long flags)
 {
 	struct clk_hw *hw = ERR_PTR(-ENOMEM), *mux_hw;
@@ -189,6 +191,7 @@ struct clk_hw *imx93_clk_composite_flags(const char *name, const char * const *p
 	struct clk_gate *gate = NULL;
 	struct clk_mux *mux = NULL;
 	bool clk_ro = false;
+	u32 authen;
 
 	mux = kzalloc(sizeof(*mux), GFP_KERNEL);
 	if (!mux)
@@ -211,7 +214,8 @@ struct clk_hw *imx93_clk_composite_flags(const char *name, const char * const *p
 	div->lock = &imx_ccm_lock;
 	div->flags = CLK_DIVIDER_ROUND_CLOSEST;
 
-	if (!(readl(reg + AUTHEN_OFFSET) & TZ_NS_MASK))
+	authen = readl(reg + AUTHEN_OFFSET);
+	if (!(authen & TZ_NS_MASK) || !(authen & BIT(WHITE_LIST_SHIFT + domain_id)))
 		clk_ro = true;
 
 	if (clk_ro) {

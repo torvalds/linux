@@ -293,7 +293,7 @@ static int imx93_clocks_probe(struct platform_device *pdev)
 		root = &root_array[i];
 		clks[root->clk] = imx93_clk_composite_flags(root->name,
 							    parent_names[root->sel],
-							    4, base + root->off,
+							    4, base + root->off, 3,
 							    root->flags);
 	}
 
