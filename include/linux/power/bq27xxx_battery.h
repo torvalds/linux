@@ -4,6 +4,8 @@
 
 #include <linux/power_supply.h>
 
+#define BQ27XXX_RESISTANCE_TABLE_LENGTH 15
+
 enum bq27xxx_chip {
 	BQ27000 = 1, /* bq27000, bq27200 */
 	BQ27010, /* bq27010, bq27210 */
@@ -78,6 +80,10 @@ struct bq27xxx_device_info {
 	struct list_head list;
 	struct mutex lock;
 	u8 *regs;
+#ifdef CONFIG_BATTERY_BQ27XXX_RESIST_TABLE_UPDATES_NVM
+	u32 qmax_cell0;
+	u32 resist_table[BQ27XXX_RESISTANCE_TABLE_LENGTH];
+#endif
 };
 
 void bq27xxx_battery_update(struct bq27xxx_device_info *di);

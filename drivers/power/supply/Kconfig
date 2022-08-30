@@ -295,6 +295,18 @@ config BATTERY_BQ27XXX_DT_UPDATES_NVM
 	  general-purpose kernels, as this can cause misconfiguration of a
 	  smart battery with embedded NVM/flash.
 
+config BATTERY_BQ27XXX_RESIST_TABLE_UPDATES_NVM
+        bool "BQ27xxx resistance table update of NVM/flash data memory"
+        depends on BATTERY_BQ27XXX_DT_UPDATES_NVM
+        help
+	  Say Y here to enable devicetree monitored-battery resistance table config
+	  and Qmax-cell0 value in the NVM/flash data memory. Only enable this option
+	  when calibrated resistance table and Qmax-Cell0 parameters for the battery
+	  in-use are updated in DT. If the Battery specific data is not available
+	  in DT, then this config should not be set to Y. Not for general-purpose
+	  kernels, as this can cause is the configuration of a smart battery with
+	  embedded NVM/flash.
+
 config BATTERY_DA9030
 	tristate "DA9030 battery driver"
 	depends on PMIC_DA903X
