@@ -1197,7 +1197,7 @@ config SND_SOC_RK3328
 
 config SND_SOC_RK817
 	tristate "Rockchip RK817 audio CODEC"
-	depends on MFD_RK808 || COMPILE_TEST
+	depends on MFD_RK808 || COMPILE_TEST && I2C
 	select REGMAP_I2C
 
 config SND_SOC_RL6231
