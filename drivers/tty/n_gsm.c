@@ -69,6 +69,7 @@ module_param(debug, int, 0600);
 #define DBG_DATA	BIT(2) /* Data transmission details. */
 #define DBG_ERRORS	BIT(3) /* Details for fail conditions. */
 #define DBG_TTY		BIT(4) /* Transmission statistics for DLCI TTYs. */
+#define DBG_PAYLOAD	BIT(5) /* Limits DBG_DUMP to payload frames. */
 
 /* Defaults: these are from the specification */
 
@@ -598,6 +599,10 @@ static void gsm_print_packet(const char *hdr, int addr, int cr,
 {
 	if (!(debug & DBG_DUMP))
 		return;
+	/* Only show user payload frames if debug & DBG_PAYLOAD */
+	if (!(debug & DBG_PAYLOAD) && addr != 0)
+		if ((control & ~PF) == UI || (control & ~PF) == UIH)
+			return;
 
 	pr_info("%s %d) %c: ", hdr, addr, "RC"[cr]);
 
