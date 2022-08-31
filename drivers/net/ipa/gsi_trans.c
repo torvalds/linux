@@ -343,20 +343,22 @@ struct gsi_trans *gsi_channel_trans_alloc(struct gsi *gsi, u32 channel_id,
 	struct gsi_channel *channel = &gsi->channel[channel_id];
 	struct gsi_trans_info *trans_info;
 	struct gsi_trans *trans;
+	u16 trans_index;
 
 	if (WARN_ON(tre_count > channel->trans_tre_max))
 		return NULL;
 
 	trans_info = &channel->trans_info;
 
-	/* We reserve the TREs now, but consume them at commit time.
-	 * If there aren't enough available, we're done.
-	 */
+	/* If we can't reserve the TREs for the transaction, we're done */
 	if (!gsi_trans_tre_reserve(trans_info, tre_count))
 		return NULL;
 
-	/* Allocate and initialize non-zero fields in the transaction */
-	trans = gsi_trans_pool_alloc(&trans_info->pool, 1);
+	trans_index = trans_info->free_id % channel->tre_count;
+	trans = &trans_info->trans[trans_index];
+	memset(trans, 0, sizeof(*trans));
+
+	/* Initialize non-zero fields in the transaction */
 	trans->gsi = gsi;
 	trans->channel_id = channel_id;
 	trans->rsvd_count = tre_count;
@@ -367,14 +369,16 @@ struct gsi_trans *gsi_channel_trans_alloc(struct gsi *gsi, u32 channel_id,
 	sg_init_marker(trans->sgl, tre_count);
 
 	trans->direction = direction;
+	refcount_set(&trans->refcount, 1);
+
+	/* This free transaction will now be allocated */
+	trans_info->free_id++;
 
 	spin_lock_bh(&trans_info->spinlock);
 
 	list_add_tail(&trans->links, &trans_info->alloc);
 
 	spin_unlock_bh(&trans_info->spinlock);
-
-	refcount_set(&trans->refcount, 1);
 
 	return trans;
 }
@@ -736,10 +740,11 @@ int gsi_channel_trans_init(struct gsi *gsi, u32 channel_id)
 	 * modulo that number to determine the next one that's free.
 	 * Transactions are allocated one at a time.
 	 */
-	ret = gsi_trans_pool_init(&trans_info->pool, sizeof(struct gsi_trans),
-				  tre_max, 1);
-	if (ret)
+	trans_info->trans = kcalloc(tre_count, sizeof(*trans_info->trans),
+				    GFP_KERNEL);
+	if (!trans_info->trans)
 		return -ENOMEM;
+	trans_info->free_id = 0;	/* modulo channel->tre_count */
 
 	/* A completion event contains a pointer to the TRE that caused
 	 * the event (which will be the last one used by the transaction).
@@ -777,7 +782,7 @@ int gsi_channel_trans_init(struct gsi *gsi, u32 channel_id)
 err_map_free:
 	kfree(trans_info->map);
 err_trans_free:
-	gsi_trans_pool_exit(&trans_info->pool);
+	kfree(trans_info->trans);
 
 	dev_err(gsi->dev, "error %d initializing channel %u transactions\n",
 		ret, channel_id);
@@ -791,6 +796,6 @@ void gsi_channel_trans_exit(struct gsi_channel *channel)
 	struct gsi_trans_info *trans_info = &channel->trans_info;
 
 	gsi_trans_pool_exit(&trans_info->sg_pool);
-	gsi_trans_pool_exit(&trans_info->pool);
+	kfree(trans_info->trans);
 	kfree(trans_info->map);
 }
