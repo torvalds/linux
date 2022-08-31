@@ -987,10 +987,10 @@ static void walt_binder_low_latency_set(void *unused, struct task_struct *task,
 
 	if (unlikely(walt_disabled))
 		return;
-	if (task && current->signal &&
-			(current->signal->oom_score_adj == 0) &&
-			((current->prio < DEFAULT_PRIO) ||
-			(task->group_leader->prio < MAX_RT_PRIO)))
+	if (task && ((task_in_related_thread_group(current) &&
+			task->group_leader->prio < MAX_RT_PRIO) ||
+			(current->group_leader->prio < MAX_RT_PRIO &&
+			task_in_related_thread_group(task))))
 		wts->low_latency |= WALT_LOW_LATENCY_BINDER;
 }
 
