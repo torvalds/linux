@@ -15,18 +15,6 @@
 
 DEFINE_BPF_STORAGE_CACHE(sk_cache);
 
-static int omem_charge(struct sock *sk, unsigned int size)
-{
-	/* same check as in sock_kmalloc() */
-	if (size <= sysctl_optmem_max &&
-	    atomic_read(&sk->sk_omem_alloc) + size < sysctl_optmem_max) {
-		atomic_add(size, &sk->sk_omem_alloc);
-		return 0;
-	}
-
-	return -ENOMEM;
-}
-
 static struct bpf_local_storage_data *
 sk_storage_lookup(struct sock *sk, struct bpf_map *map, bool cacheit_lockit)
 {
@@ -316,7 +304,17 @@ BPF_CALL_2(bpf_sk_storage_delete, struct bpf_map *, map, struct sock *, sk)
 static int sk_storage_charge(struct bpf_local_storage_map *smap,
 			     void *owner, u32 size)
 {
-	return omem_charge(owner, size);
+	int optmem_max = READ_ONCE(sysctl_optmem_max);
+	struct sock *sk = (struct sock *)owner;
+
+	/* same check as in sock_kmalloc() */
+	if (size <= optmem_max &&
+	    atomic_read(&sk->sk_omem_alloc) + size < optmem_max) {
+		atomic_add(size, &sk->sk_omem_alloc);
+		return 0;
+	}
+
+	return -ENOMEM;
 }
 
 static void sk_storage_uncharge(struct bpf_local_storage_map *smap,

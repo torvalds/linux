@@ -176,13 +176,18 @@ struct nft_ctx {
 	bool				report;
 };
 
-struct nft_data_desc {
-	enum nft_data_types		type;
-	unsigned int			len;
+enum nft_data_desc_flags {
+	NFT_DATA_DESC_SETELEM	= (1 << 0),
 };
 
-int nft_data_init(const struct nft_ctx *ctx,
-		  struct nft_data *data, unsigned int size,
+struct nft_data_desc {
+	enum nft_data_types		type;
+	unsigned int			size;
+	unsigned int			len;
+	unsigned int			flags;
+};
+
+int nft_data_init(const struct nft_ctx *ctx, struct nft_data *data,
 		  struct nft_data_desc *desc, const struct nlattr *nla);
 void nft_data_hold(const struct nft_data *data, enum nft_data_types type);
 void nft_data_release(const struct nft_data *data, enum nft_data_types type);
