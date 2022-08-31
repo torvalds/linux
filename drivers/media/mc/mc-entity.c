@@ -59,10 +59,12 @@ static inline const char *link_type_name(struct media_link *link)
 	}
 }
 
-__must_check int __media_entity_enum_init(struct media_entity_enum *ent_enum,
-					  int idx_max)
+__must_check int media_entity_enum_init(struct media_entity_enum *ent_enum,
+					struct media_device *mdev)
 {
-	idx_max = ALIGN(idx_max, BITS_PER_LONG);
+	int idx_max;
+
+	idx_max = ALIGN(mdev->entity_internal_idx_max + 1, BITS_PER_LONG);
 	ent_enum->bmap = bitmap_zalloc(idx_max, GFP_KERNEL);
 	if (!ent_enum->bmap)
 		return -ENOMEM;
@@ -71,7 +73,7 @@ __must_check int __media_entity_enum_init(struct media_entity_enum *ent_enum,
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(__media_entity_enum_init);
+EXPORT_SYMBOL_GPL(media_entity_enum_init);
 
 void media_entity_enum_cleanup(struct media_entity_enum *ent_enum)
 {

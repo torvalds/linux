@@ -439,15 +439,15 @@ static inline bool is_media_entity_v4l2_subdev(struct media_entity *entity)
 }
 
 /**
- * __media_entity_enum_init - Initialise an entity enumeration
+ * media_entity_enum_init - Initialise an entity enumeration
  *
  * @ent_enum: Entity enumeration to be initialised
- * @idx_max: Maximum number of entities in the enumeration
+ * @mdev: The related media device
  *
- * Return: Returns zero on success or a negative error code.
+ * Return: zero on success or a negative error code.
  */
-__must_check int __media_entity_enum_init(struct media_entity_enum *ent_enum,
-					  int idx_max);
+__must_check int media_entity_enum_init(struct media_entity_enum *ent_enum,
+					struct media_device *mdev);
 
 /**
  * media_entity_enum_cleanup - Release resources of an entity enumeration
