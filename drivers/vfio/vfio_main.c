@@ -1236,52 +1236,51 @@ err_put_device:
 	return ret;
 }
 
+static int vfio_group_ioctl_get_status(struct vfio_group *group,
+				       struct vfio_group_status __user *arg)
+{
+	unsigned long minsz = offsetofend(struct vfio_group_status, flags);
+	struct vfio_group_status status;
+
+	if (copy_from_user(&status, arg, minsz))
+		return -EFAULT;
+
+	if (status.argsz < minsz)
+		return -EINVAL;
+
+	status.flags = 0;
+
+	down_read(&group->group_rwsem);
+	if (group->container)
+		status.flags |= VFIO_GROUP_FLAGS_CONTAINER_SET |
+				VFIO_GROUP_FLAGS_VIABLE;
+	else if (!iommu_group_dma_owner_claimed(group->iommu_group))
+		status.flags |= VFIO_GROUP_FLAGS_VIABLE;
+	up_read(&group->group_rwsem);
+
+	if (copy_to_user(arg, &status, minsz))
+		return -EFAULT;
+	return 0;
+}
+
 static long vfio_group_fops_unl_ioctl(struct file *filep,
 				      unsigned int cmd, unsigned long arg)
 {
 	struct vfio_group *group = filep->private_data;
 	void __user *uarg = (void __user *)arg;
-	long ret = -ENOTTY;
 
 	switch (cmd) {
 	case VFIO_GROUP_GET_DEVICE_FD:
 		return vfio_group_ioctl_get_device_fd(group, uarg);
 	case VFIO_GROUP_GET_STATUS:
-	{
-		struct vfio_group_status status;
-		unsigned long minsz;
-
-		minsz = offsetofend(struct vfio_group_status, flags);
-
-		if (copy_from_user(&status, (void __user *)arg, minsz))
-			return -EFAULT;
-
-		if (status.argsz < minsz)
-			return -EINVAL;
-
-		status.flags = 0;
-
-		down_read(&group->group_rwsem);
-		if (group->container)
-			status.flags |= VFIO_GROUP_FLAGS_CONTAINER_SET |
-					VFIO_GROUP_FLAGS_VIABLE;
-		else if (!iommu_group_dma_owner_claimed(group->iommu_group))
-			status.flags |= VFIO_GROUP_FLAGS_VIABLE;
-		up_read(&group->group_rwsem);
-
-		if (copy_to_user((void __user *)arg, &status, minsz))
-			return -EFAULT;
-
-		ret = 0;
-		break;
-	}
+		return vfio_group_ioctl_get_status(group, uarg);
 	case VFIO_GROUP_SET_CONTAINER:
 		return vfio_group_ioctl_set_container(group, uarg);
 	case VFIO_GROUP_UNSET_CONTAINER:
 		return vfio_group_ioctl_unset_container(group);
+	default:
+		return -ENOTTY;
 	}
-
-	return ret;
 }
 
 static int vfio_group_fops_open(struct inode *inode, struct file *filep)
