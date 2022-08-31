@@ -33,16 +33,28 @@
 
 struct at91_pinctrl_mux_ops;
 
+/**
+ * struct at91_gpio_chip: at91 gpio chip
+ * @chip: gpio chip
+ * @range: gpio range
+ * @next: bank sharing same clock
+ * @pioc_hwirq: PIO bank interrupt identifier on AIC
+ * @pioc_virq: PIO bank Linux virtual interrupt
+ * @pioc_idx: PIO bank index
+ * @regbase: PIO bank virtual address
+ * @clock: associated clock
+ * @ops: at91 pinctrl mux ops
+ */
 struct at91_gpio_chip {
 	struct gpio_chip	chip;
 	struct pinctrl_gpio_range range;
-	struct at91_gpio_chip	*next;		/* Bank sharing same clock */
-	int			pioc_hwirq;	/* PIO bank interrupt identifier on AIC */
-	int			pioc_virq;	/* PIO bank Linux virtual interrupt */
-	int			pioc_idx;	/* PIO bank index */
-	void __iomem		*regbase;	/* PIO bank virtual address */
-	struct clk		*clock;		/* associated clock */
-	const struct at91_pinctrl_mux_ops *ops;	/* ops */
+	struct at91_gpio_chip	*next;
+	int			pioc_hwirq;
+	int			pioc_virq;
+	int			pioc_idx;
+	void __iomem		*regbase;
+	struct clk		*clock;
+	const struct at91_pinctrl_mux_ops *ops;
 };
 
 static struct at91_gpio_chip *gpio_chips[MAX_GPIO_BANKS];
