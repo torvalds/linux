@@ -548,7 +548,7 @@ static inline int video_is_registered(struct video_device *vdev)
  *
  * Mark all entities connected to a given video device through enabled links,
  * either directly or indirectly, as streaming. The given pipeline object is
- * assigned to every entity in the pipeline and stored in the media_entity pipe
+ * assigned to every pad in the pipeline and stored in the media_pad pipe
  * field.
  *
  * Calls to this function can be nested, in which case the same number of
@@ -582,7 +582,7 @@ __must_check int __video_device_pipeline_start(struct video_device *vdev,
  * @vdev: Starting video device
  *
  * Mark all entities connected to a given video device through enabled links,
- * either directly or indirectly, as not streaming. The media_entity pipe field
+ * either directly or indirectly, as not streaming. The media_pad pipe field
  * is reset to %NULL.
  *
  * If multiple calls to media_pipeline_start() have been made, the same

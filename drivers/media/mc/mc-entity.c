@@ -700,10 +700,10 @@ done:
 	return ret;
 }
 
-__must_check int __media_pipeline_start(struct media_entity *entity,
+__must_check int __media_pipeline_start(struct media_pad *pad,
 					struct media_pipeline *pipe)
 {
-	struct media_device *mdev = entity->graph_obj.mdev;
+	struct media_device *mdev = pad->entity->graph_obj.mdev;
 	struct media_pipeline_pad *err_ppad;
 	struct media_pipeline_pad *ppad;
 	int ret;
@@ -711,18 +711,10 @@ __must_check int __media_pipeline_start(struct media_entity *entity,
 	lockdep_assert_held(&mdev->graph_mutex);
 
 	/*
-	 * media_pipeline_start(entity) only makes sense with entities that have
-	 * a single pad.
-	 */
-
-	if (WARN_ON(entity->num_pads != 1))
-		return -EINVAL;
-
-	/*
 	 * If the entity is already part of a pipeline, that pipeline must
 	 * be the same as the pipe given to media_pipeline_start().
 	 */
-	if (WARN_ON(entity->pads->pipe && entity->pads->pipe != pipe))
+	if (WARN_ON(pad->pipe && pad->pipe != pipe))
 		return -EINVAL;
 
 	/*
@@ -739,7 +731,7 @@ __must_check int __media_pipeline_start(struct media_entity *entity,
 	 * with media_pipeline_pad instances for each pad found during graph
 	 * walk.
 	 */
-	ret = media_pipeline_populate(pipe, entity->pads);
+	ret = media_pipeline_populate(pipe, pad);
 	if (ret)
 		return ret;
 
@@ -856,22 +848,22 @@ error:
 }
 EXPORT_SYMBOL_GPL(__media_pipeline_start);
 
-__must_check int media_pipeline_start(struct media_entity *entity,
+__must_check int media_pipeline_start(struct media_pad *pad,
 				      struct media_pipeline *pipe)
 {
-	struct media_device *mdev = entity->graph_obj.mdev;
+	struct media_device *mdev = pad->entity->graph_obj.mdev;
 	int ret;
 
 	mutex_lock(&mdev->graph_mutex);
-	ret = __media_pipeline_start(entity, pipe);
+	ret = __media_pipeline_start(pad, pipe);
 	mutex_unlock(&mdev->graph_mutex);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(media_pipeline_start);
 
-void __media_pipeline_stop(struct media_entity *entity)
+void __media_pipeline_stop(struct media_pad *pad)
 {
-	struct media_pipeline *pipe = entity->pads->pipe;
+	struct media_pipeline *pipe = pad->pipe;
 	struct media_pipeline_pad *ppad;
 
 	/*
@@ -894,19 +886,19 @@ void __media_pipeline_stop(struct media_entity *entity)
 }
 EXPORT_SYMBOL_GPL(__media_pipeline_stop);
 
-void media_pipeline_stop(struct media_entity *entity)
+void media_pipeline_stop(struct media_pad *pad)
 {
-	struct media_device *mdev = entity->graph_obj.mdev;
+	struct media_device *mdev = pad->entity->graph_obj.mdev;
 
 	mutex_lock(&mdev->graph_mutex);
-	__media_pipeline_stop(entity);
+	__media_pipeline_stop(pad);
 	mutex_unlock(&mdev->graph_mutex);
 }
 EXPORT_SYMBOL_GPL(media_pipeline_stop);
 
-__must_check int media_pipeline_alloc_start(struct media_entity *entity)
+__must_check int media_pipeline_alloc_start(struct media_pad *pad)
 {
-	struct media_device *mdev = entity->graph_obj.mdev;
+	struct media_device *mdev = pad->entity->graph_obj.mdev;
 	struct media_pipeline *new_pipe = NULL;
 	struct media_pipeline *pipe;
 	int ret;
@@ -917,7 +909,7 @@ __must_check int media_pipeline_alloc_start(struct media_entity *entity)
 	 * Is the entity already part of a pipeline? If not, we need to allocate
 	 * a pipe.
 	 */
-	pipe = media_entity_pipeline(entity);
+	pipe = media_pad_pipeline(pad);
 	if (!pipe) {
 		new_pipe = kzalloc(sizeof(*new_pipe), GFP_KERNEL);
 		if (!new_pipe) {
@@ -929,7 +921,7 @@ __must_check int media_pipeline_alloc_start(struct media_entity *entity)
 		pipe->allocated = true;
 	}
 
-	ret = __media_pipeline_start(entity, pipe);
+	ret = __media_pipeline_start(pad, pipe);
 	if (ret)
 		kfree(new_pipe);
 
