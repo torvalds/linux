@@ -980,33 +980,40 @@ static int vfio_group_unset_container(struct vfio_group *group)
 	return 0;
 }
 
-static int vfio_group_set_container(struct vfio_group *group, int container_fd)
+static int vfio_group_ioctl_set_container(struct vfio_group *group,
+					  int __user *arg)
 {
 	struct fd f;
 	struct vfio_container *container;
 	struct vfio_iommu_driver *driver;
+	int container_fd;
 	int ret = 0;
-
-	lockdep_assert_held_write(&group->group_rwsem);
-
-	if (group->container || WARN_ON(group->container_users))
-		return -EINVAL;
 
 	if (group->type == VFIO_NO_IOMMU && !capable(CAP_SYS_RAWIO))
 		return -EPERM;
 
+	if (get_user(container_fd, arg))
+		return -EFAULT;
+	if (container_fd < 0)
+		return -EINVAL;
 	f = fdget(container_fd);
 	if (!f.file)
 		return -EBADF;
 
 	/* Sanity check, is this really our fd? */
 	if (f.file->f_op != &vfio_fops) {
-		fdput(f);
-		return -EINVAL;
+		ret = -EINVAL;
+		goto out_fdput;
 	}
-
 	container = f.file->private_data;
 	WARN_ON(!container); /* fget ensures we don't race vfio_release */
+
+	down_write(&group->group_rwsem);
+
+	if (group->container || WARN_ON(group->container_users)) {
+		ret = -EINVAL;
+		goto out_unlock_group;
+	}
 
 	down_write(&container->group_lock);
 
@@ -1014,13 +1021,13 @@ static int vfio_group_set_container(struct vfio_group *group, int container_fd)
 	if (!list_empty(&container->group_list) &&
 	    container->noiommu != (group->type == VFIO_NO_IOMMU)) {
 		ret = -EPERM;
-		goto unlock_out;
+		goto out_unlock_container;
 	}
 
 	if (group->type == VFIO_IOMMU) {
 		ret = iommu_group_claim_dma_owner(group->iommu_group, f.file);
 		if (ret)
-			goto unlock_out;
+			goto out_unlock_container;
 	}
 
 	driver = container->iommu_driver;
@@ -1032,7 +1039,7 @@ static int vfio_group_set_container(struct vfio_group *group, int container_fd)
 			if (group->type == VFIO_IOMMU)
 				iommu_group_release_dma_owner(
 					group->iommu_group);
-			goto unlock_out;
+			goto out_unlock_container;
 		}
 	}
 
@@ -1044,8 +1051,11 @@ static int vfio_group_set_container(struct vfio_group *group, int container_fd)
 	/* Get a reference on the container and mark a user within the group */
 	vfio_container_get(container);
 
-unlock_out:
+out_unlock_container:
 	up_write(&container->group_lock);
+out_unlock_group:
+	up_write(&group->group_rwsem);
+out_fdput:
 	fdput(f);
 	return ret;
 }
@@ -1258,20 +1268,7 @@ static long vfio_group_fops_unl_ioctl(struct file *filep,
 		break;
 	}
 	case VFIO_GROUP_SET_CONTAINER:
-	{
-		int fd;
-
-		if (get_user(fd, (int __user *)arg))
-			return -EFAULT;
-
-		if (fd < 0)
-			return -EINVAL;
-
-		down_write(&group->group_rwsem);
-		ret = vfio_group_set_container(group, fd);
-		up_write(&group->group_rwsem);
-		break;
-	}
+		return vfio_group_ioctl_set_container(group, uarg);
 	case VFIO_GROUP_UNSET_CONTAINER:
 		down_write(&group->group_rwsem);
 		ret = vfio_group_unset_container(group);
