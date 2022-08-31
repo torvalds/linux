@@ -20,13 +20,13 @@
 #include "internal.h"
 
 static const struct acpi_device_id forbidden_id_list[] = {
+	{"ACPI0009", 0},	/* IOxAPIC */
+	{"ACPI000A", 0},	/* IOAPIC */
 	{"PNP0000",  0},	/* PIC */
 	{"PNP0100",  0},	/* Timer */
 	{"PNP0200",  0},	/* AT DMA Controller */
-	{"ACPI0009", 0},	/* IOxAPIC */
-	{"ACPI000A", 0},	/* IOAPIC */
 	{"SMB0001",  0},	/* ACPI SMBUS virtual device */
-	{"", 0},
+	{ }
 };
 
 static struct platform_device *acpi_platform_device_find_by_companion(struct acpi_device *adev)
