@@ -4104,15 +4104,15 @@ flags values for ``struct kvm_msr_filter_range``:
 ``KVM_MSR_FILTER_READ``
 
   Filter read accesses to MSRs using the given bitmap. A 0 in the bitmap
-  indicates that a read should immediately fail, while a 1 indicates that
-  a read for a particular MSR should be handled regardless of the default
+  indicates that read accesses should be denied, while a 1 indicates that
+  a read for a particular MSR should be allowed regardless of the default
   filter action.
 
 ``KVM_MSR_FILTER_WRITE``
 
   Filter write accesses to MSRs using the given bitmap. A 0 in the bitmap
-  indicates that a write should immediately fail, while a 1 indicates that
-  a write for a particular MSR should be handled regardless of the default
+  indicates that write accesses should be denied, while a 1 indicates that
+  a write for a particular MSR should be allowed regardless of the default
   filter action.
 
 flags values for ``struct kvm_msr_filter``:
@@ -4120,56 +4120,54 @@ flags values for ``struct kvm_msr_filter``:
 ``KVM_MSR_FILTER_DEFAULT_ALLOW``
 
   If no filter range matches an MSR index that is getting accessed, KVM will
-  fall back to allowing access to the MSR.
+  allow accesses to all MSRs by default.
 
 ``KVM_MSR_FILTER_DEFAULT_DENY``
 
   If no filter range matches an MSR index that is getting accessed, KVM will
-  fall back to rejecting access to the MSR. In this mode, all MSRs that should
-  be processed by KVM need to explicitly be marked as allowed in the bitmaps.
+  deny accesses to all MSRs by default.
 
-This ioctl allows user space to define up to 16 bitmaps of MSR ranges to
-specify whether a certain MSR access should be explicitly filtered for or not.
+This ioctl allows userspace to define up to 16 bitmaps of MSR ranges to deny
+guest MSR accesses that would normally be allowed by KVM.  If an MSR is not
+covered by a specific range, the "default" filtering behavior applies.  Each
+bitmap range covers MSRs from [base .. base+nmsrs).
 
-If this ioctl has never been invoked, MSR accesses are not guarded and the
-default KVM in-kernel emulation behavior is fully preserved.
+If an MSR access is denied by userspace, the resulting KVM behavior depends on
+whether or not KVM_CAP_X86_USER_SPACE_MSR's KVM_MSR_EXIT_REASON_FILTER is
+enabled.  If KVM_MSR_EXIT_REASON_FILTER is enabled, KVM will exit to userspace
+on denied accesses, i.e. userspace effectively intercepts the MSR access.  If
+KVM_MSR_EXIT_REASON_FILTER is not enabled, KVM will inject a #GP into the guest
+on denied accesses.
+
+If an MSR access is allowed by userspace, KVM will emulate and/or virtualize
+the access in accordance with the vCPU model.  Note, KVM may still ultimately
+inject a #GP if an access is allowed by userspace, e.g. if KVM doesn't support
+the MSR, or to follow architectural behavior for the MSR.
+
+By default, KVM operates in KVM_MSR_FILTER_DEFAULT_ALLOW mode with no MSR range
+filters.
 
 Calling this ioctl with an empty set of ranges (all nmsrs == 0) disables MSR
 filtering. In that mode, ``KVM_MSR_FILTER_DEFAULT_DENY`` is invalid and causes
 an error.
 
-As soon as the filtering is in place, every MSR access is processed through
-the filtering except for accesses to the x2APIC MSRs (from 0x800 to 0x8ff);
-x2APIC MSRs are always allowed, independent of the ``default_allow`` setting,
-and their behavior depends on the ``X2APIC_ENABLE`` bit of the APIC base
-register.
-
 .. warning::
-   MSR accesses coming from nested vmentry/vmexit are not filtered.
+   MSR accesses as part of nested VM-Enter/VM-Exit are not filtered.
    This includes both writes to individual VMCS fields and reads/writes
    through the MSR lists pointed to by the VMCS.
 
-If a bit is within one of the defined ranges, read and write accesses are
-guarded by the bitmap's value for the MSR index if the kind of access
-is included in the ``struct kvm_msr_filter_range`` flags.  If no range
-cover this particular access, the behavior is determined by the flags
-field in the kvm_msr_filter struct: ``KVM_MSR_FILTER_DEFAULT_ALLOW``
-and ``KVM_MSR_FILTER_DEFAULT_DENY``.
-
-Each bitmap range specifies a range of MSRs to potentially allow access on.
-The range goes from MSR index [base .. base+nmsrs]. The flags field
-indicates whether reads, writes or both reads and writes are filtered
-by setting a 1 bit in the bitmap for the corresponding MSR index.
-
-If an MSR access is not permitted through the filtering, it generates a
-#GP inside the guest. When combined with KVM_CAP_X86_USER_SPACE_MSR, that
-allows user space to deflect and potentially handle various MSR accesses
-into user space.
+   x2APIC MSR accesses cannot be filtered (KVM silently ignores filters that
+   cover any x2APIC MSRs).
 
 Note, invoking this ioctl while a vCPU is running is inherently racy.  However,
 KVM does guarantee that vCPUs will see either the previous filter or the new
 filter, e.g. MSRs with identical settings in both the old and new filter will
 have deterministic behavior.
+
+Similarly, if userspace wishes to intercept on denied accesses,
+KVM_MSR_EXIT_REASON_FILTER must be enabled before activating any filters, and
+left enabled until after all filters are deactivated.  Failure to do so may
+result in KVM injecting a #GP instead of exiting to userspace.
 
 4.98 KVM_CREATE_SPAPR_TCE_64
 ----------------------------
@@ -6500,6 +6498,8 @@ wants to write. Once finished processing the event, user space must continue
 vCPU execution. If the MSR write was unsuccessful, user space also sets the
 "error" field to "1".
 
+See KVM_X86_SET_MSR_FILTER for details on the interaction with MSR filtering.
+
 ::
 
 
@@ -7937,7 +7937,7 @@ KVM_EXIT_X86_WRMSR exit notifications.
 This capability indicates that KVM supports that accesses to user defined MSRs
 may be rejected. With this capability exposed, KVM exports new VM ioctl
 KVM_X86_SET_MSR_FILTER which user space can call to specify bitmaps of MSR
-ranges that KVM should reject access to.
+ranges that KVM should deny access to.
 
 In combination with KVM_CAP_X86_USER_SPACE_MSR, this allows user space to
 trap and emulate MSRs that are outside of the scope of KVM as well as
