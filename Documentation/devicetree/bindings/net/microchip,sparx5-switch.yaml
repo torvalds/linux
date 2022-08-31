@@ -130,8 +130,6 @@ required:
   - reg-names
   - interrupts
   - interrupt-names
-  - resets
-  - reset-names
   - ethernet-ports
 
 additionalProperties: false
