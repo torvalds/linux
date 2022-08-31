@@ -275,7 +275,7 @@ static int cypress_nor_octal_dtr_enable(struct spi_nor *nor, bool enable)
 			cypress_nor_octal_dtr_dis(nor);
 }
 
-static void s28hs512t_post_sfdp_fixup(struct spi_nor *nor)
+static void s28hx_t_post_sfdp_fixup(struct spi_nor *nor)
 {
 	/*
 	 * On older versions of the flash the xSPI Profile 1.0 table has the
@@ -303,23 +303,23 @@ static void s28hs512t_post_sfdp_fixup(struct spi_nor *nor)
 	nor->params->rdsr_addr_nbytes = 4;
 }
 
-static int s28hs512t_post_bfpt_fixup(struct spi_nor *nor,
-				     const struct sfdp_parameter_header *bfpt_header,
-				     const struct sfdp_bfpt *bfpt)
+static int s28hx_t_post_bfpt_fixup(struct spi_nor *nor,
+				   const struct sfdp_parameter_header *bfpt_header,
+				   const struct sfdp_bfpt *bfpt)
 {
 	return cypress_nor_set_page_size(nor);
 }
 
-static void s28hs512t_late_init(struct spi_nor *nor)
+static void s28hx_t_late_init(struct spi_nor *nor)
 {
 	nor->params->octal_dtr_enable = cypress_nor_octal_dtr_enable;
 	nor->params->writesize = 16;
 }
 
-static const struct spi_nor_fixups s28hs512t_fixups = {
-	.post_sfdp = s28hs512t_post_sfdp_fixup,
-	.post_bfpt = s28hs512t_post_bfpt_fixup,
-	.late_init = s28hs512t_late_init,
+static const struct spi_nor_fixups s28hx_t_fixups = {
+	.post_sfdp = s28hx_t_post_sfdp_fixup,
+	.post_bfpt = s28hx_t_post_bfpt_fixup,
+	.late_init = s28hx_t_late_init,
 };
 
 static int
@@ -455,7 +455,7 @@ static const struct flash_info spansion_nor_parts[] = {
 		FLAGS(SPI_NOR_NO_ERASE) },
 	{ "s28hs512t",   INFO(0x345b1a,      0, 256 * 1024, 256)
 		PARSE_SFDP
-		.fixups = &s28hs512t_fixups,
+		.fixups = &s28hx_t_fixups,
 	},
 };
 
