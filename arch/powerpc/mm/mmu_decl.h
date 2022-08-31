@@ -102,14 +102,6 @@ extern phys_addr_t total_lowmem;
 extern phys_addr_t memstart_addr;
 extern phys_addr_t lowmem_end_addr;
 
-#ifdef CONFIG_WII
-extern unsigned long wii_hole_start;
-extern unsigned long wii_hole_size;
-
-extern unsigned long wii_mmu_mapin_mem2(unsigned long top);
-extern void wii_memory_fixups(void);
-#endif
-
 /* ...and now those things that may be slightly different between processor
  * architectures.  -- Dan
  */
