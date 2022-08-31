@@ -598,6 +598,9 @@ static snd_pcm_uframes_t dmaengine_mpcm_pointer(struct snd_soc_component *compon
 		pos = buf_size - state.residue;
 
 	frames = bytes_to_frames(substream->runtime, pos);
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
+		return frames;
+
 #ifdef CONFIG_SND_SOC_ROCKCHIP_VAD
 	if (prtd->vpos)
 		frames = bytes_to_frames(substream->runtime, prtd->vpos);
