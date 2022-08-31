@@ -70,3 +70,4 @@ setget_sockopt                           # attach unexpected error: -524        
 cb_refs                                  # expected error message unexpected error: -524                               (trampoline)
 cgroup_hierarchical_stats                # JIT does not support calling kernel function                                (kfunc)
 htab_update                              # failed to attach: ERROR: strerror_r(-524)=22                                (trampoline)
+tracing_struct                           # failed to auto-attach: -524                                                 (trampoline)
