@@ -21,3 +21,17 @@ bool smt_on(const struct cpu_topology *topology)
 	cached = true;
 	return cached_result;
 }
+
+bool core_wide(bool system_wide, const char *user_requested_cpu_list,
+	       const struct cpu_topology *topology)
+{
+	/* If not everything running on a core is being recorded then we can't use core_wide. */
+	if (!system_wide)
+		return false;
+
+	/* Cheap case that SMT is disabled and therefore we're inherently core_wide. */
+	if (!smt_on(topology))
+		return true;
+
+	return cpu_topology__core_wide(topology, user_requested_cpu_list);
+}

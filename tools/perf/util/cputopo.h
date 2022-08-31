@@ -60,6 +60,9 @@ struct cpu_topology *cpu_topology__new(void);
 void cpu_topology__delete(struct cpu_topology *tp);
 /* Determine from the core list whether SMT was enabled. */
 bool cpu_topology__smt_on(const struct cpu_topology *topology);
+/* Are the sets of SMT siblings all enabled or all disabled in user_requested_cpus. */
+bool cpu_topology__core_wide(const struct cpu_topology *topology,
+			     const char *user_requested_cpu_list);
 
 struct numa_topology *numa_topology__new(void);
 void numa_topology__delete(struct numa_topology *tp);
