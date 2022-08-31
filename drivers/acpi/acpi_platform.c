@@ -113,9 +113,9 @@ struct platform_device *acpi_create_platform_device(struct acpi_device *adev,
 
 	INIT_LIST_HEAD(&resource_list);
 	count = acpi_dev_get_resources(adev, &resource_list, NULL, NULL);
-	if (count < 0) {
+	if (count < 0)
 		return NULL;
-	} else if (count > 0) {
+	if (count > 0) {
 		resources = kcalloc(count, sizeof(struct resource),
 				    GFP_KERNEL);
 		if (!resources) {
