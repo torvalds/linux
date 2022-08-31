@@ -122,7 +122,7 @@ int st_lsm6dsrx_update_watermark(struct st_lsm6dsrx_sensor *sensor,
 
 		cur_sensor = iio_priv(hw->iio_devs[i]);
 
-		if (!(hw->enable_mask & BIT(cur_sensor->id)))
+		if (!(hw->enable_mask & BIT_ULL(cur_sensor->id)))
 			continue;
 
 		cur_watermark = (cur_sensor == sensor) ? watermark
@@ -167,7 +167,7 @@ iio_dev *st_lsm6dsrx_get_iiodev_from_tag(struct st_lsm6dsrx_hw *hw, u8 tag)
 		iio_dev = hw->iio_devs[ST_LSM6DSRX_ID_TEMP];
 		break;
 	case ST_LSM6DSRX_EXT0_TAG:
-		if (hw->enable_mask & BIT(ST_LSM6DSRX_ID_EXT0))
+		if (hw->enable_mask & BIT_ULL(ST_LSM6DSRX_ID_EXT0))
 			iio_dev = hw->iio_devs[ST_LSM6DSRX_ID_EXT0];
 		else
 			iio_dev = hw->iio_devs[ST_LSM6DSRX_ID_EXT1];
@@ -422,8 +422,8 @@ static int st_lsm6dsrx_update_fifo(struct iio_dev *iio_dev, bool enable)
 	 * toghether at least with a primary sensor (Acc/Gyro).
 	 */
 	if (sensor->id == ST_LSM6DSRX_ID_TEMP) {
-		if (!(hw->enable_mask & (BIT(ST_LSM6DSRX_ID_ACC) |
-					 BIT(ST_LSM6DSRX_ID_GYRO)))) {
+		if (!(hw->enable_mask & (BIT_ULL(ST_LSM6DSRX_ID_ACC) |
+					 BIT_ULL(ST_LSM6DSRX_ID_GYRO)))) {
 			struct st_lsm6dsrx_sensor *acc_sensor;
 			u8 data = 0;
 

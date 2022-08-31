@@ -157,7 +157,7 @@ static int st_lsm6dsrx_mlc_enable_sensor(struct st_lsm6dsrx_sensor *sensor,
 		/* enable fsm core */
 		for (i = 0; i < ST_LSM6DSRX_FSM_MAX_NUMBER; i++) {
 			id = st_lsm6dsrx_fsm_sensor_list[i];
-			if (hw->enable_mask & BIT(id))
+			if (hw->enable_mask & BIT_ULL(id))
 				break;
 		}
 
@@ -183,9 +183,9 @@ static int st_lsm6dsrx_mlc_enable_sensor(struct st_lsm6dsrx_sensor *sensor,
 	}
 
 	if (enable)
-		hw->enable_mask |= BIT(sensor->id);
+		hw->enable_mask |= BIT_ULL(sensor->id);
 	else
-		hw->enable_mask &= ~BIT(sensor->id);
+		hw->enable_mask &= ~BIT_ULL(sensor->id);
 
 	return err < 0 ? err : 0;
 }
@@ -209,7 +209,7 @@ static int st_lsm6dsrx_mlc_read_event_config(struct iio_dev *iio_dev,
 	struct st_lsm6dsrx_sensor *sensor = iio_priv(iio_dev);
 	struct st_lsm6dsrx_hw *hw = sensor->hw;
 
-	return !!(hw->enable_mask & BIT(sensor->id));
+	return !!(hw->enable_mask & BIT_ULL(sensor->id));
 }
 
 /*
@@ -732,7 +732,7 @@ int st_lsm6dsrx_mlc_check_status(struct st_lsm6dsrx_hw *hw)
 		if (mlc_status) {
 			for (i = 0; i < ST_LSM6DSRX_MLC_MAX_NUMBER; i++) {
 				id = st_lsm6dsrx_mlc_sensor_list[i];
-				if (!(hw->enable_mask & BIT(id)))
+				if (!(hw->enable_mask & BIT_ULL(id)))
 					continue;
 
 				if (mlc_status & BIT(i)) {
@@ -772,7 +772,7 @@ int st_lsm6dsrx_mlc_check_status(struct st_lsm6dsrx_hw *hw)
 		if (fsm_status) {
 			for (i = 0; i < ST_LSM6DSRX_FSM_MAX_NUMBER; i++) {
 				id = st_lsm6dsrx_fsm_sensor_list[i];
-				if (!(hw->enable_mask & BIT(id)))
+				if (!(hw->enable_mask & BIT_ULL(id)))
 					continue;
 
 				if (fsm_status & BIT(i)) {

@@ -439,36 +439,36 @@ static const enum st_lsm6dsrx_sensor_id st_lsm6dsrx_fsm_sensor_list[] = {
 	 [15] = ST_LSM6DSRX_ID_FSM_15,
 };
 
-#define ST_LSM6DSRX_ID_ALL_FSM_MLC (BIT(ST_LSM6DSRX_ID_MLC_0)  | \
-				    BIT(ST_LSM6DSRX_ID_MLC_1)  | \
-				    BIT(ST_LSM6DSRX_ID_MLC_2)  | \
-				    BIT(ST_LSM6DSRX_ID_MLC_3)  | \
-				    BIT(ST_LSM6DSRX_ID_MLC_4)  | \
-				    BIT(ST_LSM6DSRX_ID_MLC_5)  | \
-				    BIT(ST_LSM6DSRX_ID_MLC_6)  | \
-				    BIT(ST_LSM6DSRX_ID_MLC_7)  | \
-				    BIT(ST_LSM6DSRX_ID_FSM_0)  | \
-				    BIT(ST_LSM6DSRX_ID_FSM_1)  | \
-				    BIT(ST_LSM6DSRX_ID_FSM_2)  | \
-				    BIT(ST_LSM6DSRX_ID_FSM_3)  | \
-				    BIT(ST_LSM6DSRX_ID_FSM_4)  | \
-				    BIT(ST_LSM6DSRX_ID_FSM_5)  | \
-				    BIT(ST_LSM6DSRX_ID_FSM_6)  | \
-				    BIT(ST_LSM6DSRX_ID_FSM_7)  | \
-				    BIT(ST_LSM6DSRX_ID_FSM_8)  | \
-				    BIT(ST_LSM6DSRX_ID_FSM_9)  | \
-				    BIT(ST_LSM6DSRX_ID_FSM_10) | \
-				    BIT(ST_LSM6DSRX_ID_FSM_11) | \
-				    BIT(ST_LSM6DSRX_ID_FSM_12) | \
-				    BIT(ST_LSM6DSRX_ID_FSM_13) | \
-				    BIT(ST_LSM6DSRX_ID_FSM_14) | \
-				    BIT(ST_LSM6DSRX_ID_FSM_15))
+#define ST_LSM6DSRX_ID_ALL_FSM_MLC (BIT_ULL(ST_LSM6DSRX_ID_MLC_0)  | \
+				    BIT_ULL(ST_LSM6DSRX_ID_MLC_1)  | \
+				    BIT_ULL(ST_LSM6DSRX_ID_MLC_2)  | \
+				    BIT_ULL(ST_LSM6DSRX_ID_MLC_3)  | \
+				    BIT_ULL(ST_LSM6DSRX_ID_MLC_4)  | \
+				    BIT_ULL(ST_LSM6DSRX_ID_MLC_5)  | \
+				    BIT_ULL(ST_LSM6DSRX_ID_MLC_6)  | \
+				    BIT_ULL(ST_LSM6DSRX_ID_MLC_7)  | \
+				    BIT_ULL(ST_LSM6DSRX_ID_FSM_0)  | \
+				    BIT_ULL(ST_LSM6DSRX_ID_FSM_1)  | \
+				    BIT_ULL(ST_LSM6DSRX_ID_FSM_2)  | \
+				    BIT_ULL(ST_LSM6DSRX_ID_FSM_3)  | \
+				    BIT_ULL(ST_LSM6DSRX_ID_FSM_4)  | \
+				    BIT_ULL(ST_LSM6DSRX_ID_FSM_5)  | \
+				    BIT_ULL(ST_LSM6DSRX_ID_FSM_6)  | \
+				    BIT_ULL(ST_LSM6DSRX_ID_FSM_7)  | \
+				    BIT_ULL(ST_LSM6DSRX_ID_FSM_8)  | \
+				    BIT_ULL(ST_LSM6DSRX_ID_FSM_9)  | \
+				    BIT_ULL(ST_LSM6DSRX_ID_FSM_10) | \
+				    BIT_ULL(ST_LSM6DSRX_ID_FSM_11) | \
+				    BIT_ULL(ST_LSM6DSRX_ID_FSM_12) | \
+				    BIT_ULL(ST_LSM6DSRX_ID_FSM_13) | \
+				    BIT_ULL(ST_LSM6DSRX_ID_FSM_14) | \
+				    BIT_ULL(ST_LSM6DSRX_ID_FSM_15))
 
 /*
  * HW devices that can wakeup the target
  */
-#define ST_LSM6DSRX_WAKE_UP_SENSORS (BIT(ST_LSM6DSRX_ID_GYRO) | \
-				     BIT(ST_LSM6DSRX_ID_ACC)  | \
+#define ST_LSM6DSRX_WAKE_UP_SENSORS (BIT_ULL(ST_LSM6DSRX_ID_GYRO) | \
+				     BIT_ULL(ST_LSM6DSRX_ID_ACC)  | \
 				     ST_LSM6DSRX_ID_ALL_FSM_MLC)
 
 /* this is the minimal ODR for wake-up sensors and dependencies */
@@ -601,8 +601,8 @@ struct st_lsm6dsrx_hw {
 	struct mutex fifo_lock;
 	enum st_lsm6dsrx_fifo_mode fifo_mode;
 	unsigned long state;
-	u32 enable_mask;
-	u32 requested_mask;
+	u64 enable_mask;
+	u64 requested_mask;
 	u8 ext_data_len;
 	u64 ts_delta_ns;
 	s64 ts_offset;
@@ -629,8 +629,8 @@ extern const struct dev_pm_ops st_lsm6dsrx_pm_ops;
 
 static inline bool st_lsm6dsrx_is_fifo_enabled(struct st_lsm6dsrx_hw *hw)
 {
-	return hw->enable_mask & (BIT(ST_LSM6DSRX_ID_GYRO) |
-				  BIT(ST_LSM6DSRX_ID_ACC));
+	return hw->enable_mask & (BIT_ULL(ST_LSM6DSRX_ID_GYRO) |
+				  BIT_ULL(ST_LSM6DSRX_ID_ACC));
 }
 
 static inline bool st_lsm6dsrx_run_mlc_task(struct st_lsm6dsrx_hw *hw)

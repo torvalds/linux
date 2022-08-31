@@ -576,12 +576,13 @@ static u16 st_lsm6dsrx_check_odr_dependency(struct st_lsm6dsrx_hw *hw,
 
 	if (enable) {
 		/* uodr not used */
-		if (hw->enable_mask & BIT(ref_id))
+		if (hw->enable_mask & BIT_ULL(ref_id))
 			ret = max_t(u16, ref->odr, odr);
 		else
 			ret = odr;
 	} else {
-		ret = (hw->enable_mask & BIT(ref_id)) ? ref->odr : 0;
+		ret = (hw->enable_mask & BIT_ULL(ref_id)) ?
+		      ref->odr : 0;
 	}
 
 	return ret;
@@ -682,9 +683,9 @@ int st_lsm6dsrx_sensor_set_enable(struct st_lsm6dsrx_sensor *sensor,
 		return err;
 
 	if (enable)
-		sensor->hw->enable_mask |= BIT(sensor->id);
+		sensor->hw->enable_mask |= BIT_ULL(sensor->id);
 	else
-		sensor->hw->enable_mask &= ~BIT(sensor->id);
+		sensor->hw->enable_mask &= ~BIT_ULL(sensor->id);
 
 	return 0;
 }
@@ -822,7 +823,7 @@ static int st_lsm6dsrx_write_raw(struct iio_dev *iio_dev,
 			 * toggle the enable status of sensor after changing
 			 * the ODR -> force it
 			 */
-			if (sensor->hw->enable_mask & BIT(sensor->id)) {
+			if (sensor->hw->enable_mask & BIT_ULL(sensor->id)) {
 				switch (sensor->id) {
 				case ST_LSM6DSRX_ID_GYRO:
 				case ST_LSM6DSRX_ID_ACC: {
@@ -1337,7 +1338,7 @@ static ssize_t st_lsm6dsrx_sysfs_start_selftest(struct device *dev,
 		return ret;
 
 	/* self test mode unavailable if sensor enabled */
-	if (hw->enable_mask & BIT(id)) {
+	if (hw->enable_mask & BIT_ULL(id)) {
 		ret = -EBUSY;
 
 		goto out_claim;
@@ -1825,12 +1826,12 @@ static int __maybe_unused st_lsm6dsrx_suspend(struct device *dev)
 		if (!hw->iio_devs[i])
 			continue;
 
-		if (!(hw->enable_mask & BIT(sensor->id)))
+		if (!(hw->enable_mask & BIT_ULL(sensor->id)))
 			continue;
 
 #ifdef CONFIG_IIO_ST_LSM6DSRX_MAY_WAKEUP
 		/* do not disable sensors if requested by wake-up */
-		if (!((hw->enable_mask & BIT(sensor->id)) &
+		if (!((hw->enable_mask & BIT_ULL(sensor->id)) &
 		      ST_LSM6DSRX_WAKE_UP_SENSORS)) {
 			err = st_lsm6dsrx_set_odr(sensor, 0, 0);
 			if (err < 0)
@@ -1894,7 +1895,7 @@ static int __maybe_unused st_lsm6dsrx_resume(struct device *dev)
 		if (!hw->iio_devs[i])
 			continue;
 
-		if (!(hw->enable_mask & BIT(sensor->id)))
+		if (!(hw->enable_mask & BIT_ULL(sensor->id)))
 			continue;
 
 #ifdef CONFIG_IIO_ST_LSM6DSRX_MAY_WAKEUP
