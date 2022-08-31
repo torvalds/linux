@@ -985,20 +985,6 @@ endmenu
 menu "I2C GPIO expanders"
 	depends on I2C
 
-config GPIO_ADP5588
-	tristate "ADP5588 I2C GPIO expander"
-	help
-	  This option enables support for 18 GPIOs found
-	  on Analog Devices ADP5588 GPIO Expanders.
-
-config GPIO_ADP5588_IRQ
-	bool "Interrupt controller support for ADP5588"
-	depends on GPIO_ADP5588=y
-	select GPIOLIB_IRQCHIP
-	help
-	  Say yes here to enable the adp5588 to be used as an interrupt
-	  controller. It requires the driver to be built in the kernel.
-
 config GPIO_ADNP
 	tristate "Avionic Design N-bit GPIO expander"
 	depends on OF_GPIO
