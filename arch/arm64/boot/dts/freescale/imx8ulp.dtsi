@@ -223,7 +223,7 @@
 					 <&pcc3 IMX8ULP_CLK_LPI2C4>;
 				clock-names = "per", "ipg";
 				assigned-clocks = <&pcc3 IMX8ULP_CLK_LPI2C4>;
-				assigned-clock-parents = <&cgc1 IMX8ULP_CLK_XBAR_DIVBUS>;
+				assigned-clock-parents = <&cgc1 IMX8ULP_CLK_FROSC_DIV2>;
 				assigned-clock-rates = <48000000>;
 				status = "disabled";
 			};
@@ -236,7 +236,7 @@
 					 <&pcc3 IMX8ULP_CLK_LPI2C5>;
 				clock-names = "per", "ipg";
 				assigned-clocks = <&pcc3 IMX8ULP_CLK_LPI2C5>;
-				assigned-clock-parents = <&cgc1 IMX8ULP_CLK_XBAR_DIVBUS>;
+				assigned-clock-parents = <&cgc1 IMX8ULP_CLK_FROSC_DIV2>;
 				assigned-clock-rates = <48000000>;
 				status = "disabled";
 			};
@@ -269,8 +269,8 @@
 					 <&pcc3 IMX8ULP_CLK_LPSPI4>;
 				clock-names = "per", "ipg";
 				assigned-clocks = <&pcc3 IMX8ULP_CLK_LPSPI4>;
-				assigned-clock-parents = <&cgc1 IMX8ULP_CLK_XBAR_DIVBUS>;
-				assigned-clock-rates = <16000000>;
+				assigned-clock-parents = <&cgc1 IMX8ULP_CLK_FROSC_DIV2>;
+				assigned-clock-rates = <48000000>;
 				status = "disabled";
 			};
 
@@ -284,8 +284,8 @@
 					 <&pcc3 IMX8ULP_CLK_LPSPI5>;
 				clock-names = "per", "ipg";
 				assigned-clocks = <&pcc3 IMX8ULP_CLK_LPSPI5>;
-				assigned-clock-parents = <&cgc1 IMX8ULP_CLK_XBAR_DIVBUS>;
-				assigned-clock-rates = <16000000>;
+				assigned-clock-parents = <&cgc1 IMX8ULP_CLK_FROSC_DIV2>;
+				assigned-clock-rates = <48000000>;
 				status = "disabled";
 			};
 		};
@@ -311,7 +311,7 @@
 					 <&pcc4 IMX8ULP_CLK_LPI2C6>;
 				clock-names = "per", "ipg";
 				assigned-clocks = <&pcc4 IMX8ULP_CLK_LPI2C6>;
-				assigned-clock-parents = <&cgc1 IMX8ULP_CLK_XBAR_DIVBUS>;
+				assigned-clock-parents = <&cgc1 IMX8ULP_CLK_FROSC_DIV2>;
 				assigned-clock-rates = <48000000>;
 				status = "disabled";
 			};
@@ -324,7 +324,7 @@
 					 <&pcc4 IMX8ULP_CLK_LPI2C7>;
 				clock-names = "per", "ipg";
 				assigned-clocks = <&pcc4 IMX8ULP_CLK_LPI2C7>;
-				assigned-clock-parents = <&cgc1 IMX8ULP_CLK_XBAR_DIVBUS>;
+				assigned-clock-parents = <&cgc1 IMX8ULP_CLK_FROSC_DIV2>;
 				assigned-clock-rates = <48000000>;
 				status = "disabled";
 			};
