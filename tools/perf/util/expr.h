@@ -10,16 +10,16 @@
 
 struct metric_ref;
 
-struct expr_parse_ctx {
-	struct hashmap	*ids;
-	int runtime;
-};
-
-struct expr_id_data;
-
 struct expr_scanner_ctx {
 	int runtime;
 };
+
+struct expr_parse_ctx {
+	struct hashmap	*ids;
+	struct expr_scanner_ctx sctx;
+};
+
+struct expr_id_data;
 
 struct hashmap *ids__new(void);
 void ids__free(struct hashmap *ids);
