@@ -453,7 +453,19 @@ static const struct flash_info spansion_nor_parts[] = {
 		.fixups = &s25hx_t_fixups },
 	{ "cy15x104q",  INFO6(0x042cc2, 0x7f7f7f, 512 * 1024, 1)
 		FLAGS(SPI_NOR_NO_ERASE) },
+	{ "s28hl512t",   INFO(0x345a1a,      0, 256 * 1024, 256)
+		PARSE_SFDP
+		.fixups = &s28hx_t_fixups,
+	},
+	{ "s28hl01gt",   INFO(0x345a1b,      0, 256 * 1024, 512)
+		PARSE_SFDP
+		.fixups = &s28hx_t_fixups,
+	},
 	{ "s28hs512t",   INFO(0x345b1a,      0, 256 * 1024, 256)
+		PARSE_SFDP
+		.fixups = &s28hx_t_fixups,
+	},
+	{ "s28hs01gt",   INFO(0x345b1b,      0, 256 * 1024, 512)
 		PARSE_SFDP
 		.fixups = &s28hx_t_fixups,
 	},
