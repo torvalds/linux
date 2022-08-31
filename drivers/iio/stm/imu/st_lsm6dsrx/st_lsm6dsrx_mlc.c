@@ -39,13 +39,7 @@ DECLARE_BUILTIN_FIRMWARE(LSM6DSRX_MLC_FIRMWARE_NAME, st_lsm6dsrx_mlc_fw);
 #endif /* CONFIG_IIO_LSM6DSRX_MLC_BUILTIN_FIRMWARE */
 
 #ifdef CONFIG_IIO_ST_LSM6DSRX_MLC_PRELOAD
-static const u8 mlcdata[] = {
-};
-
-static const struct firmware st_lsm6dsrx_mlc_preload = {
-		.size = sizeof(mlcdata),
-		.data = mlcdata
-};
+#include "st_lsm6dsrx_preload_mlc.h"
 #endif /* CONFIG_IIO_ST_LSM6DSRX_MLC_PRELOAD */
 
 /* Converts MLC odr to main sensor trigger odr (acc) */
