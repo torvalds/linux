@@ -239,6 +239,7 @@ struct rockchip_crtc_state {
 	struct drm_dsc_picture_parameter_set pps;
 	struct rockchip_dsc_sink_cap dsc_sink_cap;
 	struct rockchip_hdr_state hdr;
+	struct drm_property_blob *hdr_ext_data;
 
 	int request_refresh_rate;
 	int max_refresh_rate;

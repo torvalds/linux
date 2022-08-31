@@ -811,6 +811,19 @@ static const struct vop2_video_port_regs rk3528_vop_vp0_regs = {
 	.hdr_dst_color_ctrl = VOP_REG(RK3528_HDR_DST_COLOR_CTRL, 0xffffffff, 0),
 	.hdr_src_alpha_ctrl = VOP_REG(RK3528_HDR_SRC_ALPHA_CTRL, 0xffffffff, 0),
 	.hdr_dst_alpha_ctrl = VOP_REG(RK3528_HDR_DST_ALPHA_CTRL, 0xffffffff, 0),
+	.hdr_lut_update_en = VOP_REG(RK3568_HDR_LUT_CTRL, 0x1, 0),
+	.hdr_lut_mode = VOP_REG(RK3568_HDR_LUT_CTRL, 0x1, 1),
+	.hdr_lut_mst = VOP_REG(RK3568_HDR_LUT_MST, 0xffffffff, 0),
+	.hdr_lut_fetch_done = VOP_REG(RK3528_HDR_LUT_STATUS, 0x1, 0),
+	.hdr10_en = VOP_REG(RK3568_OVL_CTRL, 0x1, 4),
+	.sdr2hdr_path_en = VOP_REG(RK3568_OVL_CTRL, 0x1, 5),
+	.sdr2hdr_en = VOP_REG(RK3568_SDR2HDR_CTRL, 0x1, 0),
+	.sdr2hdr_bypass_en = VOP_REG(RK3568_SDR2HDR_CTRL, 0x1, 2),
+	.sdr2hdr_dstmode = VOP_REG(RK3568_SDR2HDR_CTRL, 0x1, 3),
+	.hdr_vivid_en = VOP_REG(RK3528_HDRVIVID_CTRL, 0x1, 0),
+	.hdr_vivid_bypass_en = VOP_REG(RK3528_HDRVIVID_CTRL, 0x1, 2),
+	.hdr_vivid_path_mode = VOP_REG(RK3528_HDRVIVID_CTRL, 0x7, 3),
+	.hdr_vivid_dstgamut = VOP_REG(RK3528_HDRVIVID_CTRL, 0x1, 6),
 };
 
 static const struct vop2_video_port_regs rk3528_vop_vp1_regs = {
@@ -862,6 +875,13 @@ static const struct vop2_video_port_regs rk3528_vop_vp1_regs = {
 	.layer_sel = VOP_REG(RK3528_OVL_PORT1_LAYER_SEL, 0xffff, 0),
 };
 
+static const struct vop3_ovl_mix_regs rk3528_vop_hdr_mix_regs = {
+	.src_color_ctrl = VOP_REG(RK3528_HDR_SRC_COLOR_CTRL, 0xffffffff, 0),
+	.dst_color_ctrl = VOP_REG(RK3528_HDR_DST_COLOR_CTRL, 0xffffffff, 0),
+	.src_alpha_ctrl = VOP_REG(RK3528_HDR_SRC_ALPHA_CTRL, 0xffffffff, 0),
+	.dst_alpha_ctrl = VOP_REG(RK3528_HDR_DST_ALPHA_CTRL, 0xffffffff, 0),
+};
+
 static const struct vop3_ovl_mix_regs rk3528_vop_vp0_layer_mix_regs = {
 	.src_color_ctrl = VOP_REG(RK3528_OVL_PORT0_MIX0_SRC_COLOR_CTRL, 0xffffffff, 0),
 	.dst_color_ctrl = VOP_REG(RK3528_OVL_PORT0_MIX0_DST_COLOR_CTRL, 0xffffffff, 0),
@@ -878,6 +898,7 @@ static const struct vop3_ovl_mix_regs rk3528_vop_vp1_layer_mix_regs = {
 
 static const struct vop3_ovl_regs rk3528_vop_vp0_ovl_regs = {
 	.layer_mix_regs = &rk3528_vop_vp0_layer_mix_regs,
+	.hdr_mix_regs = &rk3528_vop_hdr_mix_regs,
 };
 
 static const struct vop3_ovl_regs rk3528_vop_vp1_ovl_regs = {
@@ -889,10 +910,14 @@ static const struct vop2_video_port_data rk3528_vop_video_ports[] = {
 	 .id = 0,
 	 .soc_id = { 0x3528, 0x3528 },
 	 .lut_dma_rid = 14,
-	 .feature = VOP_FEATURE_ALPHA_SCALE | VOP_FEATURE_OVERSCAN,
+	 .feature = VOP_FEATURE_ALPHA_SCALE | VOP_FEATURE_OVERSCAN | VOP_FEATURE_VIVID_HDR,
 	 .gamma_lut_len = 1024,
 	 .max_output = { 4096, 4096 },
-	 .pre_scan_max_dly = { 43, 53, 53, 42 },
+	 .hdrvivid_dly = {17, 29, 32, 44, 15, 38, 1, 29, 0, 0},
+	 .sdr2hdr_dly = 21,
+	 .layer_mix_dly = 6,
+	 .hdr_mix_dly = 2,
+	 .win_dly = 8,
 	 .intr = &rk3568_vp0_intr,
 	 .regs = &rk3528_vop_vp0_regs,
 	 .ovl_regs = &rk3528_vop_vp0_ovl_regs,
@@ -903,6 +928,11 @@ static const struct vop2_video_port_data rk3528_vop_video_ports[] = {
 	 .feature = VOP_FEATURE_ALPHA_SCALE | VOP_FEATURE_OVERSCAN,
 	 .max_output = { 720, 576 },
 	 .pre_scan_max_dly = { 37, 40, 40, 40 },
+	 .hdrvivid_dly = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+	 .sdr2hdr_dly = 0,
+	 .layer_mix_dly = 2,
+	 .hdr_mix_dly = 0,
+	 .win_dly = 8,
 	 .intr = &rk3568_vp1_intr,
 	 .regs = &rk3528_vop_vp1_regs,
 	 .ovl_regs = &rk3528_vop_vp1_ovl_regs,
