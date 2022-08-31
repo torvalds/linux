@@ -370,41 +370,6 @@ struct media_entity *media_graph_walk_next(struct media_graph *graph)
 }
 EXPORT_SYMBOL_GPL(media_graph_walk_next);
 
-int media_entity_get_fwnode_pad(struct media_entity *entity,
-				struct fwnode_handle *fwnode,
-				unsigned long direction_flags)
-{
-	struct fwnode_endpoint endpoint;
-	unsigned int i;
-	int ret;
-
-	if (!entity->ops || !entity->ops->get_fwnode_pad) {
-		for (i = 0; i < entity->num_pads; i++) {
-			if (entity->pads[i].flags & direction_flags)
-				return i;
-		}
-
-		return -ENXIO;
-	}
-
-	ret = fwnode_graph_parse_endpoint(fwnode, &endpoint);
-	if (ret)
-		return ret;
-
-	ret = entity->ops->get_fwnode_pad(entity, &endpoint);
-	if (ret < 0)
-		return ret;
-
-	if (ret >= entity->num_pads)
-		return -ENXIO;
-
-	if (!(entity->pads[ret].flags & direction_flags))
-		return -ENXIO;
-
-	return ret;
-}
-EXPORT_SYMBOL_GPL(media_entity_get_fwnode_pad);
-
 /* -----------------------------------------------------------------------------
  * Pipeline management
  */
@@ -993,6 +958,41 @@ struct media_pad *media_pad_remote_pad_unique(const struct media_pad *pad)
 	return found_pad;
 }
 EXPORT_SYMBOL_GPL(media_pad_remote_pad_unique);
+
+int media_entity_get_fwnode_pad(struct media_entity *entity,
+				struct fwnode_handle *fwnode,
+				unsigned long direction_flags)
+{
+	struct fwnode_endpoint endpoint;
+	unsigned int i;
+	int ret;
+
+	if (!entity->ops || !entity->ops->get_fwnode_pad) {
+		for (i = 0; i < entity->num_pads; i++) {
+			if (entity->pads[i].flags & direction_flags)
+				return i;
+		}
+
+		return -ENXIO;
+	}
+
+	ret = fwnode_graph_parse_endpoint(fwnode, &endpoint);
+	if (ret)
+		return ret;
+
+	ret = entity->ops->get_fwnode_pad(entity, &endpoint);
+	if (ret < 0)
+		return ret;
+
+	if (ret >= entity->num_pads)
+		return -ENXIO;
+
+	if (!(entity->pads[ret].flags & direction_flags))
+		return -ENXIO;
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(media_entity_get_fwnode_pad);
 
 static void media_interface_init(struct media_device *mdev,
 				 struct media_interface *intf,
