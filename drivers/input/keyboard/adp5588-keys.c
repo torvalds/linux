@@ -147,9 +147,13 @@ static int adp5588_gpio_direction_output(struct gpio_chip *chip,
 
 	ret = adp5588_write(kpad->client, GPIO_DAT_OUT1 + bank,
 				 kpad->dat_out[bank]);
-	ret |= adp5588_write(kpad->client, GPIO_DIR1 + bank,
+	if (ret)
+		goto out_unlock;
+
+	ret = adp5588_write(kpad->client, GPIO_DIR1 + bank,
 				 kpad->dir[bank]);
 
+out_unlock:
 	mutex_unlock(&kpad->gpio_lock);
 
 	return ret;
@@ -451,42 +455,58 @@ static int adp5588_setup(struct i2c_client *client)
 	int i, ret;
 
 	ret = adp5588_write(client, KP_GPIO1, KP_SEL(pdata->rows));
-	ret |= adp5588_write(client, KP_GPIO2, KP_SEL(pdata->cols) & 0xFF);
-	ret |= adp5588_write(client, KP_GPIO3, KP_SEL(pdata->cols) >> 8);
+	if (ret)
+		return ret;
+
+	ret = adp5588_write(client, KP_GPIO2, KP_SEL(pdata->cols) & 0xFF);
+	if (ret)
+		return ret;
+
+	ret = adp5588_write(client, KP_GPIO3, KP_SEL(pdata->cols) >> 8);
+	if (ret)
+		return ret;
 
 	if (pdata->en_keylock) {
-		ret |= adp5588_write(client, UNLOCK1, pdata->unlock_key1);
-		ret |= adp5588_write(client, UNLOCK2, pdata->unlock_key2);
-		ret |= adp5588_write(client, KEY_LCK_EC_STAT, ADP5588_K_LCK_EN);
+		ret = adp5588_write(client, UNLOCK1, pdata->unlock_key1);
+		if (ret)
+			return ret;
+
+		ret = adp5588_write(client, UNLOCK2, pdata->unlock_key2);
+		if (ret)
+			return ret;
+
+		ret = adp5588_write(client, KEY_LCK_EC_STAT, ADP5588_K_LCK_EN);
+		if (ret)
+			return ret;
 	}
 
-	for (i = 0; i < KEYP_MAX_EVENT; i++)
-		ret |= adp5588_read(client, Key_EVENTA);
+	for (i = 0; i < KEYP_MAX_EVENT; i++) {
+		ret = adp5588_read(client, Key_EVENTA);
+		if (ret)
+			return ret;
+	}
 
 	if (gpio_data) {
 		for (i = 0; i <= ADP5588_BANK(ADP5588_MAXGPIO); i++) {
 			int pull_mask = gpio_data->pullup_dis_mask;
 
-			ret |= adp5588_write(client, GPIO_PULL1 + i,
+			ret = adp5588_write(client, GPIO_PULL1 + i,
 				(pull_mask >> (8 * i)) & 0xFF);
+			if (ret)
+				return ret;
 		}
 	}
 
-	ret |= adp5588_write(client, INT_STAT,
+	ret = adp5588_write(client, INT_STAT,
 				ADP5588_CMP2_INT | ADP5588_CMP1_INT |
 				ADP5588_OVR_FLOW_INT | ADP5588_K_LCK_INT |
 				ADP5588_GPI_INT | ADP5588_KE_INT); /* Status is W1C */
+	if (ret)
+		return ret;
 
-	ret |= adp5588_write(client, CFG, ADP5588_INT_CFG |
+	return adp5588_write(client, CFG, ADP5588_INT_CFG |
 					  ADP5588_OVR_FLOW_IEN |
 					  ADP5588_KE_IEN);
-
-	if (ret < 0) {
-		dev_err(&client->dev, "Write Error\n");
-		return ret;
-	}
-
-	return 0;
 }
 
 static int adp5588_probe(struct i2c_client *client,
