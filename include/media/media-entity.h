@@ -101,13 +101,33 @@ struct media_graph {
  * struct media_pipeline - Media pipeline related information
  *
  * @allocated:		Media pipeline allocated and freed by the framework
+ * @mdev:		The media device the pipeline is part of
+ * @pads:		List of media_pipeline_pad
  * @start_count:	Media pipeline start - stop count
- * @graph:		Media graph walk during pipeline start / stop
  */
 struct media_pipeline {
 	bool allocated;
+	struct media_device *mdev;
+	struct list_head pads;
 	int start_count;
-	struct media_graph graph;
+};
+
+/**
+ * struct media_pipeline_pad - A pad part of a media pipeline
+ *
+ * @list:		Entry in the media_pad pads list
+ * @pipe:		The media_pipeline that the pad is part of
+ * @pad:		The media pad
+ *
+ * This structure associate a pad with a media pipeline. Instances of
+ * media_pipeline_pad are created by media_pipeline_start() when it builds the
+ * pipeline, and stored in the &media_pad.pads list. media_pipeline_stop()
+ * removes the entries from the list and deletes them.
+ */
+struct media_pipeline_pad {
+	struct list_head list;
+	struct media_pipeline *pipe;
+	struct media_pad *pad;
 };
 
 /**
@@ -189,6 +209,8 @@ enum media_pad_signal_type {
  * @flags:	Pad flags, as defined in
  *		:ref:`include/uapi/linux/media.h <media_header>`
  *		(seek for ``MEDIA_PAD_FL_*``)
+ * @pipe:	Pipeline this pad belongs to. Use media_entity_pipeline() to
+ *		access this field.
  */
 struct media_pad {
 	struct media_gobj graph_obj;	/* must be first field in struct */
@@ -196,6 +218,12 @@ struct media_pad {
 	u16 index;
 	enum media_pad_signal_type sig_type;
 	unsigned long flags;
+
+	/*
+	 * The fields below are private, and should only be accessed via
+	 * appropriate functions.
+	 */
+	struct media_pipeline *pipe;
 };
 
 /**
@@ -272,7 +300,6 @@ enum media_entity_type {
  * @links:	List of data links.
  * @ops:	Entity operations.
  * @use_count:	Use count for the entity.
- * @pipe:	Pipeline this entity belongs to.
  * @info:	Union with devnode information.  Kept just for backward
  *		compatibility.
  * @info.dev:	Contains device major and minor info.
@@ -307,8 +334,6 @@ struct media_entity {
 	const struct media_entity_operations *ops;
 
 	int use_count;
-
-	struct media_pipeline *pipe;
 
 	union {
 		struct {
@@ -939,6 +964,18 @@ media_entity_remote_source_pad_unique(const struct media_entity *entity)
 }
 
 /**
+ * media_pad_is_streaming - Test if a pad is part of a streaming pipeline
+ * @pad: The pad
+ *
+ * Return: True if the pad is part of a pipeline started with the
+ * media_pipeline_start() function, false otherwise.
+ */
+static inline bool media_pad_is_streaming(const struct media_pad *pad)
+{
+	return pad->pipe;
+}
+
+/**
  * media_entity_is_streaming - Test if an entity is part of a streaming pipeline
  * @entity: The entity
  *
@@ -947,12 +984,21 @@ media_entity_remote_source_pad_unique(const struct media_entity *entity)
  */
 static inline bool media_entity_is_streaming(const struct media_entity *entity)
 {
-	return entity->pipe;
+	struct media_pad *pad;
+
+	media_entity_for_each_pad(entity, pad) {
+		if (media_pad_is_streaming(pad))
+			return true;
+	}
+
+	return false;
 }
 
 /**
  * media_entity_pipeline - Get the media pipeline an entity is part of
  * @entity: The entity
+ *
+ * DEPRECATED: use media_pad_pipeline() instead.
  *
  * This function returns the media pipeline that an entity has been associated
  * with when constructing the pipeline with media_pipeline_start(). The pointer
@@ -967,6 +1013,19 @@ static inline bool media_entity_is_streaming(const struct media_entity *entity)
  * not part of any pipeline.
  */
 struct media_pipeline *media_entity_pipeline(struct media_entity *entity);
+
+/**
+ * media_pad_pipeline - Get the media pipeline a pad is part of
+ * @pad: The pad
+ *
+ * This function returns the media pipeline that a pad has been associated
+ * with when constructing the pipeline with media_pipeline_start(). The pointer
+ * remains valid until media_pipeline_stop() is called.
+ *
+ * Return: The media_pipeline the pad is part of, or NULL if the pad is
+ * not part of any pipeline.
+ */
+struct media_pipeline *media_pad_pipeline(struct media_pad *pad);
 
 /**
  * media_entity_get_fwnode_pad - Get pad number from fwnode
