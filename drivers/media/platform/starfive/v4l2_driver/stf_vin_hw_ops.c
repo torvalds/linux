@@ -288,7 +288,6 @@ static int stf_vin_config_set(struct stf_vin2_dev *vin_dev)
 
 static int stf_vin_wr_stream_set(struct stf_vin2_dev *vin_dev, int on)
 {
-	struct stfcamss *stfcamss = vin_dev->stfcamss;
 	struct stf_vin_dev *vin = vin_dev->stfcamss->vin;
 
 	//make the axiwr alway on
