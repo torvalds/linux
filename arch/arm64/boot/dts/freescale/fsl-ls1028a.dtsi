@@ -1156,6 +1156,7 @@
 					mscc_felix_port4: port@4 {
 						reg = <4>;
 						phy-mode = "internal";
+						ethernet = <&enetc_port2>;
 						status = "disabled";
 
 						fixed-link {

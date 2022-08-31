@@ -104,7 +104,6 @@
 };
 
 &mscc_felix_port4 {
-	ethernet = <&enetc_port2>;
 	status = "okay";
 };
 
