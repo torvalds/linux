@@ -271,7 +271,7 @@ struct st_lsm6dsrx_reg {
 	u8 mask;
 };
 
-enum st_asm330lhh_suspend_resume_register {
+enum st_lsm6dsrx_suspend_resume_register {
 	ST_LSM6DSRX_CTRL1_XL_REG = 0,
 	ST_LSM6DSRX_CTRL2_G_REG,
 	ST_LSM6DSRX_REG_CTRL3_C_REG,
@@ -304,7 +304,7 @@ enum st_asm330lhh_suspend_resume_register {
  * FUNC_CFG_ACCESS_FUNC_CFG Enable access to the embedded functions
  *                          configuration registers.
  */
-enum st_asm330lhh_page_sel_register {
+enum st_lsm6dsrx_page_sel_register {
 	FUNC_CFG_ACCESS_0 = 0,
 	FUNC_CFG_ACCESS_SHUB_REG,
 	FUNC_CFG_ACCESS_FUNC_CFG,
