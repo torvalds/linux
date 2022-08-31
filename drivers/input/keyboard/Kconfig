@@ -42,6 +42,7 @@ config KEYBOARD_ADP5588
 	depends on I2C
 	select GPIOLIB
 	select GPIOLIB_IRQCHIP
+	select INPUT_MATRIXKMAP
 	help
 	  Say Y here if you want to use a ADP5588/87 attached to your
 	  system I2C bus.
