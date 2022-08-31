@@ -1751,34 +1751,60 @@ emit_jmp:
 static void save_regs(const struct btf_func_model *m, u8 **prog, int nr_args,
 		      int stack_size)
 {
-	int i;
+	int i, j, arg_size, nr_regs;
 	/* Store function arguments to stack.
 	 * For a function that accepts two pointers the sequence will be:
 	 * mov QWORD PTR [rbp-0x10],rdi
 	 * mov QWORD PTR [rbp-0x8],rsi
 	 */
-	for (i = 0; i < min(nr_args, 6); i++)
-		emit_stx(prog, bytes_to_bpf_size(m->arg_size[i]),
-			 BPF_REG_FP,
-			 i == 5 ? X86_REG_R9 : BPF_REG_1 + i,
-			 -(stack_size - i * 8));
+	for (i = 0, j = 0; i < min(nr_args, 6); i++) {
+		if (m->arg_flags[i] & BTF_FMODEL_STRUCT_ARG) {
+			nr_regs = (m->arg_size[i] + 7) / 8;
+			arg_size = 8;
+		} else {
+			nr_regs = 1;
+			arg_size = m->arg_size[i];
+		}
+
+		while (nr_regs) {
+			emit_stx(prog, bytes_to_bpf_size(arg_size),
+				 BPF_REG_FP,
+				 j == 5 ? X86_REG_R9 : BPF_REG_1 + j,
+				 -(stack_size - j * 8));
+			nr_regs--;
+			j++;
+		}
+	}
 }
 
 static void restore_regs(const struct btf_func_model *m, u8 **prog, int nr_args,
 			 int stack_size)
 {
-	int i;
+	int i, j, arg_size, nr_regs;
 
 	/* Restore function arguments from stack.
 	 * For a function that accepts two pointers the sequence will be:
 	 * EMIT4(0x48, 0x8B, 0x7D, 0xF0); mov rdi,QWORD PTR [rbp-0x10]
 	 * EMIT4(0x48, 0x8B, 0x75, 0xF8); mov rsi,QWORD PTR [rbp-0x8]
 	 */
-	for (i = 0; i < min(nr_args, 6); i++)
-		emit_ldx(prog, bytes_to_bpf_size(m->arg_size[i]),
-			 i == 5 ? X86_REG_R9 : BPF_REG_1 + i,
-			 BPF_REG_FP,
-			 -(stack_size - i * 8));
+	for (i = 0, j = 0; i < min(nr_args, 6); i++) {
+		if (m->arg_flags[i] & BTF_FMODEL_STRUCT_ARG) {
+			nr_regs = (m->arg_size[i] + 7) / 8;
+			arg_size = 8;
+		} else {
+			nr_regs = 1;
+			arg_size = m->arg_size[i];
+		}
+
+		while (nr_regs) {
+			emit_ldx(prog, bytes_to_bpf_size(arg_size),
+				 j == 5 ? X86_REG_R9 : BPF_REG_1 + j,
+				 BPF_REG_FP,
+				 -(stack_size - j * 8));
+			nr_regs--;
+			j++;
+		}
+	}
 }
 
 static int invoke_bpf_prog(const struct btf_func_model *m, u8 **pprog,
@@ -2015,7 +2041,7 @@ int arch_prepare_bpf_trampoline(struct bpf_tramp_image *im, void *image, void *i
 				struct bpf_tramp_links *tlinks,
 				void *orig_call)
 {
-	int ret, i, nr_args = m->nr_args;
+	int ret, i, nr_args = m->nr_args, extra_nregs = 0;
 	int regs_off, ip_off, args_off, stack_size = nr_args * 8, run_ctx_off;
 	struct bpf_tramp_links *fentry = &tlinks[BPF_TRAMP_FENTRY];
 	struct bpf_tramp_links *fexit = &tlinks[BPF_TRAMP_FEXIT];
@@ -2027,6 +2053,14 @@ int arch_prepare_bpf_trampoline(struct bpf_tramp_image *im, void *image, void *i
 	/* x86-64 supports up to 6 arguments. 7+ can be added in the future */
 	if (nr_args > 6)
 		return -ENOTSUPP;
+
+	for (i = 0; i < MAX_BPF_FUNC_ARGS; i++) {
+		if (m->arg_flags[i] & BTF_FMODEL_STRUCT_ARG)
+			extra_nregs += (m->arg_size[i] + 7) / 8 - 1;
+	}
+	if (nr_args + extra_nregs > 6)
+		return -ENOTSUPP;
+	stack_size += extra_nregs * 8;
 
 	/* Generated trampoline stack layout:
 	 *
@@ -2040,7 +2074,7 @@ int arch_prepare_bpf_trampoline(struct bpf_tramp_image *im, void *image, void *i
 	 *                 [ ...             ]
 	 * RBP - regs_off  [ reg_arg1        ]  program's ctx pointer
 	 *
-	 * RBP - args_off  [ args count      ]  always
+	 * RBP - args_off  [ arg regs count  ]  always
 	 *
 	 * RBP - ip_off    [ traced function ]  BPF_TRAMP_F_IP_ARG flag
 	 *
@@ -2083,11 +2117,11 @@ int arch_prepare_bpf_trampoline(struct bpf_tramp_image *im, void *image, void *i
 	EMIT4(0x48, 0x83, 0xEC, stack_size); /* sub rsp, stack_size */
 	EMIT1(0x53);		 /* push rbx */
 
-	/* Store number of arguments of the traced function:
-	 *   mov rax, nr_args
+	/* Store number of argument registers of the traced function:
+	 *   mov rax, nr_args + extra_nregs
 	 *   mov QWORD PTR [rbp - args_off], rax
 	 */
-	emit_mov_imm64(&prog, BPF_REG_0, 0, (u32) nr_args);
+	emit_mov_imm64(&prog, BPF_REG_0, 0, (u32) nr_args + extra_nregs);
 	emit_stx(&prog, BPF_DW, BPF_REG_FP, BPF_REG_0, -args_off);
 
 	if (flags & BPF_TRAMP_F_IP_ARG) {
