@@ -1825,6 +1825,7 @@ static inline void rcu_copy_process(struct task_struct *p)
 	p->trc_reader_nesting = 0;
 	p->trc_reader_special.s = 0;
 	INIT_LIST_HEAD(&p->trc_holdout_list);
+	INIT_LIST_HEAD(&p->trc_blkd_node);
 #endif /* #ifdef CONFIG_TASKS_TRACE_RCU */
 }
 
@@ -2044,8 +2045,11 @@ static __latent_entropy struct task_struct *copy_process(
 	/*
 	 * If the new process will be in a different time namespace
 	 * do not allow it to share VM or a thread group with the forking task.
+	 *
+	 * On vfork, the child process enters the target time namespace only
+	 * after exec.
 	 */
-	if (clone_flags & (CLONE_THREAD | CLONE_VM)) {
+	if ((clone_flags & (CLONE_VM | CLONE_VFORK)) == CLONE_VM) {
 		if (nsp->time_ns != nsp->time_ns_for_children)
 			return ERR_PTR(-EINVAL);
 	}

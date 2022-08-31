@@ -68,7 +68,7 @@ static int incfs_getattr(struct user_namespace *ns, const struct path *path,
 static ssize_t incfs_getxattr(struct dentry *d, const char *name,
 			void *value, size_t size);
 static ssize_t incfs_setxattr(struct user_namespace *ns, struct dentry *d,
-			      const char *name, const void *value, size_t size,
+			      const char *name, void *value, size_t size,
 			      int flags);
 static ssize_t incfs_listxattr(struct dentry *d, char *list, size_t size);
 
@@ -175,7 +175,7 @@ static int incfs_handler_setxattr(const struct xattr_handler *xh,
 				  const char *name, const void *buffer,
 				  size_t size, int flags)
 {
-	return incfs_setxattr(ns, d, name, buffer, size, flags);
+	return incfs_setxattr(ns, d, name, (void *)buffer, size, flags);
 }
 
 static const struct xattr_handler incfs_xattr_handler = {
@@ -1710,7 +1710,7 @@ static ssize_t incfs_getxattr(struct dentry *d, const char *name,
 
 
 static ssize_t incfs_setxattr(struct user_namespace *ns, struct dentry *d,
-			      const char *name, const void *value, size_t size,
+			      const char *name, void *value, size_t size,
 			      int flags)
 {
 	struct dentry_info *di = get_incfs_dentry(d);

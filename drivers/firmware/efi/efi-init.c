@@ -240,6 +240,7 @@ void __init efi_init(void)
 	 * And now, memblock is fully populated, it is time to do capping.
 	 */
 	early_init_dt_check_for_usable_mem_range();
+	efi_find_mirror();
 	efi_esrt_init();
 	efi_mokvar_table_init();
 

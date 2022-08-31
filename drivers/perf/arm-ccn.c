@@ -1250,7 +1250,7 @@ static int arm_ccn_pmu_init(struct arm_ccn *ccn)
 	ccn->dt.cmp_mask[CCN_IDX_MASK_OPCODE].h = ~(0x1f << 9);
 
 	/* Get a convenient /sys/event_source/devices/ name */
-	ccn->dt.id = ida_simple_get(&arm_ccn_pmu_ida, 0, 0, GFP_KERNEL);
+	ccn->dt.id = ida_alloc(&arm_ccn_pmu_ida, GFP_KERNEL);
 	if (ccn->dt.id == 0) {
 		name = "ccn";
 	} else {
@@ -1312,7 +1312,7 @@ error_pmu_register:
 					    &ccn->dt.node);
 error_set_affinity:
 error_choose_name:
-	ida_simple_remove(&arm_ccn_pmu_ida, ccn->dt.id);
+	ida_free(&arm_ccn_pmu_ida, ccn->dt.id);
 	for (i = 0; i < ccn->num_xps; i++)
 		writel(0, ccn->xp[i].base + CCN_XP_DT_CONTROL);
 	writel(0, ccn->dt.base + CCN_DT_PMCR);
@@ -1329,7 +1329,7 @@ static void arm_ccn_pmu_cleanup(struct arm_ccn *ccn)
 		writel(0, ccn->xp[i].base + CCN_XP_DT_CONTROL);
 	writel(0, ccn->dt.base + CCN_DT_PMCR);
 	perf_pmu_unregister(&ccn->dt.pmu);
-	ida_simple_remove(&arm_ccn_pmu_ida, ccn->dt.id);
+	ida_free(&arm_ccn_pmu_ida, ccn->dt.id);
 }
 
 static int arm_ccn_for_each_valid_region(struct arm_ccn *ccn,

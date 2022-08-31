@@ -106,3 +106,5 @@ __releases  - 指定的锁在函数进入时被持有，但在退出时不被持
 
 make 的可选变量 CHECKFLAGS 可以用来向 sparse 工具传递参数。编译系统会自
 动向 sparse 工具传递 -Wbitwise 参数。
+
+注意sparse定义了__CHECKER__预处理器符号。

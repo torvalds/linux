@@ -206,7 +206,7 @@
 		blsp1_uart3: serial@831000 {
 			compatible = "qcom,msm-uartdm-v1.4", "qcom,msm-uartdm";
 			reg = <0x00831000 0x200>;
-			interrupts = <GIC_SPI 26 IRQ_TYPE_LEVEL_LOW>;
+			interrupts = <GIC_SPI 26 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&gcc 30>,
 				 <&gcc 9>;
 			clock-names = "core", "iface";
@@ -388,7 +388,7 @@
 			reg = <0x01fc0000 0x1000>;
 		};
 
-		sdhc_1: sdhci@8804000 {
+		sdhc_1: mmc@8804000 {
 			compatible = "qcom,sdx55-sdhci", "qcom,sdhci-msm-v5";
 			reg = <0x08804000 0x1000>;
 			interrupts = <GIC_SPI 210 IRQ_TYPE_LEVEL_HIGH>,
@@ -561,8 +561,8 @@
 			#interrupt-cells = <2>;
 		};
 
-		imem@1468f000 {
-			compatible = "simple-mfd";
+		sram@1468f000 {
+			compatible = "qcom,sdx55-imem", "syscon", "simple-mfd";
 			reg = <0x1468f000 0x1000>;
 
 			#address-cells = <1>;

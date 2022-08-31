@@ -604,7 +604,7 @@ void clear_inode(struct inode *inode)
 {
 	/*
 	 * We have to cycle the i_pages lock here because reclaim can be in the
-	 * process of removing the last page (in __delete_from_page_cache())
+	 * process of removing the last page (in __filemap_remove_folio())
 	 * and we must not free the mapping under it.
 	 */
 	xa_lock_irq(&inode->i_data.i_pages);
@@ -2010,67 +2010,57 @@ static int __remove_privs(struct user_namespace *mnt_userns,
 	return notify_change(mnt_userns, dentry, &newattrs, NULL);
 }
 
-/*
- * Remove special file priviledges (suid, capabilities) when file is written
- * to or truncated.
- */
-int file_remove_privs(struct file *file)
+static int __file_remove_privs(struct file *file, unsigned int flags)
 {
 	struct dentry *dentry = file_dentry(file);
 	struct inode *inode = file_inode(file);
+	int error;
 	int kill;
-	int error = 0;
 
-	/*
-	 * Fast path for nothing security related.
-	 * As well for non-regular files, e.g. blkdev inodes.
-	 * For example, blkdev_write_iter() might get here
-	 * trying to remove privs which it is not allowed to.
-	 */
 	if (IS_NOSEC(inode) || !S_ISREG(inode->i_mode))
 		return 0;
 
 	kill = dentry_needs_remove_privs(dentry);
-	if (kill < 0)
+	if (kill <= 0)
 		return kill;
-	if (kill)
-		error = __remove_privs(file_mnt_user_ns(file), dentry, kill);
+
+	if (flags & IOCB_NOWAIT)
+		return -EAGAIN;
+
+	error = __remove_privs(file_mnt_user_ns(file), dentry, kill);
 	if (!error)
 		inode_has_no_xattr(inode);
 
 	return error;
 }
-EXPORT_SYMBOL(file_remove_privs);
 
 /**
- *	file_update_time	-	update mtime and ctime time
- *	@file: file accessed
+ * file_remove_privs - remove special file privileges (suid, capabilities)
+ * @file: file to remove privileges from
  *
- *	Update the mtime and ctime members of an inode and mark the inode
- *	for writeback.  Note that this function is meant exclusively for
- *	usage in the file write path of filesystems, and filesystems may
- *	choose to explicitly ignore update via this function with the
- *	S_NOCMTIME inode flag, e.g. for network filesystem where these
- *	timestamps are handled by the server.  This can return an error for
- *	file systems who need to allocate space in order to update an inode.
+ * When file is modified by a write or truncation ensure that special
+ * file privileges are removed.
+ *
+ * Return: 0 on success, negative errno on failure.
  */
-
-int file_update_time(struct file *file)
+int file_remove_privs(struct file *file)
 {
-	struct inode *inode = file_inode(file);
-	struct timespec64 now;
+	return __file_remove_privs(file, 0);
+}
+EXPORT_SYMBOL(file_remove_privs);
+
+static int inode_needs_update_time(struct inode *inode, struct timespec64 *now)
+{
 	int sync_it = 0;
-	int ret;
 
 	/* First try to exhaust all avenues to not sync */
 	if (IS_NOCMTIME(inode))
 		return 0;
 
-	now = current_time(inode);
-	if (!timespec64_equal(&inode->i_mtime, &now))
+	if (!timespec64_equal(&inode->i_mtime, now))
 		sync_it = S_MTIME;
 
-	if (!timespec64_equal(&inode->i_ctime, &now))
+	if (!timespec64_equal(&inode->i_ctime, now))
 		sync_it |= S_CTIME;
 
 	if (IS_I_VERSION(inode) && inode_iversion_need_inc(inode))
@@ -2079,36 +2069,126 @@ int file_update_time(struct file *file)
 	if (!sync_it)
 		return 0;
 
-	/* Finally allowed to write? Takes lock. */
-	if (__mnt_want_write_file(file))
-		return 0;
+	return sync_it;
+}
 
-	ret = inode_update_time(inode, &now, sync_it);
-	__mnt_drop_write_file(file);
+static int __file_update_time(struct file *file, struct timespec64 *now,
+			int sync_mode)
+{
+	int ret = 0;
+	struct inode *inode = file_inode(file);
+
+	/* try to update time settings */
+	if (!__mnt_want_write_file(file)) {
+		ret = inode_update_time(inode, now, sync_mode);
+		__mnt_drop_write_file(file);
+	}
 
 	return ret;
 }
+
+/**
+ * file_update_time - update mtime and ctime time
+ * @file: file accessed
+ *
+ * Update the mtime and ctime members of an inode and mark the inode for
+ * writeback. Note that this function is meant exclusively for usage in
+ * the file write path of filesystems, and filesystems may choose to
+ * explicitly ignore updates via this function with the _NOCMTIME inode
+ * flag, e.g. for network filesystem where these imestamps are handled
+ * by the server. This can return an error for file systems who need to
+ * allocate space in order to update an inode.
+ *
+ * Return: 0 on success, negative errno on failure.
+ */
+int file_update_time(struct file *file)
+{
+	int ret;
+	struct inode *inode = file_inode(file);
+	struct timespec64 now = current_time(inode);
+
+	ret = inode_needs_update_time(inode, &now);
+	if (ret <= 0)
+		return ret;
+
+	return __file_update_time(file, &now, ret);
+}
 EXPORT_SYMBOL(file_update_time);
 
-/* Caller must hold the file's inode lock */
-int file_modified(struct file *file)
+/**
+ * file_modified_flags - handle mandated vfs changes when modifying a file
+ * @file: file that was modified
+ * @flags: kiocb flags
+ *
+ * When file has been modified ensure that special
+ * file privileges are removed and time settings are updated.
+ *
+ * If IOCB_NOWAIT is set, special file privileges will not be removed and
+ * time settings will not be updated. It will return -EAGAIN.
+ *
+ * Context: Caller must hold the file's inode lock.
+ *
+ * Return: 0 on success, negative errno on failure.
+ */
+static int file_modified_flags(struct file *file, int flags)
 {
-	int err;
+	int ret;
+	struct inode *inode = file_inode(file);
+	struct timespec64 now = current_time(inode);
 
 	/*
 	 * Clear the security bits if the process is not being run by root.
 	 * This keeps people from modifying setuid and setgid binaries.
 	 */
-	err = file_remove_privs(file);
-	if (err)
-		return err;
+	ret = __file_remove_privs(file, flags);
+	if (ret)
+		return ret;
 
 	if (unlikely(file->f_mode & FMODE_NOCMTIME))
 		return 0;
 
-	return file_update_time(file);
+	ret = inode_needs_update_time(inode, &now);
+	if (ret <= 0)
+		return ret;
+	if (flags & IOCB_NOWAIT)
+		return -EAGAIN;
+
+	return __file_update_time(file, &now, ret);
+}
+
+/**
+ * file_modified - handle mandated vfs changes when modifying a file
+ * @file: file that was modified
+ *
+ * When file has been modified ensure that special
+ * file privileges are removed and time settings are updated.
+ *
+ * Context: Caller must hold the file's inode lock.
+ *
+ * Return: 0 on success, negative errno on failure.
+ */
+int file_modified(struct file *file)
+{
+	return file_modified_flags(file, 0);
 }
 EXPORT_SYMBOL(file_modified);
+
+/**
+ * kiocb_modified - handle mandated vfs changes when modifying a file
+ * @iocb: iocb that was modified
+ *
+ * When file has been modified ensure that special
+ * file privileges are removed and time settings are updated.
+ *
+ * Context: Caller must hold the file's inode lock.
+ *
+ * Return: 0 on success, negative errno on failure.
+ */
+int kiocb_modified(struct kiocb *iocb)
+{
+	return file_modified_flags(iocb->ki_filp, iocb->ki_flags);
+}
+EXPORT_SYMBOL_GPL(kiocb_modified);
 
 int inode_needs_sync(struct inode *inode)
 {

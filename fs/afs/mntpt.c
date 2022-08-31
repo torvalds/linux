@@ -132,12 +132,6 @@ static int afs_mntpt_set_params(struct fs_context *fc, struct dentry *mntpt)
 		if (IS_ERR(page))
 			return PTR_ERR(page);
 
-		if (PageError(page)) {
-			ret = afs_bad(AFS_FS_I(d_inode(mntpt)), afs_file_error_mntpt);
-			put_page(page);
-			return ret;
-		}
-
 		buf = kmap(page);
 		ret = -EINVAL;
 		if (buf[size - 1] == '.')

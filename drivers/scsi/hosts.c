@@ -566,8 +566,7 @@ struct Scsi_Host *scsi_host_get(struct Scsi_Host *shost)
 }
 EXPORT_SYMBOL(scsi_host_get);
 
-static bool scsi_host_check_in_flight(struct request *rq, void *data,
-				      bool reserved)
+static bool scsi_host_check_in_flight(struct request *rq, void *data)
 {
 	int *count = data;
 	struct scsi_cmnd *cmd = blk_mq_rq_to_pdu(rq);
@@ -662,7 +661,7 @@ void scsi_flush_work(struct Scsi_Host *shost)
 }
 EXPORT_SYMBOL_GPL(scsi_flush_work);
 
-static bool complete_all_cmds_iter(struct request *rq, void *data, bool rsvd)
+static bool complete_all_cmds_iter(struct request *rq, void *data)
 {
 	struct scsi_cmnd *scmd = blk_mq_rq_to_pdu(rq);
 	enum scsi_host_status status = *(enum scsi_host_status *)data;
@@ -693,17 +692,16 @@ void scsi_host_complete_all_commands(struct Scsi_Host *shost,
 EXPORT_SYMBOL_GPL(scsi_host_complete_all_commands);
 
 struct scsi_host_busy_iter_data {
-	bool (*fn)(struct scsi_cmnd *, void *, bool);
+	bool (*fn)(struct scsi_cmnd *, void *);
 	void *priv;
 };
 
-static bool __scsi_host_busy_iter_fn(struct request *req, void *priv,
-				   bool reserved)
+static bool __scsi_host_busy_iter_fn(struct request *req, void *priv)
 {
 	struct scsi_host_busy_iter_data *iter_data = priv;
 	struct scsi_cmnd *sc = blk_mq_rq_to_pdu(req);
 
-	return iter_data->fn(sc, iter_data->priv, reserved);
+	return iter_data->fn(sc, iter_data->priv);
 }
 
 /**
@@ -716,7 +714,7 @@ static bool __scsi_host_busy_iter_fn(struct request *req, void *priv,
  * ithas to be provided by the caller
  **/
 void scsi_host_busy_iter(struct Scsi_Host *shost,
-			 bool (*fn)(struct scsi_cmnd *, void *, bool),
+			 bool (*fn)(struct scsi_cmnd *, void *),
 			 void *priv)
 {
 	struct scsi_host_busy_iter_data iter_data = {

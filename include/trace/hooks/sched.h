@@ -104,10 +104,6 @@ DECLARE_RESTRICTED_HOOK(android_rvh_migrate_queued_task,
 		 int *detached),
 	TP_ARGS(rq, rf, p, new_cpu, detached), 1);
 
-DECLARE_RESTRICTED_HOOK(android_rvh_find_energy_efficient_cpu,
-	TP_PROTO(struct task_struct *p, int prev_cpu, int sync, int *new_cpu),
-	TP_ARGS(p, prev_cpu, sync, new_cpu), 1);
-
 DECLARE_RESTRICTED_HOOK(android_rvh_cpu_overutilized,
 	TP_PROTO(int cpu, int *overutilized),
 	TP_ARGS(cpu, overutilized), 1);
@@ -134,29 +130,6 @@ struct cgroup_subsys_state;
 DECLARE_RESTRICTED_HOOK(android_rvh_cpu_cgroup_online,
 	TP_PROTO(struct cgroup_subsys_state *css),
 	TP_ARGS(css), 1);
-
-DECLARE_RESTRICTED_HOOK(android_rvh_sched_fork_init,
-	TP_PROTO(struct task_struct *p),
-	TP_ARGS(p), 1);
-
-DECLARE_RESTRICTED_HOOK(android_rvh_ttwu_cond,
-	TP_PROTO(bool *cond),
-	TP_ARGS(cond), 1);
-
-DECLARE_RESTRICTED_HOOK(android_rvh_schedule_bug,
-	TP_PROTO(void *unused),
-	TP_ARGS(unused), 1);
-
-DECLARE_RESTRICTED_HOOK(android_rvh_sched_exec,
-	TP_PROTO(bool *cond),
-	TP_ARGS(cond), 1);
-
-struct em_perf_domain;
-DECLARE_HOOK(android_vh_em_cpu_energy,
-	TP_PROTO(struct em_perf_domain *pd,
-		unsigned long max_util, unsigned long sum_util,
-		unsigned long *energy),
-	TP_ARGS(pd, max_util, sum_util, energy));
 
 DECLARE_HOOK(android_vh_build_sched_domains,
 	TP_PROTO(bool has_asym),

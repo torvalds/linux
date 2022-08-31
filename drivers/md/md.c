@@ -993,15 +993,15 @@ int md_super_wait(struct mddev *mddev)
 }
 
 int sync_page_io(struct md_rdev *rdev, sector_t sector, int size,
-		 struct page *page, int op, int op_flags, bool metadata_op)
+		 struct page *page, blk_opf_t opf, bool metadata_op)
 {
 	struct bio bio;
 	struct bio_vec bvec;
 
 	if (metadata_op && rdev->meta_bdev)
-		bio_init(&bio, rdev->meta_bdev, &bvec, 1, op | op_flags);
+		bio_init(&bio, rdev->meta_bdev, &bvec, 1, opf);
 	else
-		bio_init(&bio, rdev->bdev, &bvec, 1, op | op_flags);
+		bio_init(&bio, rdev->bdev, &bvec, 1, opf);
 
 	if (metadata_op)
 		bio.bi_iter.bi_sector = sector + rdev->sb_start;
@@ -1024,7 +1024,7 @@ static int read_disk_sb(struct md_rdev *rdev, int size)
 	if (rdev->sb_loaded)
 		return 0;
 
-	if (!sync_page_io(rdev, 0, size, rdev->sb_page, REQ_OP_READ, 0, true))
+	if (!sync_page_io(rdev, 0, size, rdev->sb_page, REQ_OP_READ, true))
 		goto fail;
 	rdev->sb_loaded = 1;
 	return 0;
@@ -1722,7 +1722,7 @@ static int super_1_load(struct md_rdev *rdev, struct md_rdev *refdev, int minor_
 			return -EINVAL;
 		bb_sector = (long long)offset;
 		if (!sync_page_io(rdev, bb_sector, sectors << 9,
-				  rdev->bb_page, REQ_OP_READ, 0, true))
+				  rdev->bb_page, REQ_OP_READ, true))
 			return -EIO;
 		bbp = (__le64 *)page_address(rdev->bb_page);
 		rdev->badblocks.shift = sb->bblog_shift;
@@ -2438,7 +2438,7 @@ static int bind_rdev_to_array(struct md_rdev *rdev, struct mddev *mddev)
 			mdname(mddev), mddev->max_disks);
 		return -EBUSY;
 	}
-	bdevname(rdev->bdev,b);
+	snprintf(b, sizeof(b), "%pg", rdev->bdev);
 	strreplace(b, '/', '!');
 
 	rdev->mddev = mddev;
@@ -5579,7 +5579,7 @@ static void md_free(struct kobject *ko)
 
 	if (mddev->gendisk) {
 		del_gendisk(mddev->gendisk);
-		blk_cleanup_disk(mddev->gendisk);
+		put_disk(mddev->gendisk);
 	}
 	percpu_ref_exit(&mddev->writes_pending);
 
@@ -5718,7 +5718,7 @@ static int md_alloc(dev_t dev, char *name)
 out_del_gendisk:
 	del_gendisk(disk);
 out_cleanup_disk:
-	blk_cleanup_disk(disk);
+	put_disk(disk);
 out_unlock_disks_mutex:
 	mutex_unlock(&disks_mutex);
 	mddev_put(mddev);

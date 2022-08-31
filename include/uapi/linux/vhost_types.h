@@ -107,7 +107,7 @@ struct vhost_memory_region {
 struct vhost_memory {
 	__u32 nregions;
 	__u32 padding;
-	struct vhost_memory_region regions[0];
+	struct vhost_memory_region regions[];
 };
 
 /* VHOST_SCSI specific definitions */
@@ -135,7 +135,7 @@ struct vhost_scsi_target {
 struct vhost_vdpa_config {
 	__u32 off;
 	__u32 len;
-	__u8 buf[0];
+	__u8 buf[];
 };
 
 /* vhost vdpa IOVA range

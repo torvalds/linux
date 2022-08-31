@@ -89,8 +89,10 @@ EXPORT_SYMBOL_GPL(qcom_mdt_get_size);
 
 /**
  * qcom_mdt_read_metadata() - read header and metadata from mdt or mbn
- * @fw:			firmware of mdt header or mbn
- * @data_len:		length of the read metadata blob
+ * @dev:	device handle to associate resources with
+ * @fw:		firmware of mdt header or mbn
+ * @firmware:	name of the firmware, for construction of segment file names
+ * @data_len:	length of the read metadata blob
  * @metadata_phys:	phys address for the assigned metadata buffer
  *
  * The mechanism that performs the authentication of the loading firmware
@@ -199,6 +201,7 @@ free_metadata:
 	return ERR_PTR(ret);
 }
 EXPORT_SYMBOL_GPL(qcom_mdt_read_metadata);
+
 
 static int __qcom_mdt_load(struct device *dev, const struct firmware *fw, const char *firmware,
 			   int pas_id, void *mem_region, phys_addr_t mem_phys, size_t mem_size,

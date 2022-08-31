@@ -163,13 +163,16 @@ extern void __memset_io(volatile void __iomem *, int, size_t);
 /*
  * I/O memory mapping functions.
  */
-extern void __iomem *__ioremap(phys_addr_t phys_addr, size_t size, pgprot_t prot);
-extern void iounmap(volatile void __iomem *addr);
-extern void __iomem *ioremap_cache(phys_addr_t phys_addr, size_t size);
 
-#define ioremap(addr, size)		__ioremap((addr), (size), __pgprot(PROT_DEVICE_nGnRE))
-#define ioremap_wc(addr, size)		__ioremap((addr), (size), __pgprot(PROT_NORMAL_NC))
-#define ioremap_np(addr, size)		__ioremap((addr), (size), __pgprot(PROT_DEVICE_nGnRnE))
+bool ioremap_allowed(phys_addr_t phys_addr, size_t size, unsigned long prot);
+#define ioremap_allowed ioremap_allowed
+
+#define _PAGE_IOREMAP PROT_DEVICE_nGnRE
+
+#define ioremap_wc(addr, size)	\
+	ioremap_prot((addr), (size), PROT_NORMAL_NC)
+#define ioremap_np(addr, size)	\
+	ioremap_prot((addr), (size), PROT_DEVICE_nGnRnE)
 
 /*
  * io{read,write}{16,32,64}be() macros
@@ -183,6 +186,15 @@ extern void __iomem *ioremap_cache(phys_addr_t phys_addr, size_t size);
 #define iowrite64be(v,p)	({ __iowmb(); __raw_writeq((__force __u64)cpu_to_be64(v), p); })
 
 #include <asm-generic/io.h>
+
+#define ioremap_cache ioremap_cache
+static inline void __iomem *ioremap_cache(phys_addr_t addr, size_t size)
+{
+	if (pfn_is_map_memory(__phys_to_pfn(addr)))
+		return (void __iomem *)__phys_to_virt(addr);
+
+	return ioremap_prot(addr, size, PROT_NORMAL);
+}
 
 /*
  * More restrictive address range checking than the default implementation

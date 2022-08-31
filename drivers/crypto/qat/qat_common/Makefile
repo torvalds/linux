@@ -10,6 +10,7 @@ intel_qat-objs := adf_cfg.o \
 	adf_transport.o \
 	adf_admin.o \
 	adf_hw_arbiter.o \
+	adf_sysfs.o \
 	adf_gen2_hw_data.o \
 	adf_gen4_hw_data.o \
 	adf_gen4_pm.o \

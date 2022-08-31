@@ -418,8 +418,6 @@
 
 	vdda-phy-supply = <&vreg_l5b_0p88>;
 	vdda-pll-supply = <&vreg_l6b_1p2>;
-	vdda-max-microamp = <173000>;
-	vdda-pll-max-microamp = <24900>;
 };
 
 &usb_1 {

@@ -123,7 +123,7 @@ struct jffs2_raw_dirent
 	__u8 unused[2];
 	jint32_t node_crc;
 	jint32_t name_crc;
-	__u8 name[0];
+	__u8 name[];
 };
 
 /* The JFFS2 raw inode structure: Used for storage on physical media.  */
@@ -155,7 +155,7 @@ struct jffs2_raw_inode
 	jint16_t flags;	     /* See JFFS2_INO_FLAG_* */
 	jint32_t data_crc;   /* CRC for the (compressed) data.  */
 	jint32_t node_crc;   /* CRC for the raw inode (excluding data)  */
-	__u8 data[0];
+	__u8 data[];
 };
 
 struct jffs2_raw_xattr {
@@ -170,7 +170,7 @@ struct jffs2_raw_xattr {
 	jint16_t value_len;
 	jint32_t data_crc;
 	jint32_t node_crc;
-	__u8 data[0];
+	__u8 data[];
 } __attribute__((packed));
 
 struct jffs2_raw_xref
@@ -196,7 +196,7 @@ struct jffs2_raw_summary
 	jint32_t padded;	/* sum of the size of padding nodes */
 	jint32_t sum_crc;	/* summary information crc */
 	jint32_t node_crc; 	/* node crc */
-	jint32_t sum[0]; 	/* inode summary info */
+	jint32_t sum[]; 	/* inode summary info */
 };
 
 union jffs2_node_union

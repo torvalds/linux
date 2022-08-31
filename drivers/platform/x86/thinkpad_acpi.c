@@ -6842,6 +6842,31 @@ static const struct backlight_ops ibm_backlight_data = {
 
 /* --------------------------------------------------------------------- */
 
+static int __init tpacpi_evaluate_bcl(struct acpi_device *adev, void *not_used)
+{
+	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
+	union acpi_object *obj;
+	acpi_status status;
+	int rc;
+
+	status = acpi_evaluate_object(adev->handle, "_BCL", NULL, &buffer);
+	if (ACPI_FAILURE(status))
+		return 0;
+
+	obj = buffer.pointer;
+	if (!obj || obj->type != ACPI_TYPE_PACKAGE) {
+		acpi_handle_info(adev->handle,
+				 "Unknown _BCL data, please report this to %s\n",
+				 TPACPI_MAIL);
+		rc = 0;
+	} else {
+		rc = obj->package.count;
+	}
+	kfree(obj);
+
+	return rc;
+}
+
 /*
  * Call _BCL method of video device.  On some ThinkPads this will
  * switch the firmware to the ACPI brightness control mode.
@@ -6849,37 +6874,13 @@ static const struct backlight_ops ibm_backlight_data = {
 
 static int __init tpacpi_query_bcl_levels(acpi_handle handle)
 {
-	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
-	union acpi_object *obj;
-	struct acpi_device *device, *child;
-	int rc;
+	struct acpi_device *device;
 
 	device = acpi_fetch_acpi_dev(handle);
 	if (!device)
 		return 0;
 
-	rc = 0;
-	list_for_each_entry(child, &device->children, node) {
-		acpi_status status = acpi_evaluate_object(child->handle, "_BCL",
-							  NULL, &buffer);
-		if (ACPI_FAILURE(status)) {
-			buffer.length = ACPI_ALLOCATE_BUFFER;
-			continue;
-		}
-
-		obj = (union acpi_object *)buffer.pointer;
-		if (!obj || (obj->type != ACPI_TYPE_PACKAGE)) {
-			pr_err("Unknown _BCL data, please report this to %s\n",
-				TPACPI_MAIL);
-			rc = 0;
-		} else {
-			rc = obj->package.count;
-		}
-		break;
-	}
-
-	kfree(buffer.pointer);
-	return rc;
+	return acpi_dev_for_each_child(device, tpacpi_evaluate_bcl, NULL);
 }
 
 

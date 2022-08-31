@@ -1150,24 +1150,25 @@ acpi_video_get_device_type(struct acpi_video_bus *video,
 	return 0;
 }
 
-static int
-acpi_video_bus_get_one_device(struct acpi_device *device,
-			      struct acpi_video_bus *video)
+static int acpi_video_bus_get_one_device(struct acpi_device *device, void *arg)
 {
-	unsigned long long device_id;
-	int status, device_type;
-	struct acpi_video_device *data;
+	struct acpi_video_bus *video = arg;
 	struct acpi_video_device_attrib *attribute;
+	struct acpi_video_device *data;
+	unsigned long long device_id;
+	acpi_status status;
+	int device_type;
 
-	status =
-	    acpi_evaluate_integer(device->handle, "_ADR", NULL, &device_id);
-	/* Some device omits _ADR, we skip them instead of fail */
+	status = acpi_evaluate_integer(device->handle, "_ADR", NULL, &device_id);
+	/* Skip devices without _ADR instead of failing. */
 	if (ACPI_FAILURE(status))
-		return 0;
+		goto exit;
 
 	data = kzalloc(sizeof(struct acpi_video_device), GFP_KERNEL);
-	if (!data)
+	if (!data) {
+		dev_dbg(&device->dev, "Cannot attach\n");
 		return -ENOMEM;
+	}
 
 	strcpy(acpi_device_name(device), ACPI_VIDEO_DEVICE_NAME);
 	strcpy(acpi_device_class(device), ACPI_VIDEO_CLASS);
@@ -1230,7 +1231,9 @@ acpi_video_bus_get_one_device(struct acpi_device *device,
 	list_add_tail(&data->entry, &video->video_device_list);
 	mutex_unlock(&video->device_list_lock);
 
-	return status;
+exit:
+	video->child_count++;
+	return 0;
 }
 
 /*
@@ -1542,9 +1545,6 @@ static int
 acpi_video_bus_get_devices(struct acpi_video_bus *video,
 			   struct acpi_device *device)
 {
-	int status = 0;
-	struct acpi_device *dev;
-
 	/*
 	 * There are systems where video module known to work fine regardless
 	 * of broken _DOD and ignoring returned value here doesn't cause
@@ -1552,16 +1552,7 @@ acpi_video_bus_get_devices(struct acpi_video_bus *video,
 	 */
 	acpi_video_device_enumerate(video);
 
-	list_for_each_entry(dev, &device->children, node) {
-
-		status = acpi_video_bus_get_one_device(dev, video);
-		if (status) {
-			dev_err(&dev->dev, "Can't attach device\n");
-			break;
-		}
-		video->child_count++;
-	}
-	return status;
+	return acpi_dev_for_each_child(device, acpi_video_bus_get_one_device, video);
 }
 
 /* acpi_video interface */

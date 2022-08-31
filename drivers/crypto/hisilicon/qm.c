@@ -877,13 +877,6 @@ static void qm_pm_put_sync(struct hisi_qm *qm)
 	pm_runtime_put_autosuspend(dev);
 }
 
-static struct hisi_qp *qm_to_hisi_qp(struct hisi_qm *qm, struct qm_eqe *eqe)
-{
-	u16 cqn = le32_to_cpu(eqe->dw0) & QM_EQE_CQN_MASK;
-
-	return &qm->qp_array[cqn];
-}
-
 static void qm_cq_head_update(struct hisi_qp *qp)
 {
 	if (qp->qp_status.cq_head == QM_Q_DEPTH - 1) {
@@ -894,47 +887,37 @@ static void qm_cq_head_update(struct hisi_qp *qp)
 	}
 }
 
-static void qm_poll_qp(struct hisi_qp *qp, struct hisi_qm *qm)
+static void qm_poll_req_cb(struct hisi_qp *qp)
 {
-	if (unlikely(atomic_read(&qp->qp_status.flags) == QP_STOP))
-		return;
+	struct qm_cqe *cqe = qp->cqe + qp->qp_status.cq_head;
+	struct hisi_qm *qm = qp->qm;
 
-	if (qp->event_cb) {
-		qp->event_cb(qp);
-		return;
-	}
-
-	if (qp->req_cb) {
-		struct qm_cqe *cqe = qp->cqe + qp->qp_status.cq_head;
-
-		while (QM_CQE_PHASE(cqe) == qp->qp_status.cqc_phase) {
-			dma_rmb();
-			qp->req_cb(qp, qp->sqe + qm->sqe_size *
-				   le16_to_cpu(cqe->sq_head));
-			qm_cq_head_update(qp);
-			cqe = qp->cqe + qp->qp_status.cq_head;
-			qm_db(qm, qp->qp_id, QM_DOORBELL_CMD_CQ,
-			      qp->qp_status.cq_head, 0);
-			atomic_dec(&qp->qp_status.used);
-		}
-
-		/* set c_flag */
+	while (QM_CQE_PHASE(cqe) == qp->qp_status.cqc_phase) {
+		dma_rmb();
+		qp->req_cb(qp, qp->sqe + qm->sqe_size *
+			   le16_to_cpu(cqe->sq_head));
+		qm_cq_head_update(qp);
+		cqe = qp->cqe + qp->qp_status.cq_head;
 		qm_db(qm, qp->qp_id, QM_DOORBELL_CMD_CQ,
-		      qp->qp_status.cq_head, 1);
+		      qp->qp_status.cq_head, 0);
+		atomic_dec(&qp->qp_status.used);
 	}
+
+	/* set c_flag */
+	qm_db(qm, qp->qp_id, QM_DOORBELL_CMD_CQ, qp->qp_status.cq_head, 1);
 }
 
-static void qm_work_process(struct work_struct *work)
+static int qm_get_complete_eqe_num(struct hisi_qm_poll_data *poll_data)
 {
-	struct hisi_qm *qm = container_of(work, struct hisi_qm, work);
+	struct hisi_qm *qm = poll_data->qm;
 	struct qm_eqe *eqe = qm->eqe + qm->status.eq_head;
-	struct hisi_qp *qp;
 	int eqe_num = 0;
+	u16 cqn;
 
 	while (QM_EQE_PHASE(eqe) == qm->status.eqc_phase) {
+		cqn = le32_to_cpu(eqe->dw0) & QM_EQE_CQN_MASK;
+		poll_data->qp_finish_id[eqe_num] = cqn;
 		eqe_num++;
-		qp = qm_to_hisi_qp(qm, eqe);
-		qm_poll_qp(qp, qm);
 
 		if (qm->status.eq_head == QM_EQ_DEPTH - 1) {
 			qm->status.eqc_phase = !qm->status.eqc_phase;
@@ -945,37 +928,70 @@ static void qm_work_process(struct work_struct *work)
 			qm->status.eq_head++;
 		}
 
-		if (eqe_num == QM_EQ_DEPTH / 2 - 1) {
-			eqe_num = 0;
-			qm_db(qm, 0, QM_DOORBELL_CMD_EQ, qm->status.eq_head, 0);
-		}
+		if (eqe_num == (QM_EQ_DEPTH >> 1) - 1)
+			break;
 	}
 
 	qm_db(qm, 0, QM_DOORBELL_CMD_EQ, qm->status.eq_head, 0);
+
+	return eqe_num;
 }
 
-static irqreturn_t do_qm_irq(int irq, void *data)
+static void qm_work_process(struct work_struct *work)
 {
-	struct hisi_qm *qm = (struct hisi_qm *)data;
+	struct hisi_qm_poll_data *poll_data =
+		container_of(work, struct hisi_qm_poll_data, work);
+	struct hisi_qm *qm = poll_data->qm;
+	struct hisi_qp *qp;
+	int eqe_num, i;
 
-	/* the workqueue created by device driver of QM */
-	if (qm->wq)
-		queue_work(qm->wq, &qm->work);
-	else
-		schedule_work(&qm->work);
+	/* Get qp id of completed tasks and re-enable the interrupt. */
+	eqe_num = qm_get_complete_eqe_num(poll_data);
+	for (i = eqe_num - 1; i >= 0; i--) {
+		qp = &qm->qp_array[poll_data->qp_finish_id[i]];
+		if (unlikely(atomic_read(&qp->qp_status.flags) == QP_STOP))
+			continue;
 
-	return IRQ_HANDLED;
+		if (qp->event_cb) {
+			qp->event_cb(qp);
+			continue;
+		}
+
+		if (likely(qp->req_cb))
+			qm_poll_req_cb(qp);
+	}
+}
+
+static bool do_qm_irq(struct hisi_qm *qm)
+{
+	struct qm_eqe *eqe = qm->eqe + qm->status.eq_head;
+	struct hisi_qm_poll_data *poll_data;
+	u16 cqn;
+
+	if (!readl(qm->io_base + QM_VF_EQ_INT_SOURCE))
+		return false;
+
+	if (QM_EQE_PHASE(eqe) == qm->status.eqc_phase) {
+		cqn = le32_to_cpu(eqe->dw0) & QM_EQE_CQN_MASK;
+		poll_data = &qm->poll_data[cqn];
+		queue_work(qm->wq, &poll_data->work);
+
+		return true;
+	}
+
+	return false;
 }
 
 static irqreturn_t qm_irq(int irq, void *data)
 {
 	struct hisi_qm *qm = data;
+	bool ret;
 
-	if (readl(qm->io_base + QM_VF_EQ_INT_SOURCE))
-		return do_qm_irq(irq, data);
+	ret = do_qm_irq(qm);
+	if (ret)
+		return IRQ_HANDLED;
 
 	atomic64_inc(&qm->debug.dfx.err_irq_cnt);
-	dev_err(&qm->pdev->dev, "invalid int source\n");
 	qm_db(qm, 0, QM_DOORBELL_CMD_EQ, qm->status.eq_head, 0);
 
 	return IRQ_NONE;
@@ -3134,11 +3150,8 @@ static int qm_stop_qp_nolock(struct hisi_qp *qp)
 	if (ret)
 		dev_err(dev, "Failed to drain out data for stopping!\n");
 
-	if (qp->qm->wq)
-		flush_workqueue(qp->qm->wq);
-	else
-		flush_work(&qp->qm->work);
 
+	flush_workqueue(qp->qm->wq);
 	if (unlikely(qp->is_resetting && atomic_read(&qp->qp_status.used)))
 		qp_stop_fail_cb(qp);
 
@@ -3557,8 +3570,10 @@ static void hisi_qp_memory_uninit(struct hisi_qm *qm, int num)
 	for (i = num - 1; i >= 0; i--) {
 		qdma = &qm->qp_array[i].qdma;
 		dma_free_coherent(dev, qdma->size, qdma->va, qdma->dma);
+		kfree(qm->poll_data[i].qp_finish_id);
 	}
 
+	kfree(qm->poll_data);
 	kfree(qm->qp_array);
 }
 
@@ -3567,12 +3582,18 @@ static int hisi_qp_memory_init(struct hisi_qm *qm, size_t dma_size, int id)
 	struct device *dev = &qm->pdev->dev;
 	size_t off = qm->sqe_size * QM_Q_DEPTH;
 	struct hisi_qp *qp;
+	int ret = -ENOMEM;
+
+	qm->poll_data[id].qp_finish_id = kcalloc(qm->qp_num, sizeof(u16),
+						 GFP_KERNEL);
+	if (!qm->poll_data[id].qp_finish_id)
+		return -ENOMEM;
 
 	qp = &qm->qp_array[id];
 	qp->qdma.va = dma_alloc_coherent(dev, dma_size, &qp->qdma.dma,
 					 GFP_KERNEL);
 	if (!qp->qdma.va)
-		return -ENOMEM;
+		goto err_free_qp_finish_id;
 
 	qp->sqe = qp->qdma.va;
 	qp->sqe_dma = qp->qdma.dma;
@@ -3583,6 +3604,10 @@ static int hisi_qp_memory_init(struct hisi_qm *qm, size_t dma_size, int id)
 	qp->qp_id = id;
 
 	return 0;
+
+err_free_qp_finish_id:
+	kfree(qm->poll_data[id].qp_finish_id);
+	return ret;
 }
 
 static void hisi_qm_pre_init(struct hisi_qm *qm)
@@ -3672,6 +3697,26 @@ static void qm_last_regs_uninit(struct hisi_qm *qm)
 	debug->qm_last_words = NULL;
 }
 
+static void hisi_qm_unint_work(struct hisi_qm *qm)
+{
+	destroy_workqueue(qm->wq);
+}
+
+static void hisi_qm_memory_uninit(struct hisi_qm *qm)
+{
+	struct device *dev = &qm->pdev->dev;
+
+	hisi_qp_memory_uninit(qm, qm->qp_num);
+	if (qm->qdma.va) {
+		hisi_qm_cache_wb(qm);
+		dma_free_coherent(dev, qm->qdma.size,
+				  qm->qdma.va, qm->qdma.dma);
+	}
+
+	idr_destroy(&qm->qp_idr);
+	kfree(qm->factor);
+}
+
 /**
  * hisi_qm_uninit() - Uninitialize qm.
  * @qm: The qm needed uninit.
@@ -3680,13 +3725,10 @@ static void qm_last_regs_uninit(struct hisi_qm *qm)
  */
 void hisi_qm_uninit(struct hisi_qm *qm)
 {
-	struct pci_dev *pdev = qm->pdev;
-	struct device *dev = &pdev->dev;
-
 	qm_last_regs_uninit(qm);
 
 	qm_cmd_uninit(qm);
-	kfree(qm->factor);
+	hisi_qm_unint_work(qm);
 	down_write(&qm->qps_lock);
 
 	if (!qm_avail_state(qm, QM_CLOSE)) {
@@ -3694,14 +3736,7 @@ void hisi_qm_uninit(struct hisi_qm *qm)
 		return;
 	}
 
-	hisi_qp_memory_uninit(qm, qm->qp_num);
-	idr_destroy(&qm->qp_idr);
-
-	if (qm->qdma.va) {
-		hisi_qm_cache_wb(qm);
-		dma_free_coherent(dev, qm->qdma.size,
-				  qm->qdma.va, qm->qdma.dma);
-	}
+	hisi_qm_memory_uninit(qm);
 	hisi_qm_set_state(qm, QM_NOT_READY);
 	up_write(&qm->qps_lock);
 
@@ -6018,14 +6053,28 @@ err_disable_pcidev:
 	return ret;
 }
 
-static void hisi_qm_init_work(struct hisi_qm *qm)
+static int hisi_qm_init_work(struct hisi_qm *qm)
 {
-	INIT_WORK(&qm->work, qm_work_process);
+	int i;
+
+	for (i = 0; i < qm->qp_num; i++)
+		INIT_WORK(&qm->poll_data[i].work, qm_work_process);
+
 	if (qm->fun_type == QM_HW_PF)
 		INIT_WORK(&qm->rst_work, hisi_qm_controller_reset);
 
 	if (qm->ver > QM_HW_V2)
 		INIT_WORK(&qm->cmd_process, qm_cmd_process);
+
+	qm->wq = alloc_workqueue("%s", WQ_HIGHPRI | WQ_MEM_RECLAIM |
+				 WQ_UNBOUND, num_online_cpus(),
+				 pci_name(qm->pdev));
+	if (!qm->wq) {
+		pci_err(qm->pdev, "failed to alloc workqueue!\n");
+		return -ENOMEM;
+	}
+
+	return 0;
 }
 
 static int hisi_qp_alloc_memory(struct hisi_qm *qm)
@@ -6038,11 +6087,18 @@ static int hisi_qp_alloc_memory(struct hisi_qm *qm)
 	if (!qm->qp_array)
 		return -ENOMEM;
 
+	qm->poll_data = kcalloc(qm->qp_num, sizeof(struct hisi_qm_poll_data), GFP_KERNEL);
+	if (!qm->poll_data) {
+		kfree(qm->qp_array);
+		return -ENOMEM;
+	}
+
 	/* one more page for device or qp statuses */
 	qp_dma_size = qm->sqe_size * QM_Q_DEPTH +
 		      sizeof(struct qm_cqe) * QM_Q_DEPTH;
 	qp_dma_size = PAGE_ALIGN(qp_dma_size) + PAGE_SIZE;
 	for (i = 0; i < qm->qp_num; i++) {
+		qm->poll_data[i].qm = qm;
 		ret = hisi_qp_memory_init(qm, qp_dma_size, i);
 		if (ret)
 			goto err_init_qp_mem;
@@ -6176,7 +6232,10 @@ int hisi_qm_init(struct hisi_qm *qm)
 	if (ret)
 		goto err_alloc_uacce;
 
-	hisi_qm_init_work(qm);
+	ret = hisi_qm_init_work(qm);
+	if (ret)
+		goto err_free_qm_memory;
+
 	qm_cmd_init(qm);
 	atomic_set(&qm->status.flags, QM_INIT);
 
@@ -6184,6 +6243,8 @@ int hisi_qm_init(struct hisi_qm *qm)
 
 	return 0;
 
+err_free_qm_memory:
+	hisi_qm_memory_uninit(qm);
 err_alloc_uacce:
 	if (qm->use_sva) {
 		uacce_remove(qm->uacce);

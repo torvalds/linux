@@ -2,10 +2,6 @@
 /* Marvell CN10K LLC-TAD perf driver
  *
  * Copyright (C) 2021 Marvell
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #define pr_fmt(fmt) "tad_pmu: " fmt
@@ -18,9 +14,9 @@
 #include <linux/perf_event.h>
 #include <linux/platform_device.h>
 
-#define TAD_PFC_OFFSET		0x0
+#define TAD_PFC_OFFSET		0x800
 #define TAD_PFC(counter)	(TAD_PFC_OFFSET | (counter << 3))
-#define TAD_PRF_OFFSET		0x100
+#define TAD_PRF_OFFSET		0x900
 #define TAD_PRF(counter)	(TAD_PRF_OFFSET | (counter << 3))
 #define TAD_PRF_CNTSEL_MASK	0xFF
 #define TAD_MAX_COUNTERS	8
@@ -100,9 +96,7 @@ static void tad_pmu_event_counter_start(struct perf_event *event, int flags)
 	 * which sets TAD()_PRF()[CNTSEL] != 0
 	 */
 	for (i = 0; i < tad_pmu->region_cnt; i++) {
-		reg_val = readq_relaxed(tad_pmu->regions[i].base +
-					TAD_PRF(counter_idx));
-		reg_val |= (event_idx & 0xFF);
+		reg_val = event_idx & 0xFF;
 		writeq_relaxed(reg_val,	tad_pmu->regions[i].base +
 			       TAD_PRF(counter_idx));
 	}

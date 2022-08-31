@@ -6,6 +6,7 @@
 :翻译:
 
  司延腾 Yanteng Si <siyanteng@loongson.cn>
+ 周彬彬 Binbin Zhou <zhoubinbin@loongson.cn>
 
 :校译:
 
@@ -254,7 +255,8 @@ __xa_set_mark() 和 __xa_clear_mark() 函数也适用于你查找一个条目并
 
 高级API是基于xa_state的。这是一个不透明的数据结构，你使用XA_STATE()宏在堆栈中声明。这个宏初始化了
 xa_state，准备开始在XArray上移动。它被用作一个游标来保持在XArray中的位置，并让你把各种操作组合在一
-起，而不必每次都从头开始。
+起，而不必每次都从头开始。xa_state的内容受rcu_read_lock()或xas_lock()的保护。如果需要删除保护状态
+和树的这些锁中的任何一个，你必须调用xas_pause()以便将来的调用不会依赖于状态中未受保护的部分。
 
 xa_state也被用来存储错误(store errors)。你可以调用xas_error()来检索错误。所有的操作在进行之前都
 会检查xa_state是否处于错误状态，所以你没有必要在每次调用之后检查错误；你可以连续进行多次调用，只在

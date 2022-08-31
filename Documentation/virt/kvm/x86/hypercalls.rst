@@ -22,7 +22,7 @@ S390:
   number in R1.
 
   For further information on the S390 diagnose call as supported by KVM,
-  refer to Documentation/virt/kvm/s390-diag.rst.
+  refer to Documentation/virt/kvm/s390/s390-diag.rst.
 
 PowerPC:
   It uses R3-R10 and hypercall number in R11. R4-R11 are used as output registers.

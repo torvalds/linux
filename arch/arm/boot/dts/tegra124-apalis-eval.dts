@@ -191,7 +191,7 @@
 	gpio-keys {
 		compatible = "gpio-keys";
 
-		wakeup {
+		key-wakeup {
 			label = "WAKE1_MICO";
 			gpios = <&gpio TEGRA_GPIO(DD, 3) GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_WAKEUP>;

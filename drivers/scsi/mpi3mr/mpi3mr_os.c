@@ -381,14 +381,12 @@ void mpi3mr_invalidate_devhandles(struct mpi3mr_ioc *mrioc)
  * mpi3mr_print_scmd - print individual SCSI command
  * @rq: Block request
  * @data: Adapter instance reference
- * @reserved: N/A. Currently not used
  *
  * Print the SCSI command details if it is in LLD scope.
  *
  * Return: true always.
  */
-static bool mpi3mr_print_scmd(struct request *rq,
-	void *data, bool reserved)
+static bool mpi3mr_print_scmd(struct request *rq, void *data)
 {
 	struct mpi3mr_ioc *mrioc = (struct mpi3mr_ioc *)data;
 	struct scsi_cmnd *scmd = blk_mq_rq_to_pdu(rq);
@@ -412,7 +410,6 @@ out:
  * mpi3mr_flush_scmd - Flush individual SCSI command
  * @rq: Block request
  * @data: Adapter instance reference
- * @reserved: N/A. Currently not used
  *
  * Return the SCSI command to the upper layers if it is in LLD
  * scope.
@@ -420,8 +417,7 @@ out:
  * Return: true always.
  */
 
-static bool mpi3mr_flush_scmd(struct request *rq,
-	void *data, bool reserved)
+static bool mpi3mr_flush_scmd(struct request *rq, void *data)
 {
 	struct mpi3mr_ioc *mrioc = (struct mpi3mr_ioc *)data;
 	struct scsi_cmnd *scmd = blk_mq_rq_to_pdu(rq);
@@ -451,7 +447,6 @@ out:
  * mpi3mr_count_dev_pending - Count commands pending for a lun
  * @rq: Block request
  * @data: SCSI device reference
- * @reserved: Unused
  *
  * This is an iterator function called for each SCSI command in
  * a host and if the command is pending in the LLD for the
@@ -461,8 +456,7 @@ out:
  * Return: true always.
  */
 
-static bool mpi3mr_count_dev_pending(struct request *rq,
-	void *data, bool reserved)
+static bool mpi3mr_count_dev_pending(struct request *rq, void *data)
 {
 	struct scsi_device *sdev = (struct scsi_device *)data;
 	struct mpi3mr_sdev_priv_data *sdev_priv_data = sdev->hostdata;
@@ -485,7 +479,6 @@ out:
  * mpi3mr_count_tgt_pending - Count commands pending for target
  * @rq: Block request
  * @data: SCSI target reference
- * @reserved: Unused
  *
  * This is an iterator function called for each SCSI command in
  * a host and if the command is pending in the LLD for the
@@ -495,8 +488,7 @@ out:
  * Return: true always.
  */
 
-static bool mpi3mr_count_tgt_pending(struct request *rq,
-	void *data, bool reserved)
+static bool mpi3mr_count_tgt_pending(struct request *rq, void *data)
 {
 	struct scsi_target *starget = (struct scsi_target *)data;
 	struct mpi3mr_stgt_priv_data *stgt_priv_data = starget->hostdata;

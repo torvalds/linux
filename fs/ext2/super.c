@@ -296,9 +296,6 @@ static int ext2_show_options(struct seq_file *seq, struct dentry *root)
 		seq_puts(seq, ",noacl");
 #endif
 
-	if (test_opt(sb, NOBH))
-		seq_puts(seq, ",nobh");
-
 	if (test_opt(sb, USRQUOTA))
 		seq_puts(seq, ",usrquota");
 
@@ -551,7 +548,8 @@ static int parse_options(char *options, struct super_block *sb,
 			clear_opt (opts->s_mount_opt, OLDALLOC);
 			break;
 		case Opt_nobh:
-			set_opt (opts->s_mount_opt, NOBH);
+			ext2_msg(sb, KERN_INFO,
+				"nobh option not supported");
 			break;
 #ifdef CONFIG_EXT2_FS_XATTR
 		case Opt_user_xattr:

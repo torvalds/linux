@@ -22,9 +22,9 @@ config CLK_BCM2835
 
 config CLK_BCM_63XX
 	bool "Broadcom BCM63xx clock support"
-	depends on ARCH_BCM_63XX || COMPILE_TEST
+	depends on ARCH_BCMBCA || COMPILE_TEST
 	select COMMON_CLK_IPROC
-	default ARCH_BCM_63XX
+	default ARCH_BCMBCA
 	help
 	  Enable common clock framework support for Broadcom BCM63xx DSL SoCs
 	  based on the ARM architecture

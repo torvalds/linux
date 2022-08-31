@@ -575,7 +575,7 @@ struct btrfs_inode_extref {
 	__le64 parent_objectid;
 	__le64 index;
 	__le16 name_len;
-	__u8   name[0];
+	__u8   name[];
 	/* name goes here */
 } __attribute__ ((__packed__));
 

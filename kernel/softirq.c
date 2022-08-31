@@ -623,7 +623,7 @@ void irq_enter_rcu(void)
  */
 void irq_enter(void)
 {
-	rcu_irq_enter();
+	ct_irq_enter();
 	irq_enter_rcu();
 }
 
@@ -675,7 +675,7 @@ void irq_exit_rcu(void)
 void irq_exit(void)
 {
 	__irq_exit_rcu();
-	rcu_irq_exit();
+	ct_irq_exit();
 	 /* must be last! */
 	lockdep_hardirq_exit();
 }

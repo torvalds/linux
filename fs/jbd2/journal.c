@@ -1465,7 +1465,8 @@ journal_t *jbd2_journal_init_dev(struct block_device *bdev,
 	if (!journal)
 		return NULL;
 
-	bdevname(journal->j_dev, journal->j_devname);
+	snprintf(journal->j_devname, sizeof(journal->j_devname),
+		 "%pg", journal->j_dev);
 	strreplace(journal->j_devname, '/', '!');
 	jbd2_stats_proc_init(journal);
 
@@ -1507,7 +1508,8 @@ journal_t *jbd2_journal_init_inode(struct inode *inode)
 		return NULL;
 
 	journal->j_inode = inode;
-	bdevname(journal->j_dev, journal->j_devname);
+	snprintf(journal->j_devname, sizeof(journal->j_devname),
+		 "%pg", journal->j_dev);
 	p = strreplace(journal->j_devname, '/', '!');
 	sprintf(p, "-%lu", journal->j_inode->i_ino);
 	jbd2_stats_proc_init(journal);
@@ -1602,7 +1604,7 @@ static int journal_reset(journal_t *journal)
  * This function expects that the caller will have locked the journal
  * buffer head, and will return with it unlocked
  */
-static int jbd2_write_superblock(journal_t *journal, int write_flags)
+static int jbd2_write_superblock(journal_t *journal, blk_opf_t write_flags)
 {
 	struct buffer_head *bh = journal->j_sb_buffer;
 	journal_superblock_t *sb = journal->j_superblock;
@@ -1636,7 +1638,7 @@ static int jbd2_write_superblock(journal_t *journal, int write_flags)
 		sb->s_checksum = jbd2_superblock_csum(journal, sb);
 	get_bh(bh);
 	bh->b_end_io = end_buffer_write_sync;
-	ret = submit_bh(REQ_OP_WRITE, write_flags, bh);
+	ret = submit_bh(REQ_OP_WRITE | write_flags, bh);
 	wait_on_buffer(bh);
 	if (buffer_write_io_error(bh)) {
 		clear_buffer_write_io_error(bh);
@@ -1659,13 +1661,14 @@ static int jbd2_write_superblock(journal_t *journal, int write_flags)
  * @journal: The journal to update.
  * @tail_tid: TID of the new transaction at the tail of the log
  * @tail_block: The first block of the transaction at the tail of the log
- * @write_op: With which operation should we write the journal sb
+ * @write_flags: Flags for the journal sb write operation
  *
  * Update a journal's superblock information about log tail and write it to
  * disk, waiting for the IO to complete.
  */
 int jbd2_journal_update_sb_log_tail(journal_t *journal, tid_t tail_tid,
-				     unsigned long tail_block, int write_op)
+				    unsigned long tail_block,
+				    blk_opf_t write_flags)
 {
 	journal_superblock_t *sb = journal->j_superblock;
 	int ret;
@@ -1685,7 +1688,7 @@ int jbd2_journal_update_sb_log_tail(journal_t *journal, tid_t tail_tid,
 	sb->s_sequence = cpu_to_be32(tail_tid);
 	sb->s_start    = cpu_to_be32(tail_block);
 
-	ret = jbd2_write_superblock(journal, write_op);
+	ret = jbd2_write_superblock(journal, write_flags);
 	if (ret)
 		goto out;
 
@@ -1702,12 +1705,12 @@ out:
 /**
  * jbd2_mark_journal_empty() - Mark on disk journal as empty.
  * @journal: The journal to update.
- * @write_op: With which operation should we write the journal sb
+ * @write_flags: Flags for the journal sb write operation
  *
  * Update a journal's dynamic superblock fields to show that journal is empty.
  * Write updated superblock to disk waiting for IO to complete.
  */
-static void jbd2_mark_journal_empty(journal_t *journal, int write_op)
+static void jbd2_mark_journal_empty(journal_t *journal, blk_opf_t write_flags)
 {
 	journal_superblock_t *sb = journal->j_superblock;
 	bool had_fast_commit = false;
@@ -1733,7 +1736,7 @@ static void jbd2_mark_journal_empty(journal_t *journal, int write_op)
 		had_fast_commit = true;
 	}
 
-	jbd2_write_superblock(journal, write_op);
+	jbd2_write_superblock(journal, write_flags);
 
 	if (had_fast_commit)
 		jbd2_set_feature_fast_commit(journal);
@@ -1898,7 +1901,7 @@ static int journal_get_superblock(journal_t *journal)
 
 	J_ASSERT(bh != NULL);
 	if (!buffer_uptodate(bh)) {
-		ll_rw_block(REQ_OP_READ, 0, 1, &bh);
+		ll_rw_block(REQ_OP_READ, 1, &bh);
 		wait_on_buffer(bh);
 		if (!buffer_uptodate(bh)) {
 			printk(KERN_ERR

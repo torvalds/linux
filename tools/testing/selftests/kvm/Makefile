@@ -4,7 +4,6 @@ include ../../../build/Build.include
 all:
 
 top_srcdir = ../../../..
-KSFT_KHDR_INSTALL := 1
 
 # For cross-builds to work, UNAME_M has to map to ARCH and arch specific
 # directories and targets in this Makefile. "uname -m" doesn't map to

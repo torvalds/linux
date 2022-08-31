@@ -26,7 +26,7 @@ enum {
 
 struct seg6_iptunnel_encap {
 	int mode;
-	struct ipv6_sr_hdr srh[0];
+	struct ipv6_sr_hdr srh[];
 };
 
 #define SEG6_IPTUN_ENCAP_SIZE(x) ((sizeof(*x)) + (((x)->srh->hdrlen + 1) << 3))

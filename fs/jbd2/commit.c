@@ -155,10 +155,10 @@ static int journal_submit_commit_record(journal_t *journal,
 
 	if (journal->j_flags & JBD2_BARRIER &&
 	    !jbd2_has_feature_async_commit(journal))
-		ret = submit_bh(REQ_OP_WRITE,
-			REQ_SYNC | REQ_PREFLUSH | REQ_FUA, bh);
+		ret = submit_bh(REQ_OP_WRITE | REQ_SYNC | REQ_PREFLUSH |
+				REQ_FUA, bh);
 	else
-		ret = submit_bh(REQ_OP_WRITE, REQ_SYNC, bh);
+		ret = submit_bh(REQ_OP_WRITE | REQ_SYNC, bh);
 
 	*cbh = bh;
 	return ret;
@@ -763,7 +763,7 @@ start_journal_io:
 				clear_buffer_dirty(bh);
 				set_buffer_uptodate(bh);
 				bh->b_end_io = journal_end_buffer_io_sync;
-				submit_bh(REQ_OP_WRITE, REQ_SYNC, bh);
+				submit_bh(REQ_OP_WRITE | REQ_SYNC, bh);
 			}
 			cond_resched();
 

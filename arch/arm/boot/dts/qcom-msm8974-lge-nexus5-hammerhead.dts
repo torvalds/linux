@@ -3,6 +3,7 @@
 #include "qcom-pm8841.dtsi"
 #include "qcom-pm8941.dtsi"
 #include <dt-bindings/input/input.h>
+#include <dt-bindings/leds/common.h>
 #include <dt-bindings/pinctrl/qcom,pmic-gpio.h>
 
 / {
@@ -24,14 +25,14 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&gpio_keys_pin_a>;
 
-		volume-up {
+		key-volume-up {
 			label = "volume_up";
 			gpios = <&pm8941_gpios 2 GPIO_ACTIVE_LOW>;
 			linux,input-type = <1>;
 			linux,code = <KEY_VOLUMEUP>;
 		};
 
-		volume-down {
+		key-volume-down {
 			label = "volume_down";
 			gpios = <&pm8941_gpios 3 GPIO_ACTIVE_LOW>;
 			linux,input-type = <1>;
@@ -272,7 +273,7 @@
 };
 
 &pm8941_gpios {
-	gpio_keys_pin_a: gpio-keys-active {
+	gpio_keys_pin_a: gpio-keys-active-state {
 		pins = "gpio2", "gpio3";
 		function = "normal";
 
@@ -280,7 +281,7 @@
 		power-source = <PM8941_GPIO_S3>;
 	};
 
-	fuelgauge_pin: fuelgauge-int {
+	fuelgauge_pin: fuelgauge-int-state {
 		pins = "gpio9";
 		function = "normal";
 
@@ -289,7 +290,7 @@
 		power-source = <PM8941_GPIO_S3>;
 	};
 
-	wlan_sleep_clk_pin: wl-sleep-clk {
+	wlan_sleep_clk_pin: wl-sleep-clk-state {
 		pins = "gpio16";
 		function = "func2";
 
@@ -297,7 +298,7 @@
 		power-source = <PM8941_GPIO_S3>;
 	};
 
-	wlan_regulator_pin: wl-reg-active {
+	wlan_regulator_pin: wl-reg-active-state {
 		pins = "gpio17";
 		function = "normal";
 
@@ -310,6 +311,35 @@
 		gpios = <35 GPIO_ACTIVE_HIGH>;
 		output-high;
 		line-name = "otg-gpio";
+	};
+};
+
+&pm8941_lpg {
+	status = "okay";
+
+	qcom,power-source = <1>;
+
+	multi-led {
+		color = <LED_COLOR_ID_RGB>;
+		function = LED_FUNCTION_STATUS;
+
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		led@7 {
+			reg = <7>;
+			color = <LED_COLOR_ID_RED>;
+		};
+
+		led@6 {
+			reg = <6>;
+			color = <LED_COLOR_ID_GREEN>;
+		};
+
+		led@5 {
+			reg = <5>;
+			color = <LED_COLOR_ID_BLUE>;
+		};
 	};
 };
 

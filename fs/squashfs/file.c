@@ -454,7 +454,7 @@ static int squashfs_read_folio(struct file *file, struct folio *folio)
 	int expected = index == file_end ?
 			(i_size_read(inode) & (msblk->block_size - 1)) :
 			 msblk->block_size;
-	int res;
+	int res = 0;
 	void *pageaddr;
 
 	TRACE("Entered squashfs_readpage, page index %lx, start block %llx\n",
@@ -467,14 +467,15 @@ static int squashfs_read_folio(struct file *file, struct folio *folio)
 	if (index < file_end || squashfs_i(inode)->fragment_block ==
 					SQUASHFS_INVALID_BLK) {
 		u64 block = 0;
-		int bsize = read_blocklist(inode, index, &block);
-		if (bsize < 0)
+
+		res = read_blocklist(inode, index, &block);
+		if (res < 0)
 			goto error_out;
 
-		if (bsize == 0)
+		if (res == 0)
 			res = squashfs_readpage_sparse(page, expected);
 		else
-			res = squashfs_readpage_block(page, block, bsize, expected);
+			res = squashfs_readpage_block(page, block, res, expected);
 	} else
 		res = squashfs_readpage_fragment(page, expected);
 
@@ -488,11 +489,11 @@ out:
 	memset(pageaddr, 0, PAGE_SIZE);
 	kunmap_atomic(pageaddr);
 	flush_dcache_page(page);
-	if (!PageError(page))
+	if (res == 0)
 		SetPageUptodate(page);
 	unlock_page(page);
 
-	return 0;
+	return res;
 }
 
 

@@ -226,8 +226,7 @@ static int ovl_copy_up_data(struct ovl_fs *ofs, struct path *old,
 	/* Couldn't clone, so now we try to copy the data */
 
 	/* Check if lower fs supports seek operation */
-	if (old_file->f_mode & FMODE_LSEEK &&
-	    old_file->f_op->llseek)
+	if (old_file->f_mode & FMODE_LSEEK)
 		skip_hole = true;
 
 	while (len) {

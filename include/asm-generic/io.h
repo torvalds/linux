@@ -964,7 +964,34 @@ static inline void iounmap(volatile void __iomem *addr)
 #elif defined(CONFIG_GENERIC_IOREMAP)
 #include <linux/pgtable.h>
 
-void __iomem *ioremap_prot(phys_addr_t addr, size_t size, unsigned long prot);
+/*
+ * Arch code can implement the following two hooks when using GENERIC_IOREMAP
+ * ioremap_allowed() return a bool,
+ *   - true means continue to remap
+ *   - false means skip remap and return directly
+ * iounmap_allowed() return a bool,
+ *   - true means continue to vunmap
+ *   - false means skip vunmap and return directly
+ */
+#ifndef ioremap_allowed
+#define ioremap_allowed ioremap_allowed
+static inline bool ioremap_allowed(phys_addr_t phys_addr, size_t size,
+				   unsigned long prot)
+{
+	return true;
+}
+#endif
+
+#ifndef iounmap_allowed
+#define iounmap_allowed iounmap_allowed
+static inline bool iounmap_allowed(void *addr)
+{
+	return true;
+}
+#endif
+
+void __iomem *ioremap_prot(phys_addr_t phys_addr, size_t size,
+			   unsigned long prot);
 void iounmap(volatile void __iomem *addr);
 
 static inline void __iomem *ioremap(phys_addr_t addr, size_t size)

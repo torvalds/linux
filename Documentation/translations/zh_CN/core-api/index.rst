@@ -28,6 +28,7 @@
    printk-basics
    printk-formats
    workqueue
+   watch_queue
    symbol-namespaces
 
 数据结构和低级实用程序

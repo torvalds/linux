@@ -1443,12 +1443,12 @@ EXPORT_SYMBOL_GPL(dev_pm_opp_get_of_node);
  * It provides the power used by @dev at @kHz if it is the frequency of an
  * existing OPP, or at the frequency of the first OPP above @kHz otherwise
  * (see dev_pm_opp_find_freq_ceil()). This function updates @kHz to the ceiled
- * frequency and @mW to the associated power.
+ * frequency and @uW to the associated power.
  *
  * Returns 0 on success or a proper -EINVAL value in case of error.
  */
 static int __maybe_unused
-_get_dt_power(struct device *dev, unsigned long *mW, unsigned long *kHz)
+_get_dt_power(struct device *dev, unsigned long *uW, unsigned long *kHz)
 {
 	struct dev_pm_opp *opp;
 	unsigned long opp_freq, opp_power;
@@ -1465,7 +1465,7 @@ _get_dt_power(struct device *dev, unsigned long *mW, unsigned long *kHz)
 		return -EINVAL;
 
 	*kHz = opp_freq / 1000;
-	*mW = opp_power / 1000;
+	*uW = opp_power;
 
 	return 0;
 }
@@ -1475,14 +1475,14 @@ _get_dt_power(struct device *dev, unsigned long *mW, unsigned long *kHz)
  * This computes the power estimated by @dev at @kHz if it is the frequency
  * of an existing OPP, or at the frequency of the first OPP above @kHz otherwise
  * (see dev_pm_opp_find_freq_ceil()). This function updates @kHz to the ceiled
- * frequency and @mW to the associated power. The power is estimated as
+ * frequency and @uW to the associated power. The power is estimated as
  * P = C * V^2 * f with C being the device's capacitance and V and f
  * respectively the voltage and frequency of the OPP.
  *
  * Returns -EINVAL if the power calculation failed because of missing
  * parameters, 0 otherwise.
  */
-static int __maybe_unused _get_power(struct device *dev, unsigned long *mW,
+static int __maybe_unused _get_power(struct device *dev, unsigned long *uW,
 				     unsigned long *kHz)
 {
 	struct dev_pm_opp *opp;
@@ -1512,9 +1512,10 @@ static int __maybe_unused _get_power(struct device *dev, unsigned long *mW,
 		return -EINVAL;
 
 	tmp = (u64)cap * mV * mV * (Hz / 1000000);
-	do_div(tmp, 1000000000);
+	/* Provide power in micro-Watts */
+	do_div(tmp, 1000000);
 
-	*mW = (unsigned long)tmp;
+	*uW = (unsigned long)tmp;
 	*kHz = Hz / 1000;
 
 	return 0;

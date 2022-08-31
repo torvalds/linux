@@ -119,7 +119,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&pen_eject_odl>;
 
-		pen-insert {
+		switch-pen-insert {
 			label = "Pen Insert";
 			/* Insert = low, eject = high */
 			gpios = <&tlmm 119 GPIO_ACTIVE_LOW>;
@@ -130,7 +130,7 @@
 	};
 
 	panel: panel {
-		compatible ="innolux,p120zdg-bf1";
+		compatible = "innolux,p120zdg-bf1";
 		power-supply = <&pp3300_dx_edp>;
 		backlight = <&backlight>;
 		no-hpd;
@@ -143,6 +143,138 @@
 			};
 		};
 	};
+};
+
+&psci {
+	/delete-node/ cpu0;
+	/delete-node/ cpu1;
+	/delete-node/ cpu2;
+	/delete-node/ cpu3;
+	/delete-node/ cpu4;
+	/delete-node/ cpu5;
+	/delete-node/ cpu6;
+	/delete-node/ cpu7;
+	/delete-node/ cpu-cluster0;
+};
+
+&cpus {
+	/delete-node/ domain-idle-states;
+};
+
+&cpu_idle_states {
+	LITTLE_CPU_SLEEP_0: cpu-sleep-0-0 {
+		compatible = "arm,idle-state";
+		idle-state-name = "little-power-down";
+		arm,psci-suspend-param = <0x40000003>;
+		entry-latency-us = <350>;
+		exit-latency-us = <461>;
+		min-residency-us = <1890>;
+		local-timer-stop;
+	};
+
+	LITTLE_CPU_SLEEP_1: cpu-sleep-0-1 {
+		compatible = "arm,idle-state";
+		idle-state-name = "little-rail-power-down";
+		arm,psci-suspend-param = <0x40000004>;
+		entry-latency-us = <360>;
+		exit-latency-us = <531>;
+		min-residency-us = <3934>;
+		local-timer-stop;
+	};
+
+	BIG_CPU_SLEEP_0: cpu-sleep-1-0 {
+		compatible = "arm,idle-state";
+		idle-state-name = "big-power-down";
+		arm,psci-suspend-param = <0x40000003>;
+		entry-latency-us = <264>;
+		exit-latency-us = <621>;
+		min-residency-us = <952>;
+		local-timer-stop;
+	};
+
+	BIG_CPU_SLEEP_1: cpu-sleep-1-1 {
+		compatible = "arm,idle-state";
+		idle-state-name = "big-rail-power-down";
+		arm,psci-suspend-param = <0x40000004>;
+		entry-latency-us = <702>;
+		exit-latency-us = <1061>;
+		min-residency-us = <4488>;
+		local-timer-stop;
+	};
+
+	CLUSTER_SLEEP_0: cluster-sleep-0 {
+		compatible = "arm,idle-state";
+		idle-state-name = "cluster-power-down";
+		arm,psci-suspend-param = <0x400000F4>;
+		entry-latency-us = <3263>;
+		exit-latency-us = <6562>;
+		min-residency-us = <9987>;
+		local-timer-stop;
+	};
+};
+
+&CPU0 {
+	/delete-property/ power-domains;
+	/delete-property/ power-domain-names;
+	cpu-idle-states = <&LITTLE_CPU_SLEEP_0
+			   &LITTLE_CPU_SLEEP_1
+			   &CLUSTER_SLEEP_0>;
+};
+
+&CPU1 {
+	/delete-property/ power-domains;
+	/delete-property/ power-domain-names;
+	cpu-idle-states = <&LITTLE_CPU_SLEEP_0
+			   &LITTLE_CPU_SLEEP_1
+			   &CLUSTER_SLEEP_0>;
+};
+
+&CPU2 {
+	/delete-property/ power-domains;
+	/delete-property/ power-domain-names;
+	cpu-idle-states = <&LITTLE_CPU_SLEEP_0
+			   &LITTLE_CPU_SLEEP_1
+			   &CLUSTER_SLEEP_0>;
+};
+
+&CPU3 {
+	/delete-property/ power-domains;
+	/delete-property/ power-domain-names;
+	cpu-idle-states = <&LITTLE_CPU_SLEEP_0
+			   &LITTLE_CPU_SLEEP_1
+			   &CLUSTER_SLEEP_0>;
+};
+
+&CPU4 {
+	/delete-property/ power-domains;
+	/delete-property/ power-domain-names;
+	cpu-idle-states = <&BIG_CPU_SLEEP_0
+			   &BIG_CPU_SLEEP_1
+			   &CLUSTER_SLEEP_0>;
+};
+
+&CPU5 {
+	/delete-property/ power-domains;
+	/delete-property/ power-domain-names;
+	cpu-idle-states = <&BIG_CPU_SLEEP_0
+			   &BIG_CPU_SLEEP_1
+			   &CLUSTER_SLEEP_0>;
+};
+
+&CPU6 {
+	/delete-property/ power-domains;
+	/delete-property/ power-domain-names;
+	cpu-idle-states = <&BIG_CPU_SLEEP_0
+			   &BIG_CPU_SLEEP_1
+			   &CLUSTER_SLEEP_0>;
+};
+
+&CPU7 {
+	/delete-property/ power-domains;
+	/delete-property/ power-domain-names;
+	cpu-idle-states = <&BIG_CPU_SLEEP_0
+			   &BIG_CPU_SLEEP_1
+			   &CLUSTER_SLEEP_0>;
 };
 
 /*

@@ -230,16 +230,17 @@ void migrate_irqs(void)
 		struct irq_data *data = irq_get_irq_data(irq);
 
 		if (irq_data_get_node(data) == cpu) {
-			struct cpumask *mask = irq_data_get_affinity_mask(data);
+			const struct cpumask *mask = irq_data_get_affinity_mask(data);
 			unsigned int newcpu = cpumask_any_and(mask,
 							      cpu_online_mask);
 			if (newcpu >= nr_cpu_ids) {
 				pr_info_ratelimited("IRQ%u no longer affine to CPU%u\n",
 						    irq, cpu);
 
-				cpumask_setall(mask);
+				irq_set_affinity(irq, cpu_all_mask);
+			} else {
+				irq_set_affinity(irq, mask);
 			}
-			irq_set_affinity(irq, mask);
 		}
 	}
 }

@@ -118,8 +118,8 @@
 	};
 
 	psci {
-		compatible  = "arm,psci-0.2";
-		method      = "smc";
+		compatible = "arm,psci-0.2";
+		method = "smc";
 	};
 
 	pmu {
@@ -616,9 +616,9 @@
 
 		afe: audio-controller {
 			compatible = "mediatek,mt7622-audio";
-			interrupts =  <GIC_SPI 144 IRQ_TYPE_LEVEL_LOW>,
-				      <GIC_SPI 145 IRQ_TYPE_LEVEL_LOW>;
-			interrupt-names	= "afe", "asys";
+			interrupts = <GIC_SPI 144 IRQ_TYPE_LEVEL_LOW>,
+				     <GIC_SPI 145 IRQ_TYPE_LEVEL_LOW>;
+			interrupt-names = "afe", "asys";
 
 			clocks = <&infracfg CLK_INFRA_AUDIO_PD>,
 				 <&topckgen CLK_TOP_AUD1_SEL>,

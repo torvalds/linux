@@ -860,7 +860,7 @@ static int stress(struct uffd_stats *uffd_stats)
 	/*
 	 * Be strict and immediately zap area_src, the whole area has
 	 * been transferred already by the background treads. The
-	 * area_src could then be faulted in in a racy way by still
+	 * area_src could then be faulted in a racy way by still
 	 * running uffdio_threads reading zeropages after we zapped
 	 * area_src (but they're guaranteed to get -EEXIST from
 	 * UFFDIO_COPY without writing zero pages into area_dst

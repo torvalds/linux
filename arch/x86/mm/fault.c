@@ -1526,7 +1526,7 @@ DEFINE_IDTENTRY_RAW_ERRORCODE(exc_page_fault)
 
 	/*
 	 * Entry handling for valid #PF from kernel mode is slightly
-	 * different: RCU is already watching and rcu_irq_enter() must not
+	 * different: RCU is already watching and ct_irq_enter() must not
 	 * be invoked because a kernel fault on a user space address might
 	 * sleep.
 	 *
