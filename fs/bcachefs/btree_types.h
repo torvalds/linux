@@ -63,6 +63,7 @@ struct btree_bkey_cached_common {
 	struct six_lock		lock;
 	u8			level;
 	u8			btree_id;
+	bool			cached;
 };
 
 struct btree {
@@ -335,10 +336,9 @@ struct bkey_cached {
 	struct bkey_i		*k;
 };
 
-static inline struct bpos btree_node_pos(struct btree_bkey_cached_common *b,
-					 bool cached)
+static inline struct bpos btree_node_pos(struct btree_bkey_cached_common *b)
 {
-	return !cached
+	return !b->cached
 		? container_of(b, struct btree, c)->key.k.p
 		: container_of(b, struct bkey_cached, c)->key.pos;
 }

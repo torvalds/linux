@@ -144,8 +144,7 @@ int __bch2_btree_node_lock(struct btree_trans *trans,
 
 		/* Must lock btree nodes in key order: */
 		if (btree_node_locked(linked, level) &&
-		    bpos_cmp(pos, btree_node_pos(&linked->l[level].b->c,
-						 linked->cached)) <= 0) {
+		    bpos_cmp(pos, btree_node_pos(&linked->l[level].b->c)) <= 0) {
 			reason = 7;
 			goto deadlock;
 		}

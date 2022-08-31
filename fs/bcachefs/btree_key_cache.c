@@ -204,6 +204,7 @@ bkey_cached_alloc(struct btree_trans *trans,
 		INIT_LIST_HEAD(&ck->list);
 		__six_lock_init(&ck->c.lock, "b->c.lock", &bch2_btree_node_lock_key);
 		lockdep_set_novalidate_class(&ck->c.lock);
+		ck->c.cached = true;
 		BUG_ON(!six_trylock_intent(&ck->c.lock));
 		BUG_ON(!six_trylock_write(&ck->c.lock));
 		return ck;

@@ -3021,8 +3021,7 @@ void bch2_trans_exit(struct btree_trans *trans)
 
 static void __maybe_unused
 bch2_btree_path_node_to_text(struct printbuf *out,
-			     struct btree_bkey_cached_common *b,
-			     bool cached)
+			     struct btree_bkey_cached_common *b)
 {
 	struct six_lock_count c = six_lock_counts(&b->lock);
 	struct task_struct *owner;
@@ -3035,7 +3034,7 @@ bch2_btree_path_node_to_text(struct printbuf *out,
 
 	prt_printf(out, "    l=%u %s:",
 	       b->level, bch2_btree_ids[b->btree_id]);
-	bch2_bpos_to_text(out, btree_node_pos(b, cached));
+	bch2_bpos_to_text(out, btree_node_pos(b));
 
 	prt_printf(out, "    locks %u:%u:%u held by pid %u",
 		   c.n[0], c.n[1], c.n[2], pid);
@@ -3068,7 +3067,7 @@ void bch2_btree_trans_to_text(struct printbuf *out, struct btree_trans *trans)
 			    !IS_ERR_OR_NULL(b = (void *) READ_ONCE(path->l[l].b))) {
 				prt_printf(out, "    %c l=%u ",
 					   lock_types[btree_node_locked_type(path, l)], l);
-				bch2_btree_path_node_to_text(out, b, path->cached);
+				bch2_btree_path_node_to_text(out, b);
 				prt_printf(out, "\n");
 			}
 		}
@@ -3086,7 +3085,7 @@ void bch2_btree_trans_to_text(struct printbuf *out, struct btree_trans *trans)
 		bch2_bpos_to_text(out, trans->locking_pos);
 
 		prt_printf(out, " node ");
-		bch2_btree_path_node_to_text(out, b, path->cached);
+		bch2_btree_path_node_to_text(out, b);
 		prt_printf(out, "\n");
 	}
 }
