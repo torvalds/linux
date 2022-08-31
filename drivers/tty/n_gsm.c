@@ -184,6 +184,11 @@ struct gsm_control {
 	int error;	/* Error if any */
 };
 
+enum gsm_encoding {
+	GSM_BASIC_OPT,
+	GSM_ADV_OPT,
+};
+
 enum gsm_mux_state {
 	GSM_SEARCH,
 	GSM_START,
@@ -230,7 +235,7 @@ struct gsm_mux {
 	unsigned int address;
 	unsigned int count;
 	bool escape;
-	int encoding;
+	enum gsm_encoding encoding;
 	u8 control;
 	u8 fcs;
 	u8 *txframe;			/* TX framing buffer */
@@ -693,7 +698,7 @@ static int gsm_send(struct gsm_mux *gsm, int addr, int cr, int control)
 	*dp++ = (addr << 2) | (ocr << 1) | EA;
 	*dp++ = control;
 
-	if (gsm->encoding == 0)
+	if (gsm->encoding == GSM_BASIC_OPT)
 		*dp++ = EA; /* Length of data = 0 */
 
 	*dp = 0xFF - gsm_fcs_add_block(INIT_FCS, msg->data, dp - msg->data);
@@ -812,7 +817,7 @@ static int gsm_send_packet(struct gsm_mux *gsm, struct gsm_msg *msg)
 	int len, ret;
 
 
-	if (gsm->encoding == 0) {
+	if (gsm->encoding == GSM_BASIC_OPT) {
 		gsm->txframe[0] = GSM0_SOF;
 		memcpy(gsm->txframe + 1, msg->data, msg->len);
 		gsm->txframe[msg->len + 1] = GSM0_SOF;
@@ -964,7 +969,7 @@ static void __gsm_data_queue(struct gsm_dlci *dlci, struct gsm_msg *msg)
 	u8 *fcs = dp + msg->len;
 
 	/* Fill in the header */
-	if (gsm->encoding == 0) {
+	if (gsm->encoding == GSM_BASIC_OPT) {
 		if (msg->len < 128)
 			*--dp = (msg->len << 1) | EA;
 		else {
@@ -2497,7 +2502,7 @@ static int gsm_activate_mux(struct gsm_mux *gsm)
 	if (dlci == NULL)
 		return -ENOMEM;
 
-	if (gsm->encoding == 0)
+	if (gsm->encoding == GSM_BASIC_OPT)
 		gsm->receive = gsm0_receive;
 	else
 		gsm->receive = gsm1_receive;
@@ -2614,7 +2619,7 @@ static struct gsm_mux *gsm_alloc_mux(void)
 	gsm->n2 = N2;
 	gsm->ftype = UIH;
 	gsm->adaption = 1;
-	gsm->encoding = 1;
+	gsm->encoding = GSM_ADV_OPT;
 	gsm->mru = 64;	/* Default to encoding 1 so these should be 64 */
 	gsm->mtu = 64;
 	gsm->dead = true;	/* Avoid early tty opens */
@@ -2716,7 +2721,7 @@ static int gsm_config(struct gsm_mux *gsm, struct gsm_config *c)
 	gsm->initiator = c->initiator;
 	gsm->mru = c->mru;
 	gsm->mtu = c->mtu;
-	gsm->encoding = c->encapsulation;
+	gsm->encoding = c->encapsulation ? GSM_ADV_OPT : GSM_BASIC_OPT;
 	gsm->adaption = c->adaption;
 	gsm->n2 = c->n2;
 
@@ -2939,8 +2944,7 @@ static int gsmld_open(struct tty_struct *tty)
 	tty->receive_room = 65536;
 
 	/* Attach the initial passive connection */
-	gsm->encoding = 1;
-
+	gsm->encoding = GSM_ADV_OPT;
 	gsmld_attach_gsm(tty, gsm);
 
 	return 0;
@@ -3336,7 +3340,7 @@ static int gsm_modem_upd_via_msc(struct gsm_dlci *dlci, u8 brk)
 	struct gsm_control *ctrl;
 	int len = 2;
 
-	if (dlci->gsm->encoding != 0)
+	if (dlci->gsm->encoding != GSM_BASIC_OPT)
 		return 0;
 
 	modembits[0] = (dlci->addr << 2) | 2 | EA;  /* DLCI, Valid, EA */
@@ -3365,7 +3369,7 @@ static int gsm_modem_update(struct gsm_dlci *dlci, u8 brk)
 		/* Send convergence layer type 2 empty data frame. */
 		gsm_modem_upd_via_data(dlci, brk);
 		return 0;
-	} else if (dlci->gsm->encoding == 0) {
+	} else if (dlci->gsm->encoding == GSM_BASIC_OPT) {
 		/* Send as MSC control message. */
 		return gsm_modem_upd_via_msc(dlci, brk);
 	}
@@ -3389,8 +3393,8 @@ static int gsm_carrier_raised(struct tty_port *port)
 	 * Basic mode with control channel in ADM mode may not respond
 	 * to CMD_MSC at all and modem_rx is empty.
 	 */
-	if (gsm->encoding == 0 && gsm->dlci[0]->mode == DLCI_MODE_ADM &&
-	    !dlci->modem_rx)
+	if (gsm->encoding == GSM_BASIC_OPT &&
+	    gsm->dlci[0]->mode == DLCI_MODE_ADM && !dlci->modem_rx)
 		return 1;
 
 	return dlci->modem_rx & TIOCM_CD;
