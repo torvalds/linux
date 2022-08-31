@@ -47,10 +47,10 @@ int open_cached_dir(unsigned int xid, struct cifs_tcon *tcon,
 	if (cifs_sb->root == NULL)
 		return -ENOENT;
 
-	if (strlen(path))
+	if (!path[0])
+		dentry = cifs_sb->root;
+	else
 		return -ENOENT;
-
-	dentry = cifs_sb->root;
 
 	cfid = &tcon->cfids->cfid;
 	mutex_lock(&cfid->fid_mutex);
@@ -177,7 +177,8 @@ int open_cached_dir(unsigned int xid, struct cifs_tcon *tcon,
 	cfid->tcon = tcon;
 	cfid->is_valid = true;
 	cfid->dentry = dentry;
-	dget(dentry);
+	if (dentry)
+		dget(dentry);
 	kref_init(&cfid->refcount);
 
 	/* BB TBD check to see if oplock level check can be removed below */
