@@ -1659,8 +1659,8 @@ static int at91_gpio_suspend(struct device *dev)
 	if (!at91_chip->wakeups)
 		clk_disable_unprepare(at91_chip->clock);
 	else
-		printk(KERN_DEBUG "GPIO-%c may wake for %08x\n",
-		       'A' + at91_chip->id, at91_chip->wakeups);
+		dev_dbg(dev, "GPIO-%c may wake for %08x\n",
+			'A' + at91_chip->id, at91_chip->wakeups);
 
 	return 0;
 }
