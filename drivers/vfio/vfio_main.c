@@ -968,16 +968,24 @@ static void __vfio_group_unset_container(struct vfio_group *group)
  * the group, we know that still exists, therefore the only valid
  * transition here is 1->0.
  */
-static int vfio_group_unset_container(struct vfio_group *group)
+static int vfio_group_ioctl_unset_container(struct vfio_group *group)
 {
-	lockdep_assert_held_write(&group->group_rwsem);
+	int ret = 0;
 
-	if (!group->container)
-		return -EINVAL;
-	if (group->container_users != 1)
-		return -EBUSY;
+	down_write(&group->group_rwsem);
+	if (!group->container) {
+		ret = -EINVAL;
+		goto out_unlock;
+	}
+	if (group->container_users != 1) {
+		ret = -EBUSY;
+		goto out_unlock;
+	}
 	__vfio_group_unset_container(group);
-	return 0;
+
+out_unlock:
+	up_write(&group->group_rwsem);
+	return ret;
 }
 
 static int vfio_group_ioctl_set_container(struct vfio_group *group,
@@ -1270,10 +1278,7 @@ static long vfio_group_fops_unl_ioctl(struct file *filep,
 	case VFIO_GROUP_SET_CONTAINER:
 		return vfio_group_ioctl_set_container(group, uarg);
 	case VFIO_GROUP_UNSET_CONTAINER:
-		down_write(&group->group_rwsem);
-		ret = vfio_group_unset_container(group);
-		up_write(&group->group_rwsem);
-		break;
+		return vfio_group_ioctl_unset_container(group);
 	}
 
 	return ret;
