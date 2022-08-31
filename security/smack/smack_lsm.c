@@ -2279,6 +2279,21 @@ static void smack_sk_free_security(struct sock *sk)
 }
 
 /**
+ * smack_sk_clone_security - Copy security context
+ * @sk: the old socket
+ * @newsk: the new socket
+ *
+ * Copy the security context of the old socket pointer to the cloned
+ */
+static void smack_sk_clone_security(const struct sock *sk, struct sock *newsk)
+{
+	struct socket_smack *ssp_old = sk->sk_security;
+	struct socket_smack *ssp_new = newsk->sk_security;
+
+	*ssp_new = *ssp_old;
+}
+
+/**
 * smack_ipv4host_label - check host based restrictions
 * @sip: the object end
 *
@@ -4851,6 +4866,7 @@ static struct security_hook_list smack_hooks[] __lsm_ro_after_init = {
 	LSM_HOOK_INIT(socket_getpeersec_dgram, smack_socket_getpeersec_dgram),
 	LSM_HOOK_INIT(sk_alloc_security, smack_sk_alloc_security),
 	LSM_HOOK_INIT(sk_free_security, smack_sk_free_security),
+	LSM_HOOK_INIT(sk_clone_security, smack_sk_clone_security),
 	LSM_HOOK_INIT(sock_graft, smack_sock_graft),
 	LSM_HOOK_INIT(inet_conn_request, smack_inet_conn_request),
 	LSM_HOOK_INIT(inet_csk_clone, smack_inet_csk_clone),
