@@ -457,7 +457,7 @@ err_cmdq_data:
 	kfree(path);
 	atomic_dec(&mdp->job_count);
 	wake_up(&mdp->callback_wq);
-	if (cmd->pkt.buf_size > 0)
+	if (cmd && cmd->pkt.buf_size > 0)
 		mdp_cmdq_pkt_destroy(&cmd->pkt);
 	kfree(comps);
 	kfree(cmd);
