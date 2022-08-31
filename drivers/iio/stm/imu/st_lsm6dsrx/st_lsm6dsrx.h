@@ -571,6 +571,7 @@ struct st_lsm6dsrx_sensor {
  * @dev: Pointer to instance of struct device (I2C or SPI).
  * @irq: Device interrupt line (I2C or SPI).
  * @regmap: Register map of the device.
+ * @int_pin: Save interrupt pin used by sensor.
  * @fifo_lock: Mutex to prevent concurrent access to the hw FIFO.
  * @fifo_mode: FIFO operating mode supported by the device.
  * @state: hw operational state.
@@ -594,6 +595,8 @@ struct st_lsm6dsrx_hw {
 	struct device *dev;
 	int irq;
 	struct regmap *regmap;
+	int int_pin;
+
 	struct mutex page_lock;
 	struct mutex fifo_lock;
 	enum st_lsm6dsrx_fifo_mode fifo_mode;

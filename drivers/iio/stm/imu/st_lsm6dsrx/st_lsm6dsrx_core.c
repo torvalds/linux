@@ -1096,6 +1096,8 @@ static int st_lsm6dsrx_get_int_reg(struct st_lsm6dsrx_hw *hw, u8 *drdy_reg)
 		break;
 	}
 
+	hw->int_pin = int_pin;
+
 	return err;
 }
 
