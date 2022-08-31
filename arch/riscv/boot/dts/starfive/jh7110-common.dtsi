@@ -655,7 +655,7 @@
 	};
 };
 
-&hdmi_output {
+&rgb_output {
 	status = "okay";
 
 	ports {
@@ -685,7 +685,7 @@
 	status = "disabled";
 };
 
-&encoder {
+&dsi_output {
 	status = "okay";
 
 	ports {

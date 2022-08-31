@@ -39,7 +39,7 @@
 	status = "okay";
 };
 
-&hdmi_output {
+&rgb_output {
 	status = "okay";
 };
 
@@ -47,7 +47,7 @@
 	status = "okay";
 };
 
-&encoder {
+&dsi_output {
 	status = "disabled";
 };
 
