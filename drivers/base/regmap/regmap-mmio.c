@@ -410,14 +410,11 @@ static int regmap_mmio_noinc_read(void *context, unsigned int reg,
 		}
 	}
 
-
 out_clk:
 	if (!IS_ERR(ctx->clk))
 		clk_disable(ctx->clk);
 
 	return ret;
-
-	return 0;
 }
 
 
