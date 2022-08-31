@@ -1025,7 +1025,7 @@ static void dcn32_full_validate_bw_helper(struct dc *dc,
 
 		dcn32_merge_pipes_for_subvp(dc, context);
 		// to re-initialize viewport after the pipe merge
-		for (int i = 0; i < dc->res_pool->pipe_count; i++) {
+		for (i = 0; i < dc->res_pool->pipe_count; i++) {
 			struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
 
 			if (!pipe_ctx->plane_state || !pipe_ctx->stream)
