@@ -848,20 +848,13 @@ static bool discover_dp_mst_topology(struct dc_link *link, enum dc_detect_reason
 
 bool reset_cur_dp_mst_topology(struct dc_link *link)
 {
-	bool result = false;
 	DC_LOGGER_INIT(link->ctx->logger);
 
 	LINK_INFO("link=%d, mst branch is now Disconnected\n",
 		  link->link_index);
 
 	revert_dpia_mst_dsc_always_on_wa(link);
-	result = dm_helpers_dp_mst_stop_top_mgr(link->ctx, link);
-
-	link->mst_stream_alloc_table.stream_count = 0;
-	memset(link->mst_stream_alloc_table.stream_allocations,
-			0,
-			sizeof(link->mst_stream_alloc_table.stream_allocations));
-	return result;
+	return dm_helpers_dp_mst_stop_top_mgr(link->ctx, link);
 }
 
 static bool should_prepare_phy_clocks_for_link_verification(const struct dc *dc,
@@ -3570,6 +3563,35 @@ static void update_mst_stream_alloc_table(
 				work_table[i];
 }
 
+static void remove_stream_from_alloc_table(
+		struct dc_link *link,
+		struct stream_encoder *dio_stream_enc,
+		struct hpo_dp_stream_encoder *hpo_dp_stream_enc)
+{
+	int i = 0;
+	struct link_mst_stream_allocation_table *table =
+			&link->mst_stream_alloc_table;
+
+	if (hpo_dp_stream_enc) {
+		for (; i < table->stream_count; i++)
+			if (hpo_dp_stream_enc == table->stream_allocations[i].hpo_dp_stream_enc)
+				break;
+	} else {
+		for (; i < table->stream_count; i++)
+			if (dio_stream_enc == table->stream_allocations[i].stream_enc)
+				break;
+	}
+
+	if (i < table->stream_count) {
+		i++;
+		for (; i < table->stream_count; i++)
+			table->stream_allocations[i-1] = table->stream_allocations[i];
+		memset(&table->stream_allocations[table->stream_count-1], 0,
+				sizeof(struct link_mst_stream_allocation));
+		table->stream_count--;
+	}
+}
+
 static void dc_log_vcp_x_y(const struct dc_link *link, struct fixed31_32 avg_time_slots_per_mtp)
 {
 	const uint32_t VCP_Y_PRECISION = 1000;
@@ -3987,26 +4009,32 @@ static enum dc_status deallocate_mst_payload(struct pipe_ctx *pipe_ctx)
 				&empty_link_settings,
 				avg_time_slots_per_mtp);
 
-	/* TODO: which component is responsible for remove payload table? */
 	if (mst_mode) {
+		/* when link is in mst mode, reply on mst manager to remove
+		 * payload
+		 */
 		if (dm_helpers_dp_mst_write_payload_allocation_table(
 				stream->ctx,
 				stream,
 				&proposed_table,
-				false)) {
+				false))
 
 			update_mst_stream_alloc_table(
-						link,
-						pipe_ctx->stream_res.stream_enc,
-						pipe_ctx->stream_res.hpo_dp_stream_enc,
-						&proposed_table);
-		}
-		else {
-				DC_LOG_WARNING("Failed to update"
-						"MST allocation table for"
-						"pipe idx:%d\n",
-						pipe_ctx->pipe_idx);
-		}
+					link,
+					pipe_ctx->stream_res.stream_enc,
+					pipe_ctx->stream_res.hpo_dp_stream_enc,
+					&proposed_table);
+		else
+			DC_LOG_WARNING("Failed to update"
+					"MST allocation table for"
+					"pipe idx:%d\n",
+					pipe_ctx->pipe_idx);
+	} else {
+		/* when link is no longer in mst mode (mst hub unplugged),
+		 * remove payload with default dc logic
+		 */
+		remove_stream_from_alloc_table(link, pipe_ctx->stream_res.stream_enc,
+				pipe_ctx->stream_res.hpo_dp_stream_enc);
 	}
 
 	DC_LOG_MST("%s"
