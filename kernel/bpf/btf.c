@@ -5328,6 +5328,34 @@ static bool is_int_ptr(struct btf *btf, const struct btf_type *t)
 	return btf_type_is_int(t);
 }
 
+static u32 get_ctx_arg_idx(struct btf *btf, const struct btf_type *func_proto,
+			   int off)
+{
+	const struct btf_param *args;
+	const struct btf_type *t;
+	u32 offset = 0, nr_args;
+	int i;
+
+	if (!func_proto)
+		return off / 8;
+
+	nr_args = btf_type_vlen(func_proto);
+	args = (const struct btf_param *)(func_proto + 1);
+	for (i = 0; i < nr_args; i++) {
+		t = btf_type_skip_modifiers(btf, args[i].type, NULL);
+		offset += btf_type_is_ptr(t) ? 8 : roundup(t->size, 8);
+		if (off < offset)
+			return i;
+	}
+
+	t = btf_type_skip_modifiers(btf, func_proto->type, NULL);
+	offset += btf_type_is_ptr(t) ? 8 : roundup(t->size, 8);
+	if (off < offset)
+		return nr_args;
+
+	return nr_args + 1;
+}
+
 bool btf_ctx_access(int off, int size, enum bpf_access_type type,
 		    const struct bpf_prog *prog,
 		    struct bpf_insn_access_aux *info)
@@ -5347,7 +5375,7 @@ bool btf_ctx_access(int off, int size, enum bpf_access_type type,
 			tname, off);
 		return false;
 	}
-	arg = off / 8;
+	arg = get_ctx_arg_idx(btf, t, off);
 	args = (const struct btf_param *)(t + 1);
 	/* if (t == NULL) Fall back to default BPF prog with
 	 * MAX_BPF_FUNC_REG_ARGS u64 arguments.
@@ -5417,7 +5445,7 @@ bool btf_ctx_access(int off, int size, enum bpf_access_type type,
 	/* skip modifiers */
 	while (btf_type_is_modifier(t))
 		t = btf_type_by_id(btf, t->type);
-	if (btf_type_is_small_int(t) || btf_is_any_enum(t))
+	if (btf_type_is_small_int(t) || btf_is_any_enum(t) || __btf_type_is_struct(t))
 		/* accessing a scalar */
 		return true;
 	if (!btf_type_is_ptr(t)) {
@@ -5881,7 +5909,7 @@ static int __get_type_size(struct btf *btf, u32 btf_id,
 	if (btf_type_is_ptr(t))
 		/* kernel size of pointer. Not BPF's size of pointer*/
 		return sizeof(void *);
-	if (btf_type_is_int(t) || btf_is_any_enum(t))
+	if (btf_type_is_int(t) || btf_is_any_enum(t) || __btf_type_is_struct(t))
 		return t->size;
 	return -EINVAL;
 }
@@ -5901,8 +5929,10 @@ int btf_distill_func_proto(struct bpf_verifier_log *log,
 		/* BTF function prototype doesn't match the verifier types.
 		 * Fall back to MAX_BPF_FUNC_REG_ARGS u64 args.
 		 */
-		for (i = 0; i < MAX_BPF_FUNC_REG_ARGS; i++)
+		for (i = 0; i < MAX_BPF_FUNC_REG_ARGS; i++) {
 			m->arg_size[i] = 8;
+			m->arg_flags[i] = 0;
+		}
 		m->ret_size = 8;
 		m->nr_args = MAX_BPF_FUNC_REG_ARGS;
 		return 0;
@@ -5916,7 +5946,7 @@ int btf_distill_func_proto(struct bpf_verifier_log *log,
 		return -EINVAL;
 	}
 	ret = __get_type_size(btf, func->type, &t);
-	if (ret < 0) {
+	if (ret < 0 || __btf_type_is_struct(t)) {
 		bpf_log(log,
 			"The function %s return type %s is unsupported.\n",
 			tname, btf_kind_str[BTF_INFO_KIND(t->info)]);
@@ -5932,7 +5962,9 @@ int btf_distill_func_proto(struct bpf_verifier_log *log,
 			return -EINVAL;
 		}
 		ret = __get_type_size(btf, args[i].type, &t);
-		if (ret < 0) {
+
+		/* No support of struct argument size greater than 16 bytes */
+		if (ret < 0 || ret > 16) {
 			bpf_log(log,
 				"The function %s arg%d type %s is unsupported.\n",
 				tname, i, btf_kind_str[BTF_INFO_KIND(t->info)]);
@@ -5945,6 +5977,7 @@ int btf_distill_func_proto(struct bpf_verifier_log *log,
 			return -EINVAL;
 		}
 		m->arg_size[i] = ret;
+		m->arg_flags[i] = __btf_type_is_struct(t) ? BTF_FMODEL_STRUCT_ARG : 0;
 	}
 	m->nr_args = nargs;
 	return 0;
