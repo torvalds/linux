@@ -275,12 +275,6 @@ static int cypress_nor_octal_dtr_enable(struct spi_nor *nor, bool enable)
 			cypress_nor_octal_dtr_dis(nor);
 }
 
-static void s28hs512t_default_init(struct spi_nor *nor)
-{
-	nor->params->octal_dtr_enable = cypress_nor_octal_dtr_enable;
-	nor->params->writesize = 16;
-}
-
 static void s28hs512t_post_sfdp_fixup(struct spi_nor *nor)
 {
 	/*
@@ -316,10 +310,16 @@ static int s28hs512t_post_bfpt_fixup(struct spi_nor *nor,
 	return cypress_nor_set_page_size(nor);
 }
 
+static void s28hs512t_late_init(struct spi_nor *nor)
+{
+	nor->params->octal_dtr_enable = cypress_nor_octal_dtr_enable;
+	nor->params->writesize = 16;
+}
+
 static const struct spi_nor_fixups s28hs512t_fixups = {
-	.default_init = s28hs512t_default_init,
 	.post_sfdp = s28hs512t_post_sfdp_fixup,
 	.post_bfpt = s28hs512t_post_bfpt_fixup,
+	.late_init = s28hs512t_late_init,
 };
 
 static int
@@ -454,8 +454,7 @@ static const struct flash_info spansion_nor_parts[] = {
 	{ "cy15x104q",  INFO6(0x042cc2, 0x7f7f7f, 512 * 1024, 1)
 		FLAGS(SPI_NOR_NO_ERASE) },
 	{ "s28hs512t",   INFO(0x345b1a,      0, 256 * 1024, 256)
-		NO_SFDP_FLAGS(SECT_4K | SPI_NOR_OCTAL_DTR_READ |
-			      SPI_NOR_OCTAL_DTR_PP)
+		PARSE_SFDP
 		.fixups = &s28hs512t_fixups,
 	},
 };
