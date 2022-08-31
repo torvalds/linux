@@ -297,17 +297,12 @@ static int sof_compr_trigger(struct snd_soc_component *component,
 				  &reply, sizeof(reply));
 }
 
-static int sof_compr_copy(struct snd_soc_component *component,
-			  struct snd_compr_stream *cstream,
-			  char __user *buf, size_t count)
+static int sof_compr_copy_playback(struct snd_compr_runtime *rtd,
+				   char __user *buf, size_t count)
 {
-	struct snd_compr_runtime *rtd = cstream->runtime;
-	unsigned int offset, n;
 	void *ptr;
+	unsigned int offset, n;
 	int ret;
-
-	if (count > rtd->buffer_size)
-		count = rtd->buffer_size;
 
 	div_u64_rem(rtd->total_bytes_available, rtd->buffer_size, &offset);
 	ptr = rtd->dma_area + offset;
@@ -321,6 +316,42 @@ static int sof_compr_copy(struct snd_soc_component *component,
 	}
 
 	return count - ret;
+}
+
+static int sof_compr_copy_capture(struct snd_compr_runtime *rtd,
+				  char __user *buf, size_t count)
+{
+	void *ptr;
+	unsigned int offset, n;
+	int ret;
+
+	div_u64_rem(rtd->total_bytes_transferred, rtd->buffer_size, &offset);
+	ptr = rtd->dma_area + offset;
+	n = rtd->buffer_size - offset;
+
+	if (count < n) {
+		ret = copy_to_user(buf, ptr, count);
+	} else {
+		ret = copy_to_user(buf, ptr, n);
+		ret += copy_to_user(buf + n, rtd->dma_area, count - n);
+	}
+
+	return count - ret;
+}
+
+static int sof_compr_copy(struct snd_soc_component *component,
+			  struct snd_compr_stream *cstream,
+			  char __user *buf, size_t count)
+{
+	struct snd_compr_runtime *rtd = cstream->runtime;
+
+	if (count > rtd->buffer_size)
+		count = rtd->buffer_size;
+
+	if (cstream->direction == SND_COMPRESS_PLAYBACK)
+		return sof_compr_copy_playback(rtd, buf, count);
+	else
+		return sof_compr_copy_capture(rtd, buf, count);
 }
 
 static int sof_compr_pointer(struct snd_soc_component *component,
