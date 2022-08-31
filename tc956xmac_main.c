@@ -128,9 +128,11 @@
  *		  2. Added kernel Module parameter for selecting Power saving at Link down.
  *  VERSION     : 01-00-51
  *  15 Jun 2022 : 1. Added debugfs support for module specific register dump
- *  VERSION     : 01-00-52 
+ *  VERSION     : 01-00-52
  *  08 Aug 2022 : 1. Disable RBU interrupt on RBU interrupt occurance. IPA SW should enable it back.
- *  VERSION     : 01-00-53 
+ *  VERSION     : 01-00-53
+ *  31 Aug 2022 : 1. Added Fix for configuring Rx Parser when EEE is enabled and RGMII Interface is used
+ *  VERSION     : 01-00-54
  */
 
 #include <linux/clk.h>
@@ -299,6 +301,7 @@ extern unsigned int mac_power_save_at_link_down;
 extern unsigned int mac0_force_speed_mode;
 extern unsigned int mac1_force_speed_mode;
 
+extern int phy_ethtool_set_eee_2p5(struct phy_device *phydev, struct ethtool_eee *data);
 
 static int dwxgmac2_rx_parser_read_entry(struct tc956xmac_priv *priv,
 		struct tc956xmac_rx_parser_entry *entry, int entry_pos)
@@ -3516,6 +3519,8 @@ static void tc956xmac_mac_link_up(struct phylink_config *config,
 	}
 #endif
 	DBGPR_FUNC(priv->device, "%s priv->eee_enabled: %d priv->eee_active: %d\n", __func__, priv->eee_enabled, priv->eee_active);
+
+	clear_bit(TC956XMAC_DOWN, &priv->link_state);
 
 #ifdef TC956X_PM_DEBUG
 	pm_generic_resume(priv->device);
@@ -7631,11 +7636,45 @@ static void tc956xmac_poll_controller(struct net_device *dev)
 
 int tc956xmac_rx_parser_configuration(struct tc956xmac_priv *priv)
 {
-	int ret = -EINVAL;
+	int ret = -EINVAL, re_init_eee = 0, dly_cnt = 0, ret_val;
+	struct ethtool_eee edata;
 
-	/* Disable XPCS Rx LPI to configure FRP in EEE mode */
-	if (priv->eee_enabled)
-		tc956x_xpcs_ctrl0_lrx(priv, false);
+	/* Disable EEE before configuring FRP */
+	if (priv->eee_active) {
+		
+		if (priv->hw->xpcs)
+			tc956x_xpcs_ctrl0_lrx(priv, false);
+		else {
+			ret_val = phylink_ethtool_get_eee(priv->phylink, &edata);
+			if (ret_val)
+				KPRINT_INFO("Phylink get EEE error \n\r");
+
+			KPRINT_INFO("Disabling EEE \n\r");
+			priv->eee_enabled = 0;
+			edata.tx_lpi_enabled = priv->eee_enabled;
+			edata.tx_lpi_timer = priv->tx_lpi_timer;
+			edata.eee_enabled = priv->eee_enabled;
+
+			set_bit(TC956XMAC_DOWN, &priv->link_state);
+
+			tc956xmac_disable_eee_mode(priv);
+			ret_val = phylink_ethtool_set_eee(priv->phylink, &edata);
+			ret_val |= phy_ethtool_set_eee_2p5(priv->dev->phydev, &edata);
+			if (ret_val)
+				KPRINT_INFO("Phylink EEE config error \n\r");
+
+			/* Wait for AN - link down, link up sequence */
+			while (test_bit(TC956XMAC_DOWN, &priv->link_state)) {
+				msleep(10);
+				if (dly_cnt++ >= TC956X_MAX_LINK_DELAY) {
+					KPRINT_INFO("Link Up Timeout \n\r");
+					break;
+				}
+			}
+			KPRINT_INFO("AN duration : %d \n\r", dly_cnt*10);
+		}
+		re_init_eee = 1;
+	}
 
 	if (priv->hw->mac->rx_parser_init && priv->plat->rxp_cfg.enable)
 		ret = tc956xmac_rx_parser_init(priv,
@@ -7643,11 +7682,49 @@ int tc956xmac_rx_parser_configuration(struct tc956xmac_priv *priv)
 			priv->dma_cap.frpsel, priv->dma_cap.frpes,
 			&priv->plat->rxp_cfg);
 
-	/* Enable XPCS Rx LPI after configuring FRP in EEE mode */
-	if (priv->eee_enabled)
-		tc956x_xpcs_ctrl0_lrx(priv, true);
+	/* Restore EEE state */
+	if (re_init_eee) {
+		re_init_eee = 0;
 
-		/* spram feautre is not present in TC956X */
+		if (priv->hw->xpcs)
+			tc956x_xpcs_ctrl0_lrx(priv, true);
+		else {
+			ret_val = phylink_ethtool_get_eee(priv->phylink, &edata);
+			if (ret_val)
+				KPRINT_INFO("Phylink get EEE error \n\r");
+
+			KPRINT_INFO("Enabling EEE \n\r");
+			edata.tx_lpi_enabled = priv->eee_enabled;
+			edata.tx_lpi_timer = priv->tx_lpi_timer;
+
+			edata.eee_enabled = 1;
+
+			set_bit(TC956XMAC_DOWN, &priv->link_state);
+
+			edata.eee_enabled = tc956xmac_eee_init(priv);
+			priv->eee_enabled = edata.eee_enabled;
+			if (!edata.eee_enabled)
+				KPRINT_INFO("Error in init_eee \n\r");
+
+			ret_val = phylink_ethtool_set_eee(priv->phylink, &edata);
+			ret_val |= phy_ethtool_set_eee_2p5(priv->dev->phydev, &edata);
+			if (ret_val)
+				KPRINT_INFO("Phylink EEE config error \n\r");
+
+			/* Wait for AN - link down, link up sequence */
+			dly_cnt = 0;
+			while (test_bit(TC956XMAC_DOWN, &priv->link_state)) {
+				msleep(10);
+				if (dly_cnt++ >= TC956X_MAX_LINK_DELAY) {
+					KPRINT_INFO("Link Up Timeout \n\r");
+					break;
+				}
+			}
+			KPRINT_INFO("AN duration : %d \n\r", dly_cnt*10);
+		}
+	}
+
+	/* spram feautre is not present in TC956X */
 	if (ret)
 		priv->rxp_enabled = false;
 	else
