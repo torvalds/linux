@@ -1621,12 +1621,12 @@ static unsigned int loc_to_eth_fec(u8 loc_fec)
 		eth_fec |= ETHTOOL_FEC_AUTO;
 	if (loc_fec & BIT(HNAE3_FEC_RS))
 		eth_fec |= ETHTOOL_FEC_RS;
+	if (loc_fec & BIT(HNAE3_FEC_LLRS))
+		eth_fec |= ETHTOOL_FEC_LLRS;
 	if (loc_fec & BIT(HNAE3_FEC_BASER))
 		eth_fec |= ETHTOOL_FEC_BASER;
-
-	/* if nothing is set, then FEC is off */
-	if (!eth_fec)
-		eth_fec = ETHTOOL_FEC_OFF;
+	if (loc_fec & BIT(HNAE3_FEC_NONE))
+		eth_fec |= ETHTOOL_FEC_OFF;
 
 	return eth_fec;
 }
@@ -1637,12 +1637,13 @@ static unsigned int eth_to_loc_fec(unsigned int eth_fec)
 	u32 loc_fec = 0;
 
 	if (eth_fec & ETHTOOL_FEC_OFF)
-		return loc_fec;
-
+		loc_fec |= BIT(HNAE3_FEC_NONE);
 	if (eth_fec & ETHTOOL_FEC_AUTO)
 		loc_fec |= BIT(HNAE3_FEC_AUTO);
 	if (eth_fec & ETHTOOL_FEC_RS)
 		loc_fec |= BIT(HNAE3_FEC_RS);
+	if (eth_fec & ETHTOOL_FEC_LLRS)
+		loc_fec |= BIT(HNAE3_FEC_LLRS);
 	if (eth_fec & ETHTOOL_FEC_BASER)
 		loc_fec |= BIT(HNAE3_FEC_BASER);
 
@@ -1668,6 +1669,8 @@ static int hns3_get_fecparam(struct net_device *netdev,
 
 	fec->fec = loc_to_eth_fec(fec_ability);
 	fec->active_fec = loc_to_eth_fec(fec_mode);
+	if (!fec->active_fec)
+		fec->active_fec = ETHTOOL_FEC_OFF;
 
 	return 0;
 }

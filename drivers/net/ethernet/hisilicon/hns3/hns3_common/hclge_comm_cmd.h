@@ -20,6 +20,7 @@
 #define HCLGE_COMM_PHY_IMP_EN_B			2
 #define HCLGE_COMM_MAC_STATS_EXT_EN_B		3
 #define HCLGE_COMM_SYNC_RX_RING_HEAD_EN_B	4
+#define HCLGE_COMM_LLRS_FEC_EN_B		5
 
 #define hclge_comm_dev_phy_imp_supported(ae_dev) \
 	test_bit(HNAE3_DEV_SUPPORT_PHY_IMP_B, (ae_dev)->caps)
@@ -339,6 +340,8 @@ enum HCLGE_COMM_CAP_BITS {
 	HCLGE_COMM_CAP_RXD_ADV_LAYOUT_B = 15,
 	HCLGE_COMM_CAP_PORT_VLAN_BYPASS_B = 17,
 	HCLGE_COMM_CAP_CQ_B = 18,
+	HCLGE_COMM_CAP_GRO_B = 20,
+	HCLGE_COMM_CAP_FD_B = 21,
 };
 
 enum HCLGE_COMM_API_CAP_BITS {

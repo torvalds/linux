@@ -1517,7 +1517,7 @@ static int hclge_dbg_dump_fd_tcam(struct hclge_dev *hdev, char *buf, int len)
 	char *tcam_buf;
 	int pos = 0;
 
-	if (!hnae3_dev_fd_supported(hdev)) {
+	if (!hnae3_ae_dev_fd_supported(hdev->ae_dev)) {
 		dev_err(&hdev->pdev->dev,
 			"Only FD-supported dev supports dump fd tcam\n");
 		return -EOPNOTSUPP;
@@ -1584,6 +1584,9 @@ static int hclge_dbg_dump_fd_counter(struct hclge_dev *hdev, char *buf, int len)
 	int ret;
 	u64 cnt;
 	u8 i;
+
+	if (!hnae3_ae_dev_fd_supported(hdev->ae_dev))
+		return -EOPNOTSUPP;
 
 	pos += scnprintf(buf + pos, len - pos,
 			 "func_id\thit_times\n");
