@@ -264,6 +264,15 @@ int fw_upload_start(struct fw_sysfs *fw_sysfs)
 	return 0;
 }
 
+void fw_upload_free(struct fw_sysfs *fw_sysfs)
+{
+	struct fw_upload_priv *fw_upload_priv = fw_sysfs->fw_upload_priv;
+
+	free_fw_priv(fw_sysfs->fw_priv);
+	kfree(fw_upload_priv->fw_upload);
+	kfree(fw_upload_priv);
+}
+
 /**
  * firmware_upload_register() - register for the firmware upload sysfs API
  * @module: kernel module of this device
