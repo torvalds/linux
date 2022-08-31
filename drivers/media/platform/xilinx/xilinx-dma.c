@@ -404,7 +404,7 @@ static int xvip_dma_start_streaming(struct vb2_queue *vq, unsigned int count)
 	 */
 	pipe = to_xvip_pipeline(&dma->video.entity) ? : &dma->pipe;
 
-	ret = media_pipeline_start(&dma->video.entity, &pipe->pipe);
+	ret = video_device_pipeline_start(&dma->video, &pipe->pipe);
 	if (ret < 0)
 		goto error;
 
@@ -430,7 +430,7 @@ static int xvip_dma_start_streaming(struct vb2_queue *vq, unsigned int count)
 	return 0;
 
 error_stop:
-	media_pipeline_stop(&dma->video.entity);
+	video_device_pipeline_stop(&dma->video);
 
 error:
 	/* Give back all queued buffers to videobuf2. */
@@ -458,7 +458,7 @@ static void xvip_dma_stop_streaming(struct vb2_queue *vq)
 
 	/* Cleanup the pipeline and mark it as being stopped. */
 	xvip_pipeline_cleanup(pipe);
-	media_pipeline_stop(&dma->video.entity);
+	video_device_pipeline_stop(&dma->video);
 
 	/* Give back all queued buffers to videobuf2. */
 	spin_lock_irq(&dma->queued_lock);
