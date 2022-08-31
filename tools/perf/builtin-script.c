@@ -566,6 +566,8 @@ static struct evsel *find_first_output_type(struct evlist *evlist,
 	struct evsel *evsel;
 
 	evlist__for_each_entry(evlist, evsel) {
+		if (evsel__is_dummy_event(evsel))
+			continue;
 		if (output_type(evsel->core.attr.type) == (int)type)
 			return evsel;
 	}
