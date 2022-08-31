@@ -84,6 +84,7 @@ struct gsi_trans_info {
 	atomic_t tre_avail;		/* TREs available for allocation */
 
 	u16 free_id;			/* first free trans in array */
+	u16 allocated_id;		/* first allocated transaction */
 	struct gsi_trans *trans;	/* transaction array */
 	struct gsi_trans **map;		/* TRE -> transaction map */
 
