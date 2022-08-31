@@ -100,11 +100,11 @@ struct media_graph {
 /**
  * struct media_pipeline - Media pipeline related information
  *
- * @streaming_count:	Streaming start count - streaming stop count
+ * @start_count:	Media pipeline start - stop count
  * @graph:		Media graph walk during pipeline start / stop
  */
 struct media_pipeline {
-	int streaming_count;
+	int start_count;
 	struct media_graph graph;
 };
 
