@@ -47,7 +47,12 @@ struct xvip_pipeline {
 
 static inline struct xvip_pipeline *to_xvip_pipeline(struct media_entity *e)
 {
-	return container_of(e->pipe, struct xvip_pipeline, pipe);
+	struct media_pipeline *pipe = media_entity_pipeline(e);
+
+	if (!pipe)
+		return NULL;
+
+	return container_of(pipe, struct xvip_pipeline, pipe);
 }
 
 /**

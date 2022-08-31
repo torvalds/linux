@@ -870,8 +870,7 @@ iss_video_streamon(struct file *file, void *fh, enum v4l2_buf_type type)
 	 * Start streaming on the pipeline. No link touching an entity in the
 	 * pipeline can be activated or deactivated once streaming is started.
 	 */
-	pipe = entity->pipe
-	     ? to_iss_pipeline(entity) : &video->pipe;
+	pipe = to_iss_pipeline(&video->video.entity) ? : &video->pipe;
 	pipe->external = NULL;
 	pipe->external_rate = 0;
 	pipe->external_bpp = 0;

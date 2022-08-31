@@ -994,6 +994,12 @@ int media_entity_get_fwnode_pad(struct media_entity *entity,
 }
 EXPORT_SYMBOL_GPL(media_entity_get_fwnode_pad);
 
+struct media_pipeline *media_entity_pipeline(struct media_entity *entity)
+{
+	return entity->pipe;
+}
+EXPORT_SYMBOL_GPL(media_entity_pipeline);
+
 static void media_interface_init(struct media_device *mdev,
 				 struct media_interface *intf,
 				 u32 gobj_type,

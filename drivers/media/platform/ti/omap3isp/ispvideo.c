@@ -1093,8 +1093,7 @@ isp_video_streamon(struct file *file, void *fh, enum v4l2_buf_type type)
 	/* Start streaming on the pipeline. No link touching an entity in the
 	 * pipeline can be activated or deactivated once streaming is started.
 	 */
-	pipe = video->video.entity.pipe
-	     ? to_isp_pipeline(&video->video.entity) : &video->pipe;
+	pipe = to_isp_pipeline(&video->video.entity) ? : &video->pipe;
 
 	ret = media_entity_enum_init(&pipe->ent_enum, &video->isp->media_dev);
 	if (ret)
