@@ -17,6 +17,7 @@
 #include <linux/fwnode.h>
 #include <linux/list.h>
 #include <linux/media.h>
+#include <linux/minmax.h>
 #include <linux/types.h>
 
 /* Enums used internally at the media controller to represent graphs */
