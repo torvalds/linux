@@ -1194,7 +1194,7 @@
 		};
 
 		pwmdac: pwmdac@100b0000 {
-			compatible = "starfive,pwmdac";
+			compatible = "starfive,jh7110-pwmdac";
 			reg = <0x0 0x100b0000 0x0 0x1000>;
 			clocks = <&clkgen JH7110_APB0>,
 				 <&clkgen JH7110_PWMDAC_CLK_APB>,
@@ -1363,7 +1363,7 @@
 		};
 
 		pwmdac_codec: pwmdac-transmitter {
-			compatible = "linux,pwmdac-dit";
+			compatible = "starfive,jh7110-pwmdac-dit";
 			#sound-dai-cells = <0>;
 			status = "disabled";
 		};
