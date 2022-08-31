@@ -14,40 +14,40 @@ static void igt_check_drm_format_block_width(struct kunit *test)
 	const struct drm_format_info *info = NULL;
 
 	/* Test invalid arguments */
-	KUNIT_EXPECT_FALSE(test, drm_format_info_block_width(info, 0));
-	KUNIT_EXPECT_FALSE(test, drm_format_info_block_width(info, -1));
-	KUNIT_EXPECT_FALSE(test, drm_format_info_block_width(info, 1));
+	KUNIT_EXPECT_EQ(test, drm_format_info_block_width(info, 0), 0);
+	KUNIT_EXPECT_EQ(test, drm_format_info_block_width(info, -1), 0);
+	KUNIT_EXPECT_EQ(test, drm_format_info_block_width(info, 1), 0);
 
 	/* Test 1 plane format */
 	info = drm_format_info(DRM_FORMAT_XRGB4444);
-	KUNIT_EXPECT_TRUE(test, info);
-	KUNIT_EXPECT_TRUE(test, drm_format_info_block_width(info, 0));
-	KUNIT_EXPECT_FALSE(test, drm_format_info_block_width(info, 1));
-	KUNIT_EXPECT_FALSE(test, drm_format_info_block_width(info, -1));
+	KUNIT_ASSERT_NOT_NULL(test, info);
+	KUNIT_EXPECT_EQ(test, drm_format_info_block_width(info, 0), 1);
+	KUNIT_EXPECT_EQ(test, drm_format_info_block_width(info, 1), 0);
+	KUNIT_EXPECT_EQ(test, drm_format_info_block_width(info, -1), 0);
 
 	/* Test 2 planes format */
 	info = drm_format_info(DRM_FORMAT_NV12);
-	KUNIT_EXPECT_TRUE(test, info);
-	KUNIT_EXPECT_TRUE(test, drm_format_info_block_width(info, 0));
-	KUNIT_EXPECT_TRUE(test, drm_format_info_block_width(info, 1));
-	KUNIT_EXPECT_FALSE(test, drm_format_info_block_width(info, 2));
-	KUNIT_EXPECT_FALSE(test, drm_format_info_block_width(info, -1));
+	KUNIT_ASSERT_NOT_NULL(test, info);
+	KUNIT_EXPECT_EQ(test, drm_format_info_block_width(info, 0), 1);
+	KUNIT_EXPECT_EQ(test, drm_format_info_block_width(info, 1), 1);
+	KUNIT_EXPECT_EQ(test, drm_format_info_block_width(info, 2), 0);
+	KUNIT_EXPECT_EQ(test, drm_format_info_block_width(info, -1), 0);
 
 	/* Test 3 planes format */
 	info = drm_format_info(DRM_FORMAT_YUV422);
-	KUNIT_EXPECT_TRUE(test, info);
-	KUNIT_EXPECT_TRUE(test, drm_format_info_block_width(info, 0));
-	KUNIT_EXPECT_TRUE(test, drm_format_info_block_width(info, 1));
-	KUNIT_EXPECT_TRUE(test, drm_format_info_block_width(info, 2));
-	KUNIT_EXPECT_FALSE(test, drm_format_info_block_width(info, 3));
-	KUNIT_EXPECT_FALSE(test, drm_format_info_block_width(info, -1));
+	KUNIT_ASSERT_NOT_NULL(test, info);
+	KUNIT_EXPECT_EQ(test, drm_format_info_block_width(info, 0), 1);
+	KUNIT_EXPECT_EQ(test, drm_format_info_block_width(info, 1), 1);
+	KUNIT_EXPECT_EQ(test, drm_format_info_block_width(info, 2), 1);
+	KUNIT_EXPECT_EQ(test, drm_format_info_block_width(info, 3), 0);
+	KUNIT_EXPECT_EQ(test, drm_format_info_block_width(info, -1), 0);
 
 	/* Test a tiled format */
 	info = drm_format_info(DRM_FORMAT_X0L0);
-	KUNIT_EXPECT_TRUE(test, info);
+	KUNIT_ASSERT_NOT_NULL(test, info);
 	KUNIT_EXPECT_EQ(test, drm_format_info_block_width(info, 0), 2);
-	KUNIT_EXPECT_FALSE(test, drm_format_info_block_width(info, 1));
-	KUNIT_EXPECT_FALSE(test, drm_format_info_block_width(info, -1));
+	KUNIT_EXPECT_EQ(test, drm_format_info_block_width(info, 1), 0);
+	KUNIT_EXPECT_EQ(test, drm_format_info_block_width(info, -1), 0);
 }
 
 static void igt_check_drm_format_block_height(struct kunit *test)
@@ -55,40 +55,40 @@ static void igt_check_drm_format_block_height(struct kunit *test)
 	const struct drm_format_info *info = NULL;
 
 	/* Test invalid arguments */
-	KUNIT_EXPECT_FALSE(test, drm_format_info_block_height(info, 0));
-	KUNIT_EXPECT_FALSE(test, drm_format_info_block_height(info, -1));
-	KUNIT_EXPECT_FALSE(test, drm_format_info_block_height(info, 1));
+	KUNIT_EXPECT_EQ(test, drm_format_info_block_height(info, 0), 0);
+	KUNIT_EXPECT_EQ(test, drm_format_info_block_height(info, -1), 0);
+	KUNIT_EXPECT_EQ(test, drm_format_info_block_height(info, 1), 0);
 
 	/* Test 1 plane format */
 	info = drm_format_info(DRM_FORMAT_XRGB4444);
-	KUNIT_EXPECT_TRUE(test, info);
-	KUNIT_EXPECT_TRUE(test, drm_format_info_block_height(info, 0));
-	KUNIT_EXPECT_FALSE(test, drm_format_info_block_height(info, -1));
-	KUNIT_EXPECT_FALSE(test, drm_format_info_block_height(info, 1));
+	KUNIT_ASSERT_NOT_NULL(test, info);
+	KUNIT_EXPECT_EQ(test, drm_format_info_block_height(info, 0), 1);
+	KUNIT_EXPECT_EQ(test, drm_format_info_block_height(info, -1), 0);
+	KUNIT_EXPECT_EQ(test, drm_format_info_block_height(info, 1), 0);
 
 	/* Test 2 planes format */
 	info = drm_format_info(DRM_FORMAT_NV12);
-	KUNIT_EXPECT_TRUE(test, info);
-	KUNIT_EXPECT_TRUE(test, drm_format_info_block_height(info, 0));
-	KUNIT_EXPECT_TRUE(test, drm_format_info_block_height(info, 1));
-	KUNIT_EXPECT_FALSE(test, drm_format_info_block_height(info, 2));
-	KUNIT_EXPECT_FALSE(test, drm_format_info_block_height(info, -1));
+	KUNIT_ASSERT_NOT_NULL(test, info);
+	KUNIT_EXPECT_EQ(test, drm_format_info_block_height(info, 0), 1);
+	KUNIT_EXPECT_EQ(test, drm_format_info_block_height(info, 1), 1);
+	KUNIT_EXPECT_EQ(test, drm_format_info_block_height(info, 2), 0);
+	KUNIT_EXPECT_EQ(test, drm_format_info_block_height(info, -1), 0);
 
 	/* Test 3 planes format */
 	info = drm_format_info(DRM_FORMAT_YUV422);
-	KUNIT_EXPECT_TRUE(test, info);
-	KUNIT_EXPECT_TRUE(test, drm_format_info_block_height(info, 0));
-	KUNIT_EXPECT_TRUE(test, drm_format_info_block_height(info, 1));
-	KUNIT_EXPECT_TRUE(test, drm_format_info_block_height(info, 2));
-	KUNIT_EXPECT_FALSE(test, drm_format_info_block_height(info, 3));
-	KUNIT_EXPECT_FALSE(test, drm_format_info_block_height(info, -1));
+	KUNIT_ASSERT_NOT_NULL(test, info);
+	KUNIT_EXPECT_EQ(test, drm_format_info_block_height(info, 0), 1);
+	KUNIT_EXPECT_EQ(test, drm_format_info_block_height(info, 1), 1);
+	KUNIT_EXPECT_EQ(test, drm_format_info_block_height(info, 2), 1);
+	KUNIT_EXPECT_EQ(test, drm_format_info_block_height(info, 3), 0);
+	KUNIT_EXPECT_EQ(test, drm_format_info_block_height(info, -1), 0);
 
 	/* Test a tiled format */
 	info = drm_format_info(DRM_FORMAT_X0L0);
-	KUNIT_EXPECT_TRUE(test, info);
+	KUNIT_ASSERT_NOT_NULL(test, info);
 	KUNIT_EXPECT_EQ(test, drm_format_info_block_height(info, 0), 2);
-	KUNIT_EXPECT_FALSE(test, drm_format_info_block_height(info, 1));
-	KUNIT_EXPECT_FALSE(test, drm_format_info_block_height(info, -1));
+	KUNIT_EXPECT_EQ(test, drm_format_info_block_height(info, 1), 0);
+	KUNIT_EXPECT_EQ(test, drm_format_info_block_height(info, -1), 0);
 }
 
 static void igt_check_drm_format_min_pitch_for_single_plane(struct kunit *test)
@@ -96,16 +96,16 @@ static void igt_check_drm_format_min_pitch_for_single_plane(struct kunit *test)
 	const struct drm_format_info *info = NULL;
 
 	/* Test invalid arguments */
-	KUNIT_EXPECT_FALSE(test, drm_format_info_min_pitch(info, 0, 0));
-	KUNIT_EXPECT_FALSE(test, drm_format_info_min_pitch(info, -1, 0));
-	KUNIT_EXPECT_FALSE(test, drm_format_info_min_pitch(info, 1, 0));
+	KUNIT_EXPECT_EQ(test, drm_format_info_min_pitch(info, 0, 0), 0);
+	KUNIT_EXPECT_EQ(test, drm_format_info_min_pitch(info, -1, 0), 0);
+	KUNIT_EXPECT_EQ(test, drm_format_info_min_pitch(info, 1, 0), 0);
 
 	/* Test 1 plane 8 bits per pixel format */
 	info = drm_format_info(DRM_FORMAT_RGB332);
-	KUNIT_EXPECT_TRUE(test, info);
-	KUNIT_EXPECT_FALSE(test, drm_format_info_min_pitch(info, 0, 0));
-	KUNIT_EXPECT_FALSE(test, drm_format_info_min_pitch(info, -1, 0));
-	KUNIT_EXPECT_FALSE(test, drm_format_info_min_pitch(info, 1, 0));
+	KUNIT_ASSERT_NOT_NULL(test, info);
+	KUNIT_EXPECT_EQ(test, drm_format_info_min_pitch(info, 0, 0), 0);
+	KUNIT_EXPECT_EQ(test, drm_format_info_min_pitch(info, -1, 0), 0);
+	KUNIT_EXPECT_EQ(test, drm_format_info_min_pitch(info, 1, 0), 0);
 
 	KUNIT_EXPECT_EQ(test, drm_format_info_min_pitch(info, 0, 1), 1);
 	KUNIT_EXPECT_EQ(test, drm_format_info_min_pitch(info, 0, 2), 2);
@@ -121,10 +121,10 @@ static void igt_check_drm_format_min_pitch_for_single_plane(struct kunit *test)
 
 	/* Test 1 plane 16 bits per pixel format */
 	info = drm_format_info(DRM_FORMAT_XRGB4444);
-	KUNIT_EXPECT_TRUE(test, info);
-	KUNIT_EXPECT_FALSE(test, drm_format_info_min_pitch(info, 0, 0));
-	KUNIT_EXPECT_FALSE(test, drm_format_info_min_pitch(info, -1, 0));
-	KUNIT_EXPECT_FALSE(test, drm_format_info_min_pitch(info, 1, 0));
+	KUNIT_ASSERT_NOT_NULL(test, info);
+	KUNIT_EXPECT_EQ(test, drm_format_info_min_pitch(info, 0, 0), 0);
+	KUNIT_EXPECT_EQ(test, drm_format_info_min_pitch(info, -1, 0), 0);
+	KUNIT_EXPECT_EQ(test, drm_format_info_min_pitch(info, 1, 0), 0);
 
 	KUNIT_EXPECT_EQ(test, drm_format_info_min_pitch(info, 0, 1), 2);
 	KUNIT_EXPECT_EQ(test, drm_format_info_min_pitch(info, 0, 2), 4);
@@ -140,10 +140,10 @@ static void igt_check_drm_format_min_pitch_for_single_plane(struct kunit *test)
 
 	/* Test 1 plane 24 bits per pixel format */
 	info = drm_format_info(DRM_FORMAT_RGB888);
-	KUNIT_EXPECT_TRUE(test, info);
-	KUNIT_EXPECT_FALSE(test, drm_format_info_min_pitch(info, 0, 0));
-	KUNIT_EXPECT_FALSE(test, drm_format_info_min_pitch(info, -1, 0));
-	KUNIT_EXPECT_FALSE(test, drm_format_info_min_pitch(info, 1, 0));
+	KUNIT_ASSERT_NOT_NULL(test, info);
+	KUNIT_EXPECT_EQ(test, drm_format_info_min_pitch(info, 0, 0), 0);
+	KUNIT_EXPECT_EQ(test, drm_format_info_min_pitch(info, -1, 0), 0);
+	KUNIT_EXPECT_EQ(test, drm_format_info_min_pitch(info, 1, 0), 0);
 
 	KUNIT_EXPECT_EQ(test, drm_format_info_min_pitch(info, 0, 1), 3);
 	KUNIT_EXPECT_EQ(test, drm_format_info_min_pitch(info, 0, 2), 6);
@@ -159,10 +159,10 @@ static void igt_check_drm_format_min_pitch_for_single_plane(struct kunit *test)
 
 	/* Test 1 plane 32 bits per pixel format */
 	info = drm_format_info(DRM_FORMAT_ABGR8888);
-	KUNIT_EXPECT_TRUE(test, info);
-	KUNIT_EXPECT_FALSE(test, drm_format_info_min_pitch(info, 0, 0));
-	KUNIT_EXPECT_FALSE(test, drm_format_info_min_pitch(info, -1, 0));
-	KUNIT_EXPECT_FALSE(test, drm_format_info_min_pitch(info, 1, 0));
+	KUNIT_ASSERT_NOT_NULL(test, info);
+	KUNIT_EXPECT_EQ(test, drm_format_info_min_pitch(info, 0, 0), 0);
+	KUNIT_EXPECT_EQ(test, drm_format_info_min_pitch(info, -1, 0), 0);
+	KUNIT_EXPECT_EQ(test, drm_format_info_min_pitch(info, 1, 0), 0);
 
 	KUNIT_EXPECT_EQ(test, drm_format_info_min_pitch(info, 0, 1), 4);
 	KUNIT_EXPECT_EQ(test, drm_format_info_min_pitch(info, 0, 2), 8);
@@ -183,11 +183,11 @@ static void igt_check_drm_format_min_pitch_for_multi_planar(struct kunit *test)
 
 	/* Test 2 planes format */
 	info = drm_format_info(DRM_FORMAT_NV12);
-	KUNIT_EXPECT_TRUE(test, info);
-	KUNIT_EXPECT_FALSE(test, drm_format_info_min_pitch(info, 0, 0));
-	KUNIT_EXPECT_FALSE(test, drm_format_info_min_pitch(info, 1, 0));
-	KUNIT_EXPECT_FALSE(test, drm_format_info_min_pitch(info, -1, 0));
-	KUNIT_EXPECT_FALSE(test, drm_format_info_min_pitch(info, 2, 0));
+	KUNIT_ASSERT_NOT_NULL(test, info);
+	KUNIT_EXPECT_EQ(test, drm_format_info_min_pitch(info, 0, 0), 0);
+	KUNIT_EXPECT_EQ(test, drm_format_info_min_pitch(info, 1, 0), 0);
+	KUNIT_EXPECT_EQ(test, drm_format_info_min_pitch(info, -1, 0), 0);
+	KUNIT_EXPECT_EQ(test, drm_format_info_min_pitch(info, 2, 0), 0);
 
 	KUNIT_EXPECT_EQ(test, drm_format_info_min_pitch(info, 0, 1), 1);
 	KUNIT_EXPECT_EQ(test, drm_format_info_min_pitch(info, 1, 1), 2);
@@ -214,12 +214,12 @@ static void igt_check_drm_format_min_pitch_for_multi_planar(struct kunit *test)
 
 	/* Test 3 planes 8 bits per pixel format */
 	info = drm_format_info(DRM_FORMAT_YUV422);
-	KUNIT_EXPECT_TRUE(test, info);
-	KUNIT_EXPECT_FALSE(test, drm_format_info_min_pitch(info, 0, 0));
-	KUNIT_EXPECT_FALSE(test, drm_format_info_min_pitch(info, 1, 0));
-	KUNIT_EXPECT_FALSE(test, drm_format_info_min_pitch(info, 2, 0));
-	KUNIT_EXPECT_FALSE(test, drm_format_info_min_pitch(info, -1, 0));
-	KUNIT_EXPECT_FALSE(test, drm_format_info_min_pitch(info, 3, 0));
+	KUNIT_ASSERT_NOT_NULL(test, info);
+	KUNIT_EXPECT_EQ(test, drm_format_info_min_pitch(info, 0, 0), 0);
+	KUNIT_EXPECT_EQ(test, drm_format_info_min_pitch(info, 1, 0), 0);
+	KUNIT_EXPECT_EQ(test, drm_format_info_min_pitch(info, 2, 0), 0);
+	KUNIT_EXPECT_EQ(test, drm_format_info_min_pitch(info, -1, 0), 0);
+	KUNIT_EXPECT_EQ(test, drm_format_info_min_pitch(info, 3, 0), 0);
 
 	KUNIT_EXPECT_EQ(test, drm_format_info_min_pitch(info, 0, 1), 1);
 	KUNIT_EXPECT_EQ(test, drm_format_info_min_pitch(info, 1, 1), 1);
@@ -262,10 +262,10 @@ static void igt_check_drm_format_min_pitch_for_tiled_format(struct kunit *test)
 
 	/* Test tiled format */
 	info = drm_format_info(DRM_FORMAT_X0L2);
-	KUNIT_EXPECT_TRUE(test, info);
-	KUNIT_EXPECT_FALSE(test, drm_format_info_min_pitch(info, 0, 0));
-	KUNIT_EXPECT_FALSE(test, drm_format_info_min_pitch(info, -1, 0));
-	KUNIT_EXPECT_FALSE(test, drm_format_info_min_pitch(info, 1, 0));
+	KUNIT_ASSERT_NOT_NULL(test, info);
+	KUNIT_EXPECT_EQ(test, drm_format_info_min_pitch(info, 0, 0), 0);
+	KUNIT_EXPECT_EQ(test, drm_format_info_min_pitch(info, -1, 0), 0);
+	KUNIT_EXPECT_EQ(test, drm_format_info_min_pitch(info, 1, 0), 0);
 
 	KUNIT_EXPECT_EQ(test, drm_format_info_min_pitch(info, 0, 1), 2);
 	KUNIT_EXPECT_EQ(test, drm_format_info_min_pitch(info, 0, 2), 4);
