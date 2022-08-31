@@ -296,19 +296,12 @@ void gsi_trans_move_complete(struct gsi_trans *trans)
 	list_cut_position(&list, &trans_info->pending, &trans->links);
 	list_splice_tail(&list, &trans_info->complete);
 
-	trans = list_first_entry(&trans_info->complete,
-				 struct gsi_trans, links);
-
 	spin_unlock_bh(&trans_info->spinlock);
 
 	/* These pending transactions are now completed */
 	delta = trans_index - trans_info->pending_id + 1;
 	delta %= channel->tre_count;
 	trans_info->pending_id += delta;
-
-	WARN_ON(trans_info->completed_id == trans_info->pending_id);
-	trans_index = trans_info->completed_id % channel->tre_count;
-	WARN_ON(trans != &trans_info->trans[trans_index]);
 }
 
 /* Move a transaction from the completed list to the polled list */
@@ -322,21 +315,17 @@ void gsi_trans_move_polled(struct gsi_trans *trans)
 
 	list_move_tail(&trans->links, &trans_info->polled);
 
-	trans = list_first_entry_or_null(&trans_info->complete,
-					 struct gsi_trans, links);
+	trans = list_first_entry(&trans_info->polled,
+				 struct gsi_trans, links);
 
 	spin_unlock_bh(&trans_info->spinlock);
 
 	/* This completed transaction is now polled */
 	trans_info->completed_id++;
 
-	if (trans) {
-		trans_index = trans_info->completed_id % channel->tre_count;
-		WARN_ON(trans != &trans_info->trans[trans_index]);
-	} else {
-		WARN_ON(trans_info->completed_id !=
-			trans_info->pending_id);
-	}
+	WARN_ON(trans_info->polled_id == trans_info->completed_id);
+	trans_index = trans_info->polled_id % channel->tre_count;
+	WARN_ON(trans != &trans_info->trans[trans_index]);
 }
 
 /* Reserve some number of TREs on a channel.  Returns true if successful */
@@ -424,8 +413,11 @@ struct gsi_trans *gsi_channel_trans_alloc(struct gsi *gsi, u32 channel_id,
 /* Free a previously-allocated transaction */
 void gsi_trans_free(struct gsi_trans *trans)
 {
+	struct gsi_channel *channel = &trans->gsi->channel[trans->channel_id];
 	refcount_t *refcount = &trans->refcount;
 	struct gsi_trans_info *trans_info;
+	struct gsi_trans *polled;
+	u16 trans_index;
 	bool last;
 
 	/* We must hold the lock to release the last reference */
@@ -440,6 +432,9 @@ void gsi_trans_free(struct gsi_trans *trans)
 	last = refcount_dec_and_test(refcount);
 	if (last)
 		list_del(&trans->links);
+
+	polled = list_first_entry_or_null(&trans_info->polled,
+					  struct gsi_trans, links);
 
 	spin_unlock_bh(&trans_info->spinlock);
 
@@ -456,6 +451,17 @@ void gsi_trans_free(struct gsi_trans *trans)
 		trans_info->completed_id++;
 	} else {
 		ipa_gsi_trans_release(trans);
+	}
+
+	/* This transaction is now free */
+	trans_info->polled_id++;
+
+	if (polled) {
+		trans_index = trans_info->polled_id % channel->tre_count;
+		WARN_ON(polled != &trans_info->trans[trans_index]);
+	} else {
+		WARN_ON(trans_info->polled_id !=
+			trans_info->completed_id);
 	}
 
 	/* Releasing the reserved TREs implicitly frees the sgl[] and
@@ -796,6 +802,7 @@ int gsi_channel_trans_init(struct gsi *gsi, u32 channel_id)
 	trans_info->committed_id = 0;
 	trans_info->pending_id = 0;
 	trans_info->completed_id = 0;
+	trans_info->polled_id = 0;
 
 	/* A completion event contains a pointer to the TRE that caused
 	 * the event (which will be the last one used by the transaction).
