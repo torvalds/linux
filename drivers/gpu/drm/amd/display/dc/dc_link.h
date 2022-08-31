@@ -244,7 +244,7 @@ struct dc_link {
 	struct gpio *hpd_gpio;
 	enum dc_link_fec_state fec_state;
 	struct dc_panel_config panel_config;
-	enum phy_state phy_state;
+	struct phy_state phy_state;
 };
 
 const struct dc_link_status *dc_link_get_status(const struct dc_link *dc_link);

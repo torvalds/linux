@@ -2644,9 +2644,8 @@ static void disable_link(struct dc_link *link, const struct link_resource *link_
 				dp_set_fec_ready(link, link_res, false);
 			}
 		}
-	} else {
-		if (signal != SIGNAL_TYPE_VIRTUAL)
-			link->link_enc->funcs->disable_output(link->link_enc, signal);
+	} else if (signal != SIGNAL_TYPE_VIRTUAL) {
+		link->dc->hwss.disable_link_output(link, link_res, signal);
 	}
 
 	if (signal == SIGNAL_TYPE_DISPLAY_PORT_MST) {
@@ -2668,6 +2667,7 @@ static void enable_link_hdmi(struct pipe_ctx *pipe_ctx)
 	bool is_over_340mhz = false;
 	bool is_vga_mode = (stream->timing.h_addressable == 640)
 			&& (stream->timing.v_addressable == 480);
+	struct dc *dc = pipe_ctx->stream->ctx->dc;
 
 	if (stream->phy_pix_clk == 0)
 		stream->phy_pix_clk = stream->timing.pix_clk_100hz / 10;
@@ -2707,11 +2707,12 @@ static void enable_link_hdmi(struct pipe_ctx *pipe_ctx)
 	if (stream->timing.pixel_encoding == PIXEL_ENCODING_YCBCR422)
 		display_color_depth = COLOR_DEPTH_888;
 
-	link->link_enc->funcs->enable_tmds_output(
-			link->link_enc,
+	dc->hwss.enable_tmds_link_output(
+			link,
+			&pipe_ctx->link_res,
+			pipe_ctx->stream->signal,
 			pipe_ctx->clock_source->id,
 			display_color_depth,
-			pipe_ctx->stream->signal,
 			stream->phy_pix_clk);
 
 	if (dc_is_hdmi_signal(pipe_ctx->stream->signal))
@@ -2722,15 +2723,16 @@ static void enable_link_lvds(struct pipe_ctx *pipe_ctx)
 {
 	struct dc_stream_state *stream = pipe_ctx->stream;
 	struct dc_link *link = stream->link;
+	struct dc *dc = stream->ctx->dc;
 
 	if (stream->phy_pix_clk == 0)
 		stream->phy_pix_clk = stream->timing.pix_clk_100hz / 10;
 
 	memset(&stream->link->cur_link_settings, 0,
 			sizeof(struct dc_link_settings));
-
-	link->link_enc->funcs->enable_lvds_output(
-			link->link_enc,
+	dc->hwss.enable_lvds_link_output(
+			link,
+			&pipe_ctx->link_res,
 			pipe_ctx->clock_source->id,
 			stream->phy_pix_clk);
 

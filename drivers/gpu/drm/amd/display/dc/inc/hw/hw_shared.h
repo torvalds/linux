@@ -268,10 +268,18 @@ enum dc_lut_mode {
 	LUT_RAM_B
 };
 
-enum phy_state {
-	TX_OFF_SYMCLK_OFF,
-	TX_ON_SYMCLK_ON,
-	TX_OFF_SYMCLK_ON
+enum symclk_state {
+	SYMCLK_OFF_TX_OFF,
+	SYMCLK_ON_TX_ON,
+	SYMCLK_ON_TX_OFF,
+};
+
+struct phy_state {
+	struct {
+		uint8_t otg		: 1;
+		uint8_t reserved	: 7;
+	} symclk_ref_cnts;
+	enum symclk_state symclk_state;
 };
 
 /**

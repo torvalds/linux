@@ -48,6 +48,7 @@ struct dc_phy_addr_space_config;
 struct dc_virtual_addr_space_config;
 struct dpp;
 struct dce_hwseq;
+struct link_resource;
 
 struct hw_sequencer_funcs {
 	void (*hardware_release)(struct dc *dc);
@@ -218,6 +219,25 @@ struct hw_sequencer_funcs {
 
 	void (*set_pipe)(struct pipe_ctx *pipe_ctx);
 
+	void (*enable_dp_link_output)(struct dc_link *link,
+			const struct link_resource *link_res,
+			enum signal_type signal,
+			enum clock_source_id clock_source,
+			const struct dc_link_settings *link_settings);
+	void (*enable_tmds_link_output)(struct dc_link *link,
+			const struct link_resource *link_res,
+			enum signal_type signal,
+			enum clock_source_id clock_source,
+			enum dc_color_depth color_depth,
+			uint32_t pixel_clock);
+	void (*enable_lvds_link_output)(struct dc_link *link,
+			const struct link_resource *link_res,
+			enum clock_source_id clock_source,
+			uint32_t pixel_clock);
+	void (*disable_link_output)(struct dc_link *link,
+			const struct link_resource *link_res,
+			enum signal_type signal);
+
 	void (*get_dcc_en_bits)(struct dc *dc, int *dcc_en_bits);
 
 	/* Idle Optimization Related */
@@ -244,9 +264,6 @@ struct hw_sequencer_funcs {
 			struct pipe_ctx *pipe_ctx,
 			struct tg_color *color,
 			int mpcc_id);
-
-	void (*update_phy_state)(struct dc_state *state, struct pipe_ctx *pipe_ctx, enum phy_state target_state);
-
 
 	void (*update_phantom_vp_position)(struct dc *dc,
 			struct dc_state *context,

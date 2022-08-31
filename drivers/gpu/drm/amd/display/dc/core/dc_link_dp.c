@@ -4518,25 +4518,15 @@ void dc_link_dp_handle_link_loss(struct dc_link *link)
 	for (i = 0; i < MAX_PIPES; i++) {
 		pipe_ctx = &link->dc->current_state->res_ctx.pipe_ctx[i];
 		if (pipe_ctx && pipe_ctx->stream && !pipe_ctx->stream->dpms_off &&
-				pipe_ctx->stream->link == link && !pipe_ctx->prev_odm_pipe) {
-			if (link->dc->hwss.update_phy_state)
-				link->dc->hwss.update_phy_state(link->dc->current_state,
-						pipe_ctx, TX_OFF_SYMCLK_OFF);
-			else
-				core_link_disable_stream(pipe_ctx);
-		}
+				pipe_ctx->stream->link == link && !pipe_ctx->prev_odm_pipe)
+			core_link_disable_stream(pipe_ctx);
 	}
 
 	for (i = 0; i < MAX_PIPES; i++) {
 		pipe_ctx = &link->dc->current_state->res_ctx.pipe_ctx[i];
 		if (pipe_ctx && pipe_ctx->stream && !pipe_ctx->stream->dpms_off &&
-				pipe_ctx->stream->link == link && !pipe_ctx->prev_odm_pipe) {
-			if (link->dc->hwss.update_phy_state)
-				link->dc->hwss.update_phy_state(link->dc->current_state,
-						pipe_ctx, TX_ON_SYMCLK_ON);
-			else
-				core_link_enable_stream(link->dc->current_state, pipe_ctx);
-		}
+				pipe_ctx->stream->link == link && !pipe_ctx->prev_odm_pipe)
+			core_link_enable_stream(link->dc->current_state, pipe_ctx);
 	}
 }
 
@@ -7077,60 +7067,9 @@ void dp_enable_link_phy(
 	enum clock_source_id clock_source,
 	const struct dc_link_settings *link_settings)
 {
-	struct dc  *dc = link->ctx->dc;
-	struct dmcu *dmcu = dc->res_pool->dmcu;
-	struct pipe_ctx *pipes =
-			link->dc->current_state->res_ctx.pipe_ctx;
-	struct clock_source *dp_cs =
-			link->dc->res_pool->dp_clock_source;
-	const struct link_hwss *link_hwss = get_link_hwss(link, link_res);
-	unsigned int i;
-
-	if (link->connector_signal == SIGNAL_TYPE_EDP) {
-		if (!link->dc->config.edp_no_power_sequencing)
-			link->dc->hwss.edp_power_control(link, true);
-		link->dc->hwss.edp_wait_for_hpd_ready(link, true);
-	}
-
-	/* If the current pixel clock source is not DTO(happens after
-	 * switching from HDMI passive dongle to DP on the same connector),
-	 * switch the pixel clock source to DTO.
-	 */
-	for (i = 0; i < MAX_PIPES; i++) {
-		if (pipes[i].stream != NULL &&
-			pipes[i].stream->link == link) {
-			if (pipes[i].clock_source != NULL &&
-					pipes[i].clock_source->id != CLOCK_SOURCE_ID_DP_DTO) {
-				pipes[i].clock_source = dp_cs;
-				pipes[i].stream_res.pix_clk_params.requested_pix_clk_100hz =
-						pipes[i].stream->timing.pix_clk_100hz;
-				pipes[i].clock_source->funcs->program_pix_clk(
-							pipes[i].clock_source,
-							&pipes[i].stream_res.pix_clk_params,
-							dp_get_link_encoding_format(link_settings),
-							&pipes[i].pll_settings);
-			}
-		}
-	}
-
+	link->dc->hwss.enable_dp_link_output(link, link_res, signal,
+			clock_source, link_settings);
 	link->cur_link_settings = *link_settings;
-
-	if (dp_get_link_encoding_format(link_settings) == DP_8b_10b_ENCODING) {
-		if (dc->clk_mgr->funcs->notify_link_rate_change)
-			dc->clk_mgr->funcs->notify_link_rate_change(dc->clk_mgr, link);
-	}
-
-	if (dmcu != NULL && dmcu->funcs->lock_phy)
-		dmcu->funcs->lock_phy(dmcu);
-
-	if (link_hwss->ext.enable_dp_link_output)
-		link_hwss->ext.enable_dp_link_output(link, link_res, signal,
-				clock_source, link_settings);
-
-	if (dmcu != NULL && dmcu->funcs->unlock_phy)
-		dmcu->funcs->unlock_phy(dmcu);
-
-	dp_source_sequence_trace(link, DPCD_SOURCE_SEQ_AFTER_ENABLE_LINK_PHY);
 	dp_receiver_power_ctrl(link, true);
 }
 
@@ -7205,29 +7144,8 @@ void dp_disable_link_phy(struct dc_link *link, const struct link_resource *link_
 		enum signal_type signal)
 {
 	struct dc  *dc = link->ctx->dc;
-	struct dmcu *dmcu = dc->res_pool->dmcu;
-	const struct link_hwss *link_hwss = get_link_hwss(link, link_res);
 
-	if (!link->wa_flags.dp_keep_receiver_powered)
-		dp_receiver_power_ctrl(link, false);
-
-	if (signal == SIGNAL_TYPE_EDP) {
-		if (link->dc->hwss.edp_backlight_control)
-			link->dc->hwss.edp_backlight_control(link, false);
-		if (link_hwss->ext.disable_dp_link_output)
-			link_hwss->ext.disable_dp_link_output(link, link_res, signal);
-		link->dc->hwss.edp_power_control(link, false);
-	} else {
-		if (dmcu != NULL && dmcu->funcs->lock_phy)
-			dmcu->funcs->lock_phy(dmcu);
-		if (link_hwss->ext.disable_dp_link_output)
-			link_hwss->ext.disable_dp_link_output(link, link_res, signal);
-		if (dmcu != NULL && dmcu->funcs->unlock_phy)
-			dmcu->funcs->unlock_phy(dmcu);
-	}
-
-	dp_source_sequence_trace(link, DPCD_SOURCE_SEQ_AFTER_DISABLE_LINK_PHY);
-
+	dc->hwss.disable_link_output(link, link_res, signal);
 	/* Clear current link setting.*/
 	memset(&link->cur_link_settings, 0,
 			sizeof(link->cur_link_settings));
