@@ -114,13 +114,13 @@
 /**
  * struct ksm_mm_slot - ksm information per mm that is being scanned
  * @link: link to the mm_slots hash list
- * @mm_list: link into the mm_slots list, rooted in ksm_mm_head
+ * @mm_node: link into the mm_slots list, rooted in ksm_mm_head
  * @rmap_list: head for this mm_slot's singly-linked list of rmap_items
  * @mm: the mm that this information is valid for
  */
 struct ksm_mm_slot {
 	struct hlist_node link;
-	struct list_head mm_list;
+	struct list_head mm_node;
 	struct ksm_rmap_item *rmap_list;
 	struct mm_struct *mm;
 };
@@ -231,7 +231,7 @@ static LIST_HEAD(migrate_nodes);
 static DEFINE_HASHTABLE(mm_slots_hash, MM_SLOTS_HASH_BITS);
 
 static struct ksm_mm_slot ksm_mm_head = {
-	.mm_list = LIST_HEAD_INIT(ksm_mm_head.mm_list),
+	.mm_node = LIST_HEAD_INIT(ksm_mm_head.mm_node),
 };
 static struct ksm_scan ksm_scan = {
 	.mm_slot = &ksm_mm_head,
@@ -981,8 +981,8 @@ static int unmerge_and_remove_all_rmap_items(void)
 	int err = 0;
 
 	spin_lock(&ksm_mmlist_lock);
-	ksm_scan.mm_slot = list_entry(ksm_mm_head.mm_list.next,
-						struct ksm_mm_slot, mm_list);
+	ksm_scan.mm_slot = list_entry(ksm_mm_head.mm_node.next,
+						struct ksm_mm_slot, mm_node);
 	spin_unlock(&ksm_mmlist_lock);
 
 	for (mm_slot = ksm_scan.mm_slot; mm_slot != &ksm_mm_head;
@@ -1006,11 +1006,11 @@ static int unmerge_and_remove_all_rmap_items(void)
 		mmap_read_unlock(mm);
 
 		spin_lock(&ksm_mmlist_lock);
-		ksm_scan.mm_slot = list_entry(mm_slot->mm_list.next,
-						struct ksm_mm_slot, mm_list);
+		ksm_scan.mm_slot = list_entry(mm_slot->mm_node.next,
+						struct ksm_mm_slot, mm_node);
 		if (ksm_test_exit(mm)) {
 			hash_del(&mm_slot->link);
-			list_del(&mm_slot->mm_list);
+			list_del(&mm_slot->mm_node);
 			spin_unlock(&ksm_mmlist_lock);
 
 			free_mm_slot(mm_slot);
@@ -2253,7 +2253,7 @@ static struct ksm_rmap_item *scan_get_next_rmap_item(struct page **page)
 	struct vma_iterator vmi;
 	int nid;
 
-	if (list_empty(&ksm_mm_head.mm_list))
+	if (list_empty(&ksm_mm_head.mm_node))
 		return NULL;
 
 	slot = ksm_scan.mm_slot;
@@ -2294,7 +2294,7 @@ static struct ksm_rmap_item *scan_get_next_rmap_item(struct page **page)
 			root_unstable_tree[nid] = RB_ROOT;
 
 		spin_lock(&ksm_mmlist_lock);
-		slot = list_entry(slot->mm_list.next, struct ksm_mm_slot, mm_list);
+		slot = list_entry(slot->mm_node.next, struct ksm_mm_slot, mm_node);
 		ksm_scan.mm_slot = slot;
 		spin_unlock(&ksm_mmlist_lock);
 		/*
@@ -2367,8 +2367,8 @@ no_vmas:
 	remove_trailing_rmap_items(ksm_scan.rmap_list);
 
 	spin_lock(&ksm_mmlist_lock);
-	ksm_scan.mm_slot = list_entry(slot->mm_list.next,
-						struct ksm_mm_slot, mm_list);
+	ksm_scan.mm_slot = list_entry(slot->mm_node.next,
+						struct ksm_mm_slot, mm_node);
 	if (ksm_scan.address == 0) {
 		/*
 		 * We've completed a full scan of all vmas, holding mmap_lock
@@ -2380,7 +2380,7 @@ no_vmas:
 		 * mmap_lock then protects against race with MADV_MERGEABLE).
 		 */
 		hash_del(&slot->link);
-		list_del(&slot->mm_list);
+		list_del(&slot->mm_node);
 		spin_unlock(&ksm_mmlist_lock);
 
 		free_mm_slot(slot);
@@ -2429,7 +2429,7 @@ static void ksm_do_scan(unsigned int scan_npages)
 
 static int ksmd_should_run(void)
 {
-	return (ksm_run & KSM_RUN_MERGE) && !list_empty(&ksm_mm_head.mm_list);
+	return (ksm_run & KSM_RUN_MERGE) && !list_empty(&ksm_mm_head.mm_node);
 }
 
 static int ksm_scan_thread(void *nothing)
@@ -2526,7 +2526,7 @@ int __ksm_enter(struct mm_struct *mm)
 		return -ENOMEM;
 
 	/* Check ksm_run too?  Would need tighter locking */
-	needs_wakeup = list_empty(&ksm_mm_head.mm_list);
+	needs_wakeup = list_empty(&ksm_mm_head.mm_node);
 
 	spin_lock(&ksm_mmlist_lock);
 	insert_to_mm_slots_hash(mm, mm_slot);
@@ -2541,9 +2541,9 @@ int __ksm_enter(struct mm_struct *mm)
 	 * missed: then we might as well insert at the end of the list.
 	 */
 	if (ksm_run & KSM_RUN_UNMERGE)
-		list_add_tail(&mm_slot->mm_list, &ksm_mm_head.mm_list);
+		list_add_tail(&mm_slot->mm_node, &ksm_mm_head.mm_node);
 	else
-		list_add_tail(&mm_slot->mm_list, &ksm_scan.mm_slot->mm_list);
+		list_add_tail(&mm_slot->mm_node, &ksm_scan.mm_slot->mm_node);
 	spin_unlock(&ksm_mmlist_lock);
 
 	set_bit(MMF_VM_MERGEABLE, &mm->flags);
@@ -2574,11 +2574,11 @@ void __ksm_exit(struct mm_struct *mm)
 	if (mm_slot && ksm_scan.mm_slot != mm_slot) {
 		if (!mm_slot->rmap_list) {
 			hash_del(&mm_slot->link);
-			list_del(&mm_slot->mm_list);
+			list_del(&mm_slot->mm_node);
 			easy_to_free = 1;
 		} else {
-			list_move(&mm_slot->mm_list,
-				  &ksm_scan.mm_slot->mm_list);
+			list_move(&mm_slot->mm_node,
+				  &ksm_scan.mm_slot->mm_node);
 		}
 	}
 	spin_unlock(&ksm_mmlist_lock);
