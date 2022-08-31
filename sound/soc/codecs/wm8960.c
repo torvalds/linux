@@ -871,8 +871,6 @@ static int wm8960_hw_params(struct snd_pcm_substream *substream,
 		snd_soc_component_write(component, WM8960_POWER1, 0xfe);
 		snd_soc_component_write(component, WM8960_POWER2, 0x1f8);
 		snd_soc_component_write(component, WM8960_POWER2, 0x1f9);
-		snd_soc_component_write(component, WM8960_PLL1, 0x28);
-		snd_soc_component_write(component, WM8960_PLL1, 0x38);
 
 		freq_in = wm8960->freq_in;
 		freq_out = wm8960_configure_pll(component, freq_in, &i, &j, &k);
