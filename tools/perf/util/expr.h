@@ -11,7 +11,9 @@
 struct metric_ref;
 
 struct expr_scanner_ctx {
+	char *user_requested_cpu_list;
 	int runtime;
+	bool system_wide;
 };
 
 struct expr_parse_ctx {
@@ -55,6 +57,6 @@ int expr__find_ids(const char *expr, const char *one,
 
 double expr_id_data__value(const struct expr_id_data *data);
 double expr_id_data__source_count(const struct expr_id_data *data);
-double expr__get_literal(const char *literal);
+double expr__get_literal(const char *literal, const struct expr_scanner_ctx *ctx);
 
 #endif

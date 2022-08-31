@@ -22,6 +22,7 @@
 #include <linux/list_sort.h>
 #include <linux/string.h>
 #include <linux/zalloc.h>
+#include <perf/cpumap.h>
 #include <subcmd/parse-options.h>
 #include <api/fs/fs.h>
 #include "util.h"
@@ -189,10 +190,24 @@ static bool metricgroup__has_constraint(const struct pmu_event *pe)
 	return false;
 }
 
+static void metric__free(struct metric *m)
+{
+	if (!m)
+		return;
+
+	free(m->metric_refs);
+	expr__ctx_free(m->pctx);
+	free((char *)m->modifier);
+	evlist__delete(m->evlist);
+	free(m);
+}
+
 static struct metric *metric__new(const struct pmu_event *pe,
 				  const char *modifier,
 				  bool metric_no_group,
-				  int runtime)
+				  int runtime,
+				  const char *user_requested_cpu_list,
+				  bool system_wide)
 {
 	struct metric *m;
 
@@ -201,35 +216,34 @@ static struct metric *metric__new(const struct pmu_event *pe,
 		return NULL;
 
 	m->pctx = expr__ctx_new();
-	if (!m->pctx) {
-		free(m);
-		return NULL;
-	}
+	if (!m->pctx)
+		goto out_err;
 
 	m->metric_name = pe->metric_name;
-	m->modifier = modifier ? strdup(modifier) : NULL;
-	if (modifier && !m->modifier) {
-		expr__ctx_free(m->pctx);
-		free(m);
-		return NULL;
+	m->modifier = NULL;
+	if (modifier) {
+		m->modifier = strdup(modifier);
+		if (!m->modifier)
+			goto out_err;
 	}
 	m->metric_expr = pe->metric_expr;
 	m->metric_unit = pe->unit;
+	m->pctx->sctx.user_requested_cpu_list = NULL;
+	if (user_requested_cpu_list) {
+		m->pctx->sctx.user_requested_cpu_list = strdup(user_requested_cpu_list);
+		if (!m->pctx->sctx.user_requested_cpu_list)
+			goto out_err;
+	}
 	m->pctx->sctx.runtime = runtime;
+	m->pctx->sctx.system_wide = system_wide;
 	m->has_constraint = metric_no_group || metricgroup__has_constraint(pe);
 	m->metric_refs = NULL;
 	m->evlist = NULL;
 
 	return m;
-}
-
-static void metric__free(struct metric *m)
-{
-	free(m->metric_refs);
-	expr__ctx_free(m->pctx);
-	free((char *)m->modifier);
-	evlist__delete(m->evlist);
-	free(m);
+out_err:
+	metric__free(m);
+	return NULL;
 }
 
 static bool contains_metric_id(struct evsel **metric_events, int num_events,
@@ -874,6 +888,8 @@ struct metricgroup_add_iter_data {
 	int *ret;
 	bool *has_match;
 	bool metric_no_group;
+	const char *user_requested_cpu_list;
+	bool system_wide;
 	struct metric *root_metric;
 	const struct visited_metric *visited;
 	const struct pmu_events_table *table;
@@ -887,6 +903,8 @@ static int add_metric(struct list_head *metric_list,
 		      const struct pmu_event *pe,
 		      const char *modifier,
 		      bool metric_no_group,
+		      const char *user_requested_cpu_list,
+		      bool system_wide,
 		      struct metric *root_metric,
 		      const struct visited_metric *visited,
 		      const struct pmu_events_table *table);
@@ -899,6 +917,8 @@ static int add_metric(struct list_head *metric_list,
  * @metric_no_group: Should events written to events be grouped "{}" or
  *                   global. Grouping is the default but due to multiplexing the
  *                   user may override.
+ * @user_requested_cpu_list: Command line specified CPUs to record on.
+ * @system_wide: Are events for all processes recorded.
  * @root_metric: Metrics may reference other metrics to form a tree. In this
  *               case the root_metric holds all the IDs and a list of referenced
  *               metrics. When adding a root this argument is NULL.
@@ -910,6 +930,8 @@ static int add_metric(struct list_head *metric_list,
 static int resolve_metric(struct list_head *metric_list,
 			  const char *modifier,
 			  bool metric_no_group,
+			  const char *user_requested_cpu_list,
+			  bool system_wide,
 			  struct metric *root_metric,
 			  const struct visited_metric *visited,
 			  const struct pmu_events_table *table)
@@ -956,7 +978,8 @@ static int resolve_metric(struct list_head *metric_list,
 	 */
 	for (i = 0; i < pending_cnt; i++) {
 		ret = add_metric(metric_list, &pending[i].pe, modifier, metric_no_group,
-				root_metric, visited, table);
+				 user_requested_cpu_list, system_wide, root_metric, visited,
+				 table);
 		if (ret)
 			break;
 	}
@@ -974,6 +997,8 @@ static int resolve_metric(struct list_head *metric_list,
  *                   global. Grouping is the default but due to multiplexing the
  *                   user may override.
  * @runtime: A special argument for the parser only known at runtime.
+ * @user_requested_cpu_list: Command line specified CPUs to record on.
+ * @system_wide: Are events for all processes recorded.
  * @root_metric: Metrics may reference other metrics to form a tree. In this
  *               case the root_metric holds all the IDs and a list of referenced
  *               metrics. When adding a root this argument is NULL.
@@ -987,6 +1012,8 @@ static int __add_metric(struct list_head *metric_list,
 			const char *modifier,
 			bool metric_no_group,
 			int runtime,
+			const char *user_requested_cpu_list,
+			bool system_wide,
 			struct metric *root_metric,
 			const struct visited_metric *visited,
 			const struct pmu_events_table *table)
@@ -1011,7 +1038,8 @@ static int __add_metric(struct list_head *metric_list,
 		 * This metric is the root of a tree and may reference other
 		 * metrics that are added recursively.
 		 */
-		root_metric = metric__new(pe, modifier, metric_no_group, runtime);
+		root_metric = metric__new(pe, modifier, metric_no_group, runtime,
+					  user_requested_cpu_list, system_wide);
 		if (!root_metric)
 			return -ENOMEM;
 
@@ -1060,8 +1088,9 @@ static int __add_metric(struct list_head *metric_list,
 		ret = -EINVAL;
 	} else {
 		/* Resolve referenced metrics. */
-		ret = resolve_metric(metric_list, modifier, metric_no_group, root_metric,
-				     &visited_node, table);
+		ret = resolve_metric(metric_list, modifier, metric_no_group,
+				     user_requested_cpu_list, system_wide,
+				     root_metric, &visited_node, table);
 	}
 
 	if (ret) {
@@ -1109,6 +1138,8 @@ static int add_metric(struct list_head *metric_list,
 		      const struct pmu_event *pe,
 		      const char *modifier,
 		      bool metric_no_group,
+		      const char *user_requested_cpu_list,
+		      bool system_wide,
 		      struct metric *root_metric,
 		      const struct visited_metric *visited,
 		      const struct pmu_events_table *table)
@@ -1119,7 +1150,8 @@ static int add_metric(struct list_head *metric_list,
 
 	if (!strstr(pe->metric_expr, "?")) {
 		ret = __add_metric(metric_list, pe, modifier, metric_no_group, 0,
-				   root_metric, visited, table);
+				   user_requested_cpu_list, system_wide, root_metric,
+				   visited, table);
 	} else {
 		int j, count;
 
@@ -1132,7 +1164,8 @@ static int add_metric(struct list_head *metric_list,
 
 		for (j = 0; j < count && !ret; j++)
 			ret = __add_metric(metric_list, pe, modifier, metric_no_group, j,
-					root_metric, visited, table);
+					   user_requested_cpu_list, system_wide,
+					   root_metric, visited, table);
 	}
 
 	return ret;
@@ -1149,6 +1182,7 @@ static int metricgroup__add_metric_sys_event_iter(const struct pmu_event *pe,
 		return 0;
 
 	ret = add_metric(d->metric_list, pe, d->modifier, d->metric_no_group,
+			 d->user_requested_cpu_list, d->system_wide,
 			 d->root_metric, d->visited, d->table);
 	if (ret)
 		goto out;
@@ -1191,7 +1225,9 @@ struct metricgroup__add_metric_data {
 	struct list_head *list;
 	const char *metric_name;
 	const char *modifier;
+	const char *user_requested_cpu_list;
 	bool metric_no_group;
+	bool system_wide;
 	bool has_match;
 };
 
@@ -1208,8 +1244,8 @@ static int metricgroup__add_metric_callback(const struct pmu_event *pe,
 
 		data->has_match = true;
 		ret = add_metric(data->list, pe, data->modifier, data->metric_no_group,
-				 /*root_metric=*/NULL,
-				 /*visited_metrics=*/NULL, table);
+				 data->user_requested_cpu_list, data->system_wide,
+				 /*root_metric=*/NULL, /*visited_metrics=*/NULL, table);
 	}
 	return ret;
 }
@@ -1223,12 +1259,16 @@ static int metricgroup__add_metric_callback(const struct pmu_event *pe,
  * @metric_no_group: Should events written to events be grouped "{}" or
  *                   global. Grouping is the default but due to multiplexing the
  *                   user may override.
+ * @user_requested_cpu_list: Command line specified CPUs to record on.
+ * @system_wide: Are events for all processes recorded.
  * @metric_list: The list that the metric or metric group are added to.
  * @table: The table that is searched for metrics, most commonly the table for the
  *       architecture perf is running upon.
  */
 static int metricgroup__add_metric(const char *metric_name, const char *modifier,
 				   bool metric_no_group,
+				   const char *user_requested_cpu_list,
+				   bool system_wide,
 				   struct list_head *metric_list,
 				   const struct pmu_events_table *table)
 {
@@ -1242,6 +1282,8 @@ static int metricgroup__add_metric(const char *metric_name, const char *modifier
 			.metric_name = metric_name,
 			.modifier = modifier,
 			.metric_no_group = metric_no_group,
+			.user_requested_cpu_list = user_requested_cpu_list,
+			.system_wide = system_wide,
 			.has_match = false,
 		};
 		/*
@@ -1263,6 +1305,8 @@ static int metricgroup__add_metric(const char *metric_name, const char *modifier
 				.metric_name = metric_name,
 				.modifier = modifier,
 				.metric_no_group = metric_no_group,
+				.user_requested_cpu_list = user_requested_cpu_list,
+				.system_wide = system_wide,
 				.has_match = &has_match,
 				.ret = &ret,
 				.table = table,
@@ -1293,12 +1337,15 @@ out:
  * @metric_no_group: Should events written to events be grouped "{}" or
  *                   global. Grouping is the default but due to multiplexing the
  *                   user may override.
+ * @user_requested_cpu_list: Command line specified CPUs to record on.
+ * @system_wide: Are events for all processes recorded.
  * @metric_list: The list that metrics are added to.
  * @table: The table that is searched for metrics, most commonly the table for the
  *       architecture perf is running upon.
  */
 static int metricgroup__add_metric_list(const char *list, bool metric_no_group,
-					struct list_head *metric_list,
+					const char *user_requested_cpu_list,
+					bool system_wide, struct list_head *metric_list,
 					const struct pmu_events_table *table)
 {
 	char *list_itr, *list_copy, *metric_name, *modifier;
@@ -1315,8 +1362,8 @@ static int metricgroup__add_metric_list(const char *list, bool metric_no_group,
 			*modifier++ = '\0';
 
 		ret = metricgroup__add_metric(metric_name, modifier,
-					      metric_no_group, metric_list,
-					      table);
+					      metric_no_group, user_requested_cpu_list,
+					      system_wide, metric_list, table);
 		if (ret == -EINVAL)
 			pr_err("Cannot find metric or group `%s'\n", metric_name);
 
@@ -1505,6 +1552,8 @@ err_out:
 static int parse_groups(struct evlist *perf_evlist, const char *str,
 			bool metric_no_group,
 			bool metric_no_merge,
+			const char *user_requested_cpu_list,
+			bool system_wide,
 			struct perf_pmu *fake_pmu,
 			struct rblist *metric_events_list,
 			const struct pmu_events_table *table)
@@ -1518,7 +1567,8 @@ static int parse_groups(struct evlist *perf_evlist, const char *str,
 	if (metric_events_list->nr_entries == 0)
 		metricgroup__rblist_init(metric_events_list);
 	ret = metricgroup__add_metric_list(str, metric_no_group,
-					   &metric_list, table);
+					   user_requested_cpu_list,
+					   system_wide, &metric_list, table);
 	if (ret)
 		goto out;
 
@@ -1650,6 +1700,8 @@ int metricgroup__parse_groups(struct evlist *perf_evlist,
 			      const char *str,
 			      bool metric_no_group,
 			      bool metric_no_merge,
+			      const char *user_requested_cpu_list,
+			      bool system_wide,
 			      struct rblist *metric_events)
 {
 	const struct pmu_events_table *table = pmu_events_table__find();
@@ -1657,8 +1709,9 @@ int metricgroup__parse_groups(struct evlist *perf_evlist,
 	if (!table)
 		return -EINVAL;
 
-	return parse_groups(perf_evlist, str, metric_no_group,
-			    metric_no_merge, NULL, metric_events, table);
+	return parse_groups(perf_evlist, str, metric_no_group, metric_no_merge,
+			    user_requested_cpu_list, system_wide,
+			    /*fake_pmu=*/NULL, metric_events, table);
 }
 
 int metricgroup__parse_groups_test(struct evlist *evlist,
@@ -1668,8 +1721,10 @@ int metricgroup__parse_groups_test(struct evlist *evlist,
 				   bool metric_no_merge,
 				   struct rblist *metric_events)
 {
-	return parse_groups(evlist, str, metric_no_group,
-			    metric_no_merge, &perf_pmu__fake, metric_events, table);
+	return parse_groups(evlist, str, metric_no_group, metric_no_merge,
+			    /*user_requested_cpu_list=*/NULL,
+			    /*system_wide=*/false,
+			    &perf_pmu__fake, metric_events, table);
 }
 
 static int metricgroup__has_metric_callback(const struct pmu_event *pe,

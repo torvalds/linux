@@ -1805,6 +1805,8 @@ static int add_default_attributes(void)
 			return metricgroup__parse_groups(evsel_list, "transaction",
 							 stat_config.metric_no_group,
 							 stat_config.metric_no_merge,
+							 stat_config.user_requested_cpu_list,
+							 stat_config.system_wide,
 							 &stat_config.metric_events);
 		}
 
@@ -2441,6 +2443,15 @@ int cmd_stat(int argc, const char **argv)
 	if ((stat_config.aggr_mode == AGGR_THREAD) && (target.system_wide))
 		target.per_thread = true;
 
+	stat_config.system_wide = target.system_wide;
+	if (target.cpu_list) {
+		stat_config.user_requested_cpu_list = strdup(target.cpu_list);
+		if (!stat_config.user_requested_cpu_list) {
+			status = -ENOMEM;
+			goto out;
+		}
+	}
+
 	/*
 	 * Metric parsing needs to be delayed as metrics may optimize events
 	 * knowing the target is system-wide.
@@ -2449,6 +2460,8 @@ int cmd_stat(int argc, const char **argv)
 		metricgroup__parse_groups(evsel_list, metrics,
 					stat_config.metric_no_group,
 					stat_config.metric_no_merge,
+					stat_config.user_requested_cpu_list,
+					stat_config.system_wide,
 					&stat_config.metric_events);
 		zfree(&metrics);
 	}
@@ -2639,6 +2652,7 @@ out:
 		iostat_release(evsel_list);
 
 	zfree(&stat_config.walltime_run);
+	zfree(&stat_config.user_requested_cpu_list);
 
 	if (smi_cost && smi_reset)
 		sysfs__write_int(FREEZE_ON_SMI_PATH, 0);

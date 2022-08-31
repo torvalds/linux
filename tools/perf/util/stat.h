@@ -141,6 +141,8 @@ struct perf_stat_config {
 	bool			 stop_read_counter;
 	bool			 quiet;
 	bool			 iostat_run;
+	char			 *user_requested_cpu_list;
+	bool			 system_wide;
 	FILE			*output;
 	unsigned int		 interval;
 	unsigned int		 timeout;
