@@ -1,13 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0 OR MIT
 /*
  * Copyright (C) 2022 StarFive Technology Co., Ltd.
- * Copyright (C) 2022 Hal Feng <hal.feng@starfivetech.com>
+ * Copyright (C) 2022 William Qiu <william.qiu@starfivetech.com>
  */
 
 /dts-v1/;
 #include "jh7110-evb.dtsi"
-#include "codecs/sf_pdm.dtsi"
-#include "codecs/sf_pwmdac.dtsi"
 
 / {
 	model = "StarFive JH7110 EVB";
@@ -37,31 +35,11 @@
 };
 
 &can0 {
-	syscon,can_or_canfd = <0>;
+	syscon,can_or_canfd = <1>;
 	status = "okay";
 };
 
 &can1 {
-	syscon,can_or_canfd = <0>;
-	status = "okay";
-};
-
-&pwmdac_codec {
-	status = "okay";
-};
-
-&pwmdac {
-	status = "okay";
-};
-
-&pdm {
-	status = "okay";
-};
-
-&i2srx_mst {
-	status = "okay";
-};
-
-&dmic_codec {
+	syscon,can_or_canfd = <1>;
 	status = "okay";
 };
