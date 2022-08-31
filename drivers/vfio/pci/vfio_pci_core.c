@@ -690,7 +690,7 @@ int vfio_pci_core_register_dev_region(struct vfio_pci_core_device *vdev,
 EXPORT_SYMBOL_GPL(vfio_pci_core_register_dev_region);
 
 static int vfio_pci_ioctl_get_info(struct vfio_pci_core_device *vdev,
-				   void __user *arg)
+				   struct vfio_device_info __user *arg)
 {
 	unsigned long minsz = offsetofend(struct vfio_device_info, num_irqs);
 	struct vfio_device_info info;
@@ -701,7 +701,7 @@ static int vfio_pci_ioctl_get_info(struct vfio_pci_core_device *vdev,
 	/* For backward compatibility, cannot require this */
 	capsz = offsetofend(struct vfio_iommu_type1_info, cap_offset);
 
-	if (copy_from_user(&info, (void __user *)arg, minsz))
+	if (copy_from_user(&info, arg, minsz))
 		return -EFAULT;
 
 	if (info.argsz < minsz)
@@ -733,22 +733,21 @@ static int vfio_pci_ioctl_get_info(struct vfio_pci_core_device *vdev,
 			info.argsz = sizeof(info) + caps.size;
 		} else {
 			vfio_info_cap_shift(&caps, sizeof(info));
-			if (copy_to_user((void __user *)arg + sizeof(info),
-					 caps.buf, caps.size)) {
+			if (copy_to_user(arg + 1, caps.buf, caps.size)) {
 				kfree(caps.buf);
 				return -EFAULT;
 			}
-			info.cap_offset = sizeof(info);
+			info.cap_offset = sizeof(*arg);
 		}
 
 		kfree(caps.buf);
 	}
 
-	return copy_to_user((void __user *)arg, &info, minsz) ? -EFAULT : 0;
+	return copy_to_user(arg, &info, minsz) ? -EFAULT : 0;
 }
 
 static int vfio_pci_ioctl_get_region_info(struct vfio_pci_core_device *vdev,
-					  void __user *arg)
+					  struct vfio_region_info __user *arg)
 {
 	unsigned long minsz = offsetofend(struct vfio_region_info, offset);
 	struct pci_dev *pdev = vdev->pdev;
@@ -756,7 +755,7 @@ static int vfio_pci_ioctl_get_region_info(struct vfio_pci_core_device *vdev,
 	struct vfio_info_cap caps = { .buf = NULL, .size = 0 };
 	int i, ret;
 
-	if (copy_from_user(&info, (void __user *)arg, minsz))
+	if (copy_from_user(&info, arg, minsz))
 		return -EFAULT;
 
 	if (info.argsz < minsz)
@@ -875,27 +874,26 @@ static int vfio_pci_ioctl_get_region_info(struct vfio_pci_core_device *vdev,
 			info.cap_offset = 0;
 		} else {
 			vfio_info_cap_shift(&caps, sizeof(info));
-			if (copy_to_user((void __user *)arg + sizeof(info),
-					 caps.buf, caps.size)) {
+			if (copy_to_user(arg + 1, caps.buf, caps.size)) {
 				kfree(caps.buf);
 				return -EFAULT;
 			}
-			info.cap_offset = sizeof(info);
+			info.cap_offset = sizeof(*arg);
 		}
 
 		kfree(caps.buf);
 	}
 
-	return copy_to_user((void __user *)arg, &info, minsz) ? -EFAULT : 0;
+	return copy_to_user(arg, &info, minsz) ? -EFAULT : 0;
 }
 
 static int vfio_pci_ioctl_get_irq_info(struct vfio_pci_core_device *vdev,
-				       void __user *arg)
+				       struct vfio_irq_info __user *arg)
 {
 	unsigned long minsz = offsetofend(struct vfio_irq_info, count);
 	struct vfio_irq_info info;
 
-	if (copy_from_user(&info, (void __user *)arg, minsz))
+	if (copy_from_user(&info, arg, minsz))
 		return -EFAULT;
 
 	if (info.argsz < minsz || info.index >= VFIO_PCI_NUM_IRQS)
@@ -923,11 +921,11 @@ static int vfio_pci_ioctl_get_irq_info(struct vfio_pci_core_device *vdev,
 	else
 		info.flags |= VFIO_IRQ_INFO_NORESIZE;
 
-	return copy_to_user((void __user *)arg, &info, minsz) ? -EFAULT : 0;
+	return copy_to_user(arg, &info, minsz) ? -EFAULT : 0;
 }
 
 static int vfio_pci_ioctl_set_irqs(struct vfio_pci_core_device *vdev,
-				   void __user *arg)
+				   struct vfio_irq_set __user *arg)
 {
 	unsigned long minsz = offsetofend(struct vfio_irq_set, count);
 	struct vfio_irq_set hdr;
@@ -935,7 +933,7 @@ static int vfio_pci_ioctl_set_irqs(struct vfio_pci_core_device *vdev,
 	int max, ret = 0;
 	size_t data_size = 0;
 
-	if (copy_from_user(&hdr, (void __user *)arg, minsz))
+	if (copy_from_user(&hdr, arg, minsz))
 		return -EFAULT;
 
 	max = vfio_pci_get_irq_count(vdev, hdr.index);
@@ -946,7 +944,7 @@ static int vfio_pci_ioctl_set_irqs(struct vfio_pci_core_device *vdev,
 		return ret;
 
 	if (data_size) {
-		data = memdup_user((void __user *)(arg + minsz), data_size);
+		data = memdup_user(&arg->data, data_size);
 		if (IS_ERR(data))
 			return PTR_ERR(data);
 	}
@@ -989,9 +987,9 @@ static int vfio_pci_ioctl_reset(struct vfio_pci_core_device *vdev,
 	return ret;
 }
 
-static int
-vfio_pci_ioctl_get_pci_hot_reset_info(struct vfio_pci_core_device *vdev,
-				      void __user *arg)
+static int vfio_pci_ioctl_get_pci_hot_reset_info(
+	struct vfio_pci_core_device *vdev,
+	struct vfio_pci_hot_reset_info __user *arg)
 {
 	unsigned long minsz =
 		offsetofend(struct vfio_pci_hot_reset_info, count);
@@ -1001,7 +999,7 @@ vfio_pci_ioctl_get_pci_hot_reset_info(struct vfio_pci_core_device *vdev,
 	bool slot = false;
 	int ret = 0;
 
-	if (copy_from_user(&hdr, (void __user *)arg, minsz))
+	if (copy_from_user(&hdr, arg, minsz))
 		return -EFAULT;
 
 	if (hdr.argsz < minsz)
@@ -1051,11 +1049,11 @@ vfio_pci_ioctl_get_pci_hot_reset_info(struct vfio_pci_core_device *vdev,
 		hdr.count = fill.cur;
 
 reset_info_exit:
-	if (copy_to_user((void __user *)arg, &hdr, minsz))
+	if (copy_to_user(arg, &hdr, minsz))
 		ret = -EFAULT;
 
 	if (!ret) {
-		if (copy_to_user((void __user *)(arg + minsz), devices,
+		if (copy_to_user(&arg->devices, devices,
 				 hdr.count * sizeof(*devices)))
 			ret = -EFAULT;
 	}
@@ -1065,7 +1063,7 @@ reset_info_exit:
 }
 
 static int vfio_pci_ioctl_pci_hot_reset(struct vfio_pci_core_device *vdev,
-					void __user *arg)
+					struct vfio_pci_hot_reset __user *arg)
 {
 	unsigned long minsz = offsetofend(struct vfio_pci_hot_reset, count);
 	struct vfio_pci_hot_reset hdr;
@@ -1075,7 +1073,7 @@ static int vfio_pci_ioctl_pci_hot_reset(struct vfio_pci_core_device *vdev,
 	bool slot = false;
 	int file_idx, count = 0, ret = 0;
 
-	if (copy_from_user(&hdr, (void __user *)arg, minsz))
+	if (copy_from_user(&hdr, arg, minsz))
 		return -EFAULT;
 
 	if (hdr.argsz < minsz || hdr.flags)
@@ -1109,7 +1107,7 @@ static int vfio_pci_ioctl_pci_hot_reset(struct vfio_pci_core_device *vdev,
 		return -ENOMEM;
 	}
 
-	if (copy_from_user(group_fds, (void __user *)(arg + minsz),
+	if (copy_from_user(group_fds, arg->group_fds,
 			   hdr.count * sizeof(*group_fds))) {
 		kfree(group_fds);
 		kfree(files);
@@ -1159,13 +1157,13 @@ hot_reset_release:
 }
 
 static int vfio_pci_ioctl_ioeventfd(struct vfio_pci_core_device *vdev,
-				    void __user *arg)
+				    struct vfio_device_ioeventfd __user *arg)
 {
 	unsigned long minsz = offsetofend(struct vfio_device_ioeventfd, fd);
 	struct vfio_device_ioeventfd ioeventfd;
 	int count;
 
-	if (copy_from_user(&ioeventfd, (void __user *)arg, minsz))
+	if (copy_from_user(&ioeventfd, arg, minsz))
 		return -EFAULT;
 
 	if (ioeventfd.argsz < minsz)
@@ -1214,7 +1212,7 @@ long vfio_pci_core_ioctl(struct vfio_device *core_vdev, unsigned int cmd,
 EXPORT_SYMBOL_GPL(vfio_pci_core_ioctl);
 
 static int vfio_pci_core_feature_token(struct vfio_device *device, u32 flags,
-				       void __user *arg, size_t argsz)
+				       uuid_t __user *arg, size_t argsz)
 {
 	struct vfio_pci_core_device *vdev =
 		container_of(device, struct vfio_pci_core_device, vdev);
