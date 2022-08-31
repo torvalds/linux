@@ -151,6 +151,15 @@
 		regulator-max-microvolt = <1000000>;
 	};
 
+	vcc_io: vcc-io {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc_io";
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+	};
+
 	vccio_sdio: vcc_1v8: vcc-1v8 {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc_1v8";
@@ -168,15 +177,6 @@
 		regulator-boot-on;
 		regulator-min-microvolt = <1500000>;
 		regulator-max-microvolt = <1500000>;
-	};
-
-	vcc_io: vcc-io {
-		compatible = "regulator-fixed";
-		regulator-name = "vcc_io";
-		regulator-always-on;
-		regulator-boot-on;
-		regulator-min-microvolt = <3300000>;
-		regulator-max-microvolt = <3300000>;
 	};
 
 	vbus_host: vbus-host-regulator {
