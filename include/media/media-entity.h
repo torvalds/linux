@@ -237,6 +237,14 @@ struct media_pad {
  * @link_validate:	Return whether a link is valid from the entity point of
  *			view. The media_pipeline_start() function
  *			validates all links by calling this operation. Optional.
+ * @has_pad_interdep:	Return whether a two pads inside the entity are
+ *			interdependent. If two pads are interdependent they are
+ *			part of the same pipeline and enabling one of the pads
+ *			means that the other pad will become "locked" and
+ *			doesn't allow configuration changes. pad0 and pad1 are
+ *			guaranteed to not both be sinks or sources.
+ *			Optional: If the operation isn't implemented all pads
+ *			will be considered as interdependent.
  *
  * .. note::
  *
@@ -250,6 +258,8 @@ struct media_entity_operations {
 			  const struct media_pad *local,
 			  const struct media_pad *remote, u32 flags);
 	int (*link_validate)(struct media_link *link);
+	bool (*has_pad_interdep)(struct media_entity *entity, unsigned int pad0,
+				 unsigned int pad1);
 };
 
 /**

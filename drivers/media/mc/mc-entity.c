@@ -232,7 +232,10 @@ EXPORT_SYMBOL_GPL(media_entity_pads_init);
  * and enabling one of the pads means that the other pad will become "locked"
  * and doesn't allow configuration changes.
  *
- * For the time being all pads are considered interdependent.
+ * This function uses the &media_entity_operations.has_pad_interdep() operation
+ * to check the dependency inside the entity between @pad0 and @pad1. If the
+ * has_pad_interdep operation is not implemented, all pads of the entity are
+ * considered to be interdependent.
  */
 static bool media_entity_has_pad_interdep(struct media_entity *entity,
 					  unsigned int pad0, unsigned int pad1)
@@ -244,7 +247,10 @@ static bool media_entity_has_pad_interdep(struct media_entity *entity,
 	    (MEDIA_PAD_FL_SINK | MEDIA_PAD_FL_SOURCE))
 		return false;
 
-	return true;
+	if (!entity->ops || !entity->ops->has_pad_interdep)
+		return true;
+
+	return entity->ops->has_pad_interdep(entity, pad0, pad1);
 }
 
 static struct media_entity *
