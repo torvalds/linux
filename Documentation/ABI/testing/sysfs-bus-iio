@@ -2068,3 +2068,72 @@ Description:
 		individual channels. If multiple channels are enabled in a scan,
 		then the sampling_frequency of the scan may be computed from the
 		per channel sampling frequencies.
+
+What:		/sys/.../events/in_accel_gesture_singletap_en
+What:		/sys/.../events/in_accel_gesture_doubletap_en
+KernelVersion:	6.1
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Device generates an event on a single or double tap.
+
+What:		/sys/.../events/in_accel_gesture_singletap_value
+What:		/sys/.../events/in_accel_gesture_doubletap_value
+KernelVersion:	6.1
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Specifies the threshold value that the device is comparing
+		against to generate the tap gesture event. The lower
+		threshold value increases the sensitivity of tap detection.
+		Units and the exact meaning of value are device-specific.
+
+What:		/sys/.../events/in_accel_gesture_tap_value_available
+KernelVersion:	6.1
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Lists all available threshold values which can be used to
+		modify the sensitivity of the tap detection.
+
+What:		/sys/.../events/in_accel_gesture_singletap_reset_timeout
+What:		/sys/.../events/in_accel_gesture_doubletap_reset_timeout
+KernelVersion:	6.1
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Specifies the timeout value in seconds for the tap detector
+		to not to look for another tap event after the event as
+		occurred. Basically the minimum quiet time between the two
+		single-tap's or two double-tap's.
+
+What:		/sys/.../events/in_accel_gesture_tap_reset_timeout_available
+KernelVersion:	6.1
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Lists all available tap reset timeout values. Units in seconds.
+
+What:		/sys/.../events/in_accel_gesture_doubletap_tap2_min_delay
+KernelVersion:	6.1
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Specifies the minimum quiet time in seconds between the two
+		taps of a double tap.
+
+What:		/sys/.../events/in_accel_gesture_doubletap_tap2_min_delay_available
+KernelVersion:	6.1
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Lists all available delay values between two taps in the double
+		tap. Units in seconds.
+
+What:		/sys/.../events/in_accel_gesture_tap_maxtomin_time
+KernelVersion:	6.1
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Specifies the maximum time difference allowed between upper
+		and lower peak of tap to consider it as the valid tap event.
+		Units in seconds.
+
+What:		/sys/.../events/in_accel_gesture_tap_maxtomin_time_available
+KernelVersion:	6.1
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Lists all available time values between upper peak to lower
+		peak. Units in seconds.
