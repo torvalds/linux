@@ -1415,10 +1415,8 @@ static int yas5xx_probe(struct i2c_client *i2c,
 		return dev_err_probe(dev, ret, "cannot get regulators\n");
 
 	ret = regulator_bulk_enable(ARRAY_SIZE(yas5xx->regs), yas5xx->regs);
-	if (ret) {
-		dev_err(dev, "cannot enable regulators\n");
-		return ret;
-	}
+	if (ret)
+		return dev_err_probe(dev, ret, "cannot enable regulators\n");
 
 	/* See comment in runtime resume callback */
 	usleep_range(31000, 40000);
@@ -1426,15 +1424,13 @@ static int yas5xx_probe(struct i2c_client *i2c,
 	/* This will take the device out of reset if need be */
 	yas5xx->reset = devm_gpiod_get_optional(dev, "reset", GPIOD_OUT_LOW);
 	if (IS_ERR(yas5xx->reset)) {
-		ret = dev_err_probe(dev, PTR_ERR(yas5xx->reset),
-				    "failed to get reset line\n");
+		ret = dev_err_probe(dev, PTR_ERR(yas5xx->reset), "failed to get reset line\n");
 		goto reg_off;
 	}
 
 	yas5xx->map = devm_regmap_init_i2c(i2c, &yas5xx_regmap_config);
 	if (IS_ERR(yas5xx->map)) {
-		dev_err(dev, "failed to allocate register map\n");
-		ret = PTR_ERR(yas5xx->map);
+		ret = dev_err_probe(dev, PTR_ERR(yas5xx->map), "failed to allocate register map\n");
 		goto assert_reset;
 	}
 
@@ -1484,13 +1480,13 @@ static int yas5xx_probe(struct i2c_client *i2c,
 					 yas5xx_handle_trigger,
 					 NULL);
 	if (ret) {
-		dev_err(dev, "triggered buffer setup failed\n");
+		dev_err_probe(dev, ret, "triggered buffer setup failed\n");
 		goto assert_reset;
 	}
 
 	ret = iio_device_register(indio_dev);
 	if (ret) {
-		dev_err(dev, "device register failed\n");
+		dev_err_probe(dev, ret, "device register failed\n");
 		goto cleanup_buffer;
 	}
 
