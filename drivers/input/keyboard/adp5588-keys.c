@@ -11,6 +11,7 @@
 #include <linux/bits.h>
 #include <linux/delay.h>
 #include <linux/errno.h>
+#include <linux/gpio/consumer.h>
 #include <linux/gpio/driver.h>
 #include <linux/i2c.h>
 #include <linux/input.h>
@@ -716,6 +717,7 @@ static int adp5588_probe(struct i2c_client *client,
 {
 	struct adp5588_kpad *kpad;
 	struct input_dev *input;
+	struct gpio_desc *gpio;
 	unsigned int revid;
 	int ret;
 	int error;
@@ -740,6 +742,16 @@ static int adp5588_probe(struct i2c_client *client,
 	error = adp5588_fw_parse(kpad);
 	if (error)
 		return error;
+
+	gpio = devm_gpiod_get_optional(&client->dev, "reset", GPIOD_OUT_HIGH);
+	if (IS_ERR(gpio))
+		return PTR_ERR(gpio);
+
+	if (gpio) {
+		fsleep(30);
+		gpiod_set_value_cansleep(gpio, 0);
+		fsleep(60);
+	}
 
 	ret = adp5588_read(client, DEV_ID);
 	if (ret < 0)
