@@ -3353,6 +3353,16 @@ static inline void netdev_txq_bql_complete_prefetchw(struct netdev_queue *dev_qu
 #endif
 }
 
+/**
+ *	netdev_tx_sent_queue - report the number of bytes queued to a given tx queue
+ *	@dev_queue: network device queue
+ *	@bytes: number of bytes queued to the device queue
+ *
+ *	Report the number of bytes queued for sending/completion to the network
+ *	device hardware queue. @bytes should be a good approximation and should
+ *	exactly match netdev_completed_queue() @bytes.
+ *	This is typically called once per packet, from ndo_start_xmit().
+ */
 static inline void netdev_tx_sent_queue(struct netdev_queue *dev_queue,
 					unsigned int bytes)
 {
@@ -3398,13 +3408,14 @@ static inline bool __netdev_tx_sent_queue(struct netdev_queue *dev_queue,
 }
 
 /**
- * 	netdev_sent_queue - report the number of bytes queued to hardware
- * 	@dev: network device
- * 	@bytes: number of bytes queued to the hardware device queue
+ *	netdev_sent_queue - report the number of bytes queued to hardware
+ *	@dev: network device
+ *	@bytes: number of bytes queued to the hardware device queue
  *
- * 	Report the number of bytes queued for sending/completion to the network
- * 	device hardware queue. @bytes should be a good approximation and should
- * 	exactly match netdev_completed_queue() @bytes
+ *	Report the number of bytes queued for sending/completion to the network
+ *	device hardware queue#0. @bytes should be a good approximation and should
+ *	exactly match netdev_completed_queue() @bytes.
+ *	This is typically called once per packet, from ndo_start_xmit().
  */
 static inline void netdev_sent_queue(struct net_device *dev, unsigned int bytes)
 {
@@ -3419,6 +3430,15 @@ static inline bool __netdev_sent_queue(struct net_device *dev,
 				      xmit_more);
 }
 
+/**
+ *	netdev_tx_completed_queue - report number of packets/bytes at TX completion.
+ *	@dev_queue: network device queue
+ *	@pkts: number of packets (currently ignored)
+ *	@bytes: number of bytes dequeued from the device queue
+ *
+ *	Must be called at most once per TX completion round (and not per
+ *	individual packet), so that BQL can adjust its limits appropriately.
+ */
 static inline void netdev_tx_completed_queue(struct netdev_queue *dev_queue,
 					     unsigned int pkts, unsigned int bytes)
 {
