@@ -7,8 +7,6 @@
 #include "osdep_service.h"
 #include "drv_types.h"
 
-void rtw_init_mlme_timer(struct adapter *padapter);
-
 void indicate_wx_scan_complete_event(struct adapter *padapter);
 
 #endif	/* _MLME_OSDEP_H_ */
