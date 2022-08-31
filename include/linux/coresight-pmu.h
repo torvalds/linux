@@ -8,7 +8,7 @@
 #define _LINUX_CORESIGHT_PMU_H
 
 #define CORESIGHT_ETM_PMU_NAME "cs_etm"
-#define CORESIGHT_ETM_PMU_SEED  0x10
+#define CORESIGHT_ETM_PMU_SEED  0x01
 
 /*
  * Below are the definition of bit offsets for perf option, and works as
@@ -40,7 +40,7 @@ static inline int coresight_get_trace_id(int cpu)
 	 * the common convention is to have data trace IDs be I(N) + 1,
 	 * set instruction trace IDs as a function of the CPU number.
 	 */
-	return (CORESIGHT_ETM_PMU_SEED + (cpu * 2));
+	return (CORESIGHT_ETM_PMU_SEED + cpu);
 }
 
 #endif
