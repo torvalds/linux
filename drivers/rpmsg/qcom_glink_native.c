@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (c) 2016-2017, Linaro Ltd
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/idr.h>
@@ -18,6 +19,7 @@
 #include <linux/sizes.h>
 #include <linux/slab.h>
 #include <linux/workqueue.h>
+#include <linux/kthread.h>
 #include <linux/mailbox_client.h>
 #include <linux/suspend.h>
 
@@ -88,6 +90,8 @@ struct glink_core_rx_intent {
  * @rx_pipe:	pipe object for receive FIFO
  * @tx_pipe:	pipe object for transmit FIFO
  * @irq:	IRQ for signaling incoming events
+ * @kworker:	kworker to handle rx_done work
+ * @task:	kthread running @kworker
  * @rx_work:	worker for handling received control messages
  * @rx_lock:	protects the @rx_queue
  * @rx_queue:	queue of received control messages to be processed in @rx_work
@@ -116,6 +120,9 @@ struct qcom_glink {
 	char irqname[GLINK_NAME_SIZE];
 	spinlock_t irq_lock;
 	bool irq_running;
+
+	struct kthread_worker kworker;
+	struct task_struct *task;
 
 	struct work_struct rx_work;
 	spinlock_t rx_lock;
@@ -186,7 +193,7 @@ struct glink_channel {
 	spinlock_t intent_lock;
 	struct idr liids;
 	struct idr riids;
-	struct work_struct intent_work;
+	struct kthread_work intent_work;
 	struct list_head done_intents;
 
 	struct glink_core_rx_intent *buf;
@@ -226,7 +233,7 @@ static const struct rpmsg_endpoint_ops glink_endpoint_ops;
 
 #define GLINK_FEATURE_INTENTLESS	BIT(1)
 
-static void qcom_glink_rx_done_work(struct work_struct *work);
+static void qcom_glink_rx_done_work(struct kthread_work *work);
 
 static struct glink_channel *qcom_glink_alloc_channel(struct qcom_glink *glink,
 						      const char *name)
@@ -253,7 +260,7 @@ static struct glink_channel *qcom_glink_alloc_channel(struct qcom_glink *glink,
 	init_waitqueue_head(&channel->intent_req_comp);
 
 	INIT_LIST_HEAD(&channel->done_intents);
-	INIT_WORK(&channel->intent_work, qcom_glink_rx_done_work);
+	kthread_init_work(&channel->intent_work, qcom_glink_rx_done_work);
 
 	idr_init(&channel->liids);
 	idr_init(&channel->riids);
@@ -278,7 +285,7 @@ static void qcom_glink_channel_release(struct kref *ref)
 	wake_up(&channel->intent_req_comp);
 
 	/* cancel pending rx_done work */
-	cancel_work_sync(&channel->intent_work);
+	kthread_cancel_work_sync(&channel->intent_work);
 
 	spin_lock_irqsave(&channel->intent_lock, flags);
 	/* Free all non-reuse intents pending rx_done work */
@@ -573,7 +580,7 @@ static int __qcom_glink_rx_done(struct qcom_glink *glink,
 	return 0;
 }
 
-static void qcom_glink_rx_done_work(struct work_struct *work)
+static void qcom_glink_rx_done_work(struct kthread_work *work)
 {
 	struct glink_channel *channel = container_of(work, struct glink_channel,
 						     intent_work);
@@ -620,7 +627,7 @@ static void qcom_glink_rx_done(struct qcom_glink *glink,
 
 	if (ret) {
 		list_add_tail(&intent->node, &channel->done_intents);
-		schedule_work(&channel->intent_work);
+		kthread_queue_work(&glink->kworker, &channel->intent_work);
 	}
 	spin_unlock(&channel->intent_lock);
 }
@@ -1740,7 +1747,7 @@ static void qcom_glink_rx_close(struct qcom_glink *glink, unsigned int rcid)
 		return;
 
 	/* cancel pending rx_done work */
-	cancel_work_sync(&channel->intent_work);
+	kthread_cancel_work_sync(&channel->intent_work);
 
 	if (channel->rpdev) {
 		strncpy(chinfo.name, channel->name, sizeof(chinfo.name));
@@ -1988,6 +1995,15 @@ struct qcom_glink *qcom_glink_native_probe(struct device *dev,
 		return ERR_CAST(glink->mbox_chan);
 	}
 
+	kthread_init_worker(&glink->kworker);
+	glink->task = kthread_run(kthread_worker_fn, &glink->kworker,
+				  "glink_%s", glink->name);
+	if (IS_ERR(glink->task)) {
+		dev_err(dev, "failed to spawn intent kthread %ld\n",
+			PTR_ERR(glink->task));
+		return ERR_CAST(glink->task);
+	}
+
 	scnprintf(glink->irqname, 32, "glink-native-%s", glink->name);
 
 	return glink;
@@ -2067,6 +2083,9 @@ void qcom_glink_native_remove(struct qcom_glink *glink)
 
 	idr_destroy(&glink->lcids);
 	idr_destroy(&glink->rcids);
+
+	kthread_flush_worker(&glink->kworker);
+	kthread_stop(glink->task);
 
 	/*
 	 * Required for spss only. A cb is provided for this in spss driver. For
