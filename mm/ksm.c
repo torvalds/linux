@@ -113,13 +113,13 @@
 
 /**
  * struct ksm_mm_slot - ksm information per mm that is being scanned
- * @link: link to the mm_slots hash list
+ * @hash: link to the mm_slots hash list
  * @mm_node: link into the mm_slots list, rooted in ksm_mm_head
  * @rmap_list: head for this mm_slot's singly-linked list of rmap_items
  * @mm: the mm that this information is valid for
  */
 struct ksm_mm_slot {
-	struct hlist_node link;
+	struct hlist_node hash;
 	struct list_head mm_node;
 	struct ksm_rmap_item *rmap_list;
 	struct mm_struct *mm;
@@ -425,7 +425,7 @@ static struct ksm_mm_slot *get_mm_slot(struct mm_struct *mm)
 {
 	struct ksm_mm_slot *slot;
 
-	hash_for_each_possible(mm_slots_hash, slot, link, (unsigned long)mm)
+	hash_for_each_possible(mm_slots_hash, slot, hash, (unsigned long)mm)
 		if (slot->mm == mm)
 			return slot;
 
@@ -436,7 +436,7 @@ static void insert_to_mm_slots_hash(struct mm_struct *mm,
 				    struct ksm_mm_slot *mm_slot)
 {
 	mm_slot->mm = mm;
-	hash_add(mm_slots_hash, &mm_slot->link, (unsigned long)mm);
+	hash_add(mm_slots_hash, &mm_slot->hash, (unsigned long)mm);
 }
 
 /*
@@ -1009,7 +1009,7 @@ static int unmerge_and_remove_all_rmap_items(void)
 		ksm_scan.mm_slot = list_entry(mm_slot->mm_node.next,
 						struct ksm_mm_slot, mm_node);
 		if (ksm_test_exit(mm)) {
-			hash_del(&mm_slot->link);
+			hash_del(&mm_slot->hash);
 			list_del(&mm_slot->mm_node);
 			spin_unlock(&ksm_mmlist_lock);
 
@@ -2379,7 +2379,7 @@ no_vmas:
 		 * or when all VM_MERGEABLE areas have been unmapped (and
 		 * mmap_lock then protects against race with MADV_MERGEABLE).
 		 */
-		hash_del(&slot->link);
+		hash_del(&slot->hash);
 		list_del(&slot->mm_node);
 		spin_unlock(&ksm_mmlist_lock);
 
@@ -2573,7 +2573,7 @@ void __ksm_exit(struct mm_struct *mm)
 	mm_slot = get_mm_slot(mm);
 	if (mm_slot && ksm_scan.mm_slot != mm_slot) {
 		if (!mm_slot->rmap_list) {
-			hash_del(&mm_slot->link);
+			hash_del(&mm_slot->hash);
 			list_del(&mm_slot->mm_node);
 			easy_to_free = 1;
 		} else {
