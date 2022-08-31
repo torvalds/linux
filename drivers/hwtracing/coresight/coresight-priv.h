@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Copyright (c) 2011-2012, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2012, 2021 The Linux Foundation. All rights reserved.
  */
 
 #ifndef _CORESIGHT_PRIV_H
@@ -182,6 +182,14 @@ struct cti_assoc_op {
 
 extern void coresight_set_cti_ops(const struct cti_assoc_op *cti_op);
 extern void coresight_remove_cti_ops(void);
+
+struct csr_set_atid_op {
+	int (*set_atid)(struct coresight_device *csdev, u32 atid, bool enable);
+};
+
+extern void coresight_set_csr_ops(const struct csr_set_atid_op *csr_op);
+extern void coresight_remove_csr_ops(void);
+int of_coresight_get_atid(struct coresight_device *src_dev);
 
 /*
  * Macros and inline functions to handle CoreSight UCI data and driver

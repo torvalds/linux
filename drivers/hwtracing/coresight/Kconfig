@@ -35,6 +35,7 @@ config CORESIGHT_LINK_AND_SINK_TMC
 	tristate "Coresight generic TMC driver"
 
 	depends on CORESIGHT_LINKS_AND_SINKS
+	select CORESIGHT_CSR
 	help
 	  This enables support for the Trace Memory Controller driver.
 	  Depending on its configuration the device can act as a link (embedded
@@ -225,6 +226,14 @@ config CORESIGHT_HWEVENT
 	  Hardware Event across STM interface. It configures Coresight
 	  Hardware Event mux control registers to select hardware events
 	  based on user input.
+
+config CORESIGHT_CSR
+	tristate "CoreSight Slave Register driver"
+	help
+	  This driver provides support for CoreSight Slave Register block
+	  that hosts miscellaneous configuration registers.
+	  Those configuration registers can be used to control, various
+	  coresight configurations.
 
 config CORESIGHT_TRBE
 	tristate "Trace Buffer Extension (TRBE) driver"
