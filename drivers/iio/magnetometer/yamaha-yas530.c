@@ -32,6 +32,7 @@
 #include <linux/mod_devicetable.h>
 #include <linux/mutex.h>
 #include <linux/pm_runtime.h>
+#include <linux/property.h>
 #include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
 #include <linux/random.h>
@@ -1437,8 +1438,10 @@ static int yas5xx_probe(struct i2c_client *i2c,
 		goto assert_reset;
 	}
 
-	yas5xx->chip_info = &yas5xx_chip_info_tbl[id->driver_data];
-	ci = yas5xx->chip_info;
+	ci = device_get_match_data(dev);
+	if (!ci)
+		ci = (const struct yas5xx_chip_info *)id->driver_data;
+	yas5xx->chip_info = ci;
 
 	ret = regmap_read(yas5xx->map, YAS5XX_DEVICE_ID, &id_check);
 	if (ret)
@@ -1585,19 +1588,19 @@ static DEFINE_RUNTIME_DEV_PM_OPS(yas5xx_dev_pm_ops, yas5xx_runtime_suspend,
 				 yas5xx_runtime_resume, NULL);
 
 static const struct i2c_device_id yas5xx_id[] = {
-	{"yas530", yas530 },
-	{"yas532", yas532 },
-	{"yas533", yas533 },
-	{"yas537", yas537 },
+	{"yas530", (kernel_ulong_t)&yas5xx_chip_info_tbl[yas530] },
+	{"yas532", (kernel_ulong_t)&yas5xx_chip_info_tbl[yas532] },
+	{"yas533", (kernel_ulong_t)&yas5xx_chip_info_tbl[yas533] },
+	{"yas537", (kernel_ulong_t)&yas5xx_chip_info_tbl[yas537] },
 	{}
 };
 MODULE_DEVICE_TABLE(i2c, yas5xx_id);
 
 static const struct of_device_id yas5xx_of_match[] = {
-	{ .compatible = "yamaha,yas530", },
-	{ .compatible = "yamaha,yas532", },
-	{ .compatible = "yamaha,yas533", },
-	{ .compatible = "yamaha,yas537", },
+	{ .compatible = "yamaha,yas530", &yas5xx_chip_info_tbl[yas530] },
+	{ .compatible = "yamaha,yas532", &yas5xx_chip_info_tbl[yas532] },
+	{ .compatible = "yamaha,yas533", &yas5xx_chip_info_tbl[yas533] },
+	{ .compatible = "yamaha,yas537", &yas5xx_chip_info_tbl[yas537] },
 	{}
 };
 MODULE_DEVICE_TABLE(of, yas5xx_of_match);
