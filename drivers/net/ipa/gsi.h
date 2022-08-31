@@ -87,6 +87,7 @@ struct gsi_trans_info {
 	u16 allocated_id;		/* first allocated transaction */
 	u16 committed_id;		/* first committed transaction */
 	u16 pending_id;			/* first pending transaction */
+	u16 completed_id;		/* first completed transaction */
 	struct gsi_trans *trans;	/* transaction array */
 	struct gsi_trans **map;		/* TRE -> transaction map */
 
