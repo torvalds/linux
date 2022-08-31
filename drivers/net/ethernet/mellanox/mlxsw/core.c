@@ -186,6 +186,23 @@ unsigned int mlxsw_core_max_ports(const struct mlxsw_core *mlxsw_core)
 }
 EXPORT_SYMBOL(mlxsw_core_max_ports);
 
+int mlxsw_core_max_lag(struct mlxsw_core *mlxsw_core, u16 *p_max_lag)
+{
+	struct mlxsw_driver *driver = mlxsw_core->driver;
+
+	if (driver->profile->used_max_lag) {
+		*p_max_lag = driver->profile->max_lag;
+		return 0;
+	}
+
+	if (!MLXSW_CORE_RES_VALID(mlxsw_core, MAX_LAG))
+		return -EIO;
+
+	*p_max_lag = MLXSW_CORE_RES_GET(mlxsw_core, MAX_LAG);
+	return 0;
+}
+EXPORT_SYMBOL(mlxsw_core_max_lag);
+
 void *mlxsw_core_driver_priv(struct mlxsw_core *mlxsw_core)
 {
 	return mlxsw_core->driver_priv;
@@ -2099,6 +2116,7 @@ __mlxsw_core_bus_device_register(const struct mlxsw_bus_info *mlxsw_bus_info,
 	struct mlxsw_core *mlxsw_core;
 	struct mlxsw_driver *mlxsw_driver;
 	size_t alloc_size;
+	u16 max_lag;
 	int err;
 
 	mlxsw_driver = mlxsw_core_driver_get(device_kind);
@@ -2140,10 +2158,9 @@ __mlxsw_core_bus_device_register(const struct mlxsw_bus_info *mlxsw_bus_info,
 	if (err)
 		goto err_ports_init;
 
-	if (MLXSW_CORE_RES_VALID(mlxsw_core, MAX_LAG) &&
-	    MLXSW_CORE_RES_VALID(mlxsw_core, MAX_LAG_MEMBERS)) {
-		alloc_size = sizeof(*mlxsw_core->lag.mapping) *
-			MLXSW_CORE_RES_GET(mlxsw_core, MAX_LAG) *
+	err = mlxsw_core_max_lag(mlxsw_core, &max_lag);
+	if (!err && MLXSW_CORE_RES_VALID(mlxsw_core, MAX_LAG_MEMBERS)) {
+		alloc_size = sizeof(*mlxsw_core->lag.mapping) * max_lag *
 			MLXSW_CORE_RES_GET(mlxsw_core, MAX_LAG_MEMBERS);
 		mlxsw_core->lag.mapping = kzalloc(alloc_size, GFP_KERNEL);
 		if (!mlxsw_core->lag.mapping) {

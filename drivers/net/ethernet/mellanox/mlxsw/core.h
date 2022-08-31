@@ -35,6 +35,8 @@ struct mlxsw_fw_rev;
 
 unsigned int mlxsw_core_max_ports(const struct mlxsw_core *mlxsw_core);
 
+int mlxsw_core_max_lag(struct mlxsw_core *mlxsw_core, u16 *p_max_lag);
+
 void *mlxsw_core_driver_priv(struct mlxsw_core *mlxsw_core);
 
 struct mlxsw_linecards *mlxsw_core_linecards(struct mlxsw_core *mlxsw_core);
@@ -295,6 +297,7 @@ struct mlxsw_swid_config {
 
 struct mlxsw_config_profile {
 	u16	used_max_vepa_channels:1,
+		used_max_lag:1,
 		used_max_mid:1,
 		used_max_pgt:1,
 		used_max_system_port:1,
@@ -310,6 +313,7 @@ struct mlxsw_config_profile {
 		used_kvd_sizes:1,
 		used_cqe_time_stamp_type:1;
 	u8	max_vepa_channels;
+	u16	max_lag;
 	u16	max_mid;
 	u16	max_pgt;
 	u16	max_system_port;
