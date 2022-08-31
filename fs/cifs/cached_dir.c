@@ -52,7 +52,7 @@ int open_cached_dir(unsigned int xid, struct cifs_tcon *tcon,
 
 	dentry = cifs_sb->root;
 
-	cfid = tcon->cfid;
+	cfid = &tcon->cfids->cfid;
 	mutex_lock(&cfid->fid_mutex);
 	if (cfid->is_valid) {
 		cifs_dbg(FYI, "found a cached root file handle\n");
@@ -226,7 +226,7 @@ int open_cached_dir_by_dentry(struct cifs_tcon *tcon,
 {
 	struct cached_fid *cfid;
 
-	cfid = tcon->cfid;
+	cfid = &tcon->cfids->cfid;
 
 	mutex_lock(&cfid->fid_mutex);
 	if (cfid->dentry == dentry) {
@@ -320,7 +320,7 @@ void close_all_cached_dirs(struct cifs_sb_info *cifs_sb)
 		tcon = tlink_tcon(tlink);
 		if (IS_ERR(tcon))
 			continue;
-		cfid = tcon->cfid;
+		cfid = &tcon->cfids->cfid;
 		mutex_lock(&cfid->fid_mutex);
 		if (cfid->dentry) {
 			dput(cfid->dentry);
@@ -336,12 +336,14 @@ void close_all_cached_dirs(struct cifs_sb_info *cifs_sb)
  */
 void invalidate_all_cached_dirs(struct cifs_tcon *tcon)
 {
-	mutex_lock(&tcon->cfid->fid_mutex);
-	tcon->cfid->is_valid = false;
+	struct cached_fid *cfid = &tcon->cfids->cfid;
+
+	mutex_lock(&cfid->fid_mutex);
+	cfid->is_valid = false;
 	/* cached handle is not valid, so SMB2_CLOSE won't be sent below */
-	close_cached_dir_lease_locked(tcon->cfid);
-	memset(&tcon->cfid->fid, 0, sizeof(struct cifs_fid));
-	mutex_unlock(&tcon->cfid->fid_mutex);
+	close_cached_dir_lease_locked(cfid);
+	memset(&cfid->fid, 0, sizeof(struct cifs_fid));
+	mutex_unlock(&cfid->fid_mutex);
 }
 
 static void
@@ -355,34 +357,36 @@ smb2_cached_lease_break(struct work_struct *work)
 
 int cached_dir_lease_break(struct cifs_tcon *tcon, __u8 lease_key[16])
 {
-	if (tcon->cfid->is_valid &&
+	struct cached_fid *cfid = &tcon->cfids->cfid;
+
+	if (cfid->is_valid &&
 	    !memcmp(lease_key,
-		    tcon->cfid->fid.lease_key,
+		    cfid->fid.lease_key,
 		    SMB2_LEASE_KEY_SIZE)) {
-		tcon->cfid->time = 0;
-		INIT_WORK(&tcon->cfid->lease_break,
+		cfid->time = 0;
+		INIT_WORK(&cfid->lease_break,
 			  smb2_cached_lease_break);
 		queue_work(cifsiod_wq,
-			   &tcon->cfid->lease_break);
+			   &cfid->lease_break);
 		return true;
 	}
 	return false;
 }
 
-struct cached_fid *init_cached_dir(void)
+struct cached_fids *init_cached_dirs(void)
 {
-	struct cached_fid *cfid;
+	struct cached_fids *cfids;
 
-	cfid = kzalloc(sizeof(*cfid), GFP_KERNEL);
-	if (!cfid)
+	cfids = kzalloc(sizeof(*cfids), GFP_KERNEL);
+	if (!cfids)
 		return NULL;
-	INIT_LIST_HEAD(&cfid->dirents.entries);
-	mutex_init(&cfid->dirents.de_mutex);
-	mutex_init(&cfid->fid_mutex);
-	return cfid;
+	INIT_LIST_HEAD(&cfids->cfid.dirents.entries);
+	mutex_init(&cfids->cfid.dirents.de_mutex);
+	mutex_init(&cfids->cfid.fid_mutex);
+	return cfids;
 }
 
-void free_cached_dir(struct cifs_tcon *tcon)
+void free_cached_dirs(struct cached_fids *cfids)
 {
-	kfree(tcon->cfid);
+	kfree(cfids);
 }

@@ -45,8 +45,12 @@ struct cached_fid {
 	struct cached_dirents dirents;
 };
 
-extern struct cached_fid *init_cached_dir(void);
-extern void free_cached_dir(struct cifs_tcon *tcon);
+struct cached_fids {
+	struct cached_fid cfid;
+};
+
+extern struct cached_fids *init_cached_dirs(void);
+extern void free_cached_dirs(struct cached_fids *cfids);
 extern int open_cached_dir(unsigned int xid, struct cifs_tcon *tcon,
 			   const char *path,
 			   struct cifs_sb_info *cifs_sb,
