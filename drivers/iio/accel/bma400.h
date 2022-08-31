@@ -40,6 +40,7 @@
 #define BMA400_INT_STAT1_REG        0x0f
 #define BMA400_INT_STAT2_REG        0x10
 #define BMA400_INT12_MAP_REG        0x23
+#define BMA400_INT_ENG_OVRUN_MSK    BIT(4)
 
 /* Temperature register */
 #define BMA400_TEMP_DATA_REG        0x11
@@ -104,6 +105,19 @@
 #define BMA400_INT_GEN1_MSK         BIT(2)
 #define BMA400_INT_GEN2_MSK         BIT(3)
 #define BMA400_GEN_HYST_MSK         GENMASK(1, 0)
+
+/* TAP config registers */
+#define BMA400_TAP_CONFIG           0x57
+#define BMA400_TAP_CONFIG1          0x58
+#define BMA400_S_TAP_MSK            BIT(2)
+#define BMA400_D_TAP_MSK            BIT(3)
+#define BMA400_INT_S_TAP_MSK        BIT(10)
+#define BMA400_INT_D_TAP_MSK        BIT(11)
+#define BMA400_TAP_SEN_MSK          GENMASK(2, 0)
+#define BMA400_TAP_TICSTH_MSK       GENMASK(1, 0)
+#define BMA400_TAP_QUIET_MSK        GENMASK(3, 2)
+#define BMA400_TAP_QUIETDT_MSK      GENMASK(5, 4)
+#define BMA400_TAP_TIM_LIST_LEN     4
 
 /*
  * BMA400_SCALE_MIN macro value represents m/s^2 for 1 LSB before
