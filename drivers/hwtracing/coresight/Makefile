@@ -29,7 +29,7 @@ obj-$(CONFIG_CORESIGHT_TRBE) += coresight-trbe.o
 coresight-cti-y := coresight-cti-core.o	coresight-cti-platform.o \
 		   coresight-cti-sysfs.o
 obj-$(CONFIG_CORESIGHT_DUMMY) += coresight-dummy.o
-obj-$(CONFIG_CORESIGHT_REMOTE_ETM) += coresight-remote-etm.o
+obj-$(CONFIG_CORESIGHT_REMOTE_ETM) += coresight-remote-etm.o coresight-tmc-sec.o
 obj-$(CONFIG_CORESIGHT_TRACE_NOC) += coresight-trace-noc.o
 obj-$(CONFIG_CORESIGHT_TGU) += coresight-tgu.o
 obj-$(CONFIG_CORESIGHT_HWEVENT) += coresight-hwevent.o

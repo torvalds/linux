@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2022 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/kernel.h>
@@ -57,6 +57,22 @@ static int dummy_sink_disable(struct coresight_device *csdev)
 	return 0;
 }
 
+static int dummy_link_enable(struct coresight_device *csdev, int iport, int oport)
+{
+	struct dummy_drvdata *drvdata = dev_get_drvdata(csdev->dev.parent);
+
+	dev_info(drvdata->dev, "Dummy link enable\n");
+
+	return 0;
+}
+
+static void dummy_link_disable(struct coresight_device *csdev, int iport, int oport)
+{
+	struct dummy_drvdata *drvdata = dev_get_drvdata(csdev->dev.parent);
+
+	dev_info(drvdata->dev, "Dummy link disabled\n");
+}
+
 static int dummy_trace_id(struct coresight_device *csdev)
 {
 	struct dummy_drvdata *drvdata = dev_get_drvdata(csdev->dev.parent);
@@ -75,9 +91,15 @@ static const struct coresight_ops_sink dummy_sink_ops = {
 	.disable	= dummy_sink_disable,
 };
 
+static const struct coresight_ops_link dummy_link_ops = {
+	.enable		= dummy_link_enable,
+	.disable	= dummy_link_disable,
+};
+
 static const struct coresight_ops dummy_cs_ops = {
 	.source_ops	= &dummy_source_ops,
 	.sink_ops	= &dummy_sink_ops,
+	.link_ops	= &dummy_link_ops,
 };
 
 static int dummy_probe(struct platform_device *pdev)
@@ -113,6 +135,10 @@ static int dummy_probe(struct platform_device *pdev)
 					 "qcom,dummy-sink")) {
 		desc.type = CORESIGHT_DEV_TYPE_SINK;
 		desc.subtype.sink_subtype = CORESIGHT_DEV_SUBTYPE_SINK_BUFFER;
+	} else if (of_property_read_bool(pdev->dev.of_node,
+					 "qcom,dummy-link")) {
+		desc.type = CORESIGHT_DEV_TYPE_LINK;
+		desc.subtype.link_subtype = CORESIGHT_DEV_SUBTYPE_LINK_SPLIT;
 	} else {
 		dev_info(dev, "Device type not set\n");
 		return -EINVAL;

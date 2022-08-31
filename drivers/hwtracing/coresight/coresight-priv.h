@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright (c) 2011-2012, 2021 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef _CORESIGHT_PRIV_H
@@ -81,6 +82,7 @@ enum cs_mode {
 	CS_MODE_DISABLED,
 	CS_MODE_SYSFS,
 	CS_MODE_PERF,
+	CS_MODE_SEC,
 };
 
 /**
@@ -184,13 +186,22 @@ extern void coresight_set_cti_ops(const struct cti_assoc_op *cti_op);
 extern void coresight_remove_cti_ops(void);
 
 struct csr_set_atid_op {
-	int (*set_atid)(struct coresight_device *csdev, u32 atid, bool enable);
+	int (*set_atid)(struct coresight_device *csdev, u32 atid_offset,
+				u32 atid, bool enable);
 };
 
 extern void coresight_set_csr_ops(const struct csr_set_atid_op *csr_op);
 extern void coresight_remove_csr_ops(void);
+
 int of_coresight_get_atid(struct coresight_device *src_dev, u32 *atid, int atid_num);
 int of_coresight_get_atid_number(struct coresight_device *csdev);
+bool of_coresight_secure_node(struct coresight_device *csdev);
+int of_coresight_get_csr_atid_offset(struct coresight_device *csdev,
+				u32 *atid_offset);
+
+extern int remote_etm_reenable(uint32_t inst_id);
+extern int remote_etm_etr_assign(uint32_t inst_id, unsigned int subsys_id,
+		unsigned int etr_id, phys_addr_t buffer_base, size_t buff_size);
 
 /*
  * Macros and inline functions to handle CoreSight UCI data and driver
