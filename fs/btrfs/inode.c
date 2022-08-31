@@ -1644,10 +1644,9 @@ static noinline int run_delalloc_zoned(struct btrfs_inode *inode,
 			done_offset = end;
 
 		if (done_offset == start) {
-			struct btrfs_fs_info *info = inode->root->fs_info;
-
-			wait_var_event(&info->zone_finish_wait,
-				       !test_bit(BTRFS_FS_NEED_ZONE_FINISH, &info->flags));
+			wait_on_bit_io(&inode->root->fs_info->flags,
+				       BTRFS_FS_NEED_ZONE_FINISH,
+				       TASK_UNINTERRUPTIBLE);
 			continue;
 		}
 
