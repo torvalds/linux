@@ -908,10 +908,9 @@ static void gred_destroy(struct Qdisc *sch)
 	struct gred_sched *table = qdisc_priv(sch);
 	int i;
 
-	for (i = 0; i < table->DPs; i++) {
-		if (table->tab[i])
-			gred_destroy_vq(table->tab[i]);
-	}
+	for (i = 0; i < table->DPs; i++)
+		gred_destroy_vq(table->tab[i]);
+
 	gred_offload(sch, TC_GRED_DESTROY);
 	kfree(table->opt);
 }
