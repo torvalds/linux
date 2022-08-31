@@ -412,11 +412,6 @@ double expr__get_literal(const char *literal)
 	static struct cpu_topology *topology;
 	double result = NAN;
 
-	if (!strcasecmp("#smt_on", literal)) {
-		result = smt_on() > 0 ? 1.0 : 0.0;
-		goto out;
-	}
-
 	if (!strcmp("#num_cpus", literal)) {
 		result = cpu__max_present_cpu().cpu;
 		goto out;
@@ -439,6 +434,10 @@ double expr__get_literal(const char *literal)
 			pr_err("Error creating CPU topology");
 			goto out;
 		}
+	}
+	if (!strcasecmp("#smt_on", literal)) {
+		result = smt_on(topology) ? 1.0 : 0.0;
+		goto out;
 	}
 	if (!strcmp("#num_packages", literal)) {
 		result = topology->package_cpus_lists;

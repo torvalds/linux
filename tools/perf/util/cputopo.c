@@ -157,6 +157,21 @@ void cpu_topology__delete(struct cpu_topology *tp)
 	free(tp);
 }
 
+bool cpu_topology__smt_on(const struct cpu_topology *topology)
+{
+	for (u32 i = 0; i < topology->core_cpus_lists; i++) {
+		const char *cpu_list = topology->core_cpus_list[i];
+
+		/*
+		 * If there is a need to separate siblings in a core then SMT is
+		 * enabled.
+		 */
+		if (strchr(cpu_list, ',') || strchr(cpu_list, '-'))
+			return true;
+	}
+	return false;
+}
+
 static bool has_die_topology(void)
 {
 	char filename[MAXPATHLEN];

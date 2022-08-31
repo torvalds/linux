@@ -58,6 +58,8 @@ struct hybrid_topology {
 
 struct cpu_topology *cpu_topology__new(void);
 void cpu_topology__delete(struct cpu_topology *tp);
+/* Determine from the core list whether SMT was enabled. */
+bool cpu_topology__smt_on(const struct cpu_topology *topology);
 
 struct numa_topology *numa_topology__new(void);
 void numa_topology__delete(struct numa_topology *tp);

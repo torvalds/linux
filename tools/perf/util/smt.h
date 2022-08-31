@@ -2,6 +2,9 @@
 #ifndef __SMT_H
 #define __SMT_H 1
 
-int smt_on(void);
+struct cpu_topology;
+
+/* Returns true if SMT (aka hyperthreading) is enabled. */
+bool smt_on(const struct cpu_topology *topology);
 
 #endif /* __SMT_H */
