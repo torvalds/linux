@@ -1169,6 +1169,7 @@
 					mscc_felix_port5: port@5 {
 						reg = <5>;
 						phy-mode = "internal";
+						ethernet = <&enetc_port3>;
 						status = "disabled";
 
 						fixed-link {
