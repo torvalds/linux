@@ -31,6 +31,7 @@ struct cached_dirents {
 };
 
 struct cached_fid {
+	const char *path;
 	bool is_valid:1;	/* Do we have a useable root fid */
 	bool file_all_info_is_valid:1;
 	bool has_lease:1;
@@ -46,7 +47,8 @@ struct cached_fid {
 };
 
 struct cached_fids {
-	struct cached_fid cfid;
+	struct mutex cfid_list_mutex;
+	struct cached_fid *cfid;
 };
 
 extern struct cached_fids *init_cached_dirs(void);
