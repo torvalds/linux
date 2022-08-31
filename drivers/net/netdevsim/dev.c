@@ -965,7 +965,6 @@ static int nsim_dev_reload_up(struct devlink *devlink, enum devlink_reload_actio
 			      struct netlink_ext_ack *extack)
 {
 	struct nsim_dev *nsim_dev = devlink_priv(devlink);
-	int ret;
 
 	if (nsim_dev->fail_reload) {
 		/* For testing purposes, user set debugfs fail_reload
@@ -976,8 +975,8 @@ static int nsim_dev_reload_up(struct devlink *devlink, enum devlink_reload_actio
 	}
 
 	*actions_performed = BIT(DEVLINK_RELOAD_ACTION_DRIVER_REINIT);
-	ret = nsim_dev_reload_create(nsim_dev, extack);
-	return ret;
+
+	return nsim_dev_reload_create(nsim_dev, extack);
 }
 
 static int nsim_dev_info_get(struct devlink *devlink,
