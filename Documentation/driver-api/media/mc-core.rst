@@ -214,6 +214,18 @@ Link properties can be modified at runtime by calling
 Pipelines and media streams
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+A media stream is a stream of pixels or metadata originating from one or more
+source devices (such as a sensors) and flowing through media entity pads
+towards the final sinks. The stream can be modified on the route by the
+devices (e.g. scaling or pixel format conversions), or it can be split into
+multiple branches, or multiple branches can be merged.
+
+A media pipeline is a set of media streams which are interdependent. This
+interdependency can be caused by the hardware (e.g. configuration of a second
+stream cannot be changed if the first stream has been enabled) or by the driver
+due to the software design. Most commonly a media pipeline consists of a single
+stream which does not branch.
+
 When starting streaming, drivers must notify all entities in the pipeline to
 prevent link states from being modified during streaming by calling
 :c:func:`media_pipeline_start()`.
