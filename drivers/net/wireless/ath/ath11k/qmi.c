@@ -3014,8 +3014,10 @@ static void ath11k_qmi_msg_fw_ready_cb(struct qmi_handle *qmi_hdl,
 
 	ath11k_dbg(ab, ATH11K_DBG_QMI, "qmi firmware ready\n");
 
-	ab->qmi.cal_done = 1;
-	wake_up(&ab->qmi.cold_boot_waitq);
+	if (!ab->qmi.cal_done) {
+		ab->qmi.cal_done = 1;
+		wake_up(&ab->qmi.cold_boot_waitq);
+	}
 
 	ath11k_qmi_driver_event_post(qmi, ATH11K_QMI_EVENT_FW_READY, NULL);
 }
@@ -3029,6 +3031,8 @@ static void ath11k_qmi_msg_cold_boot_cal_done_cb(struct qmi_handle *qmi_hdl,
 					      struct ath11k_qmi, handle);
 	struct ath11k_base *ab = qmi->ab;
 
+	ab->qmi.cal_done = 1;
+	wake_up(&ab->qmi.cold_boot_waitq);
 	ath11k_dbg(ab, ATH11K_DBG_QMI, "qmi cold boot calibration done\n");
 }
 
@@ -3200,6 +3204,20 @@ static void ath11k_qmi_driver_event_work(struct work_struct *work)
 
 			break;
 		case ATH11K_QMI_EVENT_FW_READY:
+			/* For targets requiring a FW restart upon cold
+			 * boot completion, there is no need to process
+			 * FW ready; such targets will receive FW init
+			 * done message after FW restart.
+			 */
+			if (ab->hw_params.cbcal_restart_fw)
+				break;
+
+			clear_bit(ATH11K_FLAG_CRASH_FLUSH,
+				  &ab->dev_flags);
+			clear_bit(ATH11K_FLAG_RECOVERY, &ab->dev_flags);
+			ath11k_core_qmi_firmware_ready(ab);
+			set_bit(ATH11K_FLAG_REGISTERED, &ab->dev_flags);
+
 			break;
 		case ATH11K_QMI_EVENT_COLD_BOOT_CAL_DONE:
 			break;
