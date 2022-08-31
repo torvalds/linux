@@ -940,15 +940,15 @@ static int wm8960_hw_params(struct snd_pcm_substream *substream,
 			snd_soc_component_write(component, WM8960_BYPASS1, 0x00);
 			snd_soc_component_write(component, WM8960_BYPASS2, 0x00);
 			snd_soc_component_update_bits(component, WM8960_ADDCTL4, 0x73, 0);
-		} else {
+
 			if (params_channels(params) == 1)
-				snd_soc_component_write(component, WM8960_LOUT1, 0x100);
-			else {
-				if (snd_soc_component_read(component, WM8960_LOUT1) & 0x7f)
-					snd_soc_component_update_bits(component, WM8960_LOUT1, 0x100, 0x100);
-				else
-					snd_soc_component_write(component, WM8960_LOUT1, 0x170);
-			}
+				wm8960->lrclk /= 2;
+		} else {
+			if (params_channels(params) == 1) {
+				snd_soc_component_update_bits(component, WM8960_ADDCTL1, 0x10, 0x10);
+				wm8960->lrclk /= 2;
+			} else
+				snd_soc_component_update_bits(component, WM8960_ADDCTL1, 0x10, 0);
 		}
 	}
 
@@ -962,9 +962,9 @@ static int wm8960_hw_params(struct snd_pcm_substream *substream,
 
 	if (tx) {
 		snd_soc_component_update_bits(component, WM8960_POWER3, 0xc, 0xc);
-		msleep(100);
+		msleep(20);
 		snd_soc_component_update_bits(component, WM8960_POWER2, 0x1e0, 0x1e0);
-		msleep(100);
+		msleep(20);
 	}
 
 	return 0;
@@ -1024,7 +1024,7 @@ static int wm8960_set_bias_level_out3(struct snd_soc_component *component,
 				return ret;
 
 			snd_soc_component_update_bits(component, WM8960_POWER3, 0xc, 0xc);
-			msleep(100);
+			msleep(20);
 			/* Set VMID to 2x50k */
 			snd_soc_component_update_bits(component, WM8960_POWER1, 0x180, 0x80);
 			break;
@@ -1325,7 +1325,7 @@ static int wm8960_set_pll(struct snd_soc_component *component,
 
 	/* Turn it on */
 	snd_soc_component_update_bits(component, WM8960_POWER2, 0x1, 0x1);
-	msleep(250);
+	msleep(150);
 	snd_soc_component_update_bits(component, WM8960_CLOCK1, 0x1, 0x1);
 
 	return 0;
