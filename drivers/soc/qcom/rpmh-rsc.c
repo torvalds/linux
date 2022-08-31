@@ -1715,7 +1715,7 @@ static int rpmh_rsc_probe(struct platform_device *pdev)
 
 	INIT_LIST_HEAD(&rsc_top->list);
 	list_add_tail(&rsc_top->list, &rpmh_rsc_dev_list);
-	dev_set_drvdata(&pdev->dev, &rsc_top);
+	dev_set_drvdata(&pdev->dev, rsc_top);
 
 	return devm_of_platform_populate(&pdev->dev);
 }
