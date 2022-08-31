@@ -119,7 +119,6 @@ struct platform_device *acpi_create_platform_device(struct acpi_device *adev,
 		resources = kcalloc(count, sizeof(struct resource),
 				    GFP_KERNEL);
 		if (!resources) {
-			dev_err(&adev->dev, "No memory for resources\n");
 			acpi_dev_free_resource_list(&resource_list);
 			return ERR_PTR(-ENOMEM);
 		}
