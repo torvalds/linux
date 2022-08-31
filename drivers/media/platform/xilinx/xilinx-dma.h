@@ -45,9 +45,9 @@ struct xvip_pipeline {
 	struct xvip_dma *output;
 };
 
-static inline struct xvip_pipeline *to_xvip_pipeline(struct media_entity *e)
+static inline struct xvip_pipeline *to_xvip_pipeline(struct video_device *vdev)
 {
-	struct media_pipeline *pipe = media_entity_pipeline(e);
+	struct media_pipeline *pipe = video_device_pipeline(vdev);
 
 	if (!pipe)
 		return NULL;

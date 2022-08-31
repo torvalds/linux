@@ -402,7 +402,7 @@ static int xvip_dma_start_streaming(struct vb2_queue *vq, unsigned int count)
 	 * Use the pipeline object embedded in the first DMA object that starts
 	 * streaming.
 	 */
-	pipe = to_xvip_pipeline(&dma->video.entity) ? : &dma->pipe;
+	pipe = to_xvip_pipeline(&dma->video) ? : &dma->pipe;
 
 	ret = video_device_pipeline_start(&dma->video, &pipe->pipe);
 	if (ret < 0)
@@ -447,7 +447,7 @@ error:
 static void xvip_dma_stop_streaming(struct vb2_queue *vq)
 {
 	struct xvip_dma *dma = vb2_get_drv_priv(vq);
-	struct xvip_pipeline *pipe = to_xvip_pipeline(&dma->video.entity);
+	struct xvip_pipeline *pipe = to_xvip_pipeline(&dma->video);
 	struct xvip_dma_buffer *buf, *nbuf;
 
 	/* Stop the pipeline. */
