@@ -638,7 +638,7 @@ static int rockchip_hdptx_phy_set_lanes(struct rockchip_hdptx_phy *hdptx,
 
 	ret = regmap_read_poll_timeout(hdptx->grf, HDPTXPHY_GRF_STATUS0,
 				       status, FIELD_GET(PHY_RDY, status),
-				       50, 1000);
+				       50, 5000);
 	if (ret) {
 		dev_err(hdptx->dev, "timeout waiting for phy_rdy\n");
 		return ret;
