@@ -266,7 +266,7 @@ static int sun4i_csi_start_streaming(struct vb2_queue *vq, unsigned int count)
 		goto err_clear_dma_queue;
 	}
 
-	ret = video_device_pipeline_start(&csi->vdev, &csi->vdev.pipe);
+	ret = video_device_pipeline_alloc_start(&csi->vdev);
 	if (ret < 0)
 		goto err_free_scratch_buffer;
 

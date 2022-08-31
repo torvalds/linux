@@ -141,7 +141,7 @@ static int sun6i_video_start_streaming(struct vb2_queue *vq, unsigned int count)
 
 	video->sequence = 0;
 
-	ret = video_device_pipeline_start(&video->vdev, &video->vdev.pipe);
+	ret = video_device_pipeline_alloc_start(&video->vdev);
 	if (ret < 0)
 		goto clear_dma_queue;
 
