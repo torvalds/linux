@@ -189,8 +189,8 @@ struct yas5xx;
  */
 struct yas5xx_chip_info {
 	unsigned int devid;
-	char *product_name;
-	char *version_names[2];
+	const char *product_name;
+	const char *version_names[2];
 	const int *volatile_reg;
 	int volatile_reg_qty;
 	u32 scaling_val2;
