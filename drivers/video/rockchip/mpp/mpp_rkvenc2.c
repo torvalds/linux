@@ -160,7 +160,12 @@ union rkvenc2_dual_core_handshake_id {
 #define RKVENC2_REG_INT_MASK		(9)
 #define RKVENC2_BIT_SLICE_DONE_MASK	BIT(3)
 
+#define RKVENC2_REG_EXT_LINE_BUF_BASE	(22)
+
 #define RKVENC2_REG_ENC_PIC		(32)
+#define RKVENC2_BIT_ENC_STND		BIT(0)
+#define RKVENC2_BIT_VAL_H264		0
+#define RKVENC2_BIT_VAL_H265		1
 #define RKVENC2_BIT_SLEN_FIFO		BIT(30)
 
 #define RKVENC2_REG_SLI_SPLIT		(56)
@@ -706,19 +711,33 @@ static void rkvenc2_setup_task_id(u32 session_id, struct rkvenc_task *task)
 	task->dchs_id.rxe_map = task->dchs_id.rxe;
 }
 
-static int rkvenc2_is_split_task(struct rkvenc_task *task)
+static void rkvenc2_check_split_task(struct rkvenc_task *task)
 {
+	u32 slen_fifo_en = 0;
+	u32 sli_split_en = 0;
+
 	if (task->reg[RKVENC_CLASS_PIC].valid) {
 		u32 *reg = task->reg[RKVENC_CLASS_PIC].data;
-		u32 slen_fifo_en = (reg[RKVENC2_REG_ENC_PIC] & RKVENC2_BIT_SLEN_FIFO) ? 1 : 0;
-		u32 sli_split_en = (reg[RKVENC2_REG_SLI_SPLIT] & RKVENC2_BIT_SLI_SPLIT) ? 1 : 0;
-		u32 sli_flsh_en  = (reg[RKVENC2_REG_SLI_SPLIT] & RKVENC2_BIT_SLI_FLUSH) ? 1 : 0;
+		u32 enc_stnd = reg[RKVENC2_REG_ENC_PIC] & RKVENC2_BIT_ENC_STND;
 
-		if (sli_split_en && slen_fifo_en && sli_flsh_en)
-			return 1;
+		slen_fifo_en = (reg[RKVENC2_REG_ENC_PIC] & RKVENC2_BIT_SLEN_FIFO) ? 1 : 0;
+		sli_split_en = (reg[RKVENC2_REG_SLI_SPLIT] & RKVENC2_BIT_SLI_SPLIT) ? 1 : 0;
+
+		/*
+		 * FIXUP: rkvenc2 hardware bug:
+		 * H.264 encoding has bug when external line buffer and slice flush both
+		 * are enabled.
+		 */
+		if (sli_split_en && slen_fifo_en &&
+		    enc_stnd == RKVENC2_BIT_VAL_H264 &&
+		    reg[RKVENC2_REG_EXT_LINE_BUF_BASE])
+			reg[RKVENC2_REG_SLI_SPLIT] &= ~RKVENC2_BIT_SLI_FLUSH;
 	}
 
-	return 0;
+	task->task_split = sli_split_en && slen_fifo_en;
+
+	if (task->task_split)
+		INIT_KFIFO(task->slice_info);
 }
 
 static void *rkvenc_alloc_task(struct mpp_session *session,
@@ -780,9 +799,7 @@ static void *rkvenc_alloc_task(struct mpp_session *session,
 	}
 	rkvenc2_setup_task_id(session->index, task);
 	task->clk_mode = CLK_MODE_NORMAL;
-	task->task_split = rkvenc2_is_split_task(task);
-	if (task->task_split)
-		INIT_KFIFO(task->slice_info);
+	rkvenc2_check_split_task(task);
 
 	mpp_debug_leave();
 
