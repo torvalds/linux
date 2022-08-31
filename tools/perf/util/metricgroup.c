@@ -1646,13 +1646,12 @@ out:
 	return ret;
 }
 
-int metricgroup__parse_groups(const struct option *opt,
+int metricgroup__parse_groups(struct evlist *perf_evlist,
 			      const char *str,
 			      bool metric_no_group,
 			      bool metric_no_merge,
 			      struct rblist *metric_events)
 {
-	struct evlist *perf_evlist = *(struct evlist **)opt->value;
 	const struct pmu_events_table *table = pmu_events_table__find();
 
 	if (!table)

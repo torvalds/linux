@@ -191,6 +191,7 @@ static bool			append_file;
 static bool			interval_count;
 static const char		*output_name;
 static int			output_fd;
+static char			*metrics;
 
 struct perf_stat {
 	bool			 record;
@@ -1148,14 +1149,23 @@ static int enable_metric_only(const struct option *opt __maybe_unused,
 	return 0;
 }
 
-static int parse_metric_groups(const struct option *opt,
+static int append_metric_groups(const struct option *opt __maybe_unused,
 			       const char *str,
 			       int unset __maybe_unused)
 {
-	return metricgroup__parse_groups(opt, str,
-					 stat_config.metric_no_group,
-					 stat_config.metric_no_merge,
-					 &stat_config.metric_events);
+	if (metrics) {
+		char *tmp;
+
+		if (asprintf(&tmp, "%s,%s", metrics, str) < 0)
+			return -ENOMEM;
+		free(metrics);
+		metrics = tmp;
+	} else {
+		metrics = strdup(str);
+		if (!metrics)
+			return -ENOMEM;
+	}
+	return 0;
 }
 
 static int parse_control_option(const struct option *opt,
@@ -1299,7 +1309,7 @@ static struct option stat_options[] = {
 			"measure SMI cost"),
 	OPT_CALLBACK('M', "metrics", &evsel_list, "metric/metric group list",
 		     "monitor specified metrics or metric groups (separated by ,)",
-		     parse_metric_groups),
+		     append_metric_groups),
 	OPT_BOOLEAN_FLAG(0, "all-kernel", &stat_config.all_kernel,
 			 "Configure all used events to run in kernel space.",
 			 PARSE_OPT_EXCLUSIVE),
@@ -1792,11 +1802,9 @@ static int add_default_attributes(void)
 		 * on an architecture test for such a metric name.
 		 */
 		if (metricgroup__has_metric("transaction")) {
-			struct option opt = { .value = &evsel_list };
-
-			return metricgroup__parse_groups(&opt, "transaction",
+			return metricgroup__parse_groups(evsel_list, "transaction",
 							 stat_config.metric_no_group,
-							stat_config.metric_no_merge,
+							 stat_config.metric_no_merge,
 							 &stat_config.metric_events);
 		}
 
@@ -2183,6 +2191,8 @@ static int __cmd_report(int argc, const char **argv)
 			input_name = "perf.data";
 	}
 
+	perf_stat__init_shadow_stats();
+
 	perf_stat.data.path = input_name;
 	perf_stat.data.mode = PERF_DATA_MODE_READ;
 
@@ -2262,8 +2272,6 @@ int cmd_stat(int argc, const char **argv)
 	argc = parse_options_subcommand(argc, argv, stat_options, stat_subcommands,
 					(const char **) stat_usage,
 					PARSE_OPT_STOP_AT_NON_OPTION);
-	perf_stat__collect_metric_expr(evsel_list);
-	perf_stat__init_shadow_stats();
 
 	if (stat_config.csv_sep) {
 		stat_config.csv_output = true;
@@ -2430,6 +2438,23 @@ int cmd_stat(int argc, const char **argv)
 			target.system_wide = true;
 	}
 
+	if ((stat_config.aggr_mode == AGGR_THREAD) && (target.system_wide))
+		target.per_thread = true;
+
+	/*
+	 * Metric parsing needs to be delayed as metrics may optimize events
+	 * knowing the target is system-wide.
+	 */
+	if (metrics) {
+		metricgroup__parse_groups(evsel_list, metrics,
+					stat_config.metric_no_group,
+					stat_config.metric_no_merge,
+					&stat_config.metric_events);
+		zfree(&metrics);
+	}
+	perf_stat__collect_metric_expr(evsel_list);
+	perf_stat__init_shadow_stats();
+
 	if (add_default_attributes())
 		goto out;
 
@@ -2448,9 +2473,6 @@ int cmd_stat(int argc, const char **argv)
 			goto out;
 		}
 	}
-
-	if ((stat_config.aggr_mode == AGGR_THREAD) && (target.system_wide))
-		target.per_thread = true;
 
 	if (evlist__fix_hybrid_cpus(evsel_list, target.cpu_list)) {
 		pr_err("failed to use cpu list %s\n", target.cpu_list);
