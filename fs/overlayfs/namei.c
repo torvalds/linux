@@ -1086,6 +1086,11 @@ struct dentry *ovl_lookup(struct inode *dir, struct dentry *dentry,
 			.mnt = ovl_upper_mnt(ofs),
 		};
 
+		/*
+		 * It's safe to assign upperredirect here: the previous
+		 * assignment of happens only if upperdentry is non-NULL, and
+		 * this one only if upperdentry is NULL.
+		 */
 		upperredirect = ovl_get_redirect_xattr(ofs, &upperpath, 0);
 		if (IS_ERR(upperredirect)) {
 			err = PTR_ERR(upperredirect);
