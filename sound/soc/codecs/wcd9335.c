@@ -1821,12 +1821,10 @@ static int wcd9335_set_decimator_rate(struct snd_soc_dai *dai,
 			tx_port_reg = WCD9335_CDC_IF_ROUTER_TX_MUX_CFG3;
 			shift = 0;
 			shift_val = 0x0F;
-		} else if (tx_port == 13) {
+		} else /* (tx_port == 13) */ {
 			tx_port_reg = WCD9335_CDC_IF_ROUTER_TX_MUX_CFG3;
 			shift = 4;
 			shift_val = 0x03;
-		} else {
-			return -EINVAL;
 		}
 
 		tx_mux_sel = snd_soc_component_read(comp, tx_port_reg) &

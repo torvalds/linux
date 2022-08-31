@@ -614,7 +614,7 @@ static int omap_mcbsp_init(struct platform_device *pdev)
 {
 	struct omap_mcbsp *mcbsp = platform_get_drvdata(pdev);
 	struct resource *res;
-	int ret = 0;
+	int ret;
 
 	spin_lock_init(&mcbsp->lock);
 	mcbsp->free = true;
