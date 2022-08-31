@@ -264,7 +264,7 @@ static const struct component_ops encoder_component_ops = {
 };
 
 static const struct of_device_id simple_encoder_dt_match[] = {
-	{ .compatible = "verisilicon,hdmi-encoder", .data = &hdmi_priv},
+	{ .compatible = "verisilicon,rgb-encoder", .data = &hdmi_priv},
 	{ .compatible = "verisilicon,dp-encoder", .data = &hdmi_priv},
 	{ .compatible = "verisilicon,dsi-encoder", .data = &dsi_priv},
 	{},

@@ -1199,7 +1199,7 @@ static int inno_hdmi_remove(struct platform_device *pdev)
 }
 
 static const struct of_device_id inno_hdmi_dt_ids[] = {
-	{ .compatible = "rockchip,rk3036-inno-hdmi",
+	{ .compatible = "inno,hdmi",
 	},
 	{},
 };
@@ -1209,7 +1209,7 @@ struct platform_driver inno_hdmi_driver = {
 	.probe  = inno_hdmi_probe,
 	.remove = inno_hdmi_remove,
 	.driver = {
-		.name = "innohdmi-rockchip",
+		.name = "innohdmi-starfive",
 		.of_match_table = inno_hdmi_dt_ids,
 	},
 };
