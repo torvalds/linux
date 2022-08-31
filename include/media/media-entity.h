@@ -100,10 +100,12 @@ struct media_graph {
 /**
  * struct media_pipeline - Media pipeline related information
  *
+ * @allocated:		Media pipeline allocated and freed by the framework
  * @start_count:	Media pipeline start - stop count
  * @graph:		Media graph walk during pipeline start / stop
  */
 struct media_pipeline {
+	bool allocated;
 	int start_count;
 	struct media_graph graph;
 };
@@ -1091,6 +1093,19 @@ void media_pipeline_stop(struct media_entity *entity);
  * .. note:: This is the non-locking version of media_pipeline_stop()
  */
 void __media_pipeline_stop(struct media_entity *entity);
+
+/**
+ * media_pipeline_alloc_start - Mark a pipeline as streaming
+ * @entity: Starting entity
+ *
+ * media_pipeline_alloc_start() is similar to media_pipeline_start() but instead
+ * of working on a given pipeline the function will use an existing pipeline if
+ * the entity is already part of a pipeline, or allocate a new pipeline.
+ *
+ * Calls to media_pipeline_alloc_start() must be matched with
+ * media_pipeline_stop().
+ */
+__must_check int media_pipeline_alloc_start(struct media_entity *entity);
 
 /**
  * media_devnode_create() - creates and initializes a device node interface

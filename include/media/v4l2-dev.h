@@ -608,6 +608,20 @@ void video_device_pipeline_stop(struct video_device *vdev);
 void __video_device_pipeline_stop(struct video_device *vdev);
 
 /**
+ * video_device_pipeline_alloc_start - Mark a pipeline as streaming
+ * @vdev: Starting video device
+ *
+ * video_device_pipeline_alloc_start() is similar to video_device_pipeline_start()
+ * but instead of working on a given pipeline the function will use an
+ * existing pipeline if the video device is already part of a pipeline, or
+ * allocate a new pipeline.
+ *
+ * Calls to video_device_pipeline_alloc_start() must be matched with
+ * video_device_pipeline_stop().
+ */
+__must_check int video_device_pipeline_alloc_start(struct video_device *vdev);
+
+/**
  * video_device_pipeline - Get the media pipeline a video device is part of
  * @vdev: The video device
  *

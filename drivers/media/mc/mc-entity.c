@@ -530,6 +530,8 @@ void __media_pipeline_stop(struct media_entity *entity)
 
 	media_graph_walk_cleanup(graph);
 
+	if (pipe->allocated)
+		kfree(pipe);
 }
 EXPORT_SYMBOL_GPL(__media_pipeline_stop);
 
@@ -542,6 +544,42 @@ void media_pipeline_stop(struct media_entity *entity)
 	mutex_unlock(&mdev->graph_mutex);
 }
 EXPORT_SYMBOL_GPL(media_pipeline_stop);
+
+__must_check int media_pipeline_alloc_start(struct media_entity *entity)
+{
+	struct media_device *mdev = entity->graph_obj.mdev;
+	struct media_pipeline *new_pipe = NULL;
+	struct media_pipeline *pipe;
+	int ret;
+
+	mutex_lock(&mdev->graph_mutex);
+
+	/*
+	 * Is the entity already part of a pipeline? If not, we need to allocate
+	 * a pipe.
+	 */
+	pipe = media_entity_pipeline(entity);
+	if (!pipe) {
+		new_pipe = kzalloc(sizeof(*new_pipe), GFP_KERNEL);
+		if (!new_pipe) {
+			ret = -ENOMEM;
+			goto out;
+		}
+
+		pipe = new_pipe;
+		pipe->allocated = true;
+	}
+
+	ret = __media_pipeline_start(entity, pipe);
+	if (ret)
+		kfree(new_pipe);
+
+out:
+	mutex_unlock(&mdev->graph_mutex);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(media_pipeline_alloc_start);
 
 /* -----------------------------------------------------------------------------
  * Links management

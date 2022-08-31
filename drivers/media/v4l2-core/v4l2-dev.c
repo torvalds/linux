@@ -1143,6 +1143,17 @@ void __video_device_pipeline_stop(struct video_device *vdev)
 }
 EXPORT_SYMBOL_GPL(__video_device_pipeline_stop);
 
+__must_check int video_device_pipeline_alloc_start(struct video_device *vdev)
+{
+	struct media_entity *entity = &vdev->entity;
+
+	if (entity->num_pads != 1)
+		return -ENODEV;
+
+	return media_pipeline_alloc_start(entity);
+}
+EXPORT_SYMBOL_GPL(video_device_pipeline_alloc_start);
+
 struct media_pipeline *video_device_pipeline(struct video_device *vdev)
 {
 	struct media_entity *entity = &vdev->entity;
