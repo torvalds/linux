@@ -7,14 +7,14 @@
 #include "../include/drv_types.h"
 #include "../include/mlme_osdep.h"
 
-void rtw_join_timeout_handler (struct timer_list *t)
+static void rtw_join_timeout_handler(struct timer_list *t)
 {
 	struct adapter *adapter = from_timer(adapter, t, mlmepriv.assoc_timer);
 
 	_rtw_join_timeout_handler(adapter);
 }
 
-void _rtw_scan_timeout_handler (struct timer_list *t)
+static void _rtw_scan_timeout_handler(struct timer_list *t)
 {
 	struct adapter *adapter = from_timer(adapter, t, mlmepriv.scan_to_timer);
 
