@@ -866,14 +866,12 @@ static void set_operstate(struct net_device *dev, unsigned char transition)
 		break;
 
 	case IF_OPER_TESTING:
-		if (operstate == IF_OPER_UP ||
-		    operstate == IF_OPER_UNKNOWN)
+		if (netif_oper_up(dev))
 			operstate = IF_OPER_TESTING;
 		break;
 
 	case IF_OPER_DORMANT:
-		if (operstate == IF_OPER_UP ||
-		    operstate == IF_OPER_UNKNOWN)
+		if (netif_oper_up(dev))
 			operstate = IF_OPER_DORMANT;
 		break;
 	}
