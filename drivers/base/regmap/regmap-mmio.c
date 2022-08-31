@@ -10,6 +10,7 @@
 #include <linux/module.h>
 #include <linux/regmap.h>
 #include <linux/slab.h>
+#include <linux/swab.h>
 
 #include "internal.h"
 
@@ -345,7 +346,6 @@ static int regmap_mmio_noinc_read(void *context, unsigned int reg,
 {
 	struct regmap_mmio_context *ctx = context;
 	int ret = 0;
-	int i;
 
 	if (!IS_ERR(ctx->clk)) {
 		ret = clk_enable(ctx->clk);
@@ -382,27 +382,15 @@ static int regmap_mmio_noinc_read(void *context, unsigned int reg,
 	if (ctx->big_endian && (ctx->val_bytes > 1)) {
 		switch (ctx->val_bytes) {
 		case 2:
-		{
-			u16 *valp = (u16 *)val;
-			for (i = 0; i < val_count; i++)
-				valp[i] = swab16(valp[i]);
+			swab16_array(val, val_count);
 			break;
-		}
 		case 4:
-		{
-			u32 *valp = (u32 *)val;
-			for (i = 0; i < val_count; i++)
-				valp[i] = swab32(valp[i]);
+			swab32_array(val, val_count);
 			break;
-		}
 #ifdef CONFIG_64BIT
 		case 8:
-		{
-			u64 *valp = (u64 *)val;
-			for (i = 0; i < val_count; i++)
-				valp[i] = swab64(valp[i]);
+			swab64_array(val, val_count);
 			break;
-		}
 #endif
 		default:
 			ret = -EINVAL;
