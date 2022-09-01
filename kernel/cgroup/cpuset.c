@@ -176,20 +176,18 @@ struct cpuset {
 /*
  * Partition root states:
  *
- *   0 - not a partition root
- *
+ *   0 - member (not a partition root)
  *   1 - partition root
- *
  *  -1 - invalid partition root
- *       None of the cpus in cpus_allowed can be put into the parent's
- *       subparts_cpus. In this case, the cpuset is not a real partition
- *       root anymore.  However, the CPU_EXCLUSIVE bit will still be set
- *       and the cpuset can be restored back to a partition root if the
- *       parent cpuset can give more CPUs back to this child cpuset.
  */
-#define PRS_DISABLED		0
-#define PRS_ENABLED		1
-#define PRS_ERROR		-1
+#define PRS_MEMBER		0
+#define PRS_ROOT		1
+#define PRS_INVALID_ROOT	-1
+
+static inline bool is_prs_invalid(int prs_state)
+{
+	return prs_state < 0;
+}
 
 /*
  * Temporary cpumasks for working with partitions that are passed among
@@ -269,25 +267,38 @@ static inline int is_spread_slab(const struct cpuset *cs)
 	return test_bit(CS_SPREAD_SLAB, &cs->flags);
 }
 
-static inline int is_partition_root(const struct cpuset *cs)
+static inline int is_partition_valid(const struct cpuset *cs)
 {
 	return cs->partition_root_state > 0;
+}
+
+static inline int is_partition_invalid(const struct cpuset *cs)
+{
+	return cs->partition_root_state < 0;
+}
+
+/*
+ * Callers should hold callback_lock to modify partition_root_state.
+ */
+static inline void make_partition_invalid(struct cpuset *cs)
+{
+	cs->partition_root_state = PRS_INVALID_ROOT;
 }
 
 /*
  * Send notification event of whenever partition_root_state changes.
  */
-static inline void notify_partition_change(struct cpuset *cs,
-					   int old_prs, int new_prs)
+static inline void notify_partition_change(struct cpuset *cs, int old_prs)
 {
-	if (old_prs != new_prs)
-		cgroup_file_notify(&cs->partition_file);
+	if (old_prs == cs->partition_root_state)
+		return;
+	cgroup_file_notify(&cs->partition_file);
 }
 
 static struct cpuset top_cpuset = {
 	.flags = ((1 << CS_ONLINE) | (1 << CS_CPU_EXCLUSIVE) |
 		  (1 << CS_MEM_EXCLUSIVE)),
-	.partition_root_state = PRS_ENABLED,
+	.partition_root_state = PRS_ROOT,
 };
 
 /**
@@ -876,7 +887,7 @@ static int generate_sched_domains(cpumask_var_t **domains,
 			csa[csn++] = cp;
 
 		/* skip @cp's subtree if not a partition root */
-		if (!is_partition_root(cp))
+		if (!is_partition_valid(cp))
 			pos_css = css_rightmost_descendant(pos_css);
 	}
 	rcu_read_unlock();
@@ -1082,7 +1093,7 @@ static void rebuild_sched_domains_locked(void)
 	if (top_cpuset.nr_subparts_cpus) {
 		rcu_read_lock();
 		cpuset_for_each_descendant_pre(cs, pos_css, &top_cpuset) {
-			if (!is_partition_root(cs)) {
+			if (!is_partition_valid(cs)) {
 				pos_css = css_rightmost_descendant(pos_css);
 				continue;
 			}
@@ -1216,11 +1227,11 @@ enum subparts_cmd {
  * cpumask changes that violates the cpu exclusivity rule will not be
  * permitted when checked by validate_change().
  */
-static int update_parent_subparts_cpumask(struct cpuset *cpuset, int cmd,
+static int update_parent_subparts_cpumask(struct cpuset *cs, int cmd,
 					  struct cpumask *newmask,
 					  struct tmpmasks *tmp)
 {
-	struct cpuset *parent = parent_cs(cpuset);
+	struct cpuset *parent = parent_cs(cs);
 	int adding;	/* Moving cpus from effective_cpus to subparts_cpus */
 	int deleting;	/* Moving cpus from subparts_cpus to effective_cpus */
 	int old_prs, new_prs;
@@ -1233,16 +1244,16 @@ static int update_parent_subparts_cpumask(struct cpuset *cpuset, int cmd,
 	 * The new cpumask, if present, or the current cpus_allowed must
 	 * not be empty.
 	 */
-	if (!is_partition_root(parent) ||
+	if (!is_partition_valid(parent) ||
 	   (newmask && cpumask_empty(newmask)) ||
-	   (!newmask && cpumask_empty(cpuset->cpus_allowed)))
+	   (!newmask && cpumask_empty(cs->cpus_allowed)))
 		return -EINVAL;
 
 	/*
 	 * Enabling/disabling partition root is not allowed if there are
 	 * online children.
 	 */
-	if ((cmd != partcmd_update) && css_has_online_children(&cpuset->css))
+	if ((cmd != partcmd_update) && css_has_online_children(&cs->css))
 		return -EBUSY;
 
 	/*
@@ -1251,20 +1262,21 @@ static int update_parent_subparts_cpumask(struct cpuset *cpuset, int cmd,
 	 * CPU will be left after that.
 	 */
 	if ((cmd == partcmd_enable) &&
-	   (!cpumask_subset(cpuset->cpus_allowed, parent->effective_cpus) ||
-	     cpumask_equal(cpuset->cpus_allowed, parent->effective_cpus)))
+	   (!cpumask_subset(cs->cpus_allowed, parent->effective_cpus) ||
+	     cpumask_equal(cs->cpus_allowed, parent->effective_cpus)))
 		return -EINVAL;
 
 	/*
 	 * A cpumask update cannot make parent's effective_cpus become empty.
+	 * new_prs will only be changed for the partcmd_update command.
 	 */
 	adding = deleting = false;
-	old_prs = new_prs = cpuset->partition_root_state;
+	old_prs = new_prs = cs->partition_root_state;
 	if (cmd == partcmd_enable) {
-		cpumask_copy(tmp->addmask, cpuset->cpus_allowed);
+		cpumask_copy(tmp->addmask, cs->cpus_allowed);
 		adding = true;
 	} else if (cmd == partcmd_disable) {
-		deleting = cpumask_and(tmp->delmask, cpuset->cpus_allowed,
+		deleting = cpumask_and(tmp->delmask, cs->cpus_allowed,
 				       parent->subparts_cpus);
 	} else if (newmask) {
 		/*
@@ -1274,7 +1286,7 @@ static int update_parent_subparts_cpumask(struct cpuset *cpuset, int cmd,
 		 * addmask = newmask & parent->effective_cpus
 		 *		     & ~parent->subparts_cpus
 		 */
-		cpumask_andnot(tmp->delmask, cpuset->cpus_allowed, newmask);
+		cpumask_andnot(tmp->delmask, cs->cpus_allowed, newmask);
 		deleting = cpumask_and(tmp->delmask, tmp->delmask,
 				       parent->subparts_cpus);
 
@@ -1308,44 +1320,44 @@ static int update_parent_subparts_cpumask(struct cpuset *cpuset, int cmd,
 		 * pre-shrunk in case there is a change in the cpu list.
 		 * So no deletion is needed.
 		 */
-		adding = cpumask_and(tmp->addmask, cpuset->cpus_allowed,
+		adding = cpumask_and(tmp->addmask, cs->cpus_allowed,
 				     parent->effective_cpus);
 		part_error = cpumask_equal(tmp->addmask,
 					   parent->effective_cpus);
 	}
 
 	if (cmd == partcmd_update) {
-		int prev_prs = cpuset->partition_root_state;
+		int prev_prs = cs->partition_root_state;
 
 		/*
-		 * Check for possible transition between PRS_ENABLED
-		 * and PRS_ERROR.
+		 * Check for possible transition between PRS_ROOT
+		 * and PRS_INVALID_ROOT.
 		 */
-		switch (cpuset->partition_root_state) {
-		case PRS_ENABLED:
+		switch (cs->partition_root_state) {
+		case PRS_ROOT:
 			if (part_error)
-				new_prs = PRS_ERROR;
+				new_prs = PRS_INVALID_ROOT;
 			break;
-		case PRS_ERROR:
+		case PRS_INVALID_ROOT:
 			if (!part_error)
-				new_prs = PRS_ENABLED;
+				new_prs = PRS_ROOT;
 			break;
 		}
 		/*
 		 * Set part_error if previously in invalid state.
 		 */
-		part_error = (prev_prs == PRS_ERROR);
+		part_error = is_prs_invalid(prev_prs);
 	}
 
-	if (!part_error && (new_prs == PRS_ERROR))
+	if (!part_error && is_prs_invalid(new_prs))
 		return 0;	/* Nothing need to be done */
 
-	if (new_prs == PRS_ERROR) {
+	if (is_prs_invalid(new_prs)) {
 		/*
 		 * Remove all its cpus from parent's subparts_cpus.
 		 */
 		adding = false;
-		deleting = cpumask_and(tmp->delmask, cpuset->cpus_allowed,
+		deleting = cpumask_and(tmp->delmask, cs->cpus_allowed,
 				       parent->subparts_cpus);
 	}
 
@@ -1378,10 +1390,10 @@ static int update_parent_subparts_cpumask(struct cpuset *cpuset, int cmd,
 	parent->nr_subparts_cpus = cpumask_weight(parent->subparts_cpus);
 
 	if (old_prs != new_prs)
-		cpuset->partition_root_state = new_prs;
+		cs->partition_root_state = new_prs;
 
 	spin_unlock_irq(&callback_lock);
-	notify_partition_change(cpuset, old_prs, new_prs);
+	notify_partition_change(cs, old_prs);
 
 	return cmd == partcmd_update;
 }
@@ -1446,15 +1458,14 @@ static void update_cpumasks_hier(struct cpuset *cs, struct tmpmasks *tmp)
 		old_prs = new_prs = cp->partition_root_state;
 		if ((cp != cs) && old_prs) {
 			switch (parent->partition_root_state) {
-			case PRS_DISABLED:
+			case PRS_MEMBER:
 				/*
 				 * If parent is not a partition root or an
 				 * invalid partition root, clear its state
 				 * and its CS_CPU_EXCLUSIVE flag.
 				 */
-				WARN_ON_ONCE(cp->partition_root_state
-					     != PRS_ERROR);
-				new_prs = PRS_DISABLED;
+				WARN_ON_ONCE(!is_partition_invalid(cp));
+				new_prs = PRS_MEMBER;
 
 				/*
 				 * clear_bit() is an atomic operation and
@@ -1466,16 +1477,16 @@ static void update_cpumasks_hier(struct cpuset *cs, struct tmpmasks *tmp)
 				clear_bit(CS_CPU_EXCLUSIVE, &cp->flags);
 				break;
 
-			case PRS_ENABLED:
+			case PRS_ROOT:
 				if (update_parent_subparts_cpumask(cp, partcmd_update, NULL, tmp))
 					update_tasks_cpumask(parent);
 				break;
 
-			case PRS_ERROR:
+			case PRS_INVALID_ROOT:
 				/*
 				 * When parent is invalid, it has to be too.
 				 */
-				new_prs = PRS_ERROR;
+				new_prs = PRS_INVALID_ROOT;
 				break;
 			}
 		}
@@ -1487,7 +1498,7 @@ static void update_cpumasks_hier(struct cpuset *cs, struct tmpmasks *tmp)
 		spin_lock_irq(&callback_lock);
 
 		cpumask_copy(cp->effective_cpus, tmp->new_cpus);
-		if (cp->nr_subparts_cpus && (new_prs != PRS_ENABLED)) {
+		if (cp->nr_subparts_cpus && !is_partition_valid(cp)) {
 			cp->nr_subparts_cpus = 0;
 			cpumask_clear(cp->subparts_cpus);
 		} else if (cp->nr_subparts_cpus) {
@@ -1519,7 +1530,7 @@ static void update_cpumasks_hier(struct cpuset *cs, struct tmpmasks *tmp)
 			cp->partition_root_state = new_prs;
 
 		spin_unlock_irq(&callback_lock);
-		notify_partition_change(cp, old_prs, new_prs);
+		notify_partition_change(cp, old_prs);
 
 		WARN_ON(!is_in_v2_mode() &&
 			!cpumask_equal(cp->cpus_allowed, cp->effective_cpus));
@@ -1535,7 +1546,7 @@ static void update_cpumasks_hier(struct cpuset *cs, struct tmpmasks *tmp)
 		if (!cpumask_empty(cp->cpus_allowed) &&
 		    is_sched_load_balance(cp) &&
 		   (!cgroup_subsys_on_dfl(cpuset_cgrp_subsys) ||
-		    is_partition_root(cp)))
+		    is_partition_valid(cp)))
 			need_rebuild_sched_domains = true;
 
 		rcu_read_lock();
@@ -2035,10 +2046,11 @@ out:
 	return err;
 }
 
-/*
+/**
  * update_prstate - update partition_root_state
- * cs: the cpuset to update
- * new_prs: new partition root state
+ * @cs: the cpuset to update
+ * @new_prs: new partition root state
+ * Return: 0 if successful, < 0 if error
  *
  * Call with cpuset_rwsem held.
  */
@@ -2055,7 +2067,7 @@ static int update_prstate(struct cpuset *cs, int new_prs)
 	 * Cannot force a partial or invalid partition root to a full
 	 * partition root.
 	 */
-	if (new_prs && (old_prs == PRS_ERROR))
+	if (new_prs && is_prs_invalid(old_prs))
 		return -EINVAL;
 
 	if (alloc_cpumasks(NULL, &tmpmask))
@@ -2086,7 +2098,7 @@ static int update_prstate(struct cpuset *cs, int new_prs)
 		 * Turning off partition root will clear the
 		 * CS_CPU_EXCLUSIVE bit.
 		 */
-		if (old_prs == PRS_ERROR) {
+		if (is_prs_invalid(old_prs)) {
 			update_flag(CS_CPU_EXCLUSIVE, cs, 0);
 			err = 0;
 			goto out;
@@ -2112,7 +2124,7 @@ out:
 		spin_lock_irq(&callback_lock);
 		cs->partition_root_state = new_prs;
 		spin_unlock_irq(&callback_lock);
-		notify_partition_change(cs, old_prs, new_prs);
+		notify_partition_change(cs, old_prs);
 	}
 
 	free_cpumasks(NULL, &tmpmask);
@@ -2604,13 +2616,13 @@ static int sched_partition_show(struct seq_file *seq, void *v)
 	struct cpuset *cs = css_cs(seq_css(seq));
 
 	switch (cs->partition_root_state) {
-	case PRS_ENABLED:
+	case PRS_ROOT:
 		seq_puts(seq, "root\n");
 		break;
-	case PRS_DISABLED:
+	case PRS_MEMBER:
 		seq_puts(seq, "member\n");
 		break;
-	case PRS_ERROR:
+	case PRS_INVALID_ROOT:
 		seq_puts(seq, "root invalid\n");
 		break;
 	}
@@ -2630,9 +2642,9 @@ static ssize_t sched_partition_write(struct kernfs_open_file *of, char *buf,
 	 * Convert "root" to ENABLED, and convert "member" to DISABLED.
 	 */
 	if (!strcmp(buf, "root"))
-		val = PRS_ENABLED;
+		val = PRS_ROOT;
 	else if (!strcmp(buf, "member"))
-		val = PRS_DISABLED;
+		val = PRS_MEMBER;
 	else
 		return -EINVAL;
 
@@ -2931,7 +2943,7 @@ static void cpuset_css_offline(struct cgroup_subsys_state *css)
 	cpus_read_lock();
 	percpu_down_write(&cpuset_rwsem);
 
-	if (is_partition_root(cs))
+	if (is_partition_valid(cs))
 		update_prstate(cs, 0);
 
 	if (!cgroup_subsys_on_dfl(cpuset_cgrp_subsys) &&
@@ -3176,11 +3188,11 @@ retry:
 
 	/*
 	 * In the unlikely event that a partition root has empty
-	 * effective_cpus or its parent becomes erroneous, we have to
-	 * transition it to the erroneous state.
+	 * effective_cpus or its parent becomes invalid, we have to
+	 * transition it to the invalid state.
 	 */
-	if (is_partition_root(cs) && (cpumask_empty(&new_cpus) ||
-	   (parent->partition_root_state == PRS_ERROR))) {
+	if (is_partition_valid(cs) && (cpumask_empty(&new_cpus) ||
+	    is_partition_invalid(parent))) {
 		if (cs->nr_subparts_cpus) {
 			spin_lock_irq(&callback_lock);
 			cs->nr_subparts_cpus = 0;
@@ -3195,30 +3207,29 @@ retry:
 		 * the current partition and let the child partitions
 		 * fight for available CPUs.
 		 */
-		if ((parent->partition_root_state == PRS_ERROR) ||
+		if (is_partition_invalid(parent) ||
 		     cpumask_empty(&new_cpus)) {
 			int old_prs;
 
 			update_parent_subparts_cpumask(cs, partcmd_disable,
 						       NULL, tmp);
 			old_prs = cs->partition_root_state;
-			if (old_prs != PRS_ERROR) {
+			if (!is_prs_invalid(old_prs)) {
 				spin_lock_irq(&callback_lock);
-				cs->partition_root_state = PRS_ERROR;
+				make_partition_invalid(cs);
 				spin_unlock_irq(&callback_lock);
-				notify_partition_change(cs, old_prs, PRS_ERROR);
+				notify_partition_change(cs, old_prs);
 			}
 		}
 		cpuset_force_rebuild();
 	}
 
 	/*
-	 * On the other hand, an erroneous partition root may be transitioned
+	 * On the other hand, an invalid partition root may be transitioned
 	 * back to a regular one or a partition root with no CPU allocated
-	 * from the parent may change to erroneous.
+	 * from the parent may change to invalid.
 	 */
-	if (is_partition_root(parent) &&
-	   ((cs->partition_root_state == PRS_ERROR) ||
+	if (is_partition_valid(parent) && (is_partition_invalid(cs) ||
 	    !cpumask_intersects(&new_cpus, parent->subparts_cpus)) &&
 	     update_parent_subparts_cpumask(cs, partcmd_update, NULL, tmp))
 		cpuset_force_rebuild();
