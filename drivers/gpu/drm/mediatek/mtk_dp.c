@@ -112,6 +112,7 @@ struct mtk_dp {
 
 struct mtk_dp_data {
 	int bridge_type;
+	unsigned int smc_cmd;
 };
 static const struct mtk_dp_efuse_fmt mtk_dp_efuse_data[MTK_DP_CAL_MAX] = {
 	[MTK_DP_CAL_GLB_BIAS_TRIM] = {
@@ -945,11 +946,11 @@ static void mtk_dp_video_mute(struct mtk_dp *mtk_dp, bool enable)
 			   VIDEO_MUTE_SW_DP_ENC0_P0);
 
 	arm_smccc_smc(MTK_DP_SIP_CONTROL_AARCH32,
-		      MTK_DP_SIP_ATF_EDP_VIDEO_UNMUTE, enable,
+		      mtk_dp->data->smc_cmd, enable,
 		      0, 0, 0, 0, 0, &res);
 
 	dev_dbg(mtk_dp->dev, "smc cmd: 0x%x, p1: 0x%x, ret: 0x%lx-0x%lx\n",
-		MTK_DP_SIP_ATF_EDP_VIDEO_UNMUTE, enable, res.a0, res.a1);
+		mtk_dp->data->smc_cmd, enable, res.a0, res.a1);
 }
 
 static void mtk_dp_power_enable(struct mtk_dp *mtk_dp)
@@ -1981,6 +1982,7 @@ static SIMPLE_DEV_PM_OPS(mtk_dp_pm_ops, mtk_dp_suspend, mtk_dp_resume);
 
 static const struct mtk_dp_data mt8195_edp_data = {
 	.bridge_type = DRM_MODE_CONNECTOR_eDP,
+	.smc_cmd = MTK_DP_SIP_ATF_EDP_VIDEO_UNMUTE,
 };
 
 static const struct of_device_id mtk_dp_of_match[] = {
