@@ -136,6 +136,7 @@ struct decoded_addr {
 	int	column;
 	int	bank_address;
 	int	bank_group;
+	bool	decoded_by_adxl;
 };
 
 struct res_config {

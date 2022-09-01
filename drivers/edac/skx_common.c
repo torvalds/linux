@@ -40,7 +40,7 @@ static char *adxl_msg;
 static unsigned long adxl_nm_bitmap;
 
 static char skx_msg[MSG_SIZE];
-static skx_decode_f skx_decode;
+static skx_decode_f driver_decode;
 static skx_show_retry_log_f skx_show_retry_rd_err_log;
 static u64 skx_tolm, skx_tohm;
 static LIST_HEAD(dev_edac_list);
@@ -173,6 +173,8 @@ static bool skx_adxl_decode(struct decoded_addr *res, bool error_in_1st_level_me
 			break;
 	}
 
+	res->decoded_by_adxl = true;
+
 	return true;
 }
 
@@ -183,7 +185,7 @@ void skx_set_mem_cfg(bool mem_cfg_2lm)
 
 void skx_set_decode(skx_decode_f decode, skx_show_retry_log_f show_retry_log)
 {
-	skx_decode = decode;
+	driver_decode = decode;
 	skx_show_retry_rd_err_log = show_retry_log;
 }
 
@@ -591,7 +593,7 @@ static void skx_mce_output_error(struct mem_ctl_info *mci,
 			break;
 		}
 	}
-	if (adxl_component_count) {
+	if (res->decoded_by_adxl) {
 		len = snprintf(skx_msg, MSG_SIZE, "%s%s err_code:0x%04x:0x%04x %s",
 			 overflow ? " OVERFLOW" : "",
 			 (uncorrected_error && recoverable) ? " recoverable" : "",
@@ -651,11 +653,11 @@ int skx_mce_check_error(struct notifier_block *nb, unsigned long val,
 	memset(&res, 0, sizeof(res));
 	res.addr = mce->addr;
 
-	if (adxl_component_count) {
-		if (!skx_adxl_decode(&res, skx_error_in_1st_level_mem(mce)))
+	/* Try driver decoder first */
+	if (!(driver_decode && driver_decode(&res))) {
+		/* Then try firmware decoder (ACPI DSM methods) */
+		if (!(adxl_component_count && skx_adxl_decode(&res, skx_error_in_1st_level_mem(mce))))
 			return NOTIFY_DONE;
-	} else if (!skx_decode || !skx_decode(&res)) {
-		return NOTIFY_DONE;
 	}
 
 	mci = res.dev->imc[res.imc].mci;
