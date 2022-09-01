@@ -370,8 +370,7 @@ static bool csd_lock_wait_toolong(struct __call_single_data *csd, u64 ts0, u64 *
 	if (cpu >= 0) {
 		if (static_branch_unlikely(&csdlock_debug_extended))
 			csd_lock_print_extended(csd, cpu);
-		if (!trigger_single_cpu_backtrace(cpu))
-			dump_cpu_task(cpu);
+		dump_cpu_task(cpu);
 		if (!cpu_cur_csd) {
 			pr_alert("csd: Re-sending CSD lock (#%d) IPI from CPU#%02d to CPU#%02d\n", *bug_id, raw_smp_processor_id(), cpu);
 			arch_send_call_function_single_ipi(cpu);
