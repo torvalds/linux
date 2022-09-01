@@ -912,17 +912,15 @@ bool f2fs_sanity_check_cluster(struct dnode_of_data *dn)
 			reason = "[C|*|C|*]";
 			goto out;
 		}
-		if (compressed) {
-			if (!__is_valid_data_blkaddr(blkaddr)) {
-				if (!cluster_end)
-					cluster_end = i;
-				continue;
-			}
-			/* [COMPR_ADDR, NULL_ADDR or NEW_ADDR, valid_blkaddr] */
-			if (cluster_end) {
-				reason = "[C|N|N|V]";
-				goto out;
-			}
+		if (!__is_valid_data_blkaddr(blkaddr)) {
+			if (!cluster_end)
+				cluster_end = i;
+			continue;
+		}
+		/* [COMPR_ADDR, NULL_ADDR or NEW_ADDR, valid_blkaddr] */
+		if (cluster_end) {
+			reason = "[C|N|N|V]";
+			goto out;
 		}
 	}
 	return false;
