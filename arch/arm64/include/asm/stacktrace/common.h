@@ -146,27 +146,27 @@ typedef bool (*on_accessible_stack_fn)(const struct task_struct *tsk,
 				       struct stack_info *info);
 
 static inline int unwind_next_common(struct unwind_state *state,
-				     struct stack_info *info,
 				     on_accessible_stack_fn accessible,
 				     stack_trace_translate_fp_fn translate_fp)
 {
+	struct stack_info info;
 	unsigned long fp = state->fp, kern_fp = fp;
 	struct task_struct *tsk = state->task;
 
 	if (fp & 0x7)
 		return -EINVAL;
 
-	if (!accessible(tsk, fp, 16, info))
+	if (!accessible(tsk, fp, 16, &info))
 		return -EINVAL;
 
-	if (test_bit(info->type, state->stacks_done))
+	if (test_bit(info.type, state->stacks_done))
 		return -EINVAL;
 
 	/*
 	 * If fp is not from the current address space perform the necessary
 	 * translation before dereferencing it to get the next fp.
 	 */
-	if (translate_fp && !translate_fp(&kern_fp, info->type))
+	if (translate_fp && !translate_fp(&kern_fp, info.type))
 		return -EINVAL;
 
 	/*
@@ -183,7 +183,7 @@ static inline int unwind_next_common(struct unwind_state *state,
 	 * stack to another, it's never valid to unwind back to that first
 	 * stack.
 	 */
-	if (info->type == state->prev_type) {
+	if (info.type == state->prev_type) {
 		if (fp <= state->prev_fp)
 			return -EINVAL;
 	} else {
@@ -197,7 +197,7 @@ static inline int unwind_next_common(struct unwind_state *state,
 	state->fp = READ_ONCE(*(unsigned long *)(kern_fp));
 	state->pc = READ_ONCE(*(unsigned long *)(kern_fp + 8));
 	state->prev_fp = fp;
-	state->prev_type = info->type;
+	state->prev_type = info.type;
 
 	return 0;
 }

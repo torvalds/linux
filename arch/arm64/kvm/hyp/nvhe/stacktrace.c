@@ -71,9 +71,7 @@ static bool on_accessible_stack(const struct task_struct *tsk,
 
 static int unwind_next(struct unwind_state *state)
 {
-	struct stack_info info;
-
-	return unwind_next_common(state, &info, on_accessible_stack, NULL);
+	return unwind_next_common(state, on_accessible_stack, NULL);
 }
 
 static void notrace unwind(struct unwind_state *state,
