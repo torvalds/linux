@@ -398,10 +398,6 @@ static int vbg_pci_probe(struct pci_dev *pci, const struct pci_device_id *id)
 
 	pci_set_drvdata(pci, gdev);
 
-	vbg_info("vboxguest: misc device minor %d, IRQ %d, I/O port %x, MMIO at %pap (size %pap)\n",
-		 gdev->misc_device.minor, pci->irq, gdev->io_port,
-		 &mmio, &mmio_len);
-
 	return 0;
 
 err_unregister_misc_device_user:
