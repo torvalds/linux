@@ -1673,42 +1673,35 @@ static const struct file_operations ath11k_fops_twt_resume_dialog = {
 	.open = simple_open
 };
 
-int ath11k_debugfs_add_interface(struct ath11k_vif *arvif)
+void ath11k_debugfs_add_interface(struct ath11k_vif *arvif)
 {
 	struct ath11k_base *ab = arvif->ar->ab;
 
 	if (arvif->vif->type != NL80211_IFTYPE_AP &&
 	    !(arvif->vif->type == NL80211_IFTYPE_STATION &&
 	      test_bit(WMI_TLV_SERVICE_STA_TWT, ab->wmi_ab.svc_map)))
-		return 0;
+		return;
 
-	if (!arvif->debugfs_twt) {
-		arvif->debugfs_twt = debugfs_create_dir("twt",
-							arvif->vif->debugfs_dir);
-		if (!arvif->debugfs_twt || IS_ERR(arvif->debugfs_twt)) {
-			ath11k_warn(ab, "failed to create directory %p\n",
-				    arvif->debugfs_twt);
-			arvif->debugfs_twt = NULL;
-			return -1;
-		}
+	arvif->debugfs_twt = debugfs_create_dir("twt",
+						arvif->vif->debugfs_dir);
+	debugfs_create_file("add_dialog", 0200, arvif->debugfs_twt,
+			    arvif, &ath11k_fops_twt_add_dialog);
 
-		debugfs_create_file("add_dialog", 0200, arvif->debugfs_twt,
-				    arvif, &ath11k_fops_twt_add_dialog);
+	debugfs_create_file("del_dialog", 0200, arvif->debugfs_twt,
+			    arvif, &ath11k_fops_twt_del_dialog);
 
-		debugfs_create_file("del_dialog", 0200, arvif->debugfs_twt,
-				    arvif, &ath11k_fops_twt_del_dialog);
+	debugfs_create_file("pause_dialog", 0200, arvif->debugfs_twt,
+			    arvif, &ath11k_fops_twt_pause_dialog);
 
-		debugfs_create_file("pause_dialog", 0200, arvif->debugfs_twt,
-				    arvif, &ath11k_fops_twt_pause_dialog);
-
-		debugfs_create_file("resume_dialog", 0200, arvif->debugfs_twt,
-				    arvif, &ath11k_fops_twt_resume_dialog);
-	}
-	return 0;
+	debugfs_create_file("resume_dialog", 0200, arvif->debugfs_twt,
+			    arvif, &ath11k_fops_twt_resume_dialog);
 }
 
 void ath11k_debugfs_remove_interface(struct ath11k_vif *arvif)
 {
+	if (!arvif->debugfs_twt)
+		return;
+
 	debugfs_remove_recursive(arvif->debugfs_twt);
 	arvif->debugfs_twt = NULL;
 }

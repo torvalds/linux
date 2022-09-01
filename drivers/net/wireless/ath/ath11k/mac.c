@@ -6178,6 +6178,13 @@ static int ath11k_mac_op_add_interface(struct ieee80211_hw *hw,
 		goto err;
 	}
 
+	/* In the case of hardware recovery, debugfs files are
+	 * not deleted since ieee80211_ops.remove_interface() is
+	 * not invoked. In such cases, try to delete the files.
+	 * These will be re-created later.
+	 */
+	ath11k_debugfs_remove_interface(arvif);
+
 	memset(arvif, 0, sizeof(*arvif));
 
 	arvif->ar = ar;
@@ -6359,9 +6366,7 @@ static int ath11k_mac_op_add_interface(struct ieee80211_hw *hw,
 		}
 	}
 
-	ret = ath11k_debugfs_add_interface(arvif);
-	if (ret)
-		goto err_peer_del;
+	ath11k_debugfs_add_interface(arvif);
 
 	mutex_unlock(&ar->conf_mutex);
 

@@ -306,7 +306,7 @@ static inline int ath11k_debugfs_rx_filter(struct ath11k *ar)
 	return ar->debug.rx_filter;
 }
 
-int ath11k_debugfs_add_interface(struct ath11k_vif *arvif);
+void ath11k_debugfs_add_interface(struct ath11k_vif *arvif);
 void ath11k_debugfs_remove_interface(struct ath11k_vif *arvif);
 void ath11k_debugfs_add_dbring_entry(struct ath11k *ar,
 				     enum wmi_direct_buffer_module id,
@@ -386,9 +386,8 @@ static inline int ath11k_debugfs_get_fw_stats(struct ath11k *ar,
 	return 0;
 }
 
-static inline int ath11k_debugfs_add_interface(struct ath11k_vif *arvif)
+static inline void ath11k_debugfs_add_interface(struct ath11k_vif *arvif)
 {
-	return 0;
 }
 
 static inline void ath11k_debugfs_remove_interface(struct ath11k_vif *arvif)
