@@ -66,8 +66,8 @@
 /* 0x0C : I2CC Master/Slave Pool Buffer Control Register  */
 #define AST2600_I2CC_BUFF_CTRL		0x0C
 #define AST2600_I2CC_GET_RX_BUF_LEN(x)		(((x) >> 24) & GENMASK(5, 0))
-#define AST2600_I2CC_SET_RX_BUF_LEN(x)		((((x) - 1) & GENMASK(4, 0)) << 16)
-#define AST2600_I2CC_SET_TX_BUF_LEN(x)		((((x) - 1) & GENMASK(4, 0)) << 8)
+#define AST2600_I2CC_SET_RX_BUF_LEN(x)		(((((x) - 1) & GENMASK(4, 0)) << 16) | BIT(0))
+#define AST2600_I2CC_SET_TX_BUF_LEN(x)		(((((x) - 1) & GENMASK(4, 0)) << 8) | BIT(0))
 #define AST2600_I2CC_GET_TX_BUF_LEN(x)		((((x) >> 8) & GENMASK(4, 0)) + 1)
 
 /* 0x10 : I2CM Master Interrupt Control Register */
@@ -605,7 +605,7 @@ static void ast2600_i2c_slave_packet_irq(struct ast2600_i2c_bus *i2c_bus, u32 st
 			slave_rx_len = AST2600_I2CC_GET_RX_BUF_LEN(readl(i2c_bus->reg_base +
 							       AST2600_I2CC_BUFF_CTRL));
 			for (i = 0; i < slave_rx_len; i++) {
-				value = readb(i2c_bus->buf_base + i);
+				value = readb(i2c_bus->buf_base + 0x10 + i);
 				i2c_slave_event(i2c_bus->slave, I2C_SLAVE_WRITE_RECEIVED, &value);
 			}
 			writel(AST2600_I2CC_SET_RX_BUF_LEN(i2c_bus->buf_size),
@@ -657,7 +657,7 @@ static void ast2600_i2c_slave_packet_irq(struct ast2600_i2c_bus *i2c_bus, u32 st
 			slave_rx_len = AST2600_I2CC_GET_RX_BUF_LEN(readl(i2c_bus->reg_base +
 							       AST2600_I2CC_BUFF_CTRL));
 			for (i = 0; i < slave_rx_len; i++) {
-				value = readb(i2c_bus->buf_base + i);
+				value = readb(i2c_bus->buf_base + 0x10 + i);
 				i2c_slave_event(i2c_bus->slave, I2C_SLAVE_WRITE_RECEIVED, &value);
 			}
 			writel(AST2600_I2CC_SET_RX_BUF_LEN(i2c_bus->buf_size),
@@ -698,7 +698,7 @@ static void ast2600_i2c_slave_packet_irq(struct ast2600_i2c_bus *i2c_bus, u32 st
 			slave_rx_len = AST2600_I2CC_GET_RX_BUF_LEN(readl(i2c_bus->reg_base +
 							AST2600_I2CC_BUFF_CTRL));
 			for (i = 0; i < slave_rx_len; i++) {
-				value = readb(i2c_bus->buf_base + i);
+				value = readb(i2c_bus->buf_base + 0x10 + i);
 				i2c_slave_event(i2c_bus->slave, I2C_SLAVE_WRITE_RECEIVED, &value);
 			}
 			i2c_slave_event(i2c_bus->slave, I2C_SLAVE_READ_REQUESTED, &value);
@@ -1211,7 +1211,7 @@ static void ast2600_i2c_master_package_irq(struct ast2600_i2c_bus *i2c_bus, u32 
 						readl(i2c_bus->reg_base + AST2600_I2CC_BUFF_CTRL));
 			for (i = 0; i < xfer_len; i++)
 				msg->buf[i2c_bus->master_xfer_cnt + i] =
-					readb(i2c_bus->buf_base + i);
+					readb(i2c_bus->buf_base + 0x10 + i);
 		} else {
 			xfer_len = 1;
 			msg->buf[i2c_bus->master_xfer_cnt] =
@@ -1611,7 +1611,7 @@ static int ast2600_i2c_probe(struct platform_device *pdev)
 			i2c_bus->buf_base = devm_ioremap_resource(&pdev->dev, res);
 
 		if (!IS_ERR_OR_NULL(i2c_bus->buf_base))
-			i2c_bus->buf_size = resource_size(res);
+			i2c_bus->buf_size = resource_size(res)/2;
 
 		i2c_bus->mode = BUFF_MODE;
 	}
