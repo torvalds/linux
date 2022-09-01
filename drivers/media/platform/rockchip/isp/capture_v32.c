@@ -1358,10 +1358,9 @@ static int rkisp_start(struct rkisp_stream *stream)
 		if (ret)
 			return ret;
 	}
+	stream_self_update(stream);
 	if (stream->ops->enable_mi)
 		stream->ops->enable_mi(stream);
-
-	stream_self_update(stream);
 
 	if (is_update)
 		dev->irq_ends_mask |= get_stream_irq_mask(stream);
