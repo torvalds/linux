@@ -2567,7 +2567,7 @@ static void rkisp_check_stream_dcrop(struct rkisp_device *dev,
 		if (dcrop->height > crop->height) {
 			dcrop->height = crop->height;
 			dcrop->top = 0;
-		} else if ((dcrop->left + dcrop->width) > crop->height) {
+		} else if ((dcrop->top + dcrop->height) > crop->height) {
 			dcrop->top = crop->height - dcrop->height;
 		}
 	}
