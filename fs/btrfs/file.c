@@ -3652,6 +3652,10 @@ static loff_t find_desired_extent(struct btrfs_inode *inode, loff_t offset,
 		start = em->start + em->len;
 		free_extent_map(em);
 		em = NULL;
+		if (fatal_signal_pending(current)) {
+			ret = -EINTR;
+			break;
+		}
 		cond_resched();
 	}
 	free_extent_map(em);
