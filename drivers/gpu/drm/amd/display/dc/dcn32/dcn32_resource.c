@@ -468,22 +468,17 @@ static const struct dcn20_dsc_mask dsc_mask = {
 };
 
 static struct dcn30_mpc_registers mpc_regs;
-#define dcn_mpc_regs_init()\
-		( \
-		MPC_REG_LIST_DCN3_0_RI(0),\
-		MPC_REG_LIST_DCN3_0_RI(1),\
-		MPC_REG_LIST_DCN3_0_RI(2),\
-		MPC_REG_LIST_DCN3_0_RI(3),\
-		MPC_OUT_MUX_REG_LIST_DCN3_0_RI(0),\
-		MPC_OUT_MUX_REG_LIST_DCN3_0_RI(1),\
-		MPC_OUT_MUX_REG_LIST_DCN3_0_RI(2),\
-		MPC_OUT_MUX_REG_LIST_DCN3_0_RI(3),\
-		MPC_MCM_REG_LIST_DCN32_RI(0),\
-		MPC_MCM_REG_LIST_DCN32_RI(1),\
-		MPC_MCM_REG_LIST_DCN32_RI(2),\
-		MPC_MCM_REG_LIST_DCN32_RI(3),\
-		MPC_DWB_MUX_REG_LIST_DCN3_0_RI(0)\
-		)
+
+#define dcn_mpc_regs_init() \
+	MPC_REG_LIST_DCN3_2_RI(0),\
+	MPC_REG_LIST_DCN3_2_RI(1),\
+	MPC_REG_LIST_DCN3_2_RI(2),\
+	MPC_REG_LIST_DCN3_2_RI(3),\
+	MPC_OUT_MUX_REG_LIST_DCN3_0_RI(0),\
+	MPC_OUT_MUX_REG_LIST_DCN3_0_RI(1),\
+	MPC_OUT_MUX_REG_LIST_DCN3_0_RI(2),\
+	MPC_OUT_MUX_REG_LIST_DCN3_0_RI(3),\
+	MPC_DWB_MUX_REG_LIST_DCN3_0_RI(0)
 
 static const struct dcn30_mpc_shift mpc_shift = {
 	MPC_COMMON_MASK_SH_LIST_DCN32(__SHIFT)
