@@ -874,10 +874,11 @@ config GPIO_104_IDI_48
 	  module parameter.
 
 config GPIO_F7188X
-	tristate "F71869, F71869A, F71882FG, F71889F and F81866 GPIO support"
+	tristate "Fintek and Nuvoton Super-I/O GPIO support"
 	help
 	  This option enables support for GPIOs found on Fintek Super-I/O
 	  chips F71869, F71869A, F71882FG, F71889F and F81866.
+	  As well as Nuvoton Super-I/O chip NCT6116D.
 
 	  To compile this driver as a module, choose M here: the module will
 	  be called f7188x-gpio.
