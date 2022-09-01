@@ -82,8 +82,7 @@ DECLARE_EVENT_CLASS(regmap_bulk,
 		__assign_str(name, regmap_name(map));
 		__entry->reg = reg;
 		__entry->val_len = val_len;
-		if (val)
-			memcpy(__get_dynamic_array(buf), val, val_len);
+		memcpy(__get_dynamic_array(buf), val, val_len);
 	),
 
 	TP_printk("%s reg=%x val=%s", __get_str(name),
