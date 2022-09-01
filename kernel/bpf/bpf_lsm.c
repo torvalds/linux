@@ -41,17 +41,21 @@ BTF_SET_END(bpf_lsm_hooks)
  */
 BTF_SET_START(bpf_lsm_current_hooks)
 /* operate on freshly allocated sk without any cgroup association */
+#ifdef CONFIG_SECURITY_NETWORK
 BTF_ID(func, bpf_lsm_sk_alloc_security)
 BTF_ID(func, bpf_lsm_sk_free_security)
+#endif
 BTF_SET_END(bpf_lsm_current_hooks)
 
 /* List of LSM hooks that trigger while the socket is properly locked.
  */
 BTF_SET_START(bpf_lsm_locked_sockopt_hooks)
+#ifdef CONFIG_SECURITY_NETWORK
 BTF_ID(func, bpf_lsm_socket_sock_rcv_skb)
 BTF_ID(func, bpf_lsm_sock_graft)
 BTF_ID(func, bpf_lsm_inet_csk_clone)
 BTF_ID(func, bpf_lsm_inet_conn_established)
+#endif
 BTF_SET_END(bpf_lsm_locked_sockopt_hooks)
 
 /* List of LSM hooks that trigger while the socket is _not_ locked,
@@ -59,8 +63,10 @@ BTF_SET_END(bpf_lsm_locked_sockopt_hooks)
  * in the early init phase.
  */
 BTF_SET_START(bpf_lsm_unlocked_sockopt_hooks)
+#ifdef CONFIG_SECURITY_NETWORK
 BTF_ID(func, bpf_lsm_socket_post_create)
 BTF_ID(func, bpf_lsm_socket_socketpair)
+#endif
 BTF_SET_END(bpf_lsm_unlocked_sockopt_hooks)
 
 #ifdef CONFIG_CGROUP_BPF
