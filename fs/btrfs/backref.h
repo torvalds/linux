@@ -77,6 +77,7 @@ int btrfs_find_one_extref(struct btrfs_root *root, u64 inode_objectid,
 			  struct btrfs_inode_extref **ret_extref,
 			  u64 *found_off);
 int btrfs_is_data_extent_shared(struct btrfs_root *root, u64 inum, u64 bytenr,
+				u64 extent_gen,
 				struct ulist *roots, struct ulist *tmp,
 				struct btrfs_backref_shared_cache *cache);
 

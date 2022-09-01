@@ -5574,8 +5574,22 @@ int extent_fiemap(struct btrfs_inode *inode, struct fiemap_extent_info *fieinfo,
 			flags |= (FIEMAP_EXTENT_DELALLOC |
 				  FIEMAP_EXTENT_UNKNOWN);
 		} else if (fieinfo->fi_extents_max) {
+			u64 extent_gen;
 			u64 bytenr = em->block_start -
 				(em->start - em->orig_start);
+
+			/*
+			 * If two extent maps are merged, then their generation
+			 * is set to the maximum between their generations.
+			 * Otherwise its generation matches the one we have in
+			 * corresponding file extent item. If we have a merged
+			 * extent map, don't use its generation to speedup the
+			 * sharedness check below.
+			 */
+			if (test_bit(EXTENT_FLAG_MERGED, &em->flags))
+				extent_gen = 0;
+			else
+				extent_gen = em->generation;
 
 			/*
 			 * As btrfs supports shared space, this information
@@ -5585,8 +5599,8 @@ int extent_fiemap(struct btrfs_inode *inode, struct fiemap_extent_info *fieinfo,
 			 * lookup stuff.
 			 */
 			ret = btrfs_is_data_extent_shared(root, btrfs_ino(inode),
-							  bytenr, roots,
-							  tmp_ulist,
+							  bytenr, extent_gen,
+							  roots, tmp_ulist,
 							  backref_cache);
 			if (ret < 0)
 				goto out_free;

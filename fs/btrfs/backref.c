@@ -1613,12 +1613,14 @@ static void store_backref_shared_cache(struct btrfs_backref_shared_cache *cache,
 /*
  * Check if a data extent is shared or not.
  *
- * @root:   root inode belongs to
- * @inum:   inode number of the inode whose extent we are checking
- * @bytenr: logical bytenr of the extent we are checking
- * @roots:  list of roots this extent is shared among
- * @tmp:    temporary list used for iteration
- * @cache:  a backref lookup result cache
+ * @root:        The root the inode belongs to.
+ * @inum:        Number of the inode whose extent we are checking.
+ * @bytenr:      Logical bytenr of the extent we are checking.
+ * @extent_gen:  Generation of the extent (file extent item) or 0 if it is
+ *               not known.
+ * @roots:       List of roots this extent is shared among.
+ * @tmp:         Temporary list used for iteration.
+ * @cache:       A backref lookup result cache.
  *
  * btrfs_is_data_extent_shared uses the backref walking code but will short
  * circuit as soon as it finds a root or inode that doesn't match the
@@ -1632,6 +1634,7 @@ static void store_backref_shared_cache(struct btrfs_backref_shared_cache *cache,
  * Return: 0 if extent is not shared, 1 if it is shared, < 0 on error.
  */
 int btrfs_is_data_extent_shared(struct btrfs_root *root, u64 inum, u64 bytenr,
+				u64 extent_gen,
 				struct ulist *roots, struct ulist *tmp,
 				struct btrfs_backref_shared_cache *cache)
 {
@@ -1683,6 +1686,18 @@ int btrfs_is_data_extent_shared(struct btrfs_root *root, u64 inum, u64 bytenr,
 		if (ret < 0 && ret != -ENOENT)
 			break;
 		ret = 0;
+		/*
+		 * If our data extent is not shared through reflinks and it was
+		 * created in a generation after the last one used to create a
+		 * snapshot of the inode's root, then it can not be shared
+		 * indirectly through subtrees, as that can only happen with
+		 * snapshots. In this case bail out, no need to check for the
+		 * sharedness of extent buffers.
+		 */
+		if (level == -1 &&
+		    extent_gen > btrfs_root_last_snapshot(&root->root_item))
+			break;
+
 		if (level >= 0)
 			store_backref_shared_cache(cache, root, bytenr,
 						   level, false);
