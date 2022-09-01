@@ -640,12 +640,10 @@ static int sc4336_g_frame_interval(struct v4l2_subdev *sd,
 	struct sc4336 *sc4336 = to_sc4336(sd);
 	const struct sc4336_mode *mode = sc4336->cur_mode;
 
-	mutex_lock(&sc4336->mutex);
 	if (sc4336->streaming)
 		fi->interval = sc4336->cur_fps;
 	else
 		fi->interval = mode->max_fps;
-	mutex_unlock(&sc4336->mutex);
 
 	return 0;
 }
