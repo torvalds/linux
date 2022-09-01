@@ -181,9 +181,9 @@ static ssize_t coresight_cti_reg_show(struct device *dev,
 }
 
 /* Write registers with power check only (no enable check). */
-static ssize_t coresight_cti_reg_store(struct device *dev,
-				       struct device_attribute *attr,
-				       const char *buf, size_t size)
+static __maybe_unused ssize_t coresight_cti_reg_store(struct device *dev,
+						      struct device_attribute *attr,
+						      const char *buf, size_t size)
 {
 	struct cti_drvdata *drvdata = dev_get_drvdata(dev->parent);
 	struct cs_off_attribute *cti_attr = container_of(attr, struct cs_off_attribute, attr);
