@@ -5455,9 +5455,6 @@ int extent_fiemap(struct btrfs_inode *inode, struct fiemap_extent_info *fieinfo,
 	u64 em_len = 0;
 	u64 em_end = 0;
 
-	if (len == 0)
-		return -EINVAL;
-
 	path = btrfs_alloc_path();
 	if (!path)
 		return -ENOMEM;
