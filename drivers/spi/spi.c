@@ -4033,7 +4033,7 @@ static int __spi_sync(struct spi_device *spi, struct spi_message *message)
 	 * guard against reentrancy from a different context. The io_mutex
 	 * will catch those cases.
 	 */
-	if (READ_ONCE(ctlr->queue_empty)) {
+	if (READ_ONCE(ctlr->queue_empty) && !ctlr->must_async) {
 		message->actual_length = 0;
 		message->status = -EINPROGRESS;
 
