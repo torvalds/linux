@@ -947,10 +947,9 @@ static int hba_ioctl_callback(struct esas2r_adapter *a,
 					break;
 				}
 
-				memcpy(trc + 1,
+				memcpy(trc->contents,
 				       a->fw_coredump_buff + offset,
 				       len);
-
 				hi->data_length = len;
 			} else if (trc->trace_func == ATTO_TRC_TF_RESET) {
 				memset(a->fw_coredump_buff, 0,
