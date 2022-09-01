@@ -36,6 +36,8 @@
 #include <sys/un.h>
 #include <sys/wait.h>
 
+#if 0
+
 #define NOTIF_TAG 0xfffffffULL
 #define NONZC_TAG 0
 #define ZC_TAG 1
@@ -603,3 +605,10 @@ int main(int argc, char **argv)
 		error(1, 0, "unknown cfg_test %s", cfg_test);
 	return 0;
 }
+
+#else
+int main(int argc, char **argv)
+{
+	return 0;
+}
+#endif
