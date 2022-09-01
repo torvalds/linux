@@ -138,7 +138,7 @@ struct platform_device *acpi_create_platform_device(struct acpi_device *adev,
 	pdevinfo.parent = adev->parent ?
 		acpi_get_first_physical_node(adev->parent) : NULL;
 	pdevinfo.name = dev_name(&adev->dev);
-	pdevinfo.id = -1;
+	pdevinfo.id = PLATFORM_DEVID_NONE;
 	pdevinfo.res = resources;
 	pdevinfo.num_res = count;
 	pdevinfo.fwnode = acpi_fwnode_handle(adev);
