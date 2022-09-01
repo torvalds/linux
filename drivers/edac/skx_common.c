@@ -651,6 +651,7 @@ int skx_mce_check_error(struct notifier_block *nb, unsigned long val,
 		return NOTIFY_DONE;
 
 	memset(&res, 0, sizeof(res));
+	res.mce  = mce;
 	res.addr = mce->addr;
 
 	/* Try driver decoder first */
