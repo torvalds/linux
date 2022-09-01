@@ -101,6 +101,7 @@ struct mtk_dp {
 	struct drm_device *drm_dev;
 	struct drm_dp_aux aux;
 
+	const struct mtk_dp_data *data;
 	struct mtk_dp_info info;
 	struct mtk_dp_train_info train_info;
 
@@ -109,6 +110,9 @@ struct mtk_dp {
 	struct regmap *regs;
 };
 
+struct mtk_dp_data {
+	int bridge_type;
+};
 static const struct mtk_dp_efuse_fmt mtk_dp_efuse_data[MTK_DP_CAL_MAX] = {
 	[MTK_DP_CAL_GLB_BIAS_TRIM] = {
 		.idx = 3,
@@ -1871,6 +1875,7 @@ static int mtk_dp_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	mtk_dp->dev = dev;
+	mtk_dp->data = (struct mtk_dp_data *)of_device_get_match_data(dev);
 
 	irq_num = platform_get_irq(pdev, 0);
 	if (irq_num < 0)
@@ -1925,7 +1930,7 @@ static int mtk_dp_probe(struct platform_device *pdev)
 
 	mtk_dp->bridge.ops =
 		DRM_BRIDGE_OP_DETECT | DRM_BRIDGE_OP_EDID | DRM_BRIDGE_OP_HPD;
-	mtk_dp->bridge.type = DRM_MODE_CONNECTOR_eDP;
+	mtk_dp->bridge.type = mtk_dp->data->bridge_type;
 
 	drm_bridge_add(&mtk_dp->bridge);
 
@@ -1974,8 +1979,15 @@ static int mtk_dp_resume(struct device *dev)
 
 static SIMPLE_DEV_PM_OPS(mtk_dp_pm_ops, mtk_dp_suspend, mtk_dp_resume);
 
+static const struct mtk_dp_data mt8195_edp_data = {
+	.bridge_type = DRM_MODE_CONNECTOR_eDP,
+};
+
 static const struct of_device_id mtk_dp_of_match[] = {
-	{ .compatible = "mediatek,mt8195-edp-tx" },
+	{
+		.compatible = "mediatek,mt8195-edp-tx",
+		.data = &mt8195_edp_data,
+	},
 	{},
 };
 MODULE_DEVICE_TABLE(of, mtk_dp_of_match);
