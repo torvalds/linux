@@ -87,6 +87,7 @@ struct mtk_dp_efuse_fmt {
 
 struct mtk_dp {
 	bool enabled;
+	bool need_debounce;
 	u8 max_lanes;
 	u8 max_linkrate;
 	u8 rx_cap[DP_RECEIVER_CAP_SIZE];
@@ -109,6 +110,7 @@ struct mtk_dp {
 	struct platform_device *phy_dev;
 	struct phy *phy;
 	struct regmap *regs;
+	struct timer_list debounce_timer;
 };
 
 struct mtk_dp_data {
@@ -1475,13 +1477,23 @@ static irqreturn_t mtk_dp_hpd_event_thread(int hpd, void *dev)
 	unsigned long flags;
 	u32 status;
 
+	if (mtk_dp->need_debounce && mtk_dp->train_info.cable_plugged_in)
+		msleep(100);
+
 	spin_lock_irqsave(&mtk_dp->irq_thread_lock, flags);
 	status = mtk_dp->irq_thread_handle;
 	mtk_dp->irq_thread_handle = 0;
 	spin_unlock_irqrestore(&mtk_dp->irq_thread_lock, flags);
 
-	if (status & MTK_DP_THREAD_CABLE_STATE_CHG)
+	if (status & MTK_DP_THREAD_CABLE_STATE_CHG) {
 		drm_helper_hpd_irq_event(mtk_dp->bridge.dev);
+
+		if (!mtk_dp->train_info.cable_plugged_in) {
+			mtk_dp->need_debounce = false;
+			mod_timer(&mtk_dp->debounce_timer,
+				  jiffies + msecs_to_jiffies(100) - 1);
+		}
+	}
 
 	if (status & MTK_DP_THREAD_HPD_EVENT)
 		dev_dbg(mtk_dp->dev, "Receive IRQ from sink devices\n");
@@ -1996,6 +2008,13 @@ static const struct drm_bridge_funcs mtk_dp_bridge_funcs = {
 	.detect = mtk_dp_bdg_detect,
 };
 
+static void mtk_dp_debounce_timer(struct timer_list *t)
+{
+	struct mtk_dp *mtk_dp = from_timer(mtk_dp, t, debounce_timer);
+
+	mtk_dp->need_debounce = true;
+}
+
 static int mtk_dp_probe(struct platform_device *pdev)
 {
 	struct mtk_dp *mtk_dp;
@@ -2069,6 +2088,9 @@ static int mtk_dp_probe(struct platform_device *pdev)
 
 	drm_bridge_add(&mtk_dp->bridge);
 
+	mtk_dp->need_debounce = true;
+	timer_setup(&mtk_dp->debounce_timer, mtk_dp_debounce_timer, 0);
+
 	pm_runtime_enable(dev);
 	pm_runtime_get_sync(dev);
 
@@ -2081,6 +2103,7 @@ static int mtk_dp_remove(struct platform_device *pdev)
 
 	pm_runtime_put(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
+	del_timer_sync(&mtk_dp->debounce_timer);
 	drm_bridge_remove(&mtk_dp->bridge);
 	platform_device_unregister(mtk_dp->phy_dev);
 
