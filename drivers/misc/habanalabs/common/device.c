@@ -1563,6 +1563,13 @@ kill_processes:
 	 */
 	hdev->disabled = false;
 
+	/* F/W security enabled indication might be updated after hard-reset */
+	if (hard_reset) {
+		rc = hl_fw_read_preboot_status(hdev);
+		if (rc)
+			goto out_err;
+	}
+
 	rc = hdev->asic_funcs->hw_init(hdev);
 	if (rc) {
 		dev_err(hdev->dev, "failed to initialize the H/W after reset\n");

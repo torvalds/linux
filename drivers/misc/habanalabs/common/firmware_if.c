@@ -2509,13 +2509,6 @@ static int hl_fw_dynamic_init_cpu(struct hl_device *hdev,
 	 */
 	dyn_regs = &fw_loader->dynamic_loader.comm_desc.cpu_dyn_regs;
 
-	/* if no preboot loaded indication- wait for preboot */
-	if (!(hdev->fw_loader.fw_comp_loaded & FW_TYPE_PREBOOT_CPU)) {
-		rc = hl_fw_wait_preboot_ready(hdev);
-		if (rc)
-			return -EIO;
-	}
-
 	rc = hl_fw_dynamic_send_protocol_cmd(hdev, fw_loader, COMMS_RST_STATE,
 						0, true,
 						fw_loader->cpu_timeout);
