@@ -434,6 +434,12 @@ static const struct dpu_format dpu_format_map[] = {
 		DPU_CHROMA_H2V1, DPU_FORMAT_FLAG_YUV,
 		DPU_FETCH_LINEAR, 2),
 
+	PSEUDO_YUV_FMT_LOOSE(P010,
+		0, COLOR_8BIT, COLOR_8BIT, COLOR_8BIT,
+		C1_B_Cb, C2_R_Cr,
+		DPU_CHROMA_420, DPU_FORMAT_FLAG_DX | DPU_FORMAT_FLAG_YUV,
+		DPU_FETCH_LINEAR, 2),
+
 	INTERLEAVED_YUV_FMT(VYUY,
 		0, COLOR_8BIT, COLOR_8BIT, COLOR_8BIT,
 		C2_R_Cr, C0_G_Y, C1_B_Cb, C0_G_Y,
@@ -536,6 +542,14 @@ static const struct dpu_format dpu_format_map_ubwc[] = {
 		DPU_CHROMA_420, DPU_FORMAT_FLAG_YUV |
 				DPU_FORMAT_FLAG_COMPRESSED,
 		DPU_FETCH_UBWC, 4, DPU_TILE_HEIGHT_NV12),
+
+	PSEUDO_YUV_FMT_TILED(P010,
+		0, COLOR_8BIT, COLOR_8BIT, COLOR_8BIT,
+		C1_B_Cb, C2_R_Cr,
+		DPU_CHROMA_420, DPU_FORMAT_FLAG_DX |
+				DPU_FORMAT_FLAG_YUV |
+				DPU_FORMAT_FLAG_COMPRESSED,
+		DPU_FETCH_UBWC, 4, DPU_TILE_HEIGHT_UBWC),
 };
 
 /* _dpu_get_v_h_subsample_rate - Get subsample rates for all formats we support
@@ -584,7 +598,8 @@ static int _dpu_format_get_media_color_ubwc(const struct dpu_format *fmt)
 	int color_fmt = -1;
 	int i;
 
-	if (fmt->base.pixel_format == DRM_FORMAT_NV12) {
+	if (fmt->base.pixel_format == DRM_FORMAT_NV12 ||
+	    fmt->base.pixel_format == DRM_FORMAT_P010) {
 		if (DPU_FORMAT_IS_DX(fmt)) {
 			if (fmt->unpack_tight)
 				color_fmt = COLOR_FMT_NV12_BPP10_UBWC;
