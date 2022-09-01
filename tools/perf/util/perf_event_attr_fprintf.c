@@ -64,7 +64,7 @@ static void __p_read_format(char *buf, size_t size, u64 value)
 #define bit_name(n) { PERF_FORMAT_##n, #n }
 	struct bit_names bits[] = {
 		bit_name(TOTAL_TIME_ENABLED), bit_name(TOTAL_TIME_RUNNING),
-		bit_name(ID), bit_name(GROUP),
+		bit_name(ID), bit_name(GROUP), bit_name(LOST),
 		{ .name = NULL, }
 	};
 #undef bit_name
