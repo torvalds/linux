@@ -1260,7 +1260,7 @@
 		};
 
 		i2srx_3ch: i2srx_3ch@100e0000 {
-			compatible = "snps,designware-i2srx";
+			compatible = "starfive,jh7110-i2srx", "snps,designware-i2s";
 			reg = <0x0 0x100e0000 0x0 0x1000>;
 			clocks = <&clkgen JH7110_APB0>,
 				 <&clkgen JH7110_I2SRX0_3CH_CLK_APB>,
@@ -1274,11 +1274,11 @@
 				 <&i2srx_bclk_ext>,
 				 <&i2srx_lrck_ext>;
 			clock-names = "apb0", "3ch-apb",
-					"audioroot", "mclk-inner",
-					"bclk_mst", "3ch-lrck",
-					"rx-bclk", "rx-lrck",
-					"mclk", "bclk-ext",
-					"lrck-ext";
+				      "audioroot", "mclk-inner",
+				      "bclk_mst", "3ch-lrck",
+				      "rx-bclk", "rx-lrck",
+				      "mclk", "bclk-ext",
+				      "lrck-ext";
 			resets = <&rstgen RSTN_U0_I2SRX_3CH_APB>,
 				 <&rstgen RSTN_U0_I2SRX_3CH_BCLK>;
 			dmas = <&dma 24 1>;
@@ -1309,7 +1309,7 @@
 		};
 
 		i2stx_4ch1: i2stx_4ch1@120c0000 {
-			compatible = "snps,designware-i2stx-4ch1";
+			compatible = "starfive,jh7110-i2stx-4ch1", "snps,designware-i2s";
 			reg = <0x0 0x120c0000 0x0 0x1000>;
 			clocks = <&clkgen JH7110_AUDIO_ROOT>,
 				 <&clkgen JH7110_MCLK_INNER>,
@@ -1324,12 +1324,11 @@
 				 <&mclk_ext>,
 				 <&i2stx_bclk_ext>,
 				 <&i2stx_lrck_ext>;
-                        clock-names = "audroot", "mclk_inner", "bclk_mst",
-                                        "lrck_mst", "mclk", "4chbclk",
-                                        "4chlrck", "mclk_out",
-					"apb0", "clk_apb",
-					"mclk_ext", "bclk_ext", "lrck_ext";
-
+			clock-names = "audroot", "mclk_inner", "bclk_mst",
+				      "lrck_mst", "mclk", "4chbclk",
+				      "4chlrck", "mclk_out",
+				      "apb0", "clk_apb",
+				      "mclk_ext", "bclk_ext", "lrck_ext";
 			resets = <&rstgen RSTN_U1_I2STX_4CH_APB>,
 				 <&rstgen RSTN_U1_I2STX_4CH_BCLK>;
 			dmas = <&dma 48 1>;

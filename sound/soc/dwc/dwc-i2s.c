@@ -1186,7 +1186,7 @@ static int dw_i2s_probe(struct platform_device *pdev)
 		}
 	}
 
-	if (of_device_is_compatible(np, "snps,designware-i2srx")) { //record
+	if (of_device_is_compatible(np, "starfive,jh7110-i2srx")) { //record
 		ret = of_parse_phandle_with_fixed_args(dev->dev->of_node,
 							"starfive,sys-syscon", 2, 0, &args);
 		if (ret) {
@@ -1207,7 +1207,7 @@ static int dw_i2s_probe(struct platform_device *pdev)
 		ret = dw_i2stx_4ch0_clk_init(pdev, dev);
 		if (ret < 0)
 			goto err_clk_disable;
-	} else if (of_device_is_compatible(np, "snps,designware-i2stx-4ch1")) {   //playback
+	} else if (of_device_is_compatible(np, "starfive,jh7110-i2stx-4ch1")) {   //playback
 		ret = dw_i2stx_4ch1_clk_init(pdev, dev);
 		if (ret < 0)
 			goto err_clk_disable;
@@ -1299,8 +1299,8 @@ static int dw_i2s_remove(struct platform_device *pdev)
 
 #ifdef CONFIG_OF
 static const struct of_device_id dw_i2s_of_match[] = {
-	{ .compatible = "snps,designware-i2stx-4ch1",	 },
-	{ .compatible = "snps,designware-i2srx",	 },
+	{ .compatible = "starfive,jh7110-i2stx-4ch1",	 },
+	{ .compatible = "starfive,jh7110-i2srx",	 },
 	{ .compatible = "snps,designware-i2stx-4ch0",	 },
 	{},
 };
