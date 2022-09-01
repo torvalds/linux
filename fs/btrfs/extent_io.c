@@ -5571,10 +5571,7 @@ int extent_fiemap(struct btrfs_inode *inode, struct fiemap_extent_info *fieinfo,
 		if (off >= max)
 			end = 1;
 
-		if (em->block_start == EXTENT_MAP_LAST_BYTE) {
-			end = 1;
-			flags |= FIEMAP_EXTENT_LAST;
-		} else if (em->block_start == EXTENT_MAP_INLINE) {
+		if (em->block_start == EXTENT_MAP_INLINE) {
 			flags |= (FIEMAP_EXTENT_DATA_INLINE |
 				  FIEMAP_EXTENT_NOT_ALIGNED);
 		} else if (em->block_start == EXTENT_MAP_DELALLOC) {
