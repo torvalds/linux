@@ -1004,12 +1004,16 @@ static void clk_alpha_pll_list_registers(struct seq_file *f, struct clk_hw *hw)
 	int size, i, val;
 
 	static struct clk_register_data data[] = {
-		{"PLL_MODE", 0x0},
-		{"PLL_L_VAL", 0x4},
-		{"PLL_ALPHA_VAL", 0x8},
-		{"PLL_ALPHA_VAL_U", 0xC},
-		{"PLL_USER_CTL", 0x10},
-		{"PLL_CONFIG_CTL", 0x18},
+		{"PLL_MODE", PLL_OFF_MODE},
+		{"PLL_L_VAL", PLL_OFF_L_VAL},
+		{"PLL_ALPHA_VAL", PLL_OFF_ALPHA_VAL},
+		{"PLL_ALPHA_VAL_U", PLL_OFF_ALPHA_VAL_U},
+		{"PLL_TEST_CTL", PLL_OFF_TEST_CTL},
+		{"PLL_TEST_CTL_U", PLL_OFF_TEST_CTL_U},
+		{"PLL_USER_CTL", PLL_OFF_USER_CTL},
+		{"PLL_USER_CTL_U", PLL_OFF_USER_CTL_U},
+		{"PLL_CONFIG_CTL", PLL_OFF_CONFIG_CTL},
+		{"PLL_STATUS", PLL_OFF_STATUS},
 	};
 
 	static struct clk_register_data data1[] = {
@@ -1019,12 +1023,13 @@ static void clk_alpha_pll_list_registers(struct seq_file *f, struct clk_hw *hw)
 	size = ARRAY_SIZE(data);
 
 	for (i = 0; i < size; i++) {
-		regmap_read(pll->clkr.regmap, pll->offset + data[i].offset,
-					&val);
+		regmap_read(pll->clkr.regmap, pll->offset +
+				pll->regs[data[i].offset], &val);
 		clock_debug_output(f, "%20s: 0x%.8x\n", data[i].name, val);
 	}
 
-	regmap_read(pll->clkr.regmap, pll->offset + data[0].offset, &val);
+	regmap_read(pll->clkr.regmap, pll->offset +
+					pll->regs[data[0].offset], &val);
 
 	if (val & PLL_FSM_ENA) {
 		regmap_read(pll->clkr.regmap, pll->clkr.enable_reg +
