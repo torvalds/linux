@@ -2183,9 +2183,25 @@ static int devx_umem_get(struct mlx5_ib_dev *dev, struct ib_ucontext *ucontext,
 	if (err)
 		return err;
 
-	obj->umem = ib_umem_get(&dev->ib_dev, addr, size, access);
-	if (IS_ERR(obj->umem))
-		return PTR_ERR(obj->umem);
+	if (uverbs_attr_is_valid(attrs, MLX5_IB_ATTR_DEVX_UMEM_REG_DMABUF_FD)) {
+		struct ib_umem_dmabuf *umem_dmabuf;
+		int dmabuf_fd;
+
+		err = uverbs_get_raw_fd(&dmabuf_fd, attrs,
+					MLX5_IB_ATTR_DEVX_UMEM_REG_DMABUF_FD);
+		if (err)
+			return -EFAULT;
+
+		umem_dmabuf = ib_umem_dmabuf_get_pinned(
+			&dev->ib_dev, addr, size, dmabuf_fd, access);
+		if (IS_ERR(umem_dmabuf))
+			return PTR_ERR(umem_dmabuf);
+		obj->umem = &umem_dmabuf->umem;
+	} else {
+		obj->umem = ib_umem_get(&dev->ib_dev, addr, size, access);
+		if (IS_ERR(obj->umem))
+			return PTR_ERR(obj->umem);
+	}
 	return 0;
 }
 
@@ -2835,6 +2851,8 @@ DECLARE_UVERBS_NAMED_METHOD(
 	UVERBS_ATTR_PTR_IN(MLX5_IB_ATTR_DEVX_UMEM_REG_LEN,
 			   UVERBS_ATTR_TYPE(u64),
 			   UA_MANDATORY),
+	UVERBS_ATTR_RAW_FD(MLX5_IB_ATTR_DEVX_UMEM_REG_DMABUF_FD,
+			   UA_OPTIONAL),
 	UVERBS_ATTR_FLAGS_IN(MLX5_IB_ATTR_DEVX_UMEM_REG_ACCESS,
 			     enum ib_access_flags),
 	UVERBS_ATTR_CONST_IN(MLX5_IB_ATTR_DEVX_UMEM_REG_PGSZ_BITMAP,
