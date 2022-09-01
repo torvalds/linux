@@ -490,7 +490,7 @@
 		};
 
 		wdog: wdog@13070000 {
-			compatible = "starfive,dskit-wdt";
+			compatible = "starfive,jh7110-wdt";
 			reg = <0x0 0x13070000 0x0 0x10000>;
 			interrupts = <68>;
 			interrupt-names = "wdog";
