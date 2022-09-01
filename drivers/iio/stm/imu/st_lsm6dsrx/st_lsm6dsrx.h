@@ -644,8 +644,8 @@ static inline int st_lsm6dsrx_write_with_mask_locked(struct st_lsm6dsrx_hw *hw,
 						     unsigned int mask,
 						     unsigned int data)
 {
+	unsigned int val = ST_LSM6DSRX_SHIFT_VAL(data, mask);
 	int err;
-	unsigned int val = FIELD_PREP(mask, data);
 
 	mutex_lock(&hw->page_lock);
 	err = regmap_update_bits(hw->regmap, addr, mask, val);
