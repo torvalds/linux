@@ -14,7 +14,7 @@
 // Controlling CPU stall warnings, including delay calculation.
 
 /* panic() on RCU Stall sysctl. */
-int sysctl_panic_on_rcu_stall __read_mostly;
+int sysctl_panic_on_rcu_stall __read_mostly = CONFIG_BOOTPARAM_RCU_STALL_PANIC_VALUE;
 ATOMIC_NOTIFIER_HEAD(rcu_stall_notifier_list);
 
 #ifdef CONFIG_PROVE_RCU

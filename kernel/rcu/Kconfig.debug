@@ -91,6 +91,29 @@ config RCU_CPU_STALL_TIMEOUT
 	  RCU grace period persists, additional CPU stall warnings are
 	  printed at more widely spaced intervals.
 
+config BOOTPARAM_RCU_STALL_PANIC
+	bool "Panic (Reboot) On RCU CPU stall timeout"
+	depends on RCU_STALL_COMMON
+	help
+	  Say Y here to enable the kernel to panic on "rcu stall timeout",
+	  which are bugs that RCU grace period extends more than 21 seconds
+	  (configurable using the RCU_CPU_STALL_TIMEOUT).
+
+	  The panic can be used in combination with panic_timeout,
+	  to cause the system to reboot automatically after a
+	  stall timeout. This feature is useful for high-availability
+	  systems that have uptime guarantees and where a stall timeout
+	  must be resolved ASAP.
+
+	  Say N if unsure.
+
+config BOOTPARAM_RCU_STALL_PANIC_VALUE
+	int
+	depends on RCU_STALL_COMMON
+	range 0 1
+	default 0 if !BOOTPARAM_RCU_STALL_PANIC
+	default 1 if BOOTPARAM_RCU_STALL_PANIC
+
 config RCU_TRACE
 	bool "Enable tracing for RCU"
 	depends on DEBUG_KERNEL
