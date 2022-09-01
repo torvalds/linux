@@ -2160,26 +2160,17 @@ err:
 
 static int devx_umem_get(struct mlx5_ib_dev *dev, struct ib_ucontext *ucontext,
 			 struct uverbs_attr_bundle *attrs,
-			 struct devx_umem *obj)
+			 struct devx_umem *obj, u32 access_flags)
 {
 	u64 addr;
 	size_t size;
-	u32 access;
 	int err;
 
 	if (uverbs_copy_from(&addr, attrs, MLX5_IB_ATTR_DEVX_UMEM_REG_ADDR) ||
 	    uverbs_copy_from(&size, attrs, MLX5_IB_ATTR_DEVX_UMEM_REG_LEN))
 		return -EFAULT;
 
-	err = uverbs_get_flags32(&access, attrs,
-				 MLX5_IB_ATTR_DEVX_UMEM_REG_ACCESS,
-				 IB_ACCESS_LOCAL_WRITE |
-				 IB_ACCESS_REMOTE_WRITE |
-				 IB_ACCESS_REMOTE_READ);
-	if (err)
-		return err;
-
-	err = ib_check_mr_access(&dev->ib_dev, access);
+	err = ib_check_mr_access(&dev->ib_dev, access_flags);
 	if (err)
 		return err;
 
@@ -2193,12 +2184,12 @@ static int devx_umem_get(struct mlx5_ib_dev *dev, struct ib_ucontext *ucontext,
 			return -EFAULT;
 
 		umem_dmabuf = ib_umem_dmabuf_get_pinned(
-			&dev->ib_dev, addr, size, dmabuf_fd, access);
+			&dev->ib_dev, addr, size, dmabuf_fd, access_flags);
 		if (IS_ERR(umem_dmabuf))
 			return PTR_ERR(umem_dmabuf);
 		obj->umem = &umem_dmabuf->umem;
 	} else {
-		obj->umem = ib_umem_get(&dev->ib_dev, addr, size, access);
+		obj->umem = ib_umem_get(&dev->ib_dev, addr, size, access_flags);
 		if (IS_ERR(obj->umem))
 			return PTR_ERR(obj->umem);
 	}
@@ -2240,7 +2231,8 @@ static unsigned int devx_umem_find_best_pgsize(struct ib_umem *umem,
 static int devx_umem_reg_cmd_alloc(struct mlx5_ib_dev *dev,
 				   struct uverbs_attr_bundle *attrs,
 				   struct devx_umem *obj,
-				   struct devx_umem_reg_cmd *cmd)
+				   struct devx_umem_reg_cmd *cmd,
+				   int access)
 {
 	unsigned long pgsz_bitmap;
 	unsigned int page_size;
@@ -2289,6 +2281,9 @@ static int devx_umem_reg_cmd_alloc(struct mlx5_ib_dev *dev,
 	MLX5_SET(umem, umem, page_offset,
 		 ib_umem_dma_offset(obj->umem, page_size));
 
+	if (mlx5_umem_needs_ats(dev, obj->umem, access))
+		MLX5_SET(umem, umem, ats, 1);
+
 	mlx5_ib_populate_pas(obj->umem, page_size, mtt,
 			     (obj->umem->writable ? MLX5_IB_MTT_WRITE : 0) |
 				     MLX5_IB_MTT_READ);
@@ -2306,20 +2301,30 @@ static int UVERBS_HANDLER(MLX5_IB_METHOD_DEVX_UMEM_REG)(
 	struct mlx5_ib_ucontext *c = rdma_udata_to_drv_context(
 		&attrs->driver_udata, struct mlx5_ib_ucontext, ibucontext);
 	struct mlx5_ib_dev *dev = to_mdev(c->ibucontext.device);
+	int access_flags;
 	int err;
 
 	if (!c->devx_uid)
 		return -EINVAL;
 
+	err = uverbs_get_flags32(&access_flags, attrs,
+				 MLX5_IB_ATTR_DEVX_UMEM_REG_ACCESS,
+				 IB_ACCESS_LOCAL_WRITE |
+				 IB_ACCESS_REMOTE_WRITE |
+				 IB_ACCESS_REMOTE_READ |
+				 IB_ACCESS_RELAXED_ORDERING);
+	if (err)
+		return err;
+
 	obj = kzalloc(sizeof(struct devx_umem), GFP_KERNEL);
 	if (!obj)
 		return -ENOMEM;
 
-	err = devx_umem_get(dev, &c->ibucontext, attrs, obj);
+	err = devx_umem_get(dev, &c->ibucontext, attrs, obj, access_flags);
 	if (err)
 		goto err_obj_free;
 
-	err = devx_umem_reg_cmd_alloc(dev, attrs, obj, &cmd);
+	err = devx_umem_reg_cmd_alloc(dev, attrs, obj, &cmd, access_flags);
 	if (err)
 		goto err_umem_release;
 
