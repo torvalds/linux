@@ -54,7 +54,45 @@ static inline bool on_overflow_stack(unsigned long sp, unsigned long size,
 }
 #else
 static inline bool on_overflow_stack(unsigned long sp, unsigned long size,
-			struct stack_info *info) { return false; }
+				     struct stack_info *info)
+{
+	return false;
+}
+#endif
+
+#if defined(CONFIG_ARM_SDE_INTERFACE) && defined(CONFIG_VMAP_STACK)
+DECLARE_PER_CPU(unsigned long *, sdei_stack_normal_ptr);
+DECLARE_PER_CPU(unsigned long *, sdei_stack_critical_ptr);
+
+static inline bool on_sdei_normal_stack(unsigned long sp, unsigned long size,
+					struct stack_info *info)
+{
+	unsigned long low = (unsigned long)raw_cpu_read(sdei_stack_normal_ptr);
+	unsigned long high = low + SDEI_STACK_SIZE;
+
+	return on_stack(sp, size, low, high, STACK_TYPE_SDEI_NORMAL, info);
+}
+
+static inline bool on_sdei_critical_stack(unsigned long sp, unsigned long size,
+					  struct stack_info *info)
+{
+	unsigned long low = (unsigned long)raw_cpu_read(sdei_stack_critical_ptr);
+	unsigned long high = low + SDEI_STACK_SIZE;
+
+	return on_stack(sp, size, low, high, STACK_TYPE_SDEI_CRITICAL, info);
+}
+#else
+static inline bool on_sdei_normal_stack(unsigned long sp, unsigned long size,
+					struct stack_info *info)
+{
+	return false;
+}
+
+static inline bool on_sdei_critical_stack(unsigned long sp, unsigned long size,
+					  struct stack_info *info)
+{
+	return false;
+}
 #endif
 
 #endif	/* __ASM_STACKTRACE_H */

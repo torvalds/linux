@@ -86,8 +86,15 @@ static bool on_accessible_stack(const struct task_struct *tsk,
 		return true;
 	if (on_overflow_stack(sp, size, info))
 		return true;
-	if (on_sdei_stack(sp, size, info))
-		return true;
+
+	if (IS_ENABLED(CONFIG_VMAP_STACK) &&
+	    IS_ENABLED(CONFIG_ARM_SDE_INTERFACE) &&
+	    in_nmi()) {
+		if (on_sdei_critical_stack(sp, size, info))
+			return true;
+		if (on_sdei_normal_stack(sp, size, info))
+			return true;
+	}
 
 	return false;
 }
