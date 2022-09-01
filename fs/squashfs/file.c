@@ -593,7 +593,7 @@ static void squashfs_readahead(struct readahead_control *ractl)
 
 		res = squashfs_read_data(inode->i_sb, block, bsize, NULL, actor);
 
-		kfree(actor);
+		squashfs_page_actor_free(actor);
 
 		if (res == expected) {
 			int bytes;

@@ -11,6 +11,7 @@
 #include <linux/llist.h>
 #include <linux/mutex.h>
 #include <linux/notifier.h>
+#include <linux/seqlock.h>
 #include <linux/spinlock.h>
 #include <linux/types.h>
 #include <linux/workqueue.h>
@@ -83,7 +84,22 @@ struct intel_gt {
 	struct intel_uc uc;
 	struct intel_gsc gsc;
 
-	struct mutex tlb_invalidate_lock;
+	struct {
+		/* Serialize global tlb invalidations */
+		struct mutex invalidate_lock;
+
+		/*
+		 * Batch TLB invalidations
+		 *
+		 * After unbinding the PTE, we need to ensure the TLB
+		 * are invalidated prior to releasing the physical pages.
+		 * But we only need one such invalidation for all unbinds,
+		 * so we track how many TLB invalidations have been
+		 * performed since unbind the PTE and only emit an extra
+		 * invalidate if no full barrier has been passed.
+		 */
+		seqcount_mutex_t seqno;
+	} tlb;
 
 	struct i915_wa_list wa_list;
 

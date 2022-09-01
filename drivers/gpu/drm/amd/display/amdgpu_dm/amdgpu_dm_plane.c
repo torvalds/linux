@@ -34,6 +34,7 @@
 #include "dal_asic_id.h"
 #include "amdgpu_display.h"
 #include "amdgpu_dm_trace.h"
+#include "amdgpu_dm_plane.h"
 #include "gc/gc_11_0_0_offset.h"
 #include "gc/gc_11_0_0_sh_mask.h"
 
@@ -149,12 +150,12 @@ static void add_modifier(uint64_t **mods, uint64_t *size, uint64_t *cap, uint64_
 	*size += 1;
 }
 
-bool modifier_has_dcc(uint64_t modifier)
+static bool modifier_has_dcc(uint64_t modifier)
 {
 	return IS_AMD_FMT_MOD(modifier) && AMD_FMT_MOD_GET(DCC, modifier);
 }
 
-unsigned modifier_gfx9_swizzle_mode(uint64_t modifier)
+static unsigned modifier_gfx9_swizzle_mode(uint64_t modifier)
 {
 	if (modifier == DRM_FORMAT_MOD_LINEAR)
 		return 0;
@@ -660,7 +661,7 @@ static int get_plane_modifiers(struct amdgpu_device *adev, unsigned int plane_ty
 			add_gfx10_1_modifiers(adev, mods, &size, &capacity);
 		break;
 	case AMDGPU_FAMILY_GC_11_0_0:
-	case AMDGPU_FAMILY_GC_11_0_2:
+	case AMDGPU_FAMILY_GC_11_0_1:
 		add_gfx11_modifiers(adev, mods, &size, &capacity);
 		break;
 	}
@@ -1412,7 +1413,7 @@ static bool dm_plane_format_mod_supported(struct drm_plane *plane,
 		}
 		break;
 	case AMDGPU_FAMILY_GC_11_0_0:
-	case AMDGPU_FAMILY_GC_11_0_2:
+	case AMDGPU_FAMILY_GC_11_0_1:
 		switch (AMD_FMT_MOD_GET(TILE, modifier)) {
 		case AMD_FMT_MOD_TILE_GFX11_256K_R_X:
 		case AMD_FMT_MOD_TILE_GFX9_64K_R_X:

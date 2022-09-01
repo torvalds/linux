@@ -212,6 +212,9 @@ int smu_v13_0_init_pptable_microcode(struct smu_context *smu)
 	if (!adev->scpm_enabled)
 		return 0;
 
+	if (adev->ip_versions[MP1_HWIP][0] == IP_VERSION(13, 0, 7))
+		return 0;
+
 	/* override pptable_id from driver parameter */
 	if (amdgpu_smu_pptable_id >= 0) {
 		pptable_id = amdgpu_smu_pptable_id;
@@ -219,16 +222,10 @@ int smu_v13_0_init_pptable_microcode(struct smu_context *smu)
 	} else {
 		pptable_id = smu->smu_table.boot_values.pp_table_id;
 
-		if (adev->ip_versions[MP1_HWIP][0] == IP_VERSION(13, 0, 7) &&
-			pptable_id == 3667)
-			pptable_id = 36671;
-
-		if (adev->ip_versions[MP1_HWIP][0] == IP_VERSION(13, 0, 7) &&
-			pptable_id == 3688)
-			pptable_id = 36881;
 		/*
 		 * Temporary solution for SMU V13.0.0 with SCPM enabled:
 		 *   - use 36831 signed pptable when pp_table_id is 3683
+		 *   - use 37151 signed pptable when pp_table_id is 3715
 		 *   - use 36641 signed pptable when pp_table_id is 3664 or 0
 		 * TODO: drop these when the pptable carried in vbios is ready.
 		 */
@@ -240,6 +237,9 @@ int smu_v13_0_init_pptable_microcode(struct smu_context *smu)
 				break;
 			case 3683:
 				pptable_id = 36831;
+				break;
+			case 3715:
+				pptable_id = 37151;
 				break;
 			default:
 				dev_err(adev->dev, "Unsupported pptable id %d\n", pptable_id);
@@ -478,7 +478,7 @@ int smu_v13_0_setup_pptable(struct smu_context *smu)
 
 		/*
 		 * Temporary solution for SMU V13.0.0 with SCPM disabled:
-		 *   - use 3664 or 3683 on request
+		 *   - use 3664, 3683 or 3715 on request
 		 *   - use 3664 when pptable_id is 0
 		 * TODO: drop these when the pptable carried in vbios is ready.
 		 */
@@ -489,6 +489,7 @@ int smu_v13_0_setup_pptable(struct smu_context *smu)
 				break;
 			case 3664:
 			case 3683:
+			case 3715:
 				break;
 			default:
 				dev_err(adev->dev, "Unsupported pptable id %d\n", pptable_id);
@@ -2344,8 +2345,8 @@ int smu_v13_0_set_gfx_power_up_by_imu(struct smu_context *smu)
 
 	index = smu_cmn_to_asic_specific_index(smu, CMN2ASIC_MAPPING_MSG,
 					       SMU_MSG_EnableGfxImu);
-
-	return smu_cmn_send_msg_without_waiting(smu, index, 0);
+	/* Param 1 to tell PMFW to enable GFXOFF feature */
+	return smu_cmn_send_msg_without_waiting(smu, index, 1);
 }
 
 int smu_v13_0_od_edit_dpm_table(struct smu_context *smu,
