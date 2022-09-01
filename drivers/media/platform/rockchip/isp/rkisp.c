@@ -518,6 +518,7 @@ static void rkisp_multi_overflow_hdl(struct rkisp_device *dev, bool on)
 			writel(0, hw->base_addr + ISP3X_MI_BP_WR_CTRL);
 			writel(0, hw->base_addr + ISP3X_BAY3D_CTRL);
 			if (hw->is_unite) {
+				writel(0, hw->base_next_addr + ISP3X_MI_WR_CTRL);
 				writel(0, hw->base_next_addr + ISP3X_MPFBC_CTRL);
 				writel(0, hw->base_next_addr + ISP3X_MI_BP_WR_CTRL);
 				writel(0, hw->base_next_addr + ISP3X_BAY3D_CTRL);
