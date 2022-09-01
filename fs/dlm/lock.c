@@ -5835,6 +5835,7 @@ int dlm_user_request(struct dlm_ls *ls, struct dlm_user_args *ua,
 {
 	struct dlm_lkb *lkb;
 	struct dlm_args args;
+	bool do_put = true;
 	int error;
 
 	dlm_lock_recovery(ls);
@@ -5851,9 +5852,8 @@ int dlm_user_request(struct dlm_ls *ls, struct dlm_user_args *ua,
 		ua->lksb.sb_lvbptr = kzalloc(DLM_USER_LVB_LEN, GFP_NOFS);
 		if (!ua->lksb.sb_lvbptr) {
 			kfree(ua);
-			__put_lkb(ls, lkb);
 			error = -ENOMEM;
-			goto out_trace_end;
+			goto out_put;
 		}
 	}
 #ifdef CONFIG_DLM_DEPRECATED_API
@@ -5867,8 +5867,7 @@ int dlm_user_request(struct dlm_ls *ls, struct dlm_user_args *ua,
 		kfree(ua->lksb.sb_lvbptr);
 		ua->lksb.sb_lvbptr = NULL;
 		kfree(ua);
-		__put_lkb(ls, lkb);
-		goto out_trace_end;
+		goto out_put;
 	}
 
 	/* After ua is attached to lkb it will be freed by dlm_free_lkb().
@@ -5887,8 +5886,7 @@ int dlm_user_request(struct dlm_ls *ls, struct dlm_user_args *ua,
 		error = 0;
 		fallthrough;
 	default:
-		__put_lkb(ls, lkb);
-		goto out_trace_end;
+		goto out_put;
 	}
 
 	/* add this new lkb to the per-process list of locks */
@@ -5896,8 +5894,11 @@ int dlm_user_request(struct dlm_ls *ls, struct dlm_user_args *ua,
 	hold_lkb(lkb);
 	list_add_tail(&lkb->lkb_ownqueue, &ua->proc->locks);
 	spin_unlock(&ua->proc->locks_spin);
- out_trace_end:
+	do_put = false;
+ out_put:
 	trace_dlm_lock_end(ls, lkb, name, namelen, mode, flags, error, false);
+	if (do_put)
+		__put_lkb(ls, lkb);
  out:
 	dlm_unlock_recovery(ls);
 	return error;
