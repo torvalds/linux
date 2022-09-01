@@ -9,7 +9,7 @@
   	fragment@0 {
 		target-path = "/soc/spi@10060000";
 		__overlay__ {
-			compatible = "starfive-of,pl022";
+			compatible = "starfive,jh7110-spi-pl022";
 			status = "okay";
 		};
  	};
@@ -18,7 +18,7 @@
 	fragment@1 {
 		target-path = "/soc/spi@10070000";
 		__overlay__ {
-			compatible = "starfive-of,pl022";
+			compatible = "starfive,jh7110-spi-pl022";
 			status = "okay";
 		};
 	};
@@ -27,7 +27,7 @@
 	fragment@2 {
 		target-path = "/soc/spi@10080000";
 		__overlay__ {
-			compatible = "starfive-of,pl022";
+			compatible = "starfive,jh7110-spi-pl022";
 			status = "okay";
 		};
 	};
@@ -36,7 +36,7 @@
 	fragment@3 {
 		target-path = "/soc/spi@12070000";
 		__overlay__ {
-			compatible = "starfive-of,pl022";
+			compatible = "starfive,jh7110-spi-pl022";
 			status = "okay";
 		};
 	};
@@ -45,7 +45,7 @@
 	fragment@4 {
 		target-path = "/soc/spi@12080000";
 		__overlay__ {
-			compatible = "starfive-of,pl022";
+			compatible = "starfive,jh7110-spi-pl022";
 			status = "okay";
 		};
 	};
@@ -54,7 +54,7 @@
 	fragment@5 {
 		target-path = "/soc/spi@12090000";
 		__overlay__ {
-			compatible = "starfive-of,pl022";
+			compatible = "starfive,jh7110-spi-pl022";
 			status = "okay";
 		};
 	};
@@ -63,7 +63,7 @@
 	fragment@6 {
 		target-path = "/soc/spi@120A0000";
 		__overlay__ {
-			compatible = "starfive-of,pl022";
+			compatible = "starfive,jh7110-spi-pl022";
 			status = "okay";
 		};
 	};
