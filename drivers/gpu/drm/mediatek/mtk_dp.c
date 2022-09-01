@@ -113,8 +113,10 @@ struct mtk_dp {
 struct mtk_dp_data {
 	int bridge_type;
 	unsigned int smc_cmd;
+	const struct mtk_dp_efuse_fmt *efuse_fmt;
 };
-static const struct mtk_dp_efuse_fmt mtk_dp_efuse_data[MTK_DP_CAL_MAX] = {
+
+static const struct mtk_dp_efuse_fmt mt8195_edp_efuse_fmt[MTK_DP_CAL_MAX] = {
 	[MTK_DP_CAL_GLB_BIAS_TRIM] = {
 		.idx = 3,
 		.shift = 27,
@@ -811,7 +813,7 @@ static void mtk_dp_get_calibration_data(struct mtk_dp *mtk_dp)
 	}
 
 	for (i = 0; i < MTK_DP_CAL_MAX; i++) {
-		fmt = &mtk_dp_efuse_data[i];
+		fmt = &mtk_dp->data->efuse_fmt[i];
 		cal_data[i] = (buf[fmt->idx] >> fmt->shift) & fmt->mask;
 
 		if (cal_data[i] < fmt->min_val || cal_data[i] > fmt->max_val) {
@@ -827,7 +829,7 @@ static void mtk_dp_get_calibration_data(struct mtk_dp *mtk_dp)
 use_default_val:
 	dev_warn(mtk_dp->dev, "Use default calibration data\n");
 	for (i = 0; i < MTK_DP_CAL_MAX; i++)
-		cal_data[i] = mtk_dp_efuse_data[i].default_val;
+		cal_data[i] = mtk_dp->data->efuse_fmt[i].default_val;
 }
 
 static void mtk_dp_set_calibration_data(struct mtk_dp *mtk_dp)
@@ -1983,6 +1985,7 @@ static SIMPLE_DEV_PM_OPS(mtk_dp_pm_ops, mtk_dp_suspend, mtk_dp_resume);
 static const struct mtk_dp_data mt8195_edp_data = {
 	.bridge_type = DRM_MODE_CONNECTOR_eDP,
 	.smc_cmd = MTK_DP_SIP_ATF_EDP_VIDEO_UNMUTE,
+	.efuse_fmt = mt8195_edp_efuse_fmt,
 };
 
 static const struct of_device_id mtk_dp_of_match[] = {
