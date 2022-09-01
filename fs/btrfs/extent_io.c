@@ -5623,6 +5623,11 @@ int extent_fiemap(struct btrfs_inode *inode, struct fiemap_extent_info *fieinfo,
 				ret = 0;
 			goto out_free;
 		}
+
+		if (fatal_signal_pending(current)) {
+			ret = -EINTR;
+			goto out_free;
+		}
 	}
 out_free:
 	if (!ret)
