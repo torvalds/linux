@@ -145,6 +145,7 @@ struct sc3338 {
 	struct v4l2_ctrl	*vblank;
 	struct v4l2_ctrl	*test_pattern;
 	struct mutex		mutex;
+	struct v4l2_fract	cur_fps;
 	bool			streaming;
 	bool			power_on;
 	const struct sc3338_mode *cur_mode;
@@ -542,6 +543,7 @@ static int sc3338_set_fmt(struct v4l2_subdev *sd,
 		__v4l2_ctrl_modify_range(sc3338->vblank, vblank_def,
 					 SC3338_VTS_MAX - mode->height,
 					 1, vblank_def);
+		sc3338->cur_fps = mode->max_fps;
 	}
 
 	mutex_unlock(&sc3338->mutex);
@@ -634,9 +636,10 @@ static int sc3338_g_frame_interval(struct v4l2_subdev *sd,
 	struct sc3338 *sc3338 = to_sc3338(sd);
 	const struct sc3338_mode *mode = sc3338->cur_mode;
 
-	mutex_lock(&sc3338->mutex);
-	fi->interval = mode->max_fps;
-	mutex_unlock(&sc3338->mutex);
+	if (sc3338->streaming)
+		fi->interval = sc3338->cur_fps;
+	else
+		fi->interval = mode->max_fps;
 
 	return 0;
 }
@@ -713,6 +716,7 @@ static long sc3338_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 			__v4l2_ctrl_modify_range(sc3338->hblank, w, w, 1, w);
 			__v4l2_ctrl_modify_range(sc3338->vblank, h,
 						 SC3338_VTS_MAX - sc3338->cur_mode->height, 1, h);
+			sc3338->cur_fps = sc3338->cur_mode->max_fps;
 		}
 		break;
 	case PREISP_CMD_SET_HDRAE_EXP:
@@ -1124,6 +1128,14 @@ static const struct v4l2_subdev_ops sc3338_subdev_ops = {
 	.pad	= &sc3338_pad_ops,
 };
 
+static void sc3338_modify_fps_info(struct sc3338 *sc3338)
+{
+	const struct sc3338_mode *mode = sc3338->cur_mode;
+
+	sc3338->cur_fps.denominator = mode->max_fps.denominator * sc3338->cur_vts /
+				       mode->vts_def;
+}
+
 static int sc3338_set_ctrl(struct v4l2_ctrl *ctrl)
 {
 	struct sc3338 *sc3338 = container_of(ctrl->handler,
@@ -1186,6 +1198,8 @@ static int sc3338_set_ctrl(struct v4l2_ctrl *ctrl)
 					 (ctrl->val + sc3338->cur_mode->height)
 					 & 0xff);
 		sc3338->cur_vts = ctrl->val + sc3338->cur_mode->height;
+		if (sc3338->cur_vts != sc3338->cur_mode->vts_def)
+			sc3338_modify_fps_info(sc3338);
 		break;
 	case V4L2_CID_TEST_PATTERN:
 		ret = sc3338_enable_test_pattern(sc3338, ctrl->val);
