@@ -8,7 +8,6 @@
 #include "rsrc.h"
 
 #define IO_NOTIF_SPLICE_BATCH	32
-#define IORING_MAX_NOTIF_SLOTS	(1U << 15)
 
 struct io_notif_data {
 	struct file		*file;
@@ -36,10 +35,6 @@ struct io_notif_slot {
 	u32			seq;
 };
 
-int io_notif_register(struct io_ring_ctx *ctx,
-		      void __user *arg, unsigned int size);
-int io_notif_unregister(struct io_ring_ctx *ctx);
-
 void io_notif_slot_flush(struct io_notif_slot *slot);
 struct io_kiocb *io_alloc_notif(struct io_ring_ctx *ctx,
 				struct io_notif_slot *slot);
@@ -65,12 +60,6 @@ static inline struct io_notif_slot *io_get_notif_slot(struct io_ring_ctx *ctx,
 		return NULL;
 	idx = array_index_nospec(idx, ctx->nr_notif_slots);
 	return &ctx->notif_slots[idx];
-}
-
-static inline void io_notif_slot_flush_submit(struct io_notif_slot *slot,
-					      unsigned int issue_flags)
-{
-	io_notif_slot_flush(slot);
 }
 
 static inline int io_notif_account_mem(struct io_kiocb *notif, unsigned len)

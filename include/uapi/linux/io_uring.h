@@ -279,14 +279,10 @@ enum io_uring_op {
  *
  * IORING_RECVSEND_FIXED_BUF	Use registered buffers, the index is stored in
  *				the buf_index field.
- *
- * IORING_RECVSEND_NOTIF_FLUSH	Flush a notification after a successful
- *				successful. Only for zerocopy sends.
  */
 #define IORING_RECVSEND_POLL_FIRST	(1U << 0)
 #define IORING_RECV_MULTISHOT		(1U << 1)
 #define IORING_RECVSEND_FIXED_BUF	(1U << 2)
-#define IORING_RECVSEND_NOTIF_FLUSH	(1U << 3)
 
 /*
  * accept flags stored in sqe->ioprio
@@ -473,10 +469,6 @@ enum {
 
 	/* register a range of fixed file slots for automatic slot allocation */
 	IORING_REGISTER_FILE_ALLOC_RANGE	= 25,
-
-	/* zerocopy notification API */
-	IORING_REGISTER_NOTIFIERS		= 26,
-	IORING_UNREGISTER_NOTIFIERS		= 27,
 
 	/* this goes last */
 	IORING_REGISTER_LAST
