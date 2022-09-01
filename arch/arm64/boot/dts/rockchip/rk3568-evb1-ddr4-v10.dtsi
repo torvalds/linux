@@ -15,13 +15,6 @@
 	model = "Rockchip RK3568 EVB1 DDR4 V10 Board";
 	compatible = "rockchip,rk3568-evb1-ddr4-v10", "rockchip,rk3568";
 
-	rk_headset: rk-headset {
-		compatible = "rockchip_headset";
-		headset_gpio = <&gpio3 RK_PC2 GPIO_ACTIVE_LOW>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&hp_det>;
-	};
-
 	vcc2v5_sys: vcc2v5-ddr {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc2v5-sys";
@@ -396,6 +389,10 @@
 			rockchip,pins = <2 RK_PB1 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
+};
+
+&rk809_sound {
+	hp-det-gpio = <&gpio3 RK_PC2 GPIO_ACTIVE_LOW>;
 };
 
 &rkisp {

@@ -11,8 +11,8 @@
 	pinctrl-0 = <&rmii_pins &mac_refclk_12ma>;
 };
 
-&rk_headset {
-	headset_gpio = <&gpio3 RK_PA4 GPIO_ACTIVE_LOW>;
+&rk809_sound {
+	hp-det-gpio = <&gpio3 RK_PA4 GPIO_ACTIVE_LOW>;
 };
 
 

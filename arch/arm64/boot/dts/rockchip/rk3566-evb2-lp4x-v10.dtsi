@@ -16,13 +16,6 @@
 	model = "Rockchip RK3566 EVB2 LP4X V10 Board";
 	compatible = "rockchip,rk3566-evb2-lp4x-v10", "rockchip,rk3566";
 
-	rk_headset: rk-headset {
-		compatible = "rockchip_headset";
-		headset_gpio = <&gpio3 RK_PA1 GPIO_ACTIVE_LOW>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&hp_det>;
-	};
-
 	vcc_camera: vcc-camera-regulator {
 		compatible = "regulator-fixed";
 		gpio = <&gpio0 RK_PC1 GPIO_ACTIVE_HIGH>;
@@ -439,12 +432,6 @@
 			rockchip,pins =
 				/* camera power en */
 				<0 RK_PC1 RK_FUNC_GPIO &pcfg_pull_none>;
-		};
-	};
-
-	headphone {
-		hp_det: hp-det {
-			rockchip,pins = <3 RK_PA1 RK_FUNC_GPIO &pcfg_pull_down>;
 		};
 	};
 
