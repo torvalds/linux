@@ -5,7 +5,6 @@
 #define __RTW_MLME_H_
 
 #include "osdep_service.h"
-#include "mlme_osdep.h"
 #include "drv_types.h"
 #include "wlan_bssdef.h"
 

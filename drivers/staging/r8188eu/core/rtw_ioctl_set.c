@@ -11,8 +11,6 @@
 #include "../include/usb_osintf.h"
 #include "../include/usb_ops.h"
 
-extern void indicate_wx_scan_complete_event(struct adapter *padapter);
-
 u8 rtw_do_join(struct adapter *padapter)
 {
 	struct list_head *plist, *phead;
