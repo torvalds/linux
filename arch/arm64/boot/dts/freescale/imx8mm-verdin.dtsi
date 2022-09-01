@@ -53,6 +53,14 @@
 		};
 	};
 
+	hdmi_connector: hdmi-connector {
+		compatible = "hdmi-connector";
+		ddc-i2c-bus = <&i2c2>;
+		label = "hdmi";
+		type = "a";
+		status = "disabled";
+	};
+
 	panel_lvds: panel-lvds {
 		compatible = "panel-lvds";
 		backlight = <&backlight>;
