@@ -178,8 +178,7 @@ enum io_uring_op {
 	IORING_OP_FALLOCATE,
 	IORING_OP_OPENAT,
 	IORING_OP_CLOSE,
-	IORING_OP_RSRC_UPDATE,
-	IORING_OP_FILES_UPDATE = IORING_OP_RSRC_UPDATE,
+	IORING_OP_FILES_UPDATE,
 	IORING_OP_STATX,
 	IORING_OP_READ,
 	IORING_OP_WRITE,
@@ -228,7 +227,6 @@ enum io_uring_op {
 #define IORING_TIMEOUT_ETIME_SUCCESS	(1U << 5)
 #define IORING_TIMEOUT_CLOCK_MASK	(IORING_TIMEOUT_BOOTTIME | IORING_TIMEOUT_REALTIME)
 #define IORING_TIMEOUT_UPDATE_MASK	(IORING_TIMEOUT_UPDATE | IORING_LINK_TIMEOUT_UPDATE)
-
 /*
  * sqe->splice_flags
  * extends splice(2) flags
@@ -294,14 +292,6 @@ enum io_uring_op {
  * accept flags stored in sqe->ioprio
  */
 #define IORING_ACCEPT_MULTISHOT	(1U << 0)
-
-
-/*
- * IORING_OP_RSRC_UPDATE flags
- */
-enum {
-	IORING_RSRC_UPDATE_FILES,
-};
 
 /*
  * IORING_OP_MSG_RING command types, stored in sqe->addr

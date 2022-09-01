@@ -21,7 +21,6 @@ struct io_rsrc_update {
 	u64				arg;
 	u32				nr_args;
 	u32				offset;
-	int				type;
 };
 
 static int io_sqe_buffer_register(struct io_ring_ctx *ctx, struct iovec *iov,
@@ -654,7 +653,7 @@ __cold int io_register_rsrc(struct io_ring_ctx *ctx, void __user *arg,
 	return -EINVAL;
 }
 
-int io_rsrc_update_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
+int io_files_update_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 {
 	struct io_rsrc_update *up = io_kiocb_to_cmd(req, struct io_rsrc_update);
 
@@ -668,7 +667,6 @@ int io_rsrc_update_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 	if (!up->nr_args)
 		return -EINVAL;
 	up->arg = READ_ONCE(sqe->addr);
-	up->type = READ_ONCE(sqe->ioprio);
 	return 0;
 }
 
@@ -711,7 +709,7 @@ static int io_files_update_with_index_alloc(struct io_kiocb *req,
 	return ret;
 }
 
-static int io_files_update(struct io_kiocb *req, unsigned int issue_flags)
+int io_files_update(struct io_kiocb *req, unsigned int issue_flags)
 {
 	struct io_rsrc_update *up = io_kiocb_to_cmd(req, struct io_rsrc_update);
 	struct io_ring_ctx *ctx = req->ctx;
@@ -738,17 +736,6 @@ static int io_files_update(struct io_kiocb *req, unsigned int issue_flags)
 		req_set_fail(req);
 	io_req_set_res(req, ret, 0);
 	return IOU_OK;
-}
-
-int io_rsrc_update(struct io_kiocb *req, unsigned int issue_flags)
-{
-	struct io_rsrc_update *up = io_kiocb_to_cmd(req, struct io_rsrc_update);
-
-	switch (up->type) {
-	case IORING_RSRC_UPDATE_FILES:
-		return io_files_update(req, issue_flags);
-	}
-	return -EINVAL;
 }
 
 int io_queue_rsrc_removal(struct io_rsrc_data *data, unsigned idx,
