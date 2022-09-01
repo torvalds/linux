@@ -1177,7 +1177,7 @@
 		};
 
 		spdif0: spdif0@100a0000 {
-			compatible = "starfive,sf-spdif";
+			compatible = "starfive,jh7110-spdif";
 			reg = <0x0 0x100a0000 0x0 0x1000>;
 			clocks = <&clkgen JH7110_SPDIF_CLK_APB>,
 				 <&clkgen JH7110_SPDIF_CLK_CORE>,
@@ -1352,12 +1352,6 @@
 
 		spdif_transmitter: spdif_transmitter {
 			compatible = "linux,spdif-dit";
-			#sound-dai-cells = <0>;
-			status = "disabled";
-		};
-
-		spdif_receiver: spdif_receiver {
-			compatible = "linux,spdif-dir";
 			#sound-dai-cells = <0>;
 			status = "disabled";
 		};

@@ -387,7 +387,7 @@ static struct snd_soc_dai_driver sf_spdif_dai = {
 };
 
 static const struct snd_soc_component_driver sf_spdif_component = {
-	.name = "sf-spdif",
+	.name = "starfive-spdif",
 };
 
 static const struct regmap_config sf_spdif_regmap_config = {
@@ -477,14 +477,14 @@ err_clk_disable:
 }
 
 static const struct of_device_id sf_spdif_of_match[] = {
-	{ .compatible = "starfive,sf-spdif", },
+	{ .compatible = "starfive,jh7110-spdif", },
 	{},
 };
 MODULE_DEVICE_TABLE(of, sf_spdif_of_match);
 
 static struct platform_driver sf_spdif_driver = {
 	.driver = {
-		.name = "sf-spdif",
+		.name = "starfive-spdif",
 		.of_match_table = sf_spdif_of_match,
 	},
 	.probe = sf_spdif_probe,
