@@ -421,7 +421,14 @@ static struct s3c2410_platform_nand __initdata gta02_nand_info = {
 /* Get PMU to set USB current limit accordingly. */
 static struct s3c2410_udc_mach_info gta02_udc_cfg __initdata = {
 	.vbus_draw	= gta02_udc_vbus_draw,
-	.pullup_pin = GTA02_GPIO_USB_PULLUP,
+};
+
+static struct gpiod_lookup_table gta02_udc_gpio_table = {
+	.dev_id = "s3c2410-usbgadget",
+	.table = {
+		GPIO_LOOKUP("GPIOB", 9, "pullup", GPIO_ACTIVE_HIGH),
+		{ },
+	},
 };
 
 /* USB */
@@ -555,6 +562,7 @@ static void __init gta02_machine_init(void)
 	s3c_gpio_cfgall_range(S3C2410_GPE(0), 5, S3C_GPIO_SFN(2),
 			      S3C_GPIO_PULL_NONE);
 
+	gpiod_add_lookup_table(&gta02_udc_gpio_table);
 	gpiod_add_lookup_table(&gta02_audio_gpio_table);
 	gpiod_add_lookup_table(&gta02_mmc_gpio_table);
 	platform_add_devices(gta02_devices, ARRAY_SIZE(gta02_devices));
