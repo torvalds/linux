@@ -2335,6 +2335,11 @@ void hists__inc_nr_samples(struct hists *hists, bool filtered)
 		hists->stats.nr_non_filtered_samples++;
 }
 
+void hists__inc_nr_lost_samples(struct hists *hists, u32 lost)
+{
+	hists->stats.nr_lost_samples += lost;
+}
+
 static struct hist_entry *hists__add_dummy_entry(struct hists *hists,
 						 struct hist_entry *pair)
 {
