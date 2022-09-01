@@ -578,6 +578,7 @@ static int iep2_run(struct mpp_dev *mpp,
 		    struct mpp_task *mpp_task)
 {
 	struct iep_task *task = NULL;
+	u32 timing_en = mpp->srv->timing_en;
 
 	mpp_debug_enter();
 
@@ -598,10 +599,14 @@ static int iep2_run(struct mpp_dev *mpp,
 			  | IEP2_REG_OSD_MAX_EN
 			  | IEP2_REG_BUS_ERROR_EN);
 
+	mpp_task_run_begin(mpp_task, timing_en, MPP_WORK_TIMEOUT_DELAY);
+
 	/* Last, flush the registers */
 	wmb();
 	/* start iep2 */
 	mpp_write(mpp, IEP2_REG_FRM_START, 1);
+
+	mpp_task_run_end(mpp_task, timing_en);
 
 	mpp_debug_leave();
 
@@ -767,6 +772,10 @@ static int iep2_procfs_init(struct mpp_dev *mpp)
 		iep->procfs = NULL;
 		return -EIO;
 	}
+
+	/* for common mpp_dev options */
+	mpp_procfs_create_common(iep->procfs, mpp);
+
 	mpp_procfs_create_u32("aclk", 0644,
 			      iep->procfs, &iep->aclk_info.debug_rate_hz);
 	mpp_procfs_create_u32("session_buffers", 0644,

@@ -36,7 +36,6 @@
 #include "mpp_common.h"
 #include "mpp_iommu.h"
 
-#define MPP_WORK_TIMEOUT_DELAY		(500)
 #define MPP_WAIT_TIMEOUT_DELAY		(2000)
 
 /* Use 'v' as magic number */
@@ -751,6 +750,35 @@ int mpp_dev_reset(struct mpp_dev *mpp)
 	return 0;
 }
 
+void mpp_task_run_begin(struct mpp_task *task, u32 timing_en, u32 timeout)
+{
+	preempt_disable();
+
+	set_bit(TASK_STATE_START, &task->state);
+
+	mpp_time_record(task);
+	schedule_delayed_work(&task->timeout_work, msecs_to_jiffies(timeout));
+
+	if (timing_en) {
+		task->on_sched_timeout = ktime_get();
+		set_bit(TASK_TIMING_TO_SCHED, &task->state);
+	}
+}
+
+void mpp_task_run_end(struct mpp_task *task, u32 timing_en)
+{
+	if (timing_en) {
+		task->on_run_end = ktime_get();
+		set_bit(TASK_TIMING_RUN_END, &task->state);
+	}
+
+#ifdef MODULE
+	preempt_enable();
+#else
+	preempt_enable_no_resched();
+#endif
+}
+
 static int mpp_task_run(struct mpp_dev *mpp,
 			struct mpp_task *task)
 {
@@ -791,23 +819,9 @@ static int mpp_task_run(struct mpp_dev *mpp,
 	 */
 	mpp_reset_down_read(mpp->reset_group);
 
-	set_bit(TASK_STATE_START, &task->state);
-	mpp_time_record(task);
-	schedule_delayed_work(&task->timeout_work,
-			      msecs_to_jiffies(MPP_WORK_TIMEOUT_DELAY));
-
-	if (timing_en) {
-		task->on_sched_timeout = ktime_get();
-		set_bit(TASK_TIMING_TO_SCHED, &task->state);
-	}
-
 	if (mpp->dev_ops->run)
 		mpp->dev_ops->run(mpp, task);
 
-	if (timing_en) {
-		task->on_run_end = ktime_get();
-		set_bit(TASK_TIMING_RUN_END, &task->state);
-	}
 	mpp_debug_leave();
 
 	return 0;

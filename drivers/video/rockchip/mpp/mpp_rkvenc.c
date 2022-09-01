@@ -439,6 +439,7 @@ static int rkvenc_run(struct mpp_dev *mpp,
 		int i;
 		struct mpp_request *req;
 		u32 reg_en = mpp_task->hw_info->reg_en;
+		u32 timing_en = mpp->srv->timing_en;
 
 		/*
 		 * Tips: ensure osd plt clock is 0 before setting register,
@@ -468,9 +469,14 @@ static int rkvenc_run(struct mpp_dev *mpp,
 		}
 		/* init current task */
 		mpp->cur_task = mpp_task;
+
+		mpp_task_run_begin(mpp_task, timing_en, MPP_WORK_TIMEOUT_DELAY);
+
 		/* Flush the register before the start the device */
 		wmb();
 		mpp_write(mpp, RKVENC_ENC_START_BASE, task->reg[reg_en]);
+
+		mpp_task_run_end(mpp_task, timing_en);
 	} break;
 	case RKVENC_MODE_LINKTABLE_FIX:
 	case RKVENC_MODE_LINKTABLE_UPDATE:

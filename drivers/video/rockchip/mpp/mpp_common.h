@@ -25,7 +25,8 @@
 #include <linux/platform_device.h>
 #include <soc/rockchip/pm_domains.h>
 
-#define MHZ			(1000 * 1000)
+#define MHZ				(1000 * 1000)
+#define MPP_WORK_TIMEOUT_DELAY		(500)
 
 #define MPP_MAX_MSG_NUM			(16)
 #define MPP_MAX_REG_TRANS_NUM		(60)
@@ -662,6 +663,8 @@ int mpp_task_init(struct mpp_session *session,
 		  struct mpp_task *task);
 int mpp_task_finish(struct mpp_session *session,
 		    struct mpp_task *task);
+void mpp_task_run_begin(struct mpp_task *task, u32 timing_en, u32 timeout);
+void mpp_task_run_end(struct mpp_task *task, u32 timing_en);
 int mpp_task_finalize(struct mpp_session *session,
 		      struct mpp_task *task);
 int mpp_task_dump_mem_region(struct mpp_dev *mpp,

@@ -318,6 +318,7 @@ static void *rkvdec2_rk3568_alloc_task(struct mpp_session *session,
 static int rkvdec2_run(struct mpp_dev *mpp, struct mpp_task *mpp_task)
 {
 	struct rkvdec2_task *task = to_rkvdec2_task(mpp_task);
+	u32 timing_en = mpp->srv->timing_en;
 	u32 reg_en = mpp_task->hw_info->reg_en;
 	/* set cache size */
 	u32 reg = RKVDEC_CACHE_PERMIT_CACHEABLE_ACCESS |
@@ -352,9 +353,14 @@ static int rkvdec2_run(struct mpp_dev *mpp, struct mpp_task *mpp_task)
 
 	/* init current task */
 	mpp->cur_task = mpp_task;
+
+	mpp_task_run_begin(mpp_task, timing_en, MPP_WORK_TIMEOUT_DELAY);
+
 	/* Flush the register before the start the device */
 	wmb();
 	mpp_write(mpp, RKVDEC_REG_START_EN_BASE, task->reg[reg_en] | RKVDEC_START_EN);
+
+	mpp_task_run_end(mpp_task, timing_en);
 
 	mpp_debug_leave();
 

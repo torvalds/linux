@@ -264,6 +264,7 @@ static int vepu_run(struct mpp_dev *mpp,
 	u32 i;
 	u32 reg_en;
 	struct vepu_task *task = to_vepu_task(mpp_task);
+	u32 timing_en = mpp->srv->timing_en;
 
 	mpp_debug_enter();
 
@@ -284,10 +285,15 @@ static int vepu_run(struct mpp_dev *mpp,
 	}
 	/* init current task */
 	mpp->cur_task = mpp_task;
+
+	mpp_task_run_begin(mpp_task, timing_en, MPP_WORK_TIMEOUT_DELAY);
+
 	/* Last, flush start registers */
 	wmb();
 	mpp_write(mpp, VEPU1_REG_ENC_EN,
 		  task->reg[reg_en] | VEPU1_ENC_START);
+
+	mpp_task_run_end(mpp_task, timing_en);
 
 	mpp_debug_leave();
 

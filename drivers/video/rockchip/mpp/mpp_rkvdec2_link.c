@@ -458,6 +458,7 @@ static int rkvdec_link_send_task_to_hw(struct rkvdec_link_dev *dev,
 	}
 
 	if (!resend) {
+		u32 timing_en = dev->mpp->srv->timing_en;
 		u32 i;
 
 		for (i = 0; i < task_to_run; i++) {
@@ -467,9 +468,8 @@ static int rkvdec_link_send_task_to_hw(struct rkvdec_link_dev *dev,
 			if (!task_ddr)
 				continue;
 
-			set_bit(TASK_STATE_START, &task_ddr->state);
-			schedule_delayed_work(&task_ddr->timeout_work,
-					      msecs_to_jiffies(200));
+			mpp_task_run_begin(task_ddr, timing_en, WORK_TIMEOUT_MS);
+			mpp_task_run_end(task_ddr, timing_en);
 		}
 	} else {
 		if (task_total)
@@ -1826,6 +1826,7 @@ static int rkvdec2_soft_ccu_enqueue(struct mpp_dev *mpp, struct mpp_task *mpp_ta
 	u32 i, reg_en, reg;
 	struct rkvdec2_dev *dec = to_rkvdec2_dev(mpp);
 	struct rkvdec2_task *task = to_rkvdec2_task(mpp_task);
+	u32 timing_en = mpp->srv->timing_en;
 
 	mpp_debug_enter();
 
@@ -1865,11 +1866,16 @@ static int rkvdec2_soft_ccu_enqueue(struct mpp_dev *mpp, struct mpp_task *mpp_ta
 	}
 	/* init current task */
 	mpp->cur_task = mpp_task;
+
+	mpp_task_run_begin(mpp_task, timing_en, MPP_WORK_TIMEOUT_DELAY);
+
 	mpp->irq_status = 0;
 	writel_relaxed(dec->core_mask, dec->ccu->reg_base + RKVDEC_CCU_CORE_STA_BASE);
 	/* Flush the register before the start the device */
 	wmb();
 	mpp_write(mpp, RKVDEC_REG_START_EN_BASE, task->reg[reg_en] | RKVDEC_START_EN);
+
+	mpp_task_run_end(mpp_task, timing_en);
 
 	mpp_debug_leave();
 
@@ -1998,25 +2004,12 @@ get_task:
 	mutex_unlock(&queue->pending_lock);
 	set_bit(TASK_STATE_RUNNING, &mpp_task->state);
 
-	mpp_time_record(mpp_task);
 	mpp_debug(DEBUG_TASK_INFO, "pid %d, start hw %s\n",
 		  mpp_task->session->pid, dev_name(mpp->dev));
-	set_bit(TASK_STATE_START, &mpp_task->state);
 	INIT_DELAYED_WORK(&mpp_task->timeout_work, rkvdec2_ccu_link_timeout_work);
-	schedule_delayed_work(&mpp_task->timeout_work, msecs_to_jiffies(WORK_TIMEOUT_MS));
-
-	if (timing_en) {
-		mpp_task->on_sched_timeout = ktime_get();
-		set_bit(TASK_TIMING_TO_SCHED, &mpp_task->state);
-	}
 
 	rkvdec2_ccu_power_on(queue, dec->ccu);
 	rkvdec2_soft_ccu_enqueue(mpp, mpp_task);
-
-	if (timing_en) {
-		mpp_task->on_run_end = ktime_get();
-		set_bit(TASK_TIMING_RUN_END, &mpp_task->state);
-	}
 
 done:
 	if (list_empty(&queue->running_list) &&
