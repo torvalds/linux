@@ -5585,8 +5585,9 @@ int extent_fiemap(struct btrfs_inode *inode, struct fiemap_extent_info *fieinfo,
 			 * then we're just getting a count and we can skip the
 			 * lookup stuff.
 			 */
-			ret = btrfs_check_shared(root, btrfs_ino(inode),
-						 bytenr, roots, tmp_ulist);
+			ret = btrfs_is_data_extent_shared(root, btrfs_ino(inode),
+							  bytenr, roots,
+							  tmp_ulist);
 			if (ret < 0)
 				goto out_free;
 			if (ret)

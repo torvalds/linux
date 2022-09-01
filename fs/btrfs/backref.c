@@ -1511,8 +1511,8 @@ int btrfs_find_all_roots(struct btrfs_trans_handle *trans,
 	return ret;
 }
 
-/**
- * Check if an extent is shared or not
+/*
+ * Check if a data extent is shared or not.
  *
  * @root:   root inode belongs to
  * @inum:   inode number of the inode whose extent we are checking
@@ -1520,7 +1520,7 @@ int btrfs_find_all_roots(struct btrfs_trans_handle *trans,
  * @roots:  list of roots this extent is shared among
  * @tmp:    temporary list used for iteration
  *
- * btrfs_check_shared uses the backref walking code but will short
+ * btrfs_is_data_extent_shared uses the backref walking code but will short
  * circuit as soon as it finds a root or inode that doesn't match the
  * one passed in. This provides a significant performance benefit for
  * callers (such as fiemap) which want to know whether the extent is
@@ -1531,8 +1531,8 @@ int btrfs_find_all_roots(struct btrfs_trans_handle *trans,
  *
  * Return: 0 if extent is not shared, 1 if it is shared, < 0 on error.
  */
-int btrfs_check_shared(struct btrfs_root *root, u64 inum, u64 bytenr,
-		struct ulist *roots, struct ulist *tmp)
+int btrfs_is_data_extent_shared(struct btrfs_root *root, u64 inum, u64 bytenr,
+				struct ulist *roots, struct ulist *tmp)
 {
 	struct btrfs_fs_info *fs_info = root->fs_info;
 	struct btrfs_trans_handle *trans;
