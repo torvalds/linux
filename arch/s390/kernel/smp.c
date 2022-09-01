@@ -1256,7 +1256,7 @@ static __always_inline void set_new_lowcore(struct lowcore *lc)
 		: "memory", "cc");
 }
 
-static int __init smp_reinit_ipl_cpu(void)
+int __init smp_reinit_ipl_cpu(void)
 {
 	unsigned long async_stack, nodat_stack, mcck_stack;
 	struct lowcore *lc, *lc_ipl;
@@ -1291,4 +1291,3 @@ static int __init smp_reinit_ipl_cpu(void)
 
 	return 0;
 }
-early_initcall(smp_reinit_ipl_cpu);

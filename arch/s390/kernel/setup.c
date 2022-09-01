@@ -395,6 +395,7 @@ void __init arch_call_rest_init(void)
 {
 	unsigned long stack;
 
+	smp_reinit_ipl_cpu();
 	stack = stack_alloc();
 	if (!stack)
 		panic("Couldn't allocate kernel stack");
