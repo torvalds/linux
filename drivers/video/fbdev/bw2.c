@@ -182,7 +182,7 @@ static int bw2_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
 
 static void bw2_init_fix(struct fb_info *info, int linebytes)
 {
-	strlcpy(info->fix.id, "bwtwo", sizeof(info->fix.id));
+	strscpy(info->fix.id, "bwtwo", sizeof(info->fix.id));
 
 	info->fix.type = FB_TYPE_PACKED_PIXELS;
 	info->fix.visual = FB_VISUAL_MONO01;

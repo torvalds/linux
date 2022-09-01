@@ -25,6 +25,8 @@ struct io_op_def {
 	unsigned		ioprio : 1;
 	/* supports iopoll */
 	unsigned		iopoll : 1;
+	/* opcode specific path will handle ->async_data allocation if needed */
+	unsigned		manual_alloc : 1;
 	/* size of async data needed, if any */
 	unsigned short		async_size;
 

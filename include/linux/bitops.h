@@ -59,6 +59,7 @@ extern unsigned long __sw_hweight64(__u64 w);
 #define __test_and_clear_bit(nr, addr)	bitop(___test_and_clear_bit, nr, addr)
 #define __test_and_change_bit(nr, addr)	bitop(___test_and_change_bit, nr, addr)
 #define test_bit(nr, addr)		bitop(_test_bit, nr, addr)
+#define test_bit_acquire(nr, addr)	bitop(_test_bit_acquire, nr, addr)
 
 /*
  * Include this here because some architectures need generic_ffs/fls in
