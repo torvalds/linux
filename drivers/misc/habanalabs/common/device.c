@@ -28,8 +28,9 @@ enum dma_alloc_type {
 /*
  * hl_set_dram_bar- sets the bar to allow later access to address
  *
- * @hdev: pointer to habanalabs device structure
+ * @hdev: pointer to habanalabs device structure.
  * @addr: the address the caller wants to access.
+ * @region: the PCI region.
  *
  * @return: the old BAR base address on success, U64_MAX for failure.
  *	    The caller should set it back to the old address after use.
@@ -39,10 +40,10 @@ enum dma_alloc_type {
  * This function can be called also if the bar doesn't need to be set,
  * in that case it just won't change the base.
  */
-static uint64_t hl_set_dram_bar(struct hl_device *hdev, u64 addr)
+static u64 hl_set_dram_bar(struct hl_device *hdev, u64 addr, struct pci_mem_region *region)
 {
 	struct asic_fixed_properties *prop = &hdev->asic_prop;
-	u64 bar_base_addr;
+	u64 bar_base_addr, old_base;
 
 	if (is_power_of_2(prop->dram_pci_bar_size))
 		bar_base_addr = addr & ~(prop->dram_pci_bar_size - 0x1ull);
@@ -50,51 +51,53 @@ static uint64_t hl_set_dram_bar(struct hl_device *hdev, u64 addr)
 		bar_base_addr = DIV_ROUND_DOWN_ULL(addr, prop->dram_pci_bar_size) *
 				prop->dram_pci_bar_size;
 
-	return hdev->asic_funcs->set_dram_bar_base(hdev, bar_base_addr);
-}
+	old_base = hdev->asic_funcs->set_dram_bar_base(hdev, bar_base_addr);
 
+	/* in case of success we need to update the new BAR base */
+	if (old_base != U64_MAX)
+		region->region_base = bar_base_addr;
+
+	return old_base;
+}
 
 static int hl_access_sram_dram_region(struct hl_device *hdev, u64 addr, u64 *val,
 	enum debugfs_access_type acc_type, enum pci_region region_type)
 {
 	struct pci_mem_region *region = &hdev->pci_mem_region[region_type];
+	void __iomem *acc_addr;
 	u64 old_base = 0, rc;
 
 	if (region_type == PCI_REGION_DRAM) {
-		old_base = hl_set_dram_bar(hdev, addr);
+		old_base = hl_set_dram_bar(hdev, addr, region);
 		if (old_base == U64_MAX)
 			return -EIO;
 	}
 
+	acc_addr = hdev->pcie_bar[region->bar_id] + addr - region->region_base +
+			region->offset_in_bar;
 	switch (acc_type) {
 	case DEBUGFS_READ8:
-		*val = readb(hdev->pcie_bar[region->bar_id] +
-			addr - region->region_base + region->offset_in_bar);
+		*val = readb(acc_addr);
 		break;
 	case DEBUGFS_WRITE8:
-		writeb(*val, hdev->pcie_bar[region->bar_id] +
-			addr - region->region_base + region->offset_in_bar);
+		writeb(*val, acc_addr);
 		break;
 	case DEBUGFS_READ32:
-		*val = readl(hdev->pcie_bar[region->bar_id] +
-			addr - region->region_base + region->offset_in_bar);
+		*val = readl(acc_addr);
 		break;
 	case DEBUGFS_WRITE32:
-		writel(*val, hdev->pcie_bar[region->bar_id] +
-			addr - region->region_base + region->offset_in_bar);
+		writel(*val, acc_addr);
 		break;
 	case DEBUGFS_READ64:
-		*val = readq(hdev->pcie_bar[region->bar_id] +
-			addr - region->region_base + region->offset_in_bar);
+		*val = readq(acc_addr);
 		break;
 	case DEBUGFS_WRITE64:
-		writeq(*val, hdev->pcie_bar[region->bar_id] +
-			addr - region->region_base + region->offset_in_bar);
+		writeq(*val, acc_addr);
 		break;
 	}
 
 	if (region_type == PCI_REGION_DRAM) {
-		rc = hl_set_dram_bar(hdev, old_base);
+		rc = hl_set_dram_bar(hdev, old_base, region);
 		if (rc == U64_MAX)
 			return -EIO;
 	}
