@@ -808,7 +808,7 @@ __cld_pipe_inprogress_downcall(const struct cld_msg_v2 __user *cmsg,
 				return -EFAULT;
 			name.data = memdup_user(&ci->cc_name.cn_id, namelen);
 			if (IS_ERR(name.data))
-				return -EFAULT;
+				return PTR_ERR(name.data);
 			name.len = namelen;
 			get_user(princhashlen, &ci->cc_princhash.cp_len);
 			if (princhashlen > 0) {
@@ -817,7 +817,7 @@ __cld_pipe_inprogress_downcall(const struct cld_msg_v2 __user *cmsg,
 						princhashlen);
 				if (IS_ERR(princhash.data)) {
 					kfree(name.data);
-					return -EFAULT;
+					return PTR_ERR(princhash.data);
 				}
 				princhash.len = princhashlen;
 			} else
@@ -830,7 +830,7 @@ __cld_pipe_inprogress_downcall(const struct cld_msg_v2 __user *cmsg,
 				return -EFAULT;
 			name.data = memdup_user(&cnm->cn_id, namelen);
 			if (IS_ERR(name.data))
-				return -EFAULT;
+				return PTR_ERR(name.data);
 			name.len = namelen;
 		}
 		if (name.len > 5 && memcmp(name.data, "hash:", 5) == 0) {
