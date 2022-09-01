@@ -22,13 +22,13 @@ load("//build/kernel/kleaf:common_kernels.bzl", "define_common_kernels", "define
 
 define_common_kernels(target_configs = {
     "kernel_aarch64": {
-        "module_outs": [
+        "module_implicit_outs": [
             "drivers/block/zram/zram.ko",
             "mm/zsmalloc.ko",
         ],
     },
     "kernel_aarch64_debug": {
-        "module_outs": [
+        "module_implicit_outs": [
             "drivers/block/zram/zram.ko",
             "mm/zsmalloc.ko",
         ],
