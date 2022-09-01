@@ -315,11 +315,8 @@ intel_dp_mst_atomic_check(struct drm_connector *connector,
 			  struct drm_atomic_state *_state)
 {
 	struct intel_atomic_state *state = to_intel_atomic_state(_state);
-	struct drm_connector_state *old_conn_state =
-		drm_atomic_get_old_connector_state(&state->base, connector);
 	struct intel_connector *intel_connector =
 		to_intel_connector(connector);
-	struct drm_dp_mst_topology_mgr *mgr;
 	int ret;
 
 	ret = intel_digital_connector_atomic_check(connector, &state->base);
@@ -330,8 +327,9 @@ intel_dp_mst_atomic_check(struct drm_connector *connector,
 	if (ret)
 		return ret;
 
-	mgr = &enc_to_mst(to_intel_encoder(old_conn_state->best_encoder))->primary->dp.mst_mgr;
-	return drm_dp_atomic_release_time_slots(&state->base, mgr, intel_connector->port);
+	return drm_dp_atomic_release_time_slots(&state->base,
+						&intel_connector->mst_port->mst_mgr,
+						intel_connector->port);
 }
 
 static void clear_act_sent(struct intel_encoder *encoder,
