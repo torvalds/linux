@@ -8252,6 +8252,26 @@ static int btrfs_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 	if (ret)
 		return ret;
 
+	/*
+	 * fiemap_prep() called filemap_write_and_wait() for the whole possible
+	 * file range (0 to LLONG_MAX), but that is not enough if we have
+	 * compression enabled. The first filemap_fdatawrite_range() only kicks
+	 * in the compression of data (in an async thread) and will return
+	 * before the compression is done and writeback is started. A second
+	 * filemap_fdatawrite_range() is needed to wait for the compression to
+	 * complete and writeback to start. Without this, our user is very
+	 * likely to get stale results, because the extents and extent maps for
+	 * delalloc regions are only allocated when writeback starts.
+	 */
+	if (fieinfo->fi_flags & FIEMAP_FLAG_SYNC) {
+		ret = btrfs_fdatawrite_range(inode, 0, LLONG_MAX);
+		if (ret)
+			return ret;
+		ret = filemap_fdatawait_range(inode->i_mapping, 0, LLONG_MAX);
+		if (ret)
+			return ret;
+	}
+
 	return extent_fiemap(BTRFS_I(inode), fieinfo, start, len);
 }
 
