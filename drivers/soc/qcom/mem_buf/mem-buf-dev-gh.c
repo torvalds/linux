@@ -252,6 +252,7 @@ int mem_buf_unmap_mem_s2(gh_memparcel_handle_t memparcel_hdl)
 }
 EXPORT_SYMBOL(mem_buf_unmap_mem_s2);
 
+#ifdef CONFIG_QCOM_MEM_BUF_UPDATE_S1
 int mem_buf_map_mem_s1(struct gh_sgl_desc *sgl_desc)
 {
 	u64 base, size;
@@ -300,6 +301,7 @@ int mem_buf_unmap_mem_s1(struct gh_sgl_desc *sgl_desc)
 	return ret;
 }
 EXPORT_SYMBOL(mem_buf_unmap_mem_s1);
+#endif /* CONFIG_QCOM_MEM_BUF_UPDATE_S1 */
 
 static int mem_buf_hyp_assign_table_gh(struct gh_sgl_desc *sgl_desc, int src_vmid,
 			struct gh_acl_desc *acl_desc)

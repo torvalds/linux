@@ -27,6 +27,20 @@ config QCOM_MEM_BUF_DEV
 config QCOM_MEM_BUF_DEV_GH
 	bool
 
+config QCOM_MEM_BUF_UPDATE_S1
+	tristate "Map imported memory into the S1 logical kernel mapping for cache maintenance"
+	depends on QCOM_MEM_BUF_DEV_GH
+	help
+	  When mapping memory into a VM, we must add it to the logical mapping in Linux in
+	  order to perform cache maintenance on the memory. The default functions used for
+	  adding memory, add_memory(), only maps memory at 128 MB chunks and has a 256 KB
+	  overhead in the page table space it consumes (assuming the logical mapping is not
+	  using block mappings). We accordingly use a downstream functions instead -
+	  add_memory_subsection() - that adds memory on a section-size granularity
+	  (currently 4 MB). Select this config option to enable the usage of these functions
+	  on VMs, where these functions will be available using our downstream kernels.
+	  If unsure, say N.
+
 config QCOM_MEM_BUF_MSGQ
 	tristate "Qualcomm Technologies, Inc. Memory Buffer Message Queue Support"
 	depends on GH_MSGQ && QCOM_MEM_BUF_DEV_GH
