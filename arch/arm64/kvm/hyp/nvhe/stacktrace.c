@@ -39,34 +39,51 @@ static void hyp_prepare_backtrace(unsigned long fp, unsigned long pc)
 
 DEFINE_PER_CPU(unsigned long [NVHE_STACKTRACE_SIZE/sizeof(long)], pkvm_stacktrace);
 
-static bool on_overflow_stack(unsigned long sp, unsigned long size,
-			      struct stack_info *info)
+static struct stack_info stackinfo_get_overflow(void)
 {
 	unsigned long low = (unsigned long)this_cpu_ptr(overflow_stack);
 	unsigned long high = low + OVERFLOW_STACK_SIZE;
 
-	return on_stack(sp, size, low, high, STACK_TYPE_OVERFLOW, info);
+	return (struct stack_info) {
+		.low = low,
+		.high = high,
+		.type = STACK_TYPE_OVERFLOW,
+	};
 }
 
-static bool on_hyp_stack(unsigned long sp, unsigned long size,
-			      struct stack_info *info)
+static struct stack_info stackinfo_get_hyp(void)
 {
 	struct kvm_nvhe_init_params *params = this_cpu_ptr(&kvm_init_params);
 	unsigned long high = params->stack_hyp_va;
 	unsigned long low = high - PAGE_SIZE;
 
-	return on_stack(sp, size, low, high, STACK_TYPE_HYP, info);
+	return (struct stack_info) {
+		.low = low,
+		.high = high,
+		.type = STACK_TYPE_HYP,
+	};
 }
 
 static bool on_accessible_stack(const struct task_struct *tsk,
 				unsigned long sp, unsigned long size,
 				struct stack_info *info)
 {
-	if (info)
-		info->type = STACK_TYPE_UNKNOWN;
+	struct stack_info tmp;
 
-	return (on_overflow_stack(sp, size, info) ||
-		on_hyp_stack(sp, size, info));
+	tmp = stackinfo_get_overflow();
+	if (stackinfo_on_stack(&tmp, sp, size))
+		goto found;
+
+	tmp = stackinfo_get_hyp();
+	if (stackinfo_on_stack(&tmp, sp, size))
+		goto found;
+
+	*info = stackinfo_get_unknown();
+	return false;
+
+found:
+	*info = tmp;
+	return true;
 }
 
 static int unwind_next(struct unwind_state *state)

@@ -67,36 +67,55 @@ static inline void unwind_init_from_task(struct unwind_state *state,
 	state->pc = thread_saved_pc(task);
 }
 
-/*
- * We can only safely access per-cpu stacks from current in a non-preemptible
- * context.
- */
 static bool on_accessible_stack(const struct task_struct *tsk,
 				unsigned long sp, unsigned long size,
 				struct stack_info *info)
 {
-	if (info)
-		info->type = STACK_TYPE_UNKNOWN;
+	struct stack_info tmp;
 
-	if (on_task_stack(tsk, sp, size, info))
-		return true;
+	tmp = stackinfo_get_task(tsk);
+	if (stackinfo_on_stack(&tmp, sp, size))
+		goto found;
+
+	/*
+	 * We can only safely access per-cpu stacks when unwinding the current
+	 * task in a non-preemptible context.
+	 */
 	if (tsk != current || preemptible())
-		return false;
-	if (on_irq_stack(sp, size, info))
-		return true;
-	if (on_overflow_stack(sp, size, info))
-		return true;
+		goto not_found;
 
-	if (IS_ENABLED(CONFIG_VMAP_STACK) &&
-	    IS_ENABLED(CONFIG_ARM_SDE_INTERFACE) &&
-	    in_nmi()) {
-		if (on_sdei_critical_stack(sp, size, info))
-			return true;
-		if (on_sdei_normal_stack(sp, size, info))
-			return true;
-	}
+	tmp = stackinfo_get_irq();
+	if (stackinfo_on_stack(&tmp, sp, size))
+		goto found;
 
+	tmp = stackinfo_get_overflow();
+	if (stackinfo_on_stack(&tmp, sp, size))
+		goto found;
+
+	/*
+	 * We can only safely access SDEI stacks which unwinding the current
+	 * task in an NMI context.
+	 */
+	if (!IS_ENABLED(CONFIG_VMAP_STACK) ||
+	    !IS_ENABLED(CONFIG_ARM_SDE_INTERFACE) ||
+	    !in_nmi())
+		goto not_found;
+
+	tmp = stackinfo_get_sdei_normal();
+	if (stackinfo_on_stack(&tmp, sp, size))
+		goto found;
+
+	tmp = stackinfo_get_sdei_critical();
+	if (stackinfo_on_stack(&tmp, sp, size))
+		goto found;
+
+not_found:
+	*info = stackinfo_get_unknown();
 	return false;
+
+found:
+	*info = tmp;
+	return true;
 }
 
 /*

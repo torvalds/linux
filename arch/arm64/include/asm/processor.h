@@ -410,7 +410,7 @@ long get_tagged_addr_ctrl(struct task_struct *task);
  * The top of the current task's task stack
  */
 #define current_top_of_stack()	((unsigned long)current->stack + THREAD_SIZE)
-#define on_thread_stack()	(on_task_stack(current, current_stack_pointer, 1, NULL))
+#define on_thread_stack()	(on_task_stack(current, current_stack_pointer, 1))
 
 #endif /* __ASSEMBLY__ */
 #endif /* __ASM_PROCESSOR_H */
