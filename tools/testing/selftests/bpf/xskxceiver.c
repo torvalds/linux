@@ -1345,6 +1345,11 @@ static void testapp_clean_xsk_umem(struct ifobject *ifobj)
 	munmap(ifobj->umem->buffer, umem_sz);
 }
 
+static void handler(int signum)
+{
+	pthread_exit(NULL);
+}
+
 static int testapp_validate_traffic_single_thread(struct test_spec *test, struct ifobject *ifobj,
 						  enum test_type type)
 {
@@ -1362,6 +1367,7 @@ static int testapp_validate_traffic_single_thread(struct test_spec *test, struct
 	test->ifobj_rx->shared_umem = false;
 	test->ifobj_tx->shared_umem = false;
 
+	signal(SIGUSR1, handler);
 	/* Spawn thread */
 	pthread_create(&t0, NULL, ifobj->func_ptr, test);
 
@@ -1371,6 +1377,7 @@ static int testapp_validate_traffic_single_thread(struct test_spec *test, struct
 	if (pthread_barrier_destroy(&barr))
 		exit_with_error(errno);
 
+	pthread_kill(t0, SIGUSR1);
 	pthread_join(t0, NULL);
 
 	if (test->total_steps == test->current_step || test->fail) {
