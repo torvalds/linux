@@ -45,7 +45,7 @@ struct drm_modeset_acquire_ctx;
 struct drm_plane;
 struct drm_plane_state;
 struct i915_address_space;
-struct i915_ggtt_view;
+struct i915_gtt_view;
 struct intel_atomic_state;
 struct intel_crtc;
 struct intel_crtc_state;
