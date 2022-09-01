@@ -64,7 +64,7 @@ struct bnxt_en_dev {
 	#define BNXT_EN_FLAG_MSIX_REQUESTED	0x4
 	#define BNXT_EN_FLAG_ULP_STOPPED	0x8
 	const struct bnxt_en_ops	*en_ops;
-	struct bnxt_ulp			ulp_tbl[BNXT_MAX_ULP];
+	struct bnxt_ulp			*ulp_tbl;
 	int				l2_db_size;	/* Doorbell BAR size in
 							 * bytes mapped by L2
 							 * driver.
@@ -76,21 +76,21 @@ struct bnxt_en_dev {
 };
 
 struct bnxt_en_ops {
-	int (*bnxt_register_device)(struct bnxt_en_dev *, unsigned int,
-				    struct bnxt_ulp_ops *, void *);
-	int (*bnxt_unregister_device)(struct bnxt_en_dev *, unsigned int);
-	int (*bnxt_request_msix)(struct bnxt_en_dev *, unsigned int,
-				 struct bnxt_msix_entry *, int);
-	int (*bnxt_free_msix)(struct bnxt_en_dev *, unsigned int);
-	int (*bnxt_send_fw_msg)(struct bnxt_en_dev *, unsigned int,
-				struct bnxt_fw_msg *);
-	int (*bnxt_register_fw_async_events)(struct bnxt_en_dev *, unsigned int,
-					     unsigned long *, u16);
+	int (*bnxt_register_device)(struct bnxt_en_dev *edev,
+				    struct bnxt_ulp_ops *ulp_ops, void *handle);
+	int (*bnxt_unregister_device)(struct bnxt_en_dev *edev);
+	int (*bnxt_request_msix)(struct bnxt_en_dev *edev,
+				 struct bnxt_msix_entry *ent, int num_msix);
+	void (*bnxt_free_msix)(struct bnxt_en_dev *edev);
+	int (*bnxt_send_fw_msg)(struct bnxt_en_dev *edev,
+				struct bnxt_fw_msg *fw_msg);
+	int (*bnxt_register_fw_async_events)(struct bnxt_en_dev *edev,
+					     unsigned long *events_bmap, u16 max_id);
 };
 
-static inline bool bnxt_ulp_registered(struct bnxt_en_dev *edev, int ulp_id)
+static inline bool bnxt_ulp_registered(struct bnxt_en_dev *edev)
 {
-	if (edev && rcu_access_pointer(edev->ulp_tbl[ulp_id].ulp_ops))
+	if (edev && edev->ulp_tbl)
 		return true;
 	return false;
 }
