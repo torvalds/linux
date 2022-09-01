@@ -38,9 +38,8 @@ struct stack_info {
 	enum stack_type type;
 };
 
-/*
- * A snapshot of a frame record or fp/lr register values, along with some
- * accounting information necessary for robust unwinding.
+/**
+ * struct unwind_state - state used for robust unwinding.
  *
  * @fp:          The fp value in the frame record (or the real fp)
  * @pc:          The lr value in the frame record (or the real lr)
@@ -113,27 +112,34 @@ static inline void unwind_init_common(struct unwind_state *state,
 	state->prev_type = STACK_TYPE_UNKNOWN;
 }
 
-/*
- * stack_trace_translate_fp_fn() - Translates a non-kernel frame pointer to
- * a kernel address.
+/**
+ * typedef stack_trace_translate_fp_fn() - Translates a non-kernel frame
+ * pointer to a kernel address.
  *
  * @fp:   the frame pointer to be updated to its kernel address.
  * @type: the stack type associated with frame pointer @fp
  *
- * Returns true and success and @fp is updated to the corresponding
- * kernel virtual address; otherwise returns false.
+ * Return: true if the VA can be translated, false otherwise.
+ *
+ * Upon success @fp is updated to the corresponding kernel virtual address.
  */
 typedef bool (*stack_trace_translate_fp_fn)(unsigned long *fp,
 					    enum stack_type type);
 
-/*
- * on_accessible_stack_fn() - Check whether a stack range is on any
- * of the possible stacks.
+/**
+ * typedef on_accessible_stack_fn() - Check whether a stack range is on any of
+ * the possible stacks.
  *
  * @tsk:  task whose stack is being unwound
  * @sp:   stack address being checked
  * @size: size of the stack range being checked
  * @info: stack unwinding context
+ *
+ * Return: true if the stack range is accessible, false otherwise.
+ *
+ * Upon success @info is updated with information for the relevant stack.
+ *
+ * Upon failure @info is updated with the UNKNOWN stack.
  */
 typedef bool (*on_accessible_stack_fn)(const struct task_struct *tsk,
 				       unsigned long sp, unsigned long size,
