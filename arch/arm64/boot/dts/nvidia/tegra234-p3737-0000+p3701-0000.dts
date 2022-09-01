@@ -2009,6 +2009,7 @@
 
 		hda@3510000 {
 			nvidia,model = "NVIDIA Jetson AGX Orin HDA";
+			status = "okay";
 		};
 	};
 
