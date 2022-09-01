@@ -4027,6 +4027,13 @@ static inline void guc_init_lrc_mapping(struct intel_guc *guc)
 	xa_destroy(&guc->context_lookup);
 
 	/*
+	 * A reset might have occurred while we had a pending stalled request,
+	 * so make sure we clean that up.
+	 */
+	guc->stalled_request = NULL;
+	guc->submission_stall_reason = STALL_NONE;
+
+	/*
 	 * Some contexts might have been pinned before we enabled GuC
 	 * submission, so we need to add them to the GuC bookeeping.
 	 * Also, after a reset the of the GuC we want to make sure that the
