@@ -30,7 +30,6 @@ static inline struct stack_info stackinfo_get_irq(void)
 	return (struct stack_info) {
 		.low = low,
 		.high = high,
-		.type = STACK_TYPE_IRQ,
 	};
 }
 
@@ -48,7 +47,6 @@ static inline struct stack_info stackinfo_get_task(const struct task_struct *tsk
 	return (struct stack_info) {
 		.low = low,
 		.high = high,
-		.type = STACK_TYPE_TASK,
 	};
 }
 
@@ -70,7 +68,6 @@ static inline struct stack_info stackinfo_get_overflow(void)
 	return (struct stack_info) {
 		.low = low,
 		.high = high,
-		.type = STACK_TYPE_OVERFLOW,
 	};
 }
 #else
@@ -89,7 +86,6 @@ static inline struct stack_info stackinfo_get_sdei_normal(void)
 	return (struct stack_info) {
 		.low = low,
 		.high = high,
-		.type = STACK_TYPE_SDEI_NORMAL,
 	};
 }
 
@@ -101,7 +97,6 @@ static inline struct stack_info stackinfo_get_sdei_critical(void)
 	return (struct stack_info) {
 		.low = low,
 		.high = high,
-		.type = STACK_TYPE_SDEI_CRITICAL,
 	};
 }
 #else

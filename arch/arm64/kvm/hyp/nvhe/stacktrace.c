@@ -47,7 +47,6 @@ static struct stack_info stackinfo_get_overflow(void)
 	return (struct stack_info) {
 		.low = low,
 		.high = high,
-		.type = STACK_TYPE_OVERFLOW,
 	};
 }
 
@@ -60,35 +59,12 @@ static struct stack_info stackinfo_get_hyp(void)
 	return (struct stack_info) {
 		.low = low,
 		.high = high,
-		.type = STACK_TYPE_HYP,
 	};
-}
-
-static bool on_accessible_stack(const struct task_struct *tsk,
-				unsigned long sp, unsigned long size,
-				struct stack_info *info)
-{
-	struct stack_info tmp;
-
-	tmp = stackinfo_get_overflow();
-	if (stackinfo_on_stack(&tmp, sp, size))
-		goto found;
-
-	tmp = stackinfo_get_hyp();
-	if (stackinfo_on_stack(&tmp, sp, size))
-		goto found;
-
-	*info = stackinfo_get_unknown();
-	return false;
-
-found:
-	*info = tmp;
-	return true;
 }
 
 static int unwind_next(struct unwind_state *state)
 {
-	return unwind_next_frame_record(state, on_accessible_stack, NULL);
+	return unwind_next_frame_record(state, NULL);
 }
 
 static void notrace unwind(struct unwind_state *state,
@@ -144,7 +120,14 @@ static bool pkvm_save_backtrace_entry(void *arg, unsigned long where)
  */
 static void pkvm_save_backtrace(unsigned long fp, unsigned long pc)
 {
-	struct unwind_state state;
+	struct stack_info stacks[] = {
+		stackinfo_get_overflow(),
+		stackinfo_get_hyp(),
+	};
+	struct unwind_state state = {
+		.stacks = stacks,
+		.nr_stacks = ARRAY_SIZE(stacks),
+	};
 	int idx = 0;
 
 	kvm_nvhe_unwind_init(&state, fp, pc);

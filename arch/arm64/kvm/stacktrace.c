@@ -31,7 +31,6 @@ static struct stack_info stackinfo_get_overflow(void)
 	return (struct stack_info) {
 		.low = low,
 		.high = high,
-		.type = STACK_TYPE_OVERFLOW,
 	};
 }
 
@@ -45,7 +44,6 @@ static struct stack_info stackinfo_get_hyp(void)
 	return (struct stack_info) {
 		.low = low,
 		.high = high,
-		.type = STACK_TYPE_HYP,
 	};
 }
 
@@ -102,32 +100,9 @@ static bool kvm_nvhe_stack_kern_record_va(unsigned long *addr)
 	return kvm_nvhe_stack_kern_va(addr, 16);
 }
 
-static bool on_accessible_stack(const struct task_struct *tsk,
-				unsigned long sp, unsigned long size,
-				struct stack_info *info)
-{
-	struct stack_info tmp;
-
-	tmp = stackinfo_get_overflow();
-	if (stackinfo_on_stack(&tmp, sp, size))
-		goto found;
-
-	tmp = stackinfo_get_hyp();
-	if (stackinfo_on_stack(&tmp, sp, size))
-		goto found;
-
-	*info = stackinfo_get_unknown();
-	return false;
-
-found:
-	*info = tmp;
-	return true;
-}
-
 static int unwind_next(struct unwind_state *state)
 {
-	return unwind_next_frame_record(state, on_accessible_stack,
-					kvm_nvhe_stack_kern_record_va);
+	return unwind_next_frame_record(state, kvm_nvhe_stack_kern_record_va);
 }
 
 static void unwind(struct unwind_state *state,
@@ -185,7 +160,14 @@ static void kvm_nvhe_dump_backtrace_end(void)
 static void hyp_dump_backtrace(unsigned long hyp_offset)
 {
 	struct kvm_nvhe_stacktrace_info *stacktrace_info;
-	struct unwind_state state;
+	struct stack_info stacks[] = {
+		stackinfo_get_overflow(),
+		stackinfo_get_hyp(),
+	};
+	struct unwind_state state = {
+		.stacks = stacks,
+		.nr_stacks = ARRAY_SIZE(stacks),
+	};
 
 	stacktrace_info = this_cpu_ptr_nvhe_sym(kvm_stacktrace_info);
 

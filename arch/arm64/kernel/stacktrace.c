@@ -67,57 +67,6 @@ static inline void unwind_init_from_task(struct unwind_state *state,
 	state->pc = thread_saved_pc(task);
 }
 
-static bool on_accessible_stack(const struct task_struct *tsk,
-				unsigned long sp, unsigned long size,
-				struct stack_info *info)
-{
-	struct stack_info tmp;
-
-	tmp = stackinfo_get_task(tsk);
-	if (stackinfo_on_stack(&tmp, sp, size))
-		goto found;
-
-	/*
-	 * We can only safely access per-cpu stacks when unwinding the current
-	 * task in a non-preemptible context.
-	 */
-	if (tsk != current || preemptible())
-		goto not_found;
-
-	tmp = stackinfo_get_irq();
-	if (stackinfo_on_stack(&tmp, sp, size))
-		goto found;
-
-	tmp = stackinfo_get_overflow();
-	if (stackinfo_on_stack(&tmp, sp, size))
-		goto found;
-
-	/*
-	 * We can only safely access SDEI stacks which unwinding the current
-	 * task in an NMI context.
-	 */
-	if (!IS_ENABLED(CONFIG_VMAP_STACK) ||
-	    !IS_ENABLED(CONFIG_ARM_SDE_INTERFACE) ||
-	    !in_nmi())
-		goto not_found;
-
-	tmp = stackinfo_get_sdei_normal();
-	if (stackinfo_on_stack(&tmp, sp, size))
-		goto found;
-
-	tmp = stackinfo_get_sdei_critical();
-	if (stackinfo_on_stack(&tmp, sp, size))
-		goto found;
-
-not_found:
-	*info = stackinfo_get_unknown();
-	return false;
-
-found:
-	*info = tmp;
-	return true;
-}
-
 /*
  * Unwind from one frame record (A) to the next frame record (B).
  *
@@ -135,7 +84,7 @@ static int notrace unwind_next(struct unwind_state *state)
 	if (fp == (unsigned long)task_pt_regs(tsk)->stackframe)
 		return -ENOENT;
 
-	err = unwind_next_frame_record(state, on_accessible_stack, NULL);
+	err = unwind_next_frame_record(state, NULL);
 	if (err)
 		return err;
 
@@ -215,11 +164,47 @@ void show_stack(struct task_struct *tsk, unsigned long *sp, const char *loglvl)
 	barrier();
 }
 
+/*
+ * Per-cpu stacks are only accessible when unwinding the current task in a
+ * non-preemptible context.
+ */
+#define STACKINFO_CPU(name)					\
+	({							\
+		((task == current) && !preemptible())		\
+			? stackinfo_get_##name()		\
+			: stackinfo_get_unknown();		\
+	})
+
+/*
+ * SDEI stacks are only accessible when unwinding the current task in an NMI
+ * context.
+ */
+#define STACKINFO_SDEI(name)					\
+	({							\
+		((task == current) && in_nmi())			\
+			? stackinfo_get_sdei_##name()		\
+			: stackinfo_get_unknown();		\
+	})
+
 noinline notrace void arch_stack_walk(stack_trace_consume_fn consume_entry,
 			      void *cookie, struct task_struct *task,
 			      struct pt_regs *regs)
 {
-	struct unwind_state state;
+	struct stack_info stacks[] = {
+		stackinfo_get_task(task),
+		STACKINFO_CPU(irq),
+#if defined(CONFIG_VMAP_STACK)
+		STACKINFO_CPU(overflow),
+#endif
+#if defined(CONFIG_VMAP_STACK) && defined(CONFIG_ARM_SDE_INTERFACE)
+		STACKINFO_SDEI(normal),
+		STACKINFO_SDEI(critical),
+#endif
+	};
+	struct unwind_state state = {
+		.stacks = stacks,
+		.nr_stacks = ARRAY_SIZE(stacks),
+	};
 
 	if (regs) {
 		if (task != current)
