@@ -32,9 +32,7 @@ DECLARE_EVENT_CLASS(regmap_reg,
 		__entry->val = val;
 	),
 
-	TP_printk("%s reg=%x val=%x", __get_str(name),
-		  (unsigned int)__entry->reg,
-		  (unsigned int)__entry->val)
+	TP_printk("%s reg=%x val=%x", __get_str(name), __entry->reg, __entry->val)
 );
 
 DEFINE_EVENT(regmap_reg, regmap_reg_write,
@@ -85,8 +83,7 @@ DECLARE_EVENT_CLASS(regmap_bulk,
 		memcpy(__get_dynamic_array(buf), val, val_len);
 	),
 
-	TP_printk("%s reg=%x val=%s", __get_str(name),
-		  (unsigned int)__entry->reg,
+	TP_printk("%s reg=%x val=%s", __get_str(name), __entry->reg,
 		  __print_hex(__get_dynamic_array(buf), __entry->val_len))
 );
 
@@ -124,9 +121,7 @@ DECLARE_EVENT_CLASS(regmap_block,
 		__entry->count = count;
 	),
 
-	TP_printk("%s reg=%x count=%d", __get_str(name),
-		  (unsigned int)__entry->reg,
-		  (int)__entry->count)
+	TP_printk("%s reg=%x count=%d", __get_str(name), __entry->reg, __entry->count)
 );
 
 DEFINE_EVENT(regmap_block, regmap_hw_read_start,
@@ -196,8 +191,7 @@ DECLARE_EVENT_CLASS(regmap_bool,
 		__entry->flag = flag;
 	),
 
-	TP_printk("%s flag=%d", __get_str(name),
-		  (int)__entry->flag)
+	TP_printk("%s flag=%d", __get_str(name), __entry->flag)
 );
 
 DEFINE_EVENT(regmap_bool, regmap_cache_only,
@@ -283,8 +277,7 @@ TRACE_EVENT(regcache_drop_region,
 		__entry->to = to;
 	),
 
-	TP_printk("%s %u-%u", __get_str(name), (unsigned int)__entry->from,
-		  (unsigned int)__entry->to)
+	TP_printk("%s %u-%u", __get_str(name), __entry->from, __entry->to)
 );
 
 #endif /* _TRACE_REGMAP_H */
