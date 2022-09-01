@@ -3378,8 +3378,6 @@ unsigned int btrfs_verify_data_csum(struct btrfs_bio *bbio,
 				    u64 start, u64 end);
 int btrfs_check_data_csum(struct inode *inode, struct btrfs_bio *bbio,
 			  u32 bio_offset, struct page *page, u32 pgoff);
-struct extent_map *btrfs_get_extent_fiemap(struct btrfs_inode *inode,
-					   u64 start, u64 len);
 noinline int can_nocow_extent(struct inode *inode, u64 offset, u64 *len,
 			      u64 *orig_start, u64 *orig_block_len,
 			      u64 *ram_bytes, bool strict);
@@ -3559,6 +3557,8 @@ int btrfs_fdatawrite_range(struct inode *inode, loff_t start, loff_t end);
 int btrfs_check_nocow_lock(struct btrfs_inode *inode, loff_t pos,
 			   size_t *write_bytes);
 void btrfs_check_nocow_unlock(struct btrfs_inode *inode);
+bool btrfs_find_delalloc_in_range(struct btrfs_inode *inode, u64 start, u64 end,
+				  u64 *delalloc_start_ret, u64 *delalloc_end_ret);
 
 /* tree-defrag.c */
 int btrfs_defrag_leaves(struct btrfs_trans_handle *trans,

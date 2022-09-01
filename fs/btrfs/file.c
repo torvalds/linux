@@ -3602,10 +3602,10 @@ out:
 }
 
 /*
- * Helper for have_delalloc_in_range(). Find a subrange in a given range that
- * has unflushed and/or flushing delalloc. There might be other adjacent
- * subranges after the one it found, so have_delalloc_in_range() keeps looping
- * while it gets adjacent subranges, and merging them together.
+ * Helper for btrfs_find_delalloc_in_range(). Find a subrange in a given range
+ * that has unflushed and/or flushing delalloc. There might be other adjacent
+ * subranges after the one it found, so btrfs_find_delalloc_in_range() keeps
+ * looping while it gets adjacent subranges, and merging them together.
  */
 static bool find_delalloc_subrange(struct btrfs_inode *inode, u64 start, u64 end,
 				   u64 *delalloc_start_ret, u64 *delalloc_end_ret)
@@ -3740,8 +3740,8 @@ static bool find_delalloc_subrange(struct btrfs_inode *inode, u64 start, u64 end
  * if so it sets @delalloc_start_ret and @delalloc_end_ret with the start and
  * end offsets of the subrange.
  */
-static bool have_delalloc_in_range(struct btrfs_inode *inode, u64 start, u64 end,
-				   u64 *delalloc_start_ret, u64 *delalloc_end_ret)
+bool btrfs_find_delalloc_in_range(struct btrfs_inode *inode, u64 start, u64 end,
+				  u64 *delalloc_start_ret, u64 *delalloc_end_ret)
 {
 	u64 cur_offset = round_down(start, inode->root->fs_info->sectorsize);
 	u64 prev_delalloc_end = 0;
@@ -3804,8 +3804,8 @@ static bool find_desired_extent_in_hole(struct btrfs_inode *inode, int whence,
 	u64 delalloc_end;
 	bool delalloc;
 
-	delalloc = have_delalloc_in_range(inode, start, end, &delalloc_start,
-					  &delalloc_end);
+	delalloc = btrfs_find_delalloc_in_range(inode, start, end,
+						&delalloc_start, &delalloc_end);
 	if (delalloc && whence == SEEK_DATA) {
 		*start_ret = delalloc_start;
 		return true;

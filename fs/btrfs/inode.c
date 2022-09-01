@@ -7060,133 +7060,6 @@ out:
 	return em;
 }
 
-struct extent_map *btrfs_get_extent_fiemap(struct btrfs_inode *inode,
-					   u64 start, u64 len)
-{
-	struct extent_map *em;
-	struct extent_map *hole_em = NULL;
-	u64 delalloc_start = start;
-	u64 end;
-	u64 delalloc_len;
-	u64 delalloc_end;
-	int err = 0;
-
-	em = btrfs_get_extent(inode, NULL, 0, start, len);
-	if (IS_ERR(em))
-		return em;
-	/*
-	 * If our em maps to:
-	 * - a hole or
-	 * - a pre-alloc extent,
-	 * there might actually be delalloc bytes behind it.
-	 */
-	if (em->block_start != EXTENT_MAP_HOLE &&
-	    !test_bit(EXTENT_FLAG_PREALLOC, &em->flags))
-		return em;
-	else
-		hole_em = em;
-
-	/* check to see if we've wrapped (len == -1 or similar) */
-	end = start + len;
-	if (end < start)
-		end = (u64)-1;
-	else
-		end -= 1;
-
-	em = NULL;
-
-	/* ok, we didn't find anything, lets look for delalloc */
-	delalloc_len = count_range_bits(&inode->io_tree, &delalloc_start,
-				 end, len, EXTENT_DELALLOC, 1);
-	delalloc_end = delalloc_start + delalloc_len;
-	if (delalloc_end < delalloc_start)
-		delalloc_end = (u64)-1;
-
-	/*
-	 * We didn't find anything useful, return the original results from
-	 * get_extent()
-	 */
-	if (delalloc_start > end || delalloc_end <= start) {
-		em = hole_em;
-		hole_em = NULL;
-		goto out;
-	}
-
-	/*
-	 * Adjust the delalloc_start to make sure it doesn't go backwards from
-	 * the start they passed in
-	 */
-	delalloc_start = max(start, delalloc_start);
-	delalloc_len = delalloc_end - delalloc_start;
-
-	if (delalloc_len > 0) {
-		u64 hole_start;
-		u64 hole_len;
-		const u64 hole_end = extent_map_end(hole_em);
-
-		em = alloc_extent_map();
-		if (!em) {
-			err = -ENOMEM;
-			goto out;
-		}
-
-		ASSERT(hole_em);
-		/*
-		 * When btrfs_get_extent can't find anything it returns one
-		 * huge hole
-		 *
-		 * Make sure what it found really fits our range, and adjust to
-		 * make sure it is based on the start from the caller
-		 */
-		if (hole_end <= start || hole_em->start > end) {
-		       free_extent_map(hole_em);
-		       hole_em = NULL;
-		} else {
-		       hole_start = max(hole_em->start, start);
-		       hole_len = hole_end - hole_start;
-		}
-
-		if (hole_em && delalloc_start > hole_start) {
-			/*
-			 * Our hole starts before our delalloc, so we have to
-			 * return just the parts of the hole that go until the
-			 * delalloc starts
-			 */
-			em->len = min(hole_len, delalloc_start - hole_start);
-			em->start = hole_start;
-			em->orig_start = hole_start;
-			/*
-			 * Don't adjust block start at all, it is fixed at
-			 * EXTENT_MAP_HOLE
-			 */
-			em->block_start = hole_em->block_start;
-			em->block_len = hole_len;
-			if (test_bit(EXTENT_FLAG_PREALLOC, &hole_em->flags))
-				set_bit(EXTENT_FLAG_PREALLOC, &em->flags);
-		} else {
-			/*
-			 * Hole is out of passed range or it starts after
-			 * delalloc range
-			 */
-			em->start = delalloc_start;
-			em->len = delalloc_len;
-			em->orig_start = delalloc_start;
-			em->block_start = EXTENT_MAP_DELALLOC;
-			em->block_len = delalloc_len;
-		}
-	} else {
-		return hole_em;
-	}
-out:
-
-	free_extent_map(hole_em);
-	if (err) {
-		free_extent_map(em);
-		return ERR_PTR(err);
-	}
-	return em;
-}
-
 static struct extent_map *btrfs_create_dio_extent(struct btrfs_inode *inode,
 						  const u64 start,
 						  const u64 len,
@@ -8259,15 +8132,14 @@ static int btrfs_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 	 * in the compression of data (in an async thread) and will return
 	 * before the compression is done and writeback is started. A second
 	 * filemap_fdatawrite_range() is needed to wait for the compression to
-	 * complete and writeback to start. Without this, our user is very
-	 * likely to get stale results, because the extents and extent maps for
-	 * delalloc regions are only allocated when writeback starts.
+	 * complete and writeback to start. We also need to wait for ordered
+	 * extents to complete, because our fiemap implementation uses mainly
+	 * file extent items to list the extents, searching for extent maps
+	 * only for file ranges with holes or prealloc extents to figure out
+	 * if we have delalloc in those ranges.
 	 */
 	if (fieinfo->fi_flags & FIEMAP_FLAG_SYNC) {
-		ret = btrfs_fdatawrite_range(inode, 0, LLONG_MAX);
-		if (ret)
-			return ret;
-		ret = filemap_fdatawait_range(inode->i_mapping, 0, LLONG_MAX);
+		ret = btrfs_wait_ordered_range(inode, 0, LLONG_MAX);
 		if (ret)
 			return ret;
 	}

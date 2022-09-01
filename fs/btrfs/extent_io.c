@@ -5283,42 +5283,6 @@ next:
 }
 
 /*
- * helper function for fiemap, which doesn't want to see any holes.
- * This maps until we find something past 'last'
- */
-static struct extent_map *get_extent_skip_holes(struct btrfs_inode *inode,
-						u64 offset, u64 last)
-{
-	u64 sectorsize = btrfs_inode_sectorsize(inode);
-	struct extent_map *em;
-	u64 len;
-
-	if (offset >= last)
-		return NULL;
-
-	while (1) {
-		len = last - offset;
-		if (len == 0)
-			break;
-		len = ALIGN(len, sectorsize);
-		em = btrfs_get_extent_fiemap(inode, offset, len);
-		if (IS_ERR(em))
-			return em;
-
-		/* if this isn't a hole return it */
-		if (em->block_start != EXTENT_MAP_HOLE)
-			return em;
-
-		/* this is a hole, advance to the next extent */
-		offset = extent_map_end(em);
-		free_extent_map(em);
-		if (offset >= last)
-			break;
-	}
-	return NULL;
-}
-
-/*
  * To cache previous fiemap extent
  *
  * Will be used for merging fiemap extent
@@ -5347,6 +5311,9 @@ static int emit_fiemap_extent(struct fiemap_extent_info *fieinfo,
 {
 	int ret = 0;
 
+	/* Set at the end of extent_fiemap(). */
+	ASSERT((flags & FIEMAP_EXTENT_LAST) == 0);
+
 	if (!cache->cached)
 		goto assign;
 
@@ -5370,16 +5337,13 @@ static int emit_fiemap_extent(struct fiemap_extent_info *fieinfo,
 	 *    So truly compressed (physical size smaller than logical size)
 	 *    extents won't get merged with each other
 	 *
-	 * 3) Share same flags except FIEMAP_EXTENT_LAST
-	 *    So regular extent won't get merged with prealloc extent
+	 * 3) Share same flags
 	 */
 	if (cache->offset + cache->len  == offset &&
 	    cache->phys + cache->len == phys  &&
-	    (cache->flags & ~FIEMAP_EXTENT_LAST) ==
-			(flags & ~FIEMAP_EXTENT_LAST)) {
+	    cache->flags == flags) {
 		cache->len += len;
-		cache->flags |= flags;
-		goto try_submit_last;
+		return 0;
 	}
 
 	/* Not mergeable, need to submit cached one */
@@ -5394,13 +5358,8 @@ assign:
 	cache->phys = phys;
 	cache->len = len;
 	cache->flags = flags;
-try_submit_last:
-	if (cache->flags & FIEMAP_EXTENT_LAST) {
-		ret = fiemap_fill_next_extent(fieinfo, cache->offset,
-				cache->phys, cache->len, cache->flags);
-		cache->cached = false;
-	}
-	return ret;
+
+	return 0;
 }
 
 /*
@@ -5430,20 +5389,314 @@ static int emit_last_fiemap_cache(struct fiemap_extent_info *fieinfo,
 	return ret;
 }
 
+static int fiemap_next_leaf_item(struct btrfs_inode *inode, struct btrfs_path *path)
+{
+	struct extent_buffer *clone;
+	struct btrfs_key key;
+	int slot;
+	int ret;
+
+	path->slots[0]++;
+	if (path->slots[0] < btrfs_header_nritems(path->nodes[0]))
+		return 0;
+
+	ret = btrfs_next_leaf(inode->root, path);
+	if (ret != 0)
+		return ret;
+
+	/*
+	 * Don't bother with cloning if there are no more file extent items for
+	 * our inode.
+	 */
+	btrfs_item_key_to_cpu(path->nodes[0], &key, path->slots[0]);
+	if (key.objectid != btrfs_ino(inode) || key.type != BTRFS_EXTENT_DATA_KEY)
+		return 1;
+
+	/* See the comment at fiemap_search_slot() about why we clone. */
+	clone = btrfs_clone_extent_buffer(path->nodes[0]);
+	if (!clone)
+		return -ENOMEM;
+
+	slot = path->slots[0];
+	btrfs_release_path(path);
+	path->nodes[0] = clone;
+	path->slots[0] = slot;
+
+	return 0;
+}
+
+/*
+ * Search for the first file extent item that starts at a given file offset or
+ * the one that starts immediately before that offset.
+ * Returns: 0 on success, < 0 on error, 1 if not found.
+ */
+static int fiemap_search_slot(struct btrfs_inode *inode, struct btrfs_path *path,
+			      u64 file_offset)
+{
+	const u64 ino = btrfs_ino(inode);
+	struct btrfs_root *root = inode->root;
+	struct extent_buffer *clone;
+	struct btrfs_key key;
+	int slot;
+	int ret;
+
+	key.objectid = ino;
+	key.type = BTRFS_EXTENT_DATA_KEY;
+	key.offset = file_offset;
+
+	ret = btrfs_search_slot(NULL, root, &key, path, 0, 0);
+	if (ret < 0)
+		return ret;
+
+	if (ret > 0 && path->slots[0] > 0) {
+		btrfs_item_key_to_cpu(path->nodes[0], &key, path->slots[0] - 1);
+		if (key.objectid == ino && key.type == BTRFS_EXTENT_DATA_KEY)
+			path->slots[0]--;
+	}
+
+	if (path->slots[0] >= btrfs_header_nritems(path->nodes[0])) {
+		ret = btrfs_next_leaf(root, path);
+		if (ret != 0)
+			return ret;
+
+		btrfs_item_key_to_cpu(path->nodes[0], &key, path->slots[0]);
+		if (key.objectid != ino || key.type != BTRFS_EXTENT_DATA_KEY)
+			return 1;
+	}
+
+	/*
+	 * We clone the leaf and use it during fiemap. This is because while
+	 * using the leaf we do expensive things like checking if an extent is
+	 * shared, which can take a long time. In order to prevent blocking
+	 * other tasks for too long, we use a clone of the leaf. We have locked
+	 * the file range in the inode's io tree, so we know none of our file
+	 * extent items can change. This way we avoid blocking other tasks that
+	 * want to insert items for other inodes in the same leaf or b+tree
+	 * rebalance operations (triggered for example when someone is trying
+	 * to push items into this leaf when trying to insert an item in a
+	 * neighbour leaf).
+	 * We also need the private clone because holding a read lock on an
+	 * extent buffer of the subvolume's b+tree will make lockdep unhappy
+	 * when we call fiemap_fill_next_extent(), because that may cause a page
+	 * fault when filling the user space buffer with fiemap data.
+	 */
+	clone = btrfs_clone_extent_buffer(path->nodes[0]);
+	if (!clone)
+		return -ENOMEM;
+
+	slot = path->slots[0];
+	btrfs_release_path(path);
+	path->nodes[0] = clone;
+	path->slots[0] = slot;
+
+	return 0;
+}
+
+/*
+ * Process a range which is a hole or a prealloc extent in the inode's subvolume
+ * btree. If @disk_bytenr is 0, we are dealing with a hole, otherwise a prealloc
+ * extent. The end offset (@end) is inclusive.
+ */
+static int fiemap_process_hole(struct btrfs_inode *inode,
+			       struct fiemap_extent_info *fieinfo,
+			       struct fiemap_cache *cache,
+			       struct btrfs_backref_shared_cache *backref_cache,
+			       u64 disk_bytenr, u64 extent_offset,
+			       u64 extent_gen,
+			       struct ulist *roots, struct ulist *tmp_ulist,
+			       u64 start, u64 end)
+{
+	const u64 i_size = i_size_read(&inode->vfs_inode);
+	const u64 ino = btrfs_ino(inode);
+	u64 cur_offset = start;
+	u64 last_delalloc_end = 0;
+	u32 prealloc_flags = FIEMAP_EXTENT_UNWRITTEN;
+	bool checked_extent_shared = false;
+	int ret;
+
+	/*
+	 * There can be no delalloc past i_size, so don't waste time looking for
+	 * it beyond i_size.
+	 */
+	while (cur_offset < end && cur_offset < i_size) {
+		u64 delalloc_start;
+		u64 delalloc_end;
+		u64 prealloc_start;
+		u64 prealloc_len = 0;
+		bool delalloc;
+
+		delalloc = btrfs_find_delalloc_in_range(inode, cur_offset, end,
+							&delalloc_start,
+							&delalloc_end);
+		if (!delalloc)
+			break;
+
+		/*
+		 * If this is a prealloc extent we have to report every section
+		 * of it that has no delalloc.
+		 */
+		if (disk_bytenr != 0) {
+			if (last_delalloc_end == 0) {
+				prealloc_start = start;
+				prealloc_len = delalloc_start - start;
+			} else {
+				prealloc_start = last_delalloc_end + 1;
+				prealloc_len = delalloc_start - prealloc_start;
+			}
+		}
+
+		if (prealloc_len > 0) {
+			if (!checked_extent_shared && fieinfo->fi_extents_max) {
+				ret = btrfs_is_data_extent_shared(inode->root,
+							  ino, disk_bytenr,
+							  extent_gen, roots,
+							  tmp_ulist,
+							  backref_cache);
+				if (ret < 0)
+					return ret;
+				else if (ret > 0)
+					prealloc_flags |= FIEMAP_EXTENT_SHARED;
+
+				checked_extent_shared = true;
+			}
+			ret = emit_fiemap_extent(fieinfo, cache, prealloc_start,
+						 disk_bytenr + extent_offset,
+						 prealloc_len, prealloc_flags);
+			if (ret)
+				return ret;
+			extent_offset += prealloc_len;
+		}
+
+		ret = emit_fiemap_extent(fieinfo, cache, delalloc_start, 0,
+					 delalloc_end + 1 - delalloc_start,
+					 FIEMAP_EXTENT_DELALLOC |
+					 FIEMAP_EXTENT_UNKNOWN);
+		if (ret)
+			return ret;
+
+		last_delalloc_end = delalloc_end;
+		cur_offset = delalloc_end + 1;
+		extent_offset += cur_offset - delalloc_start;
+		cond_resched();
+	}
+
+	/*
+	 * Either we found no delalloc for the whole prealloc extent or we have
+	 * a prealloc extent that spans i_size or starts at or after i_size.
+	 */
+	if (disk_bytenr != 0 && last_delalloc_end < end) {
+		u64 prealloc_start;
+		u64 prealloc_len;
+
+		if (last_delalloc_end == 0) {
+			prealloc_start = start;
+			prealloc_len = end + 1 - start;
+		} else {
+			prealloc_start = last_delalloc_end + 1;
+			prealloc_len = end + 1 - prealloc_start;
+		}
+
+		if (!checked_extent_shared && fieinfo->fi_extents_max) {
+			ret = btrfs_is_data_extent_shared(inode->root,
+							  ino, disk_bytenr,
+							  extent_gen, roots,
+							  tmp_ulist,
+							  backref_cache);
+			if (ret < 0)
+				return ret;
+			else if (ret > 0)
+				prealloc_flags |= FIEMAP_EXTENT_SHARED;
+		}
+		ret = emit_fiemap_extent(fieinfo, cache, prealloc_start,
+					 disk_bytenr + extent_offset,
+					 prealloc_len, prealloc_flags);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
+static int fiemap_find_last_extent_offset(struct btrfs_inode *inode,
+					  struct btrfs_path *path,
+					  u64 *last_extent_end_ret)
+{
+	const u64 ino = btrfs_ino(inode);
+	struct btrfs_root *root = inode->root;
+	struct extent_buffer *leaf;
+	struct btrfs_file_extent_item *ei;
+	struct btrfs_key key;
+	u64 disk_bytenr;
+	int ret;
+
+	/*
+	 * Lookup the last file extent. We're not using i_size here because
+	 * there might be preallocation past i_size.
+	 */
+	ret = btrfs_lookup_file_extent(NULL, root, path, ino, (u64)-1, 0);
+	/* There can't be a file extent item at offset (u64)-1 */
+	ASSERT(ret != 0);
+	if (ret < 0)
+		return ret;
+
+	/*
+	 * For a non-existing key, btrfs_search_slot() always leaves us at a
+	 * slot > 0, except if the btree is empty, which is impossible because
+	 * at least it has the inode item for this inode and all the items for
+	 * the root inode 256.
+	 */
+	ASSERT(path->slots[0] > 0);
+	path->slots[0]--;
+	leaf = path->nodes[0];
+	btrfs_item_key_to_cpu(leaf, &key, path->slots[0]);
+	if (key.objectid != ino || key.type != BTRFS_EXTENT_DATA_KEY) {
+		/* No file extent items in the subvolume tree. */
+		*last_extent_end_ret = 0;
+		return 0;
+	}
+
+	/*
+	 * For an inline extent, the disk_bytenr is where inline data starts at,
+	 * so first check if we have an inline extent item before checking if we
+	 * have an implicit hole (disk_bytenr == 0).
+	 */
+	ei = btrfs_item_ptr(leaf, path->slots[0], struct btrfs_file_extent_item);
+	if (btrfs_file_extent_type(leaf, ei) == BTRFS_FILE_EXTENT_INLINE) {
+		*last_extent_end_ret = btrfs_file_extent_end(path);
+		return 0;
+	}
+
+	/*
+	 * Find the last file extent item that is not a hole (when NO_HOLES is
+	 * not enabled). This should take at most 2 iterations in the worst
+	 * case: we have one hole file extent item at slot 0 of a leaf and
+	 * another hole file extent item as the last item in the previous leaf.
+	 * This is because we merge file extent items that represent holes.
+	 */
+	disk_bytenr = btrfs_file_extent_disk_bytenr(leaf, ei);
+	while (disk_bytenr == 0) {
+		ret = btrfs_previous_item(root, path, ino, BTRFS_EXTENT_DATA_KEY);
+		if (ret < 0) {
+			return ret;
+		} else if (ret > 0) {
+			/* No file extent items that are not holes. */
+			*last_extent_end_ret = 0;
+			return 0;
+		}
+		leaf = path->nodes[0];
+		ei = btrfs_item_ptr(leaf, path->slots[0],
+				    struct btrfs_file_extent_item);
+		disk_bytenr = btrfs_file_extent_disk_bytenr(leaf, ei);
+	}
+
+	*last_extent_end_ret = btrfs_file_extent_end(path);
+	return 0;
+}
+
 int extent_fiemap(struct btrfs_inode *inode, struct fiemap_extent_info *fieinfo,
 		  u64 start, u64 len)
 {
-	int ret = 0;
-	u64 off;
-	u64 max = start + len;
-	u32 flags = 0;
-	u32 found_type;
-	u64 last;
-	u64 last_for_get_extent = 0;
-	u64 disko = 0;
-	u64 isize = i_size_read(&inode->vfs_inode);
-	struct btrfs_key found_key;
-	struct extent_map *em = NULL;
+	const u64 ino = btrfs_ino(inode);
 	struct extent_state *cached_state = NULL;
 	struct btrfs_path *path;
 	struct btrfs_root *root = inode->root;
@@ -5451,10 +5704,12 @@ int extent_fiemap(struct btrfs_inode *inode, struct fiemap_extent_info *fieinfo,
 	struct btrfs_backref_shared_cache *backref_cache;
 	struct ulist *roots;
 	struct ulist *tmp_ulist;
-	int end = 0;
-	u64 em_start = 0;
-	u64 em_len = 0;
-	u64 em_end = 0;
+	u64 last_extent_end;
+	u64 prev_extent_end;
+	u64 lockstart;
+	u64 lockend;
+	bool stopped = false;
+	int ret;
 
 	backref_cache = kzalloc(sizeof(*backref_cache), GFP_KERNEL);
 	path = btrfs_alloc_path();
@@ -5462,197 +5717,205 @@ int extent_fiemap(struct btrfs_inode *inode, struct fiemap_extent_info *fieinfo,
 	tmp_ulist = ulist_alloc(GFP_KERNEL);
 	if (!backref_cache || !path || !roots || !tmp_ulist) {
 		ret = -ENOMEM;
-		goto out_free_ulist;
+		goto out;
 	}
 
-	/*
-	 * We can't initialize that to 'start' as this could miss extents due
-	 * to extent item merging
-	 */
-	off = 0;
-	start = round_down(start, btrfs_inode_sectorsize(inode));
-	len = round_up(max, btrfs_inode_sectorsize(inode)) - start;
+	lockstart = round_down(start, btrfs_inode_sectorsize(inode));
+	lockend = round_up(start + len, btrfs_inode_sectorsize(inode));
+	prev_extent_end = lockstart;
 
-	/*
-	 * lookup the last file extent.  We're not using i_size here
-	 * because there might be preallocation past i_size
-	 */
-	ret = btrfs_lookup_file_extent(NULL, root, path, btrfs_ino(inode), -1,
-				       0);
-	if (ret < 0) {
-		goto out_free_ulist;
-	} else {
-		WARN_ON(!ret);
-		if (ret == 1)
-			ret = 0;
-	}
+	lock_extent_bits(&inode->io_tree, lockstart, lockend, &cached_state);
 
-	path->slots[0]--;
-	btrfs_item_key_to_cpu(path->nodes[0], &found_key, path->slots[0]);
-	found_type = found_key.type;
-
-	/* No extents, but there might be delalloc bits */
-	if (found_key.objectid != btrfs_ino(inode) ||
-	    found_type != BTRFS_EXTENT_DATA_KEY) {
-		/* have to trust i_size as the end */
-		last = (u64)-1;
-		last_for_get_extent = isize;
-	} else {
-		/*
-		 * remember the start of the last extent.  There are a
-		 * bunch of different factors that go into the length of the
-		 * extent, so its much less complex to remember where it started
-		 */
-		last = found_key.offset;
-		last_for_get_extent = last + 1;
-	}
+	ret = fiemap_find_last_extent_offset(inode, path, &last_extent_end);
+	if (ret < 0)
+		goto out_unlock;
 	btrfs_release_path(path);
 
-	/*
-	 * we might have some extents allocated but more delalloc past those
-	 * extents.  so, we trust isize unless the start of the last extent is
-	 * beyond isize
-	 */
-	if (last < isize) {
-		last = (u64)-1;
-		last_for_get_extent = isize;
+	path->reada = READA_FORWARD;
+	ret = fiemap_search_slot(inode, path, lockstart);
+	if (ret < 0) {
+		goto out_unlock;
+	} else if (ret > 0) {
+		/*
+		 * No file extent item found, but we may have delalloc between
+		 * the current offset and i_size. So check for that.
+		 */
+		ret = 0;
+		goto check_eof_delalloc;
 	}
 
-	lock_extent_bits(&inode->io_tree, start, start + len - 1,
-			 &cached_state);
+	while (prev_extent_end < lockend) {
+		struct extent_buffer *leaf = path->nodes[0];
+		struct btrfs_file_extent_item *ei;
+		struct btrfs_key key;
+		u64 extent_end;
+		u64 extent_len;
+		u64 extent_offset = 0;
+		u64 extent_gen;
+		u64 disk_bytenr = 0;
+		u64 flags = 0;
+		int extent_type;
+		u8 compression;
 
-	em = get_extent_skip_holes(inode, start, last_for_get_extent);
-	if (!em)
-		goto out;
-	if (IS_ERR(em)) {
-		ret = PTR_ERR(em);
-		goto out;
-	}
-
-	while (!end) {
-		u64 offset_in_extent = 0;
-
-		/* break if the extent we found is outside the range */
-		if (em->start >= max || extent_map_end(em) < off)
+		btrfs_item_key_to_cpu(leaf, &key, path->slots[0]);
+		if (key.objectid != ino || key.type != BTRFS_EXTENT_DATA_KEY)
 			break;
 
-		/*
-		 * get_extent may return an extent that starts before our
-		 * requested range.  We have to make sure the ranges
-		 * we return to fiemap always move forward and don't
-		 * overlap, so adjust the offsets here
-		 */
-		em_start = max(em->start, off);
+		extent_end = btrfs_file_extent_end(path);
 
 		/*
-		 * record the offset from the start of the extent
-		 * for adjusting the disk offset below.  Only do this if the
-		 * extent isn't compressed since our in ram offset may be past
-		 * what we have actually allocated on disk.
+		 * The first iteration can leave us at an extent item that ends
+		 * before our range's start. Move to the next item.
 		 */
-		if (!test_bit(EXTENT_FLAG_COMPRESSED, &em->flags))
-			offset_in_extent = em_start - em->start;
-		em_end = extent_map_end(em);
-		em_len = em_end - em_start;
-		flags = 0;
-		if (em->block_start < EXTENT_MAP_LAST_BYTE)
-			disko = em->block_start + offset_in_extent;
-		else
-			disko = 0;
+		if (extent_end <= lockstart)
+			goto next_item;
 
-		/*
-		 * bump off for our next call to get_extent
-		 */
-		off = extent_map_end(em);
-		if (off >= max)
-			end = 1;
+		/* We have in implicit hole (NO_HOLES feature enabled). */
+		if (prev_extent_end < key.offset) {
+			const u64 range_end = min(key.offset, lockend) - 1;
 
-		if (em->block_start == EXTENT_MAP_INLINE) {
-			flags |= (FIEMAP_EXTENT_DATA_INLINE |
-				  FIEMAP_EXTENT_NOT_ALIGNED);
-		} else if (em->block_start == EXTENT_MAP_DELALLOC) {
-			flags |= (FIEMAP_EXTENT_DELALLOC |
-				  FIEMAP_EXTENT_UNKNOWN);
-		} else if (fieinfo->fi_extents_max) {
-			u64 extent_gen;
-			u64 bytenr = em->block_start -
-				(em->start - em->orig_start);
+			ret = fiemap_process_hole(inode, fieinfo, &cache,
+						  backref_cache, 0, 0, 0,
+						  roots, tmp_ulist,
+						  prev_extent_end, range_end);
+			if (ret < 0) {
+				goto out_unlock;
+			} else if (ret > 0) {
+				/* fiemap_fill_next_extent() told us to stop. */
+				stopped = true;
+				break;
+			}
 
-			/*
-			 * If two extent maps are merged, then their generation
-			 * is set to the maximum between their generations.
-			 * Otherwise its generation matches the one we have in
-			 * corresponding file extent item. If we have a merged
-			 * extent map, don't use its generation to speedup the
-			 * sharedness check below.
-			 */
-			if (test_bit(EXTENT_FLAG_MERGED, &em->flags))
-				extent_gen = 0;
-			else
-				extent_gen = em->generation;
-
-			/*
-			 * As btrfs supports shared space, this information
-			 * can be exported to userspace tools via
-			 * flag FIEMAP_EXTENT_SHARED.  If fi_extents_max == 0
-			 * then we're just getting a count and we can skip the
-			 * lookup stuff.
-			 */
-			ret = btrfs_is_data_extent_shared(root, btrfs_ino(inode),
-							  bytenr, extent_gen,
-							  roots, tmp_ulist,
-							  backref_cache);
-			if (ret < 0)
-				goto out_free;
-			if (ret)
-				flags |= FIEMAP_EXTENT_SHARED;
-			ret = 0;
+			/* We've reached the end of the fiemap range, stop. */
+			if (key.offset >= lockend) {
+				stopped = true;
+				break;
+			}
 		}
-		if (test_bit(EXTENT_FLAG_COMPRESSED, &em->flags))
+
+		extent_len = extent_end - key.offset;
+		ei = btrfs_item_ptr(leaf, path->slots[0],
+				    struct btrfs_file_extent_item);
+		compression = btrfs_file_extent_compression(leaf, ei);
+		extent_type = btrfs_file_extent_type(leaf, ei);
+		extent_gen = btrfs_file_extent_generation(leaf, ei);
+
+		if (extent_type != BTRFS_FILE_EXTENT_INLINE) {
+			disk_bytenr = btrfs_file_extent_disk_bytenr(leaf, ei);
+			if (compression == BTRFS_COMPRESS_NONE)
+				extent_offset = btrfs_file_extent_offset(leaf, ei);
+		}
+
+		if (compression != BTRFS_COMPRESS_NONE)
 			flags |= FIEMAP_EXTENT_ENCODED;
-		if (test_bit(EXTENT_FLAG_PREALLOC, &em->flags))
-			flags |= FIEMAP_EXTENT_UNWRITTEN;
 
-		free_extent_map(em);
-		em = NULL;
-		if ((em_start >= last) || em_len == (u64)-1 ||
-		   (last == (u64)-1 && isize <= em_end)) {
-			flags |= FIEMAP_EXTENT_LAST;
-			end = 1;
+		if (extent_type == BTRFS_FILE_EXTENT_INLINE) {
+			flags |= FIEMAP_EXTENT_DATA_INLINE;
+			flags |= FIEMAP_EXTENT_NOT_ALIGNED;
+			ret = emit_fiemap_extent(fieinfo, &cache, key.offset, 0,
+						 extent_len, flags);
+		} else if (extent_type == BTRFS_FILE_EXTENT_PREALLOC) {
+			ret = fiemap_process_hole(inode, fieinfo, &cache,
+						  backref_cache,
+						  disk_bytenr, extent_offset,
+						  extent_gen, roots, tmp_ulist,
+						  key.offset, extent_end - 1);
+		} else if (disk_bytenr == 0) {
+			/* We have an explicit hole. */
+			ret = fiemap_process_hole(inode, fieinfo, &cache,
+						  backref_cache, 0, 0, 0,
+						  roots, tmp_ulist,
+						  key.offset, extent_end - 1);
+		} else {
+			/* We have a regular extent. */
+			if (fieinfo->fi_extents_max) {
+				ret = btrfs_is_data_extent_shared(root, ino,
+								  disk_bytenr,
+								  extent_gen,
+								  roots,
+								  tmp_ulist,
+								  backref_cache);
+				if (ret < 0)
+					goto out_unlock;
+				else if (ret > 0)
+					flags |= FIEMAP_EXTENT_SHARED;
+			}
+
+			ret = emit_fiemap_extent(fieinfo, &cache, key.offset,
+						 disk_bytenr + extent_offset,
+						 extent_len, flags);
 		}
 
-		/* now scan forward to see if this is really the last extent. */
-		em = get_extent_skip_holes(inode, off, last_for_get_extent);
-		if (IS_ERR(em)) {
-			ret = PTR_ERR(em);
-			goto out;
-		}
-		if (!em) {
-			flags |= FIEMAP_EXTENT_LAST;
-			end = 1;
-		}
-		ret = emit_fiemap_extent(fieinfo, &cache, em_start, disko,
-					   em_len, flags);
-		if (ret) {
-			if (ret == 1)
-				ret = 0;
-			goto out_free;
+		if (ret < 0) {
+			goto out_unlock;
+		} else if (ret > 0) {
+			/* fiemap_fill_next_extent() told us to stop. */
+			stopped = true;
+			break;
 		}
 
+		prev_extent_end = extent_end;
+next_item:
 		if (fatal_signal_pending(current)) {
 			ret = -EINTR;
-			goto out_free;
+			goto out_unlock;
+		}
+
+		ret = fiemap_next_leaf_item(inode, path);
+		if (ret < 0) {
+			goto out_unlock;
+		} else if (ret > 0) {
+			/* No more file extent items for this inode. */
+			break;
+		}
+		cond_resched();
+	}
+
+check_eof_delalloc:
+	/*
+	 * Release (and free) the path before emitting any final entries to
+	 * fiemap_fill_next_extent() to keep lockdep happy. This is because
+	 * once we find no more file extent items exist, we may have a
+	 * non-cloned leaf, and fiemap_fill_next_extent() can trigger page
+	 * faults when copying data to the user space buffer.
+	 */
+	btrfs_free_path(path);
+	path = NULL;
+
+	if (!stopped && prev_extent_end < lockend) {
+		ret = fiemap_process_hole(inode, fieinfo, &cache, backref_cache,
+					  0, 0, 0, roots, tmp_ulist,
+					  prev_extent_end, lockend - 1);
+		if (ret < 0)
+			goto out_unlock;
+		prev_extent_end = lockend;
+	}
+
+	if (cache.cached && cache.offset + cache.len >= last_extent_end) {
+		const u64 i_size = i_size_read(&inode->vfs_inode);
+
+		if (prev_extent_end < i_size) {
+			u64 delalloc_start;
+			u64 delalloc_end;
+			bool delalloc;
+
+			delalloc = btrfs_find_delalloc_in_range(inode,
+								prev_extent_end,
+								i_size - 1,
+								&delalloc_start,
+								&delalloc_end);
+			if (!delalloc)
+				cache.flags |= FIEMAP_EXTENT_LAST;
+		} else {
+			cache.flags |= FIEMAP_EXTENT_LAST;
 		}
 	}
-out_free:
-	if (!ret)
-		ret = emit_last_fiemap_cache(fieinfo, &cache);
-	free_extent_map(em);
-out:
-	unlock_extent_cached(&inode->io_tree, start, start + len - 1,
-			     &cached_state);
 
-out_free_ulist:
+	ret = emit_last_fiemap_cache(fieinfo, &cache);
+
+out_unlock:
+	unlock_extent_cached(&inode->io_tree, lockstart, lockend, &cached_state);
+out:
 	kfree(backref_cache);
 	btrfs_free_path(path);
 	ulist_free(roots);
