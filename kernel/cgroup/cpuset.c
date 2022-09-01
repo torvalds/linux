@@ -742,22 +742,6 @@ static int validate_change(struct cpuset *cur, struct cpuset *trial)
 	par = parent_cs(cur);
 
 	/*
-	 * If either I or some sibling (!= me) is exclusive, we can't
-	 * overlap
-	 */
-	ret = -EINVAL;
-	cpuset_for_each_child(c, css, par) {
-		if ((is_cpu_exclusive(trial) || is_cpu_exclusive(c)) &&
-		    c != cur &&
-		    cpumask_intersects(trial->cpus_allowed, c->cpus_allowed))
-			goto out;
-		if ((is_mem_exclusive(trial) || is_mem_exclusive(c)) &&
-		    c != cur &&
-		    nodes_intersects(trial->mems_allowed, c->mems_allowed))
-			goto out;
-	}
-
-	/*
 	 * Cpusets with tasks - existing or newly being attached - can't
 	 * be changed to have empty cpus_allowed or mems_allowed.
 	 */
@@ -780,6 +764,22 @@ static int validate_change(struct cpuset *cur, struct cpuset *trial)
 	    !cpuset_cpumask_can_shrink(cur->cpus_allowed,
 				       trial->cpus_allowed))
 		goto out;
+
+	/*
+	 * If either I or some sibling (!= me) is exclusive, we can't
+	 * overlap
+	 */
+	ret = -EINVAL;
+	cpuset_for_each_child(c, css, par) {
+		if ((is_cpu_exclusive(trial) || is_cpu_exclusive(c)) &&
+		    c != cur &&
+		    cpumask_intersects(trial->cpus_allowed, c->cpus_allowed))
+			goto out;
+		if ((is_mem_exclusive(trial) || is_mem_exclusive(c)) &&
+		    c != cur &&
+		    nodes_intersects(trial->mems_allowed, c->mems_allowed))
+			goto out;
+	}
 
 	ret = 0;
 out:
