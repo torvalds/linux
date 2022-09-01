@@ -4238,7 +4238,7 @@ multi_overflow:
 		 *
 		 * case1:      bigmode               special reg cfg
 		 *  _________  max width:3072
-		 * | sensor0 | max size:1280*800*2  mode=0 index=0
+		 * | sensor0 | max size:1920*1080   mode=0 index=0
 		 * |_________|
 		 * |_sensor1_| max size:1280*800    mode=2 index=2
 		 * |_sensor2_| max size:1280*800    mode=2 index=3
@@ -4258,7 +4258,7 @@ multi_overflow:
 		if (k) {
 			is_bigmode = true;
 			if (k != 1 ||
-			    (hw->isp_size[idx1[0]].size > ISP32_VIR4_MAX_SIZE * 2)) {
+			    (hw->isp_size[idx1[0]].size > ISP32_VIR2_MAX_SIZE)) {
 				dev_warn(dev, "isp%d %dx%d over three vir isp max:1280x800\n",
 					 idx1[0], hw->isp_size[idx1[0]].w, hw->isp_size[idx1[0]].h);
 				hw->is_multi_overflow = true;
@@ -4284,16 +4284,16 @@ multi_overflow:
 		ispdev->multi_index = ispdev->dev_id;
 		ispdev->multi_mode = 1;
 		/* case0:      bigmode            nobigmode
-		 *  _________  max width:1920     max width:1920
-		 * | sensor0 | max size:1920*1080 max size:1920*1080
+		 *  _________  max width:1920     max width:960
+		 * | sensor0 | max size:1920*1080 max size:960*540
 		 * |_________|
-		 * | sensor1 | max size:1920*1080 max size:1920*1080
+		 * | sensor1 | max size:1920*1080 max size:960*540
 		 * |_________|
 		 *
 		 * case1:      bigmode              special reg cfg
 		 *  _________  max width:3072
-		 * | sensor0 | max size:1280*800*3 mode=0 index=0
-		 * |         |
+		 * | sensor0 | max size:           mode=0 index=0
+		 * |         | 1920*1080+1280*800
 		 * |_________|
 		 * |_sensor1_| max size:1280*800   mode=2 index=3
 		 *             max width:1280
@@ -4316,7 +4316,7 @@ multi_overflow:
 		if (k) {
 			is_bigmode = true;
 			if (k == 2 || j ||
-			    hw->isp_size[idx1[k - 1]].size > ISP32_VIR4_MAX_SIZE * 3) {
+			    hw->isp_size[idx1[k - 1]].size > (ISP32_VIR4_MAX_SIZE + ISP32_VIR2_MAX_SIZE)) {
 				dev_warn(dev, "isp%d %dx%d over two vir isp max:1920x1080\n",
 					 idx1[k - 1], hw->isp_size[idx1[k - 1]].w, hw->isp_size[idx1[k - 1]].h);
 				hw->is_multi_overflow = true;
