@@ -30,7 +30,7 @@ static void irq_debug_show_bits(struct seq_file *m, int ind, unsigned int state,
 static void irq_debug_show_masks(struct seq_file *m, struct irq_desc *desc)
 {
 	struct irq_data *data = irq_desc_get_irq_data(desc);
-	struct cpumask *msk;
+	const struct cpumask *msk;
 
 	msk = irq_data_get_affinity_mask(data);
 	seq_printf(m, "affinity: %*pbl\n", cpumask_pr_args(msk));

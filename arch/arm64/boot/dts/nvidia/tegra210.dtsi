@@ -1055,7 +1055,7 @@
 		interrupts = <GIC_SPI 49 IRQ_TYPE_LEVEL_HIGH>;
 		resets = <&tegra_car 142>;
 		reset-names = "padctl";
-		nvidia,pmc =  <&tegra_pmc>;
+		nvidia,pmc = <&tegra_pmc>;
 
 		status = "disabled";
 
@@ -1721,6 +1721,46 @@
 				reg = <0x702d3900 0x100>;
 				sound-name-prefix = "ADX2";
 				status = "disabled";
+			};
+
+			tegra_ope1: processing-engine@702d8000 {
+				compatible = "nvidia,tegra210-ope";
+				reg = <0x702d8000 0x100>;
+				#address-cells = <1>;
+				#size-cells = <1>;
+				ranges;
+				sound-name-prefix = "OPE1";
+				status = "disabled";
+
+				equalizer@702d8100 {
+					compatible = "nvidia,tegra210-peq";
+					reg = <0x702d8100 0x100>;
+				};
+
+				dynamic-range-compressor@702d8200 {
+					compatible = "nvidia,tegra210-mbdrc";
+					reg = <0x702d8200 0x200>;
+				};
+			};
+
+			tegra_ope2: processing-engine@702d8400 {
+				compatible = "nvidia,tegra210-ope";
+				reg = <0x702d8400 0x100>;
+				#address-cells = <1>;
+				#size-cells = <1>;
+				ranges;
+				sound-name-prefix = "OPE2";
+				status = "disabled";
+
+				equalizer@702d8500 {
+					compatible = "nvidia,tegra210-peq";
+					reg = <0x702d8500 0x100>;
+				};
+
+				dynamic-range-compressor@702d8600 {
+					compatible = "nvidia,tegra210-mbdrc";
+					reg = <0x702d8600 0x200>;
+				};
 			};
 
 			tegra_amixer: amixer@702dbb00 {

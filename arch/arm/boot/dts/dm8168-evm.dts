@@ -119,7 +119,7 @@
 
 	nand@0,0 {
 		compatible = "ti,omap2-nand";
-		linux,mtd-name= "micron,mt29f2g16aadwp";
+		linux,mtd-name = "micron,mt29f2g16aadwp";
 		reg = <0 0 4>; /* CS0, offset 0, IO size 4 */
 		interrupt-parent = <&gpmc>;
 		interrupts = <0 IRQ_TYPE_NONE>, /* fifoevent */

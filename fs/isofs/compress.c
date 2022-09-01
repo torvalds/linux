@@ -82,7 +82,7 @@ static loff_t zisofs_uncompress_block(struct inode *inode, loff_t block_start,
 		return 0;
 	}
 	haveblocks = isofs_get_blocks(inode, blocknum, bhs, needblocks);
-	ll_rw_block(REQ_OP_READ, 0, haveblocks, bhs);
+	ll_rw_block(REQ_OP_READ, haveblocks, bhs);
 
 	curbh = 0;
 	curpage = 0;

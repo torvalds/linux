@@ -737,7 +737,7 @@ static int dmz_write_mblock(struct dmz_metadata *zmd, struct dmz_mblock *mblk,
 /*
  * Read/write a metadata block.
  */
-static int dmz_rdwr_block(struct dmz_dev *dev, int op,
+static int dmz_rdwr_block(struct dmz_dev *dev, enum req_op op,
 			  sector_t block, struct page *page)
 {
 	struct bio *bio;
@@ -2045,7 +2045,8 @@ struct dm_zone *dmz_get_zone_for_reclaim(struct dmz_metadata *zmd,
  * allocated and used to map the chunk.
  * The zone returned will be set to the active state.
  */
-struct dm_zone *dmz_get_chunk_mapping(struct dmz_metadata *zmd, unsigned int chunk, int op)
+struct dm_zone *dmz_get_chunk_mapping(struct dmz_metadata *zmd,
+				      unsigned int chunk, enum req_op op)
 {
 	struct dmz_mblock *dmap_mblk = zmd->map_mblk[chunk >> DMZ_MAP_ENTRIES_SHIFT];
 	struct dmz_map *dmap = (struct dmz_map *) dmap_mblk->data;

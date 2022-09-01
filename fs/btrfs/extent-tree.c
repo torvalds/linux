@@ -1269,7 +1269,7 @@ static int btrfs_issue_discard(struct block_device *bdev, u64 start, u64 len,
 	return ret;
 }
 
-static int do_discard_extent(struct btrfs_io_stripe *stripe, u64 *bytes)
+static int do_discard_extent(struct btrfs_discard_stripe *stripe, u64 *bytes)
 {
 	struct btrfs_device *dev = stripe->dev;
 	struct btrfs_fs_info *fs_info = dev->fs_info;
@@ -1316,76 +1316,60 @@ int btrfs_discard_extent(struct btrfs_fs_info *fs_info, u64 bytenr,
 	u64 discarded_bytes = 0;
 	u64 end = bytenr + num_bytes;
 	u64 cur = bytenr;
-	struct btrfs_io_context *bioc = NULL;
 
 	/*
-	 * Avoid races with device replace and make sure our bioc has devices
-	 * associated to its stripes that don't go away while we are discarding.
+	 * Avoid races with device replace and make sure the devices in the
+	 * stripes don't go away while we are discarding.
 	 */
 	btrfs_bio_counter_inc_blocked(fs_info);
 	while (cur < end) {
-		struct btrfs_io_stripe *stripe;
+		struct btrfs_discard_stripe *stripes;
+		unsigned int num_stripes;
 		int i;
 
 		num_bytes = end - cur;
-		/* Tell the block device(s) that the sectors can be discarded */
-		ret = btrfs_map_block(fs_info, BTRFS_MAP_DISCARD, cur,
-				      &num_bytes, &bioc, 0);
-		/*
-		 * Error can be -ENOMEM, -ENOENT (no such chunk mapping) or
-		 * -EOPNOTSUPP. For any such error, @num_bytes is not updated,
-		 * thus we can't continue anyway.
-		 */
-		if (ret < 0)
-			goto out;
+		stripes = btrfs_map_discard(fs_info, cur, &num_bytes, &num_stripes);
+		if (IS_ERR(stripes)) {
+			ret = PTR_ERR(stripes);
+			if (ret == -EOPNOTSUPP)
+				ret = 0;
+			break;
+		}
 
-		stripe = bioc->stripes;
-		for (i = 0; i < bioc->num_stripes; i++, stripe++) {
+		for (i = 0; i < num_stripes; i++) {
+			struct btrfs_discard_stripe *stripe = stripes + i;
 			u64 bytes;
-			struct btrfs_device *device = stripe->dev;
 
-			if (!device->bdev) {
+			if (!stripe->dev->bdev) {
 				ASSERT(btrfs_test_opt(fs_info, DEGRADED));
 				continue;
 			}
 
-			if (!test_bit(BTRFS_DEV_STATE_WRITEABLE, &device->dev_state))
+			if (!test_bit(BTRFS_DEV_STATE_WRITEABLE,
+					&stripe->dev->dev_state))
 				continue;
 
 			ret = do_discard_extent(stripe, &bytes);
-			if (!ret) {
-				discarded_bytes += bytes;
-			} else if (ret != -EOPNOTSUPP) {
+			if (ret) {
 				/*
-				 * Logic errors or -ENOMEM, or -EIO, but
-				 * unlikely to happen.
-				 *
-				 * And since there are two loops, explicitly
-				 * go to out to avoid confusion.
+				 * Keep going if discard is not supported by the
+				 * device.
 				 */
-				btrfs_put_bioc(bioc);
-				goto out;
+				if (ret != -EOPNOTSUPP)
+					break;
+				ret = 0;
+			} else {
+				discarded_bytes += bytes;
 			}
-
-			/*
-			 * Just in case we get back EOPNOTSUPP for some reason,
-			 * just ignore the return value so we don't screw up
-			 * people calling discard_extent.
-			 */
-			ret = 0;
 		}
-		btrfs_put_bioc(bioc);
+		kfree(stripes);
+		if (ret)
+			break;
 		cur += num_bytes;
 	}
-out:
 	btrfs_bio_counter_dec(fs_info);
-
 	if (actual_bytes)
 		*actual_bytes = discarded_bytes;
-
-
-	if (ret == -EOPNOTSUPP)
-		ret = 0;
 	return ret;
 }
 
@@ -3981,23 +3965,63 @@ static void found_extent(struct find_free_extent_ctl *ffe_ctl,
 	}
 }
 
-static bool can_allocate_chunk(struct btrfs_fs_info *fs_info,
-			       struct find_free_extent_ctl *ffe_ctl)
+static int can_allocate_chunk_zoned(struct btrfs_fs_info *fs_info,
+				    struct find_free_extent_ctl *ffe_ctl)
+{
+	/* If we can activate new zone, just allocate a chunk and use it */
+	if (btrfs_can_activate_zone(fs_info->fs_devices, ffe_ctl->flags))
+		return 0;
+
+	/*
+	 * We already reached the max active zones. Try to finish one block
+	 * group to make a room for a new block group. This is only possible
+	 * for a data block group because btrfs_zone_finish() may need to wait
+	 * for a running transaction which can cause a deadlock for metadata
+	 * allocation.
+	 */
+	if (ffe_ctl->flags & BTRFS_BLOCK_GROUP_DATA) {
+		int ret = btrfs_zone_finish_one_bg(fs_info);
+
+		if (ret == 1)
+			return 0;
+		else if (ret < 0)
+			return ret;
+	}
+
+	/*
+	 * If we have enough free space left in an already active block group
+	 * and we can't activate any other zone now, do not allow allocating a
+	 * new chunk and let find_free_extent() retry with a smaller size.
+	 */
+	if (ffe_ctl->max_extent_size >= ffe_ctl->min_alloc_size)
+		return -ENOSPC;
+
+	/*
+	 * Even min_alloc_size is not left in any block groups. Since we cannot
+	 * activate a new block group, allocating it may not help. Let's tell a
+	 * caller to try again and hope it progress something by writing some
+	 * parts of the region. That is only possible for data block groups,
+	 * where a part of the region can be written.
+	 */
+	if (ffe_ctl->flags & BTRFS_BLOCK_GROUP_DATA)
+		return -EAGAIN;
+
+	/*
+	 * We cannot activate a new block group and no enough space left in any
+	 * block groups. So, allocating a new block group may not help. But,
+	 * there is nothing to do anyway, so let's go with it.
+	 */
+	return 0;
+}
+
+static int can_allocate_chunk(struct btrfs_fs_info *fs_info,
+			      struct find_free_extent_ctl *ffe_ctl)
 {
 	switch (ffe_ctl->policy) {
 	case BTRFS_EXTENT_ALLOC_CLUSTERED:
-		return true;
+		return 0;
 	case BTRFS_EXTENT_ALLOC_ZONED:
-		/*
-		 * If we have enough free space left in an already
-		 * active block group and we can't activate any other
-		 * zone now, do not allow allocating a new chunk and
-		 * let find_free_extent() retry with a smaller size.
-		 */
-		if (ffe_ctl->max_extent_size >= ffe_ctl->min_alloc_size &&
-		    !btrfs_can_activate_zone(fs_info->fs_devices, ffe_ctl->flags))
-			return false;
-		return true;
+		return can_allocate_chunk_zoned(fs_info, ffe_ctl);
 	default:
 		BUG();
 	}
@@ -4079,8 +4103,9 @@ static int find_free_extent_update_loop(struct btrfs_fs_info *fs_info,
 			int exist = 0;
 
 			/*Check if allocation policy allows to create a new chunk */
-			if (!can_allocate_chunk(fs_info, ffe_ctl))
-				return -ENOSPC;
+			ret = can_allocate_chunk(fs_info, ffe_ctl);
+			if (ret)
+				return ret;
 
 			trans = current->journal_info;
 			if (trans)
@@ -5992,7 +6017,7 @@ int btrfs_error_unpin_extent_range(struct btrfs_fs_info *fs_info,
  */
 static int btrfs_trim_free_extents(struct btrfs_device *device, u64 *trimmed)
 {
-	u64 start = SZ_1M, len = 0, end = 0;
+	u64 start = BTRFS_DEVICE_RANGE_RESERVED, len = 0, end = 0;
 	int ret;
 
 	*trimmed = 0;
@@ -6036,8 +6061,8 @@ static int btrfs_trim_free_extents(struct btrfs_device *device, u64 *trimmed)
 			break;
 		}
 
-		/* Ensure we skip the reserved area in the first 1M */
-		start = max_t(u64, start, SZ_1M);
+		/* Ensure we skip the reserved space on each device. */
+		start = max_t(u64, start, BTRFS_DEVICE_RANGE_RESERVED);
 
 		/*
 		 * If find_first_clear_extent_bit find a range that spans the

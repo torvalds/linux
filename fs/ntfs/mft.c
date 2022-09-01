@@ -583,7 +583,7 @@ int ntfs_sync_mft_mirror(ntfs_volume *vol, const unsigned long mft_no,
 			clear_buffer_dirty(tbh);
 			get_bh(tbh);
 			tbh->b_end_io = end_buffer_write_sync;
-			submit_bh(REQ_OP_WRITE, 0, tbh);
+			submit_bh(REQ_OP_WRITE, tbh);
 		}
 		/* Wait on i/o completion of buffers. */
 		for (i_bhs = 0; i_bhs < nr_bhs; i_bhs++) {
@@ -780,7 +780,7 @@ int write_mft_record_nolock(ntfs_inode *ni, MFT_RECORD *m, int sync)
 		clear_buffer_dirty(tbh);
 		get_bh(tbh);
 		tbh->b_end_io = end_buffer_write_sync;
-		submit_bh(REQ_OP_WRITE, 0, tbh);
+		submit_bh(REQ_OP_WRITE, tbh);
 	}
 	/* Synchronize the mft mirror now if not @sync. */
 	if (!sync && ni->mft_no < vol->mftmirr_size)

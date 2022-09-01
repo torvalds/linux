@@ -240,6 +240,25 @@
 			clock-names = "oscclk";
 		};
 
+		cmu_fsys: clock-controller@13400000 {
+			compatible = "samsung,exynos7885-cmu-fsys";
+			reg = <0x13400000 0x8000>;
+			#clock-cells = <1>;
+
+			clocks = <&oscclk>,
+				 <&cmu_top CLK_DOUT_FSYS_BUS>,
+				 <&cmu_top CLK_DOUT_FSYS_MMC_CARD>,
+				 <&cmu_top CLK_DOUT_FSYS_MMC_EMBD>,
+				 <&cmu_top CLK_DOUT_FSYS_MMC_SDIO>,
+				 <&cmu_top CLK_DOUT_FSYS_USB30DRD>;
+			clock-names = "oscclk",
+				      "dout_fsys_bus",
+				      "dout_fsys_mmc_card",
+				      "dout_fsys_mmc_embd",
+				      "dout_fsys_mmc_sdio",
+				      "dout_fsys_usb30drd";
+		};
+
 		pinctrl_alive: pinctrl@11cb0000 {
 			compatible = "samsung,exynos7885-pinctrl";
 			reg = <0x11cb0000 0x1000>;
@@ -272,6 +291,19 @@
 		pmu_system_controller: system-controller@11c80000 {
 			compatible = "samsung,exynos7-pmu", "syscon";
 			reg = <0x11c80000 0x10000>;
+		};
+
+		mmc_0: mmc@13500000 {
+			compatible = "samsung,exynos7-dw-mshc-smu";
+			reg = <0x13500000 0x2000>;
+			interrupts = <GIC_SPI 146 IRQ_TYPE_LEVEL_HIGH>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			clocks = <&cmu_fsys CLK_GOUT_MMC_EMBD_ACLK>,
+				 <&cmu_fsys CLK_GOUT_MMC_EMBD_SDCLKIN>;
+			clock-names = "biu", "ciu";
+			fifo-depth = <0x40>;
+			status = "disabled";
 		};
 
 		serial_0: serial@13800000 {

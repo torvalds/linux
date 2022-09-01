@@ -2207,7 +2207,7 @@ void drbd_destroy_device(struct kref *kref)
 	if (device->bitmap) /* should no longer be there. */
 		drbd_bm_cleanup(device);
 	__free_page(device->md_io.page);
-	blk_cleanup_disk(device->vdisk);
+	put_disk(device->vdisk);
 	kfree(device->rs_plan_s);
 
 	/* not for_each_connection(connection, resource):
@@ -2807,7 +2807,7 @@ out_no_minor_idr:
 out_no_bitmap:
 	__free_page(device->md_io.page);
 out_no_io_page:
-	blk_cleanup_disk(disk);
+	put_disk(disk);
 out_no_disk:
 	kref_put(&resource->kref, drbd_destroy_resource);
 	kfree(device);

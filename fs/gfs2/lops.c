@@ -238,7 +238,7 @@ static void gfs2_end_log_write(struct bio *bio)
  * there is no pending bio, then this is a no-op.
  */
 
-void gfs2_log_submit_bio(struct bio **biop, int opf)
+void gfs2_log_submit_bio(struct bio **biop, blk_opf_t opf)
 {
 	struct bio *bio = *biop;
 	if (bio) {
@@ -292,7 +292,7 @@ static struct bio *gfs2_log_alloc_bio(struct gfs2_sbd *sdp, u64 blkno,
  */
 
 static struct bio *gfs2_log_get_bio(struct gfs2_sbd *sdp, u64 blkno,
-				    struct bio **biop, int op,
+				    struct bio **biop, enum req_op op,
 				    bio_end_io_t *end_io, bool flush)
 {
 	struct bio *bio = *biop;
@@ -452,36 +452,36 @@ static bool gfs2_jhead_pg_srch(struct gfs2_jdesc *jd,
  * @head: The journal head to start from
  * @done: If set, perform only cleanup, else search and set if found.
  *
- * Find the page with 'index' in the journal's mapping. Search the page for
+ * Find the folio with 'index' in the journal's mapping. Search the folio for
  * the journal head if requested (cleanup == false). Release refs on the
- * page so the page cache can reclaim it (put_page() twice). We grabbed a
- * reference on this page two times, first when we did a find_or_create_page()
- * to obtain the page to add it to the bio and second when we do a
- * find_get_page() here to get the page to wait on while I/O on it is being
+ * folio so the page cache can reclaim it. We grabbed a
+ * reference on this folio twice, first when we did a find_or_create_page()
+ * to obtain the folio to add it to the bio and second when we do a
+ * filemap_get_folio() here to get the folio to wait on while I/O on it is being
  * completed.
- * This function is also used to free up a page we might've grabbed but not
+ * This function is also used to free up a folio we might've grabbed but not
  * used. Maybe we added it to a bio, but not submitted it for I/O. Or we
  * submitted the I/O, but we already found the jhead so we only need to drop
- * our references to the page.
+ * our references to the folio.
  */
 
 static void gfs2_jhead_process_page(struct gfs2_jdesc *jd, unsigned long index,
 				    struct gfs2_log_header_host *head,
 				    bool *done)
 {
-	struct page *page;
+	struct folio *folio;
 
-	page = find_get_page(jd->jd_inode->i_mapping, index);
-	wait_on_page_locked(page);
+	folio = filemap_get_folio(jd->jd_inode->i_mapping, index);
 
-	if (PageError(page))
+	folio_wait_locked(folio);
+	if (folio_test_error(folio))
 		*done = true;
 
 	if (!*done)
-		*done = gfs2_jhead_pg_srch(jd, head, page);
+		*done = gfs2_jhead_pg_srch(jd, head, &folio->page);
 
-	put_page(page); /* Once for find_get_page */
-	put_page(page); /* Once more for find_or_create_page */
+	/* filemap_get_folio() and the earlier find_or_create_page() */
+	folio_put_refs(folio, 2);
 }
 
 static struct bio *gfs2_chain_bio(struct bio *prev, unsigned int nr_iovecs)

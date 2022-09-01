@@ -207,14 +207,6 @@ static int pch_wpt_suspend(struct pch_thermal_device *ptd)
 		return 0;
 	}
 
-	/* Do not check temperature if it is not a S0ix capable platform */
-#ifdef CONFIG_ACPI
-	if (!(acpi_gbl_FADT.flags & ACPI_FADT_LOW_POWER_S0))
-		return 0;
-#else
-	return 0;
-#endif
-
 	/* Do not check temperature if it is not s2idle */
 	if (pm_suspend_via_firmware())
 		return 0;

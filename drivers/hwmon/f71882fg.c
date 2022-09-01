@@ -49,6 +49,7 @@
 #define SIO_F81768D_ID		0x1210	/* Chipset ID */
 #define SIO_F81865_ID		0x0704	/* Chipset ID */
 #define SIO_F81866_ID		0x1010	/* Chipset ID */
+#define SIO_F71858AD_ID		0x0903	/* Chipset ID */
 #define SIO_F81966_ID		0x1502	/* Chipset ID */
 
 #define REGION_LENGTH		8
@@ -2638,6 +2639,7 @@ static int __init f71882fg_find(int sioaddr, struct f71882fg_sio_data *sio_data)
 		sio_data->type = f71808a;
 		break;
 	case SIO_F71858_ID:
+	case SIO_F71858AD_ID:
 		sio_data->type = f71858fg;
 		break;
 	case SIO_F71862_ID:

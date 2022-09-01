@@ -231,7 +231,7 @@ static void keembay_pcie_msi_irq_handler(struct irq_desc *desc)
 	struct keembay_pcie *pcie = irq_desc_get_handler_data(desc);
 	struct irq_chip *chip = irq_desc_get_chip(desc);
 	u32 val, mask, status;
-	struct pcie_port *pp;
+	struct dw_pcie_rp *pp;
 
 	/*
 	 * Keem Bay PCIe Controller provides an additional IP logic on top of
@@ -332,13 +332,13 @@ static int keembay_pcie_add_pcie_port(struct keembay_pcie *pcie,
 				      struct platform_device *pdev)
 {
 	struct dw_pcie *pci = &pcie->pci;
-	struct pcie_port *pp = &pci->pp;
+	struct dw_pcie_rp *pp = &pci->pp;
 	struct device *dev = &pdev->dev;
 	u32 val;
 	int ret;
 
 	pp->ops = &keembay_pcie_host_ops;
-	pp->msi_irq = -ENODEV;
+	pp->msi_irq[0] = -ENODEV;
 
 	ret = keembay_pcie_setup_msi_irq(pcie);
 	if (ret)

@@ -23,7 +23,7 @@ struct sof_abi_hdr {
 	__u32 size;		/**< size in bytes of data excl. this struct */
 	__u32 abi;		/**< SOF ABI version */
 	__u32 reserved[4];	/**< reserved for future use */
-	__u32 data[0];		/**< Component data - opaque to core */
+	__u32 data[];		/**< Component data - opaque to core */
 }  __packed;
 
 #endif

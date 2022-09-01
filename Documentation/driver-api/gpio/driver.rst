@@ -119,7 +119,7 @@ GPIO lines with debounce support
 Debouncing is a configuration set to a pin indicating that it is connected to
 a mechanical switch or button, or similar that may bounce. Bouncing means the
 line is pulled high/low quickly at very short intervals for mechanical
-reasons. This can result in the value being unstable or irqs fireing repeatedly
+reasons. This can result in the value being unstable or irqs firing repeatedly
 unless the line is debounced.
 
 Debouncing in practice involves setting up a timer when something happens on
@@ -219,7 +219,7 @@ use a trick: when a line is set as output, if the line is flagged as open
 drain, and the IN output value is low, it will be driven low as usual. But
 if the IN output value is set to high, it will instead *NOT* be driven high,
 instead it will be switched to input, as input mode is high impedance, thus
-achieveing an "open drain emulation" of sorts: electrically the behaviour will
+achieving an "open drain emulation" of sorts: electrically the behaviour will
 be identical, with the exception of possible hardware glitches when switching
 the mode of the line.
 
@@ -642,7 +642,7 @@ In this case the typical set-up will look like this:
 
 As you can see pretty similar, but you do not supply a parent handler for
 the IRQ, instead a parent irqdomain, an fwnode for the hardware and
-a funcion .child_to_parent_hwirq() that has the purpose of looking up
+a function .child_to_parent_hwirq() that has the purpose of looking up
 the parent hardware irq from a child (i.e. this gpio chip) hardware irq.
 As always it is good to look at examples in the kernel tree for advice
 on how to find the required pieces.

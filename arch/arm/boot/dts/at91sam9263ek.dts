@@ -232,17 +232,17 @@
 		};
 	};
 
-	gpio_keys {
+	gpio-keys {
 		compatible = "gpio-keys";
 
-		left_click {
+		button-left-click {
 			label = "left_click";
 			gpios = <&pioC 5 GPIO_ACTIVE_LOW>;
 			linux,code = <272>;
 			wakeup-source;
 		};
 
-		right_click {
+		button-right-click {
 			label = "right_click";
 			gpios = <&pioC 4 GPIO_ACTIVE_LOW>;
 			linux,code = <273>;

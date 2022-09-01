@@ -856,7 +856,7 @@ int devmem_is_allowed(unsigned long pagenr)
 
 	/*
 	 * This must follow RAM test, since System RAM is considered a
-	 * restricted resource under CONFIG_STRICT_IOMEM.
+	 * restricted resource under CONFIG_STRICT_DEVMEM.
 	 */
 	if (iomem_is_exclusive(pagenr << PAGE_SHIFT)) {
 		/* Low 1MB bypasses iomem restrictions. */

@@ -34,6 +34,7 @@
 #define PM_API_VERSION_2	2
 
 /* ATF only commands */
+#define TF_A_PM_REGISTER_SGI		0xa04
 #define PM_GET_TRUSTZONE_VERSION	0xa03
 #define PM_SET_SUSPEND_MODE		0xa02
 #define GET_CALLBACK_DATA		0xa01
@@ -468,6 +469,7 @@ int zynqmp_pm_feature(const u32 api_id);
 int zynqmp_pm_is_function_supported(const u32 api_id, const u32 id);
 int zynqmp_pm_set_feature_config(enum pm_feature_config_id id, u32 value);
 int zynqmp_pm_get_feature_config(enum pm_feature_config_id id, u32 *payload);
+int zynqmp_pm_register_sgi(u32 sgi_num, u32 reset);
 #else
 static inline int zynqmp_pm_get_api_version(u32 *version)
 {
@@ -730,6 +732,11 @@ static inline int zynqmp_pm_set_feature_config(enum pm_feature_config_id id,
 
 static inline int zynqmp_pm_get_feature_config(enum pm_feature_config_id id,
 					       u32 *payload)
+{
+	return -ENODEV;
+}
+
+static inline int zynqmp_pm_register_sgi(u32 sgi_num, u32 reset)
 {
 	return -ENODEV;
 }

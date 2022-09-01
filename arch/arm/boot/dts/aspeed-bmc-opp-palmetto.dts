@@ -73,7 +73,7 @@
 	gpio-keys {
 		compatible = "gpio-keys";
 
-		checkstop {
+		event-checkstop {
 			label = "checkstop";
 			gpios = <&gpio ASPEED_GPIO(P, 5) GPIO_ACTIVE_LOW>;
 			linux,code = <ASPEED_GPIO(P, 5)>;

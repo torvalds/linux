@@ -12,7 +12,6 @@ config PPC_POWERNV
 	select EPAPR_BOOT
 	select PPC_INDIRECT_PIO
 	select PPC_UDBG_16550
-	select ARCH_RANDOM
 	select CPU_FREQ
 	select PPC_DOORBELL
 	select MMU_NOTIFIER

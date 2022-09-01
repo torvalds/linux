@@ -123,6 +123,9 @@ struct smp2p_entry {
  * @out:	pointer to the outbound smem item
  * @smem_items:	ids of the two smem items
  * @valid_entries: already scanned inbound entries
+ * @ssr_ack_enabled: SMP2P_FEATURE_SSR_ACK feature is supported and was enabled
+ * @ssr_ack: current cached state of the local ack bit
+ * @negotiation_done: whether negotiating finished
  * @irq_devname: poniter to the smp2p irq devname
  * @local_pid:	processor id of the inbound edge
  * @remote_pid:	processor id of the outbound edge

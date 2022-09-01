@@ -330,6 +330,7 @@
 
 &dsi_phy {
 	status = "okay";
+	vdds-supply = <&vreg_l4a_0p8>;
 };
 
 &mdp {
@@ -389,7 +390,7 @@
 	pinctrl-names = "default","sleep";
 	pinctrl-0 = <&sdc2_on>;
 	pinctrl-1 = <&sdc2_off>;
-	vmmc-supply  = <&vreg_l9c_2p9>;
+	vmmc-supply = <&vreg_l9c_2p9>;
 	vqmmc-supply = <&vreg_l6c_2p9>;
 
 	cd-gpios = <&tlmm 69 GPIO_ACTIVE_LOW>;
@@ -467,7 +468,7 @@
 /* PINCTRL - additions to nodes defined in sc7180.dtsi */
 
 &pm6150l_gpio {
-	disp_pins: disp-pins {
+	disp_pins: disp-state {
 		pinconf {
 			pins = "gpio3";
 			function = PMIC_GPIO_FUNC_FUNC1;

@@ -369,6 +369,28 @@ int acpi_device_fix_up_power(struct acpi_device *device)
 }
 EXPORT_SYMBOL_GPL(acpi_device_fix_up_power);
 
+static int fix_up_power_if_applicable(struct acpi_device *adev, void *not_used)
+{
+	if (adev->status.present && adev->status.enabled)
+		acpi_device_fix_up_power(adev);
+
+	return 0;
+}
+
+/**
+ * acpi_device_fix_up_power_extended - Force device and its children into D0.
+ * @adev: Parent device object whose power state is to be fixed up.
+ *
+ * Call acpi_device_fix_up_power() for @adev and its children so long as they
+ * are reported as present and enabled.
+ */
+void acpi_device_fix_up_power_extended(struct acpi_device *adev)
+{
+	acpi_device_fix_up_power(adev);
+	acpi_dev_for_each_child(adev, fix_up_power_if_applicable, NULL);
+}
+EXPORT_SYMBOL_GPL(acpi_device_fix_up_power_extended);
+
 int acpi_device_update_power(struct acpi_device *device, int *state_p)
 {
 	int state;

@@ -500,6 +500,35 @@ DEFINE_EVENT(dev_pm_qos_request, dev_pm_qos_remove_request,
 
 	TP_ARGS(name, type, new_value)
 );
+
+TRACE_EVENT(guest_halt_poll_ns,
+
+	TP_PROTO(bool grow, unsigned int new, unsigned int old),
+
+	TP_ARGS(grow, new, old),
+
+	TP_STRUCT__entry(
+		__field(bool, grow)
+		__field(unsigned int, new)
+		__field(unsigned int, old)
+	),
+
+	TP_fast_assign(
+		__entry->grow   = grow;
+		__entry->new    = new;
+		__entry->old    = old;
+	),
+
+	TP_printk("halt_poll_ns %u (%s %u)",
+		__entry->new,
+		__entry->grow ? "grow" : "shrink",
+		__entry->old)
+);
+
+#define trace_guest_halt_poll_ns_grow(new, old) \
+	trace_guest_halt_poll_ns(true, new, old)
+#define trace_guest_halt_poll_ns_shrink(new, old) \
+	trace_guest_halt_poll_ns(false, new, old)
 #endif /* _TRACE_POWER_H */
 
 /* This part must be outside protection */

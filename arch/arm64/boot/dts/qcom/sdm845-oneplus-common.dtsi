@@ -34,14 +34,14 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&volume_down_gpio &volume_up_gpio>;
 
-		vol-down {
+		key-vol-down {
 			label = "Volume down";
 			linux,code = <KEY_VOLUMEDOWN>;
 			gpios = <&pm8998_gpio 5 GPIO_ACTIVE_LOW>;
 			debounce-interval = <15>;
 		};
 
-		vol-up {
+		key-vol-up {
 			label = "Volume up";
 			linux,code = <KEY_VOLUMEUP>;
 			gpios = <&pm8998_gpio 6 GPIO_ACTIVE_LOW>;
@@ -440,7 +440,7 @@
 };
 
 &pm8998_gpio {
-	volume_down_gpio: pm8998_gpio5 {
+	volume_down_gpio: pm8998-gpio5-state {
 		pinconf {
 			pins = "gpio5";
 			function = "normal";
@@ -450,7 +450,7 @@
 		};
 	};
 
-	volume_up_gpio: pm8998_gpio6 {
+	volume_up_gpio: pm8998-gpio6-state {
 		pinconf {
 			pins = "gpio6";
 			function = "normal";

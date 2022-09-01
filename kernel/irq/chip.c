@@ -189,7 +189,8 @@ enum {
 
 #ifdef CONFIG_SMP
 static int
-__irq_startup_managed(struct irq_desc *desc, struct cpumask *aff, bool force)
+__irq_startup_managed(struct irq_desc *desc, const struct cpumask *aff,
+		      bool force)
 {
 	struct irq_data *d = irq_desc_get_irq_data(desc);
 
@@ -225,7 +226,8 @@ __irq_startup_managed(struct irq_desc *desc, struct cpumask *aff, bool force)
 }
 #else
 static __always_inline int
-__irq_startup_managed(struct irq_desc *desc, struct cpumask *aff, bool force)
+__irq_startup_managed(struct irq_desc *desc, const struct cpumask *aff,
+		      bool force)
 {
 	return IRQ_STARTUP_NORMAL;
 }
@@ -253,7 +255,7 @@ static int __irq_startup(struct irq_desc *desc)
 int irq_startup(struct irq_desc *desc, bool resend, bool force)
 {
 	struct irq_data *d = irq_desc_get_irq_data(desc);
-	struct cpumask *aff = irq_data_get_affinity_mask(d);
+	const struct cpumask *aff = irq_data_get_affinity_mask(d);
 	int ret = 0;
 
 	desc->depth = 0;
@@ -1531,7 +1533,8 @@ int irq_chip_request_resources_parent(struct irq_data *data)
 	if (data->chip->irq_request_resources)
 		return data->chip->irq_request_resources(data);
 
-	return -ENOSYS;
+	/* no error on missing optional irq_chip::irq_request_resources */
+	return 0;
 }
 EXPORT_SYMBOL_GPL(irq_chip_request_resources_parent);
 

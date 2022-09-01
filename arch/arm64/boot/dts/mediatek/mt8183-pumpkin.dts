@@ -159,7 +159,7 @@
 	vmmc-supply = <&mt6358_vmch_reg>;
 	vqmmc-supply = <&mt6358_vmc_reg>;
 	keep-power-in-suspend;
-	enable-sdio-wakeup;
+	wakeup-source;
 	non-removable;
 };
 

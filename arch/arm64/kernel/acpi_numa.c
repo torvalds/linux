@@ -109,7 +109,7 @@ void __init acpi_numa_gicc_affinity_init(struct acpi_srat_gicc_affinity *pa)
 	pxm = pa->proximity_domain;
 	node = acpi_map_pxm_to_node(pxm);
 
-	if (node == NUMA_NO_NODE || node >= MAX_NUMNODES) {
+	if (node == NUMA_NO_NODE) {
 		pr_err("SRAT: Too many proximity domains %d\n", pxm);
 		bad_srat();
 		return;

@@ -10,6 +10,7 @@
 #include <linux/pagemap.h>
 #include <linux/blkdev.h>
 #include <linux/uuid.h>
+#include <linux/timekeeping.h>
 #include "misc.h"
 #include "ctree.h"
 #include "disk-io.h"
@@ -1831,8 +1832,8 @@ static noinline int create_pending_snapshot(struct btrfs_trans_handle *trans,
 
 	btrfs_i_size_write(BTRFS_I(parent_inode), parent_inode->i_size +
 					 dentry->d_name.len * 2);
-	parent_inode->i_mtime = parent_inode->i_ctime =
-		current_time(parent_inode);
+	parent_inode->i_mtime = current_time(parent_inode);
+	parent_inode->i_ctime = parent_inode->i_mtime;
 	ret = btrfs_update_inode_fallback(trans, parent_root, BTRFS_I(parent_inode));
 	if (ret) {
 		btrfs_abort_transaction(trans, ret);
@@ -2098,12 +2099,23 @@ static void add_pending_snapshot(struct btrfs_trans_handle *trans)
 	list_add(&trans->pending_snapshot->list, &cur_trans->pending_snapshots);
 }
 
+static void update_commit_stats(struct btrfs_fs_info *fs_info, ktime_t interval)
+{
+	fs_info->commit_stats.commit_count++;
+	fs_info->commit_stats.last_commit_dur = interval;
+	fs_info->commit_stats.max_commit_dur =
+			max_t(u64, fs_info->commit_stats.max_commit_dur, interval);
+	fs_info->commit_stats.total_commit_dur += interval;
+}
+
 int btrfs_commit_transaction(struct btrfs_trans_handle *trans)
 {
 	struct btrfs_fs_info *fs_info = trans->fs_info;
 	struct btrfs_transaction *cur_trans = trans->transaction;
 	struct btrfs_transaction *prev_trans = NULL;
 	int ret;
+	ktime_t start_time;
+	ktime_t interval;
 
 	ASSERT(refcount_read(&trans->use_count) == 1);
 
@@ -2227,6 +2239,12 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans)
 			goto cleanup_transaction;
 		}
 	}
+
+	/*
+	 * Get the time spent on the work done by the commit thread and not
+	 * the time spent waiting on a previous commit
+	 */
+	start_time = ktime_get_ns();
 
 	extwriter_counter_dec(cur_trans, trans->type);
 
@@ -2469,12 +2487,16 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans)
 
 	trace_btrfs_transaction_commit(fs_info);
 
+	interval = ktime_get_ns() - start_time;
+
 	btrfs_scrub_continue(fs_info);
 
 	if (current->journal_info == trans)
 		current->journal_info = NULL;
 
 	kmem_cache_free(btrfs_trans_handle_cachep, trans);
+
+	update_commit_stats(fs_info, interval);
 
 	return ret;
 

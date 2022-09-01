@@ -90,7 +90,7 @@ struct file_dedupe_range {
 	__u16 dest_count;	/* in - total elements in info array */
 	__u16 reserved1;	/* must be zero */
 	__u32 reserved2;	/* must be zero */
-	struct file_dedupe_range_info info[0];
+	struct file_dedupe_range_info info[];
 };
 
 /* And dynamically-tunable limits and defaults: */

@@ -1012,6 +1012,22 @@ static int acpi_node_prop_read(const struct fwnode_handle *fwnode,
 				   propname, proptype, val, nval);
 }
 
+static int stop_on_next(struct acpi_device *adev, void *data)
+{
+	struct acpi_device **ret_p = data;
+
+	if (!*ret_p) {
+		*ret_p = adev;
+		return 1;
+	}
+
+	/* Skip until the "previous" object is found. */
+	if (*ret_p == adev)
+		*ret_p = NULL;
+
+	return 0;
+}
+
 /**
  * acpi_get_next_subnode - Return the next child node handle for a fwnode
  * @fwnode: Firmware node to find the next child node for.
@@ -1020,35 +1036,22 @@ static int acpi_node_prop_read(const struct fwnode_handle *fwnode,
 struct fwnode_handle *acpi_get_next_subnode(const struct fwnode_handle *fwnode,
 					    struct fwnode_handle *child)
 {
-	const struct acpi_device *adev = to_acpi_device_node(fwnode);
-	const struct list_head *head;
-	struct list_head *next;
+	struct acpi_device *adev = to_acpi_device_node(fwnode);
 
 	if ((!child || is_acpi_device_node(child)) && adev) {
-		struct acpi_device *child_adev;
+		struct acpi_device *child_adev = to_acpi_device_node(child);
 
-		head = &adev->children;
-		if (list_empty(head))
-			goto nondev;
+		acpi_dev_for_each_child(adev, stop_on_next, &child_adev);
+		if (child_adev)
+			return acpi_fwnode_handle(child_adev);
 
-		if (child) {
-			adev = to_acpi_device_node(child);
-			next = adev->node.next;
-			if (next == head) {
-				child = NULL;
-				goto nondev;
-			}
-			child_adev = list_entry(next, struct acpi_device, node);
-		} else {
-			child_adev = list_first_entry(head, struct acpi_device,
-						      node);
-		}
-		return acpi_fwnode_handle(child_adev);
+		child = NULL;
 	}
 
- nondev:
 	if (!child || is_acpi_data_node(child)) {
 		const struct acpi_data_node *data = to_acpi_data_node(fwnode);
+		const struct list_head *head;
+		struct list_head *next;
 		struct acpi_data_node *dn;
 
 		/*

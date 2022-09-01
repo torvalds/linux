@@ -57,3 +57,4 @@ obj-$(CONFIG_QCOM_VA_MINIDUMP) += qcom_va_minidump.o
 obj-$(CONFIG_QCOM_LOGBUF_VENDOR_HOOKS) += qcom_logbuf_vh.o
 obj-$(CONFIG_QCOM_HUNG_TASK_ENH) += hung_task_enh.o
 obj-$(CONFIG_GH_TLMM_VM_MEM_ACCESS) += gh_tlmm_vm_mem_access.o
+obj-$(CONFIG_QCOM_ICC_BWMON)	+= icc-bwmon.o

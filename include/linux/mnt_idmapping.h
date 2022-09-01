@@ -334,6 +334,19 @@ static inline bool vfsuid_has_fsmapping(struct user_namespace *mnt_userns,
 }
 
 /**
+ * vfsuid_into_kuid - convert vfsuid into kuid
+ * @vfsuid: the vfsuid to convert
+ *
+ * This can be used when a vfsuid is committed as a kuid.
+ *
+ * Return: a kuid with the value of @vfsuid
+ */
+static inline kuid_t vfsuid_into_kuid(vfsuid_t vfsuid)
+{
+	return AS_KUIDT(vfsuid);
+}
+
+/**
  * from_vfsgid - map a vfsgid into the filesystem idmapping
  * @mnt_userns: the mount's idmapping
  * @fs_userns: the filesystem's idmapping
@@ -404,6 +417,19 @@ static inline bool vfsgid_has_fsmapping(struct user_namespace *mnt_userns,
 					vfsgid_t vfsgid)
 {
 	return gid_valid(from_vfsgid(mnt_userns, fs_userns, vfsgid));
+}
+
+/**
+ * vfsgid_into_kgid - convert vfsgid into kgid
+ * @vfsgid: the vfsgid to convert
+ *
+ * This can be used when a vfsgid is committed as a kgid.
+ *
+ * Return: a kgid with the value of @vfsgid
+ */
+static inline kgid_t vfsgid_into_kgid(vfsgid_t vfsgid)
+{
+	return AS_KGIDT(vfsgid);
 }
 
 /**

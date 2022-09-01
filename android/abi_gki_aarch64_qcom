@@ -57,7 +57,6 @@
   __bitmap_set
   bitmap_zalloc
   __blk_alloc_disk
-  blk_cleanup_disk
   blk_mq_rq_cpu
   blk_queue_flag_clear
   blk_queue_flag_set
@@ -158,6 +157,7 @@
   complete_all
   completion_done
   cond_synchronize_rcu
+  cond_synchronize_rcu_expedited
   config_ep_by_speed
   configfs_register_group
   configfs_unregister_group
@@ -287,7 +287,6 @@
   device_get_match_data
   device_get_phy_mode
   device_initialize
-  device_init_wakeup
   device_link_add
   device_match_fwnode
   device_match_name
@@ -300,6 +299,7 @@
   device_set_wakeup_capable
   device_unregister
   device_wakeup_disable
+  device_wakeup_enable
   _dev_info
   devm_add_action
   devm_alloc_etherdev_mqs
@@ -602,6 +602,7 @@
   gen_pool_set_algo
   gen_pool_size
   gen_pool_virt_to_phys
+  get_completed_synchronize_rcu
   get_cpu_device
   get_device
   __get_free_pages
@@ -778,7 +779,7 @@
   iommu_present
   iommu_unmap
   __ioread32_copy
-  __ioremap
+  ioremap_prot
   iounmap
   iov_iter_init
   iov_iter_revert
@@ -997,7 +998,6 @@
   netdev_alert
   __netdev_alloc_skb
   netdev_rss_key_fill
-  no_llseek
   nonseekable_open
   noop_llseek
   nr_cpu_ids
@@ -1299,6 +1299,7 @@
   ptp_clock_register
   ptp_clock_unregister
   put_device
+  put_disk
   put_iova_domain
   __put_page
   __put_task_struct
@@ -1378,6 +1379,8 @@
   __rcu_read_lock
   __rcu_read_unlock
   rcu_read_unlock_trace_special
+  rcu_tasks_trace_qs_blkd
+  rcu_trc_cmpxchg_need_qs
   rcutorture_get_gp_data
   rcu_unexpedite_gp
   rcuwait_wake_up
@@ -1645,6 +1648,7 @@
   stack_trace_print
   stack_trace_save
   start_poll_synchronize_rcu
+  start_poll_synchronize_rcu_expedited
   start_poll_synchronize_srcu
   static_key_disable
   stop_machine
@@ -1756,8 +1760,6 @@
   __tracepoint_android_rvh_find_lowest_rq
   __tracepoint_android_rvh_migrate_queued_task
   __tracepoint_android_rvh_replace_next_task_fair
-  __tracepoint_android_rvh_sched_exec
-  __tracepoint_android_rvh_sched_fork_init
   __tracepoint_android_rvh_sched_newidle_balance
   __tracepoint_android_rvh_sched_nohz_balancer_kick
   __tracepoint_android_rvh_sched_setaffinity
@@ -1765,7 +1767,6 @@
   __tracepoint_android_rvh_select_task_rq_rt
   __tracepoint_android_rvh_set_balance_anon_file_reclaim
   __tracepoint_android_rvh_show_max_freq
-  __tracepoint_android_rvh_ttwu_cond
   __tracepoint_android_rvh_update_cpus_allowed
   __tracepoint_android_vh_binder_restore_priority
   __tracepoint_android_vh_binder_set_priority
@@ -1922,7 +1923,6 @@
   __usecs_to_jiffies
   usleep_range_state
   uuid_parse
-  vabits_actual
   vchan_dma_desc_free_list
   vchan_find_desc
   vchan_init

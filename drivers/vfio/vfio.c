@@ -1132,7 +1132,7 @@ static struct file *vfio_device_open(struct vfio_device *device)
 	 * Appears to be missing by lack of need rather than
 	 * explicitly prevented.  Now there's need.
 	 */
-	filep->f_mode |= (FMODE_LSEEK | FMODE_PREAD | FMODE_PWRITE);
+	filep->f_mode |= (FMODE_PREAD | FMODE_PWRITE);
 
 	if (device->group->type == VFIO_NO_IOMMU)
 		dev_warn(device->dev, "vfio-noiommu device opened by user "

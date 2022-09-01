@@ -1,6 +1,6 @@
 .. include:: ../disclaimer-zh_CN.rst
 
-:Original: Documentation/vm/_free_page_reporting.rst
+:Original: Documentation/vm/free_page_reporting.rst
 
 :翻译:
 

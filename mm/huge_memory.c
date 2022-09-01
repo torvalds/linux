@@ -18,6 +18,7 @@
 #include <linux/shrinker.h>
 #include <linux/mm_inline.h>
 #include <linux/swapops.h>
+#include <linux/backing-dev.h>
 #include <linux/dax.h>
 #include <linux/khugepaged.h>
 #include <linux/freezer.h>
@@ -2440,11 +2441,15 @@ static void __split_huge_page(struct page *page, struct list_head *list,
 		__split_huge_page_tail(head, i, lruvec, list);
 		/* Some pages can be beyond EOF: drop them from page cache */
 		if (head[i].index >= end) {
-			ClearPageDirty(head + i);
-			__delete_from_page_cache(head + i, NULL);
+			struct folio *tail = page_folio(head + i);
+
 			if (shmem_mapping(head->mapping))
 				shmem_uncharge(head->mapping->host, 1);
-			put_page(head + i);
+			else if (folio_test_clear_dirty(tail))
+				folio_account_cleaned(tail,
+					inode_to_wb(folio->mapping->host));
+			__filemap_remove_folio(tail, NULL);
+			folio_put(tail);
 		} else if (!PageAnon(page)) {
 			__xa_store(&head->mapping->i_pages, head[i].index,
 					head + i, 0);
