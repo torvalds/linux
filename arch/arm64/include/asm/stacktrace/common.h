@@ -65,21 +65,34 @@ struct unwind_state {
 	struct task_struct *task;
 };
 
+static inline bool stackinfo_on_stack(const struct stack_info *info,
+				      unsigned long sp, unsigned long size)
+{
+	if (!info->low)
+		return false;
+
+	if (sp < info->low || sp + size < sp || sp + size > info->high)
+		return false;
+
+	return true;
+}
+
 static inline bool on_stack(unsigned long sp, unsigned long size,
 			    unsigned long low, unsigned long high,
 			    enum stack_type type, struct stack_info *info)
 {
-	if (!low)
+	struct stack_info tmp = {
+		.low = low,
+		.high = high,
+		.type = type,
+	};
+
+	if (!stackinfo_on_stack(&tmp, sp, size))
 		return false;
 
-	if (sp < low || sp + size < sp || sp + size > high)
-		return false;
+	if (info)
+		*info = tmp;
 
-	if (info) {
-		info->low = low;
-		info->high = high;
-		info->type = type;
-	}
 	return true;
 }
 
