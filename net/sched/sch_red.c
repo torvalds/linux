@@ -461,7 +461,6 @@ static int red_dump_stats(struct Qdisc *sch, struct gnet_dump *d)
 	}
 	st.early = q->stats.prob_drop + q->stats.forced_drop;
 	st.pdrop = q->stats.pdrop;
-	st.other = q->stats.other;
 	st.marked = q->stats.prob_mark + q->stats.forced_mark;
 
 	return gnet_stats_copy_app(d, &st, sizeof(st));
