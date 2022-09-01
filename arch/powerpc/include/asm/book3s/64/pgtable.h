@@ -413,6 +413,9 @@ static inline int __ptep_test_and_clear_young(struct mm_struct *mm,
  * event of it not getting flushed for a long time the delay
  * shouldn't really matter because there's no real memory
  * pressure for swapout to react to. ]
+ *
+ * Note: this optimisation also exists in pte_needs_flush() and
+ * huge_pmd_needs_flush().
  */
 #define __HAVE_ARCH_PTEP_CLEAR_YOUNG_FLUSH
 #define ptep_clear_flush_young ptep_test_and_clear_young
