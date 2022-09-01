@@ -507,7 +507,7 @@ static void dmarx_stop(struct rkisp_stream *stream)
 	    !dev->hw_dev->is_shutdown) {
 		ret = wait_event_timeout(stream->done,
 					 !stream->streaming,
-					 msecs_to_jiffies(100));
+					 msecs_to_jiffies(300));
 		if (!ret)
 			v4l2_warn(v4l2_dev,
 				  "dmarx:%d waiting on event return error %d\n",
@@ -677,10 +677,7 @@ static void dmarx_stop_streaming(struct vb2_queue *queue)
 	destroy_buf_queue(stream, VB2_BUF_STATE_ERROR);
 
 	if (stream->id == RKISP_STREAM_RAWRD2 &&
-	    (stream->ispdev->isp_ver == ISP_V20 ||
-	     stream->ispdev->isp_ver == ISP_V21 ||
-	     stream->ispdev->isp_ver == ISP_V30 ||
-	     stream->ispdev->isp_ver == ISP_V32))
+	    stream->ispdev->isp_ver >= ISP_V20)
 		kfifo_reset(&stream->ispdev->rdbk_kfifo);
 }
 
@@ -793,10 +790,7 @@ static int rkisp_set_fmt(struct rkisp_stream *stream,
 		    fmt->fmt_type == FMT_BAYER)
 			height += RKMODULE_EXTEND_LINE;
 
-		if ((stream->ispdev->isp_ver == ISP_V20 ||
-		     stream->ispdev->isp_ver == ISP_V21 ||
-		     stream->ispdev->isp_ver == ISP_V30 ||
-		     stream->ispdev->isp_ver == ISP_V32) &&
+		if (stream->ispdev->isp_ver >= ISP_V20 &&
 		    fmt->fmt_type == FMT_BAYER &&
 		    !stream->memory &&
 		    stream->id != RKISP_STREAM_DMARX)
@@ -1200,10 +1194,7 @@ int rkisp_register_dmarx_vdev(struct rkisp_device *dev)
 	if (ret < 0)
 		goto err;
 #endif
-	if (dev->isp_ver == ISP_V20 ||
-	    dev->isp_ver == ISP_V21 ||
-	    dev->isp_ver == ISP_V30 ||
-	    dev->isp_ver == ISP_V32) {
+	if (dev->isp_ver >= ISP_V20) {
 		ret = dmarx_init(dev, RKISP_STREAM_RAWRD0);
 		if (ret < 0)
 			goto err_free_dmarx;
@@ -1240,10 +1231,7 @@ void rkisp_unregister_dmarx_vdev(struct rkisp_device *dev)
 	rkisp_unregister_dmarx_video(stream);
 #endif
 
-	if (dev->isp_ver == ISP_V20 ||
-	    dev->isp_ver == ISP_V21 ||
-	    dev->isp_ver == ISP_V30 ||
-	    dev->isp_ver == ISP_V32) {
+	if (dev->isp_ver >= ISP_V20) {
 		stream = &dmarx_dev->stream[RKISP_STREAM_RAWRD0];
 		rkisp_unregister_dmarx_video(stream);
 

@@ -303,6 +303,59 @@ static void set_scale(struct rkisp_stream *stream, struct v4l2_rect *in_y,
 	rkisp_write(dev, rsz_ctrl_addr, rsz_ctrl, false);
 }
 
+static void set_bilinear_scale(struct rkisp_stream *stream, struct v4l2_rect *in_y,
+				struct v4l2_rect *in_c, struct v4l2_rect *out_y,
+				struct v4l2_rect *out_c, bool async)
+{
+	struct rkisp_device *dev = stream->ispdev;
+	u32 rsz_ctrl = 0, val, hy, hc;
+	bool is_avg = false;
+
+	rkisp_write(dev, ISP32_SELF_SCALE_HY_OFFS, 0, true);
+	rkisp_write(dev, ISP32_SELF_SCALE_HC_OFFS, 0, true);
+	rkisp_write(dev, ISP32_SELF_SCALE_PHASE_HY, 0, true);
+	rkisp_write(dev, ISP32_SELF_SCALE_PHASE_HC, 0, true);
+	rkisp_write(dev, ISP32_SELF_SCALE_PHASE_VY, 0, true);
+	rkisp_write(dev, ISP32_SELF_SCALE_PHASE_VC, 0, true);
+
+	val = in_y->width | in_y->height << 16;
+	rkisp_write(dev, ISP32_SELF_SCALE_SRC_SIZE, val, false);
+	val = out_y->width | out_y->height << 16;
+	rkisp_write(dev, ISP32_SELF_SCALE_DST_SIZE, val, false);
+
+	if (in_y->width != out_y->width) {
+		rsz_ctrl |= CIF_RSZ_CTRL_SCALE_HY_ENABLE | CIF_RSZ_CTRL_SCALE_HC_ENABLE;
+		if (is_avg) {
+			hy = ((out_y->width - 1) * ISP32_SCALE_AVE_FACTOR) / (in_y->width - 1) + 1;
+			hc = ((out_c->width - 1) * ISP32_SCALE_AVE_FACTOR) / (in_c->width - 1) + 1;
+			rsz_ctrl |= ISP32_SCALE_AVG_H_EN;
+		} else {
+			hy = ((in_y->width - 1) * ISP32_SCALE_BIL_FACTOR) / (out_y->width - 1);
+			hc = ((in_c->width - 1) * ISP32_SCALE_BIL_FACTOR) / (out_c->width - 1);
+		}
+		rkisp_write(dev, ISP32_SELF_SCALE_HY_FAC, hy, false);
+		rkisp_write(dev, ISP32_SELF_SCALE_HC_FAC, hc, false);
+	}
+
+	if (in_y->height != out_y->height) {
+		rsz_ctrl |= CIF_RSZ_CTRL_SCALE_VY_ENABLE | CIF_RSZ_CTRL_SCALE_VC_ENABLE;
+		if (is_avg) {
+			val = ((out_y->height - 1) * ISP32_SCALE_AVE_FACTOR) / (in_y->height - 1) + 1;
+			rsz_ctrl |= ISP32_SCALE_AVG_V_EN;
+		} else {
+			val = ((in_y->height - 1) * ISP32_SCALE_BIL_FACTOR) / (out_y->height - 1);
+		}
+		rkisp_write(dev, ISP32_SELF_SCALE_VY_FAC, val, false);
+		rkisp_write(dev, ISP32_SELF_SCALE_VC_FAC, val, false);
+	}
+
+	rkisp_write(dev, ISP32_SELF_SCALE_CTRL, rsz_ctrl, false);
+	val = ISP32_SCALE_FORCE_UPD;
+	if (async && dev->hw_dev->is_single)
+		val = ISP32_SCALE_GEN_UPD;
+	rkisp_write(dev, ISP32_SELF_SCALE_UPDATE, val, true);
+}
+
 void rkisp_config_rsz(struct rkisp_stream *stream, struct v4l2_rect *in_y,
 	struct v4l2_rect *in_c, struct v4l2_rect *out_y,
 	struct v4l2_rect *out_c, bool async)
@@ -310,6 +363,11 @@ void rkisp_config_rsz(struct rkisp_stream *stream, struct v4l2_rect *in_y,
 	struct rkisp_device *dev = stream->ispdev;
 	int i = 0;
 	bool is_unite = dev->hw_dev->is_unite;
+
+	if (dev->isp_ver == ISP_V32_L && stream->id == RKISP_STREAM_SP) {
+		set_bilinear_scale(stream, in_y, in_c, out_y, out_c, async);
+		return;
+	}
 
 	/* No phase offset */
 	rkisp_write(dev, stream->config->rsz.phase_hy, 0, true);
@@ -333,5 +391,7 @@ void rkisp_disable_rsz(struct rkisp_stream *stream, bool async)
 	bool is_unite = stream->ispdev->hw_dev->is_unite;
 
 	rkisp_unite_write(stream->ispdev, stream->config->rsz.ctrl, 0, false, is_unite);
+	if (stream->ispdev->isp_ver == ISP_V32_L && stream->id == RKISP_STREAM_SP)
+		return;
 	update_rsz_shadow(stream, async);
 }

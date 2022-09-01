@@ -286,8 +286,7 @@ static int rkisp_pipeline_close(struct rkisp_pipeline *p)
 
 	atomic_dec(&p->power_cnt);
 
-	if (!atomic_read(&p->power_cnt) &&
-	    (dev->isp_ver == ISP_V30 || dev->isp_ver == ISP_V32))
+	if (!atomic_read(&p->power_cnt) && dev->isp_ver >= ISP_V30)
 		rkisp_rx_buf_pool_free(dev);
 
 	return 0;
@@ -508,7 +507,7 @@ static int _set_pipeline_default_fmt(struct rkisp_device *dev, bool is_init)
 #endif
 	}
 
-	if (dev->isp_ver == ISP_V32) {
+	if (dev->isp_ver == ISP_V32 || dev->isp_ver == ISP_V32_L) {
 		struct v4l2_pix_format_mplane pixm = {
 			.width = width,
 			.height = height,
@@ -517,12 +516,14 @@ static int _set_pipeline_default_fmt(struct rkisp_device *dev, bool is_init)
 
 		rkisp_dmarx_set_fmt(&dev->dmarx_dev.stream[RKISP_STREAM_RAWRD0], pixm);
 		rkisp_dmarx_set_fmt(&dev->dmarx_dev.stream[RKISP_STREAM_RAWRD2], pixm);
-		rkisp_set_stream_def_fmt(dev, RKISP_STREAM_BP,
-					 width, height, V4L2_PIX_FMT_NV12);
-		rkisp_set_stream_def_fmt(dev, RKISP_STREAM_MPDS,
-					 width / 4, height / 4, V4L2_PIX_FMT_NV12);
-		rkisp_set_stream_def_fmt(dev, RKISP_STREAM_BPDS,
-					 width / 4, height / 4, V4L2_PIX_FMT_NV12);
+		if (dev->isp_ver == ISP_V32) {
+			rkisp_set_stream_def_fmt(dev, RKISP_STREAM_BP,
+						 width, height, V4L2_PIX_FMT_NV12);
+			rkisp_set_stream_def_fmt(dev, RKISP_STREAM_MPDS,
+						 width / 4, height / 4, V4L2_PIX_FMT_NV12);
+			rkisp_set_stream_def_fmt(dev, RKISP_STREAM_BPDS,
+						 width / 4, height / 4, V4L2_PIX_FMT_NV12);
+		}
 	}
 	return 0;
 }
@@ -891,9 +892,10 @@ static int rkisp_plat_probe(struct platform_device *pdev)
 	pm_runtime_enable(dev);
 	/* create & register platefom subdev (from of_node) */
 	ret = rkisp_register_platform_subdevs(isp_dev);
-	if (ret < 0)
+	if (ret < 0) {
+		v4l2_err(v4l2_dev, "Failed to register platform subdevs:%d\n", ret);
 		goto err_unreg_media_dev;
-
+	}
 	rkisp_wait_line = 0;
 	of_property_read_u32(dev->of_node, "wait-line", &rkisp_wait_line);
 

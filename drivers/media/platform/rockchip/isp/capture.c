@@ -18,11 +18,11 @@
 #define STREAM_MAX_SP_RSZ_OUTPUT_WIDTH		1920
 #define STREAM_MAX_SP_RSZ_OUTPUT_HEIGHT		1080
 #define STREAM_MIN_RSZ_OUTPUT_WIDTH		32
-#define STREAM_MIN_RSZ_OUTPUT_HEIGHT		16
+#define STREAM_MIN_RSZ_OUTPUT_HEIGHT		32
 #define STREAM_OUTPUT_STEP_WISE			8
 
-#define STREAM_MIN_MP_SP_INPUT_WIDTH		32
-#define STREAM_MIN_MP_SP_INPUT_HEIGHT		32
+#define STREAM_MIN_MP_SP_INPUT_WIDTH		STREAM_MIN_RSZ_OUTPUT_WIDTH
+#define STREAM_MIN_MP_SP_INPUT_HEIGHT		STREAM_MIN_RSZ_OUTPUT_HEIGHT
 
 static int hdr_dma_frame(struct rkisp_device *dev)
 {
@@ -739,7 +739,7 @@ static int rkisp_set_fmt(struct rkisp_stream *stream,
 
 		/* 128bit AXI, 16byte align for bytesperline */
 		if ((dev->isp_ver == ISP_V20 && stream->id == RKISP_STREAM_SP) ||
-		    dev->isp_ver == ISP_V30 || dev->isp_ver == ISP_V32)
+		    dev->isp_ver >= ISP_V30)
 			plane_fmt->bytesperline = ALIGN(plane_fmt->bytesperline, 16);
 
 		plane_fmt->sizeimage = plane_fmt->bytesperline * height;
@@ -1685,6 +1685,13 @@ int rkisp_register_stream_vdevs(struct rkisp_device *dev)
 		st_cfg->max_rsz_width = CIF_ISP_INPUT_W_MAX_V32;
 		st_cfg->max_rsz_height = CIF_ISP_INPUT_H_MAX_V32;
 		ret = rkisp_register_stream_v32(dev);
+	} else if (dev->isp_ver == ISP_V32_L) {
+		st_cfg->max_rsz_width = CIF_ISP_INPUT_W_MAX_V32_L;
+		st_cfg->max_rsz_height = CIF_ISP_INPUT_H_MAX_V32_L;
+		st_cfg = &rkisp_sp_stream_config;
+		st_cfg->max_rsz_width = CIF_ISP_INPUT_W_MAX_V32_L;
+		st_cfg->max_rsz_height = CIF_ISP_INPUT_H_MAX_V32_L;
+		ret = rkisp_register_stream_v32(dev);
 	}
 
 	INIT_WORK(&cap_dev->fast_work, rkisp_stream_fast);
@@ -1701,7 +1708,7 @@ void rkisp_unregister_stream_vdevs(struct rkisp_device *dev)
 		rkisp_unregister_stream_v21(dev);
 	else if (dev->isp_ver == ISP_V30)
 		rkisp_unregister_stream_v30(dev);
-	else if (dev->isp_ver == ISP_V32)
+	else if (dev->isp_ver == ISP_V32 || dev->isp_ver == ISP_V32_L)
 		rkisp_unregister_stream_v32(dev);
 }
 
@@ -1715,6 +1722,6 @@ void rkisp_mi_isr(u32 mis_val, struct rkisp_device *dev)
 		rkisp_mi_v21_isr(mis_val, dev);
 	else if (dev->isp_ver == ISP_V30)
 		rkisp_mi_v30_isr(mis_val, dev);
-	else if (dev->isp_ver == ISP_V32)
+	else if (dev->isp_ver == ISP_V32 || dev->isp_ver == ISP_V32_L)
 		rkisp_mi_v32_isr(mis_val, dev);
 }

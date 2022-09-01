@@ -87,6 +87,9 @@
 #define ISP32_RAWAWB_WEIGHT_NUM		ISP3X_RAWAWB_WEIGHT_NUM
 #define ISP32_RAWAWB_SUM_NUM		4
 #define ISP32_RAWAWB_RAMDATA_NUM	ISP3X_RAWAWB_RAMDATA_NUM
+#define ISP32L_RAWAWB_WEIGHT_NUM	5
+#define ISP32L_RAWAWB_RAMDATA_RGB_NUM	25
+#define ISP32L_RAWAWB_RAMDATA_WP_NUM	13
 
 #define	ISP32_RAWAEBIG_SUBWIN_NUM	ISP3X_RAWAEBIG_SUBWIN_NUM
 #define ISP32_RAWAEBIG_MEAN_NUM		ISP3X_RAWAEBIG_MEAN_NUM
@@ -95,6 +98,7 @@
 #define ISP32_RAWHISTBIG_SUBWIN_NUM	ISP3X_RAWHISTBIG_SUBWIN_NUM
 #define ISP32_RAWHISTLITE_SUBWIN_NUM	ISP3X_RAWHISTLITE_SUBWIN_NUM
 #define ISP32_HIST_BIN_N_MAX		ISP3X_HIST_BIN_N_MAX
+#define ISP32L_HIST_LITE_BIN_N_MAX	64
 
 #define ISP32_RAWAF_CURVE_NUM		ISP3X_RAWAF_CURVE_NUM
 #define ISP32_RAWAF_HIIR_COE_NUM	ISP3X_RAWAF_HIIR_COE_NUM
@@ -105,6 +109,7 @@
 #define ISP32_RAWAF_SUMDATA_NUM		ISP3X_RAWAF_SUMDATA_NUM
 #define ISP32_RAWAF_VIIR_COE_NUM	3
 #define ISP32_RAWAF_GAUS_COE_NUM	9
+#define ISP32L_RAWAF_WND_DATA		25
 
 #define ISP32_DPCC_PDAF_POINT_NUM	ISP3X_DPCC_PDAF_POINT_NUM
 
@@ -380,6 +385,11 @@ struct isp32_bay3d_cfg {
 	u8 higaus3_mode;
 	u8 higaus5x5_en;
 	u8 wgtmix_opt_en;
+
+	/* for isp32_lite */
+	u8 wgtmm_opt_en;
+	u8 wgtmm_sel_en;
+
 	/* BAY3D_SIGGAUS */
 	u8 siggaus0;
 	u8 siggaus1;
@@ -398,6 +408,10 @@ struct isp32_bay3d_cfg {
 	u16 sig1_y[ISP32_BAY3D_XY_NUM];
 	u16 sig2_x[ISP32_BAY3D_XY_NUM];
 	u16 sig2_y[ISP32_BAY3D_XY_NUM];
+
+	/* LODIF_STAT1 for isp32_lite */
+	u16 wgtmin;
+
 	/* BAY3D_HISIGRAT */
 	u16 hisigrat0;
 	u16 hisigrat1;
@@ -431,6 +445,9 @@ struct isp32_ynr_cfg {
 	u8 nlm_hi_gain_alpha;
 	/* YNR_NLM_COE */
 	u8 nlm_coe[ISP32_YNR_NLM_COE_NUM];
+
+	/* LOWNR_CTRL4 for isp32_lite */
+	u8 frame_add4line;
 
 	u16 global_gain;
 
@@ -539,6 +556,11 @@ struct isp32_sharp_cfg {
 	u8 exgain_bypass;
 	u8 radius_ds_mode;
 	u8 noiseclip_mode;
+
+	/* for isp32_lite */
+	u8 clip_hf_mode;
+	u8 add_mode;
+
 	/* SHARP_RATIO */
 	u8 sharp_ratio;
 	u8 bf_ratio;
@@ -582,6 +604,11 @@ struct isp32_sharp_cfg {
 	/* SHARP_TEXTURE */
 	u16 noise_sigma;
 	u16 noise_strength;
+
+	/* EHF_TH for isp32_lite */
+	u16 ehf_th[ISP32_SHARP_Y_NUM];
+	/* CLIP_NEG for isp32_lite */
+	u16 clip_neg[ISP32_SHARP_Y_NUM];
 } __attribute__ ((packed));
 
 struct isp32_dhaz_cfg {
@@ -861,6 +888,10 @@ struct isp32_rawawb_meas_cfg {
 	u8 blk_measure_xytype;
 	u8 blk_rtdw_measure_en;
 	u8 blk_measure_illu_idx;
+
+	/* for isp32_lite */
+	u8 ds16x8_mode_en;
+
 	u8 blk_with_luma_wei_en;
 	u16 in_overexposure_threshold;
 	/* RAWAWB_LIMIT_RG_MAX*/
@@ -1138,12 +1169,17 @@ struct isp32_rawawb_meas_cfg {
 	u32 islope23_3;
 	u32 islope30_3;
 
+	/* WIN_WEIGHT for isp32_lite */
+	u32 win_weight[ISP32L_RAWAWB_WEIGHT_NUM];
 	struct isp2x_bls_fixed_val bls2_val;
 } __attribute__ ((packed));
 
 struct isp32_rawaf_meas_cfg {
 	u8 rawaf_sel;
 	u8 num_afm_win;
+	/* for isp32_lite */
+	u8 bnr2af_sel;
+
 	/* CTRL */
 	u8 gamma_en;
 	u8 gaus_en;
@@ -1164,6 +1200,23 @@ struct isp32_rawaf_meas_cfg {
 	u8 from_awb;
 	u8 from_ynr;
 	u8 ae_config_use;
+	/* for isp32_lite */
+	u8 ae_sel;
+
+	/* for isp32_lite */
+	u8 hiir_left_border_mode;
+	u8 avg_ds_en;
+	u8 avg_ds_mode;
+	u8 h1_acc_mode;
+	u8 h2_acc_mode;
+	u8 v1_acc_mode;
+	u8 v2_acc_mode;
+
+	/* CTRL1 for isp32_lite */
+	s16 bls_offset;
+	u8 bls_en;
+	u8 hldg_dilate_num;
+
 	/* WINA_B */
 	struct isp2x_window win[ISP32_RAWAF_WIN_NUM];
 	/* INT_LINE */
@@ -1174,6 +1227,9 @@ struct isp32_rawaf_meas_cfg {
 	/* VAR_SHIFT */
 	u8 afm_var_shift[ISP32_RAWAF_WIN_NUM];
 	u8 lum_var_shift[ISP32_RAWAF_WIN_NUM];
+	/* for isp32_lite */
+	u8 tnrin_shift;
+
 	/* HVIIR_VAR_SHIFT */
 	u8 h1iir_var_shift;
 	u8 h2iir_var_shift;
@@ -1198,6 +1254,13 @@ struct isp32_rawaf_meas_cfg {
 	s16 v1fir_coe[ISP32_RAWAF_VFIR_COE_NUM];
 	s16 v2fir_coe[ISP32_RAWAF_VFIR_COE_NUM];
 	u16 highlit_thresh;
+
+	/* CORING_H for isp32_lite */
+	u16 h_fv_limit;
+	u16 h_fv_slope;
+	/* CORING_V for isp32_lite */
+	u16 v_fv_limit;
+	u16 v_fv_slope;
 } __attribute__ ((packed));
 
 struct isp32_cac_cfg {
@@ -1405,4 +1468,60 @@ struct rkisp32_thunderboot_resmem_head {
 	struct rkisp_thunderboot_resmem_head head;
 	struct isp32_isp_params_cfg cfg;
 };
+
+/****************isp32 lite********************/
+
+struct isp32_lite_rawaebig_stat {
+	u32 sumr;
+	u32 sumg;
+	u32 sumb;
+	struct isp2x_rawae_meas_data data[ISP32_RAWAEBIG_MEAN_NUM];
+} __attribute__ ((packed));
+
+struct isp32_lite_rawawb_meas_stat {
+	u32 ramdata_r[ISP32L_RAWAWB_RAMDATA_RGB_NUM];
+	u32 ramdata_g[ISP32L_RAWAWB_RAMDATA_RGB_NUM];
+	u32 ramdata_b[ISP32L_RAWAWB_RAMDATA_RGB_NUM];
+	u32 ramdata_wpnum0[ISP32L_RAWAWB_RAMDATA_WP_NUM];
+	u32 ramdata_wpnum1[ISP32L_RAWAWB_RAMDATA_WP_NUM];
+	struct isp32_rawawb_sum sum[ISP32_RAWAWB_SUM_NUM];
+	u16 yhist_bin[ISP32_RAWAWB_HSTBIN_NUM];
+	struct isp32_rawawb_sum_exc sum_exc[ISP32_RAWAWB_EXCL_STAT_NUM];
+} __attribute__ ((packed));
+
+struct isp32_lite_rawaf_ramdata {
+	u32 hiir_wnd_data[ISP32L_RAWAF_WND_DATA];
+	u32 viir_wnd_data[ISP32L_RAWAF_WND_DATA];
+} __attribute__ ((packed));
+
+struct isp32_lite_rawaf_stat {
+	struct isp32_lite_rawaf_ramdata ramdata;
+	u32 int_state;
+	u32 afm_sum_b;
+	u32 afm_lum_b;
+	u32 highlit_cnt_winb;
+} __attribute__ ((packed));
+
+struct isp32_lite_rawhistlite_stat {
+	u32 hist_bin[ISP32L_HIST_LITE_BIN_N_MAX];
+} __attribute__ ((packed));
+
+struct isp32_lite_stat {
+	struct isp2x_bls_stat bls;
+	struct isp3x_dhaz_stat dhaz;
+	struct isp32_info2ddr_stat info2ddr;
+	struct isp2x_rawaelite_stat rawae0;
+	struct isp32_lite_rawaebig_stat rawae3;
+	struct isp32_lite_rawhistlite_stat rawhist0;
+	struct isp2x_rawhistbig_stat rawhist3;
+	struct isp32_lite_rawaf_stat rawaf;
+	struct isp32_lite_rawawb_meas_stat rawawb;
+} __attribute__ ((packed));
+
+struct rkisp32_lite_stat_buffer {
+	struct isp32_lite_stat params;
+	u32 meas_type;
+	u32 frame_id;
+	u32 params_id;
+} __attribute__ ((packed));
 #endif /* _UAPI_RKISP32_CONFIG_H */

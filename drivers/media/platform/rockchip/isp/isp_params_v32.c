@@ -9,21 +9,34 @@
 #include "regs.h"
 #include "isp_params_v32.h"
 
-#define ISP32_MODULE_EN			BIT(0)
-#define ISP32_SELF_FORCE_UPD		BIT(31)
-#define ISP32_REG_WR_MASK		BIT(31) //disable write protect
+#define ISP32_MODULE_EN				BIT(0)
+#define ISP32_SELF_FORCE_UPD			BIT(31)
+#define ISP32_REG_WR_MASK			BIT(31) //disable write protect
 
-#define ISP32_NOBIG_OVERFLOW_SIZE	(1536 * 896)
-#define ISP32_AUTO_BIGMODE_WIDTH	1536
-#define ISP32_VIR2_NOBIG_OVERFLOW_SIZE	(960 * 540)
-#define ISP32_VIR2_AUTO_BIGMODE_WIDTH	960
-#define ISP32_VIR4_NOBIG_OVERFLOW_SIZE	(640 * 400)
-#define ISP32_VIR4_AUTO_BIGMODE_WIDTH	640
+#define ISP32_NOBIG_OVERFLOW_SIZE		(1536 * 896)
+#define ISP32_AUTO_BIGMODE_WIDTH		1536
+#define ISP32_VIR2_NOBIG_OVERFLOW_SIZE		(960 * 540)
+#define ISP32_VIR2_AUTO_BIGMODE_WIDTH		960
+#define ISP32_VIR4_NOBIG_OVERFLOW_SIZE		(640 * 400)
+#define ISP32_VIR4_AUTO_BIGMODE_WIDTH		640
 
-#define ISP32_VIR2_MAX_WIDTH		1920
-#define ISP32_VIR2_MAX_SIZE		(1920 * 1080)
-#define ISP32_VIR4_MAX_WIDTH		1280
-#define ISP32_VIR4_MAX_SIZE		(1280 * 800)
+#define ISP32_VIR2_MAX_WIDTH			1920
+#define ISP32_VIR2_MAX_SIZE			(1920 * 1080)
+#define ISP32_VIR4_MAX_WIDTH			1280
+#define ISP32_VIR4_MAX_SIZE			(1280 * 800)
+
+#define ISP32_LITE_NOBIG_OVERFLOW_SIZE		(2688 * 1536)
+#define ISP32_LITE_AUTO_BIGMODE_WIDTH		2688
+#define ISP32_LITE_VIR2_NOBIG_OVERFLOW_SIZE	(1920 * 1080)
+#define ISP32_LITE_VIR2_AUTO_BIGMODE_WIDTH	1920
+#define ISP32_LITE_VIR4_NOBIG_OVERFLOW_SIZE	(1280 * 800)
+#define ISP32_LITE_VIR4_AUTO_BIGMODE_WIDTH	1280
+#define ISP32_LITE_VIR2_MAX_WIDTH		3840
+#define ISP32_LITE_VIR2_MAX_SIZE		(3840 * 2160)
+#define ISP32_LITE_VIR4_MAX_WIDTH		2688
+#define ISP32_LITE_VIR4_MAX_SIZE		(2688 * 1536)
+
+#define ISP32_LITE_FRM_BUF_SIZE			0x1d000
 
 static inline void
 isp3_param_write_direct(struct rkisp_isp_params_vdev *params_vdev,
@@ -453,6 +466,68 @@ isp_sdg_enable(struct rkisp_isp_params_vdev *params_vdev, bool en)
 				      ISP3X_ISP_CTRL0);
 }
 
+static void __maybe_unused
+isp_lsc_matrix_cfg_ddr(struct rkisp_isp_params_vdev *params_vdev,
+		       const struct isp3x_lsc_cfg *pconfig)
+{
+	struct rkisp_isp_params_val_v32 *priv_val;
+	u32 data, buf_idx, *vaddr[4], index[4];
+	void *buf_vaddr;
+	int i, j;
+
+	memset(&index[0], 0, sizeof(index));
+	priv_val = (struct rkisp_isp_params_val_v32 *)params_vdev->priv_val;
+	buf_idx = (priv_val->buf_lsclut_idx++) % ISP32_LSC_LUT_BUF_NUM;
+	buf_vaddr = priv_val->buf_lsclut[buf_idx].vaddr;
+
+	vaddr[0] = buf_vaddr;
+	vaddr[1] = buf_vaddr + ISP32_LSC_LUT_TBL_SIZE;
+	vaddr[2] = buf_vaddr + ISP32_LSC_LUT_TBL_SIZE * 2;
+	vaddr[3] = buf_vaddr + ISP32_LSC_LUT_TBL_SIZE * 3;
+
+	/* program data tables (table size is 9 * 17 = 153) */
+	for (i = 0; i < CIF_ISP_LSC_SECTORS_MAX * CIF_ISP_LSC_SECTORS_MAX;
+	     i += CIF_ISP_LSC_SECTORS_MAX) {
+		/*
+		 * 17 sectors with 2 values in one DWORD = 9
+		 * DWORDs (2nd value of last DWORD unused)
+		 */
+		for (j = 0; j < CIF_ISP_LSC_SECTORS_MAX - 1; j += 2) {
+			data = ISP_ISP_LSC_TABLE_DATA(pconfig->r_data_tbl[i + j],
+						      pconfig->r_data_tbl[i + j + 1]);
+			vaddr[0][index[0]++] = data;
+
+			data = ISP_ISP_LSC_TABLE_DATA(pconfig->gr_data_tbl[i + j],
+						      pconfig->gr_data_tbl[i + j + 1]);
+			vaddr[1][index[1]++] = data;
+
+			data = ISP_ISP_LSC_TABLE_DATA(pconfig->b_data_tbl[i + j],
+						      pconfig->b_data_tbl[i + j + 1]);
+			vaddr[2][index[2]++] = data;
+
+			data = ISP_ISP_LSC_TABLE_DATA(pconfig->gb_data_tbl[i + j],
+						      pconfig->gb_data_tbl[i + j + 1]);
+			vaddr[3][index[3]++] = data;
+		}
+
+		data = ISP_ISP_LSC_TABLE_DATA(pconfig->r_data_tbl[i + j], 0);
+		vaddr[0][index[0]++] = data;
+
+		data = ISP_ISP_LSC_TABLE_DATA(pconfig->gr_data_tbl[i + j], 0);
+		vaddr[1][index[1]++] = data;
+
+		data = ISP_ISP_LSC_TABLE_DATA(pconfig->b_data_tbl[i + j], 0);
+		vaddr[2][index[2]++] = data;
+
+		data = ISP_ISP_LSC_TABLE_DATA(pconfig->gb_data_tbl[i + j], 0);
+		vaddr[3][index[3]++] = data;
+	}
+	rkisp_prepare_buffer(params_vdev->dev, &priv_val->buf_lsclut[buf_idx]);
+	data = priv_val->buf_lsclut[buf_idx].dma_addr;
+	isp3_param_write(params_vdev, data, ISP3X_MI_LUT_LSC_RD_BASE);
+	isp3_param_write(params_vdev, ISP32_LSC_LUT_TBL_SIZE, ISP3X_MI_LUT_LSC_RD_WSIZE);
+}
+
 static void
 isp_lsc_matrix_cfg_sram(struct rkisp_isp_params_vdev *params_vdev,
 			const struct isp3x_lsc_cfg *pconfig,
@@ -469,7 +544,7 @@ isp_lsc_matrix_cfg_sram(struct rkisp_isp_params_vdev *params_vdev,
 	table = isp3_param_read_direct(params_vdev, ISP3X_LSC_STATUS);
 	table &= ISP3X_LSC_ACTIVE_TABLE;
 	/* default table 0 for multi device */
-	if (!dev->hw_dev->is_single)
+	if (!dev->hw_dev->is_single || dev->isp_ver == ISP_V32_L)
 		table = ISP3X_LSC_ACTIVE_TABLE;
 
 	/* CIF_ISP_LSC_TABLE_ADDRESS_153 = ( 17 * 18 ) >> 1 */
@@ -541,10 +616,24 @@ isp_lsc_config(struct rkisp_isp_params_vdev *params_vdev,
 	int i;
 
 	lsc_ctrl = isp3_param_read(params_vdev, ISP3X_LSC_CTRL);
-	params_rec->others.lsc_cfg = *arg;
-	if (dev->hw_dev->is_single && (lsc_ctrl & ISP_LSC_EN))
-		tasklet_schedule(&priv_val->lsc_tasklet);
-
+	if (dev->isp_ver == ISP_V32_L) {
+		/* one lsc sram table
+		 * online mode lsc lut load from ddr quick for some sensor VB short
+		 * readback mode lsc lut AHB config to sram, once for single device,
+		 * need record to switch for multi-device.
+		 */
+		if (!IS_HDR_RDBK(dev->rd_mode))
+			isp_lsc_matrix_cfg_ddr(params_vdev, arg);
+		else if (dev->hw_dev->is_single)
+			isp_lsc_matrix_cfg_sram(params_vdev, arg, false);
+		else
+			params_rec->others.lsc_cfg = *arg;
+	} else {
+		/* two lsc sram table */
+		params_rec->others.lsc_cfg = *arg;
+		if (dev->hw_dev->is_single && (lsc_ctrl & ISP_LSC_EN))
+			tasklet_schedule(&priv_val->lsc_tasklet);
+	}
 	for (i = 0; i < ISP32_LSC_SIZE_TBL_SIZE / 4; i++) {
 		/* program x size tables */
 		data = CIF_ISP_LSC_SECT_SIZE(arg->x_size_tbl[i * 2], arg->x_size_tbl[i * 2 + 1]);
@@ -575,12 +664,15 @@ isp_lsc_config(struct rkisp_isp_params_vdev *params_vdev,
 		lsc_ctrl |= ISP3X_LSC_SECTOR_16X16;
 	else
 		lsc_ctrl &= ~ISP3X_LSC_SECTOR_16X16;
+	if (dev->isp_ver == ISP_V32_L && !IS_HDR_RDBK(dev->rd_mode))
+		lsc_ctrl |= ISP3X_LSC_LUT_EN;
 	isp3_param_write(params_vdev, lsc_ctrl, ISP3X_LSC_CTRL);
 }
 
 static void
 isp_lsc_enable(struct rkisp_isp_params_vdev *params_vdev, bool en)
 {
+	struct rkisp_device *dev = params_vdev->dev;
 	struct isp32_isp_params_cfg *params_rec = params_vdev->isp32_params;
 	u32 val = isp3_param_read(params_vdev, ISP3X_LSC_CTRL);
 
@@ -589,8 +681,10 @@ isp_lsc_enable(struct rkisp_isp_params_vdev *params_vdev, bool en)
 
 	if (en) {
 		val = ISP_LSC_EN | ISP32_SELF_FORCE_UPD;
+		if (dev->isp_ver == ISP_V32_L && !IS_HDR_RDBK(dev->rd_mode))
+			val |= ISP3X_LSC_LUT_EN;
 		isp3_param_set_bits(params_vdev, ISP3X_LSC_CTRL, val);
-		if (params_vdev->dev->hw_dev->is_single)
+		if (dev->isp_ver == ISP_V32 && params_vdev->dev->hw_dev->is_single)
 			isp_lsc_matrix_cfg_sram(params_vdev,
 						&params_rec->others.lsc_cfg, false);
 	} else {
@@ -608,8 +702,9 @@ isp_debayer_config(struct rkisp_isp_params_vdev *params_vdev,
 	value = isp3_param_read(params_vdev, ISP3X_DEBAYER_CONTROL);
 	value &= ISP_DEBAYER_EN;
 
-	value |= !!arg->filter_c_en << 8 |
-		 !!arg->filter_g_en << 4;
+	value |= !!arg->filter_g_en << 4;
+	if (params_vdev->dev->isp_ver == ISP_V32)
+		value |= !!arg->filter_c_en << 8;
 	isp3_param_write(params_vdev, value, ISP3X_DEBAYER_CONTROL);
 
 	value = (arg->max_ratio & 0x3F) << 24 | arg->select_thed << 16 |
@@ -630,6 +725,9 @@ isp_debayer_config(struct rkisp_isp_params_vdev *params_vdev,
 
 	value = (arg->offset & 0x7FF);
 	isp3_param_write(params_vdev, value, ISP32_DEBAYER_G_FILTER_OFFSET);
+
+	if (params_vdev->dev->isp_ver != ISP_V32)
+		return;
 
 	value = arg->guid_gaus_coe2 << 16 |
 		arg->guid_gaus_coe1 << 8 | arg->guid_gaus_coe0;
@@ -938,8 +1036,8 @@ isp_ie_enable(struct rkisp_isp_params_vdev *params_vdev, bool en)
 }
 
 static void
-isp_rawaebig_config_foraf(struct rkisp_isp_params_vdev *params_vdev,
-			  const struct isp32_rawaf_meas_cfg *arg)
+isp_rawae_config_foraf(struct rkisp_isp_params_vdev *params_vdev,
+		       const struct isp32_rawaf_meas_cfg *arg)
 {
 	u32 block_hsize, block_vsize;
 	u32 addr, value;
@@ -948,7 +1046,12 @@ isp_rawaebig_config_foraf(struct rkisp_isp_params_vdev *params_vdev,
 		1, 5, 15, 15
 	};
 
-	addr = ISP3X_RAWAE_BIG1_BASE;
+	if (params_vdev->dev->isp_ver == ISP_V32_L && !!arg->ae_sel) {
+		wnd_num_idx = 1;
+		addr = ISP3X_RAWAE_LITE_BASE;
+	} else {
+		addr = ISP3X_RAWAE_BIG1_BASE;
+	}
 	value = isp3_param_read(params_vdev, addr + ISP3X_RAWAE_BIG_CTRL);
 	value &= ISP3X_RAWAE_BIG_EN;
 
@@ -1013,6 +1116,12 @@ isp_rawaf_config(struct rkisp_isp_params_vdev *params_vdev,
 	}
 	isp3_param_write(params_vdev, var, ISP3X_RAWAF_INT_LINE);
 
+	if (params_vdev->dev->isp_ver == ISP_V32_L) {
+		var = (arg->hldg_dilate_num & 0x7) << 16 |
+		      !!arg->bls_en << 12 | (arg->bls_offset & 0x1FF);
+		isp3_param_write(params_vdev, var, ISP32L_RAWAF_CTRL1);
+	}
+
 	var = isp3_param_read(params_vdev, ISP3X_RAWAF_THRES);
 	var &= ~0xFFFF;
 	var |= arg->afm_thres;
@@ -1020,6 +1129,8 @@ isp_rawaf_config(struct rkisp_isp_params_vdev *params_vdev,
 
 	var = (arg->lum_var_shift[1] & 0x7) << 20 | (arg->lum_var_shift[0] & 0x7) << 16 |
 		(arg->afm_var_shift[1] & 0x7) << 4 | (arg->afm_var_shift[0] & 0x7);
+	if (params_vdev->dev->isp_ver == ISP_V32_L)
+		var |= (arg->tnrin_shift & 0xf) << 8;
 	isp3_param_write(params_vdev, var, ISP3X_RAWAF_VAR_SHIFT);
 
 	for (i = 0; i < ISP32_RAWAF_GAMMA_NUM / 2; i++) {
@@ -1029,8 +1140,9 @@ isp_rawaf_config(struct rkisp_isp_params_vdev *params_vdev,
 	var = ISP_PACK_2SHORT(arg->gamma_y[16], 0);
 	isp3_param_write(params_vdev, var, ISP3X_RAWAF_GAMMA_Y8);
 
-	var = (arg->v2iir_var_shift & 0x7) << 12 | (arg->v1iir_var_shift & 0x7) << 8 |
-		(arg->h2iir_var_shift & 0x7) << 4 | (arg->h1iir_var_shift & 0x7);
+	var = (arg->v1iir_var_shift & 0x7) << 8 | (arg->h1iir_var_shift & 0x7);
+	if (params_vdev->dev->isp_ver == ISP_V32)
+		var |= (arg->v2iir_var_shift & 0x7) << 12 | (arg->h2iir_var_shift & 0x7) << 4;
 	isp3_param_write(params_vdev, var, ISP3X_RAWAF_HVIIR_VAR_SHIFT);
 
 	var = ISP_PACK_2SHORT(arg->h_fv_thresh, arg->v_fv_thresh);
@@ -1051,6 +1163,13 @@ isp_rawaf_config(struct rkisp_isp_params_vdev *params_vdev,
 
 	isp3_param_write(params_vdev, arg->highlit_thresh, ISP3X_RAWAF_HIGHLIT_THRESH);
 
+	if (params_vdev->dev->isp_ver == ISP_V32_L) {
+		var = ISP_PACK_2SHORT(arg->h_fv_limit, arg->h_fv_slope);
+		isp3_param_write(params_vdev, var, ISP32L_RAWAF_CORING_H);
+		var = ISP_PACK_2SHORT(arg->v_fv_limit, arg->v_fv_slope);
+		isp3_param_write(params_vdev, var, ISP32L_RAWAF_CORING_V);
+	}
+
 	viir_en = arg->viir_en;
 	gaus_en = arg->gaus_en;
 	v1_fir_sel = arg->v1_fir_sel;
@@ -1066,6 +1185,10 @@ isp_rawaf_config(struct rkisp_isp_params_vdev *params_vdev,
 			isp3_param_write(params_vdev, var, ISP3X_RAWAF_H1_IIR1_COE01 + i * 4);
 			var = ISP_PACK_2SHORT(arg->h1iir2_coe[i * 2], arg->h1iir2_coe[i * 2 + 1]);
 			isp3_param_write(params_vdev, var, ISP3X_RAWAF_H1_IIR2_COE01 + i * 4);
+
+			if (params_vdev->dev->isp_ver == ISP_V32_L)
+				continue;
+
 			var = ISP_PACK_2SHORT(arg->h2iir1_coe[i * 2], arg->h2iir1_coe[i * 2 + 1]);
 			isp3_param_write(params_vdev, var, ISP3X_RAWAF_H2_IIR1_COE01 + i * 4);
 			var = ISP_PACK_2SHORT(arg->h2iir2_coe[i * 2], arg->h2iir2_coe[i * 2 + 1]);
@@ -1075,7 +1198,10 @@ isp_rawaf_config(struct rkisp_isp_params_vdev *params_vdev,
 	if (viir_en) {
 		ctrl |= ISP3X_RAWAF_VIIR_EN;
 		for (i = 0; i < ISP32_RAWAF_VIIR_COE_NUM; i++) {
-			var = ISP_PACK_2SHORT(arg->v1iir_coe[i], arg->v2iir_coe[i]);
+			if (params_vdev->dev->isp_ver == ISP_V32)
+				var = ISP_PACK_2SHORT(arg->v1iir_coe[i], arg->v2iir_coe[i]);
+			else
+				var = ISP_PACK_2SHORT(arg->v1iir_coe[i], 0);
 			isp3_param_write(params_vdev, var, ISP3X_RAWAF_V_IIR_COE0 + i * 4);
 		}
 	}
@@ -1099,29 +1225,51 @@ isp_rawaf_config(struct rkisp_isp_params_vdev *params_vdev,
 		!!arg->from_awb << 18 | (arg->v_dnscl_mode & 0x3) << 16 |
 		!!arg->sobel_sel << 15 | !!arg->vldg_sel << 14 |
 		!!arg->y_mode << 13 | !!arg->ae_mode << 12 |
-		!!arg->v2_fv_mode << 11 | !!arg->v1_fv_mode << 10 |
-		!!arg->h2_fv_mode << 9 | !!arg->h1_fv_mode << 8 |
+		!!arg->v1_fv_mode << 10 | !!arg->h1_fv_mode << 8 |
 		!!arg->accu_8bit_mode << 6 | !!v1_fir_sel  << 3 |
 		!!gaus_en << 2 | !!arg->gamma_en << 1;
+	if (params_vdev->dev->isp_ver == ISP_V32)
+		ctrl |= !!arg->v2_fv_mode << 11 | !!arg->h2_fv_mode << 9;
+	else
+		ctrl |= !!arg->hiir_left_border_mode << 21 |
+			!!arg->avg_ds_en << 22 |
+			!!arg->avg_ds_mode << 23 |
+			!!arg->h1_acc_mode << 24 |
+			!!arg->h2_acc_mode << 25 |
+			!!arg->v1_acc_mode << 26 |
+			!!arg->v2_acc_mode << 27 |
+			!!arg->ae_sel << 29;
 	isp3_param_write(params_vdev, ctrl, ISP3X_RAWAF_CTRL);
 
 	ctrl = isp3_param_read(params_vdev, ISP3X_VI_ISP_PATH);
-	if ((ctrl & ISP3X_RAWAF_SEL(3)) != ISP3X_RAWAF_SEL(arg->rawaf_sel)) {
+	if (((ctrl & ISP3X_RAWAF_SEL(3)) != ISP3X_RAWAF_SEL(arg->rawaf_sel)) ||
+	    (((!!(ctrl & ISP32L_BNR2AF_SEL)) != arg->bnr2af_sel) &&
+	     (params_vdev->dev->isp_ver == ISP_V32_L))) {
+
 		ctrl &= ~(ISP3X_RAWAF_SEL(3));
 		ctrl |= ISP3X_RAWAF_SEL(arg->rawaf_sel);
+		if (params_vdev->dev->isp_ver == ISP_V32_L) {
+			if (arg->bnr2af_sel)
+				ctrl |= ISP32L_BNR2AF_SEL;
+			else
+				ctrl &= ~ISP32L_BNR2AF_SEL;
+		}
 		isp3_param_write(params_vdev, ctrl, ISP3X_VI_ISP_PATH);
 	}
 
 	params_vdev->afaemode_en = arg->ae_mode;
 	if (params_vdev->afaemode_en)
-		isp_rawaebig_config_foraf(params_vdev, arg);
+		isp_rawae_config_foraf(params_vdev, arg);
 }
 
 static void
-isp_rawaebig_enable_foraf(struct rkisp_isp_params_vdev *params_vdev, bool en)
+isp_rawae_enable_foraf(struct rkisp_isp_params_vdev *params_vdev, bool en)
 {
 	u32 exp_ctrl;
 	u32 addr = ISP3X_RAWAE_BIG1_BASE;
+
+	if (params_vdev->dev->isp_ver == ISP_V32_L)
+		addr = ISP3X_RAWAE_LITE_BASE;
 
 	exp_ctrl = isp3_param_read(params_vdev, addr + ISP3X_RAWAE_BIG_CTRL);
 	exp_ctrl &= ~ISP32_REG_WR_MASK;
@@ -1146,7 +1294,7 @@ isp_rawaf_enable(struct rkisp_isp_params_vdev *params_vdev, bool en)
 
 	isp3_param_write(params_vdev, afm_ctrl, ISP3X_RAWAF_CTRL);
 	if (params_vdev->afaemode_en) {
-		isp_rawaebig_enable_foraf(params_vdev, en);
+		isp_rawae_enable_foraf(params_vdev, en);
 		if (!en)
 			params_vdev->afaemode_en = false;
 	}
@@ -1252,13 +1400,14 @@ isp_rawaebig_config(struct rkisp_isp_params_vdev *params_vdev,
 
 	if (arg->subwin_en[0])
 		value |= ISP3X_RAWAE_BIG_WND1_EN;
-	if (arg->subwin_en[1])
-		value |= ISP3X_RAWAE_BIG_WND2_EN;
-	if (arg->subwin_en[2])
-		value |= ISP3X_RAWAE_BIG_WND3_EN;
-	if (arg->subwin_en[3])
-		value |= ISP3X_RAWAE_BIG_WND4_EN;
-
+	if (params_vdev->dev->isp_ver == ISP_V32) {
+		if (arg->subwin_en[1])
+			value |= ISP3X_RAWAE_BIG_WND2_EN;
+		if (arg->subwin_en[2])
+			value |= ISP3X_RAWAE_BIG_WND3_EN;
+		if (arg->subwin_en[3])
+			value |= ISP3X_RAWAE_BIG_WND4_EN;
+	}
 	isp3_param_write(params_vdev, value, addr + ISP3X_RAWAE_BIG_CTRL);
 
 	isp3_param_write(params_vdev,
@@ -1384,7 +1533,7 @@ isp_rawawb_cfg_sram(struct rkisp_isp_params_vdev *params_vdev,
 {
 	u32 i, val = ISP32_MODULE_EN;
 
-	if (is_check &&
+	if (params_vdev->dev->isp_ver == ISP_V32 && is_check &&
 	    !(isp3_param_read(params_vdev, ISP3X_RAWAWB_CTRL) & val))
 		return;
 
@@ -1406,7 +1555,7 @@ isp_rawawb_config(struct rkisp_isp_params_vdev *params_vdev,
 	struct isp32_isp_params_cfg *params_rec = params_vdev->isp32_params;
 	struct isp32_rawawb_meas_cfg *arg_rec = &params_rec->meas.rawawb;
 	const struct isp2x_bls_fixed_val *pval = &arg->bls2_val;
-	u32 value, val, mask;
+	u32 value, val, mask, i;
 
 	value = isp3_param_read(params_vdev, ISP3X_BLS_CTRL);
 	value &= ~ISP32_BLS_BLS2_EN;
@@ -1448,6 +1597,8 @@ isp_rawawb_config(struct rkisp_isp_params_vdev *params_vdev,
 		!!arg->blk_measure_xytype << 2 |
 		!!arg->blk_measure_mode << 1 |
 		!!arg->blk_measure_enable;
+	if (params_vdev->dev->isp_ver == ISP_V32_L)
+		value |= !!arg->ds16x8_mode_en << 7;
 	isp3_param_write(params_vdev, value, ISP3X_RAWAWB_BLK_CTRL);
 
 	isp3_param_write(params_vdev,
@@ -2043,11 +2194,17 @@ isp_rawawb_config(struct rkisp_isp_params_vdev *params_vdev,
 					arg->exc_wp_region6_weight, 0),
 			 ISP32_RAWAWB_EXC_WP_WEIGHT4_6);
 
-	if (params_vdev->dev->hw_dev->is_single)
-		isp_rawawb_cfg_sram(params_vdev, arg, false);
-	else
-		memcpy(arg_rec->wp_blk_wei_w, arg->wp_blk_wei_w,
-		       ISP32_RAWAWB_WEIGHT_NUM);
+	if (params_vdev->dev->isp_ver == ISP_V32) {
+		if (params_vdev->dev->hw_dev->is_single)
+			isp_rawawb_cfg_sram(params_vdev, arg, false);
+		else
+			memcpy(arg_rec->wp_blk_wei_w, arg->wp_blk_wei_w,
+			       ISP32_RAWAWB_WEIGHT_NUM);
+	} else {
+		for (i = 0; i < ISP32L_RAWAWB_WEIGHT_NUM; i++)
+			isp3_param_write(params_vdev, arg->win_weight[i],
+					 ISP32L_RAWAWB_WIN_WEIGHT_0 + i * 4);
+	}
 
 	/* avoid to override the old enable value */
 	value = isp3_param_read_cache(params_vdev, ISP3X_RAWAWB_CTRL);
@@ -2112,9 +2269,10 @@ isp_rawhstlite_config(struct rkisp_isp_params_vdev *params_vdev,
 	hist_ctrl &= ISP3X_RAWHIST_EN;
 	hist_ctrl = hist_ctrl |
 		    ISP3X_RAWHIST_MODE(arg->mode) |
-		    ISP3X_RAWHIST_DATASEL(arg->data_sel) |
-		    ISP3X_RAWHIST_WATERLINE(arg->waterline) |
 		    ISP3X_RAWHIST_STEPSIZE(arg->stepsize);
+	if (params_vdev->dev->isp_ver == ISP_V32)
+		hist_ctrl |= ISP3X_RAWHIST_DATASEL(arg->data_sel) |
+			     ISP3X_RAWHIST_WATERLINE(arg->waterline);
 	isp3_param_write(params_vdev, hist_ctrl, ISP3X_RAWHIST_LITE_CTRL);
 
 	isp3_param_write(params_vdev,
@@ -2242,10 +2400,11 @@ isp_rawhstbig_config(struct rkisp_isp_params_vdev *params_vdev,
 	hist_ctrl &= ISP3X_RAWHIST_EN;
 	hist_ctrl = hist_ctrl |
 		    ISP3X_RAWHIST_MODE(arg->mode) |
-		    ISP3X_RAWHIST_DATASEL(arg->data_sel) |
-		    ISP3X_RAWHIST_WATERLINE(arg->waterline) |
 		    ISP3X_RAWHIST_WND_NUM(arg->wnd_num) |
 		    ISP3X_RAWHIST_STEPSIZE(arg->stepsize);
+	if (params_vdev->dev->isp_ver == ISP_V32)
+		hist_ctrl |= ISP3X_RAWHIST_DATASEL(arg->data_sel) |
+			     ISP3X_RAWHIST_WATERLINE(arg->waterline);
 	isp3_param_write(params_vdev, hist_ctrl, addr + ISP3X_RAWHIST_BIG_CTRL);
 
 	isp3_param_write(params_vdev,
@@ -2465,7 +2624,10 @@ isp_hdrdrc_config(struct rkisp_isp_params_vdev *params_vdev,
 	value = ISP_PACK_2SHORT(arg->scale_y[2 * i], 0);
 	isp3_param_write(params_vdev, value, ISP3X_DRC_SCALE_Y0 + 4 * i);
 
-	value = ISP_PACK_2SHORT(arg->min_ogain, arg->iir_weight);
+	if (params_vdev->dev->isp_ver == ISP_V32)
+		value = ISP_PACK_2SHORT(arg->min_ogain, arg->iir_weight);
+	else
+		value = ISP_PACK_2SHORT(arg->min_ogain, 0);
 	isp3_param_write(params_vdev, value, ISP3X_DRC_IIRWG_GAIN);
 
 	value = arg->gas_t & 0x1fff;
@@ -2875,6 +3037,8 @@ isp_ynr_config(struct rkisp_isp_params_vdev *params_vdev,
 	isp3_param_write(params_vdev, value, ISP3X_YNR_LOWNR_CTRL3);
 
 	value = ISP_PACK_2SHORT(arg->lbf_weight_thres, arg->frame_full_size);
+	if (params_vdev->dev->isp_ver == ISP_V32_L)
+		value |= (arg->frame_add4line & 0xf) << 12;
 	isp3_param_write(params_vdev, value, ISP3X_YNR_LOWNR_CTRL4);
 
 	value = (arg->low_gauss1_coeff2 & 0xFFFF) << 16 |
@@ -3059,8 +3223,12 @@ isp_sharp_config(struct rkisp_isp_params_vdev *params_vdev,
 	value |= !!arg->bypass << 1 |
 		 !!arg->center_mode << 2 |
 		 !!arg->exgain_bypass << 3 |
-		 !!arg->radius_ds_mode << 4 |
-		 !!arg->noiseclip_mode << 5;
+		 !!arg->radius_ds_mode << 4;
+	if (params_vdev->dev->isp_ver == ISP_V32)
+		value |= !!arg->noiseclip_mode << 5;
+	else
+		value |= !!arg->clip_hf_mode << 6 |
+			 !!arg->add_mode << 7;
 	isp3_param_write(params_vdev, value, ISP3X_SHARP_EN);
 
 	value = ISP_PACK_4BYTE(arg->pbf_ratio, arg->gaus_ratio,
@@ -3154,9 +3322,35 @@ isp_sharp_config(struct rkisp_isp_params_vdev *params_vdev,
 	value = ISP_PACK_4BYTE(arg->strength[i * 4], arg->strength[i * 4 + 1], 0, 0);
 	isp3_param_write(params_vdev, value, ISP32_SHARP_GAIN_DIS_STRENGTH0 + i * 4);
 
-	value = (arg->noise_strength & 0x3fff) << 16 | (arg->enhance_bit & 0xf) << 12 |
-		(arg->noise_sigma & 0x3ff);
-	isp3_param_write(params_vdev, value, ISP32_SHARP_TEXTURE);
+	if (params_vdev->dev->isp_ver == ISP_V32) {
+		value = (arg->noise_strength & 0x3fff) << 16 | (arg->enhance_bit & 0xf) << 12 |
+			(arg->noise_sigma & 0x3ff);
+		isp3_param_write(params_vdev, value, ISP32_SHARP_TEXTURE);
+	} else {
+		value = (arg->ehf_th[2] & 0x3FF) << 20 |
+			(arg->ehf_th[1] & 0x3FF) << 10 |
+			(arg->ehf_th[0] & 0x3FF);
+		isp3_param_write(params_vdev, value, ISP3X_SHARP_EHF_TH_0);
+		value = (arg->ehf_th[5] & 0x3FF) << 20 |
+			(arg->ehf_th[4] & 0x3FF) << 10 |
+			(arg->ehf_th[3] & 0x3FF);
+		isp3_param_write(params_vdev, value, ISP3X_SHARP_EHF_TH_1);
+		value = (arg->ehf_th[7] & 0x3FF) << 10 |
+			(arg->ehf_th[6] & 0x3FF);
+		isp3_param_write(params_vdev, value, ISP3X_SHARP_EHF_TH_2);
+
+		value = (arg->clip_neg[2] & 0x3FF) << 20 |
+			(arg->clip_neg[1] & 0x3FF) << 10 |
+			(arg->clip_neg[0] & 0x3FF);
+		isp3_param_write(params_vdev, value, ISP32L_SHARP_CLIP_NEG_0);
+		value = (arg->clip_neg[5] & 0x3FF) << 20 |
+			(arg->clip_neg[4] & 0x3FF) << 10 |
+			(arg->clip_neg[3] & 0x3FF);
+		isp3_param_write(params_vdev, value, ISP32L_SHARP_CLIP_NEG_1);
+		value = (arg->clip_neg[7] & 0x3FF) << 10 |
+			(arg->clip_neg[6] & 0x3FF);
+		isp3_param_write(params_vdev, value, ISP32L_SHARP_CLIP_NEG_2);
+	}
 }
 
 static void
@@ -3266,13 +3460,14 @@ isp_bay3d_config(struct rkisp_isp_params_vdev *params_vdev,
 		 !!arg->logaus3_bypass_en << 10 |
 		 !!arg->logaus5_bypass_en << 9 |
 		 !!arg->lomed_bypass_en << 8 |
-		 !!arg->hichnsplit_en << 7 |
 		 !!arg->hiabs_possel << 6 |
 		 !!arg->higaus_bypass_en << 5 |
-		 !!arg->himed_bypass_en << 4 |
 		 //!!arg->lobypass_en << 3 |
 		 !!arg->hibypass_en << 2 |
 		 !!arg->bypass_en << 1;
+	if (params_vdev->dev->isp_ver == ISP_V32)
+		value |= !!arg->hichnsplit_en << 7 |
+			 !!arg->himed_bypass_en << 4;
 	if (!(value & ISP32_MODULE_EN)) {
 		value &= ~ISP32_BAY3D_BWSAVING(1);
 		if (arg->bwsaving_en)
@@ -3286,17 +3481,21 @@ isp_bay3d_config(struct rkisp_isp_params_vdev *params_vdev,
 	isp3_param_write(params_vdev, value, ISP3X_BAY3D_CTRL);
 
 	value = !!arg->wgtmix_opt_en << 12 |
-		!!arg->higaus5x5_en << 11 |
-		(arg->higaus3_mode & 0x3) << 9 |
 		!!arg->curds_high_en << 8 |
 		!!arg->iirwr_rnd_en << 7 |
-		!!arg->pksig_ind_sel << 6 |
-		!!arg->hisig_ind_sel << 5 |
 		!!arg->lo4x4_en << 4 |
 		!!arg->lo4x8_en << 3 |
 		!!arg->bwopt_gain_dis << 2 |
-		!!arg->hichncor_en << 1 |
 		!!arg->hiwgt_opt_en;
+	if (params_vdev->dev->isp_ver == ISP_V32)
+		value |= !!arg->higaus5x5_en << 11 |
+			 (arg->higaus3_mode & 0x3) << 9 |
+			 !!arg->pksig_ind_sel << 6 |
+			 !!arg->hisig_ind_sel << 5 |
+			 !!arg->hichncor_en << 1;
+	else
+		value |= !!arg->wgtmm_sel_en << 14 |
+			 !!arg->wgtmm_opt_en << 13;
 	if (priv_val->is_lo8x8)
 		value &= ~(BIT(3) | BIT(4));
 	else if (!(value & (BIT(3) | BIT(4))))
@@ -3335,6 +3534,11 @@ isp_bay3d_config(struct rkisp_isp_params_vdev *params_vdev,
 		isp3_param_write(params_vdev, value, ISP3X_BAY3D_SIG2_Y0 + 4 * i);
 	}
 
+	if (params_vdev->dev->isp_ver == ISP_V32_L) {
+		value = ISP_PACK_2SHORT(0, arg->wgtmin);
+		isp3_param_write(params_vdev, value, ISP3X_BAY3D_LODIF_STAT1);
+	}
+
 	value = ISP_PACK_2SHORT(arg->hisigrat0, arg->hisigrat1);
 	isp3_param_write(params_vdev, value, ISP32_BAY3D_HISIGRAT);
 
@@ -3347,8 +3551,9 @@ isp_bay3d_config(struct rkisp_isp_params_vdev *params_vdev,
 	value = ISP_PACK_2SHORT(arg->rgain_off, arg->bgain_off);
 	isp3_param_write(params_vdev, value, ISP32_BAY3D_SIGPK);
 
-	value = ISP_PACK_4BYTE(arg->siggaus0, arg->siggaus1,
-			       arg->siggaus2, arg->siggaus3);
+	value = ISP_PACK_4BYTE(arg->siggaus0, arg->siggaus1, arg->siggaus2, 0);
+	if (params_vdev->dev->isp_ver == ISP_V32)
+		value |= (arg->siggaus3 << 24);
 	isp3_param_write(params_vdev, value, ISP32_BAY3D_SIGGAUS);
 }
 
@@ -3393,12 +3598,15 @@ isp_bay3d_enable(struct rkisp_isp_params_vdev *params_vdev, bool en)
 		value = priv_val->bay3d_cur_wsize;
 		isp3_param_write(params_vdev, value, ISP3X_MI_BAY3D_CUR_WR_LENGTH);
 		isp3_param_write(params_vdev, value, ISP3X_MI_BAY3D_CUR_RD_LENGTH);
-		value = priv_val->bay3d_cur_wrap_line << 16 | 28;
+		value = priv_val->bay3d_cur_wrap_line << 16 |
+			(ispdev->isp_ver == ISP_V32 ? 28 : 20);
 		isp3_param_write(params_vdev, value, ISP3X_BAY3D_MI_ST);
 
 		/* mibuf_size for fifo_cur_full, set to max: (3072 - 2) / 2, 2 align */
-		value = 0x5fe << 16;
-		isp3_param_set_bits(params_vdev, ISP3X_BAY3D_IN_IRQ_LINECNT, value);
+		if (ispdev->isp_ver == ISP_V32) {
+			value = 0x5fe << 16;
+			isp3_param_set_bits(params_vdev, ISP3X_BAY3D_IN_IRQ_LINECNT, value);
+		}
 
 		value = isp3_param_read_cache(params_vdev, ISP32_BAY3D_CTRL1);
 		if (priv_val->is_lo8x8) {
@@ -3448,15 +3656,19 @@ isp_gain_enable(struct rkisp_isp_params_vdev *params_vdev, bool en)
 
 	val = isp3_param_read_cache(params_vdev, ISP3X_GAIN_CTRL);
 	if (en) {
-		val |= priv_val->lut3d_en << 20 |
-			priv_val->dhaz_en << 16 |
-			priv_val->drc_en << 12 |
-			priv_val->lsc_en << 8 |
-			priv_val->bay3d_en << 4;
-		if (isp3_param_read(params_vdev, ISP3X_HDRMGE_CTRL) & BIT(0))
-			val |= BIT(1);
-		if (val)
+		if (params_vdev->dev->isp_ver == ISP_V32) {
+			val |= priv_val->lut3d_en << 20 |
+				priv_val->dhaz_en << 16 |
+				priv_val->drc_en << 12 |
+				priv_val->lsc_en << 8 |
+				priv_val->bay3d_en << 4;
+			if (isp3_param_read(params_vdev, ISP3X_HDRMGE_CTRL) & BIT(0))
+				val |= BIT(1);
+			if (val)
+				val |= ISP32_MODULE_EN;
+		} else {
 			val |= ISP32_MODULE_EN;
+		}
 	}
 	isp3_param_write(params_vdev, val, ISP3X_GAIN_CTRL);
 }
@@ -3740,6 +3952,10 @@ void __isp_isr_other_config(struct rkisp_isp_params_vdev *params_vdev,
 		(struct rkisp_isp_params_ops_v32 *)params_vdev->priv_ops;
 	u64 module_cfg_update = new_params->module_cfg_update;
 
+	if (params_vdev->dev->isp_ver == ISP_V32_L)
+		module_cfg_update &= ~(ISP32_MODULE_GIC | ISP32_MODULE_BAYNR |
+				       ISP32_MODULE_VSM | ISP32_MODULE_CAC);
+
 	if (type == RKISP_PARAMS_SHD) {
 		if ((module_cfg_update & ISP32_MODULE_HDRMGE))
 			ops->hdrmge_config(params_vdev, &new_params->others.hdrmge_cfg, type);
@@ -3845,6 +4061,10 @@ void __isp_isr_other_en(struct rkisp_isp_params_vdev *params_vdev,
 	u64 module_en_update = new_params->module_en_update;
 	u64 module_ens = new_params->module_ens;
 	u32 gain_ctrl, cnr_ctrl, val;
+
+	if (params_vdev->dev->isp_ver == ISP_V32_L)
+		module_en_update &= ~(ISP32_MODULE_GIC | ISP32_MODULE_BAYNR |
+				      ISP32_MODULE_VSM | ISP32_MODULE_CAC);
 
 	if (type == RKISP_PARAMS_SHD)
 		return;
@@ -3962,6 +4182,10 @@ void __isp_isr_meas_config(struct rkisp_isp_params_vdev *params_vdev,
 	u64 module_cfg_update = new_params->module_cfg_update;
 
 	params_vdev->cur_frame_id = new_params->frame_id;
+	if (params_vdev->dev->isp_ver == ISP_V32_L)
+		module_cfg_update &= ~(ISP32_MODULE_RAWAE1 | ISP32_MODULE_RAWAE2 |
+				       ISP32_MODULE_RAWHIST1 | ISP32_MODULE_RAWHIST2);
+
 	if (type == RKISP_PARAMS_SHD)
 		return;
 
@@ -3972,7 +4196,8 @@ void __isp_isr_meas_config(struct rkisp_isp_params_vdev *params_vdev,
 	if ((module_cfg_update & ISP32_MODULE_RAWAF))
 		ops->rawaf_config(params_vdev, &new_params->meas.rawaf);
 
-	if ((module_cfg_update & ISP32_MODULE_RAWAE0))
+	if ((module_cfg_update & ISP32_MODULE_RAWAE0) &&
+	    !(params_vdev->afaemode_en && params_vdev->dev->isp_ver == ISP_V32_L))
 		ops->rawae0_config(params_vdev, &new_params->meas.rawae0);
 
 	if ((module_cfg_update & ISP32_MODULE_RAWAE1))
@@ -3981,7 +4206,8 @@ void __isp_isr_meas_config(struct rkisp_isp_params_vdev *params_vdev,
 	if ((module_cfg_update & ISP32_MODULE_RAWAE2))
 		ops->rawae2_config(params_vdev, &new_params->meas.rawae2);
 
-	if ((module_cfg_update & ISP32_MODULE_RAWAE3) && !params_vdev->afaemode_en)
+	if ((module_cfg_update & ISP32_MODULE_RAWAE3) &&
+	    !(params_vdev->afaemode_en && params_vdev->dev->isp_ver == ISP_V32))
 		ops->rawae3_config(params_vdev, &new_params->meas.rawae3);
 
 	if ((module_cfg_update & ISP32_MODULE_RAWHIST0))
@@ -4012,6 +4238,9 @@ void __isp_isr_meas_en(struct rkisp_isp_params_vdev *params_vdev,
 	u64 module_en_update = new_params->module_en_update;
 	u64 module_ens = new_params->module_ens;
 
+	if (params_vdev->dev->isp_ver == ISP_V32_L)
+		module_en_update &= ~(ISP32_MODULE_RAWAE1 | ISP32_MODULE_RAWAE2 |
+				      ISP32_MODULE_RAWHIST1 | ISP32_MODULE_RAWHIST2);
 	if (type == RKISP_PARAMS_SHD)
 		return;
 
@@ -4022,7 +4251,8 @@ void __isp_isr_meas_en(struct rkisp_isp_params_vdev *params_vdev,
 	if (module_en_update & ISP32_MODULE_RAWAF)
 		ops->rawaf_enable(params_vdev, !!(module_ens & ISP32_MODULE_RAWAF));
 
-	if (module_en_update & ISP32_MODULE_RAWAE0)
+	if ((module_en_update & ISP32_MODULE_RAWAE0) &&
+	    !(params_vdev->afaemode_en && params_vdev->dev->isp_ver == ISP_V32_L))
 		ops->rawae0_enable(params_vdev, !!(module_ens & ISP32_MODULE_RAWAE0));
 
 	if (module_en_update & ISP32_MODULE_RAWAE1)
@@ -4031,7 +4261,8 @@ void __isp_isr_meas_en(struct rkisp_isp_params_vdev *params_vdev,
 	if (module_en_update & ISP32_MODULE_RAWAE2)
 		ops->rawae2_enable(params_vdev, !!(module_ens & ISP32_MODULE_RAWAE2));
 
-	if ((module_en_update & ISP32_MODULE_RAWAE3) && !params_vdev->afaemode_en)
+	if ((module_en_update & ISP32_MODULE_RAWAE3) &&
+	    !(params_vdev->afaemode_en && params_vdev->dev->isp_ver == ISP_V32))
 		ops->rawae3_enable(params_vdev, !!(module_ens & ISP32_MODULE_RAWAE3));
 
 	if (module_en_update & ISP32_MODULE_RAWHIST0)
@@ -4167,7 +4398,10 @@ rkisp_alloc_internal_buf(struct rkisp_isp_params_vdev *params_vdev,
 			}
 		}
 
-		wrap_line = priv_val->is_lo8x8 ? 76 : 36;
+		if (dev->isp_ver == ISP_V32)
+			wrap_line = priv_val->is_lo8x8 ? 76 : 36;
+		else
+			wrap_line = priv_val->is_lo8x8 ? 64 : 32;
 		wsize = is_bwopt_dis ? w : w * 2;
 		if (is_bwsaving)
 			wsize = wsize * 3 / 4;
@@ -4202,13 +4436,215 @@ rkisp_alloc_internal_buf(struct rkisp_isp_params_vdev *params_vdev,
 		priv_val->bay3d_cur_wsize = wsize;
 		priv_val->bay3d_cur_wrap_line = wrap_line;
 	}
+
+	if (dev->isp_ver == ISP_V32_L) {
+		if (dev->hw_dev->is_frm_buf && !priv_val->buf_frm.mem_priv) {
+			priv_val->buf_frm.size = ISP32_LITE_FRM_BUF_SIZE;
+			ret = rkisp_alloc_buffer(dev, &priv_val->buf_frm);
+			if (ret) {
+				dev_err(dev->dev, "alloc frm buf fail:%d\n", ret);
+				goto free_3dnr;
+			}
+		}
+
+		priv_val->buf_lsclut_idx = 0;
+		for (i = 0; i < ISP32_LSC_LUT_BUF_NUM; i++) {
+			priv_val->buf_lsclut[i].is_need_vaddr = true;
+			priv_val->buf_lsclut[i].size = ISP32_LSC_LUT_BUF_SIZE;
+			ret = rkisp_alloc_buffer(dev, &priv_val->buf_lsclut[i]);
+			if (ret) {
+				dev_err(dev->dev, "alloc lsc buf fail:%d\n", ret);
+				goto err_lsc;
+			}
+		}
+	}
 	return 0;
+err_lsc:
+	if (priv_val->buf_frm.mem_priv)
+		rkisp_free_buffer(dev, &priv_val->buf_frm);
+	for (i -= 1; i >= 0; i--)
+		rkisp_free_buffer(dev, &priv_val->buf_lsclut[i]);
+free_3dnr:
+	rkisp_free_buffer(dev, &priv_val->buf_3dnr_cur);
+	rkisp_free_buffer(dev, &priv_val->buf_3dnr_iir);
+	rkisp_free_buffer(dev, &priv_val->buf_3dnr_ds);
 err_3dnr:
 	i = ISP32_3DLUT_BUF_NUM;
 err_3dlut:
 	for (i -= 1; i >= 0; i--)
 		rkisp_free_buffer(dev, &priv_val->buf_3dlut[i]);
 	return ret;
+}
+
+static bool
+rkisp_params_check_bigmode_v32_lite(struct rkisp_isp_params_vdev *params_vdev)
+{
+	struct rkisp_device *ispdev = params_vdev->dev;
+	struct device *dev = params_vdev->dev->dev;
+	struct rkisp_hw_dev *hw = params_vdev->dev->hw_dev;
+	struct v4l2_rect *crop = &params_vdev->dev->isp_sdev.in_crop;
+	u32 width = hw->max_in.w, height = hw->max_in.h, size = width * height;
+	u32 bigmode_max_w, bigmode_max_size;
+	int k = 0, idx1[DEV_MAX] = { 0 };
+	int n = 0, idx2[DEV_MAX] = { 0 };
+	int i = 0, j = 0;
+	bool is_bigmode = false;
+
+using_frm_buf:
+	if (hw->is_frm_buf) {
+		ispdev->multi_index = 0;
+		ispdev->multi_mode = 0;
+		bigmode_max_w = ISP32_LITE_AUTO_BIGMODE_WIDTH;
+		bigmode_max_size = ISP32_LITE_NOBIG_OVERFLOW_SIZE;
+		dev_info(dev, "virtual isp%d %dx%d using frm buf\n",
+			 ispdev->dev_id, crop->width, crop->height);
+		goto end;
+	}
+
+	switch (hw->dev_link_num) {
+	case 4:
+		bigmode_max_w = ISP32_LITE_VIR4_AUTO_BIGMODE_WIDTH;
+		bigmode_max_size = ISP32_LITE_VIR4_NOBIG_OVERFLOW_SIZE;
+		ispdev->multi_index = ispdev->dev_id;
+		ispdev->multi_mode = 2;
+		/* internal buf of hw divided to four parts
+		 *             bigmode             nobigmode
+		 *  _________  max width:2688      max width:1280
+		 * |_sensor0_| max size:2688*1536  max size:1280*800
+		 * |_sensor1_| max size:2688*1536  max size:1280*800
+		 * |_sensor2_| max size:2688*1536  max size:1280*800
+		 * |_sensor3_| max size:2688*1536  max size:1280*800
+		 */
+		for (i = 0; i < hw->dev_num; i++) {
+			if (hw->isp_size[i].w <= ISP32_LITE_VIR4_MAX_WIDTH &&
+			    hw->isp_size[i].size <= ISP32_LITE_VIR4_MAX_SIZE)
+				continue;
+			hw->is_frm_buf = true;
+			goto using_frm_buf;
+		}
+		break;
+	case 3:
+		bigmode_max_w = ISP32_LITE_VIR4_AUTO_BIGMODE_WIDTH;
+		bigmode_max_size = ISP32_LITE_VIR4_NOBIG_OVERFLOW_SIZE;
+		ispdev->multi_index = ispdev->dev_id;
+		ispdev->multi_mode = 2;
+		/* case0:      bigmode             nobigmode
+		 *  _________  max width:2688      max width:1280
+		 * |_sensor0_| max size:2688*1536  max size:1280*800
+		 * |_sensor1_| max size:2688*1536  max size:1280*800
+		 * |_sensor2_| max size:2688*1536  max size:1280*800
+		 * |_________|
+		 *
+		 * case1:      bigmode             special reg cfg
+		 *  _________  max width:3840
+		 * | sensor0 | max size:3840*2160  mode=0 index=0
+		 * |_________|
+		 * |_sensor1_| max size:2688*1536  mode=2 index=2
+		 * |_sensor2_| max size:2688*1536  mode=2 index=3
+		 *             max width:2688
+		 */
+		for (i = 0; i < hw->dev_num; i++) {
+			if (!hw->isp_size[i].size) {
+				if (i < hw->dev_link_num)
+					idx2[n++] = i;
+				continue;
+			}
+			if (hw->isp_size[i].w <= ISP32_LITE_VIR4_MAX_WIDTH &&
+			    hw->isp_size[i].size <= ISP32_LITE_VIR4_MAX_SIZE)
+				continue;
+			idx1[k++] = i;
+		}
+		if (k) {
+			is_bigmode = true;
+			if (k != 1 ||
+			    (hw->isp_size[idx1[0]].size > ISP32_LITE_VIR2_MAX_SIZE)) {
+				hw->is_frm_buf = true;
+				goto using_frm_buf;
+			} else {
+				if (idx1[0] == ispdev->dev_id) {
+					ispdev->multi_mode = 0;
+					ispdev->multi_index = 0;
+				} else {
+					ispdev->multi_mode = 2;
+					if (ispdev->multi_index == 0 ||
+					    ispdev->multi_index == 1)
+						ispdev->multi_index = 3;
+				}
+			}
+		} else if (ispdev->multi_index >= hw->dev_link_num) {
+			ispdev->multi_index = idx2[ispdev->multi_index - hw->dev_link_num];
+		}
+		break;
+	case 2:
+		bigmode_max_w = ISP32_LITE_VIR2_AUTO_BIGMODE_WIDTH;
+		bigmode_max_size = ISP32_LITE_VIR2_NOBIG_OVERFLOW_SIZE;
+		ispdev->multi_index = ispdev->dev_id;
+		ispdev->multi_mode = 1;
+		/* case0:      bigmode            nobigmode
+		 *  _________  max width:3840     max width:1920
+		 * | sensor0 | max size:3840*2160 max size:1920*1080
+		 * |_________|
+		 * | sensor1 | max size:3840*2160 max size:1920*1080
+		 * |_________|
+		 *
+		 * case1:      bigmode              special reg cfg
+		 *  _________  max width:4224
+		 * | sensor0 | max size:            mode=0 index=0
+		 * |         | 3840*2160+2688*1536
+		 * |_________|
+		 * |_sensor1_| max size:2688*1536   mode=2 index=3
+		 *             max width:2688
+		 */
+		for (i = 0; i < hw->dev_num; i++) {
+			if (!hw->isp_size[i].size) {
+				if (i < hw->dev_link_num)
+					idx2[n++] = i;
+				continue;
+			}
+			if (hw->isp_size[i].w <= ISP32_LITE_VIR2_MAX_WIDTH &&
+			    hw->isp_size[i].size <= ISP32_LITE_VIR2_MAX_SIZE) {
+				if (hw->isp_size[i].w > ISP32_LITE_VIR4_MAX_WIDTH ||
+				    hw->isp_size[i].size > ISP32_LITE_VIR4_MAX_SIZE)
+					j++;
+				continue;
+			}
+			idx1[k++] = i;
+		}
+		if (k) {
+			is_bigmode = true;
+			if (k == 2 || j ||
+			    hw->isp_size[idx1[k - 1]].size > (ISP32_LITE_VIR4_MAX_SIZE + ISP32_LITE_VIR2_MAX_SIZE)) {
+				hw->is_frm_buf = true;
+				goto using_frm_buf;
+			} else {
+				if (idx1[0] == ispdev->dev_id) {
+					ispdev->multi_mode = 0;
+					ispdev->multi_index = 0;
+				} else {
+					ispdev->multi_mode = 2;
+					ispdev->multi_index = 3;
+				}
+			}
+		} else if (ispdev->multi_index >= hw->dev_link_num) {
+			ispdev->multi_index = idx2[ispdev->multi_index - hw->dev_link_num];
+		}
+		break;
+	default:
+		bigmode_max_w = ISP32_LITE_AUTO_BIGMODE_WIDTH;
+		bigmode_max_size = ISP32_LITE_NOBIG_OVERFLOW_SIZE;
+		ispdev->multi_mode = 0;
+		ispdev->multi_index = 0;
+		width = crop->width;
+		height = crop->height;
+		size = width * height;
+		break;
+	}
+
+end:
+	if (!is_bigmode &&
+	    (width > bigmode_max_w || size > bigmode_max_size))
+		is_bigmode = true;
+	return ispdev->is_bigmode = is_bigmode;
 }
 
 static bool
@@ -4224,6 +4660,9 @@ rkisp_params_check_bigmode_v32(struct rkisp_isp_params_vdev *params_vdev)
 	int n = 0, idx2[DEV_MAX] = { 0 };
 	int i = 0, j = 0;
 	bool is_bigmode = false;
+
+	if (ispdev->isp_ver == ISP_V32_L)
+		return rkisp_params_check_bigmode_v32_lite(params_vdev);
 
 multi_overflow:
 	if (hw->is_multi_overflow) {
@@ -4395,7 +4834,7 @@ rkisp_params_first_cfg_v32(struct rkisp_isp_params_vdev *params_vdev)
 	struct rkisp_isp_params_val_v32 *priv_val =
 		(struct rkisp_isp_params_val_v32 *)params_vdev->priv_val;
 
-	dev->is_bigmode = rkisp_params_check_bigmode_v32(params_vdev);
+	rkisp_params_check_bigmode_v32(params_vdev);
 	spin_lock(&params_vdev->config_lock);
 	/* override the default things */
 	if (!params_vdev->isp32_params->module_cfg_update &&
@@ -4423,6 +4862,11 @@ rkisp_params_first_cfg_v32(struct rkisp_isp_params_vdev *params_vdev)
 	priv_val->last_hdrdrc = priv_val->cur_hdrdrc;
 	spin_unlock(&params_vdev->config_lock);
 
+	if (dev->hw_dev->is_frm_buf && priv_val->buf_frm.mem_priv) {
+		isp3_param_write(params_vdev, priv_val->buf_frm.size, ISP32L_FRM_BUF_WR_SIZE);
+		isp3_param_write(params_vdev, priv_val->buf_frm.dma_addr, ISP32L_FRM_BUF_WR_BASE);
+		isp3_param_write(params_vdev, priv_val->buf_frm.dma_addr, ISP32L_FRM_BUF_RD_BASE);
+	}
 	if (dev->hw_dev->is_single && (dev->isp_state & ISP_START))
 		rkisp_set_bits(dev, ISP3X_ISP_CTRL0, 0, CIF_ISP_CTRL_ISP_CFG_UPD, true);
 }
@@ -4606,6 +5050,10 @@ rkisp_params_info2ddr_cfg_v32(struct rkisp_isp_params_vdev *params_vdev, void *a
 	u32 reg, ctrl, mask, size, val, wsize = 0, vsize = 0;
 	int i, ret;
 
+	if (dev->isp_ver == ISP_V32_L && cfg->owner == RKISP_INFO2DRR_OWNER_GAIN) {
+		dev_err(dev->dev, "%s no support gain for lite\n", __func__);
+		return -EINVAL;
+	}
 	priv_val = params_vdev->priv_val;
 
 	if (cfg->buf_cnt > RKISP_INFO2DDR_BUF_MAX)
@@ -4719,9 +5167,12 @@ rkisp_params_stream_stop_v32(struct rkisp_isp_params_vdev *params_vdev)
 	int i;
 
 	priv_val = (struct rkisp_isp_params_val_v32 *)params_vdev->priv_val;
+	rkisp_free_buffer(ispdev, &priv_val->buf_frm);
 	rkisp_free_buffer(ispdev, &priv_val->buf_3dnr_iir);
 	rkisp_free_buffer(ispdev, &priv_val->buf_3dnr_cur);
 	rkisp_free_buffer(ispdev, &priv_val->buf_3dnr_ds);
+	for (i = 0; i < ISP32_LSC_LUT_BUF_NUM; i++)
+		rkisp_free_buffer(ispdev, &priv_val->buf_lsclut[i]);
 	for (i = 0; i < ISP32_3DLUT_BUF_NUM; i++)
 		rkisp_free_buffer(ispdev, &priv_val->buf_3dlut[i]);
 	for (i = 0; i < RKISP_STATS_DDR_BUF_NUM; i++)

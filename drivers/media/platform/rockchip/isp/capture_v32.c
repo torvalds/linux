@@ -13,13 +13,16 @@
 #include "dev.h"
 #include "regs.h"
 
-/*
+/*			ISP32
  *        |--mainpath----[wrap]--------->enc(or ddr)
  *        |   |->mainpath_4x4sampling--->ddr
  *output->|->bypasspath----------------->ddr
  *        |   |->bypasspath_4x4sampling->ddr
  *        |->selfpath------------------->ddr
  *        |->lumapath------------------->ddr
+ *			ISP32_LITE
+ *output->|--mainpath------------------->ddr
+ *        |--selfpath------------------->ddr
  */
 
 #define CIF_ISP_REQ_BUFS_MIN 0
@@ -184,7 +187,7 @@ static const struct capture_fmt sp_fmts[] = {
 		.bpp = { 32 },
 		.mplanes = 1,
 		.write_format = MI_CTRL_SP_WRITE_PLA,
-		.output_format = MI_CTRL_SP_OUTPUT_RGB888,
+		.output_format = MI_CTRL_SP_OUTPUT_ARGB888,
 	}, {
 		.fourcc = V4L2_PIX_FMT_RGB565,
 		.fmt_type = FMT_RGB,
@@ -192,6 +195,110 @@ static const struct capture_fmt sp_fmts[] = {
 		.mplanes = 1,
 		.write_format = MI_CTRL_SP_WRITE_PLA,
 		.output_format = MI_CTRL_SP_OUTPUT_RGB565,
+	},
+};
+
+static const struct capture_fmt sp_fmts_lite[] = {
+	/* yuv422 */
+	{
+		.fourcc = V4L2_PIX_FMT_UYVY,
+		.fmt_type = FMT_YUV,
+		.bpp = { 16 },
+		.cplanes = 1,
+		.mplanes = 1,
+		.uv_swap = 0,
+		.write_format = MI_CTRL_SP_WRITE_INT,
+		.output_format = MI_CTRL_SP_OUTPUT_YUV422,
+	}, {
+		.fourcc = V4L2_PIX_FMT_NV16,
+		.fmt_type = FMT_YUV,
+		.bpp = { 8, 16 },
+		.cplanes = 2,
+		.mplanes = 1,
+		.uv_swap = 0,
+		.write_format = MI_CTRL_SP_WRITE_SPLA,
+		.output_format = MI_CTRL_SP_OUTPUT_YUV422,
+	}, {
+		.fourcc = V4L2_PIX_FMT_NV61,
+		.fmt_type = FMT_YUV,
+		.bpp = { 8, 16 },
+		.cplanes = 2,
+		.mplanes = 1,
+		.uv_swap = 1,
+		.write_format = MI_CTRL_SP_WRITE_SPLA,
+		.output_format = MI_CTRL_SP_OUTPUT_YUV422,
+	},
+	/* yuv420 */
+	{
+		.fourcc = V4L2_PIX_FMT_NV21,
+		.fmt_type = FMT_YUV,
+		.bpp = { 8, 16 },
+		.cplanes = 2,
+		.mplanes = 1,
+		.uv_swap = 1,
+		.write_format = MI_CTRL_SP_WRITE_SPLA,
+		.output_format = MI_CTRL_SP_OUTPUT_YUV420,
+	}, {
+		.fourcc = V4L2_PIX_FMT_NV12,
+		.fmt_type = FMT_YUV,
+		.bpp = { 8, 16 },
+		.cplanes = 2,
+		.mplanes = 1,
+		.uv_swap = 0,
+		.write_format = MI_CTRL_SP_WRITE_SPLA,
+		.output_format = MI_CTRL_SP_OUTPUT_YUV420,
+	}, {
+		.fourcc = V4L2_PIX_FMT_NV21M,
+		.fmt_type = FMT_YUV,
+		.bpp = { 8, 16 },
+		.cplanes = 2,
+		.mplanes = 2,
+		.uv_swap = 1,
+		.write_format = MI_CTRL_SP_WRITE_SPLA,
+		.output_format = MI_CTRL_SP_OUTPUT_YUV420,
+	}, {
+		.fourcc = V4L2_PIX_FMT_NV12M,
+		.fmt_type = FMT_YUV,
+		.bpp = { 8, 16 },
+		.cplanes = 2,
+		.mplanes = 2,
+		.uv_swap = 0,
+		.write_format = MI_CTRL_SP_WRITE_SPLA,
+		.output_format = MI_CTRL_SP_OUTPUT_YUV420,
+	},
+	/* yuv400 */
+	{
+		.fourcc = V4L2_PIX_FMT_GREY,
+		.fmt_type = FMT_YUV,
+		.bpp = { 8 },
+		.cplanes = 1,
+		.mplanes = 1,
+		.uv_swap = 0,
+		.write_format = MI_CTRL_SP_WRITE_PLA,
+		.output_format = MI_CTRL_SP_OUTPUT_YUV400,
+	},
+	/* rgb */
+	{
+		.fourcc = V4L2_PIX_FMT_XBGR32,
+		.fmt_type = FMT_RGB,
+		.bpp = { 32 },
+		.mplanes = 1,
+		.write_format = MI_CTRL_SP_WRITE_PLA,
+		.output_format = MI_CTRL_SP_OUTPUT_ARGB888,
+	}, {
+		.fourcc = V4L2_PIX_FMT_RGB565,
+		.fmt_type = FMT_RGB,
+		.bpp = { 16 },
+		.mplanes = 1,
+		.write_format = MI_CTRL_SP_WRITE_PLA,
+		.output_format = MI_CTRL_SP_OUTPUT_RGB565,
+	}, {
+		.fourcc = V4L2_PIX_FMT_RGB24,
+		.fmt_type = FMT_RGB,
+		.bpp = { 24 },
+		.mplanes = 1,
+		.write_format = MI_CTRL_SP_WRITE_PLA,
+		.output_format = MI_CTRL_SP_OUTPUT_RGB888,
 	},
 };
 
@@ -596,8 +703,13 @@ static int mp_config_mi(struct rkisp_stream *stream)
 		rkisp_clear_bits(dev, 0x1814, BIT(0), false);
 	}
 	val = out_fmt->plane_fmt[0].bytesperline;
-	rkisp_write(dev, ISP3X_MI_MP_WR_Y_LLENGTH, val, false);
+	/* in bytes for isp32 */
+	if (dev->isp_ver == ISP_V32)
+		rkisp_write(dev, ISP3X_MI_MP_WR_Y_LLENGTH, val, false);
 	val /= DIV_ROUND_UP(fmt->bpp[0], 8);
+	/* in pixels for isp32 lite */
+	if (dev->isp_ver == ISP_V32_L)
+		rkisp_write(dev, ISP3X_MI_MP_WR_Y_LLENGTH, val, false);
 	val *= height;
 	rkisp_write(dev, stream->config->mi.y_pic_size, val, false);
 	val = out_fmt->plane_fmt[0].bytesperline * height;
@@ -909,6 +1021,8 @@ static void update_mi(struct rkisp_stream *stream)
 	u32 val, reg;
 	bool is_cr_cfg = false;
 
+	if (dev->isp_ver == ISP_V32_L)
+		dummy_buf = &dev->hw_dev->dummy_buf;
 	if (stream->id == RKISP_STREAM_MP || stream->id == RKISP_STREAM_SP)
 		is_cr_cfg = true;
 
@@ -960,11 +1074,14 @@ static void update_mi(struct rkisp_stream *stream)
 			stream->next_buf = NULL;
 		}
 	} else if (dummy_buf->mem_priv) {
-		/* wrap buf ENC */
 		val = dummy_buf->dma_addr;
 		reg = stream->config->mi.y_base_ad_init;
 		rkisp_write(dev, reg, val, false);
-		val += stream->out_fmt.plane_fmt[0].bytesperline * dev->cap_dev.wrap_line;
+		/* wrap buf ENC */
+		if (dev->isp_ver == ISP_V32)
+			val += stream->out_fmt.plane_fmt[0].bytesperline * dev->cap_dev.wrap_line;
+		else
+			stream->dbg.frameloss++;
 		reg = stream->config->mi.cb_base_ad_init;
 		rkisp_write(dev, reg, val, false);
 		if (is_cr_cfg) {
@@ -1209,9 +1326,10 @@ static struct streams_ops rkisp_luma_streams_ops = {
 
 static int mi_frame_start(struct rkisp_stream *stream, u32 mis)
 {
+	struct rkisp_device *dev = stream->ispdev;
 	unsigned long lock_flags = 0;
 
-	if (stream->streaming) {
+	if (stream->streaming && dev->isp_ver == ISP_V32) {
 		rkisp_rockit_buf_done(stream, ROCKIT_DVBM_START);
 		rkisp_rockit_ctrl_fps(stream);
 	}
@@ -1371,7 +1489,7 @@ static int rkisp_start(struct rkisp_stream *stream)
 	}
 	if (dev->hw_dev->is_single)
 		stream_self_update(stream);
-	if (stream->ops->enable_mi)
+	if (stream->ops->enable_mi && !stream->is_pause)
 		stream->ops->enable_mi(stream);
 
 	if (is_update)
@@ -1699,7 +1817,8 @@ rkisp_start_streaming(struct vb2_queue *queue, unsigned int count)
 	if (ret < 0)
 		goto buffer_done;
 
-	if (count == 0 && !stream->dummy_buf.mem_priv &&
+	if (dev->isp_ver == ISP_V32 &&
+	    count == 0 && !stream->dummy_buf.mem_priv &&
 	    list_empty(&stream->buf_queue)) {
 		v4l2_err(v4l2_dev, "no buf for %s\n", node->vdev.name);
 		ret = -EINVAL;
@@ -1805,8 +1924,13 @@ static int rkisp_stream_init(struct rkisp_device *dev, u32 id)
 		strscpy(vdev->name, SP_VDEV_NAME, sizeof(vdev->name));
 		stream->ops = &rkisp_sp_streams_ops;
 		stream->config = &rkisp_sp_stream_config;
-		stream->config->fmts = sp_fmts;
-		stream->config->fmt_size = ARRAY_SIZE(sp_fmts);
+		if (dev->isp_ver == ISP_V32) {
+			stream->config->fmts = sp_fmts;
+			stream->config->fmt_size = ARRAY_SIZE(sp_fmts);
+		} else {
+			stream->config->fmts = sp_fmts_lite;
+			stream->config->fmt_size = ARRAY_SIZE(sp_fmts_lite);
+		}
 		break;
 	case RKISP_STREAM_BP:
 		strscpy(vdev->name, BP_VDEV_NAME, sizeof(vdev->name));
@@ -1869,28 +1993,29 @@ int rkisp_register_stream_v32(struct rkisp_device *dev)
 	struct rkisp_capture_device *cap_dev = &dev->cap_dev;
 	int ret;
 
-	rkisp_dvbm_get(dev);
-
-	rkisp_rockit_dev_init(dev);
-
 	ret = rkisp_stream_init(dev, RKISP_STREAM_MP);
 	if (ret < 0)
 		goto err;
 	ret = rkisp_stream_init(dev, RKISP_STREAM_SP);
 	if (ret < 0)
 		goto err_free_mp;
-	ret = rkisp_stream_init(dev, RKISP_STREAM_BP);
-	if (ret < 0)
-		goto err_free_sp;
-	ret = rkisp_stream_init(dev, RKISP_STREAM_MPDS);
-	if (ret < 0)
-		goto err_free_bp;
-	ret = rkisp_stream_init(dev, RKISP_STREAM_BPDS);
-	if (ret < 0)
-		goto err_free_mpds;
-	ret = rkisp_stream_init(dev, RKISP_STREAM_LUMA);
-	if (ret < 0)
-		goto err_free_bpds;
+
+	if (dev->isp_ver == ISP_V32) {
+		ret = rkisp_stream_init(dev, RKISP_STREAM_BP);
+		if (ret < 0)
+			goto err_free_sp;
+		ret = rkisp_stream_init(dev, RKISP_STREAM_MPDS);
+		if (ret < 0)
+			goto err_free_bp;
+		ret = rkisp_stream_init(dev, RKISP_STREAM_BPDS);
+		if (ret < 0)
+			goto err_free_mpds;
+		ret = rkisp_stream_init(dev, RKISP_STREAM_LUMA);
+		if (ret < 0)
+			goto err_free_bpds;
+		rkisp_dvbm_get(dev);
+		rkisp_rockit_dev_init(dev);
+	}
 	return 0;
 err_free_bpds:
 	rkisp_unregister_stream_vdev(&cap_dev->stream[RKISP_STREAM_BPDS]);
@@ -1911,20 +2036,21 @@ void rkisp_unregister_stream_v32(struct rkisp_device *dev)
 	struct rkisp_capture_device *cap_dev = &dev->cap_dev;
 	struct rkisp_stream *stream;
 
-	rkisp_rockit_dev_deinit();
-
 	stream = &cap_dev->stream[RKISP_STREAM_MP];
 	rkisp_unregister_stream_vdev(stream);
 	stream = &cap_dev->stream[RKISP_STREAM_SP];
-	rkisp_unregister_stream_vdev(stream);
-	stream = &cap_dev->stream[RKISP_STREAM_BP];
-	rkisp_unregister_stream_vdev(stream);
-	stream = &cap_dev->stream[RKISP_STREAM_MPDS];
-	rkisp_unregister_stream_vdev(stream);
-	stream = &cap_dev->stream[RKISP_STREAM_BPDS];
-	rkisp_unregister_stream_vdev(stream);
-	stream = &cap_dev->stream[RKISP_STREAM_LUMA];
-	rkisp_unregister_stream_vdev(stream);
+	if (dev->isp_ver == ISP_V32) {
+		rkisp_unregister_stream_vdev(stream);
+		stream = &cap_dev->stream[RKISP_STREAM_BP];
+		rkisp_unregister_stream_vdev(stream);
+		stream = &cap_dev->stream[RKISP_STREAM_MPDS];
+		rkisp_unregister_stream_vdev(stream);
+		stream = &cap_dev->stream[RKISP_STREAM_BPDS];
+		rkisp_unregister_stream_vdev(stream);
+		stream = &cap_dev->stream[RKISP_STREAM_LUMA];
+		rkisp_unregister_stream_vdev(stream);
+		rkisp_rockit_dev_deinit();
+	}
 }
 
 /****************  Interrupter Handler ****************/

@@ -100,6 +100,7 @@ struct rkisp_hw_dev {
 	bool is_unite;
 	bool is_multi_overflow;
 	bool is_runing;
+	bool is_frm_buf;
 };
 
 int rkisp_register_irq(struct rkisp_hw_dev *dev);

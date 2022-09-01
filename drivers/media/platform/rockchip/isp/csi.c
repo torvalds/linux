@@ -599,8 +599,7 @@ int rkisp_csi_config_patch(struct rkisp_device *dev)
 			v4l2_subdev_call(mipi_sensor, core, ioctl, RKISP_VICAP_CMD_MODE, &mode);
 			dev->vicap_in = mode.input;
 			/* vicap direct to isp */
-			if ((dev->isp_ver == ISP_V30 || dev->isp_ver == ISP_V32) &&
-			    !mode.rdbk_mode) {
+			if (dev->isp_ver >= ISP_V30 && !mode.rdbk_mode) {
 				switch (dev->hdr.op_mode) {
 				case HDR_RDBK_FRAME3:
 					dev->hdr.op_mode = HDR_LINEX3_DDR;
@@ -664,7 +663,7 @@ int rkisp_csi_config_patch(struct rkisp_device *dev)
 		rkisp_unite_set_bits(dev, CTRL_SWS_CFG, 0, SW_MPIP_DROP_FRM_DIS,
 				     true, dev->hw_dev->is_unite);
 
-	if (dev->isp_ver == ISP_V30 || dev->isp_ver == ISP_V32)
+	if (dev->isp_ver >= ISP_V30)
 		rkisp_unite_set_bits(dev, CTRL_SWS_CFG, 0, ISP3X_SW_ACK_FRM_PRO_DIS,
 				     true, dev->hw_dev->is_unite);
 
@@ -733,7 +732,7 @@ int rkisp_register_csi_subdev(struct rkisp_device *dev,
 		csi_dev->pads[CSI_SRC_CH2].flags = MEDIA_PAD_FL_SOURCE;
 		csi_dev->pads[CSI_SRC_CH3].flags = MEDIA_PAD_FL_SOURCE;
 		csi_dev->pads[CSI_SRC_CH4].flags = MEDIA_PAD_FL_SOURCE;
-	} else if (dev->isp_ver == ISP_V30 || dev->isp_ver == ISP_V32) {
+	} else if (dev->isp_ver >= ISP_V30) {
 		return 0;
 	}
 
