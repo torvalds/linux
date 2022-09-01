@@ -101,7 +101,7 @@ static int resolve_symbols(void)
 	int type_id;
 	__u32 nr;
 
-	btf = btf__parse_elf("btf_data.o", NULL);
+	btf = btf__parse_elf("btf_data.bpf.o", NULL);
 	if (CHECK(libbpf_get_error(btf), "resolve",
 		  "Failed to load BTF from btf_data.o\n"))
 		return -1;

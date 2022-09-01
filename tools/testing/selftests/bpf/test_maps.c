@@ -651,9 +651,9 @@ static void test_stackmap(unsigned int task, void *data)
 #include <arpa/inet.h>
 #include <sys/select.h>
 #include <linux/err.h>
-#define SOCKMAP_PARSE_PROG "./sockmap_parse_prog.o"
-#define SOCKMAP_VERDICT_PROG "./sockmap_verdict_prog.o"
-#define SOCKMAP_TCP_MSG_PROG "./sockmap_tcp_msg_prog.o"
+#define SOCKMAP_PARSE_PROG "./sockmap_parse_prog.bpf.o"
+#define SOCKMAP_VERDICT_PROG "./sockmap_verdict_prog.bpf.o"
+#define SOCKMAP_TCP_MSG_PROG "./sockmap_tcp_msg_prog.bpf.o"
 static void test_sockmap(unsigned int tasks, void *data)
 {
 	struct bpf_map *bpf_map_rx, *bpf_map_tx, *bpf_map_msg, *bpf_map_break;
@@ -1143,8 +1143,8 @@ out_sockmap:
 	exit(1);
 }
 
-#define MAPINMAP_PROG "./test_map_in_map.o"
-#define MAPINMAP_INVALID_PROG "./test_map_in_map_invalid.o"
+#define MAPINMAP_PROG "./test_map_in_map.bpf.o"
+#define MAPINMAP_INVALID_PROG "./test_map_in_map_invalid.bpf.o"
 static void test_map_in_map(void)
 {
 	struct bpf_object *obj;

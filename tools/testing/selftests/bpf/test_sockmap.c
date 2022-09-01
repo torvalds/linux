@@ -52,8 +52,8 @@ static void running_handler(int a);
 #define S1_PORT 10000
 #define S2_PORT 10001
 
-#define BPF_SOCKMAP_FILENAME  "test_sockmap_kern.o"
-#define BPF_SOCKHASH_FILENAME "test_sockhash_kern.o"
+#define BPF_SOCKMAP_FILENAME  "test_sockmap_kern.bpf.o"
+#define BPF_SOCKHASH_FILENAME "test_sockhash_kern.bpf.o"
 #define CG_PATH "/sockmap"
 
 /* global sockets */

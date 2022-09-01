@@ -126,11 +126,11 @@ available in 10.0.1. The patch is available in llvm 11.0.0 trunk.
 
 __  https://reviews.llvm.org/D78466
 
-bpf_verif_scale/loop6.o test failure with Clang 12
-==================================================
+bpf_verif_scale/loop6.bpf.o test failure with Clang 12
+======================================================
 
 With Clang 12, the following bpf_verif_scale test failed:
-  * ``bpf_verif_scale/loop6.o``
+  * ``bpf_verif_scale/loop6.bpf.o``
 
 The verifier output looks like
 
@@ -245,7 +245,7 @@ See `kernel llvm reloc`_ for more explanation and some examples.
 Using clang 13 to compile old libbpf which has static linker support,
 there will be a compilation failure::
 
-  libbpf: ELF relo #0 in section #6 has unexpected type 2 in .../bpf_tcp_nogpl.o
+  libbpf: ELF relo #0 in section #6 has unexpected type 2 in .../bpf_tcp_nogpl.bpf.o
 
 Here, ``type 2`` refers to new relocation type ``R_BPF_64_ABS64``.
 To fix this issue, user newer libbpf.

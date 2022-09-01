@@ -20,7 +20,7 @@ void test_skb_helpers(void)
 	struct bpf_object *obj;
 	int err, prog_fd;
 
-	err = bpf_prog_test_load("./test_skb_helpers.o",
+	err = bpf_prog_test_load("./test_skb_helpers.bpf.o",
 				 BPF_PROG_TYPE_SCHED_CLS, &obj, &prog_fd);
 	if (!ASSERT_OK(err, "load"))
 		return;

@@ -19,7 +19,7 @@ static void *spin_lock_thread(void *arg)
 
 void test_spinlock(void)
 {
-	const char *file = "./test_spin_lock.o";
+	const char *file = "./test_spin_lock.bpf.o";
 	pthread_t thread_id[4];
 	struct bpf_object *obj = NULL;
 	int prog_fd;

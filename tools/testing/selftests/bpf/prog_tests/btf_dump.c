@@ -52,7 +52,7 @@ static int test_btf_dump_case(int n, struct btf_dump_test_case *t)
 	int err = 0, fd = -1;
 	FILE *f = NULL;
 
-	snprintf(test_file, sizeof(test_file), "%s.o", t->file);
+	snprintf(test_file, sizeof(test_file), "%s.bpf.o", t->file);
 
 	btf = btf__parse_elf(test_file, NULL);
 	if (!ASSERT_OK_PTR(btf, "btf_parse_elf")) {
@@ -841,8 +841,8 @@ static void test_btf_dump_datasec_data(char *str)
 	char license[4] = "GPL";
 	struct btf_dump *d;
 
-	btf = btf__parse("xdping_kern.o", NULL);
-	if (!ASSERT_OK_PTR(btf, "xdping_kern.o BTF not found"))
+	btf = btf__parse("xdping_kern.bpf.o", NULL);
+	if (!ASSERT_OK_PTR(btf, "xdping_kern.bpf.o BTF not found"))
 		return;
 
 	d = btf_dump__new(btf, btf_dump_snprintf, str, NULL);

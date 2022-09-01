@@ -3,7 +3,7 @@
 
 void test_task_fd_query_rawtp(void)
 {
-	const char *file = "./test_get_stack_rawtp.o";
+	const char *file = "./test_get_stack_rawtp.bpf.o";
 	__u64 probe_offset, probe_addr;
 	__u32 len, prog_id, fd_type;
 	struct bpf_object *obj;

@@ -4,7 +4,7 @@
 
 static void test_xdp_adjust_tail_shrink(void)
 {
-	const char *file = "./test_xdp_adjust_tail_shrink.o";
+	const char *file = "./test_xdp_adjust_tail_shrink.bpf.o";
 	__u32 expect_sz;
 	struct bpf_object *obj;
 	int err, prog_fd;
@@ -39,7 +39,7 @@ static void test_xdp_adjust_tail_shrink(void)
 
 static void test_xdp_adjust_tail_grow(void)
 {
-	const char *file = "./test_xdp_adjust_tail_grow.o";
+	const char *file = "./test_xdp_adjust_tail_grow.bpf.o";
 	struct bpf_object *obj;
 	char buf[4096]; /* avoid segfault: large buf to hold grow results */
 	__u32 expect_sz;
@@ -73,7 +73,7 @@ static void test_xdp_adjust_tail_grow(void)
 
 static void test_xdp_adjust_tail_grow2(void)
 {
-	const char *file = "./test_xdp_adjust_tail_grow.o";
+	const char *file = "./test_xdp_adjust_tail_grow.bpf.o";
 	char buf[4096]; /* avoid segfault: large buf to hold grow results */
 	int tailroom = 320; /* SKB_DATA_ALIGN(sizeof(struct skb_shared_info))*/;
 	struct bpf_object *obj;
@@ -135,7 +135,7 @@ static void test_xdp_adjust_tail_grow2(void)
 
 static void test_xdp_adjust_frags_tail_shrink(void)
 {
-	const char *file = "./test_xdp_adjust_tail_shrink.o";
+	const char *file = "./test_xdp_adjust_tail_shrink.bpf.o";
 	__u32 exp_size;
 	struct bpf_program *prog;
 	struct bpf_object *obj;
@@ -202,7 +202,7 @@ out:
 
 static void test_xdp_adjust_frags_tail_grow(void)
 {
-	const char *file = "./test_xdp_adjust_tail_grow.o";
+	const char *file = "./test_xdp_adjust_tail_grow.bpf.o";
 	__u32 exp_size;
 	struct bpf_program *prog;
 	struct bpf_object *obj;

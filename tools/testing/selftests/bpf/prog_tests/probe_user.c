@@ -11,7 +11,7 @@ void serial_test_probe_user(void)
 #endif
 	};
 	enum { prog_count = ARRAY_SIZE(prog_names) };
-	const char *obj_file = "./test_probe_user.o";
+	const char *obj_file = "./test_probe_user.bpf.o";
 	DECLARE_LIBBPF_OPTS(bpf_object_open_opts, opts, );
 	int err, results_map_fd, sock_fd, duration = 0;
 	struct sockaddr curr, orig, tmp;

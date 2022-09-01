@@ -49,7 +49,7 @@ out:
 
 void test_map_lock(void)
 {
-	const char *file = "./test_map_lock.o";
+	const char *file = "./test_map_lock.bpf.o";
 	int prog_fd, map_fd[2], vars[17] = {};
 	pthread_t thread_id[6];
 	struct bpf_object *obj = NULL;

@@ -54,10 +54,10 @@ test_xdp_redirect()
 		return 0
 	fi
 
-	ip -n ${NS1} link set veth11 $xdpmode obj xdp_dummy.o sec xdp &> /dev/null
-	ip -n ${NS2} link set veth22 $xdpmode obj xdp_dummy.o sec xdp &> /dev/null
-	ip link set dev veth1 $xdpmode obj test_xdp_redirect.o sec redirect_to_222 &> /dev/null
-	ip link set dev veth2 $xdpmode obj test_xdp_redirect.o sec redirect_to_111 &> /dev/null
+	ip -n ${NS1} link set veth11 $xdpmode obj xdp_dummy.bpf.o sec xdp &> /dev/null
+	ip -n ${NS2} link set veth22 $xdpmode obj xdp_dummy.bpf.o sec xdp &> /dev/null
+	ip link set dev veth1 $xdpmode obj test_xdp_redirect.bpf.o sec redirect_to_222 &> /dev/null
+	ip link set dev veth2 $xdpmode obj test_xdp_redirect.bpf.o sec redirect_to_111 &> /dev/null
 
 	if ip netns exec ${NS1} ping -c 1 10.1.1.22 &> /dev/null &&
 	   ip netns exec ${NS2} ping -c 1 10.1.1.11 &> /dev/null; then

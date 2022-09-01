@@ -6,7 +6,7 @@ void serial_test_tp_attach_query(void)
 	const int num_progs = 3;
 	int i, j, bytes, efd, err, prog_fd[num_progs], pmu_fd[num_progs];
 	__u32 duration = 0, info_len, saved_prog_ids[num_progs];
-	const char *file = "./test_tracepoint.o";
+	const char *file = "./test_tracepoint.bpf.o";
 	struct perf_event_query_bpf *query;
 	struct perf_event_attr attr = {};
 	struct bpf_object *obj[num_progs];

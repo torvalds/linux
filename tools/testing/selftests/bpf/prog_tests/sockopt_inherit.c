@@ -174,7 +174,7 @@ static void run_test(int cgroup_fd)
 	pthread_t tid;
 	int err;
 
-	obj = bpf_object__open_file("sockopt_inherit.o", NULL);
+	obj = bpf_object__open_file("sockopt_inherit.bpf.o", NULL);
 	if (!ASSERT_OK_PTR(obj, "obj_open"))
 		return;
 

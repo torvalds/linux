@@ -82,7 +82,7 @@ static void test_synproxy(bool xdp)
 	SYS("ethtool -K tmp0 tx off");
 	if (xdp)
 		/* Workaround required for veth. */
-		SYS("ip link set tmp0 xdp object xdp_dummy.o section xdp 2> /dev/null");
+		SYS("ip link set tmp0 xdp object xdp_dummy.bpf.o section xdp 2> /dev/null");
 
 	ns = open_netns("synproxy");
 	if (!ASSERT_OK_PTR(ns, "setns"))

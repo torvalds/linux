@@ -142,7 +142,7 @@ int main(int argc, char **argv)
 	}
 	printf("\n");
 
-	snprintf(filename, sizeof(filename), "%s_kern.o", argv[0]);
+	snprintf(filename, sizeof(filename), "%s_kern.bpf.o", argv[0]);
 	obj = bpf_object__open_file(filename, NULL);
 	err = libbpf_get_error(obj);
 	if (err)

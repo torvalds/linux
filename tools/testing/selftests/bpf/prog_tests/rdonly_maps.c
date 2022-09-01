@@ -16,7 +16,7 @@ struct rdonly_map_subtest {
 
 void test_rdonly_maps(void)
 {
-	const char *file = "test_rdonly_maps.o";
+	const char *file = "test_rdonly_maps.bpf.o";
 	struct rdonly_map_subtest subtests[] = {
 		{ "skip loop", "skip_loop", 0, 0 },
 		{ "part loop", "part_loop", 3, 2 + 3 + 4 },
