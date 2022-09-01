@@ -506,8 +506,12 @@ int pqm_update_mqd(struct process_queue_manager *pqm,
 		return -EFAULT;
 	}
 
+	/* CUs are masked for debugger requirements so deny user mask  */
+	if (pqn->q->properties.is_dbg_wa && minfo && minfo->cu_mask.ptr)
+		return -EBUSY;
+
 	/* ASICs that have WGPs must enforce pairwise enabled mask checks. */
-	if (minfo && minfo->update_flag == UPDATE_FLAG_CU_MASK && minfo->cu_mask.ptr &&
+	if (minfo && minfo->cu_mask.ptr &&
 			KFD_GC_VERSION(pqn->q->device) >= IP_VERSION(10, 0, 0)) {
 		int i;
 
@@ -525,6 +529,9 @@ int pqm_update_mqd(struct process_queue_manager *pqm,
 							pqn->q, minfo);
 	if (retval != 0)
 		return retval;
+
+	if (minfo && minfo->cu_mask.ptr)
+		pqn->q->properties.is_user_cu_masked = true;
 
 	return 0;
 }

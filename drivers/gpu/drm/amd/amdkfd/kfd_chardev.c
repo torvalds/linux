@@ -537,8 +537,6 @@ static int kfd_ioctl_set_cu_mask(struct file *filp, struct kfd_process *p,
 		goto out;
 	}
 
-	minfo.update_flag = UPDATE_FLAG_CU_MASK;
-
 	mutex_lock(&p->mutex);
 
 	retval = pqm_update_mqd(&p->pqm, args->queue_id, &minfo);

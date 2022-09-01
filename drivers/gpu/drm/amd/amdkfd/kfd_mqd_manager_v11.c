@@ -46,15 +46,33 @@ static void update_cu_mask(struct mqd_manager *mm, void *mqd,
 {
 	struct v11_compute_mqd *m;
 	uint32_t se_mask[KFD_MAX_NUM_SE] = {0};
+	bool has_wa_flag = minfo && (minfo->update_flag & (UPDATE_FLAG_DBG_WA_ENABLE |
+			UPDATE_FLAG_DBG_WA_DISABLE));
 
-	if (!minfo || (minfo->update_flag != UPDATE_FLAG_CU_MASK) ||
-	    !minfo->cu_mask.ptr)
+	if (!minfo || !(has_wa_flag || minfo->cu_mask.ptr))
 		return;
+
+	m = get_mqd(mqd);
+
+	if (has_wa_flag) {
+		uint32_t wa_mask = minfo->update_flag == UPDATE_FLAG_DBG_WA_ENABLE ?
+						0xffff : 0xffffffff;
+
+		m->compute_static_thread_mgmt_se0 = wa_mask;
+		m->compute_static_thread_mgmt_se1 = wa_mask;
+		m->compute_static_thread_mgmt_se2 = wa_mask;
+		m->compute_static_thread_mgmt_se3 = wa_mask;
+		m->compute_static_thread_mgmt_se4 = wa_mask;
+		m->compute_static_thread_mgmt_se5 = wa_mask;
+		m->compute_static_thread_mgmt_se6 = wa_mask;
+		m->compute_static_thread_mgmt_se7 = wa_mask;
+
+		return;
+	}
 
 	mqd_symmetrically_map_cu_mask(mm,
 		minfo->cu_mask.ptr, minfo->cu_mask.count, se_mask);
 
-	m = get_mqd(mqd);
 	m->compute_static_thread_mgmt_se0 = se_mask[0];
 	m->compute_static_thread_mgmt_se1 = se_mask[1];
 	m->compute_static_thread_mgmt_se2 = se_mask[2];
@@ -109,6 +127,7 @@ static void init_mqd(struct mqd_manager *mm, void **mqd,
 	uint64_t addr;
 	struct v11_compute_mqd *m;
 	int size;
+	uint32_t wa_mask = q->is_dbg_wa ? 0xffff : 0xffffffff;
 
 	m = (struct v11_compute_mqd *) mqd_mem_obj->cpu_ptr;
 	addr = mqd_mem_obj->gpu_addr;
@@ -122,14 +141,15 @@ static void init_mqd(struct mqd_manager *mm, void **mqd,
 
 	m->header = 0xC0310800;
 	m->compute_pipelinestat_enable = 1;
-	m->compute_static_thread_mgmt_se0 = 0xFFFFFFFF;
-	m->compute_static_thread_mgmt_se1 = 0xFFFFFFFF;
-	m->compute_static_thread_mgmt_se2 = 0xFFFFFFFF;
-	m->compute_static_thread_mgmt_se3 = 0xFFFFFFFF;
-	m->compute_static_thread_mgmt_se4 = 0xFFFFFFFF;
-	m->compute_static_thread_mgmt_se5 = 0xFFFFFFFF;
-	m->compute_static_thread_mgmt_se6 = 0xFFFFFFFF;
-	m->compute_static_thread_mgmt_se7 = 0xFFFFFFFF;
+
+	m->compute_static_thread_mgmt_se0 = wa_mask;
+	m->compute_static_thread_mgmt_se1 = wa_mask;
+	m->compute_static_thread_mgmt_se2 = wa_mask;
+	m->compute_static_thread_mgmt_se3 = wa_mask;
+	m->compute_static_thread_mgmt_se4 = wa_mask;
+	m->compute_static_thread_mgmt_se5 = wa_mask;
+	m->compute_static_thread_mgmt_se6 = wa_mask;
+	m->compute_static_thread_mgmt_se7 = wa_mask;
 
 	m->cp_hqd_persistent_state = CP_HQD_PERSISTENT_STATE__PRELOAD_REQ_MASK |
 			0x55 << CP_HQD_PERSISTENT_STATE__PRELOAD_SIZE__SHIFT;
