@@ -24,6 +24,7 @@ enum uverbs_attr_type {
 	UVERBS_ATTR_TYPE_PTR_OUT,
 	UVERBS_ATTR_TYPE_IDR,
 	UVERBS_ATTR_TYPE_FD,
+	UVERBS_ATTR_TYPE_RAW_FD,
 	UVERBS_ATTR_TYPE_ENUM_IN,
 	UVERBS_ATTR_TYPE_IDRS_ARRAY,
 };
@@ -521,6 +522,11 @@ struct uapi_definition {
 			  .u.obj.access = _access,                             \
 			  __VA_ARGS__ } })
 
+#define UVERBS_ATTR_RAW_FD(_attr_id, ...)                                      \
+	(&(const struct uverbs_attr_def){                                      \
+		.id = (_attr_id),                                              \
+		.attr = { .type = UVERBS_ATTR_TYPE_RAW_FD, __VA_ARGS__ } })
+
 #define UVERBS_ATTR_PTR_IN(_attr_id, _type, ...)                               \
 	(&(const struct uverbs_attr_def){                                      \
 		.id = _attr_id,                                                \
@@ -998,5 +1004,12 @@ _uverbs_get_const_unsigned(u64 *to,
 						  _default) :                  \
 		 uverbs_get_const_default_unsigned(_to, _attrs_bundle, _idx,   \
 						    _default))
+
+static inline int
+uverbs_get_raw_fd(int *to, const struct uverbs_attr_bundle *attrs_bundle,
+		  size_t idx)
+{
+	return uverbs_get_const_signed(to, attrs_bundle, idx);
+}
 
 #endif

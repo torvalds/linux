@@ -337,6 +337,14 @@ static int uverbs_process_attr(struct bundle_priv *pbundle,
 
 		break;
 
+	case UVERBS_ATTR_TYPE_RAW_FD:
+		if (uattr->attr_data.reserved || uattr->len != 0 ||
+		    uattr->data_s64 < INT_MIN || uattr->data_s64 > INT_MAX)
+			return -EINVAL;
+		/* _uverbs_get_const_signed() is the accessor */
+		e->ptr_attr.data = uattr->data_s64;
+		break;
+
 	case UVERBS_ATTR_TYPE_IDRS_ARRAY:
 		return uverbs_process_idrs_array(pbundle, attr_uapi,
 						 &e->objs_arr_attr, uattr,
