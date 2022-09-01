@@ -1,0 +1,17 @@
+// SPDX-License-Identifier: GPL-2.0 OR MIT
+/*
+ * Copyright (C) 2022 StarFive Technology Co., Ltd.
+ * Copyright (C) 2022 Hal Feng <hal.feng@starfivetech.com>
+ */
+
+/dts-v1/;
+#include "jh7110-visionfive-v2.dts"
+#include "codecs/sf_wm8960.dtsi"
+
+&i2srx_3ch {
+	status = "okay";
+};
+
+&i2stx_4ch1 {
+	status = "okay";
+};

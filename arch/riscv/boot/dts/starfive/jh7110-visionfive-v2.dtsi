@@ -9,18 +9,6 @@
 #include <dt-bindings/pinctrl/starfive,jh7110-pinfunc.h>
 #include "jh7110.dtsi"
 #include "codecs/sf_pwmdac.dtsi"
-#undef WM8960_ENABLED
-#undef AC108_ENABLED
-
-#ifdef WM8960_ENABLED
-#define WM8960_AC108_COMMON 1
-#include "codecs/sf_wm8960.dtsi"
-#endif
-
-#ifdef AC108_ENABLED
-#define WM8960_AC108_COMMON 1
-#include "codecs/sf_ac108.dtsi"
-#endif
 
 / {
 	model = "StarFive VisionFive V2";
@@ -326,7 +314,6 @@
 		};
 	};
 
-#ifdef WM8960_AC108_COMMON
 	i2srx_pins: i2srx-pins {
 		i2srx-pins0 {
 			sf,pins = <PAD_GPIO61>;
@@ -354,8 +341,7 @@
 			sf,pin-gpio-doen = <OEN_HIGH>;
 		};
 	};
-#endif
-#ifdef WM8960_ENABLED
+
 	i2stx_pins: i2stx-pins {
 		i2stx-pins0 {
 			sf,pins = <PAD_GPIO44>;
@@ -365,7 +351,6 @@
 			sf,pin-gpio-doen = <OEN_LOW>;
 		};
 	};
-#endif
 };
 
 &uart0 {
@@ -397,15 +382,14 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c0_pins>;
 	status = "okay";
-#ifdef AC108_ENABLED
+
 	ac108_a: ac108@3b {
 		compatible = "x-power,ac108_0";
 		reg = <0x3b>;
 		#sound-dai-cells = <0>;
 		data-protocol = <0>;
 	};
-#endif
-#ifdef WM8960_ENABLED
+
 	wm8960: codec@1a {
 		compatible = "wlf,wm8960";
 		reg = <0x1a>;
@@ -413,7 +397,6 @@
 
 		wlf,shared-lrclk;
 	};
-#endif
 };
 
 &i2c2 {
@@ -635,20 +618,17 @@
 	status = "okay";
 };
 
-#ifdef WM8960_AC108_COMMON
 &i2srx_3ch {
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2s_clk_pins &i2srx_pins>;
-	status = "okay";
+	status = "disabled";
 };
-#endif
-#ifdef WM8960_ENABLED
+
 &i2stx_4ch1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2stx_pins>;
-	status = "okay";
+	status = "disabled";
 };
-#endif
 
 &pwmdac_codec {
 	status = "okay";

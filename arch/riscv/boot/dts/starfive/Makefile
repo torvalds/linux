@@ -12,4 +12,6 @@ dtb-$(CONFIG_SOC_STARFIVE_JH7110) += jh7110-visionfive-v2.dtb	\
 				jh7110-evb-uart4-emmc-spdif.dtb	\
 				jh7110-evb-uart5-pwm-i2c-tdm.dtb\
 				jh7110-evb-usbdevice.dtb	\
-				jh7110-visionfive-v2-A10.dtb
+				jh7110-visionfive-v2-A10.dtb	\
+				jh7110-visionfive-v2-wm8960.dtb	\
+				jh7110-visionfive-v2-ac108.dtb
