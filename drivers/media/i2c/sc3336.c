@@ -153,6 +153,7 @@ struct sc3336 {
 	struct v4l2_ctrl	*link_freq;
 	struct v4l2_ctrl	*test_pattern;
 	struct mutex		mutex;
+	struct v4l2_fract	cur_fps;
 	bool			streaming;
 	bool			power_on;
 	const struct sc3336_mode *cur_mode;
@@ -725,6 +726,7 @@ static int sc3336_set_fmt(struct v4l2_subdev *sd,
 					 dst_pixel_rate);
 		__v4l2_ctrl_s_ctrl(sc3336->link_freq,
 				   dst_link_freq);
+		sc3336->cur_fps = mode->max_fps;
 	}
 
 	mutex_unlock(&sc3336->mutex);
@@ -817,10 +819,10 @@ static int sc3336_g_frame_interval(struct v4l2_subdev *sd,
 	struct sc3336 *sc3336 = to_sc3336(sd);
 	const struct sc3336_mode *mode = sc3336->cur_mode;
 
-	mutex_lock(&sc3336->mutex);
-	fi->interval = mode->max_fps;
-	mutex_unlock(&sc3336->mutex);
-
+	if (sc3336->streaming)
+		fi->interval = sc3336->cur_fps;
+	else
+		fi->interval = mode->max_fps;
 	return 0;
 }
 
@@ -896,6 +898,7 @@ static long sc3336_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 			__v4l2_ctrl_modify_range(sc3336->hblank, w, w, 1, w);
 			__v4l2_ctrl_modify_range(sc3336->vblank, h,
 						 SC3336_VTS_MAX - sc3336->cur_mode->height, 1, h);
+			sc3336->cur_fps = sc3336->cur_mode->max_fps;
 		}
 		break;
 	case PREISP_CMD_SET_HDRAE_EXP:
@@ -1309,6 +1312,14 @@ static const struct v4l2_subdev_ops sc3336_subdev_ops = {
 	.pad	= &sc3336_pad_ops,
 };
 
+static void sc3336_modify_fps_info(struct sc3336 *sc3336)
+{
+	const struct sc3336_mode *mode = sc3336->cur_mode;
+
+	sc3336->cur_fps.denominator = mode->max_fps.denominator * sc3336->cur_vts /
+				       mode->vts_def;
+}
+
 static int sc3336_set_ctrl(struct v4l2_ctrl *ctrl)
 {
 	struct sc3336 *sc3336 = container_of(ctrl->handler,
@@ -1371,6 +1382,8 @@ static int sc3336_set_ctrl(struct v4l2_ctrl *ctrl)
 					 (ctrl->val + sc3336->cur_mode->height)
 					 & 0xff);
 		sc3336->cur_vts = ctrl->val + sc3336->cur_mode->height;
+		if (sc3336->cur_vts != sc3336->cur_mode->vts_def)
+			sc3336_modify_fps_info(sc3336);
 		break;
 	case V4L2_CID_TEST_PATTERN:
 		ret = sc3336_enable_test_pattern(sc3336, ctrl->val);
