@@ -173,7 +173,8 @@ int mdp_vpu_dev_init(struct mdp_vpu_dev *vpu, struct mtk_scp *scp,
 	/* vpu work_size was set in mdp_vpu_ipi_handle_init_ack */
 
 	mem_size = vpu_alloc_size;
-	if (mdp_vpu_shared_mem_alloc(vpu)) {
+	err = mdp_vpu_shared_mem_alloc(vpu);
+	if (err) {
 		dev_err(&mdp->pdev->dev, "VPU memory alloc fail!");
 		goto err_mem_alloc;
 	}
