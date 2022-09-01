@@ -5448,6 +5448,7 @@ int extent_fiemap(struct btrfs_inode *inode, struct fiemap_extent_info *fieinfo,
 	struct btrfs_path *path;
 	struct btrfs_root *root = inode->root;
 	struct fiemap_cache cache = { 0 };
+	struct btrfs_backref_shared_cache *backref_cache;
 	struct ulist *roots;
 	struct ulist *tmp_ulist;
 	int end = 0;
@@ -5455,13 +5456,11 @@ int extent_fiemap(struct btrfs_inode *inode, struct fiemap_extent_info *fieinfo,
 	u64 em_len = 0;
 	u64 em_end = 0;
 
+	backref_cache = kzalloc(sizeof(*backref_cache), GFP_KERNEL);
 	path = btrfs_alloc_path();
-	if (!path)
-		return -ENOMEM;
-
 	roots = ulist_alloc(GFP_KERNEL);
 	tmp_ulist = ulist_alloc(GFP_KERNEL);
-	if (!roots || !tmp_ulist) {
+	if (!backref_cache || !path || !roots || !tmp_ulist) {
 		ret = -ENOMEM;
 		goto out_free_ulist;
 	}
@@ -5587,7 +5586,8 @@ int extent_fiemap(struct btrfs_inode *inode, struct fiemap_extent_info *fieinfo,
 			 */
 			ret = btrfs_is_data_extent_shared(root, btrfs_ino(inode),
 							  bytenr, roots,
-							  tmp_ulist);
+							  tmp_ulist,
+							  backref_cache);
 			if (ret < 0)
 				goto out_free;
 			if (ret)
@@ -5639,6 +5639,7 @@ out:
 			     &cached_state);
 
 out_free_ulist:
+	kfree(backref_cache);
 	btrfs_free_path(path);
 	ulist_free(roots);
 	ulist_free(tmp_ulist);

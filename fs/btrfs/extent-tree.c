@@ -5635,6 +5635,8 @@ static noinline int walk_up_tree(struct btrfs_trans_handle *trans,
  */
 int btrfs_drop_snapshot(struct btrfs_root *root, int update_ref, int for_reloc)
 {
+	const bool is_reloc_root = (root->root_key.objectid ==
+				    BTRFS_TREE_RELOC_OBJECTID);
 	struct btrfs_fs_info *fs_info = root->fs_info;
 	struct btrfs_path *path;
 	struct btrfs_trans_handle *trans;
@@ -5794,6 +5796,9 @@ int btrfs_drop_snapshot(struct btrfs_root *root, int update_ref, int for_reloc)
 				goto out_end_trans;
 			}
 
+			if (!is_reloc_root)
+				btrfs_set_last_root_drop_gen(fs_info, trans->transid);
+
 			btrfs_end_transaction_throttle(trans);
 			if (!for_reloc && btrfs_need_cleaner_sleep(fs_info)) {
 				btrfs_debug(fs_info,
@@ -5828,7 +5833,7 @@ int btrfs_drop_snapshot(struct btrfs_root *root, int update_ref, int for_reloc)
 		goto out_end_trans;
 	}
 
-	if (root->root_key.objectid != BTRFS_TREE_RELOC_OBJECTID) {
+	if (!is_reloc_root) {
 		ret = btrfs_find_root(tree_root, &root->root_key, path,
 				      NULL, NULL);
 		if (ret < 0) {
@@ -5860,6 +5865,9 @@ int btrfs_drop_snapshot(struct btrfs_root *root, int update_ref, int for_reloc)
 		btrfs_put_root(root);
 	root_dropped = true;
 out_end_trans:
+	if (!is_reloc_root)
+		btrfs_set_last_root_drop_gen(fs_info, trans->transid);
+
 	btrfs_end_transaction_throttle(trans);
 out_free:
 	kfree(wc);

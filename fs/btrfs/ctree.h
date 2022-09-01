@@ -1090,6 +1090,13 @@ struct btrfs_fs_info {
 	struct btrfs_commit_stats commit_stats;
 
 	/*
+	 * Last generation where we dropped a non-relocation root.
+	 * Use btrfs_set_last_root_drop_gen() and btrfs_get_last_root_drop_gen()
+	 * to change it and to read it, respectively.
+	 */
+	u64 last_root_drop_gen;
+
+	/*
 	 * Annotations for transaction events (structures are empty when
 	 * compiled without lockdep).
 	 */
@@ -1112,6 +1119,17 @@ struct btrfs_fs_info {
 	struct list_head allocated_ebs;
 #endif
 };
+
+static inline void btrfs_set_last_root_drop_gen(struct btrfs_fs_info *fs_info,
+						u64 gen)
+{
+	WRITE_ONCE(fs_info->last_root_drop_gen, gen);
+}
+
+static inline u64 btrfs_get_last_root_drop_gen(const struct btrfs_fs_info *fs_info)
+{
+	return READ_ONCE(fs_info->last_root_drop_gen);
+}
 
 static inline struct btrfs_fs_info *btrfs_sb(struct super_block *sb)
 {
