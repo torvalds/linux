@@ -189,14 +189,12 @@ static int c67x00_drv_remove(struct platform_device *pdev)
 	c67x00_ll_release(c67x00);
 
 	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
-	if (res)
-		free_irq(res->start, c67x00);
+	free_irq(res->start, c67x00);
 
 	iounmap(c67x00->hpi.base);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (res)
-		release_mem_region(res->start, resource_size(res));
+	release_mem_region(res->start, resource_size(res));
 
 	kfree(c67x00);
 

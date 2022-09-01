@@ -109,7 +109,7 @@ struct afs_lookup_cookie {
  */
 static void afs_dir_read_cleanup(struct afs_read *req)
 {
-	struct address_space *mapping = req->vnode->vfs_inode.i_mapping;
+	struct address_space *mapping = req->vnode->netfs.inode.i_mapping;
 	struct folio *folio;
 	pgoff_t last = req->nr_pages - 1;
 
@@ -153,7 +153,7 @@ static bool afs_dir_check_folio(struct afs_vnode *dvnode, struct folio *folio,
 		block = kmap_local_folio(folio, offset);
 		if (block->hdr.magic != AFS_DIR_MAGIC) {
 			printk("kAFS: %s(%lx): [%llx] bad magic %zx/%zx is %04hx\n",
-			       __func__, dvnode->vfs_inode.i_ino,
+			       __func__, dvnode->netfs.inode.i_ino,
 			       pos, offset, size, ntohs(block->hdr.magic));
 			trace_afs_dir_check_failed(dvnode, pos + offset, i_size);
 			kunmap_local(block);
@@ -183,7 +183,7 @@ error:
 static void afs_dir_dump(struct afs_vnode *dvnode, struct afs_read *req)
 {
 	union afs_xdr_dir_block *block;
-	struct address_space *mapping = dvnode->vfs_inode.i_mapping;
+	struct address_space *mapping = dvnode->netfs.inode.i_mapping;
 	struct folio *folio;
 	pgoff_t last = req->nr_pages - 1;
 	size_t offset, size;
@@ -217,7 +217,7 @@ static void afs_dir_dump(struct afs_vnode *dvnode, struct afs_read *req)
  */
 static int afs_dir_check(struct afs_vnode *dvnode, struct afs_read *req)
 {
-	struct address_space *mapping = dvnode->vfs_inode.i_mapping;
+	struct address_space *mapping = dvnode->netfs.inode.i_mapping;
 	struct folio *folio;
 	pgoff_t last = req->nr_pages - 1;
 	int ret = 0;
@@ -269,7 +269,7 @@ static int afs_dir_open(struct inode *inode, struct file *file)
 static struct afs_read *afs_read_dir(struct afs_vnode *dvnode, struct key *key)
 	__acquires(&dvnode->validate_lock)
 {
-	struct address_space *mapping = dvnode->vfs_inode.i_mapping;
+	struct address_space *mapping = dvnode->netfs.inode.i_mapping;
 	struct afs_read *req;
 	loff_t i_size;
 	int nr_pages, i;
@@ -287,7 +287,7 @@ static struct afs_read *afs_read_dir(struct afs_vnode *dvnode, struct key *key)
 	req->cleanup = afs_dir_read_cleanup;
 
 expand:
-	i_size = i_size_read(&dvnode->vfs_inode);
+	i_size = i_size_read(&dvnode->netfs.inode);
 	if (i_size < 2048) {
 		ret = afs_bad(dvnode, afs_file_error_dir_small);
 		goto error;
@@ -305,7 +305,7 @@ expand:
 	req->actual_len = i_size; /* May change */
 	req->len = nr_pages * PAGE_SIZE; /* We can ask for more than there is */
 	req->data_version = dvnode->status.data_version; /* May change */
-	iov_iter_xarray(&req->def_iter, READ, &dvnode->vfs_inode.i_mapping->i_pages,
+	iov_iter_xarray(&req->def_iter, READ, &dvnode->netfs.inode.i_mapping->i_pages,
 			0, i_size);
 	req->iter = &req->def_iter;
 
@@ -897,7 +897,7 @@ static struct inode *afs_do_lookup(struct inode *dir, struct dentry *dentry,
 
 out_op:
 	if (op->error == 0) {
-		inode = &op->file[1].vnode->vfs_inode;
+		inode = &op->file[1].vnode->netfs.inode;
 		op->file[1].vnode = NULL;
 	}
 
@@ -1139,7 +1139,7 @@ static int afs_d_revalidate(struct dentry *dentry, unsigned int flags)
 	afs_stat_v(dir, n_reval);
 
 	/* search the directory for this vnode */
-	ret = afs_do_lookup_one(&dir->vfs_inode, dentry, &fid, key, &dir_version);
+	ret = afs_do_lookup_one(&dir->netfs.inode, dentry, &fid, key, &dir_version);
 	switch (ret) {
 	case 0:
 		/* the filename maps to something */
@@ -1170,7 +1170,7 @@ static int afs_d_revalidate(struct dentry *dentry, unsigned int flags)
 			_debug("%pd: file deleted (uq %u -> %u I:%u)",
 			       dentry, fid.unique,
 			       vnode->fid.unique,
-			       vnode->vfs_inode.i_generation);
+			       vnode->netfs.inode.i_generation);
 			goto not_found;
 		}
 		goto out_valid;
@@ -1368,7 +1368,7 @@ static void afs_dir_remove_subdir(struct dentry *dentry)
 	if (d_really_is_positive(dentry)) {
 		struct afs_vnode *vnode = AFS_FS_I(d_inode(dentry));
 
-		clear_nlink(&vnode->vfs_inode);
+		clear_nlink(&vnode->netfs.inode);
 		set_bit(AFS_VNODE_DELETED, &vnode->flags);
 		clear_bit(AFS_VNODE_CB_PROMISED, &vnode->flags);
 		clear_bit(AFS_VNODE_DIR_VALID, &vnode->flags);
@@ -1487,8 +1487,8 @@ static void afs_dir_remove_link(struct afs_operation *op)
 		/* Already done */
 	} else if (test_bit(AFS_VNODE_DIR_VALID, &dvnode->flags)) {
 		write_seqlock(&vnode->cb_lock);
-		drop_nlink(&vnode->vfs_inode);
-		if (vnode->vfs_inode.i_nlink == 0) {
+		drop_nlink(&vnode->netfs.inode);
+		if (vnode->netfs.inode.i_nlink == 0) {
 			set_bit(AFS_VNODE_DELETED, &vnode->flags);
 			__afs_break_callback(vnode, afs_cb_break_for_unlink);
 		}
@@ -1504,7 +1504,7 @@ static void afs_dir_remove_link(struct afs_operation *op)
 			op->error = ret;
 	}
 
-	_debug("nlink %d [val %d]", vnode->vfs_inode.i_nlink, op->error);
+	_debug("nlink %d [val %d]", vnode->netfs.inode.i_nlink, op->error);
 }
 
 static void afs_unlink_success(struct afs_operation *op)
@@ -1680,8 +1680,8 @@ static void afs_link_success(struct afs_operation *op)
 	afs_update_dentry_version(op, dvp, op->dentry);
 	if (op->dentry_2->d_parent == op->dentry->d_parent)
 		afs_update_dentry_version(op, dvp, op->dentry_2);
-	ihold(&vp->vnode->vfs_inode);
-	d_instantiate(op->dentry, &vp->vnode->vfs_inode);
+	ihold(&vp->vnode->netfs.inode);
+	d_instantiate(op->dentry, &vp->vnode->netfs.inode);
 }
 
 static void afs_link_put(struct afs_operation *op)

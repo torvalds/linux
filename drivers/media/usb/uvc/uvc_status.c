@@ -202,8 +202,7 @@ static void uvc_status_complete(struct urb *urb)
 	case -ENOENT:		/* usb_kill_urb() called. */
 	case -ECONNRESET:	/* usb_unlink_urb() called. */
 	case -ESHUTDOWN:	/* The endpoint is being disabled. */
-	case -EPROTO:		/* Device is disconnected (reported by some
-				 * host controller). */
+	case -EPROTO:		/* Device is disconnected (reported by some host controllers). */
 		return;
 
 	default:
@@ -272,7 +271,8 @@ int uvc_status_init(struct uvc_device *dev)
 
 	pipe = usb_rcvintpipe(dev->udev, ep->desc.bEndpointAddress);
 
-	/* For high-speed interrupt endpoints, the bInterval value is used as
+	/*
+	 * For high-speed interrupt endpoints, the bInterval value is used as
 	 * an exponent of two. Some developers forgot about it.
 	 */
 	interval = ep->desc.bInterval;

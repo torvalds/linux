@@ -118,7 +118,7 @@ TODOList:
    sound/index
    filesystems/index
    scheduler/index
-   vm/index
+   mm/index
    peci/index
 
 TODOList:
@@ -171,6 +171,7 @@ TODOList:
    riscv/index
    openrisc/index
    parisc/index
+   loongarch/index
 
 TODOList:
 

@@ -3,10 +3,10 @@
 #define __MACH_PXA27x_H
 
 #include <linux/suspend.h>
-#include <mach/hardware.h>
-#include <mach/pxa2xx-regs.h>
+#include "addr-map.h"
+#include "pxa2xx-regs.h"
 #include "mfp-pxa27x.h"
-#include <mach/irqs.h>
+#include "irqs.h"
 
 #define ARB_CNTRL	__REG(0x48000048)  /* Arbiter Control Register */
 

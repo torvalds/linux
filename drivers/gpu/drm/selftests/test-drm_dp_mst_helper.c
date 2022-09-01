@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Test cases for for the DRM DP MST helpers
+ * Test cases for the DRM DP MST helpers
  */
 
 #define PREFIX_STR "[drm_dp_mst_helper]"

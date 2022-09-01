@@ -97,7 +97,7 @@
 #define FEATURE_MEM_TEMP_READ_BIT             47
 #define FEATURE_ATHUB_MMHUB_PG_BIT            48
 #define FEATURE_SOC_PCC_BIT                   49
-#define FEATURE_SPARE_50_BIT                  50
+#define FEATURE_EDC_PWRBRK_BIT                50
 #define FEATURE_SPARE_51_BIT                  51
 #define FEATURE_SPARE_52_BIT                  52
 #define FEATURE_SPARE_53_BIT                  53
@@ -671,8 +671,8 @@ typedef struct {
   uint16_t               reserved[2];
 
   //Frequency changes
-  uint16_t               GfxclkFmin;           // MHz
-  uint16_t               GfxclkFmax;           // MHz
+  int16_t                GfxclkFmin;           // MHz
+  int16_t                GfxclkFmax;           // MHz
   uint16_t               UclkFmin;             // MHz
   uint16_t               UclkFmax;             // MHz
 
@@ -683,15 +683,14 @@ typedef struct {
   //Fan control
   uint8_t                FanLinearPwmPoints[NUM_OD_FAN_MAX_POINTS];
   uint8_t                FanLinearTempPoints[NUM_OD_FAN_MAX_POINTS];
-  uint16_t               FanMaximumRpm;
   uint16_t               FanMinimumPwm;
-  uint16_t               FanAcousticLimitRpm;
+  uint16_t               AcousticTargetRpmThreshold;
+  uint16_t               AcousticLimitRpmThreshold;
   uint16_t               FanTargetTemperature; // Degree Celcius
   uint8_t                FanZeroRpmEnable;
   uint8_t                FanZeroRpmStopTemp;
   uint8_t                FanMode;
-  uint8_t                Padding[1];
-
+  uint8_t                MaxOpTemp;
 
   uint32_t               Spare[13];
   uint32_t               MmHubPadding[8]; // SMU internal use. Adding here instead of external as a workaround
@@ -719,15 +718,14 @@ typedef struct {
 
   uint8_t                FanLinearPwmPoints;
   uint8_t                FanLinearTempPoints;
-  uint16_t               FanMaximumRpm;
   uint16_t               FanMinimumPwm;
-  uint16_t               FanAcousticLimitRpm;
+  uint16_t               AcousticTargetRpmThreshold;
+  uint16_t               AcousticLimitRpmThreshold;
   uint16_t               FanTargetTemperature; // Degree Celcius
   uint8_t                FanZeroRpmEnable;
   uint8_t                FanZeroRpmStopTemp;
   uint8_t                FanMode;
-  uint8_t                Padding[1];
-
+  uint8_t                MaxOpTemp;
 
   uint32_t               Spare[13];
 
@@ -975,8 +973,8 @@ typedef struct {
   uint16_t        Vmin_Hot_Eol[PMFW_VOLT_PLANE_COUNT];           //In mV(Q2) End-of-life Vset to be used at hot.
   uint16_t        Vmin_Cold_Eol[PMFW_VOLT_PLANE_COUNT];          //In mV(Q2) End-of-life Vset to be used at cold.
   uint16_t        Vmin_Aging_Offset[PMFW_VOLT_PLANE_COUNT];      //In mV(Q2) Worst-case aging margin
-  uint16_t        Vmin_Plat_Offset_Hot[PMFW_VOLT_PLANE_COUNT];   //In mV(Q2) Platform offset apply to T0 Hot
-  uint16_t        Vmin_Plat_Offset_Cold[PMFW_VOLT_PLANE_COUNT];  //In mV(Q2) Platform offset apply to T0 Cold
+  uint16_t        Spare_Vmin_Plat_Offset_Hot[PMFW_VOLT_PLANE_COUNT];   //In mV(Q2) Platform offset apply to T0 Hot
+  uint16_t        Spare_Vmin_Plat_Offset_Cold[PMFW_VOLT_PLANE_COUNT];  //In mV(Q2) Platform offset apply to T0 Cold
 
   //This is a fixed/minimum VMIN aging degradation offset which is applied at T0. This reflects the minimum amount of aging already accounted for.
   uint16_t        VcBtcFixedVminAgingOffset[PMFW_VOLT_PLANE_COUNT];
@@ -997,7 +995,8 @@ typedef struct {
   uint16_t SocketPowerLimitAcTau[PPT_THROTTLER_COUNT]; // Time constant of LPF in ms
   uint16_t SocketPowerLimitDcTau[PPT_THROTTLER_COUNT]; // Time constant of LPF in ms
 
-  uint32_t       SpareVmin[12];
+  QuadraticInt_t Vmin_droop;
+  uint32_t       SpareVmin[9];
 
 
   //SECTION: DPM Configuration 1
@@ -1042,7 +1041,8 @@ typedef struct {
   uint16_t        GfxclkFreqGfxUlv; // in MHz
   uint8_t         GfxIdlePadding2[2];
 
-  uint32_t        GfxoffSpare[16];
+  uint32_t        GfxOffEntryHysteresis;
+  uint32_t        GfxoffSpare[15];
 
   // GFX GPO
   uint32_t        GfxGpoSpare[16];
@@ -1286,7 +1286,6 @@ typedef struct {
   uint32_t    PostVoltageSetBacoDelay; // in microseconds. Amount of time FW will wait after power good is established or PSI0 command is issued
   uint32_t    BacoEntryDelay; // in milliseconds. Amount of time FW will wait to trigger BACO entry after receiving entry notification from OS
 
-
   // SECTION: Board Reserved
   uint32_t     BoardSpare[64];
 
@@ -1361,8 +1360,14 @@ typedef struct {
   uint16_t AverageDclk0Frequency  ;
   uint16_t AverageVclk1Frequency  ;
   uint16_t AverageDclk1Frequency  ;
+  uint16_t PCIeBusy;
+  uint16_t dGPU_W_MAX;
+  uint16_t padding;
+
+  uint32_t MetricsCounter;
 
   uint16_t AvgVoltage[SVI_PLANE_COUNT];
+  uint16_t AvgCurrent[SVI_PLANE_COUNT];
 
   uint16_t AverageGfxActivity    ;
   uint16_t AverageUclkActivity   ;

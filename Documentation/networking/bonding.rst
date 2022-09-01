@@ -780,6 +780,17 @@ peer_notif_delay
 	value is 0 which means to match the value of the link monitor
 	interval.
 
+prio
+	Slave priority. A higher number means higher priority.
+	The primary slave has the highest priority. This option also
+	follows the primary_reselect rules.
+
+	This option could only be configured via netlink, and is only valid
+	for active-backup(1), balance-tlb (5) and balance-alb (6) mode.
+	The valid value range is a signed 32 bit integer.
+
+	The default value is 0.
+
 primary
 
 	A string (eth0, eth2, etc) specifying which slave is the

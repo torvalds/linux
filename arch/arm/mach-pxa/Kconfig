@@ -1,4 +1,19 @@
 # SPDX-License-Identifier: GPL-2.0-only
+menuconfig ARCH_PXA
+	bool "PXA2xx/PXA3xx-based"
+	depends on ARCH_MULTI_V5
+	depends on CPU_LITTLE_ENDIAN
+	select ARM_CPU_SUSPEND if PM
+	select CLKSRC_PXA
+	select CLKSRC_MMIO
+	select TIMER_OF
+	select CPU_XSCALE if !CPU_XSC3
+	select GPIO_PXA
+	select GPIOLIB
+	select PLAT_PXA
+	help
+	  Support for Intel/Marvell's PXA2xx/PXA3xx processor line.
+
 if ARCH_PXA
 
 menu "Intel PXA2xx/PXA3xx Implementations"
@@ -39,14 +54,18 @@ config MACH_PXA3XX_DT
 	  the device tree. Needn't select any other machine while
 	  MACH_PXA3XX_DT is enabled.
 
+if ATAGS
+
 config ARCH_LUBBOCK
 	bool "Intel DBPXA250 Development Platform (aka Lubbock)"
+	depends on UNUSED_BOARD_FILES
 	select GPIO_REG
 	select PXA25x
 	select SA1111
 
 config MACH_MAINSTONE
 	bool "Intel HCDDBBVA0 Development Platform (aka Mainstone)"
+	depends on UNUSED_BOARD_FILES
 	select GPIO_REG
 	select PXA27x
 
@@ -56,23 +75,27 @@ config MACH_ZYLONITE
 
 config MACH_ZYLONITE300
 	bool "PXA3xx Development Platform (aka Zylonite) PXA300/310"
+	depends on UNUSED_BOARD_FILES
 	select CPU_PXA300
 	select CPU_PXA310
 	select MACH_ZYLONITE
 
 config MACH_ZYLONITE320
 	bool "PXA3xx Development Platform (aka Zylonite) PXA320"
+	depends on UNUSED_BOARD_FILES
 	select CPU_PXA320
 	select MACH_ZYLONITE
 
 config MACH_LITTLETON
 	bool "PXA3xx Form Factor Platform (aka Littleton)"
+	depends on UNUSED_BOARD_FILES
 	select CPU_PXA300
 	select CPU_PXA310
 	select PXA3xx
 
 config MACH_TAVOREVB
 	bool "PXA930 Evaluation Board (aka TavorEVB)"
+	depends on UNUSED_BOARD_FILES
 	select CPU_PXA930
 	select CPU_PXA935
 	select PXA3xx
@@ -81,6 +104,7 @@ config MACH_TAVOREVB
 
 config MACH_SAAR
 	bool "PXA930 Handheld Platform (aka SAAR)"
+	depends on UNUSED_BOARD_FILES
 	select CPU_PXA930
 	select CPU_PXA935
 	select PXA3xx
@@ -91,10 +115,12 @@ comment "Third Party Dev Platforms (sorted by vendor name)"
 
 config ARCH_PXA_IDP
 	bool "Accelent Xscale IDP"
+	depends on UNUSED_BOARD_FILES
 	select PXA25x
 
 config ARCH_VIPER
 	bool "Arcom/Eurotech VIPER SBC"
+	depends on UNUSED_BOARD_FILES
 	select ARCOM_PCMCIA
 	select I2C_GPIO if I2C=y
 	select ISA
@@ -102,17 +128,20 @@ config ARCH_VIPER
 
 config MACH_ARCOM_ZEUS
 	bool "Arcom/Eurotech ZEUS SBC"
+	depends on UNUSED_BOARD_FILES
 	select ARCOM_PCMCIA
 	select ISA
 	select PXA27x
 
 config MACH_BALLOON3
 	bool "Balloon 3 board"
+	depends on UNUSED_BOARD_FILES
 	select IWMMXT
 	select PXA27x
 
 config MACH_CSB726
 	bool "Enable Cogent CSB726 System On a Module"
+	depends on UNUSED_BOARD_FILES
 	select IWMMXT
 	select PXA27x
 	help
@@ -121,16 +150,19 @@ config MACH_CSB726
 
 config CSB726_CSB701
 	bool "Enable support for CSB701 baseboard"
+	depends on UNUSED_BOARD_FILES
 	depends on MACH_CSB726
 
 config MACH_CM_X300
 	bool "CompuLab CM-X300 modules"
+	depends on UNUSED_BOARD_FILES
 	select CPU_PXA300
 	select CPU_PXA310
 	select PXA3xx
 
 config MACH_CAPC7117
 	bool "Embedian CAPC-7117 evaluation kit based on the MXM-8x10 CoM"
+	depends on UNUSED_BOARD_FILES
 	select CPU_PXA320
 	select PXA3xx
 
@@ -155,6 +187,7 @@ endchoice
 
 config MACH_XCEP
 	bool "Iskratel Electronics XCEP"
+	depends on UNUSED_BOARD_FILES
 	select MTD
 	select MTD_CFI
 	select MTD_CFI_INTELEXT
@@ -166,6 +199,7 @@ config MACH_XCEP
 
 config TRIZEPS_PXA
 	bool "PXA based Keith und Koep Trizeps DIMM-Modules"
+	depends on UNUSED_BOARD_FILES
 
 config MACH_TRIZEPS4
 	bool "Keith und Koep Trizeps4 DIMM-Module"
@@ -207,15 +241,18 @@ config TRIZEPS_PCMCIA
 
 config MACH_LOGICPD_PXA270
 	bool "LogicPD PXA270 Card Engine Development Platform"
+	depends on UNUSED_BOARD_FILES
 	select PXA27x
 
 config MACH_PCM027
 	bool "Phytec phyCORE-PXA270 CPU module (PCM-027)"
+	depends on UNUSED_BOARD_FILES
 	select IWMMXT
 	select PXA27x
 
 config MACH_PCM990_BASEBOARD
 	bool "PHYTEC PCM-990 development board"
+	depends on UNUSED_BOARD_FILES
 	depends on MACH_PCM027
 
 choice
@@ -235,30 +272,36 @@ endchoice
 
 config MACH_COLIBRI
 	bool "Toradex Colibri PXA270"
+	depends on UNUSED_BOARD_FILES
 	select PXA27x
 
 config MACH_COLIBRI_PXA270_INCOME
 	bool "Income s.r.o. PXA270 SBC"
+	depends on UNUSED_BOARD_FILES
 	depends on MACH_COLIBRI
 	select PXA27x
 
 config MACH_COLIBRI300
 	bool "Toradex Colibri PXA300/310"
+	depends on UNUSED_BOARD_FILES
 	select CPU_PXA300
 	select CPU_PXA310
 	select PXA3xx
 
 config MACH_COLIBRI320
 	bool "Toradex Colibri PXA320"
+	depends on UNUSED_BOARD_FILES
 	select CPU_PXA320
 	select PXA3xx
 
 config MACH_COLIBRI_EVALBOARD
 	bool "Toradex Colibri Evaluation Carrier Board support"
+	depends on UNUSED_BOARD_FILES
 	depends on MACH_COLIBRI || MACH_COLIBRI300 || MACH_COLIBRI320
 
 config MACH_VPAC270
 	bool "Voipac PXA270"
+	depends on UNUSED_BOARD_FILES
 	select HAVE_PATA_PLATFORM
 	select PXA27x
 	help
@@ -268,24 +311,29 @@ comment "End-user Products (sorted by vendor name)"
 
 config MACH_H4700
 	bool "HP iPAQ hx4700"
+	depends on UNUSED_BOARD_FILES
 	select IWMMXT
 	select PXA27x
 
 config MACH_H5000
 	bool "HP iPAQ h5000"
+	depends on UNUSED_BOARD_FILES
 	select PXA25x
 
 config MACH_HIMALAYA
 	bool "HTC Himalaya Support"
+	depends on UNUSED_BOARD_FILES
 	select CPU_PXA26x
 
 config MACH_MAGICIAN
 	bool "Enable HTC Magician Support"
+	depends on UNUSED_BOARD_FILES
 	select IWMMXT
 	select PXA27x
 
 config MACH_MIOA701
 	bool "Mitac Mio A701 Support"
+	depends on UNUSED_BOARD_FILES
 	select IWMMXT
 	select PXA27x
 	help
@@ -295,6 +343,7 @@ config MACH_MIOA701
 
 config PXA_EZX
 	bool "Motorola EZX Platform"
+	depends on UNUSED_BOARD_FILES
 	select IWMMXT
 	select PXA27x
 
@@ -330,16 +379,19 @@ config MACH_EZX_E2
 
 config MACH_MP900C
 	bool "Nec Mobilepro 900/c"
+	depends on UNUSED_BOARD_FILES
 	select PXA25x
 
 config ARCH_PXA_PALM
 	bool "PXA based Palm PDAs"
+	depends on UNUSED_BOARD_FILES
 
 config MACH_PALM27X
 	bool
 
 config MACH_PALMTE2
 	bool "Palm Tungsten|E2"
+	depends on UNUSED_BOARD_FILES
 	default y
 	depends on ARCH_PXA_PALM
 	select PXA25x
@@ -358,6 +410,7 @@ config MACH_PALMTC
 
 config MACH_PALMT5
 	bool "Palm Tungsten|T5"
+	depends on UNUSED_BOARD_FILES
 	default y
 	depends on ARCH_PXA_PALM
 	select IWMMXT
@@ -369,6 +422,7 @@ config MACH_PALMT5
 
 config MACH_PALMTX
 	bool "Palm T|X"
+	depends on UNUSED_BOARD_FILES
 	default y
 	depends on ARCH_PXA_PALM
 	select IWMMXT
@@ -380,6 +434,7 @@ config MACH_PALMTX
 
 config MACH_PALMZ72
 	bool "Palm Zire 72"
+	depends on UNUSED_BOARD_FILES
 	default y
 	depends on ARCH_PXA_PALM
 	select IWMMXT
@@ -391,6 +446,7 @@ config MACH_PALMZ72
 
 config MACH_PALMLD
 	bool "Palm LifeDrive"
+	depends on UNUSED_BOARD_FILES
 	default y
 	depends on ARCH_PXA_PALM
 	select IWMMXT
@@ -406,6 +462,7 @@ config PALM_TREO
 
 config MACH_CENTRO
 	bool "Palm Centro 685 (GSM)"
+	depends on UNUSED_BOARD_FILES
 	default y
 	depends on ARCH_PXA_PALM
 	select IWMMXT
@@ -418,6 +475,7 @@ config MACH_CENTRO
 
 config MACH_TREO680
 	bool "Palm Treo 680"
+	depends on UNUSED_BOARD_FILES
 	default y
 	depends on ARCH_PXA_PALM
 	select IWMMXT
@@ -450,24 +508,28 @@ config PXA_SHARPSL_DETECT_MACH_ID
 config MACH_POODLE
 	bool "Enable Sharp SL-5600 (Poodle) Support"
 	depends on PXA_SHARPSL
+	depends on UNUSED_BOARD_FILES
 	select PXA25x
 	select SHARP_LOCOMO
 
 config MACH_CORGI
 	bool "Enable Sharp SL-C700 (Corgi) Support"
 	depends on PXA_SHARPSL
+	depends on UNUSED_BOARD_FILES
 	select PXA25x
 	select PXA_SHARP_C7xx
 
 config MACH_SHEPHERD
 	bool "Enable Sharp SL-C750 (Shepherd) Support"
 	depends on PXA_SHARPSL
+	depends on UNUSED_BOARD_FILES
 	select PXA25x
 	select PXA_SHARP_C7xx
 
 config MACH_HUSKY
 	bool "Enable Sharp SL-C760 (Husky) Support"
 	depends on PXA_SHARPSL
+	depends on UNUSED_BOARD_FILES
 	select PXA25x
 	select PXA_SHARP_C7xx
 
@@ -494,6 +556,7 @@ config MACH_BORZOI
 
 config MACH_TOSA
 	bool "Enable Sharp SL-6000x (Tosa) Support"
+	depends on UNUSED_BOARD_FILES
 	depends on PXA_SHARPSL
 	select PXA25x
 
@@ -517,11 +580,13 @@ config TOSA_USE_EXT_KEYCODES
 
 config MACH_ICONTROL
 	bool "TMT iControl/SafeTCam based on the MXM-8x10 CoM"
+	depends on UNUSED_BOARD_FILES
 	select CPU_PXA320
 	select PXA3xx
 
 config ARCH_PXA_ESERIES
 	bool "PXA based Toshiba e-series PDAs"
+	depends on UNUSED_BOARD_FILES
 	select FB_W100
 	select FB
 	select PXA25x
@@ -576,7 +641,10 @@ config MACH_E800
 
 config MACH_ZIPIT2
 	bool "Zipit Z2 Handheld"
+	depends on UNUSED_BOARD_FILES
 	select PXA27x
+
+endif # ATAGS
 endmenu
 
 config PXA25x

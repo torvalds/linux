@@ -214,6 +214,44 @@ of calling send directly after a handshake using gnutls.
 Since it doesn't implement a full record layer, control
 messages are not supported.
 
+Optional optimizations
+----------------------
+
+There are certain condition-specific optimizations the TLS ULP can make,
+if requested. Those optimizations are either not universally beneficial
+or may impact correctness, hence they require an opt-in.
+All options are set per-socket using setsockopt(), and their
+state can be checked using getsockopt() and via socket diag (``ss``).
+
+TLS_TX_ZEROCOPY_RO
+~~~~~~~~~~~~~~~~~~
+
+For device offload only. Allow sendfile() data to be transmitted directly
+to the NIC without making an in-kernel copy. This allows true zero-copy
+behavior when device offload is enabled.
+
+The application must make sure that the data is not modified between being
+submitted and transmission completing. In other words this is mostly
+applicable if the data sent on a socket via sendfile() is read-only.
+
+Modifying the data may result in different versions of the data being used
+for the original TCP transmission and TCP retransmissions. To the receiver
+this will look like TLS records had been tampered with and will result
+in record authentication failures.
+
+TLS_RX_EXPECT_NO_PAD
+~~~~~~~~~~~~~~~~~~~~
+
+TLS 1.3 only. Expect the sender to not pad records. This allows the data
+to be decrypted directly into user space buffers with TLS 1.3.
+
+This optimization is safe to enable only if the remote end is trusted,
+otherwise it is an attack vector to doubling the TLS processing cost.
+
+If the record decrypted turns out to had been padded or is not a data
+record it will be decrypted again into a kernel buffer without zero copy.
+Such events are counted in the ``TlsDecryptRetry`` statistic.
+
 Statistics
 ==========
 
@@ -239,3 +277,12 @@ TLS implementation exposes the following per-namespace statistics
 
 - ``TlsDeviceRxResync`` -
   number of RX resyncs sent to NICs handling cryptography
+
+- ``TlsDecryptRetry`` -
+  number of RX records which had to be re-decrypted due to
+  ``TLS_RX_EXPECT_NO_PAD`` mis-prediction. Note that this counter will
+  also increment for non-data records.
+
+- ``TlsRxNoPadViolation`` -
+  number of data RX records which had to be re-decrypted due to
+  ``TLS_RX_EXPECT_NO_PAD`` mis-prediction.

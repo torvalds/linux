@@ -89,6 +89,7 @@ struct x86_instruction_info {
 #define X86EMUL_INTERCEPTED     6 /* Intercepted by nested VMCB/VMCS */
 
 struct x86_emulate_ops {
+	void (*vm_bugged)(struct x86_emulate_ctxt *ctxt);
 	/*
 	 * read_gpr: read a general purpose register (rax - r15)
 	 *
@@ -301,6 +302,18 @@ struct fastop;
 
 typedef void (*fastop_t)(struct fastop *);
 
+/*
+ * The emulator's _regs array tracks only the GPRs, i.e. excludes RIP.  RIP is
+ * tracked/accessed via _eip, and except for RIP relative addressing, which
+ * also uses _eip, RIP cannot be a register operand nor can it be an operand in
+ * a ModRM or SIB byte.
+ */
+#ifdef CONFIG_X86_64
+#define NR_EMULATOR_GPRS	16
+#else
+#define NR_EMULATOR_GPRS	8
+#endif
+
 struct x86_emulate_ctxt {
 	void *vcpu;
 	const struct x86_emulate_ops *ops;
@@ -345,9 +358,9 @@ struct x86_emulate_ctxt {
 	u8 lock_prefix;
 	u8 rep_prefix;
 	/* bitmaps of registers in _regs[] that can be read */
-	u32 regs_valid;
+	u16 regs_valid;
 	/* bitmaps of registers in _regs[] that have been written */
-	u32 regs_dirty;
+	u16 regs_dirty;
 	/* modrm */
 	u8 modrm;
 	u8 modrm_mod;
@@ -363,13 +376,22 @@ struct x86_emulate_ctxt {
 	struct operand src2;
 	struct operand dst;
 	struct operand memop;
-	unsigned long _regs[NR_VCPU_REGS];
+	unsigned long _regs[NR_EMULATOR_GPRS];
 	struct operand *memopp;
 	struct fetch_cache fetch;
 	struct read_cache io_read;
 	struct read_cache mem_read;
 	bool is_branch;
 };
+
+#define KVM_EMULATOR_BUG_ON(cond, ctxt)		\
+({						\
+	int __ret = (cond);			\
+						\
+	if (WARN_ON_ONCE(__ret))		\
+		ctxt->ops->vm_bugged(ctxt);	\
+	unlikely(__ret);			\
+})
 
 /* Repeat String Operation Prefix */
 #define REPE_PREFIX	0xf3

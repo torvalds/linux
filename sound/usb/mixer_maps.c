@@ -439,6 +439,31 @@ static const struct usbmix_name_map msi_mpg_x570s_carbon_max_wifi_alc4080_map[] 
 	{}
 };
 
+/* Gigabyte B450/550 Mobo */
+static const struct usbmix_name_map gigabyte_b450_map[] = {
+	{ 24, NULL },			/* OT, IEC958?, disabled */
+	{ 21, "Speaker" },		/* OT */
+	{ 29, "Speaker Playback" },	/* FU */
+	{ 22, "Headphone" },		/* OT */
+	{ 30, "Headphone Playback" },	/* FU */
+	{ 11, "Line" },			/* IT */
+	{ 27, "Line Capture" },		/* FU */
+	{ 12, "Mic" },			/* IT */
+	{ 28, "Mic Capture" },		/* FU */
+	{ 9, "Front Mic" },		/* IT */
+	{ 25, "Front Mic Capture" },	/* FU */
+	{}
+};
+
+static const struct usbmix_connector_map gigabyte_b450_connector_map[] = {
+	{ 13, 21 },	/* Speaker */
+	{ 14, 22 },	/* Headphone */
+	{ 19, 11 },	/* Line */
+	{ 20, 12 },	/* Mic */
+	{ 17, 9 },	/* Front Mic */
+	{}
+};
+
 /*
  * Control map entries
  */
@@ -580,6 +605,11 @@ static const struct usbmix_ctl_map usbmix_ctl_maps[] = {
 		.id = USB_ID(0x0414, 0xa002),
 		.map = trx40_mobo_map,
 		.connector_map = trx40_mobo_connector_map,
+	},
+	{	/* Gigabyte B450/550 Mobo */
+		.id = USB_ID(0x0414, 0xa00d),
+		.map = gigabyte_b450_map,
+		.connector_map = gigabyte_b450_connector_map,
 	},
 	{	/* ASUS ROG Zenith II */
 		.id = USB_ID(0x0b05, 0x1916),

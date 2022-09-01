@@ -7,6 +7,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/soundwire/sdw_registers.h>
 #include <linux/soundwire/sdw.h>
+#include <linux/soundwire/sdw_type.h>
 #include "bus.h"
 #include "sysfs_local.h"
 
@@ -536,11 +537,9 @@ int sdw_nread(struct sdw_slave *slave, u32 addr, size_t count, u8 *val)
 {
 	int ret;
 
-	ret = pm_runtime_get_sync(&slave->dev);
-	if (ret < 0 && ret != -EACCES) {
-		pm_runtime_put_noidle(&slave->dev);
+	ret = pm_runtime_resume_and_get(&slave->dev);
+	if (ret < 0 && ret != -EACCES)
 		return ret;
-	}
 
 	ret = sdw_nread_no_pm(slave, addr, count, val);
 
@@ -562,11 +561,9 @@ int sdw_nwrite(struct sdw_slave *slave, u32 addr, size_t count, const u8 *val)
 {
 	int ret;
 
-	ret = pm_runtime_get_sync(&slave->dev);
-	if (ret < 0 && ret != -EACCES) {
-		pm_runtime_put_noidle(&slave->dev);
+	ret = pm_runtime_resume_and_get(&slave->dev);
+	if (ret < 0 && ret != -EACCES)
 		return ret;
-	}
 
 	ret = sdw_nwrite_no_pm(slave, addr, count, val);
 
@@ -846,15 +843,21 @@ static int sdw_slave_clk_stop_callback(struct sdw_slave *slave,
 				       enum sdw_clk_stop_mode mode,
 				       enum sdw_clk_stop_type type)
 {
-	int ret;
+	int ret = 0;
 
-	if (slave->ops && slave->ops->clk_stop) {
-		ret = slave->ops->clk_stop(slave, mode, type);
-		if (ret < 0)
-			return ret;
+	mutex_lock(&slave->sdw_dev_lock);
+
+	if (slave->probed)  {
+		struct device *dev = &slave->dev;
+		struct sdw_driver *drv = drv_to_sdw_driver(dev->driver);
+
+		if (drv->ops && drv->ops->clk_stop)
+			ret = drv->ops->clk_stop(slave, mode, type);
 	}
 
-	return 0;
+	mutex_unlock(&slave->sdw_dev_lock);
+
+	return ret;
 }
 
 static int sdw_slave_clk_stop_prepare(struct sdw_slave *slave,
@@ -1506,10 +1509,9 @@ static int sdw_handle_slave_alerts(struct sdw_slave *slave)
 
 	sdw_modify_slave_status(slave, SDW_SLAVE_ALERT);
 
-	ret = pm_runtime_get_sync(&slave->dev);
+	ret = pm_runtime_resume_and_get(&slave->dev);
 	if (ret < 0 && ret != -EACCES) {
 		dev_err(&slave->dev, "Failed to resume device: %d\n", ret);
-		pm_runtime_put_noidle(&slave->dev);
 		return ret;
 	}
 
@@ -1616,14 +1618,24 @@ static int sdw_handle_slave_alerts(struct sdw_slave *slave)
 		}
 
 		/* Update the Slave driver */
-		if (slave_notify && slave->ops &&
-		    slave->ops->interrupt_callback) {
-			slave_intr.sdca_cascade = sdca_cascade;
-			slave_intr.control_port = clear;
-			memcpy(slave_intr.port, &port_status,
-			       sizeof(slave_intr.port));
+		if (slave_notify) {
+			mutex_lock(&slave->sdw_dev_lock);
 
-			slave->ops->interrupt_callback(slave, &slave_intr);
+			if (slave->probed) {
+				struct device *dev = &slave->dev;
+				struct sdw_driver *drv = drv_to_sdw_driver(dev->driver);
+
+				if (drv->ops && drv->ops->interrupt_callback) {
+					slave_intr.sdca_cascade = sdca_cascade;
+					slave_intr.control_port = clear;
+					memcpy(slave_intr.port, &port_status,
+					       sizeof(slave_intr.port));
+
+					drv->ops->interrupt_callback(slave, &slave_intr);
+				}
+			}
+
+			mutex_unlock(&slave->sdw_dev_lock);
 		}
 
 		/* Ack interrupt */
@@ -1697,29 +1709,21 @@ io_err:
 static int sdw_update_slave_status(struct sdw_slave *slave,
 				   enum sdw_slave_status status)
 {
-	unsigned long time;
+	int ret = 0;
 
-	if (!slave->probed) {
-		/*
-		 * the slave status update is typically handled in an
-		 * interrupt thread, which can race with the driver
-		 * probe, e.g. when a module needs to be loaded.
-		 *
-		 * make sure the probe is complete before updating
-		 * status.
-		 */
-		time = wait_for_completion_timeout(&slave->probe_complete,
-				msecs_to_jiffies(DEFAULT_PROBE_TIMEOUT));
-		if (!time) {
-			dev_err(&slave->dev, "Probe not complete, timed out\n");
-			return -ETIMEDOUT;
-		}
+	mutex_lock(&slave->sdw_dev_lock);
+
+	if (slave->probed) {
+		struct device *dev = &slave->dev;
+		struct sdw_driver *drv = drv_to_sdw_driver(dev->driver);
+
+		if (drv->ops && drv->ops->update_status)
+			ret = drv->ops->update_status(slave, status);
 	}
 
-	if (!slave->ops || !slave->ops->update_status)
-		return 0;
+	mutex_unlock(&slave->sdw_dev_lock);
 
-	return slave->ops->update_status(slave, status);
+	return ret;
 }
 
 /**
@@ -1838,6 +1842,18 @@ int sdw_handle_slave_status(struct sdw_bus *bus,
 				__func__, slave->dev_num);
 
 			complete(&slave->initialization_complete);
+
+			/*
+			 * If the manager became pm_runtime active, the peripherals will be
+			 * restarted and attach, but their pm_runtime status may remain
+			 * suspended. If the 'update_slave_status' callback initiates
+			 * any sort of deferred processing, this processing would not be
+			 * cancelled on pm_runtime suspend.
+			 * To avoid such zombie states, we queue a request to resume.
+			 * This would be a no-op in case the peripheral was being resumed
+			 * by e.g. the ALSA/ASoC framework.
+			 */
+			pm_request_resume(&slave->dev);
 		}
 	}
 

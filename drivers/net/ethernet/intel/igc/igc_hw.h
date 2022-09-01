@@ -89,8 +89,6 @@ struct igc_mac_info {
 	u32 mta_shadow[MAX_MTA_REG];
 	u16 rar_entry_count;
 
-	u8 forced_speed_duplex;
-
 	bool asf_firmware_present;
 	bool arc_subsystem_valid;
 

@@ -194,6 +194,7 @@ static int hw_id_map[MAX_HWIP] = {
 	[UMC_HWIP]	= UMC_HWID,
 	[XGMI_HWIP]	= XGMI_HWID,
 	[DCI_HWIP]	= DCI_HWID,
+	[PCIE_HWIP]	= PCIE_HWID,
 };
 
 static int amdgpu_discovery_read_binary_from_vram(struct amdgpu_device *adev, uint8_t *binary)
@@ -1130,13 +1131,24 @@ static int amdgpu_discovery_reg_base_init(struct amdgpu_device *adev)
 				adev->vcn.vcn_config[adev->vcn.num_vcn_inst] =
 					ip->revision & 0xc0;
 				ip->revision &= ~0xc0;
-				adev->vcn.num_vcn_inst++;
+				if (adev->vcn.num_vcn_inst < AMDGPU_MAX_VCN_INSTANCES)
+					adev->vcn.num_vcn_inst++;
+				else
+					dev_err(adev->dev, "Too many VCN instances: %d vs %d\n",
+						adev->vcn.num_vcn_inst + 1,
+						AMDGPU_MAX_VCN_INSTANCES);
 			}
 			if (le16_to_cpu(ip->hw_id) == SDMA0_HWID ||
 			    le16_to_cpu(ip->hw_id) == SDMA1_HWID ||
 			    le16_to_cpu(ip->hw_id) == SDMA2_HWID ||
-			    le16_to_cpu(ip->hw_id) == SDMA3_HWID)
-				adev->sdma.num_instances++;
+			    le16_to_cpu(ip->hw_id) == SDMA3_HWID) {
+				if (adev->sdma.num_instances < AMDGPU_MAX_SDMA_INSTANCES)
+					adev->sdma.num_instances++;
+				else
+					dev_err(adev->dev, "Too many SDMA instances: %d vs %d\n",
+						adev->sdma.num_instances + 1,
+						AMDGPU_MAX_SDMA_INSTANCES);
+			}
 
 			if (le16_to_cpu(ip->hw_id) == UMC_HWID)
 				adev->gmc.num_umc++;
@@ -1361,7 +1373,7 @@ union mall_info {
 	struct mall_info_v1_0 v1;
 };
 
-int amdgpu_discovery_get_mall_info(struct amdgpu_device *adev)
+static int amdgpu_discovery_get_mall_info(struct amdgpu_device *adev)
 {
 	struct binary_header *bhdr;
 	union mall_info *mall_info;
@@ -1424,6 +1436,11 @@ static int amdgpu_discovery_get_vcn_info(struct amdgpu_device *adev)
 		return -EINVAL;
 	}
 
+	/* num_vcn_inst is currently limited to AMDGPU_MAX_VCN_INSTANCES
+	 * which is smaller than VCN_INFO_TABLE_MAX_NUM_INSTANCES
+	 * but that may change in the future with new GPUs so keep this
+	 * check for defensive purposes.
+	 */
 	if (adev->vcn.num_vcn_inst > VCN_INFO_TABLE_MAX_NUM_INSTANCES) {
 		dev_err(adev->dev, "invalid vcn instances\n");
 		return -EINVAL;
@@ -1439,6 +1456,9 @@ static int amdgpu_discovery_get_vcn_info(struct amdgpu_device *adev)
 
 	switch (le16_to_cpu(vcn_info->v1.header.version_major)) {
 	case 1:
+		/* num_vcn_inst is currently limited to AMDGPU_MAX_VCN_INSTANCES
+		 * so this won't overflow.
+		 */
 		for (v = 0; v < adev->vcn.num_vcn_inst; v++) {
 			adev->vcn.vcn_codec_disable_mask[v] =
 				le32_to_cpu(vcn_info->v1.instance_info[v].fuse_data.all_bits);
@@ -1610,11 +1630,13 @@ static int amdgpu_discovery_set_psp_ip_blocks(struct amdgpu_device *adev)
 	case IP_VERSION(13, 0, 1):
 	case IP_VERSION(13, 0, 2):
 	case IP_VERSION(13, 0, 3):
-	case IP_VERSION(13, 0, 4):
 	case IP_VERSION(13, 0, 5):
 	case IP_VERSION(13, 0, 7):
 	case IP_VERSION(13, 0, 8):
 		amdgpu_device_ip_block_add(adev, &psp_v13_0_ip_block);
+		break;
+	case IP_VERSION(13, 0, 4):
+		amdgpu_device_ip_block_add(adev, &psp_v13_0_4_ip_block);
 		break;
 	default:
 		dev_err(adev->dev,
@@ -1696,8 +1718,11 @@ static int amdgpu_discovery_set_display_ip_blocks(struct amdgpu_device *adev)
 		case IP_VERSION(3, 0, 1):
 		case IP_VERSION(3, 1, 2):
 		case IP_VERSION(3, 1, 3):
+		case IP_VERSION(3, 1, 4):
 		case IP_VERSION(3, 1, 5):
 		case IP_VERSION(3, 1, 6):
+		case IP_VERSION(3, 2, 0):
+		case IP_VERSION(3, 2, 1):
 			amdgpu_device_ip_block_add(adev, &dm_ip_block);
 			break;
 		default:
@@ -1875,6 +1900,7 @@ static int amdgpu_discovery_set_mm_ip_blocks(struct amdgpu_device *adev)
 			amdgpu_device_ip_block_add(adev, &vcn_v3_0_ip_block);
 			break;
 		case IP_VERSION(4, 0, 0):
+		case IP_VERSION(4, 0, 2):
 		case IP_VERSION(4, 0, 4):
 			amdgpu_device_ip_block_add(adev, &vcn_v4_0_ip_block);
 			amdgpu_device_ip_block_add(adev, &jpeg_v4_0_ip_block);
@@ -2183,12 +2209,9 @@ int amdgpu_discovery_set_ip_blocks(struct amdgpu_device *adev)
 		break;
 	case IP_VERSION(7, 4, 0):
 	case IP_VERSION(7, 4, 1):
-		adev->nbio.funcs = &nbio_v7_4_funcs;
-		adev->nbio.hdp_flush_reg = &nbio_v7_4_hdp_flush_reg;
-		break;
 	case IP_VERSION(7, 4, 4):
 		adev->nbio.funcs = &nbio_v7_4_funcs;
-		adev->nbio.hdp_flush_reg = &nbio_v7_4_hdp_flush_reg_ald;
+		adev->nbio.hdp_flush_reg = &nbio_v7_4_hdp_flush_reg;
 		break;
 	case IP_VERSION(7, 2, 0):
 	case IP_VERSION(7, 2, 1):
@@ -2202,15 +2225,12 @@ int amdgpu_discovery_set_ip_blocks(struct amdgpu_device *adev)
 	case IP_VERSION(2, 3, 0):
 	case IP_VERSION(2, 3, 1):
 	case IP_VERSION(2, 3, 2):
-		adev->nbio.funcs = &nbio_v2_3_funcs;
-		adev->nbio.hdp_flush_reg = &nbio_v2_3_hdp_flush_reg;
-		break;
 	case IP_VERSION(3, 3, 0):
 	case IP_VERSION(3, 3, 1):
 	case IP_VERSION(3, 3, 2):
 	case IP_VERSION(3, 3, 3):
 		adev->nbio.funcs = &nbio_v2_3_funcs;
-		adev->nbio.hdp_flush_reg = &nbio_v2_3_hdp_flush_reg_sc;
+		adev->nbio.hdp_flush_reg = &nbio_v2_3_hdp_flush_reg;
 		break;
 	case IP_VERSION(4, 3, 0):
 	case IP_VERSION(4, 3, 1):
@@ -2310,6 +2330,7 @@ int amdgpu_discovery_set_ip_blocks(struct amdgpu_device *adev)
 
 	switch (adev->ip_versions[LSDMA_HWIP][0]) {
 	case IP_VERSION(6, 0, 0):
+	case IP_VERSION(6, 0, 1):
 	case IP_VERSION(6, 0, 2):
 		adev->lsdma.funcs = &lsdma_v6_0_funcs;
 		break;

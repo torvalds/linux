@@ -105,8 +105,8 @@ required reading:
     patches if these rules are followed, and many people will only
     review code if it is in the proper style.
 
-  :ref:`Documentation/process/submitting-patches.rst <submittingpatches>` and :ref:`Documentation/process/submitting-drivers.rst <submittingdrivers>`
-    These files describe in explicit detail how to successfully create
+  :ref:`Documentation/process/submitting-patches.rst <submittingpatches>`
+    This file describes in explicit detail how to successfully create
     and send a patch, including (but not limited to):
 
        - Email contents

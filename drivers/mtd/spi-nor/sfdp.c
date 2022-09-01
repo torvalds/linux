@@ -134,7 +134,7 @@ struct sfdp_4bait {
 
 /**
  * spi_nor_read_raw() - raw read of serial flash memory. read_opcode,
- *			addr_width and read_dummy members of the struct spi_nor
+ *			addr_nbytes and read_dummy members of the struct spi_nor
  *			should be previously
  * set.
  * @nor:	pointer to a 'struct spi_nor'
@@ -178,21 +178,21 @@ static int spi_nor_read_raw(struct spi_nor *nor, u32 addr, size_t len, u8 *buf)
 static int spi_nor_read_sfdp(struct spi_nor *nor, u32 addr,
 			     size_t len, void *buf)
 {
-	u8 addr_width, read_opcode, read_dummy;
+	u8 addr_nbytes, read_opcode, read_dummy;
 	int ret;
 
 	read_opcode = nor->read_opcode;
-	addr_width = nor->addr_width;
+	addr_nbytes = nor->addr_nbytes;
 	read_dummy = nor->read_dummy;
 
 	nor->read_opcode = SPINOR_OP_RDSFDP;
-	nor->addr_width = 3;
+	nor->addr_nbytes = 3;
 	nor->read_dummy = 8;
 
 	ret = spi_nor_read_raw(nor, addr, len, buf);
 
 	nor->read_opcode = read_opcode;
-	nor->addr_width = addr_width;
+	nor->addr_nbytes = addr_nbytes;
 	nor->read_dummy = read_dummy;
 
 	return ret;
@@ -462,11 +462,13 @@ static int spi_nor_parse_bfpt(struct spi_nor *nor,
 	switch (bfpt.dwords[BFPT_DWORD(1)] & BFPT_DWORD1_ADDRESS_BYTES_MASK) {
 	case BFPT_DWORD1_ADDRESS_BYTES_3_ONLY:
 	case BFPT_DWORD1_ADDRESS_BYTES_3_OR_4:
-		nor->addr_width = 3;
+		params->addr_nbytes = 3;
+		params->addr_mode_nbytes = 3;
 		break;
 
 	case BFPT_DWORD1_ADDRESS_BYTES_4_ONLY:
-		nor->addr_width = 4;
+		params->addr_nbytes = 4;
+		params->addr_mode_nbytes = 4;
 		break;
 
 	default:
@@ -637,12 +639,12 @@ static int spi_nor_parse_bfpt(struct spi_nor *nor,
 }
 
 /**
- * spi_nor_smpt_addr_width() - return the address width used in the
+ * spi_nor_smpt_addr_nbytes() - return the number of address bytes used in the
  *			       configuration detection command.
  * @nor:	pointer to a 'struct spi_nor'
  * @settings:	configuration detection command descriptor, dword1
  */
-static u8 spi_nor_smpt_addr_width(const struct spi_nor *nor, const u32 settings)
+static u8 spi_nor_smpt_addr_nbytes(const struct spi_nor *nor, const u32 settings)
 {
 	switch (settings & SMPT_CMD_ADDRESS_LEN_MASK) {
 	case SMPT_CMD_ADDRESS_LEN_0:
@@ -653,7 +655,7 @@ static u8 spi_nor_smpt_addr_width(const struct spi_nor *nor, const u32 settings)
 		return 4;
 	case SMPT_CMD_ADDRESS_LEN_USE_CURRENT:
 	default:
-		return nor->addr_width;
+		return nor->params->addr_mode_nbytes;
 	}
 }
 
@@ -690,7 +692,7 @@ static const u32 *spi_nor_get_map_in_use(struct spi_nor *nor, const u32 *smpt,
 	u32 addr;
 	int err;
 	u8 i;
-	u8 addr_width, read_opcode, read_dummy;
+	u8 addr_nbytes, read_opcode, read_dummy;
 	u8 read_data_mask, map_id;
 
 	/* Use a kmalloc'ed bounce buffer to guarantee it is DMA-able. */
@@ -698,7 +700,7 @@ static const u32 *spi_nor_get_map_in_use(struct spi_nor *nor, const u32 *smpt,
 	if (!buf)
 		return ERR_PTR(-ENOMEM);
 
-	addr_width = nor->addr_width;
+	addr_nbytes = nor->addr_nbytes;
 	read_dummy = nor->read_dummy;
 	read_opcode = nor->read_opcode;
 
@@ -709,7 +711,7 @@ static const u32 *spi_nor_get_map_in_use(struct spi_nor *nor, const u32 *smpt,
 			break;
 
 		read_data_mask = SMPT_CMD_READ_DATA(smpt[i]);
-		nor->addr_width = spi_nor_smpt_addr_width(nor, smpt[i]);
+		nor->addr_nbytes = spi_nor_smpt_addr_nbytes(nor, smpt[i]);
 		nor->read_dummy = spi_nor_smpt_read_dummy(nor, smpt[i]);
 		nor->read_opcode = SMPT_CMD_OPCODE(smpt[i]);
 		addr = smpt[i + 1];
@@ -756,7 +758,7 @@ static const u32 *spi_nor_get_map_in_use(struct spi_nor *nor, const u32 *smpt,
 	/* fall through */
 out:
 	kfree(buf);
-	nor->addr_width = addr_width;
+	nor->addr_nbytes = addr_nbytes;
 	nor->read_dummy = read_dummy;
 	nor->read_opcode = read_opcode;
 	return ret;
@@ -1044,7 +1046,7 @@ static int spi_nor_parse_4bait(struct spi_nor *nor,
 	/*
 	 * We need at least one 4-byte op code per read, program and erase
 	 * operation; the .read(), .write() and .erase() hooks share the
-	 * nor->addr_width value.
+	 * nor->addr_nbytes value.
 	 */
 	if (!read_hwcaps || !pp_hwcaps || !erase_mask)
 		goto out;
@@ -1098,7 +1100,7 @@ static int spi_nor_parse_4bait(struct spi_nor *nor,
 	 * Spansion memory. However this quirk is no longer needed with new
 	 * SFDP compliant memories.
 	 */
-	nor->addr_width = 4;
+	params->addr_nbytes = 4;
 	nor->flags |= SNOR_F_4B_OPCODES | SNOR_F_HAS_4BAIT;
 
 	/* fall through */

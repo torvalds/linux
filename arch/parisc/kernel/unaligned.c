@@ -146,7 +146,7 @@ static int emulate_ldw(struct pt_regs *regs, int toreg, int flop)
 "	depw	%%r0,31,2,%4\n"
 "1:	ldw	0(%%sr1,%4),%0\n"
 "2:	ldw	4(%%sr1,%4),%3\n"
-"	subi	32,%4,%2\n"
+"	subi	32,%2,%2\n"
 "	mtctl	%2,11\n"
 "	vshd	%0,%3,%0\n"
 "3:	\n"

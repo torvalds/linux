@@ -472,7 +472,7 @@ static int intelfb_pci_register(struct pci_dev *pdev,
 	struct fb_info *info;
 	struct intelfb_info *dinfo;
 	int i, err, dvo;
-	int aperture_size, stolen_size;
+	int aperture_size, stolen_size = 0;
 	struct agp_kern_info gtt_info;
 	int agp_memtype;
 	const char *s;
@@ -571,7 +571,7 @@ static int intelfb_pci_register(struct pci_dev *pdev,
 		return -ENODEV;
 	}
 
-	if (intelfbhw_get_memory(pdev, &aperture_size,&stolen_size)) {
+	if (intelfbhw_get_memory(pdev, &aperture_size, &stolen_size)) {
 		cleanup(dinfo);
 		return -ENODEV;
 	}

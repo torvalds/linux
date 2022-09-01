@@ -267,7 +267,7 @@ static int arm_tod_read_trig_sel_refclk(struct idtcm_channel *channel, u8 ref)
 static bool is_single_shot(u8 mask)
 {
 	/* Treat single bit ToD masks as continuous trigger */
-	return mask <= 8 && is_power_of_2(mask);
+	return !(mask <= 8 && is_power_of_2(mask));
 }
 
 static int idtcm_extts_enable(struct idtcm_channel *channel,

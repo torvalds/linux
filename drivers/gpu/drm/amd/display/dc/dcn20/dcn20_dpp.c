@@ -166,6 +166,8 @@ static void dpp2_cnv_setup (
 		select = DCN2_ICSC_SELECT_ICSC_A;
 		break;
 	case SURFACE_PIXEL_FORMAT_GRPH_ARGB16161616:
+		pixel_format = 22;
+		break;
 	case SURFACE_PIXEL_FORMAT_GRPH_ABGR16161616:
 		pixel_format = 26; /* ARGB16161616_UNORM */
 		break;
@@ -211,6 +213,9 @@ static void dpp2_cnv_setup (
 	default:
 		break;
 	}
+
+	/* Set default color space based on format if none is given. */
+	color_space = input_color_space ? input_color_space : color_space;
 
 	if (is_2bit == 1 && alpha_2bit_lut != NULL) {
 		REG_UPDATE(ALPHA_2BIT_LUT, ALPHA_2BIT_LUT0, alpha_2bit_lut->lut0);

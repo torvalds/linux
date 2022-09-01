@@ -1033,9 +1033,9 @@ static int mmal_setup_video_component(struct bcm2835_mmal_dev *dev,
 	preview_port->es.video.crop.y = 0;
 	preview_port->es.video.crop.width = f->fmt.pix.width;
 	preview_port->es.video.crop.height = f->fmt.pix.height;
-	preview_port->es.video.frame_rate.num =
+	preview_port->es.video.frame_rate.numerator =
 				  dev->capture.timeperframe.denominator;
-	preview_port->es.video.frame_rate.den =
+	preview_port->es.video.frame_rate.denominator =
 				  dev->capture.timeperframe.numerator;
 	ret = vchiq_mmal_port_set_format(dev->instance, preview_port);
 
@@ -1084,9 +1084,9 @@ static int mmal_setup_encode_component(struct bcm2835_mmal_dev *dev,
 	port->es.video.crop.y = 0;
 	port->es.video.crop.width = f->fmt.pix.width;
 	port->es.video.crop.height = f->fmt.pix.height;
-	port->es.video.frame_rate.num =
+	port->es.video.frame_rate.numerator =
 		  dev->capture.timeperframe.denominator;
-	port->es.video.frame_rate.den =
+	port->es.video.frame_rate.denominator =
 		  dev->capture.timeperframe.numerator;
 
 	port->format.encoding = mfmt->mmal;
@@ -1225,8 +1225,8 @@ static int mmal_setup_components(struct bcm2835_mmal_dev *dev,
 	camera_port->es.video.crop.y = 0;
 	camera_port->es.video.crop.width = f->fmt.pix.width;
 	camera_port->es.video.crop.height = f->fmt.pix.height;
-	camera_port->es.video.frame_rate.num = 0;
-	camera_port->es.video.frame_rate.den = 1;
+	camera_port->es.video.frame_rate.numerator = 0;
+	camera_port->es.video.frame_rate.denominator = 1;
 	camera_port->es.video.color_space = MMAL_COLOR_SPACE_JPEG_JFIF;
 
 	ret = vchiq_mmal_port_set_format(dev->instance, camera_port);
@@ -1629,8 +1629,8 @@ static int mmal_init(struct bcm2835_mmal_dev *dev)
 	format->es->video.crop.y = 0;
 	format->es->video.crop.width = 1024;
 	format->es->video.crop.height = 768;
-	format->es->video.frame_rate.num = 0; /* Rely on fps_range */
-	format->es->video.frame_rate.den = 1;
+	format->es->video.frame_rate.numerator = 0; /* Rely on fps_range */
+	format->es->video.frame_rate.denominator = 1;
 
 	format = &camera->output[CAM_PORT_VIDEO].format;
 
@@ -1643,8 +1643,8 @@ static int mmal_init(struct bcm2835_mmal_dev *dev)
 	format->es->video.crop.y = 0;
 	format->es->video.crop.width = 1024;
 	format->es->video.crop.height = 768;
-	format->es->video.frame_rate.num = 0; /* Rely on fps_range */
-	format->es->video.frame_rate.den = 1;
+	format->es->video.frame_rate.numerator = 0; /* Rely on fps_range */
+	format->es->video.frame_rate.denominator = 1;
 
 	format = &camera->output[CAM_PORT_CAPTURE].format;
 
@@ -1656,8 +1656,8 @@ static int mmal_init(struct bcm2835_mmal_dev *dev)
 	format->es->video.crop.y = 0;
 	format->es->video.crop.width = 2592;
 	format->es->video.crop.height = 1944;
-	format->es->video.frame_rate.num = 0; /* Rely on fps_range */
-	format->es->video.frame_rate.den = 1;
+	format->es->video.frame_rate.numerator = 0; /* Rely on fps_range */
+	format->es->video.frame_rate.denominator = 1;
 
 	dev->capture.width = format->es->video.width;
 	dev->capture.height = format->es->video.height;

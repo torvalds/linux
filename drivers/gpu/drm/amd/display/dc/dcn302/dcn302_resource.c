@@ -43,6 +43,8 @@
 #include "dcn20/dcn20_dsc.h"
 #include "dcn20/dcn20_resource.h"
 
+#include "dml/dcn30/dcn30_fpu.h"
+
 #include "dcn10/dcn10_resource.h"
 
 #include "dce/dce_abm.h"
@@ -889,7 +891,9 @@ static const struct dcn10_link_enc_hpd_registers link_enc_hpd_regs[] = {
 		hpd_regs(4)
 };
 
-static struct link_encoder *dcn302_link_encoder_create(const struct encoder_init_data *enc_init_data)
+static struct link_encoder *dcn302_link_encoder_create(
+	struct dc_context *ctx,
+	const struct encoder_init_data *enc_init_data)
 {
 	struct dcn20_link_encoder *enc20 = kzalloc(sizeof(struct dcn20_link_encoder), GFP_KERNEL);
 

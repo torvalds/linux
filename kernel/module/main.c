@@ -1988,6 +1988,13 @@ static int check_modinfo(struct module *mod, struct load_info *info, int flags)
 	/* Set up license info based on the info section */
 	set_license(mod, get_modinfo(info, "license"));
 
+	if (get_modinfo(info, "test")) {
+		if (!test_taint(TAINT_TEST))
+			pr_warn("%s: loading test module taints kernel.\n",
+				mod->name);
+		add_taint_module(mod, TAINT_TEST, LOCKDEP_STILL_OK);
+	}
+
 	return 0;
 }
 
@@ -2087,6 +2094,12 @@ static int find_module_sections(struct module *mod, struct load_info *info)
 					      sizeof(*mod->static_call_sites),
 					      &mod->num_static_call_sites);
 #endif
+#ifdef CONFIG_KUNIT
+	mod->kunit_suites = section_objs(info, ".kunit_test_suites",
+					      sizeof(*mod->kunit_suites),
+					      &mod->num_kunit_suites);
+#endif
+
 	mod->extable = section_objs(info, "__ex_table",
 				    sizeof(*mod->extable), &mod->num_exentries);
 
@@ -2939,24 +2952,25 @@ static void cfi_init(struct module *mod)
 {
 #ifdef CONFIG_CFI_CLANG
 	initcall_t *init;
+#ifdef CONFIG_MODULE_UNLOAD
 	exitcall_t *exit;
+#endif
 
 	rcu_read_lock_sched();
 	mod->cfi_check = (cfi_check_fn)
 		find_kallsyms_symbol_value(mod, "__cfi_check");
 	init = (initcall_t *)
 		find_kallsyms_symbol_value(mod, "__cfi_jt_init_module");
-	exit = (exitcall_t *)
-		find_kallsyms_symbol_value(mod, "__cfi_jt_cleanup_module");
-	rcu_read_unlock_sched();
-
 	/* Fix init/exit functions to point to the CFI jump table */
 	if (init)
 		mod->init = *init;
 #ifdef CONFIG_MODULE_UNLOAD
+	exit = (exitcall_t *)
+		find_kallsyms_symbol_value(mod, "__cfi_jt_cleanup_module");
 	if (exit)
 		mod->exit = *exit;
 #endif
+	rcu_read_unlock_sched();
 
 	cfi_module_add(mod, mod_tree.addr_min);
 #endif

@@ -34,6 +34,7 @@
 #include "dmub_dcn31.h"
 #include "dmub_dcn315.h"
 #include "dmub_dcn316.h"
+#include "dmub_dcn32.h"
 #include "os_types.h"
 /*
  * Note: the DMUB service is standalone. No additional headers should be
@@ -222,6 +223,7 @@ static bool dmub_srv_hw_setup(struct dmub_srv *dmub, enum dmub_asic asic)
 
 	case DMUB_ASIC_DCN31:
 	case DMUB_ASIC_DCN31B:
+	case DMUB_ASIC_DCN314:
 	case DMUB_ASIC_DCN315:
 	case DMUB_ASIC_DCN316:
 		if (asic == DMUB_ASIC_DCN315)
@@ -257,6 +259,43 @@ static bool dmub_srv_hw_setup(struct dmub_srv *dmub, enum dmub_asic asic)
 		funcs->get_diagnostic_data = dmub_dcn31_get_diagnostic_data;
 		funcs->should_detect = dmub_dcn31_should_detect;
 		funcs->get_current_time = dmub_dcn31_get_current_time;
+
+		break;
+
+	case DMUB_ASIC_DCN32:
+	case DMUB_ASIC_DCN321:
+		dmub->regs_dcn32 = &dmub_srv_dcn32_regs;
+		funcs->configure_dmub_in_system_memory = dmub_dcn32_configure_dmub_in_system_memory;
+		funcs->send_inbox0_cmd = dmub_dcn32_send_inbox0_cmd;
+		funcs->clear_inbox0_ack_register = dmub_dcn32_clear_inbox0_ack_register;
+		funcs->read_inbox0_ack_register = dmub_dcn32_read_inbox0_ack_register;
+		funcs->reset = dmub_dcn32_reset;
+		funcs->reset_release = dmub_dcn32_reset_release;
+		funcs->backdoor_load = dmub_dcn32_backdoor_load;
+		funcs->backdoor_load_zfb_mode = dmub_dcn32_backdoor_load_zfb_mode;
+		funcs->setup_windows = dmub_dcn32_setup_windows;
+		funcs->setup_mailbox = dmub_dcn32_setup_mailbox;
+		funcs->get_inbox1_rptr = dmub_dcn32_get_inbox1_rptr;
+		funcs->set_inbox1_wptr = dmub_dcn32_set_inbox1_wptr;
+		funcs->setup_out_mailbox = dmub_dcn32_setup_out_mailbox;
+		funcs->get_outbox1_wptr = dmub_dcn32_get_outbox1_wptr;
+		funcs->set_outbox1_rptr = dmub_dcn32_set_outbox1_rptr;
+		funcs->is_supported = dmub_dcn32_is_supported;
+		funcs->is_hw_init = dmub_dcn32_is_hw_init;
+		funcs->set_gpint = dmub_dcn32_set_gpint;
+		funcs->is_gpint_acked = dmub_dcn32_is_gpint_acked;
+		funcs->get_gpint_response = dmub_dcn32_get_gpint_response;
+		funcs->get_gpint_dataout = dmub_dcn32_get_gpint_dataout;
+		funcs->get_fw_status = dmub_dcn32_get_fw_boot_status;
+		funcs->enable_dmub_boot_options = dmub_dcn32_enable_dmub_boot_options;
+		funcs->skip_dmub_panel_power_sequence = dmub_dcn32_skip_dmub_panel_power_sequence;
+
+		/* outbox0 call stacks */
+		funcs->setup_outbox0 = dmub_dcn32_setup_outbox0;
+		funcs->get_outbox0_wptr = dmub_dcn32_get_outbox0_wptr;
+		funcs->set_outbox0_rptr = dmub_dcn32_set_outbox0_rptr;
+		funcs->get_current_time = dmub_dcn32_get_current_time;
+		funcs->get_diagnostic_data = dmub_dcn32_get_diagnostic_data;
 
 		break;
 
@@ -501,6 +540,9 @@ enum dmub_status dmub_srv_hw_init(struct dmub_srv *dmub,
 	cw1.region.base = DMUB_CW1_BASE;
 	cw1.region.top = cw1.region.base + stack_fb->size - 1;
 
+	if (params->fw_in_system_memory && dmub->hw_funcs.configure_dmub_in_system_memory)
+		dmub->hw_funcs.configure_dmub_in_system_memory(dmub);
+
 	if (params->load_inst_const && dmub->hw_funcs.backdoor_load) {
 		/**
 		 * Read back all the instruction memory so we don't hang the
@@ -508,7 +550,11 @@ enum dmub_status dmub_srv_hw_init(struct dmub_srv *dmub,
 		 * flushed yet. This only occurs in backdoor loading.
 		 */
 		dmub_flush_buffer_mem(inst_fb);
-		dmub->hw_funcs.backdoor_load(dmub, &cw0, &cw1);
+
+		if (params->fw_in_system_memory && dmub->hw_funcs.backdoor_load_zfb_mode)
+			dmub->hw_funcs.backdoor_load_zfb_mode(dmub, &cw0, &cw1);
+		else
+			dmub->hw_funcs.backdoor_load(dmub, &cw0, &cw1);
 	}
 
 	cw2.offset.quad_part = data_fb->gpu_addr;
@@ -582,6 +628,10 @@ enum dmub_status dmub_srv_hw_init(struct dmub_srv *dmub,
 	/* Report to DMUB what features are supported by current driver */
 	if (dmub->hw_funcs.enable_dmub_boot_options)
 		dmub->hw_funcs.enable_dmub_boot_options(dmub, params);
+
+	if (dmub->hw_funcs.skip_dmub_panel_power_sequence)
+		dmub->hw_funcs.skip_dmub_panel_power_sequence(dmub,
+			params->skip_panel_power_sequence);
 
 	if (dmub->hw_funcs.reset_release)
 		dmub->hw_funcs.reset_release(dmub);

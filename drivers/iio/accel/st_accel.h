@@ -14,32 +14,6 @@
 #include <linux/types.h>
 #include <linux/iio/common/st_sensors.h>
 
-enum st_accel_type {
-	LSM303DLH,
-	LSM303DLHC,
-	LIS3DH,
-	LSM330D,
-	LSM330DL,
-	LSM330DLC,
-	LIS331DLH,
-	LSM303DL,
-	LSM303DLM,
-	LSM330,
-	LSM303AGR,
-	LIS2DH12,
-	LIS3L02DQ,
-	LNG2DM,
-	H3LIS331DL,
-	LIS331DL,
-	LIS3LV02DL,
-	LIS2DW12,
-	LIS3DHH,
-	LIS2DE12,
-	LIS2HH12,
-	SC7A20,
-	ST_ACCEL_MAX,
-};
-
 #define H3LIS331DL_ACCEL_DEV_NAME	"h3lis331dl_accel"
 #define LIS3LV02DL_ACCEL_DEV_NAME	"lis3lv02dl_accel"
 #define LSM303DLHC_ACCEL_DEV_NAME	"lsm303dlhc_accel"
@@ -62,7 +36,9 @@ enum st_accel_type {
 #define LIS3DE_ACCEL_DEV_NAME		"lis3de"
 #define LIS2DE12_ACCEL_DEV_NAME		"lis2de12"
 #define LIS2HH12_ACCEL_DEV_NAME		"lis2hh12"
+#define LIS302DL_ACCEL_DEV_NAME		"lis302dl"
 #define SC7A20_ACCEL_DEV_NAME		"sc7a20"
+
 
 #ifdef CONFIG_IIO_BUFFER
 int st_accel_allocate_ring(struct iio_dev *indio_dev);

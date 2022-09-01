@@ -11,6 +11,7 @@
 #include <linux/device.h>
 #include <linux/interrupt.h>
 #include <linux/irqreturn.h>
+#include <linux/property.h>
 #include <linux/regmap.h>
 #include <linux/bitfield.h>
 
@@ -135,9 +136,12 @@ int hts221_allocate_trigger(struct iio_dev *iio_dev)
 
 	iio_trigger_set_drvdata(hw->trig, iio_dev);
 	hw->trig->ops = &hts221_trigger_ops;
+
+	err = devm_iio_trigger_register(hw->dev, hw->trig);
+
 	iio_dev->trig = iio_trigger_get(hw->trig);
 
-	return devm_iio_trigger_register(hw->dev, hw->trig);
+	return err;
 }
 
 static int hts221_buffer_preenable(struct iio_dev *iio_dev)

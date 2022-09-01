@@ -9,6 +9,7 @@ static void gen_btf(struct btf *btf)
 	const struct btf_var_secinfo *vi;
 	const struct btf_type *t;
 	const struct btf_member *m;
+	const struct btf_enum64 *v64;
 	const struct btf_enum *v;
 	const struct btf_param *p;
 	int id, err, str_off;
@@ -171,7 +172,7 @@ static void gen_btf(struct btf *btf)
 	ASSERT_STREQ(btf__str_by_offset(btf, v->name_off), "v2", "v2_name");
 	ASSERT_EQ(v->val, 2, "v2_val");
 	ASSERT_STREQ(btf_type_raw_dump(btf, 9),
-		     "[9] ENUM 'e1' size=4 vlen=2\n"
+		     "[9] ENUM 'e1' encoding=UNSIGNED size=4 vlen=2\n"
 		     "\t'v1' val=1\n"
 		     "\t'v2' val=2", "raw_dump");
 
@@ -202,7 +203,7 @@ static void gen_btf(struct btf *btf)
 	ASSERT_EQ(btf_vlen(t), 0, "enum_fwd_kind");
 	ASSERT_EQ(t->size, 4, "enum_fwd_sz");
 	ASSERT_STREQ(btf_type_raw_dump(btf, 12),
-		     "[12] ENUM 'enum_fwd' size=4 vlen=0", "raw_dump");
+		     "[12] ENUM 'enum_fwd' encoding=UNSIGNED size=4 vlen=0", "raw_dump");
 
 	/* TYPEDEF */
 	id = btf__add_typedef(btf, "typedef1", 1);
@@ -307,6 +308,48 @@ static void gen_btf(struct btf *btf)
 	ASSERT_EQ(t->type, 1, "tag_type");
 	ASSERT_STREQ(btf_type_raw_dump(btf, 20),
 		     "[20] TYPE_TAG 'tag1' type_id=1", "raw_dump");
+
+	/* ENUM64 */
+	id = btf__add_enum64(btf, "e1", 8, true);
+	ASSERT_EQ(id, 21, "enum64_id");
+	err = btf__add_enum64_value(btf, "v1", -1);
+	ASSERT_OK(err, "v1_res");
+	err = btf__add_enum64_value(btf, "v2", 0x123456789); /* 4886718345 */
+	ASSERT_OK(err, "v2_res");
+	t = btf__type_by_id(btf, 21);
+	ASSERT_STREQ(btf__str_by_offset(btf, t->name_off), "e1", "enum64_name");
+	ASSERT_EQ(btf_kind(t), BTF_KIND_ENUM64, "enum64_kind");
+	ASSERT_EQ(btf_vlen(t), 2, "enum64_vlen");
+	ASSERT_EQ(t->size, 8, "enum64_sz");
+	v64 = btf_enum64(t) + 0;
+	ASSERT_STREQ(btf__str_by_offset(btf, v64->name_off), "v1", "v1_name");
+	ASSERT_EQ(v64->val_hi32, 0xffffffff, "v1_val");
+	ASSERT_EQ(v64->val_lo32, 0xffffffff, "v1_val");
+	v64 = btf_enum64(t) + 1;
+	ASSERT_STREQ(btf__str_by_offset(btf, v64->name_off), "v2", "v2_name");
+	ASSERT_EQ(v64->val_hi32, 0x1, "v2_val");
+	ASSERT_EQ(v64->val_lo32, 0x23456789, "v2_val");
+	ASSERT_STREQ(btf_type_raw_dump(btf, 21),
+		     "[21] ENUM64 'e1' encoding=SIGNED size=8 vlen=2\n"
+		     "\t'v1' val=-1\n"
+		     "\t'v2' val=4886718345", "raw_dump");
+
+	id = btf__add_enum64(btf, "e1", 8, false);
+	ASSERT_EQ(id, 22, "enum64_id");
+	err = btf__add_enum64_value(btf, "v1", 0xffffffffFFFFFFFF); /* 18446744073709551615 */
+	ASSERT_OK(err, "v1_res");
+	t = btf__type_by_id(btf, 22);
+	ASSERT_STREQ(btf__str_by_offset(btf, t->name_off), "e1", "enum64_name");
+	ASSERT_EQ(btf_kind(t), BTF_KIND_ENUM64, "enum64_kind");
+	ASSERT_EQ(btf_vlen(t), 1, "enum64_vlen");
+	ASSERT_EQ(t->size, 8, "enum64_sz");
+	v64 = btf_enum64(t) + 0;
+	ASSERT_STREQ(btf__str_by_offset(btf, v64->name_off), "v1", "v1_name");
+	ASSERT_EQ(v64->val_hi32, 0xffffffff, "v1_val");
+	ASSERT_EQ(v64->val_lo32, 0xffffffff, "v1_val");
+	ASSERT_STREQ(btf_type_raw_dump(btf, 22),
+		     "[22] ENUM64 'e1' encoding=UNSIGNED size=8 vlen=1\n"
+		     "\t'v1' val=18446744073709551615", "raw_dump");
 }
 
 static void test_btf_add()
@@ -332,12 +375,12 @@ static void test_btf_add()
 		"\t'f2' type_id=1 bits_offset=32 bitfield_size=16",
 		"[8] UNION 'u1' size=8 vlen=1\n"
 		"\t'f1' type_id=1 bits_offset=0 bitfield_size=16",
-		"[9] ENUM 'e1' size=4 vlen=2\n"
+		"[9] ENUM 'e1' encoding=UNSIGNED size=4 vlen=2\n"
 		"\t'v1' val=1\n"
 		"\t'v2' val=2",
 		"[10] FWD 'struct_fwd' fwd_kind=struct",
 		"[11] FWD 'union_fwd' fwd_kind=union",
-		"[12] ENUM 'enum_fwd' size=4 vlen=0",
+		"[12] ENUM 'enum_fwd' encoding=UNSIGNED size=4 vlen=0",
 		"[13] TYPEDEF 'typedef1' type_id=1",
 		"[14] FUNC 'func1' type_id=15 linkage=global",
 		"[15] FUNC_PROTO '(anon)' ret_type_id=1 vlen=2\n"
@@ -348,7 +391,12 @@ static void test_btf_add()
 		"\ttype_id=1 offset=4 size=8",
 		"[18] DECL_TAG 'tag1' type_id=16 component_idx=-1",
 		"[19] DECL_TAG 'tag2' type_id=14 component_idx=1",
-		"[20] TYPE_TAG 'tag1' type_id=1");
+		"[20] TYPE_TAG 'tag1' type_id=1",
+		"[21] ENUM64 'e1' encoding=SIGNED size=8 vlen=2\n"
+		"\t'v1' val=-1\n"
+		"\t'v2' val=4886718345",
+		"[22] ENUM64 'e1' encoding=UNSIGNED size=8 vlen=1\n"
+		"\t'v1' val=18446744073709551615");
 
 	btf__free(btf);
 }
@@ -370,7 +418,7 @@ static void test_btf_add_btf()
 	gen_btf(btf2);
 
 	id = btf__add_btf(btf1, btf2);
-	if (!ASSERT_EQ(id, 21, "id"))
+	if (!ASSERT_EQ(id, 23, "id"))
 		goto cleanup;
 
 	VALIDATE_RAW_BTF(
@@ -386,12 +434,12 @@ static void test_btf_add_btf()
 		"\t'f2' type_id=1 bits_offset=32 bitfield_size=16",
 		"[8] UNION 'u1' size=8 vlen=1\n"
 		"\t'f1' type_id=1 bits_offset=0 bitfield_size=16",
-		"[9] ENUM 'e1' size=4 vlen=2\n"
+		"[9] ENUM 'e1' encoding=UNSIGNED size=4 vlen=2\n"
 		"\t'v1' val=1\n"
 		"\t'v2' val=2",
 		"[10] FWD 'struct_fwd' fwd_kind=struct",
 		"[11] FWD 'union_fwd' fwd_kind=union",
-		"[12] ENUM 'enum_fwd' size=4 vlen=0",
+		"[12] ENUM 'enum_fwd' encoding=UNSIGNED size=4 vlen=0",
 		"[13] TYPEDEF 'typedef1' type_id=1",
 		"[14] FUNC 'func1' type_id=15 linkage=global",
 		"[15] FUNC_PROTO '(anon)' ret_type_id=1 vlen=2\n"
@@ -403,36 +451,46 @@ static void test_btf_add_btf()
 		"[18] DECL_TAG 'tag1' type_id=16 component_idx=-1",
 		"[19] DECL_TAG 'tag2' type_id=14 component_idx=1",
 		"[20] TYPE_TAG 'tag1' type_id=1",
+		"[21] ENUM64 'e1' encoding=SIGNED size=8 vlen=2\n"
+		"\t'v1' val=-1\n"
+		"\t'v2' val=4886718345",
+		"[22] ENUM64 'e1' encoding=UNSIGNED size=8 vlen=1\n"
+		"\t'v1' val=18446744073709551615",
 
 		/* types appended from the second BTF */
-		"[21] INT 'int' size=4 bits_offset=0 nr_bits=32 encoding=SIGNED",
-		"[22] PTR '(anon)' type_id=21",
-		"[23] CONST '(anon)' type_id=25",
-		"[24] VOLATILE '(anon)' type_id=23",
-		"[25] RESTRICT '(anon)' type_id=24",
-		"[26] ARRAY '(anon)' type_id=22 index_type_id=21 nr_elems=10",
-		"[27] STRUCT 's1' size=8 vlen=2\n"
-		"\t'f1' type_id=21 bits_offset=0\n"
-		"\t'f2' type_id=21 bits_offset=32 bitfield_size=16",
-		"[28] UNION 'u1' size=8 vlen=1\n"
-		"\t'f1' type_id=21 bits_offset=0 bitfield_size=16",
-		"[29] ENUM 'e1' size=4 vlen=2\n"
+		"[23] INT 'int' size=4 bits_offset=0 nr_bits=32 encoding=SIGNED",
+		"[24] PTR '(anon)' type_id=23",
+		"[25] CONST '(anon)' type_id=27",
+		"[26] VOLATILE '(anon)' type_id=25",
+		"[27] RESTRICT '(anon)' type_id=26",
+		"[28] ARRAY '(anon)' type_id=24 index_type_id=23 nr_elems=10",
+		"[29] STRUCT 's1' size=8 vlen=2\n"
+		"\t'f1' type_id=23 bits_offset=0\n"
+		"\t'f2' type_id=23 bits_offset=32 bitfield_size=16",
+		"[30] UNION 'u1' size=8 vlen=1\n"
+		"\t'f1' type_id=23 bits_offset=0 bitfield_size=16",
+		"[31] ENUM 'e1' encoding=UNSIGNED size=4 vlen=2\n"
 		"\t'v1' val=1\n"
 		"\t'v2' val=2",
-		"[30] FWD 'struct_fwd' fwd_kind=struct",
-		"[31] FWD 'union_fwd' fwd_kind=union",
-		"[32] ENUM 'enum_fwd' size=4 vlen=0",
-		"[33] TYPEDEF 'typedef1' type_id=21",
-		"[34] FUNC 'func1' type_id=35 linkage=global",
-		"[35] FUNC_PROTO '(anon)' ret_type_id=21 vlen=2\n"
-		"\t'p1' type_id=21\n"
-		"\t'p2' type_id=22",
-		"[36] VAR 'var1' type_id=21, linkage=global-alloc",
-		"[37] DATASEC 'datasec1' size=12 vlen=1\n"
-		"\ttype_id=21 offset=4 size=8",
-		"[38] DECL_TAG 'tag1' type_id=36 component_idx=-1",
-		"[39] DECL_TAG 'tag2' type_id=34 component_idx=1",
-		"[40] TYPE_TAG 'tag1' type_id=21");
+		"[32] FWD 'struct_fwd' fwd_kind=struct",
+		"[33] FWD 'union_fwd' fwd_kind=union",
+		"[34] ENUM 'enum_fwd' encoding=UNSIGNED size=4 vlen=0",
+		"[35] TYPEDEF 'typedef1' type_id=23",
+		"[36] FUNC 'func1' type_id=37 linkage=global",
+		"[37] FUNC_PROTO '(anon)' ret_type_id=23 vlen=2\n"
+		"\t'p1' type_id=23\n"
+		"\t'p2' type_id=24",
+		"[38] VAR 'var1' type_id=23, linkage=global-alloc",
+		"[39] DATASEC 'datasec1' size=12 vlen=1\n"
+		"\ttype_id=23 offset=4 size=8",
+		"[40] DECL_TAG 'tag1' type_id=38 component_idx=-1",
+		"[41] DECL_TAG 'tag2' type_id=36 component_idx=1",
+		"[42] TYPE_TAG 'tag1' type_id=23",
+		"[43] ENUM64 'e1' encoding=SIGNED size=8 vlen=2\n"
+		"\t'v1' val=-1\n"
+		"\t'v2' val=4886718345",
+		"[44] ENUM64 'e1' encoding=UNSIGNED size=8 vlen=1\n"
+		"\t'v1' val=18446744073709551615");
 
 cleanup:
 	btf__free(btf1);

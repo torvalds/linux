@@ -331,7 +331,7 @@ struct drm_connector *drm_bridge_connector_init(struct drm_device *drm,
 	struct drm_bridge_connector *bridge_connector;
 	struct drm_connector *connector;
 	struct i2c_adapter *ddc = NULL;
-	struct drm_bridge *bridge;
+	struct drm_bridge *bridge, *panel_bridge = NULL;
 	int connector_type;
 
 	bridge_connector = kzalloc(sizeof(*bridge_connector), GFP_KERNEL);
@@ -373,6 +373,9 @@ struct drm_connector *drm_bridge_connector_init(struct drm_device *drm,
 
 		if (bridge->ddc)
 			ddc = bridge->ddc;
+
+		if (drm_bridge_is_panel(bridge))
+			panel_bridge = bridge;
 	}
 
 	if (connector_type == DRM_MODE_CONNECTOR_Unknown) {
@@ -391,6 +394,9 @@ struct drm_connector *drm_bridge_connector_init(struct drm_device *drm,
 	else if (bridge_connector->bridge_detect)
 		connector->polled = DRM_CONNECTOR_POLL_CONNECT
 				  | DRM_CONNECTOR_POLL_DISCONNECT;
+
+	if (panel_bridge)
+		drm_panel_bridge_set_orientation(connector, panel_bridge);
 
 	return connector;
 }

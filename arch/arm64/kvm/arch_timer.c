@@ -242,7 +242,7 @@ static bool kvm_timer_irq_can_fire(struct arch_timer_context *timer_ctx)
 static bool vcpu_has_wfit_active(struct kvm_vcpu *vcpu)
 {
 	return (cpus_have_final_cap(ARM64_HAS_WFXT) &&
-		(vcpu->arch.flags & KVM_ARM64_WFIT));
+		vcpu_get_flag(vcpu, IN_WFIT));
 }
 
 static u64 wfit_delay_ns(struct kvm_vcpu *vcpu)
@@ -1229,6 +1229,9 @@ bool kvm_arch_timer_get_input_level(int vintid)
 {
 	struct kvm_vcpu *vcpu = kvm_get_running_vcpu();
 	struct arch_timer_context *timer;
+
+	if (WARN(!vcpu, "No vcpu context!\n"))
+		return false;
 
 	if (vintid == vcpu_vtimer(vcpu)->irq.irq)
 		timer = vcpu_vtimer(vcpu);

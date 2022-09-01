@@ -136,7 +136,7 @@ out:
 static inline int is_umdir_used(char *dir)
 {
 	char pid[sizeof("nnnnnnnnn")], *end, *file;
-	int dead, fd, p, n, err;
+	int fd, p, n, err;
 	size_t filelen = strlen(dir) + sizeof("/pid") + 1;
 
 	file = malloc(filelen);
@@ -145,7 +145,6 @@ static inline int is_umdir_used(char *dir)
 
 	snprintf(file, filelen, "%s/pid", dir);
 
-	dead = 0;
 	fd = open(file, O_RDONLY);
 	if (fd < 0) {
 		fd = -errno;

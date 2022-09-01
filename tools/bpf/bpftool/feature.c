@@ -548,8 +548,8 @@ static bool probe_prog_type_ifindex(enum bpf_prog_type prog_type, __u32 ifindex)
 }
 
 static void
-probe_prog_type(enum bpf_prog_type prog_type, bool *supported_types,
-		const char *define_prefix, __u32 ifindex)
+probe_prog_type(enum bpf_prog_type prog_type, const char *prog_type_str,
+		bool *supported_types, const char *define_prefix, __u32 ifindex)
 {
 	char feat_name[128], plain_desc[128], define_name[128];
 	const char *plain_comment = "eBPF program_type ";
@@ -580,20 +580,16 @@ probe_prog_type(enum bpf_prog_type prog_type, bool *supported_types,
 
 	supported_types[prog_type] |= res;
 
-	if (!prog_type_name[prog_type]) {
-		p_info("program type name not found (type %d)", prog_type);
-		return;
-	}
 	maxlen = sizeof(plain_desc) - strlen(plain_comment) - 1;
-	if (strlen(prog_type_name[prog_type]) > maxlen) {
+	if (strlen(prog_type_str) > maxlen) {
 		p_info("program type name too long");
 		return;
 	}
 
-	sprintf(feat_name, "have_%s_prog_type", prog_type_name[prog_type]);
-	sprintf(define_name, "%s_prog_type", prog_type_name[prog_type]);
+	sprintf(feat_name, "have_%s_prog_type", prog_type_str);
+	sprintf(define_name, "%s_prog_type", prog_type_str);
 	uppercase(define_name, sizeof(define_name));
-	sprintf(plain_desc, "%s%s", plain_comment, prog_type_name[prog_type]);
+	sprintf(plain_desc, "%s%s", plain_comment, prog_type_str);
 	print_bool_feature(feat_name, plain_desc, define_name, res,
 			   define_prefix);
 }
@@ -619,8 +615,8 @@ static bool probe_map_type_ifindex(enum bpf_map_type map_type, __u32 ifindex)
 }
 
 static void
-probe_map_type(enum bpf_map_type map_type, const char *define_prefix,
-	       __u32 ifindex)
+probe_map_type(enum bpf_map_type map_type, char const *map_type_str,
+	       const char *define_prefix, __u32 ifindex)
 {
 	char feat_name[128], plain_desc[128], define_name[128];
 	const char *plain_comment = "eBPF map_type ";
@@ -645,20 +641,16 @@ probe_map_type(enum bpf_map_type map_type, const char *define_prefix,
 	 * check required for unprivileged users
 	 */
 
-	if (!map_type_name[map_type]) {
-		p_info("map type name not found (type %d)", map_type);
-		return;
-	}
 	maxlen = sizeof(plain_desc) - strlen(plain_comment) - 1;
-	if (strlen(map_type_name[map_type]) > maxlen) {
+	if (strlen(map_type_str) > maxlen) {
 		p_info("map type name too long");
 		return;
 	}
 
-	sprintf(feat_name, "have_%s_map_type", map_type_name[map_type]);
-	sprintf(define_name, "%s_map_type", map_type_name[map_type]);
+	sprintf(feat_name, "have_%s_map_type", map_type_str);
+	sprintf(define_name, "%s_map_type", map_type_str);
 	uppercase(define_name, sizeof(define_name));
-	sprintf(plain_desc, "%s%s", plain_comment, map_type_name[map_type]);
+	sprintf(plain_desc, "%s%s", plain_comment, map_type_str);
 	print_bool_feature(feat_name, plain_desc, define_name, res,
 			   define_prefix);
 }
@@ -728,10 +720,10 @@ probe_helper_for_progtype(enum bpf_prog_type prog_type, bool supported_type,
 }
 
 static void
-probe_helpers_for_progtype(enum bpf_prog_type prog_type, bool supported_type,
+probe_helpers_for_progtype(enum bpf_prog_type prog_type,
+			   const char *prog_type_str, bool supported_type,
 			   const char *define_prefix, __u32 ifindex)
 {
-	const char *ptype_name = prog_type_name[prog_type];
 	char feat_name[128];
 	unsigned int id;
 	bool probe_res = false;
@@ -747,12 +739,12 @@ probe_helpers_for_progtype(enum bpf_prog_type prog_type, bool supported_type,
 		}
 
 	if (json_output) {
-		sprintf(feat_name, "%s_available_helpers", ptype_name);
+		sprintf(feat_name, "%s_available_helpers", prog_type_str);
 		jsonw_name(json_wtr, feat_name);
 		jsonw_start_array(json_wtr);
 	} else if (!define_prefix) {
 		printf("eBPF helpers supported for program type %s:",
-		       ptype_name);
+		       prog_type_str);
 	}
 
 	for (id = 1; id < ARRAY_SIZE(helper_name); id++) {
@@ -768,7 +760,7 @@ probe_helpers_for_progtype(enum bpf_prog_type prog_type, bool supported_type,
 			/* fallthrough */
 		default:
 			probe_res |= probe_helper_for_progtype(prog_type, supported_type,
-						  define_prefix, id, ptype_name,
+						  define_prefix, id, prog_type_str,
 						  ifindex);
 		}
 	}
@@ -943,30 +935,47 @@ static void
 section_program_types(bool *supported_types, const char *define_prefix,
 		      __u32 ifindex)
 {
-	unsigned int i;
+	unsigned int prog_type = BPF_PROG_TYPE_UNSPEC;
+	const char *prog_type_str;
 
 	print_start_section("program_types",
 			    "Scanning eBPF program types...",
 			    "/*** eBPF program types ***/",
 			    define_prefix);
 
-	for (i = BPF_PROG_TYPE_UNSPEC + 1; i < prog_type_name_size; i++)
-		probe_prog_type(i, supported_types, define_prefix, ifindex);
+	while (true) {
+		prog_type++;
+		prog_type_str = libbpf_bpf_prog_type_str(prog_type);
+		/* libbpf will return NULL for variants unknown to it. */
+		if (!prog_type_str)
+			break;
+
+		probe_prog_type(prog_type, prog_type_str, supported_types, define_prefix,
+				ifindex);
+	}
 
 	print_end_section();
 }
 
 static void section_map_types(const char *define_prefix, __u32 ifindex)
 {
-	unsigned int i;
+	unsigned int map_type = BPF_MAP_TYPE_UNSPEC;
+	const char *map_type_str;
 
 	print_start_section("map_types",
 			    "Scanning eBPF map types...",
 			    "/*** eBPF map types ***/",
 			    define_prefix);
 
-	for (i = BPF_MAP_TYPE_UNSPEC + 1; i < map_type_name_size; i++)
-		probe_map_type(i, define_prefix, ifindex);
+	while (true) {
+		map_type++;
+		map_type_str = libbpf_bpf_map_type_str(map_type);
+		/* libbpf will return NULL for variants unknown to it. */
+		if (!map_type_str)
+			break;
+
+		probe_map_type(map_type, map_type_str, define_prefix, ifindex);
+	}
 
 	print_end_section();
 }
@@ -974,7 +983,8 @@ static void section_map_types(const char *define_prefix, __u32 ifindex)
 static void
 section_helpers(bool *supported_types, const char *define_prefix, __u32 ifindex)
 {
-	unsigned int i;
+	unsigned int prog_type = BPF_PROG_TYPE_UNSPEC;
+	const char *prog_type_str;
 
 	print_start_section("helpers",
 			    "Scanning eBPF helper functions...",
@@ -996,9 +1006,18 @@ section_helpers(bool *supported_types, const char *define_prefix, __u32 ifindex)
 		       "	%sBPF__PROG_TYPE_ ## prog_type ## __HELPER_ ## helper\n",
 		       define_prefix, define_prefix, define_prefix,
 		       define_prefix);
-	for (i = BPF_PROG_TYPE_UNSPEC + 1; i < prog_type_name_size; i++)
-		probe_helpers_for_progtype(i, supported_types[i], define_prefix,
+	while (true) {
+		prog_type++;
+		prog_type_str = libbpf_bpf_prog_type_str(prog_type);
+		/* libbpf will return NULL for variants unknown to it. */
+		if (!prog_type_str)
+			break;
+
+		probe_helpers_for_progtype(prog_type, prog_type_str,
+					   supported_types[prog_type],
+					   define_prefix,
 					   ifindex);
+	}
 
 	print_end_section();
 }
@@ -1148,6 +1167,8 @@ static int do_probe(int argc, char **argv)
 	__u32 ifindex = 0;
 	char *ifname;
 
+	set_max_rlimit();
+
 	while (argc) {
 		if (is_prefix(*argv, "kernel")) {
 			if (target != COMPONENT_UNSPEC) {
@@ -1237,6 +1258,58 @@ exit_close_json:
 	return 0;
 }
 
+static const char *get_helper_name(unsigned int id)
+{
+	if (id >= ARRAY_SIZE(helper_name))
+		return NULL;
+
+	return helper_name[id];
+}
+
+static int do_list_builtins(int argc, char **argv)
+{
+	const char *(*get_name)(unsigned int id);
+	unsigned int id = 0;
+
+	if (argc < 1)
+		usage();
+
+	if (is_prefix(*argv, "prog_types")) {
+		get_name = (const char *(*)(unsigned int))libbpf_bpf_prog_type_str;
+	} else if (is_prefix(*argv, "map_types")) {
+		get_name = (const char *(*)(unsigned int))libbpf_bpf_map_type_str;
+	} else if (is_prefix(*argv, "attach_types")) {
+		get_name = (const char *(*)(unsigned int))libbpf_bpf_attach_type_str;
+	} else if (is_prefix(*argv, "link_types")) {
+		get_name = (const char *(*)(unsigned int))libbpf_bpf_link_type_str;
+	} else if (is_prefix(*argv, "helpers")) {
+		get_name = get_helper_name;
+	} else {
+		p_err("expected 'prog_types', 'map_types', 'attach_types', 'link_types' or 'helpers', got: %s", *argv);
+		return -1;
+	}
+
+	if (json_output)
+		jsonw_start_array(json_wtr);	/* root array */
+
+	while (true) {
+		const char *name;
+
+		name = get_name(id++);
+		if (!name)
+			break;
+		if (json_output)
+			jsonw_string(json_wtr, name);
+		else
+			printf("%s\n", name);
+	}
+
+	if (json_output)
+		jsonw_end_array(json_wtr);	/* root array */
+
+	return 0;
+}
+
 static int do_help(int argc, char **argv)
 {
 	if (json_output) {
@@ -1246,9 +1319,11 @@ static int do_help(int argc, char **argv)
 
 	fprintf(stderr,
 		"Usage: %1$s %2$s probe [COMPONENT] [full] [unprivileged] [macros [prefix PREFIX]]\n"
+		"       %1$s %2$s list_builtins GROUP\n"
 		"       %1$s %2$s help\n"
 		"\n"
 		"       COMPONENT := { kernel | dev NAME }\n"
+		"       GROUP := { prog_types | map_types | attach_types | link_types | helpers }\n"
 		"       " HELP_SPEC_OPTIONS " }\n"
 		"",
 		bin_name, argv[-2]);
@@ -1257,8 +1332,9 @@ static int do_help(int argc, char **argv)
 }
 
 static const struct cmd cmds[] = {
-	{ "probe",	do_probe },
-	{ "help",	do_help },
+	{ "probe",		do_probe },
+	{ "list_builtins",	do_list_builtins },
+	{ "help",		do_help },
 	{ 0 }
 };
 

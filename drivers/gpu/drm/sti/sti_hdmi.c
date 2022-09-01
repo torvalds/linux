@@ -8,6 +8,7 @@
 #include <linux/component.h>
 #include <linux/debugfs.h>
 #include <linux/hdmi.h>
+#include <linux/i2c.h>
 #include <linux/module.h>
 #include <linux/io.h>
 #include <linux/platform_device.h>

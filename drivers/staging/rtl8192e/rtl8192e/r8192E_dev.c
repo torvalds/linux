@@ -221,7 +221,7 @@ void rtl92e_set_reg(struct net_device *dev, u8 variable, u8 *val)
 			 &priv->rtllib->current_network.qos_data.parameters;
 		u8 pAcParam = *val;
 		u32 eACI = pAcParam;
-		union aci_aifsn *pAciAifsn = (union aci_aifsn *) &
+		union aci_aifsn *pAciAifsn = (union aci_aifsn *)&
 					      (qos_parameters->aifs[0]);
 		u8 acm = pAciAifsn->f.acm;
 		u8 AcmCtrl = rtl92e_readb(dev, AcmHwCtrl);
@@ -320,8 +320,8 @@ static void _rtl92e_read_eeprom_info(struct net_device *dev)
 		priv->eeprom_did = rtl92e_eeprom_read(dev, EEPROM_DID >> 1);
 
 		usValue = rtl92e_eeprom_read(dev,
-					     (u16)(EEPROM_Customer_ID>>1)) >> 8;
-		priv->eeprom_CustomerID = (u8)(usValue & 0xff);
+					     (EEPROM_Customer_ID >> 1)) >> 8;
+		priv->eeprom_CustomerID = usValue & 0xff;
 		usValue = rtl92e_eeprom_read(dev,
 					     EEPROM_ICVersion_ChannelPlan>>1);
 		priv->eeprom_ChannelPlan = usValue&0xff;
@@ -399,9 +399,9 @@ static void _rtl92e_read_eeprom_info(struct net_device *dev)
 			priv->EEPROMLegacyHTTxPowerDiff);
 
 		if (!priv->AutoloadFailFlag)
-			priv->EEPROMThermalMeter = (u8)(((rtl92e_eeprom_read(dev,
+			priv->EEPROMThermalMeter = ((rtl92e_eeprom_read(dev,
 						   (EEPROM_ThermalMeter>>1))) &
-						   0xff00)>>8);
+						   0xff00) >> 8;
 		else
 			priv->EEPROMThermalMeter = EEPROM_Default_ThermalMeter;
 		RT_TRACE(COMP_INIT, "ThermalMeter = %d\n",
@@ -413,8 +413,8 @@ static void _rtl92e_read_eeprom_info(struct net_device *dev)
 				usValue = rtl92e_eeprom_read(dev,
 					  EEPROM_TxPwDiff_CrystalCap >> 1);
 				priv->EEPROMAntPwDiff = usValue & 0x0fff;
-				priv->EEPROMCrystalCap = (u8)((usValue & 0xf000)
-							 >> 12);
+				priv->EEPROMCrystalCap = (usValue & 0xf000)
+							 >> 12;
 			} else {
 				priv->EEPROMAntPwDiff =
 					 EEPROM_Default_AntTxPowerDiff;
@@ -811,7 +811,7 @@ start:
 
 	rtl92e_config_mac(dev);
 
-	if (priv->card_8192_version > (u8) VERSION_8190_BD) {
+	if (priv->card_8192_version > VERSION_8190_BD) {
 		rtl92e_get_tx_power(dev);
 		rtl92e_set_tx_power(dev, priv->chan);
 	}
@@ -894,9 +894,8 @@ start:
 
 			for (i = 0; i < TxBBGainTableLength; i++) {
 				if (tmpRegA == dm_tx_bb_gain[i]) {
-					priv->rfa_txpowertrackingindex = (u8)i;
-					priv->rfa_txpowertrackingindex_real =
-						 (u8)i;
+					priv->rfa_txpowertrackingindex = i;
+					priv->rfa_txpowertrackingindex_real = i;
 					priv->rfa_txpowertracking_default =
 						 priv->rfa_txpowertrackingindex;
 					break;
@@ -908,7 +907,7 @@ start:
 
 			for (i = 0; i < CCKTxBBGainTableLength; i++) {
 				if (TempCCk == dm_cck_tx_bb_gain[i][0]) {
-					priv->CCKPresentAttentuation_20Mdefault = (u8)i;
+					priv->CCKPresentAttentuation_20Mdefault = i;
 					break;
 				}
 			}
@@ -1176,7 +1175,7 @@ void  rtl92e_fill_tx_desc(struct net_device *dev, struct tx_desc *pdesc,
 	pTxFwInfo = (struct tx_fwinfo_8190pci *)skb->data;
 	memset(pTxFwInfo, 0, sizeof(struct tx_fwinfo_8190pci));
 	pTxFwInfo->TxHT = (cb_desc->data_rate & 0x80) ? 1 : 0;
-	pTxFwInfo->TxRate = _rtl92e_rate_mgn_to_hw((u8)cb_desc->data_rate);
+	pTxFwInfo->TxRate = _rtl92e_rate_mgn_to_hw(cb_desc->data_rate);
 	pTxFwInfo->EnableCPUDur = cb_desc->bTxEnableFwCalcDur;
 	pTxFwInfo->Short = _rtl92e_query_is_short(pTxFwInfo->TxHT,
 						  pTxFwInfo->TxRate, cb_desc);
@@ -1195,7 +1194,7 @@ void  rtl92e_fill_tx_desc(struct net_device *dev, struct tx_desc *pdesc,
 	pTxFwInfo->CtsEnable = (cb_desc->bCTSEnable) ? 1 : 0;
 	pTxFwInfo->RtsSTBC = (cb_desc->bRTSSTBC) ? 1 : 0;
 	pTxFwInfo->RtsHT = (cb_desc->rts_rate&0x80) ? 1 : 0;
-	pTxFwInfo->RtsRate = _rtl92e_rate_mgn_to_hw((u8)cb_desc->rts_rate);
+	pTxFwInfo->RtsRate = _rtl92e_rate_mgn_to_hw(cb_desc->rts_rate);
 	pTxFwInfo->RtsBandwidth = 0;
 	pTxFwInfo->RtsSubcarrier = cb_desc->RTSSC;
 	pTxFwInfo->RtsShort = (pTxFwInfo->RtsHT == 0) ?
@@ -1226,7 +1225,7 @@ void  rtl92e_fill_tx_desc(struct net_device *dev, struct tx_desc *pdesc,
 	pdesc->LINIP = 0;
 	pdesc->CmdInit = 1;
 	pdesc->Offset = sizeof(struct tx_fwinfo_8190pci) + 8;
-	pdesc->PktSize = (u16)skb->len-sizeof(struct tx_fwinfo_8190pci);
+	pdesc->PktSize = skb->len - sizeof(struct tx_fwinfo_8190pci);
 
 	pdesc->SecCAMID = 0;
 	pdesc->RATid = cb_desc->RATRIndex;
@@ -1299,11 +1298,10 @@ void  rtl92e_fill_tx_cmd_desc(struct net_device *dev, struct tx_desc_cmd *entry,
 
 		entry_tmp->CmdInit = DESC_PACKET_TYPE_NORMAL;
 		entry_tmp->Offset = sizeof(struct tx_fwinfo_8190pci) + 8;
-		entry_tmp->PktSize = (u16)(cb_desc->pkt_size +
-				      entry_tmp->Offset);
+		entry_tmp->PktSize = cb_desc->pkt_size + entry_tmp->Offset;
 		entry_tmp->QueueSelect = QSLT_CMD;
 		entry_tmp->TxFWInfoSize = 0x08;
-		entry_tmp->RATid = (u8)DESC_PACKET_TYPE_INIT;
+		entry_tmp->RATid = DESC_PACKET_TYPE_INIT;
 	}
 	entry->TxBufferSize = skb->len;
 	entry->TxBuffAddr = mapping;
@@ -1613,9 +1611,8 @@ static void _rtl92e_query_rxphystatus(
 				total_rssi += RSSI;
 
 			if (bpacket_match_bssid) {
-				pstats->RxMIMOSignalStrength[i] = (u8) RSSI;
-				precord_stats->RxMIMOSignalStrength[i] =
-								(u8) RSSI;
+				pstats->RxMIMOSignalStrength[i] = RSSI;
+				precord_stats->RxMIMOSignalStrength[i] = RSSI;
 			}
 		}
 
@@ -1661,14 +1658,14 @@ static void _rtl92e_query_rxphystatus(
 
 	if (is_cck_rate) {
 		pstats->SignalStrength = precord_stats->SignalStrength =
-					 (u8)(_rtl92e_signal_scale_mapping(priv,
-					 (long)pwdb_all));
+					 _rtl92e_signal_scale_mapping(priv,
+					 (long)pwdb_all);
 
 	} else {
 		if (rf_rx_num != 0)
 			pstats->SignalStrength = precord_stats->SignalStrength =
-					 (u8)(_rtl92e_signal_scale_mapping(priv,
-					 (long)(total_rssi /= rf_rx_num)));
+					 _rtl92e_signal_scale_mapping(priv,
+					 (long)(total_rssi /= rf_rx_num));
 	}
 }
 
@@ -1709,8 +1706,7 @@ static void _rtl92e_process_phyinfo(struct r8192_priv *priv, u8 *buffer,
 		slide_rssi_index = 0;
 
 	tmp_val = priv->stats.slide_rssi_total/slide_rssi_statistics;
-	priv->stats.signal_strength = rtl92e_translate_to_dbm(priv,
-							      (u8)tmp_val);
+	priv->stats.signal_strength = rtl92e_translate_to_dbm(priv, tmp_val);
 	curr_st->rssi = priv->stats.signal_strength;
 	if (!prev_st->bPacketMatchBSSID) {
 		if (!prev_st->bToSelfBA)
@@ -2036,7 +2032,7 @@ bool rtl92e_get_rx_stats(struct net_device *dev, struct rtllib_rx_stats *stats,
 	pDrvInfo = (struct rx_fwinfo *)(skb->data + stats->RxBufShift);
 
 	stats->rate = _rtl92e_rate_hw_to_mgn((bool)pDrvInfo->RxHT,
-					     (u8)pDrvInfo->RxRate);
+					     pDrvInfo->RxRate);
 	stats->bShortPreamble = pDrvInfo->SPLCP;
 
 	_rtl92e_update_received_rate_histogram_stats(dev, stats);

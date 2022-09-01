@@ -42,7 +42,6 @@ Contents:
    mellanox/mlx5
    microsoft/netvsc
    neterion/s2io
-   neterion/vxge
    netronome/nfp
    pensando/ionic
    smsc/smc9
@@ -52,6 +51,7 @@ Contents:
    ti/am65_nuss_cpsw_switchdev
    ti/tlan
    toshiba/spider_net
+   wangxun/txgbe
 
 .. only::  subproject and html
 

@@ -588,10 +588,8 @@ static void change_speed(struct tty_struct *tty, struct serial_state *info,
 	}
 	if (!(cflag & PARODD))
 		cval |= UART_LCR_EPAR;
-#ifdef CMSPAR
 	if (cflag & CMSPAR)
 		cval |= UART_LCR_SPAR;
-#endif
 
 	/* Determine divisor based on baud rate */
 	baud = tty_get_baud_rate(tty);

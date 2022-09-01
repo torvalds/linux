@@ -23,6 +23,7 @@
 #include <linux/iosys-map.h>
 
 #include <drm/drm_fourcc.h>
+#include <drm/drm_framebuffer.h>
 
 #include "qxl_drv.h"
 #include "qxl_object.h"

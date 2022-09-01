@@ -7,6 +7,7 @@
  *
  */
 
+#include <linux/media-bus-format.h>
 #include <linux/module.h>
 #include <linux/device.h>
 #include <linux/interrupt.h>

@@ -29,7 +29,7 @@ struct lkdtm_list {
 #if defined(CONFIG_FRAME_WARN) && (CONFIG_FRAME_WARN > 0)
 #define REC_STACK_SIZE (_AC(CONFIG_FRAME_WARN, UL) / 2)
 #else
-#define REC_STACK_SIZE (THREAD_SIZE / 8)
+#define REC_STACK_SIZE (THREAD_SIZE / 8UL)
 #endif
 #define REC_NUM_DEFAULT ((THREAD_SIZE / REC_STACK_SIZE) * 2)
 
@@ -68,40 +68,40 @@ void __init lkdtm_bugs_init(int *recur_param)
 		recur_count = *recur_param;
 }
 
-void lkdtm_PANIC(void)
+static void lkdtm_PANIC(void)
 {
 	panic("dumptest");
 }
 
-void lkdtm_BUG(void)
+static void lkdtm_BUG(void)
 {
 	BUG();
 }
 
 static int warn_counter;
 
-void lkdtm_WARNING(void)
+static void lkdtm_WARNING(void)
 {
 	WARN_ON(++warn_counter);
 }
 
-void lkdtm_WARNING_MESSAGE(void)
+static void lkdtm_WARNING_MESSAGE(void)
 {
 	WARN(1, "Warning message trigger count: %d\n", ++warn_counter);
 }
 
-void lkdtm_EXCEPTION(void)
+static void lkdtm_EXCEPTION(void)
 {
 	*((volatile int *) 0) = 0;
 }
 
-void lkdtm_LOOP(void)
+static void lkdtm_LOOP(void)
 {
 	for (;;)
 		;
 }
 
-void lkdtm_EXHAUST_STACK(void)
+static void lkdtm_EXHAUST_STACK(void)
 {
 	pr_info("Calling function with %lu frame size to depth %d ...\n",
 		REC_STACK_SIZE, recur_count);
@@ -115,7 +115,7 @@ static noinline void __lkdtm_CORRUPT_STACK(void *stack)
 }
 
 /* This should trip the stack canary, not corrupt the return address. */
-noinline void lkdtm_CORRUPT_STACK(void)
+static noinline void lkdtm_CORRUPT_STACK(void)
 {
 	/* Use default char array length that triggers stack protection. */
 	char data[8] __aligned(sizeof(void *));
@@ -125,7 +125,7 @@ noinline void lkdtm_CORRUPT_STACK(void)
 }
 
 /* Same as above but will only get a canary with -fstack-protector-strong */
-noinline void lkdtm_CORRUPT_STACK_STRONG(void)
+static noinline void lkdtm_CORRUPT_STACK_STRONG(void)
 {
 	union {
 		unsigned short shorts[4];
@@ -139,7 +139,7 @@ noinline void lkdtm_CORRUPT_STACK_STRONG(void)
 static pid_t stack_pid;
 static unsigned long stack_addr;
 
-void lkdtm_REPORT_STACK(void)
+static void lkdtm_REPORT_STACK(void)
 {
 	volatile uintptr_t magic;
 	pid_t pid = task_pid_nr(current);
@@ -222,7 +222,7 @@ static noinline void __lkdtm_REPORT_STACK_CANARY(void *stack)
 	}
 }
 
-void lkdtm_REPORT_STACK_CANARY(void)
+static void lkdtm_REPORT_STACK_CANARY(void)
 {
 	/* Use default char array length that triggers stack protection. */
 	char data[8] __aligned(sizeof(void *)) = { };
@@ -230,7 +230,7 @@ void lkdtm_REPORT_STACK_CANARY(void)
 	__lkdtm_REPORT_STACK_CANARY((void *)&data);
 }
 
-void lkdtm_UNALIGNED_LOAD_STORE_WRITE(void)
+static void lkdtm_UNALIGNED_LOAD_STORE_WRITE(void)
 {
 	static u8 data[5] __attribute__((aligned(4))) = {1, 2, 3, 4, 5};
 	u32 *p;
@@ -245,21 +245,21 @@ void lkdtm_UNALIGNED_LOAD_STORE_WRITE(void)
 		pr_err("XFAIL: arch has CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS\n");
 }
 
-void lkdtm_SOFTLOCKUP(void)
+static void lkdtm_SOFTLOCKUP(void)
 {
 	preempt_disable();
 	for (;;)
 		cpu_relax();
 }
 
-void lkdtm_HARDLOCKUP(void)
+static void lkdtm_HARDLOCKUP(void)
 {
 	local_irq_disable();
 	for (;;)
 		cpu_relax();
 }
 
-void lkdtm_SPINLOCKUP(void)
+static void lkdtm_SPINLOCKUP(void)
 {
 	/* Must be called twice to trigger. */
 	spin_lock(&lock_me_up);
@@ -267,7 +267,7 @@ void lkdtm_SPINLOCKUP(void)
 	__release(&lock_me_up);
 }
 
-void lkdtm_HUNG_TASK(void)
+static void lkdtm_HUNG_TASK(void)
 {
 	set_current_state(TASK_UNINTERRUPTIBLE);
 	schedule();
@@ -276,7 +276,7 @@ void lkdtm_HUNG_TASK(void)
 volatile unsigned int huge = INT_MAX - 2;
 volatile unsigned int ignored;
 
-void lkdtm_OVERFLOW_SIGNED(void)
+static void lkdtm_OVERFLOW_SIGNED(void)
 {
 	int value;
 
@@ -291,7 +291,7 @@ void lkdtm_OVERFLOW_SIGNED(void)
 }
 
 
-void lkdtm_OVERFLOW_UNSIGNED(void)
+static void lkdtm_OVERFLOW_UNSIGNED(void)
 {
 	unsigned int value;
 
@@ -319,7 +319,7 @@ struct array_bounds {
 	int three;
 };
 
-void lkdtm_ARRAY_BOUNDS(void)
+static void lkdtm_ARRAY_BOUNDS(void)
 {
 	struct array_bounds_flex_array *not_checked;
 	struct array_bounds *checked;
@@ -327,6 +327,11 @@ void lkdtm_ARRAY_BOUNDS(void)
 
 	not_checked = kmalloc(sizeof(*not_checked) * 2, GFP_KERNEL);
 	checked = kmalloc(sizeof(*checked) * 2, GFP_KERNEL);
+	if (!not_checked || !checked) {
+		kfree(not_checked);
+		kfree(checked);
+		return;
+	}
 
 	pr_info("Array access within bounds ...\n");
 	/* For both, touch all bytes in the actual member size. */
@@ -346,10 +351,13 @@ void lkdtm_ARRAY_BOUNDS(void)
 	kfree(not_checked);
 	kfree(checked);
 	pr_err("FAIL: survived array bounds overflow!\n");
-	pr_expected_config(CONFIG_UBSAN_BOUNDS);
+	if (IS_ENABLED(CONFIG_UBSAN_BOUNDS))
+		pr_expected_config(CONFIG_UBSAN_TRAP);
+	else
+		pr_expected_config(CONFIG_UBSAN_BOUNDS);
 }
 
-void lkdtm_CORRUPT_LIST_ADD(void)
+static void lkdtm_CORRUPT_LIST_ADD(void)
 {
 	/*
 	 * Initially, an empty list via LIST_HEAD:
@@ -389,7 +397,7 @@ void lkdtm_CORRUPT_LIST_ADD(void)
 	}
 }
 
-void lkdtm_CORRUPT_LIST_DEL(void)
+static void lkdtm_CORRUPT_LIST_DEL(void)
 {
 	LIST_HEAD(test_head);
 	struct lkdtm_list item;
@@ -417,7 +425,7 @@ void lkdtm_CORRUPT_LIST_DEL(void)
 }
 
 /* Test that VMAP_STACK is actually allocating with a leading guard page */
-void lkdtm_STACK_GUARD_PAGE_LEADING(void)
+static void lkdtm_STACK_GUARD_PAGE_LEADING(void)
 {
 	const unsigned char *stack = task_stack_page(current);
 	const unsigned char *ptr = stack - 1;
@@ -431,7 +439,7 @@ void lkdtm_STACK_GUARD_PAGE_LEADING(void)
 }
 
 /* Test that VMAP_STACK is actually allocating with a trailing guard page */
-void lkdtm_STACK_GUARD_PAGE_TRAILING(void)
+static void lkdtm_STACK_GUARD_PAGE_TRAILING(void)
 {
 	const unsigned char *stack = task_stack_page(current);
 	const unsigned char *ptr = stack + THREAD_SIZE;
@@ -444,7 +452,7 @@ void lkdtm_STACK_GUARD_PAGE_TRAILING(void)
 	pr_err("FAIL: accessed page after stack! (byte: %x)\n", byte);
 }
 
-void lkdtm_UNSET_SMEP(void)
+static void lkdtm_UNSET_SMEP(void)
 {
 #if IS_ENABLED(CONFIG_X86_64) && !IS_ENABLED(CONFIG_UML)
 #define MOV_CR4_DEPTH	64
@@ -510,7 +518,7 @@ void lkdtm_UNSET_SMEP(void)
 #endif
 }
 
-void lkdtm_DOUBLE_FAULT(void)
+static void lkdtm_DOUBLE_FAULT(void)
 {
 #if IS_ENABLED(CONFIG_X86_32) && !IS_ENABLED(CONFIG_UML)
 	/*
@@ -558,7 +566,7 @@ static noinline void change_pac_parameters(void)
 }
 #endif
 
-noinline void lkdtm_CORRUPT_PAC(void)
+static noinline void lkdtm_CORRUPT_PAC(void)
 {
 #ifdef CONFIG_ARM64
 #define CORRUPT_PAC_ITERATE	10
@@ -586,3 +594,37 @@ noinline void lkdtm_CORRUPT_PAC(void)
 	pr_err("XFAIL: this test is arm64-only\n");
 #endif
 }
+
+static struct crashtype crashtypes[] = {
+	CRASHTYPE(PANIC),
+	CRASHTYPE(BUG),
+	CRASHTYPE(WARNING),
+	CRASHTYPE(WARNING_MESSAGE),
+	CRASHTYPE(EXCEPTION),
+	CRASHTYPE(LOOP),
+	CRASHTYPE(EXHAUST_STACK),
+	CRASHTYPE(CORRUPT_STACK),
+	CRASHTYPE(CORRUPT_STACK_STRONG),
+	CRASHTYPE(REPORT_STACK),
+	CRASHTYPE(REPORT_STACK_CANARY),
+	CRASHTYPE(UNALIGNED_LOAD_STORE_WRITE),
+	CRASHTYPE(SOFTLOCKUP),
+	CRASHTYPE(HARDLOCKUP),
+	CRASHTYPE(SPINLOCKUP),
+	CRASHTYPE(HUNG_TASK),
+	CRASHTYPE(OVERFLOW_SIGNED),
+	CRASHTYPE(OVERFLOW_UNSIGNED),
+	CRASHTYPE(ARRAY_BOUNDS),
+	CRASHTYPE(CORRUPT_LIST_ADD),
+	CRASHTYPE(CORRUPT_LIST_DEL),
+	CRASHTYPE(STACK_GUARD_PAGE_LEADING),
+	CRASHTYPE(STACK_GUARD_PAGE_TRAILING),
+	CRASHTYPE(UNSET_SMEP),
+	CRASHTYPE(DOUBLE_FAULT),
+	CRASHTYPE(CORRUPT_PAC),
+};
+
+struct crashtype_category bugs_crashtypes = {
+	.crashtypes = crashtypes,
+	.len	    = ARRAY_SIZE(crashtypes),
+};

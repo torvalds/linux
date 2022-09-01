@@ -41,3 +41,5 @@ if [ -n "${building_out_of_srctree}" ]; then
 fi
 
 rm -f scripts/extract-cert
+
+rm -f arch/x86/purgatory/kexec-purgatory.c

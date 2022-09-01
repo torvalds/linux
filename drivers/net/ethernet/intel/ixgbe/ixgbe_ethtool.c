@@ -18,8 +18,6 @@
 #include "ixgbe_phy.h"
 
 
-#define IXGBE_ALL_RAR_ENTRIES 16
-
 enum {NETDEV_STATS, IXGBE_STATS};
 
 struct ixgbe_stats {

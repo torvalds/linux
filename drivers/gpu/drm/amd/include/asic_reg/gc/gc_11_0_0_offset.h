@@ -4221,6 +4221,7 @@
 #define regCP_ECC_FIRSTOCCURRENCE_RING1_BASE_IDX                                                        0
 #define regGB_EDC_MODE                                                                                  0x1e1e
 #define regGB_EDC_MODE_BASE_IDX                                                                         0
+#define regCP_DEBUG                                                                                     0x1e1f
 #define regCP_DEBUG_BASE_IDX                                                                            0
 #define regCP_CPC_DEBUG                                                                                 0x1e21
 #define regCP_CPC_DEBUG_BASE_IDX                                                                        0
@@ -8306,6 +8307,8 @@
 #define regGL1I_GL1R_REP_FGCG_OVERRIDE_BASE_IDX                                                         1
 #define regGL1C_STATUS                                                                                  0x2d41
 #define regGL1C_STATUS_BASE_IDX                                                                         1
+#define regGL1C_UTCL0_CNTL1                                                                             0x2d42
+#define regGL1C_UTCL0_CNTL1_BASE_IDX                                                                    1
 #define regGL1C_UTCL0_CNTL2                                                                             0x2d43
 #define regGL1C_UTCL0_CNTL2_BASE_IDX                                                                    1
 #define regGL1C_UTCL0_STATUS                                                                            0x2d44

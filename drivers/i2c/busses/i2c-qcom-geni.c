@@ -97,6 +97,7 @@ struct geni_i2c_dev {
 	struct dma_chan *tx_c;
 	struct dma_chan *rx_c;
 	bool gpi_mode;
+	bool abort_done;
 };
 
 struct geni_i2c_err_log {
@@ -203,9 +204,18 @@ static void geni_i2c_err(struct geni_i2c_dev *gi2c, int err)
 		dev_dbg(gi2c->se.dev, "len:%d, slv-addr:0x%x, RD/WR:%d\n",
 			gi2c->cur->len, gi2c->cur->addr, gi2c->cur->flags);
 
-	if (err != NACK && err != GENI_ABORT_DONE) {
+	switch (err) {
+	case GENI_ABORT_DONE:
+		gi2c->abort_done = true;
+		break;
+	case NACK:
+	case GENI_TIMEOUT:
+		dev_dbg(gi2c->se.dev, "%s\n", gi2c_log[err].msg);
+		break;
+	default:
 		dev_err(gi2c->se.dev, "%s\n", gi2c_log[err].msg);
 		geni_i2c_err_misc(gi2c);
+		break;
 	}
 }
 
@@ -311,21 +321,21 @@ static irqreturn_t geni_i2c_irq(int irq, void *dev)
 
 static void geni_i2c_abort_xfer(struct geni_i2c_dev *gi2c)
 {
-	u32 val;
 	unsigned long time_left = ABORT_TIMEOUT;
 	unsigned long flags;
 
 	spin_lock_irqsave(&gi2c->lock, flags);
 	geni_i2c_err(gi2c, GENI_TIMEOUT);
 	gi2c->cur = NULL;
+	gi2c->abort_done = false;
 	geni_se_abort_m_cmd(&gi2c->se);
 	spin_unlock_irqrestore(&gi2c->lock, flags);
+
 	do {
 		time_left = wait_for_completion_timeout(&gi2c->done, time_left);
-		val = readl_relaxed(gi2c->se.base + SE_GENI_M_IRQ_STATUS);
-	} while (!(val & M_CMD_ABORT_EN) && time_left);
+	} while (!gi2c->abort_done && time_left);
 
-	if (!(val & M_CMD_ABORT_EN))
+	if (!time_left)
 		dev_err(gi2c->se.dev, "Timeout abort_m_cmd\n");
 }
 
@@ -688,7 +698,7 @@ static int geni_i2c_xfer(struct i2c_adapter *adap,
 	pm_runtime_put_autosuspend(gi2c->se.dev);
 	gi2c->cur = NULL;
 	gi2c->err = 0;
-	return num;
+	return ret;
 }
 
 static u32 geni_i2c_func(struct i2c_adapter *adap)

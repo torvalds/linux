@@ -1709,7 +1709,7 @@ static int exynos3250_jpeg_try_downscale(struct s5p_jpeg_ctx *ctx,
 	w_ratio = ctx->out_q.w / r->width;
 	h_ratio = ctx->out_q.h / r->height;
 
-	scale_factor = w_ratio > h_ratio ? w_ratio : h_ratio;
+	scale_factor = max(w_ratio, h_ratio);
 	scale_factor = clamp_val(scale_factor, 1, 8);
 
 	/* Align scale ratio to the nearest power of 2 */

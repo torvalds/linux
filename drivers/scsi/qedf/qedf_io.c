@@ -893,7 +893,7 @@ int qedf_post_io_req(struct qedf_rport *fcport, struct qedf_ioreq *io_req)
 		return -EINVAL;
 	}
 
-	/* Record LUN number for later use if we neeed them */
+	/* Record LUN number for later use if we need them */
 	io_req->lun = (int)sc_cmd->device->lun;
 
 	/* Obtain free SQE */

@@ -185,6 +185,20 @@ int iio_device_id(struct iio_dev *indio_dev)
 EXPORT_SYMBOL_GPL(iio_device_id);
 
 /**
+ * iio_buffer_enabled() - helper function to test if the buffer is enabled
+ * @indio_dev:		IIO device structure for device
+ */
+bool iio_buffer_enabled(struct iio_dev *indio_dev)
+{
+	struct iio_dev_opaque *iio_dev_opaque = to_iio_dev_opaque(indio_dev);
+
+	return iio_dev_opaque->currentmode
+		& (INDIO_BUFFER_TRIGGERED | INDIO_BUFFER_HARDWARE |
+		   INDIO_BUFFER_SOFTWARE);
+}
+EXPORT_SYMBOL_GPL(iio_buffer_enabled);
+
+/**
  * iio_sysfs_match_string_with_gaps - matches given string in an array with gaps
  * @array: array of strings
  * @n: number of strings in the array
@@ -320,29 +334,6 @@ s64 iio_get_time_ns(const struct iio_dev *indio_dev)
 }
 EXPORT_SYMBOL(iio_get_time_ns);
 
-/**
- * iio_get_time_res() - utility function to get time stamp clock resolution in
- *                      nano seconds.
- * @indio_dev: device
- */
-unsigned int iio_get_time_res(const struct iio_dev *indio_dev)
-{
-	switch (iio_device_get_clock(indio_dev)) {
-	case CLOCK_REALTIME:
-	case CLOCK_MONOTONIC:
-	case CLOCK_MONOTONIC_RAW:
-	case CLOCK_BOOTTIME:
-	case CLOCK_TAI:
-		return hrtimer_resolution;
-	case CLOCK_REALTIME_COARSE:
-	case CLOCK_MONOTONIC_COARSE:
-		return LOW_RES_NSEC;
-	default:
-		BUG();
-	}
-}
-EXPORT_SYMBOL(iio_get_time_res);
-
 static int __init iio_init(void)
 {
 	int ret;
@@ -384,7 +375,7 @@ static ssize_t iio_debugfs_read_reg(struct file *file, char __user *userbuf,
 {
 	struct iio_dev *indio_dev = file->private_data;
 	struct iio_dev_opaque *iio_dev_opaque = to_iio_dev_opaque(indio_dev);
-	unsigned val = 0;
+	unsigned int val = 0;
 	int ret;
 
 	if (*ppos > 0)
@@ -414,7 +405,7 @@ static ssize_t iio_debugfs_write_reg(struct file *file,
 {
 	struct iio_dev *indio_dev = file->private_data;
 	struct iio_dev_opaque *iio_dev_opaque = to_iio_dev_opaque(indio_dev);
-	unsigned reg, val;
+	unsigned int reg, val;
 	char buf[80];
 	int ret;
 
@@ -821,7 +812,23 @@ static ssize_t iio_format_avail_list(char *buf, const int *vals,
 
 static ssize_t iio_format_avail_range(char *buf, const int *vals, int type)
 {
-	return iio_format_list(buf, vals, type, 3, "[", "]");
+	int length;
+
+	/*
+	 * length refers to the array size , not the number of elements.
+	 * The purpose is to print the range [min , step ,max] so length should
+	 * be 3 in case of int, and 6 for other types.
+	 */
+	switch (type) {
+	case IIO_VAL_INT:
+		length = 3;
+		break;
+	default:
+		length = 6;
+		break;
+	}
+
+	return iio_format_list(buf, vals, type, length, "[", "]");
 }
 
 static ssize_t iio_read_channel_info_avail(struct device *dev,
@@ -892,8 +899,7 @@ static int __iio_str_to_fixpoint(const char *str, int fract_mult,
 		} else if (*str == '\n') {
 			if (*(str + 1) == '\0')
 				break;
-			else
-				return -EINVAL;
+			return -EINVAL;
 		} else if (!strncmp(str, " dB", sizeof(" dB") - 1) && scale_db) {
 			/* Ignore the dB suffix */
 			str += sizeof(" dB") - 1;
@@ -1114,12 +1120,12 @@ int __iio_device_attr_init(struct device_attribute *dev_attr,
 	dev_attr->attr.name = name;
 
 	if (readfunc) {
-		dev_attr->attr.mode |= S_IRUGO;
+		dev_attr->attr.mode |= 0444;
 		dev_attr->show = readfunc;
 	}
 
 	if (writefunc) {
-		dev_attr->attr.mode |= S_IWUSR;
+		dev_attr->attr.mode |= 0200;
 		dev_attr->store = writefunc;
 	}
 
@@ -1393,29 +1399,27 @@ void iio_free_chan_devattr_list(struct list_head *attr_list)
 	}
 }
 
-static ssize_t iio_show_dev_name(struct device *dev,
-				 struct device_attribute *attr,
-				 char *buf)
+static ssize_t name_show(struct device *dev, struct device_attribute *attr,
+			 char *buf)
 {
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	return sysfs_emit(buf, "%s\n", indio_dev->name);
 }
 
-static DEVICE_ATTR(name, S_IRUGO, iio_show_dev_name, NULL);
+static DEVICE_ATTR_RO(name);
 
-static ssize_t iio_show_dev_label(struct device *dev,
-				 struct device_attribute *attr,
-				 char *buf)
+static ssize_t label_show(struct device *dev, struct device_attribute *attr,
+			  char *buf)
 {
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	return sysfs_emit(buf, "%s\n", indio_dev->label);
 }
 
-static DEVICE_ATTR(label, S_IRUGO, iio_show_dev_label, NULL);
+static DEVICE_ATTR_RO(label);
 
-static ssize_t iio_show_timestamp_clock(struct device *dev,
-					struct device_attribute *attr,
-					char *buf)
+static ssize_t current_timestamp_clock_show(struct device *dev,
+					    struct device_attribute *attr,
+					    char *buf)
 {
 	const struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	const clockid_t clk = iio_device_get_clock(indio_dev);
@@ -1459,9 +1463,9 @@ static ssize_t iio_show_timestamp_clock(struct device *dev,
 	return sz;
 }
 
-static ssize_t iio_store_timestamp_clock(struct device *dev,
-					 struct device_attribute *attr,
-					 const char *buf, size_t len)
+static ssize_t current_timestamp_clock_store(struct device *dev,
+					     struct device_attribute *attr,
+					     const char *buf, size_t len)
 {
 	clockid_t clk;
 	int ret;
@@ -1509,8 +1513,7 @@ int iio_device_register_sysfs_group(struct iio_dev *indio_dev,
 	return 0;
 }
 
-static DEVICE_ATTR(current_timestamp_clock, S_IRUGO | S_IWUSR,
-		   iio_show_timestamp_clock, iio_store_timestamp_clock);
+static DEVICE_ATTR_RW(current_timestamp_clock);
 
 static int iio_device_register_sysfs(struct iio_dev *indio_dev)
 {
@@ -1618,7 +1621,7 @@ static void iio_dev_release(struct device *device)
 
 	iio_device_detach_buffers(indio_dev);
 
-	ida_simple_remove(&iio_ida, iio_dev_opaque->id);
+	ida_free(&iio_ida, iio_dev_opaque->id);
 	kfree(iio_dev_opaque);
 }
 
@@ -1640,7 +1643,7 @@ struct iio_dev *iio_device_alloc(struct device *parent, int sizeof_priv)
 
 	alloc_size = sizeof(struct iio_dev_opaque);
 	if (sizeof_priv) {
-		alloc_size = ALIGN(alloc_size, IIO_ALIGN);
+		alloc_size = ALIGN(alloc_size, IIO_DMA_MINALIGN);
 		alloc_size += sizeof_priv;
 	}
 
@@ -1650,7 +1653,7 @@ struct iio_dev *iio_device_alloc(struct device *parent, int sizeof_priv)
 
 	indio_dev = &iio_dev_opaque->indio_dev;
 	indio_dev->priv = (char *)iio_dev_opaque +
-		ALIGN(sizeof(struct iio_dev_opaque), IIO_ALIGN);
+		ALIGN(sizeof(struct iio_dev_opaque), IIO_DMA_MINALIGN);
 
 	indio_dev->dev.parent = parent;
 	indio_dev->dev.type = &iio_device_type;
@@ -1660,7 +1663,7 @@ struct iio_dev *iio_device_alloc(struct device *parent, int sizeof_priv)
 	mutex_init(&iio_dev_opaque->info_exist_lock);
 	INIT_LIST_HEAD(&iio_dev_opaque->channel_attr_list);
 
-	iio_dev_opaque->id = ida_simple_get(&iio_ida, 0, 0, GFP_KERNEL);
+	iio_dev_opaque->id = ida_alloc(&iio_ida, GFP_KERNEL);
 	if (iio_dev_opaque->id < 0) {
 		/* cannot use a dev_err as the name isn't available */
 		pr_err("failed to get device id\n");
@@ -1669,7 +1672,7 @@ struct iio_dev *iio_device_alloc(struct device *parent, int sizeof_priv)
 	}
 
 	if (dev_set_name(&indio_dev->dev, "iio:device%d", iio_dev_opaque->id)) {
-		ida_simple_remove(&iio_ida, iio_dev_opaque->id);
+		ida_free(&iio_ida, iio_dev_opaque->id);
 		kfree(iio_dev_opaque);
 		return NULL;
 	}
@@ -1894,20 +1897,22 @@ static const struct iio_buffer_setup_ops noop_ring_setup_ops;
 int __iio_device_register(struct iio_dev *indio_dev, struct module *this_mod)
 {
 	struct iio_dev_opaque *iio_dev_opaque = to_iio_dev_opaque(indio_dev);
-	const char *label;
+	struct fwnode_handle *fwnode;
 	int ret;
 
 	if (!indio_dev->info)
 		return -EINVAL;
 
 	iio_dev_opaque->driver_module = this_mod;
-	/* If the calling driver did not initialize of_node, do it here */
-	if (!indio_dev->dev.of_node && indio_dev->dev.parent)
-		indio_dev->dev.of_node = indio_dev->dev.parent->of_node;
 
-	label = of_get_property(indio_dev->dev.of_node, "label", NULL);
-	if (label)
-		indio_dev->label = label;
+	/* If the calling driver did not initialize firmware node, do it here */
+	if (dev_fwnode(&indio_dev->dev))
+		fwnode = dev_fwnode(&indio_dev->dev);
+	else
+		fwnode = dev_fwnode(indio_dev->dev.parent);
+	device_set_node(&indio_dev->dev, fwnode);
+
+	fwnode_property_read_string(fwnode, "label", &indio_dev->label);
 
 	ret = iio_check_unique_scan_index(indio_dev);
 	if (ret < 0)
@@ -2058,6 +2063,19 @@ void iio_device_release_direct_mode(struct iio_dev *indio_dev)
 	mutex_unlock(&indio_dev->mlock);
 }
 EXPORT_SYMBOL_GPL(iio_device_release_direct_mode);
+
+/**
+ * iio_device_get_current_mode() - helper function providing read-only access to
+ *				   the opaque @currentmode variable
+ * @indio_dev:			   IIO device structure for device
+ */
+int iio_device_get_current_mode(struct iio_dev *indio_dev)
+{
+	struct iio_dev_opaque *iio_dev_opaque = to_iio_dev_opaque(indio_dev);
+
+	return iio_dev_opaque->currentmode;
+}
+EXPORT_SYMBOL_GPL(iio_device_get_current_mode);
 
 subsys_initcall(iio_init);
 module_exit(iio_exit);

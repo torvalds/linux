@@ -119,7 +119,7 @@ SYSCALL_DEFINE2(fsopen, const char __user *, _fs_name, unsigned int, flags)
 	const char *fs_name;
 	int ret;
 
-	if (!ns_capable(current->nsproxy->mnt_ns->user_ns, CAP_SYS_ADMIN))
+	if (!may_mount())
 		return -EPERM;
 
 	if (flags & ~FSOPEN_CLOEXEC)
@@ -162,7 +162,7 @@ SYSCALL_DEFINE3(fspick, int, dfd, const char __user *, path, unsigned int, flags
 	unsigned int lookup_flags;
 	int ret;
 
-	if (!ns_capable(current->nsproxy->mnt_ns->user_ns, CAP_SYS_ADMIN))
+	if (!may_mount())
 		return -EPERM;
 
 	if ((flags & ~(FSPICK_CLOEXEC |

@@ -573,10 +573,14 @@ static int set_sample_rate_v2v3(struct snd_usb_audio *chip,
 	}
 
 	/* FIXME - TEAC devices require the immediate interface setup */
-	if (rate != prev_rate && USB_ID_VENDOR(chip->usb_id) == 0x0644) {
-		usb_set_interface(chip->dev, fmt->iface, fmt->altsetting);
-		if (chip->quirk_flags & QUIRK_FLAG_IFACE_DELAY)
-			msleep(50);
+	if (USB_ID_VENDOR(chip->usb_id) == 0x0644) {
+		bool cur_base_48k = (rate % 48000 == 0);
+		bool prev_base_48k = (prev_rate % 48000 == 0);
+		if (cur_base_48k != prev_base_48k) {
+			usb_set_interface(chip->dev, fmt->iface, fmt->altsetting);
+			if (chip->quirk_flags & QUIRK_FLAG_IFACE_DELAY)
+				msleep(50);
+		}
 	}
 
 validation:

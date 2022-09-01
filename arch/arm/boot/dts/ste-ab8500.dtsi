@@ -195,7 +195,7 @@
 							  "CH_WD_EXP",
 							  "VBUS_CH_DROP_END";
 					monitored-battery = <&battery>;
-					vddadc-supply	= <&ab8500_ldo_tvout_reg>;
+					vddadc-supply = <&ab8500_ldo_tvout_reg>;
 					io-channels = <&gpadc 0x03>,
 						      <&gpadc 0x0a>,
 						      <&gpadc 0x09>,
@@ -207,8 +207,8 @@
 				};
 
 				ab8500_chargalg {
-					compatible	= "stericsson,ab8500-chargalg";
-					monitored-battery	= <&battery>;
+					compatible = "stericsson,ab8500-chargalg";
+					monitored-battery = <&battery>;
 				};
 
 				ab8500_usb: phy {

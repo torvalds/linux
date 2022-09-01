@@ -10,6 +10,8 @@
 
 #include <linux/dcbnl.h>
 
+struct net_device;
+
 struct dcb_app_type {
 	int	ifindex;
 	struct dcb_app	  app;

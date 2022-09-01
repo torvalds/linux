@@ -67,7 +67,7 @@ struct qcom_osm_l3_node {
 };
 
 struct qcom_osm_l3_desc {
-	const struct qcom_osm_l3_node **nodes;
+	const struct qcom_osm_l3_node * const *nodes;
 	size_t num_nodes;
 	unsigned int lut_row_size;
 	unsigned int reg_freq_lut;
@@ -86,7 +86,7 @@ struct qcom_osm_l3_desc {
 DEFINE_QNODE(sdm845_osm_apps_l3, SDM845_MASTER_OSM_L3_APPS, 16, SDM845_SLAVE_OSM_L3);
 DEFINE_QNODE(sdm845_osm_l3, SDM845_SLAVE_OSM_L3, 16);
 
-static const struct qcom_osm_l3_node *sdm845_osm_l3_nodes[] = {
+static const struct qcom_osm_l3_node * const sdm845_osm_l3_nodes[] = {
 	[MASTER_OSM_L3_APPS] = &sdm845_osm_apps_l3,
 	[SLAVE_OSM_L3] = &sdm845_osm_l3,
 };
@@ -102,7 +102,7 @@ static const struct qcom_osm_l3_desc sdm845_icc_osm_l3 = {
 DEFINE_QNODE(sc7180_osm_apps_l3, SC7180_MASTER_OSM_L3_APPS, 16, SC7180_SLAVE_OSM_L3);
 DEFINE_QNODE(sc7180_osm_l3, SC7180_SLAVE_OSM_L3, 16);
 
-static const struct qcom_osm_l3_node *sc7180_osm_l3_nodes[] = {
+static const struct qcom_osm_l3_node * const sc7180_osm_l3_nodes[] = {
 	[MASTER_OSM_L3_APPS] = &sc7180_osm_apps_l3,
 	[SLAVE_OSM_L3] = &sc7180_osm_l3,
 };
@@ -118,7 +118,7 @@ static const struct qcom_osm_l3_desc sc7180_icc_osm_l3 = {
 DEFINE_QNODE(sc7280_epss_apps_l3, SC7280_MASTER_EPSS_L3_APPS, 32, SC7280_SLAVE_EPSS_L3);
 DEFINE_QNODE(sc7280_epss_l3, SC7280_SLAVE_EPSS_L3, 32);
 
-static const struct qcom_osm_l3_node *sc7280_epss_l3_nodes[] = {
+static const struct qcom_osm_l3_node * const sc7280_epss_l3_nodes[] = {
 	[MASTER_EPSS_L3_APPS] = &sc7280_epss_apps_l3,
 	[SLAVE_EPSS_L3_SHARED] = &sc7280_epss_l3,
 };
@@ -134,7 +134,7 @@ static const struct qcom_osm_l3_desc sc7280_icc_epss_l3 = {
 DEFINE_QNODE(sc8180x_osm_apps_l3, SC8180X_MASTER_OSM_L3_APPS, 32, SC8180X_SLAVE_OSM_L3);
 DEFINE_QNODE(sc8180x_osm_l3, SC8180X_SLAVE_OSM_L3, 32);
 
-static const struct qcom_osm_l3_node *sc8180x_osm_l3_nodes[] = {
+static const struct qcom_osm_l3_node * const sc8180x_osm_l3_nodes[] = {
 	[MASTER_OSM_L3_APPS] = &sc8180x_osm_apps_l3,
 	[SLAVE_OSM_L3] = &sc8180x_osm_l3,
 };
@@ -150,7 +150,7 @@ static const struct qcom_osm_l3_desc sc8180x_icc_osm_l3 = {
 DEFINE_QNODE(sm8150_osm_apps_l3, SM8150_MASTER_OSM_L3_APPS, 32, SM8150_SLAVE_OSM_L3);
 DEFINE_QNODE(sm8150_osm_l3, SM8150_SLAVE_OSM_L3, 32);
 
-static const struct qcom_osm_l3_node *sm8150_osm_l3_nodes[] = {
+static const struct qcom_osm_l3_node * const sm8150_osm_l3_nodes[] = {
 	[MASTER_OSM_L3_APPS] = &sm8150_osm_apps_l3,
 	[SLAVE_OSM_L3] = &sm8150_osm_l3,
 };
@@ -166,7 +166,7 @@ static const struct qcom_osm_l3_desc sm8150_icc_osm_l3 = {
 DEFINE_QNODE(sm8250_epss_apps_l3, SM8250_MASTER_EPSS_L3_APPS, 32, SM8250_SLAVE_EPSS_L3);
 DEFINE_QNODE(sm8250_epss_l3, SM8250_SLAVE_EPSS_L3, 32);
 
-static const struct qcom_osm_l3_node *sm8250_epss_l3_nodes[] = {
+static const struct qcom_osm_l3_node * const sm8250_epss_l3_nodes[] = {
 	[MASTER_EPSS_L3_APPS] = &sm8250_epss_apps_l3,
 	[SLAVE_EPSS_L3_SHARED] = &sm8250_epss_l3,
 };
@@ -228,7 +228,7 @@ static int qcom_osm_l3_probe(struct platform_device *pdev)
 	const struct qcom_osm_l3_desc *desc;
 	struct icc_onecell_data *data;
 	struct icc_provider *provider;
-	const struct qcom_osm_l3_node **qnodes;
+	const struct qcom_osm_l3_node * const *qnodes;
 	struct icc_node *node;
 	size_t num_nodes;
 	struct clk *clk;

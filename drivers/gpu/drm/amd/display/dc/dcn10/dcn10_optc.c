@@ -165,6 +165,7 @@ void optc1_program_timing(
 	optc1->vupdate_width = vupdate_width;
 	patched_crtc_timing = *dc_crtc_timing;
 	apply_front_porch_workaround(&patched_crtc_timing);
+	optc1->orginal_patched_timing = patched_crtc_timing;
 
 	/* Load horizontal timing */
 

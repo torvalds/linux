@@ -8,7 +8,7 @@
  * The below thunking functions are only used after ExitBootServices()
  * has been called. This simplifies things considerably as compared with
  * the early EFI thunking because we can leave all the kernel state
- * intact (GDT, IDT, etc) and simply invoke the the 32-bit EFI runtime
+ * intact (GDT, IDT, etc) and simply invoke the 32-bit EFI runtime
  * services from __KERNEL32_CS. This means we can continue to service
  * interrupts across an EFI mixed mode call.
  *
@@ -23,6 +23,7 @@
 #include <linux/objtool.h>
 #include <asm/page_types.h>
 #include <asm/segment.h>
+#include <asm/nospec-branch.h>
 
 	.text
 	.code64
@@ -75,7 +76,9 @@ STACK_FRAME_NON_STANDARD __efi64_thunk
 1:	movq	0x20(%rsp), %rsp
 	pop	%rbx
 	pop	%rbp
-	RET
+	ANNOTATE_UNRET_SAFE
+	ret
+	int3
 
 	.code32
 2:	pushl	$__KERNEL_CS

@@ -34,6 +34,7 @@
 #include <linux/timekeeping.h>
 #include <linux/timekeeper_internal.h>
 #include <linux/acpi.h>
+#include <linux/virtio_anchor.h>
 
 #include <linux/mm.h>
 
@@ -442,6 +443,9 @@ static int __init xen_guest_init(void)
 
 	if (!xen_domain())
 		return 0;
+
+	if (IS_ENABLED(CONFIG_XEN_VIRTIO))
+		virtio_set_mem_acc_cb(xen_virtio_mem_acc);
 
 	if (!acpi_disabled)
 		xen_acpi_guest_init();

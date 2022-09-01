@@ -68,6 +68,8 @@ properties:
         - enum: [bus_early, ref, suspend]
         - true
 
+  dma-coherent: true
+
   iommus:
     maxItems: 1
 
@@ -340,6 +342,11 @@ properties:
     description:
       This port is used with the 'usb-role-switch' property  to connect the
       dwc3 to type C connector.
+
+  wakeup-source:
+    $ref: /schemas/types.yaml#/definitions/flag
+    description:
+      Enable USB remote wakeup.
 
 unevaluatedProperties: false
 

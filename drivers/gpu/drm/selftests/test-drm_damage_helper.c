@@ -6,6 +6,7 @@
 #define pr_fmt(fmt) "drm_damage_helper: " fmt
 
 #include <drm/drm_damage_helper.h>
+#include <drm/drm_framebuffer.h>
 #include <drm/drm_plane.h>
 #include <drm/drm_drv.h>
 

@@ -11,12 +11,20 @@ maintainers:
 
 allOf:
   - $ref: usb-drd.yaml#
+  - $ref: usb-hcd.yaml#
 
 properties:
   compatible:
     oneOf:
       - const: brcm,bcm2835-usb
       - const: hisilicon,hi6220-usb
+      - const: ingenic,jz4775-otg
+      - const: ingenic,jz4780-otg
+      - const: ingenic,x1000-otg
+      - const: ingenic,x1600-otg
+      - const: ingenic,x1700-otg
+      - const: ingenic,x1830-otg
+      - const: ingenic,x2000-otg
       - items:
           - const: rockchip,rk3066-usb
           - const: snps,dwc2
@@ -153,6 +161,8 @@ properties:
       using the OF graph bindings specified, if the "usb-role-switch"
       property is used.
     $ref: /schemas/graph.yaml#/properties/port
+
+  tpl-support: true
 
 dependencies:
   port: [ usb-role-switch ]

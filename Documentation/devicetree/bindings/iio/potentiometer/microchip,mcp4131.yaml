@@ -95,7 +95,7 @@ examples:
         #size-cells = <0>;
 
         potentiometer@0 {
-            compatible = "mcp4131-502";
+            compatible = "microchip,mcp4131-502";
             reg = <0>;
             spi-max-frequency = <500000>;
         };

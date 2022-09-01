@@ -16,6 +16,7 @@
 #include <linux/mempool.h>
 #include <linux/workqueue.h>
 #include <linux/utsname.h>
+#include <linux/sched/mm.h>
 #include <linux/netfs.h>
 #include "cifs_fs_sb.h"
 #include "cifsacl.h"
@@ -78,6 +79,9 @@
 /* dns resolution intervals in seconds */
 #define SMB_DNS_RESOLVE_INTERVAL_MIN     120
 #define SMB_DNS_RESOLVE_INTERVAL_DEFAULT 600
+
+/* smb multichannel query server interfaces interval in seconds */
+#define SMB_INTERFACE_POLL_INTERVAL	600
 
 /* maximum number of PDUs in one compound */
 #define MAX_COMPOUND 5
@@ -628,7 +632,8 @@ struct TCP_Server_Info {
 	unsigned int in_flight;  /* number of requests on the wire to server */
 	unsigned int max_in_flight; /* max number of requests that were on wire */
 	spinlock_t req_lock;  /* protect the two values above */
-	struct mutex srv_mutex;
+	struct mutex _srv_mutex;
+	unsigned int nofs_flag;
 	struct task_struct *tsk;
 	char server_GUID[16];
 	__u16 sec_mode;
@@ -742,6 +747,22 @@ struct TCP_Server_Info {
 	char *origin_fullpath, *leaf_fullpath, *current_fullpath;
 #endif
 };
+
+static inline void cifs_server_lock(struct TCP_Server_Info *server)
+{
+	unsigned int nofs_flag = memalloc_nofs_save();
+
+	mutex_lock(&server->_srv_mutex);
+	server->nofs_flag = nofs_flag;
+}
+
+static inline void cifs_server_unlock(struct TCP_Server_Info *server)
+{
+	unsigned int nofs_flag = server->nofs_flag;
+
+	mutex_unlock(&server->_srv_mutex);
+	memalloc_nofs_restore(nofs_flag);
+}
 
 struct cifs_credits {
 	unsigned int value;
@@ -915,15 +936,67 @@ static inline void cifs_set_net_ns(struct TCP_Server_Info *srv, struct net *net)
 #endif
 
 struct cifs_server_iface {
+	struct list_head iface_head;
+	struct kref refcount;
 	size_t speed;
 	unsigned int rdma_capable : 1;
 	unsigned int rss_capable : 1;
+	unsigned int is_active : 1; /* unset if non existent */
 	struct sockaddr_storage sockaddr;
 };
+
+/* release iface when last ref is dropped */
+static inline void
+release_iface(struct kref *ref)
+{
+	struct cifs_server_iface *iface = container_of(ref,
+						       struct cifs_server_iface,
+						       refcount);
+	list_del_init(&iface->iface_head);
+	kfree(iface);
+}
+
+/*
+ * compare two interfaces a and b
+ * return 0 if everything matches.
+ * return 1 if a has higher link speed, or rdma capable, or rss capable
+ * return -1 otherwise.
+ */
+static inline int
+iface_cmp(struct cifs_server_iface *a, struct cifs_server_iface *b)
+{
+	int cmp_ret = 0;
+
+	WARN_ON(!a || !b);
+	if (a->speed == b->speed) {
+		if (a->rdma_capable == b->rdma_capable) {
+			if (a->rss_capable == b->rss_capable) {
+				cmp_ret = memcmp(&a->sockaddr, &b->sockaddr,
+						 sizeof(a->sockaddr));
+				if (!cmp_ret)
+					return 0;
+				else if (cmp_ret > 0)
+					return 1;
+				else
+					return -1;
+			} else if (a->rss_capable > b->rss_capable)
+				return 1;
+			else
+				return -1;
+		} else if (a->rdma_capable > b->rdma_capable)
+			return 1;
+		else
+			return -1;
+	} else if (a->speed > b->speed)
+		return 1;
+	else
+		return -1;
+}
 
 struct cifs_chan {
 	unsigned int in_reconnect : 1; /* if session setup in progress for this channel */
 	struct TCP_Server_Info *server;
+	struct cifs_server_iface *iface; /* interface in use */
 	__u8 signkey[SMB3_SIGN_KEY_SIZE];
 };
 
@@ -975,7 +1048,7 @@ struct cifs_ses {
 	 */
 	spinlock_t iface_lock;
 	/* ========= begin: protected by iface_lock ======== */
-	struct cifs_server_iface *iface_list;
+	struct list_head iface_list;
 	size_t iface_count;
 	unsigned long iface_last_update; /* jiffies */
 	/* ========= end: protected by iface_lock ======== */
@@ -1185,6 +1258,7 @@ struct cifs_tcon {
 #ifdef CONFIG_CIFS_DFS_UPCALL
 	struct list_head ulist; /* cache update list */
 #endif
+	struct delayed_work	query_interfaces; /* query interfaces workqueue job */
 };
 
 /*
@@ -1461,20 +1535,16 @@ void cifsFileInfo_put(struct cifsFileInfo *cifs_file);
 #define CIFS_CACHE_RW_FLG	(CIFS_CACHE_READ_FLG | CIFS_CACHE_WRITE_FLG)
 #define CIFS_CACHE_RHW_FLG	(CIFS_CACHE_RW_FLG | CIFS_CACHE_HANDLE_FLG)
 
-#define CIFS_CACHE_READ(cinode) ((cinode->oplock & CIFS_CACHE_READ_FLG) || (CIFS_SB(cinode->vfs_inode.i_sb)->mnt_cifs_flags & CIFS_MOUNT_RO_CACHE))
+#define CIFS_CACHE_READ(cinode) ((cinode->oplock & CIFS_CACHE_READ_FLG) || (CIFS_SB(cinode->netfs.inode.i_sb)->mnt_cifs_flags & CIFS_MOUNT_RO_CACHE))
 #define CIFS_CACHE_HANDLE(cinode) (cinode->oplock & CIFS_CACHE_HANDLE_FLG)
-#define CIFS_CACHE_WRITE(cinode) ((cinode->oplock & CIFS_CACHE_WRITE_FLG) || (CIFS_SB(cinode->vfs_inode.i_sb)->mnt_cifs_flags & CIFS_MOUNT_RW_CACHE))
+#define CIFS_CACHE_WRITE(cinode) ((cinode->oplock & CIFS_CACHE_WRITE_FLG) || (CIFS_SB(cinode->netfs.inode.i_sb)->mnt_cifs_flags & CIFS_MOUNT_RW_CACHE))
 
 /*
  * One of these for each file inode
  */
 
 struct cifsInodeInfo {
-	struct {
-		/* These must be contiguous */
-		struct inode	vfs_inode;	/* the VFS's inode record */
-		struct netfs_i_context netfs_ctx; /* Netfslib context */
-	};
+	struct netfs_inode netfs; /* Netfslib context and vfs inode */
 	bool can_cache_brlcks;
 	struct list_head llist;	/* locks helb by this inode */
 	/*
@@ -1513,7 +1583,7 @@ struct cifsInodeInfo {
 static inline struct cifsInodeInfo *
 CIFS_I(struct inode *inode)
 {
-	return container_of(inode, struct cifsInodeInfo, vfs_inode);
+	return container_of(inode, struct cifsInodeInfo, netfs.inode);
 }
 
 static inline struct cifs_sb_info *
@@ -1945,11 +2015,13 @@ extern mempool_t *cifs_mid_poolp;
 
 /* Operations for different SMB versions */
 #define SMB1_VERSION_STRING	"1.0"
+#define SMB20_VERSION_STRING    "2.0"
+#ifdef CONFIG_CIFS_ALLOW_INSECURE_LEGACY
 extern struct smb_version_operations smb1_operations;
 extern struct smb_version_values smb1_values;
-#define SMB20_VERSION_STRING	"2.0"
 extern struct smb_version_operations smb20_operations;
 extern struct smb_version_values smb20_values;
+#endif /* CIFS_ALLOW_INSECURE_LEGACY */
 #define SMB21_VERSION_STRING	"2.1"
 extern struct smb_version_operations smb21_operations;
 extern struct smb_version_values smb21_values;

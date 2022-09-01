@@ -3,7 +3,7 @@
  * Copyright 2002-2005, Devicescape Software, Inc.
  * Copyright 2013-2014  Intel Mobile Communications GmbH
  * Copyright(c) 2015-2017 Intel Deutschland GmbH
- * Copyright(c) 2020-2021 Intel Corporation
+ * Copyright(c) 2020-2022 Intel Corporation
  */
 
 #ifndef STA_INFO_H
@@ -135,25 +135,19 @@ enum ieee80211_agg_stop_reason {
 #define AIRTIME_USE_TX		BIT(0)
 #define AIRTIME_USE_RX		BIT(1)
 
-
 struct airtime_info {
 	u64 rx_airtime;
 	u64 tx_airtime;
-	u64 v_t;
-	u64 last_scheduled;
-	struct list_head list;
+	u32 last_active;
+	s32 deficit;
 	atomic_t aql_tx_pending; /* Estimated airtime for frames pending */
 	u32 aql_limit_low;
 	u32 aql_limit_high;
-	u32 weight_reciprocal;
-	u16 weight;
 };
 
 void ieee80211_sta_update_pending_airtime(struct ieee80211_local *local,
 					  struct sta_info *sta, u8 ac,
 					  u16 tx_airtime, bool tx_completed);
-void ieee80211_register_airtime(struct ieee80211_txq *txq,
-				u32 tx_airtime, u32 rx_airtime);
 
 struct sta_info;
 
@@ -491,6 +485,7 @@ struct ieee80211_fragment_cache {
  *	same for non-MLD STA. This is used as key for searching link STA
  * @link_id: Link ID uniquely identifying the link STA. This is 0 for non-MLD
  *	and set to the corresponding vif LinkId for MLD STA
+ * @link_hash_node: hash node for rhashtable
  * @sta: Points to the STA info
  * @gtk: group keys negotiated with this station, if any
  * @tx_stats: TX statistics
@@ -516,13 +511,16 @@ struct ieee80211_fragment_cache {
  * @status_stats.last_ack_signal: last ACK signal
  * @status_stats.ack_signal_filled: last ACK signal validity
  * @status_stats.avg_ack_signal: average ACK signal
+ * @cur_max_bandwidth: maximum bandwidth to use for TX to the station,
+ *	taken from HT/VHT capabilities or VHT operating mode notification
+ * @pub: public (driver visible) link STA data
  * TODO Move other link params from sta_info as required for MLD operation
  */
 struct link_sta_info {
 	u8 addr[ETH_ALEN];
 	u8 link_id;
 
-	/* TODO rhash head/node for finding link_sta based on addr */
+	struct rhlist_head link_hash_node;
 
 	struct sta_info *sta;
 	struct ieee80211_key __rcu *gtk[NUM_DEFAULT_KEYS +
@@ -561,6 +559,8 @@ struct link_sta_info {
 	} tx_stats;
 
 	enum ieee80211_sta_rx_bandwidth cur_max_bandwidth;
+
+	struct ieee80211_link_sta *pub;
 };
 
 /**
@@ -603,6 +603,7 @@ struct link_sta_info {
  * @tid_seq: per-TID sequence numbers for sending to this STA
  * @airtime: per-AC struct airtime_info describing airtime statistics for this
  *	station
+ * @airtime_weight: station weight for airtime fairness calculation purposes
  * @ampdu_mlme: A-MPDU state machine state
  * @mesh: mesh STA information
  * @debugfs_dir: debug filesystem directory dentry
@@ -614,9 +615,6 @@ struct link_sta_info {
  * @rcu_head: RCU head used for freeing this station struct
  * @cur_max_bandwidth: maximum bandwidth to use for TX to the station,
  *	taken from HT/VHT capabilities or VHT operating mode notification
- * @known_smps_mode: the smps_mode the client thinks we are in. Relevant for
- *	AP only.
- * @cipher_scheme: optional cipher scheme for this station
  * @cparams: CoDel parameters for this station.
  * @reserved_tid: reserved TID (if any, otherwise IEEE80211_TID_UNRESERVED)
  * @fast_tx: TX fastpath information
@@ -624,7 +622,6 @@ struct link_sta_info {
  * @tdls_chandef: a TDLS peer can have a wider chandef that is compatible to
  *	the BSS one.
  * @frags: fragment cache
- * @multi_link_sta: Identifies if this sta is a MLD STA or regular STA
  * @deflink: This is the default link STA information, for non MLO STA all link
  *	specific STA information is accessed through @deflink or through
  *	link[0] which points to address of @deflink. For MLO Link STA
@@ -689,6 +686,7 @@ struct sta_info {
 	u16 tid_seq[IEEE80211_QOS_CTL_TID_MASK + 1];
 
 	struct airtime_info airtime[IEEE80211_NUM_ACS];
+	u16 airtime_weight;
 
 	/*
 	 * Aggregation information, locked with lock.
@@ -699,9 +697,6 @@ struct sta_info {
 	struct dentry *debugfs_dir;
 #endif
 
-	enum ieee80211_smps_mode known_smps_mode;
-	const struct ieee80211_cipher_scheme *cipher_scheme;
-
 	struct codel_params cparams;
 
 	u8 reserved_tid;
@@ -710,9 +705,8 @@ struct sta_info {
 
 	struct ieee80211_fragment_cache frags;
 
-	bool multi_link_sta;
 	struct link_sta_info deflink;
-	struct link_sta_info *link[MAX_STA_LINKS];
+	struct link_sta_info __rcu *link[IEEE80211_MLD_MAX_NUM_LINKS];
 
 	/* keep last! */
 	struct ieee80211_sta sta;
@@ -825,6 +819,17 @@ struct sta_info *sta_info_get_by_addrs(struct ieee80211_local *local,
 	rhl_for_each_entry_rcu(_sta, _tmp,				\
 			       sta_info_hash_lookup(local, _addr), hash_node)
 
+struct rhlist_head *link_sta_info_hash_lookup(struct ieee80211_local *local,
+					      const u8 *addr);
+
+#define for_each_link_sta_info(local, _addr, _sta, _tmp)		\
+	rhl_for_each_entry_rcu(_sta, _tmp,				\
+			       link_sta_info_hash_lookup(local, _addr),	\
+			       link_hash_node)
+
+struct link_sta_info *
+link_sta_info_get_bss(struct ieee80211_sub_if_data *sdata, const u8 *addr);
+
 /*
  * Get STA info by index, BROKEN!
  */
@@ -836,6 +841,11 @@ struct sta_info *sta_info_get_by_idx(struct ieee80211_sub_if_data *sdata,
  */
 struct sta_info *sta_info_alloc(struct ieee80211_sub_if_data *sdata,
 				const u8 *addr, gfp_t gfp);
+struct sta_info *sta_info_alloc_with_link(struct ieee80211_sub_if_data *sdata,
+					  const u8 *mld_addr,
+					  unsigned int link_id,
+					  const u8 *link_addr,
+					  gfp_t gfp);
 
 void sta_info_free(struct ieee80211_local *local, struct sta_info *sta);
 
@@ -893,13 +903,21 @@ u32 sta_get_expected_throughput(struct sta_info *sta);
 
 void ieee80211_sta_expire(struct ieee80211_sub_if_data *sdata,
 			  unsigned long exp_time);
-u8 sta_info_tx_streams(struct sta_info *sta);
+
+int ieee80211_sta_allocate_link(struct sta_info *sta, unsigned int link_id);
+void ieee80211_sta_free_link(struct sta_info *sta, unsigned int link_id);
+int ieee80211_sta_activate_link(struct sta_info *sta, unsigned int link_id);
+void ieee80211_sta_remove_link(struct sta_info *sta, unsigned int link_id);
 
 void ieee80211_sta_ps_deliver_wakeup(struct sta_info *sta);
 void ieee80211_sta_ps_deliver_poll_response(struct sta_info *sta);
 void ieee80211_sta_ps_deliver_uapsd(struct sta_info *sta);
 
 unsigned long ieee80211_sta_last_active(struct sta_info *sta);
+
+void ieee80211_sta_set_max_amsdu_subframes(struct sta_info *sta,
+					   const u8 *ext_capab,
+					   unsigned int ext_capab_len);
 
 enum sta_stats_type {
 	STA_STATS_RATE_TYPE_INVALID = 0,

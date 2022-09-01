@@ -11,6 +11,7 @@ maintainers:
 
 allOf:
   - $ref: nand-controller.yaml#
+  - $ref: /schemas/memory-controllers/ingenic,nemc-peripherals.yaml#
 
 properties:
   compatible:

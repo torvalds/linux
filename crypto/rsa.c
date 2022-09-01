@@ -17,6 +17,11 @@ struct rsa_mpi_key {
 	MPI n;
 	MPI e;
 	MPI d;
+	MPI p;
+	MPI q;
+	MPI dp;
+	MPI dq;
+	MPI qinv;
 };
 
 /*
@@ -35,16 +40,49 @@ static int _rsa_enc(const struct rsa_mpi_key *key, MPI c, MPI m)
 
 /*
  * RSADP function [RFC3447 sec 5.1.2]
- * m = c^d mod n;
+ * m_1 = c^dP mod p;
+ * m_2 = c^dQ mod q;
+ * h = (m_1 - m_2) * qInv mod p;
+ * m = m_2 + q * h;
  */
-static int _rsa_dec(const struct rsa_mpi_key *key, MPI m, MPI c)
+static int _rsa_dec_crt(const struct rsa_mpi_key *key, MPI m_or_m1_or_h, MPI c)
 {
+	MPI m2, m12_or_qh;
+	int ret = -ENOMEM;
+
 	/* (1) Validate 0 <= c < n */
 	if (mpi_cmp_ui(c, 0) < 0 || mpi_cmp(c, key->n) >= 0)
 		return -EINVAL;
 
-	/* (2) m = c^d mod n */
-	return mpi_powm(m, c, key->d, key->n);
+	m2 = mpi_alloc(0);
+	m12_or_qh = mpi_alloc(0);
+	if (!m2 || !m12_or_qh)
+		goto err_free_mpi;
+
+	/* (2i) m_1 = c^dP mod p */
+	ret = mpi_powm(m_or_m1_or_h, c, key->dp, key->p);
+	if (ret)
+		goto err_free_mpi;
+
+	/* (2i) m_2 = c^dQ mod q */
+	ret = mpi_powm(m2, c, key->dq, key->q);
+	if (ret)
+		goto err_free_mpi;
+
+	/* (2iii) h = (m_1 - m_2) * qInv mod p */
+	mpi_sub(m12_or_qh, m_or_m1_or_h, m2);
+	mpi_mulm(m_or_m1_or_h, m12_or_qh, key->qinv, key->p);
+
+	/* (2iv) m = m_2 + q * h */
+	mpi_mul(m12_or_qh, key->q, m_or_m1_or_h);
+	mpi_addm(m_or_m1_or_h, m2, m12_or_qh, key->n);
+
+	ret = 0;
+
+err_free_mpi:
+	mpi_free(m12_or_qh);
+	mpi_free(m2);
+	return ret;
 }
 
 static inline struct rsa_mpi_key *rsa_get_key(struct crypto_akcipher *tfm)
@@ -112,7 +150,7 @@ static int rsa_dec(struct akcipher_request *req)
 	if (!c)
 		goto err_free_m;
 
-	ret = _rsa_dec(pkey, m, c);
+	ret = _rsa_dec_crt(pkey, m, c);
 	if (ret)
 		goto err_free_c;
 
@@ -134,9 +172,19 @@ static void rsa_free_mpi_key(struct rsa_mpi_key *key)
 	mpi_free(key->d);
 	mpi_free(key->e);
 	mpi_free(key->n);
+	mpi_free(key->p);
+	mpi_free(key->q);
+	mpi_free(key->dp);
+	mpi_free(key->dq);
+	mpi_free(key->qinv);
 	key->d = NULL;
 	key->e = NULL;
 	key->n = NULL;
+	key->p = NULL;
+	key->q = NULL;
+	key->dp = NULL;
+	key->dq = NULL;
+	key->qinv = NULL;
 }
 
 static int rsa_check_key_length(unsigned int len)
@@ -215,6 +263,26 @@ static int rsa_set_priv_key(struct crypto_akcipher *tfm, const void *key,
 
 	mpi_key->n = mpi_read_raw_data(raw_key.n, raw_key.n_sz);
 	if (!mpi_key->n)
+		goto err;
+
+	mpi_key->p = mpi_read_raw_data(raw_key.p, raw_key.p_sz);
+	if (!mpi_key->p)
+		goto err;
+
+	mpi_key->q = mpi_read_raw_data(raw_key.q, raw_key.q_sz);
+	if (!mpi_key->q)
+		goto err;
+
+	mpi_key->dp = mpi_read_raw_data(raw_key.dp, raw_key.dp_sz);
+	if (!mpi_key->dp)
+		goto err;
+
+	mpi_key->dq = mpi_read_raw_data(raw_key.dq, raw_key.dq_sz);
+	if (!mpi_key->dq)
+		goto err;
+
+	mpi_key->qinv = mpi_read_raw_data(raw_key.qinv, raw_key.qinv_sz);
+	if (!mpi_key->qinv)
 		goto err;
 
 	if (rsa_check_key_length(mpi_get_size(mpi_key->n) << 3)) {

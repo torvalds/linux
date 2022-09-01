@@ -97,6 +97,10 @@ static int reconn_set_ipaddr_from_hostname(struct TCP_Server_Info *server)
 	if (!server->hostname)
 		return -EINVAL;
 
+	/* if server hostname isn't populated, there's nothing to do here */
+	if (server->hostname[0] == '\0')
+		return 0;
+
 	len = strlen(server->hostname) + 3;
 
 	unc = kmalloc(len, GFP_KERNEL);
@@ -141,6 +145,25 @@ requeue_resolve:
 	return rc;
 }
 
+static void smb2_query_server_interfaces(struct work_struct *work)
+{
+	int rc;
+	struct cifs_tcon *tcon = container_of(work,
+					struct cifs_tcon,
+					query_interfaces.work);
+
+	/*
+	 * query server network interfaces, in case they change
+	 */
+	rc = SMB3_request_interfaces(0, tcon);
+	if (rc) {
+		cifs_dbg(FYI, "%s: failed to query server interfaces: %d\n",
+				__func__, rc);
+	}
+
+	queue_delayed_work(cifsiod_wq, &tcon->query_interfaces,
+			   (SMB_INTERFACE_POLL_INTERVAL * HZ));
+}
 
 static void cifs_resolve_server(struct work_struct *work)
 {
@@ -148,7 +171,7 @@ static void cifs_resolve_server(struct work_struct *work)
 	struct TCP_Server_Info *server = container_of(work,
 					struct TCP_Server_Info, resolve.work);
 
-	mutex_lock(&server->srv_mutex);
+	cifs_server_lock(server);
 
 	/*
 	 * Resolve the hostname again to make sure that IP address is up-to-date.
@@ -159,7 +182,7 @@ static void cifs_resolve_server(struct work_struct *work)
 				__func__, rc);
 	}
 
-	mutex_unlock(&server->srv_mutex);
+	cifs_server_unlock(server);
 }
 
 /*
@@ -213,7 +236,7 @@ cifs_mark_tcp_ses_conns_for_reconnect(struct TCP_Server_Info *server,
 				      bool mark_smb_session)
 {
 	struct TCP_Server_Info *pserver;
-	struct cifs_ses *ses;
+	struct cifs_ses *ses, *nses;
 	struct cifs_tcon *tcon;
 
 	/*
@@ -227,7 +250,20 @@ cifs_mark_tcp_ses_conns_for_reconnect(struct TCP_Server_Info *server,
 
 
 	spin_lock(&cifs_tcp_ses_lock);
-	list_for_each_entry(ses, &pserver->smb_ses_list, smb_ses_list) {
+	list_for_each_entry_safe(ses, nses, &pserver->smb_ses_list, smb_ses_list) {
+		/* check if iface is still active */
+		if (!cifs_chan_is_iface_active(ses, server)) {
+			/*
+			 * HACK: drop the lock before calling
+			 * cifs_chan_update_iface to avoid deadlock
+			 */
+			ses->ses_count++;
+			spin_unlock(&cifs_tcp_ses_lock);
+			cifs_chan_update_iface(ses, server);
+			spin_lock(&cifs_tcp_ses_lock);
+			ses->ses_count--;
+		}
+
 		spin_lock(&ses->chan_lock);
 		if (!mark_smb_session && cifs_chan_needs_reconnect(ses, server))
 			goto next_session;
@@ -267,7 +303,7 @@ cifs_abort_connection(struct TCP_Server_Info *server)
 
 	/* do not want to be sending data on a socket we are freeing */
 	cifs_dbg(FYI, "%s: tearing down socket\n", __func__);
-	mutex_lock(&server->srv_mutex);
+	cifs_server_lock(server);
 	if (server->ssocket) {
 		cifs_dbg(FYI, "State: 0x%x Flags: 0x%lx\n", server->ssocket->state,
 			 server->ssocket->flags);
@@ -296,7 +332,7 @@ cifs_abort_connection(struct TCP_Server_Info *server)
 		mid->mid_flags |= MID_DELETED;
 	}
 	spin_unlock(&GlobalMid_Lock);
-	mutex_unlock(&server->srv_mutex);
+	cifs_server_unlock(server);
 
 	cifs_dbg(FYI, "%s: issuing mid callbacks\n", __func__);
 	list_for_each_entry_safe(mid, nmid, &retry_list, qhead) {
@@ -306,9 +342,9 @@ cifs_abort_connection(struct TCP_Server_Info *server)
 	}
 
 	if (cifs_rdma_enabled(server)) {
-		mutex_lock(&server->srv_mutex);
+		cifs_server_lock(server);
 		smbd_destroy(server);
-		mutex_unlock(&server->srv_mutex);
+		cifs_server_unlock(server);
 	}
 }
 
@@ -359,7 +395,7 @@ static int __cifs_reconnect(struct TCP_Server_Info *server,
 
 	do {
 		try_to_freeze();
-		mutex_lock(&server->srv_mutex);
+		cifs_server_lock(server);
 
 		if (!cifs_swn_set_server_dstaddr(server)) {
 			/* resolve the hostname again to make sure that IP address is up-to-date */
@@ -372,7 +408,7 @@ static int __cifs_reconnect(struct TCP_Server_Info *server,
 		else
 			rc = generic_ip_connect(server);
 		if (rc) {
-			mutex_unlock(&server->srv_mutex);
+			cifs_server_unlock(server);
 			cifs_dbg(FYI, "%s: reconnect error %d\n", __func__, rc);
 			msleep(3000);
 		} else {
@@ -383,7 +419,7 @@ static int __cifs_reconnect(struct TCP_Server_Info *server,
 				server->tcpStatus = CifsNeedNegotiate;
 			spin_unlock(&cifs_tcp_ses_lock);
 			cifs_swn_reset_server_dstaddr(server);
-			mutex_unlock(&server->srv_mutex);
+			cifs_server_unlock(server);
 			mod_delayed_work(cifsiod_wq, &server->reconnect, 0);
 		}
 	} while (server->tcpStatus == CifsNeedReconnect);
@@ -488,12 +524,12 @@ static int reconnect_dfs_server(struct TCP_Server_Info *server)
 
 	do {
 		try_to_freeze();
-		mutex_lock(&server->srv_mutex);
+		cifs_server_lock(server);
 
 		rc = reconnect_target_unlocked(server, &tl, &target_hint);
 		if (rc) {
 			/* Failed to reconnect socket */
-			mutex_unlock(&server->srv_mutex);
+			cifs_server_unlock(server);
 			cifs_dbg(FYI, "%s: reconnect error %d\n", __func__, rc);
 			msleep(3000);
 			continue;
@@ -510,7 +546,7 @@ static int reconnect_dfs_server(struct TCP_Server_Info *server)
 			server->tcpStatus = CifsNeedNegotiate;
 		spin_unlock(&cifs_tcp_ses_lock);
 		cifs_swn_reset_server_dstaddr(server);
-		mutex_unlock(&server->srv_mutex);
+		cifs_server_unlock(server);
 		mod_delayed_work(cifsiod_wq, &server->reconnect, 0);
 	} while (server->tcpStatus == CifsNeedReconnect);
 
@@ -1565,7 +1601,7 @@ cifs_get_tcp_session(struct smb3_fs_context *ctx,
 	init_waitqueue_head(&tcp_ses->response_q);
 	init_waitqueue_head(&tcp_ses->request_q);
 	INIT_LIST_HEAD(&tcp_ses->pending_mid_q);
-	mutex_init(&tcp_ses->srv_mutex);
+	mutex_init(&tcp_ses->_srv_mutex);
 	memcpy(tcp_ses->workstation_RFC1001_name,
 		ctx->source_rfc1001_name, RFC1001_NAME_LEN_WITH_NULL);
 	memcpy(tcp_ses->server_RFC1001_name,
@@ -1845,7 +1881,6 @@ void cifs_put_smb_ses(struct cifs_ses *ses)
 	unsigned int rc, xid;
 	unsigned int chan_count;
 	struct TCP_Server_Info *server = ses->server;
-	cifs_dbg(FYI, "%s: ses_count=%d\n", __func__, ses->ses_count);
 
 	spin_lock(&cifs_tcp_ses_lock);
 	if (ses->ses_status == SES_EXITING) {
@@ -1883,7 +1918,6 @@ void cifs_put_smb_ses(struct cifs_ses *ses)
 	list_del_init(&ses->smb_ses_list);
 	spin_unlock(&cifs_tcp_ses_lock);
 
-	spin_lock(&ses->chan_lock);
 	chan_count = ses->chan_count;
 
 	/* close any extra channels */
@@ -1891,13 +1925,14 @@ void cifs_put_smb_ses(struct cifs_ses *ses)
 		int i;
 
 		for (i = 1; i < chan_count; i++) {
-			spin_unlock(&ses->chan_lock);
+			if (ses->chans[i].iface) {
+				kref_put(&ses->chans[i].iface->refcount, release_iface);
+				ses->chans[i].iface = NULL;
+			}
 			cifs_put_tcp_session(ses->chans[i].server, 0);
-			spin_lock(&ses->chan_lock);
 			ses->chans[i].server = NULL;
 		}
 	}
-	spin_unlock(&ses->chan_lock);
 
 	sesInfoFree(ses);
 	cifs_put_tcp_session(server, 0);
@@ -2267,6 +2302,9 @@ cifs_put_tcon(struct cifs_tcon *tcon)
 	list_del_init(&tcon->tcon_list);
 	spin_unlock(&cifs_tcp_ses_lock);
 
+	/* cancel polling of interfaces */
+	cancel_delayed_work_sync(&tcon->query_interfaces);
+
 	if (tcon->use_witness) {
 		int rc;
 
@@ -2503,6 +2541,12 @@ cifs_get_tcon(struct cifs_ses *ses, struct smb3_fs_context *ctx)
 	tcon->nodelete = ctx->nodelete;
 	tcon->local_lease = ctx->local_lease;
 	INIT_LIST_HEAD(&tcon->pending_opens);
+
+	/* schedule query interfaces poll */
+	INIT_DELAYED_WORK(&tcon->query_interfaces,
+			  smb2_query_server_interfaces);
+	queue_delayed_work(cifsiod_wq, &tcon->query_interfaces,
+			   (SMB_INTERFACE_POLL_INTERVAL * HZ));
 
 	spin_lock(&cifs_tcp_ses_lock);
 	list_add(&tcon->tcon_list, &ses->tcon_list);
@@ -3979,10 +4023,16 @@ cifs_setup_session(const unsigned int xid, struct cifs_ses *ses,
 		   struct nls_table *nls_info)
 {
 	int rc = -ENOSYS;
+	struct sockaddr_in6 *addr6 = (struct sockaddr_in6 *)&server->dstaddr;
+	struct sockaddr_in *addr = (struct sockaddr_in *)&server->dstaddr;
 	bool is_binding = false;
 
-
 	spin_lock(&cifs_tcp_ses_lock);
+	if (server->dstaddr.ss_family == AF_INET6)
+		scnprintf(ses->ip_addr, sizeof(ses->ip_addr), "%pI6", &addr6->sin6_addr);
+	else
+		scnprintf(ses->ip_addr, sizeof(ses->ip_addr), "%pI4", &addr->sin_addr);
+
 	if (ses->ses_status != SES_GOOD &&
 	    ses->ses_status != SES_NEW &&
 	    ses->ses_status != SES_NEED_RECON) {

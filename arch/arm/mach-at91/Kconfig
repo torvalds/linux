@@ -219,7 +219,7 @@ config SOC_SAMA5
 	select SRAM if PM
 
 config ATMEL_PM
-	bool "Atmel PM support"
+	bool
 
 config ATMEL_SECURE_PM
 	bool "Atmel Secure PM support"

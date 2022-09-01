@@ -85,17 +85,9 @@ static int sp_get_irqs(struct sp_device *sp)
 	struct sp_platform *sp_platform = sp->dev_specific;
 	struct device *dev = sp->dev;
 	struct platform_device *pdev = to_platform_device(dev);
-	unsigned int i, count;
 	int ret;
 
-	for (i = 0, count = 0; i < pdev->num_resources; i++) {
-		struct resource *res = &pdev->resource[i];
-
-		if (resource_type(res) == IORESOURCE_IRQ)
-			count++;
-	}
-
-	sp_platform->irq_count = count;
+	sp_platform->irq_count = platform_irq_count(pdev);
 
 	ret = platform_get_irq(pdev, 0);
 	if (ret < 0) {
@@ -104,7 +96,7 @@ static int sp_get_irqs(struct sp_device *sp)
 	}
 
 	sp->psp_irq = ret;
-	if (count == 1) {
+	if (sp_platform->irq_count == 1) {
 		sp->ccp_irq = ret;
 	} else {
 		ret = platform_get_irq(pdev, 1);

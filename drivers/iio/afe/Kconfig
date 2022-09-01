@@ -8,7 +8,6 @@ menu "Analog Front Ends"
 
 config IIO_RESCALE
 	tristate "IIO rescale"
-	depends on OF || COMPILE_TEST
 	help
 	  Say yes here to build support for the IIO rescaling
 	  that handles voltage dividers, current sense shunts and

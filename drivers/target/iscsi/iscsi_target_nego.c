@@ -62,36 +62,64 @@ int extract_param(
 	int len;
 
 	if (!in_buf || !pattern || !out_buf || !type)
-		return -1;
+		return -EINVAL;
 
 	ptr = strstr(in_buf, pattern);
 	if (!ptr)
-		return -1;
+		return -ENOENT;
 
 	ptr = strstr(ptr, "=");
 	if (!ptr)
-		return -1;
+		return -EINVAL;
 
 	ptr += 1;
 	if (*ptr == '0' && (*(ptr+1) == 'x' || *(ptr+1) == 'X')) {
 		ptr += 2; /* skip 0x */
 		*type = HEX;
+	} else if (*ptr == '0' && (*(ptr+1) == 'b' || *(ptr+1) == 'B')) {
+		ptr += 2; /* skip 0b */
+		*type = BASE64;
 	} else
 		*type = DECIMAL;
 
 	len = strlen_semi(ptr);
 	if (len < 0)
-		return -1;
+		return -EINVAL;
 
 	if (len >= max_length) {
 		pr_err("Length of input: %d exceeds max_length:"
 			" %d\n", len, max_length);
-		return -1;
+		return -EINVAL;
 	}
 	memcpy(out_buf, ptr, len);
 	out_buf[len] = '\0';
 
 	return 0;
+}
+
+static struct iscsi_node_auth *iscsi_get_node_auth(struct iscsit_conn *conn)
+{
+	struct iscsi_portal_group *tpg;
+	struct iscsi_node_acl *nacl;
+	struct se_node_acl *se_nacl;
+
+	if (conn->sess->sess_ops->SessionType)
+		return &iscsit_global->discovery_acl.node_auth;
+
+	se_nacl = conn->sess->se_sess->se_node_acl;
+	if (!se_nacl) {
+		pr_err("Unable to locate struct se_node_acl for CHAP auth\n");
+		return NULL;
+	}
+
+	if (se_nacl->dynamic_node_acl) {
+		tpg = to_iscsi_tpg(se_nacl->se_tpg);
+		return &tpg->tpg_demo_auth;
+	}
+
+	nacl = to_iscsi_nacl(se_nacl);
+
+	return &nacl->node_auth;
 }
 
 static u32 iscsi_handle_authentication(
@@ -102,40 +130,11 @@ static u32 iscsi_handle_authentication(
 	int *out_length,
 	unsigned char *authtype)
 {
-	struct iscsit_session *sess = conn->sess;
 	struct iscsi_node_auth *auth;
-	struct iscsi_node_acl *iscsi_nacl;
-	struct iscsi_portal_group *iscsi_tpg;
-	struct se_node_acl *se_nacl;
 
-	if (!sess->sess_ops->SessionType) {
-		/*
-		 * For SessionType=Normal
-		 */
-		se_nacl = conn->sess->se_sess->se_node_acl;
-		if (!se_nacl) {
-			pr_err("Unable to locate struct se_node_acl for"
-					" CHAP auth\n");
-			return -1;
-		}
-
-		if (se_nacl->dynamic_node_acl) {
-			iscsi_tpg = container_of(se_nacl->se_tpg,
-					struct iscsi_portal_group, tpg_se_tpg);
-
-			auth = &iscsi_tpg->tpg_demo_auth;
-		} else {
-			iscsi_nacl = container_of(se_nacl, struct iscsi_node_acl,
-						  se_node_acl);
-
-			auth = &iscsi_nacl->node_auth;
-		}
-	} else {
-		/*
-		 * For SessionType=Discovery
-		 */
-		auth = &iscsit_global->discovery_acl.node_auth;
-	}
+	auth = iscsi_get_node_auth(conn);
+	if (!auth)
+		return -1;
 
 	if (strstr("CHAP", authtype))
 		strcpy(conn->sess->auth_type, "CHAP");
@@ -815,6 +814,42 @@ static int iscsi_target_do_authentication(
 	return 0;
 }
 
+bool iscsi_conn_auth_required(struct iscsit_conn *conn)
+{
+	struct iscsi_node_acl *nacl;
+	struct se_node_acl *se_nacl;
+
+	if (conn->sess->sess_ops->SessionType) {
+		/*
+		 * For SessionType=Discovery
+		 */
+		return conn->tpg->tpg_attrib.authentication;
+	}
+	/*
+	 * For SessionType=Normal
+	 */
+	se_nacl = conn->sess->se_sess->se_node_acl;
+	if (!se_nacl) {
+		pr_debug("Unknown ACL is trying to connect\n");
+		return true;
+	}
+
+	if (se_nacl->dynamic_node_acl) {
+		pr_debug("Dynamic ACL %s is trying to connect\n",
+			 se_nacl->initiatorname);
+		return conn->tpg->tpg_attrib.authentication;
+	}
+
+	pr_debug("Known ACL %s is trying to connect\n",
+		 se_nacl->initiatorname);
+
+	nacl = to_iscsi_nacl(se_nacl);
+	if (nacl->node_attrib.authentication == NA_AUTHENTICATION_INHERITED)
+		return conn->tpg->tpg_attrib.authentication;
+
+	return nacl->node_attrib.authentication;
+}
+
 static int iscsi_target_handle_csg_zero(
 	struct iscsit_conn *conn,
 	struct iscsi_login *login)
@@ -876,22 +911,26 @@ static int iscsi_target_handle_csg_zero(
 		return -1;
 
 	if (!iscsi_check_negotiated_keys(conn->param_list)) {
-		if (conn->tpg->tpg_attrib.authentication &&
-		    !strncmp(param->value, NONE, 4)) {
-			pr_err("Initiator sent AuthMethod=None but"
-				" Target is enforcing iSCSI Authentication,"
-					" login failed.\n");
-			iscsit_tx_login_rsp(conn, ISCSI_STATUS_CLS_INITIATOR_ERR,
-					ISCSI_LOGIN_STATUS_AUTH_FAILED);
-			return -1;
+		bool auth_required = iscsi_conn_auth_required(conn);
+
+		if (auth_required) {
+			if (!strncmp(param->value, NONE, 4)) {
+				pr_err("Initiator sent AuthMethod=None but"
+				       " Target is enforcing iSCSI Authentication,"
+				       " login failed.\n");
+				iscsit_tx_login_rsp(conn,
+						ISCSI_STATUS_CLS_INITIATOR_ERR,
+						ISCSI_LOGIN_STATUS_AUTH_FAILED);
+				return -1;
+			}
+
+			if (!login->auth_complete)
+				return 0;
+
+			if (strncmp(param->value, NONE, 4) &&
+			    !login->auth_complete)
+				return 0;
 		}
-
-		if (conn->tpg->tpg_attrib.authentication &&
-		    !login->auth_complete)
-			return 0;
-
-		if (strncmp(param->value, NONE, 4) && !login->auth_complete)
-			return 0;
 
 		if ((login_req->flags & ISCSI_FLAG_LOGIN_NEXT_STAGE1) &&
 		    (login_req->flags & ISCSI_FLAG_LOGIN_TRANSIT)) {
@@ -904,6 +943,18 @@ static int iscsi_target_handle_csg_zero(
 	return 0;
 do_auth:
 	return iscsi_target_do_authentication(conn, login);
+}
+
+static bool iscsi_conn_authenticated(struct iscsit_conn *conn,
+				     struct iscsi_login *login)
+{
+	if (!iscsi_conn_auth_required(conn))
+		return true;
+
+	if (login->auth_complete)
+		return true;
+
+	return false;
 }
 
 static int iscsi_target_handle_csg_one(struct iscsit_conn *conn, struct iscsi_login *login)
@@ -949,11 +1000,10 @@ static int iscsi_target_handle_csg_one(struct iscsit_conn *conn, struct iscsi_lo
 		return -1;
 	}
 
-	if (!login->auth_complete &&
-	     conn->tpg->tpg_attrib.authentication) {
+	if (!iscsi_conn_authenticated(conn, login)) {
 		pr_err("Initiator is requesting CSG: 1, has not been"
-			 " successfully authenticated, and the Target is"
-			" enforcing iSCSI Authentication, login failed.\n");
+		       " successfully authenticated, and the Target is"
+		       " enforcing iSCSI Authentication, login failed.\n");
 		iscsit_tx_login_rsp(conn, ISCSI_STATUS_CLS_INITIATOR_ERR,
 				ISCSI_LOGIN_STATUS_AUTH_FAILED);
 		return -1;

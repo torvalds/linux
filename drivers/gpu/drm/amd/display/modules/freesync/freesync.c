@@ -23,8 +23,6 @@
  *
  */
 
-#include <linux/slab.h>
-
 #include "dm_services.h"
 #include "dc.h"
 #include "mod_freesync.h"
@@ -1372,6 +1370,11 @@ unsigned long long mod_freesync_calc_field_rate_from_timing(
 	field_rate_in_uhz =	div_u64(field_rate_in_uhz, total);
 
 	return field_rate_in_uhz;
+}
+
+bool mod_freesync_get_freesync_enabled(struct mod_vrr_params *pVrr)
+{
+	return (pVrr->state != VRR_STATE_UNSUPPORTED) && (pVrr->state != VRR_STATE_DISABLED);
 }
 
 bool mod_freesync_is_valid_range(uint32_t min_refresh_cap_in_uhz,

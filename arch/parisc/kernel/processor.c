@@ -327,8 +327,6 @@ int init_per_cpu(int cpunum)
 	set_firmware_width();
 	ret = pdc_coproc_cfg(&coproc_cfg);
 
-	store_cpu_topology(cpunum);
-
 	if(ret >= 0 && coproc_cfg.ccr_functional) {
 		mtctl(coproc_cfg.ccr_functional, 10);  /* 10 == Coprocessor Control Reg */
 

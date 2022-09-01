@@ -62,12 +62,12 @@ void v9fs_cache_inode_get_cookie(struct inode *inode)
 	version = cpu_to_le32(v9inode->qid.version);
 	path = cpu_to_le64(v9inode->qid.path);
 	v9ses = v9fs_inode2v9ses(inode);
-	v9inode->netfs_ctx.cache =
+	v9inode->netfs.cache =
 		fscache_acquire_cookie(v9fs_session_cache(v9ses),
 				       0,
 				       &path, sizeof(path),
 				       &version, sizeof(version),
-				       i_size_read(&v9inode->vfs_inode));
+				       i_size_read(&v9inode->netfs.inode));
 
 	p9_debug(P9_DEBUG_FSC, "inode %p get cookie %p\n",
 		 inode, v9fs_inode_cookie(v9inode));

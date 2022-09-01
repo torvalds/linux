@@ -8,6 +8,7 @@
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/input/gpio-keys.h>
 #include <dt-bindings/input/input.h>
+#include <dt-bindings/leds/common.h>
 #include <dt-bindings/regulator/qcom,rpmh-regulator.h>
 #include <dt-bindings/sound/sc7180-lpass.h>
 
@@ -43,6 +44,7 @@
  */
 
 /delete-node/ &hyp_mem;
+/delete-node/ &ipa_fw_mem;
 /delete-node/ &xbl_mem;
 /delete-node/ &aop_mem;
 /delete-node/ &sec_apps_mem;
@@ -330,7 +332,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&pen_pdct_l>;
 
-		pen_insert: pen-insert {
+		pen_insert: switch-pen-insert {
 			label = "Pen Insert";
 
 			/* Insert = low, eject = high */
@@ -355,6 +357,7 @@
 		keyboard_backlight: keyboard-backlight {
 			status = "disabled";
 			label = "cros_ec::kbd_backlight";
+			function = LED_FUNCTION_KBD_BACKLIGHT;
 			pwms = <&cros_ec_pwm 0>;
 			max-brightness = <1023>;
 		};
@@ -812,8 +815,6 @@ hp_i2c: &i2c9 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&dp_hot_plug_det>;
 	data-lanes = <0 1>;
-	vdda-1p2-supply = <&vdda_usb_ss_dp_1p2>;
-	vdda-0p9-supply = <&vdda_usb_ss_dp_core>;
 };
 
 &pm6150_adc {
@@ -903,7 +904,6 @@ ap_spi_fp: &spi10 {
 	};
 };
 
-#include <arm/cros-ec-keyboard.dtsi>
 #include <arm/cros-ec-sbs.dtsi>
 
 &uart3 {

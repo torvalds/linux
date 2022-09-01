@@ -266,8 +266,8 @@ static void nvme_loop_destroy_admin_queue(struct nvme_loop_ctrl *ctrl)
 	if (!test_and_clear_bit(NVME_LOOP_Q_LIVE, &ctrl->queues[0].flags))
 		return;
 	nvmet_sq_destroy(&ctrl->queues[0].nvme_sq);
-	blk_cleanup_queue(ctrl->ctrl.admin_q);
-	blk_cleanup_queue(ctrl->ctrl.fabrics_q);
+	blk_mq_destroy_queue(ctrl->ctrl.admin_q);
+	blk_mq_destroy_queue(ctrl->ctrl.fabrics_q);
 	blk_mq_free_tag_set(&ctrl->admin_tag_set);
 }
 
@@ -283,7 +283,7 @@ static void nvme_loop_free_ctrl(struct nvme_ctrl *nctrl)
 	mutex_unlock(&nvme_loop_ctrl_mutex);
 
 	if (nctrl->tagset) {
-		blk_cleanup_queue(ctrl->ctrl.connect_q);
+		blk_mq_destroy_queue(ctrl->ctrl.connect_q);
 		blk_mq_free_tag_set(&ctrl->tag_set);
 	}
 	kfree(ctrl->queues);
@@ -410,9 +410,9 @@ static int nvme_loop_configure_admin_queue(struct nvme_loop_ctrl *ctrl)
 
 out_cleanup_queue:
 	clear_bit(NVME_LOOP_Q_LIVE, &ctrl->queues[0].flags);
-	blk_cleanup_queue(ctrl->ctrl.admin_q);
+	blk_mq_destroy_queue(ctrl->ctrl.admin_q);
 out_cleanup_fabrics_q:
-	blk_cleanup_queue(ctrl->ctrl.fabrics_q);
+	blk_mq_destroy_queue(ctrl->ctrl.fabrics_q);
 out_free_tagset:
 	blk_mq_free_tag_set(&ctrl->admin_tag_set);
 out_free_sq:
@@ -424,9 +424,7 @@ static void nvme_loop_shutdown_ctrl(struct nvme_loop_ctrl *ctrl)
 {
 	if (ctrl->ctrl.queue_count > 1) {
 		nvme_stop_queues(&ctrl->ctrl);
-		blk_mq_tagset_busy_iter(&ctrl->tag_set,
-					nvme_cancel_request, &ctrl->ctrl);
-		blk_mq_tagset_wait_completed_request(&ctrl->tag_set);
+		nvme_cancel_tagset(&ctrl->ctrl);
 		nvme_loop_destroy_io_queues(ctrl);
 	}
 
@@ -434,9 +432,7 @@ static void nvme_loop_shutdown_ctrl(struct nvme_loop_ctrl *ctrl)
 	if (ctrl->ctrl.state == NVME_CTRL_LIVE)
 		nvme_shutdown_ctrl(&ctrl->ctrl);
 
-	blk_mq_tagset_busy_iter(&ctrl->admin_tag_set,
-				nvme_cancel_request, &ctrl->ctrl);
-	blk_mq_tagset_wait_completed_request(&ctrl->admin_tag_set);
+	nvme_cancel_admin_tagset(&ctrl->ctrl);
 	nvme_loop_destroy_admin_queue(ctrl);
 }
 
@@ -554,7 +550,7 @@ static int nvme_loop_create_io_queues(struct nvme_loop_ctrl *ctrl)
 	return 0;
 
 out_cleanup_connect_q:
-	blk_cleanup_queue(ctrl->ctrl.connect_q);
+	blk_mq_destroy_queue(ctrl->ctrl.connect_q);
 out_free_tagset:
 	blk_mq_free_tag_set(&ctrl->tag_set);
 out_destroy_queues:

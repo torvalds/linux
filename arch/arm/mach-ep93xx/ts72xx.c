@@ -150,7 +150,7 @@ static struct platform_device ts72xx_nand_flash = {
 	.num_resources		= ARRAY_SIZE(ts72xx_nand_resource),
 };
 
-void __init ts72xx_register_flash(struct mtd_partition *parts, int n,
+static void __init ts72xx_register_flash(struct mtd_partition *parts, int n,
 				  resource_size_t start)
 {
 	/*

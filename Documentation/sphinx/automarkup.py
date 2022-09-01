@@ -121,13 +121,20 @@ def markup_refs(docname, app, node):
     return repl
 
 #
+# Keep track of cross-reference lookups that failed so we don't have to
+# do them again.
+#
+failed_lookups = { }
+def failure_seen(target):
+    return (target) in failed_lookups
+def note_failure(target):
+    failed_lookups[target] = True
+
+#
 # In sphinx3 we can cross-reference to C macro and function, each one with its
 # own C role, but both match the same regex, so we try both.
 #
 def markup_func_ref_sphinx3(docname, app, match):
-    class_str = ['c-func', 'c-macro']
-    reftype_str = ['function', 'macro']
-
     cdom = app.env.domains['c']
     #
     # Go through the dance of getting an xref out of the C domain
@@ -143,27 +150,28 @@ def markup_func_ref_sphinx3(docname, app, match):
 
     if base_target not in Skipnames:
         for target in possible_targets:
-            if target not in Skipfuncs:
-                for class_s, reftype_s in zip(class_str, reftype_str):
-                    lit_text = nodes.literal(classes=['xref', 'c', class_s])
-                    lit_text += target_text
-                    pxref = addnodes.pending_xref('', refdomain = 'c',
-                                                  reftype = reftype_s,
-                                                  reftarget = target, modname = None,
-                                                  classname = None)
-                    #
-                    # XXX The Latex builder will throw NoUri exceptions here,
-                    # work around that by ignoring them.
-                    #
-                    try:
-                        xref = cdom.resolve_xref(app.env, docname, app.builder,
-                                                 reftype_s, target, pxref,
-                                                 lit_text)
-                    except NoUri:
-                        xref = None
+            if (target not in Skipfuncs) and not failure_seen(target):
+                lit_text = nodes.literal(classes=['xref', 'c', 'c-func'])
+                lit_text += target_text
+                pxref = addnodes.pending_xref('', refdomain = 'c',
+                                              reftype = 'function',
+                                              reftarget = target,
+                                              modname = None,
+                                              classname = None)
+                #
+                # XXX The Latex builder will throw NoUri exceptions here,
+                # work around that by ignoring them.
+                #
+                try:
+                    xref = cdom.resolve_xref(app.env, docname, app.builder,
+                                             'function', target, pxref,
+                                             lit_text)
+                except NoUri:
+                    xref = None
 
-                    if xref:
-                        return xref
+                if xref:
+                    return xref
+                note_failure(target)
 
     return target_text
 

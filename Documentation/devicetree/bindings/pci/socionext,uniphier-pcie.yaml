@@ -51,6 +51,19 @@ properties:
   phy-names:
     const: pcie-phy
 
+  interrupt-controller:
+    type: object
+    additionalProperties: false
+
+    properties:
+      interrupt-controller: true
+
+      '#interrupt-cells':
+        const: 1
+
+      interrupts:
+        maxItems: 1
+
 required:
   - compatible
   - reg
@@ -62,6 +75,13 @@ unevaluatedProperties: false
 
 examples:
   - |
+    bus {
+        gic: interrupt-controller {
+            interrupt-controller;
+            #interrupt-cells = <3>;
+        };
+    };
+
     pcie: pcie@66000000 {
         compatible = "socionext,uniphier-pcie";
         reg-names = "dbi", "link", "config";
@@ -80,6 +100,7 @@ examples:
         phys = <&pcie_phy>;
         #interrupt-cells = <1>;
         interrupt-names = "dma", "msi";
+        interrupt-parent = <&gic>;
         interrupts = <0 224 4>, <0 225 4>;
         interrupt-map-mask = <0 0 0  7>;
         interrupt-map = <0 0 0  1  &pcie_intc 0>,
@@ -87,7 +108,7 @@ examples:
                         <0 0 0  3  &pcie_intc 2>,
                         <0 0 0  4  &pcie_intc 3>;
 
-        pcie_intc: legacy-interrupt-controller {
+        pcie_intc: interrupt-controller {
             interrupt-controller;
             #interrupt-cells = <1>;
             interrupt-parent = <&gic>;

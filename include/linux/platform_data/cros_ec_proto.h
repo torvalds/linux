@@ -21,6 +21,9 @@
 #define CROS_EC_DEV_SCP_NAME	"cros_scp"
 #define CROS_EC_DEV_TP_NAME	"cros_tp"
 
+#define CROS_EC_DEV_EC_INDEX 0
+#define CROS_EC_DEV_PD_INDEX 1
+
 /*
  * The EC is unresponsive for a time after a reboot command.  Add a
  * simple delay to make sure that the bus stays locked.
@@ -231,8 +234,8 @@ bool cros_ec_check_features(struct cros_ec_dev *ec, int feature);
 
 int cros_ec_get_sensor_count(struct cros_ec_dev *ec);
 
-int cros_ec_command(struct cros_ec_device *ec_dev, unsigned int version, int command, void *outdata,
-		    int outsize, void *indata, int insize);
+int cros_ec_cmd(struct cros_ec_device *ec_dev, unsigned int version, int command, void *outdata,
+		    size_t outsize, void *indata, size_t insize);
 
 /**
  * cros_ec_get_time_ns() - Return time in ns.

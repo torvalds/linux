@@ -185,7 +185,7 @@ int mt7921u_init_reset(struct mt7921_dev *dev)
 	set_bit(MT76_RESET, &dev->mphy.state);
 
 	wake_up(&dev->mt76.mcu.wait);
-	mt7921_mcu_exit(dev);
+	skb_queue_purge(&dev->mt76.mcu.res_q);
 
 	mt76u_stop_rx(&dev->mt76);
 	mt76u_stop_tx(&dev->mt76);
@@ -208,7 +208,7 @@ int mt7921u_mac_reset(struct mt7921_dev *dev)
 	set_bit(MT76_MCU_RESET, &dev->mphy.state);
 
 	wake_up(&dev->mt76.mcu.wait);
-	mt7921_mcu_exit(dev);
+	skb_queue_purge(&dev->mt76.mcu.res_q);
 
 	mt76u_stop_rx(&dev->mt76);
 	mt76u_stop_tx(&dev->mt76);

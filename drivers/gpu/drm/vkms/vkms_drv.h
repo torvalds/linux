@@ -6,6 +6,7 @@
 #include <linux/hrtimer.h>
 
 #include <drm/drm.h>
+#include <drm/drm_framebuffer.h>
 #include <drm/drm_gem.h>
 #include <drm/drm_gem_atomic_helper.h>
 #include <drm/drm_encoder.h>

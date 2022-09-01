@@ -78,7 +78,7 @@ Required properties:
 - #clock-cells : from common clock binding; shall be set to 1 (multiple clock
   outputs).
 
-- clocks : must be set to the parent's phandle. it's could be output clocks of
+- clocks : must be set to the parent's phandle. it could be output clocks of
   a quadsfs or/and a pll or/and clk_sysin (up to 7 clocks)
 
 - clock-output-names : List of strings used to name the clock outputs.

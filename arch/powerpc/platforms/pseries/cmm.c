@@ -19,9 +19,6 @@
 #include <linux/stringify.h>
 #include <linux/swap.h>
 #include <linux/device.h>
-#include <linux/mount.h>
-#include <linux/pseudo_fs.h>
-#include <linux/magic.h>
 #include <linux/balloon_compaction.h>
 #include <asm/firmware.h>
 #include <asm/hvcall.h>
@@ -500,19 +497,6 @@ static struct notifier_block cmm_mem_nb = {
 };
 
 #ifdef CONFIG_BALLOON_COMPACTION
-static struct vfsmount *balloon_mnt;
-
-static int cmm_init_fs_context(struct fs_context *fc)
-{
-	return init_pseudo(fc, PPC_CMM_MAGIC) ? 0 : -ENOMEM;
-}
-
-static struct file_system_type balloon_fs = {
-	.name = "ppc-cmm",
-	.init_fs_context = cmm_init_fs_context,
-	.kill_sb = kill_anon_super,
-};
-
 static int cmm_migratepage(struct balloon_dev_info *b_dev_info,
 			   struct page *newpage, struct page *page,
 			   enum migrate_mode mode)
@@ -564,47 +548,13 @@ static int cmm_migratepage(struct balloon_dev_info *b_dev_info,
 	return MIGRATEPAGE_SUCCESS;
 }
 
-static int cmm_balloon_compaction_init(void)
+static void cmm_balloon_compaction_init(void)
 {
-	int rc;
-
 	balloon_devinfo_init(&b_dev_info);
 	b_dev_info.migratepage = cmm_migratepage;
-
-	balloon_mnt = kern_mount(&balloon_fs);
-	if (IS_ERR(balloon_mnt)) {
-		rc = PTR_ERR(balloon_mnt);
-		balloon_mnt = NULL;
-		return rc;
-	}
-
-	b_dev_info.inode = alloc_anon_inode(balloon_mnt->mnt_sb);
-	if (IS_ERR(b_dev_info.inode)) {
-		rc = PTR_ERR(b_dev_info.inode);
-		b_dev_info.inode = NULL;
-		kern_unmount(balloon_mnt);
-		balloon_mnt = NULL;
-		return rc;
-	}
-
-	b_dev_info.inode->i_mapping->a_ops = &balloon_aops;
-	return 0;
-}
-static void cmm_balloon_compaction_deinit(void)
-{
-	if (b_dev_info.inode)
-		iput(b_dev_info.inode);
-	b_dev_info.inode = NULL;
-	kern_unmount(balloon_mnt);
-	balloon_mnt = NULL;
 }
 #else /* CONFIG_BALLOON_COMPACTION */
-static int cmm_balloon_compaction_init(void)
-{
-	return 0;
-}
-
-static void cmm_balloon_compaction_deinit(void)
+static void cmm_balloon_compaction_init(void)
 {
 }
 #endif /* CONFIG_BALLOON_COMPACTION */
@@ -622,9 +572,7 @@ static int cmm_init(void)
 	if (!firmware_has_feature(FW_FEATURE_CMO) && !simulate)
 		return -EOPNOTSUPP;
 
-	rc = cmm_balloon_compaction_init();
-	if (rc)
-		return rc;
+	cmm_balloon_compaction_init();
 
 	rc = register_oom_notifier(&cmm_oom_nb);
 	if (rc < 0)
@@ -658,7 +606,6 @@ out_reboot_notifier:
 out_oom_notifier:
 	unregister_oom_notifier(&cmm_oom_nb);
 out_balloon_compaction:
-	cmm_balloon_compaction_deinit();
 	return rc;
 }
 
@@ -677,7 +624,6 @@ static void cmm_exit(void)
 	unregister_memory_notifier(&cmm_mem_nb);
 	cmm_free_pages(atomic_long_read(&loaned_pages));
 	cmm_unregister_sysfs(&cmm_dev);
-	cmm_balloon_compaction_deinit();
 }
 
 /**

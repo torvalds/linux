@@ -7,7 +7,7 @@
 #define MAX_RESOURCE_DMA	2
 
 /* structure for describing the on-chip devices */
-struct pxa_device_desc {
+struct mmp_device_desc {
 	const char	*dev_name;
 	const char	*drv_name;
 	int		id;
@@ -18,7 +18,7 @@ struct pxa_device_desc {
 };
 
 #define PXA168_DEVICE(_name, _drv, _id, _irq, _start, _size, _dma...)	\
-struct pxa_device_desc pxa168_device_##_name __initdata = {		\
+struct mmp_device_desc pxa168_device_##_name __initdata = {		\
 	.dev_name	= "pxa168-" #_name,				\
 	.drv_name	= _drv,						\
 	.id		= _id,						\
@@ -29,7 +29,7 @@ struct pxa_device_desc pxa168_device_##_name __initdata = {		\
 };
 
 #define PXA910_DEVICE(_name, _drv, _id, _irq, _start, _size, _dma...)	\
-struct pxa_device_desc pxa910_device_##_name __initdata = {		\
+struct mmp_device_desc pxa910_device_##_name __initdata = {		\
 	.dev_name	= "pxa910-" #_name,				\
 	.drv_name	= _drv,						\
 	.id		= _id,						\
@@ -40,7 +40,7 @@ struct pxa_device_desc pxa910_device_##_name __initdata = {		\
 };
 
 #define MMP2_DEVICE(_name, _drv, _id, _irq, _start, _size, _dma...)	\
-struct pxa_device_desc mmp2_device_##_name __initdata = {		\
+struct mmp_device_desc mmp2_device_##_name __initdata = {		\
 	.dev_name	= "mmp2-" #_name,				\
 	.drv_name	= _drv,						\
 	.id		= _id,						\
@@ -50,7 +50,7 @@ struct pxa_device_desc mmp2_device_##_name __initdata = {		\
 	.dma		= { _dma },					\
 }
 
-extern int pxa_register_device(struct pxa_device_desc *, void *, size_t);
+extern int mmp_register_device(struct mmp_device_desc *, void *, size_t);
 extern int pxa_usb_phy_init(void __iomem *phy_reg);
 extern void pxa_usb_phy_deinit(void __iomem *phy_reg);
 

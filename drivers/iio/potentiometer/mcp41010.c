@@ -60,7 +60,7 @@ struct mcp41010_data {
 	const struct mcp41010_cfg *cfg;
 	struct mutex lock; /* Protect write sequences */
 	unsigned int value[MCP41010_MAX_WIPERS]; /* Cache wiper values */
-	u8 buf[2] ____cacheline_aligned;
+	u8 buf[2] __aligned(IIO_DMA_MINALIGN);
 };
 
 #define MCP41010_CHANNEL(ch) {					\

@@ -143,8 +143,7 @@ static void cb_fini(struct hl_device *hdev, struct hl_cb *cb)
 		gen_pool_free(hdev->internal_cb_pool,
 				(uintptr_t)cb->kernel_address, cb->size);
 	else
-		hdev->asic_funcs->asic_dma_free_coherent(hdev, cb->size,
-				cb->kernel_address, cb->bus_address);
+		hl_asic_dma_free_coherent(hdev, cb->size, cb->kernel_address, cb->bus_address);
 
 	kfree(cb);
 }
@@ -158,24 +157,6 @@ static void cb_do_release(struct hl_device *hdev, struct hl_cb *cb)
 	} else {
 		cb_fini(hdev, cb);
 	}
-}
-
-static void cb_release(struct kref *ref)
-{
-	struct hl_device *hdev;
-	struct hl_cb *cb;
-
-	cb = container_of(ref, struct hl_cb, refcount);
-	hdev = cb->hdev;
-
-	hl_debugfs_remove_cb(cb);
-
-	if (cb->is_mmu_mapped)
-		cb_unmap_mem(cb->ctx, cb);
-
-	hl_ctx_put(cb->ctx);
-
-	cb_do_release(hdev, cb);
 }
 
 static struct hl_cb *hl_cb_alloc(struct hl_device *hdev, u32 cb_size,
@@ -213,14 +194,11 @@ static struct hl_cb *hl_cb_alloc(struct hl_device *hdev, u32 cb_size,
 		cb->is_internal = true;
 		cb->bus_address =  hdev->internal_cb_va_base + cb_offset;
 	} else if (ctx_id == HL_KERNEL_ASID_ID) {
-		p = hdev->asic_funcs->asic_dma_alloc_coherent(hdev, cb_size,
-						&cb->bus_address, GFP_ATOMIC);
+		p = hl_asic_dma_alloc_coherent(hdev, cb_size, &cb->bus_address, GFP_ATOMIC);
 		if (!p)
-			p = hdev->asic_funcs->asic_dma_alloc_coherent(hdev,
-					cb_size, &cb->bus_address, GFP_KERNEL);
+			p = hl_asic_dma_alloc_coherent(hdev, cb_size, &cb->bus_address, GFP_KERNEL);
 	} else {
-		p = hdev->asic_funcs->asic_dma_alloc_coherent(hdev, cb_size,
-						&cb->bus_address,
+		p = hl_asic_dma_alloc_coherent(hdev, cb_size, &cb->bus_address,
 						GFP_USER | __GFP_ZERO);
 	}
 
@@ -238,168 +216,175 @@ static struct hl_cb *hl_cb_alloc(struct hl_device *hdev, u32 cb_size,
 	return cb;
 }
 
-int hl_cb_create(struct hl_device *hdev, struct hl_cb_mgr *mgr,
-			struct hl_ctx *ctx, u32 cb_size, bool internal_cb,
-			bool map_cb, u64 *handle)
+struct hl_cb_mmap_mem_alloc_args {
+	struct hl_device *hdev;
+	struct hl_ctx *ctx;
+	u32 cb_size;
+	bool internal_cb;
+	bool map_cb;
+};
+
+static void hl_cb_mmap_mem_release(struct hl_mmap_mem_buf *buf)
 {
+	struct hl_cb *cb = buf->private;
+
+	hl_debugfs_remove_cb(cb);
+
+	if (cb->is_mmu_mapped)
+		cb_unmap_mem(cb->ctx, cb);
+
+	hl_ctx_put(cb->ctx);
+
+	cb_do_release(cb->hdev, cb);
+}
+
+static int hl_cb_mmap_mem_alloc(struct hl_mmap_mem_buf *buf, gfp_t gfp, void *args)
+{
+	struct hl_cb_mmap_mem_alloc_args *cb_args = args;
 	struct hl_cb *cb;
+	int rc, ctx_id = cb_args->ctx->asid;
 	bool alloc_new_cb = true;
-	int rc, ctx_id = ctx->asid;
 
-	/*
-	 * Can't use generic function to check this because of special case
-	 * where we create a CB as part of the reset process
-	 */
-	if ((hdev->disabled) || (hdev->reset_info.in_reset && (ctx_id != HL_KERNEL_ASID_ID))) {
-		dev_warn_ratelimited(hdev->dev,
-			"Device is disabled or in reset. Can't create new CBs\n");
-		rc = -EBUSY;
-		goto out_err;
-	}
-
-	if (cb_size > SZ_2M) {
-		dev_err(hdev->dev, "CB size %d must be less than %d\n",
-			cb_size, SZ_2M);
-		rc = -EINVAL;
-		goto out_err;
-	}
-
-	if (!internal_cb) {
+	if (!cb_args->internal_cb) {
 		/* Minimum allocation must be PAGE SIZE */
-		if (cb_size < PAGE_SIZE)
-			cb_size = PAGE_SIZE;
+		if (cb_args->cb_size < PAGE_SIZE)
+			cb_args->cb_size = PAGE_SIZE;
 
 		if (ctx_id == HL_KERNEL_ASID_ID &&
-				cb_size <= hdev->asic_prop.cb_pool_cb_size) {
+				cb_args->cb_size <= cb_args->hdev->asic_prop.cb_pool_cb_size) {
 
-			spin_lock(&hdev->cb_pool_lock);
-			if (!list_empty(&hdev->cb_pool)) {
-				cb = list_first_entry(&hdev->cb_pool,
+			spin_lock(&cb_args->hdev->cb_pool_lock);
+			if (!list_empty(&cb_args->hdev->cb_pool)) {
+				cb = list_first_entry(&cb_args->hdev->cb_pool,
 						typeof(*cb), pool_list);
 				list_del(&cb->pool_list);
-				spin_unlock(&hdev->cb_pool_lock);
+				spin_unlock(&cb_args->hdev->cb_pool_lock);
 				alloc_new_cb = false;
 			} else {
-				spin_unlock(&hdev->cb_pool_lock);
-				dev_dbg(hdev->dev, "CB pool is empty\n");
+				spin_unlock(&cb_args->hdev->cb_pool_lock);
+				dev_dbg(cb_args->hdev->dev, "CB pool is empty\n");
 			}
 		}
 	}
 
 	if (alloc_new_cb) {
-		cb = hl_cb_alloc(hdev, cb_size, ctx_id, internal_cb);
-		if (!cb) {
-			rc = -ENOMEM;
-			goto out_err;
-		}
+		cb = hl_cb_alloc(cb_args->hdev, cb_args->cb_size, ctx_id, cb_args->internal_cb);
+		if (!cb)
+			return -ENOMEM;
 	}
 
-	cb->hdev = hdev;
-	cb->ctx = ctx;
-	hl_ctx_get(hdev, cb->ctx);
+	cb->hdev = cb_args->hdev;
+	cb->ctx = cb_args->ctx;
+	cb->buf = buf;
+	cb->buf->mappable_size = cb->size;
+	cb->buf->private = cb;
 
-	if (map_cb) {
+	hl_ctx_get(cb->ctx);
+
+	if (cb_args->map_cb) {
 		if (ctx_id == HL_KERNEL_ASID_ID) {
-			dev_err(hdev->dev,
+			dev_err(cb_args->hdev->dev,
 				"CB mapping is not supported for kernel context\n");
 			rc = -EINVAL;
 			goto release_cb;
 		}
 
-		rc = cb_map_mem(ctx, cb);
+		rc = cb_map_mem(cb_args->ctx, cb);
 		if (rc)
 			goto release_cb;
 	}
-
-	spin_lock(&mgr->cb_lock);
-	rc = idr_alloc(&mgr->cb_handles, cb, 1, 0, GFP_ATOMIC);
-	spin_unlock(&mgr->cb_lock);
-
-	if (rc < 0) {
-		dev_err(hdev->dev, "Failed to allocate IDR for a new CB\n");
-		goto unmap_mem;
-	}
-
-	cb->id = (u64) rc;
-
-	kref_init(&cb->refcount);
-	spin_lock_init(&cb->lock);
-
-	/*
-	 * idr is 32-bit so we can safely OR it with a mask that is above
-	 * 32 bit
-	 */
-	*handle = cb->id | HL_MMAP_TYPE_CB;
-	*handle <<= PAGE_SHIFT;
 
 	hl_debugfs_add_cb(cb);
 
 	return 0;
 
-unmap_mem:
-	if (cb->is_mmu_mapped)
-		cb_unmap_mem(cb->ctx, cb);
 release_cb:
 	hl_ctx_put(cb->ctx);
-	cb_do_release(hdev, cb);
-out_err:
-	*handle = 0;
+	cb_do_release(cb_args->hdev, cb);
 
 	return rc;
 }
 
-int hl_cb_destroy(struct hl_device *hdev, struct hl_cb_mgr *mgr, u64 cb_handle)
+static int hl_cb_mmap(struct hl_mmap_mem_buf *buf,
+				      struct vm_area_struct *vma, void *args)
 {
-	struct hl_cb *cb;
-	u32 handle;
-	int rc = 0;
+	struct hl_cb *cb = buf->private;
 
-	/*
-	 * handle was given to user to do mmap, I need to shift it back to
-	 * how the idr module gave it to me
-	 */
-	cb_handle >>= PAGE_SHIFT;
-	handle = (u32) cb_handle;
+	return cb->hdev->asic_funcs->mmap(cb->hdev, vma, cb->kernel_address,
+					cb->bus_address, cb->size);
+}
 
-	spin_lock(&mgr->cb_lock);
+static struct hl_mmap_mem_buf_behavior cb_behavior = {
+	.topic = "CB",
+	.mem_id = HL_MMAP_TYPE_CB,
+	.alloc = hl_cb_mmap_mem_alloc,
+	.release = hl_cb_mmap_mem_release,
+	.mmap = hl_cb_mmap,
+};
 
-	cb = idr_find(&mgr->cb_handles, handle);
-	if (cb) {
-		idr_remove(&mgr->cb_handles, handle);
-		spin_unlock(&mgr->cb_lock);
-		kref_put(&cb->refcount, cb_release);
-	} else {
-		spin_unlock(&mgr->cb_lock);
-		dev_err(hdev->dev,
-			"CB destroy failed, no match to handle 0x%x\n", handle);
-		rc = -EINVAL;
+int hl_cb_create(struct hl_device *hdev, struct hl_mem_mgr *mmg,
+			struct hl_ctx *ctx, u32 cb_size, bool internal_cb,
+			bool map_cb, u64 *handle)
+{
+	struct hl_cb_mmap_mem_alloc_args args = {
+		.hdev = hdev,
+		.ctx = ctx,
+		.cb_size = cb_size,
+		.internal_cb = internal_cb,
+		.map_cb = map_cb,
+	};
+	struct hl_mmap_mem_buf *buf;
+	int ctx_id = ctx->asid;
+
+	if ((hdev->disabled) || (hdev->reset_info.in_reset && (ctx_id != HL_KERNEL_ASID_ID))) {
+		dev_warn_ratelimited(hdev->dev,
+			"Device is disabled or in reset. Can't create new CBs\n");
+		return -EBUSY;
 	}
 
-	return rc;
+	if (cb_size > SZ_2M) {
+		dev_err(hdev->dev, "CB size %d must be less than %d\n",
+			cb_size, SZ_2M);
+		return -EINVAL;
+	}
+
+	buf = hl_mmap_mem_buf_alloc(
+		mmg, &cb_behavior,
+		ctx_id == HL_KERNEL_ASID_ID ? GFP_ATOMIC : GFP_KERNEL, &args);
+	if (!buf)
+		return -ENOMEM;
+
+	*handle = buf->handle;
+
+	return 0;
 }
 
-static int hl_cb_info(struct hl_device *hdev, struct hl_cb_mgr *mgr,
-			u64 cb_handle, u32 flags, u32 *usage_cnt, u64 *device_va)
+int hl_cb_destroy(struct hl_mem_mgr *mmg, u64 cb_handle)
+{
+	int rc;
+
+	rc = hl_mmap_mem_buf_put_handle(mmg, cb_handle);
+	if (rc < 0)
+		return rc; /* Invalid handle */
+
+	if (rc == 0)
+		dev_dbg(mmg->dev, "CB 0x%llx is destroyed while still in use\n", cb_handle);
+
+	return 0;
+}
+
+static int hl_cb_info(struct hl_mem_mgr *mmg,
+			u64 handle, u32 flags, u32 *usage_cnt, u64 *device_va)
 {
 	struct hl_vm_va_block *va_block;
 	struct hl_cb *cb;
-	u32 handle;
 	int rc = 0;
 
-	/* The CB handle was given to user to do mmap, so need to shift it back
-	 * to the value which was allocated by the IDR module.
-	 */
-	cb_handle >>= PAGE_SHIFT;
-	handle = (u32) cb_handle;
-
-	spin_lock(&mgr->cb_lock);
-
-	cb = idr_find(&mgr->cb_handles, handle);
+	cb = hl_cb_get(mmg, handle);
 	if (!cb) {
-		dev_err(hdev->dev,
-			"CB info failed, no match to handle 0x%x\n", handle);
-		rc = -EINVAL;
-		goto out;
+		dev_err(mmg->dev,
+			"CB info failed, no match to handle 0x%llx\n", handle);
+		return -EINVAL;
 	}
 
 	if (flags & HL_CB_FLAGS_GET_DEVICE_VA) {
@@ -407,7 +392,7 @@ static int hl_cb_info(struct hl_device *hdev, struct hl_cb_mgr *mgr,
 		if (va_block) {
 			*device_va = va_block->start;
 		} else {
-			dev_err(hdev->dev, "CB is not mapped to the device's MMU\n");
+			dev_err(mmg->dev, "CB is not mapped to the device's MMU\n");
 			rc = -EINVAL;
 			goto out;
 		}
@@ -416,7 +401,7 @@ static int hl_cb_info(struct hl_device *hdev, struct hl_cb_mgr *mgr,
 	}
 
 out:
-	spin_unlock(&mgr->cb_lock);
+	hl_cb_put(cb);
 	return rc;
 }
 
@@ -444,7 +429,7 @@ int hl_cb_ioctl(struct hl_fpriv *hpriv, void *data)
 				args->in.cb_size, HL_MAX_CB_SIZE);
 			rc = -EINVAL;
 		} else {
-			rc = hl_cb_create(hdev, &hpriv->cb_mgr, hpriv->ctx,
+			rc = hl_cb_create(hdev, &hpriv->mem_mgr, hpriv->ctx,
 					args->in.cb_size, false,
 					!!(args->in.flags & HL_CB_FLAGS_MAP),
 					&handle);
@@ -455,12 +440,12 @@ int hl_cb_ioctl(struct hl_fpriv *hpriv, void *data)
 		break;
 
 	case HL_CB_OP_DESTROY:
-		rc = hl_cb_destroy(hdev, &hpriv->cb_mgr,
+		rc = hl_cb_destroy(&hpriv->mem_mgr,
 					args->in.cb_handle);
 		break;
 
 	case HL_CB_OP_INFO:
-		rc = hl_cb_info(hdev, &hpriv->cb_mgr, args->in.cb_handle,
+		rc = hl_cb_info(&hpriv->mem_mgr, args->in.cb_handle,
 				args->in.flags,
 				&usage_cnt,
 				&device_va);
@@ -483,163 +468,20 @@ int hl_cb_ioctl(struct hl_fpriv *hpriv, void *data)
 	return rc;
 }
 
-static void cb_vm_close(struct vm_area_struct *vma)
+struct hl_cb *hl_cb_get(struct hl_mem_mgr *mmg, u64 handle)
 {
-	struct hl_cb *cb = (struct hl_cb *) vma->vm_private_data;
-	long new_mmap_size;
+	struct hl_mmap_mem_buf *buf;
 
-	new_mmap_size = cb->mmap_size - (vma->vm_end - vma->vm_start);
-
-	if (new_mmap_size > 0) {
-		cb->mmap_size = new_mmap_size;
-		return;
-	}
-
-	spin_lock(&cb->lock);
-	cb->mmap = false;
-	spin_unlock(&cb->lock);
-
-	hl_cb_put(cb);
-	vma->vm_private_data = NULL;
-}
-
-static const struct vm_operations_struct cb_vm_ops = {
-	.close = cb_vm_close
-};
-
-int hl_cb_mmap(struct hl_fpriv *hpriv, struct vm_area_struct *vma)
-{
-	struct hl_device *hdev = hpriv->hdev;
-	struct hl_cb *cb;
-	u32 handle, user_cb_size;
-	int rc;
-
-	/* We use the page offset to hold the idr and thus we need to clear
-	 * it before doing the mmap itself
-	 */
-	handle = vma->vm_pgoff;
-	vma->vm_pgoff = 0;
-
-	/* reference was taken here */
-	cb = hl_cb_get(hdev, &hpriv->cb_mgr, handle);
-	if (!cb) {
-		dev_err(hdev->dev,
-			"CB mmap failed, no match to handle 0x%x\n", handle);
-		return -EINVAL;
-	}
-
-	/* Validation check */
-	user_cb_size = vma->vm_end - vma->vm_start;
-	if (user_cb_size != ALIGN(cb->size, PAGE_SIZE)) {
-		dev_err(hdev->dev,
-			"CB mmap failed, mmap size 0x%lx != 0x%x cb size\n",
-			vma->vm_end - vma->vm_start, cb->size);
-		rc = -EINVAL;
-		goto put_cb;
-	}
-
-	if (!access_ok((void __user *) (uintptr_t) vma->vm_start,
-							user_cb_size)) {
-		dev_err(hdev->dev,
-			"user pointer is invalid - 0x%lx\n",
-			vma->vm_start);
-
-		rc = -EINVAL;
-		goto put_cb;
-	}
-
-	spin_lock(&cb->lock);
-
-	if (cb->mmap) {
-		dev_err(hdev->dev,
-			"CB mmap failed, CB already mmaped to user\n");
-		rc = -EINVAL;
-		goto release_lock;
-	}
-
-	cb->mmap = true;
-
-	spin_unlock(&cb->lock);
-
-	vma->vm_ops = &cb_vm_ops;
-
-	/*
-	 * Note: We're transferring the cb reference to
-	 * vma->vm_private_data here.
-	 */
-
-	vma->vm_private_data = cb;
-
-	rc = hdev->asic_funcs->mmap(hdev, vma, cb->kernel_address,
-					cb->bus_address, cb->size);
-	if (rc) {
-		spin_lock(&cb->lock);
-		cb->mmap = false;
-		goto release_lock;
-	}
-
-	cb->mmap_size = cb->size;
-	vma->vm_pgoff = handle;
-
-	return 0;
-
-release_lock:
-	spin_unlock(&cb->lock);
-put_cb:
-	hl_cb_put(cb);
-	return rc;
-}
-
-struct hl_cb *hl_cb_get(struct hl_device *hdev, struct hl_cb_mgr *mgr,
-			u32 handle)
-{
-	struct hl_cb *cb;
-
-	spin_lock(&mgr->cb_lock);
-	cb = idr_find(&mgr->cb_handles, handle);
-
-	if (!cb) {
-		spin_unlock(&mgr->cb_lock);
-		dev_warn(hdev->dev,
-			"CB get failed, no match to handle 0x%x\n", handle);
+	buf = hl_mmap_mem_buf_get(mmg, handle);
+	if (!buf)
 		return NULL;
-	}
-
-	kref_get(&cb->refcount);
-
-	spin_unlock(&mgr->cb_lock);
-
-	return cb;
+	return buf->private;
 
 }
 
 void hl_cb_put(struct hl_cb *cb)
 {
-	kref_put(&cb->refcount, cb_release);
-}
-
-void hl_cb_mgr_init(struct hl_cb_mgr *mgr)
-{
-	spin_lock_init(&mgr->cb_lock);
-	idr_init(&mgr->cb_handles);
-}
-
-void hl_cb_mgr_fini(struct hl_device *hdev, struct hl_cb_mgr *mgr)
-{
-	struct hl_cb *cb;
-	struct idr *idp;
-	u32 id;
-
-	idp = &mgr->cb_handles;
-
-	idr_for_each_entry(idp, cb, id) {
-		if (kref_put(&cb->refcount, cb_release) != 1)
-			dev_err(hdev->dev,
-				"CB %d for CTX ID %d is still alive\n",
-				id, cb->ctx->asid);
-	}
-
-	idr_destroy(&mgr->cb_handles);
+	hl_mmap_mem_buf_put(cb->buf);
 }
 
 struct hl_cb *hl_cb_kernel_create(struct hl_device *hdev, u32 cb_size,
@@ -649,7 +491,7 @@ struct hl_cb *hl_cb_kernel_create(struct hl_device *hdev, u32 cb_size,
 	struct hl_cb *cb;
 	int rc;
 
-	rc = hl_cb_create(hdev, &hdev->kernel_cb_mgr, hdev->kernel_ctx, cb_size,
+	rc = hl_cb_create(hdev, &hdev->kernel_mem_mgr, hdev->kernel_ctx, cb_size,
 				internal_cb, false, &cb_handle);
 	if (rc) {
 		dev_err(hdev->dev,
@@ -657,8 +499,7 @@ struct hl_cb *hl_cb_kernel_create(struct hl_device *hdev, u32 cb_size,
 		return NULL;
 	}
 
-	cb_handle >>= PAGE_SHIFT;
-	cb = hl_cb_get(hdev, &hdev->kernel_cb_mgr, (u32) cb_handle);
+	cb = hl_cb_get(&hdev->kernel_mem_mgr, cb_handle);
 	/* hl_cb_get should never fail here */
 	if (!cb) {
 		dev_crit(hdev->dev, "Kernel CB handle invalid 0x%x\n",
@@ -669,7 +510,7 @@ struct hl_cb *hl_cb_kernel_create(struct hl_device *hdev, u32 cb_size,
 	return cb;
 
 destroy_cb:
-	hl_cb_destroy(hdev, &hdev->kernel_cb_mgr, cb_handle << PAGE_SHIFT);
+	hl_cb_destroy(&hdev->kernel_mem_mgr, cb_handle);
 
 	return NULL;
 }

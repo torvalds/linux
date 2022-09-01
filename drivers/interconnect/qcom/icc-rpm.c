@@ -16,6 +16,7 @@
 #include <linux/slab.h>
 
 #include "smd-rpm.h"
+#include "icc-common.h"
 #include "icc-rpm.h"
 
 /* QNOC QoS */
@@ -233,29 +234,10 @@ static int qcom_icc_rpm_set(int mas_rpm_id, int slv_rpm_id, u64 sum_bw)
 	return ret;
 }
 
-static int qcom_icc_set(struct icc_node *src, struct icc_node *dst)
+static int __qcom_icc_set(struct icc_node *n, struct qcom_icc_node *qn,
+			  u64 sum_bw)
 {
-	struct qcom_icc_provider *qp;
-	struct qcom_icc_node *qn;
-	struct icc_provider *provider;
-	struct icc_node *n;
-	u64 sum_bw;
-	u64 max_peak_bw;
-	u64 rate;
-	u32 agg_avg = 0;
-	u32 agg_peak = 0;
-	int ret, i;
-
-	qn = src->data;
-	provider = src->provider;
-	qp = to_qcom_provider(provider);
-
-	list_for_each_entry(n, &provider->nodes, node_list)
-		provider->aggregate(n, 0, n->avg_bw, n->peak_bw,
-				    &agg_avg, &agg_peak);
-
-	sum_bw = icc_units_to_bps(agg_avg);
-	max_peak_bw = icc_units_to_bps(agg_peak);
+	int ret;
 
 	if (!qn->qos.ap_owned) {
 		/* send bandwidth request message to the RPM processor */
@@ -264,29 +246,161 @@ static int qcom_icc_set(struct icc_node *src, struct icc_node *dst)
 			return ret;
 	} else if (qn->qos.qos_mode != -1) {
 		/* set bandwidth directly from the AP */
-		ret = qcom_icc_qos_set(src, sum_bw);
+		ret = qcom_icc_qos_set(n, sum_bw);
 		if (ret)
 			return ret;
 	}
 
-	rate = max(sum_bw, max_peak_bw);
+	return 0;
+}
 
-	do_div(rate, qn->buswidth);
-	rate = min_t(u64, rate, LONG_MAX);
+/**
+ * qcom_icc_pre_bw_aggregate - cleans up values before re-aggregate requests
+ * @node: icc node to operate on
+ */
+static void qcom_icc_pre_bw_aggregate(struct icc_node *node)
+{
+	struct qcom_icc_node *qn;
+	size_t i;
 
-	if (qn->rate == rate)
-		return 0;
+	qn = node->data;
+	for (i = 0; i < QCOM_ICC_NUM_BUCKETS; i++) {
+		qn->sum_avg[i] = 0;
+		qn->max_peak[i] = 0;
+	}
+}
+
+/**
+ * qcom_icc_bw_aggregate - aggregate bw for buckets indicated by tag
+ * @node: node to aggregate
+ * @tag: tag to indicate which buckets to aggregate
+ * @avg_bw: new bw to sum aggregate
+ * @peak_bw: new bw to max aggregate
+ * @agg_avg: existing aggregate avg bw val
+ * @agg_peak: existing aggregate peak bw val
+ */
+static int qcom_icc_bw_aggregate(struct icc_node *node, u32 tag, u32 avg_bw,
+				 u32 peak_bw, u32 *agg_avg, u32 *agg_peak)
+{
+	size_t i;
+	struct qcom_icc_node *qn;
+
+	qn = node->data;
+
+	if (!tag)
+		tag = QCOM_ICC_TAG_ALWAYS;
+
+	for (i = 0; i < QCOM_ICC_NUM_BUCKETS; i++) {
+		if (tag & BIT(i)) {
+			qn->sum_avg[i] += avg_bw;
+			qn->max_peak[i] = max_t(u32, qn->max_peak[i], peak_bw);
+		}
+	}
+
+	*agg_avg += avg_bw;
+	*agg_peak = max_t(u32, *agg_peak, peak_bw);
+	return 0;
+}
+
+/**
+ * qcom_icc_bus_aggregate - aggregate bandwidth by traversing all nodes
+ * @provider: generic interconnect provider
+ * @agg_avg: an array for aggregated average bandwidth of buckets
+ * @agg_peak: an array for aggregated peak bandwidth of buckets
+ * @max_agg_avg: pointer to max value of aggregated average bandwidth
+ */
+static void qcom_icc_bus_aggregate(struct icc_provider *provider,
+				   u64 *agg_avg, u64 *agg_peak,
+				   u64 *max_agg_avg)
+{
+	struct icc_node *node;
+	struct qcom_icc_node *qn;
+	int i;
+
+	/* Initialise aggregate values */
+	for (i = 0; i < QCOM_ICC_NUM_BUCKETS; i++) {
+		agg_avg[i] = 0;
+		agg_peak[i] = 0;
+	}
+
+	*max_agg_avg = 0;
+
+	/*
+	 * Iterate nodes on the interconnect and aggregate bandwidth
+	 * requests for every bucket.
+	 */
+	list_for_each_entry(node, &provider->nodes, node_list) {
+		qn = node->data;
+		for (i = 0; i < QCOM_ICC_NUM_BUCKETS; i++) {
+			agg_avg[i] += qn->sum_avg[i];
+			agg_peak[i] = max_t(u64, agg_peak[i], qn->max_peak[i]);
+		}
+	}
+
+	/* Find maximum values across all buckets */
+	for (i = 0; i < QCOM_ICC_NUM_BUCKETS; i++)
+		*max_agg_avg = max_t(u64, *max_agg_avg, agg_avg[i]);
+}
+
+static int qcom_icc_set(struct icc_node *src, struct icc_node *dst)
+{
+	struct qcom_icc_provider *qp;
+	struct qcom_icc_node *src_qn = NULL, *dst_qn = NULL;
+	struct icc_provider *provider;
+	u64 sum_bw;
+	u64 rate;
+	u64 agg_avg[QCOM_ICC_NUM_BUCKETS], agg_peak[QCOM_ICC_NUM_BUCKETS];
+	u64 max_agg_avg;
+	int ret, i;
+	int bucket;
+
+	src_qn = src->data;
+	if (dst)
+		dst_qn = dst->data;
+	provider = src->provider;
+	qp = to_qcom_provider(provider);
+
+	qcom_icc_bus_aggregate(provider, agg_avg, agg_peak, &max_agg_avg);
+
+	sum_bw = icc_units_to_bps(max_agg_avg);
+
+	ret = __qcom_icc_set(src, src_qn, sum_bw);
+	if (ret)
+		return ret;
+	if (dst_qn) {
+		ret = __qcom_icc_set(dst, dst_qn, sum_bw);
+		if (ret)
+			return ret;
+	}
 
 	for (i = 0; i < qp->num_clks; i++) {
+		/*
+		 * Use WAKE bucket for active clock, otherwise, use SLEEP bucket
+		 * for other clocks.  If a platform doesn't set interconnect
+		 * path tags, by default use sleep bucket for all clocks.
+		 *
+		 * Note, AMC bucket is not supported yet.
+		 */
+		if (!strcmp(qp->bus_clks[i].id, "bus_a"))
+			bucket = QCOM_ICC_BUCKET_WAKE;
+		else
+			bucket = QCOM_ICC_BUCKET_SLEEP;
+
+		rate = icc_units_to_bps(max(agg_avg[bucket], agg_peak[bucket]));
+		do_div(rate, src_qn->buswidth);
+		rate = min_t(u64, rate, LONG_MAX);
+
+		if (qp->bus_clk_rate[i] == rate)
+			continue;
+
 		ret = clk_set_rate(qp->bus_clks[i].clk, rate);
 		if (ret) {
 			pr_err("%s clk_set_rate error: %d\n",
 			       qp->bus_clks[i].id, ret);
 			return ret;
 		}
+		qp->bus_clk_rate[i] = rate;
 	}
-
-	qn->rate = rate;
 
 	return 0;
 }
@@ -301,7 +415,7 @@ int qnoc_probe(struct platform_device *pdev)
 	const struct qcom_icc_desc *desc;
 	struct icc_onecell_data *data;
 	struct icc_provider *provider;
-	struct qcom_icc_node **qnodes;
+	struct qcom_icc_node * const *qnodes;
 	struct qcom_icc_provider *qp;
 	struct icc_node *node;
 	size_t num_nodes, i;
@@ -330,6 +444,11 @@ int qnoc_probe(struct platform_device *pdev)
 
 	qp = devm_kzalloc(dev, struct_size(qp, bus_clks, cd_num), GFP_KERNEL);
 	if (!qp)
+		return -ENOMEM;
+
+	qp->bus_clk_rate = devm_kcalloc(dev, cd_num, sizeof(*qp->bus_clk_rate),
+					GFP_KERNEL);
+	if (!qp->bus_clk_rate)
 		return -ENOMEM;
 
 	data = devm_kzalloc(dev, struct_size(data, nodes, num_nodes),
@@ -390,8 +509,9 @@ regmap_done:
 	INIT_LIST_HEAD(&provider->nodes);
 	provider->dev = dev;
 	provider->set = qcom_icc_set;
-	provider->aggregate = icc_std_aggregate;
-	provider->xlate = of_icc_xlate_onecell;
+	provider->pre_aggregate = qcom_icc_pre_bw_aggregate;
+	provider->aggregate = qcom_icc_bw_aggregate;
+	provider->xlate_extended = qcom_icc_xlate_extended;
 	provider->data = data;
 
 	ret = icc_provider_add(provider);

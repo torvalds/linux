@@ -749,7 +749,6 @@ static int ad5933_probe(struct i2c_client *client,
 	indio_dev->num_channels = ARRAY_SIZE(ad5933_channels);
 
 	ret = devm_iio_kfifo_buffer_setup(&client->dev, indio_dev,
-					  INDIO_BUFFER_SOFTWARE,
 					  &ad5933_ring_setup_ops);
 	if (ret)
 		return ret;

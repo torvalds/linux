@@ -670,7 +670,6 @@ static blk_status_t nvme_pci_setup_prps(struct nvme_dev *dev,
 
 	prp_list = dma_pool_alloc(pool, GFP_ATOMIC, &prp_dma);
 	if (!prp_list) {
-		iod->first_dma = dma_addr;
 		iod->npages = -1;
 		return BLK_STS_RESOURCE;
 	}
@@ -1334,9 +1333,17 @@ static void nvme_warn_reset(struct nvme_dev *dev, u32 csts)
 		dev_warn(dev->ctrl.device,
 			 "controller is down; will reset: CSTS=0x%x, PCI_STATUS read failed (%d)\n",
 			 csts, result);
+
+	if (csts != ~0)
+		return;
+
+	dev_warn(dev->ctrl.device,
+		 "Does your device have a faulty power saving mode enabled?\n");
+	dev_warn(dev->ctrl.device,
+		 "Try \"nvme_core.default_ps_max_latency_us=0 pcie_aspm=off\" and report a bug\n");
 }
 
-static enum blk_eh_timer_return nvme_timeout(struct request *req, bool reserved)
+static enum blk_eh_timer_return nvme_timeout(struct request *req)
 {
 	struct nvme_iod *iod = blk_mq_rq_to_pdu(req);
 	struct nvme_queue *nvmeq = iod->nvmeq;
@@ -1427,8 +1434,10 @@ static enum blk_eh_timer_return nvme_timeout(struct request *req, bool reserved)
 	cmd.abort.sqid = cpu_to_le16(nvmeq->qid);
 
 	dev_warn(nvmeq->dev->ctrl.device,
-		"I/O %d QID %d timeout, aborting\n",
-		 req->tag, nvmeq->qid);
+		"I/O %d (%s) QID %d timeout, aborting\n",
+		 req->tag,
+		 nvme_get_opcode_str(nvme_req(req)->cmd->common.opcode),
+		 nvmeq->qid);
 
 	abort_req = blk_mq_alloc_request(dev->ctrl.admin_q, nvme_req_op(&cmd),
 					 BLK_MQ_REQ_NOWAIT);
@@ -1438,9 +1447,10 @@ static enum blk_eh_timer_return nvme_timeout(struct request *req, bool reserved)
 	}
 	nvme_init_request(abort_req, &cmd);
 
+	abort_req->end_io = abort_endio;
 	abort_req->end_io_data = NULL;
 	abort_req->rq_flags |= RQF_QUIET;
-	blk_execute_rq_nowait(abort_req, false, abort_endio);
+	blk_execute_rq_nowait(abort_req, false);
 
 	/*
 	 * The aborted req will be completed on receiving the abort req.
@@ -1751,42 +1761,40 @@ static void nvme_dev_remove_admin(struct nvme_dev *dev)
 		 * queue to flush these to completion.
 		 */
 		nvme_start_admin_queue(&dev->ctrl);
-		blk_cleanup_queue(dev->ctrl.admin_q);
+		blk_mq_destroy_queue(dev->ctrl.admin_q);
 		blk_mq_free_tag_set(&dev->admin_tagset);
 	}
 }
 
-static int nvme_alloc_admin_tags(struct nvme_dev *dev)
+static int nvme_pci_alloc_admin_tag_set(struct nvme_dev *dev)
 {
-	if (!dev->ctrl.admin_q) {
-		dev->admin_tagset.ops = &nvme_mq_admin_ops;
-		dev->admin_tagset.nr_hw_queues = 1;
+	struct blk_mq_tag_set *set = &dev->admin_tagset;
 
-		dev->admin_tagset.queue_depth = NVME_AQ_MQ_TAG_DEPTH;
-		dev->admin_tagset.timeout = NVME_ADMIN_TIMEOUT;
-		dev->admin_tagset.numa_node = dev->ctrl.numa_node;
-		dev->admin_tagset.cmd_size = sizeof(struct nvme_iod);
-		dev->admin_tagset.flags = BLK_MQ_F_NO_SCHED;
-		dev->admin_tagset.driver_data = dev;
+	set->ops = &nvme_mq_admin_ops;
+	set->nr_hw_queues = 1;
 
-		if (blk_mq_alloc_tag_set(&dev->admin_tagset))
-			return -ENOMEM;
-		dev->ctrl.admin_tagset = &dev->admin_tagset;
+	set->queue_depth = NVME_AQ_MQ_TAG_DEPTH;
+	set->timeout = NVME_ADMIN_TIMEOUT;
+	set->numa_node = dev->ctrl.numa_node;
+	set->cmd_size = sizeof(struct nvme_iod);
+	set->flags = BLK_MQ_F_NO_SCHED;
+	set->driver_data = dev;
 
-		dev->ctrl.admin_q = blk_mq_init_queue(&dev->admin_tagset);
-		if (IS_ERR(dev->ctrl.admin_q)) {
-			blk_mq_free_tag_set(&dev->admin_tagset);
-			dev->ctrl.admin_q = NULL;
-			return -ENOMEM;
-		}
-		if (!blk_get_queue(dev->ctrl.admin_q)) {
-			nvme_dev_remove_admin(dev);
-			dev->ctrl.admin_q = NULL;
-			return -ENODEV;
-		}
-	} else
-		nvme_start_admin_queue(&dev->ctrl);
+	if (blk_mq_alloc_tag_set(set))
+		return -ENOMEM;
+	dev->ctrl.admin_tagset = set;
 
+	dev->ctrl.admin_q = blk_mq_init_queue(set);
+	if (IS_ERR(dev->ctrl.admin_q)) {
+		blk_mq_free_tag_set(set);
+		dev->ctrl.admin_q = NULL;
+		return -ENOMEM;
+	}
+	if (!blk_get_queue(dev->ctrl.admin_q)) {
+		nvme_dev_remove_admin(dev);
+		dev->ctrl.admin_q = NULL;
+		return -ENODEV;
+	}
 	return 0;
 }
 
@@ -2485,12 +2493,15 @@ static int nvme_delete_queue(struct nvme_queue *nvmeq, u8 opcode)
 		return PTR_ERR(req);
 	nvme_init_request(req, &cmd);
 
+	if (opcode == nvme_admin_delete_cq)
+		req->end_io = nvme_del_cq_end;
+	else
+		req->end_io = nvme_del_queue_end;
 	req->end_io_data = nvmeq;
 
 	init_completion(&nvmeq->delete_done);
 	req->rq_flags |= RQF_QUIET;
-	blk_execute_rq_nowait(req, false, opcode == nvme_admin_delete_cq ?
-			nvme_del_cq_end : nvme_del_queue_end);
+	blk_execute_rq_nowait(req, false);
 	return 0;
 }
 
@@ -2522,47 +2533,45 @@ static bool __nvme_disable_io_queues(struct nvme_dev *dev, u8 opcode)
 	return true;
 }
 
-static void nvme_dev_add(struct nvme_dev *dev)
+static void nvme_pci_alloc_tag_set(struct nvme_dev *dev)
 {
+	struct blk_mq_tag_set * set = &dev->tagset;
 	int ret;
 
-	if (!dev->ctrl.tagset) {
-		dev->tagset.ops = &nvme_mq_ops;
-		dev->tagset.nr_hw_queues = dev->online_queues - 1;
-		dev->tagset.nr_maps = 2; /* default + read */
-		if (dev->io_queues[HCTX_TYPE_POLL])
-			dev->tagset.nr_maps++;
-		dev->tagset.timeout = NVME_IO_TIMEOUT;
-		dev->tagset.numa_node = dev->ctrl.numa_node;
-		dev->tagset.queue_depth = min_t(unsigned int, dev->q_depth,
-						BLK_MQ_MAX_DEPTH) - 1;
-		dev->tagset.cmd_size = sizeof(struct nvme_iod);
-		dev->tagset.flags = BLK_MQ_F_SHOULD_MERGE;
-		dev->tagset.driver_data = dev;
+	set->ops = &nvme_mq_ops;
+	set->nr_hw_queues = dev->online_queues - 1;
+	set->nr_maps = 2; /* default + read */
+	if (dev->io_queues[HCTX_TYPE_POLL])
+		set->nr_maps++;
+	set->timeout = NVME_IO_TIMEOUT;
+	set->numa_node = dev->ctrl.numa_node;
+	set->queue_depth = min_t(unsigned, dev->q_depth, BLK_MQ_MAX_DEPTH) - 1;
+	set->cmd_size = sizeof(struct nvme_iod);
+	set->flags = BLK_MQ_F_SHOULD_MERGE;
+	set->driver_data = dev;
 
-		/*
-		 * Some Apple controllers requires tags to be unique
-		 * across admin and IO queue, so reserve the first 32
-		 * tags of the IO queue.
-		 */
-		if (dev->ctrl.quirks & NVME_QUIRK_SHARED_TAGS)
-			dev->tagset.reserved_tags = NVME_AQ_DEPTH;
+	/*
+	 * Some Apple controllers requires tags to be unique
+	 * across admin and IO queue, so reserve the first 32
+	 * tags of the IO queue.
+	 */
+	if (dev->ctrl.quirks & NVME_QUIRK_SHARED_TAGS)
+		set->reserved_tags = NVME_AQ_DEPTH;
 
-		ret = blk_mq_alloc_tag_set(&dev->tagset);
-		if (ret) {
-			dev_warn(dev->ctrl.device,
-				"IO queues tagset allocation failed %d\n", ret);
-			return;
-		}
-		dev->ctrl.tagset = &dev->tagset;
-	} else {
-		blk_mq_update_nr_hw_queues(&dev->tagset, dev->online_queues - 1);
-
-		/* Free previously allocated queues that are no longer usable */
-		nvme_free_queues(dev, dev->online_queues);
+	ret = blk_mq_alloc_tag_set(set);
+	if (ret) {
+		dev_warn(dev->ctrl.device,
+			"IO queues tagset allocation failed %d\n", ret);
+		return;
 	}
+	dev->ctrl.tagset = set;
+}
 
-	nvme_dbbuf_set(dev);
+static void nvme_pci_update_nr_queues(struct nvme_dev *dev)
+{
+	blk_mq_update_nr_hw_queues(&dev->tagset, dev->online_queues - 1);
+	/* free previously allocated queues that are no longer usable */
+	nvme_free_queues(dev, dev->online_queues);
 }
 
 static int nvme_pci_enable(struct nvme_dev *dev)
@@ -2678,8 +2687,13 @@ static void nvme_dev_disable(struct nvme_dev *dev, bool shutdown)
 	struct pci_dev *pdev = to_pci_dev(dev->dev);
 
 	mutex_lock(&dev->shutdown_lock);
-	if (pci_device_is_present(pdev) && pci_is_enabled(pdev)) {
-		u32 csts = readl(dev->bar + NVME_REG_CSTS);
+	if (pci_is_enabled(pdev)) {
+		u32 csts;
+
+		if (pci_device_is_present(pdev))
+			csts = readl(dev->bar + NVME_REG_CSTS);
+		else
+			csts = ~0;
 
 		if (dev->ctrl.state == NVME_CTRL_LIVE ||
 		    dev->ctrl.state == NVME_CTRL_RESETTING) {
@@ -2708,10 +2722,8 @@ static void nvme_dev_disable(struct nvme_dev *dev, bool shutdown)
 	nvme_pci_disable(dev);
 	nvme_reap_pending_cqes(dev);
 
-	blk_mq_tagset_busy_iter(&dev->tagset, nvme_cancel_request, &dev->ctrl);
-	blk_mq_tagset_busy_iter(&dev->admin_tagset, nvme_cancel_request, &dev->ctrl);
-	blk_mq_tagset_wait_completed_request(&dev->tagset);
-	blk_mq_tagset_wait_completed_request(&dev->admin_tagset);
+	nvme_cancel_tagset(&dev->ctrl);
+	nvme_cancel_admin_tagset(&dev->ctrl);
 
 	/*
 	 * The driver will not be starting up queues again if shutting down so
@@ -2825,9 +2837,13 @@ static void nvme_reset_work(struct work_struct *work)
 	if (result)
 		goto out_unlock;
 
-	result = nvme_alloc_admin_tags(dev);
-	if (result)
-		goto out_unlock;
+	if (!dev->ctrl.admin_q) {
+		result = nvme_pci_alloc_admin_tag_set(dev);
+		if (result)
+			goto out_unlock;
+	} else {
+		nvme_start_admin_queue(&dev->ctrl);
+	}
 
 	/*
 	 * Limit the max command size to prevent iod->sg allocations going
@@ -2906,7 +2922,11 @@ static void nvme_reset_work(struct work_struct *work)
 	} else {
 		nvme_start_queues(&dev->ctrl);
 		nvme_wait_freeze(&dev->ctrl);
-		nvme_dev_add(dev);
+		if (!dev->ctrl.tagset)
+			nvme_pci_alloc_tag_set(dev);
+		else
+			nvme_pci_update_nr_queues(dev);
+		nvme_dbbuf_set(dev);
 		nvme_unfreeze(&dev->ctrl);
 	}
 
@@ -2972,6 +2992,21 @@ static int nvme_pci_get_address(struct nvme_ctrl *ctrl, char *buf, int size)
 	return snprintf(buf, size, "%s\n", dev_name(&pdev->dev));
 }
 
+
+static void nvme_pci_print_device_info(struct nvme_ctrl *ctrl)
+{
+	struct pci_dev *pdev = to_pci_dev(to_nvme_dev(ctrl)->dev);
+	struct nvme_subsystem *subsys = ctrl->subsys;
+
+	dev_err(ctrl->device,
+		"VID:DID %04x:%04x model:%.*s firmware:%.*s\n",
+		pdev->vendor, pdev->device,
+		nvme_strlen(subsys->model, sizeof(subsys->model)),
+		subsys->model, nvme_strlen(subsys->firmware_rev,
+					   sizeof(subsys->firmware_rev)),
+		subsys->firmware_rev);
+}
+
 static const struct nvme_ctrl_ops nvme_pci_ctrl_ops = {
 	.name			= "pcie",
 	.module			= THIS_MODULE,
@@ -2983,6 +3018,7 @@ static const struct nvme_ctrl_ops nvme_pci_ctrl_ops = {
 	.free_ctrl		= nvme_pci_free_ctrl,
 	.submit_async_event	= nvme_pci_submit_async_event,
 	.get_address		= nvme_pci_get_address,
+	.print_device_info	= nvme_pci_print_device_info,
 };
 
 static int nvme_dev_map(struct nvme_dev *dev)
@@ -3417,7 +3453,8 @@ static const struct pci_device_id nvme_id_table[] = {
 	{ PCI_VDEVICE(REDHAT, 0x0010),	/* Qemu emulated controller */
 		.driver_data = NVME_QUIRK_BOGUS_NID, },
 	{ PCI_DEVICE(0x126f, 0x2263),	/* Silicon Motion unidentified */
-		.driver_data = NVME_QUIRK_NO_NS_DESC_LIST, },
+		.driver_data = NVME_QUIRK_NO_NS_DESC_LIST |
+				NVME_QUIRK_BOGUS_NID, },
 	{ PCI_DEVICE(0x1bb1, 0x0100),   /* Seagate Nytro Flash Storage */
 		.driver_data = NVME_QUIRK_DELAY_BEFORE_CHK_RDY |
 				NVME_QUIRK_NO_NS_DESC_LIST, },
@@ -3433,29 +3470,55 @@ static const struct pci_device_id nvme_id_table[] = {
 		.driver_data = NVME_QUIRK_DELAY_BEFORE_CHK_RDY |
 				NVME_QUIRK_DISABLE_WRITE_ZEROES|
 				NVME_QUIRK_IGNORE_DEV_SUBNQN, },
+	{ PCI_DEVICE(0x1987, 0x5012),	/* Phison E12 */
+		.driver_data = NVME_QUIRK_BOGUS_NID, },
 	{ PCI_DEVICE(0x1987, 0x5016),	/* Phison E16 */
-		.driver_data = NVME_QUIRK_IGNORE_DEV_SUBNQN, },
+		.driver_data = NVME_QUIRK_IGNORE_DEV_SUBNQN |
+				NVME_QUIRK_BOGUS_NID, },
 	{ PCI_DEVICE(0x1b4b, 0x1092),	/* Lexar 256 GB SSD */
 		.driver_data = NVME_QUIRK_NO_NS_DESC_LIST |
 				NVME_QUIRK_IGNORE_DEV_SUBNQN, },
+	{ PCI_DEVICE(0x1cc1, 0x33f8),   /* ADATA IM2P33F8ABR1 1 TB */
+		.driver_data = NVME_QUIRK_BOGUS_NID, },
 	{ PCI_DEVICE(0x10ec, 0x5762),   /* ADATA SX6000LNP */
-		.driver_data = NVME_QUIRK_IGNORE_DEV_SUBNQN, },
+		.driver_data = NVME_QUIRK_IGNORE_DEV_SUBNQN |
+				NVME_QUIRK_BOGUS_NID, },
 	{ PCI_DEVICE(0x1cc1, 0x8201),   /* ADATA SX8200PNP 512GB */
 		.driver_data = NVME_QUIRK_NO_DEEPEST_PS |
 				NVME_QUIRK_IGNORE_DEV_SUBNQN, },
+	 { PCI_DEVICE(0x1344, 0x5407), /* Micron Technology Inc NVMe SSD */
+		.driver_data = NVME_QUIRK_IGNORE_DEV_SUBNQN },
 	{ PCI_DEVICE(0x1c5c, 0x1504),   /* SK Hynix PC400 */
 		.driver_data = NVME_QUIRK_DISABLE_WRITE_ZEROES, },
+	{ PCI_DEVICE(0x1c5c, 0x174a),   /* SK Hynix P31 SSD */
+		.driver_data = NVME_QUIRK_BOGUS_NID, },
 	{ PCI_DEVICE(0x15b7, 0x2001),   /*  Sandisk Skyhawk */
 		.driver_data = NVME_QUIRK_DISABLE_WRITE_ZEROES, },
 	{ PCI_DEVICE(0x1d97, 0x2263),   /* SPCC */
+		.driver_data = NVME_QUIRK_DISABLE_WRITE_ZEROES, },
+	{ PCI_DEVICE(0x144d, 0xa80b),   /* Samsung PM9B1 256G and 512G */
+		.driver_data = NVME_QUIRK_DISABLE_WRITE_ZEROES, },
+	{ PCI_DEVICE(0x144d, 0xa809),   /* Samsung MZALQ256HBJD 256G */
+		.driver_data = NVME_QUIRK_DISABLE_WRITE_ZEROES, },
+	{ PCI_DEVICE(0x1cc4, 0x6303),   /* UMIS RPJTJ512MGE1QDY 512G */
+		.driver_data = NVME_QUIRK_DISABLE_WRITE_ZEROES, },
+	{ PCI_DEVICE(0x1cc4, 0x6302),   /* UMIS RPJTJ256MGE1QDY 256G */
 		.driver_data = NVME_QUIRK_DISABLE_WRITE_ZEROES, },
 	{ PCI_DEVICE(0x2646, 0x2262),   /* KINGSTON SKC2000 NVMe SSD */
 		.driver_data = NVME_QUIRK_NO_DEEPEST_PS, },
 	{ PCI_DEVICE(0x2646, 0x2263),   /* KINGSTON A2000 NVMe SSD  */
 		.driver_data = NVME_QUIRK_NO_DEEPEST_PS, },
+	{ PCI_DEVICE(0x1e4B, 0x1001),   /* MAXIO MAP1001 */
+		.driver_data = NVME_QUIRK_BOGUS_NID, },
 	{ PCI_DEVICE(0x1e4B, 0x1002),   /* MAXIO MAP1002 */
 		.driver_data = NVME_QUIRK_BOGUS_NID, },
 	{ PCI_DEVICE(0x1e4B, 0x1202),   /* MAXIO MAP1202 */
+		.driver_data = NVME_QUIRK_BOGUS_NID, },
+	{ PCI_DEVICE(0x1cc1, 0x5350),   /* ADATA XPG GAMMIX S50 */
+		.driver_data = NVME_QUIRK_BOGUS_NID, },
+	{ PCI_DEVICE(0x1e49, 0x0041),   /* ZHITAI TiPro7000 NVMe SSD */
+		.driver_data = NVME_QUIRK_NO_DEEPEST_PS, },
+	{ PCI_DEVICE(0xc0a9, 0x540a),   /* Crucial P2 */
 		.driver_data = NVME_QUIRK_BOGUS_NID, },
 	{ PCI_DEVICE(PCI_VENDOR_ID_AMAZON, 0x0061),
 		.driver_data = NVME_QUIRK_DMA_ADDRESS_BITS_48, },
@@ -3477,10 +3540,6 @@ static const struct pci_device_id nvme_id_table[] = {
 				NVME_QUIRK_128_BYTES_SQES |
 				NVME_QUIRK_SHARED_TAGS |
 				NVME_QUIRK_SKIP_CID_GEN },
-	{ PCI_DEVICE(0x144d, 0xa808),   /* Samsung X5 */
-		.driver_data =  NVME_QUIRK_DELAY_BEFORE_CHK_RDY|
-				NVME_QUIRK_NO_DEEPEST_PS |
-				NVME_QUIRK_IGNORE_DEV_SUBNQN, },
 	{ PCI_DEVICE_CLASS(PCI_CLASS_STORAGE_EXPRESS, 0xffffff) },
 	{ 0, }
 };

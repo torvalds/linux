@@ -31,7 +31,7 @@ static void __init csky_memblock_init(void)
 	unsigned long max_zone_pfn[MAX_NR_ZONES] = { 0 };
 	signed long size;
 
-	memblock_reserve(__pa(_stext), _end - _stext);
+	memblock_reserve(__pa(_start), _end - _start);
 
 	early_init_fdt_reserve_self();
 	early_init_fdt_scan_reserved_mem();
@@ -78,7 +78,7 @@ void __init setup_arch(char **cmdline_p)
 	pr_info("Phys. mem: %ldMB\n",
 		(unsigned long) memblock_phys_mem_size()/1024/1024);
 
-	setup_initial_init_mm(_stext, _etext, _edata, _end);
+	setup_initial_init_mm(_start, _etext, _edata, _end);
 
 	parse_early_param();
 

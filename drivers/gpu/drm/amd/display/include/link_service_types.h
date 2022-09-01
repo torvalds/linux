@@ -67,6 +67,8 @@ enum link_training_result {
 	LINK_TRAINING_CR_FAIL_LANE23,
 	/* CR DONE bit is cleared during EQ step */
 	LINK_TRAINING_EQ_FAIL_CR,
+	/* CR DONE bit is cleared but LANE0_CR_DONE is set during EQ step */
+	LINK_TRAINING_EQ_FAIL_CR_PARTIAL,
 	/* other failure during EQ step */
 	LINK_TRAINING_EQ_FAIL_EQ,
 	LINK_TRAINING_LQA_FAIL,
@@ -78,12 +80,6 @@ enum link_training_result {
 	DP_128b_132b_MAX_LOOP_COUNT_REACHED,
 	DP_128b_132b_CHANNEL_EQ_DONE_TIMEOUT,
 	DP_128b_132b_CDS_DONE_TIMEOUT,
-};
-
-enum lttpr_support {
-	LTTPR_UNSUPPORTED,
-	LTTPR_CHECK_EXT_SUPPORT,
-	LTTPR_SUPPORTED,
 };
 
 enum lttpr_mode {
@@ -98,7 +94,6 @@ struct link_training_settings {
 	/* TODO: turn lane settings below into mandatory fields
 	 * as initial lane configuration
 	 */
-	struct dc_lane_settings lane_settings[LANE_COUNT_DP_MAX];
 	enum dc_voltage_swing *voltage_swing;
 	enum dc_pre_emphasis *pre_emphasis;
 	enum dc_post_cursor2 *post_cursor2;

@@ -37,6 +37,7 @@
 #define QL_VND_GET_TGT_STATS		0x25
 #define QL_VND_MANAGE_HOST_PORT		0x26
 #define QL_VND_MBX_PASSTHRU		0x2B
+#define QL_VND_DPORT_DIAGNOSTICS_V2	0x2C
 
 /* BSG Vendor specific subcode returns */
 #define EXT_STATUS_OK			0
@@ -60,6 +61,9 @@
 #define EXT_STATUS_TIMEOUT		30
 #define EXT_STATUS_THREAD_FAILED	31
 #define EXT_STATUS_DATA_CMP_FAILED	32
+#define EXT_STATUS_DPORT_DIAG_ERR	40
+#define EXT_STATUS_DPORT_DIAG_IN_PROCESS	41
+#define EXT_STATUS_DPORT_DIAG_NOT_RUNNING	42
 
 /* BSG definations for interpreting CommandSent field */
 #define INT_DEF_LB_LOOPBACK_CMD         0
@@ -286,6 +290,17 @@ struct qla_dport_diag {
 	uint16_t options;
 	uint32_t buf[16];
 	uint8_t  unused[62];
+} __packed;
+
+#define QLA_GET_DPORT_RESULT_V2		0  /* Get Result */
+#define QLA_RESTART_DPORT_TEST_V2	1  /* Restart test */
+#define QLA_START_DPORT_TEST_V2		2  /* Start test */
+struct qla_dport_diag_v2 {
+	uint16_t options;
+	uint16_t mbx1;
+	uint16_t mbx2;
+	uint8_t  unused[58];
+	uint8_t buf[1024]; /* Test Result */
 } __packed;
 
 /* D_Port options */

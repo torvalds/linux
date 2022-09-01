@@ -61,7 +61,7 @@ struct usb_stream {
 	unsigned		 inpacket_split_at;
 	unsigned		 next_inpacket_split;
 	unsigned		 next_inpacket_split_at;
-	struct usb_stream_packet inpacket[0];
+	struct usb_stream_packet inpacket[];
 };
 
 enum usb_stream_state {

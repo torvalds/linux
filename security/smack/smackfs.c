@@ -23,6 +23,7 @@
 #include <linux/ctype.h>
 #include <linux/audit.h>
 #include <linux/magic.h>
+#include <linux/mount.h>
 #include <linux/fs_context.h>
 #include "smack.h"
 

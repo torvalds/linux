@@ -465,6 +465,9 @@ static int papr_scm_pmu_check_events(struct papr_scm_priv *p, struct nvdimm_pmu 
 	u32 available_events;
 	int index, rc = 0;
 
+	if (!p->stat_buffer_len)
+		return -ENOENT;
+
 	available_events = (p->stat_buffer_len  - sizeof(struct papr_scm_perf_stats))
 			/ sizeof(struct papr_scm_perf_stat);
 	if (available_events == 0)

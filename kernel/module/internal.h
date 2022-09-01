@@ -11,6 +11,7 @@
 #include <linux/mutex.h>
 #include <linux/rculist.h>
 #include <linux/rcupdate.h>
+#include <linux/mm.h>
 
 #ifndef ARCH_SHF_SMALL
 #define ARCH_SHF_SMALL 0
@@ -30,11 +31,13 @@
  * to ensure complete separation of code and data, but
  * only when CONFIG_STRICT_MODULE_RWX=y
  */
-#ifdef CONFIG_STRICT_MODULE_RWX
-# define strict_align(X) PAGE_ALIGN(X)
-#else
-# define strict_align(X) (X)
-#endif
+static inline unsigned int strict_align(unsigned int size)
+{
+	if (IS_ENABLED(CONFIG_STRICT_MODULE_RWX))
+		return PAGE_ALIGN(size);
+	else
+		return size;
+}
 
 extern struct mutex module_mutex;
 extern struct list_head modules;

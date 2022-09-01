@@ -1,10 +1,5 @@
-/*
- * Mbus-L to Mbus Bridge Registers
- *
- * This file is licensed under the terms of the GNU General Public
- * License version 2.  This program is licensed "as is" without any
- * warranty of any kind, whether express or implied.
- */
+/* SPDX-License-Identifier: GPL-2.0-only */
+/* Mbus-L to Mbus Bridge Registers */
 
 #ifndef __ASM_ARCH_BRIDGE_REGS_H
 #define __ASM_ARCH_BRIDGE_REGS_H

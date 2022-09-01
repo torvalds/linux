@@ -73,7 +73,8 @@ static void kfd_device_info_set_sdma_info(struct kfd_dev *kfd)
 	case IP_VERSION(4, 1, 2):/* RENOIR */
 	case IP_VERSION(5, 2, 1):/* VANGOGH */
 	case IP_VERSION(5, 2, 3):/* YELLOW_CARP */
-	case IP_VERSION(6, 0, 1):
+	case IP_VERSION(5, 2, 6):/* GC 10.3.6 */
+	case IP_VERSION(5, 2, 7):/* GC 10.3.7 */
 		kfd->device_info.num_sdma_queues_per_engine = 2;
 		break;
 	case IP_VERSION(4, 2, 0):/* VEGA20 */
@@ -88,6 +89,7 @@ static void kfd_device_info_set_sdma_info(struct kfd_dev *kfd)
 	case IP_VERSION(5, 2, 4):/* DIMGREY_CAVEFISH */
 	case IP_VERSION(5, 2, 5):/* BEIGE_GOBY */
 	case IP_VERSION(6, 0, 0):
+	case IP_VERSION(6, 0, 1):
 	case IP_VERSION(6, 0, 2):
 		kfd->device_info.num_sdma_queues_per_engine = 8;
 		break;
@@ -127,6 +129,8 @@ static void kfd_device_info_set_event_interrupt_class(struct kfd_dev *kfd)
 	case IP_VERSION(9, 4, 2): /* ALDEBARAN */
 	case IP_VERSION(10, 3, 1): /* VANGOGH */
 	case IP_VERSION(10, 3, 3): /* YELLOW_CARP */
+	case IP_VERSION(10, 3, 6): /* GC 10.3.6 */
+	case IP_VERSION(10, 3, 7): /* GC 10.3.7 */
 	case IP_VERSION(10, 1, 3): /* CYAN_SKILLFISH */
 	case IP_VERSION(10, 1, 4):
 	case IP_VERSION(10, 1, 10): /* NAVI10 */
@@ -178,7 +182,11 @@ static void kfd_device_info_init(struct kfd_dev *kfd,
 
 		if (gc_version < IP_VERSION(11, 0, 0)) {
 			/* Navi2x+, Navi1x+ */
-			if (gc_version >= IP_VERSION(10, 3, 0))
+			if (gc_version == IP_VERSION(10, 3, 6))
+				kfd->device_info.no_atomic_fw_version = 14;
+			else if (gc_version == IP_VERSION(10, 3, 7))
+				kfd->device_info.no_atomic_fw_version = 3;
+			else if (gc_version >= IP_VERSION(10, 3, 0))
 				kfd->device_info.no_atomic_fw_version = 92;
 			else if (gc_version >= IP_VERSION(10, 1, 1))
 				kfd->device_info.no_atomic_fw_version = 145;
@@ -368,6 +376,16 @@ struct kfd_dev *kgd2kfd_probe(struct amdgpu_device *adev, bool vf)
 			if (!vf)
 				f2g = &gfx_v10_3_kfd2kgd;
 			break;
+		case IP_VERSION(10, 3, 6):
+			gfx_target_version = 100306;
+			if (!vf)
+				f2g = &gfx_v10_3_kfd2kgd;
+			break;
+		case IP_VERSION(10, 3, 7):
+			gfx_target_version = 100307;
+			if (!vf)
+				f2g = &gfx_v10_3_kfd2kgd;
+			break;
 		case IP_VERSION(11, 0, 0):
 			gfx_target_version = 110000;
 			f2g = &gfx_v11_kfd2kgd;
@@ -441,10 +459,14 @@ static void kfd_cwsr_init(struct kfd_dev *kfd)
 			BUILD_BUG_ON(sizeof(cwsr_trap_nv1x_hex) > PAGE_SIZE);
 			kfd->cwsr_isa = cwsr_trap_nv1x_hex;
 			kfd->cwsr_isa_size = sizeof(cwsr_trap_nv1x_hex);
-		} else {
+		} else if (KFD_GC_VERSION(kfd) < IP_VERSION(11, 0, 0)) {
 			BUILD_BUG_ON(sizeof(cwsr_trap_gfx10_hex) > PAGE_SIZE);
 			kfd->cwsr_isa = cwsr_trap_gfx10_hex;
 			kfd->cwsr_isa_size = sizeof(cwsr_trap_gfx10_hex);
+		} else {
+			BUILD_BUG_ON(sizeof(cwsr_trap_gfx11_hex) > PAGE_SIZE);
+			kfd->cwsr_isa = cwsr_trap_gfx11_hex;
+			kfd->cwsr_isa_size = sizeof(cwsr_trap_gfx11_hex);
 		}
 
 		kfd->cwsr_enabled = true;
@@ -817,7 +839,7 @@ void kgd2kfd_interrupt(struct kfd_dev *kfd, const void *ih_ring_entry)
 	spin_unlock_irqrestore(&kfd->interrupt_lock, flags);
 }
 
-int kgd2kfd_quiesce_mm(struct mm_struct *mm)
+int kgd2kfd_quiesce_mm(struct mm_struct *mm, uint32_t trigger)
 {
 	struct kfd_process *p;
 	int r;
@@ -831,7 +853,7 @@ int kgd2kfd_quiesce_mm(struct mm_struct *mm)
 		return -ESRCH;
 
 	WARN(debug_evictions, "Evicting pid %d", p->lead_thread->pid);
-	r = kfd_process_evict_queues(p);
+	r = kfd_process_evict_queues(p, trigger);
 
 	kfd_unref_process(p);
 	return r;

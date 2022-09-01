@@ -1937,8 +1937,6 @@ static int imx_uart_rs485_config(struct uart_port *port,
 	    rs485conf->flags & SER_RS485_RX_DURING_TX)
 		imx_uart_start_rx(port);
 
-	port->rs485 = *rs485conf;
-
 	return 0;
 }
 

@@ -8,7 +8,7 @@
  * notifications sent from ACPI via the SAN interface by providing them to any
  * registered external driver.
  *
- * Copyright (C) 2019-2020 Maximilian Luz <luzmaximilian@gmail.com>
+ * Copyright (C) 2019-2022 Maximilian Luz <luzmaximilian@gmail.com>
  */
 
 #include <asm/unaligned.h>
@@ -37,6 +37,7 @@ struct san_data {
 #define to_san_data(ptr, member) \
 	container_of(ptr, struct san_data, member)
 
+static struct workqueue_struct *san_wq;
 
 /* -- dGPU notifier interface. ---------------------------------------------- */
 
@@ -356,7 +357,7 @@ static u32 san_evt_bat_nf(struct ssam_event_notifier *nf,
 
 	memcpy(&work->event, event, sizeof(struct ssam_event) + event->length);
 
-	schedule_delayed_work(&work->work, delay);
+	queue_delayed_work(san_wq, &work->work, delay);
 	return SSAM_NOTIF_HANDLED;
 }
 
@@ -861,7 +862,7 @@ static int san_remove(struct platform_device *pdev)
 	 * We have unregistered our event sources. Now we need to ensure that
 	 * all delayed works they may have spawned are run to completion.
 	 */
-	flush_scheduled_work();
+	flush_workqueue(san_wq);
 
 	return 0;
 }
@@ -881,7 +882,27 @@ static struct platform_driver surface_acpi_notify = {
 		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 	},
 };
-module_platform_driver(surface_acpi_notify);
+
+static int __init san_init(void)
+{
+	int ret;
+
+	san_wq = alloc_workqueue("san_wq", 0, 0);
+	if (!san_wq)
+		return -ENOMEM;
+	ret = platform_driver_register(&surface_acpi_notify);
+	if (ret)
+		destroy_workqueue(san_wq);
+	return ret;
+}
+module_init(san_init);
+
+static void __exit san_exit(void)
+{
+	platform_driver_unregister(&surface_acpi_notify);
+	destroy_workqueue(san_wq);
+}
+module_exit(san_exit);
 
 MODULE_AUTHOR("Maximilian Luz <luzmaximilian@gmail.com>");
 MODULE_DESCRIPTION("Surface ACPI Notify driver for Surface System Aggregator Module");

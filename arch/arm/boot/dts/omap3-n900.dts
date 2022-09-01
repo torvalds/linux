@@ -568,8 +568,8 @@
 };
 
 &twl_gpio {
-	ti,pullups	= <0x0>;
-	ti,pulldowns	= <0x03ff3f>; /* BIT(0..5) | BIT(8..17) */
+	ti,pullups = <0x0>;
+	ti,pulldowns = <0x03ff3f>; /* BIT(0..5) | BIT(8..17) */
 };
 
 &i2c2 {

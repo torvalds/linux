@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0
 menuconfig ARCH_DOVE
 	bool "Marvell Dove" if ARCH_MULTI_V7
+	depends on ATAGS
 	select CPU_PJ4
 	select GPIOLIB
 	select MVEBU_MBUS
@@ -8,6 +9,7 @@ menuconfig ARCH_DOVE
 	select PINCTRL_DOVE
 	select PLAT_ORION_LEGACY
 	select PM_GENERIC_DOMAINS if PM
+	select PCI_QUIRKS if PCI
 	help
 	  Support for the Marvell Dove SoC 88AP510
 

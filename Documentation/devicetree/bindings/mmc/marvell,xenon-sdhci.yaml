@@ -56,6 +56,9 @@ properties:
       - const: core
       - const: axi
 
+  interrupts:
+    maxItems: 1
+
   marvell,xenon-sdhc-id:
     $ref: /schemas/types.yaml#/definitions/uint32
     minimum: 0
@@ -145,7 +148,6 @@ allOf:
           items:
             - description: Xenon IP registers
             - description: Armada 3700 SoC PHY PAD Voltage Control register
-          minItems: 2
 
         marvell,pad-type:
           $ref: /schemas/types.yaml#/definitions/string

@@ -269,6 +269,12 @@ mlx5_esw_bridge_port_obj_attr_set(struct net_device *dev,
 		err = mlx5_esw_bridge_vlan_filtering_set(vport_num, esw_owner_vhca_id,
 							 attr->u.vlan_filtering, br_offloads);
 		break;
+	case SWITCHDEV_ATTR_ID_BRIDGE_VLAN_PROTOCOL:
+		err = mlx5_esw_bridge_vlan_proto_set(vport_num,
+						     esw_owner_vhca_id,
+						     attr->u.vlan_protocol,
+						     br_offloads);
+		break;
 	default:
 		err = -EOPNOTSUPP;
 	}

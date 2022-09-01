@@ -67,16 +67,16 @@ static int mlxsw_sp_counter_sub_pools_init(struct mlxsw_sp *mlxsw_sp)
 			return -EIO;
 		sub_pool->entry_size = mlxsw_core_res_get(mlxsw_sp->core,
 							  res_id);
-		err = devlink_resource_size_get(devlink,
-						sub_pool->resource_id,
-						&sub_pool->size);
+		err = devl_resource_size_get(devlink,
+					     sub_pool->resource_id,
+					     &sub_pool->size);
 		if (err)
 			goto err_resource_size_get;
 
-		devlink_resource_occ_get_register(devlink,
-						  sub_pool->resource_id,
-						  mlxsw_sp_counter_sub_pool_occ_get,
-						  sub_pool);
+		devl_resource_occ_get_register(devlink,
+					       sub_pool->resource_id,
+					       mlxsw_sp_counter_sub_pool_occ_get,
+					       sub_pool);
 
 		sub_pool->base_index = base_index;
 		base_index += sub_pool->size;
@@ -88,8 +88,8 @@ err_resource_size_get:
 	for (i--; i >= 0; i--) {
 		sub_pool = &pool->sub_pools[i];
 
-		devlink_resource_occ_get_unregister(devlink,
-						    sub_pool->resource_id);
+		devl_resource_occ_get_unregister(devlink,
+						 sub_pool->resource_id);
 	}
 	return err;
 }
@@ -105,8 +105,8 @@ static void mlxsw_sp_counter_sub_pools_fini(struct mlxsw_sp *mlxsw_sp)
 		sub_pool = &pool->sub_pools[i];
 
 		WARN_ON(atomic_read(&sub_pool->active_entries_count));
-		devlink_resource_occ_get_unregister(devlink,
-						    sub_pool->resource_id);
+		devl_resource_occ_get_unregister(devlink,
+						 sub_pool->resource_id);
 	}
 }
 
@@ -135,12 +135,12 @@ int mlxsw_sp_counter_pool_init(struct mlxsw_sp *mlxsw_sp)
 	spin_lock_init(&pool->counter_pool_lock);
 	atomic_set(&pool->active_entries_count, 0);
 
-	err = devlink_resource_size_get(devlink, MLXSW_SP_RESOURCE_COUNTERS,
-					&pool->pool_size);
+	err = devl_resource_size_get(devlink, MLXSW_SP_RESOURCE_COUNTERS,
+				     &pool->pool_size);
 	if (err)
 		goto err_pool_resource_size_get;
-	devlink_resource_occ_get_register(devlink, MLXSW_SP_RESOURCE_COUNTERS,
-					  mlxsw_sp_counter_pool_occ_get, pool);
+	devl_resource_occ_get_register(devlink, MLXSW_SP_RESOURCE_COUNTERS,
+				       mlxsw_sp_counter_pool_occ_get, pool);
 
 	pool->usage = bitmap_zalloc(pool->pool_size, GFP_KERNEL);
 	if (!pool->usage) {
@@ -157,8 +157,8 @@ int mlxsw_sp_counter_pool_init(struct mlxsw_sp *mlxsw_sp)
 err_sub_pools_init:
 	bitmap_free(pool->usage);
 err_usage_alloc:
-	devlink_resource_occ_get_unregister(devlink,
-					    MLXSW_SP_RESOURCE_COUNTERS);
+	devl_resource_occ_get_unregister(devlink,
+					 MLXSW_SP_RESOURCE_COUNTERS);
 err_pool_resource_size_get:
 	kfree(pool);
 	return err;
@@ -174,8 +174,8 @@ void mlxsw_sp_counter_pool_fini(struct mlxsw_sp *mlxsw_sp)
 			       pool->pool_size);
 	WARN_ON(atomic_read(&pool->active_entries_count));
 	bitmap_free(pool->usage);
-	devlink_resource_occ_get_unregister(devlink,
-					    MLXSW_SP_RESOURCE_COUNTERS);
+	devl_resource_occ_get_unregister(devlink,
+					 MLXSW_SP_RESOURCE_COUNTERS);
 	kfree(pool);
 }
 
@@ -262,12 +262,12 @@ int mlxsw_sp_counter_resources_register(struct mlxsw_core *mlxsw_core)
 	devlink_resource_size_params_init(&size_params, pool_size,
 					  pool_size, bank_size,
 					  DEVLINK_RESOURCE_UNIT_ENTRY);
-	err = devlink_resource_register(devlink,
-					MLXSW_SP_RESOURCE_NAME_COUNTERS,
-					pool_size,
-					MLXSW_SP_RESOURCE_COUNTERS,
-					DEVLINK_RESOURCE_ID_PARENT_TOP,
-					&size_params);
+	err = devl_resource_register(devlink,
+				     MLXSW_SP_RESOURCE_NAME_COUNTERS,
+				     pool_size,
+				     MLXSW_SP_RESOURCE_COUNTERS,
+				     DEVLINK_RESOURCE_ID_PARENT_TOP,
+				     &size_params);
 	if (err)
 		return err;
 
@@ -287,12 +287,12 @@ int mlxsw_sp_counter_resources_register(struct mlxsw_core *mlxsw_core)
 		devlink_resource_size_params_init(&size_params, sub_pool_size,
 						  sub_pool_size, bank_size,
 						  DEVLINK_RESOURCE_UNIT_ENTRY);
-		err = devlink_resource_register(devlink,
-						sub_pool->resource_name,
-						sub_pool_size,
-						sub_pool->resource_id,
-						MLXSW_SP_RESOURCE_COUNTERS,
-						&size_params);
+		err = devl_resource_register(devlink,
+					     sub_pool->resource_name,
+					     sub_pool_size,
+					     sub_pool->resource_id,
+					     MLXSW_SP_RESOURCE_COUNTERS,
+					     &size_params);
 		if (err)
 			return err;
 		total_bank_config += sub_pool->bank_count;

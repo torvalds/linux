@@ -30,7 +30,7 @@
 
 #include "gumstix.h"
 #include "mfp-pxa25x.h"
-#include <mach/irqs.h>
+#include "irqs.h"
 #include <linux/platform_data/video-pxafb.h>
 
 #include "generic.h"

@@ -646,7 +646,7 @@ static void test_tcp_clear_dtime(struct test_tc_dtime *skel)
 	__u32 *errs = skel->bss->errs[t];
 
 	skel->bss->test = t;
-	test_inet_dtime(AF_INET6, SOCK_STREAM, IP6_DST, 0);
+	test_inet_dtime(AF_INET6, SOCK_STREAM, IP6_DST, 50000 + t);
 
 	ASSERT_EQ(dtimes[INGRESS_FWDNS_P100], 0,
 		  dtime_cnt_str(t, INGRESS_FWDNS_P100));
@@ -683,7 +683,7 @@ static void test_tcp_dtime(struct test_tc_dtime *skel, int family, bool bpf_fwd)
 	errs = skel->bss->errs[t];
 
 	skel->bss->test = t;
-	test_inet_dtime(family, SOCK_STREAM, addr, 0);
+	test_inet_dtime(family, SOCK_STREAM, addr, 50000 + t);
 
 	/* fwdns_prio100 prog does not read delivery_time_type, so
 	 * kernel puts the (rcv) timetamp in __sk_buff->tstamp
@@ -715,13 +715,13 @@ static void test_udp_dtime(struct test_tc_dtime *skel, int family, bool bpf_fwd)
 	errs = skel->bss->errs[t];
 
 	skel->bss->test = t;
-	test_inet_dtime(family, SOCK_DGRAM, addr, 0);
+	test_inet_dtime(family, SOCK_DGRAM, addr, 50000 + t);
 
 	ASSERT_EQ(dtimes[INGRESS_FWDNS_P100], 0,
 		  dtime_cnt_str(t, INGRESS_FWDNS_P100));
 	/* non mono delivery time is not forwarded */
 	ASSERT_EQ(dtimes[INGRESS_FWDNS_P101], 0,
-		  dtime_cnt_str(t, INGRESS_FWDNS_P100));
+		  dtime_cnt_str(t, INGRESS_FWDNS_P101));
 	for (i = EGRESS_FWDNS_P100; i < SET_DTIME; i++)
 		ASSERT_GT(dtimes[i], 0, dtime_cnt_str(t, i));
 

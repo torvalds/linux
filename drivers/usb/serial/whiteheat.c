@@ -30,10 +30,6 @@
 #include <linux/usb/ezusb.h>
 #include "whiteheat.h"			/* WhiteHEAT specific commands */
 
-#ifndef CMSPAR
-#define CMSPAR 0
-#endif
-
 /*
  * Version Information
  */

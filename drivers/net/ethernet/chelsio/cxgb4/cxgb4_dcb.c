@@ -85,7 +85,7 @@ static void cxgb4_dcb_cleanup_apps(struct net_device *dev)
 
 		if (err) {
 			dev_err(adap->pdev_dev,
-				"Failed DCB Clear %s Application Priority: sel=%d, prot=%d, , err=%d\n",
+				"Failed DCB Clear %s Application Priority: sel=%d, prot=%d, err=%d\n",
 				dcb_ver_array[dcb->dcb_version], app.selector,
 				app.protocol, -err);
 			break;

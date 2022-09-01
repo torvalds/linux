@@ -7,6 +7,7 @@
 #include <linux/component.h>
 #include <linux/gpio/consumer.h>
 #include <linux/hdmi.h>
+#include <linux/i2c.h>
 #include <linux/module.h>
 #include <linux/platform_data/tda9950.h>
 #include <linux/irq.h>

@@ -436,7 +436,7 @@ struct nstoken *open_netns(const char *name)
 	int err;
 	struct nstoken *token;
 
-	token = malloc(sizeof(struct nstoken));
+	token = calloc(1, sizeof(struct nstoken));
 	if (!ASSERT_OK_PTR(token, "malloc token"))
 		return NULL;
 

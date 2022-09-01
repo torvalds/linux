@@ -1,30 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2000-2001 Christoph Hellwig.
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
- *    without modification.
- * 2. The name of the author may not be used to endorse or promote products
- *    derived from this software without specific prior written permission.
- *
- * Alternatively, this software may be distributed under the terms of the
- * GNU General Public License ("GPL").
- *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
- * SUCH DAMAGE.
  */
 
 /*
@@ -37,16 +13,6 @@
 #include "vxfs_extern.h"
 #include "vxfs_inode.h"
 
-
-static int	vxfs_immed_read_folio(struct file *, struct folio *);
-
-/*
- * Address space operations for immed files and directories.
- */
-const struct address_space_operations vxfs_immed_aops = {
-	.read_folio =		vxfs_immed_read_folio,
-};
-
 /**
  * vxfs_immed_read_folio - read part of an immed inode into pagecache
  * @file:	file context (unused)
@@ -54,7 +20,7 @@ const struct address_space_operations vxfs_immed_aops = {
  *
  * Description:
  *   vxfs_immed_read_folio reads a part of the immed area of the
- *   file that hosts @pp into the pagecache.
+ *   file that hosts @folio into the pagecache.
  *
  * Returns:
  *   Zero on success, else a negative error code.
@@ -62,21 +28,26 @@ const struct address_space_operations vxfs_immed_aops = {
  * Locking status:
  *   @folio is locked and will be unlocked.
  */
-static int
-vxfs_immed_read_folio(struct file *fp, struct folio *folio)
+static int vxfs_immed_read_folio(struct file *fp, struct folio *folio)
 {
-	struct page *pp = &folio->page;
-	struct vxfs_inode_info	*vip = VXFS_INO(pp->mapping->host);
-	u_int64_t	offset = (u_int64_t)pp->index << PAGE_SHIFT;
-	caddr_t		kaddr;
+	struct vxfs_inode_info *vip = VXFS_INO(folio->mapping->host);
+	void *src = vip->vii_immed.vi_immed + folio_pos(folio);
+	unsigned long i;
 
-	kaddr = kmap(pp);
-	memcpy(kaddr, vip->vii_immed.vi_immed + offset, PAGE_SIZE);
-	kunmap(pp);
-	
-	flush_dcache_page(pp);
-	SetPageUptodate(pp);
-        unlock_page(pp);
+	for (i = 0; i < folio_nr_pages(folio); i++) {
+		memcpy_to_page(folio_page(folio, i), 0, src, PAGE_SIZE);
+		src += PAGE_SIZE;
+	}
+
+	folio_mark_uptodate(folio);
+	folio_unlock(folio);
 
 	return 0;
 }
+
+/*
+ * Address space operations for immed files and directories.
+ */
+const struct address_space_operations vxfs_immed_aops = {
+	.read_folio =	vxfs_immed_read_folio,
+};

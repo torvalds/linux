@@ -213,11 +213,10 @@ void __init riscv_fill_hwcap(void)
 		else
 			elf_hwcap = this_hwcap;
 
-		if (bitmap_weight(riscv_isa, RISCV_ISA_EXT_MAX))
-			bitmap_and(riscv_isa, riscv_isa, this_isa, RISCV_ISA_EXT_MAX);
-		else
+		if (bitmap_empty(riscv_isa, RISCV_ISA_EXT_MAX))
 			bitmap_copy(riscv_isa, this_isa, RISCV_ISA_EXT_MAX);
-
+		else
+			bitmap_and(riscv_isa, riscv_isa, this_isa, RISCV_ISA_EXT_MAX);
 	}
 
 	/* We don't support systems with F but without D, so mask those out
@@ -294,7 +293,6 @@ void __init_or_module riscv_cpufeature_patch_func(struct alt_entry *begin,
 						  unsigned int stage)
 {
 	u32 cpu_req_feature = cpufeature_probe(stage);
-	u32 cpu_apply_feature = 0;
 	struct alt_entry *alt;
 	u32 tmp;
 
@@ -308,10 +306,8 @@ void __init_or_module riscv_cpufeature_patch_func(struct alt_entry *begin,
 		}
 
 		tmp = (1U << alt->errata_id);
-		if (cpu_req_feature & tmp) {
+		if (cpu_req_feature & tmp)
 			patch_text_nosync(alt->old_ptr, alt->alt_ptr, alt->alt_len);
-			cpu_apply_feature |= tmp;
-		}
 	}
 }
 #endif

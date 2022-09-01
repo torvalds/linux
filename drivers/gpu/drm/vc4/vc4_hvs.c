@@ -94,6 +94,46 @@ static int vc4_hvs_debugfs_underrun(struct seq_file *m, void *data)
 	return 0;
 }
 
+static int vc4_hvs_debugfs_dlist(struct seq_file *m, void *data)
+{
+	struct drm_info_node *node = m->private;
+	struct drm_device *dev = node->minor->dev;
+	struct vc4_dev *vc4 = to_vc4_dev(dev);
+	struct vc4_hvs *hvs = vc4->hvs;
+	struct drm_printer p = drm_seq_file_printer(m);
+	unsigned int next_entry_start = 0;
+	unsigned int i, j;
+	u32 dlist_word, dispstat;
+
+	for (i = 0; i < SCALER_CHANNELS_COUNT; i++) {
+		dispstat = VC4_GET_FIELD(HVS_READ(SCALER_DISPSTATX(i)),
+					 SCALER_DISPSTATX_MODE);
+		if (dispstat == SCALER_DISPSTATX_MODE_DISABLED ||
+		    dispstat == SCALER_DISPSTATX_MODE_EOF) {
+			drm_printf(&p, "HVS chan %u disabled\n", i);
+			continue;
+		}
+
+		drm_printf(&p, "HVS chan %u:\n", i);
+
+		for (j = HVS_READ(SCALER_DISPLISTX(i)); j < 256; j++) {
+			dlist_word = readl((u32 __iomem *)vc4->hvs->dlist + j);
+			drm_printf(&p, "dlist: %02d: 0x%08x\n", j,
+				   dlist_word);
+			if (!next_entry_start ||
+			    next_entry_start == j) {
+				if (dlist_word & SCALER_CTL0_END)
+					break;
+				next_entry_start = j +
+					VC4_GET_FIELD(dlist_word,
+						      SCALER_CTL0_SIZE);
+			}
+		}
+	}
+
+	return 0;
+}
+
 /* The filter kernel is composed of dwords each containing 3 9-bit
  * signed integers packed next to each other.
  */
@@ -220,10 +260,11 @@ u8 vc4_hvs_get_fifo_frame_count(struct vc4_hvs *hvs, unsigned int fifo)
 
 int vc4_hvs_get_fifo_from_output(struct vc4_hvs *hvs, unsigned int output)
 {
+	struct vc4_dev *vc4 = hvs->vc4;
 	u32 reg;
 	int ret;
 
-	if (!hvs->hvs5)
+	if (!vc4->is_vc5)
 		return output;
 
 	switch (output) {
@@ -273,6 +314,7 @@ int vc4_hvs_get_fifo_from_output(struct vc4_hvs *hvs, unsigned int output)
 static int vc4_hvs_init_channel(struct vc4_hvs *hvs, struct drm_crtc *crtc,
 				struct drm_display_mode *mode, bool oneshot)
 {
+	struct vc4_dev *vc4 = hvs->vc4;
 	struct vc4_crtc *vc4_crtc = to_vc4_crtc(crtc);
 	struct vc4_crtc_state *vc4_crtc_state = to_vc4_crtc_state(crtc->state);
 	unsigned int chan = vc4_crtc_state->assigned_channel;
@@ -291,7 +333,7 @@ static int vc4_hvs_init_channel(struct vc4_hvs *hvs, struct drm_crtc *crtc,
 	 */
 	dispctrl = SCALER_DISPCTRLX_ENABLE;
 
-	if (!hvs->hvs5)
+	if (!vc4->is_vc5)
 		dispctrl |= VC4_SET_FIELD(mode->hdisplay,
 					  SCALER_DISPCTRLX_WIDTH) |
 			    VC4_SET_FIELD(mode->vdisplay,
@@ -312,7 +354,7 @@ static int vc4_hvs_init_channel(struct vc4_hvs *hvs, struct drm_crtc *crtc,
 
 	HVS_WRITE(SCALER_DISPBKGNDX(chan), dispbkgndx |
 		  SCALER_DISPBKGND_AUTOHS |
-		  ((!hvs->hvs5) ? SCALER_DISPBKGND_GAMMA : 0) |
+		  ((!vc4->is_vc5) ? SCALER_DISPBKGND_GAMMA : 0) |
 		  (interlace ? SCALER_DISPBKGND_INTERLACE : 0));
 
 	/* Reload the LUT, since the SRAMs would have been disabled if
@@ -617,10 +659,8 @@ static int vc4_hvs_bind(struct device *dev, struct device *master, void *data)
 	if (!hvs)
 		return -ENOMEM;
 
+	hvs->vc4 = vc4;
 	hvs->pdev = pdev;
-
-	if (of_device_is_compatible(pdev->dev.of_node, "brcm,bcm2711-hvs"))
-		hvs->hvs5 = true;
 
 	hvs->regs = vc4_ioremap_regs(pdev, 0);
 	if (IS_ERR(hvs->regs))
@@ -630,7 +670,7 @@ static int vc4_hvs_bind(struct device *dev, struct device *master, void *data)
 	hvs->regset.regs = hvs_regs;
 	hvs->regset.nregs = ARRAY_SIZE(hvs_regs);
 
-	if (hvs->hvs5) {
+	if (vc4->is_vc5) {
 		hvs->core_clk = devm_clk_get(&pdev->dev, NULL);
 		if (IS_ERR(hvs->core_clk)) {
 			dev_err(&pdev->dev, "Couldn't get core clock\n");
@@ -644,7 +684,7 @@ static int vc4_hvs_bind(struct device *dev, struct device *master, void *data)
 		}
 	}
 
-	if (!hvs->hvs5)
+	if (!vc4->is_vc5)
 		hvs->dlist = hvs->regs + SCALER_DLIST_START;
 	else
 		hvs->dlist = hvs->regs + SCALER5_DLIST_START;
@@ -665,7 +705,7 @@ static int vc4_hvs_bind(struct device *dev, struct device *master, void *data)
 	 * between planes when they don't overlap on the screen, but
 	 * for now we just allocate globally.
 	 */
-	if (!hvs->hvs5)
+	if (!vc4->is_vc5)
 		/* 48k words of 2x12-bit pixels */
 		drm_mm_init(&hvs->lbm_mm, 0, 48 * 1024);
 	else
@@ -733,6 +773,8 @@ static int vc4_hvs_bind(struct device *dev, struct device *master, void *data)
 
 	vc4_debugfs_add_regset32(drm, "hvs_regs", &hvs->regset);
 	vc4_debugfs_add_file(drm, "hvs_underrun", vc4_hvs_debugfs_underrun,
+			     NULL);
+	vc4_debugfs_add_file(drm, "hvs_dlists", vc4_hvs_debugfs_dlist,
 			     NULL);
 
 	return 0;

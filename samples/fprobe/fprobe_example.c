@@ -20,14 +20,24 @@
 
 #define BACKTRACE_DEPTH 16
 #define MAX_SYMBOL_LEN 4096
-struct fprobe sample_probe;
+static struct fprobe sample_probe;
+static unsigned long nhit;
 
 static char symbol[MAX_SYMBOL_LEN] = "kernel_clone";
 module_param_string(symbol, symbol, sizeof(symbol), 0644);
+MODULE_PARM_DESC(symbol, "Probed symbol(s), given by comma separated symbols or a wildcard pattern.");
+
 static char nosymbol[MAX_SYMBOL_LEN] = "";
 module_param_string(nosymbol, nosymbol, sizeof(nosymbol), 0644);
+MODULE_PARM_DESC(nosymbol, "Not-probed symbols, given by a wildcard pattern.");
+
 static bool stackdump = true;
 module_param(stackdump, bool, 0644);
+MODULE_PARM_DESC(stackdump, "Enable stackdump.");
+
+static bool use_trace = false;
+module_param(use_trace, bool, 0644);
+MODULE_PARM_DESC(use_trace, "Use trace_printk instead of printk. This is only for debugging.");
 
 static void show_backtrace(void)
 {
@@ -40,7 +50,15 @@ static void show_backtrace(void)
 
 static void sample_entry_handler(struct fprobe *fp, unsigned long ip, struct pt_regs *regs)
 {
-	pr_info("Enter <%pS> ip = 0x%p\n", (void *)ip, (void *)ip);
+	if (use_trace)
+		/*
+		 * This is just an example, no kernel code should call
+		 * trace_printk() except when actively debugging.
+		 */
+		trace_printk("Enter <%pS> ip = 0x%p\n", (void *)ip, (void *)ip);
+	else
+		pr_info("Enter <%pS> ip = 0x%p\n", (void *)ip, (void *)ip);
+	nhit++;
 	if (stackdump)
 		show_backtrace();
 }
@@ -49,8 +67,17 @@ static void sample_exit_handler(struct fprobe *fp, unsigned long ip, struct pt_r
 {
 	unsigned long rip = instruction_pointer(regs);
 
-	pr_info("Return from <%pS> ip = 0x%p to rip = 0x%p (%pS)\n",
-		(void *)ip, (void *)ip, (void *)rip, (void *)rip);
+	if (use_trace)
+		/*
+		 * This is just an example, no kernel code should call
+		 * trace_printk() except when actively debugging.
+		 */
+		trace_printk("Return from <%pS> ip = 0x%p to rip = 0x%p (%pS)\n",
+			(void *)ip, (void *)ip, (void *)rip, (void *)rip);
+	else
+		pr_info("Return from <%pS> ip = 0x%p to rip = 0x%p (%pS)\n",
+			(void *)ip, (void *)ip, (void *)rip, (void *)rip);
+	nhit++;
 	if (stackdump)
 		show_backtrace();
 }
@@ -112,7 +139,8 @@ static void __exit fprobe_exit(void)
 {
 	unregister_fprobe(&sample_probe);
 
-	pr_info("fprobe at %s unregistered\n", symbol);
+	pr_info("fprobe at %s unregistered. %ld times hit, %ld times missed\n",
+		symbol, nhit, sample_probe.nmissed);
 }
 
 module_init(fprobe_init)

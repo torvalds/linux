@@ -263,11 +263,11 @@ examples:
   # Micro-USB connector with HS lines routed via controller (MUIC).
   - |
     muic-max77843 {
-      usb_con1: connector {
-        compatible = "usb-b-connector";
-        label = "micro-USB";
-        type = "micro";
-      };
+        usb_con1: connector {
+            compatible = "usb-b-connector";
+            label = "micro-USB";
+            type = "micro";
+        };
     };
 
   # USB-C connector attached to CC controller (s2mm005), HS lines routed
@@ -275,34 +275,34 @@ examples:
   # DisplayPort video lines are routed to the connector via SS mux in USB3 PHY.
   - |
     ccic: s2mm005 {
-      usb_con2: connector {
-        compatible = "usb-c-connector";
-        label = "USB-C";
+        usb_con2: connector {
+            compatible = "usb-c-connector";
+            label = "USB-C";
 
-        ports {
-          #address-cells = <1>;
-          #size-cells = <0>;
+            ports {
+                #address-cells = <1>;
+                #size-cells = <0>;
 
-          port@0 {
-            reg = <0>;
-            usb_con_hs: endpoint {
-              remote-endpoint = <&max77865_usbc_hs>;
+                port@0 {
+                    reg = <0>;
+                    usb_con_hs: endpoint {
+                        remote-endpoint = <&max77865_usbc_hs>;
+                    };
+                };
+                port@1 {
+                    reg = <1>;
+                    usb_con_ss: endpoint {
+                        remote-endpoint = <&usbdrd_phy_ss>;
+                    };
+                };
+                port@2 {
+                    reg = <2>;
+                    usb_con_sbu: endpoint {
+                        remote-endpoint = <&dp_aux>;
+                    };
+                };
             };
-          };
-          port@1 {
-            reg = <1>;
-            usb_con_ss: endpoint {
-              remote-endpoint = <&usbdrd_phy_ss>;
-            };
-          };
-          port@2 {
-            reg = <2>;
-            usb_con_sbu: endpoint {
-              remote-endpoint = <&dp_aux>;
-            };
-          };
         };
-      };
     };
 
   # USB-C connector attached to a typec port controller(ptn5110), which has
@@ -310,16 +310,16 @@ examples:
   - |
     #include <dt-bindings/usb/pd.h>
     typec: ptn5110 {
-      usb_con3: connector {
-        compatible = "usb-c-connector";
-        label = "USB-C";
-        power-role = "dual";
-        try-power-role = "sink";
-        source-pdos = <PDO_FIXED(5000, 2000, PDO_FIXED_USB_COMM)>;
-        sink-pdos = <PDO_FIXED(5000, 2000, PDO_FIXED_USB_COMM)
-                     PDO_VAR(5000, 12000, 2000)>;
-        op-sink-microwatt = <10000000>;
-      };
+        usb_con3: connector {
+            compatible = "usb-c-connector";
+            label = "USB-C";
+            power-role = "dual";
+            try-power-role = "sink";
+            source-pdos = <PDO_FIXED(5000, 2000, PDO_FIXED_USB_COMM)>;
+            sink-pdos = <PDO_FIXED(5000, 2000, PDO_FIXED_USB_COMM)
+                         PDO_VAR(5000, 12000, 2000)>;
+            op-sink-microwatt = <10000000>;
+        };
     };
 
   # USB-C connector attached to SoC and USB3 typec port controller(hd3ss3220)
@@ -332,20 +332,20 @@ examples:
         data-role = "dual";
 
         ports {
-                #address-cells = <1>;
-                #size-cells = <0>;
-                port@0 {
-                        reg = <0>;
-                        hs_ep: endpoint {
-                                remote-endpoint = <&usb3_hs_ep>;
-                        };
+            #address-cells = <1>;
+            #size-cells = <0>;
+            port@0 {
+                reg = <0>;
+                hs_ep: endpoint {
+                    remote-endpoint = <&usb3_hs_ep>;
                 };
-                port@1 {
-                        reg = <1>;
-                        ss_ep: endpoint {
-                                remote-endpoint = <&hd3ss3220_in_ep>;
-                        };
+            };
+            port@1 {
+                reg = <1>;
+                ss_ep: endpoint {
+                    remote-endpoint = <&hd3ss3220_in_ep>;
                 };
+            };
         };
     };
 
@@ -354,12 +354,12 @@ examples:
     #include <dt-bindings/gpio/gpio.h>
 
     usb {
-      connector {
-        compatible = "gpio-usb-b-connector", "usb-b-connector";
-        type = "micro";
-        id-gpios = <&pio 12 GPIO_ACTIVE_HIGH>;
-        vbus-supply = <&usb_p0_vbus>;
-      };
+        connector {
+            compatible = "gpio-usb-b-connector", "usb-b-connector";
+            type = "micro";
+            id-gpios = <&pio 12 GPIO_ACTIVE_HIGH>;
+            vbus-supply = <&usb_p0_vbus>;
+        };
     };
 
   # Micro-USB connector with HS lines routed via controller (MUIC) and MHL
@@ -367,27 +367,27 @@ examples:
   # mobile phone
   - |
     muic-max77843 {
-      usb_con4: connector {
-        compatible = "samsung,usb-connector-11pin", "usb-b-connector";
-        label = "micro-USB";
-        type = "micro";
+        usb_con4: connector {
+            compatible = "samsung,usb-connector-11pin", "usb-b-connector";
+            label = "micro-USB";
+            type = "micro";
 
-        ports {
-          #address-cells = <1>;
-          #size-cells = <0>;
+            ports {
+                #address-cells = <1>;
+                #size-cells = <0>;
 
-          port@0 {
-            reg = <0>;
-            muic_to_usb: endpoint {
-              remote-endpoint = <&usb_to_muic>;
+                port@0 {
+                    reg = <0>;
+                    muic_to_usb: endpoint {
+                        remote-endpoint = <&usb_to_muic>;
+                    };
+                };
+                port@3 {
+                    reg = <3>;
+                    usb_con_mhl: endpoint {
+                        remote-endpoint = <&sii8620_mhl>;
+                    };
+                };
             };
-          };
-          port@3 {
-            reg = <3>;
-            usb_con_mhl: endpoint {
-              remote-endpoint = <&sii8620_mhl>;
-            };
-          };
         };
-      };
     };

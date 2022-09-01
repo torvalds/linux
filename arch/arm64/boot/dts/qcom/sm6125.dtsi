@@ -386,23 +386,43 @@
 			interrupt-controller;
 			#interrupt-cells = <2>;
 
-			sdc2_state_off: sdc2-off {
+			sdc2_off_state: sdc2-off-state {
 				clk {
 					pins = "sdc2_clk";
-					bias-disable;
 					drive-strength = <2>;
+					bias-disable;
 				};
 
 				cmd {
 					pins = "sdc2_cmd";
-					bias-pull-up;
 					drive-strength = <2>;
+					bias-pull-up;
 				};
 
 				data {
 					pins = "sdc2_data";
-					bias-pull-up;
 					drive-strength = <2>;
+					bias-pull-up;
+				};
+			};
+
+			sdc2_on_state: sdc2-on-state {
+				clk {
+					pins = "sdc2_clk";
+					drive-strength = <16>;
+					bias-disable;
+				};
+
+				cmd {
+					pins = "sdc2_cmd";
+					drive-strength = <10>;
+					bias-pull-up;
+				};
+
+				data {
+					pins = "sdc2_data";
+					drive-strength = <10>;
+					bias-pull-up;
 				};
 			};
 		};
@@ -435,7 +455,7 @@
 			reg = <0x045f0000 0x7000>;
 		};
 
-		sdhc_1: sdhci@4744000 {
+		sdhc_1: mmc@4744000 {
 			compatible = "qcom,sm6125-sdhci", "qcom,sdhci-msm-v5";
 			reg = <0x04744000 0x1000>, <0x04745000 0x1000>;
 			reg-names = "hc", "core";
@@ -451,12 +471,15 @@
 
 			power-domains = <&rpmpd SM6125_VDDCX>;
 
+			qcom,dll-config = <0x000f642c>;
+			qcom,ddr-config = <0x80040873>;
+
 			bus-width = <8>;
 			non-removable;
 			status = "disabled";
 		};
 
-		sdhc_2: sdhci@4784000 {
+		sdhc_2: mmc@4784000 {
 			compatible = "qcom,sm6125-sdhci", "qcom,sdhci-msm-v5";
 			reg = <0x04784000 0x1000>;
 			reg-names = "hc";
@@ -470,29 +493,38 @@
 				 <&xo_board>;
 			clock-names = "iface", "core", "xo";
 
-			pinctrl-0 = <&sdc2_state_on>;
-			pinctrl-1 = <&sdc2_state_off>;
+			pinctrl-0 = <&sdc2_on_state>;
+			pinctrl-1 = <&sdc2_off_state>;
 			pinctrl-names = "default", "sleep";
 
 			power-domains = <&rpmpd SM6125_VDDCX>;
+
+			qcom,dll-config = <0x0007642c>;
+			qcom,ddr-config = <0x80040873>;
 
 			bus-width = <4>;
 			status = "disabled";
 		};
 
 		usb3: usb@4ef8800 {
-			compatible = "qcom,msm8996-dwc3", "qcom,dwc3";
+			compatible = "qcom,sm6125-dwc3", "qcom,dwc3";
 			reg = <0x04ef8800 0x400>;
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges;
 
-			clocks = <&gcc GCC_USB30_PRIM_MASTER_CLK>,
+			clocks = <&gcc GCC_CFG_NOC_USB3_PRIM_AXI_CLK>,
+				 <&gcc GCC_USB30_PRIM_MASTER_CLK>,
 				 <&gcc GCC_SYS_NOC_USB3_PRIM_AXI_CLK>,
-				 <&gcc GCC_CFG_NOC_USB3_PRIM_AXI_CLK>,
-				 <&gcc GCC_USB3_PRIM_CLKREF_CLK>,
 				 <&gcc GCC_USB30_PRIM_SLEEP_CLK>,
-				 <&gcc GCC_USB30_PRIM_MOCK_UTMI_CLK>;
+				 <&gcc GCC_USB30_PRIM_MOCK_UTMI_CLK>,
+				 <&gcc GCC_USB3_PRIM_CLKREF_CLK>;
+			clock-names = "cfg_noc",
+				      "core",
+				      "iface",
+				      "sleep",
+				      "mock_utmi",
+				      "xo";
 
 			assigned-clocks = <&gcc GCC_USB30_PRIM_MOCK_UTMI_CLK>,
 					  <&gcc GCC_USB30_PRIM_MASTER_CLK>;

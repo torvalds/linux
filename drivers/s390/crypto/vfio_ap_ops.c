@@ -112,7 +112,7 @@ static void vfio_ap_wait_for_irqclear(int apqn)
  *
  * Unregisters the ISC in the GIB when the saved ISC not invalid.
  * Unpins the guest's page holding the NIB when it exists.
- * Resets the saved_pfn and saved_isc to invalid values.
+ * Resets the saved_iova and saved_isc to invalid values.
  */
 static void vfio_ap_free_aqic_resources(struct vfio_ap_queue *q)
 {
@@ -123,9 +123,9 @@ static void vfio_ap_free_aqic_resources(struct vfio_ap_queue *q)
 		kvm_s390_gisc_unregister(q->matrix_mdev->kvm, q->saved_isc);
 		q->saved_isc = VFIO_AP_ISC_INVALID;
 	}
-	if (q->saved_pfn && !WARN_ON(!q->matrix_mdev)) {
-		vfio_unpin_pages(&q->matrix_mdev->vdev, &q->saved_pfn, 1);
-		q->saved_pfn = 0;
+	if (q->saved_iova && !WARN_ON(!q->matrix_mdev)) {
+		vfio_unpin_pages(&q->matrix_mdev->vdev, q->saved_iova, 1);
+		q->saved_iova = 0;
 	}
 }
 
@@ -154,7 +154,7 @@ static struct ap_queue_status vfio_ap_irq_disable(struct vfio_ap_queue *q)
 	int retries = 5;
 
 	do {
-		status = ap_aqic(q->apqn, aqic_gisa, NULL);
+		status = ap_aqic(q->apqn, aqic_gisa, 0);
 		switch (status.response_code) {
 		case AP_RESPONSE_OTHERWISE_CHANGED:
 		case AP_RESPONSE_NORMAL:
@@ -189,27 +189,19 @@ end_free:
  *
  * @vcpu: the object representing the vcpu executing the PQAP(AQIC) instruction.
  * @nib: the location for storing the nib address.
- * @g_pfn: the location for storing the page frame number of the page containing
- *	   the nib.
  *
  * When the PQAP(AQIC) instruction is executed, general register 2 contains the
  * address of the notification indicator byte (nib) used for IRQ notification.
- * This function parses the nib from gr2 and calculates the page frame
- * number for the guest of the page containing the nib. The values are
- * stored in @nib and @g_pfn respectively.
- *
- * The g_pfn of the nib is then validated to ensure the nib address is valid.
+ * This function parses and validates the nib from gr2.
  *
  * Return: returns zero if the nib address is a valid; otherwise, returns
  *	   -EINVAL.
  */
-static int vfio_ap_validate_nib(struct kvm_vcpu *vcpu, unsigned long *nib,
-				unsigned long *g_pfn)
+static int vfio_ap_validate_nib(struct kvm_vcpu *vcpu, dma_addr_t *nib)
 {
 	*nib = vcpu->run->s.regs.gprs[2];
-	*g_pfn = *nib >> PAGE_SHIFT;
 
-	if (kvm_is_error_hva(gfn_to_hva(vcpu->kvm, *g_pfn)))
+	if (kvm_is_error_hva(gfn_to_hva(vcpu->kvm, *nib >> PAGE_SHIFT)))
 		return -EINVAL;
 
 	return 0;
@@ -239,33 +231,34 @@ static struct ap_queue_status vfio_ap_irq_enable(struct vfio_ap_queue *q,
 						 int isc,
 						 struct kvm_vcpu *vcpu)
 {
-	unsigned long nib;
 	struct ap_qirq_ctrl aqic_gisa = {};
 	struct ap_queue_status status = {};
 	struct kvm_s390_gisa *gisa;
+	struct page *h_page;
 	int nisc;
 	struct kvm *kvm;
-	unsigned long h_nib, g_pfn, h_pfn;
+	phys_addr_t h_nib;
+	dma_addr_t nib;
 	int ret;
 
 	/* Verify that the notification indicator byte address is valid */
-	if (vfio_ap_validate_nib(vcpu, &nib, &g_pfn)) {
-		VFIO_AP_DBF_WARN("%s: invalid NIB address: nib=%#lx, g_pfn=%#lx, apqn=%#04x\n",
-				 __func__, nib, g_pfn, q->apqn);
+	if (vfio_ap_validate_nib(vcpu, &nib)) {
+		VFIO_AP_DBF_WARN("%s: invalid NIB address: nib=%pad, apqn=%#04x\n",
+				 __func__, &nib, q->apqn);
 
 		status.response_code = AP_RESPONSE_INVALID_ADDRESS;
 		return status;
 	}
 
-	ret = vfio_pin_pages(&q->matrix_mdev->vdev, &g_pfn, 1,
-			     IOMMU_READ | IOMMU_WRITE, &h_pfn);
+	ret = vfio_pin_pages(&q->matrix_mdev->vdev, nib, 1,
+			     IOMMU_READ | IOMMU_WRITE, &h_page);
 	switch (ret) {
 	case 1:
 		break;
 	default:
 		VFIO_AP_DBF_WARN("%s: vfio_pin_pages failed: rc=%d,"
-				 "nib=%#lx, g_pfn=%#lx, apqn=%#04x\n",
-				 __func__, ret, nib, g_pfn, q->apqn);
+				 "nib=%pad, apqn=%#04x\n",
+				 __func__, ret, &nib, q->apqn);
 
 		status.response_code = AP_RESPONSE_INVALID_ADDRESS;
 		return status;
@@ -274,7 +267,7 @@ static struct ap_queue_status vfio_ap_irq_enable(struct vfio_ap_queue *q,
 	kvm = q->matrix_mdev->kvm;
 	gisa = kvm->arch.gisa_int.origin;
 
-	h_nib = (h_pfn << PAGE_SHIFT) | (nib & ~PAGE_MASK);
+	h_nib = page_to_phys(h_page) | (nib & ~PAGE_MASK);
 	aqic_gisa.gisc = isc;
 
 	nisc = kvm_s390_gisc_register(kvm, isc);
@@ -290,17 +283,17 @@ static struct ap_queue_status vfio_ap_irq_enable(struct vfio_ap_queue *q,
 	aqic_gisa.ir = 1;
 	aqic_gisa.gisa = (uint64_t)gisa >> 4;
 
-	status = ap_aqic(q->apqn, aqic_gisa, (void *)h_nib);
+	status = ap_aqic(q->apqn, aqic_gisa, h_nib);
 	switch (status.response_code) {
 	case AP_RESPONSE_NORMAL:
 		/* See if we did clear older IRQ configuration */
 		vfio_ap_free_aqic_resources(q);
-		q->saved_pfn = g_pfn;
+		q->saved_iova = nib;
 		q->saved_isc = isc;
 		break;
 	case AP_RESPONSE_OTHERWISE_CHANGED:
 		/* We could not modify IRQ setings: clear new configuration */
-		vfio_unpin_pages(&q->matrix_mdev->vdev, &g_pfn, 1);
+		vfio_unpin_pages(&q->matrix_mdev->vdev, nib, 1);
 		kvm_s390_gisc_unregister(kvm, isc);
 		break;
 	default:
@@ -1226,34 +1219,13 @@ static int vfio_ap_mdev_set_kvm(struct ap_matrix_mdev *matrix_mdev,
 	return 0;
 }
 
-/**
- * vfio_ap_mdev_iommu_notifier - IOMMU notifier callback
- *
- * @nb: The notifier block
- * @action: Action to be taken
- * @data: data associated with the request
- *
- * For an UNMAP request, unpin the guest IOVA (the NIB guest address we
- * pinned before). Other requests are ignored.
- *
- * Return: for an UNMAP request, NOFITY_OK; otherwise NOTIFY_DONE.
- */
-static int vfio_ap_mdev_iommu_notifier(struct notifier_block *nb,
-				       unsigned long action, void *data)
+static void vfio_ap_mdev_dma_unmap(struct vfio_device *vdev, u64 iova,
+				   u64 length)
 {
-	struct ap_matrix_mdev *matrix_mdev;
+	struct ap_matrix_mdev *matrix_mdev =
+		container_of(vdev, struct ap_matrix_mdev, vdev);
 
-	matrix_mdev = container_of(nb, struct ap_matrix_mdev, iommu_notifier);
-
-	if (action == VFIO_IOMMU_NOTIFY_DMA_UNMAP) {
-		struct vfio_iommu_type1_dma_unmap *unmap = data;
-		unsigned long g_pfn = unmap->iova >> PAGE_SHIFT;
-
-		vfio_unpin_pages(&matrix_mdev->vdev, &g_pfn, 1);
-		return NOTIFY_OK;
-	}
-
-	return NOTIFY_DONE;
+	vfio_unpin_pages(&matrix_mdev->vdev, iova, 1);
 }
 
 /**
@@ -1380,27 +1352,11 @@ static int vfio_ap_mdev_open_device(struct vfio_device *vdev)
 {
 	struct ap_matrix_mdev *matrix_mdev =
 		container_of(vdev, struct ap_matrix_mdev, vdev);
-	unsigned long events;
-	int ret;
 
 	if (!vdev->kvm)
 		return -EINVAL;
 
-	ret = vfio_ap_mdev_set_kvm(matrix_mdev, vdev->kvm);
-	if (ret)
-		return ret;
-
-	matrix_mdev->iommu_notifier.notifier_call = vfio_ap_mdev_iommu_notifier;
-	events = VFIO_IOMMU_NOTIFY_DMA_UNMAP;
-	ret = vfio_register_notifier(vdev, VFIO_IOMMU_NOTIFY, &events,
-				     &matrix_mdev->iommu_notifier);
-	if (ret)
-		goto err_kvm;
-	return 0;
-
-err_kvm:
-	vfio_ap_mdev_unset_kvm(matrix_mdev);
-	return ret;
+	return vfio_ap_mdev_set_kvm(matrix_mdev, vdev->kvm);
 }
 
 static void vfio_ap_mdev_close_device(struct vfio_device *vdev)
@@ -1408,8 +1364,6 @@ static void vfio_ap_mdev_close_device(struct vfio_device *vdev)
 	struct ap_matrix_mdev *matrix_mdev =
 		container_of(vdev, struct ap_matrix_mdev, vdev);
 
-	vfio_unregister_notifier(vdev, VFIO_IOMMU_NOTIFY,
-				 &matrix_mdev->iommu_notifier);
 	vfio_ap_mdev_unset_kvm(matrix_mdev);
 }
 
@@ -1461,6 +1415,7 @@ static const struct vfio_device_ops vfio_ap_matrix_dev_ops = {
 	.open_device = vfio_ap_mdev_open_device,
 	.close_device = vfio_ap_mdev_close_device,
 	.ioctl = vfio_ap_mdev_ioctl,
+	.dma_unmap = vfio_ap_mdev_dma_unmap,
 };
 
 static struct mdev_driver vfio_ap_matrix_driver = {

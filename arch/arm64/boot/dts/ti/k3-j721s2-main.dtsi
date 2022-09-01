@@ -33,7 +33,7 @@
 		ranges;
 		#interrupt-cells = <3>;
 		interrupt-controller;
-		reg = <0x00 0x01800000 0x00 0x200000>, /* GICD */
+		reg = <0x00 0x01800000 0x00 0x100000>, /* GICD */
 		      <0x00 0x01900000 0x00 0x100000>, /* GICR */
 		      <0x00 0x6f000000 0x00 0x2000>,   /* GICC */
 		      <0x00 0x6f010000 0x00 0x1000>,   /* GICH */
@@ -320,7 +320,7 @@
 		interrupts = <GIC_SPI 3 IRQ_TYPE_LEVEL_HIGH>;
 		power-domains = <&k3_pds 98 TI_SCI_PD_EXCLUSIVE>;
 		clocks = <&k3_clks 98 7>, <&k3_clks 98 1>;
-		clock-names =  "clk_ahb", "clk_xin";
+		clock-names = "clk_ahb", "clk_xin";
 		assigned-clocks = <&k3_clks 98 1>;
 		assigned-clock-parents = <&k3_clks 98 2>;
 		bus-width = <8>;
@@ -347,7 +347,7 @@
 		interrupts = <GIC_SPI 4 IRQ_TYPE_LEVEL_HIGH>;
 		power-domains = <&k3_pds 99 TI_SCI_PD_EXCLUSIVE>;
 		clocks = <&k3_clks 99 8>, <&k3_clks 99 1>;
-		clock-names =  "clk_ahb", "clk_xin";
+		clock-names = "clk_ahb", "clk_xin";
 		assigned-clocks = <&k3_clks 99 1>;
 		assigned-clock-parents = <&k3_clks 99 2>;
 		bus-width = <4>;

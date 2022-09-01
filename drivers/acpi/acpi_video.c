@@ -73,6 +73,7 @@ module_param(device_id_scheme, bool, 0444);
 static int only_lcd = -1;
 module_param(only_lcd, int, 0444);
 
+static bool may_report_brightness_keys;
 static int register_count;
 static DEFINE_MUTEX(register_count_mutex);
 static DEFINE_MUTEX(video_list_lock);
@@ -1149,24 +1150,25 @@ acpi_video_get_device_type(struct acpi_video_bus *video,
 	return 0;
 }
 
-static int
-acpi_video_bus_get_one_device(struct acpi_device *device,
-			      struct acpi_video_bus *video)
+static int acpi_video_bus_get_one_device(struct acpi_device *device, void *arg)
 {
-	unsigned long long device_id;
-	int status, device_type;
-	struct acpi_video_device *data;
+	struct acpi_video_bus *video = arg;
 	struct acpi_video_device_attrib *attribute;
+	struct acpi_video_device *data;
+	unsigned long long device_id;
+	acpi_status status;
+	int device_type;
 
-	status =
-	    acpi_evaluate_integer(device->handle, "_ADR", NULL, &device_id);
-	/* Some device omits _ADR, we skip them instead of fail */
+	status = acpi_evaluate_integer(device->handle, "_ADR", NULL, &device_id);
+	/* Skip devices without _ADR instead of failing. */
 	if (ACPI_FAILURE(status))
-		return 0;
+		goto exit;
 
 	data = kzalloc(sizeof(struct acpi_video_device), GFP_KERNEL);
-	if (!data)
+	if (!data) {
+		dev_dbg(&device->dev, "Cannot attach\n");
 		return -ENOMEM;
+	}
 
 	strcpy(acpi_device_name(device), ACPI_VIDEO_DEVICE_NAME);
 	strcpy(acpi_device_class(device), ACPI_VIDEO_CLASS);
@@ -1222,11 +1224,16 @@ acpi_video_bus_get_one_device(struct acpi_device *device,
 	acpi_video_device_bind(video, data);
 	acpi_video_device_find_cap(data);
 
+	if (data->cap._BCM && data->cap._BCL)
+		may_report_brightness_keys = true;
+
 	mutex_lock(&video->device_list_lock);
 	list_add_tail(&data->entry, &video->video_device_list);
 	mutex_unlock(&video->device_list_lock);
 
-	return status;
+exit:
+	video->child_count++;
+	return 0;
 }
 
 /*
@@ -1538,9 +1545,6 @@ static int
 acpi_video_bus_get_devices(struct acpi_video_bus *video,
 			   struct acpi_device *device)
 {
-	int status = 0;
-	struct acpi_device *dev;
-
 	/*
 	 * There are systems where video module known to work fine regardless
 	 * of broken _DOD and ignoring returned value here doesn't cause
@@ -1548,16 +1552,7 @@ acpi_video_bus_get_devices(struct acpi_video_bus *video,
 	 */
 	acpi_video_device_enumerate(video);
 
-	list_for_each_entry(dev, &device->children, node) {
-
-		status = acpi_video_bus_get_one_device(dev, video);
-		if (status) {
-			dev_err(&dev->dev, "Can't attach device\n");
-			break;
-		}
-		video->child_count++;
-	}
-	return status;
+	return acpi_dev_for_each_child(device, acpi_video_bus_get_one_device, video);
 }
 
 /* acpi_video interface */
@@ -1688,6 +1683,9 @@ static void acpi_video_device_notify(acpi_handle handle, u32 event, void *data)
 		acpi_handle_debug(handle, "Unsupported event [0x%x]\n", event);
 		break;
 	}
+
+	if (keycode)
+		may_report_brightness_keys = true;
 
 	acpi_notifier_call_chain(device, event, 0);
 
@@ -2249,6 +2247,7 @@ void acpi_video_unregister(void)
 	if (register_count) {
 		acpi_bus_unregister_driver(&acpi_video_bus);
 		register_count = 0;
+		may_report_brightness_keys = false;
 	}
 	mutex_unlock(&register_count_mutex);
 }
@@ -2270,13 +2269,7 @@ void acpi_video_unregister_backlight(void)
 
 bool acpi_video_handles_brightness_key_presses(void)
 {
-	bool have_video_busses;
-
-	mutex_lock(&video_list_lock);
-	have_video_busses = !list_empty(&video_bus_head);
-	mutex_unlock(&video_list_lock);
-
-	return have_video_busses &&
+	return may_report_brightness_keys &&
 	       (report_key_events & REPORT_BRIGHTNESS_KEY_EVENTS);
 }
 EXPORT_SYMBOL(acpi_video_handles_brightness_key_presses);

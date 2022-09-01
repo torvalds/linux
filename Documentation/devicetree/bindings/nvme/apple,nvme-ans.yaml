@@ -55,7 +55,6 @@ properties:
     maxItems: 1
 
   apple,sart:
-    maxItems: 1
     $ref: /schemas/types.yaml#/definitions/phandle
     description: |
       Reference to the SART address filter.

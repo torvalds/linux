@@ -115,7 +115,8 @@ jiffies = jiffies_64;
 	__entry_tramp_text_start = .;			\
 	*(.entry.tramp.text)				\
 	. = ALIGN(PAGE_SIZE);				\
-	__entry_tramp_text_end = .;
+	__entry_tramp_text_end = .;			\
+	*(.entry.tramp.rodata)
 #else
 #define TRAMP_TEXT
 #endif
@@ -198,8 +199,7 @@ SECTIONS
 	}
 
 	idmap_pg_dir = .;
-	. += IDMAP_DIR_SIZE;
-	idmap_pg_end = .;
+	. += PAGE_SIZE;
 
 #ifdef CONFIG_UNMAP_KERNEL_AT_EL0
 	tramp_pg_dir = .;
@@ -235,6 +235,10 @@ SECTIONS
 	__inittext_end = .;
 	__initdata_begin = .;
 
+	init_idmap_pg_dir = .;
+	. += INIT_IDMAP_DIR_SIZE;
+	init_idmap_pg_end = .;
+
 	.init.data : {
 		INIT_DATA
 		INIT_SETUP(16)
@@ -253,20 +257,16 @@ SECTIONS
 	HYPERVISOR_RELOC_SECTION
 
 	.rela.dyn : ALIGN(8) {
+		__rela_start = .;
 		*(.rela .rela*)
+		__rela_end = .;
 	}
 
-	__rela_offset	= ABSOLUTE(ADDR(.rela.dyn) - KIMAGE_VADDR);
-	__rela_size	= SIZEOF(.rela.dyn);
-
-#ifdef CONFIG_RELR
 	.relr.dyn : ALIGN(8) {
+		__relr_start = .;
 		*(.relr.dyn)
+		__relr_end = .;
 	}
-
-	__relr_offset	= ABSOLUTE(ADDR(.relr.dyn) - KIMAGE_VADDR);
-	__relr_size	= SIZEOF(.relr.dyn);
-#endif
 
 	. = ALIGN(SEGMENT_ALIGN);
 	__initdata_end = .;

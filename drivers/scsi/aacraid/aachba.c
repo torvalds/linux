@@ -1050,7 +1050,7 @@ static void get_container_serial_callback(void *context, struct fib * fibptr)
 				vpdpage83data.type1.productid));
 
 			/* Convert to ascii based serial number.
-			 * The LSB is the the end.
+			 * The LSB is the end.
 			 */
 			for (i = 0; i < 8; i++) {
 				u8 temp =

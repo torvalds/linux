@@ -133,9 +133,9 @@ struct slibe {
  * @sb_count: number of storage blocks
  * @sba: storage block element addresses
  * @dcount: size of storage block elements
- * @user0: user defineable value
- * @res4: reserved paramater
- * @user1: user defineable value
+ * @user0: user definable value
+ * @res4: reserved parameter
+ * @user1: user definable value
  */
 struct qaob {
 	u64 res0[6];

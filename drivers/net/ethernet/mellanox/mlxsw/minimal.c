@@ -359,8 +359,7 @@ static int mlxsw_m_ports_create(struct mlxsw_m *mlxsw_m)
 	/* Create port objects for each valid entry */
 	devl_lock(devlink);
 	for (i = 0; i < mlxsw_m->max_ports; i++) {
-		if (mlxsw_m->module_to_port[i] > 0 &&
-		    !mlxsw_core_port_is_xm(mlxsw_m->core, i)) {
+		if (mlxsw_m->module_to_port[i] > 0) {
 			err = mlxsw_m_port_create(mlxsw_m,
 						  mlxsw_m->module_to_port[i],
 						  i);

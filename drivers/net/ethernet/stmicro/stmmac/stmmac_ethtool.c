@@ -485,8 +485,8 @@ static void stmmac_get_ringparam(struct net_device *netdev,
 
 	ring->rx_max_pending = DMA_MAX_RX_SIZE;
 	ring->tx_max_pending = DMA_MAX_TX_SIZE;
-	ring->rx_pending = priv->dma_rx_size;
-	ring->tx_pending = priv->dma_tx_size;
+	ring->rx_pending = priv->dma_conf.dma_rx_size;
+	ring->tx_pending = priv->dma_conf.dma_tx_size;
 }
 
 static int stmmac_set_ringparam(struct net_device *netdev,
@@ -802,14 +802,6 @@ static int stmmac_ethtool_op_set_eee(struct net_device *dev,
 	if (priv->tx_lpi_enabled != edata->tx_lpi_enabled)
 		netdev_warn(priv->dev,
 			    "Setting EEE tx-lpi is not supported\n");
-
-	if (priv->hw->xpcs) {
-		ret = xpcs_config_eee(priv->hw->xpcs,
-				      priv->plat->mult_fact_100ns,
-				      edata->eee_enabled);
-		if (ret)
-			return ret;
-	}
 
 	if (!edata->eee_enabled)
 		stmmac_disable_eee_mode(priv);

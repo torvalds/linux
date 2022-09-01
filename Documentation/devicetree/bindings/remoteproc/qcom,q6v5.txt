@@ -37,7 +37,7 @@ on the Qualcomm Hexagon core.
 - interrupt-names:
 	Usage: required
 	Value type: <stringlist>
-	Definition: The interrupts needed depends on the the compatible
+	Definition: The interrupts needed depends on the compatible
 		    string:
 	qcom,q6v5-pil:
 	qcom,ipq8074-wcss-pil:

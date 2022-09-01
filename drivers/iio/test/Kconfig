@@ -5,15 +5,25 @@
 
 # Keep in alphabetical order
 config IIO_RESCALE_KUNIT_TEST
-	bool "Test IIO rescale conversion functions"
-	depends on KUNIT=y && !IIO_RESCALE
+	tristate "Test IIO rescale conversion functions" if !KUNIT_ALL_TESTS
+	depends on KUNIT && IIO_RESCALE
 	default KUNIT_ALL_TESTS
 	help
-	  If you want to run tests on the iio-rescale code say Y here.
+	  Build unit tests for the iio-rescale code.
 
-	  This takes advantage of ARCH=um to run tests and should be used by
-	  developers to tests their changes to the rescaling logic.
+	  For more information on KUnit and unit tests in general, please refer
+	  to the KUnit documentation in Documentation/dev-tools/kunit/.
 
-config IIO_TEST_FORMAT
-        bool "Test IIO formatting functions"
-        depends on KUNIT=y
+	  If unsure, say N.
+
+config IIO_FORMAT_KUNIT_TEST
+	tristate "Test IIO formatting functions" if !KUNIT_ALL_TESTS
+	depends on KUNIT
+	default KUNIT_ALL_TESTS
+	help
+	  build unit tests for the IIO formatting functions.
+
+	  For more information on KUnit and unit tests in general, please refer
+	  to the KUnit documentation in Documentation/dev-tools/kunit/.
+
+	  If unsure, say N.

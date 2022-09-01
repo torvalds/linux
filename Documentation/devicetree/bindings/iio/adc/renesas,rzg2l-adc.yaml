@@ -19,7 +19,9 @@ properties:
   compatible:
     items:
       - enum:
-          - renesas,r9a07g044-adc   # RZ/G2{L,LC}
+          - renesas,r9a07g043-adc   # RZ/G2UL
+          - renesas,r9a07g044-adc   # RZ/G2L
+          - renesas,r9a07g054-adc   # RZ/V2L
       - const: renesas,rzg2l-adc
 
   reg:
@@ -75,15 +77,34 @@ patternProperties:
     properties:
       reg:
         description: |
-          The channel number. It can have up to 8 channels numbered from 0 to 7.
-        items:
-          - minimum: 0
-            maximum: 7
+          The channel number.
 
     required:
       - reg
 
     additionalProperties: false
+
+allOf:
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: renesas,r9a07g043-adc
+    then:
+      patternProperties:
+        "^channel@[2-7]$": false
+        "^channel@[0-1]$":
+          properties:
+            reg:
+              minimum: 0
+              maximum: 1
+    else:
+      patternProperties:
+        "^channel@[0-7]$":
+          properties:
+            reg:
+              minimum: 0
+              maximum: 7
 
 additionalProperties: false
 

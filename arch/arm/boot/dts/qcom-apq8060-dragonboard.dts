@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
 #include <dt-bindings/input/input.h>
 #include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/leds/common.h>
 #include <dt-bindings/pinctrl/qcom,pmic-gpio.h>
 #include <dt-bindings/pinctrl/qcom,pmic-mpp.h>
 #include "qcom-msm8660.dtsi"
@@ -273,7 +274,7 @@
 				};
 
 				gpio@150 {
-					dragon_ethernet_gpios: ethernet-gpios {
+					dragon_ethernet_gpios: ethernet-state {
 						pinconf {
 							pins = "gpio7";
 							function = "normal";
@@ -282,7 +283,7 @@
 							power-source = <PM8058_GPIO_S3>;
 						};
 					};
-					dragon_bmp085_gpios: bmp085-gpios {
+					dragon_bmp085_gpios: bmp085-state {
 						pinconf {
 							pins = "gpio16";
 							function = "normal";
@@ -291,7 +292,7 @@
 							power-source = <PM8058_GPIO_S3>;
 						};
 					};
-					dragon_mpu3050_gpios: mpu3050-gpios {
+					dragon_mpu3050_gpios: mpu3050-state {
 						pinconf {
 							pins = "gpio17";
 							function = "normal";
@@ -300,7 +301,7 @@
 							power-source = <PM8058_GPIO_S3>;
 						};
 					};
-					dragon_sdcc3_gpios: sdcc3-gpios {
+					dragon_sdcc3_gpios: sdcc3-state {
 						pinconf {
 							pins = "gpio22";
 							function = "normal";
@@ -309,7 +310,7 @@
 							power-source = <PM8058_GPIO_S3>;
 						};
 					};
-					dragon_sdcc5_gpios: sdcc5-gpios {
+					dragon_sdcc5_gpios: sdcc5-state {
 						pinconf {
 							pins = "gpio26";
 							function = "normal";
@@ -319,7 +320,7 @@
 							power-source = <PM8058_GPIO_S3>;
 						};
 					};
-					dragon_ak8975_gpios: ak8975-gpios {
+					dragon_ak8975_gpios: ak8975-state {
 						pinconf {
 							pins = "gpio33";
 							function = "normal";
@@ -328,9 +329,9 @@
 							power-source = <PM8058_GPIO_S3>;
 						};
 					};
-					dragon_cm3605_gpios: cm3605-gpios {
+					dragon_cm3605_gpios: cm3605-state {
 						/* Pin 34 connected to the proxy IRQ */
-						pinconf_gpio34 {
+						gpio34-pins {
 							pins = "gpio34";
 							function = "normal";
 							input-enable;
@@ -338,7 +339,7 @@
 							power-source = <PM8058_GPIO_S3>;
 						};
 						/* Pin 35 connected to ASET */
-						pinconf_gpio35 {
+						gpio35-pins {
 							pins = "gpio35";
 							function = "normal";
 							output-high;
@@ -346,7 +347,7 @@
 							power-source = <PM8058_GPIO_S3>;
 						};
 					};
-					dragon_veth_gpios: veth-gpios {
+					dragon_veth_gpios: veth-state {
 						pinconf {
 							pins = "gpio40";
 							function = "normal";
@@ -416,6 +417,7 @@
 					compatible = "qcom,pm8058-led";
 					reg = <0x131>;
 					label = "pm8058:red";
+					color = <LED_COLOR_ID_RED>;
 					default-state = "off";
 				};
 				led@132 {
@@ -426,6 +428,7 @@
 					compatible = "qcom,pm8058-led";
 					reg = <0x132>;
 					label = "pm8058:yellow";
+					color = <LED_COLOR_ID_YELLOW>;
 					default-state = "off";
 					linux,default-trigger = "mmc0";
 				};
@@ -433,6 +436,8 @@
 					compatible = "qcom,pm8058-led";
 					reg = <0x133>;
 					label = "pm8058:green";
+					function = LED_FUNCTION_HEARTBEAT;
+					color = <LED_COLOR_ID_GREEN>;
 					default-state = "on";
 					linux,default-trigger = "heartbeat";
 				};

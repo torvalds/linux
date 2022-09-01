@@ -48,15 +48,6 @@ static void mte_sync_page_tags(struct page *page, pte_t old_pte,
 	if (!pte_is_tagged)
 		return;
 
-	page_kasan_tag_reset(page);
-	/*
-	 * We need smp_wmb() in between setting the flags and clearing the
-	 * tags because if another thread reads page->flags and builds a
-	 * tagged address out of it, there is an actual dependency to the
-	 * memory access, but on the current thread we do not guarantee that
-	 * the new page->flags are visible before the tags were updated.
-	 */
-	smp_wmb();
 	mte_clear_page_tags(page_address(page));
 }
 
@@ -244,6 +235,11 @@ static void mte_update_gcr_excl(struct task_struct *task)
 		SYS_GCR_EL1);
 }
 
+#ifdef CONFIG_KASAN_HW_TAGS
+/* Only called from assembly, silence sparse */
+void __init kasan_hw_tags_enable(struct alt_instr *alt, __le32 *origptr,
+				 __le32 *updptr, int nr_inst);
+
 void __init kasan_hw_tags_enable(struct alt_instr *alt, __le32 *origptr,
 				 __le32 *updptr, int nr_inst)
 {
@@ -252,6 +248,7 @@ void __init kasan_hw_tags_enable(struct alt_instr *alt, __le32 *origptr,
 	if (kasan_hw_tags_enabled())
 		*updptr = cpu_to_le32(aarch64_insn_gen_nop());
 }
+#endif
 
 void mte_thread_init_user(void)
 {

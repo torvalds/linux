@@ -6,6 +6,12 @@
     
 *******************************************************************************/
 /* dn_nsp.c functions prototyping */
+#include <linux/atomic.h>
+#include <linux/types.h>
+#include <net/sock.h>
+
+struct sk_buff;
+struct sk_buff_head;
 
 void dn_nsp_send_data_ack(struct sock *sk);
 void dn_nsp_send_oth_ack(struct sock *sk);

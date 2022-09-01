@@ -183,7 +183,7 @@ struct ad7280_state {
 	unsigned char			cb_mask[AD7280A_MAX_CHAIN];
 	struct mutex			lock; /* protect sensor state */
 
-	__be32				tx ____cacheline_aligned;
+	__be32				tx __aligned(IIO_DMA_MINALIGN);
 	__be32				rx;
 };
 
@@ -488,7 +488,7 @@ static ssize_t ad7280_store_balance_sw(struct iio_dev *indio_dev,
 	bool readin;
 	int ret;
 
-	ret = strtobool(buf, &readin);
+	ret = kstrtobool(buf, &readin);
 	if (ret)
 		return ret;
 

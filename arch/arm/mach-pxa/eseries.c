@@ -1,13 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Hardware definitions for the Toshiba eseries PDAs
  *
  * Copyright (c) 2003 Ian Molton <spyro@f2s.com>
- *
- * This file is licensed under
- * the terms of the GNU General Public License version 2. This program
- * is licensed "as is" without any warranty of any kind, whether express
- * or implied.
- *
  */
 
 #include <linux/clkdev.h>
@@ -24,6 +19,7 @@
 #include <linux/mtd/rawnand.h>
 #include <linux/mtd/partitions.h>
 #include <linux/memblock.h>
+#include <linux/gpio/machine.h>
 
 #include <video/w100fb.h>
 
@@ -32,9 +28,9 @@
 #include <asm/mach-types.h>
 
 #include "pxa25x.h"
-#include <mach/eseries-gpio.h>
+#include "eseries-gpio.h"
 #include "eseries-irq.h"
-#include <mach/audio.h>
+#include <linux/platform_data/asoc-pxa.h>
 #include <linux/platform_data/video-pxafb.h>
 #include "udc.h"
 #include <linux/platform_data/irda-pxaficp.h>
@@ -520,6 +516,16 @@ static struct platform_device e740_audio_device = {
 	.id		= -1,
 };
 
+static struct gpiod_lookup_table e740_audio_gpio_table = {
+	.dev_id = "e740-audio",
+	.table = {
+		GPIO_LOOKUP("gpio-pxa",  GPIO_E740_WM9705_nAVDD2, "Audio power",  GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP("gpio-pxa",  GPIO_E740_AMP_ON, "Output amp",  GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP("gpio-pxa",  GPIO_E740_MIC_ON, "Mic amp", GPIO_ACTIVE_HIGH),
+		{ },
+	},
+};
+
 /* ----------------------------------------------------------------------- */
 
 static struct platform_device *e740_devices[] __initdata = {
@@ -540,6 +546,7 @@ static void __init e740_init(void)
 			"UDCCLK", &pxa25x_device_udc.dev),
 	eseries_get_tmio_gpios();
 	gpiod_add_lookup_table(&e7xx_gpio_vbus_gpiod_table);
+	gpiod_add_lookup_table(&e740_audio_gpio_table);
 	platform_add_devices(ARRAY_AND_SIZE(e740_devices));
 	pxa_set_ac97_info(NULL);
 	pxa_set_ficp_info(&e7xx_ficp_platform_data);
@@ -699,7 +706,6 @@ static struct tc6393xb_platform_data e750_tc6393xb_info = {
 	.irq_base       = IRQ_BOARD_START,
 	.scr_pll2cr     = 0x0cc1,
 	.scr_gper       = 0,
-	.gpio_base      = -1,
 	.suspend        = &eseries_tmio_suspend,
 	.resume         = &eseries_tmio_resume,
 	.enable         = &eseries_tmio_enable,
@@ -714,6 +720,15 @@ static struct platform_device e750_tc6393xb_device = {
 	},
 	.num_resources = 2,
 	.resource      = eseries_tmio_resources,
+};
+
+static struct gpiod_lookup_table e750_audio_gpio_table = {
+	.dev_id = "e750-audio",
+	.table = {
+		GPIO_LOOKUP("gpio-pxa",  GPIO_E750_HP_AMP_OFF, "Output amp",  GPIO_ACTIVE_LOW),
+		GPIO_LOOKUP("gpio-pxa",  GPIO_E750_SPK_AMP_OFF, "Mic amp", GPIO_ACTIVE_LOW),
+		{ },
+	},
 };
 
 static struct platform_device e750_audio_device = {
@@ -740,6 +755,7 @@ static void __init e750_init(void)
 			"GPIO11_CLK", NULL),
 	eseries_get_tmio_gpios();
 	gpiod_add_lookup_table(&e7xx_gpio_vbus_gpiod_table);
+	gpiod_add_lookup_table(&e750_audio_gpio_table);
 	platform_add_devices(ARRAY_AND_SIZE(e750_devices));
 	pxa_set_ac97_info(NULL);
 	pxa_set_ficp_info(&e7xx_ficp_platform_data);
@@ -918,7 +934,6 @@ static struct tc6393xb_platform_data e800_tc6393xb_info = {
 	.irq_base       = IRQ_BOARD_START,
 	.scr_pll2cr     = 0x0cc1,
 	.scr_gper       = 0,
-	.gpio_base      = -1,
 	.suspend        = &eseries_tmio_suspend,
 	.resume         = &eseries_tmio_resume,
 	.enable         = &eseries_tmio_enable,
@@ -933,6 +948,15 @@ static struct platform_device e800_tc6393xb_device = {
 	},
 	.num_resources = 2,
 	.resource      = eseries_tmio_resources,
+};
+
+static struct gpiod_lookup_table e800_audio_gpio_table = {
+	.dev_id = "e800-audio",
+	.table = {
+		GPIO_LOOKUP("gpio-pxa",  GPIO_E800_HP_AMP_OFF, "Output amp",  GPIO_ACTIVE_LOW),
+		GPIO_LOOKUP("gpio-pxa",  GPIO_E800_SPK_AMP_ON, "Mic amp", GPIO_ACTIVE_HIGH),
+		{ },
+	},
 };
 
 static struct platform_device e800_audio_device = {
@@ -959,6 +983,7 @@ static void __init e800_init(void)
 			"GPIO11_CLK", NULL),
 	eseries_get_tmio_gpios();
 	gpiod_add_lookup_table(&e800_gpio_vbus_gpiod_table);
+	gpiod_add_lookup_table(&e800_audio_gpio_table);
 	platform_add_devices(ARRAY_AND_SIZE(e800_devices));
 	pxa_set_ac97_info(NULL);
 }

@@ -2537,7 +2537,7 @@ static short rtl8192_init(struct net_device *dev)
 	}
 #else
 	{
-		const u8 queuetopipe[] = {3, 2, 1, 0, 4, 4, 0, 4, 4};
+		static const u8 queuetopipe[] = {3, 2, 1, 0, 4, 4, 0, 4, 4};
 
 		memcpy(priv->txqueue_to_outpipemap, queuetopipe, 9);
 	}

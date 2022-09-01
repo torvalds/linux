@@ -342,7 +342,7 @@ fpga_bridge_register(struct device *parent, const char *name,
 	if (!bridge)
 		return ERR_PTR(-ENOMEM);
 
-	id = ida_simple_get(&fpga_bridge_ida, 0, 0, GFP_KERNEL);
+	id = ida_alloc(&fpga_bridge_ida, GFP_KERNEL);
 	if (id < 0) {
 		ret = id;
 		goto error_kfree;
@@ -375,7 +375,7 @@ fpga_bridge_register(struct device *parent, const char *name,
 	return bridge;
 
 error_device:
-	ida_simple_remove(&fpga_bridge_ida, id);
+	ida_free(&fpga_bridge_ida, id);
 error_kfree:
 	kfree(bridge);
 
@@ -407,7 +407,7 @@ static void fpga_bridge_dev_release(struct device *dev)
 {
 	struct fpga_bridge *bridge = to_fpga_bridge(dev);
 
-	ida_simple_remove(&fpga_bridge_ida, bridge->dev.id);
+	ida_free(&fpga_bridge_ida, bridge->dev.id);
 	kfree(bridge);
 }
 

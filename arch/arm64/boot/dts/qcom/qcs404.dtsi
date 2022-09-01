@@ -366,7 +366,7 @@
 		};
 
 		qfprom: qfprom@a4000 {
-			compatible = "qcom,qfprom";
+			compatible = "qcom,qcs404-qfprom", "qcom,qfprom";
 			reg = <0x000a4000 0x1000>;
 			#address-cells = <1>;
 			#size-cells = <1>;
@@ -529,7 +529,7 @@
 		};
 
 		usb3: usb@7678800 {
-			compatible = "qcom,dwc3";
+			compatible = "qcom,qcs404-dwc3", "qcom,dwc3";
 			reg = <0x07678800 0x400>;
 			#address-cells = <1>;
 			#size-cells = <1>;
@@ -544,11 +544,11 @@
 			assigned-clock-rates = <19200000>, <200000000>;
 			status = "disabled";
 
-			dwc3@7580000 {
+			usb3_dwc3: usb@7580000 {
 				compatible = "snps,dwc3";
 				reg = <0x07580000 0xcd00>;
 				interrupts = <GIC_SPI 26 IRQ_TYPE_LEVEL_HIGH>;
-				phys = <&usb2_phy_sec>, <&usb3_phy>;
+				phys = <&usb2_phy_prim>, <&usb3_phy>;
 				phy-names = "usb2-phy", "usb3-phy";
 				snps,has-lpm-erratum;
 				snps,hird-threshold = /bits/ 8 <0x10>;
@@ -558,7 +558,7 @@
 		};
 
 		usb2: usb@79b8800 {
-			compatible = "qcom,dwc3";
+			compatible = "qcom,qcs404-dwc3", "qcom,dwc3";
 			reg = <0x079b8800 0x400>;
 			#address-cells = <1>;
 			#size-cells = <1>;
@@ -573,11 +573,11 @@
 			assigned-clock-rates = <19200000>, <133333333>;
 			status = "disabled";
 
-			dwc3@78c0000 {
+			usb@78c0000 {
 				compatible = "snps,dwc3";
 				reg = <0x078c0000 0xcc00>;
 				interrupts = <GIC_SPI 44 IRQ_TYPE_LEVEL_HIGH>;
-				phys = <&usb2_phy_prim>;
+				phys = <&usb2_phy_sec>;
 				phy-names = "usb2-phy";
 				snps,has-lpm-erratum;
 				snps,hird-threshold = /bits/ 8 <0x10>;
@@ -669,8 +669,25 @@
 			};
 
 			blsp1_spi1_default: blsp1-spi1-default {
-				pins = "gpio22", "gpio23", "gpio24", "gpio25";
-				function = "blsp_spi1";
+				mosi {
+					pins = "gpio22";
+					function = "blsp_spi_mosi_a1";
+				};
+
+				miso {
+					pins = "gpio23";
+					function = "blsp_spi_miso_a1";
+				};
+
+				cs_n {
+					pins = "gpio24";
+					function = "blsp_spi_cs_n_a1";
+				};
+
+				clk {
+					pins = "gpio25";
+					function = "blsp_spi_clk_a1";
+				};
 			};
 
 			blsp1_spi2_default: blsp1-spi2-default {
@@ -789,7 +806,7 @@
 			status = "disabled";
 		};
 
-		sdcc1: sdcc@7804000 {
+		sdcc1: mmc@7804000 {
 			compatible = "qcom,qcs404-sdhci", "qcom,sdhci-msm-v5";
 			reg = <0x07804000 0x1000>, <0x7805000 0x1000>;
 			reg-names = "hc", "cqhci";
@@ -798,10 +815,10 @@
 				     <GIC_SPI 138 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "hc_irq", "pwr_irq";
 
-			clocks = <&gcc GCC_SDCC1_APPS_CLK>,
-				 <&gcc GCC_SDCC1_AHB_CLK>,
+			clocks = <&gcc GCC_SDCC1_AHB_CLK>,
+				 <&gcc GCC_SDCC1_APPS_CLK>,
 				 <&xo_board>;
-			clock-names = "core", "iface", "xo";
+			clock-names = "iface", "core", "xo";
 
 			status = "disabled";
 		};
@@ -1102,8 +1119,8 @@
 			status = "disabled";
 		};
 
-		imem@8600000 {
-			compatible = "simple-mfd";
+		sram@8600000 {
+			compatible = "qcom,qcs404-imem", "syscon", "simple-mfd";
 			reg = <0x08600000 0x1000>;
 
 			#address-cells = <1>;

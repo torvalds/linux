@@ -27,8 +27,8 @@
 #include <linux/pinctrl/machine.h>
 #include <linux/platform_data/lp855x.h>
 #include <linux/platform_device.h>
-#include <linux/pm.h>
 #include <linux/power/bq24190_charger.h>
+#include <linux/reboot.h>
 #include <linux/rmi.h>
 #include <linux/serdev.h>
 #include <linux/spi/spi.h>
@@ -889,6 +889,7 @@ static const struct pinctrl_map lenovo_yoga_tab2_830_1050_codec_pinctrl_map =
 			  "INT33FC:02", "pmu_clk2_grp", "pmu_clk");
 
 static struct pinctrl *lenovo_yoga_tab2_830_1050_codec_pinctrl;
+static struct sys_off_handler *lenovo_yoga_tab2_830_1050_sys_off_handler;
 
 static int __init lenovo_yoga_tab2_830_1050_init_codec(void)
 {
@@ -933,9 +934,11 @@ err_put_device:
  * followed by a normal 3 second press to recover. Avoid this by doing an EFI
  * poweroff instead.
  */
-static void lenovo_yoga_tab2_830_1050_power_off(void)
+static int lenovo_yoga_tab2_830_1050_power_off(struct sys_off_data *data)
 {
 	efi.reset_system(EFI_RESET_SHUTDOWN, EFI_SUCCESS, 0, NULL);
+
+	return NOTIFY_DONE;
 }
 
 static int __init lenovo_yoga_tab2_830_1050_init(void)
@@ -950,13 +953,19 @@ static int __init lenovo_yoga_tab2_830_1050_init(void)
 	if (ret)
 		return ret;
 
-	pm_power_off = lenovo_yoga_tab2_830_1050_power_off;
+	/* SYS_OFF_PRIO_FIRMWARE + 1 so that it runs before acpi_power_off */
+	lenovo_yoga_tab2_830_1050_sys_off_handler =
+		register_sys_off_handler(SYS_OFF_MODE_POWER_OFF, SYS_OFF_PRIO_FIRMWARE + 1,
+					 lenovo_yoga_tab2_830_1050_power_off, NULL);
+	if (IS_ERR(lenovo_yoga_tab2_830_1050_sys_off_handler))
+		return PTR_ERR(lenovo_yoga_tab2_830_1050_sys_off_handler);
+
 	return 0;
 }
 
 static void lenovo_yoga_tab2_830_1050_exit(void)
 {
-	pm_power_off = NULL; /* Just turn poweroff into halt on module unload */
+	unregister_sys_off_handler(lenovo_yoga_tab2_830_1050_sys_off_handler);
 
 	if (lenovo_yoga_tab2_830_1050_codec_pinctrl) {
 		pinctrl_put(lenovo_yoga_tab2_830_1050_codec_pinctrl);

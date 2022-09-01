@@ -26,13 +26,13 @@
 #include <linux/module.h>
 #include <linux/major.h>
 #include <linux/kernel.h>
+#include <linux/of_irq.h>
 #include <linux/spinlock.h>
 #include <linux/sysrq.h>
 #include <linux/tty.h>
 #include <linux/tty_flip.h>
 #include <asm/hvcall.h>
 #include <asm/hvconsole.h>
-#include <asm/prom.h>
 #include <linux/uaccess.h>
 #include <asm/vio.h>
 #include <asm/param.h>

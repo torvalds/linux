@@ -113,7 +113,6 @@ static int ssp_gyro_probe(struct platform_device *pdev)
 	indio_dev->available_scan_masks = ssp_gyro_scan_mask;
 
 	ret = devm_iio_kfifo_buffer_setup(&pdev->dev, indio_dev,
-					  INDIO_BUFFER_SOFTWARE,
 					  &ssp_gyro_buffer_ops);
 	if (ret)
 		return ret;

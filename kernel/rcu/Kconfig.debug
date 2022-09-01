@@ -86,8 +86,7 @@ config RCU_EXP_CPU_STALL_TIMEOUT
 	int "Expedited RCU CPU stall timeout in milliseconds"
 	depends on RCU_STALL_COMMON
 	range 0 21000
-	default 20 if ANDROID
-	default 0 if !ANDROID
+	default 0
 	help
 	  If a given expedited RCU grace period extends more than the
 	  specified number of milliseconds, a CPU stall warning is printed.
@@ -121,7 +120,7 @@ config RCU_EQS_DEBUG
 
 config RCU_STRICT_GRACE_PERIOD
 	bool "Provide debug RCU implementation with short grace periods"
-	depends on DEBUG_KERNEL && RCU_EXPERT && NR_CPUS <= 4
+	depends on DEBUG_KERNEL && RCU_EXPERT && NR_CPUS <= 4 && !TINY_RCU
 	default n
 	select PREEMPT_COUNT if PREEMPT=n
 	help

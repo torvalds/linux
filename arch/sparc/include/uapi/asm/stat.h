@@ -11,8 +11,8 @@ struct stat {
 	__kernel_ino_t st_ino;
 	__kernel_mode_t st_mode;
 	short   st_nlink;
-	__kernel_uid_t st_uid;
-	__kernel_gid_t st_gid;
+	__kernel_uid32_t st_uid;
+	__kernel_gid32_t st_gid;
 	unsigned int st_rdev;
 	long    st_size;
 	long    st_atime;

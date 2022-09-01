@@ -24,7 +24,7 @@
 #include "colibri.h"
 #include <linux/platform_data/video-pxafb.h>
 #include <linux/platform_data/usb-ohci-pxa27x.h>
-#include <mach/audio.h>
+#include <linux/platform_data/asoc-pxa.h>
 #include "pxa27x-udc.h"
 #include "udc.h"
 

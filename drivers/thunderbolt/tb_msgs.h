@@ -527,6 +527,10 @@ enum tb_xdp_type {
 	PROPERTIES_CHANGED_RESPONSE,
 	ERROR_RESPONSE,
 	UUID_REQUEST = 12,
+	LINK_STATE_STATUS_REQUEST = 15,
+	LINK_STATE_STATUS_RESPONSE,
+	LINK_STATE_CHANGE_REQUEST,
+	LINK_STATE_CHANGE_RESPONSE,
 };
 
 struct tb_xdp_header {
@@ -538,6 +542,41 @@ struct tb_xdp_header {
 struct tb_xdp_error_response {
 	struct tb_xdp_header hdr;
 	u32 error;
+};
+
+struct tb_xdp_link_state_status {
+	struct tb_xdp_header hdr;
+};
+
+struct tb_xdp_link_state_status_response {
+	union {
+		struct tb_xdp_error_response err;
+		struct {
+			struct tb_xdp_header hdr;
+			u32 status;
+			u8 slw;
+			u8 tlw;
+			u8 sls;
+			u8 tls;
+		};
+	};
+};
+
+struct tb_xdp_link_state_change {
+	struct tb_xdp_header hdr;
+	u8 tlw;
+	u8 tls;
+	u16 reserved;
+};
+
+struct tb_xdp_link_state_change_response {
+	union {
+		struct tb_xdp_error_response err;
+		struct {
+			struct tb_xdp_header hdr;
+			u32 status;
+		};
+	};
 };
 
 struct tb_xdp_uuid {

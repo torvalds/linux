@@ -974,7 +974,7 @@ void i915_active_acquire_barrier(struct i915_active *ref)
 
 		GEM_BUG_ON(!intel_engine_pm_is_awake(engine));
 		llist_add(barrier_to_ll(node), &engine->barrier_tasks);
-		intel_engine_pm_put_delay(engine, 1);
+		intel_engine_pm_put_delay(engine, 2);
 	}
 }
 

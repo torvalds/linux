@@ -1382,9 +1382,9 @@ void smbd_destroy(struct TCP_Server_Info *server)
 	log_rdma_event(INFO, "freeing mr list\n");
 	wake_up_interruptible_all(&info->wait_mr);
 	while (atomic_read(&info->mr_used_count)) {
-		mutex_unlock(&server->srv_mutex);
+		cifs_server_unlock(server);
 		msleep(1000);
-		mutex_lock(&server->srv_mutex);
+		cifs_server_lock(server);
 	}
 	destroy_mr_list(info);
 

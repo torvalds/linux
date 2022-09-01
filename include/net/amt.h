@@ -7,6 +7,9 @@
 
 #include <linux/siphash.h>
 #include <linux/jhash.h>
+#include <linux/netdevice.h>
+#include <net/gro_cells.h>
+#include <net/rtnetlink.h>
 
 enum amt_msg_type {
 	AMT_MSG_DISCOVERY = 1,
@@ -15,7 +18,7 @@ enum amt_msg_type {
 	AMT_MSG_MEMBERSHIP_QUERY,
 	AMT_MSG_MEMBERSHIP_UPDATE,
 	AMT_MSG_MULTICAST_DATA,
-	AMT_MSG_TEARDOWM,
+	AMT_MSG_TEARDOWN,
 	__AMT_MSG_MAX,
 };
 
@@ -77,6 +80,15 @@ enum amt_status {
 };
 
 #define AMT_STATUS_MAX (__AMT_STATUS_MAX - 1)
+
+/* Gateway events only */
+enum amt_event {
+	AMT_EVENT_NONE,
+	AMT_EVENT_RECEIVE,
+	AMT_EVENT_SEND_DISCOVERY,
+	AMT_EVENT_SEND_REQUEST,
+	__AMT_EVENT_MAX,
+};
 
 struct amt_header {
 #if defined(__LITTLE_ENDIAN_BITFIELD)
@@ -292,6 +304,12 @@ struct amt_group_node {
 	struct hlist_head	sources[];
 };
 
+#define AMT_MAX_EVENTS	16
+struct amt_events {
+	enum amt_event event;
+	struct sk_buff *skb;
+};
+
 struct amt_dev {
 	struct net_device       *dev;
 	struct net_device       *stream_dev;
@@ -308,6 +326,7 @@ struct amt_dev {
 	struct delayed_work     req_wq;
 	/* Protected by RTNL */
 	struct delayed_work     secret_wq;
+	struct work_struct	event_wq;
 	/* AMT status */
 	enum amt_status		status;
 	/* Generated key */
@@ -345,6 +364,10 @@ struct amt_dev {
 	/* Used only in gateway mode */
 	u64			mac:48,
 				reserved:16;
+	/* AMT gateway side message handler queue */
+	struct amt_events	events[AMT_MAX_EVENTS];
+	u8			event_idx;
+	u8			nr_events;
 };
 
 #define AMT_TOS			0xc0

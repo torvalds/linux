@@ -91,10 +91,10 @@ struct ltc2688_state {
 	struct mutex lock;
 	int vref;
 	/*
-	 * DMA (thus cache coherency maintenance) requires the
+	 * DMA (thus cache coherency maintenance) may require the
 	 * transfer buffers to live in their own cache lines.
 	 */
-	u8 tx_data[6] ____cacheline_aligned;
+	u8 tx_data[6] __aligned(IIO_DMA_MINALIGN);
 	u8 rx_data[3];
 };
 
@@ -703,21 +703,20 @@ static int ltc2688_tgp_clk_setup(struct ltc2688_state *st,
 				 struct ltc2688_chan *chan,
 				 struct fwnode_handle *node, int tgp)
 {
+	struct device *dev = &st->spi->dev;
 	unsigned long rate;
 	struct clk *clk;
 	int ret, f;
 
-	clk = devm_get_clk_from_child(&st->spi->dev, to_of_node(node), NULL);
+	clk = devm_get_clk_from_child(dev, to_of_node(node), NULL);
 	if (IS_ERR(clk))
-		return dev_err_probe(&st->spi->dev, PTR_ERR(clk),
-				     "failed to get tgp clk.\n");
+		return dev_err_probe(dev, PTR_ERR(clk), "failed to get tgp clk.\n");
 
 	ret = clk_prepare_enable(clk);
 	if (ret)
-		return dev_err_probe(&st->spi->dev, ret,
-				     "failed to enable tgp clk.\n");
+		return dev_err_probe(dev, ret, "failed to enable tgp clk.\n");
 
-	ret = devm_add_action_or_reset(&st->spi->dev, ltc2688_clk_disable, clk);
+	ret = devm_add_action_or_reset(dev, ltc2688_clk_disable, clk);
 	if (ret)
 		return ret;
 
@@ -858,6 +857,7 @@ static int ltc2688_channel_config(struct ltc2688_state *st)
 
 static int ltc2688_setup(struct ltc2688_state *st, struct regulator *vref)
 {
+	struct device *dev = &st->spi->dev;
 	struct gpio_desc *gpio;
 	int ret;
 
@@ -865,10 +865,9 @@ static int ltc2688_setup(struct ltc2688_state *st, struct regulator *vref)
 	 * If we have a reset pin, use that to reset the board, If not, use
 	 * the reset bit.
 	 */
-	gpio = devm_gpiod_get_optional(&st->spi->dev, "clr", GPIOD_OUT_HIGH);
+	gpio = devm_gpiod_get_optional(dev, "clr", GPIOD_OUT_HIGH);
 	if (IS_ERR(gpio))
-		return dev_err_probe(&st->spi->dev, PTR_ERR(gpio),
-				     "Failed to get reset gpio");
+		return dev_err_probe(dev, PTR_ERR(gpio), "Failed to get reset gpio");
 	if (gpio) {
 		usleep_range(1000, 1200);
 		/* bring device out of reset */
@@ -887,7 +886,7 @@ static int ltc2688_setup(struct ltc2688_state *st, struct regulator *vref)
 	 * Duplicate the default channel configuration as it can change during
 	 * @ltc2688_channel_config()
 	 */
-	st->iio_chan = devm_kmemdup(&st->spi->dev, ltc2688_channels,
+	st->iio_chan = devm_kmemdup(dev, ltc2688_channels,
 				    sizeof(ltc2688_channels), GFP_KERNEL);
 	if (!st->iio_chan)
 		return -ENOMEM;

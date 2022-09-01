@@ -25,8 +25,19 @@ struct shmem_inode_info {
 	struct simple_xattrs	xattrs;		/* list of xattrs */
 	atomic_t		stop_eviction;	/* hold when working on inode */
 	struct timespec64	i_crtime;	/* file creation time */
+	unsigned int		fsflags;	/* flags for FS_IOC_[SG]ETFLAGS */
 	struct inode		vfs_inode;
 };
+
+#define SHMEM_FL_USER_VISIBLE FS_FL_USER_VISIBLE
+#define SHMEM_FL_USER_MODIFIABLE FS_FL_USER_MODIFIABLE
+#define SHMEM_FL_INHERITED FS_FL_USER_MODIFIABLE
+
+/* Flags that are appropriate for regular files (all but dir-specific ones). */
+#define SHMEM_REG_FLMASK (~(FS_DIRSYNC_FL | FS_TOPDIR_FL))
+
+/* Flags that are appropriate for non-directories/regular files. */
+#define SHMEM_OTHER_FLMASK (FS_NODUMP_FL | FS_NOATIME_FL)
 
 struct shmem_sb_info {
 	unsigned long max_blocks;   /* How many blocks are allowed */

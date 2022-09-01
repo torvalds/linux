@@ -2,6 +2,8 @@
 #ifndef __NETNS_CORE_H__
 #define __NETNS_CORE_H__
 
+#include <linux/types.h>
+
 struct ctl_table_header;
 struct prot_inuse;
 

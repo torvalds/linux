@@ -44,7 +44,7 @@ BTF_ID(union,   U)
 BTF_ID(func,    func)
 
 extern __u32 test_list_global[];
-BTF_ID_LIST_GLOBAL(test_list_global)
+BTF_ID_LIST_GLOBAL(test_list_global, 1)
 BTF_ID_UNUSED
 BTF_ID(typedef, S)
 BTF_ID(typedef, T)

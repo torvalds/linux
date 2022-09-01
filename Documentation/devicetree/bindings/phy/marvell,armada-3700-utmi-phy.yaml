@@ -45,7 +45,7 @@ additionalProperties: false
 examples:
   - |
     usb2_utmi_host_phy: phy@5f000 {
-      compatible = "marvell,armada-3700-utmi-host-phy";
+      compatible = "marvell,a3700-utmi-host-phy";
       reg = <0x5f000 0x800>;
       marvell,usb-misc-reg = <&usb2_syscon>;
       #phy-cells = <0>;

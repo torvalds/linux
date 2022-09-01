@@ -97,7 +97,7 @@ void kvm_riscv_gstage_vmid_update(struct kvm_vcpu *vcpu)
 		 * We ran out of VMIDs so we increment vmid_version and
 		 * start assigning VMIDs from 1.
 		 *
-		 * This also means existing VMIDs assignement to all Guest
+		 * This also means existing VMIDs assignment to all Guest
 		 * instances is invalid and we have force VMID re-assignement
 		 * for all Guest instances. The Guest instances that were not
 		 * running will automatically pick-up new VMIDs because will

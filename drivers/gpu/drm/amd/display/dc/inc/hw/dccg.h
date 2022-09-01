@@ -45,9 +45,10 @@ enum physymclk_clock_source {
 	PHYSYMCLK_FORCE_SRC_PHYD32CLK, // Select phyd32clk as the source of clock which is output to PHY through DCIO.
 };
 
-enum hdmistreamclk_source {
+enum streamclk_source {
 	REFCLK,                   // Selects REFCLK as source for hdmistreamclk.
 	DTBCLK0,                  // Selects DTBCLK0 as source for hdmistreamclk.
+	DPREFCLK,                 // Selects DPREFCLK as source for hdmistreamclk
 };
 
 enum dentist_dispclk_change_mode {
@@ -55,14 +56,31 @@ enum dentist_dispclk_change_mode {
 	DISPCLK_CHANGE_MODE_RAMPING,
 };
 
+enum pixel_rate_div {
+   PIXEL_RATE_DIV_BY_1 = 0,
+   PIXEL_RATE_DIV_BY_2 = 1,
+   PIXEL_RATE_DIV_BY_4 = 3,
+   PIXEL_RATE_DIV_NA = 0xF
+};
+
 struct dccg {
 	struct dc_context *ctx;
 	const struct dccg_funcs *funcs;
 	int pipe_dppclk_khz[MAX_PIPES];
 	int ref_dppclk;
-	int dtbclk_khz[MAX_PIPES];
-	int audio_dtbclk_khz;
+	//int dtbclk_khz[MAX_PIPES];/* TODO needs to be removed */
+	//int audio_dtbclk_khz;/* TODO needs to be removed */
+	//int ref_dtbclk_khz;/* TODO needs to be removed */
+};
+
+struct dtbclk_dto_params {
+	const struct dc_crtc_timing *timing;
+	int otg_inst;
+	int pixclk_khz;
+	int req_audio_dtbclk_khz;
+	int num_odm_segments;
 	int ref_dtbclk_khz;
+	bool is_hdmi;
 };
 
 struct dccg_funcs {
@@ -82,8 +100,9 @@ struct dccg_funcs {
 
 	void (*set_dpstreamclk)(
 			struct dccg *dccg,
-			enum hdmistreamclk_source src,
-			int otg_inst);
+			enum streamclk_source src,
+			int otg_inst,
+			int dp_hpo_inst);
 
 	void (*enable_symclk32_se)(
 			struct dccg *dccg,
@@ -111,14 +130,11 @@ struct dccg_funcs {
 
 	void (*set_dtbclk_dto)(
 			struct dccg *dccg,
-			int dtbclk_inst,
-			int req_dtbclk_khz,
-			int num_odm_segments,
-			const struct dc_crtc_timing *timing);
+			const struct dtbclk_dto_params *params);
 
 	void (*set_audio_dtbclk_dto)(
 			struct dccg *dccg,
-			uint32_t req_audio_dtbclk_khz);
+			const struct dtbclk_dto_params *params);
 
 	void (*set_dispclk_change_mode)(
 			struct dccg *dccg,
@@ -131,6 +147,18 @@ struct dccg_funcs {
 	void (*enable_dsc)(
 		struct dccg *dccg,
 		int inst);
+
+void (*set_pixel_rate_div)(
+        struct dccg *dccg,
+        uint32_t otg_inst,
+        enum pixel_rate_div k1,
+        enum pixel_rate_div k2);
+
+void (*set_valid_pixel_rate)(
+        struct dccg *dccg,
+	int ref_dtbclk_khz,
+        int otg_inst,
+        int pixclk_khz);
 
 };
 

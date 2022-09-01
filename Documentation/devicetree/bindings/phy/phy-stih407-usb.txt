@@ -9,7 +9,7 @@ Required properties:
 - resets		: list of phandle and reset specifier pairs. There should be two entries, one
 			  for the whole phy and one for the port
 - reset-names		: list of reset signal names. Should be "global" and "port"
-See: Documentation/devicetree/bindings/reset/st,sti-powerdown.txt
+See: Documentation/devicetree/bindings/reset/st,stih407-powerdown.yaml
 See: Documentation/devicetree/bindings/reset/reset.txt
 
 Example:

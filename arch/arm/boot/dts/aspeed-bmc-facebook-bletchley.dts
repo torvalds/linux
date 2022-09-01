@@ -51,26 +51,6 @@
 		};
 	};
 
-	spi2_gpio: spi2-gpio {
-		compatible = "spi-gpio";
-		#address-cells = <1>;
-		#size-cells = <0>;
-
-		gpio-sck = <&gpio0 ASPEED_GPIO(X, 3) GPIO_ACTIVE_HIGH>;
-		gpio-mosi = <&gpio0 ASPEED_GPIO(X, 4) GPIO_ACTIVE_HIGH>;
-		gpio-miso = <&gpio0 ASPEED_GPIO(X, 5) GPIO_ACTIVE_HIGH>;
-		num-chipselects = <1>;
-		cs-gpios = <&gpio0 ASPEED_GPIO(X, 0) GPIO_ACTIVE_LOW>;
-
-		flash@0 {
-			reg = <0>;
-			compatible = "jedec,spi-nor";
-			m25p,fast-read;
-			label = "pnor";
-			spi-max-frequency = <100000000>;
-		};
-	};
-
 	switchphy: ethernet-phy@0 {
 		// Fixed link
 	};
@@ -242,6 +222,19 @@
 	};
 };
 
+&spi2 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_spi2_default>;
+
+	flash@0 {
+		status = "okay";
+		m25p,fast-read;
+		label = "pnor";
+		spi-max-frequency = <50000000>;
+	};
+};
+
 &i2c0 {
 	status = "okay";
 	ina230@45 {
@@ -258,6 +251,17 @@
 	tmp421@4f {
 		compatible = "ti,tmp421";
 		reg = <0x4f>;
+	};
+
+	sled1_ioexp41: pca9536@41 {
+		compatible = "nxp,pca9536";
+		reg = <0x41>;
+		gpio-controller;
+		#gpio-cells = <2>;
+
+		gpio-line-names =
+		"SLED1_SWD_MUX", "SLED1_XRES_SWD_N",
+		"SLED1_CLKREQ_N", "SLED1_PCIE_PWR_EN";
 	};
 
 	sled1_ioexp: pca9539@76 {
@@ -310,6 +314,11 @@
 			op-sink-microwatt = <10000000>;
 		};
 	};
+
+	eeprom@54 {
+		compatible = "atmel,24c64";
+		reg = <0x54>;
+	};
 };
 
 &i2c1 {
@@ -328,6 +337,17 @@
 	tmp421@4f {
 		compatible = "ti,tmp421";
 		reg = <0x4f>;
+	};
+
+	sled2_ioexp41: pca9536@41 {
+		compatible = "nxp,pca9536";
+		reg = <0x41>;
+		gpio-controller;
+		#gpio-cells = <2>;
+
+		gpio-line-names =
+		"SLED2_SWD_MUX", "SLED2_XRES_SWD_N",
+		"SLED2_CLKREQ_N", "SLED2_PCIE_PWR_EN";
 	};
 
 	sled2_ioexp: pca9539@76 {
@@ -380,6 +400,11 @@
 			op-sink-microwatt = <10000000>;
 		};
 	};
+
+	eeprom@54 {
+		compatible = "atmel,24c64";
+		reg = <0x54>;
+	};
 };
 
 &i2c2 {
@@ -398,6 +423,17 @@
 	tmp421@4f {
 		compatible = "ti,tmp421";
 		reg = <0x4f>;
+	};
+
+	sled3_ioexp41: pca9536@41 {
+		compatible = "nxp,pca9536";
+		reg = <0x41>;
+		gpio-controller;
+		#gpio-cells = <2>;
+
+		gpio-line-names =
+		"SLED3_SWD_MUX", "SLED3_XRES_SWD_N",
+		"SLED3_CLKREQ_N", "SLED3_PCIE_PWR_EN";
 	};
 
 	sled3_ioexp: pca9539@76 {
@@ -450,6 +486,11 @@
 			op-sink-microwatt = <10000000>;
 		};
 	};
+
+	eeprom@54 {
+		compatible = "atmel,24c64";
+		reg = <0x54>;
+	};
 };
 
 &i2c3 {
@@ -468,6 +509,17 @@
 	tmp421@4f {
 		compatible = "ti,tmp421";
 		reg = <0x4f>;
+	};
+
+	sled4_ioexp41: pca9536@41 {
+		compatible = "nxp,pca9536";
+		reg = <0x41>;
+		gpio-controller;
+		#gpio-cells = <2>;
+
+		gpio-line-names =
+		"SLED4_SWD_MUX", "SLED4_XRES_SWD_N",
+		"SLED4_CLKREQ_N", "SLED4_PCIE_PWR_EN";
 	};
 
 	sled4_ioexp: pca9539@76 {
@@ -520,6 +572,11 @@
 			op-sink-microwatt = <10000000>;
 		};
 	};
+
+	eeprom@54 {
+		compatible = "atmel,24c64";
+		reg = <0x54>;
+	};
 };
 
 &i2c4 {
@@ -538,6 +595,17 @@
 	tmp421@4f {
 		compatible = "ti,tmp421";
 		reg = <0x4f>;
+	};
+
+	sled5_ioexp41: pca9536@41 {
+		compatible = "nxp,pca9536";
+		reg = <0x41>;
+		gpio-controller;
+		#gpio-cells = <2>;
+
+		gpio-line-names =
+		"SLED5_SWD_MUX", "SLED5_XRES_SWD_N",
+		"SLED5_CLKREQ_N", "SLED5_PCIE_PWR_EN";
 	};
 
 	sled5_ioexp: pca9539@76 {
@@ -590,6 +658,11 @@
 			op-sink-microwatt = <10000000>;
 		};
 	};
+
+	eeprom@54 {
+		compatible = "atmel,24c64";
+		reg = <0x54>;
+	};
 };
 
 &i2c5 {
@@ -608,6 +681,17 @@
 	tmp421@4f {
 		compatible = "ti,tmp421";
 		reg = <0x4f>;
+	};
+
+	sled6_ioexp41: pca9536@41 {
+		compatible = "nxp,pca9536";
+		reg = <0x41>;
+		gpio-controller;
+		#gpio-cells = <2>;
+
+		gpio-line-names =
+		"SLED6_SWD_MUX", "SLED6_XRES_SWD_N",
+		"SLED6_CLKREQ_N", "SLED6_PCIE_PWR_EN";
 	};
 
 	sled6_ioexp: pca9539@76 {
@@ -659,6 +743,11 @@
 					PDO_PPS_APDO(3000, 11000, 3000)>;
 			op-sink-microwatt = <10000000>;
 		};
+	};
+
+	eeprom@54 {
+		compatible = "atmel,24c64";
+		reg = <0x54>;
 	};
 };
 
@@ -732,6 +821,8 @@
 		compatible = "adi,adm1278";
 		reg = <0x11>;
 		shunt-resistor-micro-ohms = <300>;
+		adi,volt-curr-sample-average = <128>;
+		adi,power-sample-average = <128>;
 	};
 
 	tmp421@4c {
@@ -771,43 +862,55 @@
 &gpio0 {
 	gpio-line-names =
 	/*A0-A7*/	"","","","","","","","",
-	/*B0-B7*/	"","","SEL_SPI2_MUX","SPI2_MUX1",
-			"SPI2_MUX2","SPI2_MUX3","","",
+	/*B0-B7*/	"FUSB302_SLED1_INT_N","FUSB302_SLED2_INT_N",
+			"SEL_SPI2_MUX","SPI2_MUX1",
+			"SPI2_MUX2","SPI2_MUX3",
+			"","FUSB302_SLED3_INT_N",
 	/*C0-C7*/	"","","","","","","","",
 	/*D0-D7*/	"","","","","","","","",
 	/*E0-E7*/	"","","","","","","","",
-	/*F0-F7*/	"","","","","","","","",
-	/*G0-G7*/	"BSM_FRU_WP","SWITCH_FRU_MUX","","",
+	/*F0-F7*/	"BMC_SLED1_STCK","BMC_SLED2_STCK",
+			"BMC_SLED3_STCK","BMC_SLED4_STCK",
+			"BMC_SLED5_STCK","BMC_SLED6_STCK",
+			"","",
+	/*G0-G7*/	"BSM_FRU_WP","SWITCH_FRU_MUX","","FM_SOL_UART_CH_SEL",
 			"PWRGD_P1V05_VDDCORE","PWRGD_P1V5_VDD","","",
 	/*H0-H7*/	"presence-riser1","presence-riser2",
 			"presence-sled1","presence-sled2",
 			"presence-sled3","presence-sled4",
 			"presence-sled5","presence-sled6",
-	/*I0-I7*/	"REV_ID0","","REV_ID1","REV_ID2",
-			"","BSM_FLASH_WP_STATUS","BMC_TPM_PRES","",
+	/*I0-I7*/	"REV_ID0","",
+			"REV_ID1","REV_ID2",
+			"","BSM_FLASH_WP_STATUS",
+			"BMC_TPM_PRES_N","FUSB302_SLED6_INT_N",
 	/*J0-J7*/	"","","","","","","","",
 	/*K0-K7*/	"","","","","","","","",
 	/*L0-L7*/	"","","","","","BMC_RTC_INT","","",
-	/*M0-M7*/	"ALERT_SLED1","ALERT_SLED2",
-			"ALERT_SLED3","ALERT_SLED4",
-			"ALERT_SLED5","ALERT_SLED6",
-			"P12V_AUX_ALERT1","",
-	/*N0-N7*/	"","","","","","","","",
+	/*M0-M7*/	"ALERT_SLED1_N","ALERT_SLED2_N",
+			"ALERT_SLED3_N","ALERT_SLED4_N",
+			"ALERT_SLED5_N","ALERT_SLED6_N",
+			"","",
+	/*N0-N7*/	"LED_POSTCODE_0","LED_POSTCODE_1",
+			"LED_POSTCODE_2","LED_POSTCODE_3",
+			"LED_POSTCODE_4","LED_POSTCODE_5",
+			"LED_POSTCODE_5","LED_POSTCODE_7",
 	/*O0-O7*/	"","","","",
 			"","BOARD_ID0","BOARD_ID1","BOARD_ID2",
 	/*P0-P7*/	"","","","","","","","BMC_HEARTBEAT",
 	/*Q0-Q7*/	"","","","","","","","",
 	/*R0-R7*/	"","","","","","","","",
 	/*S0-S7*/	"","","","BAT_DETECT",
-			"BMC_BT_WP0","BMC_BT_WP1","","",
+			"BMC_BT_WP0_N","BMC_BT_WP1_N","","FUSB302_SLED4_INT_N",
 	/*T0-T7*/	"","","","","","","","",
 	/*U0-U7*/	"","","","","","","","",
-	/*V0-V7*/	"PWRGD_CNS_PSU","RST_BMC_MVL","","PSU_PRSNT",
+	/*V0-V7*/	"PWRGD_CNS_PSU","RST_BMC_MVL_N",
+			"P12V_AUX_ALERT1_N","PSU_PRSNT",
 			"USB2_SEL0_A","USB2_SEL1_A",
 			"USB2_SEL0_B","USB2_SEL1_B",
-	/*W0-W7*/	"RST_FRONT_IOEXP","","","","","","","",
+	/*W0-W7*/	"RST_FRONT_IOEXP_N","","","","","","","",
 	/*X0-X7*/	"","","","","","","","",
-	/*Y0-Y7*/	"BMC_SELF_HW_RST","BSM_PRSNT","BSM_FLASH_LATCH","",
+	/*Y0-Y7*/	"BMC_SELF_HW_RST","BSM_PRSNT_N",
+			"BSM_FLASH_LATCH_N","FUSB302_SLED5_INT_N",
 			"","","","",
 	/*Z0-Z7*/	"","","","","","","","";
 };
@@ -834,7 +937,16 @@
 		&pinctrl_adc14_default &pinctrl_adc15_default>;
 };
 
+&mdio0 {
+	status = "okay";
+	/* TODO: Add Marvell 88E6191X */
+};
+
 &mdio3 {
 	status = "okay";
 	/* TODO: Add Marvell 88X3310 */
+};
+
+&ehci0 {
+	status = "okay";
 };

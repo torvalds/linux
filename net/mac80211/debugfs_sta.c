@@ -202,7 +202,7 @@ static ssize_t sta_airtime_read(struct file *file, char __user *userbuf,
 	size_t bufsz = 400;
 	char *buf = kzalloc(bufsz, GFP_KERNEL), *p = buf;
 	u64 rx_airtime = 0, tx_airtime = 0;
-	u64 v_t[IEEE80211_NUM_ACS];
+	s32 deficit[IEEE80211_NUM_ACS];
 	ssize_t rv;
 	int ac;
 
@@ -210,18 +210,18 @@ static ssize_t sta_airtime_read(struct file *file, char __user *userbuf,
 		return -ENOMEM;
 
 	for (ac = 0; ac < IEEE80211_NUM_ACS; ac++) {
-		spin_lock_bh(&local->airtime[ac].lock);
+		spin_lock_bh(&local->active_txq_lock[ac]);
 		rx_airtime += sta->airtime[ac].rx_airtime;
 		tx_airtime += sta->airtime[ac].tx_airtime;
-		v_t[ac] = sta->airtime[ac].v_t;
-		spin_unlock_bh(&local->airtime[ac].lock);
+		deficit[ac] = sta->airtime[ac].deficit;
+		spin_unlock_bh(&local->active_txq_lock[ac]);
 	}
 
 	p += scnprintf(p, bufsz + buf - p,
 		"RX: %llu us\nTX: %llu us\nWeight: %u\n"
-		"Virt-T: VO: %lld us VI: %lld us BE: %lld us BK: %lld us\n",
-		rx_airtime, tx_airtime, sta->airtime[0].weight,
-		v_t[0], v_t[1], v_t[2], v_t[3]);
+		"Deficit: VO: %d us VI: %d us BE: %d us BK: %d us\n",
+		rx_airtime, tx_airtime, sta->airtime_weight,
+		deficit[0], deficit[1], deficit[2], deficit[3]);
 
 	rv = simple_read_from_buffer(userbuf, count, ppos, buf, p - buf);
 	kfree(buf);
@@ -236,11 +236,11 @@ static ssize_t sta_airtime_write(struct file *file, const char __user *userbuf,
 	int ac;
 
 	for (ac = 0; ac < IEEE80211_NUM_ACS; ac++) {
-		spin_lock_bh(&local->airtime[ac].lock);
+		spin_lock_bh(&local->active_txq_lock[ac]);
 		sta->airtime[ac].rx_airtime = 0;
 		sta->airtime[ac].tx_airtime = 0;
-		sta->airtime[ac].v_t = 0;
-		spin_unlock_bh(&local->airtime[ac].lock);
+		sta->airtime[ac].deficit = sta->airtime_weight;
+		spin_unlock_bh(&local->active_txq_lock[ac]);
 	}
 
 	return count;
@@ -263,10 +263,10 @@ static ssize_t sta_aql_read(struct file *file, char __user *userbuf,
 		return -ENOMEM;
 
 	for (ac = 0; ac < IEEE80211_NUM_ACS; ac++) {
-		spin_lock_bh(&local->airtime[ac].lock);
+		spin_lock_bh(&local->active_txq_lock[ac]);
 		q_limit_l[ac] = sta->airtime[ac].aql_limit_low;
 		q_limit_h[ac] = sta->airtime[ac].aql_limit_high;
-		spin_unlock_bh(&local->airtime[ac].lock);
+		spin_unlock_bh(&local->active_txq_lock[ac]);
 		q_depth[ac] = atomic_read(&sta->airtime[ac].aql_tx_pending);
 	}
 

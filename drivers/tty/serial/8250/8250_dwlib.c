@@ -2,18 +2,31 @@
 /* Synopsys DesignWare 8250 library. */
 
 #include <linux/bitops.h>
+#include <linux/bitfield.h>
 #include <linux/device.h>
-#include <linux/io.h>
 #include <linux/kernel.h>
+#include <linux/property.h>
 #include <linux/serial_8250.h>
 #include <linux/serial_core.h>
 
 #include "8250_dwlib.h"
 
 /* Offsets for the DesignWare specific registers */
+#define DW_UART_TCR	0xac /* Transceiver Control Register (RS485) */
+#define DW_UART_DE_EN	0xb0 /* Driver Output Enable Register */
+#define DW_UART_RE_EN	0xb4 /* Receiver Output Enable Register */
 #define DW_UART_DLF	0xc0 /* Divisor Latch Fraction Register */
 #define DW_UART_CPR	0xf4 /* Component Parameter Register */
 #define DW_UART_UCV	0xf8 /* UART Component Version */
+
+/* Transceiver Control Register bits */
+#define DW_UART_TCR_RS485_EN		BIT(0)
+#define DW_UART_TCR_RE_POL		BIT(1)
+#define DW_UART_TCR_DE_POL		BIT(2)
+#define DW_UART_TCR_XFER_MODE		GENMASK(4, 3)
+#define DW_UART_TCR_XFER_MODE_DE_DURING_RE	FIELD_PREP(DW_UART_TCR_XFER_MODE, 0)
+#define DW_UART_TCR_XFER_MODE_SW_DE_OR_RE	FIELD_PREP(DW_UART_TCR_XFER_MODE, 1)
+#define DW_UART_TCR_XFER_MODE_DE_OR_RE		FIELD_PREP(DW_UART_TCR_XFER_MODE, 2)
 
 /* Component Parameter Register bits */
 #define DW_UART_CPR_ABP_DATA_WIDTH	(3 << 0)
@@ -31,21 +44,6 @@
 
 /* Helper for FIFO size calculation */
 #define DW_UART_CPR_FIFO_SIZE(a)	(((a >> 16) & 0xff) * 16)
-
-static inline u32 dw8250_readl_ext(struct uart_port *p, int offset)
-{
-	if (p->iotype == UPIO_MEM32BE)
-		return ioread32be(p->membase + offset);
-	return readl(p->membase + offset);
-}
-
-static inline void dw8250_writel_ext(struct uart_port *p, int offset, u32 reg)
-{
-	if (p->iotype == UPIO_MEM32BE)
-		iowrite32be(reg, p->membase + offset);
-	else
-		writel(reg, p->membase + offset);
-}
 
 /*
  * divisor = div(I) + div(F)
@@ -87,10 +85,86 @@ void dw8250_do_set_termios(struct uart_port *p, struct ktermios *termios, struct
 }
 EXPORT_SYMBOL_GPL(dw8250_do_set_termios);
 
+static int dw8250_rs485_config(struct uart_port *p, struct serial_rs485 *rs485)
+{
+	u32 tcr;
+
+	tcr = dw8250_readl_ext(p, DW_UART_TCR);
+	tcr &= ~DW_UART_TCR_XFER_MODE;
+
+	if (rs485->flags & SER_RS485_ENABLED) {
+		/* Clear unsupported flags. */
+		rs485->flags &= SER_RS485_ENABLED | SER_RS485_RX_DURING_TX |
+				SER_RS485_RTS_ON_SEND | SER_RS485_RTS_AFTER_SEND;
+		tcr |= DW_UART_TCR_RS485_EN;
+
+		if (rs485->flags & SER_RS485_RX_DURING_TX) {
+			tcr |= DW_UART_TCR_XFER_MODE_DE_DURING_RE;
+		} else {
+			/* HW does not support same DE level for tx and rx */
+			if (!(rs485->flags & SER_RS485_RTS_ON_SEND) ==
+			    !(rs485->flags & SER_RS485_RTS_AFTER_SEND))
+				return -EINVAL;
+
+			tcr |= DW_UART_TCR_XFER_MODE_DE_OR_RE;
+		}
+		dw8250_writel_ext(p, DW_UART_DE_EN, 1);
+		dw8250_writel_ext(p, DW_UART_RE_EN, 1);
+	} else {
+		rs485->flags = 0;
+
+		tcr &= ~DW_UART_TCR_RS485_EN;
+	}
+
+	/* Reset to default polarity */
+	tcr |= DW_UART_TCR_DE_POL;
+	tcr &= ~DW_UART_TCR_RE_POL;
+
+	if (!(rs485->flags & SER_RS485_RTS_ON_SEND))
+		tcr &= ~DW_UART_TCR_DE_POL;
+	if (device_property_read_bool(p->dev, "rs485-rx-active-high"))
+		tcr |= DW_UART_TCR_RE_POL;
+
+	dw8250_writel_ext(p, DW_UART_TCR, tcr);
+
+	rs485->delay_rts_before_send = 0;
+	rs485->delay_rts_after_send = 0;
+
+	p->rs485 = *rs485;
+
+	return 0;
+}
+
+/*
+ * Tests if RE_EN register can have non-zero value to see if RS-485 HW support
+ * is present.
+ */
+static bool dw8250_detect_rs485_hw(struct uart_port *p)
+{
+	u32 reg;
+
+	dw8250_writel_ext(p, DW_UART_RE_EN, 1);
+	reg = dw8250_readl_ext(p, DW_UART_RE_EN);
+	dw8250_writel_ext(p, DW_UART_RE_EN, 0);
+	return reg;
+}
+
 void dw8250_setup_port(struct uart_port *p)
 {
+	struct dw8250_port_data *pd = p->private_data;
+	struct dw8250_data *data = to_dw8250_data(pd);
 	struct uart_8250_port *up = up_to_u8250p(p);
 	u32 reg;
+
+	pd->hw_rs485_support = dw8250_detect_rs485_hw(p);
+	if (pd->hw_rs485_support) {
+		p->rs485_config = dw8250_rs485_config;
+	} else {
+		p->rs485_config = serial8250_em485_config;
+		up->rs485_start_tx = serial8250_em485_start_tx;
+		up->rs485_stop_tx = serial8250_em485_stop_tx;
+	}
+	up->capabilities |= UART_CAP_NOTEMT;
 
 	/*
 	 * If the Component Version Register returns zero, we know that
@@ -108,14 +182,16 @@ void dw8250_setup_port(struct uart_port *p)
 	dw8250_writel_ext(p, DW_UART_DLF, 0);
 
 	if (reg) {
-		struct dw8250_port_data *d = p->private_data;
-
-		d->dlf_size = fls(reg);
+		pd->dlf_size = fls(reg);
 		p->get_divisor = dw8250_get_divisor;
 		p->set_divisor = dw8250_set_divisor;
 	}
 
 	reg = dw8250_readl_ext(p, DW_UART_CPR);
+	if (!reg) {
+		reg = data->pdata->cpr_val;
+		dev_dbg(p->dev, "CPR is not available, using 0x%08x instead\n", reg);
+	}
 	if (!reg)
 		return;
 
@@ -124,7 +200,7 @@ void dw8250_setup_port(struct uart_port *p)
 		p->type = PORT_16550A;
 		p->flags |= UPF_FIXED_TYPE;
 		p->fifosize = DW_UART_CPR_FIFO_SIZE(reg);
-		up->capabilities = UART_CAP_FIFO;
+		up->capabilities = UART_CAP_FIFO | UART_CAP_NOTEMT;
 	}
 
 	if (reg & DW_UART_CPR_AFCE_MODE)

@@ -1664,8 +1664,10 @@ static void ipoib_napi_add(struct net_device *dev)
 {
 	struct ipoib_dev_priv *priv = ipoib_priv(dev);
 
-	netif_napi_add(dev, &priv->recv_napi, ipoib_rx_poll, IPOIB_NUM_WC);
-	netif_napi_add(dev, &priv->send_napi, ipoib_tx_poll, MAX_SEND_CQE);
+	netif_napi_add_weight(dev, &priv->recv_napi, ipoib_rx_poll,
+			      IPOIB_NUM_WC);
+	netif_napi_add_weight(dev, &priv->send_napi, ipoib_tx_poll,
+			      MAX_SEND_CQE);
 }
 
 static void ipoib_napi_del(struct net_device *dev)

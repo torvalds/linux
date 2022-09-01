@@ -20,6 +20,7 @@ CFLAGS_prom.o += $(DISABLE_LATENT_ENTROPY_PLUGIN)
 CFLAGS_prom_init.o += -fno-stack-protector
 CFLAGS_prom_init.o += -DDISABLE_BRANCH_PROFILING
 CFLAGS_prom_init.o += -ffreestanding
+CFLAGS_prom_init.o += $(call cc-option, -ftrivial-auto-var-init=uninitialized)
 
 ifdef CONFIG_FUNCTION_TRACER
 # Do not trace early boot code
@@ -37,6 +38,8 @@ KASAN_SANITIZE_paca.o := n
 KASAN_SANITIZE_setup_64.o := n
 KASAN_SANITIZE_mce.o := n
 KASAN_SANITIZE_mce_power.o := n
+KASAN_SANITIZE_udbg.o := n
+KASAN_SANITIZE_udbg_16550.o := n
 
 # we have to be particularly careful in ppc64 to exclude code that
 # runs with translations off, as we cannot access the shadow with

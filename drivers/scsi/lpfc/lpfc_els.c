@@ -1790,18 +1790,20 @@ lpfc_plogi_confirm_nport(struct lpfc_hba *phba, uint32_t *prsp,
 
 	/* Move this back to NPR state */
 	if (memcmp(&ndlp->nlp_portname, name, sizeof(struct lpfc_name)) == 0) {
-		/* The new_ndlp is replacing ndlp totally, so we need
-		 * to put ndlp on UNUSED list and try to free it.
+		/* The ndlp doesn't have a portname yet, but does have an
+		 * NPort ID.  The new_ndlp portname matches the Rport's
+		 * portname.  Reinstantiate the new_ndlp and reset the ndlp.
 		 */
 		lpfc_printf_vlog(vport, KERN_INFO, LOG_ELS,
 			 "3179 PLOGI confirm NEW: %x %x\n",
 			 new_ndlp->nlp_DID, keepDID);
 
 		/* Two ndlps cannot have the same did on the nodelist.
-		 * Note: for this case, ndlp has a NULL WWPN so setting
-		 * the nlp_fc4_type isn't required.
+		 * The KeepDID and keep_nlp_fc4_type need to be swapped
+		 * because ndlp is inflight with no WWPN.
 		 */
 		ndlp->nlp_DID = keepDID;
+		ndlp->nlp_fc4_type = keep_nlp_fc4_type;
 		lpfc_nlp_set_state(vport, ndlp, keep_nlp_state);
 		if (phba->sli_rev == LPFC_SLI_REV4 &&
 		    active_rrqs_xri_bitmap)
@@ -1816,9 +1818,8 @@ lpfc_plogi_confirm_nport(struct lpfc_hba *phba, uint32_t *prsp,
 
 		lpfc_unreg_rpi(vport, ndlp);
 
-		/* Two ndlps cannot have the same did and the fc4
-		 * type must be transferred because the ndlp is in
-		 * flight.
+		/* The ndlp and new_ndlp both have WWPNs but are swapping
+		 * NPort Ids and attributes.
 		 */
 		ndlp->nlp_DID = keepDID;
 		ndlp->nlp_fc4_type = keep_nlp_fc4_type;
@@ -1886,7 +1887,6 @@ lpfc_end_rscn(struct lpfc_vport *vport)
 		else {
 			spin_lock_irq(shost->host_lock);
 			vport->fc_flag &= ~FC_RSCN_MODE;
-			vport->fc_flag |= FC_RSCN_MEMENTO;
 			spin_unlock_irq(shost->host_lock);
 		}
 	}
@@ -2434,14 +2434,13 @@ lpfc_issue_els_prli(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	u32 local_nlp_type, elscmd;
 
 	/*
-	 * If discovery was kicked off from RSCN mode,
-	 * the FC4 types supported from a
+	 * If we are in RSCN mode, the FC4 types supported from a
 	 * previous GFT_ID command may not be accurate. So, if we
 	 * are a NVME Initiator, always look for the possibility of
 	 * the remote NPort beng a NVME Target.
 	 */
 	if (phba->sli_rev == LPFC_SLI_REV4 &&
-	    vport->fc_flag & (FC_RSCN_MODE | FC_RSCN_MEMENTO) &&
+	    vport->fc_flag & FC_RSCN_MODE &&
 	    vport->nvmei_support)
 		ndlp->nlp_fc4_type |= NLP_FC4_NVME;
 	local_nlp_type = ndlp->nlp_fc4_type;
@@ -2998,10 +2997,7 @@ lpfc_cmpl_els_logo(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 				 ndlp->nlp_DID, ulp_status,
 				 ulp_word4);
 
-		/* Call NLP_EVT_DEVICE_RM if link is down or LOGO is aborted */
 		if (lpfc_error_lost_link(ulp_status, ulp_word4)) {
-			lpfc_disc_state_machine(vport, ndlp, cmdiocb,
-						NLP_EVT_DEVICE_RM);
 			skip_recovery = 1;
 			goto out;
 		}
@@ -3021,18 +3017,10 @@ lpfc_cmpl_els_logo(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 		spin_unlock_irq(&ndlp->lock);
 		lpfc_disc_state_machine(vport, ndlp, cmdiocb,
 					NLP_EVT_DEVICE_RM);
-		lpfc_els_free_iocb(phba, cmdiocb);
-		lpfc_nlp_put(ndlp);
-
-		/* Presume the node was released. */
-		return;
+		goto out_rsrc_free;
 	}
 
 out:
-	/* Driver is done with the IO.  */
-	lpfc_els_free_iocb(phba, cmdiocb);
-	lpfc_nlp_put(ndlp);
-
 	/* At this point, the LOGO processing is complete. NOTE: For a
 	 * pt2pt topology, we are assuming the NPortID will only change
 	 * on link up processing. For a LOGO / PLOGI initiated by the
@@ -3059,6 +3047,10 @@ out:
 				 ndlp->nlp_DID, ulp_status,
 				 ulp_word4, tmo,
 				 vport->num_disc_nodes);
+
+		lpfc_els_free_iocb(phba, cmdiocb);
+		lpfc_nlp_put(ndlp);
+
 		lpfc_disc_start(vport);
 		return;
 	}
@@ -3075,6 +3067,10 @@ out:
 		lpfc_disc_state_machine(vport, ndlp, cmdiocb,
 					NLP_EVT_DEVICE_RM);
 	}
+out_rsrc_free:
+	/* Driver is done with the I/O. */
+	lpfc_els_free_iocb(phba, cmdiocb);
+	lpfc_nlp_put(ndlp);
 }
 
 /**
@@ -4574,15 +4570,6 @@ lpfc_els_retry(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	case IOSTAT_LOCAL_REJECT:
 		switch ((ulp_word4 & IOERR_PARAM_MASK)) {
 		case IOERR_LOOP_OPEN_FAILURE:
-			if (cmd == ELS_CMD_FLOGI) {
-				if (PCI_DEVICE_ID_HORNET ==
-					phba->pcidev->device) {
-					phba->fc_topology = LPFC_TOPOLOGY_LOOP;
-					phba->pport->fc_myDID = 0;
-					phba->alpa_map[0] = 0;
-					phba->alpa_map[1] = 0;
-				}
-			}
 			if (cmd == ELS_CMD_PLOGI && cmdiocb->retry == 0)
 				delay = 1000;
 			retry = 1;
@@ -7918,7 +7905,6 @@ lpfc_els_rcv_rscn(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
 		if ((rscn_cnt < FC_MAX_HOLD_RSCN) &&
 		    !(vport->fc_flag & FC_RSCN_DISCOVERY)) {
 			vport->fc_flag |= FC_RSCN_MODE;
-			vport->fc_flag &= ~FC_RSCN_MEMENTO;
 			spin_unlock_irq(shost->host_lock);
 			if (rscn_cnt) {
 				cmd = vport->fc_rscn_id_list[rscn_cnt-1]->virt;
@@ -7968,7 +7954,6 @@ lpfc_els_rcv_rscn(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
 
 	spin_lock_irq(shost->host_lock);
 	vport->fc_flag |= FC_RSCN_MODE;
-	vport->fc_flag &= ~FC_RSCN_MEMENTO;
 	spin_unlock_irq(shost->host_lock);
 	vport->fc_rscn_id_list[vport->fc_rscn_id_cnt++] = pcmd;
 	/* Indicate we are done walking fc_rscn_id_list on this vport */

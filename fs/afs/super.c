@@ -659,7 +659,7 @@ static void afs_i_init_once(void *_vnode)
 	struct afs_vnode *vnode = _vnode;
 
 	memset(vnode, 0, sizeof(*vnode));
-	inode_init_once(&vnode->vfs_inode);
+	inode_init_once(&vnode->netfs.inode);
 	mutex_init(&vnode->io_lock);
 	init_rwsem(&vnode->validate_lock);
 	spin_lock_init(&vnode->wb_lock);
@@ -700,8 +700,8 @@ static struct inode *afs_alloc_inode(struct super_block *sb)
 	init_rwsem(&vnode->rmdir_lock);
 	INIT_WORK(&vnode->cb_work, afs_invalidate_mmap_work);
 
-	_leave(" = %p", &vnode->vfs_inode);
-	return &vnode->vfs_inode;
+	_leave(" = %p", &vnode->netfs.inode);
+	return &vnode->netfs.inode;
 }
 
 static void afs_free_inode(struct inode *inode)

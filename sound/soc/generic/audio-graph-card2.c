@@ -90,12 +90,12 @@ links indicates connection part of CPU side (= A).
 			ports@0 {
 (X) (A)			mcpu:	port@0 { mcpu0_ep: endpoint { remote-endpoint = <&mcodec0_ep>; }; };
 (y)				port@1 { mcpu1_ep: endpoint { remote-endpoint = <&cpu1_ep>; }; };
-(y)				port@1 { mcpu2_ep: endpoint { remote-endpoint = <&cpu2_ep>; }; };
+(y)				port@2 { mcpu2_ep: endpoint { remote-endpoint = <&cpu2_ep>; }; };
 			};
 			ports@1 {
 (X)				port@0 { mcodec0_ep: endpoint { remote-endpoint = <&mcpu0_ep>; }; };
-(y)				port@0 { mcodec1_ep: endpoint { remote-endpoint = <&codec1_ep>; }; };
-(y)				port@1 { mcodec2_ep: endpoint { remote-endpoint = <&codec2_ep>; }; };
+(y)				port@1 { mcodec1_ep: endpoint { remote-endpoint = <&codec1_ep>; }; };
+(y)				port@2 { mcodec2_ep: endpoint { remote-endpoint = <&codec2_ep>; }; };
 			};
 		};
 	};

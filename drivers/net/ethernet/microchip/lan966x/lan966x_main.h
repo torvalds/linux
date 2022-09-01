@@ -34,6 +34,7 @@
 /* Reserved amount for (SRC, PRIO) at index 8*SRC + PRIO */
 #define QSYS_Q_RSRV			95
 
+#define NUM_PHYS_PORTS			8
 #define CPU_PORT			8
 
 /* Reserved PGIDs */

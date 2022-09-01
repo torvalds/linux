@@ -48,13 +48,6 @@ MODULE_PARM_DESC(qlini_mode,
 	"when ready "
 	"\"enabled\" (default) - initiator mode will always stay enabled.");
 
-static int ql_dm_tgt_ex_pct = 0;
-module_param(ql_dm_tgt_ex_pct, int, S_IRUGO|S_IWUSR);
-MODULE_PARM_DESC(ql_dm_tgt_ex_pct,
-	"For Dual Mode (qlini_mode=dual), this parameter determines "
-	"the percentage of exchanges/cmds FW will allocate resources "
-	"for Target mode.");
-
 int ql2xuctrlirq = 1;
 module_param(ql2xuctrlirq, int, 0644);
 MODULE_PARM_DESC(ql2xuctrlirq,
@@ -988,22 +981,6 @@ void qlt_free_session_done(struct work_struct *work)
 		sess->send_els_logo);
 
 	if (!IS_SW_RESV_ADDR(sess->d_id)) {
-		if (ha->flags.edif_enabled &&
-		    (!own || own->iocb.u.isp24.status_subcode == ELS_PLOGI)) {
-			sess->edif.authok = 0;
-			if (!ha->flags.host_shutting_down) {
-				ql_dbg(ql_dbg_edif, vha, 0x911e,
-					"%s wwpn %8phC calling qla2x00_release_all_sadb\n",
-					__func__, sess->port_name);
-				qla2x00_release_all_sadb(vha, sess);
-			} else {
-				ql_dbg(ql_dbg_edif, vha, 0x911e,
-					"%s bypassing release_all_sadb\n",
-					__func__);
-			}
-			qla_edif_clear_appdata(vha, sess);
-			qla_edif_sess_down(vha, sess);
-		}
 		qla2x00_mark_device_lost(vha, sess, 0);
 
 		if (sess->send_els_logo) {
@@ -1048,6 +1025,25 @@ void qlt_free_session_done(struct work_struct *work)
 		    !(sess->nvme_flag & NVME_FLAG_DELETING)) {
 			sess->nvme_flag |= NVME_FLAG_DELETING;
 			qla_nvme_unregister_remote_port(sess);
+		}
+
+		if (ha->flags.edif_enabled &&
+		    (!own || (own &&
+			      own->iocb.u.isp24.status_subcode == ELS_PLOGI))) {
+			sess->edif.authok = 0;
+			if (!ha->flags.host_shutting_down) {
+				ql_dbg(ql_dbg_edif, vha, 0x911e,
+				       "%s wwpn %8phC calling qla2x00_release_all_sadb\n",
+				       __func__, sess->port_name);
+				qla2x00_release_all_sadb(vha, sess);
+			} else {
+				ql_dbg(ql_dbg_edif, vha, 0x911e,
+				       "%s bypassing release_all_sadb\n",
+				       __func__);
+			}
+
+			qla_edif_clear_appdata(vha, sess);
+			qla_edif_sess_down(vha, sess);
 		}
 	}
 

@@ -655,7 +655,7 @@ static int c67x00_add_data_urb(struct c67x00_hcd *c67x00, struct urb *urb)
 			       usb_pipeout(urb->pipe));
 	remaining = urb->transfer_buffer_length - urb->actual_length;
 
-	maxps = usb_maxpacket(urb->dev, urb->pipe, usb_pipeout(urb->pipe));
+	maxps = usb_maxpacket(urb->dev, urb->pipe);
 
 	need_empty = (urb->transfer_flags & URB_ZERO_PACKET) &&
 	    usb_pipeout(urb->pipe) && !(remaining % maxps);
@@ -866,7 +866,7 @@ static inline int c67x00_end_of_data(struct c67x00_td *td)
 	if (unlikely(!act_bytes))
 		return 1;	/* This was an empty packet */
 
-	maxps = usb_maxpacket(td_udev(td), td->pipe, usb_pipeout(td->pipe));
+	maxps = usb_maxpacket(td_udev(td), td->pipe);
 
 	if (unlikely(act_bytes < maxps))
 		return 1;	/* Smaller then full packet */

@@ -49,6 +49,11 @@ void mpc1_set_bg_color(struct mpc *mpc,
 
 	/* find bottommost mpcc. */
 	while (bottommost_mpcc->mpcc_bot) {
+		/* avoid circular linked link */
+		ASSERT(bottommost_mpcc != bottommost_mpcc->mpcc_bot);
+		if (bottommost_mpcc == bottommost_mpcc->mpcc_bot)
+			break;
+
 		bottommost_mpcc = bottommost_mpcc->mpcc_bot;
 	}
 

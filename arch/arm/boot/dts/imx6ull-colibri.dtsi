@@ -94,7 +94,6 @@
 };
 
 &adc1 {
-	num-channels = <10>;
 	vref-supply = <&reg_module_3v3_avdd>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_adc1>;
@@ -166,7 +165,7 @@
 	atmel_mxt_ts: touchscreen@4a {
 		compatible = "atmel,maxtouch";
 		pinctrl-names = "default";
-		pinctrl-0 = <&pinctrl_atmel_conn>;
+		pinctrl-0 = <&pinctrl_atmel_conn &pinctrl_atmel_snvs_conn>;
 		reg = <0x4a>;
 		interrupt-parent = <&gpio5>;
 		interrupts = <4 IRQ_TYPE_EDGE_FALLING>;       /* SODIMM 107 / INT */
@@ -331,7 +330,6 @@
 	pinctrl_atmel_conn: atmelconngrp {
 		fsl,pins = <
 			MX6UL_PAD_JTAG_MOD__GPIO1_IO10          0xb0a0  /* SODIMM 106 */
-			MX6ULL_PAD_SNVS_TAMPER4__GPIO5_IO04     0xb0a0	/* SODIMM 107 */
 		>;
 	};
 
@@ -684,6 +682,12 @@
 };
 
 &iomuxc_snvs {
+	pinctrl_atmel_snvs_conn: atmelsnvsconngrp {
+		fsl,pins = <
+			MX6ULL_PAD_SNVS_TAMPER4__GPIO5_IO04     0xb0a0	/* SODIMM 107 */
+		>;
+	};
+
 	pinctrl_snvs_gpio1: snvsgpio1grp {
 		fsl,pins = <
 			MX6ULL_PAD_SNVS_TAMPER6__GPIO5_IO06	0x110a0	/* SODIMM 93 */

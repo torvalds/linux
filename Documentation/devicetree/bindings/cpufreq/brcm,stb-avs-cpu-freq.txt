@@ -16,7 +16,7 @@ has been processed. See [2] for more information on the brcm,l2-intc node.
 firmware. On some SoCs, this firmware supports DFS and DVFS in addition to
 Adaptive Voltage Scaling.
 
-[2] Documentation/devicetree/bindings/interrupt-controller/brcm,l2-intc.txt
+[2] Documentation/devicetree/bindings/interrupt-controller/brcm,l2-intc.yaml
 
 
 Node brcm,avs-cpu-data-mem
