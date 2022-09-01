@@ -774,7 +774,7 @@ static int dw_i2s_probe(struct platform_device *pdev)
 		}
 	}
 
-	if (of_device_is_compatible(np, "snps,i2srx-master")) {
+	if (of_device_is_compatible(np, "starfive,jh7110-i2srx-master")) {
 		/* config i2s data source: PDM  */
 		regmap_update_bits(dev->syscon_base, dev->syscon_offset_34,
 					AUDIO_SDIN_MUX_MASK, I2SRX_DATA_SRC_PDM);
@@ -849,7 +849,7 @@ static int dw_i2s_remove(struct platform_device *pdev)
 
 #ifdef CONFIG_OF
 static const struct of_device_id dw_i2s_of_match[] = {
-	{ .compatible = "snps,i2srx-master", },
+	{ .compatible = "starfive,jh7110-i2srx-master", },
 	{},
 };
 
@@ -864,7 +864,7 @@ static struct platform_driver dw_i2s_driver = {
 	.probe		= dw_i2s_probe,
 	.remove		= dw_i2s_remove,
 	.driver		= {
-		.name	= "designware-i2srx-master",
+		.name	= "i2srx-master",
 		.of_match_table = of_match_ptr(dw_i2s_of_match),
 		.pm = &dwc_pm_ops,
 	},
