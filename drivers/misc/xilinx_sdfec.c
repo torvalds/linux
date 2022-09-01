@@ -645,6 +645,7 @@ static int xsdfec_table_write(struct xsdfec_dev *xsdfec, u32 offset,
 			reg++;
 		} while ((reg < len) &&
 			 ((reg * XSDFEC_REG_WIDTH_JUMP) % PAGE_SIZE));
+		kunmap(pages[i]);
 		unpin_user_page(pages[i]);
 	}
 	return 0;
