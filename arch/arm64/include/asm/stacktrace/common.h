@@ -77,18 +77,6 @@ static inline void unwind_init_common(struct unwind_state *state,
 	state->stack = stackinfo_get_unknown();
 }
 
-/**
- * typedef stack_trace_translate_fp_fn() - Translates a non-kernel frame
- * pointer to a kernel address.
- *
- * @fp:   the frame pointer to be updated to its kernel address.
- *
- * Return: true if the VA can be translated, false otherwise.
- *
- * Upon success @fp is updated to the corresponding kernel virtual address.
- */
-typedef bool (*stack_trace_translate_fp_fn)(unsigned long *fp);
-
 static struct stack_info *unwind_find_next_stack(const struct unwind_state *state,
 						 unsigned long sp,
 						 unsigned long size)
@@ -160,15 +148,13 @@ found:
  * unwind_next_frame_record() - Unwind to the next frame record.
  *
  * @state:        the current unwind state.
- * @translate_fp: translates the fp prior to access (may be NULL)
  *
  * Return: 0 upon success, an error code otherwise.
  */
 static inline int
-unwind_next_frame_record(struct unwind_state *state,
-			 stack_trace_translate_fp_fn translate_fp)
+unwind_next_frame_record(struct unwind_state *state)
 {
-	unsigned long fp = state->fp, kern_fp = fp;
+	unsigned long fp = state->fp;
 	int err;
 
 	if (fp & 0x7)
@@ -179,17 +165,10 @@ unwind_next_frame_record(struct unwind_state *state,
 		return err;
 
 	/*
-	 * If fp is not from the current address space perform the necessary
-	 * translation before dereferencing it to get the next fp.
-	 */
-	if (translate_fp && !translate_fp(&kern_fp))
-		return -EINVAL;
-
-	/*
 	 * Record this frame record's values.
 	 */
-	state->fp = READ_ONCE(*(unsigned long *)(kern_fp));
-	state->pc = READ_ONCE(*(unsigned long *)(kern_fp + 8));
+	state->fp = READ_ONCE(*(unsigned long *)(fp));
+	state->pc = READ_ONCE(*(unsigned long *)(fp + 8));
 
 	return 0;
 }

@@ -34,11 +34,33 @@ static struct stack_info stackinfo_get_overflow(void)
 	};
 }
 
+static struct stack_info stackinfo_get_overflow_kern_va(void)
+{
+	unsigned long low = (unsigned long)this_cpu_ptr_nvhe_sym(overflow_stack);
+	unsigned long high = low + OVERFLOW_STACK_SIZE;
+
+	return (struct stack_info) {
+		.low = low,
+		.high = high,
+	};
+}
+
 static struct stack_info stackinfo_get_hyp(void)
 {
 	struct kvm_nvhe_stacktrace_info *stacktrace_info
 				= this_cpu_ptr_nvhe_sym(kvm_stacktrace_info);
 	unsigned long low = (unsigned long)stacktrace_info->stack_base;
+	unsigned long high = low + PAGE_SIZE;
+
+	return (struct stack_info) {
+		.low = low,
+		.high = high,
+	};
+}
+
+static struct stack_info stackinfo_get_hyp_kern_va(void)
+{
+	unsigned long low = (unsigned long)*this_cpu_ptr(&kvm_arm_hyp_stack_page);
 	unsigned long high = low + PAGE_SIZE;
 
 	return (struct stack_info) {
@@ -62,33 +84,22 @@ static struct stack_info stackinfo_get_hyp(void)
  */
 static bool kvm_nvhe_stack_kern_va(unsigned long *addr, unsigned long size)
 {
-	struct kvm_nvhe_stacktrace_info *stacktrace_info;
-	unsigned long hyp_base, kern_base, hyp_offset;
-	struct stack_info stack;
+	struct stack_info stack_hyp, stack_kern;
 
-	stacktrace_info = this_cpu_ptr_nvhe_sym(kvm_stacktrace_info);
-
-	stack = stackinfo_get_hyp();
-	if (stackinfo_on_stack(&stack, *addr, size)) {
-		kern_base = (unsigned long)*this_cpu_ptr(&kvm_arm_hyp_stack_page);
-		hyp_base = (unsigned long)stacktrace_info->stack_base;
+	stack_hyp = stackinfo_get_hyp();
+	stack_kern = stackinfo_get_hyp_kern_va();
+	if (stackinfo_on_stack(&stack_hyp, *addr, size))
 		goto found;
-	}
 
-	stack = stackinfo_get_overflow();
-	if (stackinfo_on_stack(&stack, *addr, size)) {
-		kern_base = (unsigned long)this_cpu_ptr_nvhe_sym(overflow_stack);
-		hyp_base = (unsigned long)stacktrace_info->overflow_stack_base;
+	stack_hyp = stackinfo_get_overflow();
+	stack_kern = stackinfo_get_overflow_kern_va();
+	if (stackinfo_on_stack(&stack_hyp, *addr, size))
 		goto found;
-	}
 
 	return false;
 
 found:
-	hyp_offset = *addr - hyp_base;
-
-	*addr = kern_base + hyp_offset;
-
+	*addr = *addr - stack_hyp.low + stack_kern.low;
 	return true;
 }
 
@@ -102,7 +113,14 @@ static bool kvm_nvhe_stack_kern_record_va(unsigned long *addr)
 
 static int unwind_next(struct unwind_state *state)
 {
-	return unwind_next_frame_record(state, kvm_nvhe_stack_kern_record_va);
+	/*
+	 * The FP is in the hypervisor VA space. Convert it to the kernel VA
+	 * space so it can be unwound by the regular unwind functions.
+	 */
+	if (!kvm_nvhe_stack_kern_record_va(&state->fp))
+		return -EINVAL;
+
+	return unwind_next_frame_record(state);
 }
 
 static void unwind(struct unwind_state *state,
@@ -161,8 +179,8 @@ static void hyp_dump_backtrace(unsigned long hyp_offset)
 {
 	struct kvm_nvhe_stacktrace_info *stacktrace_info;
 	struct stack_info stacks[] = {
-		stackinfo_get_overflow(),
-		stackinfo_get_hyp(),
+		stackinfo_get_overflow_kern_va(),
+		stackinfo_get_hyp_kern_va(),
 	};
 	struct unwind_state state = {
 		.stacks = stacks,

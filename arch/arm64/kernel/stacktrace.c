@@ -84,7 +84,7 @@ static int notrace unwind_next(struct unwind_state *state)
 	if (fp == (unsigned long)task_pt_regs(tsk)->stackframe)
 		return -ENOENT;
 
-	err = unwind_next_frame_record(state, NULL);
+	err = unwind_next_frame_record(state);
 	if (err)
 		return err;
 

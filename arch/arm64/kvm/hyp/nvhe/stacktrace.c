@@ -64,7 +64,7 @@ static struct stack_info stackinfo_get_hyp(void)
 
 static int unwind_next(struct unwind_state *state)
 {
-	return unwind_next_frame_record(state, NULL);
+	return unwind_next_frame_record(state);
 }
 
 static void notrace unwind(struct unwind_state *state,
