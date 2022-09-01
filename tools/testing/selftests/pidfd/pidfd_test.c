@@ -435,6 +435,8 @@ static int child_poll_exec_test(void *args)
 	 */
 	while (1)
 		sleep(1);
+
+	return 0;
 }
 
 static void test_pidfd_poll_exec(int use_waitpid)
