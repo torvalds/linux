@@ -89,6 +89,18 @@
 #define ST_LSM6DSRX_REG_CTRL10_C_ADDR		0x19
 #define ST_LSM6DSRX_REG_TIMESTAMP_EN_MASK	BIT(5)
 
+#define ST_LSM6DSRX_REG_ALL_INT_SRC_ADDR	0x1a
+#define ST_LSM6DSRX_FF_IA_MASK			BIT(0)
+#define ST_LSM6DSRX_WU_IA_MASK			BIT(1)
+#define ST_LSM6DSRX_D6D_IA_MASK			BIT(4)
+#define ST_LSM6DSRX_SLEEP_CHANGE_MASK		BIT(5)
+
+#define ST_LSM6DSRX_REG_WAKE_UP_SRC_ADDR	0x1b
+#define ST_LSM6DSRX_WAKE_UP_EVENT_MASK		GENMASK(3, 0)
+
+#define ST_LSM6DSRX_REG_D6D_SRC_ADDR		0x1d
+#define ST_LSM6DSRX_D6D_EVENT_MASK		GENMASK(5, 0)
+
 #define ST_LSM6DSRX_REG_STATUS_ADDR		0x1e
 #define ST_LSM6DSRX_REG_STATUS_XLDA		BIT(0)
 #define ST_LSM6DSRX_REG_STATUS_GDA		BIT(1)
@@ -115,10 +127,29 @@
 #define ST_LSM6DSRX_REG_TAP_CFG0_ADDR		0x56
 #define ST_LSM6DSRX_REG_LIR_MASK		BIT(0)
 
+#define ST_LSM6DSRX_REG_INT_CFG1_ADDR		0x58
+#define ST_LSM6DSRX_INTERRUPTS_ENABLE_MASK	BIT(7)
+
+#define ST_LSM6DSRX_REG_THS_6D_ADDR		0x59
+#define ST_LSM6DSRX_SIXD_THS_MASK		GENMASK(6, 5)
+
+#define ST_LSM6DSRX_REG_WAKE_UP_THS_ADDR	0x5b
+#define ST_LSM6DSRX_WAKE_UP_THS_MASK		GENMASK(5, 0)
+
+#define ST_LSM6DSRX_REG_WAKE_UP_DUR_ADDR	0x5c
+#define ST_LSM6DSRX_WAKE_UP_DUR_MASK		GENMASK(6, 5)
+
+#define ST_LSM6DSRX_REG_FREE_FALL_ADDR	0x5d
+#define ST_LSM6DSRX_FF_THS_MASK		GENMASK(2, 0)
+
 #define ST_LSM6DSRX_REG_MD1_CFG_ADDR		0x5e
 #define ST_LSM6DSRX_REG_MD2_CFG_ADDR		0x5f
 #define ST_LSM6DSRX_REG_INT2_TIMESTAMP_MASK	BIT(0)
 #define ST_LSM6DSRX_REG_INT_EMB_FUNC_MASK	BIT(1)
+#define ST_LSM6DSRX_INT_6D_MASK			BIT(2)
+#define ST_LSM6DSRX_INT_FF_MASK			BIT(4)
+#define ST_LSM6DSRX_INT_WU_MASK			BIT(5)
+#define ST_LSM6DSRX_INT_SLEEP_CHANGE_MASK	BIT(7)
 
 #define ST_LSM6DSRX_INTERNAL_FREQ_FINE		0x63
 
@@ -406,6 +437,12 @@ enum st_lsm6dsrx_sensor_id {
 	ST_LSM6DSRX_ID_FSM_13,
 	ST_LSM6DSRX_ID_FSM_14,
 	ST_LSM6DSRX_ID_FSM_15,
+	ST_LSM6DSRX_ID_EVENT,
+	ST_LSM6DSRX_ID_FF = ST_LSM6DSRX_ID_EVENT,
+	ST_LSM6DSRX_ID_SLPCHG,
+	ST_LSM6DSRX_ID_TRIGGER,
+	ST_LSM6DSRX_ID_WK = ST_LSM6DSRX_ID_TRIGGER,
+	ST_LSM6DSRX_ID_6D,
 	ST_LSM6DSRX_ID_MAX,
 };
 
@@ -518,6 +555,7 @@ struct st_lsm6dsrx_settings {
  * @id: Sensor identifier.
  * @hw: Pointer to instance of struct st_lsm6dsrx_hw.
  * @ext_dev_info: For sensor hub indicate device info struct.
+ * @trig: Trigger used by IIO event sensors.
  * @gain: Configured sensor sensitivity.
  * @odr: Output data rate of the sensor [Hz].
  * @uodr: Output data rate of the sensor [uHz].
@@ -531,12 +569,14 @@ struct st_lsm6dsrx_settings {
  * @selftest_status: Report last self test status.
  * @min_st: Min self test raw data value.
  * @max_st: Max self test raw data value.
+ * @conf: Used in case of sensor event to manage configuration.
  */
 struct st_lsm6dsrx_sensor {
 	char name[32];
 	enum st_lsm6dsrx_sensor_id id;
 	struct st_lsm6dsrx_hw *hw;
 	struct st_lsm6dsrx_ext_dev_info ext_dev_info;
+	struct iio_trigger *trig;
 
 	int odr;
 	int uodr;
@@ -562,6 +602,11 @@ struct st_lsm6dsrx_sensor {
 			uint8_t status_reg;
 			uint8_t outreg_addr;
 			enum st_lsm6dsrx_fsm_mlc_enable_id status;
+		};
+
+		/* sensor specific data configuration */
+		struct {
+			u32 conf[6];
 		};
 	};
 };
@@ -590,6 +635,8 @@ struct st_lsm6dsrx_sensor {
  * @odr_table_entry: Sensors ODR table.
  * @iio_devs: Pointers to acc/gyro iio_dev instances.
  * @settings: ST IMU sensor settings.
+ * @fs_table: ST IMU full scale table.
+ * @odr_table: ST IMU output data rate table.
  */
 struct st_lsm6dsrx_hw {
 	struct device *dev;
@@ -623,6 +670,28 @@ struct st_lsm6dsrx_hw {
 	struct iio_dev *iio_devs[ST_LSM6DSRX_ID_MAX];
 
 	const struct st_lsm6dsrx_settings *settings;
+	const struct st_lsm6dsrx_fs_table_entry *fs_table;
+	const struct st_lsm6dsrx_odr_table_entry *odr_table;
+};
+
+/**
+ * struct st_lsm6dsrx_ff_th - Free Fall threshold table
+ * @mg: Threshold in mg.
+ * @val: Register value.
+ */
+struct st_lsm6dsrx_ff_th {
+	u32 mg;
+	u8 val;
+};
+
+/**
+ * struct st_lsm6dsrx_6D_th - 6D threshold table
+ * @deg: Threshold in degrees.
+ * @val: Register value.
+ */
+struct st_lsm6dsrx_6D_th {
+	u8 deg;
+	u8 val;
 };
 
 extern const struct dev_pm_ops st_lsm6dsrx_pm_ops;
@@ -716,6 +785,24 @@ static inline int st_lsm6dsrx_set_page_access(struct st_lsm6dsrx_hw *hw,
 				 ST_LSM6DSRX_SHIFT_VAL(val, mask));
 }
 
+static inline int st_lsm6dsrx_read_with_mask(struct st_lsm6dsrx_hw *hw,
+					     u8 addr, u8 mask, u8 *val)
+{
+	u8 data;
+	int err;
+
+	err = st_lsm6dsrx_read_locked(hw, addr, &data, sizeof(data));
+	if (err < 0) {
+		dev_err(hw->dev, "failed to read %02x register\n", addr);
+
+		goto out;
+	}
+
+	*val = (data & mask) >> __ffs(mask);
+
+out:
+	return (err < 0) ? err : 0;
+}
 int st_lsm6dsrx_probe(struct device *dev, int irq, int hw_id,
 		      struct regmap *regmap);
 int st_lsm6dsrx_sensor_set_enable(struct st_lsm6dsrx_sensor *sensor,
@@ -749,5 +836,8 @@ int st_lsm6dsrx_mlc_probe(struct st_lsm6dsrx_hw *hw);
 int st_lsm6dsrx_mlc_remove(struct device *dev);
 int st_lsm6dsrx_mlc_check_status(struct st_lsm6dsrx_hw *hw);
 int st_lsm6dsrx_mlc_init_preload(struct st_lsm6dsrx_hw *hw);
+
+int st_lsm6dsrx_probe_event(struct st_lsm6dsrx_hw *hw);
+int st_lsm6dsrx_event_handler(struct st_lsm6dsrx_hw *hw);
 
 #endif /* ST_LSM6DSRX_H */

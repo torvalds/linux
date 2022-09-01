@@ -5,6 +5,7 @@ config IIO_ST_LSM6DSRX
 	depends on (I2C || SPI)
 	select IIO_BUFFER
 	select IIO_KFIFO_BUF
+	select IIO_TRIGGERED_BUFFER
 	select IIO_ST_LSM6DSRX_I2C if (I2C)
 	select IIO_ST_LSM6DSRX_SPI if (SPI_MASTER)
 	select IIO_ST_LSM6DSRX_I3C if (I3C)

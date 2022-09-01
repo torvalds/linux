@@ -486,7 +486,7 @@ static irqreturn_t st_lsm6dsrx_handler_thread(int irq, void *private)
 	clear_bit(ST_LSM6DSRX_HW_FLUSH, &hw->state);
 	mutex_unlock(&hw->fifo_lock);
 
-	return IRQ_HANDLED;
+	return st_lsm6dsrx_event_handler(hw);
 }
 
 static int st_lsm6dsrx_fifo_preenable(struct iio_dev *iio_dev)
