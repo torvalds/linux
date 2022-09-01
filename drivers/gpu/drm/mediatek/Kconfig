@@ -21,6 +21,15 @@ config DRM_MEDIATEK
 	  This driver provides kernel mode setting and
 	  buffer management to userspace.
 
+config DRM_MEDIATEK_DP
+	tristate "DRM DPTX Support for MediaTek SoCs"
+	depends on DRM_MEDIATEK
+	select PHY_MTK_DP
+	select DRM_DISPLAY_HELPER
+	select DRM_DISPLAY_DP_HELPER
+	help
+	  DRM/KMS Display Port driver for MediaTek SoCs.
+
 config DRM_MEDIATEK_HDMI
 	tristate "DRM HDMI Support for Mediatek SoCs"
 	depends on DRM_MEDIATEK
