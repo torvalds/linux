@@ -537,7 +537,7 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
 		.static_window_map = true,
 		.hybrid_bus_type = true,
 		.fixed_fw_mem = true,
-		.support_off_channel_tx = false,
+		.support_off_channel_tx = true,
 		.supports_multi_bssid = true,
 	},
 };
