@@ -456,13 +456,11 @@ static int allocate_file_region_entries(struct resv_map *resv,
 					int regions_needed)
 	__must_hold(&resv->lock)
 {
-	struct list_head allocated_regions;
+	LIST_HEAD(allocated_regions);
 	int to_allocate = 0, i = 0;
 	struct file_region *trg = NULL, *rg = NULL;
 
 	VM_BUG_ON(regions_needed < 0);
-
-	INIT_LIST_HEAD(&allocated_regions);
 
 	/*
 	 * Check for sufficient descriptors in the cache to accommodate
@@ -2336,7 +2334,7 @@ struct page *alloc_huge_page_vma(struct hstate *h, struct vm_area_struct *vma,
 static int gather_surplus_pages(struct hstate *h, long delta)
 	__must_hold(&hugetlb_lock)
 {
-	struct list_head surplus_list;
+	LIST_HEAD(surplus_list);
 	struct page *page, *tmp;
 	int ret;
 	long i;
@@ -2351,7 +2349,6 @@ static int gather_surplus_pages(struct hstate *h, long delta)
 	}
 
 	allocated = 0;
-	INIT_LIST_HEAD(&surplus_list);
 
 	ret = -ENOMEM;
 retry:
