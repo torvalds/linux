@@ -1527,8 +1527,10 @@ static void setup_pebs_fixed_sample_data(struct perf_event *event,
 	/*
 	 * Use latency for weight (only avail with PEBS-LL)
 	 */
-	if (fll && (sample_type & PERF_SAMPLE_WEIGHT_TYPE))
+	if (fll && (sample_type & PERF_SAMPLE_WEIGHT_TYPE)) {
 		data->weight.full = pebs->lat;
+		data->sample_flags |= PERF_SAMPLE_WEIGHT_TYPE;
+	}
 
 	/*
 	 * data.data_src encodes the data source
@@ -1620,9 +1622,10 @@ static void setup_pebs_fixed_sample_data(struct perf_event *event,
 
 	if (x86_pmu.intel_cap.pebs_format >= 2) {
 		/* Only set the TSX weight when no memory weight. */
-		if ((sample_type & PERF_SAMPLE_WEIGHT_TYPE) && !fll)
+		if ((sample_type & PERF_SAMPLE_WEIGHT_TYPE) && !fll) {
 			data->weight.full = intel_get_tsx_weight(pebs->tsx_tuning);
-
+			data->sample_flags |= PERF_SAMPLE_WEIGHT_TYPE;
+		}
 		if (sample_type & PERF_SAMPLE_TRANSACTION)
 			data->txn = intel_get_tsx_transaction(pebs->tsx_tuning,
 							      pebs->ax);
@@ -1764,6 +1767,7 @@ static void setup_pebs_adaptive_sample_data(struct perf_event *event,
 				data->weight.var1_dw = (u32)(weight & PEBS_LATENCY_MASK) ?:
 					intel_get_tsx_weight(meminfo->tsx_tuning);
 			}
+			data->sample_flags |= PERF_SAMPLE_WEIGHT_TYPE;
 		}
 
 		if (sample_type & PERF_SAMPLE_DATA_SRC)
