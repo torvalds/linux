@@ -41,7 +41,6 @@ DEFINE_EVENT(regmap_reg, regmap_reg_write,
 		 unsigned int val),
 
 	TP_ARGS(map, reg, val)
-
 );
 
 DEFINE_EVENT(regmap_reg, regmap_reg_read,
@@ -50,7 +49,6 @@ DEFINE_EVENT(regmap_reg, regmap_reg_read,
 		 unsigned int val),
 
 	TP_ARGS(map, reg, val)
-
 );
 
 DEFINE_EVENT(regmap_reg, regmap_reg_read_cache,
@@ -59,7 +57,6 @@ DEFINE_EVENT(regmap_reg, regmap_reg_read_cache,
 		 unsigned int val),
 
 	TP_ARGS(map, reg, val)
-
 );
 
 DECLARE_EVENT_CLASS(regmap_bulk,
@@ -199,7 +196,6 @@ DEFINE_EVENT(regmap_bool, regmap_cache_only,
 	TP_PROTO(struct regmap *map, bool flag),
 
 	TP_ARGS(map, flag)
-
 );
 
 DEFINE_EVENT(regmap_bool, regmap_cache_bypass,
@@ -207,7 +203,6 @@ DEFINE_EVENT(regmap_bool, regmap_cache_bypass,
 	TP_PROTO(struct regmap *map, bool flag),
 
 	TP_ARGS(map, flag)
-
 );
 
 DECLARE_EVENT_CLASS(regmap_async,
@@ -239,7 +234,6 @@ DEFINE_EVENT(regmap_async, regmap_async_io_complete,
 	TP_PROTO(struct regmap *map),
 
 	TP_ARGS(map)
-
 );
 
 DEFINE_EVENT(regmap_async, regmap_async_complete_start,
@@ -247,7 +241,6 @@ DEFINE_EVENT(regmap_async, regmap_async_complete_start,
 	TP_PROTO(struct regmap *map),
 
 	TP_ARGS(map)
-
 );
 
 DEFINE_EVENT(regmap_async, regmap_async_complete_done,
@@ -255,7 +248,6 @@ DEFINE_EVENT(regmap_async, regmap_async_complete_done,
 	TP_PROTO(struct regmap *map),
 
 	TP_ARGS(map)
-
 );
 
 TRACE_EVENT(regcache_drop_region,
