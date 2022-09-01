@@ -1535,8 +1535,10 @@ static void setup_pebs_fixed_sample_data(struct perf_event *event,
 	/*
 	 * data.data_src encodes the data source
 	 */
-	if (sample_type & PERF_SAMPLE_DATA_SRC)
+	if (sample_type & PERF_SAMPLE_DATA_SRC) {
 		data->data_src.val = get_data_src(event, pebs->dse);
+		data->sample_flags |= PERF_SAMPLE_DATA_SRC;
+	}
 
 	/*
 	 * We must however always use iregs for the unwinder to stay sane; the
@@ -1770,8 +1772,10 @@ static void setup_pebs_adaptive_sample_data(struct perf_event *event,
 			data->sample_flags |= PERF_SAMPLE_WEIGHT_TYPE;
 		}
 
-		if (sample_type & PERF_SAMPLE_DATA_SRC)
+		if (sample_type & PERF_SAMPLE_DATA_SRC) {
 			data->data_src.val = get_data_src(event, meminfo->aux);
+			data->sample_flags |= PERF_SAMPLE_DATA_SRC;
+		}
 
 		if (sample_type & PERF_SAMPLE_ADDR_TYPE)
 			data->addr = meminfo->address;
