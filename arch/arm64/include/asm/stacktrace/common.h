@@ -113,14 +113,12 @@ static inline void unwind_init_common(struct unwind_state *state,
  * pointer to a kernel address.
  *
  * @fp:   the frame pointer to be updated to its kernel address.
- * @type: the stack type associated with frame pointer @fp
  *
  * Return: true if the VA can be translated, false otherwise.
  *
  * Upon success @fp is updated to the corresponding kernel virtual address.
  */
-typedef bool (*stack_trace_translate_fp_fn)(unsigned long *fp,
-					    enum stack_type type);
+typedef bool (*stack_trace_translate_fp_fn)(unsigned long *fp);
 
 /**
  * typedef on_accessible_stack_fn() - Check whether a stack range is on any of
@@ -172,7 +170,7 @@ unwind_next_frame_record(struct unwind_state *state,
 	 * If fp is not from the current address space perform the necessary
 	 * translation before dereferencing it to get the next fp.
 	 */
-	if (translate_fp && !translate_fp(&kern_fp, info.type))
+	if (translate_fp && !translate_fp(&kern_fp))
 		return -EINVAL;
 
 	/*
