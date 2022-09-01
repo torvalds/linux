@@ -2,13 +2,6 @@
 /*
  * Common arm64 stack unwinder code.
  *
- * To implement a new arm64 stack unwinder:
- *     1) Include this header
- *
- *     2) Call into unwind_next_common() from your top level unwind
- *        function, passing it the validation and translation callbacks
- *        (though the later can be NULL if no translation is required).
- *
  * See: arch/arm64/kernel/stacktrace.c for the reference implementation.
  *
  * Copyright (C) 2012 ARM Ltd.
@@ -145,9 +138,19 @@ typedef bool (*on_accessible_stack_fn)(const struct task_struct *tsk,
 				       unsigned long sp, unsigned long size,
 				       struct stack_info *info);
 
-static inline int unwind_next_common(struct unwind_state *state,
-				     on_accessible_stack_fn accessible,
-				     stack_trace_translate_fp_fn translate_fp)
+/**
+ * unwind_next_frame_record() - Unwind to the next frame record.
+ *
+ * @state:        the current unwind state.
+ * @accessible:   determines whether the frame record is accessible
+ * @translate_fp: translates the fp prior to access (may be NULL)
+ *
+ * Return: 0 upon success, an error code otherwise.
+ */
+static inline int
+unwind_next_frame_record(struct unwind_state *state,
+			 on_accessible_stack_fn accessible,
+			 stack_trace_translate_fp_fn translate_fp)
 {
 	struct stack_info info;
 	unsigned long fp = state->fp, kern_fp = fp;
