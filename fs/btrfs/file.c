@@ -3601,21 +3601,280 @@ out:
 	return ret;
 }
 
+/*
+ * Helper for have_delalloc_in_range(). Find a subrange in a given range that
+ * has unflushed and/or flushing delalloc. There might be other adjacent
+ * subranges after the one it found, so have_delalloc_in_range() keeps looping
+ * while it gets adjacent subranges, and merging them together.
+ */
+static bool find_delalloc_subrange(struct btrfs_inode *inode, u64 start, u64 end,
+				   u64 *delalloc_start_ret, u64 *delalloc_end_ret)
+{
+	const u64 len = end + 1 - start;
+	struct extent_map_tree *em_tree = &inode->extent_tree;
+	struct extent_map *em;
+	u64 em_end;
+	u64 delalloc_len;
+
+	/*
+	 * Search the io tree first for EXTENT_DELALLOC. If we find any, it
+	 * means we have delalloc (dirty pages) for which writeback has not
+	 * started yet.
+	 */
+	*delalloc_start_ret = start;
+	delalloc_len = count_range_bits(&inode->io_tree, delalloc_start_ret, end,
+					len, EXTENT_DELALLOC, 1);
+	/*
+	 * If delalloc was found then *delalloc_start_ret has a sector size
+	 * aligned value (rounded down).
+	 */
+	if (delalloc_len > 0)
+		*delalloc_end_ret = *delalloc_start_ret + delalloc_len - 1;
+
+	/*
+	 * Now also check if there's any extent map in the range that does not
+	 * map to a hole or prealloc extent. We do this because:
+	 *
+	 * 1) When delalloc is flushed, the file range is locked, we clear the
+	 *    EXTENT_DELALLOC bit from the io tree and create an extent map for
+	 *    an allocated extent. So we might just have been called after
+	 *    delalloc is flushed and before the ordered extent completes and
+	 *    inserts the new file extent item in the subvolume's btree;
+	 *
+	 * 2) We may have an extent map created by flushing delalloc for a
+	 *    subrange that starts before the subrange we found marked with
+	 *    EXTENT_DELALLOC in the io tree.
+	 */
+	read_lock(&em_tree->lock);
+	em = lookup_extent_mapping(em_tree, start, len);
+	read_unlock(&em_tree->lock);
+
+	/* extent_map_end() returns a non-inclusive end offset. */
+	em_end = em ? extent_map_end(em) : 0;
+
+	/*
+	 * If we have a hole/prealloc extent map, check the next one if this one
+	 * ends before our range's end.
+	 */
+	if (em && (em->block_start == EXTENT_MAP_HOLE ||
+		   test_bit(EXTENT_FLAG_PREALLOC, &em->flags)) && em_end < end) {
+		struct extent_map *next_em;
+
+		read_lock(&em_tree->lock);
+		next_em = lookup_extent_mapping(em_tree, em_end, len - em_end);
+		read_unlock(&em_tree->lock);
+
+		free_extent_map(em);
+		em_end = next_em ? extent_map_end(next_em) : 0;
+		em = next_em;
+	}
+
+	if (em && (em->block_start == EXTENT_MAP_HOLE ||
+		   test_bit(EXTENT_FLAG_PREALLOC, &em->flags))) {
+		free_extent_map(em);
+		em = NULL;
+	}
+
+	/*
+	 * No extent map or one for a hole or prealloc extent. Use the delalloc
+	 * range we found in the io tree if we have one.
+	 */
+	if (!em)
+		return (delalloc_len > 0);
+
+	/*
+	 * We don't have any range as EXTENT_DELALLOC in the io tree, so the
+	 * extent map is the only subrange representing delalloc.
+	 */
+	if (delalloc_len == 0) {
+		*delalloc_start_ret = em->start;
+		*delalloc_end_ret = min(end, em_end - 1);
+		free_extent_map(em);
+		return true;
+	}
+
+	/*
+	 * The extent map represents a delalloc range that starts before the
+	 * delalloc range we found in the io tree.
+	 */
+	if (em->start < *delalloc_start_ret) {
+		*delalloc_start_ret = em->start;
+		/*
+		 * If the ranges are adjacent, return a combined range.
+		 * Otherwise return the extent map's range.
+		 */
+		if (em_end < *delalloc_start_ret)
+			*delalloc_end_ret = min(end, em_end - 1);
+
+		free_extent_map(em);
+		return true;
+	}
+
+	/*
+	 * The extent map starts after the delalloc range we found in the io
+	 * tree. If it's adjacent, return a combined range, otherwise return
+	 * the range found in the io tree.
+	 */
+	if (*delalloc_end_ret + 1 == em->start)
+		*delalloc_end_ret = min(end, em_end - 1);
+
+	free_extent_map(em);
+	return true;
+}
+
+/*
+ * Check if there's delalloc in a given range.
+ *
+ * @inode:               The inode.
+ * @start:               The start offset of the range. It does not need to be
+ *                       sector size aligned.
+ * @end:                 The end offset (inclusive value) of the search range.
+ *                       It does not need to be sector size aligned.
+ * @delalloc_start_ret:  Output argument, set to the start offset of the
+ *                       subrange found with delalloc (may not be sector size
+ *                       aligned).
+ * @delalloc_end_ret:    Output argument, set to he end offset (inclusive value)
+ *                       of the subrange found with delalloc.
+ *
+ * Returns true if a subrange with delalloc is found within the given range, and
+ * if so it sets @delalloc_start_ret and @delalloc_end_ret with the start and
+ * end offsets of the subrange.
+ */
+static bool have_delalloc_in_range(struct btrfs_inode *inode, u64 start, u64 end,
+				   u64 *delalloc_start_ret, u64 *delalloc_end_ret)
+{
+	u64 cur_offset = round_down(start, inode->root->fs_info->sectorsize);
+	u64 prev_delalloc_end = 0;
+	bool ret = false;
+
+	while (cur_offset < end) {
+		u64 delalloc_start;
+		u64 delalloc_end;
+		bool delalloc;
+
+		delalloc = find_delalloc_subrange(inode, cur_offset, end,
+						  &delalloc_start,
+						  &delalloc_end);
+		if (!delalloc)
+			break;
+
+		if (prev_delalloc_end == 0) {
+			/* First subrange found. */
+			*delalloc_start_ret = max(delalloc_start, start);
+			*delalloc_end_ret = delalloc_end;
+			ret = true;
+		} else if (delalloc_start == prev_delalloc_end + 1) {
+			/* Subrange adjacent to the previous one, merge them. */
+			*delalloc_end_ret = delalloc_end;
+		} else {
+			/* Subrange not adjacent to the previous one, exit. */
+			break;
+		}
+
+		prev_delalloc_end = delalloc_end;
+		cur_offset = delalloc_end + 1;
+		cond_resched();
+	}
+
+	return ret;
+}
+
+/*
+ * Check if there's a hole or delalloc range in a range representing a hole (or
+ * prealloc extent) found in the inode's subvolume btree.
+ *
+ * @inode:      The inode.
+ * @whence:     Seek mode (SEEK_DATA or SEEK_HOLE).
+ * @start:      Start offset of the hole region. It does not need to be sector
+ *              size aligned.
+ * @end:        End offset (inclusive value) of the hole region. It does not
+ *              need to be sector size aligned.
+ * @start_ret:  Return parameter, used to set the start of the subrange in the
+ *              hole that matches the search criteria (seek mode), if such
+ *              subrange is found (return value of the function is true).
+ *              The value returned here may not be sector size aligned.
+ *
+ * Returns true if a subrange matching the given seek mode is found, and if one
+ * is found, it updates @start_ret with the start of the subrange.
+ */
+static bool find_desired_extent_in_hole(struct btrfs_inode *inode, int whence,
+					u64 start, u64 end, u64 *start_ret)
+{
+	u64 delalloc_start;
+	u64 delalloc_end;
+	bool delalloc;
+
+	delalloc = have_delalloc_in_range(inode, start, end, &delalloc_start,
+					  &delalloc_end);
+	if (delalloc && whence == SEEK_DATA) {
+		*start_ret = delalloc_start;
+		return true;
+	}
+
+	if (delalloc && whence == SEEK_HOLE) {
+		/*
+		 * We found delalloc but it starts after out start offset. So we
+		 * have a hole between our start offset and the delalloc start.
+		 */
+		if (start < delalloc_start) {
+			*start_ret = start;
+			return true;
+		}
+		/*
+		 * Delalloc range starts at our start offset.
+		 * If the delalloc range's length is smaller than our range,
+		 * then it means we have a hole that starts where the delalloc
+		 * subrange ends.
+		 */
+		if (delalloc_end < end) {
+			*start_ret = delalloc_end + 1;
+			return true;
+		}
+
+		/* There's delalloc for the whole range. */
+		return false;
+	}
+
+	if (!delalloc && whence == SEEK_HOLE) {
+		*start_ret = start;
+		return true;
+	}
+
+	/*
+	 * No delalloc in the range and we are seeking for data. The caller has
+	 * to iterate to the next extent item in the subvolume btree.
+	 */
+	return false;
+}
+
 static loff_t find_desired_extent(struct btrfs_inode *inode, loff_t offset,
 				  int whence)
 {
 	struct btrfs_fs_info *fs_info = inode->root->fs_info;
-	struct extent_map *em = NULL;
 	struct extent_state *cached_state = NULL;
-	loff_t i_size = inode->vfs_inode.i_size;
+	const loff_t i_size = i_size_read(&inode->vfs_inode);
+	const u64 ino = btrfs_ino(inode);
+	struct btrfs_root *root = inode->root;
+	struct btrfs_path *path;
+	struct btrfs_key key;
+	u64 last_extent_end;
 	u64 lockstart;
 	u64 lockend;
 	u64 start;
-	u64 len;
-	int ret = 0;
+	int ret;
+	bool found = false;
 
 	if (i_size == 0 || offset >= i_size)
 		return -ENXIO;
+
+	/*
+	 * Quick path. If the inode has no prealloc extents and its number of
+	 * bytes used matches its i_size, then it can not have holes.
+	 */
+	if (whence == SEEK_HOLE &&
+	    !(inode->flags & BTRFS_INODE_PREALLOC) &&
+	    inode_get_bytes(&inode->vfs_inode) == i_size)
+		return i_size;
 
 	/*
 	 * offset can be negative, in this case we start finding DATA/HOLE from
@@ -3628,49 +3887,165 @@ static loff_t find_desired_extent(struct btrfs_inode *inode, loff_t offset,
 	if (lockend <= lockstart)
 		lockend = lockstart + fs_info->sectorsize;
 	lockend--;
-	len = lockend - lockstart + 1;
+
+	path = btrfs_alloc_path();
+	if (!path)
+		return -ENOMEM;
+	path->reada = READA_FORWARD;
+
+	key.objectid = ino;
+	key.type = BTRFS_EXTENT_DATA_KEY;
+	key.offset = start;
+
+	last_extent_end = lockstart;
 
 	lock_extent_bits(&inode->io_tree, lockstart, lockend, &cached_state);
 
+	ret = btrfs_search_slot(NULL, root, &key, path, 0, 0);
+	if (ret < 0) {
+		goto out;
+	} else if (ret > 0 && path->slots[0] > 0) {
+		btrfs_item_key_to_cpu(path->nodes[0], &key, path->slots[0] - 1);
+		if (key.objectid == ino && key.type == BTRFS_EXTENT_DATA_KEY)
+			path->slots[0]--;
+	}
+
 	while (start < i_size) {
-		em = btrfs_get_extent_fiemap(inode, start, len);
-		if (IS_ERR(em)) {
-			ret = PTR_ERR(em);
-			em = NULL;
-			break;
+		struct extent_buffer *leaf = path->nodes[0];
+		struct btrfs_file_extent_item *extent;
+		u64 extent_end;
+
+		if (path->slots[0] >= btrfs_header_nritems(leaf)) {
+			ret = btrfs_next_leaf(root, path);
+			if (ret < 0)
+				goto out;
+			else if (ret > 0)
+				break;
+
+			leaf = path->nodes[0];
 		}
 
-		if (whence == SEEK_HOLE &&
-		    (em->block_start == EXTENT_MAP_HOLE ||
-		     test_bit(EXTENT_FLAG_PREALLOC, &em->flags)))
-			break;
-		else if (whence == SEEK_DATA &&
-			   (em->block_start != EXTENT_MAP_HOLE &&
-			    !test_bit(EXTENT_FLAG_PREALLOC, &em->flags)))
+		btrfs_item_key_to_cpu(leaf, &key, path->slots[0]);
+		if (key.objectid != ino || key.type != BTRFS_EXTENT_DATA_KEY)
 			break;
 
-		start = em->start + em->len;
-		free_extent_map(em);
-		em = NULL;
+		extent_end = btrfs_file_extent_end(path);
+
+		/*
+		 * In the first iteration we may have a slot that points to an
+		 * extent that ends before our start offset, so skip it.
+		 */
+		if (extent_end <= start) {
+			path->slots[0]++;
+			continue;
+		}
+
+		/* We have an implicit hole, NO_HOLES feature is likely set. */
+		if (last_extent_end < key.offset) {
+			u64 search_start = last_extent_end;
+			u64 found_start;
+
+			/*
+			 * First iteration, @start matches @offset and it's
+			 * within the hole.
+			 */
+			if (start == offset)
+				search_start = offset;
+
+			found = find_desired_extent_in_hole(inode, whence,
+							    search_start,
+							    key.offset - 1,
+							    &found_start);
+			if (found) {
+				start = found_start;
+				break;
+			}
+			/*
+			 * Didn't find data or a hole (due to delalloc) in the
+			 * implicit hole range, so need to analyze the extent.
+			 */
+		}
+
+		extent = btrfs_item_ptr(leaf, path->slots[0],
+					struct btrfs_file_extent_item);
+
+		if (btrfs_file_extent_disk_bytenr(leaf, extent) == 0 ||
+		    btrfs_file_extent_type(leaf, extent) ==
+		    BTRFS_FILE_EXTENT_PREALLOC) {
+			/*
+			 * Explicit hole or prealloc extent, search for delalloc.
+			 * A prealloc extent is treated like a hole.
+			 */
+			u64 search_start = key.offset;
+			u64 found_start;
+
+			/*
+			 * First iteration, @start matches @offset and it's
+			 * within the hole.
+			 */
+			if (start == offset)
+				search_start = offset;
+
+			found = find_desired_extent_in_hole(inode, whence,
+							    search_start,
+							    extent_end - 1,
+							    &found_start);
+			if (found) {
+				start = found_start;
+				break;
+			}
+			/*
+			 * Didn't find data or a hole (due to delalloc) in the
+			 * implicit hole range, so need to analyze the next
+			 * extent item.
+			 */
+		} else {
+			/*
+			 * Found a regular or inline extent.
+			 * If we are seeking for data, adjust the start offset
+			 * and stop, we're done.
+			 */
+			if (whence == SEEK_DATA) {
+				start = max_t(u64, key.offset, offset);
+				found = true;
+				break;
+			}
+			/*
+			 * Else, we are seeking for a hole, check the next file
+			 * extent item.
+			 */
+		}
+
+		start = extent_end;
+		last_extent_end = extent_end;
+		path->slots[0]++;
 		if (fatal_signal_pending(current)) {
 			ret = -EINTR;
-			break;
+			goto out;
 		}
 		cond_resched();
 	}
-	free_extent_map(em);
-	unlock_extent_cached(&inode->io_tree, lockstart, lockend,
-			     &cached_state);
-	if (ret) {
-		offset = ret;
-	} else {
-		if (whence == SEEK_DATA && start >= i_size)
-			offset = -ENXIO;
-		else
-			offset = min_t(loff_t, start, i_size);
+
+	/* We have an implicit hole from the last extent found up to i_size. */
+	if (!found && start < i_size) {
+		found = find_desired_extent_in_hole(inode, whence, start,
+						    i_size - 1, &start);
+		if (!found)
+			start = i_size;
 	}
 
-	return offset;
+out:
+	unlock_extent_cached(&inode->io_tree, lockstart, lockend,
+			     &cached_state);
+	btrfs_free_path(path);
+
+	if (ret < 0)
+		return ret;
+
+	if (whence == SEEK_DATA && start >= i_size)
+		return -ENXIO;
+
+	return min_t(loff_t, start, i_size);
 }
 
 static loff_t btrfs_file_llseek(struct file *file, loff_t offset, int whence)
