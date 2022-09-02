@@ -179,7 +179,7 @@ static inline int shmem_reacct_size(unsigned long flags,
 /*
  * ... whereas tmpfs objects are accounted incrementally as
  * pages are allocated, in order to allow large sparse files.
- * shmem_getpage reports shmem_acct_block failure as -ENOSPC not -ENOMEM,
+ * shmem_get_folio reports shmem_acct_block failure as -ENOSPC not -ENOMEM,
  * so that a failure on a sparse tmpfs mapping will give SIGBUS not OOM.
  */
 static inline int shmem_acct_block(unsigned long flags, long pages)
@@ -2029,19 +2029,6 @@ int shmem_get_folio(struct inode *inode, pgoff_t index, struct folio **foliop,
 {
 	return shmem_get_folio_gfp(inode, index, foliop, sgp,
 			mapping_gfp_mask(inode->i_mapping), NULL, NULL, NULL);
-}
-
-int shmem_getpage(struct inode *inode, pgoff_t index,
-		struct page **pagep, enum sgp_type sgp)
-{
-	struct folio *folio = NULL;
-	int ret = shmem_get_folio(inode, index, &folio, sgp);
-
-	if (folio)
-		*pagep = folio_file_page(folio, index);
-	else
-		*pagep = NULL;
-	return ret;
 }
 
 /*
