@@ -1110,6 +1110,7 @@ static int replace_page(struct vm_area_struct *vma, struct page *page,
 			struct page *kpage, pte_t orig_pte)
 {
 	struct mm_struct *mm = vma->vm_mm;
+	struct folio *folio;
 	pmd_t *pmd;
 	pmd_t pmde;
 	pte_t *ptep;
@@ -1178,10 +1179,11 @@ static int replace_page(struct vm_area_struct *vma, struct page *page,
 	ptep_clear_flush(vma, addr, ptep);
 	set_pte_at_notify(mm, addr, ptep, newpte);
 
+	folio = page_folio(page);
 	page_remove_rmap(page, vma, false);
-	if (!page_mapped(page))
-		try_to_free_swap(page);
-	put_page(page);
+	if (!folio_mapped(folio))
+		folio_free_swap(folio);
+	folio_put(folio);
 
 	pte_unmap_unlock(ptep, ptl);
 	err = 0;
