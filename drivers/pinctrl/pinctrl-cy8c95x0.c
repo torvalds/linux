@@ -1339,10 +1339,17 @@ static void cy8c95x0_remove(struct i2c_client *client)
 		regulator_disable(chip->regulator);
 }
 
+static const struct acpi_device_id cy8c95x0_acpi_ids[] = {
+	{ "INT3490", 40, },
+	{ }
+};
+MODULE_DEVICE_TABLE(acpi, cy8c95x0_acpi_ids);
+
 static struct i2c_driver cy8c95x0_driver = {
 	.driver = {
 		.name	= "cy8c95x0-pinctrl",
 		.of_match_table = cy8c95x0_dt_ids,
+		.acpi_match_table = cy8c95x0_acpi_ids,
 	},
 	.probe_new	= cy8c95x0_probe,
 	.remove		= cy8c95x0_remove,
