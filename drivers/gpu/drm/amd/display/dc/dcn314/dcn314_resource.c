@@ -454,6 +454,7 @@ static const struct dcn31_hpo_dp_stream_encoder_registers hpo_dp_stream_enc_regs
 	hpo_dp_stream_encoder_reg_list(0),
 	hpo_dp_stream_encoder_reg_list(1),
 	hpo_dp_stream_encoder_reg_list(2),
+	hpo_dp_stream_encoder_reg_list(3)
 };
 
 static const struct dcn31_hpo_dp_stream_encoder_shift hpo_dp_se_shift = {
