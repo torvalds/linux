@@ -773,6 +773,10 @@
 		interrupt-names = "irq";
 
 		connector {
+			compatible = "usb-c-connector";
+			label = "USB-C";
+			data-role = "dual";
+
 			ports {
 				#address-cells = <1>;
 				#size-cells = <0>;
