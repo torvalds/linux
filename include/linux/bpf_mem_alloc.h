@@ -3,6 +3,7 @@
 #ifndef _BPF_MEM_ALLOC_H
 #define _BPF_MEM_ALLOC_H
 #include <linux/compiler_types.h>
+#include <linux/workqueue.h>
 
 struct bpf_mem_cache;
 struct bpf_mem_caches;
@@ -10,6 +11,7 @@ struct bpf_mem_caches;
 struct bpf_mem_alloc {
 	struct bpf_mem_caches __percpu *caches;
 	struct bpf_mem_cache __percpu *cache;
+	struct work_struct work;
 };
 
 int bpf_mem_alloc_init(struct bpf_mem_alloc *ma, int size, bool percpu);

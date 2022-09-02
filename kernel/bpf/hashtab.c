@@ -1546,10 +1546,10 @@ static void htab_map_free(struct bpf_map *map)
 	 * There is no need to synchronize_rcu() here to protect map elements.
 	 */
 
-	/* some of free_htab_elem() callbacks for elements of this map may
-	 * not have executed. Wait for them.
+	/* htab no longer uses call_rcu() directly. bpf_mem_alloc does it
+	 * underneath and is reponsible for waiting for callbacks to finish
+	 * during bpf_mem_alloc_destroy().
 	 */
-	rcu_barrier();
 	if (!htab_is_prealloc(htab)) {
 		delete_all_elements(htab);
 	} else {

@@ -414,10 +414,9 @@ static void drain_mem_cache(struct bpf_mem_cache *c)
 {
 	struct llist_node *llnode, *t;
 
-	/* The caller has done rcu_barrier() and no progs are using this
-	 * bpf_mem_cache, but htab_map_free() called bpf_mem_cache_free() for
-	 * all remaining elements and they can be in free_by_rcu or in
-	 * waiting_for_gp lists, so drain those lists now.
+	/* No progs are using this bpf_mem_cache, but htab_map_free() called
+	 * bpf_mem_cache_free() for all remaining elements and they can be in
+	 * free_by_rcu or in waiting_for_gp lists, so drain those lists now.
 	 */
 	llist_for_each_safe(llnode, t, __llist_del_all(&c->free_by_rcu))
 		free_one(c, llnode);
@@ -429,42 +428,91 @@ static void drain_mem_cache(struct bpf_mem_cache *c)
 		free_one(c, llnode);
 }
 
+static void free_mem_alloc_no_barrier(struct bpf_mem_alloc *ma)
+{
+	free_percpu(ma->cache);
+	free_percpu(ma->caches);
+	ma->cache = NULL;
+	ma->caches = NULL;
+}
+
+static void free_mem_alloc(struct bpf_mem_alloc *ma)
+{
+	/* waiting_for_gp lists was drained, but __free_rcu might
+	 * still execute. Wait for it now before we freeing percpu caches.
+	 */
+	rcu_barrier_tasks_trace();
+	rcu_barrier();
+	free_mem_alloc_no_barrier(ma);
+}
+
+static void free_mem_alloc_deferred(struct work_struct *work)
+{
+	struct bpf_mem_alloc *ma = container_of(work, struct bpf_mem_alloc, work);
+
+	free_mem_alloc(ma);
+	kfree(ma);
+}
+
+static void destroy_mem_alloc(struct bpf_mem_alloc *ma, int rcu_in_progress)
+{
+	struct bpf_mem_alloc *copy;
+
+	if (!rcu_in_progress) {
+		/* Fast path. No callbacks are pending, hence no need to do
+		 * rcu_barrier-s.
+		 */
+		free_mem_alloc_no_barrier(ma);
+		return;
+	}
+
+	copy = kmalloc(sizeof(*ma), GFP_KERNEL);
+	if (!copy) {
+		/* Slow path with inline barrier-s */
+		free_mem_alloc(ma);
+		return;
+	}
+
+	/* Defer barriers into worker to let the rest of map memory to be freed */
+	copy->cache = ma->cache;
+	ma->cache = NULL;
+	copy->caches = ma->caches;
+	ma->caches = NULL;
+	INIT_WORK(&copy->work, free_mem_alloc_deferred);
+	queue_work(system_unbound_wq, &copy->work);
+}
+
 void bpf_mem_alloc_destroy(struct bpf_mem_alloc *ma)
 {
 	struct bpf_mem_caches *cc;
 	struct bpf_mem_cache *c;
-	int cpu, i;
+	int cpu, i, rcu_in_progress;
 
 	if (ma->cache) {
+		rcu_in_progress = 0;
 		for_each_possible_cpu(cpu) {
 			c = per_cpu_ptr(ma->cache, cpu);
 			drain_mem_cache(c);
+			rcu_in_progress += atomic_read(&c->call_rcu_in_progress);
 		}
 		/* objcg is the same across cpus */
 		if (c->objcg)
 			obj_cgroup_put(c->objcg);
-		/* c->waiting_for_gp list was drained, but __free_rcu might
-		 * still execute. Wait for it now before we free 'c'.
-		 */
-		rcu_barrier_tasks_trace();
-		rcu_barrier();
-		free_percpu(ma->cache);
-		ma->cache = NULL;
+		destroy_mem_alloc(ma, rcu_in_progress);
 	}
 	if (ma->caches) {
+		rcu_in_progress = 0;
 		for_each_possible_cpu(cpu) {
 			cc = per_cpu_ptr(ma->caches, cpu);
 			for (i = 0; i < NUM_CACHES; i++) {
 				c = &cc->cache[i];
 				drain_mem_cache(c);
+				rcu_in_progress += atomic_read(&c->call_rcu_in_progress);
 			}
 		}
 		if (c->objcg)
 			obj_cgroup_put(c->objcg);
-		rcu_barrier_tasks_trace();
-		rcu_barrier();
-		free_percpu(ma->caches);
-		ma->caches = NULL;
+		destroy_mem_alloc(ma, rcu_in_progress);
 	}
 }
 
