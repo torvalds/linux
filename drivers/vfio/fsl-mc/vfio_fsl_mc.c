@@ -108,9 +108,9 @@ static void vfio_fsl_mc_close_device(struct vfio_device *core_vdev)
 	/* reset the device before cleaning up the interrupts */
 	ret = vfio_fsl_mc_reset_device(vdev);
 
-	if (WARN_ON(ret))
+	if (ret)
 		dev_warn(&mc_cont->dev,
-			 "VFIO_FLS_MC: reset device has failed (%d)\n", ret);
+			 "VFIO_FSL_MC: reset device has failed (%d)\n", ret);
 
 	vfio_fsl_mc_irqs_cleanup(vdev);
 
