@@ -3143,40 +3143,41 @@ static int shmem_symlink(struct user_namespace *mnt_userns, struct inode *dir,
 
 static void shmem_put_link(void *arg)
 {
-	mark_page_accessed(arg);
-	put_page(arg);
+	folio_mark_accessed(arg);
+	folio_put(arg);
 }
 
 static const char *shmem_get_link(struct dentry *dentry,
 				  struct inode *inode,
 				  struct delayed_call *done)
 {
-	struct page *page = NULL;
+	struct folio *folio = NULL;
 	int error;
+
 	if (!dentry) {
-		page = find_get_page(inode->i_mapping, 0);
-		if (!page)
+		folio = filemap_get_folio(inode->i_mapping, 0);
+		if (!folio)
 			return ERR_PTR(-ECHILD);
-		if (PageHWPoison(page) ||
-		    !PageUptodate(page)) {
-			put_page(page);
+		if (PageHWPoison(&folio->page) ||
+		    !folio_test_uptodate(folio)) {
+			folio_put(folio);
 			return ERR_PTR(-ECHILD);
 		}
 	} else {
-		error = shmem_getpage(inode, 0, &page, SGP_READ);
+		error = shmem_get_folio(inode, 0, &folio, SGP_READ);
 		if (error)
 			return ERR_PTR(error);
-		if (!page)
+		if (!folio)
 			return ERR_PTR(-ECHILD);
-		if (PageHWPoison(page)) {
-			unlock_page(page);
-			put_page(page);
+		if (PageHWPoison(&folio->page)) {
+			folio_unlock(folio);
+			folio_put(folio);
 			return ERR_PTR(-ECHILD);
 		}
-		unlock_page(page);
+		folio_unlock(folio);
 	}
-	set_delayed_call(done, shmem_put_link, page);
-	return page_address(page);
+	set_delayed_call(done, shmem_put_link, folio);
+	return folio_address(folio);
 }
 
 #ifdef CONFIG_TMPFS_XATTR
