@@ -3647,7 +3647,7 @@ static inline bool should_try_to_free_swap(struct folio *folio,
 {
 	if (!folio_test_swapcache(folio))
 		return false;
-	if (mem_cgroup_swap_full(&folio->page) || (vma->vm_flags & VM_LOCKED) ||
+	if (mem_cgroup_swap_full(folio) || (vma->vm_flags & VM_LOCKED) ||
 	    folio_test_mlocked(folio))
 		return true;
 	/*

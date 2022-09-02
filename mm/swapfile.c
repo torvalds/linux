@@ -148,7 +148,7 @@ static int __try_to_reclaim_swap(struct swap_info_struct *si,
 	if (folio_trylock(folio)) {
 		if ((flags & TTRS_ANYWAY) ||
 		    ((flags & TTRS_UNMAPPED) && !folio_mapped(folio)) ||
-		    ((flags & TTRS_FULL) && mem_cgroup_swap_full(&folio->page)))
+		    ((flags & TTRS_FULL) && mem_cgroup_swap_full(folio)))
 			ret = folio_free_swap(folio);
 		folio_unlock(folio);
 	}
