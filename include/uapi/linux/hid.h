@@ -43,6 +43,18 @@
 #define USB_INTERFACE_PROTOCOL_MOUSE	2
 
 /*
+ * HID report types --- Ouch! HID spec says 1 2 3!
+ */
+
+enum hid_report_type {
+	HID_INPUT_REPORT		= 0,
+	HID_OUTPUT_REPORT		= 1,
+	HID_FEATURE_REPORT		= 2,
+
+	HID_REPORT_TYPES,
+};
+
+/*
  * HID class requests
  */
 
