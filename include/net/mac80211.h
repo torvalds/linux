@@ -5987,6 +5987,22 @@ struct ieee80211_sta *ieee80211_find_sta_by_ifaddr(struct ieee80211_hw *hw,
 					       const u8 *localaddr);
 
 /**
+ * ieee80211_find_sta_by_link_addrs - find STA by link addresses
+ * @hw: pointer as obtained from ieee80211_alloc_hw()
+ * @addr: remote station's link address
+ * @localaddr: local link address, use %NULL for any (but avoid that)
+ * @link_id: pointer to obtain the link ID if the STA is found,
+ *	may be %NULL if the link ID is not needed
+ *
+ * Obtain the STA by link address, must use RCU protection.
+ */
+struct ieee80211_sta *
+ieee80211_find_sta_by_link_addrs(struct ieee80211_hw *hw,
+				 const u8 *addr,
+				 const u8 *localaddr,
+				 unsigned int *link_id);
+
+/**
  * ieee80211_sta_block_awake - block station from waking up
  * @hw: the hardware
  * @pubsta: the station

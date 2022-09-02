@@ -274,6 +274,43 @@ link_sta_info_get_bss(struct ieee80211_sub_if_data *sdata, const u8 *addr)
 	return NULL;
 }
 
+struct ieee80211_sta *
+ieee80211_find_sta_by_link_addrs(struct ieee80211_hw *hw,
+				 const u8 *addr,
+				 const u8 *localaddr,
+				 unsigned int *link_id)
+{
+	struct ieee80211_local *local = hw_to_local(hw);
+	struct link_sta_info *link_sta;
+	struct rhlist_head *tmp;
+
+	for_each_link_sta_info(local, addr, link_sta, tmp) {
+		struct sta_info *sta = link_sta->sta;
+		struct ieee80211_link_data *link;
+		u8 _link_id = link_sta->link_id;
+
+		if (!localaddr) {
+			if (link_id)
+				*link_id = _link_id;
+			return &sta->sta;
+		}
+
+		link = rcu_dereference(sta->sdata->link[_link_id]);
+		if (!link)
+			continue;
+
+		if (memcmp(link->conf->addr, localaddr, ETH_ALEN))
+			continue;
+
+		if (link_id)
+			*link_id = _link_id;
+		return &sta->sta;
+	}
+
+	return NULL;
+}
+EXPORT_SYMBOL_GPL(ieee80211_find_sta_by_link_addrs);
+
 struct sta_info *sta_info_get_by_addrs(struct ieee80211_local *local,
 				       const u8 *sta_addr, const u8 *vif_addr)
 {
