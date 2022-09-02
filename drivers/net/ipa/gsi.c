@@ -710,42 +710,32 @@ static void gsi_evt_ring_program(struct gsi *gsi, u32 evt_ring_id)
 static struct gsi_trans *gsi_channel_trans_last(struct gsi_channel *channel)
 {
 	struct gsi_trans_info *trans_info = &channel->trans_info;
+	u32 pending_id = trans_info->pending_id;
 	struct gsi_trans *trans;
-	u16 trans_index;
 	u16 trans_id;
 
-	/* There is a small chance a TX transaction got allocated just
-	 * before we disabled transmits, so check for that.
-	 */
-	if (channel->toward_ipa) {
-		/* The last allocated, committed, or pending transaction
+	if (channel->toward_ipa && pending_id != trans_info->free_id) {
+		/* There is a small chance a TX transaction got allocated
+		 * just before we disabled transmits, so check for that.
+		 * The last allocated, committed, or pending transaction
 		 * precedes the first free transaction.
 		 */
-		if (trans_info->pending_id != trans_info->free_id) {
-			trans_id = trans_info->free_id - 1;
-			trans_index = trans_id % channel->tre_count;
-			trans = &trans_info->trans[trans_index];
-			goto done;
-		}
+		trans_id = trans_info->free_id - 1;
+	} else if (trans_info->polled_id != pending_id) {
+		/* Otherwise (TX or RX) we want to wait for anything that
+		 * has completed, or has been polled but not released yet.
+		 *
+		 * The last completed or polled transaction precedes the
+		 * first pending transaction.
+		 */
+		trans_id = pending_id - 1;
+	} else {
+		return NULL;
 	}
 
-	/* Otherwise (TX or RX) we want to wait for anything that
-	 * has completed, or has been polled but not released yet.
-	 *
-	 * The last completed or polled transaction precedes the
-	 * first pending transaction.
-	 */
-	if (trans_info->polled_id != trans_info->pending_id) {
-		trans_id = trans_info->pending_id - 1;
-		trans_index = trans_id % channel->tre_count;
-		trans = &trans_info->trans[trans_index];
-	} else {
-		trans = NULL;
-	}
-done:
 	/* Caller will wait for this, so take a reference */
-	if (trans)
-		refcount_inc(&trans->refcount);
+	trans = &trans_info->trans[trans_id % channel->tre_count];
+	refcount_inc(&trans->refcount);
 
 	return trans;
 }
