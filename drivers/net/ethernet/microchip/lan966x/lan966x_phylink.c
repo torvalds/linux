@@ -60,6 +60,9 @@ static void lan966x_phylink_mac_link_up(struct phylink_config *config,
 	port_config->pause |= tx_pause ? MLO_PAUSE_TX : 0;
 	port_config->pause |= rx_pause ? MLO_PAUSE_RX : 0;
 
+	if (phy_interface_mode_is_rgmii(interface))
+		phy_set_speed(port->serdes, speed);
+
 	lan966x_port_config_up(port);
 }
 
