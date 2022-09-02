@@ -411,7 +411,7 @@ struct page *__read_swap_cache_async(swp_entry_t entry, gfp_t gfp_mask,
 			bool *new_page_allocated)
 {
 	struct swap_info_struct *si;
-	struct page *page;
+	struct folio *folio;
 	void *shadow = NULL;
 
 	*new_page_allocated = false;
@@ -426,11 +426,11 @@ struct page *__read_swap_cache_async(swp_entry_t entry, gfp_t gfp_mask,
 		si = get_swap_device(entry);
 		if (!si)
 			return NULL;
-		page = find_get_page(swap_address_space(entry),
-				     swp_offset(entry));
+		folio = filemap_get_folio(swap_address_space(entry),
+						swp_offset(entry));
 		put_swap_device(si);
-		if (page)
-			return page;
+		if (folio)
+			return folio_file_page(folio, swp_offset(entry));
 
 		/*
 		 * Just skip read ahead for unused swap slot.
@@ -448,8 +448,8 @@ struct page *__read_swap_cache_async(swp_entry_t entry, gfp_t gfp_mask,
 		 * before marking swap_map SWAP_HAS_CACHE, when -EEXIST will
 		 * cause any racers to loop around until we add it to cache.
 		 */
-		page = alloc_page_vma(gfp_mask, vma, addr);
-		if (!page)
+		folio = vma_alloc_folio(gfp_mask, 0, vma, addr, false);
+		if (!folio)
 			return NULL;
 
 		/*
@@ -459,7 +459,7 @@ struct page *__read_swap_cache_async(swp_entry_t entry, gfp_t gfp_mask,
 		if (!err)
 			break;
 
-		put_page(page);
+		folio_put(folio);
 		if (err != -EEXIST)
 			return NULL;
 
@@ -477,30 +477,30 @@ struct page *__read_swap_cache_async(swp_entry_t entry, gfp_t gfp_mask,
 	 * The swap entry is ours to swap in. Prepare the new page.
 	 */
 
-	__SetPageLocked(page);
-	__SetPageSwapBacked(page);
+	__folio_set_locked(folio);
+	__folio_set_swapbacked(folio);
 
-	if (mem_cgroup_swapin_charge_page(page, NULL, gfp_mask, entry))
+	if (mem_cgroup_swapin_charge_page(&folio->page, NULL, gfp_mask, entry))
 		goto fail_unlock;
 
 	/* May fail (-ENOMEM) if XArray node allocation failed. */
-	if (add_to_swap_cache(page, entry, gfp_mask & GFP_RECLAIM_MASK, &shadow))
+	if (add_to_swap_cache(&folio->page, entry, gfp_mask & GFP_RECLAIM_MASK, &shadow))
 		goto fail_unlock;
 
 	mem_cgroup_swapin_uncharge_swap(entry);
 
 	if (shadow)
-		workingset_refault(page_folio(page), shadow);
+		workingset_refault(folio, shadow);
 
-	/* Caller will initiate read into locked page */
-	lru_cache_add(page);
+	/* Caller will initiate read into locked folio */
+	folio_add_lru(folio);
 	*new_page_allocated = true;
-	return page;
+	return &folio->page;
 
 fail_unlock:
-	put_swap_page(page, entry);
-	unlock_page(page);
-	put_page(page);
+	put_swap_page(&folio->page, entry);
+	folio_unlock(folio);
+	folio_put(folio);
 	return NULL;
 }
 
