@@ -32,6 +32,7 @@
 #define LAN9303_INT_EN 0x17
 # define LAN9303_INT_EN_PHY_INT2_EN BIT(27)
 # define LAN9303_INT_EN_PHY_INT1_EN BIT(26)
+#define LAN9303_BYTE_ORDER 0x19
 #define LAN9303_HW_CFG 0x1D
 # define LAN9303_HW_CFG_READY BIT(27)
 # define LAN9303_HW_CFG_AMDX_EN_PORT2 BIT(26)
@@ -851,10 +852,6 @@ static int lan9303_check_device(struct lan9303 *chip)
 	if (ret) {
 		dev_err(chip->dev, "failed to read chip revision register: %d\n",
 			ret);
-		if (!chip->reset_gpio) {
-			dev_dbg(chip->dev,
-				"hint: maybe failed due to missing reset GPIO\n");
-		}
 		return ret;
 	}
 
@@ -1349,6 +1346,7 @@ static int lan9303_probe_reset_gpio(struct lan9303 *chip,
 int lan9303_probe(struct lan9303 *chip, struct device_node *np)
 {
 	int ret;
+	u32 reg;
 
 	mutex_init(&chip->indirect_mutex);
 	mutex_init(&chip->alr_mutex);
@@ -1358,6 +1356,19 @@ int lan9303_probe(struct lan9303 *chip, struct device_node *np)
 		return ret;
 
 	lan9303_handle_reset(chip);
+
+	/* First read to the device.  This is a Dummy read to ensure MDIO */
+	/* access is in 32-bit sync. */
+	ret = lan9303_read(chip->regmap, LAN9303_BYTE_ORDER, &reg);
+	if (ret) {
+		dev_err(chip->dev, "failed to access the device: %d\n",
+			ret);
+		if (!chip->reset_gpio) {
+			dev_dbg(chip->dev,
+				"hint: maybe failed due to missing reset GPIO\n");
+		}
+		return ret;
+	}
 
 	ret = lan9303_check_device(chip);
 	if (ret)
