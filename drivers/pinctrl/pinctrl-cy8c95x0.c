@@ -90,7 +90,6 @@ MODULE_DEVICE_TABLE(of, cy8c95x0_dt_ids);
  * @irq_trig_high:  I/O bits affected by a high voltage level
  * @push_pull:      I/O bits configured as push pull driver
  * @shiftmask:      Mask used to compensate for Gport2 width
- * @irq_chip:       IRQ chip configuration
  * @nport:          Number of Gports in this chip
  * @gpio_chip:      gpiolib chip
  * @driver_data:    private driver data
@@ -112,7 +111,6 @@ struct cy8c95x0_pinctrl {
 	DECLARE_BITMAP(irq_trig_high, MAX_LINE);
 	DECLARE_BITMAP(push_pull, MAX_LINE);
 	DECLARE_BITMAP(shiftmask, MAX_LINE);
-	struct irq_chip irq_chip;
 	int nport;
 	struct gpio_chip gpio_chip;
 	unsigned long driver_data;
@@ -844,16 +842,20 @@ static void cy8c95x0_irq_mask(struct irq_data *d)
 {
 	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
 	struct cy8c95x0_pinctrl *chip = gpiochip_get_data(gc);
+	irq_hw_number_t hwirq = irqd_to_hwirq(d);
 
-	set_bit(irqd_to_hwirq(d), chip->irq_mask);
+	set_bit(hwirq, chip->irq_mask);
+	gpiochip_disable_irq(gc, hwirq);
 }
 
 static void cy8c95x0_irq_unmask(struct irq_data *d)
 {
 	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
 	struct cy8c95x0_pinctrl *chip = gpiochip_get_data(gc);
+	irq_hw_number_t hwirq = irqd_to_hwirq(d);
 
-	clear_bit(irqd_to_hwirq(d), chip->irq_mask);
+	gpiochip_enable_irq(gc, hwirq);
+	clear_bit(hwirq, chip->irq_mask);
 }
 
 static void cy8c95x0_irq_bus_lock(struct irq_data *d)
@@ -930,6 +932,18 @@ static void cy8c95x0_irq_shutdown(struct irq_data *d)
 	clear_bit(hwirq, chip->irq_trig_low);
 	clear_bit(hwirq, chip->irq_trig_high);
 }
+
+static const struct irq_chip cy8c95x0_irqchip = {
+	.name = "cy8c95x0-irq",
+	.irq_mask = cy8c95x0_irq_mask,
+	.irq_unmask = cy8c95x0_irq_unmask,
+	.irq_bus_lock = cy8c95x0_irq_bus_lock,
+	.irq_bus_sync_unlock = cy8c95x0_irq_bus_sync_unlock,
+	.irq_set_type = cy8c95x0_irq_set_type,
+	.irq_shutdown = cy8c95x0_irq_shutdown,
+	.flags = IRQCHIP_IMMUTABLE,
+	GPIOCHIP_IRQ_RESOURCE_HELPERS,
+};
 
 static bool cy8c95x0_irq_pending(struct cy8c95x0_pinctrl *chip, unsigned long *pending)
 {
@@ -1136,7 +1150,6 @@ static const struct pinconf_ops cy8c95x0_pinconf_ops = {
 
 static int cy8c95x0_irq_setup(struct cy8c95x0_pinctrl *chip, int irq)
 {
-	struct irq_chip *irq_chip = &chip->irq_chip;
 	struct gpio_irq_chip *girq = &chip->gpio_chip.irq;
 	DECLARE_BITMAP(pending_irqs, MAX_LINE);
 	int ret;
@@ -1155,15 +1168,8 @@ static int cy8c95x0_irq_setup(struct cy8c95x0_pinctrl *chip, int irq)
 	/* Mask all interrupts */
 	bitmap_fill(chip->irq_mask, MAX_LINE);
 
-	irq_chip->name = devm_kasprintf(chip->dev, GFP_KERNEL, "%s-irq", chip->name);
-	irq_chip->irq_mask = cy8c95x0_irq_mask;
-	irq_chip->irq_unmask = cy8c95x0_irq_unmask;
-	irq_chip->irq_bus_lock = cy8c95x0_irq_bus_lock;
-	irq_chip->irq_bus_sync_unlock = cy8c95x0_irq_bus_sync_unlock;
-	irq_chip->irq_set_type = cy8c95x0_irq_set_type;
-	irq_chip->irq_shutdown = cy8c95x0_irq_shutdown;
+	gpio_irq_chip_set_chip(girq, &cy8c95x0_irqchip);
 
-	girq->chip = irq_chip;
 	/* This will let us handle the parent IRQ in the driver */
 	girq->parent_handler = NULL;
 	girq->num_parents = 0;
