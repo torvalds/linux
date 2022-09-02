@@ -6323,6 +6323,8 @@ void ieee80211_mgd_setup_link(struct ieee80211_link_data *link)
 	if (sdata->u.mgd.assoc_data)
 		ether_addr_copy(link->conf->addr,
 				sdata->u.mgd.assoc_data->link[link_id].addr);
+	else if (!is_valid_ether_addr(link->conf->addr))
+		eth_random_addr(link->conf->addr);
 }
 
 /* scan finished notification */
@@ -6409,9 +6411,6 @@ static int ieee80211_prep_connection(struct ieee80211_sub_if_data *sdata,
 		err = -ENOLINK;
 		goto out_err;
 	}
-
-	if (mlo && !is_valid_ether_addr(link->conf->addr))
-		eth_random_addr(link->conf->addr);
 
 	if (WARN_ON(!ifmgd->auth_data && !ifmgd->assoc_data)) {
 		err = -EINVAL;
