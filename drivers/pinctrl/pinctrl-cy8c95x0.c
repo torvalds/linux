@@ -772,30 +772,6 @@ out:
 	return ret;
 }
 
-static int cy8c95x0_gpio_set_config(struct gpio_chip *gc, unsigned int offset,
-				    unsigned long config)
-{
-	struct cy8c95x0_pinctrl *chip = gpiochip_get_data(gc);
-	unsigned long arg = pinconf_to_config_argument(config);
-
-	switch (pinconf_to_config_param(config)) {
-	case PIN_CONFIG_INPUT_ENABLE:
-		return cy8c95x0_gpio_direction_input(gc, offset);
-	case PIN_CONFIG_OUTPUT:
-		return cy8c95x0_gpio_direction_output(gc, offset, arg);
-	case PIN_CONFIG_MODE_PWM:
-	case PIN_CONFIG_BIAS_PULL_UP:
-	case PIN_CONFIG_BIAS_PULL_DOWN:
-	case PIN_CONFIG_BIAS_DISABLE:
-	case PIN_CONFIG_DRIVE_OPEN_DRAIN:
-	case PIN_CONFIG_DRIVE_OPEN_SOURCE:
-	case PIN_CONFIG_DRIVE_PUSH_PULL:
-		return cy8c95x0_gpio_set_pincfg(chip, offset, config);
-	default:
-		return -ENOTSUPP;
-	}
-}
-
 static int cy8c95x0_gpio_get_multiple(struct gpio_chip *gc,
 				      unsigned long *mask, unsigned long *bits)
 {
@@ -836,7 +812,7 @@ static int cy8c95x0_setup_gpiochip(struct cy8c95x0_pinctrl *chip)
 	gc->get_direction = cy8c95x0_gpio_get_direction;
 	gc->get_multiple = cy8c95x0_gpio_get_multiple;
 	gc->set_multiple = cy8c95x0_gpio_set_multiple;
-	gc->set_config = cy8c95x0_gpio_set_config;
+	gc->set_config = gpiochip_generic_config,
 	gc->can_sleep = true;
 	gc->add_pin_ranges = cy8c95x0_add_pin_ranges;
 
