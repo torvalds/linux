@@ -91,17 +91,13 @@ struct bpf_mem_cache {
 	 */
 	struct llist_head free_llist_extra;
 
-	/* kmem_cache != NULL when bpf_mem_alloc was created for specific
-	 * element size.
-	 */
-	struct kmem_cache *kmem_cache;
 	struct irq_work refill_work;
 	struct obj_cgroup *objcg;
 	int unit_size;
 	/* count of objects in free_llist */
 	int free_cnt;
 	int low_watermark, high_watermark, batch;
-	bool percpu;
+	int percpu_size;
 
 	struct rcu_head rcu;
 	struct llist_head free_by_rcu;
@@ -134,8 +130,8 @@ static void *__alloc(struct bpf_mem_cache *c, int node)
 	 */
 	gfp_t flags = GFP_NOWAIT | __GFP_NOWARN | __GFP_ACCOUNT;
 
-	if (c->percpu) {
-		void **obj = kmem_cache_alloc_node(c->kmem_cache, flags, node);
+	if (c->percpu_size) {
+		void **obj = kmalloc_node(c->percpu_size, flags, node);
 		void *pptr = __alloc_percpu_gfp(c->unit_size, 8, flags);
 
 		if (!obj || !pptr) {
@@ -146,9 +142,6 @@ static void *__alloc(struct bpf_mem_cache *c, int node)
 		obj[1] = pptr;
 		return obj;
 	}
-
-	if (c->kmem_cache)
-		return kmem_cache_alloc_node(c->kmem_cache, flags, node);
 
 	return kmalloc_node(c->unit_size, flags, node);
 }
@@ -207,16 +200,13 @@ static void alloc_bulk(struct bpf_mem_cache *c, int cnt, int node)
 
 static void free_one(struct bpf_mem_cache *c, void *obj)
 {
-	if (c->percpu) {
+	if (c->percpu_size) {
 		free_percpu(((void **)obj)[1]);
-		kmem_cache_free(c->kmem_cache, obj);
+		kfree(obj);
 		return;
 	}
 
-	if (c->kmem_cache)
-		kmem_cache_free(c->kmem_cache, obj);
-	else
-		kfree(obj);
+	kfree(obj);
 }
 
 static void __free_rcu(struct rcu_head *head)
@@ -356,7 +346,7 @@ static void prefill_mem_cache(struct bpf_mem_cache *c, int cpu)
 	alloc_bulk(c, c->unit_size <= 256 ? 4 : 1, cpu_to_node(cpu));
 }
 
-/* When size != 0 create kmem_cache and bpf_mem_cache for each cpu.
+/* When size != 0 bpf_mem_cache for each cpu.
  * This is typical bpf hash map use case when all elements have equal size.
  *
  * When size == 0 allocate 11 bpf_mem_cache-s for each cpu, then rely on
@@ -368,40 +358,29 @@ int bpf_mem_alloc_init(struct bpf_mem_alloc *ma, int size, bool percpu)
 	static u16 sizes[NUM_CACHES] = {96, 192, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096};
 	struct bpf_mem_caches *cc, __percpu *pcc;
 	struct bpf_mem_cache *c, __percpu *pc;
-	struct kmem_cache *kmem_cache = NULL;
 	struct obj_cgroup *objcg = NULL;
-	char buf[32];
-	int cpu, i, unit_size;
+	int cpu, i, unit_size, percpu_size = 0;
 
 	if (size) {
 		pc = __alloc_percpu_gfp(sizeof(*pc), 8, GFP_KERNEL);
 		if (!pc)
 			return -ENOMEM;
 
-		if (percpu) {
-			unit_size = size;
+		if (percpu)
 			/* room for llist_node and per-cpu pointer */
-			size = LLIST_NODE_SZ + sizeof(void *);
-		} else {
+			percpu_size = LLIST_NODE_SZ + sizeof(void *);
+		else
 			size += LLIST_NODE_SZ; /* room for llist_node */
-			unit_size = size;
-		}
+		unit_size = size;
 
-		snprintf(buf, sizeof(buf), "bpf-%u", size);
-		kmem_cache = kmem_cache_create(buf, size, 8, 0, NULL);
-		if (!kmem_cache) {
-			free_percpu(pc);
-			return -ENOMEM;
-		}
 #ifdef CONFIG_MEMCG_KMEM
 		objcg = get_obj_cgroup_from_current();
 #endif
 		for_each_possible_cpu(cpu) {
 			c = per_cpu_ptr(pc, cpu);
-			c->kmem_cache = kmem_cache;
 			c->unit_size = unit_size;
 			c->objcg = objcg;
-			c->percpu = percpu;
+			c->percpu_size = percpu_size;
 			prefill_mem_cache(c, cpu);
 		}
 		ma->cache = pc;
@@ -461,8 +440,7 @@ void bpf_mem_alloc_destroy(struct bpf_mem_alloc *ma)
 			c = per_cpu_ptr(ma->cache, cpu);
 			drain_mem_cache(c);
 		}
-		/* kmem_cache and memcg are the same across cpus */
-		kmem_cache_destroy(c->kmem_cache);
+		/* objcg is the same across cpus */
 		if (c->objcg)
 			obj_cgroup_put(c->objcg);
 		/* c->waiting_for_gp list was drained, but __free_rcu might
