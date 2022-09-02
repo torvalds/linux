@@ -141,10 +141,10 @@ static int altera_tse_mdio_write(struct mii_bus *bus, int mii_id, int regnum,
 static int altera_tse_mdio_create(struct net_device *dev, unsigned int id)
 {
 	struct altera_tse_private *priv = netdev_priv(dev);
-	int ret;
 	struct device_node *mdio_node = NULL;
-	struct mii_bus *mdio = NULL;
 	struct device_node *child_node = NULL;
+	struct mii_bus *mdio = NULL;
+	int ret;
 
 	for_each_child_of_node(priv->device->of_node, child_node) {
 		if (of_device_is_compatible(child_node, "altr,tse-mdio")) {
@@ -236,8 +236,8 @@ static int tse_init_rx_buffer(struct altera_tse_private *priv,
 static void tse_free_rx_buffer(struct altera_tse_private *priv,
 			       struct tse_buffer *rxbuffer)
 {
-	struct sk_buff *skb = rxbuffer->skb;
 	dma_addr_t dma_addr = rxbuffer->dma_addr;
+	struct sk_buff *skb = rxbuffer->skb;
 
 	if (skb != NULL) {
 		if (dma_addr)
@@ -358,6 +358,7 @@ static inline void tse_rx_vlan(struct net_device *dev, struct sk_buff *skb)
 {
 	struct ethhdr *eth_hdr;
 	u16 vid;
+
 	if ((dev->features & NETIF_F_HW_VLAN_CTAG_RX) &&
 	    !__vlan_get_tag(skb, &vid)) {
 		eth_hdr = (struct ethhdr *)skb->data;
@@ -371,10 +372,10 @@ static inline void tse_rx_vlan(struct net_device *dev, struct sk_buff *skb)
  */
 static int tse_rx(struct altera_tse_private *priv, int limit)
 {
-	unsigned int count = 0;
-	unsigned int next_entry;
-	struct sk_buff *skb;
 	unsigned int entry = priv->rx_cons % priv->rx_ring_size;
+	unsigned int next_entry;
+	unsigned int count = 0;
+	struct sk_buff *skb;
 	u32 rxstatus;
 	u16 pktlength;
 	u16 pktstatus;
@@ -448,10 +449,10 @@ static int tse_rx(struct altera_tse_private *priv, int limit)
 static int tse_tx_complete(struct altera_tse_private *priv)
 {
 	unsigned int txsize = priv->tx_ring_size;
-	u32 ready;
-	unsigned int entry;
 	struct tse_buffer *tx_buff;
+	unsigned int entry;
 	int txcomplete = 0;
+	u32 ready;
 
 	spin_lock(&priv->tx_lock);
 
@@ -497,8 +498,8 @@ static int tse_poll(struct napi_struct *napi, int budget)
 {
 	struct altera_tse_private *priv =
 			container_of(napi, struct altera_tse_private, napi);
-	int rxcomplete = 0;
 	unsigned long int flags;
+	int rxcomplete = 0;
 
 	tse_tx_complete(priv);
 
@@ -561,13 +562,13 @@ static irqreturn_t altera_isr(int irq, void *dev_id)
 static netdev_tx_t tse_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct altera_tse_private *priv = netdev_priv(dev);
-	unsigned int txsize = priv->tx_ring_size;
-	unsigned int entry;
-	struct tse_buffer *buffer = NULL;
-	int nfrags = skb_shinfo(skb)->nr_frags;
 	unsigned int nopaged_len = skb_headlen(skb);
+	unsigned int txsize = priv->tx_ring_size;
+	int nfrags = skb_shinfo(skb)->nr_frags;
+	struct tse_buffer *buffer = NULL;
 	netdev_tx_t ret = NETDEV_TX_OK;
 	dma_addr_t dma_addr;
+	unsigned int entry;
 
 	spin_lock_bh(&priv->tx_lock);
 
@@ -696,8 +697,8 @@ static void altera_tse_adjust_link(struct net_device *dev)
 static struct phy_device *connect_local_phy(struct net_device *dev)
 {
 	struct altera_tse_private *priv = netdev_priv(dev);
-	struct phy_device *phydev = NULL;
 	char phy_id_fmt[MII_BUS_ID_SIZE + 3];
+	struct phy_device *phydev = NULL;
 
 	if (priv->phy_addr != POLL_PHY) {
 		snprintf(phy_id_fmt, MII_BUS_ID_SIZE + 3, PHY_ID_FMT,
@@ -773,8 +774,8 @@ static int altera_tse_phy_get_addr_mdio_create(struct net_device *dev)
 static int init_phy(struct net_device *dev)
 {
 	struct altera_tse_private *priv = netdev_priv(dev);
-	struct phy_device *phydev;
 	struct device_node *phynode;
+	struct phy_device *phydev;
 	bool fixed_link = false;
 	int rc = 0;
 
@@ -1012,8 +1013,8 @@ static int tse_change_mtu(struct net_device *dev, int new_mtu)
 static void altera_tse_set_mcfilter(struct net_device *dev)
 {
 	struct altera_tse_private *priv = netdev_priv(dev);
-	int i;
 	struct netdev_hw_addr *ha;
+	int i;
 
 	/* clear the hash filter */
 	for (i = 0; i < 64; i++)
@@ -1152,9 +1153,9 @@ static int init_sgmii_pcs(struct net_device *dev)
 static int tse_open(struct net_device *dev)
 {
 	struct altera_tse_private *priv = netdev_priv(dev);
+	unsigned long flags;
 	int ret = 0;
 	int i;
-	unsigned long int flags;
 
 	/* Reset and configure TSE MAC and probe associated PHY */
 	ret = priv->dmaops->init_dma(priv);
@@ -1265,8 +1266,8 @@ phy_error:
 static int tse_shutdown(struct net_device *dev)
 {
 	struct altera_tse_private *priv = netdev_priv(dev);
-	int ret;
 	unsigned long int flags;
+	int ret;
 
 	/* Stop the PHY */
 	if (dev->phydev)
@@ -1320,8 +1321,8 @@ static struct net_device_ops altera_tse_netdev_ops = {
 static int request_and_map(struct platform_device *pdev, const char *name,
 			   struct resource **res, void __iomem **ptr)
 {
-	struct resource *region;
 	struct device *device = &pdev->dev;
+	struct resource *region;
 
 	*res = platform_get_resource_byname(pdev, IORESOURCE_MEM, name);
 	if (*res == NULL) {
@@ -1350,13 +1351,13 @@ static int request_and_map(struct platform_device *pdev, const char *name,
  */
 static int altera_tse_probe(struct platform_device *pdev)
 {
-	struct net_device *ndev;
-	int ret = -ENODEV;
+	const struct of_device_id *of_id = NULL;
+	struct altera_tse_private *priv;
 	struct resource *control_port;
 	struct resource *dma_res;
-	struct altera_tse_private *priv;
+	struct net_device *ndev;
 	void __iomem *descmap;
-	const struct of_device_id *of_id = NULL;
+	int ret = -ENODEV;
 
 	ndev = alloc_etherdev(sizeof(struct altera_tse_private));
 	if (!ndev) {

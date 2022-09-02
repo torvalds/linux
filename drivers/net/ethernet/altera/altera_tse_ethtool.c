@@ -199,9 +199,9 @@ static int tse_reglen(struct net_device *dev)
 static void tse_get_regs(struct net_device *dev, struct ethtool_regs *regs,
 			 void *regbuf)
 {
-	int i;
 	struct altera_tse_private *priv = netdev_priv(dev);
 	u32 *buf = regbuf;
+	int i;
 
 	/* Set version to a known value, so ethtool knows
 	 * how to do any special formatting of this data.
