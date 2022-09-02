@@ -133,6 +133,8 @@
  *  VERSION     : 01-00-53
  *  31 Aug 2022 : 1. Added Fix for configuring Rx Parser when EEE is enabled and RGMII Interface is used
  *  VERSION     : 01-00-54
+ *  02 Sep 2022 : 1. 2500Base-X support for line speeds 2.5Gbps, 1Gbps, 100Mbps.
+ *  VERSION     : 01-00-55
  */
 
 #include <linux/clk.h>
@@ -3096,7 +3098,8 @@ static void tc956xmac_mac_config(struct phylink_config *config, unsigned int mod
 			tc956x_xpcs_write(priv->xpcsaddr, XGMAC_VR_XS_PCS_DIG_CTRL1, val);
 			config_done = true;
 		}
-		if (state->interface == PHY_INTERFACE_MODE_SGMII) { /* Autonegotiation not supported for SGMII */
+		if( (state->interface == PHY_INTERFACE_MODE_SGMII)
+			&& (priv->port_interface != ENABLE_2500BASE_X_INTERFACE) ) { /* Autonegotiation not supported for SGMII */
 			reg_value = tc956x_xpcs_read(priv->xpcsaddr, XGMAC_VR_MII_AN_INTR_STS);
 			/* Clear autonegotiation only if completed. As for XPCS, 2.5G autonegotiation is not supported */
 			/* Switching from SGMII 2.5G to any speed doesn't cause AN completion */
@@ -3210,7 +3213,8 @@ static void tc956xmac_mac_an_restart(struct phylink_config *config)
 
 	if (priv->hw->xpcs) {
 		/*Enable XPCS Autoneg*/
-		if (priv->plat->interface == PHY_INTERFACE_MODE_10GKR) {
+		if ((priv->plat->interface == PHY_INTERFACE_MODE_10GKR) || 
+			(priv->plat->interface == ENABLE_2500BASE_X_INTERFACE)) {
 			enable_en = false;
 			KPRINT_INFO("%s :Port %d AN Enable:%d", __func__, priv->port_num, enable_en);
 		} else if (priv->plat->interface == PHY_INTERFACE_MODE_SGMII) {
@@ -5625,7 +5629,8 @@ static int tc956xmac_hw_setup(struct net_device *dev, bool init_ptp)
 #ifdef TC956X
 	if (priv->hw->xpcs) {
 		/*C37 AN enable*/
-		if (priv->plat->interface == PHY_INTERFACE_MODE_10GKR)
+		if ((priv->plat->interface == PHY_INTERFACE_MODE_10GKR) ||
+			(priv->plat->interface == ENABLE_2500BASE_X_INTERFACE))
 			enable_en = false;
 		else if (priv->plat->interface == PHY_INTERFACE_MODE_SGMII) {
 			if (priv->is_sgmii_2p5g == true)
@@ -12807,7 +12812,8 @@ void tc956xmac_link_change_set_power(struct tc956xmac_priv *priv, enum TC956X_PO
 				KPRINT_INFO("XPCS initialization error\n");
 
 			/*C37 AN enable*/
-			if (priv->plat->interface == PHY_INTERFACE_MODE_10GKR)
+			if ((priv->plat->interface == PHY_INTERFACE_MODE_10GKR) ||
+				(priv->plat->interface == ENABLE_2500BASE_X_INTERFACE))
 				enable_en = false;
 			else if (priv->plat->interface == PHY_INTERFACE_MODE_SGMII) {
 				if (priv->is_sgmii_2p5g == true)

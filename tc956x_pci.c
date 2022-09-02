@@ -169,6 +169,9 @@
  *  VERSION     : 01-00-53
  *  31 Aug 2022 : 1. Version update
  *  VERSION     : 01-00-54
+ *  02 Sep 2022 : 1. 2500Base-X support for line speeds 2.5Gbps, 1Gbps, 100Mbps.
+ *		  2. Version update
+ *  VERSION     : 01-00-55
  */
 
 #include <linux/clk-provider.h>
@@ -235,7 +238,7 @@ unsigned int mac1_en_lp_pause_frame_cnt = DISABLE;
 
 unsigned int mac_power_save_at_link_down = DISABLE;
 
-static const struct tc956x_version tc956x_drv_version = {0, 1, 0, 0, 5, 4};
+static const struct tc956x_version tc956x_drv_version = {0, 1, 0, 0, 5, 5};
 
 static int tc956xmac_pm_usage_counter; /* Device Usage Counter */
 struct mutex tc956x_pm_suspend_lock; /* This mutex is shared between all available EMAC ports. */
@@ -955,7 +958,8 @@ static void xgmac_default_data(struct plat_tc956xmacenet_data *plat)
 	if (plat->port_interface == ENABLE_RGMII_INTERFACE)
 		plat->mac_port_sel_speed = 1000;
 
-	if (plat->port_interface == ENABLE_SGMII_INTERFACE) {
+	if ((plat->port_interface == ENABLE_SGMII_INTERFACE) ||
+		(plat->port_interface == ENABLE_2500BASE_X_INTERFACE)) {
 		plat->mac_port_sel_speed = 2500;
 	}
 
@@ -1019,7 +1023,8 @@ static int tc956xmac_xgmac3_default_data(struct pci_dev *pdev,
 		plat->interface = PHY_INTERFACE_MODE_RGMII;
 		plat->max_speed = 1000;
 	}
-	if (plat->port_interface == ENABLE_SGMII_INTERFACE) {
+	if ((plat->port_interface == ENABLE_SGMII_INTERFACE) ||
+		(plat->port_interface == ENABLE_2500BASE_X_INTERFACE)) {
 		plat->interface = PHY_INTERFACE_MODE_SGMII;
 		plat->max_speed = 2500;
 	}
@@ -2433,7 +2438,7 @@ static int tc956xmac_pci_probe(struct pci_dev *pdev,
 	if (res.port_num == RM_PF0_ID) {
 		/* Set the PORT0 interface mode to default, in case of invalid input */
 		if ((mac0_interface ==  ENABLE_RGMII_INTERFACE) ||
-		(mac0_interface >  ENABLE_SGMII_INTERFACE))
+		(mac0_interface >  ENABLE_2500BASE_X_INTERFACE))
 			mac0_interface = ENABLE_XFI_INTERFACE;
 
 		res.port_interface = mac0_interface;
@@ -2442,7 +2447,7 @@ static int tc956xmac_pci_probe(struct pci_dev *pdev,
 	if (res.port_num == RM_PF1_ID) {
 		/* Set the PORT1 interface mode to default, in case of invalid input */
 		if ((mac1_interface <  ENABLE_RGMII_INTERFACE) ||
-		(mac1_interface >  ENABLE_SGMII_INTERFACE))
+		(mac1_interface >  ENABLE_2500BASE_X_INTERFACE))
 			mac1_interface = ENABLE_SGMII_INTERFACE;
 
 		res.port_interface = mac1_interface;
@@ -2591,7 +2596,8 @@ static int tc956xmac_pci_probe(struct pci_dev *pdev,
 
 		ret |= ((NCLKCTRL0_MAC0TXCEN | NCLKCTRL0_MAC0ALLCLKEN | NCLKCTRL0_MAC0RXCEN));
 		/* Only if "current" port is SGMII 2.5G, configure below clocks. */
-		if (res.port_interface == ENABLE_SGMII_INTERFACE) {
+		if ((res.port_interface == ENABLE_SGMII_INTERFACE) ||
+			(res.port_interface == ENABLE_2500BASE_X_INTERFACE)) {
 			ret &= ~NCLKCTRL0_POEPLLCEN;
 			ret &= ~NCLKCTRL0_SGMPCIEN;
 			ret &= ~NCLKCTRL0_REFCLKOCEN;
@@ -2603,7 +2609,8 @@ static int tc956xmac_pci_probe(struct pci_dev *pdev,
 		/* Interface configuration for port0*/
 		ret = readl(res.addr + NEMAC0CTL_OFFSET);
 		ret &= ~(NEMACCTL_SP_SEL_MASK | NEMACCTL_PHY_INF_SEL_MASK);
-		if (res.port_interface == ENABLE_SGMII_INTERFACE)
+		if ((res.port_interface == ENABLE_SGMII_INTERFACE) ||
+			(res.port_interface == ENABLE_2500BASE_X_INTERFACE))
 			ret |= NEMACCTL_SP_SEL_SGMII_2500M;
 		else if ((res.port_interface == ENABLE_USXGMII_INTERFACE) ||
 			(res.port_interface == ENABLE_XFI_INTERFACE))
@@ -2635,7 +2642,8 @@ static int tc956xmac_pci_probe(struct pci_dev *pdev,
 
 		ret |= ((NCLKCTRL1_MAC1TXCEN | NCLKCTRL1_MAC1RXCEN |
 		NCLKCTRL1_MAC1ALLCLKEN1 | 1 << 15));
-		if (res.port_interface == ENABLE_SGMII_INTERFACE) {
+		if ((res.port_interface == ENABLE_SGMII_INTERFACE) ||
+			(res.port_interface == ENABLE_2500BASE_X_INTERFACE)) {
 			ret &= ~NCLKCTRL1_MAC1125CLKEN1;
 			ret &= ~NCLKCTRL1_MAC1312CLKEN1;
 		}
@@ -2646,7 +2654,8 @@ static int tc956xmac_pci_probe(struct pci_dev *pdev,
 		ret &= ~(NEMACCTL_SP_SEL_MASK | NEMACCTL_PHY_INF_SEL_MASK);
 		if (res.port_interface == ENABLE_RGMII_INTERFACE)
 			ret |= NEMACCTL_SP_SEL_RGMII_1000M;
-		else if (res.port_interface == ENABLE_SGMII_INTERFACE)
+		else if ((res.port_interface == ENABLE_SGMII_INTERFACE) ||
+			(res.port_interface == ENABLE_2500BASE_X_INTERFACE))
 			ret |= NEMACCTL_SP_SEL_SGMII_2500M;
 		else if ((res.port_interface == ENABLE_USXGMII_INTERFACE) ||
 			(res.port_interface == ENABLE_XFI_INTERFACE))
@@ -3058,7 +3067,8 @@ static int tc956x_pcie_resume_config(struct pci_dev *pdev)
 		ret = readl(priv->tc956x_SFR_pci_base_addr + NCLKCTRL0_OFFSET);
 
 		ret |= ((NCLKCTRL0_MAC0TXCEN | NCLKCTRL0_MAC0ALLCLKEN | NCLKCTRL0_MAC0RXCEN));
-		if (priv->port_interface == ENABLE_SGMII_INTERFACE) {
+		if ((priv->port_interface == ENABLE_SGMII_INTERFACE) ||
+			(priv->port_interface == ENABLE_2500BASE_X_INTERFACE)) {
 			/* Disable Clocks for 2.5Gbps SGMII */
 			ret &= ~NCLKCTRL0_POEPLLCEN;
 			ret &= ~NCLKCTRL0_SGMPCIEN;
@@ -3071,7 +3081,8 @@ static int tc956x_pcie_resume_config(struct pci_dev *pdev)
 		/* Interface configuration for port0*/
 		ret = readl(priv->tc956x_SFR_pci_base_addr + NEMAC0CTL_OFFSET);
 		ret &= ~(NEMACCTL_SP_SEL_MASK | NEMACCTL_PHY_INF_SEL_MASK);
-		if (priv->port_interface == ENABLE_SGMII_INTERFACE)
+		if ((priv->port_interface == ENABLE_SGMII_INTERFACE) ||
+			(priv->port_interface == ENABLE_2500BASE_X_INTERFACE))
 			ret |= NEMACCTL_SP_SEL_SGMII_2500M;
 		else if ((priv->port_interface == ENABLE_USXGMII_INTERFACE) ||
 			(priv->port_interface == ENABLE_XFI_INTERFACE))
@@ -3103,7 +3114,8 @@ static int tc956x_pcie_resume_config(struct pci_dev *pdev)
 
 		ret |= ((NCLKCTRL1_MAC1TXCEN | NCLKCTRL1_MAC1RXCEN |
 		NCLKCTRL1_MAC1ALLCLKEN1 | 1 << 15));
-		if (priv->port_interface == ENABLE_SGMII_INTERFACE) {
+		if ((priv->port_interface == ENABLE_SGMII_INTERFACE) ||
+			(priv->port_interface == ENABLE_2500BASE_X_INTERFACE)) {
 			ret &= ~NCLKCTRL1_MAC1125CLKEN1;
 			ret &= ~NCLKCTRL1_MAC1312CLKEN1;
 		}
@@ -3114,7 +3126,8 @@ static int tc956x_pcie_resume_config(struct pci_dev *pdev)
 		ret &= ~(NEMACCTL_SP_SEL_MASK | NEMACCTL_PHY_INF_SEL_MASK);
 		if (priv->port_interface == ENABLE_RGMII_INTERFACE)
 			ret |= NEMACCTL_SP_SEL_RGMII_1000M;
-		else if (priv->port_interface == ENABLE_SGMII_INTERFACE)
+		else if ((priv->port_interface == ENABLE_SGMII_INTERFACE) ||
+			(priv->port_interface == ENABLE_2500BASE_X_INTERFACE))
 			ret |= NEMACCTL_SP_SEL_SGMII_2500M;
 		else if ((priv->port_interface == ENABLE_USXGMII_INTERFACE) ||
 			(priv->port_interface == ENABLE_XFI_INTERFACE))
@@ -3522,12 +3535,12 @@ MODULE_PARM_DESC(pcie_link_speed,
 module_param(mac0_interface, uint, 0444);
 MODULE_PARM_DESC(mac0_interface,
 		 "PORT0 interface mode TC956X - default is 1,\
-		 [0: USXGMII, 1: XFI, 2: RGMII(not supported), 3: SGMII]");
+		 [0: USXGMII, 1: XFI, 2: RGMII(not supported), 3: SGMII, 4: 2500Base-X]");
 
 module_param(mac1_interface, uint, 0444);
 MODULE_PARM_DESC(mac1_interface,
 		 "PORT1 interface mode TC956X - default is 3,\
-		 [0: USXGMII(not supported), 1: XFI(not supported), 2: RGMII, 3: SGMII]");
+		 [0: USXGMII(not supported), 1: XFI(not supported), 2: RGMII, 3: SGMII, 4: 2500Base-X]");
 
 module_param(mac0_filter_phy_pause, uint, 0444);
 MODULE_PARM_DESC(mac0_filter_phy_pause,

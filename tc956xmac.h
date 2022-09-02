@@ -160,6 +160,9 @@
  *  31 Aug 2022 : 1. Added Fix for configuring Rx Parser when EEE is enabled and RGMII Interface is used
  *		  2. Version update.
  *  VERSION     : 01-00-54
+ *  02 Sep 2022 : 1. 2500Base-X support for line speeds 2.5Gbps, 1Gbps, 100Mbps.
+ *		  2. Version update
+ *  VERSION     : 01-00-55
  */
 
 #ifndef __TC956XMAC_H__
@@ -215,7 +218,7 @@
 #define IRQ_DEV_NAME(x)		(((x) == RM_PF0_ID) ? ("eth0") : ("eth1"))
 #define WOL_IRQ_DEV_NAME(x)	(((x) == RM_PF0_ID) ? ("eth0_wol") : ("eth1_wol"))
 
-#define DRV_MODULE_VERSION	"V_01-00-54"
+#define DRV_MODULE_VERSION	"V_01-00-55"
 #define TC956X_FW_MAX_SIZE	(64*1024)
 
 #define ATR_AXI4_SLV_BASE		0x0800
@@ -345,7 +348,7 @@
 #define ENABLE_XFI_INTERFACE		1 /* XFI/SFI, this is same as USXGMII, except XPCS autoneg disabled */
 #define ENABLE_RGMII_INTERFACE		2
 #define ENABLE_SGMII_INTERFACE		3
-
+#define ENABLE_2500BASE_X_INTERFACE	4
 #define MTL_FPE_AFSZ_64		0
 #define MTL_FPE_AFSZ_128	1
 #define MTL_FPE_AFSZ_192	2
