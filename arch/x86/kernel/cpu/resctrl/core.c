@@ -413,6 +413,8 @@ static void setup_default_ctrlval(struct rdt_resource *r, u32 *dc)
 
 static void domain_free(struct rdt_hw_domain *hw_dom)
 {
+	kfree(hw_dom->arch_mbm_total);
+	kfree(hw_dom->arch_mbm_local);
 	kfree(hw_dom->ctrl_val);
 	kfree(hw_dom);
 }
@@ -435,6 +437,34 @@ static int domain_setup_ctrlval(struct rdt_resource *r, struct rdt_domain *d)
 	m.low = 0;
 	m.high = hw_res->num_closid;
 	hw_res->msr_update(d, &m, r);
+	return 0;
+}
+
+/**
+ * arch_domain_mbm_alloc() - Allocate arch private storage for the MBM counters
+ * @num_rmid:	The size of the MBM counter array
+ * @hw_dom:	The domain that owns the allocated arrays
+ */
+static int arch_domain_mbm_alloc(u32 num_rmid, struct rdt_hw_domain *hw_dom)
+{
+	size_t tsize;
+
+	if (is_mbm_total_enabled()) {
+		tsize = sizeof(*hw_dom->arch_mbm_total);
+		hw_dom->arch_mbm_total = kcalloc(num_rmid, tsize, GFP_KERNEL);
+		if (!hw_dom->arch_mbm_total)
+			return -ENOMEM;
+	}
+	if (is_mbm_local_enabled()) {
+		tsize = sizeof(*hw_dom->arch_mbm_local);
+		hw_dom->arch_mbm_local = kcalloc(num_rmid, tsize, GFP_KERNEL);
+		if (!hw_dom->arch_mbm_local) {
+			kfree(hw_dom->arch_mbm_total);
+			hw_dom->arch_mbm_total = NULL;
+			return -ENOMEM;
+		}
+	}
+
 	return 0;
 }
 
@@ -483,6 +513,11 @@ static void domain_add_cpu(int cpu, struct rdt_resource *r)
 	rdt_domain_reconfigure_cdp(r);
 
 	if (r->alloc_capable && domain_setup_ctrlval(r, d)) {
+		domain_free(hw_dom);
+		return;
+	}
+
+	if (r->mon_capable && arch_domain_mbm_alloc(r->num_rmid, hw_dom)) {
 		domain_free(hw_dom);
 		return;
 	}
