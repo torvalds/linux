@@ -491,7 +491,7 @@ static inline long get_nr_swap_pages(void)
 extern void si_swapinfo(struct sysinfo *);
 swp_entry_t folio_alloc_swap(struct folio *folio);
 bool folio_free_swap(struct folio *folio);
-extern void put_swap_page(struct page *page, swp_entry_t entry);
+void put_swap_folio(struct folio *folio, swp_entry_t entry);
 extern swp_entry_t get_swap_page_of_type(int);
 extern int get_swap_pages(int n, swp_entry_t swp_entries[], int entry_size);
 extern int add_swap_count_continuation(swp_entry_t, gfp_t);
@@ -576,7 +576,7 @@ static inline void swap_free(swp_entry_t swp)
 {
 }
 
-static inline void put_swap_page(struct page *page, swp_entry_t swp)
+static inline void put_swap_folio(struct folio *folio, swp_entry_t swp)
 {
 }
 

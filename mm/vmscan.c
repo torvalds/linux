@@ -1352,7 +1352,7 @@ static int __remove_mapping(struct address_space *mapping, struct folio *folio,
 		mem_cgroup_swapout(folio, swap);
 		__delete_from_swap_cache(folio, swap, shadow);
 		xa_unlock_irq(&mapping->i_pages);
-		put_swap_page(&folio->page, swap);
+		put_swap_folio(folio, swap);
 	} else {
 		void (*free_folio)(struct folio *);
 

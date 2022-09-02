@@ -218,7 +218,7 @@ bool add_to_swap(struct folio *folio)
 	return true;
 
 fail:
-	put_swap_page(&folio->page, entry);
+	put_swap_folio(folio, entry);
 	return false;
 }
 
@@ -237,7 +237,7 @@ void delete_from_swap_cache(struct folio *folio)
 	__delete_from_swap_cache(folio, entry, NULL);
 	xa_unlock_irq(&address_space->i_pages);
 
-	put_swap_page(&folio->page, entry);
+	put_swap_folio(folio, entry);
 	folio_ref_sub(folio, folio_nr_pages(folio));
 }
 
@@ -498,7 +498,7 @@ struct page *__read_swap_cache_async(swp_entry_t entry, gfp_t gfp_mask,
 	return &folio->page;
 
 fail_unlock:
-	put_swap_page(&folio->page, entry);
+	put_swap_folio(folio, entry);
 	folio_unlock(folio);
 	folio_put(folio);
 	return NULL;

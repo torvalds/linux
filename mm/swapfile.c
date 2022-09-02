@@ -1332,7 +1332,7 @@ void swap_free(swp_entry_t entry)
 /*
  * Called after dropping swapcache to decrease refcnt to swap entries.
  */
-void put_swap_page(struct page *page, swp_entry_t entry)
+void put_swap_folio(struct folio *folio, swp_entry_t entry)
 {
 	unsigned long offset = swp_offset(entry);
 	unsigned long idx = offset / SWAPFILE_CLUSTER;
@@ -1341,7 +1341,7 @@ void put_swap_page(struct page *page, swp_entry_t entry)
 	unsigned char *map;
 	unsigned int i, free_entries = 0;
 	unsigned char val;
-	int size = swap_entry_size(thp_nr_pages(page));
+	int size = swap_entry_size(folio_nr_pages(folio));
 
 	si = _swap_info_get(entry);
 	if (!si)
