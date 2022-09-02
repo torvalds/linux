@@ -279,9 +279,9 @@ static bool cy8c95x0_readable_register(struct device *dev, unsigned int reg)
 	switch (reg) {
 	case 0x24 ... 0x27:
 		return false;
+	default:
+		return true;
 	}
-
-	return true;
 }
 
 static bool cy8c95x0_writeable_register(struct device *dev, unsigned int reg)
@@ -293,9 +293,9 @@ static bool cy8c95x0_writeable_register(struct device *dev, unsigned int reg)
 		return false;
 	case 0x24 ... 0x27:
 		return false;
+	default:
+		return true;
 	}
-
-	return true;
 }
 
 static bool cy8c95x0_volatile_register(struct device *dev, unsigned int reg)
@@ -325,9 +325,9 @@ static bool cy8c95x0_precious_register(struct device *dev, unsigned int reg)
 	switch (reg) {
 	case CY8C95X0_INTSTATUS_(0) ... CY8C95X0_INTSTATUS_(7):
 		return true;
+	default:
+		return false;
 	}
-
-	return false;
 }
 
 static const struct reg_default cy8c95x0_reg_defaults[] = {
@@ -1255,6 +1255,8 @@ static int cy8c95x0_probe(struct i2c_client *client)
 	case 60:
 		strscpy(chip->name, cy8c95x0_id[2].name, I2C_NAME_SIZE);
 		break;
+	default:
+		return -ENODEV;
 	}
 
 	reg = devm_regulator_get(&client->dev, "vdd");
