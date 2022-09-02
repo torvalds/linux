@@ -1224,30 +1224,6 @@ static int cy8c95x0_setup_pinctrl(struct cy8c95x0_pinctrl *chip)
 	return 0;
 }
 
-static int device_cy8c95x0_init(struct cy8c95x0_pinctrl *chip)
-{
-	DECLARE_BITMAP(ones, MAX_LINE);
-	DECLARE_BITMAP(zeros, MAX_LINE);
-	int ret;
-
-	/* Set all pins to input. This is the POR default. */
-	bitmap_fill(ones, MAX_LINE);
-	ret = cy8c95x0_write_regs_mask(chip, CY8C95X0_DIRECTION, ones, ones);
-	if (ret) {
-		dev_err(chip->dev, "Failed to set pins to input\n");
-		return ret;
-	}
-
-	bitmap_zero(zeros, MAX_LINE);
-	ret = cy8c95x0_write_regs_mask(chip, CY8C95X0_INVERT, zeros, ones);
-	if (ret) {
-		dev_err(chip->dev, "Failed to set polarity inversion\n");
-		return ret;
-	}
-
-	return 0;
-}
-
 static int cy8c95x0_detect(struct i2c_client *client,
 			   struct i2c_board_info *info)
 {
@@ -1342,10 +1318,6 @@ static int cy8c95x0_probe(struct i2c_client *client)
 	bitmap_zero(chip->shiftmask, MAX_LINE);
 	bitmap_set(chip->shiftmask, 0, 20);
 	mutex_init(&chip->i2c_lock);
-
-	ret = device_cy8c95x0_init(chip);
-	if (ret)
-		goto err_exit;
 
 	if (client->irq) {
 		ret = cy8c95x0_irq_setup(chip, client->irq);
