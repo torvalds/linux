@@ -1758,8 +1758,9 @@ static inline int pte_same_as_swp(pte_t pte, pte_t swp_pte)
  * force COW, vm_page_prot omits write permission from any private vma.
  */
 static int unuse_pte(struct vm_area_struct *vma, pmd_t *pmd,
-		unsigned long addr, swp_entry_t entry, struct page *page)
+		unsigned long addr, swp_entry_t entry, struct folio *folio)
 {
+	struct page *page = folio_file_page(folio, swp_offset(entry));
 	struct page *swapcache;
 	spinlock_t *ptl;
 	pte_t *pte, new_pte;
@@ -1831,17 +1832,18 @@ static int unuse_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
 			unsigned long addr, unsigned long end,
 			unsigned int type)
 {
-	struct page *page;
 	swp_entry_t entry;
 	pte_t *pte;
 	struct swap_info_struct *si;
-	unsigned long offset;
 	int ret = 0;
 	volatile unsigned char *swap_map;
 
 	si = swap_info[type];
 	pte = pte_offset_map(pmd, addr);
 	do {
+		struct folio *folio;
+		unsigned long offset;
+
 		if (!is_swap_pte(*pte))
 			continue;
 
@@ -1852,8 +1854,9 @@ static int unuse_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
 		offset = swp_offset(entry);
 		pte_unmap(pte);
 		swap_map = &si->swap_map[offset];
-		page = lookup_swap_cache(entry, vma, addr);
-		if (!page) {
+		folio = swap_cache_get_folio(entry, vma, addr);
+		if (!folio) {
+			struct page *page;
 			struct vm_fault vmf = {
 				.vma = vma,
 				.address = addr,
@@ -1863,25 +1866,27 @@ static int unuse_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
 
 			page = swapin_readahead(entry, GFP_HIGHUSER_MOVABLE,
 						&vmf);
+			if (page)
+				folio = page_folio(page);
 		}
-		if (!page) {
+		if (!folio) {
 			if (*swap_map == 0 || *swap_map == SWAP_MAP_BAD)
 				goto try_next;
 			return -ENOMEM;
 		}
 
-		lock_page(page);
-		wait_on_page_writeback(page);
-		ret = unuse_pte(vma, pmd, addr, entry, page);
+		folio_lock(folio);
+		folio_wait_writeback(folio);
+		ret = unuse_pte(vma, pmd, addr, entry, folio);
 		if (ret < 0) {
-			unlock_page(page);
-			put_page(page);
+			folio_unlock(folio);
+			folio_put(folio);
 			goto out;
 		}
 
-		try_to_free_swap(page);
-		unlock_page(page);
-		put_page(page);
+		folio_free_swap(folio);
+		folio_unlock(folio);
+		folio_put(folio);
 try_next:
 		pte = pte_offset_map(pmd, addr);
 	} while (pte++, addr += PAGE_SIZE, addr != end);
