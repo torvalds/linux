@@ -894,51 +894,6 @@ u32 MapCharToHexDigit(char chTmp)
 		return 0;
 }
 
-
-
-/* 	Description: */
-/* 		Parse hex number from the string pucStr. */
-bool GetHexValueFromString(char *szStr, u32 *pu4bVal, u32 *pu4bMove)
-{
-	char *szScan = szStr;
-
-	/*  Check input parameter. */
-	if (!szStr || !pu4bVal || !pu4bMove)
-		return false;
-
-	/*  Initialize output. */
-	*pu4bMove = 0;
-	*pu4bVal = 0;
-
-	/*  Skip leading space. */
-	while (*szScan != '\0' && (*szScan == ' ' || *szScan == '\t')) {
-		szScan++;
-		(*pu4bMove)++;
-	}
-
-	/*  Skip leading '0x' or '0X'. */
-	if (*szScan == '0' && (*(szScan+1) == 'x' || *(szScan+1) == 'X')) {
-		szScan += 2;
-		(*pu4bMove) += 2;
-	}
-
-	/*  Check if szScan is now pointer to a character for hex digit, */
-	/*  if not, it means this is not a valid hex number. */
-	if (!IsHexDigit(*szScan))
-		return false;
-
-	/*  Parse each digit. */
-	do {
-		(*pu4bVal) <<= 4;
-		*pu4bVal += MapCharToHexDigit(*szScan);
-
-		szScan++;
-		(*pu4bMove)++;
-	} while (IsHexDigit(*szScan));
-
-	return true;
-}
-
 bool GetU1ByteIntegerFromStringInDecimal(char *Str, u8 *pInt)
 {
 	u16 i = 0;
