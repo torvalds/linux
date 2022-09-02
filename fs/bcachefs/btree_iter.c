@@ -2947,8 +2947,8 @@ void bch2_trans_exit(struct btree_trans *trans)
 }
 
 static void __maybe_unused
-bch2_btree_path_node_to_text(struct printbuf *out,
-			     struct btree_bkey_cached_common *b)
+bch2_btree_bkey_cached_common_to_text(struct printbuf *out,
+				      struct btree_bkey_cached_common *b)
 {
 	struct six_lock_count c = six_lock_counts(&b->lock);
 	struct task_struct *owner;
@@ -2959,11 +2959,13 @@ bch2_btree_path_node_to_text(struct printbuf *out,
 	pid = owner ? owner->pid : 0;;
 	rcu_read_unlock();
 
-	prt_printf(out, "    l=%u %s:",
-	       b->level, bch2_btree_ids[b->btree_id]);
+	prt_tab(out);
+	prt_printf(out, "%px %c l=%u %s:", b, b->cached ? 'c' : 'b',
+		   b->level, bch2_btree_ids[b->btree_id]);
 	bch2_bpos_to_text(out, btree_node_pos(b));
 
-	prt_printf(out, "    locks %u:%u:%u held by pid %u",
+	prt_tab(out);
+	prt_printf(out, " locks %u:%u:%u held by pid %u",
 		   c.n[0], c.n[1], c.n[2], pid);
 }
 
@@ -2973,6 +2975,11 @@ void bch2_btree_trans_to_text(struct printbuf *out, struct btree_trans *trans)
 	struct btree_bkey_cached_common *b;
 	static char lock_types[] = { 'r', 'i', 'w' };
 	unsigned l;
+
+	if (!out->nr_tabstops) {
+		printbuf_tabstop_push(out, 16);
+		printbuf_tabstop_push(out, 32);
+	}
 
 	prt_printf(out, "%i %s\n", trans->locking_wait.task->pid, trans->fn);
 
@@ -2986,24 +2993,26 @@ void bch2_btree_trans_to_text(struct printbuf *out, struct btree_trans *trans)
 		       path->level,
 		       bch2_btree_ids[path->btree_id]);
 		bch2_bpos_to_text(out, path->pos);
-		prt_printf(out, "\n");
+		prt_newline(out);
 
 		for (l = 0; l < BTREE_MAX_DEPTH; l++) {
 			if (btree_node_locked(path, l) &&
 			    !IS_ERR_OR_NULL(b = (void *) READ_ONCE(path->l[l].b))) {
 				prt_printf(out, "    %c l=%u ",
 					   lock_types[btree_node_locked_type(path, l)], l);
-				bch2_btree_path_node_to_text(out, b);
-				prt_printf(out, "\n");
+				bch2_btree_bkey_cached_common_to_text(out, b);
+				prt_newline(out);
 			}
 		}
 	}
 
 	b = READ_ONCE(trans->locking);
 	if (b) {
-		prt_printf(out, " locking node ");
-		bch2_btree_path_node_to_text(out, b);
-		prt_printf(out, "\n");
+		prt_str(out, "  want");
+		prt_newline(out);
+		prt_printf(out, "    %c", lock_types[trans->locking_wait.lock_want]);
+		bch2_btree_bkey_cached_common_to_text(out, b);
+		prt_newline(out);
 	}
 }
 
