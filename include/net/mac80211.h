@@ -7184,4 +7184,45 @@ static inline bool ieee80211_is_tx_data(struct sk_buff *skb)
 	       ieee80211_is_data(hdr->frame_control);
 }
 
+/**
+ * ieee80211_set_active_links - set active links in client mode
+ * @vif: interface to set active links on
+ * @active_links: the new active links bitmap
+ *
+ * This changes the active links on an interface. The interface
+ * must be in client mode (in AP mode, all links are always active),
+ * and @active_links must be a subset of the vif's valid_links.
+ *
+ * If a link is switched off and another is switched on at the same
+ * time (e.g. active_links going from 0x1 to 0x10) then you will get
+ * a sequence of calls like
+ *  - change_vif_links(0x11)
+ *  - unassign_vif_chanctx(link_id=0)
+ *  - change_sta_links(0x11) for each affected STA (the AP)
+ *    (TDLS connections on now inactive links should be torn down)
+ *  - remove group keys on the old link (link_id 0)
+ *  - add new group keys (GTK/IGTK/BIGTK) on the new link (link_id 4)
+ *  - change_sta_links(0x10) for each affected STA (the AP)
+ *  - assign_vif_chanctx(link_id=4)
+ *  - change_vif_links(0x10)
+ *
+ * Note: This function acquires some mac80211 locks and must not
+ *	 be called with any driver locks held that could cause a
+ *	 lock dependency inversion. Best call it without locks.
+ */
+int ieee80211_set_active_links(struct ieee80211_vif *vif, u16 active_links);
+
+/**
+ * ieee80211_set_active_links_async - asynchronously set active links
+ * @vif: interface to set active links on
+ * @active_links: the new active links bitmap
+ *
+ * See ieee80211_set_active_links() for more information, the only
+ * difference here is that the link change is triggered async and
+ * can be called in any context, but the link switch will only be
+ * completed after it returns.
+ */
+void ieee80211_set_active_links_async(struct ieee80211_vif *vif,
+				      u16 active_links);
+
 #endif /* MAC80211_H */

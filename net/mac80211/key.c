@@ -1445,3 +1445,37 @@ void ieee80211_key_replay(struct ieee80211_key_conf *keyconf)
 	}
 }
 EXPORT_SYMBOL_GPL(ieee80211_key_replay);
+
+int ieee80211_key_switch_links(struct ieee80211_sub_if_data *sdata,
+			       unsigned long del_links_mask,
+			       unsigned long add_links_mask)
+{
+	struct ieee80211_key *key;
+	int ret;
+
+	list_for_each_entry(key, &sdata->key_list, list) {
+		if (key->conf.link_id < 0 ||
+		    !(del_links_mask & BIT(key->conf.link_id)))
+			continue;
+
+		/* shouldn't happen for per-link keys */
+		WARN_ON(key->sta);
+
+		ieee80211_key_disable_hw_accel(key);
+	}
+
+	list_for_each_entry(key, &sdata->key_list, list) {
+		if (key->conf.link_id < 0 ||
+		    !(add_links_mask & BIT(key->conf.link_id)))
+			continue;
+
+		/* shouldn't happen for per-link keys */
+		WARN_ON(key->sta);
+
+		ret = ieee80211_key_enable_hw_accel(key);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
