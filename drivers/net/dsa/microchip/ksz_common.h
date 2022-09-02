@@ -16,6 +16,8 @@
 
 #define KSZ_MAX_NUM_PORTS 8
 
+struct ksz_device;
+
 struct vlan_table {
 	u32 table[3];
 };
@@ -83,6 +85,8 @@ struct ksz_port {
 	u16 max_frame;
 	u32 rgmii_tx_val;
 	u32 rgmii_rx_val;
+	struct ksz_device *ksz_dev;
+	u8 num;
 };
 
 struct ksz_device {

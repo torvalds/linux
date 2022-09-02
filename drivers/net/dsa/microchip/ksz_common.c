@@ -2357,6 +2357,9 @@ int ksz_switch_register(struct ksz_device *dev)
 				     GFP_KERNEL);
 		if (!dev->ports[i].mib.counters)
 			return -ENOMEM;
+
+		dev->ports[i].ksz_dev = dev;
+		dev->ports[i].num = i;
 	}
 
 	/* set the real number of ports */
