@@ -2871,3 +2871,13 @@ void ieee80211_sta_set_max_amsdu_subframes(struct sta_info *sta,
 	if (val)
 		sta->sta.max_amsdu_subframes = 4 << val;
 }
+
+#ifdef CONFIG_LOCKDEP
+bool lockdep_sta_mutex_held(struct ieee80211_sta *pubsta)
+{
+	struct sta_info *sta = container_of(pubsta, struct sta_info, sta);
+
+	return lockdep_is_held(&sta->local->sta_mtx);
+}
+EXPORT_SYMBOL(lockdep_sta_mutex_held);
+#endif
