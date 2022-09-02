@@ -177,6 +177,10 @@ static int ieee80211_key_enable_hw_accel(struct ieee80211_key *key)
 		}
 	}
 
+	if (key->conf.link_id >= 0 && sdata->vif.active_links &&
+	    !(sdata->vif.active_links & BIT(key->conf.link_id)))
+		return 0;
+
 	ret = drv_set_key(key->local, SET_KEY, sdata,
 			  sta ? &sta->sta : NULL, &key->conf);
 
@@ -245,6 +249,10 @@ static void ieee80211_key_disable_hw_accel(struct ieee80211_key *key)
 
 	sta = key->sta;
 	sdata = key->sdata;
+
+	if (key->conf.link_id >= 0 && sdata->vif.active_links &&
+	    !(sdata->vif.active_links & BIT(key->conf.link_id)))
+		return;
 
 	if (!(key->conf.flags & (IEEE80211_KEY_FLAG_GENERATE_MMIC |
 				 IEEE80211_KEY_FLAG_PUT_MIC_SPACE |

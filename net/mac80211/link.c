@@ -73,28 +73,37 @@ struct link_container {
 	struct ieee80211_bss_conf conf;
 };
 
-static void ieee80211_free_links(struct ieee80211_sub_if_data *sdata,
-				 struct link_container **links)
+static void ieee80211_tear_down_links(struct ieee80211_sub_if_data *sdata,
+				      struct link_container **links, u16 mask)
 {
+	struct ieee80211_link_data *link;
 	LIST_HEAD(keys);
 	unsigned int link_id;
 
 	for (link_id = 0; link_id < IEEE80211_MLD_MAX_NUM_LINKS; link_id++) {
-		if (!links[link_id])
+		if (!(mask & BIT(link_id)))
 			continue;
-		ieee80211_remove_link_keys(&links[link_id]->data, &keys);
+		link = &links[link_id]->data;
+		if (link_id == 0 && !link)
+			link = &sdata->deflink;
+		if (WARN_ON(!link))
+			continue;
+		ieee80211_remove_link_keys(link, &keys);
+		ieee80211_link_stop(link);
 	}
 
 	synchronize_rcu();
 
 	ieee80211_free_key_list(sdata->local, &keys);
+}
 
-	for (link_id = 0; link_id < IEEE80211_MLD_MAX_NUM_LINKS; link_id++) {
-		if (!links[link_id])
-			continue;
-		ieee80211_link_stop(&links[link_id]->data);
+static void ieee80211_free_links(struct ieee80211_sub_if_data *sdata,
+				 struct link_container **links)
+{
+	unsigned int link_id;
+
+	for (link_id = 0; link_id < IEEE80211_MLD_MAX_NUM_LINKS; link_id++)
 		kfree(links[link_id]);
-	}
 }
 
 static int ieee80211_check_dup_link_addrs(struct ieee80211_sub_if_data *sdata)
@@ -123,11 +132,38 @@ static int ieee80211_check_dup_link_addrs(struct ieee80211_sub_if_data *sdata)
 	return 0;
 }
 
+static void ieee80211_set_vif_links_bitmaps(struct ieee80211_sub_if_data *sdata,
+					    u16 links)
+{
+	sdata->vif.valid_links = links;
+
+	if (!links) {
+		sdata->vif.active_links = 0;
+		return;
+	}
+
+	switch (sdata->vif.type) {
+	case NL80211_IFTYPE_AP:
+		/* in an AP all links are always active */
+		sdata->vif.active_links = links;
+		break;
+	case NL80211_IFTYPE_STATION:
+		if (sdata->vif.active_links)
+			break;
+		WARN_ON(hweight16(links) > 1);
+		sdata->vif.active_links = links;
+		break;
+	default:
+		WARN_ON(1);
+	}
+}
+
 static int ieee80211_vif_update_links(struct ieee80211_sub_if_data *sdata,
 				      struct link_container **to_free,
 				      u16 new_links)
 {
 	u16 old_links = sdata->vif.valid_links;
+	u16 old_active = sdata->vif.active_links;
 	unsigned long add = new_links & ~old_links;
 	unsigned long rem = old_links & ~new_links;
 	unsigned int link_id;
@@ -195,13 +231,17 @@ static int ieee80211_vif_update_links(struct ieee80211_sub_if_data *sdata,
 		ieee80211_link_init(sdata, -1, &sdata->deflink,
 				    &sdata->vif.bss_conf);
 
-	sdata->vif.valid_links = new_links;
-
 	ret = ieee80211_check_dup_link_addrs(sdata);
 	if (!ret) {
+		/* for keys we will not be able to undo this */
+		ieee80211_tear_down_links(sdata, to_free, rem);
+
+		ieee80211_set_vif_links_bitmaps(sdata, new_links);
+
 		/* tell the driver */
 		ret = drv_change_vif_links(sdata->local, sdata,
-					   old_links, new_links,
+					   old_links & old_active,
+					   new_links & sdata->vif.active_links,
 					   old);
 	}
 
@@ -209,7 +249,7 @@ static int ieee80211_vif_update_links(struct ieee80211_sub_if_data *sdata,
 		/* restore config */
 		memcpy(sdata->link, old_data, sizeof(old_data));
 		memcpy(sdata->vif.link_conf, old, sizeof(old));
-		sdata->vif.valid_links = old_links;
+		ieee80211_set_vif_links_bitmaps(sdata, old_links);
 		/* and free (only) the newly allocated links */
 		memset(to_free, 0, sizeof(links));
 		goto free;

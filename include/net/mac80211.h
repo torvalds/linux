@@ -1799,6 +1799,9 @@ struct ieee80211_vif_cfg {
  * @link_conf: in case of MLD, the per-link BSS configuration,
  *	indexed by link ID
  * @valid_links: bitmap of valid links, or 0 for non-MLO.
+ * @active_links: The bitmap of active links, or 0 for non-MLO.
+ *	The driver shouldn't change this directly, but use the
+ *	API calls meant for that purpose.
  * @addr: address of this interface
  * @p2p: indicates whether this AP or STA interface is a p2p
  *	interface, i.e. a GO or p2p-sta respectively
@@ -1834,7 +1837,7 @@ struct ieee80211_vif {
 	struct ieee80211_vif_cfg cfg;
 	struct ieee80211_bss_conf bss_conf;
 	struct ieee80211_bss_conf __rcu *link_conf[IEEE80211_MLD_MAX_NUM_LINKS];
-	u16 valid_links;
+	u16 valid_links, active_links;
 	u8 addr[ETH_ALEN] __aligned(2);
 	bool p2p;
 
@@ -1861,12 +1864,11 @@ struct ieee80211_vif {
 	u8 drv_priv[] __aligned(sizeof(void *));
 };
 
-/* FIXME: for now loop over all the available links; later will be changed
- * to loop only over the active links.
- */
-#define for_each_vif_active_link(vif, link, link_id)			     \
-	for (link_id = 0; link_id < ARRAY_SIZE((vif)->link_conf); link_id++) \
-		if ((link = rcu_dereference((vif)->link_conf[link_id])))
+#define for_each_vif_active_link(vif, link, link_id)				\
+	for (link_id = 0; link_id < ARRAY_SIZE((vif)->link_conf); link_id++)	\
+		if ((!(vif)->active_links ||					\
+		     (vif)->active_links & BIT(link_id)) &&			\
+		    (link = rcu_dereference((vif)->link_conf[link_id])))
 
 static inline bool ieee80211_vif_is_mesh(struct ieee80211_vif *vif)
 {
@@ -2264,13 +2266,13 @@ struct ieee80211_sta {
 	u8 drv_priv[] __aligned(sizeof(void *));
 };
 
-/* FIXME: need to loop only over links which are active and check the actual
- * lock
- */
-#define for_each_sta_active_link(sta, link_sta, link_id)		         \
-	for (link_id = 0; link_id < ARRAY_SIZE((sta)->link); link_id++)	         \
-		if (((link_sta) = rcu_dereference_protected((sta)->link[link_id],\
-							    1)))	         \
+/* FIXME: check the locking correctly */
+#define for_each_sta_active_link(vif, sta, link_sta, link_id)			\
+	for (link_id = 0; link_id < ARRAY_SIZE((sta)->link); link_id++)		\
+		if ((!(vif)->active_links ||					\
+		     (vif)->active_links & BIT(link_id)) &&			\
+		    ((link_sta) = rcu_dereference_protected((sta)->link[link_id],\
+							    1)))
 
 /**
  * enum sta_notify_cmd - sta notify command

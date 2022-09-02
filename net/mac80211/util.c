@@ -2900,7 +2900,7 @@ void ieee80211_recalc_min_chandef(struct ieee80211_sub_if_data *sdata,
 		 */
 		rcu_read_unlock();
 
-		if (WARN_ON_ONCE(!chanctx_conf))
+		if (!chanctx_conf)
 			goto unlock;
 
 		chanctx = container_of(chanctx_conf, struct ieee80211_chanctx,
