@@ -1568,7 +1568,8 @@ minstrel_ht_update_rates(struct minstrel_priv *mp, struct minstrel_ht_sta *mi)
 	if (i < IEEE80211_TX_RATE_TABLE_SIZE)
 		rates->rate[i].idx = -1;
 
-	mi->sta->max_rc_amsdu_len = minstrel_ht_get_max_amsdu_len(mi);
+	mi->sta->deflink.agg.max_rc_amsdu_len = minstrel_ht_get_max_amsdu_len(mi);
+	ieee80211_sta_recalc_aggregates(mi->sta);
 	rate_control_set_rates(mp->hw, mi->sta, rates);
 }
 
