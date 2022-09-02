@@ -155,6 +155,7 @@ static int __replace_page(struct vm_area_struct *vma, unsigned long addr,
 				struct page *old_page, struct page *new_page)
 {
 	struct folio *old_folio = page_folio(old_page);
+	struct folio *new_folio;
 	struct mm_struct *mm = vma->vm_mm;
 	DEFINE_FOLIO_VMA_WALK(pvmw, old_folio, vma, addr, 0);
 	int err;
@@ -164,8 +165,8 @@ static int __replace_page(struct vm_area_struct *vma, unsigned long addr,
 				addr + PAGE_SIZE);
 
 	if (new_page) {
-		err = mem_cgroup_charge(page_folio(new_page), vma->vm_mm,
-					GFP_KERNEL);
+		new_folio = page_folio(new_page);
+		err = mem_cgroup_charge(new_folio, vma->vm_mm, GFP_KERNEL);
 		if (err)
 			return err;
 	}
@@ -180,9 +181,9 @@ static int __replace_page(struct vm_area_struct *vma, unsigned long addr,
 	VM_BUG_ON_PAGE(addr != pvmw.address, old_page);
 
 	if (new_page) {
-		get_page(new_page);
+		folio_get(new_folio);
 		page_add_new_anon_rmap(new_page, vma, addr);
-		lru_cache_add_inactive_or_unevictable(new_page, vma);
+		folio_add_lru_vma(new_folio, vma);
 	} else
 		/* no new page, just dec_mm_counter for old_page */
 		dec_mm_counter(mm, MM_ANONPAGES);
