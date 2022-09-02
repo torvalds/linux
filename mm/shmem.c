@@ -1328,17 +1328,18 @@ static int shmem_writepage(struct page *page, struct writeback_control *wbc)
 	 * "force", drivers/gpu/drm/i915/gem/i915_gem_shmem.c gets huge pages,
 	 * and its shmem_writeback() needs them to be split when swapping.
 	 */
-	if (PageTransCompound(page)) {
+	if (folio_test_large(folio)) {
 		/* Ensure the subpages are still dirty */
-		SetPageDirty(page);
+		folio_test_set_dirty(folio);
 		if (split_huge_page(page) < 0)
 			goto redirty;
-		ClearPageDirty(page);
+		folio = page_folio(page);
+		folio_clear_dirty(folio);
 	}
 
-	BUG_ON(!PageLocked(page));
-	mapping = page->mapping;
-	index = page->index;
+	BUG_ON(!folio_test_locked(folio));
+	mapping = folio->mapping;
+	index = folio->index;
 	inode = mapping->host;
 	info = SHMEM_I(inode);
 	if (info->flags & VM_LOCKED)
@@ -1361,15 +1362,15 @@ static int shmem_writepage(struct page *page, struct writeback_control *wbc)
 	/*
 	 * This is somewhat ridiculous, but without plumbing a SWAP_MAP_FALLOC
 	 * value into swapfile.c, the only way we can correctly account for a
-	 * fallocated page arriving here is now to initialize it and write it.
+	 * fallocated folio arriving here is now to initialize it and write it.
 	 *
-	 * That's okay for a page already fallocated earlier, but if we have
+	 * That's okay for a folio already fallocated earlier, but if we have
 	 * not yet completed the fallocation, then (a) we want to keep track
-	 * of this page in case we have to undo it, and (b) it may not be a
+	 * of this folio in case we have to undo it, and (b) it may not be a
 	 * good idea to continue anyway, once we're pushing into swap.  So
-	 * reactivate the page, and let shmem_fallocate() quit when too many.
+	 * reactivate the folio, and let shmem_fallocate() quit when too many.
 	 */
-	if (!PageUptodate(page)) {
+	if (!folio_test_uptodate(folio)) {
 		if (inode->i_private) {
 			struct shmem_falloc *shmem_falloc;
 			spin_lock(&inode->i_lock);
@@ -1385,9 +1386,9 @@ static int shmem_writepage(struct page *page, struct writeback_control *wbc)
 			if (shmem_falloc)
 				goto redirty;
 		}
-		clear_highpage(page);
-		flush_dcache_page(page);
-		SetPageUptodate(page);
+		folio_zero_range(folio, 0, folio_size(folio));
+		flush_dcache_folio(folio);
+		folio_mark_uptodate(folio);
 	}
 
 	swap = folio_alloc_swap(folio);
@@ -1396,7 +1397,7 @@ static int shmem_writepage(struct page *page, struct writeback_control *wbc)
 
 	/*
 	 * Add inode to shmem_unuse()'s list of swapped-out inodes,
-	 * if it's not already there.  Do it now before the page is
+	 * if it's not already there.  Do it now before the folio is
 	 * moved to swap cache, when its pagelock no longer protects
 	 * the inode from eviction.  But don't unlock the mutex until
 	 * we've incremented swapped, because shmem_unuse_inode() will
@@ -1406,7 +1407,7 @@ static int shmem_writepage(struct page *page, struct writeback_control *wbc)
 	if (list_empty(&info->swaplist))
 		list_add(&info->swaplist, &shmem_swaplist);
 
-	if (add_to_swap_cache(page, swap,
+	if (add_to_swap_cache(&folio->page, swap,
 			__GFP_HIGH | __GFP_NOMEMALLOC | __GFP_NOWARN,
 			NULL) == 0) {
 		spin_lock_irq(&info->lock);
@@ -1415,21 +1416,21 @@ static int shmem_writepage(struct page *page, struct writeback_control *wbc)
 		spin_unlock_irq(&info->lock);
 
 		swap_shmem_alloc(swap);
-		shmem_delete_from_page_cache(page, swp_to_radix_entry(swap));
+		shmem_delete_from_page_cache(&folio->page, swp_to_radix_entry(swap));
 
 		mutex_unlock(&shmem_swaplist_mutex);
-		BUG_ON(page_mapped(page));
-		swap_writepage(page, wbc);
+		BUG_ON(folio_mapped(folio));
+		swap_writepage(&folio->page, wbc);
 		return 0;
 	}
 
 	mutex_unlock(&shmem_swaplist_mutex);
-	put_swap_page(page, swap);
+	put_swap_page(&folio->page, swap);
 redirty:
-	set_page_dirty(page);
+	folio_mark_dirty(folio);
 	if (wbc->for_reclaim)
-		return AOP_WRITEPAGE_ACTIVATE;	/* Return with page locked */
-	unlock_page(page);
+		return AOP_WRITEPAGE_ACTIVATE;	/* Return with folio locked */
+	folio_unlock(folio);
 	return 0;
 }
 
