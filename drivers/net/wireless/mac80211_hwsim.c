@@ -1734,12 +1734,19 @@ mac80211_hwsim_select_tx_link(struct mac80211_hwsim_data *data,
 		/* round-robin the available link IDs */
 		link_id = (sp->last_link + i + 1) % ARRAY_SIZE(vif->link_conf);
 
+		if (!(vif->active_links & BIT(link_id)))
+			continue;
+
 		*link_sta = rcu_dereference(sta->link[link_id]);
 		if (!*link_sta)
 			continue;
 
 		bss_conf = rcu_dereference(vif->link_conf[link_id]);
 		if (WARN_ON_ONCE(!bss_conf))
+			continue;
+
+		/* can happen while switching links */
+		if (!rcu_access_pointer(bss_conf->chanctx_conf))
 			continue;
 
 		sp->last_link = link_id;
