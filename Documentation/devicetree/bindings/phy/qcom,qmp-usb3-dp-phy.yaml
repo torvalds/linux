@@ -53,6 +53,9 @@ properties:
       - const: ref
       - const: com_aux
 
+  power-domains:
+    maxItems: 1
+
   resets:
     items:
       - description: reset of phy block.
@@ -158,6 +161,17 @@ required:
   - vdda-pll-supply
 
 additionalProperties: false
+
+allOf:
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - qcom,sc8280xp-qmp-usb43dp-phy
+    then:
+      required:
+        - power-domains
 
 examples:
   - |
