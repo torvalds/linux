@@ -1431,30 +1431,6 @@ void swapcache_free_entries(swp_entry_t *entries, int n)
 		spin_unlock(&p->lock);
 }
 
-/*
- * How many references to page are currently swapped out?
- * This does not give an exact answer when swap count is continued,
- * but does include the high COUNT_CONTINUED flag to allow for that.
- */
-static int page_swapcount(struct page *page)
-{
-	int count = 0;
-	struct swap_info_struct *p;
-	struct swap_cluster_info *ci;
-	swp_entry_t entry;
-	unsigned long offset;
-
-	entry.val = page_private(page);
-	p = _swap_info_get(entry);
-	if (p) {
-		offset = swp_offset(entry);
-		ci = lock_cluster_or_swap_info(p, offset);
-		count = swap_count(p->swap_map[offset]);
-		unlock_cluster_or_swap_info(p, ci);
-	}
-	return count;
-}
-
 int __swap_count(swp_entry_t entry)
 {
 	struct swap_info_struct *si;
@@ -1469,11 +1445,16 @@ int __swap_count(swp_entry_t entry)
 	return count;
 }
 
+/*
+ * How many references to @entry are currently swapped out?
+ * This does not give an exact answer when swap count is continued,
+ * but does include the high COUNT_CONTINUED flag to allow for that.
+ */
 static int swap_swapcount(struct swap_info_struct *si, swp_entry_t entry)
 {
-	int count = 0;
 	pgoff_t offset = swp_offset(entry);
 	struct swap_cluster_info *ci;
+	int count;
 
 	ci = lock_cluster_or_swap_info(si, offset);
 	count = swap_count(si->swap_map[offset]);
@@ -1574,17 +1555,16 @@ unlock_out:
 
 static bool folio_swapped(struct folio *folio)
 {
-	swp_entry_t entry;
-	struct swap_info_struct *si;
+	swp_entry_t entry = folio_swap_entry(folio);
+	struct swap_info_struct *si = _swap_info_get(entry);
+
+	if (!si)
+		return false;
 
 	if (!IS_ENABLED(CONFIG_THP_SWAP) || likely(!folio_test_large(folio)))
-		return page_swapcount(&folio->page) != 0;
+		return swap_swapcount(si, entry) != 0;
 
-	entry = folio_swap_entry(folio);
-	si = _swap_info_get(entry);
-	if (si)
-		return swap_page_trans_huge_swapped(si, entry);
-	return false;
+	return swap_page_trans_huge_swapped(si, entry);
 }
 
 /*
