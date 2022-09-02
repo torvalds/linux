@@ -3512,8 +3512,7 @@ bool ieee80211_chandef_vht_oper(struct ieee80211_hw *hw, u32 vht_cap_info,
 	return true;
 }
 
-void ieee80211_chandef_eht_oper(struct ieee80211_sub_if_data *sdata,
-				const struct ieee80211_eht_operation *eht_oper,
+void ieee80211_chandef_eht_oper(const struct ieee80211_eht_operation *eht_oper,
 				bool support_160, bool support_320,
 				struct cfg80211_chan_def *chandef)
 {
@@ -3689,7 +3688,7 @@ bool ieee80211_chandef_he_6ghz_oper(struct ieee80211_sub_if_data *sdata,
 		support_320 =
 			eht_phy_cap & IEEE80211_EHT_PHY_CAP0_320MHZ_IN_6GHZ;
 
-		ieee80211_chandef_eht_oper(sdata, eht_oper, support_160,
+		ieee80211_chandef_eht_oper(eht_oper, support_160,
 					   support_320, &he_chandef);
 	}
 

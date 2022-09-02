@@ -314,7 +314,7 @@ ieee80211_determine_chantype(struct ieee80211_sub_if_data *sdata,
 	if (eht_oper && (eht_oper->params & IEEE80211_EHT_OPER_INFO_PRESENT)) {
 		struct cfg80211_chan_def eht_chandef = *chandef;
 
-		ieee80211_chandef_eht_oper(sdata, eht_oper,
+		ieee80211_chandef_eht_oper(eht_oper,
 					   eht_chandef.width ==
 					   NL80211_CHAN_WIDTH_160,
 					   false, &eht_chandef);
