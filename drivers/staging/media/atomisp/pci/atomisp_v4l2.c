@@ -441,6 +441,7 @@ int atomisp_video_init(struct atomisp_video_pipe *video, const char *name,
 		video->pad.flags = MEDIA_PAD_FL_SINK;
 		video->vdev.fops = &atomisp_fops;
 		video->vdev.ioctl_ops = &atomisp_ioctl_ops;
+		video->vdev.lock = &video->isp->mutex;
 		break;
 	default:
 		return -EINVAL;
