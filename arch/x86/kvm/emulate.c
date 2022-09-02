@@ -3647,13 +3647,10 @@ static int em_wrmsr(struct x86_emulate_ctxt *ctxt)
 		| ((u64)reg_read(ctxt, VCPU_REGS_RDX) << 32);
 	r = ctxt->ops->set_msr_with_filter(ctxt, msr_index, msr_data);
 
-	if (r == X86EMUL_IO_NEEDED)
-		return r;
-
-	if (r > 0)
+	if (r == X86EMUL_PROPAGATE_FAULT)
 		return emulate_gp(ctxt, 0);
 
-	return r < 0 ? X86EMUL_UNHANDLEABLE : X86EMUL_CONTINUE;
+	return r;
 }
 
 static int em_rdmsr(struct x86_emulate_ctxt *ctxt)
@@ -3664,15 +3661,14 @@ static int em_rdmsr(struct x86_emulate_ctxt *ctxt)
 
 	r = ctxt->ops->get_msr_with_filter(ctxt, msr_index, &msr_data);
 
-	if (r == X86EMUL_IO_NEEDED)
-		return r;
-
-	if (r)
+	if (r == X86EMUL_PROPAGATE_FAULT)
 		return emulate_gp(ctxt, 0);
 
-	*reg_write(ctxt, VCPU_REGS_RAX) = (u32)msr_data;
-	*reg_write(ctxt, VCPU_REGS_RDX) = msr_data >> 32;
-	return X86EMUL_CONTINUE;
+	if (r == X86EMUL_CONTINUE) {
+		*reg_write(ctxt, VCPU_REGS_RAX) = (u32)msr_data;
+		*reg_write(ctxt, VCPU_REGS_RDX) = msr_data >> 32;
+	}
+	return r;
 }
 
 static int em_store_sreg(struct x86_emulate_ctxt *ctxt, int segment)

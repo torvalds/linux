@@ -7920,14 +7920,17 @@ static int emulator_get_msr_with_filter(struct x86_emulate_ctxt *ctxt,
 	int r;
 
 	r = kvm_get_msr_with_filter(vcpu, msr_index, pdata);
+	if (r < 0)
+		return X86EMUL_UNHANDLEABLE;
 
-	if (r && kvm_msr_user_space(vcpu, msr_index, KVM_EXIT_X86_RDMSR, 0,
-				    complete_emulated_rdmsr, r)) {
-		/* Bounce to user space */
-		return X86EMUL_IO_NEEDED;
+	if (r) {
+		if (kvm_msr_user_space(vcpu, msr_index, KVM_EXIT_X86_RDMSR, 0,
+				       complete_emulated_rdmsr, r))
+			return X86EMUL_IO_NEEDED;
+		return X86EMUL_PROPAGATE_FAULT;
 	}
 
-	return r;
+	return X86EMUL_CONTINUE;
 }
 
 static int emulator_set_msr_with_filter(struct x86_emulate_ctxt *ctxt,
@@ -7937,14 +7940,17 @@ static int emulator_set_msr_with_filter(struct x86_emulate_ctxt *ctxt,
 	int r;
 
 	r = kvm_set_msr_with_filter(vcpu, msr_index, data);
+	if (r < 0)
+		return X86EMUL_UNHANDLEABLE;
 
-	if (r && kvm_msr_user_space(vcpu, msr_index, KVM_EXIT_X86_WRMSR, data,
-				    complete_emulated_msr_access, r)) {
-		/* Bounce to user space */
-		return X86EMUL_IO_NEEDED;
+	if (r) {
+		if (kvm_msr_user_space(vcpu, msr_index, KVM_EXIT_X86_WRMSR, data,
+				       complete_emulated_msr_access, r))
+			return X86EMUL_IO_NEEDED;
+		return X86EMUL_PROPAGATE_FAULT;
 	}
 
-	return r;
+	return X86EMUL_CONTINUE;
 }
 
 static int emulator_get_msr(struct x86_emulate_ctxt *ctxt,
