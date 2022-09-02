@@ -1070,6 +1070,12 @@
 	pinctrl-0 = <&pinctrl_i2c4>;
 	status = "okay";
 
+	vcm@c {
+		compatible = "dongwoon,dw9714";
+		reg = <0x0c>;
+		vcc-supply = <&reg_csi_1v8>;
+	};
+
 	bat: fuel-gauge@36 {
 		compatible = "maxim,max17055";
 		reg = <0x36>;
