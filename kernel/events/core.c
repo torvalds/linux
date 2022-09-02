@@ -1468,6 +1468,8 @@ static void __update_context_time(struct perf_event_context *ctx, bool adv)
 {
 	u64 now = perf_clock();
 
+	lockdep_assert_held(&ctx->lock);
+
 	if (adv)
 		ctx->time += now - ctx->timestamp;
 	ctx->timestamp = now;

@@ -61,6 +61,7 @@ struct perf_guest_info_callbacks {
 #include <linux/refcount.h>
 #include <linux/security.h>
 #include <linux/static_call.h>
+#include <linux/lockdep.h>
 #include <asm/local.h>
 
 struct perf_callchain_entry {
@@ -634,7 +635,23 @@ struct pmu_event_list {
 	struct list_head	list;
 };
 
+/*
+ * event->sibling_list is modified whole holding both ctx->lock and ctx->mutex
+ * as such iteration must hold either lock. However, since ctx->lock is an IRQ
+ * safe lock, and is only held by the CPU doing the modification, having IRQs
+ * disabled is sufficient since it will hold-off the IPIs.
+ */
+#ifdef CONFIG_PROVE_LOCKING
+#define lockdep_assert_event_ctx(event)				\
+	WARN_ON_ONCE(__lockdep_enabled &&			\
+		     (this_cpu_read(hardirqs_enabled) ||	\
+		      lockdep_is_held(&(event)->ctx->mutex) != LOCK_STATE_HELD))
+#else
+#define lockdep_assert_event_ctx(event)
+#endif
+
 #define for_each_sibling_event(sibling, event)			\
+	lockdep_assert_event_ctx(event);			\
 	if ((event)->group_leader == (event))			\
 		list_for_each_entry((sibling), &(event)->sibling_list, sibling_list)
 
