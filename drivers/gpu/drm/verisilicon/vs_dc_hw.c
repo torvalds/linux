@@ -1488,16 +1488,9 @@ void dc_hw_setup_display(struct dc_hw *hw, struct dc_hw_display *display)
 
 void dc_hw_enable_interrupt(struct dc_hw *hw, bool enable)
 {
-	u8 id = 1;//display->id;
-
 	if (enable) {
-		if (hw->display[id].sync_enable)
-			dc_set_clear(hw, DC_DISPLAY_PANEL_START, BIT(2) | BIT(3), 0);
-		else if (id == 0)
-			dc_set_clear(hw, DC_DISPLAY_PANEL_START, BIT(0), BIT(3));
-		else
-			if (hw->out[id] == OUT_DPI)
-				dc_set_clear(hw, DC_DISPLAY_PANEL_START, BIT(1), BIT(3));
+		if (hw->out[1] == OUT_DPI)
+			dc_set_clear(hw, DC_DISPLAY_PANEL_START, BIT(1), BIT(3));
 
 		hi_write(hw, AQ_INTR_ENBL, 0xFFFFFFFF);
 	} else {
