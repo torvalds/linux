@@ -3844,7 +3844,7 @@ vm_fault_t do_swap_page(struct vm_fault *vmf)
 
 	if (swapcache) {
 		/*
-		 * Make sure try_to_free_swap or swapoff did not release the
+		 * Make sure folio_free_swap() or swapoff did not release the
 		 * swapcache from under us.  The page pin, and pte_same test
 		 * below, are not enough to exclude that.  Even if it is still
 		 * swapcache, we need to check that the page's swap has not

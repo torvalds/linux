@@ -510,7 +510,6 @@ extern int __swp_swapcount(swp_entry_t entry);
 extern int swp_swapcount(swp_entry_t entry);
 extern struct swap_info_struct *page_swap_info(struct page *);
 extern struct swap_info_struct *swp_swap_info(swp_entry_t entry);
-extern int try_to_free_swap(struct page *);
 struct backing_dev_info;
 extern int init_swap_address_space(unsigned int type, unsigned long nr_pages);
 extern void exit_swap_address_space(unsigned int type);
@@ -591,11 +590,6 @@ static inline int __swp_swapcount(swp_entry_t entry)
 }
 
 static inline int swp_swapcount(swp_entry_t entry)
-{
-	return 0;
-}
-
-static inline int try_to_free_swap(struct page *page)
 {
 	return 0;
 }
