@@ -1583,8 +1583,8 @@ static int groups_to_user(sockptr_t dst, const struct group_info *src)
 	return 0;
 }
 
-static int sk_getsockopt(struct sock *sk, int level, int optname,
-			 sockptr_t optval, sockptr_t optlen)
+int sk_getsockopt(struct sock *sk, int level, int optname,
+		  sockptr_t optval, sockptr_t optlen)
 {
 	struct socket *sock = sk->sk_socket;
 

@@ -5017,8 +5017,9 @@ static const struct bpf_func_proto bpf_get_socket_uid_proto = {
 	.arg1_type      = ARG_PTR_TO_CTX,
 };
 
-static int sol_socket_setsockopt(struct sock *sk, int optname,
-				 char *optval, int optlen)
+static int sol_socket_sockopt(struct sock *sk, int optname,
+			      char *optval, int *optlen,
+			      bool getopt)
 {
 	switch (optname) {
 	case SO_REUSEADDR:
@@ -5032,7 +5033,7 @@ static int sol_socket_setsockopt(struct sock *sk, int optname,
 	case SO_MAX_PACING_RATE:
 	case SO_BINDTOIFINDEX:
 	case SO_TXREHASH:
-		if (optlen != sizeof(int))
+		if (*optlen != sizeof(int))
 			return -EINVAL;
 		break;
 	case SO_BINDTODEVICE:
@@ -5041,8 +5042,16 @@ static int sol_socket_setsockopt(struct sock *sk, int optname,
 		return -EINVAL;
 	}
 
+	if (getopt) {
+		if (optname == SO_BINDTODEVICE)
+			return -EINVAL;
+		return sk_getsockopt(sk, SOL_SOCKET, optname,
+				     KERNEL_SOCKPTR(optval),
+				     KERNEL_SOCKPTR(optlen));
+	}
+
 	return sk_setsockopt(sk, SOL_SOCKET, optname,
-			     KERNEL_SOCKPTR(optval), optlen);
+			     KERNEL_SOCKPTR(optval), *optlen);
 }
 
 static int bpf_sol_tcp_setsockopt(struct sock *sk, int optname,
@@ -5168,7 +5177,7 @@ static int __bpf_setsockopt(struct sock *sk, int level, int optname,
 		return -EINVAL;
 
 	if (level == SOL_SOCKET)
-		return sol_socket_setsockopt(sk, optname, optval, optlen);
+		return sol_socket_sockopt(sk, optname, optval, &optlen, false);
 	else if (IS_ENABLED(CONFIG_INET) && level == SOL_IP)
 		return sol_ip_setsockopt(sk, optname, optval, optlen);
 	else if (IS_ENABLED(CONFIG_IPV6) && level == SOL_IPV6)
@@ -5190,38 +5199,13 @@ static int _bpf_setsockopt(struct sock *sk, int level, int optname,
 static int __bpf_getsockopt(struct sock *sk, int level, int optname,
 			    char *optval, int optlen)
 {
+	int err = 0, saved_optlen = optlen;
+
 	if (!sk_fullsock(sk))
 		goto err_clear;
 
 	if (level == SOL_SOCKET) {
-		if (optlen != sizeof(int))
-			goto err_clear;
-
-		switch (optname) {
-		case SO_RCVBUF:
-			*((int *)optval) = sk->sk_rcvbuf;
-			break;
-		case SO_SNDBUF:
-			*((int *)optval) = sk->sk_sndbuf;
-			break;
-		case SO_MARK:
-			*((int *)optval) = sk->sk_mark;
-			break;
-		case SO_PRIORITY:
-			*((int *)optval) = sk->sk_priority;
-			break;
-		case SO_BINDTOIFINDEX:
-			*((int *)optval) = sk->sk_bound_dev_if;
-			break;
-		case SO_REUSEPORT:
-			*((int *)optval) = sk->sk_reuseport;
-			break;
-		case SO_TXREHASH:
-			*((int *)optval) = sk->sk_txrehash;
-			break;
-		default:
-			goto err_clear;
-		}
+		err = sol_socket_sockopt(sk, optname, optval, &optlen, true);
 	} else if (IS_ENABLED(CONFIG_INET) &&
 		   level == SOL_TCP && sk->sk_prot->getsockopt == tcp_getsockopt) {
 		struct inet_connection_sock *icsk;
@@ -5278,7 +5262,12 @@ static int __bpf_getsockopt(struct sock *sk, int level, int optname,
 	} else {
 		goto err_clear;
 	}
-	return 0;
+
+	if (err)
+		optlen = 0;
+	if (optlen < saved_optlen)
+		memset(optval + optlen, 0, saved_optlen - optlen);
+	return err;
 err_clear:
 	memset(optval, 0, optlen);
 	return -EINVAL;
