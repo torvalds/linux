@@ -7,7 +7,9 @@
  * Author: Naresh Solanki <Naresh.Solanki@9elements.com>
  */
 
+#include <linux/acpi.h>
 #include <linux/bitmap.h>
+#include <linux/dmi.h>
 #include <linux/gpio/driver.h>
 #include <linux/gpio/consumer.h>
 #include <linux/i2c.h>
@@ -72,6 +74,46 @@ static const struct of_device_id cy8c95x0_dt_ids[] = {
 };
 
 MODULE_DEVICE_TABLE(of, cy8c95x0_dt_ids);
+
+static const struct acpi_gpio_params cy8c95x0_irq_gpios = { 0, 0, true };
+
+static const struct acpi_gpio_mapping cy8c95x0_acpi_irq_gpios[] = {
+	{ "irq-gpios", &cy8c95x0_irq_gpios, 1, ACPI_GPIO_QUIRK_ABSOLUTE_NUMBER },
+	{ }
+};
+
+static int cy8c95x0_acpi_get_irq(struct device *dev)
+{
+	int ret;
+
+	ret = devm_acpi_dev_add_driver_gpios(dev, cy8c95x0_acpi_irq_gpios);
+	if (ret)
+		dev_warn(dev, "can't add GPIO ACPI mapping\n");
+
+	ret = acpi_dev_gpio_irq_get_by(ACPI_COMPANION(dev), "irq-gpios", 0);
+	if (ret < 0)
+		return ret;
+
+	dev_info(dev, "ACPI interrupt quirk (IRQ %d)\n", ret);
+	return ret;
+}
+
+static const struct dmi_system_id cy8c95x0_dmi_acpi_irq_info[] = {
+	{
+		/*
+		 * On Intel Galileo Gen 1 board the IRQ pin is provided
+		 * as an absolute number instead of being relative.
+		 * Since first controller (gpio-sch.c) and second
+		 * (gpio-dwapb.c) are at the fixed bases, we may safely
+		 * refer to the number in the global space to get an IRQ
+		 * out of it.
+		 */
+		.matches = {
+			DMI_EXACT_MATCH(DMI_BOARD_NAME, "Galileo"),
+		},
+	},
+	{}
+};
 
 #define MAX_BANK 8
 #define BANK_SZ 8
@@ -1308,6 +1350,12 @@ static int cy8c95x0_probe(struct i2c_client *client)
 	bitmap_zero(chip->shiftmask, MAX_LINE);
 	bitmap_set(chip->shiftmask, 0, 20);
 	mutex_init(&chip->i2c_lock);
+
+	if (dmi_first_match(cy8c95x0_dmi_acpi_irq_info)) {
+		ret = cy8c95x0_acpi_get_irq(&client->dev);
+		if (ret > 0)
+			client->irq = ret;
+	}
 
 	if (client->irq) {
 		ret = cy8c95x0_irq_setup(chip, client->irq);
