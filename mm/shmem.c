@@ -629,7 +629,7 @@ next:
 			goto move_back;
 		}
 
-		ret = split_huge_page(&folio->page);
+		ret = split_folio(folio);
 		folio_unlock(folio);
 		folio_put(folio);
 
