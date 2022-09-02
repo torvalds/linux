@@ -149,6 +149,14 @@
 	clock-frequency = <400000>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c3_pins>;
+
+	tpm@50 {
+		compatible = "google,cr50";
+		reg = <0x50>;
+		interrupts-extended = <&pio 88 IRQ_TYPE_EDGE_FALLING>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&cr50_int>;
+	};
 };
 
 &i2c4 {
@@ -425,6 +433,13 @@
 		"AP_SPI_FLASH_CLK",
 		"AP_SPI_FLASH_MOSI",
 		"AP_SPI_FLASH_MISO";
+
+	cr50_int: cr50-irq-default-pins {
+		pins-gsc-ap-int-odl {
+			pinmux = <PINMUX_GPIO88__FUNC_GPIO88>;
+			input-enable;
+		};
+	};
 
 	cros_ec_int: cros-ec-irq-default-pins {
 		pins-ec-ap-int-odl {
