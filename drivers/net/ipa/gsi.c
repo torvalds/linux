@@ -710,7 +710,6 @@ static void gsi_evt_ring_program(struct gsi *gsi, u32 evt_ring_id)
 static struct gsi_trans *gsi_channel_trans_last(struct gsi_channel *channel)
 {
 	struct gsi_trans_info *trans_info = &channel->trans_info;
-	const struct list_head *list;
 	struct gsi_trans *trans;
 
 	spin_lock_bh(&trans_info->spinlock);
@@ -719,29 +718,30 @@ static struct gsi_trans *gsi_channel_trans_last(struct gsi_channel *channel)
 	 * before we disabled transmits, so check for that.
 	 */
 	if (channel->toward_ipa) {
-		list = &trans_info->alloc;
-		if (!list_empty(list))
+		trans = list_last_entry_or_null(&trans_info->alloc,
+						struct gsi_trans, links);
+		if (trans)
 			goto done;
-		list = &trans_info->committed;
-		if (!list_empty(list))
+		trans = list_last_entry_or_null(&trans_info->committed,
+						struct gsi_trans, links);
+		if (trans)
 			goto done;
-		list = &trans_info->pending;
-		if (!list_empty(list))
+		trans = list_last_entry_or_null(&trans_info->pending,
+						struct gsi_trans, links);
+		if (trans)
 			goto done;
 	}
 
 	/* Otherwise (TX or RX) we want to wait for anything that
 	 * has completed, or has been polled but not released yet.
 	 */
-	list = &trans_info->complete;
-	if (!list_empty(list))
+	trans = list_last_entry_or_null(&trans_info->complete,
+					struct gsi_trans, links);
+	if (trans)
 		goto done;
-	list = &trans_info->polled;
-	if (list_empty(list))
-		list = NULL;
+	trans = list_last_entry_or_null(&trans_info->polled,
+					struct gsi_trans, links);
 done:
-	trans = list ? list_last_entry(list, struct gsi_trans, links) : NULL;
-
 	/* Caller will wait for this, so take a reference */
 	if (trans)
 		refcount_inc(&trans->refcount);
