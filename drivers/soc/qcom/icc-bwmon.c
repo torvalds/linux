@@ -654,6 +654,18 @@ static const struct icc_bwmon_data sdm845_llcc_bwmon_data = {
 	.regmap_cfg = &sdm845_llcc_bwmon_regmap_cfg,
 };
 
+static const struct icc_bwmon_data sc7280_llcc_bwmon_data = {
+	.sample_ms = 4,
+	.count_unit_kb = 64,
+	.default_highbw_kbps = 800 * 1024, /* 800 MBps */
+	.default_medbw_kbps = 256 * 1024, /* 256 MBps */
+	.default_lowbw_kbps = 0,
+	.zone1_thres_count = 16,
+	.zone3_thres_count = 1,
+	.regmap_fields = sdm845_llcc_bwmon_reg_fields,
+	.regmap_cfg = &sdm845_llcc_bwmon_regmap_cfg,
+};
+
 static const struct of_device_id bwmon_of_match[] = {
 	{
 		.compatible = "qcom,msm8998-bwmon",
@@ -661,6 +673,9 @@ static const struct of_device_id bwmon_of_match[] = {
 	}, {
 		.compatible = "qcom,sdm845-llcc-bwmon",
 		.data = &sdm845_llcc_bwmon_data
+	}, {
+		.compatible = "qcom,sc7280-llcc-bwmon",
+		.data = &sc7280_llcc_bwmon_data
 	},
 	{}
 };
