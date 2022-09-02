@@ -37,6 +37,15 @@ static u8 dtl_event_mask = DTL_LOG_ALL;
 static int dtl_buf_entries = N_DISPATCH_LOG;
 
 #ifdef CONFIG_VIRT_CPU_ACCOUNTING_NATIVE
+
+/*
+ * When CONFIG_VIRT_CPU_ACCOUNTING_NATIVE = y, the cpu accounting code controls
+ * reading from the dispatch trace log.  If other code wants to consume
+ * DTL entries, it can set this pointer to a function that will get
+ * called once for each DTL entry that gets processed.
+ */
+static void (*dtl_consumer)(struct dtl_entry *entry, u64 index);
+
 struct dtl_ring {
 	u64	write_index;
 	struct dtl_entry *write_ptr;
@@ -47,6 +56,78 @@ struct dtl_ring {
 static DEFINE_PER_CPU(struct dtl_ring, dtl_rings);
 
 static atomic_t dtl_count;
+
+/*
+ * Scan the dispatch trace log and count up the stolen time.
+ * Should be called with interrupts disabled.
+ */
+static notrace u64 scan_dispatch_log(u64 stop_tb)
+{
+	u64 i = local_paca->dtl_ridx;
+	struct dtl_entry *dtl = local_paca->dtl_curr;
+	struct dtl_entry *dtl_end = local_paca->dispatch_log_end;
+	struct lppaca *vpa = local_paca->lppaca_ptr;
+	u64 tb_delta;
+	u64 stolen = 0;
+	u64 dtb;
+
+	if (!dtl)
+		return 0;
+
+	if (i == be64_to_cpu(vpa->dtl_idx))
+		return 0;
+	while (i < be64_to_cpu(vpa->dtl_idx)) {
+		dtb = be64_to_cpu(dtl->timebase);
+		tb_delta = be32_to_cpu(dtl->enqueue_to_dispatch_time) +
+			be32_to_cpu(dtl->ready_to_enqueue_time);
+		barrier();
+		if (i + N_DISPATCH_LOG < be64_to_cpu(vpa->dtl_idx)) {
+			/* buffer has overflowed */
+			i = be64_to_cpu(vpa->dtl_idx) - N_DISPATCH_LOG;
+			dtl = local_paca->dispatch_log + (i % N_DISPATCH_LOG);
+			continue;
+		}
+		if (dtb > stop_tb)
+			break;
+		if (dtl_consumer)
+			dtl_consumer(dtl, i);
+		stolen += tb_delta;
+		++i;
+		++dtl;
+		if (dtl == dtl_end)
+			dtl = local_paca->dispatch_log;
+	}
+	local_paca->dtl_ridx = i;
+	local_paca->dtl_curr = dtl;
+	return stolen;
+}
+
+/*
+ * Accumulate stolen time by scanning the dispatch trace log.
+ * Called on entry from user mode.
+ */
+void notrace pseries_accumulate_stolen_time(void)
+{
+	u64 sst, ust;
+	struct cpu_accounting_data *acct = &local_paca->accounting;
+
+	sst = scan_dispatch_log(acct->starttime_user);
+	ust = scan_dispatch_log(acct->starttime);
+	acct->stime -= sst;
+	acct->utime -= ust;
+	acct->steal_time += ust + sst;
+}
+
+u64 pseries_calculate_stolen_time(u64 stop_tb)
+{
+	if (!firmware_has_feature(FW_FEATURE_SPLPAR))
+		return 0;
+
+	if (get_paca()->dtl_ridx != be64_to_cpu(get_lppaca()->dtl_idx))
+		return scan_dispatch_log(stop_tb);
+
+	return 0;
+}
 
 /*
  * The cpu accounting code controls the DTL ring buffer, and we get

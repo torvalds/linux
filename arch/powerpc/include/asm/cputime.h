@@ -95,7 +95,7 @@ static notrace inline void account_stolen_time(void)
 		struct lppaca *lp = local_paca->lppaca_ptr;
 
 		if (unlikely(local_paca->dtl_ridx != be64_to_cpu(lp->dtl_idx)))
-			accumulate_stolen_time();
+			pseries_accumulate_stolen_time();
 	}
 #endif
 }
