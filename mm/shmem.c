@@ -874,10 +874,9 @@ void shmem_unlock_mapping(struct address_space *mapping)
 static struct folio *shmem_get_partial_folio(struct inode *inode, pgoff_t index)
 {
 	struct folio *folio;
-	struct page *page;
 
 	/*
-	 * At first avoid shmem_getpage(,,,SGP_READ): that fails
+	 * At first avoid shmem_get_folio(,,,SGP_READ): that fails
 	 * beyond i_size, and reports fallocated pages as holes.
 	 */
 	folio = __filemap_get_folio(inode->i_mapping, index,
@@ -888,9 +887,9 @@ static struct folio *shmem_get_partial_folio(struct inode *inode, pgoff_t index)
 	 * But read a page back from swap if any of it is within i_size
 	 * (although in some cases this is just a waste of time).
 	 */
-	page = NULL;
-	shmem_getpage(inode, index, &page, SGP_READ);
-	return page ? page_folio(page) : NULL;
+	folio = NULL;
+	shmem_get_folio(inode, index, &folio, SGP_READ);
+	return folio;
 }
 
 /*
