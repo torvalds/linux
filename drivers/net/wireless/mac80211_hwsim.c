@@ -2476,6 +2476,14 @@ static int mac80211_hwsim_sta_state(struct ieee80211_hw *hw,
 	if (old_state == IEEE80211_STA_NOTEXIST)
 		return mac80211_hwsim_sta_add(hw, vif, sta);
 
+	/*
+	 * when client is authorized (AP station marked as such),
+	 * enable all links
+	 */
+	if (vif->type == NL80211_IFTYPE_STATION &&
+	    new_state == IEEE80211_STA_AUTHORIZED && !sta->tdls)
+		ieee80211_set_active_links_async(vif, vif->valid_links);
+
 	return 0;
 }
 
