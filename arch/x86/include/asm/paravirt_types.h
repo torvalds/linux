@@ -328,7 +328,7 @@ int paravirt_disable_iospace(void);
  * Unfortunately, this is a relatively slow operation for modern CPUs,
  * because it cannot necessarily determine what the destination
  * address is.  In this case, the address is a runtime constant, so at
- * the very least we can patch the call to e a simple direct call, or
+ * the very least we can patch the call to a simple direct call, or,
  * ideally, patch an inline implementation into the callsite.  (Direct
  * calls are essentially free, because the call and return addresses
  * are completely predictable.)
@@ -339,10 +339,10 @@ int paravirt_disable_iospace(void);
  * on the stack.  All caller-save registers (eax,edx,ecx) are expected
  * to be modified (either clobbered or used for return values).
  * X86_64, on the other hand, already specifies a register-based calling
- * conventions, returning at %rax, with parameters going on %rdi, %rsi,
+ * conventions, returning at %rax, with parameters going in %rdi, %rsi,
  * %rdx, and %rcx. Note that for this reason, x86_64 does not need any
  * special handling for dealing with 4 arguments, unlike i386.
- * However, x86_64 also have to clobber all caller saved registers, which
+ * However, x86_64 also has to clobber all caller saved registers, which
  * unfortunately, are quite a bit (r8 - r11)
  *
  * The call instruction itself is marked by placing its start address
@@ -360,22 +360,22 @@ int paravirt_disable_iospace(void);
  * There are 5 sets of PVOP_* macros for dealing with 0-4 arguments.
  * It could be extended to more arguments, but there would be little
  * to be gained from that.  For each number of arguments, there are
- * the two VCALL and CALL variants for void and non-void functions.
+ * two VCALL and CALL variants for void and non-void functions.
  *
  * When there is a return value, the invoker of the macro must specify
  * the return type.  The macro then uses sizeof() on that type to
- * determine whether its a 32 or 64 bit value, and places the return
+ * determine whether it's a 32 or 64 bit value and places the return
  * in the right register(s) (just %eax for 32-bit, and %edx:%eax for
- * 64-bit). For x86_64 machines, it just returns at %rax regardless of
+ * 64-bit). For x86_64 machines, it just returns in %rax regardless of
  * the return value size.
  *
- * 64-bit arguments are passed as a pair of adjacent 32-bit arguments
+ * 64-bit arguments are passed as a pair of adjacent 32-bit arguments;
  * i386 also passes 64-bit arguments as a pair of adjacent 32-bit arguments
  * in low,high order
  *
  * Small structures are passed and returned in registers.  The macro
  * calling convention can't directly deal with this, so the wrapper
- * functions must do this.
+ * functions must do it.
  *
  * These PVOP_* macros are only defined within this header.  This
  * means that all uses must be wrapped in inline functions.  This also
