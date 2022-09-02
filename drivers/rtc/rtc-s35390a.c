@@ -420,8 +420,7 @@ static const struct rtc_class_ops s35390a_rtc_ops = {
 	.ioctl          = s35390a_rtc_ioctl,
 };
 
-static int s35390a_probe(struct i2c_client *client,
-			 const struct i2c_device_id *id)
+static int s35390a_probe(struct i2c_client *client)
 {
 	int err, err_read;
 	unsigned int i;
@@ -502,7 +501,7 @@ static struct i2c_driver s35390a_driver = {
 		.name	= "rtc-s35390a",
 		.of_match_table = of_match_ptr(s35390a_of_match),
 	},
-	.probe		= s35390a_probe,
+	.probe_new	= s35390a_probe,
 	.id_table	= s35390a_id,
 };
 

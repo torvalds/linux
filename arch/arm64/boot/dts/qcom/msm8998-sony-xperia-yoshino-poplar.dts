@@ -26,11 +26,13 @@
 };
 
 &vreg_l18a_2p85 {
-	regulator-min-microvolt = <2850000>;
-	regulator-max-microvolt = <2850000>;
+	/* Note: Round-down from 2850000 to be a multiple of PLDO step-size 8000 */
+	regulator-min-microvolt = <2848000>;
+	regulator-max-microvolt = <2848000>;
 };
 
 &vreg_l22a_2p85 {
-	regulator-min-microvolt = <2700000>;
-	regulator-max-microvolt = <2700000>;
+	/* Note: Round-down from 2700000 to be a multiple of PLDO step-size 8000 */
+	regulator-min-microvolt = <2696000>;
+	regulator-max-microvolt = <2696000>;
 };

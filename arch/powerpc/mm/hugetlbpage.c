@@ -24,6 +24,7 @@
 #include <asm/setup.h>
 #include <asm/hugetlb.h>
 #include <asm/pte-walk.h>
+#include <asm/firmware.h>
 
 bool hugetlb_disabled = false;
 

@@ -1959,7 +1959,7 @@ static void iwl_mvm_tx_reclaim(struct iwl_mvm *mvm, int sta_id, int tid,
 
 		if (mvmsta->vif)
 			chanctx_conf =
-				rcu_dereference(mvmsta->vif->chanctx_conf);
+				rcu_dereference(mvmsta->vif->bss_conf.chanctx_conf);
 
 		if (WARN_ON_ONCE(!chanctx_conf))
 			goto out;

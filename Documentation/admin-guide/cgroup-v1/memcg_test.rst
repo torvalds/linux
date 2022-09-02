@@ -97,7 +97,7 @@ Under below explanation, we assume CONFIG_MEM_RES_CTRL_SWAP=y.
 =============
 
 	Page Cache is charged at
-	- add_to_page_cache_locked().
+	- filemap_add_folio().
 
 	The logic is very clear. (About migration, see below)
 

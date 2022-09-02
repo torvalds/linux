@@ -22,6 +22,7 @@
 #define BTF_F_NONAME BTF_F_NONAME___not_used
 #define BTF_F_PTR_RAW BTF_F_PTR_RAW___not_used
 #define BTF_F_ZERO BTF_F_ZERO___not_used
+#define bpf_iter__ksym bpf_iter__ksym___not_used
 #include "vmlinux.h"
 #undef bpf_iter_meta
 #undef bpf_iter__bpf_map
@@ -44,6 +45,7 @@
 #undef BTF_F_NONAME
 #undef BTF_F_PTR_RAW
 #undef BTF_F_ZERO
+#undef bpf_iter__ksym
 
 struct bpf_iter_meta {
 	struct seq_file *seq;
@@ -150,4 +152,9 @@ enum {
 	BTF_F_NONAME	=	(1ULL << 1),
 	BTF_F_PTR_RAW	=	(1ULL << 2),
 	BTF_F_ZERO	=	(1ULL << 3),
+};
+
+struct bpf_iter__ksym {
+	struct bpf_iter_meta *meta;
+	struct kallsym_iter *ksym;
 };

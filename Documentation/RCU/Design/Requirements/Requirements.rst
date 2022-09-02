@@ -1844,10 +1844,10 @@ that meets this requirement.
 
 Furthermore, NMI handlers can be interrupted by what appear to RCU to be
 normal interrupts. One way that this can happen is for code that
-directly invokes rcu_irq_enter() and rcu_irq_exit() to be called
+directly invokes ct_irq_enter() and ct_irq_exit() to be called
 from an NMI handler. This astonishing fact of life prompted the current
-code structure, which has rcu_irq_enter() invoking
-rcu_nmi_enter() and rcu_irq_exit() invoking rcu_nmi_exit().
+code structure, which has ct_irq_enter() invoking
+ct_nmi_enter() and ct_irq_exit() invoking ct_nmi_exit().
 And yes, I also learned of this requirement the hard way.
 
 Loadable Modules
@@ -2195,7 +2195,7 @@ scheduling-clock interrupt be enabled when RCU needs it to be:
    sections, and RCU believes this CPU to be idle, no problem. This
    sort of thing is used by some architectures for light-weight
    exception handlers, which can then avoid the overhead of
-   rcu_irq_enter() and rcu_irq_exit() at exception entry and
+   ct_irq_enter() and ct_irq_exit() at exception entry and
    exit, respectively. Some go further and avoid the entireties of
    irq_enter() and irq_exit().
    Just make very sure you are running some of your tests with
@@ -2226,7 +2226,7 @@ scheduling-clock interrupt be enabled when RCU needs it to be:
 +-----------------------------------------------------------------------+
 | **Answer**:                                                           |
 +-----------------------------------------------------------------------+
-| One approach is to do ``rcu_irq_exit();rcu_irq_enter();`` every so    |
+| One approach is to do ``ct_irq_exit();ct_irq_enter();`` every so      |
 | often. But given that long-running interrupt handlers can cause other |
 | problems, not least for response time, shouldn't you work to keep     |
 | your interrupt handler's runtime within reasonable bounds?            |

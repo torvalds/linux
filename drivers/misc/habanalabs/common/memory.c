@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 
 /*
- * Copyright 2016-2021 HabanaLabs, Ltd.
+ * Copyright 2016-2022 HabanaLabs, Ltd.
  * All Rights Reserved.
  */
 
@@ -27,7 +27,7 @@ static int allocate_timestamps_buffers(struct hl_fpriv *hpriv,
 static int set_alloc_page_size(struct hl_device *hdev, struct hl_mem_in *args, u32 *page_size)
 {
 	struct asic_fixed_properties *prop = &hdev->asic_prop;
-	u32 psize;
+	u64 psize;
 
 	/*
 	 * for ASIC that supports setting the allocation page size by user we will address
@@ -36,8 +36,8 @@ static int set_alloc_page_size(struct hl_device *hdev, struct hl_mem_in *args, u
 	if (prop->supports_user_set_page_size && args->alloc.page_size) {
 		psize = args->alloc.page_size;
 
-		if (!hdev->asic_funcs->is_valid_dram_page_size(psize)) {
-			dev_err(hdev->dev, "user page size (%#x) is not valid\n", psize);
+		if (!is_power_of_2(psize)) {
+			dev_err(hdev->dev, "user page size (%#llx) is not power of 2\n", psize);
 			return -EINVAL;
 		}
 	} else {
@@ -305,33 +305,20 @@ static void dram_pg_pool_do_release(struct kref *ref)
  *
  * This function does the following:
  * - For DRAM memory only
- *   - iterate over the pack, scrub and free each physical block structure by
+ *   - iterate over the pack, free each physical block structure by
  *     returning it to the general pool.
- *     In case of error during scrubbing, initiate hard reset.
- *     Once hard reset is triggered, scrubbing is bypassed while freeing the
- *     memory continues.
  * - Free the hl_vm_phys_pg_pack structure.
  */
-static int free_phys_pg_pack(struct hl_device *hdev,
+static void free_phys_pg_pack(struct hl_device *hdev,
 				struct hl_vm_phys_pg_pack *phys_pg_pack)
 {
 	struct hl_vm *vm = &hdev->vm;
 	u64 i;
-	int rc = 0;
 
 	if (phys_pg_pack->created_from_userptr)
 		goto end;
 
 	if (phys_pg_pack->contiguous) {
-		if (hdev->memory_scrub && !hdev->disabled) {
-			rc = hdev->asic_funcs->scrub_device_mem(hdev,
-					phys_pg_pack->pages[0],
-					phys_pg_pack->total_size);
-			if (rc)
-				dev_err(hdev->dev,
-					"Failed to scrub contiguous device memory\n");
-		}
-
 		gen_pool_free(vm->dram_pg_pool, phys_pg_pack->pages[0],
 			phys_pg_pack->total_size);
 
@@ -340,15 +327,6 @@ static int free_phys_pg_pack(struct hl_device *hdev,
 				dram_pg_pool_do_release);
 	} else {
 		for (i = 0 ; i < phys_pg_pack->npages ; i++) {
-			if (hdev->memory_scrub && !hdev->disabled && rc == 0) {
-				rc = hdev->asic_funcs->scrub_device_mem(
-						hdev,
-						phys_pg_pack->pages[i],
-						phys_pg_pack->page_size);
-				if (rc)
-					dev_err(hdev->dev,
-						"Failed to scrub device memory\n");
-			}
 			gen_pool_free(vm->dram_pg_pool,
 				phys_pg_pack->pages[i],
 				phys_pg_pack->page_size);
@@ -357,14 +335,11 @@ static int free_phys_pg_pack(struct hl_device *hdev,
 		}
 	}
 
-	if (rc && !hdev->disabled)
-		hl_device_reset(hdev, HL_DRV_RESET_HARD);
-
 end:
 	kvfree(phys_pg_pack->pages);
 	kfree(phys_pg_pack);
 
-	return rc;
+	return;
 }
 
 /**
@@ -384,39 +359,34 @@ static int free_device_memory(struct hl_ctx *ctx, struct hl_mem_in *args)
 
 	spin_lock(&vm->idr_lock);
 	phys_pg_pack = idr_find(&vm->phys_pg_pack_handles, handle);
-	if (phys_pg_pack) {
-		if (atomic_read(&phys_pg_pack->mapping_cnt) > 0) {
-			dev_err(hdev->dev, "handle %u is mapped, cannot free\n",
-				handle);
-			spin_unlock(&vm->idr_lock);
-			return -EINVAL;
-		}
-
-		if (phys_pg_pack->exporting_cnt) {
-			dev_dbg(hdev->dev, "handle %u is exported, cannot free\n", handle);
-			spin_unlock(&vm->idr_lock);
-			return -EINVAL;
-		}
-
-		/*
-		 * must remove from idr before the freeing of the physical
-		 * pages as the refcount of the pool is also the trigger of the
-		 * idr destroy
-		 */
-		idr_remove(&vm->phys_pg_pack_handles, handle);
+	if (!phys_pg_pack) {
 		spin_unlock(&vm->idr_lock);
-
-		atomic64_sub(phys_pg_pack->total_size, &ctx->dram_phys_mem);
-		atomic64_sub(phys_pg_pack->total_size, &hdev->dram_used_mem);
-
-		return free_phys_pg_pack(hdev, phys_pg_pack);
-	} else {
-		spin_unlock(&vm->idr_lock);
-		dev_err(hdev->dev,
-			"free device memory failed, no match for handle %u\n",
-			handle);
+		dev_err(hdev->dev, "free device memory failed, no match for handle %u\n", handle);
 		return -EINVAL;
 	}
+
+	if (atomic_read(&phys_pg_pack->mapping_cnt) > 0) {
+		spin_unlock(&vm->idr_lock);
+		dev_err(hdev->dev, "handle %u is mapped, cannot free\n", handle);
+		return -EINVAL;
+	}
+
+	if (phys_pg_pack->exporting_cnt) {
+		spin_unlock(&vm->idr_lock);
+		dev_dbg(hdev->dev, "handle %u is exported, cannot free\n", handle);
+		return -EINVAL;
+	}
+
+	/* must remove from idr before the freeing of the physical pages as the refcount of the pool
+	 * is also the trigger of the idr destroy
+	 */
+	idr_remove(&vm->phys_pg_pack_handles, handle);
+	spin_unlock(&vm->idr_lock);
+
+	atomic64_sub(phys_pg_pack->total_size, &ctx->dram_phys_mem);
+	atomic64_sub(phys_pg_pack->total_size, &hdev->dram_used_mem);
+
+	free_phys_pg_pack(hdev, phys_pg_pack);
 
 	return 0;
 }
@@ -657,7 +627,7 @@ static u64 get_va_block(struct hl_device *hdev,
 
 	/* Check if we need to ignore hint address */
 	if ((is_align_pow_2 && (hint_addr & (va_block_align - 1))) ||
-		(!is_align_pow_2 && is_hint_dram_addr &&
+			(!is_align_pow_2 && is_hint_dram_addr &&
 			do_div(tmp_hint_addr, va_range->page_size))) {
 
 		if (force_hint) {
@@ -1245,15 +1215,15 @@ static int map_device_va(struct hl_ctx *ctx, struct hl_mem_in *args, u64 *device
 	rc = map_phys_pg_pack(ctx, ret_vaddr, phys_pg_pack);
 	if (rc) {
 		dev_err(hdev->dev, "mapping page pack failed for handle %u\n", handle);
+		mutex_unlock(&ctx->mmu_lock);
 		goto map_err;
 	}
 
 	rc = hl_mmu_invalidate_cache_range(hdev, false, *vm_type | MMU_OP_SKIP_LOW_CACHE_INV,
 				ctx->asid, ret_vaddr, phys_pg_pack->total_size);
+	mutex_unlock(&ctx->mmu_lock);
 	if (rc)
 		goto map_err;
-
-	mutex_unlock(&ctx->mmu_lock);
 
 	/*
 	 * prefetch is done upon user's request. it is performed in WQ as and so can
@@ -1278,13 +1248,11 @@ static int map_device_va(struct hl_ctx *ctx, struct hl_mem_in *args, u64 *device
 	*device_addr = ret_vaddr;
 
 	if (is_userptr)
-		rc = free_phys_pg_pack(hdev, phys_pg_pack);
+		free_phys_pg_pack(hdev, phys_pg_pack);
 
 	return rc;
 
 map_err:
-	mutex_unlock(&ctx->mmu_lock);
-
 	if (add_va_block(hdev, va_range, ret_vaddr,
 				ret_vaddr + phys_pg_pack->total_size - 1))
 		dev_warn(hdev->dev,
@@ -2509,17 +2477,20 @@ bool hl_userptr_is_pinned(struct hl_device *hdev, u64 addr,
  * va_range_init() - initialize virtual addresses range.
  * @hdev: pointer to the habanalabs device structure.
  * @va_ranges: pointer to va_ranges array.
- * @start: range start address.
- * @end: range end address.
+ * @range_type: virtual address range type.
+ * @start: range start address, inclusive.
+ * @end: range end address, inclusive.
  * @page_size: page size for this va_range.
  *
  * This function does the following:
  * - Initializes the virtual addresses list of the given range with the given
  *   addresses.
  */
-static int va_range_init(struct hl_device *hdev, struct hl_va_range *va_range,
-				u64 start, u64 end, u32 page_size)
+static int va_range_init(struct hl_device *hdev, struct hl_va_range **va_ranges,
+				enum hl_va_range_type range_type, u64 start,
+				u64 end, u32 page_size)
 {
+	struct hl_va_range *va_range = va_ranges[range_type];
 	int rc;
 
 	INIT_LIST_HEAD(&va_range->list);
@@ -2637,7 +2608,7 @@ static int vm_ctx_init_with_ranges(struct hl_ctx *ctx,
 
 	mutex_init(&ctx->va_range[HL_VA_RANGE_TYPE_HOST]->lock);
 
-	rc = va_range_init(hdev, ctx->va_range[HL_VA_RANGE_TYPE_HOST],
+	rc = va_range_init(hdev, ctx->va_range, HL_VA_RANGE_TYPE_HOST,
 			host_range_start, host_range_end, host_page_size);
 	if (rc) {
 		dev_err(hdev->dev, "failed to init host vm range\n");
@@ -2648,7 +2619,7 @@ static int vm_ctx_init_with_ranges(struct hl_ctx *ctx,
 		mutex_init(&ctx->va_range[HL_VA_RANGE_TYPE_HOST_HUGE]->lock);
 
 		rc = va_range_init(hdev,
-			ctx->va_range[HL_VA_RANGE_TYPE_HOST_HUGE],
+			ctx->va_range, HL_VA_RANGE_TYPE_HOST_HUGE,
 			host_huge_range_start, host_huge_range_end,
 			host_huge_page_size);
 		if (rc) {
@@ -2664,7 +2635,7 @@ static int vm_ctx_init_with_ranges(struct hl_ctx *ctx,
 
 	mutex_init(&ctx->va_range[HL_VA_RANGE_TYPE_DRAM]->lock);
 
-	rc = va_range_init(hdev, ctx->va_range[HL_VA_RANGE_TYPE_DRAM],
+	rc = va_range_init(hdev, ctx->va_range, HL_VA_RANGE_TYPE_DRAM,
 			dram_range_start, dram_range_end, dram_page_size);
 	if (rc) {
 		dev_err(hdev->dev, "failed to init dram vm range\n");

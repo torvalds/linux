@@ -119,7 +119,7 @@ static void mod_update_bounds(struct module *mod)
 }
 
 /* Block module loading/unloading? */
-int modules_disabled = 0;
+int modules_disabled;
 core_param(nomodule, modules_disabled, bint, 0);
 
 /* Waiting for a module to finish initializing? */
@@ -524,7 +524,10 @@ static struct module_attribute modinfo_##field = {                    \
 MODINFO_ATTR(version);
 MODINFO_ATTR(srcversion);
 
-static char last_unloaded_module[MODULE_NAME_LEN+1];
+static struct {
+	char name[MODULE_NAME_LEN + 1];
+	char taints[MODULE_FLAGS_BUF_SIZE];
+} last_unloaded_module;
 
 #ifdef CONFIG_MODULE_UNLOAD
 
@@ -694,6 +697,7 @@ SYSCALL_DEFINE2(delete_module, const char __user *, name_user,
 {
 	struct module *mod;
 	char name[MODULE_NAME_LEN];
+	char buf[MODULE_FLAGS_BUF_SIZE];
 	int ret, forced = 0;
 
 	if (!capable(CAP_SYS_MODULE) || modules_disabled)
@@ -753,8 +757,9 @@ SYSCALL_DEFINE2(delete_module, const char __user *, name_user,
 
 	async_synchronize_full();
 
-	/* Store the name of the last unloaded module for diagnostic purposes */
-	strlcpy(last_unloaded_module, mod->name, sizeof(last_unloaded_module));
+	/* Store the name and taints of the last unloaded module for diagnostic purposes */
+	strscpy(last_unloaded_module.name, mod->name, sizeof(last_unloaded_module.name));
+	strscpy(last_unloaded_module.taints, module_flags(mod, buf, false), sizeof(last_unloaded_module.taints));
 
 	free_module(mod);
 	/* someone could wait for the module in add_unformed_module() */
@@ -1988,6 +1993,13 @@ static int check_modinfo(struct module *mod, struct load_info *info, int flags)
 	/* Set up license info based on the info section */
 	set_license(mod, get_modinfo(info, "license"));
 
+	if (get_modinfo(info, "test")) {
+		if (!test_taint(TAINT_TEST))
+			pr_warn("%s: loading test module taints kernel.\n",
+				mod->name);
+		add_taint_module(mod, TAINT_TEST, LOCKDEP_STILL_OK);
+	}
+
 	return 0;
 }
 
@@ -2087,6 +2099,12 @@ static int find_module_sections(struct module *mod, struct load_info *info)
 					      sizeof(*mod->static_call_sites),
 					      &mod->num_static_call_sites);
 #endif
+#if IS_ENABLED(CONFIG_KUNIT)
+	mod->kunit_suites = section_objs(info, ".kunit_test_suites",
+					      sizeof(*mod->kunit_suites),
+					      &mod->num_kunit_suites);
+#endif
+
 	mod->extable = section_objs(info, "__ex_table",
 				    sizeof(*mod->extable), &mod->num_exentries);
 
@@ -2138,7 +2156,7 @@ static int move_module(struct module *mod, struct load_info *info)
 
 #ifdef CONFIG_ARCH_WANTS_MODULES_DATA_IN_VMALLOC
 	/* Do the allocs. */
-	ptr = vmalloc(mod->data_layout.size);
+	ptr = vzalloc(mod->data_layout.size);
 	/*
 	 * The pointer to this block is stored in the module structure
 	 * which is inside the block. Just mark it as not being a
@@ -2151,7 +2169,6 @@ static int move_module(struct module *mod, struct load_info *info)
 		return -ENOMEM;
 	}
 
-	memset(ptr, 0, mod->data_layout.size);
 	mod->data_layout.base = ptr;
 #endif
 	/* Transfer each section which specifies SHF_ALLOC */
@@ -2410,6 +2427,12 @@ static void do_free_init(struct work_struct *w)
 	}
 }
 
+#undef MODULE_PARAM_PREFIX
+#define MODULE_PARAM_PREFIX "module."
+/* Default value for module->async_probe_requested */
+static bool async_probe;
+module_param(async_probe, bool, 0644);
+
 /*
  * This is where the real work happens.
  *
@@ -2630,7 +2653,8 @@ static int unknown_module_param_cb(char *param, char *val, const char *modname,
 	int ret;
 
 	if (strcmp(param, "async_probe") == 0) {
-		mod->async_probe_requested = true;
+		if (strtobool(val, &mod->async_probe_requested))
+			mod->async_probe_requested = true;
 		return 0;
 	}
 
@@ -2796,6 +2820,8 @@ static int load_module(struct load_info *info, const char __user *uargs,
 	err = prepare_coming_module(mod);
 	if (err)
 		goto bug_cleanup;
+
+	mod->async_probe_requested = async_probe;
 
 	/* Module is ready to execute: parsing args may do that. */
 	after_dashes = parse_args(mod->name, mod->args, mod->kp, mod->num_kp,
@@ -2971,24 +2997,27 @@ static void cfi_cleanup(struct module *mod)
 }
 
 /* Keep in sync with MODULE_FLAGS_BUF_SIZE !!! */
-char *module_flags(struct module *mod, char *buf)
+char *module_flags(struct module *mod, char *buf, bool show_state)
 {
 	int bx = 0;
 
 	BUG_ON(mod->state == MODULE_STATE_UNFORMED);
+	if (!mod->taints && !show_state)
+		goto out;
 	if (mod->taints ||
 	    mod->state == MODULE_STATE_GOING ||
 	    mod->state == MODULE_STATE_COMING) {
 		buf[bx++] = '(';
 		bx += module_flags_taint(mod->taints, buf + bx);
 		/* Show a - for module-is-being-unloaded */
-		if (mod->state == MODULE_STATE_GOING)
+		if (mod->state == MODULE_STATE_GOING && show_state)
 			buf[bx++] = '-';
 		/* Show a + for module-is-being-loaded */
-		if (mod->state == MODULE_STATE_COMING)
+		if (mod->state == MODULE_STATE_COMING && show_state)
 			buf[bx++] = '+';
 		buf[bx++] = ')';
 	}
+out:
 	buf[bx] = '\0';
 
 	return buf;
@@ -3121,12 +3150,13 @@ void print_modules(void)
 	list_for_each_entry_rcu(mod, &modules, list) {
 		if (mod->state == MODULE_STATE_UNFORMED)
 			continue;
-		pr_cont(" %s%s", mod->name, module_flags(mod, buf));
+		pr_cont(" %s%s", mod->name, module_flags(mod, buf, true));
 	}
 
 	print_unloaded_tainted_modules();
 	preempt_enable();
-	if (last_unloaded_module[0])
-		pr_cont(" [last unloaded: %s]", last_unloaded_module);
+	if (last_unloaded_module.name[0])
+		pr_cont(" [last unloaded: %s%s]", last_unloaded_module.name,
+			last_unloaded_module.taints);
 	pr_cont("\n");
 }

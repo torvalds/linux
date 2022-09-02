@@ -855,7 +855,7 @@ static struct ov5693_reg const ov5693_1616x1216_30fps[] = {
 	{OV5693_8BIT, 0x3813, 0x06},	/*{3812,3813} windowing Y offset*/
 	{OV5693_8BIT, 0x3814, 0x11},	/*X subsample control*/
 	{OV5693_8BIT, 0x3815, 0x11},	/*Y subsample control*/
-	{OV5693_8BIT, 0x3820, 0x00},	/*FLIP/Binnning control*/
+	{OV5693_8BIT, 0x3820, 0x00},	/*FLIP/Binning control*/
 	{OV5693_8BIT, 0x3821, 0x1e},	/*MIRROR control*/
 	{OV5693_8BIT, 0x5002, 0x00},
 	{OV5693_8BIT, 0x5041, 0x84},

@@ -1236,8 +1236,8 @@ static int intel_spi_populate_chip(struct intel_spi *ispi)
 		return -ENOMEM;
 
 	pdata->nr_parts = 1;
-	pdata->parts = devm_kcalloc(ispi->dev, sizeof(*pdata->parts),
-				    pdata->nr_parts, GFP_KERNEL);
+	pdata->parts = devm_kcalloc(ispi->dev, pdata->nr_parts,
+				    sizeof(*pdata->parts), GFP_KERNEL);
 	if (!pdata->parts)
 		return -ENOMEM;
 

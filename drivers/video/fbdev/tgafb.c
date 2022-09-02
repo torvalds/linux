@@ -1344,7 +1344,7 @@ tgafb_init_fix(struct fb_info *info)
 		memory_size = 16777216;
 	}
 
-	strlcpy(info->fix.id, tga_type_name, sizeof(info->fix.id));
+	strscpy(info->fix.id, tga_type_name, sizeof(info->fix.id));
 
 	info->fix.type = FB_TYPE_PACKED_PIXELS;
 	info->fix.type_aux = 0;

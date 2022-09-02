@@ -38,6 +38,8 @@
 #include <net/tls.h>
 #include <net/tls_toe.h>
 
+#include "tls.h"
+
 static LIST_HEAD(device_list);
 static DEFINE_SPINLOCK(device_spinlock);
 

@@ -4,6 +4,8 @@
  * Author: Rob Clark <robdclark@gmail.com>
  */
 
+#include "drm/drm_drv.h"
+
 #include "msm_gpu.h"
 #include "msm_gem.h"
 #include "msm_mmu.h"
@@ -146,6 +148,16 @@ int msm_gpu_pm_suspend(struct msm_gpu *gpu)
 	return 0;
 }
 
+void msm_gpu_show_fdinfo(struct msm_gpu *gpu, struct msm_file_private *ctx,
+			 struct drm_printer *p)
+{
+	drm_printf(p, "drm-driver:\t%s\n", gpu->dev->driver->name);
+	drm_printf(p, "drm-client-id:\t%u\n", ctx->seqno);
+	drm_printf(p, "drm-engine-gpu:\t%llu ns\n", ctx->elapsed_ns);
+	drm_printf(p, "drm-cycles-gpu:\t%llu\n", ctx->cycles);
+	drm_printf(p, "drm-maxfreq-gpu:\t%u Hz\n", gpu->fast_rate);
+}
+
 int msm_gpu_hw_init(struct msm_gpu *gpu)
 {
 	int ret;
@@ -209,7 +221,7 @@ static void msm_gpu_devcoredump_free(void *data)
 }
 
 static void msm_gpu_crashstate_get_bo(struct msm_gpu_state *state,
-		struct msm_gem_object *obj, u64 iova, u32 flags)
+		struct msm_gem_object *obj, u64 iova, bool full)
 {
 	struct msm_gpu_state_bo *state_bo = &state->bos[state->nr_bos];
 
@@ -217,8 +229,11 @@ static void msm_gpu_crashstate_get_bo(struct msm_gpu_state *state,
 	state_bo->size = obj->base.size;
 	state_bo->iova = iova;
 
-	/* Only store data for non imported buffer objects marked for read */
-	if ((flags & MSM_SUBMIT_BO_READ) && !obj->base.import_attach) {
+	BUILD_BUG_ON(sizeof(state_bo->name) != sizeof(obj->name));
+
+	memcpy(state_bo->name, obj->name, sizeof(state_bo->name));
+
+	if (full) {
 		void *ptr;
 
 		state_bo->data = kvmalloc(obj->base.size, GFP_KERNEL);
@@ -264,34 +279,15 @@ static void msm_gpu_crashstate_capture(struct msm_gpu *gpu,
 	state->fault_info = gpu->fault_info;
 
 	if (submit) {
-		int i, nr = 0;
+		int i;
 
-		/* count # of buffers to dump: */
-		for (i = 0; i < submit->nr_bos; i++)
-			if (should_dump(submit, i))
-				nr++;
-		/* always dump cmd bo's, but don't double count them: */
-		for (i = 0; i < submit->nr_cmds; i++)
-			if (!should_dump(submit, submit->cmd[i].idx))
-				nr++;
-
-		state->bos = kcalloc(nr,
+		state->bos = kcalloc(submit->nr_bos,
 			sizeof(struct msm_gpu_state_bo), GFP_KERNEL);
 
 		for (i = 0; state->bos && i < submit->nr_bos; i++) {
-			if (should_dump(submit, i)) {
-				msm_gpu_crashstate_get_bo(state, submit->bos[i].obj,
-					submit->bos[i].iova, submit->bos[i].flags);
-			}
-		}
-
-		for (i = 0; state->bos && i < submit->nr_cmds; i++) {
-			int idx = submit->cmd[i].idx;
-
-			if (!should_dump(submit, submit->cmd[i].idx)) {
-				msm_gpu_crashstate_get_bo(state, submit->bos[idx].obj,
-					submit->bos[idx].iova, submit->bos[idx].flags);
-			}
+			msm_gpu_crashstate_get_bo(state, submit->bos[i].obj,
+						  submit->bos[i].iova,
+						  should_dump(submit, i));
 		}
 	}
 
@@ -634,7 +630,7 @@ static void retire_submit(struct msm_gpu *gpu, struct msm_ringbuffer *ring,
 {
 	int index = submit->seqno % MSM_GPU_SUBMIT_STATS_COUNT;
 	volatile struct msm_gpu_submit_stats *stats;
-	u64 elapsed, clock = 0;
+	u64 elapsed, clock = 0, cycles;
 	unsigned long flags;
 
 	stats = &ring->memptrs->stats[index];
@@ -642,11 +638,16 @@ static void retire_submit(struct msm_gpu *gpu, struct msm_ringbuffer *ring,
 	elapsed = (stats->alwayson_end - stats->alwayson_start) * 10000;
 	do_div(elapsed, 192);
 
+	cycles = stats->cpcycles_end - stats->cpcycles_start;
+
 	/* Calculate the clock frequency from the number of CP cycles */
 	if (elapsed) {
-		clock = (stats->cpcycles_end - stats->cpcycles_start) * 1000;
+		clock = cycles * 1000;
 		do_div(clock, elapsed);
 	}
+
+	submit->queue->ctx->elapsed_ns += elapsed;
+	submit->queue->ctx->cycles     += cycles;
 
 	trace_msm_gpu_submit_retired(submit, elapsed, clock,
 		stats->alwayson_start, stats->alwayson_end);
@@ -917,7 +918,7 @@ int msm_gpu_init(struct drm_device *drm, struct platform_device *pdev,
 
 	memptrs = msm_gem_kernel_new(drm,
 		sizeof(struct msm_rbmemptrs) * nr_rings,
-		check_apriv(gpu, MSM_BO_UNCACHED), gpu->aspace, &gpu->memptrs_bo,
+		check_apriv(gpu, MSM_BO_WC), gpu->aspace, &gpu->memptrs_bo,
 		&memptrs_iova);
 
 	if (IS_ERR(memptrs)) {

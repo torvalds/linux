@@ -3,6 +3,8 @@
  * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
+#include <drm/drm_edid.h>
+
 #include "dpu_writeback.h"
 
 static int dpu_wb_conn_get_modes(struct drm_connector *connector)

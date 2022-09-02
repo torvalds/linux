@@ -37,6 +37,12 @@ rndh=$(stdbuf -o0 -e0 printf %x "$sec")-$(mktemp -u XXXXXX)
 ns1="ns1-$rndh"
 ns2="ns2-$rndh"
 
+kill_wait()
+{
+	kill $1 > /dev/null 2>&1
+	wait $1 2>/dev/null
+}
+
 cleanup()
 {
 	echo "cleanup"
@@ -48,16 +54,16 @@ cleanup()
 		kill -SIGUSR1 $client4_pid > /dev/null 2>&1
 	fi
 	if [ $server4_pid -ne 0 ]; then
-		kill $server4_pid > /dev/null 2>&1
+		kill_wait $server4_pid
 	fi
 	if [ $client6_pid -ne 0 ]; then
 		kill -SIGUSR1 $client6_pid > /dev/null 2>&1
 	fi
 	if [ $server6_pid -ne 0 ]; then
-		kill $server6_pid > /dev/null 2>&1
+		kill_wait $server6_pid
 	fi
 	if [ $evts_pid -ne 0 ]; then
-		kill $evts_pid > /dev/null 2>&1
+		kill_wait $evts_pid
 	fi
 	local netns
 	for netns in "$ns1" "$ns2" ;do
@@ -153,7 +159,7 @@ make_connection()
 	sleep 1
 
 	# Capture client/server attributes from MPTCP connection netlink events
-	kill $client_evts_pid
+	kill_wait $client_evts_pid
 
 	local client_token
 	local client_port
@@ -165,7 +171,7 @@ make_connection()
 	client_port=$(sed --unbuffered -n 's/.*\(sport:\)\([[:digit:]]*\).*$/\2/p;q' "$client_evts")
 	client_serverside=$(sed --unbuffered -n 's/.*\(server_side:\)\([[:digit:]]*\).*$/\2/p;q'\
 				      "$client_evts")
-	kill $server_evts_pid
+	kill_wait $server_evts_pid
 	server_token=$(sed --unbuffered -n 's/.*\(token:\)\([[:digit:]]*\).*$/\2/p;q' "$server_evts")
 	server_serverside=$(sed --unbuffered -n 's/.*\(server_side:\)\([[:digit:]]*\).*$/\2/p;q'\
 				      "$server_evts")
@@ -286,7 +292,7 @@ test_announce()
 	verify_announce_event "$evts" "$ANNOUNCED" "$server4_token" "10.0.2.2"\
 			      "$client_addr_id" "$new4_port"
 
-	kill $evts_pid
+	kill_wait $evts_pid
 
 	# Capture events on the network namespace running the client
 	:>"$evts"
@@ -321,7 +327,7 @@ test_announce()
 	verify_announce_event "$evts" "$ANNOUNCED" "$client4_token" "10.0.2.1"\
 			      "$server_addr_id" "$new4_port"
 
-	kill $evts_pid
+	kill_wait $evts_pid
 	rm -f "$evts"
 }
 
@@ -416,7 +422,7 @@ test_remove()
 	sleep 0.5
 	verify_remove_event "$evts" "$REMOVED" "$server6_token" "$client_addr_id"
 
-	kill $evts_pid
+	kill_wait $evts_pid
 
 	# Capture events on the network namespace running the client
 	:>"$evts"
@@ -449,7 +455,7 @@ test_remove()
 	sleep 0.5
 	verify_remove_event "$evts" "$REMOVED" "$client6_token" "$server_addr_id"
 
-	kill $evts_pid
+	kill_wait $evts_pid
 	rm -f "$evts"
 }
 
@@ -553,7 +559,7 @@ test_subflows()
 			      "10.0.2.2" "$client4_port" "23" "$client_addr_id" "ns1" "ns2"
 
 	# Delete the listener from the client ns, if one was created
-	kill $listener_pid > /dev/null 2>&1
+	kill_wait $listener_pid
 
 	local sport
 	sport=$(sed --unbuffered -n 's/.*\(sport:\)\([[:digit:]]*\).*$/\2/p;q' "$evts")
@@ -592,7 +598,7 @@ test_subflows()
 			      "$client_addr_id" "ns1" "ns2"
 
 	# Delete the listener from the client ns, if one was created
-	kill $listener_pid > /dev/null 2>&1
+	kill_wait $listener_pid
 
 	sport=$(sed --unbuffered -n 's/.*\(sport:\)\([[:digit:]]*\).*$/\2/p;q' "$evts")
 
@@ -631,7 +637,7 @@ test_subflows()
 			      "$client_addr_id" "ns1" "ns2"
 
 	# Delete the listener from the client ns, if one was created
-	kill $listener_pid > /dev/null 2>&1
+	kill_wait $listener_pid
 
 	sport=$(sed --unbuffered -n 's/.*\(sport:\)\([[:digit:]]*\).*$/\2/p;q' "$evts")
 
@@ -647,7 +653,7 @@ test_subflows()
 	ip netns exec "$ns2" ./pm_nl_ctl rem id $client_addr_id token\
 	   "$client4_token" > /dev/null 2>&1
 
-	kill $evts_pid
+	kill_wait $evts_pid
 
 	# Capture events on the network namespace running the client
 	:>"$evts"
@@ -674,7 +680,7 @@ test_subflows()
 			      "10.0.2.1" "$app4_port" "23" "$server_addr_id" "ns2" "ns1"
 
 	# Delete the listener from the server ns, if one was created
-	kill $listener_pid> /dev/null 2>&1
+	kill_wait $listener_pid
 
 	sport=$(sed --unbuffered -n 's/.*\(sport:\)\([[:digit:]]*\).*$/\2/p;q' "$evts")
 
@@ -713,7 +719,7 @@ test_subflows()
 			      "$server_addr_id" "ns2" "ns1"
 
 	# Delete the listener from the server ns, if one was created
-	kill $listener_pid > /dev/null 2>&1
+	kill_wait $listener_pid
 
 	sport=$(sed --unbuffered -n 's/.*\(sport:\)\([[:digit:]]*\).*$/\2/p;q' "$evts")
 
@@ -750,7 +756,7 @@ test_subflows()
 			      "10.0.2.2" "10.0.2.1" "$new4_port" "23" "$server_addr_id" "ns2" "ns1"
 
 	# Delete the listener from the server ns, if one was created
-	kill $listener_pid > /dev/null 2>&1
+	kill_wait $listener_pid
 
 	sport=$(sed --unbuffered -n 's/.*\(sport:\)\([[:digit:]]*\).*$/\2/p;q' "$evts")
 
@@ -766,7 +772,7 @@ test_subflows()
 	ip netns exec "$ns1" ./pm_nl_ctl rem id $server_addr_id token\
 	   "$server4_token" > /dev/null 2>&1
 
-	kill $evts_pid
+	kill_wait $evts_pid
 	rm -f "$evts"
 }
 

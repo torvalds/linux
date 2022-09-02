@@ -10,7 +10,7 @@
 // Copyright: (C) 2009-2010 Julia Lawall, Nicolas Palix, DIKU.
 // Copyright: (C) 2009-2010 Gilles Muller, INRIA/LiP6.
 // Copyright: (C) 2017 Himanshu Jha
-// URL: http://coccinelle.lip6.fr/rules/kzalloc.html
+// URL: https://coccinelle.gitlabpages.inria.fr/website
 // Options: --no-includes --include-headers
 //
 // Keywords: kmalloc, kzalloc

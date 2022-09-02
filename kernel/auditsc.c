@@ -1073,31 +1073,6 @@ int audit_alloc(struct task_struct *tsk)
 	return 0;
 }
 
-/**
- * audit_alloc_kernel - allocate an audit_context for a kernel task
- * @tsk: the kernel task
- *
- * Similar to the audit_alloc() function, but intended for kernel private
- * threads.  Returns zero on success, negative values on failure.
- */
-int audit_alloc_kernel(struct task_struct *tsk)
-{
-	/*
-	 * At the moment we are just going to call into audit_alloc() to
-	 * simplify the code, but there two things to keep in mind with this
-	 * approach:
-	 *
-	 * 1. Filtering internal kernel tasks is a bit laughable in almost all
-	 * cases, but there is at least one case where there is a benefit:
-	 * the '-a task,never' case allows the admin to effectively disable
-	 * task auditing at runtime.
-	 *
-	 * 2. The {set,clear}_task_syscall_work() ops likely have zero effect
-	 * on these internal kernel tasks, but they probably don't hurt either.
-	 */
-	return audit_alloc(tsk);
-}
-
 static inline void audit_free_context(struct audit_context *context)
 {
 	/* resetting is extra work, but it is likely just noise */
@@ -1965,6 +1940,7 @@ void __audit_uring_exit(int success, long code)
 		goto out;
 	}
 
+	audit_return_fixup(ctx, success, code);
 	if (ctx->context == AUDIT_CTX_SYSCALL) {
 		/*
 		 * NOTE: See the note in __audit_uring_entry() about the case
@@ -2006,7 +1982,6 @@ void __audit_uring_exit(int success, long code)
 	audit_filter_inodes(current, ctx);
 	if (ctx->current_state != AUDIT_STATE_RECORD)
 		goto out;
-	audit_return_fixup(ctx, success, code);
 	audit_log_exit();
 
 out:
@@ -2090,13 +2065,13 @@ void __audit_syscall_exit(int success, long return_code)
 	if (!list_empty(&context->killed_trees))
 		audit_kill_trees(context);
 
+	audit_return_fixup(context, success, return_code);
 	/* run through both filters to ensure we set the filterkey properly */
 	audit_filter_syscall(current, context);
 	audit_filter_inodes(current, context);
 	if (context->current_state < AUDIT_STATE_RECORD)
 		goto out;
 
-	audit_return_fixup(context, success, return_code);
 	audit_log_exit();
 
 out:

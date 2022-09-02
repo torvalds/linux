@@ -648,7 +648,7 @@ int __legitimize_mnt(struct vfsmount *bastard, unsigned seq)
 }
 
 /* call under rcu_read_lock */
-bool legitimize_mnt(struct vfsmount *bastard, unsigned seq)
+static bool legitimize_mnt(struct vfsmount *bastard, unsigned seq)
 {
 	int res = __legitimize_mnt(bastard, seq);
 	if (likely(!res))
@@ -4238,6 +4238,13 @@ static int build_mount_idmapped(const struct mount_attr *attr, size_t usize,
 		err = -EPERM;
 		goto out_fput;
 	}
+
+	/* We're not controlling the target namespace. */
+	if (!ns_capable(mnt_userns, CAP_SYS_ADMIN)) {
+		err = -EPERM;
+		goto out_fput;
+	}
+
 	kattr->mnt_userns = get_user_ns(mnt_userns);
 
 out_fput:

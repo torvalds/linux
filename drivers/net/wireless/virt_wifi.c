@@ -654,7 +654,7 @@ static int __init virt_wifi_init_module(void)
 {
 	int err;
 
-	/* Guaranteed to be locallly-administered and not multicast. */
+	/* Guaranteed to be locally-administered and not multicast. */
 	eth_random_addr(fake_router_bssid);
 
 	err = register_netdevice_notifier(&virt_wifi_notifier);

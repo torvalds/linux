@@ -239,7 +239,7 @@ static void pmem_submit_bio(struct bio *bio)
 }
 
 static int pmem_rw_page(struct block_device *bdev, sector_t sector,
-		       struct page *page, unsigned int op)
+		       struct page *page, enum req_op op)
 {
 	struct pmem_device *pmem = bdev->bd_disk->private_data;
 	blk_status_t rc;
@@ -450,8 +450,23 @@ static void pmem_release_disk(void *__pmem)
 	put_dax(pmem->dax_dev);
 	del_gendisk(pmem->disk);
 
-	blk_cleanup_disk(pmem->disk);
+	put_disk(pmem->disk);
 }
+
+static int pmem_pagemap_memory_failure(struct dev_pagemap *pgmap,
+		unsigned long pfn, unsigned long nr_pages, int mf_flags)
+{
+	struct pmem_device *pmem =
+			container_of(pgmap, struct pmem_device, pgmap);
+	u64 offset = PFN_PHYS(pfn) - pmem->phys_addr - pmem->data_offset;
+	u64 len = nr_pages << PAGE_SHIFT;
+
+	return dax_holder_notify_failure(pmem->dax_dev, offset, len, mf_flags);
+}
+
+static const struct dev_pagemap_ops fsdax_pagemap_ops = {
+	.memory_failure		= pmem_pagemap_memory_failure,
+};
 
 static int pmem_attach_disk(struct device *dev,
 		struct nd_namespace_common *ndns)
@@ -514,6 +529,7 @@ static int pmem_attach_disk(struct device *dev,
 	pmem->pfn_flags = PFN_DEV;
 	if (is_nd_pfn(dev)) {
 		pmem->pgmap.type = MEMORY_DEVICE_FS_DAX;
+		pmem->pgmap.ops = &fsdax_pagemap_ops;
 		addr = devm_memremap_pages(dev, &pmem->pgmap);
 		pfn_sb = nd_pfn->pfn_sb;
 		pmem->data_offset = le64_to_cpu(pfn_sb->dataoff);
@@ -527,6 +543,7 @@ static int pmem_attach_disk(struct device *dev,
 		pmem->pgmap.range.end = res->end;
 		pmem->pgmap.nr_range = 1;
 		pmem->pgmap.type = MEMORY_DEVICE_FS_DAX;
+		pmem->pgmap.ops = &fsdax_pagemap_ops;
 		addr = devm_memremap_pages(dev, &pmem->pgmap);
 		pmem->pfn_flags |= PFN_MAP;
 		bb_range = pmem->pgmap.range;
@@ -596,7 +613,7 @@ out_cleanup_dax:
 	kill_dax(pmem->dax_dev);
 	put_dax(pmem->dax_dev);
 out:
-	blk_cleanup_disk(pmem->disk);
+	put_disk(pmem->disk);
 	return rc;
 }
 

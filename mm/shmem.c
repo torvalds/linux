@@ -28,6 +28,7 @@
 #include <linux/ramfs.h>
 #include <linux/pagemap.h>
 #include <linux/file.h>
+#include <linux/fileattr.h>
 #include <linux/mm.h>
 #include <linux/random.h>
 #include <linux/sched/signal.h>
@@ -392,7 +393,7 @@ void shmem_uncharge(struct inode *inode, long pages)
 	struct shmem_inode_info *info = SHMEM_I(inode);
 	unsigned long flags;
 
-	/* nrpages adjustment done by __delete_from_page_cache() or caller */
+	/* nrpages adjustment done by __filemap_remove_folio() or caller */
 
 	spin_lock_irqsave(&info->lock, flags);
 	info->alloced -= pages;
@@ -693,7 +694,7 @@ static unsigned long shmem_unused_huge_shrink(struct shmem_sb_info *sbinfo,
 #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
 
 /*
- * Like add_to_page_cache_locked, but error if expected item has gone.
+ * Like filemap_add_folio, but error if expected item has gone.
  */
 static int shmem_add_to_page_cache(struct folio *folio,
 				   struct address_space *mapping,
@@ -867,18 +868,17 @@ unsigned long shmem_swap_usage(struct vm_area_struct *vma)
  */
 void shmem_unlock_mapping(struct address_space *mapping)
 {
-	struct pagevec pvec;
+	struct folio_batch fbatch;
 	pgoff_t index = 0;
 
-	pagevec_init(&pvec);
+	folio_batch_init(&fbatch);
 	/*
 	 * Minor point, but we might as well stop if someone else SHM_LOCKs it.
 	 */
-	while (!mapping_unevictable(mapping)) {
-		if (!pagevec_lookup(&pvec, mapping, &index))
-			break;
-		check_move_unevictable_pages(&pvec);
-		pagevec_release(&pvec);
+	while (!mapping_unevictable(mapping) &&
+	       filemap_get_folios(mapping, &index, ~0UL, &fbatch)) {
+		check_move_unevictable_folios(&fbatch);
+		folio_batch_release(&fbatch);
 		cond_resched();
 	}
 }
@@ -1058,6 +1058,15 @@ static int shmem_getattr(struct user_namespace *mnt_userns,
 		shmem_recalc_inode(inode);
 		spin_unlock_irq(&info->lock);
 	}
+	if (info->fsflags & FS_APPEND_FL)
+		stat->attributes |= STATX_ATTR_APPEND;
+	if (info->fsflags & FS_IMMUTABLE_FL)
+		stat->attributes |= STATX_ATTR_IMMUTABLE;
+	if (info->fsflags & FS_NODUMP_FL)
+		stat->attributes |= STATX_ATTR_NODUMP;
+	stat->attributes_mask |= (STATX_ATTR_APPEND |
+			STATX_ATTR_IMMUTABLE |
+			STATX_ATTR_NODUMP);
 	generic_fillattr(&init_user_ns, inode, stat);
 
 	if (shmem_is_huge(NULL, inode, 0))
@@ -1650,7 +1659,9 @@ static int shmem_replace_page(struct page **pagep, gfp_t gfp,
 		new = page_folio(newpage);
 		mem_cgroup_migrate(old, new);
 		__inc_lruvec_page_state(newpage, NR_FILE_PAGES);
+		__inc_lruvec_page_state(newpage, NR_SHMEM);
 		__dec_lruvec_page_state(oldpage, NR_FILE_PAGES);
+		__dec_lruvec_page_state(oldpage, NR_SHMEM);
 	}
 	xa_unlock_irq(&swap_mapping->i_pages);
 
@@ -1691,7 +1702,7 @@ static void shmem_set_folio_swapin_error(struct inode *inode, pgoff_t index,
 		return;
 
 	folio_wait_writeback(folio);
-	delete_from_swap_cache(&folio->page);
+	delete_from_swap_cache(folio);
 	spin_lock_irq(&info->lock);
 	/*
 	 * Don't treat swapin error folio as alloced. Otherwise inode->i_blocks won't
@@ -1706,10 +1717,10 @@ static void shmem_set_folio_swapin_error(struct inode *inode, pgoff_t index,
 }
 
 /*
- * Swap in the page pointed to by *pagep.
- * Caller has to make sure that *pagep contains a valid swapped page.
- * Returns 0 and the page in pagep if success. On failure, returns the
- * error code and NULL in *pagep.
+ * Swap in the folio pointed to by *foliop.
+ * Caller has to make sure that *foliop contains a valid swapped folio.
+ * Returns 0 and the folio in foliop if success. On failure, returns the
+ * error code and NULL in *foliop.
  */
 static int shmem_swapin_folio(struct inode *inode, pgoff_t index,
 			     struct folio **foliop, enum sgp_type sgp,
@@ -1749,7 +1760,7 @@ static int shmem_swapin_folio(struct inode *inode, pgoff_t index,
 	}
 	folio = page_folio(page);
 
-	/* We have to do this with page locked to prevent races */
+	/* We have to do this with folio locked to prevent races */
 	folio_lock(folio);
 	if (!folio_test_swapcache(folio) ||
 	    folio_swap_entry(folio).val != swap.val ||
@@ -1771,6 +1782,7 @@ static int shmem_swapin_folio(struct inode *inode, pgoff_t index,
 
 	if (shmem_should_replace_folio(folio, gfp)) {
 		error = shmem_replace_page(&page, gfp, info, index);
+		folio = page_folio(page);
 		if (error)
 			goto failed;
 	}
@@ -1789,7 +1801,7 @@ static int shmem_swapin_folio(struct inode *inode, pgoff_t index,
 	if (sgp == SGP_WRITE)
 		folio_mark_accessed(folio);
 
-	delete_from_swap_cache(&folio->page);
+	delete_from_swap_cache(folio);
 	folio_mark_dirty(folio);
 	swap_free(swap);
 
@@ -2272,7 +2284,36 @@ static int shmem_mmap(struct file *file, struct vm_area_struct *vma)
 	return 0;
 }
 
-static struct inode *shmem_get_inode(struct super_block *sb, const struct inode *dir,
+#ifdef CONFIG_TMPFS_XATTR
+static int shmem_initxattrs(struct inode *, const struct xattr *, void *);
+
+/*
+ * chattr's fsflags are unrelated to extended attributes,
+ * but tmpfs has chosen to enable them under the same config option.
+ */
+static void shmem_set_inode_flags(struct inode *inode, unsigned int fsflags)
+{
+	unsigned int i_flags = 0;
+
+	if (fsflags & FS_NOATIME_FL)
+		i_flags |= S_NOATIME;
+	if (fsflags & FS_APPEND_FL)
+		i_flags |= S_APPEND;
+	if (fsflags & FS_IMMUTABLE_FL)
+		i_flags |= S_IMMUTABLE;
+	/*
+	 * But FS_NODUMP_FL does not require any action in i_flags.
+	 */
+	inode_set_flags(inode, i_flags, S_NOATIME | S_APPEND | S_IMMUTABLE);
+}
+#else
+static void shmem_set_inode_flags(struct inode *inode, unsigned int fsflags)
+{
+}
+#define shmem_initxattrs NULL
+#endif
+
+static struct inode *shmem_get_inode(struct super_block *sb, struct inode *dir,
 				     umode_t mode, dev_t dev, unsigned long flags)
 {
 	struct inode *inode;
@@ -2297,6 +2338,10 @@ static struct inode *shmem_get_inode(struct super_block *sb, const struct inode 
 		info->seals = F_SEAL_SEAL;
 		info->flags = flags & VM_NORESERVE;
 		info->i_crtime = inode->i_mtime;
+		info->fsflags = (dir == NULL) ? 0 :
+			SHMEM_I(dir)->fsflags & SHMEM_FL_INHERITED;
+		if (info->fsflags)
+			shmem_set_inode_flags(inode, info->fsflags);
 		INIT_LIST_HEAD(&info->shrinklist);
 		INIT_LIST_HEAD(&info->swaplist);
 		simple_xattrs_init(&info->xattrs);
@@ -2444,12 +2489,6 @@ out_unacct_blocks:
 #ifdef CONFIG_TMPFS
 static const struct inode_operations shmem_symlink_inode_operations;
 static const struct inode_operations shmem_short_symlink_operations;
-
-#ifdef CONFIG_TMPFS_XATTR
-static int shmem_initxattrs(struct inode *, const struct xattr *, void *);
-#else
-#define shmem_initxattrs NULL
-#endif
 
 static int
 shmem_write_begin(struct file *file, struct address_space *mapping,
@@ -2603,7 +2642,7 @@ static ssize_t shmem_file_read_iter(struct kiocb *iocb, struct iov_iter *to)
 			ret = copy_page_to_iter(page, offset, nr, to);
 			put_page(page);
 
-		} else if (iter_is_iovec(to)) {
+		} else if (user_backed_iter(to)) {
 			/*
 			 * Copy to user tends to be so well optimized, but
 			 * clear_user() not so much, that it is noticeably
@@ -2803,12 +2842,13 @@ static long shmem_fallocate(struct file *file, int mode, loff_t offset,
 
 	if (!(mode & FALLOC_FL_KEEP_SIZE) && offset + len > inode->i_size)
 		i_size_write(inode, offset + len);
-	inode->i_ctime = current_time(inode);
 undone:
 	spin_lock(&inode->i_lock);
 	inode->i_private = NULL;
 	spin_unlock(&inode->i_lock);
 out:
+	if (!error)
+		file_modified(file);
 	inode_unlock(inode);
 	return error;
 }
@@ -3138,6 +3178,35 @@ static const char *shmem_get_link(struct dentry *dentry,
 }
 
 #ifdef CONFIG_TMPFS_XATTR
+
+static int shmem_fileattr_get(struct dentry *dentry, struct fileattr *fa)
+{
+	struct shmem_inode_info *info = SHMEM_I(d_inode(dentry));
+
+	fileattr_fill_flags(fa, info->fsflags & SHMEM_FL_USER_VISIBLE);
+
+	return 0;
+}
+
+static int shmem_fileattr_set(struct user_namespace *mnt_userns,
+			      struct dentry *dentry, struct fileattr *fa)
+{
+	struct inode *inode = d_inode(dentry);
+	struct shmem_inode_info *info = SHMEM_I(inode);
+
+	if (fileattr_has_fsx(fa))
+		return -EOPNOTSUPP;
+	if (fa->flags & ~SHMEM_FL_USER_MODIFIABLE)
+		return -EOPNOTSUPP;
+
+	info->fsflags = (info->fsflags & ~SHMEM_FL_USER_MODIFIABLE) |
+		(fa->flags & SHMEM_FL_USER_MODIFIABLE);
+
+	shmem_set_inode_flags(inode, info->fsflags);
+	inode->i_ctime = current_time(inode);
+	return 0;
+}
+
 /*
  * Superblocks without xattr inode operations may get some security.* xattr
  * support from the LSM "for free". As soon as we have any other xattrs
@@ -3799,7 +3868,7 @@ const struct address_space_operations shmem_aops = {
 	.write_end	= shmem_write_end,
 #endif
 #ifdef CONFIG_MIGRATION
-	.migratepage	= migrate_page,
+	.migrate_folio	= migrate_folio,
 #endif
 	.error_remove_page = shmem_error_remove_page,
 };
@@ -3825,6 +3894,8 @@ static const struct inode_operations shmem_inode_operations = {
 #ifdef CONFIG_TMPFS_XATTR
 	.listxattr	= shmem_listxattr,
 	.set_acl	= simple_set_acl,
+	.fileattr_get	= shmem_fileattr_get,
+	.fileattr_set	= shmem_fileattr_set,
 #endif
 };
 
@@ -3844,6 +3915,8 @@ static const struct inode_operations shmem_dir_inode_operations = {
 #endif
 #ifdef CONFIG_TMPFS_XATTR
 	.listxattr	= shmem_listxattr,
+	.fileattr_get	= shmem_fileattr_get,
+	.fileattr_set	= shmem_fileattr_set,
 #endif
 #ifdef CONFIG_TMPFS_POSIX_ACL
 	.setattr	= shmem_setattr,

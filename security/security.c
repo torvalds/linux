@@ -1804,6 +1804,11 @@ int security_task_fix_setgid(struct cred *new, const struct cred *old,
 	return call_int_hook(task_fix_setgid, 0, new, old, flags);
 }
 
+int security_task_fix_setgroups(struct cred *new, const struct cred *old)
+{
+	return call_int_hook(task_fix_setgroups, 0, new, old);
+}
+
 int security_task_setpgid(struct task_struct *p, pid_t pgid)
 {
 	return call_int_hook(task_setpgid, 0, p, pgid);
@@ -2654,5 +2659,9 @@ int security_uring_override_creds(const struct cred *new)
 int security_uring_sqpoll(void)
 {
 	return call_int_hook(uring_sqpoll, 0);
+}
+int security_uring_cmd(struct io_uring_cmd *ioucmd)
+{
+	return call_int_hook(uring_cmd, 0, ioucmd);
 }
 #endif /* CONFIG_IO_URING */

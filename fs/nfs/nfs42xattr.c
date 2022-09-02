@@ -1017,15 +1017,16 @@ int __init nfs4_xattr_cache_init(void)
 	if (ret)
 		goto out2;
 
-	ret = register_shrinker(&nfs4_xattr_cache_shrinker);
+	ret = register_shrinker(&nfs4_xattr_cache_shrinker, "nfs-xattr_cache");
 	if (ret)
 		goto out1;
 
-	ret = register_shrinker(&nfs4_xattr_entry_shrinker);
+	ret = register_shrinker(&nfs4_xattr_entry_shrinker, "nfs-xattr_entry");
 	if (ret)
 		goto out;
 
-	ret = register_shrinker(&nfs4_xattr_large_entry_shrinker);
+	ret = register_shrinker(&nfs4_xattr_large_entry_shrinker,
+				"nfs-xattr_large_entry");
 	if (!ret)
 		return 0;
 

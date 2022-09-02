@@ -1336,6 +1336,22 @@ static inline int regmap_field_update_bits(struct regmap_field *field,
 					     NULL, false, false);
 }
 
+static inline int regmap_field_set_bits(struct regmap_field *field,
+					unsigned int bits)
+{
+	return regmap_field_update_bits_base(field, bits, bits, NULL, false,
+					     false);
+}
+
+static inline int regmap_field_clear_bits(struct regmap_field *field,
+					  unsigned int bits)
+{
+	return regmap_field_update_bits_base(field, bits, 0, NULL, false,
+					     false);
+}
+
+int regmap_field_test_bits(struct regmap_field *field, unsigned int bits);
+
 static inline int
 regmap_field_force_update_bits(struct regmap_field *field,
 			       unsigned int mask, unsigned int val)
@@ -1424,6 +1440,8 @@ struct regmap_irq_sub_irq_map {
 	unsigned int *offset;
 };
 
+struct regmap_irq_chip_data;
+
 /**
  * struct regmap_irq_chip - Description of a generic regmap irq_chip.
  *
@@ -1451,32 +1469,50 @@ struct regmap_irq_sub_irq_map {
  *		   main_status set.
  *
  * @status_base: Base status register address.
- * @mask_base:   Base mask register address.
- * @mask_writeonly: Base mask register is write only.
- * @unmask_base:  Base unmask register address. for chips who have
- *                separate mask and unmask registers
+ * @mask_base:   Base mask register address. Mask bits are set to 1 when an
+ *               interrupt is masked, 0 when unmasked.
+ * @unmask_base:  Base unmask register address. Unmask bits are set to 1 when
+ *                an interrupt is unmasked and 0 when masked.
  * @ack_base:    Base ack address. If zero then the chip is clear on read.
  *               Using zero value is possible with @use_ack bit.
  * @wake_base:   Base address for wake enables.  If zero unsupported.
- * @type_base:   Base address for irq type.  If zero unsupported.
- * @virt_reg_base:   Base addresses for extra config regs.
+ * @type_base:   Base address for irq type.  If zero unsupported.  Deprecated,
+ *		 use @config_base instead.
+ * @virt_reg_base:   Base addresses for extra config regs. Deprecated, use
+ *		     @config_base instead.
+ * @config_base: Base address for IRQ type config regs. If null unsupported.
  * @irq_reg_stride:  Stride to use for chips where registers are not contiguous.
  * @init_ack_masked: Ack all masked interrupts once during initalization.
  * @mask_invert: Inverted mask register: cleared bits are masked out.
+ *		 Deprecated; prefer describing an inverted mask register as
+ *		 an unmask register.
+ * @mask_unmask_non_inverted: Controls mask bit inversion for chips that set
+ *	both @mask_base and @unmask_base. If false, mask and unmask bits are
+ *	inverted (which is deprecated behavior); if true, bits will not be
+ *	inverted and the registers keep their normal behavior. Note that if
+ *	you use only one of @mask_base or @unmask_base, this flag has no
+ *	effect and is unnecessary. Any new drivers that set both @mask_base
+ *	and @unmask_base should set this to true to avoid relying on the
+ *	deprecated behavior.
  * @use_ack:     Use @ack register even if it is zero.
  * @ack_invert:  Inverted ack register: cleared bits for ack.
  * @clear_ack:  Use this to set 1 and 0 or vice-versa to clear interrupts.
  * @wake_invert: Inverted wake register: cleared bits are wake enabled.
- * @type_invert: Invert the type flags.
- * @type_in_mask: Use the mask registers for controlling irq type. For
- *                interrupts defining type_rising/falling_mask use mask_base
- *                for edge configuration and never update bits in type_base.
+ * @type_invert: Invert the type flags. Deprecated, use config registers
+ *		 instead.
+ * @type_in_mask: Use the mask registers for controlling irq type. Use this if
+ *		  the hardware provides separate bits for rising/falling edge
+ *		  or low/high level interrupts and they should be combined into
+ *		  a single logical interrupt. Use &struct regmap_irq_type data
+ *		  to define the mask bit for each irq type.
  * @clear_on_unmask: For chips with interrupts cleared on read: read the status
  *                   registers before unmasking interrupts to clear any bits
  *                   set when they were masked.
  * @not_fixed_stride: Used when chip peripherals are not laid out with fixed
- * 		      stride. Must be used with sub_reg_offsets containing the
- * 		      offsets to each peripheral.
+ *		      stride. Must be used with sub_reg_offsets containing the
+ *		      offsets to each peripheral. Deprecated; the same thing
+ *		      can be accomplished with a @get_irq_reg callback, without
+ *		      the need for a @sub_reg_offsets table.
  * @status_invert: Inverted status register: cleared bits are active interrupts.
  * @runtime_pm:  Hold a runtime PM lock on the device when accessing it.
  *
@@ -1484,17 +1520,28 @@ struct regmap_irq_sub_irq_map {
  * @irqs:        Descriptors for individual IRQs.  Interrupt numbers are
  *               assigned based on the index in the array of the interrupt.
  * @num_irqs:    Number of descriptors.
- * @num_type_reg:    Number of type registers.
+ * @num_type_reg:    Number of type registers. Deprecated, use config registers
+ *		     instead.
  * @num_virt_regs:   Number of non-standard irq configuration registers.
- *		     If zero unsupported.
- * @type_reg_stride: Stride to use for chips where type registers are not
- *			contiguous.
+ *		     If zero unsupported. Deprecated, use config registers
+ *		     instead.
+ * @num_config_bases:	Number of config base registers.
+ * @num_config_regs:	Number of config registers for each config base register.
  * @handle_pre_irq:  Driver specific callback to handle interrupt from device
  *		     before regmap_irq_handler process the interrupts.
  * @handle_post_irq: Driver specific callback to handle interrupt from device
  *		     after handling the interrupts in regmap_irq_handler().
  * @set_type_virt:   Driver specific callback to extend regmap_irq_set_type()
- *		     and configure virt regs.
+ *		     and configure virt regs. Deprecated, use @set_type_config
+ *		     callback and config registers instead.
+ * @set_type_config: Callback used for configuring irq types.
+ * @get_irq_reg: Callback for mapping (base register, index) pairs to register
+ *		 addresses. The base register will be one of @status_base,
+ *		 @mask_base, etc., @main_status, or any of @config_base.
+ *		 The index will be in the range [0, num_main_regs[ for the
+ *		 main status base, [0, num_type_settings[ for any config
+ *		 register base, and [0, num_regs[ for any other base.
+ *		 If unspecified then regmap_irq_get_irq_reg_linear() is used.
  * @irq_drv_data:    Driver specific IRQ data which is passed as parameter when
  *		     driver specific pre/post interrupt handler is called.
  *
@@ -1517,20 +1564,21 @@ struct regmap_irq_chip {
 	unsigned int wake_base;
 	unsigned int type_base;
 	unsigned int *virt_reg_base;
+	const unsigned int *config_base;
 	unsigned int irq_reg_stride;
-	bool mask_writeonly:1;
-	bool init_ack_masked:1;
-	bool mask_invert:1;
-	bool use_ack:1;
-	bool ack_invert:1;
-	bool clear_ack:1;
-	bool wake_invert:1;
-	bool runtime_pm:1;
-	bool type_invert:1;
-	bool type_in_mask:1;
-	bool clear_on_unmask:1;
-	bool not_fixed_stride:1;
-	bool status_invert:1;
+	unsigned int init_ack_masked:1;
+	unsigned int mask_invert:1;
+	unsigned int mask_unmask_non_inverted:1;
+	unsigned int use_ack:1;
+	unsigned int ack_invert:1;
+	unsigned int clear_ack:1;
+	unsigned int wake_invert:1;
+	unsigned int runtime_pm:1;
+	unsigned int type_invert:1;
+	unsigned int type_in_mask:1;
+	unsigned int clear_on_unmask:1;
+	unsigned int not_fixed_stride:1;
+	unsigned int status_invert:1;
 
 	int num_regs;
 
@@ -1539,16 +1587,24 @@ struct regmap_irq_chip {
 
 	int num_type_reg;
 	int num_virt_regs;
-	unsigned int type_reg_stride;
+	int num_config_bases;
+	int num_config_regs;
 
 	int (*handle_pre_irq)(void *irq_drv_data);
 	int (*handle_post_irq)(void *irq_drv_data);
 	int (*set_type_virt)(unsigned int **buf, unsigned int type,
 			     unsigned long hwirq, int reg);
+	int (*set_type_config)(unsigned int **buf, unsigned int type,
+			       const struct regmap_irq *irq_data, int idx);
+	unsigned int (*get_irq_reg)(struct regmap_irq_chip_data *data,
+				    unsigned int base, int index);
 	void *irq_drv_data;
 };
 
-struct regmap_irq_chip_data;
+unsigned int regmap_irq_get_irq_reg_linear(struct regmap_irq_chip_data *data,
+					   unsigned int base, int index);
+int regmap_irq_set_type_config_simple(unsigned int **buf, unsigned int type,
+				      const struct regmap_irq *irq_data, int idx);
 
 int regmap_add_irq_chip(struct regmap *map, int irq, int irq_flags,
 			int irq_base, const struct regmap_irq_chip *chip,
@@ -1764,6 +1820,27 @@ static inline int regmap_field_update_bits(struct regmap_field *field,
 static inline int
 regmap_field_force_update_bits(struct regmap_field *field,
 			       unsigned int mask, unsigned int val)
+{
+	WARN_ONCE(1, "regmap API is disabled");
+	return -EINVAL;
+}
+
+static inline int regmap_field_set_bits(struct regmap_field *field,
+					unsigned int bits)
+{
+	WARN_ONCE(1, "regmap API is disabled");
+	return -EINVAL;
+}
+
+static inline int regmap_field_clear_bits(struct regmap_field *field,
+					  unsigned int bits)
+{
+	WARN_ONCE(1, "regmap API is disabled");
+	return -EINVAL;
+}
+
+static inline int regmap_field_test_bits(struct regmap_field *field,
+					 unsigned int bits)
 {
 	WARN_ONCE(1, "regmap API is disabled");
 	return -EINVAL;

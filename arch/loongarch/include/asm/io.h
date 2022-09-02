@@ -7,33 +7,14 @@
 
 #define ARCH_HAS_IOREMAP_WC
 
-#include <linux/compiler.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
 
 #include <asm/addrspace.h>
-#include <asm/bug.h>
-#include <asm/byteorder.h>
 #include <asm/cpu.h>
 #include <asm/page.h>
 #include <asm/pgtable-bits.h>
 #include <asm/string.h>
-
-/*
- * On LoongArch, I/O ports mappring is following:
- *
- *              |         ....          |
- *              |-----------------------|
- *              | pci io ports(64K~32M) |
- *              |-----------------------|
- *              | isa io ports(0  ~16K) |
- * PCI_IOBASE ->|-----------------------|
- *              |         ....          |
- */
-#define PCI_IOBASE	((void __iomem *)(vm_map_base + (2 * PAGE_SIZE)))
-#define PCI_IOSIZE	SZ_32M
-#define ISA_IOSIZE	SZ_16K
-#define IO_SPACE_LIMIT	(PCI_IOSIZE - 1)
 
 /*
  * Change "struct page" to physical address.

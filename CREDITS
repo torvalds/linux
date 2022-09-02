@@ -3495,6 +3495,10 @@ D: wd33c93 SCSI driver (linux-m68k)
 S: San Jose, California
 S: USA
 
+N: Joonyoung Shim
+E: y0922.shim@samsung.com
+D: Samsung Exynos DRM drivers
+
 N: Robert Siemer
 E: Robert.Siemer@gmx.de
 P: 2048/C99A4289 2F DC 17 2E 56 62 01 C8  3D F2 AC 09 F2 E5 DD EE

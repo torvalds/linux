@@ -699,7 +699,7 @@ int vnt_beacon_make(struct vnt_private *priv, struct ieee80211_vif *vif)
 {
 	struct sk_buff *beacon;
 
-	beacon = ieee80211_beacon_get(priv->hw, vif);
+	beacon = ieee80211_beacon_get(priv->hw, vif, 0);
 	if (!beacon)
 		return -ENOMEM;
 

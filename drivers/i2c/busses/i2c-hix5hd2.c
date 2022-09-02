@@ -423,7 +423,7 @@ static int hix5hd2_i2c_probe(struct platform_device *pdev)
 	}
 	clk_prepare_enable(priv->clk);
 
-	strlcpy(priv->adap.name, "hix5hd2-i2c", sizeof(priv->adap.name));
+	strscpy(priv->adap.name, "hix5hd2-i2c", sizeof(priv->adap.name));
 	priv->dev = &pdev->dev;
 	priv->adap.owner = THIS_MODULE;
 	priv->adap.algo = &hix5hd2_i2c_algorithm;

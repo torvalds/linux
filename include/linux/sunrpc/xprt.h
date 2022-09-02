@@ -144,7 +144,8 @@ struct rpc_xprt_ops {
 	unsigned short	(*get_srcport)(struct rpc_xprt *xprt);
 	int		(*buf_alloc)(struct rpc_task *task);
 	void		(*buf_free)(struct rpc_task *task);
-	int		(*prepare_request)(struct rpc_rqst *req);
+	int		(*prepare_request)(struct rpc_rqst *req,
+					   struct xdr_buf *buf);
 	int		(*send_request)(struct rpc_rqst *req);
 	void		(*wait_for_reply_request)(struct rpc_task *task);
 	void		(*timer)(struct rpc_xprt *xprt, struct rpc_task *task);
@@ -505,4 +506,7 @@ static inline int xprt_test_and_set_binding(struct rpc_xprt *xprt)
 	return test_and_set_bit(XPRT_BINDING, &xprt->state);
 }
 
+void xprt_set_offline_locked(struct rpc_xprt *xprt, struct rpc_xprt_switch *xps);
+void xprt_set_online_locked(struct rpc_xprt *xprt, struct rpc_xprt_switch *xps);
+void xprt_delete_locked(struct rpc_xprt *xprt, struct rpc_xprt_switch *xps);
 #endif /* _LINUX_SUNRPC_XPRT_H */

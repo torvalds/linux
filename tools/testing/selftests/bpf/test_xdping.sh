@@ -95,5 +95,9 @@ for server_args in "" "-I veth0 -s -S" ; do
 	test "$client_args" "$server_args"
 done
 
+# Test drv mode
+test "-I veth1 -N" "-I veth0 -s -N"
+test "-I veth1 -N -c 10" "-I veth0 -s -N"
+
 echo "OK. All tests passed"
 exit 0

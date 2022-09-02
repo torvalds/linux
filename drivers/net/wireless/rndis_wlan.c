@@ -2813,8 +2813,9 @@ static void rndis_wlan_do_link_up_work(struct usbnet *usbdev)
 						resp_ie_len, 0, GFP_KERNEL);
 		} else {
 			struct cfg80211_roam_info roam_info = {
-				.channel = get_current_channel(usbdev, NULL),
-				.bssid = bssid,
+				.links[0].channel =
+					get_current_channel(usbdev, NULL),
+				.links[0].bssid = bssid,
 				.req_ie = req_ie,
 				.req_ie_len = req_ie_len,
 				.resp_ie = resp_ie,

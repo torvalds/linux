@@ -2968,7 +2968,7 @@ ppp_unregister_channel(struct ppp_channel *chan)
 	chan->ppp = NULL;
 
 	/*
-	 * This ensures that we have returned from any calls into the
+	 * This ensures that we have returned from any calls into
 	 * the channel's start_xmit or ioctl routine before we proceed.
 	 */
 	down_write(&pch->chan_sem);

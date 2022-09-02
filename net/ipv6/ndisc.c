@@ -128,6 +128,7 @@ struct neigh_table nd_tbl = {
 			[NEIGH_VAR_RETRANS_TIME] = ND_RETRANS_TIMER,
 			[NEIGH_VAR_BASE_REACHABLE_TIME] = ND_REACHABLE_TIME,
 			[NEIGH_VAR_DELAY_PROBE_TIME] = 5 * HZ,
+			[NEIGH_VAR_INTERVAL_PROBE_TIME_MS] = 5 * HZ,
 			[NEIGH_VAR_GC_STALETIME] = 60 * HZ,
 			[NEIGH_VAR_QUEUE_LEN_BYTES] = SK_WMEM_MAX,
 			[NEIGH_VAR_PROXY_QLEN] = 64,
@@ -966,6 +967,25 @@ out:
 		in6_dev_put(idev);
 }
 
+static int accept_untracked_na(struct net_device *dev, struct in6_addr *saddr)
+{
+	struct inet6_dev *idev = __in6_dev_get(dev);
+
+	switch (idev->cnf.accept_untracked_na) {
+	case 0: /* Don't accept untracked na (absent in neighbor cache) */
+		return 0;
+	case 1: /* Create new entries from na if currently untracked */
+		return 1;
+	case 2: /* Create new entries from untracked na only if saddr is in the
+		 * same subnet as an address configured on the interface that
+		 * received the na
+		 */
+		return !!ipv6_chk_prefix(saddr, dev);
+	default:
+		return 0;
+	}
+}
+
 static void ndisc_recv_na(struct sk_buff *skb)
 {
 	struct nd_msg *msg = (struct nd_msg *)skb_transport_header(skb);
@@ -1060,11 +1080,11 @@ static void ndisc_recv_na(struct sk_buff *skb)
 	 * Note that we don't do a (daddr == all-routers-mcast) check.
 	 */
 	new_state = msg->icmph.icmp6_solicited ? NUD_REACHABLE : NUD_STALE;
-	if (!neigh && lladdr &&
-	    idev && idev->cnf.forwarding &&
-	    idev->cnf.accept_untracked_na) {
-		neigh = neigh_create(&nd_tbl, &msg->target, dev);
-		new_state = NUD_STALE;
+	if (!neigh && lladdr && idev && idev->cnf.forwarding) {
+		if (accept_untracked_na(dev, saddr)) {
+			neigh = neigh_create(&nd_tbl, &msg->target, dev);
+			new_state = NUD_STALE;
+		}
 	}
 
 	if (neigh && !IS_ERR(neigh)) {
@@ -1357,6 +1377,9 @@ static void ndisc_router_discovery(struct sk_buff *skb)
 		  rt, lifetime, defrtr_usr_metric, skb->dev->name);
 	if (!rt && lifetime) {
 		ND_PRINTK(3, info, "RA: adding default router\n");
+
+		if (neigh)
+			neigh_release(neigh);
 
 		rt = rt6_add_dflt_router(net, &ipv6_hdr(skb)->saddr,
 					 skb->dev, pref, defrtr_usr_metric);

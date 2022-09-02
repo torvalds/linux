@@ -217,7 +217,6 @@ static const struct snd_soc_component_driver lochnagar_sc_driver = {
 	.dapm_routes = lochnagar_sc_routes,
 	.num_dapm_routes = ARRAY_SIZE(lochnagar_sc_routes),
 
-	.non_legacy_dai_naming = 1,
 	.endianness = 1,
 };
 

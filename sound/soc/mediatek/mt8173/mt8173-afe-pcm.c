@@ -286,10 +286,8 @@ static int mt8173_afe_dais_set_clks(struct mtk_base_afe *afe,
 static void mt8173_afe_dais_disable_clks(struct mtk_base_afe *afe,
 					 struct clk *m_ck, struct clk *b_ck)
 {
-	if (m_ck)
-		clk_disable_unprepare(m_ck);
-	if (b_ck)
-		clk_disable_unprepare(b_ck);
+	clk_disable_unprepare(m_ck);
+	clk_disable_unprepare(b_ck);
 }
 
 static int mt8173_afe_i2s_startup(struct snd_pcm_substream *substream,

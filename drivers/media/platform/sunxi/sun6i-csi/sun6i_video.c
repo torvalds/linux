@@ -77,7 +77,7 @@ sun6i_video_remote_subdev(struct sun6i_video *video, u32 *pad)
 {
 	struct media_pad *remote;
 
-	remote = media_entity_remote_pad(&video->pad);
+	remote = media_pad_remote_pad_first(&video->pad);
 
 	if (!remote || !is_media_entity_v4l2_subdev(remote->entity))
 		return NULL;
@@ -560,7 +560,7 @@ static int sun6i_video_link_validate(struct media_link *link)
 
 	video->mbus_code = 0;
 
-	if (!media_entity_remote_pad(link->sink->entity->pads)) {
+	if (!media_pad_remote_pad_first(link->sink->entity->pads)) {
 		dev_info(video->csi->dev,
 			 "video node %s pad not connected\n", vdev->name);
 		return -ENOLINK;

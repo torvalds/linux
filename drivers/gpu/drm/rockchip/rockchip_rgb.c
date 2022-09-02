@@ -6,6 +6,7 @@
  */
 
 #include <linux/component.h>
+#include <linux/media-bus-format.h>
 #include <linux/of_graph.h>
 
 #include <drm/display/drm_dp_helper.h>

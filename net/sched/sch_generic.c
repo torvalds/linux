@@ -409,7 +409,7 @@ static inline bool qdisc_restart(struct Qdisc *q, int *packets)
 
 void __qdisc_run(struct Qdisc *q)
 {
-	int quota = dev_tx_weight;
+	int quota = READ_ONCE(dev_tx_weight);
 	int packets;
 
 	while (qdisc_restart(q, &packets)) {
@@ -427,14 +427,10 @@ void __qdisc_run(struct Qdisc *q)
 
 unsigned long dev_trans_start(struct net_device *dev)
 {
-	unsigned long val, res;
+	unsigned long res = READ_ONCE(netdev_get_tx_queue(dev, 0)->trans_start);
+	unsigned long val;
 	unsigned int i;
 
-	if (is_vlan_dev(dev))
-		dev = vlan_dev_real_dev(dev);
-	else if (netif_is_macvlan(dev))
-		dev = macvlan_dev_real_dev(dev);
-	res = READ_ONCE(netdev_get_tx_queue(dev, 0)->trans_start);
 	for (i = 1; i < dev->num_tx_queues; i++) {
 		val = READ_ONCE(netdev_get_tx_queue(dev, i)->trans_start);
 		if (val && time_after(val, res))
@@ -541,7 +537,7 @@ static void dev_watchdog(struct timer_list *t)
 	spin_unlock(&dev->tx_global_lock);
 
 	if (release)
-		dev_put_track(dev, &dev->watchdog_dev_tracker);
+		netdev_put(dev, &dev->watchdog_dev_tracker);
 }
 
 void __netdev_watchdog_up(struct net_device *dev)
@@ -551,7 +547,8 @@ void __netdev_watchdog_up(struct net_device *dev)
 			dev->watchdog_timeo = 5*HZ;
 		if (!mod_timer(&dev->watchdog_timer,
 			       round_jiffies(jiffies + dev->watchdog_timeo)))
-			dev_hold_track(dev, &dev->watchdog_dev_tracker, GFP_ATOMIC);
+			netdev_hold(dev, &dev->watchdog_dev_tracker,
+				    GFP_ATOMIC);
 	}
 }
 EXPORT_SYMBOL_GPL(__netdev_watchdog_up);
@@ -565,7 +562,7 @@ static void dev_watchdog_down(struct net_device *dev)
 {
 	netif_tx_lock_bh(dev);
 	if (del_timer(&dev->watchdog_timer))
-		dev_put_track(dev, &dev->watchdog_dev_tracker);
+		netdev_put(dev, &dev->watchdog_dev_tracker);
 	netif_tx_unlock_bh(dev);
 }
 
@@ -975,7 +972,7 @@ struct Qdisc *qdisc_alloc(struct netdev_queue *dev_queue,
 	sch->enqueue = ops->enqueue;
 	sch->dequeue = ops->dequeue;
 	sch->dev_queue = dev_queue;
-	dev_hold_track(dev, &sch->dev_tracker, GFP_KERNEL);
+	netdev_hold(dev, &sch->dev_tracker, GFP_KERNEL);
 	refcount_set(&sch->refcnt, 1);
 
 	return sch;
@@ -1067,7 +1064,7 @@ static void qdisc_destroy(struct Qdisc *qdisc)
 		ops->destroy(qdisc);
 
 	module_put(ops->owner);
-	dev_put_track(qdisc_dev(qdisc), &qdisc->dev_tracker);
+	netdev_put(qdisc_dev(qdisc), &qdisc->dev_tracker);
 
 	trace_qdisc_destroy(qdisc);
 
@@ -1125,6 +1122,21 @@ struct Qdisc *dev_graft_qdisc(struct netdev_queue *dev_queue,
 }
 EXPORT_SYMBOL(dev_graft_qdisc);
 
+static void shutdown_scheduler_queue(struct net_device *dev,
+				     struct netdev_queue *dev_queue,
+				     void *_qdisc_default)
+{
+	struct Qdisc *qdisc = dev_queue->qdisc_sleeping;
+	struct Qdisc *qdisc_default = _qdisc_default;
+
+	if (qdisc) {
+		rcu_assign_pointer(dev_queue->qdisc, qdisc_default);
+		dev_queue->qdisc_sleeping = qdisc_default;
+
+		qdisc_put(qdisc);
+	}
+}
+
 static void attach_one_default_qdisc(struct net_device *dev,
 				     struct netdev_queue *dev_queue,
 				     void *_unused)
@@ -1172,6 +1184,7 @@ static void attach_default_qdiscs(struct net_device *dev)
 	if (qdisc == &noop_qdisc) {
 		netdev_warn(dev, "default qdisc (%s) fail, fallback to %s\n",
 			    default_qdisc_ops->id, noqueue_qdisc_ops.id);
+		netdev_for_each_tx_queue(dev, shutdown_scheduler_queue, &noop_qdisc);
 		dev->priv_flags |= IFF_NO_QUEUE;
 		netdev_for_each_tx_queue(dev, attach_one_default_qdisc, NULL);
 		qdisc = txq->qdisc_sleeping;
@@ -1448,21 +1461,6 @@ void dev_init_scheduler(struct net_device *dev)
 		dev_init_scheduler_queue(dev, dev_ingress_queue(dev), &noop_qdisc);
 
 	timer_setup(&dev->watchdog_timer, dev_watchdog, 0);
-}
-
-static void shutdown_scheduler_queue(struct net_device *dev,
-				     struct netdev_queue *dev_queue,
-				     void *_qdisc_default)
-{
-	struct Qdisc *qdisc = dev_queue->qdisc_sleeping;
-	struct Qdisc *qdisc_default = _qdisc_default;
-
-	if (qdisc) {
-		rcu_assign_pointer(dev_queue->qdisc, qdisc_default);
-		dev_queue->qdisc_sleeping = qdisc_default;
-
-		qdisc_put(qdisc);
-	}
 }
 
 void dev_shutdown(struct net_device *dev)

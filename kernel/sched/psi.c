@@ -190,12 +190,8 @@ static void group_init(struct psi_group *group)
 	/* Init trigger-related members */
 	mutex_init(&group->trigger_lock);
 	INIT_LIST_HEAD(&group->triggers);
-	memset(group->nr_triggers, 0, sizeof(group->nr_triggers));
-	group->poll_states = 0;
 	group->poll_min_period = U32_MAX;
-	memset(group->polling_total, 0, sizeof(group->polling_total));
 	group->polling_next_update = ULLONG_MAX;
-	group->polling_until = 0;
 	init_waitqueue_head(&group->poll_wait);
 	timer_setup(&group->poll_timer, poll_timer_fn, 0);
 	rcu_assign_pointer(group->poll_task, NULL);
@@ -957,10 +953,16 @@ int psi_cgroup_alloc(struct cgroup *cgroup)
 	if (static_branch_likely(&psi_disabled))
 		return 0;
 
-	cgroup->psi.pcpu = alloc_percpu(struct psi_group_cpu);
-	if (!cgroup->psi.pcpu)
+	cgroup->psi = kzalloc(sizeof(struct psi_group), GFP_KERNEL);
+	if (!cgroup->psi)
 		return -ENOMEM;
-	group_init(&cgroup->psi);
+
+	cgroup->psi->pcpu = alloc_percpu(struct psi_group_cpu);
+	if (!cgroup->psi->pcpu) {
+		kfree(cgroup->psi);
+		return -ENOMEM;
+	}
+	group_init(cgroup->psi);
 	return 0;
 }
 
@@ -969,10 +971,11 @@ void psi_cgroup_free(struct cgroup *cgroup)
 	if (static_branch_likely(&psi_disabled))
 		return;
 
-	cancel_delayed_work_sync(&cgroup->psi.avgs_work);
-	free_percpu(cgroup->psi.pcpu);
+	cancel_delayed_work_sync(&cgroup->psi->avgs_work);
+	free_percpu(cgroup->psi->pcpu);
 	/* All triggers must be removed by now */
-	WARN_ONCE(cgroup->psi.poll_states, "psi: trigger leak\n");
+	WARN_ONCE(cgroup->psi->poll_states, "psi: trigger leak\n");
+	kfree(cgroup->psi);
 }
 
 /**
@@ -1084,7 +1087,7 @@ int psi_show(struct seq_file *m, struct psi_group *group, enum psi_res res)
 }
 
 struct psi_trigger *psi_trigger_create(struct psi_group *group,
-			char *buf, size_t nbytes, enum psi_res res)
+			char *buf, enum psi_res res)
 {
 	struct psi_trigger *t;
 	enum psi_states state;
@@ -1313,7 +1316,7 @@ static ssize_t psi_write(struct file *file, const char __user *user_buf,
 		return -EBUSY;
 	}
 
-	new = psi_trigger_create(&psi_system, buf, nbytes, res);
+	new = psi_trigger_create(&psi_system, buf, res);
 	if (IS_ERR(new)) {
 		mutex_unlock(&seq->lock);
 		return PTR_ERR(new);

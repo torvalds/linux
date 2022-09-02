@@ -299,7 +299,7 @@ static int gpu_i2c_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	i2c_set_adapdata(&i2cd->adapter, i2cd);
 	i2cd->adapter.owner = THIS_MODULE;
-	strlcpy(i2cd->adapter.name, "NVIDIA GPU I2C adapter",
+	strscpy(i2cd->adapter.name, "NVIDIA GPU I2C adapter",
 		sizeof(i2cd->adapter.name));
 	i2cd->adapter.algo = &gpu_i2c_algorithm;
 	i2cd->adapter.quirks = &gpu_i2c_quirks;

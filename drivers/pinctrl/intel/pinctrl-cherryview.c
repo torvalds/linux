@@ -627,7 +627,7 @@ static const char *chv_get_group_name(struct pinctrl_dev *pctldev,
 {
 	struct intel_pinctrl *pctrl = pinctrl_dev_get_drvdata(pctldev);
 
-	return pctrl->soc->groups[group].name;
+	return pctrl->soc->groups[group].grp.name;
 }
 
 static int chv_get_group_pins(struct pinctrl_dev *pctldev, unsigned int group,
@@ -635,8 +635,8 @@ static int chv_get_group_pins(struct pinctrl_dev *pctldev, unsigned int group,
 {
 	struct intel_pinctrl *pctrl = pinctrl_dev_get_drvdata(pctldev);
 
-	*pins = pctrl->soc->groups[group].pins;
-	*npins = pctrl->soc->groups[group].npins;
+	*pins = pctrl->soc->groups[group].grp.pins;
+	*npins = pctrl->soc->groups[group].grp.npins;
 	return 0;
 }
 
@@ -721,16 +721,16 @@ static int chv_pinmux_set_mux(struct pinctrl_dev *pctldev,
 	raw_spin_lock_irqsave(&chv_lock, flags);
 
 	/* Check first that the pad is not locked */
-	for (i = 0; i < grp->npins; i++) {
-		if (chv_pad_locked(pctrl, grp->pins[i])) {
+	for (i = 0; i < grp->grp.npins; i++) {
+		if (chv_pad_locked(pctrl, grp->grp.pins[i])) {
 			raw_spin_unlock_irqrestore(&chv_lock, flags);
-			dev_warn(dev, "unable to set mode for locked pin %u\n", grp->pins[i]);
+			dev_warn(dev, "unable to set mode for locked pin %u\n", grp->grp.pins[i]);
 			return -EBUSY;
 		}
 	}
 
-	for (i = 0; i < grp->npins; i++) {
-		int pin = grp->pins[i];
+	for (i = 0; i < grp->grp.npins; i++) {
+		int pin = grp->grp.pins[i];
 		unsigned int mode;
 		bool invert_oe;
 		u32 value;

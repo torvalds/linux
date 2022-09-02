@@ -339,8 +339,7 @@ static int get_plane_info(struct gsc_frame *frm, u32 addr, u32 *index, u32 *ret_
 
 void gsc_set_prefbuf(struct gsc_dev *gsc, struct gsc_frame *frm)
 {
-	u32 f_chk_addr, f_chk_len, s_chk_addr, s_chk_len;
-	f_chk_addr = f_chk_len = s_chk_addr = s_chk_len = 0;
+	u32 f_chk_addr, f_chk_len, s_chk_addr = 0, s_chk_len = 0;
 
 	f_chk_addr = frm->addr.y;
 	f_chk_len = frm->payload[0];

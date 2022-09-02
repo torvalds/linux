@@ -11,4 +11,5 @@ HL_COMMON_FILES := common/habanalabs_drv.o common/device.o common/context.o \
 		common/command_buffer.o common/hw_queue.o common/irq.o \
 		common/sysfs.o common/hwmon.o common/memory.o \
 		common/command_submission.o common/firmware_if.o \
-		common/state_dump.o common/memory_mgr.o
+		common/security.o common/state_dump.o \
+		common/memory_mgr.o common/decoder.o

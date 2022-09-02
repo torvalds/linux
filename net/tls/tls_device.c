@@ -38,6 +38,7 @@
 #include <net/tcp.h>
 #include <net/tls.h>
 
+#include "tls.h"
 #include "trace.h"
 
 /* device_offload_lock is used to synchronize tls_dev_add
@@ -45,10 +46,8 @@
  */
 static DECLARE_RWSEM(device_offload_lock);
 
-static void tls_device_gc_task(struct work_struct *work);
+static struct workqueue_struct *destruct_wq __read_mostly;
 
-static DECLARE_WORK(tls_device_gc_work, tls_device_gc_task);
-static LIST_HEAD(tls_device_gc_list);
 static LIST_HEAD(tls_device_list);
 static LIST_HEAD(tls_device_down_list);
 static DEFINE_SPINLOCK(tls_device_lock);
@@ -67,47 +66,58 @@ static void tls_device_free_ctx(struct tls_context *ctx)
 	tls_ctx_free(NULL, ctx);
 }
 
-static void tls_device_gc_task(struct work_struct *work)
+static void tls_device_tx_del_task(struct work_struct *work)
 {
-	struct tls_context *ctx, *tmp;
-	unsigned long flags;
-	LIST_HEAD(gc_list);
+	struct tls_offload_context_tx *offload_ctx =
+		container_of(work, struct tls_offload_context_tx, destruct_work);
+	struct tls_context *ctx = offload_ctx->ctx;
+	struct net_device *netdev;
 
-	spin_lock_irqsave(&tls_device_lock, flags);
-	list_splice_init(&tls_device_gc_list, &gc_list);
-	spin_unlock_irqrestore(&tls_device_lock, flags);
+	/* Safe, because this is the destroy flow, refcount is 0, so
+	 * tls_device_down can't store this field in parallel.
+	 */
+	netdev = rcu_dereference_protected(ctx->netdev,
+					   !refcount_read(&ctx->refcount));
 
-	list_for_each_entry_safe(ctx, tmp, &gc_list, list) {
-		struct net_device *netdev = ctx->netdev;
-
-		if (netdev && ctx->tx_conf == TLS_HW) {
-			netdev->tlsdev_ops->tls_dev_del(netdev, ctx,
-							TLS_OFFLOAD_CTX_DIR_TX);
-			dev_put(netdev);
-			ctx->netdev = NULL;
-		}
-
-		list_del(&ctx->list);
-		tls_device_free_ctx(ctx);
-	}
+	netdev->tlsdev_ops->tls_dev_del(netdev, ctx, TLS_OFFLOAD_CTX_DIR_TX);
+	dev_put(netdev);
+	ctx->netdev = NULL;
+	tls_device_free_ctx(ctx);
 }
 
 static void tls_device_queue_ctx_destruction(struct tls_context *ctx)
 {
+	struct net_device *netdev;
 	unsigned long flags;
+	bool async_cleanup;
 
 	spin_lock_irqsave(&tls_device_lock, flags);
-	if (unlikely(!refcount_dec_and_test(&ctx->refcount)))
-		goto unlock;
+	if (unlikely(!refcount_dec_and_test(&ctx->refcount))) {
+		spin_unlock_irqrestore(&tls_device_lock, flags);
+		return;
+	}
 
-	list_move_tail(&ctx->list, &tls_device_gc_list);
+	list_del(&ctx->list); /* Remove from tls_device_list / tls_device_down_list */
 
-	/* schedule_work inside the spinlock
-	 * to make sure tls_device_down waits for that work.
+	/* Safe, because this is the destroy flow, refcount is 0, so
+	 * tls_device_down can't store this field in parallel.
 	 */
-	schedule_work(&tls_device_gc_work);
-unlock:
+	netdev = rcu_dereference_protected(ctx->netdev,
+					   !refcount_read(&ctx->refcount));
+
+	async_cleanup = netdev && ctx->tx_conf == TLS_HW;
+	if (async_cleanup) {
+		struct tls_offload_context_tx *offload_ctx = tls_offload_ctx_tx(ctx);
+
+		/* queue_work inside the spinlock
+		 * to make sure tls_device_down waits for that work.
+		 */
+		queue_work(destruct_wq, &offload_ctx->destruct_work);
+	}
 	spin_unlock_irqrestore(&tls_device_lock, flags);
+
+	if (!async_cleanup)
+		tls_device_free_ctx(ctx);
 }
 
 /* We assume that the socket is already connected */
@@ -233,7 +243,8 @@ static void tls_device_resync_tx(struct sock *sk, struct tls_context *tls_ctx,
 
 	trace_tls_device_tx_resync_send(sk, seq, rcd_sn);
 	down_read(&device_offload_lock);
-	netdev = tls_ctx->netdev;
+	netdev = rcu_dereference_protected(tls_ctx->netdev,
+					   lockdep_is_held(&device_offload_lock));
 	if (netdev)
 		err = netdev->tlsdev_ops->tls_dev_resync(netdev, sk, seq,
 							 rcd_sn,
@@ -564,7 +575,7 @@ int tls_device_sendmsg(struct sock *sk, struct msghdr *msg, size_t size)
 	lock_sock(sk);
 
 	if (unlikely(msg->msg_controllen)) {
-		rc = tls_proccess_cmsg(sk, msg, &record_type);
+		rc = tls_process_cmsg(sk, msg, &record_type);
 		if (rc)
 			goto out;
 	}
@@ -714,7 +725,7 @@ static void tls_device_resync_rx(struct tls_context *tls_ctx,
 
 	trace_tls_device_rx_resync_send(sk, seq, rcd_sn, rx_ctx->resync_type);
 	rcu_read_lock();
-	netdev = READ_ONCE(tls_ctx->netdev);
+	netdev = rcu_dereference(tls_ctx->netdev);
 	if (netdev)
 		netdev->tlsdev_ops->tls_dev_resync(netdev, sk, seq, rcd_sn,
 						   TLS_OFFLOAD_CTX_DIR_RX);
@@ -890,25 +901,29 @@ static void tls_device_core_ctrl_rx_resync(struct tls_context *tls_ctx,
 	}
 }
 
-static int tls_device_reencrypt(struct sock *sk, struct sk_buff *skb)
+static int
+tls_device_reencrypt(struct sock *sk, struct tls_sw_context_rx *sw_ctx)
 {
-	struct strp_msg *rxm = strp_msg(skb);
-	int err = 0, offset = rxm->offset, copy, nsg, data_len, pos;
-	struct sk_buff *skb_iter, *unused;
+	int err, offset, copy, data_len, pos;
+	struct sk_buff *skb, *skb_iter;
 	struct scatterlist sg[1];
+	struct strp_msg *rxm;
 	char *orig_buf, *buf;
 
+	rxm = strp_msg(tls_strp_msg(sw_ctx));
 	orig_buf = kmalloc(rxm->full_len + TLS_HEADER_SIZE +
 			   TLS_CIPHER_AES_GCM_128_IV_SIZE, sk->sk_allocation);
 	if (!orig_buf)
 		return -ENOMEM;
 	buf = orig_buf;
 
-	nsg = skb_cow_data(skb, 0, &unused);
-	if (unlikely(nsg < 0)) {
-		err = nsg;
+	err = tls_strp_msg_cow(sw_ctx);
+	if (unlikely(err))
 		goto free_buf;
-	}
+
+	skb = tls_strp_msg(sw_ctx);
+	rxm = strp_msg(skb);
+	offset = rxm->offset;
 
 	sg_init_table(sg, 1);
 	sg_set_buf(&sg[0], buf,
@@ -920,7 +935,7 @@ static int tls_device_reencrypt(struct sock *sk, struct sk_buff *skb)
 		goto free_buf;
 
 	/* We are interested only in the decrypted data not the auth */
-	err = decrypt_skb(sk, skb, sg);
+	err = decrypt_skb(sk, sg);
 	if (err != -EBADMSG)
 		goto free_buf;
 	else
@@ -975,18 +990,26 @@ free_buf:
 	return err;
 }
 
-int tls_device_decrypted(struct sock *sk, struct tls_context *tls_ctx,
-			 struct sk_buff *skb, struct strp_msg *rxm)
+int tls_device_decrypted(struct sock *sk, struct tls_context *tls_ctx)
 {
 	struct tls_offload_context_rx *ctx = tls_offload_ctx_rx(tls_ctx);
+	struct tls_sw_context_rx *sw_ctx = tls_sw_ctx_rx(tls_ctx);
+	struct sk_buff *skb = tls_strp_msg(sw_ctx);
+	struct strp_msg *rxm = strp_msg(skb);
 	int is_decrypted = skb->decrypted;
 	int is_encrypted = !is_decrypted;
 	struct sk_buff *skb_iter;
+	int left;
 
+	left = rxm->full_len - skb->len;
 	/* Check if all the data is decrypted already */
-	skb_walk_frags(skb, skb_iter) {
+	skb_iter = skb_shinfo(skb)->frag_list;
+	while (skb_iter && left > 0) {
 		is_decrypted &= skb_iter->decrypted;
 		is_encrypted &= !skb_iter->decrypted;
+
+		left -= skb_iter->len;
+		skb_iter = skb_iter->next;
 	}
 
 	trace_tls_device_decrypted(sk, tcp_sk(sk)->copied_seq - rxm->full_len,
@@ -1001,7 +1024,7 @@ int tls_device_decrypted(struct sock *sk, struct tls_context *tls_ctx,
 		 * likely have initial fragments decrypted, and final ones not
 		 * decrypted. We need to reencrypt that single SKB.
 		 */
-		return tls_device_reencrypt(sk, skb);
+		return tls_device_reencrypt(sk, sw_ctx);
 	}
 
 	/* Return immediately if the record is either entirely plaintext or
@@ -1018,7 +1041,7 @@ int tls_device_decrypted(struct sock *sk, struct tls_context *tls_ctx,
 	}
 
 	ctx->resync_nh_reset = 1;
-	return tls_device_reencrypt(sk, skb);
+	return tls_device_reencrypt(sk, sw_ctx);
 }
 
 static void tls_device_attach(struct tls_context *ctx, struct sock *sk,
@@ -1027,7 +1050,7 @@ static void tls_device_attach(struct tls_context *ctx, struct sock *sk,
 	if (sk->sk_destruct != tls_device_sk_destruct) {
 		refcount_set(&ctx->refcount, 1);
 		dev_hold(netdev);
-		ctx->netdev = netdev;
+		RCU_INIT_POINTER(ctx->netdev, netdev);
 		spin_lock_irq(&tls_device_lock);
 		list_add_tail(&ctx->list, &tls_device_list);
 		spin_unlock_irq(&tls_device_lock);
@@ -1142,6 +1165,9 @@ int tls_set_device_offload(struct sock *sk, struct tls_context *ctx)
 	start_marker_record->end_seq = tcp_sk(sk)->write_seq;
 	start_marker_record->len = 0;
 	start_marker_record->num_frags = 0;
+
+	INIT_WORK(&offload_ctx->destruct_work, tls_device_tx_del_task);
+	offload_ctx->ctx = ctx;
 
 	INIT_LIST_HEAD(&offload_ctx->records_list);
 	list_add_tail(&start_marker_record->list, &offload_ctx->records_list);
@@ -1295,7 +1321,8 @@ void tls_device_offload_cleanup_rx(struct sock *sk)
 	struct net_device *netdev;
 
 	down_read(&device_offload_lock);
-	netdev = tls_ctx->netdev;
+	netdev = rcu_dereference_protected(tls_ctx->netdev,
+					   lockdep_is_held(&device_offload_lock));
 	if (!netdev)
 		goto out;
 
@@ -1304,7 +1331,7 @@ void tls_device_offload_cleanup_rx(struct sock *sk)
 
 	if (tls_ctx->tx_conf != TLS_HW) {
 		dev_put(netdev);
-		tls_ctx->netdev = NULL;
+		rcu_assign_pointer(tls_ctx->netdev, NULL);
 	} else {
 		set_bit(TLS_RX_DEV_CLOSED, &tls_ctx->flags);
 	}
@@ -1324,7 +1351,11 @@ static int tls_device_down(struct net_device *netdev)
 
 	spin_lock_irqsave(&tls_device_lock, flags);
 	list_for_each_entry_safe(ctx, tmp, &tls_device_list, list) {
-		if (ctx->netdev != netdev ||
+		struct net_device *ctx_netdev =
+			rcu_dereference_protected(ctx->netdev,
+						  lockdep_is_held(&device_offload_lock));
+
+		if (ctx_netdev != netdev ||
 		    !refcount_inc_not_zero(&ctx->refcount))
 			continue;
 
@@ -1341,7 +1372,7 @@ static int tls_device_down(struct net_device *netdev)
 		/* Stop the RX and TX resync.
 		 * tls_dev_resync must not be called after tls_dev_del.
 		 */
-		WRITE_ONCE(ctx->netdev, NULL);
+		rcu_assign_pointer(ctx->netdev, NULL);
 
 		/* Start skipping the RX resync logic completely. */
 		set_bit(TLS_RX_DEV_DEGRADED, &ctx->flags);
@@ -1387,7 +1418,7 @@ static int tls_device_down(struct net_device *netdev)
 
 	up_write(&device_offload_lock);
 
-	flush_work(&tls_device_gc_work);
+	flush_workqueue(destruct_wq);
 
 	return NOTIFY_DONE;
 }
@@ -1428,12 +1459,22 @@ static struct notifier_block tls_dev_notifier = {
 
 int __init tls_device_init(void)
 {
-	return register_netdevice_notifier(&tls_dev_notifier);
+	int err;
+
+	destruct_wq = alloc_workqueue("ktls_device_destruct", 0, 0);
+	if (!destruct_wq)
+		return -ENOMEM;
+
+	err = register_netdevice_notifier(&tls_dev_notifier);
+	if (err)
+		destroy_workqueue(destruct_wq);
+
+	return err;
 }
 
 void __exit tls_device_cleanup(void)
 {
 	unregister_netdevice_notifier(&tls_dev_notifier);
-	flush_work(&tls_device_gc_work);
+	destroy_workqueue(destruct_wq);
 	clean_acked_data_flush();
 }

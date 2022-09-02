@@ -9,6 +9,9 @@ title: Azoteq IQS620A/621/622/624/625 Keys and Switches
 maintainers:
   - Jeff LaBundy <jeff@labundy.com>
 
+allOf:
+  - $ref: input.yaml#
+
 description: |
   The Azoteq IQS620A, IQS621, IQS622, IQS624 and IQS625 multi-function sensors
   feature a variety of self-capacitive, mutual-inductive and Hall-effect sens-
@@ -30,7 +33,6 @@ properties:
       - azoteq,iqs625-keys
 
   linux,keycodes:
-    $ref: /schemas/types.yaml#/definitions/uint32-array
     minItems: 1
     maxItems: 16
     description: |
@@ -89,15 +91,14 @@ properties:
 patternProperties:
   "^hall-switch-(north|south)$":
     type: object
+    $ref: input.yaml#
     description:
       Represents north/south-field Hall-effect sensor touch or proximity
       events. Note that north/south-field orientation is reversed on the
       IQS620AXzCSR device due to its flip-chip package.
 
     properties:
-      linux,code:
-        $ref: /schemas/types.yaml#/definitions/uint32
-        description: Numeric switch code associated with the event.
+      linux,code: true
 
       azoteq,use-prox:
         $ref: /schemas/types.yaml#/definitions/flag

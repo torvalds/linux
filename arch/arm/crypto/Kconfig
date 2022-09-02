@@ -63,7 +63,7 @@ config CRYPTO_SHA512_ARM
 	  using optimized ARM assembler and NEON, when available.
 
 config CRYPTO_BLAKE2S_ARM
-	tristate "BLAKE2s digest algorithm (ARM)"
+	bool "BLAKE2s digest algorithm (ARM)"
 	select CRYPTO_ARCH_HAVE_LIB_BLAKE2S
 	help
 	  BLAKE2s digest algorithm optimized with ARM scalar instructions.  This

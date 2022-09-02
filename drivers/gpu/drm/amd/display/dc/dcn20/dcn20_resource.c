@@ -925,6 +925,7 @@ static const struct encoder_feature_support link_enc_feature = {
 };
 
 struct link_encoder *dcn20_link_encoder_create(
+	struct dc_context *ctx,
 	const struct encoder_init_data *enc_init_data)
 {
 	struct dcn20_link_encoder *enc20 =
@@ -1237,6 +1238,8 @@ static void get_pixel_clock_parameters(
 	int opp_cnt = 1;
 	struct dc_link *link = stream->link;
 	struct link_encoder *link_enc = NULL;
+	struct dc *dc = pipe_ctx->stream->ctx->dc;
+	struct dce_hwseq *hws = dc->hwseq;
 
 	for (odm_pipe = pipe_ctx->next_odm_pipe; odm_pipe; odm_pipe = odm_pipe->next_odm_pipe)
 		opp_cnt++;
@@ -1244,10 +1247,9 @@ static void get_pixel_clock_parameters(
 	pixel_clk_params->requested_pix_clk_100hz = stream->timing.pix_clk_100hz;
 
 	link_enc = link_enc_cfg_get_link_enc(link);
-	ASSERT(link_enc);
-
 	if (link_enc)
 		pixel_clk_params->encoder_object_id = link_enc->id;
+
 	pixel_clk_params->signal_type = pipe_ctx->stream->signal;
 	pixel_clk_params->controller_id = pipe_ctx->stream_res.tg->inst + 1;
 	/* TODO: un-hardcode*/
@@ -1267,6 +1269,10 @@ static void get_pixel_clock_parameters(
 		pixel_clk_params->requested_pix_clk_100hz /= 4;
 	else if (optc2_is_two_pixels_per_containter(&stream->timing) || opp_cnt == 2)
 		pixel_clk_params->requested_pix_clk_100hz /= 2;
+	else if (hws->funcs.is_dp_dig_pixel_rate_div_policy) {
+		if (hws->funcs.is_dp_dig_pixel_rate_div_policy(pipe_ctx))
+			pixel_clk_params->requested_pix_clk_100hz /= 2;
+	}
 
 	if (stream->timing.timing_3d_format == TIMING_3D_FORMAT_HW_FRAME_PACKING)
 		pixel_clk_params->requested_pix_clk_100hz *= 2;
@@ -2457,7 +2463,7 @@ static bool dcn20_resource_construct(
 	dc->caps.color.mpc.ogam_rom_caps.hlg = 0;
 	dc->caps.color.mpc.ocsc = 1;
 
-	dc->caps.hdmi_frl_pcon_support = true;
+	dc->caps.dp_hdmi21_pcon_support = true;
 
 	if (dc->ctx->dce_environment == DCE_ENV_PRODUCTION_DRV) {
 		dc->debug = debug_defaults_drv;

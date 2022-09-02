@@ -157,12 +157,19 @@
 		SRII(PIXEL_RATE_CNTL, OTG, 0),\
 		SRII(PIXEL_RATE_CNTL, OTG, 1)
 
-
 #define CS_COMMON_MASK_SH_LIST_DCN2_0(mask_sh)\
 	CS_SF(DP_DTO0_PHASE, DP_DTO0_PHASE, mask_sh),\
 	CS_SF(DP_DTO0_MODULO, DP_DTO0_MODULO, mask_sh),\
 	CS_SF(PHYPLLA_PIXCLK_RESYNC_CNTL, PHYPLLA_DCCG_DEEP_COLOR_CNTL, mask_sh),\
 	CS_SF(OTG0_PIXEL_RATE_CNTL, DP_DTO0_ENABLE, mask_sh)
+
+#define CS_COMMON_MASK_SH_LIST_DCN3_1_4(mask_sh)\
+	CS_COMMON_MASK_SH_LIST_DCN2_0(mask_sh),\
+	CS_SF(OTG0_PIXEL_RATE_CNTL, PIPE0_DTO_SRC_SEL, mask_sh),
+
+#define CS_COMMON_MASK_SH_LIST_DCN3_2(mask_sh)\
+	CS_COMMON_MASK_SH_LIST_DCN2_0(mask_sh),\
+	CS_SF(OTG0_PIXEL_RATE_CNTL, PIPE0_DTO_SRC_SEL, mask_sh)
 
 #define CS_COMMON_REG_LIST_DCN1_0(index, pllid) \
 		SRI(PIXCLK_RESYNC_CNTL, PHYPLL, pllid),\
@@ -197,12 +204,23 @@
 	type DP_DTO0_MODULO; \
 	type DP_DTO0_ENABLE;
 
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+#define CS_REG_FIELD_LIST_DCN32(type) \
+	type PIPE0_DTO_SRC_SEL;
+#endif
+
 struct dce110_clk_src_shift {
 	CS_REG_FIELD_LIST(uint8_t)
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+	CS_REG_FIELD_LIST_DCN32(uint8_t)
+#endif
 };
 
 struct dce110_clk_src_mask{
 	CS_REG_FIELD_LIST(uint32_t)
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+	CS_REG_FIELD_LIST_DCN32(uint32_t)
+#endif
 };
 
 struct dce110_clk_src_regs {

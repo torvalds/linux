@@ -529,7 +529,7 @@ static unsigned int sd_zbc_zone_wp_update(struct scsi_cmnd *cmd,
 	struct request *rq = scsi_cmd_to_rq(cmd);
 	struct scsi_disk *sdkp = scsi_disk(rq->q->disk);
 	unsigned int zno = blk_rq_zone_no(rq);
-	enum req_opf op = req_op(rq);
+	enum req_op op = req_op(rq);
 	unsigned long flags;
 
 	/*
@@ -855,7 +855,7 @@ int sd_zbc_revalidate_zones(struct scsi_disk *sdkp)
 
 	if (sdkp->zone_info.zone_blocks == zone_blocks &&
 	    sdkp->zone_info.nr_zones == nr_zones &&
-	    disk->queue->nr_zones == nr_zones)
+	    disk->nr_zones == nr_zones)
 		goto unlock;
 
 	flags = memalloc_noio_save();
@@ -929,7 +929,7 @@ int sd_zbc_read_zones(struct scsi_disk *sdkp, u8 buf[SD_BUF_SIZE])
 		/*
 		 * This can happen for a host aware disk with partitions.
 		 * The block device zone model was already cleared by
-		 * blk_queue_set_zoned(). Only free the scsi disk zone
+		 * disk_set_zoned(). Only free the scsi disk zone
 		 * information and exit early.
 		 */
 		sd_zbc_free_zone_info(sdkp);
@@ -950,10 +950,10 @@ int sd_zbc_read_zones(struct scsi_disk *sdkp, u8 buf[SD_BUF_SIZE])
 	blk_queue_flag_set(QUEUE_FLAG_ZONE_RESETALL, q);
 	blk_queue_required_elevator_features(q, ELEVATOR_F_ZBD_SEQ_WRITE);
 	if (sdkp->zones_max_open == U32_MAX)
-		blk_queue_max_open_zones(q, 0);
+		disk_set_max_open_zones(disk, 0);
 	else
-		blk_queue_max_open_zones(q, sdkp->zones_max_open);
-	blk_queue_max_active_zones(q, 0);
+		disk_set_max_open_zones(disk, sdkp->zones_max_open);
+	disk_set_max_active_zones(disk, 0);
 	nr_zones = round_up(sdkp->capacity, zone_blocks) >> ilog2(zone_blocks);
 
 	/*

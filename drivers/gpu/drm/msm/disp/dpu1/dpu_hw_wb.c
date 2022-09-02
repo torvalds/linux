@@ -60,10 +60,7 @@ static const struct dpu_wb_cfg *_wb_offset(enum dpu_wb wb,
 
 	for (i = 0; i < m->wb_count; i++) {
 		if (wb == m->wb[i].id) {
-			b->base_off = addr;
-			b->blk_off = m->wb[i].base;
-			b->length = m->wb[i].len;
-			b->hwversion = m->hwversion;
+			b->blk_addr = addr + m->wb[i].base;
 			return &m->wb[i];
 		}
 	}

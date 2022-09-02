@@ -1615,8 +1615,6 @@ static void gpio_irq_ack(struct irq_data *d)
 	/* the interrupt is already cleared before by reading ISR */
 }
 
-#ifdef CONFIG_PM
-
 static u32 wakeups[MAX_GPIO_BANKS];
 static u32 backups[MAX_GPIO_BANKS];
 
@@ -1683,10 +1681,6 @@ void at91_pinctrl_gpio_resume(void)
 	}
 }
 
-#else
-#define gpio_irq_set_wake	NULL
-#endif /* CONFIG_PM */
-
 static void gpio_irq_handler(struct irq_desc *desc)
 {
 	struct irq_chip *chip = irq_desc_get_chip(desc);
@@ -1741,14 +1735,14 @@ static int at91_gpio_of_irq_setup(struct platform_device *pdev,
 	gpio_irqchip->irq_disable = gpio_irq_mask;
 	gpio_irqchip->irq_mask = gpio_irq_mask;
 	gpio_irqchip->irq_unmask = gpio_irq_unmask;
-	gpio_irqchip->irq_set_wake = gpio_irq_set_wake;
+	gpio_irqchip->irq_set_wake = pm_ptr(gpio_irq_set_wake);
 	gpio_irqchip->irq_set_type = at91_gpio->ops->irq_type;
 
 	/* Disable irqs of this PIO controller */
 	writel_relaxed(~0, at91_gpio->regbase + PIO_IDR);
 
 	/*
-	 * Let the generic code handle this edge IRQ, the the chained
+	 * Let the generic code handle this edge IRQ, the chained
 	 * handler will perform the actual work of handling the parent
 	 * interrupt.
 	 */

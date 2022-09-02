@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * SMP support: Entry point for secondary CPUs
  *
@@ -6,10 +7,6 @@
  * Yehuda Yitschak <yehuday@marvell.com>
  * Gregory CLEMENT <gregory.clement@free-electrons.com>
  * Thomas Petazzoni <thomas.petazzoni@free-electrons.com>
- *
- * This file is licensed under the terms of the GNU General Public
- * License version 2.  This program is licensed "as is" without any
- * warranty of any kind, whether express or implied.
  *
  * This file implements the assembly entry point for secondary CPUs in
  * an SMP kernel. The only thing we need to do is to add the CPU to

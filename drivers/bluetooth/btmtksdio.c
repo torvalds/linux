@@ -1282,6 +1282,13 @@ err:
 	hci_reset_dev(hdev);
 }
 
+static bool btmtksdio_sdio_inband_wakeup(struct hci_dev *hdev)
+{
+	struct btmtksdio_dev *bdev = hci_get_drvdata(hdev);
+
+	return device_may_wakeup(bdev->dev);
+}
+
 static bool btmtksdio_sdio_wakeup(struct hci_dev *hdev)
 {
 	struct btmtksdio_dev *bdev = hci_get_drvdata(hdev);
@@ -1349,6 +1356,14 @@ static int btmtksdio_probe(struct sdio_func *func,
 	hdev->shutdown = btmtksdio_shutdown;
 	hdev->send     = btmtksdio_send_frame;
 	hdev->wakeup   = btmtksdio_sdio_wakeup;
+	/*
+	 * If SDIO controller supports wake on Bluetooth, sending a wakeon
+	 * command is not necessary.
+	 */
+	if (device_can_wakeup(func->card->host->parent))
+		hdev->wakeup = btmtksdio_sdio_inband_wakeup;
+	else
+		hdev->wakeup = btmtksdio_sdio_wakeup;
 	hdev->set_bdaddr = btmtk_set_bdaddr;
 
 	SET_HCIDEV_DEV(hdev, &func->dev);

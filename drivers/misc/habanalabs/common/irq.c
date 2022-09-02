@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 
 /*
- * Copyright 2016-2019 HabanaLabs, Ltd.
+ * Copyright 2016-2022 HabanaLabs, Ltd.
  * All Rights Reserved.
  */
 
@@ -67,6 +67,56 @@ static void irq_handle_eqe(struct work_struct *work)
 }
 
 /**
+ * job_finish - queue job finish work
+ *
+ * @hdev: pointer to device structure
+ * @cs_seq: command submission sequence
+ * @cq: completion queue
+ *
+ */
+static void job_finish(struct hl_device *hdev, u32 cs_seq, struct hl_cq *cq)
+{
+	struct hl_hw_queue *queue;
+	struct hl_cs_job *job;
+
+	queue = &hdev->kernel_queues[cq->hw_queue_id];
+	job = queue->shadow_queue[hl_pi_2_offset(cs_seq)];
+	queue_work(hdev->cq_wq[cq->cq_idx], &job->finish_work);
+
+	atomic_inc(&queue->ci);
+}
+
+/**
+ * cs_finish - queue all cs jobs finish work
+ *
+ * @hdev: pointer to device structure
+ * @cs_seq: command submission sequence
+ *
+ */
+static void cs_finish(struct hl_device *hdev, u16 cs_seq)
+{
+	struct asic_fixed_properties *prop = &hdev->asic_prop;
+	struct hl_hw_queue *queue;
+	struct hl_cs *cs;
+	struct hl_cs_job *job;
+
+	cs = hdev->shadow_cs_queue[cs_seq & (prop->max_pending_cs - 1)];
+	if (!cs) {
+		dev_warn(hdev->dev,
+			"No pointer to CS in shadow array at index %d\n",
+			cs_seq);
+		return;
+	}
+
+	list_for_each_entry(job, &cs->job_list, cs_node) {
+		queue = &hdev->kernel_queues[job->hw_queue_id];
+		atomic_inc(&queue->ci);
+	}
+
+	queue_work(hdev->cs_cmplt_wq, &cs->finish_work);
+}
+
+/**
  * hl_irq_handler_cq - irq handler for completion queue
  *
  * @irq: irq number
@@ -77,9 +127,7 @@ irqreturn_t hl_irq_handler_cq(int irq, void *arg)
 {
 	struct hl_cq *cq = arg;
 	struct hl_device *hdev = cq->hdev;
-	struct hl_hw_queue *queue;
-	struct hl_cs_job *job;
-	bool shadow_index_valid;
+	bool shadow_index_valid, entry_ready;
 	u16 shadow_index;
 	struct hl_cq_entry *cq_entry, *cq_base;
 
@@ -93,36 +141,40 @@ irqreturn_t hl_irq_handler_cq(int irq, void *arg)
 	cq_base = cq->kernel_address;
 
 	while (1) {
-		bool entry_ready = ((le32_to_cpu(cq_base[cq->ci].data) &
-					CQ_ENTRY_READY_MASK)
-						>> CQ_ENTRY_READY_SHIFT);
+		cq_entry = (struct hl_cq_entry *) &cq_base[cq->ci];
 
+		entry_ready = !!FIELD_GET(CQ_ENTRY_READY_MASK,
+				le32_to_cpu(cq_entry->data));
 		if (!entry_ready)
 			break;
-
-		cq_entry = (struct hl_cq_entry *) &cq_base[cq->ci];
 
 		/* Make sure we read CQ entry contents after we've
 		 * checked the ownership bit.
 		 */
 		dma_rmb();
 
-		shadow_index_valid = ((le32_to_cpu(cq_entry->data) &
-					CQ_ENTRY_SHADOW_INDEX_VALID_MASK)
-					>> CQ_ENTRY_SHADOW_INDEX_VALID_SHIFT);
+		shadow_index_valid =
+			!!FIELD_GET(CQ_ENTRY_SHADOW_INDEX_VALID_MASK,
+					le32_to_cpu(cq_entry->data));
 
-		shadow_index = (u16) ((le32_to_cpu(cq_entry->data) &
-					CQ_ENTRY_SHADOW_INDEX_MASK)
-					>> CQ_ENTRY_SHADOW_INDEX_SHIFT);
+		shadow_index = FIELD_GET(CQ_ENTRY_SHADOW_INDEX_MASK,
+				le32_to_cpu(cq_entry->data));
 
-		queue = &hdev->kernel_queues[cq->hw_queue_id];
-
-		if ((shadow_index_valid) && (!hdev->disabled)) {
-			job = queue->shadow_queue[hl_pi_2_offset(shadow_index)];
-			queue_work(hdev->cq_wq[cq->cq_idx], &job->finish_work);
+		/*
+		 * CQ interrupt handler has 2 modes of operation:
+		 * 1. Interrupt per CS completion: (Single CQ for all queues)
+		 *    CQ entry represents a completed CS
+		 *
+		 * 2. Interrupt per CS job completion in queue: (CQ per queue)
+		 *    CQ entry represents a completed job in a certain queue
+		 */
+		if (shadow_index_valid && !hdev->disabled) {
+			if (hdev->asic_prop.completion_mode ==
+					HL_COMPLETION_MODE_CS)
+				cs_finish(hdev, shadow_index);
+			else
+				job_finish(hdev, shadow_index, cq);
 		}
-
-		atomic_inc(&queue->ci);
 
 		/* Clear CQ entry ready bit */
 		cq_entry->data = cpu_to_le32(le32_to_cpu(cq_entry->data) &
@@ -217,8 +269,7 @@ static int handle_registration_node(struct hl_device *hdev, struct hl_user_pendi
 	return 0;
 }
 
-static void handle_user_cq(struct hl_device *hdev,
-			struct hl_user_interrupt *user_cq)
+static void handle_user_interrupt(struct hl_device *hdev, struct hl_user_interrupt *intr)
 {
 	struct hl_user_pending_interrupt *pend, *temp_pend;
 	struct list_head *ts_reg_free_list_head = NULL;
@@ -240,8 +291,8 @@ static void handle_user_cq(struct hl_device *hdev,
 	if (!job)
 		return;
 
-	spin_lock(&user_cq->wait_list_lock);
-	list_for_each_entry_safe(pend, temp_pend, &user_cq->wait_list_head, wait_list_node) {
+	spin_lock(&intr->wait_list_lock);
+	list_for_each_entry_safe(pend, temp_pend, &intr->wait_list_head, wait_list_node) {
 		if ((pend->cq_kernel_addr && *(pend->cq_kernel_addr) >= pend->cq_target_value) ||
 				!pend->cq_kernel_addr) {
 			if (pend->ts_reg_info.buf) {
@@ -258,7 +309,7 @@ static void handle_user_cq(struct hl_device *hdev,
 			}
 		}
 	}
-	spin_unlock(&user_cq->wait_list_lock);
+	spin_unlock(&intr->wait_list_lock);
 
 	if (ts_reg_free_list_head) {
 		INIT_WORK(&job->free_obj, hl_ts_free_objects);
@@ -271,22 +322,24 @@ static void handle_user_cq(struct hl_device *hdev,
 }
 
 /**
- * hl_irq_handler_user_cq - irq handler for user completion queues
+ * hl_irq_handler_user_interrupt - irq handler for user interrupts
  *
  * @irq: irq number
  * @arg: pointer to user interrupt structure
  *
  */
-irqreturn_t hl_irq_handler_user_cq(int irq, void *arg)
+irqreturn_t hl_irq_handler_user_interrupt(int irq, void *arg)
 {
-	struct hl_user_interrupt *user_cq = arg;
-	struct hl_device *hdev = user_cq->hdev;
+	struct hl_user_interrupt *user_int = arg;
+	struct hl_device *hdev = user_int->hdev;
 
-	/* Handle user cq interrupts registered on all interrupts */
-	handle_user_cq(hdev, &hdev->common_user_interrupt);
+	if (user_int->is_decoder)
+		handle_user_interrupt(hdev, &hdev->common_decoder_interrupt);
+	else
+		handle_user_interrupt(hdev, &hdev->common_user_cq_interrupt);
 
-	/* Handle user cq interrupts registered on this specific interrupt */
-	handle_user_cq(hdev, user_cq);
+	/* Handle user cq or decoder interrupts registered on this specific irq */
+	handle_user_interrupt(hdev, user_int);
 
 	return IRQ_HANDLED;
 }
@@ -304,9 +357,7 @@ irqreturn_t hl_irq_handler_default(int irq, void *arg)
 	struct hl_device *hdev = user_interrupt->hdev;
 	u32 interrupt_id = user_interrupt->interrupt_id;
 
-	dev_err(hdev->dev,
-		"got invalid user interrupt %u",
-		interrupt_id);
+	dev_err(hdev->dev, "got invalid user interrupt %u", interrupt_id);
 
 	return IRQ_HANDLED;
 }
@@ -360,7 +411,7 @@ irqreturn_t hl_irq_handler_eq(int irq, void *arg)
 		 */
 		dma_rmb();
 
-		if (hdev->disabled && !hdev->reset_info.is_in_soft_reset) {
+		if (hdev->disabled && !hdev->reset_info.in_compute_reset) {
 			dev_warn(hdev->dev, "Device disabled but received an EQ event\n");
 			goto skip_irq;
 		}
@@ -390,11 +441,26 @@ skip_irq:
 }
 
 /**
+ * hl_irq_handler_dec_abnrm - Decoder error interrupt handler
+ * @irq: IRQ number
+ * @arg: pointer to decoder structure.
+ */
+irqreturn_t hl_irq_handler_dec_abnrm(int irq, void *arg)
+{
+	struct hl_dec *dec = arg;
+
+	schedule_work(&dec->completion_abnrm_work);
+
+	return IRQ_HANDLED;
+}
+
+/**
  * hl_cq_init - main initialization function for an cq object
  *
  * @hdev: pointer to device structure
  * @q: pointer to cq structure
  * @hw_queue_id: The H/W queue ID this completion queue belongs to
+ *               HL_INVALID_QUEUE if cq is not attached to any specific queue
  *
  * Allocate dma-able memory for the completion queue and initialize fields
  * Returns 0 on success
@@ -403,8 +469,8 @@ int hl_cq_init(struct hl_device *hdev, struct hl_cq *q, u32 hw_queue_id)
 {
 	void *p;
 
-	p = hdev->asic_funcs->asic_dma_alloc_coherent(hdev, HL_CQ_SIZE_IN_BYTES,
-				&q->bus_address, GFP_KERNEL | __GFP_ZERO);
+	p = hl_asic_dma_alloc_coherent(hdev, HL_CQ_SIZE_IN_BYTES, &q->bus_address,
+					GFP_KERNEL | __GFP_ZERO);
 	if (!p)
 		return -ENOMEM;
 
@@ -429,9 +495,7 @@ int hl_cq_init(struct hl_device *hdev, struct hl_cq *q, u32 hw_queue_id)
  */
 void hl_cq_fini(struct hl_device *hdev, struct hl_cq *q)
 {
-	hdev->asic_funcs->asic_dma_free_coherent(hdev, HL_CQ_SIZE_IN_BYTES,
-						 q->kernel_address,
-						 q->bus_address);
+	hl_asic_dma_free_coherent(hdev, HL_CQ_SIZE_IN_BYTES, q->kernel_address, q->bus_address);
 }
 
 void hl_cq_reset(struct hl_device *hdev, struct hl_cq *q)
@@ -464,9 +528,7 @@ int hl_eq_init(struct hl_device *hdev, struct hl_eq *q)
 {
 	void *p;
 
-	p = hdev->asic_funcs->cpu_accessible_dma_pool_alloc(hdev,
-							HL_EQ_SIZE_IN_BYTES,
-							&q->bus_address);
+	p = hl_cpu_accessible_dma_pool_alloc(hdev, HL_EQ_SIZE_IN_BYTES, &q->bus_address);
 	if (!p)
 		return -ENOMEM;
 
@@ -490,9 +552,7 @@ void hl_eq_fini(struct hl_device *hdev, struct hl_eq *q)
 {
 	flush_workqueue(hdev->eq_wq);
 
-	hdev->asic_funcs->cpu_accessible_dma_pool_free(hdev,
-					HL_EQ_SIZE_IN_BYTES,
-					q->kernel_address);
+	hl_cpu_accessible_dma_pool_free(hdev, HL_EQ_SIZE_IN_BYTES, q->kernel_address);
 }
 
 void hl_eq_reset(struct hl_device *hdev, struct hl_eq *q)

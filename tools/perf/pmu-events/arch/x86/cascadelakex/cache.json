@@ -482,7 +482,7 @@
         "UMask": "0x4"
     },
     {
-        "BriefDescription": "Retired load instructions with remote Intel Optane DC persistent memory as the data source where the data request missed all caches. Precise event.",
+        "BriefDescription": "Retired load instructions with remote Intel(R) Optane(TM) DC persistent memory as the data source where the data request missed all caches. Precise event.",
         "Counter": "0,1,2,3",
         "CounterHTOff": "0,1,2,3",
         "Data_LA": "1",
@@ -490,7 +490,7 @@
         "EventCode": "0xD3",
         "EventName": "MEM_LOAD_L3_MISS_RETIRED.REMOTE_PMM",
         "PEBS": "1",
-        "PublicDescription": "Counts retired load instructions with remote Intel Optane DC persistent memory as the data source and the data request missed L3 (AppDirect or Memory Mode) and DRAM cache(Memory Mode). Precise event",
+        "PublicDescription": "Counts retired load instructions with remote Intel(R) Optane(TM) DC persistent memory as the data source and the data request missed L3 (AppDirect or Memory Mode) and DRAM cache(Memory Mode). Precise event",
         "SampleAfterValue": "100007",
         "UMask": "0x10"
     },
@@ -590,7 +590,7 @@
         "UMask": "0x20"
     },
     {
-        "BriefDescription": "Retired load instructions with local Intel Optane DC persistent memory as the data source where the data request missed all caches. Precise event.",
+        "BriefDescription": "Retired load instructions with local Intel(R) Optane(TM) DC persistent memory as the data source where the data request missed all caches. Precise event.",
         "Counter": "0,1,2,3",
         "CounterHTOff": "0,1,2,3",
         "Data_LA": "1",
@@ -598,7 +598,7 @@
         "EventCode": "0xD1",
         "EventName": "MEM_LOAD_RETIRED.LOCAL_PMM",
         "PEBS": "1",
-        "PublicDescription": "Counts retired load instructions with local Intel Optane DC persistent memory as the data source and the data request missed L3 (AppDirect or Memory Mode) and DRAM cache(Memory Mode). Precise event",
+        "PublicDescription": "Counts retired load instructions with local Intel(R) Optane(TM) DC persistent memory as the data source and the data request missed L3 (AppDirect or Memory Mode) and DRAM cache(Memory Mode). Precise event",
         "SampleAfterValue": "100003",
         "UMask": "0x80"
     },

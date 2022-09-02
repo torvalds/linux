@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0+ */
 /*
- * rcar_du_encoder.h  --  R-Car Display Unit Encoder
+ * R-Car Display Unit Encoder
  *
  * Copyright (C) 2013-2014 Renesas Electronics Corporation
  *

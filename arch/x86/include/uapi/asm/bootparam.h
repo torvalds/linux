@@ -53,7 +53,7 @@ struct setup_data {
 	__u64 next;
 	__u32 type;
 	__u32 len;
-	__u8 data[0];
+	__u8 data[];
 };
 
 /* extensible setup indirect data node */

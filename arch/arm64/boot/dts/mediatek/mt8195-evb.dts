@@ -139,19 +139,19 @@
 };
 
 &u3phy0 {
-	status="okay";
+	status = "okay";
 };
 
 &u3phy1 {
-	status="okay";
+	status = "okay";
 };
 
 &u3phy2 {
-	status="okay";
+	status = "okay";
 };
 
 &u3phy3 {
-	status="okay";
+	status = "okay";
 };
 
 &uart0 {

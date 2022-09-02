@@ -96,7 +96,6 @@ Linux内核代码中包含有大量的文档。这些文档对于学习如何与
     的代码。
 
   :ref:`Documentation/translations/zh_CN/process/submitting-patches.rst <cn_submittingpatches>`
-  :ref:`Documentation/process/submitting-drivers.rst <submittingdrivers>`
 
     这两份文档明确描述如何创建和发送补丁，其中包括（但不仅限于)：
        - 邮件内容

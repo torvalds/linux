@@ -48,7 +48,7 @@ DEFINE_SIMPLE_ATTRIBUTE(vcpu_tsc_scaling_fops, vcpu_get_tsc_scaling_ratio, NULL,
 
 static int vcpu_get_tsc_scaling_frac_bits(void *data, u64 *val)
 {
-	*val = kvm_tsc_scaling_ratio_frac_bits;
+	*val = kvm_caps.tsc_scaling_ratio_frac_bits;
 	return 0;
 }
 
@@ -66,7 +66,7 @@ void kvm_arch_create_vcpu_debugfs(struct kvm_vcpu *vcpu, struct dentry *debugfs_
 				    debugfs_dentry, vcpu,
 				    &vcpu_timer_advance_ns_fops);
 
-	if (kvm_has_tsc_control) {
+	if (kvm_caps.has_tsc_control) {
 		debugfs_create_file("tsc-scaling-ratio", 0444,
 				    debugfs_dentry, vcpu,
 				    &vcpu_tsc_scaling_fops);

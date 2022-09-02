@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * rcar_lvds.c  --  R-Car LVDS Encoder
+ * R-Car LVDS Encoder
  *
  * Copyright (C) 2013-2018 Renesas Electronics Corporation
  *
@@ -10,6 +10,7 @@
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/io.h>
+#include <linux/media-bus-format.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_device.h>

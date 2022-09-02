@@ -243,7 +243,7 @@ static int ice_qp_ena(struct ice_vsi *vsi, u16 q_idx)
 		if (err)
 			goto free_buf;
 		ice_set_ring_xdp(xdp_ring);
-		xdp_ring->xsk_pool = ice_tx_xsk_pool(xdp_ring);
+		ice_tx_xsk_pool(vsi, q_idx);
 	}
 
 	err = ice_vsi_cfg_rxq(rx_ring);
@@ -329,6 +329,12 @@ int ice_xsk_pool_setup(struct ice_vsi *vsi, struct xsk_buff_pool *pool, u16 qid)
 	bool if_running, pool_present = !!pool;
 	int ret = 0, pool_failure = 0;
 
+	if (qid >= vsi->num_rxq || qid >= vsi->num_txq) {
+		netdev_err(vsi->netdev, "Please use queue id in scope of combined queues count\n");
+		pool_failure = -EINVAL;
+		goto failure;
+	}
+
 	if (!is_power_of_2(vsi->rx_rings[qid]->count) ||
 	    !is_power_of_2(vsi->tx_rings[qid]->count)) {
 		netdev_err(vsi->netdev, "Please align ring sizes to power of 2\n");
@@ -353,7 +359,7 @@ xsk_pool_if_up:
 	if (if_running) {
 		ret = ice_qp_ena(vsi, qid);
 		if (!ret && pool_present)
-			napi_schedule(&vsi->xdp_rings[qid]->q_vector->napi);
+			napi_schedule(&vsi->rx_rings[qid]->xdp_ring->q_vector->napi);
 		else if (ret)
 			netdev_err(vsi->netdev, "ice_qp_ena error = %d\n", ret);
 	}
@@ -944,13 +950,13 @@ ice_xsk_wakeup(struct net_device *netdev, u32 queue_id,
 	if (!ice_is_xdp_ena_vsi(vsi))
 		return -EINVAL;
 
-	if (queue_id >= vsi->num_txq)
+	if (queue_id >= vsi->num_txq || queue_id >= vsi->num_rxq)
 		return -EINVAL;
 
-	if (!vsi->xdp_rings[queue_id]->xsk_pool)
-		return -EINVAL;
+	ring = vsi->rx_rings[queue_id]->xdp_ring;
 
-	ring = vsi->xdp_rings[queue_id];
+	if (!ring->xsk_pool)
+		return -EINVAL;
 
 	/* The idea here is that if NAPI is running, mark a miss, so
 	 * it will run again. If not, trigger an interrupt and

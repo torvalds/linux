@@ -1848,7 +1848,6 @@ static ssize_t check_direct_IO(struct btrfs_fs_info *fs_info,
 
 static ssize_t btrfs_direct_write(struct kiocb *iocb, struct iov_iter *from)
 {
-	const bool is_sync_write = (iocb->ki_flags & IOCB_DSYNC);
 	struct file *file = iocb->ki_filp;
 	struct inode *inode = file_inode(file);
 	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
@@ -1900,15 +1899,6 @@ relock:
 		btrfs_inode_unlock(inode, ilock_flags);
 		goto buffered;
 	}
-
-	/*
-	 * We remove IOCB_DSYNC so that we don't deadlock when iomap_dio_rw()
-	 * calls generic_write_sync() (through iomap_dio_complete()), because
-	 * that results in calling fsync (btrfs_sync_file()) which will try to
-	 * lock the inode in exclusive/write mode.
-	 */
-	if (is_sync_write)
-		iocb->ki_flags &= ~IOCB_DSYNC;
 
 	/*
 	 * The iov_iter can be mapped to the same file range we are writing to.
@@ -1965,17 +1955,24 @@ again:
 	btrfs_inode_unlock(inode, ilock_flags);
 
 	/*
-	 * Add back IOCB_DSYNC. Our caller, btrfs_file_write_iter(), will do
-	 * the fsync (call generic_write_sync()).
+	 * If 'err' is -ENOTBLK or we have not written all data, then it means
+	 * we must fallback to buffered IO.
 	 */
-	if (is_sync_write)
-		iocb->ki_flags |= IOCB_DSYNC;
-
-	/* If 'err' is -ENOTBLK then it means we must fallback to buffered IO. */
 	if ((err < 0 && err != -ENOTBLK) || !iov_iter_count(from))
 		goto out;
 
 buffered:
+	/*
+	 * If we are in a NOWAIT context, then return -EAGAIN to signal the caller
+	 * it must retry the operation in a context where blocking is acceptable,
+	 * since we currently don't have NOWAIT semantics support for buffered IO
+	 * and may block there for many reasons (reserving space for example).
+	 */
+	if (iocb->ki_flags & IOCB_NOWAIT) {
+		err = -EAGAIN;
+		goto out;
+	}
+
 	pos = iocb->ki_pos;
 	written_buffered = btrfs_buffered_write(iocb, from);
 	if (written_buffered < 0) {
@@ -2038,7 +2035,7 @@ ssize_t btrfs_do_write_iter(struct kiocb *iocb, struct iov_iter *from,
 	struct file *file = iocb->ki_filp;
 	struct btrfs_inode *inode = BTRFS_I(file_inode(file));
 	ssize_t num_written, num_sync;
-	const bool sync = iocb->ki_flags & IOCB_DSYNC;
+	const bool sync = iocb_is_dsync(iocb);
 
 	/*
 	 * If the fs flips readonly due to some impossible error, although we
@@ -2058,9 +2055,11 @@ ssize_t btrfs_do_write_iter(struct kiocb *iocb, struct iov_iter *from,
 		num_written = btrfs_encoded_write(iocb, from, encoded);
 		num_sync = encoded->len;
 	} else if (iocb->ki_flags & IOCB_DIRECT) {
-		num_written = num_sync = btrfs_direct_write(iocb, from);
+		num_written = btrfs_direct_write(iocb, from);
+		num_sync = num_written;
 	} else {
-		num_written = num_sync = btrfs_buffered_write(iocb, from);
+		num_written = btrfs_buffered_write(iocb, from);
+		num_sync = num_written;
 	}
 
 	btrfs_set_inode_last_sub_trans(inode);
@@ -2308,7 +2307,7 @@ int btrfs_sync_file(struct file *file, loff_t start, loff_t end, int datasync)
 	btrfs_release_log_ctx_extents(&ctx);
 	if (ret < 0) {
 		/* Fallthrough and commit/free transaction. */
-		ret = 1;
+		ret = BTRFS_LOG_FORCE_COMMIT;
 	}
 
 	/* we've logged all the items and now have a consistent
@@ -2483,6 +2482,7 @@ static int fill_holes(struct btrfs_trans_handle *trans,
 		btrfs_set_file_extent_num_bytes(leaf, fi, num_bytes);
 		btrfs_set_file_extent_ram_bytes(leaf, fi, num_bytes);
 		btrfs_set_file_extent_offset(leaf, fi, 0);
+		btrfs_set_file_extent_generation(leaf, fi, trans->transid);
 		btrfs_mark_buffer_dirty(leaf);
 		goto out;
 	}
@@ -2499,6 +2499,7 @@ static int fill_holes(struct btrfs_trans_handle *trans,
 		btrfs_set_file_extent_num_bytes(leaf, fi, num_bytes);
 		btrfs_set_file_extent_ram_bytes(leaf, fi, num_bytes);
 		btrfs_set_file_extent_offset(leaf, fi, 0);
+		btrfs_set_file_extent_generation(leaf, fi, trans->transid);
 		btrfs_mark_buffer_dirty(leaf);
 		goto out;
 	}
@@ -2734,7 +2735,7 @@ int btrfs_replace_file_extents(struct btrfs_inode *inode,
 		goto out;
 	}
 	rsv->size = btrfs_calc_insert_metadata_size(fs_info, 1);
-	rsv->failfast = 1;
+	rsv->failfast = true;
 
 	/*
 	 * 1 - update the inode
@@ -3100,7 +3101,8 @@ static int btrfs_punch_hole(struct file *file, loff_t offset, loff_t len)
 
 	ASSERT(trans != NULL);
 	inode_inc_iversion(inode);
-	inode->i_mtime = inode->i_ctime = current_time(inode);
+	inode->i_mtime = current_time(inode);
+	inode->i_ctime = inode->i_mtime;
 	ret = btrfs_update_inode(trans, root, BTRFS_I(inode));
 	updated_inode = true;
 	btrfs_end_transaction(trans);

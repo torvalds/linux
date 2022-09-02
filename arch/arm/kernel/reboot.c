@@ -10,6 +10,7 @@
 #include <asm/cacheflush.h>
 #include <asm/idmap.h>
 #include <asm/virt.h>
+#include <asm/system_misc.h>
 
 #include "reboot.h"
 

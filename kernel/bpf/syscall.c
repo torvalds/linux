@@ -419,35 +419,53 @@ void bpf_map_free_id(struct bpf_map *map, bool do_idr_lock)
 #ifdef CONFIG_MEMCG_KMEM
 static void bpf_map_save_memcg(struct bpf_map *map)
 {
-	map->memcg = get_mem_cgroup_from_mm(current->mm);
+	/* Currently if a map is created by a process belonging to the root
+	 * memory cgroup, get_obj_cgroup_from_current() will return NULL.
+	 * So we have to check map->objcg for being NULL each time it's
+	 * being used.
+	 */
+	map->objcg = get_obj_cgroup_from_current();
 }
 
 static void bpf_map_release_memcg(struct bpf_map *map)
 {
-	mem_cgroup_put(map->memcg);
+	if (map->objcg)
+		obj_cgroup_put(map->objcg);
+}
+
+static struct mem_cgroup *bpf_map_get_memcg(const struct bpf_map *map)
+{
+	if (map->objcg)
+		return get_mem_cgroup_from_objcg(map->objcg);
+
+	return root_mem_cgroup;
 }
 
 void *bpf_map_kmalloc_node(const struct bpf_map *map, size_t size, gfp_t flags,
 			   int node)
 {
-	struct mem_cgroup *old_memcg;
+	struct mem_cgroup *memcg, *old_memcg;
 	void *ptr;
 
-	old_memcg = set_active_memcg(map->memcg);
+	memcg = bpf_map_get_memcg(map);
+	old_memcg = set_active_memcg(memcg);
 	ptr = kmalloc_node(size, flags | __GFP_ACCOUNT, node);
 	set_active_memcg(old_memcg);
+	mem_cgroup_put(memcg);
 
 	return ptr;
 }
 
 void *bpf_map_kzalloc(const struct bpf_map *map, size_t size, gfp_t flags)
 {
-	struct mem_cgroup *old_memcg;
+	struct mem_cgroup *memcg, *old_memcg;
 	void *ptr;
 
-	old_memcg = set_active_memcg(map->memcg);
+	memcg = bpf_map_get_memcg(map);
+	old_memcg = set_active_memcg(memcg);
 	ptr = kzalloc(size, flags | __GFP_ACCOUNT);
 	set_active_memcg(old_memcg);
+	mem_cgroup_put(memcg);
 
 	return ptr;
 }
@@ -455,12 +473,14 @@ void *bpf_map_kzalloc(const struct bpf_map *map, size_t size, gfp_t flags)
 void __percpu *bpf_map_alloc_percpu(const struct bpf_map *map, size_t size,
 				    size_t align, gfp_t flags)
 {
-	struct mem_cgroup *old_memcg;
+	struct mem_cgroup *memcg, *old_memcg;
 	void __percpu *ptr;
 
-	old_memcg = set_active_memcg(map->memcg);
+	memcg = bpf_map_get_memcg(map);
+	old_memcg = set_active_memcg(memcg);
 	ptr = __alloc_percpu_gfp(size, align, flags | __GFP_ACCOUNT);
 	set_active_memcg(old_memcg);
+	mem_cgroup_put(memcg);
 
 	return ptr;
 }
@@ -3416,6 +3436,8 @@ attach_type_to_prog_type(enum bpf_attach_type attach_type)
 		return BPF_PROG_TYPE_SK_LOOKUP;
 	case BPF_XDP:
 		return BPF_PROG_TYPE_XDP;
+	case BPF_LSM_CGROUP:
+		return BPF_PROG_TYPE_LSM;
 	default:
 		return BPF_PROG_TYPE_UNSPEC;
 	}
@@ -3469,6 +3491,11 @@ static int bpf_prog_attach(const union bpf_attr *attr)
 	case BPF_PROG_TYPE_CGROUP_SOCKOPT:
 	case BPF_PROG_TYPE_CGROUP_SYSCTL:
 	case BPF_PROG_TYPE_SOCK_OPS:
+	case BPF_PROG_TYPE_LSM:
+		if (ptype == BPF_PROG_TYPE_LSM &&
+		    prog->expected_attach_type != BPF_LSM_CGROUP)
+			return -EINVAL;
+
 		ret = cgroup_bpf_prog_attach(attr, ptype, prog);
 		break;
 	default:
@@ -3506,13 +3533,14 @@ static int bpf_prog_detach(const union bpf_attr *attr)
 	case BPF_PROG_TYPE_CGROUP_SOCKOPT:
 	case BPF_PROG_TYPE_CGROUP_SYSCTL:
 	case BPF_PROG_TYPE_SOCK_OPS:
+	case BPF_PROG_TYPE_LSM:
 		return cgroup_bpf_prog_detach(attr, ptype);
 	default:
 		return -EINVAL;
 	}
 }
 
-#define BPF_PROG_QUERY_LAST_FIELD query.prog_cnt
+#define BPF_PROG_QUERY_LAST_FIELD query.prog_attach_flags
 
 static int bpf_prog_query(const union bpf_attr *attr,
 			  union bpf_attr __user *uattr)
@@ -3548,6 +3576,7 @@ static int bpf_prog_query(const union bpf_attr *attr,
 	case BPF_CGROUP_SYSCTL:
 	case BPF_CGROUP_GETSOCKOPT:
 	case BPF_CGROUP_SETSOCKOPT:
+	case BPF_LSM_CGROUP:
 		return cgroup_bpf_prog_query(attr, uattr);
 	case BPF_LIRC_MODE2:
 		return lirc_prog_query(attr, uattr);
@@ -3857,6 +3886,7 @@ static int bpf_prog_get_info_by_fd(struct file *file,
 				   union bpf_attr __user *uattr)
 {
 	struct bpf_prog_info __user *uinfo = u64_to_user_ptr(attr->info.info);
+	struct btf *attach_btf = bpf_prog_get_target_btf(prog);
 	struct bpf_prog_info info;
 	u32 info_len = attr->info.info_len;
 	struct bpf_prog_kstats stats;
@@ -4058,6 +4088,9 @@ static int bpf_prog_get_info_by_fd(struct file *file,
 
 	if (prog->aux->btf)
 		info.btf_id = btf_obj_id(prog->aux->btf);
+	info.attach_btf_id = prog->aux->attach_btf_id;
+	if (attach_btf)
+		info.attach_btf_obj_id = btf_obj_id(attach_btf);
 
 	ulen = info.nr_func_info;
 	info.nr_func_info = prog->aux->func_info_cnt;
@@ -4090,14 +4123,15 @@ static int bpf_prog_get_info_by_fd(struct file *file,
 		info.nr_jited_line_info = 0;
 	if (info.nr_jited_line_info && ulen) {
 		if (bpf_dump_raw_ok(file->f_cred)) {
+			unsigned long line_addr;
 			__u64 __user *user_linfo;
 			u32 i;
 
 			user_linfo = u64_to_user_ptr(info.jited_line_info);
 			ulen = min_t(u32, info.nr_jited_line_info, ulen);
 			for (i = 0; i < ulen; i++) {
-				if (put_user((__u64)(long)prog->aux->jited_linfo[i],
-					     &user_linfo[i]))
+				line_addr = (unsigned long)prog->aux->jited_linfo[i];
+				if (put_user((__u64)line_addr, &user_linfo[i]))
 					return -EFAULT;
 			}
 		} else {
@@ -4539,6 +4573,8 @@ static int link_create(union bpf_attr *attr, bpfptr_t uattr)
 			ret = bpf_raw_tp_link_attach(prog, NULL);
 		else if (prog->expected_attach_type == BPF_TRACE_ITER)
 			ret = bpf_iter_link_attach(attr, uattr, prog);
+		else if (prog->expected_attach_type == BPF_LSM_CGROUP)
+			ret = cgroup_bpf_link_attach(attr, prog);
 		else
 			ret = bpf_tracing_prog_attach(prog,
 						      attr->link_create.target_fd,
@@ -5035,9 +5071,6 @@ static bool syscall_prog_is_valid_access(int off, int size,
 
 BPF_CALL_3(bpf_sys_bpf, int, cmd, union bpf_attr *, attr, u32, attr_size)
 {
-	struct bpf_prog * __maybe_unused prog;
-	struct bpf_tramp_run_ctx __maybe_unused run_ctx;
-
 	switch (cmd) {
 	case BPF_MAP_CREATE:
 	case BPF_MAP_UPDATE_ELEM:
@@ -5047,6 +5080,26 @@ BPF_CALL_3(bpf_sys_bpf, int, cmd, union bpf_attr *, attr, u32, attr_size)
 	case BPF_LINK_CREATE:
 	case BPF_RAW_TRACEPOINT_OPEN:
 		break;
+	default:
+		return -EINVAL;
+	}
+	return __sys_bpf(cmd, KERNEL_BPFPTR(attr), attr_size);
+}
+
+
+/* To shut up -Wmissing-prototypes.
+ * This function is used by the kernel light skeleton
+ * to load bpf programs when modules are loaded or during kernel boot.
+ * See tools/lib/bpf/skel_internal.h
+ */
+int kern_sys_bpf(int cmd, union bpf_attr *attr, unsigned int size);
+
+int kern_sys_bpf(int cmd, union bpf_attr *attr, unsigned int size)
+{
+	struct bpf_prog * __maybe_unused prog;
+	struct bpf_tramp_run_ctx __maybe_unused run_ctx;
+
+	switch (cmd) {
 #ifdef CONFIG_BPF_JIT /* __bpf_prog_enter_sleepable used by trampoline and JIT */
 	case BPF_PROG_TEST_RUN:
 		if (attr->test.data_in || attr->test.data_out ||
@@ -5077,11 +5130,10 @@ BPF_CALL_3(bpf_sys_bpf, int, cmd, union bpf_attr *, attr, u32, attr_size)
 		return 0;
 #endif
 	default:
-		return -EINVAL;
+		return ____bpf_sys_bpf(cmd, attr, size);
 	}
-	return __sys_bpf(cmd, KERNEL_BPFPTR(attr), attr_size);
 }
-EXPORT_SYMBOL(bpf_sys_bpf);
+EXPORT_SYMBOL(kern_sys_bpf);
 
 static const struct bpf_func_proto bpf_sys_bpf_proto = {
 	.func		= bpf_sys_bpf,
@@ -5130,7 +5182,7 @@ BPF_CALL_4(bpf_kallsyms_lookup_name, const char *, name, int, name_sz, int, flag
 	return *res ? 0 : -ENOENT;
 }
 
-const struct bpf_func_proto bpf_kallsyms_lookup_name_proto = {
+static const struct bpf_func_proto bpf_kallsyms_lookup_name_proto = {
 	.func		= bpf_kallsyms_lookup_name,
 	.gpl_only	= false,
 	.ret_type	= RET_INTEGER,
@@ -5145,7 +5197,7 @@ syscall_prog_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
 {
 	switch (func_id) {
 	case BPF_FUNC_sys_bpf:
-		return &bpf_sys_bpf_proto;
+		return !perfmon_capable() ? NULL : &bpf_sys_bpf_proto;
 	case BPF_FUNC_btf_find_by_name_kind:
 		return &bpf_btf_find_by_name_kind_proto;
 	case BPF_FUNC_sys_close:

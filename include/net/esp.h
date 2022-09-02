@@ -5,6 +5,7 @@
 #include <linux/skbuff.h>
 
 struct ip_esp_hdr;
+struct xfrm_state;
 
 static inline struct ip_esp_hdr *ip_esp_hdr(const struct sk_buff *skb)
 {

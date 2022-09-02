@@ -32,6 +32,7 @@
 
 #include "i915_drv.h"
 #include "intel_audio.h"
+#include "intel_audio_regs.h"
 #include "intel_backlight.h"
 #include "intel_combo_phy.h"
 #include "intel_combo_phy_regs.h"
@@ -322,13 +323,9 @@ static int icl_calc_tbt_pll_link(struct drm_i915_private *dev_priv,
 	}
 }
 
-static void ddi_dotclock_get(struct intel_crtc_state *pipe_config)
+int intel_crtc_dotclock(const struct intel_crtc_state *pipe_config)
 {
 	int dotclock;
-
-	/* CRT dotclock is determined via other means */
-	if (pipe_config->has_pch_encoder)
-		return;
 
 	if (intel_crtc_has_dp_encoder(pipe_config))
 		dotclock = intel_dotclock_calculate(pipe_config->port_clock,
@@ -345,7 +342,17 @@ static void ddi_dotclock_get(struct intel_crtc_state *pipe_config)
 	if (pipe_config->pixel_multiplier)
 		dotclock /= pipe_config->pixel_multiplier;
 
-	pipe_config->hw.adjusted_mode.crtc_clock = dotclock;
+	return dotclock;
+}
+
+static void ddi_dotclock_get(struct intel_crtc_state *pipe_config)
+{
+	/* CRT dotclock is determined via other means */
+	if (pipe_config->has_pch_encoder)
+		return;
+
+	pipe_config->hw.adjusted_mode.crtc_clock =
+		intel_crtc_dotclock(pipe_config);
 }
 
 void intel_ddi_set_dp_msa(const struct intel_crtc_state *crtc_state,
@@ -455,6 +462,9 @@ intel_ddi_transcoder_func_reg_val_get(struct intel_encoder *encoder,
 		temp |= TRANS_DDI_SELECT_PORT(port);
 
 	switch (crtc_state->pipe_bpp) {
+	default:
+		MISSING_CASE(crtc_state->pipe_bpp);
+		fallthrough;
 	case 18:
 		temp |= TRANS_DDI_BPC_6;
 		break;
@@ -467,8 +477,6 @@ intel_ddi_transcoder_func_reg_val_get(struct intel_encoder *encoder,
 	case 36:
 		temp |= TRANS_DDI_BPC_12;
 		break;
-	default:
-		BUG();
 	}
 
 	if (crtc_state->hw.adjusted_mode.flags & DRM_MODE_FLAG_PVSYNC)
@@ -478,6 +486,9 @@ intel_ddi_transcoder_func_reg_val_get(struct intel_encoder *encoder,
 
 	if (cpu_transcoder == TRANSCODER_EDP) {
 		switch (pipe) {
+		default:
+			MISSING_CASE(pipe);
+			fallthrough;
 		case PIPE_A:
 			/* On Haswell, can only use the always-on power well for
 			 * eDP when not using the panel fitter, and when not
@@ -493,9 +504,6 @@ intel_ddi_transcoder_func_reg_val_get(struct intel_encoder *encoder,
 			break;
 		case PIPE_C:
 			temp |= TRANS_DDI_EDP_INPUT_C_ONOFF;
-			break;
-		default:
-			BUG();
 			break;
 		}
 	}
@@ -3433,26 +3441,8 @@ static void intel_ddi_get_config(struct intel_encoder *encoder,
 	pipe_config->has_audio =
 		intel_ddi_is_audio_enabled(dev_priv, cpu_transcoder);
 
-	if (encoder->type == INTEL_OUTPUT_EDP && dev_priv->vbt.edp.bpp &&
-	    pipe_config->pipe_bpp > dev_priv->vbt.edp.bpp) {
-		/*
-		 * This is a big fat ugly hack.
-		 *
-		 * Some machines in UEFI boot mode provide us a VBT that has 18
-		 * bpp and 1.62 GHz link bandwidth for eDP, which for reasons
-		 * unknown we fail to light up. Yet the same BIOS boots up with
-		 * 24 bpp and 2.7 GHz link. Use the same bpp as the BIOS uses as
-		 * max, not what it tells us to use.
-		 *
-		 * Note: This will still be broken if the eDP panel is not lit
-		 * up by the BIOS, and thus we can't get the mode at module
-		 * load.
-		 */
-		drm_dbg_kms(&dev_priv->drm,
-			    "pipe has %d bpp for eDP panel, overriding BIOS-provided max %d bpp\n",
-			    pipe_config->pipe_bpp, dev_priv->vbt.edp.bpp);
-		dev_priv->vbt.edp.bpp = pipe_config->pipe_bpp;
-	}
+	if (encoder->type == INTEL_OUTPUT_EDP)
+		intel_edp_fixup_vbt_bpp(encoder, pipe_config->pipe_bpp);
 
 	ddi_dotclock_get(pipe_config);
 
@@ -4189,7 +4179,7 @@ static enum hpd_pin ehl_hpd_pin(struct drm_i915_private *dev_priv,
 	if (port == PORT_D)
 		return HPD_PORT_A;
 
-	if (HAS_PCH_MCC(dev_priv))
+	if (HAS_PCH_TGP(dev_priv))
 		return icl_hpd_pin(dev_priv, port);
 
 	return HPD_PORT_A + port - PORT_A;

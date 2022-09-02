@@ -853,9 +853,20 @@ static int ili9881c_get_modes(struct drm_panel *panel,
 	connector->display_info.width_mm = mode->width_mm;
 	connector->display_info.height_mm = mode->height_mm;
 
+	/*
+	 * TODO: Remove once all drm drivers call
+	 * drm_connector_set_orientation_from_panel()
+	 */
 	drm_connector_set_panel_orientation(connector, ctx->orientation);
 
 	return 1;
+}
+
+static enum drm_panel_orientation ili9881c_get_orientation(struct drm_panel *panel)
+{
+	struct ili9881c *ctx = panel_to_ili9881c(panel);
+
+	return ctx->orientation;
 }
 
 static const struct drm_panel_funcs ili9881c_funcs = {
@@ -864,6 +875,7 @@ static const struct drm_panel_funcs ili9881c_funcs = {
 	.enable		= ili9881c_enable,
 	.disable	= ili9881c_disable,
 	.get_modes	= ili9881c_get_modes,
+	.get_orientation = ili9881c_get_orientation,
 };
 
 static int ili9881c_dsi_probe(struct mipi_dsi_device *dsi)

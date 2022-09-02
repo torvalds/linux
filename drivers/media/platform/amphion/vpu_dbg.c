@@ -27,7 +27,7 @@ struct print_buf_desc {
 	u32 bytes;
 	u32 read;
 	u32 write;
-	char buffer[0];
+	char buffer[];
 };
 
 static char *vb2_stat_name[] = {

@@ -32,7 +32,7 @@ struct nvkm_head *
 nvkm_head_find(struct nvkm_disp *disp, int id)
 {
 	struct nvkm_head *head;
-	list_for_each_entry(head, &disp->head, head) {
+	list_for_each_entry(head, &disp->heads, head) {
 		if (head->id == id)
 			return head;
 	}
@@ -99,7 +99,7 @@ nvkm_head_new_(const struct nvkm_head_func *func,
 	head->func = func;
 	head->disp = disp;
 	head->id = id;
-	list_add_tail(&head->head, &disp->head);
+	list_add_tail(&head->head, &disp->heads);
 	HEAD_DBG(head, "ctor");
 	return 0;
 }

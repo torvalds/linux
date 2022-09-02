@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * TI HECC (CAN) device driver
  *
@@ -6,16 +7,6 @@
  *
  * Copyright (C) 2009 Texas Instruments Incorporated - http://www.ti.com/
  * Copyright (C) 2019 Jeroen Hofstee <jhofstee@victronenergy.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation version 2.
- *
- * This program is distributed as is WITHOUT ANY WARRANTY of any
- * kind, whether express or implied; without even the implied warranty
- * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
  */
 
 #include <linux/module.h>
@@ -23,6 +14,7 @@
 #include <linux/types.h>
 #include <linux/interrupt.h>
 #include <linux/errno.h>
+#include <linux/ethtool.h>
 #include <linux/netdevice.h>
 #include <linux/skbuff.h>
 #include <linux/platform_device.h>
@@ -662,6 +654,7 @@ static void ti_hecc_change_state(struct net_device *ndev,
 	can_change_state(priv->ndev, cf, tx_state, rx_state);
 
 	if (max(tx_state, rx_state) != CAN_STATE_BUS_OFF) {
+		cf->can_id |= CAN_ERR_CNT;
 		cf->data[6] = hecc_read(priv, HECC_CANTEC);
 		cf->data[7] = hecc_read(priv, HECC_CANREC);
 	}
@@ -840,6 +833,10 @@ static const struct net_device_ops ti_hecc_netdev_ops = {
 	.ndo_change_mtu		= can_change_mtu,
 };
 
+static const struct ethtool_ops ti_hecc_ethtool_ops = {
+	.get_ts_info = ethtool_op_get_ts_info,
+};
+
 static const struct of_device_id ti_hecc_dt_ids[] = {
 	{
 		.compatible = "ti,am3517-hecc",
@@ -917,6 +914,7 @@ static int ti_hecc_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, ndev);
 	SET_NETDEV_DEV(ndev, &pdev->dev);
 	ndev->netdev_ops = &ti_hecc_netdev_ops;
+	ndev->ethtool_ops = &ti_hecc_ethtool_ops;
 
 	priv->clk = clk_get(&pdev->dev, "hecc_ck");
 	if (IS_ERR(priv->clk)) {

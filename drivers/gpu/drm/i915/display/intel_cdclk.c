@@ -800,7 +800,7 @@ static void bdw_set_cdclk(struct drm_i915_private *dev_priv,
 		     "trying to change cdclk frequency with cdclk not enabled\n"))
 		return;
 
-	ret = snb_pcode_write(dev_priv, BDW_PCODE_DISPLAY_FREQ_CHANGE_REQ, 0x0);
+	ret = snb_pcode_write(&dev_priv->uncore, BDW_PCODE_DISPLAY_FREQ_CHANGE_REQ, 0x0);
 	if (ret) {
 		drm_err(&dev_priv->drm,
 			"failed to inform pcode about cdclk change\n");
@@ -828,7 +828,7 @@ static void bdw_set_cdclk(struct drm_i915_private *dev_priv,
 			 LCPLL_CD_SOURCE_FCLK_DONE) == 0, 1))
 		drm_err(&dev_priv->drm, "Switching back to LCPLL failed\n");
 
-	snb_pcode_write(dev_priv, HSW_PCODE_DE_WRITE_FREQ_REQ,
+	snb_pcode_write(&dev_priv->uncore, HSW_PCODE_DE_WRITE_FREQ_REQ,
 			cdclk_config->voltage_level);
 
 	intel_de_write(dev_priv, CDCLK_FREQ,
@@ -1086,7 +1086,7 @@ static void skl_set_cdclk(struct drm_i915_private *dev_priv,
 	drm_WARN_ON_ONCE(&dev_priv->drm,
 			 IS_SKYLAKE(dev_priv) && vco == 8640000);
 
-	ret = skl_pcode_request(dev_priv, SKL_PCODE_CDCLK_CONTROL,
+	ret = skl_pcode_request(&dev_priv->uncore, SKL_PCODE_CDCLK_CONTROL,
 				SKL_CDCLK_PREPARE_FOR_CHANGE,
 				SKL_CDCLK_READY_FOR_CHANGE,
 				SKL_CDCLK_READY_FOR_CHANGE, 3);
@@ -1132,7 +1132,7 @@ static void skl_set_cdclk(struct drm_i915_private *dev_priv,
 	intel_de_posting_read(dev_priv, CDCLK_CTL);
 
 	/* inform PCU of the change */
-	snb_pcode_write(dev_priv, SKL_PCODE_CDCLK_CONTROL,
+	snb_pcode_write(&dev_priv->uncore, SKL_PCODE_CDCLK_CONTROL,
 			cdclk_config->voltage_level);
 
 	intel_update_cdclk(dev_priv);
@@ -1702,7 +1702,7 @@ static void bxt_set_cdclk(struct drm_i915_private *dev_priv,
 
 	/* Inform power controller of upcoming frequency change. */
 	if (DISPLAY_VER(dev_priv) >= 11)
-		ret = skl_pcode_request(dev_priv, SKL_PCODE_CDCLK_CONTROL,
+		ret = skl_pcode_request(&dev_priv->uncore, SKL_PCODE_CDCLK_CONTROL,
 					SKL_CDCLK_PREPARE_FOR_CHANGE,
 					SKL_CDCLK_READY_FOR_CHANGE,
 					SKL_CDCLK_READY_FOR_CHANGE, 3);
@@ -1711,7 +1711,7 @@ static void bxt_set_cdclk(struct drm_i915_private *dev_priv,
 		 * BSpec requires us to wait up to 150usec, but that leads to
 		 * timeouts; the 2ms used here is based on experiment.
 		 */
-		ret = snb_pcode_write_timeout(dev_priv,
+		ret = snb_pcode_write_timeout(&dev_priv->uncore,
 					      HSW_PCODE_DE_WRITE_FREQ_REQ,
 					      0x80000000, 150, 2);
 	if (ret) {
@@ -1774,7 +1774,7 @@ static void bxt_set_cdclk(struct drm_i915_private *dev_priv,
 		intel_crtc_wait_for_next_vblank(intel_crtc_for_pipe(dev_priv, pipe));
 
 	if (DISPLAY_VER(dev_priv) >= 11) {
-		ret = snb_pcode_write(dev_priv, SKL_PCODE_CDCLK_CONTROL,
+		ret = snb_pcode_write(&dev_priv->uncore, SKL_PCODE_CDCLK_CONTROL,
 				      cdclk_config->voltage_level);
 	} else {
 		/*
@@ -1783,7 +1783,7 @@ static void bxt_set_cdclk(struct drm_i915_private *dev_priv,
 		 * FIXME: Waiting for the request completion could be delayed
 		 * until the next PCODE request based on BSpec.
 		 */
-		ret = snb_pcode_write_timeout(dev_priv,
+		ret = snb_pcode_write_timeout(&dev_priv->uncore,
 					      HSW_PCODE_DE_WRITE_FREQ_REQ,
 					      cdclk_config->voltage_level,
 					      150, 2);

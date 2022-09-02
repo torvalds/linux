@@ -327,6 +327,10 @@ static u32 guc_ctl_wa_flags(struct intel_guc *guc)
 	    IS_DG2_GRAPHICS_STEP(gt->i915, G11, STEP_A0, STEP_FOREVER))
 		flags |= GUC_WA_CONTEXT_ISOLATION;
 
+	/* Wa_16015675438 */
+	if (!RCS_MASK(gt))
+		flags |= GUC_WA_RCS_REGS_IN_CCS_REGS_LIST;
+
 	return flags;
 }
 

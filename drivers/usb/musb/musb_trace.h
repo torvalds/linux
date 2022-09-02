@@ -28,11 +28,11 @@ TRACE_EVENT(musb_log,
 	TP_ARGS(musb, vaf),
 	TP_STRUCT__entry(
 		__string(name, dev_name(musb->controller))
-		__dynamic_array(char, msg, MUSB_MSG_MAX)
+		__vstring(msg, vaf->fmt, vaf->va)
 	),
 	TP_fast_assign(
 		__assign_str(name, dev_name(musb->controller));
-		vsnprintf(__get_str(msg), MUSB_MSG_MAX, vaf->fmt, *vaf->va);
+		__assign_vstr(msg, vaf->fmt, vaf->va);
 	),
 	TP_printk("%s: %s", __get_str(name), __get_str(msg))
 );

@@ -355,7 +355,7 @@ static int simplefb_regulators_get(struct simplefb_par *par,
 		if (!p || p == prop->name)
 			continue;
 
-		strlcpy(name, prop->name,
+		strscpy(name, prop->name,
 			strlen(prop->name) - strlen(SUPPLY_SUFFIX) + 1);
 		regulator = devm_regulator_get_optional(&pdev->dev, name);
 		if (IS_ERR(regulator)) {
@@ -417,17 +417,6 @@ static int simplefb_probe(struct platform_device *pdev)
 	struct fb_info *info;
 	struct simplefb_par *par;
 	struct resource *res, *mem;
-
-	/*
-	 * Generic drivers must not be registered if a framebuffer exists.
-	 * If a native driver was probed, the display hardware was already
-	 * taken and attempting to use the system framebuffer is dangerous.
-	 */
-	if (num_registered_fb > 0) {
-		dev_err(&pdev->dev,
-			"simplefb: a framebuffer is already registered\n");
-		return -EINVAL;
-	}
 
 	if (fb_get_options("simplefb", NULL))
 		return -ENODEV;

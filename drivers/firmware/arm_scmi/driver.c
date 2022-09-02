@@ -19,6 +19,7 @@
 #include <linux/export.h>
 #include <linux/idr.h>
 #include <linux/io.h>
+#include <linux/io-64-nonatomic-hi-lo.h>
 #include <linux/kernel.h>
 #include <linux/ktime.h>
 #include <linux/hashtable.h>
@@ -59,6 +60,11 @@ static atomic_t transfer_last_id;
 
 static DEFINE_IDR(scmi_requested_devices);
 static DEFINE_MUTEX(scmi_requested_devices_mtx);
+
+/* Track globally the creation of SCMI SystemPower related devices */
+static bool scmi_syspower_registered;
+/* Protect access to scmi_syspower_registered */
+static DEFINE_MUTEX(scmi_syspower_mtx);
 
 struct scmi_requested_dev {
 	const struct scmi_device_id *id_table;
@@ -660,6 +666,11 @@ static void scmi_handle_notification(struct scmi_chan_info *cinfo,
 		smp_store_mb(xfer->priv, priv);
 	info->desc->ops->fetch_notification(cinfo, info->desc->max_msg_size,
 					    xfer);
+
+	trace_scmi_msg_dump(xfer->hdr.protocol_id, xfer->hdr.id, "NOTI",
+			    xfer->hdr.seq, xfer->hdr.status,
+			    xfer->rx.buf, xfer->rx.len);
+
 	scmi_notify(cinfo->handle, xfer->hdr.protocol_id,
 		    xfer->hdr.id, xfer->rx.buf, xfer->rx.len, ts);
 
@@ -693,6 +704,12 @@ static void scmi_handle_response(struct scmi_chan_info *cinfo,
 		/* Ensure order between xfer->priv store and following ops */
 		smp_store_mb(xfer->priv, priv);
 	info->desc->ops->fetch_response(cinfo, xfer);
+
+	trace_scmi_msg_dump(xfer->hdr.protocol_id, xfer->hdr.id,
+			    xfer->hdr.type == MSG_TYPE_DELAYED_RESP ?
+			    "DLYD" : "RESP",
+			    xfer->hdr.seq, xfer->hdr.status,
+			    xfer->rx.buf, xfer->rx.len);
 
 	trace_scmi_rx_done(xfer->transfer_id, xfer->hdr.id,
 			   xfer->hdr.protocol_id, xfer->hdr.seq,
@@ -827,6 +844,12 @@ static int scmi_wait_for_message_response(struct scmi_chan_info *cinfo,
 				xfer->state = SCMI_XFER_RESP_OK;
 			}
 			spin_unlock_irqrestore(&xfer->lock, flags);
+
+			/* Trace polled replies. */
+			trace_scmi_msg_dump(xfer->hdr.protocol_id, xfer->hdr.id,
+					    "RESP",
+					    xfer->hdr.seq, xfer->hdr.status,
+					    xfer->rx.buf, xfer->rx.len);
 		}
 	} else {
 		/* And we wait for the response. */
@@ -902,6 +925,10 @@ static int do_xfer(const struct scmi_protocol_handle *ph,
 		dev_dbg(dev, "Failed to send message %d\n", ret);
 		return ret;
 	}
+
+	trace_scmi_msg_dump(xfer->hdr.protocol_id, xfer->hdr.id, "CMND",
+			    xfer->hdr.seq, xfer->hdr.status,
+			    xfer->tx.buf, xfer->tx.len);
 
 	ret = scmi_wait_for_message_response(cinfo, xfer);
 	if (!ret && xfer->hdr.status)
@@ -1259,10 +1286,174 @@ out:
 	return ret;
 }
 
+struct scmi_msg_get_fc_info {
+	__le32 domain;
+	__le32 message_id;
+};
+
+struct scmi_msg_resp_desc_fc {
+	__le32 attr;
+#define SUPPORTS_DOORBELL(x)		((x) & BIT(0))
+#define DOORBELL_REG_WIDTH(x)		FIELD_GET(GENMASK(2, 1), (x))
+	__le32 rate_limit;
+	__le32 chan_addr_low;
+	__le32 chan_addr_high;
+	__le32 chan_size;
+	__le32 db_addr_low;
+	__le32 db_addr_high;
+	__le32 db_set_lmask;
+	__le32 db_set_hmask;
+	__le32 db_preserve_lmask;
+	__le32 db_preserve_hmask;
+};
+
+static void
+scmi_common_fastchannel_init(const struct scmi_protocol_handle *ph,
+			     u8 describe_id, u32 message_id, u32 valid_size,
+			     u32 domain, void __iomem **p_addr,
+			     struct scmi_fc_db_info **p_db)
+{
+	int ret;
+	u32 flags;
+	u64 phys_addr;
+	u8 size;
+	void __iomem *addr;
+	struct scmi_xfer *t;
+	struct scmi_fc_db_info *db = NULL;
+	struct scmi_msg_get_fc_info *info;
+	struct scmi_msg_resp_desc_fc *resp;
+	const struct scmi_protocol_instance *pi = ph_to_pi(ph);
+
+	if (!p_addr) {
+		ret = -EINVAL;
+		goto err_out;
+	}
+
+	ret = ph->xops->xfer_get_init(ph, describe_id,
+				      sizeof(*info), sizeof(*resp), &t);
+	if (ret)
+		goto err_out;
+
+	info = t->tx.buf;
+	info->domain = cpu_to_le32(domain);
+	info->message_id = cpu_to_le32(message_id);
+
+	/*
+	 * Bail out on error leaving fc_info addresses zeroed; this includes
+	 * the case in which the requested domain/message_id does NOT support
+	 * fastchannels at all.
+	 */
+	ret = ph->xops->do_xfer(ph, t);
+	if (ret)
+		goto err_xfer;
+
+	resp = t->rx.buf;
+	flags = le32_to_cpu(resp->attr);
+	size = le32_to_cpu(resp->chan_size);
+	if (size != valid_size) {
+		ret = -EINVAL;
+		goto err_xfer;
+	}
+
+	phys_addr = le32_to_cpu(resp->chan_addr_low);
+	phys_addr |= (u64)le32_to_cpu(resp->chan_addr_high) << 32;
+	addr = devm_ioremap(ph->dev, phys_addr, size);
+	if (!addr) {
+		ret = -EADDRNOTAVAIL;
+		goto err_xfer;
+	}
+
+	*p_addr = addr;
+
+	if (p_db && SUPPORTS_DOORBELL(flags)) {
+		db = devm_kzalloc(ph->dev, sizeof(*db), GFP_KERNEL);
+		if (!db) {
+			ret = -ENOMEM;
+			goto err_db;
+		}
+
+		size = 1 << DOORBELL_REG_WIDTH(flags);
+		phys_addr = le32_to_cpu(resp->db_addr_low);
+		phys_addr |= (u64)le32_to_cpu(resp->db_addr_high) << 32;
+		addr = devm_ioremap(ph->dev, phys_addr, size);
+		if (!addr) {
+			ret = -EADDRNOTAVAIL;
+			goto err_db_mem;
+		}
+
+		db->addr = addr;
+		db->width = size;
+		db->set = le32_to_cpu(resp->db_set_lmask);
+		db->set |= (u64)le32_to_cpu(resp->db_set_hmask) << 32;
+		db->mask = le32_to_cpu(resp->db_preserve_lmask);
+		db->mask |= (u64)le32_to_cpu(resp->db_preserve_hmask) << 32;
+
+		*p_db = db;
+	}
+
+	ph->xops->xfer_put(ph, t);
+
+	dev_dbg(ph->dev,
+		"Using valid FC for protocol %X [MSG_ID:%u / RES_ID:%u]\n",
+		pi->proto->id, message_id, domain);
+
+	return;
+
+err_db_mem:
+	devm_kfree(ph->dev, db);
+
+err_db:
+	*p_addr = NULL;
+
+err_xfer:
+	ph->xops->xfer_put(ph, t);
+
+err_out:
+	dev_warn(ph->dev,
+		 "Failed to get FC for protocol %X [MSG_ID:%u / RES_ID:%u] - ret:%d. Using regular messaging.\n",
+		 pi->proto->id, message_id, domain, ret);
+}
+
+#define SCMI_PROTO_FC_RING_DB(w)			\
+do {							\
+	u##w val = 0;					\
+							\
+	if (db->mask)					\
+		val = ioread##w(db->addr) & db->mask;	\
+	iowrite##w((u##w)db->set | val, db->addr);	\
+} while (0)
+
+static void scmi_common_fastchannel_db_ring(struct scmi_fc_db_info *db)
+{
+	if (!db || !db->addr)
+		return;
+
+	if (db->width == 1)
+		SCMI_PROTO_FC_RING_DB(8);
+	else if (db->width == 2)
+		SCMI_PROTO_FC_RING_DB(16);
+	else if (db->width == 4)
+		SCMI_PROTO_FC_RING_DB(32);
+	else /* db->width == 8 */
+#ifdef CONFIG_64BIT
+		SCMI_PROTO_FC_RING_DB(64);
+#else
+	{
+		u64 val = 0;
+
+		if (db->mask)
+			val = ioread64_hi_lo(db->addr) & db->mask;
+		iowrite64_hi_lo(db->set | val, db->addr);
+	}
+#endif
+}
+
 static const struct scmi_proto_helpers_ops helpers_ops = {
 	.extended_name_get = scmi_common_extended_name_get,
 	.iter_response_init = scmi_iterator_init,
 	.iter_response_run = scmi_iterator_run,
+	.fastchannel_init = scmi_common_fastchannel_init,
+	.fastchannel_db_ring = scmi_common_fastchannel_db_ring,
 };
 
 /**
@@ -1497,6 +1688,30 @@ static void scmi_devm_release_protocol(struct device *dev, void *res)
 	scmi_protocol_release(dres->handle, dres->protocol_id);
 }
 
+static struct scmi_protocol_instance __must_check *
+scmi_devres_protocol_instance_get(struct scmi_device *sdev, u8 protocol_id)
+{
+	struct scmi_protocol_instance *pi;
+	struct scmi_protocol_devres *dres;
+
+	dres = devres_alloc(scmi_devm_release_protocol,
+			    sizeof(*dres), GFP_KERNEL);
+	if (!dres)
+		return ERR_PTR(-ENOMEM);
+
+	pi = scmi_get_protocol_instance(sdev->handle, protocol_id);
+	if (IS_ERR(pi)) {
+		devres_free(dres);
+		return pi;
+	}
+
+	dres->handle = sdev->handle;
+	dres->protocol_id = protocol_id;
+	devres_add(&sdev->dev, dres);
+
+	return pi;
+}
+
 /**
  * scmi_devm_protocol_get  - Devres managed get protocol operations and handle
  * @sdev: A reference to an scmi_device whose embedded struct device is to
@@ -1520,30 +1735,45 @@ scmi_devm_protocol_get(struct scmi_device *sdev, u8 protocol_id,
 		       struct scmi_protocol_handle **ph)
 {
 	struct scmi_protocol_instance *pi;
-	struct scmi_protocol_devres *dres;
-	struct scmi_handle *handle = sdev->handle;
 
 	if (!ph)
 		return ERR_PTR(-EINVAL);
 
-	dres = devres_alloc(scmi_devm_release_protocol,
-			    sizeof(*dres), GFP_KERNEL);
-	if (!dres)
-		return ERR_PTR(-ENOMEM);
-
-	pi = scmi_get_protocol_instance(handle, protocol_id);
-	if (IS_ERR(pi)) {
-		devres_free(dres);
+	pi = scmi_devres_protocol_instance_get(sdev, protocol_id);
+	if (IS_ERR(pi))
 		return pi;
-	}
-
-	dres->handle = handle;
-	dres->protocol_id = protocol_id;
-	devres_add(&sdev->dev, dres);
 
 	*ph = &pi->ph;
 
 	return pi->proto->ops;
+}
+
+/**
+ * scmi_devm_protocol_acquire  - Devres managed helper to get hold of a protocol
+ * @sdev: A reference to an scmi_device whose embedded struct device is to
+ *	  be used for devres accounting.
+ * @protocol_id: The protocol being requested.
+ *
+ * Get hold of a protocol accounting for its usage, possibly triggering its
+ * initialization but without getting access to its protocol specific operations
+ * and handle.
+ *
+ * Being a devres based managed method, protocol hold will be automatically
+ * released, and possibly de-initialized on last user, once the SCMI driver
+ * owning the scmi_device is unbound from it.
+ *
+ * Return: 0 on SUCCESS
+ */
+static int __must_check scmi_devm_protocol_acquire(struct scmi_device *sdev,
+						   u8 protocol_id)
+{
+	struct scmi_protocol_instance *pi;
+
+	pi = scmi_devres_protocol_instance_get(sdev, protocol_id);
+	if (IS_ERR(pi))
+		return PTR_ERR(pi);
+
+	return 0;
 }
 
 static int scmi_devm_protocol_match(struct device *dev, void *res, void *data)
@@ -1849,20 +2079,38 @@ scmi_get_protocol_device(struct device_node *np, struct scmi_info *info,
 	if (sdev)
 		return sdev;
 
+	mutex_lock(&scmi_syspower_mtx);
+	if (prot_id == SCMI_PROTOCOL_SYSTEM && scmi_syspower_registered) {
+		dev_warn(info->dev,
+			 "SCMI SystemPower protocol device must be unique !\n");
+		mutex_unlock(&scmi_syspower_mtx);
+
+		return NULL;
+	}
+
 	pr_debug("Creating SCMI device (%s) for protocol %x\n", name, prot_id);
 
 	sdev = scmi_device_create(np, info->dev, prot_id, name);
 	if (!sdev) {
 		dev_err(info->dev, "failed to create %d protocol device\n",
 			prot_id);
+		mutex_unlock(&scmi_syspower_mtx);
+
 		return NULL;
 	}
 
 	if (scmi_txrx_setup(info, &sdev->dev, prot_id)) {
 		dev_err(&sdev->dev, "failed to setup transport\n");
 		scmi_device_destroy(sdev);
+		mutex_unlock(&scmi_syspower_mtx);
+
 		return NULL;
 	}
+
+	if (prot_id == SCMI_PROTOCOL_SYSTEM)
+		scmi_syspower_registered = true;
+
+	mutex_unlock(&scmi_syspower_mtx);
 
 	return sdev;
 }
@@ -2132,6 +2380,7 @@ static int scmi_probe(struct platform_device *pdev)
 	handle = &info->handle;
 	handle->dev = info->dev;
 	handle->version = &info->version;
+	handle->devm_protocol_acquire = scmi_devm_protocol_acquire;
 	handle->devm_protocol_get = scmi_devm_protocol_get;
 	handle->devm_protocol_put = scmi_devm_protocol_put;
 
@@ -2401,6 +2650,7 @@ static int __init scmi_driver_init(void)
 	scmi_sensors_register();
 	scmi_voltage_register();
 	scmi_system_register();
+	scmi_powercap_register();
 
 	return platform_driver_register(&scmi_driver);
 }
@@ -2417,6 +2667,7 @@ static void __exit scmi_driver_exit(void)
 	scmi_sensors_unregister();
 	scmi_voltage_unregister();
 	scmi_system_unregister();
+	scmi_powercap_unregister();
 
 	scmi_bus_exit();
 

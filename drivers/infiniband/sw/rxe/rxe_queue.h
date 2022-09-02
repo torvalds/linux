@@ -7,9 +7,6 @@
 #ifndef RXE_QUEUE_H
 #define RXE_QUEUE_H
 
-/* for definition of shared struct rxe_queue_buf */
-#include <uapi/rdma/rdma_user_rxe.h>
-
 /* Implements a simple circular buffer that is shared between user
  * and the driver and can be resized. The requested element size is
  * rounded up to a power of 2 and the number of elements in the buffer
@@ -52,6 +49,8 @@ enum queue_type {
 	QUEUE_TYPE_TO_DRIVER,
 	QUEUE_TYPE_FROM_DRIVER,
 };
+
+struct rxe_queue_buf;
 
 struct rxe_queue {
 	struct rxe_dev		*rxe;

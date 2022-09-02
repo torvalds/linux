@@ -181,7 +181,7 @@ static ssize_t sof_msg_inject_ipc4_dfs_write(struct file *file,
 	struct sof_client_dev *cdev = file->private_data;
 	struct sof_msg_inject_priv *priv = cdev->data;
 	struct sof_ipc4_msg *ipc4_msg = priv->tx_buffer;
-	ssize_t size;
+	size_t data_size;
 	int ret;
 
 	if (*ppos)
@@ -191,25 +191,20 @@ static ssize_t sof_msg_inject_ipc4_dfs_write(struct file *file,
 		return -EINVAL;
 
 	/* copy the header first */
-	size = simple_write_to_buffer(&ipc4_msg->header_u64,
-				      sizeof(ipc4_msg->header_u64),
-				      ppos, buffer, count);
-	if (size < 0)
-		return size;
-	if (size != sizeof(ipc4_msg->header_u64))
+	if (copy_from_user(&ipc4_msg->header_u64, buffer,
+			   sizeof(ipc4_msg->header_u64)))
 		return -EFAULT;
 
-	count -= size;
+	data_size = count - sizeof(ipc4_msg->header_u64);
+	if (data_size > priv->max_msg_size)
+		return -EINVAL;
+
 	/* Copy the payload */
-	size = simple_write_to_buffer(ipc4_msg->data_ptr,
-				      priv->max_msg_size, ppos, buffer,
-				      count);
-	if (size < 0)
-		return size;
-	if (size != count)
+	if (copy_from_user(ipc4_msg->data_ptr,
+			   buffer + sizeof(ipc4_msg->header_u64), data_size))
 		return -EFAULT;
 
-	ipc4_msg->data_size = count;
+	ipc4_msg->data_size = data_size;
 
 	/* Initialize the reply storage */
 	ipc4_msg = priv->rx_buffer;
@@ -221,9 +216,9 @@ static ssize_t sof_msg_inject_ipc4_dfs_write(struct file *file,
 
 	/* return the error code if test failed */
 	if (ret < 0)
-		size = ret;
+		return ret;
 
-	return size;
+	return count;
 };
 
 static int sof_msg_inject_dfs_release(struct inode *inode, struct file *file)

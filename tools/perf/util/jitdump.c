@@ -845,8 +845,13 @@ jit_process(struct perf_session *session,
 	if (jit_detect(filename, pid, nsi)) {
 		nsinfo__put(nsi);
 
-		// Strip //anon* mmaps if we processed a jitdump for this pid
-		if (jit_has_pid(machine, pid) && (strncmp(filename, "//anon", 6) == 0))
+		/*
+		 * Strip //anon*, [anon:* and /memfd:* mmaps if we processed a jitdump for this pid
+		 */
+		if (jit_has_pid(machine, pid) &&
+			((strncmp(filename, "//anon", 6) == 0) ||
+			 (strncmp(filename, "[anon:", 6) == 0) ||
+			 (strncmp(filename, "/memfd:", 7) == 0)))
 			return 1;
 
 		return 0;

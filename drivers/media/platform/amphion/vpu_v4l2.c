@@ -500,10 +500,12 @@ static int vpu_vb2_start_streaming(struct vb2_queue *q, unsigned int count)
 		  fmt->sizeimage[1], fmt->bytesperline[1],
 		  fmt->sizeimage[2], fmt->bytesperline[2],
 		  q->num_buffers);
-	call_void_vop(inst, start, q->type);
 	vb2_clear_last_buffer_dequeued(q);
+	ret = call_vop(inst, start, q->type);
+	if (ret)
+		vpu_vb2_buffers_return(inst, q->type, VB2_BUF_STATE_QUEUED);
 
-	return 0;
+	return ret;
 }
 
 static void vpu_vb2_stop_streaming(struct vb2_queue *q)

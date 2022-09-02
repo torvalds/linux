@@ -166,6 +166,7 @@ config IPQ_LCC_806X
 
 config IPQ_GCC_8074
 	tristate "IPQ8074 Global Clock Controller"
+	select QCOM_GDSC
 	help
 	  Support for global clock controller on ipq8074 devices.
 	  Say Y if you want to use peripheral devices such as UART, SPI,
@@ -608,6 +609,13 @@ config SM_CAMCC_8250
 	  Support for the camera clock controller on SM8250 devices.
 	  Say Y if you want to support camera devices and camera functionality.
 
+config SM_CAMCC_8450
+	tristate "SM8450 Camera Clock Controller"
+	select SM_GCC_8450
+	help
+	  Support for the camera clock controller on SM8450 devices.
+	  Say Y if you want to support camera devices and camera functionality.
+
 config SM_DISPCC_6125
 	tristate "SM6125 Display Clock Controller"
 	depends on SM_GCC_6125
@@ -618,11 +626,11 @@ config SM_DISPCC_6125
 	  splash screen
 
 config SM_DISPCC_8250
-	tristate "SM8150 and SM8250 Display Clock Controller"
-	depends on SM_GCC_8150 || SM_GCC_8250
+	tristate "SM8150/SM8250/SM8350 Display Clock Controller"
+	depends on SM_GCC_8150 || SM_GCC_8250 || SM_GCC_8350
 	help
 	  Support for the display clock controller on Qualcomm Technologies, Inc
-	  SM8150 and SM8250 devices.
+	  SM8150/SM8250/SM8350 devices.
 	  Say Y if you want to support display devices and functionality such as
 	  splash screen.
 
@@ -709,6 +717,14 @@ config SM_GPUCC_8250
 	select SM_GCC_8250
 	help
 	  Support for the graphics clock controller on SM8250 devices.
+	  Say Y if you want to support graphics controller devices and
+	  functionality such as 3D graphics.
+
+config SM_GPUCC_8350
+	tristate "SM8350 Graphics Clock Controller"
+	select SM_GCC_8350
+	help
+	  Support for the graphics clock controller on SM8350 devices.
 	  Say Y if you want to support graphics controller devices and
 	  functionality such as 3D graphics.
 

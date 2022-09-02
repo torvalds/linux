@@ -17,6 +17,14 @@ static void trigger_func2(void)
 	asm volatile ("");
 }
 
+/* attach point for byname sleepable uprobe */
+static void trigger_func3(void)
+{
+	asm volatile ("");
+}
+
+static char test_data[] = "test_data";
+
 void test_attach_probe(void)
 {
 	DECLARE_LIBBPF_OPTS(bpf_uprobe_opts, uprobe_opts);
@@ -49,9 +57,17 @@ void test_attach_probe(void)
 	if (!ASSERT_GE(ref_ctr_offset, 0, "ref_ctr_offset"))
 		return;
 
-	skel = test_attach_probe__open_and_load();
+	skel = test_attach_probe__open();
 	if (!ASSERT_OK_PTR(skel, "skel_open"))
 		return;
+
+	/* sleepable kprobe test case needs flags set before loading */
+	if (!ASSERT_OK(bpf_program__set_flags(skel->progs.handle_kprobe_sleepable,
+		BPF_F_SLEEPABLE), "kprobe_sleepable_flags"))
+		goto cleanup;
+
+	if (!ASSERT_OK(test_attach_probe__load(skel), "skel_load"))
+		goto cleanup;
 	if (!ASSERT_OK_PTR(skel->bss, "check_bss"))
 		goto cleanup;
 
@@ -151,6 +167,30 @@ void test_attach_probe(void)
 	if (!ASSERT_OK_PTR(skel->links.handle_uretprobe_byname2, "attach_uretprobe_byname2"))
 		goto cleanup;
 
+	/* sleepable kprobes should not attach successfully */
+	skel->links.handle_kprobe_sleepable = bpf_program__attach(skel->progs.handle_kprobe_sleepable);
+	if (!ASSERT_ERR_PTR(skel->links.handle_kprobe_sleepable, "attach_kprobe_sleepable"))
+		goto cleanup;
+
+	/* test sleepable uprobe and uretprobe variants */
+	skel->links.handle_uprobe_byname3_sleepable = bpf_program__attach(skel->progs.handle_uprobe_byname3_sleepable);
+	if (!ASSERT_OK_PTR(skel->links.handle_uprobe_byname3_sleepable, "attach_uprobe_byname3_sleepable"))
+		goto cleanup;
+
+	skel->links.handle_uprobe_byname3 = bpf_program__attach(skel->progs.handle_uprobe_byname3);
+	if (!ASSERT_OK_PTR(skel->links.handle_uprobe_byname3, "attach_uprobe_byname3"))
+		goto cleanup;
+
+	skel->links.handle_uretprobe_byname3_sleepable = bpf_program__attach(skel->progs.handle_uretprobe_byname3_sleepable);
+	if (!ASSERT_OK_PTR(skel->links.handle_uretprobe_byname3_sleepable, "attach_uretprobe_byname3_sleepable"))
+		goto cleanup;
+
+	skel->links.handle_uretprobe_byname3 = bpf_program__attach(skel->progs.handle_uretprobe_byname3);
+	if (!ASSERT_OK_PTR(skel->links.handle_uretprobe_byname3, "attach_uretprobe_byname3"))
+		goto cleanup;
+
+	skel->bss->user_ptr = test_data;
+
 	/* trigger & validate kprobe && kretprobe */
 	usleep(1);
 
@@ -164,6 +204,9 @@ void test_attach_probe(void)
 	/* trigger & validate uprobe attached by name */
 	trigger_func2();
 
+	/* trigger & validate sleepable uprobe attached by name */
+	trigger_func3();
+
 	ASSERT_EQ(skel->bss->kprobe_res, 1, "check_kprobe_res");
 	ASSERT_EQ(skel->bss->kprobe2_res, 11, "check_kprobe_auto_res");
 	ASSERT_EQ(skel->bss->kretprobe_res, 2, "check_kretprobe_res");
@@ -174,6 +217,10 @@ void test_attach_probe(void)
 	ASSERT_EQ(skel->bss->uretprobe_byname_res, 6, "check_uretprobe_byname_res");
 	ASSERT_EQ(skel->bss->uprobe_byname2_res, 7, "check_uprobe_byname2_res");
 	ASSERT_EQ(skel->bss->uretprobe_byname2_res, 8, "check_uretprobe_byname2_res");
+	ASSERT_EQ(skel->bss->uprobe_byname3_sleepable_res, 9, "check_uprobe_byname3_sleepable_res");
+	ASSERT_EQ(skel->bss->uprobe_byname3_res, 10, "check_uprobe_byname3_res");
+	ASSERT_EQ(skel->bss->uretprobe_byname3_sleepable_res, 11, "check_uretprobe_byname3_sleepable_res");
+	ASSERT_EQ(skel->bss->uretprobe_byname3_res, 12, "check_uretprobe_byname3_res");
 
 cleanup:
 	test_attach_probe__destroy(skel);

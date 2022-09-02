@@ -4457,7 +4457,7 @@ int perf_event_read_local(struct perf_event *event, u64 *value,
 
 	*value = local64_read(&event->count);
 	if (enabled || running) {
-		u64 __enabled, __running, __now;;
+		u64 __enabled, __running, __now;
 
 		calc_timer_values(event, &__now, &__enabled, &__running);
 		if (enabled)
@@ -10083,26 +10083,30 @@ static inline bool perf_event_is_tracing(struct perf_event *event)
 int perf_event_set_bpf_prog(struct perf_event *event, struct bpf_prog *prog,
 			    u64 bpf_cookie)
 {
-	bool is_kprobe, is_tracepoint, is_syscall_tp;
+	bool is_kprobe, is_uprobe, is_tracepoint, is_syscall_tp;
 
 	if (!perf_event_is_tracing(event))
 		return perf_event_set_bpf_handler(event, prog, bpf_cookie);
 
-	is_kprobe = event->tp_event->flags & TRACE_EVENT_FL_UKPROBE;
+	is_kprobe = event->tp_event->flags & TRACE_EVENT_FL_KPROBE;
+	is_uprobe = event->tp_event->flags & TRACE_EVENT_FL_UPROBE;
 	is_tracepoint = event->tp_event->flags & TRACE_EVENT_FL_TRACEPOINT;
 	is_syscall_tp = is_syscall_trace_event(event->tp_event);
-	if (!is_kprobe && !is_tracepoint && !is_syscall_tp)
+	if (!is_kprobe && !is_uprobe && !is_tracepoint && !is_syscall_tp)
 		/* bpf programs can only be attached to u/kprobe or tracepoint */
 		return -EINVAL;
 
-	if ((is_kprobe && prog->type != BPF_PROG_TYPE_KPROBE) ||
+	if (((is_kprobe || is_uprobe) && prog->type != BPF_PROG_TYPE_KPROBE) ||
 	    (is_tracepoint && prog->type != BPF_PROG_TYPE_TRACEPOINT) ||
 	    (is_syscall_tp && prog->type != BPF_PROG_TYPE_TRACEPOINT))
 		return -EINVAL;
 
+	if (prog->type == BPF_PROG_TYPE_KPROBE && prog->aux->sleepable && !is_uprobe)
+		/* only uprobe programs are allowed to be sleepable */
+		return -EINVAL;
+
 	/* Kprobe override only works for kprobes, not uprobes. */
-	if (prog->kprobe_override &&
-	    !(event->tp_event->flags & TRACE_EVENT_FL_KPROBE))
+	if (prog->kprobe_override && !is_kprobe)
 		return -EINVAL;
 
 	if (is_tracepoint || is_syscall_tp) {

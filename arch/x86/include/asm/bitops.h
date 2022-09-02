@@ -63,7 +63,7 @@ arch_set_bit(long nr, volatile unsigned long *addr)
 }
 
 static __always_inline void
-arch___set_bit(long nr, volatile unsigned long *addr)
+arch___set_bit(unsigned long nr, volatile unsigned long *addr)
 {
 	asm volatile(__ASM_SIZE(bts) " %1,%0" : : ADDR, "Ir" (nr) : "memory");
 }
@@ -89,7 +89,7 @@ arch_clear_bit_unlock(long nr, volatile unsigned long *addr)
 }
 
 static __always_inline void
-arch___clear_bit(long nr, volatile unsigned long *addr)
+arch___clear_bit(unsigned long nr, volatile unsigned long *addr)
 {
 	asm volatile(__ASM_SIZE(btr) " %1,%0" : : ADDR, "Ir" (nr) : "memory");
 }
@@ -114,7 +114,7 @@ arch___clear_bit_unlock(long nr, volatile unsigned long *addr)
 }
 
 static __always_inline void
-arch___change_bit(long nr, volatile unsigned long *addr)
+arch___change_bit(unsigned long nr, volatile unsigned long *addr)
 {
 	asm volatile(__ASM_SIZE(btc) " %1,%0" : : ADDR, "Ir" (nr) : "memory");
 }
@@ -145,7 +145,7 @@ arch_test_and_set_bit_lock(long nr, volatile unsigned long *addr)
 }
 
 static __always_inline bool
-arch___test_and_set_bit(long nr, volatile unsigned long *addr)
+arch___test_and_set_bit(unsigned long nr, volatile unsigned long *addr)
 {
 	bool oldbit;
 
@@ -171,7 +171,7 @@ arch_test_and_clear_bit(long nr, volatile unsigned long *addr)
  * this without also updating arch/x86/kernel/kvm.c
  */
 static __always_inline bool
-arch___test_and_clear_bit(long nr, volatile unsigned long *addr)
+arch___test_and_clear_bit(unsigned long nr, volatile unsigned long *addr)
 {
 	bool oldbit;
 
@@ -183,7 +183,7 @@ arch___test_and_clear_bit(long nr, volatile unsigned long *addr)
 }
 
 static __always_inline bool
-arch___test_and_change_bit(long nr, volatile unsigned long *addr)
+arch___test_and_change_bit(unsigned long nr, volatile unsigned long *addr)
 {
 	bool oldbit;
 
@@ -207,6 +207,20 @@ static __always_inline bool constant_test_bit(long nr, const volatile unsigned l
 		(addr[nr >> _BITOPS_LONG_SHIFT])) != 0;
 }
 
+static __always_inline bool constant_test_bit_acquire(long nr, const volatile unsigned long *addr)
+{
+	bool oldbit;
+
+	asm volatile("testb %2,%1"
+		     CC_SET(nz)
+		     : CC_OUT(nz) (oldbit)
+		     : "m" (((unsigned char *)addr)[nr >> 3]),
+		       "i" (1 << (nr & 7))
+		     :"memory");
+
+	return oldbit;
+}
+
 static __always_inline bool variable_test_bit(long nr, volatile const unsigned long *addr)
 {
 	bool oldbit;
@@ -219,10 +233,19 @@ static __always_inline bool variable_test_bit(long nr, volatile const unsigned l
 	return oldbit;
 }
 
-#define arch_test_bit(nr, addr)			\
-	(__builtin_constant_p((nr))		\
-	 ? constant_test_bit((nr), (addr))	\
-	 : variable_test_bit((nr), (addr)))
+static __always_inline bool
+arch_test_bit(unsigned long nr, const volatile unsigned long *addr)
+{
+	return __builtin_constant_p(nr) ? constant_test_bit(nr, addr) :
+					  variable_test_bit(nr, addr);
+}
+
+static __always_inline bool
+arch_test_bit_acquire(unsigned long nr, const volatile unsigned long *addr)
+{
+	return __builtin_constant_p(nr) ? constant_test_bit_acquire(nr, addr) :
+					  variable_test_bit(nr, addr);
+}
 
 /**
  * __ffs - find first set bit in word

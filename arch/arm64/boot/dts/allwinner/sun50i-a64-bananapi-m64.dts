@@ -56,7 +56,7 @@
 	wifi_pwrseq: wifi_pwrseq {
 		compatible = "mmc-pwrseq-simple";
 		reset-gpios = <&r_pio 0 2 GPIO_ACTIVE_LOW>; /* PL2 */
-		clocks = <&rtc 1>;
+		clocks = <&rtc CLK_OSC32K_FANOUT>;
 		clock-names = "ext_clock";
 	};
 };
@@ -355,7 +355,7 @@
 
 	bluetooth {
 		compatible = "brcm,bcm43438-bt";
-		clocks = <&rtc 1>;
+		clocks = <&rtc CLK_OSC32K_FANOUT>;
 		clock-names = "lpo";
 		vbat-supply = <&reg_dldo2>;
 		vddio-supply = <&reg_dldo4>;

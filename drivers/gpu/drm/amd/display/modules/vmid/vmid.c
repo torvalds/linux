@@ -66,7 +66,7 @@ static void evict_vmids(struct core_vmid *core_vmid)
 	}
 }
 
-// Return value of -1 indicates vmid table unitialized or ptb dne in the table
+// Return value of -1 indicates vmid table uninitialized or ptb dne in the table
 static int get_existing_vmid_for_ptb(struct core_vmid *core_vmid, uint64_t ptb)
 {
 	int i;

@@ -211,7 +211,7 @@ static void rt_fibinfo_free_cpus(struct rtable __rcu * __percpu *rtp)
 
 void fib_nh_common_release(struct fib_nh_common *nhc)
 {
-	dev_put_track(nhc->nhc_dev, &nhc->nhc_dev_tracker);
+	netdev_put(nhc->nhc_dev, &nhc->nhc_dev_tracker);
 	lwtstate_put(nhc->nhc_lwtstate);
 	rt_fibinfo_free_cpus(nhc->nhc_pcpu_rth_output);
 	rt_fibinfo_free(&nhc->nhc_rth_input);
@@ -1057,7 +1057,8 @@ static int fib_check_nh_v6_gw(struct net *net, struct fib_nh *nh,
 	err = ipv6_stub->fib6_nh_init(net, &fib6_nh, &cfg, GFP_KERNEL, extack);
 	if (!err) {
 		nh->fib_nh_dev = fib6_nh.fib_nh_dev;
-		dev_hold_track(nh->fib_nh_dev, &nh->fib_nh_dev_tracker, GFP_KERNEL);
+		netdev_hold(nh->fib_nh_dev, &nh->fib_nh_dev_tracker,
+			    GFP_KERNEL);
 		nh->fib_nh_oif = nh->fib_nh_dev->ifindex;
 		nh->fib_nh_scope = RT_SCOPE_LINK;
 
@@ -1141,7 +1142,7 @@ static int fib_check_nh_v4_gw(struct net *net, struct fib_nh *nh, u32 table,
 		if (!netif_carrier_ok(dev))
 			nh->fib_nh_flags |= RTNH_F_LINKDOWN;
 		nh->fib_nh_dev = dev;
-		dev_hold_track(dev, &nh->fib_nh_dev_tracker, GFP_ATOMIC);
+		netdev_hold(dev, &nh->fib_nh_dev_tracker, GFP_ATOMIC);
 		nh->fib_nh_scope = RT_SCOPE_LINK;
 		return 0;
 	}
@@ -1195,7 +1196,7 @@ static int fib_check_nh_v4_gw(struct net *net, struct fib_nh *nh, u32 table,
 			       "No egress device for nexthop gateway");
 		goto out;
 	}
-	dev_hold_track(dev, &nh->fib_nh_dev_tracker, GFP_ATOMIC);
+	netdev_hold(dev, &nh->fib_nh_dev_tracker, GFP_ATOMIC);
 	if (!netif_carrier_ok(dev))
 		nh->fib_nh_flags |= RTNH_F_LINKDOWN;
 	err = (dev->flags & IFF_UP) ? 0 : -ENETDOWN;
@@ -1229,7 +1230,7 @@ static int fib_check_nh_nongw(struct net *net, struct fib_nh *nh,
 	}
 
 	nh->fib_nh_dev = in_dev->dev;
-	dev_hold_track(nh->fib_nh_dev, &nh->fib_nh_dev_tracker, GFP_ATOMIC);
+	netdev_hold(nh->fib_nh_dev, &nh->fib_nh_dev_tracker, GFP_ATOMIC);
 	nh->fib_nh_scope = RT_SCOPE_LINK;
 	if (!netif_carrier_ok(nh->fib_nh_dev))
 		nh->fib_nh_flags |= RTNH_F_LINKDOWN;

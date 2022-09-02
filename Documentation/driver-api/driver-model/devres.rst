@@ -277,7 +277,6 @@ GPIO
   devm_gpiochip_add_data()
   devm_gpio_request()
   devm_gpio_request_one()
-  devm_gpio_free()
 
 I2C
   devm_i2c_new_dummy_device()

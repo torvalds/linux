@@ -15,7 +15,7 @@
 	compatible = "atmel,sama5d27-som1", "atmel,sama5d27", "atmel,sama5d2", "atmel,sama5";
 
 	aliases {
-		i2c0	= &i2c0;
+		i2c0 = &i2c0;
 	};
 
 	clocks {
@@ -83,6 +83,8 @@
 			macb0: ethernet@f8008000 {
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_macb0_default>;
+				#address-cells = <1>;
+				#size-cells = <0>;
 				phy-mode = "rmii";
 
 				ethernet-phy@7 {

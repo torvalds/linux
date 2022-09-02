@@ -91,7 +91,7 @@
 #include "stats.h"
 
 #include "../workqueue_internal.h"
-#include "../../fs/io-wq.h"
+#include "../../io_uring/io-wq.h"
 #include "../smpboot.h"
 
 /*
@@ -3802,13 +3802,17 @@ bool cpus_share_cache(int this_cpu, int that_cpu)
 	return per_cpu(sd_llc_id, this_cpu) == per_cpu(sd_llc_id, that_cpu);
 }
 
-static inline bool ttwu_queue_cond(int cpu)
+static inline bool ttwu_queue_cond(struct task_struct *p, int cpu)
 {
 	/*
 	 * Do not complicate things with the async wake_list while the CPU is
 	 * in hotplug state.
 	 */
 	if (!cpu_active(cpu))
+		return false;
+
+	/* Ensure the task will still be allowed to run on the CPU. */
+	if (!cpumask_test_cpu(cpu, p->cpus_ptr))
 		return false;
 
 	/*
@@ -3840,7 +3844,7 @@ static inline bool ttwu_queue_cond(int cpu)
 
 static bool ttwu_queue_wakelist(struct task_struct *p, int cpu, int wake_flags)
 {
-	if (sched_feat(TTWU_QUEUE) && ttwu_queue_cond(cpu)) {
+	if (sched_feat(TTWU_QUEUE) && ttwu_queue_cond(p, cpu)) {
 		sched_clock_cpu(cpu); /* Sync clocks across CPUs */
 		__ttwu_queue_wakelist(p, cpu, wake_flags);
 		return true;
@@ -4260,6 +4264,38 @@ int task_call_func(struct task_struct *p, task_call_f func, void *arg)
 
 	raw_spin_unlock_irqrestore(&p->pi_lock, rf.flags);
 	return ret;
+}
+
+/**
+ * cpu_curr_snapshot - Return a snapshot of the currently running task
+ * @cpu: The CPU on which to snapshot the task.
+ *
+ * Returns the task_struct pointer of the task "currently" running on
+ * the specified CPU.  If the same task is running on that CPU throughout,
+ * the return value will be a pointer to that task's task_struct structure.
+ * If the CPU did any context switches even vaguely concurrently with the
+ * execution of this function, the return value will be a pointer to the
+ * task_struct structure of a randomly chosen task that was running on
+ * that CPU somewhere around the time that this function was executing.
+ *
+ * If the specified CPU was offline, the return value is whatever it
+ * is, perhaps a pointer to the task_struct structure of that CPU's idle
+ * task, but there is no guarantee.  Callers wishing a useful return
+ * value must take some action to ensure that the specified CPU remains
+ * online throughout.
+ *
+ * This function executes full memory barriers before and after fetching
+ * the pointer, which permits the caller to confine this function's fetch
+ * with respect to the caller's accesses to other shared variables.
+ */
+struct task_struct *cpu_curr_snapshot(int cpu)
+{
+	struct task_struct *t;
+
+	smp_mb(); /* Pairing determined by caller's synchronization design. */
+	t = rcu_dereference(cpu_curr(cpu));
+	smp_mb(); /* Pairing determined by caller's synchronization design. */
+	return t;
 }
 
 /**
@@ -6563,7 +6599,7 @@ void __sched schedule_idle(void)
 	} while (need_resched());
 }
 
-#if defined(CONFIG_CONTEXT_TRACKING) && !defined(CONFIG_HAVE_CONTEXT_TRACKING_OFFSTACK)
+#if defined(CONFIG_CONTEXT_TRACKING_USER) && !defined(CONFIG_HAVE_CONTEXT_TRACKING_USER_OFFSTACK)
 asmlinkage __visible void __sched schedule_user(void)
 {
 	/*
@@ -8980,7 +9016,7 @@ int cpuset_cpumask_can_shrink(const struct cpumask *cur,
 }
 
 int task_can_attach(struct task_struct *p,
-		    const struct cpumask *cs_cpus_allowed)
+		    const struct cpumask *cs_effective_cpus)
 {
 	int ret = 0;
 
@@ -8999,9 +9035,11 @@ int task_can_attach(struct task_struct *p,
 	}
 
 	if (dl_task(p) && !cpumask_intersects(task_rq(p)->rd->span,
-					      cs_cpus_allowed)) {
-		int cpu = cpumask_any_and(cpu_active_mask, cs_cpus_allowed);
+					      cs_effective_cpus)) {
+		int cpu = cpumask_any_and(cpu_active_mask, cs_effective_cpus);
 
+		if (unlikely(cpu >= nr_cpu_ids))
+			return -EINVAL;
 		ret = dl_cpu_busy(cpu, p);
 	}
 

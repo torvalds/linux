@@ -45,9 +45,10 @@
 		};
 
 		pmr735b_gpios: gpio@8800 {
-			compatible = "qcom,pmr735b-gpio";
+			compatible = "qcom,pmr735b-gpio", "qcom,spmi-gpio";
 			reg = <0x8800>;
 			gpio-controller;
+			gpio-ranges = <&pmr735b_gpios 0 0 4>;
 			#gpio-cells = <2>;
 			interrupt-controller;
 			#interrupt-cells = <2>;

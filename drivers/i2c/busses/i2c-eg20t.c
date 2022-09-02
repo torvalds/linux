@@ -773,7 +773,7 @@ static int pch_i2c_probe(struct pci_dev *pdev,
 
 		pch_adap->owner = THIS_MODULE;
 		pch_adap->class = I2C_CLASS_HWMON;
-		strlcpy(pch_adap->name, KBUILD_MODNAME, sizeof(pch_adap->name));
+		strscpy(pch_adap->name, KBUILD_MODNAME, sizeof(pch_adap->name));
 		pch_adap->algo = &pch_algorithm;
 		pch_adap->algo_data = &adap_info->pch_data[i];
 

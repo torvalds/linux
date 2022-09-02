@@ -68,8 +68,6 @@ int __hci_req_sync(struct hci_dev *hdev, int (*func)(struct hci_request *req,
 struct sk_buff *hci_prepare_cmd(struct hci_dev *hdev, u16 opcode, u32 plen,
 				const void *param);
 
-int __hci_req_hci_power_on(struct hci_dev *hdev);
-
 void __hci_req_write_fast_connectable(struct hci_request *req, bool enable);
 void __hci_req_update_name(struct hci_request *req);
 void __hci_req_update_eir(struct hci_request *req);
@@ -85,6 +83,9 @@ void __hci_req_enable_advertising(struct hci_request *req);
 void __hci_req_disable_advertising(struct hci_request *req);
 void __hci_req_update_adv_data(struct hci_request *req, u8 instance);
 int hci_req_update_adv_data(struct hci_dev *hdev, u8 instance);
+int hci_req_start_per_adv(struct hci_dev *hdev, u8 instance, u32 flags,
+			  u16 min_interval, u16 max_interval,
+			  u16 sync_interval);
 void __hci_req_update_scan_rsp_data(struct hci_request *req, u8 instance);
 
 int __hci_req_schedule_adv_instance(struct hci_request *req, u8 instance,
@@ -94,8 +95,14 @@ void hci_req_clear_adv_instance(struct hci_dev *hdev, struct sock *sk,
 				bool force);
 
 int __hci_req_setup_ext_adv_instance(struct hci_request *req, u8 instance);
+int __hci_req_setup_per_adv_instance(struct hci_request *req, u8 instance,
+				     u16 min_interval, u16 max_interval);
 int __hci_req_start_ext_adv(struct hci_request *req, u8 instance);
+int __hci_req_start_per_adv(struct hci_request *req, u8 instance, u32 flags,
+			    u16 min_interval, u16 max_interval,
+			    u16 sync_interval);
 int __hci_req_enable_ext_advertising(struct hci_request *req, u8 instance);
+int __hci_req_enable_per_advertising(struct hci_request *req, u8 instance);
 int __hci_req_disable_ext_adv_instance(struct hci_request *req, u8 instance);
 int __hci_req_remove_ext_adv_instance(struct hci_request *req, u8 instance);
 void __hci_req_clear_ext_adv_sets(struct hci_request *req);
@@ -109,11 +116,6 @@ void __hci_req_update_class(struct hci_request *req);
 bool hci_req_stop_discovery(struct hci_request *req);
 
 int hci_req_configure_datapath(struct hci_dev *hdev, struct bt_codec *codec);
-
-static inline void hci_req_update_scan(struct hci_dev *hdev)
-{
-	queue_work(hdev->req_workqueue, &hdev->scan_update);
-}
 
 void __hci_req_update_scan(struct hci_request *req);
 

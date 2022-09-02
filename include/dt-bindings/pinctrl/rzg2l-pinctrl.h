@@ -18,6 +18,6 @@
 #define RZG2L_PORT_PINMUX(b, p, f)	((b) * RZG2L_PINS_PER_PORT + (p) | ((f) << 16))
 
 /* Convert a port and pin label to its global pin index */
- #define RZG2L_GPIO(port, pin)	((port) * RZG2L_PINS_PER_PORT + (pin))
+#define RZG2L_GPIO(port, pin)	((port) * RZG2L_PINS_PER_PORT + (pin))
 
 #endif /* __DT_BINDINGS_RZG2L_PINCTRL_H */

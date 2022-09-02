@@ -430,6 +430,7 @@ end_enum:
 	} else if (fname && fname->home.low == cpu_to_le32(MFT_REC_EXTEND) &&
 		   fname->home.seq == cpu_to_le16(MFT_REC_EXTEND)) {
 		/* Records in $Extend are not a files or general directories. */
+		inode->i_op = &ntfs_file_inode_operations;
 	} else {
 		err = -EINVAL;
 		goto out;
@@ -500,7 +501,7 @@ struct inode *ntfs_iget5(struct super_block *sb, const struct MFT_REF *ref,
 		inode = ntfs_read_mft(inode, name, ref);
 	else if (ref->seq != ntfs_i(inode)->mi.mrec->seq) {
 		/* Inode overlaps? */
-		make_bad_inode(inode);
+		_ntfs_bad_inode(inode);
 	}
 
 	return inode;
@@ -629,7 +630,7 @@ static noinline int ntfs_get_block_vbo(struct inode *inode, u64 vbo,
 			bh->b_size = block_size;
 			off = vbo & (PAGE_SIZE - 1);
 			set_bh_page(bh, page, off);
-			ll_rw_block(REQ_OP_READ, 0, 1, &bh);
+			ll_rw_block(REQ_OP_READ, 1, &bh);
 			wait_on_buffer(bh);
 			if (!buffer_uptodate(bh)) {
 				err = -EIO;
@@ -851,12 +852,10 @@ static int ntfs_writepage(struct page *page, struct writeback_control *wbc)
 static int ntfs_writepages(struct address_space *mapping,
 			   struct writeback_control *wbc)
 {
-	struct inode *inode = mapping->host;
-	struct ntfs_inode *ni = ntfs_i(inode);
 	/* Redirect call to 'ntfs_writepage' for resident files. */
-	get_block_t *get_block = is_resident(ni) ? NULL : &ntfs_get_block;
-
-	return mpage_writepages(mapping, wbc, get_block);
+	if (is_resident(ntfs_i(mapping->host)))
+		return generic_writepages(mapping, wbc);
+	return mpage_writepages(mapping, wbc, ntfs_get_block);
 }
 
 static int ntfs_get_block_write_begin(struct inode *inode, sector_t vbn,
@@ -1634,7 +1633,7 @@ out4:
 	ni->mi.dirty = false;
 	discard_new_inode(inode);
 out3:
-	ntfs_mark_rec_free(sbi, ino);
+	ntfs_mark_rec_free(sbi, ino, false);
 
 out2:
 	__putname(new_de);
@@ -1657,7 +1656,6 @@ int ntfs_link_inode(struct inode *inode, struct dentry *dentry)
 	struct ntfs_inode *ni = ntfs_i(inode);
 	struct ntfs_sb_info *sbi = inode->i_sb->s_fs_info;
 	struct NTFS_DE *de;
-	struct ATTR_FILE_NAME *de_name;
 
 	/* Allocate PATH_MAX bytes. */
 	de = __getname();
@@ -1671,15 +1669,6 @@ int ntfs_link_inode(struct inode *inode, struct dentry *dentry)
 	err = fill_name_de(sbi, de, &dentry->d_name, NULL);
 	if (err)
 		goto out;
-
-	de_name = (struct ATTR_FILE_NAME *)(de + 1);
-	/* Fill duplicate info. */
-	de_name->dup.cr_time = de_name->dup.m_time = de_name->dup.c_time =
-		de_name->dup.a_time = kernel2nt(&inode->i_ctime);
-	de_name->dup.alloc_size = de_name->dup.data_size =
-		cpu_to_le64(inode->i_size);
-	de_name->dup.fa = ni->std_fa;
-	de_name->dup.ea_size = de_name->dup.reparse = 0;
 
 	err = ni_add_name(ntfs_i(d_inode(dentry->d_parent)), ni, de);
 out:
@@ -1733,9 +1722,7 @@ int ntfs_unlink_inode(struct inode *dir, const struct dentry *dentry)
 		if (inode->i_nlink)
 			mark_inode_dirty(inode);
 	} else if (!ni_remove_name_undo(dir_ni, ni, de, de2, undo_remove)) {
-		make_bad_inode(inode);
-		ntfs_inode_err(inode, "failed to undo unlink");
-		ntfs_set_state(sbi, NTFS_DIRTY_ERROR);
+		_ntfs_bad_inode(inode);
 	} else {
 		if (ni_is_dirty(dir))
 			mark_inode_dirty(dir);

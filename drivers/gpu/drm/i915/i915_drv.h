@@ -37,7 +37,6 @@
 #include <drm/drm_connector.h>
 #include <drm/ttm/ttm_device.h>
 
-#include "display/intel_bios.h"
 #include "display/intel_cdclk.h"
 #include "display/intel_display.h"
 #include "display/intel_display_power.h"
@@ -194,12 +193,6 @@ struct drm_i915_display_funcs {
 
 #define I915_COLOR_UNEVICTABLE (-1) /* a non-vma sharing the address space */
 
-enum drrs_type {
-	DRRS_TYPE_NONE,
-	DRRS_TYPE_STATIC,
-	DRRS_TYPE_SEAMLESS,
-};
-
 #define QUIRK_LVDS_SSC_DISABLE (1<<1)
 #define QUIRK_INVERT_BRIGHTNESS (1<<2)
 #define QUIRK_BACKLIGHT_PRESENT (1<<3)
@@ -254,7 +247,7 @@ struct i915_gem_mm {
 	 * List of objects which are pending destruction.
 	 */
 	struct llist_head free_list;
-	struct delayed_work free_work;
+	struct work_struct free_work;
 	/**
 	 * Count of objects pending destructions. Used to skip needlessly
 	 * waiting on an RCU barrier if no objects are waiting to be freed.
@@ -308,75 +301,18 @@ struct intel_vbt_data {
 	/* bdb version */
 	u16 version;
 
-	struct drm_display_mode *lfp_lvds_vbt_mode; /* if any */
-	struct drm_display_mode *sdvo_lvds_vbt_mode; /* if any */
-
 	/* Feature bits */
 	unsigned int int_tv_support:1;
-	unsigned int lvds_dither:1;
 	unsigned int int_crt_support:1;
 	unsigned int lvds_use_ssc:1;
 	unsigned int int_lvds_support:1;
 	unsigned int display_clock_mode:1;
 	unsigned int fdi_rx_polarity_inverted:1;
-	unsigned int panel_type:4;
 	int lvds_ssc_freq;
-	unsigned int bios_lvds_val; /* initial [PCH_]LVDS reg val in VBIOS */
 	enum drm_panel_orientation orientation;
 
 	bool override_afc_startup;
 	u8 override_afc_startup_val;
-
-	u8 seamless_drrs_min_refresh_rate;
-	enum drrs_type drrs_type;
-
-	struct {
-		int rate;
-		int lanes;
-		int preemphasis;
-		int vswing;
-		int bpp;
-		struct edp_power_seq pps;
-		u8 drrs_msa_timing_delay;
-		bool low_vswing;
-		bool initialized;
-		bool hobl;
-	} edp;
-
-	struct {
-		bool enable;
-		bool full_link;
-		bool require_aux_wakeup;
-		int idle_frames;
-		int tp1_wakeup_time_us;
-		int tp2_tp3_wakeup_time_us;
-		int psr2_tp2_tp3_wakeup_time_us;
-	} psr;
-
-	struct {
-		u16 pwm_freq_hz;
-		u16 brightness_precision_bits;
-		bool present;
-		bool active_low_pwm;
-		u8 min_brightness;	/* min_brightness/255 of max */
-		u8 controller;		/* brightness controller number */
-		enum intel_backlight_type type;
-	} backlight;
-
-	/* MIPI DSI */
-	struct {
-		u16 panel_id;
-		struct mipi_config *config;
-		struct mipi_pps_data *pps;
-		u16 bl_ports;
-		u16 cabc_ports;
-		u8 seq_version;
-		u32 size;
-		u8 *data;
-		const u8 *sequence[MIPI_SEQ_MAX];
-		u8 *deassert_seq; /* Used by fixup_mipi_sequences() */
-		enum drm_panel_orientation orientation;
-	} dsi;
 
 	int crt_ddc_pin;
 
@@ -943,6 +879,7 @@ static inline struct intel_gt *to_gt(struct drm_i915_private *i915)
 #define INTEL_DISPLAY_STEP(__i915) (RUNTIME_INFO(__i915)->step.display_step)
 #define INTEL_GRAPHICS_STEP(__i915) (RUNTIME_INFO(__i915)->step.graphics_step)
 #define INTEL_MEDIA_STEP(__i915) (RUNTIME_INFO(__i915)->step.media_step)
+#define INTEL_BASEDIE_STEP(__i915) (RUNTIME_INFO(__i915)->step.basedie_step)
 
 #define IS_DISPLAY_STEP(__i915, since, until) \
 	(drm_WARN_ON(&(__i915)->drm, INTEL_DISPLAY_STEP(__i915) == STEP_NONE), \
@@ -955,6 +892,10 @@ static inline struct intel_gt *to_gt(struct drm_i915_private *i915)
 #define IS_MEDIA_STEP(__i915, since, until) \
 	(drm_WARN_ON(&(__i915)->drm, INTEL_MEDIA_STEP(__i915) == STEP_NONE), \
 	 INTEL_MEDIA_STEP(__i915) >= (since) && INTEL_MEDIA_STEP(__i915) < (until))
+
+#define IS_BASEDIE_STEP(__i915, since, until) \
+	(drm_WARN_ON(&(__i915)->drm, INTEL_BASEDIE_STEP(__i915) == STEP_NONE), \
+	 INTEL_BASEDIE_STEP(__i915) >= (since) && INTEL_BASEDIE_STEP(__i915) < (until))
 
 static __always_inline unsigned int
 __platform_mask_index(const struct intel_runtime_info *info,
@@ -1064,7 +1005,12 @@ IS_SUBPLATFORM(const struct drm_i915_private *i915,
 #define IS_XEHPSDV(dev_priv) IS_PLATFORM(dev_priv, INTEL_XEHPSDV)
 #define IS_DG2(dev_priv)	IS_PLATFORM(dev_priv, INTEL_DG2)
 #define IS_PONTEVECCHIO(dev_priv) IS_PLATFORM(dev_priv, INTEL_PONTEVECCHIO)
+#define IS_METEORLAKE(dev_priv) IS_PLATFORM(dev_priv, INTEL_METEORLAKE)
 
+#define IS_METEORLAKE_M(dev_priv) \
+	IS_SUBPLATFORM(dev_priv, INTEL_METEORLAKE, INTEL_SUBPLATFORM_M)
+#define IS_METEORLAKE_P(dev_priv) \
+	IS_SUBPLATFORM(dev_priv, INTEL_METEORLAKE, INTEL_SUBPLATFORM_P)
 #define IS_DG2_G10(dev_priv) \
 	IS_SUBPLATFORM(dev_priv, INTEL_DG2, INTEL_SUBPLATFORM_G10)
 #define IS_DG2_G11(dev_priv) \
@@ -1208,6 +1154,14 @@ IS_SUBPLATFORM(const struct drm_i915_private *i915,
 	(IS_DG2(__i915) && \
 	 IS_DISPLAY_STEP(__i915, since, until))
 
+#define IS_PVC_BD_STEP(__i915, since, until) \
+	(IS_PONTEVECCHIO(__i915) && \
+	 IS_BASEDIE_STEP(__i915, since, until))
+
+#define IS_PVC_CT_STEP(__i915, since, until) \
+	(IS_PONTEVECCHIO(__i915) && \
+	 IS_GRAPHICS_STEP(__i915, since, until))
+
 #define IS_LP(dev_priv)		(INTEL_INFO(dev_priv)->is_lp)
 #define IS_GEN9_LP(dev_priv)	(GRAPHICS_VER(dev_priv) == 9 && IS_LP(dev_priv))
 #define IS_GEN9_BC(dev_priv)	(GRAPHICS_VER(dev_priv) == 9 && !IS_LP(dev_priv))
@@ -1223,12 +1177,16 @@ IS_SUBPLATFORM(const struct drm_i915_private *i915,
 })
 #define RCS_MASK(gt) \
 	ENGINE_INSTANCES_MASK(gt, RCS0, I915_MAX_RCS)
+#define BCS_MASK(gt) \
+	ENGINE_INSTANCES_MASK(gt, BCS0, I915_MAX_BCS)
 #define VDBOX_MASK(gt) \
 	ENGINE_INSTANCES_MASK(gt, VCS0, I915_MAX_VCS)
 #define VEBOX_MASK(gt) \
 	ENGINE_INSTANCES_MASK(gt, VECS0, I915_MAX_VECS)
 #define CCS_MASK(gt) \
 	ENGINE_INSTANCES_MASK(gt, CCS0, I915_MAX_CCS)
+
+#define HAS_MEDIA_RATIO_MODE(dev_priv) (INTEL_INFO(dev_priv)->has_media_ratio_mode)
 
 /*
  * The Gen7 cmdparser copies the scanned buffer to the ggtt for execution
@@ -1329,9 +1287,6 @@ IS_SUBPLATFORM(const struct drm_i915_private *i915,
 #define HAS_RUNTIME_PM(dev_priv) (INTEL_INFO(dev_priv)->has_runtime_pm)
 #define HAS_64BIT_RELOC(dev_priv) (INTEL_INFO(dev_priv)->has_64bit_reloc)
 
-#define HAS_MSLICES(dev_priv) \
-	(INTEL_INFO(dev_priv)->has_mslices)
-
 /*
  * Set this flag, when platform requires 64K GTT page sizes or larger for
  * device local memory access.
@@ -1370,6 +1325,8 @@ IS_SUBPLATFORM(const struct drm_i915_private *i915,
 
 #define HAS_LSPCON(dev_priv) (IS_DISPLAY_VER(dev_priv, 9, 10))
 
+#define HAS_L3_CCS_READ(i915) (INTEL_INFO(i915)->has_l3_ccs_read)
+
 /* DPF == dynamic parity feature */
 #define HAS_L3_DPF(dev_priv) (INTEL_INFO(dev_priv)->has_l3_dpf)
 #define NUM_L3_SLICES(dev_priv) (IS_HSW_GT3(dev_priv) ? \
@@ -1388,7 +1345,9 @@ IS_SUBPLATFORM(const struct drm_i915_private *i915,
 
 /* Only valid when HAS_DISPLAY() is true */
 #define INTEL_DISPLAY_ENABLED(dev_priv) \
-	(drm_WARN_ON(&(dev_priv)->drm, !HAS_DISPLAY(dev_priv)), !(dev_priv)->params.disable_display)
+	(drm_WARN_ON(&(dev_priv)->drm, !HAS_DISPLAY(dev_priv)),		\
+	 !(dev_priv)->params.disable_display &&				\
+	 !intel_opregion_headless_sku(dev_priv))
 
 #define HAS_GUC_DEPRIVILEGE(dev_priv) \
 	(INTEL_INFO(dev_priv)->has_guc_deprivilege)
@@ -1400,6 +1359,10 @@ IS_SUBPLATFORM(const struct drm_i915_private *i915,
 					      IS_ALDERLAKE_S(dev_priv))
 
 #define HAS_MBUS_JOINING(i915) (IS_ALDERLAKE_P(i915))
+
+#define HAS_3D_PIPELINE(i915)	(INTEL_INFO(i915)->has_3d_pipeline)
+
+#define HAS_ONE_EU_PER_FUSE_BIT(i915)	(INTEL_INFO(i915)->has_one_eu_per_fuse_bit)
 
 /* i915_gem.c */
 void i915_gem_init_early(struct drm_i915_private *dev_priv);
@@ -1415,7 +1378,7 @@ static inline void i915_gem_drain_freed_objects(struct drm_i915_private *i915)
 	 * armed the work again.
 	 */
 	while (atomic_read(&i915->mm.free_count)) {
-		flush_delayed_work(&i915->mm.free_work);
+		flush_work(&i915->mm.free_work);
 		flush_delayed_work(&i915->bdev.wq);
 		rcu_barrier();
 	}

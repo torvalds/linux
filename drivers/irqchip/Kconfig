@@ -665,4 +665,13 @@ config MCHP_EIC
 	help
 	  Support for Microchip External Interrupt Controller.
 
+config SUNPLUS_SP7021_INTC
+	bool "Sunplus SP7021 interrupt controller" if COMPILE_TEST
+	default SOC_SP7021
+	help
+	  Support for the Sunplus SP7021 Interrupt Controller IP core.
+	  SP7021 SoC has 2 Chips: C-Chip & P-Chip. This is used as a
+	  chained controller, routing all interrupt source in P-Chip to
+	  the primary controller on C-Chip.
+
 endmenu

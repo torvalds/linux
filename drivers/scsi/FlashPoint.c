@@ -1712,7 +1712,7 @@ static unsigned char FlashPoint_InterruptPending(void *pCurrCard)
 static int FlashPoint_HandleInterrupt(void *pcard)
 {
 	struct sccb *currSCCB;
-	unsigned char thisCard, result, bm_status, bm_int_st;
+	unsigned char thisCard, result, bm_status;
 	unsigned short hp_int;
 	unsigned char i, target;
 	struct sccb_card *pCurrCard = pcard;
@@ -1723,7 +1723,7 @@ static int FlashPoint_HandleInterrupt(void *pcard)
 
 	MDISABLE_INT(ioport);
 
-	if ((bm_int_st = RD_HARPOON(ioport + hp_int_status)) & EXT_STATUS_ON)
+	if (RD_HARPOON(ioport + hp_int_status) & EXT_STATUS_ON)
 		bm_status = RD_HARPOON(ioport + hp_ext_status) &
 					(unsigned char)BAD_EXT_STATUS;
 	else

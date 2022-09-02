@@ -246,7 +246,6 @@ int smc_tx_sendmsg(struct smc_sock *smc, struct msghdr *msg, size_t len)
 				  tx_cnt_prep);
 		chunk_len_sum = chunk_len;
 		chunk_off = tx_cnt_prep;
-		smc_sndbuf_sync_sg_for_cpu(conn);
 		for (chunk = 0; chunk < 2; chunk++) {
 			rc = memcpy_from_msg(sndbuf_base + chunk_off,
 					     msg, chunk_len);
@@ -321,15 +320,11 @@ int smc_tx_sendpage(struct smc_sock *smc, struct page *page, int offset,
 int smcd_tx_ism_write(struct smc_connection *conn, void *data, size_t len,
 		      u32 offset, int signal)
 {
-	struct smc_ism_position pos;
 	int rc;
 
-	memset(&pos, 0, sizeof(pos));
-	pos.token = conn->peer_token;
-	pos.index = conn->peer_rmbe_idx;
-	pos.offset = conn->tx_off + offset;
-	pos.signal = signal;
-	rc = smc_ism_write(conn->lgr->smcd, &pos, data, len);
+	rc = smc_ism_write(conn->lgr->smcd, conn->peer_token,
+			   conn->peer_rmbe_idx, signal, conn->tx_off + offset,
+			   data, len);
 	if (rc)
 		conn->local_tx_ctrl.conn_state_flags.peer_conn_abort = 1;
 	return rc;
@@ -384,6 +379,7 @@ static int smcr_tx_rdma_writes(struct smc_connection *conn, size_t len,
 
 	dma_addr_t dma_addr =
 		sg_dma_address(conn->sndbuf_desc->sgt[link->link_idx].sgl);
+	u64 virt_addr = (uintptr_t)conn->sndbuf_desc->cpu_addr;
 	int src_len_sum = src_len, dst_len_sum = dst_len;
 	int sent_count = src_off;
 	int srcchunk, dstchunk;
@@ -396,7 +392,7 @@ static int smcr_tx_rdma_writes(struct smc_connection *conn, size_t len,
 		u64 base_addr = dma_addr;
 
 		if (dst_len < link->qp_attr.cap.max_inline_data) {
-			base_addr = (uintptr_t)conn->sndbuf_desc->cpu_addr;
+			base_addr = virt_addr;
 			wr->wr.send_flags |= IB_SEND_INLINE;
 		} else {
 			wr->wr.send_flags &= ~IB_SEND_INLINE;
@@ -404,8 +400,12 @@ static int smcr_tx_rdma_writes(struct smc_connection *conn, size_t len,
 
 		num_sges = 0;
 		for (srcchunk = 0; srcchunk < 2; srcchunk++) {
-			sge[srcchunk].addr = base_addr + src_off;
+			sge[srcchunk].addr = conn->sndbuf_desc->is_vm ?
+				(virt_addr + src_off) : (base_addr + src_off);
 			sge[srcchunk].length = src_len;
+			if (conn->sndbuf_desc->is_vm)
+				sge[srcchunk].lkey =
+					conn->sndbuf_desc->mr[link->link_idx]->lkey;
 			num_sges++;
 
 			src_off += src_len;

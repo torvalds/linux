@@ -97,12 +97,12 @@ warnings:
 	which will include additional debugging information.
 
 -	A low-level kernel issue that either fails to invoke one of the
-	variants of rcu_user_enter(), rcu_user_exit(), rcu_idle_enter(),
-	rcu_idle_exit(), rcu_irq_enter(), or rcu_irq_exit() on the one
+	variants of rcu_eqs_enter(true), rcu_eqs_exit(true), ct_idle_enter(),
+	ct_idle_exit(), ct_irq_enter(), or ct_irq_exit() on the one
 	hand, or that invokes one of them too many times on the other.
 	Historically, the most frequent issue has been an omission
 	of either irq_enter() or irq_exit(), which in turn invoke
-	rcu_irq_enter() or rcu_irq_exit(), respectively.  Building your
+	ct_irq_enter() or ct_irq_exit(), respectively.  Building your
 	kernel with CONFIG_RCU_EQS_DEBUG=y can help track down these types
 	of issues, which sometimes arise in architecture-specific code.
 

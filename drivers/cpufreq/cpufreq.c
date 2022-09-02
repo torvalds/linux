@@ -532,7 +532,7 @@ static unsigned int __resolve_freq(struct cpufreq_policy *policy,
 
 	target_freq = clamp_val(target_freq, policy->min, policy->max);
 
-	if (!cpufreq_driver->target_index)
+	if (!policy->freq_table)
 		return target_freq;
 
 	idx = cpufreq_frequency_table_target(policy, target_freq, relation);
@@ -843,12 +843,14 @@ ssize_t cpufreq_show_cpus(const struct cpumask *mask, char *buf)
 	unsigned int cpu;
 
 	for_each_cpu(cpu, mask) {
-		if (i)
-			i += scnprintf(&buf[i], (PAGE_SIZE - i - 2), " ");
-		i += scnprintf(&buf[i], (PAGE_SIZE - i - 2), "%u", cpu);
+		i += scnprintf(&buf[i], (PAGE_SIZE - i - 2), "%u ", cpu);
 		if (i >= (PAGE_SIZE - 5))
 			break;
 	}
+
+	/* Remove the extra space at the end */
+	i--;
+
 	i += sprintf(&buf[i], "\n");
 	return i;
 }
@@ -971,21 +973,10 @@ static ssize_t store(struct kobject *kobj, struct attribute *attr,
 	if (!fattr->store)
 		return -EIO;
 
-	/*
-	 * cpus_read_trylock() is used here to work around a circular lock
-	 * dependency problem with respect to the cpufreq_register_driver().
-	 */
-	if (!cpus_read_trylock())
-		return -EBUSY;
-
-	if (cpu_online(policy->cpu)) {
-		down_write(&policy->rwsem);
-		if (likely(!policy_is_inactive(policy)))
-			ret = fattr->store(policy, buf, count);
-		up_write(&policy->rwsem);
-	}
-
-	cpus_read_unlock();
+	down_write(&policy->rwsem);
+	if (likely(!policy_is_inactive(policy)))
+		ret = fattr->store(policy, buf, count);
+	up_write(&policy->rwsem);
 
 	return ret;
 }
@@ -1282,6 +1273,13 @@ static void cpufreq_policy_free(struct cpufreq_policy *policy)
 	unsigned long flags;
 	int cpu;
 
+	/*
+	 * The callers must ensure the policy is inactive by now, to avoid any
+	 * races with show()/store() callbacks.
+	 */
+	if (unlikely(!policy_is_inactive(policy)))
+		pr_warn("%s: Freeing active policy\n", __func__);
+
 	/* Remove policy from list */
 	write_lock_irqsave(&cpufreq_driver_lock, flags);
 	list_del(&policy->policy_list);
@@ -1350,15 +1348,15 @@ static int cpufreq_online(unsigned int cpu)
 	}
 
 	if (!new_policy && cpufreq_driver->online) {
+		/* Recover policy->cpus using related_cpus */
+		cpumask_copy(policy->cpus, policy->related_cpus);
+
 		ret = cpufreq_driver->online(policy);
 		if (ret) {
 			pr_debug("%s: %d: initialization failed\n", __func__,
 				 __LINE__);
 			goto out_exit_policy;
 		}
-
-		/* Recover policy->cpus using related_cpus */
-		cpumask_copy(policy->cpus, policy->related_cpus);
 	} else {
 		cpumask_copy(policy->cpus, cpumask_of(cpu));
 
@@ -1536,8 +1534,6 @@ out_destroy_policy:
 	for_each_cpu(j, policy->real_cpus)
 		remove_cpu_dev_symlink(policy, j, get_cpu_device(j));
 
-	cpumask_clear(policy->cpus);
-
 out_offline_policy:
 	if (cpufreq_driver->offline)
 		cpufreq_driver->offline(policy);
@@ -1547,6 +1543,7 @@ out_exit_policy:
 		cpufreq_driver->exit(policy);
 
 out_free_policy:
+	cpumask_clear(policy->cpus);
 	up_write(&policy->rwsem);
 
 	cpufreq_policy_free(policy);

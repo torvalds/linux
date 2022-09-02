@@ -3355,7 +3355,8 @@ static bool schedstat_events_exposed(void)
 static int __cmd_record(int argc, const char **argv)
 {
 	unsigned int rec_argc, i, j;
-	const char **rec_argv;
+	char **rec_argv;
+	const char **rec_argv_copy;
 	const char * const record_args[] = {
 		"record",
 		"-a",
@@ -3384,6 +3385,7 @@ static int __cmd_record(int argc, const char **argv)
 		ARRAY_SIZE(schedstat_args) : 0;
 
 	struct tep_event *waking_event;
+	int ret;
 
 	/*
 	 * +2 for either "-e", "sched:sched_wakeup" or
@@ -3391,14 +3393,18 @@ static int __cmd_record(int argc, const char **argv)
 	 */
 	rec_argc = ARRAY_SIZE(record_args) + 2 + schedstat_argc + argc - 1;
 	rec_argv = calloc(rec_argc + 1, sizeof(char *));
-
 	if (rec_argv == NULL)
 		return -ENOMEM;
+	rec_argv_copy = calloc(rec_argc + 1, sizeof(char *));
+	if (rec_argv_copy == NULL) {
+		free(rec_argv);
+		return -ENOMEM;
+	}
 
 	for (i = 0; i < ARRAY_SIZE(record_args); i++)
 		rec_argv[i] = strdup(record_args[i]);
 
-	rec_argv[i++] = "-e";
+	rec_argv[i++] = strdup("-e");
 	waking_event = trace_event__tp_format("sched", "sched_waking");
 	if (!IS_ERR(waking_event))
 		rec_argv[i++] = strdup("sched:sched_waking");
@@ -3409,11 +3415,19 @@ static int __cmd_record(int argc, const char **argv)
 		rec_argv[i++] = strdup(schedstat_args[j]);
 
 	for (j = 1; j < (unsigned int)argc; j++, i++)
-		rec_argv[i] = argv[j];
+		rec_argv[i] = strdup(argv[j]);
 
 	BUG_ON(i != rec_argc);
 
-	return cmd_record(i, rec_argv);
+	memcpy(rec_argv_copy, rec_argv, sizeof(char *) * rec_argc);
+	ret = cmd_record(rec_argc, rec_argv_copy);
+
+	for (i = 0; i < rec_argc; i++)
+		free(rec_argv[i]);
+	free(rec_argv);
+	free(rec_argv_copy);
+
+	return ret;
 }
 
 int cmd_sched(int argc, const char **argv)
@@ -3563,7 +3577,7 @@ int cmd_sched(int argc, const char **argv)
 
 	if (strlen(argv[0]) > 2 && strstarts("record", argv[0])) {
 		return __cmd_record(argc, argv);
-	} else if (!strncmp(argv[0], "lat", 3)) {
+	} else if (strlen(argv[0]) > 2 && strstarts("latency", argv[0])) {
 		sched.tp_handler = &lat_ops;
 		if (argc > 1) {
 			argc = parse_options(argc, argv, latency_options, latency_usage, 0);

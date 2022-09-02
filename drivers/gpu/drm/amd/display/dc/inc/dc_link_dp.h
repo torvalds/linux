@@ -70,7 +70,7 @@ bool decide_edp_link_settings(struct dc_link *link,
 		struct dc_link_settings *link_setting,
 		uint32_t req_bw);
 
-void decide_link_settings(
+bool decide_link_settings(
 	struct dc_stream_state *stream,
 	struct dc_link_settings *link_setting);
 
@@ -193,6 +193,7 @@ enum dc_status dpcd_configure_lttpr_mode(
 		struct link_training_settings *lt_settings);
 
 enum dp_link_encoding dp_get_link_encoding_format(const struct dc_link_settings *link_settings);
+bool dp_retrieve_lttpr_cap(struct dc_link *link);
 bool dpcd_write_128b_132b_sst_payload_allocation_table(
 		const struct dc_stream_state *stream,
 		struct dc_link *link,
@@ -214,11 +215,10 @@ void enable_dp_hpo_output(struct dc_link *link,
 void disable_dp_hpo_output(struct dc_link *link,
 		const struct link_resource *link_res,
 		enum signal_type signal);
+
 void setup_dp_hpo_stream(struct pipe_ctx *pipe_ctx, bool enable);
 bool is_dp_128b_132b_signal(struct pipe_ctx *pipe_ctx);
-
-bool dp_retrieve_lttpr_cap(struct dc_link *link);
-void edp_panel_backlight_power_on(struct dc_link *link);
+void edp_panel_backlight_power_on(struct dc_link *link, bool wait_for_hpd);
 void dp_receiver_power_ctrl(struct dc_link *link, bool on);
 void dp_source_sequence_trace(struct dc_link *link, uint8_t dp_test_mode);
 void dp_enable_link_phy(

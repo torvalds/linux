@@ -291,10 +291,9 @@ static void header_from_disk(struct log_header_core *core, struct log_header_dis
 	core->nr_regions = le64_to_cpu(disk->nr_regions);
 }
 
-static int rw_header(struct log_c *lc, int op)
+static int rw_header(struct log_c *lc, enum req_op op)
 {
-	lc->io_req.bi_op = op;
-	lc->io_req.bi_op_flags = 0;
+	lc->io_req.bi_opf = op;
 
 	return dm_io(&lc->io_req, 1, &lc->header_location, NULL);
 }
@@ -307,8 +306,7 @@ static int flush_header(struct log_c *lc)
 		.count = 0,
 	};
 
-	lc->io_req.bi_op = REQ_OP_WRITE;
-	lc->io_req.bi_op_flags = REQ_PREFLUSH;
+	lc->io_req.bi_opf = REQ_OP_WRITE | REQ_PREFLUSH;
 
 	return dm_io(&lc->io_req, 1, &null_location, NULL);
 }

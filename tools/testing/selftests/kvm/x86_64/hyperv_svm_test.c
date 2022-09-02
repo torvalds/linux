@@ -21,7 +21,6 @@
 #include "svm_util.h"
 #include "hyperv.h"
 
-#define VCPU_ID		1
 #define L2_GUEST_STACK_SIZE 256
 
 struct hv_enlightenments {
@@ -41,11 +40,6 @@ struct hv_enlightenments {
  * Hyper-V uses the software reserved clean bit in VMCB
  */
 #define VMCB_HV_NESTED_ENLIGHTENMENTS (1U << 31)
-
-static inline void vmmcall(void)
-{
-	__asm__ __volatile__("vmmcall");
-}
 
 void l2_guest_code(void)
 {
@@ -127,33 +121,31 @@ int main(int argc, char *argv[])
 {
 	vm_vaddr_t nested_gva = 0;
 
+	struct kvm_vcpu *vcpu;
 	struct kvm_vm *vm;
 	struct kvm_run *run;
 	struct ucall uc;
 	int stage;
 
-	if (!nested_svm_supported()) {
-		print_skip("Nested SVM not supported");
-		exit(KSFT_SKIP);
-	}
+	TEST_REQUIRE(kvm_cpu_has(X86_FEATURE_SVM));
+
 	/* Create VM */
-	vm = vm_create_default(VCPU_ID, 0, guest_code);
-	vcpu_set_hv_cpuid(vm, VCPU_ID);
-	run = vcpu_state(vm, VCPU_ID);
+	vm = vm_create_with_one_vcpu(&vcpu, guest_code);
+	vcpu_set_hv_cpuid(vcpu);
+	run = vcpu->run;
 	vcpu_alloc_svm(vm, &nested_gva);
-	vcpu_args_set(vm, VCPU_ID, 1, nested_gva);
+	vcpu_args_set(vcpu, 1, nested_gva);
 
 	for (stage = 1;; stage++) {
-		_vcpu_run(vm, VCPU_ID);
+		vcpu_run(vcpu);
 		TEST_ASSERT(run->exit_reason == KVM_EXIT_IO,
 			    "Stage %d: unexpected exit reason: %u (%s),\n",
 			    stage, run->exit_reason,
 			    exit_reason_str(run->exit_reason));
 
-		switch (get_ucall(vm, VCPU_ID, &uc)) {
+		switch (get_ucall(vcpu, &uc)) {
 		case UCALL_ABORT:
-			TEST_FAIL("%s at %s:%ld", (const char *)uc.args[0],
-				  __FILE__, uc.args[1]);
+			REPORT_GUEST_ASSERT(uc);
 			/* NOT REACHED */
 		case UCALL_SYNC:
 			break;

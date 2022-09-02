@@ -26,6 +26,7 @@
 
 #include <linux/dma-direction.h>
 #include <drm/gpu_scheduler.h>
+#include "amdgpu_vram_mgr.h"
 #include "amdgpu.h"
 
 #define AMDGPU_PL_GDS		(TTM_PL_PRIV + 0)
@@ -37,15 +38,6 @@
 #define AMDGPU_GTT_NUM_TRANSFER_WINDOWS	2
 
 #define AMDGPU_POISON	0xd0bed0be
-
-struct amdgpu_vram_mgr {
-	struct ttm_resource_manager manager;
-	struct drm_mm mm;
-	spinlock_t lock;
-	struct list_head reservations_pending;
-	struct list_head reserved_pages;
-	atomic64_t vis_usage;
-};
 
 struct amdgpu_gtt_mgr {
 	struct ttm_resource_manager manager;

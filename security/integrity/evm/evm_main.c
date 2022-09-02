@@ -36,42 +36,36 @@ static const char * const integrity_status_msg[] = {
 int evm_hmac_attrs;
 
 static struct xattr_list evm_config_default_xattrnames[] = {
-	{.name = XATTR_NAME_SELINUX,
-#ifdef CONFIG_SECURITY_SELINUX
-	 .enabled = true
-#endif
+	{
+	 .name = XATTR_NAME_SELINUX,
+	 .enabled = IS_ENABLED(CONFIG_SECURITY_SELINUX)
 	},
-	{.name = XATTR_NAME_SMACK,
-#ifdef CONFIG_SECURITY_SMACK
-	 .enabled = true
-#endif
+	{
+	 .name = XATTR_NAME_SMACK,
+	 .enabled = IS_ENABLED(CONFIG_SECURITY_SMACK)
 	},
-	{.name = XATTR_NAME_SMACKEXEC,
-#ifdef CONFIG_EVM_EXTRA_SMACK_XATTRS
-	 .enabled = true
-#endif
+	{
+	 .name = XATTR_NAME_SMACKEXEC,
+	 .enabled = IS_ENABLED(CONFIG_EVM_EXTRA_SMACK_XATTRS)
 	},
-	{.name = XATTR_NAME_SMACKTRANSMUTE,
-#ifdef CONFIG_EVM_EXTRA_SMACK_XATTRS
-	 .enabled = true
-#endif
+	{
+	 .name = XATTR_NAME_SMACKTRANSMUTE,
+	 .enabled = IS_ENABLED(CONFIG_EVM_EXTRA_SMACK_XATTRS)
 	},
-	{.name = XATTR_NAME_SMACKMMAP,
-#ifdef CONFIG_EVM_EXTRA_SMACK_XATTRS
-	 .enabled = true
-#endif
+	{
+	 .name = XATTR_NAME_SMACKMMAP,
+	 .enabled = IS_ENABLED(CONFIG_EVM_EXTRA_SMACK_XATTRS)
 	},
-	{.name = XATTR_NAME_APPARMOR,
-#ifdef CONFIG_SECURITY_APPARMOR
-	 .enabled = true
-#endif
+	{
+	 .name = XATTR_NAME_APPARMOR,
+	 .enabled = IS_ENABLED(CONFIG_SECURITY_APPARMOR)
 	},
-	{.name = XATTR_NAME_IMA,
-#ifdef CONFIG_IMA_APPRAISE
-	 .enabled = true
-#endif
+	{
+	 .name = XATTR_NAME_IMA,
+	 .enabled = IS_ENABLED(CONFIG_IMA_APPRAISE)
 	},
-	{.name = XATTR_NAME_CAPS,
+	{
+	 .name = XATTR_NAME_CAPS,
 	 .enabled = true
 	},
 };

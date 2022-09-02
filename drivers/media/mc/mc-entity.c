@@ -9,6 +9,7 @@
  */
 
 #include <linux/bitmap.h>
+#include <linux/list.h>
 #include <linux/property.h>
 #include <linux/slab.h>
 #include <media/media-entity.h>
@@ -449,7 +450,7 @@ __must_check int __media_pipeline_start(struct media_entity *entity,
 		bitmap_zero(active, entity->num_pads);
 		bitmap_fill(has_no_links, entity->num_pads);
 
-		list_for_each_entry(link, &entity->links, list) {
+		for_each_media_entity_data_link(entity, link) {
 			struct media_pad *pad = link->sink->entity == entity
 						? link->sink : link->source;
 
@@ -888,7 +889,7 @@ media_entity_find_link(struct media_pad *source, struct media_pad *sink)
 {
 	struct media_link *link;
 
-	list_for_each_entry(link, &source->entity->links, list) {
+	for_each_media_entity_data_link(source->entity, link) {
 		if (link->source->entity == source->entity &&
 		    link->source->index == source->index &&
 		    link->sink->entity == sink->entity &&
@@ -900,11 +901,11 @@ media_entity_find_link(struct media_pad *source, struct media_pad *sink)
 }
 EXPORT_SYMBOL_GPL(media_entity_find_link);
 
-struct media_pad *media_entity_remote_pad(const struct media_pad *pad)
+struct media_pad *media_pad_remote_pad_first(const struct media_pad *pad)
 {
 	struct media_link *link;
 
-	list_for_each_entry(link, &pad->entity->links, list) {
+	for_each_media_entity_data_link(pad->entity, link) {
 		if (!(link->flags & MEDIA_LNK_FL_ENABLED))
 			continue;
 
@@ -918,7 +919,77 @@ struct media_pad *media_entity_remote_pad(const struct media_pad *pad)
 	return NULL;
 
 }
-EXPORT_SYMBOL_GPL(media_entity_remote_pad);
+EXPORT_SYMBOL_GPL(media_pad_remote_pad_first);
+
+struct media_pad *
+media_entity_remote_pad_unique(const struct media_entity *entity,
+			       unsigned int type)
+{
+	struct media_pad *pad = NULL;
+	struct media_link *link;
+
+	list_for_each_entry(link, &entity->links, list) {
+		struct media_pad *local_pad;
+		struct media_pad *remote_pad;
+
+		if (((link->flags & MEDIA_LNK_FL_LINK_TYPE) !=
+		     MEDIA_LNK_FL_DATA_LINK) ||
+		    !(link->flags & MEDIA_LNK_FL_ENABLED))
+			continue;
+
+		if (type == MEDIA_PAD_FL_SOURCE) {
+			local_pad = link->sink;
+			remote_pad = link->source;
+		} else {
+			local_pad = link->source;
+			remote_pad = link->sink;
+		}
+
+		if (local_pad->entity == entity) {
+			if (pad)
+				return ERR_PTR(-ENOTUNIQ);
+
+			pad = remote_pad;
+		}
+	}
+
+	if (!pad)
+		return ERR_PTR(-ENOLINK);
+
+	return pad;
+}
+EXPORT_SYMBOL_GPL(media_entity_remote_pad_unique);
+
+struct media_pad *media_pad_remote_pad_unique(const struct media_pad *pad)
+{
+	struct media_pad *found_pad = NULL;
+	struct media_link *link;
+
+	list_for_each_entry(link, &pad->entity->links, list) {
+		struct media_pad *remote_pad;
+
+		if (!(link->flags & MEDIA_LNK_FL_ENABLED))
+			continue;
+
+		if (link->sink == pad)
+			remote_pad = link->source;
+		else if (link->source == pad)
+			remote_pad = link->sink;
+		else
+			continue;
+
+		if (found_pad)
+			return ERR_PTR(-ENOTUNIQ);
+
+		found_pad = remote_pad;
+	}
+
+	if (!found_pad)
+		return ERR_PTR(-ENOLINK);
+
+	return found_pad;
+}
+EXPORT_SYMBOL_GPL(media_pad_remote_pad_unique);
 
 static void media_interface_init(struct media_device *mdev,
 				 struct media_interface *intf,
@@ -1051,3 +1122,18 @@ struct media_link *media_create_ancillary_link(struct media_entity *primary,
 	return link;
 }
 EXPORT_SYMBOL_GPL(media_create_ancillary_link);
+
+struct media_link *__media_entity_next_link(struct media_entity *entity,
+					    struct media_link *link,
+					    unsigned long link_type)
+{
+	link = link ? list_next_entry(link, list)
+		    : list_first_entry(&entity->links, typeof(*link), list);
+
+	list_for_each_entry_from(link, &entity->links, list)
+		if ((link->flags & MEDIA_LNK_FL_LINK_TYPE) == link_type)
+			return link;
+
+	return NULL;
+}
+EXPORT_SYMBOL_GPL(__media_entity_next_link);

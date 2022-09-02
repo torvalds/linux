@@ -12,6 +12,9 @@
 #define TASK_INTERRUPTIBLE	0x0001
 #define TASK_UNINTERRUPTIBLE	0x0002
 
+/* create a new thread */
+#define CLONE_THREAD  0x10000
+
 #define MAX_STACKS   32
 #define MAX_ENTRIES  102400
 
@@ -85,6 +88,7 @@ int enabled = 0;
 int has_cpu = 0;
 int has_task = 0;
 int has_cgroup = 0;
+int uses_tgid = 0;
 
 const volatile bool has_prev_state = false;
 const volatile bool needs_cgroup = false;
@@ -144,7 +148,12 @@ static inline int can_record(struct task_struct *t, int state)
 
 	if (has_task) {
 		__u8 *ok;
-		__u32 pid = t->pid;
+		__u32 pid;
+
+		if (uses_tgid)
+			pid = t->tgid;
+		else
+			pid = t->pid;
 
 		ok = bpf_map_lookup_elem(&task_filter, &pid);
 		if (!ok)
@@ -210,6 +219,33 @@ next:
 		/* prevent to reuse the timestamp later */
 		pelem->timestamp = 0;
 	}
+
+	return 0;
+}
+
+SEC("tp_btf/task_newtask")
+int on_newtask(u64 *ctx)
+{
+	struct task_struct *task;
+	u64 clone_flags;
+	u32 pid;
+	u8 val = 1;
+
+	if (!uses_tgid)
+		return 0;
+
+	task = (struct task_struct *)bpf_get_current_task();
+
+	pid = BPF_CORE_READ(task, tgid);
+	if (!bpf_map_lookup_elem(&task_filter, &pid))
+		return 0;
+
+	task = (struct task_struct *)ctx[0];
+	clone_flags = ctx[1];
+
+	pid = task->tgid;
+	if (!(clone_flags & CLONE_THREAD))
+		bpf_map_update_elem(&task_filter, &pid, &val, BPF_NOEXIST);
 
 	return 0;
 }
