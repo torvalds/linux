@@ -1486,7 +1486,7 @@ static void shmem_pseudo_vma_destroy(struct vm_area_struct *vma)
 	mpol_cond_put(vma->vm_policy);
 }
 
-static struct page *shmem_swapin(swp_entry_t swap, gfp_t gfp,
+static struct folio *shmem_swapin(swp_entry_t swap, gfp_t gfp,
 			struct shmem_inode_info *info, pgoff_t index)
 {
 	struct vm_area_struct pvma;
@@ -1499,7 +1499,9 @@ static struct page *shmem_swapin(swp_entry_t swap, gfp_t gfp,
 	page = swap_cluster_readahead(swap, gfp, &vmf);
 	shmem_pseudo_vma_destroy(&pvma);
 
-	return page;
+	if (!page)
+		return NULL;
+	return page_folio(page);
 }
 
 /*
@@ -1721,7 +1723,6 @@ static int shmem_swapin_folio(struct inode *inode, pgoff_t index,
 	struct address_space *mapping = inode->i_mapping;
 	struct shmem_inode_info *info = SHMEM_I(inode);
 	struct mm_struct *charge_mm = vma ? vma->vm_mm : NULL;
-	struct page *page;
 	struct folio *folio = NULL;
 	swp_entry_t swap;
 	int error;
@@ -1734,8 +1735,8 @@ static int shmem_swapin_folio(struct inode *inode, pgoff_t index,
 		return -EIO;
 
 	/* Look it up and read it in.. */
-	page = lookup_swap_cache(swap, NULL, 0);
-	if (!page) {
+	folio = swap_cache_get_folio(swap, NULL, 0);
+	if (!folio) {
 		/* Or update major stats only when swapin succeeds?? */
 		if (fault_type) {
 			*fault_type |= VM_FAULT_MAJOR;
@@ -1743,13 +1744,12 @@ static int shmem_swapin_folio(struct inode *inode, pgoff_t index,
 			count_memcg_event_mm(charge_mm, PGMAJFAULT);
 		}
 		/* Here we actually start the io */
-		page = shmem_swapin(swap, gfp, info, index);
-		if (!page) {
+		folio = shmem_swapin(swap, gfp, info, index);
+		if (!folio) {
 			error = -ENOMEM;
 			goto failed;
 		}
 	}
-	folio = page_folio(page);
 
 	/* We have to do this with folio locked to prevent races */
 	folio_lock(folio);
