@@ -132,27 +132,27 @@ static int __try_to_reclaim_swap(struct swap_info_struct *si,
 				 unsigned long offset, unsigned long flags)
 {
 	swp_entry_t entry = swp_entry(si->type, offset);
-	struct page *page;
+	struct folio *folio;
 	int ret = 0;
 
-	page = find_get_page(swap_address_space(entry), offset);
-	if (!page)
+	folio = filemap_get_folio(swap_address_space(entry), offset);
+	if (!folio)
 		return 0;
 	/*
 	 * When this function is called from scan_swap_map_slots() and it's
-	 * called by vmscan.c at reclaiming pages. So, we hold a lock on a page,
+	 * called by vmscan.c at reclaiming folios. So we hold a folio lock
 	 * here. We have to use trylock for avoiding deadlock. This is a special
-	 * case and you should use try_to_free_swap() with explicit lock_page()
+	 * case and you should use folio_free_swap() with explicit folio_lock()
 	 * in usual operations.
 	 */
-	if (trylock_page(page)) {
+	if (folio_trylock(folio)) {
 		if ((flags & TTRS_ANYWAY) ||
-		    ((flags & TTRS_UNMAPPED) && !page_mapped(page)) ||
-		    ((flags & TTRS_FULL) && mem_cgroup_swap_full(page)))
-			ret = try_to_free_swap(page);
-		unlock_page(page);
+		    ((flags & TTRS_UNMAPPED) && !folio_mapped(folio)) ||
+		    ((flags & TTRS_FULL) && mem_cgroup_swap_full(&folio->page)))
+			ret = folio_free_swap(folio);
+		folio_unlock(folio);
 	}
-	put_page(page);
+	folio_put(folio);
 	return ret;
 }
 
