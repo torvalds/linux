@@ -1078,7 +1078,7 @@ static int ipv6_get_msfilter(struct sock *sk, sockptr_t optval,
 	if (gsf.gf_group.ss_family != AF_INET6)
 		return -EADDRNOTAVAIL;
 	num = gsf.gf_numsrc;
-	lock_sock(sk);
+	sockopt_lock_sock(sk);
 	err = ip6_mc_msfget(sk, &gsf, optval, size0);
 	if (!err) {
 		if (num > gsf.gf_numsrc)
@@ -1088,7 +1088,7 @@ static int ipv6_get_msfilter(struct sock *sk, sockptr_t optval,
 		    copy_to_sockptr(optval, &gsf, size0))
 			err = -EFAULT;
 	}
-	release_sock(sk);
+	sockopt_release_sock(sk);
 	return err;
 }
 
@@ -1114,9 +1114,9 @@ static int compat_ipv6_get_msfilter(struct sock *sk, sockptr_t optval,
 	if (gf.gf_group.ss_family != AF_INET6)
 		return -EADDRNOTAVAIL;
 
-	lock_sock(sk);
+	sockopt_lock_sock(sk);
 	err = ip6_mc_msfget(sk, &gf, optval, size0);
-	release_sock(sk);
+	sockopt_release_sock(sk);
 	if (err)
 		return err;
 	if (num > gf.gf_numsrc)
@@ -1175,11 +1175,11 @@ static int do_ipv6_getsockopt(struct sock *sk, int level, int optname,
 		msg.msg_controllen = len;
 		msg.msg_flags = 0;
 
-		lock_sock(sk);
+		sockopt_lock_sock(sk);
 		skb = np->pktoptions;
 		if (skb)
 			ip6_datagram_recv_ctl(sk, &msg, skb);
-		release_sock(sk);
+		sockopt_release_sock(sk);
 		if (!skb) {
 			if (np->rxopt.bits.rxinfo) {
 				struct in6_pktinfo src_info;
@@ -1268,11 +1268,11 @@ static int do_ipv6_getsockopt(struct sock *sk, int level, int optname,
 	{
 		struct ipv6_txoptions *opt;
 
-		lock_sock(sk);
+		sockopt_lock_sock(sk);
 		opt = rcu_dereference_protected(np->opt,
 						lockdep_sock_is_held(sk));
 		len = ipv6_getsockopt_sticky(sk, opt, optname, optval, len);
-		release_sock(sk);
+		sockopt_release_sock(sk);
 		/* check if ipv6_getsockopt_sticky() returns err code */
 		if (len < 0)
 			return len;
