@@ -28,6 +28,7 @@ struct mac_device {
 	struct phy_device	*phy_dev;
 	phy_interface_t		phy_if;
 	struct device_node	*phy_node;
+	struct net_device	*net_dev;
 
 	bool autoneg_pause;
 	bool rx_pause_req;
@@ -55,6 +56,8 @@ struct mac_device {
 				 enet_addr_t *eth_addr);
 	int (*remove_hash_mac_addr)(struct fman_mac *mac_dev,
 				    enet_addr_t *eth_addr);
+
+	void (*update_speed)(struct mac_device *mac_dev, int speed);
 
 	struct fman_mac		*fman_mac;
 	struct mac_priv_s	*priv;
