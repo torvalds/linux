@@ -812,7 +812,20 @@ static void cy8c95x0_gpio_set_multiple(struct gpio_chip *gc,
 	cy8c95x0_write_regs_mask(chip, CY8C95X0_OUTPUT, bits, mask);
 }
 
-static int cy8c95x0_setup_gpiochip(struct cy8c95x0_pinctrl *chip, int ngpio)
+static int cy8c95x0_add_pin_ranges(struct gpio_chip *gc)
+{
+	struct cy8c95x0_pinctrl *chip = gpiochip_get_data(gc);
+	struct device *dev = chip->dev;
+	int ret;
+
+	ret = gpiochip_add_pin_range(gc, dev_name(dev), 0, 0, chip->tpin);
+	if (ret)
+		dev_err(dev, "failed to add GPIO pin range\n");
+
+	return ret;
+}
+
+static int cy8c95x0_setup_gpiochip(struct cy8c95x0_pinctrl *chip)
 {
 	struct gpio_chip *gc = &chip->gpio_chip;
 
@@ -825,9 +838,10 @@ static int cy8c95x0_setup_gpiochip(struct cy8c95x0_pinctrl *chip, int ngpio)
 	gc->set_multiple = cy8c95x0_gpio_set_multiple;
 	gc->set_config = cy8c95x0_gpio_set_config;
 	gc->can_sleep = true;
+	gc->add_pin_ranges = cy8c95x0_add_pin_ranges;
 
 	gc->base = -1;
-	gc->ngpio = ngpio;
+	gc->ngpio = chip->tpin;
 
 	gc->parent = chip->dev;
 	gc->owner = THIS_MODULE;
@@ -1339,11 +1353,11 @@ static int cy8c95x0_probe(struct i2c_client *client)
 			goto err_exit;
 	}
 
-	ret = cy8c95x0_setup_gpiochip(chip, chip->tpin);
+	ret = cy8c95x0_setup_pinctrl(chip);
 	if (ret)
 		goto err_exit;
 
-	ret = cy8c95x0_setup_pinctrl(chip);
+	ret = cy8c95x0_setup_gpiochip(chip);
 	if (ret)
 		goto err_exit;
 
