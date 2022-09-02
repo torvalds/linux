@@ -680,7 +680,7 @@ static int __init virtio_swiotlb_init(void)
 	if (!nslabs)
 		return -EINVAL;
 
-	vbase = __ioremap(base, size, __pgprot(PROT_NORMAL));
+	vbase = ioremap_cache(base, size);
 	if (!vbase)
 		return -EINVAL;
 
@@ -829,8 +829,7 @@ static int setup_virtio_dma_ops(struct platform_device *pdev)
 		return -ENOMEM;
 
 	/* Note: Mapped as 'normal/cacheable' memory */
-	vmem_pool->virt_base = __ioremap(ring_base, ring_size,
-						__pgprot(PROT_NORMAL));
+	vmem_pool->virt_base = ioremap_cache(ring_base, ring_size);
 	if (!vmem_pool->virt_base) {
 		pr_err("Unable to ioremap %pK size %lx\n",
 					(void *)ring_base, ring_size);
