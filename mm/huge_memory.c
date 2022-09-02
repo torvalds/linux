@@ -1305,6 +1305,7 @@ vm_fault_t do_huge_pmd_wp_page(struct vm_fault *vmf)
 {
 	const bool unshare = vmf->flags & FAULT_FLAG_UNSHARE;
 	struct vm_area_struct *vma = vmf->vma;
+	struct folio *folio;
 	struct page *page;
 	unsigned long haddr = vmf->address & HPAGE_PMD_MASK;
 	pmd_t orig_pmd = vmf->orig_pmd;
@@ -1326,46 +1327,48 @@ vm_fault_t do_huge_pmd_wp_page(struct vm_fault *vmf)
 	}
 
 	page = pmd_page(orig_pmd);
+	folio = page_folio(page);
 	VM_BUG_ON_PAGE(!PageHead(page), page);
 
 	/* Early check when only holding the PT lock. */
 	if (PageAnonExclusive(page))
 		goto reuse;
 
-	if (!trylock_page(page)) {
-		get_page(page);
+	if (!folio_trylock(folio)) {
+		folio_get(folio);
 		spin_unlock(vmf->ptl);
-		lock_page(page);
+		folio_lock(folio);
 		spin_lock(vmf->ptl);
 		if (unlikely(!pmd_same(*vmf->pmd, orig_pmd))) {
 			spin_unlock(vmf->ptl);
-			unlock_page(page);
-			put_page(page);
+			folio_unlock(folio);
+			folio_put(folio);
 			return 0;
 		}
-		put_page(page);
+		folio_put(folio);
 	}
 
 	/* Recheck after temporarily dropping the PT lock. */
 	if (PageAnonExclusive(page)) {
-		unlock_page(page);
+		folio_unlock(folio);
 		goto reuse;
 	}
 
 	/*
-	 * See do_wp_page(): we can only reuse the page exclusively if there are
-	 * no additional references. Note that we always drain the LRU
-	 * pagevecs immediately after adding a THP.
+	 * See do_wp_page(): we can only reuse the folio exclusively if
+	 * there are no additional references. Note that we always drain
+	 * the LRU pagevecs immediately after adding a THP.
 	 */
-	if (page_count(page) > 1 + PageSwapCache(page) * thp_nr_pages(page))
+	if (folio_ref_count(folio) >
+			1 + folio_test_swapcache(folio) * folio_nr_pages(folio))
 		goto unlock_fallback;
-	if (PageSwapCache(page))
-		try_to_free_swap(page);
-	if (page_count(page) == 1) {
+	if (folio_test_swapcache(folio))
+		folio_free_swap(folio);
+	if (folio_ref_count(folio) == 1) {
 		pmd_t entry;
 
 		page_move_anon_rmap(page, vma);
-		unlock_page(page);
+		folio_unlock(folio);
 reuse:
 		if (unlikely(unshare)) {
 			spin_unlock(vmf->ptl);
@@ -1380,7 +1383,7 @@ reuse:
 	}
 
 unlock_fallback:
-	unlock_page(page);
+	folio_unlock(folio);
 	spin_unlock(vmf->ptl);
 fallback:
 	__split_huge_pmd(vma, vmf->pmd, vmf->address, false, NULL);
