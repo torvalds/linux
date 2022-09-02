@@ -763,23 +763,22 @@ error:
 }
 
 /*
- * Like delete_from_page_cache, but substitutes swap for page.
+ * Like delete_from_page_cache, but substitutes swap for @folio.
  */
-static void shmem_delete_from_page_cache(struct page *page, void *radswap)
+static void shmem_delete_from_page_cache(struct folio *folio, void *radswap)
 {
-	struct address_space *mapping = page->mapping;
+	struct address_space *mapping = folio->mapping;
+	long nr = folio_nr_pages(folio);
 	int error;
 
-	VM_BUG_ON_PAGE(PageCompound(page), page);
-
 	xa_lock_irq(&mapping->i_pages);
-	error = shmem_replace_entry(mapping, page->index, page, radswap);
-	page->mapping = NULL;
-	mapping->nrpages--;
-	__dec_lruvec_page_state(page, NR_FILE_PAGES);
-	__dec_lruvec_page_state(page, NR_SHMEM);
+	error = shmem_replace_entry(mapping, folio->index, folio, radswap);
+	folio->mapping = NULL;
+	mapping->nrpages -= nr;
+	__lruvec_stat_mod_folio(folio, NR_FILE_PAGES, -nr);
+	__lruvec_stat_mod_folio(folio, NR_SHMEM, -nr);
 	xa_unlock_irq(&mapping->i_pages);
-	put_page(page);
+	folio_put(folio);
 	BUG_ON(error);
 }
 
@@ -1416,7 +1415,7 @@ static int shmem_writepage(struct page *page, struct writeback_control *wbc)
 		spin_unlock_irq(&info->lock);
 
 		swap_shmem_alloc(swap);
-		shmem_delete_from_page_cache(&folio->page, swp_to_radix_entry(swap));
+		shmem_delete_from_page_cache(folio, swp_to_radix_entry(swap));
 
 		mutex_unlock(&shmem_swaplist_mutex);
 		BUG_ON(folio_mapped(folio));
