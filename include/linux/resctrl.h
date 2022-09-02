@@ -227,7 +227,7 @@ void resctrl_offline_domain(struct rdt_resource *r, struct rdt_domain *d);
  * @d:			domain that the counter should be read from.
  * @rmid:		rmid of the counter to read.
  * @eventid:		eventid to read, e.g. L3 occupancy.
- * @val:		result of the counter read in chunks.
+ * @val:		result of the counter read in bytes.
  *
  * Call from process context on a CPU that belongs to domain @d.
  *
