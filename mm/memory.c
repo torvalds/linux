@@ -3641,14 +3641,14 @@ static vm_fault_t remove_device_exclusive_entry(struct vm_fault *vmf)
 	return 0;
 }
 
-static inline bool should_try_to_free_swap(struct page *page,
+static inline bool should_try_to_free_swap(struct folio *folio,
 					   struct vm_area_struct *vma,
 					   unsigned int fault_flags)
 {
-	if (!PageSwapCache(page))
+	if (!folio_test_swapcache(folio))
 		return false;
-	if (mem_cgroup_swap_full(page) || (vma->vm_flags & VM_LOCKED) ||
-	    PageMlocked(page))
+	if (mem_cgroup_swap_full(&folio->page) || (vma->vm_flags & VM_LOCKED) ||
+	    folio_test_mlocked(folio))
 		return true;
 	/*
 	 * If we want to map a page that's in the swapcache writable, we
@@ -3656,8 +3656,8 @@ static inline bool should_try_to_free_swap(struct page *page,
 	 * user. Try freeing the swapcache to get rid of the swapcache
 	 * reference only in case it's likely that we'll be the exlusive user.
 	 */
-	return (fault_flags & FAULT_FLAG_WRITE) && !PageKsm(page) &&
-		page_count(page) == 2;
+	return (fault_flags & FAULT_FLAG_WRITE) && !folio_test_ksm(folio) &&
+		folio_ref_count(folio) == 2;
 }
 
 static vm_fault_t pte_marker_clear(struct vm_fault *vmf)
@@ -3949,8 +3949,8 @@ vm_fault_t do_swap_page(struct vm_fault *vmf)
 	 * yet.
 	 */
 	swap_free(entry);
-	if (should_try_to_free_swap(page, vma, vmf->flags))
-		try_to_free_swap(page);
+	if (should_try_to_free_swap(folio, vma, vmf->flags))
+		folio_free_swap(folio);
 
 	inc_mm_counter_fast(vma->vm_mm, MM_ANONPAGES);
 	dec_mm_counter_fast(vma->vm_mm, MM_SWAPENTS);
