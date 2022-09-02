@@ -2577,6 +2577,7 @@ static ssize_t shmem_file_read_iter(struct kiocb *iocb, struct iov_iter *to)
 	offset = *ppos & ~PAGE_MASK;
 
 	for (;;) {
+		struct folio *folio = NULL;
 		struct page *page = NULL;
 		pgoff_t end_index;
 		unsigned long nr, ret;
@@ -2591,17 +2592,18 @@ static ssize_t shmem_file_read_iter(struct kiocb *iocb, struct iov_iter *to)
 				break;
 		}
 
-		error = shmem_getpage(inode, index, &page, SGP_READ);
+		error = shmem_get_folio(inode, index, &folio, SGP_READ);
 		if (error) {
 			if (error == -EINVAL)
 				error = 0;
 			break;
 		}
-		if (page) {
-			unlock_page(page);
+		if (folio) {
+			folio_unlock(folio);
 
+			page = folio_file_page(folio, index);
 			if (PageHWPoison(page)) {
-				put_page(page);
+				folio_put(folio);
 				error = -EIO;
 				break;
 			}
@@ -2617,14 +2619,14 @@ static ssize_t shmem_file_read_iter(struct kiocb *iocb, struct iov_iter *to)
 		if (index == end_index) {
 			nr = i_size & ~PAGE_MASK;
 			if (nr <= offset) {
-				if (page)
-					put_page(page);
+				if (folio)
+					folio_put(folio);
 				break;
 			}
 		}
 		nr -= offset;
 
-		if (page) {
+		if (folio) {
 			/*
 			 * If users can be writing to this page using arbitrary
 			 * virtual addresses, take care about potential aliasing
@@ -2636,13 +2638,13 @@ static ssize_t shmem_file_read_iter(struct kiocb *iocb, struct iov_iter *to)
 			 * Mark the page accessed if we read the beginning.
 			 */
 			if (!offset)
-				mark_page_accessed(page);
+				folio_mark_accessed(folio);
 			/*
 			 * Ok, we have the page, and it's up-to-date, so
 			 * now we can copy it to user space...
 			 */
 			ret = copy_page_to_iter(page, offset, nr, to);
-			put_page(page);
+			folio_put(folio);
 
 		} else if (user_backed_iter(to)) {
 			/*
