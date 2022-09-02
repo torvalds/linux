@@ -2445,6 +2445,29 @@ static void ieee80211_sta_handle_tspec_ac_params_wk(struct work_struct *work)
 	ieee80211_sta_handle_tspec_ac_params(sdata);
 }
 
+void ieee80211_mgd_set_link_qos_params(struct ieee80211_link_data *link)
+{
+	struct ieee80211_sub_if_data *sdata = link->sdata;
+	struct ieee80211_local *local = sdata->local;
+	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
+	struct ieee80211_tx_queue_params *params = link->tx_conf;
+	u8 ac;
+
+	for (ac = 0; ac < IEEE80211_NUM_ACS; ac++) {
+		mlme_dbg(sdata,
+			 "WMM AC=%d acm=%d aifs=%d cWmin=%d cWmax=%d txop=%d uapsd=%d, downgraded=%d\n",
+			 ac, params[ac].acm,
+			 params[ac].aifs, params[ac].cw_min, params[ac].cw_max,
+			 params[ac].txop, params[ac].uapsd,
+			 ifmgd->tx_tspec[ac].downgraded);
+		if (!ifmgd->tx_tspec[ac].downgraded &&
+		    drv_conf_tx(local, link, ac, &params[ac]))
+			link_err(link,
+				 "failed to set TX queue parameters for AC %d\n",
+				 ac);
+	}
+}
+
 /* MLME */
 static bool
 ieee80211_sta_wmm_params(struct ieee80211_local *local,
@@ -2576,20 +2599,10 @@ ieee80211_sta_wmm_params(struct ieee80211_local *local,
 		}
 	}
 
-	for (ac = 0; ac < IEEE80211_NUM_ACS; ac++) {
-		mlme_dbg(sdata,
-			 "WMM AC=%d acm=%d aifs=%d cWmin=%d cWmax=%d txop=%d uapsd=%d, downgraded=%d\n",
-			 ac, params[ac].acm,
-			 params[ac].aifs, params[ac].cw_min, params[ac].cw_max,
-			 params[ac].txop, params[ac].uapsd,
-			 ifmgd->tx_tspec[ac].downgraded);
+	for (ac = 0; ac < IEEE80211_NUM_ACS; ac++)
 		link->tx_conf[ac] = params[ac];
-		if (!ifmgd->tx_tspec[ac].downgraded &&
-		    drv_conf_tx(local, link, ac, &params[ac]))
-			link_err(link,
-				 "failed to set TX queue parameters for AC %d\n",
-				 ac);
-	}
+
+	ieee80211_mgd_set_link_qos_params(link);
 
 	/* enable WMM or activate new settings */
 	link->conf->qos = true;
