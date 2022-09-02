@@ -2077,11 +2077,7 @@ static enum dc_status enable_link_edp(
 		struct dc_state *state,
 		struct pipe_ctx *pipe_ctx)
 {
-	enum dc_status status;
-
-	status = enable_link_dp(state, pipe_ctx);
-
-	return status;
+	return enable_link_dp(state, pipe_ctx);
 }
 
 static enum dc_status enable_link_dp_mst(
