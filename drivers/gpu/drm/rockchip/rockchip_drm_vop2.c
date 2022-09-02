@@ -6996,7 +6996,8 @@ static int vop2_crtc_atomic_check(struct drm_crtc *crtc,
 		}
 	}
 
-	if (vcstate->request_refresh_rate != new_vcstate->request_refresh_rate)
+	if ((vcstate->request_refresh_rate != new_vcstate->request_refresh_rate) ||
+	    crtc_state->active_changed || crtc_state->mode_changed)
 		vp->refresh_rate_change = true;
 	else
 		vp->refresh_rate_change = false;
