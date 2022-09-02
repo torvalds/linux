@@ -729,7 +729,9 @@ static inline unsigned int compound_order(struct page *page)
  */
 static inline unsigned int folio_order(struct folio *folio)
 {
-	return compound_order(&folio->page);
+	if (!folio_test_large(folio))
+		return 0;
+	return folio->_folio_order;
 }
 
 #include <linux/huge_mm.h>
@@ -1659,7 +1661,13 @@ static inline void set_page_links(struct page *page, enum zone_type zone,
  */
 static inline long folio_nr_pages(struct folio *folio)
 {
-	return compound_nr(&folio->page);
+	if (!folio_test_large(folio))
+		return 1;
+#ifdef CONFIG_64BIT
+	return folio->_folio_nr_pages;
+#else
+	return 1L << folio->_folio_order;
+#endif
 }
 
 /**
