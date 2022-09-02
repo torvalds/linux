@@ -21,7 +21,6 @@ struct rnbd_dev *rnbd_dev_open(const char *path, fmode_t flags)
 	if (!dev)
 		return ERR_PTR(-ENOMEM);
 
-	dev->blk_open_flags = flags;
 	dev->bdev = blkdev_get_by_path(path, flags, THIS_MODULE);
 	ret = PTR_ERR_OR_ZERO(dev->bdev);
 	if (ret)
