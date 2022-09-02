@@ -3288,6 +3288,82 @@
 			};
 		};
 
+		pmu@9091000 {
+			compatible = "qcom,sc7280-llcc-bwmon";
+			reg = <0 0x9091000 0 0x1000>;
+
+			interrupts = <GIC_SPI 81 IRQ_TYPE_LEVEL_HIGH>;
+
+			interconnects = <&mc_virt MASTER_LLCC 3 &mc_virt SLAVE_EBI1 3>;
+
+			operating-points-v2 = <&llcc_bwmon_opp_table>;
+
+			llcc_bwmon_opp_table: opp-table {
+				compatible = "operating-points-v2";
+
+				opp-0 {
+					opp-peak-kBps = <800000>;
+				};
+				opp-1 {
+					opp-peak-kBps = <1804000>;
+				};
+				opp-2 {
+					opp-peak-kBps = <2188000>;
+				};
+				opp-3 {
+					opp-peak-kBps = <3072000>;
+				};
+				opp-4 {
+					opp-peak-kBps = <4068000>;
+				};
+				opp-5 {
+					opp-peak-kBps = <6220000>;
+				};
+				opp-6 {
+					opp-peak-kBps = <6832000>;
+				};
+				opp-7 {
+					opp-peak-kBps = <8532000>;
+				};
+			};
+		};
+
+		pmu@90b6000 {
+			compatible = "qcom,sc7280-cpu-bwmon", "qcom,msm8998-bwmon";
+			reg = <0 0x090b6400 0 0x600>;
+
+			interrupts = <GIC_SPI 581 IRQ_TYPE_LEVEL_HIGH>;
+
+			interconnects = <&gem_noc MASTER_APPSS_PROC 3 &gem_noc SLAVE_LLCC 3>;
+			operating-points-v2 = <&cpu_bwmon_opp_table>;
+
+			cpu_bwmon_opp_table: opp-table {
+				compatible = "operating-points-v2";
+
+				opp-0 {
+					opp-peak-kBps = <2400000>;
+				};
+				opp-1 {
+					opp-peak-kBps = <4800000>;
+				};
+				opp-2 {
+					opp-peak-kBps = <7456000>;
+				};
+				opp-3 {
+					opp-peak-kBps = <9600000>;
+				};
+				opp-4 {
+					opp-peak-kBps = <12896000>;
+				};
+				opp-5 {
+					opp-peak-kBps = <14928000>;
+				};
+				opp-6 {
+					opp-peak-kBps = <17056000>;
+				};
+			};
+		};
+
 		dc_noc: interconnect@90e0000 {
 			reg = <0 0x090e0000 0 0x5080>;
 			compatible = "qcom,sc7280-dc-noc";
