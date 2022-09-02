@@ -204,7 +204,9 @@ int resctrl_arch_rmid_read(struct rdt_resource *r, struct rdt_domain *d,
 
 	am = get_arch_mbm_state(hw_dom, rmid, eventid);
 	if (am) {
-		*val = mbm_overflow_count(am->prev_msr, msr_val, hw_res->mbm_width);
+		am->chunks += mbm_overflow_count(am->prev_msr, msr_val,
+						 hw_res->mbm_width);
+		*val = get_corrected_mbm_count(rmid, am->chunks);
 		am->prev_msr = msr_val;
 	} else {
 		*val = msr_val;
@@ -374,9 +376,7 @@ static int __mon_event_count(u32 rmid, struct rmid_read *rr)
 		return 0;
 	}
 
-	m->chunks += tval;
-
-	rr->val += get_corrected_mbm_count(rmid, m->chunks);
+	rr->val += tval;
 
 	return 0;
 }

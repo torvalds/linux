@@ -280,14 +280,12 @@ struct rftype {
 
 /**
  * struct mbm_state - status for each MBM counter in each domain
- * @chunks:	Total data moved (multiply by rdt_group.mon_scale to get bytes)
  * @prev_bw_chunks: Previous chunks value read for bandwidth calculation
  * @prev_bw:	The most recent bandwidth in MBps
  * @delta_bw:	Difference between the current and previous bandwidth
  * @delta_comp:	Indicates whether to compute the delta_bw
  */
 struct mbm_state {
-	u64	chunks;
 	u64	prev_bw_chunks;
 	u32	prev_bw;
 	u32	delta_bw;
@@ -297,10 +295,12 @@ struct mbm_state {
 /**
  * struct arch_mbm_state - values used to compute resctrl_arch_rmid_read()s
  *			   return value.
+ * @chunks:	Total data moved (multiply by rdt_group.mon_scale to get bytes)
  * @prev_msr:	Value of IA32_QM_CTR last time it was read for the RMID used to
  *		find this struct.
  */
 struct arch_mbm_state {
+	u64	chunks;
 	u64	prev_msr;
 };
 
