@@ -1889,6 +1889,30 @@ void rdt_domain_reconfigure_cdp(struct rdt_resource *r)
 		l3_qos_cfg_update(&hw_res->cdp_enabled);
 }
 
+static int mba_sc_domain_allocate(struct rdt_resource *r, struct rdt_domain *d)
+{
+	u32 num_closid = resctrl_arch_get_num_closid(r);
+	int cpu = cpumask_any(&d->cpu_mask);
+	int i;
+
+	d->mbps_val = kcalloc_node(num_closid, sizeof(*d->mbps_val),
+				   GFP_KERNEL, cpu_to_node(cpu));
+	if (!d->mbps_val)
+		return -ENOMEM;
+
+	for (i = 0; i < num_closid; i++)
+		d->mbps_val[i] = MBA_MAX_MBPS;
+
+	return 0;
+}
+
+static void mba_sc_domain_destroy(struct rdt_resource *r,
+				  struct rdt_domain *d)
+{
+	kfree(d->mbps_val);
+	d->mbps_val = NULL;
+}
+
 /*
  * MBA software controller is supported only if
  * MBM is supported and MBA is in linear scale.
@@ -1908,11 +1932,19 @@ static bool supports_mba_mbps(void)
 static int set_mba_sc(bool mba_sc)
 {
 	struct rdt_resource *r = &rdt_resources_all[RDT_RESOURCE_MBA].r_resctrl;
+	u32 num_closid = resctrl_arch_get_num_closid(r);
+	struct rdt_domain *d;
+	int i;
 
 	if (!supports_mba_mbps() || mba_sc == is_mba_sc(r))
 		return -EINVAL;
 
 	r->membw.mba_sc = mba_sc;
+
+	list_for_each_entry(d, &r->domains, list) {
+		for (i = 0; i < num_closid; i++)
+			d->mbps_val[i] = MBA_MAX_MBPS;
+	}
 
 	return 0;
 }
@@ -3247,6 +3279,9 @@ void resctrl_offline_domain(struct rdt_resource *r, struct rdt_domain *d)
 {
 	lockdep_assert_held(&rdtgroup_mutex);
 
+	if (supports_mba_mbps() && r->rid == RDT_RESOURCE_MBA)
+		mba_sc_domain_destroy(r, d);
+
 	if (!r->mon_capable)
 		return;
 
@@ -3310,6 +3345,10 @@ int resctrl_online_domain(struct rdt_resource *r, struct rdt_domain *d)
 	int err;
 
 	lockdep_assert_held(&rdtgroup_mutex);
+
+	if (supports_mba_mbps() && r->rid == RDT_RESOURCE_MBA)
+		/* RDT_RESOURCE_MBA is never mon_capable */
+		return mba_sc_domain_allocate(r, d);
 
 	if (!r->mon_capable)
 		return 0;
