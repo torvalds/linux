@@ -1082,10 +1082,10 @@ static struct sk_buff *rtw_get_rsvd_page_skb(struct ieee80211_hw *hw,
 		skb_new = ieee80211_proberesp_get(hw, vif);
 		break;
 	case RSVD_NULL:
-		skb_new = ieee80211_nullfunc_get(hw, vif, false);
+		skb_new = ieee80211_nullfunc_get(hw, vif, -1, false);
 		break;
 	case RSVD_QOS_NULL:
-		skb_new = ieee80211_nullfunc_get(hw, vif, true);
+		skb_new = ieee80211_nullfunc_get(hw, vif, -1, true);
 		break;
 	case RSVD_LPS_PG_DPK:
 		skb_new = rtw_lps_pg_dpk_get(hw);

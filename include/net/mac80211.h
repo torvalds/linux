@@ -5298,6 +5298,9 @@ struct sk_buff *ieee80211_pspoll_get(struct ieee80211_hw *hw,
  * ieee80211_nullfunc_get - retrieve a nullfunc template
  * @hw: pointer obtained from ieee80211_alloc_hw().
  * @vif: &struct ieee80211_vif pointer from the add_interface callback.
+ * @link_id: If the vif is an MLD, get a frame with the link addresses
+ *	for the given link ID. For a link_id < 0 you get a frame with
+ *	MLD addresses, however useful that might be.
  * @qos_ok: QoS NDP is acceptable to the caller, this should be set
  *	if at all possible
  *
@@ -5315,7 +5318,7 @@ struct sk_buff *ieee80211_pspoll_get(struct ieee80211_hw *hw,
  */
 struct sk_buff *ieee80211_nullfunc_get(struct ieee80211_hw *hw,
 				       struct ieee80211_vif *vif,
-				       bool qos_ok);
+				       int link_id, bool qos_ok);
 
 /**
  * ieee80211_probereq_get - retrieve a Probe Request template

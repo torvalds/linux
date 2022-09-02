@@ -1546,8 +1546,9 @@ void ieee80211_send_nullfunc(struct ieee80211_local *local,
 	struct ieee80211_hdr_3addr *nullfunc;
 	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
 
-	skb = ieee80211_nullfunc_get(&local->hw, &sdata->vif,
-		!ieee80211_hw_check(&local->hw, DOESNT_SUPPORT_QOS_NDP));
+	skb = ieee80211_nullfunc_get(&local->hw, &sdata->vif, -1,
+				     !ieee80211_hw_check(&local->hw,
+							 DOESNT_SUPPORT_QOS_NDP));
 	if (!skb)
 		return;
 
