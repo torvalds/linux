@@ -623,7 +623,9 @@ int nvme_ns_chr_uring_cmd(struct io_uring_cmd *ioucmd, unsigned int issue_flags)
 	return nvme_ns_uring_cmd(ns, ioucmd, issue_flags);
 }
 
-int nvme_ns_chr_uring_cmd_iopoll(struct io_uring_cmd *ioucmd)
+int nvme_ns_chr_uring_cmd_iopoll(struct io_uring_cmd *ioucmd,
+				 struct io_comp_batch *iob,
+				 unsigned int poll_flags)
 {
 	struct bio *bio;
 	int ret = 0;
@@ -636,7 +638,7 @@ int nvme_ns_chr_uring_cmd_iopoll(struct io_uring_cmd *ioucmd)
 			struct nvme_ns, cdev);
 	q = ns->queue;
 	if (test_bit(QUEUE_FLAG_POLL, &q->queue_flags) && bio && bio->bi_bdev)
-		ret = bio_poll(bio, NULL, 0);
+		ret = bio_poll(bio, iob, poll_flags);
 	rcu_read_unlock();
 	return ret;
 }
@@ -722,7 +724,9 @@ int nvme_ns_head_chr_uring_cmd(struct io_uring_cmd *ioucmd,
 	return ret;
 }
 
-int nvme_ns_head_chr_uring_cmd_iopoll(struct io_uring_cmd *ioucmd)
+int nvme_ns_head_chr_uring_cmd_iopoll(struct io_uring_cmd *ioucmd,
+				      struct io_comp_batch *iob,
+				      unsigned int poll_flags)
 {
 	struct cdev *cdev = file_inode(ioucmd->file)->i_cdev;
 	struct nvme_ns_head *head = container_of(cdev, struct nvme_ns_head, cdev);
@@ -738,7 +742,7 @@ int nvme_ns_head_chr_uring_cmd_iopoll(struct io_uring_cmd *ioucmd)
 		q = ns->queue;
 		if (test_bit(QUEUE_FLAG_POLL, &q->queue_flags) && bio
 				&& bio->bi_bdev)
-			ret = bio_poll(bio, NULL, 0);
+			ret = bio_poll(bio, iob, poll_flags);
 		rcu_read_unlock();
 	}
 	srcu_read_unlock(&head->srcu, srcu_idx);

@@ -1015,7 +1015,8 @@ int io_do_iopoll(struct io_ring_ctx *ctx, bool force_nonspin)
 			struct io_uring_cmd *ioucmd;
 
 			ioucmd = io_kiocb_to_cmd(req, struct io_uring_cmd);
-			ret = file->f_op->uring_cmd_iopoll(ioucmd);
+			ret = file->f_op->uring_cmd_iopoll(ioucmd, &iob,
+								poll_flags);
 		} else {
 			struct io_rw *rw = io_kiocb_to_cmd(req, struct io_rw);
 
