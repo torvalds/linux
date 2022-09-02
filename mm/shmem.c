@@ -3093,7 +3093,7 @@ static int shmem_symlink(struct user_namespace *mnt_userns, struct inode *dir,
 	int error;
 	int len;
 	struct inode *inode;
-	struct page *page;
+	struct folio *folio;
 
 	len = strlen(symname) + 1;
 	if (len > PAGE_SIZE)
@@ -3121,18 +3121,18 @@ static int shmem_symlink(struct user_namespace *mnt_userns, struct inode *dir,
 		inode->i_op = &shmem_short_symlink_operations;
 	} else {
 		inode_nohighmem(inode);
-		error = shmem_getpage(inode, 0, &page, SGP_WRITE);
+		error = shmem_get_folio(inode, 0, &folio, SGP_WRITE);
 		if (error) {
 			iput(inode);
 			return error;
 		}
 		inode->i_mapping->a_ops = &shmem_aops;
 		inode->i_op = &shmem_symlink_inode_operations;
-		memcpy(page_address(page), symname, len);
-		SetPageUptodate(page);
-		set_page_dirty(page);
-		unlock_page(page);
-		put_page(page);
+		memcpy(folio_address(folio), symname, len);
+		folio_mark_uptodate(folio);
+		folio_mark_dirty(folio);
+		folio_unlock(folio);
+		folio_put(folio);
 	}
 	dir->i_size += BOGO_DIRENT_SIZE;
 	dir->i_ctime = dir->i_mtime = current_time(dir);
