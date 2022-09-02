@@ -7,8 +7,9 @@
 #if !defined(_TRACE_HOOK_CPUFREQ_H) || defined(TRACE_HEADER_MULTI_READ)
 #define _TRACE_HOOK_CPUFREQ_H
 
-#include <linux/cpufreq.h>
 #include <trace/hooks/vendor_hooks.h>
+
+struct cpufreq_policy;
 
 DECLARE_RESTRICTED_HOOK(android_rvh_show_max_freq,
 	TP_PROTO(struct cpufreq_policy *policy, unsigned int *max_freq),

@@ -7,10 +7,9 @@
 #if !defined(_TRACE_HOOK_FTRACE_DUMP_H) || defined(TRACE_HEADER_MULTI_READ)
 #define _TRACE_HOOK_FTRACE_DUMP_H
 
-#include <linux/trace_seq.h>
-#include <linux/trace_events.h>
-
 #include <trace/hooks/vendor_hooks.h>
+
+struct trace_seq;
 
 DECLARE_HOOK(android_vh_ftrace_oops_enter,
 	TP_PROTO(bool *ftrace_check),
