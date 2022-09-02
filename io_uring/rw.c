@@ -1000,7 +1000,7 @@ int io_do_iopoll(struct io_ring_ctx *ctx, bool force_nonspin)
 
 	wq_list_for_each(pos, start, &ctx->iopoll_list) {
 		struct io_kiocb *req = container_of(pos, struct io_kiocb, comp_list);
-		struct io_rw *rw = io_kiocb_to_cmd(req, struct io_rw);
+		struct file *file = req->file;
 		int ret;
 
 		/*
@@ -1012,12 +1012,15 @@ int io_do_iopoll(struct io_ring_ctx *ctx, bool force_nonspin)
 			break;
 
 		if (req->opcode == IORING_OP_URING_CMD) {
-			struct io_uring_cmd *ioucmd = (struct io_uring_cmd *)rw;
+			struct io_uring_cmd *ioucmd;
 
-			ret = req->file->f_op->uring_cmd_iopoll(ioucmd);
-		} else
-			ret = rw->kiocb.ki_filp->f_op->iopoll(&rw->kiocb, &iob,
-							poll_flags);
+			ioucmd = io_kiocb_to_cmd(req, struct io_uring_cmd);
+			ret = file->f_op->uring_cmd_iopoll(ioucmd);
+		} else {
+			struct io_rw *rw = io_kiocb_to_cmd(req, struct io_rw);
+
+			ret = file->f_op->iopoll(&rw->kiocb, &iob, poll_flags);
+		}
 		if (unlikely(ret < 0))
 			return ret;
 		else if (ret)
