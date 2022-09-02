@@ -237,8 +237,24 @@ gsi_channel_trans_mapped(struct gsi_channel *channel, u32 index)
 /* Return the oldest completed transaction for a channel (or null) */
 struct gsi_trans *gsi_channel_trans_complete(struct gsi_channel *channel)
 {
-	return list_first_entry_or_null(&channel->trans_info.complete,
-					struct gsi_trans, links);
+	struct gsi_trans_info *trans_info = &channel->trans_info;
+	u16 trans_id = trans_info->completed_id;
+	struct gsi_trans *trans;
+
+	trans = list_first_entry_or_null(&trans_info->complete,
+					 struct gsi_trans, links);
+
+	if (!trans) {
+		WARN_ON(trans_id != trans_info->pending_id);
+		return NULL;
+	}
+
+	if (!WARN_ON(trans_id == trans_info->pending_id)) {
+		trans_id %= channel->tre_count;
+		WARN_ON(trans != &trans_info->trans[trans_id]);
+	}
+
+	return trans;
 }
 
 /* Move a transaction from the allocated list to the committed list */
@@ -690,6 +706,8 @@ void gsi_channel_trans_cancel_pending(struct gsi_channel *channel)
 {
 	struct gsi_trans_info *trans_info = &channel->trans_info;
 	struct gsi_trans *trans;
+	struct gsi_trans *first;
+	struct gsi_trans *last;
 	bool cancelled;
 
 	/* channel->gsi->mutex is held by caller */
@@ -701,11 +719,33 @@ void gsi_channel_trans_cancel_pending(struct gsi_channel *channel)
 
 	list_splice_tail_init(&trans_info->pending, &trans_info->complete);
 
+	first = list_first_entry_or_null(&trans_info->complete,
+					 struct gsi_trans, links);
+	last = list_last_entry_or_null(&trans_info->complete,
+				       struct gsi_trans, links);
+
 	spin_unlock_bh(&trans_info->spinlock);
 
+	/* All pending transactions are now completed */
+	WARN_ON(cancelled != (trans_info->pending_id !=
+				trans_info->committed_id));
+
+	trans_info->pending_id = trans_info->committed_id;
+
 	/* Schedule NAPI polling to complete the cancelled transactions */
-	if (cancelled)
+	if (cancelled) {
+		u16 trans_id;
+
 		napi_schedule(&channel->napi);
+
+		trans_id = trans_info->completed_id;
+		trans = &trans_info->trans[trans_id % channel->tre_count];
+		WARN_ON(trans != first);
+
+		trans_id = trans_info->pending_id - 1;
+		trans = &trans_info->trans[trans_id % channel->tre_count];
+		WARN_ON(trans != last);
+	}
 }
 
 /* Issue a command to read a single byte from a channel */
