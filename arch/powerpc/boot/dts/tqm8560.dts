@@ -8,6 +8,8 @@
 
 /dts-v1/;
 
+/include/ "fsl/e500v1_power_isa.dtsi"
+
 / {
 	model = "tqc,tqm8560";
 	compatible = "tqc,tqm8560";
