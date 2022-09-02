@@ -839,11 +839,8 @@ static ssize_t btrfs_sinfo_bg_reclaim_threshold_show(struct kobject *kobj,
 						     char *buf)
 {
 	struct btrfs_space_info *space_info = to_space_info(kobj);
-	ssize_t ret;
 
-	ret = sysfs_emit(buf, "%d\n", READ_ONCE(space_info->bg_reclaim_threshold));
-
-	return ret;
+	return sysfs_emit(buf, "%d\n", READ_ONCE(space_info->bg_reclaim_threshold));
 }
 
 static ssize_t btrfs_sinfo_bg_reclaim_threshold_store(struct kobject *kobj,
@@ -1205,11 +1202,8 @@ static ssize_t btrfs_bg_reclaim_threshold_show(struct kobject *kobj,
 					       char *buf)
 {
 	struct btrfs_fs_info *fs_info = to_fs_info(kobj);
-	ssize_t ret;
 
-	ret = sysfs_emit(buf, "%d\n", READ_ONCE(fs_info->bg_reclaim_threshold));
-
-	return ret;
+	return sysfs_emit(buf, "%d\n", READ_ONCE(fs_info->bg_reclaim_threshold));
 }
 
 static ssize_t btrfs_bg_reclaim_threshold_store(struct kobject *kobj,
