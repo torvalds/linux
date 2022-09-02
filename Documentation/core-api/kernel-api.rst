@@ -36,6 +36,9 @@ String Conversions
 String Manipulation
 -------------------
 
+.. kernel-doc:: include/linux/fortify-string.h
+   :internal:
+
 .. kernel-doc:: lib/string.c
    :export:
 
