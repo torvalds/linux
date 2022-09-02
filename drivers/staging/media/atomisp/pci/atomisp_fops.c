@@ -711,7 +711,7 @@ static int atomisp_open(struct file *file)
 	if (ret)
 		return ret;
 
-	rt_mutex_lock(&isp->mutex);
+	mutex_lock(&isp->mutex);
 
 	asd->subdev.devnode = vdev;
 	/* Deferred firmware loading case. */
@@ -745,7 +745,7 @@ static int atomisp_open(struct file *file)
 	 */
 	if (pipe->users) {
 		dev_dbg(isp->dev, "video node already opened\n");
-		rt_mutex_unlock(&isp->mutex);
+		mutex_unlock(&isp->mutex);
 		return -EBUSY;
 	}
 
@@ -788,7 +788,7 @@ init_subdev:
 
 done:
 	pipe->users++;
-	rt_mutex_unlock(&isp->mutex);
+	mutex_unlock(&isp->mutex);
 
 	/* Ensure that a mode is set */
 	v4l2_ctrl_s_ctrl(asd->run_mode, pipe->default_run_mode);
@@ -799,7 +799,7 @@ css_error:
 	atomisp_css_uninit(isp);
 	pm_runtime_put(vdev->v4l2_dev->dev);
 error:
-	rt_mutex_unlock(&isp->mutex);
+	mutex_unlock(&isp->mutex);
 	v4l2_fh_release(file);
 	return ret;
 }
@@ -822,7 +822,7 @@ static int atomisp_release(struct file *file)
 		return -EBADF;
 
 	mutex_lock(&isp->streamoff_mutex);
-	rt_mutex_lock(&isp->mutex);
+	mutex_lock(&isp->mutex);
 
 	dev_dbg(isp->dev, "release device %s\n", vdev->name);
 
@@ -905,7 +905,7 @@ done:
 				     atomisp_subdev_source_pad(vdev),
 				     V4L2_SEL_TGT_COMPOSE, 0,
 				     &clear_compose);
-	rt_mutex_unlock(&isp->mutex);
+	mutex_unlock(&isp->mutex);
 	mutex_unlock(&isp->streamoff_mutex);
 
 	return v4l2_fh_release(file);
@@ -1063,7 +1063,7 @@ static int atomisp_mmap(struct file *file, struct vm_area_struct *vma)
 	if (!(vma->vm_flags & (VM_WRITE | VM_READ)))
 		return -EACCES;
 
-	rt_mutex_lock(&isp->mutex);
+	mutex_lock(&isp->mutex);
 
 	if (!(vma->vm_flags & VM_SHARED)) {
 		/* Map private buffer.
@@ -1074,7 +1074,7 @@ static int atomisp_mmap(struct file *file, struct vm_area_struct *vma)
 		 */
 		vma->vm_flags |= VM_SHARED;
 		ret = hmm_mmap(vma, vma->vm_pgoff << PAGE_SHIFT);
-		rt_mutex_unlock(&isp->mutex);
+		mutex_unlock(&isp->mutex);
 		return ret;
 	}
 
@@ -1117,7 +1117,7 @@ static int atomisp_mmap(struct file *file, struct vm_area_struct *vma)
 		}
 		raw_virt_addr->data_bytes = origin_size;
 		vma->vm_flags |= VM_IO | VM_DONTEXPAND | VM_DONTDUMP;
-		rt_mutex_unlock(&isp->mutex);
+		mutex_unlock(&isp->mutex);
 		return 0;
 	}
 
@@ -1129,12 +1129,12 @@ static int atomisp_mmap(struct file *file, struct vm_area_struct *vma)
 		ret = -EINVAL;
 		goto error;
 	}
-	rt_mutex_unlock(&isp->mutex);
+	mutex_unlock(&isp->mutex);
 
 	return atomisp_videobuf_mmap_mapper(&pipe->capq, vma);
 
 error:
-	rt_mutex_unlock(&isp->mutex);
+	mutex_unlock(&isp->mutex);
 
 	return ret;
 }
@@ -1146,12 +1146,12 @@ static __poll_t atomisp_poll(struct file *file,
 	struct atomisp_device *isp = video_get_drvdata(vdev);
 	struct atomisp_video_pipe *pipe = atomisp_to_video_pipe(vdev);
 
-	rt_mutex_lock(&isp->mutex);
+	mutex_lock(&isp->mutex);
 	if (pipe->capq.streaming != 1) {
-		rt_mutex_unlock(&isp->mutex);
+		mutex_unlock(&isp->mutex);
 		return EPOLLERR;
 	}
-	rt_mutex_unlock(&isp->mutex);
+	mutex_unlock(&isp->mutex);
 
 	return videobuf_poll_stream(file, &pipe->capq, pt);
 }

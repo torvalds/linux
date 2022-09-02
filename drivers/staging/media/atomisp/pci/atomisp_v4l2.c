@@ -1514,7 +1514,7 @@ static int atomisp_pci_probe(struct pci_dev *pdev, const struct pci_device_id *i
 
 	dev_dbg(&pdev->dev, "atomisp mmio base: %p\n", isp->base);
 
-	rt_mutex_init(&isp->mutex);
+	mutex_init(&isp->mutex);
 	mutex_init(&isp->streamoff_mutex);
 	spin_lock_init(&isp->lock);
 

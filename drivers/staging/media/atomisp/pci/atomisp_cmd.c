@@ -1446,10 +1446,10 @@ void atomisp_wdt_work(struct work_struct *work)
 	unsigned int pipe_wdt_cnt[MAX_STREAM_NUM][4] = { {0} };
 	bool css_recover = true;
 
-	rt_mutex_lock(&isp->mutex);
+	mutex_lock(&isp->mutex);
 	if (!atomisp_streaming_count(isp)) {
 		atomic_set(&isp->wdt_work_queued, 0);
-		rt_mutex_unlock(&isp->mutex);
+		mutex_unlock(&isp->mutex);
 		return;
 	}
 
@@ -1581,7 +1581,7 @@ void atomisp_wdt_work(struct work_struct *work)
 			isp->isp_fatal_error = true;
 			atomic_set(&isp->wdt_work_queued, 0);
 
-			rt_mutex_unlock(&isp->mutex);
+			mutex_unlock(&isp->mutex);
 			return;
 		}
 	}
@@ -1601,7 +1601,7 @@ void atomisp_wdt_work(struct work_struct *work)
 	dev_err(isp->dev, "timeout recovery handling done\n");
 	atomic_set(&isp->wdt_work_queued, 0);
 
-	rt_mutex_unlock(&isp->mutex);
+	mutex_unlock(&isp->mutex);
 }
 
 void atomisp_css_flush(struct atomisp_device *isp)
@@ -1861,7 +1861,7 @@ irqreturn_t atomisp_isr_thread(int irq, void *isp_ptr)
 	 * For CSS2.0: we change the way to not dequeue all the event at one
 	 * time, instead, dequue one and process one, then another
 	 */
-	rt_mutex_lock(&isp->mutex);
+	mutex_lock(&isp->mutex);
 	if (atomisp_css_isr_thread(isp, frame_done_found, css_pipe_done))
 		goto out;
 
@@ -1872,7 +1872,7 @@ irqreturn_t atomisp_isr_thread(int irq, void *isp_ptr)
 		atomisp_setup_flash(asd);
 	}
 out:
-	rt_mutex_unlock(&isp->mutex);
+	mutex_unlock(&isp->mutex);
 	dev_dbg(isp->dev, "<%s\n", __func__);
 
 	return IRQ_HANDLED;
