@@ -22,6 +22,10 @@
  */
 #define LAN9303_CHIP_REV 0x14
 # define LAN9303_CHIP_ID 0x9303
+# define LAN9352_CHIP_ID 0x9352
+# define LAN9353_CHIP_ID 0x9353
+# define LAN9354_CHIP_ID 0x9354
+# define LAN9355_CHIP_ID 0x9355
 #define LAN9303_IRQ_CFG 0x15
 # define LAN9303_IRQ_CFG_IRQ_ENABLE BIT(8)
 # define LAN9303_IRQ_CFG_IRQ_POL BIT(4)
@@ -855,8 +859,9 @@ static int lan9303_check_device(struct lan9303 *chip)
 		return ret;
 	}
 
-	if ((reg >> 16) != LAN9303_CHIP_ID) {
-		dev_err(chip->dev, "expecting LAN9303 chip, but found: %X\n",
+	if (((reg >> 16) != LAN9303_CHIP_ID) &&
+	    ((reg >> 16) != LAN9354_CHIP_ID)) {
+		dev_err(chip->dev, "unexpected device found: LAN%4.4X\n",
 			reg >> 16);
 		return -ENODEV;
 	}
@@ -872,7 +877,7 @@ static int lan9303_check_device(struct lan9303 *chip)
 	if (ret)
 		dev_warn(chip->dev, "failed to disable switching %d\n", ret);
 
-	dev_info(chip->dev, "Found LAN9303 rev. %u\n", reg & 0xffff);
+	dev_info(chip->dev, "Found LAN%4.4X rev. %u\n", (reg >> 16), reg & 0xffff);
 
 	ret = lan9303_detect_phy_setup(chip);
 	if (ret) {
