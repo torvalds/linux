@@ -966,6 +966,35 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.rd_table = &ksz9477_register_set,
 	},
 
+	[KSZ9896] = {
+		.chip_id = KSZ9896_CHIP_ID,
+		.dev_name = "KSZ9896",
+		.num_vlans = 4096,
+		.num_alus = 4096,
+		.num_statics = 16,
+		.cpu_ports = 0x3F,	/* can be configured as cpu port */
+		.port_cnt = 6,		/* total physical port count */
+		.ops = &ksz9477_dev_ops,
+		.phy_errata_9477 = true,
+		.mib_names = ksz9477_mib_names,
+		.mib_cnt = ARRAY_SIZE(ksz9477_mib_names),
+		.reg_mib_cnt = MIB_COUNTER_NUM,
+		.regs = ksz9477_regs,
+		.masks = ksz9477_masks,
+		.shifts = ksz9477_shifts,
+		.xmii_ctrl0 = ksz9477_xmii_ctrl0,
+		.xmii_ctrl1 = ksz9477_xmii_ctrl1,
+		.supports_mii	= {false, false, false, false,
+				   false, true},
+		.supports_rmii	= {false, false, false, false,
+				   false, true},
+		.supports_rgmii = {false, false, false, false,
+				   false, true},
+		.internal_phy	= {true, true, true, true,
+				   true, false},
+		.gbit_capable	= {true, true, true, true, true, true},
+	},
+
 	[KSZ9897] = {
 		.chip_id = KSZ9897_CHIP_ID,
 		.dev_name = "KSZ9897",
@@ -1807,6 +1836,7 @@ static enum dsa_tag_protocol ksz_get_tag_protocol(struct dsa_switch *ds,
 		proto = DSA_TAG_PROTO_KSZ9893;
 
 	if (dev->chip_id == KSZ9477_CHIP_ID ||
+	    dev->chip_id == KSZ9896_CHIP_ID ||
 	    dev->chip_id == KSZ9897_CHIP_ID ||
 	    dev->chip_id == KSZ9567_CHIP_ID)
 		proto = DSA_TAG_PROTO_KSZ9477;
@@ -2168,6 +2198,7 @@ static int ksz_switch_detect(struct ksz_device *dev)
 
 		switch (id32) {
 		case KSZ9477_CHIP_ID:
+		case KSZ9896_CHIP_ID:
 		case KSZ9897_CHIP_ID:
 		case KSZ9567_CHIP_ID:
 		case LAN9370_CHIP_ID:

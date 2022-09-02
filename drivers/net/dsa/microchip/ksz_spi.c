@@ -152,6 +152,10 @@ static const struct of_device_id ksz_dt_ids[] = {
 		.data = &ksz_switch_chips[KSZ9477]
 	},
 	{
+		.compatible = "microchip,ksz9896",
+		.data = &ksz_switch_chips[KSZ9896]
+	},
+	{
 		.compatible = "microchip,ksz9897",
 		.data = &ksz_switch_chips[KSZ9897]
 	},
@@ -202,6 +206,7 @@ static const struct spi_device_id ksz_spi_ids[] = {
 	{ "ksz8863" },
 	{ "ksz8873" },
 	{ "ksz9477" },
+	{ "ksz9896" },
 	{ "ksz9897" },
 	{ "ksz9893" },
 	{ "ksz9563" },
@@ -231,6 +236,7 @@ static struct spi_driver ksz_spi_driver = {
 module_spi_driver(ksz_spi_driver);
 
 MODULE_ALIAS("spi:ksz9477");
+MODULE_ALIAS("spi:ksz9896");
 MODULE_ALIAS("spi:ksz9897");
 MODULE_ALIAS("spi:ksz9893");
 MODULE_ALIAS("spi:ksz9563");
