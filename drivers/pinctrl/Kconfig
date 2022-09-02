@@ -137,7 +137,7 @@ config PINCTRL_BM1880
 
 config PINCTRL_CY8C95X0
 	tristate "Cypress CY8C95X0 I2C pinctrl and GPIO driver"
-	depends on I2C && OF
+	depends on I2C
 	select GPIOLIB
 	select GPIOLIB_IRQCHIP
 	select PINMUX
