@@ -58,6 +58,17 @@ config RPMSG_QCOM_SMD
 	  providing communication channels to remote processors in Qualcomm
 	  platforms.
 
+config RPMSG_ROCKCHIP
+	tristate "Rockchip Platform RPMsg Support"
+	depends on ARCH_ROCKCHIP
+	depends on MAILBOX
+	depends on ROCKCHIP_MBOX
+	select RPMSG
+	select VIRTIO
+	help
+	  Say y here to enable support for The Remote Processors Messasing
+	  in Rockchip Platform.
+
 config RPMSG_VIRTIO
 	tristate "Virtio RPMSG bus driver"
 	depends on HAS_DMA
