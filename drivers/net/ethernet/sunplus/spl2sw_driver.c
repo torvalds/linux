@@ -62,7 +62,8 @@ static int spl2sw_ethernet_stop(struct net_device *ndev)
 	return 0;
 }
 
-static int spl2sw_ethernet_start_xmit(struct sk_buff *skb, struct net_device *ndev)
+static netdev_tx_t spl2sw_ethernet_start_xmit(struct sk_buff *skb,
+					      struct net_device *ndev)
 {
 	struct spl2sw_mac *mac = netdev_priv(ndev);
 	struct spl2sw_common *comm = mac->comm;
