@@ -600,14 +600,6 @@ config GPIO_SPRD
 	help
 	  Say yes here to support Spreadtrum GPIO device.
 
-config GPIO_STA2X11
-	bool "STA2x11/ConneXt GPIO support"
-	depends on MFD_STA2X11
-	select GENERIC_IRQ_CHIP
-	help
-	  Say yes here to support the STA2x11/ConneXt GPIO device.
-	  The GPIO module has 128 GPIO pins with alternate functions.
-
 config GPIO_STP_XWAY
 	bool "XWAY STP GPIOs"
 	depends on SOC_XWAY || COMPILE_TEST
