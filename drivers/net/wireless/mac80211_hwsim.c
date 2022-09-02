@@ -229,6 +229,7 @@ static inline void hwsim_clear_magic(struct ieee80211_vif *vif)
 struct hwsim_sta_priv {
 	u32 magic;
 	unsigned int last_link;
+	u16 active_links_rx;
 };
 
 #define HWSIM_STA_MAGIC	0x6d537749
@@ -1566,6 +1567,29 @@ static void mac80211_hwsim_rx(struct mac80211_hwsim_data *data,
 			      struct ieee80211_rx_status *rx_status,
 			      struct sk_buff *skb)
 {
+	struct ieee80211_hdr *hdr = (void *)skb->data;
+
+	if (!ieee80211_has_morefrags(hdr->frame_control) &&
+	    !is_multicast_ether_addr(hdr->addr1) &&
+	    (ieee80211_is_mgmt(hdr->frame_control) ||
+	     ieee80211_is_data(hdr->frame_control))) {
+		struct ieee80211_sta *sta;
+		unsigned int link_id;
+
+		rcu_read_lock();
+		sta = ieee80211_find_sta_by_link_addrs(data->hw, hdr->addr2,
+						       hdr->addr1, &link_id);
+		if (sta) {
+			struct hwsim_sta_priv *sp = (void *)sta->drv_priv;
+
+			if (ieee80211_has_pm(hdr->frame_control))
+				sp->active_links_rx &= ~BIT(link_id);
+			else
+				sp->active_links_rx |= BIT(link_id);
+		}
+		rcu_read_unlock();
+	}
+
 	memcpy(IEEE80211_SKB_RXCB(skb), rx_status, sizeof(*rx_status));
 
 	mac80211_hwsim_add_vendor_rtap(skb);
@@ -1735,6 +1759,9 @@ mac80211_hwsim_select_tx_link(struct mac80211_hwsim_data *data,
 		link_id = (sp->last_link + i + 1) % ARRAY_SIZE(vif->link_conf);
 
 		if (!(vif->active_links & BIT(link_id)))
+			continue;
+
+		if (!(sp->active_links_rx & BIT(link_id)))
 			continue;
 
 		*link_sta = rcu_dereference(sta->link[link_id]);
@@ -2411,9 +2438,18 @@ static int mac80211_hwsim_sta_add(struct ieee80211_hw *hw,
 				  struct ieee80211_vif *vif,
 				  struct ieee80211_sta *sta)
 {
+	struct hwsim_sta_priv *sp = (void *)sta->drv_priv;
+
 	hwsim_check_magic(vif);
 	hwsim_set_sta_magic(sta);
 	mac80211_hwsim_sta_rc_update(hw, vif, sta, 0);
+
+	if (sta->valid_links) {
+		WARN(hweight16(sta->valid_links) > 1,
+		     "expect to add STA with single link, have 0x%x\n",
+		     sta->valid_links);
+		sp->active_links_rx = sta->valid_links;
+	}
 
 	return 0;
 }
@@ -3021,7 +3057,12 @@ static int mac80211_hwsim_change_sta_links(struct ieee80211_hw *hw,
 					   struct ieee80211_sta *sta,
 					   u16 old_links, u16 new_links)
 {
+	struct hwsim_sta_priv *sp = (void *)sta->drv_priv;
+
 	hwsim_check_sta_magic(sta);
+
+	if (vif->type == NL80211_IFTYPE_STATION)
+		sp->active_links_rx = new_links;
 
 	return 0;
 }
