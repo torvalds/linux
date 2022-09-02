@@ -481,6 +481,16 @@ config HID_VIEWSONIC
 	help
 	  Support for ViewSonic/Signotec PD1011 signature pad.
 
+config HID_VRC2
+	tristate "VRC-2 Car Controller"
+	depends on HID
+	help
+        Support for VRC-2 which is a 2-axis controller often used in
+        car simulators.
+
+        To compile this driver as a module, choose M here: the
+        module will be called hid-vrc2.
+
 config HID_XIAOMI
 	tristate "Xiaomi"
 	depends on HID

@@ -9065,6 +9065,12 @@ F:	drivers/hid/hid-sensor-*
 F:	drivers/iio/*/hid-*
 F:	include/linux/hid-sensor-*
 
+HID VRC-2 CAR CONTROLLER DRIVER
+M:	Marcus Folkesson <marcus.folkesson@gmail.com>
+L:	linux-input@vger.kernel.org
+S:	Maintained
+F:	drivers/hid/hid-vrc2.c
+
 HID WACOM DRIVER
 M:	Ping Cheng <ping.cheng@wacom.com>
 M:	Jason Gerecke  <jason.gerecke@wacom.com>
