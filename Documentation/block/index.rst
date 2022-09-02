@@ -23,3 +23,4 @@ Block
    stat
    switching-sched
    writeback_cache_control
+   ublk
