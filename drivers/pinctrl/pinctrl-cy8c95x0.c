@@ -3,8 +3,8 @@
  * CY8C95X0 20/40/60 pin I2C GPIO port expander with interrupt support
  *
  * Copyright (C) 2022 9elements GmbH
- * Author: Patrick Rudolph <patrick.rudolph@9elements.com>
- * Author: Naresh Solanki <Naresh.Solanki@9elements.com>
+ * Authors: Patrick Rudolph <patrick.rudolph@9elements.com>
+ *	    Naresh Solanki <Naresh.Solanki@9elements.com>
  */
 
 #include <linux/acpi.h>
@@ -37,7 +37,7 @@
 
 /* Port Select configures the port */
 #define CY8C95X0_PORTSEL	0x18
-/* port settings, write PORTSEL first */
+/* Port settings, write PORTSEL first */
 #define CY8C95X0_INTMASK	0x19
 #define CY8C95X0_PWMSEL		0x1A
 #define CY8C95X0_INVERT		0x1B
@@ -72,7 +72,6 @@ static const struct of_device_id cy8c95x0_dt_ids[] = {
 	{ .compatible = "cypress,cy8c9560", .data = OF_CY8C95X(60), },
 	{ }
 };
-
 MODULE_DEVICE_TABLE(of, cy8c95x0_dt_ids);
 
 static const struct acpi_gpio_params cy8c95x0_irq_gpios = { 0, 0, true };
@@ -429,7 +428,7 @@ static int cy8c95x0_write_regs_mask(struct cy8c95x0_pinctrl *chip, int reg,
 			continue;
 
 		switch (reg) {
-		/* muxed registers */
+		/* Muxed registers */
 		case CY8C95X0_INTMASK:
 		case CY8C95X0_PWMSEL:
 		case CY8C95X0_INVERT:
@@ -446,7 +445,7 @@ static int cy8c95x0_write_regs_mask(struct cy8c95x0_pinctrl *chip, int reg,
 				goto out;
 			off = reg;
 			break;
-		/* direct access registers */
+		/* Direct access registers */
 		case CY8C95X0_INPUT:
 		case CY8C95X0_OUTPUT:
 		case CY8C95X0_INTSTATUS:
@@ -500,7 +499,7 @@ static int cy8c95x0_read_regs_mask(struct cy8c95x0_pinctrl *chip, int reg,
 			continue;
 
 		switch (reg) {
-		/* muxed registers */
+		/* Muxed registers */
 		case CY8C95X0_INTMASK:
 		case CY8C95X0_PWMSEL:
 		case CY8C95X0_INVERT:
@@ -517,7 +516,7 @@ static int cy8c95x0_read_regs_mask(struct cy8c95x0_pinctrl *chip, int reg,
 				goto out;
 			off = reg;
 			break;
-		/* direct access registers */
+		/* Direct access registers */
 		case CY8C95X0_INPUT:
 		case CY8C95X0_OUTPUT:
 		case CY8C95X0_INTSTATUS:
@@ -592,18 +591,18 @@ static int cy8c95x0_gpio_direction_output(struct gpio_chip *gc,
 	u8 bit = cypress_get_pin_mask(chip, off);
 	int ret;
 
-	/* set output level */
+	/* Set output level */
 	ret = regmap_write_bits(chip->regmap, outreg, bit, val ? bit : 0);
 	if (ret)
 		return ret;
 
 	mutex_lock(&chip->i2c_lock);
-	/* select port */
+	/* Select port... */
 	ret = regmap_write(chip->regmap, CY8C95X0_PORTSEL, port);
 	if (ret)
 		goto out;
 
-	/* then direction */
+	/* ...then direction */
 	ret = regmap_write_bits(chip->regmap, CY8C95X0_DIRECTION, bit, 0);
 
 out:
@@ -624,7 +623,7 @@ static int cy8c95x0_gpio_get_value(struct gpio_chip *gc, unsigned int off)
 	if (ret < 0) {
 		/*
 		 * NOTE:
-		 * diagnostic already emitted; that's all we should
+		 * Diagnostic already emitted; that's all we should
 		 * do unless gpio_*_value_cansleep() calls become different
 		 * from their nonsleeping siblings (and report faults).
 		 */
@@ -687,7 +686,7 @@ static int cy8c95x0_gpio_get_pincfg(struct cy8c95x0_pinctrl *chip,
 
 	mutex_lock(&chip->i2c_lock);
 
-	/* select port */
+	/* Select port */
 	ret = regmap_write(chip->regmap, CY8C95X0_PORTSEL, port);
 	if (ret < 0)
 		goto out;
@@ -742,7 +741,8 @@ static int cy8c95x0_gpio_get_pincfg(struct cy8c95x0_pinctrl *chip,
 		ret = -ENOTSUPP;
 		goto out;
 	}
-	/* Writing 1 to one of the drive mode registers will automatically
+	/*
+	 * Writing 1 to one of the drive mode registers will automatically
 	 * clear conflicting set bits in the other drive mode registers.
 	 */
 	ret = regmap_read(chip->regmap, reg, &reg_val);
@@ -768,7 +768,7 @@ static int cy8c95x0_gpio_set_pincfg(struct cy8c95x0_pinctrl *chip,
 
 	mutex_lock(&chip->i2c_lock);
 
-	/* select port */
+	/* Select port */
 	ret = regmap_write(chip->regmap, CY8C95X0_PORTSEL, port);
 	if (ret < 0)
 		goto out;
@@ -805,7 +805,8 @@ static int cy8c95x0_gpio_set_pincfg(struct cy8c95x0_pinctrl *chip,
 		ret = -ENOTSUPP;
 		goto out;
 	}
-	/* Writing 1 to one of the drive mode registers will automatically
+	/*
+	 * Writing 1 to one of the drive mode registers will automatically
 	 * clear conflicting set bits in the other drive mode registers.
 	 */
 	ret = regmap_write_bits(chip->regmap, reg, bit, bit);
@@ -1130,7 +1131,7 @@ static int cy8c95x0_pinmux_cfg(struct cy8c95x0_pinctrl *chip,
 	u8 bit = cypress_get_pin_mask(chip, off);
 	int ret;
 
-	/* select port */
+	/* Select port */
 	ret = regmap_write(chip->regmap, CY8C95X0_PORTSEL, port);
 	if (ret < 0)
 		return ret;
@@ -1247,11 +1248,12 @@ static int cy8c95x0_setup_pinctrl(struct cy8c95x0_pinctrl *chip)
 	pd->pins = cy8c9560_pins;
 	pd->npins = chip->tpin;
 	pd->owner = THIS_MODULE;
-	chip->pctldev = devm_pinctrl_register(chip->dev, pd, chip);
 
+	chip->pctldev = devm_pinctrl_register(chip->dev, pd, chip);
 	if (IS_ERR(chip->pctldev))
 		return dev_err_probe(chip->dev, PTR_ERR(chip->pctldev),
 			"can't register controller\n");
+
 	return 0;
 }
 
@@ -1304,7 +1306,6 @@ static int cy8c95x0_probe(struct i2c_client *client)
 	chip->driver_data = (unsigned long)device_get_match_data(&client->dev);
 	if (!chip->driver_data)
 		chip->driver_data = i2c_match_id(cy8c95x0_id, client)->driver_data;
-
 	if (!chip->driver_data)
 		return -ENODEV;
 
@@ -1404,7 +1405,6 @@ static struct i2c_driver cy8c95x0_driver = {
 	.id_table	= cy8c95x0_id,
 	.detect		= cy8c95x0_detect,
 };
-
 module_i2c_driver(cy8c95x0_driver);
 
 MODULE_AUTHOR("Patrick Rudolph <patrick.rudolph@9elements.com>");
