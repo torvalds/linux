@@ -266,7 +266,7 @@ struct atomisp_device {
 
 	atomic_t wdt_work_queued;
 
-	spinlock_t lock; /* Just for streaming below */
+	spinlock_t lock; /* Protects asd[i].streaming */
 
 	bool need_gfx_throttle;
 

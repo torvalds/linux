@@ -874,12 +874,18 @@ static int s_ctrl(struct v4l2_ctrl *ctrl)
 {
 	struct atomisp_sub_device *asd = container_of(
 					     ctrl->handler, struct atomisp_sub_device, ctrl_handler);
+	unsigned int streaming;
+	unsigned long flags;
 
 	switch (ctrl->id) {
 	case V4L2_CID_RUN_MODE:
 		return __atomisp_update_run_mode(asd);
 	case V4L2_CID_DEPTH_MODE:
-		if (asd->streaming != ATOMISP_DEVICE_STREAMING_DISABLED) {
+		/* Use spinlock instead of mutex to avoid possible locking issues */
+		spin_lock_irqsave(&asd->isp->lock, flags);
+		streaming = asd->streaming;
+		spin_unlock_irqrestore(&asd->isp->lock, flags);
+		if (streaming != ATOMISP_DEVICE_STREAMING_DISABLED) {
 			dev_err(asd->isp->dev,
 				"ISP is streaming, it is not supported to change the depth mode\n");
 			return -EINVAL;

@@ -813,6 +813,7 @@ static int atomisp_release(struct file *file)
 	struct v4l2_requestbuffers req;
 	struct v4l2_subdev_fh fh;
 	struct v4l2_rect clear_compose = {0};
+	unsigned long flags;
 	int ret = 0;
 
 	v4l2_fh_init(&fh.vfh, vdev);
@@ -878,7 +879,9 @@ static int atomisp_release(struct file *file)
 
 	/* clear the asd field to show this camera is not used */
 	isp->inputs[asd->input_curr].asd = NULL;
+	spin_lock_irqsave(&isp->lock, flags);
 	asd->streaming = ATOMISP_DEVICE_STREAMING_DISABLED;
+	spin_unlock_irqrestore(&isp->lock, flags);
 
 	if (atomisp_dev_users(isp))
 		goto done;

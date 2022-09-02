@@ -3626,6 +3626,8 @@ int atomisp_css_get_dis_stat(struct atomisp_sub_device *asd,
 	struct atomisp_dis_buf *dis_buf;
 	unsigned long flags;
 
+	lockdep_assert_held(&isp->mutex);
+
 	if (!asd->params.dvs_stat->hor_prod.odd_real ||
 	    !asd->params.dvs_stat->hor_prod.odd_imag ||
 	    !asd->params.dvs_stat->hor_prod.even_real ||
@@ -3637,12 +3639,8 @@ int atomisp_css_get_dis_stat(struct atomisp_sub_device *asd,
 		return -EINVAL;
 
 	/* isp needs to be streaming to get DIS statistics */
-	spin_lock_irqsave(&isp->lock, flags);
-	if (asd->streaming != ATOMISP_DEVICE_STREAMING_ENABLED) {
-		spin_unlock_irqrestore(&isp->lock, flags);
+	if (asd->streaming != ATOMISP_DEVICE_STREAMING_ENABLED)
 		return -EINVAL;
-	}
-	spin_unlock_irqrestore(&isp->lock, flags);
 
 	if (atomisp_compare_dvs_grid(asd, &stats->dvs2_stat.grid_info) != 0)
 		/* If the grid info in the argument differs from the current
@@ -3800,6 +3798,8 @@ int atomisp_css_isr_thread(struct atomisp_device *isp,
 	struct atomisp_sub_device *asd;
 	bool reset_wdt_timer[MAX_STREAM_NUM] = {false};
 	int i;
+
+	lockdep_assert_held(&isp->mutex);
 
 	while (!ia_css_dequeue_psys_event(&current_event.event)) {
 		if (current_event.event.type ==

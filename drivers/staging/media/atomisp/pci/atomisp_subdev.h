@@ -330,7 +330,11 @@ struct atomisp_sub_device {
 	atomic_t sequence;      /* Sequence value that is assigned to buffer. */
 	atomic_t sequence_temp;
 
-	unsigned int streaming; /* Hold both mutex and lock to change this */
+	/*
+	 * Writers of streaming must hold both isp->mutex and isp->lock.
+	 * Readers of streaming need to hold only one of the two locks.
+	 */
+	unsigned int streaming;
 	bool stream_prepared; /* whether css stream is created */
 
 	/* subdev index: will be used to show which subdev is holding the
