@@ -1524,8 +1524,8 @@ static int compat_ip_get_mcast_msfilter(struct sock *sk, sockptr_t optval,
 	return 0;
 }
 
-static int do_ip_getsockopt(struct sock *sk, int level, int optname,
-			    sockptr_t optval, sockptr_t optlen)
+int do_ip_getsockopt(struct sock *sk, int level, int optname,
+		     sockptr_t optval, sockptr_t optlen)
 {
 	struct inet_sock *inet = inet_sk(sk);
 	bool needs_rtnl = getsockopt_needs_rtnl(optname);

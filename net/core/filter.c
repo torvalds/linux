@@ -5166,23 +5166,29 @@ static int sol_tcp_sockopt(struct sock *sk, int optname,
 				 KERNEL_SOCKPTR(optval), *optlen);
 }
 
-static int sol_ip_setsockopt(struct sock *sk, int optname,
-			     char *optval, int optlen)
+static int sol_ip_sockopt(struct sock *sk, int optname,
+			  char *optval, int *optlen,
+			  bool getopt)
 {
 	if (sk->sk_family != AF_INET)
 		return -EINVAL;
 
 	switch (optname) {
 	case IP_TOS:
-		if (optlen != sizeof(int))
+		if (*optlen != sizeof(int))
 			return -EINVAL;
 		break;
 	default:
 		return -EINVAL;
 	}
 
+	if (getopt)
+		return do_ip_getsockopt(sk, SOL_IP, optname,
+					KERNEL_SOCKPTR(optval),
+					KERNEL_SOCKPTR(optlen));
+
 	return do_ip_setsockopt(sk, SOL_IP, optname,
-				KERNEL_SOCKPTR(optval), optlen);
+				KERNEL_SOCKPTR(optval), *optlen);
 }
 
 static int sol_ipv6_setsockopt(struct sock *sk, int optname,
@@ -5214,7 +5220,7 @@ static int __bpf_setsockopt(struct sock *sk, int level, int optname,
 	if (level == SOL_SOCKET)
 		return sol_socket_sockopt(sk, optname, optval, &optlen, false);
 	else if (IS_ENABLED(CONFIG_INET) && level == SOL_IP)
-		return sol_ip_setsockopt(sk, optname, optval, optlen);
+		return sol_ip_sockopt(sk, optname, optval, &optlen, false);
 	else if (IS_ENABLED(CONFIG_IPV6) && level == SOL_IPV6)
 		return sol_ipv6_setsockopt(sk, optname, optval, optlen);
 	else if (IS_ENABLED(CONFIG_INET) && level == SOL_TCP)
@@ -5244,19 +5250,7 @@ static int __bpf_getsockopt(struct sock *sk, int level, int optname,
 	} else if (IS_ENABLED(CONFIG_INET) && level == SOL_TCP) {
 		err = sol_tcp_sockopt(sk, optname, optval, &optlen, true);
 	} else if (IS_ENABLED(CONFIG_INET) && level == SOL_IP) {
-		struct inet_sock *inet = inet_sk(sk);
-
-		if (optlen != sizeof(int) || sk->sk_family != AF_INET)
-			goto err_clear;
-
-		/* Only some options are supported */
-		switch (optname) {
-		case IP_TOS:
-			*((int *)optval) = (int)inet->tos;
-			break;
-		default:
-			goto err_clear;
-		}
+		err = sol_ip_sockopt(sk, optname, optval, &optlen, true);
 	} else if (IS_ENABLED(CONFIG_IPV6) && level == SOL_IPV6) {
 		struct ipv6_pinfo *np = inet6_sk(sk);
 
