@@ -1198,7 +1198,6 @@ static int cy8c95x0_setup_pinctrl(struct cy8c95x0_pinctrl *chip)
 	pd->pctlops = &cy8c95x0_pinctrl_ops;
 	pd->confops = &cy8c95x0_pinconf_ops;
 	pd->pmxops = &cy8c95x0_pmxops;
-	pd->npins = chip->gpio_chip.ngpio;
 	pd->name = dev_name(chip->dev);
 	pd->pins = cy8c9560_pins;
 	pd->npins = chip->tpin;
