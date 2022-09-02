@@ -19,8 +19,6 @@
 
 /* Switch NVM support */
 
-#define NVM_CSS			0x10
-
 struct nvm_auth_status {
 	struct list_head list;
 	uuid_t uuid;
@@ -102,70 +100,30 @@ static void nvm_clear_auth_status(const struct tb_switch *sw)
 
 static int nvm_validate_and_write(struct tb_switch *sw)
 {
-	unsigned int image_size, hdr_size;
-	const u8 *buf = sw->nvm->buf;
-	u16 ds_size;
+	unsigned int image_size;
+	const u8 *buf;
 	int ret;
 
-	if (!buf)
-		return -EINVAL;
+	ret = tb_nvm_validate(sw->nvm);
+	if (ret)
+		return ret;
 
+	ret = tb_nvm_write_headers(sw->nvm);
+	if (ret)
+		return ret;
+
+	buf = sw->nvm->buf_data_start;
 	image_size = sw->nvm->buf_data_size;
-	if (image_size < NVM_MIN_SIZE || image_size > NVM_MAX_SIZE)
-		return -EINVAL;
-
-	/*
-	 * FARB pointer must point inside the image and must at least
-	 * contain parts of the digital section we will be reading here.
-	 */
-	hdr_size = (*(u32 *)buf) & 0xffffff;
-	if (hdr_size + NVM_DEVID + 2 >= image_size)
-		return -EINVAL;
-
-	/* Digital section start should be aligned to 4k page */
-	if (!IS_ALIGNED(hdr_size, SZ_4K))
-		return -EINVAL;
-
-	/*
-	 * Read digital section size and check that it also fits inside
-	 * the image.
-	 */
-	ds_size = *(u16 *)(buf + hdr_size);
-	if (ds_size >= image_size)
-		return -EINVAL;
-
-	if (!sw->safe_mode) {
-		u16 device_id;
-
-		/*
-		 * Make sure the device ID in the image matches the one
-		 * we read from the switch config space.
-		 */
-		device_id = *(u16 *)(buf + hdr_size + NVM_DEVID);
-		if (device_id != sw->config.device_id)
-			return -EINVAL;
-
-		if (sw->generation < 3) {
-			/* Write CSS headers first */
-			ret = dma_port_flash_write(sw->dma_port,
-				DMA_PORT_CSS_ADDRESS, buf + NVM_CSS,
-				DMA_PORT_CSS_MAX_SIZE);
-			if (ret)
-				return ret;
-		}
-
-		/* Skip headers in the image */
-		buf += hdr_size;
-		image_size -= hdr_size;
-	}
 
 	if (tb_switch_is_usb4(sw))
 		ret = usb4_switch_nvm_write(sw, 0, buf, image_size);
 	else
 		ret = dma_port_flash_write(sw->dma_port, 0, buf, image_size);
-	if (!ret)
-		sw->nvm->flushed = true;
-	return ret;
+	if (ret)
+		return ret;
+
+	sw->nvm->flushed = true;
+	return 0;
 }
 
 static int nvm_authenticate_host_dma_port(struct tb_switch *sw)
@@ -393,28 +351,20 @@ static int nvm_write(void *priv, unsigned int offset, void *val, size_t bytes)
 static int tb_switch_nvm_add(struct tb_switch *sw)
 {
 	struct tb_nvm *nvm;
-	u32 val;
 	int ret;
 
 	if (!nvm_readable(sw))
 		return 0;
 
-	/*
-	 * The NVM format of non-Intel hardware is not known so
-	 * currently restrict NVM upgrade for Intel hardware. We may
-	 * relax this in the future when we learn other NVM formats.
-	 */
-	if (sw->config.vendor_id != PCI_VENDOR_ID_INTEL &&
-	    sw->config.vendor_id != 0x8087) {
-		dev_info(&sw->dev,
-			 "NVM format of vendor %#x is not known, disabling NVM upgrade\n",
-			 sw->config.vendor_id);
-		return 0;
+	nvm = tb_nvm_alloc(&sw->dev);
+	if (IS_ERR(nvm)) {
+		ret = PTR_ERR(nvm) == -EOPNOTSUPP ? 0 : PTR_ERR(nvm);
+		goto err_nvm;
 	}
 
-	nvm = tb_nvm_alloc(&sw->dev);
-	if (IS_ERR(nvm))
-		return PTR_ERR(nvm);
+	ret = tb_nvm_read_version(nvm);
+	if (ret)
+		goto err_nvm;
 
 	/*
 	 * If the switch is in safe-mode the only accessible portion of
@@ -422,30 +372,13 @@ static int tb_switch_nvm_add(struct tb_switch *sw)
 	 * write new functional NVM.
 	 */
 	if (!sw->safe_mode) {
-		u32 nvm_size, hdr_size;
-
-		ret = tb_switch_nvm_read(sw, NVM_FLASH_SIZE, &val, sizeof(val));
-		if (ret)
-			goto err_nvm;
-
-		hdr_size = sw->generation < 3 ? SZ_8K : SZ_16K;
-		nvm_size = (SZ_1M << (val & 7)) / 8;
-		nvm_size = (nvm_size - hdr_size) / 2;
-
-		ret = tb_switch_nvm_read(sw, NVM_VERSION, &val, sizeof(val));
-		if (ret)
-			goto err_nvm;
-
-		nvm->major = (val >> 16) & 0xff;
-		nvm->minor = (val >> 8) & 0xff;
-
-		ret = tb_nvm_add_active(nvm, nvm_size, nvm_read);
+		ret = tb_nvm_add_active(nvm, nvm_read);
 		if (ret)
 			goto err_nvm;
 	}
 
 	if (!sw->no_nvm_upgrade) {
-		ret = tb_nvm_add_non_active(nvm, NVM_MAX_SIZE, nvm_write);
+		ret = tb_nvm_add_non_active(nvm, nvm_write);
 		if (ret)
 			goto err_nvm;
 	}
@@ -454,7 +387,11 @@ static int tb_switch_nvm_add(struct tb_switch *sw)
 	return 0;
 
 err_nvm:
-	tb_nvm_free(nvm);
+	tb_sw_dbg(sw, "NVM upgrade disabled\n");
+	sw->no_nvm_upgrade = true;
+	if (!IS_ERR(nvm))
+		tb_nvm_free(nvm);
+
 	return ret;
 }
 
@@ -2001,6 +1938,11 @@ static ssize_t nvm_authenticate_sysfs(struct device *dev, const char *buf,
 	if (!mutex_trylock(&sw->tb->lock)) {
 		ret = restart_syscall();
 		goto exit_rpm;
+	}
+
+	if (sw->no_nvm_upgrade) {
+		ret = -EOPNOTSUPP;
+		goto exit_unlock;
 	}
 
 	/* If NVMem devices are not yet added */

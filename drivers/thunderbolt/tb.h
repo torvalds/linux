@@ -23,11 +23,6 @@
 #define NVM_MAX_SIZE		SZ_512K
 #define NVM_DATA_DWORDS		16
 
-/* Intel specific NVM offsets */
-#define NVM_DEVID		0x05
-#define NVM_VERSION		0x08
-#define NVM_FLASH_SIZE		0x45
-
 /**
  * struct tb_nvm - Structure holding NVM information
  * @dev: Owner of the NVM
@@ -35,13 +30,17 @@
  * @minor: Minor version number of the active NVM portion
  * @id: Identifier used with both NVM portions
  * @active: Active portion NVMem device
+ * @active_size: Size in bytes of the active NVM
  * @non_active: Non-active portion NVMem device
  * @buf: Buffer where the NVM image is stored before it is written to
  *	 the actual NVM flash device
+ * @buf_data_start: Where the actual image starts after skipping
+ *		    possible headers
  * @buf_data_size: Number of bytes actually consumed by the new NVM
  *		   image
  * @authenticating: The device is authenticating the new NVM
  * @flushed: The image has been flushed to the storage area
+ * @vops: Router vendor specific NVM operations (optional)
  *
  * The user of this structure needs to handle serialization of possible
  * concurrent access.
@@ -52,11 +51,14 @@ struct tb_nvm {
 	u32 minor;
 	int id;
 	struct nvmem_device *active;
+	size_t active_size;
 	struct nvmem_device *non_active;
 	void *buf;
+	void *buf_data_start;
 	size_t buf_data_size;
 	bool authenticating;
 	bool flushed;
+	const struct tb_nvm_vendor_ops *vops;
 };
 
 enum tb_nvm_write_ops {
@@ -300,6 +302,7 @@ struct usb4_port {
  * @device: Device ID of the retimer
  * @port: Pointer to the lane 0 adapter
  * @nvm: Pointer to the NVM if the retimer has one (%NULL otherwise)
+ * @no_nvm_upgrade: Prevent NVM upgrade of this retimer
  * @auth_status: Status of last NVM authentication
  */
 struct tb_retimer {
@@ -310,6 +313,7 @@ struct tb_retimer {
 	u32 device;
 	struct tb_port *port;
 	struct tb_nvm *nvm;
+	bool no_nvm_upgrade;
 	u32 auth_status;
 };
 
@@ -741,11 +745,13 @@ static inline void tb_domain_put(struct tb *tb)
 }
 
 struct tb_nvm *tb_nvm_alloc(struct device *dev);
-int tb_nvm_add_active(struct tb_nvm *nvm, size_t size, nvmem_reg_read_t reg_read);
+int tb_nvm_read_version(struct tb_nvm *nvm);
+int tb_nvm_validate(struct tb_nvm *nvm);
+int tb_nvm_write_headers(struct tb_nvm *nvm);
+int tb_nvm_add_active(struct tb_nvm *nvm, nvmem_reg_read_t reg_read);
 int tb_nvm_write_buf(struct tb_nvm *nvm, unsigned int offset, void *val,
 		     size_t bytes);
-int tb_nvm_add_non_active(struct tb_nvm *nvm, size_t size,
-			  nvmem_reg_write_t reg_write);
+int tb_nvm_add_non_active(struct tb_nvm *nvm, nvmem_reg_write_t reg_write);
 void tb_nvm_free(struct tb_nvm *nvm);
 void tb_nvm_exit(void);
 

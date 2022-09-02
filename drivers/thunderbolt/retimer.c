@@ -73,34 +73,23 @@ static int nvm_write(void *priv, unsigned int offset, void *val, size_t bytes)
 static int tb_retimer_nvm_add(struct tb_retimer *rt)
 {
 	struct tb_nvm *nvm;
-	u32 val, nvm_size;
 	int ret;
 
 	nvm = tb_nvm_alloc(&rt->dev);
-	if (IS_ERR(nvm))
-		return PTR_ERR(nvm);
+	if (IS_ERR(nvm)) {
+		ret = PTR_ERR(nvm) == -EOPNOTSUPP ? 0 : PTR_ERR(nvm);
+		goto err_nvm;
+	}
 
-	ret = usb4_port_retimer_nvm_read(rt->port, rt->index, NVM_VERSION, &val,
-					 sizeof(val));
+	ret = tb_nvm_read_version(nvm);
 	if (ret)
 		goto err_nvm;
 
-	nvm->major = (val >> 16) & 0xff;
-	nvm->minor = (val >> 8) & 0xff;
-
-	ret = usb4_port_retimer_nvm_read(rt->port, rt->index, NVM_FLASH_SIZE,
-					 &val, sizeof(val));
+	ret = tb_nvm_add_active(nvm, nvm_read);
 	if (ret)
 		goto err_nvm;
 
-	nvm_size = (SZ_1M << (val & 7)) / 8;
-	nvm_size = (nvm_size - SZ_16K) / 2;
-
-	ret = tb_nvm_add_active(nvm, nvm_size, nvm_read);
-	if (ret)
-		goto err_nvm;
-
-	ret = tb_nvm_add_non_active(nvm, NVM_MAX_SIZE, nvm_write);
+	ret = tb_nvm_add_non_active(nvm, nvm_write);
 	if (ret)
 		goto err_nvm;
 
@@ -108,59 +97,33 @@ static int tb_retimer_nvm_add(struct tb_retimer *rt)
 	return 0;
 
 err_nvm:
-	tb_nvm_free(nvm);
+	dev_dbg(&rt->dev, "NVM upgrade disabled\n");
+	if (!IS_ERR(nvm))
+		tb_nvm_free(nvm);
+
 	return ret;
 }
 
 static int tb_retimer_nvm_validate_and_write(struct tb_retimer *rt)
 {
-	unsigned int image_size, hdr_size;
-	const u8 *buf = rt->nvm->buf;
-	u16 ds_size, device;
+	unsigned int image_size;
+	const u8 *buf;
 	int ret;
 
+	ret = tb_nvm_validate(rt->nvm);
+	if (ret)
+		return ret;
+
+	buf = rt->nvm->buf_data_start;
 	image_size = rt->nvm->buf_data_size;
-	if (image_size < NVM_MIN_SIZE || image_size > NVM_MAX_SIZE)
-		return -EINVAL;
-
-	/*
-	 * FARB pointer must point inside the image and must at least
-	 * contain parts of the digital section we will be reading here.
-	 */
-	hdr_size = (*(u32 *)buf) & 0xffffff;
-	if (hdr_size + NVM_DEVID + 2 >= image_size)
-		return -EINVAL;
-
-	/* Digital section start should be aligned to 4k page */
-	if (!IS_ALIGNED(hdr_size, SZ_4K))
-		return -EINVAL;
-
-	/*
-	 * Read digital section size and check that it also fits inside
-	 * the image.
-	 */
-	ds_size = *(u16 *)(buf + hdr_size);
-	if (ds_size >= image_size)
-		return -EINVAL;
-
-	/*
-	 * Make sure the device ID in the image matches the retimer
-	 * hardware.
-	 */
-	device = *(u16 *)(buf + hdr_size + NVM_DEVID);
-	if (device != rt->device)
-		return -EINVAL;
-
-	/* Skip headers in the image */
-	buf += hdr_size;
-	image_size -= hdr_size;
 
 	ret = usb4_port_retimer_nvm_write(rt->port, rt->index, 0, buf,
 					 image_size);
-	if (!ret)
-		rt->nvm->flushed = true;
+	if (ret)
+		return ret;
 
-	return ret;
+	rt->nvm->flushed = true;
+	return 0;
 }
 
 static int tb_retimer_nvm_authenticate(struct tb_retimer *rt, bool auth_only)
@@ -214,6 +177,8 @@ static ssize_t nvm_authenticate_show(struct device *dev,
 
 	if (!rt->nvm)
 		ret = -EAGAIN;
+	else if (rt->no_nvm_upgrade)
+		ret = -EOPNOTSUPP;
 	else
 		ret = sprintf(buf, "%#x\n", rt->auth_status);
 
