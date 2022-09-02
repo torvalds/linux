@@ -402,6 +402,11 @@ static int rnbd_srv_rdma_ev(void *priv,
 		return -EINVAL;
 	}
 
+	/*
+	 * Since ret is passed to rtrs to handle the failure case, we
+	 * just return 0 at the end otherwise callers in rtrs would call
+	 * send_io_resp_imm again to print redundant err message.
+	 */
 	rtrs_srv_resp_rdma(id, ret);
 	return 0;
 }
