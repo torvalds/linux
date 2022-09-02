@@ -38,6 +38,7 @@
 #define TCP_USER_TIMEOUT	18
 #define TCP_NOTSENT_LOWAT	25
 #define TCP_SAVE_SYN		27
+#define TCP_SAVED_SYN		28
 #define TCP_CA_NAME_MAX		16
 #define TCP_NAGLE_OFF		1
 
