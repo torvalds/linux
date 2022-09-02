@@ -374,14 +374,14 @@ static bool cy8c95x0_precious_register(struct device *dev, unsigned int reg)
 }
 
 static const struct reg_default cy8c95x0_reg_defaults[] = {
-	{ CY8C95X0_OUTPUT_(0), 0xff },
-	{ CY8C95X0_OUTPUT_(1), 0xff },
-	{ CY8C95X0_OUTPUT_(2), 0xff },
-	{ CY8C95X0_OUTPUT_(3), 0xff },
-	{ CY8C95X0_OUTPUT_(4), 0xff },
-	{ CY8C95X0_OUTPUT_(5), 0xff },
-	{ CY8C95X0_OUTPUT_(6), 0xff },
-	{ CY8C95X0_OUTPUT_(7), 0xff },
+	{ CY8C95X0_OUTPUT_(0), GENMASK(7, 0) },
+	{ CY8C95X0_OUTPUT_(1), GENMASK(7, 0) },
+	{ CY8C95X0_OUTPUT_(2), GENMASK(7, 0) },
+	{ CY8C95X0_OUTPUT_(3), GENMASK(7, 0) },
+	{ CY8C95X0_OUTPUT_(4), GENMASK(7, 0) },
+	{ CY8C95X0_OUTPUT_(5), GENMASK(7, 0) },
+	{ CY8C95X0_OUTPUT_(6), GENMASK(7, 0) },
+	{ CY8C95X0_OUTPUT_(7), GENMASK(7, 0) },
 	{ CY8C95X0_PORTSEL, 0 },
 	{ CY8C95X0_PWMSEL, 0 },
 };
@@ -1268,7 +1268,7 @@ static int cy8c95x0_detect(struct i2c_client *client,
 	ret = i2c_smbus_read_byte_data(client, CY8C95X0_DEVID);
 	if (ret < 0)
 		return ret;
-	switch (ret & 0xf0) {
+	switch (ret & GENMASK(7, 4)) {
 	case 0x20:
 		name = cy8c95x0_id[0].name;
 		break;
