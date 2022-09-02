@@ -41,9 +41,6 @@ void clear_shadow_from_swap_cache(int type, unsigned long begin,
 				  unsigned long end);
 struct folio *swap_cache_get_folio(swp_entry_t entry,
 		struct vm_area_struct *vma, unsigned long addr);
-struct page *lookup_swap_cache(swp_entry_t entry,
-			       struct vm_area_struct *vma,
-			       unsigned long addr);
 struct page *find_get_incore_page(struct address_space *mapping, pgoff_t index);
 
 struct page *read_swap_cache_async(swp_entry_t entry, gfp_t gfp_mask,
@@ -103,13 +100,6 @@ static inline int swap_writepage(struct page *p, struct writeback_control *wbc)
 
 static inline struct folio *swap_cache_get_folio(swp_entry_t entry,
 		struct vm_area_struct *vma, unsigned long addr)
-{
-	return NULL;
-}
-
-static inline struct page *lookup_swap_cache(swp_entry_t swp,
-					     struct vm_area_struct *vma,
-					     unsigned long addr)
 {
 	return NULL;
 }

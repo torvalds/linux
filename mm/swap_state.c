@@ -369,16 +369,6 @@ struct folio *swap_cache_get_folio(swp_entry_t entry,
 	return folio;
 }
 
-struct page *lookup_swap_cache(swp_entry_t entry, struct vm_area_struct *vma,
-			       unsigned long addr)
-{
-	struct folio *folio = swap_cache_get_folio(entry, vma, addr);
-
-	if (!folio)
-		return NULL;
-	return folio_file_page(folio, swp_offset(entry));
-}
-
 /**
  * find_get_incore_page - Find and get a page from the page or swap caches.
  * @mapping: The address_space to search.
@@ -430,7 +420,7 @@ struct page *__read_swap_cache_async(swp_entry_t entry, gfp_t gfp_mask,
 		int err;
 		/*
 		 * First check the swap cache.  Since this is normally
-		 * called after lookup_swap_cache() failed, re-calling
+		 * called after swap_cache_get_folio() failed, re-calling
 		 * that would confuse statistics.
 		 */
 		si = get_swap_device(entry);
