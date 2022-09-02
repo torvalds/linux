@@ -31,9 +31,9 @@ ieee80211_update_from_he_6ghz_capa(const struct ieee80211_he_6ghz_capa *he_6ghz_
 			break;
 		}
 
-		sta->sta.smps_mode = smps_mode;
+		link_sta->pub->smps_mode = smps_mode;
 	} else {
-		sta->sta.smps_mode = IEEE80211_SMPS_OFF;
+		link_sta->pub->smps_mode = IEEE80211_SMPS_OFF;
 	}
 
 	switch (le16_get_bits(he_6ghz_capa->capa,

@@ -2136,6 +2136,7 @@ struct ieee80211_sta_txpwr {
  *	in ieee80211_sta. For MLO Link STA this addr can be same or different
  *	from addr in ieee80211_sta (representing MLD STA addr)
  * @link_id: the link ID for this link STA (0 for deflink)
+ * @smps_mode: current SMPS mode (off, static or dynamic)
  * @supp_rates: Bitmap of supported rates
  * @ht_cap: HT capabilities of this STA; restricted to our own capabilities
  * @vht_cap: VHT capabilities of this STA; restricted to our own capabilities
@@ -2153,6 +2154,7 @@ struct ieee80211_sta_txpwr {
 struct ieee80211_link_sta {
 	u8 addr[ETH_ALEN];
 	u8 link_id;
+	enum ieee80211_smps_mode smps_mode;
 
 	u32 supp_rates[NUM_NL80211_BANDS];
 	struct ieee80211_sta_ht_cap ht_cap;
@@ -2191,7 +2193,6 @@ struct ieee80211_link_sta {
  *	if wme is supported. The bits order is like in
  *	IEEE80211_WMM_IE_STA_QOSINFO_AC_*.
  * @max_sp: max Service Period. Only valid if wme is supported.
- * @smps_mode: current SMPS mode (off, static or dynamic)
  * @rates: rate control selection table
  * @tdls: indicates whether the STA is a TDLS peer
  * @tdls_initiator: indicates the STA is an initiator of the TDLS link. Only
@@ -2226,7 +2227,6 @@ struct ieee80211_sta {
 	bool wme;
 	u8 uapsd_queues;
 	u8 max_sp;
-	enum ieee80211_smps_mode smps_mode;
 	struct ieee80211_sta_rates __rcu *rates;
 	bool tdls;
 	bool tdls_initiator;

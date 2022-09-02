@@ -896,7 +896,7 @@ void mt76_connac_mcu_wtbl_smps_tlv(struct sk_buff *skb,
 	tlv = mt76_connac_mcu_add_nested_tlv(skb, WTBL_SMPS, sizeof(*smps),
 					     wtbl_tlv, sta_wtbl);
 	smps = (struct wtbl_smps *)tlv;
-	smps->smps = (sta->smps_mode == IEEE80211_SMPS_DYNAMIC);
+	smps->smps = (sta->deflink.smps_mode == IEEE80211_SMPS_DYNAMIC);
 }
 EXPORT_SYMBOL_GPL(mt76_connac_mcu_wtbl_smps_tlv);
 

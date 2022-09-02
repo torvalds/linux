@@ -475,6 +475,8 @@ static void sta_info_add_link(struct sta_info *sta,
 	link_sta->link_id = link_id;
 	rcu_assign_pointer(sta->link[link_id], link_info);
 	rcu_assign_pointer(sta->sta.link[link_id], link_sta);
+
+	link_sta->smps_mode = IEEE80211_SMPS_OFF;
 }
 
 static struct sta_info *
@@ -628,7 +630,6 @@ __sta_info_alloc(struct ieee80211_sub_if_data *sdata,
 		}
 	}
 
-	sta->sta.smps_mode = IEEE80211_SMPS_OFF;
 	sta->sta.max_rc_amsdu_len = IEEE80211_MAX_MPDU_LEN_HT_BA;
 
 	sta->cparams.ce_threshold = CODEL_DISABLED_THRESHOLD;

@@ -299,12 +299,13 @@ bool ieee80211_ht_cap_ie_to_sta_ht_cap(struct ieee80211_sub_if_data *sdata,
 			break;
 		}
 
-		if (smps_mode != sta->sta.smps_mode)
+		if (smps_mode != link_sta->pub->smps_mode)
 			changed = true;
-		sta->sta.smps_mode = smps_mode;
+		link_sta->pub->smps_mode = smps_mode;
 	} else {
-		sta->sta.smps_mode = IEEE80211_SMPS_OFF;
+		link_sta->pub->smps_mode = IEEE80211_SMPS_OFF;
 	}
+
 	return changed;
 }
 

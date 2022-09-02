@@ -1304,7 +1304,7 @@ int mt7915_mcu_set_fixed_rate_ctrl(struct mt7915_dev *dev,
 			ra->phy = *phy;
 		break;
 	case RATE_PARAM_MMPS_UPDATE:
-		ra->mmps_mode = mt7915_mcu_get_mmps_mode(sta->smps_mode);
+		ra->mmps_mode = mt7915_mcu_get_mmps_mode(sta->deflink.smps_mode);
 		break;
 	default:
 		break;
@@ -1459,7 +1459,7 @@ mt7915_mcu_sta_rate_ctrl_tlv(struct sk_buff *skb, struct mt7915_dev *dev,
 	ra->channel = chandef->chan->hw_value;
 	ra->bw = sta->deflink.bandwidth;
 	ra->phy.bw = sta->deflink.bandwidth;
-	ra->mmps_mode = mt7915_mcu_get_mmps_mode(sta->smps_mode);
+	ra->mmps_mode = mt7915_mcu_get_mmps_mode(sta->deflink.smps_mode);
 
 	if (supp_rate) {
 		supp_rate &= mask->control[band].legacy;

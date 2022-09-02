@@ -143,7 +143,7 @@ rs_fw_vht_set_enabled_rates(const struct ieee80211_sta *sta,
 	};
 
 	/* the station support only a single receive chain */
-	if (sta->smps_mode == IEEE80211_SMPS_STATIC)
+	if (sta->deflink.smps_mode == IEEE80211_SMPS_STATIC)
 		max_nss = 1;
 
 	for (i = 0; i < max_nss && i < IWL_TLC_NSS_MAX; i++) {
@@ -205,7 +205,7 @@ rs_fw_he_set_enabled_rates(const struct ieee80211_sta *sta,
 	u8 nss = sta->deflink.rx_nss;
 
 	/* the station support only a single receive chain */
-	if (sta->smps_mode == IEEE80211_SMPS_STATIC)
+	if (sta->deflink.smps_mode == IEEE80211_SMPS_STATIC)
 		nss = 1;
 
 	for (i = 0; i < nss && i < IWL_TLC_NSS_MAX; i++) {
@@ -270,7 +270,7 @@ static void rs_fw_set_supp_rates(struct ieee80211_sta *sta,
 			cpu_to_le16(ht_cap->mcs.rx_mask[0]);
 
 		/* the station support only a single receive chain */
-		if (sta->smps_mode == IEEE80211_SMPS_STATIC)
+		if (sta->deflink.smps_mode == IEEE80211_SMPS_STATIC)
 			cmd->ht_rates[IWL_TLC_NSS_2][IWL_TLC_MCS_PER_BW_80] =
 				0;
 		else

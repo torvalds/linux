@@ -8520,7 +8520,7 @@ static void ath10k_sta_rc_update(struct ieee80211_hw *hw,
 		   "mac sta rc update for %pM changed %08x bw %d nss %d smps %d\n",
 		   sta->addr, changed, sta->deflink.bandwidth,
 		   sta->deflink.rx_nss,
-		   sta->smps_mode);
+		   sta->deflink.smps_mode);
 
 	if (changed & IEEE80211_RC_BW_CHANGED) {
 		bw = WMI_PEER_CHWIDTH_20MHZ;
@@ -8554,7 +8554,7 @@ static void ath10k_sta_rc_update(struct ieee80211_hw *hw,
 	if (changed & IEEE80211_RC_SMPS_CHANGED) {
 		smps = WMI_PEER_SMPS_PS_NONE;
 
-		switch (sta->smps_mode) {
+		switch (sta->deflink.smps_mode) {
 		case IEEE80211_SMPS_AUTOMATIC:
 		case IEEE80211_SMPS_OFF:
 			smps = WMI_PEER_SMPS_PS_NONE;
@@ -8567,7 +8567,7 @@ static void ath10k_sta_rc_update(struct ieee80211_hw *hw,
 			break;
 		case IEEE80211_SMPS_NUM_MODES:
 			ath10k_warn(ar, "Invalid smps %d in sta rc update for %pM\n",
-				    sta->smps_mode, sta->addr);
+				    sta->deflink.smps_mode, sta->addr);
 			smps = WMI_PEER_SMPS_PS_NONE;
 			break;
 		}

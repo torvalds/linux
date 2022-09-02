@@ -138,7 +138,7 @@ static bool rs_mimo_allow(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 	if (!sta->deflink.ht_cap.ht_supported)
 		return false;
 
-	if (sta->smps_mode == IEEE80211_SMPS_STATIC)
+	if (sta->deflink.smps_mode == IEEE80211_SMPS_STATIC)
 		return false;
 
 	if (num_of_ant(iwl_mvm_get_valid_tx_ant(mvm)) < 2)

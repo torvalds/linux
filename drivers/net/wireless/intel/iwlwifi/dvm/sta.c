@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /******************************************************************************
  *
- * Copyright(c) 2003 - 2014 Intel Corporation. All rights reserved.
+ * Copyright(c) 2003 - 2014, 2022 Intel Corporation. All rights reserved.
  *
  * Portions of this file are derived from the ipw3945 project, as well
  * as portions of the ieee80211 subsystem header files.
@@ -161,12 +161,12 @@ static void iwl_sta_calc_ht_flags(struct iwl_priv *priv,
 
 	IWL_DEBUG_INFO(priv, "STA %pM SM PS mode: %s\n",
 			sta->addr,
-			(sta->smps_mode == IEEE80211_SMPS_STATIC) ?
+			(sta->deflink.smps_mode == IEEE80211_SMPS_STATIC) ?
 			"static" :
-			(sta->smps_mode == IEEE80211_SMPS_DYNAMIC) ?
+			(sta->deflink.smps_mode == IEEE80211_SMPS_DYNAMIC) ?
 			"dynamic" : "disabled");
 
-	switch (sta->smps_mode) {
+	switch (sta->deflink.smps_mode) {
 	case IEEE80211_SMPS_STATIC:
 		*flags |= STA_FLG_MIMO_DIS_MSK;
 		break;
@@ -176,7 +176,7 @@ static void iwl_sta_calc_ht_flags(struct iwl_priv *priv,
 	case IEEE80211_SMPS_OFF:
 		break;
 	default:
-		IWL_WARN(priv, "Invalid MIMO PS mode %d\n", sta->smps_mode);
+		IWL_WARN(priv, "Invalid MIMO PS mode %d\n", sta->deflink.smps_mode);
 		break;
 	}
 

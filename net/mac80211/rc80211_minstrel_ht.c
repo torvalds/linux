@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2010-2013 Felix Fietkau <nbd@openwrt.org>
- * Copyright (C) 2019-2021 Intel Corporation
+ * Copyright (C) 2019-2022 Intel Corporation
  */
 #include <linux/netdevice.h>
 #include <linux/types.h>
@@ -1478,7 +1478,7 @@ minstrel_ht_set_rate(struct minstrel_priv *mp, struct minstrel_ht_sta *mi,
 	 *  - for fallback rates, to increase chances of getting through
 	 */
 	if (offset > 0 ||
-	    (mi->sta->smps_mode == IEEE80211_SMPS_DYNAMIC &&
+	    (mi->sta->deflink.smps_mode == IEEE80211_SMPS_DYNAMIC &&
 	     group->streams > 1)) {
 		ratetbl->rate[offset].count = ratetbl->rate[offset].count_rts;
 		flags |= IEEE80211_TX_RC_USE_RTS_CTS;
@@ -1779,7 +1779,7 @@ minstrel_ht_update_caps(void *priv, struct ieee80211_supported_band *sband,
 		nss = minstrel_mcs_groups[i].streams;
 
 		/* Mark MCS > 7 as unsupported if STA is in static SMPS mode */
-		if (sta->smps_mode == IEEE80211_SMPS_STATIC && nss > 1)
+		if (sta->deflink.smps_mode == IEEE80211_SMPS_STATIC && nss > 1)
 			continue;
 
 		/* HT rate */
