@@ -1266,7 +1266,7 @@ static int cy8c95x0_detect(struct i2c_client *client,
 	dev_info(&client->dev, "Found a %s chip at 0x%02x.\n", name, client->addr);
 	strscpy(info->type, name, I2C_NAME_SIZE);
 
-	return -ENODEV;
+	return 0;
 }
 
 static int cy8c95x0_probe(struct i2c_client *client)
