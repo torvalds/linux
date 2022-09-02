@@ -1137,20 +1137,19 @@ static int adsp_probe(struct platform_device *pdev)
 
 	snprintf(md_dev_name, ARRAY_SIZE(md_dev_name), "%s-md", pdev->dev.of_node->name);
 	adsp->minidump_dev = qcom_create_ramdump_device(md_dev_name, NULL);
-	if (!adsp->minidump_dev) {
+	if (!adsp->minidump_dev)
 		dev_err(&pdev->dev, "Unable to create %s minidump device.\n", md_dev_name);
-		ret = -ENOMEM;
-		goto remove_attr_txn_id;
-	}
 
 	ret = rproc_add(rproc);
 	if (ret)
 		goto destroy_minidump_dev;
 
 	return 0;
+
 destroy_minidump_dev:
-	qcom_destroy_ramdump_device(adsp->minidump_dev);
-remove_attr_txn_id:
+	if (adsp->minidump_dev)
+		qcom_destroy_ramdump_device(adsp->minidump_dev);
+
 	device_remove_file(adsp->dev, &dev_attr_txn_id);
 remove_subdevs:
 	qcom_remove_sysmon_subdev(adsp->sysmon);
@@ -1171,7 +1170,8 @@ static int adsp_remove(struct platform_device *pdev)
 	struct qcom_adsp *adsp = platform_get_drvdata(pdev);
 
 	rproc_del(adsp->rproc);
-	qcom_destroy_ramdump_device(adsp->minidump_dev);
+	if (adsp->minidump_dev)
+		qcom_destroy_ramdump_device(adsp->minidump_dev);
 	device_remove_file(adsp->dev, &dev_attr_txn_id);
 	qcom_remove_glink_subdev(adsp->rproc, &adsp->glink_subdev);
 	qcom_remove_sysmon_subdev(adsp->sysmon);
