@@ -5203,12 +5203,6 @@ static int rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		return -ENODEV;
 	}
 
-	/* check for weird/broken PCI region reporting */
-	if (pci_resource_len(pdev, region) < R8169_REGS_SIZE) {
-		dev_err(&pdev->dev, "Invalid PCI region size(s), aborting\n");
-		return -ENODEV;
-	}
-
 	rc = pcim_iomap_regions(pdev, BIT(region), KBUILD_MODNAME);
 	if (rc < 0) {
 		dev_err(&pdev->dev, "cannot remap MMIO, aborting\n");
