@@ -714,8 +714,6 @@ static struct gsi_trans *gsi_channel_trans_last(struct gsi_channel *channel)
 	u16 trans_index;
 	u16 trans_id;
 
-	spin_lock_bh(&trans_info->spinlock);
-
 	/* There is a small chance a TX transaction got allocated just
 	 * before we disabled transmits, so check for that.
 	 */
@@ -728,31 +726,45 @@ static struct gsi_trans *gsi_channel_trans_last(struct gsi_channel *channel)
 			goto done;
 		}
 
-		trans = list_last_entry_or_null(&trans_info->committed,
-						struct gsi_trans, links);
-		if (trans)
+		/* Last committed transaction precedes the first allocated */
+		if (trans_info->committed_id != trans_info->allocated_id) {
+			trans_id = trans_info->allocated_id - 1;
+			trans_index = trans_id % channel->tre_count;
+			trans = &trans_info->trans[trans_index];
 			goto done;
-		trans = list_last_entry_or_null(&trans_info->pending,
-						struct gsi_trans, links);
-		if (trans)
+		}
+
+		/* Last pending transaction precedes the first committed */
+		if (trans_info->pending_id != trans_info->committed_id) {
+			trans_id = trans_info->committed_id - 1;
+			trans_index = trans_id % channel->tre_count;
+			trans = &trans_info->trans[trans_index];
 			goto done;
+		}
 	}
 
 	/* Otherwise (TX or RX) we want to wait for anything that
 	 * has completed, or has been polled but not released yet.
+	 *
+	 * The last pending transaction precedes the first committed.
 	 */
-	trans = list_last_entry_or_null(&trans_info->complete,
-					struct gsi_trans, links);
-	if (trans)
+	if (trans_info->completed_id != trans_info->pending_id) {
+		trans_id = trans_info->pending_id - 1;
+		trans_index = trans_id % channel->tre_count;
+		trans = &trans_info->trans[trans_index];
 		goto done;
-	trans = list_last_entry_or_null(&trans_info->polled,
-					struct gsi_trans, links);
+	}
+	if (trans_info->polled_id != trans_info->completed_id) {
+		trans_id = trans_info->completed_id - 1;
+		trans_index = trans_id % channel->tre_count;
+		trans = &trans_info->trans[trans_index];
+	} else {
+		trans = NULL;
+	}
 done:
 	/* Caller will wait for this, so take a reference */
 	if (trans)
 		refcount_inc(&trans->refcount);
-
-	spin_unlock_bh(&trans_info->spinlock);
 
 	return trans;
 }
