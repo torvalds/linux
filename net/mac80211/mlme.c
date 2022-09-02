@@ -4819,6 +4819,40 @@ static int ieee80211_prep_channel(struct ieee80211_sub_if_data *sdata,
 	return ret;
 }
 
+static bool ieee80211_get_dtim(const struct cfg80211_bss_ies *ies,
+			       u8 *dtim_count, u8 *dtim_period)
+{
+	const u8 *tim_ie = cfg80211_find_ie(WLAN_EID_TIM, ies->data, ies->len);
+	const u8 *idx_ie = cfg80211_find_ie(WLAN_EID_MULTI_BSSID_IDX, ies->data,
+					 ies->len);
+	const struct ieee80211_tim_ie *tim = NULL;
+	const struct ieee80211_bssid_index *idx;
+	bool valid = tim_ie && tim_ie[1] >= 2;
+
+	if (valid)
+		tim = (void *)(tim_ie + 2);
+
+	if (dtim_count)
+		*dtim_count = valid ? tim->dtim_count : 0;
+
+	if (dtim_period)
+		*dtim_period = valid ? tim->dtim_period : 0;
+
+	/* Check if value is overridden by non-transmitted profile */
+	if (!idx_ie || idx_ie[1] < 3)
+		return valid;
+
+	idx = (void *)(idx_ie + 2);
+
+	if (dtim_count)
+		*dtim_count = idx->dtim_count;
+
+	if (dtim_period)
+		*dtim_period = idx->dtim_period;
+
+	return true;
+}
+
 static bool ieee80211_assoc_success(struct ieee80211_sub_if_data *sdata,
 				    struct ieee80211_mgmt *mgmt,
 				    struct ieee802_11_elems *elems,
@@ -4882,8 +4916,19 @@ static bool ieee80211_assoc_success(struct ieee80211_sub_if_data *sdata,
 			goto out_err;
 
 		if (link_id != assoc_data->assoc_link_id) {
-			err = ieee80211_prep_channel(sdata, link,
-						     assoc_data->link[link_id].bss,
+			struct cfg80211_bss *cbss = assoc_data->link[link_id].bss;
+			const struct cfg80211_bss_ies *ies;
+
+			rcu_read_lock();
+			ies = rcu_dereference(cbss->ies);
+			ieee80211_get_dtim(ies,
+					   &link->conf->sync_dtim_count,
+					   &link->u.mgd.dtim_period);
+			link->conf->dtim_period = link->u.mgd.dtim_period ?: 1;
+			link->conf->beacon_int = cbss->beacon_interval;
+			rcu_read_unlock();
+
+			err = ieee80211_prep_channel(sdata, link, cbss,
 						     &link->u.mgd.conn_flags);
 			if (err) {
 				link_info(link, "prep_channel failed\n");
@@ -6354,40 +6399,6 @@ void ieee80211_mlme_notify_scan_completed(struct ieee80211_local *local)
 			ieee80211_restart_sta_timer(sdata);
 	}
 	rcu_read_unlock();
-}
-
-static bool ieee80211_get_dtim(const struct cfg80211_bss_ies *ies,
-			       u8 *dtim_count, u8 *dtim_period)
-{
-	const u8 *tim_ie = cfg80211_find_ie(WLAN_EID_TIM, ies->data, ies->len);
-	const u8 *idx_ie = cfg80211_find_ie(WLAN_EID_MULTI_BSSID_IDX, ies->data,
-					 ies->len);
-	const struct ieee80211_tim_ie *tim = NULL;
-	const struct ieee80211_bssid_index *idx;
-	bool valid = tim_ie && tim_ie[1] >= 2;
-
-	if (valid)
-		tim = (void *)(tim_ie + 2);
-
-	if (dtim_count)
-		*dtim_count = valid ? tim->dtim_count : 0;
-
-	if (dtim_period)
-		*dtim_period = valid ? tim->dtim_period : 0;
-
-	/* Check if value is overridden by non-transmitted profile */
-	if (!idx_ie || idx_ie[1] < 3)
-		return valid;
-
-	idx = (void *)(idx_ie + 2);
-
-	if (dtim_count)
-		*dtim_count = idx->dtim_count;
-
-	if (dtim_period)
-		*dtim_period = idx->dtim_period;
-
-	return true;
 }
 
 static int ieee80211_prep_connection(struct ieee80211_sub_if_data *sdata,
