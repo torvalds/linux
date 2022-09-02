@@ -682,7 +682,7 @@ int mdp_comp_clock_on(struct device *dev, struct mdp_comp *comp)
 	int i, ret;
 
 	if (comp->comp_dev) {
-		ret = pm_runtime_get_sync(comp->comp_dev);
+		ret = pm_runtime_resume_and_get(comp->comp_dev);
 		if (ret < 0) {
 			dev_err(dev,
 				"Failed to get power, err %d. type:%d id:%d\n",
@@ -699,6 +699,7 @@ int mdp_comp_clock_on(struct device *dev, struct mdp_comp *comp)
 			dev_err(dev,
 				"Failed to enable clk %d. type:%d id:%d\n",
 				i, comp->type, comp->id);
+			pm_runtime_put(comp->comp_dev);
 			return ret;
 		}
 	}
@@ -930,7 +931,7 @@ void mdp_comp_destroy(struct mdp_dev *mdp)
 		if (mdp->comp[i]) {
 			pm_runtime_disable(mdp->comp[i]->comp_dev);
 			mdp_comp_deinit(mdp->comp[i]);
-			kfree(mdp->comp[i]);
+			devm_kfree(mdp->comp[i]->comp_dev, mdp->comp[i]);
 			mdp->comp[i] = NULL;
 		}
 	}
