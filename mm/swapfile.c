@@ -2032,7 +2032,7 @@ static int try_to_unuse(unsigned int type)
 	struct list_head *p;
 	int retval = 0;
 	struct swap_info_struct *si = swap_info[type];
-	struct page *page;
+	struct folio *folio;
 	swp_entry_t entry;
 	unsigned int i;
 
@@ -2082,21 +2082,21 @@ retry:
 	       (i = find_next_to_unuse(si, i)) != 0) {
 
 		entry = swp_entry(type, i);
-		page = find_get_page(swap_address_space(entry), i);
-		if (!page)
+		folio = filemap_get_folio(swap_address_space(entry), i);
+		if (!folio)
 			continue;
 
 		/*
-		 * It is conceivable that a racing task removed this page from
-		 * swap cache just before we acquired the page lock. The page
+		 * It is conceivable that a racing task removed this folio from
+		 * swap cache just before we acquired the page lock. The folio
 		 * might even be back in swap cache on another swap area. But
-		 * that is okay, try_to_free_swap() only removes stale pages.
+		 * that is okay, folio_free_swap() only removes stale folios.
 		 */
-		lock_page(page);
-		wait_on_page_writeback(page);
-		try_to_free_swap(page);
-		unlock_page(page);
-		put_page(page);
+		folio_lock(folio);
+		folio_wait_writeback(folio);
+		folio_free_swap(folio);
+		folio_unlock(folio);
+		folio_put(folio);
 	}
 
 	/*
