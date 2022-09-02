@@ -6509,6 +6509,7 @@ static int ieee80211_prep_connection(struct ieee80211_sub_if_data *sdata,
 	return 0;
 
 out_err:
+	ieee80211_link_release_channel(&sdata->deflink);
 	ieee80211_vif_set_links(sdata, 0);
 	return err;
 }
