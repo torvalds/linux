@@ -664,35 +664,36 @@ int smp_store_status(int cpu)
  *    This case does not exist for s390 anymore, setup_arch explicitly
  *    deactivates the elfcorehdr= kernel parameter
  */
-static __init void smp_save_cpu_vxrs(struct save_area *sa, u16 addr,
-				     bool is_boot_cpu, __vector128 *vxrs)
+static bool dump_available(void)
 {
-	if (is_boot_cpu)
-		vxrs = boot_cpu_vector_save_area;
-	else
-		__pcpu_sigp_relax(addr, SIGP_STORE_ADDITIONAL_STATUS, __pa(vxrs));
-	save_area_add_vxrs(sa, vxrs);
+	return oldmem_data.start || is_ipl_type_dump();
 }
 
-static __init void smp_save_cpu_regs(struct save_area *sa, u16 addr,
-				     bool is_boot_cpu, void *regs)
+void __init smp_save_dump_ipl_cpu(void)
 {
-	if (is_boot_cpu)
-		copy_oldmem_kernel(regs, __LC_FPREGS_SAVE_AREA, 512);
-	else
-		__pcpu_sigp_relax(addr, SIGP_STORE_STATUS_AT_ADDRESS, __pa(regs));
+	struct save_area *sa;
+	void *regs;
+
+	if (!dump_available())
+		return;
+	sa = save_area_alloc(true);
+	regs = memblock_alloc(512, 8);
+	if (!sa || !regs)
+		panic("could not allocate memory for boot CPU save area\n");
+	copy_oldmem_kernel(regs, __LC_FPREGS_SAVE_AREA, 512);
 	save_area_add_regs(sa, regs);
+	memblock_free(regs, 512);
+	if (MACHINE_HAS_VX)
+		save_area_add_vxrs(sa, boot_cpu_vector_save_area);
 }
 
-void __init smp_save_dump_cpus(void)
+void __init smp_save_dump_secondary_cpus(void)
 {
 	int addr, boot_cpu_addr, max_cpu_addr;
 	struct save_area *sa;
-	bool is_boot_cpu;
 	void *page;
 
-	if (!(oldmem_data.start || is_ipl_type_dump()))
-		/* No previous system present, normal boot. */
+	if (!dump_available())
 		return;
 	/* Allocate a page as dumping area for the store status sigps */
 	page = memblock_alloc_low(PAGE_SIZE, PAGE_SIZE);
@@ -705,26 +706,20 @@ void __init smp_save_dump_cpus(void)
 	boot_cpu_addr = stap();
 	max_cpu_addr = SCLP_MAX_CORES << sclp.mtid_prev;
 	for (addr = 0; addr <= max_cpu_addr; addr++) {
+		if (addr == boot_cpu_addr)
+			continue;
 		if (__pcpu_sigp_relax(addr, SIGP_SENSE, 0) ==
 		    SIGP_CC_NOT_OPERATIONAL)
 			continue;
-		is_boot_cpu = (addr == boot_cpu_addr);
-		/* Allocate save area */
-		sa = save_area_alloc(is_boot_cpu);
+		sa = save_area_alloc(false);
 		if (!sa)
 			panic("could not allocate memory for save area\n");
-		if (MACHINE_HAS_VX)
-			/* Get the vector registers */
-			smp_save_cpu_vxrs(sa, addr, is_boot_cpu, page);
-		/*
-		 * For a zfcp/nvme dump OLDMEM_BASE == NULL and the registers
-		 * of the boot CPU are stored in the HSA. To retrieve
-		 * these registers an SCLP request is required which is
-		 * done by drivers/s390/char/zcore.c:init_cpu_info()
-		 */
-		if (!is_boot_cpu || oldmem_data.start)
-			/* Get the CPU registers */
-			smp_save_cpu_regs(sa, addr, is_boot_cpu, page);
+		__pcpu_sigp_relax(addr, SIGP_STORE_STATUS_AT_ADDRESS, __pa(page));
+		save_area_add_regs(sa, page);
+		if (MACHINE_HAS_VX) {
+			__pcpu_sigp_relax(addr, SIGP_STORE_ADDITIONAL_STATUS, __pa(page));
+			save_area_add_vxrs(sa, page);
+		}
 	}
 	memblock_free(page, PAGE_SIZE);
 	diag_amode31_ops.diag308_reset();

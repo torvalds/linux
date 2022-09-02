@@ -30,7 +30,8 @@ extern void smp_emergency_stop(void);
 
 extern int smp_find_processor_id(u16 address);
 extern int smp_store_status(int cpu);
-extern void smp_save_dump_cpus(void);
+extern void smp_save_dump_ipl_cpu(void);
+extern void smp_save_dump_secondary_cpus(void);
 extern void smp_yield_cpu(int cpu);
 extern void smp_cpu_set_polarization(int cpu, int val);
 extern int smp_cpu_get_polarization(int cpu);

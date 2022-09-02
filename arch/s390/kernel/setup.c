@@ -1028,10 +1028,10 @@ void __init setup_arch(char **cmdline_p)
 	reserve_crashkernel();
 #ifdef CONFIG_CRASH_DUMP
 	/*
-	 * Be aware that smp_save_dump_cpus() triggers a system reset.
+	 * Be aware that smp_save_dump_secondary_cpus() triggers a system reset.
 	 * Therefore CPU and device initialization should be done afterwards.
 	 */
-	smp_save_dump_cpus();
+	smp_save_dump_secondary_cpus();
 #endif
 
 	setup_resources();
@@ -1056,6 +1056,9 @@ void __init setup_arch(char **cmdline_p)
 	 * in lowcore can now run with DAT enabled.
 	 */
 	setup_lowcore_dat_on();
+#ifdef CONFIG_CRASH_DUMP
+	smp_save_dump_ipl_cpu();
+#endif
 
         /* Setup default console */
 	conmode_default();
