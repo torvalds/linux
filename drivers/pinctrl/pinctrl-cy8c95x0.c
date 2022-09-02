@@ -1040,14 +1040,6 @@ static int cy8c95x0_pinctrl_get_group_pins(struct pinctrl_dev *pctldev,
 					   const unsigned int **pins,
 					   unsigned int *num_pins)
 {
-	struct cy8c95x0_pinctrl *chip = pinctrl_dev_get_drvdata(pctldev);
-
-	if (group >= chip->tpin) {
-		*pins = NULL;
-		*num_pins = 0;
-		return 0;
-	}
-
 	*pins = &cy8c9560_pins[group].number;
 	*num_pins = 1;
 	return 0;
@@ -1115,9 +1107,6 @@ static int cy8c95x0_set_mux(struct pinctrl_dev *pctldev, unsigned int selector,
 {
 	struct cy8c95x0_pinctrl *chip = pinctrl_dev_get_drvdata(pctldev);
 
-	if (group >= chip->tpin)
-		return -EINVAL;
-
 	return cy8c95x0_pinmux_cfg(chip, selector, group);
 }
 
@@ -1143,9 +1132,6 @@ static int cy8c95x0_pinconf_set(struct pinctrl_dev *pctldev, unsigned int pin,
 	struct cy8c95x0_pinctrl *chip = pinctrl_dev_get_drvdata(pctldev);
 	int ret = 0;
 	int i;
-
-	if (WARN_ON(pin >= chip->tpin))
-		return -EINVAL;
 
 	for (i = 0; i < num_configs; i++) {
 		ret = cy8c95x0_gpio_set_pincfg(chip, pin, configs[i]);
