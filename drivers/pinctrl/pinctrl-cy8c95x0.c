@@ -1021,25 +1021,49 @@ static int cy8c95x0_pinctrl_get_group_pins(struct pinctrl_dev *pctldev,
 	return 0;
 }
 
+static const char *cy8c95x0_get_fname(unsigned int selector)
+{
+	if (selector == 0)
+		return "gpio";
+	else
+		return "pwm";
+}
+
+static void cy8c95x0_pin_dbg_show(struct pinctrl_dev *pctldev, struct seq_file *s,
+				  unsigned int pin)
+{
+	struct cy8c95x0_pinctrl *chip = pinctrl_dev_get_drvdata(pctldev);
+	DECLARE_BITMAP(mask, MAX_LINE);
+	DECLARE_BITMAP(pwm, MAX_LINE);
+
+	bitmap_zero(mask, MAX_LINE);
+	__set_bit(pin, mask);
+
+	if (cy8c95x0_read_regs_mask(chip, CY8C95X0_PWMSEL, pwm, mask)) {
+		seq_puts(s, "not available");
+		return;
+	}
+
+	seq_printf(s, "MODE:%s", cy8c95x0_get_fname(test_bit(pin, pwm)));
+}
+
 static const struct pinctrl_ops cy8c95x0_pinctrl_ops = {
 	.get_groups_count = cy8c95x0_pinctrl_get_groups_count,
 	.get_group_name = cy8c95x0_pinctrl_get_group_name,
 	.get_group_pins = cy8c95x0_pinctrl_get_group_pins,
 	.dt_node_to_map = pinconf_generic_dt_node_to_map_pin,
 	.dt_free_map = pinconf_generic_dt_free_map,
+	.pin_dbg_show = cy8c95x0_pin_dbg_show,
 };
+
+static const char *cy8c95x0_get_functions_name(struct pinctrl_dev *pctldev, unsigned int selector)
+{
+	return cy8c95x0_get_fname(selector);
+}
 
 static int cy8c95x0_get_functions_count(struct pinctrl_dev *pctldev)
 {
 	return 2;
-}
-
-static const char *cy8c95x0_get_fname(struct pinctrl_dev *pctldev, unsigned int selector)
-{
-	if (selector == 0)
-		return "gpio";
-	else
-		return "pwm";
 }
 
 static int cy8c95x0_get_groups(struct pinctrl_dev *pctldev, unsigned int selector,
@@ -1088,7 +1112,7 @@ static int cy8c95x0_set_mux(struct pinctrl_dev *pctldev, unsigned int selector,
 
 static const struct pinmux_ops cy8c95x0_pmxops = {
 	.get_functions_count = cy8c95x0_get_functions_count,
-	.get_function_name = cy8c95x0_get_fname,
+	.get_function_name = cy8c95x0_get_functions_name,
 	.get_function_groups = cy8c95x0_get_groups,
 	.set_mux = cy8c95x0_set_mux,
 	.strict = true,
