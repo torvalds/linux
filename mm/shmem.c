@@ -2787,7 +2787,7 @@ static long shmem_fallocate(struct file *file, int mode, loff_t offset,
 		info->fallocend = end;
 
 	for (index = start; index < end; ) {
-		struct page *page;
+		struct folio *folio;
 
 		/*
 		 * Good, the fallocate(2) manpage permits EINTR: we may have
@@ -2798,10 +2798,11 @@ static long shmem_fallocate(struct file *file, int mode, loff_t offset,
 		else if (shmem_falloc.nr_unswapped > shmem_falloc.nr_falloced)
 			error = -ENOMEM;
 		else
-			error = shmem_getpage(inode, index, &page, SGP_FALLOC);
+			error = shmem_get_folio(inode, index, &folio,
+						SGP_FALLOC);
 		if (error) {
 			info->fallocend = undo_fallocend;
-			/* Remove the !PageUptodate pages we added */
+			/* Remove the !uptodate folios we added */
 			if (index > start) {
 				shmem_undo_range(inode,
 				    (loff_t)start << PAGE_SHIFT,
@@ -2810,37 +2811,34 @@ static long shmem_fallocate(struct file *file, int mode, loff_t offset,
 			goto undone;
 		}
 
-		index++;
 		/*
 		 * Here is a more important optimization than it appears:
-		 * a second SGP_FALLOC on the same huge page will clear it,
-		 * making it PageUptodate and un-undoable if we fail later.
+		 * a second SGP_FALLOC on the same large folio will clear it,
+		 * making it uptodate and un-undoable if we fail later.
 		 */
-		if (PageTransCompound(page)) {
-			index = round_up(index, HPAGE_PMD_NR);
-			/* Beware 32-bit wraparound */
-			if (!index)
-				index--;
-		}
+		index = folio_next_index(folio);
+		/* Beware 32-bit wraparound */
+		if (!index)
+			index--;
 
 		/*
 		 * Inform shmem_writepage() how far we have reached.
 		 * No need for lock or barrier: we have the page lock.
 		 */
-		if (!PageUptodate(page))
+		if (!folio_test_uptodate(folio))
 			shmem_falloc.nr_falloced += index - shmem_falloc.next;
 		shmem_falloc.next = index;
 
 		/*
-		 * If !PageUptodate, leave it that way so that freeable pages
+		 * If !uptodate, leave it that way so that freeable folios
 		 * can be recognized if we need to rollback on error later.
-		 * But set_page_dirty so that memory pressure will swap rather
-		 * than free the pages we are allocating (and SGP_CACHE pages
+		 * But mark it dirty so that memory pressure will swap rather
+		 * than free the folios we are allocating (and SGP_CACHE folios
 		 * might still be clean: we now need to mark those dirty too).
 		 */
-		set_page_dirty(page);
-		unlock_page(page);
-		put_page(page);
+		folio_mark_dirty(folio);
+		folio_unlock(folio);
+		folio_put(folio);
 		cond_resched();
 	}
 
