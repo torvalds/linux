@@ -225,6 +225,10 @@ int lan937x_reset_switch(struct ksz_device *dev)
 	if (ret < 0)
 		return ret;
 
+	ret = ksz_write32(dev, REG_SW_INT_STATUS__4, POR_READY_INT);
+	if (ret < 0)
+		return ret;
+
 	ret = ksz_write32(dev, REG_SW_PORT_INT_MASK__4, 0xFF);
 	if (ret < 0)
 		return ret;
