@@ -1052,14 +1052,14 @@ static int __unmap_and_move(struct folio *src, struct folio *dst,
 	 * File Caches may use write_page() or lock_page() in migration, then,
 	 * just care Anon page here.
 	 *
-	 * Only page_get_anon_vma() understands the subtleties of
+	 * Only folio_get_anon_vma() understands the subtleties of
 	 * getting a hold on an anon_vma from outside one of its mms.
 	 * But if we cannot get anon_vma, then we won't need it anyway,
 	 * because that implies that the anon page is no longer mapped
 	 * (and cannot be remapped so long as we hold the page lock).
 	 */
 	if (folio_test_anon(src) && !folio_test_ksm(src))
-		anon_vma = page_get_anon_vma(&src->page);
+		anon_vma = folio_get_anon_vma(src);
 
 	/*
 	 * Block others from accessing the new page when we get around to
@@ -1298,7 +1298,7 @@ static int unmap_and_move_huge_page(new_page_t get_new_page,
 	}
 
 	if (folio_test_anon(src))
-		anon_vma = page_get_anon_vma(&src->page);
+		anon_vma = folio_get_anon_vma(src);
 
 	if (unlikely(!folio_trylock(dst)))
 		goto put_anon;

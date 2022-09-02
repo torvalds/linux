@@ -163,7 +163,7 @@ static inline void anon_vma_merge(struct vm_area_struct *vma,
 	unlink_anon_vmas(next);
 }
 
-struct anon_vma *page_get_anon_vma(struct page *page);
+struct anon_vma *folio_get_anon_vma(struct folio *folio);
 
 /* RMAP flags, currently only relevant for some anon rmap operations. */
 typedef int __bitwise rmap_t;
