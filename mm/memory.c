@@ -3767,9 +3767,9 @@ vm_fault_t do_swap_page(struct vm_fault *vmf)
 	if (unlikely(!si))
 		goto out;
 
-	page = lookup_swap_cache(entry, vma, vmf->address);
-	if (page)
-		folio = page_folio(page);
+	folio = swap_cache_get_folio(entry, vma, vmf->address);
+	if (folio)
+		page = folio_file_page(folio, swp_offset(entry));
 	swapcache = folio;
 
 	if (!folio) {
