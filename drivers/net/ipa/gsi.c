@@ -718,25 +718,11 @@ static struct gsi_trans *gsi_channel_trans_last(struct gsi_channel *channel)
 	 * before we disabled transmits, so check for that.
 	 */
 	if (channel->toward_ipa) {
-		/* The last allocated transaction precedes the first free */
-		if (trans_info->allocated_id != trans_info->free_id) {
+		/* The last allocated, committed, or pending transaction
+		 * precedes the first free transaction.
+		 */
+		if (trans_info->pending_id != trans_info->free_id) {
 			trans_id = trans_info->free_id - 1;
-			trans_index = trans_id % channel->tre_count;
-			trans = &trans_info->trans[trans_index];
-			goto done;
-		}
-
-		/* Last committed transaction precedes the first allocated */
-		if (trans_info->committed_id != trans_info->allocated_id) {
-			trans_id = trans_info->allocated_id - 1;
-			trans_index = trans_id % channel->tre_count;
-			trans = &trans_info->trans[trans_index];
-			goto done;
-		}
-
-		/* Last pending transaction precedes the first committed */
-		if (trans_info->pending_id != trans_info->committed_id) {
-			trans_id = trans_info->committed_id - 1;
 			trans_index = trans_id % channel->tre_count;
 			trans = &trans_info->trans[trans_index];
 			goto done;
@@ -746,16 +732,11 @@ static struct gsi_trans *gsi_channel_trans_last(struct gsi_channel *channel)
 	/* Otherwise (TX or RX) we want to wait for anything that
 	 * has completed, or has been polled but not released yet.
 	 *
-	 * The last pending transaction precedes the first committed.
+	 * The last completed or polled transaction precedes the
+	 * first pending transaction.
 	 */
-	if (trans_info->completed_id != trans_info->pending_id) {
+	if (trans_info->polled_id != trans_info->pending_id) {
 		trans_id = trans_info->pending_id - 1;
-		trans_index = trans_id % channel->tre_count;
-		trans = &trans_info->trans[trans_index];
-		goto done;
-	}
-	if (trans_info->polled_id != trans_info->completed_id) {
-		trans_id = trans_info->completed_id - 1;
 		trans_index = trans_id % channel->tre_count;
 		trans = &trans_info->trans[trans_index];
 	} else {
