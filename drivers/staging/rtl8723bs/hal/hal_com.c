@@ -861,25 +861,6 @@ bool eqNByte(u8 *str1, u8 *str2, u32 num)
 
 /*  */
 /* 	Description: */
-/* 		Return true if chTmp is represent for hex digit and */
-/* 		false otherwise. */
-/*  */
-/*  */
-bool IsHexDigit(char chTmp)
-{
-	if (
-		(chTmp >= '0' && chTmp <= '9') ||
-		(chTmp >= 'a' && chTmp <= 'f') ||
-		(chTmp >= 'A' && chTmp <= 'F')
-	)
-		return true;
-	else
-		return false;
-}
-
-
-/*  */
-/* 	Description: */
 /* 		Translate a character to hex digit. */
 /*  */
 u32 MapCharToHexDigit(char chTmp)
