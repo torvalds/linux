@@ -5100,8 +5100,9 @@ static int bpf_sol_tcp_setsockopt(struct sock *sk, int optname,
 	return 0;
 }
 
-static int sol_tcp_setsockopt(struct sock *sk, int optname,
-			      char *optval, int optlen)
+static int sol_tcp_sockopt(struct sock *sk, int optname,
+			   char *optval, int *optlen,
+			   bool getopt)
 {
 	if (sk->sk_prot->setsockopt != tcp_setsockopt)
 		return -EINVAL;
@@ -5118,17 +5119,51 @@ static int sol_tcp_setsockopt(struct sock *sk, int optname,
 	case TCP_USER_TIMEOUT:
 	case TCP_NOTSENT_LOWAT:
 	case TCP_SAVE_SYN:
-		if (optlen != sizeof(int))
+		if (*optlen != sizeof(int))
 			return -EINVAL;
 		break;
 	case TCP_CONGESTION:
+		if (*optlen < 2)
+			return -EINVAL;
+		break;
+	case TCP_SAVED_SYN:
+		if (*optlen < 1)
+			return -EINVAL;
 		break;
 	default:
-		return bpf_sol_tcp_setsockopt(sk, optname, optval, optlen);
+		if (getopt)
+			return -EINVAL;
+		return bpf_sol_tcp_setsockopt(sk, optname, optval, *optlen);
+	}
+
+	if (getopt) {
+		if (optname == TCP_SAVED_SYN) {
+			struct tcp_sock *tp = tcp_sk(sk);
+
+			if (!tp->saved_syn ||
+			    *optlen > tcp_saved_syn_len(tp->saved_syn))
+				return -EINVAL;
+			memcpy(optval, tp->saved_syn->data, *optlen);
+			/* It cannot free tp->saved_syn here because it
+			 * does not know if the user space still needs it.
+			 */
+			return 0;
+		}
+
+		if (optname == TCP_CONGESTION) {
+			if (!inet_csk(sk)->icsk_ca_ops)
+				return -EINVAL;
+			/* BPF expects NULL-terminated tcp-cc string */
+			optval[--(*optlen)] = '\0';
+		}
+
+		return do_tcp_getsockopt(sk, SOL_TCP, optname,
+					 KERNEL_SOCKPTR(optval),
+					 KERNEL_SOCKPTR(optlen));
 	}
 
 	return do_tcp_setsockopt(sk, SOL_TCP, optname,
-				 KERNEL_SOCKPTR(optval), optlen);
+				 KERNEL_SOCKPTR(optval), *optlen);
 }
 
 static int sol_ip_setsockopt(struct sock *sk, int optname,
@@ -5183,7 +5218,7 @@ static int __bpf_setsockopt(struct sock *sk, int level, int optname,
 	else if (IS_ENABLED(CONFIG_IPV6) && level == SOL_IPV6)
 		return sol_ipv6_setsockopt(sk, optname, optval, optlen);
 	else if (IS_ENABLED(CONFIG_INET) && level == SOL_TCP)
-		return sol_tcp_setsockopt(sk, optname, optval, optlen);
+		return sol_tcp_sockopt(sk, optname, optval, &optlen, false);
 
 	return -EINVAL;
 }
@@ -5206,31 +5241,8 @@ static int __bpf_getsockopt(struct sock *sk, int level, int optname,
 
 	if (level == SOL_SOCKET) {
 		err = sol_socket_sockopt(sk, optname, optval, &optlen, true);
-	} else if (IS_ENABLED(CONFIG_INET) &&
-		   level == SOL_TCP && sk->sk_prot->getsockopt == tcp_getsockopt) {
-		struct inet_connection_sock *icsk;
-		struct tcp_sock *tp;
-
-		switch (optname) {
-		case TCP_CONGESTION:
-			icsk = inet_csk(sk);
-
-			if (!icsk->icsk_ca_ops || optlen <= 1)
-				goto err_clear;
-			strncpy(optval, icsk->icsk_ca_ops->name, optlen);
-			optval[optlen - 1] = 0;
-			break;
-		case TCP_SAVED_SYN:
-			tp = tcp_sk(sk);
-
-			if (optlen <= 0 || !tp->saved_syn ||
-			    optlen > tcp_saved_syn_len(tp->saved_syn))
-				goto err_clear;
-			memcpy(optval, tp->saved_syn->data, optlen);
-			break;
-		default:
-			goto err_clear;
-		}
+	} else if (IS_ENABLED(CONFIG_INET) && level == SOL_TCP) {
+		err = sol_tcp_sockopt(sk, optname, optval, &optlen, true);
 	} else if (IS_ENABLED(CONFIG_INET) && level == SOL_IP) {
 		struct inet_sock *inet = inet_sk(sk);
 
