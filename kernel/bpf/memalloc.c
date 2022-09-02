@@ -101,6 +101,11 @@ struct bpf_mem_cache {
 	/* count of objects in free_llist */
 	int free_cnt;
 	int low_watermark, high_watermark, batch;
+
+	struct rcu_head rcu;
+	struct llist_head free_by_rcu;
+	struct llist_head waiting_for_gp;
+	atomic_t call_rcu_in_progress;
 };
 
 struct bpf_mem_caches {
@@ -194,6 +199,45 @@ static void free_one(struct bpf_mem_cache *c, void *obj)
 		kfree(obj);
 }
 
+static void __free_rcu(struct rcu_head *head)
+{
+	struct bpf_mem_cache *c = container_of(head, struct bpf_mem_cache, rcu);
+	struct llist_node *llnode = llist_del_all(&c->waiting_for_gp);
+	struct llist_node *pos, *t;
+
+	llist_for_each_safe(pos, t, llnode)
+		free_one(c, pos);
+	atomic_set(&c->call_rcu_in_progress, 0);
+}
+
+static void enque_to_free(struct bpf_mem_cache *c, void *obj)
+{
+	struct llist_node *llnode = obj;
+
+	/* bpf_mem_cache is a per-cpu object. Freeing happens in irq_work.
+	 * Nothing races to add to free_by_rcu list.
+	 */
+	__llist_add(llnode, &c->free_by_rcu);
+}
+
+static void do_call_rcu(struct bpf_mem_cache *c)
+{
+	struct llist_node *llnode, *t;
+
+	if (atomic_xchg(&c->call_rcu_in_progress, 1))
+		return;
+
+	WARN_ON_ONCE(!llist_empty(&c->waiting_for_gp));
+	llist_for_each_safe(llnode, t, __llist_del_all(&c->free_by_rcu))
+		/* There is no concurrent __llist_add(waiting_for_gp) access.
+		 * It doesn't race with llist_del_all either.
+		 * But there could be two concurrent llist_del_all(waiting_for_gp):
+		 * from __free_rcu() and from drain_mem_cache().
+		 */
+		__llist_add(llnode, &c->waiting_for_gp);
+	call_rcu(&c->rcu, __free_rcu);
+}
+
 static void free_bulk(struct bpf_mem_cache *c)
 {
 	struct llist_node *llnode, *t;
@@ -212,12 +256,13 @@ static void free_bulk(struct bpf_mem_cache *c)
 		local_dec(&c->active);
 		if (IS_ENABLED(CONFIG_PREEMPT_RT))
 			local_irq_restore(flags);
-		free_one(c, llnode);
+		enque_to_free(c, llnode);
 	} while (cnt > (c->high_watermark + c->low_watermark) / 2);
 
 	/* and drain free_llist_extra */
 	llist_for_each_safe(llnode, t, llist_del_all(&c->free_llist_extra))
-		free_one(c, llnode);
+		enque_to_free(c, llnode);
+	do_call_rcu(c);
 }
 
 static void bpf_mem_refill(struct irq_work *work)
@@ -303,7 +348,7 @@ int bpf_mem_alloc_init(struct bpf_mem_alloc *ma, int size)
 			return -ENOMEM;
 		size += LLIST_NODE_SZ; /* room for llist_node */
 		snprintf(buf, sizeof(buf), "bpf-%u", size);
-		kmem_cache = kmem_cache_create(buf, size, 8, SLAB_TYPESAFE_BY_RCU, NULL);
+		kmem_cache = kmem_cache_create(buf, size, 8, 0, NULL);
 		if (!kmem_cache) {
 			free_percpu(pc);
 			return -ENOMEM;
@@ -345,6 +390,15 @@ static void drain_mem_cache(struct bpf_mem_cache *c)
 {
 	struct llist_node *llnode, *t;
 
+	/* The caller has done rcu_barrier() and no progs are using this
+	 * bpf_mem_cache, but htab_map_free() called bpf_mem_cache_free() for
+	 * all remaining elements and they can be in free_by_rcu or in
+	 * waiting_for_gp lists, so drain those lists now.
+	 */
+	llist_for_each_safe(llnode, t, __llist_del_all(&c->free_by_rcu))
+		free_one(c, llnode);
+	llist_for_each_safe(llnode, t, llist_del_all(&c->waiting_for_gp))
+		free_one(c, llnode);
 	llist_for_each_safe(llnode, t, llist_del_all(&c->free_llist))
 		free_one(c, llnode);
 	llist_for_each_safe(llnode, t, llist_del_all(&c->free_llist_extra))
@@ -366,6 +420,10 @@ void bpf_mem_alloc_destroy(struct bpf_mem_alloc *ma)
 		kmem_cache_destroy(c->kmem_cache);
 		if (c->objcg)
 			obj_cgroup_put(c->objcg);
+		/* c->waiting_for_gp list was drained, but __free_rcu might
+		 * still execute. Wait for it now before we free 'c'.
+		 */
+		rcu_barrier();
 		free_percpu(ma->cache);
 		ma->cache = NULL;
 	}
@@ -379,6 +437,7 @@ void bpf_mem_alloc_destroy(struct bpf_mem_alloc *ma)
 		}
 		if (c->objcg)
 			obj_cgroup_put(c->objcg);
+		rcu_barrier();
 		free_percpu(ma->caches);
 		ma->caches = NULL;
 	}
