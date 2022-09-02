@@ -1798,6 +1798,43 @@ tgl_tc_cold_off_power_well_is_enabled(struct drm_i915_private *dev_priv,
 	return intel_power_well_refcount(power_well);
 }
 
+static void xelpdp_aux_power_well_enable(struct drm_i915_private *dev_priv,
+					 struct i915_power_well *power_well)
+{
+	enum aux_ch aux_ch = i915_power_well_instance(power_well)->xelpdp.aux_ch;
+
+	intel_de_rmw(dev_priv, XELPDP_DP_AUX_CH_CTL(aux_ch),
+		     XELPDP_DP_AUX_CH_CTL_POWER_REQUEST,
+		     XELPDP_DP_AUX_CH_CTL_POWER_REQUEST);
+
+	/*
+	 * The power status flag cannot be used to determine whether aux
+	 * power wells have finished powering up.  Instead we're
+	 * expected to just wait a fixed 600us after raising the request
+	 * bit.
+	 */
+	usleep_range(600, 1200);
+}
+
+static void xelpdp_aux_power_well_disable(struct drm_i915_private *dev_priv,
+					  struct i915_power_well *power_well)
+{
+	enum aux_ch aux_ch = i915_power_well_instance(power_well)->xelpdp.aux_ch;
+
+	intel_de_rmw(dev_priv, XELPDP_DP_AUX_CH_CTL(aux_ch),
+		     XELPDP_DP_AUX_CH_CTL_POWER_REQUEST,
+		     0);
+	usleep_range(10, 30);
+}
+
+static bool xelpdp_aux_power_well_enabled(struct drm_i915_private *dev_priv,
+					  struct i915_power_well *power_well)
+{
+	enum aux_ch aux_ch = i915_power_well_instance(power_well)->xelpdp.aux_ch;
+
+	return intel_de_read(dev_priv, XELPDP_DP_AUX_CH_CTL(aux_ch)) &
+		XELPDP_DP_AUX_CH_CTL_POWER_STATUS;
+}
 
 const struct i915_power_well_ops i9xx_always_on_power_well_ops = {
 	.sync_hw = i9xx_power_well_sync_hw_noop,
@@ -1910,4 +1947,11 @@ const struct i915_power_well_ops tgl_tc_cold_off_ops = {
 	.enable = tgl_tc_cold_off_power_well_enable,
 	.disable = tgl_tc_cold_off_power_well_disable,
 	.is_enabled = tgl_tc_cold_off_power_well_is_enabled,
+};
+
+const struct i915_power_well_ops xelpdp_aux_power_well_ops = {
+	.sync_hw = i9xx_power_well_sync_hw_noop,
+	.enable = xelpdp_aux_power_well_enable,
+	.disable = xelpdp_aux_power_well_disable,
+	.is_enabled = xelpdp_aux_power_well_enabled,
 };
