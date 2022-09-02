@@ -2025,27 +2025,24 @@ unlock:
 	return error;
 }
 
-static int shmem_getpage_gfp(struct inode *inode, pgoff_t index,
-		struct page **pagep, enum sgp_type sgp,
-		gfp_t gfp, struct vm_area_struct *vma,
-		struct vm_fault *vmf, vm_fault_t *fault_type)
+int shmem_get_folio(struct inode *inode, pgoff_t index, struct folio **foliop,
+		enum sgp_type sgp)
+{
+	return shmem_get_folio_gfp(inode, index, foliop, sgp,
+			mapping_gfp_mask(inode->i_mapping), NULL, NULL, NULL);
+}
+
+int shmem_getpage(struct inode *inode, pgoff_t index,
+		struct page **pagep, enum sgp_type sgp)
 {
 	struct folio *folio = NULL;
-	int ret = shmem_get_folio_gfp(inode, index, &folio, sgp, gfp, vma,
-			vmf, fault_type);
+	int ret = shmem_get_folio(inode, index, &folio, sgp);
 
 	if (folio)
 		*pagep = folio_file_page(folio, index);
 	else
 		*pagep = NULL;
 	return ret;
-}
-
-int shmem_getpage(struct inode *inode, pgoff_t index,
-		struct page **pagep, enum sgp_type sgp)
-{
-	return shmem_getpage_gfp(inode, index, pagep, sgp,
-		mapping_gfp_mask(inode->i_mapping), NULL, NULL, NULL);
 }
 
 /*

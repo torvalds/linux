@@ -113,6 +113,8 @@ enum sgp_type {
 
 extern int shmem_getpage(struct inode *inode, pgoff_t index,
 		struct page **pagep, enum sgp_type sgp);
+int shmem_get_folio(struct inode *inode, pgoff_t index, struct folio **foliop,
+		enum sgp_type sgp);
 
 static inline struct page *shmem_read_mapping_page(
 				struct address_space *mapping, pgoff_t index)
