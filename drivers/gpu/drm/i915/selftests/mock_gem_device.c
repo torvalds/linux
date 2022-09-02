@@ -172,7 +172,7 @@ struct drm_i915_private *mock_gem_device(void)
 	/* Using the global GTT may ask questions about KMS users, so prepare */
 	drm_mode_config_init(&i915->drm);
 
-	RUNTIME_INFO(i915)->graphics.ver = -1;
+	RUNTIME_INFO(i915)->graphics.ip.ver = -1;
 
 	RUNTIME_INFO(i915)->page_sizes =
 		I915_GTT_PAGE_SIZE_4K |

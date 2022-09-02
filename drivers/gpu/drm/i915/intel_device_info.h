@@ -199,7 +199,15 @@ struct ip_version {
 };
 
 struct intel_runtime_info {
-	struct ip_version graphics;
+	struct {
+		struct ip_version ip;
+	} graphics;
+	struct {
+		struct ip_version ip;
+	} media;
+	struct {
+		struct ip_version ip;
+	} display;
 
 	/*
 	 * Platform mask is used for optimizing or-ed IS_PLATFORM calls into
@@ -245,8 +253,6 @@ struct intel_runtime_info {
 };
 
 struct intel_device_info {
-	struct ip_version media;
-
 	enum intel_platform platform;
 
 	unsigned int dma_mask_size; /* available DMA address bits */
@@ -258,9 +264,6 @@ struct intel_device_info {
 #undef DEFINE_FLAG
 
 	struct {
-		u8 ver;
-		u8 rel;
-
 		u8 abox_mask;
 
 		struct {

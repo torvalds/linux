@@ -34,9 +34,9 @@
 
 #define PLATFORM(x) .platform = (x)
 #define GEN(x) \
-	.__runtime.graphics.ver = (x), \
-	.media.ver = (x), \
-	.display.ver = (x)
+	.__runtime.graphics.ip.ver = (x), \
+	.__runtime.media.ip.ver = (x), \
+	.__runtime.display.ip.ver = (x)
 
 #define I845_PIPE_OFFSETS \
 	.display.pipe_offsets = { \
@@ -740,7 +740,7 @@ static const struct intel_device_info bxt_info = {
 static const struct intel_device_info glk_info = {
 	GEN9_LP_FEATURES,
 	PLATFORM(INTEL_GEMINILAKE),
-	.display.ver = 10,
+	.__runtime.display.ip.ver = 10,
 	.display.dbuf.size = 1024 - 4, /* 4 blocks for bypass path allocation */
 	GLK_COLORS,
 };
@@ -919,7 +919,7 @@ static const struct intel_device_info rkl_info = {
 static const struct intel_device_info dg1_info = {
 	GEN12_FEATURES,
 	DGFX_FEATURES,
-	.__runtime.graphics.rel = 10,
+	.__runtime.graphics.ip.rel = 10,
 	PLATFORM(INTEL_DG1),
 	.__runtime.pipe_mask = BIT(PIPE_A) | BIT(PIPE_B) | BIT(PIPE_C) | BIT(PIPE_D),
 	.require_force_probe = 1,
@@ -962,7 +962,7 @@ static const struct intel_device_info adl_s_info = {
 	.display.has_hotplug = 1,						\
 	.display.has_ipc = 1,							\
 	.display.has_psr = 1,							\
-	.display.ver = 13,							\
+	.__runtime.display.ip.ver = 13,							\
 	.__runtime.pipe_mask = BIT(PIPE_A) | BIT(PIPE_B) | BIT(PIPE_C) | BIT(PIPE_D),	\
 	.display.pipe_offsets = {						\
 		[TRANSCODER_A] = PIPE_A_OFFSET,					\
@@ -1006,8 +1006,8 @@ static const struct intel_device_info adl_p_info = {
 		I915_GTT_PAGE_SIZE_2M
 
 #define XE_HP_FEATURES \
-	.__runtime.graphics.ver = 12, \
-	.__runtime.graphics.rel = 50, \
+	.__runtime.graphics.ip.ver = 12, \
+	.__runtime.graphics.ip.rel = 50, \
 	XE_HP_PAGE_SIZES, \
 	.dma_mask_size = 46, \
 	.has_3d_pipeline = 1, \
@@ -1027,8 +1027,8 @@ static const struct intel_device_info adl_p_info = {
 	.__runtime.ppgtt_type = INTEL_PPGTT_FULL
 
 #define XE_HPM_FEATURES \
-	.media.ver = 12, \
-	.media.rel = 50
+	.__runtime.media.ip.ver = 12, \
+	.__runtime.media.ip.rel = 50
 
 __maybe_unused
 static const struct intel_device_info xehpsdv_info = {
@@ -1053,8 +1053,8 @@ static const struct intel_device_info xehpsdv_info = {
 	XE_HP_FEATURES, \
 	XE_HPM_FEATURES, \
 	DGFX_FEATURES, \
-	.__runtime.graphics.rel = 55, \
-	.media.rel = 55, \
+	.__runtime.graphics.ip.rel = 55, \
+	.__runtime.media.ip.rel = 55, \
 	PLATFORM(INTEL_DG2), \
 	.has_4tile = 1, \
 	.has_64k_pages = 1, \
@@ -1096,8 +1096,8 @@ static const struct intel_device_info pvc_info = {
 	XE_HPC_FEATURES,
 	XE_HPM_FEATURES,
 	DGFX_FEATURES,
-	.__runtime.graphics.rel = 60,
-	.media.rel = 60,
+	.__runtime.graphics.ip.rel = 60,
+	.__runtime.media.ip.rel = 60,
 	PLATFORM(INTEL_PONTEVECCHIO),
 	.display = { 0 },
 	.has_flat_ccs = 0,
@@ -1110,7 +1110,7 @@ static const struct intel_device_info pvc_info = {
 
 #define XE_LPDP_FEATURES	\
 	XE_LPD_FEATURES,	\
-	.display.ver = 14,	\
+	.__runtime.display.ip.ver = 14,	\
 	.display.has_cdclk_crawl = 1, \
 	.__runtime.fbc_mask = BIT(INTEL_FBC_A) | BIT(INTEL_FBC_B)
 
@@ -1122,9 +1122,9 @@ static const struct intel_device_info mtl_info = {
 	 * Real graphics IP version will be obtained from hardware GMD_ID
 	 * register.  Value provided here is just for sanity checking.
 	 */
-	.__runtime.graphics.ver = 12,
-	.__runtime.graphics.rel = 70,
-	.media.ver = 13,
+	.__runtime.graphics.ip.ver = 12,
+	.__runtime.graphics.ip.rel = 70,
+	.__runtime.media.ip.ver = 13,
 	PLATFORM(INTEL_METEORLAKE),
 	.display.has_modular_fia = 1,
 	.has_flat_ccs = 0,
@@ -1280,7 +1280,7 @@ bool i915_pci_resource_valid(struct pci_dev *pdev, int bar)
 
 static bool intel_mmio_bar_valid(struct pci_dev *pdev, struct intel_device_info *intel_info)
 {
-	int gttmmaddr_bar = intel_info->__runtime.graphics.ver == 2 ? GEN2_GTTMMADR_BAR : GTTMMADR_BAR;
+	int gttmmaddr_bar = intel_info->__runtime.graphics.ip.ver == 2 ? GEN2_GTTMMADR_BAR : GTTMMADR_BAR;
 
 	return i915_pci_resource_valid(pdev, gttmmaddr_bar);
 }
