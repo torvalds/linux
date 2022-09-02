@@ -14,6 +14,19 @@ properties:
   compatible:
     const: chrontel,ch7033
 
+  chrontel,byteswap:
+    $ref: /schemas/types.yaml#/definitions/uint8
+    enum:
+      - 0  # BYTE_SWAP_RGB
+      - 1  # BYTE_SWAP_RBG
+      - 2  # BYTE_SWAP_GRB
+      - 3  # BYTE_SWAP_GBR
+      - 4  # BYTE_SWAP_BRG
+      - 5  # BYTE_SWAP_BGR
+    description: |
+      Set the byteswap value of the bridge. This is optional and if not
+      set value of BYTE_SWAP_BGR is used.
+
   reg:
     maxItems: 1
     description: I2C address of the device
