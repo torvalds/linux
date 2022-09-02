@@ -2950,6 +2950,18 @@ static int mac80211_hwsim_assign_vif_chanctx(struct ieee80211_hw *hw,
 	hwsim_check_magic(vif);
 	hwsim_check_chanctx_magic(ctx);
 
+	/* if we activate a link while already associated wake it up */
+	if (vif->type == NL80211_IFTYPE_STATION && vif->cfg.assoc) {
+		struct sk_buff *skb;
+
+		skb = ieee80211_nullfunc_get(hw, vif, link_conf->link_id, true);
+		if (skb) {
+			local_bh_disable();
+			mac80211_hwsim_tx_frame(hw, skb, ctx->def.chan);
+			local_bh_enable();
+		}
+	}
+
 	return 0;
 }
 
@@ -2960,6 +2972,22 @@ static void mac80211_hwsim_unassign_vif_chanctx(struct ieee80211_hw *hw,
 {
 	hwsim_check_magic(vif);
 	hwsim_check_chanctx_magic(ctx);
+
+	/* if we deactivate a link while associated suspend it first */
+	if (vif->type == NL80211_IFTYPE_STATION && vif->cfg.assoc) {
+		struct sk_buff *skb;
+
+		skb = ieee80211_nullfunc_get(hw, vif, link_conf->link_id, true);
+		if (skb) {
+			struct ieee80211_hdr *hdr = (void *)skb->data;
+
+			hdr->frame_control |= cpu_to_le16(IEEE80211_FCTL_PM);
+
+			local_bh_disable();
+			mac80211_hwsim_tx_frame(hw, skb, ctx->def.chan);
+			local_bh_enable();
+		}
+	}
 }
 
 static const char mac80211_hwsim_gstrings_stats[][ETH_GSTRING_LEN] = {
