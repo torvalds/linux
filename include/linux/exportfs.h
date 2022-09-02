@@ -131,7 +131,7 @@ struct fid {
  			u32 parent_block;
  			u32 parent_generation;
  		} udf;
-		__u32 raw[0];
+		DECLARE_FLEX_ARRAY(__u32, raw);
 	};
 };
 
