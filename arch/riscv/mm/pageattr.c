@@ -118,10 +118,10 @@ static int __set_memory(unsigned long addr, int numpages, pgprot_t set_mask,
 	if (!numpages)
 		return 0;
 
-	mmap_read_lock(&init_mm);
+	mmap_write_lock(&init_mm);
 	ret =  walk_page_range_novma(&init_mm, start, end, &pageattr_ops, NULL,
 				     &masks);
-	mmap_read_unlock(&init_mm);
+	mmap_write_unlock(&init_mm);
 
 	flush_tlb_kernel_range(start, end);
 
