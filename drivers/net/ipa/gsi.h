@@ -82,7 +82,14 @@ struct gsi_trans_pool {
 
 struct gsi_trans_info {
 	atomic_t tre_avail;		/* TREs available for allocation */
-	struct gsi_trans_pool pool;	/* transaction pool */
+
+	u16 free_id;			/* first free trans in array */
+	u16 allocated_id;		/* first allocated transaction */
+	u16 committed_id;		/* first committed transaction */
+	u16 pending_id;			/* first pending transaction */
+	u16 completed_id;		/* first completed transaction */
+	u16 polled_id;			/* first polled transaction */
+	struct gsi_trans *trans;	/* transaction array */
 	struct gsi_trans **map;		/* TRE -> transaction map */
 
 	struct gsi_trans_pool sg_pool;	/* scatterlist pool */
