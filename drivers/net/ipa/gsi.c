@@ -711,6 +711,8 @@ static struct gsi_trans *gsi_channel_trans_last(struct gsi_channel *channel)
 {
 	struct gsi_trans_info *trans_info = &channel->trans_info;
 	struct gsi_trans *trans;
+	u16 trans_index;
+	u16 trans_id;
 
 	spin_lock_bh(&trans_info->spinlock);
 
@@ -718,10 +720,14 @@ static struct gsi_trans *gsi_channel_trans_last(struct gsi_channel *channel)
 	 * before we disabled transmits, so check for that.
 	 */
 	if (channel->toward_ipa) {
-		trans = list_last_entry_or_null(&trans_info->alloc,
-						struct gsi_trans, links);
-		if (trans)
+		/* The last allocated transaction precedes the first free */
+		if (trans_info->allocated_id != trans_info->free_id) {
+			trans_id = trans_info->free_id - 1;
+			trans_index = trans_id % channel->tre_count;
+			trans = &trans_info->trans[trans_index];
 			goto done;
+		}
+
 		trans = list_last_entry_or_null(&trans_info->committed,
 						struct gsi_trans, links);
 		if (trans)
