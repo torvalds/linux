@@ -1377,12 +1377,9 @@ static int sdma_v6_0_sw_fini(void *handle)
 
 static int sdma_v6_0_hw_init(void *handle)
 {
-	int r;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	r = sdma_v6_0_start(adev);
-
-	return r;
+	return sdma_v6_0_start(adev);
 }
 
 static int sdma_v6_0_hw_fini(void *handle)
