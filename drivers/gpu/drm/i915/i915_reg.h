@@ -3465,6 +3465,20 @@
 						       _XELPDP_USBC3_AUX_CH_CTL, \
 						       _XELPDP_USBC4_AUX_CH_CTL))
 
+#define _XELPDP_USBC1_AUX_CH_DATA1      0x16F214
+#define _XELPDP_USBC2_AUX_CH_DATA1      0x16F414
+#define _XELPDP_USBC3_AUX_CH_DATA1      0x16F614
+#define _XELPDP_USBC4_AUX_CH_DATA1      0x16F814
+
+#define XELPDP_DP_AUX_CH_DATA(aux_ch, i)	_MMIO(_PICK(aux_ch, \
+						       _DPA_AUX_CH_DATA1, \
+						       _DPB_AUX_CH_DATA1, \
+						       0, /* port/aux_ch C is non-existent */ \
+						       _XELPDP_USBC1_AUX_CH_DATA1, \
+						       _XELPDP_USBC2_AUX_CH_DATA1, \
+						       _XELPDP_USBC3_AUX_CH_DATA1, \
+						       _XELPDP_USBC4_AUX_CH_DATA1) + (i) * 4)
+
 #define   DP_AUX_CH_CTL_SEND_BUSY	    (1 << 31)
 #define   DP_AUX_CH_CTL_DONE		    (1 << 30)
 #define   DP_AUX_CH_CTL_INTERRUPT	    (1 << 29)
