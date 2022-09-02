@@ -42,6 +42,8 @@
 #include <linux/sunrpc/svcauth_gss.h>
 #include <linux/sunrpc/addr.h>
 #include <linux/xattr.h>
+#include <linux/vmalloc.h>
+
 #include <uapi/linux/xattr.h>
 
 #include "idmap.h"
@@ -2369,10 +2371,9 @@ nfsd4_decode_compound(struct nfsd4_compoundargs *argp)
 		return true;
 
 	if (argp->opcnt > ARRAY_SIZE(argp->iops)) {
-		argp->ops = kzalloc(argp->opcnt * sizeof(*argp->ops), GFP_KERNEL);
+		argp->ops = vcalloc(argp->opcnt, sizeof(*argp->ops));
 		if (!argp->ops) {
 			argp->ops = argp->iops;
-			dprintk("nfsd: couldn't allocate room for COMPOUND\n");
 			return false;
 		}
 	}
@@ -5394,7 +5395,7 @@ void nfsd4_release_compoundargs(struct svc_rqst *rqstp)
 	struct nfsd4_compoundargs *args = rqstp->rq_argp;
 
 	if (args->ops != args->iops) {
-		kfree(args->ops);
+		vfree(args->ops);
 		args->ops = args->iops;
 	}
 	while (args->to_free) {
