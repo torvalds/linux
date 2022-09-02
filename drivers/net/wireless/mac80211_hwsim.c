@@ -652,7 +652,6 @@ struct mac80211_hwsim_data {
 	u32 ciphers[ARRAY_SIZE(hwsim_ciphers)];
 
 	struct mac_address addresses[2];
-	struct ieee80211_chanctx_conf *chanctx;
 	int channels, idx;
 	bool use_chanctx;
 	bool destroy_on_close;
@@ -2870,11 +2869,6 @@ static int mac80211_hwsim_croc(struct ieee80211_hw *hw,
 static int mac80211_hwsim_add_chanctx(struct ieee80211_hw *hw,
 				      struct ieee80211_chanctx_conf *ctx)
 {
-	struct mac80211_hwsim_data *hwsim = hw->priv;
-
-	mutex_lock(&hwsim->mutex);
-	hwsim->chanctx = ctx;
-	mutex_unlock(&hwsim->mutex);
 	hwsim_set_chanctx_magic(ctx);
 	wiphy_dbg(hw->wiphy,
 		  "add channel context control: %d MHz/width: %d/cfreqs:%d/%d MHz\n",
@@ -2886,11 +2880,6 @@ static int mac80211_hwsim_add_chanctx(struct ieee80211_hw *hw,
 static void mac80211_hwsim_remove_chanctx(struct ieee80211_hw *hw,
 					  struct ieee80211_chanctx_conf *ctx)
 {
-	struct mac80211_hwsim_data *hwsim = hw->priv;
-
-	mutex_lock(&hwsim->mutex);
-	hwsim->chanctx = NULL;
-	mutex_unlock(&hwsim->mutex);
 	wiphy_dbg(hw->wiphy,
 		  "remove channel context control: %d MHz/width: %d/cfreqs:%d/%d MHz\n",
 		  ctx->def.chan->center_freq, ctx->def.width,
@@ -2903,11 +2892,6 @@ static void mac80211_hwsim_change_chanctx(struct ieee80211_hw *hw,
 					  struct ieee80211_chanctx_conf *ctx,
 					  u32 changed)
 {
-	struct mac80211_hwsim_data *hwsim = hw->priv;
-
-	mutex_lock(&hwsim->mutex);
-	hwsim->chanctx = ctx;
-	mutex_unlock(&hwsim->mutex);
 	hwsim_check_chanctx_magic(ctx);
 	wiphy_dbg(hw->wiphy,
 		  "change channel context control: %d MHz/width: %d/cfreqs:%d/%d MHz\n",
@@ -4278,7 +4262,6 @@ static int mac80211_hwsim_new_radio(struct genl_info *info,
 		hw->wiphy->max_remain_on_channel_duration = 1000;
 		data->if_combination.radar_detect_widths = 0;
 		data->if_combination.num_different_channels = data->channels;
-		data->chanctx = NULL;
 	} else {
 		data->if_combination.num_different_channels = 1;
 		data->if_combination.radar_detect_widths =
@@ -4853,13 +4836,9 @@ static int hwsim_cloned_frame_received_nl(struct sk_buff *skb_2,
 	if (data2->use_chanctx) {
 		if (data2->tmp_chan)
 			channel = data2->tmp_chan;
-		else if (data2->chanctx)
-			channel = data2->chanctx->def.chan;
 	} else {
 		channel = data2->channel;
 	}
-	if (!channel)
-		goto out;
 
 	if (!hwsim_virtio_enabled) {
 		if (hwsim_net_get_netgroup(genl_info_net(info)) !=
@@ -4890,6 +4869,7 @@ static int hwsim_cloned_frame_received_nl(struct sk_buff *skb_2,
 							  rx_status.freq);
 		if (!iter_data.channel)
 			goto out;
+		rx_status.band = iter_data.channel->band;
 
 		mutex_lock(&data2->mutex);
 		if (!hwsim_chans_compat(iter_data.channel, channel)) {
@@ -4902,11 +4882,13 @@ static int hwsim_cloned_frame_received_nl(struct sk_buff *skb_2,
 			}
 		}
 		mutex_unlock(&data2->mutex);
+	} else if (!channel) {
+		goto out;
 	} else {
 		rx_status.freq = channel->center_freq;
+		rx_status.band = channel->band;
 	}
 
-	rx_status.band = channel->band;
 	rx_status.rate_idx = nla_get_u32(info->attrs[HWSIM_ATTR_RX_RATE]);
 	rx_status.signal = nla_get_u32(info->attrs[HWSIM_ATTR_SIGNAL]);
 
