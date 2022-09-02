@@ -42,6 +42,7 @@
 #include <linux/uaccess.h>
 #include <linux/miscdevice.h>
 #include <linux/rfkill.h>
+#include <linux/hwmon.h>
 #include <linux/iio/iio.h>
 #include <linux/toshiba.h>
 #include <acpi/video.h>
@@ -171,6 +172,9 @@ struct toshiba_acpi_dev {
 	struct miscdevice miscdev;
 	struct rfkill *wwan_rfk;
 	struct iio_dev *indio_dev;
+#if IS_ENABLED(CONFIG_HWMON)
+	struct device *hwmon_device;
+#endif
 
 	int force_fan;
 	int last_key_event;
@@ -2928,6 +2932,54 @@ static int toshiba_acpi_setup_backlight(struct toshiba_acpi_dev *dev)
 	return 0;
 }
 
+/* HWMON support for fan */
+#if IS_ENABLED(CONFIG_HWMON)
+static umode_t toshiba_acpi_hwmon_is_visible(const void *drvdata,
+					     enum hwmon_sensor_types type,
+					     u32 attr, int channel)
+{
+	return 0444;
+}
+
+static int toshiba_acpi_hwmon_read(struct device *dev, enum hwmon_sensor_types type,
+				   u32 attr, int channel, long *val)
+{
+	/*
+	 * There is only a single channel and single attribute (for the
+	 * fan) at this point.
+	 * This can be replaced with more advanced logic in the future,
+	 * should the need arise.
+	 */
+	if (type == hwmon_fan && channel == 0 && attr == hwmon_fan_input) {
+		u32 value;
+		int ret;
+
+		ret = get_fan_rpm(toshiba_acpi, &value);
+		if (ret)
+			return ret;
+
+		*val = value;
+		return 0;
+	}
+	return -EOPNOTSUPP;
+}
+
+static const struct hwmon_channel_info *toshiba_acpi_hwmon_info[] = {
+	HWMON_CHANNEL_INFO(fan, HWMON_F_INPUT),
+	NULL
+};
+
+static const struct hwmon_ops toshiba_acpi_hwmon_ops = {
+	.is_visible = toshiba_acpi_hwmon_is_visible,
+	.read = toshiba_acpi_hwmon_read,
+};
+
+static const struct hwmon_chip_info toshiba_acpi_hwmon_chip_info = {
+	.ops = &toshiba_acpi_hwmon_ops,
+	.info = toshiba_acpi_hwmon_info,
+};
+#endif
+
 static void print_supported_features(struct toshiba_acpi_dev *dev)
 {
 	pr_info("Supported laptop features:");
@@ -2981,6 +3033,11 @@ static int toshiba_acpi_remove(struct acpi_device *acpi_dev)
 	misc_deregister(&dev->miscdev);
 
 	remove_toshiba_proc_entries(dev);
+
+#if IS_ENABLED(CONFIG_HWMON)
+	if (dev->hwmon_device)
+		hwmon_device_unregister(dev->hwmon_device);
+#endif
 
 	if (dev->accelerometer_supported && dev->indio_dev) {
 		iio_device_unregister(dev->indio_dev);
@@ -3173,6 +3230,18 @@ iio_error:
 
 	ret = get_fan_rpm(dev, &dummy);
 	dev->fan_rpm_supported = !ret;
+
+#if IS_ENABLED(CONFIG_HWMON)
+	if (dev->fan_rpm_supported) {
+		dev->hwmon_device = hwmon_device_register_with_info(
+			&dev->acpi_dev->dev, "toshiba_acpi_sensors", NULL,
+			&toshiba_acpi_hwmon_chip_info, NULL);
+		if (IS_ERR(dev->hwmon_device)) {
+			dev->hwmon_device = NULL;
+			pr_warn("unable to register hwmon device, skipping\n");
+		}
+	}
+#endif
 
 	toshiba_wwan_available(dev);
 	if (dev->wwan_supported)
