@@ -58,6 +58,9 @@ properties:
     minItems: 3
     maxItems: 4
 
+  power-domains:
+    maxItems: 1
+
   resets:
     maxItems: 2
 
@@ -264,6 +267,16 @@ allOf:
           items:
             - const: phy_phy
             - const: phy
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - qcom,sc8280xp-qmp-usb3-uni-phy
+    then:
+      required:
+        - power-domains
 
   - if:
       properties:
