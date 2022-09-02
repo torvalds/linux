@@ -282,6 +282,27 @@ static bool apply_config(struct rdt_hw_domain *hw_dom,
 	return false;
 }
 
+int resctrl_arch_update_one(struct rdt_resource *r, struct rdt_domain *d,
+			    u32 closid, enum resctrl_conf_type t, u32 cfg_val)
+{
+	struct rdt_hw_resource *hw_res = resctrl_to_arch_res(r);
+	struct rdt_hw_domain *hw_dom = resctrl_to_arch_dom(d);
+	u32 idx = get_config_index(closid, t);
+	struct msr_param msr_param;
+
+	if (!cpumask_test_cpu(smp_processor_id(), &d->cpu_mask))
+		return -EINVAL;
+
+	hw_dom->ctrl_val[idx] = cfg_val;
+
+	msr_param.res = r;
+	msr_param.low = idx;
+	msr_param.high = idx + 1;
+	hw_res->msr_update(d, &msr_param, r);
+
+	return 0;
+}
+
 int resctrl_arch_update_domains(struct rdt_resource *r, u32 closid)
 {
 	struct resctrl_staged_config *cfg;
