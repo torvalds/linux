@@ -21,6 +21,12 @@
 #define EXAR_OFFSET_MPIOLVL_HI 0x96
 #define EXAR_OFFSET_MPIOSEL_HI 0x99
 
+/*
+ * The Device Configuration and UART Configuration Registers
+ * for each UART channel take 1KB of memory address space.
+ */
+#define EXAR_UART_CHANNEL_SIZE 0x400
+
 #define DRIVER_NAME "gpio_exar"
 
 static DEFINE_IDA(ida_index);
@@ -31,26 +37,39 @@ struct exar_gpio_chip {
 	int index;
 	char name[20];
 	unsigned int first_pin;
+	/*
+	 * The offset to the cascaded device's (if existing)
+	 * Device Configuration Registers.
+	 */
+	unsigned int cascaded_offset;
 };
 
 static unsigned int
 exar_offset_to_sel_addr(struct exar_gpio_chip *exar_gpio, unsigned int offset)
 {
-	return (offset + exar_gpio->first_pin) / 8 ? EXAR_OFFSET_MPIOSEL_HI
-						   : EXAR_OFFSET_MPIOSEL_LO;
+	unsigned int pin = exar_gpio->first_pin + (offset % 16);
+	unsigned int cascaded = offset / 16;
+	unsigned int addr = pin / 8 ? EXAR_OFFSET_MPIOSEL_HI : EXAR_OFFSET_MPIOSEL_LO;
+
+	return addr + (cascaded ? exar_gpio->cascaded_offset : 0);
 }
 
 static unsigned int
 exar_offset_to_lvl_addr(struct exar_gpio_chip *exar_gpio, unsigned int offset)
 {
-	return (offset + exar_gpio->first_pin) / 8 ? EXAR_OFFSET_MPIOLVL_HI
-						   : EXAR_OFFSET_MPIOLVL_LO;
+	unsigned int pin = exar_gpio->first_pin + (offset % 16);
+	unsigned int cascaded = offset / 16;
+	unsigned int addr = pin / 8 ? EXAR_OFFSET_MPIOLVL_HI : EXAR_OFFSET_MPIOLVL_LO;
+
+	return addr + (cascaded ? exar_gpio->cascaded_offset : 0);
 }
 
 static unsigned int
 exar_offset_to_bit(struct exar_gpio_chip *exar_gpio, unsigned int offset)
 {
-	return (offset + exar_gpio->first_pin) % 8;
+	unsigned int pin = exar_gpio->first_pin + (offset % 16);
+
+	return pin % 8;
 }
 
 static int exar_get_direction(struct gpio_chip *chip, unsigned int offset)
@@ -152,6 +171,17 @@ static int gpio_exar_probe(struct platform_device *pdev)
 	exar_gpio = devm_kzalloc(dev, sizeof(*exar_gpio), GFP_KERNEL);
 	if (!exar_gpio)
 		return -ENOMEM;
+
+	/*
+	 * If cascaded, secondary xr17v354 or xr17v358 have the same amount
+	 * of MPIOs as their primaries and the last 4 bits of the primary's
+	 * PCI Device ID is the number of its UART channels.
+	 */
+	if (pcidev->device & GENMASK(15, 12)) {
+		ngpios += ngpios;
+		exar_gpio->cascaded_offset = (pcidev->device & GENMASK(3, 0)) *
+				EXAR_UART_CHANNEL_SIZE;
+	}
 
 	/*
 	 * We don't need to check the return values of mmio regmap operations (unless
