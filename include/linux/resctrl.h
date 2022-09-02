@@ -219,7 +219,23 @@ u32 resctrl_arch_get_config(struct rdt_resource *r, struct rdt_domain *d,
 			    u32 closid, enum resctrl_conf_type type);
 int resctrl_online_domain(struct rdt_resource *r, struct rdt_domain *d);
 void resctrl_offline_domain(struct rdt_resource *r, struct rdt_domain *d);
-int resctrl_arch_rmid_read(u32 rmid, enum resctrl_event_id eventid, u64 *res);
+
+/**
+ * resctrl_arch_rmid_read() - Read the eventid counter corresponding to rmid
+ *			      for this resource and domain.
+ * @r:			resource that the counter should be read from.
+ * @d:			domain that the counter should be read from.
+ * @rmid:		rmid of the counter to read.
+ * @eventid:		eventid to read, e.g. L3 occupancy.
+ * @val:		result of the counter read in chunks.
+ *
+ * Call from process context on a CPU that belongs to domain @d.
+ *
+ * Return:
+ * 0 on success, or -EIO, -EINVAL etc on error.
+ */
+int resctrl_arch_rmid_read(struct rdt_resource *r, struct rdt_domain *d,
+			   u32 rmid, enum resctrl_event_id eventid, u64 *val);
 
 /**
  * resctrl_arch_reset_rmid() - Reset any private state associated with rmid
