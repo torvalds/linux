@@ -1545,7 +1545,7 @@ static int do_ip_getsockopt(struct sock *sk, int level, int optname,
 
 	if (needs_rtnl)
 		rtnl_lock();
-	lock_sock(sk);
+	sockopt_lock_sock(sk);
 
 	switch (optname) {
 	case IP_OPTIONS:
@@ -1561,7 +1561,7 @@ static int do_ip_getsockopt(struct sock *sk, int level, int optname,
 			memcpy(optbuf, &inet_opt->opt,
 			       sizeof(struct ip_options) +
 			       inet_opt->opt.optlen);
-		release_sock(sk);
+		sockopt_release_sock(sk);
 
 		if (opt->optlen == 0) {
 			len = 0;
@@ -1637,7 +1637,7 @@ static int do_ip_getsockopt(struct sock *sk, int level, int optname,
 			dst_release(dst);
 		}
 		if (!val) {
-			release_sock(sk);
+			sockopt_release_sock(sk);
 			return -ENOTCONN;
 		}
 		break;
@@ -1662,7 +1662,7 @@ static int do_ip_getsockopt(struct sock *sk, int level, int optname,
 		struct in_addr addr;
 		len = min_t(unsigned int, len, sizeof(struct in_addr));
 		addr.s_addr = inet->mc_addr;
-		release_sock(sk);
+		sockopt_release_sock(sk);
 
 		if (copy_to_sockptr(optlen, &len, sizeof(int)))
 			return -EFAULT;
@@ -1699,7 +1699,7 @@ static int do_ip_getsockopt(struct sock *sk, int level, int optname,
 	{
 		struct msghdr msg;
 
-		release_sock(sk);
+		sockopt_release_sock(sk);
 
 		if (sk->sk_type != SOCK_STREAM)
 			return -ENOPROTOOPT;
@@ -1743,10 +1743,10 @@ static int do_ip_getsockopt(struct sock *sk, int level, int optname,
 		val = inet->min_ttl;
 		break;
 	default:
-		release_sock(sk);
+		sockopt_release_sock(sk);
 		return -ENOPROTOOPT;
 	}
-	release_sock(sk);
+	sockopt_release_sock(sk);
 
 	if (len < sizeof(int) && len > 0 && val >= 0 && val <= 255) {
 		unsigned char ucval = (unsigned char)val;
@@ -1765,7 +1765,7 @@ static int do_ip_getsockopt(struct sock *sk, int level, int optname,
 	return 0;
 
 out:
-	release_sock(sk);
+	sockopt_release_sock(sk);
 	if (needs_rtnl)
 		rtnl_unlock();
 	return err;
