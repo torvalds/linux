@@ -72,7 +72,13 @@ intel_has_sagv(struct drm_i915_private *i915)
 static u32
 intel_sagv_block_time(struct drm_i915_private *i915)
 {
-	if (DISPLAY_VER(i915) >= 12) {
+	if (DISPLAY_VER(i915) >= 14) {
+		u32 val;
+
+		val = intel_uncore_read(&i915->uncore, MTL_LATENCY_SAGV);
+
+		return REG_FIELD_GET(MTL_LATENCY_QCLK_SAGV, val);
+	} else if (DISPLAY_VER(i915) >= 12) {
 		u32 val = 0;
 		int ret;
 
