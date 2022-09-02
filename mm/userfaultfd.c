@@ -243,20 +243,22 @@ static int mcontinue_atomic_pte(struct mm_struct *dst_mm,
 {
 	struct inode *inode = file_inode(dst_vma->vm_file);
 	pgoff_t pgoff = linear_page_index(dst_vma, dst_addr);
+	struct folio *folio;
 	struct page *page;
 	int ret;
 
-	ret = shmem_getpage(inode, pgoff, &page, SGP_NOALLOC);
-	/* Our caller expects us to return -EFAULT if we failed to find page. */
+	ret = shmem_get_folio(inode, pgoff, &folio, SGP_NOALLOC);
+	/* Our caller expects us to return -EFAULT if we failed to find folio */
 	if (ret == -ENOENT)
 		ret = -EFAULT;
 	if (ret)
 		goto out;
-	if (!page) {
+	if (!folio) {
 		ret = -EFAULT;
 		goto out;
 	}
 
+	page = folio_file_page(folio, pgoff);
 	if (PageHWPoison(page)) {
 		ret = -EIO;
 		goto out_release;
@@ -267,13 +269,13 @@ static int mcontinue_atomic_pte(struct mm_struct *dst_mm,
 	if (ret)
 		goto out_release;
 
-	unlock_page(page);
+	folio_unlock(folio);
 	ret = 0;
 out:
 	return ret;
 out_release:
-	unlock_page(page);
-	put_page(page);
+	folio_unlock(folio);
+	folio_put(folio);
 	goto out;
 }
 
