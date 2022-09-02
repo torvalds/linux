@@ -115,6 +115,7 @@
 
 /* Quirks for specific BWMON types */
 #define BWMON_HAS_GLOBAL_IRQ			BIT(0)
+#define BWMON_NEEDS_FORCE_CLEAR			BIT(1)
 
 enum bwmon_fields {
 	F_GLOBAL_IRQ_CLEAR,
@@ -343,6 +344,8 @@ static void bwmon_clear_counters(struct icc_bwmon *bwmon, bool clear_all)
 	 * before we try to clear the IRQ or do any other counter operations.
 	 */
 	regmap_field_force_write(bwmon->regs[F_CLEAR], val);
+	if (bwmon->data->quirks & BWMON_NEEDS_FORCE_CLEAR)
+		regmap_field_force_write(bwmon->regs[F_CLEAR], 0);
 }
 
 static void bwmon_clear_irq(struct icc_bwmon *bwmon)
@@ -364,6 +367,8 @@ static void bwmon_clear_irq(struct icc_bwmon *bwmon)
 	 * interrupt is cleared.
 	 */
 	regmap_field_force_write(bwmon->regs[F_IRQ_CLEAR], BWMON_IRQ_ENABLE_MASK);
+	if (bwmon->data->quirks & BWMON_NEEDS_FORCE_CLEAR)
+		regmap_field_force_write(bwmon->regs[F_IRQ_CLEAR], 0);
 	if (bwmon->data->quirks & BWMON_HAS_GLOBAL_IRQ)
 		regmap_field_force_write(bwmon->regs[F_GLOBAL_IRQ_CLEAR],
 					 BWMON_V4_GLOBAL_IRQ_ENABLE_ENABLE);
@@ -662,6 +667,7 @@ static const struct icc_bwmon_data sc7280_llcc_bwmon_data = {
 	.default_lowbw_kbps = 0,
 	.zone1_thres_count = 16,
 	.zone3_thres_count = 1,
+	.quirks = BWMON_NEEDS_FORCE_CLEAR,
 	.regmap_fields = sdm845_llcc_bwmon_reg_fields,
 	.regmap_cfg = &sdm845_llcc_bwmon_regmap_cfg,
 };
