@@ -230,6 +230,13 @@ static void __free_rcu(struct rcu_head *head)
 	atomic_set(&c->call_rcu_in_progress, 0);
 }
 
+static void __free_rcu_tasks_trace(struct rcu_head *head)
+{
+	struct bpf_mem_cache *c = container_of(head, struct bpf_mem_cache, rcu);
+
+	call_rcu(&c->rcu, __free_rcu);
+}
+
 static void enque_to_free(struct bpf_mem_cache *c, void *obj)
 {
 	struct llist_node *llnode = obj;
@@ -255,7 +262,11 @@ static void do_call_rcu(struct bpf_mem_cache *c)
 		 * from __free_rcu() and from drain_mem_cache().
 		 */
 		__llist_add(llnode, &c->waiting_for_gp);
-	call_rcu(&c->rcu, __free_rcu);
+	/* Use call_rcu_tasks_trace() to wait for sleepable progs to finish.
+	 * Then use call_rcu() to wait for normal progs to finish
+	 * and finally do free_one() on each element.
+	 */
+	call_rcu_tasks_trace(&c->rcu, __free_rcu_tasks_trace);
 }
 
 static void free_bulk(struct bpf_mem_cache *c)
@@ -457,6 +468,7 @@ void bpf_mem_alloc_destroy(struct bpf_mem_alloc *ma)
 		/* c->waiting_for_gp list was drained, but __free_rcu might
 		 * still execute. Wait for it now before we free 'c'.
 		 */
+		rcu_barrier_tasks_trace();
 		rcu_barrier();
 		free_percpu(ma->cache);
 		ma->cache = NULL;
@@ -471,6 +483,7 @@ void bpf_mem_alloc_destroy(struct bpf_mem_alloc *ma)
 		}
 		if (c->objcg)
 			obj_cgroup_put(c->objcg);
+		rcu_barrier_tasks_trace();
 		rcu_barrier();
 		free_percpu(ma->caches);
 		ma->caches = NULL;
