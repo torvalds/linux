@@ -272,7 +272,6 @@ struct atomisp_sub_device {
 	/* video pipe main output */
 	struct atomisp_video_pipe video_out_video_capture;
 	/* struct isp_subdev_params params; */
-	spinlock_t lock;
 	struct atomisp_device *isp;
 	struct v4l2_ctrl_handler ctrl_handler;
 	struct v4l2_ctrl *fmt_auto;

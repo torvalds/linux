@@ -1356,7 +1356,6 @@ int atomisp_subdev_init(struct atomisp_device *isp)
 		return -ENOMEM;
 	for (i = 0; i < isp->num_of_streams; i++) {
 		asd = &isp->asd[i];
-		spin_lock_init(&asd->lock);
 		asd->isp = isp;
 		isp_subdev_init_params(asd);
 		asd->index = i;
