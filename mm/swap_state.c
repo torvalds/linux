@@ -272,16 +272,19 @@ void clear_shadow_from_swap_cache(int type, unsigned long begin,
 /* 
  * If we are the only user, then try to free up the swap cache. 
  * 
- * Its ok to check for PageSwapCache without the page lock
+ * Its ok to check the swapcache flag without the folio lock
  * here because we are going to recheck again inside
- * try_to_free_swap() _with_ the lock.
+ * folio_free_swap() _with_ the lock.
  * 					- Marcelo
  */
 void free_swap_cache(struct page *page)
 {
-	if (PageSwapCache(page) && !page_mapped(page) && trylock_page(page)) {
-		try_to_free_swap(page);
-		unlock_page(page);
+	struct folio *folio = page_folio(page);
+
+	if (folio_test_swapcache(folio) && !folio_mapped(folio) &&
+	    folio_trylock(folio)) {
+		folio_free_swap(folio);
+		folio_unlock(folio);
 	}
 }
 
