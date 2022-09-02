@@ -1,113 +1,190 @@
 // SPDX-License-Identifier: GPL-2.0
-// Copyright (c) 2019 Intel Corporation.
+/*
+ * hi556 driver
+ *
+ * Copyright (C) 2022 Rockchip Electronics Co., Ltd.
+ *
+ * V0.0X01.0X00 init version
+ */
 
-#include <asm/unaligned.h>
-#include <linux/acpi.h>
+#include <linux/clk.h>
+#include <linux/device.h>
 #include <linux/delay.h>
+#include <linux/gpio/consumer.h>
 #include <linux/i2c.h>
 #include <linux/module.h>
 #include <linux/pm_runtime.h>
+#include <linux/of.h>
+#include <linux/of_graph.h>
+#include <linux/regulator/consumer.h>
+#include <linux/sysfs.h>
+#include <linux/pinctrl/consumer.h>
+#include <linux/version.h>
+#include <media/v4l2-async.h>
+#include <media/media-entity.h>
+#include <media/v4l2-common.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
+#include <media/v4l2-event.h>
 #include <media/v4l2-fwnode.h>
+#include <media/v4l2-image-sizes.h>
+#include <media/v4l2-mediabus.h>
+#include <media/v4l2-subdev.h>
+#include <linux/rk-camera-module.h>
+
+/* verify default register values */
+//#define CHECK_REG_VALUE
+
+#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x00)
+
+#ifndef V4L2_CID_DIGITAL_GAIN
+#define V4L2_CID_DIGITAL_GAIN		V4L2_CID_GAIN
+#endif
+
+/* pixel rate = link frequency * 2 * lanes / BITS_PER_SAMPLE */
+#define MIPI_FREQ	440000000U
+#define HI556_PIXEL_RATE		(440000000LL * 2LL * 2LL / 10)
+#define HI556_XVCLK_FREQ		24000000
+
+#define CHIP_ID				0x0556
+#define HI556_REG_CHIP_ID		0x0f16
+
+#define HI556_REG_CTRL_MODE		0x0A00
+#define HI556_MODE_SW_STANDBY		0x00
+#define HI556_MODE_STREAMING		0x01
+
+#define HI556_REG_EXPOSURE_H		0x0073
+#define HI556_REG_EXPOSURE_M		0x0074
+#define HI556_REG_EXPOSURE_L		0x0075
+
+#define HI556_FETCH_HIGH_BYTE_EXP(VAL)	(((VAL) >> 16) & 0xF)	/* 4 Bits */
+#define HI556_FETCH_MIDDLE_BYTE_EXP(VAL) (((VAL) >> 8) & 0xFF)	/* 8 Bits */
+#define HI556_FETCH_LOW_BYTE_EXP(VAL)	((VAL) & 0xFF)	/* 8 Bits */
+
+#define	HI556_EXPOSURE_MIN		4
+#define	HI556_EXPOSURE_STEP		1
+#define HI556_VTS_MAX			0x7fff
+
+#define HI556_REG_GAIN			0x0077
+#define HI556_GAIN_MASK			0xff
+
+#define	ANALOG_GAIN_MIN			0x00
+#define	ANALOG_GAIN_MAX			0xF0
+#define	ANALOG_GAIN_STEP		1
+#define	ANALOG_GAIN_DEFAULT		0x10
+
+#define HI556_REG_GROUP	0x0046
+
+#define HI556_REG_TEST_PATTERN		0x0A05
+#define	HI556_TEST_PATTERN_ENABLE	0x01
+#define	HI556_TEST_PATTERN_DISABLE	0x0
+#define HI556_REG_TEST_PATTERN_SELECT	0x0201
+
+#define HI556_REG_VTS			0x0006
+#define HI556_FLIP_MIRROR_REG	0x000e
+#define HI556_FETCH_MIRROR(VAL, ENABLE)	(ENABLE ? VAL | 0x01 : VAL & 0xfe)
+#define HI556_FETCH_FLIP(VAL, ENABLE)	(ENABLE ? VAL | 0x02 : VAL & 0xfd)
+#define REG_NULL			0xFFFF
+#define DELAY_MS			0xEEEE	/* Array delay token */
 
 #define HI556_REG_VALUE_08BIT		1
 #define HI556_REG_VALUE_16BIT		2
 #define HI556_REG_VALUE_24BIT		3
 
-#define HI556_LINK_FREQ_437MHZ		437000000ULL
-#define HI556_MCLK			19200000
-#define HI556_DATA_LANES		2
-#define HI556_RGB_DEPTH			10
+#define HI556_LANES			2
+#define HI556_BITS_PER_SAMPLE		10
 
-#define HI556_REG_CHIP_ID		0x0f16
-#define HI556_CHIP_ID			0x0556
+#define OF_CAMERA_PINCTRL_STATE_DEFAULT	"rockchip,camera_default"
+#define OF_CAMERA_PINCTRL_STATE_SLEEP	"rockchip,camera_sleep"
 
-#define HI556_REG_MODE_SELECT		0x0a00
-#define HI556_MODE_STANDBY		0x0000
-#define HI556_MODE_STREAMING		0x0100
+#define HI556_NAME			"hi556"
+#define HI556_MEDIA_BUS_FMT		MEDIA_BUS_FMT_SGBRG10_1X10
 
-/* vertical-timings from sensor */
-#define HI556_REG_FLL			0x0006
-#define HI556_FLL_30FPS			0x0814
-#define HI556_FLL_30FPS_MIN		0x0814
-#define HI556_FLL_MAX			0x7fff
-
-/* horizontal-timings from sensor */
-#define HI556_REG_LLP			0x0008
-
-/* Exposure controls from sensor */
-#define HI556_REG_EXPOSURE		0x0074
-#define HI556_EXPOSURE_MIN		6
-#define HI556_EXPOSURE_MAX_MARGIN	2
-#define HI556_EXPOSURE_STEP		1
-
-/* Analog gain controls from sensor */
-#define HI556_REG_ANALOG_GAIN		0x0077
-#define HI556_ANAL_GAIN_MIN		0
-#define HI556_ANAL_GAIN_MAX		240
-#define HI556_ANAL_GAIN_STEP		1
-
-/* Digital gain controls from sensor */
-#define HI556_REG_MWB_GR_GAIN		0x0078
-#define HI556_REG_MWB_GB_GAIN		0x007a
-#define HI556_REG_MWB_R_GAIN		0x007c
-#define HI556_REG_MWB_B_GAIN		0x007e
-#define HI556_DGTL_GAIN_MIN		0
-#define HI556_DGTL_GAIN_MAX		2048
-#define HI556_DGTL_GAIN_STEP		1
-#define HI556_DGTL_GAIN_DEFAULT		256
-
-/* Test Pattern Control */
-#define HI556_REG_ISP			0X0a05
-#define HI556_REG_ISP_TPG_EN		0x01
-#define HI556_REG_TEST_PATTERN		0x0201
-
-enum {
-	HI556_LINK_FREQ_437MHZ_INDEX,
+struct hi556_otp_info {
+	int flag; // bit[7]: info, bit[6]:wb
+	int module_id;
+	int lens_id;
+	int year;
+	int month;
+	int day;
+	int rg_ratio;
+	int bg_ratio;
 };
 
-struct hi556_reg {
-	u16 address;
+static const char * const hi556_supply_names[] = {
+	"avdd",		/* Analog power */
+	"dovdd",	/* Digital I/O power */
+	"dvdd",		/* Digital core power */
+};
+
+#define HI556_NUM_SUPPLIES ARRAY_SIZE(hi556_supply_names)
+
+struct regval {
+	u16 addr;
 	u16 val;
 };
 
-struct hi556_reg_list {
-	u32 num_of_regs;
-	const struct hi556_reg *regs;
-};
-
-struct hi556_link_freq_config {
-	const struct hi556_reg_list reg_list;
-};
-
 struct hi556_mode {
-	/* Frame width in pixels */
 	u32 width;
-
-	/* Frame height in pixels */
 	u32 height;
-
-	/* Horizontal timining size */
-	u32 llp;
-
-	/* Default vertical timining size */
-	u32 fll_def;
-
-	/* Min vertical timining size */
-	u32 fll_min;
-
-	/* Link frequency needed for this resolution */
-	u32 link_freq_index;
-
-	/* Sensor register settings for this resolution */
-	const struct hi556_reg_list reg_list;
+	struct v4l2_fract max_fps;
+	u32 hts_def;
+	u32 vts_def;
+	u32 exp_def;
+	const struct regval *reg_list;
+	u32 hdr_mode;
 };
 
-#define to_hi556(_sd) container_of(_sd, struct hi556, sd)
+struct hi556 {
+	struct i2c_client	*client;
+	struct clk		*xvclk;
+	struct gpio_desc	*power_gpio;
+	struct gpio_desc	*reset_gpio;
+	struct gpio_desc	*pwdn_gpio;
+	struct regulator_bulk_data supplies[HI556_NUM_SUPPLIES];
 
-//SENSOR_INITIALIZATION
-static const struct hi556_reg mipi_data_rate_874mbps[] = {
+	struct pinctrl		*pinctrl;
+	struct pinctrl_state	*pins_default;
+	struct pinctrl_state	*pins_sleep;
+
+	struct v4l2_subdev	subdev;
+	struct media_pad	pad;
+	struct v4l2_ctrl_handler ctrl_handler;
+	struct v4l2_ctrl	*exposure;
+	struct v4l2_ctrl	*anal_gain;
+	struct v4l2_ctrl	*digi_gain;
+	struct v4l2_ctrl	*hblank;
+	struct v4l2_ctrl	*vblank;
+	struct v4l2_ctrl	*test_pattern;
+	struct mutex		mutex;
+	bool			streaming;
+	bool			power_on;
+	const struct hi556_mode *cur_mode;
+	unsigned int lane_num;
+	unsigned int cfg_num;
+	unsigned int pixel_rate;
+	u32			module_index;
+	struct hi556_otp_info *otp;
+	const char		*module_facing;
+	const char		*module_name;
+	const char		*len_name;
+	struct rkmodule_awb_cfg	awb_cfg;
+};
+
+#define to_hi556(sd) container_of(sd, struct hi556, subdev)
+
+/*
+ * Xclk 24Mhz
+ * Pclk 176Mhz
+ * linelength 2816(0xb00)
+ * framelength 1988(0x7c0)
+ * grabwindow_width 2592
+ * grabwindow_height 1944
+ * max_framerate 30fps
+ * MIPI speed(Mbps) : 840Mbps x 2Lane
+ */
+static const struct regval hi556_global_regs[] = {
+	{0x0a00, 0x0000},
 	{0x0e00, 0x0102},
 	{0x0e02, 0x0102},
 	{0x0e0c, 0x0100},
@@ -257,7 +334,6 @@ static const struct hi556_reg mipi_data_rate_874mbps[] = {
 	{0x3022, 0x140f},
 	{0x3024, 0x0040},
 	{0x3026, 0x000f},
-
 	{0x0b00, 0x0000},
 	{0x0b02, 0x0045},
 	{0x0b04, 0xb405},
@@ -270,12 +346,12 @@ static const struct hi556_reg mipi_data_rate_874mbps[] = {
 	{0x0b12, 0x004c},
 	{0x0b14, 0x4068},
 	{0x0b16, 0x0000},
-	{0x0f30, 0x5b15},
+	{0x0f30, 0x6e25},
 	{0x0f32, 0x7067},
 	{0x0954, 0x0009},
-	{0x0956, 0x0000},
-	{0x0958, 0xbb80},
-	{0x095a, 0x5140},
+	{0x0956, 0x1100},
+	{0x0958, 0xcc80},
+	{0x095a, 0x0000},
 	{0x0c00, 0x1110},
 	{0x0c02, 0x0011},
 	{0x0c04, 0x0000},
@@ -298,27 +374,26 @@ static const struct hi556_reg mipi_data_rate_874mbps[] = {
 	{0x0008, 0x0b00},
 	{0x005a, 0x0202},
 	{0x0012, 0x000e},
-	{0x0018, 0x0a33},
+	{0x0018, 0x0a31},
 	{0x0022, 0x0008},
 	{0x0028, 0x0017},
 	{0x0024, 0x0028},
 	{0x002a, 0x002d},
 	{0x0026, 0x0030},
-	{0x002c, 0x07c9},
+	{0x002c, 0x07c7},
 	{0x002e, 0x1111},
 	{0x0030, 0x1111},
 	{0x0032, 0x1111},
-	{0x0006, 0x07bc},
+	{0x0006, 0x0823},
 	{0x0a22, 0x0000},
 	{0x0a12, 0x0a20},
 	{0x0a14, 0x0798},
 	{0x003e, 0x0000},
-	{0x0074, 0x080e},
-	{0x0070, 0x0407},
+	{0x0074, 0x0821},
+	{0x0070, 0x0411},
 	{0x0002, 0x0000},
 	{0x0a02, 0x0100},
 	{0x0a24, 0x0100},
-	{0x0046, 0x0000},
 	{0x0076, 0x0000},
 	{0x0060, 0x0000},
 	{0x0062, 0x0530},
@@ -327,47 +402,54 @@ static const struct hi556_reg mipi_data_rate_874mbps[] = {
 	{0x0068, 0x0500},
 	{0x0122, 0x0300},
 	{0x015a, 0xff08},
-	{0x0804, 0x0300},
-	{0x0806, 0x0100},
+	{0x0804, 0x0200},
 	{0x005c, 0x0102},
 	{0x0a1a, 0x0800},
+	{0x003c, 0x0101}, //fix framerate
+	{REG_NULL, 0x00},
 };
 
-static const struct hi556_reg mode_2592x1944_regs[] = {
+/*
+ * Xclk 24Mhz
+ * Pclk 210Mhz
+ * linelength 2816
+ * framelength 2083
+ * grabwindow_width 2592
+ * grabwindow_height 1944
+ * max_framerate 30fps
+ * MIPI speed(Mbps): 880Mbps x 2lane
+ */
+static const struct regval hi556_2592x1944_regs_2lane[] = {
 	{0x0a00, 0x0000},
 	{0x0b0a, 0x8252},
-	{0x0f30, 0x5b15},
+	{0x0f30, 0x6e25},
 	{0x0f32, 0x7067},
 	{0x004a, 0x0100},
 	{0x004c, 0x0000},
-	{0x004e, 0x0100},
+	{0x004e, 0x0000},
 	{0x000c, 0x0022},
 	{0x0008, 0x0b00},
 	{0x005a, 0x0202},
 	{0x0012, 0x000e},
-	{0x0018, 0x0a33},
+	{0x0018, 0x0a31},
 	{0x0022, 0x0008},
 	{0x0028, 0x0017},
 	{0x0024, 0x0028},
 	{0x002a, 0x002d},
 	{0x0026, 0x0030},
-	{0x002c, 0x07c9},
+	{0x002c, 0x07c7},
 	{0x002e, 0x1111},
 	{0x0030, 0x1111},
 	{0x0032, 0x1111},
-	{0x0006, 0x0814},
+	{0x0006, 0x0823},
 	{0x0a22, 0x0000},
 	{0x0a12, 0x0a20},
 	{0x0a14, 0x0798},
 	{0x003e, 0x0000},
-	{0x0074, 0x0812},
-	{0x0070, 0x0409},
-	{0x0804, 0x0300},
-	{0x0806, 0x0100},
+	{0x0804, 0x0200},
 	{0x0a04, 0x014a},
 	{0x090c, 0x0fdc},
 	{0x090e, 0x002d},
-
 	{0x0902, 0x4319},
 	{0x0914, 0xc10a},
 	{0x0916, 0x071f},
@@ -375,301 +457,835 @@ static const struct hi556_reg mode_2592x1944_regs[] = {
 	{0x091a, 0x0c0d},
 	{0x091c, 0x0f09},
 	{0x091e, 0x0a00},
-	{0x0958, 0xbb80},
+	//{0x0a00, 0x0100},
+	{REG_NULL, 0x00},
 };
 
-static const struct hi556_reg mode_1296x972_regs[] = {
-	{0x0a00, 0x0000},
-	{0x0b0a, 0x8259},
-	{0x0f30, 0x5b15},
-	{0x0f32, 0x7167},
-	{0x004a, 0x0100},
-	{0x004c, 0x0000},
-	{0x004e, 0x0100},
-	{0x000c, 0x0122},
-	{0x0008, 0x0b00},
-	{0x005a, 0x0404},
-	{0x0012, 0x000c},
-	{0x0018, 0x0a33},
-	{0x0022, 0x0008},
-	{0x0028, 0x0017},
-	{0x0024, 0x0022},
-	{0x002a, 0x002b},
-	{0x0026, 0x0030},
-	{0x002c, 0x07c9},
-	{0x002e, 0x3311},
-	{0x0030, 0x3311},
-	{0x0032, 0x3311},
-	{0x0006, 0x0814},
-	{0x0a22, 0x0000},
-	{0x0a12, 0x0510},
-	{0x0a14, 0x03cc},
-	{0x003e, 0x0000},
-	{0x0074, 0x0812},
-	{0x0070, 0x0409},
-	{0x0804, 0x0308},
-	{0x0806, 0x0100},
-	{0x0a04, 0x016a},
-	{0x090e, 0x0010},
-	{0x090c, 0x09c0},
+static const struct hi556_mode supported_modes_2lane[] = {
+	{
+		.width = 2592,
+		.height = 1944,
+		.max_fps = {
+			.numerator = 10000,
+			.denominator = 300000,
+		},
+		.exp_def = 0x0810,
+		.hts_def = 0x0B00,
+		.vts_def = 0x0823,
+		.reg_list = hi556_2592x1944_regs_2lane,
+		.hdr_mode = NO_HDR,
+	}
+};
 
-	{0x0902, 0x4319},
-	{0x0914, 0xc106},
-	{0x0916, 0x040e},
-	{0x0918, 0x0304},
-	{0x091a, 0x0708},
-	{0x091c, 0x0e06},
-	{0x091e, 0x0300},
-	{0x0958, 0xbb80},
+static const struct hi556_mode *supported_modes;
+
+static const s64 link_freq_menu_items[] = {
+	MIPI_FREQ
 };
 
 static const char * const hi556_test_pattern_menu[] = {
 	"Disabled",
-	"Solid Colour",
-	"100% Colour Bars",
-	"Fade To Grey Colour Bars",
+	"Solid color bar",
+	"100% color bars",
+	"Fade to gray color bars",
 	"PN9",
-	"Gradient Horizontal",
-	"Gradient Vertical",
-	"Check Board",
-	"Slant Pattern",
+	"Horizental/Vertical gradient",
+	"Check board",
+	"Slant",
+	"Resolution",
 };
 
-static const s64 link_freq_menu_items[] = {
-	HI556_LINK_FREQ_437MHZ,
-};
-
-static const struct hi556_link_freq_config link_freq_configs[] = {
-	[HI556_LINK_FREQ_437MHZ_INDEX] = {
-		.reg_list = {
-			.num_of_regs = ARRAY_SIZE(mipi_data_rate_874mbps),
-			.regs = mipi_data_rate_874mbps,
-		}
-	}
-};
-
-static const struct hi556_mode supported_modes[] = {
-	{
-		.width = 2592,
-		.height = 1944,
-		.fll_def = HI556_FLL_30FPS,
-		.fll_min = HI556_FLL_30FPS_MIN,
-		.llp = 0x0b00,
-		.reg_list = {
-			.num_of_regs = ARRAY_SIZE(mode_2592x1944_regs),
-			.regs = mode_2592x1944_regs,
-		},
-		.link_freq_index = HI556_LINK_FREQ_437MHZ_INDEX,
-	},
-	{
-		.width = 1296,
-		.height = 972,
-		.fll_def = HI556_FLL_30FPS,
-		.fll_min = HI556_FLL_30FPS_MIN,
-		.llp = 0x0b00,
-		.reg_list = {
-			.num_of_regs = ARRAY_SIZE(mode_1296x972_regs),
-			.regs = mode_1296x972_regs,
-		},
-		.link_freq_index = HI556_LINK_FREQ_437MHZ_INDEX,
-	}
-};
-
-struct hi556 {
-	struct v4l2_subdev sd;
-	struct media_pad pad;
-	struct v4l2_ctrl_handler ctrl_handler;
-
-	/* V4L2 Controls */
-	struct v4l2_ctrl *link_freq;
-	struct v4l2_ctrl *pixel_rate;
-	struct v4l2_ctrl *vblank;
-	struct v4l2_ctrl *hblank;
-	struct v4l2_ctrl *exposure;
-
-	/* Current mode */
-	const struct hi556_mode *cur_mode;
-
-	/* To serialize asynchronus callbacks */
-	struct mutex mutex;
-
-	/* Streaming on/off */
-	bool streaming;
-};
-
-static u64 to_pixel_rate(u32 f_index)
+/* Write registers up to 4 at a time */
+static int hi556_write_reg(struct i2c_client *client, u16 reg,
+			    u32 len, u32 val)
 {
-	u64 pixel_rate = link_freq_menu_items[f_index] * 2 * HI556_DATA_LANES;
+	u32 buf_i, val_i;
+	u8 buf[6];
+	u8 *val_p;
+	__be32 val_be;
 
-	do_div(pixel_rate, HI556_RGB_DEPTH);
-
-	return pixel_rate;
-}
-
-static int hi556_read_reg(struct hi556 *hi556, u16 reg, u16 len, u32 *val)
-{
-	struct i2c_client *client = v4l2_get_subdevdata(&hi556->sd);
-	struct i2c_msg msgs[2];
-	u8 addr_buf[2];
-	u8 data_buf[4] = {0};
-	int ret;
+	dev_dbg(&client->dev, "%s(%d) enter!\n", __func__, __LINE__);
+	dev_dbg(&client->dev, "write reg(0x%x val:0x%x)!\n", reg, val);
 
 	if (len > 4)
 		return -EINVAL;
 
-	put_unaligned_be16(reg, addr_buf);
+	buf[0] = reg >> 8;
+	buf[1] = reg & 0xff;
+
+	val_be = cpu_to_be32(val);
+	val_p = (u8 *)&val_be;
+	buf_i = 2;
+	val_i = 4 - len;
+
+	while (val_i < 4)
+		buf[buf_i++] = val_p[val_i++];
+
+	if (i2c_master_send(client, buf, len + 2) != len + 2) {
+		dev_err(&client->dev,
+			   "write reg(0x%x val:0x%x)failed !\n", reg, val);
+		return -EIO;
+	}
+	return 0;
+}
+
+static int hi556_write_array(struct i2c_client *client,
+			      const struct regval *regs)
+{
+	int i, delay_ms, ret = 0;
+
+	for (i = 0; ret == 0 && regs[i].addr != REG_NULL; i++) {
+		if (regs[i].addr == DELAY_MS) {
+			delay_ms = regs[i].val;
+			dev_info(&client->dev, "delay(%d) ms !\n", delay_ms);
+			usleep_range(1000 * delay_ms, 1000 * delay_ms + 100);
+			continue;
+		}
+		ret = hi556_write_reg(client, regs[i].addr,
+				       HI556_REG_VALUE_16BIT, regs[i].val);
+		if (ret)
+			dev_err(&client->dev, "%s failed !\n", __func__);
+	}
+
+	return ret;
+}
+
+/* Read registers up to 4 at a time */
+static int hi556_read_reg(struct i2c_client *client, u16 reg,
+					unsigned int len, u32 *val)
+{
+	struct i2c_msg msgs[2];
+	u8 *data_be_p;
+	__be32 data_be = 0;
+	__be16 reg_addr_be = cpu_to_be16(reg);
+	int ret;
+
+	if (len > 4 || !len)
+		return -EINVAL;
+
+	data_be_p = (u8 *)&data_be;
+	/* Write register address */
 	msgs[0].addr = client->addr;
 	msgs[0].flags = 0;
-	msgs[0].len = sizeof(addr_buf);
-	msgs[0].buf = addr_buf;
+	msgs[0].len = 2;
+	msgs[0].buf = (u8 *)&reg_addr_be;
+
+	/* Read data from register */
 	msgs[1].addr = client->addr;
 	msgs[1].flags = I2C_M_RD;
 	msgs[1].len = len;
-	msgs[1].buf = &data_buf[4 - len];
+	msgs[1].buf = &data_be_p[4 - len];
 
 	ret = i2c_transfer(client->adapter, msgs, ARRAY_SIZE(msgs));
 	if (ret != ARRAY_SIZE(msgs))
 		return -EIO;
 
-	*val = get_unaligned_be32(data_buf);
+	*val = be32_to_cpu(data_be);
 
 	return 0;
 }
 
-static int hi556_write_reg(struct hi556 *hi556, u16 reg, u16 len, u32 val)
+/* Check Register value */
+#ifdef CHECK_REG_VALUE
+static int hi556_reg_verify(struct i2c_client *client,
+				const struct regval *regs)
 {
-	struct i2c_client *client = v4l2_get_subdevdata(&hi556->sd);
-	u8 buf[6];
+	u32 i;
+	int ret = 0;
+	u32 value;
 
-	if (len > 4)
-		return -EINVAL;
+	for (i = 0; ret == 0 && regs[i].addr != REG_NULL; i++) {
+		ret = hi556_read_reg(client, regs[i].addr,
+			  HI556_REG_VALUE_16BIT, &value);
+		if (value != regs[i].val) {
+			dev_info(&client->dev, "%s: 0x%04x is 0x%x instead of 0x%x\n",
+				  __func__, regs[i].addr, value, regs[i].val);
+		}
+	}
+	return ret;
+}
+#endif
 
-	put_unaligned_be16(reg, buf);
-	put_unaligned_be32(val << 8 * (4 - len), buf + 2);
-	if (i2c_master_send(client, buf, len + 2) != len + 2)
-		return -EIO;
-
-	return 0;
+static int hi556_get_reso_dist(const struct hi556_mode *mode,
+				struct v4l2_mbus_framefmt *framefmt)
+{
+	return abs(mode->width - framefmt->width) +
+	       abs(mode->height - framefmt->height);
 }
 
-static int hi556_write_reg_list(struct hi556 *hi556,
-				const struct hi556_reg_list *r_list)
+static const struct hi556_mode *
+hi556_find_best_fit(struct hi556 *hi556,
+			struct v4l2_subdev_format *fmt)
 {
-	struct i2c_client *client = v4l2_get_subdevdata(&hi556->sd);
+	struct v4l2_mbus_framefmt *framefmt = &fmt->format;
+	int dist;
+	int cur_best_fit = 0;
+	int cur_best_fit_dist = -1;
 	unsigned int i;
-	int ret;
 
-	for (i = 0; i < r_list->num_of_regs; i++) {
-		ret = hi556_write_reg(hi556, r_list->regs[i].address,
-				      HI556_REG_VALUE_16BIT,
-				      r_list->regs[i].val);
-		if (ret) {
-			dev_err_ratelimited(&client->dev,
-					    "failed to write reg 0x%4.4x. error = %d",
-					    r_list->regs[i].address, ret);
-			return ret;
+	for (i = 0; i < hi556->cfg_num; i++) {
+		dist = hi556_get_reso_dist(&supported_modes[i], framefmt);
+		if (cur_best_fit_dist == -1 || dist < cur_best_fit_dist) {
+			cur_best_fit_dist = dist;
+			cur_best_fit = i;
 		}
 	}
 
+	return &supported_modes[cur_best_fit];
+}
+
+static int hi556_set_fmt(struct v4l2_subdev *sd,
+			  struct v4l2_subdev_pad_config *cfg,
+			  struct v4l2_subdev_format *fmt)
+{
+	struct hi556 *hi556 = to_hi556(sd);
+	const struct hi556_mode *mode;
+	s64 h_blank, vblank_def;
+
+	mutex_lock(&hi556->mutex);
+
+	mode = hi556_find_best_fit(hi556, fmt);
+	fmt->format.code = HI556_MEDIA_BUS_FMT;
+	fmt->format.width = mode->width;
+	fmt->format.height = mode->height;
+	fmt->format.field = V4L2_FIELD_NONE;
+	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
+#ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
+		*v4l2_subdev_get_try_format(sd, cfg, fmt->pad) = fmt->format;
+#else
+		mutex_unlock(&hi556->mutex);
+		return -ENOTTY;
+#endif
+	} else {
+		hi556->cur_mode = mode;
+		h_blank = mode->hts_def - mode->width;
+		__v4l2_ctrl_modify_range(hi556->hblank, h_blank,
+					 h_blank, 1, h_blank);
+		vblank_def = mode->vts_def - mode->height;
+		__v4l2_ctrl_modify_range(hi556->vblank, vblank_def,
+					 HI556_VTS_MAX - mode->height,
+					 1, vblank_def);
+	}
+
+	mutex_unlock(&hi556->mutex);
+
 	return 0;
 }
 
-static int hi556_update_digital_gain(struct hi556 *hi556, u32 d_gain)
+static int hi556_get_fmt(struct v4l2_subdev *sd,
+			  struct v4l2_subdev_pad_config *cfg,
+			  struct v4l2_subdev_format *fmt)
 {
-	int ret;
+	struct hi556 *hi556 = to_hi556(sd);
+	const struct hi556_mode *mode = hi556->cur_mode;
 
-	ret = hi556_write_reg(hi556, HI556_REG_MWB_GR_GAIN,
-			      HI556_REG_VALUE_16BIT, d_gain);
-	if (ret)
-		return ret;
+	mutex_lock(&hi556->mutex);
+	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
+#ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
+		fmt->format = *v4l2_subdev_get_try_format(sd, cfg, fmt->pad);
+#else
+		mutex_unlock(&hi556->mutex);
+		return -ENOTTY;
+#endif
+	} else {
+		fmt->format.width = mode->width;
+		fmt->format.height = mode->height;
+		fmt->format.code = HI556_MEDIA_BUS_FMT;
+		fmt->format.field = V4L2_FIELD_NONE;
+	}
+	mutex_unlock(&hi556->mutex);
 
-	ret = hi556_write_reg(hi556, HI556_REG_MWB_GB_GAIN,
-			      HI556_REG_VALUE_16BIT, d_gain);
-	if (ret)
-		return ret;
-
-	ret = hi556_write_reg(hi556, HI556_REG_MWB_R_GAIN,
-			      HI556_REG_VALUE_16BIT, d_gain);
-	if (ret)
-		return ret;
-
-	return hi556_write_reg(hi556, HI556_REG_MWB_B_GAIN,
-			       HI556_REG_VALUE_16BIT, d_gain);
+	return 0;
 }
 
-static int hi556_test_pattern(struct hi556 *hi556, u32 pattern)
+static int hi556_enum_mbus_code(struct v4l2_subdev *sd,
+				 struct v4l2_subdev_pad_config *cfg,
+				 struct v4l2_subdev_mbus_code_enum *code)
 {
-	int ret;
-	u32 val;
+	if (code->index != 0)
+		return -EINVAL;
+	code->code = HI556_MEDIA_BUS_FMT;
+
+	return 0;
+}
+
+static int hi556_enum_frame_sizes(struct v4l2_subdev *sd,
+				   struct v4l2_subdev_pad_config *cfg,
+				   struct v4l2_subdev_frame_size_enum *fse)
+{
+	struct hi556 *hi556 = to_hi556(sd);
+
+	if (fse->index >= hi556->cfg_num)
+		return -EINVAL;
+
+	if (fse->code != HI556_MEDIA_BUS_FMT)
+		return -EINVAL;
+
+	fse->min_width  = supported_modes[fse->index].width;
+	fse->max_width  = supported_modes[fse->index].width;
+	fse->max_height = supported_modes[fse->index].height;
+	fse->min_height = supported_modes[fse->index].height;
+
+	return 0;
+}
+
+static int hi556_enable_test_pattern(struct hi556 *hi556, u32 pattern)
+{
 
 	if (pattern) {
-		ret = hi556_read_reg(hi556, HI556_REG_ISP,
-				     HI556_REG_VALUE_08BIT, &val);
-		if (ret)
-			return ret;
+		hi556_write_reg(hi556->client, HI556_REG_TEST_PATTERN,
+						HI556_REG_VALUE_08BIT, HI556_TEST_PATTERN_ENABLE);
+		hi556_write_reg(hi556->client, HI556_REG_TEST_PATTERN_SELECT,
+						HI556_REG_VALUE_08BIT, 0x01 << (pattern - 1));
+	} else {
+		hi556_write_reg(hi556->client, HI556_REG_TEST_PATTERN,
+						HI556_REG_VALUE_08BIT, HI556_TEST_PATTERN_DISABLE);
+	}
+	return 0;
+}
 
-		ret = hi556_write_reg(hi556, HI556_REG_ISP,
-				      HI556_REG_VALUE_08BIT,
-				      val | HI556_REG_ISP_TPG_EN);
-		if (ret)
-			return ret;
+static int hi556_g_frame_interval(struct v4l2_subdev *sd,
+				   struct v4l2_subdev_frame_interval *fi)
+{
+	struct hi556 *hi556 = to_hi556(sd);
+	const struct hi556_mode *mode = hi556->cur_mode;
+
+	fi->interval = mode->max_fps;
+
+	return 0;
+}
+
+static int hi556_g_mbus_config(struct v4l2_subdev *sd,
+				unsigned int pad_id,
+				struct v4l2_mbus_config *config)
+{
+	u32 val = 1 << (HI556_LANES - 1) |
+		V4L2_MBUS_CSI2_CHANNEL_0 |
+		V4L2_MBUS_CSI2_CONTINUOUS_CLOCK;
+
+	config->type = V4L2_MBUS_CSI2_DPHY;
+	config->flags = val;
+
+	return 0;
+}
+
+static void hi556_get_module_inf(struct hi556 *hi556,
+				  struct rkmodule_inf *inf)
+{
+	memset(inf, 0, sizeof(*inf));
+	strscpy(inf->base.sensor, HI556_NAME, sizeof(inf->base.sensor));
+	strscpy(inf->base.module, hi556->module_name,
+		sizeof(inf->base.module));
+	strscpy(inf->base.lens, hi556->len_name, sizeof(inf->base.lens));
+
+}
+
+static void hi556_set_awb_cfg(struct hi556 *hi556,
+				 struct rkmodule_awb_cfg *cfg)
+{
+	mutex_lock(&hi556->mutex);
+	memcpy(&hi556->awb_cfg, cfg, sizeof(*cfg));
+	mutex_unlock(&hi556->mutex);
+}
+
+static long hi556_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
+{
+	struct hi556 *hi556 = to_hi556(sd);
+	long ret = 0;
+	u32 stream = 0;
+
+	switch (cmd) {
+	case RKMODULE_GET_MODULE_INFO:
+		hi556_get_module_inf(hi556, (struct rkmodule_inf *)arg);
+		break;
+	case RKMODULE_AWB_CFG:
+		hi556_set_awb_cfg(hi556, (struct rkmodule_awb_cfg *)arg);
+		break;
+	case RKMODULE_SET_QUICK_STREAM:
+
+		stream = *((u32 *)arg);
+
+		if (stream)
+			ret = hi556_write_reg(hi556->client, HI556_REG_CTRL_MODE,
+				HI556_REG_VALUE_08BIT, HI556_MODE_STREAMING);
+		else
+			ret = hi556_write_reg(hi556->client, HI556_REG_CTRL_MODE,
+				HI556_REG_VALUE_08BIT, HI556_MODE_SW_STANDBY);
+		break;
+	default:
+		ret = -ENOIOCTLCMD;
+		break;
 	}
 
-	return hi556_write_reg(hi556, HI556_REG_TEST_PATTERN,
-			       HI556_REG_VALUE_08BIT, pattern);
+	return ret;
+}
+
+#ifdef CONFIG_COMPAT
+static long hi556_compat_ioctl32(struct v4l2_subdev *sd,
+				  unsigned int cmd, unsigned long arg)
+{
+	void __user *up = compat_ptr(arg);
+	struct rkmodule_inf *inf;
+	struct rkmodule_awb_cfg *awb_cfg;
+	long ret;
+	u32 stream = 0;
+
+	switch (cmd) {
+	case RKMODULE_GET_MODULE_INFO:
+		inf = kzalloc(sizeof(*inf), GFP_KERNEL);
+		if (!inf) {
+			ret = -ENOMEM;
+			return ret;
+		}
+
+		ret = hi556_ioctl(sd, cmd, inf);
+		if (!ret) {
+			ret = copy_to_user(up, inf, sizeof(*inf));
+			if (ret)
+				ret = -EFAULT;
+		}
+		kfree(inf);
+		break;
+	case RKMODULE_AWB_CFG:
+		awb_cfg = kzalloc(sizeof(*awb_cfg), GFP_KERNEL);
+		if (!awb_cfg) {
+			ret = -ENOMEM;
+			return ret;
+		}
+
+		if (copy_from_user(awb_cfg, up, sizeof(*awb_cfg))) {
+			kfree(awb_cfg);
+			return -EFAULT;
+		}
+		ret = hi556_ioctl(sd, cmd, awb_cfg);
+		kfree(awb_cfg);
+		break;
+	case RKMODULE_SET_QUICK_STREAM:
+		if (copy_from_user(&stream, up, sizeof(u32)))
+			return -EFAULT;
+		ret = hi556_ioctl(sd, cmd, &stream);
+		break;
+	default:
+		ret = -ENOIOCTLCMD;
+		break;
+	}
+
+	return ret;
+}
+#endif
+
+static int __hi556_start_stream(struct hi556 *hi556)
+{
+	int ret;
+
+	ret = hi556_write_array(hi556->client, hi556->cur_mode->reg_list);
+	if (ret)
+		return ret;
+
+#ifdef CHECK_REG_VALUE
+	usleep_range(10000, 20000);
+	/*  verify default values to make sure everything has */
+	/*  been written correctly as expected */
+	dev_info(&hi556->client->dev, "%s:Check register value!\n",
+				__func__);
+	ret = hi556_reg_verify(hi556->client, hi556_global_regs);
+	if (ret)
+		return ret;
+
+	ret = hi556_reg_verify(hi556->client, hi556->cur_mode->reg_list);
+	if (ret)
+		return ret;
+#endif
+
+	/* In case these controls are set before streaming */
+	mutex_unlock(&hi556->mutex);
+	ret = v4l2_ctrl_handler_setup(&hi556->ctrl_handler);
+	mutex_lock(&hi556->mutex);
+	if (ret)
+		return ret;
+
+	if (ret)
+		dev_info(&hi556->client->dev, "APPly otp failed!\n");
+
+	ret = hi556_write_reg(hi556->client, HI556_REG_CTRL_MODE,
+				HI556_REG_VALUE_08BIT, HI556_MODE_STREAMING);
+	return ret;
+}
+
+static int __hi556_stop_stream(struct hi556 *hi556)
+{
+	return hi556_write_reg(hi556->client, HI556_REG_CTRL_MODE,
+				HI556_REG_VALUE_08BIT, HI556_MODE_SW_STANDBY);
+}
+
+static int hi556_s_stream(struct v4l2_subdev *sd, int on)
+{
+	struct hi556 *hi556 = to_hi556(sd);
+	struct i2c_client *client = hi556->client;
+	int ret = 0;
+
+	dev_info(&client->dev, "%s: on: %d, %dx%d@%d\n", __func__, on,
+				hi556->cur_mode->width,
+				hi556->cur_mode->height,
+		DIV_ROUND_CLOSEST(hi556->cur_mode->max_fps.denominator,
+		hi556->cur_mode->max_fps.numerator));
+
+	mutex_lock(&hi556->mutex);
+	on = !!on;
+	if (on == hi556->streaming)
+		goto unlock_and_return;
+
+	if (on) {
+		dev_info(&client->dev, "stream on!!!\n");
+		ret = pm_runtime_get_sync(&client->dev);
+		if (ret < 0) {
+			pm_runtime_put_noidle(&client->dev);
+			goto unlock_and_return;
+		}
+
+		ret = __hi556_start_stream(hi556);
+		if (ret) {
+			v4l2_err(sd, "start stream failed while write regs\n");
+			pm_runtime_put(&client->dev);
+			goto unlock_and_return;
+		}
+	} else {
+		dev_info(&client->dev, "stream off!!!\n");
+		__hi556_stop_stream(hi556);
+		pm_runtime_put(&client->dev);
+	}
+
+	hi556->streaming = on;
+
+unlock_and_return:
+	mutex_unlock(&hi556->mutex);
+
+	return ret;
+}
+
+static int hi556_s_power(struct v4l2_subdev *sd, int on)
+{
+	struct hi556 *hi556 = to_hi556(sd);
+	struct i2c_client *client = hi556->client;
+	int ret = 0;
+
+	dev_info(&client->dev, "%s(%d) on(%d)\n", __func__, __LINE__, on);
+	mutex_lock(&hi556->mutex);
+
+	/* If the power state is not modified - no work to do. */
+	if (hi556->power_on == !!on)
+		goto unlock_and_return;
+
+	if (on) {
+		ret = pm_runtime_get_sync(&client->dev);
+		if (ret < 0) {
+			pm_runtime_put_noidle(&client->dev);
+			goto unlock_and_return;
+		}
+
+		ret = hi556_write_array(hi556->client, hi556_global_regs);
+		if (ret) {
+			v4l2_err(sd, "could not set init registers\n");
+			pm_runtime_put_noidle(&client->dev);
+			goto unlock_and_return;
+		}
+
+		hi556->power_on = true;
+	} else {
+		pm_runtime_put(&client->dev);
+		hi556->power_on = false;
+	}
+
+unlock_and_return:
+	mutex_unlock(&hi556->mutex);
+
+	return ret;
+}
+
+/* Calculate the delay in us by clock rate and clock cycles */
+static inline u32 hi556_cal_delay(u32 cycles)
+{
+	return DIV_ROUND_UP(cycles, HI556_XVCLK_FREQ / 1000 / 1000);
+}
+
+static int __hi556_power_on(struct hi556 *hi556)
+{
+	int ret;
+	u32 delay_us;
+	struct device *dev = &hi556->client->dev;
+
+	if (!IS_ERR(hi556->power_gpio))
+		gpiod_set_value_cansleep(hi556->power_gpio, 1);
+
+	usleep_range(1000, 2000);
+
+	if (!IS_ERR_OR_NULL(hi556->pins_default)) {
+		ret = pinctrl_select_state(hi556->pinctrl,
+					   hi556->pins_default);
+		if (ret < 0)
+			dev_err(dev, "could not set pins\n");
+	}
+	ret = clk_set_rate(hi556->xvclk, HI556_XVCLK_FREQ);
+	if (ret < 0)
+		dev_warn(dev, "Failed to set xvclk rate (24MHz)\n");
+	if (clk_get_rate(hi556->xvclk) != HI556_XVCLK_FREQ)
+		dev_warn(dev, "xvclk mismatched, modes are based on 24MHz\n");
+
+	ret = clk_prepare_enable(hi556->xvclk);
+	if (ret < 0) {
+		dev_err(dev, "Failed to enable xvclk\n");
+		return ret;
+	}
+
+	ret = regulator_bulk_enable(HI556_NUM_SUPPLIES, hi556->supplies);
+	if (ret < 0) {
+		dev_err(dev, "Failed to enable regulators\n");
+		goto disable_clk;
+	}
+
+	if (!IS_ERR(hi556->reset_gpio))
+		gpiod_set_value_cansleep(hi556->reset_gpio, 1);
+
+	if (!IS_ERR(hi556->pwdn_gpio))
+		gpiod_set_value_cansleep(hi556->pwdn_gpio, 1);
+
+	/* 8192 cycles prior to first SCCB transaction */
+	delay_us = hi556_cal_delay(8192);
+	usleep_range(delay_us, delay_us * 2);
+	usleep_range(10000, 20000);
+	return 0;
+
+disable_clk:
+	clk_disable_unprepare(hi556->xvclk);
+
+	return ret;
+}
+
+static void __hi556_power_off(struct hi556 *hi556)
+{
+	int ret;
+	struct device *dev = &hi556->client->dev;
+
+	if (!IS_ERR(hi556->pwdn_gpio))
+		gpiod_set_value_cansleep(hi556->pwdn_gpio, 0);
+	clk_disable_unprepare(hi556->xvclk);
+	if (!IS_ERR(hi556->reset_gpio))
+		gpiod_set_value_cansleep(hi556->reset_gpio, 0);
+	if (!IS_ERR_OR_NULL(hi556->pins_sleep)) {
+		ret = pinctrl_select_state(hi556->pinctrl,
+					   hi556->pins_sleep);
+		if (ret < 0)
+			dev_dbg(dev, "could not set pins\n");
+	}
+	if (!IS_ERR(hi556->power_gpio))
+		gpiod_set_value_cansleep(hi556->power_gpio, 0);
+
+	regulator_bulk_disable(HI556_NUM_SUPPLIES, hi556->supplies);
+}
+
+static int hi556_runtime_resume(struct device *dev)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+	struct v4l2_subdev *sd = i2c_get_clientdata(client);
+	struct hi556 *hi556 = to_hi556(sd);
+
+	return __hi556_power_on(hi556);
+}
+
+static int hi556_runtime_suspend(struct device *dev)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+	struct v4l2_subdev *sd = i2c_get_clientdata(client);
+	struct hi556 *hi556 = to_hi556(sd);
+
+	__hi556_power_off(hi556);
+
+	return 0;
+}
+
+#ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
+static int hi556_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
+{
+	struct hi556 *hi556 = to_hi556(sd);
+	struct v4l2_mbus_framefmt *try_fmt =
+				v4l2_subdev_get_try_format(sd, fh->pad, 0);
+	const struct hi556_mode *def_mode = &supported_modes[0];
+
+	mutex_lock(&hi556->mutex);
+	/* Initialize try_fmt */
+	try_fmt->width = def_mode->width;
+	try_fmt->height = def_mode->height;
+	try_fmt->code = HI556_MEDIA_BUS_FMT;
+	try_fmt->field = V4L2_FIELD_NONE;
+
+	mutex_unlock(&hi556->mutex);
+	/* No crop or compose */
+
+	return 0;
+}
+#endif
+
+static int hi556_enum_frame_interval(struct v4l2_subdev *sd,
+				       struct v4l2_subdev_pad_config *cfg,
+				       struct v4l2_subdev_frame_interval_enum *fie)
+{
+	struct hi556 *hi556 = to_hi556(sd);
+
+	if (fie->index >= hi556->cfg_num)
+		return -EINVAL;
+
+	if (fie->code != HI556_MEDIA_BUS_FMT)
+		return -EINVAL;
+
+	fie->width = supported_modes[fie->index].width;
+	fie->height = supported_modes[fie->index].height;
+	fie->interval = supported_modes[fie->index].max_fps;
+	fie->reserved[0] = supported_modes[fie->index].hdr_mode;
+
+	return 0;
+}
+
+static const struct dev_pm_ops hi556_pm_ops = {
+	SET_RUNTIME_PM_OPS(hi556_runtime_suspend,
+			   hi556_runtime_resume, NULL)
+};
+
+#ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
+static const struct v4l2_subdev_internal_ops hi556_internal_ops = {
+	.open = hi556_open,
+};
+#endif
+
+static const struct v4l2_subdev_core_ops hi556_core_ops = {
+	.s_power = hi556_s_power,
+	.ioctl = hi556_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl32 = hi556_compat_ioctl32,
+#endif
+};
+
+static const struct v4l2_subdev_video_ops hi556_video_ops = {
+	.s_stream = hi556_s_stream,
+	.g_frame_interval = hi556_g_frame_interval,
+};
+
+static const struct v4l2_subdev_pad_ops hi556_pad_ops = {
+	.enum_mbus_code = hi556_enum_mbus_code,
+	.enum_frame_size = hi556_enum_frame_sizes,
+	.enum_frame_interval = hi556_enum_frame_interval,
+	.get_fmt = hi556_get_fmt,
+	.set_fmt = hi556_set_fmt,
+	.get_mbus_config = hi556_g_mbus_config,
+};
+
+static const struct v4l2_subdev_ops hi556_subdev_ops = {
+	.core	= &hi556_core_ops,
+	.video	= &hi556_video_ops,
+	.pad	= &hi556_pad_ops,
+};
+
+static int hi556_set_exposure_reg(struct hi556 *hi556, u32 exposure)
+{
+	int ret = 0;
+	u32 cal_shutter = 0;
+
+	cal_shutter = exposure >> 1;
+	cal_shutter = cal_shutter << 1;
+
+	ret = hi556_write_reg(hi556->client, HI556_REG_GROUP,
+				   HI556_REG_VALUE_08BIT, 0x01);
+	ret |= hi556_write_reg(hi556->client,
+				   HI556_REG_EXPOSURE_H,
+				   HI556_REG_VALUE_08BIT,
+				   HI556_FETCH_HIGH_BYTE_EXP(cal_shutter));
+	ret |= hi556_write_reg(hi556->client,
+				   HI556_REG_EXPOSURE_M,
+				   HI556_REG_VALUE_08BIT,
+				   HI556_FETCH_MIDDLE_BYTE_EXP(cal_shutter));
+	ret |= hi556_write_reg(hi556->client,
+				   HI556_REG_EXPOSURE_L,
+				   HI556_REG_VALUE_08BIT,
+				   HI556_FETCH_LOW_BYTE_EXP(cal_shutter));
+	ret |= hi556_write_reg(hi556->client, HI556_REG_GROUP,
+				   HI556_REG_VALUE_08BIT, 0x00);
+
+	return ret;
+}
+
+static int hi556_set_gain_reg(struct hi556 *hi556, u32 a_gain)
+{
+	int ret = 0;
+
+	ret = hi556_write_reg(hi556->client, HI556_REG_GROUP,
+				   HI556_REG_VALUE_08BIT, 0x01);
+	ret |= hi556_write_reg(hi556->client, HI556_REG_GAIN,
+				   HI556_REG_VALUE_08BIT, a_gain);
+	ret |= hi556_write_reg(hi556->client, HI556_REG_GROUP,
+				   HI556_REG_VALUE_08BIT, 0x00);
+
+	return ret;
 }
 
 static int hi556_set_ctrl(struct v4l2_ctrl *ctrl)
 {
 	struct hi556 *hi556 = container_of(ctrl->handler,
 					     struct hi556, ctrl_handler);
-	struct i2c_client *client = v4l2_get_subdevdata(&hi556->sd);
-	s64 exposure_max;
+	struct i2c_client *client = hi556->client;
+	s64 max;
+	u32 val = 0;
 	int ret = 0;
 
 	/* Propagate change of current control to all related controls */
-	if (ctrl->id == V4L2_CID_VBLANK) {
+	switch (ctrl->id) {
+	case V4L2_CID_VBLANK:
 		/* Update max exposure while meeting expected vblanking */
-		exposure_max = hi556->cur_mode->height + ctrl->val -
-			       HI556_EXPOSURE_MAX_MARGIN;
+		max = hi556->cur_mode->height + ctrl->val - 4;
 		__v4l2_ctrl_modify_range(hi556->exposure,
-					 hi556->exposure->minimum,
-					 exposure_max, hi556->exposure->step,
-					 exposure_max);
+					 hi556->exposure->minimum, max,
+					 hi556->exposure->step,
+					 hi556->exposure->default_value);
+		break;
 	}
 
-	/* V4L2 controls values will be applied only when power is already up */
 	if (!pm_runtime_get_if_in_use(&client->dev))
 		return 0;
 
 	switch (ctrl->id) {
-	case V4L2_CID_ANALOGUE_GAIN:
-		ret = hi556_write_reg(hi556, HI556_REG_ANALOG_GAIN,
-				      HI556_REG_VALUE_16BIT, ctrl->val);
-		break;
-
-	case V4L2_CID_DIGITAL_GAIN:
-		ret = hi556_update_digital_gain(hi556, ctrl->val);
-		break;
-
 	case V4L2_CID_EXPOSURE:
-		ret = hi556_write_reg(hi556, HI556_REG_EXPOSURE,
-				      HI556_REG_VALUE_16BIT, ctrl->val);
+		dev_dbg(&client->dev, "set exposure value 0x%x\n", ctrl->val);
+		/* 4 least significant bits of expsoure are fractional part */
+		ret = hi556_set_exposure_reg(hi556, ctrl->val);
 		break;
-
+	case V4L2_CID_ANALOGUE_GAIN:
+		dev_dbg(&client->dev, "set analog gain value 0x%x\n", ctrl->val);
+		ret = hi556_set_gain_reg(hi556, ctrl->val);
+		break;
 	case V4L2_CID_VBLANK:
-		/* Update FLL that meets expected vertical blanking */
-		ret = hi556_write_reg(hi556, HI556_REG_FLL,
-				      HI556_REG_VALUE_16BIT,
-				      hi556->cur_mode->height + ctrl->val);
+		dev_dbg(&client->dev, "set vb value 0x%x\n", ctrl->val);
+		ret = hi556_write_reg(hi556->client, HI556_REG_VTS,
+				       HI556_REG_VALUE_16BIT,
+				       ctrl->val + hi556->cur_mode->height);
 		break;
-
 	case V4L2_CID_TEST_PATTERN:
-		ret = hi556_test_pattern(hi556, ctrl->val);
+		ret = hi556_enable_test_pattern(hi556, ctrl->val);
 		break;
-
+	case V4L2_CID_HFLIP:
+		ret = hi556_read_reg(hi556->client, HI556_FLIP_MIRROR_REG,
+				       HI556_REG_VALUE_08BIT, &val);
+		ret |= hi556_write_reg(hi556->client, HI556_FLIP_MIRROR_REG,
+					 HI556_REG_VALUE_08BIT,
+					 HI556_FETCH_MIRROR(val, ctrl->val));
+		break;
+	case V4L2_CID_VFLIP:
+		ret = hi556_read_reg(hi556->client, HI556_FLIP_MIRROR_REG,
+				       HI556_REG_VALUE_08BIT, &val);
+		ret |= hi556_write_reg(hi556->client, HI556_FLIP_MIRROR_REG,
+					 HI556_REG_VALUE_08BIT,
+					 HI556_FETCH_FLIP(val, ctrl->val));
+		break;
 	default:
-		ret = -EINVAL;
+		dev_warn(&client->dev, "%s Unhandled id:0x%x, val:0x%x\n",
+			 __func__, ctrl->id, ctrl->val);
 		break;
 	}
 
@@ -682,411 +1298,294 @@ static const struct v4l2_ctrl_ops hi556_ctrl_ops = {
 	.s_ctrl = hi556_set_ctrl,
 };
 
-static int hi556_init_controls(struct hi556 *hi556)
+static int hi556_initialize_controls(struct hi556 *hi556)
 {
-	struct v4l2_ctrl_handler *ctrl_hdlr;
-	s64 exposure_max, h_blank;
+	const struct hi556_mode *mode;
+	struct v4l2_ctrl_handler *handler;
+	struct v4l2_ctrl *ctrl;
+	s64 exposure_max, vblank_def;
+	u32 h_blank;
 	int ret;
 
-	ctrl_hdlr = &hi556->ctrl_handler;
-	ret = v4l2_ctrl_handler_init(ctrl_hdlr, 8);
+	handler = &hi556->ctrl_handler;
+	mode = hi556->cur_mode;
+	ret = v4l2_ctrl_handler_init(handler, 9);
 	if (ret)
 		return ret;
+	handler->lock = &hi556->mutex;
 
-	ctrl_hdlr->lock = &hi556->mutex;
-	hi556->link_freq = v4l2_ctrl_new_int_menu(ctrl_hdlr, &hi556_ctrl_ops,
-						  V4L2_CID_LINK_FREQ,
-					ARRAY_SIZE(link_freq_menu_items) - 1,
-					0, link_freq_menu_items);
-	if (hi556->link_freq)
-		hi556->link_freq->flags |= V4L2_CTRL_FLAG_READ_ONLY;
+	ctrl = v4l2_ctrl_new_int_menu(handler, NULL, V4L2_CID_LINK_FREQ,
+				      0, 0, link_freq_menu_items);
+	if (ctrl)
+		ctrl->flags |= V4L2_CTRL_FLAG_READ_ONLY;
 
-	hi556->pixel_rate = v4l2_ctrl_new_std
-			    (ctrl_hdlr, &hi556_ctrl_ops,
-			     V4L2_CID_PIXEL_RATE, 0,
-			     to_pixel_rate(HI556_LINK_FREQ_437MHZ_INDEX),
-			     1,
-			     to_pixel_rate(HI556_LINK_FREQ_437MHZ_INDEX));
-	hi556->vblank = v4l2_ctrl_new_std(ctrl_hdlr, &hi556_ctrl_ops,
-					  V4L2_CID_VBLANK,
-					  hi556->cur_mode->fll_min -
-					  hi556->cur_mode->height,
-					  HI556_FLL_MAX -
-					  hi556->cur_mode->height, 1,
-					  hi556->cur_mode->fll_def -
-					  hi556->cur_mode->height);
+	v4l2_ctrl_new_std(handler, NULL, V4L2_CID_PIXEL_RATE,
+			  0, hi556->pixel_rate, 1, hi556->pixel_rate);
 
-	h_blank = hi556->cur_mode->llp - hi556->cur_mode->width;
-
-	hi556->hblank = v4l2_ctrl_new_std(ctrl_hdlr, &hi556_ctrl_ops,
-					  V4L2_CID_HBLANK, h_blank, h_blank, 1,
-					  h_blank);
+	h_blank = mode->hts_def - mode->width;
+	hi556->hblank = v4l2_ctrl_new_std(handler, NULL, V4L2_CID_HBLANK,
+				h_blank, h_blank, 1, h_blank);
 	if (hi556->hblank)
 		hi556->hblank->flags |= V4L2_CTRL_FLAG_READ_ONLY;
 
-	v4l2_ctrl_new_std(ctrl_hdlr, &hi556_ctrl_ops, V4L2_CID_ANALOGUE_GAIN,
-			  HI556_ANAL_GAIN_MIN, HI556_ANAL_GAIN_MAX,
-			  HI556_ANAL_GAIN_STEP, HI556_ANAL_GAIN_MIN);
-	v4l2_ctrl_new_std(ctrl_hdlr, &hi556_ctrl_ops, V4L2_CID_DIGITAL_GAIN,
-			  HI556_DGTL_GAIN_MIN, HI556_DGTL_GAIN_MAX,
-			  HI556_DGTL_GAIN_STEP, HI556_DGTL_GAIN_DEFAULT);
-	exposure_max = hi556->cur_mode->fll_def - HI556_EXPOSURE_MAX_MARGIN;
-	hi556->exposure = v4l2_ctrl_new_std(ctrl_hdlr, &hi556_ctrl_ops,
-					    V4L2_CID_EXPOSURE,
-					    HI556_EXPOSURE_MIN, exposure_max,
-					    HI556_EXPOSURE_STEP,
-					    exposure_max);
-	v4l2_ctrl_new_std_menu_items(ctrl_hdlr, &hi556_ctrl_ops,
-				     V4L2_CID_TEST_PATTERN,
-				     ARRAY_SIZE(hi556_test_pattern_menu) - 1,
-				     0, 0, hi556_test_pattern_menu);
-	if (ctrl_hdlr->error)
-		return ctrl_hdlr->error;
+	vblank_def = mode->vts_def - mode->height;
+	hi556->vblank = v4l2_ctrl_new_std(handler, &hi556_ctrl_ops,
+				V4L2_CID_VBLANK, vblank_def,
+				HI556_VTS_MAX - mode->height,
+				1, vblank_def);
 
-	hi556->sd.ctrl_handler = ctrl_hdlr;
+	exposure_max = mode->vts_def - 4;
+	hi556->exposure = v4l2_ctrl_new_std(handler, &hi556_ctrl_ops,
+				V4L2_CID_EXPOSURE, HI556_EXPOSURE_MIN,
+				exposure_max, HI556_EXPOSURE_STEP,
+				mode->exp_def);
+
+	hi556->anal_gain = v4l2_ctrl_new_std(handler, &hi556_ctrl_ops,
+				V4L2_CID_ANALOGUE_GAIN, ANALOG_GAIN_MIN,
+				ANALOG_GAIN_MAX, ANALOG_GAIN_STEP,
+				ANALOG_GAIN_DEFAULT);
+
+	hi556->test_pattern = v4l2_ctrl_new_std_menu_items(handler,
+				&hi556_ctrl_ops, V4L2_CID_TEST_PATTERN,
+				ARRAY_SIZE(hi556_test_pattern_menu) - 1,
+				0, 0, hi556_test_pattern_menu);
+
+	v4l2_ctrl_new_std(handler, &hi556_ctrl_ops,
+				V4L2_CID_HFLIP, 0, 1, 1, 0);
+	v4l2_ctrl_new_std(handler, &hi556_ctrl_ops,
+				V4L2_CID_VFLIP, 0, 1, 1, 0);
+
+	if (handler->error) {
+		ret = handler->error;
+		dev_err(&hi556->client->dev,
+			"Failed to init controls(%d)\n", ret);
+		goto err_free_handler;
+	}
+
+	hi556->subdev.ctrl_handler = handler;
 
 	return 0;
-}
 
-static void hi556_assign_pad_format(const struct hi556_mode *mode,
-				    struct v4l2_mbus_framefmt *fmt)
-{
-	fmt->width = mode->width;
-	fmt->height = mode->height;
-	fmt->code = MEDIA_BUS_FMT_SGRBG10_1X10;
-	fmt->field = V4L2_FIELD_NONE;
-}
-
-static int hi556_start_streaming(struct hi556 *hi556)
-{
-	struct i2c_client *client = v4l2_get_subdevdata(&hi556->sd);
-	const struct hi556_reg_list *reg_list;
-	int link_freq_index, ret;
-
-	link_freq_index = hi556->cur_mode->link_freq_index;
-	reg_list = &link_freq_configs[link_freq_index].reg_list;
-	ret = hi556_write_reg_list(hi556, reg_list);
-	if (ret) {
-		dev_err(&client->dev, "failed to set plls");
-		return ret;
-	}
-
-	reg_list = &hi556->cur_mode->reg_list;
-	ret = hi556_write_reg_list(hi556, reg_list);
-	if (ret) {
-		dev_err(&client->dev, "failed to set mode");
-		return ret;
-	}
-
-	ret = __v4l2_ctrl_handler_setup(hi556->sd.ctrl_handler);
-	if (ret)
-		return ret;
-
-	ret = hi556_write_reg(hi556, HI556_REG_MODE_SELECT,
-			      HI556_REG_VALUE_16BIT, HI556_MODE_STREAMING);
-
-	if (ret) {
-		dev_err(&client->dev, "failed to set stream");
-		return ret;
-	}
-
-	return 0;
-}
-
-static void hi556_stop_streaming(struct hi556 *hi556)
-{
-	struct i2c_client *client = v4l2_get_subdevdata(&hi556->sd);
-
-	if (hi556_write_reg(hi556, HI556_REG_MODE_SELECT,
-			    HI556_REG_VALUE_16BIT, HI556_MODE_STANDBY))
-		dev_err(&client->dev, "failed to set stream");
-}
-
-static int hi556_set_stream(struct v4l2_subdev *sd, int enable)
-{
-	struct hi556 *hi556 = to_hi556(sd);
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
-	int ret = 0;
-
-	if (hi556->streaming == enable)
-		return 0;
-
-	mutex_lock(&hi556->mutex);
-	if (enable) {
-		ret = pm_runtime_get_sync(&client->dev);
-		if (ret < 0) {
-			pm_runtime_put_noidle(&client->dev);
-			mutex_unlock(&hi556->mutex);
-			return ret;
-		}
-
-		ret = hi556_start_streaming(hi556);
-		if (ret) {
-			enable = 0;
-			hi556_stop_streaming(hi556);
-			pm_runtime_put(&client->dev);
-		}
-	} else {
-		hi556_stop_streaming(hi556);
-		pm_runtime_put(&client->dev);
-	}
-
-	hi556->streaming = enable;
-	mutex_unlock(&hi556->mutex);
+err_free_handler:
+	v4l2_ctrl_handler_free(handler);
 
 	return ret;
 }
 
-static int __maybe_unused hi556_suspend(struct device *dev)
+static int hi556_check_sensor_id(struct hi556 *hi556,
+				  struct i2c_client *client)
 {
-	struct i2c_client *client = to_i2c_client(dev);
-	struct v4l2_subdev *sd = i2c_get_clientdata(client);
-	struct hi556 *hi556 = to_hi556(sd);
-
-	mutex_lock(&hi556->mutex);
-	if (hi556->streaming)
-		hi556_stop_streaming(hi556);
-
-	mutex_unlock(&hi556->mutex);
-
-	return 0;
-}
-
-static int __maybe_unused hi556_resume(struct device *dev)
-{
-	struct i2c_client *client = to_i2c_client(dev);
-	struct v4l2_subdev *sd = i2c_get_clientdata(client);
-	struct hi556 *hi556 = to_hi556(sd);
+	struct device *dev = &hi556->client->dev;
+	u32 id = 0;
 	int ret;
 
-	mutex_lock(&hi556->mutex);
-	if (hi556->streaming) {
-		ret = hi556_start_streaming(hi556);
-		if (ret)
-			goto error;
+	ret = hi556_read_reg(client, HI556_REG_CHIP_ID,
+			      HI556_REG_VALUE_16BIT, &id);
+	if (id != CHIP_ID) {
+		dev_err(dev, "Unexpected sensor id(%06x), ret(%d)\n", id, ret);
+		return -ENODEV;
 	}
 
-	mutex_unlock(&hi556->mutex);
+	dev_info(dev, "Detected Hi%04x sensor\n", CHIP_ID);
 
 	return 0;
-
-error:
-	hi556_stop_streaming(hi556);
-	hi556->streaming = 0;
-	mutex_unlock(&hi556->mutex);
-	return ret;
 }
 
-static int hi556_set_format(struct v4l2_subdev *sd,
-			    struct v4l2_subdev_pad_config *cfg,
-			    struct v4l2_subdev_format *fmt)
+static int hi556_configure_regulators(struct hi556 *hi556)
 {
-	struct hi556 *hi556 = to_hi556(sd);
-	const struct hi556_mode *mode;
-	s32 vblank_def, h_blank;
+	unsigned int i;
 
-	mode = v4l2_find_nearest_size(supported_modes,
-				      ARRAY_SIZE(supported_modes), width,
-				      height, fmt->format.width,
-				      fmt->format.height);
+	for (i = 0; i < HI556_NUM_SUPPLIES; i++)
+		hi556->supplies[i].supply = hi556_supply_names[i];
 
-	mutex_lock(&hi556->mutex);
-	hi556_assign_pad_format(mode, &fmt->format);
-	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
-		*v4l2_subdev_get_try_format(sd, cfg, fmt->pad) = fmt->format;
+	return devm_regulator_bulk_get(&hi556->client->dev,
+				       HI556_NUM_SUPPLIES,
+				       hi556->supplies);
+}
+
+static int hi556_parse_of(struct hi556 *hi556)
+{
+	struct device *dev = &hi556->client->dev;
+	struct device_node *endpoint;
+	struct fwnode_handle *fwnode;
+	int rval;
+
+	endpoint = of_graph_get_next_endpoint(dev->of_node, NULL);
+	if (!endpoint) {
+		dev_err(dev, "Failed to get endpoint\n");
+		return -EINVAL;
+	}
+	fwnode = of_fwnode_handle(endpoint);
+	rval = fwnode_property_read_u32_array(fwnode, "data-lanes", NULL, 0);
+	if (rval <= 0) {
+		dev_warn(dev, " Get mipi lane num failed!\n");
+		return -1;
+	}
+
+	hi556->lane_num = rval;
+	if (hi556->lane_num == 2) {
+		hi556->cur_mode = &supported_modes_2lane[0];
+		supported_modes = supported_modes_2lane;
+		hi556->cfg_num = ARRAY_SIZE(supported_modes_2lane);
+
+		/* pixel rate = link frequency * 2 * lanes / BITS_PER_SAMPLE */
+		hi556->pixel_rate = MIPI_FREQ * 2U * hi556->lane_num / 8U;
+		dev_info(dev, "lane_num(%d)  pixel_rate(%u)\n",
+				 hi556->lane_num, hi556->pixel_rate);
 	} else {
-		hi556->cur_mode = mode;
-		__v4l2_ctrl_s_ctrl(hi556->link_freq, mode->link_freq_index);
-		__v4l2_ctrl_s_ctrl_int64(hi556->pixel_rate,
-					 to_pixel_rate(mode->link_freq_index));
-
-		/* Update limits and set FPS to default */
-		vblank_def = mode->fll_def - mode->height;
-		__v4l2_ctrl_modify_range(hi556->vblank,
-					 mode->fll_min - mode->height,
-					 HI556_FLL_MAX - mode->height, 1,
-					 vblank_def);
-		__v4l2_ctrl_s_ctrl(hi556->vblank, vblank_def);
-
-		h_blank = hi556->cur_mode->llp - hi556->cur_mode->width;
-
-		__v4l2_ctrl_modify_range(hi556->hblank, h_blank, h_blank, 1,
-					 h_blank);
+		dev_err(dev, "unsupported lane_num(%d)\n", hi556->lane_num);
+		return -1;
 	}
-
-	mutex_unlock(&hi556->mutex);
 
 	return 0;
 }
 
-static int hi556_get_format(struct v4l2_subdev *sd,
-			    struct v4l2_subdev_pad_config *cfg,
-			    struct v4l2_subdev_format *fmt)
+static int hi556_probe(struct i2c_client *client,
+			const struct i2c_device_id *id)
 {
-	struct hi556 *hi556 = to_hi556(sd);
+	struct device *dev = &client->dev;
+	struct device_node *node = dev->of_node;
+	struct hi556 *hi556;
+	struct v4l2_subdev *sd;
+	char facing[2] = "b";
+	int ret;
 
-	mutex_lock(&hi556->mutex);
-	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY)
-		fmt->format = *v4l2_subdev_get_try_format(&hi556->sd, cfg,
-							  fmt->pad);
+	dev_info(dev, "driver version: %02x.%02x.%02x",
+		DRIVER_VERSION >> 16,
+		(DRIVER_VERSION & 0xff00) >> 8,
+		DRIVER_VERSION & 0x00ff);
+
+	hi556 = devm_kzalloc(dev, sizeof(*hi556), GFP_KERNEL);
+	if (!hi556)
+		return -ENOMEM;
+
+	ret = of_property_read_u32(node, RKMODULE_CAMERA_MODULE_INDEX,
+				   &hi556->module_index);
+	if (ret) {
+		dev_warn(dev, "could not get module index!\n");
+		hi556->module_index = 0;
+	}
+	ret |= of_property_read_string(node, RKMODULE_CAMERA_MODULE_FACING,
+				       &hi556->module_facing);
+	ret |= of_property_read_string(node, RKMODULE_CAMERA_MODULE_NAME,
+				       &hi556->module_name);
+	ret |= of_property_read_string(node, RKMODULE_CAMERA_LENS_NAME,
+				       &hi556->len_name);
+	if (ret) {
+		dev_err(dev, "could not get module information!\n");
+		return -EINVAL;
+	}
+
+	hi556->client = client;
+
+	hi556->xvclk = devm_clk_get(dev, "xvclk");
+	if (IS_ERR(hi556->xvclk)) {
+		dev_err(dev, "Failed to get xvclk\n");
+		return -EINVAL;
+	}
+
+	hi556->power_gpio = devm_gpiod_get(dev, "power", GPIOD_OUT_LOW);
+	if (IS_ERR(hi556->power_gpio))
+		dev_warn(dev, "Failed to get power-gpios, maybe no use\n");
+
+	hi556->reset_gpio = devm_gpiod_get(dev, "reset", GPIOD_OUT_LOW);
+	if (IS_ERR(hi556->reset_gpio))
+		dev_warn(dev, "Failed to get reset-gpios, maybe no use\n");
+
+	hi556->pwdn_gpio = devm_gpiod_get(dev, "pwdn", GPIOD_OUT_LOW);
+	if (IS_ERR(hi556->pwdn_gpio))
+		dev_warn(dev, "Failed to get pwdn-gpios\n");
+
+	ret = hi556_configure_regulators(hi556);
+	if (ret) {
+		dev_err(dev, "Failed to get power regulators\n");
+		return ret;
+	}
+	ret = hi556_parse_of(hi556);
+	if (ret != 0)
+		return -EINVAL;
+
+	hi556->pinctrl = devm_pinctrl_get(dev);
+	if (!IS_ERR(hi556->pinctrl)) {
+		hi556->pins_default =
+			pinctrl_lookup_state(hi556->pinctrl,
+					     OF_CAMERA_PINCTRL_STATE_DEFAULT);
+		if (IS_ERR(hi556->pins_default))
+			dev_err(dev, "could not get default pinstate\n");
+
+		hi556->pins_sleep =
+			pinctrl_lookup_state(hi556->pinctrl,
+					     OF_CAMERA_PINCTRL_STATE_SLEEP);
+		if (IS_ERR(hi556->pins_sleep))
+			dev_err(dev, "could not get sleep pinstate\n");
+	}
+
+	mutex_init(&hi556->mutex);
+
+	sd = &hi556->subdev;
+	v4l2_i2c_subdev_init(sd, client, &hi556_subdev_ops);
+	ret = hi556_initialize_controls(hi556);
+	if (ret)
+		goto err_destroy_mutex;
+
+	ret = __hi556_power_on(hi556);
+	if (ret)
+		goto err_free_handler;
+
+	ret = hi556_check_sensor_id(hi556, client);
+	if (ret < 0) {
+		dev_info(&client->dev, "%s(%d) Check id  failed\n"
+				  "check following information:\n"
+				  "Power/PowerDown/Reset/Mclk/I2cBus !!\n",
+				  __func__, __LINE__);
+		goto err_power_off;
+	}
+
+#ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
+	sd->internal_ops = &hi556_internal_ops;
+	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE |
+		     V4L2_SUBDEV_FL_HAS_EVENTS;
+#endif
+#if defined(CONFIG_MEDIA_CONTROLLER)
+	hi556->pad.flags = MEDIA_PAD_FL_SOURCE;
+	sd->entity.function = MEDIA_ENT_F_CAM_SENSOR;
+	ret = media_entity_pads_init(&sd->entity, 1, &hi556->pad);
+	if (ret < 0)
+		goto err_power_off;
+#endif
+
+	memset(facing, 0, sizeof(facing));
+	if (strcmp(hi556->module_facing, "back") == 0)
+		facing[0] = 'b';
 	else
-		hi556_assign_pad_format(hi556->cur_mode, &fmt->format);
+		facing[0] = 'f';
 
-	mutex_unlock(&hi556->mutex);
+	snprintf(sd->name, sizeof(sd->name), "m%02d_%s_%s %s",
+		 hi556->module_index, facing,
+		 HI556_NAME, dev_name(sd->dev));
 
-	return 0;
-}
-
-static int hi556_enum_mbus_code(struct v4l2_subdev *sd,
-				struct v4l2_subdev_pad_config *cfg,
-				struct v4l2_subdev_mbus_code_enum *code)
-{
-	if (code->index > 0)
-		return -EINVAL;
-
-	code->code = MEDIA_BUS_FMT_SGRBG10_1X10;
-
-	return 0;
-}
-
-static int hi556_enum_frame_size(struct v4l2_subdev *sd,
-				 struct v4l2_subdev_pad_config *cfg,
-				 struct v4l2_subdev_frame_size_enum *fse)
-{
-	if (fse->index >= ARRAY_SIZE(supported_modes))
-		return -EINVAL;
-
-	if (fse->code != MEDIA_BUS_FMT_SGRBG10_1X10)
-		return -EINVAL;
-
-	fse->min_width = supported_modes[fse->index].width;
-	fse->max_width = fse->min_width;
-	fse->min_height = supported_modes[fse->index].height;
-	fse->max_height = fse->min_height;
-
-	return 0;
-}
-
-static int hi556_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
-{
-	struct hi556 *hi556 = to_hi556(sd);
-
-	mutex_lock(&hi556->mutex);
-	hi556_assign_pad_format(&supported_modes[0],
-				v4l2_subdev_get_try_format(sd, fh->pad, 0));
-	mutex_unlock(&hi556->mutex);
-
-	return 0;
-}
-
-static const struct v4l2_subdev_video_ops hi556_video_ops = {
-	.s_stream = hi556_set_stream,
-};
-
-static const struct v4l2_subdev_pad_ops hi556_pad_ops = {
-	.set_fmt = hi556_set_format,
-	.get_fmt = hi556_get_format,
-	.enum_mbus_code = hi556_enum_mbus_code,
-	.enum_frame_size = hi556_enum_frame_size,
-};
-
-static const struct v4l2_subdev_ops hi556_subdev_ops = {
-	.video = &hi556_video_ops,
-	.pad = &hi556_pad_ops,
-};
-
-static const struct media_entity_operations hi556_subdev_entity_ops = {
-	.link_validate = v4l2_subdev_link_validate,
-};
-
-static const struct v4l2_subdev_internal_ops hi556_internal_ops = {
-	.open = hi556_open,
-};
-
-static int hi556_identify_module(struct hi556 *hi556)
-{
-	struct i2c_client *client = v4l2_get_subdevdata(&hi556->sd);
-	int ret;
-	u32 val;
-
-	ret = hi556_read_reg(hi556, HI556_REG_CHIP_ID,
-			     HI556_REG_VALUE_16BIT, &val);
-	if (ret)
-		return ret;
-
-	if (val != HI556_CHIP_ID) {
-		dev_err(&client->dev, "chip id mismatch: %x!=%x",
-			HI556_CHIP_ID, val);
-		return -ENXIO;
-	}
-
-	return 0;
-}
-
-static int hi556_check_hwcfg(struct device *dev)
-{
-	struct fwnode_handle *ep;
-	struct fwnode_handle *fwnode = dev_fwnode(dev);
-	struct v4l2_fwnode_endpoint bus_cfg = {
-		.bus_type = V4L2_MBUS_CSI2_DPHY
-	};
-	u32 mclk;
-	int ret = 0;
-	unsigned int i, j;
-
-	if (!fwnode)
-		return -ENXIO;
-
-	ret = fwnode_property_read_u32(fwnode, "clock-frequency", &mclk);
+	ret = v4l2_async_register_subdev_sensor_common(sd);
 	if (ret) {
-		dev_err(dev, "can't get clock frequency");
-		return ret;
+		dev_err(dev, "v4l2 async register subdev failed\n");
+		goto err_clean_entity;
 	}
 
-	if (mclk != HI556_MCLK) {
-		dev_err(dev, "external clock %d is not supported", mclk);
-		return -EINVAL;
-	}
+	pm_runtime_set_active(dev);
+	pm_runtime_enable(dev);
+	pm_runtime_idle(dev);
 
-	ep = fwnode_graph_get_next_endpoint(fwnode, NULL);
-	if (!ep)
-		return -ENXIO;
+	return 0;
 
-	ret = v4l2_fwnode_endpoint_alloc_parse(ep, &bus_cfg);
-	fwnode_handle_put(ep);
-	if (ret)
-		return ret;
-
-	if (bus_cfg.bus.mipi_csi2.num_data_lanes != 2) {
-		dev_err(dev, "number of CSI2 data lanes %d is not supported",
-			bus_cfg.bus.mipi_csi2.num_data_lanes);
-		ret = -EINVAL;
-		goto check_hwcfg_error;
-	}
-
-	if (!bus_cfg.nr_of_link_frequencies) {
-		dev_err(dev, "no link frequencies defined");
-		ret = -EINVAL;
-		goto check_hwcfg_error;
-	}
-
-	for (i = 0; i < ARRAY_SIZE(link_freq_menu_items); i++) {
-		for (j = 0; j < bus_cfg.nr_of_link_frequencies; j++) {
-			if (link_freq_menu_items[i] ==
-				bus_cfg.link_frequencies[j])
-				break;
-		}
-
-		if (j == bus_cfg.nr_of_link_frequencies) {
-			dev_err(dev, "no link frequency %lld supported",
-				link_freq_menu_items[i]);
-			ret = -EINVAL;
-			goto check_hwcfg_error;
-		}
-	}
-
-check_hwcfg_error:
-	v4l2_fwnode_endpoint_free(&bus_cfg);
+err_clean_entity:
+#if defined(CONFIG_MEDIA_CONTROLLER)
+	media_entity_cleanup(&sd->entity);
+#endif
+err_power_off:
+	__hi556_power_off(hi556);
+err_free_handler:
+	v4l2_ctrl_handler_free(&hi556->ctrl_handler);
+err_destroy_mutex:
+	mutex_destroy(&hi556->mutex);
 
 	return ret;
 }
@@ -1097,104 +1596,57 @@ static int hi556_remove(struct i2c_client *client)
 	struct hi556 *hi556 = to_hi556(sd);
 
 	v4l2_async_unregister_subdev(sd);
+#if defined(CONFIG_MEDIA_CONTROLLER)
 	media_entity_cleanup(&sd->entity);
-	v4l2_ctrl_handler_free(sd->ctrl_handler);
-	pm_runtime_disable(&client->dev);
-	mutex_destroy(&hi556->mutex);
-
-	return 0;
-}
-
-static int hi556_probe(struct i2c_client *client)
-{
-	struct hi556 *hi556;
-	int ret;
-
-	ret = hi556_check_hwcfg(&client->dev);
-	if (ret) {
-		dev_err(&client->dev, "failed to check HW configuration: %d",
-			ret);
-		return ret;
-	}
-
-	hi556 = devm_kzalloc(&client->dev, sizeof(*hi556), GFP_KERNEL);
-	if (!hi556)
-		return -ENOMEM;
-
-	v4l2_i2c_subdev_init(&hi556->sd, client, &hi556_subdev_ops);
-	ret = hi556_identify_module(hi556);
-	if (ret) {
-		dev_err(&client->dev, "failed to find sensor: %d", ret);
-		return ret;
-	}
-
-	mutex_init(&hi556->mutex);
-	hi556->cur_mode = &supported_modes[0];
-	ret = hi556_init_controls(hi556);
-	if (ret) {
-		dev_err(&client->dev, "failed to init controls: %d", ret);
-		goto probe_error_v4l2_ctrl_handler_free;
-	}
-
-	hi556->sd.internal_ops = &hi556_internal_ops;
-	hi556->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
-	hi556->sd.entity.ops = &hi556_subdev_entity_ops;
-	hi556->sd.entity.function = MEDIA_ENT_F_CAM_SENSOR;
-	hi556->pad.flags = MEDIA_PAD_FL_SOURCE;
-	ret = media_entity_pads_init(&hi556->sd.entity, 1, &hi556->pad);
-	if (ret) {
-		dev_err(&client->dev, "failed to init entity pads: %d", ret);
-		goto probe_error_v4l2_ctrl_handler_free;
-	}
-
-	ret = v4l2_async_register_subdev_sensor_common(&hi556->sd);
-	if (ret < 0) {
-		dev_err(&client->dev, "failed to register V4L2 subdev: %d",
-			ret);
-		goto probe_error_media_entity_cleanup;
-	}
-
-	pm_runtime_set_active(&client->dev);
-	pm_runtime_enable(&client->dev);
-	pm_runtime_idle(&client->dev);
-
-	return 0;
-
-probe_error_media_entity_cleanup:
-	media_entity_cleanup(&hi556->sd.entity);
-
-probe_error_v4l2_ctrl_handler_free:
-	v4l2_ctrl_handler_free(hi556->sd.ctrl_handler);
-	mutex_destroy(&hi556->mutex);
-
-	return ret;
-}
-
-static const struct dev_pm_ops hi556_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(hi556_suspend, hi556_resume)
-};
-
-#ifdef CONFIG_ACPI
-static const struct acpi_device_id hi556_acpi_ids[] = {
-	{"INT3537"},
-	{}
-};
-
-MODULE_DEVICE_TABLE(acpi, hi556_acpi_ids);
 #endif
+	v4l2_ctrl_handler_free(&hi556->ctrl_handler);
+	mutex_destroy(&hi556->mutex);
+
+	pm_runtime_disable(&client->dev);
+	if (!pm_runtime_status_suspended(&client->dev))
+		__hi556_power_off(hi556);
+	pm_runtime_set_suspended(&client->dev);
+
+	return 0;
+}
+
+#if IS_ENABLED(CONFIG_OF)
+static const struct of_device_id hi556_of_match[] = {
+	{ .compatible = "hynix,hi556" },
+	{},
+};
+MODULE_DEVICE_TABLE(of, hi556_of_match);
+#endif
+
+static const struct i2c_device_id hi556_match_id[] = {
+	{ "hynix,hi556", 0 },
+	{ },
+};
 
 static struct i2c_driver hi556_i2c_driver = {
 	.driver = {
-		.name = "hi556",
+		.name = HI556_NAME,
 		.pm = &hi556_pm_ops,
-		.acpi_match_table = ACPI_PTR(hi556_acpi_ids),
+		.of_match_table = of_match_ptr(hi556_of_match),
 	},
-	.probe_new = hi556_probe,
-	.remove = hi556_remove,
+	.probe		= &hi556_probe,
+	.remove		= &hi556_remove,
+	.id_table	= hi556_match_id,
 };
 
-module_i2c_driver(hi556_i2c_driver);
+static int __init sensor_mod_init(void)
+{
+	return i2c_add_driver(&hi556_i2c_driver);
+}
 
-MODULE_AUTHOR("Shawn Tu <shawnx.tu@intel.com>");
-MODULE_DESCRIPTION("Hynix HI556 sensor driver");
+static void __exit sensor_mod_exit(void)
+{
+	i2c_del_driver(&hi556_i2c_driver);
+}
+
+device_initcall_sync(sensor_mod_init);
+module_exit(sensor_mod_exit);
+
+MODULE_DESCRIPTION("Hynix hi556 sensor driver");
 MODULE_LICENSE("GPL v2");
+
