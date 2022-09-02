@@ -146,3 +146,10 @@ void putback_lru_page(struct page *page)
 {
 	folio_putback_lru(page_folio(page));
 }
+
+#ifdef CONFIG_SWAP
+int try_to_free_swap(struct page *page)
+{
+	return folio_free_swap(page_folio(page));
+}
+#endif
