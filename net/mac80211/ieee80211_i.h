@@ -1930,9 +1930,6 @@ void ieee80211_sdata_stop(struct ieee80211_sub_if_data *sdata);
 int ieee80211_add_virtual_monitor(struct ieee80211_local *local);
 void ieee80211_del_virtual_monitor(struct ieee80211_local *local);
 
-int ieee80211_vif_set_links(struct ieee80211_sub_if_data *sdata,
-			    u16 new_links);
-
 bool __ieee80211_recalc_txpower(struct ieee80211_sub_if_data *sdata);
 void ieee80211_recalc_txpower(struct ieee80211_sub_if_data *sdata,
 			      bool update_bss);
@@ -1942,6 +1939,17 @@ static inline bool ieee80211_sdata_running(struct ieee80211_sub_if_data *sdata)
 {
 	return test_bit(SDATA_STATE_RUNNING, &sdata->state);
 }
+
+/* link handling */
+void ieee80211_link_setup(struct ieee80211_link_data *link);
+void ieee80211_link_init(struct ieee80211_sub_if_data *sdata,
+			 int link_id,
+			 struct ieee80211_link_data *link,
+			 struct ieee80211_bss_conf *link_conf);
+void ieee80211_link_stop(struct ieee80211_link_data *link);
+int ieee80211_vif_set_links(struct ieee80211_sub_if_data *sdata,
+			    u16 new_links);
+void ieee80211_vif_clear_links(struct ieee80211_sub_if_data *sdata);
 
 /* tx handling */
 void ieee80211_clear_tx_pending(struct ieee80211_local *local);
