@@ -1093,17 +1093,15 @@ static int ipv6_get_msfilter(struct sock *sk, void __user *optval,
 }
 
 static int compat_ipv6_get_msfilter(struct sock *sk, void __user *optval,
-		int __user *optlen)
+		int __user *optlen, int len)
 {
 	const int size0 = offsetof(struct compat_group_filter, gf_slist_flex);
 	struct compat_group_filter __user *p = optval;
 	struct compat_group_filter gf32;
 	struct group_filter gf;
-	int len, err;
+	int err;
 	int num;
 
-	if (get_user(len, optlen))
-		return -EFAULT;
 	if (len < size0)
 		return -EINVAL;
 
@@ -1156,7 +1154,7 @@ static int do_ipv6_getsockopt(struct sock *sk, int level, int optname,
 		break;
 	case MCAST_MSFILTER:
 		if (in_compat_syscall())
-			return compat_ipv6_get_msfilter(sk, optval, optlen);
+			return compat_ipv6_get_msfilter(sk, optval, optlen, len);
 		return ipv6_get_msfilter(sk, optval, optlen, len);
 	case IPV6_2292PKTOPTIONS:
 	{
