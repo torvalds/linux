@@ -1299,6 +1299,8 @@ static void mac80211_hwsim_config_mac_nl(struct ieee80211_hw *hw,
 	struct sk_buff *skb;
 	void *msg_head;
 
+	WARN_ON(!is_valid_ether_addr(addr));
+
 	if (!_portid && !hwsim_virtio_enabled)
 		return;
 
