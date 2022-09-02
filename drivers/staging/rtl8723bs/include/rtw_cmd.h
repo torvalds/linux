@@ -612,8 +612,6 @@ extern u8 rtw_ps_cmd(struct adapter *padapter);
 
 u8 rtw_chk_hi_queue_cmd(struct adapter *padapter);
 
-extern u8 rtw_set_chplan_cmd(struct adapter *padapter, u8 chplan, u8 enqueue, u8 swconfig);
-
 extern u8 rtw_c2h_packet_wk_cmd(struct adapter *padapter, u8 *pbuf, u16 length);
 extern u8 rtw_c2h_wk_cmd(struct adapter *padapter, u8 *c2h_evt);
 
