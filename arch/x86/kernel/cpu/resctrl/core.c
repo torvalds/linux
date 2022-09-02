@@ -523,27 +523,8 @@ static void domain_remove_cpu(int cpu, struct rdt_resource *r)
 
 	cpumask_clear_cpu(cpu, &d->cpu_mask);
 	if (cpumask_empty(&d->cpu_mask)) {
-		/*
-		 * If resctrl is mounted, remove all the
-		 * per domain monitor data directories.
-		 */
-		if (static_branch_unlikely(&rdt_mon_enable_key))
-			rmdir_mondata_subdir_allrdtgrp(r, d->id);
+		resctrl_offline_domain(r, d);
 		list_del(&d->list);
-		if (r->mon_capable && is_mbm_enabled())
-			cancel_delayed_work(&d->mbm_over);
-		if (is_llc_occupancy_enabled() &&  has_busy_rmid(r, d)) {
-			/*
-			 * When a package is going down, forcefully
-			 * decrement rmid->ebusy. There is no way to know
-			 * that the L3 was flushed and hence may lead to
-			 * incorrect counts in rare scenarios, but leaving
-			 * the RMID as busy creates RMID leaks if the
-			 * package never comes back.
-			 */
-			__check_limbo(d, true);
-			cancel_delayed_work(&d->cqm_limbo);
-		}
 
 		/*
 		 * rdt_domain "d" is going to be freed below, so clear
@@ -551,11 +532,8 @@ static void domain_remove_cpu(int cpu, struct rdt_resource *r)
 		 */
 		if (d->plr)
 			d->plr->d = NULL;
-
-		bitmap_free(d->rmid_busy_llc);
-		kfree(d->mbm_total);
-		kfree(d->mbm_local);
 		domain_free(hw_dom);
+
 		return;
 	}
 

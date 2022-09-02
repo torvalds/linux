@@ -2499,13 +2499,11 @@ static int mon_addfile(struct kernfs_node *parent_kn, const char *name,
  * Remove all subdirectories of mon_data of ctrl_mon groups
  * and monitor groups with given domain id.
  */
-void rmdir_mondata_subdir_allrdtgrp(struct rdt_resource *r, unsigned int dom_id)
+static void rmdir_mondata_subdir_allrdtgrp(struct rdt_resource *r,
+					   unsigned int dom_id)
 {
 	struct rdtgroup *prgrp, *crgrp;
 	char name[32];
-
-	if (!r->mon_capable)
-		return;
 
 	list_for_each_entry(prgrp, &rdt_all_groups, rdtgroup_list) {
 		sprintf(name, "mon_%s_%02d", r->name, dom_id);
@@ -3231,6 +3229,45 @@ out:
 	mutex_unlock(&rdtgroup_mutex);
 
 	return ret;
+}
+
+static void domain_destroy_mon_state(struct rdt_domain *d)
+{
+	bitmap_free(d->rmid_busy_llc);
+	kfree(d->mbm_total);
+	kfree(d->mbm_local);
+}
+
+void resctrl_offline_domain(struct rdt_resource *r, struct rdt_domain *d)
+{
+	lockdep_assert_held(&rdtgroup_mutex);
+
+	if (!r->mon_capable)
+		return;
+
+	/*
+	 * If resctrl is mounted, remove all the
+	 * per domain monitor data directories.
+	 */
+	if (static_branch_unlikely(&rdt_mon_enable_key))
+		rmdir_mondata_subdir_allrdtgrp(r, d->id);
+
+	if (is_mbm_enabled())
+		cancel_delayed_work(&d->mbm_over);
+	if (is_llc_occupancy_enabled() && has_busy_rmid(r, d)) {
+		/*
+		 * When a package is going down, forcefully
+		 * decrement rmid->ebusy. There is no way to know
+		 * that the L3 was flushed and hence may lead to
+		 * incorrect counts in rare scenarios, but leaving
+		 * the RMID as busy creates RMID leaks if the
+		 * package never comes back.
+		 */
+		__check_limbo(d, true);
+		cancel_delayed_work(&d->cqm_limbo);
+	}
+
+	domain_destroy_mon_state(d);
 }
 
 static int domain_setup_mon_state(struct rdt_resource *r, struct rdt_domain *d)
