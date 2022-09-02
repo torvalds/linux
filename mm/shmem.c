@@ -2498,6 +2498,7 @@ shmem_write_begin(struct file *file, struct address_space *mapping,
 	struct inode *inode = mapping->host;
 	struct shmem_inode_info *info = SHMEM_I(inode);
 	pgoff_t index = pos >> PAGE_SHIFT;
+	struct folio *folio;
 	int ret = 0;
 
 	/* i_rwsem is held by caller */
@@ -2509,14 +2510,15 @@ shmem_write_begin(struct file *file, struct address_space *mapping,
 			return -EPERM;
 	}
 
-	ret = shmem_getpage(inode, index, pagep, SGP_WRITE);
+	ret = shmem_get_folio(inode, index, &folio, SGP_WRITE);
 
 	if (ret)
 		return ret;
 
+	*pagep = folio_file_page(folio, index);
 	if (PageHWPoison(*pagep)) {
-		unlock_page(*pagep);
-		put_page(*pagep);
+		folio_unlock(folio);
+		folio_put(folio);
 		*pagep = NULL;
 		return -EIO;
 	}
