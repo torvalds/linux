@@ -32,7 +32,7 @@ extern struct address_space *swapper_spaces[];
 void show_swap_cache_info(void);
 bool add_to_swap(struct folio *folio);
 void *get_shadow_from_swap_cache(swp_entry_t entry);
-int add_to_swap_cache(struct page *page, swp_entry_t entry,
+int add_to_swap_cache(struct folio *folio, swp_entry_t entry,
 		      gfp_t gfp, void **shadowp);
 void __delete_from_swap_cache(struct folio *folio,
 			      swp_entry_t entry, void *shadow);
@@ -122,7 +122,7 @@ static inline void *get_shadow_from_swap_cache(swp_entry_t entry)
 	return NULL;
 }
 
-static inline int add_to_swap_cache(struct page *page, swp_entry_t entry,
+static inline int add_to_swap_cache(struct folio *folio, swp_entry_t entry,
 					gfp_t gfp_mask, void **shadowp)
 {
 	return -1;
