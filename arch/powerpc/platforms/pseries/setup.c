@@ -80,6 +80,20 @@
 DEFINE_STATIC_KEY_FALSE(shared_processor);
 EXPORT_SYMBOL(shared_processor);
 
+#ifdef CONFIG_PARAVIRT_TIME_ACCOUNTING
+struct static_key paravirt_steal_enabled;
+struct static_key paravirt_steal_rq_enabled;
+
+static bool steal_acc = true;
+static int __init parse_no_stealacc(char *arg)
+{
+	steal_acc = false;
+	return 0;
+}
+
+early_param("no-steal-acc", parse_no_stealacc);
+#endif
+
 int CMO_PrPSP = -1;
 int CMO_SecPSP = -1;
 unsigned long CMO_PageSize = (ASM_CONST(1) << IOMMU_PAGE_SHIFT_4K);
@@ -834,6 +848,11 @@ static void __init pSeries_setup_arch(void)
 		if (lppaca_shared_proc(get_lppaca())) {
 			static_branch_enable(&shared_processor);
 			pv_spinlocks_init();
+#ifdef CONFIG_PARAVIRT_TIME_ACCOUNTING
+			static_key_slow_inc(&paravirt_steal_enabled);
+			if (steal_acc)
+				static_key_slow_inc(&paravirt_steal_rq_enabled);
+#endif
 		}
 
 		ppc_md.power_save = pseries_lpar_idle;
