@@ -5191,8 +5191,9 @@ static int sol_ip_sockopt(struct sock *sk, int optname,
 				KERNEL_SOCKPTR(optval), *optlen);
 }
 
-static int sol_ipv6_setsockopt(struct sock *sk, int optname,
-			       char *optval, int optlen)
+static int sol_ipv6_sockopt(struct sock *sk, int optname,
+			    char *optval, int *optlen,
+			    bool getopt)
 {
 	if (sk->sk_family != AF_INET6)
 		return -EINVAL;
@@ -5200,15 +5201,20 @@ static int sol_ipv6_setsockopt(struct sock *sk, int optname,
 	switch (optname) {
 	case IPV6_TCLASS:
 	case IPV6_AUTOFLOWLABEL:
-		if (optlen != sizeof(int))
+		if (*optlen != sizeof(int))
 			return -EINVAL;
 		break;
 	default:
 		return -EINVAL;
 	}
 
+	if (getopt)
+		return ipv6_bpf_stub->ipv6_getsockopt(sk, SOL_IPV6, optname,
+						      KERNEL_SOCKPTR(optval),
+						      KERNEL_SOCKPTR(optlen));
+
 	return ipv6_bpf_stub->ipv6_setsockopt(sk, SOL_IPV6, optname,
-					      KERNEL_SOCKPTR(optval), optlen);
+					      KERNEL_SOCKPTR(optval), *optlen);
 }
 
 static int __bpf_setsockopt(struct sock *sk, int level, int optname,
@@ -5222,7 +5228,7 @@ static int __bpf_setsockopt(struct sock *sk, int level, int optname,
 	else if (IS_ENABLED(CONFIG_INET) && level == SOL_IP)
 		return sol_ip_sockopt(sk, optname, optval, &optlen, false);
 	else if (IS_ENABLED(CONFIG_IPV6) && level == SOL_IPV6)
-		return sol_ipv6_setsockopt(sk, optname, optval, optlen);
+		return sol_ipv6_sockopt(sk, optname, optval, &optlen, false);
 	else if (IS_ENABLED(CONFIG_INET) && level == SOL_TCP)
 		return sol_tcp_sockopt(sk, optname, optval, &optlen, false);
 
@@ -5240,43 +5246,30 @@ static int _bpf_setsockopt(struct sock *sk, int level, int optname,
 static int __bpf_getsockopt(struct sock *sk, int level, int optname,
 			    char *optval, int optlen)
 {
-	int err = 0, saved_optlen = optlen;
+	int err, saved_optlen = optlen;
 
-	if (!sk_fullsock(sk))
-		goto err_clear;
-
-	if (level == SOL_SOCKET) {
-		err = sol_socket_sockopt(sk, optname, optval, &optlen, true);
-	} else if (IS_ENABLED(CONFIG_INET) && level == SOL_TCP) {
-		err = sol_tcp_sockopt(sk, optname, optval, &optlen, true);
-	} else if (IS_ENABLED(CONFIG_INET) && level == SOL_IP) {
-		err = sol_ip_sockopt(sk, optname, optval, &optlen, true);
-	} else if (IS_ENABLED(CONFIG_IPV6) && level == SOL_IPV6) {
-		struct ipv6_pinfo *np = inet6_sk(sk);
-
-		if (optlen != sizeof(int) || sk->sk_family != AF_INET6)
-			goto err_clear;
-
-		/* Only some options are supported */
-		switch (optname) {
-		case IPV6_TCLASS:
-			*((int *)optval) = (int)np->tclass;
-			break;
-		default:
-			goto err_clear;
-		}
-	} else {
-		goto err_clear;
+	if (!sk_fullsock(sk)) {
+		err = -EINVAL;
+		goto done;
 	}
 
+	if (level == SOL_SOCKET)
+		err = sol_socket_sockopt(sk, optname, optval, &optlen, true);
+	else if (IS_ENABLED(CONFIG_INET) && level == SOL_TCP)
+		err = sol_tcp_sockopt(sk, optname, optval, &optlen, true);
+	else if (IS_ENABLED(CONFIG_INET) && level == SOL_IP)
+		err = sol_ip_sockopt(sk, optname, optval, &optlen, true);
+	else if (IS_ENABLED(CONFIG_IPV6) && level == SOL_IPV6)
+		err = sol_ipv6_sockopt(sk, optname, optval, &optlen, true);
+	else
+		err = -EINVAL;
+
+done:
 	if (err)
 		optlen = 0;
 	if (optlen < saved_optlen)
 		memset(optval + optlen, 0, saved_optlen - optlen);
 	return err;
-err_clear:
-	memset(optval, 0, optlen);
-	return -EINVAL;
 }
 
 static int _bpf_getsockopt(struct sock *sk, int level, int optname,

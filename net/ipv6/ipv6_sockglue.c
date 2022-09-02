@@ -1131,8 +1131,8 @@ static int compat_ipv6_get_msfilter(struct sock *sk, sockptr_t optval,
 	return 0;
 }
 
-static int do_ipv6_getsockopt(struct sock *sk, int level, int optname,
-			      sockptr_t optval, sockptr_t optlen)
+int do_ipv6_getsockopt(struct sock *sk, int level, int optname,
+		       sockptr_t optval, sockptr_t optlen)
 {
 	struct ipv6_pinfo *np = inet6_sk(sk);
 	int len;
