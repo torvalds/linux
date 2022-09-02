@@ -10,7 +10,6 @@ r8723bs-y = \
 		core/rtw_ieee80211.o \
 		core/rtw_mlme.o \
 		core/rtw_mlme_ext.o \
-		core/rtw_odm.o \
 		core/rtw_pwrctrl.o \
 		core/rtw_recv.o \
 		core/rtw_rf.o \
