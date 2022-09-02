@@ -1647,13 +1647,16 @@ static int collapse_file(struct mm_struct *mm, struct file *file,
 			}
 
 			if (xa_is_value(page) || !PageUptodate(page)) {
+				struct folio *folio;
+
 				xas_unlock_irq(&xas);
 				/* swap in or instantiate fallocated page */
-				if (shmem_getpage(mapping->host, index, &page,
-						  SGP_NOALLOC)) {
+				if (shmem_get_folio(mapping->host, index,
+						&folio, SGP_NOALLOC)) {
 					result = SCAN_FAIL;
 					goto xa_unlocked;
 				}
+				page = folio_file_page(folio, index);
 			} else if (trylock_page(page)) {
 				get_page(page);
 				xas_unlock_irq(&xas);
