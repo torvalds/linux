@@ -379,11 +379,11 @@ extern unsigned long totalreserve_pages;
 
 
 /* linux/mm/swap.c */
-extern void lru_note_cost(struct lruvec *lruvec, bool file,
-			  unsigned int nr_pages);
-extern void lru_note_cost_folio(struct folio *);
-extern void folio_add_lru(struct folio *);
-extern void lru_cache_add(struct page *);
+void lru_note_cost(struct lruvec *lruvec, bool file, unsigned int nr_pages);
+void lru_note_cost_folio(struct folio *);
+void folio_add_lru(struct folio *);
+void folio_add_lru_vma(struct folio *, struct vm_area_struct *);
+void lru_cache_add(struct page *);
 void mark_page_accessed(struct page *);
 void folio_mark_accessed(struct folio *);
 
