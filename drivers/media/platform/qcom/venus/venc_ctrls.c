@@ -379,6 +379,7 @@ int venc_ctrl_init(struct venus_inst *inst)
 		{ 34000, 13250, 7500 },
 		{ 16000, 34500, 3000 }, 15635, 16450, 10000000, 500,
 	};
+	struct v4l2_ctrl_hdr10_cll_info p_hdr10_cll = { 1000, 400 };
 
 	ret = v4l2_ctrl_handler_init(&inst->ctrl_handler, 59);
 	if (ret)
@@ -606,7 +607,7 @@ int venc_ctrl_init(struct venus_inst *inst)
 
 	v4l2_ctrl_new_std_compound(&inst->ctrl_handler, &venc_ctrl_ops,
 				   V4L2_CID_COLORIMETRY_HDR10_CLL_INFO,
-				   v4l2_ctrl_ptr_create(NULL));
+				   v4l2_ctrl_ptr_create(&p_hdr10_cll));
 
 	v4l2_ctrl_new_std_compound(&inst->ctrl_handler, &venc_ctrl_ops,
 				   V4L2_CID_COLORIMETRY_HDR10_MASTERING_DISPLAY,
