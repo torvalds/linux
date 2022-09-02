@@ -317,24 +317,24 @@ static inline bool swap_use_vma_readahead(void)
 }
 
 /*
- * Lookup a swap entry in the swap cache. A found page will be returned
+ * Lookup a swap entry in the swap cache. A found folio will be returned
  * unlocked and with its refcount incremented - we rely on the kernel
- * lock getting page table operations atomic even if we drop the page
+ * lock getting page table operations atomic even if we drop the folio
  * lock before returning.
  */
-struct page *lookup_swap_cache(swp_entry_t entry, struct vm_area_struct *vma,
-			       unsigned long addr)
+struct folio *swap_cache_get_folio(swp_entry_t entry,
+		struct vm_area_struct *vma, unsigned long addr)
 {
-	struct page *page;
+	struct folio *folio;
 	struct swap_info_struct *si;
 
 	si = get_swap_device(entry);
 	if (!si)
 		return NULL;
-	page = find_get_page(swap_address_space(entry), swp_offset(entry));
+	folio = filemap_get_folio(swap_address_space(entry), swp_offset(entry));
 	put_swap_device(si);
 
-	if (page) {
+	if (folio) {
 		bool vma_ra = swap_use_vma_readahead();
 		bool readahead;
 
@@ -342,10 +342,10 @@ struct page *lookup_swap_cache(swp_entry_t entry, struct vm_area_struct *vma,
 		 * At the moment, we don't support PG_readahead for anon THP
 		 * so let's bail out rather than confusing the readahead stat.
 		 */
-		if (unlikely(PageTransCompound(page)))
-			return page;
+		if (unlikely(folio_test_large(folio)))
+			return folio;
 
-		readahead = TestClearPageReadahead(page);
+		readahead = folio_test_clear_readahead(folio);
 		if (vma && vma_ra) {
 			unsigned long ra_val;
 			int win, hits;
@@ -366,7 +366,17 @@ struct page *lookup_swap_cache(swp_entry_t entry, struct vm_area_struct *vma,
 		}
 	}
 
-	return page;
+	return folio;
+}
+
+struct page *lookup_swap_cache(swp_entry_t entry, struct vm_area_struct *vma,
+			       unsigned long addr)
+{
+	struct folio *folio = swap_cache_get_folio(entry, vma, addr);
+
+	if (!folio)
+		return NULL;
+	return folio_file_page(folio, swp_offset(entry));
 }
 
 /**
