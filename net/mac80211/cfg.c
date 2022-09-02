@@ -226,6 +226,10 @@ static int ieee80211_change_iface(struct wiphy *wiphy,
 		if (params->use_4addr == ifmgd->use_4addr)
 			return 0;
 
+		/* FIXME: no support for 4-addr MLO yet */
+		if (sdata->vif.valid_links)
+			return -EOPNOTSUPP;
+
 		sdata->u.mgd.use_4addr = params->use_4addr;
 		if (!ifmgd->associated)
 			return 0;
@@ -4696,6 +4700,9 @@ static int ieee80211_add_intf_link(struct wiphy *wiphy,
 				   unsigned int link_id)
 {
 	struct ieee80211_sub_if_data *sdata = IEEE80211_WDEV_TO_SUB_IF(wdev);
+
+	if (wdev->use_4addr)
+		return -EOPNOTSUPP;
 
 	return ieee80211_vif_set_links(sdata, wdev->valid_links);
 }
