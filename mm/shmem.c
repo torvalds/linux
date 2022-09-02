@@ -139,17 +139,6 @@ static int shmem_swapin_folio(struct inode *inode, pgoff_t index,
 			     struct folio **foliop, enum sgp_type sgp,
 			     gfp_t gfp, struct vm_area_struct *vma,
 			     vm_fault_t *fault_type);
-static int shmem_getpage_gfp(struct inode *inode, pgoff_t index,
-		struct page **pagep, enum sgp_type sgp,
-		gfp_t gfp, struct vm_area_struct *vma,
-		struct vm_fault *vmf, vm_fault_t *fault_type);
-
-int shmem_getpage(struct inode *inode, pgoff_t index,
-		struct page **pagep, enum sgp_type sgp)
-{
-	return shmem_getpage_gfp(inode, index, pagep, sgp,
-		mapping_gfp_mask(inode->i_mapping), NULL, NULL, NULL);
-}
 
 static inline struct shmem_sb_info *SHMEM_SB(struct super_block *sb)
 {
@@ -1595,7 +1584,7 @@ failed:
 
 /*
  * When a page is moved from swapcache to shmem filecache (either by the
- * usual swapin of shmem_getpage_gfp(), or by the less common swapoff of
+ * usual swapin of shmem_get_folio_gfp(), or by the less common swapoff of
  * shmem_unuse_inode()), it may have been read in earlier from swap, in
  * ignorance of the mapping it belongs to.  If that mapping has special
  * constraints (like the gma500 GEM driver, which requires RAM below 4GB),
@@ -1812,7 +1801,7 @@ unlock:
 }
 
 /*
- * shmem_getpage_gfp - find page in cache, or get from swap, or allocate
+ * shmem_get_folio_gfp - find page in cache, or get from swap, or allocate
  *
  * If we allocate a new one we do not mark it dirty. That's up to the
  * vm. If we swap it in we mark it dirty since we also free the swap
@@ -1821,10 +1810,10 @@ unlock:
  * vma, vmf, and fault_type are only supplied by shmem_fault:
  * otherwise they are NULL.
  */
-static int shmem_getpage_gfp(struct inode *inode, pgoff_t index,
-	struct page **pagep, enum sgp_type sgp, gfp_t gfp,
-	struct vm_area_struct *vma, struct vm_fault *vmf,
-			vm_fault_t *fault_type)
+static int shmem_get_folio_gfp(struct inode *inode, pgoff_t index,
+		struct folio **foliop, enum sgp_type sgp, gfp_t gfp,
+		struct vm_area_struct *vma, struct vm_fault *vmf,
+		vm_fault_t *fault_type)
 {
 	struct address_space *mapping = inode->i_mapping;
 	struct shmem_inode_info *info = SHMEM_I(inode);
@@ -1864,7 +1853,7 @@ repeat:
 		if (error == -EEXIST)
 			goto repeat;
 
-		*pagep = &folio->page;
+		*foliop = folio;
 		return error;
 	}
 
@@ -1874,7 +1863,7 @@ repeat:
 			folio_mark_accessed(folio);
 		if (folio_test_uptodate(folio))
 			goto out;
-		/* fallocated page */
+		/* fallocated folio */
 		if (sgp != SGP_READ)
 			goto clear;
 		folio_unlock(folio);
@@ -1882,10 +1871,10 @@ repeat:
 	}
 
 	/*
-	 * SGP_READ: succeed on hole, with NULL page, letting caller zero.
-	 * SGP_NOALLOC: fail on hole, with NULL page, letting caller fail.
+	 * SGP_READ: succeed on hole, with NULL folio, letting caller zero.
+	 * SGP_NOALLOC: fail on hole, with NULL folio, letting caller fail.
 	 */
-	*pagep = NULL;
+	*foliop = NULL;
 	if (sgp == SGP_READ)
 		return 0;
 	if (sgp == SGP_NOALLOC)
@@ -1918,7 +1907,7 @@ alloc_nohuge:
 		if (error != -ENOSPC)
 			goto unlock;
 		/*
-		 * Try to reclaim some space by splitting a huge page
+		 * Try to reclaim some space by splitting a large folio
 		 * beyond i_size on the filesystem.
 		 */
 		while (retry--) {
@@ -1954,9 +1943,9 @@ alloc_nohuge:
 
 	if (folio_test_pmd_mappable(folio) &&
 	    DIV_ROUND_UP(i_size_read(inode), PAGE_SIZE) <
-			hindex + HPAGE_PMD_NR - 1) {
+					folio_next_index(folio) - 1) {
 		/*
-		 * Part of the huge page is beyond i_size: subject
+		 * Part of the large folio is beyond i_size: subject
 		 * to shrink under memory pressure.
 		 */
 		spin_lock(&sbinfo->shrinklist_lock);
@@ -1973,14 +1962,14 @@ alloc_nohuge:
 	}
 
 	/*
-	 * Let SGP_FALLOC use the SGP_WRITE optimization on a new page.
+	 * Let SGP_FALLOC use the SGP_WRITE optimization on a new folio.
 	 */
 	if (sgp == SGP_FALLOC)
 		sgp = SGP_WRITE;
 clear:
 	/*
-	 * Let SGP_WRITE caller clear ends if write does not fill page;
-	 * but SGP_FALLOC on a page fallocated earlier must initialize
+	 * Let SGP_WRITE caller clear ends if write does not fill folio;
+	 * but SGP_FALLOC on a folio fallocated earlier must initialize
 	 * it now, lest undo on failure cancel our earlier guarantee.
 	 */
 	if (sgp != SGP_WRITE && !folio_test_uptodate(folio)) {
@@ -2006,7 +1995,7 @@ clear:
 		goto unlock;
 	}
 out:
-	*pagep = folio_page(folio, index - hindex);
+	*foliop = folio;
 	return 0;
 
 	/*
@@ -2034,6 +2023,29 @@ unlock:
 	if (error == -EEXIST)
 		goto repeat;
 	return error;
+}
+
+static int shmem_getpage_gfp(struct inode *inode, pgoff_t index,
+		struct page **pagep, enum sgp_type sgp,
+		gfp_t gfp, struct vm_area_struct *vma,
+		struct vm_fault *vmf, vm_fault_t *fault_type)
+{
+	struct folio *folio = NULL;
+	int ret = shmem_get_folio_gfp(inode, index, &folio, sgp, gfp, vma,
+			vmf, fault_type);
+
+	if (folio)
+		*pagep = folio_file_page(folio, index);
+	else
+		*pagep = NULL;
+	return ret;
+}
+
+int shmem_getpage(struct inode *inode, pgoff_t index,
+		struct page **pagep, enum sgp_type sgp)
+{
+	return shmem_getpage_gfp(inode, index, pagep, sgp,
+		mapping_gfp_mask(inode->i_mapping), NULL, NULL, NULL);
 }
 
 /*
