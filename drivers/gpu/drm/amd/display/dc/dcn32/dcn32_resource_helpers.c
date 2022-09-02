@@ -66,8 +66,11 @@ uint32_t dcn32_helper_calculate_num_ways_for_subvp(struct dc *dc, struct dc_stat
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
 		struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
 
-		// Find the phantom pipes
-		if (pipe->stream && pipe->plane_state && !pipe->top_pipe && !pipe->prev_odm_pipe &&
+		/* Find the phantom pipes.
+		 * - For pipe split case we need to loop through the bottom and next ODM
+		 *   pipes or only half the viewport size is counted
+		 */
+		if (pipe->stream && pipe->plane_state &&
 				pipe->stream->mall_stream_config.type == SUBVP_PHANTOM) {
 			struct pipe_ctx *main_pipe = NULL;
 
@@ -118,9 +121,9 @@ uint32_t dcn32_helper_calculate_num_ways_for_subvp(struct dc *dc, struct dc_stat
 			// (MALL is 64-byte aligned)
 			cache_lines_per_plane = bytes_in_mall / dc->caps.cache_line_size + 2;
 
-			// For DCC we must cache the meat surface, so double cache lines required
+			/* For DCC divide by 256 */
 			if (pipe->plane_state->dcc.enable)
-				cache_lines_per_plane *= 2;
+				cache_lines_per_plane = cache_lines_per_plane + (cache_lines_per_plane / 256) + 1;
 			cache_lines_used += cache_lines_per_plane;
 		}
 	}
