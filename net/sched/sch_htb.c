@@ -1102,7 +1102,7 @@ static int htb_init(struct Qdisc *sch, struct nlattr *opt,
 
 	err = qdisc_class_hash_init(&q->clhash);
 	if (err < 0)
-		goto err_free_direct_qdiscs;
+		return err;
 
 	if (tb[TCA_HTB_DIRECT_QLEN])
 		q->direct_qlen = nla_get_u32(tb[TCA_HTB_DIRECT_QLEN]);
@@ -1123,8 +1123,7 @@ static int htb_init(struct Qdisc *sch, struct nlattr *opt,
 		qdisc = qdisc_create_dflt(dev_queue, &pfifo_qdisc_ops,
 					  TC_H_MAKE(sch->handle, 0), extack);
 		if (!qdisc) {
-			err = -ENOMEM;
-			goto err_free_qdiscs;
+			return -ENOMEM;
 		}
 
 		htb_set_lockdep_class_child(qdisc);
@@ -1142,7 +1141,7 @@ static int htb_init(struct Qdisc *sch, struct nlattr *opt,
 	};
 	err = htb_offload(dev, &offload_opt);
 	if (err)
-		goto err_free_qdiscs;
+		return err;
 
 	/* Defer this assignment, so that htb_destroy skips offload-related
 	 * parts (especially calling ndo_setup_tc) on errors.
@@ -1150,22 +1149,6 @@ static int htb_init(struct Qdisc *sch, struct nlattr *opt,
 	q->offload = true;
 
 	return 0;
-
-err_free_qdiscs:
-	for (ntx = 0; ntx < q->num_direct_qdiscs && q->direct_qdiscs[ntx];
-	     ntx++)
-		qdisc_put(q->direct_qdiscs[ntx]);
-
-	qdisc_class_hash_destroy(&q->clhash);
-	/* Prevent use-after-free and double-free when htb_destroy gets called.
-	 */
-	q->clhash.hash = NULL;
-	q->clhash.hashsize = 0;
-
-err_free_direct_qdiscs:
-	kfree(q->direct_qdiscs);
-	q->direct_qdiscs = NULL;
-	return err;
 }
 
 static void htb_attach_offload(struct Qdisc *sch)
@@ -1688,13 +1671,12 @@ static void htb_destroy(struct Qdisc *sch)
 	qdisc_class_hash_destroy(&q->clhash);
 	__qdisc_reset_queue(&q->direct_queue);
 
-	if (!q->offload)
-		return;
-
-	offload_opt = (struct tc_htb_qopt_offload) {
-		.command = TC_HTB_DESTROY,
-	};
-	htb_offload(dev, &offload_opt);
+	if (q->offload) {
+		offload_opt = (struct tc_htb_qopt_offload) {
+			.command = TC_HTB_DESTROY,
+		};
+		htb_offload(dev, &offload_opt);
+	}
 
 	if (!q->direct_qdiscs)
 		return;
