@@ -427,8 +427,8 @@ static int tb_switch_nvm_add(struct tb_switch *sw)
 		if (ret)
 			goto err_nvm;
 
-		nvm->major = val >> 16;
-		nvm->minor = val >> 8;
+		nvm->major = (val >> 16) & 0xff;
+		nvm->minor = (val >> 8) & 0xff;
 
 		ret = tb_nvm_add_active(nvm, nvm_size, tb_switch_nvm_read);
 		if (ret)

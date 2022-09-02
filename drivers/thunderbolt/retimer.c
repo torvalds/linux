@@ -71,8 +71,8 @@ static int tb_retimer_nvm_add(struct tb_retimer *rt)
 	if (ret)
 		goto err_nvm;
 
-	nvm->major = val >> 16;
-	nvm->minor = val >> 8;
+	nvm->major = (val >> 16) & 0xff;
+	nvm->minor = (val >> 8) & 0xff;
 
 	ret = usb4_port_retimer_nvm_read(rt->port, rt->index, NVM_FLASH_SIZE,
 					 &val, sizeof(val));
