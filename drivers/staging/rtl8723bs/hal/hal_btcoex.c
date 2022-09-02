@@ -1283,11 +1283,6 @@ s32 hal_btcoex_IsBTCoexCtrlAMPDUSize(struct adapter *padapter)
 	return (s32)GLBtCoexist.btInfo.bBtCtrlAggBufSize;
 }
 
-void hal_btcoex_SetManualControl(struct adapter *padapter, u8 bmanual)
-{
-	GLBtCoexist.bManualControl = bmanual;
-}
-
 bool hal_btcoex_IsBtControlLps(struct adapter *padapter)
 {
 	if (!hal_btcoex_IsBtExist(padapter))
