@@ -10,10 +10,12 @@ struct lock_class_key bch2_btree_node_lock_key;
 
 static inline void six_lock_readers_add(struct six_lock *lock, int nr)
 {
-	if (!lock->readers)
+	if (lock->readers)
+		this_cpu_add(*lock->readers, nr);
+	else if (nr > 0)
 		atomic64_add(__SIX_VAL(read_lock, nr), &lock->state.counter);
 	else
-		this_cpu_add(*lock->readers, nr);
+		atomic64_sub(__SIX_VAL(read_lock, -nr), &lock->state.counter);
 }
 
 struct six_lock_count bch2_btree_node_lock_counts(struct btree_trans *trans,
