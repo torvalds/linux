@@ -4270,18 +4270,20 @@ struct page *shmem_read_mapping_page_gfp(struct address_space *mapping,
 {
 #ifdef CONFIG_SHMEM
 	struct inode *inode = mapping->host;
+	struct folio *folio;
 	struct page *page;
 	int error;
 
 	BUG_ON(!shmem_mapping(mapping));
-	error = shmem_getpage_gfp(inode, index, &page, SGP_CACHE,
+	error = shmem_get_folio_gfp(inode, index, &folio, SGP_CACHE,
 				  gfp, NULL, NULL, NULL);
 	if (error)
 		return ERR_PTR(error);
 
-	unlock_page(page);
+	folio_unlock(folio);
+	page = folio_file_page(folio, index);
 	if (PageHWPoison(page)) {
-		put_page(page);
+		folio_put(folio);
 		return ERR_PTR(-EIO);
 	}
 
