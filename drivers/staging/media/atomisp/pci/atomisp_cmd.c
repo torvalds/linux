@@ -5549,15 +5549,12 @@ int atomisp_set_fmt(struct video_device *vdev, struct v4l2_format *f)
 	struct v4l2_subdev_fh fh;
 	int ret;
 
-	lockdep_assert_held(&isp->mutex);
+	ret = atomisp_pipe_check(pipe, true);
+	if (ret)
+		return ret;
 
 	if (source_pad >= ATOMISP_SUBDEV_PADS_NUM)
 		return -EINVAL;
-
-	if (asd->streaming == ATOMISP_DEVICE_STREAMING_ENABLED) {
-		dev_warn(isp->dev, "ISP does not support set format while at streaming!\n");
-		return -EBUSY;
-	}
 
 	dev_dbg(isp->dev,
 		"setting resolution %ux%u on pad %u for asd%d, bytesperline %u\n",

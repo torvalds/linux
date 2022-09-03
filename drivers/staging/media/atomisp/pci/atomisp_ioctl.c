@@ -535,6 +535,32 @@ atomisp_get_format_bridge_from_mbus(u32 mbus_code)
 	return NULL;
 }
 
+int atomisp_pipe_check(struct atomisp_video_pipe *pipe, bool settings_change)
+{
+	lockdep_assert_held(&pipe->isp->mutex);
+
+	if (pipe->isp->isp_fatal_error)
+		return -EIO;
+
+	switch (pipe->asd->streaming) {
+	case ATOMISP_DEVICE_STREAMING_DISABLED:
+		break;
+	case ATOMISP_DEVICE_STREAMING_ENABLED:
+		if (settings_change) {
+			dev_err(pipe->isp->dev, "Set fmt/input IOCTL while streaming\n");
+			return -EBUSY;
+		}
+		break;
+	case ATOMISP_DEVICE_STREAMING_STOPPING:
+		dev_err(pipe->isp->dev, "IOCTL issued while stopping\n");
+		return -EBUSY;
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 /*
  * v4l2 ioctls
  * return ISP capabilities
@@ -646,12 +672,18 @@ static int atomisp_s_input(struct file *file, void *fh, unsigned int input)
 {
 	struct video_device *vdev = video_devdata(file);
 	struct atomisp_device *isp = video_get_drvdata(vdev);
-	struct atomisp_sub_device *asd = atomisp_to_video_pipe(vdev)->asd;
+	struct atomisp_video_pipe *pipe = atomisp_to_video_pipe(vdev);
+	struct atomisp_sub_device *asd = pipe->asd;
 	struct v4l2_subdev *camera = NULL;
 	struct v4l2_subdev *motor;
 	int ret;
 
 	mutex_lock(&isp->mutex);
+
+	ret = atomisp_pipe_check(pipe, true);
+	if (ret)
+		goto error;
+
 	if (input >= ATOM_ISP_MAX_INPUTS || input >= isp->input_cnt) {
 		dev_dbg(isp->dev, "input_cnt: %d\n", isp->input_cnt);
 		ret = -EINVAL;
@@ -674,13 +706,6 @@ static int atomisp_s_input(struct file *file, void *fh, unsigned int input)
 	camera = isp->inputs[input].camera;
 	if (!camera) {
 		dev_err(isp->dev, "%s, no camera\n", __func__);
-		ret = -EINVAL;
-		goto error;
-	}
-
-	if (atomisp_subdev_streaming_count(asd)) {
-		dev_err(isp->dev,
-			"ISP is still streaming, stop first\n");
 		ret = -EINVAL;
 		goto error;
 	}
@@ -976,11 +1001,6 @@ static int atomisp_s_fmt_cap(struct file *file, void *fh,
 	int ret;
 
 	mutex_lock(&isp->mutex);
-	if (isp->isp_fatal_error) {
-		ret = -EIO;
-		mutex_unlock(&isp->mutex);
-		return ret;
-	}
 	ret = atomisp_set_fmt(vdev, f);
 	mutex_unlock(&isp->mutex);
 	return ret;
@@ -1236,20 +1256,13 @@ static int atomisp_qbuf(struct file *file, void *fh, struct v4l2_buffer *buf)
 	struct ia_css_frame *handle = NULL;
 	u32 length;
 	u32 pgnr;
-	int ret = 0;
+	int ret;
 
 	mutex_lock(&isp->mutex);
-	if (isp->isp_fatal_error) {
-		ret = -EIO;
-		goto error;
-	}
 
-	if (asd->streaming == ATOMISP_DEVICE_STREAMING_STOPPING) {
-		dev_err(isp->dev, "%s: reject, as ISP at stopping.\n",
-			__func__);
-		ret = -EIO;
+	ret = atomisp_pipe_check(pipe, false);
+	if (ret)
 		goto error;
-	}
 
 	if (!buf || buf->index >= VIDEO_MAX_FRAME ||
 	    !pipe->capq.bufs[buf->index]) {
@@ -1418,23 +1431,13 @@ static int atomisp_dqbuf(struct file *file, void *fh, struct v4l2_buffer *buf)
 	struct atomisp_video_pipe *pipe = atomisp_to_video_pipe(vdev);
 	struct atomisp_sub_device *asd = pipe->asd;
 	struct atomisp_device *isp = video_get_drvdata(vdev);
-	int ret = 0;
+	int ret;
 
 	mutex_lock(&isp->mutex);
-
-	if (isp->isp_fatal_error) {
-		mutex_unlock(&isp->mutex);
-		return -EIO;
-	}
-
-	if (asd->streaming == ATOMISP_DEVICE_STREAMING_STOPPING) {
-		mutex_unlock(&isp->mutex);
-		dev_err(isp->dev, "%s: reject, as ISP at stopping.\n",
-			__func__);
-		return -EIO;
-	}
-
+	ret = atomisp_pipe_check(pipe, false);
 	mutex_unlock(&isp->mutex);
+	if (ret)
+		return ret;
 
 	ret = videobuf_dqbuf(&pipe->capq, buf, file->f_flags & O_NONBLOCK);
 	if (ret) {
@@ -1668,8 +1671,8 @@ static int atomisp_streamon(struct file *file, void *fh,
 	enum ia_css_pipe_id css_pipe_id;
 	unsigned int sensor_start_stream;
 	unsigned int wdt_duration = ATOMISP_ISP_TIMEOUT_DURATION;
-	int ret = 0;
 	unsigned long irqflags;
+	int ret;
 
 	dev_dbg(isp->dev, "Start stream on pad %d for asd%d\n",
 		atomisp_subdev_source_pad(vdev), asd->index);
@@ -1680,15 +1683,9 @@ static int atomisp_streamon(struct file *file, void *fh,
 	}
 
 	mutex_lock(&isp->mutex);
-	if (isp->isp_fatal_error) {
-		ret = -EIO;
+	ret = atomisp_pipe_check(pipe, false);
+	if (ret)
 		goto out;
-	}
-
-	if (asd->streaming == ATOMISP_DEVICE_STREAMING_STOPPING) {
-		ret = -EBUSY;
-		goto out;
-	}
 
 	if (pipe->capq.streaming)
 		goto out;

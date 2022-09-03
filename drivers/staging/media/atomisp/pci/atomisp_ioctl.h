@@ -34,6 +34,8 @@ atomisp_format_bridge *atomisp_get_format_bridge(unsigned int pixelformat);
 const struct
 atomisp_format_bridge *atomisp_get_format_bridge_from_mbus(u32 mbus_code);
 
+int atomisp_pipe_check(struct atomisp_video_pipe *pipe, bool streaming_ok);
+
 int atomisp_alloc_css_stat_bufs(struct atomisp_sub_device *asd,
 				uint16_t stream_id);
 
