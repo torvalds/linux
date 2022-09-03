@@ -2428,6 +2428,58 @@ int sps_bam_process_irq(unsigned long dev)
 EXPORT_SYMBOL(sps_bam_process_irq);
 
 /*
+ * Enable all IRQs of a BAM
+ */
+int sps_bam_enable_irqs(unsigned long dev)
+{
+	struct sps_bam *bam;
+
+	if (!dev) {
+		SPS_ERR(sps, "sps: BAM handle is NULL\n");
+		return SPS_ERROR;
+	}
+
+	bam = sps_h2bam(dev);
+	if (bam == NULL) {
+		SPS_ERR(sps, "sps: BAM is not found by handle\n");
+		return SPS_ERROR;
+	}
+
+	SPS_DBG1(bam, "sps: BAM: %pa\n", BAM_ID(bam));
+
+	sps_bam_enable_all_irqs(bam);
+
+	return 0;
+}
+EXPORT_SYMBOL(sps_bam_enable_irqs);
+
+/*
+ * Disable all IRQs of a BAM
+ */
+int sps_bam_disable_irqs(unsigned long dev)
+{
+	struct sps_bam *bam;
+
+	if (!dev) {
+		SPS_ERR(sps, "sps: BAM handle is NULL\n");
+		return SPS_ERROR;
+	}
+
+	bam = sps_h2bam(dev);
+	if (bam == NULL) {
+		SPS_ERR(sps, "sps: BAM is not found by handle\n");
+		return SPS_ERROR;
+	}
+
+	SPS_DBG1(bam, "sps: BAM: %pa\n", BAM_ID(bam));
+
+	sps_bam_disable_all_irqs(bam);
+
+	return 0;
+}
+EXPORT_SYMBOL(sps_bam_disable_irqs);
+
+/*
  * Get address info of a BAM
  */
 int sps_get_bam_addr(unsigned long dev, phys_addr_t *base,

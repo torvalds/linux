@@ -185,6 +185,21 @@ void bam_output_register_content(void *base, u32 ee);
 u32 bam_check_irq_source(void *base, u32 ee, u32 mask,
 				enum sps_callback_case *cb_case);
 
+/**
+ * Set BAM global interrupts
+ *
+ * This function initializes a BAM device.
+ *
+ * @base - BAM virtual base address.
+ *
+ * @ee - BAM execution environment index
+ *
+ * @mask - error interrupts mask
+ *
+ * @en - Enable or Disable interrupt
+ *
+ */
+void bam_set_global_irq(void *base, u32 ee, u32 mask, bool en);
 
 /**
  * Initialize a BAM pipe
