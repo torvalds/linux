@@ -977,7 +977,14 @@ int arch_prepare_bpf_dispatcher(void *image, s64 *funcs, int num_funcs);
 	},							\
 }
 
+#ifdef CONFIG_X86_64
+#define BPF_DISPATCHER_ATTRIBUTES __attribute__((patchable_function_entry(5)))
+#else
+#define BPF_DISPATCHER_ATTRIBUTES
+#endif
+
 #define DEFINE_BPF_DISPATCHER(name)					\
+	notrace BPF_DISPATCHER_ATTRIBUTES				\
 	noinline __nocfi unsigned int bpf_dispatcher_##name##_func(	\
 		const void *ctx,					\
 		const struct bpf_insn *insnsi,				\
