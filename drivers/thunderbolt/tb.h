@@ -1144,6 +1144,8 @@ static inline struct tb_switch *tb_xdomain_parent(struct tb_xdomain *xd)
 	return tb_to_switch(xd->dev.parent);
 }
 
+int tb_retimer_nvm_read(struct tb_retimer *rt, unsigned int address, void *buf,
+			size_t size);
 int tb_retimer_scan(struct tb_port *port, bool add);
 void tb_retimer_remove_all(struct tb_port *port);
 

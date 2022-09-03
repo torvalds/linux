@@ -16,8 +16,23 @@
 
 #define TB_MAX_RETIMER_INDEX	6
 
-static int tb_retimer_nvm_read(void *priv, unsigned int offset, void *val,
-			       size_t bytes)
+/**
+ * tb_retimer_nvm_read() - Read contents of retimer NVM
+ * @rt: Retimer device
+ * @address: NVM address (in bytes) to start reading
+ * @buf: Data read from NVM is stored here
+ * @size: Number of bytes to read
+ *
+ * Reads retimer NVM and copies the contents to @buf. Returns %0 if the
+ * read was successful and negative errno in case of failure.
+ */
+int tb_retimer_nvm_read(struct tb_retimer *rt, unsigned int address, void *buf,
+			size_t size)
+{
+	return usb4_port_retimer_nvm_read(rt->port, rt->index, address, buf, size);
+}
+
+static int nvm_read(void *priv, unsigned int offset, void *val, size_t bytes)
 {
 	struct tb_nvm *nvm = priv;
 	struct tb_retimer *rt = tb_to_retimer(nvm->dev);
@@ -30,7 +45,7 @@ static int tb_retimer_nvm_read(void *priv, unsigned int offset, void *val,
 		goto out;
 	}
 
-	ret = usb4_port_retimer_nvm_read(rt->port, rt->index, offset, val, bytes);
+	ret = tb_retimer_nvm_read(rt, offset, val, bytes);
 	mutex_unlock(&rt->tb->lock);
 
 out:
@@ -40,8 +55,7 @@ out:
 	return ret;
 }
 
-static int tb_retimer_nvm_write(void *priv, unsigned int offset, void *val,
-				size_t bytes)
+static int nvm_write(void *priv, unsigned int offset, void *val, size_t bytes)
 {
 	struct tb_nvm *nvm = priv;
 	struct tb_retimer *rt = tb_to_retimer(nvm->dev);
@@ -82,11 +96,11 @@ static int tb_retimer_nvm_add(struct tb_retimer *rt)
 	nvm_size = (SZ_1M << (val & 7)) / 8;
 	nvm_size = (nvm_size - SZ_16K) / 2;
 
-	ret = tb_nvm_add_active(nvm, nvm_size, tb_retimer_nvm_read);
+	ret = tb_nvm_add_active(nvm, nvm_size, nvm_read);
 	if (ret)
 		goto err_nvm;
 
-	ret = tb_nvm_add_non_active(nvm, NVM_MAX_SIZE, tb_retimer_nvm_write);
+	ret = tb_nvm_add_non_active(nvm, NVM_MAX_SIZE, nvm_write);
 	if (ret)
 		goto err_nvm;
 
