@@ -5017,8 +5017,9 @@ static const struct bpf_func_proto bpf_get_socket_uid_proto = {
 	.arg1_type      = ARG_PTR_TO_CTX,
 };
 
-static int sol_socket_setsockopt(struct sock *sk, int optname,
-				 char *optval, int optlen)
+static int sol_socket_sockopt(struct sock *sk, int optname,
+			      char *optval, int *optlen,
+			      bool getopt)
 {
 	switch (optname) {
 	case SO_REUSEADDR:
@@ -5032,7 +5033,7 @@ static int sol_socket_setsockopt(struct sock *sk, int optname,
 	case SO_MAX_PACING_RATE:
 	case SO_BINDTOIFINDEX:
 	case SO_TXREHASH:
-		if (optlen != sizeof(int))
+		if (*optlen != sizeof(int))
 			return -EINVAL;
 		break;
 	case SO_BINDTODEVICE:
@@ -5041,8 +5042,16 @@ static int sol_socket_setsockopt(struct sock *sk, int optname,
 		return -EINVAL;
 	}
 
+	if (getopt) {
+		if (optname == SO_BINDTODEVICE)
+			return -EINVAL;
+		return sk_getsockopt(sk, SOL_SOCKET, optname,
+				     KERNEL_SOCKPTR(optval),
+				     KERNEL_SOCKPTR(optlen));
+	}
+
 	return sk_setsockopt(sk, SOL_SOCKET, optname,
-			     KERNEL_SOCKPTR(optval), optlen);
+			     KERNEL_SOCKPTR(optval), *optlen);
 }
 
 static int bpf_sol_tcp_setsockopt(struct sock *sk, int optname,
@@ -5091,8 +5100,9 @@ static int bpf_sol_tcp_setsockopt(struct sock *sk, int optname,
 	return 0;
 }
 
-static int sol_tcp_setsockopt(struct sock *sk, int optname,
-			      char *optval, int optlen)
+static int sol_tcp_sockopt(struct sock *sk, int optname,
+			   char *optval, int *optlen,
+			   bool getopt)
 {
 	if (sk->sk_prot->setsockopt != tcp_setsockopt)
 		return -EINVAL;
@@ -5109,40 +5119,81 @@ static int sol_tcp_setsockopt(struct sock *sk, int optname,
 	case TCP_USER_TIMEOUT:
 	case TCP_NOTSENT_LOWAT:
 	case TCP_SAVE_SYN:
-		if (optlen != sizeof(int))
+		if (*optlen != sizeof(int))
 			return -EINVAL;
 		break;
 	case TCP_CONGESTION:
+		if (*optlen < 2)
+			return -EINVAL;
+		break;
+	case TCP_SAVED_SYN:
+		if (*optlen < 1)
+			return -EINVAL;
 		break;
 	default:
-		return bpf_sol_tcp_setsockopt(sk, optname, optval, optlen);
+		if (getopt)
+			return -EINVAL;
+		return bpf_sol_tcp_setsockopt(sk, optname, optval, *optlen);
+	}
+
+	if (getopt) {
+		if (optname == TCP_SAVED_SYN) {
+			struct tcp_sock *tp = tcp_sk(sk);
+
+			if (!tp->saved_syn ||
+			    *optlen > tcp_saved_syn_len(tp->saved_syn))
+				return -EINVAL;
+			memcpy(optval, tp->saved_syn->data, *optlen);
+			/* It cannot free tp->saved_syn here because it
+			 * does not know if the user space still needs it.
+			 */
+			return 0;
+		}
+
+		if (optname == TCP_CONGESTION) {
+			if (!inet_csk(sk)->icsk_ca_ops)
+				return -EINVAL;
+			/* BPF expects NULL-terminated tcp-cc string */
+			optval[--(*optlen)] = '\0';
+		}
+
+		return do_tcp_getsockopt(sk, SOL_TCP, optname,
+					 KERNEL_SOCKPTR(optval),
+					 KERNEL_SOCKPTR(optlen));
 	}
 
 	return do_tcp_setsockopt(sk, SOL_TCP, optname,
-				 KERNEL_SOCKPTR(optval), optlen);
+				 KERNEL_SOCKPTR(optval), *optlen);
 }
 
-static int sol_ip_setsockopt(struct sock *sk, int optname,
-			     char *optval, int optlen)
+static int sol_ip_sockopt(struct sock *sk, int optname,
+			  char *optval, int *optlen,
+			  bool getopt)
 {
 	if (sk->sk_family != AF_INET)
 		return -EINVAL;
 
 	switch (optname) {
 	case IP_TOS:
-		if (optlen != sizeof(int))
+		if (*optlen != sizeof(int))
 			return -EINVAL;
 		break;
 	default:
 		return -EINVAL;
 	}
 
+	if (getopt)
+		return do_ip_getsockopt(sk, SOL_IP, optname,
+					KERNEL_SOCKPTR(optval),
+					KERNEL_SOCKPTR(optlen));
+
 	return do_ip_setsockopt(sk, SOL_IP, optname,
-				KERNEL_SOCKPTR(optval), optlen);
+				KERNEL_SOCKPTR(optval), *optlen);
 }
 
-static int sol_ipv6_setsockopt(struct sock *sk, int optname,
-			       char *optval, int optlen)
+static int sol_ipv6_sockopt(struct sock *sk, int optname,
+			    char *optval, int *optlen,
+			    bool getopt)
 {
 	if (sk->sk_family != AF_INET6)
 		return -EINVAL;
@@ -5150,15 +5201,20 @@ static int sol_ipv6_setsockopt(struct sock *sk, int optname,
 	switch (optname) {
 	case IPV6_TCLASS:
 	case IPV6_AUTOFLOWLABEL:
-		if (optlen != sizeof(int))
+		if (*optlen != sizeof(int))
 			return -EINVAL;
 		break;
 	default:
 		return -EINVAL;
 	}
 
+	if (getopt)
+		return ipv6_bpf_stub->ipv6_getsockopt(sk, SOL_IPV6, optname,
+						      KERNEL_SOCKPTR(optval),
+						      KERNEL_SOCKPTR(optlen));
+
 	return ipv6_bpf_stub->ipv6_setsockopt(sk, SOL_IPV6, optname,
-					      KERNEL_SOCKPTR(optval), optlen);
+					      KERNEL_SOCKPTR(optval), *optlen);
 }
 
 static int __bpf_setsockopt(struct sock *sk, int level, int optname,
@@ -5168,13 +5224,13 @@ static int __bpf_setsockopt(struct sock *sk, int level, int optname,
 		return -EINVAL;
 
 	if (level == SOL_SOCKET)
-		return sol_socket_setsockopt(sk, optname, optval, optlen);
+		return sol_socket_sockopt(sk, optname, optval, &optlen, false);
 	else if (IS_ENABLED(CONFIG_INET) && level == SOL_IP)
-		return sol_ip_setsockopt(sk, optname, optval, optlen);
+		return sol_ip_sockopt(sk, optname, optval, &optlen, false);
 	else if (IS_ENABLED(CONFIG_IPV6) && level == SOL_IPV6)
-		return sol_ipv6_setsockopt(sk, optname, optval, optlen);
+		return sol_ipv6_sockopt(sk, optname, optval, &optlen, false);
 	else if (IS_ENABLED(CONFIG_INET) && level == SOL_TCP)
-		return sol_tcp_setsockopt(sk, optname, optval, optlen);
+		return sol_tcp_sockopt(sk, optname, optval, &optlen, false);
 
 	return -EINVAL;
 }
@@ -5190,101 +5246,30 @@ static int _bpf_setsockopt(struct sock *sk, int level, int optname,
 static int __bpf_getsockopt(struct sock *sk, int level, int optname,
 			    char *optval, int optlen)
 {
-	if (!sk_fullsock(sk))
-		goto err_clear;
+	int err, saved_optlen = optlen;
 
-	if (level == SOL_SOCKET) {
-		if (optlen != sizeof(int))
-			goto err_clear;
-
-		switch (optname) {
-		case SO_RCVBUF:
-			*((int *)optval) = sk->sk_rcvbuf;
-			break;
-		case SO_SNDBUF:
-			*((int *)optval) = sk->sk_sndbuf;
-			break;
-		case SO_MARK:
-			*((int *)optval) = sk->sk_mark;
-			break;
-		case SO_PRIORITY:
-			*((int *)optval) = sk->sk_priority;
-			break;
-		case SO_BINDTOIFINDEX:
-			*((int *)optval) = sk->sk_bound_dev_if;
-			break;
-		case SO_REUSEPORT:
-			*((int *)optval) = sk->sk_reuseport;
-			break;
-		case SO_TXREHASH:
-			*((int *)optval) = sk->sk_txrehash;
-			break;
-		default:
-			goto err_clear;
-		}
-#ifdef CONFIG_INET
-	} else if (level == SOL_TCP && sk->sk_prot->getsockopt == tcp_getsockopt) {
-		struct inet_connection_sock *icsk;
-		struct tcp_sock *tp;
-
-		switch (optname) {
-		case TCP_CONGESTION:
-			icsk = inet_csk(sk);
-
-			if (!icsk->icsk_ca_ops || optlen <= 1)
-				goto err_clear;
-			strncpy(optval, icsk->icsk_ca_ops->name, optlen);
-			optval[optlen - 1] = 0;
-			break;
-		case TCP_SAVED_SYN:
-			tp = tcp_sk(sk);
-
-			if (optlen <= 0 || !tp->saved_syn ||
-			    optlen > tcp_saved_syn_len(tp->saved_syn))
-				goto err_clear;
-			memcpy(optval, tp->saved_syn->data, optlen);
-			break;
-		default:
-			goto err_clear;
-		}
-	} else if (level == SOL_IP) {
-		struct inet_sock *inet = inet_sk(sk);
-
-		if (optlen != sizeof(int) || sk->sk_family != AF_INET)
-			goto err_clear;
-
-		/* Only some options are supported */
-		switch (optname) {
-		case IP_TOS:
-			*((int *)optval) = (int)inet->tos;
-			break;
-		default:
-			goto err_clear;
-		}
-#if IS_ENABLED(CONFIG_IPV6)
-	} else if (level == SOL_IPV6) {
-		struct ipv6_pinfo *np = inet6_sk(sk);
-
-		if (optlen != sizeof(int) || sk->sk_family != AF_INET6)
-			goto err_clear;
-
-		/* Only some options are supported */
-		switch (optname) {
-		case IPV6_TCLASS:
-			*((int *)optval) = (int)np->tclass;
-			break;
-		default:
-			goto err_clear;
-		}
-#endif
-#endif
-	} else {
-		goto err_clear;
+	if (!sk_fullsock(sk)) {
+		err = -EINVAL;
+		goto done;
 	}
-	return 0;
-err_clear:
-	memset(optval, 0, optlen);
-	return -EINVAL;
+
+	if (level == SOL_SOCKET)
+		err = sol_socket_sockopt(sk, optname, optval, &optlen, true);
+	else if (IS_ENABLED(CONFIG_INET) && level == SOL_TCP)
+		err = sol_tcp_sockopt(sk, optname, optval, &optlen, true);
+	else if (IS_ENABLED(CONFIG_INET) && level == SOL_IP)
+		err = sol_ip_sockopt(sk, optname, optval, &optlen, true);
+	else if (IS_ENABLED(CONFIG_IPV6) && level == SOL_IPV6)
+		err = sol_ipv6_sockopt(sk, optname, optval, &optlen, true);
+	else
+		err = -EINVAL;
+
+done:
+	if (err)
+		optlen = 0;
+	if (optlen < saved_optlen)
+		memset(optval + optlen, 0, saved_optlen - optlen);
+	return err;
 }
 
 static int _bpf_getsockopt(struct sock *sk, int level, int optname,
@@ -10716,14 +10701,13 @@ int sk_detach_filter(struct sock *sk)
 }
 EXPORT_SYMBOL_GPL(sk_detach_filter);
 
-int sk_get_filter(struct sock *sk, struct sock_filter __user *ubuf,
-		  unsigned int len)
+int sk_get_filter(struct sock *sk, sockptr_t optval, unsigned int len)
 {
 	struct sock_fprog_kern *fprog;
 	struct sk_filter *filter;
 	int ret = 0;
 
-	lock_sock(sk);
+	sockopt_lock_sock(sk);
 	filter = rcu_dereference_protected(sk->sk_filter,
 					   lockdep_sock_is_held(sk));
 	if (!filter)
@@ -10748,7 +10732,7 @@ int sk_get_filter(struct sock *sk, struct sock_filter __user *ubuf,
 		goto out;
 
 	ret = -EFAULT;
-	if (copy_to_user(ubuf, fprog->filter, bpf_classic_proglen(fprog)))
+	if (copy_to_sockptr(optval, fprog->filter, bpf_classic_proglen(fprog)))
 		goto out;
 
 	/* Instead of bytes, the API requests to return the number
@@ -10756,7 +10740,7 @@ int sk_get_filter(struct sock *sk, struct sock_filter __user *ubuf,
 	 */
 	ret = fprog->len;
 out:
-	release_sock(sk);
+	sockopt_release_sock(sk);
 	return ret;
 }
 

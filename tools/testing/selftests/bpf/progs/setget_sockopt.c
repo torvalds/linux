@@ -52,7 +52,6 @@ static const struct sockopt_test sol_socket_tests[] = {
 
 static const struct sockopt_test sol_tcp_tests[] = {
 	{ .opt = TCP_NODELAY, .flip = 1, },
-	{ .opt = TCP_MAXSEG, .new = 1314, .expected = 1314, },
 	{ .opt = TCP_KEEPIDLE, .new = 123, .expected = 123, .restore = 321, },
 	{ .opt = TCP_KEEPINTVL, .new = 123, .expected = 123, .restore = 321, },
 	{ .opt = TCP_KEEPCNT, .new = 123, .expected = 123, .restore = 124, },
@@ -62,7 +61,6 @@ static const struct sockopt_test sol_tcp_tests[] = {
 	{ .opt = TCP_THIN_LINEAR_TIMEOUTS, .flip = 1, },
 	{ .opt = TCP_USER_TIMEOUT, .new = 123400, .expected = 123400, },
 	{ .opt = TCP_NOTSENT_LOWAT, .new = 1314, .expected = 1314, },
-	{ .opt = TCP_SAVE_SYN, .new = 1, .expected = 1, },
 	{ .opt = 0, },
 };
 
@@ -82,102 +80,6 @@ struct loop_ctx {
 	struct sock *sk;
 };
 
-static int __bpf_getsockopt(void *ctx, struct sock *sk,
-			    int level, int opt, int *optval,
-			    int optlen)
-{
-	if (level == SOL_SOCKET) {
-		switch (opt) {
-		case SO_REUSEADDR:
-			*optval = !!BPF_CORE_READ_BITFIELD(sk, sk_reuse);
-			break;
-		case SO_KEEPALIVE:
-			*optval = !!(sk->sk_flags & (1UL << 3));
-			break;
-		case SO_RCVLOWAT:
-			*optval = sk->sk_rcvlowat;
-			break;
-		case SO_MAX_PACING_RATE:
-			*optval = sk->sk_max_pacing_rate;
-			break;
-		default:
-			return bpf_getsockopt(ctx, level, opt, optval, optlen);
-		}
-		return 0;
-	}
-
-	if (level == IPPROTO_TCP) {
-		struct tcp_sock *tp = bpf_skc_to_tcp_sock(sk);
-
-		if (!tp)
-			return -1;
-
-		switch (opt) {
-		case TCP_NODELAY:
-			*optval = !!(BPF_CORE_READ_BITFIELD(tp, nonagle) & TCP_NAGLE_OFF);
-			break;
-		case TCP_MAXSEG:
-			*optval = tp->rx_opt.user_mss;
-			break;
-		case TCP_KEEPIDLE:
-			*optval = tp->keepalive_time / CONFIG_HZ;
-			break;
-		case TCP_SYNCNT:
-			*optval = tp->inet_conn.icsk_syn_retries;
-			break;
-		case TCP_KEEPINTVL:
-			*optval = tp->keepalive_intvl / CONFIG_HZ;
-			break;
-		case TCP_KEEPCNT:
-			*optval = tp->keepalive_probes;
-			break;
-		case TCP_WINDOW_CLAMP:
-			*optval = tp->window_clamp;
-			break;
-		case TCP_THIN_LINEAR_TIMEOUTS:
-			*optval = !!BPF_CORE_READ_BITFIELD(tp, thin_lto);
-			break;
-		case TCP_USER_TIMEOUT:
-			*optval = tp->inet_conn.icsk_user_timeout;
-			break;
-		case TCP_NOTSENT_LOWAT:
-			*optval = tp->notsent_lowat;
-			break;
-		case TCP_SAVE_SYN:
-			*optval = BPF_CORE_READ_BITFIELD(tp, save_syn);
-			break;
-		default:
-			return bpf_getsockopt(ctx, level, opt, optval, optlen);
-		}
-		return 0;
-	}
-
-	if (level == IPPROTO_IPV6) {
-		switch (opt) {
-		case IPV6_AUTOFLOWLABEL: {
-			__u16 proto = sk->sk_protocol;
-			struct inet_sock *inet_sk;
-
-			if (proto == IPPROTO_TCP)
-				inet_sk = (struct inet_sock *)bpf_skc_to_tcp_sock(sk);
-			else
-				inet_sk = (struct inet_sock *)bpf_skc_to_udp6_sock(sk);
-
-			if (!inet_sk)
-				return -1;
-
-			*optval = !!inet_sk->pinet6->autoflowlabel;
-			break;
-		}
-		default:
-			return bpf_getsockopt(ctx, level, opt, optval, optlen);
-		}
-		return 0;
-	}
-
-	return bpf_getsockopt(ctx, level, opt, optval, optlen);
-}
-
 static int bpf_test_sockopt_flip(void *ctx, struct sock *sk,
 				 const struct sockopt_test *t,
 				 int level)
@@ -186,7 +88,7 @@ static int bpf_test_sockopt_flip(void *ctx, struct sock *sk,
 
 	opt = t->opt;
 
-	if (__bpf_getsockopt(ctx, sk, level, opt, &old, sizeof(old)))
+	if (bpf_getsockopt(ctx, level, opt, &old, sizeof(old)))
 		return 1;
 	/* kernel initialized txrehash to 255 */
 	if (level == SOL_SOCKET && opt == SO_TXREHASH && old != 0 && old != 1)
@@ -195,7 +97,7 @@ static int bpf_test_sockopt_flip(void *ctx, struct sock *sk,
 	new = !old;
 	if (bpf_setsockopt(ctx, level, opt, &new, sizeof(new)))
 		return 1;
-	if (__bpf_getsockopt(ctx, sk, level, opt, &tmp, sizeof(tmp)) ||
+	if (bpf_getsockopt(ctx, level, opt, &tmp, sizeof(tmp)) ||
 	    tmp != new)
 		return 1;
 
@@ -218,13 +120,13 @@ static int bpf_test_sockopt_int(void *ctx, struct sock *sk,
 	else
 		expected = t->expected;
 
-	if (__bpf_getsockopt(ctx, sk, level, opt, &old, sizeof(old)) ||
+	if (bpf_getsockopt(ctx, level, opt, &old, sizeof(old)) ||
 	    old == new)
 		return 1;
 
 	if (bpf_setsockopt(ctx, level, opt, &new, sizeof(new)))
 		return 1;
-	if (__bpf_getsockopt(ctx, sk, level, opt, &tmp, sizeof(tmp)) ||
+	if (bpf_getsockopt(ctx, level, opt, &tmp, sizeof(tmp)) ||
 	    tmp != expected)
 		return 1;
 
@@ -410,6 +312,34 @@ static int binddev_test(void *ctx)
 	return 0;
 }
 
+static int test_tcp_maxseg(void *ctx, struct sock *sk)
+{
+	int val = 1314, tmp;
+
+	if (sk->sk_state != TCP_ESTABLISHED)
+		return bpf_setsockopt(ctx, IPPROTO_TCP, TCP_MAXSEG,
+				      &val, sizeof(val));
+
+	if (bpf_getsockopt(ctx, IPPROTO_TCP, TCP_MAXSEG, &tmp, sizeof(tmp)) ||
+	    tmp > val)
+		return -1;
+
+	return 0;
+}
+
+static int test_tcp_saved_syn(void *ctx, struct sock *sk)
+{
+	__u8 saved_syn[20];
+	int one = 1;
+
+	if (sk->sk_state == TCP_LISTEN)
+		return bpf_setsockopt(ctx, IPPROTO_TCP, TCP_SAVE_SYN,
+				      &one, sizeof(one));
+
+	return bpf_getsockopt(ctx, IPPROTO_TCP, TCP_SAVED_SYN,
+			      saved_syn, sizeof(saved_syn));
+}
+
 SEC("lsm_cgroup/socket_post_create")
 int BPF_PROG(socket_post_create, struct socket *sock, int family,
 	     int type, int protocol, int kern)
@@ -440,16 +370,22 @@ int skops_sockopt(struct bpf_sock_ops *skops)
 
 	switch (skops->op) {
 	case BPF_SOCK_OPS_TCP_LISTEN_CB:
-		nr_listen += !bpf_test_sockopt(skops, sk);
+		nr_listen += !(bpf_test_sockopt(skops, sk) ||
+			       test_tcp_maxseg(skops, sk) ||
+			       test_tcp_saved_syn(skops, sk));
 		break;
 	case BPF_SOCK_OPS_TCP_CONNECT_CB:
-		nr_connect += !bpf_test_sockopt(skops, sk);
+		nr_connect += !(bpf_test_sockopt(skops, sk) ||
+				test_tcp_maxseg(skops, sk));
 		break;
 	case BPF_SOCK_OPS_ACTIVE_ESTABLISHED_CB:
-		nr_active += !bpf_test_sockopt(skops, sk);
+		nr_active += !(bpf_test_sockopt(skops, sk) ||
+			       test_tcp_maxseg(skops, sk));
 		break;
 	case BPF_SOCK_OPS_PASSIVE_ESTABLISHED_CB:
-		nr_passive += !bpf_test_sockopt(skops, sk);
+		nr_passive += !(bpf_test_sockopt(skops, sk) ||
+				test_tcp_maxseg(skops, sk) ||
+				test_tcp_saved_syn(skops, sk));
 		break;
 	}
 
