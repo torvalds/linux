@@ -49,6 +49,8 @@ properties:
   gpio-ranges:
     maxItems: 1
 
+  gpio-reserved-ranges: true
+
   wakeup-parent: true
 
 #PIN CONFIGURATION NODES
