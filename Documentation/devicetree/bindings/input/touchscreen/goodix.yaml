@@ -16,6 +16,7 @@ properties:
   compatible:
     enum:
       - goodix,gt1151
+      - goodix,gt1158
       - goodix,gt5663
       - goodix,gt5688
       - goodix,gt911

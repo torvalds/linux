@@ -10032,6 +10032,7 @@ F:	Documentation/devicetree/bindings/input/
 F:	Documentation/devicetree/bindings/serio/
 F:	Documentation/input/
 F:	drivers/input/
+F:	include/dt-bindings/input/
 F:	include/linux/input.h
 F:	include/linux/input/
 F:	include/uapi/linux/input-event-codes.h
