@@ -1755,12 +1755,6 @@ void atomisp_wdt_refresh(struct atomisp_sub_device *asd, unsigned int delay)
 /* ISP2401 */
 void atomisp_wdt_stop_pipe(struct atomisp_video_pipe *pipe, bool sync)
 {
-	if (!pipe->asd) {
-		dev_err(pipe->isp->dev, "%s(): asd is NULL, device is %s\n",
-			__func__, pipe->vdev.name);
-		return;
-	}
-
 	if (!atomisp_is_wdt_running(pipe))
 		return;
 
@@ -5557,12 +5551,6 @@ int atomisp_set_fmt(struct video_device *vdev, struct v4l2_format *f)
 
 	lockdep_assert_held(&isp->mutex);
 
-	if (!asd) {
-		dev_err(isp->dev, "%s(): asd is NULL, device is %s\n",
-			__func__, vdev->name);
-		return -EINVAL;
-	}
-
 	if (source_pad >= ATOMISP_SUBDEV_PADS_NUM)
 		return -EINVAL;
 
@@ -6586,12 +6574,6 @@ int atomisp_get_invalid_frame_num(struct video_device *vdev,
 	enum ia_css_pipe_id pipe_id;
 	struct ia_css_pipe_info p_info;
 	int ret;
-
-	if (!asd) {
-		dev_err(pipe->isp->dev, "%s(): asd is NULL, device is %s\n",
-			__func__, vdev->name);
-		return -EINVAL;
-	}
 
 	if (asd->isp->inputs[asd->input_curr].camera_caps->
 	    sensor[asd->sensor_curr].stream_num > 1) {
