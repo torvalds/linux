@@ -2298,11 +2298,6 @@ ctnetlink_create_conntrack(struct net *net,
 			ct->status |= IPS_HELPER;
 			RCU_INIT_POINTER(help->helper, helper);
 		}
-	} else {
-		/* try an implicit helper assignation */
-		err = __nf_ct_try_assign_helper(ct, NULL, GFP_ATOMIC);
-		if (err < 0)
-			goto err2;
 	}
 
 	err = ctnetlink_setup_nat(ct, cda);
