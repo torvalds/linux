@@ -1161,9 +1161,8 @@ static void __cold io_move_task_work_from_local(struct io_ring_ctx *ctx)
 	}
 }
 
-int io_run_local_work(struct io_ring_ctx *ctx)
+int __io_run_local_work(struct io_ring_ctx *ctx, bool locked)
 {
-	bool locked;
 	struct llist_node *node;
 	struct llist_node fake;
 	struct llist_node *current_final = NULL;
@@ -1177,8 +1176,6 @@ int io_run_local_work(struct io_ring_ctx *ctx)
 
 		return -EEXIST;
 	}
-
-	locked = mutex_trylock(&ctx->uring_lock);
 
 	node = io_llist_xchg(&ctx->work_llist, &fake);
 	ret = 0;
@@ -1204,11 +1201,23 @@ again:
 		goto again;
 	}
 
-	if (locked) {
+	if (locked)
 		io_submit_flush_completions(ctx);
-		mutex_unlock(&ctx->uring_lock);
-	}
 	trace_io_uring_local_work_run(ctx, ret, loops);
+	return ret;
+
+}
+
+int io_run_local_work(struct io_ring_ctx *ctx)
+{
+	bool locked;
+	int ret;
+
+	locked = mutex_trylock(&ctx->uring_lock);
+	ret = __io_run_local_work(ctx, locked);
+	if (locked)
+		mutex_unlock(&ctx->uring_lock);
+
 	return ret;
 }
 
