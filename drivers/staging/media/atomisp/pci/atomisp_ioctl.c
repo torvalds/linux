@@ -1930,14 +1930,14 @@ int __atomisp_streamoff(struct file *file, void *fh, enum v4l2_buf_type type)
 	if (!pipe->capq.streaming)
 		return 0;
 
-	spin_lock_irqsave(&isp->lock, flags);
-	if (asd->streaming == ATOMISP_DEVICE_STREAMING_ENABLED) {
-		asd->streaming = ATOMISP_DEVICE_STREAMING_STOPPING;
+	if (asd->streaming == ATOMISP_DEVICE_STREAMING_ENABLED)
 		first_streamoff = true;
-	}
 
+	spin_lock_irqsave(&isp->lock, flags);
 	if (atomisp_subdev_streaming_count(asd) == 1)
 		asd->streaming = ATOMISP_DEVICE_STREAMING_DISABLED;
+	else
+		asd->streaming = ATOMISP_DEVICE_STREAMING_STOPPING;
 	spin_unlock_irqrestore(&isp->lock, flags);
 
 	if (!first_streamoff) {
