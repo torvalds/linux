@@ -4567,8 +4567,7 @@ static void r8169_phylink_handler(struct net_device *ndev)
 		pm_runtime_idle(&tp->pci_dev->dev);
 	}
 
-	if (net_ratelimit())
-		phy_print_status(tp->phydev);
+	phy_print_status(tp->phydev);
 }
 
 static int r8169_phy_connect(struct rtl8169_private *tp)
