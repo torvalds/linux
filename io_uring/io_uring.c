@@ -2640,7 +2640,6 @@ static __cold void io_ring_ctx_wait_and_kill(struct io_ring_ctx *ctx)
 		io_unregister_personality(ctx, index);
 	if (ctx->rings)
 		io_poll_remove_all(ctx, NULL, true);
-	io_notif_unregister(ctx);
 	mutex_unlock(&ctx->uring_lock);
 
 	/* failed during ring init, it couldn't have issued any requests */
@@ -3839,15 +3838,6 @@ static int __io_uring_register(struct io_ring_ctx *ctx, unsigned opcode,
 			break;
 		ret = io_register_file_alloc_range(ctx, arg);
 		break;
-	case IORING_REGISTER_NOTIFIERS:
-		ret = io_notif_register(ctx, arg, nr_args);
-		break;
-	case IORING_UNREGISTER_NOTIFIERS:
-		ret = -EINVAL;
-		if (arg || nr_args)
-			break;
-		ret = io_notif_unregister(ctx);
-		break;
 	default:
 		ret = -EINVAL;
 		break;
@@ -3933,8 +3923,8 @@ static int __init io_uring_init(void)
 	BUILD_BUG_SQE_ELEM(42, __u16,  personality);
 	BUILD_BUG_SQE_ELEM(44, __s32,  splice_fd_in);
 	BUILD_BUG_SQE_ELEM(44, __u32,  file_index);
-	BUILD_BUG_SQE_ELEM(44, __u16,  notification_idx);
-	BUILD_BUG_SQE_ELEM(46, __u16,  addr_len);
+	BUILD_BUG_SQE_ELEM(44, __u16,  addr_len);
+	BUILD_BUG_SQE_ELEM(46, __u16,  __pad3[0]);
 	BUILD_BUG_SQE_ELEM(48, __u64,  addr3);
 	BUILD_BUG_SQE_ELEM_SIZE(48, 0, cmd);
 	BUILD_BUG_SQE_ELEM(56, __u64,  __pad2);

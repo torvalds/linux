@@ -93,10 +93,9 @@ static void fw_dev_release(struct device *dev)
 {
 	struct fw_sysfs *fw_sysfs = to_fw_sysfs(dev);
 
-	if (fw_sysfs->fw_upload_priv) {
-		free_fw_priv(fw_sysfs->fw_priv);
-		kfree(fw_sysfs->fw_upload_priv);
-	}
+	if (fw_sysfs->fw_upload_priv)
+		fw_upload_free(fw_sysfs);
+
 	kfree(fw_sysfs);
 }
 

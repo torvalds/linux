@@ -460,8 +460,6 @@ static int mlxreg_lc_power_on_off(struct mlxreg_lc *mlxreg_lc, u8 action)
 	u32 regval;
 	int err;
 
-	mutex_lock(&mlxreg_lc->lock);
-
 	err = regmap_read(mlxreg_lc->par_regmap, mlxreg_lc->data->reg_pwr, &regval);
 	if (err)
 		goto regmap_read_fail;
@@ -474,7 +472,6 @@ static int mlxreg_lc_power_on_off(struct mlxreg_lc *mlxreg_lc, u8 action)
 	err = regmap_write(mlxreg_lc->par_regmap, mlxreg_lc->data->reg_pwr, regval);
 
 regmap_read_fail:
-	mutex_unlock(&mlxreg_lc->lock);
 	return err;
 }
 
@@ -491,8 +488,6 @@ static int mlxreg_lc_enable_disable(struct mlxreg_lc *mlxreg_lc, bool action)
 	 * line card which is already has been enabled. Disabling does not affect the disabled line
 	 * card.
 	 */
-	mutex_lock(&mlxreg_lc->lock);
-
 	err = regmap_read(mlxreg_lc->par_regmap, mlxreg_lc->data->reg_ena, &regval);
 	if (err)
 		goto regmap_read_fail;
@@ -505,7 +500,6 @@ static int mlxreg_lc_enable_disable(struct mlxreg_lc *mlxreg_lc, bool action)
 	err = regmap_write(mlxreg_lc->par_regmap, mlxreg_lc->data->reg_ena, regval);
 
 regmap_read_fail:
-	mutex_unlock(&mlxreg_lc->lock);
 	return err;
 }
 
@@ -538,6 +532,15 @@ mlxreg_lc_sn4800_c16_config_init(struct mlxreg_lc *mlxreg_lc, void *regmap,
 static void
 mlxreg_lc_state_update(struct mlxreg_lc *mlxreg_lc, enum mlxreg_lc_state state, u8 action)
 {
+	if (action)
+		mlxreg_lc->state |= state;
+	else
+		mlxreg_lc->state &= ~state;
+}
+
+static void
+mlxreg_lc_state_update_locked(struct mlxreg_lc *mlxreg_lc, enum mlxreg_lc_state state, u8 action)
+{
 	mutex_lock(&mlxreg_lc->lock);
 
 	if (action)
@@ -560,8 +563,11 @@ static int mlxreg_lc_event_handler(void *handle, enum mlxreg_hotplug_kind kind, 
 	dev_info(mlxreg_lc->dev, "linecard#%d state %d event kind %d action %d\n",
 		 mlxreg_lc->data->slot, mlxreg_lc->state, kind, action);
 
-	if (!(mlxreg_lc->state & MLXREG_LC_INITIALIZED))
+	mutex_lock(&mlxreg_lc->lock);
+	if (!(mlxreg_lc->state & MLXREG_LC_INITIALIZED)) {
+		mutex_unlock(&mlxreg_lc->lock);
 		return 0;
+	}
 
 	switch (kind) {
 	case MLXREG_HOTPLUG_LC_SYNCED:
@@ -574,7 +580,7 @@ static int mlxreg_lc_event_handler(void *handle, enum mlxreg_hotplug_kind kind, 
 		if (!(mlxreg_lc->state & MLXREG_LC_POWERED) && action) {
 			err = mlxreg_lc_power_on_off(mlxreg_lc, 1);
 			if (err)
-				return err;
+				goto mlxreg_lc_power_on_off_fail;
 		}
 		/* In case line card is configured - enable it. */
 		if (mlxreg_lc->state & MLXREG_LC_CONFIGURED && action)
@@ -588,12 +594,13 @@ static int mlxreg_lc_event_handler(void *handle, enum mlxreg_hotplug_kind kind, 
 				/* In case line card is configured - enable it. */
 				if (mlxreg_lc->state & MLXREG_LC_CONFIGURED)
 					err = mlxreg_lc_enable_disable(mlxreg_lc, 1);
+				mutex_unlock(&mlxreg_lc->lock);
 				return err;
 			}
 			err = mlxreg_lc_create_static_devices(mlxreg_lc, mlxreg_lc->main_devs,
 							      mlxreg_lc->main_devs_num);
 			if (err)
-				return err;
+				goto mlxreg_lc_create_static_devices_fail;
 
 			/* In case line card is already in ready state - enable it. */
 			if (mlxreg_lc->state & MLXREG_LC_CONFIGURED)
@@ -619,6 +626,10 @@ static int mlxreg_lc_event_handler(void *handle, enum mlxreg_hotplug_kind kind, 
 	default:
 		break;
 	}
+
+mlxreg_lc_power_on_off_fail:
+mlxreg_lc_create_static_devices_fail:
+	mutex_unlock(&mlxreg_lc->lock);
 
 	return err;
 }
@@ -665,7 +676,7 @@ static int mlxreg_lc_completion_notify(void *handle, struct i2c_adapter *parent,
 		if (err)
 			goto mlxreg_lc_create_static_devices_failed;
 
-		mlxreg_lc_state_update(mlxreg_lc, MLXREG_LC_POWERED, 1);
+		mlxreg_lc_state_update_locked(mlxreg_lc, MLXREG_LC_POWERED, 1);
 	}
 
 	/* Verify if line card is synchronized. */
@@ -676,7 +687,7 @@ static int mlxreg_lc_completion_notify(void *handle, struct i2c_adapter *parent,
 	/* Power on line card if necessary. */
 	if (regval & mlxreg_lc->data->mask) {
 		mlxreg_lc->state |= MLXREG_LC_SYNCED;
-		mlxreg_lc_state_update(mlxreg_lc, MLXREG_LC_SYNCED, 1);
+		mlxreg_lc_state_update_locked(mlxreg_lc, MLXREG_LC_SYNCED, 1);
 		if (mlxreg_lc->state & ~MLXREG_LC_POWERED) {
 			err = mlxreg_lc_power_on_off(mlxreg_lc, 1);
 			if (err)
@@ -684,7 +695,7 @@ static int mlxreg_lc_completion_notify(void *handle, struct i2c_adapter *parent,
 		}
 	}
 
-	mlxreg_lc_state_update(mlxreg_lc, MLXREG_LC_INITIALIZED, 1);
+	mlxreg_lc_state_update_locked(mlxreg_lc, MLXREG_LC_INITIALIZED, 1);
 
 	return 0;
 
@@ -814,10 +825,9 @@ static int mlxreg_lc_probe(struct platform_device *pdev)
 
 	mutex_init(&mlxreg_lc->lock);
 	/* Set event notification callback. */
-	if (data->notifier) {
-		data->notifier->user_handler = mlxreg_lc_event_handler;
-		data->notifier->handle = mlxreg_lc;
-	}
+	data->notifier->user_handler = mlxreg_lc_event_handler;
+	data->notifier->handle = mlxreg_lc;
+
 	data->hpdev.adapter = i2c_get_adapter(data->hpdev.nr);
 	if (!data->hpdev.adapter) {
 		dev_err(&pdev->dev, "Failed to get adapter for bus %d\n",
@@ -863,7 +873,6 @@ static int mlxreg_lc_probe(struct platform_device *pdev)
 	if (err) {
 		dev_err(&pdev->dev, "Failed to sync regmap for client %s at bus %d at addr 0x%02x\n",
 			data->hpdev.brdinfo->type, data->hpdev.nr, data->hpdev.brdinfo->addr);
-		err = PTR_ERR(regmap);
 		goto regcache_sync_fail;
 	}
 
@@ -878,16 +887,14 @@ static int mlxreg_lc_probe(struct platform_device *pdev)
 	if (err)
 		goto mlxreg_lc_config_init_fail;
 
-	return err;
+	return 0;
 
 mlxreg_lc_config_init_fail:
 regcache_sync_fail:
 regmap_write_fail:
 devm_regmap_init_i2c_fail:
-	if (data->hpdev.client) {
-		i2c_unregister_device(data->hpdev.client);
-		data->hpdev.client = NULL;
-	}
+	i2c_unregister_device(data->hpdev.client);
+	data->hpdev.client = NULL;
 i2c_new_device_fail:
 	i2c_put_adapter(data->hpdev.adapter);
 	data->hpdev.adapter = NULL;
@@ -904,6 +911,8 @@ static int mlxreg_lc_remove(struct platform_device *pdev)
 {
 	struct mlxreg_core_data *data = dev_get_platdata(&pdev->dev);
 	struct mlxreg_lc *mlxreg_lc = platform_get_drvdata(pdev);
+
+	mlxreg_lc_state_update_locked(mlxreg_lc, MLXREG_LC_INITIALIZED, 0);
 
 	/*
 	 * Probing and removing are invoked by hotplug events raised upon line card insertion and
