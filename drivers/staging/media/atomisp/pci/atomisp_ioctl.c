@@ -1872,7 +1872,6 @@ int __atomisp_streamoff(struct file *file, void *fh, enum v4l2_buf_type type)
 		atomisp_subdev_source_pad(vdev), asd->index);
 
 	lockdep_assert_held(&isp->mutex);
-	lockdep_assert_held(&isp->streamoff_mutex);
 
 	if (type != V4L2_BUF_TYPE_VIDEO_CAPTURE) {
 		dev_dbg(isp->dev, "unsupported v4l2 buf type\n");
@@ -2081,11 +2080,9 @@ static int atomisp_streamoff(struct file *file, void *fh,
 	struct atomisp_device *isp = video_get_drvdata(vdev);
 	int rval;
 
-	mutex_lock(&isp->streamoff_mutex);
 	mutex_lock(&isp->mutex);
 	rval = __atomisp_streamoff(file, fh, type);
 	mutex_unlock(&isp->mutex);
-	mutex_unlock(&isp->streamoff_mutex);
 
 	return rval;
 }

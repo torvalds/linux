@@ -1482,7 +1482,6 @@ static int atomisp_pci_probe(struct pci_dev *pdev, const struct pci_device_id *i
 	dev_dbg(&pdev->dev, "atomisp mmio base: %p\n", isp->base);
 
 	mutex_init(&isp->mutex);
-	mutex_init(&isp->streamoff_mutex);
 	spin_lock_init(&isp->lock);
 
 	/* This is not a true PCI device on SoC, so the delay is not needed. */

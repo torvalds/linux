@@ -822,7 +822,6 @@ static int atomisp_release(struct file *file)
 	if (!isp)
 		return -EBADF;
 
-	mutex_lock(&isp->streamoff_mutex);
 	mutex_lock(&isp->mutex);
 
 	dev_dbg(isp->dev, "release device %s\n", vdev->name);
@@ -909,7 +908,6 @@ done:
 				     V4L2_SEL_TGT_COMPOSE, 0,
 				     &clear_compose);
 	mutex_unlock(&isp->mutex);
-	mutex_unlock(&isp->streamoff_mutex);
 
 	return v4l2_fh_release(file);
 }
