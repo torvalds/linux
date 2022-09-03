@@ -1282,6 +1282,9 @@ static void __atomisp_css_recover(struct atomisp_device *isp, bool isp_timeout)
 
 	lockdep_assert_held(&isp->mutex);
 
+	if (!atomisp_streaming_count(isp))
+		return;
+
 	atomisp_css_irq_enable(isp, IA_CSS_IRQ_INFO_CSS_RECEIVER_SOF, false);
 
 	BUG_ON(isp->num_of_streams > MAX_STREAM_NUM);
@@ -1434,20 +1437,12 @@ void atomisp_assert_recovery_work(struct work_struct *work)
 						  assert_recovery_work);
 
 	mutex_lock(&isp->mutex);
-
-	if (atomisp_streaming_count(isp))
-		__atomisp_css_recover(isp, true);
-
+	__atomisp_css_recover(isp, true);
 	mutex_unlock(&isp->mutex);
 }
 
 void atomisp_css_flush(struct atomisp_device *isp)
 {
-	lockdep_assert_held(&isp->mutex);
-
-	if (!atomisp_streaming_count(isp))
-		return;
-
 	/* Start recover */
 	__atomisp_css_recover(isp, false);
 
