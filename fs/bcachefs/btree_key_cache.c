@@ -568,26 +568,21 @@ static int btree_key_cache_flush_pos(struct btree_trans *trans,
 			atomic_long_dec(&c->btree_key_cache.nr_dirty);
 		}
 	} else {
+		struct btree_path *path2;
 evict:
-		BUG_ON(!btree_node_intent_locked(c_iter.path, 0));
+		trans_for_each_path(trans, path2)
+			if (path2 != c_iter.path)
+				__bch2_btree_path_unlock(trans, path2);
 
-		/*
-		 * XXX: holding a lock that is not marked in btree_trans, not
-		 * ideal:
-		 */
-		six_lock_increment(&ck->c.lock, SIX_LOCK_intent);
-		bch2_trans_unlock(trans);
-
-		/* Will not fail because we are holding no other locks: */
-		btree_node_lock_nopath_nofail(trans, &ck->c, SIX_LOCK_write);
+		bch2_btree_node_lock_write_nofail(trans, c_iter.path, &ck->c);
 
 		if (test_bit(BKEY_CACHED_DIRTY, &ck->flags)) {
 			clear_bit(BKEY_CACHED_DIRTY, &ck->flags);
 			atomic_long_dec(&c->btree_key_cache.nr_dirty);
 		}
 
+		mark_btree_node_locked_noreset(c_iter.path, 0, BTREE_NODE_UNLOCKED);
 		bkey_cached_evict(&c->btree_key_cache, ck);
-
 		bkey_cached_free_fast(&c->btree_key_cache, ck);
 	}
 out:

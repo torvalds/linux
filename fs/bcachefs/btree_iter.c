@@ -716,13 +716,13 @@ void bch2_trans_node_add(struct btree_trans *trans, struct btree *b)
 	struct btree_path *path;
 
 	trans_for_each_path(trans, path)
-		if (!path->cached &&
+		if (path->uptodate == BTREE_ITER_UPTODATE &&
+		    !path->cached &&
 		    btree_path_pos_in_node(path, b)) {
 			enum btree_node_locked_type t =
 				btree_lock_want(path, b->c.level);
 
-			if (path->nodes_locked &&
-			    t != BTREE_NODE_UNLOCKED) {
+			if (t != BTREE_NODE_UNLOCKED) {
 				btree_node_unlock(trans, path, b->c.level);
 				six_lock_increment(&b->c.lock, (enum six_lock_type) t);
 				mark_btree_node_locked(trans, path, b->c.level, (enum six_lock_type) t);
