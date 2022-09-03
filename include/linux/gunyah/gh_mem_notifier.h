@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2020-2021, The Linux Foundation. All rights reserved.
- *
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef __GH_MEM_NOTIFIER_H
@@ -33,14 +33,14 @@ void *gh_mem_notifier_register(enum gh_mem_notifier_tag tag,
 			       void *data);
 void gh_mem_notifier_unregister(void *cookie);
 #else
-static void *gh_mem_notifier_register(enum gh_mem_notifier_tag tag,
+static void __maybe_unused *gh_mem_notifier_register(enum gh_mem_notifier_tag tag,
 				      gh_mem_notifier_handler notif_handler,
 				      void *data)
 {
 	return ERR_PTR(-EOPNOTSUPP);
 }
 
-static void gh_mem_notifier_unregister(void *cookie)
+static void __maybe_unused gh_mem_notifier_unregister(void *cookie)
 {
 }
 #endif
