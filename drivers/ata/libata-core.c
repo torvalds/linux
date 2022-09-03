@@ -3021,7 +3021,8 @@ static void sata_print_link_status(struct ata_link *link)
 
 	if (sata_scr_read(link, SCR_STATUS, &sstatus))
 		return;
-	sata_scr_read(link, SCR_CONTROL, &scontrol);
+	if (sata_scr_read(link, SCR_CONTROL, &scontrol))
+		return;
 
 	if (ata_phys_link_online(link)) {
 		tmp = (sstatus >> 4) & 0xf;
