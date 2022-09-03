@@ -300,14 +300,6 @@ static inline bool nvm_upgradeable(struct tb_switch *sw)
 	return nvm_readable(sw);
 }
 
-static inline int nvm_read(struct tb_switch *sw, unsigned int address,
-			   void *buf, size_t size)
-{
-	if (tb_switch_is_usb4(sw))
-		return usb4_switch_nvm_read(sw, address, buf, size);
-	return dma_port_flash_read(sw->dma_port, address, buf, size);
-}
-
 static int nvm_authenticate(struct tb_switch *sw, bool auth_only)
 {
 	int ret;
@@ -335,8 +327,26 @@ static int nvm_authenticate(struct tb_switch *sw, bool auth_only)
 	return ret;
 }
 
-static int tb_switch_nvm_read(void *priv, unsigned int offset, void *val,
-			      size_t bytes)
+/**
+ * tb_switch_nvm_read() - Read router NVM
+ * @sw: Router whose NVM to read
+ * @address: Start address on the NVM
+ * @buf: Buffer where the read data is copied
+ * @size: Size of the buffer in bytes
+ *
+ * Reads from router NVM and returns the requested data in @buf. Locking
+ * is up to the caller. Returns %0 in success and negative errno in case
+ * of failure.
+ */
+int tb_switch_nvm_read(struct tb_switch *sw, unsigned int address, void *buf,
+		       size_t size)
+{
+	if (tb_switch_is_usb4(sw))
+		return usb4_switch_nvm_read(sw, address, buf, size);
+	return dma_port_flash_read(sw->dma_port, address, buf, size);
+}
+
+static int nvm_read(void *priv, unsigned int offset, void *val, size_t bytes)
 {
 	struct tb_nvm *nvm = priv;
 	struct tb_switch *sw = tb_to_switch(nvm->dev);
@@ -349,7 +359,7 @@ static int tb_switch_nvm_read(void *priv, unsigned int offset, void *val,
 		goto out;
 	}
 
-	ret = nvm_read(sw, offset, val, bytes);
+	ret = tb_switch_nvm_read(sw, offset, val, bytes);
 	mutex_unlock(&sw->tb->lock);
 
 out:
@@ -359,8 +369,7 @@ out:
 	return ret;
 }
 
-static int tb_switch_nvm_write(void *priv, unsigned int offset, void *val,
-			       size_t bytes)
+static int nvm_write(void *priv, unsigned int offset, void *val, size_t bytes)
 {
 	struct tb_nvm *nvm = priv;
 	struct tb_switch *sw = tb_to_switch(nvm->dev);
@@ -415,7 +424,7 @@ static int tb_switch_nvm_add(struct tb_switch *sw)
 	if (!sw->safe_mode) {
 		u32 nvm_size, hdr_size;
 
-		ret = nvm_read(sw, NVM_FLASH_SIZE, &val, sizeof(val));
+		ret = tb_switch_nvm_read(sw, NVM_FLASH_SIZE, &val, sizeof(val));
 		if (ret)
 			goto err_nvm;
 
@@ -423,21 +432,20 @@ static int tb_switch_nvm_add(struct tb_switch *sw)
 		nvm_size = (SZ_1M << (val & 7)) / 8;
 		nvm_size = (nvm_size - hdr_size) / 2;
 
-		ret = nvm_read(sw, NVM_VERSION, &val, sizeof(val));
+		ret = tb_switch_nvm_read(sw, NVM_VERSION, &val, sizeof(val));
 		if (ret)
 			goto err_nvm;
 
 		nvm->major = (val >> 16) & 0xff;
 		nvm->minor = (val >> 8) & 0xff;
 
-		ret = tb_nvm_add_active(nvm, nvm_size, tb_switch_nvm_read);
+		ret = tb_nvm_add_active(nvm, nvm_size, nvm_read);
 		if (ret)
 			goto err_nvm;
 	}
 
 	if (!sw->no_nvm_upgrade) {
-		ret = tb_nvm_add_non_active(nvm, NVM_MAX_SIZE,
-					    tb_switch_nvm_write);
+		ret = tb_nvm_add_non_active(nvm, NVM_MAX_SIZE, nvm_write);
 		if (ret)
 			goto err_nvm;
 	}
