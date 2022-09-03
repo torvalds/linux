@@ -1433,39 +1433,6 @@ static bool is_valid_device(struct pci_dev *pdev, const struct pci_device_id *id
 	return true;
 }
 
-static int init_atomisp_wdts(struct atomisp_device *isp)
-{
-	int i, err;
-
-	atomic_set(&isp->wdt_work_queued, 0);
-	isp->wdt_work_queue = alloc_workqueue(isp->v4l2_dev.name, 0, 1);
-	if (!isp->wdt_work_queue) {
-		dev_err(isp->dev, "Failed to initialize wdt work queue\n");
-		err = -ENOMEM;
-		goto alloc_fail;
-	}
-	INIT_WORK(&isp->wdt_work, atomisp_wdt_work);
-
-	for (i = 0; i < isp->num_of_streams; i++) {
-		struct atomisp_sub_device *asd = &isp->asd[i];
-
-		if (!IS_ISP2401) {
-			timer_setup(&asd->wdt, atomisp_wdt, 0);
-		} else {
-			timer_setup(&asd->video_out_capture.wdt,
-				    atomisp_wdt, 0);
-			timer_setup(&asd->video_out_preview.wdt,
-				    atomisp_wdt, 0);
-			timer_setup(&asd->video_out_vf.wdt, atomisp_wdt, 0);
-			timer_setup(&asd->video_out_video_capture.wdt,
-				    atomisp_wdt, 0);
-		}
-	}
-	return 0;
-alloc_fail:
-	return err;
-}
-
 #define ATOM_ISP_PCI_BAR	0
 
 static int atomisp_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
@@ -1698,10 +1665,8 @@ static int atomisp_pci_probe(struct pci_dev *pdev, const struct pci_device_id *i
 		dev_err(&pdev->dev, "atomisp_register_entities failed (%d)\n", err);
 		goto register_entities_fail;
 	}
-	/* init atomisp wdts */
-	err = init_atomisp_wdts(isp);
-	if (err != 0)
-		goto wdt_work_queue_fail;
+
+	INIT_WORK(&isp->assert_recovery_work, atomisp_assert_recovery_work);
 
 	/* save the iunit context only once after all the values are init'ed. */
 	atomisp_save_iunit_reg(isp);
@@ -1748,8 +1713,6 @@ css_init_fail:
 request_irq_fail:
 	hmm_cleanup();
 	pm_runtime_get_noresume(&pdev->dev);
-	destroy_workqueue(isp->wdt_work_queue);
-wdt_work_queue_fail:
 	atomisp_unregister_entities(isp);
 register_entities_fail:
 	atomisp_uninitialize_modules(isp);
@@ -1808,8 +1771,6 @@ static void atomisp_pci_remove(struct pci_dev *pdev)
 
 	atomisp_msi_irq_uninit(isp);
 	atomisp_unregister_entities(isp);
-
-	destroy_workqueue(isp->wdt_work_queue);
 
 	release_firmware(isp->firmware);
 }

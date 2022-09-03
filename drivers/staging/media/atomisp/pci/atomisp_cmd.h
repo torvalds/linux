@@ -65,8 +65,7 @@ bool atomisp_buffers_queued_pipe(struct atomisp_video_pipe *pipe);
 /* Interrupt functions */
 void atomisp_msi_irq_init(struct atomisp_device *isp);
 void atomisp_msi_irq_uninit(struct atomisp_device *isp);
-void atomisp_wdt_work(struct work_struct *work);
-void atomisp_wdt(struct timer_list *t);
+void atomisp_assert_recovery_work(struct work_struct *work);
 void atomisp_setup_flash(struct atomisp_sub_device *asd);
 irqreturn_t atomisp_isr(int irq, void *dev);
 irqreturn_t atomisp_isr_thread(int irq, void *isp_ptr);

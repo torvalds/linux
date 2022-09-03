@@ -1363,15 +1363,6 @@ done:
 			atomisp_handle_parameter_and_buffer(pipe);
 		} else {
 			atomisp_qbuffers_to_css(asd);
-
-			if (!IS_ISP2401) {
-				if (!atomisp_is_wdt_running(asd) && atomisp_buffers_queued(asd))
-					atomisp_wdt_start(asd);
-			} else {
-				if (!atomisp_is_wdt_running(pipe) &&
-				    atomisp_buffers_queued_pipe(pipe))
-					atomisp_wdt_start_pipe(pipe);
-			}
 		}
 	}
 
@@ -1594,33 +1585,6 @@ int atomisp_stream_on_master_slave_sensor(struct atomisp_device *isp,
 	return 0;
 }
 
-/* FIXME! ISP2400 */
-static void __wdt_on_master_slave_sensor(struct atomisp_device *isp,
-					 unsigned int wdt_duration)
-{
-	if (atomisp_buffers_queued(&isp->asd[0]))
-		atomisp_wdt_refresh(&isp->asd[0], wdt_duration);
-	if (atomisp_buffers_queued(&isp->asd[1]))
-		atomisp_wdt_refresh(&isp->asd[1], wdt_duration);
-}
-
-/* FIXME! ISP2401 */
-static void __wdt_on_master_slave_sensor_pipe(struct atomisp_video_pipe *pipe,
-					      unsigned int wdt_duration,
-					      bool enable)
-{
-	static struct atomisp_video_pipe *pipe0;
-
-	if (enable) {
-		if (atomisp_buffers_queued_pipe(pipe0))
-			atomisp_wdt_refresh_pipe(pipe0, wdt_duration);
-		if (atomisp_buffers_queued_pipe(pipe))
-			atomisp_wdt_refresh_pipe(pipe, wdt_duration);
-	} else {
-		pipe0 = pipe;
-	}
-}
-
 static void atomisp_pause_buffer_event(struct atomisp_device *isp)
 {
 	struct v4l2_event event = {0};
@@ -1670,7 +1634,6 @@ static int atomisp_streamon(struct file *file, void *fh,
 	struct pci_dev *pdev = to_pci_dev(isp->dev);
 	enum ia_css_pipe_id css_pipe_id;
 	unsigned int sensor_start_stream;
-	unsigned int wdt_duration = ATOMISP_ISP_TIMEOUT_DURATION;
 	unsigned long irqflags;
 	int ret;
 
@@ -1845,15 +1808,9 @@ start_sensor:
 			dev_err(isp->dev, "master slave sensor stream on failed!\n");
 			goto out;
 		}
-		if (!IS_ISP2401)
-			__wdt_on_master_slave_sensor(isp, wdt_duration);
-		else
-			__wdt_on_master_slave_sensor_pipe(pipe, wdt_duration, true);
 		goto start_delay_wq;
 	} else if (asd->depth_mode->val && (atomisp_streaming_count(isp) <
 					    ATOMISP_DEPTH_SENSOR_STREAMON_COUNT)) {
-		if (IS_ISP2401)
-			__wdt_on_master_slave_sensor_pipe(pipe, wdt_duration, false);
 		goto start_delay_wq;
 	}
 
@@ -1873,14 +1830,6 @@ start_sensor:
 		spin_unlock_irqrestore(&isp->lock, irqflags);
 		ret = -EINVAL;
 		goto out;
-	}
-
-	if (!IS_ISP2401) {
-		if (atomisp_buffers_queued(asd))
-			atomisp_wdt_refresh(asd, wdt_duration);
-	} else {
-		if (atomisp_buffers_queued_pipe(pipe))
-			atomisp_wdt_refresh_pipe(pipe, wdt_duration);
 	}
 
 start_delay_wq:
@@ -1986,16 +1935,7 @@ int __atomisp_streamoff(struct file *file, void *fh, enum v4l2_buf_type type)
 		asd->streaming = ATOMISP_DEVICE_STREAMING_STOPPING;
 		first_streamoff = true;
 	}
-	spin_unlock_irqrestore(&isp->lock, flags);
 
-	if (first_streamoff) {
-		/* if other streams are running, should not disable watch dog */
-		mutex_unlock(&isp->mutex);
-		atomisp_wdt_stop(asd, true);
-		mutex_lock(&isp->mutex);
-	}
-
-	spin_lock_irqsave(&isp->lock, flags);
 	if (atomisp_subdev_streaming_count(asd) == 1)
 		asd->streaming = ATOMISP_DEVICE_STREAMING_DISABLED;
 	spin_unlock_irqrestore(&isp->lock, flags);
