@@ -830,8 +830,8 @@ static void rockchip_hdptx_phy_dp_pll_init(struct rockchip_hdptx_phy *hdptx)
 			   FIELD_PREP(ROPLL_SDC_N_RBR, 0x2));
 	regmap_update_bits(hdptx->regmap, 0x01a8,
 			   ROPLL_SDC_N_HBR | ROPLL_SDC_N_HBR2,
-			   FIELD_PREP(ROPLL_SDC_N_HBR, 0x1) |
-			   FIELD_PREP(ROPLL_SDC_N_HBR2, 0x1));
+			   FIELD_PREP(ROPLL_SDC_N_HBR, 0x2) |
+			   FIELD_PREP(ROPLL_SDC_N_HBR2, 0x2));
 
 	regmap_write(hdptx->regmap, 0x01b0,
 		     FIELD_PREP(ROPLL_SDC_NUMERATOR, 0x3));
