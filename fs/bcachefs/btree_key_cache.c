@@ -151,33 +151,34 @@ static void bkey_cached_free_fast(struct btree_key_cache *bc,
 }
 
 static struct bkey_cached *
-bkey_cached_alloc(struct btree_trans *trans,
-		  struct btree_key_cache *c)
+bkey_cached_alloc(struct btree_trans *trans)
 {
+	struct bch_fs *c = trans->c;
+	struct btree_key_cache *bc = &c->btree_key_cache;
 	struct bkey_cached *ck = NULL;
 	struct btree_key_cache_freelist *f;
 
 	preempt_disable();
-	f = this_cpu_ptr(c->pcpu_freed);
+	f = this_cpu_ptr(bc->pcpu_freed);
 	if (f->nr)
 		ck = f->objs[--f->nr];
 	preempt_enable();
 
 	if (!ck) {
-		mutex_lock(&c->lock);
+		mutex_lock(&bc->lock);
 		preempt_disable();
-		f = this_cpu_ptr(c->pcpu_freed);
+		f = this_cpu_ptr(bc->pcpu_freed);
 
-		while (!list_empty(&c->freed) &&
+		while (!list_empty(&bc->freed) &&
 		       f->nr < ARRAY_SIZE(f->objs) / 2) {
-			ck = list_last_entry(&c->freed, struct bkey_cached, list);
+			ck = list_last_entry(&bc->freed, struct bkey_cached, list);
 			list_del_init(&ck->list);
 			f->objs[f->nr++] = ck;
 		}
 
 		ck = f->nr ? f->objs[--f->nr] : NULL;
 		preempt_enable();
-		mutex_unlock(&c->lock);
+		mutex_unlock(&bc->lock);
 	}
 
 	if (ck) {
@@ -185,14 +186,14 @@ bkey_cached_alloc(struct btree_trans *trans,
 
 		ret = btree_node_lock_nopath(trans, &ck->c, SIX_LOCK_intent);
 		if (unlikely(ret)) {
-			bkey_cached_move_to_freelist(c, ck);
+			bkey_cached_move_to_freelist(bc, ck);
 			return ERR_PTR(ret);
 		}
 
 		ret = btree_node_lock_nopath(trans, &ck->c, SIX_LOCK_write);
 		if (unlikely(ret)) {
 			six_unlock_intent(&ck->c.lock);
-			bkey_cached_move_to_freelist(c, ck);
+			bkey_cached_move_to_freelist(bc, ck);
 			return ERR_PTR(ret);
 		}
 
@@ -239,15 +240,14 @@ bkey_cached_reuse(struct btree_key_cache *c)
 
 static struct bkey_cached *
 btree_key_cache_create(struct btree_trans *trans,
-		       enum btree_id btree_id,
-		       struct bpos pos)
+		       struct btree_path *path)
 {
 	struct bch_fs *c = trans->c;
 	struct btree_key_cache *bc = &c->btree_key_cache;
 	struct bkey_cached *ck;
 	bool was_new = true;
 
-	ck = bkey_cached_alloc(trans, bc);
+	ck = bkey_cached_alloc(trans);
 	if (unlikely(IS_ERR(ck)))
 		return ck;
 
@@ -255,20 +255,20 @@ btree_key_cache_create(struct btree_trans *trans,
 		ck = bkey_cached_reuse(bc);
 		if (unlikely(!ck)) {
 			bch_err(c, "error allocating memory for key cache item, btree %s",
-				bch2_btree_ids[btree_id]);
+				bch2_btree_ids[path->btree_id]);
 			return ERR_PTR(-ENOMEM);
 		}
 
 		was_new = false;
 	} else {
-		if (btree_id == BTREE_ID_subvolumes)
+		if (path->btree_id == BTREE_ID_subvolumes)
 			six_lock_pcpu_alloc(&ck->c.lock);
 	}
 
 	ck->c.level		= 0;
-	ck->c.btree_id		= btree_id;
-	ck->key.btree_id	= btree_id;
-	ck->key.pos		= pos;
+	ck->c.btree_id		= path->btree_id;
+	ck->key.btree_id	= path->btree_id;
+	ck->key.pos		= path->pos;
 	ck->valid		= false;
 	ck->flags		= 1U << BKEY_CACHED_ACCESSED;
 
@@ -396,7 +396,7 @@ int bch2_btree_path_traverse_cached(struct btree_trans *trans, struct btree_path
 retry:
 	ck = bch2_btree_key_cache_find(c, path->btree_id, path->pos);
 	if (!ck) {
-		ck = btree_key_cache_create(trans, path->btree_id, path->pos);
+		ck = btree_key_cache_create(trans, path);
 		ret = PTR_ERR_OR_ZERO(ck);
 		if (ret)
 			goto err;
