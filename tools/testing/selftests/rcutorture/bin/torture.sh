@@ -330,20 +330,34 @@ then
 	echo " --- allmodconfig:" Start `date` | tee -a $T/log
 	amcdir="tools/testing/selftests/rcutorture/res/$ds/allmodconfig"
 	mkdir -p "$amcdir"
-	echo " --- make clean" > "$amcdir/Make.out" 2>&1
+	echo " --- make clean" | tee $amcdir/log > "$amcdir/Make.out" 2>&1
 	make -j$MAKE_ALLOTED_CPUS clean >> "$amcdir/Make.out" 2>&1
-	echo " --- make allmodconfig" >> "$amcdir/Make.out" 2>&1
-	cp .config $amcdir
-	make -j$MAKE_ALLOTED_CPUS allmodconfig >> "$amcdir/Make.out" 2>&1
-	echo " --- make " >> "$amcdir/Make.out" 2>&1
-	make -j$MAKE_ALLOTED_CPUS >> "$amcdir/Make.out" 2>&1
-	retcode="$?"
-	echo $retcode > "$amcdir/Make.exitcode"
-	if test "$retcode" == 0
+	retcode=$?
+	buildphase='"make clean"'
+	if test "$retcode" -eq 0
+	then
+		echo " --- make allmodconfig" | tee -a $amcdir/log >> "$amcdir/Make.out" 2>&1
+		cp .config $amcdir
+		make -j$MAKE_ALLOTED_CPUS allmodconfig >> "$amcdir/Make.out" 2>&1
+		retcode=$?
+		buildphase='"make allmodconfig"'
+	fi
+	if test "$retcode" -eq 0
+	then
+		echo " --- make " | tee -a $amcdir/log >> "$amcdir/Make.out" 2>&1
+		make -j$MAKE_ALLOTED_CPUS >> "$amcdir/Make.out" 2>&1
+		retcode="$?"
+		echo $retcode > "$amcdir/Make.exitcode"
+		buildphase='"make"'
+	fi
+	if test "$retcode" -eq 0
 	then
 		echo "allmodconfig($retcode)" $amcdir >> $T/successes
+		echo Success >> $amcdir/log
 	else
 		echo "allmodconfig($retcode)" $amcdir >> $T/failures
+		echo " --- allmodconfig Test summary:" >> $amcdir/log
+		echo " --- Summary: Exit code $retcode from $buildphase, see Make.out" >> $amcdir/log
 	fi
 fi
 
