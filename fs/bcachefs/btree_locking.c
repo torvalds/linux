@@ -413,14 +413,13 @@ int bch2_trans_relock(struct btree_trans *trans)
 	struct btree_path *path;
 
 	if (unlikely(trans->restarted))
-		return -BCH_ERR_transaction_restart_relock;
+		return - ((int) trans->restarted);
 
 	trans_for_each_path(trans, path)
 		if (path->should_be_locked &&
-		    bch2_btree_path_relock(trans, path, _RET_IP_)) {
+		    !bch2_btree_path_relock_norestart(trans, path, _RET_IP_)) {
 			trace_and_count(trans->c, trans_restart_relock, trans, _RET_IP_, path);
-			BUG_ON(!trans->restarted);
-			return -BCH_ERR_transaction_restart_relock;
+			return btree_trans_restart(trans, BCH_ERR_transaction_restart_relock);
 		}
 	return 0;
 }
