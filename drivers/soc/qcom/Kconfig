@@ -4,6 +4,35 @@
 #
 menu "Qualcomm SoC drivers"
 
+config SPS
+	tristate "SPS support"
+	select GENERIC_ALLOCATOR
+	help
+	  The SPS (Smart Peripheral Switch) is a DMA engine.
+	  It can move data in the following modes:
+		1. Peripheral-to-Peripheral.
+		2. Peripheral-to-Memory.
+		3. Memory-to-Memory.
+
+config SPS_SUPPORT_BAMDMA
+	bool "SPS supports BAM DMA"
+	depends on SPS
+	help
+	  The BAM-DMA is used for Memory-to-Memory transfers.
+	  The main use cases is RPC between processors.
+	  The BAM-DMA hardware has 2 registers sets:
+		1. A BAM HW like all the peripherals.
+		2. A DMA channel configuration (i.e. channel priority).
+
+config SPS_SUPPORT_NDP_BAM
+	bool "SPS supports NDP BAM"
+	depends on SPS
+	help
+	  No-Data-Path BAM is used to improve BAM performance.
+	  NDP BAMs enables peripherals with fast fabric connectivity
+	  to do the actual data transfer themselves, instead of the
+	  BAM.
+
 config QCOM_AOSS_QMP
 	tristate "Qualcomm AOSS Driver"
 	depends on ARCH_QCOM || COMPILE_TEST
