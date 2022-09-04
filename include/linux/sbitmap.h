@@ -575,9 +575,8 @@ void sbitmap_queue_wake_all(struct sbitmap_queue *sbq);
  * sbitmap_queue_wake_up() - Wake up some of waiters in one waitqueue
  * on a &struct sbitmap_queue.
  * @sbq: Bitmap queue to wake up.
- * @nr: Number of bits cleared.
  */
-void sbitmap_queue_wake_up(struct sbitmap_queue *sbq, int nr);
+void sbitmap_queue_wake_up(struct sbitmap_queue *sbq);
 
 /**
  * sbitmap_queue_show() - Dump &struct sbitmap_queue information to a &struct
