@@ -343,7 +343,7 @@ static int btree_key_cache_fill(struct btree_trans *trans,
 		}
 	}
 
-	ret = bch2_btree_node_lock_write(trans, ck_path, ck_path->l[0].b);
+	ret = bch2_btree_node_lock_write(trans, ck_path, &ck_path->l[0].b->c);
 	if (ret) {
 		kfree(new_k);
 		goto err;

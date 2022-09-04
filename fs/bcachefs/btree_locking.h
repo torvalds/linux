@@ -279,31 +279,31 @@ static inline int btree_node_lock(struct btree_trans *trans,
 	return ret;
 }
 
-void __bch2_btree_node_lock_write(struct btree_trans *, struct btree *);
+void __bch2_btree_node_lock_write(struct btree_trans *, struct btree_bkey_cached_common *);
 
 static inline void bch2_btree_node_lock_write_nofail(struct btree_trans *trans,
 					      struct btree_path *path,
-					      struct btree *b)
+					      struct btree_bkey_cached_common *b)
 {
-	EBUG_ON(path->l[b->c.level].b != b);
-	EBUG_ON(path->l[b->c.level].lock_seq != b->c.lock.state.seq);
-	EBUG_ON(!btree_node_intent_locked(path, b->c.level));
+	EBUG_ON(&path->l[b->level].b->c != b);
+	EBUG_ON(path->l[b->level].lock_seq != b->lock.state.seq);
+	EBUG_ON(!btree_node_intent_locked(path, b->level));
 
 	/*
 	 * six locks are unfair, and read locks block while a thread wants a
 	 * write lock: thus, we need to tell the cycle detector we have a write
 	 * lock _before_ taking the lock:
 	 */
-	mark_btree_node_locked_noreset(path, b->c.level, SIX_LOCK_write);
+	mark_btree_node_locked_noreset(path, b->level, SIX_LOCK_write);
 
-	if (unlikely(!six_trylock_write(&b->c.lock)))
+	if (unlikely(!six_trylock_write(&b->lock)))
 		__bch2_btree_node_lock_write(trans, b);
 }
 
 static inline int __must_check
 bch2_btree_node_lock_write(struct btree_trans *trans,
 			   struct btree_path *path,
-			   struct btree *b)
+			   struct btree_bkey_cached_common *b)
 {
 	bch2_btree_node_lock_write_nofail(trans, path, b);
 	return 0;

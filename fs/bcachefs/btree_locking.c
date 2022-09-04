@@ -52,9 +52,10 @@ void bch2_btree_node_unlock_write(struct btree_trans *trans,
 
 /* lock */
 
-void __bch2_btree_node_lock_write(struct btree_trans *trans, struct btree *b)
+void __bch2_btree_node_lock_write(struct btree_trans *trans,
+				  struct btree_bkey_cached_common *b)
 {
-	int readers = bch2_btree_node_lock_counts(trans, NULL, &b->c, b->c.level).n[SIX_LOCK_read];
+	int readers = bch2_btree_node_lock_counts(trans, NULL, b, b->level).n[SIX_LOCK_read];
 
 	/*
 	 * Must drop our read locks before calling six_lock_write() -
@@ -62,9 +63,9 @@ void __bch2_btree_node_lock_write(struct btree_trans *trans, struct btree *b)
 	 * goes to 0, and it's safe because we have the node intent
 	 * locked:
 	 */
-	six_lock_readers_add(&b->c.lock, -readers);
-	btree_node_lock_nopath_nofail(trans, &b->c, SIX_LOCK_write);
-	six_lock_readers_add(&b->c.lock, readers);
+	six_lock_readers_add(&b->lock, -readers);
+	btree_node_lock_nopath_nofail(trans, b, SIX_LOCK_write);
+	six_lock_readers_add(&b->lock, readers);
 }
 
 static inline bool path_has_read_locks(struct btree_path *path)
