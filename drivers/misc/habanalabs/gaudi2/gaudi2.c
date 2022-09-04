@@ -3581,7 +3581,7 @@ static int gaudi2_enable_msix(struct hl_device *hdev)
 	rc = gaudi2_dec_enable_msix(hdev);
 	if (rc) {
 		dev_err(hdev->dev, "Failed to enable decoder IRQ");
-		goto free_completion_irq;
+		goto free_event_irq;
 	}
 
 	for (i = GAUDI2_IRQ_NUM_USER_FIRST, j = prop->user_dec_intr_count, user_irq_init_cnt = 0;
@@ -3611,6 +3611,10 @@ free_user_irq:
 	}
 
 	gaudi2_dec_disable_msix(hdev, GAUDI2_IRQ_NUM_SHARED_DEC1_ABNRM + 1);
+
+free_event_irq:
+	irq = pci_irq_vector(hdev->pdev, GAUDI2_IRQ_NUM_EVENT_QUEUE);
+	free_irq(irq, cq);
 
 free_completion_irq:
 	irq = pci_irq_vector(hdev->pdev, GAUDI2_IRQ_NUM_COMPLETION);
