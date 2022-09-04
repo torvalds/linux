@@ -2072,7 +2072,7 @@ static int fill_note_info(struct elfhdr *elf, int phdrs,
 	/* now collect the dump for the current */
 	memset(info->prstatus, 0, sizeof(*info->prstatus));
 	fill_prstatus(&info->prstatus->common, current, cprm->siginfo->si_signo);
-	elf_core_copy_regs(&info->prstatus->pr_reg, task_pt_regs(current));
+	elf_core_copy_task_regs(current, &info->prstatus->pr_reg);
 
 	/* Set up header */
 	fill_elf_header(elf, phdrs, ELF_ARCH, ELF_CORE_EFLAGS);
