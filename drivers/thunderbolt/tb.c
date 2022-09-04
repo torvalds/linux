@@ -1442,8 +1442,11 @@ static int tb_start(struct tb *tb)
 	 * ICM firmware upgrade needs running firmware and in native
 	 * mode that is not available so disable firmware upgrade of the
 	 * root switch.
+	 *
+	 * However, USB4 routers support NVM firmware upgrade if they
+	 * implement the necessary router operations.
 	 */
-	tb->root_switch->no_nvm_upgrade = true;
+	tb->root_switch->no_nvm_upgrade = !tb_switch_is_usb4(tb->root_switch);
 	/* All USB4 routers support runtime PM */
 	tb->root_switch->rpm = tb_switch_is_usb4(tb->root_switch);
 
