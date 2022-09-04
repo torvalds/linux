@@ -968,14 +968,6 @@ static int atomisp_g_fmt_cap(struct file *file, void *fh,
 	return atomisp_try_fmt_cap(file, fh, f);
 }
 
-static int atomisp_s_fmt_cap(struct file *file, void *fh,
-			     struct v4l2_format *f)
-{
-	struct video_device *vdev = video_devdata(file);
-
-	return atomisp_set_fmt(vdev, f);
-}
-
 /*
  * Free videobuffer buffer priv data
  */
@@ -1111,8 +1103,7 @@ error:
 /*
  * Initiate Memory Mapping or User Pointer I/O
  */
-int __atomisp_reqbufs(struct file *file, void *fh,
-		      struct v4l2_requestbuffers *req)
+int atomisp_reqbufs(struct file *file, void *fh, struct v4l2_requestbuffers *req)
 {
 	struct video_device *vdev = video_devdata(file);
 	struct atomisp_video_pipe *pipe = atomisp_to_video_pipe(vdev);
@@ -1182,12 +1173,6 @@ error:
 		ia_css_frame_free(asd->vf_frame);
 
 	return -ENOMEM;
-}
-
-int atomisp_reqbufs(struct file *file, void *fh,
-		    struct v4l2_requestbuffers *req)
-{
-	return __atomisp_reqbufs(file, fh, req);
 }
 
 /* application query the status of a buffer */
@@ -1793,7 +1778,7 @@ start_delay_wq:
 	return 0;
 }
 
-int __atomisp_streamoff(struct file *file, void *fh, enum v4l2_buf_type type)
+int atomisp_streamoff(struct file *file, void *fh, enum v4l2_buf_type type)
 {
 	struct video_device *vdev = video_devdata(file);
 	struct atomisp_device *isp = video_get_drvdata(vdev);
@@ -2013,12 +1998,6 @@ stopsensor:
 		isp->isp_timeout = false;
 	}
 	return ret;
-}
-
-static int atomisp_streamoff(struct file *file, void *fh,
-			     enum v4l2_buf_type type)
-{
-	return __atomisp_streamoff(file, fh, type);
 }
 
 /*
@@ -2806,7 +2785,7 @@ const struct v4l2_ioctl_ops atomisp_ioctl_ops = {
 	.vidioc_enum_fmt_vid_cap = atomisp_enum_fmt_cap,
 	.vidioc_try_fmt_vid_cap = atomisp_try_fmt_cap,
 	.vidioc_g_fmt_vid_cap = atomisp_g_fmt_cap,
-	.vidioc_s_fmt_vid_cap = atomisp_s_fmt_cap,
+	.vidioc_s_fmt_vid_cap = atomisp_set_fmt,
 	.vidioc_reqbufs = atomisp_reqbufs,
 	.vidioc_querybuf = atomisp_querybuf,
 	.vidioc_qbuf = atomisp_qbuf,

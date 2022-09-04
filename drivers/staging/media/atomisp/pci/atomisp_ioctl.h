@@ -39,12 +39,8 @@ int atomisp_pipe_check(struct atomisp_video_pipe *pipe, bool streaming_ok);
 int atomisp_alloc_css_stat_bufs(struct atomisp_sub_device *asd,
 				uint16_t stream_id);
 
-int __atomisp_streamoff(struct file *file, void *fh, enum v4l2_buf_type type);
-int __atomisp_reqbufs(struct file *file, void *fh,
-		      struct v4l2_requestbuffers *req);
-
-int atomisp_reqbufs(struct file *file, void *fh,
-		    struct v4l2_requestbuffers *req);
+int atomisp_streamoff(struct file *file, void *fh, enum v4l2_buf_type type);
+int atomisp_reqbufs(struct file *file, void *fh, struct v4l2_requestbuffers *req);
 
 enum ia_css_pipe_id atomisp_get_css_pipe_id(struct atomisp_sub_device
 	*asd);

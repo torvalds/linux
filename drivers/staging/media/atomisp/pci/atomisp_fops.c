@@ -836,18 +836,16 @@ static int atomisp_release(struct file *file)
 			 __func__);
 
 	if (pipe->capq.streaming &&
-	    __atomisp_streamoff(file, NULL, V4L2_BUF_TYPE_VIDEO_CAPTURE)) {
-		dev_err(isp->dev,
-			"atomisp_streamoff failed on release, driver bug");
+	    atomisp_streamoff(file, NULL, V4L2_BUF_TYPE_VIDEO_CAPTURE)) {
+		dev_err(isp->dev, "atomisp_streamoff failed on release, driver bug");
 		goto done;
 	}
 
 	if (pipe->users)
 		goto done;
 
-	if (__atomisp_reqbufs(file, NULL, &req)) {
-		dev_err(isp->dev,
-			"atomisp_reqbufs failed on release, driver bug");
+	if (atomisp_reqbufs(file, NULL, &req)) {
+		dev_err(isp->dev, "atomisp_reqbufs failed on release, driver bug");
 		goto done;
 	}
 

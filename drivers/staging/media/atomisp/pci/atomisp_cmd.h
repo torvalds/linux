@@ -266,7 +266,7 @@ int atomisp_get_sensor_mode_data(struct atomisp_sub_device *asd,
 int atomisp_try_fmt(struct video_device *vdev, struct v4l2_pix_format *f,
 		    bool *res_overflow);
 
-int atomisp_set_fmt(struct video_device *vdev, struct v4l2_format *f);
+int atomisp_set_fmt(struct file *file, void *fh, struct v4l2_format *f);
 
 int atomisp_set_shading_table(struct atomisp_sub_device *asd,
 			      struct atomisp_shading_table *shading_table);

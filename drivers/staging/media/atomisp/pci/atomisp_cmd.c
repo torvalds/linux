@@ -5167,8 +5167,9 @@ static int atomisp_set_fmt_to_snr(struct video_device *vdev,
 	return css_input_resolution_changed(asd, ffmt);
 }
 
-int atomisp_set_fmt(struct video_device *vdev, struct v4l2_format *f)
+int atomisp_set_fmt(struct file *file, void *unused, struct v4l2_format *f)
 {
+	struct video_device *vdev = video_devdata(file);
 	struct atomisp_device *isp = video_get_drvdata(vdev);
 	struct atomisp_video_pipe *pipe = atomisp_to_video_pipe(vdev);
 	struct atomisp_sub_device *asd = pipe->asd;
