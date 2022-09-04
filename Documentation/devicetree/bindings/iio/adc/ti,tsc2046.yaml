@@ -23,6 +23,9 @@ properties:
   interrupts:
     maxItems: 1
 
+  vref-supply:
+    description: Optional supply of the reference voltage
+
   "#io-channel-cells":
     const: 1
 
