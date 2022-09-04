@@ -18,6 +18,10 @@
 #define INTEL_NVM_CSS			0x10
 #define INTEL_NVM_FLASH_SIZE		0x45
 
+/* ASMedia specific NVM offsets */
+#define ASMEDIA_NVM_DATE		0x1c
+#define ASMEDIA_NVM_VERSION		0x28
+
 static DEFINE_IDA(nvm_ida);
 
 /**
@@ -149,8 +153,41 @@ static const struct tb_nvm_vendor_ops intel_switch_nvm_ops = {
 	.write_headers = intel_switch_nvm_write_headers,
 };
 
+static int asmedia_switch_nvm_version(struct tb_nvm *nvm)
+{
+	struct tb_switch *sw = tb_to_switch(nvm->dev);
+	u32 val;
+	int ret;
+
+	ret = tb_switch_nvm_read(sw, ASMEDIA_NVM_VERSION, &val, sizeof(val));
+	if (ret)
+		return ret;
+
+	nvm->major = (val << 16) & 0xff0000;
+	nvm->major |= val & 0x00ff00;
+	nvm->major |= (val >> 16) & 0x0000ff;
+
+	ret = tb_switch_nvm_read(sw, ASMEDIA_NVM_DATE, &val, sizeof(val));
+	if (ret)
+		return ret;
+
+	nvm->minor = (val << 16) & 0xff0000;
+	nvm->minor |= val & 0x00ff00;
+	nvm->minor |= (val >> 16) & 0x0000ff;
+
+	/* ASMedia NVM size is fixed to 512k */
+	nvm->active_size = SZ_512K;
+
+	return 0;
+}
+
+static const struct tb_nvm_vendor_ops asmedia_switch_nvm_ops = {
+	.read_version = asmedia_switch_nvm_version,
+};
+
 /* Router vendor NVM support table */
 static const struct tb_nvm_vendor switch_nvm_vendors[] = {
+	{ 0x174c, &asmedia_switch_nvm_ops },
 	{ PCI_VENDOR_ID_INTEL, &intel_switch_nvm_ops },
 	{ 0x8087, &intel_switch_nvm_ops },
 };
