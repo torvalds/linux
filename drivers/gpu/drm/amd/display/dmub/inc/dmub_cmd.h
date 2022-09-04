@@ -998,7 +998,8 @@ struct dmub_cmd_fw_assisted_mclk_switch_pipe_data_v2 {
 			uint8_t scale_factor_numerator;
 			uint8_t scale_factor_denominator;
 			uint8_t is_drr;
-			uint8_t pad[2];
+			uint8_t main_split_pipe_index;
+			uint8_t phantom_split_pipe_index;
 		} subvp_data;
 
 		struct {
