@@ -299,7 +299,8 @@ struct btree_key_cache {
 	struct mutex		lock;
 	struct rhashtable	table;
 	bool			table_init_done;
-	struct list_head	freed;
+	struct list_head	freed_pcpu;
+	struct list_head	freed_nonpcpu;
 	struct shrinker		shrink;
 	unsigned		shrink_iter;
 	struct btree_key_cache_freelist __percpu *pcpu_freed;
