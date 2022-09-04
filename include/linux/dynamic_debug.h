@@ -114,7 +114,9 @@ struct ddebug_class_map {
 /* encapsulate linker provided built-in (or module) dyndbg data */
 struct _ddebug_info {
 	struct _ddebug *descs;
+	struct ddebug_class_map *classes;
 	unsigned int num_descs;
+	unsigned int num_classes;
 };
 
 #if defined(CONFIG_DYNAMIC_DEBUG_CORE)

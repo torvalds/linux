@@ -41,6 +41,8 @@
 
 extern struct _ddebug __start___dyndbg[];
 extern struct _ddebug __stop___dyndbg[];
+extern struct ddebug_class_map __start___dyndbg_classes[];
+extern struct ddebug_class_map __stop___dyndbg_classes[];
 
 struct ddebug_table {
 	struct list_head link;
@@ -1079,7 +1081,9 @@ static int __init dynamic_debug_init(void)
 
 	struct _ddebug_info di = {
 		.descs = __start___dyndbg,
+		.classes = __start___dyndbg_classes,
 		.num_descs = __stop___dyndbg - __start___dyndbg,
+		.num_classes = __stop___dyndbg_classes - __start___dyndbg_classes,
 	};
 
 	if (&__start___dyndbg == &__stop___dyndbg) {
@@ -1121,6 +1125,9 @@ static int __init dynamic_debug_init(void)
 	vpr_info("%d prdebugs in %d modules, %d KiB in ddebug tables, %d kiB in __dyndbg section\n",
 		 i, mod_ct, (int)((mod_ct * sizeof(struct ddebug_table)) >> 10),
 		 (int)((i * sizeof(struct _ddebug)) >> 10));
+
+	if (di.num_classes)
+		v2pr_info("  %d builtin ddebug class-maps\n", di.num_classes);
 
 	/* now that ddebug tables are loaded, process all boot args
 	 * again to find and activate queries given in dyndbg params.
