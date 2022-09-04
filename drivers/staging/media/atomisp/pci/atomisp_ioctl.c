@@ -1880,10 +1880,10 @@ int atomisp_streamoff(struct file *file, void *fh, enum v4l2_buf_type type)
 		cancel_work_sync(&asd->delayed_init_work);
 		asd->delayed_init = ATOMISP_DELAYED_INIT_NOT_QUEUED;
 	}
-	if (first_streamoff) {
-		css_pipe_id = atomisp_get_css_pipe_id(asd);
-		atomisp_css_stop(asd, css_pipe_id, false);
-	}
+
+	css_pipe_id = atomisp_get_css_pipe_id(asd);
+	atomisp_css_stop(asd, css_pipe_id, false);
+
 	/* cancel work queue*/
 	if (asd->video_out_capture.users) {
 		capture_pipe = &asd->video_out_capture;
