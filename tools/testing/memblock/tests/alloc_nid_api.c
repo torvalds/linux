@@ -33,7 +33,7 @@ static inline void *run_memblock_alloc_try_nid(phys_addr_t size,
  *        |                   |
  *        min_addr           max_addr
  *
- * Expect to allocate a cleared region that ends at max_addr.
+ * Expect to allocate a region that ends at max_addr.
  */
 static int alloc_try_nid_top_down_simple_check(void)
 {
@@ -87,7 +87,7 @@ static int alloc_try_nid_top_down_simple_check(void)
  *                 Aligned address
  *                 boundary
  *
- * Expect to allocate a cleared, aligned region that ends before max_addr.
+ * Expect to allocate an aligned region that ends before max_addr.
  */
 static int alloc_try_nid_top_down_end_misaligned_check(void)
 {
@@ -139,7 +139,7 @@ static int alloc_try_nid_top_down_end_misaligned_check(void)
  *         |               |
  *         min_addr        max_addr
  *
- * Expect to allocate a cleared region that starts at min_addr and ends at
+ * Expect to allocate a region that starts at min_addr and ends at
  * max_addr, given that min_addr is aligned.
  */
 static int alloc_try_nid_exact_address_generic_check(void)
@@ -193,7 +193,7 @@ static int alloc_try_nid_exact_address_generic_check(void)
  *           address    |
  *           boundary   min_add
  *
- * Expect to drop the lower limit and allocate a cleared memory region which
+ * Expect to drop the lower limit and allocate a memory region which
  * ends at max_addr (if the address is aligned).
  */
 static int alloc_try_nid_top_down_narrow_range_check(void)
@@ -641,7 +641,7 @@ static int alloc_try_nid_reserved_all_generic_check(void)
 /*
  * A test that tries to allocate a memory region, where max_addr is
  * bigger than the end address of the available memory. Expect to allocate
- * a cleared region that ends before the end of the memory.
+ * a region that ends before the end of the memory.
  */
 static int alloc_try_nid_top_down_cap_max_check(void)
 {
@@ -680,7 +680,7 @@ static int alloc_try_nid_top_down_cap_max_check(void)
 /*
  * A test that tries to allocate a memory region, where min_addr is
  * smaller than the start address of the available memory. Expect to allocate
- * a cleared region that ends before the end of the memory.
+ * a region that ends before the end of the memory.
  */
 static int alloc_try_nid_top_down_cap_min_check(void)
 {
@@ -728,7 +728,7 @@ static int alloc_try_nid_top_down_cap_min_check(void)
  *        |                       |
  *        min_addr                max_addr
  *
- * Expect to allocate a cleared region that ends before max_addr.
+ * Expect to allocate a region that ends before max_addr.
  */
 static int alloc_try_nid_bottom_up_simple_check(void)
 {
@@ -782,7 +782,7 @@ static int alloc_try_nid_bottom_up_simple_check(void)
  *                 Aligned address
  *                 boundary
  *
- * Expect to allocate a cleared, aligned region that ends before max_addr.
+ * Expect to allocate an aligned region that ends before max_addr.
  */
 static int alloc_try_nid_bottom_up_start_misaligned_check(void)
 {
@@ -836,7 +836,7 @@ static int alloc_try_nid_bottom_up_start_misaligned_check(void)
  *                      |
  *                      min_add
  *
- * Expect to drop the lower limit and allocate a cleared memory region which
+ * Expect to drop the lower limit and allocate a memory region which
  * starts at the beginning of the available memory.
  */
 static int alloc_try_nid_bottom_up_narrow_range_check(void)
@@ -1019,7 +1019,7 @@ static int alloc_try_nid_bottom_up_reserved_no_space_check(void)
 /*
  * A test that tries to allocate a memory region, where max_addr is
  * bigger than the end address of the available memory. Expect to allocate
- * a cleared region that starts at the min_addr
+ * a region that starts at the min_addr.
  */
 static int alloc_try_nid_bottom_up_cap_max_check(void)
 {
@@ -1058,7 +1058,7 @@ static int alloc_try_nid_bottom_up_cap_max_check(void)
 /*
  * A test that tries to allocate a memory region, where min_addr is
  * smaller than the start address of the available memory. Expect to allocate
- * a cleared region at the beginning of the available memory.
+ * a region at the beginning of the available memory.
  */
 static int alloc_try_nid_bottom_up_cap_min_check(void)
 {
