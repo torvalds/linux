@@ -770,24 +770,6 @@ static struct atomisp_video_pipe *__atomisp_get_pipe(
     enum ia_css_pipe_id css_pipe_id,
     enum ia_css_buffer_type buf_type)
 {
-	struct atomisp_device *isp = asd->isp;
-
-	if (css_pipe_id == IA_CSS_PIPE_ID_COPY &&
-	    isp->inputs[asd->input_curr].camera_caps->
-	    sensor[asd->sensor_curr].stream_num > 1) {
-		switch (stream_id) {
-		case ATOMISP_INPUT_STREAM_PREVIEW:
-			return &asd->video_out_preview;
-		case ATOMISP_INPUT_STREAM_POSTVIEW:
-			return &asd->video_out_vf;
-		case ATOMISP_INPUT_STREAM_VIDEO:
-			return &asd->video_out_video_capture;
-		case ATOMISP_INPUT_STREAM_CAPTURE:
-		default:
-			return &asd->video_out_capture;
-		}
-	}
-
 	/* video is same in online as in continuouscapture mode */
 	if (asd->vfpp->val == ATOMISP_VFPP_DISABLE_LOWLAT) {
 		/*
@@ -5051,12 +5033,7 @@ static void atomisp_check_copy_mode(struct atomisp_sub_device *asd,
 	src = atomisp_subdev_get_ffmt(&asd->subdev, NULL,
 				      V4L2_SUBDEV_FORMAT_ACTIVE, source_pad);
 
-	if ((sink->code == src->code &&
-	     sink->width == f->width &&
-	     sink->height == f->height) ||
-	    ((asd->isp->inputs[asd->input_curr].type == SOC_CAMERA) &&
-	     (asd->isp->inputs[asd->input_curr].camera_caps->
-	      sensor[asd->sensor_curr].stream_num > 1)))
+	if (sink->code == src->code && sink->width == f->width && sink->height == f->height)
 		asd->copy_mode = true;
 	else
 		asd->copy_mode = false;
@@ -5282,58 +5259,7 @@ int atomisp_set_fmt(struct file *file, void *unused, struct v4l2_format *f)
 			f->fmt.pix.height = r.height;
 		}
 
-		if (source_pad == ATOMISP_SUBDEV_PAD_SOURCE_PREVIEW &&
-		    (asd->isp->inputs[asd->input_curr].type == SOC_CAMERA) &&
-		    (asd->isp->inputs[asd->input_curr].camera_caps->
-		     sensor[asd->sensor_curr].stream_num > 1)) {
-			/* For M10MO outputing YUV preview images. */
-			u16 video_index =
-			    atomisp_source_pad_to_stream_id(asd,
-							    ATOMISP_SUBDEV_PAD_SOURCE_VIDEO);
-
-			ret = atomisp_css_copy_get_output_frame_info(asd,
-				video_index, &output_info);
-			if (ret) {
-				dev_err(isp->dev,
-					"copy_get_output_frame_info ret %i", ret);
-				return -EINVAL;
-			}
-			if (!asd->yuvpp_mode) {
-				/*
-				 * If viewfinder was configured into copy_mode,
-				 * we switch to using yuvpp pipe instead.
-				 */
-				asd->yuvpp_mode = true;
-				ret = atomisp_css_copy_configure_output(
-					  asd, video_index, 0, 0, 0, 0);
-				if (ret) {
-					dev_err(isp->dev,
-						"failed to disable copy pipe");
-					return -EINVAL;
-				}
-				ret = atomisp_css_yuvpp_configure_output(
-					  asd, video_index,
-					  output_info.res.width,
-					  output_info.res.height,
-					  output_info.padded_width,
-					  output_info.format);
-				if (ret) {
-					dev_err(isp->dev,
-						"failed to set up yuvpp pipe\n");
-					return -EINVAL;
-				}
-				atomisp_css_video_enable_online(asd, false);
-				atomisp_css_preview_enable_online(asd,
-								  ATOMISP_INPUT_STREAM_GENERAL, false);
-			}
-			atomisp_css_yuvpp_configure_viewfinder(asd, video_index,
-							       f->fmt.pix.width, f->fmt.pix.height,
-							       format_bridge->planar ? f->fmt.pix.bytesperline
-							       : f->fmt.pix.bytesperline * 8
-							       / format_bridge->depth, format_bridge->sh_fmt);
-			atomisp_css_yuvpp_get_viewfinder_frame_info(
-			    asd, video_index, &output_info);
-		} else if (source_pad == ATOMISP_SUBDEV_PAD_SOURCE_PREVIEW) {
+		if (source_pad == ATOMISP_SUBDEV_PAD_SOURCE_PREVIEW) {
 			atomisp_css_video_configure_viewfinder(asd,
 							       f->fmt.pix.width, f->fmt.pix.height,
 							       format_bridge->planar ? f->fmt.pix.bytesperline
@@ -5918,31 +5844,7 @@ int atomisp_flash_enable(struct atomisp_sub_device *asd, int num_frames)
 int atomisp_source_pad_to_stream_id(struct atomisp_sub_device *asd,
 				    uint16_t source_pad)
 {
-	int stream_id;
-	struct atomisp_device *isp = asd->isp;
-
-	if (isp->inputs[asd->input_curr].camera_caps->
-	    sensor[asd->sensor_curr].stream_num == 1)
-		return ATOMISP_INPUT_STREAM_GENERAL;
-
-	switch (source_pad) {
-	case ATOMISP_SUBDEV_PAD_SOURCE_CAPTURE:
-		stream_id = ATOMISP_INPUT_STREAM_CAPTURE;
-		break;
-	case ATOMISP_SUBDEV_PAD_SOURCE_VF:
-		stream_id = ATOMISP_INPUT_STREAM_POSTVIEW;
-		break;
-	case ATOMISP_SUBDEV_PAD_SOURCE_PREVIEW:
-		stream_id = ATOMISP_INPUT_STREAM_PREVIEW;
-		break;
-	case ATOMISP_SUBDEV_PAD_SOURCE_VIDEO:
-		stream_id = ATOMISP_INPUT_STREAM_VIDEO;
-		break;
-	default:
-		stream_id = ATOMISP_INPUT_STREAM_GENERAL;
-	}
-
-	return stream_id;
+	return ATOMISP_INPUT_STREAM_GENERAL;
 }
 
 bool atomisp_is_vf_pipe(struct atomisp_video_pipe *pipe)
@@ -6216,13 +6118,6 @@ int atomisp_get_invalid_frame_num(struct video_device *vdev,
 	enum ia_css_pipe_id pipe_id;
 	struct ia_css_pipe_info p_info;
 	int ret;
-
-	if (asd->isp->inputs[asd->input_curr].camera_caps->
-	    sensor[asd->sensor_curr].stream_num > 1) {
-		/* External ISP */
-		*invalid_frame_num = 0;
-		return 0;
-	}
 
 	pipe_id = atomisp_get_pipe_id(pipe);
 	if (!asd->stream_env[ATOMISP_INPUT_STREAM_GENERAL].pipes[pipe_id]) {

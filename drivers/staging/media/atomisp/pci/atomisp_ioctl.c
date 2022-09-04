@@ -1431,16 +1431,6 @@ enum ia_css_pipe_id atomisp_get_css_pipe_id(struct atomisp_sub_device *asd)
 
 static unsigned int atomisp_sensor_start_stream(struct atomisp_sub_device *asd)
 {
-	struct atomisp_device *isp = asd->isp;
-
-	if (isp->inputs[asd->input_curr].camera_caps->
-	    sensor[asd->sensor_curr].stream_num > 1) {
-		if (asd->high_speed_mode)
-			return 1;
-		else
-			return 2;
-	}
-
 	if (asd->vfpp->val != ATOMISP_VFPP_ENABLE ||
 	    asd->copy_mode)
 		return 1;
@@ -1459,31 +1449,15 @@ static unsigned int atomisp_sensor_start_stream(struct atomisp_sub_device *asd)
 int atomisp_stream_on_master_slave_sensor(struct atomisp_device *isp,
 	bool isp_timeout)
 {
-	unsigned int master = -1, slave = -1, delay_slave = 0;
-	int i, ret;
+	unsigned int master, slave, delay_slave = 0;
+	int ret;
 
-	/*
-	 * ISP only support 2 streams now so ignore multiple master/slave
-	 * case to reduce the delay between 2 stream_on calls.
-	 */
-	for (i = 0; i < isp->num_of_streams; i++) {
-		int sensor_index = isp->asd[i].input_curr;
-
-		if (isp->inputs[sensor_index].camera_caps->
-		    sensor[isp->asd[i].sensor_curr].is_slave)
-			slave = sensor_index;
-		else
-			master = sensor_index;
-	}
-
-	if (master == -1 || slave == -1) {
-		master = ATOMISP_DEPTH_DEFAULT_MASTER_SENSOR;
-		slave = ATOMISP_DEPTH_DEFAULT_SLAVE_SENSOR;
-		dev_warn(isp->dev,
-			 "depth mode use default master=%s.slave=%s.\n",
-			 isp->inputs[master].camera->name,
-			 isp->inputs[slave].camera->name);
-	}
+	master = ATOMISP_DEPTH_DEFAULT_MASTER_SENSOR;
+	slave = ATOMISP_DEPTH_DEFAULT_SLAVE_SENSOR;
+	dev_warn(isp->dev,
+		 "depth mode use default master=%s.slave=%s.\n",
+		 isp->inputs[master].camera->name,
+		 isp->inputs[slave].camera->name);
 
 	ret = v4l2_subdev_call(isp->inputs[master].camera, core,
 			       ioctl, ATOMISP_IOC_G_DEPTH_SYNC_COMP,
@@ -1515,24 +1489,6 @@ int atomisp_stream_on_master_slave_sensor(struct atomisp_device *isp,
 	}
 
 	return 0;
-}
-
-static void atomisp_pause_buffer_event(struct atomisp_device *isp)
-{
-	struct v4l2_event event = {0};
-	int i;
-
-	event.type = V4L2_EVENT_ATOMISP_PAUSE_BUFFER;
-
-	for (i = 0; i < isp->num_of_streams; i++) {
-		int sensor_index = isp->asd[i].input_curr;
-
-		if (isp->inputs[sensor_index].camera_caps->
-		    sensor[isp->asd[i].sensor_curr].is_slave) {
-			v4l2_event_queue(isp->asd[i].subdev.devnode, &event);
-			break;
-		}
-	}
 }
 
 /* Input system HW workaround */
@@ -1608,8 +1564,7 @@ static int atomisp_streamon(struct file *file, void *fh,
 	/* Reset pending capture request count. */
 	asd->pending_capture_request = 0;
 
-	if ((atomisp_subdev_streaming_count(asd) > sensor_start_stream) &&
-	    (!isp->inputs[asd->input_curr].camera_caps->multi_stream_ctrl)) {
+	if (atomisp_subdev_streaming_count(asd) > sensor_start_stream) {
 		/* trigger still capture */
 		if (asd->continuous_mode->val &&
 		    atomisp_subdev_source_pad(vdev)
@@ -1651,9 +1606,6 @@ static int atomisp_streamon(struct file *file, void *fh,
 					asd->params.offline_parm.offset);
 				if (ret)
 					return -EINVAL;
-
-				if (asd->depth_mode->val)
-					atomisp_pause_buffer_event(isp);
 			}
 		}
 		atomisp_qbuffers_to_css(asd);
@@ -1809,17 +1761,10 @@ int atomisp_streamoff(struct file *file, void *fh, enum v4l2_buf_type type)
 	 * do only videobuf_streamoff for capture & vf pipes in
 	 * case of continuous capture
 	 */
-	if ((asd->continuous_mode->val ||
-	     isp->inputs[asd->input_curr].camera_caps->multi_stream_ctrl) &&
-	    atomisp_subdev_source_pad(vdev) !=
-	    ATOMISP_SUBDEV_PAD_SOURCE_PREVIEW &&
-	    atomisp_subdev_source_pad(vdev) !=
-	    ATOMISP_SUBDEV_PAD_SOURCE_VIDEO) {
-		if (isp->inputs[asd->input_curr].camera_caps->multi_stream_ctrl) {
-			v4l2_subdev_call(isp->inputs[asd->input_curr].camera,
-					 video, s_stream, 0);
-		} else if (atomisp_subdev_source_pad(vdev)
-			   == ATOMISP_SUBDEV_PAD_SOURCE_CAPTURE) {
+	if (asd->continuous_mode->val &&
+	    atomisp_subdev_source_pad(vdev) != ATOMISP_SUBDEV_PAD_SOURCE_PREVIEW &&
+	    atomisp_subdev_source_pad(vdev) != ATOMISP_SUBDEV_PAD_SOURCE_VIDEO) {
+		if (atomisp_subdev_source_pad(vdev) == ATOMISP_SUBDEV_PAD_SOURCE_CAPTURE) {
 			/* stop continuous still capture if needed */
 			if (asd->params.offline_parm.num_captures == -1)
 				atomisp_css_offline_capture_configure(asd,

@@ -134,24 +134,6 @@ static DEFINE_MUTEX(vcm_lock);
 
 static struct gmin_subdev *find_gmin_subdev(struct v4l2_subdev *subdev);
 
-/*
- * Legacy/stub behavior copied from upstream platform_camera.c.  The
- * atomisp driver relies on these values being non-NULL in a few
- * places, even though they are hard-coded in all current
- * implementations.
- */
-const struct atomisp_camera_caps *atomisp_get_default_camera_caps(void)
-{
-	static const struct atomisp_camera_caps caps = {
-		.sensor_num = 1,
-		.sensor = {
-			{ .stream_num = 1, },
-		},
-	};
-	return &caps;
-}
-EXPORT_SYMBOL_GPL(atomisp_get_default_camera_caps);
-
 const struct atomisp_platform_data *atomisp_get_platform_data(void)
 {
 	return &pdata;

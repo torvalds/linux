@@ -313,9 +313,6 @@ struct atomisp_sub_device {
 
 	/* This field specifies which camera (v4l2 input) is selected. */
 	int input_curr;
-	/* This field specifies which sensor is being selected when there
-	   are multiple sensors connected to the same MIPI port. */
-	int sensor_curr;
 
 	atomic_t sof_count;
 	atomic_t sequence;      /* Sequence value that is assigned to buffer. */

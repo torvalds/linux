@@ -141,23 +141,6 @@ struct atomisp_platform_data {
 	struct intel_v4l2_subdev_table *subdevs;
 };
 
-/* Describe the capacities of one single sensor. */
-struct atomisp_sensor_caps {
-	/* The number of streams this sensor can output. */
-	int stream_num;
-	bool is_slave;
-};
-
-/* Describe the capacities of sensors connected to one camera port. */
-struct atomisp_camera_caps {
-	/* The number of sensors connected to this camera port. */
-	int sensor_num;
-	/* The capacities of each sensor. */
-	struct atomisp_sensor_caps sensor[MAX_SENSORS_PER_PORT];
-	/* Define whether stream control is required for multiple streams. */
-	bool multi_stream_ctrl;
-};
-
 /*
  *  Sensor of external ISP can send multiple steams with different mipi data
  * type in the same virtual channel. This information needs to come from the
@@ -235,7 +218,6 @@ struct camera_mipi_info {
 };
 
 const struct atomisp_platform_data *atomisp_get_platform_data(void);
-const struct atomisp_camera_caps *atomisp_get_default_camera_caps(void);
 
 /* API from old platform_camera.h, new CPUID implementation */
 #define __IS_SOC(x) (boot_cpu_data.x86_vendor == X86_VENDOR_INTEL && \

@@ -1007,7 +1007,6 @@ static int atomisp_subdev_probe(struct atomisp_device *isp)
 			    &subdevs->v4l2_subdev.board_info;
 		struct i2c_adapter *adapter =
 		    i2c_get_adapter(subdevs->v4l2_subdev.i2c_adapter_id);
-		int sensor_num, i;
 
 		dev_info(isp->dev, "Probing Subdev %s\n", board_info->type);
 
@@ -1066,22 +1065,7 @@ static int atomisp_subdev_probe(struct atomisp_device *isp)
 			 * pixel_format.
 			 */
 			isp->inputs[isp->input_cnt].frame_size.pixel_format = 0;
-			isp->inputs[isp->input_cnt].camera_caps =
-			    atomisp_get_default_camera_caps();
-			sensor_num = isp->inputs[isp->input_cnt]
-				     .camera_caps->sensor_num;
 			isp->input_cnt++;
-			for (i = 1; i < sensor_num; i++) {
-				if (isp->input_cnt >= ATOM_ISP_MAX_INPUTS) {
-					dev_warn(isp->dev,
-						 "atomisp inputs out of range\n");
-					break;
-				}
-				isp->inputs[isp->input_cnt] =
-				    isp->inputs[isp->input_cnt - 1];
-				isp->inputs[isp->input_cnt].sensor_index = i;
-				isp->input_cnt++;
-			}
 			break;
 		case CAMERA_MOTOR:
 			if (isp->motor) {
@@ -1239,8 +1223,6 @@ static int atomisp_register_entities(struct atomisp_device *isp)
 			"TPG detected, camera_cnt: %d\n", isp->input_cnt);
 		isp->inputs[isp->input_cnt].type = TEST_PATTERN;
 		isp->inputs[isp->input_cnt].port = -1;
-		isp->inputs[isp->input_cnt].camera_caps =
-		    atomisp_get_default_camera_caps();
 		isp->inputs[isp->input_cnt++].camera = &isp->tpg.sd;
 	} else {
 		dev_warn(isp->dev, "too many atomisp inputs, TPG ignored.\n");
