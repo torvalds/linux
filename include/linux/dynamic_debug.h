@@ -119,6 +119,15 @@ struct _ddebug_info {
 	unsigned int num_classes;
 };
 
+struct ddebug_class_param {
+	union {
+		unsigned long *bits;
+		unsigned int *lvl;
+	};
+	char flags[8];
+	const struct ddebug_class_map *map;
+};
+
 #if defined(CONFIG_DYNAMIC_DEBUG_CORE)
 
 int ddebug_add_module(struct _ddebug_info *dyndbg, const char *modname);
@@ -278,6 +287,10 @@ void __dynamic_ibdev_dbg(struct _ddebug *descriptor,
 				   KERN_DEBUG, prefix_str, prefix_type,	\
 				   rowsize, groupsize, buf, len, ascii)
 
+struct kernel_param;
+int param_set_dyndbg_classes(const char *instr, const struct kernel_param *kp);
+int param_get_dyndbg_classes(char *buffer, const struct kernel_param *kp);
+
 /* for test only, generally expect drm.debug style macro wrappers */
 #define __pr_debug_cls(cls, fmt, ...) do {			\
 	BUILD_BUG_ON_MSG(!__builtin_constant_p(cls),		\
@@ -324,6 +337,14 @@ static inline int ddebug_dyndbg_module_param_cb(char *param, char *val,
 				rowsize, groupsize, buf, len, ascii);	\
 	} while (0)
 
+struct kernel_param;
+static inline int param_set_dyndbg_classes(const char *instr, const struct kernel_param *kp)
+{ return 0; }
+static inline int param_get_dyndbg_classes(char *buffer, const struct kernel_param *kp)
+{ return 0; }
+
 #endif /* !CONFIG_DYNAMIC_DEBUG_CORE */
+
+extern const struct kernel_param_ops param_ops_dyndbg_classes;
 
 #endif

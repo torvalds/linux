@@ -596,6 +596,218 @@ static int ddebug_exec_queries(char *query, const char *modname)
 	return nfound;
 }
 
+/* apply a new bitmap to the sys-knob's current bit-state */
+static int ddebug_apply_class_bitmap(const struct ddebug_class_param *dcp,
+				     unsigned long *new_bits, unsigned long *old_bits)
+{
+#define QUERY_SIZE 128
+	char query[QUERY_SIZE];
+	const struct ddebug_class_map *map = dcp->map;
+	int matches = 0;
+	int bi, ct;
+
+	v2pr_info("apply: 0x%lx to: 0x%lx\n", *new_bits, *old_bits);
+
+	for (bi = 0; bi < map->length; bi++) {
+		if (test_bit(bi, new_bits) == test_bit(bi, old_bits))
+			continue;
+
+		snprintf(query, QUERY_SIZE, "class %s %c%s", map->class_names[bi],
+			 test_bit(bi, new_bits) ? '+' : '-', dcp->flags);
+
+		ct = ddebug_exec_queries(query, NULL);
+		matches += ct;
+
+		v2pr_info("bit_%d: %d matches on class: %s -> 0x%lx\n", bi,
+			  ct, map->class_names[bi], *new_bits);
+	}
+	return matches;
+}
+
+/* stub to later conditionally add "$module." prefix where not already done */
+#define KP_NAME(kp)	kp->name
+
+#define CLASSMAP_BITMASK(width) ((1UL << (width)) - 1)
+
+/* accept comma-separated-list of [+-] classnames */
+static int param_set_dyndbg_classnames(const char *instr, const struct kernel_param *kp)
+{
+	const struct ddebug_class_param *dcp = kp->arg;
+	const struct ddebug_class_map *map = dcp->map;
+	unsigned long curr_bits, old_bits;
+	char *cl_str, *p, *tmp;
+	int cls_id, totct = 0;
+	bool wanted;
+
+	cl_str = tmp = kstrdup(instr, GFP_KERNEL);
+	p = strchr(cl_str, '\n');
+	if (p)
+		*p = '\0';
+
+	/* start with previously set state-bits, then modify */
+	curr_bits = old_bits = *dcp->bits;
+	vpr_info("\"%s\" > %s:0x%lx\n", cl_str, KP_NAME(kp), curr_bits);
+
+	for (; cl_str; cl_str = p) {
+		p = strchr(cl_str, ',');
+		if (p)
+			*p++ = '\0';
+
+		if (*cl_str == '-') {
+			wanted = false;
+			cl_str++;
+		} else {
+			wanted = true;
+			if (*cl_str == '+')
+				cl_str++;
+		}
+		cls_id = match_string(map->class_names, map->length, cl_str);
+		if (cls_id < 0) {
+			pr_err("%s unknown to %s\n", cl_str, KP_NAME(kp));
+			continue;
+		}
+
+		/* have one or more valid class_ids of one *_NAMES type */
+		switch (map->map_type) {
+		case DD_CLASS_TYPE_DISJOINT_NAMES:
+			/* the +/- pertains to a single bit */
+			if (test_bit(cls_id, &curr_bits) == wanted) {
+				v3pr_info("no change on %s\n", cl_str);
+				continue;
+			}
+			curr_bits ^= BIT(cls_id);
+			totct += ddebug_apply_class_bitmap(dcp, &curr_bits, dcp->bits);
+			*dcp->bits = curr_bits;
+			v2pr_info("%s: changed bit %d:%s\n", KP_NAME(kp), cls_id,
+				  map->class_names[cls_id]);
+			break;
+		case DD_CLASS_TYPE_LEVEL_NAMES:
+			/* cls_id = N in 0..max. wanted +/- determines N or N-1 */
+			old_bits = CLASSMAP_BITMASK(*dcp->lvl);
+			curr_bits = CLASSMAP_BITMASK(cls_id + (wanted ? 1 : 0 ));
+
+			totct += ddebug_apply_class_bitmap(dcp, &curr_bits, &old_bits);
+			*dcp->lvl = (cls_id + (wanted ? 1 : 0));
+			v2pr_info("%s: changed bit-%d: \"%s\" %lx->%lx\n", KP_NAME(kp), cls_id,
+				  map->class_names[cls_id], old_bits, curr_bits);
+			break;
+		default:
+			pr_err("illegal map-type value %d\n", map->map_type);
+		}
+	}
+	kfree(tmp);
+	vpr_info("total matches: %d\n", totct);
+	return 0;
+}
+
+/**
+ * param_set_dyndbg_classes - class FOO >control
+ * @instr: string echo>d to sysfs, input depends on map_type
+ * @kp:    kp->arg has state: bits/lvl, map, map_type
+ *
+ * Enable/disable prdbgs by their class, as given in the arguments to
+ * DECLARE_DYNDBG_CLASSMAP.  For LEVEL map-types, enforce relative
+ * levels by bitpos.
+ *
+ * Returns: 0 or <0 if error.
+ */
+int param_set_dyndbg_classes(const char *instr, const struct kernel_param *kp)
+{
+	const struct ddebug_class_param *dcp = kp->arg;
+	const struct ddebug_class_map *map = dcp->map;
+	unsigned long inrep, new_bits, old_bits;
+	int rc, totct = 0;
+
+	switch (map->map_type) {
+
+	case DD_CLASS_TYPE_DISJOINT_NAMES:
+	case DD_CLASS_TYPE_LEVEL_NAMES:
+		/* handle [+-]classnames list separately, we are done here */
+		return param_set_dyndbg_classnames(instr, kp);
+
+	case DD_CLASS_TYPE_DISJOINT_BITS:
+	case DD_CLASS_TYPE_LEVEL_NUM:
+		/* numeric input, accept and fall-thru */
+		rc = kstrtoul(instr, 0, &inrep);
+		if (rc) {
+			pr_err("expecting numeric input: %s > %s\n", instr, KP_NAME(kp));
+			return -EINVAL;
+		}
+		break;
+	default:
+		pr_err("%s: bad map type: %d\n", KP_NAME(kp), map->map_type);
+		return -EINVAL;
+	}
+
+	/* only _BITS,_NUM (numeric) map-types get here */
+	switch (map->map_type) {
+	case DD_CLASS_TYPE_DISJOINT_BITS:
+		/* expect bits. mask and warn if too many */
+		if (inrep & ~CLASSMAP_BITMASK(map->length)) {
+			pr_warn("%s: input: 0x%lx exceeds mask: 0x%lx, masking\n",
+				KP_NAME(kp), inrep, CLASSMAP_BITMASK(map->length));
+			inrep &= CLASSMAP_BITMASK(map->length);
+		}
+		v2pr_info("bits:%lx > %s\n", inrep, KP_NAME(kp));
+		totct += ddebug_apply_class_bitmap(dcp, &inrep, dcp->bits);
+		*dcp->bits = inrep;
+		break;
+	case DD_CLASS_TYPE_LEVEL_NUM:
+		/* input is bitpos, of highest verbosity to be enabled */
+		if (inrep > map->length) {
+			pr_warn("%s: level:%ld exceeds max:%d, clamping\n",
+				KP_NAME(kp), inrep, map->length);
+			inrep = map->length;
+		}
+		old_bits = CLASSMAP_BITMASK(*dcp->lvl);
+		new_bits = CLASSMAP_BITMASK(inrep);
+		v2pr_info("lvl:%ld bits:0x%lx > %s\n", inrep, new_bits, KP_NAME(kp));
+		totct += ddebug_apply_class_bitmap(dcp, &new_bits, &old_bits);
+		*dcp->lvl = inrep;
+		break;
+	default:
+		pr_warn("%s: bad map type: %d\n", KP_NAME(kp), map->map_type);
+	}
+	vpr_info("%s: total matches: %d\n", KP_NAME(kp), totct);
+	return 0;
+}
+EXPORT_SYMBOL(param_set_dyndbg_classes);
+
+/**
+ * param_get_dyndbg_classes - classes reader
+ * @buffer: string description of controlled bits -> classes
+ * @kp:     kp->arg has state: bits, map
+ *
+ * Reads last written state, underlying prdbg state may have been
+ * altered by direct >control.  Displays 0x for DISJOINT, 0-N for
+ * LEVEL Returns: #chars written or <0 on error
+ */
+int param_get_dyndbg_classes(char *buffer, const struct kernel_param *kp)
+{
+	const struct ddebug_class_param *dcp = kp->arg;
+	const struct ddebug_class_map *map = dcp->map;
+
+	switch (map->map_type) {
+
+	case DD_CLASS_TYPE_DISJOINT_NAMES:
+	case DD_CLASS_TYPE_DISJOINT_BITS:
+		return scnprintf(buffer, PAGE_SIZE, "0x%lx\n", *dcp->bits);
+
+	case DD_CLASS_TYPE_LEVEL_NAMES:
+	case DD_CLASS_TYPE_LEVEL_NUM:
+		return scnprintf(buffer, PAGE_SIZE, "%d\n", *dcp->lvl);
+	default:
+		return -1;
+	}
+}
+EXPORT_SYMBOL(param_get_dyndbg_classes);
+
+const struct kernel_param_ops param_ops_dyndbg_classes = {
+	.set = param_set_dyndbg_classes,
+	.get = param_get_dyndbg_classes,
+};
+EXPORT_SYMBOL(param_ops_dyndbg_classes);
+
 #define PREFIX_SIZE 64
 
 static int remaining(int wrote)
