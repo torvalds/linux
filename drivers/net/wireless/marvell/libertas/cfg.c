@@ -546,7 +546,7 @@ static int lbs_ret_scan(struct lbs_private *priv, unsigned long dummy,
 	pos = scanresp->bssdesc_and_tlvbuffer;
 
 	lbs_deb_hex(LBS_DEB_SCAN, "SCAN_RSP", scanresp->bssdesc_and_tlvbuffer,
-			scanresp->bssdescriptsize);
+		    bsssize);
 
 	tsfdesc = pos + bsssize;
 	tsfsize = 4 + 8 * scanresp->nr_sets;
