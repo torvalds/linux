@@ -253,8 +253,8 @@
 
 			vccio_sd: LDO_REG9 {
 				regulator-name = "vccio_sd";
-				regulator-min-microvolt = <1710000>;
-				regulator-max-microvolt = <3150000>;
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <3300000>;
 			};
 
 			vcc3v3_s0: SWITCH_REG {
