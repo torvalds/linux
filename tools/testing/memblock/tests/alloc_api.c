@@ -25,12 +25,10 @@ static int alloc_top_down_simple_check(void)
 {
 	struct memblock_region *rgn = &memblock.reserved.regions[0];
 	void *allocated_ptr = NULL;
-
-	PREFIX_PUSH();
-
 	phys_addr_t size = SZ_2;
 	phys_addr_t expected_start;
 
+	PREFIX_PUSH();
 	setup_memblock();
 
 	expected_start = memblock_end_of_DRAM() - SMP_CACHE_BYTES;
@@ -76,15 +74,13 @@ static int alloc_top_down_disjoint_check(void)
 	struct memblock_region *rgn2 = &memblock.reserved.regions[0];
 	struct region r1;
 	void *allocated_ptr = NULL;
-
-	PREFIX_PUSH();
-
 	phys_addr_t r2_size = SZ_16;
 	/* Use custom alignment */
 	phys_addr_t alignment = SMP_CACHE_BYTES * 2;
 	phys_addr_t total_size;
 	phys_addr_t expected_start;
 
+	PREFIX_PUSH();
 	setup_memblock();
 
 	r1.base = memblock_end_of_DRAM() - SZ_2;
@@ -128,9 +124,6 @@ static int alloc_top_down_before_check(void)
 {
 	struct memblock_region *rgn = &memblock.reserved.regions[0];
 	void *allocated_ptr = NULL;
-
-	PREFIX_PUSH();
-
 	/*
 	 * The first region ends at the aligned address to test region merging
 	 */
@@ -138,6 +131,7 @@ static int alloc_top_down_before_check(void)
 	phys_addr_t r2_size = SZ_512;
 	phys_addr_t total_size = r1_size + r2_size;
 
+	PREFIX_PUSH();
 	setup_memblock();
 
 	memblock_reserve(memblock_end_of_DRAM() - total_size, r1_size);
@@ -174,12 +168,10 @@ static int alloc_top_down_after_check(void)
 	struct memblock_region *rgn = &memblock.reserved.regions[0];
 	struct region r1;
 	void *allocated_ptr = NULL;
-
-	PREFIX_PUSH();
-
 	phys_addr_t r2_size = SZ_512;
 	phys_addr_t total_size;
 
+	PREFIX_PUSH();
 	setup_memblock();
 
 	/*
@@ -225,12 +217,10 @@ static int alloc_top_down_second_fit_check(void)
 	struct memblock_region *rgn = &memblock.reserved.regions[0];
 	struct region r1, r2;
 	void *allocated_ptr = NULL;
-
-	PREFIX_PUSH();
-
 	phys_addr_t r3_size = SZ_1K;
 	phys_addr_t total_size;
 
+	PREFIX_PUSH();
 	setup_memblock();
 
 	r1.base = memblock_end_of_DRAM() - SZ_512;
@@ -276,9 +266,6 @@ static int alloc_in_between_generic_check(void)
 	struct memblock_region *rgn = &memblock.reserved.regions[0];
 	struct region r1, r2;
 	void *allocated_ptr = NULL;
-
-	PREFIX_PUSH();
-
 	phys_addr_t gap_size = SMP_CACHE_BYTES;
 	phys_addr_t r3_size = SZ_64;
 	/*
@@ -287,6 +274,7 @@ static int alloc_in_between_generic_check(void)
 	phys_addr_t rgn_size = (MEM_SIZE - (2 * gap_size + r3_size)) / 2;
 	phys_addr_t total_size;
 
+	PREFIX_PUSH();
 	setup_memblock();
 
 	r1.size = rgn_size;
@@ -332,13 +320,11 @@ static int alloc_in_between_generic_check(void)
 static int alloc_small_gaps_generic_check(void)
 {
 	void *allocated_ptr = NULL;
-
-	PREFIX_PUSH();
-
 	phys_addr_t region_size = SZ_1K;
 	phys_addr_t gap_size = SZ_256;
 	phys_addr_t region_end;
 
+	PREFIX_PUSH();
 	setup_memblock();
 
 	region_end = memblock_start_of_DRAM();
@@ -366,7 +352,6 @@ static int alloc_all_reserved_generic_check(void)
 	void *allocated_ptr = NULL;
 
 	PREFIX_PUSH();
-
 	setup_memblock();
 
 	/* Simulate full memory */
@@ -397,13 +382,11 @@ static int alloc_all_reserved_generic_check(void)
 static int alloc_no_space_generic_check(void)
 {
 	void *allocated_ptr = NULL;
-
-	PREFIX_PUSH();
-
-	setup_memblock();
-
 	phys_addr_t available_size = SZ_256;
 	phys_addr_t reserved_size = MEM_SIZE - available_size;
+
+	PREFIX_PUSH();
+	setup_memblock();
 
 	/* Simulate almost-full memory */
 	memblock_reserve(memblock_start_of_DRAM(), reserved_size);
@@ -432,12 +415,10 @@ static int alloc_limited_space_generic_check(void)
 {
 	struct memblock_region *rgn = &memblock.reserved.regions[0];
 	void *allocated_ptr = NULL;
-
-	PREFIX_PUSH();
-
 	phys_addr_t available_size = SZ_256;
 	phys_addr_t reserved_size = MEM_SIZE - available_size;
 
+	PREFIX_PUSH();
 	setup_memblock();
 
 	/* Simulate almost-full memory */
@@ -504,7 +485,6 @@ static int alloc_too_large_generic_check(void)
 	void *allocated_ptr = NULL;
 
 	PREFIX_PUSH();
-
 	setup_memblock();
 
 	allocated_ptr = run_memblock_alloc(MEM_SIZE + SZ_2, SMP_CACHE_BYTES);
@@ -530,7 +510,6 @@ static int alloc_bottom_up_simple_check(void)
 	void *allocated_ptr = NULL;
 
 	PREFIX_PUSH();
-
 	setup_memblock();
 
 	allocated_ptr = run_memblock_alloc(SZ_2, SMP_CACHE_BYTES);
@@ -572,15 +551,13 @@ static int alloc_bottom_up_disjoint_check(void)
 	struct memblock_region *rgn2 = &memblock.reserved.regions[1];
 	struct region r1;
 	void *allocated_ptr = NULL;
-
-	PREFIX_PUSH();
-
 	phys_addr_t r2_size = SZ_16;
 	/* Use custom alignment */
 	phys_addr_t alignment = SMP_CACHE_BYTES * 2;
 	phys_addr_t total_size;
 	phys_addr_t expected_start;
 
+	PREFIX_PUSH();
 	setup_memblock();
 
 	r1.base = memblock_start_of_DRAM() + SZ_2;
@@ -624,13 +601,11 @@ static int alloc_bottom_up_before_check(void)
 {
 	struct memblock_region *rgn = &memblock.reserved.regions[0];
 	void *allocated_ptr = NULL;
-
-	PREFIX_PUSH();
-
 	phys_addr_t r1_size = SZ_512;
 	phys_addr_t r2_size = SZ_128;
 	phys_addr_t total_size = r1_size + r2_size;
 
+	PREFIX_PUSH();
 	setup_memblock();
 
 	memblock_reserve(memblock_start_of_DRAM() + r1_size, r2_size);
@@ -666,12 +641,10 @@ static int alloc_bottom_up_after_check(void)
 	struct memblock_region *rgn = &memblock.reserved.regions[0];
 	struct region r1;
 	void *allocated_ptr = NULL;
-
-	PREFIX_PUSH();
-
 	phys_addr_t r2_size = SZ_512;
 	phys_addr_t total_size;
 
+	PREFIX_PUSH();
 	setup_memblock();
 
 	/*
@@ -718,12 +691,10 @@ static int alloc_bottom_up_second_fit_check(void)
 	struct memblock_region *rgn  = &memblock.reserved.regions[1];
 	struct region r1, r2;
 	void *allocated_ptr = NULL;
-
-	PREFIX_PUSH();
-
 	phys_addr_t r3_size = SZ_1K;
 	phys_addr_t total_size;
 
+	PREFIX_PUSH();
 	setup_memblock();
 
 	r1.base = memblock_start_of_DRAM();
