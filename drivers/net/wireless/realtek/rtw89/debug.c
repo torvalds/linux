@@ -525,7 +525,8 @@ static int __print_txpwr_map(struct seq_file *m, struct rtw89_dev *rtwdev,
 
 static void __print_regd(struct seq_file *m, struct rtw89_dev *rtwdev)
 {
-	u8 band = rtwdev->hal.current_band_type;
+	const struct rtw89_chan *chan = rtw89_chan_get(rtwdev, RTW89_SUB_ENTITY_0);
+	u8 band = chan->band_type;
 	u8 regd = rtw89_regd_get(rtwdev, band);
 
 	switch (regd) {
@@ -2305,6 +2306,7 @@ static void rtw89_sta_info_get_iter(void *data, struct ieee80211_sta *sta)
 			   he_gi_str[rate->he_gi] : "N/A");
 	else
 		seq_printf(m, "Legacy %d", rate->legacy);
+	seq_printf(m, "%s", rtwsta->ra_report.might_fallback_legacy ? " FB_G" : "");
 	seq_printf(m, "\t(hw_rate=0x%x)", rtwsta->ra_report.hw_rate);
 	seq_printf(m, "\t==> agg_wait=%d (%d)\n", rtwsta->max_agg_wait,
 		   sta->max_rc_amsdu_len);
@@ -2433,6 +2435,26 @@ void rtw89_vif_ids_get_iter(void *data, u8 *mac, struct ieee80211_vif *vif)
 	rtw89_dump_addr_cam(m, &rtwvif->addr_cam);
 }
 
+static void rtw89_dump_ba_cam(struct seq_file *m, struct rtw89_sta *rtwsta)
+{
+	struct rtw89_vif *rtwvif = rtwsta->rtwvif;
+	struct rtw89_dev *rtwdev = rtwvif->rtwdev;
+	struct rtw89_ba_cam_entry *entry;
+	bool first = true;
+
+	list_for_each_entry(entry, &rtwsta->ba_cam_list, list) {
+		if (first) {
+			seq_puts(m, "\tba_cam ");
+			first = false;
+		} else {
+			seq_puts(m, ", ");
+		}
+		seq_printf(m, "tid[%u]=%d", entry->tid,
+			   (int)(entry - rtwdev->cam_info.ba_cam_entry));
+	}
+	seq_puts(m, "\n");
+}
+
 static void rtw89_sta_ids_get_iter(void *data, struct ieee80211_sta *sta)
 {
 	struct rtw89_sta *rtwsta = (struct rtw89_sta *)sta->drv_priv;
@@ -2441,6 +2463,7 @@ static void rtw89_sta_ids_get_iter(void *data, struct ieee80211_sta *sta)
 	seq_printf(m, "STA [%d] %pM %s\n", rtwsta->mac_id, sta->addr,
 		   sta->tdls ? "(TDLS)" : "");
 	rtw89_dump_addr_cam(m, &rtwsta->addr_cam);
+	rtw89_dump_ba_cam(m, rtwsta);
 }
 
 static int rtw89_debug_priv_stations_get(struct seq_file *m, void *v)
@@ -2448,6 +2471,8 @@ static int rtw89_debug_priv_stations_get(struct seq_file *m, void *v)
 	struct rtw89_debugfs_priv *debugfs_priv = m->private;
 	struct rtw89_dev *rtwdev = debugfs_priv->rtwdev;
 	struct rtw89_cam_info *cam_info = &rtwdev->cam_info;
+
+	mutex_lock(&rtwdev->mutex);
 
 	seq_puts(m, "map:\n");
 	seq_printf(m, "\tmac_id:    %*ph\n", (int)sizeof(rtwdev->mac_id_map),
@@ -2458,11 +2483,15 @@ static int rtw89_debug_priv_stations_get(struct seq_file *m, void *v)
 		   cam_info->bssid_cam_map);
 	seq_printf(m, "\tsec_cam:   %*ph\n", (int)sizeof(cam_info->sec_cam_map),
 		   cam_info->sec_cam_map);
+	seq_printf(m, "\tba_cam:    %*ph\n", (int)sizeof(cam_info->ba_cam_map),
+		   cam_info->ba_cam_map);
 
 	ieee80211_iterate_active_interfaces_atomic(rtwdev->hw,
 		IEEE80211_IFACE_ITER_NORMAL, rtw89_vif_ids_get_iter, m);
 
 	ieee80211_iterate_stations_atomic(rtwdev->hw, rtw89_sta_ids_get_iter, m);
+
+	mutex_unlock(&rtwdev->mutex);
 
 	return 0;
 }

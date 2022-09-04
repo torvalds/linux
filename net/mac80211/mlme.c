@@ -314,7 +314,7 @@ ieee80211_determine_chantype(struct ieee80211_sub_if_data *sdata,
 	if (eht_oper && (eht_oper->params & IEEE80211_EHT_OPER_INFO_PRESENT)) {
 		struct cfg80211_chan_def eht_chandef = *chandef;
 
-		ieee80211_chandef_eht_oper(sdata, eht_oper,
+		ieee80211_chandef_eht_oper(eht_oper,
 					   eht_chandef.width ==
 					   NL80211_CHAN_WIDTH_160,
 					   false, &eht_chandef);
@@ -2445,6 +2445,29 @@ static void ieee80211_sta_handle_tspec_ac_params_wk(struct work_struct *work)
 	ieee80211_sta_handle_tspec_ac_params(sdata);
 }
 
+void ieee80211_mgd_set_link_qos_params(struct ieee80211_link_data *link)
+{
+	struct ieee80211_sub_if_data *sdata = link->sdata;
+	struct ieee80211_local *local = sdata->local;
+	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
+	struct ieee80211_tx_queue_params *params = link->tx_conf;
+	u8 ac;
+
+	for (ac = 0; ac < IEEE80211_NUM_ACS; ac++) {
+		mlme_dbg(sdata,
+			 "WMM AC=%d acm=%d aifs=%d cWmin=%d cWmax=%d txop=%d uapsd=%d, downgraded=%d\n",
+			 ac, params[ac].acm,
+			 params[ac].aifs, params[ac].cw_min, params[ac].cw_max,
+			 params[ac].txop, params[ac].uapsd,
+			 ifmgd->tx_tspec[ac].downgraded);
+		if (!ifmgd->tx_tspec[ac].downgraded &&
+		    drv_conf_tx(local, link, ac, &params[ac]))
+			link_err(link,
+				 "failed to set TX queue parameters for AC %d\n",
+				 ac);
+	}
+}
+
 /* MLME */
 static bool
 ieee80211_sta_wmm_params(struct ieee80211_local *local,
@@ -2576,20 +2599,10 @@ ieee80211_sta_wmm_params(struct ieee80211_local *local,
 		}
 	}
 
-	for (ac = 0; ac < IEEE80211_NUM_ACS; ac++) {
-		mlme_dbg(sdata,
-			 "WMM AC=%d acm=%d aifs=%d cWmin=%d cWmax=%d txop=%d uapsd=%d, downgraded=%d\n",
-			 ac, params[ac].acm,
-			 params[ac].aifs, params[ac].cw_min, params[ac].cw_max,
-			 params[ac].txop, params[ac].uapsd,
-			 ifmgd->tx_tspec[ac].downgraded);
+	for (ac = 0; ac < IEEE80211_NUM_ACS; ac++)
 		link->tx_conf[ac] = params[ac];
-		if (!ifmgd->tx_tspec[ac].downgraded &&
-		    drv_conf_tx(local, link, ac, &params[ac]))
-			link_err(link,
-				 "failed to set TX queue parameters for AC %d\n",
-				 ac);
-	}
+
+	ieee80211_mgd_set_link_qos_params(link);
 
 	/* enable WMM or activate new settings */
 	link->conf->qos = true;
@@ -6323,6 +6336,8 @@ void ieee80211_mgd_setup_link(struct ieee80211_link_data *link)
 	if (sdata->u.mgd.assoc_data)
 		ether_addr_copy(link->conf->addr,
 				sdata->u.mgd.assoc_data->link[link_id].addr);
+	else if (!is_valid_ether_addr(link->conf->addr))
+		eth_random_addr(link->conf->addr);
 }
 
 /* scan finished notification */
@@ -6409,9 +6424,6 @@ static int ieee80211_prep_connection(struct ieee80211_sub_if_data *sdata,
 		err = -ENOLINK;
 		goto out_err;
 	}
-
-	if (mlo && !is_valid_ether_addr(link->conf->addr))
-		eth_random_addr(link->conf->addr);
 
 	if (WARN_ON(!ifmgd->auth_data && !ifmgd->assoc_data)) {
 		err = -EINVAL;
@@ -6893,6 +6905,10 @@ int ieee80211_mgd_assoc(struct ieee80211_sub_if_data *sdata,
 			return -EINVAL;
 		}
 	}
+
+	/* FIXME: no support for 4-addr MLO yet */
+	if (sdata->u.mgd.use_4addr && req->link_id >= 0)
+		return -EOPNOTSUPP;
 
 	assoc_data = kzalloc(size, GFP_KERNEL);
 	if (!assoc_data)
