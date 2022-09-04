@@ -2001,8 +2001,7 @@ static int elf_dump_thread_status(long signr, struct elf_thread_status *t)
 	t->num_notes++;
 	sz += notesize(&t->notes[0]);
 
-	if ((t->prstatus.pr_fpvalid = elf_core_copy_task_fpregs(p, NULL,
-								&t->fpu))) {
+	if ((t->prstatus.pr_fpvalid = elf_core_copy_task_fpregs(p, &t->fpu))) {
 		fill_note(&t->notes[1], "CORE", NT_PRFPREG, sizeof(t->fpu),
 			  &(t->fpu));
 		t->num_notes++;
@@ -2100,7 +2099,7 @@ static int fill_note_info(struct elfhdr *elf, int phdrs,
 
 	/* Try to dump the FPU. */
 	info->prstatus->pr_fpvalid =
-		elf_core_copy_task_fpregs(current, task_pt_regs(current), info->fpu);
+		elf_core_copy_task_fpregs(current, info->fpu);
 	if (info->prstatus->pr_fpvalid)
 		fill_note(info->notes + info->numnote++,
 			  "CORE", NT_PRFPREG, sizeof(*info->fpu), info->fpu);
