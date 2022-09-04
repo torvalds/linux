@@ -329,6 +329,25 @@ static inline void copy_map_value_long(struct bpf_map *map, void *dst, void *src
 	__copy_map_value(map, dst, src, true);
 }
 
+static inline void zero_map_value(struct bpf_map *map, void *dst)
+{
+	u32 curr_off = 0;
+	int i;
+
+	if (likely(!map->off_arr)) {
+		memset(dst, 0, map->value_size);
+		return;
+	}
+
+	for (i = 0; i < map->off_arr->cnt; i++) {
+		u32 next_off = map->off_arr->field_off[i];
+
+		memset(dst + curr_off, 0, next_off - curr_off);
+		curr_off += map->off_arr->field_sz[i];
+	}
+	memset(dst + curr_off, 0, map->value_size - curr_off);
+}
+
 void copy_map_value_locked(struct bpf_map *map, void *dst, void *src,
 			   bool lock_src);
 void bpf_timer_cancel_and_free(void *timer);
