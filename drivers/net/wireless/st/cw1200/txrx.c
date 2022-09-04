@@ -762,8 +762,7 @@ void cw1200_tx(struct ieee80211_hw *dev,
 	if (ret)
 		goto drop;
 
-	rcu_read_lock();
-	sta = rcu_dereference(t.sta);
+	sta = t.sta;
 
 	spin_lock_bh(&priv->ps_state_lock);
 	{
@@ -775,8 +774,6 @@ void cw1200_tx(struct ieee80211_hw *dev,
 
 	if (tid_update && sta)
 		ieee80211_sta_set_buffered(sta, t.txpriv.tid, true);
-
-	rcu_read_unlock();
 
 	cw1200_bh_wakeup(priv);
 
