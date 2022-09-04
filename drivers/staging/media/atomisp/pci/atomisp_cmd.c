@@ -80,6 +80,8 @@ union host {
 	} ptr;
 };
 
+static int atomisp_set_raw_buffer_bitmap(struct atomisp_sub_device *asd, int exp_id);
+
 /*
  * get sensor:dis71430/ov2720 related info from v4l2_subdev->priv data field.
  * subdev->priv is set in mrst.c
@@ -5993,7 +5995,7 @@ void atomisp_init_raw_buffer_bitmap(struct atomisp_sub_device *asd)
 	spin_unlock_irqrestore(&asd->raw_buffer_bitmap_lock, flags);
 }
 
-int atomisp_set_raw_buffer_bitmap(struct atomisp_sub_device *asd, int exp_id)
+static int atomisp_set_raw_buffer_bitmap(struct atomisp_sub_device *asd, int exp_id)
 {
 	int *bitmap, bit;
 	unsigned long flags;
