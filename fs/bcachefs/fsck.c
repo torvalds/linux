@@ -772,9 +772,6 @@ static int hash_redo_key(struct btree_trans *trans,
 			 struct bch_hash_info *hash_info,
 			 struct btree_iter *k_iter, struct bkey_s_c k)
 {
-	bch_err(trans->c, "hash_redo_key() not implemented yet");
-	return -EINVAL;
-#if 0
 	struct bkey_i *delete;
 	struct bkey_i *tmp;
 
@@ -792,8 +789,14 @@ static int hash_redo_key(struct btree_trans *trans,
 	delete->k.p = k_iter->pos;
 	return  bch2_btree_iter_traverse(k_iter) ?:
 		bch2_trans_update(trans, k_iter, delete, 0) ?:
-		bch2_hash_set(trans, desc, hash_info, k_iter->pos.inode, tmp, 0);
-#endif
+		bch2_hash_set_snapshot(trans, desc, hash_info,
+				       (subvol_inum) { 0, k.k->p.inode },
+				       k.k->p.snapshot, tmp,
+				       BCH_HASH_SET_MUST_CREATE,
+				       BTREE_UPDATE_INTERNAL_SNAPSHOT_NODE) ?:
+		bch2_trans_commit(trans, NULL, NULL,
+				  BTREE_INSERT_NOFAIL|
+				  BTREE_INSERT_LAZY_RW);
 }
 
 static int hash_check_key(struct btree_trans *trans,
