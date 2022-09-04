@@ -1435,7 +1435,7 @@ mwifiex_cmd_mef_cfg(struct mwifiex_private *priv,
 		mef_entry = (struct mwifiex_fw_mef_entry *)pos;
 		mef_entry->mode = mef->mef_entry[i].mode;
 		mef_entry->action = mef->mef_entry[i].action;
-		pos += sizeof(*mef_cfg->mef_entry);
+		pos += sizeof(*mef_entry);
 
 		if (mwifiex_cmd_append_rpn_expression(priv,
 						      &mef->mef_entry[i], &pos))
@@ -1631,7 +1631,7 @@ mwifiex_cmd_coalesce_cfg(struct mwifiex_private *priv,
 
 	coalesce_cfg->action = cpu_to_le16(cmd_action);
 	coalesce_cfg->num_of_rules = cpu_to_le16(cfg->num_of_rules);
-	rule = coalesce_cfg->rule;
+	rule = (void *)coalesce_cfg->rule_data;
 
 	for (cnt = 0; cnt < cfg->num_of_rules; cnt++) {
 		rule->header.type = cpu_to_le16(TLV_TYPE_COALESCE_RULE);
