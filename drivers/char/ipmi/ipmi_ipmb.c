@@ -218,8 +218,8 @@ static void ipmi_ipmb_send_response(struct ipmi_ipmb_dev *iidev,
 {
 	if ((msg->data[0] >> 2) & 1) {
 		/*
-		 * It's a response being sent, we needto return a
-		 * response response.  Fake a send msg command
+		 * It's a response being sent, we need to return a
+		 * response to the response.  Fake a send msg command
 		 * response with channel 0.  This will always be ipmb
 		 * direct.
 		 */
