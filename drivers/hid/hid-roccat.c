@@ -257,6 +257,8 @@ int roccat_report_event(int minor, u8 const *data)
 	if (!new_value)
 		return -ENOMEM;
 
+	mutex_lock(&device->cbuf_lock);
+
 	report = &device->cbuf[device->cbuf_end];
 
 	/* passing NULL is safe */
@@ -275,6 +277,8 @@ int roccat_report_event(int minor, u8 const *data)
 		if (reader->cbuf_start == device->cbuf_end)
 			reader->cbuf_start = (reader->cbuf_start + 1) % ROCCAT_CBUF_SIZE;
 	}
+
+	mutex_unlock(&device->cbuf_lock);
 
 	wake_up_interruptible(&device->wait);
 	return 0;
