@@ -1574,20 +1574,6 @@ void atomisp_free_metadata_output_buf(struct atomisp_sub_device *asd)
 	}
 }
 
-void atomisp_css_get_dis_statistics(struct atomisp_sub_device *asd,
-				    struct atomisp_css_buffer *isp_css_buffer,
-				    struct ia_css_isp_dvs_statistics_map *dvs_map)
-{
-	if (asd->params.dvs_stat) {
-		if (dvs_map)
-			ia_css_translate_dvs2_statistics(
-			    asd->params.dvs_stat, dvs_map);
-		else
-			ia_css_get_dvs2_statistics(asd->params.dvs_stat,
-						   isp_css_buffer->css_buffer.data.stats_dvs);
-	}
-}
-
 void atomisp_css_temp_pipe_to_pipe_id(struct atomisp_sub_device *asd,
 				      struct atomisp_css_event *current_event)
 {
