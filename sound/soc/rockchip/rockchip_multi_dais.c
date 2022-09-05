@@ -129,6 +129,25 @@ static void rockchip_mdais_shutdown(struct snd_pcm_substream *substream,
 	}
 }
 
+static int rockchip_mdais_prepare(struct snd_pcm_substream *substream,
+				  struct snd_soc_dai *dai)
+{
+	struct rk_mdais_dev *mdais = to_info(dai);
+	struct snd_soc_dai *child;
+	int ret = 0, i = 0;
+
+	for (i = 0; i < mdais->num_dais; i++) {
+		child = mdais->dais[i].dai;
+		if (child->driver->ops && child->driver->ops->prepare) {
+			ret = child->driver->ops->prepare(substream, child);
+			if (ret < 0)
+				return ret;
+		}
+	}
+
+	return 0;
+}
+
 static int rockchip_mdais_set_sysclk(struct snd_soc_dai *cpu_dai, int clk_id,
 				     unsigned int freq, int dir)
 {
@@ -220,6 +239,7 @@ static const struct snd_soc_dai_ops rockchip_mdais_dai_ops = {
 	.trigger = rockchip_mdais_trigger,
 	.startup = rockchip_mdais_startup,
 	.shutdown = rockchip_mdais_shutdown,
+	.prepare = rockchip_mdais_prepare,
 };
 
 static const struct snd_soc_component_driver rockchip_mdais_component = {
