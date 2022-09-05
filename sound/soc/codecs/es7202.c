@@ -74,8 +74,8 @@ static int es7202_read(u8 reg, u8 * rt_value, struct i2c_client *client)
 	read_cmd[0] = reg;
 	cmd_len = 1;
 
-	if (client->adapter == NULL)
-		printk("es7202_read client->adapter==NULL\n");
+	if (!client || !client->adapter)
+		return -1;
 
 	ret = i2c_master_send(client, read_cmd, cmd_len);
 	if (ret != cmd_len) {
@@ -96,6 +96,9 @@ static int es7202_write(u8 reg, unsigned char value, struct i2c_client *client)
 {
 	int ret = 0;
 	u8 write_cmd[2] = { 0 };
+
+	if (!client || !client->adapter)
+		return -1;
 
 	write_cmd[0] = reg;
 	write_cmd[1] = value;
