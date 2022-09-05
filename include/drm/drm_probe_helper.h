@@ -7,6 +7,7 @@
 
 struct drm_connector;
 struct drm_device;
+struct drm_display_mode;
 struct drm_modeset_acquire_ctx;
 
 int drm_helper_probe_single_connector_modes(struct drm_connector
@@ -27,6 +28,8 @@ void drm_kms_helper_poll_enable(struct drm_device *dev);
 bool drm_kms_helper_is_poll_worker(void);
 
 int drm_connector_helper_get_modes_from_ddc(struct drm_connector *connector);
+int drm_connector_helper_get_modes_fixed(struct drm_connector *connector,
+					 const struct drm_display_mode *fixed_mode);
 int drm_connector_helper_get_modes(struct drm_connector *connector);
 
 #endif
