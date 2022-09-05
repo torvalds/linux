@@ -2017,14 +2017,17 @@ static int aspeed_i3c_master_enable_ibi(struct i3c_dev_desc *dev)
 	struct aspeed_i3c_dev_group *dev_grp =
 		aspeed_i3c_master_get_group(master, dev->info.dyn_addr);
 	unsigned long flags;
-	u32 sirmap, dat;
+	u32 sirmap;
+	u32 sirmap_backup, mask_clr_backup, mask_set_backup;
 	int ret;
 
 	spin_lock_irqsave(&master->ibi.lock, flags);
-	sirmap = readl(master->regs + IBI_SIR_REQ_REJECT);
-	sirmap &= ~BIT(data->ibi);
+	sirmap_backup = readl(master->regs + IBI_SIR_REQ_REJECT);
+	sirmap = sirmap_backup & ~BIT(data->ibi);
 	writel(sirmap, master->regs + IBI_SIR_REQ_REJECT);
 
+	mask_clr_backup = dev_grp->mask.clr;
+	mask_set_backup = dev_grp->mask.set;
 	dev_grp->mask.clr |= DEV_ADDR_TABLE_SIR_REJECT;
 	dev_grp->mask.set &= ~DEV_ADDR_TABLE_SIR_REJECT;
 	if (IS_MANUF_ID_ASPEED(dev->info.pid))
@@ -2038,6 +2041,7 @@ static int aspeed_i3c_master_enable_ibi(struct i3c_dev_desc *dev)
 		dev->info.dyn_addr, dev_grp->hw_index, data->ibi, dev_grp->mask.set,
 		dev_grp->mask.clr);
 
+	/* Dat will be synchronized before sending the CCC */
 	ret = i3c_master_enec_locked(m, dev->info.dyn_addr,
 				     I3C_CCC_EVENT_SIR);
 
@@ -2045,14 +2049,10 @@ static int aspeed_i3c_master_enable_ibi(struct i3c_dev_desc *dev)
 
 	if (ret) {
 		spin_lock_irqsave(&master->ibi.lock, flags);
-		sirmap = readl(master->regs + IBI_SIR_REQ_REJECT);
-		sirmap |= BIT(data->ibi);
-		writel(sirmap, master->regs + IBI_SIR_REQ_REJECT);
+		writel(sirmap_backup, master->regs + IBI_SIR_REQ_REJECT);
 
-		dat = aspeed_i3c_master_get_group_dat(master, dev->info.dyn_addr);
-		dat |= DEV_ADDR_TABLE_SIR_REJECT;
-		dat &= ~DEV_ADDR_TABLE_IBI_WITH_DATA;
-		aspeed_i3c_master_set_group_dat(master, dev->info.dyn_addr, dat);
+		dev_grp->mask.clr = mask_clr_backup;
+		dev_grp->mask.set = mask_set_backup;
 		aspeed_i3c_master_sync_hw_dat(master, dev->info.dyn_addr);
 		spin_unlock_irqrestore(&master->ibi.lock, flags);
 	}
