@@ -1200,6 +1200,12 @@ static int ac108_codec_probe(struct snd_soc_codec *codec)
 		ac101_codec_probe(codec);
 	}
 
+	/* change default volume */
+	ac108_multi_update_bits(ADC1_DVOL_CTRL, 0xff, 0xc8, ac10x);
+	ac108_multi_update_bits(ADC2_DVOL_CTRL, 0xff, 0xc8, ac10x);
+	ac108_multi_update_bits(ADC3_DVOL_CTRL, 0xff, 0xc8, ac10x);
+	ac108_multi_update_bits(ADC4_DVOL_CTRL, 0xff, 0xc8, ac10x);
+
 	return 0;
 }
 
