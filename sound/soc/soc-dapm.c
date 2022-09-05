@@ -3885,7 +3885,7 @@ snd_soc_dai_link_event_pre_pmu(struct snd_soc_dapm_widget *w,
 	 * necessary
 	 */
 	config = rtd->dai_link->params + rtd->params_select;
-	if (WARN_ON(!config)) {
+	if (!config) {
 		dev_err(w->dapm->dev, "ASoC: link config missing\n");
 		ret = -EINVAL;
 		goto out;
