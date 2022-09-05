@@ -12,14 +12,14 @@
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/kernel.h>
-#include <linux/of_device.h>
-#include <linux/of_irq.h>
-#include <linux/of_platform.h>
+#include <linux/mod_devicetable.h>
+#include <linux/of.h>
 #include <linux/pinctrl/pinctrl.h>
 #include <linux/pinctrl/pinmux.h>
 #include <linux/pinctrl/pinconf.h>
 #include <linux/pinctrl/pinconf-generic.h>
 #include <linux/platform_device.h>
+#include <linux/property.h>
 #include <linux/regmap.h>
 #include <linux/seq_file.h>
 #include <linux/slab.h>
@@ -4152,7 +4152,7 @@ static const struct of_device_id ingenic_gpio_of_matches[] __initconst = {
 };
 
 static int __init ingenic_gpio_probe(struct ingenic_pinctrl *jzpc,
-				     struct device_node *node)
+				     struct fwnode_handle *fwnode)
 {
 	struct ingenic_gpio_chip *jzgc;
 	struct device *dev = jzpc->dev;
@@ -4160,7 +4160,7 @@ static int __init ingenic_gpio_probe(struct ingenic_pinctrl *jzpc,
 	unsigned int bank;
 	int err;
 
-	err = of_property_read_u32(node, "reg", &bank);
+	err = fwnode_property_read_u32(fwnode, "reg", &bank);
 	if (err) {
 		dev_err(dev, "Cannot read \"reg\" property: %i\n", err);
 		return err;
@@ -4185,7 +4185,7 @@ static int __init ingenic_gpio_probe(struct ingenic_pinctrl *jzpc,
 
 	jzgc->gc.ngpio = 32;
 	jzgc->gc.parent = dev;
-	jzgc->gc.of_node = node;
+	jzgc->gc.fwnode = fwnode;
 	jzgc->gc.owner = THIS_MODULE;
 
 	jzgc->gc.set = ingenic_gpio_set;
@@ -4196,9 +4196,12 @@ static int __init ingenic_gpio_probe(struct ingenic_pinctrl *jzpc,
 	jzgc->gc.request = gpiochip_generic_request;
 	jzgc->gc.free = gpiochip_generic_free;
 
-	jzgc->irq = irq_of_parse_and_map(node, 0);
-	if (!jzgc->irq)
+	err = fwnode_irq_get(fwnode, 0);
+	if (err < 0)
+		return err;
+	if (!err)
 		return -EINVAL;
+	jzgc->irq = err;
 
 	girq = &jzgc->gc.irq;
 	gpio_irq_chip_set_chip(girq, &ingenic_gpio_irqchip);
@@ -4227,12 +4230,12 @@ static int __init ingenic_pinctrl_probe(struct platform_device *pdev)
 	struct pinctrl_desc *pctl_desc;
 	void __iomem *base;
 	const struct ingenic_chip_info *chip_info;
-	struct device_node *node;
 	struct regmap_config regmap_config;
+	struct fwnode_handle *fwnode;
 	unsigned int i;
 	int err;
 
-	chip_info = of_device_get_match_data(dev);
+	chip_info = device_get_match_data(dev);
 	if (!chip_info) {
 		dev_err(dev, "Unsupported SoC\n");
 		return -EINVAL;
@@ -4319,11 +4322,11 @@ static int __init ingenic_pinctrl_probe(struct platform_device *pdev)
 
 	dev_set_drvdata(dev, jzpc->map);
 
-	for_each_child_of_node(dev->of_node, node) {
-		if (of_match_node(ingenic_gpio_of_matches, node)) {
-			err = ingenic_gpio_probe(jzpc, node);
+	device_for_each_child_node(dev, fwnode) {
+		if (of_match_node(ingenic_gpio_of_matches, to_of_node(fwnode))) {
+			err = ingenic_gpio_probe(jzpc, fwnode);
 			if (err) {
-				of_node_put(node);
+				fwnode_handle_put(fwnode);
 				return err;
 			}
 		}
