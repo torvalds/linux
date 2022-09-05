@@ -99,7 +99,7 @@ SYM_CODE_START(primary_entry)
 	 */
 #if VA_BITS > 48
 	mrs_s	x0, SYS_ID_AA64MMFR2_EL1
-	tst	x0, #0xf << ID_AA64MMFR2_LVA_SHIFT
+	tst	x0, #0xf << ID_AA64MMFR2_EL1_LVA_SHIFT
 	mov	x0, #VA_BITS
 	mov	x25, #VA_BITS_MIN
 	csel	x25, x25, x0, eq
@@ -677,7 +677,7 @@ SYM_FUNC_START(__cpu_secondary_check52bitva)
 	b.ne	2f
 
 	mrs_s	x0, SYS_ID_AA64MMFR2_EL1
-	and	x0, x0, #(0xf << ID_AA64MMFR2_LVA_SHIFT)
+	and	x0, x0, #(0xf << ID_AA64MMFR2_EL1_LVA_SHIFT)
 	cbnz	x0, 2f
 
 	update_early_cpu_boot_status \
