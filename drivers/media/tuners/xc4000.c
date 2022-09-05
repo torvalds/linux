@@ -282,15 +282,13 @@ static int xc4000_tuner_reset(struct dvb_frontend *fe)
 static int xc_write_reg(struct xc4000_priv *priv, u16 regAddr, u16 i2cData)
 {
 	u8 buf[4];
-	int result;
 
 	buf[0] = (regAddr >> 8) & 0xFF;
 	buf[1] = regAddr & 0xFF;
 	buf[2] = (i2cData >> 8) & 0xFF;
 	buf[3] = i2cData & 0xFF;
-	result = xc_send_i2c_data(priv, buf, 4);
 
-	return result;
+	return xc_send_i2c_data(priv, buf, 4);
 }
 
 static int xc_load_i2c_sequence(struct dvb_frontend *fe, const u8 *i2c_sequence)
