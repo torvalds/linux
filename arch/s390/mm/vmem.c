@@ -240,7 +240,7 @@ static int __ref modify_pmd_table(pud_t *pud, unsigned long addr,
 		} else if (pmd_none(*pmd)) {
 			if (IS_ALIGNED(addr, PMD_SIZE) &&
 			    IS_ALIGNED(next, PMD_SIZE) &&
-			    MACHINE_HAS_EDAT1 && addr && direct &&
+			    MACHINE_HAS_EDAT1 && direct &&
 			    !debug_pagealloc_enabled()) {
 				set_pmd(pmd, __pmd(__pa(addr) | prot));
 				pages++;
@@ -336,7 +336,7 @@ static int modify_pud_table(p4d_t *p4d, unsigned long addr, unsigned long end,
 		} else if (pud_none(*pud)) {
 			if (IS_ALIGNED(addr, PUD_SIZE) &&
 			    IS_ALIGNED(next, PUD_SIZE) &&
-			    MACHINE_HAS_EDAT2 && addr && direct &&
+			    MACHINE_HAS_EDAT2 && direct &&
 			    !debug_pagealloc_enabled()) {
 				set_pud(pud, __pud(__pa(addr) | prot));
 				pages++;
@@ -583,6 +583,9 @@ void __init vmem_map_init(void)
 		     SET_MEMORY_RO | SET_MEMORY_X);
 	__set_memory(__stext_amode31, (__etext_amode31 - __stext_amode31) >> PAGE_SHIFT,
 		     SET_MEMORY_RO | SET_MEMORY_X);
+
+	/* lowcore requires 4k mapping for real addresses / prefixing */
+	set_memory_4k(0, LC_PAGES);
 
 	/* lowcore must be executable for LPSWE */
 	if (!static_key_enabled(&cpu_has_bear))
