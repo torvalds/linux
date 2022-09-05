@@ -118,6 +118,8 @@
 
 #define	PTP_MIN_LENGTH		63
 
+#define PTP_RXFILTERS_LEN	2
+
 #define PTP_ADDRESS		0xe0000181	/* 224.0.1.129 */
 #define PTP_EVENT_PORT		319
 #define PTP_GENERAL_PORT	320
@@ -224,9 +226,8 @@ struct efx_ptp_timeset {
  * @work: Work task
  * @reset_required: A serious error has occurred and the PTP task needs to be
  *                  reset (disable, enable).
- * @rxfilter_event: Receive filter when operating
- * @rxfilter_general: Receive filter when operating
- * @rxfilter_installed: Receive filter installed
+ * @rxfilters: Receive filters when operating
+ * @rxfilters_count: Num of installed rxfilters, should be == PTP_RXFILTERS_LEN
  * @config: Current timestamp configuration
  * @enabled: PTP operation enabled
  * @mode: Mode in which PTP operating (PTP version)
@@ -295,9 +296,8 @@ struct efx_ptp_data {
 	struct workqueue_struct *workwq;
 	struct work_struct work;
 	bool reset_required;
-	u32 rxfilter_event;
-	u32 rxfilter_general;
-	bool rxfilter_installed;
+	u32 rxfilters[PTP_RXFILTERS_LEN];
+	size_t rxfilters_count;
 	struct hwtstamp_config config;
 	bool enabled;
 	unsigned int mode;
@@ -1290,61 +1290,57 @@ static void efx_ptp_remove_multicast_filters(struct efx_nic *efx)
 {
 	struct efx_ptp_data *ptp = efx->ptp_data;
 
-	if (ptp->rxfilter_installed) {
+	while (ptp->rxfilters_count) {
+		ptp->rxfilters_count--;
 		efx_filter_remove_id_safe(efx, EFX_FILTER_PRI_REQUIRED,
-					  ptp->rxfilter_general);
-		efx_filter_remove_id_safe(efx, EFX_FILTER_PRI_REQUIRED,
-					  ptp->rxfilter_event);
-		ptp->rxfilter_installed = false;
+					  ptp->rxfilters[ptp->rxfilters_count]);
 	}
 }
 
-static int efx_ptp_insert_multicast_filters(struct efx_nic *efx)
+static int efx_ptp_insert_ipv4_filter(struct efx_nic *efx, u16 port)
 {
 	struct efx_ptp_data *ptp = efx->ptp_data;
 	struct efx_filter_spec rxfilter;
 	int rc;
 
-	if (!ptp->channel || ptp->rxfilter_installed)
+	efx_filter_init_rx(&rxfilter, EFX_FILTER_PRI_REQUIRED, 0,
+			   efx_rx_queue_index(
+				   efx_channel_get_rx_queue(ptp->channel)));
+
+	efx_filter_set_ipv4_local(&rxfilter, IPPROTO_UDP, htonl(PTP_ADDRESS),
+				  htons(port));
+
+	rc = efx_filter_insert_filter(efx, &rxfilter, true);
+	if (rc < 0)
+		return rc;
+	ptp->rxfilters[ptp->rxfilters_count] = rc;
+	ptp->rxfilters_count++;
+	return 0;
+}
+
+static int efx_ptp_insert_multicast_filters(struct efx_nic *efx)
+{
+	struct efx_ptp_data *ptp = efx->ptp_data;
+	int rc;
+
+	if (!ptp->channel || ptp->rxfilters_count)
 		return 0;
 
 	/* Must filter on both event and general ports to ensure
 	 * that there is no packet re-ordering.
 	 */
-	efx_filter_init_rx(&rxfilter, EFX_FILTER_PRI_REQUIRED, 0,
-			   efx_rx_queue_index(
-				   efx_channel_get_rx_queue(ptp->channel)));
-	rc = efx_filter_set_ipv4_local(&rxfilter, IPPROTO_UDP,
-				       htonl(PTP_ADDRESS),
-				       htons(PTP_EVENT_PORT));
-	if (rc != 0)
-		return rc;
-
-	rc = efx_filter_insert_filter(efx, &rxfilter, true);
-	if (rc < 0)
-		return rc;
-	ptp->rxfilter_event = rc;
-
-	efx_filter_init_rx(&rxfilter, EFX_FILTER_PRI_REQUIRED, 0,
-			   efx_rx_queue_index(
-				   efx_channel_get_rx_queue(ptp->channel)));
-	rc = efx_filter_set_ipv4_local(&rxfilter, IPPROTO_UDP,
-				       htonl(PTP_ADDRESS),
-				       htons(PTP_GENERAL_PORT));
-	if (rc != 0)
-		goto fail;
-
-	rc = efx_filter_insert_filter(efx, &rxfilter, true);
+	rc = efx_ptp_insert_ipv4_filter(efx, PTP_EVENT_PORT);
 	if (rc < 0)
 		goto fail;
-	ptp->rxfilter_general = rc;
 
-	ptp->rxfilter_installed = true;
+	rc = efx_ptp_insert_ipv4_filter(efx, PTP_GENERAL_PORT);
+	if (rc < 0)
+		goto fail;
+
 	return 0;
 
 fail:
-	efx_filter_remove_id_safe(efx, EFX_FILTER_PRI_REQUIRED,
-				  ptp->rxfilter_event);
+	efx_ptp_remove_multicast_filters(efx);
 	return rc;
 }
 
