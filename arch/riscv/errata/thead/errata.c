@@ -17,6 +17,9 @@
 static bool errata_probe_pbmt(unsigned int stage,
 			      unsigned long arch_id, unsigned long impid)
 {
+	if (!IS_ENABLED(CONFIG_ERRATA_THEAD_PBMT))
+		return false;
+
 	if (arch_id != 0 || impid != 0)
 		return false;
 
