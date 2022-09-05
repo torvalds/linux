@@ -205,6 +205,7 @@ static const struct ksz_dev_ops ksz9477_dev_ops = {
 
 static const struct ksz_dev_ops lan937x_dev_ops = {
 	.setup = lan937x_setup,
+	.teardown = lan937x_teardown,
 	.get_port_addr = ksz9477_get_port_addr,
 	.cfg_port_member = ksz9477_cfg_port_member,
 	.flush_dyn_mac_table = ksz9477_flush_dyn_mac_table,
@@ -1444,6 +1445,14 @@ static int ksz_setup(struct dsa_switch *ds)
 	return 0;
 }
 
+static void ksz_teardown(struct dsa_switch *ds)
+{
+	struct ksz_device *dev = ds->priv;
+
+	if (dev->dev_ops->teardown)
+		dev->dev_ops->teardown(ds);
+}
+
 static void port_r_cnt(struct ksz_device *dev, int port)
 {
 	struct ksz_port_mib *mib = &dev->ports[port].mib;
@@ -2193,6 +2202,7 @@ static const struct dsa_switch_ops ksz_switch_ops = {
 	.get_tag_protocol	= ksz_get_tag_protocol,
 	.get_phy_flags		= ksz_get_phy_flags,
 	.setup			= ksz_setup,
+	.teardown		= ksz_teardown,
 	.phy_read		= ksz_phy_read16,
 	.phy_write		= ksz_phy_write16,
 	.phylink_get_caps	= ksz_phylink_get_caps,
@@ -2357,6 +2367,9 @@ int ksz_switch_register(struct ksz_device *dev)
 				     GFP_KERNEL);
 		if (!dev->ports[i].mib.counters)
 			return -ENOMEM;
+
+		dev->ports[i].ksz_dev = dev;
+		dev->ports[i].num = i;
 	}
 
 	/* set the real number of ports */

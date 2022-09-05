@@ -8,6 +8,7 @@
 
 int lan937x_reset_switch(struct ksz_device *dev);
 int lan937x_setup(struct dsa_switch *ds);
+void lan937x_teardown(struct dsa_switch *ds);
 void lan937x_port_setup(struct ksz_device *dev, int port, bool cpu_port);
 void lan937x_config_cpu_port(struct dsa_switch *ds);
 int lan937x_switch_init(struct ksz_device *dev);

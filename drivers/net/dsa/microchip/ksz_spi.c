@@ -88,6 +88,8 @@ static int ksz_spi_probe(struct spi_device *spi)
 	if (ret)
 		return ret;
 
+	dev->irq = spi->irq;
+
 	ret = ksz_switch_register(dev);
 
 	/* Main DSA driver may not be started yet. */
