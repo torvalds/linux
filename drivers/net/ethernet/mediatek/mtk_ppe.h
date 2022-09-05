@@ -302,17 +302,6 @@ mtk_ppe_check_skb(struct mtk_ppe *ppe, struct sk_buff *skb, u16 hash)
 	__mtk_ppe_check_skb(ppe, skb, hash);
 }
 
-static inline int
-mtk_foe_entry_timestamp(struct mtk_ppe *ppe, u16 hash)
-{
-	u32 ib1 = READ_ONCE(ppe->foe_table[hash].ib1);
-
-	if (FIELD_GET(MTK_FOE_IB1_STATE, ib1) != MTK_FOE_STATE_BIND)
-		return -1;
-
-	return FIELD_GET(MTK_FOE_IB1_BIND_TIMESTAMP, ib1);
-}
-
 int mtk_foe_entry_prepare(struct mtk_foe_entry *entry, int type, int l4proto,
 			  u8 pse_port, u8 *src_mac, u8 *dest_mac);
 int mtk_foe_entry_set_pse_port(struct mtk_foe_entry *entry, u8 port);
