@@ -164,6 +164,7 @@ struct sc200ai {
 	struct v4l2_ctrl	*vblank;
 	struct v4l2_ctrl	*test_pattern;
 	struct mutex		mutex;
+	struct v4l2_fract	cur_fps;
 	bool			streaming;
 	bool			power_on;
 	const struct sc200ai_mode *cur_mode;
@@ -894,6 +895,8 @@ static int sc200ai_set_fmt(struct v4l2_subdev *sd,
 		__v4l2_ctrl_modify_range(sc200ai->vblank, vblank_def,
 					 SC200AI_VTS_MAX - mode->height,
 					 1, vblank_def);
+		sc200ai->cur_fps = mode->max_fps;
+		sc200ai->cur_vts = mode->vts_def;
 	}
 
 	mutex_unlock(&sc200ai->mutex);
@@ -986,9 +989,10 @@ static int sc200ai_g_frame_interval(struct v4l2_subdev *sd,
 	struct sc200ai *sc200ai = to_sc200ai(sd);
 	const struct sc200ai_mode *mode = sc200ai->cur_mode;
 
-	mutex_lock(&sc200ai->mutex);
-	fi->interval = mode->max_fps;
-	mutex_unlock(&sc200ai->mutex);
+	if (sc200ai->streaming)
+		fi->interval = sc200ai->cur_fps;
+	else
+		fi->interval = mode->max_fps;
 
 	return 0;
 }
@@ -1063,6 +1067,8 @@ static long sc200ai_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 			__v4l2_ctrl_modify_range(sc200ai->hblank, w, w, 1, w);
 			__v4l2_ctrl_modify_range(sc200ai->vblank, h,
 						 SC200AI_VTS_MAX - sc200ai->cur_mode->height, 1, h);
+			sc200ai->cur_fps = sc200ai->cur_mode->max_fps;
+			sc200ai->cur_vts = sc200ai->cur_mode->vts_def;
 		}
 		break;
 	case PREISP_CMD_SET_HDRAE_EXP:
@@ -1472,6 +1478,14 @@ static const struct v4l2_subdev_ops sc200ai_subdev_ops = {
 	.pad	= &sc200ai_pad_ops,
 };
 
+static void sc200ai_modify_fps_info(struct sc200ai *sc200ai)
+{
+	const struct sc200ai_mode *mode = sc200ai->cur_mode;
+
+	sc200ai->cur_fps.denominator = mode->max_fps.denominator * sc200ai->cur_vts /
+				       mode->vts_def;
+}
+
 static int sc200ai_set_ctrl(struct v4l2_ctrl *ctrl)
 {
 	struct sc200ai *sc200ai = container_of(ctrl->handler,
@@ -1534,7 +1548,10 @@ static int sc200ai_set_ctrl(struct v4l2_ctrl *ctrl)
 					 SC200AI_REG_VALUE_08BIT,
 					 (ctrl->val + sc200ai->cur_mode->height)
 					 & 0xff);
-		sc200ai->cur_vts = ctrl->val + sc200ai->cur_mode->height;
+		if (!ret)
+			sc200ai->cur_vts = ctrl->val + sc200ai->cur_mode->height;
+		if (sc200ai->cur_vts != sc200ai->cur_mode->vts_def)
+			sc200ai_modify_fps_info(sc200ai);
 		break;
 	case V4L2_CID_TEST_PATTERN:
 		ret = sc200ai_enable_test_pattern(sc200ai, ctrl->val);
@@ -1631,6 +1648,8 @@ static int sc200ai_initialize_controls(struct sc200ai *sc200ai)
 
 	sc200ai->subdev.ctrl_handler = handler;
 	sc200ai->has_init_exp = false;
+	sc200ai->cur_fps = mode->max_fps;
+	sc200ai->cur_vts = mode->vts_def;
 
 	return 0;
 
