@@ -310,6 +310,24 @@ err_drm_dev_exit:
 }
 
 /**
+ * mipi_dbi_pipe_mode_valid - MIPI DBI mode-valid helper
+ * @pipe: Simple display pipe
+ * @mode: The mode to test
+ *
+ * This function validates a given display mode against the MIPI DBI's hardware
+ * display. Drivers can use this as their &drm_simple_display_pipe_funcs->mode_valid
+ * callback.
+ */
+enum drm_mode_status mipi_dbi_pipe_mode_valid(struct drm_simple_display_pipe *pipe,
+					      const struct drm_display_mode *mode)
+{
+	struct mipi_dbi_dev *dbidev = drm_to_mipi_dbi_dev(pipe->crtc.dev);
+
+	return drm_crtc_helper_mode_valid_fixed(&pipe->crtc, mode, &dbidev->mode);
+}
+EXPORT_SYMBOL(mipi_dbi_pipe_mode_valid);
+
+/**
  * mipi_dbi_pipe_update - Display pipe update helper
  * @pipe: Simple display pipe
  * @old_state: Old plane state

@@ -570,15 +570,7 @@ static enum drm_mode_status simpledrm_crtc_helper_mode_valid(struct drm_crtc *cr
 {
 	struct simpledrm_device *sdev = simpledrm_device_of_dev(crtc->dev);
 
-	if (mode->hdisplay != sdev->mode.hdisplay &&
-	    mode->vdisplay != sdev->mode.vdisplay)
-		return MODE_ONE_SIZE;
-	else if (mode->hdisplay != sdev->mode.hdisplay)
-		return MODE_ONE_WIDTH;
-	else if (mode->vdisplay != sdev->mode.vdisplay)
-		return MODE_ONE_HEIGHT;
-
-	return MODE_OK;
+	return drm_crtc_helper_mode_valid_fixed(crtc, mode, &sdev->mode);
 }
 
 static int simpledrm_crtc_helper_atomic_check(struct drm_crtc *crtc,

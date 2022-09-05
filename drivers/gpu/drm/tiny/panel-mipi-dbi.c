@@ -212,6 +212,7 @@ out_exit:
 }
 
 static const struct drm_simple_display_pipe_funcs panel_mipi_dbi_pipe_funcs = {
+	.mode_valid = mipi_dbi_pipe_mode_valid,
 	.enable = panel_mipi_dbi_enable,
 	.disable = mipi_dbi_pipe_disable,
 	.update = mipi_dbi_pipe_update,
