@@ -46,6 +46,82 @@
 # feature that introduces them (eg, FEAT_LS64_ACCDATA introduces enumeration
 # item ACCDATA) though it may be more taseful to do something else.
 
+Sysreg	ID_AA64PFR0_EL1	3	0	0	4	0
+Enum	63:60	CSV3
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+Enum	59:56	CSV2
+	0b0000	NI
+	0b0001	IMP
+	0b0010	CSV2_2
+	0b0011	CSV2_3
+EndEnum
+Enum	55:52	RME
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+Enum	51:48	DIT
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+Enum	47:44	AMU
+	0b0000	NI
+	0b0001	IMP
+	0b0010	V1P1
+EndEnum
+Enum	43:40	MPAM
+	0b0000	0
+	0b0001	1
+EndEnum
+Enum	39:36	SEL2
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+Enum	35:32	SVE
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+Enum	31:28	RAS
+	0b0000	NI
+	0b0001	IMP
+	0b0010	V1P1
+EndEnum
+Enum	27:24	GIC
+	0b0000	NI
+	0b0001	IMP
+	0b0010	V4P1
+EndEnum
+Enum	23:20	AdvSIMD
+	0b0000	IMP
+	0b0001	FP16
+	0b1111	NI
+EndEnum
+Enum	19:16	FP
+	0b0000	IMP
+	0b0001	FP16
+	0b1111	NI
+EndEnum
+Enum	15:12	EL3
+	0b0000	NI
+	0b0001	IMP
+	0b0010	AARCH32
+EndEnum
+Enum	11:8	EL2
+	0b0000	NI
+	0b0001	IMP
+	0b0010	AARCH32
+EndEnum
+Enum	7:4	EL1
+	0b0001	IMP
+	0b0010	AARCH32
+EndEnum
+Enum	3:0	EL0
+	0b0001	IMP
+	0b0010	AARCH32
+EndEnum
+EndSysreg
+
 Sysreg	ID_AA64ZFR0_EL1	3	0	0	4	4
 Res0	63:60
 Enum	59:56	F64MM
