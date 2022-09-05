@@ -593,7 +593,7 @@ static int sc2232_g_frame_interval(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static int sc2232_g_mbus_config(struct v4l2_subdev *sd,
+static int sc2232_g_mbus_config(struct v4l2_subdev *sd, unsigned int pad_id,
 				struct v4l2_mbus_config *config)
 {
 	struct sc2232 *sc2232 = to_sc2232(sd);
@@ -610,7 +610,7 @@ static int sc2232_g_mbus_config(struct v4l2_subdev *sd,
 		V4L2_MBUS_CSI2_CONTINUOUS_CLOCK |
 		V4L2_MBUS_CSI2_CHANNEL_1;
 
-	config->type = V4L2_MBUS_CSI2;
+	config->type = V4L2_MBUS_CSI2_DPHY;
 	config->flags = val;
 
 	return 0;
@@ -795,8 +795,11 @@ static long sc2232_compat_ioctl32(struct v4l2_subdev *sd,
 		}
 
 		ret = sc2232_ioctl(sd, cmd, inf);
-		if (!ret)
+		if (!ret) {
 			ret = copy_to_user(up, inf, sizeof(*inf));
+			if (ret)
+				ret = -EFAULT;
+		}
 		kfree(inf);
 		break;
 	case RKMODULE_AWB_CFG:
@@ -809,6 +812,8 @@ static long sc2232_compat_ioctl32(struct v4l2_subdev *sd,
 		ret = copy_from_user(cfg, up, sizeof(*cfg));
 		if (!ret)
 			ret = sc2232_ioctl(sd, cmd, cfg);
+		else
+			ret = -EFAULT;
 		kfree(cfg);
 		break;
 	case RKMODULE_GET_HDR_CFG:
@@ -819,8 +824,11 @@ static long sc2232_compat_ioctl32(struct v4l2_subdev *sd,
 		}
 
 		ret = sc2232_ioctl(sd, cmd, hdr);
-		if (!ret)
+		if (!ret) {
 			ret = copy_to_user(up, hdr, sizeof(*hdr));
+			if (ret)
+				ret = -EFAULT;
+		}
 		kfree(hdr);
 		break;
 	case RKMODULE_SET_HDR_CFG:
@@ -833,6 +841,8 @@ static long sc2232_compat_ioctl32(struct v4l2_subdev *sd,
 		ret = copy_from_user(hdr, up, sizeof(*hdr));
 		if (!ret)
 			ret = sc2232_ioctl(sd, cmd, hdr);
+		else
+			ret = -EFAULT;
 		kfree(hdr);
 		break;
 	case PREISP_CMD_SET_HDRAE_EXP:
@@ -845,17 +855,23 @@ static long sc2232_compat_ioctl32(struct v4l2_subdev *sd,
 		ret = copy_from_user(hdrae, up, sizeof(*hdrae));
 		if (!ret)
 			ret = sc2232_ioctl(sd, cmd, hdrae);
+		else
+			ret = -EFAULT;
 		kfree(hdrae);
 		break;
 	case RKMODULE_SET_CONVERSION_GAIN:
 		ret = copy_from_user(&cg, up, sizeof(cg));
 		if (!ret)
 			ret = sc2232_ioctl(sd, cmd, &cg);
+		else
+			ret = -EFAULT;
 		break;
 	case RKMODULE_SET_QUICK_STREAM:
 		ret = copy_from_user(&stream, up, sizeof(u32));
 		if (!ret)
 			ret = sc2232_ioctl(sd, cmd, &stream);
+		else
+			ret = -EFAULT;
 		break;
 	default:
 		ret = -ENOIOCTLCMD;
@@ -1120,7 +1136,6 @@ static const struct v4l2_subdev_core_ops sc2232_core_ops = {
 static const struct v4l2_subdev_video_ops sc2232_video_ops = {
 	.s_stream = sc2232_s_stream,
 	.g_frame_interval = sc2232_g_frame_interval,
-	.g_mbus_config = sc2232_g_mbus_config,
 };
 
 static const struct v4l2_subdev_pad_ops sc2232_pad_ops = {
@@ -1129,6 +1144,7 @@ static const struct v4l2_subdev_pad_ops sc2232_pad_ops = {
 	.enum_frame_interval = sc2232_enum_frame_interval,
 	.get_fmt = sc2232_get_fmt,
 	.set_fmt = sc2232_set_fmt,
+	.get_mbus_config = sc2232_g_mbus_config,
 };
 
 static const struct v4l2_subdev_ops sc2232_subdev_ops = {
