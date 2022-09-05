@@ -761,6 +761,12 @@ Sysreg	SMCR_EL1	3	0	1	2	6
 Fields	SMCR_ELx
 EndSysreg
 
+Sysreg	ALLINT	3	0	4	3	0
+Res0	63:14
+Field	13	ALLINT
+Res0	12:0
+EndSysreg
+
 Sysreg	FAR_EL1	3	0	6	0	0
 Field	63:0	ADDR
 EndSysreg
