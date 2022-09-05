@@ -2246,7 +2246,7 @@ static const struct arm64_cpu_capabilities arm64_features[] = {
 		.sign = FTR_UNSIGNED,
 		.field_pos = ID_AA64PFR0_EL1_SVE_SHIFT,
 		.field_width = 4,
-		.min_field_value = ID_AA64PFR0_EL1_SVE,
+		.min_field_value = ID_AA64PFR0_EL1_SVE_IMP,
 		.matches = has_cpuid_feature,
 		.cpu_enable = sve_kernel_enable,
 	},
@@ -2261,7 +2261,7 @@ static const struct arm64_cpu_capabilities arm64_features[] = {
 		.sign = FTR_UNSIGNED,
 		.field_pos = ID_AA64PFR0_EL1_RAS_SHIFT,
 		.field_width = 4,
-		.min_field_value = ID_AA64PFR0_EL1_RAS_V1,
+		.min_field_value = ID_AA64PFR0_EL1_RAS_IMP,
 		.cpu_enable = cpu_clear_disr,
 	},
 #endif /* CONFIG_ARM64_RAS_EXTN */
@@ -2280,7 +2280,7 @@ static const struct arm64_cpu_capabilities arm64_features[] = {
 		.sign = FTR_UNSIGNED,
 		.field_pos = ID_AA64PFR0_EL1_AMU_SHIFT,
 		.field_width = 4,
-		.min_field_value = ID_AA64PFR0_EL1_AMU,
+		.min_field_value = ID_AA64PFR0_EL1_AMU_IMP,
 		.cpu_enable = cpu_amu_enable,
 	},
 #endif /* CONFIG_ARM64_AMU_EXTN */
@@ -2727,7 +2727,7 @@ static const struct arm64_cpu_capabilities arm64_elf_hwcaps[] = {
 	HWCAP_CAP(SYS_ID_AA64ISAR1_EL1, ID_AA64ISAR1_EL1_I8MM_SHIFT, 4, FTR_UNSIGNED, 1, CAP_HWCAP, KERNEL_HWCAP_I8MM),
 	HWCAP_CAP(SYS_ID_AA64MMFR2_EL1, ID_AA64MMFR2_EL1_AT_SHIFT, 4, FTR_UNSIGNED, 1, CAP_HWCAP, KERNEL_HWCAP_USCAT),
 #ifdef CONFIG_ARM64_SVE
-	HWCAP_CAP(SYS_ID_AA64PFR0_EL1, ID_AA64PFR0_EL1_SVE_SHIFT, 4, FTR_UNSIGNED, ID_AA64PFR0_EL1_SVE, CAP_HWCAP, KERNEL_HWCAP_SVE),
+	HWCAP_CAP(SYS_ID_AA64PFR0_EL1, ID_AA64PFR0_EL1_SVE_SHIFT, 4, FTR_UNSIGNED, ID_AA64PFR0_EL1_SVE_IMP, CAP_HWCAP, KERNEL_HWCAP_SVE),
 	HWCAP_CAP(SYS_ID_AA64ZFR0_EL1, ID_AA64ZFR0_EL1_SVEver_SHIFT, 4, FTR_UNSIGNED, ID_AA64ZFR0_EL1_SVEver_SVE2, CAP_HWCAP, KERNEL_HWCAP_SVE2),
 	HWCAP_CAP(SYS_ID_AA64ZFR0_EL1, ID_AA64ZFR0_EL1_AES_SHIFT, 4, FTR_UNSIGNED, ID_AA64ZFR0_EL1_AES_IMP, CAP_HWCAP, KERNEL_HWCAP_SVEAES),
 	HWCAP_CAP(SYS_ID_AA64ZFR0_EL1, ID_AA64ZFR0_EL1_AES_SHIFT, 4, FTR_UNSIGNED, ID_AA64ZFR0_EL1_AES_PMULL128, CAP_HWCAP, KERNEL_HWCAP_SVEPMULL),
