@@ -13,8 +13,11 @@
 #ifndef __SSD1307X_H__
 #define __SSD1307X_H__
 
+#include <drm/drm_connector.h>
+#include <drm/drm_crtc.h>
 #include <drm/drm_drv.h>
-#include <drm/drm_simple_kms_helper.h>
+#include <drm/drm_encoder.h>
+#include <drm/drm_plane_helper.h>
 
 #include <linux/regmap.h>
 
@@ -42,8 +45,10 @@ struct ssd130x_deviceinfo {
 struct ssd130x_device {
 	struct drm_device drm;
 	struct device *dev;
-	struct drm_simple_display_pipe pipe;
 	struct drm_display_mode mode;
+	struct drm_plane primary_plane;
+	struct drm_crtc crtc;
+	struct drm_encoder encoder;
 	struct drm_connector connector;
 	struct i2c_client *client;
 
