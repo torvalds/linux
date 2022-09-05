@@ -1919,7 +1919,7 @@ static void pci_bus_distribute_available_resources(struct pci_bus *bus,
 }
 
 static void pci_bridge_distribute_available_resources(struct pci_dev *bridge,
-						     struct list_head *add_list)
+						      struct list_head *add_list)
 {
 	struct resource available_io, available_mmio, available_mmio_pref;
 
