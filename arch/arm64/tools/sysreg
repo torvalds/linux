@@ -388,6 +388,77 @@ Enum	3:0	PARANGE
 EndEnum
 EndSysreg
 
+Sysreg	ID_AA64MMFR1_EL1	3	0	0	7	1
+Enum	63:60	ECBHB
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+Enum	59:56	CMOW
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+Enum	55:52	TIDCP1
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+Enum	51:48	nTLBPA
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+Enum	47:44	AFP
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+Enum	43:40	HCX
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+Enum	39:36	ETS
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+Enum	35:32	TWED
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+Enum	31:28	XNX
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+Enum	27:24	SpecSEI
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+Enum	23:20	PAN
+	0b0000	NI
+	0b0001	IMP
+	0b0010	PAN2
+	0b0011	PAN3
+EndEnum
+Enum	19:16	LO
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+Enum	15:12	HPDS
+	0b0000	NI
+	0b0001	IMP
+	0b0010	HPDS2
+EndEnum
+Enum	11:8	VH
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+Enum	7:4	VMIDBits
+	0b0000	8
+	0b0010	16
+EndEnum
+Enum	3:0	HAFDBS
+	0b0000	NI
+	0b0001	AF
+	0b0010	DBM
+EndEnum
+EndSysreg
+
 Sysreg	SCTLR_EL1	3	0	1	0	0
 Field	63	TIDCP
 Field	62	SPINMASK
