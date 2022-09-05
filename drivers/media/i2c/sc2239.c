@@ -542,8 +542,11 @@ static long sc2239_compat_ioctl32(struct v4l2_subdev *sd,
 		}
 
 		ret = sc2239_ioctl(sd, cmd, inf);
-		if (!ret)
+		if (!ret) {
 			ret = copy_to_user(up, inf, sizeof(*inf));
+			if (ret)
+				ret = -EFAULT;
+		}
 		kfree(inf);
 		break;
 	case RKMODULE_AWB_CFG:
@@ -556,12 +559,16 @@ static long sc2239_compat_ioctl32(struct v4l2_subdev *sd,
 		ret = copy_from_user(cfg, up, sizeof(*cfg));
 		if (!ret)
 			ret = sc2239_ioctl(sd, cmd, cfg);
+		else
+			ret = -EFAULT;
 		kfree(cfg);
 		break;
 	case RKMODULE_SET_QUICK_STREAM:
 		ret = copy_from_user(&stream, up, sizeof(u32));
 		if (!ret)
 			ret = sc2239_ioctl(sd, cmd, &stream);
+		else
+			ret = -EFAULT;
 		break;
 	default:
 		ret = -ENOIOCTLCMD;
@@ -843,14 +850,14 @@ static int sc2239_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 }
 #endif
 
-static int sc2239_g_mbus_config(struct v4l2_subdev *sd,
+static int sc2239_g_mbus_config(struct v4l2_subdev *sd, unsigned int pad_id,
 				 struct v4l2_mbus_config *config)
 {
 	u32 val = 1 << (SC2239_LANES - 1) |
 		V4L2_MBUS_CSI2_CHANNEL_0 |
 		V4L2_MBUS_CSI2_CONTINUOUS_CLOCK;
 
-	config->type = V4L2_MBUS_CSI2;
+	config->type = V4L2_MBUS_CSI2_DPHY;
 	config->flags = val;
 
 	return 0;
@@ -894,7 +901,6 @@ static const struct v4l2_subdev_core_ops sc2239_core_ops = {
 static const struct v4l2_subdev_video_ops sc2239_video_ops = {
 	.s_stream = sc2239_s_stream,
 	.g_frame_interval = sc2239_g_frame_interval,
-	.g_mbus_config = sc2239_g_mbus_config,
 };
 
 static const struct v4l2_subdev_pad_ops sc2239_pad_ops = {
@@ -903,6 +909,7 @@ static const struct v4l2_subdev_pad_ops sc2239_pad_ops = {
 	.enum_frame_interval = sc2239_enum_frame_interval,
 	.get_fmt = sc2239_get_fmt,
 	.set_fmt = sc2239_set_fmt,
+	.get_mbus_config = sc2239_g_mbus_config,
 };
 
 static const struct v4l2_subdev_ops sc2239_subdev_ops = {

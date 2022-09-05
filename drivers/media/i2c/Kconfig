@@ -1866,6 +1866,16 @@ config VIDEO_SC2232
 	  This is a Video4Linux2 sensor driver for the SmartSens
 	  SC2232 camera.
 
+config VIDEO_SC2239
+	tristate "SmartSens SC2239 sensor support"
+	depends on I2C && VIDEO_V4L2
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
+	select V4L2_FWNODE
+	help
+	  This is a Video4Linux2 sensor driver for the SmartSens
+	  SC2239 camera.
+
 config VIDEO_SC230AI
 	tristate "SmartSens SC230AI sensor support"
 	depends on I2C && VIDEO_V4L2
