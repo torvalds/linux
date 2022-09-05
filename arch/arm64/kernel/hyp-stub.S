@@ -142,7 +142,7 @@ SYM_CODE_START_LOCAL(__finalise_el2)
 	msr_s	SYS_SMPRIMAP_EL2, xzr		// Make all priorities equal
 
 	mrs	x1, id_aa64mmfr1_el1		// HCRX_EL2 present?
-	ubfx	x1, x1, #ID_AA64MMFR1_HCX_SHIFT, #4
+	ubfx	x1, x1, #ID_AA64MMFR1_EL1_HCX_SHIFT, #4
 	cbz	x1, .Lskip_sme
 
 	mrs_s	x1, SYS_HCRX_EL2
@@ -157,7 +157,7 @@ SYM_CODE_START_LOCAL(__finalise_el2)
 	tbnz	x1, #0, 1f
 
 	// Needs to be VHE capable, obviously
-	check_override id_aa64mmfr1 ID_AA64MMFR1_VHE_SHIFT 2f 1f
+	check_override id_aa64mmfr1 ID_AA64MMFR1_EL1_VH_SHIFT 2f 1f
 
 1:	mov_q	x0, HVC_STUB_ERR
 	eret

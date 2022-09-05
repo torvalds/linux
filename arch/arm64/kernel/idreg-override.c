@@ -50,7 +50,7 @@ static const struct ftr_set_desc mmfr1 __initconst = {
 	.name		= "id_aa64mmfr1",
 	.override	= &id_aa64mmfr1_override,
 	.fields		= {
-		FIELD("vh", ID_AA64MMFR1_VHE_SHIFT, mmfr1_vh_filter),
+		FIELD("vh", ID_AA64MMFR1_EL1_VH_SHIFT, mmfr1_vh_filter),
 		{}
 	},
 };

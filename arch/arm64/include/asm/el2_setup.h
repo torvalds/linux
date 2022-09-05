@@ -83,7 +83,7 @@
 /* LORegions */
 .macro __init_el2_lor
 	mrs	x1, id_aa64mmfr1_el1
-	ubfx	x0, x1, #ID_AA64MMFR1_LOR_SHIFT, 4
+	ubfx	x0, x1, #ID_AA64MMFR1_EL1_LO_SHIFT, 4
 	cbz	x0, .Lskip_lor_\@
 	msr_s	SYS_LORC_EL1, xzr
 .Lskip_lor_\@:

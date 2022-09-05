@@ -868,14 +868,14 @@ static inline bool cpu_has_hw_af(void)
 
 	mmfr1 = read_cpuid(ID_AA64MMFR1_EL1);
 	return cpuid_feature_extract_unsigned_field(mmfr1,
-						ID_AA64MMFR1_HADBS_SHIFT);
+						ID_AA64MMFR1_EL1_HAFDBS_SHIFT);
 }
 
 static inline bool cpu_has_pan(void)
 {
 	u64 mmfr1 = read_cpuid(ID_AA64MMFR1_EL1);
 	return cpuid_feature_extract_unsigned_field(mmfr1,
-						    ID_AA64MMFR1_PAN_SHIFT);
+						    ID_AA64MMFR1_EL1_PAN_SHIFT);
 }
 
 #ifdef CONFIG_ARM64_AMU_EXTN
@@ -896,8 +896,8 @@ static inline unsigned int get_vmid_bits(u64 mmfr1)
 	int vmid_bits;
 
 	vmid_bits = cpuid_feature_extract_unsigned_field(mmfr1,
-						ID_AA64MMFR1_VMIDBITS_SHIFT);
-	if (vmid_bits == ID_AA64MMFR1_VMIDBITS_16)
+						ID_AA64MMFR1_EL1_VMIDBits_SHIFT);
+	if (vmid_bits == ID_AA64MMFR1_EL1_VMIDBits_16)
 		return 16;
 
 	/*

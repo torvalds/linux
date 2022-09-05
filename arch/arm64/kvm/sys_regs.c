@@ -273,7 +273,7 @@ static bool trap_loregion(struct kvm_vcpu *vcpu,
 	u64 val = read_sanitised_ftr_reg(SYS_ID_AA64MMFR1_EL1);
 	u32 sr = reg_to_encoding(r);
 
-	if (!(val & (0xfUL << ID_AA64MMFR1_LOR_SHIFT))) {
+	if (!(val & (0xfUL << ID_AA64MMFR1_EL1_LO_SHIFT))) {
 		kvm_inject_undefined(vcpu);
 		return false;
 	}

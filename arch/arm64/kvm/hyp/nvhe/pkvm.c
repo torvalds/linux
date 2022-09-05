@@ -143,7 +143,7 @@ static void pvm_init_traps_aa64mmfr1(struct kvm_vcpu *vcpu)
 	u64 hcr_set = 0;
 
 	/* Trap LOR */
-	if (!FIELD_GET(ARM64_FEATURE_MASK(ID_AA64MMFR1_LOR), feature_ids))
+	if (!FIELD_GET(ARM64_FEATURE_MASK(ID_AA64MMFR1_EL1_LO), feature_ids))
 		hcr_set |= HCR_TLOR;
 
 	vcpu->arch.hcr_el2 |= hcr_set;

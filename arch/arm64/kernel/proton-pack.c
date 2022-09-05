@@ -945,7 +945,7 @@ static bool supports_ecbhb(int scope)
 		mmfr1 = read_sanitised_ftr_reg(SYS_ID_AA64MMFR1_EL1);
 
 	return cpuid_feature_extract_unsigned_field(mmfr1,
-						    ID_AA64MMFR1_ECBHB_SHIFT);
+						    ID_AA64MMFR1_EL1_ECBHB_SHIFT);
 }
 
 bool is_spectre_bhb_affected(const struct arm64_cpu_capabilities *entry,
