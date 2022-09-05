@@ -679,8 +679,11 @@ static long sc210iot_compat_ioctl32(struct v4l2_subdev *sd,
 			return ret;
 		}
 		ret = sc210iot_ioctl(sd, cmd, inf);
-		if (!ret)
+		if (!ret) {
 			ret = copy_to_user(up, inf, sizeof(*inf));
+			if (ret)
+				ret = -EFAULT;
+		}
 		kfree(inf);
 		break;
 	case RKMODULE_GET_HDR_CFG:
@@ -690,16 +693,19 @@ static long sc210iot_compat_ioctl32(struct v4l2_subdev *sd,
 			return ret;
 		}
 		ret = sc210iot_ioctl(sd, cmd, hdr);
-		if (!ret)
+		if (!ret) {
 			ret = copy_to_user(up, hdr, sizeof(*hdr));
+			if (ret)
+				ret = -EFAULT;
+		}
 		kfree(hdr);
-		break;
-	case RKMODULE_SET_HDR_CFG:
 		break;
 	case RKMODULE_SET_QUICK_STREAM:
 		ret = copy_from_user(&stream, up, sizeof(u32));
 		if (!ret)
 			ret = sc210iot_ioctl(sd, cmd, &stream);
+		else
+			ret = -EFAULT;
 		break;
 	default:
 		ret = -ENOIOCTLCMD;
@@ -756,14 +762,14 @@ static int sc210iot_g_frame_interval(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static int sc210iot_g_mbus_config(struct v4l2_subdev *sd,
+static int sc210iot_g_mbus_config(struct v4l2_subdev *sd, unsigned int pad_id,
 				struct v4l2_mbus_config *config)
 {
 	struct sc210iot *sc210iot = to_sc210iot(sd);
 
 	u32 val = 1 << (SC210IOT_LANES - 1) | V4L2_MBUS_CSI2_CHANNEL_0 |
 		  V4L2_MBUS_CSI2_CONTINUOUS_CLOCK;
-	config->type = V4L2_MBUS_CSI2;
+	config->type = V4L2_MBUS_CSI2_DPHY;
 	config->flags = (sc210iot->cur_mode->hdr_mode == NO_HDR) ?
 			val : (val | V4L2_MBUS_CSI2_CHANNEL_1);
 	return 0;
@@ -943,7 +949,6 @@ static const struct v4l2_subdev_core_ops sc210iot_core_ops = {
 static const struct v4l2_subdev_video_ops sc210iot_video_ops = {
 	.s_stream = sc210iot_s_stream,
 	.g_frame_interval = sc210iot_g_frame_interval,
-	.g_mbus_config = sc210iot_g_mbus_config,
 };
 
 static const struct v4l2_subdev_pad_ops sc210iot_pad_ops = {
@@ -952,6 +957,7 @@ static const struct v4l2_subdev_pad_ops sc210iot_pad_ops = {
 	.enum_frame_interval = sc210iot_enum_frame_interval,
 	.get_fmt = sc210iot_get_fmt,
 	.set_fmt = sc210iot_set_fmt,
+	.get_mbus_config = sc210iot_g_mbus_config,
 };
 
 static const struct v4l2_subdev_ops sc210iot_subdev_ops = {

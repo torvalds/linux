@@ -123,6 +123,7 @@ obj-$(CONFIG_VIDEO_SC031GS) += sc031gs.o
 obj-$(CONFIG_VIDEO_SC035GS) += sc035gs.o
 obj-$(CONFIG_VIDEO_SC132GS) += sc132gs.o
 obj-$(CONFIG_VIDEO_SC200AI) += sc200ai.o
+obj-$(CONFIG_VIDEO_SC210IOT) += sc210iot.o
 obj-$(CONFIG_VIDEO_SC230AI) += sc230ai.o
 obj-$(CONFIG_VIDEO_SC301IOT) += sc301iot.o
 obj-$(CONFIG_VIDEO_SC3336) += sc3336.o
