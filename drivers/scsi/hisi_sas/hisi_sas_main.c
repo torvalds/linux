@@ -1823,12 +1823,14 @@ static int hisi_sas_clear_nexus_ha(struct sas_ha_struct *sas_ha)
 	struct hisi_hba *hisi_hba = sas_ha->lldd_ha;
 	HISI_SAS_DECLARE_RST_WORK_ON_STACK(r);
 	ASYNC_DOMAIN_EXCLUSIVE(async);
-	int i;
+	int i, ret;
 
 	queue_work(hisi_hba->wq, &r.work);
 	wait_for_completion(r.completion);
-	if (!r.done)
-		return TMF_RESP_FUNC_FAILED;
+	if (!r.done) {
+		ret = TMF_RESP_FUNC_FAILED;
+		goto out;
+	}
 
 	for (i = 0; i < HISI_SAS_MAX_DEVICES; i++) {
 		struct hisi_sas_device *sas_dev = &hisi_hba->devices[i];
@@ -1845,7 +1847,9 @@ static int hisi_sas_clear_nexus_ha(struct sas_ha_struct *sas_ha)
 	async_synchronize_full_domain(&async);
 	hisi_sas_release_tasks(hisi_hba);
 
-	return TMF_RESP_FUNC_COMPLETE;
+	ret = TMF_RESP_FUNC_COMPLETE;
+out:
+	return ret;
 }
 
 static int hisi_sas_query_task(struct sas_task *task)
@@ -1993,8 +1997,12 @@ void hisi_sas_phy_bcast(struct hisi_sas_phy *phy)
 {
 	struct asd_sas_phy *sas_phy = &phy->sas_phy;
 	struct hisi_hba	*hisi_hba = phy->hisi_hba;
+	struct sas_ha_struct *sha = &hisi_hba->sha;
 
 	if (test_bit(HISI_SAS_RESETTING_BIT, &hisi_hba->flags))
+		return;
+
+	if (test_bit(SAS_HA_FROZEN, &sha->state))
 		return;
 
 	sas_notify_port_event(sas_phy, PORTE_BROADCAST_RCVD, GFP_ATOMIC);
