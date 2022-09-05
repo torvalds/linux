@@ -21,6 +21,8 @@ struct addr_marker {
 enum address_markers_idx {
 	IDENTITY_BEFORE_NR = 0,
 	IDENTITY_BEFORE_END_NR,
+	AMODE31_START_NR,
+	AMODE31_END_NR,
 	KERNEL_START_NR,
 	KERNEL_END_NR,
 #ifdef CONFIG_KFENCE
@@ -44,6 +46,8 @@ enum address_markers_idx {
 static struct addr_marker address_markers[] = {
 	[IDENTITY_BEFORE_NR]	= {0, "Identity Mapping Start"},
 	[IDENTITY_BEFORE_END_NR] = {(unsigned long)_stext, "Identity Mapping End"},
+	[AMODE31_START_NR]	= {0, "Amode31 Area Start"},
+	[AMODE31_END_NR]	= {0, "Amode31 Area End"},
 	[KERNEL_START_NR]	= {(unsigned long)_stext, "Kernel Image Start"},
 	[KERNEL_END_NR]		= {(unsigned long)_end, "Kernel Image End"},
 #ifdef CONFIG_KFENCE
@@ -276,6 +280,8 @@ static int pt_dump_init(void)
 	max_addr = (S390_lowcore.kernel_asce & _REGION_ENTRY_TYPE_MASK) >> 2;
 	max_addr = 1UL << (max_addr * 11 + 31);
 	address_markers[IDENTITY_AFTER_END_NR].start_address = ident_map_size;
+	address_markers[AMODE31_START_NR].start_address = __samode31;
+	address_markers[AMODE31_END_NR].start_address = __eamode31;
 	address_markers[MODULES_NR].start_address = MODULES_VADDR;
 	address_markers[MODULES_END_NR].start_address = MODULES_END;
 	address_markers[VMEMMAP_NR].start_address = (unsigned long) vmemmap;
