@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 /*
  * Copyright 2012 Advanced Micro Devices, Inc.
  *
@@ -849,6 +850,7 @@ int amdgpu_acpi_init(struct amdgpu_device *adev)
 		if (amdgpu_device_has_dc_support(adev)) {
 #if defined(CONFIG_DRM_AMD_DC)
 			struct amdgpu_display_manager *dm = &adev->dm;
+
 			if (dm->backlight_dev[0])
 				atif->bd = dm->backlight_dev[0];
 #endif
@@ -863,6 +865,7 @@ int amdgpu_acpi_init(struct amdgpu_device *adev)
 				if ((enc->devices & (ATOM_DEVICE_LCD_SUPPORT)) &&
 				    enc->enc_priv) {
 					struct amdgpu_encoder_atom_dig *dig = enc->enc_priv;
+
 					if (dig->bl_dev) {
 						atif->bd = dig->bl_dev;
 						break;
@@ -919,9 +922,9 @@ static bool amdgpu_atif_pci_probe_handle(struct pci_dev *pdev)
 		return false;
 
 	status = acpi_get_handle(dhandle, "ATIF", &atif_handle);
-	if (ACPI_FAILURE(status)) {
+	if (ACPI_FAILURE(status))
 		return false;
-	}
+
 	amdgpu_acpi_priv.atif.handle = atif_handle;
 	acpi_get_name(amdgpu_acpi_priv.atif.handle, ACPI_FULL_PATHNAME, &buffer);
 	DRM_DEBUG_DRIVER("Found ATIF handle %s\n", acpi_method_name);
@@ -954,9 +957,9 @@ static bool amdgpu_atcs_pci_probe_handle(struct pci_dev *pdev)
 		return false;
 
 	status = acpi_get_handle(dhandle, "ATCS", &atcs_handle);
-	if (ACPI_FAILURE(status)) {
+	if (ACPI_FAILURE(status))
 		return false;
-	}
+
 	amdgpu_acpi_priv.atcs.handle = atcs_handle;
 	acpi_get_name(amdgpu_acpi_priv.atcs.handle, ACPI_FULL_PATHNAME, &buffer);
 	DRM_DEBUG_DRIVER("Found ATCS handle %s\n", acpi_method_name);
