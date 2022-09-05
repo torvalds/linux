@@ -119,6 +119,7 @@ config PINCTRL_IMX7ULP
 
 config PINCTRL_IMX8MM
 	tristate "IMX8MM pinctrl driver"
+	depends on OF
 	depends on SOC_IMX8M
 	select PINCTRL_IMX
 	help
@@ -126,6 +127,7 @@ config PINCTRL_IMX8MM
 
 config PINCTRL_IMX8MN
 	tristate "IMX8MN pinctrl driver"
+	depends on OF
 	depends on SOC_IMX8M
 	select PINCTRL_IMX
 	help
@@ -133,6 +135,7 @@ config PINCTRL_IMX8MN
 
 config PINCTRL_IMX8MP
 	tristate "IMX8MP pinctrl driver"
+	depends on OF
 	depends on SOC_IMX8M
 	select PINCTRL_IMX
 	help
@@ -140,6 +143,7 @@ config PINCTRL_IMX8MP
 
 config PINCTRL_IMX8MQ
 	tristate "IMX8MQ pinctrl driver"
+	depends on OF
 	depends on SOC_IMX8M
 	select PINCTRL_IMX
 	help
