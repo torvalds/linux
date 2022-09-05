@@ -5,6 +5,23 @@
 
 #include "vkms_formats.h"
 
+/* The following macros help doing fixed point arithmetic. */
+/*
+ * With Fixed-Point scale 15 we have 17 and 15 bits of integer and fractional
+ * parts respectively.
+ *  | 0000 0000 0000 0000 0.000 0000 0000 0000 |
+ * 31                                          0
+ */
+#define SHIFT 15
+
+#define INT_TO_FIXED(a) ((a) << SHIFT)
+#define FIXED_MUL(a, b) ((s32)(((s64)(a) * (b)) >> SHIFT))
+#define FIXED_DIV(a, b) ((s32)(((s64)(a) << SHIFT) / (b)))
+/* This macro converts a fixed point number to int, and round half up it */
+#define FIXED_TO_INT_ROUND(a) (((a) + (1 << (SHIFT - 1))) >> SHIFT)
+#define INT_TO_FIXED_DIV(a, b) (FIXED_DIV(INT_TO_FIXED(a), INT_TO_FIXED(b)))
+#define INT_TO_FIXED_DIV(a, b) (FIXED_DIV(INT_TO_FIXED(a), INT_TO_FIXED(b)))
+
 static size_t pixel_offset(const struct vkms_frame_info *frame_info, int x, int y)
 {
 	return frame_info->offset + (y * frame_info->pitch)
@@ -112,6 +129,30 @@ static void XRGB16161616_to_argb_u16(struct line_buffer *stage_buffer,
 	}
 }
 
+static void RGB565_to_argb_u16(struct line_buffer *stage_buffer,
+			       const struct vkms_frame_info *frame_info, int y)
+{
+	struct pixel_argb_u16 *out_pixels = stage_buffer->pixels;
+	u16 *src_pixels = get_packed_src_addr(frame_info, y);
+	int x_limit = min_t(size_t, drm_rect_width(&frame_info->dst),
+			       stage_buffer->n_pixels);
+
+	s32 fp_rb_ratio = INT_TO_FIXED_DIV(65535, 31);
+	s32 fp_g_ratio = INT_TO_FIXED_DIV(65535, 63);
+
+	for (size_t x = 0; x < x_limit; x++, src_pixels++) {
+		u16 rgb_565 = le16_to_cpu(*src_pixels);
+		s32 fp_r = INT_TO_FIXED((rgb_565 >> 11) & 0x1f);
+		s32 fp_g = INT_TO_FIXED((rgb_565 >> 5) & 0x3f);
+		s32 fp_b = INT_TO_FIXED(rgb_565 & 0x1f);
+
+		out_pixels[x].a = (u16)0xffff;
+		out_pixels[x].r = FIXED_TO_INT_ROUND(FIXED_MUL(fp_r, fp_rb_ratio));
+		out_pixels[x].g = FIXED_TO_INT_ROUND(FIXED_MUL(fp_g, fp_g_ratio));
+		out_pixels[x].b = FIXED_TO_INT_ROUND(FIXED_MUL(fp_b, fp_rb_ratio));
+	}
+}
+
 /*
  * The following  functions take an line of argb_u16 pixels from the
  * src_buffer, convert them to a specific format, and store them in the
@@ -198,6 +239,31 @@ static void argb_u16_to_XRGB16161616(struct vkms_frame_info *frame_info,
 	}
 }
 
+static void argb_u16_to_RGB565(struct vkms_frame_info *frame_info,
+			       const struct line_buffer *src_buffer, int y)
+{
+	int x_dst = frame_info->dst.x1;
+	u16 *dst_pixels = packed_pixels_addr(frame_info, x_dst, y);
+	struct pixel_argb_u16 *in_pixels = src_buffer->pixels;
+	int x_limit = min_t(size_t, drm_rect_width(&frame_info->dst),
+			    src_buffer->n_pixels);
+
+	s32 fp_rb_ratio = INT_TO_FIXED_DIV(65535, 31);
+	s32 fp_g_ratio = INT_TO_FIXED_DIV(65535, 63);
+
+	for (size_t x = 0; x < x_limit; x++, dst_pixels++) {
+		s32 fp_r = INT_TO_FIXED(in_pixels[x].r);
+		s32 fp_g = INT_TO_FIXED(in_pixels[x].g);
+		s32 fp_b = INT_TO_FIXED(in_pixels[x].b);
+
+		u16 r = FIXED_TO_INT_ROUND(FIXED_DIV(fp_r, fp_rb_ratio));
+		u16 g = FIXED_TO_INT_ROUND(FIXED_DIV(fp_g, fp_g_ratio));
+		u16 b = FIXED_TO_INT_ROUND(FIXED_DIV(fp_b, fp_rb_ratio));
+
+		*dst_pixels = cpu_to_le16(r << 11 | g << 5 | b);
+	}
+}
+
 void *get_frame_to_line_function(u32 format)
 {
 	switch (format) {
@@ -209,6 +275,8 @@ void *get_frame_to_line_function(u32 format)
 		return &ARGB16161616_to_argb_u16;
 	case DRM_FORMAT_XRGB16161616:
 		return &XRGB16161616_to_argb_u16;
+	case DRM_FORMAT_RGB565:
+		return &RGB565_to_argb_u16;
 	default:
 		return NULL;
 	}
@@ -225,6 +293,8 @@ void *get_line_to_frame_function(u32 format)
 		return &argb_u16_to_ARGB16161616;
 	case DRM_FORMAT_XRGB16161616:
 		return &argb_u16_to_XRGB16161616;
+	case DRM_FORMAT_RGB565:
+		return &argb_u16_to_RGB565;
 	default:
 		return NULL;
 	}
