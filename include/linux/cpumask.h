@@ -46,13 +46,8 @@ static inline void set_nr_cpu_ids(unsigned int nr)
 }
 #endif
 
-#ifdef CONFIG_CPUMASK_OFFSTACK
-/* Assuming NR_CPUS is huge, a runtime limit is more efficient.  Also,
- * not all bits may be allocated. */
+/* Deprecated. Always use nr_cpu_ids. */
 #define nr_cpumask_bits	nr_cpu_ids
-#else
-#define nr_cpumask_bits	((unsigned int)NR_CPUS)
-#endif
 
 /*
  * The following particular system cpumasks and operations manage
