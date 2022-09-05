@@ -995,27 +995,7 @@ static inline void i915_gem_drain_freed_objects(struct drm_i915_private *i915)
 	}
 }
 
-static inline void i915_gem_drain_workqueue(struct drm_i915_private *i915)
-{
-	/*
-	 * Similar to objects above (see i915_gem_drain_freed-objects), in
-	 * general we have workers that are armed by RCU and then rearm
-	 * themselves in their callbacks. To be paranoid, we need to
-	 * drain the workqueue a second time after waiting for the RCU
-	 * grace period so that we catch work queued via RCU from the first
-	 * pass. As neither drain_workqueue() nor flush_workqueue() report
-	 * a result, we make an assumption that we only don't require more
-	 * than 3 passes to catch all _recursive_ RCU delayed work.
-	 *
-	 */
-	int pass = 3;
-	do {
-		flush_workqueue(i915->wq);
-		rcu_barrier();
-		i915_gem_drain_freed_objects(i915);
-	} while (--pass);
-	drain_workqueue(i915->wq);
-}
+void i915_gem_drain_workqueue(struct drm_i915_private *i915);
 
 struct i915_vma * __must_check
 i915_gem_object_ggtt_pin_ww(struct drm_i915_gem_object *obj,
