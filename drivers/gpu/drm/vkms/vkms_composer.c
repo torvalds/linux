@@ -61,6 +61,13 @@ static bool check_y_limit(struct vkms_frame_info *frame_info, int y)
 	return false;
 }
 
+static void fill_background(const struct pixel_argb_u16 *background_color,
+			    struct line_buffer *output_buffer)
+{
+	for (size_t i = 0; i < output_buffer->n_pixels; i++)
+		output_buffer->pixels[i] = *background_color;
+}
+
 /**
  * @wb_frame_info: The writeback frame buffer metadata
  * @crtc_state: The crtc state
@@ -78,21 +85,17 @@ static void blend(struct vkms_writeback_job *wb,
 		  struct line_buffer *output_buffer, size_t row_size)
 {
 	struct vkms_plane_state **plane = crtc_state->active_planes;
-	struct vkms_frame_info *primary_plane_info = plane[0]->frame_info;
 	u32 n_active_planes = crtc_state->num_active_planes;
 
-	int y_dst = primary_plane_info->dst.y1;
-	int h_dst = drm_rect_height(&primary_plane_info->dst);
-	int y_limit = y_dst + h_dst;
+	const struct pixel_argb_u16 background_color = { .a = 0xffff };
 
-	for (size_t y = y_dst; y < y_limit; y++) {
-		plane[0]->plane_read(output_buffer, primary_plane_info, y);
+	size_t crtc_y_limit = crtc_state->base.crtc->mode.vdisplay;
 
-		/* If there are other planes besides primary, we consider the active
-		 * planes should be in z-order and compose them associatively:
-		 * ((primary <- overlay) <- cursor)
-		 */
-		for (size_t i = 1; i < n_active_planes; i++) {
+	for (size_t y = 0; y < crtc_y_limit; y++) {
+		fill_background(&background_color, output_buffer);
+
+		/* The active planes are composed associatively in z-order. */
+		for (size_t i = 0; i < n_active_planes; i++) {
 			if (!check_y_limit(plane[i]->frame_info, y))
 				continue;
 
@@ -124,14 +127,24 @@ static int check_format_funcs(struct vkms_crtc_state *crtc_state,
 	return 0;
 }
 
+static int check_iosys_map(struct vkms_crtc_state *crtc_state)
+{
+	struct vkms_plane_state **plane_state = crtc_state->active_planes;
+	u32 n_active_planes = crtc_state->num_active_planes;
+
+	for (size_t i = 0; i < n_active_planes; i++)
+		if (iosys_map_is_null(&plane_state[i]->frame_info->map[0]))
+			return -1;
+
+	return 0;
+}
+
 static int compose_active_planes(struct vkms_writeback_job *active_wb,
 				 struct vkms_crtc_state *crtc_state,
 				 u32 *crc32)
 {
 	size_t line_width, pixel_size = sizeof(struct pixel_argb_u16);
-	struct vkms_frame_info *primary_plane_info = NULL;
 	struct line_buffer output_buffer, stage_buffer;
-	struct vkms_plane_state *act_plane = NULL;
 	int ret = 0;
 
 	/*
@@ -142,22 +155,13 @@ static int compose_active_planes(struct vkms_writeback_job *active_wb,
 	 */
 	static_assert(sizeof(struct pixel_argb_u16) == 8);
 
-	if (crtc_state->num_active_planes >= 1) {
-		act_plane = crtc_state->active_planes[0];
-		if (act_plane->base.base.plane->type == DRM_PLANE_TYPE_PRIMARY)
-			primary_plane_info = act_plane->frame_info;
-	}
-
-	if (!primary_plane_info)
-		return -EINVAL;
-
-	if (WARN_ON(iosys_map_is_null(&primary_plane_info->map[0])))
+	if (WARN_ON(check_iosys_map(crtc_state)))
 		return -EINVAL;
 
 	if (WARN_ON(check_format_funcs(crtc_state, active_wb)))
 		return -EINVAL;
 
-	line_width = drm_rect_width(&primary_plane_info->dst);
+	line_width = crtc_state->base.crtc->mode.hdisplay;
 	stage_buffer.n_pixels = line_width;
 	output_buffer.n_pixels = line_width;
 
@@ -172,13 +176,6 @@ static int compose_active_planes(struct vkms_writeback_job *active_wb,
 		DRM_ERROR("Cannot allocate memory for intermediate line buffer");
 		ret = -ENOMEM;
 		goto free_stage_buffer;
-	}
-
-	if (active_wb) {
-		struct vkms_frame_info *wb_frame_info = &active_wb->wb_frame_info;
-
-		wb_frame_info->src = primary_plane_info->src;
-		wb_frame_info->dst = primary_plane_info->dst;
 	}
 
 	blend(active_wb, crtc_state, crc32, &stage_buffer,
