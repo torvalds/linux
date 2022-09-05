@@ -1573,7 +1573,7 @@ static int sc230ai_initialize_controls(struct sc230ai *sc230ai)
 
 	sc230ai->subdev.ctrl_handler = handler;
 	sc230ai->has_init_exp = false;
-
+	sc230ai->cur_fps = mode->max_fps;
 	return 0;
 
 err_free_handler:
