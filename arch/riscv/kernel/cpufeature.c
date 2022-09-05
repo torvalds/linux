@@ -289,10 +289,10 @@ static u32 __init_or_module cpufeature_probe(unsigned int stage)
 	u32 cpu_req_feature = 0;
 
 	if (cpufeature_probe_svpbmt(stage))
-		cpu_req_feature |= (1U << CPUFEATURE_SVPBMT);
+		cpu_req_feature |= BIT(CPUFEATURE_SVPBMT);
 
 	if (cpufeature_probe_zicbom(stage))
-		cpu_req_feature |= (1U << CPUFEATURE_ZICBOM);
+		cpu_req_feature |= BIT(CPUFEATURE_ZICBOM);
 
 	return cpu_req_feature;
 }
