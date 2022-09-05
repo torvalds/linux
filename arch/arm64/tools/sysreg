@@ -98,7 +98,9 @@ Enum	63	FA64
 	0b1	IMP
 EndEnum
 Res0	62:60
-Field	59:56	SMEver
+Enum	59:56	SMEver
+	0b0000	IMP
+EndEnum
 Enum	55:52	I16I64
 	0b0000	NI
 	0b1111	IMP
