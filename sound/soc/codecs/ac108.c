@@ -160,7 +160,7 @@ static const struct pll_div ac108_pll_div_list[] = {
 /* AC108 definition */
 #define AC108_CHANNELS_MAX		8		/* range[1, 16] */
 #define AC108_RATES			(SNDRV_PCM_RATE_8000_96000 &		\
-					~(SNDRV_PCM_RATE_32000 | SNDRV_PCM_RATE_64000 | \
+					~(SNDRV_PCM_RATE_64000 | \
 					SNDRV_PCM_RATE_88200 | SNDRV_PCM_RATE_96000))
 #define AC108_FORMATS			(SNDRV_PCM_FMTBIT_S16_LE | \
 					/*SNDRV_PCM_FMTBIT_S20_3LE |   \

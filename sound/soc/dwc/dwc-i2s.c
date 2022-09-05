@@ -277,7 +277,8 @@ static int dw_i2s_hw_params(struct snd_pcm_substream *substream,
 		break;
 
 	case SNDRV_PCM_FORMAT_S32_LE:
-		if ((config->sample_rate == 16000) && (config->chan_nr == 1)) {
+		if ((config->sample_rate == 16000) && (config->chan_nr == 1) &&
+				(txrx == SNDRV_PCM_STREAM_PLAYBACK)) {
 			dev_err(dev->dev, "I2S: unsupported 16000 rate with S32_LE, Mono.\n");
 			return -EINVAL;
 		}
