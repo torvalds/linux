@@ -943,12 +943,15 @@ event packets are recorded only if the "pwr_evt" config term was used.  Refer to
 the config terms section above.  The power events record information about
 C-state changes, whereas CBR is indicative of CPU frequency.  perf script
 "event,synth" fields display information like this:
+
 	cbr:  cbr: 22 freq: 2189 MHz (200%)
 	mwait:  hints: 0x60 extensions: 0x1
 	pwre:  hw: 0 cstate: 2 sub-cstate: 0
 	exstop:  ip: 1
 	pwrx:  deepest cstate: 2 last cstate: 2 wake reason: 0x4
+
 Where:
+
 	"cbr" includes the frequency and the percentage of maximum non-turbo
 	"mwait" shows mwait hints and extensions
 	"pwre" shows C-state transitions (to a C-state deeper than C0) and
@@ -956,6 +959,7 @@ Where:
 	"exstop" indicates execution stopped and whether the IP was recorded
 	exactly,
 	"pwrx" indicates return to C0
+
 For more details refer to the Intel 64 and IA-32 Architectures Software
 Developer Manuals.
 
@@ -969,8 +973,10 @@ are quite important.  Users must know if what they are seeing is a complete
 picture or not. The "e" option may be followed by flags which affect what errors
 will or will not be reported.  Each flag must be preceded by either '+' or '-'.
 The flags supported by Intel PT are:
+
 		-o	Suppress overflow errors
 		-l	Suppress trace data lost errors
+
 For example, for errors but not overflow or data lost errors:
 
 	--itrace=e-o-l
@@ -980,9 +986,11 @@ decoded packets and instructions.  Note that this option slows down the decoder
 and that the resulting file may be very large.  The "d" option may be followed
 by flags which affect what debug messages will or will not be logged. Each flag
 must be preceded by either '+' or '-'. The flags support by Intel PT are:
+
 		-a	Suppress logging of perf events
 		+a	Log all perf events
 		+o	Output to stdout instead of "intel_pt.log"
+
 By default, logged perf events are filtered by any specified time ranges, but
 flag +a overrides that.
 
