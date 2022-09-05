@@ -1210,18 +1210,18 @@ static int map_device_va(struct hl_ctx *ctx, struct hl_mem_in *args, u64 *device
 		goto va_block_err;
 	}
 
-	mutex_lock(&ctx->mmu_lock);
+	mutex_lock(&hdev->mmu_lock);
 
 	rc = map_phys_pg_pack(ctx, ret_vaddr, phys_pg_pack);
 	if (rc) {
 		dev_err(hdev->dev, "mapping page pack failed for handle %u\n", handle);
-		mutex_unlock(&ctx->mmu_lock);
+		mutex_unlock(&hdev->mmu_lock);
 		goto map_err;
 	}
 
 	rc = hl_mmu_invalidate_cache_range(hdev, false, *vm_type | MMU_OP_SKIP_LOW_CACHE_INV,
 				ctx->asid, ret_vaddr, phys_pg_pack->total_size);
-	mutex_unlock(&ctx->mmu_lock);
+	mutex_unlock(&hdev->mmu_lock);
 	if (rc)
 		goto map_err;
 
@@ -1362,7 +1362,7 @@ static int unmap_device_va(struct hl_ctx *ctx, struct hl_mem_in *args,
 	else
 		vaddr &= ~(((u64) phys_pg_pack->page_size) - 1);
 
-	mutex_lock(&ctx->mmu_lock);
+	mutex_lock(&hdev->mmu_lock);
 
 	unmap_phys_pg_pack(ctx, vaddr, phys_pg_pack);
 
@@ -1375,7 +1375,7 @@ static int unmap_device_va(struct hl_ctx *ctx, struct hl_mem_in *args,
 		rc = hl_mmu_invalidate_cache_range(hdev, true, *vm_type, ctx->asid, vaddr,
 							phys_pg_pack->total_size);
 
-	mutex_unlock(&ctx->mmu_lock);
+	mutex_unlock(&hdev->mmu_lock);
 
 	/*
 	 * If the context is closing we don't need to check for the MMU cache
@@ -2771,13 +2771,13 @@ void hl_vm_ctx_fini(struct hl_ctx *ctx)
 		unmap_device_va(ctx, &args, true);
 	}
 
-	mutex_lock(&ctx->mmu_lock);
+	mutex_lock(&hdev->mmu_lock);
 
 	/* invalidate the cache once after the unmapping loop */
 	hl_mmu_invalidate_cache(hdev, true, MMU_OP_USERPTR);
 	hl_mmu_invalidate_cache(hdev, true, MMU_OP_PHYS_PACK);
 
-	mutex_unlock(&ctx->mmu_lock);
+	mutex_unlock(&hdev->mmu_lock);
 
 	INIT_LIST_HEAD(&free_list);
 

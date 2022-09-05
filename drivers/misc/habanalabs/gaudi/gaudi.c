@@ -8405,13 +8405,13 @@ static int gaudi_internal_cb_pool_init(struct hl_device *hdev,
 		goto destroy_internal_cb_pool;
 	}
 
-	mutex_lock(&ctx->mmu_lock);
+	mutex_lock(&hdev->mmu_lock);
 	rc = hl_mmu_map_contiguous(ctx, hdev->internal_cb_va_base,
 			hdev->internal_cb_pool_dma_addr,
 			HOST_SPACE_INTERNAL_CB_SZ);
 
 	hl_mmu_invalidate_cache(hdev, false, MMU_OP_USERPTR);
-	mutex_unlock(&ctx->mmu_lock);
+	mutex_unlock(&hdev->mmu_lock);
 
 	if (rc)
 		goto unreserve_internal_cb_pool;
@@ -8438,13 +8438,13 @@ static void gaudi_internal_cb_pool_fini(struct hl_device *hdev,
 	if (!(gaudi->hw_cap_initialized & HW_CAP_MMU))
 		return;
 
-	mutex_lock(&ctx->mmu_lock);
+	mutex_lock(&hdev->mmu_lock);
 	hl_mmu_unmap_contiguous(ctx, hdev->internal_cb_va_base,
 			HOST_SPACE_INTERNAL_CB_SZ);
 	hl_unreserve_va_block(hdev, ctx, hdev->internal_cb_va_base,
 			HOST_SPACE_INTERNAL_CB_SZ);
 	hl_mmu_invalidate_cache(hdev, true, MMU_OP_USERPTR);
-	mutex_unlock(&ctx->mmu_lock);
+	mutex_unlock(&hdev->mmu_lock);
 
 	gen_pool_destroy(hdev->internal_cb_pool);
 

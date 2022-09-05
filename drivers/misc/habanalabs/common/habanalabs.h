@@ -1793,8 +1793,6 @@ struct hl_cs_outcome_store {
  *                 command submissions for a long time after CS id wraparound.
  * @va_range: holds available virtual addresses for host and dram mappings.
  * @mem_hash_lock: protects the mem_hash.
- * @mmu_lock: protects the MMU page tables. Any change to the PGT, modifying the
- *            MMU hash or walking the PGT requires talking this lock.
  * @hw_block_list_lock: protects the HW block memory list.
  * @debugfs_list: node in debugfs list of contexts.
  * @hw_block_mem_list: list of HW block virtual mapped addresses.
@@ -1831,7 +1829,6 @@ struct hl_ctx {
 	struct hl_cs_outcome_store	outcome_store;
 	struct hl_va_range		*va_range[HL_VA_RANGE_TYPE_MAX];
 	struct mutex			mem_hash_lock;
-	struct mutex			mmu_lock;
 	struct mutex			hw_block_list_lock;
 	struct list_head		debugfs_list;
 	struct list_head		hw_block_mem_list;
@@ -3079,6 +3076,12 @@ struct hl_reset_info {
  * @asid_mutex: protects asid_bitmap.
  * @send_cpu_message_lock: enforces only one message in Host <-> CPU-CP queue.
  * @debug_lock: protects critical section of setting debug mode for device
+ * @mmu_lock: protects the MMU page tables and invalidation h/w. Although the
+ *            page tables are per context, the invalidation h/w is per MMU.
+ *            Therefore, we can't allow multiple contexts (we only have two,
+ *            user and kernel) to access the invalidation h/w at the same time.
+ *            In addition, any change to the PGT, modifying the MMU hash or
+ *            walking the PGT requires talking this lock.
  * @asic_prop: ASIC specific immutable properties.
  * @asic_funcs: ASIC specific functions.
  * @asic_specific: ASIC specific information to use only from ASIC files.
@@ -3244,6 +3247,7 @@ struct hl_device {
 	struct mutex			asid_mutex;
 	struct mutex			send_cpu_message_lock;
 	struct mutex			debug_lock;
+	struct mutex			mmu_lock;
 	struct asic_fixed_properties	asic_prop;
 	const struct hl_asic_funcs	*asic_funcs;
 	void				*asic_specific;
