@@ -122,6 +122,51 @@ Enum	3:0	EL0
 EndEnum
 EndSysreg
 
+Sysreg	ID_AA64PFR1_EL1	3	0	0	4	1
+Res0	63:40
+Enum	39:36	NMI
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+Enum	35:32	CSV2_frac
+	0b0000	NI
+	0b0001	CSV2_1p1
+	0b0010	CSV2_1p2
+EndEnum
+Enum	31:28	RNDR_trap
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+Enum	27:24	SME
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+Res0	23:20
+Enum	19:16	MPAM_frac
+	0b0000	MINOR_0
+	0b0001	MINOR_1
+EndEnum
+Enum	15:12	RAS_frac
+	0b0000	NI
+	0b0001	RASv1p1
+EndEnum
+Enum	11:8	MTE
+	0b0000	NI
+	0b0001	IMP
+	0b0010	MTE2
+	0b0011	MTE3
+EndEnum
+Enum	7:4	SSBS
+	0b0000	NI
+	0b0001	IMP
+	0b0010	SSBS2
+EndEnum
+Enum	3:0	BT
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+EndSysreg
+
 Sysreg	ID_AA64ZFR0_EL1	3	0	0	4	4
 Res0	63:60
 Enum	59:56	F64MM

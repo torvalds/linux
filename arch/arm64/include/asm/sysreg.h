@@ -190,8 +190,6 @@
 #define SYS_MVFR1_EL1			sys_reg(3, 0, 0, 3, 1)
 #define SYS_MVFR2_EL1			sys_reg(3, 0, 0, 3, 2)
 
-#define SYS_ID_AA64PFR1_EL1		sys_reg(3, 0, 0, 4, 1)
-
 #define SYS_ID_AA64DFR0_EL1		sys_reg(3, 0, 0, 5, 0)
 #define SYS_ID_AA64DFR1_EL1		sys_reg(3, 0, 0, 5, 1)
 
@@ -682,25 +680,6 @@
 /* id_aa64pfr0 */
 #define ID_AA64PFR0_EL1_ELx_64BIT_ONLY		0x1
 #define ID_AA64PFR0_EL1_ELx_32BIT_64BIT		0x2
-
-/* id_aa64pfr1 */
-#define ID_AA64PFR1_EL1_SME_SHIFT	24
-#define ID_AA64PFR1_EL1_MPAM_frac_SHIFT	16
-#define ID_AA64PFR1_EL1_RAS_frac_SHIFT	12
-#define ID_AA64PFR1_EL1_MTE_SHIFT	8
-#define ID_AA64PFR1_EL1_SSBS_SHIFT	4
-#define ID_AA64PFR1_EL1_BT_SHIFT	0
-
-#define ID_AA64PFR1_EL1_SSBS_NI		0
-#define ID_AA64PFR1_EL1_SSBS_IMP	1
-#define ID_AA64PFR1_EL1_SSBS_SSBS2	2
-#define ID_AA64PFR1_EL1_BT_IMP		0x1
-#define ID_AA64PFR1_EL1_SME_IMP		1
-
-#define ID_AA64PFR1_EL1_MTE_NI		0x0
-#define ID_AA64PFR1_EL1_MTE_IMP		0x1
-#define ID_AA64PFR1_EL1_MTE_MTE2	0x2
-#define ID_AA64PFR1_EL1_MTE_MTE3	0x3
 
 /* id_aa64mmfr0 */
 #define ID_AA64MMFR0_EL1_TGRAN4_SUPPORTED_MIN	0x0
