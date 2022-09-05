@@ -612,7 +612,7 @@ alternative_endif
 	.macro	offset_ttbr1, ttbr, tmp
 #ifdef CONFIG_ARM64_VA_BITS_52
 	mrs_s	\tmp, SYS_ID_AA64MMFR2_EL1
-	and	\tmp, \tmp, #(0xf << ID_AA64MMFR2_EL1_LVA_SHIFT)
+	and	\tmp, \tmp, #(0xf << ID_AA64MMFR2_EL1_VARange_SHIFT)
 	cbnz	\tmp, .Lskipoffs_\@
 	orr	\ttbr, \ttbr, #TTBR1_BADDR_4852_OFFSET
 .Lskipoffs_\@ :
