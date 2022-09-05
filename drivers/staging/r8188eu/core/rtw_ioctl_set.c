@@ -41,7 +41,7 @@ u8 rtw_do_join(struct adapter *padapter)
 		if (!pmlmepriv->LinkDetectInfo.bBusyTraffic ||
 		    pmlmepriv->to_roaming > 0) {
 			/*  submit site_survey_cmd */
-			ret = rtw_sitesurvey_cmd(padapter, &pmlmepriv->assoc_ssid, 1, NULL, 0);
+			ret = rtw_sitesurvey_cmd(padapter, &pmlmepriv->assoc_ssid, 1);
 			if (ret != _SUCCESS)
 				pmlmepriv->to_join = false;
 		} else {
@@ -87,7 +87,7 @@ u8 rtw_do_join(struct adapter *padapter)
 				/* we try to issue sitesurvey firstly */
 				if (!pmlmepriv->LinkDetectInfo.bBusyTraffic ||
 				    pmlmepriv->to_roaming > 0) {
-					ret = rtw_sitesurvey_cmd(padapter, &pmlmepriv->assoc_ssid, 1, NULL, 0);
+					ret = rtw_sitesurvey_cmd(padapter, &pmlmepriv->assoc_ssid, 1);
 					if (ret != _SUCCESS)
 						pmlmepriv->to_join = false;
 				} else {
@@ -358,7 +358,7 @@ u8 rtw_set_802_11_bssid_list_scan(struct adapter *padapter, struct ndis_802_11_s
 
 		spin_lock_bh(&pmlmepriv->lock);
 
-		res = rtw_sitesurvey_cmd(padapter, pssid, ssid_max_num, NULL, 0);
+		res = rtw_sitesurvey_cmd(padapter, pssid, ssid_max_num);
 
 		spin_unlock_bh(&pmlmepriv->lock);
 	}

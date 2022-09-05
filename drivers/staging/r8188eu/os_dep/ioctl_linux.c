@@ -1099,7 +1099,7 @@ static int rtw_wx_set_scan(struct net_device *dev, struct iw_request_info *a,
 
 			spin_lock_bh(&pmlmepriv->lock);
 
-			_status = rtw_sitesurvey_cmd(padapter, ssid, 1, NULL, 0);
+			_status = rtw_sitesurvey_cmd(padapter, ssid, 1);
 
 			spin_unlock_bh(&pmlmepriv->lock);
 		}
