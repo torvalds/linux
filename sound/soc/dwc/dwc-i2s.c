@@ -256,7 +256,7 @@ static int dw_i2s_hw_params(struct snd_pcm_substream *substream,
 
 	switch (params_format(params)) {
 	case SNDRV_PCM_FORMAT_S16_LE:
-		if (config->sample_rate == 8000) {
+		if ((config->sample_rate == 8000) && (txrx == SNDRV_PCM_STREAM_PLAYBACK)) {
 			dev_err(dev->dev, "I2S: unsupported 8000 rate with S16_LE, Stereo.\n");
 			return -EINVAL;
 		}
