@@ -1759,12 +1759,12 @@ static void vsc9959_sched_speed_set(struct ocelot *ocelot, int port,
 		break;
 	}
 
+	mutex_lock(&ocelot->tas_lock);
+
 	ocelot_rmw_rix(ocelot,
 		       QSYS_TAG_CONFIG_LINK_SPEED(tas_speed),
 		       QSYS_TAG_CONFIG_LINK_SPEED_M,
 		       QSYS_TAG_CONFIG, port);
-
-	mutex_lock(&ocelot->tas_lock);
 
 	if (ocelot_port->taprio)
 		vsc9959_tas_guard_bands_update(ocelot, port);
