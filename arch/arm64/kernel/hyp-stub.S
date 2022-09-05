@@ -109,7 +109,7 @@ SYM_CODE_START_LOCAL(__finalise_el2)
 	msr_s	SYS_ZCR_EL2, x1			// length for EL1.
 
 .Lskip_sve:
-	check_override id_aa64pfr1 ID_AA64PFR1_SME_SHIFT .Linit_sme .Lskip_sme
+	check_override id_aa64pfr1 ID_AA64PFR1_EL1_SME_SHIFT .Linit_sme .Lskip_sme
 
 .Linit_sme:	/* SME register access and priority mapping */
 	mrs	x0, cptr_el2			// Disable SME traps

@@ -149,7 +149,7 @@
 
 	mov	x0, xzr
 	mrs	x1, id_aa64pfr1_el1
-	ubfx	x1, x1, #ID_AA64PFR1_SME_SHIFT, #4
+	ubfx	x1, x1, #ID_AA64PFR1_EL1_SME_SHIFT, #4
 	cbz	x1, .Lset_fgt_\@
 
 	/* Disable nVHE traps of TPIDR2 and SMPRI */
