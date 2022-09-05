@@ -112,6 +112,11 @@
 			#size-cells = <1>;
 			ranges;
 
+			anomix_ns_gpr: syscon@44210000 {
+				compatible = "fsl,imx93-aonmix-ns-syscfg", "syscon";
+				reg = <0x44210000 0x1000>;
+			};
+
 			mu1: mailbox@44230000 {
 				compatible = "fsl,imx93-mu", "fsl,imx8ulp-mu";
 				reg = <0x44230000 0x10000>;
@@ -173,6 +178,11 @@
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges;
+
+			wakeupmix_gpr: syscon@42420000 {
+				compatible = "fsl,imx93-wakeupmix-syscfg", "syscon";
+				reg = <0x42420000 0x1000>;
+			};
 
 			mu2: mailbox@42440000 {
 				compatible = "fsl,imx93-mu", "fsl,imx8ulp-mu";
