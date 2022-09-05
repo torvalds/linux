@@ -7963,14 +7963,58 @@ static void gaudi2_handle_dma_core_event(struct hl_device *hdev, u64 intr_cause_
 						gaudi2_dma_core_interrupts_cause[i]);
 }
 
+static void gaudi2_print_pcie_mstr_rr_mstr_if_razwi_info(struct hl_device *hdev)
+{
+	u32 mstr_if_base_addr = mmPCIE_MSTR_RR_MSTR_IF_RR_SHRD_HBW_BASE, razwi_happened_addr;
+
+	razwi_happened_addr = mstr_if_base_addr + RR_SHRD_HBW_AW_RAZWI_HAPPENED;
+	if (RREG32(razwi_happened_addr)) {
+		gaudi2_razwi_rr_hbw_shared_printf_info(hdev, mstr_if_base_addr, true, "PCIE", true,
+							NULL);
+		WREG32(razwi_happened_addr, 0x1);
+	}
+
+	razwi_happened_addr = mstr_if_base_addr + RR_SHRD_HBW_AR_RAZWI_HAPPENED;
+	if (RREG32(razwi_happened_addr)) {
+		gaudi2_razwi_rr_hbw_shared_printf_info(hdev, mstr_if_base_addr, false, "PCIE", true,
+							NULL);
+		WREG32(razwi_happened_addr, 0x1);
+	}
+
+	razwi_happened_addr = mstr_if_base_addr + RR_SHRD_LBW_AW_RAZWI_HAPPENED;
+	if (RREG32(razwi_happened_addr)) {
+		gaudi2_razwi_rr_lbw_shared_printf_info(hdev, mstr_if_base_addr, true, "PCIE", true,
+							NULL);
+		WREG32(razwi_happened_addr, 0x1);
+	}
+
+	razwi_happened_addr = mstr_if_base_addr + RR_SHRD_LBW_AR_RAZWI_HAPPENED;
+	if (RREG32(razwi_happened_addr)) {
+		gaudi2_razwi_rr_lbw_shared_printf_info(hdev, mstr_if_base_addr, false, "PCIE", true,
+							NULL);
+		WREG32(razwi_happened_addr, 0x1);
+	}
+}
+
 static void gaudi2_print_pcie_addr_dec_info(struct hl_device *hdev, u64 intr_cause_data)
 {
 	int i;
 
-	for (i = 0 ; i < GAUDI2_NUM_OF_PCIE_ADDR_DEC_ERR_CAUSE; i++)
-		if (intr_cause_data & BIT_ULL(i))
-			dev_err_ratelimited(hdev->dev, "PCIE ADDR DEC Error: %s\n",
-						gaudi2_pcie_addr_dec_error_cause[i]);
+	for (i = 0 ; i < GAUDI2_NUM_OF_PCIE_ADDR_DEC_ERR_CAUSE ; i++) {
+		if (!(intr_cause_data & BIT_ULL(i)))
+			continue;
+
+		dev_err_ratelimited(hdev->dev, "PCIE ADDR DEC Error: %s\n",
+					gaudi2_pcie_addr_dec_error_cause[i]);
+
+		switch (intr_cause_data & BIT_ULL(i)) {
+		case PCIE_WRAP_PCIE_IC_SEI_INTR_IND_AXI_LBW_ERR_INTR_MASK:
+			break;
+		case PCIE_WRAP_PCIE_IC_SEI_INTR_IND_BAD_ACCESS_INTR_MASK:
+			gaudi2_print_pcie_mstr_rr_mstr_if_razwi_info(hdev);
+			break;
+		}
+	}
 }
 
 static void gaudi2_handle_pif_fatal(struct hl_device *hdev, u64 intr_cause_data)
