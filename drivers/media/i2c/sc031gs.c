@@ -117,6 +117,8 @@ struct sc031gs {
 	struct v4l2_ctrl	*vblank;
 	struct v4l2_ctrl	*test_pattern;
 	struct mutex		mutex;
+	struct v4l2_fract	cur_fps;
+	u32			cur_vts;
 	bool			streaming;
 	bool			power_on;
 	const struct sc031gs_mode *cur_mode;
@@ -477,6 +479,8 @@ static int sc031gs_set_fmt(struct v4l2_subdev *sd,
 		__v4l2_ctrl_modify_range(sc031gs->vblank, vblank_def,
 					 SC031GS_VTS_MAX - mode->height,
 					 1, vblank_def);
+		sc031gs->cur_fps = mode->max_fps;
+		sc031gs->cur_vts = mode->vts_def;
 	}
 
 	mutex_unlock(&sc031gs->mutex);
@@ -788,9 +792,10 @@ static int sc031gs_g_frame_interval(struct v4l2_subdev *sd,
 	struct sc031gs *sc031gs = to_sc031gs(sd);
 	const struct sc031gs_mode *mode = sc031gs->cur_mode;
 
-	mutex_lock(&sc031gs->mutex);
-	fi->interval = mode->max_fps;
-	mutex_unlock(&sc031gs->mutex);
+	if (sc031gs->streaming)
+		fi->interval = sc031gs->cur_fps;
+	else
+		fi->interval = mode->max_fps;
 
 	return 0;
 }
@@ -990,6 +995,14 @@ static const struct v4l2_subdev_ops sc031gs_subdev_ops = {
 	.pad	= &sc031gs_pad_ops,
 };
 
+static void sc031gs_modify_fps_info(struct sc031gs *sc031gs)
+{
+	const struct sc031gs_mode *mode = sc031gs->cur_mode;
+
+	sc031gs->cur_fps.denominator = mode->max_fps.denominator * sc031gs->cur_vts /
+				       mode->vts_def;
+}
+
 static int sc031gs_set_ctrl(struct v4l2_ctrl *ctrl)
 {
 	struct sc031gs *sc031gs = container_of(ctrl->handler,
@@ -1026,6 +1039,10 @@ static int sc031gs_set_ctrl(struct v4l2_ctrl *ctrl)
 		ret = sc031gs_write_reg(sc031gs->client, SC031GS_REG_VTS,
 				       SC031GS_REG_VALUE_16BIT,
 				       ctrl->val + sc031gs->cur_mode->height);
+		if (!ret)
+			sc031gs->cur_vts = ctrl->val + sc031gs->cur_mode->height;
+		if (sc031gs->cur_vts != sc031gs->cur_mode->vts_def)
+			sc031gs_modify_fps_info(sc031gs);
 		break;
 	case V4L2_CID_TEST_PATTERN:
 		ret = sc031gs_enable_test_pattern(sc031gs, ctrl->val);
@@ -1076,6 +1093,7 @@ static int sc031gs_initialize_controls(struct sc031gs *sc031gs)
 		sc031gs->hblank->flags |= V4L2_CTRL_FLAG_READ_ONLY;
 
 	vblank_def = mode->vts_def - mode->height;
+	sc031gs->cur_vts = mode->vts_def;
 	sc031gs->vblank = v4l2_ctrl_new_std(handler, &sc031gs_ctrl_ops,
 				V4L2_CID_VBLANK, vblank_def,
 				SC031GS_VTS_MAX - mode->height,
@@ -1105,6 +1123,7 @@ static int sc031gs_initialize_controls(struct sc031gs *sc031gs)
 	}
 
 	sc031gs->subdev.ctrl_handler = handler;
+	sc031gs->cur_fps = mode->max_fps;
 
 	return 0;
 
