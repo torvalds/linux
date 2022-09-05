@@ -40,8 +40,6 @@ struct st_ohci_platform_priv {
 #define hcd_to_ohci_priv(h) \
 	((struct st_ohci_platform_priv *)hcd_to_ohci(h)->priv)
 
-static const char hcd_name[] = "ohci-st";
-
 static int st_ohci_platform_power_on(struct platform_device *dev)
 {
 	struct usb_hcd *hcd = platform_get_drvdata(dev);

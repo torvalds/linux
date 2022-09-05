@@ -62,8 +62,6 @@ struct ohci_at91_priv {
 
 #define DRIVER_DESC "OHCI Atmel driver"
 
-static const char hcd_name[] = "ohci-atmel";
-
 static struct hc_driver __read_mostly ohci_at91_hc_driver;
 
 static const struct ohci_driver_overrides ohci_at91_drv_overrides __initconst = {

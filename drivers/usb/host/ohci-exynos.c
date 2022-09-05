@@ -21,7 +21,6 @@
 
 #define DRIVER_DESC "OHCI Exynos driver"
 
-static const char hcd_name[] = "ohci-exynos";
 static struct hc_driver __read_mostly exynos_ohci_hc_driver;
 
 #define to_exynos_ohci(hcd) (struct exynos_ohci_hcd *)(hcd_to_ohci(hcd)->priv)

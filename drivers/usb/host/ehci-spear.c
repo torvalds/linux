@@ -24,8 +24,6 @@
 
 #define DRIVER_DESC "EHCI SPEAr driver"
 
-static const char hcd_name[] = "SPEAr-ehci";
-
 struct spear_ehci {
 	struct clk *clk;
 };

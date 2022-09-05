@@ -65,8 +65,6 @@ struct orion_ehci_hcd {
 	struct phy *phy;
 };
 
-static const char hcd_name[] = "ehci-orion";
-
 static struct hc_driver __read_mostly ehci_orion_hc_driver;
 
 /*

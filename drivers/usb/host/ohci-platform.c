@@ -41,8 +41,6 @@ struct ohci_platform_priv {
 	struct reset_control *resets;
 };
 
-static const char hcd_name[] = "ohci-platform";
-
 static int ohci_platform_power_on(struct platform_device *dev)
 {
 	struct usb_hcd *hcd = platform_get_drvdata(dev);

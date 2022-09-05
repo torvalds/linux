@@ -42,8 +42,6 @@ struct st_ehci_platform_priv {
 #define hcd_to_ehci_priv(h) \
 	((struct st_ehci_platform_priv *)hcd_to_ehci(h)->priv)
 
-static const char hcd_name[] = "ehci-st";
-
 #define EHCI_CAPS_SIZE 0x10
 #define AHB2STBUS_INSREG01 (EHCI_CAPS_SIZE + 0x84)
 

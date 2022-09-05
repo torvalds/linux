@@ -24,7 +24,6 @@
 
 #define DRIVER_DESC "EHCI npcm7xx driver"
 
-static const char hcd_name[] = "npcm7xx-ehci";
 static struct hc_driver __read_mostly ehci_npcm7xx_hc_driver;
 
 static int __maybe_unused ehci_npcm7xx_drv_suspend(struct device *dev)

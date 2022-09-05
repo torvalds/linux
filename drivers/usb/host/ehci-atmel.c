@@ -25,8 +25,6 @@
 
 #define DRIVER_DESC "EHCI Atmel driver"
 
-static const char hcd_name[] = "ehci-atmel";
-
 #define EHCI_INSNREG(index)			((index) * 4 + 0x90)
 #define EHCI_INSNREG08_HSIC_EN			BIT(2)
 
