@@ -923,6 +923,7 @@ static int plda_pcie_remove(struct platform_device *pdev)
 
 static const struct of_device_id plda_pcie_of_match[] = {
 	{ .compatible = "plda,pci-xpressrich3-axi"},
+	{ .compatible = "starfive,jh7110-pcie"},
 	{ },
 };
 MODULE_DEVICE_TABLE(of, plda_pcie_of_match);
