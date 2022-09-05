@@ -379,7 +379,9 @@ static inline vm_fault_t do_exception(struct pt_regs *regs, int access)
 	flags = FAULT_FLAG_DEFAULT;
 	if (user_mode(regs))
 		flags |= FAULT_FLAG_USER;
-	if (access == VM_WRITE || is_write)
+	if (is_write)
+		access = VM_WRITE;
+	if (access == VM_WRITE)
 		flags |= FAULT_FLAG_WRITE;
 	mmap_read_lock(mm);
 
@@ -419,8 +421,6 @@ retry:
 	if (unlikely(!(vma->vm_flags & access)))
 		goto out_up;
 
-	if (is_vm_hugetlb_page(vma))
-		address &= HPAGE_MASK;
 	/*
 	 * If for any reason at all we couldn't handle the fault,
 	 * make sure we exit gracefully rather than endlessly redo

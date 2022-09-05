@@ -636,8 +636,8 @@ static ssize_t topology_name_read(struct file *file, char __user *user_buf, size
 	char buf[64];
 	size_t len;
 
-	len = snprintf(buf, sizeof(buf), "%s/%s\n", component->driver->topology_name_prefix,
-		       mach->tplg_filename);
+	len = scnprintf(buf, sizeof(buf), "%s/%s\n", component->driver->topology_name_prefix,
+			mach->tplg_filename);
 
 	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
 }

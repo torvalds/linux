@@ -2042,7 +2042,7 @@ static int __init pxafb_setup_options(void)
 		return -ENODEV;
 
 	if (options)
-		strlcpy(g_options, options, sizeof(g_options));
+		strscpy(g_options, options, sizeof(g_options));
 
 	return 0;
 }

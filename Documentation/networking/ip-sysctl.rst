@@ -1035,7 +1035,10 @@ tcp_limit_output_bytes - INTEGER
 tcp_challenge_ack_limit - INTEGER
 	Limits number of Challenge ACK sent per second, as recommended
 	in RFC 5961 (Improving TCP's Robustness to Blind In-Window Attacks)
-	Default: 1000
+	Note that this per netns rate limit can allow some side channel
+	attacks and probably should not be enabled.
+	TCP stack implements per TCP socket limits anyway.
+	Default: INT_MAX (unlimited)
 
 UDP variables
 =============

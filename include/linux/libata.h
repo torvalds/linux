@@ -1382,7 +1382,8 @@ extern const struct attribute_group *ata_common_sdev_groups[];
 	.proc_name		= drv_name,			\
 	.slave_destroy		= ata_scsi_slave_destroy,	\
 	.bios_param		= ata_std_bios_param,		\
-	.unlock_native_capacity	= ata_scsi_unlock_native_capacity
+	.unlock_native_capacity	= ata_scsi_unlock_native_capacity,\
+	.max_sectors		= ATA_MAX_SECTORS_LBA48
 
 #define ATA_SUBBASE_SHT(drv_name)				\
 	__ATA_BASE_SHT(drv_name),				\

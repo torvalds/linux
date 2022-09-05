@@ -2861,7 +2861,7 @@ static int pmbus_regulator_get_low_margin(struct i2c_client *client, int page)
 		.data = -1,
 	};
 
-	if (!data->vout_low[page]) {
+	if (data->vout_low[page] < 0) {
 		if (pmbus_check_word_register(client, page, PMBUS_MFR_VOUT_MIN))
 			s.data = _pmbus_read_word_data(client, page, 0xff,
 						       PMBUS_MFR_VOUT_MIN);
@@ -2887,7 +2887,7 @@ static int pmbus_regulator_get_high_margin(struct i2c_client *client, int page)
 		.data = -1,
 	};
 
-	if (!data->vout_high[page]) {
+	if (data->vout_high[page] < 0) {
 		if (pmbus_check_word_register(client, page, PMBUS_MFR_VOUT_MAX))
 			s.data = _pmbus_read_word_data(client, page, 0xff,
 						       PMBUS_MFR_VOUT_MAX);
@@ -3016,11 +3016,10 @@ static int pmbus_regulator_register(struct pmbus_data *data)
 
 		rdev = devm_regulator_register(dev, &info->reg_desc[i],
 					       &config);
-		if (IS_ERR(rdev)) {
-			dev_err(dev, "Failed to register %s regulator\n",
-				info->reg_desc[i].name);
-			return PTR_ERR(rdev);
-		}
+		if (IS_ERR(rdev))
+			return dev_err_probe(dev, PTR_ERR(rdev),
+					     "Failed to register %s regulator\n",
+					     info->reg_desc[i].name);
 	}
 
 	return 0;
@@ -3320,6 +3319,7 @@ int pmbus_do_probe(struct i2c_client *client, struct pmbus_driver_info *info)
 	struct pmbus_data *data;
 	size_t groups_num = 0;
 	int ret;
+	int i;
 	char *name;
 
 	if (!info)
@@ -3352,6 +3352,11 @@ int pmbus_do_probe(struct i2c_client *client, struct pmbus_driver_info *info)
 	data->info = info;
 	data->currpage = -1;
 	data->currphase = -1;
+
+	for (i = 0; i < ARRAY_SIZE(data->vout_low); i++) {
+		data->vout_low[i] = -1;
+		data->vout_high[i] = -1;
+	}
 
 	ret = pmbus_init_common(client, data, info);
 	if (ret < 0)

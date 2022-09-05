@@ -494,6 +494,7 @@ static int __init crash_save_vmcoreinfo_init(void)
 
 #ifdef CONFIG_KALLSYMS
 	VMCOREINFO_SYMBOL(kallsyms_names);
+	VMCOREINFO_SYMBOL(kallsyms_num_syms);
 	VMCOREINFO_SYMBOL(kallsyms_token_table);
 	VMCOREINFO_SYMBOL(kallsyms_token_index);
 #ifdef CONFIG_KALLSYMS_BASE_RELATIVE
