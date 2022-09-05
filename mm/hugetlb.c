@@ -3718,7 +3718,7 @@ static ssize_t demote_store(struct kobject *kobj,
 	unsigned long nr_available;
 	nodemask_t nodes_allowed, *n_mask;
 	struct hstate *h;
-	int err = 0;
+	int err;
 	int nid;
 
 	err = kstrtoul(buf, 10, &nr_demote);
