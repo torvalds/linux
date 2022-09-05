@@ -839,7 +839,7 @@
 			#hwlock-cells = <1>;
 		};
 
-		tcsr_1: sycon@760000 {
+		tcsr_1: syscon@760000 {
 			compatible = "qcom,tcsr-msm8996", "syscon";
 			reg = <0x00760000 0x20000>;
 		};

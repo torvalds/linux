@@ -703,7 +703,7 @@
 			#hwlock-cells = <1>;
 		};
 
-		tcsr_regs_1: sycon@1f60000 {
+		tcsr_regs_1: syscon@1f60000 {
 			compatible = "qcom,sdm630-tcsr", "syscon";
 			reg = <0x01f60000 0x20000>;
 		};

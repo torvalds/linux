@@ -2160,7 +2160,7 @@
 			#hwlock-cells = <1>;
 		};
 
-		tcsr_1: sycon@1f60000 {
+		tcsr_1: syscon@1f60000 {
 			compatible = "qcom,sc7280-tcsr", "syscon";
 			reg = <0 0x01f60000 0 0x20000>;
 		};
