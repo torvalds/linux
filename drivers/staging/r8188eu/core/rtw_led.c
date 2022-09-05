@@ -357,8 +357,8 @@ void rtw_led_control(struct adapter *padapter, enum LED_CTL_MODE LedAction)
 		}
 		break;
 	case LED_CTL_STOP_WPS_FAIL:
+		cancel_delayed_work(&pLed->blink_work);
 		if (pLed->bLedWPSBlinkInProgress) {
-			cancel_delayed_work(&pLed->blink_work);
 			pLed->bLedWPSBlinkInProgress = false;
 		}
 		pLed->bLedNoLinkBlinkInProgress = true;
