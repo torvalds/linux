@@ -31,16 +31,6 @@
 #define DRIVER_MINOR	0
 
 /*
- * Assume a monitor resolution of 96 dpi to
- * get a somewhat reasonable screen size.
- */
-#define RES_MM(d)	\
-	(((d) * 254ul) / (96ul * 10ul))
-
-#define SIMPLEDRM_MODE(hd, vd)	\
-	DRM_SIMPLE_MODE(hd, vd, RES_MM(hd), RES_MM(vd))
-
-/*
  * Helpers for simplefb
  */
 
@@ -641,10 +631,15 @@ static const struct drm_mode_config_funcs simpledrm_mode_config_funcs = {
 static struct drm_display_mode simpledrm_mode(unsigned int width,
 					      unsigned int height)
 {
-	struct drm_display_mode mode = { SIMPLEDRM_MODE(width, height) };
-
-	mode.clock = mode.hdisplay * mode.vdisplay * 60 / 1000 /* kHz */;
-	drm_mode_set_name(&mode);
+	/*
+	 * Assume a monitor resolution of 96 dpi to
+	 * get a somewhat reasonable screen size.
+	 */
+	const struct drm_display_mode mode = {
+		DRM_MODE_INIT(60, width, height,
+			      DRM_MODE_RES_MM(width, 96ul),
+			      DRM_MODE_RES_MM(height, 96ul))
+	};
 
 	return mode;
 }
