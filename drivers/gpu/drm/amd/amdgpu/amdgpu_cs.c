@@ -68,6 +68,25 @@ static int amdgpu_cs_p1_ib(struct amdgpu_cs_parser *p,
 			   struct drm_amdgpu_cs_chunk_ib *chunk_ib,
 			   unsigned int *num_ibs)
 {
+	struct drm_sched_entity *entity;
+	int r;
+
+	r = amdgpu_ctx_get_entity(p->ctx, chunk_ib->ip_type,
+				  chunk_ib->ip_instance,
+				  chunk_ib->ring, &entity);
+	if (r)
+		return r;
+
+	/* Abort if there is no run queue associated with this entity.
+	 * Possibly because of disabled HW IP*/
+	if (entity->rq == NULL)
+		return -EINVAL;
+
+	/* Currently we don't support submitting to multiple entities */
+	if (p->entity && p->entity != entity)
+		return -EINVAL;
+
+	p->entity = entity;
 	++(*num_ibs);
 	return 0;
 }
@@ -250,6 +269,10 @@ static int amdgpu_cs_pass1(struct amdgpu_cs_parser *p,
 	if (ret)
 		goto free_all_kdata;
 
+	ret = drm_sched_job_init(&p->job->base, p->entity, &fpriv->vm);
+	if (ret)
+		goto free_all_kdata;
+
 	if (p->ctx->vram_lost_counter != p->job->vram_lost_counter) {
 		ret = -ECANCELED;
 		goto free_all_kdata;
@@ -286,32 +309,11 @@ static int amdgpu_cs_p2_ib(struct amdgpu_cs_parser *p,
 {
 	struct drm_amdgpu_cs_chunk_ib *chunk_ib = chunk->kdata;
 	struct amdgpu_fpriv *fpriv = p->filp->driver_priv;
+	struct amdgpu_ring *ring = amdgpu_job_ring(p->job);
 	struct amdgpu_ib *ib = &p->job->ibs[*num_ibs];
 	struct amdgpu_vm *vm = &fpriv->vm;
-	struct drm_sched_entity *entity;
-	struct amdgpu_ring *ring;
 	int r;
 
-	r = amdgpu_ctx_get_entity(p->ctx, chunk_ib->ip_type,
-				  chunk_ib->ip_instance,
-				  chunk_ib->ring, &entity);
-	if (r)
-		return r;
-
-	/*
-	 * Abort if there is no run queue associated with this entity.
-	 * Possibly because of disabled HW IP.
-	 */
-	if (entity->rq == NULL)
-		return -EINVAL;
-
-	/* Currently we don't support submitting to multiple entities */
-	if (p->entity && p->entity != entity)
-		return -EINVAL;
-
-	p->entity = entity;
-
-	ring = to_amdgpu_ring(entity->rq->sched);
 	/* MM engine doesn't support user fences */
 	if (p->uf_entry.tv.bo && ring->funcs->no_user_fence)
 		return -EINVAL;
@@ -978,8 +980,8 @@ static void trace_amdgpu_cs_ibs(struct amdgpu_cs_parser *parser)
 
 static int amdgpu_cs_patch_ibs(struct amdgpu_cs_parser *p)
 {
-	struct amdgpu_ring *ring = to_amdgpu_ring(p->entity->rq->sched);
 	struct amdgpu_job *job = p->job;
+	struct amdgpu_ring *ring = amdgpu_job_ring(job);
 	unsigned int i;
 	int r;
 
@@ -1171,10 +1173,6 @@ static int amdgpu_cs_submit(struct amdgpu_cs_parser *p,
 	job = p->job;
 	p->job = NULL;
 
-	r = drm_sched_job_init(&job->base, p->entity, &fpriv->vm);
-	if (r)
-		goto error_unlock;
-
 	drm_sched_job_arm(&job->base);
 
 	/* No memory allocation is allowed while holding the notifier lock.
@@ -1231,8 +1229,6 @@ static int amdgpu_cs_submit(struct amdgpu_cs_parser *p,
 error_abort:
 	drm_sched_job_cleanup(&job->base);
 	mutex_unlock(&p->adev->notifier_lock);
-
-error_unlock:
 	amdgpu_job_free(job);
 	return r;
 }

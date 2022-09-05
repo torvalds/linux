@@ -72,6 +72,11 @@ struct amdgpu_job {
 	struct amdgpu_ib	ibs[];
 };
 
+static inline struct amdgpu_ring *amdgpu_job_ring(struct amdgpu_job *job)
+{
+	return to_amdgpu_ring(job->base.entity->rq->sched);
+}
+
 int amdgpu_job_alloc(struct amdgpu_device *adev, unsigned num_ibs,
 		     struct amdgpu_job **job, struct amdgpu_vm *vm);
 int amdgpu_job_alloc_with_ib(struct amdgpu_device *adev, unsigned size,
