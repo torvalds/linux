@@ -339,7 +339,7 @@ out_iput:
 	return dentry;
 }
 
-/* Get the upper or lower dentry in stach whose on layer @idx */
+/* Get the upper or lower dentry in stack whose on layer @idx */
 static struct dentry *ovl_dentry_real_at(struct dentry *dentry, int idx)
 {
 	struct ovl_entry *oe = dentry->d_fsdata;
