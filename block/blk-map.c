@@ -270,7 +270,7 @@ static int bio_map_user_iov(struct request *rq, struct iov_iter *iter,
 	while (iov_iter_count(iter)) {
 		struct page **pages, *stack_pages[UIO_FASTIOV];
 		ssize_t bytes;
-		size_t offs, added = 0;
+		size_t offs;
 		int npages;
 
 		if (nr_vecs <= ARRAY_SIZE(stack_pages)) {
@@ -306,7 +306,6 @@ static int bio_map_user_iov(struct request *rq, struct iov_iter *iter,
 					break;
 				}
 
-				added += n;
 				bytes -= n;
 				offs = 0;
 			}
