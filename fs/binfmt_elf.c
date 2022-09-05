@@ -1946,11 +1946,6 @@ static int fill_note_info(struct elfhdr *elf, int phdrs,
 	return 1;
 }
 
-static size_t get_note_info_size(struct elf_note_info *info)
-{
-	return info->size;
-}
-
 /*
  * Write all the notes for each thread.  When writing the first thread, the
  * process-wide notes are interleaved after the first thread-specific note.
@@ -2068,7 +2063,7 @@ static int elf_core_dump(struct coredump_params *cprm)
 
 	/* Write notes phdr entry */
 	{
-		size_t sz = get_note_info_size(&info);
+		size_t sz = info.size;
 
 		/* For cell spufs */
 		sz += elf_coredump_extra_notes_size();
