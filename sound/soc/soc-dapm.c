@@ -3630,10 +3630,18 @@ snd_soc_dapm_new_control_unlocked(struct snd_soc_dapm_context *dapm,
 	enum snd_soc_dapm_direction dir;
 	struct snd_soc_dapm_widget *w;
 	const char *prefix;
-	int ret;
+	int ret = -ENOMEM;
 
 	if ((w = dapm_cnew_widget(widget)) == NULL)
-		return ERR_PTR(-ENOMEM);
+		goto cnew_failed;
+
+	prefix = soc_dapm_prefix(dapm);
+	if (prefix)
+		w->name = kasprintf(GFP_KERNEL, "%s %s", prefix, widget->name);
+	else
+		w->name = kstrdup_const(widget->name, GFP_KERNEL);
+	if (!w->name)
+		goto name_failed;
 
 	switch (w->id) {
 	case snd_soc_dapm_regulator_supply:
@@ -3670,17 +3678,6 @@ snd_soc_dapm_new_control_unlocked(struct snd_soc_dapm_context *dapm,
 		break;
 	default:
 		break;
-	}
-
-	prefix = soc_dapm_prefix(dapm);
-	if (prefix)
-		w->name = kasprintf(GFP_KERNEL, "%s %s", prefix, widget->name);
-	else
-		w->name = kstrdup_const(widget->name, GFP_KERNEL);
-	if (w->name == NULL) {
-		kfree_const(w->sname);
-		kfree(w);
-		return ERR_PTR(-ENOMEM);
 	}
 
 	switch (w->id) {
@@ -3770,9 +3767,11 @@ request_failed:
 	if (ret != -EPROBE_DEFER)
 		dev_err(dapm->dev, "ASoC: Failed to request %s: %d\n",
 			w->name, ret);
-
+	kfree_const(w->name);
+name_failed:
 	kfree_const(w->sname);
 	kfree(w);
+cnew_failed:
 	return ERR_PTR(ret);
 }
 
