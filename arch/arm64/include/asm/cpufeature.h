@@ -633,7 +633,7 @@ static inline bool id_aa64pfr1_mte(u64 pfr1)
 {
 	u32 val = cpuid_feature_extract_unsigned_field(pfr1, ID_AA64PFR1_EL1_MTE_SHIFT);
 
-	return val >= ID_AA64PFR1_EL1_MTE;
+	return val >= ID_AA64PFR1_EL1_MTE_MTE2;
 }
 
 void __init setup_cpu_features(void);
