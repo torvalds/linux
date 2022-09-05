@@ -168,7 +168,7 @@ static enum mitigation_state spectre_v2_get_cpu_hw_mitigation_state(void)
 
 	/* If the CPU has CSV2 set, we're safe */
 	pfr0 = read_cpuid(ID_AA64PFR0_EL1);
-	if (cpuid_feature_extract_unsigned_field(pfr0, ID_AA64PFR0_CSV2_SHIFT))
+	if (cpuid_feature_extract_unsigned_field(pfr0, ID_AA64PFR0_EL1_CSV2_SHIFT))
 		return SPECTRE_UNAFFECTED;
 
 	/* Alternatively, we have a list of unaffected CPUs */

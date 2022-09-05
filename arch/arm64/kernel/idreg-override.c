@@ -74,7 +74,7 @@ static const struct ftr_set_desc pfr0 __initconst = {
 	.name		= "id_aa64pfr0",
 	.override	= &id_aa64pfr0_override,
 	.fields		= {
-	        FIELD("sve", ID_AA64PFR0_SVE_SHIFT, pfr0_sve_filter),
+	        FIELD("sve", ID_AA64PFR0_EL1_SVE_SHIFT, pfr0_sve_filter),
 		{}
 	},
 };

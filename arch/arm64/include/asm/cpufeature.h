@@ -603,21 +603,21 @@ static inline bool id_aa64mmfr0_mixed_endian_el0(u64 mmfr0)
 
 static inline bool id_aa64pfr0_32bit_el1(u64 pfr0)
 {
-	u32 val = cpuid_feature_extract_unsigned_field(pfr0, ID_AA64PFR0_EL1_SHIFT);
+	u32 val = cpuid_feature_extract_unsigned_field(pfr0, ID_AA64PFR0_EL1_EL1_SHIFT);
 
-	return val == ID_AA64PFR0_ELx_32BIT_64BIT;
+	return val == ID_AA64PFR0_EL1_ELx_32BIT_64BIT;
 }
 
 static inline bool id_aa64pfr0_32bit_el0(u64 pfr0)
 {
-	u32 val = cpuid_feature_extract_unsigned_field(pfr0, ID_AA64PFR0_EL0_SHIFT);
+	u32 val = cpuid_feature_extract_unsigned_field(pfr0, ID_AA64PFR0_EL1_EL0_SHIFT);
 
-	return val == ID_AA64PFR0_ELx_32BIT_64BIT;
+	return val == ID_AA64PFR0_EL1_ELx_32BIT_64BIT;
 }
 
 static inline bool id_aa64pfr0_sve(u64 pfr0)
 {
-	u32 val = cpuid_feature_extract_unsigned_field(pfr0, ID_AA64PFR0_SVE_SHIFT);
+	u32 val = cpuid_feature_extract_unsigned_field(pfr0, ID_AA64PFR0_EL1_SVE_SHIFT);
 
 	return val > 0;
 }
@@ -659,7 +659,7 @@ static inline bool supports_csv2p3(int scope)
 		pfr0 = read_sanitised_ftr_reg(SYS_ID_AA64PFR0_EL1);
 
 	csv2_val = cpuid_feature_extract_unsigned_field(pfr0,
-							ID_AA64PFR0_CSV2_SHIFT);
+							ID_AA64PFR0_EL1_CSV2_SHIFT);
 	return csv2_val == 3;
 }
 

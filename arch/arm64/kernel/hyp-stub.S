@@ -98,7 +98,7 @@ SYM_CODE_START_LOCAL(elx_sync)
 SYM_CODE_END(elx_sync)
 
 SYM_CODE_START_LOCAL(__finalise_el2)
-	check_override id_aa64pfr0 ID_AA64PFR0_SVE_SHIFT .Linit_sve .Lskip_sve
+	check_override id_aa64pfr0 ID_AA64PFR0_EL1_SVE_SHIFT .Linit_sve .Lskip_sve
 
 .Linit_sve:	/* SVE register access */
 	mrs	x0, cptr_el2			// Disable SVE traps
