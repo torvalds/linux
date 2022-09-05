@@ -70,8 +70,16 @@
 
 % Translations have Asian (CJK) characters which are only displayed if
 % xeCJK is used
+\usepackage{ifthen}
+\newboolean{enablecjk}
+\setboolean{enablecjk}{false}
 \IfFontExistsTF{Noto Sans CJK SC}{
-    % Load xeCJK when CJK font is available
+    \IfFileExists{xeCJK.sty}{
+	\setboolean{enablecjk}{true}
+    }{}
+}{}
+\ifthenelse{\boolean{enablecjk}}{
+    % Load xeCJK when both the Noto Sans CJK font and xeCJK.sty are available.
     \usepackage{xeCJK}
     % Noto CJK fonts don't provide slant shape. [AutoFakeSlant] permits
     % its emulation.
@@ -196,7 +204,7 @@
     % Inactivate CJK after tableofcontents
     \apptocmd{\sphinxtableofcontents}{\kerneldocCJKoff}{}{}
     \xeCJKsetup{CJKspace = true}% For inter-phrase space of Korean TOC
-}{ % No CJK font found
+}{ % Don't enable CJK
     % Custom macros to on/off CJK and switch CJK fonts (Dummy)
     \newcommand{\kerneldocCJKon}{}
     \newcommand{\kerneldocCJKoff}{}
@@ -204,14 +212,16 @@
     %% and ignore the argument (#1) in their definitions, whole contents of
     %% CJK chapters can be ignored.
     \newcommand{\kerneldocBeginSC}[1]{%
-	%% Put a note on missing CJK fonts in place of zh_CN translation.
-	\begin{sphinxadmonition}{note}{Note on missing fonts:}
+	%% Put a note on missing CJK fonts or the xecjk package in place of
+	%% zh_CN translation.
+	\begin{sphinxadmonition}{note}{Note on missing fonts and a package:}
 	    Translations of Simplified Chinese (zh\_CN), Traditional Chinese
 	    (zh\_TW), Korean (ko\_KR), and Japanese (ja\_JP) were skipped
-	    due to the lack of suitable font families.
+	    due to the lack of suitable font families and/or the texlive-xecjk
+	    package.
 
 	    If you want them, please install ``Noto Sans CJK'' font families
-	    by following instructions from
+	    along with the texlive-xecjk package by following instructions from
 	    \sphinxcode{./scripts/sphinx-pre-install}.
 	    Having optional ``Noto Serif CJK'' font families will improve
 	    the looks of those translations.

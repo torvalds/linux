@@ -265,6 +265,7 @@ static void ws16c48_irq_mask(struct irq_data *data)
 	raw_spin_lock_irqsave(&ws16c48gpio->lock, flags);
 
 	ws16c48gpio->irq_mask &= ~mask;
+	gpiochip_disable_irq(chip, offset);
 	port_state = ws16c48gpio->irq_mask >> (8 * port);
 
 	/* Select Register Page 2; Unlock all I/O ports */
@@ -295,6 +296,7 @@ static void ws16c48_irq_unmask(struct irq_data *data)
 
 	raw_spin_lock_irqsave(&ws16c48gpio->lock, flags);
 
+	gpiochip_enable_irq(chip, offset);
 	ws16c48gpio->irq_mask |= mask;
 	port_state = ws16c48gpio->irq_mask >> (8 * port);
 
@@ -356,12 +358,14 @@ static int ws16c48_irq_set_type(struct irq_data *data, unsigned flow_type)
 	return 0;
 }
 
-static struct irq_chip ws16c48_irqchip = {
+static const struct irq_chip ws16c48_irqchip = {
 	.name = "ws16c48",
 	.irq_ack = ws16c48_irq_ack,
 	.irq_mask = ws16c48_irq_mask,
 	.irq_unmask = ws16c48_irq_unmask,
-	.irq_set_type = ws16c48_irq_set_type
+	.irq_set_type = ws16c48_irq_set_type,
+	.flags = IRQCHIP_IMMUTABLE,
+	GPIOCHIP_IRQ_RESOURCE_HELPERS,
 };
 
 static irqreturn_t ws16c48_irq_handler(int irq, void *dev_id)
@@ -463,7 +467,7 @@ static int ws16c48_probe(struct device *dev, unsigned int id)
 	ws16c48gpio->chip.set_multiple = ws16c48_gpio_set_multiple;
 
 	girq = &ws16c48gpio->chip.irq;
-	girq->chip = &ws16c48_irqchip;
+	gpio_irq_chip_set_chip(girq, &ws16c48_irqchip);
 	/* This will let us handle the parent IRQ in the driver */
 	girq->parent_handler = NULL;
 	girq->num_parents = 0;

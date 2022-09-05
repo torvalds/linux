@@ -99,14 +99,14 @@ void hinic_txq_get_stats(struct hinic_txq *txq, struct hinic_txq_stats *stats)
 	unsigned int start;
 
 	do {
-		start = u64_stats_fetch_begin(&txq_stats->syncp);
+		start = u64_stats_fetch_begin_irq(&txq_stats->syncp);
 		stats->pkts    = txq_stats->pkts;
 		stats->bytes   = txq_stats->bytes;
 		stats->tx_busy = txq_stats->tx_busy;
 		stats->tx_wake = txq_stats->tx_wake;
 		stats->tx_dropped = txq_stats->tx_dropped;
 		stats->big_frags_pkts = txq_stats->big_frags_pkts;
-	} while (u64_stats_fetch_retry(&txq_stats->syncp, start));
+	} while (u64_stats_fetch_retry_irq(&txq_stats->syncp, start));
 }
 
 /**

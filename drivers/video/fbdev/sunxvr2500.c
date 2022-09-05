@@ -84,7 +84,7 @@ static int s3d_set_fbinfo(struct s3d_info *sp)
 	info->pseudo_palette = sp->pseudo_palette;
 
 	/* Fill fix common fields */
-	strlcpy(info->fix.id, "s3d", sizeof(info->fix.id));
+	strscpy(info->fix.id, "s3d", sizeof(info->fix.id));
         info->fix.smem_start = sp->fb_base_phys;
         info->fix.smem_len = sp->fb_size;
         info->fix.type = FB_TYPE_PACKED_PIXELS;

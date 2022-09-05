@@ -22,54 +22,102 @@ static int max_node_num;
  */
 static int *cpunode_map;
 
-static struct perf_cpu_map *cpu_map__from_entries(struct cpu_map_entries *cpus)
+bool perf_record_cpu_map_data__test_bit(int i,
+					const struct perf_record_cpu_map_data *data)
+{
+	int bit_word32 = i / 32;
+	__u32 bit_mask32 = 1U << (i & 31);
+	int bit_word64 = i / 64;
+	__u64 bit_mask64 = ((__u64)1) << (i & 63);
+
+	return (data->mask32_data.long_size == 4)
+		? (bit_word32 < data->mask32_data.nr) &&
+		(data->mask32_data.mask[bit_word32] & bit_mask32) != 0
+		: (bit_word64 < data->mask64_data.nr) &&
+		(data->mask64_data.mask[bit_word64] & bit_mask64) != 0;
+}
+
+/* Read ith mask value from data into the given 64-bit sized bitmap */
+static void perf_record_cpu_map_data__read_one_mask(const struct perf_record_cpu_map_data *data,
+						    int i, unsigned long *bitmap)
+{
+#if __SIZEOF_LONG__ == 8
+	if (data->mask32_data.long_size == 4)
+		bitmap[0] = data->mask32_data.mask[i];
+	else
+		bitmap[0] = data->mask64_data.mask[i];
+#else
+	if (data->mask32_data.long_size == 4) {
+		bitmap[0] = data->mask32_data.mask[i];
+		bitmap[1] = 0;
+	} else {
+#if __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
+		bitmap[0] = (unsigned long)(data->mask64_data.mask[i] >> 32);
+		bitmap[1] = (unsigned long)data->mask64_data.mask[i];
+#else
+		bitmap[0] = (unsigned long)data->mask64_data.mask[i];
+		bitmap[1] = (unsigned long)(data->mask64_data.mask[i] >> 32);
+#endif
+	}
+#endif
+}
+static struct perf_cpu_map *cpu_map__from_entries(const struct perf_record_cpu_map_data *data)
 {
 	struct perf_cpu_map *map;
 
-	map = perf_cpu_map__empty_new(cpus->nr);
+	map = perf_cpu_map__empty_new(data->cpus_data.nr);
 	if (map) {
 		unsigned i;
 
-		for (i = 0; i < cpus->nr; i++) {
+		for (i = 0; i < data->cpus_data.nr; i++) {
 			/*
 			 * Special treatment for -1, which is not real cpu number,
 			 * and we need to use (int) -1 to initialize map[i],
 			 * otherwise it would become 65535.
 			 */
-			if (cpus->cpu[i] == (u16) -1)
+			if (data->cpus_data.cpu[i] == (u16) -1)
 				map->map[i].cpu = -1;
 			else
-				map->map[i].cpu = (int) cpus->cpu[i];
+				map->map[i].cpu = (int) data->cpus_data.cpu[i];
 		}
 	}
 
 	return map;
 }
 
-static struct perf_cpu_map *cpu_map__from_mask(struct perf_record_record_cpu_map *mask)
+static struct perf_cpu_map *cpu_map__from_mask(const struct perf_record_cpu_map_data *data)
 {
+	DECLARE_BITMAP(local_copy, 64);
+	int weight = 0, mask_nr = data->mask32_data.nr;
 	struct perf_cpu_map *map;
-	int nr, nbits = mask->nr * mask->long_size * BITS_PER_BYTE;
 
-	nr = bitmap_weight(mask->mask, nbits);
+	for (int i = 0; i < mask_nr; i++) {
+		perf_record_cpu_map_data__read_one_mask(data, i, local_copy);
+		weight += bitmap_weight(local_copy, 64);
+	}
 
-	map = perf_cpu_map__empty_new(nr);
-	if (map) {
-		int cpu, i = 0;
+	map = perf_cpu_map__empty_new(weight);
+	if (!map)
+		return NULL;
 
-		for_each_set_bit(cpu, mask->mask, nbits)
-			map->map[i++].cpu = cpu;
+	for (int i = 0, j = 0; i < mask_nr; i++) {
+		int cpus_per_i = (i * data->mask32_data.long_size  * BITS_PER_BYTE);
+		int cpu;
+
+		perf_record_cpu_map_data__read_one_mask(data, i, local_copy);
+		for_each_set_bit(cpu, local_copy, 64)
+			map->map[j++].cpu = cpu + cpus_per_i;
 	}
 	return map;
 
 }
 
-struct perf_cpu_map *cpu_map__new_data(struct perf_record_cpu_map_data *data)
+struct perf_cpu_map *cpu_map__new_data(const struct perf_record_cpu_map_data *data)
 {
 	if (data->type == PERF_CPU_MAP__CPUS)
-		return cpu_map__from_entries((struct cpu_map_entries *)data->data);
+		return cpu_map__from_entries(data);
 	else
-		return cpu_map__from_mask((struct perf_record_record_cpu_map *)data->data);
+		return cpu_map__from_mask(data);
 }
 
 size_t cpu_map__fprintf(struct perf_cpu_map *map, FILE *fp)

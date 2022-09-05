@@ -1986,7 +1986,7 @@ static int rt5640_set_bias_level(struct snd_soc_component *component,
 		snd_soc_component_write(component, RT5640_PWR_MIXER, 0x0000);
 		if (rt5640->jd_src == RT5640_JD_SRC_HDA_HEADER)
 			snd_soc_component_write(component, RT5640_PWR_ANLG1,
-				0x0018);
+				0x2818);
 		else
 			snd_soc_component_write(component, RT5640_PWR_ANLG1,
 				0x0000);
@@ -2600,7 +2600,8 @@ static void rt5640_enable_hda_jack_detect(
 	snd_soc_component_update_bits(component, RT5640_DUMMY1, 0x400, 0x0);
 
 	snd_soc_component_update_bits(component, RT5640_PWR_ANLG1,
-		RT5640_PWR_VREF2, RT5640_PWR_VREF2);
+		RT5640_PWR_VREF2 | RT5640_PWR_MB | RT5640_PWR_BG,
+		RT5640_PWR_VREF2 | RT5640_PWR_MB | RT5640_PWR_BG);
 	usleep_range(10000, 15000);
 	snd_soc_component_update_bits(component, RT5640_PWR_ANLG1,
 		RT5640_PWR_FV2, RT5640_PWR_FV2);

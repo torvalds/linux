@@ -3233,7 +3233,7 @@ static int btrfs_bio_add_page(struct btrfs_bio_ctrl *bio_ctrl,
 	u32 bio_size = bio->bi_iter.bi_size;
 	u32 real_size;
 	const sector_t sector = disk_bytenr >> SECTOR_SHIFT;
-	bool contig;
+	bool contig = false;
 	int ret;
 
 	ASSERT(bio);
@@ -3242,10 +3242,35 @@ static int btrfs_bio_add_page(struct btrfs_bio_ctrl *bio_ctrl,
 	if (bio_ctrl->compress_type != compress_type)
 		return 0;
 
-	if (bio_ctrl->compress_type != BTRFS_COMPRESS_NONE)
+
+	if (bio->bi_iter.bi_size == 0) {
+		/* We can always add a page into an empty bio. */
+		contig = true;
+	} else if (bio_ctrl->compress_type == BTRFS_COMPRESS_NONE) {
+		struct bio_vec *bvec = bio_last_bvec_all(bio);
+
+		/*
+		 * The contig check requires the following conditions to be met:
+		 * 1) The pages are belonging to the same inode
+		 *    This is implied by the call chain.
+		 *
+		 * 2) The range has adjacent logical bytenr
+		 *
+		 * 3) The range has adjacent file offset
+		 *    This is required for the usage of btrfs_bio->file_offset.
+		 */
+		if (bio_end_sector(bio) == sector &&
+		    page_offset(bvec->bv_page) + bvec->bv_offset +
+		    bvec->bv_len == page_offset(page) + pg_offset)
+			contig = true;
+	} else {
+		/*
+		 * For compression, all IO should have its logical bytenr
+		 * set to the starting bytenr of the compressed extent.
+		 */
 		contig = bio->bi_iter.bi_sector == sector;
-	else
-		contig = bio_end_sector(bio) == sector;
+	}
+
 	if (!contig)
 		return 0;
 
@@ -6140,6 +6165,7 @@ struct extent_buffer *alloc_extent_buffer(struct btrfs_fs_info *fs_info,
 	struct extent_buffer *exists = NULL;
 	struct page *p;
 	struct address_space *mapping = fs_info->btree_inode->i_mapping;
+	u64 lockdep_owner = owner_root;
 	int uptodate = 1;
 	int ret;
 
@@ -6164,7 +6190,15 @@ struct extent_buffer *alloc_extent_buffer(struct btrfs_fs_info *fs_info,
 	eb = __alloc_extent_buffer(fs_info, start, len);
 	if (!eb)
 		return ERR_PTR(-ENOMEM);
-	btrfs_set_buffer_lockdep_class(owner_root, eb, level);
+
+	/*
+	 * The reloc trees are just snapshots, so we need them to appear to be
+	 * just like any other fs tree WRT lockdep.
+	 */
+	if (lockdep_owner == BTRFS_TREE_RELOC_OBJECTID)
+		lockdep_owner = BTRFS_FS_TREE_OBJECTID;
+
+	btrfs_set_buffer_lockdep_class(lockdep_owner, eb, level);
 
 	num_pages = num_extent_pages(eb);
 	for (i = 0; i < num_pages; i++, index++) {
