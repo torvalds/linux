@@ -29,7 +29,7 @@ struct vkms_writeback_job {
 };
 
 struct vkms_frame_info {
-	struct drm_framebuffer fb;
+	struct drm_framebuffer *fb;
 	struct drm_rect src, dst;
 	struct iosys_map map[DRM_FORMAT_MAX_PLANES];
 	unsigned int offset;
