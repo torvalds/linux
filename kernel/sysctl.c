@@ -129,11 +129,6 @@ static enum sysctl_writes_mode sysctl_writes_strict = SYSCTL_WRITES_STRICT;
 int sysctl_legacy_va_layout;
 #endif
 
-#ifdef CONFIG_COMPACTION
-/* min_extfrag_threshold is SYSCTL_ZERO */;
-static const int max_extfrag_threshold = 1000;
-#endif
-
 #endif /* CONFIG_SYSCTL */
 
 /*
@@ -2216,7 +2211,7 @@ static struct ctl_table vm_table[] = {
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec_minmax,
 		.extra1		= SYSCTL_ZERO,
-		.extra2		= (void *)&max_extfrag_threshold,
+		.extra2		= SYSCTL_ONE_THOUSAND,
 	},
 	{
 		.procname	= "compact_unevictable_allowed",
