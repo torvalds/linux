@@ -280,7 +280,7 @@ int erdma_query_device(struct ib_device *ibdev, struct ib_device_attr *attr,
 	attr->vendor_id = PCI_VENDOR_ID_ALIBABA;
 	attr->vendor_part_id = dev->pdev->device;
 	attr->hw_ver = dev->pdev->revision;
-	attr->max_qp = dev->attrs.max_qp;
+	attr->max_qp = dev->attrs.max_qp - 1;
 	attr->max_qp_wr = min(dev->attrs.max_send_wr, dev->attrs.max_recv_wr);
 	attr->max_qp_rd_atom = dev->attrs.max_ord;
 	attr->max_qp_init_rd_atom = dev->attrs.max_ird;
@@ -291,7 +291,7 @@ int erdma_query_device(struct ib_device *ibdev, struct ib_device_attr *attr,
 	attr->max_send_sge = dev->attrs.max_send_sge;
 	attr->max_recv_sge = dev->attrs.max_recv_sge;
 	attr->max_sge_rd = dev->attrs.max_sge_rd;
-	attr->max_cq = dev->attrs.max_cq;
+	attr->max_cq = dev->attrs.max_cq - 1;
 	attr->max_cqe = dev->attrs.max_cqe;
 	attr->max_mr = dev->attrs.max_mr;
 	attr->max_pd = dev->attrs.max_pd;

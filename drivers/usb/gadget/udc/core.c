@@ -736,7 +736,10 @@ int usb_gadget_disconnect(struct usb_gadget *gadget)
 	ret = gadget->ops->pullup(gadget, 0);
 	if (!ret) {
 		gadget->connected = 0;
-		gadget->udc->driver->disconnect(gadget);
+		mutex_lock(&udc_lock);
+		if (gadget->udc->driver)
+			gadget->udc->driver->disconnect(gadget);
+		mutex_unlock(&udc_lock);
 	}
 
 out:
@@ -1489,7 +1492,6 @@ static int gadget_bind_driver(struct device *dev)
 
 	usb_gadget_udc_set_speed(udc, driver->max_speed);
 
-	mutex_lock(&udc_lock);
 	ret = driver->bind(udc->gadget, driver);
 	if (ret)
 		goto err_bind;
@@ -1499,7 +1501,6 @@ static int gadget_bind_driver(struct device *dev)
 		goto err_start;
 	usb_gadget_enable_async_callbacks(udc);
 	usb_udc_connect_control(udc);
-	mutex_unlock(&udc_lock);
 
 	kobject_uevent(&udc->dev.kobj, KOBJ_CHANGE);
 	return 0;
@@ -1512,6 +1513,7 @@ static int gadget_bind_driver(struct device *dev)
 		dev_err(&udc->dev, "failed to start %s: %d\n",
 			driver->function, ret);
 
+	mutex_lock(&udc_lock);
 	udc->driver = NULL;
 	driver->is_bound = false;
 	mutex_unlock(&udc_lock);
@@ -1529,7 +1531,6 @@ static void gadget_unbind_driver(struct device *dev)
 
 	kobject_uevent(&udc->dev.kobj, KOBJ_CHANGE);
 
-	mutex_lock(&udc_lock);
 	usb_gadget_disconnect(gadget);
 	usb_gadget_disable_async_callbacks(udc);
 	if (gadget->irq)
@@ -1537,6 +1538,7 @@ static void gadget_unbind_driver(struct device *dev)
 	udc->driver->unbind(gadget);
 	usb_gadget_udc_stop(udc);
 
+	mutex_lock(&udc_lock);
 	driver->is_bound = false;
 	udc->driver = NULL;
 	mutex_unlock(&udc_lock);
@@ -1612,7 +1614,7 @@ static ssize_t soft_connect_store(struct device *dev,
 	struct usb_udc		*udc = container_of(dev, struct usb_udc, dev);
 	ssize_t			ret;
 
-	mutex_lock(&udc_lock);
+	device_lock(&udc->gadget->dev);
 	if (!udc->driver) {
 		dev_err(dev, "soft-connect without a gadget driver\n");
 		ret = -EOPNOTSUPP;
@@ -1633,7 +1635,7 @@ static ssize_t soft_connect_store(struct device *dev,
 
 	ret = n;
 out:
-	mutex_unlock(&udc_lock);
+	device_unlock(&udc->gadget->dev);
 	return ret;
 }
 static DEVICE_ATTR_WO(soft_connect);
@@ -1652,11 +1654,15 @@ static ssize_t function_show(struct device *dev, struct device_attribute *attr,
 			     char *buf)
 {
 	struct usb_udc		*udc = container_of(dev, struct usb_udc, dev);
-	struct usb_gadget_driver *drv = udc->driver;
+	struct usb_gadget_driver *drv;
+	int			rc = 0;
 
-	if (!drv || !drv->function)
-		return 0;
-	return scnprintf(buf, PAGE_SIZE, "%s\n", drv->function);
+	mutex_lock(&udc_lock);
+	drv = udc->driver;
+	if (drv && drv->function)
+		rc = scnprintf(buf, PAGE_SIZE, "%s\n", drv->function);
+	mutex_unlock(&udc_lock);
+	return rc;
 }
 static DEVICE_ATTR_RO(function);
 

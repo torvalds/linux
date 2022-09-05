@@ -157,11 +157,8 @@ arch___change_bit(unsigned long nr, volatile unsigned long *addr)
 	change_bit(nr, addr);
 }
 
-static __always_inline bool
-arch_test_bit(unsigned long nr, const volatile unsigned long *addr)
-{
-	return (addr[nr >> 5] & (1UL << (nr & 31))) != 0;
-}
+#define arch_test_bit generic_test_bit
+#define arch_test_bit_acquire generic_test_bit_acquire
 
 static inline int bset_reg_test_and_set_bit(int nr,
 					    volatile unsigned long *vaddr)

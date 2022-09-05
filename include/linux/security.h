@@ -2060,12 +2060,17 @@ static inline int security_perf_event_write(struct perf_event *event)
 #ifdef CONFIG_SECURITY
 extern int security_uring_override_creds(const struct cred *new);
 extern int security_uring_sqpoll(void);
+extern int security_uring_cmd(struct io_uring_cmd *ioucmd);
 #else
 static inline int security_uring_override_creds(const struct cred *new)
 {
 	return 0;
 }
 static inline int security_uring_sqpoll(void)
+{
+	return 0;
+}
+static inline int security_uring_cmd(struct io_uring_cmd *ioucmd)
 {
 	return 0;
 }

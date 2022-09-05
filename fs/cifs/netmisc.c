@@ -909,7 +909,7 @@ map_and_check_smb_error(struct mid_q_entry *mid, bool logErr)
  * portion, the number of word parameters and the data portion of the message
  */
 unsigned int
-smbCalcSize(void *buf, struct TCP_Server_Info *server)
+smbCalcSize(void *buf)
 {
 	struct smb_hdr *ptr = buf;
 	return (sizeof(struct smb_hdr) + (2 * ptr->WordCount) +

@@ -290,7 +290,7 @@ static char default_sti_path[21] __read_mostly;
 static int __init sti_setup(char *str)
 {
 	if (str)
-		strlcpy (default_sti_path, str, sizeof (default_sti_path));
+		strscpy(default_sti_path, str, sizeof(default_sti_path));
 	
 	return 1;
 }

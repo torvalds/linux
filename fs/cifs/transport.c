@@ -261,8 +261,8 @@ smb_rqst_len(struct TCP_Server_Info *server, struct smb_rqst *rqst)
 	int nvec;
 	unsigned long buflen = 0;
 
-	if (server->vals->header_preamble_size == 0 &&
-	    rqst->rq_nvec >= 2 && rqst->rq_iov[0].iov_len == 4) {
+	if (!is_smb1(server) && rqst->rq_nvec >= 2 &&
+	    rqst->rq_iov[0].iov_len == 4) {
 		iov = &rqst->rq_iov[1];
 		nvec = rqst->rq_nvec - 1;
 	} else {
@@ -346,7 +346,7 @@ __smb_send_rqst(struct TCP_Server_Info *server, int num_rqst,
 	sigprocmask(SIG_BLOCK, &mask, &oldmask);
 
 	/* Generate a rfc1002 marker for SMB2+ */
-	if (server->vals->header_preamble_size == 0) {
+	if (!is_smb1(server)) {
 		struct kvec hiov = {
 			.iov_base = &rfc1002_marker,
 			.iov_len  = 4
@@ -1238,7 +1238,7 @@ compound_send_recv(const unsigned int xid, struct cifs_ses *ses,
 		buf = (char *)midQ[i]->resp_buf;
 		resp_iov[i].iov_base = buf;
 		resp_iov[i].iov_len = midQ[i]->resp_buf_size +
-			server->vals->header_preamble_size;
+			HEADER_PREAMBLE_SIZE(server);
 
 		if (midQ[i]->large_buf)
 			resp_buf_type[i] = CIFS_LARGE_BUFFER;
@@ -1643,7 +1643,7 @@ int
 cifs_discard_remaining_data(struct TCP_Server_Info *server)
 {
 	unsigned int rfclen = server->pdu_size;
-	int remaining = rfclen + server->vals->header_preamble_size -
+	int remaining = rfclen + HEADER_PREAMBLE_SIZE(server) -
 		server->total_read;
 
 	while (remaining > 0) {
@@ -1689,8 +1689,7 @@ cifs_readv_receive(struct TCP_Server_Info *server, struct mid_q_entry *mid)
 	unsigned int data_offset, data_len;
 	struct cifs_readdata *rdata = mid->callback_data;
 	char *buf = server->smallbuf;
-	unsigned int buflen = server->pdu_size +
-		server->vals->header_preamble_size;
+	unsigned int buflen = server->pdu_size + HEADER_PREAMBLE_SIZE(server);
 	bool use_rdma_mr = false;
 
 	cifs_dbg(FYI, "%s: mid=%llu offset=%llu bytes=%u\n",
@@ -1724,10 +1723,10 @@ cifs_readv_receive(struct TCP_Server_Info *server, struct mid_q_entry *mid)
 
 	/* set up first two iov for signature check and to get credits */
 	rdata->iov[0].iov_base = buf;
-	rdata->iov[0].iov_len = server->vals->header_preamble_size;
-	rdata->iov[1].iov_base = buf + server->vals->header_preamble_size;
+	rdata->iov[0].iov_len = HEADER_PREAMBLE_SIZE(server);
+	rdata->iov[1].iov_base = buf + HEADER_PREAMBLE_SIZE(server);
 	rdata->iov[1].iov_len =
-		server->total_read - server->vals->header_preamble_size;
+		server->total_read - HEADER_PREAMBLE_SIZE(server);
 	cifs_dbg(FYI, "0: iov_base=%p iov_len=%zu\n",
 		 rdata->iov[0].iov_base, rdata->iov[0].iov_len);
 	cifs_dbg(FYI, "1: iov_base=%p iov_len=%zu\n",
@@ -1752,7 +1751,7 @@ cifs_readv_receive(struct TCP_Server_Info *server, struct mid_q_entry *mid)
 	}
 
 	data_offset = server->ops->read_data_offset(buf) +
-		server->vals->header_preamble_size;
+		HEADER_PREAMBLE_SIZE(server);
 	if (data_offset < server->total_read) {
 		/*
 		 * win2k8 sometimes sends an offset of 0 when the read

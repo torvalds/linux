@@ -11,7 +11,7 @@ Initial Release:
 ================
 This is conceptually very similar to the macvlan driver with one major
 exception of using L3 for mux-ing /demux-ing among slaves. This property makes
-the master device share the L2 with it's slave devices. I have developed this
+the master device share the L2 with its slave devices. I have developed this
 driver in conjunction with network namespaces and not sure if there is use case
 outside of it.
 

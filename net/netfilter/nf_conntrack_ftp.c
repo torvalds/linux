@@ -34,11 +34,6 @@ MODULE_DESCRIPTION("ftp connection tracking helper");
 MODULE_ALIAS("ip_conntrack_ftp");
 MODULE_ALIAS_NFCT_HELPER(HELPER_NAME);
 
-/* This is slow, but it's simple. --RR */
-static char *ftp_buffer;
-
-static DEFINE_SPINLOCK(nf_ftp_lock);
-
 #define MAX_PORTS 8
 static u_int16_t ports[MAX_PORTS];
 static unsigned int ports_c;
@@ -398,6 +393,9 @@ static int help(struct sk_buff *skb,
 		return NF_ACCEPT;
 	}
 
+	if (unlikely(skb_linearize(skb)))
+		return NF_DROP;
+
 	th = skb_header_pointer(skb, protoff, sizeof(_tcph), &_tcph);
 	if (th == NULL)
 		return NF_ACCEPT;
@@ -411,12 +409,8 @@ static int help(struct sk_buff *skb,
 	}
 	datalen = skb->len - dataoff;
 
-	spin_lock_bh(&nf_ftp_lock);
-	fb_ptr = skb_header_pointer(skb, dataoff, datalen, ftp_buffer);
-	if (!fb_ptr) {
-		spin_unlock_bh(&nf_ftp_lock);
-		return NF_ACCEPT;
-	}
+	spin_lock_bh(&ct->lock);
+	fb_ptr = skb->data + dataoff;
 
 	ends_in_nl = (fb_ptr[datalen - 1] == '\n');
 	seq = ntohl(th->seq) + datalen;
@@ -544,7 +538,7 @@ out_update_nl:
 	if (ends_in_nl)
 		update_nl_seq(ct, seq, ct_ftp_info, dir, skb);
  out:
-	spin_unlock_bh(&nf_ftp_lock);
+	spin_unlock_bh(&ct->lock);
 	return ret;
 }
 
@@ -571,7 +565,6 @@ static const struct nf_conntrack_expect_policy ftp_exp_policy = {
 static void __exit nf_conntrack_ftp_fini(void)
 {
 	nf_conntrack_helpers_unregister(ftp, ports_c * 2);
-	kfree(ftp_buffer);
 }
 
 static int __init nf_conntrack_ftp_init(void)
@@ -579,10 +572,6 @@ static int __init nf_conntrack_ftp_init(void)
 	int i, ret = 0;
 
 	NF_CT_HELPER_BUILD_BUG_ON(sizeof(struct nf_ct_ftp_master));
-
-	ftp_buffer = kmalloc(65536, GFP_KERNEL);
-	if (!ftp_buffer)
-		return -ENOMEM;
 
 	if (ports_c == 0)
 		ports[ports_c++] = FTP_PORT;
@@ -603,7 +592,6 @@ static int __init nf_conntrack_ftp_init(void)
 	ret = nf_conntrack_helpers_register(ftp, ports_c * 2);
 	if (ret < 0) {
 		pr_err("failed to register helpers\n");
-		kfree(ftp_buffer);
 		return ret;
 	}
 
