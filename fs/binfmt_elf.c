@@ -1833,24 +1833,17 @@ static int fill_note_info(struct elfhdr *elf, int phdrs,
 	struct elf_thread_core_info *t;
 	struct elf_prpsinfo *psinfo;
 	struct core_thread *ct;
-	unsigned int i;
-
-	info->size = 0;
-	info->thread = NULL;
 
 	psinfo = kmalloc(sizeof(*psinfo), GFP_KERNEL);
-	if (psinfo == NULL) {
-		info->psinfo.data = NULL; /* So we don't free this wrongly */
+	if (!psinfo)
 		return 0;
-	}
-
 	fill_note(&info->psinfo, "CORE", NT_PRPSINFO, sizeof(*psinfo), psinfo);
 
 	/*
 	 * Figure out how many notes we're going to need for each thread.
 	 */
 	info->thread_notes = 0;
-	for (i = 0; i < view->n; ++i)
+	for (int i = 0; i < view->n; ++i)
 		if (view->regsets[i].core_note_type != 0)
 			++info->thread_notes;
 
