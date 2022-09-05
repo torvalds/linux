@@ -842,7 +842,8 @@ static int intel_pt_walk_next_insn(struct intel_pt_insn *intel_pt_insn,
 						    offset, buf,
 						    INTEL_PT_INSN_BUF_SZ);
 			if (len <= 0) {
-				intel_pt_log("ERROR: failed to read at %" PRIu64 " ", offset);
+				intel_pt_log("ERROR: failed to read at offset %#" PRIx64 " ",
+					     offset);
 				if (intel_pt_enable_logging)
 					dso__fprintf(al.map->dso, intel_pt_log_fp());
 				return -EINVAL;
