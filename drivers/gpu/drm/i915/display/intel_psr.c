@@ -805,8 +805,8 @@ static bool _compute_psr2_sdp_prior_scanline_indication(struct intel_dp *intel_d
 	hblank_total = adjusted_mode->crtc_hblank_end - adjusted_mode->crtc_hblank_start;
 	hblank_ns = div_u64(1000000ULL * hblank_total, adjusted_mode->crtc_clock);
 
-	/* From spec: (72 / number of lanes) * 1000 / symbol clock frequency MHz */
-	req_ns = (72 / crtc_state->lane_count) * 1000 / (crtc_state->port_clock / 1000);
+	/* From spec: ((60 / number of lanes) + 11) * 1000 / symbol clock frequency MHz */
+	req_ns = ((60 / crtc_state->lane_count) + 11) * 1000 / (crtc_state->port_clock / 1000);
 
 	if ((hblank_ns - req_ns) > 100)
 		return true;
