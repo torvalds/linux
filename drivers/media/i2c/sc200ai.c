@@ -1027,10 +1027,22 @@ static void sc200ai_get_module_inf(struct sc200ai *sc200ai,
 	strlcpy(inf->base.lens, sc200ai->len_name, sizeof(inf->base.lens));
 }
 
+static int sc200ai_get_channel_info(struct sc200ai *sc200ai, struct rkmodule_channel_info *ch_info)
+{
+	if (ch_info->index < PAD0 || ch_info->index >= PAD_MAX)
+		return -EINVAL;
+	ch_info->vc = sc200ai->cur_mode->vc[ch_info->index];
+	ch_info->width = sc200ai->cur_mode->width;
+	ch_info->height = sc200ai->cur_mode->height;
+	ch_info->bus_fmt = sc200ai->cur_mode->bus_fmt;
+	return 0;
+}
+
 static long sc200ai_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 {
 	struct sc200ai *sc200ai = to_sc200ai(sd);
 	struct rkmodule_hdr_cfg *hdr;
+	struct rkmodule_channel_info *ch_info;
 	u32 i, h, w;
 	long ret = 0;
 	u32 stream = 0;
@@ -1085,6 +1097,10 @@ static long sc200ai_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 			ret = sc200ai_write_reg(sc200ai->client, SC200AI_REG_CTRL_MODE,
 				 SC200AI_REG_VALUE_08BIT, SC200AI_MODE_SW_STANDBY);
 		break;
+	case RKMODULE_GET_CHANNEL_INFO:
+		ch_info = (struct rkmodule_channel_info *)arg;
+		ret = sc200ai_get_channel_info(sc200ai, ch_info);
+		break;
 	default:
 		ret = -ENOIOCTLCMD;
 		break;
@@ -1102,6 +1118,7 @@ static long sc200ai_compat_ioctl32(struct v4l2_subdev *sd,
 	struct rkmodule_awb_cfg *cfg;
 	struct rkmodule_hdr_cfg *hdr;
 	struct preisp_hdrae_exp_s *hdrae;
+	struct rkmodule_channel_info *ch_info;
 	long ret;
 	u32 stream = 0;
 
@@ -1184,6 +1201,21 @@ static long sc200ai_compat_ioctl32(struct v4l2_subdev *sd,
 			ret = sc200ai_ioctl(sd, cmd, &stream);
 		else
 			ret = -EFAULT;
+		break;
+	case RKMODULE_GET_CHANNEL_INFO:
+		ch_info = kzalloc(sizeof(*ch_info), GFP_KERNEL);
+		if (!ch_info) {
+			ret = -ENOMEM;
+			return ret;
+		}
+
+		ret = sc200ai_ioctl(sd, cmd, ch_info);
+		if (!ret) {
+			ret = copy_to_user(up, ch_info, sizeof(*ch_info));
+			if (ret)
+				ret = -EFAULT;
+		}
+		kfree(ch_info);
 		break;
 	default:
 		ret = -ENOIOCTLCMD;
