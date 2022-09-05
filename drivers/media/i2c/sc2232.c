@@ -133,6 +133,7 @@ struct sc2232 {
 	struct v4l2_ctrl	*pixel_rate;
 	struct v4l2_ctrl	*link_freq;
 	struct mutex		mutex;
+	struct v4l2_fract	cur_fps;
 	bool			streaming;
 	bool			power_on;
 	const struct sc2232_mode *cur_mode;
@@ -510,6 +511,8 @@ static int sc2232_set_fmt(struct v4l2_subdev *sd,
 		pixel_rate = (u32)link_freq_items[mode->mipi_freq_idx] /
 			mode->bpp * 2 * SC2232_LANES;
 		__v4l2_ctrl_s_ctrl_int64(sc2232->pixel_rate, pixel_rate);
+		sc2232->cur_fps = mode->max_fps;
+		sc2232->cur_vts = mode->vts_def;
 	}
 
 	mutex_unlock(&sc2232->mutex);
@@ -586,9 +589,10 @@ static int sc2232_g_frame_interval(struct v4l2_subdev *sd,
 	struct sc2232 *sc2232 = to_sc2232(sd);
 	const struct sc2232_mode *mode = sc2232->cur_mode;
 
-	mutex_lock(&sc2232->mutex);
-	fi->interval = mode->max_fps;
-	mutex_unlock(&sc2232->mutex);
+	if (sc2232->streaming)
+		fi->interval = sc2232->cur_fps;
+	else
+		fi->interval = mode->max_fps;
 
 	return 0;
 }
@@ -1153,6 +1157,14 @@ static const struct v4l2_subdev_ops sc2232_subdev_ops = {
 	.pad	= &sc2232_pad_ops,    /* */
 };
 
+static void sc2232_modify_fps_info(struct sc2232 *sc2232)
+{
+	const struct sc2232_mode *mode = sc2232->cur_mode;
+
+	sc2232->cur_fps.denominator = mode->max_fps.denominator * sc2232->cur_vts /
+				       mode->vts_def;
+}
+
 static int sc2232_set_ctrl(struct v4l2_ctrl *ctrl)
 {
 	struct sc2232 *sc2232 = container_of(ctrl->handler,
@@ -1205,6 +1217,10 @@ static int sc2232_set_ctrl(struct v4l2_ctrl *ctrl)
 		ret = sc2232_write_reg(sc2232->client, SC2232_REG_VTS,
 					SC2232_REG_VALUE_16BIT,
 					ctrl->val + sc2232->cur_mode->height);
+		if (!ret)
+			sc2232->cur_vts = ctrl->val + sc2232->cur_mode->height;
+		if (sc2232->cur_vts != sc2232->cur_mode->vts_def)
+			sc2232_modify_fps_info(sc2232);
 		dev_dbg(&client->dev, "set vblank 0x%x\n",
 			ctrl->val);
 		break;
@@ -1311,6 +1327,8 @@ static int sc2232_initialize_controls(struct sc2232 *sc2232)
 
 	sc2232->subdev.ctrl_handler = handler;
 	sc2232->has_init_exp = false;
+	sc2232->cur_vts = mode->vts_def;
+	sc2232->cur_fps = mode->max_fps;
 
 	return 0;
 
