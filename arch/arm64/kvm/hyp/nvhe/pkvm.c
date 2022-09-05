@@ -128,7 +128,7 @@ static void pvm_init_traps_aa64mmfr0(struct kvm_vcpu *vcpu)
 	u64 mdcr_set = 0;
 
 	/* Trap Debug Communications Channel registers */
-	if (!FIELD_GET(ARM64_FEATURE_MASK(ID_AA64MMFR0_FGT), feature_ids))
+	if (!FIELD_GET(ARM64_FEATURE_MASK(ID_AA64MMFR0_EL1_FGT), feature_ids))
 		mdcr_set |= MDCR_EL2_TDCC;
 
 	vcpu->arch.mdcr_el2 |= mdcr_set;

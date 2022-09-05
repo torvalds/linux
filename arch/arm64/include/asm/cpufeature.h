@@ -597,8 +597,8 @@ static inline s64 arm64_ftr_value(const struct arm64_ftr_bits *ftrp, u64 val)
 
 static inline bool id_aa64mmfr0_mixed_endian_el0(u64 mmfr0)
 {
-	return cpuid_feature_extract_unsigned_field(mmfr0, ID_AA64MMFR0_BIGENDEL_SHIFT) == 0x1 ||
-		cpuid_feature_extract_unsigned_field(mmfr0, ID_AA64MMFR0_BIGENDEL0_SHIFT) == 0x1;
+	return cpuid_feature_extract_unsigned_field(mmfr0, ID_AA64MMFR0_EL1_BIGENDEL_SHIFT) == 0x1 ||
+		cpuid_feature_extract_unsigned_field(mmfr0, ID_AA64MMFR0_EL1_BIGENDEL0_SHIFT) == 0x1;
 }
 
 static inline bool id_aa64pfr0_32bit_el1(u64 pfr0)
@@ -694,10 +694,10 @@ static inline bool system_supports_4kb_granule(void)
 
 	mmfr0 =	read_sanitised_ftr_reg(SYS_ID_AA64MMFR0_EL1);
 	val = cpuid_feature_extract_unsigned_field(mmfr0,
-						ID_AA64MMFR0_TGRAN4_SHIFT);
+						ID_AA64MMFR0_EL1_TGRAN4_SHIFT);
 
-	return (val >= ID_AA64MMFR0_TGRAN4_SUPPORTED_MIN) &&
-	       (val <= ID_AA64MMFR0_TGRAN4_SUPPORTED_MAX);
+	return (val >= ID_AA64MMFR0_EL1_TGRAN4_SUPPORTED_MIN) &&
+	       (val <= ID_AA64MMFR0_EL1_TGRAN4_SUPPORTED_MAX);
 }
 
 static inline bool system_supports_64kb_granule(void)
@@ -707,10 +707,10 @@ static inline bool system_supports_64kb_granule(void)
 
 	mmfr0 =	read_sanitised_ftr_reg(SYS_ID_AA64MMFR0_EL1);
 	val = cpuid_feature_extract_unsigned_field(mmfr0,
-						ID_AA64MMFR0_TGRAN64_SHIFT);
+						ID_AA64MMFR0_EL1_TGRAN64_SHIFT);
 
-	return (val >= ID_AA64MMFR0_TGRAN64_SUPPORTED_MIN) &&
-	       (val <= ID_AA64MMFR0_TGRAN64_SUPPORTED_MAX);
+	return (val >= ID_AA64MMFR0_EL1_TGRAN64_SUPPORTED_MIN) &&
+	       (val <= ID_AA64MMFR0_EL1_TGRAN64_SUPPORTED_MAX);
 }
 
 static inline bool system_supports_16kb_granule(void)
@@ -720,10 +720,10 @@ static inline bool system_supports_16kb_granule(void)
 
 	mmfr0 =	read_sanitised_ftr_reg(SYS_ID_AA64MMFR0_EL1);
 	val = cpuid_feature_extract_unsigned_field(mmfr0,
-						ID_AA64MMFR0_TGRAN16_SHIFT);
+						ID_AA64MMFR0_EL1_TGRAN16_SHIFT);
 
-	return (val >= ID_AA64MMFR0_TGRAN16_SUPPORTED_MIN) &&
-	       (val <= ID_AA64MMFR0_TGRAN16_SUPPORTED_MAX);
+	return (val >= ID_AA64MMFR0_EL1_TGRAN16_SUPPORTED_MIN) &&
+	       (val <= ID_AA64MMFR0_EL1_TGRAN16_SUPPORTED_MAX);
 }
 
 static inline bool system_supports_mixed_endian_el0(void)
@@ -738,7 +738,7 @@ static inline bool system_supports_mixed_endian(void)
 
 	mmfr0 =	read_sanitised_ftr_reg(SYS_ID_AA64MMFR0_EL1);
 	val = cpuid_feature_extract_unsigned_field(mmfr0,
-						ID_AA64MMFR0_BIGENDEL_SHIFT);
+						ID_AA64MMFR0_EL1_BIGENDEL_SHIFT);
 
 	return val == 0x1;
 }
@@ -840,13 +840,13 @@ extern int do_emulate_mrs(struct pt_regs *regs, u32 sys_reg, u32 rt);
 static inline u32 id_aa64mmfr0_parange_to_phys_shift(int parange)
 {
 	switch (parange) {
-	case ID_AA64MMFR0_PARANGE_32: return 32;
-	case ID_AA64MMFR0_PARANGE_36: return 36;
-	case ID_AA64MMFR0_PARANGE_40: return 40;
-	case ID_AA64MMFR0_PARANGE_42: return 42;
-	case ID_AA64MMFR0_PARANGE_44: return 44;
-	case ID_AA64MMFR0_PARANGE_48: return 48;
-	case ID_AA64MMFR0_PARANGE_52: return 52;
+	case ID_AA64MMFR0_EL1_PARANGE_32: return 32;
+	case ID_AA64MMFR0_EL1_PARANGE_36: return 36;
+	case ID_AA64MMFR0_EL1_PARANGE_40: return 40;
+	case ID_AA64MMFR0_EL1_PARANGE_42: return 42;
+	case ID_AA64MMFR0_EL1_PARANGE_44: return 44;
+	case ID_AA64MMFR0_EL1_PARANGE_48: return 48;
+	case ID_AA64MMFR0_EL1_PARANGE_52: return 52;
 	/*
 	 * A future PE could use a value unknown to the kernel.
 	 * However, by the "D10.1.4 Principles of the ID scheme
