@@ -885,6 +885,43 @@ static snd_pcm_uframes_t mca_pointer(struct snd_soc_component *component,
 	return snd_dmaengine_pcm_pointer(substream);
 }
 
+static struct dma_chan *mca_request_dma_channel(struct mca_cluster *cl, unsigned int stream)
+{
+	bool is_tx = (stream == SNDRV_PCM_STREAM_PLAYBACK);
+#ifndef USE_RXB_FOR_CAPTURE
+	char *name = devm_kasprintf(cl->host->dev, GFP_KERNEL,
+				    is_tx ? "tx%da" : "rx%da", cl->no);
+#else
+	char *name = devm_kasprintf(cl->host->dev, GFP_KERNEL,
+				    is_tx ? "tx%da" : "rx%db", cl->no);
+#endif
+	return of_dma_request_slave_channel(cl->host->dev->of_node, name);
+
+}
+
+static void mca_pcm_free(struct snd_soc_component *component,
+			 struct snd_pcm *pcm)
+{
+	struct snd_soc_pcm_runtime *rtd = snd_pcm_chip(pcm);
+	struct mca_cluster *cl = mca_dai_to_cluster(asoc_rtd_to_cpu(rtd, 0));
+	unsigned int i;
+
+	if (rtd->dai_link->no_pcm)
+		return;
+
+	for_each_pcm_streams(i) {
+		struct snd_pcm_substream *substream =
+			rtd->pcm->streams[i].substream;
+
+		if (!substream || !cl->dma_chans[i])
+			continue;
+
+		dma_release_channel(cl->dma_chans[i]);
+		cl->dma_chans[i] = NULL;
+	}
+}
+
+
 static int mca_pcm_new(struct snd_soc_component *component,
 		       struct snd_soc_pcm_runtime *rtd)
 {
@@ -897,17 +934,21 @@ static int mca_pcm_new(struct snd_soc_component *component,
 	for_each_pcm_streams(i) {
 		struct snd_pcm_substream *substream =
 			rtd->pcm->streams[i].substream;
-		struct dma_chan *chan = cl->dma_chans[i];
+		struct dma_chan *chan;
 
 		if (!substream)
 			continue;
 
-		if (!chan) {
-			dev_err(component->dev, "missing DMA channel for stream %d on SERDES %d\n",
-				i, cl->no);
+		chan = mca_request_dma_channel(cl, i);
+
+		if (IS_ERR_OR_NULL(chan)) {
+			dev_err(component->dev, "unable to obtain DMA channel (stream %d cluster %d): %pe\n",
+				i, cl->no, chan);
+			mca_pcm_free(component, rtd->pcm);
 			return -EINVAL;
 		}
 
+		cl->dma_chans[i] = chan;
 		snd_pcm_set_managed_buffer(substream, SNDRV_DMA_TYPE_DEV_IRAM,
 					   chan->device->dev, 512 * 1024 * 6,
 					   SIZE_MAX);
@@ -924,6 +965,7 @@ static const struct snd_soc_component_driver mca_component = {
 	.trigger = mca_trigger,
 	.pointer = mca_pointer,
 	.pcm_construct = mca_pcm_new,
+	.pcm_destruct = mca_pcm_free,
 };
 
 static void apple_mca_release(struct mca_data *mca)
@@ -1019,7 +1061,6 @@ static int apple_mca_probe(struct platform_device *pdev)
 		struct snd_soc_dai_driver *fe =
 			&dai_drivers[mca->nclusters + i];
 		struct snd_soc_dai_driver *be = &dai_drivers[i];
-		int stream;
 
 		cl->host = mca;
 		cl->no = i;
@@ -1039,34 +1080,6 @@ static int apple_mca_probe(struct platform_device *pdev)
 				PTR_ERR(cl->pd_dev));
 			ret = PTR_ERR(cl->pd_dev);
 			goto err_release;
-		}
-
-		for_each_pcm_streams(stream) {
-			struct dma_chan *chan;
-			bool is_tx = (stream == SNDRV_PCM_STREAM_PLAYBACK);
-#ifndef USE_RXB_FOR_CAPTURE
-			char *name = devm_kasprintf(&pdev->dev, GFP_KERNEL,
-						    is_tx ? "tx%da" : "rx%da",
-						    i);
-#else
-			char *name = devm_kasprintf(&pdev->dev, GFP_KERNEL,
-						    is_tx ? "tx%da" : "rx%db",
-						    i);
-#endif
-
-			chan = of_dma_request_slave_channel(pdev->dev.of_node,
-							    name);
-			if (IS_ERR(chan)) {
-				if (PTR_ERR(chan) != -EPROBE_DEFER)
-					dev_err(&pdev->dev,
-						"no %s DMA channel: %ld\n",
-						name, PTR_ERR(chan));
-
-				ret = PTR_ERR(chan);
-				goto err_release;
-			}
-
-			cl->dma_chans[stream] = chan;
 		}
 
 		fe->id = i;
