@@ -143,16 +143,39 @@ static FILE *log_buf__open(struct log_buf *b, FILE *backend, unsigned int sz)
 	return file;
 }
 
+static bool remove_first_line(const char **p, size_t *n)
+{
+	for (; *n && **p != '\n'; ++*p, --*n)
+		;
+	if (*n) {
+		*p += 1;
+		*n -= 1;
+		return true;
+	}
+	return false;
+}
+
+static void write_lines(const char *p, size_t n, FILE *fp, bool *remove_first)
+{
+	if (*remove_first)
+		*remove_first = !remove_first_line(&p, &n);
+	fwrite(p, n, 1, fp);
+}
+
 static void log_buf__dump(struct log_buf *b)
 {
+	bool remove_first = false;
+
 	if (!b->buf)
 		return;
 
-	fflush(f);
-	fprintf(b->backend, "Dumping debug log buffer (first line may be sliced)\n");
-	if (b->wrapped)
-		fwrite(b->buf + b->head, b->buf_sz - b->head, 1, b->backend);
-	fwrite(b->buf, b->head, 1, b->backend);
+	fflush(f); /* Could update b->head and b->wrapped */
+	fprintf(b->backend, "Dumping debug log buffer\n");
+	if (b->wrapped) {
+		remove_first = true;
+		write_lines(b->buf + b->head, b->buf_sz - b->head, b->backend, &remove_first);
+	}
+	write_lines(b->buf, b->head, b->backend, &remove_first);
 	fprintf(b->backend, "End of debug log buffer dump\n");
 
 	b->head = 0;
