@@ -118,9 +118,11 @@
 
 #define	PTP_MIN_LENGTH		63
 
-#define PTP_RXFILTERS_LEN	2
+#define PTP_RXFILTERS_LEN	4
 
-#define PTP_ADDRESS		0xe0000181	/* 224.0.1.129 */
+#define PTP_ADDR_IPV4		0xe0000181	/* 224.0.1.129 */
+#define PTP_ADDR_IPV6		{0xff, 0x0e, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, \
+				0, 0x01, 0x81}	/* ff0e::181 */
 #define PTP_EVENT_PORT		319
 #define PTP_GENERAL_PORT	320
 
@@ -1297,25 +1299,47 @@ static void efx_ptp_remove_multicast_filters(struct efx_nic *efx)
 	}
 }
 
-static int efx_ptp_insert_ipv4_filter(struct efx_nic *efx, u16 port)
+static void efx_ptp_init_filter(struct efx_nic *efx,
+				struct efx_filter_spec *rxfilter)
+{
+	struct efx_channel *channel = efx->ptp_data->channel;
+	struct efx_rx_queue *queue = efx_channel_get_rx_queue(channel);
+
+	efx_filter_init_rx(rxfilter, EFX_FILTER_PRI_REQUIRED, 0,
+			   efx_rx_queue_index(queue));
+}
+
+static int efx_ptp_insert_filter(struct efx_nic *efx,
+				 struct efx_filter_spec *rxfilter)
 {
 	struct efx_ptp_data *ptp = efx->ptp_data;
-	struct efx_filter_spec rxfilter;
-	int rc;
 
-	efx_filter_init_rx(&rxfilter, EFX_FILTER_PRI_REQUIRED, 0,
-			   efx_rx_queue_index(
-				   efx_channel_get_rx_queue(ptp->channel)));
-
-	efx_filter_set_ipv4_local(&rxfilter, IPPROTO_UDP, htonl(PTP_ADDRESS),
-				  htons(port));
-
-	rc = efx_filter_insert_filter(efx, &rxfilter, true);
+	int rc = efx_filter_insert_filter(efx, rxfilter, true);
 	if (rc < 0)
 		return rc;
 	ptp->rxfilters[ptp->rxfilters_count] = rc;
 	ptp->rxfilters_count++;
 	return 0;
+}
+
+static int efx_ptp_insert_ipv4_filter(struct efx_nic *efx, u16 port)
+{
+	struct efx_filter_spec rxfilter;
+
+	efx_ptp_init_filter(efx, &rxfilter);
+	efx_filter_set_ipv4_local(&rxfilter, IPPROTO_UDP, htonl(PTP_ADDR_IPV4),
+				  htons(port));
+	return efx_ptp_insert_filter(efx, &rxfilter);
+}
+
+static int efx_ptp_insert_ipv6_filter(struct efx_nic *efx, u16 port)
+{
+	const struct in6_addr addr = {{PTP_ADDR_IPV6}};
+	struct efx_filter_spec rxfilter;
+
+	efx_ptp_init_filter(efx, &rxfilter);
+	efx_filter_set_ipv6_local(&rxfilter, IPPROTO_UDP, &addr, htons(port));
+	return efx_ptp_insert_filter(efx, &rxfilter);
 }
 
 static int efx_ptp_insert_multicast_filters(struct efx_nic *efx)
@@ -1336,6 +1360,19 @@ static int efx_ptp_insert_multicast_filters(struct efx_nic *efx)
 	rc = efx_ptp_insert_ipv4_filter(efx, PTP_GENERAL_PORT);
 	if (rc < 0)
 		goto fail;
+
+	/* if the NIC supports hw timestamps by the MAC, we can support
+	 * PTP over IPv6
+	 */
+	if (efx_ptp_use_mac_tx_timestamps(efx)) {
+		rc = efx_ptp_insert_ipv6_filter(efx, PTP_EVENT_PORT);
+		if (rc < 0)
+			goto fail;
+
+		rc = efx_ptp_insert_ipv6_filter(efx, PTP_GENERAL_PORT);
+		if (rc < 0)
+			goto fail;
+	}
 
 	return 0;
 
