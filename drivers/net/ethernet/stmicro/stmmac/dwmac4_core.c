@@ -14,7 +14,6 @@
 #include <linux/slab.h>
 #include <linux/ethtool.h>
 #include <linux/io.h>
-#include <net/dsa.h>
 #include "stmmac.h"
 #include "stmmac_pcs.h"
 #include "dwmac4.h"
