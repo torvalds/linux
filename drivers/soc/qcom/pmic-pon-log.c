@@ -178,6 +178,8 @@ static const struct pmic_pon_trigger_mapping pmic_pon_pon_trigger_map[] = {
 	{0x0640, "SMPL"},
 	{0x18C0, "PMIC_SID1_GPIO5"},
 	{0x31C2, "USB_CHARGER"},
+	/* PM7250B USB PON trigger */
+	{0x8732, "USB_CHARGER"},
 };
 
 static const struct pmic_pon_trigger_mapping pmic_pon_reset_trigger_map[] = {
