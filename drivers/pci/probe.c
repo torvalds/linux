@@ -2920,8 +2920,8 @@ static unsigned int pci_scan_child_bus_extend(struct pci_bus *bus,
 		 * hotplug bridges too much during the second scan below.
 		 */
 		used_buses++;
-		if (cmax - max > 1)
-			used_buses += cmax - max - 1;
+		if (max - cmax > 1)
+			used_buses += max - cmax - 1;
 	}
 
 	/* Scan bridges that need to be reconfigured */
