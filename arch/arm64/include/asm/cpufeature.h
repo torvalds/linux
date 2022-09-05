@@ -597,7 +597,7 @@ static inline s64 arm64_ftr_value(const struct arm64_ftr_bits *ftrp, u64 val)
 
 static inline bool id_aa64mmfr0_mixed_endian_el0(u64 mmfr0)
 {
-	return cpuid_feature_extract_unsigned_field(mmfr0, ID_AA64MMFR0_EL1_BIGENDEL_SHIFT) == 0x1 ||
+	return cpuid_feature_extract_unsigned_field(mmfr0, ID_AA64MMFR0_EL1_BIGEND_SHIFT) == 0x1 ||
 		cpuid_feature_extract_unsigned_field(mmfr0, ID_AA64MMFR0_EL1_BIGENDEL0_SHIFT) == 0x1;
 }
 
@@ -738,7 +738,7 @@ static inline bool system_supports_mixed_endian(void)
 
 	mmfr0 =	read_sanitised_ftr_reg(SYS_ID_AA64MMFR0_EL1);
 	val = cpuid_feature_extract_unsigned_field(mmfr0,
-						ID_AA64MMFR0_EL1_BIGENDEL_SHIFT);
+						ID_AA64MMFR0_EL1_BIGEND_SHIFT);
 
 	return val == 0x1;
 }
