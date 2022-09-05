@@ -644,45 +644,6 @@ static struct drm_display_mode simpledrm_mode(unsigned int width,
 	return mode;
 }
 
-static const uint32_t *simpledrm_device_formats(struct simpledrm_device *sdev,
-						size_t *nformats_out)
-{
-	struct drm_device *dev = &sdev->dev;
-	size_t i;
-
-	if (sdev->nformats)
-		goto out; /* don't rebuild list on recurring calls */
-
-	/* native format goes first */
-	sdev->formats[0] = sdev->format->format;
-	sdev->nformats = 1;
-
-	/* default formats go second */
-	for (i = 0; i < ARRAY_SIZE(simpledrm_primary_plane_formats); ++i) {
-		if (simpledrm_primary_plane_formats[i] == sdev->format->format)
-			continue; /* native format already went first */
-		sdev->formats[sdev->nformats] = simpledrm_primary_plane_formats[i];
-		sdev->nformats++;
-	}
-
-	/*
-	 * TODO: The simpledrm driver converts framebuffers to the native
-	 * format when copying them to device memory. If there are more
-	 * formats listed than supported by the driver, the native format
-	 * is not supported by the conversion helpers. Therefore *only*
-	 * support the native format and add a conversion helper ASAP.
-	 */
-	if (drm_WARN_ONCE(dev, i != sdev->nformats,
-			  "format conversion helpers required for %p4cc",
-			  &sdev->format->format)) {
-		sdev->nformats = 1;
-	}
-
-out:
-	*nformats_out = sdev->nformats;
-	return sdev->formats;
-}
-
 static struct simpledrm_device *simpledrm_device_create(struct drm_driver *drv,
 							struct platform_device *pdev)
 {
@@ -699,7 +660,6 @@ static struct simpledrm_device *simpledrm_device_create(struct drm_driver *drv,
 	struct drm_encoder *encoder;
 	struct drm_connector *connector;
 	unsigned long max_width, max_height;
-	const uint32_t *formats;
 	size_t nformats;
 	int ret;
 
@@ -811,11 +771,14 @@ static struct simpledrm_device *simpledrm_device_create(struct drm_driver *drv,
 
 	/* Primary plane */
 
-	formats = simpledrm_device_formats(sdev, &nformats);
+	nformats = drm_fb_build_fourcc_list(dev, &format->format, 1,
+					    simpledrm_primary_plane_formats,
+					    ARRAY_SIZE(simpledrm_primary_plane_formats),
+					    sdev->formats, ARRAY_SIZE(sdev->formats));
 
 	primary_plane = &sdev->primary_plane;
 	ret = drm_universal_plane_init(dev, primary_plane, 0, &simpledrm_primary_plane_funcs,
-				       formats, nformats,
+				       sdev->formats, nformats,
 				       simpledrm_primary_plane_format_modifiers,
 				       DRM_PLANE_TYPE_PRIMARY, NULL);
 	if (ret)

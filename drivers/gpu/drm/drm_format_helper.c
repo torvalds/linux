@@ -793,3 +793,111 @@ void drm_fb_xrgb8888_to_mono(struct iosys_map *dst, const unsigned int *dst_pitc
 	kfree(src32);
 }
 EXPORT_SYMBOL(drm_fb_xrgb8888_to_mono);
+
+static bool is_listed_fourcc(const uint32_t *fourccs, size_t nfourccs, uint32_t fourcc)
+{
+	const uint32_t *fourccs_end = fourccs + nfourccs;
+
+	while (fourccs < fourccs_end) {
+		if (*fourccs == fourcc)
+			return true;
+		++fourccs;
+	}
+	return false;
+}
+
+/**
+ * drm_fb_build_fourcc_list - Filters a list of supported color formats against
+ *                            the device's native formats
+ * @dev: DRM device
+ * @native_fourccs: 4CC codes of natively supported color formats
+ * @native_nfourccs: The number of entries in @native_fourccs
+ * @driver_fourccs: 4CC codes of all driver-supported color formats
+ * @driver_nfourccs: The number of entries in @driver_fourccs
+ * @fourccs_out: Returns 4CC codes of supported color formats
+ * @nfourccs_out: The number of available entries in @fourccs_out
+ *
+ * This function create a list of supported color format from natively
+ * supported formats and the emulated formats.
+ * At a minimum, most userspace programs expect at least support for
+ * XRGB8888 on the primary plane. Devices that have to emulate the
+ * format, and possibly others, can use drm_fb_build_fourcc_list() to
+ * create a list of supported color formats. The returned list can
+ * be handed over to drm_universal_plane_init() et al. Native formats
+ * will go before emulated formats. Other heuristics might be applied
+ * to optimize the order. Formats near the beginning of the list are
+ * usually preferred over formats near the end of the list.
+ *
+ * Returns:
+ * The number of color-formats 4CC codes returned in @fourccs_out.
+ */
+size_t drm_fb_build_fourcc_list(struct drm_device *dev,
+				const u32 *native_fourccs, size_t native_nfourccs,
+				const u32 *driver_fourccs, size_t driver_nfourccs,
+				u32 *fourccs_out, size_t nfourccs_out)
+{
+	u32 *fourccs = fourccs_out;
+	const u32 *fourccs_end = fourccs_out + nfourccs_out;
+	bool found_native = false;
+	size_t i;
+
+	/*
+	 * The device's native formats go first.
+	 */
+
+	for (i = 0; i < native_nfourccs; ++i) {
+		u32 fourcc = native_fourccs[i];
+
+		if (is_listed_fourcc(fourccs_out, fourccs - fourccs_out, fourcc)) {
+			continue; /* skip duplicate entries */
+		} else if (fourccs == fourccs_end) {
+			drm_warn(dev, "Ignoring native format %p4cc\n", &fourcc);
+			continue; /* end of available output buffer */
+		}
+
+		drm_dbg_kms(dev, "adding native format %p4cc\n", &fourcc);
+
+		if (!found_native)
+			found_native = is_listed_fourcc(driver_fourccs, driver_nfourccs, fourcc);
+		*fourccs = fourcc;
+		++fourccs;
+	}
+
+	/*
+	 * The plane's atomic_update helper converts the framebuffer's color format
+	 * to a native format when copying to device memory.
+	 *
+	 * If there is not a single format supported by both, device and
+	 * driver, the native formats are likely not supported by the conversion
+	 * helpers. Therefore *only* support the native formats and add a
+	 * conversion helper ASAP.
+	 */
+	if (!found_native) {
+		drm_warn(dev, "Format conversion helpers required to add extra formats.\n");
+		goto out;
+	}
+
+	/*
+	 * The extra formats, emulated by the driver, go second.
+	 */
+
+	for (i = 0; (i < driver_nfourccs) && (fourccs < fourccs_end); ++i) {
+		u32 fourcc = driver_fourccs[i];
+
+		if (is_listed_fourcc(fourccs_out, fourccs - fourccs_out, fourcc)) {
+			continue; /* skip duplicate and native entries */
+		} else if (fourccs == fourccs_end) {
+			drm_warn(dev, "Ignoring emulated format %p4cc\n", &fourcc);
+			continue; /* end of available output buffer */
+		}
+
+		drm_dbg_kms(dev, "adding emulated format %p4cc\n", &fourcc);
+
+		*fourccs = fourcc;
+		++fourccs;
+	}
+
+out:
+	return fourccs - fourccs_out;
+}
+EXPORT_SYMBOL(drm_fb_build_fourcc_list);
