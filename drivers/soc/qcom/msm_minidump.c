@@ -852,14 +852,14 @@ static int msm_minidump_add_header(void)
 	if (is_rm_minidump) {
 		slot_num = gh_rm_minidump_register_range(
 			virt_to_phys(minidump_elfheader.ehdr), elfh_size,
-			"KELF_HEADER", strlen("KELF_HEADER"));
+			"KELF_HDR", strlen("KELF_HDR"));
 		if (slot_num < 0) {
 			pr_err("Failed to register elf_header minidump entry\n");
 			return -EBUSY;
 		}
 	} else {
 		mdreg = &minidump_table->md_regions[0];
-		strscpy(mdreg->name, "KELF_HEADER", sizeof(mdreg->name));
+		strscpy(mdreg->name, "KELF_HDR", sizeof(mdreg->name));
 		mdreg->region_base_address = virt_to_phys(minidump_elfheader.ehdr);
 		mdreg->region_size = elfh_size;
 	}
