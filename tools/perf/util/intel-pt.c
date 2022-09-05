@@ -2419,6 +2419,8 @@ static int intel_pt_synth_error(struct intel_pt *pt, int code, int cpu,
 				pid_t pid, pid_t tid, u64 ip, u64 timestamp,
 				pid_t machine_pid, int vcpu)
 {
+	bool dump_log_on_error = pt->synth_opts.log_plus_flags & AUXTRACE_LOG_FLG_ON_ERROR;
+	bool log_on_stdout = pt->synth_opts.log_plus_flags & AUXTRACE_LOG_FLG_USE_STDOUT;
 	union perf_event event;
 	char msg[MAX_AUXTRACE_ERROR_MSG];
 	int err;
@@ -2437,6 +2439,16 @@ static int intel_pt_synth_error(struct intel_pt *pt, int code, int cpu,
 	auxtrace_synth_guest_error(&event.auxtrace_error, PERF_AUXTRACE_ERROR_ITRACE,
 				   code, cpu, pid, tid, ip, msg, timestamp,
 				   machine_pid, vcpu);
+
+	if (intel_pt_enable_logging && !log_on_stdout) {
+		FILE *fp = intel_pt_log_fp();
+
+		if (fp)
+			perf_event__fprintf_auxtrace_error(&event, fp);
+	}
+
+	if (code != INTEL_PT_ERR_LOST && dump_log_on_error)
+		intel_pt_log_dump_buf();
 
 	err = perf_session__deliver_synth_event(pt->session, &event, NULL);
 	if (err)
@@ -4272,8 +4284,12 @@ int intel_pt_process_auxtrace_info(union perf_event *event,
 		goto err_delete_thread;
 	}
 
-	if (pt->synth_opts.log)
-		intel_pt_log_enable();
+	if (pt->synth_opts.log) {
+		bool log_on_error = pt->synth_opts.log_plus_flags & AUXTRACE_LOG_FLG_ON_ERROR;
+		unsigned int log_on_error_size = pt->synth_opts.log_on_error_size;
+
+		intel_pt_log_enable(log_on_error, log_on_error_size);
+	}
 
 	/* Maximum non-turbo ratio is TSC freq / 100 MHz */
 	if (pt->tc.time_mult) {

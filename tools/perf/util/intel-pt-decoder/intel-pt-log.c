@@ -5,11 +5,15 @@
  */
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <stdint.h>
 #include <inttypes.h>
 #include <stdarg.h>
 #include <stdbool.h>
 #include <string.h>
+
+#include <linux/zalloc.h>
+#include <linux/kernel.h>
 
 #include "intel-pt-log.h"
 #include "intel-pt-insn-decoder.h"
@@ -18,18 +22,33 @@
 
 #define MAX_LOG_NAME 256
 
+#define DFLT_BUF_SZ	(16 * 1024)
+
+struct log_buf {
+	char			*buf;
+	size_t			buf_sz;
+	size_t			head;
+	bool			wrapped;
+	FILE			*backend;
+};
+
 static FILE *f;
 static char log_name[MAX_LOG_NAME];
 bool intel_pt_enable_logging;
+static bool intel_pt_dump_log_on_error;
+static unsigned int intel_pt_log_on_error_size;
+static struct log_buf log_buf;
 
 void *intel_pt_log_fp(void)
 {
 	return f;
 }
 
-void intel_pt_log_enable(void)
+void intel_pt_log_enable(bool dump_log_on_error, unsigned int log_on_error_size)
 {
 	intel_pt_enable_logging = true;
+	intel_pt_dump_log_on_error = dump_log_on_error;
+	intel_pt_log_on_error_size = log_on_error_size;
 }
 
 void intel_pt_log_disable(void)
@@ -74,6 +93,77 @@ static void intel_pt_print_no_data(uint64_t pos, int indent)
 	fprintf(f, " ");
 }
 
+static ssize_t log_buf__write(void *cookie, const char *buf, size_t size)
+{
+	struct log_buf *b = cookie;
+	size_t sz = size;
+
+	if (!b->buf)
+		return size;
+
+	while (sz) {
+		size_t space = b->buf_sz - b->head;
+		size_t n = min(space, sz);
+
+		memcpy(b->buf + b->head, buf, n);
+		sz -= n;
+		buf += n;
+		b->head += n;
+		if (sz && b->head >= b->buf_sz) {
+			b->head = 0;
+			b->wrapped = true;
+		}
+	}
+	return size;
+}
+
+static int log_buf__close(void *cookie)
+{
+	struct log_buf *b = cookie;
+
+	zfree(&b->buf);
+	return 0;
+}
+
+static FILE *log_buf__open(struct log_buf *b, FILE *backend, unsigned int sz)
+{
+	cookie_io_functions_t fns = {
+		.write = log_buf__write,
+		.close = log_buf__close,
+	};
+	FILE *file;
+
+	memset(b, 0, sizeof(*b));
+	b->buf_sz = sz;
+	b->buf = malloc(b->buf_sz);
+	b->backend = backend;
+	file = fopencookie(b, "a", fns);
+	if (!file)
+		zfree(&b->buf);
+	return file;
+}
+
+static void log_buf__dump(struct log_buf *b)
+{
+	if (!b->buf)
+		return;
+
+	fflush(f);
+	fprintf(b->backend, "Dumping debug log buffer (first line may be sliced)\n");
+	if (b->wrapped)
+		fwrite(b->buf + b->head, b->buf_sz - b->head, 1, b->backend);
+	fwrite(b->buf, b->head, 1, b->backend);
+	fprintf(b->backend, "End of debug log buffer dump\n");
+
+	b->head = 0;
+	b->wrapped = false;
+}
+
+void intel_pt_log_dump_buf(void)
+{
+	log_buf__dump(&log_buf);
+}
+
 static int intel_pt_log_open(void)
 {
 	if (!intel_pt_enable_logging)
@@ -86,6 +176,8 @@ static int intel_pt_log_open(void)
 		f = fopen(log_name, "w+");
 	else
 		f = stdout;
+	if (f && intel_pt_dump_log_on_error)
+		f = log_buf__open(&log_buf, f, intel_pt_log_on_error_size);
 	if (!f) {
 		intel_pt_enable_logging = false;
 		return -1;
