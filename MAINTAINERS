@@ -17911,7 +17911,6 @@ L:	linux-media@vger.kernel.org
 S:	Maintained
 T:	git git://linuxtv.org/media_tree.git
 F:	drivers/staging/media/deprecated/saa7146/
-F:	include/media/drv-intf/saa7146*
 
 SAFESETID SECURITY MODULE
 M:	Micah Morton <mortonm@chromium.org>
