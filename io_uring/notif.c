@@ -21,14 +21,6 @@ static void __io_notif_complete_tw(struct io_kiocb *notif, bool *locked)
 	io_req_task_complete(notif, locked);
 }
 
-static inline void io_notif_complete(struct io_kiocb *notif)
-	__must_hold(&notif->ctx->uring_lock)
-{
-	bool locked = true;
-
-	__io_notif_complete_tw(notif, &locked);
-}
-
 static void io_uring_tx_zerocopy_callback(struct sk_buff *skb,
 					  struct ubuf_info *uarg,
 					  bool success)
