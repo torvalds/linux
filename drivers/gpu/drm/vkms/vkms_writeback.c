@@ -12,6 +12,7 @@
 #include <drm/drm_gem_shmem_helper.h>
 
 #include "vkms_drv.h"
+#include "vkms_formats.h"
 
 static const u32 vkms_wb_formats[] = {
 	DRM_FORMAT_XRGB8888,
@@ -124,6 +125,7 @@ static void vkms_wb_atomic_commit(struct drm_connector *conn,
 	struct drm_framebuffer *fb = connector_state->writeback_job->fb;
 	struct vkms_writeback_job *active_wb;
 	struct vkms_frame_info *wb_frame_info;
+	u32 wb_format = fb->format->format;
 
 	if (!conn_state)
 		return;
@@ -141,6 +143,7 @@ static void vkms_wb_atomic_commit(struct drm_connector *conn,
 	crtc_state->wb_pending = true;
 	spin_unlock_irq(&output->composer_lock);
 	drm_writeback_queue_job(wb_conn, connector_state);
+	active_wb->wb_write = get_line_to_frame_function(wb_format);
 }
 
 static const struct drm_connector_helper_funcs vkms_wb_conn_helper_funcs = {
