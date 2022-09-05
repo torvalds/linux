@@ -979,22 +979,7 @@ IS_SUBPLATFORM(const struct drm_i915_private *i915,
 void i915_gem_init_early(struct drm_i915_private *dev_priv);
 void i915_gem_cleanup_early(struct drm_i915_private *dev_priv);
 
-static inline void i915_gem_drain_freed_objects(struct drm_i915_private *i915)
-{
-	/*
-	 * A single pass should suffice to release all the freed objects (along
-	 * most call paths) , but be a little more paranoid in that freeing
-	 * the objects does take a little amount of time, during which the rcu
-	 * callbacks could have added new objects into the freed list, and
-	 * armed the work again.
-	 */
-	while (atomic_read(&i915->mm.free_count)) {
-		flush_work(&i915->mm.free_work);
-		flush_delayed_work(&i915->bdev.wq);
-		rcu_barrier();
-	}
-}
-
+void i915_gem_drain_freed_objects(struct drm_i915_private *i915);
 void i915_gem_drain_workqueue(struct drm_i915_private *i915);
 
 struct i915_vma * __must_check

@@ -1086,6 +1086,21 @@ out:
 }
 
 /*
+ * A single pass should suffice to release all the freed objects (along most
+ * call paths), but be a little more paranoid in that freeing the objects does
+ * take a little amount of time, during which the rcu callbacks could have added
+ * new objects into the freed list, and armed the work again.
+ */
+void i915_gem_drain_freed_objects(struct drm_i915_private *i915)
+{
+	while (atomic_read(&i915->mm.free_count)) {
+		flush_work(&i915->mm.free_work);
+		flush_delayed_work(&i915->bdev.wq);
+		rcu_barrier();
+	}
+}
+
+/*
  * Similar to objects above (see i915_gem_drain_freed-objects), in general we
  * have workers that are armed by RCU and then rearm themselves in their
  * callbacks. To be paranoid, we need to drain the workqueue a second time after
