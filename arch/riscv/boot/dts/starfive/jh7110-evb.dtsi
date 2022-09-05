@@ -8,8 +8,8 @@
 #include "jh7110-common.dtsi"
 
 &i2c5 {
-	pmic: stf7110_evb_reg@50 {
-		compatible = "stf,jh7110-evb-regulator";
+	pmic: jh7110_evb_reg@50 {
+		compatible = "starfive,jh7110-evb-regulator";
 		reg = <0x50>;
 
 		regulators {
