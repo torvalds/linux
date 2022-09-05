@@ -132,6 +132,8 @@ struct sc132gs {
 	struct v4l2_ctrl	*pixel_rate;
 	struct v4l2_ctrl	*link_freq;
 	struct mutex		mutex;
+	struct v4l2_fract	cur_fps;
+	u32			cur_vts;
 	bool			streaming;
 	bool			power_on;
 	const struct sc132gs_mode *cur_mode;
@@ -574,6 +576,8 @@ static int sc132gs_set_fmt(struct v4l2_subdev *sd,
 					 1, vblank_def);
 		__v4l2_ctrl_s_ctrl_int64(sc132gs->pixel_rate, mode->pixel_rate);
 		__v4l2_ctrl_s_ctrl(sc132gs->link_freq, mode->link_freq_index);
+		sc132gs->cur_fps = mode->max_fps;
+		sc132gs->cur_vts = mode->vts_def;
 	}
 
 	mutex_unlock(&sc132gs->mutex);
@@ -894,9 +898,10 @@ static int sc132gs_g_frame_interval(struct v4l2_subdev *sd,
 	struct sc132gs *sc132gs = to_sc132gs(sd);
 	const struct sc132gs_mode *mode = sc132gs->cur_mode;
 
-	mutex_lock(&sc132gs->mutex);
-	fi->interval = mode->max_fps;
-	mutex_unlock(&sc132gs->mutex);
+	if (sc132gs->streaming)
+		fi->interval = sc132gs->cur_fps;
+	else
+		fi->interval = mode->max_fps;
 
 	return 0;
 }
@@ -1089,6 +1094,14 @@ static const struct v4l2_subdev_ops sc132gs_subdev_ops = {
 	.pad	= &sc132gs_pad_ops,
 };
 
+static void sc132gs_modify_fps_info(struct sc132gs *sc132gs)
+{
+	const struct sc132gs_mode *mode = sc132gs->cur_mode;
+
+	sc132gs->cur_fps.denominator = mode->max_fps.denominator * sc132gs->cur_vts /
+				       mode->vts_def;
+}
+
 static int sc132gs_set_ctrl(struct v4l2_ctrl *ctrl)
 {
 	struct sc132gs *sc132gs = container_of(ctrl->handler,
@@ -1125,6 +1138,11 @@ static int sc132gs_set_ctrl(struct v4l2_ctrl *ctrl)
 		ret = sc132gs_write_reg(sc132gs->client, SC132GS_REG_VTS,
 					SC132GS_REG_VALUE_16BIT,
 					ctrl->val + sc132gs->cur_mode->height);
+		if (!ret)
+			sc132gs->cur_vts = ctrl->val + sc132gs->cur_mode->height;
+		if (sc132gs->cur_vts != sc132gs->cur_mode->vts_def)
+			sc132gs_modify_fps_info(sc132gs);
+		break;
 		break;
 	case V4L2_CID_TEST_PATTERN:
 		ret = sc132gs_enable_test_pattern(sc132gs, ctrl->val);
@@ -1204,7 +1222,8 @@ static int sc132gs_initialize_controls(struct sc132gs *sc132gs)
 			"Failed to init controls(%d)\n", ret);
 		goto err_free_handler;
 	}
-
+	sc132gs->cur_fps = mode->max_fps;
+	sc132gs->cur_vts = mode->vts_def;
 	sc132gs->subdev.ctrl_handler = handler;
 
 	return 0;
