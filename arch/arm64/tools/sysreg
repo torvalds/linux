@@ -774,6 +774,10 @@ Sysreg	CONTEXTIDR_EL1	3	0	13	0	1
 Fields	CONTEXTIDR_ELx
 EndSysreg
 
+Sysreg	TPIDR_EL1	3	0	13	0	4
+Field	63:0	ThreadID
+EndSysreg
+
 Sysreg	CLIDR_EL1	3	1	0	0	1
 Res0	63:47
 Field	46:33	Ttypen
