@@ -78,6 +78,40 @@ static void XRGB8888_to_argb_u16(struct line_buffer *stage_buffer,
 	}
 }
 
+static void ARGB16161616_to_argb_u16(struct line_buffer *stage_buffer,
+				     const struct vkms_frame_info *frame_info,
+				     int y)
+{
+	struct pixel_argb_u16 *out_pixels = stage_buffer->pixels;
+	u16 *src_pixels = get_packed_src_addr(frame_info, y);
+	int x_limit = min_t(size_t, drm_rect_width(&frame_info->dst),
+			    stage_buffer->n_pixels);
+
+	for (size_t x = 0; x < x_limit; x++, src_pixels += 4) {
+		out_pixels[x].a = le16_to_cpu(src_pixels[3]);
+		out_pixels[x].r = le16_to_cpu(src_pixels[2]);
+		out_pixels[x].g = le16_to_cpu(src_pixels[1]);
+		out_pixels[x].b = le16_to_cpu(src_pixels[0]);
+	}
+}
+
+static void XRGB16161616_to_argb_u16(struct line_buffer *stage_buffer,
+				     const struct vkms_frame_info *frame_info,
+				     int y)
+{
+	struct pixel_argb_u16 *out_pixels = stage_buffer->pixels;
+	u16 *src_pixels = get_packed_src_addr(frame_info, y);
+	int x_limit = min_t(size_t, drm_rect_width(&frame_info->dst),
+			    stage_buffer->n_pixels);
+
+	for (size_t x = 0; x < x_limit; x++, src_pixels += 4) {
+		out_pixels[x].a = (u16)0xffff;
+		out_pixels[x].r = le16_to_cpu(src_pixels[2]);
+		out_pixels[x].g = le16_to_cpu(src_pixels[1]);
+		out_pixels[x].b = le16_to_cpu(src_pixels[0]);
+	}
+}
+
 /*
  * The following  functions take an line of argb_u16 pixels from the
  * src_buffer, convert them to a specific format, and store them in the
@@ -130,6 +164,40 @@ static void argb_u16_to_XRGB8888(struct vkms_frame_info *frame_info,
 	}
 }
 
+static void argb_u16_to_ARGB16161616(struct vkms_frame_info *frame_info,
+				     const struct line_buffer *src_buffer, int y)
+{
+	int x_dst = frame_info->dst.x1;
+	u16 *dst_pixels = packed_pixels_addr(frame_info, x_dst, y);
+	struct pixel_argb_u16 *in_pixels = src_buffer->pixels;
+	int x_limit = min_t(size_t, drm_rect_width(&frame_info->dst),
+			    src_buffer->n_pixels);
+
+	for (size_t x = 0; x < x_limit; x++, dst_pixels += 4) {
+		dst_pixels[3] = cpu_to_le16(in_pixels[x].a);
+		dst_pixels[2] = cpu_to_le16(in_pixels[x].r);
+		dst_pixels[1] = cpu_to_le16(in_pixels[x].g);
+		dst_pixels[0] = cpu_to_le16(in_pixels[x].b);
+	}
+}
+
+static void argb_u16_to_XRGB16161616(struct vkms_frame_info *frame_info,
+				     const struct line_buffer *src_buffer, int y)
+{
+	int x_dst = frame_info->dst.x1;
+	u16 *dst_pixels = packed_pixels_addr(frame_info, x_dst, y);
+	struct pixel_argb_u16 *in_pixels = src_buffer->pixels;
+	int x_limit = min_t(size_t, drm_rect_width(&frame_info->dst),
+			    src_buffer->n_pixels);
+
+	for (size_t x = 0; x < x_limit; x++, dst_pixels += 4) {
+		dst_pixels[3] = 0xffff;
+		dst_pixels[2] = cpu_to_le16(in_pixels[x].r);
+		dst_pixels[1] = cpu_to_le16(in_pixels[x].g);
+		dst_pixels[0] = cpu_to_le16(in_pixels[x].b);
+	}
+}
+
 void *get_frame_to_line_function(u32 format)
 {
 	switch (format) {
@@ -137,6 +205,10 @@ void *get_frame_to_line_function(u32 format)
 		return &ARGB8888_to_argb_u16;
 	case DRM_FORMAT_XRGB8888:
 		return &XRGB8888_to_argb_u16;
+	case DRM_FORMAT_ARGB16161616:
+		return &ARGB16161616_to_argb_u16;
+	case DRM_FORMAT_XRGB16161616:
+		return &XRGB16161616_to_argb_u16;
 	default:
 		return NULL;
 	}
@@ -149,6 +221,10 @@ void *get_line_to_frame_function(u32 format)
 		return &argb_u16_to_ARGB8888;
 	case DRM_FORMAT_XRGB8888:
 		return &argb_u16_to_XRGB8888;
+	case DRM_FORMAT_ARGB16161616:
+		return &argb_u16_to_ARGB16161616;
+	case DRM_FORMAT_XRGB16161616:
+		return &argb_u16_to_XRGB16161616;
 	default:
 		return NULL;
 	}
