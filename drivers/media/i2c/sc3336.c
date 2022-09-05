@@ -1485,6 +1485,7 @@ static int sc3336_initialize_controls(struct sc3336 *sc3336)
 
 	sc3336->subdev.ctrl_handler = handler;
 	sc3336->has_init_exp = false;
+	sc3336->cur_fps = mode->max_fps;
 
 	return 0;
 
