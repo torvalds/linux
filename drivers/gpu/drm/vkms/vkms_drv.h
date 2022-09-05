@@ -28,7 +28,7 @@ struct vkms_writeback_job {
 	struct iosys_map data[DRM_FORMAT_MAX_PLANES];
 };
 
-struct vkms_composer {
+struct vkms_frame_info {
 	struct drm_framebuffer fb;
 	struct drm_rect src, dst;
 	struct iosys_map map[DRM_FORMAT_MAX_PLANES];
@@ -40,11 +40,11 @@ struct vkms_composer {
 /**
  * vkms_plane_state - Driver specific plane state
  * @base: base plane state
- * @composer: data required for composing computation
+ * @frame_info: data required for composing computation
  */
 struct vkms_plane_state {
 	struct drm_shadow_plane_state base;
-	struct vkms_composer *composer;
+	struct vkms_frame_info *frame_info;
 };
 
 struct vkms_plane {
