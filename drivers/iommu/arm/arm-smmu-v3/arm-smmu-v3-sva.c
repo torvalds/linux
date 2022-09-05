@@ -431,7 +431,7 @@ bool arm_smmu_sva_supported(struct arm_smmu_device *smmu)
 		return false;
 
 	/* We can support bigger ASIDs than the CPU, but not smaller */
-	fld = cpuid_feature_extract_unsigned_field(reg, ID_AA64MMFR0_EL1_ASID_SHIFT);
+	fld = cpuid_feature_extract_unsigned_field(reg, ID_AA64MMFR0_EL1_ASIDBITS_SHIFT);
 	asid_bits = fld ? 16 : 8;
 	if (smmu->asid_bits < asid_bits)
 		return false;
