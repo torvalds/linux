@@ -237,8 +237,24 @@ gsi_channel_trans_mapped(struct gsi_channel *channel, u32 index)
 /* Return the oldest completed transaction for a channel (or null) */
 struct gsi_trans *gsi_channel_trans_complete(struct gsi_channel *channel)
 {
-	return list_first_entry_or_null(&channel->trans_info.complete,
-					struct gsi_trans, links);
+	struct gsi_trans_info *trans_info = &channel->trans_info;
+	u16 trans_id = trans_info->completed_id;
+	struct gsi_trans *trans;
+
+	trans = list_first_entry_or_null(&trans_info->complete,
+					 struct gsi_trans, links);
+
+	if (!trans) {
+		WARN_ON(trans_id != trans_info->pending_id);
+		return NULL;
+	}
+
+	if (!WARN_ON(trans_id == trans_info->pending_id)) {
+		trans_id %= channel->tre_count;
+		WARN_ON(trans != &trans_info->trans[trans_id]);
+	}
+
+	return trans;
 }
 
 /* Move a transaction from the allocated list to the committed list */
@@ -309,23 +325,15 @@ void gsi_trans_move_polled(struct gsi_trans *trans)
 {
 	struct gsi_channel *channel = &trans->gsi->channel[trans->channel_id];
 	struct gsi_trans_info *trans_info = &channel->trans_info;
-	u16 trans_index;
 
 	spin_lock_bh(&trans_info->spinlock);
 
 	list_move_tail(&trans->links, &trans_info->polled);
 
-	trans = list_first_entry(&trans_info->polled,
-				 struct gsi_trans, links);
-
 	spin_unlock_bh(&trans_info->spinlock);
 
 	/* This completed transaction is now polled */
 	trans_info->completed_id++;
-
-	WARN_ON(trans_info->polled_id == trans_info->completed_id);
-	trans_index = trans_info->polled_id % channel->tre_count;
-	WARN_ON(trans != &trans_info->trans[trans_index]);
 }
 
 /* Reserve some number of TREs on a channel.  Returns true if successful */
@@ -413,11 +421,8 @@ struct gsi_trans *gsi_channel_trans_alloc(struct gsi *gsi, u32 channel_id,
 /* Free a previously-allocated transaction */
 void gsi_trans_free(struct gsi_trans *trans)
 {
-	struct gsi_channel *channel = &trans->gsi->channel[trans->channel_id];
 	refcount_t *refcount = &trans->refcount;
 	struct gsi_trans_info *trans_info;
-	struct gsi_trans *polled;
-	u16 trans_index;
 	bool last;
 
 	/* We must hold the lock to release the last reference */
@@ -432,9 +437,6 @@ void gsi_trans_free(struct gsi_trans *trans)
 	last = refcount_dec_and_test(refcount);
 	if (last)
 		list_del(&trans->links);
-
-	polled = list_first_entry_or_null(&trans_info->polled,
-					  struct gsi_trans, links);
 
 	spin_unlock_bh(&trans_info->spinlock);
 
@@ -455,14 +457,6 @@ void gsi_trans_free(struct gsi_trans *trans)
 
 	/* This transaction is now free */
 	trans_info->polled_id++;
-
-	if (polled) {
-		trans_index = trans_info->polled_id % channel->tre_count;
-		WARN_ON(polled != &trans_info->trans[trans_index]);
-	} else {
-		WARN_ON(trans_info->polled_id !=
-			trans_info->completed_id);
-	}
 
 	/* Releasing the reserved TREs implicitly frees the sgl[] and
 	 * (if present) info[] arrays, plus the transaction itself.
@@ -712,6 +706,8 @@ void gsi_channel_trans_cancel_pending(struct gsi_channel *channel)
 {
 	struct gsi_trans_info *trans_info = &channel->trans_info;
 	struct gsi_trans *trans;
+	struct gsi_trans *first;
+	struct gsi_trans *last;
 	bool cancelled;
 
 	/* channel->gsi->mutex is held by caller */
@@ -723,11 +719,33 @@ void gsi_channel_trans_cancel_pending(struct gsi_channel *channel)
 
 	list_splice_tail_init(&trans_info->pending, &trans_info->complete);
 
+	first = list_first_entry_or_null(&trans_info->complete,
+					 struct gsi_trans, links);
+	last = list_last_entry_or_null(&trans_info->complete,
+				       struct gsi_trans, links);
+
 	spin_unlock_bh(&trans_info->spinlock);
 
+	/* All pending transactions are now completed */
+	WARN_ON(cancelled != (trans_info->pending_id !=
+				trans_info->committed_id));
+
+	trans_info->pending_id = trans_info->committed_id;
+
 	/* Schedule NAPI polling to complete the cancelled transactions */
-	if (cancelled)
+	if (cancelled) {
+		u16 trans_id;
+
 		napi_schedule(&channel->napi);
+
+		trans_id = trans_info->completed_id;
+		trans = &trans_info->trans[trans_id % channel->tre_count];
+		WARN_ON(trans != first);
+
+		trans_id = trans_info->pending_id - 1;
+		trans = &trans_info->trans[trans_id % channel->tre_count];
+		WARN_ON(trans != last);
+	}
 }
 
 /* Issue a command to read a single byte from a channel */
