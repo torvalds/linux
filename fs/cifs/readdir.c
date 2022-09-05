@@ -806,8 +806,7 @@ find_cifs_entry(const unsigned int xid, struct cifs_tcon *tcon, loff_t pos,
 
 		end_of_smb = cfile->srch_inf.ntwrk_buf_start +
 			server->ops->calc_smb_size(
-					cfile->srch_inf.ntwrk_buf_start,
-					server);
+					cfile->srch_inf.ntwrk_buf_start);
 
 		cur_ent = cfile->srch_inf.srch_entries_start;
 		first_entry_in_buffer = cfile->srch_inf.index_of_last_entry
@@ -1161,8 +1160,7 @@ int cifs_readdir(struct file *file, struct dir_context *ctx)
 	cifs_dbg(FYI, "loop through %d times filling dir for net buf %p\n",
 		 num_to_fill, cifsFile->srch_inf.ntwrk_buf_start);
 	max_len = tcon->ses->server->ops->calc_smb_size(
-			cifsFile->srch_inf.ntwrk_buf_start,
-			tcon->ses->server);
+			cifsFile->srch_inf.ntwrk_buf_start);
 	end_of_smb = cifsFile->srch_inf.ntwrk_buf_start + max_len;
 
 	tmp_buf = kmalloc(UNICODE_NAME_MAX, GFP_KERNEL);

@@ -113,6 +113,7 @@ static void idi_48_irq_mask(struct irq_data *data)
 	spin_lock_irqsave(&idi48gpio->lock, flags);
 
 	idi48gpio->irq_mask[boundary] &= ~mask;
+	gpiochip_disable_irq(chip, offset);
 
 	/* Exit early if there are still input lines with IRQ unmasked */
 	if (idi48gpio->irq_mask[boundary])
@@ -140,6 +141,7 @@ static void idi_48_irq_unmask(struct irq_data *data)
 
 	prev_irq_mask = idi48gpio->irq_mask[boundary];
 
+	gpiochip_enable_irq(chip, offset);
 	idi48gpio->irq_mask[boundary] |= mask;
 
 	/* Exit early if IRQ was already unmasked for this boundary */
@@ -164,12 +166,14 @@ static int idi_48_irq_set_type(struct irq_data *data, unsigned int flow_type)
 	return 0;
 }
 
-static struct irq_chip idi_48_irqchip = {
+static const struct irq_chip idi_48_irqchip = {
 	.name = "104-idi-48",
 	.irq_ack = idi_48_irq_ack,
 	.irq_mask = idi_48_irq_mask,
 	.irq_unmask = idi_48_irq_unmask,
-	.irq_set_type = idi_48_irq_set_type
+	.irq_set_type = idi_48_irq_set_type,
+	.flags = IRQCHIP_IMMUTABLE,
+	GPIOCHIP_IRQ_RESOURCE_HELPERS,
 };
 
 static irqreturn_t idi_48_irq_handler(int irq, void *dev_id)
@@ -267,7 +271,7 @@ static int idi_48_probe(struct device *dev, unsigned int id)
 	idi48gpio->chip.get_multiple = idi_48_gpio_get_multiple;
 
 	girq = &idi48gpio->chip.irq;
-	girq->chip = &idi_48_irqchip;
+	gpio_irq_chip_set_chip(girq, &idi_48_irqchip);
 	/* This will let us handle the parent IRQ in the driver */
 	girq->parent_handler = NULL;
 	girq->num_parents = 0;

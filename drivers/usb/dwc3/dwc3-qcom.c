@@ -17,7 +17,6 @@
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
 #include <linux/phy/phy.h>
-#include <linux/pm_domain.h>
 #include <linux/usb/of.h>
 #include <linux/reset.h>
 #include <linux/iopoll.h>
@@ -299,11 +298,24 @@ static void dwc3_qcom_interconnect_exit(struct dwc3_qcom *qcom)
 	icc_put(qcom->icc_path_apps);
 }
 
+/* Only usable in contexts where the role can not change. */
+static bool dwc3_qcom_is_host(struct dwc3_qcom *qcom)
+{
+	struct dwc3 *dwc = platform_get_drvdata(qcom->dwc3);
+
+	return dwc->xhci;
+}
+
 static enum usb_device_speed dwc3_qcom_read_usb2_speed(struct dwc3_qcom *qcom)
 {
 	struct dwc3 *dwc = platform_get_drvdata(qcom->dwc3);
-	struct usb_hcd *hcd = platform_get_drvdata(dwc->xhci);
 	struct usb_device *udev;
+	struct usb_hcd __maybe_unused *hcd;
+
+	/*
+	 * FIXME: Fix this layering violation.
+	 */
+	hcd = platform_get_drvdata(dwc->xhci);
 
 	/*
 	 * It is possible to query the speed of all children of
@@ -311,8 +323,11 @@ static enum usb_device_speed dwc3_qcom_read_usb2_speed(struct dwc3_qcom *qcom)
 	 * currently supports only 1 port per controller. So
 	 * this is sufficient.
 	 */
+#ifdef CONFIG_USB
 	udev = usb_hub_find_child(hcd->self.root_hub, 1);
-
+#else
+	udev = NULL;
+#endif
 	if (!udev)
 		return USB_SPEED_UNKNOWN;
 
@@ -387,7 +402,7 @@ static void dwc3_qcom_enable_interrupts(struct dwc3_qcom *qcom)
 	dwc3_qcom_enable_wakeup_irq(qcom->ss_phy_irq, 0);
 }
 
-static int dwc3_qcom_suspend(struct dwc3_qcom *qcom)
+static int dwc3_qcom_suspend(struct dwc3_qcom *qcom, bool wakeup)
 {
 	u32 val;
 	int i, ret;
@@ -406,7 +421,11 @@ static int dwc3_qcom_suspend(struct dwc3_qcom *qcom)
 	if (ret)
 		dev_warn(qcom->dev, "failed to disable interconnect: %d\n", ret);
 
-	if (device_may_wakeup(qcom->dev)) {
+	/*
+	 * The role is stable during suspend as role switching is done from a
+	 * freezable workqueue.
+	 */
+	if (dwc3_qcom_is_host(qcom) && wakeup) {
 		qcom->usb2_speed = dwc3_qcom_read_usb2_speed(qcom);
 		dwc3_qcom_enable_interrupts(qcom);
 	}
@@ -416,7 +435,7 @@ static int dwc3_qcom_suspend(struct dwc3_qcom *qcom)
 	return 0;
 }
 
-static int dwc3_qcom_resume(struct dwc3_qcom *qcom)
+static int dwc3_qcom_resume(struct dwc3_qcom *qcom, bool wakeup)
 {
 	int ret;
 	int i;
@@ -424,7 +443,7 @@ static int dwc3_qcom_resume(struct dwc3_qcom *qcom)
 	if (!qcom->is_suspended)
 		return 0;
 
-	if (device_may_wakeup(qcom->dev))
+	if (dwc3_qcom_is_host(qcom) && wakeup)
 		dwc3_qcom_disable_interrupts(qcom);
 
 	for (i = 0; i < qcom->num_clocks; i++) {
@@ -458,7 +477,11 @@ static irqreturn_t qcom_dwc3_resume_irq(int irq, void *data)
 	if (qcom->pm_suspended)
 		return IRQ_HANDLED;
 
-	if (dwc->xhci)
+	/*
+	 * This is safe as role switching is done from a freezable workqueue
+	 * and the wakeup interrupts are disabled as part of resume.
+	 */
+	if (dwc3_qcom_is_host(qcom))
 		pm_runtime_resume(&dwc->xhci->dev);
 
 	return IRQ_HANDLED;
@@ -757,13 +780,13 @@ dwc3_qcom_create_urs_usb_platdev(struct device *dev)
 
 static int dwc3_qcom_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
-	struct device *dev = &pdev->dev;
-	struct dwc3_qcom *qcom;
-	struct resource	*res, *parent_res = NULL;
-	int ret, i;
-	bool ignore_pipe_clk;
-	struct generic_pm_domain *genpd;
+	struct device_node	*np = pdev->dev.of_node;
+	struct device		*dev = &pdev->dev;
+	struct dwc3_qcom	*qcom;
+	struct resource		*res, *parent_res = NULL;
+	int			ret, i;
+	bool			ignore_pipe_clk;
+	bool			wakeup_source;
 
 	qcom = devm_kzalloc(&pdev->dev, sizeof(*qcom), GFP_KERNEL);
 	if (!qcom)
@@ -771,8 +794,6 @@ static int dwc3_qcom_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, qcom);
 	qcom->dev = &pdev->dev;
-
-	genpd = pd_to_genpd(qcom->dev->pm_domain);
 
 	if (has_acpi_companion(dev)) {
 		qcom->acpi_pdata = acpi_device_get_match_data(dev);
@@ -881,16 +902,9 @@ static int dwc3_qcom_probe(struct platform_device *pdev)
 	if (ret)
 		goto interconnect_exit;
 
-	if (device_can_wakeup(&qcom->dwc3->dev)) {
-		/*
-		 * Setting GENPD_FLAG_ALWAYS_ON flag takes care of keeping
-		 * genpd on in both runtime suspend and system suspend cases.
-		 */
-		genpd->flags |= GENPD_FLAG_ALWAYS_ON;
-		device_init_wakeup(&pdev->dev, true);
-	} else {
-		genpd->flags |= GENPD_FLAG_RPM_ALWAYS_ON;
-	}
+	wakeup_source = of_property_read_bool(dev->of_node, "wakeup-source");
+	device_init_wakeup(&pdev->dev, wakeup_source);
+	device_init_wakeup(&qcom->dwc3->dev, wakeup_source);
 
 	qcom->is_suspended = false;
 	pm_runtime_set_active(dev);
@@ -944,39 +958,45 @@ static int dwc3_qcom_remove(struct platform_device *pdev)
 static int __maybe_unused dwc3_qcom_pm_suspend(struct device *dev)
 {
 	struct dwc3_qcom *qcom = dev_get_drvdata(dev);
-	int ret = 0;
+	bool wakeup = device_may_wakeup(dev);
+	int ret;
 
-	ret = dwc3_qcom_suspend(qcom);
-	if (!ret)
-		qcom->pm_suspended = true;
+	ret = dwc3_qcom_suspend(qcom, wakeup);
+	if (ret)
+		return ret;
 
-	return ret;
+	qcom->pm_suspended = true;
+
+	return 0;
 }
 
 static int __maybe_unused dwc3_qcom_pm_resume(struct device *dev)
 {
 	struct dwc3_qcom *qcom = dev_get_drvdata(dev);
+	bool wakeup = device_may_wakeup(dev);
 	int ret;
 
-	ret = dwc3_qcom_resume(qcom);
-	if (!ret)
-		qcom->pm_suspended = false;
+	ret = dwc3_qcom_resume(qcom, wakeup);
+	if (ret)
+		return ret;
 
-	return ret;
+	qcom->pm_suspended = false;
+
+	return 0;
 }
 
 static int __maybe_unused dwc3_qcom_runtime_suspend(struct device *dev)
 {
 	struct dwc3_qcom *qcom = dev_get_drvdata(dev);
 
-	return dwc3_qcom_suspend(qcom);
+	return dwc3_qcom_suspend(qcom, true);
 }
 
 static int __maybe_unused dwc3_qcom_runtime_resume(struct device *dev)
 {
 	struct dwc3_qcom *qcom = dev_get_drvdata(dev);
 
-	return dwc3_qcom_resume(qcom);
+	return dwc3_qcom_resume(qcom, true);
 }
 
 static const struct dev_pm_ops dwc3_qcom_dev_pm_ops = {

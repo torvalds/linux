@@ -77,58 +77,18 @@ static inline unsigned long find_zero(unsigned long mask)
  * and the next page not being mapped, take the exception and
  * return zeroes in the non-existing part.
  */
-#ifdef CONFIG_CC_HAS_ASM_GOTO_OUTPUT
-
 static inline unsigned long load_unaligned_zeropad(const void *addr)
 {
-	unsigned long offset, data;
 	unsigned long ret;
 
-	asm_volatile_goto(
+	asm volatile(
 		"1:	mov %[mem], %[ret]\n"
-
-		_ASM_EXTABLE(1b, %l[do_exception])
-
-		: [ret] "=r" (ret)
-		: [mem] "m" (*(unsigned long *)addr)
-		: : do_exception);
-
-	return ret;
-
-do_exception:
-	offset = (unsigned long)addr & (sizeof(long) - 1);
-	addr = (void *)((unsigned long)addr & ~(sizeof(long) - 1));
-	data = *(unsigned long *)addr;
-	ret = data >> offset * 8;
-
-	return ret;
-}
-
-#else /* !CONFIG_CC_HAS_ASM_GOTO_OUTPUT */
-
-static inline unsigned long load_unaligned_zeropad(const void *addr)
-{
-	unsigned long offset, data;
-	unsigned long ret, err = 0;
-
-	asm(	"1:	mov %[mem], %[ret]\n"
 		"2:\n"
-
-		_ASM_EXTABLE_FAULT(1b, 2b)
-
-		: [ret] "=&r" (ret), "+a" (err)
+		_ASM_EXTABLE_TYPE(1b, 2b, EX_TYPE_ZEROPAD)
+		: [ret] "=r" (ret)
 		: [mem] "m" (*(unsigned long *)addr));
 
-	if (unlikely(err)) {
-		offset = (unsigned long)addr & (sizeof(long) - 1);
-		addr = (void *)((unsigned long)addr & ~(sizeof(long) - 1));
-		data = *(unsigned long *)addr;
-		ret = data >> offset * 8;
-	}
-
 	return ret;
 }
-
-#endif /* CONFIG_CC_HAS_ASM_GOTO_OUTPUT */
 
 #endif /* _ASM_WORD_AT_A_TIME_H */

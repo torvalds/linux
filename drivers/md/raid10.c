@@ -2639,18 +2639,18 @@ static void check_decay_read_errors(struct mddev *mddev, struct md_rdev *rdev)
 }
 
 static int r10_sync_page_io(struct md_rdev *rdev, sector_t sector,
-			    int sectors, struct page *page, int rw)
+			    int sectors, struct page *page, enum req_op op)
 {
 	sector_t first_bad;
 	int bad_sectors;
 
 	if (is_badblock(rdev, sector, sectors, &first_bad, &bad_sectors)
-	    && (rw == READ || test_bit(WriteErrorSeen, &rdev->flags)))
+	    && (op == REQ_OP_READ || test_bit(WriteErrorSeen, &rdev->flags)))
 		return -1;
-	if (sync_page_io(rdev, sector, sectors << 9, page, rw, false))
+	if (sync_page_io(rdev, sector, sectors << 9, page, op, false))
 		/* success */
 		return 1;
-	if (rw == WRITE) {
+	if (op == REQ_OP_WRITE) {
 		set_bit(WriteErrorSeen, &rdev->flags);
 		if (!test_and_set_bit(WantReplacement, &rdev->flags))
 			set_bit(MD_RECOVERY_NEEDED,
@@ -2780,7 +2780,7 @@ static void fix_read_error(struct r10conf *conf, struct mddev *mddev, struct r10
 			if (r10_sync_page_io(rdev,
 					     r10_bio->devs[sl].addr +
 					     sect,
-					     s, conf->tmppage, WRITE)
+					     s, conf->tmppage, REQ_OP_WRITE)
 			    == 0) {
 				/* Well, this device is dead */
 				pr_notice("md/raid10:%s: read correction write failed (%d sectors at %llu on %pg)\n",
@@ -2814,8 +2814,7 @@ static void fix_read_error(struct r10conf *conf, struct mddev *mddev, struct r10
 			switch (r10_sync_page_io(rdev,
 					     r10_bio->devs[sl].addr +
 					     sect,
-					     s, conf->tmppage,
-						 READ)) {
+					     s, conf->tmppage, REQ_OP_READ)) {
 			case 0:
 				/* Well, this device is dead */
 				pr_notice("md/raid10:%s: unable to read back corrected sectors (%d sectors at %llu on %pg)\n",

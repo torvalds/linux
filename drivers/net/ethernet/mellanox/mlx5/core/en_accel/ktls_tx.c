@@ -246,7 +246,7 @@ static void mlx5e_tls_priv_tx_cleanup(struct mlx5e_ktls_offload_context_tx *priv
 static void mlx5e_tls_priv_tx_list_cleanup(struct mlx5_core_dev *mdev,
 					   struct list_head *list, int size)
 {
-	struct mlx5e_ktls_offload_context_tx *obj;
+	struct mlx5e_ktls_offload_context_tx *obj, *n;
 	struct mlx5e_async_ctx *bulk_async;
 	int i;
 
@@ -255,7 +255,7 @@ static void mlx5e_tls_priv_tx_list_cleanup(struct mlx5_core_dev *mdev,
 		return;
 
 	i = 0;
-	list_for_each_entry(obj, list, list_node) {
+	list_for_each_entry_safe(obj, n, list, list_node) {
 		mlx5e_tls_priv_tx_cleanup(obj, &bulk_async[i]);
 		i++;
 	}

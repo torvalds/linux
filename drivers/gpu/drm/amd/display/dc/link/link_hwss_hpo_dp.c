@@ -116,7 +116,7 @@ static void setup_hpo_dp_stream_encoder(struct pipe_ctx *pipe_ctx)
 	dto_params.timing = &pipe_ctx->stream->timing;
 	dto_params.ref_dtbclk_khz = dc->clk_mgr->funcs->get_dtb_ref_clk_frequency(dc->clk_mgr);
 
-	dccg->funcs->set_dpstreamclk(dccg, DTBCLK0, tg->inst, link_enc->inst);
+	dccg->funcs->set_dpstreamclk(dccg, DTBCLK0, tg->inst, stream_enc->inst);
 	dccg->funcs->enable_symclk32_se(dccg, stream_enc->inst, phyd32clk);
 	dccg->funcs->set_dtbclk_dto(dccg, &dto_params);
 	stream_enc->funcs->enable_stream(stream_enc);
@@ -137,7 +137,7 @@ static void reset_hpo_dp_stream_encoder(struct pipe_ctx *pipe_ctx)
 	stream_enc->funcs->disable(stream_enc);
 	dccg->funcs->set_dtbclk_dto(dccg, &dto_params);
 	dccg->funcs->disable_symclk32_se(dccg, stream_enc->inst);
-	dccg->funcs->set_dpstreamclk(dccg, REFCLK, tg->inst,  pipe_ctx->link_res.hpo_dp_link_enc->inst);
+	dccg->funcs->set_dpstreamclk(dccg, REFCLK, tg->inst, stream_enc->inst);
 }
 
 static void setup_hpo_dp_stream_attribute(struct pipe_ctx *pipe_ctx)
