@@ -158,6 +158,7 @@ struct SC301IOT {
 	struct v4l2_ctrl	*vblank;
 	struct v4l2_ctrl	*test_pattern;
 	struct mutex		mutex;
+	struct v4l2_fract	cur_fps;
 	bool			streaming;
 	bool			power_on;
 	const struct SC301IOT_mode *cur_mode;
@@ -1174,6 +1175,8 @@ static int SC301IOT_set_fmt(struct v4l2_subdev *sd,
 		__v4l2_ctrl_modify_range(SC301IOT->vblank, SC301IOT_VTS_MIN - vblank_def,
 					 SC301IOT_VTS_MAX - mode->height,
 					 1, vblank_def);
+		SC301IOT->cur_fps = mode->max_fps;
+		SC301IOT->cur_vts = mode->vts_def;
 	}
 
 	mutex_unlock(&SC301IOT->mutex);
@@ -1265,9 +1268,10 @@ static int SC301IOT_g_frame_interval(struct v4l2_subdev *sd,
 	struct SC301IOT *SC301IOT = to_SC301IOT(sd);
 	const struct SC301IOT_mode *mode = SC301IOT->cur_mode;
 
-	mutex_lock(&SC301IOT->mutex);
-	fi->interval = mode->max_fps;
-	mutex_unlock(&SC301IOT->mutex);
+	if (SC301IOT->streaming)
+		fi->interval = SC301IOT->cur_fps;
+	else
+		fi->interval = mode->max_fps;
 
 	return 0;
 }
@@ -1344,6 +1348,8 @@ static long SC301IOT_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 			__v4l2_ctrl_modify_range(SC301IOT->vblank,
 				SC301IOT_VTS_MIN - SC301IOT->cur_mode->height,
 				SC301IOT_VTS_MAX - SC301IOT->cur_mode->height, 1, h);
+			SC301IOT->cur_fps = SC301IOT->cur_mode->max_fps;
+			SC301IOT->cur_vts = SC301IOT->cur_mode->vts_def;
 		}
 		break;
 	case PREISP_CMD_SET_HDRAE_EXP:
@@ -1826,6 +1832,14 @@ static const struct v4l2_subdev_ops SC301IOT_subdev_ops = {
 	.pad	= &SC301IOT_pad_ops,
 };
 
+static void SC301IOT_modify_fps_info(struct SC301IOT *SC301IOT)
+{
+	const struct SC301IOT_mode *mode = SC301IOT->cur_mode;
+
+	SC301IOT->cur_fps.denominator = mode->max_fps.denominator * SC301IOT->cur_vts /
+				       mode->vts_def;
+}
+
 static int SC301IOT_set_ctrl(struct v4l2_ctrl *ctrl)
 {
 	struct SC301IOT *SC301IOT = container_of(ctrl->handler,
@@ -1884,7 +1898,10 @@ static int SC301IOT_set_ctrl(struct v4l2_ctrl *ctrl)
 					 SC301IOT_REG_VALUE_08BIT,
 					 (ctrl->val + SC301IOT->cur_mode->height)
 					 & 0xff);
-		SC301IOT->cur_vts = ctrl->val + SC301IOT->cur_mode->height;
+		if (!ret)
+			SC301IOT->cur_vts = ctrl->val + SC301IOT->cur_mode->height;
+		if (SC301IOT->cur_vts != SC301IOT->cur_mode->vts_def)
+			SC301IOT_modify_fps_info(SC301IOT);
 		break;
 	case V4L2_CID_TEST_PATTERN:
 		ret = SC301IOT_enable_test_pattern(SC301IOT, ctrl->val);
@@ -1981,6 +1998,8 @@ static int SC301IOT_initialize_controls(struct SC301IOT *SC301IOT)
 
 	SC301IOT->subdev.ctrl_handler = handler;
 	SC301IOT->has_init_exp = false;
+	SC301IOT->cur_fps = mode->max_fps;
+	SC301IOT->cur_vts = mode->vts_def;
 
 	return 0;
 
