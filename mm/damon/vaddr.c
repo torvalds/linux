@@ -113,37 +113,38 @@ static unsigned long sz_range(struct damon_addr_range *r)
  *
  * Returns 0 if success, or negative error code otherwise.
  */
-static int __damon_va_three_regions(struct vm_area_struct *vma,
+static int __damon_va_three_regions(struct mm_struct *mm,
 				       struct damon_addr_range regions[3])
 {
-	struct damon_addr_range gap = {0}, first_gap = {0}, second_gap = {0};
-	struct vm_area_struct *last_vma = NULL;
-	unsigned long start = 0;
-	struct rb_root rbroot;
+	struct damon_addr_range first_gap = {0}, second_gap = {0};
+	VMA_ITERATOR(vmi, mm, 0);
+	struct vm_area_struct *vma, *prev = NULL;
+	unsigned long start;
 
-	/* Find two biggest gaps so that first_gap > second_gap > others */
-	for (; vma; vma = vma->vm_next) {
-		if (!last_vma) {
+	/*
+	 * Find the two biggest gaps so that first_gap > second_gap > others.
+	 * If this is too slow, it can be optimised to examine the maple
+	 * tree gaps.
+	 */
+	for_each_vma(vmi, vma) {
+		unsigned long gap;
+
+		if (!prev) {
 			start = vma->vm_start;
 			goto next;
 		}
+		gap = vma->vm_start - prev->vm_end;
 
-		if (vma->rb_subtree_gap <= sz_range(&second_gap)) {
-			rbroot.rb_node = &vma->vm_rb;
-			vma = rb_entry(rb_last(&rbroot),
-					struct vm_area_struct, vm_rb);
-			goto next;
-		}
-
-		gap.start = last_vma->vm_end;
-		gap.end = vma->vm_start;
-		if (sz_range(&gap) > sz_range(&second_gap)) {
-			swap(gap, second_gap);
-			if (sz_range(&second_gap) > sz_range(&first_gap))
-				swap(second_gap, first_gap);
+		if (gap > sz_range(&first_gap)) {
+			second_gap = first_gap;
+			first_gap.start = prev->vm_end;
+			first_gap.end = vma->vm_start;
+		} else if (gap > sz_range(&second_gap)) {
+			second_gap.start = prev->vm_end;
+			second_gap.end = vma->vm_start;
 		}
 next:
-		last_vma = vma;
+		prev = vma;
 	}
 
 	if (!sz_range(&second_gap) || !sz_range(&first_gap))
@@ -159,7 +160,7 @@ next:
 	regions[1].start = ALIGN(first_gap.end, DAMON_MIN_REGION);
 	regions[1].end = ALIGN(second_gap.start, DAMON_MIN_REGION);
 	regions[2].start = ALIGN(second_gap.end, DAMON_MIN_REGION);
-	regions[2].end = ALIGN(last_vma->vm_end, DAMON_MIN_REGION);
+	regions[2].end = ALIGN(prev->vm_end, DAMON_MIN_REGION);
 
 	return 0;
 }
@@ -180,7 +181,7 @@ static int damon_va_three_regions(struct damon_target *t,
 		return -EINVAL;
 
 	mmap_read_lock(mm);
-	rc = __damon_va_three_regions(mm->mmap, regions);
+	rc = __damon_va_three_regions(mm, regions);
 	mmap_read_unlock(mm);
 
 	mmput(mm);
