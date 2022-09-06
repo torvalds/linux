@@ -163,7 +163,7 @@ struct intel_gt {
 	struct intel_rc6 rc6;
 	struct intel_rps rps;
 
-	spinlock_t irq_lock;
+	spinlock_t *irq_lock;
 	u32 gt_imr;
 	u32 pm_ier;
 	u32 pm_imr;

@@ -21,6 +21,7 @@ int intel_sa_mediagt_setup(struct intel_gt *gt, phys_addr_t phys_addr,
 
 	uncore->gsi_offset = gsi_offset;
 
+	gt->irq_lock = to_gt(i915)->irq_lock;
 	intel_gt_common_init_early(gt);
 	intel_uncore_init_early(uncore, gt);
 

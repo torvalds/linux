@@ -45,7 +45,7 @@ static inline struct intel_gt *gsc_to_gt(struct intel_gsc *gsc)
 }
 
 void intel_gt_common_init_early(struct intel_gt *gt);
-void intel_root_gt_init_early(struct drm_i915_private *i915);
+int intel_root_gt_init_early(struct drm_i915_private *i915);
 int intel_gt_assign_ggtt(struct intel_gt *gt);
 int intel_gt_init_mmio(struct intel_gt *gt);
 int __must_check intel_gt_init_hw(struct intel_gt *gt);

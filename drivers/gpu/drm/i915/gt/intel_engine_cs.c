@@ -1688,9 +1688,9 @@ bool intel_engine_irq_enable(struct intel_engine_cs *engine)
 		return false;
 
 	/* Caller disables interrupts */
-	spin_lock(&engine->gt->irq_lock);
+	spin_lock(engine->gt->irq_lock);
 	engine->irq_enable(engine);
-	spin_unlock(&engine->gt->irq_lock);
+	spin_unlock(engine->gt->irq_lock);
 
 	return true;
 }
@@ -1701,9 +1701,9 @@ void intel_engine_irq_disable(struct intel_engine_cs *engine)
 		return;
 
 	/* Caller disables interrupts */
-	spin_lock(&engine->gt->irq_lock);
+	spin_lock(engine->gt->irq_lock);
 	engine->irq_disable(engine);
-	spin_unlock(&engine->gt->irq_lock);
+	spin_unlock(engine->gt->irq_lock);
 }
 
 void intel_engines_reset_default_submission(struct intel_gt *gt)

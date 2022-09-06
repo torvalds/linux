@@ -1104,9 +1104,9 @@ static void ivb_parity_work(struct work_struct *work)
 
 out:
 	drm_WARN_ON(&dev_priv->drm, dev_priv->l3_parity.which_slice);
-	spin_lock_irq(&gt->irq_lock);
+	spin_lock_irq(gt->irq_lock);
 	gen5_gt_enable_irq(gt, GT_PARITY_ERROR(dev_priv));
-	spin_unlock_irq(&gt->irq_lock);
+	spin_unlock_irq(gt->irq_lock);
 
 	mutex_unlock(&dev_priv->drm.struct_mutex);
 }

@@ -37,7 +37,7 @@
 
 void intel_gt_common_init_early(struct intel_gt *gt)
 {
-	spin_lock_init(&gt->irq_lock);
+	spin_lock_init(gt->irq_lock);
 
 	INIT_LIST_HEAD(&gt->closed_vma);
 	spin_lock_init(&gt->closed_lock);
@@ -58,14 +58,19 @@ void intel_gt_common_init_early(struct intel_gt *gt)
 }
 
 /* Preliminary initialization of Tile 0 */
-void intel_root_gt_init_early(struct drm_i915_private *i915)
+int intel_root_gt_init_early(struct drm_i915_private *i915)
 {
 	struct intel_gt *gt = to_gt(i915);
 
 	gt->i915 = i915;
 	gt->uncore = &i915->uncore;
+	gt->irq_lock = drmm_kzalloc(&i915->drm, sizeof(*gt->irq_lock), GFP_KERNEL);
+	if (!gt->irq_lock)
+		return -ENOMEM;
 
 	intel_gt_common_init_early(gt);
+
+	return 0;
 }
 
 static int intel_gt_probe_lmem(struct intel_gt *gt)
@@ -782,12 +787,18 @@ static int intel_gt_tile_setup(struct intel_gt *gt, phys_addr_t phys_addr)
 
 	if (!gt_is_root(gt)) {
 		struct intel_uncore *uncore;
+		spinlock_t *irq_lock;
 
 		uncore = drmm_kzalloc(&gt->i915->drm, sizeof(*uncore), GFP_KERNEL);
 		if (!uncore)
 			return -ENOMEM;
 
+		irq_lock = drmm_kzalloc(&gt->i915->drm, sizeof(*irq_lock), GFP_KERNEL);
+		if (!irq_lock)
+			return -ENOMEM;
+
 		gt->uncore = uncore;
+		gt->irq_lock = irq_lock;
 
 		intel_gt_common_init_early(gt);
 	}
