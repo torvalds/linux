@@ -50,23 +50,33 @@ intel_uncore_mmio_debug_init_early(struct intel_uncore_mmio_debug *mmio_debug)
 	mmio_debug->unclaimed_mmio_check = 1;
 }
 
-static void mmio_debug_suspend(struct intel_uncore_mmio_debug *mmio_debug)
+static void mmio_debug_suspend(struct intel_uncore *uncore)
 {
-	lockdep_assert_held(&mmio_debug->lock);
+	spin_lock(&uncore->debug->lock);
 
 	/* Save and disable mmio debugging for the user bypass */
-	if (!mmio_debug->suspend_count++) {
-		mmio_debug->saved_mmio_check = mmio_debug->unclaimed_mmio_check;
-		mmio_debug->unclaimed_mmio_check = 0;
+	if (!uncore->debug->suspend_count++) {
+		uncore->debug->saved_mmio_check = uncore->debug->unclaimed_mmio_check;
+		uncore->debug->unclaimed_mmio_check = 0;
 	}
+
+	spin_unlock(&uncore->debug->lock);
 }
 
-static void mmio_debug_resume(struct intel_uncore_mmio_debug *mmio_debug)
-{
-	lockdep_assert_held(&mmio_debug->lock);
+static bool check_for_unclaimed_mmio(struct intel_uncore *uncore);
 
-	if (!--mmio_debug->suspend_count)
-		mmio_debug->unclaimed_mmio_check = mmio_debug->saved_mmio_check;
+static void mmio_debug_resume(struct intel_uncore *uncore)
+{
+	spin_lock(&uncore->debug->lock);
+
+	if (!--uncore->debug->suspend_count)
+		uncore->debug->unclaimed_mmio_check = uncore->debug->saved_mmio_check;
+
+	if (check_for_unclaimed_mmio(uncore))
+		drm_info(&uncore->i915->drm,
+			 "Invalid mmio detected during user access\n");
+
+	spin_unlock(&uncore->debug->lock);
 }
 
 static const char * const forcewake_domain_names[] = {
@@ -677,9 +687,7 @@ void intel_uncore_forcewake_user_get(struct intel_uncore *uncore)
 	spin_lock_irq(&uncore->lock);
 	if (!uncore->user_forcewake_count++) {
 		intel_uncore_forcewake_get__locked(uncore, FORCEWAKE_ALL);
-		spin_lock(&uncore->debug->lock);
-		mmio_debug_suspend(uncore->debug);
-		spin_unlock(&uncore->debug->lock);
+		mmio_debug_suspend(uncore);
 	}
 	spin_unlock_irq(&uncore->lock);
 }
@@ -695,14 +703,7 @@ void intel_uncore_forcewake_user_put(struct intel_uncore *uncore)
 {
 	spin_lock_irq(&uncore->lock);
 	if (!--uncore->user_forcewake_count) {
-		spin_lock(&uncore->debug->lock);
-		mmio_debug_resume(uncore->debug);
-
-		if (check_for_unclaimed_mmio(uncore))
-			drm_info(&uncore->i915->drm,
-				 "Invalid mmio detected during user access\n");
-		spin_unlock(&uncore->debug->lock);
-
+		mmio_debug_resume(uncore);
 		intel_uncore_forcewake_put__locked(uncore, FORCEWAKE_ALL);
 	}
 	spin_unlock_irq(&uncore->lock);
