@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: (GPL-2.0+ OR MIT) */
 /*
  * Copyright (c) 2020 Rockchip Electronics Co. Ltd.
  * Author: Elaine Zhang <zhangqing@rock-chips.com>
