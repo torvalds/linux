@@ -144,6 +144,7 @@
   clk_set_rate
   clk_unprepare
   clockevents_config_and_register
+  clocks_calc_mult_shift
   __clocksource_register_scale
   __close_fd
   cma_alloc
@@ -198,6 +199,8 @@
   cpufreq_table_index_unsorted
   cpufreq_this_cpu_can_update
   cpufreq_unregister_notifier
+  cpu_hotplug_disable
+  cpu_hotplug_enable
   __cpuhp_remove_state
   __cpuhp_setup_state
   __cpuhp_setup_state_cpuslocked
@@ -235,6 +238,7 @@
   crypto_shash_update
   crypto_unregister_alg
   crypto_unregister_scomp
+  csum_ipv6_magic
   csum_partial
   csum_tcpudp_nofold
   _ctype
@@ -385,6 +389,7 @@
   dev_pm_opp_add
   dev_pm_opp_disable
   dev_pm_opp_find_freq_ceil
+  dev_pm_opp_find_freq_ceil_by_volt
   dev_pm_opp_find_freq_exact
   dev_pm_opp_find_freq_floor
   dev_pm_opp_get_freq
@@ -428,6 +433,7 @@
   dma_buf_export
   dma_buf_fd
   dma_buf_get
+  dma_buf_get_flags
   dma_buf_map_attachment
   dma_buf_mmap
   dma_buf_move_notify
@@ -509,6 +515,7 @@
   drm_atomic_add_affected_connectors
   drm_atomic_add_affected_planes
   drm_atomic_commit
+  drm_atomic_get_connector_state
   drm_atomic_get_crtc_state
   drm_atomic_get_plane_state
   drm_atomic_get_private_obj_state
@@ -552,6 +559,7 @@
   drm_atomic_set_fb_for_plane
   drm_atomic_set_mode_for_crtc
   drm_atomic_state_alloc
+  drm_atomic_state_clear
   __drm_atomic_state_free
   drm_bridge_add
   drm_bridge_attach
@@ -584,6 +592,7 @@
   drm_crtc_vblank_off
   drm_crtc_vblank_on
   drm_crtc_vblank_put
+  drm_crtc_wait_one_vblank
   drm_cvt_mode
   __drm_dbg
   __drm_debug
@@ -745,6 +754,7 @@
   drm_vma_node_allow
   drm_vma_node_is_allowed
   drm_vma_node_revoke
+  drm_wait_one_vblank
   drm_writeback_connector_init
   drm_writeback_queue_job
   drm_writeback_signal_completion
@@ -824,6 +834,7 @@
   __get_free_pages
   get_net_ns_by_fd
   get_net_ns_by_pid
+  get_options
   get_random_bytes
   get_random_u32
   __get_task_comm
@@ -966,6 +977,7 @@
   input_set_capability
   input_unregister_device
   input_unregister_handle
+  int_pow
   int_sqrt
   iomem_resource
   iommu_alloc_resv_region
@@ -975,6 +987,7 @@
   iommu_device_sysfs_remove
   iommu_device_unlink
   iommu_device_unregister
+  iommu_dma_enable_best_fit_algo
   iommu_dma_reserve_iova
   iommu_domain_alloc
   iommu_fwspec_add_ids
@@ -1009,6 +1022,7 @@
   irq_domain_set_info
   irq_domain_xlate_onetwocell
   irq_domain_xlate_twocell
+  irq_do_set_affinity
   irq_find_mapping
   irq_get_irqchip_state
   irq_get_irq_data
@@ -1038,6 +1052,7 @@
   kasan_flag_enabled
   kasprintf
   kernel_kobj
+  kernfs_path_from_node
   kern_mount
   kern_unmount
   key_create_or_update
@@ -1074,6 +1089,8 @@
   kobject_uevent
   kobject_uevent_env
   krealloc
+  kset_create_and_add
+  kset_unregister
   kstat
   kstrdup
   kstrndup
@@ -1091,6 +1108,7 @@
   kstrtoull_from_user
   ksys_sync_helper
   kthread_bind
+  kthread_bind_mask
   kthread_cancel_delayed_work_sync
   kthread_cancel_work_sync
   kthread_create_on_node
@@ -1120,6 +1138,8 @@
   kvfree
   kvfree_call_rcu
   kvmalloc_node
+  led_classdev_register_ext
+  led_classdev_unregister
   __list_add_valid
   __list_del_entry_valid
   list_sort
@@ -1144,6 +1164,7 @@
   __memcpy_toio
   memdup_user
   memmove
+  memory_read_from_buffer
   memparse
   memremap
   memset
@@ -1159,6 +1180,7 @@
   mii_nway_restart
   mipi_dsi_attach
   mipi_dsi_compression_mode
+  mipi_dsi_dcs_get_display_brightness
   mipi_dsi_dcs_read
   mipi_dsi_dcs_set_column_address
   mipi_dsi_dcs_set_display_brightness
@@ -1316,6 +1338,7 @@
   of_property_read_string_helper
   of_property_read_u32_index
   of_property_read_u64
+  of_property_read_u64_index
   of_property_read_variable_u16_array
   of_property_read_variable_u32_array
   of_property_read_variable_u8_array
@@ -1331,6 +1354,9 @@
   oops_in_progress
   orderly_poweroff
   page_endio
+  page_frag_alloc
+  __page_frag_cache_drain
+  page_frag_free
   page_mapping
   __page_pinner_migration_failed
   panic
@@ -1378,9 +1404,11 @@
   pci_read_config_dword
   pci_read_config_word
   __pci_register_driver
+  pci_release_regions
   pci_release_resource
   pci_rescan_bus
   pci_resize_resource
+  pci_restore_msi_state
   pci_restore_state
   pci_save_state
   pci_set_master
@@ -1388,6 +1416,7 @@
   pci_store_saved_state
   pci_unmap_rom
   pci_unregister_driver
+  pci_wake_from_d3
   pci_write_config_dword
   pci_write_config_word
   PDE_DATA
@@ -1418,6 +1447,7 @@
   pinctrl_utils_free_map
   pin_get_name
   pin_user_pages
+  pin_user_pages_fast
   pin_user_pages_remote
   platform_bus_type
   platform_device_add
@@ -1506,6 +1536,8 @@
   pwm_set_chip_data
   queue_delayed_work_on
   queue_work_on
+  radix_tree_delete
+  radix_tree_lookup
   radix_tree_tagged
   ___ratelimit
   raw_notifier_call_chain
@@ -1647,11 +1679,13 @@
   sched_set_normal
   sched_setscheduler
   sched_setscheduler_nocheck
+  sched_uclamp_used
   schedule
   schedule_timeout
   schedule_timeout_interruptible
   scnprintf
   scsi_block_when_processing_errors
+  scsi_dma_unmap
   scsi_eh_ready_devs
   __scsi_execute
   scsi_print_sense_hdr
@@ -1712,6 +1746,7 @@
   skb_realloc_headroom
   skb_trim
   smp_call_function
+  smp_call_function_any
   smp_call_function_many
   smp_call_function_single
   smp_call_on_cpu
@@ -1783,6 +1818,7 @@
   snd_soc_info_volsw_range
   snd_soc_info_volsw_sx
   snd_soc_info_xr_sx
+  snd_soc_lookup_component
   snd_soc_new_compress
   snd_soc_of_get_dai_link_codecs
   snd_soc_of_get_dai_name
@@ -1832,6 +1868,7 @@
   __stack_chk_guard
   static_key_slow_dec
   static_key_slow_inc
+  stop_machine
   stop_one_cpu_nowait
   stpcpy
   strcasecmp
@@ -1903,7 +1940,15 @@
   tasklet_init
   tasklet_kill
   __tasklet_schedule
+  tasklet_setup
   task_rq_lock
+  tcp_register_congestion_control
+  tcp_reno_cong_avoid
+  tcp_reno_ssthresh
+  tcp_reno_undo_cwnd
+  tcp_slow_start
+  tcp_unregister_congestion_control
+  thermal_cdev_update
   thermal_cooling_device_unregister
   thermal_of_cooling_device_register
   thermal_zone_device_disable
@@ -1925,11 +1970,13 @@
   trace_event_reg
   trace_handle_return
   __traceiter_android_rvh_can_migrate_task
+  __traceiter_android_rvh_cpu_cgroup_attach
   __traceiter_android_rvh_cpu_cgroup_can_attach
   __traceiter_android_rvh_dequeue_task
   __traceiter_android_rvh_enqueue_task
   __traceiter_android_rvh_find_lowest_rq
   __traceiter_android_rvh_find_new_ilb
+  __traceiter_android_rvh_flush_task
   __traceiter_android_rvh_gic_v3_set_affinity
   __traceiter_android_rvh_post_init_entity_util_avg
   __traceiter_android_rvh_replace_next_task_fair
@@ -1937,18 +1984,24 @@
   __traceiter_android_rvh_sched_newidle_balance
   __traceiter_android_rvh_sched_nohz_balancer_kick
   __traceiter_android_rvh_sched_rebalance_domains
+  __traceiter_android_rvh_schedule
   __traceiter_android_rvh_select_fallback_rq
   __traceiter_android_rvh_select_task_rq_fair
   __traceiter_android_rvh_select_task_rq_rt
+  __traceiter_android_rvh_wake_up_new_task
+  __traceiter_android_vh_cgroup_attach
   __traceiter_android_vh_cpu_idle_enter
   __traceiter_android_vh_cpu_idle_exit
   __traceiter_android_vh_do_wake_up_sync
   __traceiter_android_vh_ipi_stop
+  __traceiter_android_vh_is_fpsimd_save
   __traceiter_android_vh_scheduler_tick
   __traceiter_android_vh_set_wake_flags
   __traceiter_android_vh_show_mem
+  __traceiter_android_vh_ufs_check_int_errors
   __traceiter_android_vh_ufs_compl_command
   __traceiter_android_vh_ufs_prepare_command
+  __traceiter_android_vh_ufs_send_tm_command
   __traceiter_cpu_idle
   __traceiter_device_pm_callback_end
   __traceiter_device_pm_callback_start
@@ -1976,11 +2029,13 @@
   __traceiter_workqueue_execute_start
   trace_output_call
   __tracepoint_android_rvh_can_migrate_task
+  __tracepoint_android_rvh_cpu_cgroup_attach
   __tracepoint_android_rvh_cpu_cgroup_can_attach
   __tracepoint_android_rvh_dequeue_task
   __tracepoint_android_rvh_enqueue_task
   __tracepoint_android_rvh_find_lowest_rq
   __tracepoint_android_rvh_find_new_ilb
+  __tracepoint_android_rvh_flush_task
   __tracepoint_android_rvh_gic_v3_set_affinity
   __tracepoint_android_rvh_post_init_entity_util_avg
   __tracepoint_android_rvh_replace_next_task_fair
@@ -1988,18 +2043,24 @@
   __tracepoint_android_rvh_sched_newidle_balance
   __tracepoint_android_rvh_sched_nohz_balancer_kick
   __tracepoint_android_rvh_sched_rebalance_domains
+  __tracepoint_android_rvh_schedule
   __tracepoint_android_rvh_select_fallback_rq
   __tracepoint_android_rvh_select_task_rq_fair
   __tracepoint_android_rvh_select_task_rq_rt
+  __tracepoint_android_rvh_wake_up_new_task
+  __tracepoint_android_vh_cgroup_attach
   __tracepoint_android_vh_cpu_idle_enter
   __tracepoint_android_vh_cpu_idle_exit
   __tracepoint_android_vh_do_wake_up_sync
   __tracepoint_android_vh_ipi_stop
+  __tracepoint_android_vh_is_fpsimd_save
   __tracepoint_android_vh_scheduler_tick
   __tracepoint_android_vh_set_wake_flags
   __tracepoint_android_vh_show_mem
+  __tracepoint_android_vh_ufs_check_int_errors
   __tracepoint_android_vh_ufs_compl_command
   __tracepoint_android_vh_ufs_prepare_command
+  __tracepoint_android_vh_ufs_send_tm_command
   __tracepoint_cpu_idle
   __tracepoint_device_pm_callback_end
   __tracepoint_device_pm_callback_start
@@ -2129,6 +2190,7 @@
   unregister_shrinker
   up
   update_devfreq
+  update_rq_clock
   up_read
   up_write
   usb_add_function
@@ -2301,6 +2363,7 @@
   wakeup_source_add
   wakeup_source_destroy
   wakeup_source_register
+  wakeup_source_remove
   wakeup_source_unregister
   __wake_up_sync
   __wake_up_sync_key
@@ -2322,6 +2385,7 @@
   xhci_gen_setup
   xhci_get_endpoint_index
   xhci_get_ep_ctx
+  xhci_get_slot_ctx
   xhci_init_driver
   xhci_initialize_ring_info
   xhci_link_segments
