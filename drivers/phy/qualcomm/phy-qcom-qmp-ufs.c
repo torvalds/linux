@@ -1020,7 +1020,6 @@ static int qcom_qmp_phy_ufs_power_on(struct phy *phy)
 	qcom_qmp_phy_ufs_configure_lane(tx, cfg->regs,
 				    cfg->tx_tbl, cfg->tx_tbl_num, 1);
 
-	/* Configuration for other LANE for USB-DP combo PHY */
 	if (cfg->is_dual_lane_phy) {
 		qcom_qmp_phy_ufs_configure_lane(qphy->tx2, cfg->regs,
 					    cfg->tx_tbl, cfg->tx_tbl_num, 2);
