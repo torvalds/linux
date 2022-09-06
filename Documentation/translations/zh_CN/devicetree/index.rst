@@ -36,10 +36,7 @@ Devicetree Overlays
 
    changesets
    dynamic-resolution-notes
-
-Todolist:
-
-*   overlay-notes
+   overlay-notes
 
 Devicetree Bindings
 ===================
