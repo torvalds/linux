@@ -131,6 +131,7 @@ enum {
 	/* internal flags, do not use outside cgroup core proper */
 	__CFTYPE_ONLY_ON_DFL	= (1 << 16),	/* only on default hierarchy */
 	__CFTYPE_NOT_ON_DFL	= (1 << 17),	/* not on default hierarchy */
+	__CFTYPE_ADDED		= (1 << 18),
 };
 
 /*
