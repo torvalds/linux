@@ -1475,7 +1475,7 @@ void gsi_channel_doorbell(struct gsi_channel *channel)
 }
 
 /* Consult hardware, move any newly completed transactions to completed list */
-struct gsi_trans *gsi_channel_update(struct gsi_channel *channel)
+void gsi_channel_update(struct gsi_channel *channel)
 {
 	u32 evt_ring_id = channel->evt_ring_id;
 	struct gsi *gsi = channel->gsi;
@@ -1494,12 +1494,12 @@ struct gsi_trans *gsi_channel_update(struct gsi_channel *channel)
 	offset = GSI_EV_CH_E_CNTXT_4_OFFSET(evt_ring_id);
 	index = gsi_ring_index(ring, ioread32(gsi->virt + offset));
 	if (index == ring->index % ring->count)
-		return NULL;
+		return;
 
 	/* Get the transaction for the latest completed event. */
 	trans = gsi_event_trans(gsi, gsi_ring_virt(ring, index - 1));
 	if (!trans)
-		return NULL;
+		return;
 
 	/* For RX channels, update each completed transaction with the number
 	 * of bytes that were actually received.  For TX channels, report
@@ -1507,8 +1507,6 @@ struct gsi_trans *gsi_channel_update(struct gsi_channel *channel)
 	 * up the network stack.
 	 */
 	gsi_evt_ring_update(gsi, evt_ring_id, index);
-
-	return gsi_channel_trans_complete(channel);
 }
 
 /**

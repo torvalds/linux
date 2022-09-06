@@ -240,8 +240,11 @@ struct gsi_trans *gsi_channel_trans_complete(struct gsi_channel *channel)
 	struct gsi_trans_info *trans_info = &channel->trans_info;
 	u16 trans_id = trans_info->completed_id;
 
-	if (trans_id == trans_info->pending_id)
-		return gsi_channel_update(channel);
+	if (trans_id == trans_info->pending_id) {
+		gsi_channel_update(channel);
+		if (trans_id == trans_info->pending_id)
+			return NULL;
+	}
 
 	return &trans_info->trans[trans_id %= channel->tre_count];
 }

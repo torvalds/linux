@@ -95,12 +95,12 @@ void gsi_channel_trans_exit(struct gsi_channel *channel);
 void gsi_channel_doorbell(struct gsi_channel *channel);
 
 /* gsi_channel_update() - Update knowledge of channel hardware state
- * @channel:	Channel whose doorbell should be rung
+ * @channel:	Channel to be updated
  *
  * Consult hardware, move any newly completed transactions to a
- * channel's completed list
+ * channel's completed list.
  */
-struct gsi_trans *gsi_channel_update(struct gsi_channel *channel);
+void gsi_channel_update(struct gsi_channel *channel);
 
 /**
  * gsi_ring_virt() - Return virtual address for a ring entry
