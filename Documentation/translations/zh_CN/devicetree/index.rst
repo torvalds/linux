@@ -24,10 +24,7 @@ Open Firmware 和 Devicetree
 
    usage-model
    of_unittest
-
-Todolist:
-
-*   kernel-api
+   kernel-api
 
 Devicetree Overlays
 ===================
