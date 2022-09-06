@@ -224,7 +224,8 @@ int __aa_path_perm(const char *op, struct aa_profile *profile, const char *name,
 		   u32 request, struct path_cond *cond, int flags,
 		   struct aa_perms *perms)
 {
-	struct aa_ruleset *rules = &profile->rules;
+	struct aa_ruleset *rules = list_first_entry(&profile->rules,
+						    typeof(*rules), list);
 	int e = 0;
 
 	if (profile_unconfined(profile))
@@ -317,7 +318,8 @@ static int profile_path_link(struct aa_profile *profile,
 			     const struct path *target, char *buffer2,
 			     struct path_cond *cond)
 {
-	struct aa_ruleset *rules = &profile->rules;
+	struct aa_ruleset *rules = list_first_entry(&profile->rules,
+						    typeof(*rules), list);
 	const char *lname, *tname = NULL;
 	struct aa_perms lperms = {}, perms;
 	const char *info = NULL;

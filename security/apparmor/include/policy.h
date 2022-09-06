@@ -124,6 +124,7 @@ struct aa_data {
 };
 
 /* struct aa_ruleset - data covering mediation rules
+ * @list: list the rule is on
  * @size: the memory consumed by this ruleset
  * @policy: general match rules governing policy
  * @file: The set of rules governing basic file access and domain transitions
@@ -133,6 +134,8 @@ struct aa_data {
  * @secmark: secmark label match info
  */
 struct aa_ruleset {
+	struct list_head list;
+
 	int size;
 
 	/* TODO: merge policy and file */
@@ -147,6 +150,7 @@ struct aa_ruleset {
 };
 
 /* struct aa_attachment - data and rules for a profiles attachment
+ * @list:
  * @xmatch_str: human readable attachment string
  * @xmatch: optional extended matching for unconfined executables names
  * @xmatch_len: xmatch prefix len, used to determine xmatch priority
@@ -204,7 +208,7 @@ struct aa_profile {
 	const char *disconnected;
 
 	struct aa_attachment attach;
-	struct aa_ruleset rules;
+	struct list_head rules;
 
 	struct aa_loaddata *rawdata;
 	unsigned char *hash;
@@ -227,6 +231,7 @@ void aa_add_profile(struct aa_policy *common, struct aa_profile *profile);
 
 
 void aa_free_proxy_kref(struct kref *kref);
+struct aa_ruleset *aa_alloc_ruleset(gfp_t gfp);
 struct aa_profile *aa_alloc_profile(const char *name, struct aa_proxy *proxy,
 				    gfp_t gfp);
 struct aa_profile *aa_new_null_profile(struct aa_profile *parent, bool hat,
@@ -283,6 +288,16 @@ static inline aa_state_t RULE_MEDIATES_AF(struct aa_ruleset *rules, u16 AF)
 	if (!state)
 		return DFA_NOMATCH;
 	return aa_dfa_match_len(rules->policy.dfa, state, (char *) &be_af, 2);
+}
+
+static inline aa_state_t ANY_RULE_MEDIATES(struct list_head *head,
+					   unsigned char class)
+{
+	struct aa_ruleset *rule;
+
+	/* TODO: change to list walk */
+	rule = list_first_entry(head, typeof(*rule), list);
+	return RULE_MEDIATES(rule, class);
 }
 
 /**

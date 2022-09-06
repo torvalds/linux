@@ -611,7 +611,8 @@ static const struct file_operations aa_fs_ns_revision_fops = {
 static void profile_query_cb(struct aa_profile *profile, struct aa_perms *perms,
 			     const char *match_str, size_t match_len)
 {
-	struct aa_ruleset *rules = &profile->rules;
+	struct aa_ruleset *rules = list_first_entry(&profile->rules,
+						    typeof(*rules), list);
 	struct aa_perms tmp = { };
 	aa_state_t state = DFA_NOMATCH;
 

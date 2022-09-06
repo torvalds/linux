@@ -108,7 +108,8 @@ void audit_net_cb(struct audit_buffer *ab, void *va)
 int aa_profile_af_perm(struct aa_profile *profile, struct common_audit_data *sa,
 		       u32 request, u16 family, int type)
 {
-	struct aa_ruleset *rules = &profile->rules;
+	struct aa_ruleset *rules = list_first_entry(&profile->rules,
+						    typeof(*rules), list);
 	struct aa_perms perms = { };
 	aa_state_t state;
 	__be16 buffer[2];
@@ -217,7 +218,8 @@ static int aa_secmark_perm(struct aa_profile *profile, u32 request, u32 secid,
 {
 	int i, ret;
 	struct aa_perms perms = { };
-	struct aa_ruleset *rules = &profile->rules;
+	struct aa_ruleset *rules = list_first_entry(&profile->rules,
+						    typeof(*rules), list);
 
 	if (rules->secmark_count == 0)
 		return 0;

@@ -229,11 +229,13 @@ static int profile_ptrace_perm(struct aa_profile *profile,
 			     struct aa_label *peer, u32 request,
 			     struct common_audit_data *sa)
 {
+	struct aa_ruleset *rules = list_first_entry(&profile->rules,
+						    typeof(*rules), list);
 	struct aa_perms perms = { };
 
 	aad(sa)->peer = peer;
-	aa_profile_match_label(profile, &profile->rules, peer,
-			       AA_CLASS_PTRACE, request, &perms);
+	aa_profile_match_label(profile, rules, peer, AA_CLASS_PTRACE, request,
+			       &perms);
 	aa_apply_modes_to_perms(profile, &perms);
 	return aa_check_perms(profile, &perms, request, sa, audit_ptrace_cb);
 }
@@ -243,7 +245,7 @@ static int profile_tracee_perm(struct aa_profile *tracee,
 			       struct common_audit_data *sa)
 {
 	if (profile_unconfined(tracee) || unconfined(tracer) ||
-	    !RULE_MEDIATES(&tracee->rules, AA_CLASS_PTRACE))
+	    !ANY_RULE_MEDIATES(&tracee->rules, AA_CLASS_PTRACE))
 		return 0;
 
 	return profile_ptrace_perm(tracee, tracer, request, sa);
@@ -256,7 +258,7 @@ static int profile_tracer_perm(struct aa_profile *tracer,
 	if (profile_unconfined(tracer))
 		return 0;
 
-	if (RULE_MEDIATES(&tracer->rules, AA_CLASS_PTRACE))
+	if (ANY_RULE_MEDIATES(&tracer->rules, AA_CLASS_PTRACE))
 		return profile_ptrace_perm(tracer, tracee, request, sa);
 
 	/* profile uses the old style capability check for ptrace */

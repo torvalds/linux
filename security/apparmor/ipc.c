@@ -78,12 +78,13 @@ static int profile_signal_perm(struct aa_profile *profile,
 			       struct aa_label *peer, u32 request,
 			       struct common_audit_data *sa)
 {
-	struct aa_ruleset *rules = &profile->rules;
+	struct aa_ruleset *rules = list_first_entry(&profile->rules,
+						    typeof(*rules), list);
 	struct aa_perms perms;
 	aa_state_t state;
 
 	if (profile_unconfined(profile) ||
-	    !RULE_MEDIATES(rules, AA_CLASS_SIGNAL))
+	    !ANY_RULE_MEDIATES(&profile->rules, AA_CLASS_SIGNAL))
 		return 0;
 
 	aad(sa)->peer = peer;

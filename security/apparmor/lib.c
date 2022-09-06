@@ -351,14 +351,16 @@ int aa_profile_label_perm(struct aa_profile *profile, struct aa_profile *target,
 			  u32 request, int type, u32 *deny,
 			  struct common_audit_data *sa)
 {
+	struct aa_ruleset *rules = list_first_entry(&profile->rules,
+						    typeof(*rules), list);
 	struct aa_perms perms;
 
 	aad(sa)->label = &profile->label;
 	aad(sa)->peer = &target->label;
 	aad(sa)->request = request;
 
-	aa_profile_match_label(profile, &profile->rules, &target->label, type,
-			       request, &perms);
+	aa_profile_match_label(profile, rules, &target->label, type, request,
+			       &perms);
 	aa_apply_modes_to_perms(profile, &perms);
 	*deny |= request & perms.deny;
 	return aa_check_perms(profile, &perms, request, sa, aa_audit_perms_cb);

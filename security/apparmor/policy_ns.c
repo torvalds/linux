@@ -83,6 +83,7 @@ const char *aa_ns_name(struct aa_ns *curr, struct aa_ns *view, bool subns)
 static struct aa_profile *alloc_unconfined(const char *name)
 {
 	struct aa_profile *profile;
+	struct aa_ruleset *rules;
 
 	profile = aa_alloc_profile(name, NULL, GFP_KERNEL);
 	if (!profile)
@@ -91,8 +92,9 @@ static struct aa_profile *alloc_unconfined(const char *name)
 	profile->label.flags |= FLAG_IX_ON_NAME_ERROR |
 		FLAG_IMMUTIBLE | FLAG_NS_COUNT | FLAG_UNCONFINED;
 	profile->mode = APPARMOR_UNCONFINED;
-	profile->rules.file.dfa = aa_get_dfa(nulldfa);
-	profile->rules.policy.dfa = aa_get_dfa(nulldfa);
+	rules = list_first_entry(&profile->rules, typeof(*rules), list);
+	rules->file.dfa = aa_get_dfa(nulldfa);
+	rules->policy.dfa = aa_get_dfa(nulldfa);
 
 	return profile;
 }

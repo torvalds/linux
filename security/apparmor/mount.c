@@ -303,7 +303,8 @@ static int match_mnt_path_str(struct aa_profile *profile,
 {
 	struct aa_perms perms = { };
 	const char *mntpnt = NULL, *info = NULL;
-	struct aa_ruleset *rules = &profile->rules;
+	struct aa_ruleset *rules = list_first_entry(&profile->rules,
+						    typeof(*rules), list);
 	int pos, error;
 
 	AA_BUG(!profile);
@@ -359,12 +360,14 @@ static int match_mnt(struct aa_profile *profile, const struct path *path,
 		     bool binary)
 {
 	const char *devname = NULL, *info = NULL;
+	struct aa_ruleset *rules = list_first_entry(&profile->rules,
+						    typeof(*rules), list);
 	int error = -EACCES;
 
 	AA_BUG(!profile);
 	AA_BUG(devpath && !devbuffer);
 
-	if (!RULE_MEDIATES(&profile->rules, AA_CLASS_MOUNT))
+	if (!RULE_MEDIATES(rules, AA_CLASS_MOUNT))
 		return 0;
 
 	if (devpath) {
@@ -566,7 +569,8 @@ out:
 static int profile_umount(struct aa_profile *profile, const struct path *path,
 			  char *buffer)
 {
-	struct aa_ruleset *rules = &profile->rules;
+	struct aa_ruleset *rules = list_first_entry(&profile->rules,
+						    typeof(*rules), list);
 	struct aa_perms perms = { };
 	const char *name = NULL, *info = NULL;
 	aa_state_t state;
@@ -626,7 +630,8 @@ static struct aa_label *build_pivotroot(struct aa_profile *profile,
 					const struct path *old_path,
 					char *old_buffer)
 {
-	struct aa_ruleset *rules = &profile->rules;
+	struct aa_ruleset *rules = list_first_entry(&profile->rules,
+						    typeof(*rules), list);
 	const char *old_name, *new_name = NULL, *info = NULL;
 	const char *trans_name = NULL;
 	struct aa_perms perms = { };

@@ -217,6 +217,17 @@ static void free_ruleset(struct aa_ruleset *rules)
 	kfree_sensitive(rules->secmark);
 }
 
+struct aa_ruleset *aa_alloc_ruleset(gfp_t gfp)
+{
+	struct aa_ruleset *rules;
+
+	rules = kzalloc(sizeof(*rules), gfp);
+	if (rules)
+		INIT_LIST_HEAD(&rules->list);
+
+	return rules;
+}
+
 /**
  * aa_free_profile - free a profile
  * @profile: the profile to free  (MAYBE NULL)
@@ -229,6 +240,7 @@ static void free_ruleset(struct aa_ruleset *rules)
  */
 void aa_free_profile(struct aa_profile *profile)
 {
+	struct aa_ruleset *rule, *tmp;
 	struct rhashtable *rht;
 
 	AA_DEBUG("%s(%p)\n", __func__, profile);
@@ -244,7 +256,15 @@ void aa_free_profile(struct aa_profile *profile)
 	kfree_sensitive(profile->rename);
 
 	free_attachment(&profile->attach);
-	free_ruleset(&profile->rules);
+
+	/*
+	 * at this point there are no tasks that can have a reference
+	 * to rules
+	 */
+	list_for_each_entry_safe(rule, tmp, &profile->rules, list) {
+		list_del_init(&rule->list);
+		free_ruleset(rule);
+	}
 	kfree_sensitive(profile->dirname);
 
 	if (profile->data) {
@@ -272,6 +292,7 @@ struct aa_profile *aa_alloc_profile(const char *hname, struct aa_proxy *proxy,
 				    gfp_t gfp)
 {
 	struct aa_profile *profile;
+	struct aa_ruleset *rules;
 
 	/* freed by free_profile - usually through aa_put_profile */
 	profile = kzalloc(struct_size(profile, label.vec, 2), gfp);
@@ -282,6 +303,14 @@ struct aa_profile *aa_alloc_profile(const char *hname, struct aa_proxy *proxy,
 		goto fail;
 	if (!aa_label_init(&profile->label, 1, gfp))
 		goto fail;
+
+	INIT_LIST_HEAD(&profile->rules);
+
+	/* allocate the first ruleset, but leave it empty */
+	rules = aa_alloc_ruleset(gfp);
+	if (!rules)
+		goto fail;
+	list_add(&rules->list, &profile->rules);
 
 	/* update being set needed by fs interface */
 	if (!proxy) {
@@ -516,6 +545,7 @@ struct aa_profile *aa_fqlookupn_profile(struct aa_label *base,
 struct aa_profile *aa_new_null_profile(struct aa_profile *parent, bool hat,
 				       const char *base, gfp_t gfp)
 {
+	struct aa_ruleset *rules;
 	struct aa_profile *p, *profile;
 	const char *bname;
 	char *name = NULL;
@@ -558,8 +588,9 @@ name:
 	/* released on free_profile */
 	rcu_assign_pointer(profile->parent, aa_get_profile(parent));
 	profile->ns = aa_get_ns(parent->ns);
-	profile->rules.file.dfa = aa_get_dfa(nulldfa);
-	profile->rules.policy.dfa = aa_get_dfa(nulldfa);
+	rules = list_first_entry(&profile->rules, typeof(*rules), list);
+	rules->file.dfa = aa_get_dfa(nulldfa);
+	rules->policy.dfa = aa_get_dfa(nulldfa);
 
 	mutex_lock_nested(&profile->ns->lock, profile->ns->level);
 	p = __find_child(&parent->base.profiles, bname);
