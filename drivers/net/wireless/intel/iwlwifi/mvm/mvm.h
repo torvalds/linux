@@ -1079,7 +1079,6 @@ struct iwl_mvm {
 	struct list_head resp_pasn_list;
 
 	struct {
-		u8 d0i3_resp;
 		u8 range_resp;
 	} cmd_ver;
 

@@ -2551,34 +2551,12 @@ static int __iwl_mvm_resume(struct iwl_mvm *mvm, bool test)
 			.id = D0I3_END_CMD,
 			.flags = CMD_WANT_SKB | CMD_SEND_IN_D3,
 		};
-		int len;
 
 		ret = iwl_mvm_send_cmd(mvm, &cmd);
 		if (ret < 0) {
 			IWL_ERR(mvm, "Failed to send D0I3_END_CMD first (%d)\n",
 				ret);
 			goto err;
-		}
-		switch (mvm->cmd_ver.d0i3_resp) {
-		case 0:
-			break;
-		case 1:
-			len = iwl_rx_packet_payload_len(cmd.resp_pkt);
-			if (len != sizeof(u32)) {
-				IWL_ERR(mvm,
-					"Error with D0I3_END_CMD response size (%d)\n",
-					len);
-				goto err;
-			}
-			if (IWL_D0I3_RESET_REQUIRE &
-			    le32_to_cpu(*(__le32 *)cmd.resp_pkt->data)) {
-				iwl_write32(mvm->trans, CSR_RESET,
-					    CSR_RESET_REG_FLAG_FORCE_NMI);
-				iwl_free_resp(&cmd);
-			}
-			break;
-		default:
-			WARN_ON(1);
 		}
 	}
 
