@@ -513,6 +513,7 @@ struct ieee80211_fragment_cache {
  * @status_stats.avg_ack_signal: average ACK signal
  * @cur_max_bandwidth: maximum bandwidth to use for TX to the station,
  *	taken from HT/VHT capabilities or VHT operating mode notification
+ * @debugfs_dir: debug filesystem directory dentry
  * @pub: public (driver visible) link STA data
  * TODO Move other link params from sta_info as required for MLD operation
  */
@@ -559,6 +560,10 @@ struct link_sta_info {
 	} tx_stats;
 
 	enum ieee80211_sta_rx_bandwidth cur_max_bandwidth;
+
+#ifdef CONFIG_MAC80211_DEBUGFS
+	struct dentry *debugfs_dir;
+#endif
 
 	struct ieee80211_link_sta *pub;
 };

@@ -3790,6 +3790,13 @@ struct ieee80211_prep_tx_info {
  *	should be within a CONFIG_MAC80211_DEBUGFS conditional. This
  *	callback can sleep.
  *
+ * @link_sta_add_debugfs: Drivers can use this callback to add debugfs files
+ *	when a link is added to a mac80211 station. This callback
+ *	should be within a CPTCFG_MAC80211_DEBUGFS conditional. This
+ *	callback can sleep.
+ *	For non-MLO the callback will be called once for the deflink with the
+ *	station's directory rather than a separate subdirectory.
+ *
  * @sta_notify: Notifies low level driver about power state transition of an
  *	associated station, AP,  IBSS/WDS/mesh peer etc. For a VIF operating
  *	in AP mode, this callback will not be called when the flag
@@ -4260,6 +4267,10 @@ struct ieee80211_ops {
 				struct ieee80211_vif *vif,
 				struct ieee80211_sta *sta,
 				struct dentry *dir);
+	void (*link_sta_add_debugfs)(struct ieee80211_hw *hw,
+				     struct ieee80211_vif *vif,
+				     struct ieee80211_link_sta *link_sta,
+				     struct dentry *dir);
 #endif
 	void (*sta_notify)(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			enum sta_notify_cmd, struct ieee80211_sta *sta);

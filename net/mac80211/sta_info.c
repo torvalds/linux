@@ -366,6 +366,9 @@ static void sta_remove_link(struct sta_info *sta, unsigned int link_id,
 	if (unhash)
 		link_sta_info_hash_del(sta->local, link_sta);
 
+	if (test_sta_flag(sta, WLAN_STA_INSERTED))
+		ieee80211_link_sta_debugfs_remove(link_sta);
+
 	if (link_sta != &sta->deflink)
 		alloc = container_of(link_sta, typeof(*alloc), info);
 
@@ -875,6 +878,26 @@ static int sta_info_insert_finish(struct sta_info *sta) __acquires(RCU)
 
 	ieee80211_sta_debugfs_add(sta);
 	rate_control_add_sta_debugfs(sta);
+	if (sta->sta.valid_links) {
+		int i;
+
+		for (i = 0; i < ARRAY_SIZE(sta->link); i++) {
+			struct link_sta_info *link_sta;
+
+			link_sta = rcu_dereference_protected(sta->link[i],
+							     lockdep_is_held(&local->sta_mtx));
+
+			if (!link_sta)
+				continue;
+
+			ieee80211_link_sta_debugfs_add(link_sta);
+			if (sdata->vif.active_links & BIT(i))
+				ieee80211_link_sta_debugfs_drv_add(link_sta);
+		}
+	} else {
+		ieee80211_link_sta_debugfs_add(&sta->deflink);
+		ieee80211_link_sta_debugfs_drv_add(&sta->deflink);
+	}
 
 	sinfo->generation = local->sta_generation;
 	cfg80211_new_sta(sdata->dev, sta->sta.addr, sinfo, GFP_KERNEL);
@@ -2823,6 +2846,8 @@ int ieee80211_sta_allocate_link(struct sta_info *sta, unsigned int link_id)
 	}
 
 	sta_info_add_link(sta, link_id, &alloc->info, &alloc->sta);
+
+	ieee80211_link_sta_debugfs_add(&alloc->info);
 
 	return 0;
 }
