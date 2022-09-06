@@ -199,7 +199,7 @@ to_imx7_csi_vb2_buffer(struct vb2_buffer *vb)
 
 struct imx7_csi_dma_buf {
 	void *virt;
-	dma_addr_t phys;
+	dma_addr_t dma_addr;
 	unsigned long len;
 };
 
@@ -383,13 +383,13 @@ static void imx7_csi_dmareq_rff_disable(struct imx7_csi *csi)
 	imx7_csi_reg_write(csi, cr3, CSI_CSICR3);
 }
 
-static void imx7_csi_update_buf(struct imx7_csi *csi, dma_addr_t phys,
+static void imx7_csi_update_buf(struct imx7_csi *csi, dma_addr_t dma_addr,
 				int buf_num)
 {
 	if (buf_num == 1)
-		imx7_csi_reg_write(csi, phys, CSI_CSIDMASA_FB2);
+		imx7_csi_reg_write(csi, dma_addr, CSI_CSIDMASA_FB2);
 	else
-		imx7_csi_reg_write(csi, phys, CSI_CSIDMASA_FB1);
+		imx7_csi_reg_write(csi, dma_addr, CSI_CSIDMASA_FB1);
 }
 
 static struct imx7_csi_vb2_buffer *imx7_csi_video_next_buf(struct imx7_csi *csi);
@@ -401,19 +401,19 @@ static void imx7_csi_setup_vb2_buf(struct imx7_csi *csi)
 	int i;
 
 	for (i = 0; i < 2; i++) {
-		dma_addr_t phys;
+		dma_addr_t dma_addr;
 
 		buf = imx7_csi_video_next_buf(csi);
 		if (buf) {
 			csi->active_vb2_buf[i] = buf;
 			vb2_buf = &buf->vbuf.vb2_buf;
-			phys = vb2_dma_contig_plane_dma_addr(vb2_buf, 0);
+			dma_addr = vb2_dma_contig_plane_dma_addr(vb2_buf, 0);
 		} else {
 			csi->active_vb2_buf[i] = NULL;
-			phys = csi->underrun_buf.phys;
+			dma_addr = csi->underrun_buf.dma_addr;
 		}
 
-		imx7_csi_update_buf(csi, phys, i);
+		imx7_csi_update_buf(csi, dma_addr, i);
 	}
 }
 
@@ -440,10 +440,10 @@ static void imx7_csi_free_dma_buf(struct imx7_csi *csi,
 				  struct imx7_csi_dma_buf *buf)
 {
 	if (buf->virt)
-		dma_free_coherent(csi->dev, buf->len, buf->virt, buf->phys);
+		dma_free_coherent(csi->dev, buf->len, buf->virt, buf->dma_addr);
 
 	buf->virt = NULL;
-	buf->phys = 0;
+	buf->dma_addr = 0;
 }
 
 static int imx7_csi_alloc_dma_buf(struct imx7_csi *csi,
@@ -452,7 +452,7 @@ static int imx7_csi_alloc_dma_buf(struct imx7_csi *csi,
 	imx7_csi_free_dma_buf(csi, buf);
 
 	buf->len = PAGE_ALIGN(size);
-	buf->virt = dma_alloc_coherent(csi->dev, buf->len, &buf->phys,
+	buf->virt = dma_alloc_coherent(csi->dev, buf->len, &buf->dma_addr,
 				       GFP_DMA | GFP_KERNEL);
 	if (!buf->virt)
 		return -ENOMEM;
@@ -713,7 +713,7 @@ static void imx7_csi_vb2_buf_done(struct imx7_csi *csi)
 {
 	struct imx7_csi_vb2_buffer *done, *next;
 	struct vb2_buffer *vb;
-	dma_addr_t phys;
+	dma_addr_t dma_addr;
 
 	done = csi->active_vb2_buf[csi->buf_num];
 	if (done) {
@@ -728,14 +728,14 @@ static void imx7_csi_vb2_buf_done(struct imx7_csi *csi)
 	/* get next queued buffer */
 	next = imx7_csi_video_next_buf(csi);
 	if (next) {
-		phys = vb2_dma_contig_plane_dma_addr(&next->vbuf.vb2_buf, 0);
+		dma_addr = vb2_dma_contig_plane_dma_addr(&next->vbuf.vb2_buf, 0);
 		csi->active_vb2_buf[csi->buf_num] = next;
 	} else {
-		phys = csi->underrun_buf.phys;
+		dma_addr = csi->underrun_buf.dma_addr;
 		csi->active_vb2_buf[csi->buf_num] = NULL;
 	}
 
-	imx7_csi_update_buf(csi, phys, csi->buf_num);
+	imx7_csi_update_buf(csi, dma_addr, csi->buf_num);
 }
 
 static irqreturn_t imx7_csi_irq_handler(int irq, void *data)
@@ -1300,14 +1300,14 @@ static bool imx7_csi_fast_track_buffer(struct imx7_csi *csi,
 				       struct imx7_csi_vb2_buffer *buf)
 {
 	unsigned long flags;
-	dma_addr_t phys;
+	dma_addr_t dma_addr;
 	int buf_num;
 	u32 isr;
 
 	if (!csi->is_streaming)
 		return false;
 
-	phys = vb2_dma_contig_plane_dma_addr(&buf->vbuf.vb2_buf, 0);
+	dma_addr = vb2_dma_contig_plane_dma_addr(&buf->vbuf.vb2_buf, 0);
 
 	/*
 	 * buf_num holds the framebuffer ID of the most recently (*not* the
@@ -1346,7 +1346,7 @@ static bool imx7_csi_fast_track_buffer(struct imx7_csi *csi,
 		return false;
 	}
 
-	imx7_csi_update_buf(csi, phys, buf_num);
+	imx7_csi_update_buf(csi, dma_addr, buf_num);
 
 	isr = imx7_csi_reg_read(csi, CSI_CSISR);
 	if (isr & (buf_num ? BIT_DMA_TSF_DONE_FB1 : BIT_DMA_TSF_DONE_FB2)) {
