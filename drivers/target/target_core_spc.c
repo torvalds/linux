@@ -1889,6 +1889,14 @@ static struct target_opcode_descriptor tcm_opcode_report_target_pgs = {
 		       0xff, 0xff, 0x00, SCSI_CONTROL_MASK},
 };
 
+
+static bool spc_rsoc_enabled(struct se_cmd *cmd)
+{
+	struct se_device *dev = cmd->se_dev;
+
+	return dev->dev_attrib.emulate_rsoc;
+}
+
 static struct target_opcode_descriptor tcm_opcode_report_supp_opcodes = {
 	.support = SCSI_SUPPORT_FULL,
 	.serv_action_valid = 1,
@@ -1899,6 +1907,7 @@ static struct target_opcode_descriptor tcm_opcode_report_supp_opcodes = {
 		       0x87, 0xff,
 		       0xff, 0xff, 0xff, 0xff,
 		       0xff, 0xff, 0x00, SCSI_CONTROL_MASK},
+	.enabled = spc_rsoc_enabled,
 };
 
 static bool tcm_is_set_tpg_enabled(struct se_cmd *cmd)
@@ -2134,6 +2143,9 @@ spc_emulate_report_supp_op_codes(struct se_cmd *cmd)
 	unsigned char *rbuf;
 	sense_reason_t ret = 0;
 	int i;
+
+	if (!cmd->se_dev->dev_attrib.emulate_rsoc)
+		return TCM_UNSUPPORTED_SCSI_OPCODE;
 
 	rbuf = transport_kmap_data_sg(cmd);
 	if (cmd->data_length && !rbuf) {
