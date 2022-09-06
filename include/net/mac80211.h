@@ -2176,6 +2176,7 @@ struct ieee80211_sta_aggregates {
  * All link specific info for a STA link for a non MLD STA(single)
  * or a MLD STA(multiple entries) are stored here.
  *
+ * @sta: reference to owning STA
  * @addr: MAC address of the Link STA. For non-MLO STA this is same as the addr
  *	in ieee80211_sta. For MLO Link STA this addr can be same or different
  *	from addr in ieee80211_sta (representing MLD STA addr)
@@ -2196,6 +2197,8 @@ struct ieee80211_sta_aggregates {
  *
  */
 struct ieee80211_link_sta {
+	struct ieee80211_sta *sta;
+
 	u8 addr[ETH_ALEN];
 	u8 link_id;
 	enum ieee80211_smps_mode smps_mode;
