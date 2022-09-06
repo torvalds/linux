@@ -39,6 +39,7 @@ struct mlx5e_macsec_rx_sc {
 	struct mlx5e_macsec_sa *rx_sa[MACSEC_NUM_AN];
 	struct list_head rx_sc_list_element;
 	struct mlx5e_macsec_rx_sc_xarray_element *sc_xarray_element;
+	struct metadata_dst *md_dst;
 	struct rcu_head rcu_head;
 };
 
@@ -455,16 +456,24 @@ static int mlx5e_macsec_add_rxsc(struct macsec_context *ctx)
 	if (err)
 		goto destroy_sc_xarray_elemenet;
 
+	rx_sc->md_dst = metadata_dst_alloc(0, METADATA_MACSEC, GFP_KERNEL);
+	if (!rx_sc->md_dst) {
+		err = -ENOMEM;
+		goto erase_xa_alloc;
+	}
+
 	rx_sc->sci = ctx_rx_sc->sci;
 	rx_sc->active = ctx_rx_sc->active;
 	list_add_rcu(&rx_sc->rx_sc_list_element, &macsec->macsec_rx_sc_list_head);
 
 	rx_sc->sc_xarray_element = sc_xarray_element;
-
+	rx_sc->md_dst->u.macsec_info.sci = rx_sc->sci;
 	mutex_unlock(&macsec->lock);
 
 	return 0;
 
+erase_xa_alloc:
+	xa_erase(&macsec->sc_xarray, sc_xarray_element->fs_id);
 destroy_sc_xarray_elemenet:
 	kfree(sc_xarray_element);
 destroy_rx_sc:
@@ -558,8 +567,15 @@ static int mlx5e_macsec_del_rxsc(struct macsec_context *ctx)
 		rx_sc->rx_sa[i] = NULL;
 	}
 
+/*
+ * At this point the relevant MACsec offload Rx rule already removed at
+ * mlx5e_macsec_cleanup_sa need to wait for datapath to finish current
+ * Rx related data propagating using xa_erase which uses rcu to sync,
+ * once fs_id is erased then this rx_sc is hidden from datapath.
+ */
 	list_del_rcu(&rx_sc->rx_sc_list_element);
 	xa_erase(&macsec->sc_xarray, rx_sc->sc_xarray_element->fs_id);
+	metadata_dst_free(rx_sc->md_dst);
 	kfree(rx_sc->sc_xarray_element);
 
 	kfree_rcu(rx_sc);
@@ -819,6 +835,34 @@ void mlx5e_macsec_tx_build_eseg(struct mlx5e_macsec *macsec,
 		return;
 
 	eseg->flow_table_metadata = cpu_to_be32(MLX5_ETH_WQE_FT_META_MACSEC | fs_id << 2);
+}
+
+void mlx5e_macsec_offload_handle_rx_skb(struct net_device *netdev,
+					struct sk_buff *skb,
+					struct mlx5_cqe64 *cqe)
+{
+	struct mlx5e_macsec_rx_sc_xarray_element *sc_xarray_element;
+	u32 macsec_meta_data = be32_to_cpu(cqe->ft_metadata);
+	struct mlx5e_priv *priv = netdev_priv(netdev);
+	struct mlx5e_macsec_rx_sc *rx_sc;
+	struct mlx5e_macsec *macsec;
+	u32  fs_id;
+
+	macsec = priv->macsec;
+	if (!macsec)
+		return;
+
+	fs_id = MLX5_MACSEC_METADATA_HANDLE(macsec_meta_data);
+
+	rcu_read_lock();
+	sc_xarray_element = xa_load(&macsec->sc_xarray, fs_id);
+	rx_sc = sc_xarray_element->rx_sc;
+	if (rx_sc) {
+		dst_hold(&rx_sc->md_dst->dst);
+		skb_dst_set(skb, &rx_sc->md_dst->dst);
+	}
+
+	rcu_read_unlock();
 }
 
 void mlx5e_macsec_build_netdev(struct mlx5e_priv *priv)
