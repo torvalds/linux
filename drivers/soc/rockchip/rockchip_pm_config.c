@@ -34,6 +34,12 @@ enum rk_pm_state {
 	RK_PM_STATE_MAX
 };
 
+static const char * const pm_state_str[RK_PM_STATE_MAX] = {
+	[RK_PM_MEM] = "mem",
+	[RK_PM_MEM_LITE] = "mem-lite",
+	[RK_PM_MEM_ULTRA] = "mem-ultra",
+};
+
 static struct rk_on_off_regulator_list {
 	struct regulator_dev *on_reg_list[MAX_ON_OFF_REG_NUM];
 	struct regulator_dev *off_reg_list[MAX_ON_OFF_REG_NUM];
@@ -73,84 +79,50 @@ static void rockchip_pm_virt_pwroff_prepare(void)
 	sip_smc_virtual_poweroff();
 }
 
-static int parse_on_off_regulator(struct device_node *node, enum rk_pm_state state)
+static int parse_regulator_list(struct device_node *node,
+				char *prop_name,
+				struct regulator_dev **out_list)
 {
-	char on_prop_name[MAX_ON_OFF_REG_PROP_NAME_LEN] = {0};
-	char off_prop_name[MAX_ON_OFF_REG_PROP_NAME_LEN] = {0};
-	int i, j;
 	struct device_node *dn;
 	struct regulator_dev *reg;
-	struct regulator_dev **on_list;
-	struct regulator_dev **off_list;
+	int i, j;
 
-	switch (state) {
-	case RK_PM_MEM:
-		strncpy(on_prop_name, "rockchip,regulator-on-in-mem",
-			MAX_ON_OFF_REG_PROP_NAME_LEN);
-		strncpy(off_prop_name, "rockchip,regulator-off-in-mem",
-			MAX_ON_OFF_REG_PROP_NAME_LEN);
-	break;
-
-	case RK_PM_MEM_LITE:
-		strncpy(on_prop_name, "rockchip,regulator-on-in-mem-lite",
-			MAX_ON_OFF_REG_PROP_NAME_LEN);
-		strncpy(off_prop_name, "rockchip,regulator-off-in-mem-lite",
-			MAX_ON_OFF_REG_PROP_NAME_LEN);
-	break;
-
-	case RK_PM_MEM_ULTRA:
-		strncpy(on_prop_name, "rockchip,regulator-on-in-mem-ultra",
-			MAX_ON_OFF_REG_PROP_NAME_LEN);
-		strncpy(off_prop_name, "rockchip,regulator-off-in-mem-ultra",
-			MAX_ON_OFF_REG_PROP_NAME_LEN);
-	break;
-
-	default:
-		return 0;
-	}
-
-	on_list = on_off_regs_list[state].on_reg_list;
-	off_list = on_off_regs_list[state].off_reg_list;
-
-	if (of_find_property(node, on_prop_name, NULL)) {
+	if (of_find_property(node, prop_name, NULL)) {
 		for (i = 0, j = 0;
-		     (dn = of_parse_phandle(node, on_prop_name, i));
+		     (dn = of_parse_phandle(node, prop_name, i)) && j < MAX_ON_OFF_REG_NUM;
 		     i++) {
 			reg = of_find_regulator_by_node(dn);
 			if (reg == NULL) {
 				pr_warn("failed to find regulator %s for %s\n",
-					dn->name, on_prop_name);
+					dn->name, prop_name);
 			} else {
-				pr_debug("%s on regulator=%s\n", __func__,
+				pr_debug("%s %s regulator=%s\n", __func__,
+					 prop_name,
 					 reg->desc->name);
-				on_list[j++] = reg;
+				out_list[j++] = reg;
 			}
 			of_node_put(dn);
-
-			if (j >= MAX_ON_OFF_REG_NUM)
-				return 0;
 		}
 	}
 
-	if (of_find_property(node, off_prop_name, NULL)) {
-		for (i = 0, j = 0;
-		     (dn = of_parse_phandle(node, off_prop_name, i));
-		     i++) {
-			reg = of_find_regulator_by_node(dn);
-			if (reg == NULL) {
-				pr_warn("failed to find regulator %s for %s\n",
-					dn->name, off_prop_name);
-			} else {
-				pr_debug("%s off regulator=%s\n", __func__,
-					 reg->desc->name);
-				off_list[j++] = reg;
-			}
-			of_node_put(dn);
+	return 0;
+}
 
-			if (j >= MAX_ON_OFF_REG_NUM)
-				return 0;
-		}
-	}
+static int parse_on_off_regulator(struct device_node *node, enum rk_pm_state state)
+{
+	char on_prop_name[MAX_ON_OFF_REG_PROP_NAME_LEN];
+	char off_prop_name[MAX_ON_OFF_REG_PROP_NAME_LEN];
+
+	if (state >= RK_PM_STATE_MAX)
+		return -EINVAL;
+
+	snprintf(on_prop_name, sizeof(on_prop_name),
+		 "rockchip,regulator-on-in-%s", pm_state_str[state]);
+	snprintf(off_prop_name, sizeof(off_prop_name),
+		 "rockchip,regulator-off-in-%s", pm_state_str[state]);
+
+	parse_regulator_list(node, on_prop_name, on_off_regs_list[state].on_reg_list);
+	parse_regulator_list(node, off_prop_name, on_off_regs_list[state].off_reg_list);
 
 	return 0;
 }
