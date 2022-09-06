@@ -2555,7 +2555,7 @@ static bool iwl_mvm_check_rt_status(struct iwl_mvm *mvm,
  *	1. The mutex is already held.
  *	2. The callee functions unlock the mutex.
  */
-static void
+static bool
 iwl_mvm_choose_query_wakeup_reasons(struct iwl_mvm *mvm,
 				    struct ieee80211_vif *vif,
 				    struct iwl_d3_data *d3_data)
@@ -2581,12 +2581,9 @@ iwl_mvm_choose_query_wakeup_reasons(struct iwl_mvm *mvm,
 			mvm->keep_vif = vif;
 #endif
 
-		if (!d3_data->test)
-			ieee80211_iterate_active_interfaces_mtx(mvm->hw,
-								IEEE80211_IFACE_ITER_NORMAL,
-								iwl_mvm_d3_disconnect_iter,
-								keep ? vif : NULL);
+		return keep;
 	}
+	return false;
 }
 
 #define IWL_WOWLAN_WAKEUP_REASON_HAS_WAKEUP_PKT (IWL_WOWLAN_WAKEUP_BY_MAGIC_PACKET | \
@@ -2863,6 +2860,7 @@ static int __iwl_mvm_resume(struct iwl_mvm *mvm, bool test)
 	bool d0i3_first = fw_has_capa(&mvm->fw->ucode_capa,
 				      IWL_UCODE_TLV_CAPA_D0I3_END_FIRST);
 	bool resume_notif_based = iwl_mvm_d3_resume_notif_based(mvm);
+	bool keep = false;
 
 	mutex_lock(&mvm->mutex);
 
@@ -2935,7 +2933,7 @@ static int __iwl_mvm_resume(struct iwl_mvm *mvm, bool test)
 	}
 
 query_wakeup_reasons:
-	iwl_mvm_choose_query_wakeup_reasons(mvm, vif, &d3_data);
+	keep = iwl_mvm_choose_query_wakeup_reasons(mvm, vif, &d3_data);
 	/* has unlocked the mutex, so skip that */
 	goto out;
 
@@ -2946,6 +2944,12 @@ out:
 		kfree(d3_data.status->wake_packet);
 	kfree(d3_data.status);
 	iwl_mvm_free_nd(mvm);
+
+	if (!d3_data.test && !mvm->net_detect)
+		ieee80211_iterate_active_interfaces_mtx(mvm->hw,
+							IEEE80211_IFACE_ITER_NORMAL,
+							iwl_mvm_d3_disconnect_iter,
+							keep ? vif : NULL);
 
 	clear_bit(IWL_MVM_STATUS_IN_D3, &mvm->status);
 
