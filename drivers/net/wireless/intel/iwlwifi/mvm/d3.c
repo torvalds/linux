@@ -2725,6 +2725,16 @@ static int iwl_mvm_d3_notif_wait(struct iwl_mvm *mvm,
 				     IWL_MVM_D3_NOTIF_TIMEOUT);
 }
 
+static inline bool iwl_mvm_d3_resume_notif_based(struct iwl_mvm *mvm)
+{
+	return iwl_fw_lookup_notif_ver(mvm->fw, PROT_OFFLOAD_GROUP,
+				       WOWLAN_INFO_NOTIFICATION, 0) &&
+		iwl_fw_lookup_notif_ver(mvm->fw, PROT_OFFLOAD_GROUP,
+					WOWLAN_WAKE_PKT_NOTIFICATION, 0) &&
+		iwl_fw_lookup_notif_ver(mvm->fw, PROT_OFFLOAD_GROUP,
+					D3_END_NOTIFICATION, 0);
+}
+
 static int __iwl_mvm_resume(struct iwl_mvm *mvm, bool test)
 {
 	struct ieee80211_vif *vif = NULL;
@@ -2740,8 +2750,7 @@ static int __iwl_mvm_resume(struct iwl_mvm *mvm, bool test)
 					 IWL_UCODE_TLV_CAPA_CNSLDTD_D3_D0_IMG);
 	bool d0i3_first = fw_has_capa(&mvm->fw->ucode_capa,
 				      IWL_UCODE_TLV_CAPA_D0I3_END_FIRST);
-	/* currently disabled */
-	bool resume_notif_based = false;
+	bool resume_notif_based = iwl_mvm_d3_resume_notif_based(mvm);
 
 	mutex_lock(&mvm->mutex);
 
