@@ -338,7 +338,6 @@ struct wsa_macro {
 	int ec_hq[WSA_MACRO_RX1 + 1];
 	u16 prim_int_users[WSA_MACRO_RX1 + 1];
 	u16 wsa_mclk_users;
-	bool reset_swr;
 	unsigned long active_ch_mask[WSA_MACRO_MAX_DAIS];
 	unsigned long active_ch_cnt[WSA_MACRO_MAX_DAIS];
 	int rx_port_value[WSA_MACRO_RX_MAX];
@@ -2271,23 +2270,16 @@ static int wsa_swrm_clock(struct wsa_macro *wsa, bool enable)
 		wsa_macro_mclk_enable(wsa, true);
 
 		/* reset swr ip */
-		if (wsa->reset_swr)
-			regmap_update_bits(regmap,
-					   CDC_WSA_CLK_RST_CTRL_SWR_CONTROL,
-					   CDC_WSA_SWR_RST_EN_MASK,
-					   CDC_WSA_SWR_RST_ENABLE);
+		regmap_update_bits(regmap, CDC_WSA_CLK_RST_CTRL_SWR_CONTROL,
+				   CDC_WSA_SWR_RST_EN_MASK, CDC_WSA_SWR_RST_ENABLE);
 
 		regmap_update_bits(regmap, CDC_WSA_CLK_RST_CTRL_SWR_CONTROL,
 				   CDC_WSA_SWR_CLK_EN_MASK,
 				   CDC_WSA_SWR_CLK_ENABLE);
 
 		/* Bring out of reset */
-		if (wsa->reset_swr)
-			regmap_update_bits(regmap,
-					   CDC_WSA_CLK_RST_CTRL_SWR_CONTROL,
-					   CDC_WSA_SWR_RST_EN_MASK,
-					   CDC_WSA_SWR_RST_DISABLE);
-		wsa->reset_swr = false;
+		regmap_update_bits(regmap, CDC_WSA_CLK_RST_CTRL_SWR_CONTROL,
+				   CDC_WSA_SWR_RST_EN_MASK, CDC_WSA_SWR_RST_DISABLE);
 	} else {
 		regmap_update_bits(regmap, CDC_WSA_CLK_RST_CTRL_SWR_CONTROL,
 				   CDC_WSA_SWR_CLK_EN_MASK, 0);
@@ -2431,7 +2423,6 @@ static int wsa_macro_probe(struct platform_device *pdev)
 
 	dev_set_drvdata(dev, wsa);
 
-	wsa->reset_swr = true;
 	wsa->dev = dev;
 
 	/* set MCLK and NPL rates */
