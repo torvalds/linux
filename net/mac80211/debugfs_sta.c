@@ -443,6 +443,19 @@ static const struct file_operations link_sta_ ##name## _ops = {		\
 	.llseek = generic_file_llseek,					\
 }
 
+static ssize_t link_sta_addr_read(struct file *file, char __user *userbuf,
+				  size_t count, loff_t *ppos)
+{
+	struct link_sta_info *link_sta = file->private_data;
+	u8 mac[3 * ETH_ALEN + 1];
+
+	snprintf(mac, sizeof(mac), "%pM\n", link_sta->pub->addr);
+
+	return simple_read_from_buffer(userbuf, count, ppos, mac, 3 * ETH_ALEN);
+}
+
+LINK_STA_OPS(addr);
+
 static ssize_t link_sta_ht_capa_read(struct file *file, char __user *userbuf,
 				     size_t count, loff_t *ppos)
 {
@@ -1104,6 +1117,8 @@ void ieee80211_link_sta_debugfs_add(struct link_sta_info *link_sta)
 		link_sta->debugfs_dir =
 			debugfs_create_dir(link_dir_name,
 					   link_sta->sta->debugfs_dir);
+
+		DEBUGFS_ADD(addr);
 	} else {
 		if (WARN_ON(link_sta != &link_sta->sta->deflink))
 			return;
