@@ -259,7 +259,7 @@ struct tx_macro {
 	struct tx_mute_work tx_mute_dwork[NUM_DECIMATORS];
 	unsigned long active_ch_mask[TX_MACRO_MAX_DAIS];
 	unsigned long active_ch_cnt[TX_MACRO_MAX_DAIS];
-	unsigned long active_decimator[TX_MACRO_MAX_DAIS];
+	int active_decimator[TX_MACRO_MAX_DAIS];
 	struct regmap *regmap;
 	struct clk *mclk;
 	struct clk *npl;
@@ -1116,6 +1116,10 @@ static int tx_macro_digital_mute(struct snd_soc_dai *dai, int mute, int stream)
 	struct snd_soc_component *component = dai->component;
 	struct tx_macro *tx = snd_soc_component_get_drvdata(component);
 	u16 decimator;
+
+	/* active decimator not set yet */
+	if (tx->active_decimator[dai->id] == -1)
+		return 0;
 
 	decimator = tx->active_decimator[dai->id];
 
