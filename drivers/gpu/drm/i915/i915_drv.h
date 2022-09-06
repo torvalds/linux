@@ -780,6 +780,9 @@ struct drm_i915_private {
 
 	struct kobject *sysfs_gt;
 
+	/* Quick lookup of media GT (current platforms only have one) */
+	struct intel_gt *media_gt;
+
 	struct {
 		struct i915_gem_contexts {
 			spinlock_t lock; /* locks list */

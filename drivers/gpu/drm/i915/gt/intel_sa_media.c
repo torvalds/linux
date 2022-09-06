@@ -36,5 +36,12 @@ int intel_sa_mediagt_setup(struct intel_gt *gt, phys_addr_t phys_addr,
 	gt->uncore = uncore;
 	gt->phys_addr = phys_addr;
 
+	/*
+	 * For current platforms we can assume there's only a single
+	 * media GT and cache it for quick lookup.
+	 */
+	drm_WARN_ON(&i915->drm, i915->media_gt);
+	i915->media_gt = gt;
+
 	return 0;
 }

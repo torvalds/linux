@@ -59,11 +59,17 @@ static void
 gen11_other_irq_handler(struct intel_gt *gt, const u8 instance,
 			const u16 iir)
 {
+	struct intel_gt *media_gt = gt->i915->media_gt;
+
 	if (instance == OTHER_GUC_INSTANCE)
 		return guc_irq_handler(&gt->uc.guc, iir);
+	if (instance == OTHER_MEDIA_GUC_INSTANCE && media_gt)
+		return guc_irq_handler(&media_gt->uc.guc, iir);
 
 	if (instance == OTHER_GTPM_INSTANCE)
 		return gen11_rps_irq_handler(&gt->rps, iir);
+	if (instance == OTHER_MEDIA_GTPM_INSTANCE && media_gt)
+		return gen11_rps_irq_handler(&media_gt->rps, iir);
 
 	if (instance == OTHER_KCR_INSTANCE)
 		return intel_pxp_irq_handler(&gt->pxp, iir);
@@ -81,6 +87,18 @@ gen11_engine_irq_handler(struct intel_gt *gt, const u8 class,
 {
 	struct intel_engine_cs *engine;
 
+	/*
+	 * Platforms with standalone media have their media engines in another
+	 * GT.
+	 */
+	if (MEDIA_VER(gt->i915) >= 13 &&
+	    (class == VIDEO_DECODE_CLASS || class == VIDEO_ENHANCEMENT_CLASS)) {
+		if (!gt->i915->media_gt)
+			goto err;
+
+		gt = gt->i915->media_gt;
+	}
+
 	if (instance <= MAX_ENGINE_INSTANCE)
 		engine = gt->engine_class[class][instance];
 	else
@@ -89,6 +107,7 @@ gen11_engine_irq_handler(struct intel_gt *gt, const u8 class,
 	if (likely(engine))
 		return intel_engine_cs_irq(engine, iir);
 
+err:
 	WARN_ONCE(1, "unhandled engine interrupt class=0x%x, instance=0x%x\n",
 		  class, instance);
 }
