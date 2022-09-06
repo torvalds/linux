@@ -2258,16 +2258,16 @@ out_unlock:
 #define ND_QUERY_BUF_LEN (sizeof(struct iwl_scan_offload_profile_match) * \
 			  IWL_SCAN_MAX_PROFILES)
 
-struct iwl_mvm_nd_query_results {
+struct iwl_mvm_nd_results {
 	u32 matched_profiles;
 	u8 matches[ND_QUERY_BUF_LEN];
 };
 
 static int
 iwl_mvm_netdetect_query_results(struct iwl_mvm *mvm,
-				struct iwl_mvm_nd_query_results *results)
+				struct iwl_mvm_nd_results *results)
 {
-	struct iwl_scan_offload_profiles_query *query;
+	struct iwl_scan_offload_match_info *query;
 	struct iwl_host_cmd cmd = {
 		.id = SCAN_OFFLOAD_PROFILES_QUERY_CMD,
 		.flags = CMD_WANT_SKB,
@@ -2284,7 +2284,7 @@ iwl_mvm_netdetect_query_results(struct iwl_mvm *mvm,
 
 	if (fw_has_api(&mvm->fw->ucode_capa,
 		       IWL_UCODE_TLV_API_SCAN_OFFLOAD_CHANS)) {
-		query_len = sizeof(struct iwl_scan_offload_profiles_query);
+		query_len = sizeof(struct iwl_scan_offload_match_info);
 		matches_len = sizeof(struct iwl_scan_offload_profile_match) *
 			max_profiles;
 	} else {
@@ -2315,7 +2315,7 @@ out_free_resp:
 }
 
 static int iwl_mvm_query_num_match_chans(struct iwl_mvm *mvm,
-					 struct iwl_mvm_nd_query_results *query,
+					 struct iwl_mvm_nd_results *results,
 					 int idx)
 {
 	int n_chans = 0, i;
@@ -2323,13 +2323,13 @@ static int iwl_mvm_query_num_match_chans(struct iwl_mvm *mvm,
 	if (fw_has_api(&mvm->fw->ucode_capa,
 		       IWL_UCODE_TLV_API_SCAN_OFFLOAD_CHANS)) {
 		struct iwl_scan_offload_profile_match *matches =
-			(struct iwl_scan_offload_profile_match *)query->matches;
+			(void *)results->matches;
 
 		for (i = 0; i < SCAN_OFFLOAD_MATCHING_CHANNELS_LEN; i++)
 			n_chans += hweight8(matches[idx].matching_channels[i]);
 	} else {
 		struct iwl_scan_offload_profile_match_v1 *matches =
-			(struct iwl_scan_offload_profile_match_v1 *)query->matches;
+			(void *)results->matches;
 
 		for (i = 0; i < SCAN_OFFLOAD_MATCHING_CHANNELS_LEN_V1; i++)
 			n_chans += hweight8(matches[idx].matching_channels[i]);
@@ -2339,7 +2339,7 @@ static int iwl_mvm_query_num_match_chans(struct iwl_mvm *mvm,
 }
 
 static void iwl_mvm_query_set_freqs(struct iwl_mvm *mvm,
-				    struct iwl_mvm_nd_query_results *query,
+				    struct iwl_mvm_nd_results *results,
 				    struct cfg80211_wowlan_nd_match *match,
 				    int idx)
 {
@@ -2348,7 +2348,7 @@ static void iwl_mvm_query_set_freqs(struct iwl_mvm *mvm,
 	if (fw_has_api(&mvm->fw->ucode_capa,
 		       IWL_UCODE_TLV_API_SCAN_OFFLOAD_CHANS)) {
 		struct iwl_scan_offload_profile_match *matches =
-			(struct iwl_scan_offload_profile_match *)query->matches;
+			 (void *)results->matches;
 
 		for (i = 0; i < SCAN_OFFLOAD_MATCHING_CHANNELS_LEN * 8; i++)
 			if (matches[idx].matching_channels[i / 8] & (BIT(i % 8)))
@@ -2356,7 +2356,7 @@ static void iwl_mvm_query_set_freqs(struct iwl_mvm *mvm,
 					mvm->nd_channels[i]->center_freq;
 	} else {
 		struct iwl_scan_offload_profile_match_v1 *matches =
-			(struct iwl_scan_offload_profile_match_v1 *)query->matches;
+			 (void *)results->matches;
 
 		for (i = 0; i < SCAN_OFFLOAD_MATCHING_CHANNELS_LEN_V1 * 8; i++)
 			if (matches[idx].matching_channels[i / 8] & (BIT(i % 8)))
@@ -2365,24 +2365,50 @@ static void iwl_mvm_query_set_freqs(struct iwl_mvm *mvm,
 	}
 }
 
+/**
+ * enum iwl_d3_notif - d3 notifications
+ * @IWL_D3_NOTIF_WOWLAN_INFO: WOWLAN_INFO_NOTIF was received
+ * @IWL_D3_NOTIF_WOWLAN_WAKE_PKT: WOWLAN_WAKE_PKT_NOTIF was received
+ * @IWL_D3_NOTIF_PROT_OFFLOAD: PROT_OFFLOAD_NOTIF was received
+ * @IWL_D3_ND_MATCH_INFO: OFFLOAD_MATCH_INFO_NOTIF was received
+ * @IWL_D3_NOTIF_D3_END_NOTIF: D3_END_NOTIF was received
+ */
+enum iwl_d3_notif {
+	IWL_D3_NOTIF_WOWLAN_INFO =	BIT(0),
+	IWL_D3_NOTIF_WOWLAN_WAKE_PKT =	BIT(1),
+	IWL_D3_NOTIF_PROT_OFFLOAD =	BIT(2),
+	IWL_D3_ND_MATCH_INFO      =     BIT(3),
+	IWL_D3_NOTIF_D3_END_NOTIF =	BIT(4)
+};
+
+/* manage d3 resume data */
+struct iwl_d3_data {
+	struct iwl_wowlan_status_data *status;
+	bool test;
+	u32 d3_end_flags;
+	u32 notif_expected;	/* bitmap - see &enum iwl_d3_notif */
+	u32 notif_received;	/* bitmap - see &enum iwl_d3_notif */
+	struct iwl_mvm_nd_results *nd_results;
+	bool nd_results_valid;
+};
+
 static void iwl_mvm_query_netdetect_reasons(struct iwl_mvm *mvm,
 					    struct ieee80211_vif *vif,
-					    struct iwl_wowlan_status_data *status)
+					    struct iwl_d3_data *d3_data)
 {
 	struct cfg80211_wowlan_nd_info *net_detect = NULL;
 	struct cfg80211_wowlan_wakeup wakeup = {
 		.pattern_idx = -1,
 	};
 	struct cfg80211_wowlan_wakeup *wakeup_report = &wakeup;
-	struct iwl_mvm_nd_query_results query;
 	unsigned long matched_profiles;
 	u32 reasons = 0;
 	int i, n_matches, ret;
 
-	if (WARN_ON(!status))
-		return;
+	if (WARN_ON(!d3_data || !d3_data->status))
+		goto out;
 
-	reasons = status->wakeup_reasons;
+	reasons = d3_data->status->wakeup_reasons;
 
 	if (reasons & IWL_WOWLAN_WAKEUP_BY_RFKILL_DEASSERTED)
 		wakeup.rfkill_release = true;
@@ -2390,13 +2416,22 @@ static void iwl_mvm_query_netdetect_reasons(struct iwl_mvm *mvm,
 	if (reasons != IWL_WOWLAN_WAKEUP_BY_NON_WIRELESS)
 		goto out;
 
-	ret = iwl_mvm_netdetect_query_results(mvm, &query);
-	if (ret || !query.matched_profiles) {
+	if (!iwl_fw_lookup_notif_ver(mvm->fw, PROT_OFFLOAD_GROUP,
+				     WOWLAN_INFO_NOTIFICATION, 0)) {
+		IWL_INFO(mvm, "Query FW for ND results\n");
+		ret = iwl_mvm_netdetect_query_results(mvm, d3_data->nd_results);
+
+	} else {
+		IWL_INFO(mvm, "Notification based ND results\n");
+		ret = d3_data->nd_results_valid ? 0 : -1;
+	}
+
+	if (ret || !d3_data->nd_results->matched_profiles) {
 		wakeup_report = NULL;
 		goto out;
 	}
 
-	matched_profiles = query.matched_profiles;
+	matched_profiles = d3_data->nd_results->matched_profiles;
 	if (mvm->n_nd_match_sets) {
 		n_matches = hweight_long(matched_profiles);
 	} else {
@@ -2413,7 +2448,9 @@ static void iwl_mvm_query_netdetect_reasons(struct iwl_mvm *mvm,
 		struct cfg80211_wowlan_nd_match *match;
 		int idx, n_channels = 0;
 
-		n_channels = iwl_mvm_query_num_match_chans(mvm, &query, i);
+		n_channels = iwl_mvm_query_num_match_chans(mvm,
+							   d3_data->nd_results,
+							   i);
 
 		match = kzalloc(struct_size(match, channels, n_channels),
 				GFP_KERNEL);
@@ -2433,7 +2470,7 @@ static void iwl_mvm_query_netdetect_reasons(struct iwl_mvm *mvm,
 		if (mvm->n_nd_channels < n_channels)
 			continue;
 
-		iwl_mvm_query_set_freqs(mvm, &query, match, i);
+		iwl_mvm_query_set_freqs(mvm, d3_data->nd_results, match, i);
 	}
 
 out_report_nd:
@@ -2513,38 +2550,15 @@ static bool iwl_mvm_check_rt_status(struct iwl_mvm *mvm,
 	return false;
 }
 
-/**
- * enum iwl_d3_notif - d3 notifications
- * @IWL_D3_NOTIF_WOWLAN_INFO: WOWLAN_INFO_NOTIF was received
- * @IWL_D3_NOTIF_WOWLAN_WAKE_PKT: WOWLAN_WAKE_PKT_NOTIF was received
- * @IWL_D3_NOTIF_PROT_OFFLOAD: PROT_OFFLOAD_NOTIF was received
- * @IWL_D3_NOTIF_D3_END_NOTIF: D3_END_NOTIF was received
- */
-enum iwl_d3_notif {
-	IWL_D3_NOTIF_WOWLAN_INFO =	BIT(0),
-	IWL_D3_NOTIF_WOWLAN_WAKE_PKT =	BIT(1),
-	IWL_D3_NOTIF_PROT_OFFLOAD =	BIT(2),
-	IWL_D3_NOTIF_D3_END_NOTIF =	BIT(3)
-};
-
-/* manage d3 resume data */
-struct iwl_d3_data {
-	struct iwl_wowlan_status_data *status;
-	bool test;
-	u32 d3_end_flags;
-	u32 notif_expected;	/* bitmap - see &enum iwl_d3_notif */
-	u32 notif_received;	/* bitmap - see &enum iwl_d3_notif */
-};
-
 /*
  * This function assumes:
  *	1. The mutex is already held.
  *	2. The callee functions unlock the mutex.
  */
-static void iwl_mvm_choose_query_wakeup_reasons(struct iwl_mvm *mvm,
-						struct ieee80211_vif *vif,
-						struct iwl_d3_data *d3_data,
-						bool test)
+static void
+iwl_mvm_choose_query_wakeup_reasons(struct iwl_mvm *mvm,
+				    struct ieee80211_vif *vif,
+				    struct iwl_d3_data *d3_data)
 {
 	lockdep_assert_held(&mvm->mutex);
 
@@ -2557,7 +2571,7 @@ static void iwl_mvm_choose_query_wakeup_reasons(struct iwl_mvm *mvm,
 	}
 
 	if (mvm->net_detect) {
-		iwl_mvm_query_netdetect_reasons(mvm, vif, d3_data->status);
+		iwl_mvm_query_netdetect_reasons(mvm, vif, d3_data);
 	} else {
 		bool keep = iwl_mvm_query_wakeup_reasons(mvm, vif,
 							 d3_data->status);
@@ -2567,7 +2581,7 @@ static void iwl_mvm_choose_query_wakeup_reasons(struct iwl_mvm *mvm,
 			mvm->keep_vif = vif;
 #endif
 
-		if (!test)
+		if (!d3_data->test)
 			ieee80211_iterate_active_interfaces_mtx(mvm->hw,
 								IEEE80211_IFACE_ITER_NORMAL,
 								iwl_mvm_d3_disconnect_iter,
@@ -2624,6 +2638,55 @@ static int iwl_mvm_wowlan_store_wake_pkt(struct iwl_mvm *mvm,
 	return 0;
 }
 
+static void iwl_mvm_nd_match_info_handler(struct iwl_mvm *mvm,
+					  struct iwl_d3_data *d3_data,
+					  struct iwl_scan_offload_match_info *notif,
+					  u32 len)
+{
+	struct iwl_wowlan_status_data *status = d3_data->status;
+	struct ieee80211_vif *vif = iwl_mvm_get_bss_vif(mvm);
+	struct iwl_mvm_nd_results *results = d3_data->nd_results;
+	size_t i, matches_len = sizeof(struct iwl_scan_offload_profile_match) *
+		iwl_umac_scan_get_max_profiles(mvm->fw);
+
+	if (IS_ERR_OR_NULL(vif))
+		return;
+
+	if (len < sizeof(struct iwl_scan_offload_match_info)) {
+		IWL_ERR(mvm, "Invalid scan match info notification\n");
+		return;
+	}
+
+	if (!mvm->net_detect) {
+		IWL_ERR(mvm, "Unexpected scan match info notification\n");
+		return;
+	}
+
+	if (!status || status->wakeup_reasons != IWL_WOWLAN_WAKEUP_BY_NON_WIRELESS) {
+		IWL_ERR(mvm,
+			"Ignore scan match info notification: no reason\n");
+		return;
+	}
+
+#ifdef CONFIG_IWLWIFI_DEBUGFS
+	mvm->last_netdetect_scans = le32_to_cpu(notif->n_scans_done);
+#endif
+
+	results->matched_profiles = le32_to_cpu(notif->matched_profiles);
+	IWL_INFO(mvm, "number of matched profiles=%u\n",
+		 results->matched_profiles);
+
+	if (results->matched_profiles) {
+		memcpy(results->matches, notif->matches, matches_len);
+		d3_data->nd_results_valid = TRUE;
+	}
+
+	/* no scan should be active at this point */
+	mvm->scan_status = 0;
+	for (i = 0; i < mvm->max_scans; i++)
+		mvm->scan_uid_status[i] = 0;
+}
+
 static bool iwl_mvm_wait_d3_notif(struct iwl_notif_wait_data *notif_wait,
 				  struct iwl_rx_packet *pkt, void *data)
 {
@@ -2675,6 +2738,24 @@ static bool iwl_mvm_wait_d3_notif(struct iwl_notif_wait_data *notif_wait,
 
 		break;
 	}
+	case WIDE_ID(SCAN_GROUP, OFFLOAD_MATCH_INFO_NOTIF): {
+		struct iwl_scan_offload_match_info *notif = (void *)pkt->data;
+
+		if (d3_data->notif_received & IWL_D3_ND_MATCH_INFO) {
+			IWL_ERR(mvm,
+				"Got additional netdetect match info\n");
+			break;
+		}
+
+		d3_data->notif_received |= IWL_D3_ND_MATCH_INFO;
+
+		/* explicitly set this in the 'expected' as well */
+		d3_data->notif_expected |= IWL_D3_ND_MATCH_INFO;
+
+		len = iwl_rx_packet_payload_len(pkt);
+		iwl_mvm_nd_match_info_handler(mvm, d3_data, notif, len);
+		break;
+	}
 	case WIDE_ID(PROT_OFFLOAD_GROUP, D3_END_NOTIFICATION): {
 		struct iwl_mvm_d3_end_notif *notif = (void *)pkt->data;
 
@@ -2694,12 +2775,12 @@ static bool iwl_mvm_wait_d3_notif(struct iwl_notif_wait_data *notif_wait,
 
 static int iwl_mvm_d3_notif_wait(struct iwl_mvm *mvm,
 				 struct iwl_d3_data *d3_data,
-				 enum iwl_d3_status *d3_status,
-				 bool test)
+				 enum iwl_d3_status *d3_status)
 {
 	static const u16 d3_resume_notif[] = {
 		WIDE_ID(PROT_OFFLOAD_GROUP, WOWLAN_INFO_NOTIFICATION),
 		WIDE_ID(PROT_OFFLOAD_GROUP, WOWLAN_WAKE_PKT_NOTIFICATION),
+		WIDE_ID(SCAN_GROUP, OFFLOAD_MATCH_INFO_NOTIF),
 		WIDE_ID(PROT_OFFLOAD_GROUP, D3_END_NOTIFICATION)
 	};
 	struct iwl_notification_wait wait_d3_notif;
@@ -2709,7 +2790,7 @@ static int iwl_mvm_d3_notif_wait(struct iwl_mvm *mvm,
 				   d3_resume_notif, ARRAY_SIZE(d3_resume_notif),
 				   iwl_mvm_wait_d3_notif, d3_data);
 
-	ret = iwl_trans_d3_resume(mvm->trans, d3_status, test, false);
+	ret = iwl_trans_d3_resume(mvm->trans, d3_status, d3_data->test, false);
 	if (ret) {
 		iwl_remove_notification(&mvm->notif_wait, &wait_d3_notif);
 		return ret;
@@ -2740,11 +2821,14 @@ static int __iwl_mvm_resume(struct iwl_mvm *mvm, bool test)
 	struct ieee80211_vif *vif = NULL;
 	int ret = 1;
 	enum iwl_d3_status d3_status;
+	struct iwl_mvm_nd_results results = {};
 	struct iwl_d3_data d3_data = {
 		.test = test,
 		.notif_expected =
 			IWL_D3_NOTIF_WOWLAN_INFO |
 			IWL_D3_NOTIF_D3_END_NOTIF,
+		.nd_results_valid = false,
+		.nd_results = &results,
 	};
 	bool unified_image = fw_has_capa(&mvm->fw->ucode_capa,
 					 IWL_UCODE_TLV_CAPA_CNSLDTD_D3_D0_IMG);
@@ -2782,7 +2866,7 @@ static int __iwl_mvm_resume(struct iwl_mvm *mvm, bool test)
 			goto err;
 		}
 
-		ret = iwl_mvm_d3_notif_wait(mvm, &d3_data, &d3_status, test);
+		ret = iwl_mvm_d3_notif_wait(mvm, &d3_data, &d3_status);
 	} else {
 		ret = iwl_trans_d3_resume(mvm->trans, &d3_status, test,
 					  !unified_image);
@@ -2842,7 +2926,7 @@ static int __iwl_mvm_resume(struct iwl_mvm *mvm, bool test)
 	}
 
 query_wakeup_reasons:
-	iwl_mvm_choose_query_wakeup_reasons(mvm, vif, &d3_data, d3_data.test);
+	iwl_mvm_choose_query_wakeup_reasons(mvm, vif, &d3_data);
 	/* has unlocked the mutex, so skip that */
 	goto out;
 
