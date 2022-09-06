@@ -274,6 +274,89 @@
  * 53.procfs build with different isp version
  * 54.fix isp debug time for fe/fs irq together
  * 55.awb or gain debug info to ddr for isp32
+ *
+ * v2.0.0:
+ * 1.fix bay3d ds size for isp32
+ * 2.to support vicap merge raw
+ * 3.isp32 fix ae no working with af
+ * 4.api to free mesh buf for user
+ * 5.lock for buf alloc and free
+ * 6.for sdmmc lock
+ * 7.limit bay3d bwsaving config for isp32
+ * 8.fix imx327 hdr mode for isp21
+ * 9.ctrl the fps for isp32
+ * 10.add the bp stream async for isp32
+ * 11.fix info2ddr buf free for isp32
+ * 12.fix csm range to full
+ * 13.add the pause, config, resume stream for isp32
+ * 14.isp32 min clk to 200M
+ * 15.module auto gating for isp30/isp32
+ * 16.add the max size dummybuf and shd stop for isp32
+ * 17.add the config dvbm_init in wrap for isp32
+ * 18.sync params state
+ * 19.delete the buf_done log for isp32
+ * 20.params buf alloc remove to first buf queue
+ * 21.read the color_ctrl reg for isp32
+ * 22.use lager clk in 4 vir-isp mode
+ * 23.rockit: support set wrap_line
+ * 24.tb helper add clk on/off
+ * 25.remove stream limit for dvbm for isp32
+ * 26.fix hold at lsc ram data config
+ * 27.fix cac on/off for isp32
+ * 28.thunderboot for isp32
+ * 29.fix isp32 stream buf update double
+ * 30.add the double isp_dev in rockit for isp32
+ * 31.isp32: fix wrap error for fast stream
+ * 32.check rockit pointer
+ * 33.support free rx buffer
+ * 34.initcall cif/isp early when ROCKCHIP_THUNDER_BOOT_ISP=y
+ * 35.fix rockit set fps fail
+ * 36.fix module exit
+ * 37.api get fast stream output info
+ * 38.api for video to free tb reserved memory
+ * 39.fix warp size error
+ * 40.fix isp30 cgc limit config
+ * 41.remove associated of cproc and ie for isp3x
+ * 42.Add missing sentinel to rkisp_hw_of_match
+ * 43.support mesh buf count from user for isp30 and isp32
+ * 44.add tb api for rockit
+ * 45.fix isp30 cgc and cproc range
+ * 46.add slab.h fix compile
+ * 47.vb2 buf done in tasklet
+ * 48.rdbk to tasklet
+ * 49.set afen off before config af
+ * 50.remove isp1x compatible
+ * 51.frame end config params_v32 for fast output
+ * 52.match stream info for fast output
+ * 53.fix bug the second frame pts is 0
+ * 54.fix error of lsc repeat switch
+ * 55.fix dhaz config for multi isp21
+ * 56.cif/isp support compat_ioctl32 for video
+ * 57.unite mode to support multi dev for isp30
+ * 58.enum multi isp size at power on
+ * 59.2 readback for support multishot large resolution
+ * 60.disable link vir isp when hw working
+ * 61.fill extend line data for fix dhaz bug
+ * 62.fix isp20 and isp21 default to online with vicap
+ * 63.add procfs write for debug
+ * 64.fix isp20 error
+ * 65.support rdbk without aiq
+ * 66.fast to vicap capture raw
+ * 67.first frame run double for isp32 fast mode
+ * 68.fix pm runtime return -EACCES for thunderboot
+ * 69.record isp read time for fast mode
+ * 70.first params from rtt for thunderboot
+ * 71.fix pm runtime return -EACCES for thunderboot
+ * 72.record isp read time for fast mode
+ * 73.first params from rtt for thunderboot
+ * 74.enum formats for different isp version
+ * 75.change the limit of height
+ * 76.enum the max frame size to isp input size
+ * 77.stop without waiting if isp idle for readback mode
+ * 78.fix limit of dcrop
+ * 79.fix isp32 stream force to update enable
+ * 80.fix mi no disable for multi sensor unite mode
+ * 81.fix size for multi isp composite mode
  */
 
 #define RKISP_DRIVER_VERSION RKISP_API_VERSION
