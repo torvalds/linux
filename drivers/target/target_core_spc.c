@@ -1314,6 +1314,22 @@ spc_emulate_testunitready(struct se_cmd *cmd)
 	return 0;
 }
 
+static void set_dpofua_usage_bits(u8 *usage_bits, struct se_device *dev)
+{
+	if (!target_check_fua(dev))
+		usage_bits[1] &= ~0x18;
+	else
+		usage_bits[1] |= 0x18;
+}
+
+static void set_dpofua_usage_bits32(u8 *usage_bits, struct se_device *dev)
+{
+	if (!target_check_fua(dev))
+		usage_bits[10] &= ~0x18;
+	else
+		usage_bits[10] |= 0x18;
+}
+
 static struct target_opcode_descriptor tcm_opcode_read6 = {
 	.support = SCSI_SUPPORT_FULL,
 	.opcode = READ_6,
@@ -1329,6 +1345,7 @@ static struct target_opcode_descriptor tcm_opcode_read10 = {
 	.usage_bits = {READ_10, 0xf8, 0xff, 0xff,
 		       0xff, 0xff, SCSI_GROUP_NUMBER_MASK, 0xff,
 		       0xff, SCSI_CONTROL_MASK},
+	.update_usage_bits = set_dpofua_usage_bits,
 };
 
 static struct target_opcode_descriptor tcm_opcode_read12 = {
@@ -1338,6 +1355,7 @@ static struct target_opcode_descriptor tcm_opcode_read12 = {
 	.usage_bits = {READ_12, 0xf8, 0xff, 0xff,
 		       0xff, 0xff, 0xff, 0xff,
 		       0xff, 0xff, SCSI_GROUP_NUMBER_MASK, SCSI_CONTROL_MASK},
+	.update_usage_bits = set_dpofua_usage_bits,
 };
 
 static struct target_opcode_descriptor tcm_opcode_read16 = {
@@ -1348,6 +1366,7 @@ static struct target_opcode_descriptor tcm_opcode_read16 = {
 		       0xff, 0xff, 0xff, 0xff,
 		       0xff, 0xff, 0xff, 0xff,
 		       0xff, 0xff, SCSI_GROUP_NUMBER_MASK, SCSI_CONTROL_MASK},
+	.update_usage_bits = set_dpofua_usage_bits,
 };
 
 static struct target_opcode_descriptor tcm_opcode_write6 = {
@@ -1365,6 +1384,7 @@ static struct target_opcode_descriptor tcm_opcode_write10 = {
 	.usage_bits = {WRITE_10, 0xf8, 0xff, 0xff,
 		       0xff, 0xff, SCSI_GROUP_NUMBER_MASK, 0xff,
 		       0xff, SCSI_CONTROL_MASK},
+	.update_usage_bits = set_dpofua_usage_bits,
 };
 
 static struct target_opcode_descriptor tcm_opcode_write_verify10 = {
@@ -1374,6 +1394,7 @@ static struct target_opcode_descriptor tcm_opcode_write_verify10 = {
 	.usage_bits = {WRITE_VERIFY, 0xf0, 0xff, 0xff,
 		       0xff, 0xff, SCSI_GROUP_NUMBER_MASK, 0xff,
 		       0xff, SCSI_CONTROL_MASK},
+	.update_usage_bits = set_dpofua_usage_bits,
 };
 
 static struct target_opcode_descriptor tcm_opcode_write12 = {
@@ -1383,6 +1404,7 @@ static struct target_opcode_descriptor tcm_opcode_write12 = {
 	.usage_bits = {WRITE_12, 0xf8, 0xff, 0xff,
 		       0xff, 0xff, 0xff, 0xff,
 		       0xff, 0xff, SCSI_GROUP_NUMBER_MASK, SCSI_CONTROL_MASK},
+	.update_usage_bits = set_dpofua_usage_bits,
 };
 
 static struct target_opcode_descriptor tcm_opcode_write16 = {
@@ -1393,6 +1415,7 @@ static struct target_opcode_descriptor tcm_opcode_write16 = {
 		       0xff, 0xff, 0xff, 0xff,
 		       0xff, 0xff, 0xff, 0xff,
 		       0xff, 0xff, SCSI_GROUP_NUMBER_MASK, SCSI_CONTROL_MASK},
+	.update_usage_bits = set_dpofua_usage_bits,
 };
 
 static struct target_opcode_descriptor tcm_opcode_write_verify16 = {
@@ -1403,6 +1426,7 @@ static struct target_opcode_descriptor tcm_opcode_write_verify16 = {
 		       0xff, 0xff, 0xff, 0xff,
 		       0xff, 0xff, 0xff, 0xff,
 		       0xff, 0xff, SCSI_GROUP_NUMBER_MASK, SCSI_CONTROL_MASK},
+	.update_usage_bits = set_dpofua_usage_bits,
 };
 
 static bool tcm_is_ws_enabled(struct se_cmd *cmd)
@@ -1429,6 +1453,7 @@ static struct target_opcode_descriptor tcm_opcode_write_same32 = {
 		       0x00, 0x00, 0x00, 0x00,
 		       0xff, 0xff, 0xff, 0xff},
 	.enabled = tcm_is_ws_enabled,
+	.update_usage_bits = set_dpofua_usage_bits32,
 };
 
 static bool tcm_is_caw_enabled(struct se_cmd *cmd)
@@ -1447,6 +1472,7 @@ static struct target_opcode_descriptor tcm_opcode_compare_write = {
 		       0xff, 0xff, 0x00, 0x00,
 		       0x00, 0xff, SCSI_GROUP_NUMBER_MASK, SCSI_CONTROL_MASK},
 	.enabled = tcm_is_caw_enabled,
+	.update_usage_bits = set_dpofua_usage_bits,
 };
 
 static struct target_opcode_descriptor tcm_opcode_read_capacity = {
@@ -2033,7 +2059,8 @@ spc_rsoc_encode_command_descriptor(unsigned char *buf, u8 ctdp,
 
 static int
 spc_rsoc_encode_one_command_descriptor(unsigned char *buf, u8 ctdp,
-				       struct target_opcode_descriptor *descr)
+				       struct target_opcode_descriptor *descr,
+				       struct se_device *dev)
 {
 	int td_size = 0;
 
@@ -2045,6 +2072,8 @@ spc_rsoc_encode_one_command_descriptor(unsigned char *buf, u8 ctdp,
 	buf[1] = (ctdp << 7) | SCSI_SUPPORT_FULL;
 	put_unaligned_be16(descr->cdb_size, &buf[2]);
 	memcpy(&buf[4], descr->usage_bits, descr->cdb_size);
+	if (descr->update_usage_bits)
+		descr->update_usage_bits(&buf[4], dev);
 
 	td_size = spc_rsoc_encode_command_timeouts_descriptor(
 			&buf[4 + descr->cdb_size], ctdp, descr);
@@ -2187,7 +2216,8 @@ spc_emulate_report_supp_op_codes(struct se_cmd *cmd)
 		put_unaligned_be32(response_length - 3, buf);
 	} else {
 		response_length = spc_rsoc_encode_one_command_descriptor(
-				&buf[response_length], rctd, descr);
+				&buf[response_length], rctd, descr,
+				cmd->se_dev);
 	}
 
 	memcpy(rbuf, buf, min_t(u32, response_length, cmd->data_length));

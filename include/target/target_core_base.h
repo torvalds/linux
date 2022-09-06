@@ -880,6 +880,8 @@ struct target_opcode_descriptor {
 	u16			nominal_timeout;
 	u16			recommended_timeout;
 	bool			(*enabled)(struct se_cmd *cmd);
+	void			(*update_usage_bits)(u8 *usage_bits,
+						     struct se_device *dev);
 	u8			usage_bits[];
 };
 
