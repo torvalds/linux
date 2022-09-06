@@ -162,6 +162,7 @@ struct sc2310 {
 	struct v4l2_ctrl	*pixel_rate;
 	struct v4l2_ctrl	*link_freq;
 	struct mutex		mutex;
+	struct v4l2_fract	cur_fps;
 	bool			streaming;
 	bool			power_on;
 	const struct sc2310_mode *cur_mode;
@@ -768,6 +769,8 @@ static int sc2310_set_fmt(struct v4l2_subdev *sd,
 		pixel_rate = (u32)link_freq_items[mode->mipi_freq_idx] /
 			mode->bpp * 2 * SC2310_LANES;
 		__v4l2_ctrl_s_ctrl_int64(sc2310->pixel_rate, pixel_rate);
+		sc2310->cur_fps = mode->max_fps;
+		sc2310->cur_vts = mode->vts_def;
 	}
 
 	mutex_unlock(&sc2310->mutex);
@@ -860,9 +863,10 @@ static int sc2310_g_frame_interval(struct v4l2_subdev *sd,
 	struct sc2310 *sc2310 = to_sc2310(sd);
 	const struct sc2310_mode *mode = sc2310->cur_mode;
 
-	mutex_lock(&sc2310->mutex);
-	fi->interval = mode->max_fps;
-	mutex_unlock(&sc2310->mutex);
+	if (sc2310->streaming)
+		fi->interval = sc2310->cur_fps;
+	else
+		fi->interval = mode->max_fps;
 
 	return 0;
 }
@@ -1119,6 +1123,8 @@ static long sc2310_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 				mode->bpp * 2 * SC2310_LANES;
 			__v4l2_ctrl_s_ctrl_int64(sc2310->pixel_rate,
 						 pixel_rate);
+			sc2310->cur_fps = mode->max_fps;
+			sc2310->cur_vts = mode->vts_def;
 			dev_info(&sc2310->client->dev,
 				"sensor mode: %d\n", mode->hdr_mode);
 		}
@@ -1532,6 +1538,14 @@ static const struct v4l2_subdev_ops sc2310_subdev_ops = {
 	.pad	= &sc2310_pad_ops,    /* */
 };
 
+static void sc2310_modify_fps_info(struct sc2310 *sc2310)
+{
+	const struct sc2310_mode *mode = sc2310->cur_mode;
+
+	sc2310->cur_fps.denominator = mode->max_fps.denominator * sc2310->cur_vts /
+				       mode->vts_def;
+}
+
 static int sc2310_set_ctrl(struct v4l2_ctrl *ctrl)
 {
 	struct sc2310 *sc2310 = container_of(ctrl->handler,
@@ -1605,6 +1619,10 @@ static int sc2310_set_ctrl(struct v4l2_ctrl *ctrl)
 		ret = sc2310_write_reg(sc2310->client, SC2310_REG_VTS,
 					SC2310_REG_VALUE_16BIT,
 					ctrl->val + sc2310->cur_mode->height);
+		if (!ret)
+			sc2310->cur_vts = ctrl->val + sc2310->cur_mode->height;
+		if (sc2310->cur_vts != sc2310->cur_mode->vts_def)
+			sc2310_modify_fps_info(sc2310);
 		dev_dbg(&client->dev, "set vblank 0x%x\n",
 			ctrl->val);
 		break;
@@ -1719,6 +1737,8 @@ static int sc2310_initialize_controls(struct sc2310 *sc2310)
 
 	sc2310->subdev.ctrl_handler = handler;
 	sc2310->has_init_exp = false;
+	sc2310->cur_fps = mode->max_fps;
+	sc2310->cur_vts = mode->vts_def;
 
 	return 0;
 
