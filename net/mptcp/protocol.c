@@ -1538,8 +1538,9 @@ void __mptcp_push_pending(struct sock *sk, unsigned int flags)
 	struct mptcp_sendmsg_info info = {
 				.flags = flags,
 	};
+	bool do_check_data_fin = false;
 	struct mptcp_data_frag *dfrag;
-	int len, copied = 0;
+	int len;
 
 	while ((dfrag = mptcp_send_head(sk))) {
 		info.sent = dfrag->already_sent;
@@ -1574,8 +1575,8 @@ void __mptcp_push_pending(struct sock *sk, unsigned int flags)
 				goto out;
 			}
 
+			do_check_data_fin = true;
 			info.sent += ret;
-			copied += ret;
 			len -= ret;
 
 			mptcp_update_post_push(msk, dfrag, ret);
@@ -1591,7 +1592,7 @@ out:
 	/* ensure the rtx timer is running */
 	if (!mptcp_timer_pending(sk))
 		mptcp_reset_timer(sk);
-	if (copied)
+	if (do_check_data_fin)
 		__mptcp_check_send_data_fin(sk);
 }
 
