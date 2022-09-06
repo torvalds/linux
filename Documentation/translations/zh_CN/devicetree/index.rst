@@ -34,9 +34,10 @@ Devicetree Overlays
 .. toctree::
    :maxdepth: 1
 
+   changesets
+
 Todolist:
 
-*   changesets
 *   dynamic-resolution-notes
 *   overlay-notes
 
