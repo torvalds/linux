@@ -675,7 +675,6 @@ static void populate_subvp_cmd_pipe_info(struct dc *dc,
 			div64_u64(((uint64_t)(dc->caps.subvp_fw_processing_delay_us) * ((uint64_t)phantom_timing->pix_clk_100hz * 100) +
 					((uint64_t)phantom_timing->h_total * 1000000 - 1)), ((uint64_t)phantom_timing->h_total * 1000000));
 
-	/* TODO: Uncomment once FW headers are promoted
 	if (subvp_pipe->bottom_pipe) {
 		pipe_data->pipe_config.subvp_data.main_split_pipe_index = subvp_pipe->bottom_pipe->pipe_idx;
 	} else if (subvp_pipe->next_odm_pipe) {
@@ -683,7 +682,6 @@ static void populate_subvp_cmd_pipe_info(struct dc *dc,
 	} else {
 		pipe_data->pipe_config.subvp_data.main_split_pipe_index = 0;
 	}
-	*/
 
 	// Find phantom pipe index based on phantom stream
 	for (j = 0; j < dc->res_pool->pipe_count; j++) {
@@ -691,7 +689,6 @@ static void populate_subvp_cmd_pipe_info(struct dc *dc,
 
 		if (phantom_pipe->stream == subvp_pipe->stream->mall_stream_config.paired_stream) {
 			pipe_data->pipe_config.subvp_data.phantom_pipe_index = phantom_pipe->pipe_idx;
-			/* TODO: Uncomment once FW headers are promoted
 			if (phantom_pipe->bottom_pipe) {
 				pipe_data->pipe_config.subvp_data.phantom_split_pipe_index = phantom_pipe->bottom_pipe->pipe_idx;
 			} else if (phantom_pipe->next_odm_pipe) {
@@ -699,7 +696,6 @@ static void populate_subvp_cmd_pipe_info(struct dc *dc,
 			} else {
 				pipe_data->pipe_config.subvp_data.phantom_split_pipe_index = 0;
 			}
-			*/
 			break;
 		}
 	}
