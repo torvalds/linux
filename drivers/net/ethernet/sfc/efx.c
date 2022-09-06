@@ -1175,6 +1175,17 @@ static int efx_pm_freeze(struct device *dev)
 	return 0;
 }
 
+static void efx_pci_shutdown(struct pci_dev *pci_dev)
+{
+	struct efx_nic *efx = pci_get_drvdata(pci_dev);
+
+	if (!efx)
+		return;
+
+	efx_pm_freeze(&pci_dev->dev);
+	pci_disable_device(pci_dev);
+}
+
 static int efx_pm_thaw(struct device *dev)
 {
 	int rc;
@@ -1279,6 +1290,7 @@ static struct pci_driver efx_pci_driver = {
 	.probe		= efx_pci_probe,
 	.remove		= efx_pci_remove,
 	.driver.pm	= &efx_pm_ops,
+	.shutdown	= efx_pci_shutdown,
 	.err_handler	= &efx_err_handlers,
 #ifdef CONFIG_SFC_SRIOV
 	.sriov_configure = efx_pci_sriov_configure,
