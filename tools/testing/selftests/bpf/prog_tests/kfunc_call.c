@@ -2,6 +2,7 @@
 /* Copyright (c) 2021 Facebook */
 #include <test_progs.h>
 #include <network_helpers.h>
+#include "kfunc_call_test.skel.h"
 #include "kfunc_call_test.lskel.h"
 #include "kfunc_call_test_subprog.skel.h"
 #include "kfunc_call_test_subprog.lskel.h"
@@ -9,9 +10,31 @@
 
 #include "cap_helpers.h"
 
-static void test_main(void)
+struct kfunc_test_params {
+	const char *prog_name;
+	unsigned long lskel_prog_desc_offset;
+	int retval;
+};
+
+#define TC_TEST(name, __retval) \
+	{ \
+	  .prog_name = #name, \
+	  .lskel_prog_desc_offset = offsetof(struct kfunc_call_test_lskel, progs.name), \
+	  .retval = __retval, \
+	}
+
+static struct kfunc_test_params kfunc_tests[] = {
+	TC_TEST(kfunc_call_test1, 12),
+	TC_TEST(kfunc_call_test2, 3),
+	TC_TEST(kfunc_call_test_ref_btf_id, 0),
+};
+
+static void verify_success(struct kfunc_test_params *param)
 {
-	struct kfunc_call_test_lskel *skel;
+	struct kfunc_call_test_lskel *lskel = NULL;
+	struct bpf_prog_desc *lskel_prog;
+	struct kfunc_call_test *skel;
+	struct bpf_program *prog;
 	int prog_fd, err;
 	LIBBPF_OPTS(bpf_test_run_opts, topts,
 		.data_in = &pkt_v4,
@@ -19,26 +42,53 @@ static void test_main(void)
 		.repeat = 1,
 	);
 
-	skel = kfunc_call_test_lskel__open_and_load();
+	/* first test with normal libbpf */
+	skel = kfunc_call_test__open_and_load();
 	if (!ASSERT_OK_PTR(skel, "skel"))
 		return;
 
-	prog_fd = skel->progs.kfunc_call_test1.prog_fd;
-	err = bpf_prog_test_run_opts(prog_fd, &topts);
-	ASSERT_OK(err, "bpf_prog_test_run(test1)");
-	ASSERT_EQ(topts.retval, 12, "test1-retval");
+	prog = bpf_object__find_program_by_name(skel->obj, param->prog_name);
+	if (!ASSERT_OK_PTR(prog, "bpf_object__find_program_by_name"))
+		goto cleanup;
 
-	prog_fd = skel->progs.kfunc_call_test2.prog_fd;
+	prog_fd = bpf_program__fd(prog);
 	err = bpf_prog_test_run_opts(prog_fd, &topts);
-	ASSERT_OK(err, "bpf_prog_test_run(test2)");
-	ASSERT_EQ(topts.retval, 3, "test2-retval");
+	if (!ASSERT_OK(err, param->prog_name))
+		goto cleanup;
 
-	prog_fd = skel->progs.kfunc_call_test_ref_btf_id.prog_fd;
+	if (!ASSERT_EQ(topts.retval, param->retval, "retval"))
+		goto cleanup;
+
+	/* second test with light skeletons */
+	lskel = kfunc_call_test_lskel__open_and_load();
+	if (!ASSERT_OK_PTR(lskel, "lskel"))
+		goto cleanup;
+
+	lskel_prog = (struct bpf_prog_desc *)((char *)lskel + param->lskel_prog_desc_offset);
+
+	prog_fd = lskel_prog->prog_fd;
 	err = bpf_prog_test_run_opts(prog_fd, &topts);
-	ASSERT_OK(err, "bpf_prog_test_run(test_ref_btf_id)");
-	ASSERT_EQ(topts.retval, 0, "test_ref_btf_id-retval");
+	if (!ASSERT_OK(err, param->prog_name))
+		goto cleanup;
 
-	kfunc_call_test_lskel__destroy(skel);
+	ASSERT_EQ(topts.retval, param->retval, "retval");
+
+cleanup:
+	kfunc_call_test__destroy(skel);
+	if (lskel)
+		kfunc_call_test_lskel__destroy(lskel);
+}
+
+static void test_main(void)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(kfunc_tests); i++) {
+		if (!test__start_subtest(kfunc_tests[i].prog_name))
+			continue;
+
+		verify_success(&kfunc_tests[i]);
+	}
 }
 
 static void test_subprog(void)
@@ -121,8 +171,7 @@ static void test_destructive(void)
 
 void test_kfunc_call(void)
 {
-	if (test__start_subtest("main"))
-		test_main();
+	test_main();
 
 	if (test__start_subtest("subprog"))
 		test_subprog();
