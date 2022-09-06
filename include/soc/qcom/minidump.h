@@ -32,7 +32,7 @@ enum minidump_entry_cmd {
  *		it should be 4 byte aligned.
  */
 struct md_region {
-	char	name[MAX_NAME_LENGTH];
+	char	name[MAX_NAME_LENGTH + 1];
 	u32	id;
 	u64	virt_addr;
 	u64	phys_addr;
@@ -45,7 +45,7 @@ struct md_pending_region {
 };
 
 struct md_rm_region {
-	char	name[MAX_NAME_LENGTH];
+	char	name[MAX_NAME_LENGTH + 1];
 	u32	slot_num;
 };
 
