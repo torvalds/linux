@@ -124,7 +124,7 @@ MODULE_PARM_DESC(ql2xextended_error_logging,
 int ql2xextended_error_logging_ktrace = 1;
 module_param(ql2xextended_error_logging_ktrace, int, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(ql2xextended_error_logging_ktrace,
-		"Same BIT definiton as ql2xextended_error_logging, but used to control logging to kernel trace buffer (default=1).\n");
+		"Same BIT definition as ql2xextended_error_logging, but used to control logging to kernel trace buffer (default=1).\n");
 
 int ql2xshiftctondsd = 6;
 module_param(ql2xshiftctondsd, int, S_IRUGO);
