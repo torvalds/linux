@@ -3923,11 +3923,12 @@ static bool ieee80211_assoc_config_link(struct ieee80211_link_data *link,
 	struct ieee80211_mgd_assoc_data *assoc_data = sdata->u.mgd.assoc_data;
 	struct ieee80211_bss_conf *bss_conf = link->conf;
 	struct ieee80211_local *local = sdata->local;
+	unsigned int link_id = link->link_id;
 	struct ieee80211_elems_parse_params parse_params = {
 		.start = elem_start,
 		.len = elem_len,
 		.bss = cbss,
-		.link_id = link == &sdata->deflink ? -1 : link->link_id,
+		.link_id = link_id == assoc_data->assoc_link_id ? -1 : link_id,
 		.from_ap = true,
 	};
 	bool is_6ghz = cbss->channel->band == NL80211_BAND_6GHZ;
@@ -3942,8 +3943,18 @@ static bool ieee80211_assoc_config_link(struct ieee80211_link_data *link,
 	if (!elems)
 		return false;
 
-	/* FIXME: use from STA profile element after parsing that */
-	capab_info = le16_to_cpu(mgmt->u.assoc_resp.capab_info);
+	if (link_id == assoc_data->assoc_link_id) {
+		capab_info = le16_to_cpu(mgmt->u.assoc_resp.capab_info);
+	} else if (!elems->prof) {
+		ret = false;
+		goto out;
+	} else {
+		const u8 *ptr = elems->prof->variable +
+				elems->prof->sta_info_len - 1;
+
+		/* FIXME: need to also handle the status code */
+		capab_info = get_unaligned_le16(ptr);
+	}
 
 	if (!is_s1g && !elems->supp_rates) {
 		sdata_info(sdata, "no SuppRates element in AssocResp\n");

@@ -1026,8 +1026,10 @@ ieee80211_parse_extension_element(u32 *crc,
 			elems->eht_operation = data;
 		break;
 	case WLAN_EID_EXT_EHT_MULTI_LINK:
-		if (ieee80211_mle_size_ok(data, len))
+		if (ieee80211_mle_size_ok(data, len)) {
 			elems->multi_link = (void *)data;
+			elems->multi_link_len = len;
+		}
 		break;
 	}
 }
@@ -1497,6 +1499,145 @@ static size_t ieee802_11_find_bssid_profile(const u8 *start, size_t len,
 	return found ? profile_len : 0;
 }
 
+static void ieee80211_defragment_element(struct ieee802_11_elems *elems,
+					 void **elem_ptr, size_t *len,
+					 size_t total_len, u8 frag_id)
+{
+	u8 *data = *elem_ptr, *pos, *start;
+	const struct element *elem;
+
+	/*
+	 * Since 'data' points to the data of the element, not the element
+	 * itself, allow 254 in case it was an extended element where the
+	 * extended ID isn't part of the data we see here and thus not part of
+	 * 'len' either.
+	 */
+	if (!data || (*len != 254 && *len != 255))
+		return;
+
+	start = elems->scratch_pos;
+
+	if (WARN_ON(*len > (elems->scratch + elems->scratch_len -
+			    elems->scratch_pos)))
+		return;
+
+	memcpy(elems->scratch_pos, data, *len);
+	elems->scratch_pos += *len;
+
+	pos = data + *len;
+	total_len -= *len;
+	for_each_element(elem, pos, total_len) {
+		if (elem->id != frag_id)
+			break;
+
+		if (WARN_ON(elem->datalen >
+			    (elems->scratch + elems->scratch_len -
+			     elems->scratch_pos)))
+			return;
+
+		memcpy(elems->scratch_pos, elem->data, elem->datalen);
+		elems->scratch_pos += elem->datalen;
+
+		*len += elem->datalen;
+	}
+
+	*elem_ptr = start;
+}
+
+static void ieee80211_mle_get_sta_prof(struct ieee802_11_elems *elems,
+				       u8 link_id)
+{
+	const struct ieee80211_multi_link_elem *ml = elems->multi_link;
+	size_t ml_len = elems->multi_link_len;
+	const struct element *sub;
+
+	if (!ml || !ml_len)
+		return;
+
+	if (le16_get_bits(ml->control, IEEE80211_ML_CONTROL_TYPE) !=
+	    IEEE80211_ML_CONTROL_TYPE_BASIC)
+		return;
+
+	for_each_mle_subelement(sub, (u8 *)ml, ml_len) {
+		struct ieee80211_mle_per_sta_profile *prof = (void *)sub->data;
+		u16 control;
+
+		if (sub->id != IEEE80211_MLE_SUBELEM_PER_STA_PROFILE)
+			continue;
+
+		if (!ieee80211_mle_sta_prof_size_ok(sub->data, sub->datalen))
+			return;
+
+		control = le16_to_cpu(prof->control);
+
+		if (link_id != u16_get_bits(control,
+					    IEEE80211_MLE_STA_CONTROL_LINK_ID))
+			continue;
+
+		if (!(control & IEEE80211_MLE_STA_CONTROL_COMPLETE_PROFILE))
+			return;
+
+		elems->prof = prof;
+		elems->sta_prof_len = sub->datalen;
+
+		/* the sub element can be fragmented */
+		ieee80211_defragment_element(elems, (void **)&elems->prof,
+					     &elems->sta_prof_len,
+					     ml_len - (sub->data - (u8 *)ml),
+					     IEEE80211_MLE_SUBELEM_FRAGMENT);
+		return;
+	}
+}
+
+static void ieee80211_mle_parse_link(struct ieee802_11_elems *elems,
+				     struct ieee80211_elems_parse_params *params)
+{
+	struct ieee80211_mle_per_sta_profile *prof;
+	struct ieee80211_elems_parse_params sub = {
+		.action = params->action,
+		.from_ap = params->from_ap,
+		.link_id = -1,
+	};
+	const struct element *non_inherit = NULL;
+	const u8 *end;
+
+	if (params->link_id == -1)
+		return;
+
+	ieee80211_defragment_element(elems, (void **)&elems->multi_link,
+				     &elems->multi_link_len,
+				     elems->total_len - ((u8 *)elems->multi_link -
+							 elems->ie_start),
+				     WLAN_EID_FRAGMENT);
+
+	ieee80211_mle_get_sta_prof(elems, params->link_id);
+	prof = elems->prof;
+
+	if (!prof)
+		return;
+
+	/* check if we have the 4 bytes for the fixed part in assoc response */
+	if (elems->sta_prof_len < sizeof(*prof) + prof->sta_info_len - 1 + 4) {
+		elems->prof = NULL;
+		elems->sta_prof_len = 0;
+		return;
+	}
+
+	/*
+	 * Skip the capability information and the status code that are expected
+	 * as part of the station profile in association response frames. Note
+	 * the -1 is because the 'sta_info_len' is accounted to as part of the
+	 * per-STA profile, but not part of the 'u8 variable[]' portion.
+	 */
+	sub.start = prof->variable + prof->sta_info_len - 1 + 4;
+	end = (const u8 *)prof + elems->sta_prof_len;
+	sub.len = end - sub.start;
+
+	non_inherit = cfg80211_find_ext_elem(WLAN_EID_EXT_NON_INHERITANCE,
+					     sub.start, sub.len);
+	_ieee802_11_parse_elems_full(&sub, elems, non_inherit);
+}
+
 struct ieee802_11_elems *
 ieee802_11_parse_elems_full(struct ieee80211_elems_parse_params *params)
 {
@@ -1504,12 +1645,15 @@ ieee802_11_parse_elems_full(struct ieee80211_elems_parse_params *params)
 	const struct element *non_inherit = NULL;
 	u8 *nontransmitted_profile;
 	int nontransmitted_profile_len = 0;
+	size_t scratch_len = params->scratch_len ?: 2 * params->len;
 
-	elems = kzalloc(sizeof(*elems), GFP_ATOMIC);
+	elems = kzalloc(sizeof(*elems) + scratch_len, GFP_ATOMIC);
 	if (!elems)
 		return NULL;
 	elems->ie_start = params->start;
 	elems->total_len = params->len;
+	elems->scratch_len = scratch_len;
+	elems->scratch_pos = elems->scratch;
 
 	nontransmitted_profile = kmalloc(params->len, GFP_ATOMIC);
 	if (nontransmitted_profile) {
@@ -1536,6 +1680,8 @@ ieee802_11_parse_elems_full(struct ieee80211_elems_parse_params *params)
 
 		_ieee802_11_parse_elems_full(&sub, elems, NULL);
 	}
+
+	ieee80211_mle_parse_link(elems, params);
 
 	if (elems->tim && !elems->parse_error) {
 		const struct ieee80211_tim_ie *tim_ie = elems->tim;

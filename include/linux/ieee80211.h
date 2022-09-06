@@ -4666,6 +4666,7 @@ static inline bool ieee80211_mle_size_ok(const u8 *data, size_t len)
 
 enum ieee80211_mle_subelems {
 	IEEE80211_MLE_SUBELEM_PER_STA_PROFILE		= 0,
+	IEEE80211_MLE_SUBELEM_FRAGMENT		        = 254,
 };
 
 #define IEEE80211_MLE_STA_CONTROL_LINK_ID			0x000f

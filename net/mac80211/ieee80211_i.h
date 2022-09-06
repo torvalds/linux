@@ -1707,8 +1707,27 @@ struct ieee802_11_elems {
 	u8 tx_pwr_env_num;
 	u8 eht_cap_len;
 
+	/* mult-link element can be de-fragmented and thus u8 is not sufficient */
+	size_t multi_link_len;
+
+	/*
+	 * store the per station profile pointer and length in case that the
+	 * parsing also handled Multi-Link element parsing for a specific link
+	 * ID.
+	 */
+	struct ieee80211_mle_per_sta_profile *prof;
+	size_t sta_prof_len;
+
 	/* whether a parse error occurred while retrieving these elements */
 	bool parse_error;
+
+	/*
+	 * scratch buffer that can be used for various element parsing related
+	 * tasks, e.g., element de-fragmentation etc.
+	 */
+	size_t scratch_len;
+	u8 *scratch_pos;
+	u8 scratch[];
 };
 
 static inline struct ieee80211_local *hw_to_local(
@@ -2197,9 +2216,13 @@ static inline void ieee80211_tx_skb(struct ieee80211_sub_if_data *sdata,
  *	represent a non-transmitting BSS in which case the data
  *	for that non-transmitting BSS is returned
  * @link_id: the link ID to parse elements for, if a STA profile
- *	is present in the multi-link element, or -1 to ignore
+ *	is present in the multi-link element, or -1 to ignore;
+ *	note that the code currently assumes parsing an association
+ *	(or re-association) response frame if this is given
  * @from_ap: frame is received from an AP (currently used only
  *	for EHT capabilities parsing)
+ * @scratch_len: if non zero, specifies the requested length of the scratch
+ *      buffer; otherwise, 'len' is used.
  */
 struct ieee80211_elems_parse_params {
 	const u8 *start;
@@ -2210,6 +2233,7 @@ struct ieee80211_elems_parse_params {
 	struct cfg80211_bss *bss;
 	int link_id;
 	bool from_ap;
+	size_t scratch_len;
 };
 
 struct ieee802_11_elems *
