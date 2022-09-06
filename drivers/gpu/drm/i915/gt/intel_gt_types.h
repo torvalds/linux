@@ -84,6 +84,7 @@ struct gt_defaults {
 enum intel_gt_type {
 	GT_PRIMARY,
 	GT_TILE,
+	GT_MEDIA,
 };
 
 struct intel_gt {
