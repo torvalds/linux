@@ -21753,6 +21753,14 @@ L:	netdev@vger.kernel.org
 S:	Supported
 F:	drivers/net/vmxnet3/
 
+VMWARE VSOCK VMCI TRANSPORT DRIVER
+M:	Bryan Tan <bryantan@vmware.com>
+M:	Vishnu Dasa <vdasa@vmware.com>
+R:	VMware PV-Drivers Reviewers <pv-drivers@vmware.com>
+L:	linux-kernel@vger.kernel.org
+S:	Supported
+F:	net/vmw_vsock/vmci_transport*
+
 VOCORE VOCORE2 BOARD
 M:	Harvey Hunt <harveyhuntnexus@gmail.com>
 L:	linux-mips@vger.kernel.org
