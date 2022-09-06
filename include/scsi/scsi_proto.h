@@ -349,4 +349,7 @@ enum scsi_support_opcode {
 	SCSI_SUPPORT_VENDOR		= 5,
 };
 
+#define SCSI_CONTROL_MASK 0
+#define SCSI_GROUP_NUMBER_MASK 0
+
 #endif /* _SCSI_PROTO_H_ */
