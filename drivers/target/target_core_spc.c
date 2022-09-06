@@ -1314,6 +1314,202 @@ spc_emulate_testunitready(struct se_cmd *cmd)
 	return 0;
 }
 
+
+static struct target_opcode_descriptor *tcm_supported_opcodes[] = {
+};
+
+static int
+spc_rsoc_encode_command_timeouts_descriptor(unsigned char *buf, u8 ctdp,
+				struct target_opcode_descriptor *descr)
+{
+	if (!ctdp)
+		return 0;
+
+	put_unaligned_be16(0xa, buf);
+	buf[3] = descr->specific_timeout;
+	put_unaligned_be32(descr->nominal_timeout, &buf[4]);
+	put_unaligned_be32(descr->recommended_timeout, &buf[8]);
+
+	return 12;
+}
+
+static int
+spc_rsoc_encode_command_descriptor(unsigned char *buf, u8 ctdp,
+				   struct target_opcode_descriptor *descr)
+{
+	int td_size = 0;
+
+	buf[0] = descr->opcode;
+
+	put_unaligned_be16(descr->service_action, &buf[2]);
+
+	buf[5] = (ctdp << 1) | descr->serv_action_valid;
+	put_unaligned_be16(descr->cdb_size, &buf[6]);
+
+	td_size = spc_rsoc_encode_command_timeouts_descriptor(&buf[8], ctdp,
+							      descr);
+
+	return 8 + td_size;
+}
+
+static int
+spc_rsoc_encode_one_command_descriptor(unsigned char *buf, u8 ctdp,
+				       struct target_opcode_descriptor *descr)
+{
+	int td_size = 0;
+
+	if (!descr) {
+		buf[1] = (ctdp << 7) | SCSI_SUPPORT_NOT_SUPPORTED;
+		return 2;
+	}
+
+	buf[1] = (ctdp << 7) | SCSI_SUPPORT_FULL;
+	put_unaligned_be16(descr->cdb_size, &buf[2]);
+	memcpy(&buf[4], descr->usage_bits, descr->cdb_size);
+
+	td_size = spc_rsoc_encode_command_timeouts_descriptor(
+			&buf[4 + descr->cdb_size], ctdp, descr);
+
+	return 4 + descr->cdb_size + td_size;
+}
+
+static sense_reason_t
+spc_rsoc_get_descr(struct se_cmd *cmd, struct target_opcode_descriptor **opcode)
+{
+	struct target_opcode_descriptor *descr;
+	struct se_session *sess = cmd->se_sess;
+	unsigned char *cdb = cmd->t_task_cdb;
+	u8 opts = cdb[2] & 0x3;
+	u8 requested_opcode;
+	u16 requested_sa;
+	int i;
+
+	requested_opcode = cdb[3];
+	requested_sa = ((u16)cdb[4]) << 8 | cdb[5];
+	*opcode = NULL;
+
+	if (opts > 3) {
+		pr_debug("TARGET_CORE[%s]: Invalid REPORT SUPPORTED OPERATION CODES"
+			" with unsupported REPORTING OPTIONS %#x for 0x%08llx from %s\n",
+			cmd->se_tfo->fabric_name, opts,
+			cmd->se_lun->unpacked_lun,
+			sess->se_node_acl->initiatorname);
+		return TCM_INVALID_CDB_FIELD;
+	}
+
+	for (i = 0; i < ARRAY_SIZE(tcm_supported_opcodes); i++) {
+		descr = tcm_supported_opcodes[i];
+		if (descr->opcode != requested_opcode)
+			continue;
+
+		switch (opts) {
+		case 0x1:
+			/*
+			 * If the REQUESTED OPERATION CODE field specifies an
+			 * operation code for which the device server implements
+			 * service actions, then the device server shall
+			 * terminate the command with CHECK CONDITION status,
+			 * with the sense key set to ILLEGAL REQUEST, and the
+			 * additional sense code set to INVALID FIELD IN CDB
+			 */
+			if (descr->serv_action_valid)
+				return TCM_INVALID_CDB_FIELD;
+			*opcode = descr;
+			break;
+		case 0x2:
+			/*
+			 * If the REQUESTED OPERATION CODE field specifies an
+			 * operation code for which the device server does not
+			 * implement service actions, then the device server
+			 * shall terminate the command with CHECK CONDITION
+			 * status, with the sense key set to ILLEGAL REQUEST,
+			 * and the additional sense code set to INVALID FIELD IN CDB.
+			 */
+			if (descr->serv_action_valid &&
+			    descr->service_action == requested_sa)
+				*opcode = descr;
+			else if (!descr->serv_action_valid)
+				return TCM_INVALID_CDB_FIELD;
+			break;
+		case 0x3:
+			/*
+			 * The command support data for the operation code and
+			 * service action a specified in the REQUESTED OPERATION
+			 * CODE field and REQUESTED SERVICE ACTION field shall
+			 * be returned in the one_command parameter data format.
+			 */
+			if (descr->service_action == requested_sa)
+				*opcode = descr;
+			break;
+		}
+	}
+	return 0;
+}
+
+static sense_reason_t
+spc_emulate_report_supp_op_codes(struct se_cmd *cmd)
+{
+	int descr_num = ARRAY_SIZE(tcm_supported_opcodes);
+	struct target_opcode_descriptor *descr = NULL;
+	unsigned char *cdb = cmd->t_task_cdb;
+	u8 rctd = (cdb[2] >> 7) & 0x1;
+	unsigned char *buf = NULL;
+	int response_length = 0;
+	u8 opts = cdb[2] & 0x3;
+	unsigned char *rbuf;
+	sense_reason_t ret = 0;
+	int i;
+
+	rbuf = transport_kmap_data_sg(cmd);
+	if (cmd->data_length && !rbuf) {
+		ret = TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
+		goto out;
+	}
+
+	if (opts == 0)
+		response_length = 4 + (8 + rctd * 12) * descr_num;
+	else {
+		ret = spc_rsoc_get_descr(cmd, &descr);
+		if (ret)
+			goto out;
+
+		if (descr)
+			response_length = 4 + descr->cdb_size + rctd * 12;
+		else
+			response_length = 2;
+	}
+
+	buf = kzalloc(response_length, GFP_KERNEL);
+	if (!buf) {
+		ret = TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
+		goto out;
+	}
+	response_length = 0;
+
+	if (opts == 0) {
+		response_length += 4;
+
+		for (i = 0; i < ARRAY_SIZE(tcm_supported_opcodes); i++) {
+			descr = tcm_supported_opcodes[i];
+			response_length += spc_rsoc_encode_command_descriptor(
+					&buf[response_length], rctd, descr);
+		}
+		put_unaligned_be32(response_length - 3, buf);
+	} else {
+		response_length = spc_rsoc_encode_one_command_descriptor(
+				&buf[response_length], rctd, descr);
+	}
+
+	memcpy(rbuf, buf, min_t(u32, response_length, cmd->data_length));
+out:
+	kfree(buf);
+	transport_kunmap_data_sg(cmd);
+
+	if (!ret)
+		target_complete_cmd_with_length(cmd, SAM_STAT_GOOD, response_length);
+	return ret;
+}
+
 sense_reason_t
 spc_parse_cdb(struct se_cmd *cmd, unsigned int *size)
 {
@@ -1439,6 +1635,10 @@ spc_parse_cdb(struct se_cmd *cmd, unsigned int *size)
 				cmd->execute_cmd =
 					target_emulate_report_target_port_groups;
 			}
+			if ((cdb[1] & 0x1f) ==
+			    MI_REPORT_SUPPORTED_OPERATION_CODES)
+				cmd->execute_cmd =
+					spc_emulate_report_supp_op_codes;
 			*size = get_unaligned_be32(&cdb[6]);
 		} else {
 			/*

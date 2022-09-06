@@ -867,6 +867,18 @@ struct se_device {
 	struct se_device_queue	*queues;
 };
 
+struct target_opcode_descriptor {
+	u8			support:3;
+	u8			serv_action_valid:1;
+	u8			opcode;
+	u16			service_action;
+	u32			cdb_size;
+	u8			specific_timeout;
+	u16			nominal_timeout;
+	u16			recommended_timeout;
+	u8			usage_bits[];
+};
+
 struct se_hba {
 	u16			hba_tpgt;
 	u32			hba_id;
