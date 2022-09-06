@@ -245,7 +245,6 @@ struct mlx5_flow_act {
 	struct mlx5_pkt_reformat *pkt_reformat;
 	union {
 		u32 ipsec_obj_id;
-		uintptr_t esp_id;
 	};
 	u32 flags;
 	struct mlx5_fs_vlan vlan[MLX5_FS_VLAN_DEPTH];
