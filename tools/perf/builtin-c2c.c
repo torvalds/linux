@@ -679,28 +679,35 @@ STAT_FN(ld_l2hit)
 STAT_FN(ld_llchit)
 STAT_FN(rmt_hit)
 
+static uint64_t get_load_llc_misses(struct c2c_stats *stats)
+{
+	return stats->lcl_dram +
+	       stats->rmt_dram +
+	       stats->rmt_hitm +
+	       stats->rmt_hit;
+}
+
+static uint64_t get_load_cache_hits(struct c2c_stats *stats)
+{
+	return stats->ld_fbhit +
+	       stats->ld_l1hit +
+	       stats->ld_l2hit +
+	       stats->ld_llchit +
+	       stats->lcl_hitm;
+}
+
+static uint64_t get_stores(struct c2c_stats *stats)
+{
+	return stats->st_l1hit +
+	       stats->st_l1miss +
+	       stats->st_na;
+}
+
 static uint64_t total_records(struct c2c_stats *stats)
 {
-	uint64_t lclmiss, ldcnt, total;
-
-	lclmiss  = stats->lcl_dram +
-		   stats->rmt_dram +
-		   stats->rmt_hitm +
-		   stats->rmt_hit;
-
-	ldcnt    = lclmiss +
-		   stats->ld_fbhit +
-		   stats->ld_l1hit +
-		   stats->ld_l2hit +
-		   stats->ld_llchit +
-		   stats->lcl_hitm;
-
-	total    = ldcnt +
-		   stats->st_l1hit +
-		   stats->st_l1miss +
-		   stats->st_na;
-
-	return total;
+	return get_load_llc_misses(stats) +
+	       get_load_cache_hits(stats) +
+	       get_stores(stats);
 }
 
 static int
@@ -737,21 +744,8 @@ tot_recs_cmp(struct perf_hpp_fmt *fmt __maybe_unused,
 
 static uint64_t total_loads(struct c2c_stats *stats)
 {
-	uint64_t lclmiss, ldcnt;
-
-	lclmiss  = stats->lcl_dram +
-		   stats->rmt_dram +
-		   stats->rmt_hitm +
-		   stats->rmt_hit;
-
-	ldcnt    = lclmiss +
-		   stats->ld_fbhit +
-		   stats->ld_l1hit +
-		   stats->ld_l2hit +
-		   stats->ld_llchit +
-		   stats->lcl_hitm;
-
-	return ldcnt;
+	return get_load_llc_misses(stats) +
+	       get_load_cache_hits(stats);
 }
 
 static int
@@ -2376,10 +2370,7 @@ static void print_c2c__display_stats(FILE *out)
 	int llc_misses;
 	struct c2c_stats *stats = &c2c.hists.stats;
 
-	llc_misses = stats->lcl_dram +
-		     stats->rmt_dram +
-		     stats->rmt_hit +
-		     stats->rmt_hitm;
+	llc_misses = get_load_llc_misses(stats);
 
 	fprintf(out, "=================================================\n");
 	fprintf(out, "            Trace Event Information              \n");
