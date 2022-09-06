@@ -73,6 +73,7 @@ struct intel_uc_fw_file {
 	const char *path;
 	u16 major_ver;
 	u16 minor_ver;
+	u16 patch_ver;
 };
 
 /*
@@ -107,6 +108,11 @@ struct intel_uc_fw {
 
 	bool loaded_via_gsc;
 };
+
+#define MAKE_UC_VER(maj, min, pat)	((pat) | ((min) << 8) | ((maj) << 16))
+#define GET_UC_VER(uc)			(MAKE_UC_VER((uc)->fw.file_selected.major_ver, \
+						     (uc)->fw.file_selected.minor_ver, \
+						     (uc)->fw.file_selected.patch_ver))
 
 #ifdef CONFIG_DRM_I915_DEBUG_GUC
 void intel_uc_fw_change_status(struct intel_uc_fw *uc_fw,

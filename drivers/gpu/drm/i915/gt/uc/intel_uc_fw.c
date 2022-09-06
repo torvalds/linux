@@ -447,10 +447,12 @@ static int check_gsc_manifest(const struct firmware *fw,
 			      struct intel_uc_fw *uc_fw)
 {
 	u32 *dw = (u32 *)fw->data;
-	u32 version = dw[HUC_GSC_VERSION_DW];
+	u32 version_hi = dw[HUC_GSC_VERSION_HI_DW];
+	u32 version_lo = dw[HUC_GSC_VERSION_LO_DW];
 
-	uc_fw->file_selected.major_ver = FIELD_GET(HUC_GSC_MAJOR_VER_MASK, version);
-	uc_fw->file_selected.minor_ver = FIELD_GET(HUC_GSC_MINOR_VER_MASK, version);
+	uc_fw->file_selected.major_ver = FIELD_GET(HUC_GSC_MAJOR_VER_HI_MASK, version_hi);
+	uc_fw->file_selected.minor_ver = FIELD_GET(HUC_GSC_MINOR_VER_HI_MASK, version_hi);
+	uc_fw->file_selected.patch_ver = FIELD_GET(HUC_GSC_PATCH_VER_LO_MASK, version_lo);
 
 	return 0;
 }
@@ -511,6 +513,8 @@ static int check_ccs_header(struct drm_i915_private *i915,
 	uc_fw->file_selected.major_ver = FIELD_GET(CSS_SW_VERSION_UC_MAJOR,
 						   css->sw_version);
 	uc_fw->file_selected.minor_ver = FIELD_GET(CSS_SW_VERSION_UC_MINOR,
+						   css->sw_version);
+	uc_fw->file_selected.patch_ver = FIELD_GET(CSS_SW_VERSION_UC_PATCH,
 						   css->sw_version);
 
 	if (uc_fw->type == INTEL_UC_FW_TYPE_GUC)
@@ -1000,6 +1004,8 @@ size_t intel_uc_fw_copy_rsa(struct intel_uc_fw *uc_fw, void *dst, u32 max_len)
  */
 void intel_uc_fw_dump(const struct intel_uc_fw *uc_fw, struct drm_printer *p)
 {
+	u32 ver_sel, ver_want;
+
 	drm_printf(p, "%s firmware: %s\n",
 		   intel_uc_fw_type_repr(uc_fw->type), uc_fw->file_selected.path);
 	if (uc_fw->file_selected.path != uc_fw->file_wanted.path)
@@ -1007,13 +1013,25 @@ void intel_uc_fw_dump(const struct intel_uc_fw *uc_fw, struct drm_printer *p)
 			   intel_uc_fw_type_repr(uc_fw->type), uc_fw->file_wanted.path);
 	drm_printf(p, "\tstatus: %s\n",
 		   intel_uc_fw_status_repr(uc_fw->status));
-	if (uc_fw->file_wanted.major_ver)
-		drm_printf(p, "\tversion: wanted %u.%u, found %u.%u\n",
-			   uc_fw->file_wanted.major_ver, uc_fw->file_wanted.minor_ver,
-			   uc_fw->file_selected.major_ver, uc_fw->file_selected.minor_ver);
+	ver_sel = MAKE_UC_VER(uc_fw->file_selected.major_ver,
+			      uc_fw->file_selected.minor_ver,
+			      uc_fw->file_selected.patch_ver);
+	ver_want = MAKE_UC_VER(uc_fw->file_wanted.major_ver,
+			       uc_fw->file_wanted.minor_ver,
+			       uc_fw->file_wanted.patch_ver);
+	if (ver_sel < ver_want)
+		drm_printf(p, "\tversion: wanted %u.%u.%u, found %u.%u.%u\n",
+			   uc_fw->file_wanted.major_ver,
+			   uc_fw->file_wanted.minor_ver,
+			   uc_fw->file_wanted.patch_ver,
+			   uc_fw->file_selected.major_ver,
+			   uc_fw->file_selected.minor_ver,
+			   uc_fw->file_selected.patch_ver);
 	else
-		drm_printf(p, "\tversion: found %u.%u\n",
-			   uc_fw->file_selected.major_ver, uc_fw->file_selected.minor_ver);
+		drm_printf(p, "\tversion: found %u.%u.%u\n",
+			   uc_fw->file_selected.major_ver,
+			   uc_fw->file_selected.minor_ver,
+			   uc_fw->file_selected.patch_ver);
 	drm_printf(p, "\tuCode: %u bytes\n", uc_fw->ucode_size);
 	drm_printf(p, "\tRSA: %u bytes\n", uc_fw->rsa_size);
 }
