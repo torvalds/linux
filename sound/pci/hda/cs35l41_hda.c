@@ -842,8 +842,8 @@ static int cs35l41_hda_bind(struct device *dev, struct device *master, void *mas
 
 	comps->dev = dev;
 	if (!cs35l41->acpi_subsystem_id)
-		cs35l41->acpi_subsystem_id = devm_kasprintf(dev, GFP_KERNEL, "%.8x",
-							    comps->codec->core.subsystem_id);
+		cs35l41->acpi_subsystem_id = kasprintf(GFP_KERNEL, "%.8x",
+						       comps->codec->core.subsystem_id);
 	cs35l41->codec = comps->codec;
 	strscpy(comps->name, dev_name(dev), sizeof(comps->name));
 
@@ -1048,36 +1048,6 @@ static int cs35l41_hda_apply_properties(struct cs35l41_hda *cs35l41)
 	return cs35l41_hda_channel_map(cs35l41->dev, 0, NULL, 1, &hw_cfg->spk_pos);
 }
 
-static int cs35l41_get_acpi_sub_string(struct device *dev, struct acpi_device *adev,
-				       const char **subsysid)
-{
-	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
-	union acpi_object *obj;
-	acpi_status status;
-	int ret = 0;
-
-	status = acpi_evaluate_object(adev->handle, "_SUB", NULL, &buffer);
-	if (ACPI_SUCCESS(status)) {
-		obj = buffer.pointer;
-		if (obj->type == ACPI_TYPE_STRING) {
-			*subsysid = devm_kstrdup(dev, obj->string.pointer, GFP_KERNEL);
-			if (*subsysid == NULL) {
-				dev_err(dev, "Cannot allocate Subsystem ID");
-				ret = -ENOMEM;
-			}
-		} else {
-			dev_warn(dev, "Warning ACPI _SUB did not return a string\n");
-			ret = -ENODEV;
-		}
-		acpi_os_free(buffer.pointer);
-	} else {
-		dev_dbg(dev, "Warning ACPI _SUB failed: %#x\n", status);
-		ret = -ENODEV;
-	}
-
-	return ret;
-}
-
 static int cs35l41_get_speaker_id(struct device *dev, int amp_index,
 				  int num_amps, int fixed_gpio_id)
 {
@@ -1154,7 +1124,6 @@ static int cs35l41_no_acpi_dsd(struct cs35l41_hda *cs35l41, struct device *physd
 	hw_cfg->gpio2.func = CS35L41_INTERRUPT;
 	hw_cfg->gpio2.valid = true;
 	hw_cfg->valid = true;
-	put_device(physdev);
 
 	if (strncmp(hid, "CLSA0100", 8) == 0) {
 		hw_cfg->bst_type = CS35L41_EXT_BOOST_NO_VSPK_SWITCH;
@@ -1183,6 +1152,7 @@ static int cs35l41_hda_read_acpi(struct cs35l41_hda *cs35l41, const char *hid, i
 	u32 values[HDA_MAX_COMPONENTS];
 	struct acpi_device *adev;
 	struct device *physdev;
+	const char *sub;
 	char *property;
 	size_t nval;
 	int i, ret;
@@ -1196,17 +1166,17 @@ static int cs35l41_hda_read_acpi(struct cs35l41_hda *cs35l41, const char *hid, i
 	physdev = get_device(acpi_get_first_physical_node(adev));
 	acpi_dev_put(adev);
 
-	ret = cs35l41_get_acpi_sub_string(cs35l41->dev, adev, &cs35l41->acpi_subsystem_id);
-	if (ret)
-		dev_info(cs35l41->dev, "No Subsystem ID found in ACPI: %d", ret);
-	else
-		dev_dbg(cs35l41->dev, "Subsystem ID %s found", cs35l41->acpi_subsystem_id);
+	sub = acpi_get_subsystem_id(ACPI_HANDLE(physdev));
+	if (IS_ERR(sub))
+		sub = NULL;
+	cs35l41->acpi_subsystem_id = sub;
 
 	property = "cirrus,dev-index";
 	ret = device_property_count_u32(physdev, property);
-	if (ret <= 0)
-		return cs35l41_no_acpi_dsd(cs35l41, physdev, id, hid);
-
+	if (ret <= 0) {
+		ret = cs35l41_no_acpi_dsd(cs35l41, physdev, id, hid);
+		goto err_put_physdev;
+	}
 	if (ret > ARRAY_SIZE(values)) {
 		ret = -EINVAL;
 		goto err;
@@ -1295,8 +1265,9 @@ static int cs35l41_hda_read_acpi(struct cs35l41_hda *cs35l41, const char *hid, i
 	return 0;
 
 err:
-	put_device(physdev);
 	dev_err(cs35l41->dev, "Failed property %s: %d\n", property, ret);
+err_put_physdev:
+	put_device(physdev);
 
 	return ret;
 }
@@ -1433,6 +1404,7 @@ err:
 	if (cs35l41_safe_reset(cs35l41->regmap, cs35l41->hw_cfg.bst_type))
 		gpiod_set_value_cansleep(cs35l41->reset_gpio, 0);
 	gpiod_put(cs35l41->reset_gpio);
+	kfree(cs35l41->acpi_subsystem_id);
 
 	return ret;
 }
@@ -1455,6 +1427,7 @@ void cs35l41_hda_remove(struct device *dev)
 	if (cs35l41_safe_reset(cs35l41->regmap, cs35l41->hw_cfg.bst_type))
 		gpiod_set_value_cansleep(cs35l41->reset_gpio, 0);
 	gpiod_put(cs35l41->reset_gpio);
+	kfree(cs35l41->acpi_subsystem_id);
 }
 EXPORT_SYMBOL_NS_GPL(cs35l41_hda_remove, SND_HDA_SCODEC_CS35L41);
 
