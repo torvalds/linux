@@ -577,7 +577,7 @@ int mlx5e_accel_ipsec_fs_init(struct mlx5e_ipsec *ipsec)
 	int err = -ENOMEM;
 
 	ns = mlx5_get_flow_namespace(ipsec->mdev,
-				     MLX5_FLOW_NAMESPACE_EGRESS_KERNEL);
+				     MLX5_FLOW_NAMESPACE_EGRESS_IPSEC);
 	if (!ns)
 		return -EOPNOTSUPP;
 
