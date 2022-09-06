@@ -208,6 +208,9 @@ static int aspeed_ahash_dma_prepare_sg(struct aspeed_hace_dev *hace_dev)
 	}
 
 	if (rctx->bufcnt != 0) {
+		u32 phy_addr;
+		u32 len;
+
 		rctx->buffer_dma_addr = dma_map_single(hace_dev->dev,
 						       rctx->buffer,
 						       rctx->block_size * 2,
@@ -218,36 +221,35 @@ static int aspeed_ahash_dma_prepare_sg(struct aspeed_hace_dev *hace_dev)
 			goto free_rctx_digest;
 		}
 
-		src_list[0].phy_addr = rctx->buffer_dma_addr;
-		src_list[0].len = rctx->bufcnt;
-		length -= src_list[0].len;
+		phy_addr = rctx->buffer_dma_addr;
+		len = rctx->bufcnt;
+		length -= len;
 
 		/* Last sg list */
 		if (length == 0)
-			src_list[0].len |= HASH_SG_LAST_LIST;
+			len |= HASH_SG_LAST_LIST;
 
-		src_list[0].phy_addr = cpu_to_le32(src_list[0].phy_addr);
-		src_list[0].len = cpu_to_le32(src_list[0].len);
+		src_list[0].phy_addr = cpu_to_le32(phy_addr);
+		src_list[0].len = cpu_to_le32(len);
 		src_list++;
 	}
 
 	if (length != 0) {
 		for_each_sg(rctx->src_sg, s, sg_len, i) {
-			src_list[i].phy_addr = sg_dma_address(s);
+			u32 phy_addr = sg_dma_address(s);
+			u32 len = sg_dma_len(s);
 
-			if (length > sg_dma_len(s)) {
-				src_list[i].len = sg_dma_len(s);
-				length -= sg_dma_len(s);
-
-			} else {
+			if (length > len)
+				length -= len;
+			else {
 				/* Last sg list */
-				src_list[i].len = length;
-				src_list[i].len |= HASH_SG_LAST_LIST;
+				len = length;
+				len |= HASH_SG_LAST_LIST;
 				length = 0;
 			}
 
-			src_list[i].phy_addr = cpu_to_le32(src_list[i].phy_addr);
-			src_list[i].len = cpu_to_le32(src_list[i].len);
+			src_list[i].phy_addr = cpu_to_le32(phy_addr);
+			src_list[i].len = cpu_to_le32(len);
 		}
 	}
 
@@ -913,7 +915,7 @@ static int aspeed_sham_import(struct ahash_request *req, const void *in)
 	return 0;
 }
 
-struct aspeed_hace_alg aspeed_ahash_algs[] = {
+static struct aspeed_hace_alg aspeed_ahash_algs[] = {
 	{
 		.alg.ahash = {
 			.init	= aspeed_sham_init,
@@ -1099,7 +1101,7 @@ struct aspeed_hace_alg aspeed_ahash_algs[] = {
 	},
 };
 
-struct aspeed_hace_alg aspeed_ahash_algs_g6[] = {
+static struct aspeed_hace_alg aspeed_ahash_algs_g6[] = {
 	{
 		.alg.ahash = {
 			.init	= aspeed_sham_init,

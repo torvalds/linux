@@ -258,21 +258,20 @@ static int aspeed_sk_start_sg(struct aspeed_hace_dev *hace_dev)
 	total = req->cryptlen;
 
 	for_each_sg(req->src, s, src_sg_len, i) {
-		src_list[i].phy_addr = sg_dma_address(s);
+		u32 phy_addr = sg_dma_address(s);
+		u32 len = sg_dma_len(s);
 
-		if (total > sg_dma_len(s)) {
-			src_list[i].len = sg_dma_len(s);
-			total -= src_list[i].len;
-
-		} else {
+		if (total > len)
+			total -= len;
+		else {
 			/* last sg list */
-			src_list[i].len = total;
-			src_list[i].len |= BIT(31);
+			len = total;
+			len |= BIT(31);
 			total = 0;
 		}
 
-		src_list[i].phy_addr = cpu_to_le32(src_list[i].phy_addr);
-		src_list[i].len = cpu_to_le32(src_list[i].len);
+		src_list[i].phy_addr = cpu_to_le32(phy_addr);
+		src_list[i].len = cpu_to_le32(len);
 	}
 
 	if (total != 0) {
@@ -290,21 +289,20 @@ static int aspeed_sk_start_sg(struct aspeed_hace_dev *hace_dev)
 		total = req->cryptlen;
 
 		for_each_sg(req->dst, s, dst_sg_len, i) {
-			dst_list[i].phy_addr = sg_dma_address(s);
+			u32 phy_addr = sg_dma_address(s);
+			u32 len = sg_dma_len(s);
 
-			if (total > sg_dma_len(s)) {
-				dst_list[i].len = sg_dma_len(s);
-				total -= dst_list[i].len;
-
-			} else {
+			if (total > len)
+				total -= len;
+			else {
 				/* last sg list */
-				dst_list[i].len = total;
-				dst_list[i].len |= BIT(31);
+				len = total;
+				len |= BIT(31);
 				total = 0;
 			}
 
-			dst_list[i].phy_addr = cpu_to_le32(dst_list[i].phy_addr);
-			dst_list[i].len = cpu_to_le32(dst_list[i].len);
+			dst_list[i].phy_addr = cpu_to_le32(phy_addr);
+			dst_list[i].len = cpu_to_le32(len);
 
 		}
 
@@ -731,7 +729,7 @@ static void aspeed_crypto_cra_exit(struct crypto_skcipher *tfm)
 	crypto_free_skcipher(ctx->fallback_tfm);
 }
 
-struct aspeed_hace_alg aspeed_crypto_algs[] = {
+static struct aspeed_hace_alg aspeed_crypto_algs[] = {
 	{
 		.alg.skcipher = {
 			.min_keysize	= AES_MIN_KEY_SIZE,
@@ -1019,7 +1017,7 @@ struct aspeed_hace_alg aspeed_crypto_algs[] = {
 	},
 };
 
-struct aspeed_hace_alg aspeed_crypto_algs_g6[] = {
+static struct aspeed_hace_alg aspeed_crypto_algs_g6[] = {
 	{
 		.alg.skcipher = {
 			.ivsize		= AES_BLOCK_SIZE,
