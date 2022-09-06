@@ -13,6 +13,11 @@
  */
 enum iwl_prot_offload_subcmd_ids {
 	/**
+	 * @WOWLAN_WAKE_PKT_NOTIFICATION: Notification in &struct iwl_wowlan_wake_pkt_notif
+	 */
+	WOWLAN_WAKE_PKT_NOTIFICATION = 0xFC,
+
+	/**
 	 * @WOWLAN_INFO_NOTIFICATION: Notification in &struct iwl_wowlan_info_notif
 	 */
 	WOWLAN_INFO_NOTIFICATION = 0xFD,

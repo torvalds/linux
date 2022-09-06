@@ -803,6 +803,20 @@ struct iwl_wowlan_info_notif {
 	u8 reserved2[2];
 } __packed; /* WOWLAN_INFO_NTFY_API_S_VER_1 */
 
+/**
+ * struct iwl_wowlan_wake_pkt_notif - WoWLAN wake packet notification
+ * @wake_packet_length: wakeup packet length
+ * @station_id: station id
+ * @reserved: unused
+ * @wake_packet: wakeup packet
+ */
+struct iwl_wowlan_wake_pkt_notif {
+	__le32 wake_packet_length;
+	u8 station_id;
+	u8 reserved[3];
+	u8 wake_packet[1];
+} __packed; /* WOWLAN_WAKE_PKT_NTFY_API_S_VER_1 */
+
 /* TODO: NetDetect API */
 
 #endif /* __iwl_fw_api_d3_h__ */

@@ -574,6 +574,7 @@ static const struct iwl_hcmd_names iwl_mvm_location_names[] = {
  * Access is done through binary search
  */
 static const struct iwl_hcmd_names iwl_mvm_prot_offload_names[] = {
+	HCMD_NAME(WOWLAN_WAKE_PKT_NOTIFICATION),
 	HCMD_NAME(WOWLAN_INFO_NOTIFICATION),
 	HCMD_NAME(STORED_BEACON_NTF),
 };
