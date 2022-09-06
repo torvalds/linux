@@ -1,1 +1,2 @@
 #define CONFIG_XARRAY_MULTI 1
+#define CONFIG_64BIT 1

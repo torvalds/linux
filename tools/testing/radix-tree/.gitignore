@@ -6,3 +6,5 @@ main
 multiorder
 radix-tree.c
 xarray
+maple
+ma_xa_benchmark
