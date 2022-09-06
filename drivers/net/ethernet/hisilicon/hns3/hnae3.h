@@ -98,6 +98,7 @@ enum HNAE3_DEV_CAP_BITS {
 	HNAE3_DEV_SUPPORT_MC_MAC_MNG_B,
 	HNAE3_DEV_SUPPORT_CQ_B,
 	HNAE3_DEV_SUPPORT_FEC_STATS_B,
+	HNAE3_DEV_SUPPORT_LANE_NUM_B,
 };
 
 #define hnae3_ae_dev_fd_supported(ae_dev) \
@@ -162,6 +163,9 @@ enum HNAE3_DEV_CAP_BITS {
 
 #define hnae3_ae_dev_fec_stats_supported(ae_dev) \
 	test_bit(HNAE3_DEV_SUPPORT_FEC_STATS_B, (ae_dev)->caps)
+
+#define hnae3_ae_dev_lane_num_supported(ae_dev) \
+	test_bit(HNAE3_DEV_SUPPORT_LANE_NUM_B, (ae_dev)->caps)
 
 enum HNAE3_PF_CAP_BITS {
 	HNAE3_PF_SUPPORT_VLAN_FLTR_MDF_B = 0,
@@ -572,10 +576,11 @@ struct hnae3_ae_ops {
 	void (*client_stop)(struct hnae3_handle *handle);
 	int (*get_status)(struct hnae3_handle *handle);
 	void (*get_ksettings_an_result)(struct hnae3_handle *handle,
-					u8 *auto_neg, u32 *speed, u8 *duplex);
+					u8 *auto_neg, u32 *speed, u8 *duplex,
+					u32 *lane_num);
 
 	int (*cfg_mac_speed_dup_h)(struct hnae3_handle *handle, int speed,
-				   u8 duplex);
+				   u8 duplex, u8 lane_num);
 
 	void (*get_media_type)(struct hnae3_handle *handle, u8 *media_type,
 			       u8 *module_type);

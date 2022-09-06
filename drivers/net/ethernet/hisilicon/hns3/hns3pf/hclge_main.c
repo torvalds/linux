@@ -2615,7 +2615,7 @@ static int hclge_convert_to_fw_speed(u32 speed_drv, u32 *speed_fw)
 }
 
 static int hclge_cfg_mac_speed_dup_hw(struct hclge_dev *hdev, int speed,
-				      u8 duplex)
+				      u8 duplex, u8 lane_num)
 {
 	struct hclge_config_mac_speed_dup_cmd *req;
 	struct hclge_desc desc;
@@ -2639,6 +2639,7 @@ static int hclge_cfg_mac_speed_dup_hw(struct hclge_dev *hdev, int speed,
 			speed_fw);
 	hnae3_set_bit(req->mac_change_fec_en, HCLGE_CFG_MAC_SPEED_CHANGE_EN_B,
 		      1);
+	req->lane_num = lane_num;
 
 	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
 	if (ret) {
@@ -2650,33 +2651,35 @@ static int hclge_cfg_mac_speed_dup_hw(struct hclge_dev *hdev, int speed,
 	return 0;
 }
 
-int hclge_cfg_mac_speed_dup(struct hclge_dev *hdev, int speed, u8 duplex)
+int hclge_cfg_mac_speed_dup(struct hclge_dev *hdev, int speed, u8 duplex, u8 lane_num)
 {
 	struct hclge_mac *mac = &hdev->hw.mac;
 	int ret;
 
 	duplex = hclge_check_speed_dup(duplex, speed);
 	if (!mac->support_autoneg && mac->speed == speed &&
-	    mac->duplex == duplex)
+	    mac->duplex == duplex && (mac->lane_num == lane_num || lane_num == 0))
 		return 0;
 
-	ret = hclge_cfg_mac_speed_dup_hw(hdev, speed, duplex);
+	ret = hclge_cfg_mac_speed_dup_hw(hdev, speed, duplex, lane_num);
 	if (ret)
 		return ret;
 
 	hdev->hw.mac.speed = speed;
 	hdev->hw.mac.duplex = duplex;
+	if (!lane_num)
+		hdev->hw.mac.lane_num = lane_num;
 
 	return 0;
 }
 
 static int hclge_cfg_mac_speed_dup_h(struct hnae3_handle *handle, int speed,
-				     u8 duplex)
+				     u8 duplex, u8 lane_num)
 {
 	struct hclge_vport *vport = hclge_get_vport(handle);
 	struct hclge_dev *hdev = vport->back;
 
-	return hclge_cfg_mac_speed_dup(hdev, speed, duplex);
+	return hclge_cfg_mac_speed_dup(hdev, speed, duplex, lane_num);
 }
 
 static int hclge_set_autoneg_en(struct hclge_dev *hdev, bool enable)
@@ -2976,7 +2979,7 @@ static int hclge_mac_init(struct hclge_dev *hdev)
 	hdev->support_sfp_query = true;
 	hdev->hw.mac.duplex = HCLGE_MAC_FULL;
 	ret = hclge_cfg_mac_speed_dup_hw(hdev, hdev->hw.mac.speed,
-					 hdev->hw.mac.duplex);
+					 hdev->hw.mac.duplex, hdev->hw.mac.lane_num);
 	if (ret)
 		return ret;
 
@@ -3301,6 +3304,7 @@ static int hclge_get_sfp_info(struct hclge_dev *hdev, struct hclge_mac *mac)
 		mac->autoneg = resp->autoneg;
 		mac->support_autoneg = resp->autoneg_ability;
 		mac->speed_type = QUERY_ACTIVE_SPEED;
+		mac->lane_num = resp->lane_num;
 		if (!resp->active_fec)
 			mac->fec_mode = 0;
 		else
@@ -3485,13 +3489,13 @@ static int hclge_update_port_info(struct hclge_dev *hdev)
 			return 0;
 		}
 		return hclge_cfg_mac_speed_dup(hdev, mac->speed,
-					       HCLGE_MAC_FULL);
+					       HCLGE_MAC_FULL, mac->lane_num);
 	} else {
 		if (speed == HCLGE_MAC_SPEED_UNKNOWN)
 			return 0; /* do nothing if no SFP */
 
 		/* must config full duplex for SFP */
-		return hclge_cfg_mac_speed_dup(hdev, speed, HCLGE_MAC_FULL);
+		return hclge_cfg_mac_speed_dup(hdev, speed, HCLGE_MAC_FULL, 0);
 	}
 }
 
@@ -10985,7 +10989,7 @@ static int hclge_set_pauseparam(struct hnae3_handle *handle, u32 auto_neg,
 }
 
 static void hclge_get_ksettings_an_result(struct hnae3_handle *handle,
-					  u8 *auto_neg, u32 *speed, u8 *duplex)
+					  u8 *auto_neg, u32 *speed, u8 *duplex, u32 *lane_num)
 {
 	struct hclge_vport *vport = hclge_get_vport(handle);
 	struct hclge_dev *hdev = vport->back;
@@ -10996,6 +11000,8 @@ static void hclge_get_ksettings_an_result(struct hnae3_handle *handle,
 		*duplex = hdev->hw.mac.duplex;
 	if (auto_neg)
 		*auto_neg = hdev->hw.mac.autoneg;
+	if (lane_num)
+		*lane_num = hdev->hw.mac.lane_num;
 }
 
 static void hclge_get_media_type(struct hnae3_handle *handle, u8 *media_type,

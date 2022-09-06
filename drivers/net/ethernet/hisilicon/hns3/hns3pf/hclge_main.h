@@ -259,6 +259,7 @@ struct hclge_mac {
 	u8 duplex;
 	u8 support_autoneg;
 	u8 speed_type;	/* 0: sfp speed, 1: active speed */
+	u8 lane_num;
 	u32 speed;
 	u32 max_speed;
 	u32 speed_ability; /* speed ability supported by current media */
@@ -1096,7 +1097,7 @@ static inline int hclge_get_queue_id(struct hnae3_queue *queue)
 }
 
 int hclge_inform_reset_assert_to_vf(struct hclge_vport *vport);
-int hclge_cfg_mac_speed_dup(struct hclge_dev *hdev, int speed, u8 duplex);
+int hclge_cfg_mac_speed_dup(struct hclge_dev *hdev, int speed, u8 duplex, u8 lane_num);
 int hclge_set_vlan_filter(struct hnae3_handle *handle, __be16 proto,
 			  u16 vlan_id, bool is_kill);
 int hclge_en_hw_strip_rxvtag(struct hnae3_handle *handle, bool enable);

@@ -321,7 +321,9 @@ struct hclge_config_mac_speed_dup_cmd {
 
 #define HCLGE_CFG_MAC_SPEED_CHANGE_EN_B	0
 	u8 mac_change_fec_en;
-	u8 rsv[22];
+	u8 rsv[4];
+	u8 lane_num;
+	u8 rsv1[17];
 };
 
 #define HCLGE_TQP_ENABLE_B		0
@@ -348,7 +350,8 @@ struct hclge_sfp_info_cmd {
 	__le32 speed_ability; /* speed ability for current media */
 	__le32 module_type;
 	u8 fec_ability;
-	u8 rsv[7];
+	u8 lane_num;
+	u8 rsv[6];
 };
 
 #define HCLGE_MAC_CFG_FEC_AUTO_EN_B	0

@@ -405,6 +405,9 @@ static struct hns3_dbg_cap_info hns3_dbg_cap[] = {
 	}, {
 		.name = "support FEC statistics",
 		.cap_bit = HNAE3_DEV_SUPPORT_FEC_STATS_B,
+	}, {
+		.name = "support lane num",
+		.cap_bit = HNAE3_DEV_SUPPORT_LANE_NUM_B,
 	}
 };
 
