@@ -40,14 +40,22 @@
 
 #ifdef CONFIG_ARM64
 # define EFI_RT_VIRTUAL_LIMIT	DEFAULT_MAP_WINDOW_64
-#elif defined(CONFIG_RISCV)
+#elif defined(CONFIG_RISCV) || defined(CONFIG_LOONGARCH)
 # define EFI_RT_VIRTUAL_LIMIT	TASK_SIZE_MIN
-#else
+#else /* Only if TASK_SIZE is a constant */
 # define EFI_RT_VIRTUAL_LIMIT	TASK_SIZE
 #endif
 
+/*
+ * Some architectures map the EFI regions into the kernel's linear map using a
+ * fixed offset.
+ */
+#ifndef EFI_RT_VIRTUAL_OFFSET
+#define EFI_RT_VIRTUAL_OFFSET	0
+#endif
+
 static u64 virtmap_base = EFI_RT_VIRTUAL_BASE;
-static bool flat_va_mapping;
+static bool flat_va_mapping = (EFI_RT_VIRTUAL_OFFSET != 0);
 
 const efi_system_table_t *efi_system_table;
 
@@ -254,8 +262,8 @@ efi_status_t __efiapi efi_pe_entry(efi_handle_t handle,
 	 * The easiest way to achieve that is to simply use a 1:1 mapping.
 	 */
 	prop_tbl = get_efi_config_table(EFI_PROPERTIES_TABLE_GUID);
-	flat_va_mapping = prop_tbl &&
-			  (prop_tbl->memory_protection_attribute &
+	flat_va_mapping |= prop_tbl &&
+			   (prop_tbl->memory_protection_attribute &
 			   EFI_PROPERTIES_RUNTIME_MEMORY_PROTECTION_NON_EXECUTABLE_PE_DATA);
 
 	/* force efi_novamap if SetVirtualAddressMap() is unsupported */
@@ -338,7 +346,7 @@ void efi_get_virtmap(efi_memory_desc_t *memory_map, unsigned long map_size,
 		paddr = in->phys_addr;
 		size = in->num_pages * EFI_PAGE_SIZE;
 
-		in->virt_addr = in->phys_addr;
+		in->virt_addr = in->phys_addr + EFI_RT_VIRTUAL_OFFSET;
 		if (efi_novamap) {
 			continue;
 		}

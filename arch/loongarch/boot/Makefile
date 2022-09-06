@@ -8,9 +8,13 @@ drop-sections := .comment .note .options .note.gnu.build-id
 strip-flags   := $(addprefix --remove-section=,$(drop-sections)) -S
 OBJCOPYFLAGS_vmlinux.efi := -O binary $(strip-flags)
 
-targets := vmlinux
 quiet_cmd_strip = STRIP	  $@
       cmd_strip = $(STRIP) -s -o $@ $<
 
-$(obj)/vmlinux: vmlinux FORCE
+targets := vmlinux.elf
+$(obj)/vmlinux.elf: vmlinux FORCE
 	$(call if_changed,strip)
+
+targets += vmlinux.efi
+$(obj)/vmlinux.efi: vmlinux FORCE
+	$(call if_changed,objcopy)
