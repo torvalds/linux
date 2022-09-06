@@ -165,6 +165,7 @@ struct sc500ai {
 	struct v4l2_ctrl	*pixel_rate;
 	struct v4l2_ctrl	*link_freq;
 	struct mutex		mutex;
+	struct v4l2_fract	cur_fps;
 	bool			streaming;
 	bool			power_on;
 	const struct sc500ai_mode *cur_mode;
@@ -589,6 +590,8 @@ static int sc500ai_set_fmt(struct v4l2_subdev *sd,
 		__v4l2_ctrl_s_ctrl(sc500ai->link_freq, mode->mipi_freq_idx);
 		pixel_rate = (u32)link_freq_items[mode->mipi_freq_idx] / mode->bpp * 2 * SC500AI_LANES;
 		__v4l2_ctrl_s_ctrl_int64(sc500ai->pixel_rate, pixel_rate);
+		sc500ai->cur_fps = mode->max_fps;
+		sc500ai->cur_vts = mode->vts_def;
 	}
 
 	mutex_unlock(&sc500ai->mutex);
@@ -664,9 +667,10 @@ static int sc500ai_g_frame_interval(struct v4l2_subdev *sd,
 	struct sc500ai *sc500ai = to_sc500ai(sd);
 	const struct sc500ai_mode *mode = sc500ai->cur_mode;
 
-	mutex_lock(&sc500ai->mutex);
-	fi->interval = mode->max_fps;
-	mutex_unlock(&sc500ai->mutex);
+	if (sc500ai->streaming)
+		fi->interval = sc500ai->cur_fps;
+	else
+		fi->interval = mode->max_fps;
 
 	return 0;
 }
@@ -952,7 +956,8 @@ static long sc500ai_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 			__v4l2_ctrl_s_ctrl(sc500ai->link_freq, mode->mipi_freq_idx);
 			pixel_rate = (u32)link_freq_items[mode->mipi_freq_idx] / mode->bpp * 2 * SC500AI_LANES;
 			__v4l2_ctrl_s_ctrl_int64(sc500ai->pixel_rate, pixel_rate);
-
+			sc500ai->cur_fps = mode->max_fps;
+			sc500ai->cur_vts = mode->vts_def;
 			dev_info(&sc500ai->client->dev, "sensor mode: %d\n", sc500ai->cur_mode->hdr_mode);
 		}
 		break;
@@ -1355,6 +1360,14 @@ static const struct v4l2_subdev_ops sc500ai_subdev_ops = {
 	.pad	= &sc500ai_pad_ops,
 };
 
+static void sc500ai_modify_fps_info(struct sc500ai *sc500ai)
+{
+	const struct sc500ai_mode *mode = sc500ai->cur_mode;
+
+	sc500ai->cur_fps.denominator = mode->max_fps.denominator * sc500ai->cur_vts /
+				       mode->vts_def;
+}
+
 static int sc500ai_set_ctrl(struct v4l2_ctrl *ctrl)
 {
 	struct sc500ai *sc500ai = container_of(ctrl->handler,
@@ -1442,7 +1455,10 @@ static int sc500ai_set_ctrl(struct v4l2_ctrl *ctrl)
 					 SC500AI_REG_VTS_L,
 					 SC500AI_REG_VALUE_08BIT,
 					 vts & 0xff);
-		sc500ai->cur_vts = vts;
+		if (!ret)
+			sc500ai->cur_vts = vts;
+		if (sc500ai->cur_vts != sc500ai->cur_mode->vts_def)
+			sc500ai_modify_fps_info(sc500ai);
 		break;
 	case V4L2_CID_HFLIP:
 		ret = sc500ai_read_reg(sc500ai->client, SC500AI_FLIP_MIRROR_REG,
@@ -1554,6 +1570,7 @@ static int sc500ai_initialize_controls(struct sc500ai *sc500ai)
 
 	vblank_def = mode->vts_def - mode->height;
 	sc500ai->cur_vts = mode->vts_def;
+	sc500ai->cur_fps = mode->max_fps;
 	sc500ai->vblank = v4l2_ctrl_new_std(handler, &sc500ai_ctrl_ops,
 	                                    V4L2_CID_VBLANK, vblank_def,
 	                                    SC500AI_VTS_MAX - mode->height,
