@@ -66,6 +66,7 @@ struct mlx5e_macsec {
 	/* Rx fs_id -> rx_sc mapping */
 	struct xarray sc_xarray;
 
+	unsigned char *dev_addr;
 	struct mlx5_core_dev *mdev;
 };
 
@@ -241,6 +242,42 @@ static int mlx5e_macsec_update_rx_sa(struct mlx5e_macsec *macsec,
 		return err;
 
 	return 0;
+}
+
+static bool mlx5e_macsec_secy_features_validate(struct macsec_context *ctx)
+{
+	const struct net_device *netdev = ctx->netdev;
+	const struct macsec_secy *secy = ctx->secy;
+
+	if (secy->validate_frames != MACSEC_VALIDATE_STRICT) {
+		netdev_err(netdev,
+			   "MACsec offload is supported only when validate_frame is in strict mode\n");
+		return false;
+	}
+
+	if (secy->icv_len != MACSEC_DEFAULT_ICV_LEN) {
+		netdev_err(netdev, "MACsec offload is supported only when icv_len is %d\n",
+			   MACSEC_DEFAULT_ICV_LEN);
+		return false;
+	}
+
+	if (!secy->protect_frames) {
+		netdev_err(netdev,
+			   "MACsec offload is supported only when protect_frames is set\n");
+		return false;
+	}
+
+	if (secy->xpn) {
+		netdev_err(netdev, "MACsec offload: xpn is not supported\n");
+		return false;
+	}
+
+	if (secy->replay_protect) {
+		netdev_err(netdev, "MACsec offload: replay protection is not supported\n");
+		return false;
+	}
+
+	return true;
 }
 
 static int mlx5e_macsec_add_txsa(struct macsec_context *ctx)
@@ -764,6 +801,195 @@ out:
 	return err;
 }
 
+static int mlx5e_macsec_add_secy(struct macsec_context *ctx)
+{
+	struct mlx5e_priv *priv = netdev_priv(ctx->netdev);
+	const struct net_device *dev = ctx->secy->netdev;
+	const struct net_device *netdev = ctx->netdev;
+	struct mlx5e_macsec *macsec;
+	int err = 0;
+
+	if (ctx->prepare)
+		return 0;
+
+	if (!mlx5e_macsec_secy_features_validate(ctx))
+		return -EINVAL;
+
+	mutex_lock(&priv->macsec->lock);
+
+	macsec = priv->macsec;
+
+	if (macsec->dev_addr) {
+		netdev_err(netdev, "Currently, only one MACsec offload device can be set\n");
+		err = -EINVAL;
+	}
+
+	macsec->dev_addr = kzalloc(dev->addr_len, GFP_KERNEL);
+	if (!macsec->dev_addr) {
+		err = -ENOMEM;
+		goto out;
+	}
+
+	memcpy(macsec->dev_addr, dev->dev_addr, dev->addr_len);
+out:
+	mutex_unlock(&macsec->lock);
+
+	return err;
+}
+
+static int macsec_upd_secy_hw_address(struct macsec_context *ctx)
+{
+	struct mlx5e_priv *priv = netdev_priv(ctx->netdev);
+	const struct net_device *dev = ctx->secy->netdev;
+	struct mlx5e_macsec *macsec = priv->macsec;
+	struct mlx5e_macsec_rx_sc *rx_sc, *tmp;
+	struct mlx5e_macsec_sa *rx_sa;
+	struct list_head *list;
+	int i, err = 0;
+
+
+	list = &macsec->macsec_rx_sc_list_head;
+	list_for_each_entry_safe(rx_sc, tmp, list, rx_sc_list_element) {
+		for (i = 0; i < MACSEC_NUM_AN; ++i) {
+			rx_sa = rx_sc->rx_sa[i];
+			if (!rx_sa || !rx_sa->macsec_rule)
+				continue;
+
+			mlx5e_macsec_cleanup_sa(macsec, rx_sa, false);
+		}
+	}
+
+	list_for_each_entry_safe(rx_sc, tmp, list, rx_sc_list_element) {
+		for (i = 0; i < MACSEC_NUM_AN; ++i) {
+			rx_sa = rx_sc->rx_sa[i];
+			if (!rx_sa)
+				continue;
+
+			if (rx_sa->active) {
+				err = mlx5e_macsec_init_sa(ctx, rx_sa, false, false);
+				if (err)
+					goto out;
+			}
+		}
+	}
+
+	memcpy(macsec->dev_addr, dev->dev_addr, dev->addr_len);
+out:
+	return err;
+}
+
+/* this function is called from 2 macsec ops functions:
+ *  macsec_set_mac_address – MAC address was changed, therefore we need to destroy
+ *  and create new Tx contexts(macsec object + steering).
+ *  macsec_changelink – in this case the tx SC or SecY may be changed, therefore need to
+ *  destroy Tx and Rx contexts(macsec object + steering)
+ */
+static int mlx5e_macsec_upd_secy(struct macsec_context *ctx)
+{
+	const struct macsec_tx_sc *tx_sc = &ctx->secy->tx_sc;
+	struct mlx5e_priv *priv = netdev_priv(ctx->netdev);
+	const struct net_device *dev = ctx->secy->netdev;
+	struct mlx5e_macsec_sa *tx_sa;
+	struct mlx5e_macsec *macsec;
+	int i, err = 0;
+
+	if (ctx->prepare)
+		return 0;
+
+	if (!mlx5e_macsec_secy_features_validate(ctx))
+		return -EINVAL;
+
+	mutex_lock(&priv->macsec->lock);
+
+	macsec = priv->macsec;
+
+	/* if the dev_addr hasn't change, it mean the callback is from macsec_changelink */
+	if (!memcmp(macsec->dev_addr, dev->dev_addr, dev->addr_len)) {
+		err = macsec_upd_secy_hw_address(ctx);
+		if (err)
+			goto out;
+	}
+
+	for (i = 0; i < MACSEC_NUM_AN; ++i) {
+		tx_sa = macsec->tx_sa[i];
+		if (!tx_sa)
+			continue;
+
+		mlx5e_macsec_cleanup_sa(macsec, tx_sa, true);
+	}
+
+	for (i = 0; i < MACSEC_NUM_AN; ++i) {
+		tx_sa = macsec->tx_sa[i];
+		if (!tx_sa)
+			continue;
+
+		if (tx_sa->assoc_num == tx_sc->encoding_sa && tx_sa->active) {
+			err = mlx5e_macsec_init_sa(ctx, tx_sa, tx_sc->encrypt, true);
+			if (err)
+				goto out;
+		}
+	}
+
+out:
+	mutex_unlock(&macsec->lock);
+
+	return err;
+}
+
+static int mlx5e_macsec_del_secy(struct macsec_context *ctx)
+{
+	struct mlx5e_priv *priv = netdev_priv(ctx->netdev);
+	struct mlx5e_macsec_rx_sc *rx_sc, *tmp;
+	struct mlx5e_macsec_sa *rx_sa;
+	struct mlx5e_macsec_sa *tx_sa;
+	struct mlx5e_macsec *macsec;
+	struct list_head *list;
+	int i;
+
+	if (ctx->prepare)
+		return 0;
+
+	mutex_lock(&priv->macsec->lock);
+
+	macsec = priv->macsec;
+
+	for (i = 0; i < MACSEC_NUM_AN; ++i) {
+		tx_sa = macsec->tx_sa[i];
+		if (!tx_sa)
+			continue;
+
+		mlx5e_macsec_cleanup_sa(macsec, tx_sa, true);
+		mlx5_destroy_encryption_key(macsec->mdev, tx_sa->enc_key_id);
+		kfree(tx_sa);
+		macsec->tx_sa[i] = NULL;
+	}
+
+	list = &macsec->macsec_rx_sc_list_head;
+	list_for_each_entry_safe(rx_sc, tmp, list, rx_sc_list_element) {
+		for (i = 0; i < MACSEC_NUM_AN; ++i) {
+			rx_sa = rx_sc->rx_sa[i];
+			if (!rx_sa)
+				continue;
+
+			mlx5e_macsec_cleanup_sa(macsec, rx_sa, false);
+			mlx5_destroy_encryption_key(macsec->mdev, rx_sa->enc_key_id);
+			kfree(rx_sa);
+			rx_sc->rx_sa[i] = NULL;
+		}
+
+		list_del_rcu(&rx_sc->rx_sc_list_element);
+
+		kfree_rcu(rx_sc);
+	}
+
+	kfree(macsec->dev_addr);
+	macsec->dev_addr = NULL;
+
+	mutex_unlock(&macsec->lock);
+
+	return 0;
+}
+
 static bool mlx5e_is_macsec_device(const struct mlx5_core_dev *mdev)
 {
 	if (!(MLX5_CAP_GEN_64(mdev, general_obj_types) &
@@ -805,6 +1031,9 @@ static const struct macsec_ops macsec_offload_ops = {
 	.mdo_add_rxsa = mlx5e_macsec_add_rxsa,
 	.mdo_upd_rxsa = mlx5e_macsec_upd_rxsa,
 	.mdo_del_rxsa = mlx5e_macsec_del_rxsa,
+	.mdo_add_secy = mlx5e_macsec_add_secy,
+	.mdo_upd_secy = mlx5e_macsec_upd_secy,
+	.mdo_del_secy = mlx5e_macsec_del_secy,
 };
 
 bool mlx5e_macsec_handle_tx_skb(struct mlx5e_macsec *macsec, struct sk_buff *skb)
