@@ -876,6 +876,7 @@ struct target_opcode_descriptor {
 	u8			specific_timeout;
 	u16			nominal_timeout;
 	u16			recommended_timeout;
+	bool			(*enabled)(struct se_cmd *cmd);
 	u8			usage_bits[];
 };
 
