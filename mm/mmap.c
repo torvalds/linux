@@ -629,29 +629,19 @@ munmap_vma_range(struct mm_struct *mm, unsigned long start, unsigned long len,
 
 	return 0;
 }
+
 static unsigned long count_vma_pages_range(struct mm_struct *mm,
 		unsigned long addr, unsigned long end)
 {
-	unsigned long nr_pages = 0;
+	VMA_ITERATOR(vmi, mm, addr);
 	struct vm_area_struct *vma;
+	unsigned long nr_pages = 0;
 
-	/* Find first overlapping mapping */
-	vma = find_vma_intersection(mm, addr, end);
-	if (!vma)
-		return 0;
+	for_each_vma_range(vmi, vma, end) {
+		unsigned long vm_start = max(addr, vma->vm_start);
+		unsigned long vm_end = min(end, vma->vm_end);
 
-	nr_pages = (min(end, vma->vm_end) -
-		max(addr, vma->vm_start)) >> PAGE_SHIFT;
-
-	/* Iterate over the rest of the overlaps */
-	for (vma = vma->vm_next; vma; vma = vma->vm_next) {
-		unsigned long overlap_len;
-
-		if (vma->vm_start > end)
-			break;
-
-		overlap_len = min(end, vma->vm_end) - vma->vm_start;
-		nr_pages += overlap_len >> PAGE_SHIFT;
+		nr_pages += PHYS_PFN(vm_end - vm_start);
 	}
 
 	return nr_pages;
