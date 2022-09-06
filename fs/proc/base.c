@@ -2350,6 +2350,7 @@ proc_map_files_readdir(struct file *file, struct dir_context *ctx)
 	GENRADIX(struct map_files_info) fa;
 	struct map_files_info *p;
 	int ret;
+	struct vma_iterator vmi;
 
 	genradix_init(&fa);
 
@@ -2388,7 +2389,9 @@ proc_map_files_readdir(struct file *file, struct dir_context *ctx)
 	 * routine might require mmap_lock taken in might_fault().
 	 */
 
-	for (vma = mm->mmap, pos = 2; vma; vma = vma->vm_next) {
+	pos = 2;
+	vma_iter_init(&vmi, mm, 0);
+	for_each_vma(vmi, vma) {
 		if (!vma->vm_file)
 			continue;
 		if (++pos <= ctx->pos)
