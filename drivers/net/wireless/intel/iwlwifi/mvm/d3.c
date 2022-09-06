@@ -1995,6 +1995,30 @@ iwl_mvm_parse_wowlan_status_common(v7)
 iwl_mvm_parse_wowlan_status_common(v9)
 iwl_mvm_parse_wowlan_status_common(v12)
 
+static void iwl_mvm_parse_wowlan_info_notif(struct iwl_mvm *mvm,
+					    struct iwl_wowlan_info_notif *data,
+					    struct iwl_wowlan_status_data *status,
+					    u32 len)
+{
+	u32 i;
+
+	if (len < sizeof(*data)) {
+		IWL_ERR(mvm, "Invalid WoWLAN info notification!\n");
+		status = NULL;
+		return;
+	}
+
+	status->replay_ctr = le64_to_cpu(data->replay_ctr);
+	status->pattern_number = le16_to_cpu(data->pattern_number);
+	for (i = 0; i < IWL_MAX_TID_COUNT; i++)
+		status->qos_seq_ctr[i] =
+			le16_to_cpu(data->qos_seq_ctr[i]);
+	status->wakeup_reasons = le32_to_cpu(data->wakeup_reasons);
+	status->num_of_gtk_rekeys =
+		le32_to_cpu(data->num_of_gtk_rekeys);
+	status->received_beacons = le32_to_cpu(data->received_beacons);
+}
+
 static void iwl_mvm_convert_gtk_v2(struct iwl_wowlan_status_data *status,
 				   struct iwl_wowlan_gtk_status_v2 *data)
 {
@@ -2194,15 +2218,13 @@ iwl_mvm_get_wakeup_status(struct iwl_mvm *mvm, u8 sta_id)
 
 /* releases the MVM mutex */
 static bool iwl_mvm_query_wakeup_reasons(struct iwl_mvm *mvm,
-					 struct ieee80211_vif *vif)
+					 struct ieee80211_vif *vif,
+					 struct iwl_wowlan_status_data *status)
 {
-	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
-	struct iwl_wowlan_status_data *status;
 	int i;
 	bool keep;
 	struct iwl_mvm_sta *mvm_ap_sta;
 
-	status = iwl_mvm_get_wakeup_status(mvm, mvmvif->ap_sta_id);
 	if (!status)
 		goto out_unlock;
 
@@ -2212,7 +2234,7 @@ static bool iwl_mvm_query_wakeup_reasons(struct iwl_mvm *mvm,
 	/* still at hard-coded place 0 for D3 image */
 	mvm_ap_sta = iwl_mvm_sta_from_staid_protected(mvm, 0);
 	if (!mvm_ap_sta)
-		goto out_free;
+		goto out_unlock;
 
 	for (i = 0; i < IWL_MAX_TID_COUNT; i++) {
 		u16 seq = status->qos_seq_ctr[i];
@@ -2235,11 +2257,8 @@ static bool iwl_mvm_query_wakeup_reasons(struct iwl_mvm *mvm,
 
 	keep = iwl_mvm_setup_connection_keep(mvm, vif, status);
 
-	kfree(status);
 	return keep;
 
-out_free:
-	kfree(status);
 out_unlock:
 	mutex_unlock(&mvm->mutex);
 	return false;
@@ -2356,24 +2375,23 @@ static void iwl_mvm_query_set_freqs(struct iwl_mvm *mvm,
 }
 
 static void iwl_mvm_query_netdetect_reasons(struct iwl_mvm *mvm,
-					    struct ieee80211_vif *vif)
+					    struct ieee80211_vif *vif,
+					    struct iwl_wowlan_status_data *status)
 {
 	struct cfg80211_wowlan_nd_info *net_detect = NULL;
 	struct cfg80211_wowlan_wakeup wakeup = {
 		.pattern_idx = -1,
 	};
 	struct cfg80211_wowlan_wakeup *wakeup_report = &wakeup;
-	struct iwl_wowlan_status_data *status;
 	struct iwl_mvm_nd_query_results query;
 	unsigned long matched_profiles;
 	u32 reasons = 0;
 	int i, n_matches, ret;
 
-	status = iwl_mvm_get_wakeup_status(mvm, IWL_MVM_INVALID_STA);
-	if (status) {
-		reasons = status->wakeup_reasons;
-		kfree(status);
-	}
+	if (WARN_ON(!status))
+		return;
+
+	reasons = status->wakeup_reasons;
 
 	if (reasons & IWL_WOWLAN_WAKEUP_BY_RFKILL_DEASSERTED)
 		wakeup.rfkill_release = true;
@@ -2504,16 +2522,142 @@ static bool iwl_mvm_check_rt_status(struct iwl_mvm *mvm,
 	return false;
 }
 
+/**
+ * enum iwl_d3_notif - d3 notifications
+ * @IWL_D3_NOTIF_WOWLAN_INFO: WOWLAN_INFO_NOTIF was received
+ */
+enum iwl_d3_notif {
+	IWL_D3_NOTIF_WOWLAN_INFO =	BIT(0),
+};
+
+/* manage d3 resume data */
+struct iwl_d3_data {
+	struct iwl_wowlan_status_data *status;
+	bool test;
+	u32 notif_expected;	/* bitmap - see &enum iwl_d3_notif */
+	u32 notif_received;	/* bitmap - see &enum iwl_d3_notif */
+};
+
+/*
+ * This function assumes:
+ *	1. The mutex is already held.
+ *	2. The callee functions unlock the mutex.
+ */
+static void iwl_mvm_choose_query_wakeup_reasons(struct iwl_mvm *mvm,
+						struct ieee80211_vif *vif,
+						struct iwl_d3_data *d3_data,
+						bool test)
+{
+	lockdep_assert_held(&mvm->mutex);
+
+	/* if FW uses status notification, status shouldn't be NULL here */
+	if (!d3_data->status) {
+		struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+
+		d3_data->status = iwl_mvm_get_wakeup_status(mvm, mvm->net_detect ?
+							    IWL_MVM_INVALID_STA :
+							    mvmvif->ap_sta_id);
+	}
+
+	if (mvm->net_detect) {
+		iwl_mvm_query_netdetect_reasons(mvm, vif, d3_data->status);
+	} else {
+		bool keep = iwl_mvm_query_wakeup_reasons(mvm, vif,
+							 d3_data->status);
+
+#ifdef CONFIG_IWLWIFI_DEBUGFS
+		if (keep)
+			mvm->keep_vif = vif;
+#endif
+
+		if (!test)
+			ieee80211_iterate_active_interfaces_mtx(mvm->hw,
+								IEEE80211_IFACE_ITER_NORMAL,
+								iwl_mvm_d3_disconnect_iter,
+								keep ? vif : NULL);
+	}
+}
+
+static bool iwl_mvm_wait_d3_notif(struct iwl_notif_wait_data *notif_wait,
+				  struct iwl_rx_packet *pkt, void *data)
+{
+	struct iwl_mvm *mvm =
+		container_of(notif_wait, struct iwl_mvm, notif_wait);
+	struct iwl_d3_data *d3_data = data;
+	u32 len;
+
+	switch (WIDE_ID(pkt->hdr.group_id, pkt->hdr.cmd)) {
+	case WIDE_ID(PROT_OFFLOAD_GROUP, WOWLAN_INFO_NOTIFICATION): {
+		struct iwl_wowlan_info_notif *notif = (void *)pkt->data;
+
+		if (d3_data->notif_received & IWL_D3_NOTIF_WOWLAN_INFO) {
+			/* We might get two notifications due to dual bss */
+			IWL_DEBUG_WOWLAN(mvm,
+					 "Got additional wowlan info notification\n");
+			break;
+		}
+
+		d3_data->notif_received |= IWL_D3_NOTIF_WOWLAN_INFO;
+		len = iwl_rx_packet_payload_len(pkt);
+		iwl_mvm_parse_wowlan_info_notif(mvm, notif, d3_data->status,
+						len);
+		break;
+	}
+	default:
+		WARN_ON(1);
+	}
+
+	return d3_data->notif_received == d3_data->notif_expected;
+}
+
+#define IWL_MVM_D3_NOTIF_TIMEOUT (HZ / 5)
+
+static int iwl_mvm_d3_notif_wait(struct iwl_mvm *mvm,
+				 struct iwl_d3_data *d3_data,
+				 enum iwl_d3_status *d3_status,
+				 bool test)
+{
+	static const u16 d3_resume_notif[] = {
+		WIDE_ID(PROT_OFFLOAD_GROUP, WOWLAN_INFO_NOTIFICATION)
+	};
+	struct iwl_notification_wait wait_d3_notif;
+	int ret;
+
+	iwl_init_notification_wait(&mvm->notif_wait, &wait_d3_notif,
+				   d3_resume_notif, ARRAY_SIZE(d3_resume_notif),
+				   iwl_mvm_wait_d3_notif, d3_data);
+
+	ret = iwl_trans_d3_resume(mvm->trans, d3_status, test, false);
+	if (ret) {
+		iwl_remove_notification(&mvm->notif_wait, &wait_d3_notif);
+		return ret;
+	}
+
+	if (*d3_status != IWL_D3_STATUS_ALIVE) {
+		IWL_INFO(mvm, "Device was reset during suspend\n");
+		iwl_remove_notification(&mvm->notif_wait, &wait_d3_notif);
+		return -ENOENT;
+	}
+
+	return iwl_wait_notification(&mvm->notif_wait, &wait_d3_notif,
+				     IWL_MVM_D3_NOTIF_TIMEOUT);
+}
+
 static int __iwl_mvm_resume(struct iwl_mvm *mvm, bool test)
 {
 	struct ieee80211_vif *vif = NULL;
 	int ret = 1;
 	enum iwl_d3_status d3_status;
-	bool keep = false;
+	struct iwl_d3_data d3_data = {
+		.test = test,
+		.notif_expected = IWL_D3_NOTIF_WOWLAN_INFO,
+	};
 	bool unified_image = fw_has_capa(&mvm->fw->ucode_capa,
 					 IWL_UCODE_TLV_CAPA_CNSLDTD_D3_D0_IMG);
 	bool d0i3_first = fw_has_capa(&mvm->fw->ucode_capa,
 				      IWL_UCODE_TLV_CAPA_D0I3_END_FIRST);
+	/* currently disabled */
+	bool resume_notif_based = false;
 
 	mutex_lock(&mvm->mutex);
 
@@ -2537,7 +2681,20 @@ static int __iwl_mvm_resume(struct iwl_mvm *mvm, bool test)
 		goto err;
 	}
 
-	ret = iwl_trans_d3_resume(mvm->trans, &d3_status, test, !unified_image);
+	if (resume_notif_based) {
+		d3_data.status = kzalloc(sizeof(*d3_data.status), GFP_KERNEL);
+		if (!d3_data.status) {
+			IWL_ERR(mvm, "Failed to allocate wowlan status\n");
+			ret = -ENOMEM;
+			goto err;
+		}
+
+		ret = iwl_mvm_d3_notif_wait(mvm, &d3_data, &d3_status, test);
+	} else {
+		ret = iwl_trans_d3_resume(mvm->trans, &d3_status, test,
+					  !unified_image);
+	}
+
 	if (ret)
 		goto err;
 
@@ -2546,7 +2703,7 @@ static int __iwl_mvm_resume(struct iwl_mvm *mvm, bool test)
 		goto err;
 	}
 
-	if (d0i3_first) {
+	if (d0i3_first && mvm->trans->trans_cfg->device_family <= IWL_DEVICE_FAMILY_22000) {
 		struct iwl_host_cmd cmd = {
 			.id = D0I3_END_CMD,
 			.flags = CMD_WANT_SKB | CMD_SEND_IN_D3,
@@ -2576,41 +2733,27 @@ static int __iwl_mvm_resume(struct iwl_mvm *mvm, bool test)
 		/*  Re-configure default SAR profile */
 		iwl_mvm_sar_select_profile(mvm, 1, 1);
 
-	if (mvm->net_detect) {
+	if (mvm->net_detect && unified_image) {
 		/* If this is a non-unified image, we restart the FW,
 		 * so no need to stop the netdetect scan.  If that
 		 * fails, continue and try to get the wake-up reasons,
 		 * but trigger a HW restart by keeping a failure code
 		 * in ret.
 		 */
-		if (unified_image)
-			ret = iwl_mvm_scan_stop(mvm, IWL_MVM_SCAN_NETDETECT,
-						false);
-
-		iwl_mvm_query_netdetect_reasons(mvm, vif);
-		/* has unlocked the mutex, so skip that */
-		goto out;
-	} else {
-		keep = iwl_mvm_query_wakeup_reasons(mvm, vif);
-#ifdef CONFIG_IWLWIFI_DEBUGFS
-		if (keep)
-			mvm->keep_vif = vif;
-#endif
-		/* has unlocked the mutex, so skip that */
-		goto out_iterate;
+		ret = iwl_mvm_scan_stop(mvm, IWL_MVM_SCAN_NETDETECT,
+					false);
 	}
 
+	iwl_mvm_choose_query_wakeup_reasons(mvm, vif, &d3_data, d3_data.test);
+	/* has unlocked the mutex, so skip that */
+	goto out;
+
 err:
-	iwl_mvm_free_nd(mvm);
 	mutex_unlock(&mvm->mutex);
-
-out_iterate:
-	if (!test)
-		ieee80211_iterate_active_interfaces_mtx(mvm->hw,
-			IEEE80211_IFACE_ITER_NORMAL,
-			iwl_mvm_d3_disconnect_iter, keep ? vif : NULL);
-
 out:
+	kfree(d3_data.status);
+	iwl_mvm_free_nd(mvm);
+
 	clear_bit(IWL_MVM_STATUS_IN_D3, &mvm->status);
 
 	/* no need to reset the device in unified images, if successful */
