@@ -14,10 +14,10 @@
 #include <linux/reset.h>
 
 #include <drm/drm_device.h>
-#include <drm/drm_fb_cma_helper.h>
+#include <drm/drm_fb_dma_helper.h>
 #include <drm/drm_fourcc.h>
 #include <drm/drm_framebuffer.h>
-#include <drm/drm_gem_cma_helper.h>
+#include <drm/drm_gem_dma_helper.h>
 #include <drm/drm_plane.h>
 
 #include "sun4i_drv.h"
@@ -160,7 +160,7 @@ void sun4i_frontend_update_buffer(struct sun4i_frontend *frontend,
 	struct drm_framebuffer *fb = state->fb;
 	unsigned int strides[3] = {};
 
-	dma_addr_t paddr;
+	dma_addr_t dma_addr;
 	bool swap;
 
 	if (fb->modifier == DRM_FORMAT_MOD_ALLWINNER_TILED) {
@@ -221,22 +221,24 @@ void sun4i_frontend_update_buffer(struct sun4i_frontend *frontend,
 	swap = sun4i_frontend_format_chroma_requires_swap(fb->format->format);
 
 	/* Set the physical address of the buffer in memory */
-	paddr = drm_fb_cma_get_gem_addr(fb, state, 0);
-	DRM_DEBUG_DRIVER("Setting buffer #0 address to %pad\n", &paddr);
-	regmap_write(frontend->regs, SUN4I_FRONTEND_BUF_ADDR0_REG, paddr);
+	dma_addr = drm_fb_dma_get_gem_addr(fb, state, 0);
+	DRM_DEBUG_DRIVER("Setting buffer #0 address to %pad\n", &dma_addr);
+	regmap_write(frontend->regs, SUN4I_FRONTEND_BUF_ADDR0_REG, dma_addr);
 
 	if (fb->format->num_planes > 1) {
-		paddr = drm_fb_cma_get_gem_addr(fb, state, swap ? 2 : 1);
-		DRM_DEBUG_DRIVER("Setting buffer #1 address to %pad\n", &paddr);
+		dma_addr = drm_fb_dma_get_gem_addr(fb, state, swap ? 2 : 1);
+		DRM_DEBUG_DRIVER("Setting buffer #1 address to %pad\n",
+				 &dma_addr);
 		regmap_write(frontend->regs, SUN4I_FRONTEND_BUF_ADDR1_REG,
-			     paddr);
+			     dma_addr);
 	}
 
 	if (fb->format->num_planes > 2) {
-		paddr = drm_fb_cma_get_gem_addr(fb, state, swap ? 1 : 2);
-		DRM_DEBUG_DRIVER("Setting buffer #2 address to %pad\n", &paddr);
+		dma_addr = drm_fb_dma_get_gem_addr(fb, state, swap ? 1 : 2);
+		DRM_DEBUG_DRIVER("Setting buffer #2 address to %pad\n",
+				 &dma_addr);
 		regmap_write(frontend->regs, SUN4I_FRONTEND_BUF_ADDR2_REG,
-			     paddr);
+			     dma_addr);
 	}
 }
 EXPORT_SYMBOL(sun4i_frontend_update_buffer);

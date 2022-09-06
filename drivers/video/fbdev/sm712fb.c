@@ -18,6 +18,7 @@
  * Framebuffer driver for Silicon Motion SM710, SM712, SM721 and SM722 chips
  */
 
+#include <linux/aperture.h>
 #include <linux/io.h>
 #include <linux/fb.h>
 #include <linux/pci.h>
@@ -1501,6 +1502,10 @@ static int smtcfb_pci_probe(struct pci_dev *pdev,
 	unsigned long mmio_base;
 
 	dev_info(&pdev->dev, "Silicon Motion display driver.\n");
+
+	err = aperture_remove_conflicting_pci_devices(pdev, "smtcfb");
+	if (err)
+		return err;
 
 	err = pci_enable_device(pdev);	/* enable SMTC chip */
 	if (err)

@@ -616,7 +616,7 @@ static int rad_panel_probe(struct mipi_dsi_device *dsi)
 	return ret;
 }
 
-static int rad_panel_remove(struct mipi_dsi_device *dsi)
+static void rad_panel_remove(struct mipi_dsi_device *dsi)
 {
 	struct rad_panel *rad = mipi_dsi_get_drvdata(dsi);
 	struct device *dev = &dsi->dev;
@@ -627,8 +627,6 @@ static int rad_panel_remove(struct mipi_dsi_device *dsi)
 		dev_err(dev, "Failed to detach from host (%d)\n", ret);
 
 	drm_panel_remove(&rad->panel);
-
-	return 0;
 }
 
 static void rad_panel_shutdown(struct mipi_dsi_device *dsi)

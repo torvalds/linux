@@ -10,6 +10,7 @@
 
 #undef DEBUG
 
+#include <linux/aperture.h>
 #include <linux/fb.h>
 #include <linux/delay.h>
 #include <linux/uaccess.h>
@@ -998,6 +999,10 @@ static int mb862xx_pci_probe(struct pci_dev *pdev,
 	struct fb_info *info;
 	struct device *dev = &pdev->dev;
 	int ret;
+
+	ret = aperture_remove_conflicting_pci_devices(pdev, "mb862xxfb");
+	if (ret)
+		return ret;
 
 	ret = pci_enable_device(pdev);
 	if (ret < 0) {

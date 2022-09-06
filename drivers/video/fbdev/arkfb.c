@@ -11,6 +11,7 @@
  *  Code is based on s3fb
  */
 
+#include <linux/aperture.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
@@ -955,6 +956,10 @@ static int ark_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	struct arkfb_info *par;
 	int rc;
 	u8 regval;
+
+	rc = aperture_remove_conflicting_pci_devices(dev, "arkfb");
+	if (rc < 0)
+		return rc;
 
 	/* Ignore secondary VGA device because there is no VGA arbitration */
 	if (! svga_primary_device(dev)) {

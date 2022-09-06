@@ -735,14 +735,12 @@ static int chipone_i2c_probe(struct i2c_client *client,
 	return chipone_dsi_host_attach(icn);
 }
 
-static int chipone_dsi_remove(struct mipi_dsi_device *dsi)
+static void chipone_dsi_remove(struct mipi_dsi_device *dsi)
 {
 	struct chipone *icn = mipi_dsi_get_drvdata(dsi);
 
 	mipi_dsi_detach(dsi);
 	drm_bridge_remove(&icn->bridge);
-
-	return 0;
 }
 
 static const struct of_device_id chipone_of_match[] = {

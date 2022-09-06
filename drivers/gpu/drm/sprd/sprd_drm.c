@@ -13,7 +13,7 @@
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_drv.h>
-#include <drm/drm_gem_cma_helper.h>
+#include <drm/drm_gem_dma_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_of.h>
 #include <drm/drm_probe_helper.h>
@@ -48,14 +48,14 @@ static void sprd_drm_mode_config_init(struct drm_device *drm)
 	drm->mode_config.helper_private = &sprd_drm_mode_config_helper;
 }
 
-DEFINE_DRM_GEM_CMA_FOPS(sprd_drm_fops);
+DEFINE_DRM_GEM_DMA_FOPS(sprd_drm_fops);
 
 static struct drm_driver sprd_drm_drv = {
 	.driver_features	= DRIVER_GEM | DRIVER_MODESET | DRIVER_ATOMIC,
 	.fops			= &sprd_drm_fops,
 
 	/* GEM Operations */
-	DRM_GEM_CMA_DRIVER_OPS,
+	DRM_GEM_DMA_DRIVER_OPS,
 
 	.name			= DRIVER_NAME,
 	.desc			= DRIVER_DESC,

@@ -217,7 +217,7 @@ struct drm_gem_object {
 	 *
 	 * SHMEM file node used as backing storage for swappable buffer objects.
 	 * GEM also supports driver private objects with driver-specific backing
-	 * storage (contiguous CMA memory, special reserved blocks). In this
+	 * storage (contiguous DMA memory, special reserved blocks). In this
 	 * case @filp is NULL.
 	 */
 	struct file *filp;

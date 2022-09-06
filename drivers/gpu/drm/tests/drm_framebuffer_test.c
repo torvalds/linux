@@ -1,9 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
  * Test cases for the drm_framebuffer functions
+ *
+ * Copyright (c) 2022 Maíra Canal <mairacanal@riseup.net>
  */
 
-#include <linux/kernel.h>
+#include <kunit/test.h>
 
 #include <drm/drm_device.h>
 #include <drm/drm_mode.h>
@@ -11,8 +13,6 @@
 #include <drm/drm_print.h>
 
 #include "../drm_crtc_internal.h"
-
-#include "test-drm_modeset_common.h"
 
 #define MIN_WIDTH 4
 #define MAX_WIDTH 4096
@@ -73,12 +73,14 @@ static struct drm_framebuffer_test createbuffer_tests[] = {
 },
 { .buffer_created = 0, .name = "ABGR8888 Out of bound height * pitch combination",
 	.cmd = { .width = MAX_WIDTH, .height = MAX_HEIGHT, .pixel_format = DRM_FORMAT_ABGR8888,
-		 .handles = { 1, 0, 0 }, .offsets = { UINT_MAX - 1, 0, 0 }, .pitches = { 4 * MAX_WIDTH, 0, 0 },
+		 .handles = { 1, 0, 0 }, .offsets = { UINT_MAX - 1, 0, 0 },
+		 .pitches = { 4 * MAX_WIDTH, 0, 0 },
 	}
 },
 { .buffer_created = 1, .name = "ABGR8888 Large buffer offset",
 	.cmd = { .width = MAX_WIDTH, .height = MAX_HEIGHT, .pixel_format = DRM_FORMAT_ABGR8888,
-		 .handles = { 1, 0, 0 }, .offsets = { UINT_MAX / 2, 0, 0 }, .pitches = { 4 * MAX_WIDTH, 0, 0 },
+		 .handles = { 1, 0, 0 }, .offsets = { UINT_MAX / 2, 0, 0 },
+		 .pitches = { 4 * MAX_WIDTH, 0, 0 },
 	}
 },
 { .buffer_created = 1, .name = "ABGR8888 Set DRM_MODE_FB_MODIFIERS without modifiers",
@@ -89,11 +91,13 @@ static struct drm_framebuffer_test createbuffer_tests[] = {
 },
 { .buffer_created = 1, .name = "ABGR8888 Valid buffer modifier",
 	.cmd = { .width = MAX_WIDTH, .height = MAX_HEIGHT, .pixel_format = DRM_FORMAT_ABGR8888,
-		 .handles = { 1, 0, 0 }, .offsets = { UINT_MAX / 2, 0, 0 }, .pitches = { 4 * MAX_WIDTH, 0, 0 },
-		 .flags = DRM_MODE_FB_MODIFIERS, .modifier = { AFBC_FORMAT_MOD_YTR, 0, 0 },
+		 .handles = { 1, 0, 0 }, .offsets = { UINT_MAX / 2, 0, 0 },
+		 .pitches = { 4 * MAX_WIDTH, 0, 0 }, .flags = DRM_MODE_FB_MODIFIERS,
+		 .modifier = { AFBC_FORMAT_MOD_YTR, 0, 0 },
 	}
 },
-{ .buffer_created = 0, .name = "ABGR8888 Invalid buffer modifier(DRM_FORMAT_MOD_SAMSUNG_64_32_TILE)",
+{ .buffer_created = 0,
+	.name = "ABGR8888 Invalid buffer modifier(DRM_FORMAT_MOD_SAMSUNG_64_32_TILE)",
 	.cmd = { .width = MAX_WIDTH, .height = MAX_HEIGHT, .pixel_format = DRM_FORMAT_ABGR8888,
 		 .handles = { 1, 0, 0 }, .offsets = { UINT_MAX / 2, 0, 0 },
 		 .pitches = { 4 * MAX_WIDTH, 0, 0 }, .flags = DRM_MODE_FB_MODIFIERS,
@@ -143,7 +147,8 @@ static struct drm_framebuffer_test createbuffer_tests[] = {
 { .buffer_created = 1, .name = "NV12 with DRM_FORMAT_MOD_SAMSUNG_64_32_TILE",
 	.cmd = { .width = MAX_WIDTH, .height = MAX_HEIGHT, .pixel_format = DRM_FORMAT_NV12,
 		 .handles = { 1, 1, 0 }, .flags = DRM_MODE_FB_MODIFIERS,
-		 .modifier = { DRM_FORMAT_MOD_SAMSUNG_64_32_TILE, DRM_FORMAT_MOD_SAMSUNG_64_32_TILE, 0 },
+		 .modifier = { DRM_FORMAT_MOD_SAMSUNG_64_32_TILE,
+			 DRM_FORMAT_MOD_SAMSUNG_64_32_TILE, 0 },
 		 .pitches = { MAX_WIDTH, MAX_WIDTH, 0 },
 	}
 },
@@ -164,7 +169,8 @@ static struct drm_framebuffer_test createbuffer_tests[] = {
 },
 { .buffer_created = 0, .name = "NV12 Handle for inexistent plane",
 	.cmd = { .width = MAX_WIDTH, .height = MAX_HEIGHT, .pixel_format = DRM_FORMAT_NV12,
-		 .handles = { 1, 1, 1 }, .flags = DRM_MODE_FB_MODIFIERS, .pitches = { MAX_WIDTH, MAX_WIDTH, 0 },
+		 .handles = { 1, 1, 1 }, .flags = DRM_MODE_FB_MODIFIERS,
+		 .pitches = { MAX_WIDTH, MAX_WIDTH, 0 },
 	}
 },
 { .buffer_created = 1, .name = "NV12 Handle for inexistent plane without DRM_MODE_FB_MODIFIERS",
@@ -203,24 +209,29 @@ static struct drm_framebuffer_test createbuffer_tests[] = {
 },
 { .buffer_created = 1, .name = "YVU420 Different buffer offsets/pitches",
 	.cmd = { .width = MAX_WIDTH, .height = MAX_HEIGHT, .pixel_format = DRM_FORMAT_YVU420,
-		 .handles = { 1, 1, 1 }, .offsets = { MAX_WIDTH, MAX_WIDTH  + MAX_WIDTH * MAX_HEIGHT,
-						      MAX_WIDTH  + 2 * MAX_WIDTH * MAX_HEIGHT },
-		 .pitches = { MAX_WIDTH, DIV_ROUND_UP(MAX_WIDTH, 2) + 1, DIV_ROUND_UP(MAX_WIDTH, 2) + 7 },
+		 .handles = { 1, 1, 1 }, .offsets = { MAX_WIDTH, MAX_WIDTH  +
+			 MAX_WIDTH * MAX_HEIGHT, MAX_WIDTH  + 2 * MAX_WIDTH * MAX_HEIGHT },
+		 .pitches = { MAX_WIDTH, DIV_ROUND_UP(MAX_WIDTH, 2) + 1,
+			 DIV_ROUND_UP(MAX_WIDTH, 2) + 7 },
 	}
 },
-{ .buffer_created = 0, .name = "YVU420 Modifier set just for plane 0, without DRM_MODE_FB_MODIFIERS",
+{ .buffer_created = 0,
+	.name = "YVU420 Modifier set just for plane 0, without DRM_MODE_FB_MODIFIERS",
 	.cmd = { .width = MAX_WIDTH, .height = MAX_HEIGHT, .pixel_format = DRM_FORMAT_YVU420,
 		 .handles = { 1, 1, 1 }, .modifier = { AFBC_FORMAT_MOD_SPARSE, 0, 0 },
 		 .pitches = { MAX_WIDTH, DIV_ROUND_UP(MAX_WIDTH, 2), DIV_ROUND_UP(MAX_WIDTH, 2) },
 	}
 },
-{ .buffer_created = 0, .name = "YVU420 Modifier set just for planes 0, 1, without DRM_MODE_FB_MODIFIERS",
+{ .buffer_created = 0,
+	.name = "YVU420 Modifier set just for planes 0, 1, without DRM_MODE_FB_MODIFIERS",
 	.cmd = { .width = MAX_WIDTH, .height = MAX_HEIGHT, .pixel_format = DRM_FORMAT_YVU420,
-		 .handles = { 1, 1, 1 }, .modifier = { AFBC_FORMAT_MOD_SPARSE, AFBC_FORMAT_MOD_SPARSE, 0 },
+		 .handles = { 1, 1, 1 },
+		 .modifier = { AFBC_FORMAT_MOD_SPARSE, AFBC_FORMAT_MOD_SPARSE, 0 },
 		 .pitches = { MAX_WIDTH, DIV_ROUND_UP(MAX_WIDTH, 2), DIV_ROUND_UP(MAX_WIDTH, 2) },
 	}
 },
-{ .buffer_created = 0, .name = "YVU420 Modifier set just for plane 0, 1, with DRM_MODE_FB_MODIFIERS",
+{ .buffer_created = 0,
+	.name = "YVU420 Modifier set just for plane 0, 1, with DRM_MODE_FB_MODIFIERS",
 	.cmd = { .width = MAX_WIDTH, .height = MAX_HEIGHT, .pixel_format = DRM_FORMAT_YVU420,
 		 .handles = { 1, 1, 1 }, .flags = DRM_MODE_FB_MODIFIERS,
 		 .modifier = { AFBC_FORMAT_MOD_SPARSE, AFBC_FORMAT_MOD_SPARSE, 0 },
@@ -230,7 +241,8 @@ static struct drm_framebuffer_test createbuffer_tests[] = {
 { .buffer_created = 1, .name = "YVU420 Valid modifier",
 	.cmd = { .width = MAX_WIDTH, .height = MAX_HEIGHT, .pixel_format = DRM_FORMAT_YVU420,
 		 .handles = { 1, 1, 1 }, .flags = DRM_MODE_FB_MODIFIERS,
-		 .modifier = { AFBC_FORMAT_MOD_SPARSE, AFBC_FORMAT_MOD_SPARSE, AFBC_FORMAT_MOD_SPARSE },
+		 .modifier = { AFBC_FORMAT_MOD_SPARSE, AFBC_FORMAT_MOD_SPARSE,
+			 AFBC_FORMAT_MOD_SPARSE },
 		 .pitches = { MAX_WIDTH, DIV_ROUND_UP(MAX_WIDTH, 2), DIV_ROUND_UP(MAX_WIDTH, 2) },
 	}
 },
@@ -245,8 +257,8 @@ static struct drm_framebuffer_test createbuffer_tests[] = {
 { .buffer_created = 0, .name = "YVU420 Modifier for inexistent plane",
 	.cmd = { .width = MAX_WIDTH, .height = MAX_HEIGHT, .pixel_format = DRM_FORMAT_YVU420,
 		 .handles = { 1, 1, 1 }, .flags = DRM_MODE_FB_MODIFIERS,
-		 .modifier = { AFBC_FORMAT_MOD_SPARSE, AFBC_FORMAT_MOD_SPARSE, AFBC_FORMAT_MOD_SPARSE,
-			       AFBC_FORMAT_MOD_SPARSE },
+		 .modifier = { AFBC_FORMAT_MOD_SPARSE, AFBC_FORMAT_MOD_SPARSE,
+			 AFBC_FORMAT_MOD_SPARSE, AFBC_FORMAT_MOD_SPARSE },
 		 .pitches = { MAX_WIDTH, DIV_ROUND_UP(MAX_WIDTH, 2), DIV_ROUND_UP(MAX_WIDTH, 2) },
 	}
 },
@@ -276,7 +288,8 @@ static struct drm_framebuffer_test createbuffer_tests[] = {
 		 .pitches = { 2 * MAX_WIDTH + 1, 0, 0 }
 	}
 },
-{ .buffer_created = 1, .name = "X0L2 Offset for inexistent plane, without DRM_MODE_FB_MODIFIERS set",
+{ .buffer_created = 1,
+	.name = "X0L2 Offset for inexistent plane, without DRM_MODE_FB_MODIFIERS set",
 	.cmd = { .width = MAX_WIDTH, .height = MAX_HEIGHT, .pixel_format = DRM_FORMAT_X0L2,
 		 .handles = { 1, 0, 0 }, .offsets = { 0, 0, 3 },
 		 .pitches = { 2 * MAX_WIDTH + 1, 0, 0 }
@@ -336,15 +349,27 @@ static int execute_drm_mode_fb_cmd2(struct drm_mode_fb_cmd2 *r)
 	return buffer_created;
 }
 
-int igt_check_drm_framebuffer_create(void *ignored)
+static void igt_check_drm_framebuffer_create(struct kunit *test)
 {
 	int i = 0;
 
 	for (i = 0; i < ARRAY_SIZE(createbuffer_tests); i++) {
-		FAIL(createbuffer_tests[i].buffer_created !=
-				execute_drm_mode_fb_cmd2(&createbuffer_tests[i].cmd),
+		KUNIT_EXPECT_EQ_MSG(test, createbuffer_tests[i].buffer_created,
+				    execute_drm_mode_fb_cmd2(&createbuffer_tests[i].cmd),
 		     "Test %d: \"%s\" failed\n", i, createbuffer_tests[i].name);
 	}
-
-	return 0;
 }
+
+static struct kunit_case drm_framebuffer_tests[] = {
+	KUNIT_CASE(igt_check_drm_framebuffer_create),
+	{ }
+};
+
+static struct kunit_suite drm_framebuffer_test_suite = {
+	.name = "drm_framebuffer",
+	.test_cases = drm_framebuffer_tests,
+};
+
+kunit_test_suite(drm_framebuffer_test_suite);
+
+MODULE_LICENSE("GPL");

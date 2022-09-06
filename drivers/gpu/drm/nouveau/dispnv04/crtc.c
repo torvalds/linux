@@ -1275,6 +1275,12 @@ static const uint32_t modeset_formats[] = {
         DRM_FORMAT_XRGB1555,
 };
 
+static const struct drm_plane_funcs nv04_primary_plane_funcs = {
+	.update_plane = drm_plane_helper_update_primary,
+	.disable_plane = drm_plane_helper_disable_primary,
+	.destroy = drm_plane_helper_destroy,
+};
+
 static struct drm_plane *
 create_primary_plane(struct drm_device *dev)
 {
@@ -1289,7 +1295,7 @@ create_primary_plane(struct drm_device *dev)
 
         /* possible_crtc's will be filled in later by crtc_init */
         ret = drm_universal_plane_init(dev, primary, 0,
-                                       &drm_primary_helper_funcs,
+				       &nv04_primary_plane_funcs,
                                        modeset_formats,
                                        ARRAY_SIZE(modeset_formats), NULL,
                                        DRM_PLANE_TYPE_PRIMARY, NULL);

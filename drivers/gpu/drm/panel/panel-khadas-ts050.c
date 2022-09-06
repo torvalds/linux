@@ -830,7 +830,7 @@ static int khadas_ts050_panel_probe(struct mipi_dsi_device *dsi)
 	return err;
 }
 
-static int khadas_ts050_panel_remove(struct mipi_dsi_device *dsi)
+static void khadas_ts050_panel_remove(struct mipi_dsi_device *dsi)
 {
 	struct khadas_ts050_panel *khadas_ts050 = mipi_dsi_get_drvdata(dsi);
 	int err;
@@ -842,8 +842,6 @@ static int khadas_ts050_panel_remove(struct mipi_dsi_device *dsi)
 	drm_panel_remove(&khadas_ts050->base);
 	drm_panel_disable(&khadas_ts050->base);
 	drm_panel_unprepare(&khadas_ts050->base);
-
-	return 0;
 }
 
 static void khadas_ts050_panel_shutdown(struct mipi_dsi_device *dsi)

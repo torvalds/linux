@@ -12,7 +12,7 @@
 
 #include <linux/types.h>
 
-struct drm_gem_cma_object;
+struct drm_gem_dma_object;
 struct shmob_drm_device;
 
 struct shmob_drm_format_info {
