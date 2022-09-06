@@ -21714,7 +21714,7 @@ L:	linux-rdma@vger.kernel.org
 S:	Maintained
 F:	drivers/infiniband/hw/vmw_pvrdma/
 
-VMware PVSCSI driver
+VMWARE PVSCSI DRIVER
 M:	Vishal Bhakta <vbhakta@vmware.com>
 R:	VMware PV-Drivers Reviewers <pv-drivers@vmware.com>
 L:	linux-scsi@vger.kernel.org
