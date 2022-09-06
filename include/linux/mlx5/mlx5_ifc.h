@@ -3310,8 +3310,8 @@ enum {
 	MLX5_FLOW_CONTEXT_ACTION_VLAN_PUSH = 0x100,
 	MLX5_FLOW_CONTEXT_ACTION_VLAN_POP_2  = 0x400,
 	MLX5_FLOW_CONTEXT_ACTION_VLAN_PUSH_2 = 0x800,
-	MLX5_FLOW_CONTEXT_ACTION_IPSEC_DECRYPT = 0x1000,
-	MLX5_FLOW_CONTEXT_ACTION_IPSEC_ENCRYPT = 0x2000,
+	MLX5_FLOW_CONTEXT_ACTION_CRYPTO_DECRYPT = 0x1000,
+	MLX5_FLOW_CONTEXT_ACTION_CRYPTO_ENCRYPT = 0x2000,
 	MLX5_FLOW_CONTEXT_ACTION_EXECUTE_ASO = 0x4000,
 };
 
@@ -3319,6 +3319,10 @@ enum {
 	MLX5_FLOW_CONTEXT_FLOW_SOURCE_ANY_VPORT         = 0x0,
 	MLX5_FLOW_CONTEXT_FLOW_SOURCE_UPLINK            = 0x1,
 	MLX5_FLOW_CONTEXT_FLOW_SOURCE_LOCAL_VPORT       = 0x2,
+};
+
+enum {
+	MLX5_FLOW_CONTEXT_ENCRYPT_DECRYPT_TYPE_IPSEC   = 0x0,
 };
 
 struct mlx5_ifc_vlan_bits {
@@ -3374,7 +3378,7 @@ struct mlx5_ifc_flow_context_bits {
 	u8         extended_destination[0x1];
 	u8         reserved_at_81[0x1];
 	u8         flow_source[0x2];
-	u8         reserved_at_84[0x4];
+	u8         encrypt_decrypt_type[0x4];
 	u8         destination_list_size[0x18];
 
 	u8         reserved_at_a0[0x8];
@@ -3386,7 +3390,7 @@ struct mlx5_ifc_flow_context_bits {
 
 	struct mlx5_ifc_vlan_bits push_vlan_2;
 
-	u8         ipsec_obj_id[0x20];
+	u8         encrypt_decrypt_obj_id[0x20];
 	u8         reserved_at_140[0xc0];
 
 	struct mlx5_ifc_fte_match_param_bits match_value;

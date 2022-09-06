@@ -243,9 +243,10 @@ struct mlx5_flow_act {
 	u32 action;
 	struct mlx5_modify_hdr  *modify_hdr;
 	struct mlx5_pkt_reformat *pkt_reformat;
-	union {
-		u32 ipsec_obj_id;
-	};
+	struct mlx5_flow_act_crypto_params {
+		u8 type;
+		u32 obj_id;
+	} crypto;
 	u32 flags;
 	struct mlx5_fs_vlan vlan[MLX5_FS_VLAN_DEPTH];
 	struct ib_counters *counters;
