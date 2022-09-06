@@ -24,6 +24,20 @@ int can_sjw_check(const struct net_device *dev, const struct can_bittiming *bt,
 		return -EINVAL;
 	}
 
+	if (bt->sjw > bt->phase_seg1) {
+		NL_SET_ERR_MSG_FMT(extack,
+				   "sjw: %u greater than phase-seg1: %u",
+				   bt->sjw, bt->phase_seg1);
+		return -EINVAL;
+	}
+
+	if (bt->sjw > bt->phase_seg2) {
+		NL_SET_ERR_MSG_FMT(extack,
+				   "sjw: %u greater than phase-seg2: %u",
+				   bt->sjw, bt->phase_seg2);
+		return -EINVAL;
+	}
+
 	return 0;
 }
 
