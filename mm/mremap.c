@@ -975,20 +975,23 @@ SYSCALL_DEFINE5(mremap, unsigned long, addr, unsigned long, old_len,
 	/*
 	 * Always allow a shrinking remap: that just unmaps
 	 * the unnecessary pages..
-	 * __do_munmap does all the needed commit accounting, and
+	 * do_mas_munmap does all the needed commit accounting, and
 	 * downgrades mmap_lock to read if so directed.
 	 */
 	if (old_len >= new_len) {
 		int retval;
+		MA_STATE(mas, &mm->mm_mt, addr + new_len, addr + new_len);
 
-		retval = __do_munmap(mm, addr+new_len, old_len - new_len,
-				  &uf_unmap, true);
-		if (retval < 0 && old_len != new_len) {
+		retval = do_mas_munmap(&mas, mm, addr + new_len,
+				       old_len - new_len, &uf_unmap, true);
+		/* Returning 1 indicates mmap_lock is downgraded to read. */
+		if (retval == 1) {
+			downgraded = true;
+		} else if (retval < 0 && old_len != new_len) {
 			ret = retval;
 			goto out;
-		/* Returning 1 indicates mmap_lock is downgraded to read. */
-		} else if (retval == 1)
-			downgraded = true;
+		}
+
 		ret = addr;
 		goto out;
 	}
