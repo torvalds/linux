@@ -2,6 +2,7 @@
 /* Copyright (c) 2021 Facebook */
 #include <test_progs.h>
 #include <network_helpers.h>
+#include "kfunc_call_fail.skel.h"
 #include "kfunc_call_test.skel.h"
 #include "kfunc_call_test.lskel.h"
 #include "kfunc_call_test_subprog.skel.h"
@@ -10,37 +11,96 @@
 
 #include "cap_helpers.h"
 
+static size_t log_buf_sz = 1048576; /* 1 MB */
+static char obj_log_buf[1048576];
+
+enum kfunc_test_type {
+	tc_test = 0,
+	syscall_test,
+	syscall_null_ctx_test,
+};
+
 struct kfunc_test_params {
 	const char *prog_name;
 	unsigned long lskel_prog_desc_offset;
 	int retval;
+	enum kfunc_test_type test_type;
+	const char *expected_err_msg;
 };
 
-#define TC_TEST(name, __retval) \
+#define __BPF_TEST_SUCCESS(name, __retval, type) \
 	{ \
 	  .prog_name = #name, \
 	  .lskel_prog_desc_offset = offsetof(struct kfunc_call_test_lskel, progs.name), \
 	  .retval = __retval, \
+	  .test_type = type, \
+	  .expected_err_msg = NULL, \
 	}
 
+#define __BPF_TEST_FAIL(name, __retval, type, error_msg) \
+	{ \
+	  .prog_name = #name, \
+	  .lskel_prog_desc_offset = 0 /* unused when test is failing */, \
+	  .retval = __retval, \
+	  .test_type = type, \
+	  .expected_err_msg = error_msg, \
+	}
+
+#define TC_TEST(name, retval) __BPF_TEST_SUCCESS(name, retval, tc_test)
+#define SYSCALL_TEST(name, retval) __BPF_TEST_SUCCESS(name, retval, syscall_test)
+#define SYSCALL_NULL_CTX_TEST(name, retval) __BPF_TEST_SUCCESS(name, retval, syscall_null_ctx_test)
+
+#define SYSCALL_NULL_CTX_FAIL(name, retval, error_msg) \
+	__BPF_TEST_FAIL(name, retval, syscall_null_ctx_test, error_msg)
+
 static struct kfunc_test_params kfunc_tests[] = {
+	/* failure cases:
+	 * if retval is 0 -> the program will fail to load and the error message is an error
+	 * if retval is not 0 -> the program can be loaded but running it will gives the
+	 *                       provided return value. The error message is thus the one
+	 *                       from a successful load
+	 */
+	SYSCALL_NULL_CTX_FAIL(kfunc_syscall_test_fail, -EINVAL, "processed 4 insns"),
+	SYSCALL_NULL_CTX_FAIL(kfunc_syscall_test_null_fail, -EINVAL, "processed 4 insns"),
+
+	/* success cases */
 	TC_TEST(kfunc_call_test1, 12),
 	TC_TEST(kfunc_call_test2, 3),
 	TC_TEST(kfunc_call_test_ref_btf_id, 0),
+	SYSCALL_TEST(kfunc_syscall_test, 0),
+	SYSCALL_NULL_CTX_TEST(kfunc_syscall_test_null, 0),
+};
+
+struct syscall_test_args {
+	__u8 data[16];
+	size_t size;
 };
 
 static void verify_success(struct kfunc_test_params *param)
 {
 	struct kfunc_call_test_lskel *lskel = NULL;
+	LIBBPF_OPTS(bpf_test_run_opts, topts);
 	struct bpf_prog_desc *lskel_prog;
 	struct kfunc_call_test *skel;
 	struct bpf_program *prog;
 	int prog_fd, err;
-	LIBBPF_OPTS(bpf_test_run_opts, topts,
-		.data_in = &pkt_v4,
-		.data_size_in = sizeof(pkt_v4),
-		.repeat = 1,
-	);
+	struct syscall_test_args args = {
+		.size = 10,
+	};
+
+	switch (param->test_type) {
+	case syscall_test:
+		topts.ctx_in = &args;
+		topts.ctx_size_in = sizeof(args);
+		/* fallthrough */
+	case syscall_null_ctx_test:
+		break;
+	case tc_test:
+		topts.data_in = &pkt_v4;
+		topts.data_size_in = sizeof(pkt_v4);
+		topts.repeat = 1;
+		break;
+	}
 
 	/* first test with normal libbpf */
 	skel = kfunc_call_test__open_and_load();
@@ -79,6 +139,72 @@ cleanup:
 		kfunc_call_test_lskel__destroy(lskel);
 }
 
+static void verify_fail(struct kfunc_test_params *param)
+{
+	LIBBPF_OPTS(bpf_object_open_opts, opts);
+	LIBBPF_OPTS(bpf_test_run_opts, topts);
+	struct bpf_program *prog;
+	struct kfunc_call_fail *skel;
+	int prog_fd, err;
+	struct syscall_test_args args = {
+		.size = 10,
+	};
+
+	opts.kernel_log_buf = obj_log_buf;
+	opts.kernel_log_size = log_buf_sz;
+	opts.kernel_log_level = 1;
+
+	switch (param->test_type) {
+	case syscall_test:
+		topts.ctx_in = &args;
+		topts.ctx_size_in = sizeof(args);
+		/* fallthrough */
+	case syscall_null_ctx_test:
+		break;
+	case tc_test:
+		topts.data_in = &pkt_v4;
+		topts.data_size_in = sizeof(pkt_v4);
+		break;
+		topts.repeat = 1;
+	}
+
+	skel = kfunc_call_fail__open_opts(&opts);
+	if (!ASSERT_OK_PTR(skel, "kfunc_call_fail__open_opts"))
+		goto cleanup;
+
+	prog = bpf_object__find_program_by_name(skel->obj, param->prog_name);
+	if (!ASSERT_OK_PTR(prog, "bpf_object__find_program_by_name"))
+		goto cleanup;
+
+	bpf_program__set_autoload(prog, true);
+
+	err = kfunc_call_fail__load(skel);
+	if (!param->retval) {
+		/* the verifier is supposed to complain and refuses to load */
+		if (!ASSERT_ERR(err, "unexpected load success"))
+			goto out_err;
+
+	} else {
+		/* the program is loaded but must dynamically fail */
+		if (!ASSERT_OK(err, "unexpected load error"))
+			goto out_err;
+
+		prog_fd = bpf_program__fd(prog);
+		err = bpf_prog_test_run_opts(prog_fd, &topts);
+		if (!ASSERT_EQ(err, param->retval, param->prog_name))
+			goto out_err;
+	}
+
+out_err:
+	if (!ASSERT_OK_PTR(strstr(obj_log_buf, param->expected_err_msg), "expected_err_msg")) {
+		fprintf(stderr, "Expected err_msg: %s\n", param->expected_err_msg);
+		fprintf(stderr, "Verifier output: %s\n", obj_log_buf);
+	}
+
+cleanup:
+	kfunc_call_fail__destroy(skel);
+}
+
 static void test_main(void)
 {
 	int i;
@@ -87,7 +213,10 @@ static void test_main(void)
 		if (!test__start_subtest(kfunc_tests[i].prog_name))
 			continue;
 
-		verify_success(&kfunc_tests[i]);
+		if (!kfunc_tests[i].expected_err_msg)
+			verify_success(&kfunc_tests[i]);
+		else
+			verify_fail(&kfunc_tests[i]);
 	}
 }
 
