@@ -280,7 +280,7 @@ static int st_lsm6dsrx_set_6D_threshold(struct st_lsm6dsrx_hw *hw,
 		return -EINVAL;
 
 	err = st_lsm6dsrx_write_with_mask_locked(hw,
-				     ST_LSM6DSRX_REG_THS_6D_ADDR,
+				     ST_LSM6DSRX_REG_TAP_THS_6D_ADDR,
 				     ST_LSM6DSRX_SIXD_THS_MASK,
 				     st_lsm6dsrx_6D_threshold[i].val);
 	if (err < 0)
@@ -342,7 +342,7 @@ st_lsm6dsrx_event_sensor_set_enable(struct st_lsm6dsrx_sensor *sensor,
 
 	if (err >= 0) {
 		err = st_lsm6dsrx_write_with_mask_locked(hw,
-				   ST_LSM6DSRX_REG_INT_CFG1_ADDR,
+				   ST_LSM6DSRX_REG_TAP_CFG2_ADDR,
 				   ST_LSM6DSRX_INTERRUPTS_ENABLE_MASK,
 				   eint);
 		if (eint == 0)
