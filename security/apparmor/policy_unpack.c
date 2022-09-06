@@ -1150,11 +1150,37 @@ static bool verify_dfa_xindex(struct aa_dfa *dfa, int table_size)
 	return true;
 }
 
-static bool verify_perm_indexes(struct aa_policydb *pdb)
+static bool verify_perm(struct aa_perms *perm)
+{
+	/* TODO: allow option to just force the perms into a valid state */
+	if (perm->allow & perm->deny)
+		return false;
+	if (perm->subtree & ~perm->allow)
+		return false;
+	if (perm->cond & (perm->allow | perm->deny))
+		return false;
+	if (perm->kill & perm->allow)
+		return false;
+	if (perm->complain & (perm->allow | perm->deny))
+		return false;
+	if (perm->prompt & (perm->allow | perm->deny))
+		return false;
+	if (perm->complain & perm->prompt)
+		return false;
+	if (perm->hide & perm->allow)
+		return false;
+
+	return true;
+}
+
+static bool verify_perms(struct aa_policydb *pdb)
 {
 	int i;
 
 	for (i = 0; i < pdb->size; i++) {
+		if (!verify_perm(&pdb->perms[i]))
+			return false;
+		/* verify indexes into str table */
 		if (pdb->perms[i].xindex >= pdb->trans.size)
 			return false;
 		if (pdb->perms[i].tag >= pdb->trans.size)
@@ -1187,17 +1213,17 @@ static int verify_profile(struct aa_profile *profile)
 		return -EPROTO;
 	}
 
-	if (!verify_perm_indexes(&profile->file)) {
+	if (!verify_perms(&profile->file)) {
 		audit_iface(profile, NULL, NULL,
 			    "Unpack: Invalid perm index", NULL, -EPROTO);
 		return -EPROTO;
 	}
-	if (!verify_perm_indexes(&profile->policy)) {
+	if (!verify_perms(&profile->policy)) {
 		audit_iface(profile, NULL, NULL,
 			    "Unpack: Invalid perm index", NULL, -EPROTO);
 		return -EPROTO;
 	}
-	if (!verify_perm_indexes(&profile->xmatch)) {
+	if (!verify_perms(&profile->xmatch)) {
 		audit_iface(profile, NULL, NULL,
 			    "Unpack: Invalid perm index", NULL, -EPROTO);
 		return -EPROTO;
