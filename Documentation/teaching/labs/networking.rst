@@ -23,7 +23,7 @@ non-networked operating system due to the need for connectivity. Modern operatin
 systems use the `TCP/IP stack
 <https://en.wikipedia.org/wiki/Internet_protocol_suite>`_. Their kernel
 implements protocols up to the transport layer, while application layer protocols
-are tipically implemented in user space (HTTP, FTP, SSH, etc.).
+are typically implemented in user space (HTTP, FTP, SSH, etc.).
 
 Networking in user space
 ------------------------
