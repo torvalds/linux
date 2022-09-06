@@ -629,6 +629,10 @@
 #define HDMI_MODE_MASK BIT(30)
 #define HDMI_EARC_MASK BIT(29)
 
+#define FRL_8G_4LANES 3200000000ULL
+#define FRL_6G_3LANES 1800000000
+#define FRL_3G_3LANES 900000000
+
 enum hdptx_combphy_type {
 	SS_HDMI,
 	SS_DP
@@ -733,8 +737,14 @@ struct lcpll_config lcpll_cfg[] = {
 	{ 40000000, 1, 1, 0, 0x68, 0x68, 1, 1, 0, 0, 0, 1, 1, 1, 1, 9, 0, 1, 1,
 		0, 2, 3, 1, 0, 0x20, 0x0c, 1, 0,
 	},
-	{ 32000000, 1, 1, 1, 0x6b, 0x6b, 1, 1, 0, 1, 2, 1, 1, 1, 1, 9, 1, 2, 1,
-		0, 0x0d, 0x18, 1, 0, 0x20, 0x0c, 1, 1,
+	{ 24000000, 1, 0, 0, 0x7d, 0x7d, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 0, 0, 2,
+		0, 0x13, 0x18, 1, 0, 0x20, 0x0c, 1, 0,
+	},
+	{ 18000000, 1, 0, 0, 0x7d, 0x7d, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 0, 0, 2,
+		0, 0x13, 0x18, 1, 0, 0x20, 0x0c, 1, 0,
+	},
+	{ 9000000, 1, 0, 0, 0x7d, 0x7d, 1, 1, 3, 0, 0, 0, 0, 1, 1, 1, 0, 0, 2,
+		0, 0x13, 0x18, 1, 0, 0x20, 0x0c, 1, 0,
 	},
 	{ ~0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 		0, 0, 0, 0, 0, 0,
@@ -917,7 +927,11 @@ static int hdptx_post_enable_lane(struct rockchip_hdptx_phy *hdptx)
 		HDPTX_I_BGR_EN;
 	hdptx_grf_write(hdptx, GRF_HDPTX_CON0, val);
 
-	hdptx_write(hdptx, LNTOP_REG0207, 0x0f);
+	/* 3 lanes frl mode */
+	if (hdptx->rate == FRL_6G_3LANES || hdptx->rate == FRL_3G_3LANES)
+		hdptx_write(hdptx, LNTOP_REG0207, 0x07);
+	else
+		hdptx_write(hdptx, LNTOP_REG0207, 0x0f);
 
 	for (i = 0; i < 50; i++) {
 		val = hdptx_grf_read(hdptx, GRF_HDPTX_STATUS);
@@ -1993,7 +2007,7 @@ static int rockchip_hdptx_phy_power_on(struct phy *phy)
 		hdptx->earc_en = false;
 
 	if (bus_width & HDMI_MODE_MASK)
-		if (bit_rate > 24000000)
+		if (bit_rate != (FRL_8G_4LANES / 100))
 			return hdptx_lcpll_frl_mode_config(hdptx, bus_width);
 		else
 			return hdptx_ropll_frl_mode_config(hdptx, bus_width);
