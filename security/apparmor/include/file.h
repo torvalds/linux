@@ -88,10 +88,10 @@ static inline struct aa_label *aa_get_file_label(struct aa_file_ctx *ctx)
  * - exec type - which determines how the executable name and index are used
  * - flags - which modify how the destination name is applied
  */
-#define AA_X_INDEX_MASK		0x00ffffff
+#define AA_X_INDEX_MASK		AA_INDEX_MASK
 
 #define AA_X_TYPE_MASK		0x0c000000
-#define AA_X_NONE		0x00000000
+#define AA_X_NONE		AA_INDEX_NONE
 #define AA_X_NAME		0x04000000 /* use executable name px */
 #define AA_X_TABLE		0x08000000 /* use a specified name ->n# */
 

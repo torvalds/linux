@@ -78,10 +78,19 @@ struct aa_perms {
 	u32 quiet;	/* set only when ~allow | deny */
 	u32 hide;	/* set only when  ~allow | deny */
 
+
 	u32 xindex;
 	u32 tag;	/* tag string index, if present */
 	u32 label;	/* label string index, if present */
 };
+
+/*
+ * Indexes are broken into a 24 bit index and 8 bit flag.
+ * For the index to be valid there must be a value in the flag
+ */
+#define AA_INDEX_MASK			0x00ffffff
+#define AA_INDEX_FLAG_MASK		0xff000000
+#define AA_INDEX_NONE			0
 
 #define ALL_PERMS_MASK 0xffffffff
 extern struct aa_perms nullperms;

@@ -348,6 +348,13 @@ void aa_perms_accum_raw(struct aa_perms *accum, struct aa_perms *addend)
 	accum->hide &= addend->hide & ~addend->allow;
 	accum->prompt |= addend->prompt & ~addend->allow & ~addend->deny;
 	accum->subtree |= addend->subtree & ~addend->deny;
+
+	if (!accum->xindex)
+		accum->xindex = addend->xindex;
+	if (!accum->tag)
+		accum->tag = addend->tag;
+	if (!accum->label)
+		accum->label = addend->label;
 }
 
 /**
@@ -367,6 +374,13 @@ void aa_perms_accum(struct aa_perms *accum, struct aa_perms *addend)
 	accum->hide &= addend->hide & ~accum->allow;
 	accum->prompt |= addend->prompt & ~accum->allow & ~accum->deny;
 	accum->subtree &= addend->subtree & ~accum->deny;
+
+	if (!accum->xindex)
+		accum->xindex = addend->xindex;
+	if (!accum->tag)
+		accum->tag = addend->tag;
+	if (!accum->label)
+		accum->label = addend->label;
 }
 
 void aa_profile_match_label(struct aa_profile *profile, struct aa_label *label,
