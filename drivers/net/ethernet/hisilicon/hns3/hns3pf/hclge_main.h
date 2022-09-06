@@ -216,6 +216,7 @@ enum HCLGE_DEV_STATE {
 	HCLGE_STATE_FD_USER_DEF_CHANGED,
 	HCLGE_STATE_PTP_EN,
 	HCLGE_STATE_PTP_TX_HANDLING,
+	HCLGE_STATE_FEC_STATS_UPDATING,
 	HCLGE_STATE_MAX
 };
 
@@ -491,6 +492,26 @@ struct hclge_mac_stats {
 };
 
 #define HCLGE_STATS_TIMER_INTERVAL	300UL
+
+/* fec stats ,opcode id: 0x0316 */
+#define HCLGE_FEC_STATS_MAX_LANES	8
+struct hclge_fec_stats {
+	/* fec rs mode total stats */
+	u64 rs_corr_blocks;
+	u64 rs_uncorr_blocks;
+	u64 rs_error_blocks;
+	/* fec base-r mode per lanes stats */
+	u64 base_r_lane_num;
+	u64 base_r_corr_blocks;
+	u64 base_r_uncorr_blocks;
+	union {
+		struct {
+			u64 base_r_corr_per_lanes[HCLGE_FEC_STATS_MAX_LANES];
+			u64 base_r_uncorr_per_lanes[HCLGE_FEC_STATS_MAX_LANES];
+		};
+		u64 per_lanes[HCLGE_FEC_STATS_MAX_LANES * 2];
+	};
+};
 
 struct hclge_vlan_type_cfg {
 	u16 rx_ot_fst_vlan_type;
@@ -830,6 +851,7 @@ struct hclge_dev {
 	struct hclge_hw hw;
 	struct hclge_misc_vector misc_vector;
 	struct hclge_mac_stats mac_stats;
+	struct hclge_fec_stats fec_stats;
 	unsigned long state;
 	unsigned long flr_state;
 	unsigned long last_reset_time;

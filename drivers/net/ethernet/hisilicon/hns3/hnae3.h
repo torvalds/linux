@@ -97,6 +97,7 @@ enum HNAE3_DEV_CAP_BITS {
 	HNAE3_DEV_SUPPORT_VLAN_FLTR_MDF_B,
 	HNAE3_DEV_SUPPORT_MC_MAC_MNG_B,
 	HNAE3_DEV_SUPPORT_CQ_B,
+	HNAE3_DEV_SUPPORT_FEC_STATS_B,
 };
 
 #define hnae3_ae_dev_fd_supported(ae_dev) \
@@ -158,6 +159,9 @@ enum HNAE3_DEV_CAP_BITS {
 
 #define hnae3_ae_dev_cq_supported(ae_dev) \
 	test_bit(HNAE3_DEV_SUPPORT_CQ_B, (ae_dev)->caps)
+
+#define hnae3_ae_dev_fec_stats_supported(ae_dev) \
+	test_bit(HNAE3_DEV_SUPPORT_FEC_STATS_B, (ae_dev)->caps)
 
 enum HNAE3_PF_CAP_BITS {
 	HNAE3_PF_SUPPORT_VLAN_FLTR_MDF_B = 0,
@@ -576,6 +580,8 @@ struct hnae3_ae_ops {
 	void (*get_media_type)(struct hnae3_handle *handle, u8 *media_type,
 			       u8 *module_type);
 	int (*check_port_speed)(struct hnae3_handle *handle, u32 speed);
+	void (*get_fec_stats)(struct hnae3_handle *handle,
+			      struct ethtool_fec_stats *fec_stats);
 	void (*get_fec)(struct hnae3_handle *handle, u8 *fec_ability,
 			u8 *fec_mode);
 	int (*set_fec)(struct hnae3_handle *handle, u32 fec_mode);

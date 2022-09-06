@@ -367,6 +367,20 @@ struct hclge_config_fec_cmd {
 	u8 rsv[22];
 };
 
+#define HCLGE_FEC_STATS_CMD_NUM 4
+
+struct hclge_query_fec_stats_cmd {
+	/* fec rs mode total stats */
+	__le32 rs_fec_corr_blocks;
+	__le32 rs_fec_uncorr_blocks;
+	__le32 rs_fec_error_blocks;
+	/* fec base-r mode per lanes stats */
+	u8 base_r_lane_num;
+	u8 rsv[3];
+	__le32 base_r_fec_corr_blocks;
+	__le32 base_r_fec_uncorr_blocks;
+};
+
 #define HCLGE_MAC_UPLINK_PORT		0x100
 
 struct hclge_config_max_frm_size_cmd {

@@ -1612,6 +1612,19 @@ static void hns3_set_msglevel(struct net_device *netdev, u32 msg_level)
 	h->msg_enable = msg_level;
 }
 
+static void hns3_get_fec_stats(struct net_device *netdev,
+			       struct ethtool_fec_stats *fec_stats)
+{
+	struct hnae3_handle *handle = hns3_get_handle(netdev);
+	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(handle->pdev);
+	const struct hnae3_ae_ops *ops = handle->ae_algo->ops;
+
+	if (!hnae3_ae_dev_fec_stats_supported(ae_dev) || !ops->get_fec_stats)
+		return;
+
+	ops->get_fec_stats(handle, fec_stats);
+}
+
 /* Translate local fec value into ethtool value. */
 static unsigned int loc_to_eth_fec(u8 loc_fec)
 {
@@ -2084,6 +2097,7 @@ static const struct ethtool_ops hns3_ethtool_ops = {
 	.set_msglevel = hns3_set_msglevel,
 	.get_fecparam = hns3_get_fecparam,
 	.set_fecparam = hns3_set_fecparam,
+	.get_fec_stats = hns3_get_fec_stats,
 	.get_module_info = hns3_get_module_info,
 	.get_module_eeprom = hns3_get_module_eeprom,
 	.get_priv_flags = hns3_get_priv_flags,

@@ -71,6 +71,7 @@ static void hclge_sync_mac_table(struct hclge_dev *hdev);
 static void hclge_restore_hw_table(struct hclge_dev *hdev);
 static void hclge_sync_promisc_mode(struct hclge_dev *hdev);
 static void hclge_sync_fd_table(struct hclge_dev *hdev);
+static void hclge_update_fec_stats(struct hclge_dev *hdev);
 
 static struct hnae3_ae_algo ae_algo;
 
@@ -678,6 +679,8 @@ static void hclge_update_stats_for_all(struct hclge_dev *hdev)
 				status);
 		}
 	}
+
+	hclge_update_fec_stats(hdev);
 
 	status = hclge_mac_update_stats(hdev);
 	if (status)
@@ -2751,6 +2754,157 @@ static int hclge_halt_autoneg(struct hnae3_handle *handle, bool halt)
 		return hclge_set_autoneg_en(hdev, !halt);
 
 	return 0;
+}
+
+static void hclge_parse_fec_stats_lanes(struct hclge_dev *hdev,
+					struct hclge_desc *desc, u32 desc_len)
+{
+	u32 lane_size = HCLGE_FEC_STATS_MAX_LANES * 2;
+	u32 desc_index = 0;
+	u32 data_index = 0;
+	u32 i;
+
+	for (i = 0; i < lane_size; i++) {
+		if (data_index >= HCLGE_DESC_DATA_LEN) {
+			desc_index++;
+			data_index = 0;
+		}
+
+		if (desc_index >= desc_len)
+			return;
+
+		hdev->fec_stats.per_lanes[i] +=
+			le32_to_cpu(desc[desc_index].data[data_index]);
+		data_index++;
+	}
+}
+
+static void hclge_parse_fec_stats(struct hclge_dev *hdev,
+				  struct hclge_desc *desc, u32 desc_len)
+{
+	struct hclge_query_fec_stats_cmd *req;
+
+	req = (struct hclge_query_fec_stats_cmd *)desc[0].data;
+
+	hdev->fec_stats.base_r_lane_num = req->base_r_lane_num;
+	hdev->fec_stats.rs_corr_blocks +=
+		le32_to_cpu(req->rs_fec_corr_blocks);
+	hdev->fec_stats.rs_uncorr_blocks +=
+		le32_to_cpu(req->rs_fec_uncorr_blocks);
+	hdev->fec_stats.rs_error_blocks +=
+		le32_to_cpu(req->rs_fec_error_blocks);
+	hdev->fec_stats.base_r_corr_blocks +=
+		le32_to_cpu(req->base_r_fec_corr_blocks);
+	hdev->fec_stats.base_r_uncorr_blocks +=
+		le32_to_cpu(req->base_r_fec_uncorr_blocks);
+
+	hclge_parse_fec_stats_lanes(hdev, &desc[1], desc_len - 1);
+}
+
+static int hclge_update_fec_stats_hw(struct hclge_dev *hdev)
+{
+	struct hclge_desc desc[HCLGE_FEC_STATS_CMD_NUM];
+	int ret;
+	u32 i;
+
+	for (i = 0; i < HCLGE_FEC_STATS_CMD_NUM; i++) {
+		hclge_cmd_setup_basic_desc(&desc[i], HCLGE_OPC_QUERY_FEC_STATS,
+					   true);
+		if (i != (HCLGE_FEC_STATS_CMD_NUM - 1))
+			desc[i].flag |= cpu_to_le16(HCLGE_COMM_CMD_FLAG_NEXT);
+	}
+
+	ret = hclge_cmd_send(&hdev->hw, desc, HCLGE_FEC_STATS_CMD_NUM);
+	if (ret)
+		return ret;
+
+	hclge_parse_fec_stats(hdev, desc, HCLGE_FEC_STATS_CMD_NUM);
+
+	return 0;
+}
+
+static void hclge_update_fec_stats(struct hclge_dev *hdev)
+{
+	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(hdev->pdev);
+	int ret;
+
+	if (!hnae3_ae_dev_fec_stats_supported(ae_dev) ||
+	    test_and_set_bit(HCLGE_STATE_FEC_STATS_UPDATING, &hdev->state))
+		return;
+
+	ret = hclge_update_fec_stats_hw(hdev);
+	if (ret)
+		dev_err(&hdev->pdev->dev,
+			"failed to update fec stats, ret = %d\n", ret);
+
+	clear_bit(HCLGE_STATE_FEC_STATS_UPDATING, &hdev->state);
+}
+
+static void hclge_get_fec_stats_total(struct hclge_dev *hdev,
+				      struct ethtool_fec_stats *fec_stats)
+{
+	fec_stats->corrected_blocks.total = hdev->fec_stats.rs_corr_blocks;
+	fec_stats->uncorrectable_blocks.total =
+		hdev->fec_stats.rs_uncorr_blocks;
+}
+
+static void hclge_get_fec_stats_lanes(struct hclge_dev *hdev,
+				      struct ethtool_fec_stats *fec_stats)
+{
+	u32 i;
+
+	if (hdev->fec_stats.base_r_lane_num == 0 ||
+	    hdev->fec_stats.base_r_lane_num > HCLGE_FEC_STATS_MAX_LANES) {
+		dev_err(&hdev->pdev->dev,
+			"fec stats lane number(%llu) is invalid\n",
+			hdev->fec_stats.base_r_lane_num);
+		return;
+	}
+
+	for (i = 0; i < hdev->fec_stats.base_r_lane_num; i++) {
+		fec_stats->corrected_blocks.lanes[i] =
+			hdev->fec_stats.base_r_corr_per_lanes[i];
+		fec_stats->uncorrectable_blocks.lanes[i] =
+			hdev->fec_stats.base_r_uncorr_per_lanes[i];
+	}
+}
+
+static void hclge_comm_get_fec_stats(struct hclge_dev *hdev,
+				     struct ethtool_fec_stats *fec_stats)
+{
+	u32 fec_mode = hdev->hw.mac.fec_mode;
+
+	switch (fec_mode) {
+	case BIT(HNAE3_FEC_RS):
+	case BIT(HNAE3_FEC_LLRS):
+		hclge_get_fec_stats_total(hdev, fec_stats);
+		break;
+	case BIT(HNAE3_FEC_BASER):
+		hclge_get_fec_stats_lanes(hdev, fec_stats);
+		break;
+	default:
+		dev_err(&hdev->pdev->dev,
+			"fec stats is not supported by current fec mode(0x%x)\n",
+			fec_mode);
+		break;
+	}
+}
+
+static void hclge_get_fec_stats(struct hnae3_handle *handle,
+				struct ethtool_fec_stats *fec_stats)
+{
+	struct hclge_vport *vport = hclge_get_vport(handle);
+	struct hclge_dev *hdev = vport->back;
+	u32 fec_mode = hdev->hw.mac.fec_mode;
+
+	if (fec_mode == BIT(HNAE3_FEC_NONE) ||
+	    fec_mode == BIT(HNAE3_FEC_AUTO) ||
+	    fec_mode == BIT(HNAE3_FEC_USER_DEF))
+		return;
+
+	hclge_update_fec_stats(hdev);
+
+	hclge_comm_get_fec_stats(hdev, fec_stats);
 }
 
 static int hclge_set_fec_hw(struct hclge_dev *hdev, u32 fec_mode)
@@ -11552,6 +11706,7 @@ out:
 static void hclge_stats_clear(struct hclge_dev *hdev)
 {
 	memset(&hdev->mac_stats, 0, sizeof(hdev->mac_stats));
+	memset(&hdev->fec_stats, 0, sizeof(hdev->fec_stats));
 }
 
 static int hclge_set_mac_spoofchk(struct hclge_dev *hdev, int vf, bool enable)
@@ -12846,6 +13001,7 @@ static const struct hnae3_ae_ops hclge_ops = {
 	.cfg_mac_speed_dup_h = hclge_cfg_mac_speed_dup_h,
 	.get_media_type = hclge_get_media_type,
 	.check_port_speed = hclge_check_port_speed,
+	.get_fec_stats = hclge_get_fec_stats,
 	.get_fec = hclge_get_fec,
 	.set_fec = hclge_set_fec,
 	.get_rss_key_size = hclge_comm_get_rss_key_size,

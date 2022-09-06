@@ -402,6 +402,9 @@ static struct hns3_dbg_cap_info hns3_dbg_cap[] = {
 	}, {
 		.name = "support modify vlan filter state",
 		.cap_bit = HNAE3_DEV_SUPPORT_VLAN_FLTR_MDF_B,
+	}, {
+		.name = "support FEC statistics",
+		.cap_bit = HNAE3_DEV_SUPPORT_FEC_STATS_B,
 	}
 };
 
