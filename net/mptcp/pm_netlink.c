@@ -796,7 +796,7 @@ static void mptcp_pm_nl_rm_addr_or_subflow(struct mptcp_sock *msk,
 		u8 rm_id = rm_list->ids[i];
 		bool removed = false;
 
-		list_for_each_entry_safe(subflow, tmp, &msk->conn_list, node) {
+		mptcp_for_each_subflow_safe(msk, subflow, tmp) {
 			struct sock *ssk = mptcp_subflow_tcp_sock(subflow);
 			int how = RCV_SHUTDOWN | SEND_SHUTDOWN;
 			u8 id = subflow->local_id;
