@@ -567,11 +567,11 @@ static int vma_link(struct mm_struct *mm, struct vm_area_struct *vma,
  * mm's list and the mm tree.  It has already been inserted into the interval tree.
  */
 static void __insert_vm_struct(struct mm_struct *mm, struct ma_state *mas,
-			       struct vm_area_struct *vma)
+		struct vm_area_struct *vma, unsigned long location)
 {
 	struct vm_area_struct *prev;
 
-	mas_set(mas, vma->vm_start);
+	mas_set(mas, location);
 	prev = mas_prev(mas, 0);
 	vma_mas_store(vma, mas);
 	__vma_link_list(mm, vma, prev);
@@ -601,6 +601,7 @@ int __vma_adjust(struct vm_area_struct *vma, unsigned long start,
 	int remove_next = 0;
 	MA_STATE(mas, &mm->mm_mt, 0, 0);
 	struct vm_area_struct *exporter = NULL, *importer = NULL;
+	unsigned long ll_prev = vma->vm_start; /* linked list prev. */
 
 	if (next && !insert) {
 		if (end >= next->vm_end) {
@@ -728,15 +729,27 @@ int __vma_adjust(struct vm_area_struct *vma, unsigned long start,
 	}
 
 	if (start != vma->vm_start) {
-		if (vma->vm_start < start)
+		if ((vma->vm_start < start) &&
+		    (!insert || (insert->vm_end != start))) {
 			vma_mas_szero(&mas, vma->vm_start, start);
-		vma_changed = true;
+			VM_WARN_ON(insert && insert->vm_start > vma->vm_start);
+		} else {
+			vma_changed = true;
+		}
 		vma->vm_start = start;
 	}
 	if (end != vma->vm_end) {
-		if (vma->vm_end > end)
-			vma_mas_szero(&mas, end, vma->vm_end);
-		vma_changed = true;
+		if (vma->vm_end > end) {
+			if (!insert || (insert->vm_start != end)) {
+				vma_mas_szero(&mas, end, vma->vm_end);
+				VM_WARN_ON(insert &&
+					   insert->vm_end < vma->vm_end);
+			} else if (insert->vm_start == end) {
+				ll_prev = vma->vm_end;
+			}
+		} else {
+			vma_changed = true;
+		}
 		vma->vm_end = end;
 		if (!next)
 			mm->highest_vm_end = vm_end_gap(vma);
@@ -783,7 +796,7 @@ int __vma_adjust(struct vm_area_struct *vma, unsigned long start,
 		 * us to insert it before dropping the locks
 		 * (it may either follow vma or precede it).
 		 */
-		__insert_vm_struct(mm, &mas, insert);
+		__insert_vm_struct(mm, &mas, insert, ll_prev);
 	}
 
 	if (anon_vma) {
@@ -870,6 +883,7 @@ again:
 	if (insert && file)
 		uprobe_mmap(insert);
 
+	mas_destroy(&mas);
 	validate_mm(mm);
 	return 0;
 }
