@@ -398,21 +398,22 @@ static void imx7_csi_setup_vb2_buf(struct imx7_csi *csi)
 {
 	struct imx7_csi_vb2_buffer *buf;
 	struct vb2_buffer *vb2_buf;
-	dma_addr_t phys[2];
 	int i;
 
 	for (i = 0; i < 2; i++) {
+		dma_addr_t phys;
+
 		buf = imx7_csi_video_next_buf(csi);
 		if (buf) {
 			csi->active_vb2_buf[i] = buf;
 			vb2_buf = &buf->vbuf.vb2_buf;
-			phys[i] = vb2_dma_contig_plane_dma_addr(vb2_buf, 0);
+			phys = vb2_dma_contig_plane_dma_addr(vb2_buf, 0);
 		} else {
 			csi->active_vb2_buf[i] = NULL;
-			phys[i] = csi->underrun_buf.phys;
+			phys = csi->underrun_buf.phys;
 		}
 
-		imx7_csi_update_buf(csi, phys[i], i);
+		imx7_csi_update_buf(csi, phys, i);
 	}
 }
 
