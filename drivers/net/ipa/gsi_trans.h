@@ -29,7 +29,6 @@ struct gsi_trans_pool;
  * struct gsi_trans - a GSI transaction
  *
  * Most fields in this structure for internal use by the transaction core code:
- * @links:	Links for channel transaction lists by state
  * @gsi:	GSI pointer
  * @channel_id: Channel number transaction is associated with
  * @cancelled:	If set by the core code, transaction was cancelled
@@ -50,8 +49,6 @@ struct gsi_trans_pool;
  * received.
  */
 struct gsi_trans {
-	struct list_head links;		/* gsi_channel lists */
-
 	struct gsi *gsi;
 	u8 channel_id;
 
