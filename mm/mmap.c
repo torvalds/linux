@@ -2545,7 +2545,7 @@ do_mas_align_munmap(struct ma_state *mas, struct vm_area_struct *vma,
 		 * split, despite we could. This is unlikely enough
 		 * failure that it's not worth optimizing it for.
 		 */
-		error = userfaultfd_unmap_prep(vma, start, end, uf);
+		error = userfaultfd_unmap_prep(mm, start, end, uf);
 
 		if (error)
 			goto userfaultfd_error;
