@@ -190,11 +190,6 @@
 	reg = <0x00000000 0x04000000>;
 };
 
-&meta {
-	/* reserved meta partition 384KB */
-	reg = <0x01e00000 (384 * 0x400)>;
-};
-
 &mipi0_csi2 {
 	status = "okay";
 
@@ -265,11 +260,6 @@
 
 &rkisp {
 	status = "okay";
-};
-
-&rkisp_thunderboot {
-	/* vicap, capture raw10, ceil(w*10/8/256)*256*h *4(buf num) */
-	reg = <0x01e60000 0xa8c000>;
 };
 
 &rkisp_vir0 {
