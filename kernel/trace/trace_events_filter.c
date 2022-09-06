@@ -43,6 +43,19 @@ enum filter_op_ids { OPS };
 
 static const char * ops[] = { OPS };
 
+typedef int (*filter_pred_fn_t) (struct filter_pred *pred, void *event);
+
+struct filter_pred {
+	filter_pred_fn_t 	fn;
+	u64 			val;
+	struct regex		regex;
+	unsigned short		*ops;
+	struct ftrace_event_field *field;
+	int 			offset;
+	int			not;
+	int 			op;
+};
+
 /*
  * pred functions are OP_LE, OP_LT, OP_GE, OP_GT, and OP_BAND
  * pred_funcs_##type below must match the order of them above.

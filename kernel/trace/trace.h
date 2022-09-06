@@ -1435,8 +1435,6 @@ event_trigger_unlock_commit(struct trace_event_file *file,
 struct filter_pred;
 struct regex;
 
-typedef int (*filter_pred_fn_t) (struct filter_pred *pred, void *event);
-
 typedef int (*regex_match_func)(char *str, struct regex *r, int len);
 
 enum regex_type {
@@ -1453,17 +1451,6 @@ struct regex {
 	int			len;
 	int			field_len;
 	regex_match_func	match;
-};
-
-struct filter_pred {
-	filter_pred_fn_t 	fn;
-	u64 			val;
-	struct regex		regex;
-	unsigned short		*ops;
-	struct ftrace_event_field *field;
-	int 			offset;
-	int			not;
-	int 			op;
 };
 
 static inline bool is_string_field(struct ftrace_event_field *field)
