@@ -228,7 +228,8 @@ struct nvme_iod {
 	struct nvme_command cmd;
 	bool use_sgl;
 	bool aborted;
-	int npages;		/* In the PRP list. 0 means small pool in use */
+	s8 nr_allocations;	/* PRP list pool allocations. 0 means small
+				   pool in use */
 	dma_addr_t first_dma;
 	unsigned int dma_len;	/* length of single DMA segment mapping */
 	dma_addr_t meta_dma;
@@ -542,7 +543,7 @@ static void nvme_free_prps(struct nvme_dev *dev, struct request *req)
 	dma_addr_t dma_addr = iod->first_dma;
 	int i;
 
-	for (i = 0; i < iod->npages; i++) {
+	for (i = 0; i < iod->nr_allocations; i++) {
 		__le64 *prp_list = nvme_pci_iod_list(req)[i];
 		dma_addr_t next_dma_addr = le64_to_cpu(prp_list[last_prp]);
 
@@ -558,7 +559,7 @@ static void nvme_free_sgls(struct nvme_dev *dev, struct request *req)
 	dma_addr_t dma_addr = iod->first_dma;
 	int i;
 
-	for (i = 0; i < iod->npages; i++) {
+	for (i = 0; i < iod->nr_allocations; i++) {
 		struct nvme_sgl_desc *sg_list = nvme_pci_iod_list(req)[i];
 		dma_addr_t next_dma_addr = le64_to_cpu((sg_list[last_sg]).addr);
 
@@ -581,7 +582,7 @@ static void nvme_unmap_data(struct nvme_dev *dev, struct request *req)
 
 	dma_unmap_sgtable(dev->dev, &iod->sgt, rq_dma_dir(req), 0);
 
-	if (iod->npages == 0)
+	if (iod->nr_allocations == 0)
 		dma_pool_free(dev->prp_small_pool, nvme_pci_iod_list(req)[0],
 			      iod->first_dma);
 	else if (iod->use_sgl)
@@ -643,15 +644,15 @@ static blk_status_t nvme_pci_setup_prps(struct nvme_dev *dev,
 	nprps = DIV_ROUND_UP(length, NVME_CTRL_PAGE_SIZE);
 	if (nprps <= (256 / 8)) {
 		pool = dev->prp_small_pool;
-		iod->npages = 0;
+		iod->nr_allocations = 0;
 	} else {
 		pool = dev->prp_page_pool;
-		iod->npages = 1;
+		iod->nr_allocations = 1;
 	}
 
 	prp_list = dma_pool_alloc(pool, GFP_ATOMIC, &prp_dma);
 	if (!prp_list) {
-		iod->npages = -1;
+		iod->nr_allocations = -1;
 		return BLK_STS_RESOURCE;
 	}
 	list[0] = prp_list;
@@ -663,7 +664,7 @@ static blk_status_t nvme_pci_setup_prps(struct nvme_dev *dev,
 			prp_list = dma_pool_alloc(pool, GFP_ATOMIC, &prp_dma);
 			if (!prp_list)
 				goto free_prps;
-			list[iod->npages++] = prp_list;
+			list[iod->nr_allocations++] = prp_list;
 			prp_list[0] = old_prp_list[i - 1];
 			old_prp_list[i - 1] = cpu_to_le64(prp_dma);
 			i = 1;
@@ -738,15 +739,15 @@ static blk_status_t nvme_pci_setup_sgls(struct nvme_dev *dev,
 
 	if (entries <= (256 / sizeof(struct nvme_sgl_desc))) {
 		pool = dev->prp_small_pool;
-		iod->npages = 0;
+		iod->nr_allocations = 0;
 	} else {
 		pool = dev->prp_page_pool;
-		iod->npages = 1;
+		iod->nr_allocations = 1;
 	}
 
 	sg_list = dma_pool_alloc(pool, GFP_ATOMIC, &sgl_dma);
 	if (!sg_list) {
-		iod->npages = -1;
+		iod->nr_allocations = -1;
 		return BLK_STS_RESOURCE;
 	}
 
@@ -765,7 +766,7 @@ static blk_status_t nvme_pci_setup_sgls(struct nvme_dev *dev,
 				goto free_sgls;
 
 			i = 0;
-			nvme_pci_iod_list(req)[iod->npages++] = sg_list;
+			nvme_pci_iod_list(req)[iod->nr_allocations++] = sg_list;
 			sg_list[i++] = *link;
 			nvme_pci_sgl_set_seg(link, sgl_dma, entries);
 		}
@@ -892,7 +893,7 @@ static blk_status_t nvme_prep_rq(struct nvme_dev *dev, struct request *req)
 	blk_status_t ret;
 
 	iod->aborted = false;
-	iod->npages = -1;
+	iod->nr_allocations = -1;
 	iod->sgt.nents = 0;
 
 	ret = nvme_setup_cmd(req->q->queuedata, req);
@@ -3559,6 +3560,8 @@ static int __init nvme_init(void)
 	BUILD_BUG_ON(sizeof(struct nvme_create_sq) != 64);
 	BUILD_BUG_ON(sizeof(struct nvme_delete_queue) != 64);
 	BUILD_BUG_ON(IRQ_AFFINITY_MAX_SETS < 2);
+	BUILD_BUG_ON(DIV_ROUND_UP(nvme_pci_npages_prp(), NVME_CTRL_PAGE_SIZE) >
+		     S8_MAX);
 
 	return pci_register_driver(&nvme_driver);
 }
