@@ -42,6 +42,10 @@ void cfg80211_rx_assoc_resp(struct net_device *dev,
 	unsigned int link_id;
 
 	for (link_id = 0; link_id < ARRAY_SIZE(data->links); link_id++) {
+		cr.links[link_id].status = data->links[link_id].status;
+		WARN_ON_ONCE(cr.links[link_id].status != WLAN_STATUS_SUCCESS &&
+			     (!cr.ap_mld_addr || !cr.links[link_id].bss));
+
 		cr.links[link_id].bss = data->links[link_id].bss;
 		if (!cr.links[link_id].bss)
 			continue;
