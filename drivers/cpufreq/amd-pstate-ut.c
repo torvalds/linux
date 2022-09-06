@@ -71,7 +71,7 @@ static bool get_shared_mem(void)
 	ssize_t ret;
 
 	if (!boot_cpu_has(X86_FEATURE_CPPC)) {
-		filp = filp_open(path, FMODE_PREAD, 0);
+		filp = filp_open(path, O_RDONLY, 0);
 		if (IS_ERR(filp))
 			pr_err("%s unable to open %s file!\n", __func__, path);
 		else {
