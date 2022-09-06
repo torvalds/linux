@@ -7,24 +7,31 @@
 # This software may be used and distributed according to the terms
 # of the GNU General Public License, incorporated herein by reference.
 
-import sys, os, re
+import sys, os, re, argparse
 from signal import signal, SIGPIPE, SIG_DFL
 
 signal(SIGPIPE, SIG_DFL)
 
-if len(sys.argv) < 3:
-    sys.stderr.write("usage: %s [option] file1 file2\n" % sys.argv[0])
-    sys.stderr.write("The options are:\n")
-    sys.stderr.write("-c	categorize output based on symbol type\n")
-    sys.stderr.write("-d	Show delta of Data Section\n")
-    sys.stderr.write("-t	Show delta of text Section\n")
-    sys.exit(-1)
+parser = argparse.ArgumentParser(description="Simple script used to compare the symbol sizes of 2 object files")
+group = parser.add_mutually_exclusive_group()
+group.add_argument('-c', help='categorize output based on symbol type', action='store_true')
+group.add_argument('-d', help='Show delta of Data Section', action='store_true')
+group.add_argument('-t', help='Show delta of text Section', action='store_true')
+parser.add_argument('-p', dest='prefix', help='Arch prefix for the tool being used. Useful in cross build scenarios')
+parser.add_argument('file1', help='First file to compare')
+parser.add_argument('file2', help='Second file to compare')
+
+args = parser.parse_args()
 
 re_NUMBER = re.compile(r'\.[0-9]+')
 
 def getsizes(file, format):
     sym = {}
-    with os.popen("nm --size-sort " + file) as f:
+    nm = "nm"
+    if args.prefix:
+        nm = "{}nm".format(args.prefix)
+
+    with os.popen("{} --size-sort {}".format(nm, file)) as f:
         for line in f:
             if line.startswith("\n") or ":" in line:
                 continue
@@ -77,9 +84,9 @@ def calc(oldfile, newfile, format):
     delta.reverse()
     return grow, shrink, add, remove, up, down, delta, old, new, otot, ntot
 
-def print_result(symboltype, symbolformat, argc):
+def print_result(symboltype, symbolformat):
     grow, shrink, add, remove, up, down, delta, old, new, otot, ntot = \
-    calc(sys.argv[argc - 1], sys.argv[argc], symbolformat)
+    calc(args.file1, args.file2, symbolformat)
 
     print("add/remove: %s/%s grow/shrink: %s/%s up/down: %s/%s (%s)" % \
           (add, remove, grow, shrink, up, -down, up-down))
@@ -93,13 +100,13 @@ def print_result(symboltype, symbolformat, argc):
         percent = 0
     print("Total: Before=%d, After=%d, chg %+.2f%%" % (otot, ntot, percent))
 
-if sys.argv[1] == "-c":
-    print_result("Function", "tT", 3)
-    print_result("Data", "dDbB", 3)
-    print_result("RO Data", "rR", 3)
-elif sys.argv[1] == "-d":
-    print_result("Data", "dDbBrR", 3)
-elif sys.argv[1] == "-t":
-    print_result("Function", "tT", 3)
+if args.c:
+    print_result("Function", "tT")
+    print_result("Data", "dDbB")
+    print_result("RO Data", "rR")
+elif args.d:
+    print_result("Data", "dDbBrR")
+elif args.t:
+    print_result("Function", "tT")
 else:
-    print_result("Function", "tTdDbBrR", 2)
+    print_result("Function", "tTdDbBrR")

@@ -7,7 +7,6 @@
 
 #include "test_util.h"
 #include "kvm_util.h"
-#include "../kvm_util_internal.h"
 #include "processor.h"
 #include "vmx.h"
 
@@ -43,16 +42,12 @@ struct eptPageTablePointer {
 	uint64_t address:40;
 	uint64_t reserved_63_52:12;
 };
-int vcpu_enable_evmcs(struct kvm_vm *vm, int vcpu_id)
+int vcpu_enable_evmcs(struct kvm_vcpu *vcpu)
 {
 	uint16_t evmcs_ver;
 
-	struct kvm_enable_cap enable_evmcs_cap = {
-		.cap = KVM_CAP_HYPERV_ENLIGHTENED_VMCS,
-		 .args[0] = (unsigned long)&evmcs_ver
-	};
-
-	vcpu_ioctl(vm, vcpu_id, KVM_ENABLE_CAP, &enable_evmcs_cap);
+	vcpu_enable_cap(vcpu, KVM_CAP_HYPERV_ENLIGHTENED_VMCS,
+			(unsigned long)&evmcs_ver);
 
 	/* KVM should return supported EVMCS version range */
 	TEST_ASSERT(((evmcs_ver >> 8) >= (evmcs_ver & 0xff)) &&
@@ -198,6 +193,16 @@ bool load_vmcs(struct vmx_pages *vmx)
 	return true;
 }
 
+static bool ept_vpid_cap_supported(uint64_t mask)
+{
+	return rdmsr(MSR_IA32_VMX_EPT_VPID_CAP) & mask;
+}
+
+bool ept_1g_pages_supported(void)
+{
+	return ept_vpid_cap_supported(VMX_EPT_VPID_CAP_1G_PAGES);
+}
+
 /*
  * Initialize the control fields to the most basic settings possible.
  */
@@ -215,7 +220,7 @@ static inline void init_vmcs_control_fields(struct vmx_pages *vmx)
 		struct eptPageTablePointer eptp = {
 			.memory_type = VMX_BASIC_MEM_TYPE_WB,
 			.page_walk_length = 3, /* + 1 */
-			.ad_enabled = !!(rdmsr(MSR_IA32_VMX_EPT_VPID_CAP) & VMX_EPT_VPID_CAP_AD_BITS),
+			.ad_enabled = ept_vpid_cap_supported(VMX_EPT_VPID_CAP_AD_BITS),
 			.address = vmx->eptp_gpa >> PAGE_SHIFT_4K,
 		};
 
@@ -377,95 +382,93 @@ void prepare_vmcs(struct vmx_pages *vmx, void *guest_rip, void *guest_rsp)
 	init_vmcs_guest_state(guest_rip, guest_rsp);
 }
 
-bool nested_vmx_supported(void)
+static void nested_create_pte(struct kvm_vm *vm,
+			      struct eptPageTableEntry *pte,
+			      uint64_t nested_paddr,
+			      uint64_t paddr,
+			      int current_level,
+			      int target_level)
 {
-	struct kvm_cpuid_entry2 *entry = kvm_get_supported_cpuid_entry(1);
-
-	return entry->ecx & CPUID_VMX;
-}
-
-void nested_vmx_check_supported(void)
-{
-	if (!nested_vmx_supported()) {
-		print_skip("nested VMX not enabled");
-		exit(KSFT_SKIP);
+	if (!pte->readable) {
+		pte->writable = true;
+		pte->readable = true;
+		pte->executable = true;
+		pte->page_size = (current_level == target_level);
+		if (pte->page_size)
+			pte->address = paddr >> vm->page_shift;
+		else
+			pte->address = vm_alloc_page_table(vm) >> vm->page_shift;
+	} else {
+		/*
+		 * Entry already present.  Assert that the caller doesn't want
+		 * a hugepage at this level, and that there isn't a hugepage at
+		 * this level.
+		 */
+		TEST_ASSERT(current_level != target_level,
+			    "Cannot create hugepage at level: %u, nested_paddr: 0x%lx\n",
+			    current_level, nested_paddr);
+		TEST_ASSERT(!pte->page_size,
+			    "Cannot create page table at level: %u, nested_paddr: 0x%lx\n",
+			    current_level, nested_paddr);
 	}
 }
 
-void nested_pg_map(struct vmx_pages *vmx, struct kvm_vm *vm,
-		   uint64_t nested_paddr, uint64_t paddr)
+
+void __nested_pg_map(struct vmx_pages *vmx, struct kvm_vm *vm,
+		     uint64_t nested_paddr, uint64_t paddr, int target_level)
 {
-	uint16_t index[4];
-	struct eptPageTableEntry *pml4e;
+	const uint64_t page_size = PG_LEVEL_SIZE(target_level);
+	struct eptPageTableEntry *pt = vmx->eptp_hva, *pte;
+	uint16_t index;
 
 	TEST_ASSERT(vm->mode == VM_MODE_PXXV48_4K, "Attempt to use "
 		    "unknown or unsupported guest mode, mode: 0x%x", vm->mode);
 
-	TEST_ASSERT((nested_paddr % vm->page_size) == 0,
+	TEST_ASSERT((nested_paddr >> 48) == 0,
+		    "Nested physical address 0x%lx requires 5-level paging",
+		    nested_paddr);
+	TEST_ASSERT((nested_paddr % page_size) == 0,
 		    "Nested physical address not on page boundary,\n"
-		    "  nested_paddr: 0x%lx vm->page_size: 0x%x",
-		    nested_paddr, vm->page_size);
+		    "  nested_paddr: 0x%lx page_size: 0x%lx",
+		    nested_paddr, page_size);
 	TEST_ASSERT((nested_paddr >> vm->page_shift) <= vm->max_gfn,
 		    "Physical address beyond beyond maximum supported,\n"
 		    "  nested_paddr: 0x%lx vm->max_gfn: 0x%lx vm->page_size: 0x%x",
 		    paddr, vm->max_gfn, vm->page_size);
-	TEST_ASSERT((paddr % vm->page_size) == 0,
+	TEST_ASSERT((paddr % page_size) == 0,
 		    "Physical address not on page boundary,\n"
-		    "  paddr: 0x%lx vm->page_size: 0x%x",
-		    paddr, vm->page_size);
+		    "  paddr: 0x%lx page_size: 0x%lx",
+		    paddr, page_size);
 	TEST_ASSERT((paddr >> vm->page_shift) <= vm->max_gfn,
 		    "Physical address beyond beyond maximum supported,\n"
 		    "  paddr: 0x%lx vm->max_gfn: 0x%lx vm->page_size: 0x%x",
 		    paddr, vm->max_gfn, vm->page_size);
 
-	index[0] = (nested_paddr >> 12) & 0x1ffu;
-	index[1] = (nested_paddr >> 21) & 0x1ffu;
-	index[2] = (nested_paddr >> 30) & 0x1ffu;
-	index[3] = (nested_paddr >> 39) & 0x1ffu;
+	for (int level = PG_LEVEL_512G; level >= PG_LEVEL_4K; level--) {
+		index = (nested_paddr >> PG_LEVEL_SHIFT(level)) & 0x1ffu;
+		pte = &pt[index];
 
-	/* Allocate page directory pointer table if not present. */
-	pml4e = vmx->eptp_hva;
-	if (!pml4e[index[3]].readable) {
-		pml4e[index[3]].address = vm_alloc_page_table(vm) >> vm->page_shift;
-		pml4e[index[3]].writable = true;
-		pml4e[index[3]].readable = true;
-		pml4e[index[3]].executable = true;
+		nested_create_pte(vm, pte, nested_paddr, paddr, level, target_level);
+
+		if (pte->page_size)
+			break;
+
+		pt = addr_gpa2hva(vm, pte->address * vm->page_size);
 	}
-
-	/* Allocate page directory table if not present. */
-	struct eptPageTableEntry *pdpe;
-	pdpe = addr_gpa2hva(vm, pml4e[index[3]].address * vm->page_size);
-	if (!pdpe[index[2]].readable) {
-		pdpe[index[2]].address = vm_alloc_page_table(vm) >> vm->page_shift;
-		pdpe[index[2]].writable = true;
-		pdpe[index[2]].readable = true;
-		pdpe[index[2]].executable = true;
-	}
-
-	/* Allocate page table if not present. */
-	struct eptPageTableEntry *pde;
-	pde = addr_gpa2hva(vm, pdpe[index[2]].address * vm->page_size);
-	if (!pde[index[1]].readable) {
-		pde[index[1]].address = vm_alloc_page_table(vm) >> vm->page_shift;
-		pde[index[1]].writable = true;
-		pde[index[1]].readable = true;
-		pde[index[1]].executable = true;
-	}
-
-	/* Fill in page table entry. */
-	struct eptPageTableEntry *pte;
-	pte = addr_gpa2hva(vm, pde[index[1]].address * vm->page_size);
-	pte[index[0]].address = paddr >> vm->page_shift;
-	pte[index[0]].writable = true;
-	pte[index[0]].readable = true;
-	pte[index[0]].executable = true;
 
 	/*
 	 * For now mark these as accessed and dirty because the only
 	 * testcase we have needs that.  Can be reconsidered later.
 	 */
-	pte[index[0]].accessed = true;
-	pte[index[0]].dirty = true;
+	pte->accessed = true;
+	pte->dirty = true;
+
+}
+
+void nested_pg_map(struct vmx_pages *vmx, struct kvm_vm *vm,
+		   uint64_t nested_paddr, uint64_t paddr)
+{
+	__nested_pg_map(vmx, vm, nested_paddr, paddr, PG_LEVEL_4K);
 }
 
 /*
@@ -476,7 +479,7 @@ void nested_pg_map(struct vmx_pages *vmx, struct kvm_vm *vm,
  *   nested_paddr - Nested guest physical address to map
  *   paddr - VM Physical Address
  *   size - The size of the range to map
- *   eptp_memslot - Memory region slot for new virtual translation tables
+ *   level - The level at which to map the range
  *
  * Output Args: None
  *
@@ -485,20 +488,27 @@ void nested_pg_map(struct vmx_pages *vmx, struct kvm_vm *vm,
  * Within the VM given by vm, creates a nested guest translation for the
  * page range starting at nested_paddr to the page range starting at paddr.
  */
-void nested_map(struct vmx_pages *vmx, struct kvm_vm *vm,
-		uint64_t nested_paddr, uint64_t paddr, uint64_t size)
+void __nested_map(struct vmx_pages *vmx, struct kvm_vm *vm,
+		  uint64_t nested_paddr, uint64_t paddr, uint64_t size,
+		  int level)
 {
-	size_t page_size = vm->page_size;
+	size_t page_size = PG_LEVEL_SIZE(level);
 	size_t npages = size / page_size;
 
 	TEST_ASSERT(nested_paddr + size > nested_paddr, "Vaddr overflow");
 	TEST_ASSERT(paddr + size > paddr, "Paddr overflow");
 
 	while (npages--) {
-		nested_pg_map(vmx, vm, nested_paddr, paddr);
+		__nested_pg_map(vmx, vm, nested_paddr, paddr, level);
 		nested_paddr += page_size;
 		paddr += page_size;
 	}
+}
+
+void nested_map(struct vmx_pages *vmx, struct kvm_vm *vm,
+		uint64_t nested_paddr, uint64_t paddr, uint64_t size)
+{
+	__nested_map(vmx, vm, nested_paddr, paddr, size, PG_LEVEL_4K);
 }
 
 /* Prepare an identity extended page table that maps all the
@@ -523,6 +533,13 @@ void nested_map_memslot(struct vmx_pages *vmx, struct kvm_vm *vm,
 			   (uint64_t)i << vm->page_shift,
 			   1 << vm->page_shift);
 	}
+}
+
+/* Identity map a region with 1GiB Pages. */
+void nested_identity_map_1g(struct vmx_pages *vmx, struct kvm_vm *vm,
+			    uint64_t addr, uint64_t size)
+{
+	__nested_map(vmx, vm, addr, addr, size, PG_LEVEL_1G);
 }
 
 void prepare_eptp(struct vmx_pages *vmx, struct kvm_vm *vm,

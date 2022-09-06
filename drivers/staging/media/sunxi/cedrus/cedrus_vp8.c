@@ -651,8 +651,7 @@ static void cedrus_vp8_irq_disable(struct cedrus_ctx *ctx)
 		     reg & ~VE_H264_CTRL_INT_MASK);
 }
 
-static void cedrus_vp8_setup(struct cedrus_ctx *ctx,
-			     struct cedrus_run *run)
+static int cedrus_vp8_setup(struct cedrus_ctx *ctx, struct cedrus_run *run)
 {
 	const struct v4l2_ctrl_vp8_frame *slice = run->vp8.frame_params;
 	struct vb2_queue *cap_q = &ctx->fh.m2m_ctx->cap_q_ctx.q;
@@ -855,6 +854,8 @@ static void cedrus_vp8_setup(struct cedrus_ctx *ctx,
 		ctx->codec.vp8.last_sharpness_level =
 			slice->lf.sharpness_level;
 	}
+
+	return 0;
 }
 
 static int cedrus_vp8_start(struct cedrus_ctx *ctx)

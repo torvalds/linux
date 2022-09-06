@@ -158,7 +158,7 @@ struct aq_mss_egress_class_record {
 	 *  1: compare the SNAP header.
 	 *  If this bit is set to 1, the extracted filed will assume the
 	 *  SNAP header exist as encapsulated in 802.3 (RFC 1042). I.E. the
-	 *  next 5 bytes after the the LLC header is SNAP header.
+	 *  next 5 bytes after the LLC header is SNAP header.
 	 */
 	u32 snap_mask;
 	/*! 0: don't care and no LLC header exist.
@@ -422,7 +422,7 @@ struct aq_mss_ingress_preclass_record {
 	 *  1: compare the SNAP header.
 	 *  If this bit is set to 1, the extracted filed will assume the
 	 *  SNAP header exist as encapsulated in 802.3 (RFC 1042). I.E. the
-	 *  next 5 bytes after the the LLC header is SNAP header.
+	 *  next 5 bytes after the LLC header is SNAP header.
 	 */
 	u32 snap_mask;
 	/*! Mask is per-byte.

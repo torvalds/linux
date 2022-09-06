@@ -243,7 +243,7 @@ extern void xdr_init_encode(struct xdr_stream *xdr, struct xdr_buf *buf,
 extern __be32 *xdr_reserve_space(struct xdr_stream *xdr, size_t nbytes);
 extern int xdr_reserve_space_vec(struct xdr_stream *xdr, struct kvec *vec,
 		size_t nbytes);
-extern void xdr_commit_encode(struct xdr_stream *xdr);
+extern void __xdr_commit_encode(struct xdr_stream *xdr);
 extern void xdr_truncate_encode(struct xdr_stream *xdr, size_t len);
 extern int xdr_restrict_buflen(struct xdr_stream *xdr, int newbuflen);
 extern void xdr_write_pages(struct xdr_stream *xdr, struct page **pages,
@@ -258,10 +258,13 @@ extern __be32 *xdr_inline_decode(struct xdr_stream *xdr, size_t nbytes);
 extern unsigned int xdr_read_pages(struct xdr_stream *xdr, unsigned int len);
 extern void xdr_enter_page(struct xdr_stream *xdr, unsigned int len);
 extern int xdr_process_buf(const struct xdr_buf *buf, unsigned int offset, unsigned int len, int (*actor)(struct scatterlist *, void *), void *data);
-extern unsigned int xdr_align_data(struct xdr_stream *, unsigned int offset, unsigned int length);
-extern unsigned int xdr_expand_hole(struct xdr_stream *, unsigned int offset, unsigned int length);
+extern void xdr_set_pagelen(struct xdr_stream *, unsigned int len);
 extern bool xdr_stream_subsegment(struct xdr_stream *xdr, struct xdr_buf *subbuf,
 				  unsigned int len);
+extern unsigned int xdr_stream_move_subsegment(struct xdr_stream *xdr, unsigned int offset,
+					       unsigned int target, unsigned int length);
+extern unsigned int xdr_stream_zero(struct xdr_stream *xdr, unsigned int offset,
+				    unsigned int length);
 
 /**
  * xdr_set_scratch_buffer - Attach a scratch buffer for decoding data.
@@ -304,6 +307,20 @@ static inline void
 xdr_reset_scratch_buffer(struct xdr_stream *xdr)
 {
 	xdr_set_scratch_buffer(xdr, NULL, 0);
+}
+
+/**
+ * xdr_commit_encode - Ensure all data is written to xdr->buf
+ * @xdr: pointer to xdr_stream
+ *
+ * Handle encoding across page boundaries by giving the caller a
+ * temporary location to write to, then later copying the data into
+ * place. __xdr_commit_encode() does that copying.
+ */
+static inline void xdr_commit_encode(struct xdr_stream *xdr)
+{
+	if (unlikely(xdr->scratch.iov_len))
+		__xdr_commit_encode(xdr);
 }
 
 /**
@@ -405,8 +422,8 @@ static inline int xdr_stream_encode_item_absent(struct xdr_stream *xdr)
  */
 static inline __be32 *xdr_encode_bool(__be32 *p, u32 n)
 {
-	*p = n ? xdr_one : xdr_zero;
-	return p++;
+	*p++ = n ? xdr_one : xdr_zero;
+	return p;
 }
 
 /**

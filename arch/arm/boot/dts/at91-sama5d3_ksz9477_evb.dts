@@ -120,26 +120,31 @@
 			port@0 {
 				reg = <0>;
 				label = "lan1";
+				phy-mode = "internal";
 			};
 
 			port@1 {
 				reg = <1>;
 				label = "lan2";
+				phy-mode = "internal";
 			};
 
 			port@2 {
 				reg = <2>;
 				label = "lan3";
+				phy-mode = "internal";
 			};
 
 			port@3 {
 				reg = <3>;
 				label = "lan4";
+				phy-mode = "internal";
 			};
 
 			port@4 {
 				reg = <4>;
 				label = "lan5";
+				phy-mode = "internal";
 			};
 
 			port@5 {

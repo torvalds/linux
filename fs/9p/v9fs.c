@@ -625,7 +625,7 @@ static void v9fs_inode_init_once(void *foo)
 	struct v9fs_inode *v9inode = (struct v9fs_inode *)foo;
 
 	memset(&v9inode->qid, 0, sizeof(v9inode->qid));
-	inode_init_once(&v9inode->vfs_inode);
+	inode_init_once(&v9inode->netfs.inode);
 }
 
 /**

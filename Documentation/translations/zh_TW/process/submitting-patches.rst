@@ -26,9 +26,7 @@
 以下文檔含有大量簡潔的建議， 具體請見：
 :ref:`Documentation/process <development_process_main>`
 同樣，:ref:`Documentation/translations/zh_TW/process/submit-checklist.rst <tw_submitchecklist>`
-給出在提交代碼前需要檢查的項目的列表。如果你在提交一個驅動程序，那麼
-同時閱讀一下:
-:ref:`Documentation/process/submitting-drivers.rst <submittingdrivers>`
+給出在提交代碼前需要檢查的項目的列表。
 
 其中許多步驟描述了Git版本控制系統的默認行爲；如果您使用Git來準備補丁，
 您將發現它爲您完成的大部分機械工作，儘管您仍然需要準備和記錄一組合理的

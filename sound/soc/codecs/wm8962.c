@@ -3502,7 +3502,6 @@ static const struct snd_soc_component_driver soc_component_dev_wm8962 = {
 	.set_pll		= wm8962_set_fll,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
 };
 
 /* Improve power consumption for IN4 DC measurement mode */
@@ -3868,6 +3867,7 @@ static int wm8962_runtime_suspend(struct device *dev)
 #endif
 
 static const struct dev_pm_ops wm8962_pm = {
+	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend, pm_runtime_force_resume)
 	SET_RUNTIME_PM_OPS(wm8962_runtime_suspend, wm8962_runtime_resume, NULL)
 };
 

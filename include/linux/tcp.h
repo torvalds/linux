@@ -46,6 +46,36 @@ static inline unsigned int inner_tcp_hdrlen(const struct sk_buff *skb)
 	return inner_tcp_hdr(skb)->doff * 4;
 }
 
+/**
+ * skb_tcp_all_headers - Returns size of all headers for a TCP packet
+ * @skb: buffer
+ *
+ * Used in TX path, for a packet known to be a TCP one.
+ *
+ * if (skb_is_gso(skb)) {
+ *         int hlen = skb_tcp_all_headers(skb);
+ *         ...
+ */
+static inline int skb_tcp_all_headers(const struct sk_buff *skb)
+{
+	return skb_transport_offset(skb) + tcp_hdrlen(skb);
+}
+
+/**
+ * skb_inner_tcp_all_headers - Returns size of all headers for an encap TCP packet
+ * @skb: buffer
+ *
+ * Used in TX path, for a packet known to be a TCP one.
+ *
+ * if (skb_is_gso(skb) && skb->encapsulation) {
+ *         int hlen = skb_inner_tcp_all_headers(skb);
+ *         ...
+ */
+static inline int skb_inner_tcp_all_headers(const struct sk_buff *skb)
+{
+	return skb_inner_transport_offset(skb) + inner_tcp_hdrlen(skb);
+}
+
 static inline unsigned int tcp_optlen(const struct sk_buff *skb)
 {
 	return (tcp_hdr(skb)->doff - 5) * 4;

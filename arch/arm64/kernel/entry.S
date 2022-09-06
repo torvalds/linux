@@ -502,7 +502,7 @@ tsk	.req	x28		// current thread_info
 SYM_CODE_START(vectors)
 	kernel_ventry	1, t, 64, sync		// Synchronous EL1t
 	kernel_ventry	1, t, 64, irq		// IRQ EL1t
-	kernel_ventry	1, t, 64, fiq		// FIQ EL1h
+	kernel_ventry	1, t, 64, fiq		// FIQ EL1t
 	kernel_ventry	1, t, 64, error		// Error EL1t
 
 	kernel_ventry	1, h, 64, sync		// Synchronous EL1h
@@ -636,18 +636,28 @@ alternative_else_nop_endif
 	 */
 	.endm
 
-	.macro tramp_data_page	dst
-	adr_l	\dst, .entry.tramp.text
-	sub	\dst, \dst, PAGE_SIZE
-	.endm
-
-	.macro tramp_data_read_var	dst, var
-#ifdef CONFIG_RANDOMIZE_BASE
-	tramp_data_page		\dst
-	add	\dst, \dst, #:lo12:__entry_tramp_data_\var
-	ldr	\dst, [\dst]
+	.macro		tramp_data_read_var	dst, var
+#ifdef CONFIG_RELOCATABLE
+	ldr		\dst, .L__tramp_data_\var
+	.ifndef		.L__tramp_data_\var
+	.pushsection	".entry.tramp.rodata", "a", %progbits
+	.align		3
+.L__tramp_data_\var:
+	.quad		\var
+	.popsection
+	.endif
 #else
-	ldr	\dst, =\var
+	/*
+	 * As !RELOCATABLE implies !RANDOMIZE_BASE the address is always a
+	 * compile time constant (and hence not secret and not worth hiding).
+	 *
+	 * As statically allocated kernel code and data always live in the top
+	 * 47 bits of the address space we can sign-extend bit 47 and avoid an
+	 * instruction to load the upper 16 bits (which must be 0xFFFF).
+	 */
+	movz		\dst, :abs_g2_s:\var
+	movk		\dst, :abs_g1_nc:\var
+	movk		\dst, :abs_g0_nc:\var
 #endif
 	.endm
 
@@ -695,7 +705,7 @@ alternative_else_nop_endif
 	msr	vbar_el1, x30
 	isb
 	.else
-	ldr	x30, =vectors
+	adr_l	x30, vectors
 	.endif // \kpti == 1
 
 	.if	\bhb == BHB_MITIGATION_FW
@@ -764,24 +774,7 @@ SYM_CODE_END(tramp_exit_native)
 SYM_CODE_START(tramp_exit_compat)
 	tramp_exit	32
 SYM_CODE_END(tramp_exit_compat)
-
-	.ltorg
 	.popsection				// .entry.tramp.text
-#ifdef CONFIG_RANDOMIZE_BASE
-	.pushsection ".rodata", "a"
-	.align PAGE_SHIFT
-SYM_DATA_START(__entry_tramp_data_start)
-__entry_tramp_data_vectors:
-	.quad	vectors
-#ifdef CONFIG_ARM_SDE_INTERFACE
-__entry_tramp_data___sdei_asm_handler:
-	.quad	__sdei_asm_handler
-#endif /* CONFIG_ARM_SDE_INTERFACE */
-__entry_tramp_data_this_cpu_vector:
-	.quad	this_cpu_vector
-SYM_DATA_END(__entry_tramp_data_start)
-	.popsection				// .rodata
-#endif /* CONFIG_RANDOMIZE_BASE */
 #endif /* CONFIG_UNMAP_KERNEL_AT_EL0 */
 
 /*
@@ -932,7 +925,6 @@ NOKPROBE(call_on_irq_stack)
  * This clobbers x4, __sdei_handler() will restore this from firmware's
  * copy.
  */
-.ltorg
 .pushsection ".entry.tramp.text", "ax"
 SYM_CODE_START(__sdei_asm_entry_trampoline)
 	mrs	x4, ttbr1_el1
@@ -967,7 +959,6 @@ SYM_CODE_START(__sdei_asm_exit_trampoline)
 1:	sdei_handler_exit exit_mode=x2
 SYM_CODE_END(__sdei_asm_exit_trampoline)
 NOKPROBE(__sdei_asm_exit_trampoline)
-	.ltorg
 .popsection		// .entry.tramp.text
 #endif /* CONFIG_UNMAP_KERNEL_AT_EL0 */
 

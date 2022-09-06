@@ -122,16 +122,29 @@ void lpt_disable_iclkip(struct drm_i915_private *dev_priv)
 	mutex_unlock(&dev_priv->sb_lock);
 }
 
-/* Program iCLKIP clock to the desired frequency */
-void lpt_program_iclkip(const struct intel_crtc_state *crtc_state)
-{
-	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
-	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
-	int clock = crtc_state->hw.adjusted_mode.crtc_clock;
-	u32 divsel, phaseinc, auxdiv, phasedir = 0;
-	u32 temp;
+struct iclkip_params {
+	u32 iclk_virtual_root_freq;
+	u32 iclk_pi_range;
+	u32 divsel, phaseinc, auxdiv, phasedir, desired_divisor;
+};
 
-	lpt_disable_iclkip(dev_priv);
+static void iclkip_params_init(struct iclkip_params *p)
+{
+	memset(p, 0, sizeof(*p));
+
+	p->iclk_virtual_root_freq = 172800 * 1000;
+	p->iclk_pi_range = 64;
+}
+
+static int lpt_iclkip_freq(struct iclkip_params *p)
+{
+	return DIV_ROUND_CLOSEST(p->iclk_virtual_root_freq,
+				 p->desired_divisor << p->auxdiv);
+}
+
+static void lpt_compute_iclkip(struct iclkip_params *p, int clock)
+{
+	iclkip_params_init(p);
 
 	/* The iCLK virtual clock root frequency is in MHz,
 	 * but the adjusted_mode->crtc_clock in KHz. To get the
@@ -139,50 +152,60 @@ void lpt_program_iclkip(const struct intel_crtc_state *crtc_state)
 	 * convert the virtual clock precision to KHz here for higher
 	 * precision.
 	 */
-	for (auxdiv = 0; auxdiv < 2; auxdiv++) {
-		u32 iclk_virtual_root_freq = 172800 * 1000;
-		u32 iclk_pi_range = 64;
-		u32 desired_divisor;
-
-		desired_divisor = DIV_ROUND_CLOSEST(iclk_virtual_root_freq,
-						    clock << auxdiv);
-		divsel = (desired_divisor / iclk_pi_range) - 2;
-		phaseinc = desired_divisor % iclk_pi_range;
+	for (p->auxdiv = 0; p->auxdiv < 2; p->auxdiv++) {
+		p->desired_divisor = DIV_ROUND_CLOSEST(p->iclk_virtual_root_freq,
+						       clock << p->auxdiv);
+		p->divsel = (p->desired_divisor / p->iclk_pi_range) - 2;
+		p->phaseinc = p->desired_divisor % p->iclk_pi_range;
 
 		/*
 		 * Near 20MHz is a corner case which is
 		 * out of range for the 7-bit divisor
 		 */
-		if (divsel <= 0x7f)
+		if (p->divsel <= 0x7f)
 			break;
 	}
+}
+
+/* Program iCLKIP clock to the desired frequency */
+void lpt_program_iclkip(const struct intel_crtc_state *crtc_state)
+{
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	int clock = crtc_state->hw.adjusted_mode.crtc_clock;
+	struct iclkip_params p;
+	u32 temp;
+
+	lpt_disable_iclkip(dev_priv);
+
+	lpt_compute_iclkip(&p, clock);
 
 	/* This should not happen with any sane values */
-	drm_WARN_ON(&dev_priv->drm, SBI_SSCDIVINTPHASE_DIVSEL(divsel) &
+	drm_WARN_ON(&dev_priv->drm, SBI_SSCDIVINTPHASE_DIVSEL(p.divsel) &
 		    ~SBI_SSCDIVINTPHASE_DIVSEL_MASK);
-	drm_WARN_ON(&dev_priv->drm, SBI_SSCDIVINTPHASE_DIR(phasedir) &
+	drm_WARN_ON(&dev_priv->drm, SBI_SSCDIVINTPHASE_DIR(p.phasedir) &
 		    ~SBI_SSCDIVINTPHASE_INCVAL_MASK);
 
 	drm_dbg_kms(&dev_priv->drm,
 		    "iCLKIP clock: found settings for %dKHz refresh rate: auxdiv=%x, divsel=%x, phasedir=%x, phaseinc=%x\n",
-		    clock, auxdiv, divsel, phasedir, phaseinc);
+		    clock, p.auxdiv, p.divsel, p.phasedir, p.phaseinc);
 
 	mutex_lock(&dev_priv->sb_lock);
 
 	/* Program SSCDIVINTPHASE6 */
 	temp = intel_sbi_read(dev_priv, SBI_SSCDIVINTPHASE6, SBI_ICLK);
 	temp &= ~SBI_SSCDIVINTPHASE_DIVSEL_MASK;
-	temp |= SBI_SSCDIVINTPHASE_DIVSEL(divsel);
+	temp |= SBI_SSCDIVINTPHASE_DIVSEL(p.divsel);
 	temp &= ~SBI_SSCDIVINTPHASE_INCVAL_MASK;
-	temp |= SBI_SSCDIVINTPHASE_INCVAL(phaseinc);
-	temp |= SBI_SSCDIVINTPHASE_DIR(phasedir);
+	temp |= SBI_SSCDIVINTPHASE_INCVAL(p.phaseinc);
+	temp |= SBI_SSCDIVINTPHASE_DIR(p.phasedir);
 	temp |= SBI_SSCDIVINTPHASE_PROPAGATE;
 	intel_sbi_write(dev_priv, SBI_SSCDIVINTPHASE6, temp, SBI_ICLK);
 
 	/* Program SSCAUXDIV */
 	temp = intel_sbi_read(dev_priv, SBI_SSCAUXDIV6, SBI_ICLK);
 	temp &= ~SBI_SSCAUXDIV_FINALDIV2SEL(1);
-	temp |= SBI_SSCAUXDIV_FINALDIV2SEL(auxdiv);
+	temp |= SBI_SSCAUXDIV_FINALDIV2SEL(p.auxdiv);
 	intel_sbi_write(dev_priv, SBI_SSCAUXDIV6, temp, SBI_ICLK);
 
 	/* Enable modulator and associated divider */
@@ -200,14 +223,13 @@ void lpt_program_iclkip(const struct intel_crtc_state *crtc_state)
 
 int lpt_get_iclkip(struct drm_i915_private *dev_priv)
 {
-	u32 divsel, phaseinc, auxdiv;
-	u32 iclk_virtual_root_freq = 172800 * 1000;
-	u32 iclk_pi_range = 64;
-	u32 desired_divisor;
+	struct iclkip_params p;
 	u32 temp;
 
 	if ((intel_de_read(dev_priv, PIXCLK_GATE) & PIXCLK_GATE_UNGATE) == 0)
 		return 0;
+
+	iclkip_params_init(&p);
 
 	mutex_lock(&dev_priv->sb_lock);
 
@@ -218,21 +240,20 @@ int lpt_get_iclkip(struct drm_i915_private *dev_priv)
 	}
 
 	temp = intel_sbi_read(dev_priv, SBI_SSCDIVINTPHASE6, SBI_ICLK);
-	divsel = (temp & SBI_SSCDIVINTPHASE_DIVSEL_MASK) >>
+	p.divsel = (temp & SBI_SSCDIVINTPHASE_DIVSEL_MASK) >>
 		SBI_SSCDIVINTPHASE_DIVSEL_SHIFT;
-	phaseinc = (temp & SBI_SSCDIVINTPHASE_INCVAL_MASK) >>
+	p.phaseinc = (temp & SBI_SSCDIVINTPHASE_INCVAL_MASK) >>
 		SBI_SSCDIVINTPHASE_INCVAL_SHIFT;
 
 	temp = intel_sbi_read(dev_priv, SBI_SSCAUXDIV6, SBI_ICLK);
-	auxdiv = (temp & SBI_SSCAUXDIV_FINALDIV2SEL_MASK) >>
+	p.auxdiv = (temp & SBI_SSCAUXDIV_FINALDIV2SEL_MASK) >>
 		SBI_SSCAUXDIV_FINALDIV2SEL_SHIFT;
 
 	mutex_unlock(&dev_priv->sb_lock);
 
-	desired_divisor = (divsel + 2) * iclk_pi_range + phaseinc;
+	p.desired_divisor = (p.divsel + 2) * p.iclk_pi_range + p.phaseinc;
 
-	return DIV_ROUND_CLOSEST(iclk_virtual_root_freq,
-				 desired_divisor << auxdiv);
+	return lpt_iclkip_freq(&p);
 }
 
 /* Implements 3 different sequences from BSpec chapter "Display iCLK

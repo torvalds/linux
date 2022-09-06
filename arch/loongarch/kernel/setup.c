@@ -39,7 +39,6 @@
 #include <asm/pgalloc.h>
 #include <asm/sections.h>
 #include <asm/setup.h>
-#include <asm/smp.h>
 #include <asm/time.h>
 
 #define SMBIOS_BIOSSIZE_OFFSET		0x09
@@ -127,7 +126,7 @@ static void __init parse_bios_table(const struct dmi_header *dm)
 	char *dmi_data = (char *)dm;
 
 	bios_extern = *(dmi_data + SMBIOS_BIOSEXTERN_OFFSET);
-	b_info.bios_size = *(dmi_data + SMBIOS_BIOSSIZE_OFFSET);
+	b_info.bios_size = (*(dmi_data + SMBIOS_BIOSSIZE_OFFSET) + 1) << 6;
 
 	if (bios_extern & LOONGSON_EFI_ENABLE)
 		set_bit(EFI_BOOT, &efi.flags);
@@ -349,8 +348,6 @@ static void __init prefill_possible_map(void)
 
 	nr_cpu_ids = possible;
 }
-#else
-static inline void prefill_possible_map(void) {}
 #endif
 
 void __init setup_arch(char **cmdline_p)
@@ -367,8 +364,10 @@ void __init setup_arch(char **cmdline_p)
 	arch_mem_init(cmdline_p);
 
 	resource_init();
+#ifdef CONFIG_SMP
 	plat_smp_setup();
 	prefill_possible_map();
+#endif
 
 	paging_init();
 }

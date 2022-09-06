@@ -45,7 +45,7 @@ MODULE_ALIAS_NFCT_HELPER("pptp");
 
 static DEFINE_SPINLOCK(nf_pptp_lock);
 
-const struct nf_nat_pptp_hook *nf_nat_pptp_hook;
+const struct nf_nat_pptp_hook __rcu *nf_nat_pptp_hook;
 EXPORT_SYMBOL_GPL(nf_nat_pptp_hook);
 
 #if defined(DEBUG) || defined(CONFIG_DYNAMIC_DEBUG)

@@ -196,7 +196,10 @@ struct dc_panel_patch {
 	unsigned int disable_fec;
 	unsigned int extra_t3_ms;
 	unsigned int max_dsc_target_bpp_limit;
+	unsigned int embedded_tiled_slave;
+	unsigned int disable_fams;
 	unsigned int skip_avmute;
+	unsigned int mst_start_top_delay;
 };
 
 struct dc_edid_caps {
@@ -277,6 +280,8 @@ enum dc_timing_source {
 	TIMING_SOURCE_EDID_CEA_SVD,
 	TIMING_SOURCE_EDID_CVT_3BYTE,
 	TIMING_SOURCE_EDID_4BYTE,
+	TIMING_SOURCE_EDID_CEA_DISPLAYID_VTDB,
+	TIMING_SOURCE_EDID_CEA_RID,
 	TIMING_SOURCE_VBIOS,
 	TIMING_SOURCE_CV,
 	TIMING_SOURCE_TV,
@@ -657,10 +662,17 @@ enum dc_psr_state {
 	PSR_STATE4b,
 	PSR_STATE4c,
 	PSR_STATE4d,
+	PSR_STATE4_FULL_FRAME,
+	PSR_STATE4a_FULL_FRAME,
+	PSR_STATE4b_FULL_FRAME,
+	PSR_STATE4c_FULL_FRAME,
+	PSR_STATE4_FULL_FRAME_POWERUP,
 	PSR_STATE5,
 	PSR_STATE5a,
 	PSR_STATE5b,
 	PSR_STATE5c,
+	PSR_STATE_HWLOCK_MGR,
+	PSR_STATE_POLLVUPDATE,
 	PSR_STATE_INVALID = 0xFF
 };
 
@@ -672,6 +684,12 @@ struct psr_config {
 	unsigned int psr_sdp_transmit_line_num_deadline;
 	bool allow_smu_optimizations;
 	bool allow_multi_disp_optimizations;
+	/* Panel self refresh 2 selective update granularity required */
+	bool su_granularity_required;
+	/* psr2 selective update y granularity capability */
+	uint8_t su_y_granularity;
+	unsigned int line_time_in_us;
+	uint8_t rate_control_caps;
 };
 
 union dmcu_psr_level {
@@ -686,7 +704,9 @@ union dmcu_psr_level {
 		unsigned int SKIP_AUTO_STATE_ADVANCE:1;
 		unsigned int DISABLE_PSR_ENTRY_ABORT:1;
 		unsigned int SKIP_SINGLE_OTG_DISABLE:1;
-		unsigned int RESERVED:22;
+		unsigned int DISABLE_ALPM:1;
+		unsigned int ALPM_DEFAULT_PD_MODE:1;
+		unsigned int RESERVED:20;
 	} bits;
 	unsigned int u32all;
 };
@@ -775,6 +795,12 @@ struct psr_context {
 	unsigned int frame_delay;
 	bool allow_smu_optimizations;
 	bool allow_multi_disp_optimizations;
+	/* Panel self refresh 2 selective update granularity required */
+	bool su_granularity_required;
+	/* psr2 selective update y granularity capability */
+	uint8_t su_y_granularity;
+	unsigned int line_time_in_us;
+	uint8_t rate_control_caps;
 };
 
 struct colorspace_transform {
@@ -850,7 +876,8 @@ struct dc_context {
 #ifdef CONFIG_DRM_AMD_DC_HDCP
 	struct cp_psp cp_psp;
 #endif
-
+	uint32_t *dcn_reg_offsets;
+	uint32_t *nbio_reg_offsets;
 };
 
 /* DSC DPCD capabilities */

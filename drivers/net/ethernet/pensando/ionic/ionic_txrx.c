@@ -947,10 +947,9 @@ static int ionic_tx_tso(struct ionic_queue *q, struct sk_buff *skb)
 	}
 
 	if (encap)
-		hdrlen = skb_inner_transport_header(skb) - skb->data +
-			 inner_tcp_hdrlen(skb);
+		hdrlen = skb_inner_tcp_all_headers(skb);
 	else
-		hdrlen = skb_transport_offset(skb) + tcp_hdrlen(skb);
+		hdrlen = skb_tcp_all_headers(skb);
 
 	tso_rem = len;
 	seg_rem = min(tso_rem, hdrlen + mss);

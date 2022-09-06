@@ -197,12 +197,6 @@ void smp_send_stop(void)
 	smp_call_function(stop_this_cpu, NULL, 0);
 }
 
-/* not supported, yet */
-int setup_profiling_timer(unsigned int multiplier)
-{
-	return -EINVAL;
-}
-
 void __init set_smp_cross_call(void (*fn)(const struct cpumask *, unsigned int))
 {
 	smp_cross_call = fn;

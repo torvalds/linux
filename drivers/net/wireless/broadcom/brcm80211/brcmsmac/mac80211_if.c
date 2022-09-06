@@ -507,7 +507,7 @@ brcms_ops_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 		brcms_c_start_station(wl->wlc, vif->addr);
 	else if (vif->type == NL80211_IFTYPE_AP)
 		brcms_c_start_ap(wl->wlc, vif->addr, vif->bss_conf.bssid,
-				 vif->bss_conf.ssid, vif->bss_conf.ssid_len);
+				 vif->cfg.ssid, vif->cfg.ssid_len);
 	else if (vif->type == NL80211_IFTYPE_ADHOC)
 		brcms_c_start_adhoc(wl->wlc, vif->addr);
 	spin_unlock_bh(&wl->lock);
@@ -582,7 +582,7 @@ static int brcms_ops_config(struct ieee80211_hw *hw, u32 changed)
 static void
 brcms_ops_bss_info_changed(struct ieee80211_hw *hw,
 			struct ieee80211_vif *vif,
-			struct ieee80211_bss_conf *info, u32 changed)
+			struct ieee80211_bss_conf *info, u64 changed)
 {
 	struct brcms_info *wl = hw->priv;
 	struct bcma_device *core = wl->wlc->hw->d11core;
@@ -592,9 +592,9 @@ brcms_ops_bss_info_changed(struct ieee80211_hw *hw,
 		 * also implies a change in the AID.
 		 */
 		brcms_err(core, "%s: %s: %sassociated\n", KBUILD_MODNAME,
-			  __func__, info->assoc ? "" : "dis");
+			  __func__, vif->cfg.assoc ? "" : "dis");
 		spin_lock_bh(&wl->lock);
-		brcms_c_associate_upd(wl->wlc, info->assoc);
+		brcms_c_associate_upd(wl->wlc, vif->cfg.assoc);
 		spin_unlock_bh(&wl->lock);
 	}
 	if (changed & BSS_CHANGED_ERP_SLOT) {
@@ -669,7 +669,7 @@ brcms_ops_bss_info_changed(struct ieee80211_hw *hw,
 	if (changed & BSS_CHANGED_SSID) {
 		/* BSSID changed, for whatever reason (IBSS and managed mode) */
 		spin_lock_bh(&wl->lock);
-		brcms_c_set_ssid(wl->wlc, info->ssid, info->ssid_len);
+		brcms_c_set_ssid(wl->wlc, vif->cfg.ssid, vif->cfg.ssid_len);
 		spin_unlock_bh(&wl->lock);
 	}
 	if (changed & BSS_CHANGED_BEACON) {
@@ -678,7 +678,7 @@ brcms_ops_bss_info_changed(struct ieee80211_hw *hw,
 		u16 tim_offset = 0;
 
 		spin_lock_bh(&wl->lock);
-		beacon = ieee80211_beacon_get_tim(hw, vif, &tim_offset, NULL);
+		beacon = ieee80211_beacon_get_tim(hw, vif, &tim_offset, NULL, 0);
 		brcms_c_set_new_beacon(wl->wlc, beacon, tim_offset,
 				       info->dtim_period);
 		spin_unlock_bh(&wl->lock);
@@ -715,13 +715,13 @@ brcms_ops_bss_info_changed(struct ieee80211_hw *hw,
 	if (changed & BSS_CHANGED_IBSS) {
 		/* IBSS join status changed */
 		brcms_err(core, "%s: IBSS joined: %s (implement)\n",
-			  __func__, info->ibss_joined ? "true" : "false");
+			  __func__, vif->cfg.ibss_joined ? "true" : "false");
 	}
 
 	if (changed & BSS_CHANGED_ARP_FILTER) {
 		/* Hardware ARP filter address list or state changed */
 		brcms_err(core, "%s: arp filtering: %d addresses"
-			  " (implement)\n", __func__, info->arp_addr_cnt);
+			  " (implement)\n", __func__, vif->cfg.arp_addr_cnt);
 	}
 
 	if (changed & BSS_CHANGED_QOS) {
@@ -787,7 +787,8 @@ static void brcms_ops_sw_scan_complete(struct ieee80211_hw *hw,
 }
 
 static int
-brcms_ops_conf_tx(struct ieee80211_hw *hw, struct ieee80211_vif *vif, u16 queue,
+brcms_ops_conf_tx(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+		  unsigned int link_id, u16 queue,
 		  const struct ieee80211_tx_queue_params *params)
 {
 	struct brcms_info *wl = hw->priv;
@@ -950,7 +951,7 @@ static int brcms_ops_beacon_set_tim(struct ieee80211_hw *hw,
 	spin_lock_bh(&wl->lock);
 	if (wl->wlc->vif)
 		beacon = ieee80211_beacon_get_tim(hw, wl->wlc->vif,
-						  &tim_offset, NULL);
+						  &tim_offset, NULL, 0);
 	if (beacon)
 		brcms_c_set_new_beacon(wl->wlc, beacon, tim_offset,
 				       wl->wlc->vif->bss_conf.dtim_period);

@@ -235,7 +235,7 @@ static int imx_media_inherit_controls(struct imx_media_dev *imxmd,
 		if (!(spad->flags & MEDIA_PAD_FL_SINK))
 			continue;
 
-		pad = media_entity_remote_pad(spad);
+		pad = media_pad_remote_pad_first(spad);
 		if (!pad || !is_media_entity_v4l2_subdev(pad->entity))
 			continue;
 

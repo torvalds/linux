@@ -178,7 +178,8 @@ struct vdpa_map_file {
  *				for the device
  *				@vdev: vdpa device
  *				Returns virtqueue algin requirement
- * @get_vq_group:		Get the group id for a specific virtqueue
+ * @get_vq_group:		Get the group id for a specific
+ *				virtqueue (optional)
  *				@vdev: vdpa device
  *				@idx: virtqueue index
  *				Returns u32: group id for this virtqueue
@@ -217,6 +218,9 @@ struct vdpa_map_file {
  * @reset:			Reset device
  *				@vdev: vdpa device
  *				Returns integer: success (0) or error (< 0)
+ * @suspend:			Suspend or resume the device (optional)
+ *				@vdev: vdpa device
+ *				Returns integer: success (0) or error (< 0)
  * @get_config_size:		Get the size of the configuration space includes
  *				fields that are conditional on feature bits.
  *				@vdev: vdpa device
@@ -243,7 +247,7 @@ struct vdpa_map_file {
  *				Returns the iova range supported by
  *				the device.
  * @set_group_asid:		Set address space identifier for a
- *				virtqueue group
+ *				virtqueue group (optional)
  *				@vdev: vdpa device
  *				@group: virtqueue group
  *				@asid: address space id for this group
@@ -318,6 +322,7 @@ struct vdpa_config_ops {
 	u8 (*get_status)(struct vdpa_device *vdev);
 	void (*set_status)(struct vdpa_device *vdev, u8 status);
 	int (*reset)(struct vdpa_device *vdev);
+	int (*suspend)(struct vdpa_device *vdev);
 	size_t (*get_config_size)(struct vdpa_device *vdev);
 	void (*get_config)(struct vdpa_device *vdev, unsigned int offset,
 			   void *buf, unsigned int len);

@@ -53,6 +53,8 @@ union hv_ghcb {
 	} hypercall;
 } __packed __aligned(HV_HYP_PAGE_SIZE);
 
+static u16 hv_ghcb_version __ro_after_init;
+
 u64 hv_ghcb_hypercall(u64 control, void *input, void *output, u32 input_size)
 {
 	union hv_ghcb *hv_ghcb;
@@ -96,12 +98,85 @@ u64 hv_ghcb_hypercall(u64 control, void *input, void *output, u32 input_size)
 	return status;
 }
 
+static inline u64 rd_ghcb_msr(void)
+{
+	return __rdmsr(MSR_AMD64_SEV_ES_GHCB);
+}
+
+static inline void wr_ghcb_msr(u64 val)
+{
+	native_wrmsrl(MSR_AMD64_SEV_ES_GHCB, val);
+}
+
+static enum es_result hv_ghcb_hv_call(struct ghcb *ghcb, u64 exit_code,
+				   u64 exit_info_1, u64 exit_info_2)
+{
+	/* Fill in protocol and format specifiers */
+	ghcb->protocol_version = hv_ghcb_version;
+	ghcb->ghcb_usage       = GHCB_DEFAULT_USAGE;
+
+	ghcb_set_sw_exit_code(ghcb, exit_code);
+	ghcb_set_sw_exit_info_1(ghcb, exit_info_1);
+	ghcb_set_sw_exit_info_2(ghcb, exit_info_2);
+
+	VMGEXIT();
+
+	if (ghcb->save.sw_exit_info_1 & GENMASK_ULL(31, 0))
+		return ES_VMM_ERROR;
+	else
+		return ES_OK;
+}
+
+void hv_ghcb_terminate(unsigned int set, unsigned int reason)
+{
+	u64 val = GHCB_MSR_TERM_REQ;
+
+	/* Tell the hypervisor what went wrong. */
+	val |= GHCB_SEV_TERM_REASON(set, reason);
+
+	/* Request Guest Termination from Hypvervisor */
+	wr_ghcb_msr(val);
+	VMGEXIT();
+
+	while (true)
+		asm volatile("hlt\n" : : : "memory");
+}
+
+bool hv_ghcb_negotiate_protocol(void)
+{
+	u64 ghcb_gpa;
+	u64 val;
+
+	/* Save ghcb page gpa. */
+	ghcb_gpa = rd_ghcb_msr();
+
+	/* Do the GHCB protocol version negotiation */
+	wr_ghcb_msr(GHCB_MSR_SEV_INFO_REQ);
+	VMGEXIT();
+	val = rd_ghcb_msr();
+
+	if (GHCB_MSR_INFO(val) != GHCB_MSR_SEV_INFO_RESP)
+		return false;
+
+	if (GHCB_MSR_PROTO_MAX(val) < GHCB_PROTOCOL_MIN ||
+	    GHCB_MSR_PROTO_MIN(val) > GHCB_PROTOCOL_MAX)
+		return false;
+
+	hv_ghcb_version = min_t(size_t, GHCB_MSR_PROTO_MAX(val),
+			     GHCB_PROTOCOL_MAX);
+
+	/* Write ghcb page back after negotiating protocol. */
+	wr_ghcb_msr(ghcb_gpa);
+	VMGEXIT();
+
+	return true;
+}
+
 void hv_ghcb_msr_write(u64 msr, u64 value)
 {
 	union hv_ghcb *hv_ghcb;
 	void **ghcb_base;
 	unsigned long flags;
-	struct es_em_ctxt ctxt;
 
 	if (!hv_ghcb_pg)
 		return;
@@ -120,8 +195,7 @@ void hv_ghcb_msr_write(u64 msr, u64 value)
 	ghcb_set_rax(&hv_ghcb->ghcb, lower_32_bits(value));
 	ghcb_set_rdx(&hv_ghcb->ghcb, upper_32_bits(value));
 
-	if (sev_es_ghcb_hv_call(&hv_ghcb->ghcb, false, &ctxt,
-				SVM_EXIT_MSR, 1, 0))
+	if (hv_ghcb_hv_call(&hv_ghcb->ghcb, SVM_EXIT_MSR, 1, 0))
 		pr_warn("Fail to write msr via ghcb %llx.\n", msr);
 
 	local_irq_restore(flags);
@@ -133,7 +207,6 @@ void hv_ghcb_msr_read(u64 msr, u64 *value)
 	union hv_ghcb *hv_ghcb;
 	void **ghcb_base;
 	unsigned long flags;
-	struct es_em_ctxt ctxt;
 
 	/* Check size of union hv_ghcb here. */
 	BUILD_BUG_ON(sizeof(union hv_ghcb) != HV_HYP_PAGE_SIZE);
@@ -152,8 +225,7 @@ void hv_ghcb_msr_read(u64 msr, u64 *value)
 	}
 
 	ghcb_set_rcx(&hv_ghcb->ghcb, msr);
-	if (sev_es_ghcb_hv_call(&hv_ghcb->ghcb, false, &ctxt,
-				SVM_EXIT_MSR, 0, 0))
+	if (hv_ghcb_hv_call(&hv_ghcb->ghcb, SVM_EXIT_MSR, 0, 0))
 		pr_warn("Fail to read msr via ghcb %llx.\n", msr);
 	else
 		*value = (u64)lower_32_bits(hv_ghcb->ghcb.save.rax)

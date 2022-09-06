@@ -513,10 +513,3 @@ void __cpu_die(unsigned int cpu)
 
 	pdc_cpu_rendezvous_unlock();
 }
-
-#ifdef CONFIG_PROC_FS
-int setup_profiling_timer(unsigned int multiplier)
-{
-	return -EINVAL;
-}
-#endif

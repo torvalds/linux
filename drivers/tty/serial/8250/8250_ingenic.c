@@ -54,7 +54,7 @@ static void early_out(struct uart_port *port, int offset, uint8_t value)
 
 static void ingenic_early_console_putc(struct uart_port *port, unsigned char c)
 {
-	uint8_t lsr;
+	u16 lsr;
 
 	do {
 		lsr = early_in(port, UART_LSR);

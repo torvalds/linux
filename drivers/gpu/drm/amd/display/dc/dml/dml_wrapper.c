@@ -23,7 +23,6 @@
  *
  */
 
-#include "dml_wrapper.h"
 #include "resource.h"
 #include "core_types.h"
 #include "dsc.h"
@@ -84,25 +83,6 @@ static void get_pixel_clock_parameters(
 	if (stream->timing.timing_3d_format == TIMING_3D_FORMAT_HW_FRAME_PACKING)
 		pixel_clk_params->requested_pix_clk_100hz *= 2;
 
-}
-
-static enum dc_status build_pipe_hw_param(struct pipe_ctx *pipe_ctx)
-{
-	get_pixel_clock_parameters(pipe_ctx, &pipe_ctx->stream_res.pix_clk_params);
-
-	if (pipe_ctx->clock_source)
-		pipe_ctx->clock_source->funcs->get_pix_clk_dividers(
-			pipe_ctx->clock_source,
-			&pipe_ctx->stream_res.pix_clk_params,
-			&pipe_ctx->pll_settings);
-
-	pipe_ctx->stream->clamping.pixel_encoding = pipe_ctx->stream->timing.pixel_encoding;
-
-	resource_build_bit_depth_reduction_params(pipe_ctx->stream,
-					&pipe_ctx->stream->bit_depth_params);
-	build_clamping_params(pipe_ctx->stream);
-
-	return DC_OK;
 }
 
 static void resource_build_bit_depth_reduction_params(struct dc_stream_state *stream,
@@ -229,6 +209,30 @@ static void resource_build_bit_depth_reduction_params(struct dc_stream_state *st
 	}
 
 	fmt_bit_depth->pixel_encoding = pixel_encoding;
+}
+
+/* Move this after the above function as VS complains about
+ * declaration issues for resource_build_bit_depth_reduction_params.
+ */
+
+static enum dc_status build_pipe_hw_param(struct pipe_ctx *pipe_ctx)
+{
+
+	get_pixel_clock_parameters(pipe_ctx, &pipe_ctx->stream_res.pix_clk_params);
+
+	if (pipe_ctx->clock_source)
+		pipe_ctx->clock_source->funcs->get_pix_clk_dividers(
+			pipe_ctx->clock_source,
+			&pipe_ctx->stream_res.pix_clk_params,
+			&pipe_ctx->pll_settings);
+
+	pipe_ctx->stream->clamping.pixel_encoding = pipe_ctx->stream->timing.pixel_encoding;
+
+	resource_build_bit_depth_reduction_params(pipe_ctx->stream,
+		&pipe_ctx->stream->bit_depth_params);
+	build_clamping_params(pipe_ctx->stream);
+
+	return DC_OK;
 }
 
 bool dml_validate_dsc(struct dc *dc, struct dc_state *new_ctx)
@@ -1130,7 +1134,7 @@ static int dml_populate_dml_pipes_from_context(
 {
 	int i, pipe_cnt;
 	struct resource_context *res_ctx = &context->res_ctx;
-	struct pipe_ctx *pipe;
+	struct pipe_ctx *pipe = NULL;	// Fix potentially uninitialized error from VS
 
 	populate_dml_pipes_from_context_base(dc, context, pipes, fast_validate);
 
@@ -1284,10 +1288,8 @@ static bool is_dtbclk_required(struct dc *dc, struct dc_state *context)
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
 		if (!context->res_ctx.pipe_ctx[i].stream)
 			continue;
-#if defined (CONFIG_DRM_AMD_DC_DP2_0)
 		if (is_dp_128b_132b_signal(&context->res_ctx.pipe_ctx[i]))
 			return true;
-#endif
 	}
 	return false;
 }
@@ -1298,6 +1300,7 @@ static void dml_update_soc_for_wm_a(struct dc *dc, struct dc_state *context)
 		context->bw_ctx.dml.soc.dram_clock_change_latency_us = dc->clk_mgr->bw_params->wm_table.nv_entries[WM_A].dml_input.pstate_latency_us;
 		context->bw_ctx.dml.soc.sr_enter_plus_exit_time_us = dc->clk_mgr->bw_params->wm_table.nv_entries[WM_A].dml_input.sr_enter_plus_exit_time_us;
 		context->bw_ctx.dml.soc.sr_exit_time_us = dc->clk_mgr->bw_params->wm_table.nv_entries[WM_A].dml_input.sr_exit_time_us;
+		context->bw_ctx.dml.soc.fclk_change_latency_us = dc->clk_mgr->bw_params->wm_table.nv_entries[WM_A].dml_input.fclk_change_latency_us;
 	}
 }
 
@@ -1595,11 +1598,8 @@ static void dml_calculate_dlg_params(
 		context->bw_ctx.bw.dcn.clk.z9_support = DCN_Z9_SUPPORT_ALLOW;
 	*/
 	context->bw_ctx.bw.dcn.clk.dtbclk_en = is_dtbclk_required(dc, context);
-	/* TODO : Uncomment the below line and make changes
-	 * as per DML nomenclature once it is available.
-	 * context->bw_ctx.bw.dcn.clk.fclk_p_state_change_support = context->bw_ctx.dml.vba.fclk_pstate_support;
-	 */
-
+	context->bw_ctx.bw.dcn.clk.fclk_p_state_change_support =
+		context->bw_ctx.dml.vba.FCLKChangeSupport[vlevel][context->bw_ctx.dml.vba.maxMpcComb];
 	if (context->bw_ctx.bw.dcn.clk.dispclk_khz < dc->debug.min_disp_clk_khz)
 		context->bw_ctx.bw.dcn.clk.dispclk_khz = dc->debug.min_disp_clk_khz;
 
@@ -1701,12 +1701,11 @@ static void dml_calculate_wm_and_dlg(
 	context->bw_ctx.bw.dcn.watermarks.b.frac_urg_bw_nom = get_fraction_of_urgent_bandwidth(&context->bw_ctx.dml, pipes, pipe_cnt) * 1000;
 	context->bw_ctx.bw.dcn.watermarks.b.frac_urg_bw_flip = get_fraction_of_urgent_bandwidth_imm_flip(&context->bw_ctx.dml, pipes, pipe_cnt) * 1000;
 	context->bw_ctx.bw.dcn.watermarks.b.urgent_latency_ns = get_urgent_latency(&context->bw_ctx.dml, pipes, pipe_cnt) * 1000;
-	//context->bw_ctx.bw.dcn.watermarks.b.cstate_pstate.fclk_pstate_change_ns = get_wm_fclk_pstate(&context->bw_ctx.dml, pipes, pipe_cnt) * 1000;
+	context->bw_ctx.bw.dcn.watermarks.b.cstate_pstate.fclk_pstate_change_ns = get_fclk_watermark(&context->bw_ctx.dml, pipes, pipe_cnt) * 1000;
 	//context->bw_ctx.bw.dcn.watermarks.b.usr_retraining_ns = get_wm_usr_retraining(&context->bw_ctx.dml, pipes, pipe_cnt) * 1000;
 
 	/* Temporary, to have some fclk_pstate_change_ns and usr_retraining_ns wm values until DML is implemented */
-	context->bw_ctx.bw.dcn.watermarks.b.cstate_pstate.fclk_pstate_change_ns = context->bw_ctx.bw.dcn.watermarks.b.cstate_pstate.pstate_change_ns / 4;
-	context->bw_ctx.bw.dcn.watermarks.b.usr_retraining_ns = context->bw_ctx.bw.dcn.watermarks.b.cstate_pstate.pstate_change_ns / 8;
+	//context->bw_ctx.bw.dcn.watermarks.b.usr_retraining = context->bw_ctx.bw.dcn.watermarks.b.cstate_pstate.pstate_change_ns / 8;
 
 	/* Set D:
 	 * All clocks min.
@@ -1738,13 +1737,11 @@ static void dml_calculate_wm_and_dlg(
 	context->bw_ctx.bw.dcn.watermarks.d.frac_urg_bw_nom = get_fraction_of_urgent_bandwidth(&context->bw_ctx.dml, pipes, pipe_cnt) * 1000;
 	context->bw_ctx.bw.dcn.watermarks.d.frac_urg_bw_flip = get_fraction_of_urgent_bandwidth_imm_flip(&context->bw_ctx.dml, pipes, pipe_cnt) * 1000;
 	context->bw_ctx.bw.dcn.watermarks.d.urgent_latency_ns = get_urgent_latency(&context->bw_ctx.dml, pipes, pipe_cnt) * 1000;
-	//context->bw_ctx.bw.dcn.watermarks.d.cstate_pstate.fclk_pstate_change_ns = get_wm_fclk_pstate(&context->bw_ctx.dml, pipes, pipe_cnt) * 1000;
+	context->bw_ctx.bw.dcn.watermarks.d.cstate_pstate.fclk_pstate_change_ns = get_fclk_watermark(&context->bw_ctx.dml, pipes, pipe_cnt) * 1000;
 	//context->bw_ctx.bw.dcn.watermarks.d.usr_retraining_ns = get_wm_usr_retraining(&context->bw_ctx.dml, pipes, pipe_cnt) * 1000;
 
 	/* Temporary, to have some fclk_pstate_change_ns and usr_retraining_ns wm values until DML is implemented */
-	context->bw_ctx.bw.dcn.watermarks.d.cstate_pstate.fclk_pstate_change_ns = context->bw_ctx.bw.dcn.watermarks.d.cstate_pstate.pstate_change_ns / 4;
-	context->bw_ctx.bw.dcn.watermarks.d.usr_retraining_ns = context->bw_ctx.bw.dcn.watermarks.d.cstate_pstate.pstate_change_ns / 8;
-
+	//context->bw_ctx.bw.dcn.watermarks.d.usr_retraining = context->bw_ctx.bw.dcn.watermarks.d.cstate_pstate.pstate_change_ns / 8;
 	/* Set C, for Dummy P-State:
 	 * All clocks min.
 	 * DCFCLK: Min, as reported by PM FW, when available
@@ -1775,13 +1772,11 @@ static void dml_calculate_wm_and_dlg(
 	context->bw_ctx.bw.dcn.watermarks.c.frac_urg_bw_nom = get_fraction_of_urgent_bandwidth(&context->bw_ctx.dml, pipes, pipe_cnt) * 1000;
 	context->bw_ctx.bw.dcn.watermarks.c.frac_urg_bw_flip = get_fraction_of_urgent_bandwidth_imm_flip(&context->bw_ctx.dml, pipes, pipe_cnt) * 1000;
 	context->bw_ctx.bw.dcn.watermarks.c.urgent_latency_ns = get_urgent_latency(&context->bw_ctx.dml, pipes, pipe_cnt) * 1000;
-	//context->bw_ctx.bw.dcn.watermarks.c.cstate_pstate.fclk_pstate_change_ns = get_wm_fclk_pstate(&context->bw_ctx.dml, pipes, pipe_cnt) * 1000;
+	context->bw_ctx.bw.dcn.watermarks.c.cstate_pstate.fclk_pstate_change_ns = get_fclk_watermark(&context->bw_ctx.dml, pipes, pipe_cnt) * 1000;
 	//context->bw_ctx.bw.dcn.watermarks.c.usr_retraining_ns = get_wm_usr_retraining(&context->bw_ctx.dml, pipes, pipe_cnt) * 1000;
 
 	/* Temporary, to have some fclk_pstate_change_ns and usr_retraining_ns wm values until DML is implemented */
-	context->bw_ctx.bw.dcn.watermarks.c.cstate_pstate.fclk_pstate_change_ns = context->bw_ctx.bw.dcn.watermarks.c.cstate_pstate.pstate_change_ns / 4;
-	context->bw_ctx.bw.dcn.watermarks.c.usr_retraining_ns = context->bw_ctx.bw.dcn.watermarks.c.cstate_pstate.pstate_change_ns / 8;
-
+	//context->bw_ctx.bw.dcn.watermarks.c.usr_retraining = context->bw_ctx.bw.dcn.watermarks.c.cstate_pstate.pstate_change_ns / 8;
 	if ((!pstate_en) && (dc->clk_mgr->bw_params->wm_table.nv_entries[WM_C].valid)) {
 		/* The only difference between A and C is p-state latency, if p-state is not supported
 		 * with full p-state latency we want to calculate DLG based on dummy p-state latency,

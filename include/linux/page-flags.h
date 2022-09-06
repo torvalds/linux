@@ -193,6 +193,11 @@ enum pageflags {
 
 	/* Only valid for buddy pages. Used to track pages that are reported */
 	PG_reported = PG_uptodate,
+
+#ifdef CONFIG_MEMORY_HOTPLUG
+	/* For self-hosted memmap pages */
+	PG_vmemmap_self_hosted = PG_owner_priv_1,
+#endif
 };
 
 #define PAGEFLAGS_MASK		((1UL << NR_PAGEFLAGS) - 1)
@@ -200,34 +205,15 @@ enum pageflags {
 #ifndef __GENERATING_BOUNDS_H
 
 #ifdef CONFIG_HUGETLB_PAGE_OPTIMIZE_VMEMMAP
-DECLARE_STATIC_KEY_MAYBE(CONFIG_HUGETLB_PAGE_OPTIMIZE_VMEMMAP_DEFAULT_ON,
-			 hugetlb_optimize_vmemmap_key);
-
-static __always_inline bool hugetlb_optimize_vmemmap_enabled(void)
-{
-	return static_branch_maybe(CONFIG_HUGETLB_PAGE_OPTIMIZE_VMEMMAP_DEFAULT_ON,
-				   &hugetlb_optimize_vmemmap_key);
-}
+DECLARE_STATIC_KEY_FALSE(hugetlb_optimize_vmemmap_key);
 
 /*
- * If the feature of optimizing vmemmap pages associated with each HugeTLB
- * page is enabled, the head vmemmap page frame is reused and all of the tail
- * vmemmap addresses map to the head vmemmap page frame (furture details can
- * refer to the figure at the head of the mm/hugetlb_vmemmap.c).  In other
- * words, there are more than one page struct with PG_head associated with each
- * HugeTLB page.  We __know__ that there is only one head page struct, the tail
- * page structs with PG_head are fake head page structs.  We need an approach
- * to distinguish between those two different types of page structs so that
- * compound_head() can return the real head page struct when the parameter is
- * the tail page struct but with PG_head.
- *
- * The page_fixed_fake_head() returns the real head page struct if the @page is
- * fake page head, otherwise, returns @page which can either be a true page
- * head or tail.
+ * Return the real head page struct iff the @page is a fake head page, otherwise
+ * return the @page itself. See Documentation/mm/vmemmap_dedup.rst.
  */
 static __always_inline const struct page *page_fixed_fake_head(const struct page *page)
 {
-	if (!hugetlb_optimize_vmemmap_enabled())
+	if (!static_branch_unlikely(&hugetlb_optimize_vmemmap_key))
 		return page;
 
 	/*
@@ -254,11 +240,6 @@ static __always_inline const struct page *page_fixed_fake_head(const struct page
 static inline const struct page *page_fixed_fake_head(const struct page *page)
 {
 	return page;
-}
-
-static inline bool hugetlb_optimize_vmemmap_enabled(void)
-{
-	return false;
 }
 #endif
 
@@ -628,6 +609,12 @@ PAGEFLAG_FALSE(SkipKASanPoison, skip_kasan_poison)
  */
 __PAGEFLAG(Reported, reported, PF_NO_COMPOUND)
 
+#ifdef CONFIG_MEMORY_HOTPLUG
+PAGEFLAG(VmemmapSelfHosted, vmemmap_self_hosted, PF_ANY)
+#else
+PAGEFLAG_FALSE(VmemmapSelfHosted, vmemmap_self_hosted)
+#endif
+
 /*
  * On an anonymous page mapped into a user virtual memory area,
  * page->mapping points to its anon_vma, not to a struct address_space;
@@ -639,7 +626,7 @@ __PAGEFLAG(Reported, reported, PF_NO_COMPOUND)
  * structure which KSM associates with that merged page.  See ksm.h.
  *
  * PAGE_MAPPING_KSM without PAGE_MAPPING_ANON is used for non-lru movable
- * page and then page->mapping points a struct address_space.
+ * page and then page->mapping points to a struct movable_operations.
  *
  * Please note that, confusingly, "page_mapping" refers to the inode
  * address_space which maps the page from disk; whereas "page_mapped"
@@ -649,6 +636,12 @@ __PAGEFLAG(Reported, reported, PF_NO_COMPOUND)
 #define PAGE_MAPPING_MOVABLE	0x2
 #define PAGE_MAPPING_KSM	(PAGE_MAPPING_ANON | PAGE_MAPPING_MOVABLE)
 #define PAGE_MAPPING_FLAGS	(PAGE_MAPPING_ANON | PAGE_MAPPING_MOVABLE)
+
+/*
+ * Different with flags above, this flag is used only for fsdax mode.  It
+ * indicates that this page->mapping is now under reflink case.
+ */
+#define PAGE_MAPPING_DAX_COW	0x1
 
 static __always_inline bool folio_mapping_flags(struct folio *folio)
 {
@@ -668,6 +661,12 @@ static __always_inline bool folio_test_anon(struct folio *folio)
 static __always_inline bool PageAnon(struct page *page)
 {
 	return folio_test_anon(page_folio(page));
+}
+
+static __always_inline bool __folio_test_movable(const struct folio *folio)
+{
+	return ((unsigned long)folio->mapping & PAGE_MAPPING_FLAGS) ==
+			PAGE_MAPPING_MOVABLE;
 }
 
 static __always_inline int __PageMovable(struct page *page)

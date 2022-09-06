@@ -67,15 +67,7 @@ enum cmdq_code {
 
 struct cmdq_cb_data {
 	int			sta;
-	void			*data;
 	struct cmdq_pkt		*pkt;
-};
-
-typedef void (*cmdq_async_flush_cb)(struct cmdq_cb_data data);
-
-struct cmdq_task_cb {
-	cmdq_async_flush_cb	cb;
-	void			*data;
 };
 
 struct cmdq_pkt {
@@ -83,8 +75,6 @@ struct cmdq_pkt {
 	dma_addr_t		pa_base;
 	size_t			cmd_buf_size; /* command occupied size */
 	size_t			buf_size; /* real buffer size */
-	struct cmdq_task_cb	cb;
-	struct cmdq_task_cb	async_cb;
 	void			*cl;
 };
 

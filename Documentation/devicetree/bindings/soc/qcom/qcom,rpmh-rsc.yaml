@@ -65,33 +65,22 @@ properties:
 
   qcom,tcs-config:
     $ref: /schemas/types.yaml#/definitions/uint32-matrix
+    minItems: 4
+    maxItems: 4
     items:
-      - items:
-          - description: TCS type
-            enum: [ 0, 1, 2, 3 ]
-          - description: Number of TCS
-      - items:
-          - description: TCS type
-            enum: [ 0, 1, 2, 3 ]
-          - description: Number of TCS
-      - items:
-          - description: TCS type
-            enum: [ 0, 1, 2, 3]
-          - description: Numbe r of TCS
-      - items:
-          - description: TCS type
-            enum: [ 0, 1, 2, 3 ]
-          - description: Number of TCS
+      items:
+        - description: |
+            TCS type::
+             - ACTIVE_TCS
+             - SLEEP_TCS
+             - WAKE_TCS
+             - CONTROL_TCS
+          enum: [ 0, 1, 2, 3 ]
+        - description: Number of TCS
     description: |
       The tuple defining the configuration of TCS. Must have two cells which
       describe each TCS type.  The order of the TCS must match the hardware
       configuration.
-      Cell 1 (TCS Type):: TCS types to be specified::
-       - ACTIVE_TCS
-       - SLEEP_TCS
-       - WAKE_TCS
-       - CONTROL_TCS
-      Cell 2 (Number of TCS):: <u32>
 
   qcom,tcs-offset:
     $ref: /schemas/types.yaml#/definitions/uint32

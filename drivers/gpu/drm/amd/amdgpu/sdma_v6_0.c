@@ -57,6 +57,7 @@ static void sdma_v6_0_set_ring_funcs(struct amdgpu_device *adev);
 static void sdma_v6_0_set_buffer_funcs(struct amdgpu_device *adev);
 static void sdma_v6_0_set_vm_pte_funcs(struct amdgpu_device *adev);
 static void sdma_v6_0_set_irq_funcs(struct amdgpu_device *adev);
+static int sdma_v6_0_start(struct amdgpu_device *adev);
 
 static u32 sdma_v6_0_get_reg_offset(struct amdgpu_device *adev, u32 instance, u32 internal_offset)
 {
@@ -245,34 +246,68 @@ static uint64_t sdma_v6_0_ring_get_wptr(struct amdgpu_ring *ring)
 static void sdma_v6_0_ring_set_wptr(struct amdgpu_ring *ring)
 {
 	struct amdgpu_device *adev = ring->adev;
+	uint32_t *wptr_saved;
+	uint32_t *is_queue_unmap;
+	uint64_t aggregated_db_index;
+	uint32_t mqd_size = adev->mqds[AMDGPU_HW_IP_DMA].mqd_size;
 
 	DRM_DEBUG("Setting write pointer\n");
-	if (ring->use_doorbell) {
-		DRM_DEBUG("Using doorbell -- "
-				"wptr_offs == 0x%08x "
-				"lower_32_bits(ring->wptr) << 2 == 0x%08x "
-				"upper_32_bits(ring->wptr) << 2 == 0x%08x\n",
-				ring->wptr_offs,
-				lower_32_bits(ring->wptr << 2),
-				upper_32_bits(ring->wptr << 2));
-		/* XXX check if swapping is necessary on BE */
+
+	if (ring->is_mes_queue) {
+		wptr_saved = (uint32_t *)(ring->mqd_ptr + mqd_size);
+		is_queue_unmap = (uint32_t *)(ring->mqd_ptr + mqd_size +
+					      sizeof(uint32_t));
+		aggregated_db_index =
+			amdgpu_mes_get_aggregated_doorbell_index(adev,
+							 ring->hw_prio);
+
 		atomic64_set((atomic64_t *)ring->wptr_cpu_addr,
 			     ring->wptr << 2);
-		DRM_DEBUG("calling WDOORBELL64(0x%08x, 0x%016llx)\n",
-				ring->doorbell_index, ring->wptr << 2);
-		WDOORBELL64(ring->doorbell_index, ring->wptr << 2);
+		*wptr_saved = ring->wptr << 2;
+		if (*is_queue_unmap) {
+			WDOORBELL64(aggregated_db_index, ring->wptr << 2);
+			DRM_DEBUG("calling WDOORBELL64(0x%08x, 0x%016llx)\n",
+					ring->doorbell_index, ring->wptr << 2);
+			WDOORBELL64(ring->doorbell_index, ring->wptr << 2);
+		} else {
+			DRM_DEBUG("calling WDOORBELL64(0x%08x, 0x%016llx)\n",
+					ring->doorbell_index, ring->wptr << 2);
+			WDOORBELL64(ring->doorbell_index, ring->wptr << 2);
+
+			if (*is_queue_unmap)
+				WDOORBELL64(aggregated_db_index,
+					    ring->wptr << 2);
+		}
 	} else {
-		DRM_DEBUG("Not using doorbell -- "
-				"regSDMA%i_GFX_RB_WPTR == 0x%08x "
-				"regSDMA%i_GFX_RB_WPTR_HI == 0x%08x\n",
-				ring->me,
-				lower_32_bits(ring->wptr << 2),
-				ring->me,
-				upper_32_bits(ring->wptr << 2));
-		WREG32_SOC15_IP(GC, sdma_v6_0_get_reg_offset(adev, ring->me, regSDMA0_QUEUE0_RB_WPTR),
-			lower_32_bits(ring->wptr << 2));
-		WREG32_SOC15_IP(GC, sdma_v6_0_get_reg_offset(adev, ring->me, regSDMA0_QUEUE0_RB_WPTR_HI),
-			upper_32_bits(ring->wptr << 2));
+		if (ring->use_doorbell) {
+			DRM_DEBUG("Using doorbell -- "
+				  "wptr_offs == 0x%08x "
+				  "lower_32_bits(ring->wptr) << 2 == 0x%08x "
+				  "upper_32_bits(ring->wptr) << 2 == 0x%08x\n",
+				  ring->wptr_offs,
+				  lower_32_bits(ring->wptr << 2),
+				  upper_32_bits(ring->wptr << 2));
+			/* XXX check if swapping is necessary on BE */
+			atomic64_set((atomic64_t *)ring->wptr_cpu_addr,
+				     ring->wptr << 2);
+			DRM_DEBUG("calling WDOORBELL64(0x%08x, 0x%016llx)\n",
+				  ring->doorbell_index, ring->wptr << 2);
+			WDOORBELL64(ring->doorbell_index, ring->wptr << 2);
+		} else {
+			DRM_DEBUG("Not using doorbell -- "
+				  "regSDMA%i_GFX_RB_WPTR == 0x%08x "
+				  "regSDMA%i_GFX_RB_WPTR_HI == 0x%08x\n",
+				  ring->me,
+				  lower_32_bits(ring->wptr << 2),
+				  ring->me,
+				  upper_32_bits(ring->wptr << 2));
+			WREG32_SOC15_IP(GC, sdma_v6_0_get_reg_offset(adev,
+				        ring->me, regSDMA0_QUEUE0_RB_WPTR),
+					lower_32_bits(ring->wptr << 2));
+			WREG32_SOC15_IP(GC, sdma_v6_0_get_reg_offset(adev,
+				        ring->me, regSDMA0_QUEUE0_RB_WPTR_HI),
+					upper_32_bits(ring->wptr << 2));
+		}
 	}
 }
 
@@ -771,32 +806,54 @@ static int sdma_v6_0_load_microcode(struct amdgpu_device *adev)
 static int sdma_v6_0_soft_reset(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-	u32 grbm_soft_reset;
 	u32 tmp;
 	int i;
 
+	sdma_v6_0_gfx_stop(adev);
+
 	for (i = 0; i < adev->sdma.num_instances; i++) {
-		grbm_soft_reset = REG_SET_FIELD(0,
-						GRBM_SOFT_RESET, SOFT_RESET_SDMA0,
-						1);
-		grbm_soft_reset <<= i;
+		tmp = RREG32_SOC15_IP(GC, sdma_v6_0_get_reg_offset(adev, i, regSDMA0_FREEZE));
+		tmp |= SDMA0_FREEZE__FREEZE_MASK;
+		WREG32_SOC15_IP(GC, sdma_v6_0_get_reg_offset(adev, i, regSDMA0_FREEZE), tmp);
+		tmp = RREG32_SOC15_IP(GC, sdma_v6_0_get_reg_offset(adev, i, regSDMA0_F32_CNTL));
+		tmp |= SDMA0_F32_CNTL__HALT_MASK;
+		tmp |= SDMA0_F32_CNTL__TH1_RESET_MASK;
+		WREG32_SOC15_IP(GC, sdma_v6_0_get_reg_offset(adev, i, regSDMA0_F32_CNTL), tmp);
 
-		tmp = RREG32_SOC15(GC, 0, regGRBM_SOFT_RESET);
-		tmp |= grbm_soft_reset;
-		DRM_DEBUG("GRBM_SOFT_RESET=0x%08X\n", tmp);
+		WREG32_SOC15_IP(GC, sdma_v6_0_get_reg_offset(adev, i, regSDMA0_QUEUE0_PREEMPT), 0);
+
+		udelay(100);
+
+		tmp = GRBM_SOFT_RESET__SOFT_RESET_SDMA0_MASK << i;
 		WREG32_SOC15(GC, 0, regGRBM_SOFT_RESET, tmp);
 		tmp = RREG32_SOC15(GC, 0, regGRBM_SOFT_RESET);
 
-		udelay(50);
+		udelay(100);
 
-		tmp &= ~grbm_soft_reset;
-		WREG32_SOC15(GC, 0, regGRBM_SOFT_RESET, tmp);
+		WREG32_SOC15(GC, 0, regGRBM_SOFT_RESET, 0);
 		tmp = RREG32_SOC15(GC, 0, regGRBM_SOFT_RESET);
 
-		udelay(50);
+		udelay(100);
 	}
 
-	return 0;
+	return sdma_v6_0_start(adev);
+}
+
+static bool sdma_v6_0_check_soft_reset(void *handle)
+{
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_ring *ring;
+	int i, r;
+	long tmo = msecs_to_jiffies(1000);
+
+	for (i = 0; i < adev->sdma.num_instances; i++) {
+		ring = &adev->sdma.instance[i].ring;
+		r = amdgpu_ring_test_ib(ring, tmo);
+		if (r)
+			return true;
+	}
+
+	return false;
 }
 
 /**
@@ -830,7 +887,6 @@ static int sdma_v6_0_start(struct amdgpu_device *adev)
 			msleep(1000);
 	}
 
-	sdma_v6_0_soft_reset(adev);
 	/* unhalt the MEs */
 	sdma_v6_0_enable(adev, true);
 	/* enable sdma ring preemption */
@@ -1526,6 +1582,7 @@ const struct amd_ip_funcs sdma_v6_0_ip_funcs = {
 	.is_idle = sdma_v6_0_is_idle,
 	.wait_for_idle = sdma_v6_0_wait_for_idle,
 	.soft_reset = sdma_v6_0_soft_reset,
+	.check_soft_reset = sdma_v6_0_check_soft_reset,
 	.set_clockgating_state = sdma_v6_0_set_clockgating_state,
 	.set_powergating_state = sdma_v6_0_set_powergating_state,
 	.get_clockgating_state = sdma_v6_0_get_clockgating_state,

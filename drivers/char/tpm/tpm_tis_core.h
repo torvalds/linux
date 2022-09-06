@@ -121,6 +121,8 @@ struct tpm_tis_phy_ops {
 			  u8 *result, enum tpm_tis_io_mode mode);
 	int (*write_bytes)(struct tpm_tis_data *data, u32 addr, u16 len,
 			   const u8 *value, enum tpm_tis_io_mode mode);
+	int (*verify_crc)(struct tpm_tis_data *data, size_t len,
+			  const u8 *value);
 };
 
 static inline int tpm_tis_read_bytes(struct tpm_tis_data *data, u32 addr,
@@ -186,6 +188,14 @@ static inline int tpm_tis_write32(struct tpm_tis_data *data, u32 addr,
 	rc =  data->phy_ops->write_bytes(data, addr, sizeof(u32),
 					 (u8 *)&value_le, TPM_TIS_PHYS_32);
 	return rc;
+}
+
+static inline int tpm_tis_verify_crc(struct tpm_tis_data *data, size_t len,
+				     const u8 *value)
+{
+	if (!data->phy_ops->verify_crc)
+		return 0;
+	return data->phy_ops->verify_crc(data, len, value);
 }
 
 static inline bool is_bsw(void)

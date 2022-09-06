@@ -708,7 +708,7 @@ intel_context_migrate_copy(struct intel_context *ce,
 	u8 src_access, dst_access;
 	struct i915_request *rq;
 	int src_sz, dst_sz;
-	bool ccs_is_src;
+	bool ccs_is_src, overwrite_ccs;
 	int err;
 
 	GEM_BUG_ON(ce->vm != ce->engine->gt->migrate.context->vm);
@@ -748,6 +748,8 @@ intel_context_migrate_copy(struct intel_context *ce,
 		if (ccs_bytes_to_cpy)
 			get_ccs_sg_sgt(&it_ccs, bytes_to_cpy);
 	}
+
+	overwrite_ccs = HAS_FLAT_CCS(i915) && !ccs_bytes_to_cpy && dst_is_lmem;
 
 	src_offset = 0;
 	dst_offset = CHUNK_SZ;
@@ -852,6 +854,25 @@ intel_context_migrate_copy(struct intel_context *ce,
 			if (err)
 				goto out_rq;
 			ccs_bytes_to_cpy -= ccs_sz;
+		} else if (overwrite_ccs) {
+			err = rq->engine->emit_flush(rq, EMIT_INVALIDATE);
+			if (err)
+				goto out_rq;
+
+			/*
+			 * While we can't always restore/manage the CCS state,
+			 * we still need to ensure we don't leak the CCS state
+			 * from the previous user, so make sure we overwrite it
+			 * with something.
+			 */
+			err = emit_copy_ccs(rq, dst_offset, INDIRECT_ACCESS,
+					    dst_offset, DIRECT_ACCESS, len);
+			if (err)
+				goto out_rq;
+
+			err = rq->engine->emit_flush(rq, EMIT_INVALIDATE);
+			if (err)
+				goto out_rq;
 		}
 
 		/* Arbitration is re-enabled between requests. */

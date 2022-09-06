@@ -846,6 +846,21 @@ static void blkg_iostat_sub(struct blkg_iostat *dst, struct blkg_iostat *src)
 	}
 }
 
+static void blkcg_iostat_update(struct blkcg_gq *blkg, struct blkg_iostat *cur,
+				struct blkg_iostat *last)
+{
+	struct blkg_iostat delta;
+	unsigned long flags;
+
+	/* propagate percpu delta to global */
+	flags = u64_stats_update_begin_irqsave(&blkg->iostat.sync);
+	blkg_iostat_set(&delta, cur);
+	blkg_iostat_sub(&delta, last);
+	blkg_iostat_add(&blkg->iostat.cur, &delta);
+	blkg_iostat_add(last, &delta);
+	u64_stats_update_end_irqrestore(&blkg->iostat.sync, flags);
+}
+
 static void blkcg_rstat_flush(struct cgroup_subsys_state *css, int cpu)
 {
 	struct blkcg *blkcg = css_to_blkcg(css);
@@ -860,8 +875,7 @@ static void blkcg_rstat_flush(struct cgroup_subsys_state *css, int cpu)
 	hlist_for_each_entry_rcu(blkg, &blkcg->blkg_list, blkcg_node) {
 		struct blkcg_gq *parent = blkg->parent;
 		struct blkg_iostat_set *bisc = per_cpu_ptr(blkg->iostat_cpu, cpu);
-		struct blkg_iostat cur, delta;
-		unsigned long flags;
+		struct blkg_iostat cur;
 		unsigned int seq;
 
 		/* fetch the current per-cpu values */
@@ -870,23 +884,12 @@ static void blkcg_rstat_flush(struct cgroup_subsys_state *css, int cpu)
 			blkg_iostat_set(&cur, &bisc->cur);
 		} while (u64_stats_fetch_retry(&bisc->sync, seq));
 
-		/* propagate percpu delta to global */
-		flags = u64_stats_update_begin_irqsave(&blkg->iostat.sync);
-		blkg_iostat_set(&delta, &cur);
-		blkg_iostat_sub(&delta, &bisc->last);
-		blkg_iostat_add(&blkg->iostat.cur, &delta);
-		blkg_iostat_add(&bisc->last, &delta);
-		u64_stats_update_end_irqrestore(&blkg->iostat.sync, flags);
+		blkcg_iostat_update(blkg, &cur, &bisc->last);
 
 		/* propagate global delta to parent (unless that's root) */
-		if (parent && parent->parent) {
-			flags = u64_stats_update_begin_irqsave(&parent->iostat.sync);
-			blkg_iostat_set(&delta, &blkg->iostat.cur);
-			blkg_iostat_sub(&delta, &blkg->iostat.last);
-			blkg_iostat_add(&parent->iostat.cur, &delta);
-			blkg_iostat_add(&blkg->iostat.last, &delta);
-			u64_stats_update_end_irqrestore(&parent->iostat.sync, flags);
-		}
+		if (parent && parent->parent)
+			blkcg_iostat_update(parent, &blkg->iostat.cur,
+					    &blkg->iostat.last);
 	}
 
 	rcu_read_unlock();
@@ -1299,6 +1302,7 @@ int blkcg_init_queue(struct request_queue *q)
 	ret = blk_iolatency_init(q);
 	if (ret) {
 		blk_throtl_exit(q);
+		blk_ioprio_exit(q);
 		goto err_destroy_all;
 	}
 
@@ -1529,6 +1533,18 @@ void blkcg_deactivate_policy(struct request_queue *q,
 }
 EXPORT_SYMBOL_GPL(blkcg_deactivate_policy);
 
+static void blkcg_free_all_cpd(struct blkcg_policy *pol)
+{
+	struct blkcg *blkcg;
+
+	list_for_each_entry(blkcg, &all_blkcgs, all_blkcgs_node) {
+		if (blkcg->cpd[pol->plid]) {
+			pol->cpd_free_fn(blkcg->cpd[pol->plid]);
+			blkcg->cpd[pol->plid] = NULL;
+		}
+	}
+}
+
 /**
  * blkcg_policy_register - register a blkcg policy
  * @pol: blkcg policy to register
@@ -1593,14 +1609,9 @@ int blkcg_policy_register(struct blkcg_policy *pol)
 	return 0;
 
 err_free_cpds:
-	if (pol->cpd_free_fn) {
-		list_for_each_entry(blkcg, &all_blkcgs, all_blkcgs_node) {
-			if (blkcg->cpd[pol->plid]) {
-				pol->cpd_free_fn(blkcg->cpd[pol->plid]);
-				blkcg->cpd[pol->plid] = NULL;
-			}
-		}
-	}
+	if (pol->cpd_free_fn)
+		blkcg_free_all_cpd(pol);
+
 	blkcg_policy[pol->plid] = NULL;
 err_unlock:
 	mutex_unlock(&blkcg_pol_mutex);
@@ -1617,8 +1628,6 @@ EXPORT_SYMBOL_GPL(blkcg_policy_register);
  */
 void blkcg_policy_unregister(struct blkcg_policy *pol)
 {
-	struct blkcg *blkcg;
-
 	mutex_lock(&blkcg_pol_register_mutex);
 
 	if (WARN_ON(blkcg_policy[pol->plid] != pol))
@@ -1633,14 +1642,9 @@ void blkcg_policy_unregister(struct blkcg_policy *pol)
 	/* remove cpds and unregister */
 	mutex_lock(&blkcg_pol_mutex);
 
-	if (pol->cpd_free_fn) {
-		list_for_each_entry(blkcg, &all_blkcgs, all_blkcgs_node) {
-			if (blkcg->cpd[pol->plid]) {
-				pol->cpd_free_fn(blkcg->cpd[pol->plid]);
-				blkcg->cpd[pol->plid] = NULL;
-			}
-		}
-	}
+	if (pol->cpd_free_fn)
+		blkcg_free_all_cpd(pol);
+
 	blkcg_policy[pol->plid] = NULL;
 
 	mutex_unlock(&blkcg_pol_mutex);
@@ -1696,7 +1700,7 @@ static void blkcg_scale_delay(struct blkcg_gq *blkg, u64 now)
 	 * everybody is happy with their IO latencies.
 	 */
 	if (time_before64(old + NSEC_PER_SEC, now) &&
-	    atomic64_cmpxchg(&blkg->delay_start, old, now) == old) {
+	    atomic64_try_cmpxchg(&blkg->delay_start, &old, now)) {
 		u64 cur = atomic64_read(&blkg->delay_nsec);
 		u64 sub = min_t(u64, blkg->last_delay, now - old);
 		int cur_use = atomic_read(&blkg->use_delay);

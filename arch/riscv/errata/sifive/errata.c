@@ -111,6 +111,7 @@ void __init_or_module sifive_errata_patch_func(struct alt_entry *begin,
 			cpu_apply_errata |= tmp;
 		}
 	}
-	if (cpu_apply_errata != cpu_req_errata)
+	if (stage != RISCV_ALTERNATIVES_MODULE &&
+	    cpu_apply_errata != cpu_req_errata)
 		warn_miss_errata(cpu_req_errata - cpu_apply_errata);
 }

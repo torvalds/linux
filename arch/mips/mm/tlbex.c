@@ -586,25 +586,6 @@ void build_tlb_write_entry(u32 **p, struct uasm_label **l,
 		tlbw(p);
 		break;
 
-	case CPU_VR4111:
-	case CPU_VR4121:
-	case CPU_VR4122:
-	case CPU_VR4181:
-	case CPU_VR4181A:
-		uasm_i_nop(p);
-		uasm_i_nop(p);
-		tlbw(p);
-		uasm_i_nop(p);
-		uasm_i_nop(p);
-		break;
-
-	case CPU_VR4131:
-	case CPU_VR4133:
-		uasm_i_nop(p);
-		uasm_i_nop(p);
-		tlbw(p);
-		break;
-
 	case CPU_XBURST:
 		tlbw(p);
 		uasm_i_nop(p);
@@ -626,7 +607,7 @@ static __maybe_unused void build_convert_pte_to_entrylo(u32 **p,
 		return;
 	}
 
-	if (cpu_has_rixi && !!_PAGE_NO_EXEC) {
+	if (cpu_has_rixi && _PAGE_NO_EXEC != 0) {
 		if (fill_includes_sw_bits) {
 			UASM_i_ROTR(p, reg, reg, ilog2(_PAGE_GLOBAL));
 		} else {
@@ -818,7 +799,7 @@ void build_get_pmde64(u32 **p, struct uasm_label **l, struct uasm_reloc **r,
 		 * everything but the lower xuseg addresses goes down
 		 * the module_alloc/vmalloc path.
 		 */
-		uasm_i_dsrl_safe(p, ptr, tmp, PGDIR_SHIFT + PGD_ORDER + PAGE_SHIFT - 3);
+		uasm_i_dsrl_safe(p, ptr, tmp, PGDIR_SHIFT + PGD_TABLE_ORDER + PAGE_SHIFT - 3);
 		uasm_il_bnez(p, r, ptr, label_vmalloc);
 	} else {
 		uasm_il_bltz(p, r, tmp, label_vmalloc);
@@ -995,22 +976,6 @@ static void build_adjust_context(u32 **p, unsigned int ctx)
 	unsigned int shift = 4 - (PTE_T_LOG2 + 1) + PAGE_SHIFT - 12;
 	unsigned int mask = (PTRS_PER_PTE / 2 - 1) << (PTE_T_LOG2 + 1);
 
-	switch (current_cpu_type()) {
-	case CPU_VR41XX:
-	case CPU_VR4111:
-	case CPU_VR4121:
-	case CPU_VR4122:
-	case CPU_VR4131:
-	case CPU_VR4181:
-	case CPU_VR4181A:
-	case CPU_VR4133:
-		shift += 2;
-		break;
-
-	default:
-		break;
-	}
-
 	if (shift)
 		UASM_i_SRL(p, ctx, ctx, shift);
 	uasm_i_andi(p, ctx, ctx, mask);
@@ -1127,7 +1092,7 @@ build_fast_tlb_refill_handler (u32 **p, struct uasm_label **l,
 			UASM_i_SW(p, scratch, scratchpad_offset(0), 0);
 
 		uasm_i_dsrl_safe(p, scratch, tmp,
-				 PGDIR_SHIFT + PGD_ORDER + PAGE_SHIFT - 3);
+				 PGDIR_SHIFT + PGD_TABLE_ORDER + PAGE_SHIFT - 3);
 		uasm_il_bnez(p, r, scratch, label_vmalloc);
 
 		if (pgd_reg == -1) {
@@ -1493,12 +1458,12 @@ static void setup_pw(void)
 #endif
 	pgd_i = PGDIR_SHIFT;  /* 1st level PGD */
 #ifndef __PAGETABLE_PMD_FOLDED
-	pgd_w = PGDIR_SHIFT - PMD_SHIFT + PGD_ORDER;
+	pgd_w = PGDIR_SHIFT - PMD_SHIFT + PGD_TABLE_ORDER;
 
 	pmd_i = PMD_SHIFT;    /* 2nd level PMD */
 	pmd_w = PMD_SHIFT - PAGE_SHIFT;
 #else
-	pgd_w = PGDIR_SHIFT - PAGE_SHIFT + PGD_ORDER;
+	pgd_w = PGDIR_SHIFT - PAGE_SHIFT + PGD_TABLE_ORDER;
 #endif
 
 	pt_i  = PAGE_SHIFT;    /* 3rd level PTE */
@@ -1536,7 +1501,7 @@ static void build_loongson3_tlb_refill_handler(void)
 
 	if (check_for_high_segbits) {
 		uasm_i_dmfc0(&p, K0, C0_BADVADDR);
-		uasm_i_dsrl_safe(&p, K1, K0, PGDIR_SHIFT + PGD_ORDER + PAGE_SHIFT - 3);
+		uasm_i_dsrl_safe(&p, K1, K0, PGDIR_SHIFT + PGD_TABLE_ORDER + PAGE_SHIFT - 3);
 		uasm_il_beqz(&p, &r, K1, label_vmalloc);
 		uasm_i_nop(&p);
 
@@ -2065,7 +2030,7 @@ build_r4000_tlbchange_handler_head(u32 **p, struct uasm_label **l,
 
 	UASM_i_MFC0(p, wr.r1, C0_BADVADDR);
 	UASM_i_LW(p, wr.r2, 0, wr.r2);
-	UASM_i_SRL(p, wr.r1, wr.r1, PAGE_SHIFT + PTE_ORDER - PTE_T_LOG2);
+	UASM_i_SRL(p, wr.r1, wr.r1, PAGE_SHIFT - PTE_T_LOG2);
 	uasm_i_andi(p, wr.r1, wr.r1, (PTRS_PER_PTE - 1) << PTE_T_LOG2);
 	UASM_i_ADDU(p, wr.r2, wr.r2, wr.r1);
 
@@ -2565,7 +2530,7 @@ static void check_pabits(void)
 	unsigned long entry;
 	unsigned pabits, fillbits;
 
-	if (!cpu_has_rixi || !_PAGE_NO_EXEC) {
+	if (!cpu_has_rixi || _PAGE_NO_EXEC == 0) {
 		/*
 		 * We'll only be making use of the fact that we can rotate bits
 		 * into the fill if the CPU supports RIXI, so don't bother
@@ -2611,7 +2576,7 @@ void build_tlb_refill_handler(void)
 	check_pabits();
 
 #ifdef CONFIG_64BIT
-	check_for_high_segbits = current_cpu_data.vmbits > (PGDIR_SHIFT + PGD_ORDER + PAGE_SHIFT - 3);
+	check_for_high_segbits = current_cpu_data.vmbits > (PGDIR_SHIFT + PGD_TABLE_ORDER + PAGE_SHIFT - 3);
 #endif
 
 	if (cpu_has_3kex) {

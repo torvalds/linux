@@ -7,7 +7,7 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: Maxim Integrated MAX77976 Battery charger
 
 maintainers:
-  - Luca Ceresoli <luca@lucaceresoli.net>
+  - Luca Ceresoli <luca.ceresoli@bootlin.com>
 
 description: |
   The Maxim MAX77976 is a 19Vin / 5.5A, 1-Cell Li+ battery charger

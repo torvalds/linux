@@ -19,9 +19,10 @@
 		};
 
 		pm8009_gpios: gpio@c000 {
-			compatible = "qcom,pm8005-gpio";
+			compatible = "qcom,pm8005-gpio", "qcom,spmi-gpio";
 			reg = <0xc000>;
 			gpio-controller;
+			gpio-ranges = <&pm8009_gpios 0 0 4>;
 			#gpio-cells = <2>;
 			interrupt-controller;
 			#interrupt-cells = <2>;

@@ -338,7 +338,7 @@ static int xgbe_platform_probe(struct platform_device *pdev)
 		 *   the PHY resources listed last
 		 */
 		phy_memnum = xgbe_resource_count(pdev, IORESOURCE_MEM) - 3;
-		phy_irqnum = xgbe_resource_count(pdev, IORESOURCE_IRQ) - 1;
+		phy_irqnum = platform_irq_count(pdev) - 1;
 		dma_irqnum = 1;
 		dma_irqend = phy_irqnum;
 	} else {
@@ -348,7 +348,7 @@ static int xgbe_platform_probe(struct platform_device *pdev)
 		phy_memnum = 0;
 		phy_irqnum = 0;
 		dma_irqnum = 1;
-		dma_irqend = xgbe_resource_count(pdev, IORESOURCE_IRQ);
+		dma_irqend = platform_irq_count(pdev);
 	}
 
 	/* Obtain the mmio areas for the device */

@@ -237,7 +237,7 @@ static int hisi_spi_nor_dma_transfer(struct spi_nor *nor, loff_t start_off,
 	reg = readl(host->regbase + FMC_CFG);
 	reg &= ~(FMC_CFG_OP_MODE_MASK | SPI_NOR_ADDR_MODE_MASK);
 	reg |= FMC_CFG_OP_MODE_NORMAL;
-	reg |= (nor->addr_width == 4) ? SPI_NOR_ADDR_MODE_4BYTES
+	reg |= (nor->addr_nbytes == 4) ? SPI_NOR_ADDR_MODE_4BYTES
 		: SPI_NOR_ADDR_MODE_3BYTES;
 	writel(reg, host->regbase + FMC_CFG);
 

@@ -54,7 +54,7 @@
  * (uncached system pages).
  * Each VM has an ID associated with it and there is a page table
  * associated with each VMID.  When executing a command buffer,
- * the kernel tells the the ring what VMID to use for that command
+ * the kernel tells the ring what VMID to use for that command
  * buffer.  VMIDs are allocated dynamically as commands are submitted.
  * The userspace drivers maintain their own address space and the kernel
  * sets up their pages tables accordingly when they submit their
@@ -679,6 +679,7 @@ int amdgpu_vm_update_pdes(struct amdgpu_device *adev,
 {
 	struct amdgpu_vm_update_params params;
 	struct amdgpu_vm_bo_base *entry;
+	bool flush_tlb_needed = false;
 	int r, idx;
 
 	if (list_empty(&vm->relocated))
@@ -697,6 +698,9 @@ int amdgpu_vm_update_pdes(struct amdgpu_device *adev,
 		goto error;
 
 	list_for_each_entry(entry, &vm->relocated, vm_status) {
+		/* vm_flush_needed after updating moved PDEs */
+		flush_tlb_needed |= entry->moved;
+
 		r = amdgpu_vm_pde_update(&params, entry);
 		if (r)
 			goto error;
@@ -706,8 +710,8 @@ int amdgpu_vm_update_pdes(struct amdgpu_device *adev,
 	if (r)
 		goto error;
 
-	/* vm_flush_needed after updating PDEs */
-	atomic64_inc(&vm->tlb_seq);
+	if (flush_tlb_needed)
+		atomic64_inc(&vm->tlb_seq);
 
 	while (!list_empty(&vm->relocated)) {
 		entry = list_first_entry(&vm->relocated,
@@ -788,6 +792,11 @@ int amdgpu_vm_update_range(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 	 */
 	flush_tlb |= adev->gmc.xgmi.num_physical_nodes &&
 		     adev->ip_versions[GC_HWIP][0] == IP_VERSION(9, 4, 0);
+
+	/*
+	 * On GFX8 and older any 8 PTE block with a valid bit set enters the TLB
+	 */
+	flush_tlb |= adev->ip_versions[GC_HWIP][0] < IP_VERSION(9, 0, 0);
 
 	memset(&params, 0, sizeof(params));
 	params.adev = adev;
@@ -2159,6 +2168,14 @@ int amdgpu_vm_make_compute(struct amdgpu_device *adev, struct amdgpu_vm *vm)
 	} else {
 		vm->update_funcs = &amdgpu_vm_sdma_funcs;
 	}
+	/*
+	 * Make sure root PD gets mapped. As vm_update_mode could be changed
+	 * when turning a GFX VM into a compute VM.
+	 */
+	r = vm->update_funcs->map_table(to_amdgpu_bo_vm(vm->root.bo));
+	if (r)
+		goto unreserve_bo;
+
 	dma_fence_put(vm->last_update);
 	vm->last_update = NULL;
 	vm->is_compute_context = true;

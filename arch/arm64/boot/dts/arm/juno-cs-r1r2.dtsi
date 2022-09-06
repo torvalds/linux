@@ -96,24 +96,24 @@
 
 		trig-conns@0 {
 			reg = <0>;
-			arm,trig-in-sigs=<0 1>;
-			arm,trig-in-types=<SNK_FULL SNK_ACQCOMP>;
-			arm,trig-out-sigs=<0 1>;
-			arm,trig-out-types=<SNK_FLUSHIN SNK_TRIGIN>;
+			arm,trig-in-sigs = <0 1>;
+			arm,trig-in-types = <SNK_FULL SNK_ACQCOMP>;
+			arm,trig-out-sigs = <0 1>;
+			arm,trig-out-types = <SNK_FLUSHIN SNK_TRIGIN>;
 			arm,cs-dev-assoc = <&etf_sys1>;
 		};
 
 		trig-conns@1 {
 			reg = <1>;
-			arm,trig-in-sigs=<2 3 4>;
-			arm,trig-in-types=<ELA_DBGREQ ELA_TSTART ELA_TSTOP>;
+			arm,trig-in-sigs = <2 3 4>;
+			arm,trig-in-types = <ELA_DBGREQ ELA_TSTART ELA_TSTOP>;
 			arm,trig-conn-name = "ela_clus_0";
 		};
 
 		trig-conns@2 {
 			reg = <2>;
-			arm,trig-in-sigs=<5 6 7>;
-			arm,trig-in-types=<ELA_DBGREQ ELA_TSTART ELA_TSTOP>;
+			arm,trig-in-sigs = <5 6 7>;
+			arm,trig-in-types = <ELA_DBGREQ ELA_TSTART ELA_TSTOP>;
 			arm,trig-conn-name = "ela_clus_1";
 		};
 	};

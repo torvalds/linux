@@ -199,7 +199,7 @@ EXPORT_SYMBOL(posix_acl_alloc);
 /*
  * Clone an ACL.
  */
-static struct posix_acl *
+struct posix_acl *
 posix_acl_clone(const struct posix_acl *acl, gfp_t flags)
 {
 	struct posix_acl *clone = NULL;
@@ -213,6 +213,7 @@ posix_acl_clone(const struct posix_acl *acl, gfp_t flags)
 	}
 	return clone;
 }
+EXPORT_SYMBOL_GPL(posix_acl_clone);
 
 /*
  * Check if an acl is valid. Returns 0 if it is, or -E... otherwise.
@@ -360,9 +361,10 @@ posix_acl_permission(struct user_namespace *mnt_userns, struct inode *inode,
 		     const struct posix_acl *acl, int want)
 {
 	const struct posix_acl_entry *pa, *pe, *mask_obj;
+	struct user_namespace *fs_userns = i_user_ns(inode);
 	int found = 0;
-	kuid_t uid;
-	kgid_t gid;
+	vfsuid_t vfsuid;
+	vfsgid_t vfsgid;
 
 	want &= MAY_READ | MAY_WRITE | MAY_EXEC;
 
@@ -370,30 +372,28 @@ posix_acl_permission(struct user_namespace *mnt_userns, struct inode *inode,
                 switch(pa->e_tag) {
                         case ACL_USER_OBJ:
 				/* (May have been checked already) */
-				uid = i_uid_into_mnt(mnt_userns, inode);
-				if (uid_eq(uid, current_fsuid()))
+				vfsuid = i_uid_into_vfsuid(mnt_userns, inode);
+				if (vfsuid_eq_kuid(vfsuid, current_fsuid()))
                                         goto check_perm;
                                 break;
                         case ACL_USER:
-				uid = mapped_kuid_fs(mnt_userns,
-						     i_user_ns(inode),
+				vfsuid = make_vfsuid(mnt_userns, fs_userns,
 						     pa->e_uid);
-				if (uid_eq(uid, current_fsuid()))
+				if (vfsuid_eq_kuid(vfsuid, current_fsuid()))
                                         goto mask;
 				break;
                         case ACL_GROUP_OBJ:
-				gid = i_gid_into_mnt(mnt_userns, inode);
-				if (in_group_p(gid)) {
+				vfsgid = i_gid_into_vfsgid(mnt_userns, inode);
+				if (vfsgid_in_group_p(vfsgid)) {
 					found = 1;
 					if ((pa->e_perm & want) == want)
 						goto mask;
                                 }
 				break;
                         case ACL_GROUP:
-				gid = mapped_kgid_fs(mnt_userns,
-						     i_user_ns(inode),
+				vfsgid = make_vfsgid(mnt_userns, fs_userns,
 						     pa->e_gid);
-				if (in_group_p(gid)) {
+				if (vfsgid_in_group_p(vfsgid)) {
 					found = 1;
 					if ((pa->e_perm & want) == want)
 						goto mask;
@@ -699,7 +699,7 @@ int posix_acl_update_mode(struct user_namespace *mnt_userns,
 		return error;
 	if (error == 0)
 		*acl = NULL;
-	if (!in_group_p(i_gid_into_mnt(mnt_userns, inode)) &&
+	if (!vfsgid_in_group_p(i_gid_into_vfsgid(mnt_userns, inode)) &&
 	    !capable_wrt_inode_uidgid(mnt_userns, inode, CAP_FSETID))
 		mode &= ~S_ISGID;
 	*mode_p = mode;
@@ -710,10 +710,110 @@ EXPORT_SYMBOL(posix_acl_update_mode);
 /*
  * Fix up the uids and gids in posix acl extended attributes in place.
  */
+static int posix_acl_fix_xattr_common(void *value, size_t size)
+{
+	struct posix_acl_xattr_header *header = value;
+	int count;
+
+	if (!header)
+		return -EINVAL;
+	if (size < sizeof(struct posix_acl_xattr_header))
+		return -EINVAL;
+	if (header->a_version != cpu_to_le32(POSIX_ACL_XATTR_VERSION))
+		return -EINVAL;
+
+	count = posix_acl_xattr_count(size);
+	if (count < 0)
+		return -EINVAL;
+	if (count == 0)
+		return -EINVAL;
+
+	return count;
+}
+
+void posix_acl_getxattr_idmapped_mnt(struct user_namespace *mnt_userns,
+				     const struct inode *inode,
+				     void *value, size_t size)
+{
+	struct posix_acl_xattr_header *header = value;
+	struct posix_acl_xattr_entry *entry = (void *)(header + 1), *end;
+	struct user_namespace *fs_userns = i_user_ns(inode);
+	int count;
+	vfsuid_t vfsuid;
+	vfsgid_t vfsgid;
+	kuid_t uid;
+	kgid_t gid;
+
+	if (no_idmapping(mnt_userns, i_user_ns(inode)))
+		return;
+
+	count = posix_acl_fix_xattr_common(value, size);
+	if (count < 0)
+		return;
+
+	for (end = entry + count; entry != end; entry++) {
+		switch (le16_to_cpu(entry->e_tag)) {
+		case ACL_USER:
+			uid = make_kuid(&init_user_ns, le32_to_cpu(entry->e_id));
+			vfsuid = make_vfsuid(mnt_userns, fs_userns, uid);
+			entry->e_id = cpu_to_le32(from_kuid(&init_user_ns,
+						vfsuid_into_kuid(vfsuid)));
+			break;
+		case ACL_GROUP:
+			gid = make_kgid(&init_user_ns, le32_to_cpu(entry->e_id));
+			vfsgid = make_vfsgid(mnt_userns, fs_userns, gid);
+			entry->e_id = cpu_to_le32(from_kgid(&init_user_ns,
+						vfsgid_into_kgid(vfsgid)));
+			break;
+		default:
+			break;
+		}
+	}
+}
+
+void posix_acl_setxattr_idmapped_mnt(struct user_namespace *mnt_userns,
+				     const struct inode *inode,
+				     void *value, size_t size)
+{
+	struct posix_acl_xattr_header *header = value;
+	struct posix_acl_xattr_entry *entry = (void *)(header + 1), *end;
+	struct user_namespace *fs_userns = i_user_ns(inode);
+	int count;
+	vfsuid_t vfsuid;
+	vfsgid_t vfsgid;
+	kuid_t uid;
+	kgid_t gid;
+
+	if (no_idmapping(mnt_userns, i_user_ns(inode)))
+		return;
+
+	count = posix_acl_fix_xattr_common(value, size);
+	if (count < 0)
+		return;
+
+	for (end = entry + count; entry != end; entry++) {
+		switch (le16_to_cpu(entry->e_tag)) {
+		case ACL_USER:
+			uid = make_kuid(&init_user_ns, le32_to_cpu(entry->e_id));
+			vfsuid = VFSUIDT_INIT(uid);
+			uid = from_vfsuid(mnt_userns, fs_userns, vfsuid);
+			entry->e_id = cpu_to_le32(from_kuid(&init_user_ns, uid));
+			break;
+		case ACL_GROUP:
+			gid = make_kgid(&init_user_ns, le32_to_cpu(entry->e_id));
+			vfsgid = VFSGIDT_INIT(gid);
+			gid = from_vfsgid(mnt_userns, fs_userns, vfsgid);
+			entry->e_id = cpu_to_le32(from_kgid(&init_user_ns, gid));
+			break;
+		default:
+			break;
+		}
+	}
+}
+
 static void posix_acl_fix_xattr_userns(
 	struct user_namespace *to, struct user_namespace *from,
-	struct user_namespace *mnt_userns,
-	void *value, size_t size, bool from_user)
+	void *value, size_t size)
 {
 	struct posix_acl_xattr_header *header = value;
 	struct posix_acl_xattr_entry *entry = (void *)(header + 1), *end;
@@ -721,35 +821,18 @@ static void posix_acl_fix_xattr_userns(
 	kuid_t uid;
 	kgid_t gid;
 
-	if (!value)
-		return;
-	if (size < sizeof(struct posix_acl_xattr_header))
-		return;
-	if (header->a_version != cpu_to_le32(POSIX_ACL_XATTR_VERSION))
-		return;
-
-	count = posix_acl_xattr_count(size);
+	count = posix_acl_fix_xattr_common(value, size);
 	if (count < 0)
-		return;
-	if (count == 0)
 		return;
 
 	for (end = entry + count; entry != end; entry++) {
 		switch(le16_to_cpu(entry->e_tag)) {
 		case ACL_USER:
 			uid = make_kuid(from, le32_to_cpu(entry->e_id));
-			if (from_user)
-				uid = mapped_kuid_user(mnt_userns, &init_user_ns, uid);
-			else
-				uid = mapped_kuid_fs(mnt_userns, &init_user_ns, uid);
 			entry->e_id = cpu_to_le32(from_kuid(to, uid));
 			break;
 		case ACL_GROUP:
 			gid = make_kgid(from, le32_to_cpu(entry->e_id));
-			if (from_user)
-				gid = mapped_kgid_user(mnt_userns, &init_user_ns, gid);
-			else
-				gid = mapped_kgid_fs(mnt_userns, &init_user_ns, gid);
 			entry->e_id = cpu_to_le32(from_kgid(to, gid));
 			break;
 		default:
@@ -758,34 +841,20 @@ static void posix_acl_fix_xattr_userns(
 	}
 }
 
-void posix_acl_fix_xattr_from_user(struct user_namespace *mnt_userns,
-				   struct inode *inode,
-				   void *value, size_t size)
+void posix_acl_fix_xattr_from_user(void *value, size_t size)
 {
 	struct user_namespace *user_ns = current_user_ns();
-
-	/* Leave ids untouched on non-idmapped mounts. */
-	if (no_idmapping(mnt_userns, i_user_ns(inode)))
-		mnt_userns = &init_user_ns;
-	if ((user_ns == &init_user_ns) && (mnt_userns == &init_user_ns))
+	if (user_ns == &init_user_ns)
 		return;
-	posix_acl_fix_xattr_userns(&init_user_ns, user_ns, mnt_userns, value,
-				   size, true);
+	posix_acl_fix_xattr_userns(&init_user_ns, user_ns, value, size);
 }
 
-void posix_acl_fix_xattr_to_user(struct user_namespace *mnt_userns,
-				 struct inode *inode,
-				 void *value, size_t size)
+void posix_acl_fix_xattr_to_user(void *value, size_t size)
 {
 	struct user_namespace *user_ns = current_user_ns();
-
-	/* Leave ids untouched on non-idmapped mounts. */
-	if (no_idmapping(mnt_userns, i_user_ns(inode)))
-		mnt_userns = &init_user_ns;
-	if ((user_ns == &init_user_ns) && (mnt_userns == &init_user_ns))
+	if (user_ns == &init_user_ns)
 		return;
-	posix_acl_fix_xattr_userns(user_ns, &init_user_ns, mnt_userns, value,
-				   size, false);
+	posix_acl_fix_xattr_userns(user_ns, &init_user_ns, value, size);
 }
 
 /*

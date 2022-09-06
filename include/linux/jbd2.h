@@ -54,14 +54,13 @@
  * CONFIG_JBD2_DEBUG is on.
  */
 #define JBD2_EXPENSIVE_CHECKING
-extern ushort jbd2_journal_enable_debug;
 void __jbd2_debug(int level, const char *file, const char *func,
 		  unsigned int line, const char *fmt, ...);
 
-#define jbd_debug(n, fmt, a...) \
+#define jbd2_debug(n, fmt, a...) \
 	__jbd2_debug((n), __FILE__, __func__, __LINE__, (fmt), ##a)
 #else
-#define jbd_debug(n, fmt, a...)  no_printk(fmt, ##a)
+#define jbd2_debug(n, fmt, a...)  no_printk(fmt, ##a)
 #endif
 
 extern void *jbd2_alloc(size_t size, gfp_t flags);
@@ -1557,7 +1556,7 @@ extern int	   jbd2_journal_wipe       (journal_t *, int);
 extern int	   jbd2_journal_skip_recovery	(journal_t *);
 extern void	   jbd2_journal_update_sb_errno(journal_t *);
 extern int	   jbd2_journal_update_sb_log_tail	(journal_t *, tid_t,
-				unsigned long, int);
+				unsigned long, blk_opf_t);
 extern void	   jbd2_journal_abort      (journal_t *, int);
 extern int	   jbd2_journal_errno      (journal_t *);
 extern void	   jbd2_journal_ack_err    (journal_t *);
@@ -1647,7 +1646,6 @@ extern void	jbd2_clear_buffer_revoked_flags(journal_t *journal);
  */
 
 int jbd2_log_start_commit(journal_t *journal, tid_t tid);
-int __jbd2_log_start_commit(journal_t *journal, tid_t tid);
 int jbd2_journal_start_commit(journal_t *journal, tid_t *tid);
 int jbd2_log_wait_commit(journal_t *journal, tid_t tid);
 int jbd2_transaction_committed(journal_t *journal, tid_t tid);

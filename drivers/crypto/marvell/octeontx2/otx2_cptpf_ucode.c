@@ -476,7 +476,7 @@ release_fw:
 	return ret;
 }
 
-static struct otx2_cpt_engs_rsvd *find_engines_by_type(
+struct otx2_cpt_engs_rsvd *find_engines_by_type(
 					struct otx2_cpt_eng_grp_info *eng_grp,
 					int eng_type)
 {
@@ -1605,7 +1605,10 @@ int otx2_cpt_dl_custom_egrp_create(struct otx2_cptpf_dev *cptpf,
 		if (!strncasecmp(val, "se", 2) && strchr(val, ':')) {
 			if (has_se || ucode_idx)
 				goto err_print;
-			tmp = strim(strsep(&val, ":"));
+			tmp = strsep(&val, ":");
+			if (!tmp)
+				goto err_print;
+			tmp = strim(tmp);
 			if (!val)
 				goto err_print;
 			if (strlen(tmp) != 2)
@@ -1617,7 +1620,10 @@ int otx2_cpt_dl_custom_egrp_create(struct otx2_cptpf_dev *cptpf,
 		} else if (!strncasecmp(val, "ae", 2) && strchr(val, ':')) {
 			if (has_ae || ucode_idx)
 				goto err_print;
-			tmp = strim(strsep(&val, ":"));
+			tmp = strsep(&val, ":");
+			if (!tmp)
+				goto err_print;
+			tmp = strim(tmp);
 			if (!val)
 				goto err_print;
 			if (strlen(tmp) != 2)
@@ -1629,7 +1635,10 @@ int otx2_cpt_dl_custom_egrp_create(struct otx2_cptpf_dev *cptpf,
 		} else if (!strncasecmp(val, "ie", 2) && strchr(val, ':')) {
 			if (has_ie || ucode_idx)
 				goto err_print;
-			tmp = strim(strsep(&val, ":"));
+			tmp = strsep(&val, ":");
+			if (!tmp)
+				goto err_print;
+			tmp = strim(tmp);
 			if (!val)
 				goto err_print;
 			if (strlen(tmp) != 2)

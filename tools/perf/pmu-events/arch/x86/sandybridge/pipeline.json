@@ -609,7 +609,7 @@
         "UMask": "0x3"
     },
     {
-        "BriefDescription": "Number of occurences waiting for the checkpoints in Resource Allocation Table (RAT) to be recovered after Nuke due to all other cases except JEClear (e.g. whenever a ucode assist is needed like SSE exception, memory disambiguation, etc...).",
+        "BriefDescription": "Number of occurrences waiting for the checkpoints in Resource Allocation Table (RAT) to be recovered after Nuke due to all other cases except JEClear (e.g. whenever a ucode assist is needed like SSE exception, memory disambiguation, etc...).",
         "Counter": "0,1,2,3",
         "CounterHTOff": "0,1,2,3,4,5,6,7",
         "CounterMask": "1",
@@ -652,7 +652,7 @@
         "CounterHTOff": "0,1,2,3,4,5,6,7",
         "EventCode": "0x03",
         "EventName": "LD_BLOCKS.STORE_FORWARD",
-        "PublicDescription": "This event counts loads that followed a store to the same address, where the data could not be forwarded inside the pipeline from the store to the load.  The most common reason why store forwarding would be blocked is when a load's address range overlaps with a preceeding smaller uncompleted store.  See the table of not supported store forwards in the Intel 64 and IA-32 Architectures Optimization Reference Manual.  The penalty for blocked store forwarding is that the load must wait for the store to complete before it can be issued.",
+        "PublicDescription": "This event counts loads that followed a store to the same address, where the data could not be forwarded inside the pipeline from the store to the load.  The most common reason why store forwarding would be blocked is when a load's address range overlaps with a preceeding smaller uncompleted store.  See the table of not supported store forwards in the Intel(R) 64 and IA-32 Architectures Optimization Reference Manual.  The penalty for blocked store forwarding is that the load must wait for the store to complete before it can be issued.",
         "SampleAfterValue": "100003",
         "UMask": "0x2"
     },
@@ -778,7 +778,7 @@
         "CounterMask": "1",
         "EventCode": "0x59",
         "EventName": "PARTIAL_RAT_STALLS.FLAGS_MERGE_UOP_CYCLES",
-        "PublicDescription": "This event counts the number of cycles spent executing performance-sensitive flags-merging uops. For example, shift CL (merge_arith_flags). For more details, See the Intel 64 and IA-32 Architectures Optimization Reference Manual.",
+        "PublicDescription": "This event counts the number of cycles spent executing performance-sensitive flags-merging uops. For example, shift CL (merge_arith_flags). For more details, See the Intel(R) 64 and IA-32 Architectures Optimization Reference Manual.",
         "SampleAfterValue": "2000003",
         "UMask": "0x20"
     },
@@ -797,7 +797,7 @@
         "CounterHTOff": "0,1,2,3,4,5,6,7",
         "EventCode": "0x59",
         "EventName": "PARTIAL_RAT_STALLS.SLOW_LEA_WINDOW",
-        "PublicDescription": "This event counts the number of cycles with at least one slow LEA uop being allocated. A uop is generally considered as slow LEA if it has three sources (for example, two sources and immediate) regardless of whether it is a result of LEA instruction or not. Examples of the slow LEA uop are or uops with base, index, and offset source operands using base and index reqisters, where base is EBR/RBP/R13, using RIP relative or 16-bit addressing modes. See the Intel 64 and IA-32 Architectures Optimization Reference Manual for more details about slow LEA instructions.",
+        "PublicDescription": "This event counts the number of cycles with at least one slow LEA uop being allocated. A uop is generally considered as slow LEA if it has three sources (for example, two sources and immediate) regardless of whether it is a result of LEA instruction or not. Examples of the slow LEA uop are or uops with base, index, and offset source operands using base and index reqisters, where base is EBR/RBP/R13, using RIP relative or 16-bit addressing modes. See the Intel(R) 64 and IA-32 Architectures Optimization Reference Manual for more details about slow LEA instructions.",
         "SampleAfterValue": "2000003",
         "UMask": "0x40"
     },

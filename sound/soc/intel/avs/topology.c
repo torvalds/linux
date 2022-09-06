@@ -128,10 +128,10 @@ struct avs_tplg_token_parser {
 static int
 avs_parse_uuid_token(struct snd_soc_component *comp, void *elem, void *object, u32 offset)
 {
-	struct snd_soc_tplg_vendor_value_elem *tuple = elem;
+	struct snd_soc_tplg_vendor_uuid_elem *tuple = elem;
 	guid_t *val = (guid_t *)((u8 *)object + offset);
 
-	guid_copy((guid_t *)val, (const guid_t *)&tuple->value);
+	guid_copy((guid_t *)val, (const guid_t *)&tuple->uuid);
 
 	return 0;
 }
@@ -808,6 +808,30 @@ static const struct avs_tplg_token_parser pin_format_parsers[] = {
 	},
 };
 
+static void
+assign_copier_gtw_instance(struct snd_soc_component *comp, struct avs_tplg_modcfg_ext *cfg)
+{
+	struct snd_soc_acpi_mach *mach;
+
+	if (!guid_equal(&cfg->type, &AVS_COPIER_MOD_UUID))
+		return;
+
+	/* Only I2S boards assign port instance in ->i2s_link_mask. */
+	switch (cfg->copier.dma_type) {
+	case AVS_DMA_I2S_LINK_OUTPUT:
+	case AVS_DMA_I2S_LINK_INPUT:
+		break;
+	default:
+		return;
+	}
+
+	mach = dev_get_platdata(comp->card->dev);
+
+	/* Automatic assignment only when board describes single SSP. */
+	if (hweight_long(mach->mach_params.i2s_link_mask) == 1 && !cfg->copier.vindex.i2s.instance)
+		cfg->copier.vindex.i2s.instance = __ffs(mach->mach_params.i2s_link_mask);
+}
+
 static int avs_tplg_parse_modcfg_ext(struct snd_soc_component *comp,
 				     struct avs_tplg_modcfg_ext *cfg,
 				     struct snd_soc_tplg_vendor_array *tuples,
@@ -826,6 +850,9 @@ static int avs_tplg_parse_modcfg_ext(struct snd_soc_component *comp,
 			       ARRAY_SIZE(modcfg_ext_parsers), tuples, esize);
 	if (ret)
 		return ret;
+
+	/* Update copier gateway based on board's i2s_link_mask. */
+	assign_copier_gtw_instance(comp, cfg);
 
 	block_size -= esize;
 	/* Parse trailing in/out pin formats if any. */

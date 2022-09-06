@@ -740,19 +740,32 @@ static void rtw_fifo_cleanup(struct adapter *adapter)
 {
 	struct pwrctrl_priv *pwrpriv = &adapter->pwrctrlpriv;
 	u8 trycnt = 100;
+	int res;
+	u32 reg;
 
 	/* pause tx */
 	rtw_write8(adapter, REG_TXPAUSE, 0xff);
 
 	/* keep sn */
-	adapter->xmitpriv.nqos_ssn = rtw_read16(adapter, REG_NQOS_SEQ);
+	/* FIXME: return an error to caller */
+	res = rtw_read16(adapter, REG_NQOS_SEQ, &adapter->xmitpriv.nqos_ssn);
+	if (res)
+		return;
 
 	if (!pwrpriv->bkeepfwalive) {
 		/* RX DMA stop */
+		res = rtw_read32(adapter, REG_RXPKT_NUM, &reg);
+		if (res)
+			return;
+
 		rtw_write32(adapter, REG_RXPKT_NUM,
-			    (rtw_read32(adapter, REG_RXPKT_NUM) | RW_RELEASE_EN));
+			    (reg | RW_RELEASE_EN));
 		do {
-			if (!(rtw_read32(adapter, REG_RXPKT_NUM) & RXDMA_IDLE))
+			res = rtw_read32(adapter, REG_RXPKT_NUM, &reg);
+			if (res)
+				continue;
+
+			if (!(reg & RXDMA_IDLE))
 				break;
 		} while (trycnt--);
 

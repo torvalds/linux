@@ -1180,7 +1180,7 @@ static int rzg2l_cpg_status(struct reset_controller_dev *rcdev,
 	s8 monbit = info->resets[id].monbit;
 
 	if (info->has_clk_mon_regs) {
-		return !(readl(priv->base + CLK_MRST_R(reg)) & bitmask);
+		return !!(readl(priv->base + CLK_MRST_R(reg)) & bitmask);
 	} else if (monbit >= 0) {
 		u32 monbitmask = BIT(monbit);
 

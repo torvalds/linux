@@ -318,8 +318,6 @@ radeon_legacy_set_backlight_level(struct radeon_encoder *radeon_encoder, u8 leve
 	radeon_legacy_lvds_update(&radeon_encoder->base, dpms_mode);
 }
 
-#if defined(CONFIG_BACKLIGHT_CLASS_DEVICE) || defined(CONFIG_BACKLIGHT_CLASS_DEVICE_MODULE)
-
 static uint8_t radeon_legacy_lvds_level(struct backlight_device *bd)
 {
 	struct radeon_backlight_privdata *pdata = bl_get_data(bd);
@@ -487,19 +485,6 @@ static void radeon_legacy_backlight_exit(struct radeon_encoder *radeon_encoder)
 		DRM_INFO("radeon legacy LVDS backlight unloaded\n");
 	}
 }
-
-#else /* !CONFIG_BACKLIGHT_CLASS_DEVICE */
-
-void radeon_legacy_backlight_init(struct radeon_encoder *encoder)
-{
-}
-
-static void radeon_legacy_backlight_exit(struct radeon_encoder *encoder)
-{
-}
-
-#endif
-
 
 static void radeon_lvds_enc_destroy(struct drm_encoder *encoder)
 {

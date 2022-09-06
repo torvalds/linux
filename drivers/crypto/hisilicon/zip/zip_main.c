@@ -990,8 +990,6 @@ static int hisi_zip_pf_probe_init(struct hisi_zip *hisi_zip)
 
 static int hisi_zip_qm_init(struct hisi_qm *qm, struct pci_dev *pdev)
 {
-	int ret;
-
 	qm->pdev = pdev;
 	qm->ver = pdev->revision;
 	if (pdev->revision >= QM_HW_V3)
@@ -1021,25 +1019,12 @@ static int hisi_zip_qm_init(struct hisi_qm *qm, struct pci_dev *pdev)
 		qm->qp_num = HZIP_QUEUE_NUM_V1 - HZIP_PF_DEF_Q_NUM;
 	}
 
-	qm->wq = alloc_workqueue("%s", WQ_HIGHPRI | WQ_MEM_RECLAIM |
-				 WQ_UNBOUND, num_online_cpus(),
-				 pci_name(qm->pdev));
-	if (!qm->wq) {
-		pci_err(qm->pdev, "fail to alloc workqueue\n");
-		return -ENOMEM;
-	}
-
-	ret = hisi_qm_init(qm);
-	if (ret)
-		destroy_workqueue(qm->wq);
-
-	return ret;
+	return hisi_qm_init(qm);
 }
 
 static void hisi_zip_qm_uninit(struct hisi_qm *qm)
 {
 	hisi_qm_uninit(qm);
-	destroy_workqueue(qm->wq);
 }
 
 static int hisi_zip_probe_init(struct hisi_zip *hisi_zip)

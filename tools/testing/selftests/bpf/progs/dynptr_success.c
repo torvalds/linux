@@ -43,10 +43,10 @@ int test_read_write(void *ctx)
 	bpf_ringbuf_reserve_dynptr(&ringbuf, sizeof(write_data), 0, &ptr);
 
 	/* Write data into the dynptr */
-	err = err ?: bpf_dynptr_write(&ptr, 0, write_data, sizeof(write_data));
+	err = bpf_dynptr_write(&ptr, 0, write_data, sizeof(write_data), 0);
 
 	/* Read the data that was written into the dynptr */
-	err = err ?: bpf_dynptr_read(read_data, sizeof(read_data), &ptr, 0);
+	err = err ?: bpf_dynptr_read(read_data, sizeof(read_data), &ptr, 0, 0);
 
 	/* Ensure the data we read matches the data we wrote */
 	for (i = 0; i < sizeof(read_data); i++) {

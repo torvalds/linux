@@ -168,6 +168,7 @@ struct neigh_table arp_tbl = {
 			[NEIGH_VAR_RETRANS_TIME] = 1 * HZ,
 			[NEIGH_VAR_BASE_REACHABLE_TIME] = 30 * HZ,
 			[NEIGH_VAR_DELAY_PROBE_TIME] = 5 * HZ,
+			[NEIGH_VAR_INTERVAL_PROBE_TIME_MS] = 5 * HZ,
 			[NEIGH_VAR_GC_STALETIME] = 60 * HZ,
 			[NEIGH_VAR_QUEUE_LEN_BYTES] = SK_WMEM_MAX,
 			[NEIGH_VAR_PROXY_QLEN] = 64,
@@ -426,6 +427,26 @@ static int arp_ignore(struct in_device *in_dev, __be32 sip, __be32 tip)
 		return 0;
 	}
 	return !inet_confirm_addr(net, in_dev, sip, tip, scope);
+}
+
+static int arp_accept(struct in_device *in_dev, __be32 sip)
+{
+	struct net *net = dev_net(in_dev->dev);
+	int scope = RT_SCOPE_LINK;
+
+	switch (IN_DEV_ARP_ACCEPT(in_dev)) {
+	case 0: /* Don't create new entries from garp */
+		return 0;
+	case 1: /* Create new entries from garp */
+		return 1;
+	case 2: /* Create a neighbor in the arp table only if sip
+		 * is in the same subnet as an address configured
+		 * on the interface that received the garp message
+		 */
+		return !!inet_confirm_addr(net, in_dev, sip, 0, scope);
+	default:
+		return 0;
+	}
 }
 
 static int arp_filter(__be32 sip, __be32 tip, struct net_device *dev)
@@ -867,12 +888,12 @@ static int arp_process(struct net *net, struct sock *sk, struct sk_buff *skb)
 	n = __neigh_lookup(&arp_tbl, &sip, dev, 0);
 
 	addr_type = -1;
-	if (n || IN_DEV_ARP_ACCEPT(in_dev)) {
+	if (n || arp_accept(in_dev, sip)) {
 		is_garp = arp_is_garp(net, dev, &addr_type, arp->ar_op,
 				      sip, tip, sha, tha);
 	}
 
-	if (IN_DEV_ARP_ACCEPT(in_dev)) {
+	if (arp_accept(in_dev, sip)) {
 		/* Unsolicited ARP is not accepted by default.
 		   It is possible, that this option should be enabled for some
 		   devices (strip is candidate)

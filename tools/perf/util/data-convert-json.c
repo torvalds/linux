@@ -149,6 +149,7 @@ static int process_sample_event(struct perf_tool *tool,
 	struct convert_json *c = container_of(tool, struct convert_json, tool);
 	FILE *out = c->out;
 	struct addr_location al, tal;
+	u64 sample_type = __evlist__combined_sample_type(evsel->evlist);
 	u8 cpumode = PERF_RECORD_MISC_USER;
 
 	if (machine__resolve(machine, &al, sample) < 0) {
@@ -168,7 +169,9 @@ static int process_sample_event(struct perf_tool *tool,
 	output_json_key_format(out, true, 3, "pid", "%i", al.thread->pid_);
 	output_json_key_format(out, true, 3, "tid", "%i", al.thread->tid);
 
-	if (al.thread->cpu >= 0)
+	if ((sample_type & PERF_SAMPLE_CPU))
+		output_json_key_format(out, true, 3, "cpu", "%i", sample->cpu);
+	else if (al.thread->cpu >= 0)
 		output_json_key_format(out, true, 3, "cpu", "%i", al.thread->cpu);
 
 	output_json_key_string(out, true, 3, "comm", thread__comm_str(al.thread));

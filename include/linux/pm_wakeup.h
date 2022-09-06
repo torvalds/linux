@@ -109,7 +109,6 @@ extern struct wakeup_source *wakeup_sources_walk_next(struct wakeup_source *ws);
 extern int device_wakeup_enable(struct device *dev);
 extern int device_wakeup_disable(struct device *dev);
 extern void device_set_wakeup_capable(struct device *dev, bool capable);
-extern int device_init_wakeup(struct device *dev, bool val);
 extern int device_set_wakeup_enable(struct device *dev, bool enable);
 extern void __pm_stay_awake(struct wakeup_source *ws);
 extern void pm_stay_awake(struct device *dev);
@@ -167,13 +166,6 @@ static inline int device_set_wakeup_enable(struct device *dev, bool enable)
 	return 0;
 }
 
-static inline int device_init_wakeup(struct device *dev, bool val)
-{
-	device_set_wakeup_capable(dev, val);
-	device_set_wakeup_enable(dev, val);
-	return 0;
-}
-
 static inline bool device_may_wakeup(struct device *dev)
 {
 	return dev->power.can_wakeup && dev->power.should_wakeup;
@@ -215,6 +207,29 @@ static inline void pm_wakeup_event(struct device *dev, unsigned int msec)
 static inline void pm_wakeup_hard_event(struct device *dev)
 {
 	return pm_wakeup_dev_event(dev, 0, true);
+}
+
+/**
+ * device_init_wakeup - Device wakeup initialization.
+ * @dev: Device to handle.
+ * @enable: Whether or not to enable @dev as a wakeup device.
+ *
+ * By default, most devices should leave wakeup disabled.  The exceptions are
+ * devices that everyone expects to be wakeup sources: keyboards, power buttons,
+ * possibly network interfaces, etc.  Also, devices that don't generate their
+ * own wakeup requests but merely forward requests from one bus to another
+ * (like PCI bridges) should have wakeup enabled by default.
+ */
+static inline int device_init_wakeup(struct device *dev, bool enable)
+{
+	if (enable) {
+		device_set_wakeup_capable(dev, true);
+		return device_wakeup_enable(dev);
+	} else {
+		device_wakeup_disable(dev);
+		device_set_wakeup_capable(dev, false);
+		return 0;
+	}
 }
 
 #endif /* _LINUX_PM_WAKEUP_H */

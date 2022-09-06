@@ -15,7 +15,7 @@ struct mlxsw_sp2_kvdl_part_info {
 	 * usage bits we need and how many indexes there are
 	 * represented by a single bit. This could be got from FW
 	 * querying appropriate resources. So have the resource
-	 * ids for for this purpose in partition definition.
+	 * ids for this purpose in partition definition.
 	 */
 	enum mlxsw_res_id usage_bit_count_res_id;
 	enum mlxsw_res_id index_range_res_id;

@@ -330,7 +330,6 @@ nvkm_pstate_work(struct work_struct *work)
 	}
 
 	wake_up_all(&clk->wait);
-	nvkm_notify_get(&clk->pwrsrc_ntfy);
 }
 
 static int
@@ -559,13 +558,12 @@ nvkm_clk_dstate(struct nvkm_clk *clk, int req, int rel)
 	return nvkm_pstate_calc(clk, true);
 }
 
-static int
-nvkm_clk_pwrsrc(struct nvkm_notify *notify)
+int
+nvkm_clk_pwrsrc(struct nvkm_device *device)
 {
-	struct nvkm_clk *clk =
-		container_of(notify, typeof(*clk), pwrsrc_ntfy);
-	nvkm_pstate_calc(clk, false);
-	return NVKM_NOTIFY_DROP;
+	if (device->clk)
+		return nvkm_pstate_calc(device->clk, false);
+	return 0;
 }
 
 /******************************************************************************
@@ -582,7 +580,6 @@ static int
 nvkm_clk_fini(struct nvkm_subdev *subdev, bool suspend)
 {
 	struct nvkm_clk *clk = nvkm_clk(subdev);
-	nvkm_notify_put(&clk->pwrsrc_ntfy);
 	flush_work(&clk->work);
 	if (clk->func->fini)
 		clk->func->fini(clk);
@@ -628,8 +625,6 @@ nvkm_clk_dtor(struct nvkm_subdev *subdev)
 {
 	struct nvkm_clk *clk = nvkm_clk(subdev);
 	struct nvkm_pstate *pstate, *temp;
-
-	nvkm_notify_fini(&clk->pwrsrc_ntfy);
 
 	/* Early return if the pstates have been provided statically */
 	if (clk->func->pstates)
@@ -691,11 +686,6 @@ nvkm_clk_ctor(const struct nvkm_clk_func *func, struct nvkm_device *device,
 			list_add_tail(&func->pstates[idx].head, &clk->states);
 		clk->state_nr = func->nr_pstates;
 	}
-
-	ret = nvkm_notify_init(NULL, &device->event, nvkm_clk_pwrsrc, true,
-			       NULL, 0, 0, &clk->pwrsrc_ntfy);
-	if (ret)
-		return ret;
 
 	mode = nvkm_stropt(device->cfgopt, "NvClkMode", &arglen);
 	if (mode) {

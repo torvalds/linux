@@ -442,7 +442,7 @@ static int tcf_police_act_to_flow_act(int tc_act, u32 *extval,
 		act_id = FLOW_ACTION_JUMP;
 		*extval = tc_act & TC_ACT_EXT_VAL_MASK;
 	} else if (tc_act == TC_ACT_UNSPEC) {
-		NL_SET_ERR_MSG_MOD(extack, "Offload not supported when conform/exceed action is \"continue\"");
+		act_id = FLOW_ACTION_CONTINUE;
 	} else {
 		NL_SET_ERR_MSG_MOD(extack, "Unsupported conform/exceed action offload");
 	}

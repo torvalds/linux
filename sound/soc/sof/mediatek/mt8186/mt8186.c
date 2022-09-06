@@ -392,7 +392,7 @@ static int mt8186_dsp_probe(struct snd_sof_dev *sdev)
 						      PLATFORM_DEVID_NONE,
 						      pdev, sizeof(*pdev));
 	if (IS_ERR(priv->ipc_dev)) {
-		ret = IS_ERR(priv->ipc_dev);
+		ret = PTR_ERR(priv->ipc_dev);
 		dev_err(sdev->dev, "failed to create mtk-adsp-ipc device\n");
 		goto err_adsp_off;
 	}

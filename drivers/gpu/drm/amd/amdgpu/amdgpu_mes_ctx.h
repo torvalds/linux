@@ -107,6 +107,7 @@ struct amdgpu_mes_ctx_meta_data {
 struct amdgpu_mes_ctx_data {
 	struct amdgpu_bo	*meta_data_obj;
 	uint64_t                meta_data_gpu_addr;
+	uint64_t                meta_data_mc_addr;
 	struct amdgpu_bo_va	*meta_data_va;
 	void                    *meta_data_ptr;
 	uint32_t                gang_ids[AMDGPU_HW_IP_DMA+1];

@@ -719,6 +719,11 @@ static int x25_wait_for_connection_establishment(struct sock *sk)
 			sk->sk_socket->state = SS_UNCONNECTED;
 			break;
 		}
+		rc = -ENOTCONN;
+		if (sk->sk_state == TCP_CLOSE) {
+			sk->sk_socket->state = SS_UNCONNECTED;
+			break;
+		}
 		rc = 0;
 		if (sk->sk_state != TCP_ESTABLISHED) {
 			release_sock(sk);

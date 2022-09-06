@@ -207,7 +207,7 @@
 	pinctrl-0 = <&pinctrl_usdhc1>;
 	cd-gpios = <&gpio5 0 GPIO_ACTIVE_LOW>;
 	no-1-8-v;
-	enable-sdio-wakeup;
+	wakeup-source;
 	keep-power-in-suspend;
 	status = "okay";
 };
@@ -216,12 +216,10 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_usdhc2>;
 	bus-width = <4>;
+	no-1-8-v;
 	non-removable;
-	cap-sd-highspeed;
-	sd-uhs-ddr50;
-	mmc-ddr-1_8v;
 	vmmc-supply = <&reg_wifi>;
-	enable-sdio-wakeup;
+	wakeup-source;
 	status = "okay";
 };
 

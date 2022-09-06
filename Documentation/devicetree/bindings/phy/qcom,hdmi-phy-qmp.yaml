@@ -1,0 +1,85 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+
+$id: http://devicetree.org/schemas/phy/qcom,hdmi-phy-qmp.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Qualcomm Adreno/Snapdragon QMP HDMI phy
+
+maintainers:
+  - Rob Clark <robdclark@gmail.com>
+
+properties:
+  compatible:
+    enum:
+      - qcom,hdmi-phy-8996
+
+  reg:
+    maxItems: 6
+
+  reg-names:
+    items:
+      - const: hdmi_pll
+      - const: hdmi_tx_l0
+      - const: hdmi_tx_l1
+      - const: hdmi_tx_l2
+      - const: hdmi_tx_l3
+      - const: hdmi_phy
+
+  clocks:
+    maxItems: 2
+
+  clock-names:
+    items:
+      - const: iface
+      - const: ref
+
+  power-domains:
+    maxItems: 1
+
+  vcca-supply:
+    description: phandle to VCCA supply regulator
+
+  vddio-supply:
+    description: phandle to VDD I/O supply regulator
+
+  '#phy-cells':
+    const: 0
+
+required:
+  - compatible
+  - clocks
+  - clock-names
+  - reg
+  - reg-names
+  - '#phy-cells'
+
+additionalProperties: false
+
+examples:
+  - |
+    hdmi-phy@9a0600 {
+      compatible = "qcom,hdmi-phy-8996";
+      reg = <0x009a0600 0x1c4>,
+            <0x009a0a00 0x124>,
+            <0x009a0c00 0x124>,
+            <0x009a0e00 0x124>,
+            <0x009a1000 0x124>,
+            <0x009a1200 0x0c8>;
+      reg-names = "hdmi_pll",
+                  "hdmi_tx_l0",
+                  "hdmi_tx_l1",
+                  "hdmi_tx_l2",
+                  "hdmi_tx_l3",
+                  "hdmi_phy";
+
+      clocks = <&mmcc 116>,
+               <&gcc 214>;
+      clock-names = "iface",
+                    "ref";
+      #phy-cells = <0>;
+
+      vddio-supply = <&vreg_l12a_1p8>;
+      vcca-supply = <&vreg_l28a_0p925>;
+    };

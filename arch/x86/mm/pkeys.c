@@ -110,7 +110,7 @@ int __arch_override_mprotect_pkey(struct vm_area_struct *vma, int prot, int pkey
 	return vma_pkey(vma);
 }
 
-#define PKRU_AD_KEY(pkey)	(PKRU_AD_BIT << ((pkey) * PKRU_BITS_PER_PKEY))
+#define PKRU_AD_MASK(pkey)	(PKRU_AD_BIT << ((pkey) * PKRU_BITS_PER_PKEY))
 
 /*
  * Make the default PKRU value (at execve() time) as restrictive
@@ -118,11 +118,14 @@ int __arch_override_mprotect_pkey(struct vm_area_struct *vma, int prot, int pkey
  * in the process's lifetime will not accidentally get access
  * to data which is pkey-protected later on.
  */
-u32 init_pkru_value = PKRU_AD_KEY( 1) | PKRU_AD_KEY( 2) | PKRU_AD_KEY( 3) |
-		      PKRU_AD_KEY( 4) | PKRU_AD_KEY( 5) | PKRU_AD_KEY( 6) |
-		      PKRU_AD_KEY( 7) | PKRU_AD_KEY( 8) | PKRU_AD_KEY( 9) |
-		      PKRU_AD_KEY(10) | PKRU_AD_KEY(11) | PKRU_AD_KEY(12) |
-		      PKRU_AD_KEY(13) | PKRU_AD_KEY(14) | PKRU_AD_KEY(15);
+u32 init_pkru_value = PKRU_AD_MASK( 1) | PKRU_AD_MASK( 2) |
+		      PKRU_AD_MASK( 3) | PKRU_AD_MASK( 4) |
+		      PKRU_AD_MASK( 5) | PKRU_AD_MASK( 6) |
+		      PKRU_AD_MASK( 7) | PKRU_AD_MASK( 8) |
+		      PKRU_AD_MASK( 9) | PKRU_AD_MASK(10) |
+		      PKRU_AD_MASK(11) | PKRU_AD_MASK(12) |
+		      PKRU_AD_MASK(13) | PKRU_AD_MASK(14) |
+		      PKRU_AD_MASK(15);
 
 static ssize_t init_pkru_read_file(struct file *file, char __user *user_buf,
 			     size_t count, loff_t *ppos)

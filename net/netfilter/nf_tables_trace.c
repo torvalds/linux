@@ -7,7 +7,7 @@
 #include <linux/module.h>
 #include <linux/static_key.h>
 #include <linux/hash.h>
-#include <linux/jhash.h>
+#include <linux/siphash.h>
 #include <linux/if_vlan.h>
 #include <linux/init.h>
 #include <linux/skbuff.h>
@@ -24,22 +24,6 @@
 
 DEFINE_STATIC_KEY_FALSE(nft_trace_enabled);
 EXPORT_SYMBOL_GPL(nft_trace_enabled);
-
-static int trace_fill_id(struct sk_buff *nlskb, struct sk_buff *skb)
-{
-	__be32 id;
-
-	/* using skb address as ID results in a limited number of
-	 * values (and quick reuse).
-	 *
-	 * So we attempt to use as many skb members that will not
-	 * change while skb is with netfilter.
-	 */
-	id = (__be32)jhash_2words(hash32_ptr(skb), skb_get_hash(skb),
-				  skb->skb_iif);
-
-	return nla_put_be32(nlskb, NFTA_TRACE_ID, id);
-}
 
 static int trace_fill_header(struct sk_buff *nlskb, u16 type,
 			     const struct sk_buff *skb,
@@ -186,6 +170,7 @@ void nft_trace_notify(struct nft_traceinfo *info)
 	struct nlmsghdr *nlh;
 	struct sk_buff *skb;
 	unsigned int size;
+	u32 mark = 0;
 	u16 event;
 
 	if (!nfnetlink_has_listeners(nft_net(pkt), NFNLGRP_NFTRACE))
@@ -229,7 +214,7 @@ void nft_trace_notify(struct nft_traceinfo *info)
 	if (nla_put_be32(skb, NFTA_TRACE_TYPE, htonl(info->type)))
 		goto nla_put_failure;
 
-	if (trace_fill_id(skb, pkt->skb))
+	if (nla_put_u32(skb, NFTA_TRACE_ID, info->skbid))
 		goto nla_put_failure;
 
 	if (nla_put_string(skb, NFTA_TRACE_CHAIN, info->chain->name))
@@ -249,16 +234,24 @@ void nft_trace_notify(struct nft_traceinfo *info)
 	case NFT_TRACETYPE_RULE:
 		if (nft_verdict_dump(skb, NFTA_TRACE_VERDICT, info->verdict))
 			goto nla_put_failure;
+
+		/* pkt->skb undefined iff NF_STOLEN, disable dump */
+		if (info->verdict->code == NF_STOLEN)
+			info->packet_dumped = true;
+		else
+			mark = pkt->skb->mark;
+
 		break;
 	case NFT_TRACETYPE_POLICY:
+		mark = pkt->skb->mark;
+
 		if (nla_put_be32(skb, NFTA_TRACE_POLICY,
 				 htonl(info->basechain->policy)))
 			goto nla_put_failure;
 		break;
 	}
 
-	if (pkt->skb->mark &&
-	    nla_put_be32(skb, NFTA_TRACE_MARK, htonl(pkt->skb->mark)))
+	if (mark && nla_put_be32(skb, NFTA_TRACE_MARK, htonl(mark)))
 		goto nla_put_failure;
 
 	if (!info->packet_dumped) {
@@ -283,9 +276,20 @@ void nft_trace_init(struct nft_traceinfo *info, const struct nft_pktinfo *pkt,
 		    const struct nft_verdict *verdict,
 		    const struct nft_chain *chain)
 {
+	static siphash_key_t trace_key __read_mostly;
+	struct sk_buff *skb = pkt->skb;
+
 	info->basechain = nft_base_chain(chain);
 	info->trace = true;
+	info->nf_trace = pkt->skb->nf_trace;
 	info->packet_dumped = false;
 	info->pkt = pkt;
 	info->verdict = verdict;
+
+	net_get_random_once(&trace_key, sizeof(trace_key));
+
+	info->skbid = (u32)siphash_3u32(hash32_ptr(skb),
+					skb_get_hash(skb),
+					skb->skb_iif,
+					&trace_key);
 }

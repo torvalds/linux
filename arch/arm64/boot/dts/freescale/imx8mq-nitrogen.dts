@@ -26,7 +26,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_gpio_keys>;
 
-		power {
+		button-power {
 			label = "Power Button";
 			gpios = <&gpio1 7 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_POWER>;
@@ -152,7 +152,7 @@
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_reg_arm_dram>;
 				reg = <0x60>;
-				regulator-min-microvolt =  <900000>;
+				regulator-min-microvolt = <900000>;
 				regulator-max-microvolt = <1000000>;
 				regulator-always-on;
 				vsel-gpios = <&gpio3 24 GPIO_ACTIVE_HIGH>;
@@ -186,7 +186,7 @@
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_reg_soc_gpu_vpu>;
 				reg = <0x60>;
-				regulator-min-microvolt =  <900000>;
+				regulator-min-microvolt = <900000>;
 				regulator-max-microvolt = <1000000>;
 				regulator-always-on;
 				vsel-gpios = <&gpio2 20 GPIO_ACTIVE_HIGH>;

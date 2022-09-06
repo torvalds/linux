@@ -40,7 +40,8 @@ struct intel_context_ops {
 
 	int (*alloc)(struct intel_context *ce);
 
-	void (*ban)(struct intel_context *ce, struct i915_request *rq);
+	void (*revoke)(struct intel_context *ce, struct i915_request *rq,
+		       unsigned int preempt_timeout_ms);
 
 	int (*pre_pin)(struct intel_context *ce, struct i915_gem_ww_ctx *ww, void **vaddr);
 	int (*pin)(struct intel_context *ce, void *vaddr);
@@ -122,6 +123,7 @@ struct intel_context {
 #define CONTEXT_GUC_INIT		10
 #define CONTEXT_PERMA_PIN		11
 #define CONTEXT_IS_PARKING		12
+#define CONTEXT_EXITING			13
 
 	struct {
 		u64 timeout_us;
@@ -273,10 +275,17 @@ struct intel_context {
 		u8 child_index;
 		/** @guc: GuC specific members for parallel submission */
 		struct {
-			/** @wqi_head: head pointer in work queue */
+			/** @wqi_head: cached head pointer in work queue */
 			u16 wqi_head;
-			/** @wqi_tail: tail pointer in work queue */
+			/** @wqi_tail: cached tail pointer in work queue */
 			u16 wqi_tail;
+			/** @wq_head: pointer to the actual head in work queue */
+			u32 *wq_head;
+			/** @wq_tail: pointer to the actual head in work queue */
+			u32 *wq_tail;
+			/** @wq_status: pointer to the status in work queue */
+			u32 *wq_status;
+
 			/**
 			 * @parent_page: page in context state (ce->state) used
 			 * by parent for work queue, process descriptor

@@ -805,8 +805,8 @@ slot_index_alloc_quirk_v2_hw(struct hisi_hba *hisi_hba,
 			return -SAS_QUEUE_FULL;
 		}
 		/*
-		  * SAS IPTT bit0 should be 1, and SATA IPTT bit0 should be 0.
-		  */
+		 * SAS IPTT bit0 should be 1, and SATA IPTT bit0 should be 0.
+		 */
 		if (sata_dev ^ (start & 1))
 			break;
 		start++;
@@ -2428,8 +2428,6 @@ static void slot_complete_v2_hw(struct hisi_hba *hisi_hba,
 
 		ts->stat = SAS_SAM_STAT_GOOD;
 
-		dma_unmap_sg(dev, &task->smp_task.smp_req, 1,
-			     DMA_TO_DEVICE);
 		memcpy(to + sg_resp->offset,
 		       hisi_sas_status_buf_addr_mem(slot) +
 		       sizeof(struct hisi_sas_err_record),

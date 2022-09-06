@@ -22,6 +22,7 @@
 #include <asm/trapnr.h>
 #include <asm/fpu/xcr.h>
 
+#include "mmu.h"
 #include "x86.h"
 #include "svm.h"
 #include "svm_ops.h"
@@ -603,6 +604,9 @@ static int sev_es_sync_vmsa(struct vcpu_svm *svm)
 	save->xss  = svm->vcpu.arch.ia32_xss;
 	save->dr6  = svm->vcpu.arch.dr6;
 
+	pr_debug("Virtual Machine Save Area (VMSA):\n");
+	print_hex_dump(KERN_CONT, "", DUMP_PREFIX_NONE, 16, 1, save, sizeof(*save), false);
+
 	return 0;
 }
 
@@ -844,7 +848,7 @@ static int __sev_dbg_encrypt_user(struct kvm *kvm, unsigned long paddr,
 
 	/* If source buffer is not aligned then use an intermediate buffer */
 	if (!IS_ALIGNED((unsigned long)vaddr, 16)) {
-		src_tpage = alloc_page(GFP_KERNEL);
+		src_tpage = alloc_page(GFP_KERNEL_ACCOUNT);
 		if (!src_tpage)
 			return -ENOMEM;
 
@@ -865,7 +869,7 @@ static int __sev_dbg_encrypt_user(struct kvm *kvm, unsigned long paddr,
 	if (!IS_ALIGNED((unsigned long)dst_vaddr, 16) || !IS_ALIGNED(size, 16)) {
 		int dst_offset;
 
-		dst_tpage = alloc_page(GFP_KERNEL);
+		dst_tpage = alloc_page(GFP_KERNEL_ACCOUNT);
 		if (!dst_tpage) {
 			ret = -ENOMEM;
 			goto e_free;
@@ -1606,38 +1610,35 @@ static int sev_lock_vcpus_for_migration(struct kvm *kvm,
 {
 	struct kvm_vcpu *vcpu;
 	unsigned long i, j;
-	bool first = true;
 
 	kvm_for_each_vcpu(i, vcpu, kvm) {
 		if (mutex_lock_killable_nested(&vcpu->mutex, role))
 			goto out_unlock;
 
-		if (first) {
+#ifdef CONFIG_PROVE_LOCKING
+		if (!i)
 			/*
 			 * Reset the role to one that avoids colliding with
 			 * the role used for the first vcpu mutex.
 			 */
 			role = SEV_NR_MIGRATION_ROLES;
-			first = false;
-		} else {
+		else
 			mutex_release(&vcpu->mutex.dep_map, _THIS_IP_);
-		}
+#endif
 	}
 
 	return 0;
 
 out_unlock:
 
-	first = true;
 	kvm_for_each_vcpu(j, vcpu, kvm) {
 		if (i == j)
 			break;
 
-		if (first)
-			first = false;
-		else
+#ifdef CONFIG_PROVE_LOCKING
+		if (j)
 			mutex_acquire(&vcpu->mutex.dep_map, role, 0, _THIS_IP_);
-
+#endif
 
 		mutex_unlock(&vcpu->mutex);
 	}
@@ -1665,19 +1666,24 @@ static void sev_migrate_from(struct kvm *dst_kvm, struct kvm *src_kvm)
 {
 	struct kvm_sev_info *dst = &to_kvm_svm(dst_kvm)->sev_info;
 	struct kvm_sev_info *src = &to_kvm_svm(src_kvm)->sev_info;
+	struct kvm_vcpu *dst_vcpu, *src_vcpu;
+	struct vcpu_svm *dst_svm, *src_svm;
 	struct kvm_sev_info *mirror;
+	unsigned long i;
 
 	dst->active = true;
 	dst->asid = src->asid;
 	dst->handle = src->handle;
 	dst->pages_locked = src->pages_locked;
 	dst->enc_context_owner = src->enc_context_owner;
+	dst->es_active = src->es_active;
 
 	src->asid = 0;
 	src->active = false;
 	src->handle = 0;
 	src->pages_locked = 0;
 	src->enc_context_owner = NULL;
+	src->es_active = false;
 
 	list_cut_before(&dst->regions_list, &src->regions_list, &src->regions_list);
 
@@ -1704,26 +1710,21 @@ static void sev_migrate_from(struct kvm *dst_kvm, struct kvm *src_kvm)
 		list_del(&src->mirror_entry);
 		list_add_tail(&dst->mirror_entry, &owner_sev_info->mirror_vms);
 	}
-}
 
-static int sev_es_migrate_from(struct kvm *dst, struct kvm *src)
-{
-	unsigned long i;
-	struct kvm_vcpu *dst_vcpu, *src_vcpu;
-	struct vcpu_svm *dst_svm, *src_svm;
-
-	if (atomic_read(&src->online_vcpus) != atomic_read(&dst->online_vcpus))
-		return -EINVAL;
-
-	kvm_for_each_vcpu(i, src_vcpu, src) {
-		if (!src_vcpu->arch.guest_state_protected)
-			return -EINVAL;
-	}
-
-	kvm_for_each_vcpu(i, src_vcpu, src) {
-		src_svm = to_svm(src_vcpu);
-		dst_vcpu = kvm_get_vcpu(dst, i);
+	kvm_for_each_vcpu(i, dst_vcpu, dst_kvm) {
 		dst_svm = to_svm(dst_vcpu);
+
+		sev_init_vmcb(dst_svm);
+
+		if (!dst->es_active)
+			continue;
+
+		/*
+		 * Note, the source is not required to have the same number of
+		 * vCPUs as the destination when migrating a vanilla SEV VM.
+		 */
+		src_vcpu = kvm_get_vcpu(dst_kvm, i);
+		src_svm = to_svm(src_vcpu);
 
 		/*
 		 * Transfer VMSA and GHCB state to the destination.  Nullify and
@@ -1740,8 +1741,23 @@ static int sev_es_migrate_from(struct kvm *dst, struct kvm *src)
 		src_svm->vmcb->control.vmsa_pa = INVALID_PAGE;
 		src_vcpu->arch.guest_state_protected = false;
 	}
-	to_kvm_svm(src)->sev_info.es_active = false;
-	to_kvm_svm(dst)->sev_info.es_active = true;
+}
+
+static int sev_check_source_vcpus(struct kvm *dst, struct kvm *src)
+{
+	struct kvm_vcpu *src_vcpu;
+	unsigned long i;
+
+	if (!sev_es_guest(src))
+		return 0;
+
+	if (atomic_read(&src->online_vcpus) != atomic_read(&dst->online_vcpus))
+		return -EINVAL;
+
+	kvm_for_each_vcpu(i, src_vcpu, src) {
+		if (!src_vcpu->arch.guest_state_protected)
+			return -EINVAL;
+	}
 
 	return 0;
 }
@@ -1789,11 +1805,9 @@ int sev_vm_move_enc_context_from(struct kvm *kvm, unsigned int source_fd)
 	if (ret)
 		goto out_dst_vcpu;
 
-	if (sev_es_guest(source_kvm)) {
-		ret = sev_es_migrate_from(kvm, source_kvm);
-		if (ret)
-			goto out_source_vcpu;
-	}
+	ret = sev_check_source_vcpus(kvm, source_kvm);
+	if (ret)
+		goto out_source_vcpu;
 
 	sev_migrate_from(kvm, source_kvm);
 	kvm_vm_dead(source_kvm);
@@ -2206,6 +2220,15 @@ void __init sev_hardware_setup(void)
 
 	/* SEV-ES support requested? */
 	if (!sev_es_enabled)
+		goto out;
+
+	/*
+	 * SEV-ES requires MMIO caching as KVM doesn't have access to the guest
+	 * instruction stream, i.e. can't emulate in response to a #NPF and
+	 * instead relies on #NPF(RSVD) being reflected into the guest as #VC
+	 * (the guest can then do a #VMGEXIT to request MMIO emulation).
+	 */
+	if (!enable_mmio_caching)
 		goto out;
 
 	/* Does the CPU support SEV-ES? */
@@ -2914,7 +2937,7 @@ int sev_es_string_io(struct vcpu_svm *svm, int size, unsigned int port, int in)
 				    count, in);
 }
 
-void sev_es_init_vmcb(struct vcpu_svm *svm)
+static void sev_es_init_vmcb(struct vcpu_svm *svm)
 {
 	struct kvm_vcpu *vcpu = &svm->vcpu;
 
@@ -2965,6 +2988,15 @@ void sev_es_init_vmcb(struct vcpu_svm *svm)
 		if (guest_cpuid_has(&svm->vcpu, X86_FEATURE_RDTSCP))
 			svm_clr_intercept(svm, INTERCEPT_RDTSCP);
 	}
+}
+
+void sev_init_vmcb(struct vcpu_svm *svm)
+{
+	svm->vmcb->control.nested_ctl |= SVM_NESTED_CTL_SEV_ENABLE;
+	clr_exception_intercept(svm, UD_VECTOR);
+
+	if (sev_es_guest(svm->vcpu.kvm))
+		sev_es_init_vmcb(svm);
 }
 
 void sev_es_vcpu_reset(struct vcpu_svm *svm)

@@ -129,8 +129,8 @@ linux-api@vger.kernel.org に送ることを勧めます。
     ルに従っているものだけを受け付け、多くの人は正しいスタイルのコード
     だけをレビューします。
 
-  :ref:`Documentation/process/submitting-patches.rst <codingstyle>` と :ref:`Documentation/process/submitting-drivers.rst <submittingdrivers>`
-    これらのファイルには、どうやってうまくパッチを作って投稿するかにつ
+  :ref:`Documentation/process/submitting-patches.rst <codingstyle>`
+    このファイルには、どうやってうまくパッチを作って投稿するかにつ
     いて非常に詳しく書かれており、以下を含みます (これだけに限らない
     けれども)
 

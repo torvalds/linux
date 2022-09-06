@@ -137,6 +137,7 @@ void layout_symtab(struct module *mod, struct load_info *info)
 	info->symoffs = ALIGN(mod->data_layout.size, symsect->sh_addralign ?: 1);
 	info->stroffs = mod->data_layout.size = info->symoffs + ndst * sizeof(Elf_Sym);
 	mod->data_layout.size += strtab_size;
+	/* Note add_kallsyms() computes strtab_size as core_typeoffs - stroffs */
 	info->core_typeoffs = mod->data_layout.size;
 	mod->data_layout.size += ndst * sizeof(char);
 	mod->data_layout.size = strict_align(mod->data_layout.size);
@@ -169,19 +170,20 @@ void add_kallsyms(struct module *mod, const struct load_info *info)
 	Elf_Sym *dst;
 	char *s;
 	Elf_Shdr *symsec = &info->sechdrs[info->index.sym];
+	unsigned long strtab_size;
 
 	/* Set up to point into init section. */
 	mod->kallsyms = (void __rcu *)mod->init_layout.base +
 		info->mod_kallsyms_init_off;
 
-	preempt_disable();
+	rcu_read_lock();
 	/* The following is safe since this pointer cannot change */
-	rcu_dereference_sched(mod->kallsyms)->symtab = (void *)symsec->sh_addr;
-	rcu_dereference_sched(mod->kallsyms)->num_symtab = symsec->sh_size / sizeof(Elf_Sym);
+	rcu_dereference(mod->kallsyms)->symtab = (void *)symsec->sh_addr;
+	rcu_dereference(mod->kallsyms)->num_symtab = symsec->sh_size / sizeof(Elf_Sym);
 	/* Make sure we get permanent strtab: don't use info->strtab. */
-	rcu_dereference_sched(mod->kallsyms)->strtab =
+	rcu_dereference(mod->kallsyms)->strtab =
 		(void *)info->sechdrs[info->index.str].sh_addr;
-	rcu_dereference_sched(mod->kallsyms)->typetab = mod->init_layout.base + info->init_typeoffs;
+	rcu_dereference(mod->kallsyms)->typetab = mod->init_layout.base + info->init_typeoffs;
 
 	/*
 	 * Now populate the cut down core kallsyms for after init
@@ -190,22 +192,29 @@ void add_kallsyms(struct module *mod, const struct load_info *info)
 	mod->core_kallsyms.symtab = dst = mod->data_layout.base + info->symoffs;
 	mod->core_kallsyms.strtab = s = mod->data_layout.base + info->stroffs;
 	mod->core_kallsyms.typetab = mod->data_layout.base + info->core_typeoffs;
-	src = rcu_dereference_sched(mod->kallsyms)->symtab;
-	for (ndst = i = 0; i < rcu_dereference_sched(mod->kallsyms)->num_symtab; i++) {
-		rcu_dereference_sched(mod->kallsyms)->typetab[i] = elf_type(src + i, info);
+	strtab_size = info->core_typeoffs - info->stroffs;
+	src = rcu_dereference(mod->kallsyms)->symtab;
+	for (ndst = i = 0; i < rcu_dereference(mod->kallsyms)->num_symtab; i++) {
+		rcu_dereference(mod->kallsyms)->typetab[i] = elf_type(src + i, info);
 		if (i == 0 || is_livepatch_module(mod) ||
 		    is_core_symbol(src + i, info->sechdrs, info->hdr->e_shnum,
 				   info->index.pcpu)) {
+			ssize_t ret;
+
 			mod->core_kallsyms.typetab[ndst] =
-			    rcu_dereference_sched(mod->kallsyms)->typetab[i];
+			    rcu_dereference(mod->kallsyms)->typetab[i];
 			dst[ndst] = src[i];
 			dst[ndst++].st_name = s - mod->core_kallsyms.strtab;
-			s += strscpy(s,
-				     &rcu_dereference_sched(mod->kallsyms)->strtab[src[i].st_name],
-				     KSYM_NAME_LEN) + 1;
+			ret = strscpy(s,
+				      &rcu_dereference(mod->kallsyms)->strtab[src[i].st_name],
+				      strtab_size);
+			if (ret < 0)
+				break;
+			s += ret + 1;
+			strtab_size -= ret + 1;
 		}
 	}
-	preempt_enable();
+	rcu_read_unlock();
 	mod->core_kallsyms.num_symtab = ndst;
 }
 
@@ -448,26 +457,39 @@ unsigned long find_kallsyms_symbol_value(struct module *mod, const char *name)
 	return 0;
 }
 
-/* Look for this name: can be of form module:name. */
-unsigned long module_kallsyms_lookup_name(const char *name)
+static unsigned long __module_kallsyms_lookup_name(const char *name)
 {
 	struct module *mod;
 	char *colon;
-	unsigned long ret = 0;
+
+	colon = strnchr(name, MODULE_NAME_LEN, ':');
+	if (colon) {
+		mod = find_module_all(name, colon - name, false);
+		if (mod)
+			return find_kallsyms_symbol_value(mod, colon + 1);
+		return 0;
+	}
+
+	list_for_each_entry_rcu(mod, &modules, list) {
+		unsigned long ret;
+
+		if (mod->state == MODULE_STATE_UNFORMED)
+			continue;
+		ret = find_kallsyms_symbol_value(mod, name);
+		if (ret)
+			return ret;
+	}
+	return 0;
+}
+
+/* Look for this name: can be of form module:name. */
+unsigned long module_kallsyms_lookup_name(const char *name)
+{
+	unsigned long ret;
 
 	/* Don't lock: we're in enough trouble already. */
 	preempt_disable();
-	if ((colon = strnchr(name, MODULE_NAME_LEN, ':')) != NULL) {
-		if ((mod = find_module_all(name, colon - name, false)) != NULL)
-			ret = find_kallsyms_symbol_value(mod, colon + 1);
-	} else {
-		list_for_each_entry_rcu(mod, &modules, list) {
-			if (mod->state == MODULE_STATE_UNFORMED)
-				continue;
-			if ((ret = find_kallsyms_symbol_value(mod, name)) != 0)
-				break;
-		}
-	}
+	ret = __module_kallsyms_lookup_name(name);
 	preempt_enable();
 	return ret;
 }

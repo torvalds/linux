@@ -420,6 +420,7 @@ typedef struct elf64_shdr {
 #define NT_S390_GS_CB	0x30b		/* s390 guarded storage registers */
 #define NT_S390_GS_BC	0x30c		/* s390 guarded storage broadcast control block */
 #define NT_S390_RI_CB	0x30d		/* s390 runtime instrumentation */
+#define NT_S390_PV_CPU_DATA	0x30e	/* s390 protvirt cpu dump data */
 #define NT_ARM_VFP	0x400		/* ARM VFP/NEON registers */
 #define NT_ARM_TLS	0x401		/* ARM TLS register */
 #define NT_ARM_HW_BREAK	0x402		/* ARM hardware breakpoint registers */

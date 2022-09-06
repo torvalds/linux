@@ -2632,7 +2632,7 @@ static void hfa384x_usbctlx_reaper_task(struct work_struct *work)
  */
 static void hfa384x_usbctlx_completion_task(struct work_struct *work)
 {
-	struct hfa384x *hw = container_of(work, struct hfa384x, reaper_bh);
+	struct hfa384x *hw = container_of(work, struct hfa384x, completion_bh);
 	struct hfa384x_usbctlx *ctlx, *temp;
 	unsigned long flags;
 

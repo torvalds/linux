@@ -209,7 +209,7 @@ int main(int argc, char **argv)
 	if (write)
 		gup.gup_flags |= FOLL_WRITE;
 
-	gup_fd = open("/sys/kernel/debug/gup_test", O_RDWR);
+	gup_fd = open(GUP_TEST_FILE, O_RDWR);
 	if (gup_fd == -1) {
 		switch (errno) {
 		case EACCES:
@@ -224,7 +224,7 @@ int main(int argc, char **argv)
 			printf("check if CONFIG_GUP_TEST is enabled in kernel config\n");
 			break;
 		default:
-			perror("failed to open /sys/kernel/debug/gup_test");
+			perror("failed to open " GUP_TEST_FILE);
 			break;
 		}
 		exit(KSFT_SKIP);

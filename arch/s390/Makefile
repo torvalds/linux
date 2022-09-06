@@ -32,15 +32,7 @@ KBUILD_CFLAGS_DECOMPRESSOR += -fno-stack-protector
 KBUILD_CFLAGS_DECOMPRESSOR += $(call cc-disable-warning, address-of-packed-member)
 KBUILD_CFLAGS_DECOMPRESSOR += $(if $(CONFIG_DEBUG_INFO),-g)
 KBUILD_CFLAGS_DECOMPRESSOR += $(if $(CONFIG_DEBUG_INFO_DWARF4), $(call cc-option, -gdwarf-4,))
-
-ifdef CONFIG_CC_IS_GCC
-	ifeq ($(call cc-ifversion, -ge, 1200, y), y)
-		ifeq ($(call cc-ifversion, -lt, 1300, y), y)
-			KBUILD_CFLAGS += $(call cc-disable-warning, array-bounds)
-			KBUILD_CFLAGS_DECOMPRESSOR += $(call cc-disable-warning, array-bounds)
-		endif
-	endif
-endif
+KBUILD_CFLAGS_DECOMPRESSOR += $(if $(CONFIG_CC_NO_ARRAY_BOUNDS),-Wno-array-bounds)
 
 UTS_MACHINE	:= s390x
 STACK_SIZE	:= $(if $(CONFIG_KASAN),65536,16384)
@@ -90,7 +82,7 @@ endif
 
 ifdef CONFIG_EXPOLINE
   ifdef CONFIG_EXPOLINE_EXTERN
-    KBUILD_LDFLAGS_MODULE += arch/s390/lib/expoline.o
+    KBUILD_LDFLAGS_MODULE += arch/s390/lib/expoline/expoline.o
     CC_FLAGS_EXPOLINE := -mindirect-branch=thunk-extern
     CC_FLAGS_EXPOLINE += -mfunction-return=thunk-extern
   else
@@ -171,6 +163,12 @@ vdso_prepare: prepare0
 	$(Q)$(MAKE) $(build)=arch/s390/kernel/vdso64 include/generated/vdso64-offsets.h
 	$(if $(CONFIG_COMPAT),$(Q)$(MAKE) \
 		$(build)=arch/s390/kernel/vdso32 include/generated/vdso32-offsets.h)
+
+ifdef CONFIG_EXPOLINE_EXTERN
+modules_prepare: expoline_prepare
+expoline_prepare:
+	$(Q)$(MAKE) $(build)=arch/s390/lib/expoline arch/s390/lib/expoline/expoline.o
+endif
 endif
 
 # Don't use tabs in echo arguments

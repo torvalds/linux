@@ -221,11 +221,11 @@ struct mchp_spdifrx_user_data {
 };
 
 struct mchp_spdifrx_mixer_control {
-		struct mchp_spdifrx_ch_stat ch_stat[SPDIFRX_CHANNELS];
-		struct mchp_spdifrx_user_data user_data[SPDIFRX_CHANNELS];
-		bool ulock;
-		bool badf;
-		bool signal;
+	struct mchp_spdifrx_ch_stat ch_stat[SPDIFRX_CHANNELS];
+	struct mchp_spdifrx_user_data user_data[SPDIFRX_CHANNELS];
+	bool ulock;
+	bool badf;
+	bool signal;
 };
 
 struct mchp_spdifrx_dev {
@@ -288,15 +288,17 @@ static void mchp_spdifrx_isr_blockend_en(struct mchp_spdifrx_dev *dev)
 	spin_unlock_irqrestore(&dev->blockend_lock, flags);
 }
 
-/* called from atomic context only */
+/* called from atomic/non-atomic context */
 static void mchp_spdifrx_isr_blockend_dis(struct mchp_spdifrx_dev *dev)
 {
-	spin_lock(&dev->blockend_lock);
+	unsigned long flags;
+
+	spin_lock_irqsave(&dev->blockend_lock, flags);
 	dev->blockend_refcount--;
 	/* don't enable BLOCKEND interrupt if it's already enabled */
 	if (dev->blockend_refcount == 0)
 		regmap_write(dev->regmap, SPDIFRX_IDR, SPDIFRX_IR_BLOCKEND);
-	spin_unlock(&dev->blockend_lock);
+	spin_unlock_irqrestore(&dev->blockend_lock, flags);
 }
 
 static irqreturn_t mchp_spdif_interrupt(int irq, void *dev_id)
@@ -575,6 +577,7 @@ static int mchp_spdifrx_subcode_ch_get(struct mchp_spdifrx_dev *dev,
 	if (ret <= 0) {
 		dev_dbg(dev->dev, "user data for channel %d timeout\n",
 			channel);
+		mchp_spdifrx_isr_blockend_dis(dev);
 		return ret;
 	}
 
@@ -846,7 +849,8 @@ static struct snd_soc_dai_driver mchp_spdifrx_dai = {
 };
 
 static const struct snd_soc_component_driver mchp_spdifrx_component = {
-	.name		= "mchp-spdifrx",
+	.name			= "mchp-spdifrx",
+	.legacy_dai_naming	= 1,
 };
 
 static const struct of_device_id mchp_spdifrx_dt_ids[] = {

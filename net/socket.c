@@ -1801,7 +1801,7 @@ int __sys_listen(int fd, int backlog)
 
 	sock = sockfd_lookup_light(fd, &err, &fput_needed);
 	if (sock) {
-		somaxconn = sock_net(sock->sk)->core.sysctl_somaxconn;
+		somaxconn = READ_ONCE(sock_net(sock->sk)->core.sysctl_somaxconn);
 		if ((unsigned int)backlog > somaxconn)
 			backlog = somaxconn;
 
@@ -1878,10 +1878,8 @@ out_fd:
 	return ERR_PTR(err);
 }
 
-int __sys_accept4_file(struct file *file, unsigned file_flags,
-		       struct sockaddr __user *upeer_sockaddr,
-		       int __user *upeer_addrlen, int flags,
-		       unsigned long nofile)
+static int __sys_accept4_file(struct file *file, struct sockaddr __user *upeer_sockaddr,
+			      int __user *upeer_addrlen, int flags)
 {
 	struct file *newfile;
 	int newfd;
@@ -1892,11 +1890,11 @@ int __sys_accept4_file(struct file *file, unsigned file_flags,
 	if (SOCK_NONBLOCK != O_NONBLOCK && (flags & SOCK_NONBLOCK))
 		flags = (flags & ~SOCK_NONBLOCK) | O_NONBLOCK;
 
-	newfd = __get_unused_fd_flags(flags, nofile);
+	newfd = get_unused_fd_flags(flags);
 	if (unlikely(newfd < 0))
 		return newfd;
 
-	newfile = do_accept(file, file_flags, upeer_sockaddr, upeer_addrlen,
+	newfile = do_accept(file, 0, upeer_sockaddr, upeer_addrlen,
 			    flags);
 	if (IS_ERR(newfile)) {
 		put_unused_fd(newfd);
@@ -1926,9 +1924,8 @@ int __sys_accept4(int fd, struct sockaddr __user *upeer_sockaddr,
 
 	f = fdget(fd);
 	if (f.file) {
-		ret = __sys_accept4_file(f.file, 0, upeer_sockaddr,
-						upeer_addrlen, flags,
-						rlimit(RLIMIT_NOFILE));
+		ret = __sys_accept4_file(f.file, upeer_sockaddr,
+					 upeer_addrlen, flags);
 		fdput(f);
 	}
 
@@ -2106,6 +2103,7 @@ int __sys_sendto(int fd, void __user *buff, size_t len, unsigned int flags,
 	msg.msg_control = NULL;
 	msg.msg_controllen = 0;
 	msg.msg_namelen = 0;
+	msg.msg_ubuf = NULL;
 	if (addr) {
 		err = move_addr_to_kernel(addr, addr_len, &address);
 		if (err < 0)
@@ -2149,10 +2147,13 @@ SYSCALL_DEFINE4(send, int, fd, void __user *, buff, size_t, len,
 int __sys_recvfrom(int fd, void __user *ubuf, size_t size, unsigned int flags,
 		   struct sockaddr __user *addr, int __user *addr_len)
 {
+	struct sockaddr_storage address;
+	struct msghdr msg = {
+		/* Save some cycles and don't copy the address if not needed */
+		.msg_name = addr ? (struct sockaddr *)&address : NULL,
+	};
 	struct socket *sock;
 	struct iovec iov;
-	struct msghdr msg;
-	struct sockaddr_storage address;
 	int err, err2;
 	int fput_needed;
 
@@ -2163,14 +2164,6 @@ int __sys_recvfrom(int fd, void __user *ubuf, size_t size, unsigned int flags,
 	if (!sock)
 		goto out;
 
-	msg.msg_control = NULL;
-	msg.msg_controllen = 0;
-	/* Save some cycles and don't copy the address if not needed */
-	msg.msg_name = addr ? (struct sockaddr *)&address : NULL;
-	/* We assume all kernel code knows the size of sockaddr_storage */
-	msg.msg_namelen = 0;
-	msg.msg_iocb = NULL;
-	msg.msg_flags = 0;
 	if (sock->file->f_flags & O_NONBLOCK)
 		flags |= MSG_DONTWAIT;
 	err = sock_recvmsg(sock, &msg, flags);
@@ -2363,24 +2356,20 @@ struct used_address {
 	unsigned int name_len;
 };
 
-int __copy_msghdr_from_user(struct msghdr *kmsg,
-			    struct user_msghdr __user *umsg,
-			    struct sockaddr __user **save_addr,
-			    struct iovec __user **uiov, size_t *nsegs)
+int __copy_msghdr(struct msghdr *kmsg,
+		  struct user_msghdr *msg,
+		  struct sockaddr __user **save_addr)
 {
-	struct user_msghdr msg;
 	ssize_t err;
 
-	if (copy_from_user(&msg, umsg, sizeof(*umsg)))
-		return -EFAULT;
-
 	kmsg->msg_control_is_user = true;
-	kmsg->msg_control_user = msg.msg_control;
-	kmsg->msg_controllen = msg.msg_controllen;
-	kmsg->msg_flags = msg.msg_flags;
+	kmsg->msg_get_inq = 0;
+	kmsg->msg_control_user = msg->msg_control;
+	kmsg->msg_controllen = msg->msg_controllen;
+	kmsg->msg_flags = msg->msg_flags;
 
-	kmsg->msg_namelen = msg.msg_namelen;
-	if (!msg.msg_name)
+	kmsg->msg_namelen = msg->msg_namelen;
+	if (!msg->msg_name)
 		kmsg->msg_namelen = 0;
 
 	if (kmsg->msg_namelen < 0)
@@ -2390,11 +2379,11 @@ int __copy_msghdr_from_user(struct msghdr *kmsg,
 		kmsg->msg_namelen = sizeof(struct sockaddr_storage);
 
 	if (save_addr)
-		*save_addr = msg.msg_name;
+		*save_addr = msg->msg_name;
 
-	if (msg.msg_name && kmsg->msg_namelen) {
+	if (msg->msg_name && kmsg->msg_namelen) {
 		if (!save_addr) {
-			err = move_addr_to_kernel(msg.msg_name,
+			err = move_addr_to_kernel(msg->msg_name,
 						  kmsg->msg_namelen,
 						  kmsg->msg_name);
 			if (err < 0)
@@ -2405,12 +2394,11 @@ int __copy_msghdr_from_user(struct msghdr *kmsg,
 		kmsg->msg_namelen = 0;
 	}
 
-	if (msg.msg_iovlen > UIO_MAXIOV)
+	if (msg->msg_iovlen > UIO_MAXIOV)
 		return -EMSGSIZE;
 
 	kmsg->msg_iocb = NULL;
-	*uiov = msg.msg_iov;
-	*nsegs = msg.msg_iovlen;
+	kmsg->msg_ubuf = NULL;
 	return 0;
 }
 
@@ -2422,8 +2410,10 @@ static int copy_msghdr_from_user(struct msghdr *kmsg,
 	struct user_msghdr msg;
 	ssize_t err;
 
-	err = __copy_msghdr_from_user(kmsg, umsg, save_addr, &msg.msg_iov,
-					&msg.msg_iovlen);
+	if (copy_from_user(&msg, umsg, sizeof(*umsg)))
+		return -EFAULT;
+
+	err = __copy_msghdr(kmsg, &msg, save_addr);
 	if (err)
 		return err;
 

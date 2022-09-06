@@ -341,7 +341,7 @@ struct uac_feature_unit_descriptor {
 	__u8 bUnitID;
 	__u8 bSourceID;
 	__u8 bControlSize;
-	__u8 bmaControls[0]; /* variable length */
+	__u8 bmaControls[]; /* variable length */
 } __attribute__((packed));
 
 static inline __u8 uac_feature_unit_iFeature(struct uac_feature_unit_descriptor *desc)

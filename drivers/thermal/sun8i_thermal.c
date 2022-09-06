@@ -237,7 +237,7 @@ static int sun50i_h6_ths_calibrate(struct ths_device *tmdev,
 	 * The calibration data on the H6 is the ambient temperature and
 	 * sensor values that are filled during the factory test stage.
 	 *
-	 * The unit of stored FT temperature is 0.1 degreee celusis.
+	 * The unit of stored FT temperature is 0.1 degree celsius.
 	 *
 	 * We need to calculate a delta between measured and caluclated
 	 * register values and this will become a calibration offset.

@@ -99,4 +99,6 @@ void __init kasan_init(void)
 	pr_info("KASAN init done\n");
 }
 
+void __init kasan_early_init(void) { }
+
 void __init kasan_late_init(void) { }

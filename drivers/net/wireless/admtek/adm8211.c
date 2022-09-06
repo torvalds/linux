@@ -1311,7 +1311,7 @@ static int adm8211_config(struct ieee80211_hw *dev, u32 changed)
 static void adm8211_bss_info_changed(struct ieee80211_hw *dev,
 				     struct ieee80211_vif *vif,
 				     struct ieee80211_bss_conf *conf,
-				     u32 changes)
+				     u64 changes)
 {
 	struct adm8211_priv *priv = dev->priv;
 

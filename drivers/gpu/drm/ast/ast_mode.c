@@ -36,6 +36,7 @@
 #include <drm/drm_atomic_state_helper.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_crtc_helper.h>
+#include <drm/drm_edid.h>
 #include <drm/drm_fourcc.h>
 #include <drm/drm_gem_atomic_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
@@ -989,6 +990,9 @@ static void ast_crtc_dpms(struct drm_crtc *crtc, int mode)
 {
 	struct ast_private *ast = to_ast_private(crtc->dev);
 	u8 ch = AST_DPMS_VSYNC_OFF | AST_DPMS_HSYNC_OFF;
+	struct ast_crtc_state *ast_state;
+	const struct drm_format_info *format;
+	struct ast_vbios_mode_info *vbios_mode_info;
 
 	/* TODO: Maybe control display signal generation with
 	 *       Sync Enable (bit CR17.7).
@@ -997,13 +1001,23 @@ static void ast_crtc_dpms(struct drm_crtc *crtc, int mode)
 	case DRM_MODE_DPMS_ON:
 		ast_set_index_reg_mask(ast, AST_IO_SEQ_PORT,  0x01, 0xdf, 0);
 		ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xb6, 0xfc, 0);
-		if (ast->tx_chip_type == AST_TX_DP501)
+		if (ast->tx_chip_types & AST_TX_DP501_BIT)
 			ast_set_dp501_video_output(crtc->dev, 1);
 
-		if (ast->tx_chip_type == AST_TX_ASTDP) {
+		if (ast->tx_chip_types & AST_TX_ASTDP_BIT) {
 			ast_dp_power_on_off(crtc->dev, AST_DP_POWER_ON);
 			ast_wait_for_vretrace(ast);
 			ast_dp_set_on_off(crtc->dev, 1);
+		}
+
+		ast_state = to_ast_crtc_state(crtc->state);
+		format = ast_state->format;
+
+		if (format) {
+			vbios_mode_info = &ast_state->vbios_mode_info;
+
+			ast_set_color_reg(ast, format);
+			ast_set_vbios_color_reg(ast, format, vbios_mode_info);
 		}
 
 		ast_crtc_load_lut(ast, crtc);
@@ -1012,17 +1026,17 @@ static void ast_crtc_dpms(struct drm_crtc *crtc, int mode)
 	case DRM_MODE_DPMS_SUSPEND:
 	case DRM_MODE_DPMS_OFF:
 		ch = mode;
-		if (ast->tx_chip_type == AST_TX_DP501)
+		if (ast->tx_chip_types & AST_TX_DP501_BIT)
 			ast_set_dp501_video_output(crtc->dev, 0);
-		break;
 
-		if (ast->tx_chip_type == AST_TX_ASTDP) {
+		if (ast->tx_chip_types & AST_TX_ASTDP_BIT) {
 			ast_dp_set_on_off(crtc->dev, 0);
 			ast_dp_power_on_off(crtc->dev, AST_DP_POWER_OFF);
 		}
 
 		ast_set_index_reg_mask(ast, AST_IO_SEQ_PORT,  0x01, 0xdf, 0x20);
 		ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xb6, 0xfc, ch);
+		break;
 	}
 }
 
@@ -1094,15 +1108,19 @@ ast_crtc_helper_mode_valid(struct drm_crtc *crtc, const struct drm_display_mode 
 static int ast_crtc_helper_atomic_check(struct drm_crtc *crtc,
 					struct drm_atomic_state *state)
 {
-	struct drm_crtc_state *crtc_state = drm_atomic_get_new_crtc_state(state,
-									  crtc);
+	struct drm_crtc_state *crtc_state = drm_atomic_get_new_crtc_state(state, crtc);
 	struct drm_device *dev = crtc->dev;
 	struct ast_crtc_state *ast_state;
 	const struct drm_format_info *format;
 	bool succ;
+	int ret;
+
+	ret = drm_atomic_helper_check_crtc_state(crtc_state, false);
+	if (ret)
+		return ret;
 
 	if (!crtc_state->enable)
-		return 0; /* no mode checks if CRTC is being disabled */
+		goto out;
 
 	ast_state = to_ast_crtc_state(crtc_state);
 
@@ -1116,7 +1134,8 @@ static int ast_crtc_helper_atomic_check(struct drm_crtc *crtc,
 	if (!succ)
 		return -EINVAL;
 
-	return 0;
+out:
+	return drm_atomic_add_affected_planes(state, crtc);
 }
 
 static void ast_crtc_helper_atomic_begin(struct drm_crtc *crtc, struct drm_atomic_state *state)
@@ -1155,7 +1174,7 @@ ast_crtc_helper_atomic_flush(struct drm_crtc *crtc,
 		ast_crtc_load_lut(ast, crtc);
 
 	//Set Aspeed Display-Port
-	if (ast->tx_chip_type == AST_TX_ASTDP)
+	if (ast->tx_chip_types & AST_TX_ASTDP_BIT)
 		ast_dp_set_mode(crtc, vbios_mode_info);
 
 	mutex_unlock(&ast->ioregs_lock);
@@ -1739,22 +1758,26 @@ int ast_mode_config_init(struct ast_private *ast)
 
 	ast_crtc_init(dev);
 
-	switch (ast->tx_chip_type) {
-	case AST_TX_NONE:
+	if (ast->tx_chip_types & AST_TX_NONE_BIT) {
 		ret = ast_vga_output_init(ast);
-		break;
-	case AST_TX_SIL164:
-		ret = ast_sil164_output_init(ast);
-		break;
-	case AST_TX_DP501:
-		ret = ast_dp501_output_init(ast);
-		break;
-	case AST_TX_ASTDP:
-		ret = ast_astdp_output_init(ast);
-		break;
+		if (ret)
+			return ret;
 	}
-	if (ret)
-		return ret;
+	if (ast->tx_chip_types & AST_TX_SIL164_BIT) {
+		ret = ast_sil164_output_init(ast);
+		if (ret)
+			return ret;
+	}
+	if (ast->tx_chip_types & AST_TX_DP501_BIT) {
+		ret = ast_dp501_output_init(ast);
+		if (ret)
+			return ret;
+	}
+	if (ast->tx_chip_types & AST_TX_ASTDP_BIT) {
+		ret = ast_astdp_output_init(ast);
+		if (ret)
+			return ret;
+	}
 
 	drm_mode_config_reset(dev);
 

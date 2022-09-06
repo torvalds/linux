@@ -134,7 +134,7 @@ MODULE_DEVICE_TABLE(i2c, st_lsm6dsx_i2c_id_table);
 static struct i2c_driver st_lsm6dsx_driver = {
 	.driver = {
 		.name = "st_lsm6dsx_i2c",
-		.pm = &st_lsm6dsx_pm_ops,
+		.pm = pm_sleep_ptr(&st_lsm6dsx_pm_ops),
 		.of_match_table = st_lsm6dsx_i2c_of_match,
 	},
 	.probe = st_lsm6dsx_i2c_probe,
@@ -146,3 +146,4 @@ MODULE_AUTHOR("Lorenzo Bianconi <lorenzo.bianconi@st.com>");
 MODULE_AUTHOR("Denis Ciocca <denis.ciocca@st.com>");
 MODULE_DESCRIPTION("STMicroelectronics st_lsm6dsx i2c driver");
 MODULE_LICENSE("GPL v2");
+MODULE_IMPORT_NS(IIO_LSM6DSX);

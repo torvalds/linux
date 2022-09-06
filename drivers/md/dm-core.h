@@ -22,6 +22,8 @@
 
 #define DM_RESERVED_MAX_IOS		1024
 
+struct dm_io;
+
 struct dm_kobject_holder {
 	struct kobject kobj;
 	struct completion completion;
@@ -32,6 +34,14 @@ struct dm_kobject_holder {
  * DM targets must _not_ deference a mapped_device or dm_table to directly
  * access their members!
  */
+
+/*
+ * For mempools pre-allocation at the table loading time.
+ */
+struct dm_md_mempools {
+	struct bio_set bs;
+	struct bio_set io_bs;
+};
 
 struct mapped_device {
 	struct mutex suspend_lock;
@@ -83,6 +93,14 @@ struct mapped_device {
 	spinlock_t deferred_lock;
 	struct bio_list deferred;
 
+	/*
+	 * requeue work context is needed for cloning one new bio
+	 * to represent the dm_io to be requeued, since each
+	 * dm_io may point to the original bio from FS.
+	 */
+	struct work_struct requeue_work;
+	struct dm_io *requeue_list;
+
 	void *interface_ptr;
 
 	/*
@@ -110,8 +128,7 @@ struct mapped_device {
 	/*
 	 * io objects are allocated from here.
 	 */
-	struct bio_set io_bs;
-	struct bio_set bs;
+	struct dm_md_mempools *mempools;
 
 	/* kobject and completion */
 	struct dm_kobject_holder kobj_holder;
@@ -209,6 +226,13 @@ struct dm_table {
 #endif
 };
 
+static inline struct dm_target *dm_table_get_target(struct dm_table *t,
+						    unsigned int index)
+{
+	BUG_ON(index >= t->num_targets);
+	return t->targets + index;
+}
+
 /*
  * One of these is allocated per clone bio.
  */
@@ -223,6 +247,9 @@ struct dm_target_io {
 	sector_t old_sector;
 	struct bio clone;
 };
+#define DM_TARGET_IO_BIO_OFFSET (offsetof(struct dm_target_io, clone))
+#define DM_IO_BIO_OFFSET \
+	(offsetof(struct dm_target_io, clone) + offsetof(struct dm_io, tio))
 
 /*
  * dm_target_io flags
@@ -291,6 +318,8 @@ static inline void dm_io_set_flag(struct dm_io *io, unsigned int bit)
 {
 	io->flags |= (1U << bit);
 }
+
+void dm_io_rewind(struct dm_io *io, struct bio_set *bs);
 
 static inline struct completion *dm_get_completion_from_kobject(struct kobject *kobj)
 {

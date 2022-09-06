@@ -20,6 +20,10 @@ config ARCH_MSM8X60
 	bool "Enable support for MSM8X60"
 	select CLKSRC_QCOM
 
+config ARCH_MSM8909
+	bool "Enable support for MSM8909"
+	select HAVE_ARM_ARCH_TIMER
+
 config ARCH_MSM8916
 	bool "Enable support for MSM8916"
 	select HAVE_ARM_ARCH_TIMER

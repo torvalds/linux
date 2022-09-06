@@ -148,7 +148,7 @@ static int ucd9200_probe(struct i2c_client *client)
 	 * This only affects the READ_IOUT and READ_TEMPERATURE2 registers.
 	 * READ_IOUT will return the sum of currents of all phases of a rail,
 	 * and READ_TEMPERATURE2 will return the maximum temperature detected
-	 * for the the phases of the rail.
+	 * for the phases of the rail.
 	 */
 	for (i = 0; i < info->pages; i++) {
 		/*

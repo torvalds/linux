@@ -29,6 +29,7 @@
 #include <linux/net_tstamp.h>
 #include <linux/of.h>
 #include <linux/of_mdio.h>
+#include <linux/of_net.h>
 #include <linux/phy.h>
 #include <linux/platform_device.h>
 #include <linux/ptp_classify.h>
@@ -156,7 +157,7 @@ struct eth_plat_info {
 	u8 phy;		/* MII PHY ID, 0 - 31 */
 	u8 rxq;		/* configurable, currently 0 - 31 only */
 	u8 txreadyq;
-	u8 hwaddr[6];
+	u8 hwaddr[ETH_ALEN];
 	u8 npe;		/* NPE instance used by this interface */
 	bool has_mdio;	/* If this instance has an MDIO bus */
 };
@@ -1387,6 +1388,7 @@ static struct eth_plat_info *ixp4xx_of_get_platdata(struct device *dev)
 	struct of_phandle_args npe_spec;
 	struct device_node *mdio_np;
 	struct eth_plat_info *plat;
+	u8 mac[ETH_ALEN];
 	int ret;
 
 	plat = devm_kzalloc(dev, sizeof(*plat), GFP_KERNEL);
@@ -1427,6 +1429,12 @@ static struct eth_plat_info *ixp4xx_of_get_platdata(struct device *dev)
 		return NULL;
 	}
 	plat->txreadyq = queue_spec.args[0];
+
+	ret = of_get_mac_address(np, mac);
+	if (!ret) {
+		dev_info(dev, "Setting macaddr from DT %pM\n", mac);
+		memcpy(plat->hwaddr, mac, ETH_ALEN);
+	}
 
 	return plat;
 }
@@ -1487,7 +1495,10 @@ static int ixp4xx_eth_probe(struct platform_device *pdev)
 
 	port->plat = plat;
 	npe_port_tab[NPE_ID(port->id)] = port;
-	eth_hw_addr_set(ndev, plat->hwaddr);
+	if (is_valid_ether_addr(plat->hwaddr))
+		eth_hw_addr_set(ndev, plat->hwaddr);
+	else
+		eth_hw_addr_random(ndev);
 
 	platform_set_drvdata(pdev, ndev);
 

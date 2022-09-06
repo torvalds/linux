@@ -50,7 +50,7 @@ STATIC int xfs_attr_shortform_addname(xfs_da_args_t *args);
 STATIC int xfs_attr_leaf_get(xfs_da_args_t *args);
 STATIC int xfs_attr_leaf_removename(xfs_da_args_t *args);
 STATIC int xfs_attr_leaf_hasname(struct xfs_da_args *args, struct xfs_buf **bp);
-STATIC int xfs_attr_leaf_try_add(struct xfs_da_args *args, struct xfs_buf *bp);
+STATIC int xfs_attr_leaf_try_add(struct xfs_da_args *args);
 
 /*
  * Internal routines when attribute list is more than one block.
@@ -67,12 +67,10 @@ int
 xfs_inode_hasattr(
 	struct xfs_inode	*ip)
 {
-	if (!XFS_IFORK_Q(ip))
+	if (!xfs_inode_has_attr_fork(ip))
 		return 0;
-	if (!ip->i_afp)
-		return 0;
-	if (ip->i_afp->if_format == XFS_DINODE_FMT_EXTENTS &&
-	    ip->i_afp->if_nextents == 0)
+	if (ip->i_af.if_format == XFS_DINODE_FMT_EXTENTS &&
+	    ip->i_af.if_nextents == 0)
 		return 0;
 	return 1;
 }
@@ -85,7 +83,7 @@ bool
 xfs_attr_is_leaf(
 	struct xfs_inode	*ip)
 {
-	struct xfs_ifork	*ifp = ip->i_afp;
+	struct xfs_ifork	*ifp = &ip->i_af;
 	struct xfs_iext_cursor	icur;
 	struct xfs_bmbt_irec	imap;
 
@@ -231,7 +229,7 @@ xfs_attr_get_ilocked(
 	if (!xfs_inode_hasattr(args->dp))
 		return -ENOATTR;
 
-	if (args->dp->i_afp->if_format == XFS_DINODE_FMT_LOCAL)
+	if (args->dp->i_af.if_format == XFS_DINODE_FMT_LOCAL)
 		return xfs_attr_shortform_getvalue(args);
 	if (xfs_attr_is_leaf(args->dp))
 		return xfs_attr_leaf_get(args);
@@ -354,7 +352,7 @@ xfs_attr_try_sf_addname(
 	/*
 	 * Build initial attribute list (if required).
 	 */
-	if (dp->i_afp->if_format == XFS_DINODE_FMT_EXTENTS)
+	if (dp->i_af.if_format == XFS_DINODE_FMT_EXTENTS)
 		xfs_attr_shortform_create(args);
 
 	error = xfs_attr_shortform_addname(args);
@@ -393,16 +391,10 @@ xfs_attr_sf_addname(
 	 * It won't fit in the shortform, transform to a leaf block.  GROT:
 	 * another possible req'mt for a double-split btree op.
 	 */
-	error = xfs_attr_shortform_to_leaf(args, &attr->xattri_leaf_bp);
+	error = xfs_attr_shortform_to_leaf(args);
 	if (error)
 		return error;
 
-	/*
-	 * Prevent the leaf buffer from being unlocked so that a concurrent AIL
-	 * push cannot grab the half-baked leaf buffer and run into problems
-	 * with the write verifier.
-	 */
-	xfs_trans_bhold(args->trans, attr->xattri_leaf_bp);
 	attr->xattri_dela_state = XFS_DAS_LEAF_ADD;
 out:
 	trace_xfs_attr_sf_addname_return(attr->xattri_dela_state, args->dp);
@@ -447,11 +439,9 @@ xfs_attr_leaf_addname(
 
 	/*
 	 * Use the leaf buffer we may already hold locked as a result of
-	 * a sf-to-leaf conversion. The held buffer is no longer valid
-	 * after this call, regardless of the result.
+	 * a sf-to-leaf conversion.
 	 */
-	error = xfs_attr_leaf_try_add(args, attr->xattri_leaf_bp);
-	attr->xattri_leaf_bp = NULL;
+	error = xfs_attr_leaf_try_add(args);
 
 	if (error == -ENOSPC) {
 		error = xfs_attr3_leaf_to_node(args);
@@ -496,8 +486,6 @@ xfs_attr_node_addname(
 {
 	struct xfs_da_args	*args = attr->xattri_da_args;
 	int			error;
-
-	ASSERT(!attr->xattri_leaf_bp);
 
 	error = xfs_attr_node_addname_find_attr(attr);
 	if (error)
@@ -874,7 +862,7 @@ xfs_attr_lookup(
 	if (!xfs_inode_hasattr(dp))
 		return -ENOATTR;
 
-	if (dp->i_afp->if_format == XFS_DINODE_FMT_LOCAL)
+	if (dp->i_af.if_format == XFS_DINODE_FMT_LOCAL)
 		return xfs_attr_sf_findname(args, NULL, NULL);
 
 	if (xfs_attr_is_leaf(dp)) {
@@ -997,9 +985,11 @@ xfs_attr_set(
 	/*
 	 * We have no control over the attribute names that userspace passes us
 	 * to remove, so we have to allow the name lookup prior to attribute
-	 * removal to fail as well.
+	 * removal to fail as well.  Preserve the logged flag, since we need
+	 * to pass that through to the logging code.
 	 */
-	args->op_flags = XFS_DA_OP_OKNOENT;
+	args->op_flags = XFS_DA_OP_OKNOENT |
+					(args->op_flags & XFS_DA_OP_LOGGED);
 
 	if (args->value) {
 		XFS_STATS_INC(mp, xs_attr_set);
@@ -1009,7 +999,7 @@ xfs_attr_set(
 		 * If the inode doesn't have an attribute fork, add one.
 		 * (inode must not be locked when we call this routine)
 		 */
-		if (XFS_IFORK_Q(dp) == 0) {
+		if (xfs_inode_has_attr_fork(dp) == 0) {
 			int sf_size = sizeof(struct xfs_attr_sf_hdr) +
 				xfs_attr_sf_entsize_byname(args->namelen,
 						args->valuelen);
@@ -1109,7 +1099,7 @@ static inline int xfs_attr_sf_totsize(struct xfs_inode *dp)
 {
 	struct xfs_attr_shortform *sf;
 
-	sf = (struct xfs_attr_shortform *)dp->i_afp->if_u1.if_data;
+	sf = (struct xfs_attr_shortform *)dp->i_af.if_u1.if_data;
 	return be16_to_cpu(sf->hdr.totsize);
 }
 
@@ -1213,24 +1203,14 @@ xfs_attr_restore_rmt_blk(
  */
 STATIC int
 xfs_attr_leaf_try_add(
-	struct xfs_da_args	*args,
-	struct xfs_buf		*bp)
+	struct xfs_da_args	*args)
 {
+	struct xfs_buf		*bp;
 	int			error;
 
-	/*
-	 * If the caller provided a buffer to us, it is locked and held in
-	 * the transaction because it just did a shortform to leaf conversion.
-	 * Hence we don't need to read it again. Otherwise read in the leaf
-	 * buffer.
-	 */
-	if (bp) {
-		xfs_trans_bhold_release(args->trans, bp);
-	} else {
-		error = xfs_attr3_leaf_read(args->trans, args->dp, 0, &bp);
-		if (error)
-			return error;
-	}
+	error = xfs_attr3_leaf_read(args->trans, args->dp, 0, &bp);
+	if (error)
+		return error;
 
 	/*
 	 * Look up the xattr name to set the insertion point for the new xattr.
@@ -1439,12 +1419,11 @@ static int
 xfs_attr_node_try_addname(
 	struct xfs_attr_intent		*attr)
 {
-	struct xfs_da_args		*args = attr->xattri_da_args;
 	struct xfs_da_state		*state = attr->xattri_da_state;
 	struct xfs_da_state_blk		*blk;
 	int				error;
 
-	trace_xfs_attr_node_addname(args);
+	trace_xfs_attr_node_addname(state->args);
 
 	blk = &state->path.blk[state->path.active-1];
 	ASSERT(blk->magic == XFS_ATTR_LEAF_MAGIC);
@@ -1577,7 +1556,7 @@ xfs_attr_node_get(
 	 * If not in a transaction, we have to release all the buffers.
 	 */
 out_release:
-	for (i = 0; state != NULL && i < state->path.active; i++) {
+	for (i = 0; i < state->path.active; i++) {
 		xfs_trans_brelse(args->trans, state->path.blk[i].bp);
 		state->path.blk[i].bp = NULL;
 	}

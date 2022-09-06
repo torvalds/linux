@@ -22,6 +22,12 @@ struct nvif_object {
 	} map;
 };
 
+static inline bool
+nvif_object_constructed(struct nvif_object *object)
+{
+	return object->client != NULL;
+}
+
 int  nvif_object_ctor(struct nvif_object *, const char *name, u32 handle,
 		      s32 oclass, void *, u32, struct nvif_object *);
 void nvif_object_dtor(struct nvif_object *);

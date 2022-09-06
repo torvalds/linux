@@ -322,7 +322,7 @@ struct fixed31_32 dc_fixpt_sqr(struct fixed31_32 arg);
  */
 static inline struct fixed31_32 dc_fixpt_div_int(struct fixed31_32 arg1, long long arg2)
 {
-	return dc_fixpt_from_fraction(arg1.value, dc_fixpt_from_int(arg2).value);
+	return dc_fixpt_from_fraction(arg1.value, dc_fixpt_from_int((int)arg2).value);
 }
 
 /*

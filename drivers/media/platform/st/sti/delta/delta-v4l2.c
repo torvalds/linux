@@ -1669,14 +1669,12 @@ static int delta_open(struct file *file)
 	set_default_params(ctx);
 
 	/* enable ST231 clocks */
-	if (delta->clk_st231)
-		if (clk_prepare_enable(delta->clk_st231))
-			dev_warn(delta->dev, "failed to enable st231 clk\n");
+	if (clk_prepare_enable(delta->clk_st231))
+		dev_warn(delta->dev, "failed to enable st231 clk\n");
 
 	/* enable FLASH_PROMIP clock */
-	if (delta->clk_flash_promip)
-		if (clk_prepare_enable(delta->clk_flash_promip))
-			dev_warn(delta->dev, "failed to enable delta promip clk\n");
+	if (clk_prepare_enable(delta->clk_flash_promip))
+		dev_warn(delta->dev, "failed to enable delta promip clk\n");
 
 	mutex_unlock(&delta->lock);
 
@@ -1717,12 +1715,10 @@ static int delta_release(struct file *file)
 	v4l2_fh_exit(&ctx->fh);
 
 	/* disable ST231 clocks */
-	if (delta->clk_st231)
-		clk_disable_unprepare(delta->clk_st231);
+	clk_disable_unprepare(delta->clk_st231);
 
 	/* disable FLASH_PROMIP clock */
-	if (delta->clk_flash_promip)
-		clk_disable_unprepare(delta->clk_flash_promip);
+	clk_disable_unprepare(delta->clk_flash_promip);
 
 	dev_dbg(delta->dev, "%s decoder instance released\n", ctx->name);
 
@@ -1926,8 +1922,7 @@ static int delta_runtime_suspend(struct device *dev)
 {
 	struct delta_dev *delta = dev_get_drvdata(dev);
 
-	if (delta->clk_delta)
-		clk_disable_unprepare(delta->clk_delta);
+	clk_disable_unprepare(delta->clk_delta);
 
 	return 0;
 }
@@ -1936,9 +1931,8 @@ static int delta_runtime_resume(struct device *dev)
 {
 	struct delta_dev *delta = dev_get_drvdata(dev);
 
-	if (delta->clk_delta)
-		if (clk_prepare_enable(delta->clk_delta))
-			dev_warn(dev, "failed to prepare/enable delta clk\n");
+	if (clk_prepare_enable(delta->clk_delta))
+		dev_warn(dev, "failed to prepare/enable delta clk\n");
 
 	return 0;
 }

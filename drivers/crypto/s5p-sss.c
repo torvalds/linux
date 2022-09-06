@@ -2321,9 +2321,6 @@ static int s5p_aes_remove(struct platform_device *pdev)
 	struct s5p_aes_dev *pdata = platform_get_drvdata(pdev);
 	int i;
 
-	if (!pdata)
-		return -ENODEV;
-
 	for (i = 0; i < ARRAY_SIZE(algs); i++)
 		crypto_unregister_skcipher(&algs[i]);
 

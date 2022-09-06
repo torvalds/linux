@@ -125,15 +125,16 @@ void __aa_loaddata_update(struct aa_loaddata *data, long revision)
 {
 	AA_BUG(!data);
 	AA_BUG(!data->ns);
-	AA_BUG(!data->dents[AAFS_LOADDATA_REVISION]);
 	AA_BUG(!mutex_is_locked(&data->ns->lock));
 	AA_BUG(data->revision > revision);
 
 	data->revision = revision;
-	d_inode(data->dents[AAFS_LOADDATA_DIR])->i_mtime =
-		current_time(d_inode(data->dents[AAFS_LOADDATA_DIR]));
-	d_inode(data->dents[AAFS_LOADDATA_REVISION])->i_mtime =
-		current_time(d_inode(data->dents[AAFS_LOADDATA_REVISION]));
+	if ((data->dents[AAFS_LOADDATA_REVISION])) {
+		d_inode(data->dents[AAFS_LOADDATA_DIR])->i_mtime =
+			current_time(d_inode(data->dents[AAFS_LOADDATA_DIR]));
+		d_inode(data->dents[AAFS_LOADDATA_REVISION])->i_mtime =
+			current_time(d_inode(data->dents[AAFS_LOADDATA_REVISION]));
+	}
 }
 
 bool aa_rawdata_eq(struct aa_loaddata *l, struct aa_loaddata *r)
@@ -213,7 +214,7 @@ static void *kvmemdup(const void *src, size_t len)
 }
 
 /**
- * aa_u16_chunck - test and do bounds checking for a u16 size based chunk
+ * unpack_u16_chunk - test and do bounds checking for a u16 size based chunk
  * @e: serialized data read head (NOT NULL)
  * @chunk: start address for chunk of data (NOT NULL)
  *
@@ -456,7 +457,9 @@ static struct aa_dfa *unpack_dfa(struct aa_ext *e)
 			((e->pos - e->start) & 7);
 		size_t pad = ALIGN(sz, 8) - sz;
 		int flags = TO_ACCEPT1_FLAG(YYTD_DATA32) |
-			TO_ACCEPT2_FLAG(YYTD_DATA32) | DFA_FLAG_VERIFY_STATES;
+			TO_ACCEPT2_FLAG(YYTD_DATA32);
+		if (aa_g_paranoid_load)
+			flags |= DFA_FLAG_VERIFY_STATES;
 		dfa = aa_dfa_unpack(blob + pad, size - pad, flags);
 
 		if (IS_ERR(dfa))
@@ -668,6 +671,7 @@ static int datacmp(struct rhashtable_compare_arg *arg, const void *obj)
 /**
  * unpack_profile - unpack a serialized profile
  * @e: serialized data extent information (NOT NULL)
+ * @ns_name: pointer of newly allocated copy of %NULL in case of error
  *
  * NOTE: unpack profile sets audit struct if there is a failure
  */
@@ -744,18 +748,24 @@ static struct aa_profile *unpack_profile(struct aa_ext *e, char **ns_name)
 		goto fail;
 	if (tmp & PACKED_FLAG_HAT)
 		profile->label.flags |= FLAG_HAT;
+	if (tmp & PACKED_FLAG_DEBUG1)
+		profile->label.flags |= FLAG_DEBUG1;
+	if (tmp & PACKED_FLAG_DEBUG2)
+		profile->label.flags |= FLAG_DEBUG2;
 	if (!unpack_u32(e, &tmp, NULL))
 		goto fail;
-	if (tmp == PACKED_MODE_COMPLAIN || (e->version & FORCE_COMPLAIN_FLAG))
+	if (tmp == PACKED_MODE_COMPLAIN || (e->version & FORCE_COMPLAIN_FLAG)) {
 		profile->mode = APPARMOR_COMPLAIN;
-	else if (tmp == PACKED_MODE_ENFORCE)
+	} else if (tmp == PACKED_MODE_ENFORCE) {
 		profile->mode = APPARMOR_ENFORCE;
-	else if (tmp == PACKED_MODE_KILL)
+	} else if (tmp == PACKED_MODE_KILL) {
 		profile->mode = APPARMOR_KILL;
-	else if (tmp == PACKED_MODE_UNCONFINED)
+	} else if (tmp == PACKED_MODE_UNCONFINED) {
 		profile->mode = APPARMOR_UNCONFINED;
-	else
+		profile->label.flags |= FLAG_UNCONFINED;
+	} else {
 		goto fail;
+	}
 	if (!unpack_u32(e, &tmp, NULL))
 		goto fail;
 	if (tmp)
@@ -936,7 +946,7 @@ fail:
 }
 
 /**
- * verify_head - unpack serialized stream header
+ * verify_header - unpack serialized stream header
  * @e: serialized data read head (NOT NULL)
  * @required: whether the header is required or optional
  * @ns: Returns - namespace if one is specified else NULL (NOT NULL)
@@ -1052,6 +1062,7 @@ struct aa_load_ent *aa_load_ent_alloc(void)
 static int deflate_compress(const char *src, size_t slen, char **dst,
 			    size_t *dlen)
 {
+#ifdef CONFIG_SECURITY_APPARMOR_EXPORT_BINARY
 	int error;
 	struct z_stream_s strm;
 	void *stgbuf, *dstbuf;
@@ -1123,6 +1134,10 @@ fail_deflate_init:
 fail_deflate:
 	kvfree(stgbuf);
 	goto fail_stg_alloc;
+#else
+	*dlen = slen;
+	return 0;
+#endif
 }
 
 static int compress_loaddata(struct aa_loaddata *data)
@@ -1141,7 +1156,8 @@ static int compress_loaddata(struct aa_loaddata *data)
 		if (error)
 			return error;
 
-		kvfree(udata);
+		if (udata != data->data)
+			kvfree(udata);
 	} else
 		data->compressed_size = data->size;
 
@@ -1216,9 +1232,12 @@ int aa_unpack(struct aa_loaddata *udata, struct list_head *lh,
 			goto fail;
 		}
 	}
-	error = compress_loaddata(udata);
-	if (error)
-		goto fail;
+
+	if (aa_g_export_binary) {
+		error = compress_loaddata(udata);
+		if (error)
+			goto fail;
+	}
 	return 0;
 
 fail_profile:

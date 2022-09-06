@@ -254,7 +254,7 @@ static int bio_map_user_iov(struct request *rq, struct iov_iter *iter,
 		size_t offs, added = 0;
 		int npages;
 
-		bytes = iov_iter_get_pages_alloc(iter, &pages, LONG_MAX, &offs);
+		bytes = iov_iter_get_pages_alloc2(iter, &pages, LONG_MAX, &offs);
 		if (unlikely(bytes <= 0)) {
 			ret = bytes ? bytes : -EFAULT;
 			goto out_unmap;
@@ -284,7 +284,6 @@ static int bio_map_user_iov(struct request *rq, struct iov_iter *iter,
 				bytes -= n;
 				offs = 0;
 			}
-			iov_iter_advance(iter, added);
 		}
 		/*
 		 * release the pages we didn't map into the bio, if any
@@ -293,8 +292,10 @@ static int bio_map_user_iov(struct request *rq, struct iov_iter *iter,
 			put_page(pages[j++]);
 		kvfree(pages);
 		/* couldn't stuff something into bio? */
-		if (bytes)
+		if (bytes) {
+			iov_iter_revert(iter, bytes);
 			break;
+		}
 	}
 
 	ret = blk_rq_append_bio(rq, bio);

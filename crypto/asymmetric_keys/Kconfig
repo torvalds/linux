@@ -75,4 +75,14 @@ config SIGNED_PE_FILE_VERIFICATION
 	  This option provides support for verifying the signature(s) on a
 	  signed PE binary.
 
+config FIPS_SIGNATURE_SELFTEST
+	bool "Run FIPS selftests on the X.509+PKCS7 signature verification"
+	help
+	  This option causes some selftests to be run on the signature
+	  verification code, using some built in data.  This is required
+	  for FIPS.
+	depends on KEYS
+	depends on ASYMMETRIC_KEY_TYPE
+	depends on PKCS7_MESSAGE_PARSER
+
 endif # ASYMMETRIC_KEY_TYPE

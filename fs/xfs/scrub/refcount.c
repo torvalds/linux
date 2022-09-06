@@ -13,6 +13,8 @@
 #include "scrub/scrub.h"
 #include "scrub/common.h"
 #include "scrub/btree.h"
+#include "xfs_trans_resv.h"
+#include "xfs_mount.h"
 #include "xfs_ag.h"
 
 /*
@@ -332,9 +334,8 @@ xchk_refcountbt_rec(
 	struct xchk_btree	*bs,
 	const union xfs_btree_rec *rec)
 {
-	struct xfs_mount	*mp = bs->cur->bc_mp;
 	xfs_agblock_t		*cow_blocks = bs->private;
-	xfs_agnumber_t		agno = bs->cur->bc_ag.pag->pag_agno;
+	struct xfs_perag	*pag = bs->cur->bc_ag.pag;
 	xfs_agblock_t		bno;
 	xfs_extlen_t		len;
 	xfs_nlink_t		refcount;
@@ -354,8 +355,8 @@ xchk_refcountbt_rec(
 	/* Check the extent. */
 	bno &= ~XFS_REFC_COW_START;
 	if (bno + len <= bno ||
-	    !xfs_verify_agbno(mp, agno, bno) ||
-	    !xfs_verify_agbno(mp, agno, bno + len - 1))
+	    !xfs_verify_agbno(pag, bno) ||
+	    !xfs_verify_agbno(pag, bno + len - 1))
 		xchk_btree_set_corrupt(bs->sc, bs->cur, 0);
 
 	if (refcount == 0)

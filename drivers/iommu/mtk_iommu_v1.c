@@ -532,15 +532,10 @@ static void mtk_iommu_v1_release_device(struct device *dev)
 	struct device *larbdev;
 	unsigned int larbid;
 
-	if (!fwspec || fwspec->ops != &mtk_iommu_v1_ops)
-		return;
-
 	data = dev_iommu_priv_get(dev);
 	larbid = mt2701_m4u_to_larb(fwspec->ids[0]);
 	larbdev = data->larb_imu[larbid].dev;
 	device_link_remove(dev, larbdev);
-
-	iommu_fwspec_free(dev);
 }
 
 static int mtk_iommu_v1_hw_init(const struct mtk_iommu_v1_data *data)

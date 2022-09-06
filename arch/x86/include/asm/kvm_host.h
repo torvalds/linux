@@ -53,7 +53,7 @@
 #define KVM_MAX_VCPU_IDS (KVM_MAX_VCPUS * KVM_VCPU_ID_RATIO)
 
 /* memory slots that are not exposed to userspace */
-#define KVM_PRIVATE_MEM_SLOTS 3
+#define KVM_INTERNAL_MEM_SLOTS 3
 
 #define KVM_HALT_POLL_NS_DEFAULT 200000
 
@@ -64,6 +64,9 @@
 
 #define KVM_BUS_LOCK_DETECTION_VALID_MODE	(KVM_BUS_LOCK_DETECTION_OFF | \
 						 KVM_BUS_LOCK_DETECTION_EXIT)
+
+#define KVM_X86_NOTIFY_VMEXIT_VALID_BITS	(KVM_X86_NOTIFY_VMEXIT_ENABLED | \
+						 KVM_X86_NOTIFY_VMEXIT_USER)
 
 /* x86-specific vcpu->requests bit members */
 #define KVM_REQ_MIGRATE_TIMER		KVM_ARCH_REQ(0)
@@ -126,7 +129,6 @@
 #define INVALID_PAGE (~(hpa_t)0)
 #define VALID_PAGE(x) ((x) != INVALID_PAGE)
 
-#define UNMAPPED_GVA (~(gpa_t)0)
 #define INVALID_GPA (~(gpa_t)0)
 
 /* KVM Hugepage definitions for x86 */
@@ -505,6 +507,7 @@ struct kvm_pmu {
 	unsigned nr_arch_fixed_counters;
 	unsigned available_event_types;
 	u64 fixed_ctr_ctrl;
+	u64 fixed_ctr_ctrl_mask;
 	u64 global_ctrl;
 	u64 global_status;
 	u64 counter_bitmask[2];
@@ -519,6 +522,21 @@ struct kvm_pmu {
 	DECLARE_BITMAP(reprogram_pmi, X86_PMC_IDX_MAX);
 	DECLARE_BITMAP(all_valid_pmc_idx, X86_PMC_IDX_MAX);
 	DECLARE_BITMAP(pmc_in_use, X86_PMC_IDX_MAX);
+
+	u64 ds_area;
+	u64 pebs_enable;
+	u64 pebs_enable_mask;
+	u64 pebs_data_cfg;
+	u64 pebs_data_cfg_mask;
+
+	/*
+	 * If a guest counter is cross-mapped to host counter with different
+	 * index, its PEBS capability will be temporarily disabled.
+	 *
+	 * The user should make sure that this mask is updated
+	 * after disabling interrupts and before perf_guest_get_msrs();
+	 */
+	u64 host_cross_mapped_mask;
 
 	/*
 	 * The gate to release perf_events not marked in
@@ -644,7 +662,6 @@ struct kvm_vcpu_arch {
 	u64 efer;
 	u64 apic_base;
 	struct kvm_lapic *apic;    /* kernel irqchip context */
-	bool apicv_active;
 	bool load_eoi_exitmap_pending;
 	DECLARE_BITMAP(ioapic_handled_vectors, 256);
 	unsigned long apic_attention;
@@ -653,6 +670,7 @@ struct kvm_vcpu_arch {
 	u64 ia32_misc_enable_msr;
 	u64 smbase;
 	u64 smi_count;
+	bool at_instruction_boundary;
 	bool tpr_access_reporting;
 	bool xsaves_enabled;
 	bool xfd_no_write_intercept;
@@ -694,7 +712,7 @@ struct kvm_vcpu_arch {
 
 	struct kvm_mmu_memory_cache mmu_pte_list_desc_cache;
 	struct kvm_mmu_memory_cache mmu_shadow_page_cache;
-	struct kvm_mmu_memory_cache mmu_gfn_array_cache;
+	struct kvm_mmu_memory_cache mmu_shadowed_info_cache;
 	struct kvm_mmu_memory_cache mmu_page_header_cache;
 
 	/*
@@ -807,6 +825,7 @@ struct kvm_vcpu_arch {
 	u64 mcg_ctl;
 	u64 mcg_ext_ctl;
 	u64 *mce_banks;
+	u64 *mci_ctl2_banks;
 
 	/* Cache MMIO info */
 	u64 mmio_gva;
@@ -1046,14 +1065,72 @@ struct kvm_x86_msr_filter {
 };
 
 enum kvm_apicv_inhibit {
+
+	/********************************************************************/
+	/* INHIBITs that are relevant to both Intel's APICv and AMD's AVIC. */
+	/********************************************************************/
+
+	/*
+	 * APIC acceleration is disabled by a module parameter
+	 * and/or not supported in hardware.
+	 */
 	APICV_INHIBIT_REASON_DISABLE,
+
+	/*
+	 * APIC acceleration is inhibited because AutoEOI feature is
+	 * being used by a HyperV guest.
+	 */
 	APICV_INHIBIT_REASON_HYPERV,
-	APICV_INHIBIT_REASON_NESTED,
-	APICV_INHIBIT_REASON_IRQWIN,
-	APICV_INHIBIT_REASON_PIT_REINJ,
-	APICV_INHIBIT_REASON_X2APIC,
-	APICV_INHIBIT_REASON_BLOCKIRQ,
+
+	/*
+	 * APIC acceleration is inhibited because the userspace didn't yet
+	 * enable the kernel/split irqchip.
+	 */
 	APICV_INHIBIT_REASON_ABSENT,
+
+	/* APIC acceleration is inhibited because KVM_GUESTDBG_BLOCKIRQ
+	 * (out of band, debug measure of blocking all interrupts on this vCPU)
+	 * was enabled, to avoid AVIC/APICv bypassing it.
+	 */
+	APICV_INHIBIT_REASON_BLOCKIRQ,
+
+	/*
+	 * For simplicity, the APIC acceleration is inhibited
+	 * first time either APIC ID or APIC base are changed by the guest
+	 * from their reset values.
+	 */
+	APICV_INHIBIT_REASON_APIC_ID_MODIFIED,
+	APICV_INHIBIT_REASON_APIC_BASE_MODIFIED,
+
+	/******************************************************/
+	/* INHIBITs that are relevant only to the AMD's AVIC. */
+	/******************************************************/
+
+	/*
+	 * AVIC is inhibited on a vCPU because it runs a nested guest.
+	 *
+	 * This is needed because unlike APICv, the peers of this vCPU
+	 * cannot use the doorbell mechanism to signal interrupts via AVIC when
+	 * a vCPU runs nested.
+	 */
+	APICV_INHIBIT_REASON_NESTED,
+
+	/*
+	 * On SVM, the wait for the IRQ window is implemented with pending vIRQ,
+	 * which cannot be injected when the AVIC is enabled, thus AVIC
+	 * is inhibited while KVM waits for IRQ window.
+	 */
+	APICV_INHIBIT_REASON_IRQWIN,
+
+	/*
+	 * PIT (i8254) 're-inject' mode, relies on EOI intercept,
+	 * which AVIC doesn't support for edge triggered interrupts.
+	 */
+	APICV_INHIBIT_REASON_PIT_REINJ,
+
+	/*
+	 * AVIC is disabled because SEV doesn't support it.
+	 */
 	APICV_INHIBIT_REASON_SEV,
 };
 
@@ -1158,8 +1235,13 @@ struct kvm_arch {
 	bool guest_can_read_msr_platform_info;
 	bool exception_payload_enabled;
 
+	bool triple_fault_event;
+
 	bool bus_lock_detection_enabled;
 	bool enable_pmu;
+
+	u32 notify_window;
+	u32 notify_vmexit_flags;
 	/*
 	 * If exit_on_emulation_error is set, and the in-kernel instruction
 	 * emulator fails to emulate an instruction, allow userspace
@@ -1243,6 +1325,36 @@ struct kvm_arch {
 	hpa_t	hv_root_tdp;
 	spinlock_t hv_root_tdp_lock;
 #endif
+	/*
+	 * VM-scope maximum vCPU ID. Used to determine the size of structures
+	 * that increase along with the maximum vCPU ID, in which case, using
+	 * the global KVM_MAX_VCPU_IDS may lead to significant memory waste.
+	 */
+	u32 max_vcpu_ids;
+
+	bool disable_nx_huge_pages;
+
+	/*
+	 * Memory caches used to allocate shadow pages when performing eager
+	 * page splitting. No need for a shadowed_info_cache since eager page
+	 * splitting only allocates direct shadow pages.
+	 *
+	 * Protected by kvm->slots_lock.
+	 */
+	struct kvm_mmu_memory_cache split_shadow_page_cache;
+	struct kvm_mmu_memory_cache split_page_header_cache;
+
+	/*
+	 * Memory cache used to allocate pte_list_desc structs while splitting
+	 * huge pages. In the worst case, to split one huge page, 512
+	 * pte_list_desc structs are needed to add each lower level leaf sptep
+	 * to the rmap plus 1 to extend the parent_ptes rmap of the lower level
+	 * page table.
+	 *
+	 * Protected by kvm->slots_lock.
+	 */
+#define SPLIT_DESC_CACHE_MIN_NR_OBJECTS (SPTE_ENT_PER_PAGE + 1)
+	struct kvm_mmu_memory_cache split_desc_cache;
 };
 
 struct kvm_vm_stat {
@@ -1300,7 +1412,10 @@ struct kvm_vcpu_stat {
 	u64 nested_run;
 	u64 directed_yield_attempted;
 	u64 directed_yield_successful;
+	u64 preemption_reported;
+	u64 preemption_other;
 	u64 guest_mode;
+	u64 notify_window_exits;
 };
 
 struct x86_instruction_info;
@@ -1341,6 +1456,7 @@ struct kvm_x86_ops {
 	void (*vm_destroy)(struct kvm *kvm);
 
 	/* Create, but do not attach this VCPU */
+	int (*vcpu_precreate)(struct kvm *kvm);
 	int (*vcpu_create)(struct kvm_vcpu *vcpu);
 	void (*vcpu_free)(struct kvm_vcpu *vcpu);
 	void (*vcpu_reset)(struct kvm_vcpu *vcpu, bool init_event);
@@ -1405,7 +1521,7 @@ struct kvm_x86_ops {
 	u32 (*get_interrupt_shadow)(struct kvm_vcpu *vcpu);
 	void (*patch_hypercall)(struct kvm_vcpu *vcpu,
 				unsigned char *hypercall_addr);
-	void (*inject_irq)(struct kvm_vcpu *vcpu);
+	void (*inject_irq)(struct kvm_vcpu *vcpu, bool reinjected);
 	void (*inject_nmi)(struct kvm_vcpu *vcpu);
 	void (*queue_exception)(struct kvm_vcpu *vcpu);
 	void (*cancel_injection)(struct kvm_vcpu *vcpu);
@@ -1419,7 +1535,7 @@ struct kvm_x86_ops {
 	bool (*check_apicv_inhibit_reasons)(enum kvm_apicv_inhibit reason);
 	void (*refresh_apicv_exec_ctrl)(struct kvm_vcpu *vcpu);
 	void (*hwapic_irr_update)(struct kvm_vcpu *vcpu, int max_irr);
-	void (*hwapic_isr_update)(struct kvm_vcpu *vcpu, int isr);
+	void (*hwapic_isr_update)(int isr);
 	bool (*guest_apic_has_interrupt)(struct kvm_vcpu *vcpu);
 	void (*load_eoi_exitmap)(struct kvm_vcpu *vcpu, u64 *eoi_exit_bitmap);
 	void (*set_virtual_apic_mode)(struct kvm_vcpu *vcpu);
@@ -1429,7 +1545,7 @@ struct kvm_x86_ops {
 	int (*sync_pir_to_irr)(struct kvm_vcpu *vcpu);
 	int (*set_tss_addr)(struct kvm *kvm, unsigned int addr);
 	int (*set_identity_map_addr)(struct kvm *kvm, u64 ident_addr);
-	u64 (*get_mt_mask)(struct kvm_vcpu *vcpu, gfn_t gfn, bool is_mmio);
+	u8 (*get_mt_mask)(struct kvm_vcpu *vcpu, gfn_t gfn, bool is_mmio);
 
 	void (*load_mmu_pgd)(struct kvm_vcpu *vcpu, hpa_t root_hpa,
 			     int root_level);
@@ -1588,7 +1704,7 @@ static inline int kvm_arch_flush_remote_tlb(struct kvm *kvm)
 #define kvm_arch_pmi_in_guest(vcpu) \
 	((vcpu) && (vcpu)->arch.handling_intr_from_guest)
 
-void kvm_mmu_x86_module_init(void);
+void __init kvm_mmu_x86_module_init(void);
 int kvm_mmu_vendor_module_init(void);
 void kvm_mmu_vendor_module_exit(void);
 
@@ -1638,21 +1754,6 @@ void kvm_fire_mask_notifiers(struct kvm *kvm, unsigned irqchip, unsigned pin,
 extern bool tdp_enabled;
 
 u64 vcpu_tsc_khz(struct kvm_vcpu *vcpu);
-
-/* control of guest tsc rate supported? */
-extern bool kvm_has_tsc_control;
-/* maximum supported tsc_khz for guests */
-extern u32  kvm_max_guest_tsc_khz;
-/* number of bits of the fractional part of the TSC scaling ratio */
-extern u8   kvm_tsc_scaling_ratio_frac_bits;
-/* maximum allowed value of TSC scaling ratio */
-extern u64  kvm_max_tsc_scaling_ratio;
-/* 1ull << kvm_tsc_scaling_ratio_frac_bits */
-extern u64  kvm_default_tsc_scaling_ratio;
-/* bus lock detection supported? */
-extern bool kvm_has_bus_lock_exit;
-
-extern u64 kvm_mce_cap_supported;
 
 /*
  * EMULTYPE_NO_DECODE - Set when re-emulating an instruction (after completing
@@ -1994,6 +2095,7 @@ int memslot_rmap_alloc(struct kvm_memory_slot *slot, unsigned long npages);
 	 KVM_X86_QUIRK_LAPIC_MMIO_HOLE |	\
 	 KVM_X86_QUIRK_OUT_7E_INC_RIP |		\
 	 KVM_X86_QUIRK_MISC_ENABLE_NO_MWAIT |	\
-	 KVM_X86_QUIRK_FIX_HYPERCALL_INSN)
+	 KVM_X86_QUIRK_FIX_HYPERCALL_INSN |	\
+	 KVM_X86_QUIRK_MWAIT_NEVER_UD_FAULTS)
 
 #endif /* _ASM_X86_KVM_HOST_H */

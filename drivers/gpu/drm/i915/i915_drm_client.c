@@ -116,8 +116,9 @@ show_client_class(struct seq_file *m,
 		total += busy_add(ctx, class);
 	rcu_read_unlock();
 
-	seq_printf(m, "drm-engine-%s:\t%llu ns\n",
-		   uabi_class_names[class], total);
+	if (capacity)
+		seq_printf(m, "drm-engine-%s:\t%llu ns\n",
+			   uabi_class_names[class], total);
 
 	if (capacity > 1)
 		seq_printf(m, "drm-engine-capacity-%s:\t%u\n",

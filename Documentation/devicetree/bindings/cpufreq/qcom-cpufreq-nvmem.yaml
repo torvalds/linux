@@ -22,6 +22,13 @@ select:
     compatible:
       contains:
         enum:
+          - qcom,apq8064
+          - qcom,apq8096
+          - qcom,ipq8064
+          - qcom,msm8939
+          - qcom,msm8960
+          - qcom,msm8974
+          - qcom,msm8996
           - qcom,qcs404
   required:
     - compatible
@@ -63,8 +70,8 @@ additionalProperties: true
 examples:
   - |
     / {
-        model = "Qualcomm Technologies, Inc. QCS404";
-        compatible = "qcom,qcs404";
+        model = "Qualcomm Technologies, Inc. QCS404 EVB 1000";
+        compatible = "qcom,qcs404-evb-1000", "qcom,qcs404-evb", "qcom,qcs404";
         #address-cells = <2>;
         #size-cells = <2>;
 

@@ -157,7 +157,7 @@ tegra_channel_get_remote_csi_subdev(struct tegra_vi_channel *chan)
 {
 	struct media_pad *pad;
 
-	pad = media_entity_remote_pad(&chan->pad);
+	pad = media_pad_remote_pad_first(&chan->pad);
 	if (!pad)
 		return NULL;
 
@@ -177,7 +177,7 @@ tegra_channel_get_remote_source_subdev(struct tegra_vi_channel *chan)
 
 	pad = &subdev->entity.pads[0];
 	while (!(pad->flags & MEDIA_PAD_FL_SOURCE)) {
-		pad = media_entity_remote_pad(pad);
+		pad = media_pad_remote_pad_first(pad);
 		if (!pad || !is_media_entity_v4l2_subdev(pad->entity))
 			break;
 		entity = pad->entity;

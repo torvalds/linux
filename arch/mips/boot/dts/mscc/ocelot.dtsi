@@ -136,13 +136,14 @@
 			      <0x1880000 0x10000>,
 			      <0x1040000 0x10000>,
 			      <0x1050000 0x10000>,
-			      <0x1060000 0x10000>;
+			      <0x1060000 0x10000>,
+			      <0x1a0 0x1c4>;
 			reg-names = "sys", "rew", "qs", "ptp", "port0", "port1",
 				    "port2", "port3", "port4", "port5", "port6",
 				    "port7", "port8", "port9", "port10", "qsys",
-				    "ana", "s0", "s1", "s2";
-			interrupts = <18 21 22>;
-			interrupt-names = "ptp_rdy", "xtr", "inj";
+				    "ana", "s0", "s1", "s2", "fdma";
+			interrupts = <18 21 22 16>;
+			interrupt-names = "ptp_rdy", "xtr", "inj", "fdma";
 
 			ethernet-ports {
 				#address-cells = <1>;

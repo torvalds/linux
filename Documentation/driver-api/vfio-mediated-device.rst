@@ -1,3 +1,4 @@
+.. SPDX-License-Identifier: GPL-2.0-only
 .. include:: <isonum.txt>
 
 =====================
@@ -8,9 +9,6 @@ VFIO Mediated devices
 :Author: Neo Jia <cjia@nvidia.com>
 :Author: Kirti Wankhede <kwankhede@nvidia.com>
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License version 2 as
-published by the Free Software Foundation.
 
 
 Virtual Function I/O (VFIO) Mediated devices[1]
@@ -114,11 +112,11 @@ to register and unregister itself with the core driver:
 
 * Register::
 
-    extern int  mdev_register_driver(struct mdev_driver *drv);
+    int mdev_register_driver(struct mdev_driver *drv);
 
 * Unregister::
 
-    extern void mdev_unregister_driver(struct mdev_driver *drv);
+    void mdev_unregister_driver(struct mdev_driver *drv);
 
 The mediated bus driver's probe function should create a vfio_device on top of
 the mdev_device and connect it to an appropriate implementation of
@@ -127,8 +125,8 @@ vfio_device_ops.
 When a driver wants to add the GUID creation sysfs to an existing device it has
 probe'd to then it should call::
 
-	extern int  mdev_register_device(struct device *dev,
-	                                 struct mdev_driver *mdev_driver);
+    int mdev_register_device(struct device *dev,
+                             struct mdev_driver *mdev_driver);
 
 This will provide the 'mdev_supported_types/XX/create' files which can then be
 used to trigger the creation of a mdev_device. The created mdev_device will be
@@ -136,7 +134,7 @@ attached to the specified driver.
 
 When the driver needs to remove itself it calls::
 
-	extern void mdev_unregister_device(struct device *dev);
+    void mdev_unregister_device(struct device *dev);
 
 Which will unbind and destroy all the created mdevs and remove the sysfs files.
 
@@ -262,10 +260,10 @@ Translation APIs for Mediated Devices
 The following APIs are provided for translating user pfn to host pfn in a VFIO
 driver::
 
-	int vfio_pin_pages(struct vfio_device *device, unsigned long *user_pfn,
-				  int npage, int prot, unsigned long *phys_pfn);
+	int vfio_pin_pages(struct vfio_device *device, dma_addr_t iova,
+				  int npage, int prot, struct page **pages);
 
-	int vfio_unpin_pages(struct vfio_device *device, unsigned long *user_pfn,
+	void vfio_unpin_pages(struct vfio_device *device, dma_addr_t iova,
 				    int npage);
 
 These functions call back into the back-end IOMMU module by using the pin_pages

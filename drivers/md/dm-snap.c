@@ -2026,7 +2026,7 @@ static int snapshot_map(struct dm_target *ti, struct bio *bio)
 	/*
 	 * Write to snapshot - higher level takes care of RW/RO
 	 * flags so we should only get this if we are
-	 * writeable.
+	 * writable.
 	 */
 	if (bio_data_dir(bio) == WRITE) {
 		pe = __lookup_pending_exception(s, chunk);

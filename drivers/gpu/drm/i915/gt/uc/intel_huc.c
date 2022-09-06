@@ -6,6 +6,7 @@
 #include <linux/types.h>
 
 #include "gt/intel_gt.h"
+#include "intel_guc_reg.h"
 #include "intel_huc.h"
 #include "i915_drv.h"
 
@@ -17,11 +18,15 @@
  * capabilities by adding HuC specific commands to batch buffers.
  *
  * The kernel driver is only responsible for loading the HuC firmware and
- * triggering its security authentication, which is performed by the GuC. For
- * The GuC to correctly perform the authentication, the HuC binary must be
- * loaded before the GuC one. Loading the HuC is optional; however, not using
- * the HuC might negatively impact power usage and/or performance of media
- * workloads, depending on the use-cases.
+ * triggering its security authentication, which is performed by the GuC on
+ * older platforms and by the GSC on newer ones. For the GuC to correctly
+ * perform the authentication, the HuC binary must be loaded before the GuC one.
+ * Loading the HuC is optional; however, not using the HuC might negatively
+ * impact power usage and/or performance of media workloads, depending on the
+ * use-cases.
+ * HuC must be reloaded on events that cause the WOPCM to lose its contents
+ * (S3/S4, FLR); GuC-authenticated HuC must also be reloaded on GuC/GT reset,
+ * while GSC-managed HuC will survive that.
  *
  * See https://github.com/intel/media-driver for the latest details on HuC
  * functionality.
@@ -54,10 +59,50 @@ void intel_huc_init_early(struct intel_huc *huc)
 	}
 }
 
+#define HUC_LOAD_MODE_STRING(x) (x ? "GSC" : "legacy")
+static int check_huc_loading_mode(struct intel_huc *huc)
+{
+	struct intel_gt *gt = huc_to_gt(huc);
+	bool fw_needs_gsc = intel_huc_is_loaded_by_gsc(huc);
+	bool hw_uses_gsc = false;
+
+	/*
+	 * The fuse for HuC load via GSC is only valid on platforms that have
+	 * GuC deprivilege.
+	 */
+	if (HAS_GUC_DEPRIVILEGE(gt->i915))
+		hw_uses_gsc = intel_uncore_read(gt->uncore, GUC_SHIM_CONTROL2) &
+			      GSC_LOADS_HUC;
+
+	if (fw_needs_gsc != hw_uses_gsc) {
+		drm_err(&gt->i915->drm,
+			"mismatch between HuC FW (%s) and HW (%s) load modes\n",
+			HUC_LOAD_MODE_STRING(fw_needs_gsc),
+			HUC_LOAD_MODE_STRING(hw_uses_gsc));
+		return -ENOEXEC;
+	}
+
+	/* make sure we can access the GSC via the mei driver if we need it */
+	if (!(IS_ENABLED(CONFIG_INTEL_MEI_PXP) && IS_ENABLED(CONFIG_INTEL_MEI_GSC)) &&
+	    fw_needs_gsc) {
+		drm_info(&gt->i915->drm,
+			 "Can't load HuC due to missing MEI modules\n");
+		return -EIO;
+	}
+
+	drm_dbg(&gt->i915->drm, "GSC loads huc=%s\n", str_yes_no(fw_needs_gsc));
+
+	return 0;
+}
+
 int intel_huc_init(struct intel_huc *huc)
 {
 	struct drm_i915_private *i915 = huc_to_gt(huc)->i915;
 	int err;
+
+	err = check_huc_loading_mode(huc);
+	if (err)
+		goto out;
 
 	err = intel_uc_fw_init(&huc->fw);
 	if (err)
@@ -68,7 +113,7 @@ int intel_huc_init(struct intel_huc *huc)
 	return 0;
 
 out:
-	i915_probe_error(i915, "failed with %d\n", err);
+	drm_info(&i915->drm, "HuC init failed with %d\n", err);
 	return err;
 }
 
@@ -96,17 +141,20 @@ int intel_huc_auth(struct intel_huc *huc)
 	struct intel_guc *guc = &gt->uc.guc;
 	int ret;
 
-	GEM_BUG_ON(intel_huc_is_authenticated(huc));
-
 	if (!intel_uc_fw_is_loaded(&huc->fw))
 		return -ENOEXEC;
+
+	/* GSC will do the auth */
+	if (intel_huc_is_loaded_by_gsc(huc))
+		return -ENODEV;
 
 	ret = i915_inject_probe_error(gt->i915, -ENXIO);
 	if (ret)
 		goto fail;
 
-	ret = intel_guc_auth_huc(guc,
-				 intel_guc_ggtt_offset(guc, huc->fw.rsa_data));
+	GEM_BUG_ON(intel_uc_fw_is_running(&huc->fw));
+
+	ret = intel_guc_auth_huc(guc, intel_guc_ggtt_offset(guc, huc->fw.rsa_data));
 	if (ret) {
 		DRM_ERROR("HuC: GuC did not ack Auth request %d\n", ret);
 		goto fail;
@@ -133,6 +181,18 @@ fail:
 	return ret;
 }
 
+static bool huc_is_authenticated(struct intel_huc *huc)
+{
+	struct intel_gt *gt = huc_to_gt(huc);
+	intel_wakeref_t wakeref;
+	u32 status = 0;
+
+	with_intel_runtime_pm(gt->uncore->rpm, wakeref)
+		status = intel_uncore_read(gt->uncore, huc->status.reg);
+
+	return (status & huc->status.mask) == huc->status.value;
+}
+
 /**
  * intel_huc_check_status() - check HuC status
  * @huc: intel_huc structure
@@ -150,10 +210,6 @@ fail:
  */
 int intel_huc_check_status(struct intel_huc *huc)
 {
-	struct intel_gt *gt = huc_to_gt(huc);
-	intel_wakeref_t wakeref;
-	u32 status = 0;
-
 	switch (__intel_uc_fw_status(&huc->fw)) {
 	case INTEL_UC_FIRMWARE_NOT_SUPPORTED:
 		return -ENODEV;
@@ -167,10 +223,17 @@ int intel_huc_check_status(struct intel_huc *huc)
 		break;
 	}
 
-	with_intel_runtime_pm(gt->uncore->rpm, wakeref)
-		status = intel_uncore_read(gt->uncore, huc->status.reg);
+	return huc_is_authenticated(huc);
+}
 
-	return (status & huc->status.mask) == huc->status.value;
+void intel_huc_update_auth_status(struct intel_huc *huc)
+{
+	if (!intel_uc_fw_is_loadable(&huc->fw))
+		return;
+
+	if (huc_is_authenticated(huc))
+		intel_uc_fw_change_status(&huc->fw,
+					  INTEL_UC_FIRMWARE_RUNNING);
 }
 
 /**

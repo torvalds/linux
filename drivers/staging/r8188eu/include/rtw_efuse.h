@@ -8,6 +8,4 @@
 
 void ReadEFuseByte(struct adapter *adapter, u16 _offset, u8 *pbuf);
 
-void EFUSE_ShadowMapUpdate(struct adapter *adapter);
-
 #endif

@@ -305,7 +305,7 @@ static int cal_camerarx_start(struct cal_camerarx *phy)
 	/*
 	 * CSI-2 PHY Link Initialization Sequence, according to the DRA74xP /
 	 * DRA75xP / DRA76xP / DRA77xP TRM. The DRA71x / DRA72x and the AM65x /
-	 * DRA80xM TRMs have a a slightly simplified sequence.
+	 * DRA80xM TRMs have a slightly simplified sequence.
 	 */
 
 	/*
@@ -592,7 +592,7 @@ int cal_camerarx_get_remote_frame_desc(struct cal_camerarx *phy,
 	if (!phy->source)
 		return -EPIPE;
 
-	pad = media_entity_remote_pad(&phy->pads[CAL_CAMERARX_PAD_SINK]);
+	pad = media_pad_remote_pad_first(&phy->pads[CAL_CAMERARX_PAD_SINK]);
 	if (!pad)
 		return -EPIPE;
 

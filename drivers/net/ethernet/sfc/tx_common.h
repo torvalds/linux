@@ -19,7 +19,8 @@ void efx_remove_tx_queue(struct efx_tx_queue *tx_queue);
 void efx_dequeue_buffer(struct efx_tx_queue *tx_queue,
 			struct efx_tx_buffer *buffer,
 			unsigned int *pkts_compl,
-			unsigned int *bytes_compl);
+			unsigned int *bytes_compl,
+			unsigned int *efv_pkts_compl);
 
 static inline bool efx_tx_buffer_in_use(struct efx_tx_buffer *buffer)
 {

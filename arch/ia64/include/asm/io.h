@@ -96,14 +96,6 @@ extern u64 kern_mem_attribute (unsigned long phys_addr, unsigned long size);
 extern int valid_phys_addr_range (phys_addr_t addr, size_t count); /* efi.c */
 extern int valid_mmap_phys_addr_range (unsigned long pfn, size_t count);
 
-/*
- * The following two macros are deprecated and scheduled for removal.
- * Please use the PCI-DMA interface defined in <asm/pci.h> instead.
- */
-#define bus_to_virt	phys_to_virt
-#define virt_to_bus	virt_to_phys
-#define page_to_bus	page_to_phys
-
 # endif /* KERNEL */
 
 /*

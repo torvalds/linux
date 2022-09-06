@@ -47,7 +47,7 @@ static int hw_ip_info(struct hl_device *hdev, struct hl_info_args *args)
 	u32 size = args->return_size;
 	void __user *out = (void __user *) (uintptr_t) args->return_pointer;
 	struct asic_fixed_properties *prop = &hdev->asic_prop;
-	u64 sram_kmd_size, dram_kmd_size;
+	u64 sram_kmd_size, dram_kmd_size, dram_available_size;
 
 	if ((!size) || (!out))
 		return -EINVAL;
@@ -62,19 +62,22 @@ static int hw_ip_info(struct hl_device *hdev, struct hl_info_args *args)
 	hw_ip.dram_base_address =
 			hdev->mmu_enable && prop->dram_supports_virtual_memory ?
 			prop->dmmu.start_addr : prop->dram_user_base_address;
-	hw_ip.tpc_enabled_mask = prop->tpc_enabled_mask;
+	hw_ip.tpc_enabled_mask = prop->tpc_enabled_mask & 0xFF;
+	hw_ip.tpc_enabled_mask_ext = prop->tpc_enabled_mask;
+
 	hw_ip.sram_size = prop->sram_size - sram_kmd_size;
 
-	if (hdev->mmu_enable)
-		hw_ip.dram_size =
-			DIV_ROUND_DOWN_ULL(prop->dram_size - dram_kmd_size,
-						prop->dram_page_size) *
-							prop->dram_page_size;
+	dram_available_size = prop->dram_size - dram_kmd_size;
+
+	if (hdev->mmu_enable == MMU_EN_ALL)
+		hw_ip.dram_size = DIV_ROUND_DOWN_ULL(dram_available_size,
+				prop->dram_page_size) * prop->dram_page_size;
 	else
-		hw_ip.dram_size = prop->dram_size - dram_kmd_size;
+		hw_ip.dram_size = dram_available_size;
 
 	if (hw_ip.dram_size > PAGE_SIZE)
 		hw_ip.dram_enabled = 1;
+
 	hw_ip.dram_page_size = prop->dram_page_size;
 	hw_ip.device_mem_alloc_default_page_size = prop->device_mem_alloc_default_page_size;
 	hw_ip.num_of_events = prop->num_of_events;
@@ -93,8 +96,12 @@ static int hw_ip_info(struct hl_device *hdev, struct hl_info_args *args)
 	hw_ip.psoc_pci_pll_od = prop->psoc_pci_pll_od;
 	hw_ip.psoc_pci_pll_div_factor = prop->psoc_pci_pll_div_factor;
 
-	hw_ip.first_available_interrupt_id = prop->first_available_user_msix_interrupt;
+	hw_ip.decoder_enabled_mask = prop->decoder_enabled_mask;
+	hw_ip.mme_master_slave_mode = prop->mme_master_slave_mode;
+	hw_ip.first_available_interrupt_id = prop->first_available_user_interrupt;
 	hw_ip.number_of_user_interrupts = prop->user_interrupt_count;
+
+	hw_ip.edma_enabled_mask = prop->edma_enabled_mask;
 	hw_ip.server_type = prop->server_type;
 
 	return copy_to_user(out, &hw_ip,
@@ -287,7 +294,7 @@ static int get_reset_count(struct hl_device *hdev, struct hl_info_args *args)
 		return -EINVAL;
 
 	reset_count.hard_reset_cnt = hdev->reset_info.hard_reset_cnt;
-	reset_count.soft_reset_cnt = hdev->reset_info.soft_reset_cnt;
+	reset_count.soft_reset_cnt = hdev->reset_info.compute_reset_cnt;
 
 	return copy_to_user(out, &reset_count,
 		min((size_t) max_size, sizeof(reset_count))) ? -EFAULT : 0;
@@ -610,6 +617,28 @@ static int razwi_info(struct hl_fpriv *hpriv, struct hl_info_args *args)
 	return copy_to_user(out, &info, min_t(size_t, max_size, sizeof(info))) ? -EFAULT : 0;
 }
 
+static int undefined_opcode_info(struct hl_fpriv *hpriv, struct hl_info_args *args)
+{
+	struct hl_device *hdev = hpriv->hdev;
+	u32 max_size = args->return_size;
+	struct hl_info_undefined_opcode_event info = {0};
+	void __user *out = (void __user *) (uintptr_t) args->return_pointer;
+
+	if ((!max_size) || (!out))
+		return -EINVAL;
+
+	info.timestamp = ktime_to_ns(hdev->last_error.undef_opcode.timestamp);
+	info.engine_id = hdev->last_error.undef_opcode.engine_id;
+	info.cq_addr = hdev->last_error.undef_opcode.cq_addr;
+	info.cq_size = hdev->last_error.undef_opcode.cq_size;
+	info.stream_id = hdev->last_error.undef_opcode.stream_id;
+	info.cb_addr_streams_len = hdev->last_error.undef_opcode.cb_addr_streams_len;
+	memcpy(info.cb_addr_streams, hdev->last_error.undef_opcode.cb_addr_streams,
+			sizeof(info.cb_addr_streams));
+
+	return copy_to_user(out, &info, min_t(size_t, max_size, sizeof(info))) ? -EFAULT : 0;
+}
+
 static int dev_mem_alloc_page_sizes_info(struct hl_fpriv *hpriv, struct hl_info_args *args)
 {
 	void __user *out = (void __user *) (uintptr_t) args->return_pointer;
@@ -626,7 +655,7 @@ static int dev_mem_alloc_page_sizes_info(struct hl_fpriv *hpriv, struct hl_info_
 	 * For this reason for all ASICs that not support multiple page size the function will
 	 * return an empty bitmask indicating that multiple page sizes is not supported.
 	 */
-	hdev->asic_funcs->get_valid_dram_page_orders(&info);
+	info.page_order_bitmask = hdev->asic_prop.dmmu.supported_pages_mask;
 
 	return copy_to_user(out, &info, min_t(size_t, max_size, sizeof(info))) ? -EFAULT : 0;
 }
@@ -717,6 +746,9 @@ static int _hl_info_ioctl(struct hl_fpriv *hpriv, void *data,
 
 	case HL_INFO_RAZWI_EVENT:
 		return razwi_info(hpriv, args);
+
+	case HL_INFO_UNDEFINED_OPCODE_EVENT:
+		return undefined_opcode_info(hpriv, args);
 
 	case HL_INFO_DEV_MEM_ALLOC_PAGE_SIZES:
 		return dev_mem_alloc_page_sizes_info(hpriv, args);

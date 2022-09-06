@@ -419,18 +419,20 @@ Example:
   cpu_core cpu list : 0-15
   cpu_atom cpu list : 16-23
 
-	HEADER_HYBRID_CPU_PMU_CAPS = 31,
+	HEADER_PMU_CAPS = 31,
 
-	A list of hybrid CPU PMU capabilities.
+	List of pmu capabilities (except cpu pmu which is already
+	covered by HEADER_CPU_PMU_CAPS). Note that hybrid cpu pmu
+	capabilities are also stored here.
 
 struct {
 	u32 nr_pmu;
 	struct {
-		u32 nr_cpu_pmu_caps;
+		u32 nr_caps;
 		{
 			char	name[];
 			char	value[];
-		} [nr_cpu_pmu_caps];
+		} [nr_caps];
 		char pmu_name[];
 	} [nr_pmu];
 };
@@ -606,6 +608,16 @@ struct compressed_event {
 	struct perf_event_header	header;
 	char				data[];
 };
+
+	PERF_RECORD_FINISHED_INIT			= 82,
+
+Marks the end of records for the system, pre-existing threads in system wide
+sessions, etc. Those are the ones prefixed PERF_RECORD_USER_*.
+
+This is used, for instance, to 'perf inject' events after init and before
+regular events, those emitted by the kernel, to support combining guest and
+host records.
+
 
 The header is followed by compressed data frame that can be decompressed
 into array of perf trace records. The size of the entire compressed event

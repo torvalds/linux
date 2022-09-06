@@ -28,6 +28,9 @@ struct ltdc_caps {
 	bool ycbcr_output;	/* ycbcr output converter supported */
 	bool plane_reg_shadow;	/* plane shadow registers ability */
 	bool crc;		/* cyclic redundancy check supported */
+	bool dynamic_zorder;	/* dynamic z-order */
+	bool plane_rotation;	/* plane rotation */
+	bool fifo_threshold;	/* fifo underrun threshold supported */
 };
 
 #define LTDC_MAX_LAYER	4
@@ -43,8 +46,11 @@ struct ltdc_device {
 	struct clk *pixel_clk;	/* lcd pixel clock */
 	struct mutex err_lock;	/* protecting error_status */
 	struct ltdc_caps caps;
-	u32 error_status;
 	u32 irq_status;
+	u32 fifo_err;		/* fifo underrun error counter */
+	u32 fifo_warn;		/* fifo underrun warning counter */
+	u32 fifo_threshold;	/* fifo underrun threshold */
+	u32 transfer_err;	/* transfer error counter */
 	struct fps_info plane_fpsi[LTDC_MAX_LAYER];
 	struct drm_atomic_state *suspend_state;
 	int crc_skip_count;

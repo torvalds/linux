@@ -93,7 +93,7 @@
 #define R1(i) (((i)>>21)&0x1f)
 #define R2(i) (((i)>>16)&0x1f)
 #define R3(i) ((i)&0x1f)
-#define FR3(i) ((((i)<<1)&0x1f)|(((i)>>6)&1))
+#define FR3(i) ((((i)&0x1f)<<1)|(((i)>>6)&1))
 #define IM(i,n) (((i)>>1&((1<<(n-1))-1))|((i)&1?((0-1L)<<(n-1)):0))
 #define IM5_2(i) IM((i)>>16,5)
 #define IM5_3(i) IM((i),5)
@@ -146,7 +146,7 @@ static int emulate_ldw(struct pt_regs *regs, int toreg, int flop)
 "	depw	%%r0,31,2,%4\n"
 "1:	ldw	0(%%sr1,%4),%0\n"
 "2:	ldw	4(%%sr1,%4),%3\n"
-"	subi	32,%4,%2\n"
+"	subi	32,%2,%2\n"
 "	mtctl	%2,11\n"
 "	vshd	%0,%3,%0\n"
 "3:	\n"

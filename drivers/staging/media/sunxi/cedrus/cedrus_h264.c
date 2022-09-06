@@ -493,8 +493,7 @@ static void cedrus_h264_irq_disable(struct cedrus_ctx *ctx)
 		     reg & ~VE_H264_CTRL_INT_MASK);
 }
 
-static void cedrus_h264_setup(struct cedrus_ctx *ctx,
-			      struct cedrus_run *run)
+static int cedrus_h264_setup(struct cedrus_ctx *ctx, struct cedrus_run *run)
 {
 	struct cedrus_dev *dev = ctx->dev;
 
@@ -510,6 +509,8 @@ static void cedrus_h264_setup(struct cedrus_ctx *ctx,
 	cedrus_write_frame_list(ctx, run);
 
 	cedrus_set_params(ctx, run);
+
+	return 0;
 }
 
 static int cedrus_h264_start(struct cedrus_ctx *ctx)

@@ -13,6 +13,7 @@
 #ifdef __KERNEL__
 
 #include <linux/types.h>
+#include <linux/blk_types.h>
 
 struct dm_io_region {
 	struct block_device *bdev;
@@ -57,8 +58,7 @@ struct dm_io_notify {
  */
 struct dm_io_client;
 struct dm_io_request {
-	int bi_op;			/* REQ_OP */
-	int bi_op_flags;		/* req_flag_bits */
+	blk_opf_t	    bi_opf;	/* Request type and flags */
 	struct dm_io_memory mem;	/* Memory to use for io */
 	struct dm_io_notify notify;	/* Synchronous if notify.fn is NULL */
 	struct dm_io_client *client;	/* Client memory handler */

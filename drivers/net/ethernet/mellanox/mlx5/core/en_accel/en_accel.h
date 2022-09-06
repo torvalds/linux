@@ -194,4 +194,14 @@ static inline void mlx5e_accel_cleanup_rx(struct mlx5e_priv *priv)
 {
 	mlx5e_ktls_cleanup_rx(priv);
 }
+
+static inline int mlx5e_accel_init_tx(struct mlx5e_priv *priv)
+{
+	return mlx5e_ktls_init_tx(priv);
+}
+
+static inline void mlx5e_accel_cleanup_tx(struct mlx5e_priv *priv)
+{
+	mlx5e_ktls_cleanup_tx(priv);
+}
 #endif /* __MLX5E_EN_ACCEL_H__ */

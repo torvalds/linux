@@ -152,12 +152,12 @@ static int command_submission_show(struct seq_file *s, void *data)
 		if (first) {
 			first = false;
 			seq_puts(s, "\n");
-			seq_puts(s, " CS ID   CTX ASID   CS RefCnt   Submitted    Completed\n");
-			seq_puts(s, "------------------------------------------------------\n");
+			seq_puts(s, " CS ID   CS TYPE   CTX ASID   CS RefCnt   Submitted    Completed\n");
+			seq_puts(s, "----------------------------------------------------------------\n");
 		}
 		seq_printf(s,
-			"   %llu       %d          %d           %d            %d\n",
-			cs->sequence, cs->ctx->asid,
+			"   %llu        %d          %d          %d           %d            %d\n",
+			cs->sequence, cs->type, cs->ctx->asid,
 			kref_read(&cs->refcount),
 			cs->submitted, cs->completed);
 	}
@@ -183,17 +183,18 @@ static int command_submission_jobs_show(struct seq_file *s, void *data)
 		if (first) {
 			first = false;
 			seq_puts(s, "\n");
-			seq_puts(s, " JOB ID   CS ID    CTX ASID   JOB RefCnt   H/W Queue\n");
-			seq_puts(s, "----------------------------------------------------\n");
+			seq_puts(s, " JOB ID   CS ID    CS TYPE    CTX ASID   JOB RefCnt   H/W Queue\n");
+			seq_puts(s, "---------------------------------------------------------------\n");
 		}
 		if (job->cs)
 			seq_printf(s,
-				"   %02d      %llu        %d          %d           %d\n",
-				job->id, job->cs->sequence, job->cs->ctx->asid,
-				kref_read(&job->refcount), job->hw_queue_id);
+				"   %02d      %llu        %d        %d          %d           %d\n",
+				job->id, job->cs->sequence, job->cs->type,
+				job->cs->ctx->asid, kref_read(&job->refcount),
+				job->hw_queue_id);
 		else
 			seq_printf(s,
-				"   %02d      0        %d          %d           %d\n",
+				"   %02d      0        0        %d          %d           %d\n",
 				job->id, HL_KERNEL_ASID_ID,
 				kref_read(&job->refcount), job->hw_queue_id);
 	}
@@ -449,7 +450,7 @@ static int mmu_show(struct seq_file *s, void *data)
 	if (hl_mmu_get_tlb_info(ctx, virt_addr, &hops_info)) {
 		dev_err(hdev->dev, "virt addr 0x%llx is not mapped to phys addr\n",
 				virt_addr);
-		return 0;
+		goto put_ctx;
 	}
 
 	hl_mmu_va_to_pa(ctx, virt_addr, &phys_addr);
@@ -474,6 +475,10 @@ static int mmu_show(struct seq_file *s, void *data)
 		seq_printf(s, "hop%d_pte: 0x%llx\n",
 				i, hops_info.hop_info[i].hop_pte_val);
 	}
+
+put_ctx:
+	if (dev_entry->mmu_asid != HL_KERNEL_ASID_ID)
+		hl_ctx_put(ctx);
 
 	return 0;
 }
@@ -521,6 +526,66 @@ err:
 	return -EINVAL;
 }
 
+static int mmu_ack_error(struct seq_file *s, void *data)
+{
+	struct hl_debugfs_entry *entry = s->private;
+	struct hl_dbg_device_entry *dev_entry = entry->dev_entry;
+	struct hl_device *hdev = dev_entry->hdev;
+	int rc;
+
+	if (!hdev->mmu_enable)
+		return 0;
+
+	if (!dev_entry->mmu_cap_mask) {
+		dev_err(hdev->dev, "mmu_cap_mask is not set\n");
+		goto err;
+	}
+
+	rc = hdev->asic_funcs->ack_mmu_errors(hdev, dev_entry->mmu_cap_mask);
+	if (rc)
+		goto err;
+
+	return 0;
+err:
+	return -EINVAL;
+}
+
+static ssize_t mmu_ack_error_value_write(struct file *file,
+		const char __user *buf,
+		size_t count, loff_t *f_pos)
+{
+	struct seq_file *s = file->private_data;
+	struct hl_debugfs_entry *entry = s->private;
+	struct hl_dbg_device_entry *dev_entry = entry->dev_entry;
+	struct hl_device *hdev = dev_entry->hdev;
+	char kbuf[MMU_KBUF_SIZE];
+	ssize_t rc;
+
+	if (!hdev->mmu_enable)
+		return count;
+
+	if (count > sizeof(kbuf) - 1)
+		goto err;
+
+	if (copy_from_user(kbuf, buf, count))
+		goto err;
+
+	kbuf[count] = 0;
+
+	if (strncmp(kbuf, "0x", 2))
+		goto err;
+
+	rc = kstrtoull(kbuf, 16, &dev_entry->mmu_cap_mask);
+	if (rc)
+		goto err;
+
+	return count;
+err:
+	dev_err(hdev->dev, "usage: echo <0xmmu_cap_mask > > mmu_error\n");
+
+	return -EINVAL;
+}
+
 static int engines_show(struct seq_file *s, void *data)
 {
 	struct hl_debugfs_entry *entry = s->private;
@@ -543,7 +608,7 @@ static ssize_t hl_memory_scrub(struct file *f, const char __user *buf,
 {
 	struct hl_dbg_device_entry *entry = file_inode(f)->i_private;
 	struct hl_device *hdev = entry->hdev;
-	u64 val = entry->memory_scrub_val;
+	u64 val = hdev->memory_scrub_val;
 	int rc;
 
 	if (!hl_device_operational(hdev, NULL)) {
@@ -666,7 +731,8 @@ static int device_va_to_pa(struct hl_device *hdev, u64 virt_addr, u32 size,
 		dev_err(hdev->dev,
 			"virt addr 0x%llx is not mapped\n",
 			virt_addr);
-		return -EINVAL;
+		rc = -EINVAL;
+		goto put_ctx;
 	}
 
 	rc = hl_mmu_va_to_pa(ctx, virt_addr, phys_addr);
@@ -676,6 +742,9 @@ static int device_va_to_pa(struct hl_device *hdev, u64 virt_addr, u32 size,
 			virt_addr);
 		rc = -EINVAL;
 	}
+
+put_ctx:
+	hl_ctx_put(ctx);
 
 	return rc;
 }
@@ -695,8 +764,7 @@ static int hl_access_dev_mem_by_region(struct hl_device *hdev, u64 addr,
 		if (addr >= mem_reg->region_base &&
 			addr <= mem_reg->region_base + mem_reg->region_size - acc_size) {
 			*found = true;
-			return hdev->asic_funcs->access_dev_mem(hdev, mem_reg, i,
-				addr, val, acc_type);
+			return hdev->asic_funcs->access_dev_mem(hdev, i, addr, val, acc_type);
 		}
 	}
 	return 0;
@@ -728,7 +796,7 @@ static void hl_access_host_mem(struct hl_device *hdev, u64 addr, u64 *val,
 }
 
 static int hl_access_mem(struct hl_device *hdev, u64 addr, u64 *val,
-	enum debugfs_access_type acc_type)
+				enum debugfs_access_type acc_type)
 {
 	size_t acc_size = (acc_type == DEBUGFS_READ64 || acc_type == DEBUGFS_WRITE64) ?
 		sizeof(u64) : sizeof(u32);
@@ -1349,6 +1417,17 @@ static ssize_t hl_timeout_locked_write(struct file *f, const char __user *buf,
 	return count;
 }
 
+static ssize_t hl_check_razwi_happened(struct file *f, char __user *buf,
+					size_t count, loff_t *ppos)
+{
+	struct hl_dbg_device_entry *entry = file_inode(f)->i_private;
+	struct hl_device *hdev = entry->hdev;
+
+	hdev->asic_funcs->check_if_razwi_happened(hdev);
+
+	return 0;
+}
+
 static const struct file_operations hl_mem_scrub_fops = {
 	.owner = THIS_MODULE,
 	.write = hl_memory_scrub,
@@ -1438,6 +1517,11 @@ static const struct file_operations hl_timeout_locked_fops = {
 	.write = hl_timeout_locked_write
 };
 
+static const struct file_operations hl_razwi_check_fops = {
+	.owner = THIS_MODULE,
+	.read = hl_check_razwi_happened
+};
+
 static const struct hl_info_list hl_debugfs_list[] = {
 	{"command_buffers", command_buffers_show, NULL},
 	{"command_submission", command_submission_show, NULL},
@@ -1446,7 +1530,8 @@ static const struct hl_info_list hl_debugfs_list[] = {
 	{"vm", vm_show, NULL},
 	{"userptr_lookup", userptr_lookup_show, userptr_lookup_write},
 	{"mmu", mmu_show, mmu_asid_va_write},
-	{"engines", engines_show, NULL}
+	{"mmu_error", mmu_ack_error, mmu_ack_error_value_write},
+	{"engines", engines_show, NULL},
 };
 
 static int hl_debugfs_open(struct inode *inode, struct file *file)
@@ -1477,76 +1562,8 @@ static const struct file_operations hl_debugfs_fops = {
 	.release = single_release,
 };
 
-void hl_debugfs_add_device(struct hl_device *hdev)
+static void add_secured_nodes(struct hl_dbg_device_entry *dev_entry)
 {
-	struct hl_dbg_device_entry *dev_entry = &hdev->hl_debugfs;
-	int count = ARRAY_SIZE(hl_debugfs_list);
-	struct hl_debugfs_entry *entry;
-	int i;
-
-	dev_entry->hdev = hdev;
-	dev_entry->entry_arr = kmalloc_array(count,
-					sizeof(struct hl_debugfs_entry),
-					GFP_KERNEL);
-	if (!dev_entry->entry_arr)
-		return;
-
-	dev_entry->data_dma_blob_desc.size = 0;
-	dev_entry->data_dma_blob_desc.data = NULL;
-	dev_entry->mon_dump_blob_desc.size = 0;
-	dev_entry->mon_dump_blob_desc.data = NULL;
-
-	INIT_LIST_HEAD(&dev_entry->file_list);
-	INIT_LIST_HEAD(&dev_entry->cb_list);
-	INIT_LIST_HEAD(&dev_entry->cs_list);
-	INIT_LIST_HEAD(&dev_entry->cs_job_list);
-	INIT_LIST_HEAD(&dev_entry->userptr_list);
-	INIT_LIST_HEAD(&dev_entry->ctx_mem_hash_list);
-	mutex_init(&dev_entry->file_mutex);
-	init_rwsem(&dev_entry->state_dump_sem);
-	spin_lock_init(&dev_entry->cb_spinlock);
-	spin_lock_init(&dev_entry->cs_spinlock);
-	spin_lock_init(&dev_entry->cs_job_spinlock);
-	spin_lock_init(&dev_entry->userptr_spinlock);
-	spin_lock_init(&dev_entry->ctx_mem_hash_spinlock);
-
-	dev_entry->root = debugfs_create_dir(dev_name(hdev->dev),
-						hl_debug_root);
-
-	debugfs_create_x64("memory_scrub_val",
-				0644,
-				dev_entry->root,
-				&dev_entry->memory_scrub_val);
-
-	debugfs_create_file("memory_scrub",
-				0200,
-				dev_entry->root,
-				dev_entry,
-				&hl_mem_scrub_fops);
-
-	debugfs_create_x64("addr",
-				0644,
-				dev_entry->root,
-				&dev_entry->addr);
-
-	debugfs_create_file("data32",
-				0644,
-				dev_entry->root,
-				dev_entry,
-				&hl_data32b_fops);
-
-	debugfs_create_file("data64",
-				0644,
-				dev_entry->root,
-				dev_entry,
-				&hl_data64b_fops);
-
-	debugfs_create_file("set_power_state",
-				0200,
-				dev_entry->root,
-				dev_entry,
-				&hl_power_fops);
-
 	debugfs_create_u8("i2c_bus",
 				0644,
 				dev_entry->root,
@@ -1590,6 +1607,77 @@ void hl_debugfs_add_device(struct hl_device *hdev)
 				dev_entry->root,
 				dev_entry,
 				&hl_led2_fops);
+}
+
+void hl_debugfs_add_device(struct hl_device *hdev)
+{
+	struct hl_dbg_device_entry *dev_entry = &hdev->hl_debugfs;
+	int count = ARRAY_SIZE(hl_debugfs_list);
+	struct hl_debugfs_entry *entry;
+	int i;
+
+	dev_entry->hdev = hdev;
+	dev_entry->entry_arr = kmalloc_array(count,
+					sizeof(struct hl_debugfs_entry),
+					GFP_KERNEL);
+	if (!dev_entry->entry_arr)
+		return;
+
+	dev_entry->data_dma_blob_desc.size = 0;
+	dev_entry->data_dma_blob_desc.data = NULL;
+	dev_entry->mon_dump_blob_desc.size = 0;
+	dev_entry->mon_dump_blob_desc.data = NULL;
+
+	INIT_LIST_HEAD(&dev_entry->file_list);
+	INIT_LIST_HEAD(&dev_entry->cb_list);
+	INIT_LIST_HEAD(&dev_entry->cs_list);
+	INIT_LIST_HEAD(&dev_entry->cs_job_list);
+	INIT_LIST_HEAD(&dev_entry->userptr_list);
+	INIT_LIST_HEAD(&dev_entry->ctx_mem_hash_list);
+	mutex_init(&dev_entry->file_mutex);
+	init_rwsem(&dev_entry->state_dump_sem);
+	spin_lock_init(&dev_entry->cb_spinlock);
+	spin_lock_init(&dev_entry->cs_spinlock);
+	spin_lock_init(&dev_entry->cs_job_spinlock);
+	spin_lock_init(&dev_entry->userptr_spinlock);
+	spin_lock_init(&dev_entry->ctx_mem_hash_spinlock);
+
+	dev_entry->root = debugfs_create_dir(dev_name(hdev->dev),
+						hl_debug_root);
+
+	debugfs_create_x64("memory_scrub_val",
+				0644,
+				dev_entry->root,
+				&hdev->memory_scrub_val);
+
+	debugfs_create_file("memory_scrub",
+				0200,
+				dev_entry->root,
+				dev_entry,
+				&hl_mem_scrub_fops);
+
+	debugfs_create_x64("addr",
+				0644,
+				dev_entry->root,
+				&dev_entry->addr);
+
+	debugfs_create_file("data32",
+				0644,
+				dev_entry->root,
+				dev_entry,
+				&hl_data32b_fops);
+
+	debugfs_create_file("data64",
+				0644,
+				dev_entry->root,
+				dev_entry,
+				&hl_data64b_fops);
+
+	debugfs_create_file("set_power_state",
+				0200,
+				dev_entry->root,
+				dev_entry,
+				&hl_power_fops);
 
 	debugfs_create_file("device",
 				0200,
@@ -1614,6 +1702,12 @@ void hl_debugfs_add_device(struct hl_device *hdev)
 				dev_entry->root,
 				dev_entry,
 				&hl_security_violations_fops);
+
+	debugfs_create_file("dump_razwi_events",
+				0644,
+				dev_entry->root,
+				dev_entry,
+				&hl_razwi_check_fops);
 
 	debugfs_create_file("dma_size",
 				0200,
@@ -1663,6 +1757,9 @@ void hl_debugfs_add_device(struct hl_device *hdev)
 		entry->info_ent = &hl_debugfs_list[i];
 		entry->dev_entry = dev_entry;
 	}
+
+	if (!hdev->asic_prop.fw_security_enabled)
+		add_secured_nodes(dev_entry);
 }
 
 void hl_debugfs_remove_device(struct hl_device *hdev)

@@ -1,0 +1,123 @@
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/media/samsung,s5pv210-jpeg.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Samsung S5PV210 and Exynos SoC JPEG codec
+
+maintainers:
+  - Jacek Anaszewski <jacek.anaszewski@gmail.com>
+  - Krzysztof Kozlowski <krzk@kernel.org>
+  - Sylwester Nawrocki <s.nawrocki@samsung.com>
+  - Andrzej Pietrasiewicz <andrzejtp2010@gmail.com>
+
+properties:
+  compatible:
+    enum:
+      - samsung,s5pv210-jpeg
+      - samsung,exynos3250-jpeg
+      - samsung,exynos4210-jpeg
+      - samsung,exynos4212-jpeg
+      - samsung,exynos5420-jpeg
+      - samsung,exynos5433-jpeg
+
+  clocks:
+    minItems: 1
+    maxItems: 4
+
+  clock-names:
+    minItems: 1
+    maxItems: 4
+
+  interrupts:
+    maxItems: 1
+
+  iommus:
+    maxItems: 1
+
+  power-domains:
+    maxItems: 1
+
+  reg:
+    maxItems: 1
+
+
+required:
+  - compatible
+  - clocks
+  - clock-names
+  - interrupts
+  - reg
+
+allOf:
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - samsung,s5pv210-jpeg
+              - samsung,exynos4210-jpeg
+              - samsung,exynos4212-jpeg
+              - samsung,exynos5420-jpeg
+    then:
+      properties:
+        clocks:
+          maxItems: 1
+        clock-names:
+          items:
+            - const: jpeg
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - samsung,exynos3250-jpeg
+    then:
+      properties:
+        clocks:
+          minItems: 2
+          maxItems: 2
+        clock-names:
+          items:
+            - const: jpeg
+            - const: sclk
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - samsung,exynos5433-jpeg
+    then:
+      properties:
+        clocks:
+          minItems: 4
+          maxItems: 4
+        clock-names:
+          items:
+            - const: pclk
+            - const: aclk
+            - const: aclk_xiu
+            - const: sclk
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/exynos5433.h>
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+
+    codec@15020000 {
+        compatible = "samsung,exynos5433-jpeg";
+        reg = <0x15020000 0x10000>;
+        interrupts = <GIC_SPI 411 IRQ_TYPE_LEVEL_HIGH>;
+        clock-names = "pclk", "aclk", "aclk_xiu", "sclk";
+        clocks = <&cmu_mscl CLK_PCLK_JPEG>,
+                 <&cmu_mscl CLK_ACLK_JPEG>,
+                 <&cmu_mscl CLK_ACLK_XIU_MSCLX>,
+                 <&cmu_mscl CLK_SCLK_JPEG>;
+        iommus = <&sysmmu_jpeg>;
+        power-domains = <&pd_mscl>;
+    };

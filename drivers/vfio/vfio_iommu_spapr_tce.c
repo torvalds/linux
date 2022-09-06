@@ -378,8 +378,7 @@ static void tce_iommu_release(void *iommu_data)
 	kfree(container);
 }
 
-static void tce_iommu_unuse_page(struct tce_container *container,
-		unsigned long hpa)
+static void tce_iommu_unuse_page(unsigned long hpa)
 {
 	struct page *page;
 
@@ -474,7 +473,7 @@ static int tce_iommu_clear(struct tce_container *container,
 			continue;
 		}
 
-		tce_iommu_unuse_page(container, oldhpa);
+		tce_iommu_unuse_page(oldhpa);
 	}
 
 	iommu_tce_kill(tbl, firstentry, pages);
@@ -524,7 +523,7 @@ static long tce_iommu_build(struct tce_container *container,
 		ret = iommu_tce_xchg_no_kill(container->mm, tbl, entry + i,
 				&hpa, &dirtmp);
 		if (ret) {
-			tce_iommu_unuse_page(container, hpa);
+			tce_iommu_unuse_page(hpa);
 			pr_err("iommu_tce: %s failed ioba=%lx, tce=%lx, ret=%ld\n",
 					__func__, entry << tbl->it_page_shift,
 					tce, ret);
@@ -532,7 +531,7 @@ static long tce_iommu_build(struct tce_container *container,
 		}
 
 		if (dirtmp != DMA_NONE)
-			tce_iommu_unuse_page(container, hpa);
+			tce_iommu_unuse_page(hpa);
 
 		tce += IOMMU_PAGE_SIZE(tbl);
 	}
@@ -1266,7 +1265,10 @@ static int tce_iommu_attach_group(void *iommu_data,
 		goto unlock_exit;
 	}
 
-	/* Check if new group has the same iommu_ops (i.e. compatible) */
+	/*
+	 * Check if new group has the same iommu_table_group_ops
+	 * (i.e. compatible)
+	 */
 	list_for_each_entry(tcegrp, &container->group_list, next) {
 		struct iommu_table_group *table_group_tmp;
 

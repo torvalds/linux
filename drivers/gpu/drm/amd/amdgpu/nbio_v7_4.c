@@ -339,27 +339,6 @@ const struct nbio_hdp_flush_reg nbio_v7_4_hdp_flush_reg = {
 	.ref_and_mask_sdma1 = GPU_HDP_FLUSH_DONE__SDMA1_MASK,
 };
 
-const struct nbio_hdp_flush_reg nbio_v7_4_hdp_flush_reg_ald = {
-	.ref_and_mask_cp0 = GPU_HDP_FLUSH_DONE__CP0_MASK,
-	.ref_and_mask_cp1 = GPU_HDP_FLUSH_DONE__CP1_MASK,
-	.ref_and_mask_cp2 = GPU_HDP_FLUSH_DONE__CP2_MASK,
-	.ref_and_mask_cp3 = GPU_HDP_FLUSH_DONE__CP3_MASK,
-	.ref_and_mask_cp4 = GPU_HDP_FLUSH_DONE__CP4_MASK,
-	.ref_and_mask_cp5 = GPU_HDP_FLUSH_DONE__CP5_MASK,
-	.ref_and_mask_cp6 = GPU_HDP_FLUSH_DONE__CP6_MASK,
-	.ref_and_mask_cp7 = GPU_HDP_FLUSH_DONE__CP7_MASK,
-	.ref_and_mask_cp8 = GPU_HDP_FLUSH_DONE__CP8_MASK,
-	.ref_and_mask_cp9 = GPU_HDP_FLUSH_DONE__CP9_MASK,
-	.ref_and_mask_sdma0 = GPU_HDP_FLUSH_DONE__RSVD_ENG1_MASK,
-	.ref_and_mask_sdma1 = GPU_HDP_FLUSH_DONE__RSVD_ENG2_MASK,
-	.ref_and_mask_sdma2 = GPU_HDP_FLUSH_DONE__RSVD_ENG3_MASK,
-	.ref_and_mask_sdma3 = GPU_HDP_FLUSH_DONE__RSVD_ENG4_MASK,
-	.ref_and_mask_sdma4 = GPU_HDP_FLUSH_DONE__RSVD_ENG5_MASK,
-	.ref_and_mask_sdma5 = GPU_HDP_FLUSH_DONE__RSVD_ENG6_MASK,
-	.ref_and_mask_sdma6 = GPU_HDP_FLUSH_DONE__RSVD_ENG7_MASK,
-	.ref_and_mask_sdma7 = GPU_HDP_FLUSH_DONE__RSVD_ENG8_MASK,
-};
-
 static void nbio_v7_4_init_registers(struct amdgpu_device *adev)
 {
 	uint32_t baco_cntl;

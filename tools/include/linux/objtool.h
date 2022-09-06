@@ -32,11 +32,16 @@ struct unwind_hint {
  *
  * UNWIND_HINT_FUNC: Generate the unwind metadata of a callable function.
  * Useful for code which doesn't have an ELF function annotation.
+ *
+ * UNWIND_HINT_ENTRY: machine entry without stack, SYSCALL/SYSENTER etc.
  */
 #define UNWIND_HINT_TYPE_CALL		0
 #define UNWIND_HINT_TYPE_REGS		1
 #define UNWIND_HINT_TYPE_REGS_PARTIAL	2
 #define UNWIND_HINT_TYPE_FUNC		3
+#define UNWIND_HINT_TYPE_ENTRY		4
+#define UNWIND_HINT_TYPE_SAVE		5
+#define UNWIND_HINT_TYPE_RESTORE	6
 
 #ifdef CONFIG_OBJTOOL
 
@@ -62,7 +67,7 @@ struct unwind_hint {
  * It should only be used in special cases where you're 100% sure it won't
  * affect the reliability of frame pointers and kernel stack traces.
  *
- * For more information, see tools/objtool/Documentation/stack-validation.txt.
+ * For more information, see tools/objtool/Documentation/objtool.txt.
  */
 #define STACK_FRAME_NON_STANDARD(func) \
 	static void __used __section(".discard.func_stack_frame_non_standard") \
@@ -124,7 +129,7 @@ struct unwind_hint {
  * the debuginfo as necessary.  It will also warn if it sees any
  * inconsistencies.
  */
-.macro UNWIND_HINT sp_reg:req sp_offset=0 type:req end=0
+.macro UNWIND_HINT type:req sp_reg=0 sp_offset=0 end=0
 .Lunwind_hint_ip_\@:
 	.pushsection .discard.unwind_hints
 		/* struct unwind_hint */
@@ -141,6 +146,12 @@ struct unwind_hint {
 	.pushsection .discard.func_stack_frame_non_standard, "aw"
 	_ASM_PTR \func
 	.popsection
+.endm
+
+.macro STACK_FRAME_NON_STANDARD_FP func:req
+#ifdef CONFIG_FRAME_POINTER
+	STACK_FRAME_NON_STANDARD \func
+#endif
 .endm
 
 .macro ANNOTATE_NOENDBR
@@ -171,7 +182,7 @@ struct unwind_hint {
 #define ASM_REACHABLE
 #else
 #define ANNOTATE_INTRA_FUNCTION_CALL
-.macro UNWIND_HINT sp_reg:req sp_offset=0 type:req end=0
+.macro UNWIND_HINT type:req sp_reg=0 sp_offset=0 end=0
 .endm
 .macro STACK_FRAME_NON_STANDARD func:req
 .endm

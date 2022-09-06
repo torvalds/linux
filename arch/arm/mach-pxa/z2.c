@@ -623,7 +623,7 @@ static struct pxa2xx_spi_controller pxa_ssp2_master_info = {
 };
 
 static struct gpiod_lookup_table pxa_ssp1_gpio_table = {
-	.dev_id = "pxa2xx-spi.1",
+	.dev_id = "spi1",
 	.table = {
 		GPIO_LOOKUP_IDX("gpio-pxa", GPIO24_ZIPITZ2_WIFI_CS, "cs", 0, GPIO_ACTIVE_LOW),
 		{ },
@@ -631,7 +631,7 @@ static struct gpiod_lookup_table pxa_ssp1_gpio_table = {
 };
 
 static struct gpiod_lookup_table pxa_ssp2_gpio_table = {
-	.dev_id = "pxa2xx-spi.2",
+	.dev_id = "spi2",
 	.table = {
 		GPIO_LOOKUP_IDX("gpio-pxa", GPIO88_ZIPITZ2_LCD_CS, "cs", 0, GPIO_ACTIVE_LOW),
 		{ },

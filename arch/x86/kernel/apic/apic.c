@@ -275,7 +275,7 @@ void native_apic_icr_write(u32 low, u32 id)
 	unsigned long flags;
 
 	local_irq_save(flags);
-	apic_write(APIC_ICR2, SET_APIC_DEST_FIELD(id));
+	apic_write(APIC_ICR2, SET_XAPIC_DEST_FIELD(id));
 	apic_write(APIC_ICR, low);
 	local_irq_restore(flags);
 }
@@ -1113,11 +1113,6 @@ DEFINE_IDTENTRY_SYSVEC(sysvec_apic_timer_interrupt)
 	trace_local_timer_exit(LOCAL_TIMER_VECTOR);
 
 	set_irq_regs(old_regs);
-}
-
-int setup_profiling_timer(unsigned int multiplier)
-{
-	return -EINVAL;
 }
 
 /*

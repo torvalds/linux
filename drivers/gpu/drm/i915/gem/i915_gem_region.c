@@ -60,6 +60,8 @@ __i915_gem_object_create_region(struct intel_memory_region *mem,
 	if (page_size)
 		default_page_size = page_size;
 
+	/* We should be able to fit a page within an sg entry */
+	GEM_BUG_ON(overflows_type(default_page_size, u32));
 	GEM_BUG_ON(!is_power_of_2_u64(default_page_size));
 	GEM_BUG_ON(default_page_size < PAGE_SIZE);
 

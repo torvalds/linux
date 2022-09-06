@@ -385,7 +385,9 @@ nouveau_channel_init(struct nouveau_channel *chan, u32 vram, u32 gart)
 	struct nv_dma_v0 args = {};
 	int ret, i;
 
-	nvif_object_map(&chan->user, NULL, 0);
+	ret = nvif_object_map(&chan->user, NULL, 0);
+	if (ret)
+		return ret;
 
 	if (chan->user.oclass >= FERMI_CHANNEL_GPFIFO &&
 	    chan->user.oclass < AMPERE_CHANNEL_GPFIFO_B) {

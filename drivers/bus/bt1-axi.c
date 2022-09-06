@@ -135,10 +135,9 @@ static int bt1_axi_request_rst(struct bt1_axi *axi)
 	int ret;
 
 	axi->arst = devm_reset_control_get_optional_exclusive(axi->dev, "arst");
-	if (IS_ERR(axi->arst)) {
-		dev_warn(axi->dev, "Couldn't get reset control line\n");
-		return PTR_ERR(axi->arst);
-	}
+	if (IS_ERR(axi->arst))
+		return dev_err_probe(axi->dev, PTR_ERR(axi->arst),
+				     "Couldn't get reset control line\n");
 
 	ret = reset_control_deassert(axi->arst);
 	if (ret)
@@ -159,10 +158,9 @@ static int bt1_axi_request_clk(struct bt1_axi *axi)
 	int ret;
 
 	axi->aclk = devm_clk_get(axi->dev, "aclk");
-	if (IS_ERR(axi->aclk)) {
-		dev_err(axi->dev, "Couldn't get AXI Interconnect clock\n");
-		return PTR_ERR(axi->aclk);
-	}
+	if (IS_ERR(axi->aclk))
+		return dev_err_probe(axi->dev, PTR_ERR(axi->aclk),
+				     "Couldn't get AXI Interconnect clock\n");
 
 	ret = clk_prepare_enable(axi->aclk);
 	if (ret) {

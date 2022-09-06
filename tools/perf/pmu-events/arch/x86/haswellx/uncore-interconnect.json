@@ -1,9 +1,982 @@
 [
     {
-        "BriefDescription": "QPI clock ticks",
+        "BriefDescription": "Number of qfclks",
         "Counter": "0,1,2,3",
         "EventCode": "0x14",
         "EventName": "UNC_Q_CLOCKTICKS",
+        "PerPkg": "1",
+        "Unit": "QPI LL"
+    },
+    {
+        "BriefDescription": "Count of CTO Events",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x38",
+        "EventName": "UNC_Q_CTO_COUNT",
+        "ExtSel": "1",
+        "PerPkg": "1",
+        "Unit": "QPI LL"
+    },
+    {
+        "BriefDescription": "Direct 2 Core Spawning; Spawn Success",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x13",
+        "EventName": "UNC_Q_DIRECT2CORE.SUCCESS_RBT_HIT",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "QPI LL"
+    },
+    {
+        "BriefDescription": "Direct 2 Core Spawning; Spawn Failure - Egress Credits",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x13",
+        "EventName": "UNC_Q_DIRECT2CORE.FAILURE_CREDITS",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "QPI LL"
+    },
+    {
+        "BriefDescription": "Direct 2 Core Spawning; Spawn Failure - RBT Invalid",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x13",
+        "EventName": "UNC_Q_DIRECT2CORE.FAILURE_RBT_HIT",
+        "PerPkg": "1",
+        "UMask": "0x4",
+        "Unit": "QPI LL"
+    },
+    {
+        "BriefDescription": "Direct 2 Core Spawning; Spawn Failure - Egress and RBT Invalid",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x13",
+        "EventName": "UNC_Q_DIRECT2CORE.FAILURE_CREDITS_RBT",
+        "PerPkg": "1",
+        "UMask": "0x8",
+        "Unit": "QPI LL"
+    },
+    {
+        "BriefDescription": "Direct 2 Core Spawning; Spawn Failure - RBT Miss",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x13",
+        "EventName": "UNC_Q_DIRECT2CORE.FAILURE_MISS",
+        "PerPkg": "1",
+        "UMask": "0x10",
+        "Unit": "QPI LL"
+    },
+    {
+        "BriefDescription": "Direct 2 Core Spawning; Spawn Failure - Egress and RBT Miss",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x13",
+        "EventName": "UNC_Q_DIRECT2CORE.FAILURE_CREDITS_MISS",
+        "PerPkg": "1",
+        "UMask": "0x20",
+        "Unit": "QPI LL"
+    },
+    {
+        "BriefDescription": "Direct 2 Core Spawning; Spawn Failure - RBT Miss and Invalid",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x13",
+        "EventName": "UNC_Q_DIRECT2CORE.FAILURE_RBT_MISS",
+        "PerPkg": "1",
+        "UMask": "0x40",
+        "Unit": "QPI LL"
+    },
+    {
+        "BriefDescription": "Direct 2 Core Spawning; Spawn Failure - Egress and RBT Miss, Invalid",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x13",
+        "EventName": "UNC_Q_DIRECT2CORE.FAILURE_CREDITS_RBT_MISS",
+        "PerPkg": "1",
+        "UMask": "0x80",
+        "Unit": "QPI LL"
+    },
+    {
+        "BriefDescription": "Cycles in L1",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x12",
+        "EventName": "UNC_Q_L1_POWER_CYCLES",
+        "PerPkg": "1",
+        "Unit": "QPI LL"
+    },
+    {
+        "BriefDescription": "Cycles in L0p",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x10",
+        "EventName": "UNC_Q_RxL0P_POWER_CYCLES",
+        "PerPkg": "1",
+        "Unit": "QPI LL"
+    },
+    {
+        "BriefDescription": "Cycles in L0",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xF",
+        "EventName": "UNC_Q_RxL0_POWER_CYCLES",
+        "PerPkg": "1",
+        "Unit": "QPI LL"
+    },
+    {
+        "BriefDescription": "Rx Flit Buffer Bypassed",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x9",
+        "EventName": "UNC_Q_RxL_BYPASSED",
+        "PerPkg": "1",
+        "Unit": "QPI LL"
+    },
+    {
+        "BriefDescription": "CRC Errors Detected; LinkInit",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x3",
+        "EventName": "UNC_Q_RxL_CRC_ERRORS.LINK_INIT",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "QPI LL"
+    },
+    {
+        "BriefDescription": "CRC Errors Detected; Normal Operations",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x3",
+        "EventName": "UNC_Q_RxL_CRC_ERRORS.NORMAL_OP",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "QPI LL"
+    },
+    {
+        "BriefDescription": "VN0 Credit Consumed; DRS",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x1E",
+        "EventName": "UNC_Q_RxL_CREDITS_CONSUMED_VN0.DRS",
+        "ExtSel": "1",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "QPI LL"
+    },
+    {
+        "BriefDescription": "VN0 Credit Consumed; NCB",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x1E",
+        "EventName": "UNC_Q_RxL_CREDITS_CONSUMED_VN0.NCB",
+        "ExtSel": "1",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "QPI LL"
+    },
+    {
+        "BriefDescription": "VN0 Credit Consumed; NCS",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x1E",
+        "EventName": "UNC_Q_RxL_CREDITS_CONSUMED_VN0.NCS",
+        "ExtSel": "1",
+        "PerPkg": "1",
+        "UMask": "0x4",
+        "Unit": "QPI LL"
+    },
+    {
+        "BriefDescription": "VN0 Credit Consumed; HOM",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x1E",
+        "EventName": "UNC_Q_RxL_CREDITS_CONSUMED_VN0.HOM",
+        "ExtSel": "1",
+        "PerPkg": "1",
+        "UMask": "0x8",
+        "Unit": "QPI LL"
+    },
+    {
+        "BriefDescription": "VN0 Credit Consumed; SNP",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x1E",
+        "EventName": "UNC_Q_RxL_CREDITS_CONSUMED_VN0.SNP",
+        "ExtSel": "1",
+        "PerPkg": "1",
+        "UMask": "0x10",
+        "Unit": "QPI LL"
+    },
+    {
+        "BriefDescription": "VN0 Credit Consumed; NDR",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x1E",
+        "EventName": "UNC_Q_RxL_CREDITS_CONSUMED_VN0.NDR",
+        "ExtSel": "1",
+        "PerPkg": "1",
+        "UMask": "0x20",
+        "Unit": "QPI LL"
+    },
+    {
+        "BriefDescription": "VN1 Credit Consumed; DRS",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x39",
+        "EventName": "UNC_Q_RxL_CREDITS_CONSUMED_VN1.DRS",
+        "ExtSel": "1",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "QPI LL"
+    },
+    {
+        "BriefDescription": "VN1 Credit Consumed; NCB",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x39",
+        "EventName": "UNC_Q_RxL_CREDITS_CONSUMED_VN1.NCB",
+        "ExtSel": "1",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "QPI LL"
+    },
+    {
+        "BriefDescription": "VN1 Credit Consumed; NCS",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x39",
+        "EventName": "UNC_Q_RxL_CREDITS_CONSUMED_VN1.NCS",
+        "ExtSel": "1",
+        "PerPkg": "1",
+        "UMask": "0x4",
+        "Unit": "QPI LL"
+    },
+    {
+        "BriefDescription": "VN1 Credit Consumed; HOM",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x39",
+        "EventName": "UNC_Q_RxL_CREDITS_CONSUMED_VN1.HOM",
+        "ExtSel": "1",
+        "PerPkg": "1",
+        "UMask": "0x8",
+        "Unit": "QPI LL"
+    },
+    {
+        "BriefDescription": "VN1 Credit Consumed; SNP",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x39",
+        "EventName": "UNC_Q_RxL_CREDITS_CONSUMED_VN1.SNP",
+        "ExtSel": "1",
+        "PerPkg": "1",
+        "UMask": "0x10",
+        "Unit": "QPI LL"
+    },
+    {
+        "BriefDescription": "VN1 Credit Consumed; NDR",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x39",
+        "EventName": "UNC_Q_RxL_CREDITS_CONSUMED_VN1.NDR",
+        "ExtSel": "1",
+        "PerPkg": "1",
+        "UMask": "0x20",
+        "Unit": "QPI LL"
+    },
+    {
+        "BriefDescription": "VNA Credit Consumed",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x1D",
+        "EventName": "UNC_Q_RxL_CREDITS_CONSUMED_VNA",
+        "ExtSel": "1",
+        "PerPkg": "1",
+        "Unit": "QPI LL"
+    },
+    {
+        "BriefDescription": "RxQ Cycles Not Empty",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xA",
+        "EventName": "UNC_Q_RxL_CYCLES_NE",
+        "PerPkg": "1",
+        "Unit": "QPI LL"
+    },
+    {
+        "BriefDescription": "RxQ Cycles Not Empty - DRS; for VN0",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xF",
+        "EventName": "UNC_Q_RxL_CYCLES_NE_DRS.VN0",
+        "ExtSel": "1",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "QPI LL"
+    },
+    {
+        "BriefDescription": "RxQ Cycles Not Empty - DRS; for VN1",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xF",
+        "EventName": "UNC_Q_RxL_CYCLES_NE_DRS.VN1",
+        "ExtSel": "1",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "QPI LL"
+    },
+    {
+        "BriefDescription": "RxQ Cycles Not Empty - HOM; for VN0",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x12",
+        "EventName": "UNC_Q_RxL_CYCLES_NE_HOM.VN0",
+        "ExtSel": "1",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "QPI LL"
+    },
+    {
+        "BriefDescription": "RxQ Cycles Not Empty - HOM; for VN1",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x12",
+        "EventName": "UNC_Q_RxL_CYCLES_NE_HOM.VN1",
+        "ExtSel": "1",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "QPI LL"
+    },
+    {
+        "BriefDescription": "RxQ Cycles Not Empty - NCB; for VN0",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x10",
+        "EventName": "UNC_Q_RxL_CYCLES_NE_NCB.VN0",
+        "ExtSel": "1",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "QPI LL"
+    },
+    {
+        "BriefDescription": "RxQ Cycles Not Empty - NCB; for VN1",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x10",
+        "EventName": "UNC_Q_RxL_CYCLES_NE_NCB.VN1",
+        "ExtSel": "1",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "QPI LL"
+    },
+    {
+        "BriefDescription": "RxQ Cycles Not Empty - NCS; for VN0",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x11",
+        "EventName": "UNC_Q_RxL_CYCLES_NE_NCS.VN0",
+        "ExtSel": "1",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "QPI LL"
+    },
+    {
+        "BriefDescription": "RxQ Cycles Not Empty - NCS; for VN1",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x11",
+        "EventName": "UNC_Q_RxL_CYCLES_NE_NCS.VN1",
+        "ExtSel": "1",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "QPI LL"
+    },
+    {
+        "BriefDescription": "RxQ Cycles Not Empty - NDR; for VN0",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x14",
+        "EventName": "UNC_Q_RxL_CYCLES_NE_NDR.VN0",
+        "ExtSel": "1",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "QPI LL"
+    },
+    {
+        "BriefDescription": "RxQ Cycles Not Empty - NDR; for VN1",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x14",
+        "EventName": "UNC_Q_RxL_CYCLES_NE_NDR.VN1",
+        "ExtSel": "1",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "QPI LL"
+    },
+    {
+        "BriefDescription": "RxQ Cycles Not Empty - SNP; for VN0",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x13",
+        "EventName": "UNC_Q_RxL_CYCLES_NE_SNP.VN0",
+        "ExtSel": "1",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "QPI LL"
+    },
+    {
+        "BriefDescription": "RxQ Cycles Not Empty - SNP; for VN1",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x13",
+        "EventName": "UNC_Q_RxL_CYCLES_NE_SNP.VN1",
+        "ExtSel": "1",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "QPI LL"
+    },
+    {
+        "BriefDescription": "Flits Received - Group 0; Idle and Null Flits",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x1",
+        "EventName": "UNC_Q_RxL_FLITS_G0.IDLE",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "QPI LL"
+    },
+    {
+        "BriefDescription": "Flits Received - Group 1; SNP Flits",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x2",
+        "EventName": "UNC_Q_RxL_FLITS_G1.SNP",
+        "ExtSel": "1",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "QPI LL"
+    },
+    {
+        "BriefDescription": "Flits Received - Group 1; HOM Request Flits",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x2",
+        "EventName": "UNC_Q_RxL_FLITS_G1.HOM_REQ",
+        "ExtSel": "1",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "QPI LL"
+    },
+    {
+        "BriefDescription": "Flits Received - Group 1; HOM Non-Request Flits",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x2",
+        "EventName": "UNC_Q_RxL_FLITS_G1.HOM_NONREQ",
+        "ExtSel": "1",
+        "PerPkg": "1",
+        "UMask": "0x4",
+        "Unit": "QPI LL"
+    },
+    {
+        "BriefDescription": "Flits Received - Group 1; HOM Flits",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x2",
+        "EventName": "UNC_Q_RxL_FLITS_G1.HOM",
+        "ExtSel": "1",
+        "PerPkg": "1",
+        "UMask": "0x6",
+        "Unit": "QPI LL"
+    },
+    {
+        "BriefDescription": "Flits Received - Group 1; DRS Data Flits",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x2",
+        "EventName": "UNC_Q_RxL_FLITS_G1.DRS_DATA",
+        "ExtSel": "1",
+        "PerPkg": "1",
+        "UMask": "0x8",
+        "Unit": "QPI LL"
+    },
+    {
+        "BriefDescription": "Flits Received - Group 1; DRS Header Flits",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x2",
+        "EventName": "UNC_Q_RxL_FLITS_G1.DRS_NONDATA",
+        "ExtSel": "1",
+        "PerPkg": "1",
+        "UMask": "0x10",
+        "Unit": "QPI LL"
+    },
+    {
+        "BriefDescription": "Flits Received - Group 1; DRS Flits (both Header and Data)",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x2",
+        "EventName": "UNC_Q_RxL_FLITS_G1.DRS",
+        "ExtSel": "1",
+        "PerPkg": "1",
+        "UMask": "0x18",
+        "Unit": "QPI LL"
+    },
+    {
+        "BriefDescription": "Flits Received - Group 2; Non-Data Response Rx Flits - AD",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x3",
+        "EventName": "UNC_Q_RxL_FLITS_G2.NDR_AD",
+        "ExtSel": "1",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "QPI LL"
+    },
+    {
+        "BriefDescription": "Flits Received - Group 2; Non-Data Response Rx Flits - AK",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x3",
+        "EventName": "UNC_Q_RxL_FLITS_G2.NDR_AK",
+        "ExtSel": "1",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "QPI LL"
+    },
+    {
+        "BriefDescription": "Flits Received - Group 2; Non-Coherent data Rx Flits",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x3",
+        "EventName": "UNC_Q_RxL_FLITS_G2.NCB_DATA",
+        "ExtSel": "1",
+        "PerPkg": "1",
+        "UMask": "0x4",
+        "Unit": "QPI LL"
+    },
+    {
+        "BriefDescription": "Flits Received - Group 2; Non-Coherent non-data Rx Flits",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x3",
+        "EventName": "UNC_Q_RxL_FLITS_G2.NCB_NONDATA",
+        "ExtSel": "1",
+        "PerPkg": "1",
+        "UMask": "0x8",
+        "Unit": "QPI LL"
+    },
+    {
+        "BriefDescription": "Flits Received - Group 2; Non-Coherent Rx Flits",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x3",
+        "EventName": "UNC_Q_RxL_FLITS_G2.NCB",
+        "ExtSel": "1",
+        "PerPkg": "1",
+        "UMask": "0xC",
+        "Unit": "QPI LL"
+    },
+    {
+        "BriefDescription": "Flits Received - Group 2; Non-Coherent standard Rx Flits",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x3",
+        "EventName": "UNC_Q_RxL_FLITS_G2.NCS",
+        "ExtSel": "1",
+        "PerPkg": "1",
+        "UMask": "0x10",
+        "Unit": "QPI LL"
+    },
+    {
+        "BriefDescription": "Rx Flit Buffer Allocations",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x8",
+        "EventName": "UNC_Q_RxL_INSERTS",
+        "PerPkg": "1",
+        "Unit": "QPI LL"
+    },
+    {
+        "BriefDescription": "Rx Flit Buffer Allocations - DRS; for VN0",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x9",
+        "EventName": "UNC_Q_RxL_INSERTS_DRS.VN0",
+        "ExtSel": "1",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "QPI LL"
+    },
+    {
+        "BriefDescription": "Rx Flit Buffer Allocations - DRS; for VN1",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x9",
+        "EventName": "UNC_Q_RxL_INSERTS_DRS.VN1",
+        "ExtSel": "1",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "QPI LL"
+    },
+    {
+        "BriefDescription": "Rx Flit Buffer Allocations - HOM; for VN0",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xC",
+        "EventName": "UNC_Q_RxL_INSERTS_HOM.VN0",
+        "ExtSel": "1",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "QPI LL"
+    },
+    {
+        "BriefDescription": "Rx Flit Buffer Allocations - HOM; for VN1",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xC",
+        "EventName": "UNC_Q_RxL_INSERTS_HOM.VN1",
+        "ExtSel": "1",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "QPI LL"
+    },
+    {
+        "BriefDescription": "Rx Flit Buffer Allocations - NCB; for VN0",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xA",
+        "EventName": "UNC_Q_RxL_INSERTS_NCB.VN0",
+        "ExtSel": "1",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "QPI LL"
+    },
+    {
+        "BriefDescription": "Rx Flit Buffer Allocations - NCB; for VN1",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xA",
+        "EventName": "UNC_Q_RxL_INSERTS_NCB.VN1",
+        "ExtSel": "1",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "QPI LL"
+    },
+    {
+        "BriefDescription": "Rx Flit Buffer Allocations - NCS; for VN0",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB",
+        "EventName": "UNC_Q_RxL_INSERTS_NCS.VN0",
+        "ExtSel": "1",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "QPI LL"
+    },
+    {
+        "BriefDescription": "Rx Flit Buffer Allocations - NCS; for VN1",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB",
+        "EventName": "UNC_Q_RxL_INSERTS_NCS.VN1",
+        "ExtSel": "1",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "QPI LL"
+    },
+    {
+        "BriefDescription": "Rx Flit Buffer Allocations - NDR; for VN0",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xE",
+        "EventName": "UNC_Q_RxL_INSERTS_NDR.VN0",
+        "ExtSel": "1",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "QPI LL"
+    },
+    {
+        "BriefDescription": "Rx Flit Buffer Allocations - NDR; for VN1",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xE",
+        "EventName": "UNC_Q_RxL_INSERTS_NDR.VN1",
+        "ExtSel": "1",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "QPI LL"
+    },
+    {
+        "BriefDescription": "Rx Flit Buffer Allocations - SNP; for VN0",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xD",
+        "EventName": "UNC_Q_RxL_INSERTS_SNP.VN0",
+        "ExtSel": "1",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "QPI LL"
+    },
+    {
+        "BriefDescription": "Rx Flit Buffer Allocations - SNP; for VN1",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xD",
+        "EventName": "UNC_Q_RxL_INSERTS_SNP.VN1",
+        "ExtSel": "1",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "QPI LL"
+    },
+    {
+        "BriefDescription": "RxQ Occupancy - All Packets",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB",
+        "EventName": "UNC_Q_RxL_OCCUPANCY",
+        "PerPkg": "1",
+        "Unit": "QPI LL"
+    },
+    {
+        "BriefDescription": "RxQ Occupancy - DRS; for VN0",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x15",
+        "EventName": "UNC_Q_RxL_OCCUPANCY_DRS.VN0",
+        "ExtSel": "1",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "QPI LL"
+    },
+    {
+        "BriefDescription": "RxQ Occupancy - DRS; for VN1",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x15",
+        "EventName": "UNC_Q_RxL_OCCUPANCY_DRS.VN1",
+        "ExtSel": "1",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "QPI LL"
+    },
+    {
+        "BriefDescription": "RxQ Occupancy - HOM; for VN0",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x18",
+        "EventName": "UNC_Q_RxL_OCCUPANCY_HOM.VN0",
+        "ExtSel": "1",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "QPI LL"
+    },
+    {
+        "BriefDescription": "RxQ Occupancy - HOM; for VN1",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x18",
+        "EventName": "UNC_Q_RxL_OCCUPANCY_HOM.VN1",
+        "ExtSel": "1",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "QPI LL"
+    },
+    {
+        "BriefDescription": "RxQ Occupancy - NCB; for VN0",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x16",
+        "EventName": "UNC_Q_RxL_OCCUPANCY_NCB.VN0",
+        "ExtSel": "1",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "QPI LL"
+    },
+    {
+        "BriefDescription": "RxQ Occupancy - NCB; for VN1",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x16",
+        "EventName": "UNC_Q_RxL_OCCUPANCY_NCB.VN1",
+        "ExtSel": "1",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "QPI LL"
+    },
+    {
+        "BriefDescription": "RxQ Occupancy - NCS; for VN0",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x17",
+        "EventName": "UNC_Q_RxL_OCCUPANCY_NCS.VN0",
+        "ExtSel": "1",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "QPI LL"
+    },
+    {
+        "BriefDescription": "RxQ Occupancy - NCS; for VN1",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x17",
+        "EventName": "UNC_Q_RxL_OCCUPANCY_NCS.VN1",
+        "ExtSel": "1",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "QPI LL"
+    },
+    {
+        "BriefDescription": "RxQ Occupancy - NDR; for VN0",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x1A",
+        "EventName": "UNC_Q_RxL_OCCUPANCY_NDR.VN0",
+        "ExtSel": "1",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "QPI LL"
+    },
+    {
+        "BriefDescription": "RxQ Occupancy - NDR; for VN1",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x1A",
+        "EventName": "UNC_Q_RxL_OCCUPANCY_NDR.VN1",
+        "ExtSel": "1",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "QPI LL"
+    },
+    {
+        "BriefDescription": "RxQ Occupancy - SNP; for VN0",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x19",
+        "EventName": "UNC_Q_RxL_OCCUPANCY_SNP.VN0",
+        "ExtSel": "1",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "QPI LL"
+    },
+    {
+        "BriefDescription": "RxQ Occupancy - SNP; for VN1",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x19",
+        "EventName": "UNC_Q_RxL_OCCUPANCY_SNP.VN1",
+        "ExtSel": "1",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "QPI LL"
+    },
+    {
+        "BriefDescription": "Stalls Sending to R3QPI on VN0; BGF Stall - HOM",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x35",
+        "EventName": "UNC_Q_RxL_STALLS_VN0.BGF_DRS",
+        "ExtSel": "1",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "QPI LL"
+    },
+    {
+        "BriefDescription": "Stalls Sending to R3QPI on VN0; BGF Stall - SNP",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x35",
+        "EventName": "UNC_Q_RxL_STALLS_VN0.BGF_NCB",
+        "ExtSel": "1",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "QPI LL"
+    },
+    {
+        "BriefDescription": "Stalls Sending to R3QPI on VN0; BGF Stall - NDR",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x35",
+        "EventName": "UNC_Q_RxL_STALLS_VN0.BGF_NCS",
+        "ExtSel": "1",
+        "PerPkg": "1",
+        "UMask": "0x4",
+        "Unit": "QPI LL"
+    },
+    {
+        "BriefDescription": "Stalls Sending to R3QPI on VN0; BGF Stall - DRS",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x35",
+        "EventName": "UNC_Q_RxL_STALLS_VN0.BGF_HOM",
+        "ExtSel": "1",
+        "PerPkg": "1",
+        "UMask": "0x8",
+        "Unit": "QPI LL"
+    },
+    {
+        "BriefDescription": "Stalls Sending to R3QPI on VN0; BGF Stall - NCB",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x35",
+        "EventName": "UNC_Q_RxL_STALLS_VN0.BGF_SNP",
+        "ExtSel": "1",
+        "PerPkg": "1",
+        "UMask": "0x10",
+        "Unit": "QPI LL"
+    },
+    {
+        "BriefDescription": "Stalls Sending to R3QPI on VN0; BGF Stall - NCS",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x35",
+        "EventName": "UNC_Q_RxL_STALLS_VN0.BGF_NDR",
+        "ExtSel": "1",
+        "PerPkg": "1",
+        "UMask": "0x20",
+        "Unit": "QPI LL"
+    },
+    {
+        "BriefDescription": "Stalls Sending to R3QPI on VN0; Egress Credits",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x35",
+        "EventName": "UNC_Q_RxL_STALLS_VN0.EGRESS_CREDITS",
+        "ExtSel": "1",
+        "PerPkg": "1",
+        "UMask": "0x40",
+        "Unit": "QPI LL"
+    },
+    {
+        "BriefDescription": "Stalls Sending to R3QPI on VN0; GV",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x35",
+        "EventName": "UNC_Q_RxL_STALLS_VN0.GV",
+        "ExtSel": "1",
+        "PerPkg": "1",
+        "UMask": "0x80",
+        "Unit": "QPI LL"
+    },
+    {
+        "BriefDescription": "Stalls Sending to R3QPI on VN1; BGF Stall - HOM",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x3A",
+        "EventName": "UNC_Q_RxL_STALLS_VN1.BGF_DRS",
+        "ExtSel": "1",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "QPI LL"
+    },
+    {
+        "BriefDescription": "Stalls Sending to R3QPI on VN1; BGF Stall - SNP",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x3A",
+        "EventName": "UNC_Q_RxL_STALLS_VN1.BGF_NCB",
+        "ExtSel": "1",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "QPI LL"
+    },
+    {
+        "BriefDescription": "Stalls Sending to R3QPI on VN1; BGF Stall - NDR",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x3A",
+        "EventName": "UNC_Q_RxL_STALLS_VN1.BGF_NCS",
+        "ExtSel": "1",
+        "PerPkg": "1",
+        "UMask": "0x4",
+        "Unit": "QPI LL"
+    },
+    {
+        "BriefDescription": "Stalls Sending to R3QPI on VN1; BGF Stall - DRS",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x3A",
+        "EventName": "UNC_Q_RxL_STALLS_VN1.BGF_HOM",
+        "ExtSel": "1",
+        "PerPkg": "1",
+        "UMask": "0x8",
+        "Unit": "QPI LL"
+    },
+    {
+        "BriefDescription": "Stalls Sending to R3QPI on VN1; BGF Stall - NCB",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x3A",
+        "EventName": "UNC_Q_RxL_STALLS_VN1.BGF_SNP",
+        "ExtSel": "1",
+        "PerPkg": "1",
+        "UMask": "0x10",
+        "Unit": "QPI LL"
+    },
+    {
+        "BriefDescription": "Stalls Sending to R3QPI on VN1; BGF Stall - NCS",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x3A",
+        "EventName": "UNC_Q_RxL_STALLS_VN1.BGF_NDR",
+        "ExtSel": "1",
+        "PerPkg": "1",
+        "UMask": "0x20",
+        "Unit": "QPI LL"
+    },
+    {
+        "BriefDescription": "Cycles in L0p",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xD",
+        "EventName": "UNC_Q_TxL0P_POWER_CYCLES",
+        "PerPkg": "1",
+        "Unit": "QPI LL"
+    },
+    {
+        "BriefDescription": "Cycles in L0",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xC",
+        "EventName": "UNC_Q_TxL0_POWER_CYCLES",
+        "PerPkg": "1",
+        "Unit": "QPI LL"
+    },
+    {
+        "BriefDescription": "Tx Flit Buffer Bypassed",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x5",
+        "EventName": "UNC_Q_TxL_BYPASSED",
+        "PerPkg": "1",
+        "Unit": "QPI LL"
+    },
+    {
+        "BriefDescription": "Cycles Stalled with no LLR Credits; LLR is full",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x2",
+        "EventName": "UNC_Q_TxL_CRC_NO_CREDITS.FULL",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "QPI LL"
+    },
+    {
+        "BriefDescription": "Cycles Stalled with no LLR Credits; LLR is almost full",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x2",
+        "EventName": "UNC_Q_TxL_CRC_NO_CREDITS.ALMOST_FULL",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "QPI LL"
+    },
+    {
+        "BriefDescription": "Tx Flit Buffer Cycles not Empty",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x6",
+        "EventName": "UNC_Q_TxL_CYCLES_NE",
         "PerPkg": "1",
         "Unit": "QPI LL"
     },
@@ -17,12 +990,465 @@
         "Unit": "QPI LL"
     },
     {
+        "BriefDescription": "Number of data flits transmitted ",
+        "Counter": "0,1,2,3",
+        "EventName": "UNC_Q_TxL_FLITS_G0.DATA",
+        "PerPkg": "1",
+        "ScaleUnit": "8Bytes",
+        "UMask": "0x2",
+        "Unit": "QPI LL"
+    },
+    {
         "BriefDescription": "Number of non data (control) flits transmitted . Derived from unc_q_txl_flits_g0.non_data",
         "Counter": "0,1,2,3",
         "EventName": "QPI_CTL_BANDWIDTH_TX",
         "PerPkg": "1",
         "ScaleUnit": "8Bytes",
         "UMask": "0x4",
+        "Unit": "QPI LL"
+    },
+    {
+        "BriefDescription": "Number of non data (control) flits transmitted ",
+        "Counter": "0,1,2,3",
+        "EventName": "UNC_Q_TxL_FLITS_G0.NON_DATA",
+        "PerPkg": "1",
+        "ScaleUnit": "8Bytes",
+        "UMask": "0x4",
+        "Unit": "QPI LL"
+    },
+    {
+        "BriefDescription": "Flits Transferred - Group 1; SNP Flits",
+        "Counter": "0,1,2,3",
+        "EventName": "UNC_Q_TxL_FLITS_G1.SNP",
+        "ExtSel": "1",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "QPI LL"
+    },
+    {
+        "BriefDescription": "Flits Transferred - Group 1; HOM Request Flits",
+        "Counter": "0,1,2,3",
+        "EventName": "UNC_Q_TxL_FLITS_G1.HOM_REQ",
+        "ExtSel": "1",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "QPI LL"
+    },
+    {
+        "BriefDescription": "Flits Transferred - Group 1; HOM Non-Request Flits",
+        "Counter": "0,1,2,3",
+        "EventName": "UNC_Q_TxL_FLITS_G1.HOM_NONREQ",
+        "ExtSel": "1",
+        "PerPkg": "1",
+        "UMask": "0x4",
+        "Unit": "QPI LL"
+    },
+    {
+        "BriefDescription": "Flits Transferred - Group 1; HOM Flits",
+        "Counter": "0,1,2,3",
+        "EventName": "UNC_Q_TxL_FLITS_G1.HOM",
+        "ExtSel": "1",
+        "PerPkg": "1",
+        "UMask": "0x6",
+        "Unit": "QPI LL"
+    },
+    {
+        "BriefDescription": "Flits Transferred - Group 1; DRS Data Flits",
+        "Counter": "0,1,2,3",
+        "EventName": "UNC_Q_TxL_FLITS_G1.DRS_DATA",
+        "ExtSel": "1",
+        "PerPkg": "1",
+        "UMask": "0x8",
+        "Unit": "QPI LL"
+    },
+    {
+        "BriefDescription": "Flits Transferred - Group 1; DRS Header Flits",
+        "Counter": "0,1,2,3",
+        "EventName": "UNC_Q_TxL_FLITS_G1.DRS_NONDATA",
+        "ExtSel": "1",
+        "PerPkg": "1",
+        "UMask": "0x10",
+        "Unit": "QPI LL"
+    },
+    {
+        "BriefDescription": "Flits Transferred - Group 1; DRS Flits (both Header and Data)",
+        "Counter": "0,1,2,3",
+        "EventName": "UNC_Q_TxL_FLITS_G1.DRS",
+        "ExtSel": "1",
+        "PerPkg": "1",
+        "UMask": "0x18",
+        "Unit": "QPI LL"
+    },
+    {
+        "BriefDescription": "Flits Transferred - Group 2; Non-Data Response Tx Flits - AD",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x1",
+        "EventName": "UNC_Q_TxL_FLITS_G2.NDR_AD",
+        "ExtSel": "1",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "QPI LL"
+    },
+    {
+        "BriefDescription": "Flits Transferred - Group 2; Non-Data Response Tx Flits - AK",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x1",
+        "EventName": "UNC_Q_TxL_FLITS_G2.NDR_AK",
+        "ExtSel": "1",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "QPI LL"
+    },
+    {
+        "BriefDescription": "Flits Transferred - Group 2; Non-Coherent data Tx Flits",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x1",
+        "EventName": "UNC_Q_TxL_FLITS_G2.NCB_DATA",
+        "ExtSel": "1",
+        "PerPkg": "1",
+        "UMask": "0x4",
+        "Unit": "QPI LL"
+    },
+    {
+        "BriefDescription": "Flits Transferred - Group 2; Non-Coherent non-data Tx Flits",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x1",
+        "EventName": "UNC_Q_TxL_FLITS_G2.NCB_NONDATA",
+        "ExtSel": "1",
+        "PerPkg": "1",
+        "UMask": "0x8",
+        "Unit": "QPI LL"
+    },
+    {
+        "BriefDescription": "Flits Transferred - Group 2; Non-Coherent Bypass Tx Flits",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x1",
+        "EventName": "UNC_Q_TxL_FLITS_G2.NCB",
+        "ExtSel": "1",
+        "PerPkg": "1",
+        "UMask": "0xC",
+        "Unit": "QPI LL"
+    },
+    {
+        "BriefDescription": "Flits Transferred - Group 2; Non-Coherent standard Tx Flits",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x1",
+        "EventName": "UNC_Q_TxL_FLITS_G2.NCS",
+        "ExtSel": "1",
+        "PerPkg": "1",
+        "UMask": "0x10",
+        "Unit": "QPI LL"
+    },
+    {
+        "BriefDescription": "Tx Flit Buffer Allocations",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x4",
+        "EventName": "UNC_Q_TxL_INSERTS",
+        "PerPkg": "1",
+        "Unit": "QPI LL"
+    },
+    {
+        "BriefDescription": "Tx Flit Buffer Occupancy",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x7",
+        "EventName": "UNC_Q_TxL_OCCUPANCY",
+        "PerPkg": "1",
+        "Unit": "QPI LL"
+    },
+    {
+        "BriefDescription": "R3QPI Egress Credit Occupancy - HOM; for VN0",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x26",
+        "EventName": "UNC_Q_TxR_AD_HOM_CREDIT_ACQUIRED.VN0",
+        "ExtSel": "1",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "QPI LL"
+    },
+    {
+        "BriefDescription": "R3QPI Egress Credit Occupancy - HOM; for VN1",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x26",
+        "EventName": "UNC_Q_TxR_AD_HOM_CREDIT_ACQUIRED.VN1",
+        "ExtSel": "1",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "QPI LL"
+    },
+    {
+        "BriefDescription": "R3QPI Egress Credit Occupancy - AD HOM; for VN0",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x22",
+        "EventName": "UNC_Q_TxR_AD_HOM_CREDIT_OCCUPANCY.VN0",
+        "ExtSel": "1",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "QPI LL"
+    },
+    {
+        "BriefDescription": "R3QPI Egress Credit Occupancy - AD HOM; for VN1",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x22",
+        "EventName": "UNC_Q_TxR_AD_HOM_CREDIT_OCCUPANCY.VN1",
+        "ExtSel": "1",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "QPI LL"
+    },
+    {
+        "BriefDescription": "R3QPI Egress Credit Occupancy - AD NDR; for VN0",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x28",
+        "EventName": "UNC_Q_TxR_AD_NDR_CREDIT_ACQUIRED.VN0",
+        "ExtSel": "1",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "QPI LL"
+    },
+    {
+        "BriefDescription": "R3QPI Egress Credit Occupancy - AD NDR; for VN1",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x28",
+        "EventName": "UNC_Q_TxR_AD_NDR_CREDIT_ACQUIRED.VN1",
+        "ExtSel": "1",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "QPI LL"
+    },
+    {
+        "BriefDescription": "R3QPI Egress Credit Occupancy - AD NDR; for VN0",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x24",
+        "EventName": "UNC_Q_TxR_AD_NDR_CREDIT_OCCUPANCY.VN0",
+        "ExtSel": "1",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "QPI LL"
+    },
+    {
+        "BriefDescription": "R3QPI Egress Credit Occupancy - AD NDR; for VN1",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x24",
+        "EventName": "UNC_Q_TxR_AD_NDR_CREDIT_OCCUPANCY.VN1",
+        "ExtSel": "1",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "QPI LL"
+    },
+    {
+        "BriefDescription": "R3QPI Egress Credit Occupancy - SNP; for VN0",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x27",
+        "EventName": "UNC_Q_TxR_AD_SNP_CREDIT_ACQUIRED.VN0",
+        "ExtSel": "1",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "QPI LL"
+    },
+    {
+        "BriefDescription": "R3QPI Egress Credit Occupancy - SNP; for VN1",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x27",
+        "EventName": "UNC_Q_TxR_AD_SNP_CREDIT_ACQUIRED.VN1",
+        "ExtSel": "1",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "QPI LL"
+    },
+    {
+        "BriefDescription": "R3QPI Egress Credit Occupancy - AD SNP; for VN0",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x23",
+        "EventName": "UNC_Q_TxR_AD_SNP_CREDIT_OCCUPANCY.VN0",
+        "ExtSel": "1",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "QPI LL"
+    },
+    {
+        "BriefDescription": "R3QPI Egress Credit Occupancy - AD SNP; for VN1",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x23",
+        "EventName": "UNC_Q_TxR_AD_SNP_CREDIT_OCCUPANCY.VN1",
+        "ExtSel": "1",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "QPI LL"
+    },
+    {
+        "BriefDescription": "R3QPI Egress Credit Occupancy - AK NDR",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x29",
+        "EventName": "UNC_Q_TxR_AK_NDR_CREDIT_ACQUIRED",
+        "ExtSel": "1",
+        "PerPkg": "1",
+        "Unit": "QPI LL"
+    },
+    {
+        "BriefDescription": "R3QPI Egress Credit Occupancy - AK NDR",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x25",
+        "EventName": "UNC_Q_TxR_AK_NDR_CREDIT_OCCUPANCY",
+        "ExtSel": "1",
+        "PerPkg": "1",
+        "Unit": "QPI LL"
+    },
+    {
+        "BriefDescription": "R3QPI Egress Credit Occupancy - DRS; for VN0",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x2A",
+        "EventName": "UNC_Q_TxR_BL_DRS_CREDIT_ACQUIRED.VN0",
+        "ExtSel": "1",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "QPI LL"
+    },
+    {
+        "BriefDescription": "R3QPI Egress Credit Occupancy - DRS; for VN1",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x2A",
+        "EventName": "UNC_Q_TxR_BL_DRS_CREDIT_ACQUIRED.VN1",
+        "ExtSel": "1",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "QPI LL"
+    },
+    {
+        "BriefDescription": "R3QPI Egress Credit Occupancy - DRS; for Shared VN",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x2A",
+        "EventName": "UNC_Q_TxR_BL_DRS_CREDIT_ACQUIRED.VN_SHR",
+        "ExtSel": "1",
+        "PerPkg": "1",
+        "UMask": "0x4",
+        "Unit": "QPI LL"
+    },
+    {
+        "BriefDescription": "R3QPI Egress Credit Occupancy - BL DRS; for VN0",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x1F",
+        "EventName": "UNC_Q_TxR_BL_DRS_CREDIT_OCCUPANCY.VN0",
+        "ExtSel": "1",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "QPI LL"
+    },
+    {
+        "BriefDescription": "R3QPI Egress Credit Occupancy - BL DRS; for VN1",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x1F",
+        "EventName": "UNC_Q_TxR_BL_DRS_CREDIT_OCCUPANCY.VN1",
+        "ExtSel": "1",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "QPI LL"
+    },
+    {
+        "BriefDescription": "R3QPI Egress Credit Occupancy - BL DRS; for Shared VN",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x1F",
+        "EventName": "UNC_Q_TxR_BL_DRS_CREDIT_OCCUPANCY.VN_SHR",
+        "ExtSel": "1",
+        "PerPkg": "1",
+        "UMask": "0x4",
+        "Unit": "QPI LL"
+    },
+    {
+        "BriefDescription": "R3QPI Egress Credit Occupancy - NCB; for VN0",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x2B",
+        "EventName": "UNC_Q_TxR_BL_NCB_CREDIT_ACQUIRED.VN0",
+        "ExtSel": "1",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "QPI LL"
+    },
+    {
+        "BriefDescription": "R3QPI Egress Credit Occupancy - NCB; for VN1",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x2B",
+        "EventName": "UNC_Q_TxR_BL_NCB_CREDIT_ACQUIRED.VN1",
+        "ExtSel": "1",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "QPI LL"
+    },
+    {
+        "BriefDescription": "R3QPI Egress Credit Occupancy - BL NCB; for VN0",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x20",
+        "EventName": "UNC_Q_TxR_BL_NCB_CREDIT_OCCUPANCY.VN0",
+        "ExtSel": "1",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "QPI LL"
+    },
+    {
+        "BriefDescription": "R3QPI Egress Credit Occupancy - BL NCB; for VN1",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x20",
+        "EventName": "UNC_Q_TxR_BL_NCB_CREDIT_OCCUPANCY.VN1",
+        "ExtSel": "1",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "QPI LL"
+    },
+    {
+        "BriefDescription": "R3QPI Egress Credit Occupancy - NCS; for VN0",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x2C",
+        "EventName": "UNC_Q_TxR_BL_NCS_CREDIT_ACQUIRED.VN0",
+        "ExtSel": "1",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "QPI LL"
+    },
+    {
+        "BriefDescription": "R3QPI Egress Credit Occupancy - NCS; for VN1",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x2C",
+        "EventName": "UNC_Q_TxR_BL_NCS_CREDIT_ACQUIRED.VN1",
+        "ExtSel": "1",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "QPI LL"
+    },
+    {
+        "BriefDescription": "R3QPI Egress Credit Occupancy - BL NCS; for VN0",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x21",
+        "EventName": "UNC_Q_TxR_BL_NCS_CREDIT_OCCUPANCY.VN0",
+        "ExtSel": "1",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "QPI LL"
+    },
+    {
+        "BriefDescription": "R3QPI Egress Credit Occupancy - BL NCS; for VN1",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x21",
+        "EventName": "UNC_Q_TxR_BL_NCS_CREDIT_OCCUPANCY.VN1",
+        "ExtSel": "1",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "QPI LL"
+    },
+    {
+        "BriefDescription": "VNA Credits Returned",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x1C",
+        "EventName": "UNC_Q_VNA_CREDIT_RETURNS",
+        "ExtSel": "1",
+        "PerPkg": "1",
+        "Unit": "QPI LL"
+    },
+    {
+        "BriefDescription": "VNA Credits Pending Return - Occupancy",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x1B",
+        "EventName": "UNC_Q_VNA_CREDIT_RETURN_OCCUPANCY",
+        "ExtSel": "1",
+        "PerPkg": "1",
         "Unit": "QPI LL"
     }
 ]

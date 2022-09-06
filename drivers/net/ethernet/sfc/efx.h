@@ -12,6 +12,7 @@
 #include "net_driver.h"
 #include "ef100_rx.h"
 #include "ef100_tx.h"
+#include "efx_common.h"
 #include "filter.h"
 
 int efx_net_open(struct net_device *net_dev);
@@ -206,6 +207,9 @@ static inline void efx_device_detach_sync(struct efx_nic *efx)
 {
 	struct net_device *dev = efx->net_dev;
 
+	/* We must stop reps (which use our TX) before we stop ourselves. */
+	efx_detach_reps(efx);
+
 	/* Lock/freeze all TX queues so that we can be sure the
 	 * TX scheduler is stopped when we're done and before
 	 * netif_device_present() becomes false.
@@ -217,8 +221,11 @@ static inline void efx_device_detach_sync(struct efx_nic *efx)
 
 static inline void efx_device_attach_if_not_resetting(struct efx_nic *efx)
 {
-	if ((efx->state != STATE_DISABLED) && !efx->reset_pending)
+	if ((efx->state != STATE_DISABLED) && !efx->reset_pending) {
 		netif_device_attach(efx->net_dev);
+		if (efx->state == STATE_NET_UP)
+			efx_attach_reps(efx);
+	}
 }
 
 static inline bool efx_rwsem_assert_write_locked(struct rw_semaphore *sem)

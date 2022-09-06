@@ -181,11 +181,19 @@ int hda_dsp_core_run(struct snd_sof_dev *sdev, unsigned int core_mask)
  * Power Management.
  */
 
-static int hda_dsp_core_power_up(struct snd_sof_dev *sdev, unsigned int core_mask)
+int hda_dsp_core_power_up(struct snd_sof_dev *sdev, unsigned int core_mask)
 {
+	struct sof_intel_hda_dev *hda = sdev->pdata->hw_pdata;
+	const struct sof_intel_dsp_desc *chip = hda->desc;
 	unsigned int cpa;
 	u32 adspcs;
 	int ret;
+
+	/* restrict core_mask to host managed cores mask */
+	core_mask &= chip->host_managed_cores_mask;
+	/* return if core_mask is not valid */
+	if (!core_mask)
+		return 0;
 
 	/* update bits */
 	snd_sof_dsp_update_bits(sdev, HDA_DSP_BAR, HDA_DSP_REG_ADSPCS,
@@ -609,6 +617,13 @@ static int hda_suspend(struct snd_sof_dev *sdev, bool runtime_suspend)
 #endif
 	int ret, j;
 
+	/*
+	 * The memory used for IMR boot loses its content in deeper than S3 state
+	 * We must not try IMR boot on next power up (as it will fail).
+	 */
+	if (sdev->system_suspend_target > SOF_SUSPEND_S3)
+		hda->skip_imr_boot = true;
+
 	hda_sdw_int_enable(sdev, false);
 
 	/* disable IPC interrupts */
@@ -735,7 +750,7 @@ int hda_dsp_resume(struct snd_sof_dev *sdev)
 			if (hlink->ref_count) {
 				ret = snd_hdac_ext_bus_link_power_up(hlink);
 				if (ret < 0) {
-					dev_dbg(sdev->dev,
+					dev_err(sdev->dev,
 						"error %d in %s: failed to power up links",
 						ret, __func__);
 					return ret;
@@ -863,7 +878,7 @@ int hda_dsp_suspend(struct snd_sof_dev *sdev, u32 target_state)
 		/* no link can be powered in s0ix state */
 		ret = snd_hdac_ext_bus_link_power_down_all(bus);
 		if (ret < 0) {
-			dev_dbg(sdev->dev,
+			dev_err(sdev->dev,
 				"error %d in %s: failed to power down links",
 				ret, __func__);
 			return ret;
@@ -932,13 +947,7 @@ void hda_dsp_d0i3_work(struct work_struct *work)
 
 int hda_dsp_core_get(struct snd_sof_dev *sdev, int core)
 {
-	struct sof_ipc_pm_core_config pm_core_config = {
-		.hdr = {
-			.cmd = SOF_IPC_GLB_PM_MSG | SOF_IPC_PM_CORE_ENABLE,
-			.size = sizeof(pm_core_config),
-		},
-		.enable_mask = sdev->enabled_cores_mask | BIT(core),
-	};
+	const struct sof_ipc_pm_ops *pm_ops = sdev->ipc->ops->pm;
 	int ret, ret1;
 
 	/* power up core */
@@ -953,9 +962,12 @@ int hda_dsp_core_get(struct snd_sof_dev *sdev, int core)
 	if (sdev->fw_state != SOF_FW_BOOT_COMPLETE || core == SOF_DSP_PRIMARY_CORE)
 		return 0;
 
+	/* No need to continue the set_core_state ops is not available */
+	if (!pm_ops->set_core_state)
+		return 0;
+
 	/* Now notify DSP for secondary cores */
-	ret = sof_ipc_tx_message(sdev->ipc, &pm_core_config, sizeof(pm_core_config),
-				 &pm_core_config, sizeof(pm_core_config));
+	ret = pm_ops->set_core_state(sdev, core, true);
 	if (ret < 0) {
 		dev_err(sdev->dev, "failed to enable secondary core '%d' failed with %d\n",
 			core, ret);

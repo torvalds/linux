@@ -19,7 +19,7 @@ config SND_AT73C213
 	  DAC can be found on Atmel development boards.
 
 	  This driver requires the Atmel SSC driver for sound sink, a
-	  peripheral found on most AT91 and AVR32 microprocessors.
+	  peripheral found on most AT91 microprocessors.
 
 	  To compile this driver as a module, choose M here: the module will be
 	  called snd-at73c213.

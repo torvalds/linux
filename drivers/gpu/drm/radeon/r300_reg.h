@@ -1103,7 +1103,7 @@
  * The destination register index is in FPI1 (color) and FPI3 (alpha)
  * together with enable bits.
  * There are separate enable bits for writing into temporary registers
- * (DSTC_REG_* /DSTA_REG) and and program output registers (DSTC_OUTPUT_*
+ * (DSTC_REG_* /DSTA_REG) and program output registers (DSTC_OUTPUT_*
  * /DSTA_OUTPUT). You can write to both at once, or not write at all (the
  * same index must be used for both).
  *

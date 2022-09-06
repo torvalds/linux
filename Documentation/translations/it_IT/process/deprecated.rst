@@ -69,8 +69,8 @@ dovrebbero essere fatto negli argomenti di funzioni di allocazione di memoria
 piccoli di quelli che il chiamante si aspettava. L'uso di questo modo di
 allocare può portare ad un overflow della memoria di heap e altri
 malfunzionamenti. (Si fa eccezione per valori numerici per i quali il
-compilatore può generare avvisi circa un potenziale overflow. Tuttavia usare
-i valori numerici come suggerito di seguito è innocuo).
+compilatore può generare avvisi circa un potenziale overflow. Tuttavia, anche in
+questi casi è preferibile riscrivere il codice come suggerito di seguito).
 
 Per esempio, non usate ``count * size`` come argomento::
 
@@ -79,6 +79,9 @@ Per esempio, non usate ``count * size`` come argomento::
 Al suo posto, si dovrebbe usare l'allocatore a due argomenti::
 
 	foo = kmalloc_array(count, size, GFP_KERNEL);
+
+Nello specifico, kmalloc() può essere sostituta da kmalloc_array(), e kzalloc()
+da kcalloc().
 
 Se questo tipo di allocatore non è disponibile, allora dovrebbero essere usate
 le funzioni del tipo *saturate-on-overflow*::
@@ -100,9 +103,20 @@ Invece, usate la seguente funzione::
 	  invitati a riorganizzare il vostro codice usando il
 	  `flexible array member <#zero-length-and-one-element-arrays>`_.
 
-Per maggiori dettagli fate riferimento a array_size(),
-array3_size(), e struct_size(), così come la famiglia di
-funzioni check_add_overflow() e check_mul_overflow().
+Per altri calcoli, usate le funzioni size_mul(), size_add(), e size_sub(). Per
+esempio, al posto di::
+
+       foo = krealloc(current_size + chunk_size * (count - 3), GFP_KERNEL);
+
+dovreste scrivere:
+
+       foo = krealloc(size_add(current_size,
+                               size_mul(chunk_size,
+                                        size_sub(count, 3))), GFP_KERNEL);
+
+Per maggiori dettagli fate riferimento a array3_size() e flex_array_size(), ma
+anche le funzioni della famiglia check_mul_overflow(), check_add_overflow(),
+check_sub_overflow(), e check_shl_overflow().
 
 simple_strtol(), simple_strtoll(), simple_strtoul(), simple_strtoull()
 ----------------------------------------------------------------------

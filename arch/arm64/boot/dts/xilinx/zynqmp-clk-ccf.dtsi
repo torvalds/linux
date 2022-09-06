@@ -239,6 +239,10 @@
 	clocks = <&zynqmp_clk LPD_WDT>;
 };
 
+&xilinx_ams {
+	clocks = <&zynqmp_clk AMS_REF>;
+};
+
 &zynqmp_dpdma {
 	clocks = <&zynqmp_clk DPDMA_REF>;
 };

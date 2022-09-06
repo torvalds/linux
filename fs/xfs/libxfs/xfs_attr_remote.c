@@ -543,6 +543,7 @@ xfs_attr_rmtval_stale(
 {
 	struct xfs_mount	*mp = ip->i_mount;
 	struct xfs_buf		*bp;
+	int			error;
 
 	ASSERT(xfs_isilocked(ip, XFS_ILOCK_EXCL));
 
@@ -550,14 +551,18 @@ xfs_attr_rmtval_stale(
 	    XFS_IS_CORRUPT(mp, map->br_startblock == HOLESTARTBLOCK))
 		return -EFSCORRUPTED;
 
-	bp = xfs_buf_incore(mp->m_ddev_targp,
+	error = xfs_buf_incore(mp->m_ddev_targp,
 			XFS_FSB_TO_DADDR(mp, map->br_startblock),
-			XFS_FSB_TO_BB(mp, map->br_blockcount), incore_flags);
-	if (bp) {
-		xfs_buf_stale(bp);
-		xfs_buf_relse(bp);
+			XFS_FSB_TO_BB(mp, map->br_blockcount),
+			incore_flags, &bp);
+	if (error) {
+		if (error == -ENOENT)
+			return 0;
+		return error;
 	}
 
+	xfs_buf_stale(bp);
+	xfs_buf_relse(bp);
 	return 0;
 }
 

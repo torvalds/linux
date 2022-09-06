@@ -501,7 +501,7 @@ static int mlx5_sf_esw_event(struct notifier_block *nb, unsigned long event, voi
 	case MLX5_ESWITCH_OFFLOADS:
 		mlx5_sf_table_enable(table);
 		break;
-	case MLX5_ESWITCH_NONE:
+	case MLX5_ESWITCH_LEGACY:
 		mlx5_sf_table_disable(table);
 		break;
 	default:

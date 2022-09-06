@@ -1032,7 +1032,7 @@ static void rvin_notify(struct v4l2_subdev *sd,
 		if (!vin)
 			continue;
 
-		pad = media_entity_remote_pad(&vin->pad);
+		pad = media_pad_remote_pad_first(&vin->pad);
 		if (!pad)
 			continue;
 

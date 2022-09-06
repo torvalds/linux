@@ -672,7 +672,7 @@ ZFCP_DEFINE_SCSI_ATTR(zfcp_in_recovery, "%d\n",
 ZFCP_DEFINE_SCSI_ATTR(zfcp_status, "0x%08x\n",
 		      atomic_read(&zfcp_sdev->status));
 
-struct attribute *zfcp_sdev_attrs[] = {
+static struct attribute *zfcp_sdev_attrs[] = {
 	&dev_attr_fcp_lun.attr,
 	&dev_attr_wwpn.attr,
 	&dev_attr_hba_id.attr,

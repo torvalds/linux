@@ -292,8 +292,11 @@
 		};
 
 		smem: smem@41000000 {
+			compatible = "qcom,smem";
 			reg = <0x41000000 0x200000>;
 			no-map;
+
+			hwlocks = <&sfpb_mutex 3>;
 		};
 	};
 
@@ -382,6 +385,13 @@
 				};
 			};
 
+			i2c4_pins: i2c4-default {
+				pins = "gpio12", "gpio13";
+				function = "gsbi4";
+				drive-strength = <12>;
+				bias-disable;
+			};
+
 			spi_pins: spi_pins {
 				mux {
 					pins = "gpio18", "gpio19", "gpio21";
@@ -424,6 +434,8 @@
 
 				pullups {
 					pins = "gpio39";
+					function = "nand";
+					drive-strength = <10>;
 					bias-pull-up;
 				};
 
@@ -431,7 +443,30 @@
 					pins = "gpio40", "gpio41", "gpio42",
 					       "gpio43", "gpio44", "gpio45",
 					       "gpio46", "gpio47";
+					function = "nand";
+					drive-strength = <10>;
 					bias-bus-hold;
+				};
+			};
+
+			mdio0_pins: mdio0-pins {
+				mux {
+					pins = "gpio0", "gpio1";
+					function = "mdio";
+					drive-strength = <8>;
+					bias-disable;
+				};
+			};
+
+			rgmii2_pins: rgmii2-pins {
+				mux {
+					pins = "gpio27", "gpio28", "gpio29",
+					       "gpio30", "gpio31", "gpio32",
+					       "gpio51", "gpio52", "gpio59",
+					       "gpio60", "gpio61", "gpio62";
+					function = "rgmii2";
+					drive-strength = <8>;
+					bias-disable;
 				};
 			};
 		};
@@ -507,6 +542,44 @@
 			regulator;
 		};
 
+		gsbi1: gsbi@12440000 {
+			compatible = "qcom,gsbi-v1.0.0";
+			reg = <0x12440000 0x100>;
+			cell-index = <1>;
+			clocks = <&gcc GSBI1_H_CLK>;
+			clock-names = "iface";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges;
+
+			syscon-tcsr = <&tcsr>;
+
+			status = "disabled";
+
+			gsbi1_serial: serial@12450000 {
+				compatible = "qcom,msm-uartdm-v1.3", "qcom,msm-uartdm";
+				reg = <0x12450000 0x100>,
+				      <0x12400000 0x03>;
+				interrupts = <GIC_SPI 193 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&gcc GSBI1_UART_CLK>, <&gcc GSBI1_H_CLK>;
+				clock-names = "core", "iface";
+
+				status = "disabled";
+			};
+
+			gsbi1_i2c: i2c@12460000 {
+				compatible = "qcom,i2c-qup-v1.1.1";
+				reg = <0x12460000 0x1000>;
+				interrupts = <GIC_SPI 194 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&gcc GSBI1_QUP_CLK>, <&gcc GSBI1_H_CLK>;
+				clock-names = "core", "iface";
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				status = "disabled";
+			};
+		};
+
 		gsbi2: gsbi@12480000 {
 			compatible = "qcom,gsbi-v1.0.0";
 			cell-index = <2>;
@@ -530,7 +603,7 @@
 				status = "disabled";
 			};
 
-			i2c@124a0000 {
+			gsbi2_i2c: i2c@124a0000 {
 				compatible = "qcom,i2c-qup-v1.1.1";
 				reg = <0x124a0000 0x1000>;
 				interrupts = <GIC_SPI 196 IRQ_TYPE_LEVEL_HIGH>;
@@ -631,6 +704,49 @@
 			};
 		};
 
+		gsbi6: gsbi@16500000 {
+			compatible = "qcom,gsbi-v1.0.0";
+			reg = <0x16500000 0x100>;
+			cell-index = <6>;
+			clocks = <&gcc GSBI6_H_CLK>;
+			clock-names = "iface";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges;
+
+			syscon-tcsr = <&tcsr>;
+
+			status = "disabled";
+
+			gsbi6_i2c: i2c@16580000 {
+				compatible = "qcom,i2c-qup-v1.1.1";
+				reg = <0x16580000 0x1000>;
+				interrupts = <GIC_SPI 157 IRQ_TYPE_LEVEL_HIGH>;
+
+				clocks = <&gcc GSBI6_QUP_CLK>, <&gcc GSBI6_H_CLK>;
+				clock-names = "core", "iface";
+
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				status = "disabled";
+			};
+
+			gsbi6_spi: spi@16580000 {
+				compatible = "qcom,spi-qup-v1.1.1";
+				reg = <0x16580000 0x1000>;
+				interrupts = <GIC_SPI 157 IRQ_TYPE_LEVEL_HIGH>;
+
+				clocks = <&gcc GSBI6_QUP_CLK>, <&gcc GSBI6_H_CLK>;
+				clock-names = "core", "iface";
+
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				status = "disabled";
+			};
+		};
+
 		gsbi7: gsbi@16600000 {
 			status = "disabled";
 			compatible = "qcom,gsbi-v1.0.0";
@@ -650,6 +766,20 @@
 				interrupts = <GIC_SPI 158 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&gcc GSBI7_UART_CLK>, <&gcc GSBI7_H_CLK>;
 				clock-names = "core", "iface";
+				status = "disabled";
+			};
+
+			gsbi7_i2c: i2c@16680000 {
+				compatible = "qcom,i2c-qup-v1.1.1";
+				reg = <0x16680000 0x1000>;
+				interrupts = <GIC_SPI 159 IRQ_TYPE_LEVEL_HIGH>;
+
+				clocks = <&gcc GSBI7_QUP_CLK>, <&gcc GSBI7_H_CLK>;
+				clock-names = "core", "iface";
+
+				#address-cells = <1>;
+				#size-cells = <0>;
+
 				status = "disabled";
 			};
 		};
@@ -723,10 +853,13 @@
 		};
 
 		qfprom: qfprom@700000 {
-			compatible = "qcom,qfprom";
+			compatible = "qcom,ipq8064-qfprom", "qcom,qfprom";
 			reg = <0x00700000 0x1000>;
 			#address-cells = <1>;
 			#size-cells = <1>;
+			speedbin_efuse: speedbin@c0 {
+				reg = <0xc0 0x4>;
+			};
 			tsens_calib: calib@400 {
 				reg = <0x400 0xb>;
 			};
@@ -773,6 +906,8 @@
 			rpmcc: clock-controller {
 				compatible = "qcom,rpmcc-ipq806x", "qcom,rpmcc";
 				#clock-cells = <1>;
+				clocks = <&pxo_board>;
+				clock-names = "pxo";
 			};
 		};
 
@@ -784,7 +919,7 @@
 		l2cc: clock-controller@2011000 {
 			compatible = "qcom,kpss-gcc", "syscon";
 			reg = <0x2011000 0x1000>;
-			clocks = <&gcc PLL8_VOTE>, <&gcc PXO_SRC>;
+			clocks = <&gcc PLL8_VOTE>, <&pxo_board>;
 			clock-names = "pll8_vote", "pxo";
 			clock-output-names = "acpu_l2_aux";
 		};
@@ -810,7 +945,7 @@
 			#address-cells = <3>;
 			#size-cells = <2>;
 
-			ranges = <0x81000000 0 0x0fe00000 0x0fe00000 0 0x00100000   /* downstream I/O */
+			ranges = <0x81000000 0 0x0fe00000 0x0fe00000 0 0x00010000   /* downstream I/O */
 				  0x82000000 0 0x08000000 0x08000000 0 0x07e00000>; /* non-prefetchable memory */
 
 			interrupts = <GIC_SPI 35 IRQ_TYPE_LEVEL_HIGH>;
@@ -861,7 +996,7 @@
 			#address-cells = <3>;
 			#size-cells = <2>;
 
-			ranges = <0x81000000 0 0x31e00000 0x31e00000 0 0x00100000   /* downstream I/O */
+			ranges = <0x81000000 0 0x31e00000 0x31e00000 0 0x00010000   /* downstream I/O */
 				  0x82000000 0 0x2e000000 0x2e000000 0 0x03e00000>; /* non-prefetchable memory */
 
 			interrupts = <GIC_SPI 57 IRQ_TYPE_LEVEL_HIGH>;
@@ -912,7 +1047,7 @@
 			#address-cells = <3>;
 			#size-cells = <2>;
 
-			ranges = <0x81000000 0 0x35e00000 0x35e00000 0 0x00100000   /* downstream I/O */
+			ranges = <0x81000000 0 0x35e00000 0x35e00000 0 0x00010000   /* downstream I/O */
 				  0x82000000 0 0x32000000 0x32000000 0 0x03e00000>; /* non-prefetchable memory */
 
 			interrupts = <GIC_SPI 71 IRQ_TYPE_LEVEL_HIGH>;
@@ -967,7 +1102,7 @@
 
 		gmac0: ethernet@37000000 {
 			device_type = "network";
-			compatible = "qcom,ipq806x-gmac";
+			compatible = "qcom,ipq806x-gmac", "snps,dwmac";
 			reg = <0x37000000 0x200000>;
 			interrupts = <GIC_SPI 220 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "macirq";
@@ -991,7 +1126,7 @@
 
 		gmac1: ethernet@37200000 {
 			device_type = "network";
-			compatible = "qcom,ipq806x-gmac";
+			compatible = "qcom,ipq806x-gmac", "snps,dwmac";
 			reg = <0x37200000 0x200000>;
 			interrupts = <GIC_SPI 223 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "macirq";
@@ -1015,7 +1150,7 @@
 
 		gmac2: ethernet@37400000 {
 			device_type = "network";
-			compatible = "qcom,ipq806x-gmac";
+			compatible = "qcom,ipq806x-gmac", "snps,dwmac";
 			reg = <0x37400000 0x200000>;
 			interrupts = <GIC_SPI 226 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "macirq";
@@ -1039,7 +1174,7 @@
 
 		gmac3: ethernet@37600000 {
 			device_type = "network";
-			compatible = "qcom,ipq806x-gmac";
+			compatible = "qcom,ipq806x-gmac", "snps,dwmac";
 			reg = <0x37600000 0x200000>;
 			interrupts = <GIC_SPI 229 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "macirq";
@@ -1113,6 +1248,8 @@
 			clocks = <&gcc USB30_1_UTMI_CLK>;
 			clock-names = "ref";
 			#phy-cells = <0>;
+
+			status = "disabled";
 		};
 
 		ss_phy_1: phy@110f8830 {
@@ -1121,6 +1258,8 @@
 			clocks = <&gcc USB30_1_MASTER_CLK>;
 			clock-names = "ref";
 			#phy-cells = <0>;
+
+			status = "disabled";
 		};
 
 		usb3_1: usb3@110f8800 {
@@ -1184,16 +1323,16 @@
 			ranges;
 
 			sdcc1: mmc@12400000 {
-				status          = "disabled";
-				compatible      = "arm,pl18x", "arm,primecell";
+				status = "disabled";
+				compatible = "arm,pl18x", "arm,primecell";
 				arm,primecell-periphid = <0x00051180>;
-				reg             = <0x12400000 0x2000>;
-				interrupts      = <GIC_SPI 104 IRQ_TYPE_LEVEL_HIGH>;
+				reg = <0x12400000 0x2000>;
+				interrupts = <GIC_SPI 104 IRQ_TYPE_LEVEL_HIGH>;
 				interrupt-names = "cmd_irq";
-				clocks          = <&gcc SDC1_CLK>, <&gcc SDC1_H_CLK>;
-				clock-names     = "mclk", "apb_pclk";
-				bus-width       = <8>;
-				max-frequency   = <96000000>;
+				clocks = <&gcc SDC1_CLK>, <&gcc SDC1_H_CLK>;
+				clock-names = "mclk", "apb_pclk";
+				bus-width = <8>;
+				max-frequency = <96000000>;
 				non-removable;
 				cap-sd-highspeed;
 				cap-mmc-highspeed;
@@ -1204,24 +1343,31 @@
 			};
 
 			sdcc3: mmc@12180000 {
-				compatible      = "arm,pl18x", "arm,primecell";
+				compatible = "arm,pl18x", "arm,primecell";
 				arm,primecell-periphid = <0x00051180>;
-				status          = "disabled";
-				reg             = <0x12180000 0x2000>;
-				interrupts      = <GIC_SPI 102 IRQ_TYPE_LEVEL_HIGH>;
+				status = "disabled";
+				reg = <0x12180000 0x2000>;
+				interrupts = <GIC_SPI 102 IRQ_TYPE_LEVEL_HIGH>;
 				interrupt-names = "cmd_irq";
-				clocks          = <&gcc SDC3_CLK>, <&gcc SDC3_H_CLK>;
-				clock-names     = "mclk", "apb_pclk";
-				bus-width       = <8>;
+				clocks = <&gcc SDC3_CLK>, <&gcc SDC3_H_CLK>;
+				clock-names = "mclk", "apb_pclk";
+				bus-width = <8>;
 				cap-sd-highspeed;
 				cap-mmc-highspeed;
-				max-frequency   = <192000000>;
+				max-frequency = <192000000>;
 				sd-uhs-sdr104;
 				sd-uhs-ddr50;
 				vqmmc-supply = <&vsdcc_fixed>;
 				dmas = <&sdcc3bam 2>, <&sdcc3bam 1>;
 				dma-names = "tx", "rx";
 			};
+		};
+
+		sfpb_mutex: hwlock@1200600 {
+			compatible = "qcom,sfpb-mutex";
+			reg = <0x01200600 0x100>;
+
+			#hwlock-cells = <1>;
 		};
 	};
 };

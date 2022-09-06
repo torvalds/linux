@@ -146,7 +146,7 @@
 };
 
 &easrc {
-	fsl,asrc-rate  = <48000>;
+	fsl,asrc-rate = <48000>;
 	status = "okay";
 };
 
@@ -182,7 +182,7 @@
 &usbotg1 {
 	vbus-supply = <&reg_usb_otg_vbus>;
 	disable-over-current;
-	dr_mode="otg";
+	dr_mode = "otg";
 	status = "okay";
 };
 

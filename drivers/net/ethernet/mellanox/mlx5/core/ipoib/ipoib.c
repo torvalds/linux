@@ -322,10 +322,10 @@ static int mlx5i_create_flow_steering(struct mlx5e_priv *priv)
 {
 	int err;
 
-	priv->fs.ns = mlx5_get_flow_namespace(priv->mdev,
+	priv->fs->ns = mlx5_get_flow_namespace(priv->mdev,
 					       MLX5_FLOW_NAMESPACE_KERNEL);
 
-	if (!priv->fs.ns)
+	if (!priv->fs->ns)
 		return -EINVAL;
 
 	err = mlx5e_arfs_create_tables(priv);
@@ -364,9 +364,18 @@ static int mlx5i_init_rx(struct mlx5e_priv *priv)
 	struct mlx5_core_dev *mdev = priv->mdev;
 	int err;
 
-	priv->rx_res = mlx5e_rx_res_alloc();
-	if (!priv->rx_res)
+	priv->fs = mlx5e_fs_init(priv->profile, mdev,
+				 !test_bit(MLX5E_STATE_DESTROYING, &priv->state));
+	if (!priv->fs) {
+		netdev_err(priv->netdev, "FS allocation failed\n");
 		return -ENOMEM;
+	}
+
+	priv->rx_res = mlx5e_rx_res_alloc();
+	if (!priv->rx_res) {
+		err = -ENOMEM;
+		goto err_free_fs;
+	}
 
 	mlx5e_create_q_counters(priv);
 
@@ -397,6 +406,8 @@ err_destroy_q_counters:
 	mlx5e_destroy_q_counters(priv);
 	mlx5e_rx_res_free(priv->rx_res);
 	priv->rx_res = NULL;
+err_free_fs:
+	mlx5e_fs_cleanup(priv->fs);
 	return err;
 }
 
@@ -408,6 +419,7 @@ static void mlx5i_cleanup_rx(struct mlx5e_priv *priv)
 	mlx5e_destroy_q_counters(priv);
 	mlx5e_rx_res_free(priv->rx_res);
 	priv->rx_res = NULL;
+	mlx5e_fs_cleanup(priv->fs);
 }
 
 /* The stats groups order is opposite to the update_stats() order calls */

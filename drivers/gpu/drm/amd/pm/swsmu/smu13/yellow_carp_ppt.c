@@ -42,6 +42,11 @@
 #undef pr_info
 #undef pr_debug
 
+#define regSMUIO_GFX_MISC_CNTL  						0x00c5
+#define regSMUIO_GFX_MISC_CNTL_BASE_IDX					0
+#define SMUIO_GFX_MISC_CNTL__PWR_GFXOFF_STATUS_MASK		0x00000006L
+#define SMUIO_GFX_MISC_CNTL__PWR_GFXOFF_STATUS__SHIFT          0x1L
+
 #define FEATURE_MASK(feature) (1ULL << feature)
 #define SMC_DPM_FEATURE ( \
 	FEATURE_MASK(FEATURE_CCLK_DPM_BIT) | \
@@ -585,6 +590,31 @@ static ssize_t yellow_carp_get_gpu_metrics(struct smu_context *smu,
 	*table = (void *)gpu_metrics;
 
 	return sizeof(struct gpu_metrics_v2_1);
+}
+
+/**
+ * yellow_carp_get_gfxoff_status - get gfxoff status
+ *
+ * @smu: smu_context pointer
+ *
+ * This function will be used to get gfxoff status
+ *
+ * Returns 0=GFXOFF(default).
+ * Returns 1=Transition out of GFX State.
+ * Returns 2=Not in GFXOFF.
+ * Returns 3=Transition into GFXOFF.
+ */
+static uint32_t yellow_carp_get_gfxoff_status(struct smu_context *smu)
+{
+	uint32_t reg;
+	uint32_t gfxoff_status = 0;
+	struct amdgpu_device *adev = smu->adev;
+
+	reg = RREG32_SOC15(SMUIO, 0, regSMUIO_GFX_MISC_CNTL);
+	gfxoff_status = (reg & SMUIO_GFX_MISC_CNTL__PWR_GFXOFF_STATUS_MASK)
+		>> SMUIO_GFX_MISC_CNTL__PWR_GFXOFF_STATUS__SHIFT;
+
+	return gfxoff_status;
 }
 
 static int yellow_carp_set_default_dpm_tables(struct smu_context *smu)
@@ -1186,6 +1216,7 @@ static const struct pptable_funcs yellow_carp_ppt_funcs = {
 	.get_pp_feature_mask = smu_cmn_get_pp_feature_mask,
 	.set_driver_table_location = smu_v13_0_set_driver_table_location,
 	.gfx_off_control = smu_v13_0_gfx_off_control,
+	.get_gfx_off_status = yellow_carp_get_gfxoff_status,
 	.post_init = yellow_carp_post_smu_init,
 	.mode2_reset = yellow_carp_mode2_reset,
 	.get_dpm_ultimate_freq = yellow_carp_get_dpm_ultimate_freq,
@@ -1203,4 +1234,5 @@ void yellow_carp_set_ppt_funcs(struct smu_context *smu)
 	smu->feature_map = yellow_carp_feature_mask_map;
 	smu->table_map = yellow_carp_table_map;
 	smu->is_apu = true;
+	smu_v13_0_set_smu_mailbox_registers(smu);
 }

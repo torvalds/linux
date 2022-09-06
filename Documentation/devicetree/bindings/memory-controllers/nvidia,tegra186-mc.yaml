@@ -150,7 +150,6 @@ allOf:
           description: 5 memory controller channels and 1 for stream-id registers
 
         reg-names:
-          maxItems: 6
           items:
             - const: sid
             - const: broadcast
@@ -170,7 +169,6 @@ allOf:
           description: 17 memory controller channels and 1 for stream-id registers
 
         reg-names:
-          minItems: 18
           items:
             - const: sid
             - const: broadcast
@@ -202,7 +200,6 @@ allOf:
           description: 17 memory controller channels and 1 for stream-id registers
 
         reg-names:
-          minItems: 18
           items:
             - const: sid
             - const: broadcast

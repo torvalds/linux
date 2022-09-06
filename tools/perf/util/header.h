@@ -46,7 +46,7 @@ enum {
 	HEADER_CPU_PMU_CAPS,
 	HEADER_CLOCK_DATA,
 	HEADER_HYBRID_TOPOLOGY,
-	HEADER_HYBRID_CPU_PMU_CAPS,
+	HEADER_PMU_CAPS,
 	HEADER_LAST_FEATURE,
 	HEADER_FEAT_BITS	= 256,
 };
@@ -135,6 +135,8 @@ int perf_session__inject_header(struct perf_session *session,
 				struct evlist *evlist,
 				int fd,
 				struct feat_copier *fc);
+
+size_t perf_session__data_offset(const struct evlist *evlist);
 
 void perf_header__set_feat(struct perf_header *header, int feat);
 void perf_header__clear_feat(struct perf_header *header, int feat);

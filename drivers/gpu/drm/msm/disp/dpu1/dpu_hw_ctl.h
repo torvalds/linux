@@ -10,7 +10,6 @@
 #include "dpu_hw_util.h"
 #include "dpu_hw_catalog.h"
 #include "dpu_hw_sspp.h"
-#include "dpu_hw_blk.h"
 
 /**
  * dpu_ctl_mode_sel: Interface mode selection

@@ -29,6 +29,9 @@ struct intel_guc_slpc {
 	u32 min_freq_softlimit;
 	u32 max_freq_softlimit;
 
+	/* cached media ratio mode */
+	u32 media_ratio_mode;
+
 	/* Protects set/reset of boost freq
 	 * and value of num_waiters
 	 */

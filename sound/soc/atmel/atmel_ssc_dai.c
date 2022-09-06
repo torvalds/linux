@@ -210,7 +210,7 @@ static int atmel_ssc_hw_rule_rate(struct snd_pcm_hw_params *params,
 		return frame_size;
 
 	switch (ssc_p->daifmt & SND_SOC_DAIFMT_CLOCK_PROVIDER_MASK) {
-	case SND_SOC_DAIFMT_CBP_CFC:
+	case SND_SOC_DAIFMT_BC_FP:
 		if ((ssc_p->dir_mask & SSC_DIR_MASK_CAPTURE)
 		    && ssc->clk_from_rk_pin)
 			/* Receiver Frame Synchro (i.e. capture)
@@ -220,7 +220,7 @@ static int atmel_ssc_hw_rule_rate(struct snd_pcm_hw_params *params,
 			mck_div = 3;
 		break;
 
-	case SND_SOC_DAIFMT_CBP_CFP:
+	case SND_SOC_DAIFMT_BC_FC:
 		if ((ssc_p->dir_mask & SSC_DIR_MASK_PLAYBACK)
 		    && !ssc->clk_from_rk_pin)
 			/* Transmit Frame Synchro (i.e. playback)
@@ -233,7 +233,7 @@ static int atmel_ssc_hw_rule_rate(struct snd_pcm_hw_params *params,
 	}
 
 	switch (ssc_p->daifmt & SND_SOC_DAIFMT_CLOCK_PROVIDER_MASK) {
-	case SND_SOC_DAIFMT_CBC_CFC:
+	case SND_SOC_DAIFMT_BP_FP:
 		r.num = ssc_p->mck_rate / mck_div / frame_size;
 
 		ret = snd_interval_ratnum(i, 1, &r, &num, &den);
@@ -243,8 +243,8 @@ static int atmel_ssc_hw_rule_rate(struct snd_pcm_hw_params *params,
 		}
 		break;
 
-	case SND_SOC_DAIFMT_CBP_CFC:
-	case SND_SOC_DAIFMT_CBP_CFP:
+	case SND_SOC_DAIFMT_BC_FP:
+	case SND_SOC_DAIFMT_BC_FC:
 		t.min = 8000;
 		t.max = ssc_p->mck_rate / mck_div / frame_size;
 		t.openmin = t.openmax = 0;
@@ -433,8 +433,8 @@ static int atmel_ssc_set_dai_clkdiv(struct snd_soc_dai *cpu_dai,
 static int atmel_ssc_cfs(struct atmel_ssc_info *ssc_p)
 {
 	switch (ssc_p->daifmt & SND_SOC_DAIFMT_CLOCK_PROVIDER_MASK) {
-	case SND_SOC_DAIFMT_CBP_CFC:
-	case SND_SOC_DAIFMT_CBC_CFC:
+	case SND_SOC_DAIFMT_BC_FP:
+	case SND_SOC_DAIFMT_BP_FP:
 		return 1;
 	}
 	return 0;
@@ -444,8 +444,8 @@ static int atmel_ssc_cfs(struct atmel_ssc_info *ssc_p)
 static int atmel_ssc_cbs(struct atmel_ssc_info *ssc_p)
 {
 	switch (ssc_p->daifmt & SND_SOC_DAIFMT_CLOCK_PROVIDER_MASK) {
-	case SND_SOC_DAIFMT_CBC_CFP:
-	case SND_SOC_DAIFMT_CBC_CFC:
+	case SND_SOC_DAIFMT_BP_FC:
+	case SND_SOC_DAIFMT_BP_FP:
 		return 1;
 	}
 	return 0;
@@ -762,7 +762,6 @@ static int atmel_ssc_trigger(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-#ifdef CONFIG_PM
 static int atmel_ssc_suspend(struct snd_soc_component *component)
 {
 	struct atmel_ssc_info *ssc_p;
@@ -821,10 +820,6 @@ static int atmel_ssc_resume(struct snd_soc_component *component)
 
 	return 0;
 }
-#else /* CONFIG_PM */
-#  define atmel_ssc_suspend	NULL
-#  define atmel_ssc_resume	NULL
-#endif /* CONFIG_PM */
 
 #define ATMEL_SSC_FORMATS (SNDRV_PCM_FMTBIT_S8     | SNDRV_PCM_FMTBIT_S16_LE |\
 			  SNDRV_PCM_FMTBIT_S24_LE | SNDRV_PCM_FMTBIT_S32_LE)
@@ -858,9 +853,10 @@ static struct snd_soc_dai_driver atmel_ssc_dai = {
 };
 
 static const struct snd_soc_component_driver atmel_ssc_component = {
-	.name		= "atmel-ssc",
-	.suspend	= atmel_ssc_suspend,
-	.resume		= atmel_ssc_resume,
+	.name			= "atmel-ssc",
+	.suspend		= pm_ptr(atmel_ssc_suspend),
+	.resume			= pm_ptr(atmel_ssc_resume),
+	.legacy_dai_naming	= 1,
 };
 
 static int asoc_ssc_init(struct device *dev)

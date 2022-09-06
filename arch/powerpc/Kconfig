@@ -11,7 +11,7 @@ config 64BIT
 
 config LIVEPATCH_64
 	def_bool PPC64
-	depends	on LIVEPATCH
+	depends on LIVEPATCH
 
 config MMU
 	bool
@@ -140,7 +140,6 @@ config PPC
 	select ARCH_HAS_TICK_BROADCAST		if GENERIC_CLOCKEVENTS_BROADCAST
 	select ARCH_HAS_UACCESS_FLUSHCACHE
 	select ARCH_HAS_UBSAN_SANITIZE_ALL
-	select ARCH_HAS_VM_GET_PAGE_PROT	if PPC_BOOK3S_64
 	select ARCH_HAVE_NMI_SAFE_CMPXCHG
 	select ARCH_KEEP_MEMBLOCK
 	select ARCH_MIGHT_HAVE_PC_PARPORT
@@ -193,8 +192,10 @@ config PPC
 	select HAVE_ARCH_JUMP_LABEL_RELATIVE
 	select HAVE_ARCH_KASAN			if PPC32 && PPC_PAGE_SHIFT <= 14
 	select HAVE_ARCH_KASAN			if PPC_RADIX_MMU
+	select HAVE_ARCH_KASAN			if PPC_BOOK3E_64
 	select HAVE_ARCH_KASAN_VMALLOC		if HAVE_ARCH_KASAN
 	select HAVE_ARCH_KFENCE			if PPC_BOOK3S_32 || PPC_8xx || 40x
+	select HAVE_ARCH_RANDOMIZE_KSTACK_OFFSET
 	select HAVE_ARCH_KGDB
 	select HAVE_ARCH_MMAP_RND_BITS
 	select HAVE_ARCH_MMAP_RND_COMPAT_BITS	if COMPAT
@@ -202,7 +203,7 @@ config PPC
 	select HAVE_ARCH_SECCOMP_FILTER
 	select HAVE_ARCH_TRACEHOOK
 	select HAVE_ASM_MODVERSIONS
-	select HAVE_CONTEXT_TRACKING		if PPC64
+	select HAVE_CONTEXT_TRACKING_USER		if PPC64
 	select HAVE_C_RECORDMCOUNT
 	select HAVE_DEBUG_KMEMLEAK
 	select HAVE_DEBUG_STACKOVERFLOW
@@ -223,7 +224,6 @@ config PPC
 	select HAVE_HARDLOCKUP_DETECTOR_PERF	if PERF_EVENTS && HAVE_PERF_EVENTS_NMI && !HAVE_HARDLOCKUP_DETECTOR_ARCH
 	select HAVE_HW_BREAKPOINT		if PERF_EVENTS && (PPC_BOOK3S || PPC_8xx)
 	select HAVE_IOREMAP_PROT
-	select HAVE_IRQ_EXIT_ON_IRQ_STACK
 	select HAVE_IRQ_TIME_ACCOUNTING
 	select HAVE_KERNEL_GZIP
 	select HAVE_KERNEL_LZMA			if DEFAULT_UIMAGE
@@ -255,8 +255,10 @@ config PPC
 	select IOMMU_HELPER			if PPC64
 	select IRQ_DOMAIN
 	select IRQ_FORCED_THREADING
+	select KASAN_VMALLOC			if KASAN && MODULES
 	select MMU_GATHER_PAGE_SIZE
 	select MMU_GATHER_RCU_TABLE_FREE
+	select MMU_GATHER_MERGE_VMAS
 	select MODULES_USE_ELF_RELA
 	select NEED_DMA_MAP_STATE		if PPC64 || NOT_COHERENT_CACHE
 	select NEED_PER_CPU_EMBED_FIRST_CHUNK	if PPC64
@@ -277,10 +279,13 @@ config PPC
 	select SYSCTL_EXCEPTION_TRACE
 	select THREAD_INFO_IN_TASK
 	select TRACE_IRQFLAGS_SUPPORT
-	select VIRT_TO_BUS			if !PPC64
 	#
 	# Please keep this list sorted alphabetically.
 	#
+
+config PPC_LONG_DOUBLE_128
+	depends on PPC64
+	def_bool $(success,test "$(shell,echo __LONG_DOUBLE_128__ | $(CC) -E -P -)" = 1)
 
 config PPC_BARRIER_NOSPEC
 	bool
@@ -359,6 +364,10 @@ config ARCH_SUSPEND_NONZERO_CPU
 	def_bool y
 	depends on PPC_POWERNV || PPC_PSERIES
 
+config ARCH_HAS_ADD_PAGES
+	def_bool y
+	depends on ARCH_ENABLE_MEMORY_HOTPLUG
+
 config PPC_DCR_NATIVE
 	bool
 
@@ -369,6 +378,17 @@ config PPC_DCR
 	bool
 	depends on PPC_DCR_NATIVE || PPC_DCR_MMIO
 	default y
+
+config PPC_PCI_BUS_NUM_DOMAIN_DEPENDENT
+	depends on PPC32
+	depends on !PPC_PMAC && !PPC_CHRP
+	bool "Assign PCI bus numbers from zero individually for each PCI domain"
+	help
+	  By default on PPC32 were PCI bus numbers unique across all PCI domains.
+	  So system could have only 256 PCI buses independently of available
+	  PCI domains. When this option is enabled then PCI bus numbers are
+	  PCI domain dependent and each PCI controller on own domain can have
+	  256 PCI buses, like it is on other Linux architectures.
 
 config PPC_OF_PLATFORM_PCI
 	bool
@@ -446,7 +466,7 @@ choice
 	default MATH_EMULATION_FULL
 	depends on MATH_EMULATION
 
-config	MATH_EMULATION_FULL
+config MATH_EMULATION_FULL
 	bool "Emulate all the floating point instructions"
 	help
 	  Select this option will enable the kernel to support to emulate
@@ -548,7 +568,6 @@ config KEXEC_FILE
 	bool "kexec file based system call"
 	select KEXEC_CORE
 	select HAVE_IMA_KEXEC if IMA
-	select BUILD_BIN2C
 	select KEXEC_ELF
 	depends on PPC64
 	depends on CRYPTO=y
@@ -786,7 +805,6 @@ config THREAD_SHIFT
 	range 13 15
 	default "15" if PPC_256K_PAGES
 	default "14" if PPC64
-	default "14" if KASAN
 	default "13"
 	help
 	  Used to define the stack size. The default is almost always what you
@@ -1249,9 +1267,6 @@ config PHYSICAL_START
 	hex
 	default "0x00000000"
 endif
-
-config	ARCH_RANDOM
-	def_bool n
 
 config PPC_LIB_RHEAP
 	bool

@@ -5,13 +5,13 @@
 #include <linux/platform_data/pxa_sdhci.h>
 
 extern void mmp2_timer_init(void);
-extern void __init mmp2_init_icu(void);
 extern void __init mmp2_init_irq(void);
 extern void mmp2_clear_pmic_int(void);
 
 #include <linux/i2c.h>
 #include <linux/platform_data/i2c-pxa.h>
 #include <linux/platform_data/dma-mmp_tdma.h>
+#include <linux/irqchip/mmp.h>
 
 #include "devices.h"
 

@@ -18,8 +18,20 @@
 #define DEC_8190_ALIGN_MASK	0x07U
 
 #define MB_DIM			16
+#define TILE_MB_DIM		4
 #define MB_WIDTH(w)		DIV_ROUND_UP(w, MB_DIM)
 #define MB_HEIGHT(h)		DIV_ROUND_UP(h, MB_DIM)
+
+#define FMT_MIN_WIDTH		48
+#define FMT_MIN_HEIGHT		48
+#define FMT_HD_WIDTH		1280
+#define FMT_HD_HEIGHT		720
+#define FMT_FHD_WIDTH		1920
+#define FMT_FHD_HEIGHT		1088
+#define FMT_UHD_WIDTH		3840
+#define FMT_UHD_HEIGHT		2160
+#define FMT_4K_WIDTH		4096
+#define FMT_4K_HEIGHT		2304
 
 #define NUM_REF_PICTURES	(V4L2_HEVC_DPB_ENTRIES_NUM_MAX + 1)
 
@@ -133,7 +145,7 @@ struct hantro_hevc_dec_hw_ctx {
 	struct hantro_aux_buf tile_bsd;
 	struct hantro_aux_buf ref_bufs[NUM_REF_PICTURES];
 	struct hantro_aux_buf scaling_lists;
-	int ref_bufs_poc[NUM_REF_PICTURES];
+	s32 ref_bufs_poc[NUM_REF_PICTURES];
 	u32 ref_bufs_used;
 	struct hantro_hevc_dec_ctrls ctrls;
 	unsigned int num_tile_cols_allocated;
@@ -306,6 +318,7 @@ extern const struct hantro_variant rk3066_vpu_variant;
 extern const struct hantro_variant rk3288_vpu_variant;
 extern const struct hantro_variant rk3328_vpu_variant;
 extern const struct hantro_variant rk3399_vpu_variant;
+extern const struct hantro_variant rk3568_vepu_variant;
 extern const struct hantro_variant rk3568_vpu_variant;
 extern const struct hantro_variant sama5d4_vdec_variant;
 extern const struct hantro_variant sunxi_vpu_variant;
@@ -345,8 +358,9 @@ void hantro_hevc_dec_exit(struct hantro_ctx *ctx);
 int hantro_g2_hevc_dec_run(struct hantro_ctx *ctx);
 int hantro_hevc_dec_prepare_run(struct hantro_ctx *ctx);
 void hantro_hevc_ref_init(struct hantro_ctx *ctx);
-dma_addr_t hantro_hevc_get_ref_buf(struct hantro_ctx *ctx, int poc);
+dma_addr_t hantro_hevc_get_ref_buf(struct hantro_ctx *ctx, s32 poc);
 int hantro_hevc_add_ref_buf(struct hantro_ctx *ctx, int poc, dma_addr_t addr);
+
 
 static inline unsigned short hantro_vp9_num_sbs(unsigned short dimension)
 {

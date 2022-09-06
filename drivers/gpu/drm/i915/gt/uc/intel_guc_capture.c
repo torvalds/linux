@@ -9,6 +9,7 @@
 
 #include "gt/intel_engine_regs.h"
 #include "gt/intel_gt.h"
+#include "gt/intel_gt_mcr.h"
 #include "gt/intel_gt_regs.h"
 #include "gt/intel_lrc.h"
 #include "guc_capture_fwif.h"
@@ -281,8 +282,7 @@ guc_capture_alloc_steered_lists_xe_lpd(struct intel_guc *guc,
 				       const struct __guc_mmio_reg_descr_group *lists)
 {
 	struct intel_gt *gt = guc_to_gt(guc);
-	struct drm_i915_private *i915 = guc_to_gt(guc)->i915;
-	int slice, subslice, i, num_steer_regs, num_tot_regs = 0;
+	int slice, subslice, iter, i, num_steer_regs, num_tot_regs = 0;
 	const struct __guc_mmio_reg_descr_group *list;
 	struct __guc_mmio_reg_descr_group *extlists;
 	struct __guc_mmio_reg_descr *extarray;
@@ -298,7 +298,7 @@ guc_capture_alloc_steered_lists_xe_lpd(struct intel_guc *guc,
 	num_steer_regs = ARRAY_SIZE(xe_extregs);
 
 	sseu = &gt->info.sseu;
-	for_each_instdone_slice_subslice(i915, sseu, slice, subslice)
+	for_each_ss_steering(iter, gt, slice, subslice)
 		num_tot_regs += num_steer_regs;
 
 	if (!num_tot_regs)
@@ -315,7 +315,7 @@ guc_capture_alloc_steered_lists_xe_lpd(struct intel_guc *guc,
 	}
 
 	extarray = extlists[0].extlist;
-	for_each_instdone_slice_subslice(i915, sseu, slice, subslice) {
+	for_each_ss_steering(iter, gt, slice, subslice) {
 		for (i = 0; i < num_steer_regs; ++i) {
 			__fill_ext_reg(extarray, &xe_extregs[i], slice, subslice);
 			++extarray;
@@ -359,9 +359,8 @@ guc_capture_alloc_steered_lists_xe_hpg(struct intel_guc *guc,
 		num_steer_regs += ARRAY_SIZE(xehpg_extregs);
 
 	sseu = &gt->info.sseu;
-	for_each_instdone_gslice_dss_xehp(i915, sseu, iter, slice, subslice) {
+	for_each_ss_steering(iter, gt, slice, subslice)
 		num_tot_regs += num_steer_regs;
-	}
 
 	if (!num_tot_regs)
 		return;
@@ -377,7 +376,7 @@ guc_capture_alloc_steered_lists_xe_hpg(struct intel_guc *guc,
 	}
 
 	extarray = extlists[0].extlist;
-	for_each_instdone_gslice_dss_xehp(i915, sseu, iter, slice, subslice) {
+	for_each_ss_steering(iter, gt, slice, subslice) {
 		for (i = 0; i < ARRAY_SIZE(xe_extregs); ++i) {
 			__fill_ext_reg(extarray, &xe_extregs[i], slice, subslice);
 			++extarray;
@@ -420,72 +419,6 @@ guc_capture_get_device_reglist(struct intel_guc *guc)
 	return default_lists;
 }
 
-static const char *
-__stringify_owner(u32 owner)
-{
-	switch (owner) {
-	case GUC_CAPTURE_LIST_INDEX_PF:
-		return "PF";
-	case GUC_CAPTURE_LIST_INDEX_VF:
-		return "VF";
-	default:
-		return "unknown";
-	}
-
-	return "";
-}
-
-static const char *
-__stringify_type(u32 type)
-{
-	switch (type) {
-	case GUC_CAPTURE_LIST_TYPE_GLOBAL:
-		return "Global";
-	case GUC_CAPTURE_LIST_TYPE_ENGINE_CLASS:
-		return "Class";
-	case GUC_CAPTURE_LIST_TYPE_ENGINE_INSTANCE:
-		return "Instance";
-	default:
-		return "unknown";
-	}
-
-	return "";
-}
-
-static const char *
-__stringify_engclass(u32 class)
-{
-	switch (class) {
-	case GUC_RENDER_CLASS:
-		return "Render";
-	case GUC_VIDEO_CLASS:
-		return "Video";
-	case GUC_VIDEOENHANCE_CLASS:
-		return "VideoEnhance";
-	case GUC_BLITTER_CLASS:
-		return "Blitter";
-	case GUC_COMPUTE_CLASS:
-		return "Compute";
-	default:
-		return "unknown";
-	}
-
-	return "";
-}
-
-static void
-guc_capture_warn_with_list_info(struct drm_i915_private *i915, char *msg,
-				u32 owner, u32 type, u32 classid)
-{
-	if (type == GUC_CAPTURE_LIST_TYPE_GLOBAL)
-		drm_dbg(&i915->drm, "GuC-capture: %s for %s %s-Registers.\n", msg,
-			__stringify_owner(owner), __stringify_type(type));
-	else
-		drm_dbg(&i915->drm, "GuC-capture: %s for %s %s-Registers on %s-Engine\n", msg,
-			__stringify_owner(owner), __stringify_type(type),
-			__stringify_engclass(classid));
-}
-
 static int
 guc_capture_list_init(struct intel_guc *guc, u32 owner, u32 type, u32 classid,
 		      struct guc_mmio_reg *ptr, u16 num_entries)
@@ -501,11 +434,8 @@ guc_capture_list_init(struct intel_guc *guc, u32 owner, u32 type, u32 classid,
 		return -ENODEV;
 
 	match = guc_capture_get_one_list(reglists, owner, type, classid);
-	if (!match) {
-		guc_capture_warn_with_list_info(i915, "Missing register list init", owner, type,
-						classid);
+	if (!match)
 		return -ENODATA;
-	}
 
 	for (i = 0; i < num_entries && i < match->num_regs; ++i) {
 		ptr[i].offset = match->list[i].reg.reg;
@@ -556,7 +486,6 @@ int
 intel_guc_capture_getlistsize(struct intel_guc *guc, u32 owner, u32 type, u32 classid,
 			      size_t *size)
 {
-	struct drm_i915_private *i915 = guc_to_gt(guc)->i915;
 	struct intel_guc_state_capture *gc = guc->capture;
 	struct __guc_capture_ads_cache *cache = &gc->ads_cache[owner][type][classid];
 	int num_regs;
@@ -570,11 +499,8 @@ intel_guc_capture_getlistsize(struct intel_guc *guc, u32 owner, u32 type, u32 cl
 	}
 
 	num_regs = guc_cap_list_num_regs(gc, owner, type, classid);
-	if (!num_regs) {
-		guc_capture_warn_with_list_info(i915, "Missing register list size",
-						owner, type, classid);
+	if (!num_regs)
 		return -ENODATA;
-	}
 
 	*size = PAGE_ALIGN((sizeof(struct guc_debug_capture_list)) +
 			   (num_regs * sizeof(struct guc_mmio_reg)));
@@ -1334,7 +1260,8 @@ static int __guc_capture_flushlog_complete(struct intel_guc *guc)
 		GUC_CAPTURE_LOG_BUFFER
 	};
 
-	return intel_guc_send(guc, action, ARRAY_SIZE(action));
+	return intel_guc_send_nb(guc, action, ARRAY_SIZE(action), 0);
+
 }
 
 static void __guc_capture_process_output(struct intel_guc *guc)

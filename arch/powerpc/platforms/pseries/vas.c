@@ -16,6 +16,7 @@
 #include <asm/machdep.h>
 #include <asm/hvcall.h>
 #include <asm/plpar_wrappers.h>
+#include <asm/firmware.h>
 #include <asm/vas.h>
 #include "vas.h"
 
@@ -803,7 +804,7 @@ int vas_reconfig_capabilties(u8 type, int new_nr_creds)
 	 * The total number of available credits may be decreased or
 	 * increased with DLPAR operation. Means some windows have to be
 	 * closed / reopened. Hold the vas_pseries_mutex so that the
-	 * the user space can not open new windows.
+	 * user space can not open new windows.
 	 */
 	if (old_nr_creds <  new_nr_creds) {
 		/*

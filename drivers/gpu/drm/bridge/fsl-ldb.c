@@ -4,6 +4,7 @@
  */
 
 #include <linux/clk.h>
+#include <linux/media-bus-format.h>
 #include <linux/mfd/syscon.h>
 #include <linux/module.h>
 #include <linux/of.h>
@@ -74,22 +75,6 @@ static int fsl_ldb_attach(struct drm_bridge *bridge,
 				 bridge, flags);
 }
 
-static int fsl_ldb_atomic_check(struct drm_bridge *bridge,
-				struct drm_bridge_state *bridge_state,
-				struct drm_crtc_state *crtc_state,
-				struct drm_connector_state *conn_state)
-{
-	/* Invert DE signal polarity. */
-	bridge_state->input_bus_cfg.flags &= ~(DRM_BUS_FLAG_DE_LOW |
-					       DRM_BUS_FLAG_DE_HIGH);
-	if (bridge_state->output_bus_cfg.flags & DRM_BUS_FLAG_DE_LOW)
-		bridge_state->input_bus_cfg.flags |= DRM_BUS_FLAG_DE_HIGH;
-	else if (bridge_state->output_bus_cfg.flags & DRM_BUS_FLAG_DE_HIGH)
-		bridge_state->input_bus_cfg.flags |= DRM_BUS_FLAG_DE_LOW;
-
-	return 0;
-}
-
 static void fsl_ldb_atomic_enable(struct drm_bridge *bridge,
 				  struct drm_bridge_state *old_bridge_state)
 {
@@ -153,7 +138,7 @@ static void fsl_ldb_atomic_enable(struct drm_bridge *bridge,
 	reg = LDB_CTRL_CH0_ENABLE;
 
 	if (fsl_ldb->lvds_dual_link)
-		reg |= LDB_CTRL_CH1_ENABLE;
+		reg |= LDB_CTRL_CH1_ENABLE | LDB_CTRL_SPLIT_MODE;
 
 	if (lvds_format_24bpp) {
 		reg |= LDB_CTRL_CH0_DATA_WIDTH;
@@ -233,7 +218,7 @@ fsl_ldb_mode_valid(struct drm_bridge *bridge,
 {
 	struct fsl_ldb *fsl_ldb = to_fsl_ldb(bridge);
 
-	if (mode->clock > (fsl_ldb->lvds_dual_link ? 80000 : 160000))
+	if (mode->clock > (fsl_ldb->lvds_dual_link ? 160000 : 80000))
 		return MODE_CLOCK_HIGH;
 
 	return MODE_OK;
@@ -241,7 +226,6 @@ fsl_ldb_mode_valid(struct drm_bridge *bridge,
 
 static const struct drm_bridge_funcs funcs = {
 	.attach = fsl_ldb_attach,
-	.atomic_check = fsl_ldb_atomic_check,
 	.atomic_enable = fsl_ldb_atomic_enable,
 	.atomic_disable = fsl_ldb_atomic_disable,
 	.atomic_duplicate_state = drm_atomic_helper_bridge_duplicate_state,

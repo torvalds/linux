@@ -115,6 +115,17 @@ config DRM_PANEL_EDP
 	  that it can be automatically turned off when the panel goes into a
 	  low power state.
 
+config DRM_PANEL_EBBG_FT8719
+	tristate "EBBG FT8719 panel driver"
+	depends on OF
+	depends on DRM_MIPI_DSI
+	depends on BACKLIGHT_CLASS_DEVICE
+	help
+	  Say Y here if you want to enable support for the EBBG FT8719
+	  video mode panel. Mainly found on Xiaomi Poco F1 mobile phone.
+	  The panel has a resolution of 1080x2246. It provides a MIPI DSI
+	  interface to the host.
+
 config DRM_PANEL_ELIDA_KD35T133
 	tristate "Elida KD35T133 panel driver"
 	depends on OF
@@ -438,6 +449,8 @@ config DRM_PANEL_SAMSUNG_ATNA33XC20
 	depends on OF
 	depends on BACKLIGHT_CLASS_DEVICE
 	depends on PM
+	select DRM_DISPLAY_DP_HELPER
+	select DRM_DISPLAY_HELPER
 	select DRM_DP_AUX_BUS
 	help
 	  DRM panel driver for the Samsung ATNA33XC20 panel. This panel can't

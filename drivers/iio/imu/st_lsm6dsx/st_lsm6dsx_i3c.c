@@ -6,11 +6,11 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/i3c/device.h>
 #include <linux/i3c/master.h>
 #include <linux/slab.h>
-#include <linux/of.h>
 #include <linux/regmap.h>
 
 #include "st_lsm6dsx.h"
@@ -44,7 +44,7 @@ static int st_lsm6dsx_i3c_probe(struct i3c_device *i3cdev)
 static struct i3c_driver st_lsm6dsx_driver = {
 	.driver = {
 		.name = "st_lsm6dsx_i3c",
-		.pm = &st_lsm6dsx_pm_ops,
+		.pm = pm_sleep_ptr(&st_lsm6dsx_pm_ops),
 	},
 	.probe = st_lsm6dsx_i3c_probe,
 	.id_table = st_lsm6dsx_i3c_ids,
@@ -54,3 +54,4 @@ module_i3c_driver(st_lsm6dsx_driver);
 MODULE_AUTHOR("Vitor Soares <vitor.soares@synopsys.com>");
 MODULE_DESCRIPTION("STMicroelectronics st_lsm6dsx i3c driver");
 MODULE_LICENSE("GPL v2");
+MODULE_IMPORT_NS(IIO_LSM6DSX);

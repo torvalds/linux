@@ -129,18 +129,24 @@ yet. Bug reports are always welcome at the issue tracker below!
    * - arm64
      - Supported
      - ``LLVM=1``
+   * - hexagon
+     - Maintained
+     - ``LLVM=1``
    * - mips
      - Maintained
-     - ``CC=clang``
+     - ``LLVM=1``
    * - powerpc
      - Maintained
      - ``CC=clang``
    * - riscv
      - Maintained
-     - ``CC=clang``
+     - ``LLVM=1``
    * - s390
      - Maintained
      - ``CC=clang``
+   * - um (User Mode)
+     - Maintained
+     - ``LLVM=1``
    * - x86
      - Supported
      - ``LLVM=1``

@@ -145,7 +145,7 @@ static int em_create_perf_table(struct device *dev, struct em_perf_domain *pd,
 
 		/*
 		 * The power returned by active_state() is expected to be
-		 * positive and to fit into 16 bits.
+		 * positive and be in range.
 		 */
 		if (!power || power > EM_MAX_POWER) {
 			dev_err(dev, "EM: invalid power: %lu\n",
@@ -170,7 +170,7 @@ static int em_create_perf_table(struct device *dev, struct em_perf_domain *pd,
 				goto free_ps_table;
 			}
 		} else {
-			power_res = em_scale_power(table[i].power);
+			power_res = table[i].power;
 			cost = div64_u64(fmax * power_res, table[i].frequency);
 		}
 
@@ -201,9 +201,17 @@ static int em_create_pd(struct device *dev, int nr_states,
 {
 	struct em_perf_domain *pd;
 	struct device *cpu_dev;
-	int cpu, ret;
+	int cpu, ret, num_cpus;
 
 	if (_is_cpu_device(dev)) {
+		num_cpus = cpumask_weight(cpus);
+
+		/* Prevent max possible energy calculation to not overflow */
+		if (num_cpus > EM_MAX_NUM_CPUS) {
+			dev_err(dev, "EM: too many CPUs, overflow possible\n");
+			return -EINVAL;
+		}
+
 		pd = kzalloc(sizeof(*pd) + cpumask_size(), GFP_KERNEL);
 		if (!pd)
 			return -ENOMEM;
@@ -314,13 +322,13 @@ EXPORT_SYMBOL_GPL(em_cpu_get);
  * @cpus	: Pointer to cpumask_t, which in case of a CPU device is
  *		obligatory. It can be taken from i.e. 'policy->cpus'. For other
  *		type of devices this should be set to NULL.
- * @milliwatts	: Flag indicating that the power values are in milliWatts or
+ * @microwatts	: Flag indicating that the power values are in micro-Watts or
  *		in some other scale. It must be set properly.
  *
  * Create Energy Model tables for a performance domain using the callbacks
  * defined in cb.
  *
- * The @milliwatts is important to set with correct value. Some kernel
+ * The @microwatts is important to set with correct value. Some kernel
  * sub-systems might rely on this flag and check if all devices in the EM are
  * using the same scale.
  *
@@ -331,7 +339,7 @@ EXPORT_SYMBOL_GPL(em_cpu_get);
  */
 int em_dev_register_perf_domain(struct device *dev, unsigned int nr_states,
 				struct em_data_callback *cb, cpumask_t *cpus,
-				bool milliwatts)
+				bool microwatts)
 {
 	unsigned long cap, prev_cap = 0;
 	unsigned long flags = 0;
@@ -381,8 +389,8 @@ int em_dev_register_perf_domain(struct device *dev, unsigned int nr_states,
 		}
 	}
 
-	if (milliwatts)
-		flags |= EM_PERF_DOMAIN_MILLIWATTS;
+	if (microwatts)
+		flags |= EM_PERF_DOMAIN_MICROWATTS;
 	else if (cb->get_cost)
 		flags |= EM_PERF_DOMAIN_ARTIFICIAL;
 

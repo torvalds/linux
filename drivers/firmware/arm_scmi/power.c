@@ -122,7 +122,7 @@ scmi_power_domain_attributes_get(const struct scmi_protocol_handle *ph,
 		dom_info->state_set_notify = SUPPORTS_STATE_SET_NOTIFY(flags);
 		dom_info->state_set_async = SUPPORTS_STATE_SET_ASYNC(flags);
 		dom_info->state_set_sync = SUPPORTS_STATE_SET_SYNC(flags);
-		strlcpy(dom_info->name, attr->name, SCMI_MAX_STR_SIZE);
+		strscpy(dom_info->name, attr->name, SCMI_SHORT_NAME_MAX_SIZE);
 	}
 	ph->xops->xfer_put(ph, t);
 

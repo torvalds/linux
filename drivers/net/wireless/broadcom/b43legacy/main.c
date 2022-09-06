@@ -1241,7 +1241,7 @@ static void b43legacy_update_templates(struct b43legacy_wl *wl)
 	 * field, but that would probably require resizing and moving of data
 	 * within the beacon template. Simply request a new beacon and let
 	 * mac80211 do the hard work. */
-	beacon = ieee80211_beacon_get(wl->hw, wl->vif);
+	beacon = ieee80211_beacon_get(wl->hw, wl->vif, 0);
 	if (unlikely(!beacon))
 		return;
 
@@ -2505,7 +2505,8 @@ static void b43legacy_op_tx(struct ieee80211_hw *hw,
 }
 
 static int b43legacy_op_conf_tx(struct ieee80211_hw *hw,
-				struct ieee80211_vif *vif, u16 queue,
+				struct ieee80211_vif *vif,
+				unsigned int link_id, u16 queue,
 				const struct ieee80211_tx_queue_params *params)
 {
 	return 0;
@@ -2806,7 +2807,7 @@ static void b43legacy_update_basic_rates(struct b43legacy_wldev *dev, u32 brates
 static void b43legacy_op_bss_info_changed(struct ieee80211_hw *hw,
 				    struct ieee80211_vif *vif,
 				    struct ieee80211_bss_conf *conf,
-				    u32 changed)
+				    u64 changed)
 {
 	struct b43legacy_wl *wl = hw_to_b43legacy_wl(hw);
 	struct b43legacy_wldev *dev;
@@ -2943,7 +2944,7 @@ static void b43legacy_wireless_core_stop(struct b43legacy_wldev *dev)
 			dev_kfree_skb(skb_dequeue(&wl->tx_queue[queue_num]));
 	}
 
-b43legacy_mac_suspend(dev);
+	b43legacy_mac_suspend(dev);
 	free_irq(dev->dev->irq, dev);
 	b43legacydbg(wl, "Wireless interface stopped\n");
 }

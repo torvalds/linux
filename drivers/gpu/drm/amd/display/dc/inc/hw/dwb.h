@@ -219,12 +219,6 @@ struct dwbc_funcs {
 		struct dwbc *dwbc,
 		const struct dc_transfer_func *in_transfer_func_dwb_ogam);
 
-	void (*get_privacy_mask)(
-		struct dwbc *dwbc, uint32_t *mask_id);
-
-	void (*set_privacy_mask)(
-		struct dwbc *dwbc, uint32_t mask_id);
-
 	//TODO: merge with output_transfer_func?
 	bool (*dwb_ogam_set_input_transfer_func)(
 		struct dwbc *dwbc,

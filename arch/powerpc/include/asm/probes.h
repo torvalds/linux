@@ -9,9 +9,9 @@
  */
 #include <linux/types.h>
 #include <asm/disassemble.h>
+#include <asm/ppc-opcode.h>
 
-typedef u32 ppc_opcode_t;
-#define BREAKPOINT_INSTRUCTION	0x7fe00008	/* trap */
+#define BREAKPOINT_INSTRUCTION	PPC_RAW_TRAP()	/* trap */
 
 /* Trap definitions per ISA */
 #define IS_TW(instr)		(((instr) & 0xfc0007fe) == 0x7c000008)

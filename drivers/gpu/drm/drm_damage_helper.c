@@ -33,6 +33,7 @@
 #include <drm/drm_atomic.h>
 #include <drm/drm_damage_helper.h>
 #include <drm/drm_device.h>
+#include <drm/drm_framebuffer.h>
 
 static void convert_clip_rect_to_rect(const struct drm_clip_rect *src,
 				      struct drm_mode_rect *dest,

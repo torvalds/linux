@@ -5,7 +5,9 @@
  * Copyright 2013 Freescale Semiconductor, Inc.
  */
 
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
+#include <linux/property.h>
 #include <linux/platform_device.h>
 #include <linux/interrupt.h>
 #include <linux/delay.h>
@@ -14,10 +16,7 @@
 #include <linux/io.h>
 #include <linux/clk.h>
 #include <linux/completion.h>
-#include <linux/of.h>
-#include <linux/of_irq.h>
 #include <linux/regulator/consumer.h>
-#include <linux/of_platform.h>
 #include <linux/err.h>
 
 #include <linux/iio/iio.h>
@@ -799,6 +798,7 @@ MODULE_DEVICE_TABLE(of, vf610_adc_match);
 
 static int vf610_adc_probe(struct platform_device *pdev)
 {
+	struct device *dev = &pdev->dev;
 	struct vf610_adc *info;
 	struct iio_dev *indio_dev;
 	int irq;
@@ -846,13 +846,10 @@ static int vf610_adc_probe(struct platform_device *pdev)
 
 	info->vref_uv = regulator_get_voltage(info->vref);
 
-	of_property_read_u32_array(pdev->dev.of_node, "fsl,adck-max-frequency",
-			info->max_adck_rate, 3);
+	device_property_read_u32_array(dev, "fsl,adck-max-frequency", info->max_adck_rate, 3);
 
-	ret = of_property_read_u32(pdev->dev.of_node, "min-sample-time",
-			&info->adc_feature.default_sample_time);
-	if (ret)
-		info->adc_feature.default_sample_time = DEFAULT_SAMPLE_TIME;
+	info->adc_feature.default_sample_time = DEFAULT_SAMPLE_TIME;
+	device_property_read_u32(dev, "min-sample-time", &info->adc_feature.default_sample_time);
 
 	platform_set_drvdata(pdev, indio_dev);
 

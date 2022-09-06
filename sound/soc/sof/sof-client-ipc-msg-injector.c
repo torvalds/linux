@@ -150,7 +150,7 @@ static ssize_t sof_msg_inject_dfs_write(struct file *file, const char __user *bu
 {
 	struct sof_client_dev *cdev = file->private_data;
 	struct sof_msg_inject_priv *priv = cdev->data;
-	size_t size;
+	ssize_t size;
 	int ret;
 
 	if (*ppos)
@@ -158,8 +158,10 @@ static ssize_t sof_msg_inject_dfs_write(struct file *file, const char __user *bu
 
 	size = simple_write_to_buffer(priv->tx_buffer, priv->max_msg_size,
 				      ppos, buffer, count);
+	if (size < 0)
+		return size;
 	if (size != count)
-		return size > 0 ? -EFAULT : size;
+		return -EFAULT;
 
 	memset(priv->rx_buffer, 0, priv->max_msg_size);
 
@@ -179,7 +181,7 @@ static ssize_t sof_msg_inject_ipc4_dfs_write(struct file *file,
 	struct sof_client_dev *cdev = file->private_data;
 	struct sof_msg_inject_priv *priv = cdev->data;
 	struct sof_ipc4_msg *ipc4_msg = priv->tx_buffer;
-	size_t size;
+	size_t data_size;
 	int ret;
 
 	if (*ppos)
@@ -189,23 +191,20 @@ static ssize_t sof_msg_inject_ipc4_dfs_write(struct file *file,
 		return -EINVAL;
 
 	/* copy the header first */
-	size = simple_write_to_buffer(&ipc4_msg->header_u64,
-				      sizeof(ipc4_msg->header_u64),
-				      ppos, buffer, count);
-	if (size != sizeof(ipc4_msg->header_u64))
-		return size > 0 ? -EFAULT : size;
+	if (copy_from_user(&ipc4_msg->header_u64, buffer,
+			   sizeof(ipc4_msg->header_u64)))
+		return -EFAULT;
 
-	count -= size;
-	if (!count) {
-		/* Copy the payload */
-		size = simple_write_to_buffer(ipc4_msg->data_ptr,
-					      priv->max_msg_size, ppos, buffer,
-					      count);
-		if (size != count)
-			return size > 0 ? -EFAULT : size;
-	}
+	data_size = count - sizeof(ipc4_msg->header_u64);
+	if (data_size > priv->max_msg_size)
+		return -EINVAL;
 
-	ipc4_msg->data_size = count;
+	/* Copy the payload */
+	if (copy_from_user(ipc4_msg->data_ptr,
+			   buffer + sizeof(ipc4_msg->header_u64), data_size))
+		return -EFAULT;
+
+	ipc4_msg->data_size = data_size;
 
 	/* Initialize the reply storage */
 	ipc4_msg = priv->rx_buffer;
@@ -217,9 +216,9 @@ static ssize_t sof_msg_inject_ipc4_dfs_write(struct file *file,
 
 	/* return the error code if test failed */
 	if (ret < 0)
-		size = ret;
+		return ret;
 
-	return size;
+	return count;
 };
 
 static int sof_msg_inject_dfs_release(struct inode *inode, struct file *file)

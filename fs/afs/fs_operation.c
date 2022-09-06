@@ -232,14 +232,14 @@ int afs_put_operation(struct afs_operation *op)
 	if (op->file[1].modification && op->file[1].vnode != op->file[0].vnode)
 		clear_bit(AFS_VNODE_MODIFYING, &op->file[1].vnode->flags);
 	if (op->file[0].put_vnode)
-		iput(&op->file[0].vnode->vfs_inode);
+		iput(&op->file[0].vnode->netfs.inode);
 	if (op->file[1].put_vnode)
-		iput(&op->file[1].vnode->vfs_inode);
+		iput(&op->file[1].vnode->netfs.inode);
 
 	if (op->more_files) {
 		for (i = 0; i < op->nr_files - 2; i++)
 			if (op->more_files[i].put_vnode)
-				iput(&op->more_files[i].vnode->vfs_inode);
+				iput(&op->more_files[i].vnode->netfs.inode);
 		kfree(op->more_files);
 	}
 

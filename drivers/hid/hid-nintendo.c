@@ -292,6 +292,7 @@ static const struct joycon_rumble_amp_data joycon_rumble_amplitudes[] = {
 };
 static const u16 JC_RUMBLE_DFLT_LOW_FREQ = 160;
 static const u16 JC_RUMBLE_DFLT_HIGH_FREQ = 320;
+static const unsigned short JC_RUMBLE_ZERO_AMP_PKT_CNT = 5;
 #endif /* IS_ENABLED(CONFIG_NINTENDO_FF) */
 static const u16 JC_RUMBLE_PERIOD_MS = 50;
 
@@ -401,8 +402,6 @@ struct joycon_input_report {
 #define JC_MAX_RESP_SIZE	(sizeof(struct joycon_input_report) + 35)
 #define JC_RUMBLE_DATA_SIZE	8
 #define JC_RUMBLE_QUEUE_SIZE	8
-
-static const unsigned short JC_RUMBLE_ZERO_AMP_PKT_CNT = 5;
 
 static const char * const joycon_player_led_names[] = {
 	LED_FUNCTION_PLAYER1,
@@ -1222,6 +1221,7 @@ static void joycon_parse_report(struct joycon_ctlr *ctlr,
 
 	spin_lock_irqsave(&ctlr->lock, flags);
 	if (IS_ENABLED(CONFIG_NINTENDO_FF) && rep->vibrator_report &&
+	    ctlr->ctlr_state != JOYCON_CTLR_STATE_REMOVED &&
 	    (msecs - ctlr->rumble_msecs) >= JC_RUMBLE_PERIOD_MS &&
 	    (ctlr->rumble_queue_head != ctlr->rumble_queue_tail ||
 	     ctlr->rumble_zero_countdown > 0)) {
@@ -1546,11 +1546,12 @@ static int joycon_set_rumble(struct joycon_ctlr *ctlr, u16 amp_r, u16 amp_l,
 		ctlr->rumble_queue_head = 0;
 	memcpy(ctlr->rumble_data[ctlr->rumble_queue_head], data,
 	       JC_RUMBLE_DATA_SIZE);
-	spin_unlock_irqrestore(&ctlr->lock, flags);
 
 	/* don't wait for the periodic send (reduces latency) */
-	if (schedule_now)
+	if (schedule_now && ctlr->ctlr_state != JOYCON_CTLR_STATE_REMOVED)
 		queue_work(ctlr->rumble_queue, &ctlr->rumble_worker);
+
+	spin_unlock_irqrestore(&ctlr->lock, flags);
 
 	return 0;
 }
@@ -1586,6 +1587,7 @@ static const unsigned int joycon_button_inputs_r[] = {
 /* We report joy-con d-pad inputs as buttons and pro controller as a hat. */
 static const unsigned int joycon_dpad_inputs_jc[] = {
 	BTN_DPAD_UP, BTN_DPAD_DOWN, BTN_DPAD_LEFT, BTN_DPAD_RIGHT,
+	0 /* 0 signals end of array */
 };
 
 static int joycon_input_create(struct joycon_ctlr *ctlr)
@@ -1634,6 +1636,7 @@ static int joycon_input_create(struct joycon_ctlr *ctlr)
 	ctlr->input->id.version = hdev->version;
 	ctlr->input->uniq = ctlr->mac_addr_str;
 	ctlr->input->name = name;
+	ctlr->input->phys = hdev->phys;
 	input_set_drvdata(ctlr->input, ctlr);
 
 	/* set up sticks and buttons */
@@ -1713,6 +1716,7 @@ static int joycon_input_create(struct joycon_ctlr *ctlr)
 	ctlr->imu_input->id.version = hdev->version;
 	ctlr->imu_input->uniq = ctlr->mac_addr_str;
 	ctlr->imu_input->name = imu_name;
+	ctlr->imu_input->phys = hdev->phys;
 	input_set_drvdata(ctlr->imu_input, ctlr);
 
 	/* configure imu axes */

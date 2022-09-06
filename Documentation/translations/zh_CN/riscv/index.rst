@@ -19,7 +19,6 @@ RISC-V 体系结构
 
     boot-image-header
     vm-layout
-    pmu
     patch-acceptance
 
 

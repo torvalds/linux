@@ -575,11 +575,18 @@ static void dsc_write_to_registers(struct display_stream_compressor *dsc, const 
 		PIC_HEIGHT, reg_vals->pps.pic_height);
 
 	// dscc registers
-	REG_SET_4(DSCC_CONFIG0, 0,
-		ICH_RESET_AT_END_OF_LINE, reg_vals->ich_reset_at_eol,
-		NUMBER_OF_SLICES_PER_LINE, reg_vals->num_slices_h - 1,
-		ALTERNATE_ICH_ENCODING_EN, reg_vals->alternate_ich_encoding_en,
-		NUMBER_OF_SLICES_IN_VERTICAL_DIRECTION, reg_vals->num_slices_v - 1);
+	if (dsc20->dsc_mask->ICH_RESET_AT_END_OF_LINE == 0) {
+		REG_SET_3(DSCC_CONFIG0, 0,
+			  NUMBER_OF_SLICES_PER_LINE, reg_vals->num_slices_h - 1,
+			  ALTERNATE_ICH_ENCODING_EN, reg_vals->alternate_ich_encoding_en,
+			  NUMBER_OF_SLICES_IN_VERTICAL_DIRECTION, reg_vals->num_slices_v - 1);
+	} else {
+		REG_SET_4(DSCC_CONFIG0, 0, ICH_RESET_AT_END_OF_LINE,
+			  reg_vals->ich_reset_at_eol, NUMBER_OF_SLICES_PER_LINE,
+			  reg_vals->num_slices_h - 1, ALTERNATE_ICH_ENCODING_EN,
+			  reg_vals->alternate_ich_encoding_en, NUMBER_OF_SLICES_IN_VERTICAL_DIRECTION,
+			  reg_vals->num_slices_v - 1);
+	}
 
 	REG_SET(DSCC_CONFIG1, 0,
 			DSCC_RATE_CONTROL_BUFFER_MODEL_SIZE, reg_vals->rc_buffer_model_size);

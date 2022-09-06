@@ -83,7 +83,7 @@ static int z_erofs_lz4_prepare_dstpages(struct z_erofs_lz4_decompress_ctx *ctx,
 			j = 0;
 
 		/* 'valid' bounced can only be tested after a complete round */
-		if (test_bit(j, bounced)) {
+		if (!rq->fillgaps && test_bit(j, bounced)) {
 			DBG_BUGON(i < lz4_max_distance_pages);
 			DBG_BUGON(top >= lz4_max_distance_pages);
 			availables[top++] = rq->out[i - lz4_max_distance_pages];
@@ -91,14 +91,18 @@ static int z_erofs_lz4_prepare_dstpages(struct z_erofs_lz4_decompress_ctx *ctx,
 
 		if (page) {
 			__clear_bit(j, bounced);
-			if (kaddr) {
-				if (kaddr + PAGE_SIZE == page_address(page))
+			if (!PageHighMem(page)) {
+				if (!i) {
+					kaddr = page_address(page);
+					continue;
+				}
+				if (kaddr &&
+				    kaddr + PAGE_SIZE == page_address(page)) {
 					kaddr += PAGE_SIZE;
-				else
-					kaddr = NULL;
-			} else if (!i) {
-				kaddr = page_address(page);
+					continue;
+				}
 			}
+			kaddr = NULL;
 			continue;
 		}
 		kaddr = NULL;

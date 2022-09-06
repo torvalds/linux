@@ -370,12 +370,54 @@ struct drm_dp_aux {
 	 * helpers assume this is the case.
 	 *
 	 * Also note that this callback can be called no matter the
-	 * state @dev is in. Drivers that need that device to be powered
-	 * to perform this operation will first need to make sure it's
-	 * been properly enabled.
+	 * state @dev is in and also no matter what state the panel is
+	 * in. It's expected:
+	 *
+	 * - If the @dev providing the AUX bus is currently unpowered then
+	 *   it will power itself up for the transfer.
+	 *
+	 * - If we're on eDP (using a drm_panel) and the panel is not in a
+	 *   state where it can respond (it's not powered or it's in a
+	 *   low power state) then this function may return an error, but
+	 *   not crash. It's up to the caller of this code to make sure that
+	 *   the panel is powered on if getting an error back is not OK. If a
+	 *   drm_panel driver is initiating a DP AUX transfer it may power
+	 *   itself up however it wants. All other code should ensure that
+	 *   the pre_enable() bridge chain (which eventually calls the
+	 *   drm_panel prepare function) has powered the panel.
 	 */
 	ssize_t (*transfer)(struct drm_dp_aux *aux,
 			    struct drm_dp_aux_msg *msg);
+
+	/**
+	 * @wait_hpd_asserted: wait for HPD to be asserted
+	 *
+	 * This is mainly useful for eDP panels drivers to wait for an eDP
+	 * panel to finish powering on. This is an optional function.
+	 *
+	 * This function will efficiently wait for the HPD signal to be
+	 * asserted. The `wait_us` parameter that is passed in says that we
+	 * know that the HPD signal is expected to be asserted within `wait_us`
+	 * microseconds. This function could wait for longer than `wait_us` if
+	 * the logic in the DP controller has a long debouncing time. The
+	 * important thing is that if this function returns success that the
+	 * DP controller is ready to send AUX transactions.
+	 *
+	 * This function returns 0 if HPD was asserted or -ETIMEDOUT if time
+	 * expired and HPD wasn't asserted. This function should not print
+	 * timeout errors to the log.
+	 *
+	 * The semantics of this function are designed to match the
+	 * readx_poll_timeout() function. That means a `wait_us` of 0 means
+	 * to wait forever. Like readx_poll_timeout(), this function may sleep.
+	 *
+	 * NOTE: this function specifically reports the state of the HPD pin
+	 * that's associated with the DP AUX channel. This is different from
+	 * the HPD concept in much of the rest of DRM which is more about
+	 * physical presence of a display. For eDP, for instance, a display is
+	 * assumed always present even if the HPD pin is deasserted.
+	 */
+	int (*wait_hpd_asserted)(struct drm_dp_aux *aux, unsigned long wait_us);
 
 	/**
 	 * @i2c_nack_count: Counts I2C NACKs, used for DP validation.

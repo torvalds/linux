@@ -425,21 +425,9 @@ static inline int flock_translate_cmd(int cmd) {
 }
 
 /* Fill in a file_lock structure with an appropriate FLOCK lock. */
-static struct file_lock *
-flock_make_lock(struct file *filp, unsigned int cmd, struct file_lock *fl)
+static void flock_make_lock(struct file *filp, struct file_lock *fl, int type)
 {
-	int type = flock_translate_cmd(cmd);
-
-	if (type < 0)
-		return ERR_PTR(type);
-
-	if (fl == NULL) {
-		fl = locks_alloc_lock();
-		if (fl == NULL)
-			return ERR_PTR(-ENOMEM);
-	} else {
-		locks_init_lock(fl);
-	}
+	locks_init_lock(fl);
 
 	fl->fl_file = filp;
 	fl->fl_owner = filp;
@@ -447,8 +435,6 @@ flock_make_lock(struct file *filp, unsigned int cmd, struct file_lock *fl)
 	fl->fl_flags = FL_FLOCK;
 	fl->fl_type = type;
 	fl->fl_end = OFFSET_MAX;
-
-	return fl;
 }
 
 static int assign_type(struct file_lock *fl, long type)
@@ -2097,21 +2083,9 @@ EXPORT_SYMBOL(locks_lock_inode_wait);
  */
 SYSCALL_DEFINE2(flock, unsigned int, fd, unsigned int, cmd)
 {
-	struct fd f = fdget(fd);
-	struct file_lock *lock;
-	int can_sleep, unlock;
-	int error;
-
-	error = -EBADF;
-	if (!f.file)
-		goto out;
-
-	can_sleep = !(cmd & LOCK_NB);
-	cmd &= ~LOCK_NB;
-	unlock = (cmd == LOCK_UN);
-
-	if (!unlock && !(f.file->f_mode & (FMODE_READ|FMODE_WRITE)))
-		goto out_putf;
+	int can_sleep, error, type;
+	struct file_lock fl;
+	struct fd f;
 
 	/*
 	 * LOCK_MAND locks were broken for a long time in that they never
@@ -2123,36 +2097,42 @@ SYSCALL_DEFINE2(flock, unsigned int, fd, unsigned int, cmd)
 	 */
 	if (cmd & LOCK_MAND) {
 		pr_warn_once("Attempt to set a LOCK_MAND lock via flock(2). This support has been removed and the request ignored.\n");
-		error = 0;
-		goto out_putf;
+		return 0;
 	}
 
-	lock = flock_make_lock(f.file, cmd, NULL);
-	if (IS_ERR(lock)) {
-		error = PTR_ERR(lock);
+	type = flock_translate_cmd(cmd & ~LOCK_NB);
+	if (type < 0)
+		return type;
+
+	error = -EBADF;
+	f = fdget(fd);
+	if (!f.file)
+		return error;
+
+	if (type != F_UNLCK && !(f.file->f_mode & (FMODE_READ | FMODE_WRITE)))
 		goto out_putf;
-	}
 
-	if (can_sleep)
-		lock->fl_flags |= FL_SLEEP;
+	flock_make_lock(f.file, &fl, type);
 
-	error = security_file_lock(f.file, lock->fl_type);
+	error = security_file_lock(f.file, fl.fl_type);
 	if (error)
-		goto out_free;
+		goto out_putf;
+
+	can_sleep = !(cmd & LOCK_NB);
+	if (can_sleep)
+		fl.fl_flags |= FL_SLEEP;
 
 	if (f.file->f_op->flock)
 		error = f.file->f_op->flock(f.file,
-					  (can_sleep) ? F_SETLKW : F_SETLK,
-					  lock);
+					    (can_sleep) ? F_SETLKW : F_SETLK,
+					    &fl);
 	else
-		error = locks_lock_file_wait(f.file, lock);
+		error = locks_lock_file_wait(f.file, &fl);
 
- out_free:
-	locks_free_lock(lock);
-
+	locks_release_private(&fl);
  out_putf:
 	fdput(f);
- out:
+
 	return error;
 }
 
@@ -2614,7 +2594,7 @@ locks_remove_flock(struct file *filp, struct file_lock_context *flctx)
 	if (list_empty(&flctx->flc_flock))
 		return;
 
-	flock_make_lock(filp, LOCK_UN, &fl);
+	flock_make_lock(filp, &fl, F_UNLCK);
 	fl.fl_flags |= FL_CLOSE;
 
 	if (filp->f_op->flock)
