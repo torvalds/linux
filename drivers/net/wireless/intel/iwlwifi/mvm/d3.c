@@ -1944,6 +1944,94 @@ out:
 	return true;
 }
 
+static void iwl_mvm_convert_gtk_v2(struct iwl_wowlan_status_data *status,
+				   struct iwl_wowlan_gtk_status_v2 *data)
+{
+	BUILD_BUG_ON(sizeof(status->gtk.key) < sizeof(data->key));
+	BUILD_BUG_ON(NL80211_TKIP_DATA_OFFSET_RX_MIC_KEY +
+		     sizeof(data->tkip_mic_key) >
+		     sizeof(status->gtk.key));
+
+	status->gtk.len = data->key_len;
+	status->gtk.flags = data->key_flags;
+
+	memcpy(status->gtk.key, data->key, sizeof(data->key));
+
+	/* if it's as long as the TKIP encryption key, copy MIC key */
+	if (status->gtk.len == NL80211_TKIP_DATA_OFFSET_TX_MIC_KEY)
+		memcpy(status->gtk.key + NL80211_TKIP_DATA_OFFSET_RX_MIC_KEY,
+		       data->tkip_mic_key, sizeof(data->tkip_mic_key));
+}
+
+static void iwl_mvm_convert_gtk_v3(struct iwl_wowlan_status_data *status,
+				   struct iwl_wowlan_gtk_status_v3 *data)
+{
+	/* The parts we need are identical in v2 and v3 */
+#define CHECK(_f) do {							\
+	BUILD_BUG_ON(offsetof(struct iwl_wowlan_gtk_status_v2, _f) !=	\
+		     offsetof(struct iwl_wowlan_gtk_status_v3, _f));	\
+	BUILD_BUG_ON(offsetofend(struct iwl_wowlan_gtk_status_v2, _f) !=\
+		     offsetofend(struct iwl_wowlan_gtk_status_v3, _f));	\
+} while (0)
+
+	CHECK(key);
+	CHECK(key_len);
+	CHECK(key_flags);
+	CHECK(tkip_mic_key);
+#undef CHECK
+
+	iwl_mvm_convert_gtk_v2(status, (void *)data);
+}
+
+static void iwl_mvm_convert_igtk(struct iwl_wowlan_status_data *status,
+				 struct iwl_wowlan_igtk_status *data)
+{
+	const u8 *ipn = data->ipn;
+
+	BUILD_BUG_ON(sizeof(status->igtk.key) < sizeof(data->key));
+
+	status->igtk.len = data->key_len;
+	status->igtk.flags = data->key_flags;
+
+	memcpy(status->igtk.key, data->key, sizeof(data->key));
+
+	status->igtk.ipn = ((u64)ipn[5] <<  0) |
+			   ((u64)ipn[4] <<  8) |
+			   ((u64)ipn[3] << 16) |
+			   ((u64)ipn[2] << 24) |
+			   ((u64)ipn[1] << 32) |
+			   ((u64)ipn[0] << 40);
+}
+
+static void iwl_mvm_parse_wowlan_info_notif(struct iwl_mvm *mvm,
+					    struct iwl_wowlan_info_notif *data,
+					    struct iwl_wowlan_status_data *status,
+					    u32 len)
+{
+	u32 i;
+
+	if (len < sizeof(*data)) {
+		IWL_ERR(mvm, "Invalid WoWLAN info notification!\n");
+		status = NULL;
+		return;
+	}
+
+	iwl_mvm_convert_key_counters_v5(status, &data->gtk[0].sc);
+	iwl_mvm_convert_gtk_v3(status, &data->gtk[0]);
+	iwl_mvm_convert_igtk(status, &data->igtk[0]);
+
+	status->replay_ctr = le64_to_cpu(data->replay_ctr);
+	status->pattern_number = le16_to_cpu(data->pattern_number);
+	for (i = 0; i < IWL_MAX_TID_COUNT; i++)
+		status->qos_seq_ctr[i] =
+			le16_to_cpu(data->qos_seq_ctr[i]);
+	status->wakeup_reasons = le32_to_cpu(data->wakeup_reasons);
+	status->num_of_gtk_rekeys =
+		le32_to_cpu(data->num_of_gtk_rekeys);
+	status->received_beacons = le32_to_cpu(data->received_beacons);
+	status->tid_tear_down = data->tid_tear_down;
+}
+
 /* Occasionally, templates would be nice. This is one of those times ... */
 #define iwl_mvm_parse_wowlan_status_common(_ver)			\
 static struct iwl_wowlan_status_data *					\
@@ -2004,89 +2092,6 @@ iwl_mvm_parse_wowlan_status_common(v6)
 iwl_mvm_parse_wowlan_status_common(v7)
 iwl_mvm_parse_wowlan_status_common(v9)
 iwl_mvm_parse_wowlan_status_common(v12)
-
-static void iwl_mvm_parse_wowlan_info_notif(struct iwl_mvm *mvm,
-					    struct iwl_wowlan_info_notif *data,
-					    struct iwl_wowlan_status_data *status,
-					    u32 len)
-{
-	u32 i;
-
-	if (len < sizeof(*data)) {
-		IWL_ERR(mvm, "Invalid WoWLAN info notification!\n");
-		status = NULL;
-		return;
-	}
-
-	status->replay_ctr = le64_to_cpu(data->replay_ctr);
-	status->pattern_number = le16_to_cpu(data->pattern_number);
-	for (i = 0; i < IWL_MAX_TID_COUNT; i++)
-		status->qos_seq_ctr[i] =
-			le16_to_cpu(data->qos_seq_ctr[i]);
-	status->wakeup_reasons = le32_to_cpu(data->wakeup_reasons);
-	status->num_of_gtk_rekeys =
-		le32_to_cpu(data->num_of_gtk_rekeys);
-	status->received_beacons = le32_to_cpu(data->received_beacons);
-}
-
-static void iwl_mvm_convert_gtk_v2(struct iwl_wowlan_status_data *status,
-				   struct iwl_wowlan_gtk_status_v2 *data)
-{
-	BUILD_BUG_ON(sizeof(status->gtk.key) < sizeof(data->key));
-	BUILD_BUG_ON(NL80211_TKIP_DATA_OFFSET_RX_MIC_KEY +
-		     sizeof(data->tkip_mic_key) >
-		     sizeof(status->gtk.key));
-
-	status->gtk.len = data->key_len;
-	status->gtk.flags = data->key_flags;
-
-	memcpy(status->gtk.key, data->key, sizeof(data->key));
-
-	/* if it's as long as the TKIP encryption key, copy MIC key */
-	if (status->gtk.len == NL80211_TKIP_DATA_OFFSET_TX_MIC_KEY)
-		memcpy(status->gtk.key + NL80211_TKIP_DATA_OFFSET_RX_MIC_KEY,
-		       data->tkip_mic_key, sizeof(data->tkip_mic_key));
-}
-
-static void iwl_mvm_convert_gtk_v3(struct iwl_wowlan_status_data *status,
-				   struct iwl_wowlan_gtk_status_v3 *data)
-{
-	/* The parts we need are identical in v2 and v3 */
-#define CHECK(_f) do {							\
-	BUILD_BUG_ON(offsetof(struct iwl_wowlan_gtk_status_v2, _f) !=	\
-		     offsetof(struct iwl_wowlan_gtk_status_v3, _f));	\
-	BUILD_BUG_ON(offsetofend(struct iwl_wowlan_gtk_status_v2, _f) !=\
-		     offsetofend(struct iwl_wowlan_gtk_status_v3, _f));	\
-} while (0)
-
-	CHECK(key);
-	CHECK(key_len);
-	CHECK(key_flags);
-	CHECK(tkip_mic_key);
-#undef CHECK
-
-	iwl_mvm_convert_gtk_v2(status, (void *)data);
-}
-
-static void iwl_mvm_convert_igtk(struct iwl_wowlan_status_data *status,
-				 struct iwl_wowlan_igtk_status *data)
-{
-	const u8 *ipn = data->ipn;
-
-	BUILD_BUG_ON(sizeof(status->igtk.key) < sizeof(data->key));
-
-	status->igtk.len = data->key_len;
-	status->igtk.flags = data->key_flags;
-
-	memcpy(status->igtk.key, data->key, sizeof(data->key));
-
-	status->igtk.ipn = ((u64)ipn[5] <<  0) |
-			   ((u64)ipn[4] <<  8) |
-			   ((u64)ipn[3] << 16) |
-			   ((u64)ipn[2] << 24) |
-			   ((u64)ipn[1] << 32) |
-			   ((u64)ipn[0] << 40);
-}
 
 static struct iwl_wowlan_status_data *
 iwl_mvm_send_wowlan_get_status(struct iwl_mvm *mvm, u8 sta_id)
