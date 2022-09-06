@@ -2517,16 +2517,21 @@ static bool iwl_mvm_check_rt_status(struct iwl_mvm *mvm,
  * enum iwl_d3_notif - d3 notifications
  * @IWL_D3_NOTIF_WOWLAN_INFO: WOWLAN_INFO_NOTIF was received
  * @IWL_D3_NOTIF_WOWLAN_WAKE_PKT: WOWLAN_WAKE_PKT_NOTIF was received
+ * @IWL_D3_NOTIF_PROT_OFFLOAD: PROT_OFFLOAD_NOTIF was received
+ * @IWL_D3_NOTIF_D3_END_NOTIF: D3_END_NOTIF was received
  */
 enum iwl_d3_notif {
 	IWL_D3_NOTIF_WOWLAN_INFO =	BIT(0),
 	IWL_D3_NOTIF_WOWLAN_WAKE_PKT =	BIT(1),
+	IWL_D3_NOTIF_PROT_OFFLOAD =	BIT(2),
+	IWL_D3_NOTIF_D3_END_NOTIF =	BIT(3)
 };
 
 /* manage d3 resume data */
 struct iwl_d3_data {
 	struct iwl_wowlan_status_data *status;
 	bool test;
+	u32 d3_end_flags;
 	u32 notif_expected;	/* bitmap - see &enum iwl_d3_notif */
 	u32 notif_received;	/* bitmap - see &enum iwl_d3_notif */
 };
@@ -2670,6 +2675,14 @@ static bool iwl_mvm_wait_d3_notif(struct iwl_notif_wait_data *notif_wait,
 
 		break;
 	}
+	case WIDE_ID(PROT_OFFLOAD_GROUP, D3_END_NOTIFICATION): {
+		struct iwl_mvm_d3_end_notif *notif = (void *)pkt->data;
+
+		d3_data->d3_end_flags = __le32_to_cpu(notif->flags);
+		d3_data->notif_received |= IWL_D3_NOTIF_D3_END_NOTIF;
+
+		break;
+	}
 	default:
 		WARN_ON(1);
 	}
@@ -2686,7 +2699,8 @@ static int iwl_mvm_d3_notif_wait(struct iwl_mvm *mvm,
 {
 	static const u16 d3_resume_notif[] = {
 		WIDE_ID(PROT_OFFLOAD_GROUP, WOWLAN_INFO_NOTIFICATION),
-		WIDE_ID(PROT_OFFLOAD_GROUP, WOWLAN_WAKE_PKT_NOTIFICATION)
+		WIDE_ID(PROT_OFFLOAD_GROUP, WOWLAN_WAKE_PKT_NOTIFICATION),
+		WIDE_ID(PROT_OFFLOAD_GROUP, D3_END_NOTIFICATION)
 	};
 	struct iwl_notification_wait wait_d3_notif;
 	int ret;
@@ -2718,7 +2732,9 @@ static int __iwl_mvm_resume(struct iwl_mvm *mvm, bool test)
 	enum iwl_d3_status d3_status;
 	struct iwl_d3_data d3_data = {
 		.test = test,
-		.notif_expected = IWL_D3_NOTIF_WOWLAN_INFO,
+		.notif_expected =
+			IWL_D3_NOTIF_WOWLAN_INFO |
+			IWL_D3_NOTIF_D3_END_NOTIF,
 	};
 	bool unified_image = fw_has_capa(&mvm->fw->ucode_capa,
 					 IWL_UCODE_TLV_CAPA_CNSLDTD_D3_D0_IMG);
@@ -2788,6 +2804,10 @@ static int __iwl_mvm_resume(struct iwl_mvm *mvm, bool test)
 	/* after the successful handshake, we're out of D3 */
 	mvm->trans->system_pm_mode = IWL_PLAT_PM_MODE_DISABLED;
 
+	/* when reset is required we can't send these following commands */
+	if (d3_data.d3_end_flags & IWL_D0I3_RESET_REQUIRE)
+		goto query_wakeup_reasons;
+
 	/*
 	 * Query the current location and source from the D3 firmware so we
 	 * can play it back when we re-intiailize the D0 firmware
@@ -2812,6 +2832,7 @@ static int __iwl_mvm_resume(struct iwl_mvm *mvm, bool test)
 					false);
 	}
 
+query_wakeup_reasons:
 	iwl_mvm_choose_query_wakeup_reasons(mvm, vif, &d3_data, d3_data.test);
 	/* has unlocked the mutex, so skip that */
 	goto out;
@@ -2832,9 +2853,14 @@ out:
 		if (d0i3_first)
 			return 0;
 
-		ret = iwl_mvm_send_cmd_pdu(mvm, D0I3_END_CMD, 0, 0, NULL);
-		if (!ret)
+		if (!iwl_fw_lookup_notif_ver(mvm->fw, PROT_OFFLOAD_GROUP,
+					     D3_END_NOTIFICATION, 0)) {
+			ret = iwl_mvm_send_cmd_pdu(mvm, D0I3_END_CMD, 0, 0, NULL);
+			if (!ret)
+				return 0;
+		} else if (!(d3_data.d3_end_flags & IWL_D0I3_RESET_REQUIRE)) {
 			return 0;
+		}
 	}
 
 	/*

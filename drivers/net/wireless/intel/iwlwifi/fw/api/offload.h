@@ -23,6 +23,11 @@ enum iwl_prot_offload_subcmd_ids {
 	WOWLAN_INFO_NOTIFICATION = 0xFD,
 
 	/**
+	 * @D3_END_NOTIFICATION: End D3 state notification
+	 */
+	D3_END_NOTIFICATION = 0xFE,
+
+	/**
 	 * @STORED_BEACON_NTF: &struct iwl_stored_beacon_notif
 	 */
 	STORED_BEACON_NTF = 0xFF,

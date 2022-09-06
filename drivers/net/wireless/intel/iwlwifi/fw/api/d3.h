@@ -817,6 +817,14 @@ struct iwl_wowlan_wake_pkt_notif {
 	u8 wake_packet[1];
 } __packed; /* WOWLAN_WAKE_PKT_NTFY_API_S_VER_1 */
 
+/**
+ * struct iwl_mvm_d3_end_notif -  d3 end notification
+ * @flags: See &enum iwl_d0i3_flags
+ */
+struct iwl_mvm_d3_end_notif {
+	__le32 flags;
+} __packed;
+
 /* TODO: NetDetect API */
 
 #endif /* __iwl_fw_api_d3_h__ */
