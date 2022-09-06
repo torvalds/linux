@@ -19,6 +19,8 @@
 typedef u64 __bitwise sci_t;
 typedef u32 __bitwise ssci_t;
 
+struct metadata_dst;
+
 typedef union salt {
 	struct {
 		u32 ssci;
@@ -182,6 +184,7 @@ struct macsec_tx_sa {
  * @scb: single copy broadcast flag
  * @sa: array of secure associations
  * @stats: stats for this TXSC
+ * @md_dst: MACsec offload metadata dst
  */
 struct macsec_tx_sc {
 	bool active;
@@ -192,6 +195,7 @@ struct macsec_tx_sc {
 	bool scb;
 	struct macsec_tx_sa __rcu *sa[MACSEC_NUM_AN];
 	struct pcpu_tx_sc_stats __percpu *stats;
+	struct metadata_dst *md_dst;
 };
 
 /**
