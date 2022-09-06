@@ -1023,8 +1023,10 @@ static void cleanup_params(struct i915_gpu_coredump *error)
 
 static void cleanup_uc(struct intel_uc_coredump *uc)
 {
-	kfree(uc->guc_fw.path);
-	kfree(uc->huc_fw.path);
+	kfree(uc->guc_fw.file_selected.path);
+	kfree(uc->huc_fw.file_selected.path);
+	kfree(uc->guc_fw.file_wanted.path);
+	kfree(uc->huc_fw.file_wanted.path);
 	i915_vma_coredump_free(uc->guc.vma_log);
 	i915_vma_coredump_free(uc->guc.vma_ctb);
 
@@ -1706,12 +1708,10 @@ gt_record_uc(struct intel_gt_coredump *gt,
 	memcpy(&error_uc->guc_fw, &uc->guc.fw, sizeof(uc->guc.fw));
 	memcpy(&error_uc->huc_fw, &uc->huc.fw, sizeof(uc->huc.fw));
 
-	/* Non-default firmware paths will be specified by the modparam.
-	 * As modparams are generally accesible from the userspace make
-	 * explicit copies of the firmware paths.
-	 */
-	error_uc->guc_fw.path = kstrdup(uc->guc.fw.path, ALLOW_FAIL);
-	error_uc->huc_fw.path = kstrdup(uc->huc.fw.path, ALLOW_FAIL);
+	error_uc->guc_fw.file_selected.path = kstrdup(uc->guc.fw.file_selected.path, ALLOW_FAIL);
+	error_uc->huc_fw.file_selected.path = kstrdup(uc->huc.fw.file_selected.path, ALLOW_FAIL);
+	error_uc->guc_fw.file_wanted.path = kstrdup(uc->guc.fw.file_wanted.path, ALLOW_FAIL);
+	error_uc->huc_fw.file_wanted.path = kstrdup(uc->huc.fw.file_wanted.path, ALLOW_FAIL);
 
 	/*
 	 * Save the GuC log and include a timestamp reference for converting the
