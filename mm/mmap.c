@@ -3042,7 +3042,7 @@ static int do_brk_munmap(struct ma_state *mas, struct vm_area_struct *vma,
 	int ret;
 
 	arch_unmap(mm, newbrk, oldbrk);
-	ret = do_mas_munmap(mas, mm, newbrk, oldbrk-newbrk, uf, true);
+	ret = do_mas_align_munmap(mas, vma, mm, newbrk, oldbrk, uf, true);
 	validate_mm_mt(mm);
 	return ret;
 }
