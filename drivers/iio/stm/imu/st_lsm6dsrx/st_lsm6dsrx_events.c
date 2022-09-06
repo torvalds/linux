@@ -14,6 +14,7 @@
 #include <linux/iio/triggered_buffer.h>
 #include <linux/iio/trigger.h>
 #include <linux/iio/buffer.h>
+#include <linux/version.h>
 
 #include "st_lsm6dsrx.h"
 
@@ -742,14 +743,15 @@ static inline int st_lsm6dsrx_get_wk(struct st_lsm6dsrx_hw *hw, u8 *out)
 
 static irqreturn_t st_lsm6dsrx_6D_handler_thread(int irq, void *p)
 {
+	u8 iio_buf[ALIGN(1, sizeof(s64)) + sizeof(s64)];
 	struct iio_poll_func *pf = p;
 	struct iio_dev *iio_dev = pf->indio_dev;
 	struct st_lsm6dsrx_sensor *sensor = iio_priv(iio_dev);
-	u8 buffer[sizeof(u8) + sizeof(s64)];
 
-	st_lsm6dsrx_get_6D(sensor->hw, buffer);
-	iio_push_to_buffers_with_timestamp(iio_dev, buffer,
+	st_lsm6dsrx_get_6D(sensor->hw, iio_buf);
+	iio_push_to_buffers_with_timestamp(iio_dev, iio_buf,
 					   iio_get_time_ns(iio_dev));
+
 	iio_trigger_notify_done(sensor->trig);
 
 	return IRQ_HANDLED;
@@ -757,14 +759,15 @@ static irqreturn_t st_lsm6dsrx_6D_handler_thread(int irq, void *p)
 
 static irqreturn_t st_lsm6dsrx_wk_handler_thread(int irq, void *p)
 {
+	u8 iio_buf[ALIGN(1, sizeof(s64)) + sizeof(s64)];
 	struct iio_poll_func *pf = p;
 	struct iio_dev *iio_dev = pf->indio_dev;
 	struct st_lsm6dsrx_sensor *sensor = iio_priv(iio_dev);
-	u8 buffer[sizeof(u8) + sizeof(s64)];
 
-	st_lsm6dsrx_get_wk(sensor->hw, buffer);
-	iio_push_to_buffers_with_timestamp(iio_dev, buffer,
+	st_lsm6dsrx_get_wk(sensor->hw, iio_buf);
+	iio_push_to_buffers_with_timestamp(iio_dev, iio_buf,
 					   iio_get_time_ns(iio_dev));
+
 	iio_trigger_notify_done(sensor->trig);
 
 	return IRQ_HANDLED;
@@ -798,6 +801,10 @@ static int st_lsm6dsrx_buffer_postdisable(struct iio_dev *iio_dev)
 
 static const struct iio_buffer_setup_ops st_lsm6dsrx_buffer_ops = {
 	.preenable = st_lsm6dsrx_buffer_preenable,
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5,10,0)
+	.postenable = iio_triggered_buffer_postenable,
+	.predisable = iio_triggered_buffer_predisable,
+#endif /* LINUX_VERSION_CODE */
 	.postdisable = st_lsm6dsrx_buffer_postdisable,
 };
 
@@ -857,16 +864,24 @@ int st_lsm6dsrx_probe_event(struct st_lsm6dsrx_hw *hw)
 		sensor->trig = devm_iio_trigger_alloc(hw->dev,
 						      "%s-trigger",
 						      iio_dev->name);
-		if (!sensor->trig)
+		if (!sensor->trig) {
+			dev_err(hw->dev,
+				"failed to allocate iio trigger.\n");
+
 			return -ENOMEM;
+		}
 
 		iio_trigger_set_drvdata(sensor->trig, iio_dev);
 		sensor->trig->ops = &st_lsm6dsrx_trigger_ops;
 		sensor->trig->dev.parent = hw->dev;
 
 		err = devm_iio_trigger_register(hw->dev, sensor->trig);
-		if (err)
+		if (err < 0) {
+			dev_err(hw->dev,
+				"failed to register iio trigger.\n");
+
 			return err;
+		}
 
 		iio_dev->trig = iio_trigger_get(sensor->trig);
 	}
@@ -875,9 +890,14 @@ int st_lsm6dsrx_probe_event(struct st_lsm6dsrx_hw *hw)
 		if (!hw->iio_devs[i])
 			continue;
 
-		err = devm_iio_device_register(hw->dev, hw->iio_devs[i]);
-		if (err)
+		err = devm_iio_device_register(hw->dev,
+					       hw->iio_devs[i]);
+		if (err) {
+			dev_err(hw->dev,
+				"failed to register iio device.\n");
+
 			return err;
+		}
 	}
 
 	return st_lsm6dsrx_config_default_events(hw);
