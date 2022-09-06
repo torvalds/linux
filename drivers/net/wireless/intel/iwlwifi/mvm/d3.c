@@ -2771,11 +2771,46 @@ static bool iwl_mvm_wait_d3_notif(struct iwl_notif_wait_data *notif_wait,
 	return d3_data->notif_received == d3_data->notif_expected;
 }
 
+static int iwl_mvm_resume_firmware(struct iwl_mvm *mvm, bool test)
+{
+	int ret;
+	enum iwl_d3_status d3_status;
+	struct iwl_host_cmd cmd = {
+			.id = D0I3_END_CMD,
+			.flags = CMD_WANT_SKB | CMD_SEND_IN_D3,
+		};
+	bool reset = fw_has_capa(&mvm->fw->ucode_capa,
+				 IWL_UCODE_TLV_CAPA_CNSLDTD_D3_D0_IMG);
+
+	ret = iwl_trans_d3_resume(mvm->trans, &d3_status, test, !reset);
+	if (ret)
+		return ret;
+
+	if (d3_status != IWL_D3_STATUS_ALIVE) {
+		IWL_INFO(mvm, "Device was reset during suspend\n");
+		return -ENOENT;
+	}
+
+	/*
+	 * We should trigger resume flow using command only for 22000 family
+	 * AX210 and above don't need the command since they have
+	 * the doorbell interrupt.
+	 */
+	if (mvm->trans->trans_cfg->device_family <= IWL_DEVICE_FAMILY_22000 &&
+	    fw_has_capa(&mvm->fw->ucode_capa, IWL_UCODE_TLV_CAPA_D0I3_END_FIRST)) {
+		ret = iwl_mvm_send_cmd(mvm, &cmd);
+		if (ret < 0)
+			IWL_ERR(mvm, "Failed to send D0I3_END_CMD first (%d)\n",
+				ret);
+	}
+
+	return ret;
+}
+
 #define IWL_MVM_D3_NOTIF_TIMEOUT (HZ / 5)
 
 static int iwl_mvm_d3_notif_wait(struct iwl_mvm *mvm,
-				 struct iwl_d3_data *d3_data,
-				 enum iwl_d3_status *d3_status)
+				 struct iwl_d3_data *d3_data)
 {
 	static const u16 d3_resume_notif[] = {
 		WIDE_ID(PROT_OFFLOAD_GROUP, WOWLAN_INFO_NOTIFICATION),
@@ -2790,16 +2825,10 @@ static int iwl_mvm_d3_notif_wait(struct iwl_mvm *mvm,
 				   d3_resume_notif, ARRAY_SIZE(d3_resume_notif),
 				   iwl_mvm_wait_d3_notif, d3_data);
 
-	ret = iwl_trans_d3_resume(mvm->trans, d3_status, d3_data->test, false);
+	ret = iwl_mvm_resume_firmware(mvm, d3_data->test);
 	if (ret) {
 		iwl_remove_notification(&mvm->notif_wait, &wait_d3_notif);
 		return ret;
-	}
-
-	if (*d3_status != IWL_D3_STATUS_ALIVE) {
-		IWL_INFO(mvm, "Device was reset during suspend\n");
-		iwl_remove_notification(&mvm->notif_wait, &wait_d3_notif);
-		return -ENOENT;
 	}
 
 	return iwl_wait_notification(&mvm->notif_wait, &wait_d3_notif,
@@ -2820,7 +2849,6 @@ static int __iwl_mvm_resume(struct iwl_mvm *mvm, bool test)
 {
 	struct ieee80211_vif *vif = NULL;
 	int ret = 1;
-	enum iwl_d3_status d3_status;
 	struct iwl_mvm_nd_results results = {};
 	struct iwl_d3_data d3_data = {
 		.test = test,
@@ -2866,32 +2894,13 @@ static int __iwl_mvm_resume(struct iwl_mvm *mvm, bool test)
 			goto err;
 		}
 
-		ret = iwl_mvm_d3_notif_wait(mvm, &d3_data, &d3_status);
-	} else {
-		ret = iwl_trans_d3_resume(mvm->trans, &d3_status, test,
-					  !unified_image);
-	}
-
-	if (ret)
-		goto err;
-
-	if (d3_status != IWL_D3_STATUS_ALIVE) {
-		IWL_INFO(mvm, "Device was reset during suspend\n");
-		goto err;
-	}
-
-	if (d0i3_first && mvm->trans->trans_cfg->device_family <= IWL_DEVICE_FAMILY_22000) {
-		struct iwl_host_cmd cmd = {
-			.id = D0I3_END_CMD,
-			.flags = CMD_WANT_SKB | CMD_SEND_IN_D3,
-		};
-
-		ret = iwl_mvm_send_cmd(mvm, &cmd);
-		if (ret < 0) {
-			IWL_ERR(mvm, "Failed to send D0I3_END_CMD first (%d)\n",
-				ret);
+		ret = iwl_mvm_d3_notif_wait(mvm, &d3_data);
+		if (ret)
 			goto err;
-		}
+	} else {
+		ret = iwl_mvm_resume_firmware(mvm, test);
+		if (ret < 0)
+			goto err;
 	}
 
 	/* after the successful handshake, we're out of D3 */
