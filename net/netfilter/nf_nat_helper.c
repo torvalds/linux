@@ -201,8 +201,18 @@ EXPORT_SYMBOL(nf_nat_follow_master);
 
 u16 nf_nat_exp_find_port(struct nf_conntrack_expect *exp, u16 port)
 {
+	static const unsigned int max_attempts = 128;
+	int range, attempts_left;
+	u16 min = port;
+
+	range = USHRT_MAX - port;
+	attempts_left = range;
+
+	if (attempts_left > max_attempts)
+		attempts_left = max_attempts;
+
 	/* Try to get same port: if not, try to change it. */
-	for (; port != 0; port++) {
+	for (;;) {
 		int res;
 
 		exp->tuple.dst.u.tcp.port = htons(port);
@@ -210,8 +220,10 @@ u16 nf_nat_exp_find_port(struct nf_conntrack_expect *exp, u16 port)
 		if (res == 0)
 			return port;
 
-		if (res != -EBUSY)
+		if (res != -EBUSY || (--attempts_left < 0))
 			break;
+
+		port = min + prandom_u32_max(range);
 	}
 
 	return 0;
