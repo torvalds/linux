@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/**
+/*
  * drivers/extcon/extcon-tusb320.c - TUSB320 extcon driver
  *
  * Copyright (C) 2020 National Instruments Corporation
