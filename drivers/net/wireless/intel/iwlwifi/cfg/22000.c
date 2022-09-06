@@ -249,7 +249,7 @@ static const struct iwl_ht_params iwl_22000_ht_params = {
 		},							\
 	}
 
-#define IWL_DEVICE_BZ_COMMON						\
+#define IWL_DEVICE_BZ							\
 	.ucode_api_max = IWL_22000_UCODE_API_MAX,			\
 	.ucode_api_min = IWL_22000_UCODE_API_MIN,			\
 	.led_mode = IWL_LED_RF_STATE,					\
@@ -285,16 +285,13 @@ static const struct iwl_ht_params iwl_22000_ht_params = {
 			.addr = LDBG_M2S_BUF_WRAP_CNT,			\
 			.mask = LDBG_M2S_BUF_WRAP_CNT_VAL_MSK,		\
 		},							\
-	}
-
-#define IWL_DEVICE_BZ							\
-	IWL_DEVICE_BZ_COMMON,						\
+	},								\
 	.trans.umac_prph_offset = 0x300000,				\
 	.trans.device_family = IWL_DEVICE_FAMILY_BZ,			\
 	.trans.base_params = &iwl_ax210_base_params,			\
 	.min_txq_size = 128,						\
 	.gp2_reg_addr = 0xd02c68,					\
-	.min_ba_txq_size = IWL_DEFAULT_QUEUE_SIZE_EHT,		\
+	.min_ba_txq_size = IWL_DEFAULT_QUEUE_SIZE_EHT,			\
 	.mon_dram_regs = {						\
 		.write_ptr = {						\
 			.addr = DBGC_CUR_DBGBUF_STATUS,			\
