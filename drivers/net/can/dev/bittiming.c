@@ -11,8 +11,8 @@ void can_sjw_set_default(struct can_bittiming *bt)
 	if (bt->sjw)
 		return;
 
-	/* If user space provides no sjw, use 1 as default */
-	bt->sjw = 1;
+	/* If user space provides no sjw, use sane default of phase_seg2 / 2 */
+	bt->sjw = max(1U, min(bt->phase_seg1, bt->phase_seg2 / 2));
 }
 
 int can_sjw_check(const struct net_device *dev, const struct can_bittiming *bt,
