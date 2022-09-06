@@ -802,15 +802,6 @@ static int intel_gt_tile_setup(struct intel_gt *gt, phys_addr_t phys_addr)
 	return 0;
 }
 
-static void
-intel_gt_tile_cleanup(struct intel_gt *gt)
-{
-	intel_uncore_cleanup_mmio(gt->uncore);
-
-	if (!gt_is_root(gt))
-		kfree(gt);
-}
-
 int intel_gt_probe_all(struct drm_i915_private *i915)
 {
 	struct pci_dev *pdev = to_pci_dev(i915->drm.dev);
@@ -857,10 +848,8 @@ void intel_gt_release_all(struct drm_i915_private *i915)
 	struct intel_gt *gt;
 	unsigned int id;
 
-	for_each_gt(gt, i915, id) {
-		intel_gt_tile_cleanup(gt);
+	for_each_gt(gt, i915, id)
 		i915->gt[id] = NULL;
-	}
 }
 
 void intel_gt_info_print(const struct intel_gt_info *info,
