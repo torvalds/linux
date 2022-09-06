@@ -26,8 +26,6 @@ struct bnxt_msix_entry {
 };
 
 struct bnxt_ulp_ops {
-	/* async_notifier() cannot sleep (in BH context) */
-	void (*ulp_async_notifier)(void *, struct hwrm_async_event_cmpl *);
 	void (*ulp_stop)(void *);
 	void (*ulp_start)(void *);
 	void (*ulp_sriov_config)(void *, int);
@@ -63,7 +61,6 @@ struct bnxt_en_dev {
 						 BNXT_EN_FLAG_ROCEV2_CAP)
 	#define BNXT_EN_FLAG_MSIX_REQUESTED	0x4
 	#define BNXT_EN_FLAG_ULP_STOPPED	0x8
-	const struct bnxt_en_ops	*en_ops;
 	struct bnxt_ulp			*ulp_tbl;
 	int				l2_db_size;	/* Doorbell BAR size in
 							 * bytes mapped by L2
@@ -73,19 +70,6 @@ struct bnxt_en_dev {
 							 * bytes mapped as non-
 							 * cacheable.
 							 */
-};
-
-struct bnxt_en_ops {
-	int (*bnxt_register_device)(struct bnxt_en_dev *edev,
-				    struct bnxt_ulp_ops *ulp_ops, void *handle);
-	int (*bnxt_unregister_device)(struct bnxt_en_dev *edev);
-	int (*bnxt_request_msix)(struct bnxt_en_dev *edev,
-				 struct bnxt_msix_entry *ent, int num_msix);
-	void (*bnxt_free_msix)(struct bnxt_en_dev *edev);
-	int (*bnxt_send_fw_msg)(struct bnxt_en_dev *edev,
-				struct bnxt_fw_msg *fw_msg);
-	int (*bnxt_register_fw_async_events)(struct bnxt_en_dev *edev,
-					     unsigned long *events_bmap, u16 max_id);
 };
 
 static inline bool bnxt_ulp_registered(struct bnxt_en_dev *edev)
@@ -106,4 +90,13 @@ void bnxt_ulp_irq_restart(struct bnxt *bp, int err);
 void bnxt_ulp_async_events(struct bnxt *bp, struct hwrm_async_event_cmpl *cmpl);
 void bnxt_rdma_aux_device_uninit(struct bnxt *bp);
 void bnxt_rdma_aux_device_init(struct bnxt *bp);
+int bnxt_register_dev(struct bnxt_en_dev *edev, struct bnxt_ulp_ops *ulp_ops,
+		      void *handle);
+void bnxt_unregister_dev(struct bnxt_en_dev *edev);
+int bnxt_req_msix_vecs(struct bnxt_en_dev *edev, struct bnxt_msix_entry *ent,
+		       int num_msix);
+void bnxt_free_msix_vecs(struct bnxt_en_dev *edev);
+int bnxt_send_msg(struct bnxt_en_dev *edev, struct bnxt_fw_msg *fw_msg);
+int bnxt_register_async_events(struct bnxt_en_dev *edev,
+			       unsigned long *events_bmap, u16 max_id);
 #endif

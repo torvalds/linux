@@ -28,9 +28,9 @@
 
 static DEFINE_IDA(bnxt_aux_dev_ids);
 
-static int bnxt_register_dev(struct bnxt_en_dev *edev,
-			     struct bnxt_ulp_ops *ulp_ops,
-			     void *handle)
+int bnxt_register_dev(struct bnxt_en_dev *edev,
+		      struct bnxt_ulp_ops *ulp_ops,
+		      void *handle)
 {
 	struct net_device *dev = edev->net;
 	struct bnxt *bp = netdev_priv(dev);
@@ -55,8 +55,9 @@ static int bnxt_register_dev(struct bnxt_en_dev *edev,
 
 	return 0;
 }
+EXPORT_SYMBOL(bnxt_register_dev);
 
-static int bnxt_unregister_dev(struct bnxt_en_dev *edev)
+void bnxt_unregister_dev(struct bnxt_en_dev *edev)
 {
 	struct net_device *dev = edev->net;
 	struct bnxt *bp = netdev_priv(dev);
@@ -65,7 +66,7 @@ static int bnxt_unregister_dev(struct bnxt_en_dev *edev)
 
 	ulp = edev->ulp_tbl;
 	if (ulp->msix_requested)
-		edev->en_ops->bnxt_free_msix(edev);
+		bnxt_free_msix_vecs(edev);
 
 	if (ulp->max_async_event_id)
 		bnxt_hwrm_func_drv_rgtr(bp, NULL, 0, true);
@@ -80,8 +81,9 @@ static int bnxt_unregister_dev(struct bnxt_en_dev *edev)
 	}
 	kfree(ulp);
 	edev->ulp_tbl = NULL;
-	return 0;
+	return;
 }
+EXPORT_SYMBOL(bnxt_unregister_dev);
 
 static void bnxt_fill_msix_vecs(struct bnxt *bp, struct bnxt_msix_entry *ent)
 {
@@ -103,7 +105,7 @@ static void bnxt_fill_msix_vecs(struct bnxt *bp, struct bnxt_msix_entry *ent)
 	}
 }
 
-static int bnxt_req_msix_vecs(struct bnxt_en_dev *edev,
+int bnxt_req_msix_vecs(struct bnxt_en_dev *edev,
 			      struct bnxt_msix_entry *ent,
 			      int num_msix)
 {
@@ -165,8 +167,9 @@ static int bnxt_req_msix_vecs(struct bnxt_en_dev *edev,
 	edev->flags |= BNXT_EN_FLAG_MSIX_REQUESTED;
 	return avail_msix;
 }
+EXPORT_SYMBOL(bnxt_req_msix_vecs);
 
-static void bnxt_free_msix_vecs(struct bnxt_en_dev *edev)
+void bnxt_free_msix_vecs(struct bnxt_en_dev *edev)
 {
 	struct net_device *dev = edev->net;
 	struct bnxt *bp = netdev_priv(dev);
@@ -185,6 +188,7 @@ static void bnxt_free_msix_vecs(struct bnxt_en_dev *edev)
 
 	return;
 }
+EXPORT_SYMBOL(bnxt_free_msix_vecs);
 
 int bnxt_get_ulp_msix_num(struct bnxt *bp)
 {
@@ -219,7 +223,7 @@ int bnxt_get_ulp_stat_ctxs(struct bnxt *bp)
 	return 0;
 }
 
-static int bnxt_send_msg(struct bnxt_en_dev *edev,
+int bnxt_send_msg(struct bnxt_en_dev *edev,
 			 struct bnxt_fw_msg *fw_msg)
 {
 	struct net_device *dev = edev->net;
@@ -253,6 +257,7 @@ static int bnxt_send_msg(struct bnxt_en_dev *edev,
 	hwrm_req_drop(bp, req);
 	return rc;
 }
+EXPORT_SYMBOL(bnxt_send_msg);
 
 static void bnxt_ulp_get(struct bnxt_ulp *ulp)
 {
@@ -312,14 +317,11 @@ void bnxt_ulp_sriov_cfg(struct bnxt *bp, int num_vfs)
 		return;
 	ulp = edev->ulp_tbl;
 
-	rcu_read_lock();
 	ops = rcu_dereference(ulp->ulp_ops);
-	if (!ops || !ops->ulp_sriov_config) {
-		rcu_read_unlock();
+	if (!ops || !ops->ulp_sriov_config)
 		return;
-	}
+
 	bnxt_ulp_get(ulp);
-	rcu_read_unlock();
 	ops->ulp_sriov_config(ulp->handle, num_vfs);
 	bnxt_ulp_put(ulp);
 }
@@ -376,37 +378,9 @@ void bnxt_ulp_irq_restart(struct bnxt *bp, int err)
 	}
 }
 
-void bnxt_ulp_async_events(struct bnxt *bp, struct hwrm_async_event_cmpl *cmpl)
-{
-	u16 event_id = le16_to_cpu(cmpl->event_id);
-	struct bnxt_en_dev *edev = bp->edev;
-	struct bnxt_ulp_ops *ops;
-	struct bnxt_ulp *ulp;
-
-	if (!bnxt_ulp_registered(edev))
-		return;
-
-	ulp = edev->ulp_tbl;
-
-	rcu_read_lock();
-
-	ops = rcu_dereference(ulp->ulp_ops);
-	if (!ops || !ops->ulp_async_notifier)
-		goto exit;
-	if (!ulp->async_events_bmap || event_id > ulp->max_async_event_id)
-		goto exit;
-
-	/* Read max_async_event_id first before testing the bitmap. */
-	smp_rmb();
-	if (test_bit(event_id, ulp->async_events_bmap))
-		ops->ulp_async_notifier(ulp->handle, cmpl);
-exit:
-	rcu_read_unlock();
-}
-
-static int bnxt_register_async_events(struct bnxt_en_dev *edev,
-				      unsigned long *events_bmap,
-				      u16 max_id)
+int bnxt_register_async_events(struct bnxt_en_dev *edev,
+			       unsigned long *events_bmap,
+			       u16 max_id)
 {
 	struct net_device *dev = edev->net;
 	struct bnxt *bp = netdev_priv(dev);
@@ -420,15 +394,7 @@ static int bnxt_register_async_events(struct bnxt_en_dev *edev,
 	bnxt_hwrm_func_drv_rgtr(bp, events_bmap, max_id + 1, true);
 	return 0;
 }
-
-static const struct bnxt_en_ops bnxt_en_ops_tbl = {
-	.bnxt_register_device	= bnxt_register_dev,
-	.bnxt_unregister_device	= bnxt_unregister_dev,
-	.bnxt_request_msix	= bnxt_req_msix_vecs,
-	.bnxt_free_msix		= bnxt_free_msix_vecs,
-	.bnxt_send_fw_msg	= bnxt_send_msg,
-	.bnxt_register_fw_async_events	= bnxt_register_async_events,
-};
+EXPORT_SYMBOL(bnxt_register_async_events);
 
 void bnxt_rdma_aux_device_uninit(struct bnxt *bp)
 {
@@ -457,7 +423,6 @@ static void bnxt_aux_dev_release(struct device *dev)
 
 static void bnxt_set_edev_info(struct bnxt_en_dev *edev, struct bnxt *bp)
 {
-	edev->en_ops = &bnxt_en_ops_tbl;
 	edev->net = bp->dev;
 	edev->pdev = bp->pdev;
 	edev->l2_db_size = bp->db_size;
