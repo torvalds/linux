@@ -410,19 +410,7 @@ static unsigned int nf_nat_sip_expect(struct sk_buff *skb, unsigned int protoff,
 	exp->dir = !dir;
 	exp->expectfn = nf_nat_sip_expected;
 
-	for (; port != 0; port++) {
-		int ret;
-
-		exp->tuple.dst.u.udp.port = htons(port);
-		ret = nf_ct_expect_related(exp, NF_CT_EXP_F_SKIP_MASTER);
-		if (ret == 0)
-			break;
-		else if (ret != -EBUSY) {
-			port = 0;
-			break;
-		}
-	}
-
+	port = nf_nat_exp_find_port(exp, port);
 	if (port == 0) {
 		nf_ct_helper_log(skb, ct, "all ports in use for SIP");
 		return NF_DROP;

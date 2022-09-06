@@ -198,3 +198,22 @@ void nf_nat_follow_master(struct nf_conn *ct,
 	nf_nat_setup_info(ct, &range, NF_NAT_MANIP_DST);
 }
 EXPORT_SYMBOL(nf_nat_follow_master);
+
+u16 nf_nat_exp_find_port(struct nf_conntrack_expect *exp, u16 port)
+{
+	/* Try to get same port: if not, try to change it. */
+	for (; port != 0; port++) {
+		int res;
+
+		exp->tuple.dst.u.tcp.port = htons(port);
+		res = nf_ct_expect_related(exp, 0);
+		if (res == 0)
+			return port;
+
+		if (res != -EBUSY)
+			break;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(nf_nat_exp_find_port);
