@@ -6933,6 +6933,8 @@ void cfg80211_auth_timeout(struct net_device *dev, const u8 *addr);
  * @ap_mld_addr: AP MLD address (in case of MLO)
  * @links: per-link information indexed by link ID, use links[0] for
  *	non-MLO connections
+ * @links.status: Set this (along with a BSS pointer) for links that
+ *	were rejected by the AP.
  */
 struct cfg80211_rx_assoc_resp {
 	const u8 *buf;
@@ -6944,6 +6946,7 @@ struct cfg80211_rx_assoc_resp {
 	struct {
 		const u8 *addr;
 		struct cfg80211_bss *bss;
+		u16 status;
 	} links[IEEE80211_MLD_MAX_NUM_LINKS];
 };
 
@@ -7454,6 +7457,9 @@ struct cfg80211_fils_resp_params {
  *	if the bss is expired during the connection, esp. for those drivers
  *	implementing connect op. Only one parameter among @bssid and @bss needs
  *	to be specified.
+ * @links.status: per-link status code, to report a status code that's not
+ *	%WLAN_STATUS_SUCCESS for a given link, it must also be in the
+ *	@valid_links bitmap and may have a BSS pointer (which is then released)
  */
 struct cfg80211_connect_resp_params {
 	int status;
@@ -7470,6 +7476,7 @@ struct cfg80211_connect_resp_params {
 		const u8 *addr;
 		const u8 *bssid;
 		struct cfg80211_bss *bss;
+		u16 status;
 	} links[IEEE80211_MLD_MAX_NUM_LINKS];
 };
 
