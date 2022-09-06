@@ -66,3 +66,7 @@ select_reuseport                         # intermittently fails on new s390x set
 xdp_synproxy                             # JIT does not support calling kernel function                                (kfunc)
 unpriv_bpf_disabled                      # fentry
 lru_bug                                  # prog 'printk': failed to auto-attach: -524
+setget_sockopt                           # attach unexpected error: -524                                               (trampoline)
+cb_refs                                  # expected error message unexpected error: -524                               (trampoline)
+cgroup_hierarchical_stats                # JIT does not support calling kernel function                                (kfunc)
+htab_update                              # failed to attach: ERROR: strerror_r(-524)=22                                (trampoline)

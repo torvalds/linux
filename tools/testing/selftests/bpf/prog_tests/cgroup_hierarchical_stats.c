@@ -1,0 +1,357 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Functions to manage eBPF programs attached to cgroup subsystems
+ *
+ * Copyright 2022 Google LLC.
+ */
+#include <asm-generic/errno.h>
+#include <errno.h>
+#include <sys/types.h>
+#include <sys/mount.h>
+#include <sys/stat.h>
+#include <unistd.h>
+
+#include <test_progs.h>
+#include <bpf/libbpf.h>
+#include <bpf/bpf.h>
+
+#include "cgroup_helpers.h"
+#include "cgroup_hierarchical_stats.skel.h"
+
+#define PAGE_SIZE 4096
+#define MB(x) (x << 20)
+
+#define BPFFS_ROOT "/sys/fs/bpf/"
+#define BPFFS_VMSCAN BPFFS_ROOT"vmscan/"
+
+#define CG_ROOT_NAME "root"
+#define CG_ROOT_ID 1
+
+#define CGROUP_PATH(p, n) {.path = p"/"n, .name = n}
+
+static struct {
+	const char *path, *name;
+	unsigned long long id;
+	int fd;
+} cgroups[] = {
+	CGROUP_PATH("/", "test"),
+	CGROUP_PATH("/test", "child1"),
+	CGROUP_PATH("/test", "child2"),
+	CGROUP_PATH("/test/child1", "child1_1"),
+	CGROUP_PATH("/test/child1", "child1_2"),
+	CGROUP_PATH("/test/child2", "child2_1"),
+	CGROUP_PATH("/test/child2", "child2_2"),
+};
+
+#define N_CGROUPS ARRAY_SIZE(cgroups)
+#define N_NON_LEAF_CGROUPS 3
+
+static int root_cgroup_fd;
+static bool mounted_bpffs;
+
+/* reads file at 'path' to 'buf', returns 0 on success. */
+static int read_from_file(const char *path, char *buf, size_t size)
+{
+	int fd, len;
+
+	fd = open(path, O_RDONLY);
+	if (fd < 0)
+		return fd;
+
+	len = read(fd, buf, size);
+	close(fd);
+	if (len < 0)
+		return len;
+
+	buf[len] = 0;
+	return 0;
+}
+
+/* mounts bpffs and mkdir for reading stats, returns 0 on success. */
+static int setup_bpffs(void)
+{
+	int err;
+
+	/* Mount bpffs */
+	err = mount("bpf", BPFFS_ROOT, "bpf", 0, NULL);
+	mounted_bpffs = !err;
+	if (ASSERT_FALSE(err && errno != EBUSY, "mount"))
+		return err;
+
+	/* Create a directory to contain stat files in bpffs */
+	err = mkdir(BPFFS_VMSCAN, 0755);
+	if (!ASSERT_OK(err, "mkdir"))
+		return err;
+
+	return 0;
+}
+
+static void cleanup_bpffs(void)
+{
+	/* Remove created directory in bpffs */
+	ASSERT_OK(rmdir(BPFFS_VMSCAN), "rmdir "BPFFS_VMSCAN);
+
+	/* Unmount bpffs, if it wasn't already mounted when we started */
+	if (mounted_bpffs)
+		return;
+
+	ASSERT_OK(umount(BPFFS_ROOT), "unmount bpffs");
+}
+
+/* sets up cgroups, returns 0 on success. */
+static int setup_cgroups(void)
+{
+	int i, fd, err;
+
+	err = setup_cgroup_environment();
+	if (!ASSERT_OK(err, "setup_cgroup_environment"))
+		return err;
+
+	root_cgroup_fd = get_root_cgroup();
+	if (!ASSERT_GE(root_cgroup_fd, 0, "get_root_cgroup"))
+		return root_cgroup_fd;
+
+	for (i = 0; i < N_CGROUPS; i++) {
+		fd = create_and_get_cgroup(cgroups[i].path);
+		if (!ASSERT_GE(fd, 0, "create_and_get_cgroup"))
+			return fd;
+
+		cgroups[i].fd = fd;
+		cgroups[i].id = get_cgroup_id(cgroups[i].path);
+
+		/*
+		 * Enable memcg controller for the entire hierarchy.
+		 * Note that stats are collected for all cgroups in a hierarchy
+		 * with memcg enabled anyway, but are only exposed for cgroups
+		 * that have memcg enabled.
+		 */
+		if (i < N_NON_LEAF_CGROUPS) {
+			err = enable_controllers(cgroups[i].path, "memory");
+			if (!ASSERT_OK(err, "enable_controllers"))
+				return err;
+		}
+	}
+	return 0;
+}
+
+static void cleanup_cgroups(void)
+{
+	close(root_cgroup_fd);
+	for (int i = 0; i < N_CGROUPS; i++)
+		close(cgroups[i].fd);
+	cleanup_cgroup_environment();
+}
+
+/* Sets up cgroup hiearchary, returns 0 on success. */
+static int setup_hierarchy(void)
+{
+	return setup_bpffs() || setup_cgroups();
+}
+
+static void destroy_hierarchy(void)
+{
+	cleanup_cgroups();
+	cleanup_bpffs();
+}
+
+static int reclaimer(const char *cgroup_path, size_t size)
+{
+	static char size_buf[128];
+	char *buf, *ptr;
+	int err;
+
+	/* Join cgroup in the parent process workdir */
+	if (join_parent_cgroup(cgroup_path))
+		return EACCES;
+
+	/* Allocate memory */
+	buf = malloc(size);
+	if (!buf)
+		return ENOMEM;
+
+	/* Write to memory to make sure it's actually allocated */
+	for (ptr = buf; ptr < buf + size; ptr += PAGE_SIZE)
+		*ptr = 1;
+
+	/* Try to reclaim memory */
+	snprintf(size_buf, 128, "%lu", size);
+	err = write_cgroup_file_parent(cgroup_path, "memory.reclaim", size_buf);
+
+	free(buf);
+	/* memory.reclaim returns EAGAIN if the amount is not fully reclaimed */
+	if (err && errno != EAGAIN)
+		return errno;
+
+	return 0;
+}
+
+static int induce_vmscan(void)
+{
+	int i, status;
+
+	/*
+	 * In every leaf cgroup, run a child process that allocates some memory
+	 * and attempts to reclaim some of it.
+	 */
+	for (i = N_NON_LEAF_CGROUPS; i < N_CGROUPS; i++) {
+		pid_t pid;
+
+		/* Create reclaimer child */
+		pid = fork();
+		if (pid == 0) {
+			status = reclaimer(cgroups[i].path, MB(5));
+			exit(status);
+		}
+
+		/* Cleanup reclaimer child */
+		waitpid(pid, &status, 0);
+		ASSERT_TRUE(WIFEXITED(status), "reclaimer exited");
+		ASSERT_EQ(WEXITSTATUS(status), 0, "reclaim exit code");
+	}
+	return 0;
+}
+
+static unsigned long long
+get_cgroup_vmscan_delay(unsigned long long cgroup_id, const char *file_name)
+{
+	unsigned long long vmscan = 0, id = 0;
+	static char buf[128], path[128];
+
+	/* For every cgroup, read the file generated by cgroup_iter */
+	snprintf(path, 128, "%s%s", BPFFS_VMSCAN, file_name);
+	if (!ASSERT_OK(read_from_file(path, buf, 128), "read cgroup_iter"))
+		return 0;
+
+	/* Check the output file formatting */
+	ASSERT_EQ(sscanf(buf, "cg_id: %llu, total_vmscan_delay: %llu\n",
+			 &id, &vmscan), 2, "output format");
+
+	/* Check that the cgroup_id is displayed correctly */
+	ASSERT_EQ(id, cgroup_id, "cgroup_id");
+	/* Check that the vmscan reading is non-zero */
+	ASSERT_GT(vmscan, 0, "vmscan_reading");
+	return vmscan;
+}
+
+static void check_vmscan_stats(void)
+{
+	unsigned long long vmscan_readings[N_CGROUPS], vmscan_root;
+	int i;
+
+	for (i = 0; i < N_CGROUPS; i++) {
+		vmscan_readings[i] = get_cgroup_vmscan_delay(cgroups[i].id,
+							     cgroups[i].name);
+	}
+
+	/* Read stats for root too */
+	vmscan_root = get_cgroup_vmscan_delay(CG_ROOT_ID, CG_ROOT_NAME);
+
+	/* Check that child1 == child1_1 + child1_2 */
+	ASSERT_EQ(vmscan_readings[1], vmscan_readings[3] + vmscan_readings[4],
+		  "child1_vmscan");
+	/* Check that child2 == child2_1 + child2_2 */
+	ASSERT_EQ(vmscan_readings[2], vmscan_readings[5] + vmscan_readings[6],
+		  "child2_vmscan");
+	/* Check that test == child1 + child2 */
+	ASSERT_EQ(vmscan_readings[0], vmscan_readings[1] + vmscan_readings[2],
+		  "test_vmscan");
+	/* Check that root >= test */
+	ASSERT_GE(vmscan_root, vmscan_readings[1], "root_vmscan");
+}
+
+/* Creates iter link and pins in bpffs, returns 0 on success, -errno on failure.
+ */
+static int setup_cgroup_iter(struct cgroup_hierarchical_stats *obj,
+			     int cgroup_fd, const char *file_name)
+{
+	DECLARE_LIBBPF_OPTS(bpf_iter_attach_opts, opts);
+	union bpf_iter_link_info linfo = {};
+	struct bpf_link *link;
+	static char path[128];
+	int err;
+
+	/*
+	 * Create an iter link, parameterized by cgroup_fd. We only want to
+	 * traverse one cgroup, so set the traversal order to "self".
+	 */
+	linfo.cgroup.cgroup_fd = cgroup_fd;
+	linfo.cgroup.order = BPF_CGROUP_ITER_SELF_ONLY;
+	opts.link_info = &linfo;
+	opts.link_info_len = sizeof(linfo);
+	link = bpf_program__attach_iter(obj->progs.dump_vmscan, &opts);
+	if (!ASSERT_OK_PTR(link, "attach_iter"))
+		return -EFAULT;
+
+	/* Pin the link to a bpffs file */
+	snprintf(path, 128, "%s%s", BPFFS_VMSCAN, file_name);
+	err = bpf_link__pin(link, path);
+	ASSERT_OK(err, "pin cgroup_iter");
+
+	/* Remove the link, leaving only the ref held by the pinned file */
+	bpf_link__destroy(link);
+	return err;
+}
+
+/* Sets up programs for collecting stats, returns 0 on success. */
+static int setup_progs(struct cgroup_hierarchical_stats **skel)
+{
+	int i, err;
+
+	*skel = cgroup_hierarchical_stats__open_and_load();
+	if (!ASSERT_OK_PTR(*skel, "open_and_load"))
+		return 1;
+
+	/* Attach cgroup_iter program that will dump the stats to cgroups */
+	for (i = 0; i < N_CGROUPS; i++) {
+		err = setup_cgroup_iter(*skel, cgroups[i].fd, cgroups[i].name);
+		if (!ASSERT_OK(err, "setup_cgroup_iter"))
+			return err;
+	}
+
+	/* Also dump stats for root */
+	err = setup_cgroup_iter(*skel, root_cgroup_fd, CG_ROOT_NAME);
+	if (!ASSERT_OK(err, "setup_cgroup_iter"))
+		return err;
+
+	bpf_program__set_autoattach((*skel)->progs.dump_vmscan, false);
+	err = cgroup_hierarchical_stats__attach(*skel);
+	if (!ASSERT_OK(err, "attach"))
+		return err;
+
+	return 0;
+}
+
+static void destroy_progs(struct cgroup_hierarchical_stats *skel)
+{
+	static char path[128];
+	int i;
+
+	for (i = 0; i < N_CGROUPS; i++) {
+		/* Delete files in bpffs that cgroup_iters are pinned in */
+		snprintf(path, 128, "%s%s", BPFFS_VMSCAN,
+			 cgroups[i].name);
+		ASSERT_OK(remove(path), "remove cgroup_iter pin");
+	}
+
+	/* Delete root file in bpffs */
+	snprintf(path, 128, "%s%s", BPFFS_VMSCAN, CG_ROOT_NAME);
+	ASSERT_OK(remove(path), "remove cgroup_iter root pin");
+	cgroup_hierarchical_stats__destroy(skel);
+}
+
+void test_cgroup_hierarchical_stats(void)
+{
+	struct cgroup_hierarchical_stats *skel = NULL;
+
+	if (setup_hierarchy())
+		goto hierarchy_cleanup;
+	if (setup_progs(&skel))
+		goto cleanup;
+	if (induce_vmscan())
+		goto cleanup;
+	check_vmscan_stats();
+cleanup:
+	destroy_progs(skel);
+hierarchy_cleanup:
+	destroy_hierarchy();
+}

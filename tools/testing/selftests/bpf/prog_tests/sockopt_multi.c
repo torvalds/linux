@@ -310,7 +310,7 @@ void test_sockopt_multi(void)
 	if (CHECK_FAIL(cg_child < 0))
 		goto out;
 
-	obj = bpf_object__open_file("sockopt_multi.o", NULL);
+	obj = bpf_object__open_file("sockopt_multi.bpf.o", NULL);
 	if (!ASSERT_OK_PTR(obj, "obj_load"))
 		goto out;
 

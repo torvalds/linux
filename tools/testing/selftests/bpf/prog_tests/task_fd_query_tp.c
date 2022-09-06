@@ -4,7 +4,7 @@
 static void test_task_fd_query_tp_core(const char *probe_name,
 				       const char *tp_name)
 {
-	const char *file = "./test_tracepoint.o";
+	const char *file = "./test_tracepoint.bpf.o";
 	int err, bytes, efd, prog_fd, pmu_fd;
 	struct perf_event_attr attr = {};
 	__u64 probe_offset, probe_addr;

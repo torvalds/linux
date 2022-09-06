@@ -3,7 +3,7 @@
 
 void test_global_data_init(void)
 {
-	const char *file = "./test_global_data.o";
+	const char *file = "./test_global_data.bpf.o";
 	int err = -ENOMEM, map_fd, zero = 0;
 	__u8 *buff = NULL, *newval = NULL;
 	struct bpf_object *obj;

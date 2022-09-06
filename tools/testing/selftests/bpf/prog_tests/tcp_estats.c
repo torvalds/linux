@@ -3,7 +3,7 @@
 
 void test_tcp_estats(void)
 {
-	const char *file = "./test_tcp_estats.o";
+	const char *file = "./test_tcp_estats.bpf.o";
 	int err, prog_fd;
 	struct bpf_object *obj;
 	__u32 duration = 0;

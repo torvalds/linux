@@ -90,7 +90,7 @@ out:
 void test_l4lb_all(void)
 {
 	if (test__start_subtest("l4lb_inline"))
-		test_l4lb("test_l4lb.o");
+		test_l4lb("test_l4lb.bpf.o");
 	if (test__start_subtest("l4lb_noinline"))
-		test_l4lb("test_l4lb_noinline.o");
+		test_l4lb("test_l4lb_noinline.bpf.o");
 }
