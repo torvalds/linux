@@ -44,14 +44,19 @@ fw_domains_get(struct intel_uncore *uncore, enum forcewake_domains fw_domains)
 }
 
 void
-intel_uncore_mmio_debug_init_early(struct intel_uncore_mmio_debug *mmio_debug)
+intel_uncore_mmio_debug_init_early(struct drm_i915_private *i915)
 {
-	spin_lock_init(&mmio_debug->lock);
-	mmio_debug->unclaimed_mmio_check = 1;
+	spin_lock_init(&i915->mmio_debug.lock);
+	i915->mmio_debug.unclaimed_mmio_check = 1;
+
+	i915->uncore.debug = &i915->mmio_debug;
 }
 
 static void mmio_debug_suspend(struct intel_uncore *uncore)
 {
+	if (!uncore->debug)
+		return;
+
 	spin_lock(&uncore->debug->lock);
 
 	/* Save and disable mmio debugging for the user bypass */
@@ -67,6 +72,9 @@ static bool check_for_unclaimed_mmio(struct intel_uncore *uncore);
 
 static void mmio_debug_resume(struct intel_uncore *uncore)
 {
+	if (!uncore->debug)
+		return;
+
 	spin_lock(&uncore->debug->lock);
 
 	if (!--uncore->debug->suspend_count)
@@ -1705,7 +1713,7 @@ unclaimed_reg_debug(struct intel_uncore *uncore,
 		    const bool read,
 		    const bool before)
 {
-	if (likely(!uncore->i915->params.mmio_debug))
+	if (likely(!uncore->i915->params.mmio_debug) || !uncore->debug)
 		return;
 
 	/* interrupts are disabled and re-enabled around uncore->lock usage */
@@ -2267,7 +2275,6 @@ void intel_uncore_init_early(struct intel_uncore *uncore,
 	uncore->i915 = gt->i915;
 	uncore->gt = gt;
 	uncore->rpm = &gt->i915->runtime_pm;
-	uncore->debug = &gt->i915->mmio_debug;
 }
 
 static void uncore_raw_init(struct intel_uncore *uncore)
@@ -2578,6 +2585,9 @@ bool intel_uncore_unclaimed_mmio(struct intel_uncore *uncore)
 {
 	bool ret;
 
+	if (!uncore->debug)
+		return false;
+
 	spin_lock_irq(&uncore->debug->lock);
 	ret = check_for_unclaimed_mmio(uncore);
 	spin_unlock_irq(&uncore->debug->lock);
@@ -2589,6 +2599,9 @@ bool
 intel_uncore_arm_unclaimed_mmio_detection(struct intel_uncore *uncore)
 {
 	bool ret = false;
+
+	if (drm_WARN_ON(&uncore->i915->drm, !uncore->debug))
+		return false;
 
 	spin_lock_irq(&uncore->debug->lock);
 

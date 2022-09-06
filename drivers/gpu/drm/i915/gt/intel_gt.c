@@ -780,21 +780,13 @@ static int intel_gt_tile_setup(struct intel_gt *gt, phys_addr_t phys_addr)
 	int ret;
 
 	if (!gt_is_root(gt)) {
-		struct intel_uncore_mmio_debug *mmio_debug;
 		struct intel_uncore *uncore;
 
 		uncore = kzalloc(sizeof(*uncore), GFP_KERNEL);
 		if (!uncore)
 			return -ENOMEM;
 
-		mmio_debug = kzalloc(sizeof(*mmio_debug), GFP_KERNEL);
-		if (!mmio_debug) {
-			kfree(uncore);
-			return -ENOMEM;
-		}
-
 		gt->uncore = uncore;
-		gt->uncore->debug = mmio_debug;
 
 		__intel_gt_init_early(gt);
 	}
@@ -816,7 +808,6 @@ intel_gt_tile_cleanup(struct intel_gt *gt)
 	intel_uncore_cleanup_mmio(gt->uncore);
 
 	if (!gt_is_root(gt)) {
-		kfree(gt->uncore->debug);
 		kfree(gt->uncore);
 		kfree(gt);
 	}
