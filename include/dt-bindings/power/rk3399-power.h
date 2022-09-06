@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: (GPL-2.0+ OR MIT) */
 #ifndef __DT_BINDINGS_POWER_RK3399_POWER_H__
 #define __DT_BINDINGS_POWER_RK3399_POWER_H__
 
