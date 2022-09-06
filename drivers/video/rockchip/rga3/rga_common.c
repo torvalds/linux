@@ -329,16 +329,17 @@ int rga_get_format_bits(uint32_t format)
 	case RGA_FORMAT_YVYU_422:
 	case RGA_FORMAT_UYVY_422:
 	case RGA_FORMAT_VYUY_422:
+	/* YUV 420 packed according to the arrangement of YUV422 packed. */
+	case RGA_FORMAT_YUYV_420:
+	case RGA_FORMAT_YVYU_420:
+	case RGA_FORMAT_UYVY_420:
+	case RGA_FORMAT_VYUY_420:
 		bits = 16;
 		break;
 	case RGA_FORMAT_YCbCr_420_SP:
 	case RGA_FORMAT_YCbCr_420_P:
 	case RGA_FORMAT_YCrCb_420_SP:
 	case RGA_FORMAT_YCrCb_420_P:
-	case RGA_FORMAT_YUYV_420:
-	case RGA_FORMAT_YVYU_420:
-	case RGA_FORMAT_UYVY_420:
-	case RGA_FORMAT_VYUY_420:
 		bits = 12;
 		break;
 	case RGA_FORMAT_YCbCr_420_SP_10B:
@@ -608,13 +609,12 @@ int rga_image_size_cal(int w, int h, int format,
 	case RGA_FORMAT_VYUY_422:
 	case RGA_FORMAT_YUYV_422:
 	case RGA_FORMAT_UYVY_422:
-		yrgb = w * h * 2;
-		break;
+	/* YUV 420 packed according to the arrangement of YUV422 packed. */
 	case RGA_FORMAT_YVYU_420:
 	case RGA_FORMAT_VYUY_420:
 	case RGA_FORMAT_YUYV_420:
 	case RGA_FORMAT_UYVY_420:
-		yrgb = (w * h) + ((w * h) >> 1);
+		yrgb = w * h * 2;
 		break;
 	/* YUV FORMAT */
 	case RGA_FORMAT_YCbCr_422_SP:
