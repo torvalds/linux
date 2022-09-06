@@ -90,6 +90,8 @@ static inline void * phys_to_virt(unsigned long address)
 }
 #endif
 
+#define virt_to_phys		virt_to_phys
+#define phys_to_virt		phys_to_virt
 #define page_to_phys(page)	page_to_pa(page)
 
 /* Maximum PIO space address supported?  */
@@ -242,6 +244,12 @@ extern u32		inl(unsigned long port);
 extern void		outb(u8 b, unsigned long port);
 extern void		outw(u16 b, unsigned long port);
 extern void		outl(u32 b, unsigned long port);
+#define inb inb
+#define inw inw
+#define inl inl
+#define outb outb
+#define outw outw
+#define outl outl
 
 extern u8		readb(const volatile void __iomem *addr);
 extern u16		readw(const volatile void __iomem *addr);
@@ -251,6 +259,14 @@ extern void		writeb(u8 b, volatile void __iomem *addr);
 extern void		writew(u16 b, volatile void __iomem *addr);
 extern void		writel(u32 b, volatile void __iomem *addr);
 extern void		writeq(u64 b, volatile void __iomem *addr);
+#define readb readb
+#define readw readw
+#define readl readl
+#define readq readq
+#define writeb writeb
+#define writew writew
+#define writel writel
+#define writeq writeq
 
 extern u8		__raw_readb(const volatile void __iomem *addr);
 extern u16		__raw_readw(const volatile void __iomem *addr);
@@ -260,6 +276,14 @@ extern void		__raw_writeb(u8 b, volatile void __iomem *addr);
 extern void		__raw_writew(u16 b, volatile void __iomem *addr);
 extern void		__raw_writel(u32 b, volatile void __iomem *addr);
 extern void		__raw_writeq(u64 b, volatile void __iomem *addr);
+#define __raw_readb __raw_readb
+#define __raw_readw __raw_readw
+#define __raw_readl __raw_readl
+#define __raw_readq __raw_readq
+#define __raw_writeb __raw_writeb
+#define __raw_writew __raw_writew
+#define __raw_writel __raw_writel
+#define __raw_writeq __raw_writeq
 
 /*
  * Mapping from port numbers to __iomem space is pretty easy.
@@ -276,6 +300,9 @@ extern inline void __iomem *ioport_map(unsigned long port, unsigned int size)
 extern inline void ioport_unmap(void __iomem *addr)
 {
 }
+
+#define ioport_map ioport_map
+#define ioport_unmap ioport_unmap
 
 static inline void __iomem *ioremap(unsigned long port, unsigned long size)
 {
@@ -358,6 +385,11 @@ extern inline void outw(u16 b, unsigned long port)
 }
 #endif
 
+#define ioread8 ioread8
+#define ioread16 ioread16
+#define iowrite8 iowrite8
+#define iowrite16 iowrite16
+
 #if IO_CONCAT(__IO_PREFIX,trivial_io_lq)
 extern inline unsigned int ioread32(const void __iomem *addr)
 {
@@ -384,6 +416,9 @@ extern inline void outl(u32 b, unsigned long port)
 	iowrite32(b, ioport_map(port, 4));
 }
 #endif
+
+#define ioread32 ioread32
+#define iowrite32 iowrite32
 
 #if IO_CONCAT(__IO_PREFIX,trivial_rw_bw) == 1
 extern inline u8 __raw_readb(const volatile void __iomem *addr)
@@ -505,6 +540,10 @@ extern u8 readb_relaxed(const volatile void __iomem *addr);
 extern u16 readw_relaxed(const volatile void __iomem *addr);
 extern u32 readl_relaxed(const volatile void __iomem *addr);
 extern u64 readq_relaxed(const volatile void __iomem *addr);
+#define readb_relaxed readb_relaxed
+#define readw_relaxed readw_relaxed
+#define readl_relaxed readl_relaxed
+#define readq_relaxed readq_relaxed
 
 #if IO_CONCAT(__IO_PREFIX,trivial_io_bw)
 extern inline u8 readb_relaxed(const volatile void __iomem *addr)
@@ -557,6 +596,10 @@ static inline void memsetw_io(volatile void __iomem *addr, u16 c, long len)
 	_memset_c_io(addr, 0x0001000100010001UL * c, len);
 }
 
+#define memset_io memset_io
+#define memcpy_fromio memcpy_fromio
+#define memcpy_toio memcpy_toio
+
 /*
  * String versions of in/out ops:
  */
@@ -566,6 +609,13 @@ extern void insl (unsigned long port, void *dst, unsigned long count);
 extern void outsb (unsigned long port, const void *src, unsigned long count);
 extern void outsw (unsigned long port, const void *src, unsigned long count);
 extern void outsl (unsigned long port, const void *src, unsigned long count);
+
+#define insb insb
+#define insw insw
+#define insl insl
+#define outsb outsb
+#define outsw outsw
+#define outsl outsl
 
 /*
  * The Alpha Jensen hardware for some rather strange reason puts
@@ -587,20 +637,28 @@ extern void outsl (unsigned long port, const void *src, unsigned long count);
 #define RTC_ALWAYS_BCD	0
 
 /*
- * Some mucking forons use if[n]def writeq to check if platform has it.
- * It's a bloody bad idea and we probably want ARCH_HAS_WRITEQ for them
- * to play with; for now just use cpp anti-recursion logics and make sure
- * that damn thing is defined and expands to itself.
- */
-
-#define writeq writeq
-#define readq readq
-
-/*
  * Convert a physical pointer to a virtual kernel pointer for /dev/mem
  * access
  */
 #define xlate_dev_mem_ptr(p)	__va(p)
+
+/*
+ * These get provided from <asm-generic/iomap.h> since alpha does not
+ * select GENERIC_IOMAP.
+ */
+#define ioread64 ioread64
+#define iowrite64 iowrite64
+#define ioread64be ioread64be
+#define iowrite64be iowrite64be
+#define ioread8_rep ioread8_rep
+#define ioread16_rep ioread16_rep
+#define ioread32_rep ioread32_rep
+#define iowrite8_rep iowrite8_rep
+#define iowrite16_rep iowrite16_rep
+#define iowrite32_rep iowrite32_rep
+#define pci_iounmap pci_iounmap
+
+#include <asm-generic/io.h>
 
 #endif /* __KERNEL__ */
 
