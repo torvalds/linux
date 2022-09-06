@@ -867,7 +867,7 @@ static int sc2310_g_frame_interval(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static int sc2310_g_mbus_config(struct v4l2_subdev *sd,
+static int sc2310_g_mbus_config(struct v4l2_subdev *sd, unsigned int pad_id,
 				struct v4l2_mbus_config *config)
 {
 	struct sc2310 *sc2310 = to_sc2310(sd);
@@ -884,7 +884,7 @@ static int sc2310_g_mbus_config(struct v4l2_subdev *sd,
 		V4L2_MBUS_CSI2_CONTINUOUS_CLOCK |
 		V4L2_MBUS_CSI2_CHANNEL_1;
 
-	config->type = V4L2_MBUS_CSI2;
+	config->type = V4L2_MBUS_CSI2_DPHY;
 	config->flags = val;
 
 	return 0;
@@ -1515,7 +1515,6 @@ static const struct v4l2_subdev_core_ops sc2310_core_ops = {
 static const struct v4l2_subdev_video_ops sc2310_video_ops = {
 	.s_stream = sc2310_s_stream,
 	.g_frame_interval = sc2310_g_frame_interval,
-	.g_mbus_config = sc2310_g_mbus_config,
 };
 
 static const struct v4l2_subdev_pad_ops sc2310_pad_ops = {
@@ -1524,6 +1523,7 @@ static const struct v4l2_subdev_pad_ops sc2310_pad_ops = {
 	.enum_frame_interval = sc2310_enum_frame_interval,
 	.get_fmt = sc2310_get_fmt,
 	.set_fmt = sc2310_set_fmt,
+	.get_mbus_config = sc2310_g_mbus_config,
 };
 
 static const struct v4l2_subdev_ops sc2310_subdev_ops = {
