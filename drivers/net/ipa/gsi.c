@@ -1475,7 +1475,7 @@ void gsi_channel_doorbell(struct gsi_channel *channel)
 }
 
 /* Consult hardware, move any newly completed transactions to completed list */
-static struct gsi_trans *gsi_channel_update(struct gsi_channel *channel)
+struct gsi_trans *gsi_channel_update(struct gsi_channel *channel)
 {
 	u32 evt_ring_id = channel->evt_ring_id;
 	struct gsi *gsi = channel->gsi;
@@ -1529,9 +1529,6 @@ static struct gsi_trans *gsi_channel_poll_one(struct gsi_channel *channel)
 
 	/* Get the first transaction from the completed list */
 	trans = gsi_channel_trans_complete(channel);
-	if (!trans)	/* List is empty; see if there's more to do */
-		trans = gsi_channel_update(channel);
-
 	if (trans)
 		gsi_trans_move_polled(trans);
 
