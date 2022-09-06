@@ -584,17 +584,12 @@ static void setup_vma_to_mm(struct vm_area_struct *vma, struct mm_struct *mm)
 static void mas_add_vma_to_mm(struct ma_state *mas, struct mm_struct *mm,
 			      struct vm_area_struct *vma)
 {
-	struct vm_area_struct *prev;
-
 	BUG_ON(!vma->vm_region);
 
 	setup_vma_to_mm(vma, mm);
 
-	prev = mas_prev(mas, 0);
-	mas_reset(mas);
 	/* add the VMA to the tree */
 	vma_mas_store(vma, mas);
-	__vma_link_list(mm, vma, prev);
 }
 
 /*
@@ -647,7 +642,6 @@ static int delete_vma_from_mm(struct vm_area_struct *vma)
 
 	/* remove from the MM's tree and list */
 	vma_mas_remove(vma, &mas);
-	__vma_unlink_list(vma->vm_mm, vma);
 	return 0;
 }
 
