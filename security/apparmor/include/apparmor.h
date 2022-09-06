@@ -28,8 +28,15 @@
 #define AA_CLASS_SIGNAL		10
 #define AA_CLASS_NET		14
 #define AA_CLASS_LABEL		16
+#define AA_CLASS_POSIX_MQUEUE	17
+#define AA_CLASS_IO_URING	18
+#define AA_CLASS_MODULE		19
+#define AA_CLASS_DISPLAY_LSM	20
 
-#define AA_CLASS_LAST		AA_CLASS_LABEL
+#define AA_CLASS_X		31
+#define AA_CLASS_DBUS		32
+
+#define AA_CLASS_LAST		AA_CLASS_DBUS
 
 /* Control parameters settable through module/boot flags */
 extern enum audit_mode aa_g_audit;
