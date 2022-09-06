@@ -118,6 +118,8 @@ struct sc2239 {
 	struct v4l2_ctrl	*vblank;
 	struct v4l2_ctrl	*test_pattern;
 	struct mutex		mutex;
+	struct v4l2_fract	cur_fps;
+	u32			cur_vts;
 	bool			streaming;
 	bool			power_on;
 	const struct sc2239_mode *cur_mode;
@@ -406,6 +408,8 @@ static int sc2239_set_fmt(struct v4l2_subdev *sd,
 		__v4l2_ctrl_modify_range(sc2239->vblank, vblank_def,
 					 SC2239_VTS_MAX - mode->height,
 					 1, vblank_def);
+		sc2239->cur_fps = mode->max_fps;
+		sc2239->cur_vts = mode->vts_def;
 	}
 
 	mutex_unlock(&sc2239->mutex);
@@ -705,9 +709,10 @@ static int sc2239_g_frame_interval(struct v4l2_subdev *sd,
 	struct sc2239 *sc2239 = to_sc2239(sd);
 	const struct sc2239_mode *mode = sc2239->cur_mode;
 
-	mutex_lock(&sc2239->mutex);
-	fi->interval = mode->max_fps;
-	mutex_unlock(&sc2239->mutex);
+	if (sc2239->streaming)
+		fi->interval = sc2239->cur_fps;
+	else
+		fi->interval = mode->max_fps;
 
 	return 0;
 }
@@ -918,6 +923,14 @@ static const struct v4l2_subdev_ops sc2239_subdev_ops = {
 	.pad	= &sc2239_pad_ops,
 };
 
+static void sc2239_modify_fps_info(struct sc2239 *sc2239)
+{
+	const struct sc2239_mode *mode = sc2239->cur_mode;
+
+	sc2239->cur_fps.denominator = mode->max_fps.denominator * sc2239->cur_vts /
+				       mode->vts_def;
+}
+
 static int sc2239_set_ctrl(struct v4l2_ctrl *ctrl)
 {
 	struct sc2239 *sc2239 = container_of(ctrl->handler,
@@ -960,6 +973,10 @@ static int sc2239_set_ctrl(struct v4l2_ctrl *ctrl)
 		ret = sc2239_write_reg(sc2239->client, SC2239_REG_VTS,
 				       SC2239_REG_VALUE_16BIT,
 				       ctrl->val + sc2239->cur_mode->height);
+		if (!ret)
+			sc2239->cur_vts = ctrl->val + sc2239->cur_mode->height;
+		if (sc2239->cur_vts != sc2239->cur_mode->vts_def)
+			sc2239_modify_fps_info(sc2239);
 		break;
 	case V4L2_CID_TEST_PATTERN:
 		ret = sc2239_enable_test_pattern(sc2239, ctrl->val);
@@ -1040,6 +1057,9 @@ static int sc2239_initialize_controls(struct sc2239 *sc2239)
 
 	sc2239->subdev.ctrl_handler = handler;
 	sc2239->old_gain = ANALOG_GAIN_DEFAULT;
+	sc2239->cur_fps = mode->max_fps;
+	sc2239->cur_vts = mode->vts_def;
+
 	return 0;
 
 err_free_handler:
