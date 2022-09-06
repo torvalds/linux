@@ -625,6 +625,8 @@ static int st_lsm6dsrx_set_odr(struct st_lsm6dsrx_sensor *sensor, int req_odr,
 	case ST_LSM6DSRX_ID_MLC_5:
 	case ST_LSM6DSRX_ID_MLC_6:
 	case ST_LSM6DSRX_ID_MLC_7:
+	case ST_LSM6DSRX_ID_TAP:
+	case ST_LSM6DSRX_ID_DTAP:
 	case ST_LSM6DSRX_ID_WK:
 	case ST_LSM6DSRX_ID_FF:
 	case ST_LSM6DSRX_ID_SLPCHG:

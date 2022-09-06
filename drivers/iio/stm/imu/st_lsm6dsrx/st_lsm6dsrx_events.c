@@ -110,6 +110,14 @@ static const struct iio_chan_spec st_lsm6dsrx_6D_channels[] = {
 	IIO_CHAN_SOFT_TIMESTAMP(1),
 };
 
+static const struct iio_chan_spec st_lsm6dsrx_tap_channels[] = {
+	ST_LSM6DSRX_EVENT_CHANNEL(IIO_TAP, thr),
+};
+
+static const struct iio_chan_spec st_lsm6dsrx_dtap_channels[] = {
+	ST_LSM6DSRX_EVENT_CHANNEL(IIO_TAP_TAP, thr),
+};
+
 /*
  * st_lsm6dsrx_set_wake_up_thershold - set wake-up threshold in ug
  *
@@ -293,6 +301,64 @@ static int st_lsm6dsrx_set_6D_threshold(struct st_lsm6dsrx_hw *hw,
 	return 0;
 }
 
+/*
+ * st_lsm6dsrx_init_tap - initialize tap detection to default value
+ *
+ * @hw - ST IMU MEMS hw instance
+ */
+static int st_lsm6dsrx_init_tap(struct st_lsm6dsrx_hw *hw)
+{
+	int err;
+
+	err = regmap_update_bits(hw->regmap,
+				 ST_LSM6DSRX_REG_TAP_CFG0_ADDR,
+				 ST_LSM6DSRX_REG_TAP_EN_MASK,
+				 FIELD_PREP(ST_LSM6DSRX_REG_TAP_EN_MASK,
+					    0x07));
+	if (err < 0)
+		return err;
+
+	err = regmap_update_bits(hw->regmap,
+				 ST_LSM6DSRX_REG_TAP_CFG1_ADDR,
+				 ST_LSM6DSRX_TAP_THS_X_MASK,
+				 FIELD_PREP(ST_LSM6DSRX_TAP_THS_X_MASK,
+					    0x09));
+	if (err < 0)
+		return err;
+
+	err = regmap_update_bits(hw->regmap,
+				 ST_LSM6DSRX_REG_TAP_CFG2_ADDR,
+				 ST_LSM6DSRX_TAP_THS_Y_MASK,
+				 FIELD_PREP(ST_LSM6DSRX_TAP_THS_Y_MASK,
+					    0x09));
+	if (err < 0)
+		return err;
+
+	err = regmap_update_bits(hw->regmap,
+				 ST_LSM6DSRX_REG_TAP_THS_6D_ADDR,
+				 ST_LSM6DSRX_TAP_THS_Z_MASK,
+				 FIELD_PREP(ST_LSM6DSRX_TAP_THS_Z_MASK,
+					    0x09));
+	if (err < 0)
+		return err;
+
+	err = regmap_update_bits(hw->regmap,
+				 ST_LSM6DSRX_REG_INT_DUR2_ADDR,
+				 ST_LSM6DSRX_SHOCK_MASK,
+				 FIELD_PREP(ST_LSM6DSRX_SHOCK_MASK,
+					    0x02));
+	if (err < 0)
+		return err;
+
+	err = regmap_update_bits(hw->regmap,
+				 ST_LSM6DSRX_REG_INT_DUR2_ADDR,
+				 ST_LSM6DSRX_QUIET_MASK,
+				 FIELD_PREP(ST_LSM6DSRX_QUIET_MASK,
+					    0x01));
+
+	return err < 0 ? err : 0;
+}
+
 static int
 st_lsm6dsrx_event_sensor_set_enable(struct st_lsm6dsrx_sensor *sensor,
 				    bool enable)
@@ -332,6 +398,34 @@ st_lsm6dsrx_event_sensor_set_enable(struct st_lsm6dsrx_sensor *sensor,
 		err = st_lsm6dsrx_write_with_mask_locked(hw, int_reg,
 					ST_LSM6DSRX_INT_6D_MASK,
 					eint);
+		if (err < 0)
+			return err;
+		break;
+	case ST_LSM6DSRX_ID_TAP:
+		err = st_lsm6dsrx_write_with_mask_locked(hw, int_reg,
+					ST_LSM6DSRX_INT_SINGLE_TAP_MASK,
+					eint);
+		if (err < 0)
+			return err;
+
+		err = st_lsm6dsrx_write_with_mask_locked(hw,
+				     ST_LSM6DSRX_REG_WAKE_UP_THS_ADDR,
+				     ST_LSM6DSRX_SINGLE_DOUBLE_TAP_MASK,
+				     0);
+		if (err < 0)
+			return err;
+		break;
+	case ST_LSM6DSRX_ID_DTAP:
+		err = st_lsm6dsrx_write_with_mask_locked(hw, int_reg,
+					ST_LSM6DSRX_INT_DOUBLE_TAP_MASK,
+					eint);
+		if (err < 0)
+			return err;
+
+		err = st_lsm6dsrx_write_with_mask_locked(hw,
+				     ST_LSM6DSRX_REG_WAKE_UP_THS_ADDR,
+				     ST_LSM6DSRX_SINGLE_DOUBLE_TAP_MASK,
+				     1);
 		if (err < 0)
 			return err;
 		break;
@@ -611,6 +705,34 @@ static const struct iio_info st_lsm6dsrx_6D_info = {
 	.attrs = &st_lsm6dsrx_6D_attribute_group,
 };
 
+static struct attribute *st_lsm6dsrx_tap_attributes[] = {
+	NULL,
+};
+
+static const struct attribute_group st_lsm6dsrx_tap_attribute_group = {
+	.attrs = st_lsm6dsrx_tap_attributes,
+};
+
+static const struct iio_info st_lsm6dsrx_tap_info = {
+	.attrs = &st_lsm6dsrx_tap_attribute_group,
+	.read_event_config = st_lsm6dsrx_read_event_config,
+	.write_event_config = st_lsm6dsrx_write_event_config,
+};
+
+static struct attribute *st_lsm6dsrx_dtap_attributes[] = {
+	NULL,
+};
+
+static const struct attribute_group st_lsm6dsrx_dtap_attribute_group = {
+	.attrs = st_lsm6dsrx_dtap_attributes,
+};
+
+static const struct iio_info st_lsm6dsrx_dtap_info = {
+	.attrs = &st_lsm6dsrx_dtap_attribute_group,
+	.read_event_config = st_lsm6dsrx_read_event_config,
+	.write_event_config = st_lsm6dsrx_write_event_config,
+};
+
 static struct iio_dev *
 st_lsm6dsrx_alloc_event_iiodev(struct st_lsm6dsrx_hw *hw,
 			       enum st_lsm6dsrx_sensor_id id)
@@ -631,7 +753,6 @@ st_lsm6dsrx_alloc_event_iiodev(struct st_lsm6dsrx_hw *hw,
 	sensor->watermark = 1;
 
 	/* set minimal xl ODR to 26 Hz */
-	sensor->odr = hw->odr_table[ST_LSM6DSRX_ID_ACC].odr_avl[2].hz;
 	iio_dev->available_scan_masks = st_lsm6dsrx_event_available_scan_masks;
 
 	switch (id) {
@@ -641,6 +762,7 @@ st_lsm6dsrx_alloc_event_iiodev(struct st_lsm6dsrx_hw *hw,
 		scnprintf(sensor->name, sizeof(sensor->name),
 			 "%s_wk", hw->settings->id.name);
 		iio_dev->info = &st_lsm6dsrx_wk_info;
+		sensor->odr = hw->odr_table[ST_LSM6DSRX_ID_ACC].odr_avl[2].hz;
 		break;
 	case ST_LSM6DSRX_ID_FF:
 		iio_dev->channels = st_lsm6dsrx_ff_channels;
@@ -648,6 +770,7 @@ st_lsm6dsrx_alloc_event_iiodev(struct st_lsm6dsrx_hw *hw,
 		scnprintf(sensor->name, sizeof(sensor->name),
 			 "%s_ff", hw->settings->id.name);
 		iio_dev->info = &st_lsm6dsrx_ff_info;
+		sensor->odr = hw->odr_table[ST_LSM6DSRX_ID_ACC].odr_avl[2].hz;
 		break;
 	case ST_LSM6DSRX_ID_SLPCHG:
 		iio_dev->channels = st_lsm6dsrx_sc_channels;
@@ -655,6 +778,7 @@ st_lsm6dsrx_alloc_event_iiodev(struct st_lsm6dsrx_hw *hw,
 		scnprintf(sensor->name, sizeof(sensor->name),
 			 "%s_sc", hw->settings->id.name);
 		iio_dev->info = &st_lsm6dsrx_sc_info;
+		sensor->odr = hw->odr_table[ST_LSM6DSRX_ID_ACC].odr_avl[2].hz;
 		break;
 	case ST_LSM6DSRX_ID_6D:
 		iio_dev->channels = st_lsm6dsrx_6D_channels;
@@ -662,6 +786,27 @@ st_lsm6dsrx_alloc_event_iiodev(struct st_lsm6dsrx_hw *hw,
 		scnprintf(sensor->name, sizeof(sensor->name),
 			 "%s_6d", hw->settings->id.name);
 		iio_dev->info = &st_lsm6dsrx_6D_info;
+		sensor->odr = hw->odr_table[ST_LSM6DSRX_ID_ACC].odr_avl[2].hz;
+		break;
+	case ST_LSM6DSRX_ID_TAP:
+		iio_dev->channels = st_lsm6dsrx_tap_channels;
+		iio_dev->num_channels = ARRAY_SIZE(st_lsm6dsrx_tap_channels);
+		scnprintf(sensor->name, sizeof(sensor->name),
+			 "%s_tap", hw->settings->id.name);
+		iio_dev->info = &st_lsm6dsrx_tap_info;
+
+		/* require main sensor odr to 416 Hz */
+		sensor->odr = hw->odr_table[ST_LSM6DSRX_ID_ACC].odr_avl[6].hz;
+		break;
+	case ST_LSM6DSRX_ID_DTAP:
+		iio_dev->channels = st_lsm6dsrx_dtap_channels;
+		iio_dev->num_channels = ARRAY_SIZE(st_lsm6dsrx_dtap_channels);
+		scnprintf(sensor->name, sizeof(sensor->name),
+			 "%s_dtap", hw->settings->id.name);
+		iio_dev->info = &st_lsm6dsrx_dtap_info;
+
+		/* require main sensor odr to 416 Hz */
+		sensor->odr = hw->odr_table[ST_LSM6DSRX_ID_ACC].odr_avl[6].hz;
 		break;
 	default:
 		return NULL;
@@ -682,7 +827,8 @@ int st_lsm6dsrx_event_handler(struct st_lsm6dsrx_hw *hw)
 	if (hw->enable_mask &
 	    (BIT_ULL(ST_LSM6DSRX_ID_WK) | BIT_ULL(ST_LSM6DSRX_ID_FF) |
 	     BIT_ULL(ST_LSM6DSRX_ID_SLPCHG) |
-	     BIT_ULL(ST_LSM6DSRX_ID_6D))) {
+	     BIT_ULL(ST_LSM6DSRX_ID_6D) | BIT_ULL(ST_LSM6DSRX_ID_TAP) |
+	     BIT_ULL(ST_LSM6DSRX_ID_DTAP))) {
 		err = regmap_bulk_read(hw->regmap,
 				     ST_LSM6DSRX_REG_ALL_INT_SRC_ADDR,
 				     &status, sizeof(status));
@@ -690,6 +836,24 @@ int st_lsm6dsrx_event_handler(struct st_lsm6dsrx_hw *hw)
 			return IRQ_HANDLED;
 
 		/* base function sensors */
+		if (status & ST_LSM6DSRX_SINGLE_TAP_MASK) {
+			iio_dev = hw->iio_devs[ST_LSM6DSRX_ID_TAP];
+			event = IIO_UNMOD_EVENT_CODE(IIO_TAP, -1,
+						     IIO_EV_TYPE_THRESH,
+						     IIO_EV_DIR_RISING);
+			iio_push_event(iio_dev, event,
+				       iio_get_time_ns(iio_dev));
+		}
+
+		if (status & ST_LSM6DSRX_DOUBLE_TAP_MASK) {
+			iio_dev = hw->iio_devs[ST_LSM6DSRX_ID_DTAP];
+			event = IIO_UNMOD_EVENT_CODE(IIO_TAP_TAP, -1,
+						     IIO_EV_TYPE_THRESH,
+						     IIO_EV_DIR_RISING);
+			iio_push_event(iio_dev, event,
+				       iio_get_time_ns(iio_dev));
+		}
+
 		if (status & ST_LSM6DSRX_FF_IA_MASK) {
 			iio_dev = hw->iio_devs[ST_LSM6DSRX_ID_FF];
 			event = IIO_UNMOD_EVENT_CODE(IIO_GESTURE, -1,
@@ -829,7 +993,11 @@ st_lsm6dsrx_config_default_events(struct st_lsm6dsrx_hw *hw)
 		return err;
 
 	/* setting default 6D threshold to 60 degrees */
-	return st_lsm6dsrx_set_6D_threshold(hw, 60);
+	err = st_lsm6dsrx_set_6D_threshold(hw, 60);
+	if (err < 0)
+		return err;
+
+	return st_lsm6dsrx_init_tap(hw);
 }
 
 int st_lsm6dsrx_probe_event(struct st_lsm6dsrx_hw *hw)
