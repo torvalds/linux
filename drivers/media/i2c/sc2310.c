@@ -1074,11 +1074,23 @@ static int sc2310_set_hdrae(struct sc2310 *sc2310,
 	return 0;
 }
 
+static int sc2310_get_channel_info(struct sc2310 *sc2310, struct rkmodule_channel_info *ch_info)
+{
+	if (ch_info->index < PAD0 || ch_info->index >= PAD_MAX)
+		return -EINVAL;
+	ch_info->vc = sc2310->cur_mode->vc[ch_info->index];
+	ch_info->width = sc2310->cur_mode->width;
+	ch_info->height = sc2310->cur_mode->height;
+	ch_info->bus_fmt = sc2310->cur_mode->bus_fmt;
+	return 0;
+}
+
 static long sc2310_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 {
 	struct sc2310 *sc2310 = to_sc2310(sd);
 	struct rkmodule_hdr_cfg *hdr_cfg;
 	const struct sc2310_mode *mode;
+	struct rkmodule_channel_info *ch_info;
 	long ret = 0;
 	u64 pixel_rate = 0;
 	u32 i, h, w, stream;
@@ -1148,6 +1160,10 @@ static long sc2310_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 			ret = sc2310_write_reg(sc2310->client, SC2310_REG_CTRL_MODE,
 				SC2310_REG_VALUE_08BIT, SC2310_MODE_SW_STANDBY);
 		break;
+	case RKMODULE_GET_CHANNEL_INFO:
+		ch_info = (struct rkmodule_channel_info *)arg;
+		ret = sc2310_get_channel_info(sc2310, ch_info);
+		break;
 	default:
 		ret = -ENOIOCTLCMD;
 		break;
@@ -1165,6 +1181,7 @@ static long sc2310_compat_ioctl32(struct v4l2_subdev *sd,
 	struct rkmodule_awb_cfg *cfg;
 	struct rkmodule_hdr_cfg *hdr;
 	struct preisp_hdrae_exp_s *hdrae;
+	struct rkmodule_channel_info *ch_info;
 	long ret = 0;
 	u32 cg = 0;
 	u32 stream = 0;
@@ -1253,6 +1270,21 @@ static long sc2310_compat_ioctl32(struct v4l2_subdev *sd,
 		if (copy_from_user(&stream, up, sizeof(u32)))
 			return -EFAULT;
 		ret = sc2310_ioctl(sd, cmd, &stream);
+		break;
+	case RKMODULE_GET_CHANNEL_INFO:
+		ch_info = kzalloc(sizeof(*ch_info), GFP_KERNEL);
+		if (!ch_info) {
+			ret = -ENOMEM;
+			return ret;
+		}
+
+		ret = sc2310_ioctl(sd, cmd, ch_info);
+		if (!ret) {
+			ret = copy_to_user(up, ch_info, sizeof(*ch_info));
+			if (ret)
+				ret = -EFAULT;
+		}
+		kfree(ch_info);
 		break;
 	default:
 		ret = -ENOIOCTLCMD;
