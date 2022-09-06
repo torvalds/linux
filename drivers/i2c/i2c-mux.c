@@ -210,6 +210,49 @@ static void i2c_parent_unlock_bus(struct i2c_adapter *adapter,
 	rt_mutex_unlock(&parent->mux_lock);
 }
 
+/*
+ * For a mux adapter, the lock_select operation first locks just like the
+ * lock_bus operation. Then it selects the channel for this adapter and
+ * returns the root adapter. If there is another mux above this one, calling
+ * the parent lock_select should ensure that the channel is correctly
+ * selected.
+ */
+static struct i2c_adapter *i2c_mux_lock_select(struct i2c_adapter *adapter)
+{
+	int ret;
+	struct i2c_mux_priv *priv = adapter->algo_data;
+	struct i2c_mux_core *muxc = priv->muxc;
+	struct i2c_adapter *parent = muxc->parent;
+
+	rt_mutex_lock_nested(&parent->mux_lock, i2c_adapter_depth(adapter));
+
+	adapter = parent->mux_root_ops->lock_select(parent);
+	if (IS_ERR(adapter))
+		return adapter;
+
+	ret = muxc->select(muxc, priv->chan_id);
+	if (ret < 0) {
+		parent->mux_root_ops->unlock_deselect(parent);
+		rt_mutex_unlock(&parent->mux_lock);
+		return ERR_PTR(ret);
+	}
+
+	return adapter;
+}
+
+static void i2c_mux_unlock_deselect(struct i2c_adapter *adapter)
+{
+	struct i2c_mux_priv *priv = adapter->algo_data;
+	struct i2c_mux_core *muxc = priv->muxc;
+	struct i2c_adapter *parent = muxc->parent;
+
+	if (muxc->deselect)
+		muxc->deselect(muxc, priv->chan_id);
+
+	parent->mux_root_ops->unlock_deselect(parent);
+	rt_mutex_unlock(&parent->mux_lock);
+}
+
 struct i2c_adapter *i2c_root_adapter(struct device *dev)
 {
 	struct device *i2c;
@@ -280,6 +323,11 @@ static const struct i2c_lock_operations i2c_parent_lock_ops = {
 	.unlock_bus =  i2c_parent_unlock_bus,
 };
 
+static const struct i2c_mux_root_operations i2c_mux_root_ops = {
+	.lock_select = i2c_mux_lock_select,
+	.unlock_deselect = i2c_mux_unlock_deselect,
+};
+
 int i2c_mux_add_adapter(struct i2c_mux_core *muxc,
 			u32 force_nr, u32 chan_id,
 			unsigned int class)
@@ -339,6 +387,8 @@ int i2c_mux_add_adapter(struct i2c_mux_core *muxc,
 		priv->adap.lock_ops = &i2c_mux_lock_ops;
 	else
 		priv->adap.lock_ops = &i2c_parent_lock_ops;
+
+	priv->adap.mux_root_ops = &i2c_mux_root_ops;
 
 	/* Sanity check on class */
 	if (i2c_mux_parent_classes(parent) & class & ~I2C_CLASS_DEPRECATED)

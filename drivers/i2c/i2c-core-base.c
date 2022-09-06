@@ -1395,6 +1395,41 @@ static const struct i2c_lock_operations i2c_adapter_lock_ops = {
 	.unlock_bus =  i2c_adapter_unlock_bus,
 };
 
+/*
+ * For a non-mux adapter, the lock_select operation locks the chain of
+ * adapters upwards, returning the root. If there's a mux above this adapter
+ * somehow, it should also get locked and the desired channel selected.
+ */
+static struct i2c_adapter *i2c_adapter_lock_select(struct i2c_adapter *adapter)
+{
+	struct i2c_adapter *ret = adapter;
+	struct i2c_adapter *parent = i2c_parent_is_i2c_adapter(adapter);
+
+	if (parent) {
+		ret = parent->mux_root_ops->lock_select(parent);
+		if (IS_ERR(ret))
+			return ret;
+	}
+
+	adapter->lock_ops->lock_bus(adapter, I2C_LOCK_ROOT_ADAPTER);
+	return ret;
+}
+
+static void i2c_adapter_unlock_deselect(struct i2c_adapter *adapter)
+{
+	struct i2c_adapter *parent = i2c_parent_is_i2c_adapter(adapter);
+
+	adapter->lock_ops->unlock_bus(adapter, I2C_LOCK_ROOT_ADAPTER);
+
+	if (parent)
+		parent->mux_root_ops->unlock_deselect(parent);
+}
+
+static const struct i2c_mux_root_operations i2c_adapter_mux_root_ops = {
+	.lock_select = i2c_adapter_lock_select,
+	.unlock_deselect = i2c_adapter_unlock_deselect,
+};
+
 static void i2c_host_notify_irq_teardown(struct i2c_adapter *adap)
 {
 	struct irq_domain *domain = adap->host_notify_domain;
@@ -1489,6 +1524,9 @@ static int i2c_register_adapter(struct i2c_adapter *adap)
 
 	if (!adap->lock_ops)
 		adap->lock_ops = &i2c_adapter_lock_ops;
+
+	if (!adap->mux_root_ops)
+		adap->mux_root_ops = &i2c_adapter_mux_root_ops;
 
 	adap->locked_flags = 0;
 	rt_mutex_init(&adap->bus_lock);

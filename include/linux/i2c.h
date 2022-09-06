@@ -583,6 +583,26 @@ struct i2c_lock_operations {
 };
 
 /**
+ * struct i2c_mux_root_operations - represent operations to lock and select
+ * the adapter's mux channel (if a mux is present)
+ * @lock_select: Get exclusive access to the root I2C bus adapter with the
+ *   correct mux channel selected for the adapter
+ * @unlock_deslect: Release exclusive access to the root I2C bus adapter and
+ *   deselect the mux channel for the adapter
+ *
+ * Some I2C clients need the ability to control the root I2C bus even if the
+ * endpoint device is behind a mux. For example, a driver for a chip that
+ * can't handle any I2C traffic on the bus while coming out of reset (including
+ * an I2C-driven mux switching channels) may need to lock the root bus with
+ * the mux selection fixed for the entire time the device is in reset.
+ * These operations are for such a purpose.
+ */
+struct i2c_mux_root_operations {
+	struct i2c_adapter *(*lock_select)(struct i2c_adapter *adapter);
+	void (*unlock_deselect)(struct i2c_adapter *adapter);
+};
+
+/**
  * struct i2c_timings - I2C timing information
  * @bus_freq_hz: the bus frequency in Hz
  * @scl_rise_ns: time SCL signal takes to rise in ns; t(r) in the I2C specification
@@ -724,6 +744,7 @@ struct i2c_adapter {
 
 	/* data fields that are valid for all devices	*/
 	const struct i2c_lock_operations *lock_ops;
+	const struct i2c_mux_root_operations *mux_root_ops;
 	struct rt_mutex bus_lock;
 	struct rt_mutex mux_lock;
 
@@ -814,6 +835,27 @@ static inline void
 i2c_unlock_bus(struct i2c_adapter *adapter, unsigned int flags)
 {
 	adapter->lock_ops->unlock_bus(adapter, flags);
+}
+
+/**
+ * i2c_lock_select_bus - Get exclusive access to the root I2C bus with the
+ *   target's mux channel (if a mux is present) selected.
+ * @adapter: Target I2C bus
+ *
+ * Return the root I2C bus if mux selection succeeds, an ERR_PTR otherwise
+ */
+static inline struct i2c_adapter *i2c_lock_select_bus(struct i2c_adapter *adapter)
+{
+	return adapter->mux_root_ops->lock_select(adapter);
+}
+
+/**
+ * i2c_unlock_deselect_bus - Release exclusive access to the root I2C bus
+ * @adapter: Target I2C bus
+ */
+static inline void i2c_unlock_deselect_bus(struct i2c_adapter *adapter)
+{
+	adapter->mux_root_ops->unlock_deselect(adapter);
 }
 
 /**
