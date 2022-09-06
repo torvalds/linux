@@ -141,7 +141,7 @@ struct sc430cs {
 	struct pinctrl		*pinctrl;
 	struct pinctrl_state	*pins_default;
 	struct pinctrl_state	*pins_sleep;
-
+	struct v4l2_fract	cur_fps;
 	struct v4l2_subdev	subdev;
 	struct media_pad	pad;
 	struct v4l2_ctrl_handler ctrl_handler;
@@ -562,6 +562,8 @@ static int sc430cs_set_fmt(struct v4l2_subdev *sd,
 		__v4l2_ctrl_modify_range(sc430cs->vblank, vblank_def,
 					 SC430CS_VTS_MAX - mode->height,
 					 1, vblank_def);
+		sc430cs->cur_fps = mode->max_fps;
+		sc430cs->cur_vts = (u32)mode->vts_def;
 	}
 
 	mutex_unlock(&sc430cs->mutex);
@@ -654,9 +656,10 @@ static int sc430cs_g_frame_interval(struct v4l2_subdev *sd,
 	struct sc430cs *sc430cs = to_sc430cs(sd);
 	const struct sc430cs_mode *mode = sc430cs->cur_mode;
 
-	mutex_lock(&sc430cs->mutex);
-	fi->interval = mode->max_fps;
-	mutex_unlock(&sc430cs->mutex);
+	if (sc430cs->streaming)
+		fi->interval = sc430cs->cur_fps;
+	else
+		fi->interval = mode->max_fps;
 
 	return 0;
 }
@@ -731,6 +734,8 @@ static long sc430cs_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 			__v4l2_ctrl_modify_range(sc430cs->hblank, w, w, 1, w);
 			__v4l2_ctrl_modify_range(sc430cs->vblank, h,
 						 SC430CS_VTS_MAX - sc430cs->cur_mode->height, 1, h);
+			sc430cs->cur_fps = sc430cs->cur_mode->max_fps;
+			sc430cs->cur_vts = sc430cs->cur_mode->vts_def;
 		}
 		break;
 	case PREISP_CMD_SET_HDRAE_EXP:
@@ -1129,6 +1134,14 @@ static const struct v4l2_subdev_ops sc430cs_subdev_ops = {
 	.pad	= &sc430cs_pad_ops,
 };
 
+static void sc430cs_modify_fps_info(struct sc430cs *sc430cs)
+{
+	const struct sc430cs_mode *mode = sc430cs->cur_mode;
+
+	sc430cs->cur_fps.denominator = mode->max_fps.denominator * sc430cs->cur_vts /
+				       mode->vts_def;
+}
+
 static int sc430cs_set_ctrl(struct v4l2_ctrl *ctrl)
 {
 	struct sc430cs *sc430cs = container_of(ctrl->handler,
@@ -1187,7 +1200,10 @@ static int sc430cs_set_ctrl(struct v4l2_ctrl *ctrl)
 					 SC430CS_REG_VALUE_08BIT,
 					 (ctrl->val + sc430cs->cur_mode->height)
 					 & 0xff);
-		sc430cs->cur_vts = ctrl->val + sc430cs->cur_mode->height;
+		if (!ret)
+			sc430cs->cur_vts = ctrl->val + sc430cs->cur_mode->height;
+		if (sc430cs->cur_vts != sc430cs->cur_mode->vts_def)
+			sc430cs_modify_fps_info(sc430cs);
 		break;
 	case V4L2_CID_TEST_PATTERN:
 		ret = sc430cs_enable_test_pattern(sc430cs, ctrl->val);
@@ -1281,6 +1297,8 @@ static int sc430cs_initialize_controls(struct sc430cs *sc430cs)
 	}
 
 	sc430cs->subdev.ctrl_handler = handler;
+	sc430cs->cur_fps = mode->max_fps;
+	sc430cs->cur_vts = mode->vts_def;
 
 	return 0;
 
