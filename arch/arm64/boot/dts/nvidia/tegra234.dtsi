@@ -564,7 +564,7 @@
 			#address-cells = <1>;
 			#size-cells = <1>;
 
-			ranges = <0x15000000 0x15000000 0x01000000>;
+			ranges = <0x14800000 0x14800000 0x02000000>;
 			interconnects = <&mc TEGRA234_MEMORY_CLIENT_HOST1XDMAR &emc>;
 			interconnect-names = "dma-mem";
 			iommus = <&smmu_niso1 TEGRA234_SID_HOST1X>;
