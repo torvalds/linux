@@ -20,7 +20,18 @@ struct mlx5e_macsec_sa {
 	u32 next_pn;
 	sci_t sci;
 
+	struct rhash_head hash;
+	u32 fs_id;
 	struct mlx5e_macsec_tx_rule *tx_rule;
+	struct rcu_head rcu_head;
+};
+
+static const struct rhashtable_params rhash_sci = {
+	.key_len = sizeof_field(struct mlx5e_macsec_sa, sci),
+	.key_offset = offsetof(struct mlx5e_macsec_sa, sci),
+	.head_offset = offsetof(struct mlx5e_macsec_sa, hash),
+	.automatic_shrinking = true,
+	.min_size = 1,
 };
 
 struct mlx5e_macsec {
@@ -30,6 +41,9 @@ struct mlx5e_macsec {
 
 	/* Global PD for MACsec object ASO context */
 	u32 aso_pdn;
+
+	/* Tx sci -> fs id mapping handling */
+	struct rhashtable sci_hash;      /* sci -> mlx5e_macsec_sa */
 
 	struct mlx5_core_dev *mdev;
 };
@@ -96,6 +110,11 @@ static void mlx5e_macsec_destroy_object(struct mlx5_core_dev *mdev, u32 macsec_o
 
 static void mlx5e_macsec_cleanup_sa(struct mlx5e_macsec *macsec, struct mlx5e_macsec_sa *sa)
 {
+	if (sa->fs_id) {
+		/* Make sure ongoing datapath readers sees a valid SA */
+		rhashtable_remove_fast(&macsec->sci_hash, &sa->hash, rhash_sci);
+		sa->fs_id = 0;
+	}
 
 	if (!sa->tx_rule)
 		return;
@@ -131,14 +150,19 @@ static int mlx5e_macsec_init_sa(struct macsec_context *ctx,
 	rule_attrs.macsec_obj_id = sa->macsec_obj_id;
 	rule_attrs.action = MLX5_ACCEL_MACSEC_ACTION_ENCRYPT;
 
-	tx_rule = mlx5e_macsec_fs_add_rule(macsec->macsec_fs, ctx, &rule_attrs);
+	tx_rule = mlx5e_macsec_fs_add_rule(macsec->macsec_fs, ctx, &rule_attrs, &sa->fs_id);
 	if (IS_ERR_OR_NULL(tx_rule))
 		goto destroy_macsec_object;
 
-	sa->tx_rule = tx_rule;
+	err = rhashtable_insert_fast(&macsec->sci_hash, &sa->hash, rhash_sci);
+	if (err)
+		goto destroy_macsec_rule;
 
+	sa->tx_rule = tx_rule;
 	return 0;
 
+destroy_macsec_rule:
+	mlx5e_macsec_fs_del_rule(macsec->macsec_fs, tx_rule, MLX5_ACCEL_MACSEC_ACTION_ENCRYPT);
 destroy_macsec_object:
 	mlx5e_macsec_destroy_object(mdev, sa->macsec_obj_id);
 
@@ -295,13 +319,27 @@ static int mlx5e_macsec_del_txsa(struct macsec_context *ctx)
 
 	mlx5e_macsec_cleanup_sa(macsec, tx_sa);
 	mlx5_destroy_encryption_key(macsec->mdev, tx_sa->enc_key_id);
-	kfree(tx_sa);
+	kfree_rcu(tx_sa);
 	macsec->tx_sa[assoc_num] = NULL;
 
 out:
 	mutex_unlock(&macsec->lock);
 
 	return err;
+}
+
+static u32 mlx5e_macsec_get_sa_from_hashtable(struct rhashtable *sci_hash, sci_t *sci)
+{
+	struct mlx5e_macsec_sa *macsec_sa;
+	u32 fs_id = 0;
+
+	rcu_read_lock();
+	macsec_sa = rhashtable_lookup(sci_hash, sci, rhash_sci);
+	if (macsec_sa)
+		fs_id = macsec_sa->fs_id;
+	rcu_read_unlock();
+
+	return fs_id;
 }
 
 static bool mlx5e_is_macsec_device(const struct mlx5_core_dev *mdev)
@@ -340,6 +378,36 @@ static const struct macsec_ops macsec_offload_ops = {
 	.mdo_upd_txsa = mlx5e_macsec_upd_txsa,
 	.mdo_del_txsa = mlx5e_macsec_del_txsa,
 };
+
+bool mlx5e_macsec_handle_tx_skb(struct mlx5e_macsec *macsec, struct sk_buff *skb)
+{
+	struct metadata_dst *md_dst = skb_metadata_dst(skb);
+	u32 fs_id;
+
+	fs_id = mlx5e_macsec_get_sa_from_hashtable(&macsec->sci_hash, &md_dst->u.macsec_info.sci);
+	if (!fs_id)
+		goto err_out;
+
+	return true;
+
+err_out:
+	dev_kfree_skb_any(skb);
+	return false;
+}
+
+void mlx5e_macsec_tx_build_eseg(struct mlx5e_macsec *macsec,
+				struct sk_buff *skb,
+				struct mlx5_wqe_eth_seg *eseg)
+{
+	struct metadata_dst *md_dst = skb_metadata_dst(skb);
+	u32 fs_id;
+
+	fs_id = mlx5e_macsec_get_sa_from_hashtable(&macsec->sci_hash, &md_dst->u.macsec_info.sci);
+	if (!fs_id)
+		return;
+
+	eseg->flow_table_metadata = cpu_to_be32(MLX5_ETH_WQE_FT_META_MACSEC | fs_id << 2);
+}
 
 void mlx5e_macsec_build_netdev(struct mlx5e_priv *priv)
 {
@@ -381,6 +449,13 @@ int mlx5e_macsec_init(struct mlx5e_priv *priv)
 		goto err_pd;
 	}
 
+	err = rhashtable_init(&macsec->sci_hash, &rhash_sci);
+	if (err) {
+		mlx5_core_err(mdev, "MACsec offload: Failed to init SCI hash table, err=%d\n",
+			      err);
+		goto err_out;
+	}
+
 	priv->macsec = macsec;
 
 	macsec->mdev = mdev;
@@ -415,6 +490,8 @@ void mlx5e_macsec_cleanup(struct mlx5e_priv *priv)
 	priv->macsec = NULL;
 
 	mlx5_core_dealloc_pd(priv->mdev, macsec->aso_pdn);
+
+	rhashtable_destroy(&macsec->sci_hash);
 
 	mutex_destroy(&macsec->lock);
 

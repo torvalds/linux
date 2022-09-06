@@ -464,7 +464,8 @@ static void macsec_fs_tx_del_rule(struct mlx5e_macsec_fs *macsec_fs,
 static struct mlx5e_macsec_tx_rule *
 macsec_fs_tx_add_rule(struct mlx5e_macsec_fs *macsec_fs,
 		      const struct macsec_context *macsec_ctx,
-		      struct mlx5_macsec_rule_attrs *attrs)
+		      struct mlx5_macsec_rule_attrs *attrs,
+		      u32 *sa_fs_id)
 {
 	char reformatbf[MLX5_MACSEC_TAG_LEN + MACSEC_SCI_LEN];
 	struct mlx5_pkt_reformat_params reformat_params = {};
@@ -518,6 +519,7 @@ macsec_fs_tx_add_rule(struct mlx5e_macsec_fs *macsec_fs,
 	}
 
 	tx_rule->fs_id = fs_id;
+	*sa_fs_id = fs_id;
 
 	flow_act.action = MLX5_FLOW_CONTEXT_ACTION_FWD_DEST |
 			  MLX5_FLOW_CONTEXT_ACTION_CRYPTO_ENCRYPT |
@@ -626,10 +628,11 @@ err_encrypt_counter:
 struct mlx5e_macsec_tx_rule *
 mlx5e_macsec_fs_add_rule(struct mlx5e_macsec_fs *macsec_fs,
 			 const struct macsec_context *macsec_ctx,
-			 struct mlx5_macsec_rule_attrs *attrs)
+			 struct mlx5_macsec_rule_attrs *attrs,
+			 u32 *sa_fs_id)
 {
 	if (attrs->action == MLX5_ACCEL_MACSEC_ACTION_ENCRYPT)
-		return macsec_fs_tx_add_rule(macsec_fs, macsec_ctx, attrs);
+		return macsec_fs_tx_add_rule(macsec_fs, macsec_ctx, attrs, sa_fs_id);
 
 	return NULL;
 }

@@ -30,7 +30,8 @@ mlx5e_macsec_fs_init(struct mlx5_core_dev *mdev, struct net_device *netdev);
 struct mlx5e_macsec_tx_rule *
 mlx5e_macsec_fs_add_rule(struct mlx5e_macsec_fs *macsec_fs,
 			 const struct macsec_context *ctx,
-			 struct mlx5_macsec_rule_attrs *attrs);
+			 struct mlx5_macsec_rule_attrs *attrs,
+			 u32 *sa_fs_id);
 
 void mlx5e_macsec_fs_del_rule(struct mlx5e_macsec_fs *macsec_fs,
 			      struct mlx5e_macsec_tx_rule *macsec_rule,
