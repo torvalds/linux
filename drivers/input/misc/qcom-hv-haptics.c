@@ -1581,6 +1581,17 @@ static int haptics_toggle_module_enable(struct haptics_chip *chip)
 	return haptics_module_enable(chip, true);
 }
 
+static int haptics_clear_fault(struct haptics_chip *chip)
+{
+	u8 val;
+
+	val = SC_CLR_BIT | AUTO_RES_ERR_CLR_BIT |
+		HPWR_RDY_FAULT_CLR_BIT;
+
+	return haptics_write(chip, chip->cfg_addr_base,
+			HAP_CFG_FAULT_CLR_REG, &val, 1);
+}
+
 #define BOOST_VREG_OFF_DELAY_SECONDS	2
 static int haptics_enable_play(struct haptics_chip *chip, bool en)
 {
@@ -1589,10 +1600,7 @@ static int haptics_enable_play(struct haptics_chip *chip, bool en)
 	u8 val;
 
 	if (en) {
-		val = SC_CLR_BIT | AUTO_RES_ERR_CLR_BIT |
-			HPWR_RDY_FAULT_CLR_BIT;
-		rc = haptics_write(chip, chip->cfg_addr_base,
-				HAP_CFG_FAULT_CLR_REG, &val, 1);
+		rc = haptics_clear_fault(chip);
 		if (rc < 0)
 			return rc;
 	}
@@ -5229,6 +5237,7 @@ static int haptics_start_lra_calibrate(struct haptics_chip *chip)
 	}
 
 unlock:
+	haptics_clear_fault(chip);
 	chip->play.in_calibration = false;
 	mutex_unlock(&chip->play.lock);
 	return rc;
