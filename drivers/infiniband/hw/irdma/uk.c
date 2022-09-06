@@ -501,7 +501,8 @@ enum irdma_status_code irdma_uk_send(struct irdma_qp_uk *qp,
 			      FIELD_PREP(IRDMAQPSQ_IMMDATA, info->imm_data));
 		i = 0;
 	} else {
-		qp->wqe_ops.iw_set_fragment(wqe, 0, op_info->sg_list,
+		qp->wqe_ops.iw_set_fragment(wqe, 0,
+					    frag_cnt ? op_info->sg_list : NULL,
 					    qp->swqe_polarity);
 		i = 1;
 	}
