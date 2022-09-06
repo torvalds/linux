@@ -351,7 +351,7 @@ static int margining_caps_show(struct seq_file *s, void *not_used)
 		seq_puts(s, "# hardware margining: no\n");
 	}
 
-	seq_printf(s, "# both lanes simultaneusly: %s\n",
+	seq_printf(s, "# both lanes simultaneously: %s\n",
 		  both_lanes(usb4) ? "yes" : "no");
 	seq_printf(s, "# voltage margin steps: %u\n",
 		   usb4->margining->voltage_steps);
@@ -366,7 +366,7 @@ static int margining_caps_show(struct seq_file *s, void *not_used)
 		seq_puts(s, "# returns high or low voltage margin\n");
 		break;
 	case USB4_MARGIN_CAP_0_VOLTAGE_BOTH:
-		seq_puts(s, "# returns both hight and low margings\n");
+		seq_puts(s, "# returns both high and low margins\n");
 		break;
 	}
 
