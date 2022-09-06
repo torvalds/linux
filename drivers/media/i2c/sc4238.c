@@ -159,6 +159,7 @@ struct sc4238 {
 	struct v4l2_ctrl	*h_flip;
 	struct v4l2_ctrl	*v_flip;
 	struct mutex		mutex;
+	struct v4l2_fract	cur_fps;
 	bool			streaming;
 	bool			power_on;
 	const struct sc4238_mode *cur_mode;
@@ -1573,6 +1574,8 @@ static int sc4238_set_fmt(struct v4l2_subdev *sd,
 					 mode->pixel_rate);
 		__v4l2_ctrl_s_ctrl(sc4238->link_freq,
 					 mode->link_freq);
+		sc4238->cur_fps = mode->max_fps;
+		sc4238->cur_vts = mode->vts_def;
 	}
 
 	mutex_unlock(&sc4238->mutex);
@@ -1666,9 +1669,10 @@ static int sc4238_g_frame_interval(struct v4l2_subdev *sd,
 	struct sc4238 *sc4238 = to_sc4238(sd);
 	const struct sc4238_mode *mode = sc4238->cur_mode;
 
-	mutex_lock(&sc4238->mutex);
-	fi->interval = mode->max_fps;
-	mutex_unlock(&sc4238->mutex);
+	if (sc4238->streaming)
+		fi->interval = sc4238->cur_fps;
+	else
+		fi->interval = mode->max_fps;
 
 	return 0;
 }
@@ -1915,6 +1919,8 @@ static long sc4238_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 			__v4l2_ctrl_modify_range(sc4238->vblank, h,
 				SC4238_VTS_MAX - sc4238->cur_mode->height,
 				1, h);
+			sc4238->cur_fps = sc4238->cur_mode->max_fps;
+			sc4238->cur_vts = sc4238->cur_mode->vts_def;
 			dev_info(&sc4238->client->dev,
 				"sensor mode: %d\n",
 				sc4238->cur_mode->hdr_mode);
@@ -2368,6 +2374,14 @@ static const struct v4l2_subdev_ops sc4238_subdev_ops = {
 	.pad	= &sc4238_pad_ops,
 };
 
+static void sc4238_modify_fps_info(struct sc4238 *sc4238)
+{
+	const struct sc4238_mode *mode = sc4238->cur_mode;
+
+	sc4238->cur_fps.denominator = mode->max_fps.denominator * sc4238->cur_vts /
+				       mode->vts_def;
+}
+
 static int sc4238_set_ctrl(struct v4l2_ctrl *ctrl)
 {
 	struct sc4238 *sc4238 = container_of(ctrl->handler,
@@ -2438,6 +2452,8 @@ static int sc4238_set_ctrl(struct v4l2_ctrl *ctrl)
 					ctrl->val + sc4238->cur_mode->height);
 		if (ret == 0)
 			sc4238->cur_vts = ctrl->val + sc4238->cur_mode->height;
+		if (sc4238->cur_vts != sc4238->cur_mode->vts_def)
+			sc4238_modify_fps_info(sc4238);
 		dev_dbg(&client->dev, "set vblank 0x%x\n",
 			ctrl->val);
 		break;
@@ -2571,6 +2587,8 @@ static int sc4238_initialize_controls(struct sc4238 *sc4238)
 
 	sc4238->subdev.ctrl_handler = handler;
 	sc4238->has_init_exp = false;
+	sc4238->cur_fps = mode->max_fps;
+	sc4238->cur_vts = mode->vts_def;
 
 	return 0;
 
