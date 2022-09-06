@@ -170,7 +170,8 @@ struct sc530ai {
 	struct pinctrl		*pinctrl;
 	struct pinctrl_state	*pins_default;
 	struct pinctrl_state	*pins_sleep;
-
+	struct v4l2_fract	cur_fps;
+	u32			cur_vts;
 	struct v4l2_subdev	subdev;
 	struct media_pad	pad;
 	struct v4l2_ctrl_handler ctrl_handler;
@@ -870,6 +871,8 @@ static int sc530ai_set_fmt(struct v4l2_subdev *sd,
 		pixel_rate = (u32)link_freq_items[mode->mipi_freq_idx] /
 			     mode->bpp * 2 * sc530ai->lane_num;
 		__v4l2_ctrl_s_ctrl_int64(sc530ai->pixel_rate, pixel_rate);
+		sc530ai->cur_vts = mode->vts_def;
+		sc530ai->cur_fps = mode->max_fps;
 	}
 
 	mutex_unlock(&sc530ai->mutex);
@@ -1182,7 +1185,8 @@ static long sc530ai_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 
 			__v4l2_ctrl_s_ctrl_int64(sc530ai->pixel_rate,
 						 pixel_rate);
-
+			sc530ai->cur_vts = mode->vts_def;
+			sc530ai->cur_fps = mode->max_fps;
 			dev_info(&sc530ai->client->dev, "sensor mode: %d\n",
 				 sc530ai->cur_mode->hdr_mode);
 		}
@@ -1595,6 +1599,14 @@ static const struct v4l2_subdev_ops sc530ai_subdev_ops = {
 	.pad	= &sc530ai_pad_ops,
 };
 
+static void sc530ai_modify_fps_info(struct sc530ai *sc5330ai)
+{
+	const struct sc530ai_mode *mode = sc5330ai->cur_mode;
+
+	sc5330ai->cur_fps.denominator = mode->max_fps.denominator * sc5330ai->cur_vts /
+				       mode->vts_def;
+}
+
 static int sc530ai_set_ctrl(struct v4l2_ctrl *ctrl)
 {
 	struct sc530ai *sc530ai = container_of(ctrl->handler,
@@ -1669,6 +1681,10 @@ static int sc530ai_set_ctrl(struct v4l2_ctrl *ctrl)
 					 SC530AI_REG_VTS_L,
 					 SC530AI_REG_VALUE_08BIT,
 					 vts & 0xff);
+		if (!ret)
+			sc530ai->cur_vts = vts;
+		if (sc530ai->cur_vts != sc530ai->cur_mode->vts_def)
+			sc530ai_modify_fps_info(sc530ai);
 		dev_dbg(&client->dev, "set vblank 0x%x\n", ctrl->val);
 		break;
 	case V4L2_CID_HFLIP:
@@ -1826,6 +1842,8 @@ static int sc530ai_initialize_controls(struct sc530ai *sc530ai)
 	}
 	sc530ai->subdev.ctrl_handler = handler;
 	sc530ai->has_init_exp = false;
+	sc530ai->cur_vts = mode->vts_def;
+	sc530ai->cur_fps = mode->max_fps;
 
 	return 0;
 
