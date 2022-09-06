@@ -4107,6 +4107,7 @@ void ieee80211_release_reorder_timeout(struct sta_info *sta, int tid)
 	/* FIXME: statistics won't be right with this */
 	link_id = sta->sta.valid_links ? ffs(sta->sta.valid_links) - 1 : 0;
 	rx.link = rcu_dereference(sta->sdata->link[link_id]);
+	rx.link_sta = rcu_dereference(sta->link[link_id]);
 
 	ieee80211_rx_handlers(&rx, &frames);
 }
