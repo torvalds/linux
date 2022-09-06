@@ -1853,12 +1853,23 @@ static int sc4210_set_hdrae(struct sc4210 *sc4210,
 	return ret;
 }
 
+static int sc4210_get_channel_info(struct sc4210 *sc4210, struct rkmodule_channel_info *ch_info)
+{
+	if (ch_info->index < PAD0 || ch_info->index >= PAD_MAX)
+		return -EINVAL;
+	ch_info->vc = sc4210->cur_mode->vc[ch_info->index];
+	ch_info->width = sc4210->cur_mode->width;
+	ch_info->height = sc4210->cur_mode->height;
+	ch_info->bus_fmt = sc4210->cur_mode->bus_fmt;
+	return 0;
+}
+
 static long sc4210_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 {
 	struct sc4210 *sc4210 = to_sc4210(sd);
 	struct rkmodule_hdr_cfg *hdr;
 	const struct sc4210_mode *mode;
-
+	struct rkmodule_channel_info *ch_info;
 	long ret = 0;
 	u32 i, h = 0, w;
 	u32 stream = 0;
@@ -1932,6 +1943,10 @@ static long sc4210_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 						SC4210_REG_VALUE_08BIT,
 						SC4210_MODE_SW_STANDBY);
 		break;
+	case RKMODULE_GET_CHANNEL_INFO:
+		ch_info = (struct rkmodule_channel_info *)arg;
+		ret = sc4210_get_channel_info(sc4210, ch_info);
+		break;
 	default:
 		ret = -ENOIOCTLCMD;
 		break;
@@ -1948,6 +1963,7 @@ static long sc4210_compat_ioctl32(struct v4l2_subdev *sd,
 	struct rkmodule_inf *inf;
 	struct rkmodule_hdr_cfg *hdr;
 	struct preisp_hdrae_exp_s *hdrae;
+	struct rkmodule_channel_info *ch_info;
 	long ret = 0;
 	u32 stream = 0;
 
@@ -2017,6 +2033,21 @@ static long sc4210_compat_ioctl32(struct v4l2_subdev *sd,
 			return -EFAULT;
 
 		ret = sc4210_ioctl(sd, cmd, &stream);
+		break;
+	case RKMODULE_GET_CHANNEL_INFO:
+		ch_info = kzalloc(sizeof(*ch_info), GFP_KERNEL);
+		if (!ch_info) {
+			ret = -ENOMEM;
+			return ret;
+		}
+
+		ret = sc4210_ioctl(sd, cmd, ch_info);
+		if (!ret) {
+			ret = copy_to_user(up, ch_info, sizeof(*ch_info));
+			if (ret)
+				ret = -EFAULT;
+		}
+		kfree(ch_info);
 		break;
 	default:
 		ret = -ENOIOCTLCMD;
