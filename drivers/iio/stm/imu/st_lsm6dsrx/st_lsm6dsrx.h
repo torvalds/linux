@@ -592,9 +592,13 @@ struct st_lsm6dsrx_settings {
  * @max_watermark: Max supported watermark level.
  * @watermark: Sensor watermark level.
  * @pm: sensor power mode (HP, LP).
+ * @last_fifo_timestamp: Timestamp related to last sample in FIFO.
  * @selftest_status: Report last self test status.
  * @min_st: Min self test raw data value.
  * @max_st: Max self test raw data value.
+ * @status_reg: MLC/FSM sensor status register.
+ * @outreg_addr: MLC/FSM sensor output register.
+ * @status: MLC/FSM enabled sensor status.
  * @conf: Used in case of sensor event to manage configuration.
  */
 struct st_lsm6dsrx_sensor {
@@ -609,6 +613,7 @@ struct st_lsm6dsrx_sensor {
 
 	union {
 		struct {
+			/* data sensors */
 			u32 gain;
 			u32 offset;
 			u8 decimator;
@@ -624,14 +629,16 @@ struct st_lsm6dsrx_sensor {
 			int min_st;
 			int max_st;
 		};
+
 		struct {
+			/* mlc or fsm sensor */
 			uint8_t status_reg;
 			uint8_t outreg_addr;
 			enum st_lsm6dsrx_fsm_mlc_enable_id status;
 		};
 
-		/* sensor specific data configuration */
 		struct {
+			/* event sensor, data configuration */
 			u32 conf[6];
 		};
 	};
@@ -643,6 +650,7 @@ struct st_lsm6dsrx_sensor {
  * @irq: Device interrupt line (I2C or SPI).
  * @regmap: Register map of the device.
  * @int_pin: Save interrupt pin used by sensor.
+ * @page_lock: Mutex to prevent access to different register page.
  * @fifo_lock: Mutex to prevent concurrent access to the hw FIFO.
  * @fifo_mode: FIFO operating mode supported by the device.
  * @state: hw operational state.
@@ -657,8 +665,11 @@ struct st_lsm6dsrx_sensor {
  * @ts: Latest timestamp from irq handler.
  * @i2c_master_pu: I2C master line Pull Up configuration.
  * @orientation: Sensor orientation matrix.
- * @mlc_config:
+ * @vdd_supply: Voltage regulator for VDD.
+ * @vddio_supply: Voltage regulator for VDDIIO.
+ * @mlc_config: MLC/FSM data register structure.
  * @odr_table_entry: Sensors ODR table.
+ * @preload_mlc: MLC/FSM preload flag.
  * @iio_devs: Pointers to acc/gyro iio_dev instances.
  * @settings: ST IMU sensor settings.
  * @fs_table: ST IMU full scale table.
