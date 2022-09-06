@@ -368,9 +368,9 @@ int i3c_device_request_ibi(struct i3c_device *dev,
 void i3c_device_free_ibi(struct i3c_device *dev);
 int i3c_device_enable_ibi(struct i3c_device *dev);
 int i3c_device_disable_ibi(struct i3c_device *dev);
-int i3c_device_setmrl_ccc(struct i3c_device *dev, struct i3c_device_info *info, __be16 read_len,
+int i3c_device_setmrl_ccc(struct i3c_device *dev, struct i3c_device_info *info, u16 read_len,
 			  u8 ibi_len);
-int i3c_device_setmwl_ccc(struct i3c_device *dev, struct i3c_device_info *info, __be16 write_len);
+int i3c_device_setmwl_ccc(struct i3c_device *dev, struct i3c_device_info *info, u16 write_len);
 int i3c_device_getmrl_ccc(struct i3c_device *dev, struct i3c_device_info *info);
 int i3c_device_getmwl_ccc(struct i3c_device *dev, struct i3c_device_info *info);
 int i3c_device_setaasa_ccc(struct i3c_device *dev);

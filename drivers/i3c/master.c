@@ -1177,7 +1177,7 @@ out:
 }
 
 int i3c_master_setmrl_locked(struct i3c_master_controller *master,
-			     struct i3c_device_info *info, __be16 read_len, u8 ibi_len)
+			     struct i3c_device_info *info, u16 read_len, u8 ibi_len)
 {
 	struct i3c_ccc_cmd_dest dest;
 	struct i3c_ccc_cmd cmd;
@@ -1188,9 +1188,9 @@ int i3c_master_setmrl_locked(struct i3c_master_controller *master,
 	if (!mrl)
 		return -ENOMEM;
 
-	mrl->read_len = read_len;
+	mrl->read_len = cpu_to_be16(read_len);
 	mrl->ibi_len = ibi_len;
-	info->max_read_len = mrl->read_len;
+	info->max_read_len = read_len;
 	info->max_ibi_len = mrl->ibi_len;
 	i3c_ccc_cmd_init(&cmd, false, I3C_CCC_SETMRL(false), &dest, 1);
 
@@ -1201,7 +1201,7 @@ int i3c_master_setmrl_locked(struct i3c_master_controller *master,
 }
 
 int i3c_master_setmwl_locked(struct i3c_master_controller *master,
-			     struct i3c_device_info *info, __be16 write_len)
+			     struct i3c_device_info *info, u16 write_len)
 {
 	struct i3c_ccc_cmd_dest dest;
 	struct i3c_ccc_cmd cmd;
@@ -1212,8 +1212,8 @@ int i3c_master_setmwl_locked(struct i3c_master_controller *master,
 	if (!mwl)
 		return -ENOMEM;
 
-	mwl->len = write_len;
-	info->max_write_len = mwl->len;
+	mwl->len = cpu_to_be16(write_len);
+	info->max_write_len = write_len;
 	i3c_ccc_cmd_init(&cmd, false, I3C_CCC_SETMWL(false), &dest, 1);
 
 	ret = i3c_master_send_ccc_cmd_locked(master, &cmd);

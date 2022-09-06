@@ -421,7 +421,7 @@ EXPORT_SYMBOL_GPL(i3c_device_control_pec);
  *
  * Return: 0 in case of success, a negative error code otherwise.
  */
-int i3c_device_setmrl_ccc(struct i3c_device *dev, struct i3c_device_info *info, __be16 read_len,
+int i3c_device_setmrl_ccc(struct i3c_device *dev, struct i3c_device_info *info, u16 read_len,
 			  u8 ibi_len)
 {
 	struct i3c_master_controller *master = i3c_dev_get_master(dev->desc);
@@ -447,7 +447,7 @@ EXPORT_SYMBOL_GPL(i3c_device_setmrl_ccc);
  *
  * Return: 0 in case of success, a negative error code otherwise.
  */
-int i3c_device_setmwl_ccc(struct i3c_device *dev, struct i3c_device_info *info, __be16 write_len)
+int i3c_device_setmwl_ccc(struct i3c_device *dev, struct i3c_device_info *info, u16 write_len)
 {
 	struct i3c_master_controller *master = i3c_dev_get_master(dev->desc);
 	int ret = -EINVAL;
