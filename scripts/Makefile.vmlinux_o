@@ -35,18 +35,11 @@ endif
 
 objtool-enabled := $(or $(delay-objtool),$(CONFIG_NOINSTR_VALIDATION))
 
-# Reuse objtool_args defined in scripts/Makefile.lib if LTO or IBT is enabled.
-#
-# Add some more flags as needed.
-# --no-unreachable and --link might be added twice, but it is fine.
-#
-# Expand objtool_args to a simple variable to avoid circular reference.
+vmlinux-objtool-args-$(delay-objtool)			+= $(objtool-args-y)
+vmlinux-objtool-args-$(CONFIG_GCOV_KERNEL)		+= --no-unreachable
+vmlinux-objtool-args-$(CONFIG_NOINSTR_VALIDATION)	+= --noinstr $(if $(CONFIG_CPU_UNRET_ENTRY), --unret)
 
-objtool_args := \
-	$(if $(delay-objtool),$(objtool_args)) \
-	$(if $(CONFIG_NOINSTR_VALIDATION), --noinstr $(if $(CONFIG_CPU_UNRET_ENTRY), --unret)) \
-	$(if $(CONFIG_GCOV_KERNEL), --no-unreachable) \
-	--link
+objtool-args = $(vmlinux-objtool-args-y) --link
 
 # Link of vmlinux.o used for section mismatch analysis
 # ---------------------------------------------------------------------------
