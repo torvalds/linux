@@ -96,7 +96,6 @@ struct gsi_trans_info {
 	struct gsi_trans_pool cmd_pool;	/* command payload DMA pool */
 
 	spinlock_t spinlock;		/* protects updates to the lists */
-	struct list_head alloc;		/* allocated, not committed */
 	struct list_head committed;	/* committed, awaiting doorbell */
 	struct list_head pending;	/* pending, awaiting completion */
 	struct list_head complete;	/* completed, awaiting poll */

@@ -246,7 +246,7 @@ struct gsi_trans *gsi_channel_trans_complete(struct gsi_channel *channel)
 	return &trans_info->trans[trans_id %= channel->tre_count];
 }
 
-/* Move a transaction from the allocated list to the committed list */
+/* Move a transaction from allocated to committed state */
 static void gsi_trans_move_committed(struct gsi_trans *trans)
 {
 	struct gsi_channel *channel = &trans->gsi->channel[trans->channel_id];
@@ -254,7 +254,7 @@ static void gsi_trans_move_committed(struct gsi_trans *trans)
 
 	spin_lock_bh(&trans_info->spinlock);
 
-	list_move_tail(&trans->links, &trans_info->committed);
+	list_add_tail(&trans->links, &trans_info->committed);
 
 	spin_unlock_bh(&trans_info->spinlock);
 
@@ -383,6 +383,7 @@ struct gsi_trans *gsi_channel_trans_alloc(struct gsi *gsi, u32 channel_id,
 	memset(trans, 0, sizeof(*trans));
 
 	/* Initialize non-zero fields in the transaction */
+	INIT_LIST_HEAD(&trans->links);
 	trans->gsi = gsi;
 	trans->channel_id = channel_id;
 	trans->rsvd_count = tre_count;
@@ -397,12 +398,6 @@ struct gsi_trans *gsi_channel_trans_alloc(struct gsi *gsi, u32 channel_id,
 
 	/* This free transaction will now be allocated */
 	trans_info->free_id++;
-
-	spin_lock_bh(&trans_info->spinlock);
-
-	list_add_tail(&trans->links, &trans_info->alloc);
-
-	spin_unlock_bh(&trans_info->spinlock);
 
 	return trans;
 }
@@ -821,7 +816,6 @@ int gsi_channel_trans_init(struct gsi *gsi, u32 channel_id)
 		goto err_map_free;
 
 	spin_lock_init(&trans_info->spinlock);
-	INIT_LIST_HEAD(&trans_info->alloc);
 	INIT_LIST_HEAD(&trans_info->committed);
 	INIT_LIST_HEAD(&trans_info->pending);
 	INIT_LIST_HEAD(&trans_info->complete);
