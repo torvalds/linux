@@ -121,6 +121,7 @@ TODOList:
    scheduler/index
    mm/index
    peci/index
+   PCI/index
 
 TODOList:
 
@@ -148,7 +149,6 @@ TODOList:
 * crypto/index
 * bpf/index
 * usb/index
-* PCI/index
 * scsi/index
 * misc-devices/index
 * mhi/index
