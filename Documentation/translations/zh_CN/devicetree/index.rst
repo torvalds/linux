@@ -35,10 +35,10 @@ Devicetree Overlays
    :maxdepth: 1
 
    changesets
+   dynamic-resolution-notes
 
 Todolist:
 
-*   dynamic-resolution-notes
 *   overlay-notes
 
 Devicetree Bindings
