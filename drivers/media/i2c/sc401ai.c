@@ -162,6 +162,7 @@ struct sc401ai {
 	struct v4l2_ctrl	*pixel_rate;
 	struct v4l2_ctrl	*link_freq;
 	struct mutex		mutex;
+	struct v4l2_fract	cur_fps;
 	bool			streaming;
 	bool			power_on;
 	unsigned int		lane_num;
@@ -701,6 +702,8 @@ static int sc401ai_set_fmt(struct v4l2_subdev *sd,
 		__v4l2_ctrl_modify_range(sc401ai->vblank, vblank_def,
 					 SC401AI_VTS_MAX - mode->height,
 					 1, vblank_def);
+		sc401ai->cur_fps = mode->max_fps;
+		sc401ai->cur_vts = mode->vts_def;
 	}
 
 	mutex_unlock(&sc401ai->mutex);
@@ -792,9 +795,10 @@ static int sc401ai_g_frame_interval(struct v4l2_subdev *sd,
 	struct sc401ai *sc401ai = to_sc401ai(sd);
 	const struct sc401ai_mode *mode = sc401ai->cur_mode;
 
-	mutex_lock(&sc401ai->mutex);
-	fi->interval = mode->max_fps;
-	mutex_unlock(&sc401ai->mutex);
+	if (sc401ai->streaming)
+		fi->interval = sc401ai->cur_fps;
+	else
+		fi->interval = mode->max_fps;
 
 	return 0;
 }
@@ -1259,6 +1263,14 @@ static const struct v4l2_subdev_ops sc401ai_subdev_ops = {
 	.pad	= &sc401ai_pad_ops,
 };
 
+static void sc401ai_modify_fps_info(struct sc401ai *sc401ai)
+{
+	const struct sc401ai_mode *mode = sc401ai->cur_mode;
+
+	sc401ai->cur_fps.denominator = mode->max_fps.denominator * sc401ai->cur_vts /
+				       mode->vts_def;
+}
+
 static int sc401ai_set_ctrl(struct v4l2_ctrl *ctrl)
 {
 	struct sc401ai *sc401ai = container_of(ctrl->handler,
@@ -1317,7 +1329,10 @@ static int sc401ai_set_ctrl(struct v4l2_ctrl *ctrl)
 					 SC401AI_REG_VALUE_08BIT,
 					 (ctrl->val + sc401ai->cur_mode->height)
 					 & 0xff);
-		sc401ai->cur_vts = ctrl->val + sc401ai->cur_mode->height;
+		if (!ret)
+			sc401ai->cur_vts = ctrl->val + sc401ai->cur_mode->height;
+		if (sc401ai->cur_vts != sc401ai->cur_mode->vts_def)
+			sc401ai_modify_fps_info(sc401ai);
 		break;
 	case V4L2_CID_TEST_PATTERN:
 		ret = sc401ai_enable_test_pattern(sc401ai, ctrl->val);
@@ -1459,6 +1474,8 @@ static int sc401ai_initialize_controls(struct sc401ai *sc401ai)
 	}
 
 	sc401ai->subdev.ctrl_handler = handler;
+	sc401ai->cur_fps = mode->max_fps;
+	sc401ai->cur_vts = mode->vts_def;
 
 	return 0;
 
