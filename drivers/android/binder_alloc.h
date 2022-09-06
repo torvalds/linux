@@ -74,10 +74,9 @@ struct binder_lru_page {
 
 /**
  * struct binder_alloc - per-binder proc state for binder allocator
- * @vma:                vm_area_struct passed to mmap_handler
+ * @mutex:              protects binder_alloc fields
+ * @vma_addr:           vm_area_struct->vm_start passed to mmap_handler
  *                      (invariant after mmap)
- * @tsk:                tid for task that called init for this proc
- *                      (invariant after init)
  * @mm:                 copy of task->mm (invariant after open)
  * @buffer:             base of per-proc address space mapped via mmap
  * @buffers:            list of all buffers for this proc
