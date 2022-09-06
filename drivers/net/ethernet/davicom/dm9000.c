@@ -28,8 +28,7 @@
 #include <linux/irq.h>
 #include <linux/slab.h>
 #include <linux/regulator/consumer.h>
-#include <linux/gpio.h>
-#include <linux/of_gpio.h>
+#include <linux/gpio/consumer.h>
 
 #include <asm/delay.h>
 #include <asm/irq.h>
@@ -1421,8 +1420,7 @@ dm9000_probe(struct platform_device *pdev)
 	int iosize;
 	int i;
 	u32 id_val;
-	int reset_gpios;
-	enum of_gpio_flags flags;
+	struct gpio_desc *reset_gpio;
 	struct regulator *power;
 	bool inv_mac_addr = false;
 	u8 addr[ETH_ALEN];
@@ -1442,20 +1440,24 @@ dm9000_probe(struct platform_device *pdev)
 		dev_dbg(dev, "regulator enabled\n");
 	}
 
-	reset_gpios = of_get_named_gpio_flags(dev->of_node, "reset-gpios", 0,
-					      &flags);
-	if (gpio_is_valid(reset_gpios)) {
-		ret = devm_gpio_request_one(dev, reset_gpios, flags,
-					    "dm9000_reset");
+	reset_gpio = devm_gpiod_get_optional(dev, "reset", GPIOD_OUT_HIGH);
+	ret = PTR_ERR_OR_ZERO(reset_gpio);
+	if (ret) {
+		dev_err(dev, "failed to request reset gpio: %d\n", ret);
+		goto out_regulator_disable;
+	}
+
+	if (reset_gpio) {
+		ret = gpiod_set_consumer_name(reset_gpio, "dm9000_reset");
 		if (ret) {
-			dev_err(dev, "failed to request reset gpio %d: %d\n",
-				reset_gpios, ret);
+			dev_err(dev, "failed to set reset gpio name: %d\n",
+				ret);
 			goto out_regulator_disable;
 		}
 
 		/* According to manual PWRST# Low Period Min 1ms */
 		msleep(2);
-		gpio_set_value(reset_gpios, 1);
+		gpiod_set_value_cansleep(reset_gpio, 0);
 		/* Needs 3ms to read eeprom when PWRST is deasserted */
 		msleep(4);
 	}
