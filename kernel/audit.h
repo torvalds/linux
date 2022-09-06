@@ -245,8 +245,6 @@ struct audit_netlink_list {
 
 int audit_send_list_thread(void *_dest);
 
-extern int selinux_audit_rule_update(void);
-
 extern struct mutex audit_filter_mutex;
 extern int audit_del_rule(struct audit_entry *entry);
 extern void audit_free_rule_rcu(struct rcu_head *head);
