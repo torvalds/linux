@@ -137,6 +137,8 @@ struct wm8960_priv {
 	bool is_stream_in_use[2];
 	struct wm8960_data pdata;
 	struct dentry *debug_file;
+	bool first_capture;
+	bool is_capture;
 };
 
 #define wm8960_reset(c)	regmap_write(c, WM8960_RESET, 0)
@@ -822,6 +824,7 @@ static int wm8960_hw_params(struct snd_pcm_substream *substream,
 	u16 word_length = 0;
 	int ret;
 
+	wm8960->is_capture = substream->stream == SNDRV_PCM_STREAM_CAPTURE;
 	wm8960->bclk = snd_soc_params_to_bclk(params);
 	if (params_channels(params) == 1)
 		wm8960->bclk *= 2;
@@ -1002,6 +1005,10 @@ static int wm8960_set_bias_level_out3(struct snd_soc_component *component,
 
 	switch (level) {
 	case SND_SOC_BIAS_ON:
+		if (wm8960->first_capture && wm8960->is_capture) {
+			msleep(800);
+			wm8960->first_capture = false;
+		}
 		break;
 
 	case SND_SOC_BIAS_PREPARE:
@@ -1593,6 +1600,8 @@ static int wm8960_i2c_probe(struct i2c_client *i2c,
 			return ret;
 		}
 	}
+
+	wm8960->first_capture = true;
 
 	/* Latch the update bits */
 	regmap_update_bits(wm8960->regmap, WM8960_LINVOL, 0x100, 0x100);
