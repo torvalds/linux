@@ -136,14 +136,13 @@ static void raw_rcv(struct sk_buff *oskb, void *data)
 	/* eliminate multiple filter matches for the same skb */
 	if (this_cpu_ptr(ro->uniq)->skb == oskb &&
 	    this_cpu_ptr(ro->uniq)->skbcnt == can_skb_prv(oskb)->skbcnt) {
-		if (ro->join_filters) {
-			this_cpu_inc(ro->uniq->join_rx_count);
-			/* drop frame until all enabled filters matched */
-			if (this_cpu_ptr(ro->uniq)->join_rx_count < ro->count)
-				return;
-		} else {
+		if (!ro->join_filters)
 			return;
-		}
+
+		this_cpu_inc(ro->uniq->join_rx_count);
+		/* drop frame until all enabled filters matched */
+		if (this_cpu_ptr(ro->uniq)->join_rx_count < ro->count)
+			return;
 	} else {
 		this_cpu_ptr(ro->uniq)->skb = oskb;
 		this_cpu_ptr(ro->uniq)->skbcnt = can_skb_prv(oskb)->skbcnt;
@@ -942,12 +941,20 @@ static __init int raw_module_init(void)
 
 	pr_info("can: raw protocol\n");
 
-	err = can_proto_register(&raw_can_proto);
-	if (err < 0)
-		pr_err("can: registration of raw protocol failed\n");
-	else
-		register_netdevice_notifier(&canraw_notifier);
+	err = register_netdevice_notifier(&canraw_notifier);
+	if (err)
+		return err;
 
+	err = can_proto_register(&raw_can_proto);
+	if (err < 0) {
+		pr_err("can: registration of raw protocol failed\n");
+		goto register_proto_failed;
+	}
+
+	return 0;
+
+register_proto_failed:
+	unregister_netdevice_notifier(&canraw_notifier);
 	return err;
 }
 
