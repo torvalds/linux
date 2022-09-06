@@ -490,19 +490,6 @@ static int imx8mp_blk_ctrl_power_off(struct generic_pm_domain *genpd)
 	return 0;
 }
 
-static struct generic_pm_domain *
-imx8m_blk_ctrl_xlate(struct of_phandle_args *args, void *data)
-{
-	struct genpd_onecell_data *onecell_data = data;
-	unsigned int index = args->args[0];
-
-	if (args->args_count != 1 ||
-	    index >= onecell_data->num_domains)
-		return ERR_PTR(-EINVAL);
-
-	return onecell_data->domains[index];
-}
-
 static struct lock_class_key blk_ctrl_genpd_lock_class;
 
 static int imx8mp_blk_ctrl_probe(struct platform_device *pdev)
@@ -545,7 +532,6 @@ static int imx8mp_blk_ctrl_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	bc->onecell_data.num_domains = num_domains;
-	bc->onecell_data.xlate = imx8m_blk_ctrl_xlate;
 	bc->onecell_data.domains =
 		devm_kcalloc(dev, num_domains,
 			     sizeof(struct generic_pm_domain *), GFP_KERNEL);
