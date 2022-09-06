@@ -17,6 +17,17 @@
 struct mlx5e_priv;
 struct mlx5e_macsec;
 
+struct mlx5e_macsec_stats {
+	u64 macsec_rx_pkts;
+	u64 macsec_rx_bytes;
+	u64 macsec_rx_pkts_drop;
+	u64 macsec_rx_bytes_drop;
+	u64 macsec_tx_pkts;
+	u64 macsec_tx_bytes;
+	u64 macsec_tx_pkts_drop;
+	u64 macsec_tx_bytes_drop;
+};
+
 void mlx5e_macsec_build_netdev(struct mlx5e_priv *priv);
 int mlx5e_macsec_init(struct mlx5e_priv *priv);
 void mlx5e_macsec_cleanup(struct mlx5e_priv *priv);
@@ -39,6 +50,9 @@ static inline bool mlx5e_macsec_is_rx_flow(struct mlx5_cqe64 *cqe)
 
 void mlx5e_macsec_offload_handle_rx_skb(struct net_device *netdev, struct sk_buff *skb,
 					struct mlx5_cqe64 *cqe);
+bool mlx5e_is_macsec_device(const struct mlx5_core_dev *mdev);
+void mlx5e_macsec_get_stats_fill(struct mlx5e_macsec *macsec, void *macsec_stats);
+struct mlx5e_macsec_stats *mlx5e_macsec_get_stats(struct mlx5e_macsec *macsec);
 
 #else
 
@@ -51,6 +65,7 @@ static inline void mlx5e_macsec_offload_handle_rx_skb(struct net_device *netdev,
 						      struct sk_buff *skb,
 						      struct mlx5_cqe64 *cqe)
 {}
+static inline bool mlx5e_is_macsec_device(const struct mlx5_core_dev *mdev) { return false; }
 
 #endif  /* CONFIG_MLX5_EN_MACSEC */
 

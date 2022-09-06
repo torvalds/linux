@@ -1297,6 +1297,30 @@ static void macsec_fs_rx_cleanup(struct mlx5e_macsec_fs *macsec_fs)
 	macsec_fs->rx_fs = NULL;
 }
 
+void mlx5e_macsec_fs_get_stats_fill(struct mlx5e_macsec_fs *macsec_fs, void *macsec_stats)
+{
+	struct mlx5e_macsec_stats *stats = (struct mlx5e_macsec_stats *)macsec_stats;
+	struct mlx5e_macsec_tables *tx_tables = &macsec_fs->tx_fs->tables;
+	struct mlx5e_macsec_tables *rx_tables = &macsec_fs->rx_fs->tables;
+	struct mlx5_core_dev *mdev = macsec_fs->mdev;
+
+	if (tx_tables->check_rule_counter)
+		mlx5_fc_query(mdev, tx_tables->check_rule_counter,
+			      &stats->macsec_tx_pkts, &stats->macsec_tx_bytes);
+
+	if (tx_tables->check_miss_rule_counter)
+		mlx5_fc_query(mdev, tx_tables->check_miss_rule_counter,
+			      &stats->macsec_tx_pkts_drop, &stats->macsec_tx_bytes_drop);
+
+	if (rx_tables->check_rule_counter)
+		mlx5_fc_query(mdev, rx_tables->check_rule_counter,
+			      &stats->macsec_rx_pkts, &stats->macsec_rx_bytes);
+
+	if (rx_tables->check_miss_rule_counter)
+		mlx5_fc_query(mdev, rx_tables->check_miss_rule_counter,
+			      &stats->macsec_rx_pkts_drop, &stats->macsec_rx_bytes_drop);
+}
+
 union mlx5e_macsec_rule *
 mlx5e_macsec_fs_add_rule(struct mlx5e_macsec_fs *macsec_fs,
 			 const struct macsec_context *macsec_ctx,

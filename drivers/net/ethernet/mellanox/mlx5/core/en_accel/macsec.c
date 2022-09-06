@@ -68,6 +68,9 @@ struct mlx5e_macsec {
 
 	unsigned char *dev_addr;
 	struct mlx5_core_dev *mdev;
+
+	/* Stats manage */
+	struct mlx5e_macsec_stats stats;
 };
 
 struct mlx5_macsec_obj_attrs {
@@ -990,7 +993,7 @@ static int mlx5e_macsec_del_secy(struct macsec_context *ctx)
 	return 0;
 }
 
-static bool mlx5e_is_macsec_device(const struct mlx5_core_dev *mdev)
+bool mlx5e_is_macsec_device(const struct mlx5_core_dev *mdev)
 {
 	if (!(MLX5_CAP_GEN_64(mdev, general_obj_types) &
 	    MLX5_GENERAL_OBJ_TYPES_CAP_MACSEC_OFFLOAD))
@@ -1019,6 +1022,19 @@ static bool mlx5e_is_macsec_device(const struct mlx5_core_dev *mdev)
 		return false;
 
 	return true;
+}
+
+void mlx5e_macsec_get_stats_fill(struct mlx5e_macsec *macsec, void *macsec_stats)
+{
+	mlx5e_macsec_fs_get_stats_fill(macsec->macsec_fs, macsec_stats);
+}
+
+struct mlx5e_macsec_stats *mlx5e_macsec_get_stats(struct mlx5e_macsec *macsec)
+{
+	if (!macsec)
+		return NULL;
+
+	return &macsec->stats;
 }
 
 static const struct macsec_ops macsec_offload_ops = {

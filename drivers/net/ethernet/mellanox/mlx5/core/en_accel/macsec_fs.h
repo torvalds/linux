@@ -40,6 +40,8 @@ void mlx5e_macsec_fs_del_rule(struct mlx5e_macsec_fs *macsec_fs,
 			      union mlx5e_macsec_rule *macsec_rule,
 			      int action);
 
+void mlx5e_macsec_fs_get_stats_fill(struct mlx5e_macsec_fs *macsec_fs, void *macsec_stats);
+
 #endif
 
 #endif /* __MLX5_MACSEC_STEERING_H__ */
