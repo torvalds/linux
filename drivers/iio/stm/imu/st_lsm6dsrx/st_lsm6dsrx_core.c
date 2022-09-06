@@ -1819,8 +1819,6 @@ int st_lsm6dsrx_probe(struct device *dev, int irq, int hw_id,
 		return err;
 #endif /* CONFIG_PM && CONFIG_IIO_ST_LSM6DSRX_MAY_WAKEUP */
 
-	dev_info(dev, "Device probed v%s\n", ST_LSM6DSRX_DRV_VERSION);
-
 	return 0;
 }
 EXPORT_SYMBOL(st_lsm6dsrx_probe);
