@@ -348,6 +348,9 @@ unsigned int dcn314_calculate_dccg_k1_k2_values(struct pipe_ctx *pipe_ctx, unsig
 	two_pix_per_container = optc2_is_two_pixels_per_containter(&stream->timing);
 	odm_combine_factor = get_odm_config(pipe_ctx, NULL);
 
+	if (pipe_ctx->stream->signal == SIGNAL_TYPE_VIRTUAL)
+		return odm_combine_factor;
+
 	if (is_dp_128b_132b_signal(pipe_ctx)) {
 		*k2_div = PIXEL_RATE_DIV_BY_1;
 	} else if (dc_is_hdmi_tmds_signal(pipe_ctx->stream->signal) || dc_is_dvi_signal(pipe_ctx->stream->signal)) {
