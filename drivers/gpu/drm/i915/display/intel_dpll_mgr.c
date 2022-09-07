@@ -3213,6 +3213,9 @@ static int icl_compute_combo_phy_dpll(struct intel_atomic_state *state,
 
 	icl_calc_dpll_state(dev_priv, &pll_params, &port_dpll->hw_state);
 
+	/* this is mainly for the fastset check */
+	icl_set_active_port_dpll(crtc_state, ICL_PORT_DPLL_DEFAULT);
+
 	crtc_state->port_clock = icl_ddi_combo_pll_get_freq(dev_priv, NULL,
 							    &port_dpll->hw_state);
 
@@ -3300,6 +3303,9 @@ static int icl_compute_tc_phy_dplls(struct intel_atomic_state *state,
 	ret = icl_calc_mg_pll_state(crtc_state, &port_dpll->hw_state);
 	if (ret)
 		return ret;
+
+	/* this is mainly for the fastset check */
+	icl_set_active_port_dpll(crtc_state, ICL_PORT_DPLL_MG_PHY);
 
 	crtc_state->port_clock = icl_ddi_mg_pll_get_freq(dev_priv, NULL,
 							 &port_dpll->hw_state);
