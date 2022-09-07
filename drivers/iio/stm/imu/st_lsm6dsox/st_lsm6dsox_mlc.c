@@ -281,6 +281,50 @@ static int st_lsm6dsox_mlc_read_event_config(struct iio_dev *iio_dev,
 	return !!(hw->enable_mask & BIT(sensor->id));
 }
 
+/*
+ * st_lsm6dsox_verify_mlc_fsm_support - Verify device supports MLC/FSM
+ *
+ * Before to load a MLC/FSM configuration check the MLC/FSM HW block
+ * available for this hw device id.
+ */
+static int st_lsm6dsox_verify_mlc_fsm_support(const struct firmware *fw,
+					      struct st_lsm6dsox_hw *hw)
+{
+	bool stmc_page = false;
+	uint8_t reg, val;
+	int i = 0;
+
+	while (i < fw->size) {
+		reg = fw->data[i++];
+		val = fw->data[i++];
+
+		if (reg == 0x01 && val == 0x80) {
+			stmc_page = true;
+		} else if (reg == 0x01 && val == 0x00) {
+			stmc_page = false;
+		} else if (stmc_page) {
+			switch (reg) {
+			case ST_LSM6DSOX_MLC_INT1_ADDR:
+			case ST_LSM6DSOX_MLC_INT2_ADDR:
+				if (!hw->settings->st_mlc_probe)
+					return -ENODEV;
+				break;
+			case ST_LSM6DSOX_FSM_INT1_A_ADDR:
+			case ST_LSM6DSOX_FSM_INT2_A_ADDR:
+			case ST_LSM6DSOX_FSM_INT1_B_ADDR:
+			case ST_LSM6DSOX_FSM_INT2_B_ADDR:
+				if (!hw->settings->st_fsm_probe)
+					return -ENODEV;
+				break;
+			default:
+				break;
+			}
+		}
+	}
+
+	return 0;
+}
+
 /* parse and program mlc fragments */
 static int st_lsm6dsox_program_mlc(const struct firmware *fw,
 				   struct st_lsm6dsox_hw *hw)
@@ -398,6 +442,12 @@ static void st_lsm6dsox_mlc_update(const struct firmware *fw,
 
 	if (!fw) {
 		dev_err(hw->dev, "could not get binary firmware\n");
+		return;
+	}
+
+	ret = st_lsm6dsox_verify_mlc_fsm_support(fw, hw);
+	if (ret) {
+		dev_err(hw->dev, "invalid file format for device\n");
 		return;
 	}
 

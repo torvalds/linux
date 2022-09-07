@@ -679,6 +679,7 @@ extern const struct dev_pm_ops st_lsm6dsox_pm_ops;
  * @name: Device name supported by the driver configuration.
  * @fs_table: Full scale table for a selected device.
  * @st_mlc_probe: MLC probe flag.
+ * @st_fsm_probe: FSM probe flag.
  */
 struct st_lsm6dsox_settings {
 	struct {
@@ -687,6 +688,7 @@ struct st_lsm6dsox_settings {
 	} id[ST_LSM6DSOX_MAX_ID];
 	struct st_lsm6dsox_fs_table_entry fs_table[ST_LSM6DSOX_ID_MAX];
 	bool st_mlc_probe;
+	bool st_fsm_probe;
 };
 
 
@@ -696,6 +698,11 @@ st_lsm6dsox_is_fifo_enabled(struct st_lsm6dsox_hw *hw)
 	return hw->enable_mask & (BIT(ST_LSM6DSOX_ID_GYRO) |
 				  BIT(ST_LSM6DSOX_ID_STEP_COUNTER) |
 				  BIT(ST_LSM6DSOX_ID_ACC));
+}
+
+static inline bool st_lsm6dsox_run_mlc_task(struct st_lsm6dsox_hw *hw)
+{
+	return hw->settings->st_mlc_probe || hw->settings->st_fsm_probe;
 }
 
 static inline int __st_lsm6dsox_write_with_mask(struct st_lsm6dsox_hw *hw,

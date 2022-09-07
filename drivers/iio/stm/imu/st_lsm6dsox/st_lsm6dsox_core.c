@@ -245,6 +245,7 @@ static const struct st_lsm6dsox_settings st_lsm6dsox_sensor_settings[] = {
 				.name = ST_LSM6DSO_DEV_NAME,
 			},
 		},
+		.st_fsm_probe = true,
 		.fs_table = {
 			[ST_LSM6DSOX_ID_ACC] = {
 				.reg = {
@@ -278,6 +279,7 @@ static const struct st_lsm6dsox_settings st_lsm6dsox_sensor_settings[] = {
 			},
 		},
 		.st_mlc_probe = true,
+		.st_fsm_probe = true,
 		.fs_table = {
 			[ST_LSM6DSOX_ID_ACC] = {
 				.reg = {
@@ -310,6 +312,7 @@ static const struct st_lsm6dsox_settings st_lsm6dsox_sensor_settings[] = {
 				.name = ST_LSM6DSO32_DEV_NAME,
 			},
 		},
+		.st_fsm_probe = true,
 		.fs_table = {
 			[ST_LSM6DSOX_ID_ACC] = {
 				.reg = {
@@ -343,6 +346,7 @@ static const struct st_lsm6dsox_settings st_lsm6dsox_sensor_settings[] = {
 			},
 		},
 		.st_mlc_probe = true,
+		.st_fsm_probe = true,
 		.fs_table = {
 			[ST_LSM6DSOX_ID_ACC] = {
 				.reg = {
@@ -2135,7 +2139,7 @@ int st_lsm6dsox_probe(struct device *dev, int irq, int hw_id,
 			return err;
 	}
 
-	if (hw->settings->st_mlc_probe) {
+	if (st_lsm6dsox_run_mlc_task(hw)) {
 		err = st_lsm6dsox_mlc_probe(hw);
 		if (err < 0)
 			return err;
@@ -2150,7 +2154,7 @@ int st_lsm6dsox_probe(struct device *dev, int irq, int hw_id,
 			return err;
 	}
 
-	if (hw->settings->st_mlc_probe) {
+	if (st_lsm6dsox_run_mlc_task(hw)) {
 		err = st_lsm6dsox_mlc_init_preload(hw);
 		if (err)
 			return err;
