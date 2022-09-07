@@ -698,6 +698,8 @@ struct mlx5_pps {
 	struct work_struct         out_work;
 	u64                        start[MAX_PIN_NUM];
 	u8                         enabled;
+	u64                        min_npps_period;
+	u64                        min_out_pulse_duration_ns;
 };
 
 struct mlx5_timer {
