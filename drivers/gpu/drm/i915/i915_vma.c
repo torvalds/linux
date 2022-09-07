@@ -1882,12 +1882,13 @@ int _i915_vma_move_to_active(struct i915_vma *vma,
 		enum dma_resv_usage usage;
 		int idx;
 
-		obj->read_domains = 0;
 		if (flags & EXEC_OBJECT_WRITE) {
 			usage = DMA_RESV_USAGE_WRITE;
 			obj->write_domain = I915_GEM_DOMAIN_RENDER;
+			obj->read_domains = 0;
 		} else {
 			usage = DMA_RESV_USAGE_READ;
+			obj->write_domain = 0;
 		}
 
 		dma_fence_array_for_each(curr, idx, fence)
