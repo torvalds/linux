@@ -407,7 +407,7 @@ static int pci1xxxx_gpio_probe(struct auxiliary_device *aux_dev,
 
 static SIMPLE_DEV_PM_OPS(pci1xxxx_gpio_pm_ops, pci1xxxx_gpio_suspend, pci1xxxx_gpio_resume);
 
-const struct auxiliary_device_id pci1xxxx_gpio_auxiliary_id_table[] = {
+static const struct auxiliary_device_id pci1xxxx_gpio_auxiliary_id_table[] = {
 	{.name = "mchp_pci1xxxx_gp.gp_gpio"},
 	{}
 };
