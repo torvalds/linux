@@ -610,7 +610,7 @@ void notrace bpf_mem_free(struct bpf_mem_alloc *ma, void *ptr)
 	if (!ptr)
 		return;
 
-	idx = bpf_mem_cache_idx(__ksize(ptr - LLIST_NODE_SZ));
+	idx = bpf_mem_cache_idx(ksize(ptr - LLIST_NODE_SZ));
 	if (idx < 0)
 		return;
 
