@@ -247,17 +247,30 @@ arch_test_bit_acquire(unsigned long nr, const volatile unsigned long *addr)
 					  variable_test_bit(nr, addr);
 }
 
+static __always_inline unsigned long variable__ffs(unsigned long word)
+{
+	asm("rep; bsf %1,%0"
+		: "=r" (word)
+		: "rm" (word));
+	return word;
+}
+
 /**
  * __ffs - find first set bit in word
  * @word: The word to search
  *
  * Undefined if no bit exists, so code should check against 0 first.
  */
-static __always_inline unsigned long __ffs(unsigned long word)
+#define __ffs(word)				\
+	(__builtin_constant_p(word) ?		\
+	 (unsigned long)__builtin_ctzl(word) :	\
+	 variable__ffs(word))
+
+static __always_inline unsigned long variable_ffz(unsigned long word)
 {
 	asm("rep; bsf %1,%0"
 		: "=r" (word)
-		: "rm" (word));
+		: "r" (~word));
 	return word;
 }
 
@@ -267,13 +280,10 @@ static __always_inline unsigned long __ffs(unsigned long word)
  *
  * Undefined if no zero exists, so code should check against ~0UL first.
  */
-static __always_inline unsigned long ffz(unsigned long word)
-{
-	asm("rep; bsf %1,%0"
-		: "=r" (word)
-		: "r" (~word));
-	return word;
-}
+#define ffz(word)				\
+	(__builtin_constant_p(word) ?		\
+	 (unsigned long)__builtin_ctzl(~word) :	\
+	 variable_ffz(word))
 
 /*
  * __fls: find last set bit in word
