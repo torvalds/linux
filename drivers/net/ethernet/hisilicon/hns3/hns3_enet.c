@@ -2963,6 +2963,51 @@ static int hns3_nic_set_vf_mac(struct net_device *netdev, int vf_id, u8 *mac)
 	return h->ae_algo->ops->set_vf_mac(h, vf_id, mac);
 }
 
+#define HNS3_INVALID_DSCP		0xff
+#define HNS3_DSCP_SHIFT			2
+
+static u8 hns3_get_skb_dscp(struct sk_buff *skb)
+{
+	__be16 protocol = skb->protocol;
+	u8 dscp = HNS3_INVALID_DSCP;
+
+	if (protocol == htons(ETH_P_8021Q))
+		protocol = vlan_get_protocol(skb);
+
+	if (protocol == htons(ETH_P_IP))
+		dscp = ipv4_get_dsfield(ip_hdr(skb)) >> HNS3_DSCP_SHIFT;
+	else if (protocol == htons(ETH_P_IPV6))
+		dscp = ipv6_get_dsfield(ipv6_hdr(skb)) >> HNS3_DSCP_SHIFT;
+
+	return dscp;
+}
+
+static u16 hns3_nic_select_queue(struct net_device *netdev,
+				 struct sk_buff *skb,
+				 struct net_device *sb_dev)
+{
+	struct hnae3_handle *h = hns3_get_handle(netdev);
+	u8 dscp, priority;
+	int ret;
+
+	if (h->kinfo.tc_map_mode != HNAE3_TC_MAP_MODE_DSCP ||
+	    !h->ae_algo->ops->get_dscp_prio)
+		goto out;
+
+	dscp = hns3_get_skb_dscp(skb);
+	if (unlikely(dscp == HNS3_INVALID_DSCP))
+		goto out;
+
+	ret = h->ae_algo->ops->get_dscp_prio(h, dscp, NULL, &priority);
+	if (ret)
+		goto out;
+
+	skb->priority = priority;
+
+out:
+	return netdev_pick_tx(netdev, skb, sb_dev);
+}
+
 static const struct net_device_ops hns3_nic_netdev_ops = {
 	.ndo_open		= hns3_nic_net_open,
 	.ndo_stop		= hns3_nic_net_stop,
@@ -2988,6 +3033,7 @@ static const struct net_device_ops hns3_nic_netdev_ops = {
 	.ndo_set_vf_link_state	= hns3_nic_set_vf_link_state,
 	.ndo_set_vf_rate	= hns3_nic_set_vf_rate,
 	.ndo_set_vf_mac		= hns3_nic_set_vf_mac,
+	.ndo_select_queue	= hns3_nic_select_queue,
 };
 
 bool hns3_is_phys_func(struct pci_dev *pdev)

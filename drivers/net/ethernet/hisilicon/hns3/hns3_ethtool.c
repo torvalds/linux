@@ -712,7 +712,8 @@ static void hns3_get_ksettings(struct hnae3_handle *h,
 		ops->get_ksettings_an_result(h,
 					     &cmd->base.autoneg,
 					     &cmd->base.speed,
-					     &cmd->base.duplex);
+					     &cmd->base.duplex,
+					     &cmd->lanes);
 
 	/* 2.get link mode */
 	if (ops->get_link_mode)
@@ -794,6 +795,7 @@ static int hns3_check_ksettings_param(const struct net_device *netdev,
 	const struct hnae3_ae_ops *ops = handle->ae_algo->ops;
 	u8 module_type = HNAE3_MODULE_TYPE_UNKNOWN;
 	u8 media_type = HNAE3_MEDIA_TYPE_UNKNOWN;
+	u32 lane_num;
 	u8 autoneg;
 	u32 speed;
 	u8 duplex;
@@ -806,9 +808,9 @@ static int hns3_check_ksettings_param(const struct net_device *netdev,
 		return 0;
 
 	if (ops->get_ksettings_an_result) {
-		ops->get_ksettings_an_result(handle, &autoneg, &speed, &duplex);
+		ops->get_ksettings_an_result(handle, &autoneg, &speed, &duplex, &lane_num);
 		if (cmd->base.autoneg == autoneg && cmd->base.speed == speed &&
-		    cmd->base.duplex == duplex)
+		    cmd->base.duplex == duplex && cmd->lanes == lane_num)
 			return 0;
 	}
 
@@ -845,10 +847,14 @@ static int hns3_set_link_ksettings(struct net_device *netdev,
 	if (cmd->base.speed == SPEED_1000 && cmd->base.duplex == DUPLEX_HALF)
 		return -EINVAL;
 
+	if (cmd->lanes && !hnae3_ae_dev_lane_num_supported(ae_dev))
+		return -EOPNOTSUPP;
+
 	netif_dbg(handle, drv, netdev,
-		  "set link(%s): autoneg=%u, speed=%u, duplex=%u\n",
+		  "set link(%s): autoneg=%u, speed=%u, duplex=%u, lanes=%u\n",
 		  netdev->phydev ? "phy" : "mac",
-		  cmd->base.autoneg, cmd->base.speed, cmd->base.duplex);
+		  cmd->base.autoneg, cmd->base.speed, cmd->base.duplex,
+		  cmd->lanes);
 
 	/* Only support ksettings_set for netdev with phy attached for now */
 	if (netdev->phydev) {
@@ -886,7 +892,7 @@ static int hns3_set_link_ksettings(struct net_device *netdev,
 
 	if (ops->cfg_mac_speed_dup_h)
 		ret = ops->cfg_mac_speed_dup_h(handle, cmd->base.speed,
-					       cmd->base.duplex);
+					       cmd->base.duplex, (u8)(cmd->lanes));
 
 	return ret;
 }
@@ -1612,6 +1618,19 @@ static void hns3_set_msglevel(struct net_device *netdev, u32 msg_level)
 	h->msg_enable = msg_level;
 }
 
+static void hns3_get_fec_stats(struct net_device *netdev,
+			       struct ethtool_fec_stats *fec_stats)
+{
+	struct hnae3_handle *handle = hns3_get_handle(netdev);
+	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(handle->pdev);
+	const struct hnae3_ae_ops *ops = handle->ae_algo->ops;
+
+	if (!hnae3_ae_dev_fec_stats_supported(ae_dev) || !ops->get_fec_stats)
+		return;
+
+	ops->get_fec_stats(handle, fec_stats);
+}
+
 /* Translate local fec value into ethtool value. */
 static unsigned int loc_to_eth_fec(u8 loc_fec)
 {
@@ -2054,6 +2073,7 @@ static const struct ethtool_ops hns3vf_ethtool_ops = {
 static const struct ethtool_ops hns3_ethtool_ops = {
 	.supported_coalesce_params = HNS3_ETHTOOL_COALESCE,
 	.supported_ring_params = HNS3_ETHTOOL_RING,
+	.cap_link_lanes_supported = true,
 	.self_test = hns3_self_test,
 	.get_drvinfo = hns3_get_drvinfo,
 	.get_link = hns3_get_link,
@@ -2084,6 +2104,7 @@ static const struct ethtool_ops hns3_ethtool_ops = {
 	.set_msglevel = hns3_set_msglevel,
 	.get_fecparam = hns3_get_fecparam,
 	.set_fecparam = hns3_set_fecparam,
+	.get_fec_stats = hns3_get_fec_stats,
 	.get_module_info = hns3_get_module_info,
 	.get_module_eeprom = hns3_get_module_eeprom,
 	.get_priv_flags = hns3_get_priv_flags,

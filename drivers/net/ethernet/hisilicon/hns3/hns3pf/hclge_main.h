@@ -216,6 +216,7 @@ enum HCLGE_DEV_STATE {
 	HCLGE_STATE_FD_USER_DEF_CHANGED,
 	HCLGE_STATE_PTP_EN,
 	HCLGE_STATE_PTP_TX_HANDLING,
+	HCLGE_STATE_FEC_STATS_UPDATING,
 	HCLGE_STATE_MAX
 };
 
@@ -258,6 +259,7 @@ struct hclge_mac {
 	u8 duplex;
 	u8 support_autoneg;
 	u8 speed_type;	/* 0: sfp speed, 1: active speed */
+	u8 lane_num;
 	u32 speed;
 	u32 max_speed;
 	u32 speed_ability; /* speed ability supported by current media */
@@ -349,11 +351,15 @@ struct hclge_cfg {
 	u16 umv_space;
 };
 
+#define HCLGE_MAX_DSCP			64
+#define HCLGE_PRIO_ID_INVALID		0xff
 struct hclge_tm_info {
 	u8 num_tc;
 	u8 num_pg;      /* It must be 1 if vNET-Base schd */
+	u8 dscp_app_cnt;
 	u8 pg_dwrr[HCLGE_PG_NUM];
 	u8 prio_tc[HNAE3_MAX_USER_PRIO];
+	u8 dscp_prio[HCLGE_MAX_DSCP];
 	struct hclge_pg_info pg_info[HCLGE_PG_NUM];
 	struct hclge_tc_info tc_info[HNAE3_MAX_TC];
 	enum hclge_fc_mode fc_mode;
@@ -487,6 +493,26 @@ struct hclge_mac_stats {
 };
 
 #define HCLGE_STATS_TIMER_INTERVAL	300UL
+
+/* fec stats ,opcode id: 0x0316 */
+#define HCLGE_FEC_STATS_MAX_LANES	8
+struct hclge_fec_stats {
+	/* fec rs mode total stats */
+	u64 rs_corr_blocks;
+	u64 rs_uncorr_blocks;
+	u64 rs_error_blocks;
+	/* fec base-r mode per lanes stats */
+	u64 base_r_lane_num;
+	u64 base_r_corr_blocks;
+	u64 base_r_uncorr_blocks;
+	union {
+		struct {
+			u64 base_r_corr_per_lanes[HCLGE_FEC_STATS_MAX_LANES];
+			u64 base_r_uncorr_per_lanes[HCLGE_FEC_STATS_MAX_LANES];
+		};
+		u64 per_lanes[HCLGE_FEC_STATS_MAX_LANES * 2];
+	};
+};
 
 struct hclge_vlan_type_cfg {
 	u16 rx_ot_fst_vlan_type;
@@ -826,6 +852,7 @@ struct hclge_dev {
 	struct hclge_hw hw;
 	struct hclge_misc_vector misc_vector;
 	struct hclge_mac_stats mac_stats;
+	struct hclge_fec_stats fec_stats;
 	unsigned long state;
 	unsigned long flr_state;
 	unsigned long last_reset_time;
@@ -1070,7 +1097,7 @@ static inline int hclge_get_queue_id(struct hnae3_queue *queue)
 }
 
 int hclge_inform_reset_assert_to_vf(struct hclge_vport *vport);
-int hclge_cfg_mac_speed_dup(struct hclge_dev *hdev, int speed, u8 duplex);
+int hclge_cfg_mac_speed_dup(struct hclge_dev *hdev, int speed, u8 duplex, u8 lane_num);
 int hclge_set_vlan_filter(struct hnae3_handle *handle, __be16 proto,
 			  u16 vlan_id, bool is_kill);
 int hclge_en_hw_strip_rxvtag(struct hnae3_handle *handle, bool enable);
