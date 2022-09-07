@@ -524,8 +524,6 @@ read_page_owner(struct file *file, char __user *buf, size_t count, loff_t *ppos)
 	while (!pfn_valid(pfn) && (pfn & (MAX_ORDER_NR_PAGES - 1)) != 0)
 		pfn++;
 
-	drain_all_pages(NULL);
-
 	/* Find an allocated page */
 	for (; pfn < max_pfn; pfn++) {
 		/*
