@@ -110,6 +110,8 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
 		.supports_multi_bssid = false,
 
 		.sram_dump = {},
+
+		.tcl_ring_retry = true,
 	},
 	{
 		.hw_rev = ATH11K_HW_IPQ6018_HW10,
@@ -185,6 +187,8 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
 		.supports_multi_bssid = false,
 
 		.sram_dump = {},
+
+		.tcl_ring_retry = true,
 	},
 	{
 		.name = "qca6390 hw2.0",
@@ -262,6 +266,8 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
 			.start = 0x01400000,
 			.end = 0x0171ffff,
 		},
+
+		.tcl_ring_retry = true,
 	},
 	{
 		.name = "qcn9074 hw1.0",
@@ -336,6 +342,8 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
 		.supports_multi_bssid = false,
 
 		.sram_dump = {},
+
+		.tcl_ring_retry = true,
 	},
 	{
 		.name = "wcn6855 hw2.0",
@@ -413,6 +421,8 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
 			.start = 0x01400000,
 			.end = 0x0177ffff,
 		},
+
+		.tcl_ring_retry = true,
 	},
 	{
 		.name = "wcn6855 hw2.1",
@@ -489,6 +499,8 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
 			.start = 0x01400000,
 			.end = 0x0177ffff,
 		},
+
+		.tcl_ring_retry = true,
 	},
 	{
 		.name = "wcn6750 hw1.0",
@@ -501,7 +513,7 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
 		.max_radios = 1,
 		.bdf_addr = 0x4B0C0000,
 		.hw_ops = &wcn6750_ops,
-		.ring_mask = &ath11k_hw_ring_mask_qca6390,
+		.ring_mask = &ath11k_hw_ring_mask_wcn6750,
 		.internal_sleep_clock = false,
 		.regs = &wcn6750_regs,
 		.qmi_service_ins_id = ATH11K_QMI_WLFW_SERVICE_INS_ID_V01_WCN6750,
@@ -542,8 +554,8 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
 		.supports_regdb = true,
 		.fix_l1ss = false,
 		.credit_flow = true,
-		.max_tx_ring = DP_TCL_NUM_RING_MAX_QCA6390,
-		.hal_params = &ath11k_hw_hal_params_qca6390,
+		.max_tx_ring = DP_TCL_NUM_RING_MAX,
+		.hal_params = &ath11k_hw_hal_params_wcn6750,
 		.supports_dynamic_smps_6ghz = false,
 		.alloc_cacheable_memory = false,
 		.supports_rssi_stats = true,
@@ -562,6 +574,8 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
 		.supports_multi_bssid = true,
 
 		.sram_dump = {},
+
+		.tcl_ring_retry = false,
 	},
 };
 
