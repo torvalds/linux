@@ -1251,7 +1251,8 @@ out:
 }
 EXPORT_SYMBOL(cfg80211_roamed);
 
-void __cfg80211_port_authorized(struct wireless_dev *wdev, const u8 *bssid)
+void __cfg80211_port_authorized(struct wireless_dev *wdev, const u8 *bssid,
+					const u8 *td_bitmap, u8 td_bitmap_len)
 {
 	ASSERT_WDEV_LOCK(wdev);
 
@@ -1264,11 +1265,11 @@ void __cfg80211_port_authorized(struct wireless_dev *wdev, const u8 *bssid)
 		return;
 
 	nl80211_send_port_authorized(wiphy_to_rdev(wdev->wiphy), wdev->netdev,
-				     bssid);
+				     bssid, td_bitmap, td_bitmap_len);
 }
 
 void cfg80211_port_authorized(struct net_device *dev, const u8 *bssid,
-			      gfp_t gfp)
+			      const u8 *td_bitmap, u8 td_bitmap_len, gfp_t gfp)
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
 	struct cfg80211_registered_device *rdev = wiphy_to_rdev(wdev->wiphy);
@@ -1278,12 +1279,15 @@ void cfg80211_port_authorized(struct net_device *dev, const u8 *bssid,
 	if (WARN_ON(!bssid))
 		return;
 
-	ev = kzalloc(sizeof(*ev), gfp);
+	ev = kzalloc(sizeof(*ev) + td_bitmap_len, gfp);
 	if (!ev)
 		return;
 
 	ev->type = EVENT_PORT_AUTHORIZED;
 	memcpy(ev->pa.bssid, bssid, ETH_ALEN);
+	ev->pa.td_bitmap = ((u8 *)ev) + sizeof(*ev);
+	ev->pa.td_bitmap_len = td_bitmap_len;
+	memcpy((void *)ev->pa.td_bitmap, td_bitmap, td_bitmap_len);
 
 	/*
 	 * Use the wdev event list so that if there are pending
