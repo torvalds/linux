@@ -1435,7 +1435,8 @@ static int spi_transfer_one_message(struct spi_controller *ctlr,
 	struct spi_statistics __percpu *statm = ctlr->pcpu_statistics;
 	struct spi_statistics __percpu *stats = msg->spi->pcpu_statistics;
 
-	spi_set_cs(msg->spi, true, false);
+	xfer = list_first_entry(&msg->transfers, struct spi_transfer, transfer_list);
+	spi_set_cs(msg->spi, !xfer->cs_off, false);
 
 	SPI_STATISTICS_INCREMENT_FIELD(statm, messages);
 	SPI_STATISTICS_INCREMENT_FIELD(stats, messages);
@@ -1503,10 +1504,15 @@ fallback_pio:
 					 &msg->transfers)) {
 				keep_cs = true;
 			} else {
-				spi_set_cs(msg->spi, false, false);
+				if (!xfer->cs_off)
+					spi_set_cs(msg->spi, false, false);
 				_spi_transfer_cs_change_delay(msg, xfer);
-				spi_set_cs(msg->spi, true, false);
+				if (!list_next_entry(xfer, transfer_list)->cs_off)
+					spi_set_cs(msg->spi, true, false);
 			}
+		} else if (!list_is_last(&xfer->transfer_list, &msg->transfers) &&
+			   xfer->cs_off != list_next_entry(xfer, transfer_list)->cs_off) {
+			spi_set_cs(msg->spi, xfer->cs_off, false);
 		}
 
 		msg->actual_length += xfer->len;
