@@ -533,7 +533,7 @@ int start_isolate_page_range(unsigned long start_pfn, unsigned long end_pfn,
 	struct page *page;
 	/* isolation is done at page block granularity */
 	unsigned long isolate_start = pageblock_start_pfn(start_pfn);
-	unsigned long isolate_end = ALIGN(end_pfn, pageblock_nr_pages);
+	unsigned long isolate_end = pageblock_align(end_pfn);
 	int ret;
 	bool skip_isolation = false;
 
@@ -580,7 +580,7 @@ void undo_isolate_page_range(unsigned long start_pfn, unsigned long end_pfn,
 	unsigned long pfn;
 	struct page *page;
 	unsigned long isolate_start = pageblock_start_pfn(start_pfn);
-	unsigned long isolate_end = ALIGN(end_pfn, pageblock_nr_pages);
+	unsigned long isolate_end = pageblock_align(end_pfn);
 
 	for (pfn = isolate_start;
 	     pfn < isolate_end;
