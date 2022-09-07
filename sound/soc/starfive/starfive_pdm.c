@@ -249,7 +249,7 @@ static int pdm_probe(struct snd_soc_component *component)
 }
 
 static const struct snd_soc_component_driver sf_pdm_component_drv = {
-	.name = "sf-pdm",
+	.name = "jh7110-pdm",
 	.probe = pdm_probe,
 };
 
@@ -415,15 +415,14 @@ static int sf_pdm_dev_remove(struct platform_device *pdev)
 }
 
 static const struct of_device_id sf_pdm_of_match[] = {
-	{.compatible = "starfive,sf-pdm",},
+	{.compatible = "starfive,jh7110-pdm",},
 	{}
 };
 MODULE_DEVICE_TABLE(of, sf_pdm_of_match);
 
 static struct platform_driver sf_pdm_driver = {
-
 	.driver = {
-		.name = "sf-pdm",
+		.name = "jh7110-pdm",
 		.of_match_table = sf_pdm_of_match,
 	},
 	.probe = sf_pdm_probe,

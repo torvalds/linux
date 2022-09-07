@@ -1150,7 +1150,7 @@
 		};
 
 		tdm: tdm@10090000 {
-			compatible = "starfive,sf-tdm";
+			compatible = "starfive,jh7110-tdm";
 			reg = <0x0 0x10090000 0x0 0x1000>;
 			reg-names = "tdm";
 			clocks = <&clkgen JH7110_AHB0>,
@@ -1218,7 +1218,7 @@
 		};
 
 		pdm: pdm@100d0000 {
-			compatible = "starfive,sf-pdm";
+			compatible = "starfive,jh7110-pdm";
 			reg = <0x0 0x100d0000 0x0 0x1000>;
 			reg-names = "pdm";
 			clocks = <&clkgen JH7110_PDM_CLK_DMIC>,
@@ -1237,7 +1237,7 @@
 		};
 
 		i2srx_mst: i2srx_mst@100e0000 {
-			compatible = "snps,i2srx-master";
+			compatible = "starfive,jh7110-i2srx-master";
 			reg = <0x0 0x100e0000 0x0 0x1000>;
 			clocks = <&clkgen JH7110_APB0>,
 				 <&clkgen JH7110_I2SRX0_3CH_CLK_APB>,

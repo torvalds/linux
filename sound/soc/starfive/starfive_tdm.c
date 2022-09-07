@@ -147,7 +147,7 @@ static int sf_pcm_trigger(struct snd_soc_component *component,
 }
 
 static const struct snd_soc_component_driver sf_tdm_component = {
-	.name		= "sf-tdm",
+	.name		= "jh7110-tdm",
 	.suspend	= sf_tdm_suspend,
 	.resume		= sf_tdm_resume,
 	.trigger	= sf_pcm_trigger,
@@ -600,15 +600,14 @@ static int sf_tdm_dev_remove(struct platform_device *pdev)
 	return 0;
 }
 static const struct of_device_id sf_tdm_of_match[] = {
-	{.compatible = "starfive,sf-tdm",},
+	{.compatible = "starfive,jh7110-tdm",},
 	{}
 };
 MODULE_DEVICE_TABLE(of, sf_tdm_of_match);
 
 static struct platform_driver sf_tdm_driver = {
-
 	.driver = {
-		.name = "sf-tdm",
+		.name = "jh7110-tdm",
 		.of_match_table = sf_tdm_of_match,
 	},
 	.probe = sf_tdm_probe,
