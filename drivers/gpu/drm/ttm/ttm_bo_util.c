@@ -236,6 +236,11 @@ static int ttm_buffer_object_transfer(struct ttm_buffer_object *bo,
 	if (bo->type != ttm_bo_type_sg)
 		fbo->base.base.resv = &fbo->base.base._resv;
 
+	dma_resv_init(&fbo->base.base._resv);
+	fbo->base.base.dev = NULL;
+	ret = dma_resv_trylock(&fbo->base.base._resv);
+	WARN_ON(!ret);
+
 	if (fbo->base.resource) {
 		ttm_resource_set_bo(fbo->base.resource, &fbo->base);
 		bo->resource = NULL;
@@ -243,11 +248,6 @@ static int ttm_buffer_object_transfer(struct ttm_buffer_object *bo,
 	} else {
 		fbo->base.bulk_move = NULL;
 	}
-
-	dma_resv_init(&fbo->base.base._resv);
-	fbo->base.base.dev = NULL;
-	ret = dma_resv_trylock(&fbo->base.base._resv);
-	WARN_ON(!ret);
 
 	ret = dma_resv_reserve_fences(&fbo->base.base._resv, 1);
 	if (ret) {
