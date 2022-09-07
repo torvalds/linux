@@ -818,6 +818,7 @@ const struct btf_type *btf_type_by_id(const struct btf *btf, u32 type_id)
 		return NULL;
 	return btf->types[type_id];
 }
+EXPORT_SYMBOL_GPL(btf_type_by_id);
 
 /*
  * Regular int is not a bit field and it must be either

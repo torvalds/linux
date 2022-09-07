@@ -370,6 +370,7 @@ __printf(2, 3) void bpf_log(struct bpf_verifier_log *log,
 	bpf_verifier_vlog(log, fmt, args);
 	va_end(args);
 }
+EXPORT_SYMBOL_GPL(bpf_log);
 
 static const char *ltrim(const char *s)
 {
