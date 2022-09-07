@@ -874,12 +874,6 @@ static inline u8 get_cqe_opcode(struct mlx5_cqe64 *cqe)
 	return cqe->op_own >> 4;
 }
 
-static inline u8 get_cqe_enhanced_num_mini_cqes(struct mlx5_cqe64 *cqe)
-{
-	/* num_of_mini_cqes is zero based */
-	return get_cqe_opcode(cqe) + 1;
-}
-
 static inline u8 get_cqe_lro_tcppsh(struct mlx5_cqe64 *cqe)
 {
 	return (cqe->lro.tcppsh_abort_dupack >> 6) & 1;
@@ -888,11 +882,6 @@ static inline u8 get_cqe_lro_tcppsh(struct mlx5_cqe64 *cqe)
 static inline u8 get_cqe_l4_hdr_type(struct mlx5_cqe64 *cqe)
 {
 	return (cqe->l4_l3_hdr_type >> 4) & 0x7;
-}
-
-static inline u8 get_cqe_l3_hdr_type(struct mlx5_cqe64 *cqe)
-{
-	return (cqe->l4_l3_hdr_type >> 2) & 0x3;
 }
 
 static inline bool cqe_is_tunneled(struct mlx5_cqe64 *cqe)

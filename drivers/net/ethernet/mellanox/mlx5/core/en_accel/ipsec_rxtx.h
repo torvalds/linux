@@ -77,11 +77,6 @@ static inline bool mlx5_ipsec_is_rx_flow(struct mlx5_cqe64 *cqe)
 	return MLX5_IPSEC_METADATA_MARKER(be32_to_cpu(cqe->ft_metadata));
 }
 
-static inline bool mlx5e_ipsec_is_tx_flow(struct mlx5e_accel_tx_ipsec_state *ipsec_st)
-{
-	return ipsec_st->x;
-}
-
 static inline bool mlx5e_ipsec_eseg_meta(struct mlx5_wqe_eth_seg *eseg)
 {
 	return eseg->flow_table_metadata & cpu_to_be32(MLX5_ETH_WQE_FT_META_IPSEC);
