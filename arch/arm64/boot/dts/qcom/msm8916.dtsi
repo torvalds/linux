@@ -1046,7 +1046,6 @@
 					      "pixel",
 					      "core";
 				phys = <&dsi_phy0>;
-				phy-names = "dsi-phy";
 
 				#address-cells = <1>;
 				#size-cells = <0>;
