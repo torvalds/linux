@@ -1,7 +1,9 @@
-#	select ARM_AMBA
+#
+# Starfive crypto drivers configuration
+#
 
 config CRYPTO_DEV_JH7110_ENCRYPT
-	tristate "Encryption acceleration support on jh7110"
+	tristate "Starfive's Cryptographic Engine driver"
 	depends on RISCV
 	select CRYPTO_ENGINE
 	select CRYPTO_RSA
@@ -10,6 +12,7 @@ config CRYPTO_DEV_JH7110_ENCRYPT
 	select AMBA_PL08X
 	default m
 	help
-	  Support for SIFIVE JH7110 cryptographic acceleration instructions on riscv64 CPU.
-	  This module supports acceleration for AES and GHASH in hardware. If you
-	  choose 'M' here, this module will be called jh7110-crypto.
+	  Support for Starfive JH7110 cryptographic acceleration instructions
+	  on riscv64 CPU. This hardware crypto module supports acceleration for
+	  public key algo, ciphers, AEAD and hash functions.
+	  If you choose 'M' here, this module will be called jh7110-crypto.

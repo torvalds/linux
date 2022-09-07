@@ -80,7 +80,6 @@ struct jh7110_sec_dev {
 	phys_addr_t				io_phys_base;
 	void					*sha_data;
 	void					*aes_data;
-	void					*des_data;
 	void					*pka_data;
 	unsigned int				secirq;
 	unsigned int				irq;
@@ -106,18 +105,15 @@ struct jh7110_sec_dev {
 	struct mutex				pl080_doing;
 	struct mutex				lock; /* protects req / areq */
 	struct mutex				sha_lock;
-	struct mutex				des_lock;
 	struct mutex				aes_lock;
 	struct mutex				rsa_lock;
 
 #define JH7110_SHA_SHA_DONE			BIT(2)
 #define JH7110_AES_DONE				BIT(3)
-#define JH7110_DES_DONE				BIT(4)
 #define JH7110_PKA_DONE				BIT(5)
 	u32					done_flags;
 #define JH7110_SHA_TYPE				0x1
 #define JH7110_AES_TYPE				0x2
-#define JH7110_DES_TYPE				0x3
 #define JH7110_PKA_TYPE				0x4
 	u32					cry_type;
 
@@ -145,7 +141,6 @@ struct jh7110_sec_request_ctx {
 
 	union {
 		union jh7110_crypto_cacr	pka_csr;
-		union jh7110_des_daecsr		des_csr;
 		union jh7110_aes_csr		aes_csr;
 		union jh7110_sha_shacsr		sha_csr;
 	} csr;
@@ -258,9 +253,6 @@ extern void jh7110_hash_unregister_algs(void);
 
 extern int jh7110_aes_register_algs(void);
 extern void jh7110_aes_unregister_algs(void);
-
-extern int jh7110_des_register_algs(void);
-extern void jh7110_des_unregister_algs(void);
 
 extern int jh7110_pka_register_algs(void);
 extern void jh7110_pka_unregister_algs(void);
