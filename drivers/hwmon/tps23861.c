@@ -503,9 +503,17 @@ static int tps23861_port_status_show(struct seq_file *s, void *data)
 
 DEFINE_SHOW_ATTRIBUTE(tps23861_port_status);
 
-static void tps23861_init_debugfs(struct tps23861_data *data)
+static void tps23861_init_debugfs(struct tps23861_data *data,
+				  struct device *hwmon_dev)
 {
-	data->debugfs_dir = debugfs_create_dir(data->client->name, NULL);
+	const char *debugfs_name;
+
+	debugfs_name = devm_kasprintf(&data->client->dev, GFP_KERNEL, "%s-%s",
+				      data->client->name, dev_name(hwmon_dev));
+	if (!debugfs_name)
+		return;
+
+	data->debugfs_dir = debugfs_create_dir(debugfs_name, NULL);
 
 	debugfs_create_file("port_status",
 			    0400,
@@ -554,7 +562,7 @@ static int tps23861_probe(struct i2c_client *client)
 	if (IS_ERR(hwmon_dev))
 		return PTR_ERR(hwmon_dev);
 
-	tps23861_init_debugfs(data);
+	tps23861_init_debugfs(data, hwmon_dev);
 
 	return 0;
 }
