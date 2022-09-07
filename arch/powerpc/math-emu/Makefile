@@ -16,3 +16,10 @@ obj-$(CONFIG_SPE)		+= math_efp.o
 
 CFLAGS_fabs.o = -fno-builtin-fabs
 CFLAGS_math.o = -fno-builtin-fabs
+
+ccflags-remove-y = -Wmissing-prototypes -Wmissing-declarations -Wunused-but-set-variable
+
+ifdef KBUILD_EXTRA_WARN
+CFLAGS_math.o += -Wmissing-prototypes -Wmissing-declarations -Wunused-but-set-variable
+CFLAGS_math_efp.o += -Wmissing-prototypes -Wmissing-declarations -Wunused-but-set-variable
+endif

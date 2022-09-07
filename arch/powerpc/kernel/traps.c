@@ -2103,7 +2103,6 @@ DEFINE_INTERRUPT_HANDLER(CacheLockingException)
 #ifdef CONFIG_SPE
 DEFINE_INTERRUPT_HANDLER(SPEFloatingPointException)
 {
-	extern int do_spe_mathemu(struct pt_regs *regs);
 	unsigned long spefscr;
 	int fpexc_mode;
 	int code = FPE_FLTUNK;
@@ -2153,7 +2152,6 @@ DEFINE_INTERRUPT_HANDLER(SPEFloatingPointException)
 
 DEFINE_INTERRUPT_HANDLER(SPEFloatingPointRoundException)
 {
-	extern int speround_handler(struct pt_regs *regs);
 	int err;
 
 	interrupt_cond_local_irq_enable(regs);

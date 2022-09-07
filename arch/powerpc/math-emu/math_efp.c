@@ -890,7 +890,7 @@ int speround_handler(struct pt_regs *regs)
 	return 0;
 }
 
-int __init spe_mathemu_init(void)
+static int __init spe_mathemu_init(void)
 {
 	u32 pvr, maj, min;
 
