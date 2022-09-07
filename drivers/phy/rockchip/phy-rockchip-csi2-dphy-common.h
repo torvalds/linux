@@ -9,9 +9,14 @@
 #define _PHY_ROCKCHIP_CSI2_DPHY_COMMON_H_
 
 #include <linux/rk-camera-module.h>
+#include <linux/rkcif-config.h>
 
 #define PHY_MAX 16
 #define MAX_DEV_NAME_LEN 32
+
+#define MAX_SAMSUNG_PHY_NUM 2
+
+#define MAX_INNO_PHY_NUM 2
 
 /* add new chip id in tail by time order */
 enum csi2_dphy_chip_id {
@@ -59,14 +64,18 @@ struct samsung_mipi_dcphy;
 
 struct dphy_drv_data {
 	const char dev_name[MAX_DEV_NAME_LEN];
-	enum csi2_dphy_vendor vendor;
+	enum csi2_dphy_chip_id chip_id;
+	char num_inno_phy;
+	char num_samsung_phy;
 };
 
 struct csi2_dphy {
 	struct device *dev;
 	struct list_head list;
 	struct csi2_dphy_hw *dphy_hw;
+	struct csi2_dphy_hw *dphy_hw_group[MAX_INNO_PHY_NUM];
 	struct samsung_mipi_dcphy *samsung_phy;
+	struct samsung_mipi_dcphy *samsung_phy_group[MAX_SAMSUNG_PHY_NUM];
 	struct v4l2_async_notifier notifier;
 	struct v4l2_subdev sd;
 	struct mutex mutex; /* lock for updating protection */
@@ -75,8 +84,10 @@ struct csi2_dphy {
 	u64 data_rate_mbps;
 	int num_sensors;
 	int phy_index;
+	struct rkcif_csi_info csi_info;
+	void *phy_hw[RKMODULE_MULTI_DEV_NUM];
 	bool is_streaming;
-	enum csi2_dphy_lane_mode lane_mode;
+	int lane_mode;
 	const struct dphy_drv_data *drv_data;
 	struct rkmodule_csi_dphy_param dphy_param;
 };
