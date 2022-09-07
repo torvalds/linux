@@ -1657,7 +1657,7 @@ static int vfio_ap_mdev_reset_queue(struct vfio_ap_queue *q)
 	if (!q)
 		return 0;
 retry_zapq:
-	status = ap_zapq(q->apqn);
+	status = ap_zapq(q->apqn, 0);
 	q->reset_rc = status.response_code;
 	switch (status.response_code) {
 	case AP_RESPONSE_NORMAL:

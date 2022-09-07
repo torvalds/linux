@@ -322,7 +322,7 @@ static enum ap_sm_wait ap_sm_reset(struct ap_queue *aq)
 {
 	struct ap_queue_status status;
 
-	status = ap_rapq(aq->qid);
+	status = ap_rapq(aq->qid, 0);
 	switch (status.response_code) {
 	case AP_RESPONSE_NORMAL:
 	case AP_RESPONSE_RESET_IN_PROGRESS:
@@ -936,7 +936,7 @@ void ap_queue_remove(struct ap_queue *aq)
 	 * to the initial value AP_DEV_STATE_UNINITIATED.
 	 */
 	spin_lock_bh(&aq->lock);
-	ap_zapq(aq->qid);
+	ap_zapq(aq->qid, 0);
 	aq->dev_state = AP_DEV_STATE_UNINITIATED;
 	spin_unlock_bh(&aq->lock);
 }

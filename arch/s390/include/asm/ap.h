@@ -159,13 +159,17 @@ static inline struct ap_queue_status ap_test_queue(ap_qid_t qid, int tbit,
 /**
  * ap_pqap_rapq(): Reset adjunct processor queue.
  * @qid: The AP queue number
+ * @fbit: if != 0 set F bit
  *
  * Returns AP queue status structure.
  */
-static inline struct ap_queue_status ap_rapq(ap_qid_t qid)
+static inline struct ap_queue_status ap_rapq(ap_qid_t qid, int fbit)
 {
 	unsigned long reg0 = qid | (1UL << 24);  /* fc 1UL is RAPQ */
 	union ap_queue_status_reg reg1;
+
+	if (fbit)
+		reg0 |= 1UL << 22;
 
 	asm volatile(
 		"	lgr	0,%[reg0]\n"		/* qid arg into gr0 */
@@ -180,13 +184,17 @@ static inline struct ap_queue_status ap_rapq(ap_qid_t qid)
 /**
  * ap_pqap_zapq(): Reset and zeroize adjunct processor queue.
  * @qid: The AP queue number
+ * @fbit: if != 0 set F bit
  *
  * Returns AP queue status structure.
  */
-static inline struct ap_queue_status ap_zapq(ap_qid_t qid)
+static inline struct ap_queue_status ap_zapq(ap_qid_t qid, int fbit)
 {
 	unsigned long reg0 = qid | (2UL << 24);  /* fc 2UL is ZAPQ */
 	union ap_queue_status_reg reg1;
+
+	if (fbit)
+		reg0 |= 1UL << 22;
 
 	asm volatile(
 		"	lgr	0,%[reg0]\n"		/* qid arg into gr0 */
