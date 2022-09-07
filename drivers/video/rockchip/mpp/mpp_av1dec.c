@@ -1199,25 +1199,8 @@ int av1dec_driver_register(struct platform_driver *drv)
 	return driver_register(&drv->driver);
 }
 
-static irqreturn_t av1dec_cache_irq(int irq, void *dev_id)
-{
-	struct av1dec_dev *dec = dev_id;
-	u32 shaper_st, rd_st;
-
-	shaper_st = readl(dec->reg_base[AV1DEC_CLASS_CACHE] + 0x2c);
-	rd_st = readl(dec->reg_base[AV1DEC_CLASS_CACHE] + 0x204);
-
-	mpp_debug(DEBUG_IRQ_STATUS, "cache irq st shaper 0x%x read 0x%x\n", shaper_st, rd_st);
-
-	writel(shaper_st, dec->reg_base[AV1DEC_CLASS_CACHE] + 0x2c);
-	writel(rd_st, dec->reg_base[AV1DEC_CLASS_CACHE] + 0x204);
-
-	return IRQ_HANDLED;
-}
-
 static int av1dec_cache_init(struct platform_device *pdev, struct av1dec_dev *dec)
 {
-	int ret;
 	struct resource *res;
 	struct device *dev = &pdev->dev;
 
@@ -1230,14 +1213,7 @@ static int av1dec_cache_init(struct platform_device *pdev, struct av1dec_dev *de
 		dev_err(dev, "ioremap failed for resource %pR\n", res);
 		return -EINVAL;
 	}
-
-	dec->irq[AV1DEC_CLASS_CACHE] = platform_get_irq(pdev, 1);
-
-	ret = devm_request_irq(dev, dec->irq[AV1DEC_CLASS_CACHE],
-			       av1dec_cache_irq, IRQF_SHARED, "irq_cache", dec);
-	if (ret)
-		mpp_err("ret=%d\n", ret);
-	return ret;
+	return 0;
 }
 
 static int av1dec_afbc_init(struct platform_device *pdev, struct av1dec_dev *dec)
