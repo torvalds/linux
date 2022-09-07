@@ -6197,6 +6197,7 @@ const struct file_operations binder_fops = {
 	.open = binder_open,
 	.flush = binder_flush,
 	.release = binder_release,
+	.may_pollfree = true,
 };
 
 DEFINE_SHOW_ATTRIBUTE(state);
