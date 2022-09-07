@@ -2524,7 +2524,7 @@ bool f2fs_should_update_inplace(struct inode *inode, struct f2fs_io_info *fio)
 		return true;
 
 	/* if this is cold file, we should overwrite to avoid fragmentation */
-	if (file_is_cold(inode))
+	if (file_is_cold(inode) && !is_inode_flag_set(inode, FI_OPU_WRITE))
 		return true;
 
 	return check_inplace_update_policy(inode, fio);
