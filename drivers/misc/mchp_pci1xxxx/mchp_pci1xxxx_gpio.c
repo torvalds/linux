@@ -383,6 +383,7 @@ static int pci1xxxx_gpio_probe(struct auxiliary_device *aux_dev,
 	if (!priv)
 		return -ENOMEM;
 
+	spin_lock_init(&priv->lock);
 	priv->aux_dev = aux_dev;
 
 	if (!devm_request_mem_region(&aux_dev->dev, pdata->region_start, 0x800, aux_dev->name))
