@@ -247,7 +247,7 @@ static void handle_child_signal(int sig, siginfo_t *info, void *context)
 	}
 
 	if (!found)
-		ksft_print_msg("SIGCHILD for unknown PID %d with status %d\n",
+		ksft_print_msg("SIGCHLD for unknown PID %d with status %d\n",
 			       info->si_pid, info->si_status);
 }
 
@@ -457,7 +457,7 @@ int main(int argc, char **argv)
 			       strerror(errno), errno);
 	ret = sigaction(SIGTERM, &sa, NULL);
 	if (ret < 0)
-		ksft_print_msg("Failed to install SIGTEM handler: %s (%d)\n",
+		ksft_print_msg("Failed to install SIGTERM handler: %s (%d)\n",
 			       strerror(errno), errno);
 	sa.sa_sigaction = handle_child_signal;
 	ret = sigaction(SIGCHLD, &sa, NULL);
