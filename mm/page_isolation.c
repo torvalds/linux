@@ -312,7 +312,7 @@ static int isolate_single_pageblock(unsigned long boundary_pfn, int flags,
 	struct zone *zone;
 	int ret;
 
-	VM_BUG_ON(!IS_ALIGNED(boundary_pfn, pageblock_nr_pages));
+	VM_BUG_ON(!pageblock_aligned(boundary_pfn));
 
 	if (isolate_before)
 		isolate_pageblock = boundary_pfn - pageblock_nr_pages;
