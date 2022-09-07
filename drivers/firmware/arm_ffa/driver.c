@@ -163,6 +163,7 @@ struct ffa_drv_info {
 	struct mutex tx_lock; /* lock to protect Tx buffer */
 	void *rx_buffer;
 	void *tx_buffer;
+	bool mem_ops_native;
 };
 
 static struct ffa_drv_info *drv_info;
@@ -597,6 +598,13 @@ static int ffa_features(u32 func_feat_id, u32 input_props,
 	return 0;
 }
 
+static void ffa_set_up_mem_ops_native_flag(void)
+{
+	if (!ffa_features(FFA_FN_NATIVE(MEM_LEND), 0, NULL, NULL) ||
+	    !ffa_features(FFA_FN_NATIVE(MEM_SHARE), 0, NULL, NULL))
+		drv_info->mem_ops_native = true;
+}
+
 static u32 ffa_api_version_get(void)
 {
 	return drv_info->version;
@@ -638,10 +646,10 @@ static int ffa_sync_send_receive(struct ffa_device *dev,
 static int
 ffa_memory_share(struct ffa_device *dev, struct ffa_mem_ops_args *args)
 {
-	if (dev->mode_32bit)
-		return ffa_memory_ops(FFA_MEM_SHARE, args);
+	if (drv_info->mem_ops_native)
+		return ffa_memory_ops(FFA_FN_NATIVE(MEM_SHARE), args);
 
-	return ffa_memory_ops(FFA_FN_NATIVE(MEM_SHARE), args);
+	return ffa_memory_ops(FFA_MEM_SHARE, args);
 }
 
 static int
@@ -654,10 +662,10 @@ ffa_memory_lend(struct ffa_device *dev, struct ffa_mem_ops_args *args)
 	 * however on systems without a hypervisor the responsibility
 	 * falls to the calling kernel driver to prevent access.
 	 */
-	if (dev->mode_32bit)
-		return ffa_memory_ops(FFA_MEM_LEND, args);
+	if (drv_info->mem_ops_native)
+		return ffa_memory_ops(FFA_FN_NATIVE(MEM_LEND), args);
 
-	return ffa_memory_ops(FFA_FN_NATIVE(MEM_LEND), args);
+	return ffa_memory_ops(FFA_MEM_LEND, args);
 }
 
 static const struct ffa_dev_ops ffa_ops = {
@@ -767,6 +775,8 @@ static int __init ffa_init(void)
 	mutex_init(&drv_info->tx_lock);
 
 	ffa_setup_partitions();
+
+	ffa_set_up_mem_ops_native_flag();
 
 	return 0;
 free_pages:
