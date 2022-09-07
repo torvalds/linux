@@ -905,37 +905,6 @@ hsw_ddi_calculate_wrpll(int clock /* in Hz */,
 	*r2_out = best.r2;
 }
 
-static int
-hsw_ddi_wrpll_compute_dpll(struct intel_atomic_state *state,
-			   struct intel_crtc *crtc)
-{
-	struct intel_crtc_state *crtc_state =
-		intel_atomic_get_new_crtc_state(state, crtc);
-	unsigned int p, n2, r2;
-
-	hsw_ddi_calculate_wrpll(crtc_state->port_clock * 1000, &r2, &n2, &p);
-
-	crtc_state->dpll_hw_state.wrpll =
-		WRPLL_PLL_ENABLE | WRPLL_REF_LCPLL |
-		WRPLL_DIVIDER_REFERENCE(r2) | WRPLL_DIVIDER_FEEDBACK(n2) |
-		WRPLL_DIVIDER_POST(p);
-
-	return 0;
-}
-
-static struct intel_shared_dpll *
-hsw_ddi_wrpll_get_dpll(struct intel_atomic_state *state,
-		       struct intel_crtc *crtc)
-{
-	struct intel_crtc_state *crtc_state =
-		intel_atomic_get_new_crtc_state(state, crtc);
-
-	return intel_find_shared_dpll(state, crtc,
-				      &crtc_state->dpll_hw_state,
-				      BIT(DPLL_ID_WRPLL2) |
-				      BIT(DPLL_ID_WRPLL1));
-}
-
 static int hsw_ddi_wrpll_get_freq(struct drm_i915_private *dev_priv,
 				  const struct intel_shared_dpll *pll,
 				  const struct intel_dpll_hw_state *pll_state)
@@ -974,6 +943,37 @@ static int hsw_ddi_wrpll_get_freq(struct drm_i915_private *dev_priv,
 
 	/* Convert to KHz, p & r have a fixed point portion */
 	return (refclk * n / 10) / (p * r) * 2;
+}
+
+static int
+hsw_ddi_wrpll_compute_dpll(struct intel_atomic_state *state,
+			   struct intel_crtc *crtc)
+{
+	struct intel_crtc_state *crtc_state =
+		intel_atomic_get_new_crtc_state(state, crtc);
+	unsigned int p, n2, r2;
+
+	hsw_ddi_calculate_wrpll(crtc_state->port_clock * 1000, &r2, &n2, &p);
+
+	crtc_state->dpll_hw_state.wrpll =
+		WRPLL_PLL_ENABLE | WRPLL_REF_LCPLL |
+		WRPLL_DIVIDER_REFERENCE(r2) | WRPLL_DIVIDER_FEEDBACK(n2) |
+		WRPLL_DIVIDER_POST(p);
+
+	return 0;
+}
+
+static struct intel_shared_dpll *
+hsw_ddi_wrpll_get_dpll(struct intel_atomic_state *state,
+		       struct intel_crtc *crtc)
+{
+	struct intel_crtc_state *crtc_state =
+		intel_atomic_get_new_crtc_state(state, crtc);
+
+	return intel_find_shared_dpll(state, crtc,
+				      &crtc_state->dpll_hw_state,
+				      BIT(DPLL_ID_WRPLL2) |
+				      BIT(DPLL_ID_WRPLL1));
 }
 
 static int
@@ -1618,43 +1618,6 @@ skip_remaining_dividers:
 	return 0;
 }
 
-static int skl_ddi_hdmi_pll_dividers(struct intel_crtc_state *crtc_state)
-{
-	struct drm_i915_private *i915 = to_i915(crtc_state->uapi.crtc->dev);
-	struct skl_wrpll_params wrpll_params = {};
-	u32 ctrl1, cfgcr1, cfgcr2;
-	int ret;
-
-	/*
-	 * See comment in intel_dpll_hw_state to understand why we always use 0
-	 * as the DPLL id in this function.
-	 */
-	ctrl1 = DPLL_CTRL1_OVERRIDE(0);
-
-	ctrl1 |= DPLL_CTRL1_HDMI_MODE(0);
-
-	ret = skl_ddi_calculate_wrpll(crtc_state->port_clock * 1000,
-				      i915->display.dpll.ref_clks.nssc, &wrpll_params);
-	if (ret)
-		return ret;
-
-	cfgcr1 = DPLL_CFGCR1_FREQ_ENABLE |
-		DPLL_CFGCR1_DCO_FRACTION(wrpll_params.dco_fraction) |
-		wrpll_params.dco_integer;
-
-	cfgcr2 = DPLL_CFGCR2_QDIV_RATIO(wrpll_params.qdiv_ratio) |
-		DPLL_CFGCR2_QDIV_MODE(wrpll_params.qdiv_mode) |
-		DPLL_CFGCR2_KDIV(wrpll_params.kdiv) |
-		DPLL_CFGCR2_PDIV(wrpll_params.pdiv) |
-		wrpll_params.central_freq;
-
-	crtc_state->dpll_hw_state.ctrl1 = ctrl1;
-	crtc_state->dpll_hw_state.cfgcr1 = cfgcr1;
-	crtc_state->dpll_hw_state.cfgcr2 = cfgcr2;
-
-	return 0;
-}
-
 static int skl_ddi_wrpll_get_freq(struct drm_i915_private *i915,
 				  const struct intel_shared_dpll *pll,
 				  const struct intel_dpll_hw_state *pll_state)
@@ -1724,6 +1687,43 @@ static int skl_ddi_wrpll_get_freq(struct drm_i915_private *i915,
 		return 0;
 
 	return dco_freq / (p0 * p1 * p2 * 5);
+}
+
+static int skl_ddi_hdmi_pll_dividers(struct intel_crtc_state *crtc_state)
+{
+	struct drm_i915_private *i915 = to_i915(crtc_state->uapi.crtc->dev);
+	struct skl_wrpll_params wrpll_params = {};
+	u32 ctrl1, cfgcr1, cfgcr2;
+	int ret;
+
+	/*
+	 * See comment in intel_dpll_hw_state to understand why we always use 0
+	 * as the DPLL id in this function.
+	 */
+	ctrl1 = DPLL_CTRL1_OVERRIDE(0);
+
+	ctrl1 |= DPLL_CTRL1_HDMI_MODE(0);
+
+	ret = skl_ddi_calculate_wrpll(crtc_state->port_clock * 1000,
+				      i915->display.dpll.ref_clks.nssc, &wrpll_params);
+	if (ret)
+		return ret;
+
+	cfgcr1 = DPLL_CFGCR1_FREQ_ENABLE |
+		DPLL_CFGCR1_DCO_FRACTION(wrpll_params.dco_fraction) |
+		wrpll_params.dco_integer;
+
+	cfgcr2 = DPLL_CFGCR2_QDIV_RATIO(wrpll_params.qdiv_ratio) |
+		DPLL_CFGCR2_QDIV_MODE(wrpll_params.qdiv_mode) |
+		DPLL_CFGCR2_KDIV(wrpll_params.kdiv) |
+		DPLL_CFGCR2_PDIV(wrpll_params.pdiv) |
+		wrpll_params.central_freq;
+
+	crtc_state->dpll_hw_state.ctrl1 = ctrl1;
+	crtc_state->dpll_hw_state.cfgcr1 = cfgcr1;
+	crtc_state->dpll_hw_state.cfgcr2 = cfgcr2;
+
+	return 0;
 }
 
 static int
@@ -2245,6 +2245,23 @@ static int bxt_ddi_set_dpll_hw_state(struct intel_crtc_state *crtc_state,
 	return 0;
 }
 
+static int bxt_ddi_pll_get_freq(struct drm_i915_private *i915,
+				const struct intel_shared_dpll *pll,
+				const struct intel_dpll_hw_state *pll_state)
+{
+	struct dpll clock;
+
+	clock.m1 = 2;
+	clock.m2 = REG_FIELD_GET(PORT_PLL_M2_INT_MASK, pll_state->pll0) << 22;
+	if (pll_state->pll3 & PORT_PLL_M2_FRAC_ENABLE)
+		clock.m2 |= REG_FIELD_GET(PORT_PLL_M2_FRAC_MASK, pll_state->pll2);
+	clock.n = REG_FIELD_GET(PORT_PLL_N_MASK, pll_state->pll1);
+	clock.p1 = REG_FIELD_GET(PORT_PLL_P1_MASK, pll_state->ebb0);
+	clock.p2 = REG_FIELD_GET(PORT_PLL_P2_MASK, pll_state->ebb0);
+
+	return chv_calc_dpll_params(i915->display.dpll.ref_clks.nssc, &clock);
+}
+
 static int
 bxt_ddi_dp_set_dpll_hw_state(struct intel_crtc_state *crtc_state)
 {
@@ -2263,23 +2280,6 @@ bxt_ddi_hdmi_set_dpll_hw_state(struct intel_crtc_state *crtc_state)
 	bxt_ddi_hdmi_pll_dividers(crtc_state, &clk_div);
 
 	return bxt_ddi_set_dpll_hw_state(crtc_state, &clk_div);
-}
-
-static int bxt_ddi_pll_get_freq(struct drm_i915_private *i915,
-				const struct intel_shared_dpll *pll,
-				const struct intel_dpll_hw_state *pll_state)
-{
-	struct dpll clock;
-
-	clock.m1 = 2;
-	clock.m2 = REG_FIELD_GET(PORT_PLL_M2_INT_MASK, pll_state->pll0) << 22;
-	if (pll_state->pll3 & PORT_PLL_M2_FRAC_ENABLE)
-		clock.m2 |= REG_FIELD_GET(PORT_PLL_M2_FRAC_MASK, pll_state->pll2);
-	clock.n = REG_FIELD_GET(PORT_PLL_N_MASK, pll_state->pll1);
-	clock.p1 = REG_FIELD_GET(PORT_PLL_P1_MASK, pll_state->ebb0);
-	clock.p2 = REG_FIELD_GET(PORT_PLL_P2_MASK, pll_state->ebb0);
-
-	return chv_calc_dpll_params(i915->display.dpll.ref_clks.nssc, &clock);
 }
 
 static int bxt_compute_dpll(struct intel_atomic_state *state,
