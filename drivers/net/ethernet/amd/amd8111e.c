@@ -185,24 +185,23 @@ static void amd8111e_set_ext_phy(struct net_device *dev)
 	advert = amd8111e_mdio_read(dev, lp->ext_phy_addr, MII_ADVERTISE);
 	tmp = advert & ~(ADVERTISE_ALL | ADVERTISE_100BASE4);
 	switch (lp->ext_phy_option) {
-
-		default:
-		case SPEED_AUTONEG: /* advertise all values */
-			tmp |= (ADVERTISE_10HALF | ADVERTISE_10FULL |
-				ADVERTISE_100HALF | ADVERTISE_100FULL);
-			break;
-		case SPEED10_HALF:
-			tmp |= ADVERTISE_10HALF;
-			break;
-		case SPEED10_FULL:
-			tmp |= ADVERTISE_10FULL;
-			break;
-		case SPEED100_HALF:
-			tmp |= ADVERTISE_100HALF;
-			break;
-		case SPEED100_FULL:
-			tmp |= ADVERTISE_100FULL;
-			break;
+	default:
+	case SPEED_AUTONEG: /* advertise all values */
+		tmp |= (ADVERTISE_10HALF | ADVERTISE_10FULL |
+			ADVERTISE_100HALF | ADVERTISE_100FULL);
+		break;
+	case SPEED10_HALF:
+		tmp |= ADVERTISE_10HALF;
+		break;
+	case SPEED10_FULL:
+		tmp |= ADVERTISE_10FULL;
+		break;
+	case SPEED100_HALF:
+		tmp |= ADVERTISE_100HALF;
+		break;
+	case SPEED100_FULL:
+		tmp |= ADVERTISE_100FULL;
+		break;
 	}
 
 	if(advert != tmp)

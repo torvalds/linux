@@ -581,15 +581,15 @@ static unsigned long __init lance_probe1( struct net_device *dev,
 
 	/* Get the ethernet address */
 	switch( lp->cardtype ) {
-	  case OLD_RIEBL:
+	case OLD_RIEBL:
 		/* No ethernet address! (Set some default address) */
 		eth_hw_addr_set(dev, OldRieblDefHwaddr);
 		break;
-	  case NEW_RIEBL:
+	case NEW_RIEBL:
 		lp->memcpy_f(addr, RIEBL_HWADDR_ADDR, ETH_ALEN);
 		eth_hw_addr_set(dev, addr);
 		break;
-	  case PAM_CARD:
+	case PAM_CARD:
 		i = IO->eeprom;
 		for( i = 0; i < 6; ++i )
 			addr[i] =

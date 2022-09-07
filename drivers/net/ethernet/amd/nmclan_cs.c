@@ -485,10 +485,10 @@ static int mace_read(mace_private *lp, unsigned int ioaddr, int reg)
   unsigned long flags;
 
   switch (reg >> 4) {
-    case 0: /* register 0-15 */
+  case 0: /* register 0-15 */
       data = inb(ioaddr + AM2150_MACE_BASE + reg);
       break;
-    case 1: /* register 16-31 */
+  case 1: /* register 16-31 */
       spin_lock_irqsave(&lp->bank_lock, flags);
       MACEBANK(1);
       data = inb(ioaddr + AM2150_MACE_BASE + (reg & 0x0F));
@@ -512,10 +512,10 @@ static void mace_write(mace_private *lp, unsigned int ioaddr, int reg,
   unsigned long flags;
 
   switch (reg >> 4) {
-    case 0: /* register 0-15 */
+  case 0: /* register 0-15 */
       outb(data & 0xFF, ioaddr + AM2150_MACE_BASE + reg);
       break;
-    case 1: /* register 16-31 */
+  case 1: /* register 16-31 */
       spin_lock_irqsave(&lp->bank_lock, flags);
       MACEBANK(1);
       outb(data & 0xFF, ioaddr + AM2150_MACE_BASE + (reg & 0x0F));
@@ -567,13 +567,13 @@ static int mace_init(mace_private *lp, unsigned int ioaddr,
    * Or just set ASEL in PHYCC below!
    */
   switch (if_port) {
-    case 1:
+  case 1:
       mace_write(lp, ioaddr, MACE_PLSCC, 0x02);
       break;
-    case 2:
+  case 2:
       mace_write(lp, ioaddr, MACE_PLSCC, 0x00);
       break;
-    default:
+  default:
       mace_write(lp, ioaddr, MACE_PHYCC, /* ASEL */ 4);
       /* ASEL Auto Select.  When set, the PORTSEL[1-0] bits are overridden,
 	 and the MACE device will automatically select the operating media
