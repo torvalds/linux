@@ -87,12 +87,13 @@ static int gp_aux_bus_probe(struct pci_dev *pdev, const struct pci_device_id *id
 	retval = pci_alloc_irq_vectors(pdev, 1, 1, PCI_IRQ_ALL_TYPES);
 
 	if (retval < 0)
-		return retval;
+		goto err_aux_dev_init_1;
 
-	pdev->irq = pci_irq_vector(pdev, 0);
-	if (pdev->irq < 0)
-		return retval;
+	retval = pci_irq_vector(pdev, 0);
+	if (retval < 0)
+		goto err_aux_dev_init_1;
 
+	pdev->irq = retval;
 	aux_bus->aux_device_wrapper[1]->gp_aux_data.irq_num = pdev->irq;
 
 	retval = auxiliary_device_init(&aux_bus->aux_device_wrapper[1]->aux_dev);
