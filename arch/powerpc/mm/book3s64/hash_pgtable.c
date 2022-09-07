@@ -256,7 +256,7 @@ pmd_t hash__pmdp_collapse_flush(struct vm_area_struct *vma, unsigned long addres
 	 * the __collapse_huge_page_copy can result in copying
 	 * the old content.
 	 */
-	flush_tlb_pmd_range(vma->vm_mm, &pmd, address);
+	flush_hash_table_pmd_range(vma->vm_mm, &pmd, address);
 	return pmd;
 }
 
