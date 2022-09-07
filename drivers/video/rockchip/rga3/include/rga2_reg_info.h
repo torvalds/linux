@@ -4,6 +4,8 @@
 
 #include "rga_drv.h"
 
+#define RGA2_USE_MASTER_MODE		1
+
 /* General Registers */
 #define RGA2_SYS_CTRL			0x000
 #define RGA2_CMD_CTRL			0x004
@@ -411,6 +413,7 @@ void rga2_soft_reset(struct rga_scheduler_t *scheduler);
 int rga2_set_reg(struct rga_job *job, struct rga_scheduler_t *scheduler);
 int rga2_init_reg(struct rga_job *job);
 int rga2_get_version(struct rga_scheduler_t *scheduler);
+void rga2_dump_read_back_reg(struct rga_scheduler_t *scheduler);
 
 #endif
 
