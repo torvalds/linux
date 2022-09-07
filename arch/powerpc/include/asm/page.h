@@ -308,11 +308,6 @@ static inline bool pfn_valid(unsigned long pfn)
 #include <asm/pgtable-types.h>
 #endif
 
-
-#ifndef CONFIG_HUGETLB_PAGE
-#define is_hugepd(pdep)		(0)
-#endif /* CONFIG_HUGETLB_PAGE */
-
 struct page;
 extern void clear_user_page(void *page, unsigned long vaddr, struct page *pg);
 extern void copy_user_page(void *to, void *from, unsigned long vaddr,

@@ -101,6 +101,7 @@ static inline bool pmd_xchg(pmd_t *pmdp, pmd_t old, pmd_t new)
 	return pmd_raw(old) == prev;
 }
 
+#ifdef CONFIG_ARCH_HAS_HUGEPD
 typedef struct { __be64 pdbe; } hugepd_t;
 #define __hugepd(x) ((hugepd_t) { cpu_to_be64(x) })
 
@@ -108,5 +109,6 @@ static inline unsigned long hpd_val(hugepd_t x)
 {
 	return be64_to_cpu(x.pdbe);
 }
+#endif
 
 #endif /* _ASM_POWERPC_PGTABLE_BE_TYPES_H */
