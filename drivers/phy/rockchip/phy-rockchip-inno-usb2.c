@@ -746,6 +746,7 @@ static int rockchip_usb2phy_init(struct phy *phy)
 	struct rockchip_usb2phy_port *rport = phy_get_drvdata(phy);
 	struct rockchip_usb2phy *rphy = dev_get_drvdata(phy->dev.parent);
 	int ret = 0;
+	unsigned int ul, ul_mask;
 
 	mutex_lock(&rport->mutex);
 
@@ -779,7 +780,12 @@ static int rockchip_usb2phy_init(struct phy *phy)
 		}
 	} else if (rport->port_id == USB2PHY_PORT_HOST) {
 		if (rport->port_cfg->disfall_en.offset) {
-			rport->host_disconnect = true;
+			ret = regmap_read(rphy->grf, rport->port_cfg->utmi_ls.offset, &ul);
+			if (ret < 0)
+				goto out;
+			ul_mask = GENMASK(rport->port_cfg->utmi_ls.bitend,
+					  rport->port_cfg->utmi_ls.bitstart);
+			rport->host_disconnect = (ul & ul_mask) == 0 ? true : false;
 			ret = rockchip_usb2phy_enable_host_disc_irq(rphy, rport, true);
 			if (ret) {
 				dev_err(rphy->dev, "failed to enable disconnect irq\n");
