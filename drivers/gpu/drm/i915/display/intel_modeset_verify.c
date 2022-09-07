@@ -94,10 +94,10 @@ static void intel_pipe_config_sanity_check(struct drm_i915_private *dev_priv,
 
 		/*
 		 * FDI already provided one idea for the dotclock.
-		 * Yell if the encoder disagrees.
+		 * Yell if the encoder disagrees. Allow for slight
+		 * rounding differences.
 		 */
-		drm_WARN(&dev_priv->drm,
-			 !intel_fuzzy_clock_check(fdi_dotclock, dotclock),
+		drm_WARN(&dev_priv->drm, abs(fdi_dotclock - dotclock) > 1,
 			 "FDI dotclock and encoder dotclock mismatch, fdi: %i, encoder: %i\n",
 			 fdi_dotclock, dotclock);
 	}
