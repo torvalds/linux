@@ -26,6 +26,9 @@
 		csi2dphy0 = &csi2_dphy0;
 		csi2dphy1 = &csi2_dphy1;
 		csi2dphy2 = &csi2_dphy2;
+		csi2dphy3 = &csi2_dphy3;
+		csi2dphy4 = &csi2_dphy4;
+		csi2dphy5 = &csi2_dphy5;
 		dsi0 = &dsi0;
 		dsi1 = &dsi1;
 		ethernet1 = &gmac1;
@@ -1586,37 +1589,66 @@
 	};
 
 	csi2_dcphy0: csi2-dcphy0 {
-		compatible = "rockchip,rk3588-csi2-dcphy";
-		phys = <&mipi_dcphy0>;
-		phy-names = "dcphy";
+		compatible = "rockchip,rk3588-csi2-dphy";
+		rockchip,hw = <&csi2_dphy0_hw>, <&csi2_dphy1_hw>;
+		phys = <&mipidcphy0>, <&mipidcphy1>;
+		phy-names = "dcphy0", "dcphy1";
 		status = "disabled";
 	};
 
 	csi2_dcphy1: csi2-dcphy1 {
-		compatible = "rockchip,rk3588-csi2-dcphy";
-		phys = <&mipi_dcphy1>;
-		phy-names = "dcphy";
+		compatible = "rockchip,rk3588-csi2-dphy";
+		rockchip,hw = <&csi2_dphy0_hw>, <&csi2_dphy1_hw>;
+		phys = <&mipidcphy0>, <&mipidcphy1>;
+		phy-names = "dcphy0", "dcphy1";
 		status = "disabled";
 	};
 
-	/* dphy0 full mode */
 	csi2_dphy0: csi2-dphy0 {
-		compatible = "rockchip,rk3568-csi2-dphy";
-		rockchip,hw = <&csi2_dphy0_hw>;
+		compatible = "rockchip,rk3588-csi2-dphy";
+		rockchip,hw = <&csi2_dphy0_hw>, <&csi2_dphy1_hw>;
+		phys = <&mipidcphy0>, <&mipidcphy1>;
+		phy-names = "dcphy0", "dcphy1";
 		status = "disabled";
 	};
 
-	/* dphy0 split mode 01 */
 	csi2_dphy1: csi2-dphy1 {
-		compatible = "rockchip,rk3568-csi2-dphy";
-		rockchip,hw = <&csi2_dphy0_hw>;
+		compatible = "rockchip,rk3588-csi2-dphy";
+		rockchip,hw = <&csi2_dphy0_hw>, <&csi2_dphy1_hw>;
+		phys = <&mipidcphy0>, <&mipidcphy1>;
+		phy-names = "dcphy0", "dcphy1";
 		status = "disabled";
 	};
 
-	/* dphy0 split mode 23 */
 	csi2_dphy2: csi2-dphy2 {
-		compatible = "rockchip,rk3568-csi2-dphy";
-		rockchip,hw = <&csi2_dphy0_hw>;
+		compatible = "rockchip,rk3588-csi2-dphy";
+		rockchip,hw = <&csi2_dphy0_hw>, <&csi2_dphy1_hw>;
+		phys = <&mipidcphy0>, <&mipidcphy1>;
+		phy-names = "dcphy0", "dcphy1";
+		status = "disabled";
+	};
+
+	csi2_dphy3: csi2-dphy3 {
+		compatible = "rockchip,rk3588-csi2-dphy";
+		rockchip,hw = <&csi2_dphy0_hw>, <&csi2_dphy1_hw>;
+		phys = <&mipidcphy0>, <&mipidcphy1>;
+		phy-names = "dcphy0", "dcphy1";
+		status = "disabled";
+	};
+
+	csi2_dphy4: csi2-dphy4 {
+		compatible = "rockchip,rk3588-csi2-dphy";
+		rockchip,hw = <&csi2_dphy0_hw>, <&csi2_dphy1_hw>;
+		phys = <&mipidcphy0>, <&mipidcphy1>;
+		phy-names = "dcphy0", "dcphy1";
+		status = "disabled";
+	};
+
+	csi2_dphy5: csi2-dphy5 {
+		compatible = "rockchip,rk3588-csi2-dphy";
+		rockchip,hw = <&csi2_dphy0_hw>, <&csi2_dphy1_hw>;
+		phys = <&mipidcphy0>, <&mipidcphy1>;
+		phy-names = "dcphy0", "dcphy1";
 		status = "disabled";
 	};
 
@@ -1858,6 +1890,10 @@
 	jpege_ccu: jpege-ccu {
 		compatible = "rockchip,vpu-jpege-ccu";
 		status = "disabled";
+	};
+
+	/omit-if-no-ref/
+	mipi_dcphy1: mipi_dcphy0: mipi-dcphy-dummy {
 	};
 
 	mpp_srv: mpp-srv {
@@ -4710,7 +4746,7 @@
 		resets = <&cru SRST_P_DSIHOST0>;
 		reset-names = "apb";
 		power-domains = <&power RK3588_PD_VOP>;
-		phys = <&mipi_dcphy0>;
+		phys = <&mipidcphy0>;
 		phy-names = "dcphy";
 		rockchip,grf = <&vop_grf>;
 		#address-cells = <1>;
@@ -4750,7 +4786,7 @@
 		resets = <&cru SRST_P_DSIHOST1>;
 		reset-names = "apb";
 		power-domains = <&power RK3588_PD_VOP>;
-		phys = <&mipi_dcphy1>;
+		phys = <&mipidcphy1>;
 		phy-names = "dcphy";
 		rockchip,grf = <&vop_grf>;
 		#address-cells = <1>;
@@ -6534,7 +6570,7 @@
 		};
 	};
 
-	mipi_dcphy0: phy@feda0000 {
+	mipidcphy0: phy@feda0000 {
 		compatible = "rockchip,rk3588-mipi-dcphy";
 		reg = <0x0 0xfeda0000 0x0 0x10000>;
 		rockchip,grf = <&mipidcphy0_grf>;
@@ -6547,10 +6583,10 @@
 			 <&cru SRST_S_MIPI_DCPHY0>;
 		reset-names = "m_phy", "apb", "grf", "s_phy";
 		#phy-cells = <0>;
-		status = "disabled";
+		status = "okay";
 	};
 
-	mipi_dcphy1: phy@fedb0000 {
+	mipidcphy1: phy@fedb0000 {
 		compatible = "rockchip,rk3588-mipi-dcphy";
 		reg = <0x0 0xfedb0000 0x0 0x10000>;
 		rockchip,grf = <&mipidcphy1_grf>;
@@ -6563,7 +6599,7 @@
 			 <&cru SRST_S_MIPI_DCPHY1>;
 		reset-names = "m_phy", "apb", "grf", "s_phy";
 		#phy-cells = <0>;
-		status = "disabled";
+		status = "okay";
 	};
 
 	csi2_dphy0_hw: csi2-dphy0-hw@fedc0000 {
@@ -6575,7 +6611,19 @@
 		reset-names = "srst_csiphy0", "srst_p_csiphy0";
 		rockchip,grf = <&mipidphy0_grf>;
 		rockchip,sys_grf = <&sys_grf>;
-		status = "disabled";
+		status = "okay";
+	};
+
+	csi2_dphy1_hw: csi2-dphy1-hw@fedc8000 {
+		compatible = "rockchip,rk3588-csi2-dphy-hw";
+		reg = <0x0 0xfedc8000 0x0 0x8000>;
+		clocks = <&cru PCLK_CSIPHY1>;
+		clock-names = "pclk";
+		resets = <&cru SRST_CSIPHY1>, <&cru SRST_P_CSIPHY1>;
+		reset-names = "srst_csiphy1", "srst_p_csiphy1";
+		rockchip,grf = <&mipidphy1_grf>;
+		rockchip,sys_grf = <&sys_grf>;
+		status = "okay";
 	};
 
 	combphy0_ps: phy@fee00000 {
