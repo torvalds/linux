@@ -435,13 +435,8 @@ static inline void rga_write(int value, int offset, struct rga_scheduler_t *sche
 	writel(value, scheduler->rga_base + offset);
 }
 
-#ifndef CONFIG_ROCKCHIP_FPGA
 int rga_power_enable(struct rga_scheduler_t *scheduler);
 int rga_power_disable(struct rga_scheduler_t *scheduler);
-#else
-static inline int rga_power_enable(struct rga_scheduler_t *scheduler) { return 0; }
-static inline int rga_power_disable(struct rga_scheduler_t *scheduler) { return 0; }
-#endif
 
 int rga_kernel_commit(struct rga_req *cmd);
 

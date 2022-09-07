@@ -384,7 +384,7 @@ static void rga_cancel_timer(void)
 	hrtimer_cancel(&timer);
 }
 
-#ifndef CONFIG_ROCKCHIP_FPGA
+#ifndef RGA_DISABLE_PM
 int rga_power_enable(struct rga_scheduler_t *scheduler)
 {
 	int ret = -EINVAL;
@@ -479,9 +479,19 @@ static void rga_power_disable_all(void)
 }
 
 #else
+int rga_power_enable(struct rga_scheduler_t *scheduler)
+{
+	return 0;
+}
+
+int rga_power_disable(struct rga_scheduler_t *scheduler)
+{
+	return 0;
+}
+
 static inline void rga_power_enable_all(void) {}
 static inline void rga_power_disable_all(void) {}
-#endif //CONFIG_ROCKCHIP_FPGA
+#endif /* #ifndef RGA_DISABLE_PM */
 
 static int rga_session_manager_init(struct rga_session_manager **session_manager_ptr)
 {
@@ -1378,7 +1388,7 @@ static int rga_drv_probe(struct platform_device *pdev)
 	const struct rga_match_data_t *match_data;
 	int irq;
 	struct rga_scheduler_t *scheduler = NULL;
-#ifndef CONFIG_ROCKCHIP_FPGA
+#ifndef RGA_DISABLE_PM
 	int i;
 #endif
 
@@ -1452,7 +1462,9 @@ static int rga_drv_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-#ifndef CONFIG_ROCKCHIP_FPGA
+
+#ifndef RGA_DISABLE_PM
+	/* clk init */
 	for (i = 0; i < match_data->num_clks; i++) {
 		struct clk *clk = devm_clk_get(dev, match_data->clks[i]);
 
@@ -1462,21 +1474,15 @@ static int rga_drv_probe(struct platform_device *pdev)
 		scheduler->clks[i] = clk;
 	}
 	scheduler->num_clks = match_data->num_clks;
-#endif
-
-	platform_set_drvdata(pdev, scheduler);
-
-	device_init_wakeup(dev, true);
 
 	/* PM init */
-#ifndef CONFIG_ROCKCHIP_FPGA
-	pm_runtime_enable(&pdev->dev);
+	device_init_wakeup(dev, true);
+	pm_runtime_enable(scheduler->dev);
 
 	ret = pm_runtime_get_sync(scheduler->dev);
 	if (ret < 0) {
-		pr_err("failed to get pm runtime, ret = %d\n",
-			 ret);
-		goto failed;
+		pr_err("failed to get pm runtime, ret = %d\n", ret);
+		goto pm_disable;
 	}
 
 	for (i = 0; i < scheduler->num_clks; i++) {
@@ -1484,11 +1490,11 @@ static int rga_drv_probe(struct platform_device *pdev)
 			ret = clk_prepare_enable(scheduler->clks[i]);
 			if (ret < 0) {
 				pr_err("failed to enable clk\n");
-				goto failed;
+				goto pm_disable;
 			}
 		}
 	}
-#endif //CONFIG_ROCKCHIP_FPGA
+#endif /* #ifndef RGA_DISABLE_PM */
 
 	scheduler->ops->get_version(scheduler);
 	pr_info("%s driver loaded successfully ver:%s\n",
@@ -1509,13 +1515,13 @@ static int rga_drv_probe(struct platform_device *pdev)
 
 	data->num_of_scheduler++;
 
-#ifndef CONFIG_ROCKCHIP_FPGA
+#ifndef RGA_DISABLE_PM
 	for (i = scheduler->num_clks - 1; i >= 0; i--)
 		if (!IS_ERR(scheduler->clks[i]))
 			clk_disable_unprepare(scheduler->clks[i]);
 
 	pm_runtime_put_sync(&pdev->dev);
-#endif //CONFIG_ROCKCHIP_FPGA
+#endif /* #ifndef RGA_DISABLE_PM */
 
 	if (scheduler->data->mmu == RGA_IOMMU) {
 		scheduler->iommu_info = rga_iommu_probe(dev);
@@ -1525,25 +1531,27 @@ static int rga_drv_probe(struct platform_device *pdev)
 		}
 	}
 
+	platform_set_drvdata(pdev, scheduler);
+
 	pr_info("%s probe successfully\n", dev_driver_string(dev));
 
 	return 0;
 
-#ifndef CONFIG_ROCKCHIP_FPGA
-failed:
+#ifndef RGA_DISABLE_PM
+pm_disable:
 	device_init_wakeup(dev, false);
 	pm_runtime_disable(dev);
-#endif //CONFIG_ROCKCHIP_FPGA
+#endif /* #ifndef RGA_DISABLE_PM */
 
 	return ret;
 }
 
 static int rga_drv_remove(struct platform_device *pdev)
 {
+#ifndef RGA_DISABLE_PM
 	device_init_wakeup(&pdev->dev, false);
-#ifndef CONFIG_ROCKCHIP_FPGA
 	pm_runtime_disable(&pdev->dev);
-#endif //CONFIG_ROCKCHIP_FPGA
+#endif /* #ifndef RGA_DISABLE_PM */
 
 	return 0;
 }
