@@ -295,7 +295,7 @@ int main(void)
 	for (i = 0; i < ARRAY_SIZE(hwcaps); i++) {
 		hwcap = &hwcaps[i];
 
-		have_hwcap = getauxval(hwcaps->at_hwcap) & hwcap->hwcap_bit;
+		have_hwcap = getauxval(hwcap->at_hwcap) & hwcap->hwcap_bit;
 		have_cpuinfo = cpuinfo_present(hwcap->cpuinfo);
 
 		if (have_hwcap)
