@@ -16,7 +16,7 @@
 
 #define VOLT_TOL		(10000)
 
-struct stf_cpu_dvfs_info {
+struct starfive_cpu_dvfs_info {
 	struct regulator *vddcpu;
 	struct clk *cpu_clk;
 	struct clk *pll0_clk;
@@ -26,11 +26,11 @@ struct stf_cpu_dvfs_info {
 	struct cpumask cpus;
 };
 
-static int stf_cpufreq_set_target_index(struct cpufreq_policy *policy,
+static int starfive_cpufreq_set_target_index(struct cpufreq_policy *policy,
 					unsigned int index)
 {
 	struct cpufreq_frequency_table *freq_table = policy->freq_table;
-	struct stf_cpu_dvfs_info *info = cpufreq_get_driver_data();
+	struct starfive_cpu_dvfs_info *info = cpufreq_get_driver_data();
 	struct dev_pm_opp *opp;
 	unsigned long old_freq, new_freq;
 	int old_vdd, target_vdd, ret;
@@ -92,9 +92,9 @@ static int stf_cpufreq_set_target_index(struct cpufreq_policy *policy,
 	return 0;
 }
 
-static int stf_cpufreq_driver_init(struct cpufreq_policy *policy)
+static int starfive_cpufreq_driver_init(struct cpufreq_policy *policy)
 {
-	struct stf_cpu_dvfs_info *info = cpufreq_get_driver_data();
+	struct starfive_cpu_dvfs_info *info = cpufreq_get_driver_data();
 	struct cpufreq_frequency_table *freq_table;
 	int ret;
 
@@ -113,8 +113,8 @@ static int stf_cpufreq_driver_init(struct cpufreq_policy *policy)
 	return 0;
 }
 
-static int stf_cpu_dvfs_info_init(struct platform_device *pdev,
-			struct stf_cpu_dvfs_info *info)
+static int starfive_cpu_dvfs_info_init(struct platform_device *pdev,
+			struct starfive_cpu_dvfs_info *info)
 {
 	struct device *dev = &pdev->dev;
 	int ret;
@@ -173,58 +173,58 @@ static int stf_cpu_dvfs_info_init(struct platform_device *pdev,
 	return 0;
 }
 
-static struct cpufreq_driver stf_cpufreq_driver = {
+static struct cpufreq_driver starfive_cpufreq_driver = {
 	.flags		= CPUFREQ_NEED_INITIAL_FREQ_CHECK,
 	.verify		= cpufreq_generic_frequency_table_verify,
-	.target_index	= stf_cpufreq_set_target_index,
+	.target_index	= starfive_cpufreq_set_target_index,
 	.get		= cpufreq_generic_get,
-	.init		= stf_cpufreq_driver_init,
-	.name		= "stf-cpufreq",
+	.init		= starfive_cpufreq_driver_init,
+	.name		= "starfive-cpufreq",
 	.attr		= cpufreq_generic_attr,
 };
 
-static int stf_cpufreq_probe(struct platform_device *pdev)
+static int starfive_cpufreq_probe(struct platform_device *pdev)
 {
-	struct stf_cpu_dvfs_info *info;
+	struct starfive_cpu_dvfs_info *info;
 	int ret;
 
 	info = devm_kzalloc(&pdev->dev, sizeof(*info), GFP_KERNEL);
 	if (!info)
 		return -ENOMEM;
 
-	ret = stf_cpu_dvfs_info_init(pdev, info);
+	ret = starfive_cpu_dvfs_info_init(pdev, info);
 	if (ret) {
-		dev_err(&pdev->dev, "Failed to init stf cpu dvfs info\n");
+		dev_err(&pdev->dev, "Failed to init starfive cpu dvfs info\n");
 		return ret;
 	}
 
-	stf_cpufreq_driver.driver_data = info;
-	ret = cpufreq_register_driver(&stf_cpufreq_driver);
+	starfive_cpufreq_driver.driver_data = info;
+	ret = cpufreq_register_driver(&starfive_cpufreq_driver);
 	if (ret)
-		dev_err(&pdev->dev, "Failed to register stf cpufreq driver\n");
+		dev_err(&pdev->dev, "Failed to register starfive cpufreq driver\n");
 
 	return ret;
 
 }
 
-static const struct of_device_id stf_cpufreq_match_table[] = {
-	{ .compatible = "starfive,stf-cpufreq" },
+static const struct of_device_id starfive_cpufreq_match_table[] = {
+	{ .compatible = "starfive,jh7110-cpufreq" },
 	{}
 };
 
-static struct platform_driver stf_cpufreq_plat_driver = {
-	.probe = stf_cpufreq_probe,
+static struct platform_driver starfive_cpufreq_plat_driver = {
+	.probe = starfive_cpufreq_probe,
 	.driver = {
-		.name = "stf-cpufreq",
-		.of_match_table = stf_cpufreq_match_table,
+		.name = "starfive-cpufreq",
+		.of_match_table = starfive_cpufreq_match_table,
 	},
 };
 
-static int __init stf_cpufreq_init(void)
+static int __init starfive_cpufreq_init(void)
 {
-	return platform_driver_register(&stf_cpufreq_plat_driver);
+	return platform_driver_register(&starfive_cpufreq_plat_driver);
 }
-postcore_initcall(stf_cpufreq_init);
+postcore_initcall(starfive_cpufreq_init);
 
 MODULE_DESCRIPTION("STARFIVE CPUFREQ Driver");
 MODULE_AUTHOR("Mason Huuo <mason.huo@starfivetech.com>");

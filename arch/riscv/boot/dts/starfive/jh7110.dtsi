@@ -222,7 +222,7 @@
 
     idle-states {
         CPU_RET_0_0: cpu-retentive-0-0 {
-            compatible = "riscv,idle-state";
+            compatible = "starfive,jh7110-idle-state";
             riscv,sbi-suspend-param = <0x10000000>;
             entry-latency-us = <20>;
             exit-latency-us = <40>;
@@ -230,7 +230,7 @@
         };
 
         CPU_NONRET_0_0: cpu-nonretentive-0-0 {
-            compatible = "riscv,idle-state";
+            compatible = "starfive,jh7110-idle-state";
             riscv,sbi-suspend-param = <0x90000000>;
             entry-latency-us = <250>;
             exit-latency-us = <500>;
@@ -238,7 +238,7 @@
         };
 
         CLUSTER_RET_0: cluster-retentive-0 {
-            compatible = "riscv,idle-state";
+            compatible = "starfive,jh7110-idle-state";
             riscv,sbi-suspend-param = <0x11000000>;
             local-timer-stop;
             entry-latency-us = <50>;
@@ -248,7 +248,7 @@
         };
 
         CLUSTER_NONRET_0: cluster-nonretentive-0 {
-            compatible = "riscv,idle-state";
+            compatible = "starfive,jh7110-idle-state";
             riscv,sbi-suspend-param = <0x91000000>;
             local-timer-stop;
             entry-latency-us = <600>;
@@ -1493,7 +1493,7 @@
 		};
 
 		pcie0: pcie@2B000000 {
-			compatible = "plda,pci-xpressrich3-axi";
+			compatible = "starfive,jh7110-pcie","plda,pci-xpressrich3-axi";
 			#address-cells = <3>;
 			#size-cells = <2>;
 			#interrupt-cells = <1>;
@@ -1531,7 +1531,7 @@
 		};
 
 		pcie1: pcie@2C000000 {
-			compatible = "plda,pci-xpressrich3-axi";
+			compatible = "starfive,jh7110-pcie","plda,pci-xpressrich3-axi";
 			#address-cells = <3>;
 			#size-cells = <2>;
 			#interrupt-cells = <1>;
@@ -1791,8 +1791,8 @@
 			};
 		};
 
-		stf_cpufreq: starfive,stf-cpufreq {
-			compatible = "starfive,stf-cpufreq";
+		starfive_cpufreq: starfive,jh7110-cpufreq {
+			compatible = "starfive,jh7110-cpufreq";
 			clocks = <&clkgen JH7110_PLL0_OUT>,
 					 <&clkgen JH7110_CPU_ROOT>,
 					 <&osc>;
