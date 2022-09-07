@@ -688,7 +688,7 @@ static void ffa_setup_partitions(void)
 		 * as part of the discovery API, we need to pass the
 		 * discovered UUID here instead.
 		 */
-		ffa_dev = ffa_device_register(&uuid_null, tpbuf->id);
+		ffa_dev = ffa_device_register(&uuid_null, tpbuf->id, &ffa_ops);
 		if (!ffa_dev) {
 			pr_err("%s: failed to register partition ID 0x%x\n",
 			       __func__, tpbuf->id);
