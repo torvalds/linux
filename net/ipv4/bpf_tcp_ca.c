@@ -124,7 +124,7 @@ static int bpf_tcp_ca_btf_struct_access(struct bpf_verifier_log *log,
 		return -EACCES;
 	}
 
-	return NOT_INIT;
+	return 0;
 }
 
 BPF_CALL_2(bpf_tcp_send_ack, struct tcp_sock *, tp, u32, rcv_nxt)
