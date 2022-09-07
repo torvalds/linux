@@ -963,6 +963,31 @@ void ksz9477_get_caps(struct ksz_device *dev, int port,
 		config->mac_capabilities |= MAC_1000FD;
 }
 
+int ksz9477_set_ageing_time(struct ksz_device *dev, unsigned int msecs)
+{
+	u32 secs = msecs / 1000;
+	u8 value;
+	u8 data;
+	int ret;
+
+	value = FIELD_GET(SW_AGE_PERIOD_7_0_M, secs);
+
+	ret = ksz_write8(dev, REG_SW_LUE_CTRL_3, value);
+	if (ret < 0)
+		return ret;
+
+	data = FIELD_GET(SW_AGE_PERIOD_10_8_M, secs);
+
+	ret = ksz_read8(dev, REG_SW_LUE_CTRL_0, &value);
+	if (ret < 0)
+		return ret;
+
+	value &= ~SW_AGE_CNT_M;
+	value |= FIELD_PREP(SW_AGE_CNT_M, data);
+
+	return ksz_write8(dev, REG_SW_LUE_CTRL_0, value);
+}
+
 void ksz9477_port_setup(struct ksz_device *dev, int port, bool cpu_port)
 {
 	struct dsa_switch *ds = dev->ds;

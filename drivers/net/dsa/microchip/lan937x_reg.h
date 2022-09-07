@@ -62,6 +62,12 @@
 #define SW_FAST_AGING			BIT(1)
 #define SW_LINK_AUTO_AGING		BIT(0)
 
+#define REG_SW_AGE_PERIOD__1		0x0313
+#define SW_AGE_PERIOD_7_0_M		GENMASK(7, 0)
+
+#define REG_SW_AGE_PERIOD__2		0x0320
+#define SW_AGE_PERIOD_19_8_M		GENMASK(19, 8)
+
 #define REG_SW_MAC_CTRL_0		0x0330
 #define SW_NEW_BACKOFF			BIT(7)
 #define SW_PAUSE_UNH_MODE		BIT(1)

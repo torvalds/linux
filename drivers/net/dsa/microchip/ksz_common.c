@@ -183,6 +183,7 @@ static const struct ksz_dev_ops ksz9477_dev_ops = {
 	.cfg_port_member = ksz9477_cfg_port_member,
 	.flush_dyn_mac_table = ksz9477_flush_dyn_mac_table,
 	.port_setup = ksz9477_port_setup,
+	.set_ageing_time = ksz9477_set_ageing_time,
 	.r_phy = ksz9477_r_phy,
 	.w_phy = ksz9477_w_phy,
 	.r_mib_cnt = ksz9477_r_mib_cnt,
@@ -218,6 +219,7 @@ static const struct ksz_dev_ops lan937x_dev_ops = {
 	.cfg_port_member = ksz9477_cfg_port_member,
 	.flush_dyn_mac_table = ksz9477_flush_dyn_mac_table,
 	.port_setup = lan937x_port_setup,
+	.set_ageing_time = lan937x_set_ageing_time,
 	.r_phy = lan937x_r_phy,
 	.w_phy = lan937x_w_phy,
 	.r_mib_cnt = ksz9477_r_mib_cnt,
@@ -1893,6 +1895,16 @@ static void ksz_port_fast_age(struct dsa_switch *ds, int port)
 	dev->dev_ops->flush_dyn_mac_table(dev, port);
 }
 
+static int ksz_set_ageing_time(struct dsa_switch *ds, unsigned int msecs)
+{
+	struct ksz_device *dev = ds->priv;
+
+	if (!dev->dev_ops->set_ageing_time)
+		return -EOPNOTSUPP;
+
+	return dev->dev_ops->set_ageing_time(dev, msecs);
+}
+
 static int ksz_port_fdb_add(struct dsa_switch *ds, int port,
 			    const unsigned char *addr, u16 vid,
 			    struct dsa_db db)
@@ -2475,6 +2487,7 @@ static const struct dsa_switch_ops ksz_switch_ops = {
 	.phylink_mac_link_up	= ksz_phylink_mac_link_up,
 	.phylink_mac_link_down	= ksz_mac_link_down,
 	.port_enable		= ksz_enable_port,
+	.set_ageing_time	= ksz_set_ageing_time,
 	.get_strings		= ksz_get_strings,
 	.get_ethtool_stats	= ksz_get_ethtool_stats,
 	.get_sset_count		= ksz_sset_count,

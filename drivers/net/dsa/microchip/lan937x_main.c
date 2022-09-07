@@ -367,6 +367,23 @@ int lan937x_change_mtu(struct ksz_device *dev, int port, int new_mtu)
 	return 0;
 }
 
+int lan937x_set_ageing_time(struct ksz_device *dev, unsigned int msecs)
+{
+	u32 secs = msecs / 1000;
+	u32 value;
+	int ret;
+
+	value = FIELD_GET(SW_AGE_PERIOD_7_0_M, secs);
+
+	ret = ksz_write8(dev, REG_SW_AGE_PERIOD__1, value);
+	if (ret < 0)
+		return ret;
+
+	value = FIELD_GET(SW_AGE_PERIOD_19_8_M, secs);
+
+	return ksz_write16(dev, REG_SW_AGE_PERIOD__2, value);
+}
+
 static void lan937x_set_tune_adj(struct ksz_device *dev, int port,
 				 u16 reg, u8 val)
 {
