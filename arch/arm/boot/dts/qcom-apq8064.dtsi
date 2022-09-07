@@ -1309,7 +1309,6 @@
 						<&dsi0_phy 1>;
 			syscon-sfpb = <&mmss_sfpb>;
 			phys = <&dsi0_phy>;
-			phy-names = "dsi";
 			status = "disabled";
 
 			ports {
