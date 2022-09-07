@@ -64,27 +64,25 @@ static inline bool constraint_match(struct event_constraint *c, u64 ecode)
 	return ((ecode & c->cmask) - c->code) <= (u64)c->size;
 }
 
+#define PERF_ARCH(name, val)	\
+	PERF_X86_EVENT_##name = val,
+
 /*
  * struct hw_perf_event.flags flags
  */
-#define PERF_X86_EVENT_PEBS_LDLAT	0x00001 /* ld+ldlat data address sampling */
-#define PERF_X86_EVENT_PEBS_ST		0x00002 /* st data address sampling */
-#define PERF_X86_EVENT_PEBS_ST_HSW	0x00004 /* haswell style datala, store */
-#define PERF_X86_EVENT_PEBS_LD_HSW	0x00008 /* haswell style datala, load */
-#define PERF_X86_EVENT_PEBS_NA_HSW	0x00010 /* haswell style datala, unknown */
-#define PERF_X86_EVENT_EXCL		0x00020 /* HT exclusivity on counter */
-#define PERF_X86_EVENT_DYNAMIC		0x00040 /* dynamic alloc'd constraint */
+enum {
+#include "perf_event_flags.h"
+};
 
-#define PERF_X86_EVENT_EXCL_ACCT	0x00100 /* accounted EXCL event */
-#define PERF_X86_EVENT_AUTO_RELOAD	0x00200 /* use PEBS auto-reload */
-#define PERF_X86_EVENT_LARGE_PEBS	0x00400 /* use large PEBS */
-#define PERF_X86_EVENT_PEBS_VIA_PT	0x00800 /* use PT buffer for PEBS */
-#define PERF_X86_EVENT_PAIR		0x01000 /* Large Increment per Cycle */
-#define PERF_X86_EVENT_LBR_SELECT	0x02000 /* Save/Restore MSR_LBR_SELECT */
-#define PERF_X86_EVENT_TOPDOWN		0x04000 /* Count Topdown slots/metrics events */
-#define PERF_X86_EVENT_PEBS_STLAT	0x08000 /* st+stlat data address sampling */
-#define PERF_X86_EVENT_AMD_BRS		0x10000 /* AMD Branch Sampling */
-#define PERF_X86_EVENT_PEBS_LAT_HYBRID	0x20000 /* ld and st lat for hybrid */
+#undef PERF_ARCH
+
+#define PERF_ARCH(name, val)						\
+	static_assert((PERF_X86_EVENT_##name & PERF_EVENT_FLAG_ARCH) ==	\
+		      PERF_X86_EVENT_##name);
+
+#include "perf_event_flags.h"
+
+#undef PERF_ARCH
 
 static inline bool is_topdown_count(struct perf_event *event)
 {
