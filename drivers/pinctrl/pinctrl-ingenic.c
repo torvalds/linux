@@ -21,6 +21,7 @@
 #include <linux/pinctrl/pinconf-generic.h>
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
+#include <linux/seq_file.h>
 #include <linux/slab.h>
 
 #include "core.h"
@@ -135,7 +136,6 @@ struct ingenic_pinctrl {
 struct ingenic_gpio_chip {
 	struct ingenic_pinctrl *jzpc;
 	struct gpio_chip gc;
-	struct irq_chip irq_chip;
 	unsigned int irq, reg_base;
 };
 
@@ -3393,7 +3393,7 @@ static void ingenic_gpio_irq_mask(struct irq_data *irqd)
 {
 	struct gpio_chip *gc = irq_data_get_irq_chip_data(irqd);
 	struct ingenic_gpio_chip *jzgc = gpiochip_get_data(gc);
-	int irq = irqd->hwirq;
+	irq_hw_number_t irq = irqd_to_hwirq(irqd);
 
 	if (is_soc_or_above(jzgc->jzpc, ID_JZ4740))
 		ingenic_gpio_set_bit(jzgc, GPIO_MSK, irq, true);
@@ -3405,7 +3405,7 @@ static void ingenic_gpio_irq_unmask(struct irq_data *irqd)
 {
 	struct gpio_chip *gc = irq_data_get_irq_chip_data(irqd);
 	struct ingenic_gpio_chip *jzgc = gpiochip_get_data(gc);
-	int irq = irqd->hwirq;
+	irq_hw_number_t irq = irqd_to_hwirq(irqd);
 
 	if (is_soc_or_above(jzgc->jzpc, ID_JZ4740))
 		ingenic_gpio_set_bit(jzgc, GPIO_MSK, irq, false);
@@ -3417,7 +3417,9 @@ static void ingenic_gpio_irq_enable(struct irq_data *irqd)
 {
 	struct gpio_chip *gc = irq_data_get_irq_chip_data(irqd);
 	struct ingenic_gpio_chip *jzgc = gpiochip_get_data(gc);
-	int irq = irqd->hwirq;
+	irq_hw_number_t irq = irqd_to_hwirq(irqd);
+
+	gpiochip_enable_irq(gc, irq);
 
 	if (is_soc_or_above(jzgc->jzpc, ID_JZ4770))
 		ingenic_gpio_set_bit(jzgc, JZ4770_GPIO_INT, irq, true);
@@ -3433,7 +3435,7 @@ static void ingenic_gpio_irq_disable(struct irq_data *irqd)
 {
 	struct gpio_chip *gc = irq_data_get_irq_chip_data(irqd);
 	struct ingenic_gpio_chip *jzgc = gpiochip_get_data(gc);
-	int irq = irqd->hwirq;
+	irq_hw_number_t irq = irqd_to_hwirq(irqd);
 
 	ingenic_gpio_irq_mask(irqd);
 
@@ -3443,13 +3445,15 @@ static void ingenic_gpio_irq_disable(struct irq_data *irqd)
 		ingenic_gpio_set_bit(jzgc, JZ4740_GPIO_SELECT, irq, false);
 	else
 		ingenic_gpio_set_bit(jzgc, JZ4730_GPIO_GPIER, irq, false);
+
+	gpiochip_disable_irq(gc, irq);
 }
 
 static void ingenic_gpio_irq_ack(struct irq_data *irqd)
 {
 	struct gpio_chip *gc = irq_data_get_irq_chip_data(irqd);
 	struct ingenic_gpio_chip *jzgc = gpiochip_get_data(gc);
-	int irq = irqd->hwirq;
+	irq_hw_number_t irq = irqd_to_hwirq(irqd);
 	bool high;
 
 	if ((irqd_get_trigger_type(irqd) == IRQ_TYPE_EDGE_BOTH) &&
@@ -3477,6 +3481,7 @@ static int ingenic_gpio_irq_set_type(struct irq_data *irqd, unsigned int type)
 {
 	struct gpio_chip *gc = irq_data_get_irq_chip_data(irqd);
 	struct ingenic_gpio_chip *jzgc = gpiochip_get_data(gc);
+	irq_hw_number_t irq = irqd_to_hwirq(irqd);
 
 	switch (type) {
 	case IRQ_TYPE_EDGE_BOTH:
@@ -3498,12 +3503,12 @@ static int ingenic_gpio_irq_set_type(struct irq_data *irqd, unsigned int type)
 		 * best we can do is to set up a single-edge interrupt and then
 		 * switch to the opposing edge when ACKing the interrupt.
 		 */
-		bool high = ingenic_gpio_get_value(jzgc, irqd->hwirq);
+		bool high = ingenic_gpio_get_value(jzgc, irq);
 
 		type = high ? IRQ_TYPE_LEVEL_LOW : IRQ_TYPE_LEVEL_HIGH;
 	}
 
-	irq_set_type(jzgc, irqd->hwirq, type);
+	irq_set_type(jzgc, irq, type);
 	return 0;
 }
 
@@ -3668,21 +3673,44 @@ static const struct pinctrl_ops ingenic_pctlops = {
 static int ingenic_gpio_irq_request(struct irq_data *data)
 {
 	struct gpio_chip *gpio_chip = irq_data_get_irq_chip_data(data);
+	irq_hw_number_t irq = irqd_to_hwirq(data);
 	int ret;
 
-	ret = ingenic_gpio_direction_input(gpio_chip, data->hwirq);
+	ret = ingenic_gpio_direction_input(gpio_chip, irq);
 	if (ret)
 		return ret;
 
-	return gpiochip_reqres_irq(gpio_chip, data->hwirq);
+	return gpiochip_reqres_irq(gpio_chip, irq);
 }
 
 static void ingenic_gpio_irq_release(struct irq_data *data)
 {
 	struct gpio_chip *gpio_chip = irq_data_get_irq_chip_data(data);
+	irq_hw_number_t irq = irqd_to_hwirq(data);
 
-	return gpiochip_relres_irq(gpio_chip, data->hwirq);
+	return gpiochip_relres_irq(gpio_chip, irq);
 }
+
+static void ingenic_gpio_irq_print_chip(struct irq_data *data, struct seq_file *p)
+{
+	struct gpio_chip *gpio_chip = irq_data_get_irq_chip_data(data);
+
+	seq_printf(p, "%s", gpio_chip->label);
+}
+
+static const struct irq_chip ingenic_gpio_irqchip = {
+	.irq_enable		= ingenic_gpio_irq_enable,
+	.irq_disable		= ingenic_gpio_irq_disable,
+	.irq_unmask		= ingenic_gpio_irq_unmask,
+	.irq_mask		= ingenic_gpio_irq_mask,
+	.irq_ack		= ingenic_gpio_irq_ack,
+	.irq_set_type		= ingenic_gpio_irq_set_type,
+	.irq_set_wake		= ingenic_gpio_irq_set_wake,
+	.irq_request_resources	= ingenic_gpio_irq_request,
+	.irq_release_resources	= ingenic_gpio_irq_release,
+	.irq_print_chip		= ingenic_gpio_irq_print_chip,
+	.flags			= IRQCHIP_MASK_ON_SUSPEND | IRQCHIP_IMMUTABLE,
+};
 
 static int ingenic_pinmux_set_pin_fn(struct ingenic_pinctrl *jzpc,
 		int pin, int func)
@@ -4172,20 +4200,8 @@ static int __init ingenic_gpio_probe(struct ingenic_pinctrl *jzpc,
 	if (!jzgc->irq)
 		return -EINVAL;
 
-	jzgc->irq_chip.name = jzgc->gc.label;
-	jzgc->irq_chip.irq_enable = ingenic_gpio_irq_enable;
-	jzgc->irq_chip.irq_disable = ingenic_gpio_irq_disable;
-	jzgc->irq_chip.irq_unmask = ingenic_gpio_irq_unmask;
-	jzgc->irq_chip.irq_mask = ingenic_gpio_irq_mask;
-	jzgc->irq_chip.irq_ack = ingenic_gpio_irq_ack;
-	jzgc->irq_chip.irq_set_type = ingenic_gpio_irq_set_type;
-	jzgc->irq_chip.irq_set_wake = ingenic_gpio_irq_set_wake;
-	jzgc->irq_chip.irq_request_resources = ingenic_gpio_irq_request;
-	jzgc->irq_chip.irq_release_resources = ingenic_gpio_irq_release;
-	jzgc->irq_chip.flags = IRQCHIP_MASK_ON_SUSPEND;
-
 	girq = &jzgc->gc.irq;
-	girq->chip = &jzgc->irq_chip;
+	gpio_irq_chip_set_chip(girq, &ingenic_gpio_irqchip);
 	girq->parent_handler = ingenic_gpio_irq_handler;
 	girq->num_parents = 1;
 	girq->parents = devm_kcalloc(dev, 1, sizeof(*girq->parents),

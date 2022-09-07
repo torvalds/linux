@@ -366,6 +366,7 @@ static const struct of_device_id otto_wdt_ids[] = {
 	{ .compatible = "realtek,rtl8380-wdt" },
 	{ .compatible = "realtek,rtl8390-wdt" },
 	{ .compatible = "realtek,rtl9300-wdt" },
+	{ .compatible = "realtek,rtl9310-wdt" },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, otto_wdt_ids);

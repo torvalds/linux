@@ -543,12 +543,12 @@ static void amdgpu_ring_to_mqd_prop(struct amdgpu_ring *ring,
 	 */
 	prop->hqd_active = ring->funcs->type == AMDGPU_RING_TYPE_KIQ;
 
-	if (ring->funcs->type == AMDGPU_RING_TYPE_COMPUTE) {
-		if (amdgpu_gfx_is_high_priority_compute_queue(adev, ring)) {
-			prop->hqd_pipe_priority = AMDGPU_GFX_PIPE_PRIO_HIGH;
-			prop->hqd_queue_priority =
-				AMDGPU_GFX_QUEUE_PRIORITY_MAXIMUM;
-		}
+	if ((ring->funcs->type == AMDGPU_RING_TYPE_COMPUTE &&
+	     amdgpu_gfx_is_high_priority_compute_queue(adev, ring)) ||
+	    (ring->funcs->type == AMDGPU_RING_TYPE_GFX &&
+	     amdgpu_gfx_is_high_priority_graphics_queue(adev, ring))) {
+		prop->hqd_pipe_priority = AMDGPU_GFX_PIPE_PRIO_HIGH;
+		prop->hqd_queue_priority = AMDGPU_GFX_QUEUE_PRIORITY_MAXIMUM;
 	}
 }
 

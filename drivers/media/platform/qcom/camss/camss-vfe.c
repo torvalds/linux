@@ -1423,40 +1423,6 @@ int msm_vfe_subdev_init(struct camss *camss, struct vfe_device *vfe,
 }
 
 /*
- * msm_vfe_get_vfe_id - Get VFE HW module id
- * @entity: Pointer to VFE media entity structure
- * @id: Return CSID HW module id here
- */
-void msm_vfe_get_vfe_id(struct media_entity *entity, u8 *id)
-{
-	struct v4l2_subdev *sd;
-	struct vfe_line *line;
-	struct vfe_device *vfe;
-
-	sd = media_entity_to_v4l2_subdev(entity);
-	line = v4l2_get_subdevdata(sd);
-	vfe = to_vfe(line);
-
-	*id = vfe->id;
-}
-
-/*
- * msm_vfe_get_vfe_line_id - Get VFE line id by media entity
- * @entity: Pointer to VFE media entity structure
- * @id: Return VFE line id here
- */
-void msm_vfe_get_vfe_line_id(struct media_entity *entity, enum vfe_line_id *id)
-{
-	struct v4l2_subdev *sd;
-	struct vfe_line *line;
-
-	sd = media_entity_to_v4l2_subdev(entity);
-	line = v4l2_get_subdevdata(sd);
-
-	*id = line->id;
-}
-
-/*
  * vfe_link_setup - Setup VFE connections
  * @entity: Pointer to media entity structure
  * @local: Pointer to local pad
@@ -1470,7 +1436,7 @@ static int vfe_link_setup(struct media_entity *entity,
 			  const struct media_pad *remote, u32 flags)
 {
 	if (flags & MEDIA_LNK_FL_ENABLED)
-		if (media_entity_remote_pad(local))
+		if (media_pad_remote_pad_first(local))
 			return -EBUSY;
 
 	return 0;

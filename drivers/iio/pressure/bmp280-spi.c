@@ -118,3 +118,4 @@ module_spi_driver(bmp280_spi_driver);
 
 MODULE_DESCRIPTION("BMP280 SPI bus driver");
 MODULE_LICENSE("GPL");
+MODULE_IMPORT_NS(IIO_BMP280);

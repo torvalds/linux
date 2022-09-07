@@ -284,7 +284,7 @@ static int mt8195_afe_enable_apll_tuner(struct mtk_base_afe *afe,
 {
 	struct mt8195_afe_tuner_cfg *cfg = mt8195_afe_found_apll_tuner(id);
 	unsigned long flags;
-	int ret = 0;
+	int ret;
 
 	if (!cfg)
 		return -EINVAL;
@@ -308,7 +308,7 @@ static int mt8195_afe_enable_apll_tuner(struct mtk_base_afe *afe,
 
 	spin_unlock_irqrestore(&cfg->ctrl_lock, flags);
 
-	return ret;
+	return 0;
 }
 
 static int mt8195_afe_disable_apll_tuner(struct mtk_base_afe *afe,
@@ -316,7 +316,7 @@ static int mt8195_afe_disable_apll_tuner(struct mtk_base_afe *afe,
 {
 	struct mt8195_afe_tuner_cfg *cfg = mt8195_afe_found_apll_tuner(id);
 	unsigned long flags;
-	int ret = 0;
+	int ret;
 
 	if (!cfg)
 		return -EINVAL;
@@ -338,7 +338,7 @@ static int mt8195_afe_disable_apll_tuner(struct mtk_base_afe *afe,
 	if (ret)
 		return ret;
 
-	return ret;
+	return 0;
 }
 
 int mt8195_afe_get_mclk_source_clk_id(int sel)

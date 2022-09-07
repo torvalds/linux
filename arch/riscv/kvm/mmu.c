@@ -343,23 +343,24 @@ static void gstage_wp_memory_region(struct kvm *kvm, int slot)
 	kvm_flush_remote_tlbs(kvm);
 }
 
-static int gstage_ioremap(struct kvm *kvm, gpa_t gpa, phys_addr_t hpa,
-			  unsigned long size, bool writable)
+int kvm_riscv_gstage_ioremap(struct kvm *kvm, gpa_t gpa,
+			     phys_addr_t hpa, unsigned long size,
+			     bool writable, bool in_atomic)
 {
 	pte_t pte;
 	int ret = 0;
 	unsigned long pfn;
 	phys_addr_t addr, end;
-	struct kvm_mmu_memory_cache pcache;
-
-	memset(&pcache, 0, sizeof(pcache));
-	pcache.gfp_zero = __GFP_ZERO;
+	struct kvm_mmu_memory_cache pcache = {
+		.gfp_custom = (in_atomic) ? GFP_ATOMIC | __GFP_ACCOUNT : 0,
+		.gfp_zero = __GFP_ZERO,
+	};
 
 	end = (gpa + size + PAGE_SIZE - 1) & PAGE_MASK;
 	pfn = __phys_to_pfn(hpa);
 
 	for (addr = gpa; addr < end; addr += PAGE_SIZE) {
-		pte = pfn_pte(pfn, PAGE_KERNEL);
+		pte = pfn_pte(pfn, PAGE_KERNEL_IO);
 
 		if (!writable)
 			pte = pte_wrprotect(pte);
@@ -380,6 +381,13 @@ static int gstage_ioremap(struct kvm *kvm, gpa_t gpa, phys_addr_t hpa,
 out:
 	kvm_mmu_free_memory_cache(&pcache);
 	return ret;
+}
+
+void kvm_riscv_gstage_iounmap(struct kvm *kvm, gpa_t gpa, unsigned long size)
+{
+	spin_lock(&kvm->mmu_lock);
+	gstage_unmap_range(kvm, gpa, size, false);
+	spin_unlock(&kvm->mmu_lock);
 }
 
 void kvm_arch_mmu_enable_log_dirty_pt_masked(struct kvm *kvm,
@@ -517,8 +525,9 @@ int kvm_arch_prepare_memory_region(struct kvm *kvm,
 				goto out;
 			}
 
-			ret = gstage_ioremap(kvm, gpa, pa,
-					     vm_end - vm_start, writable);
+			ret = kvm_riscv_gstage_ioremap(kvm, gpa, pa,
+						       vm_end - vm_start,
+						       writable, false);
 			if (ret)
 				break;
 		}
@@ -611,7 +620,7 @@ int kvm_riscv_gstage_map(struct kvm_vcpu *vcpu,
 {
 	int ret;
 	kvm_pfn_t hfn;
-	bool writeable;
+	bool writable;
 	short vma_pageshift;
 	gfn_t gfn = gpa >> PAGE_SHIFT;
 	struct vm_area_struct *vma;
@@ -657,9 +666,9 @@ int kvm_riscv_gstage_map(struct kvm_vcpu *vcpu,
 		return ret;
 	}
 
-	mmu_seq = kvm->mmu_notifier_seq;
+	mmu_seq = kvm->mmu_invalidate_seq;
 
-	hfn = gfn_to_pfn_prot(kvm, gfn, is_write, &writeable);
+	hfn = gfn_to_pfn_prot(kvm, gfn, is_write, &writable);
 	if (hfn == KVM_PFN_ERR_HWPOISON) {
 		send_sig_mceerr(BUS_MCEERR_AR, (void __user *)hva,
 				vma_pageshift, current);
@@ -673,14 +682,14 @@ int kvm_riscv_gstage_map(struct kvm_vcpu *vcpu,
 	 * for write faults.
 	 */
 	if (logging && !is_write)
-		writeable = false;
+		writable = false;
 
 	spin_lock(&kvm->mmu_lock);
 
-	if (mmu_notifier_retry(kvm, mmu_seq))
+	if (mmu_invalidate_retry(kvm, mmu_seq))
 		goto out_unlock;
 
-	if (writeable) {
+	if (writable) {
 		kvm_set_pfn_dirty(hfn);
 		mark_page_dirty(kvm, gfn);
 		ret = gstage_map_page(kvm, pcache, gpa, hfn << PAGE_SHIFT,

@@ -36,6 +36,7 @@
 #include "util/data.h"
 #include "util/debug.h"
 #include "util/string2.h"
+#include "util/tracepoint.h"
 #include <linux/err.h>
 
 #ifdef LACKS_OPEN_MEMSTREAM_PROTOTYPE

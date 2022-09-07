@@ -22,6 +22,7 @@
 #include <asm/ultravisor.h>
 #include <asm/kvm_book3s_uvmem.h>
 #include <asm/plpar_wrappers.h>
+#include <asm/firmware.h>
 
 /*
  * Supported radix tree geometry.
@@ -639,7 +640,7 @@ int kvmppc_create_pte(struct kvm *kvm, pgd_t *pgtable, pte_t pte,
 	/* Check if we might have been invalidated; let the guest retry if so */
 	spin_lock(&kvm->mmu_lock);
 	ret = -EAGAIN;
-	if (mmu_notifier_retry(kvm, mmu_seq))
+	if (mmu_invalidate_retry(kvm, mmu_seq))
 		goto out_unlock;
 
 	/* Now traverse again under the lock and change the tree */
@@ -829,7 +830,7 @@ int kvmppc_book3s_instantiate_page(struct kvm_vcpu *vcpu,
 	bool large_enable;
 
 	/* used to check for invalidations in progress */
-	mmu_seq = kvm->mmu_notifier_seq;
+	mmu_seq = kvm->mmu_invalidate_seq;
 	smp_rmb();
 
 	/*
@@ -1190,7 +1191,7 @@ void kvmppc_radix_flush_memslot(struct kvm *kvm,
 	 * Increase the mmu notifier sequence number to prevent any page
 	 * fault that read the memslot earlier from writing a PTE.
 	 */
-	kvm->mmu_notifier_seq++;
+	kvm->mmu_invalidate_seq++;
 	spin_unlock(&kvm->mmu_lock);
 }
 

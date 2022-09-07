@@ -33,9 +33,11 @@ static inline void *phys_to_virt(unsigned long address)
 
 /*
  * IO bus memory addresses are 1:1 with the physical address,
+ * deprecated globally but still used on two machines.
  */
+#if defined(CONFIG_AMIGA) || defined(CONFIG_VME)
 #define virt_to_bus virt_to_phys
-#define bus_to_virt phys_to_virt
+#endif
 
 #endif
 #endif

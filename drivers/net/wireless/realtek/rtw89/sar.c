@@ -5,15 +5,122 @@
 #include "debug.h"
 #include "sar.h"
 
+static enum rtw89_sar_subband rtw89_sar_get_subband(struct rtw89_dev *rtwdev,
+						    u32 center_freq)
+{
+	switch (center_freq) {
+	default:
+		rtw89_debug(rtwdev, RTW89_DBG_SAR,
+			    "center freq: %u to SAR subband is unhandled\n",
+			    center_freq);
+		fallthrough;
+	case 2412 ... 2484:
+		return RTW89_SAR_2GHZ_SUBBAND;
+	case 5180 ... 5320:
+		return RTW89_SAR_5GHZ_SUBBAND_1_2;
+	case 5500 ... 5720:
+		return RTW89_SAR_5GHZ_SUBBAND_2_E;
+	case 5745 ... 5825:
+		return RTW89_SAR_5GHZ_SUBBAND_3;
+	case 5955 ... 6155:
+		return RTW89_SAR_6GHZ_SUBBAND_5_L;
+	case 6175 ... 6415:
+		return RTW89_SAR_6GHZ_SUBBAND_5_H;
+	case 6435 ... 6515:
+		return RTW89_SAR_6GHZ_SUBBAND_6;
+	case 6535 ... 6695:
+		return RTW89_SAR_6GHZ_SUBBAND_7_L;
+	case 6715 ... 6855:
+		return RTW89_SAR_6GHZ_SUBBAND_7_H;
+
+	/* freq 6875 (ch 185, 20MHz) spans RTW89_SAR_6GHZ_SUBBAND_7_H
+	 * and RTW89_SAR_6GHZ_SUBBAND_8, so directly describe it with
+	 * struct rtw89_sar_span in the following.
+	 */
+
+	case 6895 ... 7115:
+		return RTW89_SAR_6GHZ_SUBBAND_8;
+	}
+}
+
+struct rtw89_sar_span {
+	enum rtw89_sar_subband subband_low;
+	enum rtw89_sar_subband subband_high;
+};
+
+#define RTW89_SAR_SPAN_VALID(span) ((span)->subband_high)
+
+#define RTW89_SAR_6GHZ_SPAN_HEAD 6145
+#define RTW89_SAR_6GHZ_SPAN_IDX(center_freq) \
+	((((int)(center_freq) - RTW89_SAR_6GHZ_SPAN_HEAD) / 5) / 2)
+
+#define RTW89_DECL_SAR_6GHZ_SPAN(center_freq, subband_l, subband_h) \
+	[RTW89_SAR_6GHZ_SPAN_IDX(center_freq)] = { \
+		.subband_low = RTW89_SAR_6GHZ_ ## subband_l, \
+		.subband_high = RTW89_SAR_6GHZ_ ## subband_h, \
+	}
+
+/* Since 6GHz SAR subbands are not edge aligned, some cases span two SAR
+ * subbands. In the following, we describe each of them with rtw89_sar_span.
+ */
+static const struct rtw89_sar_span rtw89_sar_overlapping_6ghz[] = {
+	RTW89_DECL_SAR_6GHZ_SPAN(6145, SUBBAND_5_L, SUBBAND_5_H),
+	RTW89_DECL_SAR_6GHZ_SPAN(6165, SUBBAND_5_L, SUBBAND_5_H),
+	RTW89_DECL_SAR_6GHZ_SPAN(6185, SUBBAND_5_L, SUBBAND_5_H),
+	RTW89_DECL_SAR_6GHZ_SPAN(6505, SUBBAND_6, SUBBAND_7_L),
+	RTW89_DECL_SAR_6GHZ_SPAN(6525, SUBBAND_6, SUBBAND_7_L),
+	RTW89_DECL_SAR_6GHZ_SPAN(6545, SUBBAND_6, SUBBAND_7_L),
+	RTW89_DECL_SAR_6GHZ_SPAN(6665, SUBBAND_7_L, SUBBAND_7_H),
+	RTW89_DECL_SAR_6GHZ_SPAN(6705, SUBBAND_7_L, SUBBAND_7_H),
+	RTW89_DECL_SAR_6GHZ_SPAN(6825, SUBBAND_7_H, SUBBAND_8),
+	RTW89_DECL_SAR_6GHZ_SPAN(6865, SUBBAND_7_H, SUBBAND_8),
+	RTW89_DECL_SAR_6GHZ_SPAN(6875, SUBBAND_7_H, SUBBAND_8),
+	RTW89_DECL_SAR_6GHZ_SPAN(6885, SUBBAND_7_H, SUBBAND_8),
+};
+
 static int rtw89_query_sar_config_common(struct rtw89_dev *rtwdev, s32 *cfg)
 {
 	struct rtw89_sar_cfg_common *rtwsar = &rtwdev->sar.cfg_common;
-	enum rtw89_subband subband = rtwdev->hal.current_subband;
+	struct rtw89_hal *hal = &rtwdev->hal;
+	enum rtw89_band band = hal->current_band_type;
+	u32 center_freq = hal->current_freq;
+	const struct rtw89_sar_span *span = NULL;
+	enum rtw89_sar_subband subband_l, subband_h;
+	int idx;
 
-	if (!rtwsar->set[subband])
+	if (band == RTW89_BAND_6G) {
+		idx = RTW89_SAR_6GHZ_SPAN_IDX(center_freq);
+		/* To decrease size of rtw89_sar_overlapping_6ghz[],
+		 * RTW89_SAR_6GHZ_SPAN_IDX() truncates the leading NULLs
+		 * to make first span as index 0 of the table. So, if center
+		 * frequency is less than the first one, it will get netative.
+		 */
+		if (idx >= 0 && idx < ARRAY_SIZE(rtw89_sar_overlapping_6ghz))
+			span = &rtw89_sar_overlapping_6ghz[idx];
+	}
+
+	if (span && RTW89_SAR_SPAN_VALID(span)) {
+		subband_l = span->subband_low;
+		subband_h = span->subband_high;
+	} else {
+		subband_l = rtw89_sar_get_subband(rtwdev, center_freq);
+		subband_h = subband_l;
+	}
+
+	rtw89_debug(rtwdev, RTW89_DBG_SAR,
+		    "for {band %u, center_freq %u}, SAR subband: {%u, %u}\n",
+		    band, center_freq, subband_l, subband_h);
+
+	if (!rtwsar->set[subband_l] && !rtwsar->set[subband_h])
 		return -ENODATA;
 
-	*cfg = rtwsar->cfg[subband];
+	if (!rtwsar->set[subband_l])
+		*cfg = rtwsar->cfg[subband_h];
+	else if (!rtwsar->set[subband_h])
+		*cfg = rtwsar->cfg[subband_l];
+	else
+		*cfg = min(rtwsar->cfg[subband_l], rtwsar->cfg[subband_h]);
+
 	return 0;
 }
 
@@ -128,21 +235,20 @@ exit:
 	return ret;
 }
 
-static const u8 rtw89_common_sar_subband_map[] = {
-	RTW89_CH_2G,
-	RTW89_CH_5G_BAND_1,
-	RTW89_CH_5G_BAND_3,
-	RTW89_CH_5G_BAND_4,
-};
-
 static const struct cfg80211_sar_freq_ranges rtw89_common_sar_freq_ranges[] = {
 	{ .start_freq = 2412, .end_freq = 2484, },
 	{ .start_freq = 5180, .end_freq = 5320, },
 	{ .start_freq = 5500, .end_freq = 5720, },
 	{ .start_freq = 5745, .end_freq = 5825, },
+	{ .start_freq = 5955, .end_freq = 6155, },
+	{ .start_freq = 6175, .end_freq = 6415, },
+	{ .start_freq = 6435, .end_freq = 6515, },
+	{ .start_freq = 6535, .end_freq = 6695, },
+	{ .start_freq = 6715, .end_freq = 6875, },
+	{ .start_freq = 6875, .end_freq = 7115, },
 };
 
-static_assert(ARRAY_SIZE(rtw89_common_sar_subband_map) ==
+static_assert(RTW89_SAR_SUBBAND_NR ==
 	      ARRAY_SIZE(rtw89_common_sar_freq_ranges));
 
 const struct cfg80211_sar_capa rtw89_sar_capa = {
@@ -159,7 +265,6 @@ int rtw89_ops_set_sar_specs(struct ieee80211_hw *hw,
 	u8 fct;
 	u32 freq_start;
 	u32 freq_end;
-	u32 band;
 	s32 power;
 	u32 i, idx;
 
@@ -175,15 +280,14 @@ int rtw89_ops_set_sar_specs(struct ieee80211_hw *hw,
 
 		freq_start = rtw89_common_sar_freq_ranges[idx].start_freq;
 		freq_end = rtw89_common_sar_freq_ranges[idx].end_freq;
-		band = rtw89_common_sar_subband_map[idx];
 		power = sar->sub_specs[i].power;
 
-		rtw89_info(rtwdev, "On freq %u to %u, ", freq_start, freq_end);
-		rtw89_info(rtwdev, "set SAR power limit %d (unit: 1/%lu dBm)\n",
-			   power, BIT(fct));
+		rtw89_debug(rtwdev, RTW89_DBG_SAR,
+			    "On freq %u to %u, set SAR limit %d (unit: 1/%lu dBm)\n",
+			    freq_start, freq_end, power, BIT(fct));
 
-		sar_common.set[band] = true;
-		sar_common.cfg[band] = power;
+		sar_common.set[idx] = true;
+		sar_common.cfg[idx] = power;
 	}
 
 	return rtw89_apply_sar_common(rtwdev, &sar_common);

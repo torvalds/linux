@@ -121,10 +121,7 @@ static int smsc_phy_config_init(struct phy_device *phydev)
 	/* Enable energy detect mode for this SMSC Transceivers */
 	rc = phy_write(phydev, MII_LAN83C185_CTRL_STATUS,
 		       rc | MII_LAN83C185_EDPWRDOWN);
-	if (rc < 0)
-		return rc;
-
-	return smsc_phy_ack_interrupt(phydev);
+	return rc;
 }
 
 static int smsc_phy_reset(struct phy_device *phydev)
@@ -144,11 +141,6 @@ static int smsc_phy_reset(struct phy_device *phydev)
 
 	/* reset the phy */
 	return genphy_soft_reset(phydev);
-}
-
-static int lan911x_config_init(struct phy_device *phydev)
-{
-	return smsc_phy_ack_interrupt(phydev);
 }
 
 static int lan87xx_config_aneg(struct phy_device *phydev)
@@ -419,9 +411,6 @@ static struct phy_driver smsc_phy_driver[] = {
 	/* PHY_BASIC_FEATURES */
 
 	.probe		= smsc_phy_probe,
-
-	/* basic functions */
-	.config_init	= lan911x_config_init,
 
 	/* IRQ related */
 	.config_intr	= smsc_phy_config_intr,

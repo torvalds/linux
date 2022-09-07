@@ -129,7 +129,7 @@ struct mcp4131_data {
 	struct spi_device *spi;
 	const struct mcp4131_cfg *cfg;
 	struct mutex lock;
-	u8 buf[2] ____cacheline_aligned;
+	u8 buf[2] __aligned(IIO_DMA_MINALIGN);
 };
 
 #define MCP4131_CHANNEL(ch) {					\

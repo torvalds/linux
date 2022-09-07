@@ -1,0 +1,26 @@
+#!/usr/bin/env python3
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# Copyright (C) 2019-2022 Red Hat, Inc. Daniel Bristot de Oliveira <bristot@kernel.org>
+#
+# dot2c: parse an automata in dot file digraph format into a C
+#
+# This program was written in the development of this paper:
+#  de Oliveira, D. B. and Cucinotta, T. and de Oliveira, R. S.
+#  "Efficient Formal Verification for the Linux Kernel." International
+#  Conference on Software Engineering and Formal Methods. Springer, Cham, 2019.
+#
+# For further information, see:
+#   Documentation/trace/rv/deterministic_automata.rst
+
+if __name__ == '__main__':
+    from dot2 import dot2c
+    import argparse
+    import sys
+
+    parser = argparse.ArgumentParser(description='dot2c: converts a .dot file into a C structure')
+    parser.add_argument('dot_file',  help='The dot file to be converted')
+
+    args = parser.parse_args()
+    d = dot2c.Dot2c(args.dot_file)
+    d.print_model_classic()

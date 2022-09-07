@@ -494,7 +494,7 @@ static int spl2sw_probe(struct platform_device *pdev)
 	/* Add and enable napi. */
 	netif_napi_add(ndev, &comm->rx_napi, spl2sw_rx_poll, NAPI_POLL_WEIGHT);
 	napi_enable(&comm->rx_napi);
-	netif_napi_add(ndev, &comm->tx_napi, spl2sw_tx_poll, NAPI_POLL_WEIGHT);
+	netif_napi_add_tx(ndev, &comm->tx_napi, spl2sw_tx_poll);
 	napi_enable(&comm->tx_napi);
 	return 0;
 

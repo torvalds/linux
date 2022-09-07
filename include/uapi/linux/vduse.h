@@ -210,6 +210,53 @@ struct vduse_vq_eventfd {
  */
 #define VDUSE_VQ_INJECT_IRQ	_IOW(VDUSE_BASE, 0x17, __u32)
 
+/**
+ * struct vduse_iova_umem - userspace memory configuration for one IOVA region
+ * @uaddr: start address of userspace memory, it must be aligned to page size
+ * @iova: start of the IOVA region
+ * @size: size of the IOVA region
+ * @reserved: for future use, needs to be initialized to zero
+ *
+ * Structure used by VDUSE_IOTLB_REG_UMEM and VDUSE_IOTLB_DEREG_UMEM
+ * ioctls to register/de-register userspace memory for IOVA regions
+ */
+struct vduse_iova_umem {
+	__u64 uaddr;
+	__u64 iova;
+	__u64 size;
+	__u64 reserved[3];
+};
+
+/* Register userspace memory for IOVA regions */
+#define VDUSE_IOTLB_REG_UMEM	_IOW(VDUSE_BASE, 0x18, struct vduse_iova_umem)
+
+/* De-register the userspace memory. Caller should set iova and size field. */
+#define VDUSE_IOTLB_DEREG_UMEM	_IOW(VDUSE_BASE, 0x19, struct vduse_iova_umem)
+
+/**
+ * struct vduse_iova_info - information of one IOVA region
+ * @start: start of the IOVA region
+ * @last: last of the IOVA region
+ * @capability: capability of the IOVA regsion
+ * @reserved: for future use, needs to be initialized to zero
+ *
+ * Structure used by VDUSE_IOTLB_GET_INFO ioctl to get information of
+ * one IOVA region.
+ */
+struct vduse_iova_info {
+	__u64 start;
+	__u64 last;
+#define VDUSE_IOVA_CAP_UMEM (1 << 0)
+	__u64 capability;
+	__u64 reserved[3];
+};
+
+/*
+ * Find the first IOVA region that overlaps with the range [start, last]
+ * and return some information on it. Caller should set start and last fields.
+ */
+#define VDUSE_IOTLB_GET_INFO	_IOWR(VDUSE_BASE, 0x1a, struct vduse_iova_info)
+
 /* The control messages definition for read(2)/write(2) on /dev/vduse/$NAME */
 
 /**

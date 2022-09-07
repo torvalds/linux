@@ -131,7 +131,7 @@ static void vc_refresh(struct vc_data *vc)
 	for (i = 0; i < WIDTH; i++) {
 		u16 glyph = screen_glyph(vc,
 				2 * (vc_x + i) + vc_y * vc->vc_size_row);
-		buf[i] = inverse_translate(vc, glyph, 1);
+		buf[i] = inverse_translate(vc, glyph, true);
 	}
 	braille_write(buf);
 }

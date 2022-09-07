@@ -290,7 +290,6 @@
 #define PPC_INST_STRING			0x7c00042a
 #define PPC_INST_STRING_MASK		0xfc0007fe
 #define PPC_INST_STRING_GEN_MASK	0xfc00067e
-#define PPC_INST_SETB			0x7c000100
 #define PPC_INST_STSWI			0x7c0005aa
 #define PPC_INST_STSWX			0x7c00052a
 #define PPC_INST_TRECHKPT		0x7c0007dd
@@ -344,6 +343,7 @@
 #define __PPC_SPR(r)	((((r) & 0x1f) << 16) | ((((r) >> 5) & 0x1f) << 11))
 #define __PPC_RC21	(0x1 << 10)
 #define __PPC_PRFX_R(r)	(((r) & 0x1) << 20)
+#define __PPC_EH(eh)	(((eh) & 0x1) << 0)
 
 /*
  * Both low and high 16 bits are added as SIGNED additions, so if low 16 bits
@@ -359,16 +359,6 @@
 /* LI Field */
 #define PPC_LI_MASK	0x03fffffc
 #define PPC_LI(v)	((v) & PPC_LI_MASK)
-
-/*
- * Only use the larx hint bit on 64bit CPUs. e500v1/v2 based CPUs will treat a
- * larx with EH set as an illegal instruction.
- */
-#ifdef CONFIG_PPC64
-#define __PPC_EH(eh)	(((eh) & 0x1) << 0)
-#else
-#define __PPC_EH(eh)	0
-#endif
 
 /* Base instruction encoding */
 #define PPC_RAW_CP_ABORT		(0x7c00068c)
@@ -581,6 +571,9 @@
 
 #define PPC_RAW_BRANCH(offset)		(0x48000000 | PPC_LI(offset))
 #define PPC_RAW_BL(offset)		(0x48000001 | PPC_LI(offset))
+#define PPC_RAW_TW(t0, a, b)		(0x7c000008 | ___PPC_RS(t0) | ___PPC_RA(a) | ___PPC_RB(b))
+#define PPC_RAW_TRAP()			PPC_RAW_TW(31, 0, 0)
+#define PPC_RAW_SETB(t, bfa)		(0x7c000100 | ___PPC_RT(t) | ___PPC_RA((bfa) << 2))
 
 /* Deal with instructions that older assemblers aren't aware of */
 #define	PPC_BCCTR_FLUSH		stringify_in_c(.long PPC_INST_BCCTR_FLUSH)

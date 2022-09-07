@@ -57,7 +57,7 @@ patternProperties:
       Configures bypassing the individual voltage input attenuator. If
       set to 1 the attenuator is bypassed if set to 0 the attenuator is
       not bypassed. If the property is absent then the attenuator
-      retains it's configuration from the bios/bootloader.
+      retains its configuration from the bios/bootloader.
     $ref: /schemas/types.yaml#/definitions/uint32
     enum: [0, 1]
 

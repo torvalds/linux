@@ -93,6 +93,7 @@ TEST_PROGS := run_vmtests.sh
 
 TEST_FILES := test_vmalloc.sh
 TEST_FILES += test_hmm.sh
+TEST_FILES += va_128TBswitch.sh
 
 include ../lib.mk
 

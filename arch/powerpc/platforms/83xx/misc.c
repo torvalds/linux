@@ -121,17 +121,15 @@ void __init mpc83xx_setup_pci(void)
 
 void __init mpc83xx_setup_arch(void)
 {
+	phys_addr_t immrbase = get_immrbase();
+	int immrsize = IS_ALIGNED(immrbase, SZ_2M) ? SZ_2M : SZ_1M;
+	unsigned long va = fix_to_virt(FIX_IMMR_BASE);
+
 	if (ppc_md.progress)
 		ppc_md.progress("mpc83xx_setup_arch()", 0);
 
-	if (!__map_without_bats) {
-		phys_addr_t immrbase = get_immrbase();
-		int immrsize = IS_ALIGNED(immrbase, SZ_2M) ? SZ_2M : SZ_1M;
-		unsigned long va = fix_to_virt(FIX_IMMR_BASE);
-
-		setbat(-1, va, immrbase, immrsize, PAGE_KERNEL_NCG);
-		update_bats();
-	}
+	setbat(-1, va, immrbase, immrsize, PAGE_KERNEL_NCG);
+	update_bats();
 }
 
 int machine_check_83xx(struct pt_regs *regs)

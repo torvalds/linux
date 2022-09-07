@@ -36,7 +36,7 @@ struct io_timeout_rem {
 
 static inline bool io_is_timeout_noseq(struct io_kiocb *req)
 {
-	struct io_timeout *timeout = io_kiocb_to_cmd(req);
+	struct io_timeout *timeout = io_kiocb_to_cmd(req, struct io_timeout);
 
 	return !timeout->off;
 }
@@ -56,7 +56,7 @@ static bool io_kill_timeout(struct io_kiocb *req, int status)
 	struct io_timeout_data *io = req->async_data;
 
 	if (hrtimer_try_to_cancel(&io->timer) != -1) {
-		struct io_timeout *timeout = io_kiocb_to_cmd(req);
+		struct io_timeout *timeout = io_kiocb_to_cmd(req, struct io_timeout);
 
 		if (status)
 			req_set_fail(req);
@@ -188,7 +188,7 @@ struct io_kiocb *__io_disarm_linked_timeout(struct io_kiocb *req,
 	__must_hold(&req->ctx->timeout_lock)
 {
 	struct io_timeout_data *io = link->async_data;
-	struct io_timeout *timeout = io_kiocb_to_cmd(link);
+	struct io_timeout *timeout = io_kiocb_to_cmd(link, struct io_timeout);
 
 	io_remove_next_linked(req);
 	timeout->head = NULL;
@@ -205,7 +205,7 @@ static enum hrtimer_restart io_timeout_fn(struct hrtimer *timer)
 	struct io_timeout_data *data = container_of(timer,
 						struct io_timeout_data, timer);
 	struct io_kiocb *req = data->req;
-	struct io_timeout *timeout = io_kiocb_to_cmd(req);
+	struct io_timeout *timeout = io_kiocb_to_cmd(req, struct io_timeout);
 	struct io_ring_ctx *ctx = req->ctx;
 	unsigned long flags;
 
@@ -252,7 +252,7 @@ static struct io_kiocb *io_timeout_extract(struct io_ring_ctx *ctx,
 	io = req->async_data;
 	if (hrtimer_try_to_cancel(&io->timer) == -1)
 		return ERR_PTR(-EALREADY);
-	timeout = io_kiocb_to_cmd(req);
+	timeout = io_kiocb_to_cmd(req, struct io_timeout);
 	list_del_init(&timeout->list);
 	return req;
 }
@@ -275,7 +275,7 @@ int io_timeout_cancel(struct io_ring_ctx *ctx, struct io_cancel_data *cd)
 static void io_req_task_link_timeout(struct io_kiocb *req, bool *locked)
 {
 	unsigned issue_flags = *locked ? 0 : IO_URING_F_UNLOCKED;
-	struct io_timeout *timeout = io_kiocb_to_cmd(req);
+	struct io_timeout *timeout = io_kiocb_to_cmd(req, struct io_timeout);
 	struct io_kiocb *prev = timeout->prev;
 	int ret = -ENOENT;
 
@@ -302,7 +302,7 @@ static enum hrtimer_restart io_link_timeout_fn(struct hrtimer *timer)
 	struct io_timeout_data *data = container_of(timer,
 						struct io_timeout_data, timer);
 	struct io_kiocb *prev, *req = data->req;
-	struct io_timeout *timeout = io_kiocb_to_cmd(req);
+	struct io_timeout *timeout = io_kiocb_to_cmd(req, struct io_timeout);
 	struct io_ring_ctx *ctx = req->ctx;
 	unsigned long flags;
 
@@ -378,7 +378,7 @@ static int io_timeout_update(struct io_ring_ctx *ctx, __u64 user_data,
 {
 	struct io_cancel_data cd = { .data = user_data, };
 	struct io_kiocb *req = io_timeout_extract(ctx, &cd);
-	struct io_timeout *timeout = io_kiocb_to_cmd(req);
+	struct io_timeout *timeout = io_kiocb_to_cmd(req, struct io_timeout);
 	struct io_timeout_data *data;
 
 	if (IS_ERR(req))
@@ -395,7 +395,7 @@ static int io_timeout_update(struct io_ring_ctx *ctx, __u64 user_data,
 
 int io_timeout_remove_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 {
-	struct io_timeout_rem *tr = io_kiocb_to_cmd(req);
+	struct io_timeout_rem *tr = io_kiocb_to_cmd(req, struct io_timeout_rem);
 
 	if (unlikely(req->flags & (REQ_F_FIXED_FILE | REQ_F_BUFFER_SELECT)))
 		return -EINVAL;
@@ -435,7 +435,7 @@ static inline enum hrtimer_mode io_translate_timeout_mode(unsigned int flags)
  */
 int io_timeout_remove(struct io_kiocb *req, unsigned int issue_flags)
 {
-	struct io_timeout_rem *tr = io_kiocb_to_cmd(req);
+	struct io_timeout_rem *tr = io_kiocb_to_cmd(req, struct io_timeout_rem);
 	struct io_ring_ctx *ctx = req->ctx;
 	int ret;
 
@@ -466,7 +466,7 @@ static int __io_timeout_prep(struct io_kiocb *req,
 			     const struct io_uring_sqe *sqe,
 			     bool is_timeout_link)
 {
-	struct io_timeout *timeout = io_kiocb_to_cmd(req);
+	struct io_timeout *timeout = io_kiocb_to_cmd(req, struct io_timeout);
 	struct io_timeout_data *data;
 	unsigned flags;
 	u32 off = READ_ONCE(sqe->off);
@@ -532,7 +532,7 @@ int io_link_timeout_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 
 int io_timeout(struct io_kiocb *req, unsigned int issue_flags)
 {
-	struct io_timeout *timeout = io_kiocb_to_cmd(req);
+	struct io_timeout *timeout = io_kiocb_to_cmd(req, struct io_timeout);
 	struct io_ring_ctx *ctx = req->ctx;
 	struct io_timeout_data *data = req->async_data;
 	struct list_head *entry;
@@ -583,7 +583,7 @@ add:
 
 void io_queue_linked_timeout(struct io_kiocb *req)
 {
-	struct io_timeout *timeout = io_kiocb_to_cmd(req);
+	struct io_timeout *timeout = io_kiocb_to_cmd(req, struct io_timeout);
 	struct io_ring_ctx *ctx = req->ctx;
 
 	spin_lock_irq(&ctx->timeout_lock);

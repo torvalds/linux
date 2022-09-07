@@ -88,7 +88,7 @@ static int __init viot_get_pci_iommu_fwnode(struct viot_iommu *viommu,
 		return -ENODEV;
 	}
 
-	fwnode = pdev->dev.fwnode;
+	fwnode = dev_fwnode(&pdev->dev);
 	if (!fwnode) {
 		/*
 		 * PCI devices aren't necessarily described by ACPI. Create a
@@ -101,7 +101,7 @@ static int __init viot_get_pci_iommu_fwnode(struct viot_iommu *viommu,
 		}
 		set_primary_fwnode(&pdev->dev, fwnode);
 	}
-	viommu->fwnode = pdev->dev.fwnode;
+	viommu->fwnode = dev_fwnode(&pdev->dev);
 	pci_dev_put(pdev);
 	return 0;
 }
@@ -314,7 +314,7 @@ static int viot_dev_iommu_init(struct device *dev, struct viot_iommu *viommu,
 		return -ENODEV;
 
 	/* We're not translating ourself */
-	if (viommu->fwnode == dev->fwnode)
+	if (device_match_fwnode(dev, viommu->fwnode))
 		return -EINVAL;
 
 	ops = iommu_ops_from_fwnode(viommu->fwnode);

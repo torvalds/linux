@@ -13,9 +13,9 @@
 #include <linux/errno.h>
 #include <linux/err.h>
 #include <linux/gfp.h>
-#include <linux/idr.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
+#include <linux/xarray.h>
 
 #include "include/cred.h"
 #include "include/lib.h"
@@ -29,8 +29,9 @@
  */
 #define AA_FIRST_SECID 2
 
-static DEFINE_IDR(aa_secids);
-static DEFINE_SPINLOCK(secid_lock);
+static DEFINE_XARRAY_FLAGS(aa_secids, XA_FLAGS_LOCK_IRQ | XA_FLAGS_TRACK_FREE);
+
+int apparmor_display_secid_mode;
 
 /*
  * TODO: allow policy to reserve a secid range?
@@ -47,9 +48,9 @@ void aa_secid_update(u32 secid, struct aa_label *label)
 {
 	unsigned long flags;
 
-	spin_lock_irqsave(&secid_lock, flags);
-	idr_replace(&aa_secids, label, secid);
-	spin_unlock_irqrestore(&secid_lock, flags);
+	xa_lock_irqsave(&aa_secids, flags);
+	__xa_store(&aa_secids, secid, label, 0);
+	xa_unlock_irqrestore(&aa_secids, flags);
 }
 
 /**
@@ -58,19 +59,14 @@ void aa_secid_update(u32 secid, struct aa_label *label)
  */
 struct aa_label *aa_secid_to_label(u32 secid)
 {
-	struct aa_label *label;
-
-	rcu_read_lock();
-	label = idr_find(&aa_secids, secid);
-	rcu_read_unlock();
-
-	return label;
+	return xa_load(&aa_secids, secid);
 }
 
 int apparmor_secid_to_secctx(u32 secid, char **secdata, u32 *seclen)
 {
 	/* TODO: cache secctx and ref count so we don't have to recreate */
 	struct aa_label *label = aa_secid_to_label(secid);
+	int flags = FLAG_VIEW_SUBNS | FLAG_HIDDEN_UNCONFINED | FLAG_ABS_ROOT;
 	int len;
 
 	AA_BUG(!seclen);
@@ -78,15 +74,15 @@ int apparmor_secid_to_secctx(u32 secid, char **secdata, u32 *seclen)
 	if (!label)
 		return -EINVAL;
 
+	if (apparmor_display_secid_mode)
+		flags |= FLAG_SHOW_MODE;
+
 	if (secdata)
 		len = aa_label_asxprint(secdata, root_ns, label,
-					FLAG_SHOW_MODE | FLAG_VIEW_SUBNS |
-					FLAG_HIDDEN_UNCONFINED | FLAG_ABS_ROOT,
-					GFP_ATOMIC);
+					flags, GFP_ATOMIC);
 	else
-		len = aa_label_snxprint(NULL, 0, root_ns, label,
-					FLAG_SHOW_MODE | FLAG_VIEW_SUBNS |
-					FLAG_HIDDEN_UNCONFINED | FLAG_ABS_ROOT);
+		len = aa_label_snxprint(NULL, 0, root_ns, label, flags);
+
 	if (len < 0)
 		return -ENOMEM;
 
@@ -126,19 +122,16 @@ int aa_alloc_secid(struct aa_label *label, gfp_t gfp)
 	unsigned long flags;
 	int ret;
 
-	idr_preload(gfp);
-	spin_lock_irqsave(&secid_lock, flags);
-	ret = idr_alloc(&aa_secids, label, AA_FIRST_SECID, 0, GFP_ATOMIC);
-	spin_unlock_irqrestore(&secid_lock, flags);
-	idr_preload_end();
+	xa_lock_irqsave(&aa_secids, flags);
+	ret = __xa_alloc(&aa_secids, &label->secid, label,
+			XA_LIMIT(AA_FIRST_SECID, INT_MAX), gfp);
+	xa_unlock_irqrestore(&aa_secids, flags);
 
 	if (ret < 0) {
 		label->secid = AA_SECID_INVALID;
 		return ret;
 	}
 
-	AA_BUG(ret == AA_SECID_INVALID);
-	label->secid = ret;
 	return 0;
 }
 
@@ -150,12 +143,7 @@ void aa_free_secid(u32 secid)
 {
 	unsigned long flags;
 
-	spin_lock_irqsave(&secid_lock, flags);
-	idr_remove(&aa_secids, secid);
-	spin_unlock_irqrestore(&secid_lock, flags);
-}
-
-void aa_secids_init(void)
-{
-	idr_init_base(&aa_secids, AA_FIRST_SECID);
+	xa_lock_irqsave(&aa_secids, flags);
+	__xa_erase(&aa_secids, secid);
+	xa_unlock_irqrestore(&aa_secids, flags);
 }

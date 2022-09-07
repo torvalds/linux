@@ -501,6 +501,8 @@ static int do_register(int argc, char **argv)
 	if (libbpf_get_error(obj))
 		return -1;
 
+	set_max_rlimit();
+
 	if (bpf_object__load(obj)) {
 		bpf_object__close(obj);
 		return -1;

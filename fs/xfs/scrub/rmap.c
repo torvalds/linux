@@ -92,7 +92,7 @@ xchk_rmapbt_rec(
 {
 	struct xfs_mount	*mp = bs->cur->bc_mp;
 	struct xfs_rmap_irec	irec;
-	xfs_agnumber_t		agno = bs->cur->bc_ag.pag->pag_agno;
+	struct xfs_perag	*pag = bs->cur->bc_ag.pag;
 	bool			non_inode;
 	bool			is_unwritten;
 	bool			is_bmbt;
@@ -121,8 +121,8 @@ xchk_rmapbt_rec(
 		 * Otherwise we must point somewhere past the static metadata
 		 * but before the end of the FS.  Run the regular check.
 		 */
-		if (!xfs_verify_agbno(mp, agno, irec.rm_startblock) ||
-		    !xfs_verify_agbno(mp, agno, irec.rm_startblock +
+		if (!xfs_verify_agbno(pag, irec.rm_startblock) ||
+		    !xfs_verify_agbno(pag, irec.rm_startblock +
 				irec.rm_blockcount - 1))
 			xchk_btree_set_corrupt(bs->sc, bs->cur, 0);
 	}

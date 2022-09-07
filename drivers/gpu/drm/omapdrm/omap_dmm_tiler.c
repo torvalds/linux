@@ -17,6 +17,7 @@
 #include <linux/list.h>
 #include <linux/mm.h>
 #include <linux/module.h>
+#include <linux/of.h>
 #include <linux/platform_device.h> /* platform_device() */
 #include <linux/sched.h>
 #include <linux/seq_file.h>

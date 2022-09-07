@@ -28,6 +28,7 @@
 
 #include "dcn20/dcn20_optc.h"
 
+#define V_TOTAL_REGS_DCN30_SRI(inst)
 
 #define OPTC_COMMON_REG_LIST_DCN3_BASE(inst) \
 	SRI(OTG_VSTARTUP_PARAM, OTG, inst),\
@@ -55,6 +56,7 @@
 	SRI(OTG_V_TOTAL_MAX, OTG, inst),\
 	SRI(OTG_V_TOTAL_MIN, OTG, inst),\
 	SRI(OTG_V_TOTAL_CONTROL, OTG, inst),\
+	V_TOTAL_REGS_DCN30_SRI(inst)\
 	SRI(OTG_TRIGA_CNTL, OTG, inst),\
 	SRI(OTG_FORCE_COUNT_NOW_CNTL, OTG, inst),\
 	SRI(OTG_STATIC_SCREEN_CONTROL, OTG, inst),\
@@ -80,6 +82,7 @@
 	SRI(OTG_VERT_SYNC_CONTROL, OTG, inst),\
 	SRI(OTG_GSL_CONTROL, OTG, inst),\
 	SRI(OTG_CRC_CNTL, OTG, inst),\
+	SRI(OTG_CRC_CNTL2, OTG, inst),\
 	SRI(OTG_CRC0_DATA_RG, OTG, inst),\
 	SRI(OTG_CRC0_DATA_B, OTG, inst),\
 	SRI(OTG_CRC0_WINDOWA_X_CONTROL, OTG, inst),\
@@ -108,6 +111,7 @@
 	SRI(OPTC_MEMORY_CONFIG, ODM, inst),\
 	SR(DWB_SOURCE_SELECT)
 
+#define DCN30_VTOTAL_REGS_SF(mask_sh)
 
 #define OPTC_COMMON_MASK_SH_LIST_DCN3_BASE(mask_sh)\
 	SF(OTG0_OTG_VSTARTUP_PARAM, VSTARTUP_START, mask_sh),\
@@ -161,6 +165,7 @@
 	SF(OTG0_OTG_V_TOTAL_CONTROL, OTG_SET_V_TOTAL_MIN_MASK, mask_sh),\
 	SF(OTG0_OTG_V_TOTAL_CONTROL, OTG_VTOTAL_MID_REPLACING_MIN_EN, mask_sh),\
 	SF(OTG0_OTG_V_TOTAL_CONTROL, OTG_VTOTAL_MID_REPLACING_MAX_EN, mask_sh),\
+	DCN30_VTOTAL_REGS_SF(mask_sh)\
 	SF(OTG0_OTG_FORCE_COUNT_NOW_CNTL, OTG_FORCE_COUNT_NOW_CLEAR, mask_sh),\
 	SF(OTG0_OTG_FORCE_COUNT_NOW_CNTL, OTG_FORCE_COUNT_NOW_MODE, mask_sh),\
 	SF(OTG0_OTG_FORCE_COUNT_NOW_CNTL, OTG_FORCE_COUNT_NOW_OCCURRED, mask_sh),\
@@ -219,6 +224,10 @@
 	SF(OTG0_OTG_CRC_CNTL, OTG_CRC_CONT_EN, mask_sh),\
 	SF(OTG0_OTG_CRC_CNTL, OTG_CRC0_SELECT, mask_sh),\
 	SF(OTG0_OTG_CRC_CNTL, OTG_CRC_EN, mask_sh),\
+	SF(OTG0_OTG_CRC_CNTL2, OTG_CRC_DSC_MODE, mask_sh),\
+	SF(OTG0_OTG_CRC_CNTL2, OTG_CRC_DATA_STREAM_COMBINE_MODE, mask_sh),\
+	SF(OTG0_OTG_CRC_CNTL2, OTG_CRC_DATA_STREAM_SPLIT_MODE, mask_sh),\
+	SF(OTG0_OTG_CRC_CNTL2, OTG_CRC_DATA_FORMAT, mask_sh),\
 	SF(OTG0_OTG_CRC0_DATA_RG, CRC0_R_CR, mask_sh),\
 	SF(OTG0_OTG_CRC0_DATA_RG, CRC0_G_Y, mask_sh),\
 	SF(OTG0_OTG_CRC0_DATA_B, CRC0_B_CB, mask_sh),\
@@ -319,9 +328,6 @@ void optc3_lock(struct timing_generator *optc);
 void optc3_lock_doublebuffer_enable(struct timing_generator *optc);
 
 void optc3_lock_doublebuffer_disable(struct timing_generator *optc);
-
-void optc3_set_vrr_m_const(struct timing_generator *optc,
-		double vtotal_avg);
 
 void optc3_set_drr_trigger_window(struct timing_generator *optc,
 		uint32_t window_start, uint32_t window_end);

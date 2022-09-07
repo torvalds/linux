@@ -86,10 +86,10 @@ extern struct vchiq_state *
 vchiq_get_state(void);
 
 enum vchiq_status
-vchiq_use_service(unsigned int handle);
+vchiq_use_service(struct vchiq_instance *instance, unsigned int handle);
 
 extern enum vchiq_status
-vchiq_release_service(unsigned int handle);
+vchiq_release_service(struct vchiq_instance *instance, unsigned int handle);
 
 extern enum vchiq_status
 vchiq_check_service(struct vchiq_service *service);
@@ -138,8 +138,8 @@ static inline int vchiq_register_chrdev(struct device *parent) { return 0; }
 #endif /* IS_ENABLED(CONFIG_VCHIQ_CDEV) */
 
 extern enum vchiq_status
-service_callback(enum vchiq_reason reason, struct vchiq_header *header,
-		 unsigned int handle, void *bulk_userdata);
+service_callback(struct vchiq_instance *vchiq_instance, enum vchiq_reason reason,
+		 struct vchiq_header *header, unsigned int handle, void *bulk_userdata);
 
 extern void
 free_bulk_waiter(struct vchiq_instance *instance);

@@ -628,6 +628,10 @@ static int nt36672a_panel_add(struct nt36672a_panel *pinfo)
 
 	drm_panel_init(&pinfo->base, dev, &panel_funcs, DRM_MODE_CONNECTOR_DSI);
 
+	ret = drm_panel_of_backlight(&pinfo->base);
+	if (ret)
+		return dev_err_probe(dev, ret, "Failed to get backlight\n");
+
 	drm_panel_add(&pinfo->base);
 
 	return 0;

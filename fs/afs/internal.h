@@ -122,7 +122,7 @@ struct afs_call {
 	};
 	struct afs_operation	*op;
 	unsigned int		server_index;
-	atomic_t		usage;
+	refcount_t		ref;
 	enum afs_call_state	state;
 	spinlock_t		state_lock;
 	int			error;		/* error code */
@@ -365,7 +365,7 @@ struct afs_cell {
 	struct hlist_node	proc_link;	/* /proc cell list link */
 	time64_t		dns_expiry;	/* Time AFSDB/SRV record expires */
 	time64_t		last_inactive;	/* Time of last drop of usage count */
-	atomic_t		ref;		/* Struct refcount */
+	refcount_t		ref;		/* Struct refcount */
 	atomic_t		active;		/* Active usage counter */
 	unsigned long		flags;
 #define AFS_CELL_FL_NO_GC	0		/* The cell was added manually, don't auto-gc */
@@ -410,7 +410,7 @@ struct afs_vlserver {
 #define AFS_VLSERVER_FL_IS_YFS	2		/* Server is YFS not AFS */
 #define AFS_VLSERVER_FL_RESPONDING 3		/* VL server is responding */
 	rwlock_t		lock;		/* Lock on addresses */
-	atomic_t		usage;
+	refcount_t		ref;
 	unsigned int		rtt;		/* Server's current RTT in uS */
 
 	/* Probe state */
@@ -446,7 +446,7 @@ struct afs_vlserver_entry {
 
 struct afs_vlserver_list {
 	struct rcu_head		rcu;
-	atomic_t		usage;
+	refcount_t		ref;
 	u8			nr_servers;
 	u8			index;		/* Server currently in use */
 	u8			preferred;	/* Preferred server */
@@ -517,7 +517,7 @@ struct afs_server {
 #define AFS_SERVER_FL_NO_IBULK	17		/* Fileserver doesn't support FS.InlineBulkStatus */
 #define AFS_SERVER_FL_NO_RM2	18		/* Fileserver doesn't support YFS.RemoveFile2 */
 #define AFS_SERVER_FL_HAS_FS64	19		/* Fileserver supports FS.{Fetch,Store}Data64 */
-	atomic_t		ref;		/* Object refcount */
+	refcount_t		ref;		/* Object refcount */
 	atomic_t		active;		/* Active user count */
 	u32			addr_version;	/* Address list version */
 	unsigned int		rtt;		/* Server's current RTT in uS */
@@ -571,7 +571,7 @@ struct afs_volume {
 		struct rcu_head	rcu;
 		afs_volid_t	vid;		/* volume ID */
 	};
-	atomic_t		usage;
+	refcount_t		ref;
 	time64_t		update_at;	/* Time at which to next update */
 	struct afs_cell		*cell;		/* Cell to which belongs (pins ref) */
 	struct rb_node		cell_node;	/* Link in cell->volumes */
@@ -1493,14 +1493,14 @@ extern int afs_end_vlserver_operation(struct afs_vl_cursor *);
  */
 static inline struct afs_vlserver *afs_get_vlserver(struct afs_vlserver *vlserver)
 {
-	atomic_inc(&vlserver->usage);
+	refcount_inc(&vlserver->ref);
 	return vlserver;
 }
 
 static inline struct afs_vlserver_list *afs_get_vlserverlist(struct afs_vlserver_list *vllist)
 {
 	if (vllist)
-		atomic_inc(&vllist->usage);
+		refcount_inc(&vllist->ref);
 	return vllist;
 }
 

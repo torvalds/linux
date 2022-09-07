@@ -197,3 +197,23 @@ void __init fixaddr_init(void)
 	vaddr = __fix_to_virt(__end_of_fixed_addresses - 1) & PMD_MASK;
 	fixrange_init(vaddr, vaddr + PMD_SIZE, swapper_pg_dir);
 }
+
+static const pgprot_t protection_map[16] = {
+	[VM_NONE]					= PAGE_NONE,
+	[VM_READ]					= PAGE_READ,
+	[VM_WRITE]					= PAGE_READ,
+	[VM_WRITE | VM_READ]				= PAGE_READ,
+	[VM_EXEC]					= PAGE_READ,
+	[VM_EXEC | VM_READ]				= PAGE_READ,
+	[VM_EXEC | VM_WRITE]				= PAGE_READ,
+	[VM_EXEC | VM_WRITE | VM_READ]			= PAGE_READ,
+	[VM_SHARED]					= PAGE_NONE,
+	[VM_SHARED | VM_READ]				= PAGE_READ,
+	[VM_SHARED | VM_WRITE]				= PAGE_WRITE,
+	[VM_SHARED | VM_WRITE | VM_READ]		= PAGE_WRITE,
+	[VM_SHARED | VM_EXEC]				= PAGE_READ,
+	[VM_SHARED | VM_EXEC | VM_READ]			= PAGE_READ,
+	[VM_SHARED | VM_EXEC | VM_WRITE]		= PAGE_WRITE,
+	[VM_SHARED | VM_EXEC | VM_WRITE | VM_READ]	= PAGE_WRITE
+};
+DECLARE_VM_GET_PAGE_PROT

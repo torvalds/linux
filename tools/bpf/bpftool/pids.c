@@ -108,6 +108,7 @@ int build_obj_refs_table(struct hashmap **map, enum bpf_obj_type type)
 		p_err("failed to create hashmap for PID references");
 		return -1;
 	}
+	set_max_rlimit();
 
 	skel = pid_iter_bpf__open();
 	if (!skel) {

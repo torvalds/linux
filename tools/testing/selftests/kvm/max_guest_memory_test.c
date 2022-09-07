@@ -28,8 +28,7 @@ static void guest_code(uint64_t start_gpa, uint64_t end_gpa, uint64_t stride)
 }
 
 struct vcpu_info {
-	struct kvm_vm *vm;
-	uint32_t id;
+	struct kvm_vcpu *vcpu;
 	uint64_t start_gpa;
 	uint64_t end_gpa;
 };
@@ -52,45 +51,45 @@ static void rendezvous_with_boss(void)
 	}
 }
 
-static void run_vcpu(struct kvm_vm *vm, uint32_t vcpu_id)
+static void run_vcpu(struct kvm_vcpu *vcpu)
 {
-	vcpu_run(vm, vcpu_id);
-	ASSERT_EQ(get_ucall(vm, vcpu_id, NULL), UCALL_DONE);
+	vcpu_run(vcpu);
+	ASSERT_EQ(get_ucall(vcpu, NULL), UCALL_DONE);
 }
 
 static void *vcpu_worker(void *data)
 {
-	struct vcpu_info *vcpu = data;
+	struct vcpu_info *info = data;
+	struct kvm_vcpu *vcpu = info->vcpu;
 	struct kvm_vm *vm = vcpu->vm;
 	struct kvm_sregs sregs;
 	struct kvm_regs regs;
 
-	vcpu_args_set(vm, vcpu->id, 3, vcpu->start_gpa, vcpu->end_gpa,
-		      vm_get_page_size(vm));
+	vcpu_args_set(vcpu, 3, info->start_gpa, info->end_gpa, vm->page_size);
 
 	/* Snapshot regs before the first run. */
-	vcpu_regs_get(vm, vcpu->id, &regs);
+	vcpu_regs_get(vcpu, &regs);
 	rendezvous_with_boss();
 
-	run_vcpu(vm, vcpu->id);
+	run_vcpu(vcpu);
 	rendezvous_with_boss();
-	vcpu_regs_set(vm, vcpu->id, &regs);
-	vcpu_sregs_get(vm, vcpu->id, &sregs);
+	vcpu_regs_set(vcpu, &regs);
+	vcpu_sregs_get(vcpu, &sregs);
 #ifdef __x86_64__
 	/* Toggle CR0.WP to trigger a MMU context reset. */
 	sregs.cr0 ^= X86_CR0_WP;
 #endif
-	vcpu_sregs_set(vm, vcpu->id, &sregs);
+	vcpu_sregs_set(vcpu, &sregs);
 	rendezvous_with_boss();
 
-	run_vcpu(vm, vcpu->id);
+	run_vcpu(vcpu);
 	rendezvous_with_boss();
 
 	return NULL;
 }
 
-static pthread_t *spawn_workers(struct kvm_vm *vm, uint64_t start_gpa,
-				uint64_t end_gpa)
+static pthread_t *spawn_workers(struct kvm_vm *vm, struct kvm_vcpu **vcpus,
+				uint64_t start_gpa, uint64_t end_gpa)
 {
 	struct vcpu_info *info;
 	uint64_t gpa, nr_bytes;
@@ -104,12 +103,11 @@ static pthread_t *spawn_workers(struct kvm_vm *vm, uint64_t start_gpa,
 	TEST_ASSERT(info, "Failed to allocate vCPU gpa ranges");
 
 	nr_bytes = ((end_gpa - start_gpa) / nr_vcpus) &
-			~((uint64_t)vm_get_page_size(vm) - 1);
+			~((uint64_t)vm->page_size - 1);
 	TEST_ASSERT(nr_bytes, "C'mon, no way you have %d CPUs", nr_vcpus);
 
 	for (i = 0, gpa = start_gpa; i < nr_vcpus; i++, gpa += nr_bytes) {
-		info[i].vm = vm;
-		info[i].id = i;
+		info[i].vcpu = vcpus[i];
 		info[i].start_gpa = gpa;
 		info[i].end_gpa = gpa + nr_bytes;
 		pthread_create(&threads[i], NULL, vcpu_worker, &info[i]);
@@ -172,6 +170,7 @@ int main(int argc, char *argv[])
 	uint64_t max_gpa, gpa, slot_size, max_mem, i;
 	int max_slots, slot, opt, fd;
 	bool hugepages = false;
+	struct kvm_vcpu **vcpus;
 	pthread_t *threads;
 	struct kvm_vm *vm;
 	void *mem;
@@ -215,9 +214,12 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	vm = vm_create_default_with_vcpus(nr_vcpus, 0, 0, guest_code, NULL);
+	vcpus = malloc(nr_vcpus * sizeof(*vcpus));
+	TEST_ASSERT(vcpus, "Failed to allocate vCPU array");
 
-	max_gpa = vm_get_max_gfn(vm) << vm_get_page_shift(vm);
+	vm = vm_create_with_vcpus(nr_vcpus, guest_code, vcpus);
+
+	max_gpa = vm->max_gfn << vm->page_shift;
 	TEST_ASSERT(max_gpa > (4 * slot_size), "MAXPHYADDR <4gb ");
 
 	fd = kvm_memfd_alloc(slot_size, hugepages);
@@ -227,7 +229,7 @@ int main(int argc, char *argv[])
 	TEST_ASSERT(!madvise(mem, slot_size, MADV_NOHUGEPAGE), "madvise() failed");
 
 	/* Pre-fault the memory to avoid taking mmap_sem on guest page faults. */
-	for (i = 0; i < slot_size; i += vm_get_page_size(vm))
+	for (i = 0; i < slot_size; i += vm->page_size)
 		((uint8_t *)mem)[i] = 0xaa;
 
 	gpa = 0;
@@ -246,13 +248,16 @@ int main(int argc, char *argv[])
 		for (i = 0; i < slot_size; i += size_1gb)
 			__virt_pg_map(vm, gpa + i, gpa + i, PG_LEVEL_1G);
 #else
-		for (i = 0; i < slot_size; i += vm_get_page_size(vm))
+		for (i = 0; i < slot_size; i += vm->page_size)
 			virt_pg_map(vm, gpa + i, gpa + i);
 #endif
 	}
 
 	atomic_set(&rendezvous, nr_vcpus + 1);
-	threads = spawn_workers(vm, start_gpa, gpa);
+	threads = spawn_workers(vm, vcpus, start_gpa, gpa);
+
+	free(vcpus);
+	vcpus = NULL;
 
 	pr_info("Running with %lugb of guest memory and %u vCPUs\n",
 		(gpa - start_gpa) / size_1gb, nr_vcpus);

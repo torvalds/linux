@@ -81,7 +81,7 @@ static void fimc_pipeline_prepare(struct fimc_pipeline *p,
 			struct media_pad *spad = &me->pads[i];
 			if (!(spad->flags & MEDIA_PAD_FL_SINK))
 				continue;
-			pad = media_entity_remote_pad(spad);
+			pad = media_pad_remote_pad_first(spad);
 			if (pad)
 				break;
 		}

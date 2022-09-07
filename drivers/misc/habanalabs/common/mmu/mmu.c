@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 
 /*
- * Copyright 2016-2020 HabanaLabs, Ltd.
+ * Copyright 2016-2022 HabanaLabs, Ltd.
  * All Rights Reserved.
  */
 
@@ -51,8 +51,17 @@ int hl_mmu_init(struct hl_device *hdev)
 			return rc;
 	}
 
-	if (hdev->mmu_func[MMU_HR_PGT].init != NULL)
+	if (hdev->mmu_func[MMU_HR_PGT].init != NULL) {
 		rc = hdev->mmu_func[MMU_HR_PGT].init(hdev);
+		if (rc)
+			goto fini_dr_mmu;
+	}
+
+	return 0;
+
+fini_dr_mmu:
+	if (hdev->mmu_func[MMU_DR_PGT].fini != NULL)
+		hdev->mmu_func[MMU_DR_PGT].fini(hdev);
 
 	return rc;
 }
@@ -103,8 +112,17 @@ int hl_mmu_ctx_init(struct hl_ctx *ctx)
 			return rc;
 	}
 
-	if (hdev->mmu_func[MMU_HR_PGT].ctx_init != NULL)
+	if (hdev->mmu_func[MMU_HR_PGT].ctx_init != NULL) {
 		rc = hdev->mmu_func[MMU_HR_PGT].ctx_init(ctx);
+		if (rc)
+			goto fini_dr_ctx;
+	}
+
+	return 0;
+
+fini_dr_ctx:
+	if (hdev->mmu_func[MMU_DR_PGT].fini != NULL)
+		hdev->mmu_func[MMU_DR_PGT].fini(hdev);
 
 	return rc;
 }
@@ -607,6 +625,11 @@ int hl_mmu_if_set_funcs(struct hl_device *hdev)
 	case ASIC_GAUDI_SEC:
 		hl_mmu_v1_set_funcs(hdev, &hdev->mmu_func[MMU_DR_PGT]);
 		break;
+	case ASIC_GAUDI2:
+	case ASIC_GAUDI2_SEC:
+		/* MMUs in Gaudi2 are always host resident */
+		hl_mmu_v2_hr_set_funcs(hdev, &hdev->mmu_func[MMU_HR_PGT]);
+		break;
 	default:
 		dev_err(hdev->dev, "Unrecognized ASIC type %d\n",
 			hdev->asic_type);
@@ -743,5 +766,472 @@ u64 hl_mmu_get_hop_pte_phys_addr(struct hl_ctx *ctx, struct hl_mmu_properties *m
 	mask = mmu_prop->hop_masks[hop_idx];
 
 	return hop_addr + ctx->hdev->asic_prop.mmu_pte_size * ((virt_addr & mask) >> shift);
+}
+
+static void mmu_dma_mem_free_from_chunk(struct gen_pool *pool,
+					struct gen_pool_chunk *chunk,
+					void *data)
+{
+	struct hl_device *hdev = (struct hl_device *)data;
+
+	hl_asic_dma_free_coherent(hdev, (chunk->end_addr - chunk->start_addr) + 1,
+					(void *)chunk->start_addr, chunk->phys_addr);
+}
+
+void hl_mmu_hr_flush(struct hl_ctx *ctx)
+{
+	/* a flush operation requires memory barrier */
+	mb();
+}
+
+/**
+ * hl_mmu_hr_pool_destroy() - destroy genpool
+ * @hdev: habanalabs device structure.
+ * @hr_priv: MMU HR private data.
+ * @hop_table_size: HOP table size.
+ *
+ * This function does the following:
+ * - free entries allocated for shadow HOP0
+ * - free pool chunks
+ * - free pool
+ */
+static void hl_mmu_hr_pool_destroy(struct hl_device *hdev, struct hl_mmu_hr_priv *hr_priv,
+					u32 hop_table_size)
+{
+	struct asic_fixed_properties *prop = &hdev->asic_prop;
+	struct gen_pool **pool = &hr_priv->mmu_pgt_pool;
+	struct pgt_info *hop0_pgt;
+	int asid;
+
+	if (ZERO_OR_NULL_PTR(*pool))
+		return;
+
+	/* Free the Fixed allocation of HOPs0 */
+	if (hr_priv->mmu_asid_hop0) {
+		for (asid = 0 ; asid < prop->max_asid ; asid++) {
+			hop0_pgt = &hr_priv->mmu_asid_hop0[asid];
+			if (ZERO_OR_NULL_PTR(hop0_pgt->virt_addr))
+				continue;
+
+			gen_pool_free(*pool, (uintptr_t) hop0_pgt->virt_addr, hop_table_size);
+		}
+	}
+
+	gen_pool_for_each_chunk(*pool, mmu_dma_mem_free_from_chunk, hdev);
+	gen_pool_destroy(*pool);
+
+	/* Make sure that if we arrive here again without init was called we
+	 * won't cause kernel panic. This can happen for example if we fail
+	 * during hard reset code at certain points
+	 */
+	*pool = NULL;
+}
+
+/**
+ * hl_mmu_hr_init() - initialize the MMU module.
+ * @hdev: habanalabs device structure.
+ * @hr_priv: MMU HR private data.
+ * @hop_table_size: HOP table size.
+ * @pgt_size: memory size allocated for the page table
+ *
+ * @return 0 on success otherwise non-zero error code
+ *
+ * This function does the following:
+ * - Create a pool of pages for pgt_infos.
+ * - Create a shadow table for pgt
+ */
+int hl_mmu_hr_init(struct hl_device *hdev, struct hl_mmu_hr_priv *hr_priv, u32 hop_table_size,
+			u64 pgt_size)
+{
+	struct asic_fixed_properties *prop = &hdev->asic_prop;
+	size_t pool_chunk_size = SZ_4M;
+	struct pgt_info *hop0_pgt;
+	dma_addr_t dma_addr;
+	u64 virt_addr;
+	int i, rc;
+
+	/*
+	 * we set alloc size as PAGE_SIZE (sine dma_alloc_coherent allocation order/size is
+	 * PAGE_SHIFT/PAGE_SIZE) in order to be able to control the allocations alignment.
+	 * This way we can call "DMA alloc align" according to dma_alloc granularity and supply
+	 * allocations with higher-order alignment restrictions
+	 */
+	hr_priv->mmu_pgt_pool = gen_pool_create(PAGE_SHIFT, -1);
+	if (ZERO_OR_NULL_PTR(hr_priv->mmu_pgt_pool)) {
+		dev_err(hdev->dev, "Failed to create hr page pool\n");
+		return -ENOMEM;
+	}
+
+	hr_priv->mmu_asid_hop0 = kvcalloc(prop->max_asid, sizeof(struct pgt_info), GFP_KERNEL);
+	if (ZERO_OR_NULL_PTR(hr_priv->mmu_asid_hop0)) {
+		dev_err(hdev->dev, "Failed to allocate hr-mmu hop0 table\n");
+		rc = -ENOMEM;
+		goto destroy_mmu_pgt_pool;
+	}
+
+	for (i = 0 ; i < pgt_size ; i += pool_chunk_size) {
+		virt_addr = (uintptr_t) hl_asic_dma_alloc_coherent(hdev, pool_chunk_size,
+									&dma_addr,
+									GFP_KERNEL | __GFP_ZERO);
+		if (ZERO_OR_NULL_PTR(virt_addr)) {
+			dev_err(hdev->dev,
+				"Failed to allocate memory for host-resident page pool\n");
+			rc = -ENOMEM;
+			goto destroy_mmu_pgt_pool;
+		}
+
+		rc = gen_pool_add_virt(hr_priv->mmu_pgt_pool, virt_addr, (phys_addr_t) dma_addr,
+						pool_chunk_size, -1);
+		if (rc) {
+			dev_err(hdev->dev, "Failed to fill host-resident page pool\n");
+			goto destroy_mmu_pgt_pool;
+		}
+	}
+
+	for (i = 0 ; i < prop->max_asid ; i++) {
+		hop0_pgt = &hr_priv->mmu_asid_hop0[i];
+		hop0_pgt->virt_addr = (uintptr_t)
+					gen_pool_dma_zalloc_align(hr_priv->mmu_pgt_pool,
+								hop_table_size,
+								(dma_addr_t *) &hop0_pgt->phys_addr,
+								hop_table_size);
+		if (!hop0_pgt->virt_addr) {
+			dev_err(hdev->dev, "Failed to allocate HOP from pgt pool\n");
+			rc = -ENOMEM;
+			goto destroy_mmu_pgt_pool;
+		}
+	}
+
+	/* MMU H/W init will be done in device hw_init() */
+
+	return 0;
+
+destroy_mmu_pgt_pool:
+	hl_mmu_hr_pool_destroy(hdev, hr_priv, hop_table_size);
+	if (!ZERO_OR_NULL_PTR(hr_priv->mmu_asid_hop0))
+		kvfree(hr_priv->mmu_asid_hop0);
+
+	return rc;
+}
+
+/**
+ * hl_mmu_hr_fini() - release the MMU module.
+ * @hdev: habanalabs device structure.
+ * @hr_priv: MMU host resident private info.
+ * @hop_table_size: HOP table size
+ *
+ * This function does the following:
+ * - Disable MMU in H/W.
+ * - Free the pgt_infos pool.
+ *
+ * All contexts should be freed before calling this function.
+ */
+void hl_mmu_hr_fini(struct hl_device *hdev, struct hl_mmu_hr_priv *hr_priv, u32 hop_table_size)
+{
+	/* MMU H/W fini was already done in device hw_fini() */
+
+	hl_mmu_hr_pool_destroy(hdev, hr_priv, hop_table_size);
+
+	if (!ZERO_OR_NULL_PTR(hr_priv->mmu_asid_hop0)) {
+		kvfree(hr_priv->mmu_asid_hop0);
+
+		/* Make sure that if we arrive here again without init was
+		 * called we won't cause kernel panic. This can happen for
+		 * example if we fail during hard reset code at certain points
+		 */
+		hr_priv->mmu_asid_hop0 = NULL;
+	}
+}
+
+/**
+ * hl_mmu_hr_free_hop_remove_pgt() - free HOP and remove PGT from hash
+ * @pgt_info: page table info structure.
+ * @hr_priv: MMU HR private data.
+ * @hop_table_size: HOP table size.
+ */
+void hl_mmu_hr_free_hop_remove_pgt(struct pgt_info *pgt_info, struct hl_mmu_hr_priv *hr_priv,
+					u32 hop_table_size)
+{
+	gen_pool_free(hr_priv->mmu_pgt_pool, pgt_info->virt_addr, hop_table_size);
+	hash_del(&pgt_info->node);
+	kfree(pgt_info);
+}
+
+/**
+ * hl_mmu_hr_pte_phys_to_virt() - translate PTE phys addr to virt addr
+ * @ctx: pointer to the context structure
+ * @pgt: pgt_info for the HOP hosting the PTE
+ * @phys_pte_addr: phys address of the PTE
+ * @hop_table_size: HOP table size
+ *
+ * @return PTE virtual address
+ *
+ * The function use the pgt_info to get HOP base virt addr and obtain the PTE's virt addr
+ * by adding the PTE offset.
+ */
+u64 hl_mmu_hr_pte_phys_to_virt(struct hl_ctx *ctx, struct pgt_info *pgt,
+							u64 phys_pte_addr, u32 hop_table_size)
+{
+	u64 page_mask = (hop_table_size - 1);
+	u64 pte_offset = phys_pte_addr & page_mask;
+
+	return pgt->virt_addr + pte_offset;
+}
+
+/**
+ * hl_mmu_hr_write_pte() - write HR PTE
+ * @ctx: pointer to the context structure
+ * @pgt_info: HOP's page table info structure
+ * @phys_pte_addr: phys PTE address
+ * @val: raw PTE data
+ * @hop_table_size: HOP table size
+ */
+void hl_mmu_hr_write_pte(struct hl_ctx *ctx, struct pgt_info *pgt_info, u64 phys_pte_addr,
+								u64 val, u32 hop_table_size)
+{
+	/*
+	 * The value to write is the phys address of the next hop +
+	 * flags at the 12 LSBs.
+	 */
+	u64 virt_addr = hl_mmu_hr_pte_phys_to_virt(ctx, pgt_info, phys_pte_addr, hop_table_size);
+
+	*((u64 *) (uintptr_t) virt_addr) = val;
+}
+
+/**
+ * hl_mmu_hr_clear_pte() - clear HR PTE
+ * @ctx: pointer to the context structure
+ * @pgt_info: HOP's page table info structure
+ * @phys_pte_addr: phys PTE address
+ * @hop_table_size: HOP table size
+ */
+void hl_mmu_hr_clear_pte(struct hl_ctx *ctx, struct pgt_info *pgt_info, u64 phys_pte_addr,
+						u32 hop_table_size)
+{
+	/* no need to transform the value to physical address */
+	hl_mmu_hr_write_pte(ctx, pgt_info, phys_pte_addr, 0, hop_table_size);
+}
+
+/**
+ * hl_mmu_hr_put_pte() - put HR PTE and remove it if necessary (no more PTEs)
+ * @ctx: pointer to the context structure
+ * @pgt_info: HOP's page table info structure
+ * @hr_priv: HR MMU private info
+ * @hop_table_size: HOP table size
+ *
+ * @return number of PTEs still in the HOP
+ */
+int hl_mmu_hr_put_pte(struct hl_ctx *ctx, struct pgt_info *pgt_info,
+						struct hl_mmu_hr_priv *hr_priv,
+						u32 hop_table_size)
+{
+	int num_of_ptes_left;
+
+	pgt_info->num_of_ptes--;
+
+	/*
+	 * Need to save the number of ptes left because free_hop might free
+	 * the pgt_info
+	 */
+	num_of_ptes_left = pgt_info->num_of_ptes;
+	if (!num_of_ptes_left)
+		hl_mmu_hr_free_hop_remove_pgt(pgt_info, hr_priv, hop_table_size);
+
+	return num_of_ptes_left;
+}
+
+/**
+ * hl_mmu_hr_get_pte() - increase PGT PTE count
+ * @ctx: pointer to the context structure
+ * @hr_func: host resident functions
+ * @phys_hop_addr: HOP phys address
+ */
+void hl_mmu_hr_get_pte(struct hl_ctx *ctx, struct hl_hr_mmu_funcs *hr_func, u64 phys_hop_addr)
+{
+	hr_func->get_pgt_info(ctx, phys_hop_addr)->num_of_ptes++;
+}
+
+/**
+ * hl_mmu_hr_get_next_hop_pgt_info() - get pgt_info structure for the next HOP
+ * @ctx: pointer to the context structure.
+ * @hr_func: host resident functions.
+ * @curr_pte: current PTE value.
+ *
+ * @return pgt_info structure on success, otherwise NULL.
+ */
+struct pgt_info *hl_mmu_hr_get_next_hop_pgt_info(struct hl_ctx *ctx,
+							struct hl_hr_mmu_funcs *hr_func,
+							u64 curr_pte)
+{
+	u64 next_hop_phys_addr = hl_mmu_get_next_hop_addr(ctx, curr_pte);
+
+	if (next_hop_phys_addr == ULLONG_MAX)
+		return NULL;
+
+	return hr_func->get_pgt_info(ctx, next_hop_phys_addr);
+}
+
+/**
+ * hl_mmu_hr_alloc_hop() - allocate HOP
+ * @ctx: pointer to the context structure.
+ * @hr_priv: host resident private info structure.
+ * @hr_func: host resident functions.
+ * @mmu_prop: MMU properties.
+ *
+ * @return pgt_info structure associated with the allocated HOP on success, otherwise NULL.
+ */
+struct pgt_info *hl_mmu_hr_alloc_hop(struct hl_ctx *ctx, struct hl_mmu_hr_priv *hr_priv,
+							struct hl_hr_mmu_funcs *hr_func,
+							struct hl_mmu_properties *mmu_prop)
+{
+	struct hl_device *hdev = ctx->hdev;
+	struct pgt_info *pgt_info;
+	dma_addr_t phys_addr;
+	void *virt_addr;
+	int i, retry = 1;
+
+	pgt_info = kmalloc(sizeof(*pgt_info), GFP_KERNEL);
+	if (!pgt_info)
+		return NULL;
+
+	for (i = 0; i <= retry; i++) {
+		virt_addr = gen_pool_dma_zalloc_align(hr_priv->mmu_pgt_pool,
+							mmu_prop->hop_table_size,
+							&phys_addr,
+							mmu_prop->hop_table_size);
+		if (virt_addr)
+			break;
+
+		/* No memory in pool - get some and try again */
+		virt_addr = hl_asic_dma_alloc_coherent(hdev, SZ_2M, &phys_addr,
+							GFP_KERNEL | __GFP_ZERO);
+		if (ZERO_OR_NULL_PTR(virt_addr))
+			break;
+
+		if (gen_pool_add_virt(hr_priv->mmu_pgt_pool, (unsigned long)virt_addr,
+								phys_addr, SZ_2M, -1)) {
+			hl_asic_dma_free_coherent(hdev, SZ_2M, virt_addr, phys_addr);
+			virt_addr = NULL;
+			break;
+		}
+	}
+
+	if (ZERO_OR_NULL_PTR(virt_addr)) {
+		dev_err(hdev->dev, "failed to allocate page\n");
+		goto pool_alloc_err;
+	}
+
+	pgt_info->phys_addr = phys_addr;
+	pgt_info->shadow_addr = (unsigned long) NULL;
+	pgt_info->virt_addr = (unsigned long)virt_addr;
+	pgt_info->ctx = ctx;
+	pgt_info->num_of_ptes = 0;
+	hr_func->add_pgt_info(ctx, pgt_info, phys_addr);
+
+	return pgt_info;
+
+pool_alloc_err:
+	kfree(pgt_info);
+
+	return NULL;
+}
+
+/**
+ * hl_mmu_hr_get_alloc_next_hop() - get the next HOP, allocate it if it does not exist
+ * @ctx: pointer to the context structure.
+ * @hr_priv: host resident private info structure.
+ * @hr_func: host resident functions.
+ * @mmu_prop: MMU properties.
+ * @curr_pte: current PTE value.
+ * @is_new_hop: set to true if HOP is new (caller responsibility to set it to false).
+ *
+ * @return pgt_info structure associated with the allocated HOP on success, otherwise NULL.
+ */
+struct pgt_info *hl_mmu_hr_get_alloc_next_hop(struct hl_ctx *ctx,
+							struct hl_mmu_hr_priv *hr_priv,
+							struct hl_hr_mmu_funcs *hr_func,
+							struct hl_mmu_properties *mmu_prop,
+							u64 curr_pte, bool *is_new_hop)
+{
+	u64 hop_addr = hl_mmu_get_next_hop_addr(ctx, curr_pte);
+
+	if (hop_addr != ULLONG_MAX)
+		return hr_func->get_pgt_info(ctx, hop_addr);
+
+	*is_new_hop = true;
+	return hl_mmu_hr_alloc_hop(ctx, hr_priv, hr_func, mmu_prop);
+}
+
+/**
+ * hl_mmu_hr_get_tlb_info() - get the TLB info (info for a specific mapping)
+ * @ctx: pointer to the context structure.
+ * @virt_addr: the virt address for which to get info.
+ * @hops: HOPs info structure.
+ * @hr_func: host resident functions.
+ *
+ * @return 0 on success, otherwise non 0 error code..
+ */
+int hl_mmu_hr_get_tlb_info(struct hl_ctx *ctx, u64 virt_addr, struct hl_mmu_hop_info *hops,
+								struct hl_hr_mmu_funcs *hr_func)
+{
+	/* using 6 HOPs as this is the maximum number of HOPs */
+	struct pgt_info *hops_pgt_info[MMU_ARCH_6_HOPS] = { NULL };
+	struct hl_device *hdev = ctx->hdev;
+	struct hl_mmu_properties *mmu_prop;
+	int rc, i, used_hops;
+	bool is_huge;
+
+	rc = hr_func->get_tlb_mapping_params(hdev, &mmu_prop, hops, virt_addr, &is_huge);
+	if (rc)
+		return rc;
+
+	used_hops = mmu_prop->num_hops;
+
+	/* huge pages use one less hop */
+	if (is_huge)
+		used_hops--;
+
+	hops->scrambled_vaddr = hdev->asic_funcs->scramble_addr(hdev, virt_addr);
+
+	for (i = 0 ; i < used_hops ; i++) {
+		if (i == 0)
+			hops_pgt_info[i] = hr_func->get_hop0_pgt_info(ctx);
+		else
+			hops_pgt_info[i] = hl_mmu_hr_get_next_hop_pgt_info(ctx, hr_func,
+								hops->hop_info[i - 1].hop_pte_val);
+
+		if (!hops_pgt_info[i])
+			return -EFAULT;
+
+		hops->hop_info[i].hop_addr = hops_pgt_info[i]->phys_addr;
+		hops->hop_info[i].hop_pte_addr =
+				hl_mmu_get_hop_pte_phys_addr(ctx, mmu_prop, i,
+								hops->hop_info[i].hop_addr,
+								hops->scrambled_vaddr);
+		hops->hop_info[i].hop_pte_val = *(u64 *) (uintptr_t)
+						hl_mmu_hr_pte_phys_to_virt(ctx, hops_pgt_info[i],
+								hops->hop_info[i].hop_pte_addr,
+								mmu_prop->hop_table_size);
+
+		if (!(hops->hop_info[i].hop_pte_val & PAGE_PRESENT_MASK))
+			return -EFAULT;
+
+		if (hops->hop_info[i].hop_pte_val & mmu_prop->last_mask)
+			break;
+	}
+
+	/* if passed over all hops then no last hop was found */
+	if (i == mmu_prop->num_hops)
+		return -EFAULT;
+
+	if (hops->scrambled_vaddr != virt_addr)
+		hops->unscrambled_paddr = hdev->asic_funcs->descramble_addr
+				(hdev, hops->hop_info[i].hop_pte_val);
+	else
+		hops->unscrambled_paddr = hops->hop_info[i].hop_pte_val;
+
+	hops->used_hops = i + 1;
+
+	return 0;
 }
 

@@ -12,6 +12,8 @@
 #include <linux/of.h>
 #include <linux/pfn.h>
 #include <linux/xarray.h>
+#include <linux/virtio_anchor.h>
+#include <linux/virtio.h>
 #include <xen/xen.h>
 #include <xen/xen-ops.h>
 #include <xen/grant_table.h>
@@ -285,6 +287,14 @@ bool xen_is_grant_dma_device(struct device *dev)
 	of_node_put(iommu_np);
 
 	return has_iommu;
+}
+
+bool xen_virtio_mem_acc(struct virtio_device *dev)
+{
+	if (IS_ENABLED(CONFIG_XEN_VIRTIO_FORCE_GRANT))
+		return true;
+
+	return xen_is_grant_dma_device(dev->dev.parent);
 }
 
 void xen_grant_setup_dma_ops(struct device *dev)

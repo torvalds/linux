@@ -94,40 +94,47 @@ static int usb_write(struct intf_hdl *intf, u16 value, void *data, u8 size)
 	return status;
 }
 
-u8 rtw_read8(struct adapter *adapter, u32 addr)
+int __must_check rtw_read8(struct adapter *adapter, u32 addr, u8 *data)
 {
 	struct io_priv *io_priv = &adapter->iopriv;
 	struct intf_hdl *intf = &io_priv->intf;
 	u16 value = addr & 0xffff;
-	u8 data;
 
-	usb_read(intf, value, &data, 1);
-
-	return data;
+	return usb_read(intf, value, data, 1);
 }
 
-u16 rtw_read16(struct adapter *adapter, u32 addr)
+int __must_check rtw_read16(struct adapter *adapter, u32 addr, u16 *data)
 {
 	struct io_priv *io_priv = &adapter->iopriv;
 	struct intf_hdl *intf = &io_priv->intf;
 	u16 value = addr & 0xffff;
-	__le16 data;
+	__le16 le_data;
+	int res;
 
-	usb_read(intf, value, &data, 2);
+	res = usb_read(intf, value, &le_data, 2);
+	if (res)
+		return res;
 
-	return le16_to_cpu(data);
+	*data = le16_to_cpu(le_data);
+
+	return 0;
 }
 
-u32 rtw_read32(struct adapter *adapter, u32 addr)
+int __must_check rtw_read32(struct adapter *adapter, u32 addr, u32 *data)
 {
 	struct io_priv *io_priv = &adapter->iopriv;
 	struct intf_hdl *intf = &io_priv->intf;
 	u16 value = addr & 0xffff;
-	__le32 data;
+	__le32 le_data;
+	int res;
 
-	usb_read(intf, value, &data, 4);
+	res = usb_read(intf, value, &le_data, 4);
+	if (res)
+		return res;
 
-	return le32_to_cpu(data);
+	*data = le32_to_cpu(le_data);
+
+	return 0;
 }
 
 int rtw_write8(struct adapter *adapter, u32 addr, u8 val)

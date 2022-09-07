@@ -266,6 +266,8 @@ bool tpg_s_fourcc(struct tpg_data *tpg, u32 fourcc)
 	case V4L2_PIX_FMT_XYUV32:
 	case V4L2_PIX_FMT_VUYA32:
 	case V4L2_PIX_FMT_VUYX32:
+	case V4L2_PIX_FMT_YUVA32:
+	case V4L2_PIX_FMT_YUVX32:
 		tpg->color_enc = TGP_COLOR_ENC_YCBCR;
 		break;
 	case V4L2_PIX_FMT_YUV420M:
@@ -412,6 +414,8 @@ bool tpg_s_fourcc(struct tpg_data *tpg, u32 fourcc)
 	case V4L2_PIX_FMT_XYUV32:
 	case V4L2_PIX_FMT_VUYA32:
 	case V4L2_PIX_FMT_VUYX32:
+	case V4L2_PIX_FMT_YUVA32:
+	case V4L2_PIX_FMT_YUVX32:
 	case V4L2_PIX_FMT_HSV32:
 		tpg->twopixelsize[0] = 2 * 4;
 		break;
@@ -1376,9 +1380,11 @@ static void gen_twopix(struct tpg_data *tpg,
 		buf[0][offset + 3] = b_v;
 		break;
 	case V4L2_PIX_FMT_RGBX32:
+	case V4L2_PIX_FMT_YUVX32:
 		alpha = 0;
 		fallthrough;
 	case V4L2_PIX_FMT_RGBA32:
+	case V4L2_PIX_FMT_YUVA32:
 		buf[0][offset] = r_y_h;
 		buf[0][offset + 1] = g_u_s;
 		buf[0][offset + 2] = b_v;
@@ -2401,6 +2407,44 @@ static void tpg_fill_plane_extras(const struct tpg_data *tpg,
 			((hact ^ params->sav_eav_f) << 2) |
 			((params->sav_eav_f ^ vact) << 1) |
 			(hact ^ vact ^ params->sav_eav_f);
+	}
+	if (tpg->insert_hdmi_video_guard_band) {
+		unsigned int i;
+
+		switch (tpg->fourcc) {
+		case V4L2_PIX_FMT_BGR24:
+		case V4L2_PIX_FMT_RGB24:
+			for (i = 0; i < 3 * 4; i += 3) {
+				vbuf[i] = 0xab;
+				vbuf[i + 1] = 0x55;
+				vbuf[i + 2] = 0xab;
+			}
+			break;
+		case V4L2_PIX_FMT_RGB32:
+		case V4L2_PIX_FMT_ARGB32:
+		case V4L2_PIX_FMT_XRGB32:
+		case V4L2_PIX_FMT_BGRX32:
+		case V4L2_PIX_FMT_BGRA32:
+			for (i = 0; i < 4 * 4; i += 4) {
+				vbuf[i] = 0x00;
+				vbuf[i + 1] = 0xab;
+				vbuf[i + 2] = 0x55;
+				vbuf[i + 3] = 0xab;
+			}
+			break;
+		case V4L2_PIX_FMT_BGR32:
+		case V4L2_PIX_FMT_XBGR32:
+		case V4L2_PIX_FMT_ABGR32:
+		case V4L2_PIX_FMT_RGBX32:
+		case V4L2_PIX_FMT_RGBA32:
+			for (i = 0; i < 4 * 4; i += 4) {
+				vbuf[i] = 0xab;
+				vbuf[i + 1] = 0x55;
+				vbuf[i + 2] = 0xab;
+				vbuf[i + 3] = 0x00;
+			}
+			break;
+		}
 	}
 }
 

@@ -90,14 +90,6 @@ Description:
 		Reading returns the current master modes.
 		Writing set the master mode
 
-What:		/sys/bus/iio/devices/triggerX/sampling_frequency
-KernelVersion:	4.11
-Contact:	benjamin.gaignard@st.com
-Description:
-		Reading returns the current sampling frequency.
-		Writing an value different of 0 set and start sampling.
-		Writing 0 stop sampling.
-
 What:		/sys/bus/iio/devices/iio:deviceX/in_count0_preset
 KernelVersion:	4.12
 Contact:	benjamin.gaignard@st.com

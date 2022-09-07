@@ -162,7 +162,7 @@ static void iwl_mvm_rx_monitor_notif(struct iwl_mvm *mvm,
 	    vif->bss_conf.chandef.width < NL80211_CHAN_WIDTH_40)
 		return;
 
-	if (!vif->bss_conf.assoc)
+	if (!vif->cfg.assoc)
 		return;
 
 	/* this shouldn't happen *again*, ignore it */

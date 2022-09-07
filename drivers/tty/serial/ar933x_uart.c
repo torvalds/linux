@@ -580,18 +580,9 @@ static const struct uart_ops ar933x_uart_ops = {
 	.verify_port	= ar933x_uart_verify_port,
 };
 
-static int ar933x_config_rs485(struct uart_port *port,
+static int ar933x_config_rs485(struct uart_port *port, struct ktermios *termios,
 				struct serial_rs485 *rs485conf)
 {
-	struct ar933x_uart_port *up =
-		container_of(port, struct ar933x_uart_port, port);
-
-	if ((rs485conf->flags & SER_RS485_ENABLED) &&
-	    !up->rts_gpiod) {
-		dev_err(port->dev, "RS485 needs rts-gpio\n");
-		return 1;
-	}
-	port->rs485 = *rs485conf;
 	return 0;
 }
 
@@ -702,6 +693,11 @@ static struct uart_driver ar933x_uart_driver = {
 	.cons		= NULL, /* filled in runtime */
 };
 
+static const struct serial_rs485 ar933x_no_rs485 = {};
+static const struct serial_rs485 ar933x_rs485_supported = {
+	.flags = SER_RS485_ENABLED | SER_RS485_RTS_ON_SEND | SER_RS485_RTS_AFTER_SEND,
+};
+
 static int ar933x_uart_probe(struct platform_device *pdev)
 {
 	struct ar933x_uart_port *up;
@@ -773,6 +769,7 @@ static int ar933x_uart_probe(struct platform_device *pdev)
 	port->fifosize = AR933X_UART_FIFO_SIZE;
 	port->ops = &ar933x_uart_ops;
 	port->rs485_config = ar933x_config_rs485;
+	port->rs485_supported = ar933x_rs485_supported;
 
 	baud = ar933x_uart_get_baud(port->uartclk, AR933X_UART_MAX_SCALE, 1);
 	up->min_baud = max_t(unsigned int, baud, AR933X_UART_MIN_BAUD);
@@ -792,10 +789,12 @@ static int ar933x_uart_probe(struct platform_device *pdev)
 
 	up->rts_gpiod = mctrl_gpio_to_gpiod(up->gpios, UART_GPIO_RTS);
 
-	if ((port->rs485.flags & SER_RS485_ENABLED) &&
-	    !up->rts_gpiod) {
-		dev_err(&pdev->dev, "lacking rts-gpio, disabling RS485\n");
-		port->rs485.flags &= ~SER_RS485_ENABLED;
+	if (!up->rts_gpiod) {
+		port->rs485_supported = ar933x_no_rs485;
+		if (port->rs485.flags & SER_RS485_ENABLED) {
+			dev_err(&pdev->dev, "lacking rts-gpio, disabling RS485\n");
+			port->rs485.flags &= ~SER_RS485_ENABLED;
+		}
 	}
 
 #ifdef CONFIG_SERIAL_AR933X_CONSOLE

@@ -157,26 +157,6 @@ static inline bool pipe_full(unsigned int head, unsigned int tail,
 }
 
 /**
- * pipe_space_for_user - Return number of slots available to userspace
- * @head: The pipe ring head pointer
- * @tail: The pipe ring tail pointer
- * @pipe: The pipe info structure
- */
-static inline unsigned int pipe_space_for_user(unsigned int head, unsigned int tail,
-					       struct pipe_inode_info *pipe)
-{
-	unsigned int p_occupancy, p_space;
-
-	p_occupancy = pipe_occupancy(head, tail);
-	if (p_occupancy >= pipe->max_usage)
-		return 0;
-	p_space = pipe->ring_size - p_occupancy;
-	if (p_space > pipe->max_usage)
-		p_space = pipe->max_usage;
-	return p_space;
-}
-
-/**
  * pipe_buf_get - get a reference to a pipe_buffer
  * @pipe:	the pipe that the buffer belongs to
  * @buf:	the buffer to get a reference to

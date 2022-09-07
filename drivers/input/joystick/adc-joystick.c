@@ -222,13 +222,6 @@ static int adc_joystick_probe(struct platform_device *pdev)
 	if (error)
 		return error;
 
-	input_set_drvdata(input, joy);
-	error = input_register_device(input);
-	if (error) {
-		dev_err(dev, "Unable to register input device\n");
-		return error;
-	}
-
 	joy->buffer = iio_channel_get_all_cb(dev, adc_joystick_handle, joy);
 	if (IS_ERR(joy->buffer)) {
 		dev_err(dev, "Unable to allocate callback buffer\n");
@@ -238,6 +231,14 @@ static int adc_joystick_probe(struct platform_device *pdev)
 	error = devm_add_action_or_reset(dev, adc_joystick_cleanup, joy->buffer);
 	if (error)  {
 		dev_err(dev, "Unable to add action\n");
+		return error;
+	}
+
+	input_set_drvdata(input, joy);
+
+	error = input_register_device(input);
+	if (error) {
+		dev_err(dev, "Unable to register input device\n");
 		return error;
 	}
 

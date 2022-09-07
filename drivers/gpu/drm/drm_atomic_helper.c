@@ -31,10 +31,12 @@
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_atomic_uapi.h>
+#include <drm/drm_blend.h>
 #include <drm/drm_bridge.h>
 #include <drm/drm_damage_helper.h>
 #include <drm/drm_device.h>
 #include <drm/drm_drv.h>
+#include <drm/drm_framebuffer.h>
 #include <drm/drm_gem_atomic_helper.h>
 #include <drm/drm_plane_helper.h>
 #include <drm/drm_print.h>
@@ -874,6 +876,61 @@ int drm_atomic_helper_check_plane_state(struct drm_plane_state *plane_state,
 	return 0;
 }
 EXPORT_SYMBOL(drm_atomic_helper_check_plane_state);
+
+/**
+ * drm_atomic_helper_check_crtc_state() - Check CRTC state for validity
+ * @crtc_state: CRTC state to check
+ * @can_disable_primary_planes: can the CRTC be enabled without a primary plane?
+ *
+ * Checks that a desired CRTC update is valid. Drivers that provide
+ * their own CRTC handling rather than helper-provided implementations may
+ * still wish to call this function to avoid duplication of error checking
+ * code.
+ *
+ * Note that @can_disable_primary_planes only tests if the CRTC can be
+ * enabled without a primary plane. To test if a primary plane can be updated
+ * without a CRTC, use drm_atomic_helper_check_plane_state() in the plane's
+ * atomic check.
+ *
+ * RETURNS:
+ * Zero if update appears valid, error code on failure
+ */
+int drm_atomic_helper_check_crtc_state(struct drm_crtc_state *crtc_state,
+				       bool can_disable_primary_planes)
+{
+	struct drm_device *dev = crtc_state->crtc->dev;
+	struct drm_atomic_state *state = crtc_state->state;
+
+	if (!crtc_state->enable)
+		return 0;
+
+	/* needs at least one primary plane to be enabled */
+	if (!can_disable_primary_planes) {
+		bool has_primary_plane = false;
+		struct drm_plane *plane;
+
+		drm_for_each_plane_mask(plane, dev, crtc_state->plane_mask) {
+			struct drm_plane_state *plane_state;
+
+			if (plane->type != DRM_PLANE_TYPE_PRIMARY)
+				continue;
+			plane_state = drm_atomic_get_plane_state(state, plane);
+			if (IS_ERR(plane_state))
+				return PTR_ERR(plane_state);
+			if (plane_state->fb && plane_state->crtc) {
+				has_primary_plane = true;
+				break;
+			}
+		}
+		if (!has_primary_plane) {
+			drm_dbg_kms(dev, "Cannot enable CRTC without a primary plane.\n");
+			return -EINVAL;
+		}
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(drm_atomic_helper_check_crtc_state);
 
 /**
  * drm_atomic_helper_check_planes - validate state object for planes changes

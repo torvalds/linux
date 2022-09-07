@@ -88,7 +88,7 @@ static int target_xcopy_locate_se_dev_e4(struct se_session *sess,
 		struct se_device *this_dev;
 		int rc;
 
-		this_lun = rcu_dereference(deve->se_lun);
+		this_lun = deve->se_lun;
 		this_dev = rcu_dereference_raw(this_lun->lun_se_dev);
 
 		rc = target_xcopy_locate_se_dev_e4_iter(this_dev, dev_wwn);

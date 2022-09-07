@@ -531,6 +531,7 @@ static int queue_phy_reset(struct sas_phy *phy, int hard_reset)
 	if (!d)
 		return -ENOMEM;
 
+	pm_runtime_get_sync(ha->dev);
 	/* libsas workqueue coordinates ata-eh reset with discovery */
 	mutex_lock(&d->event_lock);
 	d->reset_result = 0;
@@ -544,6 +545,7 @@ static int queue_phy_reset(struct sas_phy *phy, int hard_reset)
 	if (rc == 0)
 		rc = d->reset_result;
 	mutex_unlock(&d->event_lock);
+	pm_runtime_put_sync(ha->dev);
 
 	return rc;
 }
@@ -558,6 +560,7 @@ static int queue_phy_enable(struct sas_phy *phy, int enable)
 	if (!d)
 		return -ENOMEM;
 
+	pm_runtime_get_sync(ha->dev);
 	/* libsas workqueue coordinates ata-eh reset with discovery */
 	mutex_lock(&d->event_lock);
 	d->enable_result = 0;
@@ -571,6 +574,7 @@ static int queue_phy_enable(struct sas_phy *phy, int enable)
 	if (rc == 0)
 		rc = d->enable_result;
 	mutex_unlock(&d->event_lock);
+	pm_runtime_put_sync(ha->dev);
 
 	return rc;
 }

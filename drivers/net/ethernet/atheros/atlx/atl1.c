@@ -2115,7 +2115,7 @@ static int atl1_tso(struct atl1_adapter *adapter, struct sk_buff *skb,
 				ntohs(iph->tot_len));
 			if (real_len < skb->len)
 				pskb_trim(skb, real_len);
-			hdr_len = (skb_transport_offset(skb) + tcp_hdrlen(skb));
+			hdr_len = skb_tcp_all_headers(skb);
 			if (skb->len == hdr_len) {
 				iph->check = 0;
 				tcp_hdr(skb)->check =
@@ -2206,7 +2206,7 @@ static void atl1_tx_map(struct atl1_adapter *adapter, struct sk_buff *skb,
 	retval = (ptpd->word3 >> TPD_SEGMENT_EN_SHIFT) & TPD_SEGMENT_EN_MASK;
 	if (retval) {
 		/* TSO */
-		hdr_len = skb_transport_offset(skb) + tcp_hdrlen(skb);
+		hdr_len = skb_tcp_all_headers(skb);
 		buffer_info->length = hdr_len;
 		page = virt_to_page(skb->data);
 		offset = offset_in_page(skb->data);
@@ -2367,8 +2367,7 @@ static netdev_tx_t atl1_xmit_frame(struct sk_buff *skb,
 	mss = skb_shinfo(skb)->gso_size;
 	if (mss) {
 		if (skb->protocol == htons(ETH_P_IP)) {
-			proto_hdr_len = (skb_transport_offset(skb) +
-					 tcp_hdrlen(skb));
+			proto_hdr_len = skb_tcp_all_headers(skb);
 			if (unlikely(proto_hdr_len > len)) {
 				dev_kfree_skb_any(skb);
 				return NETDEV_TX_OK;

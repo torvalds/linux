@@ -4,7 +4,7 @@
 // Keywords: pm_runtime
 // Confidence: Medium
 // Copyright (C) 2013 Texas Instruments Incorporated -
-// URL: http://coccinelle.lip6.fr/
+// URL: https://coccinelle.gitlabpages.inria.fr/website
 // Options: --include-headers
 
 virtual patch

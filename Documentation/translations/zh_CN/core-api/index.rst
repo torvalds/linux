@@ -53,7 +53,6 @@ Todolist:
    circular-buffers
    generic-radix-tree
    packing
-   bus-virt-phys-mapping
    this_cpu_ops
    timekeeping
    errseq
@@ -102,7 +101,7 @@ Todolist:
 ========
 
 如何在内核中分配和使用内存。请注意，在
-:doc:`/vm/index` 中有更多的内存管理文档。
+:doc:`/mm/index` 中有更多的内存管理文档。
 
 .. toctree::
    :maxdepth: 1

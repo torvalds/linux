@@ -141,7 +141,7 @@ static int icy_probe(struct zorro_dev *z,
 	i2c->adapter.owner = THIS_MODULE;
 	/* i2c->adapter.algo assigned by i2c_pcf_add_bus() */
 	i2c->adapter.algo_data = algo_data;
-	strlcpy(i2c->adapter.name, "ICY I2C Zorro adapter",
+	strscpy(i2c->adapter.name, "ICY I2C Zorro adapter",
 		sizeof(i2c->adapter.name));
 
 	if (!devm_request_mem_region(&z->dev,

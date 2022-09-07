@@ -1035,7 +1035,6 @@
         "CounterHTOff": "0,1,2,3,4,5,6,7",
         "EventCode": "0xA1",
         "EventName": "UOPS_EXECUTED_PORT.PORT_0_CORE",
-        "PublicDescription": "Cycles per core when uops are exectuted in port 0.",
         "SampleAfterValue": "2000003",
         "UMask": "0x1"
     },
@@ -1056,7 +1055,6 @@
         "CounterHTOff": "0,1,2,3,4,5,6,7",
         "EventCode": "0xA1",
         "EventName": "UOPS_EXECUTED_PORT.PORT_1_CORE",
-        "PublicDescription": "Cycles per core when uops are exectuted in port 1.",
         "SampleAfterValue": "2000003",
         "UMask": "0x2"
     },
@@ -1117,7 +1115,6 @@
         "CounterHTOff": "0,1,2,3,4,5,6,7",
         "EventCode": "0xA1",
         "EventName": "UOPS_EXECUTED_PORT.PORT_4_CORE",
-        "PublicDescription": "Cycles per core when uops are exectuted in port 4.",
         "SampleAfterValue": "2000003",
         "UMask": "0x10"
     },
@@ -1138,7 +1135,6 @@
         "CounterHTOff": "0,1,2,3,4,5,6,7",
         "EventCode": "0xA1",
         "EventName": "UOPS_EXECUTED_PORT.PORT_5_CORE",
-        "PublicDescription": "Cycles per core when uops are exectuted in port 5.",
         "SampleAfterValue": "2000003",
         "UMask": "0x20"
     },
@@ -1159,7 +1155,6 @@
         "CounterHTOff": "0,1,2,3,4,5,6,7",
         "EventCode": "0xA1",
         "EventName": "UOPS_EXECUTED_PORT.PORT_6_CORE",
-        "PublicDescription": "Cycles per core when uops are exectuted in port 6.",
         "SampleAfterValue": "2000003",
         "UMask": "0x40"
     },
@@ -1295,7 +1290,7 @@
         "BriefDescription": "Cycles with less than 10 actually retired uops.",
         "Counter": "0,1,2,3",
         "CounterHTOff": "0,1,2,3",
-        "CounterMask": "10",
+        "CounterMask": "16",
         "EventCode": "0xC2",
         "EventName": "UOPS_RETIRED.TOTAL_CYCLES",
         "Invert": "1",

@@ -968,7 +968,8 @@ static void wilc_wlan_handle_rx_buff(struct wilc *wilc, u8 *buffer, int size)
 
 		if (pkt_offset & IS_MANAGMEMENT) {
 			buff_ptr += HOST_HDR_OFFSET;
-			wilc_wfi_mgmt_rx(wilc, buff_ptr, pkt_len);
+			wilc_wfi_mgmt_rx(wilc, buff_ptr, pkt_len,
+					 pkt_offset & IS_MGMT_AUTH_PKT);
 		} else {
 			if (!is_cfg_packet) {
 				wilc_frmw_to_host(wilc, buff_ptr, pkt_len,
@@ -1480,9 +1481,12 @@ int wilc_wlan_init(struct net_device *dev)
 
 	wilc->quit = 0;
 
-	if (wilc->hif_func->hif_init(wilc, false)) {
-		ret = -EIO;
-		goto fail;
+	if (!wilc->hif_func->hif_is_init(wilc)) {
+		acquire_bus(wilc, WILC_BUS_ACQUIRE_ONLY);
+		ret = wilc->hif_func->hif_init(wilc, false);
+		release_bus(wilc, WILC_BUS_RELEASE_ONLY);
+		if (ret)
+			goto fail;
 	}
 
 	if (!wilc->tx_buffer)

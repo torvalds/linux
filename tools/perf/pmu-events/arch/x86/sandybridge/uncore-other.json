@@ -82,10 +82,10 @@
     {
         "BriefDescription": "This 48-bit fixed counter counts the UCLK cycles.",
         "Counter": "Fixed",
+        "EventCode": "0xff",
         "EventName": "UNC_CLOCK.SOCKET",
         "PerPkg": "1",
         "PublicDescription": "This 48-bit fixed counter counts the UCLK cycles.",
-        "UMask": "0x01",
         "Unit": "ARB"
     }
 ]

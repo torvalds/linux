@@ -404,6 +404,7 @@ nouveau_connector_destroy(struct drm_connector *connector)
 		drm_dp_cec_unregister_connector(&nv_connector->aux);
 		kfree(nv_connector->aux.name);
 	}
+	nvif_conn_dtor(&nv_connector->conn);
 	kfree(connector);
 }
 
@@ -1361,13 +1362,11 @@ nouveau_connector_create(struct drm_device *dev,
 		snprintf(aux_name, sizeof(aux_name), "sor-%04x-%04x",
 			 dcbe->hasht, dcbe->hashm);
 		nv_connector->aux.name = kstrdup(aux_name, GFP_KERNEL);
-		drm_dp_aux_init(&nv_connector->aux);
-		if (ret) {
-			NV_ERROR(drm, "Failed to init AUX adapter for sor-%04x-%04x: %d\n",
-				 dcbe->hasht, dcbe->hashm, ret);
+		if (!nv_connector->aux.name) {
 			kfree(nv_connector);
-			return ERR_PTR(ret);
+			return ERR_PTR(-ENOMEM);
 		}
+		drm_dp_aux_init(&nv_connector->aux);
 		fallthrough;
 	default:
 		funcs = &nouveau_connector_funcs;
@@ -1387,6 +1386,15 @@ nouveau_connector_create(struct drm_device *dev,
 
 	drm_connector_init(dev, connector, funcs, type);
 	drm_connector_helper_add(connector, &nouveau_connector_helper_funcs);
+
+	if (nv_connector->dcb && (disp->disp.conn_mask & BIT(nv_connector->index))) {
+		ret = nvif_conn_ctor(&disp->disp, nv_connector->base.name, nv_connector->index,
+				     &nv_connector->conn);
+		if (ret) {
+			kfree(nv_connector);
+			return ERR_PTR(ret);
+		}
+	}
 
 	connector->funcs->reset(connector);
 	nouveau_conn_attach_properties(connector);

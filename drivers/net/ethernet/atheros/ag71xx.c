@@ -786,7 +786,7 @@ static bool ag71xx_check_dma_stuck(struct ag71xx *ag)
 	return false;
 }
 
-static int ag71xx_tx_packets(struct ag71xx *ag, bool flush)
+static int ag71xx_tx_packets(struct ag71xx *ag, bool flush, int budget)
 {
 	struct ag71xx_ring *ring = &ag->tx_ring;
 	int sent = 0, bytes_compl = 0, n = 0;
@@ -825,7 +825,7 @@ static int ag71xx_tx_packets(struct ag71xx *ag, bool flush)
 		if (!skb)
 			continue;
 
-		dev_kfree_skb_any(skb);
+		napi_consume_skb(skb, budget);
 		ring->buf[i].tx.skb = NULL;
 
 		bytes_compl += ring->buf[i].tx.len;
@@ -946,7 +946,7 @@ static unsigned int ag71xx_max_frame_len(unsigned int mtu)
 	return ETH_HLEN + VLAN_HLEN + mtu + ETH_FCS_LEN;
 }
 
-static void ag71xx_hw_set_macaddr(struct ag71xx *ag, unsigned char *mac)
+static void ag71xx_hw_set_macaddr(struct ag71xx *ag, const unsigned char *mac)
 {
 	u32 t;
 
@@ -970,7 +970,7 @@ static void ag71xx_fast_reset(struct ag71xx *ag)
 	mii_reg = ag71xx_rr(ag, AG71XX_REG_MII_CFG);
 	rx_ds = ag71xx_rr(ag, AG71XX_REG_RX_DESC);
 
-	ag71xx_tx_packets(ag, true);
+	ag71xx_tx_packets(ag, true, 0);
 
 	reset_control_assert(ag->mac_reset);
 	usleep_range(10, 20);
@@ -1657,7 +1657,7 @@ static int ag71xx_rx_packets(struct ag71xx *ag, int limit)
 		ndev->stats.rx_packets++;
 		ndev->stats.rx_bytes += pktlen;
 
-		skb = build_skb(ring->buf[i].rx.rx_buf, ag71xx_buffer_size(ag));
+		skb = napi_build_skb(ring->buf[i].rx.rx_buf, ag71xx_buffer_size(ag));
 		if (!skb) {
 			skb_free_frag(ring->buf[i].rx.rx_buf);
 			goto next;
@@ -1703,7 +1703,7 @@ static int ag71xx_poll(struct napi_struct *napi, int limit)
 	int tx_done, rx_done;
 	u32 status;
 
-	tx_done = ag71xx_tx_packets(ag, false);
+	tx_done = ag71xx_tx_packets(ag, false, limit);
 
 	netif_dbg(ag, rx_status, ndev, "processing RX ring\n");
 	rx_done = ag71xx_rx_packets(ag, limit);

@@ -1647,6 +1647,7 @@ config SIEMENS_SIMATIC_IPC_WDT
 	tristate "Siemens Simatic IPC Watchdog"
 	depends on SIEMENS_SIMATIC_IPC
 	select WATCHDOG_CORE
+	select P2SB
 	help
 	  This driver adds support for several watchdogs found in Industrial
 	  PCs from Siemens.
@@ -1961,6 +1962,14 @@ config MEN_A21_WDT
 	  If unsure select N here.
 
 # PPC64 Architecture
+
+config PSERIES_WDT
+	tristate "POWER Architecture Platform Watchdog Timer"
+	depends on PPC_PSERIES
+	select WATCHDOG_CORE
+	help
+	  Driver for virtual watchdog timers provided by PAPR
+	  hypervisors (e.g. PowerVM, KVM).
 
 config WATCHDOG_RTAS
 	tristate "RTAS watchdog"

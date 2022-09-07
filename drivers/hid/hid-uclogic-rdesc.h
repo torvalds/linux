@@ -81,7 +81,8 @@ extern __u8 uclogic_rdesc_twha60_fixed1_arr[];
 extern const size_t uclogic_rdesc_twha60_fixed1_size;
 
 /* Report descriptor template placeholder head */
-#define UCLOGIC_RDESC_PH_HEAD	0xFE, 0xED, 0x1D
+#define UCLOGIC_RDESC_PEN_PH_HEAD	0xFE, 0xED, 0x1D
+#define UCLOGIC_RDESC_FRAME_PH_BTN_HEAD	0xFE, 0xED
 
 /* Apply report descriptor parameters to a report descriptor template */
 extern __u8 *uclogic_rdesc_template_apply(const __u8 *template_ptr,
@@ -89,19 +90,24 @@ extern __u8 *uclogic_rdesc_template_apply(const __u8 *template_ptr,
 					  const s32 *param_list,
 					  size_t param_num);
 
-/* Pen report descriptor template placeholder IDs */
-enum uclogic_rdesc_pen_ph_id {
+/* Report descriptor template placeholder IDs */
+enum uclogic_rdesc_ph_id {
 	UCLOGIC_RDESC_PEN_PH_ID_X_LM,
 	UCLOGIC_RDESC_PEN_PH_ID_X_PM,
 	UCLOGIC_RDESC_PEN_PH_ID_Y_LM,
 	UCLOGIC_RDESC_PEN_PH_ID_Y_PM,
 	UCLOGIC_RDESC_PEN_PH_ID_PRESSURE_LM,
-	UCLOGIC_RDESC_PEN_PH_ID_NUM
+	UCLOGIC_RDESC_FRAME_PH_ID_UM,
+	UCLOGIC_RDESC_PH_ID_NUM
 };
 
 /* Report descriptor pen template placeholder */
 #define UCLOGIC_RDESC_PEN_PH(_ID) \
-	UCLOGIC_RDESC_PH_HEAD, UCLOGIC_RDESC_PEN_PH_ID_##_ID
+	UCLOGIC_RDESC_PEN_PH_HEAD, UCLOGIC_RDESC_PEN_PH_ID_##_ID
+
+/* Report descriptor frame buttons template placeholder */
+#define UCLOGIC_RDESC_FRAME_PH_BTN \
+	UCLOGIC_RDESC_FRAME_PH_BTN_HEAD, UCLOGIC_RDESC_FRAME_PH_ID_UM
 
 /* Report ID for v1 pen reports */
 #define UCLOGIC_RDESC_V1_PEN_ID	0x07
@@ -154,6 +160,14 @@ extern const size_t uclogic_rdesc_v2_frame_dial_size;
 
 /* Device ID byte offset in v2 frame dial reports */
 #define UCLOGIC_RDESC_V2_FRAME_DIAL_DEV_ID_BYTE	0x4
+
+/* Fixed report descriptor template for UGEE v2 pen reports */
+extern const __u8 uclogic_rdesc_ugee_v2_pen_template_arr[];
+extern const size_t uclogic_rdesc_ugee_v2_pen_template_size;
+
+/* Fixed report descriptor template for UGEE v2 frame reports (buttons only) */
+extern const __u8 uclogic_rdesc_ugee_v2_frame_btn_template_arr[];
+extern const size_t uclogic_rdesc_ugee_v2_frame_btn_template_size;
 
 /* Fixed report descriptor for Ugee EX07 frame */
 extern const __u8 uclogic_rdesc_ugee_ex07_frame_arr[];

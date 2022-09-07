@@ -208,7 +208,7 @@ properties:
       "^[a-z0-9]+$":
         type: object
 
-        patternProperties:
+        properties:
           clocks:
             minItems: 1
             maxItems: 8

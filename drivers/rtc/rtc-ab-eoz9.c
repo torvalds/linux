@@ -495,8 +495,7 @@ static void abeoz9_hwmon_register(struct device *dev,
 
 #endif
 
-static int abeoz9_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int abeoz9_probe(struct i2c_client *client)
 {
 	struct abeoz9_rtc_data *data = NULL;
 	struct device *dev = &client->dev;
@@ -580,7 +579,7 @@ static struct i2c_driver abeoz9_driver = {
 		.name = "rtc-ab-eoz9",
 		.of_match_table = of_match_ptr(abeoz9_dt_match),
 	},
-	.probe	  = abeoz9_probe,
+	.probe_new = abeoz9_probe,
 	.id_table = abeoz9_id,
 };
 

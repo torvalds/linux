@@ -493,7 +493,7 @@ static int read_exceptions(struct pstore *ps,
 
 	client = dm_bufio_client_create(dm_snap_cow(ps->store->snap)->bdev,
 					ps->store->chunk_size << SECTOR_SHIFT,
-					1, 0, NULL, NULL);
+					1, 0, NULL, NULL, 0);
 
 	if (IS_ERR(client))
 		return PTR_ERR(client);

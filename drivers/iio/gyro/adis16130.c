@@ -41,7 +41,7 @@
 struct adis16130_state {
 	struct spi_device		*us;
 	struct mutex			buf_lock;
-	u8				buf[4] ____cacheline_aligned;
+	u8				buf[4] __aligned(IIO_DMA_MINALIGN);
 };
 
 static int adis16130_spi_read(struct iio_dev *indio_dev, u8 reg_addr, u32 *val)

@@ -369,6 +369,11 @@ enum pm_pinctrl_drive_strength {
 	PM_PINCTRL_DRIVE_STRENGTH_12MA = 3,
 };
 
+enum pm_pinctrl_tri_state {
+	PM_PINCTRL_TRI_STATE_DISABLE = 0,
+	PM_PINCTRL_TRI_STATE_ENABLE = 1,
+};
+
 enum zynqmp_pm_shutdown_type {
 	ZYNQMP_PM_SHUTDOWN_TYPE_SHUTDOWN = 0,
 	ZYNQMP_PM_SHUTDOWN_TYPE_RESET = 1,

@@ -46,28 +46,16 @@ nfp_nfdk_tx_tso(struct nfp_net_r_vector *r_vec, struct nfp_nfdk_tx_buf *txbuf,
 	if (!skb->encapsulation) {
 		l3_offset = skb_network_offset(skb);
 		l4_offset = skb_transport_offset(skb);
-		hdrlen = skb_transport_offset(skb) + tcp_hdrlen(skb);
+		hdrlen = skb_tcp_all_headers(skb);
 	} else {
 		l3_offset = skb_inner_network_offset(skb);
 		l4_offset = skb_inner_transport_offset(skb);
-		hdrlen = skb_inner_transport_header(skb) - skb->data +
-			inner_tcp_hdrlen(skb);
+		hdrlen = skb_inner_tcp_all_headers(skb);
 	}
 
 	segs = skb_shinfo(skb)->gso_segs;
 	mss = skb_shinfo(skb)->gso_size & NFDK_DESC_TX_MSS_MASK;
 
-	/* Note: TSO of the packet with metadata prepended to skb is not
-	 * supported yet, in which case l3/l4_offset and lso_hdrlen need
-	 * be correctly handled here.
-	 * Concern:
-	 * The driver doesn't have md_bytes easily available at this point.
-	 * The PCI.IN PD ME won't have md_bytes bytes to add to lso_hdrlen,
-	 * so it needs the full length there.  The app MEs might prefer
-	 * l3_offset and l4_offset relative to the start of packet data,
-	 * but could probably cope with it being relative to the CTM buf
-	 * data offset.
-	 */
 	txd.l3_offset = l3_offset;
 	txd.l4_offset = l4_offset;
 	txd.lso_meta_res = 0;
@@ -182,55 +170,52 @@ close_block:
 	return 0;
 }
 
-static int nfp_nfdk_prep_port_id(struct sk_buff *skb)
+static int
+nfp_nfdk_prep_tx_meta(struct nfp_net_dp *dp, struct nfp_app *app,
+		      struct sk_buff *skb)
 {
 	struct metadata_dst *md_dst = skb_metadata_dst(skb);
 	unsigned char *data;
-
-	if (likely(!md_dst))
-		return 0;
-	if (unlikely(md_dst->type != METADATA_HW_PORT_MUX))
-		return 0;
-
-	/* Note: Unsupported case when TSO a skb with metedata prepended.
-	 * See the comments in `nfp_nfdk_tx_tso` for details.
-	 */
-	if (unlikely(md_dst && skb_is_gso(skb)))
-		return -EOPNOTSUPP;
-
-	if (unlikely(skb_cow_head(skb, sizeof(md_dst->u.port_info.port_id))))
-		return -ENOMEM;
-
-	data = skb_push(skb, sizeof(md_dst->u.port_info.port_id));
-	put_unaligned_be32(md_dst->u.port_info.port_id, data);
-
-	return sizeof(md_dst->u.port_info.port_id);
-}
-
-static int
-nfp_nfdk_prep_tx_meta(struct nfp_app *app, struct sk_buff *skb,
-		      struct nfp_net_r_vector *r_vec)
-{
-	unsigned char *data;
-	int res, md_bytes;
+	bool vlan_insert;
 	u32 meta_id = 0;
+	int md_bytes;
 
-	res = nfp_nfdk_prep_port_id(skb);
-	if (unlikely(res <= 0))
-		return res;
+	if (unlikely(md_dst && md_dst->type != METADATA_HW_PORT_MUX))
+		md_dst = NULL;
 
-	md_bytes = res;
-	meta_id = NFP_NET_META_PORTID;
+	vlan_insert = skb_vlan_tag_present(skb) && (dp->ctrl & NFP_NET_CFG_CTRL_TXVLAN_V2);
 
-	if (unlikely(skb_cow_head(skb, sizeof(meta_id))))
+	if (!(md_dst || vlan_insert))
+		return 0;
+
+	md_bytes = sizeof(meta_id) +
+		   !!md_dst * NFP_NET_META_PORTID_SIZE +
+		   vlan_insert * NFP_NET_META_VLAN_SIZE;
+
+	if (unlikely(skb_cow_head(skb, md_bytes)))
 		return -ENOMEM;
 
-	md_bytes += sizeof(meta_id);
+	data = skb_push(skb, md_bytes) + md_bytes;
+	if (md_dst) {
+		data -= NFP_NET_META_PORTID_SIZE;
+		put_unaligned_be32(md_dst->u.port_info.port_id, data);
+		meta_id = NFP_NET_META_PORTID;
+	}
+	if (vlan_insert) {
+		data -= NFP_NET_META_VLAN_SIZE;
+		/* data type of skb->vlan_proto is __be16
+		 * so it fills metadata without calling put_unaligned_be16
+		 */
+		memcpy(data, &skb->vlan_proto, sizeof(skb->vlan_proto));
+		put_unaligned_be16(skb_vlan_tag_get(skb), data + sizeof(skb->vlan_proto));
+		meta_id <<= NFP_NET_META_FIELD_SIZE;
+		meta_id |= NFP_NET_META_VLAN;
+	}
 
 	meta_id = FIELD_PREP(NFDK_META_LEN, md_bytes) |
 		  FIELD_PREP(NFDK_META_FIELDS, meta_id);
 
-	data = skb_push(skb, sizeof(meta_id));
+	data -= sizeof(meta_id);
 	put_unaligned_be32(meta_id, data);
 
 	return NFDK_DESC_TX_CHAIN_META;
@@ -278,7 +263,7 @@ netdev_tx_t nfp_nfdk_tx(struct sk_buff *skb, struct net_device *netdev)
 		return NETDEV_TX_BUSY;
 	}
 
-	metadata = nfp_nfdk_prep_tx_meta(nn->app, skb, r_vec);
+	metadata = nfp_nfdk_prep_tx_meta(dp, nn->app, skb);
 	if (unlikely((int)metadata < 0))
 		goto err_flush;
 
@@ -327,7 +312,7 @@ netdev_tx_t nfp_nfdk_tx(struct sk_buff *skb, struct net_device *netdev)
 		    FIELD_PREP(NFDK_DESC_TX_TYPE_HEAD, type);
 
 	txd->dma_len_type = cpu_to_le16(dlen_type);
-	nfp_nfdk_tx_desc_set_dma_addr(txd, dma_addr);
+	nfp_desc_set_dma_addr_48b(txd, dma_addr);
 
 	/* starts at bit 0 */
 	BUILD_BUG_ON(!(NFDK_DESC_TX_DMA_LEN_HEAD & 1));
@@ -352,7 +337,7 @@ netdev_tx_t nfp_nfdk_tx(struct sk_buff *skb, struct net_device *netdev)
 			dlen_type = FIELD_PREP(NFDK_DESC_TX_DMA_LEN, dma_len);
 
 			txd->dma_len_type = cpu_to_le16(dlen_type);
-			nfp_nfdk_tx_desc_set_dma_addr(txd, dma_addr);
+			nfp_desc_set_dma_addr_48b(txd, dma_addr);
 
 			dma_len -= dlen_type;
 			dma_addr += dlen_type + 1;
@@ -608,8 +593,8 @@ nfp_nfdk_rx_give_one(const struct nfp_net_dp *dp,
 	/* Fill freelist descriptor */
 	rx_ring->rxds[wr_idx].fld.reserved = 0;
 	rx_ring->rxds[wr_idx].fld.meta_len_dd = 0;
-	nfp_desc_set_dma_addr(&rx_ring->rxds[wr_idx].fld,
-			      dma_addr + dp->rx_dma_off);
+	nfp_desc_set_dma_addr_48b(&rx_ring->rxds[wr_idx].fld,
+				  dma_addr + dp->rx_dma_off);
 
 	rx_ring->wr_p++;
 	if (!(rx_ring->wr_p % NFP_NET_FL_BATCH)) {
@@ -730,7 +715,7 @@ static bool
 nfp_nfdk_parse_meta(struct net_device *netdev, struct nfp_meta_parsed *meta,
 		    void *data, void *pkt, unsigned int pkt_len, int meta_len)
 {
-	u32 meta_info;
+	u32 meta_info, vlan_info;
 
 	meta_info = get_unaligned_be32(data);
 	data += 4;
@@ -746,6 +731,17 @@ nfp_nfdk_parse_meta(struct net_device *netdev, struct nfp_meta_parsed *meta,
 			break;
 		case NFP_NET_META_MARK:
 			meta->mark = get_unaligned_be32(data);
+			data += 4;
+			break;
+		case NFP_NET_META_VLAN:
+			vlan_info = get_unaligned_be32(data);
+			if (FIELD_GET(NFP_NET_META_VLAN_STRIP, vlan_info)) {
+				meta->vlan.stripped = true;
+				meta->vlan.tpid = FIELD_GET(NFP_NET_META_VLAN_TPID_MASK,
+							    vlan_info);
+				meta->vlan.tci = FIELD_GET(NFP_NET_META_VLAN_TCI_MASK,
+							   vlan_info);
+			}
 			data += 4;
 			break;
 		case NFP_NET_META_PORTID:
@@ -944,7 +940,7 @@ nfp_nfdk_tx_xdp_buf(struct nfp_net_dp *dp, struct nfp_net_rx_ring *rx_ring,
 		    FIELD_PREP(NFDK_DESC_TX_TYPE_HEAD, type);
 
 	txd->dma_len_type = cpu_to_le16(dlen_type);
-	nfp_nfdk_tx_desc_set_dma_addr(txd, dma_addr);
+	nfp_desc_set_dma_addr_48b(txd, dma_addr);
 
 	tmp_dlen = dlen_type & NFDK_DESC_TX_DMA_LEN_HEAD;
 	dma_len -= tmp_dlen;
@@ -955,7 +951,7 @@ nfp_nfdk_tx_xdp_buf(struct nfp_net_dp *dp, struct nfp_net_rx_ring *rx_ring,
 		dma_len -= 1;
 		dlen_type = FIELD_PREP(NFDK_DESC_TX_DMA_LEN, dma_len);
 		txd->dma_len_type = cpu_to_le16(dlen_type);
-		nfp_nfdk_tx_desc_set_dma_addr(txd, dma_addr);
+		nfp_desc_set_dma_addr_48b(txd, dma_addr);
 
 		dlen_type &= NFDK_DESC_TX_DMA_LEN;
 		dma_len -= dlen_type;
@@ -1185,9 +1181,11 @@ static int nfp_nfdk_rx(struct nfp_net_rx_ring *rx_ring, int budget)
 
 		nfp_nfdk_rx_csum(dp, r_vec, rxd, &meta, skb);
 
-		if (rxd->rxd.flags & PCIE_DESC_RX_VLAN)
-			__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q),
-					       le16_to_cpu(rxd->rxd.vlan));
+		if (unlikely(!nfp_net_vlan_strip(skb, rxd, &meta))) {
+			nfp_nfdk_rx_drop(dp, r_vec, rx_ring, NULL, skb);
+			continue;
+		}
+
 		if (meta_len_xdp)
 			skb_metadata_set(skb, meta_len_xdp);
 
@@ -1349,7 +1347,7 @@ nfp_nfdk_ctrl_tx_one(struct nfp_net *nn, struct nfp_net_r_vector *r_vec,
 		    FIELD_PREP(NFDK_DESC_TX_TYPE_HEAD, type);
 
 	txd->dma_len_type = cpu_to_le16(dlen_type);
-	nfp_nfdk_tx_desc_set_dma_addr(txd, dma_addr);
+	nfp_desc_set_dma_addr_48b(txd, dma_addr);
 
 	tmp_dlen = dlen_type & NFDK_DESC_TX_DMA_LEN_HEAD;
 	dma_len -= tmp_dlen;
@@ -1360,7 +1358,7 @@ nfp_nfdk_ctrl_tx_one(struct nfp_net *nn, struct nfp_net_r_vector *r_vec,
 		dma_len -= 1;
 		dlen_type = FIELD_PREP(NFDK_DESC_TX_DMA_LEN, dma_len);
 		txd->dma_len_type = cpu_to_le16(dlen_type);
-		nfp_nfdk_tx_desc_set_dma_addr(txd, dma_addr);
+		nfp_desc_set_dma_addr_48b(txd, dma_addr);
 
 		dlen_type &= NFDK_DESC_TX_DMA_LEN;
 		dma_len -= dlen_type;

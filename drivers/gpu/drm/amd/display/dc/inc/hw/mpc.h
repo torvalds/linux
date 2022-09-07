@@ -346,6 +346,11 @@ struct mpc_funcs {
 			int mpcc_id,
 			const struct mpc_grph_gamut_adjustment *adjust);
 
+	bool (*program_1dlut)(
+			struct mpc *mpc,
+			const struct pwl_params *params,
+			uint32_t rmu_idx);
+
 	bool (*program_shaper)(
 			struct mpc *mpc,
 			const struct pwl_params *params,

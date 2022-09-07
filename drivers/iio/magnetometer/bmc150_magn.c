@@ -985,7 +985,7 @@ err_poweroff:
 }
 EXPORT_SYMBOL_NS(bmc150_magn_probe, IIO_BMC150_MAGN);
 
-int bmc150_magn_remove(struct device *dev)
+void bmc150_magn_remove(struct device *dev)
 {
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 	struct bmc150_magn_data *data = iio_priv(indio_dev);
@@ -1008,7 +1008,6 @@ int bmc150_magn_remove(struct device *dev)
 	mutex_unlock(&data->mutex);
 
 	regulator_bulk_disable(ARRAY_SIZE(data->regulators), data->regulators);
-	return 0;
 }
 EXPORT_SYMBOL_NS(bmc150_magn_remove, IIO_BMC150_MAGN);
 

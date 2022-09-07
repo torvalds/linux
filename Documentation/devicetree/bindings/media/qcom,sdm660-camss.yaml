@@ -84,6 +84,13 @@ properties:
       - const: vfe0
       - const: vfe1
 
+  interconnects:
+    maxItems: 1
+
+  interconnect-names:
+    items:
+      - const: vfe-mem
+
   iommus:
     maxItems: 4
 

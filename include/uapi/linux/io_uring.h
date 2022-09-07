@@ -12,6 +12,10 @@
 #include <linux/types.h>
 #include <linux/time_types.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /*
  * IO submission data structure (Submission Queue Entry)
  */
@@ -660,5 +664,9 @@ struct io_uring_recvmsg_out {
 	__u32 payloadlen;
 	__u32 flags;
 };
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

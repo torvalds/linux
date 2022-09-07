@@ -113,8 +113,10 @@ nfs4_ff_alloc_deviceid_node(struct nfs_server *server, struct pnfs_device *pdev,
 			goto out_err_drain_dsaddrs;
 		ds_versions[i].version = be32_to_cpup(p++);
 		ds_versions[i].minor_version = be32_to_cpup(p++);
-		ds_versions[i].rsize = nfs_block_size(be32_to_cpup(p++), NULL);
-		ds_versions[i].wsize = nfs_block_size(be32_to_cpup(p++), NULL);
+		ds_versions[i].rsize = nfs_io_size(be32_to_cpup(p++),
+						   server->nfs_client->cl_proto);
+		ds_versions[i].wsize = nfs_io_size(be32_to_cpup(p++),
+						   server->nfs_client->cl_proto);
 		ds_versions[i].tightly_coupled = be32_to_cpup(p);
 
 		if (ds_versions[i].rsize > NFS_MAX_FILE_IO_SIZE)

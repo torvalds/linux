@@ -150,7 +150,7 @@ struct page *__kmap_to_page(void *vaddr)
 		return pte_page(pkmap_page_table[i]);
 	}
 
-	return virt_to_page(addr);
+	return virt_to_page(vaddr);
 }
 EXPORT_SYMBOL(__kmap_to_page);
 

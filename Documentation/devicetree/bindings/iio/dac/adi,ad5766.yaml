@@ -22,6 +22,8 @@ properties:
       - adi,ad5767
 
   output-range-microvolts:
+    $ref: /schemas/types.yaml#/definitions/int32-array
+    maxItems: 2
     description: Select converter output range.
 
   reg:

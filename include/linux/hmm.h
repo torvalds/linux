@@ -4,7 +4,7 @@
  *
  * Authors: Jérôme Glisse <jglisse@redhat.com>
  *
- * See Documentation/vm/hmm.rst for reasons and overview of what HMM is.
+ * See Documentation/mm/hmm.rst for reasons and overview of what HMM is.
  */
 #ifndef LINUX_HMM_H
 #define LINUX_HMM_H
@@ -100,7 +100,7 @@ struct hmm_range {
 };
 
 /*
- * Please see Documentation/vm/hmm.rst for how to use the range API.
+ * Please see Documentation/mm/hmm.rst for how to use the range API.
  */
 int hmm_range_fault(struct hmm_range *range);
 

@@ -68,3 +68,4 @@ module_i2c_driver(bmi160_i2c_driver);
 MODULE_AUTHOR("Daniel Baluta <daniel.baluta@intel.com>");
 MODULE_DESCRIPTION("BMI160 I2C driver");
 MODULE_LICENSE("GPL v2");
+MODULE_IMPORT_NS(IIO_BMI160);

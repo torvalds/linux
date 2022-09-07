@@ -240,7 +240,7 @@ EXPORT_SYMBOL_GPL(atmel_smc_cs_conf_set_cycle);
  * @conf: the SMC CS conf to apply
  *
  * Applies an SMC CS configuration.
- * Only valid on at91sam9/avr32 SoCs.
+ * Only valid on at91sam9 SoCs.
  */
 void atmel_smc_cs_conf_apply(struct regmap *regmap, int cs,
 			     const struct atmel_smc_cs_conf *conf)
@@ -281,7 +281,7 @@ EXPORT_SYMBOL_GPL(atmel_hsmc_cs_conf_apply);
  * @conf: the SMC CS conf object to store the current conf
  *
  * Retrieve the SMC CS configuration.
- * Only valid on at91sam9/avr32 SoCs.
+ * Only valid on at91sam9 SoCs.
  */
 void atmel_smc_cs_conf_get(struct regmap *regmap, int cs,
 			   struct atmel_smc_cs_conf *conf)

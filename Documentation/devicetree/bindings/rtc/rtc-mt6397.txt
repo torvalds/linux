@@ -14,6 +14,8 @@ For MediaTek PMIC wrapper bus bindings, see:
 Required properties:
 - compatible: Should be one of follows
        "mediatek,mt6323-rtc": for MT6323 PMIC
+       "mediatek,mt6358-rtc": for MT6358 PMIC
+       "mediatek,mt6366-rtc", "mediatek,mt6358-rtc": for MT6366 PMIC
        "mediatek,mt6397-rtc": for MT6397 PMIC
 
 Example:

@@ -34,28 +34,28 @@
 	sfp0: sfp-0 {
 		compatible = "sff,sfp";
 		i2c-bus = <&sfp0_i2c>;
-		mod-def0-gpio = <&gpio2 0 GPIO_ACTIVE_LOW>;
+		mod-def0-gpios = <&gpio2 0 GPIO_ACTIVE_LOW>;
 		maximum-power-milliwatt = <2000>;
 	};
 
 	sfp1: sfp-1 {
 		compatible = "sff,sfp";
 		i2c-bus = <&sfp1_i2c>;
-		mod-def0-gpio = <&gpio2 9 GPIO_ACTIVE_LOW>;
+		mod-def0-gpios = <&gpio2 9 GPIO_ACTIVE_LOW>;
 		maximum-power-milliwatt = <2000>;
 	};
 
 	sfp2: sfp-2 {
 		compatible = "sff,sfp";
 		i2c-bus = <&sfp2_i2c>;
-		mod-def0-gpio = <&gpio2 10 GPIO_ACTIVE_LOW>;
+		mod-def0-gpios = <&gpio2 10 GPIO_ACTIVE_LOW>;
 		maximum-power-milliwatt = <2000>;
 	};
 
 	sfp3: sfp-3 {
 		compatible = "sff,sfp";
 		i2c-bus = <&sfp3_i2c>;
-		mod-def0-gpio = <&gpio2 11 GPIO_ACTIVE_LOW>;
+		mod-def0-gpios = <&gpio2 11 GPIO_ACTIVE_LOW>;
 		maximum-power-milliwatt = <2000>;
 	};
 };

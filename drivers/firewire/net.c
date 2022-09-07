@@ -202,15 +202,6 @@ struct fwnet_packet_task {
 };
 
 /*
- * Get fifo address embedded in hwaddr
- */
-static __u64 fwnet_hwaddr_fifo(union fwnet_hwaddr *ha)
-{
-	return (u64)get_unaligned_be16(&ha->uc.fifo_hi) << 32
-	       | get_unaligned_be32(&ha->uc.fifo_lo);
-}
-
-/*
  * saddr == NULL means use device source address.
  * daddr == NULL means leave destination address (eg unresolved arp).
  */
@@ -1306,7 +1297,7 @@ static netdev_tx_t fwnet_tx(struct sk_buff *skb, struct net_device *net)
 		max_payload        = peer->max_payload;
 		datagram_label_ptr = &peer->datagram_label;
 
-		ptask->fifo_addr   = fwnet_hwaddr_fifo(ha);
+		ptask->fifo_addr   = get_unaligned_be48(ha->uc.fifo);
 		ptask->generation  = generation;
 		ptask->dest_node   = dest_node;
 		ptask->speed       = peer->speed;
@@ -1494,8 +1485,7 @@ static int fwnet_probe(struct fw_unit *unit,
 	ha.uc.uniq_id = cpu_to_be64(card->guid);
 	ha.uc.max_rec = dev->card->max_receive;
 	ha.uc.sspd = dev->card->link_speed;
-	ha.uc.fifo_hi = cpu_to_be16(dev->local_fifo >> 32);
-	ha.uc.fifo_lo = cpu_to_be32(dev->local_fifo & 0xffffffff);
+	put_unaligned_be48(dev->local_fifo, ha.uc.fifo);
 	dev_addr_set(net, ha.u);
 
 	memset(net->broadcast, -1, net->addr_len);

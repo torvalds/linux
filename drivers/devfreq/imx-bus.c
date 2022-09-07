@@ -145,6 +145,7 @@ static const struct of_device_id imx_bus_of_match[] = {
 	{ .compatible = "fsl,imx8mq-noc", .data = "imx8mq-interconnect", },
 	{ .compatible = "fsl,imx8mm-noc", .data = "imx8mm-interconnect", },
 	{ .compatible = "fsl,imx8mn-noc", .data = "imx8mn-interconnect", },
+	{ .compatible = "fsl,imx8mp-noc", .data = "imx8mp-interconnect", },
 	{ .compatible = "fsl,imx8m-noc", },
 	{ .compatible = "fsl,imx8m-nic", },
 	{ /* sentinel */ },

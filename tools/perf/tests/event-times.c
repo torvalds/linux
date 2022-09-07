@@ -174,7 +174,7 @@ static int test_times(int (attach)(struct evlist *),
 		goto out_err;
 	}
 
-	err = parse_events(evlist, "cpu-clock:u", NULL);
+	err = parse_event(evlist, "cpu-clock:u");
 	if (err) {
 		pr_debug("failed to parse event cpu-clock:u\n");
 		goto out_err;

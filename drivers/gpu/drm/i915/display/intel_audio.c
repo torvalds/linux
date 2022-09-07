@@ -30,6 +30,7 @@
 #include "i915_drv.h"
 #include "intel_atomic.h"
 #include "intel_audio.h"
+#include "intel_audio_regs.h"
 #include "intel_cdclk.h"
 #include "intel_crtc.h"
 #include "intel_de.h"

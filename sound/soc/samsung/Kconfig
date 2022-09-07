@@ -33,7 +33,8 @@ config SND_SAMSUNG_I2S
 
 config SND_SOC_SAMSUNG_NEO1973_WM8753
 	tristate "Audio support for Openmoko Neo1973 Smartphones (GTA02)"
-	depends on MACH_NEO1973_GTA02
+	depends on MACH_NEO1973_GTA02 || COMPILE_TEST
+	depends on SND_SOC_I2C_AND_SPI
 	select SND_S3C24XX_I2S
 	select SND_SOC_WM8753
 	select SND_SOC_BT_SCO
@@ -43,7 +44,8 @@ config SND_SOC_SAMSUNG_NEO1973_WM8753
 
 config SND_SOC_SAMSUNG_JIVE_WM8750
 	tristate "SoC I2S Audio support for Jive"
-	depends on MACH_JIVE && I2C
+	depends on MACH_JIVE && I2C || COMPILE_TEST && ARM
+	depends on SND_SOC_I2C_AND_SPI
 	select SND_SOC_WM8750
 	select SND_S3C2412_SOC_I2S
 	help
@@ -69,7 +71,7 @@ config SND_SOC_SAMSUNG_SMDK_WM8994
 
 config SND_SOC_SAMSUNG_S3C24XX_UDA134X
 	tristate "SoC I2S Audio support UDA134X wired to a S3C24XX"
-	depends on ARCH_S3C24XX
+	depends on ARCH_S3C24XX || COMPILE_TEST
 	select SND_S3C24XX_I2S
 	select SND_SOC_L3
 	select SND_SOC_UDA134X
@@ -81,21 +83,24 @@ config SND_SOC_SAMSUNG_SIMTEC
 
 config SND_SOC_SAMSUNG_SIMTEC_TLV320AIC23
 	tristate "SoC I2S Audio support for TLV320AIC23 on Simtec boards"
-	depends on ARCH_S3C24XX && I2C
+	depends on ARCH_S3C24XX || COMPILE_TEST
+	depends on I2C
 	select SND_S3C24XX_I2S
 	select SND_SOC_TLV320AIC23_I2C
 	select SND_SOC_SAMSUNG_SIMTEC
 
 config SND_SOC_SAMSUNG_SIMTEC_HERMES
 	tristate "SoC I2S Audio support for Simtec Hermes board"
-	depends on ARCH_S3C24XX && I2C
+	depends on ARCH_S3C24XX || COMPILE_TEST
+	depends on I2C
 	select SND_S3C24XX_I2S
 	select SND_SOC_TLV320AIC3X
 	select SND_SOC_SAMSUNG_SIMTEC
 
 config SND_SOC_SAMSUNG_H1940_UDA1380
 	tristate "Audio support for the HP iPAQ H1940"
-	depends on ARCH_H1940 && I2C
+	depends on ARCH_H1940 || COMPILE_TEST
+	depends on I2C
 	select SND_S3C24XX_I2S
 	select SND_SOC_UDA1380
 	help
@@ -103,7 +108,8 @@ config SND_SOC_SAMSUNG_H1940_UDA1380
 
 config SND_SOC_SAMSUNG_RX1950_UDA1380
 	tristate "Audio support for the HP iPAQ RX1950"
-	depends on MACH_RX1950 && I2C
+	depends on MACH_RX1950 || COMPILE_TEST
+	depends on I2C
 	select SND_S3C24XX_I2S
 	select SND_SOC_UDA1380
 	help

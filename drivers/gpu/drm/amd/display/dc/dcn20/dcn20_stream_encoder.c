@@ -35,7 +35,6 @@
 #define DC_LOGGER \
 		enc1->base.ctx->logger
 
-
 #define REG(reg)\
 	(enc1->regs->reg)
 
@@ -159,6 +158,7 @@ static void enc2_stream_encoder_update_hdmi_info_packets(
 	enc2_update_hdmi_info_packet(enc1, 3, &info_frame->vendor);
 	enc2_update_hdmi_info_packet(enc1, 4, &info_frame->spd);
 	enc2_update_hdmi_info_packet(enc1, 5, &info_frame->hdrsmd);
+	enc2_update_hdmi_info_packet(enc1, 6, &info_frame->vtem);
 }
 
 static void enc2_stream_encoder_stop_hdmi_info_packets(

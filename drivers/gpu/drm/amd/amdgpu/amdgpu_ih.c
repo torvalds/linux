@@ -242,7 +242,7 @@ restart_ih:
  * @entry: IV entry
  *
  * Decodes the interrupt vector at the current rptr
- * position and also advance the position for for Vega10
+ * position and also advance the position for Vega10
  * and later GPUs.
  */
 void amdgpu_ih_decode_iv_helper(struct amdgpu_device *adev,

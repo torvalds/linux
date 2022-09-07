@@ -9,7 +9,6 @@
 #include <asm/kvm.h>
 
 #include "kvm_util.h"
-#include "../kvm_util_internal.h"
 #include "vgic.h"
 #include "gic.h"
 #include "gic_v3.h"
@@ -52,31 +51,30 @@ int vgic_v3_setup(struct kvm_vm *vm, unsigned int nr_vcpus, uint32_t nr_irqs,
 			nr_vcpus, nr_vcpus_created);
 
 	/* Distributor setup */
-	if (_kvm_create_device(vm, KVM_DEV_TYPE_ARM_VGIC_V3,
-			       false, &gic_fd) != 0)
-		return -1;
+	gic_fd = __kvm_create_device(vm, KVM_DEV_TYPE_ARM_VGIC_V3);
+	if (gic_fd < 0)
+		return gic_fd;
 
-	kvm_device_access(gic_fd, KVM_DEV_ARM_VGIC_GRP_NR_IRQS,
-			0, &nr_irqs, true);
+	kvm_device_attr_set(gic_fd, KVM_DEV_ARM_VGIC_GRP_NR_IRQS, 0, &nr_irqs);
 
-	kvm_device_access(gic_fd, KVM_DEV_ARM_VGIC_GRP_CTRL,
-			KVM_DEV_ARM_VGIC_CTRL_INIT, NULL, true);
+	kvm_device_attr_set(gic_fd, KVM_DEV_ARM_VGIC_GRP_CTRL,
+			    KVM_DEV_ARM_VGIC_CTRL_INIT, NULL);
 
-	kvm_device_access(gic_fd, KVM_DEV_ARM_VGIC_GRP_ADDR,
-			KVM_VGIC_V3_ADDR_TYPE_DIST, &gicd_base_gpa, true);
+	kvm_device_attr_set(gic_fd, KVM_DEV_ARM_VGIC_GRP_ADDR,
+			    KVM_VGIC_V3_ADDR_TYPE_DIST, &gicd_base_gpa);
 	nr_gic_pages = vm_calc_num_guest_pages(vm->mode, KVM_VGIC_V3_DIST_SIZE);
 	virt_map(vm, gicd_base_gpa, gicd_base_gpa,  nr_gic_pages);
 
 	/* Redistributor setup */
 	redist_attr = REDIST_REGION_ATTR_ADDR(nr_vcpus, gicr_base_gpa, 0, 0);
-	kvm_device_access(gic_fd, KVM_DEV_ARM_VGIC_GRP_ADDR,
-			KVM_VGIC_V3_ADDR_TYPE_REDIST_REGION, &redist_attr, true);
+	kvm_device_attr_set(gic_fd, KVM_DEV_ARM_VGIC_GRP_ADDR,
+			    KVM_VGIC_V3_ADDR_TYPE_REDIST_REGION, &redist_attr);
 	nr_gic_pages = vm_calc_num_guest_pages(vm->mode,
 						KVM_VGIC_V3_REDIST_SIZE * nr_vcpus);
 	virt_map(vm, gicr_base_gpa, gicr_base_gpa,  nr_gic_pages);
 
-	kvm_device_access(gic_fd, KVM_DEV_ARM_VGIC_GRP_CTRL,
-				KVM_DEV_ARM_VGIC_CTRL_INIT, NULL, true);
+	kvm_device_attr_set(gic_fd, KVM_DEV_ARM_VGIC_GRP_CTRL,
+			    KVM_DEV_ARM_VGIC_CTRL_INIT, NULL);
 
 	return gic_fd;
 }
@@ -89,14 +87,14 @@ int _kvm_irq_set_level_info(int gic_fd, uint32_t intid, int level)
 	uint64_t val;
 	int ret;
 
-	ret = _kvm_device_access(gic_fd, KVM_DEV_ARM_VGIC_GRP_LEVEL_INFO,
-				 attr, &val, false);
+	ret = __kvm_device_attr_get(gic_fd, KVM_DEV_ARM_VGIC_GRP_LEVEL_INFO,
+				    attr, &val);
 	if (ret != 0)
 		return ret;
 
 	val |= 1U << index;
-	ret = _kvm_device_access(gic_fd, KVM_DEV_ARM_VGIC_GRP_LEVEL_INFO,
-				 attr, &val, true);
+	ret = __kvm_device_attr_set(gic_fd, KVM_DEV_ARM_VGIC_GRP_LEVEL_INFO,
+				    attr, &val);
 	return ret;
 }
 
@@ -104,8 +102,7 @@ void kvm_irq_set_level_info(int gic_fd, uint32_t intid, int level)
 {
 	int ret = _kvm_irq_set_level_info(gic_fd, intid, level);
 
-	TEST_ASSERT(ret == 0, "KVM_DEV_ARM_VGIC_GRP_LEVEL_INFO failed, "
-			"rc: %i errno: %i", ret, errno);
+	TEST_ASSERT(!ret, KVM_IOCTL_ERROR(KVM_DEV_ARM_VGIC_GRP_LEVEL_INFO, ret));
 }
 
 int _kvm_arm_irq_line(struct kvm_vm *vm, uint32_t intid, int level)
@@ -127,12 +124,11 @@ void kvm_arm_irq_line(struct kvm_vm *vm, uint32_t intid, int level)
 {
 	int ret = _kvm_arm_irq_line(vm, intid, level);
 
-	TEST_ASSERT(ret == 0, "KVM_IRQ_LINE failed, rc: %i errno: %i",
-			ret, errno);
+	TEST_ASSERT(!ret, KVM_IOCTL_ERROR(KVM_IRQ_LINE, ret));
 }
 
-static void vgic_poke_irq(int gic_fd, uint32_t intid,
-		uint32_t vcpu, uint64_t reg_off)
+static void vgic_poke_irq(int gic_fd, uint32_t intid, struct kvm_vcpu *vcpu,
+			  uint64_t reg_off)
 {
 	uint64_t reg = intid / 32;
 	uint64_t index = intid % 32;
@@ -145,7 +141,7 @@ static void vgic_poke_irq(int gic_fd, uint32_t intid,
 
 	if (intid_is_private) {
 		/* TODO: only vcpu 0 implemented for now. */
-		assert(vcpu == 0);
+		assert(vcpu->id == 0);
 		attr += SZ_64K;
 	}
 
@@ -158,17 +154,17 @@ static void vgic_poke_irq(int gic_fd, uint32_t intid,
 	 * intid will just make the read/writes point to above the intended
 	 * register space (i.e., ICPENDR after ISPENDR).
 	 */
-	kvm_device_access(gic_fd, group, attr, &val, false);
+	kvm_device_attr_get(gic_fd, group, attr, &val);
 	val |= 1ULL << index;
-	kvm_device_access(gic_fd, group, attr, &val, true);
+	kvm_device_attr_set(gic_fd, group, attr, &val);
 }
 
-void kvm_irq_write_ispendr(int gic_fd, uint32_t intid, uint32_t vcpu)
+void kvm_irq_write_ispendr(int gic_fd, uint32_t intid, struct kvm_vcpu *vcpu)
 {
 	vgic_poke_irq(gic_fd, intid, vcpu, GICD_ISPENDR);
 }
 
-void kvm_irq_write_isactiver(int gic_fd, uint32_t intid, uint32_t vcpu)
+void kvm_irq_write_isactiver(int gic_fd, uint32_t intid, struct kvm_vcpu *vcpu)
 {
 	vgic_poke_irq(gic_fd, intid, vcpu, GICD_ISACTIVER);
 }

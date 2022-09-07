@@ -26,7 +26,7 @@ struct io_msg {
 static int io_msg_ring_data(struct io_kiocb *req)
 {
 	struct io_ring_ctx *target_ctx = req->file->private_data;
-	struct io_msg *msg = io_kiocb_to_cmd(req);
+	struct io_msg *msg = io_kiocb_to_cmd(req, struct io_msg);
 
 	if (msg->src_fd || msg->dst_fd || msg->flags)
 		return -EINVAL;
@@ -76,7 +76,7 @@ static int io_double_lock_ctx(struct io_ring_ctx *ctx,
 static int io_msg_send_fd(struct io_kiocb *req, unsigned int issue_flags)
 {
 	struct io_ring_ctx *target_ctx = req->file->private_data;
-	struct io_msg *msg = io_kiocb_to_cmd(req);
+	struct io_msg *msg = io_kiocb_to_cmd(req, struct io_msg);
 	struct io_ring_ctx *ctx = req->ctx;
 	unsigned long file_ptr;
 	struct file *src_file;
@@ -122,7 +122,7 @@ out_unlock:
 
 int io_msg_ring_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 {
-	struct io_msg *msg = io_kiocb_to_cmd(req);
+	struct io_msg *msg = io_kiocb_to_cmd(req, struct io_msg);
 
 	if (unlikely(sqe->buf_index || sqe->personality))
 		return -EINVAL;
@@ -141,7 +141,7 @@ int io_msg_ring_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 
 int io_msg_ring(struct io_kiocb *req, unsigned int issue_flags)
 {
-	struct io_msg *msg = io_kiocb_to_cmd(req);
+	struct io_msg *msg = io_kiocb_to_cmd(req, struct io_msg);
 	int ret;
 
 	ret = -EBADFD;

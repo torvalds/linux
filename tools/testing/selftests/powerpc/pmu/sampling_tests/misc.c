@@ -60,6 +60,8 @@ static void init_ev_encodes(void)
 
 	switch (pvr) {
 	case POWER10:
+		ev_mask_thd_cmp = 0x3ffff;
+		ev_shift_thd_cmp = 0;
 		ev_mask_rsq = 1;
 		ev_shift_rsq = 9;
 		ev_mask_comb = 3;
@@ -119,11 +121,9 @@ int check_extended_regs_support(void)
 	return -1;
 }
 
-int check_pvr_for_sampling_tests(void)
+int platform_check_for_tests(void)
 {
 	pvr = PVR_VER(mfspr(SPRN_PVR));
-
-	platform_extended_mask = perf_get_platform_reg_mask();
 
 	/*
 	 * Check for supported platforms
@@ -136,19 +136,33 @@ int check_pvr_for_sampling_tests(void)
 	 * Check PMU driver registered by looking for
 	 * PPC_FEATURE2_EBB bit in AT_HWCAP2
 	 */
-	if (!have_hwcap2(PPC_FEATURE2_EBB))
+	if (!have_hwcap2(PPC_FEATURE2_EBB) || !have_hwcap2(PPC_FEATURE2_ARCH_3_00))
 		goto out;
 
+	return 0;
+
+out:
+	printf("%s: Tests unsupported for this platform\n", __func__);
+	return -1;
+}
+
+int check_pvr_for_sampling_tests(void)
+{
+	SKIP_IF(platform_check_for_tests());
+
+	platform_extended_mask = perf_get_platform_reg_mask();
 	/* check if platform supports extended regs */
 	if (check_extended_regs_support())
 		goto out;
 
 	init_ev_encodes();
 	return 0;
+
 out:
 	printf("%s: Sampling tests un-supported\n", __func__);
 	return -1;
 }
+
 /*
  * Allocate mmap buffer of "mmap_pages" number of
  * pages.
@@ -257,12 +271,31 @@ u64 *get_intr_regs(struct event *event, void *sample_buff)
 	u64 *intr_regs;
 	size_t size = 0;
 
-	if ((type ^ PERF_SAMPLE_REGS_INTR))
+	if ((type ^ (PERF_SAMPLE_REGS_INTR | PERF_SAMPLE_BRANCH_STACK)) &&
+			(type  ^ PERF_SAMPLE_REGS_INTR))
 		return NULL;
 
 	intr_regs = (u64 *)perf_read_first_sample(sample_buff, &size);
 	if (!intr_regs)
 		return NULL;
+
+	if (type & PERF_SAMPLE_BRANCH_STACK) {
+		/*
+		 * PERF_RECORD_SAMPLE and PERF_SAMPLE_BRANCH_STACK:
+		 * struct {
+		 *     struct perf_event_header hdr;
+		 *     u64 number_of_branches;
+		 *     struct perf_branch_entry[number_of_branches];
+		 *     u64 data[];
+		 * };
+		 * struct perf_branch_entry {
+		 *     u64	from;
+		 *     u64	to;
+		 *     u64	misc;
+		 * };
+		 */
+		intr_regs += ((*intr_regs) * 3) + 1;
+	}
 
 	/*
 	 * First entry in the sample buffer used to specify
@@ -409,4 +442,96 @@ u64 get_reg_value(u64 *intr_regs, char *register_name)
 		return -1;
 
 	return *(intr_regs + register_bit_position);
+}
+
+int get_thresh_cmp_val(struct event event)
+{
+	int exp = 0;
+	u64 result = 0;
+	u64 value;
+
+	if (!have_hwcap2(PPC_FEATURE2_ARCH_3_1))
+		return EV_CODE_EXTRACT(event.attr.config, thd_cmp);
+
+	value = EV_CODE_EXTRACT(event.attr.config1, thd_cmp);
+
+	if (!value)
+		return value;
+
+	/*
+	 * Incase of P10, thresh_cmp value is not part of raw event code
+	 * and provided via attr.config1 parameter. To program threshold in MMCRA,
+	 * take a 18 bit number N and shift right 2 places and increment
+	 * the exponent E by 1 until the upper 10 bits of N are zero.
+	 * Write E to the threshold exponent and write the lower 8 bits of N
+	 * to the threshold mantissa.
+	 * The max threshold that can be written is 261120.
+	 */
+	if (value > 261120)
+		value = 261120;
+	while ((64 - __builtin_clzl(value)) > 8) {
+		exp++;
+		value >>= 2;
+	}
+
+	/*
+	 * Note that it is invalid to write a mantissa with the
+	 * upper 2 bits of mantissa being zero, unless the
+	 * exponent is also zero.
+	 */
+	if (!(value & 0xC0) && exp)
+		result = -1;
+	else
+		result = (exp << 8) | value;
+	return result;
+}
+
+/*
+ * Utility function to check for generic compat PMU
+ * by comparing base_platform value from auxv and real
+ * PVR value.
+ */
+static bool auxv_generic_compat_pmu(void)
+{
+	int base_pvr = 0;
+
+	if (!strcmp(auxv_base_platform(), "power9"))
+		base_pvr = POWER9;
+	else if (!strcmp(auxv_base_platform(), "power10"))
+		base_pvr = POWER10;
+
+	return (!base_pvr);
+}
+
+/*
+ * Check for generic compat PMU.
+ * First check for presence of pmu_name from
+ * "/sys/bus/event_source/devices/cpu/caps".
+ * If doesn't exist, fallback to using value
+ * auxv.
+ */
+bool check_for_generic_compat_pmu(void)
+{
+	char pmu_name[256];
+
+	memset(pmu_name, 0, sizeof(pmu_name));
+	if (read_sysfs_file("bus/event_source/devices/cpu/caps/pmu_name",
+		pmu_name, sizeof(pmu_name)) < 0)
+		return auxv_generic_compat_pmu();
+
+	if (!strcmp(pmu_name, "ISAv3"))
+		return true;
+	else
+		return false;
+}
+
+/*
+ * Check if system is booted in compat mode.
+ */
+bool check_for_compat_mode(void)
+{
+	char *platform = auxv_platform();
+	char *base_platform = auxv_base_platform();
+
+	return strcmp(platform, base_platform);
 }

@@ -5047,28 +5047,24 @@ static int adap_init0(struct adapter *adap, int vpd_skip)
 	/* Allocate the memory for the vaious egress queue bitmaps
 	 * ie starving_fl, txq_maperr and blocked_fl.
 	 */
-	adap->sge.starving_fl =	kcalloc(BITS_TO_LONGS(adap->sge.egr_sz),
-					sizeof(long), GFP_KERNEL);
+	adap->sge.starving_fl = bitmap_zalloc(adap->sge.egr_sz, GFP_KERNEL);
 	if (!adap->sge.starving_fl) {
 		ret = -ENOMEM;
 		goto bye;
 	}
 
-	adap->sge.txq_maperr = kcalloc(BITS_TO_LONGS(adap->sge.egr_sz),
-				       sizeof(long), GFP_KERNEL);
+	adap->sge.txq_maperr = bitmap_zalloc(adap->sge.egr_sz, GFP_KERNEL);
 	if (!adap->sge.txq_maperr) {
 		ret = -ENOMEM;
 		goto bye;
 	}
 
 #ifdef CONFIG_DEBUG_FS
-	adap->sge.blocked_fl = kcalloc(BITS_TO_LONGS(adap->sge.egr_sz),
-				       sizeof(long), GFP_KERNEL);
+	adap->sge.blocked_fl = bitmap_zalloc(adap->sge.egr_sz, GFP_KERNEL);
 	if (!adap->sge.blocked_fl) {
 		ret = -ENOMEM;
 		goto bye;
 	}
-	bitmap_zero(adap->sge.blocked_fl, adap->sge.egr_sz);
 #endif
 
 	params[0] = FW_PARAM_PFVF(CLIP_START);
@@ -5417,10 +5413,10 @@ bye:
 	adap_free_hma_mem(adap);
 	kfree(adap->sge.egr_map);
 	kfree(adap->sge.ingr_map);
-	kfree(adap->sge.starving_fl);
-	kfree(adap->sge.txq_maperr);
+	bitmap_free(adap->sge.starving_fl);
+	bitmap_free(adap->sge.txq_maperr);
 #ifdef CONFIG_DEBUG_FS
-	kfree(adap->sge.blocked_fl);
+	bitmap_free(adap->sge.blocked_fl);
 #endif
 	if (ret != -ETIMEDOUT && ret != -EIO)
 		t4_fw_bye(adap, adap->mbox);
@@ -5854,8 +5850,7 @@ static int alloc_msix_info(struct adapter *adap, u32 num_vec)
 	if (!msix_info)
 		return -ENOMEM;
 
-	adap->msix_bmap.msix_bmap = kcalloc(BITS_TO_LONGS(num_vec),
-					    sizeof(long), GFP_KERNEL);
+	adap->msix_bmap.msix_bmap = bitmap_zalloc(num_vec, GFP_KERNEL);
 	if (!adap->msix_bmap.msix_bmap) {
 		kfree(msix_info);
 		return -ENOMEM;
@@ -5870,7 +5865,7 @@ static int alloc_msix_info(struct adapter *adap, u32 num_vec)
 
 static void free_msix_info(struct adapter *adap)
 {
-	kfree(adap->msix_bmap.msix_bmap);
+	bitmap_free(adap->msix_bmap.msix_bmap);
 	kfree(adap->msix_info);
 }
 
@@ -6189,10 +6184,10 @@ static void free_some_resources(struct adapter *adapter)
 	cxgb4_cleanup_ethtool_filters(adapter);
 	kfree(adapter->sge.egr_map);
 	kfree(adapter->sge.ingr_map);
-	kfree(adapter->sge.starving_fl);
-	kfree(adapter->sge.txq_maperr);
+	bitmap_free(adapter->sge.starving_fl);
+	bitmap_free(adapter->sge.txq_maperr);
 #ifdef CONFIG_DEBUG_FS
-	kfree(adapter->sge.blocked_fl);
+	bitmap_free(adapter->sge.blocked_fl);
 #endif
 	disable_msi(adapter);
 

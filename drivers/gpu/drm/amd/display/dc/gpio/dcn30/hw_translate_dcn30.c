@@ -155,7 +155,8 @@ static bool offset_to_id(
 	/* DDC */
 	/* we don't care about the GPIO_ID for DDC
 	 * in DdcHandle it will use GPIO_ID_DDC_DATA/GPIO_ID_DDC_CLOCK
-	 * directly in the create method */
+	 * directly in the create method
+	 */
 	case REG(DC_GPIO_DDC1_A):
 		*en = GPIO_DDC_LINE_DDC1;
 		return true;
@@ -178,14 +179,16 @@ static bool offset_to_id(
 		*en = GPIO_DDC_LINE_DDC_VGA;
 		return true;
 
-//	case REG(DC_GPIO_I2CPAD_A): not exit
-//	case REG(DC_GPIO_PWRSEQ_A):
-//	case REG(DC_GPIO_PAD_STRENGTH_1):
-//	case REG(DC_GPIO_PAD_STRENGTH_2):
-//	case REG(DC_GPIO_DEBUG):
+/*
+ *	case REG(DC_GPIO_I2CPAD_A): not exit
+ *	case REG(DC_GPIO_PWRSEQ_A):
+ *	case REG(DC_GPIO_PAD_STRENGTH_1):
+ *	case REG(DC_GPIO_PAD_STRENGTH_2):
+ *	case REG(DC_GPIO_DEBUG):
+ */
 	/* UNEXPECTED */
 	default:
-//	case REG(DC_GPIO_SYNCA_A): not exist
+/*	case REG(DC_GPIO_SYNCA_A): not exist */
 		ASSERT_CRITICAL(false);
 		return false;
 	}
@@ -369,7 +372,7 @@ static const struct hw_translate_funcs funcs = {
 };
 
 /*
- * dal_hw_translate_dcn10_init
+ * dal_hw_translate_dcn30_init
  *
  * @brief
  * Initialize Hw translate function pointers.

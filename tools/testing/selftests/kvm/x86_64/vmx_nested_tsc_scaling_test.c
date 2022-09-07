@@ -15,9 +15,6 @@
 #include "vmx.h"
 #include "kselftest.h"
 
-
-#define VCPU_ID 0
-
 /* L2 is scaled up (from L1's perspective) by this factor */
 #define L2_SCALE_FACTOR 4ULL
 
@@ -119,14 +116,6 @@ static void l1_guest_code(struct vmx_pages *vmx_pages)
 	GUEST_DONE();
 }
 
-static void tsc_scaling_check_supported(void)
-{
-	if (!kvm_check_cap(KVM_CAP_TSC_CONTROL)) {
-		print_skip("TSC scaling not supported by the HW");
-		exit(KSFT_SKIP);
-	}
-}
-
 static void stable_tsc_check_supported(void)
 {
 	FILE *fp;
@@ -150,6 +139,7 @@ skip_test:
 
 int main(int argc, char *argv[])
 {
+	struct kvm_vcpu *vcpu;
 	struct kvm_vm *vm;
 	vm_vaddr_t vmx_pages_gva;
 
@@ -160,8 +150,8 @@ int main(int argc, char *argv[])
 	uint64_t l1_tsc_freq = 0;
 	uint64_t l2_tsc_freq = 0;
 
-	nested_vmx_check_supported();
-	tsc_scaling_check_supported();
+	TEST_REQUIRE(kvm_cpu_has(X86_FEATURE_VMX));
+	TEST_REQUIRE(kvm_has_cap(KVM_CAP_TSC_CONTROL));
 	stable_tsc_check_supported();
 
 	/*
@@ -182,30 +172,29 @@ int main(int argc, char *argv[])
 	l0_tsc_freq = tsc_end - tsc_start;
 	printf("real TSC frequency is around: %"PRIu64"\n", l0_tsc_freq);
 
-	vm = vm_create_default(VCPU_ID, 0, (void *) l1_guest_code);
+	vm = vm_create_with_one_vcpu(&vcpu, l1_guest_code);
 	vcpu_alloc_vmx(vm, &vmx_pages_gva);
-	vcpu_args_set(vm, VCPU_ID, 1, vmx_pages_gva);
+	vcpu_args_set(vcpu, 1, vmx_pages_gva);
 
-	tsc_khz = _vcpu_ioctl(vm, VCPU_ID, KVM_GET_TSC_KHZ, NULL);
+	tsc_khz = __vcpu_ioctl(vcpu, KVM_GET_TSC_KHZ, NULL);
 	TEST_ASSERT(tsc_khz != -1, "vcpu ioctl KVM_GET_TSC_KHZ failed");
 
 	/* scale down L1's TSC frequency */
-	vcpu_ioctl(vm, VCPU_ID, KVM_SET_TSC_KHZ,
-		  (void *) (tsc_khz / l1_scale_factor));
+	vcpu_ioctl(vcpu, KVM_SET_TSC_KHZ, (void *) (tsc_khz / l1_scale_factor));
 
 	for (;;) {
-		volatile struct kvm_run *run = vcpu_state(vm, VCPU_ID);
+		volatile struct kvm_run *run = vcpu->run;
 		struct ucall uc;
 
-		vcpu_run(vm, VCPU_ID);
+		vcpu_run(vcpu);
 		TEST_ASSERT(run->exit_reason == KVM_EXIT_IO,
 			    "Got exit_reason other than KVM_EXIT_IO: %u (%s)\n",
 			    run->exit_reason,
 			    exit_reason_str(run->exit_reason));
 
-		switch (get_ucall(vm, VCPU_ID, &uc)) {
+		switch (get_ucall(vcpu, &uc)) {
 		case UCALL_ABORT:
-			TEST_FAIL("%s", (const char *) uc.args[0]);
+			REPORT_GUEST_ASSERT(uc);
 		case UCALL_SYNC:
 			switch (uc.args[0]) {
 			case USLEEP:

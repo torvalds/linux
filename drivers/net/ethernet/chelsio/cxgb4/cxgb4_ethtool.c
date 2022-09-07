@@ -2227,7 +2227,7 @@ void cxgb4_cleanup_ethtool_filters(struct adapter *adap)
 	if (eth_filter_info) {
 		for (i = 0; i < adap->params.nports; i++) {
 			kvfree(eth_filter_info[i].loc_array);
-			kfree(eth_filter_info[i].bmap);
+			bitmap_free(eth_filter_info[i].bmap);
 		}
 		kfree(eth_filter_info);
 	}
@@ -2270,9 +2270,7 @@ int cxgb4_init_ethtool_filters(struct adapter *adap)
 			goto free_eth_finfo;
 		}
 
-		eth_filter->port[i].bmap = kcalloc(BITS_TO_LONGS(nentries),
-						   sizeof(unsigned long),
-						   GFP_KERNEL);
+		eth_filter->port[i].bmap = bitmap_zalloc(nentries, GFP_KERNEL);
 		if (!eth_filter->port[i].bmap) {
 			ret = -ENOMEM;
 			goto free_eth_finfo;
@@ -2284,7 +2282,7 @@ int cxgb4_init_ethtool_filters(struct adapter *adap)
 
 free_eth_finfo:
 	while (i-- > 0) {
-		kfree(eth_filter->port[i].bmap);
+		bitmap_free(eth_filter->port[i].bmap);
 		kvfree(eth_filter->port[i].loc_array);
 	}
 	kfree(eth_filter_info);

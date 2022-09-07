@@ -237,7 +237,7 @@ static struct xfrm_algo_desc aalg_list[] = {
 
 	.uinfo = {
 		.auth = {
-			.icv_truncbits = IS_ENABLED(CONFIG_ANDROID) ? 128 : 96,
+			.icv_truncbits = IS_ENABLED(CONFIG_GKI_HACKS_TO_FIX) ? 128 : 96,
 			.icv_fullbits = 256,
 		}
 	},

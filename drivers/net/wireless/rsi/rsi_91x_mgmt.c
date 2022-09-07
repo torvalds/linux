@@ -1635,7 +1635,6 @@ int rsi_send_ps_request(struct rsi_hw *adapter, bool enable,
 			struct ieee80211_vif *vif)
 {
 	struct rsi_common *common = adapter->priv;
-	struct ieee80211_bss_conf *bss = &vif->bss_conf;
 	struct rsi_request_ps *ps;
 	struct rsi_ps_info *ps_info;
 	struct sk_buff *skb;
@@ -1669,7 +1668,7 @@ int rsi_send_ps_request(struct rsi_hw *adapter, bool enable,
 	ps->ps_sleep.sleep_duration =
 		cpu_to_le32(ps_info->deep_sleep_wakeup_period);
 
-	if (bss->assoc)
+	if (vif->cfg.assoc)
 		ps->ps_sleep.connected_sleep = RSI_CONNECTED_SLEEP;
 	else
 		ps->ps_sleep.connected_sleep = RSI_DEEP_SLEEP;

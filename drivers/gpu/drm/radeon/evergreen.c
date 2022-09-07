@@ -29,6 +29,7 @@
 #include <drm/drm_vblank.h>
 #include <drm/radeon_drm.h>
 #include <drm/drm_fourcc.h>
+#include <drm/drm_framebuffer.h>
 
 #include "atom.h"
 #include "avivod.h"

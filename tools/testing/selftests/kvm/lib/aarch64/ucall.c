@@ -5,7 +5,6 @@
  * Copyright (C) 2018, Red Hat, Inc.
  */
 #include "kvm_util.h"
-#include "../kvm_util_internal.h"
 
 static vm_vaddr_t *ucall_exit_mmio_addr;
 
@@ -52,7 +51,7 @@ void ucall_init(struct kvm_vm *vm, void *arg)
 	 * lower and won't match physical addresses.
 	 */
 	bits = vm->va_bits - 1;
-	bits = vm->pa_bits < bits ? vm->pa_bits : bits;
+	bits = min(vm->pa_bits, bits);
 	end = 1ul << bits;
 	start = end * 5 / 8;
 	step = end / 16;
@@ -78,7 +77,7 @@ void ucall(uint64_t cmd, int nargs, ...)
 	int i;
 
 	WRITE_ONCE(uc.cmd, cmd);
-	nargs = nargs <= UCALL_MAX_ARGS ? nargs : UCALL_MAX_ARGS;
+	nargs = min(nargs, UCALL_MAX_ARGS);
 
 	va_start(va, nargs);
 	for (i = 0; i < nargs; ++i)
@@ -88,9 +87,9 @@ void ucall(uint64_t cmd, int nargs, ...)
 	WRITE_ONCE(*ucall_exit_mmio_addr, (vm_vaddr_t)&uc);
 }
 
-uint64_t get_ucall(struct kvm_vm *vm, uint32_t vcpu_id, struct ucall *uc)
+uint64_t get_ucall(struct kvm_vcpu *vcpu, struct ucall *uc)
 {
-	struct kvm_run *run = vcpu_state(vm, vcpu_id);
+	struct kvm_run *run = vcpu->run;
 	struct ucall ucall = {};
 
 	if (uc)
@@ -103,9 +102,9 @@ uint64_t get_ucall(struct kvm_vm *vm, uint32_t vcpu_id, struct ucall *uc)
 		TEST_ASSERT(run->mmio.is_write && run->mmio.len == 8,
 			    "Unexpected ucall exit mmio address access");
 		memcpy(&gva, run->mmio.data, sizeof(gva));
-		memcpy(&ucall, addr_gva2hva(vm, gva), sizeof(ucall));
+		memcpy(&ucall, addr_gva2hva(vcpu->vm, gva), sizeof(ucall));
 
-		vcpu_run_complete_io(vm, vcpu_id);
+		vcpu_run_complete_io(vcpu);
 		if (uc)
 			memcpy(uc, &ucall, sizeof(ucall));
 	}

@@ -15,24 +15,25 @@
 
 
 /*
- * Add a vCPU, run KVM_ARM_VCPU_INIT with @init1, and then
- * add another vCPU, and run KVM_ARM_VCPU_INIT with @init2.
+ * Add a vCPU, run KVM_ARM_VCPU_INIT with @init0, and then
+ * add another vCPU, and run KVM_ARM_VCPU_INIT with @init1.
  */
-static int add_init_2vcpus(struct kvm_vcpu_init *init1,
-			   struct kvm_vcpu_init *init2)
+static int add_init_2vcpus(struct kvm_vcpu_init *init0,
+			   struct kvm_vcpu_init *init1)
 {
+	struct kvm_vcpu *vcpu0, *vcpu1;
 	struct kvm_vm *vm;
 	int ret;
 
-	vm = vm_create(VM_MODE_DEFAULT, DEFAULT_GUEST_PHY_PAGES, O_RDWR);
+	vm = vm_create_barebones();
 
-	vm_vcpu_add(vm, 0);
-	ret = _vcpu_ioctl(vm, 0, KVM_ARM_VCPU_INIT, init1);
+	vcpu0 = __vm_vcpu_add(vm, 0);
+	ret = __vcpu_ioctl(vcpu0, KVM_ARM_VCPU_INIT, init0);
 	if (ret)
 		goto free_exit;
 
-	vm_vcpu_add(vm, 1);
-	ret = _vcpu_ioctl(vm, 1, KVM_ARM_VCPU_INIT, init2);
+	vcpu1 = __vm_vcpu_add(vm, 1);
+	ret = __vcpu_ioctl(vcpu1, KVM_ARM_VCPU_INIT, init1);
 
 free_exit:
 	kvm_vm_free(vm);
@@ -40,25 +41,26 @@ free_exit:
 }
 
 /*
- * Add two vCPUs, then run KVM_ARM_VCPU_INIT for one vCPU with @init1,
- * and run KVM_ARM_VCPU_INIT for another vCPU with @init2.
+ * Add two vCPUs, then run KVM_ARM_VCPU_INIT for one vCPU with @init0,
+ * and run KVM_ARM_VCPU_INIT for another vCPU with @init1.
  */
-static int add_2vcpus_init_2vcpus(struct kvm_vcpu_init *init1,
-				  struct kvm_vcpu_init *init2)
+static int add_2vcpus_init_2vcpus(struct kvm_vcpu_init *init0,
+				  struct kvm_vcpu_init *init1)
 {
+	struct kvm_vcpu *vcpu0, *vcpu1;
 	struct kvm_vm *vm;
 	int ret;
 
-	vm = vm_create(VM_MODE_DEFAULT, DEFAULT_GUEST_PHY_PAGES, O_RDWR);
+	vm = vm_create_barebones();
 
-	vm_vcpu_add(vm, 0);
-	vm_vcpu_add(vm, 1);
+	vcpu0 = __vm_vcpu_add(vm, 0);
+	vcpu1 = __vm_vcpu_add(vm, 1);
 
-	ret = _vcpu_ioctl(vm, 0, KVM_ARM_VCPU_INIT, init1);
+	ret = __vcpu_ioctl(vcpu0, KVM_ARM_VCPU_INIT, init0);
 	if (ret)
 		goto free_exit;
 
-	ret = _vcpu_ioctl(vm, 1, KVM_ARM_VCPU_INIT, init2);
+	ret = __vcpu_ioctl(vcpu1, KVM_ARM_VCPU_INIT, init1);
 
 free_exit:
 	kvm_vm_free(vm);
@@ -76,45 +78,42 @@ free_exit:
  */
 int main(void)
 {
-	struct kvm_vcpu_init init1, init2;
+	struct kvm_vcpu_init init0, init1;
 	struct kvm_vm *vm;
 	int ret;
 
-	if (!kvm_check_cap(KVM_CAP_ARM_EL1_32BIT)) {
-		print_skip("KVM_CAP_ARM_EL1_32BIT is not supported");
-		exit(KSFT_SKIP);
-	}
+	TEST_REQUIRE(kvm_has_cap(KVM_CAP_ARM_EL1_32BIT));
 
-	/* Get the preferred target type and copy that to init2 for later use */
-	vm = vm_create(VM_MODE_DEFAULT, DEFAULT_GUEST_PHY_PAGES, O_RDWR);
-	vm_ioctl(vm, KVM_ARM_PREFERRED_TARGET, &init1);
+	/* Get the preferred target type and copy that to init1 for later use */
+	vm = vm_create_barebones();
+	vm_ioctl(vm, KVM_ARM_PREFERRED_TARGET, &init0);
 	kvm_vm_free(vm);
-	init2 = init1;
+	init1 = init0;
 
 	/* Test with 64bit vCPUs */
-	ret = add_init_2vcpus(&init1, &init1);
+	ret = add_init_2vcpus(&init0, &init0);
 	TEST_ASSERT(ret == 0,
 		    "Configuring 64bit EL1 vCPUs failed unexpectedly");
-	ret = add_2vcpus_init_2vcpus(&init1, &init1);
+	ret = add_2vcpus_init_2vcpus(&init0, &init0);
 	TEST_ASSERT(ret == 0,
 		    "Configuring 64bit EL1 vCPUs failed unexpectedly");
 
 	/* Test with 32bit vCPUs */
-	init1.features[0] = (1 << KVM_ARM_VCPU_EL1_32BIT);
-	ret = add_init_2vcpus(&init1, &init1);
+	init0.features[0] = (1 << KVM_ARM_VCPU_EL1_32BIT);
+	ret = add_init_2vcpus(&init0, &init0);
 	TEST_ASSERT(ret == 0,
 		    "Configuring 32bit EL1 vCPUs failed unexpectedly");
-	ret = add_2vcpus_init_2vcpus(&init1, &init1);
+	ret = add_2vcpus_init_2vcpus(&init0, &init0);
 	TEST_ASSERT(ret == 0,
 		    "Configuring 32bit EL1 vCPUs failed unexpectedly");
 
 	/* Test with mixed-width vCPUs  */
-	init1.features[0] = 0;
-	init2.features[0] = (1 << KVM_ARM_VCPU_EL1_32BIT);
-	ret = add_init_2vcpus(&init1, &init2);
+	init0.features[0] = 0;
+	init1.features[0] = (1 << KVM_ARM_VCPU_EL1_32BIT);
+	ret = add_init_2vcpus(&init0, &init1);
 	TEST_ASSERT(ret != 0,
 		    "Configuring mixed-width vCPUs worked unexpectedly");
-	ret = add_2vcpus_init_2vcpus(&init1, &init2);
+	ret = add_2vcpus_init_2vcpus(&init0, &init1);
 	TEST_ASSERT(ret != 0,
 		    "Configuring mixed-width vCPUs worked unexpectedly");
 

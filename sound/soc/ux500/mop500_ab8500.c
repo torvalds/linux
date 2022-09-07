@@ -5,8 +5,6 @@
  * Author: Ola Lilja <ola.o.lilja@stericsson.com>,
  *         Kristoffer Karlsson <kristoffer.karlsson@stericsson.com>
  *         for ST-Ericsson.
- *
- * License terms:
  */
 
 #include <linux/module.h>

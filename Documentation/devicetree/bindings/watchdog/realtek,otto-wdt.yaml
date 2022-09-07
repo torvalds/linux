@@ -29,6 +29,7 @@ properties:
       - realtek,rtl8380-wdt
       - realtek,rtl8390-wdt
       - realtek,rtl9300-wdt
+      - realtek,rtl9310-wdt
 
   reg:
     maxItems: 1

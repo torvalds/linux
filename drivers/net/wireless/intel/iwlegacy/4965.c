@@ -1756,9 +1756,9 @@ il4965_post_associate(struct il_priv *il)
 	if (il->ops->set_rxon_chain)
 		il->ops->set_rxon_chain(il);
 
-	il->staging.assoc_id = cpu_to_le16(vif->bss_conf.aid);
+	il->staging.assoc_id = cpu_to_le16(vif->cfg.aid);
 
-	D_ASSOC("assoc id %d beacon interval %d\n", vif->bss_conf.aid,
+	D_ASSOC("assoc id %d beacon interval %d\n", vif->cfg.aid,
 		vif->bss_conf.beacon_int);
 
 	if (vif->bss_conf.use_short_preamble)
@@ -1775,7 +1775,7 @@ il4965_post_associate(struct il_priv *il)
 
 	il_commit_rxon(il);
 
-	D_ASSOC("Associated as %d to: %pM\n", vif->bss_conf.aid,
+	D_ASSOC("Associated as %d to: %pM\n", vif->cfg.aid,
 		il->active.bssid_addr);
 
 	switch (vif->type) {

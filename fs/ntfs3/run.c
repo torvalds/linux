@@ -31,7 +31,7 @@ struct ntfs_run {
  * Case of entry missing from list 'index' will be set to
  * point to insertion position for the entry question.
  */
-bool run_lookup(const struct runs_tree *run, CLST vcn, size_t *index)
+static bool run_lookup(const struct runs_tree *run, CLST vcn, size_t *index)
 {
 	size_t min_idx, max_idx, mid_idx;
 	struct ntfs_run *r;
@@ -547,6 +547,48 @@ bool run_collapse_range(struct runs_tree *run, CLST vcn, CLST len)
 	return true;
 }
 
+/* run_insert_range
+ *
+ * Helper for attr_insert_range(),
+ * which is helper for fallocate(insert_range).
+ */
+bool run_insert_range(struct runs_tree *run, CLST vcn, CLST len)
+{
+	size_t index;
+	struct ntfs_run *r, *e;
+
+	if (WARN_ON(!run_lookup(run, vcn, &index)))
+		return false; /* Should never be here. */
+
+	e = run->runs + run->count;
+	r = run->runs + index;
+
+	if (vcn > r->vcn)
+		r += 1;
+
+	for (; r < e; r++)
+		r->vcn += len;
+
+	r = run->runs + index;
+
+	if (vcn > r->vcn) {
+		/* split fragment. */
+		CLST len1 = vcn - r->vcn;
+		CLST len2 = r->len - len1;
+		CLST lcn2 = r->lcn == SPARSE_LCN ? SPARSE_LCN : (r->lcn + len1);
+
+		r->len = len1;
+
+		if (!run_add_entry(run, vcn + len, lcn2, len2, false))
+			return false;
+	}
+
+	if (!run_add_entry(run, vcn, SPARSE_LCN, len, false))
+		return false;
+
+	return true;
+}
+
 /*
  * run_get_entry - Return index-th mapped region.
  */
@@ -778,26 +820,36 @@ int run_pack(const struct runs_tree *run, CLST svcn, CLST len, u8 *run_buf,
 	CLST next_vcn, vcn, lcn;
 	CLST prev_lcn = 0;
 	CLST evcn1 = svcn + len;
+	const struct ntfs_run *r, *r_end;
 	int packed_size = 0;
 	size_t i;
-	bool ok;
 	s64 dlcn;
 	int offset_size, size_size, tmp;
-
-	next_vcn = vcn = svcn;
 
 	*packed_vcns = 0;
 
 	if (!len)
 		goto out;
 
-	ok = run_lookup_entry(run, vcn, &lcn, &len, &i);
+	/* Check all required entries [svcn, encv1) available. */
+	if (!run_lookup(run, svcn, &i))
+		return -ENOENT;
 
-	if (!ok)
-		goto error;
+	r_end = run->runs + run->count;
+	r = run->runs + i;
 
-	if (next_vcn != vcn)
-		goto error;
+	for (next_vcn = r->vcn + r->len; next_vcn < evcn1;
+	     next_vcn = r->vcn + r->len) {
+		if (++r >= r_end || r->vcn != next_vcn)
+			return -ENOENT;
+	}
+
+	/* Repeat cycle above and pack runs. Assume no errors. */
+	r = run->runs + i;
+	len = svcn - r->vcn;
+	vcn = svcn;
+	lcn = r->lcn == SPARSE_LCN ? SPARSE_LCN : (r->lcn + len);
+	len = r->len - len;
 
 	for (;;) {
 		next_vcn = vcn + len;
@@ -846,12 +898,10 @@ int run_pack(const struct runs_tree *run, CLST svcn, CLST len, u8 *run_buf,
 		if (packed_size + 1 >= run_buf_size || next_vcn >= evcn1)
 			goto out;
 
-		ok = run_get_entry(run, ++i, &vcn, &lcn, &len);
-		if (!ok)
-			goto error;
-
-		if (next_vcn != vcn)
-			goto error;
+		r += 1;
+		vcn = r->vcn;
+		lcn = r->lcn;
+		len = r->len;
 	}
 
 out:
@@ -860,9 +910,6 @@ out:
 		run_buf[0] = 0;
 
 	return packed_size + 1;
-
-error:
-	return -EOPNOTSUPP;
 }
 
 /*
@@ -1107,5 +1154,30 @@ int run_get_highest_vcn(CLST vcn, const u8 *run_buf, u64 *highest_vcn)
 	}
 
 	*highest_vcn = vcn64 - 1;
+	return 0;
+}
+
+/*
+ * run_clone
+ *
+ * Make a copy of run
+ */
+int run_clone(const struct runs_tree *run, struct runs_tree *new_run)
+{
+	size_t bytes = run->count * sizeof(struct ntfs_run);
+
+	if (bytes > new_run->allocated) {
+		struct ntfs_run *new_ptr = kvmalloc(bytes, GFP_KERNEL);
+
+		if (!new_ptr)
+			return -ENOMEM;
+
+		kvfree(new_run->runs);
+		new_run->runs = new_ptr;
+		new_run->allocated = bytes;
+	}
+
+	memcpy(new_run->runs, run->runs, bytes);
+	new_run->count = run->count;
 	return 0;
 }
