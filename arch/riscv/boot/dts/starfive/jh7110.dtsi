@@ -712,8 +712,7 @@
 		};
 
 		sec_dma: sec_dma@16008000 {
-			/*compatible = "arm,pl080", "arm,primecell";*/
-			compatible = "starfive,pl080";
+			compatible = "starfive,pl080", "arm,pl080", "arm,primecell";
 			reg = <0x0 0x16008000 0x0 0x4000>;
 			reg-names = "sec_dma";
 			interrupts = <29>;
@@ -843,7 +842,7 @@
 
 		/* unremovable emmc as mmcblk0 */
 		sdio0: sdio0@16010000 {
-			compatible = "snps,dw-mshc";
+			compatible = "starfive,jh7110-sdio", "snps,dw-mshc";
 			reg = <0x0 0x16010000 0x0 0x10000>;
 			clocks = <&clkgen JH7110_SDIO0_CLK_AHB>,
 				 <&clkgen JH7110_SDIO0_CLK_SDCARD>;
@@ -858,7 +857,7 @@
 		};
 
 		sdio1: sdio1@16020000 {
-			compatible = "snps,dw-mshc";
+			compatible = "starfive,jh7110-sdio", "snps,dw-mshc";
 			reg = <0x0 0x16020000 0x0 0x10000>;
 			clocks = <&clkgen JH7110_SDIO1_CLK_AHB>,
 				 <&clkgen JH7110_SDIO1_CLK_SDCARD>;
@@ -1119,7 +1118,7 @@
 		};
 
 		can0: can@130d0000 {
-			compatible = "ipms,can";
+			compatible = "starfive,jh7110-can", "ipms,can";
 			reg = <0x0 0x130d0000 0x0 0x1000>;
 			interrupts = <112>;
 			clocks = <&clkgen JH7110_CAN0_CTRL_CLK_APB>,
@@ -1135,7 +1134,7 @@
 		};
 
 		can1: can@130e0000 {
-			compatible = "ipms,can";
+			compatible = "starfive,jh7110-can", "ipms,can";
 			reg = <0x0 0x130e0000 0x0 0x1000>;
 			interrupts = <113>;
 			clocks = <&clkgen JH7110_CAN1_CTRL_CLK_APB>,
