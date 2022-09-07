@@ -2859,8 +2859,6 @@ static int qcom_qmp_phy_usb_probe(struct platform_device *pdev)
 	}
 
 	phy_provider = devm_of_phy_provider_register(dev, of_phy_simple_xlate);
-	if (!IS_ERR(phy_provider))
-		dev_info(dev, "Registered Qcom-QMP phy\n");
 
 	return PTR_ERR_OR_ZERO(phy_provider);
 
