@@ -1999,7 +1999,6 @@ static inline void ap_scan_adapter(int ap)
 		}
 		return;
 	}
-
 	if (ac) {
 		/* Check APQN against existing card device for changes */
 		if (ac->raw_hwtype != type) {
@@ -2008,9 +2007,10 @@ static inline void ap_scan_adapter(int ap)
 			ap_scan_rm_card_dev_and_queue_devs(ac);
 			put_device(dev);
 			ac = NULL;
-		} else if (ac->functions != func) {
+		} else if ((ac->functions & TAPQ_CARD_FUNC_CMP_MASK) !=
+			   (func & TAPQ_CARD_FUNC_CMP_MASK)) {
 			AP_DBF_INFO("%s(%d) functions 0x%08x changed, rm card and queue devs\n",
-				    __func__, ap, type);
+				    __func__, ap, func);
 			ap_scan_rm_card_dev_and_queue_devs(ac);
 			put_device(dev);
 			ac = NULL;

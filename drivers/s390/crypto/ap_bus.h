@@ -178,7 +178,7 @@ struct ap_device {
 struct ap_card {
 	struct ap_device ap_dev;
 	int raw_hwtype;			/* AP raw hardware type. */
-	unsigned int functions;		/* AP device function bitfield. */
+	unsigned int functions;		/* TAPQ GR2 upper 32 facility bits */
 	int queue_depth;		/* AP queue depth.*/
 	int id;				/* AP card number. */
 	unsigned int maxmsgsize;	/* AP msg limit for this card */
@@ -186,6 +186,8 @@ struct ap_card {
 	bool chkstop;			/* checkstop state */
 	atomic64_t total_request_count;	/* # requests ever for this AP device.*/
 };
+
+#define TAPQ_CARD_FUNC_CMP_MASK 0xFFFF0000
 
 #define to_ap_card(x) container_of((x), struct ap_card, ap_dev.device)
 

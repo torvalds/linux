@@ -630,6 +630,26 @@ static ssize_t chkstop_show(struct device *dev,
 
 static DEVICE_ATTR_RO(chkstop);
 
+static ssize_t ap_functions_show(struct device *dev,
+				 struct device_attribute *attr, char *buf)
+{
+	struct ap_queue *aq = to_ap_queue(dev);
+	struct ap_queue_status status;
+	struct ap_tapq_gr2 info;
+
+	status = ap_test_queue(aq->qid, 1, &info);
+	if (status.response_code > AP_RESPONSE_BUSY) {
+		AP_DBF_DBG("%s RC 0x%02x on tapq(0x%02x.%04x)\n",
+			   __func__, status.response_code,
+			   AP_QID_CARD(aq->qid), AP_QID_QUEUE(aq->qid));
+		return -EIO;
+	}
+
+	return sysfs_emit(buf, "0x%08X\n", info.fac);
+}
+
+static DEVICE_ATTR_RO(ap_functions);
+
 #ifdef CONFIG_ZCRYPT_DEBUG
 static ssize_t states_show(struct device *dev,
 			   struct device_attribute *attr, char *buf)
@@ -738,6 +758,7 @@ static struct attribute *ap_queue_dev_attrs[] = {
 	&dev_attr_interrupt.attr,
 	&dev_attr_config.attr,
 	&dev_attr_chkstop.attr,
+	&dev_attr_ap_functions.attr,
 #ifdef CONFIG_ZCRYPT_DEBUG
 	&dev_attr_states.attr,
 	&dev_attr_last_err_rc.attr,
