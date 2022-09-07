@@ -429,29 +429,43 @@ release:
 	release_firmware(fw);
 }
 
-static int st_lsm6dsrx_mlc_flush_all(struct st_lsm6dsrx_hw *hw)
+static int st_lsm6dsrx_mlc_flush_single(struct st_lsm6dsrx_hw *hw,
+					enum st_lsm6dsrx_sensor_id id)
 {
 	struct st_lsm6dsrx_sensor *sensor_mlc;
 	struct iio_dev *iio_dev;
-	int ret = 0, id;
+	int ret;
 
-	for (id = ST_LSM6DSRX_ID_MLC_0; id < ST_LSM6DSRX_ID_MAX; id++) {
-		iio_dev = hw->iio_devs[id];
-		if (!iio_dev)
-			continue;
+	iio_dev = hw->iio_devs[id];
+	if (!iio_dev)
+		return -ENODEV;
 
-		sensor_mlc = iio_priv(iio_dev);
-		ret = st_lsm6dsrx_mlc_enable_sensor(sensor_mlc, false);
-		if (ret < 0)
-			break;
+	sensor_mlc = iio_priv(iio_dev);
+	ret = st_lsm6dsrx_mlc_enable_sensor(sensor_mlc, false);
+	if (ret < 0)
+		return ret;
 
-		iio_device_unregister(iio_dev);
-		kfree(iio_dev->channels);
-		iio_device_free(iio_dev);
-		hw->iio_devs[id] = NULL;
-	}
+	iio_device_unregister(iio_dev);
+	kfree(iio_dev->channels);
+	iio_device_free(iio_dev);
+	hw->iio_devs[id] = NULL;
 
-	return ret;
+	return 0;
+}
+
+static int st_lsm6dsrx_mlc_flush_all(struct st_lsm6dsrx_hw *hw)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(st_lsm6dsrx_mlc_sensor_list); i++)
+		st_lsm6dsrx_mlc_flush_single(hw,
+					     st_lsm6dsrx_mlc_sensor_list[i]);
+
+	for (i = 0; i < ARRAY_SIZE(st_lsm6dsrx_fsm_sensor_list); i++)
+		st_lsm6dsrx_mlc_flush_single(hw,
+					     st_lsm6dsrx_fsm_sensor_list[i]);
+
+	return 0;
 }
 
 static ssize_t st_lsm6dsrx_mlc_info(struct device *dev,
