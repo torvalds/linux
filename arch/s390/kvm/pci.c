@@ -71,7 +71,7 @@ static int zpci_setup_aipb(u8 nisc)
 		rc = -ENOMEM;
 		goto free_sbv;
 	}
-	aift->gait = (struct zpci_gaite *)page_to_phys(page);
+	aift->gait = (struct zpci_gaite *)page_to_virt(page);
 
 	zpci_aipb->aipb.faisb = virt_to_phys(aift->sbv->vector);
 	zpci_aipb->aipb.gait = virt_to_phys(aift->gait);
