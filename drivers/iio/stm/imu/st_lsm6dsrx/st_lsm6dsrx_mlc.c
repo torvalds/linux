@@ -221,14 +221,13 @@ static int st_lsm6dsrx_mlc_read_event_config(struct iio_dev *iio_dev,
 static int st_lsm6dsrx_verify_mlc_fsm_support(const struct firmware *fw,
 					      struct st_lsm6dsrx_hw *hw)
 {
-	int i;
+	bool stmc_page = false;
+	uint8_t reg, val;
+	int i = 0;
 
-	for (i = 0; i < fw->size; i++) {
-		bool stmc_page = false;
-		uint8_t reg, val;
-
-		reg = fw->data[i];
-		val = fw->data[i];
+	while (i < fw->size) {
+		reg = fw->data[i++];
+		val = fw->data[i++];
 
 		if (reg == 0x01 && val == 0x80) {
 			stmc_page = true;
