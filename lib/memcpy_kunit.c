@@ -272,7 +272,7 @@ static void memset_test(struct kunit *test)
 
 static void strtomem_test(struct kunit *test)
 {
-	static const char input[] = "hi";
+	static const char input[sizeof(unsigned long)] = "hi";
 	static const char truncate[] = "this is too long";
 	struct {
 		unsigned long canary1;
