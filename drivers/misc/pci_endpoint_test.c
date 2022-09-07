@@ -334,6 +334,11 @@ static bool pci_endpoint_test_msi_irq(struct pci_endpoint_test *test,
 static int pci_endpoint_test_validate_xfer_params(struct device *dev,
 		struct pci_endpoint_test_xfer_param *param, size_t alignment)
 {
+	if (!param->size) {
+		dev_dbg(dev, "Data size is zero\n");
+		return -EINVAL;
+	}
+
 	if (param->size > SIZE_MAX - alignment) {
 		dev_dbg(dev, "Maximum transfer data size exceeded\n");
 		return -EINVAL;
