@@ -438,6 +438,85 @@ typeof(name(0)) name(unsigned long long *ctx)				    \
 static __always_inline typeof(name(0))					    \
 ____##name(unsigned long long *ctx, ##args)
 
+#ifndef ____bpf_nth
+#define ____bpf_nth(_, _1, _2, _3, _4, _5, _6, _7, _8, _9, _10, _11, _12, _13, _14, _15, _16, _17, _18, _19, _20, _21, _22, _23, _24, N, ...) N
+#endif
+#ifndef ____bpf_narg
+#define ____bpf_narg(...) ____bpf_nth(_, ##__VA_ARGS__, 12, 12, 11, 11, 10, 10, 9, 9, 8, 8, 7, 7, 6, 6, 5, 5, 4, 4, 3, 3, 2, 2, 1, 1, 0)
+#endif
+
+#define BPF_REG_CNT(t) \
+	(__builtin_choose_expr(sizeof(t) == 1 || sizeof(t) == 2 || sizeof(t) == 4 || sizeof(t) == 8, 1,	\
+	 __builtin_choose_expr(sizeof(t) == 16, 2,							\
+			       (void)0)))
+
+#define ____bpf_reg_cnt0()			(0)
+#define ____bpf_reg_cnt1(t, x)			(____bpf_reg_cnt0() + BPF_REG_CNT(t))
+#define ____bpf_reg_cnt2(t, x, args...)		(____bpf_reg_cnt1(args) + BPF_REG_CNT(t))
+#define ____bpf_reg_cnt3(t, x, args...)		(____bpf_reg_cnt2(args) + BPF_REG_CNT(t))
+#define ____bpf_reg_cnt4(t, x, args...)		(____bpf_reg_cnt3(args) + BPF_REG_CNT(t))
+#define ____bpf_reg_cnt5(t, x, args...)		(____bpf_reg_cnt4(args) + BPF_REG_CNT(t))
+#define ____bpf_reg_cnt6(t, x, args...)		(____bpf_reg_cnt5(args) + BPF_REG_CNT(t))
+#define ____bpf_reg_cnt7(t, x, args...)		(____bpf_reg_cnt6(args) + BPF_REG_CNT(t))
+#define ____bpf_reg_cnt8(t, x, args...)		(____bpf_reg_cnt7(args) + BPF_REG_CNT(t))
+#define ____bpf_reg_cnt9(t, x, args...)		(____bpf_reg_cnt8(args) + BPF_REG_CNT(t))
+#define ____bpf_reg_cnt10(t, x, args...)	(____bpf_reg_cnt9(args) + BPF_REG_CNT(t))
+#define ____bpf_reg_cnt11(t, x, args...)	(____bpf_reg_cnt10(args) + BPF_REG_CNT(t))
+#define ____bpf_reg_cnt12(t, x, args...)	(____bpf_reg_cnt11(args) + BPF_REG_CNT(t))
+#define ____bpf_reg_cnt(args...)	 ___bpf_apply(____bpf_reg_cnt, ____bpf_narg(args))(args)
+
+#define ____bpf_union_arg(t, x, n) \
+	__builtin_choose_expr(sizeof(t) == 1, ({ union { struct { __u8 x; } ___z; t x; } ___tmp = { .___z = {ctx[n]}}; ___tmp.x; }), \
+	__builtin_choose_expr(sizeof(t) == 2, ({ union { struct { __u16 x; } ___z; t x; } ___tmp = { .___z = {ctx[n]} }; ___tmp.x; }), \
+	__builtin_choose_expr(sizeof(t) == 4, ({ union { struct { __u32 x; } ___z; t x; } ___tmp = { .___z = {ctx[n]} }; ___tmp.x; }), \
+	__builtin_choose_expr(sizeof(t) == 8, ({ union { struct { __u64 x; } ___z; t x; } ___tmp = {.___z = {ctx[n]} }; ___tmp.x; }), \
+	__builtin_choose_expr(sizeof(t) == 16, ({ union { struct { __u64 x, y; } ___z; t x; } ___tmp = {.___z = {ctx[n], ctx[n + 1]} }; ___tmp.x; }), \
+			      (void)0)))))
+
+#define ____bpf_ctx_arg0(n, args...)
+#define ____bpf_ctx_arg1(n, t, x)		, ____bpf_union_arg(t, x, n - ____bpf_reg_cnt1(t, x))
+#define ____bpf_ctx_arg2(n, t, x, args...)	, ____bpf_union_arg(t, x, n - ____bpf_reg_cnt2(t, x, args)) ____bpf_ctx_arg1(n, args)
+#define ____bpf_ctx_arg3(n, t, x, args...)	, ____bpf_union_arg(t, x, n - ____bpf_reg_cnt3(t, x, args)) ____bpf_ctx_arg2(n, args)
+#define ____bpf_ctx_arg4(n, t, x, args...)	, ____bpf_union_arg(t, x, n - ____bpf_reg_cnt4(t, x, args)) ____bpf_ctx_arg3(n, args)
+#define ____bpf_ctx_arg5(n, t, x, args...)	, ____bpf_union_arg(t, x, n - ____bpf_reg_cnt5(t, x, args)) ____bpf_ctx_arg4(n, args)
+#define ____bpf_ctx_arg6(n, t, x, args...)	, ____bpf_union_arg(t, x, n - ____bpf_reg_cnt6(t, x, args)) ____bpf_ctx_arg5(n, args)
+#define ____bpf_ctx_arg7(n, t, x, args...)	, ____bpf_union_arg(t, x, n - ____bpf_reg_cnt7(t, x, args)) ____bpf_ctx_arg6(n, args)
+#define ____bpf_ctx_arg8(n, t, x, args...)	, ____bpf_union_arg(t, x, n - ____bpf_reg_cnt8(t, x, args)) ____bpf_ctx_arg7(n, args)
+#define ____bpf_ctx_arg9(n, t, x, args...)	, ____bpf_union_arg(t, x, n - ____bpf_reg_cnt9(t, x, args)) ____bpf_ctx_arg8(n, args)
+#define ____bpf_ctx_arg10(n, t, x, args...)	, ____bpf_union_arg(t, x, n - ____bpf_reg_cnt10(t, x, args)) ____bpf_ctx_arg9(n, args)
+#define ____bpf_ctx_arg11(n, t, x, args...)	, ____bpf_union_arg(t, x, n - ____bpf_reg_cnt11(t, x, args)) ____bpf_ctx_arg10(n, args)
+#define ____bpf_ctx_arg12(n, t, x, args...)	, ____bpf_union_arg(t, x, n - ____bpf_reg_cnt12(t, x, args)) ____bpf_ctx_arg11(n, args)
+#define ____bpf_ctx_arg(n, args...)	___bpf_apply(____bpf_ctx_arg, ____bpf_narg(args))(n, args)
+
+#define ____bpf_ctx_decl0()
+#define ____bpf_ctx_decl1(t, x)			, t x
+#define ____bpf_ctx_decl2(t, x, args...)	, t x ____bpf_ctx_decl1(args)
+#define ____bpf_ctx_decl3(t, x, args...)	, t x ____bpf_ctx_decl2(args)
+#define ____bpf_ctx_decl4(t, x, args...)	, t x ____bpf_ctx_decl3(args)
+#define ____bpf_ctx_decl5(t, x, args...)	, t x ____bpf_ctx_decl4(args)
+#define ____bpf_ctx_decl6(t, x, args...)	, t x ____bpf_ctx_decl5(args)
+#define ____bpf_ctx_decl7(t, x, args...)	, t x ____bpf_ctx_decl6(args)
+#define ____bpf_ctx_decl8(t, x, args...)	, t x ____bpf_ctx_decl7(args)
+#define ____bpf_ctx_decl9(t, x, args...)	, t x ____bpf_ctx_decl8(args)
+#define ____bpf_ctx_decl10(t, x, args...)	, t x ____bpf_ctx_decl9(args)
+#define ____bpf_ctx_decl11(t, x, args...)	, t x ____bpf_ctx_decl10(args)
+#define ____bpf_ctx_decl12(t, x, args...)	, t x ____bpf_ctx_decl11(args)
+#define ____bpf_ctx_decl(args...)	___bpf_apply(____bpf_ctx_decl, ____bpf_narg(args))(args)
+
+/*
+ * BPF_PROG2 can handle struct arguments.
+ */
+#define BPF_PROG2(name, args...)						\
+name(unsigned long long *ctx);							\
+static __always_inline typeof(name(0))						\
+____##name(unsigned long long *ctx ____bpf_ctx_decl(args));			\
+typeof(name(0)) name(unsigned long long *ctx)					\
+{										\
+	return ____##name(ctx ____bpf_ctx_arg(____bpf_reg_cnt(args), args));	\
+}										\
+static __always_inline typeof(name(0))						\
+____##name(unsigned long long *ctx ____bpf_ctx_decl(args))
+
 struct pt_regs;
 
 #define ___bpf_kprobe_args0()           ctx

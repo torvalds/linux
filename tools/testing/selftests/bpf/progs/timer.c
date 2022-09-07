@@ -120,7 +120,7 @@ static int timer_cb1(void *map, int *key, struct bpf_timer *timer)
 }
 
 SEC("fentry/bpf_fentry_test1")
-int BPF_PROG(test1, int a)
+int BPF_PROG2(test1, int, a)
 {
 	struct bpf_timer *arr_timer, *lru_timer;
 	struct elem init = {};
@@ -236,7 +236,7 @@ int bpf_timer_test(void)
 }
 
 SEC("fentry/bpf_fentry_test2")
-int BPF_PROG(test2, int a, int b)
+int BPF_PROG2(test2, int, a, int, b)
 {
 	struct hmap_elem init = {}, *val;
 	int key = HTAB, key_malloc = HTAB_MALLOC;
