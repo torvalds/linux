@@ -857,11 +857,6 @@ struct mlx5_cmd_work_ent {
 	refcount_t              refcnt;
 };
 
-struct mlx5_pas {
-	u64	pa;
-	u8	log_sz;
-};
-
 enum phy_port_state {
 	MLX5_AAA_111
 };
