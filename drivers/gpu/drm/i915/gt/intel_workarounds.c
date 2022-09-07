@@ -2396,12 +2396,64 @@ rcs_engine_wa_init(struct intel_engine_cs *engine, struct i915_wa_list *wal)
 			     FF_DOP_CLOCK_GATE_DISABLE);
 	}
 
-	if (IS_GRAPHICS_VER(i915, 9, 12)) {
-		/* FtrPerCtxtPreemptionGranularityControl:skl,bxt,kbl,cfl,cnl,icl,tgl */
+	/*
+	 * Intel platforms that support fine-grained preemption (i.e., gen9 and
+	 * beyond) allow the kernel-mode driver to choose between two different
+	 * options for controlling preemption granularity and behavior.
+	 *
+	 * Option 1 (hardware default):
+	 *   Preemption settings are controlled in a global manner via
+	 *   kernel-only register CS_DEBUG_MODE1 (0x20EC).  Any granularity
+	 *   and settings chosen by the kernel-mode driver will apply to all
+	 *   userspace clients.
+	 *
+	 * Option 2:
+	 *   Preemption settings are controlled on a per-context basis via
+	 *   register CS_CHICKEN1 (0x2580).  CS_CHICKEN1 is saved/restored on
+	 *   context switch and is writable by userspace (e.g., via
+	 *   MI_LOAD_REGISTER_IMMEDIATE instructions placed in a batch buffer)
+	 *   which allows different userspace drivers/clients to select
+	 *   different settings, or to change those settings on the fly in
+	 *   response to runtime needs.  This option was known by name
+	 *   "FtrPerCtxtPreemptionGranularityControl" at one time, although
+	 *   that name is somewhat misleading as other non-granularity
+	 *   preemption settings are also impacted by this decision.
+	 *
+	 * On Linux, our policy has always been to let userspace drivers
+	 * control preemption granularity/settings (Option 2).  This was
+	 * originally mandatory on gen9 to prevent ABI breakage (old gen9
+	 * userspace developed before object-level preemption was enabled would
+	 * not behave well if i915 were to go with Option 1 and enable that
+	 * preemption in a global manner).  On gen9 each context would have
+	 * object-level preemption disabled by default (see
+	 * WaDisable3DMidCmdPreemption in gen9_ctx_workarounds_init), but
+	 * userspace drivers could opt-in to object-level preemption as they
+	 * saw fit.  For post-gen9 platforms, we continue to utilize Option 2;
+	 * even though it is no longer necessary for ABI compatibility when
+	 * enabling a new platform, it does ensure that userspace will be able
+	 * to implement any workarounds that show up requiring temporary
+	 * adjustments to preemption behavior at runtime.
+	 *
+	 * Notes/Workarounds:
+	 *  - Wa_14015141709:  On DG2 and early steppings of MTL,
+	 *      CS_CHICKEN1[0] does not disable object-level preemption as
+	 *      it is supposed to (nor does CS_DEBUG_MODE1[0] if we had been
+	 *      using Option 1).  Effectively this means userspace is unable
+	 *      to disable object-level preemption on these platforms/steppings
+	 *      despite the setting here.
+	 *
+	 *  - Wa_16013994831:  May require that userspace program
+	 *      CS_CHICKEN1[10] when certain runtime conditions are true.
+	 *      Userspace requires Option 2 to be in effect for their update of
+	 *      CS_CHICKEN1[10] to be effective.
+	 *
+	 * Other workarounds may appear in the future that will also require
+	 * Option 2 behavior to allow proper userspace implementation.
+	 */
+	if (GRAPHICS_VER(i915) >= 9)
 		wa_masked_en(wal,
 			     GEN7_FF_SLICE_CS_CHICKEN1,
 			     GEN9_FFSC_PERCTX_PREEMPT_CTRL);
-	}
 
 	if (IS_SKYLAKE(i915) ||
 	    IS_KABYLAKE(i915) ||
