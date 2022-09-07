@@ -264,18 +264,24 @@ static int ffa_rxtx_unmap(u16 vm_id)
 	return 0;
 }
 
+#define PARTITION_INFO_GET_RETURN_COUNT_ONLY	BIT(0)
+
 /* buffer must be sizeof(struct ffa_partition_info) * num_partitions */
 static int
 __ffa_partition_info_get(u32 uuid0, u32 uuid1, u32 uuid2, u32 uuid3,
 			 struct ffa_partition_info *buffer, int num_partitions)
 {
-	int count;
+	int idx, count, flags = 0, sz, buf_sz;
 	ffa_value_t partition_info;
+
+	if (!buffer || !num_partitions) /* Just get the count for now */
+		flags = PARTITION_INFO_GET_RETURN_COUNT_ONLY;
 
 	mutex_lock(&drv_info->rx_lock);
 	invoke_ffa_fn((ffa_value_t){
 		      .a0 = FFA_PARTITION_INFO_GET,
 		      .a1 = uuid0, .a2 = uuid1, .a3 = uuid2, .a4 = uuid3,
+		      .a5 = flags,
 		      }, &partition_info);
 
 	if (partition_info.a0 == FFA_ERROR) {
@@ -285,8 +291,19 @@ __ffa_partition_info_get(u32 uuid0, u32 uuid1, u32 uuid2, u32 uuid3,
 
 	count = partition_info.a2;
 
+	if (drv_info->version > FFA_VERSION_1_0) {
+		buf_sz = sz = partition_info.a3;
+		if (sz > sizeof(*buffer))
+			buf_sz = sizeof(*buffer);
+	} else {
+		/* FFA_VERSION_1_0 lacks size in the response */
+		buf_sz = sz = 8;
+	}
+
 	if (buffer && count <= num_partitions)
-		memcpy(buffer, drv_info->rx_buffer, sizeof(*buffer) * count);
+		for (idx = 0; idx < count; idx++)
+			memcpy(buffer + idx, drv_info->rx_buffer + idx * sz,
+			       buf_sz);
 
 	ffa_rx_release();
 
@@ -681,6 +698,14 @@ void ffa_device_match_uuid(struct ffa_device *ffa_dev, const uuid_t *uuid)
 	int count, idx;
 	struct ffa_partition_info *pbuf, *tpbuf;
 
+	/*
+	 * FF-A v1.1 provides UUID for each partition as part of the discovery
+	 * API, the discovered UUID must be populated in the device's UUID and
+	 * there is no need to copy the same from the driver table.
+	 */
+	if (drv_info->version > FFA_VERSION_1_0)
+		return;
+
 	count = ffa_partition_probe(uuid, &pbuf);
 	if (count <= 0)
 		return;
@@ -694,6 +719,7 @@ void ffa_device_match_uuid(struct ffa_device *ffa_dev, const uuid_t *uuid)
 static void ffa_setup_partitions(void)
 {
 	int count, idx;
+	uuid_t uuid;
 	struct ffa_device *ffa_dev;
 	struct ffa_partition_info *pbuf, *tpbuf;
 
@@ -704,14 +730,15 @@ static void ffa_setup_partitions(void)
 	}
 
 	for (idx = 0, tpbuf = pbuf; idx < count; idx++, tpbuf++) {
-		/* Note that the &uuid_null parameter will require
+		import_uuid(&uuid, (u8 *)tpbuf->uuid);
+
+		/* Note that if the UUID will be uuid_null, that will require
 		 * ffa_device_match() to find the UUID of this partition id
-		 * with help of ffa_device_match_uuid(). Once the FF-A spec
-		 * is updated to provide correct UUID here for each partition
-		 * as part of the discovery API, we need to pass the
-		 * discovered UUID here instead.
+		 * with help of ffa_device_match_uuid(). FF-A v1.1 and above
+		 * provides UUID here for each partition as part of the
+		 * discovery API and the same is passed.
 		 */
-		ffa_dev = ffa_device_register(&uuid_null, tpbuf->id, &ffa_ops);
+		ffa_dev = ffa_device_register(&uuid, tpbuf->id, &ffa_ops);
 		if (!ffa_dev) {
 			pr_err("%s: failed to register partition ID 0x%x\n",
 			       __func__, tpbuf->id);

@@ -107,6 +107,7 @@ struct ffa_partition_info {
 /* partition can send and receive indirect messages. */
 #define FFA_PARTITION_INDIRECT_MSG	BIT(2)
 	u32 properties;
+	u32 uuid[4];
 };
 
 /* For use with FFA_MSG_SEND_DIRECT_{REQ,RESP} which pass data via registers */
