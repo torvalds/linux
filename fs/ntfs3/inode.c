@@ -1758,7 +1758,101 @@ void ntfs_evict_inode(struct inode *inode)
 	ni_clear(ntfs_i(inode));
 }
 
-static noinline int ntfs_readlink_hlp(struct inode *inode, char *buffer,
+/*
+ * ntfs_translate_junction
+ *
+ * Translate a Windows junction target to the Linux equivalent.
+ * On junctions, targets are always absolute (they include the drive
+ * letter). We have no way of knowing if the target is for the current
+ * mounted device or not so we just assume it is.
+ */
+static int ntfs_translate_junction(const struct super_block *sb,
+				   const struct dentry *link_de, char *target,
+				   int target_len, int target_max)
+{
+	int tl_len, err = target_len;
+	char *link_path_buffer = NULL, *link_path;
+	char *translated = NULL;
+	char *target_start;
+	int copy_len;
+
+	link_path_buffer = kmalloc(PATH_MAX, GFP_NOFS);
+	if (!link_path_buffer) {
+		err = -ENOMEM;
+		goto out;
+	}
+	/* Get link path, relative to mount point */
+	link_path = dentry_path_raw(link_de, link_path_buffer, PATH_MAX);
+	if (IS_ERR(link_path)) {
+		ntfs_err(sb, "Error getting link path");
+		err = -EINVAL;
+		goto out;
+	}
+
+	translated = kmalloc(PATH_MAX, GFP_NOFS);
+	if (!translated) {
+		err = -ENOMEM;
+		goto out;
+	}
+
+	/* Make translated path a relative path to mount point */
+	strcpy(translated, "./");
+	++link_path;	/* Skip leading / */
+	for (tl_len = sizeof("./") - 1; *link_path; ++link_path) {
+		if (*link_path == '/') {
+			if (PATH_MAX - tl_len < sizeof("../")) {
+				ntfs_err(sb, "Link path %s has too many components",
+					 link_path);
+				err = -EINVAL;
+				goto out;
+			}
+			strcpy(translated + tl_len, "../");
+			tl_len += sizeof("../") - 1;
+		}
+	}
+
+	/* Skip drive letter */
+	target_start = target;
+	while (*target_start && *target_start != ':')
+		++target_start;
+
+	if (!*target_start) {
+		ntfs_err(sb, "Link target (%s) missing drive separator", target);
+		err = -EINVAL;
+		goto out;
+	}
+
+	/* Skip drive separator and leading /, if exists */
+	target_start += 1 + (target_start[1] == '/');
+	copy_len = target_len - (target_start - target);
+
+	if (PATH_MAX - tl_len <= copy_len) {
+		ntfs_err(sb, "Link target %s too large for buffer (%d <= %d)",
+			 target_start, PATH_MAX - tl_len, copy_len);
+		err = -EINVAL;
+		goto out;
+	}
+
+	/* translated path has a trailing / and target_start does not */
+	strcpy(translated + tl_len, target_start);
+	tl_len += copy_len;
+	if (target_max <= tl_len) {
+		ntfs_err(sb, "Target path %s too large for buffer (%d <= %d)",
+			 translated, target_max, tl_len);
+		err = -EINVAL;
+		goto out;
+	}
+	strcpy(target, translated);
+	err = tl_len;
+
+out:
+	kfree(link_path_buffer);
+	kfree(translated);
+	return err;
+}
+
+static noinline int ntfs_readlink_hlp(const struct dentry *link_de,
+				      struct inode *inode, char *buffer,
 				      int buflen)
 {
 	int i, err = -EINVAL;
@@ -1901,6 +1995,11 @@ static noinline int ntfs_readlink_hlp(struct inode *inode, char *buffer,
 
 	/* Always set last zero. */
 	buffer[err] = 0;
+
+	/* If this is a junction, translate the link target. */
+	if (rp->ReparseTag == IO_REPARSE_TAG_MOUNT_POINT)
+		err = ntfs_translate_junction(sb, link_de, buffer, err, buflen);
+
 out:
 	kfree(to_free);
 	return err;
@@ -1919,7 +2018,7 @@ static const char *ntfs_get_link(struct dentry *de, struct inode *inode,
 	if (!ret)
 		return ERR_PTR(-ENOMEM);
 
-	err = ntfs_readlink_hlp(inode, ret, PAGE_SIZE);
+	err = ntfs_readlink_hlp(de, inode, ret, PAGE_SIZE);
 	if (err < 0) {
 		kfree(ret);
 		return ERR_PTR(err);
