@@ -666,7 +666,7 @@ static int ffa_memory_lend(struct ffa_mem_ops_args *args)
 	return ffa_memory_ops(FFA_MEM_LEND, args);
 }
 
-static const struct ffa_dev_ops ffa_ops = {
+static const struct ffa_ops ffa_ops = {
 	.api_version_get = ffa_api_version_get,
 	.partition_info_get = ffa_partition_info_get,
 	.mode_32bit_set = ffa_mode_32bit_set,

@@ -168,7 +168,7 @@ bool ffa_device_is_valid(struct ffa_device *ffa_dev)
 }
 
 struct ffa_device *ffa_device_register(const uuid_t *uuid, int vm_id,
-				       const struct ffa_dev_ops *ops)
+				       const struct ffa_ops *ops)
 {
 	int ret;
 	struct device *dev;

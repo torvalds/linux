@@ -17,7 +17,7 @@ struct ffa_device {
 	bool mode_32bit;
 	uuid_t uuid;
 	struct device dev;
-	const struct ffa_dev_ops *ops;
+	const struct ffa_ops *ops;
 };
 
 #define to_ffa_dev(d) container_of(d, struct ffa_device, dev)
@@ -49,7 +49,7 @@ static inline void *ffa_dev_get_drvdata(struct ffa_device *fdev)
 
 #if IS_REACHABLE(CONFIG_ARM_FFA_TRANSPORT)
 struct ffa_device *ffa_device_register(const uuid_t *uuid, int vm_id,
-				       const struct ffa_dev_ops *ops);
+				       const struct ffa_ops *ops);
 void ffa_device_unregister(struct ffa_device *ffa_dev);
 int ffa_driver_register(struct ffa_driver *driver, struct module *owner,
 			const char *mod_name);
@@ -59,7 +59,7 @@ bool ffa_device_is_valid(struct ffa_device *ffa_dev);
 #else
 static inline
 struct ffa_device *ffa_device_register(const uuid_t *uuid, int vm_id,
-				       const struct ffa_dev_ops *ops)
+				       const struct ffa_ops *ops)
 {
 	return NULL;
 }
@@ -254,7 +254,7 @@ struct ffa_mem_ops_args {
 	struct ffa_mem_region_attributes *attrs;
 };
 
-struct ffa_dev_ops {
+struct ffa_ops {
 	u32 (*api_version_get)(void);
 	int (*partition_info_get)(const char *uuid_str,
 				  struct ffa_partition_info *buffer);

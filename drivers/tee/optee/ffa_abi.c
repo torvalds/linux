@@ -272,7 +272,7 @@ static int optee_ffa_shm_register(struct tee_context *ctx, struct tee_shm *shm,
 {
 	struct optee *optee = tee_get_drvdata(ctx->teedev);
 	struct ffa_device *ffa_dev = optee->ffa.ffa_dev;
-	const struct ffa_dev_ops *ffa_ops = ffa_dev->ops;
+	const struct ffa_ops *ffa_ops = ffa_dev->ops;
 	struct ffa_mem_region_attributes mem_attr = {
 		.receiver = ffa_dev->vm_id,
 		.attrs = FFA_MEM_RW,
@@ -315,7 +315,7 @@ static int optee_ffa_shm_unregister(struct tee_context *ctx,
 {
 	struct optee *optee = tee_get_drvdata(ctx->teedev);
 	struct ffa_device *ffa_dev = optee->ffa.ffa_dev;
-	const struct ffa_dev_ops *ffa_ops = ffa_dev->ops;
+	const struct ffa_ops *ffa_ops = ffa_dev->ops;
 	u64 global_handle = shm->sec_world_id;
 	struct ffa_send_direct_data data = {
 		.data0 = OPTEE_FFA_UNREGISTER_SHM,
@@ -342,7 +342,7 @@ static int optee_ffa_shm_unregister_supp(struct tee_context *ctx,
 					 struct tee_shm *shm)
 {
 	struct optee *optee = tee_get_drvdata(ctx->teedev);
-	const struct ffa_dev_ops *ffa_ops = optee->ffa.ffa_dev->ops;
+	const struct ffa_ops *ffa_ops = optee->ffa.ffa_dev->ops;
 	u64 global_handle = shm->sec_world_id;
 	int rc;
 
@@ -530,7 +530,7 @@ static int optee_ffa_yielding_call(struct tee_context *ctx,
 {
 	struct optee *optee = tee_get_drvdata(ctx->teedev);
 	struct ffa_device *ffa_dev = optee->ffa.ffa_dev;
-	const struct ffa_dev_ops *ffa_ops = ffa_dev->ops;
+	const struct ffa_ops *ffa_ops = ffa_dev->ops;
 	struct optee_call_waiter w;
 	u32 cmd = data->data0;
 	u32 w4 = data->data1;
@@ -652,7 +652,7 @@ static int optee_ffa_do_call_with_arg(struct tee_context *ctx,
  */
 
 static bool optee_ffa_api_is_compatbile(struct ffa_device *ffa_dev,
-					const struct ffa_dev_ops *ops)
+					const struct ffa_ops *ops)
 {
 	struct ffa_send_direct_data data = { OPTEE_FFA_GET_API_VERSION };
 	int rc;
@@ -687,7 +687,7 @@ static bool optee_ffa_api_is_compatbile(struct ffa_device *ffa_dev,
 }
 
 static bool optee_ffa_exchange_caps(struct ffa_device *ffa_dev,
-				    const struct ffa_dev_ops *ops,
+				    const struct ffa_ops *ops,
 				    u32 *sec_caps,
 				    unsigned int *rpc_param_count)
 {
@@ -783,7 +783,7 @@ static void optee_ffa_remove(struct ffa_device *ffa_dev)
 
 static int optee_ffa_probe(struct ffa_device *ffa_dev)
 {
-	const struct ffa_dev_ops *ffa_ops;
+	const struct ffa_ops *ffa_ops;
 	unsigned int rpc_param_count;
 	struct tee_shm_pool *pool;
 	struct tee_device *teedev;
