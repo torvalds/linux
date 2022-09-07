@@ -37,12 +37,10 @@
 };
 
 &can0 {
-	syscon,can_or_canfd = <0>;
 	status = "okay";
 };
 
 &can1 {
-	syscon,can_or_canfd = <0>;
 	status = "okay";
 };
 
