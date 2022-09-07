@@ -68,7 +68,7 @@ static void dcn32_init_crb(struct hubbub *hubbub)
 	REG_UPDATE(DCHUBBUB_DEBUG_CTRL_0, DET_DEPTH, 0x47F);
 }
 
-static void dcn32_program_det_size(struct hubbub *hubbub, int hubp_inst, unsigned int det_buffer_size_in_kbyte)
+void dcn32_program_det_size(struct hubbub *hubbub, int hubp_inst, unsigned int det_buffer_size_in_kbyte)
 {
 	struct dcn20_hubbub *hubbub2 = TO_DCN20_HUBBUB(hubbub);
 
@@ -140,7 +140,7 @@ static uint32_t convert_and_clamp(
 	return ret_val;
 }
 
-static bool hubbub32_program_urgent_watermarks(
+bool hubbub32_program_urgent_watermarks(
 		struct hubbub *hubbub,
 		struct dcn_watermark_set *watermarks,
 		unsigned int refclk_mhz,
@@ -330,7 +330,7 @@ static bool hubbub32_program_urgent_watermarks(
 	return wm_pending;
 }
 
-static bool hubbub32_program_stutter_watermarks(
+bool hubbub32_program_stutter_watermarks(
 		struct hubbub *hubbub,
 		struct dcn_watermark_set *watermarks,
 		unsigned int refclk_mhz,
@@ -476,7 +476,7 @@ static bool hubbub32_program_stutter_watermarks(
 }
 
 
-static bool hubbub32_program_pstate_watermarks(
+bool hubbub32_program_pstate_watermarks(
 		struct hubbub *hubbub,
 		struct dcn_watermark_set *watermarks,
 		unsigned int refclk_mhz,
@@ -629,7 +629,7 @@ static bool hubbub32_program_pstate_watermarks(
 }
 
 
-static bool hubbub32_program_usr_watermarks(
+bool hubbub32_program_usr_watermarks(
 		struct hubbub *hubbub,
 		struct dcn_watermark_set *watermarks,
 		unsigned int refclk_mhz,
@@ -709,7 +709,7 @@ static bool hubbub32_program_usr_watermarks(
 	return wm_pending;
 }
 
-static void hubbub32_force_usr_retraining_allow(struct hubbub *hubbub, bool allow)
+void hubbub32_force_usr_retraining_allow(struct hubbub *hubbub, bool allow)
 {
 	struct dcn20_hubbub *hubbub2 = TO_DCN20_HUBBUB(hubbub);
 
@@ -909,7 +909,7 @@ static void hubbub32_wm_read_state(struct hubbub *hubbub,
 			DCHUBBUB_ARB_FCLK_PSTATE_CHANGE_WATERMARK_D, &s->fclk_pstate_change);
 }
 
-static void hubbub32_force_wm_propagate_to_pipes(struct hubbub *hubbub)
+void hubbub32_force_wm_propagate_to_pipes(struct hubbub *hubbub)
 {
 	struct dcn20_hubbub *hubbub2 = TO_DCN20_HUBBUB(hubbub);
 	uint32_t refclk_mhz = hubbub->ctx->dc->res_pool->ref_clocks.dchub_ref_clock_inKhz / 1000;
