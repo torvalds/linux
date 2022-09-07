@@ -664,6 +664,12 @@ static int rk3588_combphy_cfg(struct rockchip_combphy_priv *priv)
 
 	switch (priv->mode) {
 	case PHY_TYPE_PCIE:
+		/* Set SSC downward spread spectrum */
+		val = readl(priv->mmio + (0x1f << 2));
+		val &= ~GENMASK(5, 4);
+		val |= 0x01 << 4;
+		writel(val, priv->mmio + 0x7c);
+
 		param_write(priv->phy_grf, &cfg->con0_for_pcie, true);
 		param_write(priv->phy_grf, &cfg->con1_for_pcie, true);
 		param_write(priv->phy_grf, &cfg->con2_for_pcie, true);
@@ -838,6 +844,26 @@ static int rk3588_combphy_cfg(struct rockchip_combphy_priv *priv)
 			writel(val, priv->mmio + (0xc << 2));
 			val = 0x56;
 			writel(val, priv->mmio + (0xd << 2));
+		}
+	}
+
+	if (device_property_read_bool(priv->dev, "rockchip,enable-ssc")) {
+		val = readl(priv->mmio + (0x7 << 2));
+		val |= BIT(4);
+		writel(val, priv->mmio + (0x7 << 2));
+
+		if (priv->mode == PHY_TYPE_PCIE && rate == 24000000) {
+			/* Xin24M T0_1 650mV */
+			writel(0x00, priv->mmio + (0x10 << 2));
+			writel(0x32, priv->mmio + (0x11 << 2));
+			writel(0x00, priv->mmio + (0x1b << 2));
+			writel(0x90, priv->mmio + (0x0a << 2));
+			writel(0x02, priv->mmio + (0x0b << 2));
+			writel(0x08, priv->mmio + (0x0c << 2));
+			writel(0x57, priv->mmio + (0x0d << 2));
+			writel(0x40, priv->mmio + (0x0e << 2));
+			writel(0x5f, priv->mmio + (0x0f << 2));
+			writel(0x10, priv->mmio + (0x20 << 2));
 		}
 	}
 
