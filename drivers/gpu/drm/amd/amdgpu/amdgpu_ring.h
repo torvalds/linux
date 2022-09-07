@@ -145,7 +145,12 @@ signed long amdgpu_fence_wait_polling(struct amdgpu_ring *ring,
 				      uint32_t wait_seq,
 				      signed long timeout);
 unsigned amdgpu_fence_count_emitted(struct amdgpu_ring *ring);
+
 void amdgpu_fence_driver_isr_toggle(struct amdgpu_device *adev, bool stop);
+
+u64 amdgpu_fence_last_unsignaled_time_us(struct amdgpu_ring *ring);
+void amdgpu_fence_update_start_timestamp(struct amdgpu_ring *ring, uint32_t seq,
+					 ktime_t timestamp);
 
 /*
  * Rings.
@@ -313,6 +318,9 @@ struct amdgpu_ring {
 #define amdgpu_ring_preempt_ib(r) (r)->funcs->preempt_ib(r)
 
 int amdgpu_ring_alloc(struct amdgpu_ring *ring, unsigned ndw);
+void amdgpu_ring_ib_begin(struct amdgpu_ring *ring);
+void amdgpu_ring_ib_end(struct amdgpu_ring *ring);
+
 void amdgpu_ring_insert_nop(struct amdgpu_ring *ring, uint32_t count);
 void amdgpu_ring_generic_pad_ib(struct amdgpu_ring *ring, struct amdgpu_ib *ib);
 void amdgpu_ring_commit(struct amdgpu_ring *ring);
