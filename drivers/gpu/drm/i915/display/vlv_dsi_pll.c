@@ -177,8 +177,7 @@ int vlv_dsi_pll_compute(struct intel_encoder *encoder,
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(encoder);
-	int ret;
-	u32 dsi_clk;
+	int pclk, dsi_clk, ret;
 
 	dsi_clk = dsi_clk_from_pclk(intel_dsi->pclk, intel_dsi->pixel_format,
 				    intel_dsi->lane_count);
@@ -199,6 +198,14 @@ int vlv_dsi_pll_compute(struct intel_encoder *encoder,
 
 	drm_dbg_kms(&dev_priv->drm, "dsi pll div %08x, ctrl %08x\n",
 		    config->dsi_pll.div, config->dsi_pll.ctrl);
+
+	pclk = vlv_dsi_pclk(encoder, config);
+	config->port_clock = pclk;
+
+	/* FIXME definitely not right for burst/cmd mode/pixel overlap */
+	config->hw.adjusted_mode.crtc_clock = pclk;
+	if (intel_dsi->dual_link)
+		config->hw.adjusted_mode.crtc_clock *= 2;
 
 	return 0;
 }
@@ -478,6 +485,7 @@ int bxt_dsi_pll_compute(struct intel_encoder *encoder,
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(encoder);
 	u8 dsi_ratio, dsi_ratio_min, dsi_ratio_max;
 	u32 dsi_clk;
+	int pclk;
 
 	dsi_clk = dsi_clk_from_pclk(intel_dsi->pclk, intel_dsi->pixel_format,
 				    intel_dsi->lane_count);
@@ -516,6 +524,14 @@ int bxt_dsi_pll_compute(struct intel_encoder *encoder,
 	 */
 	if (IS_BROXTON(dev_priv) && dsi_ratio <= 50)
 		config->dsi_pll.ctrl |= BXT_DSI_PLL_PVD_RATIO_1;
+
+	pclk = bxt_dsi_pclk(encoder, config);
+	config->port_clock = pclk;
+
+	/* FIXME definitely not right for burst/cmd mode/pixel overlap */
+	config->hw.adjusted_mode.crtc_clock = pclk;
+	if (intel_dsi->dual_link)
+		config->hw.adjusted_mode.crtc_clock *= 2;
 
 	return 0;
 }
