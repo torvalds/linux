@@ -616,7 +616,7 @@ int st_lsm6dsox_buffers_setup(struct st_lsm6dsox_hw *hw)
 					st_lsm6dsox_handler_irq,
 					st_lsm6dsox_handler_thread,
 					irq_type | IRQF_ONESHOT,
-					ST_LSM6DSOX_DEV_NAME, hw);
+					hw->dev_name, hw);
 	if (err) {
 		dev_err(hw->dev, "failed to request trigger irq %d\n",
 			hw->irq);
