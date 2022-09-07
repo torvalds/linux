@@ -168,34 +168,6 @@
 		reg = <0x0 0xfd5e4000 0x0 0x100>;
 	};
 
-	mipi4_csi2: mipi4-csi2@fdd50000 {
-		compatible = "rockchip,rk3588-mipi-csi2";
-		reg = <0x0 0xfdd50000 0x0 0x10000>;
-		reg-names = "csihost_regs";
-		interrupts = <GIC_SPI 151 IRQ_TYPE_LEVEL_HIGH>,
-			     <GIC_SPI 152 IRQ_TYPE_LEVEL_HIGH>;
-		interrupt-names = "csi-intr1", "csi-intr2";
-		clocks = <&cru PCLK_CSI_HOST_4>;
-		clock-names = "pclk_csi2host";
-		resets = <&cru SRST_P_CSI_HOST_4>;
-		reset-names = "srst_csihost_p";
-		status = "disabled";
-	};
-
-	mipi5_csi2: mipi5-csi2@fdd60000 {
-		compatible = "rockchip,rk3588-mipi-csi2";
-		reg = <0x0 0xfdd60000 0x0 0x10000>;
-		reg-names = "csihost_regs";
-		interrupts = <GIC_SPI 153 IRQ_TYPE_LEVEL_HIGH>,
-			     <GIC_SPI 154 IRQ_TYPE_LEVEL_HIGH>;
-		interrupt-names = "csi-intr1", "csi-intr2";
-		clocks = <&cru PCLK_CSI_HOST_5>;
-		clock-names = "pclk_csi2host";
-		resets = <&cru SRST_P_CSI_HOST_5>;
-		reset-names = "srst_csihost_p";
-		status = "disabled";
-	};
-
 	spdif_tx5: spdif-tx@fddb8000 {
 		compatible = "rockchip,rk3588-spdif", "rockchip,rk3568-spdif";
 		reg = <0x0 0xfddb8000 0x0 0x1000>;
