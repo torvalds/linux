@@ -691,7 +691,7 @@ static const struct phy_ops sf_dphy_ops = {
 
 static const struct of_device_id sf_dphy_dt_ids[] = {
 	{
-		.compatible = "starfive,jh7100-mipi-dphy-tx",
+		.compatible = "m31,mipi-dphy-tx",
 	},
 	{}
 };
