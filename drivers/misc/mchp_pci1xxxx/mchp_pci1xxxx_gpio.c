@@ -421,19 +421,7 @@ static struct auxiliary_driver pci1xxxx_gpio_driver = {
 	.probe = pci1xxxx_gpio_probe,
 	.id_table = pci1xxxx_gpio_auxiliary_id_table
 };
-
-static int __init pci1xxxx_gpio_driver_init(void)
-{
-	return auxiliary_driver_register(&pci1xxxx_gpio_driver);
-}
-
-static void __exit pci1xxxx_gpio_driver_exit(void)
-{
-	auxiliary_driver_unregister(&pci1xxxx_gpio_driver);
-}
-
-module_init(pci1xxxx_gpio_driver_init);
-module_exit(pci1xxxx_gpio_driver_exit);
+module_auxiliary_driver(pci1xxxx_gpio_driver);
 
 MODULE_DESCRIPTION("Microchip Technology Inc. PCI1xxxx GPIO controller");
 MODULE_AUTHOR("Kumaravel Thiagarajan <kumaravel.thiagarajan@microchip.com>");
