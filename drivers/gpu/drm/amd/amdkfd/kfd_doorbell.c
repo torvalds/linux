@@ -303,6 +303,9 @@ int kfd_alloc_process_doorbells(struct kfd_dev *kfd, unsigned int *doorbell_inde
 	if (r > 0)
 		*doorbell_index = r;
 
+	if (r < 0)
+		pr_err("Failed to allocate process doorbells\n");
+
 	return r;
 }
 
