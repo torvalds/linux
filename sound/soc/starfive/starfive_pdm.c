@@ -29,6 +29,7 @@ struct sf_pdm {
 	struct clk *clk_mclk_out;
 	struct reset_control *rst_pdm_dmic;
 	struct reset_control *rst_pdm_apb;
+	unsigned char flag_first;
 };
 
 static const DECLARE_TLV_DB_SCALE(volume_tlv, -9450, 150, 0);
@@ -69,6 +70,10 @@ static int sf_pdm_trigger(struct snd_pcm_substream *substream, int cmd,
 	case SNDRV_PCM_TRIGGER_START:
 	case SNDRV_PCM_TRIGGER_RESUME:
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
+		if (priv->flag_first) {
+			priv->flag_first = 0;
+			mdelay(200);
+		}
 		sf_pdm_enable(priv->pdm_map);
 		return 0;
 
@@ -398,6 +403,7 @@ static int sf_pdm_probe(struct platform_device *pdev)
 	}
 
 	priv->dev = &pdev->dev;
+	priv->flag_first = 1;
 
 	ret = sf_pdm_clock_init(pdev, priv);
 	if (ret) {

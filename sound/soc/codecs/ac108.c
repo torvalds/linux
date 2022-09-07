@@ -160,10 +160,10 @@ static const struct pll_div ac108_pll_div_list[] = {
 /* AC108 definition */
 #define AC108_CHANNELS_MAX		8		/* range[1, 16] */
 #define AC108_RATES			(SNDRV_PCM_RATE_8000_96000 &		\
-					~(SNDRV_PCM_RATE_32000 | SNDRV_PCM_RATE_64000 | \
+					~(SNDRV_PCM_RATE_64000 | \
 					SNDRV_PCM_RATE_88200 | SNDRV_PCM_RATE_96000))
-#define AC108_FORMATS			(/*SNDRV_PCM_FMTBIT_S16_LE | \
-					SNDRV_PCM_FMTBIT_S20_3LE |   \
+#define AC108_FORMATS			(SNDRV_PCM_FMTBIT_S16_LE | \
+					/*SNDRV_PCM_FMTBIT_S20_3LE |   \
 					SNDRV_PCM_FMTBIT_S24_LE |*/  \
 					SNDRV_PCM_FMTBIT_S32_LE)
 
@@ -1199,6 +1199,12 @@ static int ac108_codec_probe(struct snd_soc_codec *codec)
 	if (ac10x->i2c101) {
 		ac101_codec_probe(codec);
 	}
+
+	/* change default volume */
+	ac108_multi_update_bits(ADC1_DVOL_CTRL, 0xff, 0xc8, ac10x);
+	ac108_multi_update_bits(ADC2_DVOL_CTRL, 0xff, 0xc8, ac10x);
+	ac108_multi_update_bits(ADC3_DVOL_CTRL, 0xff, 0xc8, ac10x);
+	ac108_multi_update_bits(ADC4_DVOL_CTRL, 0xff, 0xc8, ac10x);
 
 	return 0;
 }
