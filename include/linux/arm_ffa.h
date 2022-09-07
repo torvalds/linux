@@ -257,16 +257,28 @@ struct ffa_mem_ops_args {
 	struct ffa_mem_region_attributes *attrs;
 };
 
-struct ffa_ops {
+struct ffa_info_ops {
 	u32 (*api_version_get)(void);
 	int (*partition_info_get)(const char *uuid_str,
 				  struct ffa_partition_info *buffer);
+};
+
+struct ffa_msg_ops {
 	void (*mode_32bit_set)(struct ffa_device *dev);
 	int (*sync_send_receive)(struct ffa_device *dev,
 				 struct ffa_send_direct_data *data);
+};
+
+struct ffa_mem_ops {
 	int (*memory_reclaim)(u64 g_handle, u32 flags);
 	int (*memory_share)(struct ffa_mem_ops_args *args);
 	int (*memory_lend)(struct ffa_mem_ops_args *args);
+};
+
+struct ffa_ops {
+	const struct ffa_info_ops *info_ops;
+	const struct ffa_msg_ops *msg_ops;
+	const struct ffa_mem_ops *mem_ops;
 };
 
 #endif /* _LINUX_ARM_FFA_H */

@@ -691,14 +691,26 @@ static int ffa_memory_lend(struct ffa_mem_ops_args *args)
 	return ffa_memory_ops(FFA_MEM_LEND, args);
 }
 
-static const struct ffa_ops ffa_ops = {
+static const struct ffa_info_ops ffa_drv_info_ops = {
 	.api_version_get = ffa_api_version_get,
 	.partition_info_get = ffa_partition_info_get,
+};
+
+static const struct ffa_msg_ops ffa_drv_msg_ops = {
 	.mode_32bit_set = ffa_mode_32bit_set,
 	.sync_send_receive = ffa_sync_send_receive,
+};
+
+static const struct ffa_mem_ops ffa_drv_mem_ops = {
 	.memory_reclaim = ffa_memory_reclaim,
 	.memory_share = ffa_memory_share,
 	.memory_lend = ffa_memory_lend,
+};
+
+static const struct ffa_ops ffa_drv_ops = {
+	.info_ops = &ffa_drv_info_ops,
+	.msg_ops = &ffa_drv_msg_ops,
+	.mem_ops = &ffa_drv_mem_ops,
 };
 
 void ffa_device_match_uuid(struct ffa_device *ffa_dev, const uuid_t *uuid)
@@ -746,7 +758,7 @@ static void ffa_setup_partitions(void)
 		 * provides UUID here for each partition as part of the
 		 * discovery API and the same is passed.
 		 */
-		ffa_dev = ffa_device_register(&uuid, tpbuf->id, &ffa_ops);
+		ffa_dev = ffa_device_register(&uuid, tpbuf->id, &ffa_drv_ops);
 		if (!ffa_dev) {
 			pr_err("%s: failed to register partition ID 0x%x\n",
 			       __func__, tpbuf->id);
