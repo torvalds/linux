@@ -1,0 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
+
+config BOSCH_BNO055
+	tristate
