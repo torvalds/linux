@@ -644,15 +644,6 @@ static const struct ffa_dev_ops ffa_ops = {
 	.memory_lend = ffa_memory_lend,
 };
 
-const struct ffa_dev_ops *ffa_dev_ops_get(struct ffa_device *dev)
-{
-	if (ffa_device_is_valid(dev))
-		return &ffa_ops;
-
-	return NULL;
-}
-EXPORT_SYMBOL_GPL(ffa_dev_ops_get);
-
 void ffa_device_match_uuid(struct ffa_device *ffa_dev, const uuid_t *uuid)
 {
 	int count, idx;
