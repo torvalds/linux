@@ -716,7 +716,7 @@ static int sft_rtc_resume(struct device *dev)
 static SIMPLE_DEV_PM_OPS(sft_rtc_pm_ops, sft_rtc_suspend, sft_rtc_resume);
 
 static const struct of_device_id sft_rtc_of_match[] = {
-	{ .compatible = "starfive,rtc_hms" },
+	{ .compatible = "starfive,jh7110-rtc" },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, sft_rtc_of_match);

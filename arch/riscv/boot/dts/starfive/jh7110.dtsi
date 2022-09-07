@@ -505,7 +505,7 @@
 		};
 
 		rtc: rtc@17040000 {
-			compatible = "starfive,rtc_hms";
+			compatible = "starfive,jh7110-rtc";
 			reg = <0x0 0x17040000 0x0 0x10000>;
 			interrupts = <10>, <11>, <12>;
 			interrupt-names = "rtc_ms_pulse", "rtc_sec_pulse", "rtc";
@@ -613,7 +613,7 @@
 		};
 
 		dma: dma-controller@16050000 {
-			compatible = "starfive,axi-dma";
+			compatible = "starfive,jh7110-dma", "snps,axi-dma-1.01a";
 			reg = <0x0 0x16050000 0x0 0x10000>;
 			clocks = <&clkgen JH7110_DMA1P_CLK_AXI>,
 				 <&clkgen JH7110_DMA1P_CLK_AHB>;
@@ -701,7 +701,7 @@
 		};
 
 		trng: trng@1600C000 {
-			compatible = "starfive,trng";
+			compatible = "starfive,jh7110-trng";
 			reg = <0x0 0x1600C000 0x0 0x4000>;
 			clocks = <&clkgen JH7110_SEC_HCLK>,
 				 <&clkgen JH7110_SEC_MISCAHB_CLK>;
@@ -1337,7 +1337,7 @@
 		};
 
 		ptc: pwm@120d0000 {
-			compatible = "starfive,pwm";
+			compatible = "starfive,jh7110-pwm";
 			reg = <0x0 0x120d0000 0x0 0x10000>;
 			reg-names = "control";
 			clocks = <&clkgen JH7110_PWM_CLK_APB>;

@@ -247,7 +247,7 @@ static int starfive_pwm_ptc_remove(struct platform_device *dev)
 }
 
 static const struct of_device_id starfive_pwm_ptc_of_match[] = {
-	{ .compatible = "starfive,pwm" },
+	{ .compatible = "starfive,jh7110-pwm" },
 	{},
 };
 MODULE_DEVICE_TABLE(of, starfive_pwm_ptc_of_match);
