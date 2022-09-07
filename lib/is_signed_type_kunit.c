@@ -5,7 +5,7 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <kunit/test.h>
-#include <linux/overflow.h>
+#include <linux/compiler.h>
 
 enum unsigned_enum {
 	constant_a = 3,
@@ -21,6 +21,11 @@ static void is_signed_type_test(struct kunit *test)
 	KUNIT_EXPECT_EQ(test, is_signed_type(bool), false);
 	KUNIT_EXPECT_EQ(test, is_signed_type(signed char), true);
 	KUNIT_EXPECT_EQ(test, is_signed_type(unsigned char), false);
+#ifdef __CHAR_UNSIGNED__
+	KUNIT_EXPECT_EQ(test, is_signed_type(char), false);
+#else
+	KUNIT_EXPECT_EQ(test, is_signed_type(char), true);
+#endif
 	KUNIT_EXPECT_EQ(test, is_signed_type(int), true);
 	KUNIT_EXPECT_EQ(test, is_signed_type(unsigned int), false);
 	KUNIT_EXPECT_EQ(test, is_signed_type(long), true);
