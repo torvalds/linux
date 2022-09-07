@@ -591,14 +591,6 @@ static void inno_hdmi_encoder_disable(struct drm_encoder *encoder)
 {
 	struct inno_hdmi *hdmi = to_inno_hdmi(encoder);
 
-	hdmi_modb(hdmi, 0x1b2, 0xf, 0);
-	hdmi_modb(hdmi, 0x1be, 0xf, 0);
-	hdmi_modb(hdmi, 0x1b4, 0xf, 0);
-	hdmi_modb(hdmi, 0x1a0, 1, 1);
-	hdmi_modb(hdmi, 0x1aa, 1, 1);
-	hdmi_modb(hdmi, 0x1cc, 0x0f, 0);
-	hdmi_modb(hdmi, 0x1b0, 1<<2, 0);
-
 	inno_hdmi_set_pwr_mode(hdmi, LOWER_PWR);
 }
 
