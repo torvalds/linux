@@ -20847,3 +20847,8 @@ M:	Jianlong Huang <jianlong.huang@starfivetech.com>
 S:	Maintained
 F:	Documentation/devicetree/bindings/riscv/starfive-jh7110.yaml
 
+STARFIVE JH7110 PINCTRL
+M:	Jianlong Huang <jianlong.huang@starfivetech.com>
+S:	Maintained
+F:	Documentation/devicetree/bindings/pinctrl/starfive,jh7110-pinctrl.yaml
+
