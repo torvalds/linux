@@ -1295,11 +1295,87 @@ static int imx7_csi_video_buf_prepare(struct vb2_buffer *vb)
 	return 0;
 }
 
+static bool imx7_csi_fast_track_buffer(struct imx7_csi *csi,
+				       struct imx7_csi_vb2_buffer *buf)
+{
+	unsigned long flags;
+	dma_addr_t phys;
+	int buf_num;
+	u32 isr;
+
+	if (!csi->is_streaming)
+		return false;
+
+	phys = vb2_dma_contig_plane_dma_addr(&buf->vbuf.vb2_buf, 0);
+
+	/*
+	 * buf_num holds the framebuffer ID of the most recently (*not* the
+	 * next anticipated) triggered interrupt. Without loss of generality,
+	 * if buf_num is 0, the hardware is capturing to FB2. If FB1 has been
+	 * programmed with a dummy buffer (as indicated by active_vb2_buf[0]
+	 * being NULL), then we can fast-track the new buffer by programming
+	 * its address in FB1 before the hardware completes FB2, instead of
+	 * adding it to the buffer queue and incurring a delay of one
+	 * additional frame.
+	 *
+	 * The irqlock prevents races with the interrupt handler that updates
+	 * buf_num when it programs the next buffer, but we can still race with
+	 * the hardware if we program the buffer in FB1 just after the hardware
+	 * completes FB2 and switches to FB1 and before buf_num can be updated
+	 * by the interrupt handler for FB2.  The fast-tracked buffer would
+	 * then be ignored by the hardware while the driver would think it has
+	 * successfully been processed.
+	 *
+	 * To avoid this problem, if we can't avoid the race, we can detect
+	 * that we have lost it by checking, after programming the buffer in
+	 * FB1, if the interrupt flag indicating completion of FB2 has been
+	 * raised. If that is not the case, fast-tracking succeeded, and we can
+	 * update active_vb2_buf[0]. Otherwise, we may or may not have lost the
+	 * race (as the interrupt flag may have been raised just after
+	 * programming FB1 and before we read the interrupt status register),
+	 * and we need to assume the worst case of a race loss and queue the
+	 * buffer through the slow path.
+	 */
+
+	spin_lock_irqsave(&csi->irqlock, flags);
+
+	buf_num = csi->buf_num;
+	if (csi->active_vb2_buf[buf_num]) {
+		spin_unlock_irqrestore(&csi->irqlock, flags);
+		return false;
+	}
+
+	imx7_csi_update_buf(csi, phys, buf_num);
+
+	isr = imx7_csi_reg_read(csi, CSI_CSISR);
+	if (isr & (buf_num ? BIT_DMA_TSF_DONE_FB1 : BIT_DMA_TSF_DONE_FB2)) {
+		/*
+		 * The interrupt for the /other/ FB just came (the isr hasn't
+		 * run yet though, because we have the lock here); we can't be
+		 * sure we've programmed buf_num FB in time, so queue the buffer
+		 * to the buffer queue normally. No need to undo writing the FB
+		 * register, since we won't return it as active_vb2_buf is NULL,
+		 * so it's okay to potentially write it to both FB1 and FB2;
+		 * only the one where it was queued normally will be returned.
+		 */
+		spin_unlock_irqrestore(&csi->irqlock, flags);
+		return false;
+	}
+
+	csi->active_vb2_buf[buf_num] = buf;
+
+	spin_unlock_irqrestore(&csi->irqlock, flags);
+	return true;
+}
+
 static void imx7_csi_video_buf_queue(struct vb2_buffer *vb)
 {
 	struct imx7_csi *csi = vb2_get_drv_priv(vb->vb2_queue);
 	struct imx7_csi_vb2_buffer *buf = to_imx7_csi_vb2_buffer(vb);
 	unsigned long flags;
+
+	if (imx7_csi_fast_track_buffer(csi, buf))
+		return;
 
 	spin_lock_irqsave(&csi->q_lock, flags);
 
