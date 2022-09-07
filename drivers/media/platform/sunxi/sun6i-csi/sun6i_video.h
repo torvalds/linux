@@ -11,12 +11,12 @@
 #include <media/v4l2-dev.h>
 #include <media/videobuf2-core.h>
 
-struct sun6i_csi;
+struct sun6i_csi_device;
 
 struct sun6i_video {
+	struct sun6i_csi_device		*csi_dev;
 	struct video_device		vdev;
 	struct media_pad		pad;
-	struct sun6i_csi		*csi;
 
 	struct mutex			lock;
 
@@ -29,8 +29,8 @@ struct sun6i_video {
 	u32				mbus_code;
 };
 
-int sun6i_video_init(struct sun6i_video *video, struct sun6i_csi *csi,
-		     const char *name);
+int sun6i_video_init(struct sun6i_video *video,
+		     struct sun6i_csi_device *csi_dev, const char *name);
 void sun6i_video_cleanup(struct sun6i_video *video);
 
 void sun6i_video_frame_done(struct sun6i_video *video);
