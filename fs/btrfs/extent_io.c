@@ -519,20 +519,14 @@ static struct io_failure_record *get_failrec(struct btrfs_inode *inode, u64 star
 	return failrec;
 }
 
-static int free_io_failure(struct btrfs_inode *inode,
-			   struct io_failure_record *rec)
+static void free_io_failure(struct btrfs_inode *inode,
+			    struct io_failure_record *rec)
 {
-	int ret;
-
 	spin_lock(&inode->io_failure_lock);
 	rb_erase(&rec->rb_node, &inode->io_failure_tree);
 	spin_unlock(&inode->io_failure_lock);
 
-	ret = clear_extent_bits(&inode->io_tree, rec->bytenr,
-				rec->bytenr + rec->len - 1,
-				EXTENT_DAMAGED);
 	kfree(rec);
-	return ret;
 }
 
 /*
@@ -742,7 +736,6 @@ static struct io_failure_record *btrfs_get_io_failure_record(struct inode *inode
 	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
 	u64 start = bbio->file_offset + bio_offset;
 	struct io_failure_record *failrec;
-	struct extent_io_tree *tree = &BTRFS_I(inode)->io_tree;
 	const u32 sectorsize = fs_info->sectorsize;
 	int ret;
 
@@ -794,12 +787,6 @@ static struct io_failure_record *btrfs_get_io_failure_record(struct inode *inode
 	ret = insert_failrec(BTRFS_I(inode), failrec);
 	if (ret) {
 		kfree(failrec);
-		return ERR_PTR(ret);
-	}
-	ret = set_extent_bits(tree, start, start + sectorsize - 1,
-			      EXTENT_DAMAGED);
-	if (ret) {
-		free_io_failure(BTRFS_I(inode), failrec);
 		return ERR_PTR(ret);
 	}
 

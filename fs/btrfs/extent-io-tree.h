@@ -17,7 +17,6 @@ struct io_failure_record;
 #define EXTENT_NODATASUM	(1U << 7)
 #define EXTENT_CLEAR_META_RESV	(1U << 8)
 #define EXTENT_NEED_WAIT	(1U << 9)
-#define EXTENT_DAMAGED		(1U << 10)
 #define EXTENT_NORESERVE	(1U << 11)
 #define EXTENT_QGROUP_RESERVED	(1U << 12)
 #define EXTENT_CLEAR_DATA_RESV	(1U << 13)

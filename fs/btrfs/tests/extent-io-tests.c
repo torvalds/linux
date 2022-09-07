@@ -80,7 +80,6 @@ static void extent_flag_to_str(const struct extent_state *state, char *dest)
 	PRINT_ONE_FLAG(state, dest, cur, NODATASUM);
 	PRINT_ONE_FLAG(state, dest, cur, CLEAR_META_RESV);
 	PRINT_ONE_FLAG(state, dest, cur, NEED_WAIT);
-	PRINT_ONE_FLAG(state, dest, cur, DAMAGED);
 	PRINT_ONE_FLAG(state, dest, cur, NORESERVE);
 	PRINT_ONE_FLAG(state, dest, cur, QGROUP_RESERVED);
 	PRINT_ONE_FLAG(state, dest, cur, CLEAR_DATA_RESV);
