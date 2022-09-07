@@ -1926,13 +1926,13 @@ static int sc2235_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id sc2235_id[] = {
-	{"sc2235", 0},
+	{ "sc2235", 0 },
 	{},
 };
 MODULE_DEVICE_TABLE(i2c, sc2235_id);
 
 static const struct of_device_id sc2235_dt_ids[] = {
-	{ .compatible = "sc2235" },
+	{ .compatible = "smartsens,sc2235" },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, sc2235_dt_ids);

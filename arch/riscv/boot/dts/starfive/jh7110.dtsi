@@ -872,7 +872,7 @@
 		};
 
 		vin_sysctl: vin_sysctl@19800000 {
-			compatible = "starfive,stf-vin";
+			compatible = "starfive,jh7110-vin";
 			reg = <0x0 0x19800000 0x0 0x10000>,
 				<0x0 0x19810000 0x0 0x10000>,
 				<0x0 0x19820000 0x0 0x10000>,
