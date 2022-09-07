@@ -9792,7 +9792,9 @@ struct mlx5_ifc_pcam_reg_bits {
 struct mlx5_ifc_mcam_enhanced_features_bits {
 	u8         reserved_at_0[0x5d];
 	u8         mcia_32dwords[0x1];
-	u8         reserved_at_5e[0xc];
+	u8         out_pulse_duration_ns[0x1];
+	u8         npps_period[0x1];
+	u8         reserved_at_60[0xa];
 	u8         reset_state[0x1];
 	u8         ptpcyc2realtime_modify[0x1];
 	u8         reserved_at_6c[0x2];
@@ -10292,7 +10294,12 @@ struct mlx5_ifc_mtpps_reg_bits {
 	u8         reserved_at_18[0x4];
 	u8         cap_max_num_of_pps_out_pins[0x4];
 
-	u8         reserved_at_20[0x24];
+	u8         reserved_at_20[0x13];
+	u8         cap_log_min_npps_period[0x5];
+	u8         reserved_at_38[0x3];
+	u8         cap_log_min_out_pulse_duration_ns[0x5];
+
+	u8         reserved_at_40[0x4];
 	u8         cap_pin_3_mode[0x4];
 	u8         reserved_at_48[0x4];
 	u8         cap_pin_2_mode[0x4];
@@ -10311,7 +10318,9 @@ struct mlx5_ifc_mtpps_reg_bits {
 	u8         cap_pin_4_mode[0x4];
 
 	u8         field_select[0x20];
-	u8         reserved_at_a0[0x60];
+	u8         reserved_at_a0[0x20];
+
+	u8         npps_period[0x40];
 
 	u8         enable[0x1];
 	u8         reserved_at_101[0xb];
@@ -10320,7 +10329,8 @@ struct mlx5_ifc_mtpps_reg_bits {
 	u8         pin_mode[0x4];
 	u8         pin[0x8];
 
-	u8         reserved_at_120[0x20];
+	u8         reserved_at_120[0x2];
+	u8         out_pulse_duration_ns[0x1e];
 
 	u8         time_stamp[0x40];
 
