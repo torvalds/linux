@@ -294,7 +294,7 @@ static int optee_ffa_shm_register(struct tee_context *ctx, struct tee_shm *shm,
 	if (rc)
 		return rc;
 	args.sg = sgt.sgl;
-	rc = ffa_ops->memory_share(ffa_dev, &args);
+	rc = ffa_ops->memory_share(&args);
 	sg_free_table(&sgt);
 	if (rc)
 		return rc;
