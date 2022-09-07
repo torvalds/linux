@@ -9800,6 +9800,10 @@
 
 // addressBlock: gc_pwrdec
 // base address: 0x3c000
+#define mmCGTS_TCC_DISABLE                                                                             0x5006
+#define mmCGTS_TCC_DISABLE_BASE_IDX                                                                    1
+#define mmCGTS_USER_TCC_DISABLE                                                                        0x5007
+#define mmCGTS_USER_TCC_DISABLE_BASE_IDX                                                               1
 #define mmSQ_ALU_CLK_CTRL                                                                              0x508e
 #define mmSQ_ALU_CLK_CTRL_BASE_IDX                                                                     1
 #define mmSQ_TEX_CLK_CTRL                                                                              0x508f
