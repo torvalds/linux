@@ -141,6 +141,8 @@ struct hw_perf_event_extra {
 #define PERF_EVENT_FLAG_ARCH			0x000fffff
 #define PERF_EVENT_FLAG_USER_READ_CNT		0x80000000
 
+static_assert((PERF_EVENT_FLAG_USER_READ_CNT & PERF_EVENT_FLAG_ARCH) == 0);
+
 /**
  * struct hw_perf_event - performance event hardware details:
  */
