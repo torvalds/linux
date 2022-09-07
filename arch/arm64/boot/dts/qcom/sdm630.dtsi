@@ -1616,7 +1616,6 @@
 					      "core";
 
 				phys = <&dsi0_phy>;
-				phy-names = "dsi";
 
 				status = "disabled";
 
