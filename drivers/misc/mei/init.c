@@ -218,16 +218,6 @@ int mei_start(struct mei_device *dev)
 		goto err;
 	}
 
-	if (!mei_host_is_ready(dev)) {
-		dev_err(dev->dev, "host is not ready.\n");
-		goto err;
-	}
-
-	if (!mei_hw_is_ready(dev)) {
-		dev_err(dev->dev, "ME is not ready.\n");
-		goto err;
-	}
-
 	if (!mei_hbm_version_is_supported(dev)) {
 		dev_dbg(dev->dev, "MEI start failed.\n");
 		goto err;
