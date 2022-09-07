@@ -304,14 +304,9 @@ static inline aa_state_t RULE_MEDIATES(struct aa_ruleset *rules,
 					rules->policy->start[0], &class, 1);
 }
 
-static inline aa_state_t RULE_MEDIATES_AF(struct aa_ruleset *rules, u16 AF)
+static inline aa_state_t RULE_MEDIATES_NET(struct aa_ruleset *rules)
 {
-	aa_state_t state = RULE_MEDIATES(rules, AA_CLASS_NET);
-	__be16 be_af = cpu_to_be16(AF);
-
-	if (!state)
-		return DFA_NOMATCH;
-	return aa_dfa_match_len(rules->policy->dfa, state, (char *) &be_af, 2);
+	return RULE_MEDIATES(rules, AA_CLASS_NET);
 }
 
 static inline aa_state_t ANY_RULE_MEDIATES(struct list_head *head,

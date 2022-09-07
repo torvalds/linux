@@ -56,7 +56,7 @@ static inline struct aa_sk_ctx *aa_sock(const struct sock *sk)
 	return sk->sk_security + apparmor_blob_sizes.lbs_sock;
 }
 
-#define DEFINE_AUDIT_NET(NAME, OP, SK, F, T, P)				  \
+#define DEFINE_AUDIT_NET(NAME, OP, CRED, SK, F, T, P)			  \
 	struct lsm_network_audit NAME ## _net = { .sk = (SK),		  \
 						  .family = (F)};	  \
 	DEFINE_AUDIT_DATA(NAME,						  \
@@ -65,11 +65,12 @@ static inline struct aa_sk_ctx *aa_sock(const struct sock *sk)
 						     AA_CLASS_NET,        \
 			  OP);						  \
 	NAME.common.u.net = &(NAME ## _net);				  \
+	NAME.subj_cred = (CRED);					  \
 	NAME.net.type = (T);						  \
 	NAME.net.protocol = (P)
 
-#define DEFINE_AUDIT_SK(NAME, OP, SK)					\
-	DEFINE_AUDIT_NET(NAME, OP, SK, (SK)->sk_family, (SK)->sk_type,	\
+#define DEFINE_AUDIT_SK(NAME, OP, CRED, SK)				     \
+	DEFINE_AUDIT_NET(NAME, OP, CRED, SK, (SK)->sk_family, (SK)->sk_type, \
 			 (SK)->sk_protocol)
 
 
@@ -81,10 +82,14 @@ struct aa_secmark {
 };
 
 extern struct aa_sfs_entry aa_sfs_entry_network[];
+extern struct aa_sfs_entry aa_sfs_entry_networkv9[];
 
-/* passing in state returned by XXX_mediates(class) */
+int aa_do_perms(struct aa_profile *profile, struct aa_policydb *policy,
+		aa_state_t state, u32 request, struct aa_perms *p,
+		struct apparmor_audit_data *ad);
+/* passing in state returned by XXX_mediates_AF() */
 aa_state_t aa_match_to_prot(struct aa_policydb *policy, aa_state_t state,
-			    u32 request, u16 family, int type, int protocol,
+			    u32 request, u16 af, int type, int protocol,
 			    struct aa_perms **p, const char **info);
 void audit_net_cb(struct audit_buffer *ab, void *va);
 int aa_profile_af_perm(struct aa_profile *profile,
@@ -105,7 +110,7 @@ int aa_sk_perm(const char *op, u32 request, struct sock *sk);
 
 int aa_sock_file_perm(const struct cred *subj_cred, struct aa_label *label,
 		      const char *op, u32 request,
-		      struct socket *sock);
+		      struct file *file);
 
 int apparmor_secmark_check(struct aa_label *label, char *op, u32 request,
 			   u32 secid, const struct sock *sk);
