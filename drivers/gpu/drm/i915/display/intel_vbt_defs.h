@@ -491,7 +491,7 @@ struct bdb_general_definitions {
 	u8 crt_ddc_gmbus_pin;
 
 	/* DPMS bits */
-	u8 dpms_acpi:1;
+	u8 dpms_non_acpi:1;
 	u8 skip_boot_crt_detect:1;
 	u8 dpms_aim:1;
 	u8 rsvd1:5; /* finish byte */
