@@ -354,6 +354,59 @@ static inline struct ap_queue_status ap_qact(ap_qid_t qid, int ifbit,
 	return reg1.status;
 }
 
+/*
+ * ap_bapq(): SE bind AP queue.
+ * @qid: The AP queue number
+ *
+ * Returns AP queue status structure.
+ *
+ * Invoking this function in a non-SE environment
+ * may case a specification exception.
+ */
+static inline struct ap_queue_status ap_bapq(ap_qid_t qid)
+{
+	unsigned long reg0 = qid | (7UL << 24);  /* fc 7 is BAPQ */
+	union ap_queue_status_reg reg1;
+
+	asm volatile(
+		"	lgr	0,%[reg0]\n"		/* qid arg into gr0 */
+		"	.insn	rre,0xb2af0000,0,0\n"	/* PQAP(BAPQ) */
+		"	lgr	%[reg1],1\n"		/* gr1 (status) into reg1 */
+		: [reg1] "=&d" (reg1.value)
+		: [reg0] "d" (reg0)
+		: "cc", "0", "1");
+
+	return reg1.status;
+}
+
+/*
+ * ap_aapq(): SE associate AP queue.
+ * @qid: The AP queue number
+ * @sec_idx: The secret index
+ *
+ * Returns AP queue status structure.
+ *
+ * Invoking this function in a non-SE environment
+ * may case a specification exception.
+ */
+static inline struct ap_queue_status ap_aapq(ap_qid_t qid, unsigned int sec_idx)
+{
+	unsigned long reg0 = qid | (8UL << 24);  /* fc 8 is AAPQ */
+	unsigned long reg2 = sec_idx;
+	union ap_queue_status_reg reg1;
+
+	asm volatile(
+		"	lgr	0,%[reg0]\n"		/* qid arg into gr0 */
+		"	lgr	2,%[reg2]\n"		/* secret index into gr2 */
+		"	.insn	rre,0xb2af0000,0,0\n"	/* PQAP(AAPQ) */
+		"	lgr	%[reg1],1\n"		/* gr1 (status) into reg1 */
+		: [reg1] "=&d" (reg1.value)
+		: [reg0] "d" (reg0), [reg2] "d" (reg2)
+		: "cc", "0", "1", "2");
+
+	return reg1.status;
+}
+
 /**
  * ap_nqap(): Send message to adjunct processor queue.
  * @qid: The AP queue number
