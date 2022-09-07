@@ -19,33 +19,33 @@ static int rxe_qp_chk_cap(struct rxe_dev *rxe, struct ib_qp_cap *cap,
 			  int has_srq)
 {
 	if (cap->max_send_wr > rxe->attr.max_qp_wr) {
-		pr_warn("invalid send wr = %d > %d\n",
+		pr_warn("invalid send wr = %u > %d\n",
 			cap->max_send_wr, rxe->attr.max_qp_wr);
 		goto err1;
 	}
 
 	if (cap->max_send_sge > rxe->attr.max_send_sge) {
-		pr_warn("invalid send sge = %d > %d\n",
+		pr_warn("invalid send sge = %u > %d\n",
 			cap->max_send_sge, rxe->attr.max_send_sge);
 		goto err1;
 	}
 
 	if (!has_srq) {
 		if (cap->max_recv_wr > rxe->attr.max_qp_wr) {
-			pr_warn("invalid recv wr = %d > %d\n",
+			pr_warn("invalid recv wr = %u > %d\n",
 				cap->max_recv_wr, rxe->attr.max_qp_wr);
 			goto err1;
 		}
 
 		if (cap->max_recv_sge > rxe->attr.max_recv_sge) {
-			pr_warn("invalid recv sge = %d > %d\n",
+			pr_warn("invalid recv sge = %u > %d\n",
 				cap->max_recv_sge, rxe->attr.max_recv_sge);
 			goto err1;
 		}
 	}
 
 	if (cap->max_inline_data > rxe->max_inline_data) {
-		pr_warn("invalid max inline data = %d > %d\n",
+		pr_warn("invalid max inline data = %u > %d\n",
 			cap->max_inline_data, rxe->max_inline_data);
 		goto err1;
 	}
