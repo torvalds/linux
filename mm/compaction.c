@@ -52,8 +52,6 @@ static inline void count_compact_events(enum vm_event_item item, long delta)
 
 #define block_start_pfn(pfn, order)	round_down(pfn, 1UL << (order))
 #define block_end_pfn(pfn, order)	ALIGN((pfn) + 1, 1UL << (order))
-#define pageblock_start_pfn(pfn)	block_start_pfn(pfn, pageblock_order)
-#define pageblock_end_pfn(pfn)		block_end_pfn(pfn, pageblock_order)
 
 /*
  * Page order with-respect-to which proactive compaction

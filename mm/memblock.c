@@ -2000,7 +2000,7 @@ static void __init free_unused_memmap(void)
 		 * presume that there are no holes in the memory map inside
 		 * a pageblock
 		 */
-		start = round_down(start, pageblock_nr_pages);
+		start = pageblock_start_pfn(start);
 
 		/*
 		 * If we had a previous bank, and there is a space

@@ -544,7 +544,7 @@ static inline int pfn_to_bitidx(const struct page *page, unsigned long pfn)
 #ifdef CONFIG_SPARSEMEM
 	pfn &= (PAGES_PER_SECTION-1);
 #else
-	pfn = pfn - round_down(page_zone(page)->zone_start_pfn, pageblock_nr_pages);
+	pfn = pfn - pageblock_start_pfn(page_zone(page)->zone_start_pfn);
 #endif /* CONFIG_SPARSEMEM */
 	return (pfn >> pageblock_order) * NR_PAGEBLOCK_BITS;
 }
@@ -1857,7 +1857,7 @@ void set_zone_contiguous(struct zone *zone)
 	unsigned long block_start_pfn = zone->zone_start_pfn;
 	unsigned long block_end_pfn;
 
-	block_end_pfn = ALIGN(block_start_pfn + 1, pageblock_nr_pages);
+	block_end_pfn = pageblock_end_pfn(block_start_pfn);
 	for (; block_start_pfn < zone_end_pfn(zone);
 			block_start_pfn = block_end_pfn,
 			 block_end_pfn += pageblock_nr_pages) {
@@ -2653,8 +2653,8 @@ int move_freepages_block(struct zone *zone, struct page *page,
 		*num_movable = 0;
 
 	pfn = page_to_pfn(page);
-	start_pfn = pfn & ~(pageblock_nr_pages - 1);
-	end_pfn = start_pfn + pageblock_nr_pages - 1;
+	start_pfn = pageblock_start_pfn(pfn);
+	end_pfn = pageblock_end_pfn(pfn) - 1;
 
 	/* Do not cross zone boundaries */
 	if (!zone_spans_pfn(zone, start_pfn))
@@ -6934,9 +6934,8 @@ static void __init init_unavailable_range(unsigned long spfn,
 	u64 pgcnt = 0;
 
 	for (pfn = spfn; pfn < epfn; pfn++) {
-		if (!pfn_valid(ALIGN_DOWN(pfn, pageblock_nr_pages))) {
-			pfn = ALIGN_DOWN(pfn, pageblock_nr_pages)
-				+ pageblock_nr_pages - 1;
+		if (!pfn_valid(pageblock_start_pfn(pfn))) {
+			pfn = pageblock_end_pfn(pfn) - 1;
 			continue;
 		}
 		__init_single_page(pfn_to_page(pfn), pfn, zone, node);
