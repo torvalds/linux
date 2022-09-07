@@ -1935,7 +1935,6 @@ static int rkisp_isp_stop(struct rkisp_device *dev)
 		 "MI_CTRL:%x, ISP_CTRL:%x\n",
 		 readl(base + CIF_MI_CTRL), readl(base + CIF_ISP_CTRL));
 
-	val = rkisp_read(dev, CTRL_VI_ISP_CLK_CTRL, true);
 	if (!in_interrupt()) {
 		/* normal case */
 		/* check the isp_clk before isp reset operation */
@@ -1949,7 +1948,6 @@ static int rkisp_isp_stop(struct rkisp_device *dev)
 		}
 		rkisp_soft_reset(dev->hw_dev, false);
 	}
-	rkisp_write(dev, CTRL_VI_ISP_CLK_CTRL, val, true);
 
 	if (dev->isp_ver == ISP_V12 || dev->isp_ver == ISP_V13) {
 		writel(0, base + CIF_ISP_CSI0_CSI2_RESETN);
