@@ -1447,6 +1447,22 @@ bool dm_is_verity_target(struct dm_target *ti)
 }
 
 /*
+ * Get the verity mode (error behavior) of a verity target.
+ *
+ * Returns the verity mode of the target, or -EINVAL if 'ti' is not a verity
+ * target.
+ */
+int dm_verity_get_mode(struct dm_target *ti)
+{
+	struct dm_verity *v = ti->private;
+
+	if (!dm_is_verity_target(ti))
+		return -EINVAL;
+
+	return v->mode;
+}
+
+/*
  * Get the root digest of a verity target.
  *
  * Returns a copy of the root digest, the caller is responsible for
