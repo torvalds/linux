@@ -203,6 +203,37 @@ u32 ath11k_pcic_read32(struct ath11k_base *ab, u32 offset)
 }
 EXPORT_SYMBOL(ath11k_pcic_read32);
 
+int ath11k_pcic_read(struct ath11k_base *ab, void *buf, u32 start, u32 end)
+{
+	int ret = 0;
+	bool wakeup_required;
+	u32 *data = buf;
+	u32 i;
+
+	/* for offset beyond BAR + 4K - 32, may
+	 * need to wakeup the device to access.
+	 */
+	wakeup_required = test_bit(ATH11K_FLAG_DEVICE_INIT_DONE, &ab->dev_flags) &&
+			  end >= ATH11K_PCI_ACCESS_ALWAYS_OFF;
+	if (wakeup_required && ab->pci.ops->wakeup) {
+		ret = ab->pci.ops->wakeup(ab);
+		if (ret) {
+			ath11k_warn(ab, "failed to wakeup for read from 0x%x: %d\n",
+				    start, ret);
+			return ret;
+		}
+	}
+
+	for (i = start; i < end + 1; i += 4)
+		*data++ = __ath11k_pcic_read32(ab, i);
+
+	if (wakeup_required && ab->pci.ops->release)
+		ab->pci.ops->release(ab);
+
+	return 0;
+}
+EXPORT_SYMBOL(ath11k_pcic_read);
+
 void ath11k_pcic_get_msi_address(struct ath11k_base *ab, u32 *msi_addr_lo,
 				 u32 *msi_addr_hi)
 {

@@ -45,4 +45,6 @@ void ath11k_pcic_ce_irq_disable_sync(struct ath11k_base *ab);
 int ath11k_pcic_init_msi_config(struct ath11k_base *ab);
 int ath11k_pcic_register_pci_ops(struct ath11k_base *ab,
 				 const struct ath11k_pci_ops *pci_ops);
+int ath11k_pcic_read(struct ath11k_base *ab, void *buf, u32 start, u32 end);
+
 #endif

@@ -14,6 +14,7 @@
 #include "dp_tx.h"
 #include "debugfs_htt_stats.h"
 #include "peer.h"
+#include "hif.h"
 
 static const char *htt_bp_umac_ring[HTT_SW_UMAC_RING_IDX_MAX] = {
 	"REO2SW1_RING",
@@ -982,6 +983,63 @@ static const struct file_operations fops_fw_dbglog = {
 	.llseek = default_llseek,
 };
 
+static int ath11k_open_sram_dump(struct inode *inode, struct file *file)
+{
+	struct ath11k_base *ab = inode->i_private;
+	u8 *buf;
+	u32 start, end;
+	int ret;
+
+	start = ab->hw_params.sram_dump.start;
+	end = ab->hw_params.sram_dump.end;
+
+	buf = vmalloc(end - start + 1);
+	if (!buf)
+		return -ENOMEM;
+
+	ret = ath11k_hif_read(ab, buf, start, end);
+	if (ret) {
+		ath11k_warn(ab, "failed to dump sram: %d\n", ret);
+		vfree(buf);
+		return ret;
+	}
+
+	file->private_data = buf;
+	return 0;
+}
+
+static ssize_t ath11k_read_sram_dump(struct file *file,
+				     char __user *user_buf,
+				     size_t count, loff_t *ppos)
+{
+	struct ath11k_base *ab = file->f_inode->i_private;
+	const char *buf = file->private_data;
+	int len;
+	u32 start, end;
+
+	start = ab->hw_params.sram_dump.start;
+	end = ab->hw_params.sram_dump.end;
+	len = end - start + 1;
+
+	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
+}
+
+static int ath11k_release_sram_dump(struct inode *inode, struct file *file)
+{
+	vfree(file->private_data);
+	file->private_data = NULL;
+
+	return 0;
+}
+
+static const struct file_operations fops_sram_dump = {
+	.open = ath11k_open_sram_dump,
+	.read = ath11k_read_sram_dump,
+	.release = ath11k_release_sram_dump,
+	.owner = THIS_MODULE,
+	.llseek = default_llseek,
+};
+
 int ath11k_debugfs_pdev_create(struct ath11k_base *ab)
 {
 	if (test_bit(ATH11K_FLAG_REGISTERED, &ab->dev_flags))
@@ -996,6 +1054,10 @@ int ath11k_debugfs_pdev_create(struct ath11k_base *ab)
 
 	debugfs_create_file("soc_dp_stats", 0600, ab->debugfs_soc, ab,
 			    &fops_soc_dp_stats);
+
+	if (ab->hw_params.sram_dump.start != 0)
+		debugfs_create_file("sram", 0400, ab->debugfs_soc, ab,
+				    &fops_sram_dump);
 
 	return 0;
 }

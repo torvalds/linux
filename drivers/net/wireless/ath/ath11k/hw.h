@@ -202,6 +202,11 @@ struct ath11k_hw_params {
 	bool fixed_fw_mem;
 	bool support_off_channel_tx;
 	bool supports_multi_bssid;
+
+	struct {
+		u32 start;
+		u32 end;
+	} sram_dump;
 };
 
 struct ath11k_hw_ops {
@@ -399,4 +404,5 @@ static inline const char *ath11k_bd_ie_type_str(enum ath11k_bd_ie_type type)
 }
 
 extern const struct cfg80211_sar_capa ath11k_hw_sar_capa_wcn6855;
+
 #endif
