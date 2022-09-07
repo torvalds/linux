@@ -82,6 +82,7 @@ enum {
 	MLX5_GENERAL_OBJ_TYPES_CAP_SW_ICM = (1ULL << MLX5_OBJ_TYPE_SW_ICM),
 	MLX5_GENERAL_OBJ_TYPES_CAP_GENEVE_TLV_OPT = (1ULL << 11),
 	MLX5_GENERAL_OBJ_TYPES_CAP_VIRTIO_NET_Q = (1ULL << 13),
+	MLX5_GENERAL_OBJ_TYPES_CAP_MACSEC_OFFLOAD = (1ULL << 39),
 };
 
 enum {
@@ -449,7 +450,12 @@ struct mlx5_ifc_flow_table_prop_layout_bits {
 	u8         reserved_at_60[0x2];
 	u8         reformat_insert[0x1];
 	u8         reformat_remove[0x1];
-	u8         reserver_at_64[0x14];
+	u8         macsec_encrypt[0x1];
+	u8         macsec_decrypt[0x1];
+	u8         reserved_at_66[0x2];
+	u8         reformat_add_macsec[0x1];
+	u8         reformat_remove_macsec[0x1];
+	u8         reserved_at_6a[0xe];
 	u8         log_max_ft_num[0x8];
 
 	u8         reserved_at_80[0x10];
@@ -611,7 +617,11 @@ struct mlx5_ifc_fte_match_set_misc2_bits {
 
 	u8         metadata_reg_a[0x20];
 
-	u8         reserved_at_1a0[0x60];
+	u8         reserved_at_1a0[0x8];
+
+	u8         macsec_syndrome[0x8];
+
+	u8         reserved_at_1b0[0x50];
 };
 
 struct mlx5_ifc_fte_match_set_misc3_bits {
@@ -1274,6 +1284,24 @@ struct mlx5_ifc_ipsec_cap_bits {
 	u8         min_log_ipsec_full_replay_window[0x8];
 	u8         max_log_ipsec_full_replay_window[0x8];
 	u8         reserved_at_30[0x7d0];
+};
+
+struct mlx5_ifc_macsec_cap_bits {
+	u8    macsec_epn[0x1];
+	u8    reserved_at_1[0x2];
+	u8    macsec_crypto_esp_aes_gcm_256_encrypt[0x1];
+	u8    macsec_crypto_esp_aes_gcm_128_encrypt[0x1];
+	u8    macsec_crypto_esp_aes_gcm_256_decrypt[0x1];
+	u8    macsec_crypto_esp_aes_gcm_128_decrypt[0x1];
+	u8    reserved_at_7[0x4];
+	u8    log_max_macsec_offload[0x5];
+	u8    reserved_at_10[0x10];
+
+	u8    min_log_macsec_full_replay_window[0x8];
+	u8    max_log_macsec_full_replay_window[0x8];
+	u8    reserved_at_30[0x10];
+
+	u8    reserved_at_40[0x7c0];
 };
 
 enum {
@@ -3295,6 +3323,7 @@ union mlx5_ifc_hca_cap_union_bits {
 	struct mlx5_ifc_device_mem_cap_bits device_mem_cap;
 	struct mlx5_ifc_virtio_emulation_cap_bits virtio_emulation_cap;
 	struct mlx5_ifc_shampo_cap_bits shampo_cap;
+	struct mlx5_ifc_macsec_cap_bits macsec_cap;
 	u8         reserved_at_0[0x8000];
 };
 
@@ -3310,8 +3339,8 @@ enum {
 	MLX5_FLOW_CONTEXT_ACTION_VLAN_PUSH = 0x100,
 	MLX5_FLOW_CONTEXT_ACTION_VLAN_POP_2  = 0x400,
 	MLX5_FLOW_CONTEXT_ACTION_VLAN_PUSH_2 = 0x800,
-	MLX5_FLOW_CONTEXT_ACTION_IPSEC_DECRYPT = 0x1000,
-	MLX5_FLOW_CONTEXT_ACTION_IPSEC_ENCRYPT = 0x2000,
+	MLX5_FLOW_CONTEXT_ACTION_CRYPTO_DECRYPT = 0x1000,
+	MLX5_FLOW_CONTEXT_ACTION_CRYPTO_ENCRYPT = 0x2000,
 	MLX5_FLOW_CONTEXT_ACTION_EXECUTE_ASO = 0x4000,
 };
 
@@ -3319,6 +3348,11 @@ enum {
 	MLX5_FLOW_CONTEXT_FLOW_SOURCE_ANY_VPORT         = 0x0,
 	MLX5_FLOW_CONTEXT_FLOW_SOURCE_UPLINK            = 0x1,
 	MLX5_FLOW_CONTEXT_FLOW_SOURCE_LOCAL_VPORT       = 0x2,
+};
+
+enum {
+	MLX5_FLOW_CONTEXT_ENCRYPT_DECRYPT_TYPE_IPSEC   = 0x0,
+	MLX5_FLOW_CONTEXT_ENCRYPT_DECRYPT_TYPE_MACSEC  = 0x1,
 };
 
 struct mlx5_ifc_vlan_bits {
@@ -3374,7 +3408,7 @@ struct mlx5_ifc_flow_context_bits {
 	u8         extended_destination[0x1];
 	u8         reserved_at_81[0x1];
 	u8         flow_source[0x2];
-	u8         reserved_at_84[0x4];
+	u8         encrypt_decrypt_type[0x4];
 	u8         destination_list_size[0x18];
 
 	u8         reserved_at_a0[0x8];
@@ -3386,7 +3420,7 @@ struct mlx5_ifc_flow_context_bits {
 
 	struct mlx5_ifc_vlan_bits push_vlan_2;
 
-	u8         ipsec_obj_id[0x20];
+	u8         encrypt_decrypt_obj_id[0x20];
 	u8         reserved_at_140[0xc0];
 
 	struct mlx5_ifc_fte_match_param_bits match_value;
@@ -6316,6 +6350,8 @@ enum mlx5_reformat_ctx_type {
 	MLX5_REFORMAT_TYPE_L2_TO_L3_TUNNEL = 0x4,
 	MLX5_REFORMAT_TYPE_INSERT_HDR = 0xf,
 	MLX5_REFORMAT_TYPE_REMOVE_HDR = 0x10,
+	MLX5_REFORMAT_TYPE_ADD_MACSEC = 0x11,
+	MLX5_REFORMAT_TYPE_DEL_MACSEC = 0x12,
 };
 
 struct mlx5_ifc_alloc_packet_reformat_context_in_bits {
@@ -11471,6 +11507,7 @@ enum {
 	MLX5_GENERAL_OBJECT_TYPES_IPSEC = 0x13,
 	MLX5_GENERAL_OBJECT_TYPES_SAMPLER = 0x20,
 	MLX5_GENERAL_OBJECT_TYPES_FLOW_METER_ASO = 0x24,
+	MLX5_GENERAL_OBJECT_TYPES_MACSEC = 0x27,
 };
 
 enum {
@@ -11519,6 +11556,67 @@ struct mlx5_ifc_query_ipsec_obj_out_bits {
 struct mlx5_ifc_modify_ipsec_obj_in_bits {
 	struct mlx5_ifc_general_obj_in_cmd_hdr_bits general_obj_in_cmd_hdr;
 	struct mlx5_ifc_ipsec_obj_bits ipsec_object;
+};
+
+struct mlx5_ifc_macsec_aso_bits {
+	u8    valid[0x1];
+	u8    reserved_at_1[0x1];
+	u8    mode[0x2];
+	u8    window_size[0x2];
+	u8    soft_lifetime_arm[0x1];
+	u8    hard_lifetime_arm[0x1];
+	u8    remove_flow_enable[0x1];
+	u8    epn_event_arm[0x1];
+	u8    reserved_at_a[0x16];
+
+	u8    remove_flow_packet_count[0x20];
+
+	u8    remove_flow_soft_lifetime[0x20];
+
+	u8    reserved_at_60[0x80];
+
+	u8    mode_parameter[0x20];
+
+	u8    replay_protection_window[8][0x20];
+};
+
+struct mlx5_ifc_macsec_offload_obj_bits {
+	u8    modify_field_select[0x40];
+
+	u8    confidentiality_en[0x1];
+	u8    reserved_at_41[0x1];
+	u8    esn_en[0x1];
+	u8    esn_overlap[0x1];
+	u8    reserved_at_44[0x2];
+	u8    confidentiality_offset[0x2];
+	u8    reserved_at_48[0x4];
+	u8    aso_return_reg[0x4];
+	u8    reserved_at_50[0x10];
+
+	u8    esn_msb[0x20];
+
+	u8    reserved_at_80[0x8];
+	u8    dekn[0x18];
+
+	u8    reserved_at_a0[0x20];
+
+	u8    sci[0x40];
+
+	u8    reserved_at_100[0x8];
+	u8    macsec_aso_access_pd[0x18];
+
+	u8    reserved_at_120[0x60];
+
+	u8    salt[3][0x20];
+
+	u8    reserved_at_1e0[0x20];
+
+	struct mlx5_ifc_macsec_aso_bits macsec_aso;
+};
+
+struct mlx5_ifc_create_macsec_obj_in_bits {
+	struct mlx5_ifc_general_obj_in_cmd_hdr_bits general_obj_in_cmd_hdr;
+	struct mlx5_ifc_macsec_offload_obj_bits macsec_object;
 };
 
 struct mlx5_ifc_encryption_key_obj_bits {
@@ -11638,6 +11736,7 @@ enum {
 enum {
 	MLX5_GENERAL_OBJECT_TYPE_ENCRYPTION_KEY_TYPE_TLS = 0x1,
 	MLX5_GENERAL_OBJECT_TYPE_ENCRYPTION_KEY_TYPE_IPSEC = 0x2,
+	MLX5_GENERAL_OBJECT_TYPE_ENCRYPTION_KEY_TYPE_MACSEC = 0x4,
 };
 
 struct mlx5_ifc_tls_static_params_bits {

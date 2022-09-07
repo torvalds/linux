@@ -139,6 +139,14 @@ config MLX5_CORE_IPOIB
 	help
 	  MLX5 IPoIB offloads & acceleration support.
 
+config MLX5_EN_MACSEC
+	bool "Connect-X support for MACSec offload"
+	depends on MLX5_CORE_EN
+	depends on MACSEC
+	default n
+	help
+	  Build support for MACsec cryptography-offload acceleration in the NIC.
+
 config MLX5_EN_IPSEC
 	bool "Mellanox Technologies IPsec Connect-X support"
 	depends on MLX5_CORE_EN

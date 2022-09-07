@@ -4,16 +4,22 @@
 
 #include <linux/skbuff.h>
 #include <net/ip_tunnels.h>
+#include <net/macsec.h>
 #include <net/dst.h>
 
 enum metadata_type {
 	METADATA_IP_TUNNEL,
 	METADATA_HW_PORT_MUX,
+	METADATA_MACSEC,
 };
 
 struct hw_port_info {
 	struct net_device *lower_dev;
 	u32 port_id;
+};
+
+struct macsec_info {
+	sci_t sci;
 };
 
 struct metadata_dst {
@@ -22,6 +28,7 @@ struct metadata_dst {
 	union {
 		struct ip_tunnel_info	tun_info;
 		struct hw_port_info	port_info;
+		struct macsec_info	macsec_info;
 	} u;
 };
 
@@ -82,6 +89,9 @@ static inline int skb_metadata_dst_cmp(const struct sk_buff *skb_a,
 		return memcmp(&a->u.tun_info, &b->u.tun_info,
 			      sizeof(a->u.tun_info) +
 					 a->u.tun_info.options_len);
+	case METADATA_MACSEC:
+		return memcmp(&a->u.macsec_info, &b->u.macsec_info,
+			      sizeof(a->u.macsec_info));
 	default:
 		return 1;
 	}

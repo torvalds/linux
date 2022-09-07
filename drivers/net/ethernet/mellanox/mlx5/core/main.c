@@ -1488,6 +1488,7 @@ static const int types[] = {
 	MLX5_CAP_IPSEC,
 	MLX5_CAP_PORT_SELECTION,
 	MLX5_CAP_DEV_SHAMPO,
+	MLX5_CAP_MACSEC,
 };
 
 static void mlx5_hca_caps_free(struct mlx5_core_dev *dev)

@@ -273,6 +273,13 @@ int mlx5_query_hca_caps(struct mlx5_core_dev *dev)
 			return err;
 	}
 
+	if (MLX5_CAP_GEN_64(dev, general_obj_types) &
+	    MLX5_GENERAL_OBJ_TYPES_CAP_MACSEC_OFFLOAD) {
+		err = mlx5_core_get_caps(dev, MLX5_CAP_MACSEC);
+		if (err)
+			return err;
+	}
+
 	return 0;
 }
 
