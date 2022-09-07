@@ -2846,8 +2846,6 @@ static int sched_partition_show(struct seq_file *seq, void *v)
 		else
 			seq_printf(seq, "%s invalid\n", type);
 		break;
-		seq_puts(seq, "isolated invalid\n");
-		break;
 	}
 	return 0;
 }
