@@ -237,7 +237,7 @@ static int amd8111e_free_skbs(struct net_device *dev)
 	/* Freeing previously allocated receive buffers */
 	for (i = 0; i < NUM_RX_BUFFERS; i++) {
 		rx_skbuff = lp->rx_skbuff[i];
-		if (rx_skbuff != NULL) {
+		if (rx_skbuff) {
 			dma_unmap_single(&lp->pci_dev->dev,
 					 lp->rx_dma_addr[i],
 					 lp->rx_buff_len - 2, DMA_FROM_DEVICE);
@@ -1084,7 +1084,7 @@ static irqreturn_t amd8111e_interrupt(int irq, void *dev_id)
 	unsigned int intr0, intren0;
 	unsigned int handled = 1;
 
-	if (unlikely(dev == NULL))
+	if (unlikely(!dev))
 		return IRQ_NONE;
 
 	spin_lock(&lp->lock);

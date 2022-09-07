@@ -918,7 +918,7 @@ static irqreturn_t mace_interrupt(int irq, void *dev_id)
   int status;
   int IntrCnt = MACE_MAX_IR_ITERATIONS;
 
-  if (dev == NULL) {
+  if (!dev) {
     pr_debug("mace_interrupt(): irq 0x%X for unknown device.\n",
 	  irq);
     return IRQ_NONE;
@@ -1102,7 +1102,7 @@ static int mace_rx(struct net_device *dev, unsigned char RxCnt)
 
       skb = netdev_alloc_skb(dev, pkt_len + 2);
 
-      if (skb != NULL) {
+      if (skb) {
 	skb_reserve(skb, 2);
 	insw(ioaddr + AM2150_RCV, skb_put(skb, pkt_len), pkt_len>>1);
 	if (pkt_len & 1)

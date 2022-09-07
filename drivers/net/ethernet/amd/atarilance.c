@@ -854,7 +854,7 @@ static irqreturn_t lance_interrupt( int irq, void *dev_id )
 	int csr0, boguscnt = 10;
 	int handled = 0;
 
-	if (dev == NULL) {
+	if (!dev) {
 		DPRINTK( 1, ( "lance_interrupt(): interrupt for unknown device.\n" ));
 		return IRQ_NONE;
 	}
@@ -995,7 +995,7 @@ static int lance_rx( struct net_device *dev )
 			}
 			else {
 				skb = netdev_alloc_skb(dev, pkt_len + 2);
-				if (skb == NULL) {
+				if (!skb) {
 					for( i = 0; i < RX_RING_SIZE; i++ )
 						if (MEM->rx_head[(entry+i) & RX_RING_MOD_MASK].flag &
 							RMD1_OWN_CHIP)
