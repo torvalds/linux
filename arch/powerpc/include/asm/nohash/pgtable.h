@@ -277,12 +277,6 @@ static inline int pud_huge(pud_t pud)
 	return 0;
 }
 
-static inline int pgd_huge(pgd_t pgd)
-{
-	return 0;
-}
-#define pgd_huge		pgd_huge
-
 #define is_hugepd(hpd)		(hugepd_ok(hpd))
 #endif
 

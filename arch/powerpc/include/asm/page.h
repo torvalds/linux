@@ -311,7 +311,6 @@ static inline bool pfn_valid(unsigned long pfn)
 
 #ifndef CONFIG_HUGETLB_PAGE
 #define is_hugepd(pdep)		(0)
-#define pgd_huge(pgd)		(0)
 #endif /* CONFIG_HUGETLB_PAGE */
 
 struct page;
