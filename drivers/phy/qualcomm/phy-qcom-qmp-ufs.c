@@ -821,7 +821,7 @@ static const struct qmp_phy_cfg sm8450_ufsphy_cfg = {
 	.is_dual_lane_phy	= true,
 };
 
-static void qcom_qmp_phy_ufs_configure_lane(void __iomem *base,
+static void qmp_ufs_configure_lane(void __iomem *base,
 					const unsigned int *regs,
 					const struct qmp_phy_init_tbl tbl[],
 					int num,
@@ -844,27 +844,27 @@ static void qcom_qmp_phy_ufs_configure_lane(void __iomem *base,
 	}
 }
 
-static void qcom_qmp_phy_ufs_configure(void __iomem *base,
+static void qmp_ufs_configure(void __iomem *base,
 				   const unsigned int *regs,
 				   const struct qmp_phy_init_tbl tbl[],
 				   int num)
 {
-	qcom_qmp_phy_ufs_configure_lane(base, regs, tbl, num, 0xff);
+	qmp_ufs_configure_lane(base, regs, tbl, num, 0xff);
 }
 
-static int qcom_qmp_phy_ufs_serdes_init(struct qmp_phy *qphy)
+static int qmp_ufs_serdes_init(struct qmp_phy *qphy)
 {
 	const struct qmp_phy_cfg *cfg = qphy->cfg;
 	void __iomem *serdes = qphy->serdes;
 	const struct qmp_phy_init_tbl *serdes_tbl = cfg->serdes_tbl;
 	int serdes_tbl_num = cfg->serdes_tbl_num;
 
-	qcom_qmp_phy_ufs_configure(serdes, cfg->regs, serdes_tbl, serdes_tbl_num);
+	qmp_ufs_configure(serdes, cfg->regs, serdes_tbl, serdes_tbl_num);
 
 	return 0;
 }
 
-static int qcom_qmp_phy_ufs_com_init(struct qmp_phy *qphy)
+static int qmp_ufs_com_init(struct qmp_phy *qphy)
 {
 	struct qcom_qmp *qmp = qphy->qmp;
 	const struct qmp_phy_cfg *cfg = qphy->cfg;
@@ -898,7 +898,7 @@ err_disable_regulators:
 	return ret;
 }
 
-static int qcom_qmp_phy_ufs_com_exit(struct qmp_phy *qphy)
+static int qmp_ufs_com_exit(struct qmp_phy *qphy)
 {
 	struct qcom_qmp *qmp = qphy->qmp;
 	const struct qmp_phy_cfg *cfg = qphy->cfg;
@@ -912,7 +912,7 @@ static int qcom_qmp_phy_ufs_com_exit(struct qmp_phy *qphy)
 	return 0;
 }
 
-static int qcom_qmp_phy_ufs_init(struct phy *phy)
+static int qmp_ufs_init(struct phy *phy)
 {
 	struct qmp_phy *qphy = phy_get_drvdata(phy);
 	struct qcom_qmp *qmp = qphy->qmp;
@@ -947,14 +947,14 @@ static int qcom_qmp_phy_ufs_init(struct phy *phy)
 			return ret;
 	}
 
-	ret = qcom_qmp_phy_ufs_com_init(qphy);
+	ret = qmp_ufs_com_init(qphy);
 	if (ret)
 		return ret;
 
 	return 0;
 }
 
-static int qcom_qmp_phy_ufs_power_on(struct phy *phy)
+static int qmp_ufs_power_on(struct phy *phy)
 {
 	struct qmp_phy *qphy = phy_get_drvdata(phy);
 	struct qcom_qmp *qmp = qphy->qmp;
@@ -966,26 +966,24 @@ static int qcom_qmp_phy_ufs_power_on(struct phy *phy)
 	unsigned int mask, val, ready;
 	int ret;
 
-	qcom_qmp_phy_ufs_serdes_init(qphy);
+	qmp_ufs_serdes_init(qphy);
 
 	/* Tx, Rx, and PCS configurations */
-	qcom_qmp_phy_ufs_configure_lane(tx, cfg->regs,
-				    cfg->tx_tbl, cfg->tx_tbl_num, 1);
+	qmp_ufs_configure_lane(tx, cfg->regs, cfg->tx_tbl, cfg->tx_tbl_num, 1);
 
 	if (cfg->is_dual_lane_phy) {
-		qcom_qmp_phy_ufs_configure_lane(qphy->tx2, cfg->regs,
-					    cfg->tx_tbl, cfg->tx_tbl_num, 2);
+		qmp_ufs_configure_lane(qphy->tx2, cfg->regs,
+					cfg->tx_tbl, cfg->tx_tbl_num, 2);
 	}
 
-	qcom_qmp_phy_ufs_configure_lane(rx, cfg->regs,
-				    cfg->rx_tbl, cfg->rx_tbl_num, 1);
+	qmp_ufs_configure_lane(rx, cfg->regs, cfg->rx_tbl, cfg->rx_tbl_num, 1);
 
 	if (cfg->is_dual_lane_phy) {
-		qcom_qmp_phy_ufs_configure_lane(qphy->rx2, cfg->regs,
-					    cfg->rx_tbl, cfg->rx_tbl_num, 2);
+		qmp_ufs_configure_lane(qphy->rx2, cfg->regs,
+					cfg->rx_tbl, cfg->rx_tbl_num, 2);
 	}
 
-	qcom_qmp_phy_ufs_configure(pcs, cfg->regs, cfg->pcs_tbl, cfg->pcs_tbl_num);
+	qmp_ufs_configure(pcs, cfg->regs, cfg->pcs_tbl, cfg->pcs_tbl_num);
 
 	ret = reset_control_deassert(qmp->ufs_reset);
 	if (ret)
@@ -1011,7 +1009,7 @@ static int qcom_qmp_phy_ufs_power_on(struct phy *phy)
 	return 0;
 }
 
-static int qcom_qmp_phy_ufs_power_off(struct phy *phy)
+static int qmp_ufs_power_off(struct phy *phy)
 {
 	struct qmp_phy *qphy = phy_get_drvdata(phy);
 	const struct qmp_phy_cfg *cfg = qphy->cfg;
@@ -1035,41 +1033,41 @@ static int qcom_qmp_phy_ufs_power_off(struct phy *phy)
 	return 0;
 }
 
-static int qcom_qmp_phy_ufs_exit(struct phy *phy)
+static int qmp_ufs_exit(struct phy *phy)
 {
 	struct qmp_phy *qphy = phy_get_drvdata(phy);
 
-	qcom_qmp_phy_ufs_com_exit(qphy);
+	qmp_ufs_com_exit(qphy);
 
 	return 0;
 }
 
-static int qcom_qmp_phy_ufs_enable(struct phy *phy)
+static int qmp_ufs_enable(struct phy *phy)
 {
 	int ret;
 
-	ret = qcom_qmp_phy_ufs_init(phy);
+	ret = qmp_ufs_init(phy);
 	if (ret)
 		return ret;
 
-	ret = qcom_qmp_phy_ufs_power_on(phy);
+	ret = qmp_ufs_power_on(phy);
 	if (ret)
-		qcom_qmp_phy_ufs_exit(phy);
+		qmp_ufs_exit(phy);
 
 	return ret;
 }
 
-static int qcom_qmp_phy_ufs_disable(struct phy *phy)
+static int qmp_ufs_disable(struct phy *phy)
 {
 	int ret;
 
-	ret = qcom_qmp_phy_ufs_power_off(phy);
+	ret = qmp_ufs_power_off(phy);
 	if (ret)
 		return ret;
-	return qcom_qmp_phy_ufs_exit(phy);
+	return qmp_ufs_exit(phy);
 }
 
-static int qcom_qmp_phy_ufs_vreg_init(struct device *dev, const struct qmp_phy_cfg *cfg)
+static int qmp_ufs_vreg_init(struct device *dev, const struct qmp_phy_cfg *cfg)
 {
 	struct qcom_qmp *qmp = dev_get_drvdata(dev);
 	int num = cfg->num_vregs;
@@ -1085,7 +1083,7 @@ static int qcom_qmp_phy_ufs_vreg_init(struct device *dev, const struct qmp_phy_c
 	return devm_regulator_bulk_get(dev, num, qmp->vregs);
 }
 
-static int qcom_qmp_phy_ufs_clk_init(struct device *dev, const struct qmp_phy_cfg *cfg)
+static int qmp_ufs_clk_init(struct device *dev, const struct qmp_phy_cfg *cfg)
 {
 	struct qcom_qmp *qmp = dev_get_drvdata(dev);
 	int num = cfg->num_clks;
@@ -1102,13 +1100,13 @@ static int qcom_qmp_phy_ufs_clk_init(struct device *dev, const struct qmp_phy_cf
 }
 
 static const struct phy_ops qcom_qmp_ufs_ops = {
-	.power_on	= qcom_qmp_phy_ufs_enable,
-	.power_off	= qcom_qmp_phy_ufs_disable,
+	.power_on	= qmp_ufs_enable,
+	.power_off	= qmp_ufs_disable,
 	.owner		= THIS_MODULE,
 };
 
 static
-int qcom_qmp_phy_ufs_create(struct device *dev, struct device_node *np, int id,
+int qmp_ufs_create(struct device *dev, struct device_node *np, int id,
 			void __iomem *serdes, const struct qmp_phy_cfg *cfg)
 {
 	struct qcom_qmp *qmp = dev_get_drvdata(dev);
@@ -1185,7 +1183,7 @@ int qcom_qmp_phy_ufs_create(struct device *dev, struct device_node *np, int id,
 	return 0;
 }
 
-static const struct of_device_id qcom_qmp_phy_ufs_of_match_table[] = {
+static const struct of_device_id qmp_ufs_of_match_table[] = {
 	{
 		.compatible = "qcom,msm8996-qmp-ufs-phy",
 		.data = &msm8996_ufs_cfg,
@@ -1222,9 +1220,9 @@ static const struct of_device_id qcom_qmp_phy_ufs_of_match_table[] = {
 	},
 	{ },
 };
-MODULE_DEVICE_TABLE(of, qcom_qmp_phy_ufs_of_match_table);
+MODULE_DEVICE_TABLE(of, qmp_ufs_of_match_table);
 
-static int qcom_qmp_phy_ufs_probe(struct platform_device *pdev)
+static int qmp_ufs_probe(struct platform_device *pdev)
 {
 	struct qcom_qmp *qmp;
 	struct device *dev = &pdev->dev;
@@ -1252,11 +1250,11 @@ static int qcom_qmp_phy_ufs_probe(struct platform_device *pdev)
 	if (IS_ERR(serdes))
 		return PTR_ERR(serdes);
 
-	ret = qcom_qmp_phy_ufs_clk_init(dev, cfg);
+	ret = qmp_ufs_clk_init(dev, cfg);
 	if (ret)
 		return ret;
 
-	ret = qcom_qmp_phy_ufs_vreg_init(dev, cfg);
+	ret = qmp_ufs_vreg_init(dev, cfg);
 	if (ret) {
 		if (ret != -EPROBE_DEFER)
 			dev_err(dev, "failed to get regulator supplies: %d\n",
@@ -1276,7 +1274,7 @@ static int qcom_qmp_phy_ufs_probe(struct platform_device *pdev)
 	id = 0;
 	for_each_available_child_of_node(dev->of_node, child) {
 		/* Create per-lane phy */
-		ret = qcom_qmp_phy_ufs_create(dev, child, id, serdes, cfg);
+		ret = qmp_ufs_create(dev, child, id, serdes, cfg);
 		if (ret) {
 			dev_err(dev, "failed to create lane%d phy, %d\n",
 				id, ret);
@@ -1295,15 +1293,15 @@ err_node_put:
 	return ret;
 }
 
-static struct platform_driver qcom_qmp_phy_ufs_driver = {
-	.probe		= qcom_qmp_phy_ufs_probe,
+static struct platform_driver qmp_ufs_driver = {
+	.probe		= qmp_ufs_probe,
 	.driver = {
 		.name	= "qcom-qmp-ufs-phy",
-		.of_match_table = qcom_qmp_phy_ufs_of_match_table,
+		.of_match_table = qmp_ufs_of_match_table,
 	},
 };
 
-module_platform_driver(qcom_qmp_phy_ufs_driver);
+module_platform_driver(qmp_ufs_driver);
 
 MODULE_AUTHOR("Vivek Gautam <vivek.gautam@codeaurora.org>");
 MODULE_DESCRIPTION("Qualcomm QMP UFS PHY driver");
