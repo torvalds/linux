@@ -484,20 +484,21 @@ void mlx5_modify_lag(struct mlx5_lag *ldev,
 		mlx5_lag_drop_rule_setup(ldev, tracker);
 }
 
-#define MLX5_LAG_ROCE_HASH_PORTS_SUPPORTED 4
 static int mlx5_lag_set_port_sel_mode_roce(struct mlx5_lag *ldev,
 					   unsigned long *flags)
 {
-	struct lag_func *dev0 = &ldev->pf[MLX5_LAG_P1];
+	struct mlx5_core_dev *dev0 = ldev->pf[MLX5_LAG_P1].dev;
 
-	if (ldev->ports == MLX5_LAG_ROCE_HASH_PORTS_SUPPORTED) {
-		/* Four ports are support only in hash mode */
-		if (!MLX5_CAP_PORT_SELECTION(dev0->dev, port_select_flow_table))
-			return -EINVAL;
-		set_bit(MLX5_LAG_MODE_FLAG_HASH_BASED, flags);
+	if (!MLX5_CAP_PORT_SELECTION(dev0, port_select_flow_table)) {
 		if (ldev->ports > 2)
-			ldev->buckets = MLX5_LAG_MAX_HASH_BUCKETS;
+			return -EINVAL;
+		return 0;
 	}
+
+	if (ldev->ports > 2)
+		ldev->buckets = MLX5_LAG_MAX_HASH_BUCKETS;
+
+	set_bit(MLX5_LAG_MODE_FLAG_HASH_BASED, flags);
 
 	return 0;
 }
