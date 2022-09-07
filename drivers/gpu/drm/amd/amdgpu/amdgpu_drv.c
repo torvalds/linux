@@ -2186,6 +2186,36 @@ amdgpu_pci_remove(struct pci_dev *pdev)
 		pm_runtime_forbid(dev->dev);
 	}
 
+	if (adev->ip_versions[MP1_HWIP][0] == IP_VERSION(13, 0, 2)) {
+		bool need_to_reset_gpu = false;
+
+		if (adev->gmc.xgmi.num_physical_nodes > 1) {
+			struct amdgpu_hive_info *hive;
+
+			hive = amdgpu_get_xgmi_hive(adev);
+			if (hive->device_remove_count == 0)
+				need_to_reset_gpu = true;
+			hive->device_remove_count++;
+			amdgpu_put_xgmi_hive(hive);
+		} else {
+			need_to_reset_gpu = true;
+		}
+
+		/* Workaround for ASICs need to reset SMU.
+		 * Called only when the first device is removed.
+		 */
+		if (need_to_reset_gpu) {
+			struct amdgpu_reset_context reset_context;
+
+			memset(&reset_context, 0, sizeof(reset_context));
+			reset_context.method = AMD_RESET_METHOD_NONE;
+			reset_context.reset_req_dev = adev;
+			set_bit(AMDGPU_NEED_FULL_RESET, &reset_context.flags);
+			set_bit(AMDGPU_RESET_FOR_DEVICE_REMOVE, &reset_context.flags);
+			amdgpu_device_gpu_recover(adev, NULL, &reset_context);
+		}
+	}
+
 	amdgpu_driver_unload_kms(dev);
 
 	drm_dev_unplug(dev);
