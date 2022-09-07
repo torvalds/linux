@@ -41,6 +41,8 @@
 #define MT7921_EEPROM_SIZE		3584
 #define MT7921_TOKEN_SIZE		8192
 
+#define MT7921_EEPROM_BLOCK_SIZE	16
+
 #define MT7921_CFEND_RATE_DEFAULT	0x49	/* OFDM 24M */
 #define MT7921_CFEND_RATE_11B		0x03	/* 11B LP, 11M */
 
@@ -148,6 +150,29 @@ struct mib_stats {
 	u32 tx_amsdu_cnt;
 };
 
+enum {
+	MT7921_CLC_POWER,
+	MT7921_CLC_CHAN,
+	MT7921_CLC_MAX_NUM,
+};
+
+struct mt7921_clc_rule {
+	u8 alpha2[2];
+	u8 type[2];
+	__le16 len;
+	u8 data[];
+} __packed;
+
+struct mt7921_clc {
+	__le32 len;
+	u8 idx;
+	u8 ver;
+	u8 nr_country;
+	u8 type;
+	u8 rsv[8];
+	u8 data[];
+};
+
 struct mt7921_phy {
 	struct mt76_phy *mt76;
 	struct mt7921_dev *dev;
@@ -173,6 +198,8 @@ struct mt7921_phy {
 #ifdef CONFIG_ACPI
 	struct mt7921_acpi_sar *acpisar;
 #endif
+
+	struct mt7921_clc *clc[MT7921_CLC_MAX_NUM];
 };
 
 #define mt7921_init_reset(dev)		((dev)->hif_ops->init_reset(dev))
@@ -478,4 +505,7 @@ mt7921_init_acpi_sar_power(struct mt7921_phy *phy, bool set_default)
 #endif
 int mt7921_set_tx_sar_pwr(struct ieee80211_hw *hw,
 			  const struct cfg80211_sar_specs *sar);
+
+int mt7921_mcu_set_clc(struct mt7921_dev *dev, u8 *alpha2,
+		       enum environment_cap env_cap);
 #endif
