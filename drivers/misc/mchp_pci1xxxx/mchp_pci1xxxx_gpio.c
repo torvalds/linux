@@ -411,6 +411,7 @@ static const struct auxiliary_device_id pci1xxxx_gpio_auxiliary_id_table[] = {
 	{.name = "mchp_pci1xxxx_gp.gp_gpio"},
 	{}
 };
+MODULE_DEVICE_TABLE(auxiliary, pci1xxxx_gpio_auxiliary_id_table);
 
 static struct auxiliary_driver pci1xxxx_gpio_driver = {
 	.driver = {
