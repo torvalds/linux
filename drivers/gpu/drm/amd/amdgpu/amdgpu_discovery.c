@@ -471,11 +471,11 @@ void amdgpu_discovery_fini(struct amdgpu_device *adev)
 	adev->mman.discovery_bin = NULL;
 }
 
-static int amdgpu_discovery_validate_ip(const struct ip *ip)
+static int amdgpu_discovery_validate_ip(const struct ip_v4 *ip)
 {
-	if (ip->number_instance >= HWIP_MAX_INSTANCE) {
-		DRM_ERROR("Unexpected number_instance (%d) from ip discovery blob\n",
-			  ip->number_instance);
+	if (ip->instance_number >= HWIP_MAX_INSTANCE) {
+		DRM_ERROR("Unexpected instance_number (%d) from ip discovery blob\n",
+			  ip->instance_number);
 		return -EINVAL;
 	}
 	if (le16_to_cpu(ip->hw_id) >= HW_ID_MAX) {
@@ -493,7 +493,7 @@ static void amdgpu_discovery_read_harvest_bit_per_ip(struct amdgpu_device *adev,
 	struct binary_header *bhdr;
 	struct ip_discovery_header *ihdr;
 	struct die_header *dhdr;
-	struct ip *ip;
+	struct ip_v4 *ip;
 	uint16_t die_offset, ip_offset, num_dies, num_ips;
 	int i, j;
 
@@ -510,16 +510,16 @@ static void amdgpu_discovery_read_harvest_bit_per_ip(struct amdgpu_device *adev,
 		ip_offset = die_offset + sizeof(*dhdr);
 
 		for (j = 0; j < num_ips; j++) {
-			ip = (struct ip *)(adev->mman.discovery_bin + ip_offset);
+			ip = (struct ip_v4 *)(adev->mman.discovery_bin + ip_offset);
 
 			if (amdgpu_discovery_validate_ip(ip))
 				goto next_ip;
 
-			if (le16_to_cpu(ip->harvest) == 1) {
+			if (le16_to_cpu(ip->variant) == 1) {
 				switch (le16_to_cpu(ip->hw_id)) {
 				case VCN_HWID:
 					(*vcn_harvest_count)++;
-					if (ip->number_instance == 0)
+					if (ip->instance_number == 0)
 						adev->vcn.harvest_config |= AMDGPU_VCN_HARVEST_VCN0;
 					else
 						adev->vcn.harvest_config |= AMDGPU_VCN_HARVEST_VCN1;
@@ -852,10 +852,10 @@ static int amdgpu_discovery_sysfs_ips(struct amdgpu_device *adev,
 		size_t ip_offset = _ip_offset;
 
 		for (jj = 0; jj < num_ips; jj++) {
-			struct ip *ip;
+			struct ip_v4 *ip;
 			struct ip_hw_instance *ip_hw_instance;
 
-			ip = (struct ip *)(adev->mman.discovery_bin + ip_offset);
+			ip = (struct ip_v4 *)(adev->mman.discovery_bin + ip_offset);
 			if (amdgpu_discovery_validate_ip(ip) ||
 			    le16_to_cpu(ip->hw_id) != ii)
 				goto next_ip;
@@ -903,11 +903,11 @@ static int amdgpu_discovery_sysfs_ips(struct amdgpu_device *adev,
 				return -ENOMEM;
 			}
 			ip_hw_instance->hw_id = le16_to_cpu(ip->hw_id); /* == ii */
-			ip_hw_instance->num_instance = ip->number_instance;
+			ip_hw_instance->num_instance = ip->instance_number;
 			ip_hw_instance->major = ip->major;
 			ip_hw_instance->minor = ip->minor;
 			ip_hw_instance->revision = ip->revision;
-			ip_hw_instance->harvest = ip->harvest;
+			ip_hw_instance->harvest = ip->variant;
 			ip_hw_instance->num_base_addresses = ip->num_base_address;
 
 			for (kk = 0; kk < ip_hw_instance->num_base_addresses; kk++)
@@ -1082,7 +1082,7 @@ static int amdgpu_discovery_reg_base_init(struct amdgpu_device *adev)
 	struct binary_header *bhdr;
 	struct ip_discovery_header *ihdr;
 	struct die_header *dhdr;
-	struct ip *ip;
+	struct ip_v4 *ip;
 	uint16_t die_offset;
 	uint16_t ip_offset;
 	uint16_t num_dies;
@@ -1121,7 +1121,7 @@ static int amdgpu_discovery_reg_base_init(struct amdgpu_device *adev)
 				le16_to_cpu(dhdr->die_id), num_ips);
 
 		for (j = 0; j < num_ips; j++) {
-			ip = (struct ip *)(adev->mman.discovery_bin + ip_offset);
+			ip = (struct ip_v4 *)(adev->mman.discovery_bin + ip_offset);
 
 			if (amdgpu_discovery_validate_ip(ip))
 				goto next_ip;
@@ -1131,7 +1131,7 @@ static int amdgpu_discovery_reg_base_init(struct amdgpu_device *adev)
 			DRM_DEBUG("%s(%d) #%d v%d.%d.%d:\n",
 				  hw_id_names[le16_to_cpu(ip->hw_id)],
 				  le16_to_cpu(ip->hw_id),
-				  ip->number_instance,
+				  ip->instance_number,
 				  ip->major, ip->minor,
 				  ip->revision);
 
@@ -1182,7 +1182,7 @@ static int amdgpu_discovery_reg_base_init(struct amdgpu_device *adev)
 				if (hw_id_map[hw_ip] == le16_to_cpu(ip->hw_id)) {
 					DRM_DEBUG("set register base offset for %s\n",
 							hw_id_names[le16_to_cpu(ip->hw_id)]);
-					adev->reg_offset[hw_ip][ip->number_instance] =
+					adev->reg_offset[hw_ip][ip->instance_number] =
 						ip->base_address;
 					/* Instance support is somewhat inconsistent.
 					 * SDMA is a good example.  Sienna cichlid has 4 total
@@ -1193,7 +1193,7 @@ static int amdgpu_discovery_reg_base_init(struct amdgpu_device *adev)
 					 * example.  On most chips there are multiple instances
 					 * with the same HWID.
 					 */
-					adev->ip_versions[hw_ip][ip->number_instance] =
+					adev->ip_versions[hw_ip][ip->instance_number] =
 						IP_VERSION(ip->major, ip->minor, ip->revision);
 				}
 			}
