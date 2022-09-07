@@ -191,9 +191,6 @@ static int vs_crtc_enable_vblank(struct drm_crtc *crtc)
 	struct vs_crtc *vs_crtc = to_vs_crtc(crtc);
 	struct vs_crtc_state *vs_crtc_state = to_vs_crtc_state(crtc->state);
 
-	if (vs_crtc_state->encoder_type == DRM_MODE_ENCODER_DSI)
-		vs_crtc->funcs->enable(vs_crtc->dev, crtc);
-
 	vs_crtc->funcs->enable_vblank(vs_crtc->dev, true);
 
 	return 0;
@@ -272,12 +269,8 @@ static void vs_crtc_atomic_enable(struct drm_crtc *crtc,
 
 	vs_crtc_state->bpp = cal_pixel_bits(vs_crtc_state->output_fmt);
 
-	if (vs_crtc_state->encoder_type != DRM_MODE_ENCODER_DSI){
-		vs_crtc->funcs->enable(vs_crtc->dev, crtc);
-		drm_crtc_vblank_on(crtc);
-	} else {
-		drm_crtc_vblank_on(crtc);
-	}
+	vs_crtc->funcs->enable(vs_crtc->dev, crtc);
+	drm_crtc_vblank_on(crtc);
 
 }
 

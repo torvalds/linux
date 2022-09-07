@@ -1488,10 +1488,14 @@ void dc_hw_setup_display(struct dc_hw *hw, struct dc_hw_display *display)
 
 void dc_hw_enable_interrupt(struct dc_hw *hw, bool enable)
 {
-	if (enable)
+	if (enable) {
+		if (hw->out[1] == OUT_DPI)
+			dc_set_clear(hw, DC_DISPLAY_PANEL_START, BIT(1), BIT(3));
+
 		hi_write(hw, AQ_INTR_ENBL, 0xFFFFFFFF);
-	else
+	} else {
 		hi_write(hw, AQ_INTR_ENBL, 0);
+	}
 }
 
 u32 dc_hw_get_interrupt(struct dc_hw *hw)
@@ -1945,7 +1949,8 @@ static void setup_display(struct dc_hw *hw, struct dc_hw_display *display)
 		else if (id == 0)
 			dc_set_clear(hw, DC_DISPLAY_PANEL_START, BIT(0), BIT(3));
 		else
-			dc_set_clear(hw, DC_DISPLAY_PANEL_START, BIT(1), BIT(3));
+			if (hw->out[id] != OUT_DPI)
+				dc_set_clear(hw, DC_DISPLAY_PANEL_START, BIT(1), BIT(3));
 	} else {
 		dc_set_clear(hw, DC_DISPLAY_PANEL_CONFIG + offset, 0, BIT(12));
 		if (id == 0)
