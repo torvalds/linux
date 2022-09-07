@@ -466,7 +466,7 @@
 		};
 
 		timer: timer@13050000 {
-			compatible = "starfive,timers";
+			compatible = "starfive,jh7110-timers";
 			reg = <0x0 0x13050000 0x0 0x10000>;
 			interrupts = <69>, <70>, <71> ,<72>;
 			interrupt-names = "timer0", "timer1",
@@ -490,7 +490,7 @@
 		};
 
 		wdog: wdog@13070000 {
-			compatible = "starfive,dskit-wdt";
+			compatible = "starfive,jh7110-wdt";
 			reg = <0x0 0x13070000 0x0 0x10000>;
 			interrupts = <68>;
 			interrupt-names = "wdog";
@@ -1176,7 +1176,7 @@
 		};
 
 		spdif0: spdif0@100a0000 {
-			compatible = "starfive,sf-spdif";
+			compatible = "starfive,jh7110-spdif";
 			reg = <0x0 0x100a0000 0x0 0x1000>;
 			clocks = <&clkgen JH7110_SPDIF_CLK_APB>,
 				 <&clkgen JH7110_SPDIF_CLK_CORE>,
@@ -1193,7 +1193,7 @@
 		};
 
 		pwmdac: pwmdac@100b0000 {
-			compatible = "starfive,pwmdac";
+			compatible = "starfive,jh7110-pwmdac";
 			reg = <0x0 0x100b0000 0x0 0x1000>;
 			clocks = <&clkgen JH7110_APB0>,
 				 <&clkgen JH7110_PWMDAC_CLK_APB>,
@@ -1259,7 +1259,7 @@
 		};
 
 		i2srx_3ch: i2srx_3ch@100e0000 {
-			compatible = "snps,designware-i2srx";
+			compatible = "starfive,jh7110-i2srx", "snps,designware-i2s";
 			reg = <0x0 0x100e0000 0x0 0x1000>;
 			clocks = <&clkgen JH7110_APB0>,
 				 <&clkgen JH7110_I2SRX0_3CH_CLK_APB>,
@@ -1273,11 +1273,11 @@
 				 <&i2srx_bclk_ext>,
 				 <&i2srx_lrck_ext>;
 			clock-names = "apb0", "3ch-apb",
-					"audioroot", "mclk-inner",
-					"bclk_mst", "3ch-lrck",
-					"rx-bclk", "rx-lrck",
-					"mclk", "bclk-ext",
-					"lrck-ext";
+				      "audioroot", "mclk-inner",
+				      "bclk_mst", "3ch-lrck",
+				      "rx-bclk", "rx-lrck",
+				      "mclk", "bclk-ext",
+				      "lrck-ext";
 			resets = <&rstgen RSTN_U0_I2SRX_3CH_APB>,
 				 <&rstgen RSTN_U0_I2SRX_3CH_BCLK>;
 			dmas = <&dma 24 1>;
@@ -1308,7 +1308,7 @@
 		};
 
 		i2stx_4ch1: i2stx_4ch1@120c0000 {
-			compatible = "snps,designware-i2stx-4ch1";
+			compatible = "starfive,jh7110-i2stx-4ch1", "snps,designware-i2s";
 			reg = <0x0 0x120c0000 0x0 0x1000>;
 			clocks = <&clkgen JH7110_AUDIO_ROOT>,
 				 <&clkgen JH7110_MCLK_INNER>,
@@ -1323,12 +1323,11 @@
 				 <&mclk_ext>,
 				 <&i2stx_bclk_ext>,
 				 <&i2stx_lrck_ext>;
-                        clock-names = "audroot", "mclk_inner", "bclk_mst",
-                                        "lrck_mst", "mclk", "4chbclk",
-                                        "4chlrck", "mclk_out",
-					"apb0", "clk_apb",
-					"mclk_ext", "bclk_ext", "lrck_ext";
-
+			clock-names = "audroot", "mclk_inner", "bclk_mst",
+				      "lrck_mst", "mclk", "4chbclk",
+				      "4chlrck", "mclk_out",
+				      "apb0", "clk_apb",
+				      "mclk_ext", "bclk_ext", "lrck_ext";
 			resets = <&rstgen RSTN_U1_I2STX_4CH_APB>,
 				 <&rstgen RSTN_U1_I2STX_4CH_BCLK>;
 			dmas = <&dma 48 1>;
@@ -1355,14 +1354,8 @@
 			status = "disabled";
 		};
 
-		spdif_receiver: spdif_receiver {
-			compatible = "linux,spdif-dir";
-			#sound-dai-cells = <0>;
-			status = "disabled";
-		};
-
 		pwmdac_codec: pwmdac-transmitter {
-			compatible = "linux,pwmdac-dit";
+			compatible = "starfive,jh7110-pwmdac-dit";
 			#sound-dai-cells = <0>;
 			status = "disabled";
 		};

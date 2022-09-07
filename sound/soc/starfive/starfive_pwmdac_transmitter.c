@@ -76,7 +76,7 @@ static int pwmdac_dit_probe(struct platform_device *pdev)
 
 #ifdef CONFIG_OF
 static const struct of_device_id pwmdac_dit_dt_ids[] = {
-	{ .compatible = "linux,pwmdac-dit", },
+	{ .compatible = "starfive,jh7110-pwmdac-dit", },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, pwmdac_dit_dt_ids);

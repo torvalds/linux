@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
 %YAML 1.2
 ---
-$id: http://devicetree.org/schemas/timer/starfive,timers.yaml#
+$id: http://devicetree.org/schemas/timer/starfive,jh7110-timers.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
 title: StarFive timers bindings
@@ -12,7 +12,7 @@ maintainers:
 
 properties:
   compatible:
-    const: starfive,timers
+    const: starfive,jh7110-timers
 
   reg:
     maxItems: 1
@@ -62,7 +62,7 @@ examples:
     #include <dt-bindings/clock/starfive-jh7110-clkgen.h>
 
     timer0: timer@15200000 {
-            compatible = "starfive,timers";
+            compatible = "starfive,jh7110-timers";
             reg = <0x15200000 0x10000>;
             interrupts = <85>, <86>, <87> ,<88>;
             interrupt-names = "timer0", "timer1", "timer2", "timer3";

@@ -2601,14 +2601,14 @@ static int starfive_of_pl022_remove(struct platform_device *pdev)
 }
 
 static const struct of_device_id starfive_of_pl022_match[] = {
-	{ .compatible = "starfive-of,pl022" },
+	{ .compatible = "starfive,jh7110-spi-pl022" },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, starfive_of_pl022_match);
 
 static struct platform_driver starfive_of_pl022_driver = {
 	.driver = {
-		.name = "starfive-pl022",
+		.name = "starfive-spi-pl022",
 		.of_match_table = starfive_of_pl022_match,
 		.pm	= &pl022_dev_pm_ops,
 	},

@@ -766,7 +766,7 @@ static const struct snd_soc_dai_ops sf_pwmdac_dai_ops = {
 };
 
 static const struct snd_soc_component_driver sf_pwmdac_component = {
-	.name		= "sf-pwmdac",
+	.name		= "starfive-pwmdac",
 	.probe		= pwmdac_probe,
 };
 
@@ -849,7 +849,7 @@ static int sf_pwmdac_remove(struct platform_device *pdev)
 
 #ifdef CONFIG_OF
 static const struct of_device_id sf_pwmdac_of_match[] = {
-	{ .compatible = "starfive,pwmdac", },
+	{ .compatible = "starfive,jh7110-pwmdac", },
 	{},
 };
 
@@ -861,7 +861,7 @@ static struct platform_driver sf_pwmdac_driver = {
 	.probe		= sf_pwmdac_probe,
 	.remove		= sf_pwmdac_remove,
 	.driver		= {
-		.name	= "sf-pwmdac",
+		.name	= "starfive-pwmdac",
 		.of_match_table = of_match_ptr(sf_pwmdac_of_match),
 	},
 };

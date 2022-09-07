@@ -16,8 +16,8 @@ maintainers:
 properties:
   compatible:
     enum:
-      - starfive,wdt
-      - starfive,dskit-wdt
+      - starfive,jh7100-wdt
+      - starfive,jh7110-wdt
 
   reg:
     maxItems: 1
@@ -64,7 +64,7 @@ examples:
     #include <dt-bindings/reset/starfive-jh7110.h>
 
     wdog: watchdog@13070000 {
-            compatible = "starfive,dskit-wdt";
+            compatible = "starfive,jh7110-wdt";
             reg = <0x13070000 0x10000>;
             interrupts = <68>;
             clocks = <&clkgen JH7110_DSKIT_WDT_CLK_WDT>,

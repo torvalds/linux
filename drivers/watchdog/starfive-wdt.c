@@ -183,9 +183,9 @@ static const struct starfive_wdt_variant drv_data_jh7110 = {
 };
 
 static const struct of_device_id starfive_wdt_match[] = {
-	{ .compatible = "starfive,wdt",
+	{ .compatible = "starfive,jh7100-wdt",
 		.data = &drv_data_jh7100 },
-	{ .compatible = "starfive,dskit-wdt",
+	{ .compatible = "starfive,jh7110-wdt",
 		.data = &drv_data_jh7110 },
 	{},
 };

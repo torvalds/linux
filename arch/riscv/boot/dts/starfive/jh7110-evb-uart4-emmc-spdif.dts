@@ -70,6 +70,3 @@
 	status = "okay";
 };
 
-&spdif_receiver {
-	status = "okay";
-};
