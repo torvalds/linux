@@ -815,7 +815,7 @@ static int hdmirx_get_detected_timings(struct rk_hdmirx_dev *hdmirx_dev,
 	tmp_data = tmds_clk * 24;
 	do_div(tmp_data, color_depth);
 	pix_clk = tmp_data;
-	bt->pixelclock = pix_clk;
+	bt->pixelclock = tmds_clk;
 
 	hdmirx_get_timings(hdmirx_dev, bt, from_dma);
 	if (bt->interlaced == V4L2_DV_INTERLACED) {
@@ -823,7 +823,7 @@ static int hdmirx_get_detected_timings(struct rk_hdmirx_dev *hdmirx_dev,
 		bt->il_vsync = bt->vsync + 1;
 	}
 
-	v4l2_dbg(2, debug, v4l2_dev, "tmds_clk:%llu\n", tmds_clk);
+	v4l2_dbg(2, debug, v4l2_dev, "tmds_clk:%llu, pix_clk:%d\n", tmds_clk, pix_clk);
 	v4l2_dbg(1, debug, v4l2_dev, "interlace:%d, fmt:%d, vic:%d, color:%d, mode:%s\n",
 		 bt->interlaced, hdmirx_dev->pix_fmt,
 		 hdmirx_dev->cur_vic, hdmirx_dev->color_depth,
