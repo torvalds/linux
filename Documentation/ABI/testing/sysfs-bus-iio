@@ -2155,3 +2155,10 @@ Contact:	linux-iio@vger.kernel.org
 Description:
 		Raw (unscaled) euler angles readings. Units after
 		application of scale are deg.
+
+What:		/sys/bus/iio/devices/iio:deviceX/serialnumber
+KernelVersion:	6.1
+Contact:	linux-iio@vger.kernel.org
+Description:
+		An example format is 16-bytes, 2-digits-per-byte, HEX-string
+		representing the sensor unique ID number.
