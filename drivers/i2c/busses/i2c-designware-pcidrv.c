@@ -243,6 +243,7 @@ static int i2c_dw_pci_probe(struct pci_dev *pdev,
 	int r;
 	struct dw_pci_controller *controller;
 	struct dw_scl_sda_cfg *cfg;
+	struct i2c_timings *t;
 
 	if (id->driver_data >= ARRAY_SIZE(dw_pci_controllers))
 		return dev_err_probe(&pdev->dev, -EINVAL,
@@ -272,11 +273,13 @@ static int i2c_dw_pci_probe(struct pci_dev *pdev,
 		return r;
 
 	dev->get_clk_rate_khz = controller->get_clk_rate_khz;
-	dev->timings.bus_freq_hz = I2C_MAX_FAST_MODE_FREQ;
 	dev->base = pcim_iomap_table(pdev)[0];
 	dev->dev = &pdev->dev;
 	dev->irq = pci_irq_vector(pdev, 0);
 	dev->flags |= controller->flags;
+
+	t = &dev->timings;
+	i2c_parse_fw_timings(&pdev->dev, t, false);
 
 	pci_set_drvdata(pdev, dev);
 
