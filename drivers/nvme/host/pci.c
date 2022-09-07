@@ -230,8 +230,8 @@ struct nvme_iod {
 	bool aborted;
 	s8 nr_allocations;	/* PRP list pool allocations. 0 means small
 				   pool in use */
-	dma_addr_t first_dma;
 	unsigned int dma_len;	/* length of single DMA segment mapping */
+	dma_addr_t first_dma;
 	dma_addr_t meta_dma;
 	struct sg_table sgt;
 };
