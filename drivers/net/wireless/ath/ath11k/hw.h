@@ -216,6 +216,7 @@ struct ath11k_hw_params {
 	} sram_dump;
 
 	bool tcl_ring_retry;
+	u32 tx_ring_size;
 };
 
 struct ath11k_hw_ops {

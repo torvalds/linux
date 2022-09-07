@@ -112,6 +112,7 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
 		.sram_dump = {},
 
 		.tcl_ring_retry = true,
+		.tx_ring_size = DP_TCL_DATA_RING_SIZE,
 	},
 	{
 		.hw_rev = ATH11K_HW_IPQ6018_HW10,
@@ -189,6 +190,7 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
 		.sram_dump = {},
 
 		.tcl_ring_retry = true,
+		.tx_ring_size = DP_TCL_DATA_RING_SIZE,
 	},
 	{
 		.name = "qca6390 hw2.0",
@@ -268,6 +270,7 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
 		},
 
 		.tcl_ring_retry = true,
+		.tx_ring_size = DP_TCL_DATA_RING_SIZE,
 	},
 	{
 		.name = "qcn9074 hw1.0",
@@ -344,6 +347,7 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
 		.sram_dump = {},
 
 		.tcl_ring_retry = true,
+		.tx_ring_size = DP_TCL_DATA_RING_SIZE,
 	},
 	{
 		.name = "wcn6855 hw2.0",
@@ -423,6 +427,7 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
 		},
 
 		.tcl_ring_retry = true,
+		.tx_ring_size = DP_TCL_DATA_RING_SIZE,
 	},
 	{
 		.name = "wcn6855 hw2.1",
@@ -501,6 +506,7 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
 		},
 
 		.tcl_ring_retry = true,
+		.tx_ring_size = DP_TCL_DATA_RING_SIZE,
 	},
 	{
 		.name = "wcn6750 hw1.0",
@@ -576,6 +582,7 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
 		.sram_dump = {},
 
 		.tcl_ring_retry = false,
+		.tx_ring_size = DP_TCL_DATA_RING_SIZE_WCN6750,
 	},
 };
 
