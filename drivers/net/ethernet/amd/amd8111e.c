@@ -43,7 +43,7 @@ Revision History:
 	3.0.4 12/09/2003
 	 1. Added set_mac_address routine for bonding driver support.
 	 2. Tested the driver for bonding support
-	 3. Bug fix: Fixed mismach in actual receive buffer lenth and lenth
+	 3. Bug fix: Fixed mismach in actual receive buffer length and length
 	    indicated to the h/w.
 	 4. Modified amd8111e_rx() routine to receive all the received packets
 	    in the first interrupt.
@@ -1109,7 +1109,7 @@ static irqreturn_t amd8111e_interrupt(int irq, void *dev_id)
 	/* Check if Receive Interrupt has occurred. */
 	if (intr0 & RINT0) {
 		if (napi_schedule_prep(&lp->napi)) {
-			/* Disable receive interupts */
+			/* Disable receive interrupts */
 			writel(RINTEN0, mmio + INTEN0);
 			/* Schedule a polling routine */
 			__napi_schedule(&lp->napi);
@@ -1554,7 +1554,7 @@ static int amd8111e_enable_magicpkt(struct amd8111e_priv *lp)
 static int amd8111e_enable_link_change(struct amd8111e_priv *lp)
 {
 
-	/* Adapter is already stoped/suspended/interrupt-disabled */
+	/* Adapter is already stopped/suspended/interrupt-disabled */
 	writel(VAL0 | LCMODE_SW, lp->mmio + CMD7);
 
 	/* To eliminate PCI posting bug */
