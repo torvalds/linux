@@ -10,6 +10,7 @@ Supported devices:
 * Aquacomputer Farbwerk 360 RGB controller
 * Aquacomputer Octo fan controller
 * Aquacomputer Quadro fan controller
+* Aquacomputer High Flow Next sensor
 
 Author: Aleksa Savic
 
@@ -42,6 +43,10 @@ voltage and current.
 
 The Farbwerk and Farbwerk 360 expose four temperature sensors. Additionally,
 sixteen virtual temperature sensors of the Farbwerk 360 are exposed.
+
+The High Flow Next exposes +5V voltages, water quality, conductivity and flow readings.
+A temperature sensor can be connected to it, in which case it provides its reading
+and an estimation of the dissipated/absorbed power in the liquid cooling loop.
 
 Depending on the device, not all sysfs and debugfs entries will be available.
 Writing to virtual temperature sensors is not currently supported.
