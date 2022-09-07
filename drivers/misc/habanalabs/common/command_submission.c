@@ -826,10 +826,10 @@ static void cs_timedout(struct work_struct *work)
 	}
 
 	/* Save only the first CS timeout parameters */
-	rc = atomic_cmpxchg(&hdev->last_error.cs_timeout.write_enable, 1, 0);
+	rc = atomic_cmpxchg(&hdev->captured_err_info.cs_timeout.write_enable, 1, 0);
 	if (rc) {
-		hdev->last_error.cs_timeout.timestamp = ktime_get();
-		hdev->last_error.cs_timeout.seq = cs->sequence;
+		hdev->captured_err_info.cs_timeout.timestamp = ktime_get();
+		hdev->captured_err_info.cs_timeout.seq = cs->sequence;
 
 		event_mask = device_reset ? (HL_NOTIFIER_EVENT_CS_TIMEOUT |
 				HL_NOTIFIER_EVENT_DEVICE_RESET) : HL_NOTIFIER_EVENT_CS_TIMEOUT;

@@ -6894,9 +6894,9 @@ static void gaudi_handle_sw_config_stream_data(struct hl_device *hdev, u32 strea
 							stream, cq_ptr, size);
 
 	if (event_mask & HL_NOTIFIER_EVENT_UNDEFINED_OPCODE) {
-		hdev->last_error.undef_opcode.cq_addr = cq_ptr;
-		hdev->last_error.undef_opcode.cq_size = size;
-		hdev->last_error.undef_opcode.stream_id = stream;
+		hdev->captured_err_info.undef_opcode.cq_addr = cq_ptr;
+		hdev->captured_err_info.undef_opcode.cq_size = size;
+		hdev->captured_err_info.undef_opcode.stream_id = stream;
 	}
 }
 
@@ -6962,7 +6962,7 @@ static void gaudi_handle_last_pqes_on_err(struct hl_device *hdev, u32 qid_base,
 	}
 
 	if (event_mask & HL_NOTIFIER_EVENT_UNDEFINED_OPCODE) {
-		struct undefined_opcode_info *undef_opcode = &hdev->last_error.undef_opcode;
+		struct undefined_opcode_info *undef_opcode = &hdev->captured_err_info.undef_opcode;
 		u32 arr_idx = undef_opcode->cb_addr_streams_len;
 
 		if (arr_idx == 0) {
@@ -7046,11 +7046,11 @@ static void gaudi_handle_qman_err_generic(struct hl_device *hdev,
 		}
 		/* check for undefined opcode */
 		if (glbl_sts_val & TPC0_QM_GLBL_STS1_CP_UNDEF_CMD_ERR_MASK &&
-				hdev->last_error.undef_opcode.write_enable) {
-			memset(&hdev->last_error.undef_opcode, 0,
-						sizeof(hdev->last_error.undef_opcode));
+				hdev->captured_err_info.undef_opcode.write_enable) {
+			memset(&hdev->captured_err_info.undef_opcode, 0,
+						sizeof(hdev->captured_err_info.undef_opcode));
 
-			hdev->last_error.undef_opcode.write_enable = false;
+			hdev->captured_err_info.undef_opcode.write_enable = false;
 			*event_mask |= HL_NOTIFIER_EVENT_UNDEFINED_OPCODE;
 		}
 
@@ -7332,18 +7332,19 @@ static void gaudi_print_irq_info(struct hl_device *hdev, u16 event_type,
 		gaudi_print_and_get_mmu_error_info(hdev, &razwi_addr, &razwi_type);
 
 		/* In case it's the first razwi, save its parameters*/
-		rc = atomic_cmpxchg(&hdev->last_error.razwi.write_enable, 1, 0);
+		rc = atomic_cmpxchg(&hdev->captured_err_info.razwi.write_enable, 1, 0);
 		if (rc) {
-			hdev->last_error.razwi.timestamp = ktime_get();
-			hdev->last_error.razwi.addr = razwi_addr;
-			hdev->last_error.razwi.engine_id_1 = engine_id_1;
-			hdev->last_error.razwi.engine_id_2 = engine_id_2;
+			hdev->captured_err_info.razwi.timestamp = ktime_get();
+			hdev->captured_err_info.razwi.addr = razwi_addr;
+			hdev->captured_err_info.razwi.engine_id_1 = engine_id_1;
+			hdev->captured_err_info.razwi.engine_id_2 = engine_id_2;
 			/*
 			 * If first engine id holds non valid value the razwi initiator
 			 * does not have engine id
 			 */
-			hdev->last_error.razwi.non_engine_initiator = (engine_id_1 == U16_MAX);
-			hdev->last_error.razwi.type = razwi_type;
+			hdev->captured_err_info.razwi.non_engine_initiator =
+									(engine_id_1 == U16_MAX);
+			hdev->captured_err_info.razwi.type = razwi_type;
 
 		}
 	}

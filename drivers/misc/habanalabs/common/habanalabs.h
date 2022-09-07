@@ -2981,12 +2981,12 @@ struct undefined_opcode_info {
 };
 
 /**
- * struct last_error_session_info - info about last session errors occurred.
- * @cs_timeout: CS timeout error last information.
- * @razwi: razwi last information.
+ * struct hl_error_info - holds information collected during an error.
+ * @cs_timeout: CS timeout error information.
+ * @razwi: razwi information.
  * @undef_opcode: undefined opcode information
  */
-struct last_error_session_info {
+struct hl_error_info {
 	struct cs_timeout_info		cs_timeout;
 	struct razwi_info		razwi;
 	struct undefined_opcode_info	undef_opcode;
@@ -3111,7 +3111,7 @@ struct hl_reset_info {
  * @state_dump_specs: constants and dictionaries needed to dump system state.
  * @multi_cs_completion: array of multi-CS completion.
  * @clk_throttling: holds information about current/previous clock throttling events
- * @last_error: holds information about last session in which CS timeout or razwi error occurred.
+ * @captured_err_info: holds information about errors.
  * @reset_info: holds current device reset information.
  * @stream_master_qid_arr: pointer to array with QIDs of master streams.
  * @fw_major_version: major version of current loaded preboot.
@@ -3286,7 +3286,7 @@ struct hl_device {
 	struct multi_cs_completion	multi_cs_completion[
 							MULTI_CS_MAX_USER_CTX];
 	struct hl_clk_throttle		clk_throttling;
-	struct last_error_session_info	last_error;
+	struct hl_error_info		captured_err_info;
 
 	struct hl_reset_info		reset_info;
 

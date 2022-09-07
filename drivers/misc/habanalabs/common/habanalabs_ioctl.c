@@ -593,8 +593,8 @@ static int cs_timeout_info(struct hl_fpriv *hpriv, struct hl_info_args *args)
 	if ((!max_size) || (!out))
 		return -EINVAL;
 
-	info.seq = hdev->last_error.cs_timeout.seq;
-	info.timestamp = ktime_to_ns(hdev->last_error.cs_timeout.timestamp);
+	info.seq = hdev->captured_err_info.cs_timeout.seq;
+	info.timestamp = ktime_to_ns(hdev->captured_err_info.cs_timeout.timestamp);
 
 	return copy_to_user(out, &info, min_t(size_t, max_size, sizeof(info))) ? -EFAULT : 0;
 }
@@ -609,12 +609,12 @@ static int razwi_info(struct hl_fpriv *hpriv, struct hl_info_args *args)
 	if ((!max_size) || (!out))
 		return -EINVAL;
 
-	info.timestamp = ktime_to_ns(hdev->last_error.razwi.timestamp);
-	info.addr = hdev->last_error.razwi.addr;
-	info.engine_id_1 = hdev->last_error.razwi.engine_id_1;
-	info.engine_id_2 = hdev->last_error.razwi.engine_id_2;
-	info.no_engine_id = hdev->last_error.razwi.non_engine_initiator;
-	info.error_type = hdev->last_error.razwi.type;
+	info.timestamp = ktime_to_ns(hdev->captured_err_info.razwi.timestamp);
+	info.addr = hdev->captured_err_info.razwi.addr;
+	info.engine_id_1 = hdev->captured_err_info.razwi.engine_id_1;
+	info.engine_id_2 = hdev->captured_err_info.razwi.engine_id_2;
+	info.no_engine_id = hdev->captured_err_info.razwi.non_engine_initiator;
+	info.error_type = hdev->captured_err_info.razwi.type;
 
 	return copy_to_user(out, &info, min_t(size_t, max_size, sizeof(info))) ? -EFAULT : 0;
 }
@@ -629,13 +629,13 @@ static int undefined_opcode_info(struct hl_fpriv *hpriv, struct hl_info_args *ar
 	if ((!max_size) || (!out))
 		return -EINVAL;
 
-	info.timestamp = ktime_to_ns(hdev->last_error.undef_opcode.timestamp);
-	info.engine_id = hdev->last_error.undef_opcode.engine_id;
-	info.cq_addr = hdev->last_error.undef_opcode.cq_addr;
-	info.cq_size = hdev->last_error.undef_opcode.cq_size;
-	info.stream_id = hdev->last_error.undef_opcode.stream_id;
-	info.cb_addr_streams_len = hdev->last_error.undef_opcode.cb_addr_streams_len;
-	memcpy(info.cb_addr_streams, hdev->last_error.undef_opcode.cb_addr_streams,
+	info.timestamp = ktime_to_ns(hdev->captured_err_info.undef_opcode.timestamp);
+	info.engine_id = hdev->captured_err_info.undef_opcode.engine_id;
+	info.cq_addr = hdev->captured_err_info.undef_opcode.cq_addr;
+	info.cq_size = hdev->captured_err_info.undef_opcode.cq_size;
+	info.stream_id = hdev->captured_err_info.undef_opcode.stream_id;
+	info.cb_addr_streams_len = hdev->captured_err_info.undef_opcode.cb_addr_streams_len;
+	memcpy(info.cb_addr_streams, hdev->captured_err_info.undef_opcode.cb_addr_streams,
 			sizeof(info.cb_addr_streams));
 
 	return copy_to_user(out, &info, min_t(size_t, max_size, sizeof(info))) ? -EFAULT : 0;
