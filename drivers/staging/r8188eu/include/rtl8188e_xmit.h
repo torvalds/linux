@@ -83,12 +83,6 @@
 /* OFFSET 20 */
 #define	RTY_LMT_EN		BIT(17)
 
-enum TXDESC_SC {
-	SC_DONT_CARE = 0x00,
-	SC_UPPER = 0x01,
-	SC_LOWER = 0x02,
-	SC_DUPLICATE = 0x03
-};
 /* OFFSET 20 */
 #define SGI			BIT(6)
 #define USB_TXAGG_NUM_SHT	24

@@ -63,17 +63,6 @@ enum rt_scan_type {
 	SCAN_MIX,
 };
 
-enum SCAN_RESULT_TYPE {
-	SCAN_RESULT_P2P_ONLY = 0,	/* Will return all the P2P devices. */
-	SCAN_RESULT_ALL = 1,		/* Will return all the scanned device,
-					 * include AP. */
-	SCAN_RESULT_WFD_TYPE = 2	/* Will just return the correct WFD
-					 * device. */
-					/* If this device is Miracast sink
-					 * device, it will just return all the
-					 * Miracast source devices. */
-};
-
 /*
 there are several "locks" in mlme_priv,
 since mlme_priv is a shared resource between many threads,
