@@ -418,7 +418,7 @@ static int st_lsm6dsrx_update_fifo(struct iio_dev *iio_dev, bool enable)
 	}
 
 	/*
-	 * This is an auxiliary sensor, it need to get batched
+	 * this is an auxiliary sensor, it need to get batched
 	 * toghether at least with a primary sensor (Acc/Gyro).
 	 */
 	if (sensor->id == ST_LSM6DSRX_ID_TEMP) {

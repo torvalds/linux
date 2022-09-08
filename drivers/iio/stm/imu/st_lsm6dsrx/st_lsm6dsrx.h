@@ -140,7 +140,7 @@
 #define ST_LSM6DSRX_TAP_THS_Y_MASK		GENMASK(4, 0)
 #define ST_LSM6DSRX_INTERRUPTS_ENABLE_MASK	BIT(7)
 
-#define ST_LSM6DSRX_REG_TAP_THS_6D_ADDR	0x59
+#define ST_LSM6DSRX_REG_TAP_THS_6D_ADDR		0x59
 #define ST_LSM6DSRX_TAP_THS_Z_MASK		GENMASK(4, 0)
 #define ST_LSM6DSRX_SIXD_THS_MASK		GENMASK(6, 5)
 
@@ -292,7 +292,7 @@ enum st_lsm6dsrx_fsm_mlc_enable_id {
 };
 
 /**
- * struct mlc_config_t -
+ * struct mlc_config_t - MLC/FSM configuration report struct
  * @mlc_int_addr: interrupt register address.
  * @mlc_int_mask: interrupt register mask.
  * @fsm_int_addr: interrupt register address.
@@ -325,6 +325,10 @@ struct st_lsm6dsrx_reg {
 	u8 mask;
 };
 
+/**
+ * Register list to be saved before a suspend and restored after a kernel
+ * resume callback.
+ */
 enum st_lsm6dsrx_suspend_resume_register {
 	ST_LSM6DSRX_CTRL1_XL_REG = 0,
 	ST_LSM6DSRX_CTRL2_G_REG,
@@ -430,6 +434,9 @@ struct st_lsm6dsrx_fs_table_entry {
 	struct st_lsm6dsrx_fs fs_avl[5];
 };
 
+/**
+ * List of all sensor ID supported by lsm6dsrx
+ */
 enum st_lsm6dsrx_sensor_id {
 	ST_LSM6DSRX_ID_GYRO = 0,
 	ST_LSM6DSRX_ID_ACC,
@@ -472,6 +479,9 @@ enum st_lsm6dsrx_sensor_id {
 	ST_LSM6DSRX_ID_MAX,
 };
 
+/**
+ * The mlc only sensor list used by mlc loader
+ */
 static const enum st_lsm6dsrx_sensor_id st_lsm6dsrx_mlc_sensor_list[] = {
 	 [0] = ST_LSM6DSRX_ID_MLC_0,
 	 [1] = ST_LSM6DSRX_ID_MLC_1,
@@ -483,6 +493,9 @@ static const enum st_lsm6dsrx_sensor_id st_lsm6dsrx_mlc_sensor_list[] = {
 	 [7] = ST_LSM6DSRX_ID_MLC_7,
 };
 
+/**
+ * The fsm only sensor list used by mlc loader
+ */
 static const enum st_lsm6dsrx_sensor_id st_lsm6dsrx_fsm_sensor_list[] = {
 	 [0] = ST_LSM6DSRX_ID_FSM_0,
 	 [1] = ST_LSM6DSRX_ID_FSM_1,
@@ -527,9 +540,7 @@ static const enum st_lsm6dsrx_sensor_id st_lsm6dsrx_fsm_sensor_list[] = {
 				    BIT_ULL(ST_LSM6DSRX_ID_FSM_14) | \
 				    BIT_ULL(ST_LSM6DSRX_ID_FSM_15))
 
-/*
- * HW devices that can wakeup the target
- */
+/* HW devices that can wakeup the target */
 #define ST_LSM6DSRX_WAKE_UP_SENSORS (BIT_ULL(ST_LSM6DSRX_ID_GYRO) | \
 				     BIT_ULL(ST_LSM6DSRX_ID_ACC)  | \
 				     ST_LSM6DSRX_ID_ALL_FSM_MLC)
@@ -537,21 +548,29 @@ static const enum st_lsm6dsrx_sensor_id st_lsm6dsrx_fsm_sensor_list[] = {
 /* this is the minimal ODR for wake-up sensors and dependencies */
 #define ST_LSM6DSRX_MIN_ODR_IN_WAKEUP	26
 
+/* enum supported FIFO mode supported */
 enum st_lsm6dsrx_fifo_mode {
 	ST_LSM6DSRX_FIFO_BYPASS = 0x0,
 	ST_LSM6DSRX_FIFO_CONT = 0x6,
 };
 
+/* enum the FIFO SW operative mode */
 enum {
 	ST_LSM6DSRX_HW_FLUSH,
 	ST_LSM6DSRX_HW_OPERATIONAL,
 };
 
+/**
+ * struct st_lsm6dsrx_ext_dev_info - Descibe SHUB sensor configuration
+ * @ext_dev_settings: External sensor descriptor entry [SHUB].
+ * @ext_dev_i2c_addr: I2C slave address of device connected to master I2C.
+ */
 struct st_lsm6dsrx_ext_dev_info {
 	const struct st_lsm6dsrx_ext_dev_settings *ext_dev_settings;
 	u8 ext_dev_i2c_addr;
 };
 
+/* list of HW device id supported by the lsm6dsrx driver */
 enum st_lsm6dsrx_hw_id {
 	ST_LSM6DSR_ID,
 	ST_LSM6DSRX_ID,
@@ -560,7 +579,6 @@ enum st_lsm6dsrx_hw_id {
 
 /**
  * struct st_lsm6dsrx_settings - ST IMU sensor settings
- *
  * @hw_id: Hw id supported by the driver configuration.
  * @name: Device name supported by the driver configuration.
  * @st_mlc_probe: MLC probe flag, indicate if MLC feature is supported.
@@ -582,24 +600,24 @@ struct st_lsm6dsrx_settings {
  * @hw: Pointer to instance of struct st_lsm6dsrx_hw.
  * @ext_dev_info: For sensor hub indicate device info struct.
  * @trig: Trigger used by IIO event sensors.
- * @gain: Configured sensor sensitivity.
  * @odr: Output data rate of the sensor [Hz].
  * @uodr: Output data rate of the sensor [uHz].
+ * @gain: Configured sensor sensitivity.
  * @offset: Sensor data offset.
- * decimator: Sensor decimator
- * dec_counter: Sensor decimator counter
- * @old_data: Used by Temperature sensor for data comtinuity.
- * @max_watermark: Max supported watermark level.
- * @watermark: Sensor watermark level.
- * @pm: sensor power mode (HP, LP).
- * @last_fifo_timestamp: Timestamp related to last sample in FIFO.
+ * @decimator: Sensor sample decimator.
+ * @dec_counter: Sensor sample decimator counter.
+ * @old_data: Used by Temperature sensor for data continuity.
+ * @max_watermark: Max supported FIFO watermark level.
+ * @watermark: Sensor FIFO watermark level.
+ * @pm: Sensor power mode (HP, LP).
+ * @last_fifo_timestamp: Timestamp related to last sample stored in FIFO.
  * @selftest_status: Report last self test status.
  * @min_st: Min self test raw data value.
  * @max_st: Max self test raw data value.
- * @status_reg: MLC/FSM sensor status register.
- * @outreg_addr: MLC/FSM sensor output register.
- * @status: MLC/FSM enabled sensor status.
- * @conf: Used in case of sensor event to manage configuration.
+ * @status_reg: MLC/FSM IIO event sensor status register.
+ * @outreg_addr: MLC/FSM IIO event sensor output register.
+ * @status: MLC/FSM enabled IIO event sensor status.
+ * @conf: Used in case of IIO sensor event to store configuration.
  */
 struct st_lsm6dsrx_sensor {
 	char name[32];
@@ -646,14 +664,14 @@ struct st_lsm6dsrx_sensor {
 
 /**
  * struct st_lsm6dsrx_hw - ST IMU MEMS hw instance
- * @dev: Pointer to instance of struct device (I2C or SPI).
- * @irq: Device interrupt line (I2C or SPI).
- * @regmap: Register map of the device.
- * @int_pin: Save interrupt pin used by sensor.
+ * @dev: Pointer to instance of struct device (I2C/SPI/I3C).
+ * @irq: Device interrupt line.
+ * @regmap: Regmap structure pointer.
+ * @int_pin: Store the HW interrupt pin (1 or 2) used by sensor.
  * @page_lock: Mutex to prevent access to different register page.
  * @fifo_lock: Mutex to prevent concurrent access to the hw FIFO.
  * @fifo_mode: FIFO operating mode supported by the device.
- * @state: hw operational state.
+ * @state: HW device operational state.
  * @enable_mask: Enabled sensor bitmask.
  * @requested_mask: Sensor requesting bitmask.
  * @ext_data_len: Number of i2c slave devices connected to I2C master.
@@ -661,7 +679,7 @@ struct st_lsm6dsrx_sensor {
  * @ts_offset: Hw timestamp offset.
  * @hw_ts: Latest hw timestamp from the sensor.
  * @tsample: Sample timestamp.
- * @delta_ts: Delta time between two consecutive interrupts.
+ * @delta_ts: Estimated delta time between two consecutive interrupts.
  * @ts: Latest timestamp from irq handler.
  * @i2c_master_pu: I2C master line Pull Up configuration.
  * @orientation: Sensor orientation matrix.
@@ -670,7 +688,7 @@ struct st_lsm6dsrx_sensor {
  * @mlc_config: MLC/FSM data register structure.
  * @odr_table_entry: Sensors ODR table.
  * @preload_mlc: MLC/FSM preload flag.
- * @iio_devs: Pointers to acc/gyro iio_dev instances.
+ * @iio_devs: Pointers to iio_dev sensor instances.
  * @settings: ST IMU sensor settings.
  * @fs_table: ST IMU full scale table.
  * @odr_table: ST IMU output data rate table.
@@ -786,6 +804,14 @@ static inline int st_lsm6dsrx_write_with_mask_locked(struct st_lsm6dsrx_hw *hw,
 	return err;
 }
 
+/**
+ * st_lsm6dsrx_read_locked() - Multiple reg read holding page_lock
+ *
+ * @hw: ST IMU sensor instance.
+ * @addr: Sensor register address.
+ * @val: Buffer register value to read.
+ * @len: Number of registers to read.
+ */
 static inline int
 st_lsm6dsrx_read_locked(struct st_lsm6dsrx_hw *hw, unsigned int addr,
 			void *val, unsigned int len)
@@ -799,6 +825,13 @@ st_lsm6dsrx_read_locked(struct st_lsm6dsrx_hw *hw, unsigned int addr,
 	return err;
 }
 
+/**
+ * st_lsm6dsrx_write_locked() - Single reg write holding page_lock
+ *
+ * @hw: ST IMU sensor instance.
+ * @addr: Sensor register address.
+ * @val: Register value to set.
+ */
 static inline int
 st_lsm6dsrx_write_locked(struct st_lsm6dsrx_hw *hw, unsigned int addr,
 			 unsigned int val)
@@ -817,11 +850,19 @@ static inline int st_lsm6dsrx_set_page_access(struct st_lsm6dsrx_hw *hw,
 					      unsigned int mask)
 {
 	return regmap_update_bits(hw->regmap,
-				 ST_LSM6DSRX_REG_FUNC_CFG_ACCESS_ADDR,
-				 mask,
-				 ST_LSM6DSRX_SHIFT_VAL(val, mask));
+				  ST_LSM6DSRX_REG_FUNC_CFG_ACCESS_ADDR,
+				  mask,
+				  ST_LSM6DSRX_SHIFT_VAL(val, mask));
 }
 
+/**
+ * st_lsm6dsrx_read_with_mask() - Single reg read with mask holding page_lock
+ *
+ * @hw: ST IMU sensor instance.
+ * @addr: Sensor register address.
+ * @mask: Register mask.
+ * @val: Register value to read.
+ */
 static inline int st_lsm6dsrx_read_with_mask(struct st_lsm6dsrx_hw *hw,
 					     u8 addr, u8 mask, u8 *val)
 {
@@ -840,6 +881,7 @@ static inline int st_lsm6dsrx_read_with_mask(struct st_lsm6dsrx_hw *hw,
 out:
 	return (err < 0) ? err : 0;
 }
+
 int st_lsm6dsrx_probe(struct device *dev, int irq, int hw_id,
 		      struct regmap *regmap);
 int st_lsm6dsrx_sensor_set_enable(struct st_lsm6dsrx_sensor *sensor,

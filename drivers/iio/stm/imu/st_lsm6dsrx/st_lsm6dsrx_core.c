@@ -232,10 +232,10 @@ static const struct st_lsm6dsrx_odr_table_entry st_lsm6dsrx_odr_table[] = {
 };
 
 /**
- * List of supported supported device settings
+ * List of supported device settings
  *
  * The following table list all device features in terms of supported
- * MLC and SHUB.
+ * MLC/FSM.
  */
 static const struct st_lsm6dsrx_settings st_lsm6dsrx_sensor_settings[] = {
 	{
@@ -1520,7 +1520,7 @@ static int st_lsm6dsrx_init_timestamp_engine(struct st_lsm6dsrx_hw *hw,
 {
 	int err;
 
-	/* Init timestamp engine. */
+	/* init timestamp engine */
 	err = regmap_update_bits(hw->regmap, ST_LSM6DSRX_REG_CTRL10_C_ADDR,
 				 ST_LSM6DSRX_REG_TIMESTAMP_EN_MASK,
 				 ST_LSM6DSRX_SHIFT_VAL(true,
@@ -1528,7 +1528,7 @@ static int st_lsm6dsrx_init_timestamp_engine(struct st_lsm6dsrx_hw *hw,
 	if (err < 0)
 		return err;
 
-	/* Enable timestamp rollover interrupt on INT2. */
+	/* enable timestamp rollover interrupt on int2 */
 	return regmap_update_bits(hw->regmap, ST_LSM6DSRX_REG_MD2_CFG_ADDR,
 				  ST_LSM6DSRX_REG_INT2_TIMESTAMP_MASK,
 				  ST_LSM6DSRX_SHIFT_VAL(enable,
@@ -1547,7 +1547,7 @@ static int st_lsm6dsrx_init_device(struct st_lsm6dsrx_hw *hw)
 	if (err < 0)
 		return err;
 
-	/* enable Block Data Update */
+	/* enable (B)lock (D)ata (U)pdate */
 	err = regmap_update_bits(hw->regmap, ST_LSM6DSRX_REG_CTRL3_C_ADDR,
 				 ST_LSM6DSRX_REG_BDU_MASK,
 				 FIELD_PREP(ST_LSM6DSRX_REG_BDU_MASK, 1));
@@ -1576,7 +1576,7 @@ static int st_lsm6dsrx_init_device(struct st_lsm6dsrx_hw *hw)
 	if (err < 0)
 		return err;
 
-	/* enable FIFO watermak interrupt */
+	/* enable interrupt on FIFO watermak */
 	return regmap_update_bits(hw->regmap, drdy_reg,
 				  ST_LSM6DSRX_REG_FIFO_TH_MASK,
 				  FIELD_PREP(ST_LSM6DSRX_REG_FIFO_TH_MASK, 1));
@@ -1602,7 +1602,7 @@ static struct iio_dev *st_lsm6dsrx_alloc_iiodev(struct st_lsm6dsrx_hw *hw,
 	sensor->decimator = 0;
 	sensor->dec_counter = 0;
 
-	/* Set default FS to each sensor */
+	/* set default FS to each sensor */
 	sensor->gain = st_lsm6dsrx_fs_table[id].fs_avl[0].gain;
 
 	switch (id) {
@@ -1716,7 +1716,7 @@ static int st_lsm6dsrx_power_enable(struct st_lsm6dsrx_hw *hw)
 }
 
 int st_lsm6dsrx_probe(struct device *dev, int irq, int hw_id,
-			struct regmap *regmap)
+		      struct regmap *regmap)
 {
 	struct st_lsm6dsrx_hw *hw;
 	int i, err;
@@ -1773,7 +1773,7 @@ int st_lsm6dsrx_probe(struct device *dev, int irq, int hw_id,
 	}
 #endif /* LINUX_VERSION_CODE */
 
-	/* register only data sensors */
+	/* register only main data sensors */
 	for (i = 0; i <= ST_LSM6DSRX_ID_TEMP; i++) {
 		hw->iio_devs[i] = st_lsm6dsrx_alloc_iiodev(hw, i);
 		if (!hw->iio_devs[i])

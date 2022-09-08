@@ -42,7 +42,7 @@ DECLARE_BUILTIN_FIRMWARE(LSM6DSRX_MLC_FIRMWARE_NAME, st_lsm6dsrx_mlc_fw);
 #include "st_lsm6dsrx_preload_mlc.h"
 #endif /* CONFIG_IIO_ST_LSM6DSRX_MLC_PRELOAD */
 
-/* Converts MLC odr to main sensor trigger odr (acc) */
+/* converts MLC odr to main sensor trigger odr (acc) */
 static const uint16_t mlc_odr_data[] = {
 	[0x00] = 0,
 	[0x01] = 12,
@@ -256,7 +256,7 @@ static int st_lsm6dsrx_verify_mlc_fsm_support(const struct firmware *fw,
 	return 0;
 }
 
-/* parse and program mlc fragments */
+/* parse fw and program MLC/FSM fragments */
 static int st_lsm6dsrx_program_mlc(const struct firmware *fw,
 				   struct st_lsm6dsrx_hw *hw)
 {
@@ -419,6 +419,7 @@ static void st_lsm6dsrx_mlc_update(const struct firmware *fw, void *context)
 	}
 
 release:
+	/* internal firmware don't release it because stored in const segment */
 	if (hw->preload_mlc) {
 		hw->preload_mlc = 0;
 

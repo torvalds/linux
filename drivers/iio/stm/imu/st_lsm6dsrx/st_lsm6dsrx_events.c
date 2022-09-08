@@ -20,57 +20,21 @@
 
 static const struct
 st_lsm6dsrx_ff_th st_lsm6dsrx_free_fall_threshold[] = {
-	[0] = {
-		.val = 0x00,
-		.mg = 156,
-	},
-	[1] = {
-		.val = 0x01,
-		.mg = 219,
-	},
-	[2] = {
-		.val = 0x02,
-		.mg = 250,
-	},
-	[3] = {
-		.val = 0x03,
-		.mg = 312,
-	},
-	[4] = {
-		.val = 0x04,
-		.mg = 344,
-	},
-	[5] = {
-		.val = 0x05,
-		.mg = 406,
-	},
-	[6] = {
-		.val = 0x06,
-		.mg = 469,
-	},
-	[7] = {
-		.val = 0x07,
-		.mg = 500,
-	},
+	[0] = { .val = 0x00, .mg = 156 },
+	[1] = { .val = 0x01, .mg = 219 },
+	[2] = { .val = 0x02, .mg = 250 },
+	[3] = { .val = 0x03, .mg = 312 },
+	[4] = { .val = 0x04, .mg = 344 },
+	[5] = { .val = 0x05, .mg = 406 },
+	[6] = { .val = 0x06, .mg = 469 },
+	[7] = { .val = 0x07, .mg = 500 },
 };
 
 static const struct st_lsm6dsrx_6D_th st_lsm6dsrx_6D_threshold[] = {
-	[0] = {
-		.val = 0x00,
-		.deg = 80,
-	},
-	[1] = {
-		.val = 0x01,
-		.deg = 70,
-	},
-	[2] = {
-		.val = 0x02,
-		.deg = 60,
-	},
-	[3] = {
-		.val = 0x03,
-		.deg = 50,
-	},
+	[0] = { .val = 0x00, .deg = 80 },
+	[1] = { .val = 0x01, .deg = 70 },
+	[2] = { .val = 0x02, .deg = 60 },
+	[3] = { .val = 0x03, .deg = 50 },
 };
 static const unsigned long st_lsm6dsrx_event_available_scan_masks[] = {
 	BIT(0), 0x0
@@ -751,8 +715,6 @@ st_lsm6dsrx_alloc_event_iiodev(struct st_lsm6dsrx_hw *hw,
 	sensor->id = id;
 	sensor->hw = hw;
 	sensor->watermark = 1;
-
-	/* set minimal xl ODR to 26 Hz */
 	iio_dev->available_scan_masks = st_lsm6dsrx_event_available_scan_masks;
 
 	switch (id) {
@@ -977,22 +939,22 @@ st_lsm6dsrx_config_default_events(struct st_lsm6dsrx_hw *hw)
 {
 	int err;
 
-	/* Set default wake-up thershold to 93750 ug */
+	/* set default wake-up thershold to 93750 ug */
 	err = st_lsm6dsrx_set_wake_up_thershold(hw, 93750);
 	if (err < 0)
 		return err;
 
-	/* Set default wake-up duration to 0 */
+	/* set default wake-up duration to 0 */
 	err = st_lsm6dsrx_set_wake_up_duration(hw, 0);
 	if (err < 0)
 		return err;
 
-	/* setting default FF threshold to 312 mg */
+	/* set default FF threshold to 312 mg */
 	err = st_lsm6dsrx_set_freefall_threshold(hw, 312);
 	if (err < 0)
 		return err;
 
-	/* setting default 6D threshold to 60 degrees */
+	/* set default 6D threshold to 60 degrees */
 	err = st_lsm6dsrx_set_6D_threshold(hw, 60);
 	if (err < 0)
 		return err;
