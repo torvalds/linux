@@ -2068,7 +2068,7 @@ err_out3:
 err_out2:
 	/*
 	 * Once we have connected with the host, we would need to
-	 * to invoke storvsc_dev_remove() to rollback this state and
+	 * invoke storvsc_dev_remove() to rollback this state and
 	 * this call also frees up the stor_device; hence the jump around
 	 * err_out1 label.
 	 */
