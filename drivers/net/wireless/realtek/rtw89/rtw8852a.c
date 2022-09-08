@@ -453,6 +453,26 @@ static const struct rtw89_imr_info rtw8852a_imr_info = {
 	.tmac_imr_set		= B_AX_TMAC_IMR_SET,
 };
 
+static const struct rtw89_dig_regs rtw8852a_dig_regs = {
+	.seg0_pd_reg = R_SEG0R_PD,
+	.pd_lower_bound_mask = B_SEG0R_PD_LOWER_BOUND_MSK,
+	.pd_spatial_reuse_en = B_SEG0R_PD_SPATIAL_REUSE_EN_MSK,
+	.p0_lna_init = {R_PATH0_LNA_INIT, B_PATH0_LNA_INIT_IDX_MSK},
+	.p1_lna_init = {R_PATH1_LNA_INIT, B_PATH1_LNA_INIT_IDX_MSK},
+	.p0_tia_init = {R_PATH0_TIA_INIT, B_PATH0_TIA_INIT_IDX_MSK},
+	.p1_tia_init = {R_PATH1_TIA_INIT, B_PATH1_TIA_INIT_IDX_MSK},
+	.p0_rxb_init = {R_PATH0_RXB_INIT, B_PATH0_RXB_INIT_IDX_MSK},
+	.p1_rxb_init = {R_PATH1_RXB_INIT, B_PATH1_RXB_INIT_IDX_MSK},
+	.p0_p20_pagcugc_en = {R_PATH0_P20_FOLLOW_BY_PAGCUGC,
+			      B_PATH0_P20_FOLLOW_BY_PAGCUGC_EN_MSK},
+	.p0_s20_pagcugc_en = {R_PATH0_S20_FOLLOW_BY_PAGCUGC,
+			      B_PATH0_S20_FOLLOW_BY_PAGCUGC_EN_MSK},
+	.p1_p20_pagcugc_en = {R_PATH1_P20_FOLLOW_BY_PAGCUGC,
+			      B_PATH1_P20_FOLLOW_BY_PAGCUGC_EN_MSK},
+	.p1_s20_pagcugc_en = {R_PATH1_S20_FOLLOW_BY_PAGCUGC,
+			      B_PATH1_S20_FOLLOW_BY_PAGCUGC_EN_MSK},
+};
+
 static void rtw8852ae_efuse_parsing(struct rtw89_efuse *efuse,
 				    struct rtw8852a_efuse *map)
 {
@@ -2136,6 +2156,7 @@ const struct rtw89_chip_info rtw8852a_chip_info = {
 	.txpwr_factor_rf	= 2,
 	.txpwr_factor_mac	= 1,
 	.dig_table		= &rtw89_8852a_phy_dig_table,
+	.dig_regs		= &rtw8852a_dig_regs,
 	.tssi_dbw_table		= NULL,
 	.support_chanctx_num	= 1,
 	.support_bands		= BIT(NL80211_BAND_2GHZ) |

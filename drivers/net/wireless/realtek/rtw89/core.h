@@ -2553,6 +2553,22 @@ struct rtw89_imr_info {
 	u32 tmac_imr_set;
 };
 
+struct rtw89_dig_regs {
+	u32 seg0_pd_reg;
+	u32 pd_lower_bound_mask;
+	u32 pd_spatial_reuse_en;
+	struct rtw89_reg_def p0_lna_init;
+	struct rtw89_reg_def p1_lna_init;
+	struct rtw89_reg_def p0_tia_init;
+	struct rtw89_reg_def p1_tia_init;
+	struct rtw89_reg_def p0_rxb_init;
+	struct rtw89_reg_def p1_rxb_init;
+	struct rtw89_reg_def p0_p20_pagcugc_en;
+	struct rtw89_reg_def p0_s20_pagcugc_en;
+	struct rtw89_reg_def p1_p20_pagcugc_en;
+	struct rtw89_reg_def p1_s20_pagcugc_en;
+};
+
 struct rtw89_chip_info {
 	enum rtw89_core_chip_id chip_id;
 	const struct rtw89_chip_ops *ops;
@@ -2595,6 +2611,7 @@ struct rtw89_chip_info {
 	const struct rtw89_phy_table *nctl_table;
 	const struct rtw89_txpwr_table *byr_table;
 	const struct rtw89_phy_dig_gain_table *dig_table;
+	const struct rtw89_dig_regs *dig_regs;
 	const struct rtw89_phy_tssi_dbw_table *tssi_dbw_table;
 	const s8 (*txpwr_lmt_2g)[RTW89_2G_BW_NUM][RTW89_NTX_NUM]
 				[RTW89_RS_LMT_NUM][RTW89_BF_NUM]

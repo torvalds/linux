@@ -3465,26 +3465,32 @@ static void rtw89_phy_dig_igi_offset_by_env(struct rtw89_dev *rtwdev)
 
 static void rtw89_phy_dig_set_lna_idx(struct rtw89_dev *rtwdev, u8 lna_idx)
 {
-	rtw89_phy_write32_mask(rtwdev, R_PATH0_LNA_INIT,
-			       B_PATH0_LNA_INIT_IDX_MSK, lna_idx);
-	rtw89_phy_write32_mask(rtwdev, R_PATH1_LNA_INIT,
-			       B_PATH1_LNA_INIT_IDX_MSK, lna_idx);
+	const struct rtw89_dig_regs *dig_regs = rtwdev->chip->dig_regs;
+
+	rtw89_phy_write32_mask(rtwdev, dig_regs->p0_lna_init.addr,
+			       dig_regs->p0_lna_init.mask, lna_idx);
+	rtw89_phy_write32_mask(rtwdev, dig_regs->p1_lna_init.addr,
+			       dig_regs->p1_lna_init.mask, lna_idx);
 }
 
 static void rtw89_phy_dig_set_tia_idx(struct rtw89_dev *rtwdev, u8 tia_idx)
 {
-	rtw89_phy_write32_mask(rtwdev, R_PATH0_TIA_INIT,
-			       B_PATH0_TIA_INIT_IDX_MSK, tia_idx);
-	rtw89_phy_write32_mask(rtwdev, R_PATH1_TIA_INIT,
-			       B_PATH1_TIA_INIT_IDX_MSK, tia_idx);
+	const struct rtw89_dig_regs *dig_regs = rtwdev->chip->dig_regs;
+
+	rtw89_phy_write32_mask(rtwdev, dig_regs->p0_tia_init.addr,
+			       dig_regs->p0_tia_init.mask, tia_idx);
+	rtw89_phy_write32_mask(rtwdev, dig_regs->p1_tia_init.addr,
+			       dig_regs->p1_tia_init.mask, tia_idx);
 }
 
 static void rtw89_phy_dig_set_rxb_idx(struct rtw89_dev *rtwdev, u8 rxb_idx)
 {
-	rtw89_phy_write32_mask(rtwdev, R_PATH0_RXB_INIT,
-			       B_PATH0_RXB_INIT_IDX_MSK, rxb_idx);
-	rtw89_phy_write32_mask(rtwdev, R_PATH1_RXB_INIT,
-			       B_PATH1_RXB_INIT_IDX_MSK, rxb_idx);
+	const struct rtw89_dig_regs *dig_regs = rtwdev->chip->dig_regs;
+
+	rtw89_phy_write32_mask(rtwdev, dig_regs->p0_rxb_init.addr,
+			       dig_regs->p0_rxb_init.mask, rxb_idx);
+	rtw89_phy_write32_mask(rtwdev, dig_regs->p1_rxb_init.addr,
+			       dig_regs->p1_rxb_init.mask, rxb_idx);
 }
 
 static void rtw89_phy_dig_set_igi_cr(struct rtw89_dev *rtwdev,
@@ -3498,21 +3504,19 @@ static void rtw89_phy_dig_set_igi_cr(struct rtw89_dev *rtwdev,
 		    set.lna_idx, set.tia_idx, set.rxb_idx);
 }
 
-static const struct rtw89_reg_def sdagc_config[4] = {
-	{R_PATH0_P20_FOLLOW_BY_PAGCUGC, B_PATH0_P20_FOLLOW_BY_PAGCUGC_EN_MSK},
-	{R_PATH0_S20_FOLLOW_BY_PAGCUGC, B_PATH0_S20_FOLLOW_BY_PAGCUGC_EN_MSK},
-	{R_PATH1_P20_FOLLOW_BY_PAGCUGC, B_PATH1_P20_FOLLOW_BY_PAGCUGC_EN_MSK},
-	{R_PATH1_S20_FOLLOW_BY_PAGCUGC, B_PATH1_S20_FOLLOW_BY_PAGCUGC_EN_MSK},
-};
-
 static void rtw89_phy_dig_sdagc_follow_pagc_config(struct rtw89_dev *rtwdev,
 						   bool enable)
 {
-	u8 i = 0;
+	const struct rtw89_dig_regs *dig_regs = rtwdev->chip->dig_regs;
 
-	for (i = 0; i < ARRAY_SIZE(sdagc_config); i++)
-		rtw89_phy_write32_mask(rtwdev, sdagc_config[i].addr,
-				       sdagc_config[i].mask, enable);
+	rtw89_phy_write32_mask(rtwdev, dig_regs->p0_p20_pagcugc_en.addr,
+			       dig_regs->p0_p20_pagcugc_en.mask, enable);
+	rtw89_phy_write32_mask(rtwdev, dig_regs->p0_s20_pagcugc_en.addr,
+			       dig_regs->p0_s20_pagcugc_en.mask, enable);
+	rtw89_phy_write32_mask(rtwdev, dig_regs->p1_p20_pagcugc_en.addr,
+			       dig_regs->p1_p20_pagcugc_en.mask, enable);
+	rtw89_phy_write32_mask(rtwdev, dig_regs->p1_s20_pagcugc_en.addr,
+			       dig_regs->p1_s20_pagcugc_en.mask, enable);
 
 	rtw89_debug(rtwdev, RTW89_DBG_DIG, "sdagc_follow_pagc=%d\n", enable);
 }
@@ -3539,6 +3543,7 @@ static void rtw89_phy_dig_dyn_pd_th(struct rtw89_dev *rtwdev, u8 rssi,
 				    bool enable)
 {
 	const struct rtw89_chan *chan = rtw89_chan_get(rtwdev, RTW89_SUB_ENTITY_0);
+	const struct rtw89_dig_regs *dig_regs = rtwdev->chip->dig_regs;
 	enum rtw89_bandwidth cbw = chan->band_width;
 	struct rtw89_dig_info *dig = &rtwdev->dig;
 	u8 final_rssi = 0, under_region = dig->pd_low_th_ofst;
@@ -3581,10 +3586,10 @@ static void rtw89_phy_dig_dyn_pd_th(struct rtw89_dev *rtwdev, u8 rssi,
 			    "Dynamic PD th disabled, Set PD_low_bd=0\n");
 	}
 
-	rtw89_phy_write32_mask(rtwdev, R_SEG0R_PD, B_SEG0R_PD_LOWER_BOUND_MSK,
-			       pd_val);
-	rtw89_phy_write32_mask(rtwdev, R_SEG0R_PD,
-			       B_SEG0R_PD_SPATIAL_REUSE_EN_MSK, enable);
+	rtw89_phy_write32_mask(rtwdev, dig_regs->seg0_pd_reg,
+			       dig_regs->pd_lower_bound_mask, pd_val);
+	rtw89_phy_write32_mask(rtwdev, dig_regs->seg0_pd_reg,
+			       dig_regs->pd_spatial_reuse_en, enable);
 
 	if (!rtwdev->hal.support_cckpd)
 		return;
