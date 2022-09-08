@@ -1546,7 +1546,8 @@ static void _rx_dck_toggle(struct rtw89_dev *rtwdev, u8 path)
 	rtw89_write_rf(rtwdev, path, RR_DCK, RR_DCK_LV, 0x1);
 
 	ret = read_poll_timeout_atomic(rtw89_read_rf, val, val,
-				       2, 1000, false, rtwdev, path, 0x93, BIT(5));
+				       2, 2000, false, rtwdev, path,
+				       RR_DCK1, RR_DCK1_DONE);
 	if (ret)
 		rtw89_warn(rtwdev, "[RX_DCK] S%d RXDCK timeout\n", path);
 	else
