@@ -79,6 +79,18 @@ properties:
       Minimum value of each item - 0 (which means entire VM sensor is not used).
     $ref: /schemas/types.yaml#/definitions/uint8-array
 
+  moortec,vm-pre-scaler-x2:
+    description:
+      Defines the channels that use a mr76006 pre-scaler to divide the input
+      source by 2.
+      The pre-scaler is used for input sources that exceed the VM input range.
+      The driver uses this information to present to the user with the actual
+      value of the voltage source.
+      For channels that are not listed, no pre-scaler is assumed.
+      Maximum number of items - total number of channels in all VMs.
+      Each channel should not appear more than once.
+    $ref: /schemas/types.yaml#/definitions/uint8-array
+
 required:
   - compatible
   - reg
@@ -101,5 +113,6 @@ examples:
         clocks = <&osc0>;
         resets = <&rcu0 0x40 7>;
         moortec,vm-active-channels = /bits/ 8 <0x10 0x05>;
+        moortec,vm-pre-scaler-x2 = /bits/ 8 <5 6 20>;
         #thermal-sensor-cells = <1>;
     };
