@@ -237,7 +237,7 @@ struct media_pad {
  * @link_validate:	Return whether a link is valid from the entity point of
  *			view. The media_pipeline_start() function
  *			validates all links by calling this operation. Optional.
- * @has_pad_interdep:	Return whether a two pads inside the entity are
+ * @has_pad_interdep:	Return whether two pads of the entity are
  *			interdependent. If two pads are interdependent they are
  *			part of the same pipeline and enabling one of the pads
  *			means that the other pad will become "locked" and
@@ -1144,7 +1144,7 @@ __must_check int __media_pipeline_start(struct media_pad *pad,
  * media_pipeline_stop - Mark a pipeline as not streaming
  * @pad: Starting pad
  *
- * Mark all pads connected to a given pads through enabled links, either
+ * Mark all pads connected to a given pad through enabled links, either
  * directly or indirectly, as not streaming. The media_pad pipe field is
  * reset to %NULL.
  *
