@@ -262,6 +262,16 @@ static bool is_two_pixels_per_containter(const struct dc_crtc_timing *timing)
 	return two_pix;
 }
 
+void enc314_stream_encoder_dp_blank(
+	struct dc_link *link,
+	struct stream_encoder *enc)
+{
+	/* New to DCN314 - disable the FIFO before VID stream disable. */
+	enc314_disable_fifo(enc);
+
+	enc1_stream_encoder_dp_blank(link, enc);
+}
+
 static void enc314_stream_encoder_dp_unblank(
 		struct dc_link *link,
 		struct stream_encoder *enc,
@@ -411,7 +421,7 @@ static const struct stream_encoder_funcs dcn314_str_enc_funcs = {
 	.stop_dp_info_packets =
 		enc1_stream_encoder_stop_dp_info_packets,
 	.dp_blank =
-		enc1_stream_encoder_dp_blank,
+		enc314_stream_encoder_dp_blank,
 	.dp_unblank =
 		enc314_stream_encoder_dp_unblank,
 	.audio_mute_control = enc3_audio_mute_control,
