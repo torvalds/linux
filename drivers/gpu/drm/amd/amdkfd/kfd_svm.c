@@ -278,7 +278,7 @@ static void svm_range_free(struct svm_range *prange, bool update_mem_usage)
 	svm_range_free_dma_mappings(prange);
 
 	if (update_mem_usage && !p->xnack_enabled) {
-		pr_debug("unreserve mem limit: %lld\n", size);
+		pr_debug("unreserve prange 0x%p size: 0x%llx\n", prange, size);
 		amdgpu_amdkfd_unreserve_mem_limit(NULL, size,
 					KFD_IOC_ALLOC_MEM_FLAGS_USERPTR);
 	}
@@ -2953,6 +2953,64 @@ out:
 		amdgpu_gmc_filter_faults_remove(adev, addr, pasid);
 		r = 0;
 	}
+	return r;
+}
+
+int
+svm_range_switch_xnack_reserve_mem(struct kfd_process *p, bool xnack_enabled)
+{
+	struct svm_range *prange, *pchild;
+	uint64_t reserved_size = 0;
+	uint64_t size;
+	int r = 0;
+
+	pr_debug("switching xnack from %d to %d\n", p->xnack_enabled, xnack_enabled);
+
+	mutex_lock(&p->svms.lock);
+
+	list_for_each_entry(prange, &p->svms.list, list) {
+		svm_range_lock(prange);
+		list_for_each_entry(pchild, &prange->child_list, child_list) {
+			size = (pchild->last - pchild->start + 1) << PAGE_SHIFT;
+			if (xnack_enabled) {
+				amdgpu_amdkfd_unreserve_mem_limit(NULL, size,
+						KFD_IOC_ALLOC_MEM_FLAGS_USERPTR);
+			} else {
+				r = amdgpu_amdkfd_reserve_mem_limit(NULL, size,
+						KFD_IOC_ALLOC_MEM_FLAGS_USERPTR);
+				if (r)
+					goto out_unlock;
+				reserved_size += size;
+			}
+		}
+
+		size = (prange->last - prange->start + 1) << PAGE_SHIFT;
+		if (xnack_enabled) {
+			amdgpu_amdkfd_unreserve_mem_limit(NULL, size,
+						KFD_IOC_ALLOC_MEM_FLAGS_USERPTR);
+		} else {
+			r = amdgpu_amdkfd_reserve_mem_limit(NULL, size,
+						KFD_IOC_ALLOC_MEM_FLAGS_USERPTR);
+			if (r)
+				goto out_unlock;
+			reserved_size += size;
+		}
+out_unlock:
+		svm_range_unlock(prange);
+		if (r)
+			break;
+	}
+
+	if (r)
+		amdgpu_amdkfd_unreserve_mem_limit(NULL, reserved_size,
+						KFD_IOC_ALLOC_MEM_FLAGS_USERPTR);
+	else
+		/* Change xnack mode must be inside svms lock, to avoid race with
+		 * svm_range_deferred_list_work unreserve memory in parallel.
+		 */
+		p->xnack_enabled = xnack_enabled;
+
+	mutex_unlock(&p->svms.lock);
 	return r;
 }
 
