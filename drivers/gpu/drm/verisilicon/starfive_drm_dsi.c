@@ -743,13 +743,13 @@ static int cdns_dsi_mode2cfg(struct cdns_dsi *dsi,
 					  bpp, 0);
 	dsi_cfg->hfp = dpi_to_dsi_timing(mode_to_dpi_hfp(mode, mode_valid_check),
 					 bpp, DSI_HFP_FRAME_OVERHEAD);
-	//dpi to dsi transfer can not match , reconfig those parms
+	//dpi to dsi transfer can not match , reconfig those parms for waveshare
+	//for taobao old mipi panel .should change here : hsa 36 , hbp 108, hfp 288
 	if (mode->hdisplay == 800) {
-		dsi_cfg->hsa = 5;	//19-14
-		dsi_cfg->hbp = 5;	//17-12
-		dsi_cfg->hfp = 102; //108-6
+		dsi_cfg->hsa = 117-DSI_HSA_FRAME_OVERHEAD;
+		dsi_cfg->hbp = 115-DSI_HBP_FRAME_OVERHEAD;
+		dsi_cfg->hfp = 209-DSI_HFP_FRAME_OVERHEAD;
 	}
-
 	return 0;
 }
 
@@ -791,14 +791,12 @@ static int cdns_dsi_adjust_phy_config(struct cdns_dsi *dsi,
 	/* data rate in bytes/sec is not an integer, refuse the mode. */
 	dpi_htotal = mode_valid_check ? mode->htotal : mode->crtc_htotal;
 
-	if (do_div(dlane_bps, lanes * dpi_htotal))
-		return -EINVAL;
-
 	/* data rate was in bytes/sec, convert to bits/sec. */
-	phy_cfg->hs_clk_rate = dlane_bps * 8;
+	phy_cfg->hs_clk_rate = 750000000;
 
 	dsi_hfp_ext = adj_dsi_htotal - dsi_htotal;
 	dsi_cfg->hfp += dsi_hfp_ext;
+
 	dsi_cfg->htotal = dsi_htotal + dsi_hfp_ext;
 
 	return 0;
@@ -830,6 +828,8 @@ static int cdns_dsi_check_conf(struct cdns_dsi *dsi,
 	ret = phy_validate(dsi->dphy, PHY_MODE_MIPI_DPHY, 0, &output->phy_opts);
 	if (ret)
 		return ret;
+
+	phy_cfg->hs_clk_rate = 750000000;
 
 	dsi_hss_hsa_hse_hbp = dsi_cfg->hbp + DSI_HBP_FRAME_OVERHEAD;
 	if (output->dev->mode_flags & MIPI_DSI_MODE_VIDEO_SYNC_PULSE)
@@ -961,26 +961,6 @@ static void cdns_dsi_bridge_disable(struct drm_bridge *bridge)
 	cdns_dsi_clock_disable(dsi);
 }
 
-#if 0
-static void release_txbyte_rst(void)
-{
-	void __iomem *regs = ioremap(0x12250000, 0x10000);
-
-	u32 temp = readl(regs + SRST_ASSERT0);
-
-	temp &= ~(0x1 << 18);
-	temp |= (0x0 & 0x1) << 18;
-
-	writel(temp, regs + SRST_ASSERT0);
-
-	do {
-		temp = readl(regs + SRST_STATUS0) >> 18;
-		temp &= 0x1;
-	} while (temp != 0x1);
-	//udelay(1);
-}
-#endif
-
 static void cdns_dsi_hs_init(struct cdns_dsi *dsi)
 {
 	struct cdns_dsi_output *output = &dsi->output;
@@ -1093,19 +1073,10 @@ static void cdns_dsi_bridge_enable(struct drm_bridge *bridge)
 	cdns_dsi_hs_init(dsi);
 	cdns_dsi_init_link(dsi);
 
-	dsi_cfg.htotal=2544;//7110,0 while testing, must
-
 	writel(HBP_LEN(dsi_cfg.hbp) | HSA_LEN(dsi_cfg.hsa),
 	       dsi->regs + VID_HSIZE1);
 	writel(HFP_LEN(dsi_cfg.hfp) | HACT_LEN(dsi_cfg.hact),
 	       dsi->regs + VID_HSIZE2);
-
-	#if 0
-	writel(VBP_LEN(mode->crtc_vtotal - mode->crtc_vsync_end - 1) |
-	       VFP_LEN(mode->crtc_vsync_start - mode->crtc_vdisplay) |
-	       VSA_LEN(mode->crtc_vsync_end - mode->crtc_vsync_start + 1),
-	       dsi->regs + VID_VSIZE1);
-	#endif
 
 	writel(VBP_LEN(mode->crtc_vtotal - mode->crtc_vsync_end) |
 	       VFP_LEN(mode->crtc_vsync_start - mode->crtc_vdisplay - 1) |
@@ -1137,17 +1108,11 @@ static void cdns_dsi_bridge_enable(struct drm_bridge *bridge)
 	tx_byte_period = DIV_ROUND_DOWN_ULL((u64)NSEC_PER_SEC * 8,
 					    phy_cfg->hs_clk_rate);
 	reg_wakeup = (phy_cfg->hs_prepare + phy_cfg->hs_zero) / tx_byte_period;
-	//dev_info(dsi->base.dev, "tx_byte_period = %dns, reg_wakeup: 0x%08x\n", tx_byte_period, reg_wakeup);
 	writel(REG_WAKEUP_TIME(reg_wakeup) | REG_LINE_DURATION(tmp),
 	       dsi->regs + VID_DPHY_TIME);
 
-#if 0
-	writel(0xafffb, dsi->regs + MCTL_DPHY_TIMEOUT1);
-	writel(0x3ffff, dsi->regs + MCTL_DPHY_TIMEOUT2);
-	writel(0x3ab05, dsi->regs + MCTL_ULPOUT_TIME);
-#endif
+    vrefresh = drm_mode_vrefresh(mode);//display_timing_vrefresh(dpi);
 
-    vrefresh = 49;//display_timing_vrefresh(dpi);
     tmp = NSEC_PER_SEC / vrefresh;
 	tmp /= tx_byte_period;
 	for (div = 0; div <= CLK_DIV_MAX; div++) {
