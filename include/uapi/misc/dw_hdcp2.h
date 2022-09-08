@@ -25,6 +25,7 @@ enum {
 	HL_DRV_NR_WRITE_HPI,
 
 	RK_DRV_NR_GET_STATUS,
+	RK_DRV_NR_RESET,
 
 	HL_DRV_NR_MAX
 };
@@ -123,5 +124,7 @@ struct hl_drv_ioc_status {
 	__u32 connected_status;
 	__u32 booted_status;
 };
+
+#define RK_DRV_IOC_RESET _IOR('H', RK_DRV_NR_RESET, __u32)
 
 #endif // _DW_HDCP_HOST_LIB_DRIVER_LINUX_IF_H_

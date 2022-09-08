@@ -80,6 +80,46 @@ enum {
 	HDCP_PORT2,
 };
 
+static void dw_hdcp_free_hl_dev_slot(struct hl_device *hl_dev);
+
+static void dw_hdcp_free_hl(struct dw_hdcp *hdcp)
+{
+	dw_hdcp_free_hl_dev_slot(&hdcp->hl_dev);
+	hdcp->hl_dev.code_loaded = false;
+}
+
+static void dw_hdcp_reset(struct dw_hdcp *hdcp)
+{
+	int ret;
+
+	reset_control_assert(hdcp->rsts_bulk);
+	udelay(20);
+	reset_control_deassert(hdcp->rsts_bulk);
+
+	ret = sip_hdcpkey_init(hdcp->id);
+	if (ret)
+		dev_err(hdcp->dev, "load hdcp key failed\n");
+}
+
+static int dw_hdcp_set_reset(struct dw_hdcp *hdcp, void __user *arg)
+{
+	u32 reset;
+
+	if (!arg)
+		return -EFAULT;
+
+	if (copy_from_user(&reset, arg, sizeof(reset)))
+		return -EFAULT;
+
+	if (reset) {
+		dev_info(hdcp->dev, "hdcp reset\n");
+		dw_hdcp_free_hl(hdcp);
+		dw_hdcp_reset(hdcp);
+	}
+
+	return 0;
+}
+
 static int dw_hdcp_get_status(struct dw_hdcp *hdcp, void __user *arg)
 {
 	struct hl_drv_ioc_status status;
@@ -410,6 +450,8 @@ static long dw_hdcp_hld_ioctl(struct file *f, unsigned int cmd, unsigned long ar
 
 	case RK_DRV_IOC_GET_STATUS:
 		return dw_hdcp_get_status(hdcp, data);
+	case RK_DRV_IOC_RESET:
+		return dw_hdcp_set_reset(hdcp, data);
 	default:
 		return -EINVAL;
 	}
@@ -551,8 +593,7 @@ static int dw_hdcp_runtime_suspend(struct device *dev)
 	hdcp->is_suspend = true;
 	clk_bulk_disable_unprepare(hdcp->num_clks, hdcp->clks);
 
-	dw_hdcp_free_hl_dev_slot(&hdcp->hl_dev);
-	hdcp->hl_dev.code_loaded = false;
+	dw_hdcp_free_hl(hdcp);
 
 	return 0;
 }
@@ -566,13 +607,7 @@ static int dw_hdcp_runtime_resume(struct device *dev)
 	if (ret)
 		dev_err(dev, "prepare enable clk bulk failed\n");
 
-	reset_control_assert(hdcp->rsts_bulk);
-	udelay(10);
-	reset_control_deassert(hdcp->rsts_bulk);
-
-	ret = sip_hdcpkey_init(hdcp->id);
-	if (ret)
-		dev_err(dev, "load hdcp key failed\n");
+	dw_hdcp_reset(hdcp);
 
 	hdcp->is_suspend = false;
 	return 0;
