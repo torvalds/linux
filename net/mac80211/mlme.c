@@ -2754,7 +2754,8 @@ static void ieee80211_set_associated(struct ieee80211_sub_if_data *sdata,
 		struct cfg80211_bss *cbss = assoc_data->link[link_id].bss;
 		struct ieee80211_link_data *link;
 
-		if (!cbss)
+		if (!cbss ||
+		    assoc_data->link[link_id].status != WLAN_STATUS_SUCCESS)
 			continue;
 
 		link = sdata_dereference(sdata->link[link_id], sdata);
@@ -2782,7 +2783,8 @@ static void ieee80211_set_associated(struct ieee80211_sub_if_data *sdata,
 			struct ieee80211_link_data *link;
 			struct cfg80211_bss *cbss = assoc_data->link[link_id].bss;
 
-			if (!cbss)
+			if (!cbss ||
+			    assoc_data->link[link_id].status != WLAN_STATUS_SUCCESS)
 				continue;
 
 			link = sdata_dereference(sdata->link[link_id], sdata);
@@ -3945,6 +3947,12 @@ static bool ieee80211_assoc_config_link(struct ieee80211_link_data *link,
 
 	if (link_id == assoc_data->assoc_link_id) {
 		capab_info = le16_to_cpu(mgmt->u.assoc_resp.capab_info);
+
+		/*
+		 * we should not get to this flow unless the association was
+		 * successful, so set the status directly to success
+		 */
+		assoc_data->link[link_id].status = WLAN_STATUS_SUCCESS;
 	} else if (!elems->prof) {
 		ret = false;
 		goto out;
@@ -3952,8 +3960,19 @@ static bool ieee80211_assoc_config_link(struct ieee80211_link_data *link,
 		const u8 *ptr = elems->prof->variable +
 				elems->prof->sta_info_len - 1;
 
-		/* FIXME: need to also handle the status code */
+		/*
+		 * During parsing, we validated that these fields exist,
+		 * otherwise elems->prof would have been set to NULL.
+		 */
 		capab_info = get_unaligned_le16(ptr);
+		assoc_data->link[link_id].status = get_unaligned_le16(ptr + 2);
+
+		if (assoc_data->link[link_id].status != WLAN_STATUS_SUCCESS) {
+			link_info(link, "association response status code=%u\n",
+				  assoc_data->link[link_id].status);
+			ret = true;
+			goto out;
+		}
 	}
 
 	if (!is_s1g && !elems->supp_rates) {
@@ -4874,6 +4893,7 @@ static bool ieee80211_assoc_success(struct ieee80211_sub_if_data *sdata,
 	unsigned int link_id;
 	struct sta_info *sta;
 	u64 changed[IEEE80211_MLD_MAX_NUM_LINKS] = {};
+	u16 valid_links = 0;
 	int err;
 
 	mutex_lock(&sdata->local->sta_mtx);
@@ -4886,8 +4906,6 @@ static bool ieee80211_assoc_success(struct ieee80211_sub_if_data *sdata,
 		goto out_err;
 
 	if (sdata->vif.valid_links) {
-		u16 valid_links = 0;
-
 		for (link_id = 0; link_id < IEEE80211_MLD_MAX_NUM_LINKS; link_id++) {
 			if (!assoc_data->link[link_id].bss)
 				continue;
@@ -4957,12 +4975,21 @@ static bool ieee80211_assoc_success(struct ieee80211_sub_if_data *sdata,
 						 &changed[link_id]))
 			goto out_err;
 
+		if (assoc_data->link[link_id].status != WLAN_STATUS_SUCCESS) {
+			valid_links &= ~BIT(link_id);
+			ieee80211_sta_remove_link(sta, link_id);
+			continue;
+		}
+
 		if (link_id != assoc_data->assoc_link_id) {
 			err = ieee80211_sta_activate_link(sta, link_id);
 			if (err)
 				goto out_err;
 		}
 	}
+
+	/* links might have changed due to rejected ones, set them again */
+	ieee80211_vif_set_links(sdata, valid_links);
 
 	rate_control_rate_init(sta);
 
@@ -5197,10 +5224,13 @@ static void ieee80211_rx_mgmt_assoc_resp(struct ieee80211_sub_if_data *sdata,
 		link = sdata_dereference(sdata->link[link_id], sdata);
 		if (!link)
 			continue;
+
 		if (!assoc_data->link[link_id].bss)
 			continue;
+
 		resp.links[link_id].bss = assoc_data->link[link_id].bss;
 		resp.links[link_id].addr = link->conf->addr;
+		resp.links[link_id].status = assoc_data->link[link_id].status;
 
 		/* get uapsd queues configuration - same for all links */
 		resp.uapsd_queues = 0;

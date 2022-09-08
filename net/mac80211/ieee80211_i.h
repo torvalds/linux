@@ -412,6 +412,8 @@ struct ieee80211_mgd_assoc_data {
 		u8 *elems; /* pointing to inside ie[] below */
 
 		ieee80211_conn_flags_t conn_flags;
+
+		u16 status;
 	} link[IEEE80211_MLD_MAX_NUM_LINKS];
 
 	u8 ap_addr[ETH_ALEN] __aligned(2);
