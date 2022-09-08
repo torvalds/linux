@@ -14,6 +14,7 @@
 #include <linux/workqueue.h>
 #include <linux/poll.h>
 #include <uapi/linux/vfio.h>
+#include <linux/iova_bitmap.h>
 
 struct kvm;
 
@@ -33,10 +34,11 @@ struct vfio_device {
 	struct device *dev;
 	const struct vfio_device_ops *ops;
 	/*
-	 * mig_ops is a static property of the vfio_device which must be set
-	 * prior to registering the vfio_device.
+	 * mig_ops/log_ops is a static property of the vfio_device which must
+	 * be set prior to registering the vfio_device.
 	 */
 	const struct vfio_migration_ops *mig_ops;
+	const struct vfio_log_ops *log_ops;
 	struct vfio_group *group;
 	struct vfio_device_set *dev_set;
 	struct list_head dev_set_list;
@@ -106,6 +108,28 @@ struct vfio_migration_ops {
 		enum vfio_device_mig_state new_state);
 	int (*migration_get_state)(struct vfio_device *device,
 				   enum vfio_device_mig_state *curr_state);
+};
+
+/**
+ * @log_start: Optional callback to ask the device start DMA logging.
+ * @log_stop: Optional callback to ask the device stop DMA logging.
+ * @log_read_and_clear: Optional callback to ask the device read
+ *         and clear the dirty DMAs in some given range.
+ *
+ * The vfio core implementation of the DEVICE_FEATURE_DMA_LOGGING_ set
+ * of features does not track logging state relative to the device,
+ * therefore the device implementation of vfio_log_ops must handle
+ * arbitrary user requests. This includes rejecting subsequent calls
+ * to log_start without an intervening log_stop, as well as graceful
+ * handling of log_stop and log_read_and_clear from invalid states.
+ */
+struct vfio_log_ops {
+	int (*log_start)(struct vfio_device *device,
+		struct rb_root_cached *ranges, u32 nnodes, u64 *page_size);
+	int (*log_stop)(struct vfio_device *device);
+	int (*log_read_and_clear)(struct vfio_device *device,
+		unsigned long iova, unsigned long length,
+		struct iova_bitmap *dirty);
 };
 
 /**
