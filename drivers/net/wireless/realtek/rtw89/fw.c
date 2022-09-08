@@ -227,6 +227,7 @@ static const struct __fw_feat_cfg fw_feat_tbl[] = {
 	__CFG_FW_FEAT(RTL8852A, ge, 0, 13, 36, 0, CRASH_TRIGGER),
 	__CFG_FW_FEAT(RTL8852C, le, 0, 27, 33, 0, NO_DEEP_PS),
 	__CFG_FW_FEAT(RTL8852C, ge, 0, 27, 34, 0, TX_WAKE),
+	__CFG_FW_FEAT(RTL8852C, ge, 0, 27, 36, 0, SCAN_OFFLOAD),
 };
 
 static void rtw89_fw_recognize_features(struct rtw89_dev *rtwdev)
@@ -1941,7 +1942,7 @@ fail:
 	return -EBUSY;
 }
 
-#define H2C_LEN_SCAN_OFFLOAD 20
+#define H2C_LEN_SCAN_OFFLOAD 28
 int rtw89_fw_h2c_scan_offload(struct rtw89_dev *rtwdev,
 			      struct rtw89_scan_option *option,
 			      struct rtw89_vif *rtwvif)
@@ -1972,6 +1973,8 @@ int rtw89_fw_h2c_scan_offload(struct rtw89_dev *rtwdev,
 						       scan_info->op_pri_ch);
 		RTW89_SET_FWCMD_SCANOFLD_TARGET_CENTRAL_CH(cmd,
 							   scan_info->op_chan);
+		RTW89_SET_FWCMD_SCANOFLD_TARGET_CH_BAND(cmd,
+							scan_info->op_band);
 	}
 
 	rtw89_h2c_pkt_set_hdr(rtwdev, skb, FWCMD_TYPE_H2C,
@@ -2406,7 +2409,7 @@ static void rtw89_hw_scan_add_chan(struct rtw89_dev *rtwdev, int chan_type,
 
 	if (ssid_num) {
 		ch_info->num_pkt = ssid_num;
-		band = ch_info->ch_band;
+		band = rtw89_hw_to_nl80211_band(ch_info->ch_band);
 
 		list_for_each_entry(info, &scan_info->pkt_list[band], list) {
 			ch_info->probe_id = info->id;
@@ -2463,7 +2466,7 @@ static int rtw89_hw_scan_add_chan_list(struct rtw89_dev *rtwdev,
 
 		ch_info->period = req->duration_mandatory ?
 				  req->duration : RTW89_CHANNEL_TIME;
-		ch_info->ch_band = channel->band;
+		ch_info->ch_band = rtw89_nl80211_to_hw_band(channel->band);
 		ch_info->central_ch = channel->hw_value;
 		ch_info->pri_ch = channel->hw_value;
 		ch_info->rand_seq_num = random_seq;

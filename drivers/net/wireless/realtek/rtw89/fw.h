@@ -197,7 +197,7 @@ struct rtw89_h2creg_sch_tx_en {
 #define RTW89_SCANOFLD_MAX_IE_LEN 512
 #define RTW89_SCANOFLD_PKT_NONE 0xFF
 #define RTW89_SCANOFLD_DEBUG_MASK 0x1F
-#define RTW89_MAC_CHINFO_SIZE 20
+#define RTW89_MAC_CHINFO_SIZE 24
 
 struct rtw89_mac_chinfo {
 	u8 period;
@@ -2467,6 +2467,8 @@ static inline void RTW89_SET_FWCMD_SCANOFLD_TSF_SLOW(void *cmd, u32 val)
 	le32_get_bits(*((const __le32 *)(c2h) + 2), GENMASK(19, 16))
 #define RTW89_GET_MAC_C2H_SCANOFLD_STATUS(c2h) \
 	le32_get_bits(*((const __le32 *)(c2h) + 2), GENMASK(23, 20))
+#define RTW89_GET_MAC_C2H_ACTUAL_PERIOD(c2h) \
+	le32_get_bits(*((const __le32 *)(c2h) + 2), GENMASK(31, 24))
 #define RTW89_GET_MAC_C2H_SCANOFLD_TX_FAIL(c2h) \
 	le32_get_bits(*((const __le32 *)(c2h) + 5), GENMASK(3, 0))
 #define RTW89_GET_MAC_C2H_SCANOFLD_AIR_DENSITY(c2h) \
