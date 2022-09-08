@@ -912,15 +912,26 @@ fail:
 	return -EBUSY;
 }
 
+static void __rtw89_fw_h2c_set_tx_path(struct rtw89_dev *rtwdev,
+				       struct sk_buff *skb)
+{
+	struct rtw89_hal *hal = &rtwdev->hal;
+	u8 ntx_path = hal->antenna_tx ? hal->antenna_tx : RF_B;
+	u8 map_b = hal->antenna_tx == RF_AB ? 1 : 0;
+
+	SET_CMC_TBL_NTX_PATH_EN(skb->data, ntx_path);
+	SET_CMC_TBL_PATH_MAP_A(skb->data, 0);
+	SET_CMC_TBL_PATH_MAP_B(skb->data, map_b);
+	SET_CMC_TBL_PATH_MAP_C(skb->data, 0);
+	SET_CMC_TBL_PATH_MAP_D(skb->data, 0);
+}
+
 #define H2C_CMC_TBL_LEN 68
 int rtw89_fw_h2c_default_cmac_tbl(struct rtw89_dev *rtwdev,
 				  struct rtw89_vif *rtwvif)
 {
 	const struct rtw89_chip_info *chip = rtwdev->chip;
-	struct rtw89_hal *hal = &rtwdev->hal;
 	struct sk_buff *skb;
-	u8 ntx_path = hal->antenna_tx ? hal->antenna_tx : RF_B;
-	u8 map_b = hal->antenna_tx == RF_AB ? 1 : 0;
 	u8 macid = rtwvif->mac_id;
 
 	skb = rtw89_fw_h2c_alloc_skb_with_hdr(rtwdev, H2C_CMC_TBL_LEN);
@@ -933,11 +944,7 @@ int rtw89_fw_h2c_default_cmac_tbl(struct rtw89_dev *rtwdev,
 	SET_CTRL_INFO_OPERATION(skb->data, 1);
 	if (chip->h2c_cctl_func_id == H2C_FUNC_MAC_CCTLINFO_UD) {
 		SET_CMC_TBL_TXPWR_MODE(skb->data, 0);
-		SET_CMC_TBL_NTX_PATH_EN(skb->data, ntx_path);
-		SET_CMC_TBL_PATH_MAP_A(skb->data, 0);
-		SET_CMC_TBL_PATH_MAP_B(skb->data, map_b);
-		SET_CMC_TBL_PATH_MAP_C(skb->data, 0);
-		SET_CMC_TBL_PATH_MAP_D(skb->data, 0);
+		__rtw89_fw_h2c_set_tx_path(rtwdev, skb);
 		SET_CMC_TBL_ANTSEL_A(skb->data, 0);
 		SET_CMC_TBL_ANTSEL_B(skb->data, 0);
 		SET_CMC_TBL_ANTSEL_C(skb->data, 0);
@@ -1131,6 +1138,45 @@ fail:
 	dev_kfree_skb_any(skb);
 
 	return -EBUSY;
+}
+
+int rtw89_fw_h2c_txpath_cmac_tbl(struct rtw89_dev *rtwdev,
+				 struct rtw89_sta *rtwsta)
+{
+	const struct rtw89_chip_info *chip = rtwdev->chip;
+	struct sk_buff *skb;
+	int ret;
+
+	if (chip->h2c_cctl_func_id != H2C_FUNC_MAC_CCTLINFO_UD)
+		return 0;
+
+	skb = rtw89_fw_h2c_alloc_skb_with_hdr(rtwdev, H2C_CMC_TBL_LEN);
+	if (!skb) {
+		rtw89_err(rtwdev, "failed to alloc skb for fw dl\n");
+		return -ENOMEM;
+	}
+	skb_put(skb, H2C_CMC_TBL_LEN);
+	SET_CTRL_INFO_MACID(skb->data, rtwsta->mac_id);
+	SET_CTRL_INFO_OPERATION(skb->data, 1);
+
+	__rtw89_fw_h2c_set_tx_path(rtwdev, skb);
+
+	rtw89_h2c_pkt_set_hdr(rtwdev, skb, FWCMD_TYPE_H2C,
+			      H2C_CAT_MAC, H2C_CL_MAC_FR_EXCHG,
+			      H2C_FUNC_MAC_CCTLINFO_UD, 0, 1,
+			      H2C_CMC_TBL_LEN);
+
+	ret = rtw89_h2c_tx(rtwdev, skb, false);
+	if (ret) {
+		rtw89_err(rtwdev, "failed to send h2c\n");
+		goto fail;
+	}
+
+	return 0;
+fail:
+	dev_kfree_skb_any(skb);
+
+	return ret;
 }
 
 #define H2C_BCN_BASE_LEN 12
