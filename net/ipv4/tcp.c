@@ -1766,7 +1766,7 @@ int tcp_read_skb(struct sock *sk, skb_read_actor_t recv_actor)
 		return 0;
 
 	__skb_unlink(skb, &sk->sk_receive_queue);
-	WARN_ON(!skb_set_owner_sk_safe(skb, sk));
+	WARN_ON_ONCE(!skb_set_owner_sk_safe(skb, sk));
 	copied = recv_actor(sk, skb);
 	if (copied >= 0) {
 		seq += copied;
