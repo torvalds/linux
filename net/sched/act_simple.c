@@ -197,23 +197,6 @@ nla_put_failure:
 	return -1;
 }
 
-static int tcf_simp_walker(struct net *net, struct sk_buff *skb,
-			   struct netlink_callback *cb, int type,
-			   const struct tc_action_ops *ops,
-			   struct netlink_ext_ack *extack)
-{
-	struct tc_action_net *tn = net_generic(net, act_simp_ops.net_id);
-
-	return tcf_generic_walker(tn, skb, cb, type, ops, extack);
-}
-
-static int tcf_simp_search(struct net *net, struct tc_action **a, u32 index)
-{
-	struct tc_action_net *tn = net_generic(net, act_simp_ops.net_id);
-
-	return tcf_idr_search(tn, a, index);
-}
-
 static struct tc_action_ops act_simp_ops = {
 	.kind		=	"simple",
 	.id		=	TCA_ID_SIMP,
@@ -222,8 +205,6 @@ static struct tc_action_ops act_simp_ops = {
 	.dump		=	tcf_simp_dump,
 	.cleanup	=	tcf_simp_release,
 	.init		=	tcf_simp_init,
-	.walk		=	tcf_simp_walker,
-	.lookup		=	tcf_simp_search,
 	.size		=	sizeof(struct tcf_defact),
 };
 
