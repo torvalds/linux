@@ -1435,11 +1435,8 @@ static int io_iopoll_check(struct io_ring_ctx *ctx, long min)
 				u32 tail = ctx->cached_cq_tail;
 
 				mutex_unlock(&ctx->uring_lock);
-				ret = io_run_task_work();
+				io_run_task_work();
 				mutex_lock(&ctx->uring_lock);
-
-				if (ret < 0)
-					break;
 
 				/* some requests don't go through iopoll_list */
 				if (tail != ctx->cached_cq_tail ||
