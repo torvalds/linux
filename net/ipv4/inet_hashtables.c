@@ -169,13 +169,14 @@ void inet_bind_hash(struct sock *sk, struct inet_bind_bucket *tb,
 static void __inet_put_port(struct sock *sk)
 {
 	struct inet_hashinfo *hashinfo = sk->sk_prot->h.hashinfo;
-	const int bhash = inet_bhashfn(sock_net(sk), inet_sk(sk)->inet_num,
-			hashinfo->bhash_size);
-	struct inet_bind_hashbucket *head = &hashinfo->bhash[bhash];
-	struct inet_bind_hashbucket *head2 =
-		inet_bhashfn_portaddr(hashinfo, sk, sock_net(sk),
-				      inet_sk(sk)->inet_num);
+	struct inet_bind_hashbucket *head, *head2;
+	struct net *net = sock_net(sk);
 	struct inet_bind_bucket *tb;
+	int bhash;
+
+	bhash = inet_bhashfn(net, inet_sk(sk)->inet_num, hashinfo->bhash_size);
+	head = &hashinfo->bhash[bhash];
+	head2 = inet_bhashfn_portaddr(hashinfo, sk, net, inet_sk(sk)->inet_num);
 
 	spin_lock(&head->lock);
 	tb = inet_csk(sk)->icsk_bind_hash;
@@ -209,17 +210,17 @@ int __inet_inherit_port(const struct sock *sk, struct sock *child)
 {
 	struct inet_hashinfo *table = sk->sk_prot->h.hashinfo;
 	unsigned short port = inet_sk(child)->inet_num;
-	const int bhash = inet_bhashfn(sock_net(sk), port,
-			table->bhash_size);
-	struct inet_bind_hashbucket *head = &table->bhash[bhash];
-	struct inet_bind_hashbucket *head2 =
-		inet_bhashfn_portaddr(table, child, sock_net(sk), port);
+	struct inet_bind_hashbucket *head, *head2;
 	bool created_inet_bind_bucket = false;
-	bool update_fastreuse = false;
 	struct net *net = sock_net(sk);
+	bool update_fastreuse = false;
 	struct inet_bind2_bucket *tb2;
 	struct inet_bind_bucket *tb;
-	int l3mdev;
+	int bhash, l3mdev;
+
+	bhash = inet_bhashfn(net, port, table->bhash_size);
+	head = &table->bhash[bhash];
+	head2 = inet_bhashfn_portaddr(table, child, net, port);
 
 	spin_lock(&head->lock);
 	spin_lock(&head2->lock);
@@ -629,8 +630,8 @@ static bool inet_ehash_lookup_by_sk(struct sock *sk,
 bool inet_ehash_insert(struct sock *sk, struct sock *osk, bool *found_dup_sk)
 {
 	struct inet_hashinfo *hashinfo = sk->sk_prot->h.hashinfo;
-	struct hlist_nulls_head *list;
 	struct inet_ehash_bucket *head;
+	struct hlist_nulls_head *list;
 	spinlock_t *lock;
 	bool ret = true;
 

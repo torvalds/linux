@@ -146,15 +146,16 @@ static int tcp_v6_connect(struct sock *sk, struct sockaddr *uaddr,
 			  int addr_len)
 {
 	struct sockaddr_in6 *usin = (struct sockaddr_in6 *) uaddr;
-	struct inet_sock *inet = inet_sk(sk);
 	struct inet_connection_sock *icsk = inet_csk(sk);
+	struct in6_addr *saddr = NULL, *final_p, final;
 	struct inet_timewait_death_row *tcp_death_row;
 	struct ipv6_pinfo *np = tcp_inet6_sk(sk);
+	struct inet_sock *inet = inet_sk(sk);
 	struct tcp_sock *tp = tcp_sk(sk);
-	struct in6_addr *saddr = NULL, *final_p, final;
+	struct net *net = sock_net(sk);
 	struct ipv6_txoptions *opt;
-	struct flowi6 fl6;
 	struct dst_entry *dst;
+	struct flowi6 fl6;
 	int addr_type;
 	int err;
 
@@ -280,7 +281,7 @@ static int tcp_v6_connect(struct sock *sk, struct sockaddr *uaddr,
 
 	security_sk_classify_flow(sk, flowi6_to_flowi_common(&fl6));
 
-	dst = ip6_dst_lookup_flow(sock_net(sk), sk, &fl6, final_p);
+	dst = ip6_dst_lookup_flow(net, sk, &fl6, final_p);
 	if (IS_ERR(dst)) {
 		err = PTR_ERR(dst);
 		goto failure;
@@ -292,8 +293,7 @@ static int tcp_v6_connect(struct sock *sk, struct sockaddr *uaddr,
 
 		if (icsk->icsk_bind2_hash) {
 			prev_addr_hashbucket = inet_bhashfn_portaddr(&tcp_hashinfo,
-								     sk, sock_net(sk),
-								     inet->inet_num);
+								     sk, net, inet->inet_num);
 			prev_v6_rcv_saddr = sk->sk_v6_rcv_saddr;
 		}
 		saddr = &fl6.saddr;
@@ -325,7 +325,7 @@ static int tcp_v6_connect(struct sock *sk, struct sockaddr *uaddr,
 	inet->inet_dport = usin->sin6_port;
 
 	tcp_set_state(sk, TCP_SYN_SENT);
-	tcp_death_row = sock_net(sk)->ipv4.tcp_death_row;
+	tcp_death_row = net->ipv4.tcp_death_row;
 	err = inet6_hash_connect(tcp_death_row, sk);
 	if (err)
 		goto late_failure;
@@ -339,8 +339,7 @@ static int tcp_v6_connect(struct sock *sk, struct sockaddr *uaddr,
 						    sk->sk_v6_daddr.s6_addr32,
 						    inet->inet_sport,
 						    inet->inet_dport));
-		tp->tsoffset = secure_tcpv6_ts_off(sock_net(sk),
-						   np->saddr.s6_addr32,
+		tp->tsoffset = secure_tcpv6_ts_off(net, np->saddr.s6_addr32,
 						   sk->sk_v6_daddr.s6_addr32);
 	}
 

@@ -201,15 +201,16 @@ int tcp_v4_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 {
 	struct inet_bind_hashbucket *prev_addr_hashbucket = NULL;
 	struct sockaddr_in *usin = (struct sockaddr_in *)uaddr;
+	struct inet_timewait_death_row *tcp_death_row;
 	__be32 daddr, nexthop, prev_sk_rcv_saddr;
 	struct inet_sock *inet = inet_sk(sk);
 	struct tcp_sock *tp = tcp_sk(sk);
+	struct ip_options_rcu *inet_opt;
+	struct net *net = sock_net(sk);
 	__be16 orig_sport, orig_dport;
 	struct flowi4 *fl4;
 	struct rtable *rt;
 	int err;
-	struct ip_options_rcu *inet_opt;
-	struct inet_timewait_death_row *tcp_death_row = sock_net(sk)->ipv4.tcp_death_row;
 
 	if (addr_len < sizeof(struct sockaddr_in))
 		return -EINVAL;
@@ -235,7 +236,7 @@ int tcp_v4_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 	if (IS_ERR(rt)) {
 		err = PTR_ERR(rt);
 		if (err == -ENETUNREACH)
-			IP_INC_STATS(sock_net(sk), IPSTATS_MIB_OUTNOROUTES);
+			IP_INC_STATS(net, IPSTATS_MIB_OUTNOROUTES);
 		return err;
 	}
 
@@ -250,8 +251,7 @@ int tcp_v4_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 	if (!inet->inet_saddr) {
 		if (inet_csk(sk)->icsk_bind2_hash) {
 			prev_addr_hashbucket = inet_bhashfn_portaddr(&tcp_hashinfo,
-								     sk, sock_net(sk),
-								     inet->inet_num);
+								     sk, net, inet->inet_num);
 			prev_sk_rcv_saddr = sk->sk_rcv_saddr;
 		}
 		inet->inet_saddr = fl4->saddr;
@@ -292,6 +292,7 @@ int tcp_v4_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 	 * complete initialization after this.
 	 */
 	tcp_set_state(sk, TCP_SYN_SENT);
+	tcp_death_row = net->ipv4.tcp_death_row;
 	err = inet_hash_connect(tcp_death_row, sk);
 	if (err)
 		goto failure;
@@ -317,8 +318,7 @@ int tcp_v4_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 						  inet->inet_daddr,
 						  inet->inet_sport,
 						  usin->sin_port));
-		tp->tsoffset = secure_tcp_ts_off(sock_net(sk),
-						 inet->inet_saddr,
+		tp->tsoffset = secure_tcp_ts_off(net, inet->inet_saddr,
 						 inet->inet_daddr);
 	}
 
@@ -2406,9 +2406,9 @@ static void *established_get_first(struct seq_file *seq)
 
 static void *established_get_next(struct seq_file *seq, void *cur)
 {
-	struct sock *sk = cur;
-	struct hlist_nulls_node *node;
 	struct tcp_iter_state *st = seq->private;
+	struct hlist_nulls_node *node;
+	struct sock *sk = cur;
 
 	++st->num;
 	++st->offset;
