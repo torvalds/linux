@@ -779,6 +779,15 @@ st_lsm6dsrx_alloc_event_iiodev(struct st_lsm6dsrx_hw *hw,
 	return iio_dev;
 }
 
+/**
+ * st_lsm6dsrx_event_handler() - Detect embedded low power event
+ *
+ * @hw: ST IMU MEMS hw instance.
+ *
+ * return IRQ_HANDLED.
+ *
+ * NOTE: Uses page_lock through the st_lsm6dsrx_read_locked.
+ */
 int st_lsm6dsrx_event_handler(struct st_lsm6dsrx_hw *hw)
 {
 	struct iio_dev *iio_dev;
@@ -791,7 +800,7 @@ int st_lsm6dsrx_event_handler(struct st_lsm6dsrx_hw *hw)
 	     BIT_ULL(ST_LSM6DSRX_ID_SLPCHG) |
 	     BIT_ULL(ST_LSM6DSRX_ID_6D) | BIT_ULL(ST_LSM6DSRX_ID_TAP) |
 	     BIT_ULL(ST_LSM6DSRX_ID_DTAP))) {
-		err = regmap_bulk_read(hw->regmap,
+		err = st_lsm6dsrx_read_locked(hw,
 				     ST_LSM6DSRX_REG_ALL_INT_SRC_ADDR,
 				     &status, sizeof(status));
 		if (err < 0)
