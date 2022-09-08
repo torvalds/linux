@@ -349,6 +349,7 @@ EXPORT_SYMBOL_GPL(tcp_twsk_destructor);
 
 void tcp_twsk_purge(struct list_head *net_exit_list, int family)
 {
+	bool purged_once = false;
 	struct net *net;
 
 	list_for_each_entry(net, net_exit_list, exit_list) {
@@ -356,8 +357,12 @@ void tcp_twsk_purge(struct list_head *net_exit_list, int family)
 		if (refcount_read(&net->ipv4.tcp_death_row.tw_refcount) == 1)
 			continue;
 
-		inet_twsk_purge(&tcp_hashinfo, family);
-		break;
+		if (net->ipv4.tcp_death_row.hashinfo->pernet) {
+			inet_twsk_purge(net->ipv4.tcp_death_row.hashinfo, family);
+		} else if (!purged_once) {
+			inet_twsk_purge(&tcp_hashinfo, family);
+			purged_once = true;
+		}
 	}
 }
 EXPORT_SYMBOL_GPL(tcp_twsk_purge);

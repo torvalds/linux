@@ -1197,6 +1197,8 @@ static int __init dccp_init(void)
 		INIT_HLIST_HEAD(&dccp_hashinfo.bhash2[i].chain);
 	}
 
+	dccp_hashinfo.pernet = false;
+
 	rc = dccp_mib_init();
 	if (rc)
 		goto out_free_dccp_bhash2;
