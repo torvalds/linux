@@ -901,12 +901,15 @@ struct ocelot {
 
 	struct ocelot_psfp_list		psfp;
 
-	/* Workqueue to check statistics for overflow with its lock */
-	spinlock_t			stats_lock;
-	u64				*stats;
+	/* Workqueue to check statistics for overflow */
 	struct delayed_work		stats_work;
 	struct workqueue_struct		*stats_queue;
+	/* Lock for serializing access to the statistics array */
+	spinlock_t			stats_lock;
+	u64				*stats;
 
+	/* Lock for serializing indirect access to STAT_VIEW registers */
+	struct mutex			stat_view_lock;
 	/* Lock for serializing access to the MAC table */
 	struct mutex			mact_lock;
 	/* Lock for serializing forwarding domain changes */

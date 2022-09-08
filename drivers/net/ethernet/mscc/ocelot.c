@@ -1870,12 +1870,13 @@ void ocelot_get_strings(struct ocelot *ocelot, int port, u32 sset, u8 *data)
 }
 EXPORT_SYMBOL(ocelot_get_strings);
 
-/* Caller must hold &ocelot->stats_lock */
+/* Read the counters from hardware and keep them in region->buf.
+ * Caller must hold &ocelot->stat_view_lock.
+ */
 static int ocelot_port_update_stats(struct ocelot *ocelot, int port)
 {
-	unsigned int idx = port * OCELOT_NUM_STATS;
 	struct ocelot_stats_region *region;
-	int err, j;
+	int err;
 
 	/* Configure the port to read the stats from */
 	ocelot_write(ocelot, SYS_STAT_CFG_STAT_VIEW(port), SYS_STAT_CFG);
@@ -1885,7 +1886,21 @@ static int ocelot_port_update_stats(struct ocelot *ocelot, int port)
 				       region->count);
 		if (err)
 			return err;
+	}
 
+	return 0;
+}
+
+/* Transfer the counters from region->buf to ocelot->stats.
+ * Caller must hold &ocelot->stat_view_lock and &ocelot->stats_lock.
+ */
+static void ocelot_port_transfer_stats(struct ocelot *ocelot, int port)
+{
+	unsigned int idx = port * OCELOT_NUM_STATS;
+	struct ocelot_stats_region *region;
+	int j;
+
+	list_for_each_entry(region, &ocelot->stats_regions, node) {
 		for (j = 0; j < region->count; j++) {
 			u64 *stat = &ocelot->stats[idx + j];
 			u64 val = region->buf[j];
@@ -1898,8 +1913,6 @@ static int ocelot_port_update_stats(struct ocelot *ocelot, int port)
 
 		idx += region->count;
 	}
-
-	return err;
 }
 
 static void ocelot_check_stats_work(struct work_struct *work)
@@ -1907,15 +1920,21 @@ static void ocelot_check_stats_work(struct work_struct *work)
 	struct delayed_work *del_work = to_delayed_work(work);
 	struct ocelot *ocelot = container_of(del_work, struct ocelot,
 					     stats_work);
-	int i, err;
+	int port, err;
 
-	spin_lock(&ocelot->stats_lock);
-	for (i = 0; i < ocelot->num_phys_ports; i++) {
-		err = ocelot_port_update_stats(ocelot, i);
+	mutex_lock(&ocelot->stat_view_lock);
+
+	for (port = 0; port < ocelot->num_phys_ports; port++) {
+		err = ocelot_port_update_stats(ocelot, port);
 		if (err)
 			break;
+
+		spin_lock(&ocelot->stats_lock);
+		ocelot_port_transfer_stats(ocelot, port);
+		spin_unlock(&ocelot->stats_lock);
 	}
-	spin_unlock(&ocelot->stats_lock);
+
+	mutex_unlock(&ocelot->stat_view_lock);
 
 	if (err)
 		dev_err(ocelot->dev, "Error %d updating ethtool stats\n",  err);
@@ -1928,10 +1947,14 @@ void ocelot_get_ethtool_stats(struct ocelot *ocelot, int port, u64 *data)
 {
 	int i, err;
 
-	spin_lock(&ocelot->stats_lock);
+	mutex_lock(&ocelot->stat_view_lock);
 
 	/* check and update now */
 	err = ocelot_port_update_stats(ocelot, port);
+
+	spin_lock(&ocelot->stats_lock);
+
+	ocelot_port_transfer_stats(ocelot, port);
 
 	/* Copy all supported counters */
 	for (i = 0; i < OCELOT_NUM_STATS; i++) {
@@ -1944,6 +1967,8 @@ void ocelot_get_ethtool_stats(struct ocelot *ocelot, int port, u64 *data)
 	}
 
 	spin_unlock(&ocelot->stats_lock);
+
+	mutex_unlock(&ocelot->stat_view_lock);
 
 	if (err)
 		dev_err(ocelot->dev, "Error %d updating ethtool stats\n", err);
@@ -3396,6 +3421,7 @@ int ocelot_init(struct ocelot *ocelot)
 		return -ENOMEM;
 
 	spin_lock_init(&ocelot->stats_lock);
+	mutex_init(&ocelot->stat_view_lock);
 	mutex_init(&ocelot->ptp_lock);
 	mutex_init(&ocelot->mact_lock);
 	mutex_init(&ocelot->fwd_domain_lock);
