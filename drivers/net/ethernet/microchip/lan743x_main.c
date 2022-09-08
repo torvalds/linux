@@ -1585,6 +1585,9 @@ static void lan743x_rfe_set_multicast(struct lan743x_adapter *adapter)
 			rfctl |= RFE_CTL_AM_;
 	}
 
+	if (netdev->features & NETIF_F_RXCSUM)
+		rfctl |= RFE_CTL_IP_COE_ | RFE_CTL_TCP_UDP_COE_;
+
 	memset(hash_table, 0, DP_SEL_VHF_HASH_LEN * sizeof(u32));
 	if (netdev_mc_count(netdev)) {
 		struct netdev_hw_addr *ha;
@@ -2547,6 +2550,7 @@ static int lan743x_rx_process_buffer(struct lan743x_rx *rx)
 	int result = RX_PROCESS_RESULT_NOTHING_TO_DO;
 	struct lan743x_rx_buffer_info *buffer_info;
 	int frame_length, buffer_length;
+	bool is_ice, is_tce, is_icsm;
 	int extension_index = -1;
 	bool is_last, is_first;
 	struct sk_buff *skb;
@@ -2593,6 +2597,9 @@ static int lan743x_rx_process_buffer(struct lan743x_rx *rx)
 	frame_length =
 		RX_DESC_DATA0_FRAME_LENGTH_GET_(le32_to_cpu(descriptor->data0));
 	buffer_length = buffer_info->buffer_length;
+	is_ice = le32_to_cpu(descriptor->data1) & RX_DESC_DATA1_STATUS_ICE_;
+	is_tce = le32_to_cpu(descriptor->data1) & RX_DESC_DATA1_STATUS_TCE_;
+	is_icsm = le32_to_cpu(descriptor->data1) & RX_DESC_DATA1_STATUS_ICSM_;
 
 	netdev_dbg(netdev, "%s%schunk: %d/%d",
 		   is_first ? "first " : "      ",
@@ -2661,6 +2668,10 @@ process_extension:
 	if (is_last && rx->skb_head) {
 		rx->skb_head->protocol = eth_type_trans(rx->skb_head,
 							rx->adapter->netdev);
+		if (rx->adapter->netdev->features & NETIF_F_RXCSUM) {
+			if (!is_ice && !is_tce && !is_icsm)
+				skb->ip_summed = CHECKSUM_UNNECESSARY;
+		}
 		netdev_dbg(netdev, "sending %d byte frame to OS",
 			   rx->skb_head->len);
 		napi_gro_receive(&rx->napi, rx->skb_head);
@@ -3383,7 +3394,8 @@ static int lan743x_pcidev_probe(struct pci_dev *pdev,
 
 	adapter->netdev->netdev_ops = &lan743x_netdev_ops;
 	adapter->netdev->ethtool_ops = &lan743x_ethtool_ops;
-	adapter->netdev->features = NETIF_F_SG | NETIF_F_TSO | NETIF_F_HW_CSUM;
+	adapter->netdev->features = NETIF_F_SG | NETIF_F_TSO |
+				    NETIF_F_HW_CSUM | NETIF_F_RXCSUM;
 	adapter->netdev->hw_features = adapter->netdev->features;
 
 	/* carrier off reporting is important to ethtool even BEFORE open */
