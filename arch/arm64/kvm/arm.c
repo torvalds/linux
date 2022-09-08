@@ -2114,7 +2114,7 @@ static int finalize_hyp_mode(void)
 	 * at, which would end badly once inaccessible.
 	 */
 	kmemleak_free_part(__hyp_bss_start, __hyp_bss_end - __hyp_bss_start);
-	kmemleak_free_part(__va(hyp_mem_base), hyp_mem_size);
+	kmemleak_free_part_phys(hyp_mem_base, hyp_mem_size);
 	return pkvm_drop_host_privileges();
 }
 
