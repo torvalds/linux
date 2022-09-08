@@ -3318,6 +3318,7 @@ struct rtw89_hw_scan_info {
 	u8 op_chan;
 	u8 op_bw;
 	u8 op_band;
+	u32 last_chan_idx;
 };
 
 enum rtw89_phy_bb_gain_band {
@@ -3742,6 +3743,16 @@ static inline struct ieee80211_vif *rtwvif_to_vif(struct rtw89_vif *rtwvif)
 	void *p = rtwvif;
 
 	return container_of(p, struct ieee80211_vif, drv_priv);
+}
+
+static inline struct ieee80211_vif *rtwvif_to_vif_safe(struct rtw89_vif *rtwvif)
+{
+	return rtwvif ? rtwvif_to_vif(rtwvif) : NULL;
+}
+
+static inline struct rtw89_vif *vif_to_rtwvif_safe(struct ieee80211_vif *vif)
+{
+	return vif ? (struct rtw89_vif *)vif->drv_priv : NULL;
 }
 
 static inline struct ieee80211_sta *rtwsta_to_sta(struct rtw89_sta *rtwsta)

@@ -2451,13 +2451,16 @@ static int rtw89_hw_scan_add_chan_list(struct rtw89_dev *rtwdev,
 	struct ieee80211_channel *channel;
 	struct list_head chan_list;
 	bool random_seq = req->flags & NL80211_SCAN_FLAG_RANDOM_SN;
-	int list_len = req->n_channels, off_chan_time = 0;
+	int list_len, off_chan_time = 0;
 	enum rtw89_chan_type type;
-	int ret = 0, i;
+	int ret = 0;
+	u32 idx;
 
 	INIT_LIST_HEAD(&chan_list);
-	for (i = 0; i < req->n_channels; i++) {
-		channel = req->channels[i];
+	for (idx = rtwdev->scan_info.last_chan_idx, list_len = 0;
+	     idx < req->n_channels && list_len < RTW89_SCAN_LIST_LIMIT;
+	     idx++, list_len++) {
+		channel = req->channels[idx];
 		ch_info = kzalloc(sizeof(*ch_info), GFP_KERNEL);
 		if (!ch_info) {
 			ret = -ENOMEM;
@@ -2498,6 +2501,7 @@ static int rtw89_hw_scan_add_chan_list(struct rtw89_dev *rtwdev,
 		list_add_tail(&ch_info->list, &chan_list);
 		off_chan_time += ch_info->period;
 	}
+	rtwdev->scan_info.last_chan_idx = idx;
 	ret = rtw89_fw_h2c_scan_list_offload(rtwdev, list_len, &chan_list);
 
 out:
@@ -2532,6 +2536,7 @@ void rtw89_hw_scan_start(struct rtw89_dev *rtwdev, struct ieee80211_vif *vif,
 	u8 mac_addr[ETH_ALEN];
 
 	rtwdev->scan_info.scanning_vif = vif;
+	rtwdev->scan_info.last_chan_idx = 0;
 	rtwvif->scan_ies = &scan_req->ies;
 	rtwvif->scan_req = req;
 	ieee80211_stop_queues(rtwdev->hw);
@@ -2579,6 +2584,7 @@ void rtw89_hw_scan_complete(struct rtw89_dev *rtwdev, struct ieee80211_vif *vif,
 	rtwvif = (struct rtw89_vif *)vif->drv_priv;
 	rtwvif->scan_req = NULL;
 	rtwvif->scan_ies = NULL;
+	rtwdev->scan_info.last_chan_idx = 0;
 	rtwdev->scan_info.scanning_vif = NULL;
 
 	if (rtwvif->net_type != RTW89_NET_TYPE_NO_LINK)

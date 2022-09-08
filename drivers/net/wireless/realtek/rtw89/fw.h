@@ -188,6 +188,7 @@ struct rtw89_h2creg_sch_tx_en {
 	u16 rsvd:15;
 } __packed;
 
+#define RTW89_H2C_MAX_SIZE 2048
 #define RTW89_CHANNEL_TIME 45
 #define RTW89_DFS_CHAN_TIME 105
 #define RTW89_OFF_CHAN_TIME 100
@@ -198,6 +199,9 @@ struct rtw89_h2creg_sch_tx_en {
 #define RTW89_SCANOFLD_PKT_NONE 0xFF
 #define RTW89_SCANOFLD_DEBUG_MASK 0x1F
 #define RTW89_MAC_CHINFO_SIZE 24
+#define RTW89_SCAN_LIST_GUARD 4
+#define RTW89_SCAN_LIST_LIMIT \
+		((RTW89_H2C_MAX_SIZE / RTW89_MAC_CHINFO_SIZE) - RTW89_SCAN_LIST_GUARD)
 
 struct rtw89_mac_chinfo {
 	u8 period;

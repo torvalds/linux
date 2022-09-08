@@ -3734,9 +3734,12 @@ rtw89_mac_c2h_scanofld_rsp(struct rtw89_dev *rtwdev, struct sk_buff *c2h,
 			   u32 len)
 {
 	struct ieee80211_vif *vif = rtwdev->scan_info.scanning_vif;
+	struct rtw89_vif *rtwvif = vif_to_rtwvif_safe(vif);
 	struct rtw89_chan new;
 	u8 reason, status, tx_fail, band, actual_period;
+	u32 last_chan = rtwdev->scan_info.last_chan_idx;
 	u16 chan;
+	int ret;
 
 	tx_fail = RTW89_GET_MAC_C2H_SCANOFLD_TX_FAIL(c2h->data);
 	status = RTW89_GET_MAC_C2H_SCANOFLD_STATUS(c2h->data);
@@ -3758,7 +3761,16 @@ rtw89_mac_c2h_scanofld_rsp(struct rtw89_dev *rtwdev, struct sk_buff *c2h,
 			ieee80211_stop_queues(rtwdev->hw);
 		return;
 	case RTW89_SCAN_END_SCAN_NOTIFY:
-		rtw89_hw_scan_complete(rtwdev, vif, false);
+		if (rtwvif && rtwvif->scan_req &&
+		    last_chan < rtwvif->scan_req->n_channels) {
+			ret = rtw89_hw_scan_offload(rtwdev, vif, true);
+			if (ret) {
+				rtw89_hw_scan_abort(rtwdev, vif);
+				rtw89_warn(rtwdev, "HW scan failed: %d\n", ret);
+			}
+		} else {
+			rtw89_hw_scan_complete(rtwdev, vif, false);
+		}
 		break;
 	case RTW89_SCAN_ENTER_CH_NOTIFY:
 		rtw89_chan_create(&new, chan, chan, band, RTW89_CHANNEL_WIDTH_20);
