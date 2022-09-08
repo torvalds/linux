@@ -215,6 +215,19 @@ static struct per_pid *find_create_pid(struct timechart *tchart, int pid)
 	return cursor;
 }
 
+static struct per_pidcomm *create_pidcomm(struct per_pid *p)
+{
+	struct per_pidcomm *c;
+
+	c = zalloc(sizeof(*c));
+	if (!c)
+		return NULL;
+	p->current = c;
+	c->next = p->all;
+	p->all = c;
+	return c;
+}
+
 static void pid_set_comm(struct timechart *tchart, int pid, char *comm)
 {
 	struct per_pid *p;
@@ -233,12 +246,9 @@ static void pid_set_comm(struct timechart *tchart, int pid, char *comm)
 		}
 		c = c->next;
 	}
-	c = zalloc(sizeof(*c));
+	c = create_pidcomm(p);
 	assert(c != NULL);
 	c->comm = strdup(comm);
-	p->current = c;
-	c->next = p->all;
-	p->all = c;
 }
 
 static void pid_fork(struct timechart *tchart, int pid, int ppid, u64 timestamp)
@@ -277,11 +287,8 @@ static void pid_put_sample(struct timechart *tchart, int pid, int type,
 	p = find_create_pid(tchart, pid);
 	c = p->current;
 	if (!c) {
-		c = zalloc(sizeof(*c));
+		c = create_pidcomm(p);
 		assert(c != NULL);
-		p->current = c;
-		c->next = p->all;
-		p->all = c;
 	}
 
 	sample = zalloc(sizeof(*sample));
@@ -726,12 +733,9 @@ static int pid_begin_io_sample(struct timechart *tchart, int pid, int type,
 	struct io_sample *prev;
 
 	if (!c) {
-		c = zalloc(sizeof(*c));
+		c = create_pidcomm(p);
 		if (!c)
 			return -ENOMEM;
-		p->current = c;
-		c->next = p->all;
-		p->all = c;
 	}
 
 	prev = c->io_samples;
