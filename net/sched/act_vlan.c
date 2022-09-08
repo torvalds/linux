@@ -332,16 +332,6 @@ nla_put_failure:
 	return -1;
 }
 
-static int tcf_vlan_walker(struct net *net, struct sk_buff *skb,
-			   struct netlink_callback *cb, int type,
-			   const struct tc_action_ops *ops,
-			   struct netlink_ext_ack *extack)
-{
-	struct tc_action_net *tn = net_generic(net, act_vlan_ops.net_id);
-
-	return tcf_generic_walker(tn, skb, cb, type, ops, extack);
-}
-
 static void tcf_vlan_stats_update(struct tc_action *a, u64 bytes, u64 packets,
 				  u64 drops, u64 lastuse, bool hw)
 {
@@ -350,13 +340,6 @@ static void tcf_vlan_stats_update(struct tc_action *a, u64 bytes, u64 packets,
 
 	tcf_action_update_stats(a, bytes, packets, drops, hw);
 	tm->lastuse = max_t(u64, tm->lastuse, lastuse);
-}
-
-static int tcf_vlan_search(struct net *net, struct tc_action **a, u32 index)
-{
-	struct tc_action_net *tn = net_generic(net, act_vlan_ops.net_id);
-
-	return tcf_idr_search(tn, a, index);
 }
 
 static size_t tcf_vlan_get_fill_size(const struct tc_action *act)
@@ -437,10 +420,8 @@ static struct tc_action_ops act_vlan_ops = {
 	.dump		=	tcf_vlan_dump,
 	.init		=	tcf_vlan_init,
 	.cleanup	=	tcf_vlan_cleanup,
-	.walk		=	tcf_vlan_walker,
 	.stats_update	=	tcf_vlan_stats_update,
 	.get_fill_size	=	tcf_vlan_get_fill_size,
-	.lookup		=	tcf_vlan_search,
 	.offload_act_setup =	tcf_vlan_offload_act_setup,
 	.size		=	sizeof(struct tcf_vlan),
 };
