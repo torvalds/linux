@@ -1791,6 +1791,11 @@ static void rtw8852c_set_channel_bb(struct rtw89_dev *rtwdev,
 		}
 	}
 
+	if (chan->band_type == RTW89_BAND_6G)
+		rtw89_phy_write32_set(rtwdev, R_MUIC, B_MUIC_EN);
+	else
+		rtw89_phy_write32_clr(rtwdev, R_MUIC, B_MUIC_EN);
+
 	rtw8852c_bb_reset_all(rtwdev, phy_idx);
 }
 
