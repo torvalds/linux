@@ -9,6 +9,8 @@
 #include <linux/kernel.h>
 #include <linux/vfio_pci_core.h>
 #include <linux/mlx5/driver.h>
+#include <linux/mlx5/cq.h>
+#include <linux/mlx5/qp.h>
 
 struct mlx5vf_async_data {
 	struct mlx5_async_work cb_work;
@@ -39,6 +41,52 @@ struct mlx5_vf_migration_file {
 	struct mlx5vf_async_data async_data;
 };
 
+struct mlx5_vhca_cq_buf {
+	struct mlx5_frag_buf_ctrl fbc;
+	struct mlx5_frag_buf frag_buf;
+	int cqe_size;
+	int nent;
+};
+
+struct mlx5_vhca_cq {
+	struct mlx5_vhca_cq_buf buf;
+	struct mlx5_db db;
+	struct mlx5_core_cq mcq;
+	size_t ncqe;
+};
+
+struct mlx5_vhca_recv_buf {
+	u32 npages;
+	struct page **page_list;
+	dma_addr_t *dma_addrs;
+	u32 next_rq_offset;
+	u32 mkey;
+};
+
+struct mlx5_vhca_qp {
+	struct mlx5_frag_buf buf;
+	struct mlx5_db db;
+	struct mlx5_vhca_recv_buf recv_buf;
+	u32 tracked_page_size;
+	u32 max_msg_size;
+	u32 qpn;
+	struct {
+		unsigned int pc;
+		unsigned int cc;
+		unsigned int wqe_cnt;
+		__be32 *db;
+		struct mlx5_frag_buf_ctrl fbc;
+	} rq;
+};
+
+struct mlx5_vhca_page_tracker {
+	u32 pdn;
+	struct mlx5_uars_page *uar;
+	struct mlx5_vhca_cq cq;
+	struct mlx5_vhca_qp *host_qp;
+	struct mlx5_vhca_qp *fw_qp;
+};
+
 struct mlx5vf_pci_core_device {
 	struct vfio_pci_core_device core_device;
 	int vf_id;
@@ -46,6 +94,7 @@ struct mlx5vf_pci_core_device {
 	u8 migrate_cap:1;
 	u8 deferred_reset:1;
 	u8 mdev_detach:1;
+	u8 log_active:1;
 	/* protect migration state */
 	struct mutex state_mutex;
 	enum vfio_device_mig_state mig_state;
@@ -53,6 +102,7 @@ struct mlx5vf_pci_core_device {
 	spinlock_t reset_lock;
 	struct mlx5_vf_migration_file *resuming_migf;
 	struct mlx5_vf_migration_file *saving_migf;
+	struct mlx5_vhca_page_tracker tracker;
 	struct workqueue_struct *cb_wq;
 	struct notifier_block nb;
 	struct mlx5_core_dev *mdev;
@@ -73,4 +123,7 @@ int mlx5vf_cmd_load_vhca_state(struct mlx5vf_pci_core_device *mvdev,
 void mlx5vf_state_mutex_unlock(struct mlx5vf_pci_core_device *mvdev);
 void mlx5vf_disable_fds(struct mlx5vf_pci_core_device *mvdev);
 void mlx5vf_mig_file_cleanup_cb(struct work_struct *_work);
+int mlx5vf_start_page_tracker(struct vfio_device *vdev,
+		struct rb_root_cached *ranges, u32 nnodes, u64 *page_size);
+int mlx5vf_stop_page_tracker(struct vfio_device *vdev);
 #endif /* MLX5_VFIO_CMD_H */
