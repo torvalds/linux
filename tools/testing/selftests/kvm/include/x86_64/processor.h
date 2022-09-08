@@ -754,7 +754,7 @@ void vm_install_exception_handler(struct kvm_vm *vm, int vector,
 			void (*handler)(struct ex_regs *));
 
 /* If a toddler were to say "abracadabra". */
-#define KVM_EXCEPTION_MAGIC 0xabacadabaull
+#define KVM_EXCEPTION_MAGIC 0xabacadabaULL
 
 /*
  * KVM selftest exception fixup uses registers to coordinate with the exception
@@ -786,7 +786,7 @@ void vm_install_exception_handler(struct kvm_vm *vm, int vector,
 	"lea 1f(%%rip), %%r10\n\t"				\
 	"lea 2f(%%rip), %%r11\n\t"				\
 	"1: " insn "\n\t"					\
-	"mov $0, %[vector]\n\t"					\
+	"movb $0, %[vector]\n\t"				\
 	"jmp 3f\n\t"						\
 	"2:\n\t"						\
 	"mov  %%r9b, %[vector]\n\t"				\
