@@ -346,7 +346,7 @@ int rproc_alloc_vring(struct rproc_vdev *rvdev, int i)
 		if (rproc_check_carveout_da(rproc, mem, rsc->vring[i].da, size))
 			return -ENOMEM;
 	} else {
-		/* Register carveout in in list */
+		/* Register carveout in list */
 		mem = rproc_mem_entry_init(dev, NULL, 0,
 					   size, rsc->vring[i].da,
 					   rproc_alloc_carveout,
