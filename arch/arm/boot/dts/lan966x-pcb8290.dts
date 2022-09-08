@@ -21,6 +21,10 @@
 	};
 };
 
+&aes {
+	status = "disabled"; /* Reserved by secure OS */
+};
+
 &gpio {
 	miim_a_pins: mdio-pins {
 		/* MDC, MDIO */

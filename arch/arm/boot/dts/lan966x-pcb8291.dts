@@ -53,6 +53,10 @@
 	};
 };
 
+&aes {
+	status = "disabled"; /* Reserved by secure OS */
+};
+
 &gpio {
 	fc3_b_pins: fc3-b-pins {
 		/* RX, TX */
