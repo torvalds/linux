@@ -1137,9 +1137,11 @@ static int em_fnstsw(struct x86_emulate_ctxt *ctxt)
 static void decode_register_operand(struct x86_emulate_ctxt *ctxt,
 				    struct operand *op)
 {
-	unsigned reg = ctxt->modrm_reg;
+	unsigned int reg;
 
-	if (!(ctxt->d & ModRM))
+	if (ctxt->d & ModRM)
+		reg = ctxt->modrm_reg;
+	else
 		reg = (ctxt->b & 7) | ((ctxt->rex_prefix & 1) << 3);
 
 	if (ctxt->d & Sse) {
