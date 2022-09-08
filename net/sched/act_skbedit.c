@@ -346,23 +346,6 @@ static void tcf_skbedit_cleanup(struct tc_action *a)
 		kfree_rcu(params, rcu);
 }
 
-static int tcf_skbedit_walker(struct net *net, struct sk_buff *skb,
-			      struct netlink_callback *cb, int type,
-			      const struct tc_action_ops *ops,
-			      struct netlink_ext_ack *extack)
-{
-	struct tc_action_net *tn = net_generic(net, act_skbedit_ops.net_id);
-
-	return tcf_generic_walker(tn, skb, cb, type, ops, extack);
-}
-
-static int tcf_skbedit_search(struct net *net, struct tc_action **a, u32 index)
-{
-	struct tc_action_net *tn = net_generic(net, act_skbedit_ops.net_id);
-
-	return tcf_idr_search(tn, a, index);
-}
-
 static size_t tcf_skbedit_get_fill_size(const struct tc_action *act)
 {
 	return nla_total_size(sizeof(struct tc_skbedit))
@@ -427,9 +410,7 @@ static struct tc_action_ops act_skbedit_ops = {
 	.dump		=	tcf_skbedit_dump,
 	.init		=	tcf_skbedit_init,
 	.cleanup	=	tcf_skbedit_cleanup,
-	.walk		=	tcf_skbedit_walker,
 	.get_fill_size	=	tcf_skbedit_get_fill_size,
-	.lookup		=	tcf_skbedit_search,
 	.offload_act_setup =	tcf_skbedit_offload_act_setup,
 	.size		=	sizeof(struct tcf_skbedit),
 };
