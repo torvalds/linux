@@ -266,6 +266,7 @@ static int st_lsm6dsrx_program_mlc(const struct firmware *fw,
 	int int_pin, ret, i = 0;
 	bool stmc_page = false;
 
+	mutex_lock(&hw->page_lock);
 	while (i < fw->size) {
 		reg = fw->data[i++];
 		val = fw->data[i++];
@@ -309,6 +310,7 @@ static int st_lsm6dsrx_program_mlc(const struct firmware *fw,
 		if (!skip) {
 			ret = regmap_write(hw->regmap, reg, val);
 			if (ret) {
+				mutex_unlock(&hw->page_lock);
 				dev_err(hw->dev, "regmap_write fails\n");
 
 				return ret;
@@ -360,6 +362,8 @@ static int st_lsm6dsrx_program_mlc(const struct firmware *fw,
 		hw->mlc_config->fsm_configured += fsm_num;
 		hw->mlc_config->requested_odr = mlc_odr_data[req_odr];
 	}
+
+	mutex_unlock(&hw->page_lock);
 
 	return fsm_num + mlc_num;
 }

@@ -662,21 +662,19 @@ static int st_lsm6dsrx_set_odr(struct st_lsm6dsrx_sensor *sensor, int req_odr,
 
 		/* check if sensor supports power mode setting */
 		if (sensor->pm != ST_LSM6DSRX_NO_MODE) {
-			err = regmap_update_bits(hw->regmap,
-					st_lsm6dsrx_odr_table[id].pm.addr,
-					st_lsm6dsrx_odr_table[id].pm.mask,
-					ST_LSM6DSRX_SHIFT_VAL(sensor->pm,
-					 st_lsm6dsrx_odr_table[id].pm.mask));
+			err = st_lsm6dsrx_update_bits_locked(hw,
+				      st_lsm6dsrx_odr_table[id].pm.addr,
+				      st_lsm6dsrx_odr_table[id].pm.mask,
+				      sensor->pm);
 			if (err < 0)
 				return err;
 		}
 	}
 
-	return regmap_update_bits(hw->regmap,
-				  st_lsm6dsrx_odr_table[id].reg.addr,
-				  st_lsm6dsrx_odr_table[id].reg.mask,
-				  ST_LSM6DSRX_SHIFT_VAL(oe.val,
-					st_lsm6dsrx_odr_table[id].reg.mask));
+	return st_lsm6dsrx_update_bits_locked(hw,
+				     st_lsm6dsrx_odr_table[id].reg.addr,
+				     st_lsm6dsrx_odr_table[id].reg.mask,
+				     oe.val);
 }
 
 int st_lsm6dsrx_sensor_set_enable(struct st_lsm6dsrx_sensor *sensor,
