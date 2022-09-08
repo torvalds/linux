@@ -16,7 +16,6 @@
 #include <linux/tc_act/tc_vlan.h>
 #include <net/tc_act/tc_vlan.h>
 
-static unsigned int vlan_net_id;
 static struct tc_action_ops act_vlan_ops;
 
 static int tcf_vlan_act(struct sk_buff *skb, const struct tc_action *a,
@@ -117,7 +116,7 @@ static int tcf_vlan_init(struct net *net, struct nlattr *nla,
 			 struct tcf_proto *tp, u32 flags,
 			 struct netlink_ext_ack *extack)
 {
-	struct tc_action_net *tn = net_generic(net, vlan_net_id);
+	struct tc_action_net *tn = net_generic(net, act_vlan_ops.net_id);
 	bool bind = flags & TCA_ACT_FLAGS_BIND;
 	struct nlattr *tb[TCA_VLAN_MAX + 1];
 	struct tcf_chain *goto_ch = NULL;
@@ -338,7 +337,7 @@ static int tcf_vlan_walker(struct net *net, struct sk_buff *skb,
 			   const struct tc_action_ops *ops,
 			   struct netlink_ext_ack *extack)
 {
-	struct tc_action_net *tn = net_generic(net, vlan_net_id);
+	struct tc_action_net *tn = net_generic(net, act_vlan_ops.net_id);
 
 	return tcf_generic_walker(tn, skb, cb, type, ops, extack);
 }
@@ -355,7 +354,7 @@ static void tcf_vlan_stats_update(struct tc_action *a, u64 bytes, u64 packets,
 
 static int tcf_vlan_search(struct net *net, struct tc_action **a, u32 index)
 {
-	struct tc_action_net *tn = net_generic(net, vlan_net_id);
+	struct tc_action_net *tn = net_generic(net, act_vlan_ops.net_id);
 
 	return tcf_idr_search(tn, a, index);
 }
@@ -448,20 +447,20 @@ static struct tc_action_ops act_vlan_ops = {
 
 static __net_init int vlan_init_net(struct net *net)
 {
-	struct tc_action_net *tn = net_generic(net, vlan_net_id);
+	struct tc_action_net *tn = net_generic(net, act_vlan_ops.net_id);
 
 	return tc_action_net_init(net, tn, &act_vlan_ops);
 }
 
 static void __net_exit vlan_exit_net(struct list_head *net_list)
 {
-	tc_action_net_exit(net_list, vlan_net_id);
+	tc_action_net_exit(net_list, act_vlan_ops.net_id);
 }
 
 static struct pernet_operations vlan_net_ops = {
 	.init = vlan_init_net,
 	.exit_batch = vlan_exit_net,
-	.id   = &vlan_net_id,
+	.id   = &act_vlan_ops.net_id,
 	.size = sizeof(struct tc_action_net),
 };
 

@@ -25,7 +25,6 @@
 #include <net/netfilter/nf_conntrack_core.h>
 #include <net/netfilter/nf_conntrack_zones.h>
 
-static unsigned int connmark_net_id;
 static struct tc_action_ops act_connmark_ops;
 
 static int tcf_connmark_act(struct sk_buff *skb, const struct tc_action *a,
@@ -99,7 +98,7 @@ static int tcf_connmark_init(struct net *net, struct nlattr *nla,
 			     struct tcf_proto *tp, u32 flags,
 			     struct netlink_ext_ack *extack)
 {
-	struct tc_action_net *tn = net_generic(net, connmark_net_id);
+	struct tc_action_net *tn = net_generic(net, act_connmark_ops.net_id);
 	struct nlattr *tb[TCA_CONNMARK_MAX + 1];
 	bool bind = flags & TCA_ACT_FLAGS_BIND;
 	struct tcf_chain *goto_ch = NULL;
@@ -205,14 +204,14 @@ static int tcf_connmark_walker(struct net *net, struct sk_buff *skb,
 			       const struct tc_action_ops *ops,
 			       struct netlink_ext_ack *extack)
 {
-	struct tc_action_net *tn = net_generic(net, connmark_net_id);
+	struct tc_action_net *tn = net_generic(net, act_connmark_ops.net_id);
 
 	return tcf_generic_walker(tn, skb, cb, type, ops, extack);
 }
 
 static int tcf_connmark_search(struct net *net, struct tc_action **a, u32 index)
 {
-	struct tc_action_net *tn = net_generic(net, connmark_net_id);
+	struct tc_action_net *tn = net_generic(net, act_connmark_ops.net_id);
 
 	return tcf_idr_search(tn, a, index);
 }
@@ -231,20 +230,20 @@ static struct tc_action_ops act_connmark_ops = {
 
 static __net_init int connmark_init_net(struct net *net)
 {
-	struct tc_action_net *tn = net_generic(net, connmark_net_id);
+	struct tc_action_net *tn = net_generic(net, act_connmark_ops.net_id);
 
 	return tc_action_net_init(net, tn, &act_connmark_ops);
 }
 
 static void __net_exit connmark_exit_net(struct list_head *net_list)
 {
-	tc_action_net_exit(net_list, connmark_net_id);
+	tc_action_net_exit(net_list, act_connmark_ops.net_id);
 }
 
 static struct pernet_operations connmark_net_ops = {
 	.init = connmark_init_net,
 	.exit_batch = connmark_exit_net,
-	.id   = &connmark_net_id,
+	.id   = &act_connmark_ops.net_id,
 	.size = sizeof(struct tc_action_net),
 };
 
