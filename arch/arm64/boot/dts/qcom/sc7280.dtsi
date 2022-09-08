@@ -2044,7 +2044,9 @@
 				 <&gcc GCC_PCIE_1_SLV_AXI_CLK>,
 				 <&gcc GCC_PCIE_1_SLV_Q2A_AXI_CLK>,
 				 <&gcc GCC_AGGRE_NOC_PCIE_TBU_CLK>,
-				 <&gcc GCC_DDRSS_PCIE_SF_CLK>;
+				 <&gcc GCC_DDRSS_PCIE_SF_CLK>,
+				 <&gcc GCC_AGGRE_NOC_PCIE_CENTER_SF_AXI_CLK>,
+				 <&gcc GCC_AGGRE_NOC_PCIE_1_AXI_CLK>;
 
 			clock-names = "pipe",
 				      "pipe_mux",
@@ -2056,7 +2058,9 @@
 				      "bus_slave",
 				      "slave_q2a",
 				      "tbu",
-				      "ddrss_sf_tbu";
+				      "ddrss_sf_tbu",
+				      "aggre0",
+				      "aggre1";
 
 			assigned-clocks = <&gcc GCC_PCIE_1_AUX_CLK>;
 			assigned-clock-rates = <19200000>;
