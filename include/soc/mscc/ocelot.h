@@ -729,6 +729,7 @@ struct ocelot_ops {
 			      struct flow_stats *stats);
 	void (*cut_through_fwd)(struct ocelot *ocelot);
 	void (*tas_clock_adjust)(struct ocelot *ocelot);
+	void (*update_stats)(struct ocelot *ocelot);
 };
 
 struct ocelot_vcap_policer {
@@ -766,6 +767,8 @@ struct ocelot_psfp_list {
 	struct list_head stream_list;
 	struct list_head sfi_list;
 	struct list_head sgi_list;
+	/* Serialize access to the lists */
+	struct mutex lock;
 };
 
 enum ocelot_sb {

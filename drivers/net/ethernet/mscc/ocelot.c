@@ -1934,6 +1934,9 @@ static void ocelot_check_stats_work(struct work_struct *work)
 		spin_unlock(&ocelot->stats_lock);
 	}
 
+	if (!err && ocelot->ops->update_stats)
+		ocelot->ops->update_stats(ocelot);
+
 	mutex_unlock(&ocelot->stat_view_lock);
 
 	if (err)

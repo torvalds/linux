@@ -2046,7 +2046,15 @@ struct felix_stream {
 	u32 ssid;
 };
 
+struct felix_stream_filter_counters {
+	u64 match;
+	u64 not_pass_gate;
+	u64 not_pass_sdu;
+	u64 red;
+};
+
 struct felix_stream_filter {
+	struct felix_stream_filter_counters stats;
 	struct list_head list;
 	refcount_t refcount;
 	u32 index;
@@ -2059,13 +2067,6 @@ struct felix_stream_filter {
 	u8 prio_valid;
 	u8 prio;
 	u32 maxsdu;
-};
-
-struct felix_stream_filter_counters {
-	u32 match;
-	u32 not_pass_gate;
-	u32 not_pass_sdu;
-	u32 red;
 };
 
 struct felix_stream_gate {
@@ -2571,31 +2572,6 @@ static void vsc9959_psfp_sgi_table_del(struct ocelot *ocelot,
 		}
 }
 
-static void vsc9959_psfp_counters_get(struct ocelot *ocelot, u32 index,
-				      struct felix_stream_filter_counters *counters)
-{
-	mutex_lock(&ocelot->stat_view_lock);
-
-	ocelot_rmw(ocelot, SYS_STAT_CFG_STAT_VIEW(index),
-		   SYS_STAT_CFG_STAT_VIEW_M,
-		   SYS_STAT_CFG);
-
-	counters->match = ocelot_read(ocelot, SYS_COUNT_SF_MATCHING_FRAMES);
-	counters->not_pass_gate = ocelot_read(ocelot,
-					      SYS_COUNT_SF_NOT_PASSING_FRAMES);
-	counters->not_pass_sdu = ocelot_read(ocelot,
-					     SYS_COUNT_SF_NOT_PASSING_SDU);
-	counters->red = ocelot_read(ocelot, SYS_COUNT_SF_RED_FRAMES);
-
-	/* Clear the PSFP counter. */
-	ocelot_write(ocelot,
-		     SYS_STAT_CFG_STAT_VIEW(index) |
-		     SYS_STAT_CFG_STAT_CLEAR_SHOT(0x10),
-		     SYS_STAT_CFG);
-
-	mutex_unlock(&ocelot->stat_view_lock);
-}
-
 static int vsc9959_psfp_filter_add(struct ocelot *ocelot, int port,
 				   struct flow_cls_offload *f)
 {
@@ -2619,6 +2595,8 @@ static int vsc9959_psfp_filter_add(struct ocelot *ocelot, int port,
 		NL_SET_ERR_MSG_MOD(extack, "Only can match on VID, PCP, and dest MAC");
 		return ret;
 	}
+
+	mutex_lock(&psfp->lock);
 
 	flow_action_for_each(i, a, &f->rule->action) {
 		switch (a->id) {
@@ -2661,6 +2639,7 @@ static int vsc9959_psfp_filter_add(struct ocelot *ocelot, int port,
 			sfi.maxsdu = a->police.mtu;
 			break;
 		default:
+			mutex_unlock(&psfp->lock);
 			return -EOPNOTSUPP;
 		}
 	}
@@ -2730,6 +2709,8 @@ static int vsc9959_psfp_filter_add(struct ocelot *ocelot, int port,
 		goto err;
 	}
 
+	mutex_unlock(&psfp->lock);
+
 	return 0;
 
 err:
@@ -2739,6 +2720,8 @@ err:
 	if (sfi.fm_valid)
 		ocelot_vcap_policer_del(ocelot, sfi.fmid);
 
+	mutex_unlock(&psfp->lock);
+
 	return ret;
 }
 
@@ -2746,18 +2729,22 @@ static int vsc9959_psfp_filter_del(struct ocelot *ocelot,
 				   struct flow_cls_offload *f)
 {
 	struct felix_stream *stream, tmp, *stream_entry;
+	struct ocelot_psfp_list *psfp = &ocelot->psfp;
 	static struct felix_stream_filter *sfi;
-	struct ocelot_psfp_list *psfp;
 
-	psfp = &ocelot->psfp;
+	mutex_lock(&psfp->lock);
 
 	stream = vsc9959_stream_table_get(&psfp->stream_list, f->cookie);
-	if (!stream)
+	if (!stream) {
+		mutex_unlock(&psfp->lock);
 		return -ENOMEM;
+	}
 
 	sfi = vsc9959_psfp_sfi_table_get(&psfp->sfi_list, stream->sfid);
-	if (!sfi)
+	if (!sfi) {
+		mutex_unlock(&psfp->lock);
 		return -ENOMEM;
+	}
 
 	if (sfi->sg_valid)
 		vsc9959_psfp_sgi_table_del(ocelot, sfi->sgid);
@@ -2783,27 +2770,83 @@ static int vsc9959_psfp_filter_del(struct ocelot *ocelot,
 					  stream_entry->ports);
 	}
 
+	mutex_unlock(&psfp->lock);
+
 	return 0;
+}
+
+static void vsc9959_update_sfid_stats(struct ocelot *ocelot,
+				      struct felix_stream_filter *sfi)
+{
+	struct felix_stream_filter_counters *s = &sfi->stats;
+	u32 match, not_pass_gate, not_pass_sdu, red;
+	u32 sfid = sfi->index;
+
+	lockdep_assert_held(&ocelot->stat_view_lock);
+
+	ocelot_rmw(ocelot, SYS_STAT_CFG_STAT_VIEW(sfid),
+		   SYS_STAT_CFG_STAT_VIEW_M,
+		   SYS_STAT_CFG);
+
+	match = ocelot_read(ocelot, SYS_COUNT_SF_MATCHING_FRAMES);
+	not_pass_gate = ocelot_read(ocelot, SYS_COUNT_SF_NOT_PASSING_FRAMES);
+	not_pass_sdu = ocelot_read(ocelot, SYS_COUNT_SF_NOT_PASSING_SDU);
+	red = ocelot_read(ocelot, SYS_COUNT_SF_RED_FRAMES);
+
+	/* Clear the PSFP counter. */
+	ocelot_write(ocelot,
+		     SYS_STAT_CFG_STAT_VIEW(sfid) |
+		     SYS_STAT_CFG_STAT_CLEAR_SHOT(0x10),
+		     SYS_STAT_CFG);
+
+	s->match += match;
+	s->not_pass_gate += not_pass_gate;
+	s->not_pass_sdu += not_pass_sdu;
+	s->red += red;
+}
+
+/* Caller must hold &ocelot->stat_view_lock */
+static void vsc9959_update_stats(struct ocelot *ocelot)
+{
+	struct ocelot_psfp_list *psfp = &ocelot->psfp;
+	struct felix_stream_filter *sfi;
+
+	mutex_lock(&psfp->lock);
+
+	list_for_each_entry(sfi, &psfp->sfi_list, list)
+		vsc9959_update_sfid_stats(ocelot, sfi);
+
+	mutex_unlock(&psfp->lock);
 }
 
 static int vsc9959_psfp_stats_get(struct ocelot *ocelot,
 				  struct flow_cls_offload *f,
 				  struct flow_stats *stats)
 {
-	struct felix_stream_filter_counters counters;
-	struct ocelot_psfp_list *psfp;
+	struct ocelot_psfp_list *psfp = &ocelot->psfp;
+	struct felix_stream_filter_counters *s;
+	static struct felix_stream_filter *sfi;
 	struct felix_stream *stream;
 
-	psfp = &ocelot->psfp;
 	stream = vsc9959_stream_table_get(&psfp->stream_list, f->cookie);
 	if (!stream)
 		return -ENOMEM;
 
-	vsc9959_psfp_counters_get(ocelot, stream->sfid, &counters);
+	sfi = vsc9959_psfp_sfi_table_get(&psfp->sfi_list, stream->sfid);
+	if (!sfi)
+		return -EINVAL;
 
-	stats->pkts = counters.match;
-	stats->drops = counters.not_pass_gate + counters.not_pass_sdu +
-		       counters.red;
+	mutex_lock(&ocelot->stat_view_lock);
+
+	vsc9959_update_sfid_stats(ocelot, sfi);
+
+	s = &sfi->stats;
+	stats->pkts = s->match;
+	stats->drops = s->not_pass_gate + s->not_pass_sdu + s->red;
+
+	memset(s, 0, sizeof(*s));
+
+	mutex_unlock(&ocelot->stat_view_lock);
 
 	return 0;
 }
@@ -2815,6 +2858,7 @@ static void vsc9959_psfp_init(struct ocelot *ocelot)
 	INIT_LIST_HEAD(&psfp->stream_list);
 	INIT_LIST_HEAD(&psfp->sfi_list);
 	INIT_LIST_HEAD(&psfp->sgi_list);
+	mutex_init(&psfp->lock);
 }
 
 /* When using cut-through forwarding and the egress port runs at a higher data
@@ -2913,6 +2957,7 @@ static const struct ocelot_ops vsc9959_ops = {
 	.psfp_stats_get		= vsc9959_psfp_stats_get,
 	.cut_through_fwd	= vsc9959_cut_through_fwd,
 	.tas_clock_adjust	= vsc9959_tas_clock_adjust,
+	.update_stats		= vsc9959_update_stats,
 };
 
 static const struct felix_info felix_info_vsc9959 = {
