@@ -271,10 +271,20 @@ void dcn32_determine_det_override(struct dc *dc,
 	struct dc_plane_state *current_plane = NULL;
 	struct pipe_ctx *next_odm_pipe = NULL;
 	struct pipe_ctx *bottom_pipe = NULL;
+	uint8_t stream_count = 0;
+
+	for (i = 0; i < context->stream_count; i++) {
+		/* Don't count SubVP streams for DET allocation */
+		if (context->streams[i]->mall_stream_config.type != SUBVP_PHANTOM) {
+			stream_count++;
+		}
+	}
 
 	if (context->stream_count > 0) {
-		stream_segments = 18 / context->stream_count;
+		stream_segments = 18 / stream_count;
 		for (i = 0; i < context->stream_count; i++) {
+			if (context->streams[i]->mall_stream_config.type == SUBVP_PHANTOM)
+				continue;
 			if (context->stream_status[i].plane_count > 0)
 				plane_segments = stream_segments / context->stream_status[i].plane_count;
 			else
