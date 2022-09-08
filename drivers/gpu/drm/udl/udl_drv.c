@@ -32,6 +32,16 @@ static int udl_usb_resume(struct usb_interface *interface)
 	return drm_mode_config_helper_resume(dev);
 }
 
+static int udl_usb_reset_resume(struct usb_interface *interface)
+{
+	struct drm_device *dev = usb_get_intfdata(interface);
+	struct udl_device *udl = to_udl(dev);
+
+	udl_select_std_channel(udl);
+
+	return drm_mode_config_helper_resume(dev);
+}
+
 /*
  * FIXME: Dma-buf sharing requires DMA support by the importing device.
  *        This function is a workaround to make USB devices work as well.
@@ -140,6 +150,7 @@ static struct usb_driver udl_driver = {
 	.disconnect = udl_usb_disconnect,
 	.suspend = udl_usb_suspend,
 	.resume = udl_usb_resume,
+	.reset_resume = udl_usb_reset_resume,
 	.id_table = id_table,
 };
 module_usb_driver(udl_driver);

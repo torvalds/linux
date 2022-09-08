@@ -92,7 +92,7 @@ success:
 /*
  * Need to ensure a channel is selected before submitting URBs
  */
-static int udl_select_std_channel(struct udl_device *udl)
+int udl_select_std_channel(struct udl_device *udl)
 {
 	static const u8 set_def_chn[] = {0x57, 0xCD, 0xDC, 0xA7,
 					 0x1C, 0x88, 0x5E, 0x15,
