@@ -329,4 +329,15 @@ static inline struct io_kiocb *io_alloc_req(struct io_ring_ctx *ctx)
 	return container_of(node, struct io_kiocb, comp_list);
 }
 
+static inline bool io_allowed_run_tw(struct io_ring_ctx *ctx)
+{
+	if (!(ctx->flags & IORING_SETUP_DEFER_TASKRUN))
+		return true;
+	if (unlikely(ctx->submitter_task != current)) {
+		/* maybe this is before any submissions */
+		return !ctx->submitter_task;
+	}
+	return true;
+}
+
 #endif

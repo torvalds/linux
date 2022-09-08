@@ -1398,6 +1398,9 @@ static int io_iopoll_check(struct io_ring_ctx *ctx, long min)
 	int ret = 0;
 	unsigned long check_cq;
 
+	if (!io_allowed_run_tw(ctx))
+		return -EEXIST;
+
 	check_cq = READ_ONCE(ctx->check_cq);
 	if (unlikely(check_cq)) {
 		if (check_cq & BIT(IO_CHECK_CQ_OVERFLOW_BIT))
@@ -2381,6 +2384,9 @@ static int io_cqring_wait(struct io_ring_ctx *ctx, int min_events,
 	struct io_rings *rings = ctx->rings;
 	ktime_t timeout = KTIME_MAX;
 	int ret;
+
+	if (!io_allowed_run_tw(ctx))
+		return -EEXIST;
 
 	do {
 		/* always run at least 1 task work to process local work */
