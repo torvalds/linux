@@ -275,23 +275,6 @@ nla_put_failure:
 	return -1;
 }
 
-static int tcf_skbmod_walker(struct net *net, struct sk_buff *skb,
-			     struct netlink_callback *cb, int type,
-			     const struct tc_action_ops *ops,
-			     struct netlink_ext_ack *extack)
-{
-	struct tc_action_net *tn = net_generic(net, act_skbmod_ops.net_id);
-
-	return tcf_generic_walker(tn, skb, cb, type, ops, extack);
-}
-
-static int tcf_skbmod_search(struct net *net, struct tc_action **a, u32 index)
-{
-	struct tc_action_net *tn = net_generic(net, act_skbmod_ops.net_id);
-
-	return tcf_idr_search(tn, a, index);
-}
-
 static struct tc_action_ops act_skbmod_ops = {
 	.kind		=	"skbmod",
 	.id		=	TCA_ACT_SKBMOD,
@@ -300,8 +283,6 @@ static struct tc_action_ops act_skbmod_ops = {
 	.dump		=	tcf_skbmod_dump,
 	.init		=	tcf_skbmod_init,
 	.cleanup	=	tcf_skbmod_cleanup,
-	.walk		=	tcf_skbmod_walker,
-	.lookup		=	tcf_skbmod_search,
 	.size		=	sizeof(struct tcf_skbmod),
 };
 
