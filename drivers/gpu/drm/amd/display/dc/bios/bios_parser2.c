@@ -3346,6 +3346,7 @@ static enum bp_result bios_get_board_layout_info(
 	struct bios_parser *bp;
 
 	static enum bp_result record_result;
+	unsigned int max_slots;
 
 	const unsigned int slot_index_to_vbios_id[MAX_BOARD_SLOTS] = {
 		GENERICOBJECT_BRACKET_LAYOUT_ENUM_ID1,
@@ -3362,8 +3363,14 @@ static enum bp_result bios_get_board_layout_info(
 	}
 
 	board_layout_info->num_of_slots = 0;
+	max_slots = MAX_BOARD_SLOTS;
 
-	for (i = 0; i < MAX_BOARD_SLOTS; ++i) {
+	// Assume single slot on v1_5
+	if (bp->object_info_tbl.revision.minor == 5) {
+		max_slots = 1;
+	}
+
+	for (i = 0; i < max_slots; ++i) {
 		record_result = get_bracket_layout_record(dcb,
 			slot_index_to_vbios_id[i],
 			&board_layout_info->slots[i]);
