@@ -249,6 +249,7 @@ static void kvmppc_fast_vcpu_kick_hv(struct kvm_vcpu *vcpu)
 
 /*
  * We use the vcpu_load/put functions to measure stolen time.
+ *
  * Stolen time is counted as time when either the vcpu is able to
  * run as part of a virtual core, but the task running the vcore
  * is preempted or sleeping, or when the vcpu needs something done
@@ -278,6 +279,12 @@ static void kvmppc_fast_vcpu_kick_hv(struct kvm_vcpu *vcpu)
  * lock.  The stolen times are measured in units of timebase ticks.
  * (Note that the != TB_NIL checks below are purely defensive;
  * they should never fail.)
+ *
+ * The POWER9 path is simpler, one vcpu per virtual core so the
+ * former case does not exist. If a vcpu is preempted when it is
+ * BUSY_IN_HOST and not ceded or otherwise blocked, then accumulate
+ * the stolen cycles in busy_stolen. RUNNING is not a preemptible
+ * state in the P9 path.
  */
 
 static void kvmppc_core_start_stolen(struct kvmppc_vcore *vc, u64 tb)
@@ -311,8 +318,14 @@ static void kvmppc_core_vcpu_load_hv(struct kvm_vcpu *vcpu, int cpu)
 	unsigned long flags;
 	u64 now;
 
-	if (cpu_has_feature(CPU_FTR_ARCH_300))
+	if (cpu_has_feature(CPU_FTR_ARCH_300)) {
+		if (vcpu->arch.busy_preempt != TB_NIL) {
+			WARN_ON_ONCE(vcpu->arch.state != KVMPPC_VCPU_BUSY_IN_HOST);
+			vc->stolen_tb += mftb() - vcpu->arch.busy_preempt;
+			vcpu->arch.busy_preempt = TB_NIL;
+		}
 		return;
+	}
 
 	now = mftb();
 
@@ -340,8 +353,21 @@ static void kvmppc_core_vcpu_put_hv(struct kvm_vcpu *vcpu)
 	unsigned long flags;
 	u64 now;
 
-	if (cpu_has_feature(CPU_FTR_ARCH_300))
+	if (cpu_has_feature(CPU_FTR_ARCH_300)) {
+		/*
+		 * In the P9 path, RUNNABLE is not preemptible
+		 * (nor takes host interrupts)
+		 */
+		WARN_ON_ONCE(vcpu->arch.state == KVMPPC_VCPU_RUNNABLE);
+		/*
+		 * Account stolen time when preempted while the vcpu task is
+		 * running in the kernel (but not in qemu, which is INACTIVE).
+		 */
+		if (task_is_running(current) &&
+				vcpu->arch.state == KVMPPC_VCPU_BUSY_IN_HOST)
+			vcpu->arch.busy_preempt = mftb();
 		return;
+	}
 
 	now = mftb();
 
@@ -738,6 +764,18 @@ static void __kvmppc_create_dtl_entry(struct kvm_vcpu *vcpu,
 	smp_wmb();
 	vpa->dtl_idx = cpu_to_be64(++vcpu->arch.dtl_index);
 	vcpu->arch.dtl.dirty = true;
+}
+
+static void kvmppc_create_dtl_entry_p9(struct kvm_vcpu *vcpu,
+				       struct kvmppc_vcore *vc,
+				       u64 now)
+{
+	unsigned long stolen;
+
+	stolen = vc->stolen_tb - vcpu->arch.stolen_logged;
+	vcpu->arch.stolen_logged = vc->stolen_tb;
+
+	__kvmppc_create_dtl_entry(vcpu, vc->pcpu, now, stolen);
 }
 
 static void kvmppc_create_dtl_entry(struct kvm_vcpu *vcpu,
@@ -4527,7 +4565,6 @@ int kvmhv_run_single_vcpu(struct kvm_vcpu *vcpu, u64 time_limit,
 	vc = vcpu->arch.vcore;
 	vcpu->arch.ceded = 0;
 	vcpu->arch.run_task = current;
-	vcpu->arch.state = KVMPPC_VCPU_RUNNABLE;
 	vcpu->arch.last_inst = KVM_INST_FETCH_FAILED;
 
 	/* See if the MMU is ready to go */
@@ -4553,6 +4590,8 @@ int kvmhv_run_single_vcpu(struct kvm_vcpu *vcpu, u64 time_limit,
 
 	/* flags save not required, but irq_pmu has no disable/enable API */
 	powerpc_local_irq_pmu_save(flags);
+
+	vcpu->arch.state = KVMPPC_VCPU_RUNNABLE;
 
 	if (signal_pending(current))
 		goto sigpend;
@@ -4598,7 +4637,7 @@ int kvmhv_run_single_vcpu(struct kvm_vcpu *vcpu, u64 time_limit,
 
 	tb = mftb();
 
-	__kvmppc_create_dtl_entry(vcpu, pcpu, tb + vc->tb_offset, 0);
+	kvmppc_create_dtl_entry_p9(vcpu, vc, tb + vc->tb_offset);
 
 	trace_kvm_guest_enter(vcpu);
 
@@ -4621,6 +4660,7 @@ int kvmhv_run_single_vcpu(struct kvm_vcpu *vcpu, u64 time_limit,
 
 	vcpu->cpu = -1;
 	vcpu->arch.thread_cpu = -1;
+	vcpu->arch.state = KVMPPC_VCPU_BUSY_IN_HOST;
 
 	if (!vtime_accounting_enabled_this_cpu()) {
 		powerpc_local_irq_pmu_restore(flags);
@@ -4697,6 +4737,7 @@ int kvmhv_run_single_vcpu(struct kvm_vcpu *vcpu, u64 time_limit,
  out:
 	vcpu->cpu = -1;
 	vcpu->arch.thread_cpu = -1;
+	vcpu->arch.state = KVMPPC_VCPU_BUSY_IN_HOST;
 	powerpc_local_irq_pmu_restore(flags);
 	preempt_enable();
 	goto done;
