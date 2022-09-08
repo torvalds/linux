@@ -635,10 +635,19 @@ static int max98390_dsm_calib_get(struct snd_kcontrol *kcontrol,
 static int max98390_dsm_calib_put(struct snd_kcontrol *kcontrol,
 		struct snd_ctl_elem_value *ucontrol)
 {
+	unsigned int val;
 	struct snd_soc_component *component =
 		snd_soc_kcontrol_component(kcontrol);
+	struct max98390_priv *max98390 =
+		snd_soc_component_get_drvdata(component);
 
-	max98390_dsm_calibrate(component);
+	regmap_read(max98390->regmap, MAX98390_R23FF_GLOBAL_EN, &val);
+	if (val == 0x1)
+		max98390_dsm_calibrate(component);
+	else {
+		dev_err(component->dev, "AMP is not ready to run calibration\n");
+		return -ECANCELED;
+	}
 
 	return 0;
 }
@@ -826,9 +835,6 @@ static int max98390_dsm_calibrate(struct snd_soc_component *component)
 	struct max98390_priv *max98390 =
 		snd_soc_component_get_drvdata(component);
 
-	regmap_write(max98390->regmap, MAX98390_R203A_AMP_EN, 0x81);
-	regmap_write(max98390->regmap, MAX98390_R23FF_GLOBAL_EN, 0x01);
-
 	regmap_read(max98390->regmap,
 		THERMAL_RDC_RD_BACK_BYTE1, &rdc);
 	regmap_read(max98390->regmap,
@@ -846,9 +852,6 @@ static int max98390_dsm_calibrate(struct snd_soc_component *component)
 
 	dev_info(component->dev, "rdc resistance about %d.%02d ohm, reg=0x%X temp reg=0x%X\n",
 		 rdc_integer, rdc_factor, rdc_cal_result, temp);
-
-	regmap_write(max98390->regmap, MAX98390_R23FF_GLOBAL_EN, 0x00);
-	regmap_write(max98390->regmap, MAX98390_R203A_AMP_EN, 0x80);
 
 	return 0;
 }
