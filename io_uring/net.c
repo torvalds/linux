@@ -948,6 +948,13 @@ int io_sendzc_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 	return 0;
 }
 
+static int io_sg_from_iter_iovec(struct sock *sk, struct sk_buff *skb,
+				 struct iov_iter *from, size_t length)
+{
+	skb_zcopy_downgrade_managed(skb);
+	return __zerocopy_sg_from_iter(NULL, sk, skb, from, length);
+}
+
 static int io_sg_from_iter(struct sock *sk, struct sk_buff *skb,
 			   struct iov_iter *from, size_t length)
 {
@@ -958,13 +965,10 @@ static int io_sg_from_iter(struct sock *sk, struct sk_buff *skb,
 	ssize_t copied = 0;
 	unsigned long truesize = 0;
 
-	if (!shinfo->nr_frags)
+	if (!frag)
 		shinfo->flags |= SKBFL_MANAGED_FRAG_REFS;
-
-	if (!skb_zcopy_managed(skb) || !iov_iter_is_bvec(from)) {
-		skb_zcopy_downgrade_managed(skb);
+	else if (unlikely(!skb_zcopy_managed(skb)))
 		return __zerocopy_sg_from_iter(NULL, sk, skb, from, length);
-	}
 
 	bi.bi_size = min(from->count, length);
 	bi.bi_bvec_done = from->iov_offset;
@@ -1045,6 +1049,7 @@ int io_sendzc(struct io_kiocb *req, unsigned int issue_flags)
 					(u64)(uintptr_t)zc->buf, zc->len);
 		if (unlikely(ret))
 			return ret;
+		msg.sg_from_iter = io_sg_from_iter;
 	} else {
 		ret = import_single_range(WRITE, zc->buf, zc->len, &iov,
 					  &msg.msg_iter);
@@ -1053,6 +1058,7 @@ int io_sendzc(struct io_kiocb *req, unsigned int issue_flags)
 		ret = io_notif_account_mem(zc->notif, zc->len);
 		if (unlikely(ret))
 			return ret;
+		msg.sg_from_iter = io_sg_from_iter_iovec;
 	}
 
 	msg_flags = zc->msg_flags | MSG_ZEROCOPY;
@@ -1063,7 +1069,6 @@ int io_sendzc(struct io_kiocb *req, unsigned int issue_flags)
 
 	msg.msg_flags = msg_flags;
 	msg.msg_ubuf = &io_notif_to_data(zc->notif)->uarg;
-	msg.sg_from_iter = io_sg_from_iter;
 	ret = sock_sendmsg(sock, &msg);
 
 	if (unlikely(ret < min_ret)) {
