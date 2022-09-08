@@ -931,6 +931,46 @@ authclnt_fail:
 	return _FAIL;
 }
 
+static void UpdateBrateTbl(u8 *mbrate)
+{
+	u8 i;
+	u8 rate;
+
+	/*  1M, 2M, 5.5M, 11M, 6M, 12M, 24M are mandatory. */
+	for (i = 0; i < NDIS_802_11_LENGTH_RATES_EX; i++) {
+		rate = mbrate[i] & 0x7f;
+		switch (rate) {
+		case IEEE80211_CCK_RATE_1MB:
+		case IEEE80211_CCK_RATE_2MB:
+		case IEEE80211_CCK_RATE_5MB:
+		case IEEE80211_CCK_RATE_11MB:
+		case IEEE80211_OFDM_RATE_6MB:
+		case IEEE80211_OFDM_RATE_12MB:
+		case IEEE80211_OFDM_RATE_24MB:
+			mbrate[i] |= IEEE80211_BASIC_RATE_MASK;
+			break;
+		}
+	}
+}
+
+static void UpdateBrateTblForSoftAP(u8 *bssrateset, u32 bssratelen)
+{
+	u8 i;
+	u8 rate;
+
+	for (i = 0; i < bssratelen; i++) {
+		rate = bssrateset[i] & 0x7f;
+		switch (rate) {
+		case IEEE80211_CCK_RATE_1MB:
+		case IEEE80211_CCK_RATE_2MB:
+		case IEEE80211_CCK_RATE_5MB:
+		case IEEE80211_CCK_RATE_11MB:
+			bssrateset[i] |= IEEE80211_BASIC_RATE_MASK;
+			break;
+		}
+	}
+}
+
 unsigned int OnAssocReq(struct adapter *padapter, struct recv_frame *precv_frame)
 {
 	u16 capab_info;
