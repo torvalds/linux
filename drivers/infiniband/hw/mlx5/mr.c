@@ -1400,7 +1400,6 @@ static int umr_rereg_pas(struct mlx5_ib_mr *mr, struct ib_pd *pd,
 		upd_flags |= MLX5_IB_UPD_XLT_ACCESS;
 	}
 
-	mr->ibmr.length = new_umem->length;
 	mr->ibmr.iova = iova;
 	mr->ibmr.length = new_umem->length;
 	mr->page_shift = order_base_2(page_size);
