@@ -196,10 +196,9 @@ int io_sendzc_prep_async(struct io_kiocb *req)
 
 	if (!zc->addr || req_has_async_data(req))
 		return 0;
-	if (io_alloc_async_data(req))
+	io = io_msg_alloc_async_prep(req);
+	if (!io)
 		return -ENOMEM;
-
-	io = req->async_data;
 	ret = move_addr_to_kernel(zc->addr, zc->addr_len, &io->addr);
 	return ret;
 }
@@ -212,9 +211,9 @@ static int io_setup_async_addr(struct io_kiocb *req,
 
 	if (!addr || req_has_async_data(req))
 		return -EAGAIN;
-	if (io_alloc_async_data(req))
+	io = io_msg_alloc_async(req, issue_flags);
+	if (!io)
 		return -ENOMEM;
-	io = req->async_data;
 	memcpy(&io->addr, addr, sizeof(io->addr));
 	return -EAGAIN;
 }
