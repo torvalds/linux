@@ -265,7 +265,8 @@ void dcn32_determine_det_override(struct dc *dc,
 		display_e2e_pipe_params_st *pipes,
 		uint8_t *is_pipe_split_expected)
 {
-	uint8_t i, j, pipe_plane_count, stream_segments, plane_segments, pipe_segments[MAX_PIPES] = {0};
+	uint32_t i, j;
+	uint8_t pipe_plane_count, stream_segments, plane_segments, pipe_segments[MAX_PIPES] = {0};
 	uint8_t pipe_counted[MAX_PIPES] = {0};
 	uint8_t pipe_cnt = 0;
 	struct dc_plane_state *current_plane = NULL;

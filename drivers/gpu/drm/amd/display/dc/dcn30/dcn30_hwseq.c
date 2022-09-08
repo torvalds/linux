@@ -940,7 +940,7 @@ bool dcn30_does_plane_fit_in_mall(struct dc *dc, struct dc_plane_state *plane, s
 void dcn30_hardware_release(struct dc *dc)
 {
 	bool subvp_in_use = false;
-	uint8_t i;
+	uint32_t i;
 
 	dc_dmub_srv_p_state_delegate(dc, false, NULL);
 	dc_dmub_setup_subvp_dmub_command(dc, dc->current_state, false);

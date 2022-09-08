@@ -1354,7 +1354,7 @@ void dcn32_update_phantom_vp_position(struct dc *dc,
 		struct dc_state *context,
 		struct pipe_ctx *phantom_pipe)
 {
-	uint8_t i;
+	uint32_t i;
 	struct dc_plane_state *phantom_plane = phantom_pipe->plane_state;
 
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
