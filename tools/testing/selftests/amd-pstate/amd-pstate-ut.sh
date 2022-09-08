@@ -32,6 +32,7 @@ fi
 scaling_driver=$(cat /sys/devices/system/cpu/cpufreq/policy0/scaling_driver)
 if [ "$scaling_driver" != "amd-pstate" ]; then
 	echo "$0 # Skipped: Test can only run on amd-pstate driver."
+	echo "$0 # Please set X86_AMD_PSTATE enabled."
 	echo "$0 # Current cpufreq scaling drvier is $scaling_driver."
 	exit $ksft_skip
 fi
