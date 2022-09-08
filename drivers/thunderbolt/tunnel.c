@@ -41,9 +41,14 @@
  * Number of credits we try to allocate for each DMA path if not limited
  * by the host router baMaxHI.
  */
-#define TB_DMA_CREDITS			14U
+#define TB_DMA_CREDITS			14
 /* Minimum number of credits for DMA path */
-#define TB_MIN_DMA_CREDITS		1U
+#define TB_MIN_DMA_CREDITS		1
+
+static unsigned int dma_credits = TB_DMA_CREDITS;
+module_param(dma_credits, uint, 0444);
+MODULE_PARM_DESC(dma_credits, "specify custom credits for DMA tunnels (default: "
+                __MODULE_STRING(TB_DMA_CREDITS) ")");
 
 static bool bw_alloc_mode = true;
 module_param(bw_alloc_mode, bool, 0444);
@@ -95,7 +100,7 @@ static unsigned int tb_available_credits(const struct tb_port *port,
 	pcie = tb_acpi_may_tunnel_pcie() ? sw->max_pcie_credits : 0;
 
 	if (tb_acpi_is_xdomain_allowed()) {
-		spare = min_not_zero(sw->max_dma_credits, TB_DMA_CREDITS);
+		spare = min_not_zero(sw->max_dma_credits, dma_credits);
 		/* Add some credits for potential second DMA tunnel */
 		spare += TB_MIN_DMA_CREDITS;
 	} else {
@@ -1472,7 +1477,7 @@ struct tb_tunnel *tb_tunnel_alloc_dma(struct tb *tb, struct tb_port *nhi,
 	tunnel->dst_port = dst;
 	tunnel->deinit = tb_dma_deinit;
 
-	credits = min_not_zero(TB_DMA_CREDITS, nhi->sw->max_dma_credits);
+	credits = min_not_zero(dma_credits, nhi->sw->max_dma_credits);
 
 	if (receive_ring > 0) {
 		path = tb_path_alloc(tb, dst, receive_path, nhi, receive_ring, 0,
