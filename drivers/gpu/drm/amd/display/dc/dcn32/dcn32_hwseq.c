@@ -453,7 +453,6 @@ bool dcn32_apply_idle_power_optimizations(struct dc *dc, bool enable)
  */
 void dcn32_commit_subvp_config(struct dc *dc, struct dc_state *context)
 {
-/*
 	int i;
 	bool enable_subvp = false;
 
@@ -471,7 +470,6 @@ void dcn32_commit_subvp_config(struct dc *dc, struct dc_state *context)
 		}
 	}
 	dc_dmub_setup_subvp_dmub_command(dc, context, enable_subvp);
-*/
 }
 
 /* Sub-Viewport DMUB lock needs to be acquired by driver whenever SubVP is active and:
