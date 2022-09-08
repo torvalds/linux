@@ -61,7 +61,7 @@
 	mclk_ext: mclk_ext {
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
-		clock-frequency = <49152000>;
+		clock-frequency = <12288000>;
 	};
 
 	jtag_tck_inner: jtag_tck_inner {
