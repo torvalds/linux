@@ -533,16 +533,16 @@ unsigned long __sbitmap_queue_get_batch(struct sbitmap_queue *sbq, int nr_tags,
 		nr = find_first_zero_bit(&map->word, map_depth);
 		if (nr + nr_tags <= map_depth) {
 			atomic_long_t *ptr = (atomic_long_t *) &map->word;
-			unsigned long val, ret;
+			unsigned long val;
 
 			get_mask = ((1UL << nr_tags) - 1) << nr;
+			val = READ_ONCE(map->word);
 			do {
-				val = READ_ONCE(map->word);
 				if ((val & ~get_mask) != val)
 					goto next;
-				ret = atomic_long_cmpxchg(ptr, val, get_mask | val);
-			} while (ret != val);
-			get_mask = (get_mask & ~ret) >> nr;
+			} while (!atomic_long_try_cmpxchg(ptr, &val,
+							  get_mask | val));
+			get_mask = (get_mask & ~val) >> nr;
 			if (get_mask) {
 				*offset = nr + (index << sb->shift);
 				update_alloc_hint_after_get(sb, depth, hint,
