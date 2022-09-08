@@ -17,6 +17,7 @@
 #include <linux/property.h>
 #include <linux/regmap.h>
 #include <linux/reset.h>
+#include <linux/slab.h>
 #include <linux/units.h>
 
 /* PVT Common register */
@@ -108,17 +109,24 @@
 #define PVT_N_CONST		90
 #define PVT_R_CONST		245805
 
+#define PRE_SCALER_X1	1
+#define PRE_SCALER_X2	2
+
 /**
  * struct voltage_device - VM single input parameters.
  * @vm_map: Map channel number to VM index.
  * @ch_map: Map channel number to channel index.
+ * @pre_scaler: Pre scaler value (1 or 2) used to normalize the voltage output
+ *              result.
  *
  * The structure provides mapping between channel-number (0..N-1) to VM-index
  * (0..num_vm-1) and channel-index (0..ch_num-1) where N = num_vm * ch_num.
+ * It also provides normalization factor for the VM equation.
  */
 struct voltage_device {
 	u32 vm_map;
 	u32 ch_map;
+	u32 pre_scaler;
 };
 
 /**
@@ -207,8 +215,8 @@ static int pvt_read_in(struct device *dev, u32 attr, int channel, long *val)
 {
 	struct pvt_device *pvt = dev_get_drvdata(dev);
 	struct regmap *v_map = pvt->v_map;
+	u32 n, stat, pre_scaler;
 	u8 vm_idx, ch_idx;
-	u32 n, stat;
 	int ret;
 
 	if (channel >= pvt->vm_channels.total)
@@ -231,6 +239,7 @@ static int pvt_read_in(struct device *dev, u32 attr, int channel, long *val)
 			return ret;
 
 		n &= SAMPLE_DATA_MSK;
+		pre_scaler = pvt->vd[channel].pre_scaler;
 		/*
 		 * Convert the N bitstream count into voltage.
 		 * To support negative voltage calculation for 64bit machines
@@ -242,7 +251,8 @@ static int pvt_read_in(struct device *dev, u32 attr, int channel, long *val)
 		 * BIT(x) may not be used instead of (1 << x) because it's
 		 * unsigned.
 		 */
-		*val = (PVT_N_CONST * (long)n - PVT_R_CONST) / (1 << PVT_CONV_BITS);
+		*val = pre_scaler * (PVT_N_CONST * (long)n - PVT_R_CONST) /
+			(1 << PVT_CONV_BITS);
 
 		return 0;
 	default:
@@ -594,6 +604,43 @@ static int pvt_get_active_channel(struct device *dev, struct pvt_device *pvt,
 	return 0;
 }
 
+static int pvt_get_pre_scaler(struct device *dev, struct pvt_device *pvt)
+{
+	u8 *pre_scaler_ch_list;
+	int i, ret, num_ch;
+	u32 channel;
+
+	/* Set default pre-scaler value to be 1. */
+	for (i = 0; i < pvt->vm_channels.total; i++)
+		pvt->vd[i].pre_scaler = PRE_SCALER_X1;
+
+	/* Get number of channels configured in "moortec,vm-pre-scaler-x2". */
+	num_ch = device_property_count_u8(dev, "moortec,vm-pre-scaler-x2");
+	if (num_ch <= 0)
+		return 0;
+
+	pre_scaler_ch_list = kcalloc(num_ch, sizeof(*pre_scaler_ch_list),
+				     GFP_KERNEL);
+	if (!pre_scaler_ch_list)
+		return -ENOMEM;
+
+	/* Get list of all channels that have pre-scaler of 2. */
+	ret = device_property_read_u8_array(dev, "moortec,vm-pre-scaler-x2",
+					    pre_scaler_ch_list, num_ch);
+	if (ret)
+		goto out;
+
+	for (i = 0; i < num_ch; i++) {
+		channel = pre_scaler_ch_list[i];
+		pvt->vd[channel].pre_scaler = PRE_SCALER_X2;
+	}
+
+out:
+	kfree(pre_scaler_ch_list);
+
+	return ret;
+}
+
 static int mr75203_probe(struct platform_device *pdev)
 {
 	u32 ts_num, vm_num, pd_num, ch_num, val, index, i;
@@ -706,6 +753,10 @@ static int mr75203_probe(struct platform_device *pdev)
 		}
 
 		ret = pvt_get_active_channel(dev, pvt, vm_num, ch_num, vm_idx);
+		if (ret)
+			return ret;
+
+		ret = pvt_get_pre_scaler(dev, pvt);
 		if (ret)
 			return ret;
 
