@@ -8154,7 +8154,6 @@ static void *md_seq_start(struct seq_file *seq, loff_t *pos)
 	list_for_each(tmp,&all_mddevs)
 		if (!l--) {
 			mddev = list_entry(tmp, struct mddev, all_mddevs);
-			mddev_get(mddev);
 			if (!mddev_get(mddev))
 				continue;
 			spin_unlock(&all_mddevs_lock);
