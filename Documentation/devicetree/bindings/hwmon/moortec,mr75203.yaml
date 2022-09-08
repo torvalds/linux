@@ -91,6 +91,15 @@ properties:
       Each channel should not appear more than once.
     $ref: /schemas/types.yaml#/definitions/uint8-array
 
+  moortec,ts-series:
+    description:
+      Definition of the temperature equation and coefficients that shall be
+      used to convert the digital output to value in milli-Celsius.
+    minimum: 5
+    maximum: 6
+    default: 5
+    $ref: /schemas/types.yaml#/definitions/uint32
+
 required:
   - compatible
   - reg
