@@ -564,16 +564,6 @@ nla_put_failure:
 	return -1;
 }
 
-static int tcf_gate_walker(struct net *net, struct sk_buff *skb,
-			   struct netlink_callback *cb, int type,
-			   const struct tc_action_ops *ops,
-			   struct netlink_ext_ack *extack)
-{
-	struct tc_action_net *tn = net_generic(net, act_gate_ops.net_id);
-
-	return tcf_generic_walker(tn, skb, cb, type, ops, extack);
-}
-
 static void tcf_gate_stats_update(struct tc_action *a, u64 bytes, u64 packets,
 				  u64 drops, u64 lastuse, bool hw)
 {
@@ -582,13 +572,6 @@ static void tcf_gate_stats_update(struct tc_action *a, u64 bytes, u64 packets,
 
 	tcf_action_update_stats(a, bytes, packets, drops, hw);
 	tm->lastuse = max_t(u64, tm->lastuse, lastuse);
-}
-
-static int tcf_gate_search(struct net *net, struct tc_action **a, u32 index)
-{
-	struct tc_action_net *tn = net_generic(net, act_gate_ops.net_id);
-
-	return tcf_idr_search(tn, a, index);
 }
 
 static size_t tcf_gate_get_fill_size(const struct tc_action *act)
@@ -653,10 +636,8 @@ static struct tc_action_ops act_gate_ops = {
 	.dump		=	tcf_gate_dump,
 	.init		=	tcf_gate_init,
 	.cleanup	=	tcf_gate_cleanup,
-	.walk		=	tcf_gate_walker,
 	.stats_update	=	tcf_gate_stats_update,
 	.get_fill_size	=	tcf_gate_get_fill_size,
-	.lookup		=	tcf_gate_search,
 	.offload_act_setup =	tcf_gate_offload_act_setup,
 	.size		=	sizeof(struct tcf_gate),
 };
