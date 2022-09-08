@@ -300,16 +300,6 @@ static int perf_ibs_init(struct perf_event *event)
 	hwc->config_base = perf_ibs->msr;
 	hwc->config = config;
 
-	/*
-	 * rip recorded by IbsOpRip will not be consistent with rsp and rbp
-	 * recorded as part of interrupt regs. Thus we need to use rip from
-	 * interrupt regs while unwinding call stack. Setting _EARLY flag
-	 * makes sure we unwind call-stack before perf sample rip is set to
-	 * IbsOpRip.
-	 */
-	if (event->attr.sample_type & PERF_SAMPLE_CALLCHAIN)
-		event->attr.sample_type |= __PERF_SAMPLE_CALLCHAIN_EARLY;
-
 	return 0;
 }
 
