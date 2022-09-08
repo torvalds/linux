@@ -530,10 +530,9 @@ static struct ctl_table ipv4_table[] = {
 };
 
 static struct ctl_table ipv4_net_table[] = {
-	/* tcp_max_tw_buckets must be first in this table. */
 	{
 		.procname	= "tcp_max_tw_buckets",
-/*		.data		= &init_net.ipv4.tcp_death_row.sysctl_max_tw_buckets, */
+		.data		= &init_net.ipv4.tcp_death_row.sysctl_max_tw_buckets,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec
@@ -1361,8 +1360,7 @@ static __net_init int ipv4_sysctl_init_net(struct net *net)
 		if (!table)
 			goto err_alloc;
 
-		/* skip first entry (sysctl_max_tw_buckets) */
-		for (i = 1; i < ARRAY_SIZE(ipv4_net_table) - 1; i++) {
+		for (i = 0; i < ARRAY_SIZE(ipv4_net_table) - 1; i++) {
 			if (table[i].data) {
 				/* Update the variables to point into
 				 * the current struct net
@@ -1376,8 +1374,6 @@ static __net_init int ipv4_sysctl_init_net(struct net *net)
 			}
 		}
 	}
-
-	table[0].data = &net->ipv4.tcp_death_row->sysctl_max_tw_buckets;
 
 	net->ipv4.ipv4_hdr = register_net_sysctl(net, "net/ipv4", table);
 	if (!net->ipv4.ipv4_hdr)
