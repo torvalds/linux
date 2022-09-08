@@ -70,6 +70,15 @@ properties:
   "#thermal-sensor-cells":
     const: 1
 
+  moortec,vm-active-channels:
+    description:
+      Defines the number of channels per VM that are actually used and are
+      connected to some input source.
+      Maximum number of items - number of VMs.
+      Maximum value of each item - number of channels.
+      Minimum value of each item - 0 (which means entire VM sensor is not used).
+    $ref: /schemas/types.yaml#/definitions/uint8-array
+
 required:
   - compatible
   - reg
@@ -91,5 +100,6 @@ examples:
         intel,vm-map = [03 01 04 ff ff];
         clocks = <&osc0>;
         resets = <&rcu0 0x40 7>;
+        moortec,vm-active-channels = /bits/ 8 <0x10 0x05>;
         #thermal-sensor-cells = <1>;
     };
