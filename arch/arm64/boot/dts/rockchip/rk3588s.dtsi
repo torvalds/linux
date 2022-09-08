@@ -47,6 +47,8 @@
 		rkcif_mipi_lvds1= &rkcif_mipi_lvds1;
 		rkcif_mipi_lvds2= &rkcif_mipi_lvds2;
 		rkcif_mipi_lvds3= &rkcif_mipi_lvds3;
+		rkvdec0 = &rkvdec0;
+		rkvdec1 = &rkvdec1;
 		rkvenc0 = &rkvenc0;
 		rkvenc1 = &rkvenc1;
 		jpege0 = &jpege0;
@@ -3472,6 +3474,8 @@
 		resets = <&cru SRST_A_RKVDEC_CCU>;
 		reset-names = "video_ccu";
 		rockchip,skip-pmu-idle-request;
+		/* 1: soft ccu 2: hw ccu */
+		rockchip,ccu-mode = <1>;
 		power-domains = <&power RK3588_PD_RKVDEC0>;
 		status = "disabled";
 	};
@@ -3501,10 +3505,14 @@
 		rockchip,srv = <&mpp_srv>;
 		rockchip,ccu = <&rkvdec_ccu>;
 		rockchip,core-mask = <0x00010001>;
+		rockchip,task-capacity = <16>;
 		rockchip,taskqueue-node = <9>;
 		rockchip,sram = <&rkvdec0_sram>;
 		/* rcb_iova: start and size 1M@4095M */
 		rockchip,rcb-iova = <0xFFF00000 0x100000>;
+		rockchip,rcb-info = <136 24576>, <137 49152>, <141 90112>, <140 49152>,
+				    <139 180224>, <133 49152>, <134 8192>, <135 4352>,
+				    <138 13056>, <142 291584>;
 		rockchip,rcb-min-width = <512>;
 		power-domains = <&power RK3588_PD_RKVDEC0>;
 		status = "disabled";
@@ -3551,10 +3559,14 @@
 		rockchip,srv = <&mpp_srv>;
 		rockchip,ccu = <&rkvdec_ccu>;
 		rockchip,core-mask = <0x00020002>;
+		rockchip,task-capacity = <16>;
 		rockchip,taskqueue-node = <9>;
 		rockchip,sram = <&rkvdec1_sram>;
 		/* rcb_iova: start and size 1M@4094M */
 		rockchip,rcb-iova = <0xFFE00000 0x100000>;
+		rockchip,rcb-info = <136 24576>, <137 49152>, <141 90112>, <140 49152>,
+				    <139 180224>, <133 49152>, <134 8192>, <135 4352>,
+				    <138 13056>, <142 291584>;
 		rockchip,rcb-min-width = <512>;
 		power-domains = <&power RK3588_PD_RKVDEC1>;
 		status = "disabled";
