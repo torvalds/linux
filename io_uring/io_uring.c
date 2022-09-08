@@ -1169,13 +1169,8 @@ int __io_run_local_work(struct io_ring_ctx *ctx, bool locked)
 	int ret;
 	unsigned int loops = 1;
 
-	if (unlikely(ctx->submitter_task != current)) {
-		/* maybe this is before any submissions */
-		if (!ctx->submitter_task)
-			return 0;
-
+	if (unlikely(ctx->submitter_task != current))
 		return -EEXIST;
-	}
 
 	node = io_llist_xchg(&ctx->work_llist, &fake);
 	ret = 0;
