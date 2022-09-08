@@ -407,7 +407,7 @@ static struct gpio_desc *of_find_spi_gpio(struct device *dev,
 static struct gpio_desc *of_find_spi_cs_gpio(struct device *dev,
 					     const char *con_id,
 					     unsigned int idx,
-					     unsigned long *flags)
+					     enum of_gpio_flags *of_flags)
 {
 	const struct device_node *np = dev->of_node;
 
@@ -428,7 +428,7 @@ static struct gpio_desc *of_find_spi_cs_gpio(struct device *dev,
 	 * uses just "gpios" so translate to that when "cs-gpios" is
 	 * requested.
 	 */
-	return of_find_gpio(dev, NULL, idx, flags);
+	return of_get_named_gpiod_flags(dev->of_node, "gpios", idx, of_flags);
 }
 
 /*
@@ -527,12 +527,8 @@ struct gpio_desc *of_find_gpio(struct device *dev, const char *con_id,
 		desc = of_find_spi_gpio(dev, con_id, idx, &of_flags);
 	}
 
-	if (gpiod_not_found(desc)) {
-		/* This quirk looks up flags and all */
-		desc = of_find_spi_cs_gpio(dev, con_id, idx, flags);
-		if (!IS_ERR(desc))
-			return desc;
-	}
+	if (gpiod_not_found(desc))
+		desc = of_find_spi_cs_gpio(dev, con_id, idx, &of_flags);
 
 	if (gpiod_not_found(desc)) {
 		/* Special handling for regulator GPIOs if used */
