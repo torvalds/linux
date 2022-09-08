@@ -491,23 +491,6 @@ nla_put_failure:
 	return -1;
 }
 
-static int tcf_pedit_walker(struct net *net, struct sk_buff *skb,
-			    struct netlink_callback *cb, int type,
-			    const struct tc_action_ops *ops,
-			    struct netlink_ext_ack *extack)
-{
-	struct tc_action_net *tn = net_generic(net, act_pedit_ops.net_id);
-
-	return tcf_generic_walker(tn, skb, cb, type, ops, extack);
-}
-
-static int tcf_pedit_search(struct net *net, struct tc_action **a, u32 index)
-{
-	struct tc_action_net *tn = net_generic(net, act_pedit_ops.net_id);
-
-	return tcf_idr_search(tn, a, index);
-}
-
 static int tcf_pedit_offload_act_setup(struct tc_action *act, void *entry_data,
 				       u32 *index_inc, bool bind,
 				       struct netlink_ext_ack *extack)
@@ -552,8 +535,6 @@ static struct tc_action_ops act_pedit_ops = {
 	.dump		=	tcf_pedit_dump,
 	.cleanup	=	tcf_pedit_cleanup,
 	.init		=	tcf_pedit_init,
-	.walk		=	tcf_pedit_walker,
-	.lookup		=	tcf_pedit_search,
 	.offload_act_setup =	tcf_pedit_offload_act_setup,
 	.size		=	sizeof(struct tcf_pedit),
 };
