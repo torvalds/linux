@@ -709,6 +709,15 @@ static int pvt_set_temp_coeff(struct device *dev, struct pvt_device *pvt)
 
 	dev_dbg(dev, "temperature sensor series = %u\n", series);
 
+	/* Override ts-coeff-h/g/j/cal5 if they are defined. */
+	device_property_read_u32(dev, "moortec,ts-coeff-h", &ts_coeff->h);
+	device_property_read_u32(dev, "moortec,ts-coeff-g", &ts_coeff->g);
+	device_property_read_u32(dev, "moortec,ts-coeff-j", &ts_coeff->j);
+	device_property_read_u32(dev, "moortec,ts-coeff-cal5", &ts_coeff->cal5);
+
+	dev_dbg(dev, "ts-coeff: h = %u, g = %u, j = %d, cal5 = %u\n",
+		ts_coeff->h, ts_coeff->g, ts_coeff->j, ts_coeff->cal5);
+
 	return 0;
 }
 
