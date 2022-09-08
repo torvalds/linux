@@ -289,6 +289,36 @@ int of_get_named_gpio_flags(const struct device_node *np, const char *list_name,
 }
 EXPORT_SYMBOL_GPL(of_get_named_gpio_flags);
 
+/* Converts gpio_lookup_flags into bitmask of GPIO_* values */
+static unsigned long of_convert_gpio_flags(enum of_gpio_flags flags)
+{
+	unsigned long lflags = GPIO_LOOKUP_FLAGS_DEFAULT;
+
+	if (flags & OF_GPIO_ACTIVE_LOW)
+		lflags |= GPIO_ACTIVE_LOW;
+
+	if (flags & OF_GPIO_SINGLE_ENDED) {
+		if (flags & OF_GPIO_OPEN_DRAIN)
+			lflags |= GPIO_OPEN_DRAIN;
+		else
+			lflags |= GPIO_OPEN_SOURCE;
+	}
+
+	if (flags & OF_GPIO_TRANSITORY)
+		lflags |= GPIO_TRANSITORY;
+
+	if (flags & OF_GPIO_PULL_UP)
+		lflags |= GPIO_PULL_UP;
+
+	if (flags & OF_GPIO_PULL_DOWN)
+		lflags |= GPIO_PULL_DOWN;
+
+	if (flags & OF_GPIO_PULL_DISABLE)
+		lflags |= GPIO_PULL_DISABLE;
+
+	return lflags;
+}
+
 /**
  * gpiod_get_from_of_node() - obtain a GPIO from an OF node
  * @node:	handle of the OF node
@@ -308,26 +338,14 @@ struct gpio_desc *gpiod_get_from_of_node(const struct device_node *node,
 					 enum gpiod_flags dflags,
 					 const char *label)
 {
-	unsigned long lflags = GPIO_LOOKUP_FLAGS_DEFAULT;
+	unsigned long lflags;
 	struct gpio_desc *desc;
-	enum of_gpio_flags flags;
-	bool active_low = false;
-	bool single_ended = false;
-	bool open_drain = false;
-	bool transitory = false;
+	enum of_gpio_flags of_flags;
 	int ret;
 
-	desc = of_get_named_gpiod_flags(node, propname,
-					index, &flags);
-
-	if (!desc || IS_ERR(desc)) {
+	desc = of_get_named_gpiod_flags(node, propname, index, &of_flags);
+	if (!desc || IS_ERR(desc))
 		return desc;
-	}
-
-	active_low = flags & OF_GPIO_ACTIVE_LOW;
-	single_ended = flags & OF_GPIO_SINGLE_ENDED;
-	open_drain = flags & OF_GPIO_OPEN_DRAIN;
-	transitory = flags & OF_GPIO_TRANSITORY;
 
 	ret = gpiod_request(desc, label);
 	if (ret == -EBUSY && (dflags & GPIOD_FLAGS_BIT_NONEXCLUSIVE))
@@ -335,27 +353,7 @@ struct gpio_desc *gpiod_get_from_of_node(const struct device_node *node,
 	if (ret)
 		return ERR_PTR(ret);
 
-	if (active_low)
-		lflags |= GPIO_ACTIVE_LOW;
-
-	if (single_ended) {
-		if (open_drain)
-			lflags |= GPIO_OPEN_DRAIN;
-		else
-			lflags |= GPIO_OPEN_SOURCE;
-	}
-
-	if (transitory)
-		lflags |= GPIO_TRANSITORY;
-
-	if (flags & OF_GPIO_PULL_UP)
-		lflags |= GPIO_PULL_UP;
-
-	if (flags & OF_GPIO_PULL_DOWN)
-		lflags |= GPIO_PULL_DOWN;
-
-	if (flags & OF_GPIO_PULL_DISABLE)
-		lflags |= GPIO_PULL_DISABLE;
+	lflags = of_convert_gpio_flags(of_flags);
 
 	ret = gpiod_configure_flags(desc, propname, lflags, dflags);
 	if (ret < 0) {
@@ -534,25 +532,7 @@ struct gpio_desc *of_find_gpio(struct device *dev, const char *con_id,
 	if (IS_ERR(desc))
 		return desc;
 
-	if (of_flags & OF_GPIO_ACTIVE_LOW)
-		*flags |= GPIO_ACTIVE_LOW;
-
-	if (of_flags & OF_GPIO_SINGLE_ENDED) {
-		if (of_flags & OF_GPIO_OPEN_DRAIN)
-			*flags |= GPIO_OPEN_DRAIN;
-		else
-			*flags |= GPIO_OPEN_SOURCE;
-	}
-
-	if (of_flags & OF_GPIO_TRANSITORY)
-		*flags |= GPIO_TRANSITORY;
-
-	if (of_flags & OF_GPIO_PULL_UP)
-		*flags |= GPIO_PULL_UP;
-	if (of_flags & OF_GPIO_PULL_DOWN)
-		*flags |= GPIO_PULL_DOWN;
-	if (of_flags & OF_GPIO_PULL_DISABLE)
-		*flags |= GPIO_PULL_DISABLE;
+	*flags = of_convert_gpio_flags(of_flags);
 
 	return desc;
 }
@@ -610,16 +590,7 @@ static struct gpio_desc *of_parse_own_gpio(struct device_node *np,
 	if (IS_ERR(desc))
 		return desc;
 
-	if (xlate_flags & OF_GPIO_ACTIVE_LOW)
-		*lflags |= GPIO_ACTIVE_LOW;
-	if (xlate_flags & OF_GPIO_TRANSITORY)
-		*lflags |= GPIO_TRANSITORY;
-	if (xlate_flags & OF_GPIO_PULL_UP)
-		*lflags |= GPIO_PULL_UP;
-	if (xlate_flags & OF_GPIO_PULL_DOWN)
-		*lflags |= GPIO_PULL_DOWN;
-	if (xlate_flags & OF_GPIO_PULL_DISABLE)
-		*lflags |= GPIO_PULL_DISABLE;
+	*lflags = of_convert_gpio_flags(xlate_flags);
 
 	if (of_property_read_bool(np, "input"))
 		*dflags |= GPIOD_IN;
