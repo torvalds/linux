@@ -732,67 +732,8 @@ static void ocelot_get_stats64(struct net_device *dev,
 	struct ocelot_port_private *priv = netdev_priv(dev);
 	struct ocelot *ocelot = priv->port.ocelot;
 	int port = priv->port.index;
-	u64 *s;
 
-	spin_lock(&ocelot->stats_lock);
-
-	s = &ocelot->stats[port * OCELOT_NUM_STATS];
-
-	/* Get Rx stats */
-	stats->rx_bytes = s[OCELOT_STAT_RX_OCTETS];
-	stats->rx_packets = s[OCELOT_STAT_RX_SHORTS] +
-			    s[OCELOT_STAT_RX_FRAGMENTS] +
-			    s[OCELOT_STAT_RX_JABBERS] +
-			    s[OCELOT_STAT_RX_LONGS] +
-			    s[OCELOT_STAT_RX_64] +
-			    s[OCELOT_STAT_RX_65_127] +
-			    s[OCELOT_STAT_RX_128_255] +
-			    s[OCELOT_STAT_RX_256_511] +
-			    s[OCELOT_STAT_RX_512_1023] +
-			    s[OCELOT_STAT_RX_1024_1526] +
-			    s[OCELOT_STAT_RX_1527_MAX];
-	stats->multicast = s[OCELOT_STAT_RX_MULTICAST];
-	stats->rx_missed_errors = s[OCELOT_STAT_DROP_TAIL];
-	stats->rx_dropped = s[OCELOT_STAT_RX_RED_PRIO_0] +
-			    s[OCELOT_STAT_RX_RED_PRIO_1] +
-			    s[OCELOT_STAT_RX_RED_PRIO_2] +
-			    s[OCELOT_STAT_RX_RED_PRIO_3] +
-			    s[OCELOT_STAT_RX_RED_PRIO_4] +
-			    s[OCELOT_STAT_RX_RED_PRIO_5] +
-			    s[OCELOT_STAT_RX_RED_PRIO_6] +
-			    s[OCELOT_STAT_RX_RED_PRIO_7] +
-			    s[OCELOT_STAT_DROP_LOCAL] +
-			    s[OCELOT_STAT_DROP_YELLOW_PRIO_0] +
-			    s[OCELOT_STAT_DROP_YELLOW_PRIO_1] +
-			    s[OCELOT_STAT_DROP_YELLOW_PRIO_2] +
-			    s[OCELOT_STAT_DROP_YELLOW_PRIO_3] +
-			    s[OCELOT_STAT_DROP_YELLOW_PRIO_4] +
-			    s[OCELOT_STAT_DROP_YELLOW_PRIO_5] +
-			    s[OCELOT_STAT_DROP_YELLOW_PRIO_6] +
-			    s[OCELOT_STAT_DROP_YELLOW_PRIO_7] +
-			    s[OCELOT_STAT_DROP_GREEN_PRIO_0] +
-			    s[OCELOT_STAT_DROP_GREEN_PRIO_1] +
-			    s[OCELOT_STAT_DROP_GREEN_PRIO_2] +
-			    s[OCELOT_STAT_DROP_GREEN_PRIO_3] +
-			    s[OCELOT_STAT_DROP_GREEN_PRIO_4] +
-			    s[OCELOT_STAT_DROP_GREEN_PRIO_5] +
-			    s[OCELOT_STAT_DROP_GREEN_PRIO_6] +
-			    s[OCELOT_STAT_DROP_GREEN_PRIO_7];
-
-	/* Get Tx stats */
-	stats->tx_bytes = s[OCELOT_STAT_TX_OCTETS];
-	stats->tx_packets = s[OCELOT_STAT_TX_64] +
-			    s[OCELOT_STAT_TX_65_127] +
-			    s[OCELOT_STAT_TX_128_255] +
-			    s[OCELOT_STAT_TX_256_511] +
-			    s[OCELOT_STAT_TX_512_1023] +
-			    s[OCELOT_STAT_TX_1024_1526] +
-			    s[OCELOT_STAT_TX_1527_MAX];
-	stats->tx_dropped = s[OCELOT_STAT_TX_DROPS] +
-			    s[OCELOT_STAT_TX_AGED];
-	stats->collisions = s[OCELOT_STAT_TX_COLLISION];
-
-	spin_unlock(&ocelot->stats_lock);
+	return ocelot_port_get_stats64(ocelot, port, stats);
 }
 
 static int ocelot_port_fdb_add(struct ndmsg *ndm, struct nlattr *tb[],

@@ -1034,6 +1034,14 @@ static void felix_port_qos_map_init(struct ocelot *ocelot, int port)
 	}
 }
 
+static void felix_get_stats64(struct dsa_switch *ds, int port,
+			      struct rtnl_link_stats64 *stats)
+{
+	struct ocelot *ocelot = ds->priv;
+
+	ocelot_port_get_stats64(ocelot, port, stats);
+}
+
 static void felix_get_strings(struct dsa_switch *ds, int port,
 			      u32 stringset, u8 *data)
 {
@@ -1848,6 +1856,7 @@ const struct dsa_switch_ops felix_switch_ops = {
 	.setup				= felix_setup,
 	.teardown			= felix_teardown,
 	.set_ageing_time		= felix_set_ageing_time,
+	.get_stats64			= felix_get_stats64,
 	.get_strings			= felix_get_strings,
 	.get_ethtool_stats		= felix_get_ethtool_stats,
 	.get_sset_count			= felix_get_sset_count,
