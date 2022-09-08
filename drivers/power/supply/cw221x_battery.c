@@ -71,9 +71,9 @@ MODULE_PARM_DESC(debug, "Set to one to enable debugging messages.");
 #define SIZE_OF_PROFILE			80
 
 /* mhom rsense * 1000 for convenience calculation */
-#define USER_RSENSE			1000
+#define USER_RSENSE			1500
 
-#define queue_delayed_work_time		1000
+#define queue_delayed_work_time		5000
 #define queue_start_work_time		50
 
 #define CW_SLEEP_20MS			20
@@ -99,14 +99,14 @@ MODULE_PARM_DESC(debug, "Set to one to enable debugging messages.");
 #define CW2218_MARK			0x00
 
 static unsigned char config_profile_info[SIZE_OF_PROFILE] = {
-	0x32, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xC1, 0xCC,
-	0xC7, 0xC5, 0xBE, 0xA6, 0xA7, 0x9A, 0x36, 0x9D, 0x91, 0x85,
-	0x7E, 0x5C, 0x54, 0x4D, 0x49, 0x43, 0x3C, 0x36, 0x8C, 0xD2,
-	0x6E, 0xE7, 0xCE, 0x8B, 0x67, 0x89, 0xC1, 0xD2, 0xCD, 0xC6,
-	0xB1, 0xC3, 0xB9, 0xBE, 0xC3, 0xC2, 0xC0, 0xC6, 0xCD, 0xC1,
-	0xCC, 0xE4, 0xDD, 0xF4, 0xFF, 0x71, 0x80, 0x00, 0xAB, 0x10,
-	0x00, 0x90, 0xA0, 0x00, 0x00, 0x00, 0x64, 0x13, 0xB3, 0xC2,
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x91,
+	0x5A, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xA0, 0xB2,
+	0xC2, 0xCA, 0xC2, 0xBD, 0x9C, 0x5C, 0x38, 0xFF, 0xFF, 0xC4,
+	0x86, 0x74, 0x60, 0x55, 0x4F, 0x4D, 0x4B, 0x80, 0xC0, 0xDB,
+	0xCD, 0xD0, 0xCE, 0xD2, 0xD3, 0xD2, 0xD0, 0xCE, 0xC3, 0xD5,
+	0xB9, 0xC9, 0xC5, 0xA3, 0x92, 0x8A, 0x80, 0x72, 0x63, 0x62,
+	0x74, 0x90, 0xA6, 0x7E, 0x5F, 0x48, 0x80, 0x00, 0xAB, 0x10,
+	0x00, 0xA1, 0xFB, 0x00, 0x00, 0x00, 0x64, 0x1E, 0xB1, 0x04,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x4D,
 };
 
 struct cw_battery {
@@ -565,26 +565,40 @@ static int cw221x_parse_properties(struct cw_battery *cw_bat)
 	return ret;
 }
 
+static void cw_config_profile_init(struct cw_battery *cw_bat)
+{
+	int i, ret;
+
+	ret = cw221x_parse_properties(cw_bat);
+	if (ret) {
+		/* update new battery info */
+		cw_bat->bat_profile = config_profile_info;
+		cw_printk("the driver profile:\n");
+	}
+
+	for (i = 0; i < SIZE_OF_PROFILE; i++)
+		cw_printk("[%d]: 0x%x\n", i, cw_bat->bat_profile[i]);
+}
+
 /*CW221X update profile function, Often called during initialization*/
 static int cw_config_start_ic(struct cw_battery *cw_bat)
 {
 	unsigned char reg_val;
 	int count = 0;
-	int ret;
+	int i, ret;
 
 	ret = cw221X_sleep(cw_bat);
 	if (ret < 0)
 		return ret;
 
-	ret = cw221x_parse_properties(cw_bat);
-	if (ret)
-		/* update new battery info */
-		ret = cw_write_profile(cw_bat->client, config_profile_info);
-	else
-		ret = cw_write_profile(cw_bat->client, cw_bat->bat_profile);
-
+	/* update new battery info */
+	ret = cw_write_profile(cw_bat->client, cw_bat->bat_profile);
 	if (ret < 0)
 		return ret;
+
+	cw_printk("the driver profile:\n");
+	for (i = 0; i < SIZE_OF_PROFILE; i++)
+		cw_printk("[%d]: 0x%x\n", i, cw_bat->bat_profile[i]);
 
 	/* set UPDATE_FLAG AND SOC INTTERRUP VALUE */
 	reg_val = CONFIG_UPDATE_FLG | GPIO_SOC_IRQ_VALUE;
@@ -645,8 +659,8 @@ static int cw221X_get_state(struct cw_battery *cw_bat)
 		if (ret < 0)
 			return ret;
 		reg_profile = REG_BAT_PROFILE + i;
-		cw_printk("0x%2x = 0x%2x\n", reg_profile, reg_val);
-		if (config_profile_info[i] != reg_val)
+		cw_printk("fuelgauge: 0x%2x = 0x%2x\n", reg_profile, reg_val);
+		if (cw_bat->bat_profile[i] != reg_val)
 			break;
 	}
 	if (i != SIZE_OF_PROFILE)
@@ -677,10 +691,13 @@ static int cw_init(struct cw_battery *cw_bat)
 	}
 
 	if (ret != 0) {
+		cw_printk("need update profile\n");
+
 		ret = cw_config_start_ic(cw_bat);
 		if (ret < 0)
 			return ret;
-	}
+	} else
+		cw_printk("not need update profile\n");
 	cw_printk("cw221X init success!\n");
 
 	return 0;
@@ -690,6 +707,7 @@ static void cw_bat_work(struct work_struct *work)
 {
 	struct delayed_work *delay_work;
 	struct cw_battery *cw_bat;
+	static int soc;
 	int ret;
 
 	delay_work = container_of(work,
@@ -702,9 +720,10 @@ static void cw_bat_work(struct work_struct *work)
 	ret = cw_update_data(cw_bat);
 	if (ret < 0)
 		dev_err(cw_bat->dev, "i2c read error when update data");
-
-	power_supply_changed(cw_bat->cw_bat);
-
+	if (cw_bat->ui_soc != soc) {
+		soc = cw_bat->ui_soc;
+		power_supply_changed(cw_bat->cw_bat);
+	}
 	queue_delayed_work(cw_bat->cwfg_workqueue,
 			   &cw_bat->battery_delay_work,
 			   msecs_to_jiffies(queue_delayed_work_time));
@@ -740,6 +759,32 @@ static int cw_battery_get_property(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_CAPACITY:
 		val->intval = cw_bat->ui_soc;
 		break;
+	case POWER_SUPPLY_PROP_CAPACITY_LEVEL:
+		if ((cw_bat->ui_soc < 1) && (!power_supply_is_system_supplied()))
+			val->intval = POWER_SUPPLY_CAPACITY_LEVEL_CRITICAL;
+		else if (cw_bat->ui_soc <= 20)
+			val->intval = POWER_SUPPLY_CAPACITY_LEVEL_LOW;
+		else if (cw_bat->ui_soc <= 70)
+			val->intval = POWER_SUPPLY_CAPACITY_LEVEL_NORMAL;
+		else if (cw_bat->ui_soc <= 90)
+			val->intval = POWER_SUPPLY_CAPACITY_LEVEL_HIGH;
+		else
+			val->intval = POWER_SUPPLY_CAPACITY_LEVEL_FULL;
+		break;
+	case POWER_SUPPLY_PROP_STATUS:
+		if (cw_bat->ui_soc == 100 * 1000)
+			val->intval = POWER_SUPPLY_STATUS_FULL;
+		else {
+			if (power_supply_is_system_supplied())
+				val->intval = POWER_SUPPLY_STATUS_CHARGING;
+			else
+				val->intval = POWER_SUPPLY_STATUS_DISCHARGING;
+		}
+		break;
+	case POWER_SUPPLY_PROP_CHARGE_FULL:
+	case POWER_SUPPLY_PROP_CHARGE_FULL_DESIGN:
+		val->intval = 10 * 1000 * 1000;/* uAh */
+		break;
 	case POWER_SUPPLY_PROP_HEALTH:
 		val->intval = POWER_SUPPLY_HEALTH_GOOD;
 		break;
@@ -747,10 +792,12 @@ static int cw_battery_get_property(struct power_supply *psy,
 		val->intval = (cw_bat->voltage <= 0) ? 0 : 1;
 		break;
 	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
+		cw_get_voltage(cw_bat);
 		val->intval = cw_bat->voltage * CW_VOL_UNIT;
 		break;
 	case POWER_SUPPLY_PROP_CURRENT_NOW:
-		val->intval = cw_bat->cw_current;
+		cw_get_current(cw_bat);
+		val->intval = cw_bat->cw_current * 1000; /* uA */
 		break;
 	case POWER_SUPPLY_PROP_TECHNOLOGY:
 		val->intval = POWER_SUPPLY_TECHNOLOGY_LION;
@@ -769,11 +816,14 @@ static int cw_battery_get_property(struct power_supply *psy,
 static enum power_supply_property cw_battery_properties[] = {
 	POWER_SUPPLY_PROP_CYCLE_COUNT,
 	POWER_SUPPLY_PROP_CAPACITY,
+	POWER_SUPPLY_PROP_CAPACITY_LEVEL,
 	POWER_SUPPLY_PROP_HEALTH,
 	POWER_SUPPLY_PROP_PRESENT,
+	POWER_SUPPLY_PROP_CHARGE_FULL,
 	POWER_SUPPLY_PROP_VOLTAGE_NOW,
 	POWER_SUPPLY_PROP_CURRENT_NOW,
 	POWER_SUPPLY_PROP_TECHNOLOGY,
+	POWER_SUPPLY_PROP_STATUS,
 	POWER_SUPPLY_PROP_TEMP,
 };
 
@@ -793,6 +843,8 @@ static int cw221X_probe(struct i2c_client *client, const struct i2c_device_id *i
 	cw_bat->client = client;
 	cw_bat->dev = &client->dev;
 
+	dev_dbg(cw_bat->dev, "cw221X driver versions-%d\n", 20220830);
+	cw_config_profile_init(cw_bat);
 	ret = cw_init(cw_bat);
 	while ((loop++ < CW_RETRY_COUNT) && (ret != 0)) {
 		msleep(CW_SLEEP_200MS);
@@ -888,7 +940,7 @@ MODULE_DEVICE_TABLE(of, cw221X_match_table);
 #endif
 
 static struct i2c_driver cw221X_driver = {
-	.driver   = {
+	.driver = {
 		.name = CWFG_NAME,
 #ifdef CONFIG_PM
 		.pm = &cw_bat_pm_ops,
