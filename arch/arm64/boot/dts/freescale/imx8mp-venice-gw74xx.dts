@@ -563,20 +563,35 @@
 };
 
 /* USB1 - Type C front panel */
-&usb3_phy0 {
+&usb3_0 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_usb1>;
-	status = "okay";
-};
-
-&usb3_0 {
 	fsl,over-current-active-low;
 	status = "okay";
 };
 
-&usb_dwc3_0 {
-	dr_mode = "host";
+&usb3_phy0 {
 	status = "okay";
+};
+
+&usb_dwc3_0 {
+	/* dual role is implemented but not a full featured OTG */
+	adp-disable;
+	hnp-disable;
+	srp-disable;
+	dr_mode = "otg";
+	usb-role-switch;
+	role-switch-default-mode = "peripheral";
+	status = "okay";
+
+	connector {
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_usbcon1>;
+		compatible = "gpio-usb-b-connector", "usb-b-connector";
+		type = "micro";
+		label = "Type-C";
+		id-gpios = <&gpio1 10 GPIO_ACTIVE_HIGH>;
+	};
 };
 
 /* USB2 - USB3.0 Hub */
@@ -825,7 +840,12 @@
 	pinctrl_usb1: usb1grp {
 		fsl,pins = <
 			MX8MP_IOMUXC_GPIO1_IO13__USB1_OTG_OC	0x140
-			MX8MP_IOMUXC_GPIO1_IO10__USB1_OTG_ID	0x140
+		>;
+	};
+
+	pinctrl_usbcon1: usb1congrp {
+		fsl,pins = <
+			MX8MP_IOMUXC_GPIO1_IO10__GPIO1_IO10	0x140
 		>;
 	};
 
