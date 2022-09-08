@@ -264,6 +264,17 @@ static bool get_monitoring_region(unsigned long *start, unsigned long *end)
 
 static struct damos *damon_reclaim_new_scheme(void)
 {
+	struct damos_access_pattern pattern = {
+		/* Find regions having PAGE_SIZE or larger size */
+		.min_sz_region = PAGE_SIZE,
+		.max_sz_region = ULONG_MAX,
+		/* and not accessed at all */
+		.min_nr_accesses = 0,
+		.max_nr_accesses = 0,
+		/* for min_age or more micro-seconds */
+		.min_age_region = min_age / aggr_interval,
+		.max_age_region = UINT_MAX,
+	};
 	struct damos_watermarks wmarks = {
 		.metric = DAMOS_WMARK_FREE_MEM_RATE,
 		.interval = wmarks_interval,
@@ -284,21 +295,15 @@ static struct damos *damon_reclaim_new_scheme(void)
 		.weight_nr_accesses = 0,
 		.weight_age = 1
 	};
-	struct damos *scheme = damon_new_scheme(
-			/* Find regions having PAGE_SIZE or larger size */
-			PAGE_SIZE, ULONG_MAX,
-			/* and not accessed at all */
-			0, 0,
-			/* for min_age or more micro-seconds, and */
-			min_age / aggr_interval, UINT_MAX,
+
+	return damon_new_scheme(
+			&pattern,
 			/* page out those, as soon as found */
 			DAMOS_PAGEOUT,
 			/* under the quota. */
 			&quota,
 			/* (De)activate this according to the watermarks. */
 			&wmarks);
-
-	return scheme;
 }
 
 static int damon_reclaim_apply_parameters(void)

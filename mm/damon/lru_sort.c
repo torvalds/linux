@@ -293,6 +293,17 @@ static bool get_monitoring_region(unsigned long *start, unsigned long *end)
 /* Create a DAMON-based operation scheme for hot memory regions */
 static struct damos *damon_lru_sort_new_hot_scheme(unsigned int hot_thres)
 {
+	struct damos_access_pattern pattern = {
+		/* Find regions having PAGE_SIZE or larger size */
+		.min_sz_region = PAGE_SIZE,
+		.max_sz_region = ULONG_MAX,
+		/* and accessed for more than the threshold */
+		.min_nr_accesses = hot_thres,
+		.max_nr_accesses = UINT_MAX,
+		/* no matter its age */
+		.min_age_region = 0,
+		.max_age_region = UINT_MAX,
+	};
 	struct damos_watermarks wmarks = {
 		.metric = DAMOS_WMARK_FREE_MEM_RATE,
 		.interval = wmarks_interval,
@@ -313,26 +324,31 @@ static struct damos *damon_lru_sort_new_hot_scheme(unsigned int hot_thres)
 		.weight_nr_accesses = 1,
 		.weight_age = 0,
 	};
-	struct damos *scheme = damon_new_scheme(
-			/* Find regions having PAGE_SIZE or larger size */
-			PAGE_SIZE, ULONG_MAX,
-			/* and accessed for more than the threshold */
-			hot_thres, UINT_MAX,
-			/* no matter its age */
-			0, UINT_MAX,
+
+	return damon_new_scheme(
+			&pattern,
 			/* prioritize those on LRU lists, as soon as found */
 			DAMOS_LRU_PRIO,
 			/* under the quota. */
 			&quota,
 			/* (De)activate this according to the watermarks. */
 			&wmarks);
-
-	return scheme;
 }
 
 /* Create a DAMON-based operation scheme for cold memory regions */
 static struct damos *damon_lru_sort_new_cold_scheme(unsigned int cold_thres)
 {
+	struct damos_access_pattern pattern = {
+		/* Find regions having PAGE_SIZE or larger size */
+		.min_sz_region = PAGE_SIZE,
+		.max_sz_region = ULONG_MAX,
+		/* and not accessed at all */
+		.min_nr_accesses = 0,
+		.max_nr_accesses = 0,
+		/* for min_age or more micro-seconds */
+		.min_age_region = cold_thres,
+		.max_age_region = UINT_MAX,
+	};
 	struct damos_watermarks wmarks = {
 		.metric = DAMOS_WMARK_FREE_MEM_RATE,
 		.interval = wmarks_interval,
@@ -354,21 +370,15 @@ static struct damos *damon_lru_sort_new_cold_scheme(unsigned int cold_thres)
 		.weight_nr_accesses = 0,
 		.weight_age = 1,
 	};
-	struct damos *scheme = damon_new_scheme(
-			/* Find regions having PAGE_SIZE or larger size */
-			PAGE_SIZE, ULONG_MAX,
-			/* and not accessed at all */
-			0, 0,
-			/* for cold_thres or more micro-seconds, and */
-			cold_thres, UINT_MAX,
+
+	return damon_new_scheme(
+			&pattern,
 			/* mark those as not accessed, as soon as found */
 			DAMOS_LRU_DEPRIO,
 			/* under the quota. */
 			&quota,
 			/* (De)activate this according to the watermarks. */
 			&wmarks);
-
-	return scheme;
 }
 
 static int damon_lru_sort_apply_parameters(void)
