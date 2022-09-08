@@ -376,16 +376,13 @@ static void c_state_end(struct timechart *tchart, int cpu, u64 timestamp)
 	tchart->power_events = pwr;
 }
 
-static void p_state_change(struct timechart *tchart, int cpu, u64 timestamp, u64 new_freq)
+static struct power_event *p_state_end(struct timechart *tchart, int cpu,
+					u64 timestamp)
 {
-	struct power_event *pwr;
+	struct power_event *pwr = zalloc(sizeof(*pwr));
 
-	if (new_freq > 8000000) /* detect invalid data */
-		return;
-
-	pwr = zalloc(sizeof(*pwr));
 	if (!pwr)
-		return;
+		return NULL;
 
 	pwr->state = cpus_pstate_state[cpu];
 	pwr->start_time = cpus_pstate_start_times[cpu];
@@ -393,11 +390,23 @@ static void p_state_change(struct timechart *tchart, int cpu, u64 timestamp, u64
 	pwr->cpu = cpu;
 	pwr->type = PSTATE;
 	pwr->next = tchart->power_events;
-
 	if (!pwr->start_time)
 		pwr->start_time = tchart->first_time;
 
 	tchart->power_events = pwr;
+	return pwr;
+}
+
+static void p_state_change(struct timechart *tchart, int cpu, u64 timestamp, u64 new_freq)
+{
+	struct power_event *pwr;
+
+	if (new_freq > 8000000) /* detect invalid data */
+		return;
+
+	pwr = p_state_end(tchart, cpu, timestamp);
+	if (!pwr)
+		return;
 
 	cpus_pstate_state[cpu] = new_freq;
 	cpus_pstate_start_times[cpu] = timestamp;
@@ -705,22 +714,12 @@ static void end_sample_processing(struct timechart *tchart)
 #endif
 		/* P state */
 
-		pwr = zalloc(sizeof(*pwr));
+		pwr = p_state_end(tchart, cpu, tchart->last_time);
 		if (!pwr)
 			return;
 
-		pwr->state = cpus_pstate_state[cpu];
-		pwr->start_time = cpus_pstate_start_times[cpu];
-		pwr->end_time = tchart->last_time;
-		pwr->cpu = cpu;
-		pwr->type = PSTATE;
-		pwr->next = tchart->power_events;
-
-		if (!pwr->start_time)
-			pwr->start_time = tchart->first_time;
 		if (!pwr->state)
 			pwr->state = tchart->min_freq;
-		tchart->power_events = pwr;
 	}
 }
 
