@@ -126,8 +126,8 @@ static void io_netmsg_recycle(struct io_kiocb *req, unsigned int issue_flags)
 	}
 }
 
-static struct io_async_msghdr *io_recvmsg_alloc_async(struct io_kiocb *req,
-						      unsigned int issue_flags)
+static struct io_async_msghdr *io_msg_alloc_async(struct io_kiocb *req,
+						  unsigned int issue_flags)
 {
 	struct io_ring_ctx *ctx = req->ctx;
 	struct io_cache_entry *entry;
@@ -148,6 +148,12 @@ static struct io_async_msghdr *io_recvmsg_alloc_async(struct io_kiocb *req,
 	return NULL;
 }
 
+static inline struct io_async_msghdr *io_msg_alloc_async_prep(struct io_kiocb *req)
+{
+	/* ->prep_async is always called from the submission context */
+	return io_msg_alloc_async(req, 0);
+}
+
 static int io_setup_async_msg(struct io_kiocb *req,
 			      struct io_async_msghdr *kmsg,
 			      unsigned int issue_flags)
@@ -156,7 +162,7 @@ static int io_setup_async_msg(struct io_kiocb *req,
 
 	if (req_has_async_data(req))
 		return -EAGAIN;
-	async_msg = io_recvmsg_alloc_async(req, issue_flags);
+	async_msg = io_msg_alloc_async(req, issue_flags);
 	if (!async_msg) {
 		kfree(kmsg->free_iov);
 		return -ENOMEM;
@@ -217,6 +223,8 @@ int io_sendmsg_prep_async(struct io_kiocb *req)
 {
 	int ret;
 
+	if (!io_msg_alloc_async_prep(req))
+		return -ENOMEM;
 	ret = io_sendmsg_copy_hdr(req, req->async_data);
 	if (!ret)
 		req->flags |= REQ_F_NEED_CLEANUP;
@@ -504,6 +512,8 @@ int io_recvmsg_prep_async(struct io_kiocb *req)
 {
 	int ret;
 
+	if (!io_msg_alloc_async_prep(req))
+		return -ENOMEM;
 	ret = io_recvmsg_copy_hdr(req, req->async_data);
 	if (!ret)
 		req->flags |= REQ_F_NEED_CLEANUP;
