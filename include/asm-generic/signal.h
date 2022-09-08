@@ -5,8 +5,6 @@
 #include <uapi/asm-generic/signal.h>
 
 #ifndef __ASSEMBLY__
-#ifdef SA_RESTORER
-#endif
 
 #include <asm/sigcontext.h>
 #undef __HAVE_ARCH_SIG_BITOPS
