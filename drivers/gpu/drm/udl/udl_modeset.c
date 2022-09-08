@@ -394,8 +394,6 @@ udl_simple_display_pipe_disable(struct drm_simple_display_pipe *pipe)
 	struct urb *urb;
 	char *buf;
 
-	udl_kill_pending_urbs(dev);
-
 	urb = udl_get_urb(dev);
 	if (!urb)
 		return;

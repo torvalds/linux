@@ -135,7 +135,7 @@ void udl_urb_completion(struct urb *urb)
 	urb->transfer_buffer_length = udl->urbs.size; /* reset to actual */
 
 	spin_lock_irqsave(&udl->urbs.lock, flags);
-	list_move(&unode->entry, &udl->urbs.list);
+	list_add_tail(&unode->entry, &udl->urbs.list);
 	udl->urbs.available++;
 	spin_unlock_irqrestore(&udl->urbs.lock, flags);
 
@@ -180,7 +180,6 @@ static int udl_alloc_urb_list(struct drm_device *dev, int count, size_t size)
 retry:
 	udl->urbs.size = size;
 	INIT_LIST_HEAD(&udl->urbs.list);
-	INIT_LIST_HEAD(&udl->urbs.in_flight);
 
 	init_waitqueue_head(&udl->urbs.sleep);
 	udl->urbs.count = 0;
@@ -247,7 +246,7 @@ struct urb *udl_get_urb_timeout(struct drm_device *dev, long timeout)
 	}
 
 	unode = list_first_entry(&udl->urbs.list, struct urb_node, entry);
-	list_move(&unode->entry, &udl->urbs.in_flight);
+	list_del_init(&unode->entry);
 	udl->urbs.available--;
 
 unlock:
@@ -281,29 +280,12 @@ int udl_sync_pending_urbs(struct drm_device *dev)
 	spin_lock_irq(&udl->urbs.lock);
 	/* 2 seconds as a sane timeout */
 	if (!wait_event_lock_irq_timeout(udl->urbs.sleep,
-					 list_empty(&udl->urbs.in_flight),
+					 udl->urbs.available == udl->urbs.count,
 					 udl->urbs.lock,
 					 msecs_to_jiffies(2000)))
 		ret = -ETIMEDOUT;
 	spin_unlock_irq(&udl->urbs.lock);
 	return ret;
-}
-
-/* kill pending URBs */
-void udl_kill_pending_urbs(struct drm_device *dev)
-{
-	struct udl_device *udl = to_udl(dev);
-	struct urb_node *unode;
-
-	spin_lock_irq(&udl->urbs.lock);
-	while (!list_empty(&udl->urbs.in_flight)) {
-		unode = list_first_entry(&udl->urbs.in_flight,
-					 struct urb_node, entry);
-		spin_unlock_irq(&udl->urbs.lock);
-		usb_kill_urb(unode->urb);
-		spin_lock_irq(&udl->urbs.lock);
-	}
-	spin_unlock_irq(&udl->urbs.lock);
 }
 
 int udl_init(struct udl_device *udl)
@@ -354,7 +336,6 @@ int udl_drop_usb(struct drm_device *dev)
 {
 	struct udl_device *udl = to_udl(dev);
 
-	udl_kill_pending_urbs(dev);
 	udl_free_urb_list(dev);
 	put_device(udl->dmadev);
 	udl->dmadev = NULL;
