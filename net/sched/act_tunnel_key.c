@@ -769,23 +769,6 @@ nla_put_failure:
 	return -1;
 }
 
-static int tunnel_key_walker(struct net *net, struct sk_buff *skb,
-			     struct netlink_callback *cb, int type,
-			     const struct tc_action_ops *ops,
-			     struct netlink_ext_ack *extack)
-{
-	struct tc_action_net *tn = net_generic(net, act_tunnel_key_ops.net_id);
-
-	return tcf_generic_walker(tn, skb, cb, type, ops, extack);
-}
-
-static int tunnel_key_search(struct net *net, struct tc_action **a, u32 index)
-{
-	struct tc_action_net *tn = net_generic(net, act_tunnel_key_ops.net_id);
-
-	return tcf_idr_search(tn, a, index);
-}
-
 static void tcf_tunnel_encap_put_tunnel(void *priv)
 {
 	struct ip_tunnel_info *tunnel = priv;
@@ -849,8 +832,6 @@ static struct tc_action_ops act_tunnel_key_ops = {
 	.dump		=	tunnel_key_dump,
 	.init		=	tunnel_key_init,
 	.cleanup	=	tunnel_key_release,
-	.walk		=	tunnel_key_walker,
-	.lookup		=	tunnel_key_search,
 	.offload_act_setup =	tcf_tunnel_key_offload_act_setup,
 	.size		=	sizeof(struct tcf_tunnel_key),
 };
