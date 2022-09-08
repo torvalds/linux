@@ -9,6 +9,7 @@
  */
 #include <linux/bits.h>
 #include <linux/clk.h>
+#include <linux/debugfs.h>
 #include <linux/hwmon.h>
 #include <linux/module.h>
 #include <linux/mod_devicetable.h>
@@ -170,6 +171,7 @@ struct pvt_device {
 	struct regmap		*v_map;
 	struct clk		*clk;
 	struct reset_control	*rst;
+	struct dentry		*dbgfs_dir;
 	struct voltage_device	*vd;
 	struct voltage_channels	vm_channels;
 	struct temp_coeff	ts_coeff;
@@ -178,6 +180,64 @@ struct pvt_device {
 	u32			v_num;
 	u32			ip_freq;
 };
+
+static ssize_t pvt_ts_coeff_j_read(struct file *file, char __user *user_buf,
+				   size_t count, loff_t *ppos)
+{
+	struct pvt_device *pvt = file->private_data;
+	unsigned int len;
+	char buf[13];
+
+	len = scnprintf(buf, sizeof(buf), "%d\n", pvt->ts_coeff.j);
+
+	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
+}
+
+static ssize_t pvt_ts_coeff_j_write(struct file *file,
+				    const char __user *user_buf,
+				    size_t count, loff_t *ppos)
+{
+	struct pvt_device *pvt = file->private_data;
+	int ret;
+
+	ret = kstrtos32_from_user(user_buf, count, 0, &pvt->ts_coeff.j);
+	if (ret)
+		return ret;
+
+	return count;
+}
+
+static const struct file_operations pvt_ts_coeff_j_fops = {
+	.read = pvt_ts_coeff_j_read,
+	.write = pvt_ts_coeff_j_write,
+	.open = simple_open,
+	.owner = THIS_MODULE,
+	.llseek = default_llseek,
+};
+
+static void devm_pvt_ts_dbgfs_remove(void *data)
+{
+	struct pvt_device *pvt = (struct pvt_device *)data;
+
+	debugfs_remove_recursive(pvt->dbgfs_dir);
+	pvt->dbgfs_dir = NULL;
+}
+
+static int pvt_ts_dbgfs_create(struct pvt_device *pvt, struct device *dev)
+{
+	pvt->dbgfs_dir = debugfs_create_dir(dev_name(dev), NULL);
+
+	debugfs_create_u32("ts_coeff_h", 0644, pvt->dbgfs_dir,
+			   &pvt->ts_coeff.h);
+	debugfs_create_u32("ts_coeff_g", 0644, pvt->dbgfs_dir,
+			   &pvt->ts_coeff.g);
+	debugfs_create_u32("ts_coeff_cal5", 0644, pvt->dbgfs_dir,
+			   &pvt->ts_coeff.cal5);
+	debugfs_create_file("ts_coeff_j", 0644, pvt->dbgfs_dir, pvt,
+			    &pvt_ts_coeff_j_fops);
+
+	return devm_add_action_or_reset(dev, devm_pvt_ts_dbgfs_remove, pvt);
+}
 
 static umode_t pvt_is_visible(const void *data, enum hwmon_sensor_types type,
 			      u32 attr, int channel)
@@ -803,6 +863,8 @@ static int mr75203_probe(struct platform_device *pdev)
 		memset32(temp_config, HWMON_T_INPUT, ts_num);
 		pvt_temp.config = temp_config;
 		pvt_info[index++] = &pvt_temp;
+
+		pvt_ts_dbgfs_create(pvt, dev);
 	}
 
 	if (pd_num) {
