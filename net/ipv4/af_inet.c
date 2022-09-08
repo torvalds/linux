@@ -1250,7 +1250,7 @@ static int inet_sk_reselect_saddr(struct sock *sk)
 	}
 
 	prev_addr_hashbucket =
-		inet_bhashfn_portaddr(sk->sk_prot->h.hashinfo, sk,
+		inet_bhashfn_portaddr(tcp_or_dccp_get_hashinfo(sk), sk,
 				      sock_net(sk), inet->inet_num);
 
 	inet->inet_saddr = inet->inet_rcv_saddr = new_saddr;

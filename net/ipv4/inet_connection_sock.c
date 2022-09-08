@@ -285,7 +285,7 @@ inet_csk_find_open_port(const struct sock *sk, struct inet_bind_bucket **tb_ret,
 			struct inet_bind2_bucket **tb2_ret,
 			struct inet_bind_hashbucket **head2_ret, int *port_ret)
 {
-	struct inet_hashinfo *hinfo = sk->sk_prot->h.hashinfo;
+	struct inet_hashinfo *hinfo = tcp_or_dccp_get_hashinfo(sk);
 	int i, low, high, attempt_half, port, l3mdev;
 	struct inet_bind_hashbucket *head, *head2;
 	struct net *net = sock_net(sk);
@@ -467,8 +467,8 @@ void inet_csk_update_fastreuse(struct inet_bind_bucket *tb,
  */
 int inet_csk_get_port(struct sock *sk, unsigned short snum)
 {
+	struct inet_hashinfo *hinfo = tcp_or_dccp_get_hashinfo(sk);
 	bool reuse = sk->sk_reuse && sk->sk_state != TCP_LISTEN;
-	struct inet_hashinfo *hinfo = sk->sk_prot->h.hashinfo;
 	bool found_port = false, check_bind_conflict = true;
 	bool bhash_created = false, bhash2_created = false;
 	struct inet_bind_hashbucket *head, *head2;
@@ -910,10 +910,9 @@ static bool reqsk_queue_unlink(struct request_sock *req)
 	bool found = false;
 
 	if (sk_hashed(sk)) {
-		struct inet_hashinfo *hashinfo = sk->sk_prot->h.hashinfo;
-		spinlock_t *lock;
+		struct inet_hashinfo *hashinfo = tcp_or_dccp_get_hashinfo(sk);
+		spinlock_t *lock = inet_ehash_lockp(hashinfo, req->rsk_hash);
 
-		lock = inet_ehash_lockp(hashinfo, req->rsk_hash);
 		spin_lock(lock);
 		found = __sk_nulls_del_node_init_rcu(sk);
 		spin_unlock(lock);

@@ -2194,7 +2194,7 @@ struct proto tcpv6_prot = {
 	.slab_flags		= SLAB_TYPESAFE_BY_RCU,
 	.twsk_prot		= &tcp6_timewait_sock_ops,
 	.rsk_prot		= &tcp6_request_sock_ops,
-	.h.hashinfo		= &tcp_hashinfo,
+	.h.hashinfo		= NULL,
 	.no_autobind		= true,
 	.diag_destroy		= tcp_abort,
 };
