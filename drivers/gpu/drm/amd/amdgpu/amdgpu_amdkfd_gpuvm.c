@@ -1728,7 +1728,7 @@ int amdgpu_amdkfd_gpuvm_alloc_memory_of_gpu(
 	add_kgd_mem_to_kfd_bo_list(*mem, avm->process_info, user_addr);
 
 	if (user_addr) {
-		pr_debug("creating userptr BO for user_addr = %llu\n", user_addr);
+		pr_debug("creating userptr BO for user_addr = %llx\n", user_addr);
 		ret = init_user_pages(*mem, user_addr, criu_resume);
 		if (ret)
 			goto allocate_init_user_pages_failed;

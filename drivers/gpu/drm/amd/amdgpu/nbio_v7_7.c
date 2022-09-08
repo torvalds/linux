@@ -68,12 +68,6 @@ static void nbio_v7_7_sdma_doorbell_range(struct amdgpu_device *adev, int instan
 		doorbell_range = REG_SET_FIELD(doorbell_range,
 					       GDC0_BIF_CSDMA_DOORBELL_RANGE,
 					       SIZE, doorbell_size);
-		doorbell_range = REG_SET_FIELD(doorbell_range,
-					       GDC0_BIF_SDMA0_DOORBELL_RANGE,
-					       OFFSET, doorbell_index);
-		doorbell_range = REG_SET_FIELD(doorbell_range,
-					       GDC0_BIF_SDMA0_DOORBELL_RANGE,
-					       SIZE, doorbell_size);
 	} else {
 		doorbell_range = REG_SET_FIELD(doorbell_range,
 					       GDC0_BIF_SDMA0_DOORBELL_RANGE,
