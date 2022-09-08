@@ -222,7 +222,7 @@ static int ocelot_prepare_stats_regions(struct ocelot *ocelot)
 	INIT_LIST_HEAD(&ocelot->stats_regions);
 
 	for (i = 0; i < OCELOT_NUM_STATS; i++) {
-		if (ocelot->stats_layout[i].name[0] == '\0')
+		if (!ocelot->stats_layout[i].reg)
 			continue;
 
 		if (region && ocelot->stats_layout[i].reg == last + 4) {
