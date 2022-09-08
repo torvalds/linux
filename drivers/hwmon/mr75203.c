@@ -115,6 +115,15 @@
 #define PVT_SERIES5_J_CONST	-100
 #define PVT_SERIES5_CAL5_CONST	4094
 
+/* Temperature coefficients for series 6 */
+#define PVT_SERIES6_H_CONST	249400
+#define PVT_SERIES6_G_CONST	57400
+#define PVT_SERIES6_J_CONST	0
+#define PVT_SERIES6_CAL5_CONST	4096
+
+#define TEMPERATURE_SENSOR_SERIES_5	5
+#define TEMPERATURE_SENSOR_SERIES_6	6
+
 #define PRE_SCALER_X1	1
 #define PRE_SCALER_X2	2
 
@@ -147,6 +156,13 @@ struct voltage_channels {
 	u8 max;
 };
 
+struct temp_coeff {
+	u32 h;
+	u32 g;
+	u32 cal5;
+	s32 j;
+};
+
 struct pvt_device {
 	struct regmap		*c_map;
 	struct regmap		*t_map;
@@ -156,6 +172,7 @@ struct pvt_device {
 	struct reset_control	*rst;
 	struct voltage_device	*vd;
 	struct voltage_channels	vm_channels;
+	struct temp_coeff	ts_coeff;
 	u32			t_num;
 	u32			p_num;
 	u32			v_num;
@@ -186,10 +203,12 @@ static long pvt_calc_temp(struct pvt_device *pvt, u32 nbs)
 	 * Convert the register value to degrees centigrade temperature:
 	 * T = G + H * (n / cal5 - 0.5) + J * F
 	 */
-	s64 tmp = PVT_SERIES5_G_CONST +
-		PVT_SERIES5_H_CONST * (s64)nbs / PVT_SERIES5_CAL5_CONST -
-		PVT_SERIES5_H_CONST / 2 +
-		PVT_SERIES5_J_CONST * (s64)pvt->ip_freq / HZ_PER_MHZ;
+	struct temp_coeff *ts_coeff = &pvt->ts_coeff;
+
+	s64 tmp = ts_coeff->g +
+		ts_coeff->h * (s64)nbs / ts_coeff->cal5 -
+		ts_coeff->h / 2 +
+		ts_coeff->j * (s64)pvt->ip_freq / HZ_PER_MHZ;
 
 	return clamp_val(tmp, PVT_TEMP_MIN_mC, PVT_TEMP_MAX_mC);
 }
@@ -658,6 +677,41 @@ out:
 	return ret;
 }
 
+static int pvt_set_temp_coeff(struct device *dev, struct pvt_device *pvt)
+{
+	struct temp_coeff *ts_coeff = &pvt->ts_coeff;
+	u32 series;
+	int ret;
+
+	/* Incase ts-series property is not defined, use default 5. */
+	ret = device_property_read_u32(dev, "moortec,ts-series", &series);
+	if (ret)
+		series = TEMPERATURE_SENSOR_SERIES_5;
+
+	switch (series) {
+	case TEMPERATURE_SENSOR_SERIES_5:
+		ts_coeff->h = PVT_SERIES5_H_CONST;
+		ts_coeff->g = PVT_SERIES5_G_CONST;
+		ts_coeff->j = PVT_SERIES5_J_CONST;
+		ts_coeff->cal5 = PVT_SERIES5_CAL5_CONST;
+		break;
+	case TEMPERATURE_SENSOR_SERIES_6:
+		ts_coeff->h = PVT_SERIES6_H_CONST;
+		ts_coeff->g = PVT_SERIES6_G_CONST;
+		ts_coeff->j = PVT_SERIES6_J_CONST;
+		ts_coeff->cal5 = PVT_SERIES6_CAL5_CONST;
+		break;
+	default:
+		dev_err(dev, "invalid temperature sensor series (%u)\n",
+			series);
+		return -EINVAL;
+	}
+
+	dev_dbg(dev, "temperature sensor series = %u\n", series);
+
+	return 0;
+}
+
 static int mr75203_probe(struct platform_device *pdev)
 {
 	u32 ts_num, vm_num, pd_num, ch_num, val, index, i;
@@ -725,6 +779,10 @@ static int mr75203_probe(struct platform_device *pdev)
 
 	if (ts_num) {
 		ret = pvt_get_regmap(pdev, "ts", pvt);
+		if (ret)
+			return ret;
+
+		ret = pvt_set_temp_coeff(dev, pvt);
 		if (ret)
 			return ret;
 
