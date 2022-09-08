@@ -366,23 +366,6 @@ nla_put_failure:
 	return -EMSGSIZE;
 }
 
-static int tcf_mpls_walker(struct net *net, struct sk_buff *skb,
-			   struct netlink_callback *cb, int type,
-			   const struct tc_action_ops *ops,
-			   struct netlink_ext_ack *extack)
-{
-	struct tc_action_net *tn = net_generic(net, act_mpls_ops.net_id);
-
-	return tcf_generic_walker(tn, skb, cb, type, ops, extack);
-}
-
-static int tcf_mpls_search(struct net *net, struct tc_action **a, u32 index)
-{
-	struct tc_action_net *tn = net_generic(net, act_mpls_ops.net_id);
-
-	return tcf_idr_search(tn, a, index);
-}
-
 static int tcf_mpls_offload_act_setup(struct tc_action *act, void *entry_data,
 				      u32 *index_inc, bool bind,
 				      struct netlink_ext_ack *extack)
@@ -450,8 +433,6 @@ static struct tc_action_ops act_mpls_ops = {
 	.dump		=	tcf_mpls_dump,
 	.init		=	tcf_mpls_init,
 	.cleanup	=	tcf_mpls_cleanup,
-	.walk		=	tcf_mpls_walker,
-	.lookup		=	tcf_mpls_search,
 	.offload_act_setup =	tcf_mpls_offload_act_setup,
 	.size		=	sizeof(struct tcf_mpls),
 };
