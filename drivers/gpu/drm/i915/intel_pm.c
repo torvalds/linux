@@ -2906,97 +2906,107 @@ adjust_wm_latency(struct drm_i915_private *i915,
 		wm[0] += 1;
 }
 
-static void intel_read_wm_latency(struct drm_i915_private *dev_priv,
-				  u16 wm[])
+static void mtl_read_wm_latency(struct drm_i915_private *i915, u16 wm[])
 {
-	struct intel_uncore *uncore = &dev_priv->uncore;
-	int max_level = ilk_wm_max_level(dev_priv);
+	struct intel_uncore *uncore = &i915->uncore;
+	int max_level = ilk_wm_max_level(i915);
+	u32 val;
 
-	if (DISPLAY_VER(dev_priv) >= 14) {
-		u32 val;
+	val = intel_uncore_read(uncore, MTL_LATENCY_LP0_LP1);
+	wm[0] = REG_FIELD_GET(MTL_LATENCY_LEVEL_EVEN_MASK, val);
+	wm[1] = REG_FIELD_GET(MTL_LATENCY_LEVEL_ODD_MASK, val);
 
-		val = intel_uncore_read(uncore, MTL_LATENCY_LP0_LP1);
-		wm[0] = REG_FIELD_GET(MTL_LATENCY_LEVEL_EVEN_MASK, val);
-		wm[1] = REG_FIELD_GET(MTL_LATENCY_LEVEL_ODD_MASK, val);
-		val = intel_uncore_read(uncore, MTL_LATENCY_LP2_LP3);
-		wm[2] = REG_FIELD_GET(MTL_LATENCY_LEVEL_EVEN_MASK, val);
-		wm[3] = REG_FIELD_GET(MTL_LATENCY_LEVEL_ODD_MASK, val);
-		val = intel_uncore_read(uncore, MTL_LATENCY_LP4_LP5);
-		wm[4] = REG_FIELD_GET(MTL_LATENCY_LEVEL_EVEN_MASK, val);
-		wm[5] = REG_FIELD_GET(MTL_LATENCY_LEVEL_ODD_MASK, val);
+	val = intel_uncore_read(uncore, MTL_LATENCY_LP2_LP3);
+	wm[2] = REG_FIELD_GET(MTL_LATENCY_LEVEL_EVEN_MASK, val);
+	wm[3] = REG_FIELD_GET(MTL_LATENCY_LEVEL_ODD_MASK, val);
 
-		adjust_wm_latency(dev_priv, wm, max_level, 6);
-	} else if (DISPLAY_VER(dev_priv) >= 9) {
-		int read_latency = DISPLAY_VER(dev_priv) >= 12 ? 3 : 2;
-		int mult = IS_DG2(dev_priv) ? 2 : 1;
-		u32 val;
-		int ret;
+	val = intel_uncore_read(uncore, MTL_LATENCY_LP4_LP5);
+	wm[4] = REG_FIELD_GET(MTL_LATENCY_LEVEL_EVEN_MASK, val);
+	wm[5] = REG_FIELD_GET(MTL_LATENCY_LEVEL_ODD_MASK, val);
 
-		/* read the first set of memory latencies[0:3] */
-		val = 0; /* data0 to be programmed to 0 for first set */
-		ret = snb_pcode_read(&dev_priv->uncore, GEN9_PCODE_READ_MEM_LATENCY,
-				     &val, NULL);
+	adjust_wm_latency(i915, wm, max_level, 6);
+}
 
-		if (ret) {
-			drm_err(&dev_priv->drm,
-				"SKL Mailbox read error = %d\n", ret);
-			return;
-		}
+static void skl_read_wm_latency(struct drm_i915_private *i915, u16 wm[])
+{
+	int max_level = ilk_wm_max_level(i915);
+	int read_latency = DISPLAY_VER(i915) >= 12 ? 3 : 2;
+	int mult = IS_DG2(i915) ? 2 : 1;
+	u32 val;
+	int ret;
 
-		wm[0] = (val & GEN9_MEM_LATENCY_LEVEL_MASK) * mult;
-		wm[1] = ((val >> GEN9_MEM_LATENCY_LEVEL_1_5_SHIFT) &
-				GEN9_MEM_LATENCY_LEVEL_MASK) * mult;
-		wm[2] = ((val >> GEN9_MEM_LATENCY_LEVEL_2_6_SHIFT) &
-				GEN9_MEM_LATENCY_LEVEL_MASK) * mult;
-		wm[3] = ((val >> GEN9_MEM_LATENCY_LEVEL_3_7_SHIFT) &
-				GEN9_MEM_LATENCY_LEVEL_MASK) * mult;
-
-		/* read the second set of memory latencies[4:7] */
-		val = 1; /* data0 to be programmed to 1 for second set */
-		ret = snb_pcode_read(&dev_priv->uncore, GEN9_PCODE_READ_MEM_LATENCY,
-				     &val, NULL);
-		if (ret) {
-			drm_err(&dev_priv->drm,
-				"SKL Mailbox read error = %d\n", ret);
-			return;
-		}
-
-		wm[4] = (val & GEN9_MEM_LATENCY_LEVEL_MASK) * mult;
-		wm[5] = ((val >> GEN9_MEM_LATENCY_LEVEL_1_5_SHIFT) &
-				GEN9_MEM_LATENCY_LEVEL_MASK) * mult;
-		wm[6] = ((val >> GEN9_MEM_LATENCY_LEVEL_2_6_SHIFT) &
-				GEN9_MEM_LATENCY_LEVEL_MASK) * mult;
-		wm[7] = ((val >> GEN9_MEM_LATENCY_LEVEL_3_7_SHIFT) &
-				GEN9_MEM_LATENCY_LEVEL_MASK) * mult;
-
-		adjust_wm_latency(dev_priv, wm, max_level, read_latency);
-	} else if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv)) {
-		u64 sskpd = intel_uncore_read64(uncore, MCH_SSKPD);
-
-		wm[0] = REG_FIELD_GET64(SSKPD_NEW_WM0_MASK_HSW, sskpd);
-		if (wm[0] == 0)
-			wm[0] = REG_FIELD_GET64(SSKPD_OLD_WM0_MASK_HSW, sskpd);
-		wm[1] = REG_FIELD_GET64(SSKPD_WM1_MASK_HSW, sskpd);
-		wm[2] = REG_FIELD_GET64(SSKPD_WM2_MASK_HSW, sskpd);
-		wm[3] = REG_FIELD_GET64(SSKPD_WM3_MASK_HSW, sskpd);
-		wm[4] = REG_FIELD_GET64(SSKPD_WM4_MASK_HSW, sskpd);
-	} else if (DISPLAY_VER(dev_priv) >= 6) {
-		u32 sskpd = intel_uncore_read(uncore, MCH_SSKPD);
-
-		wm[0] = REG_FIELD_GET(SSKPD_WM0_MASK_SNB, sskpd);
-		wm[1] = REG_FIELD_GET(SSKPD_WM1_MASK_SNB, sskpd);
-		wm[2] = REG_FIELD_GET(SSKPD_WM2_MASK_SNB, sskpd);
-		wm[3] = REG_FIELD_GET(SSKPD_WM3_MASK_SNB, sskpd);
-	} else if (DISPLAY_VER(dev_priv) >= 5) {
-		u32 mltr = intel_uncore_read(uncore, MLTR_ILK);
-
-		/* ILK primary LP0 latency is 700 ns */
-		wm[0] = 7;
-		wm[1] = REG_FIELD_GET(MLTR_WM1_MASK, mltr);
-		wm[2] = REG_FIELD_GET(MLTR_WM2_MASK, mltr);
-	} else {
-		MISSING_CASE(INTEL_DEVID(dev_priv));
+	/* read the first set of memory latencies[0:3] */
+	val = 0; /* data0 to be programmed to 0 for first set */
+	ret = snb_pcode_read(&i915->uncore, GEN9_PCODE_READ_MEM_LATENCY, &val, NULL);
+	if (ret) {
+		drm_err(&i915->drm, "SKL Mailbox read error = %d\n", ret);
+		return;
 	}
+
+	wm[0] = (val & GEN9_MEM_LATENCY_LEVEL_MASK) * mult;
+	wm[1] = ((val >> GEN9_MEM_LATENCY_LEVEL_1_5_SHIFT) &
+		 GEN9_MEM_LATENCY_LEVEL_MASK) * mult;
+	wm[2] = ((val >> GEN9_MEM_LATENCY_LEVEL_2_6_SHIFT) &
+		 GEN9_MEM_LATENCY_LEVEL_MASK) * mult;
+	wm[3] = ((val >> GEN9_MEM_LATENCY_LEVEL_3_7_SHIFT) &
+		 GEN9_MEM_LATENCY_LEVEL_MASK) * mult;
+
+	/* read the second set of memory latencies[4:7] */
+	val = 1; /* data0 to be programmed to 1 for second set */
+	ret = snb_pcode_read(&i915->uncore, GEN9_PCODE_READ_MEM_LATENCY, &val, NULL);
+	if (ret) {
+		drm_err(&i915->drm, "SKL Mailbox read error = %d\n", ret);
+		return;
+	}
+
+	wm[4] = (val & GEN9_MEM_LATENCY_LEVEL_MASK) * mult;
+	wm[5] = ((val >> GEN9_MEM_LATENCY_LEVEL_1_5_SHIFT) &
+		 GEN9_MEM_LATENCY_LEVEL_MASK) * mult;
+	wm[6] = ((val >> GEN9_MEM_LATENCY_LEVEL_2_6_SHIFT) &
+		 GEN9_MEM_LATENCY_LEVEL_MASK) * mult;
+	wm[7] = ((val >> GEN9_MEM_LATENCY_LEVEL_3_7_SHIFT) &
+		 GEN9_MEM_LATENCY_LEVEL_MASK) * mult;
+
+	adjust_wm_latency(i915, wm, max_level, read_latency);
+}
+
+static void hsw_read_wm_latency(struct drm_i915_private *i915, u16 wm[])
+{
+	u64 sskpd;
+
+	sskpd = intel_uncore_read64(&i915->uncore, MCH_SSKPD);
+
+	wm[0] = REG_FIELD_GET64(SSKPD_NEW_WM0_MASK_HSW, sskpd);
+	if (wm[0] == 0)
+		wm[0] = REG_FIELD_GET64(SSKPD_OLD_WM0_MASK_HSW, sskpd);
+	wm[1] = REG_FIELD_GET64(SSKPD_WM1_MASK_HSW, sskpd);
+	wm[2] = REG_FIELD_GET64(SSKPD_WM2_MASK_HSW, sskpd);
+	wm[3] = REG_FIELD_GET64(SSKPD_WM3_MASK_HSW, sskpd);
+	wm[4] = REG_FIELD_GET64(SSKPD_WM4_MASK_HSW, sskpd);
+}
+
+static void snb_read_wm_latency(struct drm_i915_private *i915, u16 wm[])
+{
+	u32 sskpd;
+
+	sskpd = intel_uncore_read(&i915->uncore, MCH_SSKPD);
+
+	wm[0] = REG_FIELD_GET(SSKPD_WM0_MASK_SNB, sskpd);
+	wm[1] = REG_FIELD_GET(SSKPD_WM1_MASK_SNB, sskpd);
+	wm[2] = REG_FIELD_GET(SSKPD_WM2_MASK_SNB, sskpd);
+	wm[3] = REG_FIELD_GET(SSKPD_WM3_MASK_SNB, sskpd);
+}
+
+static void ilk_read_wm_latency(struct drm_i915_private *i915, u16 wm[])
+{
+	u32 mltr;
+
+	mltr = intel_uncore_read(&i915->uncore, MLTR_ILK);
+
+	/* ILK primary LP0 latency is 700 ns */
+	wm[0] = 7;
+	wm[1] = REG_FIELD_GET(MLTR_WM1_MASK, mltr);
+	wm[2] = REG_FIELD_GET(MLTR_WM2_MASK, mltr);
 }
 
 static void intel_fixup_spr_wm_latency(struct drm_i915_private *dev_priv,
@@ -3129,7 +3139,12 @@ static void snb_wm_lp3_irq_quirk(struct drm_i915_private *dev_priv)
 
 static void ilk_setup_wm_latency(struct drm_i915_private *dev_priv)
 {
-	intel_read_wm_latency(dev_priv, dev_priv->display.wm.pri_latency);
+	if (IS_BROADWELL(dev_priv) || IS_HASWELL(dev_priv))
+		hsw_read_wm_latency(dev_priv, dev_priv->display.wm.pri_latency);
+	else if (DISPLAY_VER(dev_priv) >= 6)
+		snb_read_wm_latency(dev_priv, dev_priv->display.wm.pri_latency);
+	else
+		ilk_read_wm_latency(dev_priv, dev_priv->display.wm.pri_latency);
 
 	memcpy(dev_priv->display.wm.spr_latency, dev_priv->display.wm.pri_latency,
 	       sizeof(dev_priv->display.wm.pri_latency));
@@ -3151,7 +3166,11 @@ static void ilk_setup_wm_latency(struct drm_i915_private *dev_priv)
 
 static void skl_setup_wm_latency(struct drm_i915_private *dev_priv)
 {
-	intel_read_wm_latency(dev_priv, dev_priv->display.wm.skl_latency);
+	if (DISPLAY_VER(dev_priv) >= 14)
+		mtl_read_wm_latency(dev_priv, dev_priv->display.wm.skl_latency);
+	else
+		skl_read_wm_latency(dev_priv, dev_priv->display.wm.skl_latency);
+
 	intel_print_wm_latency(dev_priv, "Gen9 Plane", dev_priv->display.wm.skl_latency);
 }
 
