@@ -2,11 +2,15 @@
 /*
  * Copyright (C) 2022 Rockchip Electronics Co., Ltd.
  */
+#include <linux/delay.h>
 #include <linux/kernel.h>
 #include <linux/mailbox_client.h>
+#include <linux/mm.h>
 #include <linux/of.h>
+#include <linux/of_address.h>
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
+#include <linux/reset.h>
 #include <linux/soc/rockchip/rockchip_thunderboot_service.h>
 #include <soc/rockchip/rockchip-mailbox.h>
 
@@ -17,6 +21,9 @@ struct rk_tb_serv {
 	struct device *dev;
 	struct mbox_chan *mbox_rx_chan;
 	struct mbox_client mbox_cl;
+	struct reset_control *rsts;
+	phys_addr_t mem_start;
+	size_t mem_size;
 };
 
 static atomic_t mcu_done = ATOMIC_INIT(0);
@@ -55,6 +62,16 @@ static void do_mcu_done(struct rk_tb_serv *serv)
 
 	rockchip_mbox_read_msg(serv->mbox_rx_chan, &msg);
 	if (msg.cmd == CMD_MCU_STATUS && msg.data == MCU_STATUS_DONE) {
+		void *start, *end;
+
+		/* make sure mcu is wfi */
+		udelay(15);
+		reset_control_assert(serv->rsts);
+
+		start = phys_to_virt(serv->mem_start);
+		end = start + serv->mem_size;
+		free_reserved_area(start, end, -1, "rtos");
+
 		spin_lock(&lock);
 		if (atomic_read(&mcu_done)) {
 			spin_unlock(&lock);
@@ -85,10 +102,33 @@ static int rk_tb_serv_probe(struct platform_device *pdev)
 {
 	struct rk_tb_serv *serv;
 	struct mbox_client *mbox_cl;
+	struct device_node *mem;
+	struct resource reg;
+	int ret;
 
 	serv = devm_kzalloc(&pdev->dev, sizeof(*serv), GFP_KERNEL);
 	if (!serv)
 		return -ENOMEM;
+
+	mem = of_parse_phandle(pdev->dev.of_node, "memory-region", 0);
+	if (!mem) {
+		dev_err(&pdev->dev, "missing \"memory-region\" property\n");
+		return -ENODEV;
+	}
+
+	ret = of_address_to_resource(mem, 0, &reg);
+	of_node_put(mem);
+	if (ret) {
+		dev_err(&pdev->dev, "missing \"reg\" property\n");
+		return -ENODEV;
+	}
+
+	serv->mem_start = reg.start;
+	serv->mem_size = resource_size(&reg);
+
+	serv->rsts = devm_reset_control_array_get_optional_exclusive(&pdev->dev);
+	if (IS_ERR(serv->rsts) && PTR_ERR(serv->rsts) == -EPROBE_DEFER)
+		return -EPROBE_DEFER;
 
 	platform_set_drvdata(pdev, serv);
 
