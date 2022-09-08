@@ -768,13 +768,16 @@ static void
 rtw89_core_tx_wake(struct rtw89_dev *rtwdev,
 		   struct rtw89_core_tx_request *tx_req)
 {
+	const struct rtw89_chip_info *chip = rtwdev->chip;
+
 	if (!RTW89_CHK_FW_FEATURE(TX_WAKE, &rtwdev->fw))
 		return;
 
 	if (!test_bit(RTW89_FLAG_LOW_POWER_MODE, rtwdev->flags))
 		return;
 
-	if (tx_req->tx_type != RTW89_CORE_TX_TYPE_MGMT)
+	if (chip->chip_id != RTL8852C &&
+	    tx_req->tx_type != RTW89_CORE_TX_TYPE_MGMT)
 		return;
 
 	rtw89_mac_notify_wake(rtwdev);
