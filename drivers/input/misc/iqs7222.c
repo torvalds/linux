@@ -2326,6 +2326,9 @@ static int iqs7222_report(struct iqs7222_private *iqs7222)
 			int k = 2 + j * (num_chan > 16 ? 2 : 1);
 			u16 state = le16_to_cpu(status[k + i / 16]);
 
+			if (!iqs7222->kp_type[i][j])
+				continue;
+
 			input_event(iqs7222->keypad,
 				    iqs7222->kp_type[i][j],
 				    iqs7222->kp_code[i][j],
