@@ -199,23 +199,6 @@ nla_put_failure:
 	return -1;
 }
 
-static int tcf_connmark_walker(struct net *net, struct sk_buff *skb,
-			       struct netlink_callback *cb, int type,
-			       const struct tc_action_ops *ops,
-			       struct netlink_ext_ack *extack)
-{
-	struct tc_action_net *tn = net_generic(net, act_connmark_ops.net_id);
-
-	return tcf_generic_walker(tn, skb, cb, type, ops, extack);
-}
-
-static int tcf_connmark_search(struct net *net, struct tc_action **a, u32 index)
-{
-	struct tc_action_net *tn = net_generic(net, act_connmark_ops.net_id);
-
-	return tcf_idr_search(tn, a, index);
-}
-
 static struct tc_action_ops act_connmark_ops = {
 	.kind		=	"connmark",
 	.id		=	TCA_ID_CONNMARK,
@@ -223,8 +206,6 @@ static struct tc_action_ops act_connmark_ops = {
 	.act		=	tcf_connmark_act,
 	.dump		=	tcf_connmark_dump,
 	.init		=	tcf_connmark_init,
-	.walk		=	tcf_connmark_walker,
-	.lookup		=	tcf_connmark_search,
 	.size		=	sizeof(struct tcf_connmark_info),
 };
 
