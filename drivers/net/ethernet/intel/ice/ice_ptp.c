@@ -2217,49 +2217,26 @@ ice_ptp_setup_sma_pins_e810t(struct ice_pf *pf, struct ptp_clock_info *info)
 }
 
 /**
- * ice_ptp_setup_pins_e810t - Setup PTP pins in sysfs
- * @pf: pointer to the PF instance
- * @info: PTP clock capabilities
- */
-static void
-ice_ptp_setup_pins_e810t(struct ice_pf *pf, struct ptp_clock_info *info)
-{
-	/* Check if SMA controller is in the netlist */
-	if (ice_is_feature_supported(pf, ICE_F_SMA_CTRL) &&
-	    !ice_is_pca9575_present(&pf->hw))
-		ice_clear_feature_support(pf, ICE_F_SMA_CTRL);
-
-	if (!ice_is_feature_supported(pf, ICE_F_SMA_CTRL)) {
-		info->n_ext_ts = N_EXT_TS_E810_NO_SMA;
-		info->n_per_out = N_PER_OUT_E810T_NO_SMA;
-		return;
-	}
-
-	info->n_per_out = N_PER_OUT_E810T;
-
-	if (ice_is_feature_supported(pf, ICE_F_PTP_EXTTS)) {
-		info->n_ext_ts = N_EXT_TS_E810;
-		info->n_pins = NUM_PTP_PINS_E810T;
-		info->verify = ice_verify_pin_e810t;
-	}
-
-	/* Complete setup of the SMA pins */
-	ice_ptp_setup_sma_pins_e810t(pf, info);
-}
-
-/**
  * ice_ptp_setup_pins_e810 - Setup PTP pins in sysfs
  * @pf: pointer to the PF instance
  * @info: PTP clock capabilities
  */
-static void ice_ptp_setup_pins_e810(struct ice_pf *pf, struct ptp_clock_info *info)
+static void
+ice_ptp_setup_pins_e810(struct ice_pf *pf, struct ptp_clock_info *info)
 {
 	info->n_per_out = N_PER_OUT_E810;
 
-	if (!ice_is_feature_supported(pf, ICE_F_PTP_EXTTS))
-		return;
+	if (ice_is_feature_supported(pf, ICE_F_PTP_EXTTS))
+		info->n_ext_ts = N_EXT_TS_E810;
 
-	info->n_ext_ts = N_EXT_TS_E810;
+	if (ice_is_feature_supported(pf, ICE_F_SMA_CTRL)) {
+		info->n_ext_ts = N_EXT_TS_E810;
+		info->n_pins = NUM_PTP_PINS_E810T;
+		info->verify = ice_verify_pin_e810t;
+
+		/* Complete setup of the SMA pins */
+		ice_ptp_setup_sma_pins_e810t(pf, info);
+	}
 }
 
 /**
@@ -2296,11 +2273,7 @@ static void
 ice_ptp_set_funcs_e810(struct ice_pf *pf, struct ptp_clock_info *info)
 {
 	info->enable = ice_ptp_gpio_enable_e810;
-
-	if (ice_is_e810t(&pf->hw))
-		ice_ptp_setup_pins_e810t(pf, info);
-	else
-		ice_ptp_setup_pins_e810(pf, info);
+	ice_ptp_setup_pins_e810(pf, info);
 }
 
 /**
