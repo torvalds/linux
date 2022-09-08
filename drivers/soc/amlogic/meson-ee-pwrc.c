@@ -469,6 +469,7 @@ static int meson_ee_pwrc_probe(struct platform_device *pdev)
 {
 	const struct meson_ee_pwrc_domain_data *match;
 	struct regmap *regmap_ao, *regmap_hhi;
+	struct device_node *parent_np;
 	struct meson_ee_pwrc *pwrc;
 	int i, ret;
 
@@ -495,7 +496,9 @@ static int meson_ee_pwrc_probe(struct platform_device *pdev)
 
 	pwrc->xlate.num_domains = match->count;
 
-	regmap_hhi = syscon_node_to_regmap(of_get_parent(pdev->dev.of_node));
+	parent_np = of_get_parent(pdev->dev.of_node);
+	regmap_hhi = syscon_node_to_regmap(parent_np);
+	of_node_put(parent_np);
 	if (IS_ERR(regmap_hhi)) {
 		dev_err(&pdev->dev, "failed to get HHI regmap\n");
 		return PTR_ERR(regmap_hhi);
