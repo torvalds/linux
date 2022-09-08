@@ -201,8 +201,18 @@ static int pvt_read_in(struct device *dev, u32 attr, int channel, long *val)
 			return ret;
 
 		n &= SAMPLE_DATA_MSK;
-		/* Convert the N bitstream count into voltage */
-		*val = (PVT_N_CONST * n - PVT_R_CONST) >> PVT_CONV_BITS;
+		/*
+		 * Convert the N bitstream count into voltage.
+		 * To support negative voltage calculation for 64bit machines
+		 * n must be cast to long, since n and *val differ both in
+		 * signedness and in size.
+		 * Division is used instead of right shift, because for signed
+		 * numbers, the sign bit is used to fill the vacated bit
+		 * positions, and if the number is negative, 1 is used.
+		 * BIT(x) may not be used instead of (1 << x) because it's
+		 * unsigned.
+		 */
+		*val = (PVT_N_CONST * (long)n - PVT_R_CONST) / (1 << PVT_CONV_BITS);
 
 		return 0;
 	default:
