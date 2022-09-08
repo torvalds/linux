@@ -15,8 +15,8 @@
 #include "intel_display_types.h"
 #include "intel_fdi.h"
 #include "intel_modeset_verify.h"
-#include "intel_pm.h"
 #include "intel_snps_phy.h"
+#include "skl_watermark.h"
 
 /*
  * Cross check the actual hw state with our own modeset state tracking (and its

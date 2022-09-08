@@ -5,15 +5,17 @@
 
 #include <drm/drm_atomic_state_helper.h>
 
+#include "i915_drv.h"
 #include "i915_reg.h"
 #include "i915_utils.h"
 #include "intel_atomic.h"
 #include "intel_bw.h"
 #include "intel_cdclk.h"
+#include "intel_display_core.h"
 #include "intel_display_types.h"
+#include "skl_watermark.h"
 #include "intel_mchbar_regs.h"
 #include "intel_pcode.h"
-#include "intel_pm.h"
 
 /* Parameters for Qclk Geyserville (QGV) */
 struct intel_qgv_point {

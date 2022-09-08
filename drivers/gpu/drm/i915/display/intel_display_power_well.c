@@ -17,10 +17,10 @@
 #include "intel_dpll.h"
 #include "intel_hotplug.h"
 #include "intel_pcode.h"
-#include "intel_pm.h"
 #include "intel_pps.h"
 #include "intel_tc.h"
 #include "intel_vga.h"
+#include "skl_watermark.h"
 #include "vlv_sideband.h"
 #include "vlv_sideband_reg.h"
 

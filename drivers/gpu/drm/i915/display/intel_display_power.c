@@ -19,8 +19,8 @@
 #include "intel_mchbar_regs.h"
 #include "intel_pch_refclk.h"
 #include "intel_pcode.h"
-#include "intel_pm.h"
 #include "intel_snps_phy.h"
+#include "skl_watermark.h"
 #include "vlv_sideband.h"
 
 #define for_each_power_domain_well(__dev_priv, __power_well, __domain)	\
