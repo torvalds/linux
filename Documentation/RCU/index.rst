@@ -9,7 +9,6 @@ RCU concepts
 .. toctree::
    :maxdepth: 3
 
-   arrayRCU
    checklist
    lockdep
    lockdep-splat
