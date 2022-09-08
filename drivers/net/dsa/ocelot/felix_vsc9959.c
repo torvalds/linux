@@ -367,6 +367,10 @@ static const u32 vsc9959_sys_regmap[] = {
 	REG(SYS_COUNT_DROP_GREEN_PRIO_5,	0x00043c),
 	REG(SYS_COUNT_DROP_GREEN_PRIO_6,	0x000440),
 	REG(SYS_COUNT_DROP_GREEN_PRIO_7,	0x000444),
+	REG(SYS_COUNT_SF_MATCHING_FRAMES,	0x000800),
+	REG(SYS_COUNT_SF_NOT_PASSING_FRAMES,	0x000804),
+	REG(SYS_COUNT_SF_NOT_PASSING_SDU,	0x000808),
+	REG(SYS_COUNT_SF_RED_FRAMES,		0x00080c),
 	REG(SYS_RESET_CFG,			0x000e00),
 	REG(SYS_SR_ETYPE_CFG,			0x000e04),
 	REG(SYS_VLAN_ETYPE_CFG,			0x000e08),
@@ -388,7 +392,6 @@ static const u32 vsc9959_sys_regmap[] = {
 	REG_RESERVED(SYS_MMGT_FAST),
 	REG_RESERVED(SYS_EVENTS_DIF),
 	REG_RESERVED(SYS_EVENTS_CORE),
-	REG(SYS_CNT,				0x000000),
 	REG(SYS_PTP_STATUS,			0x000f14),
 	REG(SYS_PTP_TXSTAMP,			0x000f18),
 	REG(SYS_PTP_NXT,			0x000f1c),
@@ -2577,10 +2580,12 @@ static void vsc9959_psfp_counters_get(struct ocelot *ocelot, u32 index,
 		   SYS_STAT_CFG_STAT_VIEW_M,
 		   SYS_STAT_CFG);
 
-	counters->match = ocelot_read_gix(ocelot, SYS_CNT, 0x200);
-	counters->not_pass_gate = ocelot_read_gix(ocelot, SYS_CNT, 0x201);
-	counters->not_pass_sdu = ocelot_read_gix(ocelot, SYS_CNT, 0x202);
-	counters->red = ocelot_read_gix(ocelot, SYS_CNT, 0x203);
+	counters->match = ocelot_read(ocelot, SYS_COUNT_SF_MATCHING_FRAMES);
+	counters->not_pass_gate = ocelot_read(ocelot,
+					      SYS_COUNT_SF_NOT_PASSING_FRAMES);
+	counters->not_pass_sdu = ocelot_read(ocelot,
+					     SYS_COUNT_SF_NOT_PASSING_SDU);
+	counters->red = ocelot_read(ocelot, SYS_COUNT_SF_RED_FRAMES);
 
 	/* Clear the PSFP counter. */
 	ocelot_write(ocelot,
