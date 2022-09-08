@@ -102,12 +102,18 @@
 
 #define PVT_POLL_DELAY_US	20
 #define PVT_POLL_TIMEOUT_US	20000
-#define PVT_H_CONST		100000
-#define PVT_CAL5_CONST		2047
-#define PVT_G_CONST		40000
 #define PVT_CONV_BITS		10
 #define PVT_N_CONST		90
 #define PVT_R_CONST		245805
+
+#define PVT_TEMP_MIN_mC		-40000
+#define PVT_TEMP_MAX_mC		125000
+
+/* Temperature coefficients for series 5 */
+#define PVT_SERIES5_H_CONST	200000
+#define PVT_SERIES5_G_CONST	60000
+#define PVT_SERIES5_J_CONST	-100
+#define PVT_SERIES5_CAL5_CONST	4094
 
 #define PRE_SCALER_X1	1
 #define PRE_SCALER_X2	2
@@ -174,13 +180,26 @@ static umode_t pvt_is_visible(const void *data, enum hwmon_sensor_types type,
 	return 0;
 }
 
+static long pvt_calc_temp(struct pvt_device *pvt, u32 nbs)
+{
+	/*
+	 * Convert the register value to degrees centigrade temperature:
+	 * T = G + H * (n / cal5 - 0.5) + J * F
+	 */
+	s64 tmp = PVT_SERIES5_G_CONST +
+		PVT_SERIES5_H_CONST * (s64)nbs / PVT_SERIES5_CAL5_CONST -
+		PVT_SERIES5_H_CONST / 2 +
+		PVT_SERIES5_J_CONST * (s64)pvt->ip_freq / HZ_PER_MHZ;
+
+	return clamp_val(tmp, PVT_TEMP_MIN_mC, PVT_TEMP_MAX_mC);
+}
+
 static int pvt_read_temp(struct device *dev, u32 attr, int channel, long *val)
 {
 	struct pvt_device *pvt = dev_get_drvdata(dev);
 	struct regmap *t_map = pvt->t_map;
 	u32 stat, nbs;
 	int ret;
-	u64 tmp;
 
 	switch (attr) {
 	case hwmon_temp_input:
@@ -201,9 +220,7 @@ static int pvt_read_temp(struct device *dev, u32 attr, int channel, long *val)
 		 * Convert the register value to
 		 * degrees centigrade temperature
 		 */
-		tmp = nbs * PVT_H_CONST;
-		do_div(tmp, PVT_CAL5_CONST);
-		*val = tmp - PVT_G_CONST - pvt->ip_freq;
+		*val = pvt_calc_temp(pvt, nbs);
 
 		return 0;
 	default:
@@ -327,7 +344,7 @@ static int pvt_init(struct pvt_device *pvt)
 		    (key >> 1) << CLK_SYNTH_HI_SFT |
 		    (key >> 1) << CLK_SYNTH_HOLD_SFT | CLK_SYNTH_EN;
 
-	pvt->ip_freq = sys_freq * 100 / (key + 2);
+	pvt->ip_freq = clk_get_rate(pvt->clk) / (key + 2);
 
 	if (t_num) {
 		ret = regmap_write(t_map, SDIF_SMPL_CTRL, 0x0);
