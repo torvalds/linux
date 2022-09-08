@@ -2823,6 +2823,7 @@ struct rtw89_hal {
 	u32 antenna_rx;
 	u8 tx_nss;
 	u8 rx_nss;
+	bool tx_path_diversity;
 	bool support_cckpd;
 	bool support_igi;
 
