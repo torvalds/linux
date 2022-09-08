@@ -4313,6 +4313,8 @@ static int cma_connect_ib(struct rdma_id_private *id_priv,
 	}
 
 	req.primary_path = &route->path_rec[0];
+	req.primary_path_inbound = route->path_rec_inbound;
+	req.primary_path_outbound = route->path_rec_outbound;
 	if (route->num_pri_alt_paths == 2)
 		req.alternate_path = &route->path_rec[1];
 
