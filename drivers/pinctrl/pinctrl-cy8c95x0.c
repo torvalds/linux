@@ -357,9 +357,9 @@ static bool cy8c95x0_volatile_register(struct device *dev, unsigned int reg)
 	case CY8C95X0_DRV_PP_SLOW:
 	case CY8C95X0_DRV_HIZ:
 		return true;
+	default:
+		return false;
 	}
-
-	return false;
 }
 
 static bool cy8c95x0_precious_register(struct device *dev, unsigned int reg)
