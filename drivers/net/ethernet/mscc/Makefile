@@ -7,6 +7,7 @@ mscc_ocelot_switch_lib-y := \
 	ocelot_io.o \
 	ocelot_police.o \
 	ocelot_ptp.o \
+	ocelot_stats.o \
 	ocelot_vcap.o \
 	vsc7514_regs.o
 mscc_ocelot_switch_lib-$(CONFIG_BRIDGE_MRP) += ocelot_mrp.o
