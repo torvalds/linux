@@ -1979,6 +1979,8 @@ static int tmac_init(struct rtw89_dev *rtwdev, u8 mac_idx)
 
 static int trxptcl_init(struct rtw89_dev *rtwdev, u8 mac_idx)
 {
+	const struct rtw89_chip_info *chip = rtwdev->chip;
+	const struct rtw89_rrsr_cfgs *rrsr = chip->rrsr_cfgs;
 	u32 reg, val, sifs;
 	int ret;
 
@@ -2008,6 +2010,11 @@ static int trxptcl_init(struct rtw89_dev *rtwdev, u8 mac_idx)
 
 	reg = rtw89_mac_reg_by_idx(R_AX_RXTRIG_TEST_USER_2, mac_idx);
 	rtw89_write32_set(rtwdev, reg, B_AX_RXTRIG_FCSCHK_EN);
+
+	reg = rtw89_mac_reg_by_idx(rrsr->ref_rate.addr, mac_idx);
+	rtw89_write32_mask(rtwdev, reg, rrsr->ref_rate.mask, rrsr->ref_rate.data);
+	reg = rtw89_mac_reg_by_idx(rrsr->rsc.addr, mac_idx);
+	rtw89_write32_mask(rtwdev, reg, rrsr->rsc.mask, rrsr->rsc.data);
 
 	return 0;
 }
@@ -2087,6 +2094,7 @@ static int rmac_init(struct rtw89_dev *rtwdev, u8 mac_idx)
 
 static int cmac_com_init(struct rtw89_dev *rtwdev, u8 mac_idx)
 {
+	enum rtw89_core_chip_id chip_id = rtwdev->chip->chip_id;
 	u32 val, reg;
 	int ret;
 
@@ -2100,6 +2108,11 @@ static int cmac_com_init(struct rtw89_dev *rtwdev, u8 mac_idx)
 	val = u32_replace_bits(val, 0, B_AX_TXSC_40M_MASK);
 	val = u32_replace_bits(val, 0, B_AX_TXSC_80M_MASK);
 	rtw89_write32(rtwdev, reg, val);
+
+	if (chip_id == RTL8852A || chip_id == RTL8852B) {
+		reg = rtw89_mac_reg_by_idx(R_AX_PTCL_RRSR1, mac_idx);
+		rtw89_write32_mask(rtwdev, reg, B_AX_RRSR_RATE_EN_MASK, RRSR_OFDM_CCK_EN);
+	}
 
 	return 0;
 }
