@@ -3328,7 +3328,7 @@
 			};
 		};
 
-		pmu@90b6000 {
+		pmu@90b6400 {
 			compatible = "qcom,sc7280-cpu-bwmon", "qcom,msm8998-bwmon";
 			reg = <0 0x090b6400 0 0x600>;
 
