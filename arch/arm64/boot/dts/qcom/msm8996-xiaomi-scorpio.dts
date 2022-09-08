@@ -279,15 +279,13 @@
 		"UIM_BATT_ALARM",	/* GPIO_21 */
 		"NC";			/* GPIO_22 */
 
-	keypad_default: keypad-default {
-		pinconf {
-			pins = "gpio7", "gpio10";
-			function = PMIC_GPIO_FUNC_FUNC1;
-			output-low;
-			qcom,drive-strength = <PMIC_GPIO_STRENGTH_LOW>;
-			power-source = <PM8994_GPIO_S4>;
-			bias-disable;
-		};
+	keypad_default: keypad-default-state {
+		pins = "gpio7", "gpio10";
+		function = PMIC_GPIO_FUNC_FUNC1;
+		output-low;
+		qcom,drive-strength = <PMIC_GPIO_STRENGTH_LOW>;
+		power-source = <PM8994_GPIO_S4>;
+		bias-disable;
 	};
 };
 

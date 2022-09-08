@@ -651,15 +651,13 @@
 };
 
 &pm8994_gpios {
-	irled_default: irled-default {
-		pinconf {
-			pins = "gpio5";
-			function = PMIC_GPIO_FUNC_FUNC1;
-			output-low;
-			qcom,drive-strength = <PMIC_GPIO_STRENGTH_HIGH>;
-			power-source = <PM8994_GPIO_S4>;
-			bias-disable;
-		};
+	irled_default: irled-default-state {
+		pins = "gpio5";
+		function = PMIC_GPIO_FUNC_FUNC1;
+		output-low;
+		qcom,drive-strength = <PMIC_GPIO_STRENGTH_HIGH>;
+		power-source = <PM8994_GPIO_S4>;
+		bias-disable;
 	};
 
 	wlan_en_default: wlan-en-state {
