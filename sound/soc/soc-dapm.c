@@ -3842,6 +3842,15 @@ snd_soc_dai_link_event_pre_pmu(struct snd_soc_dapm_widget *w,
 	unsigned int fmt;
 	int ret = 0;
 
+	/*
+	 * NOTE
+	 *
+	 * snd_pcm_hw_params is quite large (608 bytes on arm64) and is
+	 * starting to get a bit excessive for allocation on the stack,
+	 * especially when you're building with some of the KASAN type
+	 * stuff that increases stack usage.
+	 * So, we use kzalloc()/kfree() for params in this function.
+	 */
 	params = kzalloc(sizeof(*params), GFP_KERNEL);
 	if (!params)
 		return -ENOMEM;
@@ -3891,15 +3900,14 @@ snd_soc_dai_link_event_pre_pmu(struct snd_soc_dapm_widget *w,
 	}
 
 	/* Be a little careful as we don't want to overflow the mask array */
-	if (config->formats) {
-		fmt = ffs(config->formats) - 1;
-	} else {
-		dev_warn(w->dapm->dev, "ASoC: Invalid format %llx specified\n",
-			 config->formats);
+	if (!config->formats) {
+		dev_warn(w->dapm->dev, "ASoC: Invalid format was specified\n");
 
 		ret = -EINVAL;
 		goto out;
 	}
+
+	fmt = ffs(config->formats) - 1;
 
 	snd_mask_set(hw_param_mask(params, SNDRV_PCM_HW_PARAM_FORMAT), fmt);
 	hw_param_interval(params, SNDRV_PCM_HW_PARAM_RATE)->min =
@@ -3939,7 +3947,9 @@ snd_soc_dai_link_event_pre_pmu(struct snd_soc_dapm_widget *w,
 	runtime->rate = params_rate(params);
 
 out:
+	/* see above NOTE */
 	kfree(params);
+
 	return ret;
 }
 
