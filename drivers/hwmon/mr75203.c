@@ -30,6 +30,8 @@
 #define CH_NUM_MSK	GENMASK(31, 24)
 #define CH_NUM_SFT	24
 
+#define VM_NUM_MAX	(VM_NUM_MSK >> VM_NUM_SFT)
+
 /* Macro Common Register */
 #define CLK_SYNTH		0x00
 #define CLK_SYNTH_LO_SFT	0
@@ -106,6 +108,31 @@
 #define PVT_N_CONST		90
 #define PVT_R_CONST		245805
 
+/**
+ * struct voltage_device - VM single input parameters.
+ * @vm_map: Map channel number to VM index.
+ * @ch_map: Map channel number to channel index.
+ *
+ * The structure provides mapping between channel-number (0..N-1) to VM-index
+ * (0..num_vm-1) and channel-index (0..ch_num-1) where N = num_vm * ch_num.
+ */
+struct voltage_device {
+	u32 vm_map;
+	u32 ch_map;
+};
+
+/**
+ * struct voltage_channels - VM channel count.
+ * @total: Total number of channels in all VMs.
+ * @max: Maximum number of channels among all VMs.
+ *
+ * The structure provides channel count information across all VMs.
+ */
+struct voltage_channels {
+	u32 total;
+	u8 max;
+};
+
 struct pvt_device {
 	struct regmap		*c_map;
 	struct regmap		*t_map;
@@ -113,12 +140,12 @@ struct pvt_device {
 	struct regmap		*v_map;
 	struct clk		*clk;
 	struct reset_control	*rst;
+	struct voltage_device	*vd;
+	struct voltage_channels	vm_channels;
 	u32			t_num;
 	u32			p_num;
 	u32			v_num;
-	u32			c_num;
 	u32			ip_freq;
-	u8			*vm_idx;
 };
 
 static umode_t pvt_is_visible(const void *data, enum hwmon_sensor_types type,
@@ -184,11 +211,11 @@ static int pvt_read_in(struct device *dev, u32 attr, int channel, long *val)
 	u32 n, stat;
 	int ret;
 
-	if (channel >= pvt->v_num * pvt->c_num)
+	if (channel >= pvt->vm_channels.total)
 		return -EINVAL;
 
-	vm_idx = pvt->vm_idx[channel / pvt->c_num];
-	ch_idx = channel % pvt->c_num;
+	vm_idx = pvt->vd[channel].vm_map;
+	ch_idx = pvt->vd[channel].ch_map;
 
 	switch (attr) {
 	case hwmon_in_input:
@@ -388,7 +415,7 @@ static int pvt_init(struct pvt_device *pvt)
 		if (ret)
 			return ret;
 
-		val = (BIT(pvt->c_num) - 1) | VM_CH_INIT |
+		val = (BIT(pvt->vm_channels.max) - 1) | VM_CH_INIT |
 		      IP_POLL << SDIF_ADDR_SFT | SDIF_WRN_W | SDIF_PROG;
 		ret = regmap_write(v_map, SDIF_W, val);
 		if (ret < 0)
@@ -513,6 +540,60 @@ static int pvt_reset_control_deassert(struct device *dev, struct pvt_device *pvt
 	return devm_add_action_or_reset(dev, pvt_reset_control_assert, pvt);
 }
 
+static int pvt_get_active_channel(struct device *dev, struct pvt_device *pvt,
+				  u32 vm_num, u32 ch_num, u8 *vm_idx)
+{
+	u8 vm_active_ch[VM_NUM_MAX];
+	int ret, i, j, k;
+
+	ret = device_property_read_u8_array(dev, "moortec,vm-active-channels",
+					    vm_active_ch, vm_num);
+	if (ret) {
+		/*
+		 * Incase "moortec,vm-active-channels" property is not defined,
+		 * we assume each VM sensor has all of its channels active.
+		 */
+		memset(vm_active_ch, ch_num, vm_num);
+		pvt->vm_channels.max = ch_num;
+		pvt->vm_channels.total = ch_num * vm_num;
+	} else {
+		for (i = 0; i < vm_num; i++) {
+			if (vm_active_ch[i] > ch_num) {
+				dev_err(dev, "invalid active channels: %u\n",
+					vm_active_ch[i]);
+				return -EINVAL;
+			}
+
+			pvt->vm_channels.total += vm_active_ch[i];
+
+			if (vm_active_ch[i] > pvt->vm_channels.max)
+				pvt->vm_channels.max = vm_active_ch[i];
+		}
+	}
+
+	/*
+	 * Map between the channel-number to VM-index and channel-index.
+	 * Example - 3 VMs, "moortec,vm_active_ch" = <5 2 4>:
+	 * vm_map = [0 0 0 0 0 1 1 2 2 2 2]
+	 * ch_map = [0 1 2 3 4 0 1 0 1 2 3]
+	 */
+	pvt->vd = devm_kcalloc(dev, pvt->vm_channels.total, sizeof(*pvt->vd),
+			       GFP_KERNEL);
+	if (!pvt->vd)
+		return -ENOMEM;
+
+	k = 0;
+	for (i = 0; i < vm_num; i++) {
+		for (j = 0; j < vm_active_ch[i]; j++) {
+			pvt->vd[k].vm_map = vm_idx[i];
+			pvt->vd[k].ch_map = j;
+			k++;
+		}
+	}
+
+	return 0;
+}
+
 static int mr75203_probe(struct platform_device *pdev)
 {
 	u32 ts_num, vm_num, pd_num, ch_num, val, index, i;
@@ -564,7 +645,6 @@ static int mr75203_probe(struct platform_device *pdev)
 	pvt->t_num = ts_num;
 	pvt->p_num = pd_num;
 	pvt->v_num = vm_num;
-	pvt->c_num = ch_num;
 	val = 0;
 	if (ts_num)
 		val++;
@@ -601,44 +681,41 @@ static int mr75203_probe(struct platform_device *pdev)
 	}
 
 	if (vm_num) {
-		u32 total_ch;
+		u8 vm_idx[VM_NUM_MAX];
 
 		ret = pvt_get_regmap(pdev, "vm", pvt);
 		if (ret)
 			return ret;
 
-		pvt->vm_idx = devm_kcalloc(dev, vm_num, sizeof(*pvt->vm_idx),
-					   GFP_KERNEL);
-		if (!pvt->vm_idx)
-			return -ENOMEM;
-
-		ret = device_property_read_u8_array(dev, "intel,vm-map",
-						    pvt->vm_idx, vm_num);
+		ret = device_property_read_u8_array(dev, "intel,vm-map", vm_idx,
+						    vm_num);
 		if (ret) {
 			/*
 			 * Incase intel,vm-map property is not defined, we
 			 * assume incremental channel numbers.
 			 */
 			for (i = 0; i < vm_num; i++)
-				pvt->vm_idx[i] = i;
+				vm_idx[i] = i;
 		} else {
 			for (i = 0; i < vm_num; i++)
-				if (pvt->vm_idx[i] >= vm_num ||
-				    pvt->vm_idx[i] == 0xff) {
+				if (vm_idx[i] >= vm_num || vm_idx[i] == 0xff) {
 					pvt->v_num = i;
 					vm_num = i;
 					break;
 				}
 		}
 
-		total_ch = ch_num * vm_num;
-		in_config = devm_kcalloc(dev, total_ch + 1,
+		ret = pvt_get_active_channel(dev, pvt, vm_num, ch_num, vm_idx);
+		if (ret)
+			return ret;
+
+		in_config = devm_kcalloc(dev, pvt->vm_channels.total + 1,
 					 sizeof(*in_config), GFP_KERNEL);
 		if (!in_config)
 			return -ENOMEM;
 
-		memset32(in_config, HWMON_I_INPUT, total_ch);
-		in_config[total_ch] = 0;
+		memset32(in_config, HWMON_I_INPUT, pvt->vm_channels.total);
+		in_config[pvt->vm_channels.total] = 0;
 		pvt_in.config = in_config;
 
 		pvt_info[index++] = &pvt_in;
