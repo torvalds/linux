@@ -954,8 +954,7 @@ struct lan743x_tx {
 
 	struct napi_struct napi;
 	u32 frame_count;
-
-	struct sk_buff *overflow_skb;
+	u32 rqd_descriptors;
 };
 
 void lan743x_tx_set_timestamping_mode(struct lan743x_tx *tx,
@@ -1110,7 +1109,7 @@ struct lan743x_tx_buffer_info {
 	unsigned int    buffer_length;
 };
 
-#define LAN743X_TX_RING_SIZE    (50)
+#define LAN743X_TX_RING_SIZE    (128)
 
 /* OWN bit is set. ie, Descs are owned by RX DMAC */
 #define RX_DESC_DATA0_OWN_                (0x00008000)

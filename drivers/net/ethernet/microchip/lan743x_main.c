@@ -2066,11 +2066,13 @@ static netdev_tx_t lan743x_tx_xmit_frame(struct lan743x_tx *tx,
 {
 	int required_number_of_descriptors = 0;
 	unsigned int start_frame_length = 0;
+	netdev_tx_t retval = NETDEV_TX_OK;
 	unsigned int frame_length = 0;
 	unsigned int head_length = 0;
 	unsigned long irq_flags = 0;
 	bool do_timestamp = false;
 	bool ignore_sync = false;
+	struct netdev_queue *txq;
 	int nr_frags = 0;
 	bool gso = false;
 	int j;
@@ -2083,9 +2085,12 @@ static netdev_tx_t lan743x_tx_xmit_frame(struct lan743x_tx *tx,
 		if (required_number_of_descriptors > (tx->ring_size - 1)) {
 			dev_kfree_skb_irq(skb);
 		} else {
-			/* save to overflow buffer */
-			tx->overflow_skb = skb;
-			netif_stop_queue(tx->adapter->netdev);
+			/* save how many descriptors we needed to restart the queue */
+			tx->rqd_descriptors = required_number_of_descriptors;
+			retval = NETDEV_TX_BUSY;
+			txq = netdev_get_tx_queue(tx->adapter->netdev,
+						  tx->channel_number);
+			netif_tx_stop_queue(txq);
 		}
 		goto unlock;
 	}
@@ -2144,15 +2149,15 @@ finish:
 
 unlock:
 	spin_unlock_irqrestore(&tx->ring_lock, irq_flags);
-	return NETDEV_TX_OK;
+	return retval;
 }
 
 static int lan743x_tx_napi_poll(struct napi_struct *napi, int weight)
 {
 	struct lan743x_tx *tx = container_of(napi, struct lan743x_tx, napi);
 	struct lan743x_adapter *adapter = tx->adapter;
-	bool start_transmitter = false;
 	unsigned long irq_flags = 0;
+	struct netdev_queue *txq;
 	u32 ioc_bit = 0;
 
 	ioc_bit = DMAC_INT_BIT_TX_IOC_(tx->channel_number);
@@ -2163,23 +2168,19 @@ static int lan743x_tx_napi_poll(struct napi_struct *napi, int weight)
 
 	/* clean up tx ring */
 	lan743x_tx_release_completed_descriptors(tx);
-	if (netif_queue_stopped(adapter->netdev)) {
-		if (tx->overflow_skb) {
-			if (lan743x_tx_get_desc_cnt(tx, tx->overflow_skb) <=
-				lan743x_tx_get_avail_desc(tx))
-				start_transmitter = true;
+	txq = netdev_get_tx_queue(adapter->netdev, tx->channel_number);
+	if (netif_tx_queue_stopped(txq)) {
+		if (tx->rqd_descriptors) {
+			if (tx->rqd_descriptors <=
+			    lan743x_tx_get_avail_desc(tx)) {
+				tx->rqd_descriptors = 0;
+				netif_tx_wake_queue(txq);
+			}
 		} else {
-			netif_wake_queue(adapter->netdev);
+			netif_tx_wake_queue(txq);
 		}
 	}
 	spin_unlock_irqrestore(&tx->ring_lock, irq_flags);
-
-	if (start_transmitter) {
-		/* space is now available, transmit overflow skb */
-		lan743x_tx_xmit_frame(tx, tx->overflow_skb);
-		tx->overflow_skb = NULL;
-		netif_wake_queue(adapter->netdev);
-	}
 
 	if (!napi_complete(napi))
 		goto done;
@@ -2304,10 +2305,7 @@ static void lan743x_tx_close(struct lan743x_tx *tx)
 
 	lan743x_tx_release_all_descriptors(tx);
 
-	if (tx->overflow_skb) {
-		dev_kfree_skb(tx->overflow_skb);
-		tx->overflow_skb = NULL;
-	}
+	tx->rqd_descriptors = 0;
 
 	lan743x_tx_ring_cleanup(tx);
 }
@@ -2387,7 +2385,7 @@ static int lan743x_tx_open(struct lan743x_tx *tx)
 							 (tx->channel_number));
 	netif_napi_add_tx_weight(adapter->netdev,
 				 &tx->napi, lan743x_tx_napi_poll,
-				 tx->ring_size - 1);
+				 NAPI_POLL_WEIGHT);
 	napi_enable(&tx->napi);
 
 	data = 0;
@@ -3347,8 +3345,10 @@ static int lan743x_pcidev_probe(struct pci_dev *pdev,
 						 PCI11X1X_USED_TX_CHANNELS,
 						 LAN743X_USED_RX_CHANNELS);
 	} else {
-		netdev = devm_alloc_etherdev(&pdev->dev,
-					     sizeof(struct lan743x_adapter));
+		netdev = devm_alloc_etherdev_mqs(&pdev->dev,
+						 sizeof(struct lan743x_adapter),
+						 LAN743X_USED_TX_CHANNELS,
+						 LAN743X_USED_RX_CHANNELS);
 	}
 
 	if (!netdev)
