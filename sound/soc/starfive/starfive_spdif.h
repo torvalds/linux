@@ -153,6 +153,8 @@ struct sf_spdif_dev {
 	struct clk *spdif_core;
 	struct clk *audio_root;
 	struct clk *mclk_inner;
+	struct clk *mclk;
+	struct clk *mclk_ext;
 	struct reset_control *rst_apb;
 
 	struct snd_dmaengine_dai_dma_data dma_data;

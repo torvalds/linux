@@ -194,22 +194,9 @@ static int sf_spdif_hw_params(struct snd_pcm_substream *substream,
 		return -EINVAL;
 	}
 
-	ret = clk_set_rate(spdif->audio_root, audio_root);
-	if (ret) {
-		dev_err(dai->dev, "failed to set audio_root rate :%d\n", ret);
-		return ret;
-	}
-	dev_dbg(dai->dev, "audio_root get rate:%ld\n",
-			clk_get_rate(spdif->audio_root));
+	mclk = clk_get_rate(spdif->mclk_ext);
+	dev_dbg(dai->dev, "mclk_ext get rate:%d\n", mclk);
 
-	ret = clk_set_rate(spdif->mclk_inner, mclk);
-	if (ret) {
-		dev_err(dai->dev, "failed to set mclk_inner rate :%d\n", ret);
-		return ret;
-	}
-
-	mclk = clk_get_rate(spdif->mclk_inner);
-	dev_dbg(dai->dev, "mclk_inner get rate:%d\n", mclk);
 	/* (FCLK)4096000/128=32000 */
 	tsamplerate = (mclk / 128 + rate / 2) / rate - 1;
 	if (tsamplerate < 3)
@@ -229,6 +216,8 @@ static int sf_spdif_clks_get(struct platform_device *pdev,
 		{ .id = "spdif-core" },
 		{ .id = "audroot" },
 		{ .id = "mclk_inner"},
+		{ .id = "mclk_ext"},
+		{ .id = "mclk"},
 	};
 	int ret = devm_clk_bulk_get(&pdev->dev, ARRAY_SIZE(clks), clks);
 
@@ -236,6 +225,9 @@ static int sf_spdif_clks_get(struct platform_device *pdev,
 	spdif->spdif_core = clks[1].clk;
 	spdif->audio_root = clks[2].clk;
 	spdif->mclk_inner = clks[3].clk;
+	spdif->mclk_ext = clks[4].clk;
+	spdif->mclk = clks[5].clk;
+
 	return ret;
 }
 
@@ -286,6 +278,12 @@ static int sf_spdif_clk_init(struct platform_device *pdev,
 
 	dev_dbg(&pdev->dev, "spdif->spdif_apb = %lu\n", clk_get_rate(spdif->spdif_apb));
 	dev_dbg(&pdev->dev, "spdif->spdif_core = %lu\n", clk_get_rate(spdif->spdif_core));
+
+	ret = clk_set_parent(spdif->mclk, spdif->mclk_ext);
+	if (ret) {
+		dev_err(&pdev->dev, "failed to set parent for mclk to mclk_ext ret=%d\n", ret);
+		goto disable_core_clk;
+	}
 
 	ret = reset_control_deassert(spdif->rst_apb);
 	if (ret) {
