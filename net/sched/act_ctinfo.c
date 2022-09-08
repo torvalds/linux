@@ -341,23 +341,6 @@ nla_put_failure:
 	return -1;
 }
 
-static int tcf_ctinfo_walker(struct net *net, struct sk_buff *skb,
-			     struct netlink_callback *cb, int type,
-			     const struct tc_action_ops *ops,
-			     struct netlink_ext_ack *extack)
-{
-	struct tc_action_net *tn = net_generic(net, act_ctinfo_ops.net_id);
-
-	return tcf_generic_walker(tn, skb, cb, type, ops, extack);
-}
-
-static int tcf_ctinfo_search(struct net *net, struct tc_action **a, u32 index)
-{
-	struct tc_action_net *tn = net_generic(net, act_ctinfo_ops.net_id);
-
-	return tcf_idr_search(tn, a, index);
-}
-
 static void tcf_ctinfo_cleanup(struct tc_action *a)
 {
 	struct tcf_ctinfo *ci = to_ctinfo(a);
@@ -376,8 +359,6 @@ static struct tc_action_ops act_ctinfo_ops = {
 	.dump	= tcf_ctinfo_dump,
 	.init	= tcf_ctinfo_init,
 	.cleanup= tcf_ctinfo_cleanup,
-	.walk	= tcf_ctinfo_walker,
-	.lookup	= tcf_ctinfo_search,
 	.size	= sizeof(struct tcf_ctinfo),
 };
 
