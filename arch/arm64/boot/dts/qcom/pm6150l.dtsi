@@ -55,7 +55,7 @@
 			status = "disabled";
 		};
 
-		pm6150l_gpio: gpios@c000 {
+		pm6150l_gpio: gpio@c000 {
 			compatible = "qcom,pm6150l-gpio", "qcom,spmi-gpio";
 			reg = <0xc000>;
 			gpio-controller;

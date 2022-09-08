@@ -18,7 +18,7 @@
 			#thermal-sensor-cells = <0>;
 		};
 
-		pm7325_gpios: gpios@8800 {
+		pm7325_gpios: gpio@8800 {
 			compatible = "qcom,pm7325-gpio", "qcom,spmi-gpio";
 			reg = <0x8800>;
 			gpio-controller;
