@@ -242,28 +242,6 @@ static long udl_log_cpp(unsigned int cpp)
 	return __ffs(cpp);
 }
 
-static int udl_aligned_damage_clip(struct drm_rect *clip, int x, int y,
-				   int width, int height)
-{
-	int x1, x2;
-
-	if (WARN_ON_ONCE(x < 0) ||
-	    WARN_ON_ONCE(y < 0) ||
-	    WARN_ON_ONCE(width < 0) ||
-	    WARN_ON_ONCE(height < 0))
-		return -EINVAL;
-
-	x1 = ALIGN_DOWN(x, sizeof(unsigned long));
-	x2 = ALIGN(width + (x - x1), sizeof(unsigned long)) + x1;
-
-	clip->x1 = x1;
-	clip->y1 = y;
-	clip->x2 = x2;
-	clip->y2 = y + height;
-
-	return 0;
-}
-
 static int udl_handle_damage(struct drm_framebuffer *fb,
 			     const struct iosys_map *map,
 			     int x, int y, int width, int height)
@@ -281,11 +259,7 @@ static int udl_handle_damage(struct drm_framebuffer *fb,
 		return ret;
 	log_bpp = ret;
 
-	ret = udl_aligned_damage_clip(&clip, x, y, width, height);
-	if (ret)
-		return ret;
-	else if ((clip.x2 > fb->width) || (clip.y2 > fb->height))
-		return -EINVAL;
+	drm_rect_init(&clip, x, y, width, height);
 
 	ret = drm_gem_fb_begin_cpu_access(fb, DMA_FROM_DEVICE);
 	if (ret)

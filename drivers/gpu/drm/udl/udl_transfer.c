@@ -25,46 +25,6 @@
 #define MIN_RAW_PIX_BYTES	2
 #define MIN_RAW_CMD_BYTES	(RAW_HEADER_BYTES + MIN_RAW_PIX_BYTES)
 
-/*
- * Trims identical data from front and back of line
- * Sets new front buffer address and width
- * And returns byte count of identical pixels
- * Assumes CPU natural alignment (unsigned long)
- * for back and front buffer ptrs and width
- */
-#if 0
-static int udl_trim_hline(const u8 *bback, const u8 **bfront, int *width_bytes)
-{
-	int j, k;
-	const unsigned long *back = (const unsigned long *) bback;
-	const unsigned long *front = (const unsigned long *) *bfront;
-	const int width = *width_bytes / sizeof(unsigned long);
-	int identical = width;
-	int start = width;
-	int end = width;
-
-	for (j = 0; j < width; j++) {
-		if (back[j] != front[j]) {
-			start = j;
-			break;
-		}
-	}
-
-	for (k = width - 1; k > j; k--) {
-		if (back[k] != front[k]) {
-			end = k+1;
-			break;
-		}
-	}
-
-	identical = start + (width - end);
-	*bfront = (u8 *) &front[start];
-	*width_bytes = (end - start) * sizeof(unsigned long);
-
-	return identical * sizeof(unsigned long);
-}
-#endif
-
 static inline u16 pixel32_to_be16(const uint32_t pixel)
 {
 	return (((pixel >> 3) & 0x001f) |
