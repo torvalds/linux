@@ -128,9 +128,11 @@ trip_point_temp_store(struct device *dev, struct device_attribute *attr,
 	if (kstrtoint(buf, 10, &temperature))
 		return -EINVAL;
 
-	ret = tz->ops->set_trip_temp(tz, trip, temperature);
-	if (ret)
-		return ret;
+	if (tz->ops->set_trip_temp) {
+		ret = tz->ops->set_trip_temp(tz, trip, temperature);
+		if (ret)
+			return ret;
+	}
 
 	if (tz->trips)
 		tz->trips[trip].temperature = temperature;
