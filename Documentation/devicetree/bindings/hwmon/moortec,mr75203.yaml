@@ -9,6 +9,32 @@ title: Moortec Semiconductor MR75203 PVT Controller bindings
 maintainers:
   - Rahul Tanwar <rtanwar@maxlinear.com>
 
+description: |
+  A Moortec PVT (Process, Voltage, Temperature) monitoring logic design can
+  include many different units.
+  Such a design will usually consists of several Moortec's embedded analog IPs,
+  and a single Moortec controller (mr75203) to configure and control the IPs.
+
+  Some of the Moortec's analog hard IPs that can be used in a design:
+  *) Temperature Sensor (TS) - used to monitor core temperature (e.g. mr74137).
+  *) Voltage Monitor (VM) - used to monitor voltage levels (e.g. mr74138).
+  *) Process Detector (PD) - used to assess silicon speed (e.g. mr74139).
+  *) Delay Chain - ring oscillator connected to the PD, used to measure IO
+     based transistors (e.g. mr76008 ring oscillator at 1.1V, mr76007 ring
+     oscillator at 1.8V).
+  *) Pre Scaler - provides divide-by-X scaling of input voltage, which can then
+     be presented for VM for measurement within its range (e.g. mr76006 -
+     divide by 2 pre-scaler).
+
+  TS, VM & PD also include a digital interface, which consists of configuration
+  inputs and measurement outputs.
+
+  Some of the units have number of series, each series can have slightly
+  different characteristics.
+
+  The mr75203 binding describes configuration for the controller unit, but also
+  for some of the analog IPs.
+
 properties:
   compatible:
     const: moortec,mr75203
