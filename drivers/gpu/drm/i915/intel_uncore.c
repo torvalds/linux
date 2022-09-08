@@ -928,6 +928,9 @@ find_fw_domain(struct intel_uncore *uncore, u32 offset)
 {
 	const struct intel_forcewake_range *entry;
 
+	if (IS_GSI_REG(offset))
+		offset += uncore->gsi_offset;
+
 	entry = BSEARCH(offset,
 			uncore->fw_domains_table,
 			uncore->fw_domains_table_entries,
@@ -1142,6 +1145,9 @@ static bool is_shadowed(struct intel_uncore *uncore, u32 offset)
 {
 	if (drm_WARN_ON(&uncore->i915->drm, !uncore->shadowed_reg_table))
 		return false;
+
+	if (IS_GSI_REG(offset))
+		offset += uncore->gsi_offset;
 
 	return BSEARCH(offset,
 		       uncore->shadowed_reg_table,
@@ -1995,8 +2001,8 @@ static int __fw_domain_init(struct intel_uncore *uncore,
 
 	d->uncore = uncore;
 	d->wake_count = 0;
-	d->reg_set = uncore->regs + i915_mmio_reg_offset(reg_set);
-	d->reg_ack = uncore->regs + i915_mmio_reg_offset(reg_ack);
+	d->reg_set = uncore->regs + i915_mmio_reg_offset(reg_set) + uncore->gsi_offset;
+	d->reg_ack = uncore->regs + i915_mmio_reg_offset(reg_ack) + uncore->gsi_offset;
 
 	d->id = domain_id;
 

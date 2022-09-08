@@ -274,6 +274,7 @@ struct intel_gt_definition {
 	enum intel_gt_type type;
 	char *name;
 	u32 mapping_base;
+	u32 gsi_offset;
 	intel_engine_mask_t engine_mask;
 };
 
