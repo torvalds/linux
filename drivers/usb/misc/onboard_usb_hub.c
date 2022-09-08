@@ -71,10 +71,7 @@ static int onboard_hub_power_off(struct onboard_hub *hub)
 {
 	int err;
 
-	if (hub->reset_gpio) {
-		gpiod_set_value_cansleep(hub->reset_gpio, 1);
-		fsleep(hub->pdata->reset_us);
-	}
+	gpiod_set_value_cansleep(hub->reset_gpio, 1);
 
 	err = regulator_disable(hub->vdd);
 	if (err) {
