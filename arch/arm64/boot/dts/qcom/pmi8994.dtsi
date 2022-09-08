@@ -21,7 +21,7 @@
 		};
 
 		pmi8994_mpps: mpps@a000 {
-			compatible = "qcom,pmi8994-mpp";
+			compatible = "qcom,pmi8994-mpp", "qcom,spmi-mpp";
 			reg = <0xa000>;
 			gpio-controller;
 			gpio-ranges = <&pmi8994_mpps 0 0 4>;
