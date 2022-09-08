@@ -75,7 +75,6 @@ required:
   - reg
   - reg-names
   - clocks
-  - resets
   - "#thermal-sensor-cells"
 
 additionalProperties: false
