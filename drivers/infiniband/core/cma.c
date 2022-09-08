@@ -2026,6 +2026,8 @@ static void _destroy_id(struct rdma_id_private *id_priv,
 		cma_id_put(id_priv->id.context);
 
 	kfree(id_priv->id.route.path_rec);
+	kfree(id_priv->id.route.path_rec_inbound);
+	kfree(id_priv->id.route.path_rec_outbound);
 
 	put_net(id_priv->id.route.addr.dev_addr.net);
 	kfree(id_priv);
@@ -2817,26 +2819,72 @@ int rdma_set_min_rnr_timer(struct rdma_cm_id *id, u8 min_rnr_timer)
 }
 EXPORT_SYMBOL(rdma_set_min_rnr_timer);
 
+static void route_set_path_rec_inbound(struct cma_work *work,
+				       struct sa_path_rec *path_rec)
+{
+	struct rdma_route *route = &work->id->id.route;
+
+	if (!route->path_rec_inbound) {
+		route->path_rec_inbound =
+			kzalloc(sizeof(*route->path_rec_inbound), GFP_KERNEL);
+		if (!route->path_rec_inbound)
+			return;
+	}
+
+	*route->path_rec_inbound = *path_rec;
+}
+
+static void route_set_path_rec_outbound(struct cma_work *work,
+					struct sa_path_rec *path_rec)
+{
+	struct rdma_route *route = &work->id->id.route;
+
+	if (!route->path_rec_outbound) {
+		route->path_rec_outbound =
+			kzalloc(sizeof(*route->path_rec_outbound), GFP_KERNEL);
+		if (!route->path_rec_outbound)
+			return;
+	}
+
+	*route->path_rec_outbound = *path_rec;
+}
+
 static void cma_query_handler(int status, struct sa_path_rec *path_rec,
-			      void *context)
+			      int num_prs, void *context)
 {
 	struct cma_work *work = context;
 	struct rdma_route *route;
+	int i;
 
 	route = &work->id->id.route;
 
-	if (!status) {
-		route->num_pri_alt_paths = 1;
-		*route->path_rec = *path_rec;
-	} else {
-		work->old_state = RDMA_CM_ROUTE_QUERY;
-		work->new_state = RDMA_CM_ADDR_RESOLVED;
-		work->event.event = RDMA_CM_EVENT_ROUTE_ERROR;
-		work->event.status = status;
-		pr_debug_ratelimited("RDMA CM: ROUTE_ERROR: failed to query path. status %d\n",
-				     status);
+	if (status)
+		goto fail;
+
+	for (i = 0; i < num_prs; i++) {
+		if (!path_rec[i].flags || (path_rec[i].flags & IB_PATH_GMP))
+			*route->path_rec = path_rec[i];
+		else if (path_rec[i].flags & IB_PATH_INBOUND)
+			route_set_path_rec_inbound(work, &path_rec[i]);
+		else if (path_rec[i].flags & IB_PATH_OUTBOUND)
+			route_set_path_rec_outbound(work, &path_rec[i]);
+	}
+	if (!route->path_rec) {
+		status = -EINVAL;
+		goto fail;
 	}
 
+	route->num_pri_alt_paths = 1;
+	queue_work(cma_wq, &work->work);
+	return;
+
+fail:
+	work->old_state = RDMA_CM_ROUTE_QUERY;
+	work->new_state = RDMA_CM_ADDR_RESOLVED;
+	work->event.event = RDMA_CM_EVENT_ROUTE_ERROR;
+	work->event.status = status;
+	pr_debug_ratelimited("RDMA CM: ROUTE_ERROR: failed to query path. status %d\n",
+			     status);
 	queue_work(cma_wq, &work->work);
 }
 
