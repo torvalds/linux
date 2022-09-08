@@ -877,23 +877,6 @@ static int tcf_ife_act(struct sk_buff *skb, const struct tc_action *a,
 	return tcf_ife_decode(skb, a, res);
 }
 
-static int tcf_ife_walker(struct net *net, struct sk_buff *skb,
-			  struct netlink_callback *cb, int type,
-			  const struct tc_action_ops *ops,
-			  struct netlink_ext_ack *extack)
-{
-	struct tc_action_net *tn = net_generic(net, act_ife_ops.net_id);
-
-	return tcf_generic_walker(tn, skb, cb, type, ops, extack);
-}
-
-static int tcf_ife_search(struct net *net, struct tc_action **a, u32 index)
-{
-	struct tc_action_net *tn = net_generic(net, act_ife_ops.net_id);
-
-	return tcf_idr_search(tn, a, index);
-}
-
 static struct tc_action_ops act_ife_ops = {
 	.kind = "ife",
 	.id = TCA_ID_IFE,
@@ -902,8 +885,6 @@ static struct tc_action_ops act_ife_ops = {
 	.dump = tcf_ife_dump,
 	.cleanup = tcf_ife_cleanup,
 	.init = tcf_ife_init,
-	.walk = tcf_ife_walker,
-	.lookup = tcf_ife_search,
 	.size =	sizeof(struct tcf_ife_info),
 };
 
