@@ -18,6 +18,7 @@ properties:
     oneOf:
       - enum:
           - qcom,msm8916-mss-pil
+          - qcom,msm8974-mss-pil
 
       - const: qcom,q6v5-pil
         description: Deprecated, prefer using qcom,msm8916-mss-pil
@@ -75,6 +76,9 @@ properties:
 
   pll-supply:
     description: PLL proxy supply (control handed over after startup)
+
+  mss-supply:
+    description: MSS power domain supply (only valid for qcom,msm8974-mss-pil)
 
   resets:
     items:
@@ -181,6 +185,17 @@ required:
   - smd-edge
 
 allOf:
+  - if:
+      properties:
+        compatible:
+          const: qcom,msm8974-mss-pil
+    then:
+      required:
+        - mss-supply
+    else:
+      properties:
+        mss-supply: false
+
   # Fallbacks for deprecated properties
   - oneOf:
       - required:
