@@ -2207,6 +2207,7 @@ amdgpu_pci_remove(struct pci_dev *pdev)
 		if (need_to_reset_gpu) {
 			struct amdgpu_reset_context reset_context;
 
+			adev->shutdown = true;
 			memset(&reset_context, 0, sizeof(reset_context));
 			reset_context.method = AMD_RESET_METHOD_NONE;
 			reset_context.reset_req_dev = adev;
