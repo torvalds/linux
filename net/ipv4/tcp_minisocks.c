@@ -347,6 +347,21 @@ void tcp_twsk_destructor(struct sock *sk)
 }
 EXPORT_SYMBOL_GPL(tcp_twsk_destructor);
 
+void tcp_twsk_purge(struct list_head *net_exit_list, int family)
+{
+	struct net *net;
+
+	list_for_each_entry(net, net_exit_list, exit_list) {
+		/* The last refcount is decremented in tcp_sk_exit_batch() */
+		if (refcount_read(&net->ipv4.tcp_death_row.tw_refcount) == 1)
+			continue;
+
+		inet_twsk_purge(&tcp_hashinfo, family);
+		break;
+	}
+}
+EXPORT_SYMBOL_GPL(tcp_twsk_purge);
+
 /* Warning : This function is called without sk_listener being locked.
  * Be sure to read socket fields once, as their value could change under us.
  */
