@@ -884,7 +884,7 @@ static ssize_t hgpk_trigger_recal(struct psmouse *psmouse, void *data,
 
 	/*
 	 * We queue work instead of doing recalibration right here
-	 * to avoid adding locking to to hgpk_force_recalibrate()
+	 * to avoid adding locking to hgpk_force_recalibrate()
 	 * since workqueue provides serialization.
 	 */
 	psmouse_queue_work(psmouse, &priv->recalib_wq, 0);
