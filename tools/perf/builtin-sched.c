@@ -690,6 +690,27 @@ static void create_tasks(struct perf_sched *sched)
 	}
 }
 
+static void destroy_tasks(struct perf_sched *sched)
+	UNLOCK_FUNCTION(sched->start_work_mutex)
+	UNLOCK_FUNCTION(sched->work_done_wait_mutex)
+{
+	struct task_desc *task;
+	unsigned long i;
+	int err;
+
+	mutex_unlock(&sched->start_work_mutex);
+	mutex_unlock(&sched->work_done_wait_mutex);
+	/* Get rid of threads so they won't be upset by mutex destrunction */
+	for (i = 0; i < sched->nr_tasks; i++) {
+		task = sched->tasks[i];
+		err = pthread_join(task->thread, NULL);
+		BUG_ON(err);
+		sem_destroy(&task->sleep_sem);
+		sem_destroy(&task->ready_for_work);
+		sem_destroy(&task->work_done_sem);
+	}
+}
+
 static void wait_for_tasks(struct perf_sched *sched)
 	EXCLUSIVE_LOCKS_REQUIRED(sched->work_done_wait_mutex)
 	EXCLUSIVE_LOCKS_REQUIRED(sched->start_work_mutex)
@@ -3324,8 +3345,7 @@ static int perf_sched__replay(struct perf_sched *sched)
 		run_one_test(sched);
 
 	sched->thread_funcs_exit = true;
-	mutex_unlock(&sched->start_work_mutex);
-	mutex_unlock(&sched->work_done_wait_mutex);
+	destroy_tasks(sched);
 	return 0;
 }
 
