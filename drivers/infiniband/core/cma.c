@@ -2241,14 +2241,14 @@ cma_ib_new_conn_id(const struct rdma_cm_id *listen_id,
 		goto err;
 
 	rt = &id->route;
-	rt->num_paths = ib_event->param.req_rcvd.alternate_path ? 2 : 1;
-	rt->path_rec = kmalloc_array(rt->num_paths, sizeof(*rt->path_rec),
-				     GFP_KERNEL);
+	rt->num_pri_alt_paths = ib_event->param.req_rcvd.alternate_path ? 2 : 1;
+	rt->path_rec = kmalloc_array(rt->num_pri_alt_paths,
+				     sizeof(*rt->path_rec), GFP_KERNEL);
 	if (!rt->path_rec)
 		goto err;
 
 	rt->path_rec[0] = *path;
-	if (rt->num_paths == 2)
+	if (rt->num_pri_alt_paths == 2)
 		rt->path_rec[1] = *ib_event->param.req_rcvd.alternate_path;
 
 	if (net_dev) {
@@ -2826,7 +2826,7 @@ static void cma_query_handler(int status, struct sa_path_rec *path_rec,
 	route = &work->id->id.route;
 
 	if (!status) {
-		route->num_paths = 1;
+		route->num_pri_alt_paths = 1;
 		*route->path_rec = *path_rec;
 	} else {
 		work->old_state = RDMA_CM_ROUTE_QUERY;
@@ -3081,7 +3081,7 @@ int rdma_set_ib_path(struct rdma_cm_id *id,
 		dev_put(ndev);
 	}
 
-	id->route.num_paths = 1;
+	id->route.num_pri_alt_paths = 1;
 	return 0;
 
 err_free:
@@ -3214,7 +3214,7 @@ static int cma_resolve_iboe_route(struct rdma_id_private *id_priv)
 		goto err1;
 	}
 
-	route->num_paths = 1;
+	route->num_pri_alt_paths = 1;
 
 	ndev = cma_iboe_set_path_rec_l2_fields(id_priv);
 	if (!ndev) {
@@ -3274,7 +3274,7 @@ static int cma_resolve_iboe_route(struct rdma_id_private *id_priv)
 err2:
 	kfree(route->path_rec);
 	route->path_rec = NULL;
-	route->num_paths = 0;
+	route->num_pri_alt_paths = 0;
 err1:
 	kfree(work);
 	return ret;
@@ -4265,7 +4265,7 @@ static int cma_connect_ib(struct rdma_id_private *id_priv,
 	}
 
 	req.primary_path = &route->path_rec[0];
-	if (route->num_paths == 2)
+	if (route->num_pri_alt_paths == 2)
 		req.alternate_path = &route->path_rec[1];
 
 	req.ppath_sgid_attr = id_priv->id.route.addr.dev_addr.sgid_attr;
