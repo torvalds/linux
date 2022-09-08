@@ -53,6 +53,7 @@
 #include <linux/bsearch.h>
 #include <linux/dynamic_debug.h>
 #include <linux/audit.h>
+#include <linux/cfi.h>
 #include <uapi/linux/module.h>
 #include "internal.h"
 
@@ -2597,8 +2598,9 @@ static int complete_formation(struct module *mod, struct load_info *info)
 	if (err < 0)
 		goto out;
 
-	/* This relies on module_mutex for list integrity. */
+	/* These rely on module_mutex for list integrity. */
 	module_bug_finalize(info->hdr, info->sechdrs, mod);
+	module_cfi_finalize(info->hdr, info->sechdrs, mod);
 
 	if (module_check_misalignment(mod))
 		goto out_misaligned;
@@ -2659,8 +2661,6 @@ static int unknown_module_param_cb(char *param, char *val, const char *modname,
 		pr_warn("%s: unknown parameter '%s' ignored\n", modname, param);
 	return 0;
 }
-
-static void cfi_init(struct module *mod);
 
 /*
  * Allocate and load the module: note that size of section 0 is always
@@ -2790,9 +2790,6 @@ static int load_module(struct load_info *info, const char __user *uargs,
 		goto free_modinfo;
 
 	flush_module_icache(mod);
-
-	/* Setup CFI for the module. */
-	cfi_init(mod);
 
 	/* Now copy in args */
 	mod->args = strndup_user(uargs, ~0UL >> 1);
@@ -2953,32 +2950,6 @@ SYSCALL_DEFINE3(finit_module, int, fd, const char __user *, uargs, int, flags)
 static inline int within(unsigned long addr, void *start, unsigned long size)
 {
 	return ((void *)addr >= start && (void *)addr < start + size);
-}
-
-static void cfi_init(struct module *mod)
-{
-#ifdef CONFIG_CFI_CLANG
-	initcall_t *init;
-#ifdef CONFIG_MODULE_UNLOAD
-	exitcall_t *exit;
-#endif
-
-	rcu_read_lock_sched();
-	mod->cfi_check = (cfi_check_fn)
-		find_kallsyms_symbol_value(mod, "__cfi_check");
-	init = (initcall_t *)
-		find_kallsyms_symbol_value(mod, "__cfi_jt_init_module");
-	/* Fix init/exit functions to point to the CFI jump table */
-	if (init)
-		mod->init = *init;
-#ifdef CONFIG_MODULE_UNLOAD
-	exit = (exitcall_t *)
-		find_kallsyms_symbol_value(mod, "__cfi_jt_cleanup_module");
-	if (exit)
-		mod->exit = *exit;
-#endif
-	rcu_read_unlock_sched();
-#endif
 }
 
 /* Keep in sync with MODULE_FLAGS_BUF_SIZE !!! */
