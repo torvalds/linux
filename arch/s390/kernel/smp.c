@@ -55,6 +55,7 @@
 #include <asm/stacktrace.h>
 #include <asm/topology.h>
 #include <asm/vdso.h>
+#include <asm/maccess.h>
 #include "entry.h"
 
 enum {

@@ -15,6 +15,7 @@
 #include <asm/checksum.h>
 #include <asm/abs_lowcore.h>
 #include <asm/os_info.h>
+#include <asm/maccess.h>
 #include <asm/asm-offsets.h>
 
 /*
