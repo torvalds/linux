@@ -1771,11 +1771,9 @@ static int iqs7222_parse_chan(struct iqs7222_private *iqs7222, int chan_index)
 	if (!chan_node)
 		return 0;
 
-	if (dev_desc->allow_offset) {
-		sys_setup[dev_desc->allow_offset] |= BIT(chan_index);
-		if (fwnode_property_present(chan_node, "azoteq,ulp-allow"))
-			sys_setup[dev_desc->allow_offset] &= ~BIT(chan_index);
-	}
+	if (dev_desc->allow_offset &&
+	    fwnode_property_present(chan_node, "azoteq,ulp-allow"))
+		sys_setup[dev_desc->allow_offset] &= ~BIT(chan_index);
 
 	chan_setup[0] |= IQS7222_CHAN_SETUP_0_CHAN_EN;
 
@@ -2205,6 +2203,9 @@ static int iqs7222_parse_all(struct iqs7222_private *iqs7222)
 	const struct iqs7222_reg_grp_desc *reg_grps = dev_desc->reg_grps;
 	u16 *sys_setup = iqs7222->sys_setup;
 	int error, i;
+
+	if (dev_desc->allow_offset)
+		sys_setup[dev_desc->allow_offset] = U16_MAX;
 
 	if (dev_desc->event_offset)
 		sys_setup[dev_desc->event_offset] = IQS7222_EVENT_MASK_ATI;
