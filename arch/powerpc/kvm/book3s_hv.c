@@ -4629,6 +4629,9 @@ int kvmhv_run_single_vcpu(struct kvm_vcpu *vcpu, u64 time_limit,
 
 	set_irq_happened(trap);
 
+	vcpu->cpu = -1;
+	vcpu->arch.thread_cpu = -1;
+
 	context_tracking_guest_exit();
 	if (!vtime_accounting_enabled_this_cpu()) {
 		local_irq_enable();
@@ -4643,9 +4646,6 @@ int kvmhv_run_single_vcpu(struct kvm_vcpu *vcpu, u64 time_limit,
 		local_irq_disable();
 	}
 	vtime_account_guest_exit();
-
-	vcpu->cpu = -1;
-	vcpu->arch.thread_cpu = -1;
 
 	powerpc_local_irq_pmu_restore(flags);
 
