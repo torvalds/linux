@@ -222,7 +222,7 @@ void get_rate_set(struct adapter *padapter, unsigned char *pbssrate, int *bssrat
 	memcpy(pbssrate, supportedrates, *bssrate_len);
 }
 
-void UpdateBrateTbl(struct adapter *Adapter, u8 *mbrate)
+void UpdateBrateTbl(u8 *mbrate)
 {
 	u8	i;
 	u8	rate;
