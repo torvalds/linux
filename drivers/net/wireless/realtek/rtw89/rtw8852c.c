@@ -152,6 +152,8 @@ static const struct rtw89_dig_regs rtw8852c_dig_regs = {
 };
 
 static void rtw8852c_ctrl_btg(struct rtw89_dev *rtwdev, bool btg);
+static void rtw8852c_ctrl_tx_path_tmac(struct rtw89_dev *rtwdev, u8 tx_path,
+				       enum rtw89_mac_idx mac_idx);
 
 static int rtw8852c_pwr_on_func(struct rtw89_dev *rtwdev)
 {
@@ -1714,11 +1716,13 @@ static void rtw8852c_set_channel_bb(struct rtw89_dev *rtwdev,
 				    const struct rtw89_chan *chan,
 				    enum rtw89_phy_idx phy_idx)
 {
+	struct rtw89_hal *hal = &rtwdev->hal;
 	bool cck_en = chan->band_type == RTW89_BAND_2G;
 	u8 pri_ch_idx = chan->pri_ch_idx;
 	u32 mask, reg;
 	u32 ru_alloc_msk[2] = {B_P80_AT_HIGH_FREQ_RU_ALLOC_PHY0,
 			       B_P80_AT_HIGH_FREQ_RU_ALLOC_PHY1};
+	u8 ntx_path;
 
 	if (chan->band_type == RTW89_BAND_2G)
 		rtw8852c_ctrl_sco_cck(rtwdev, chan->channel,
@@ -1795,6 +1799,13 @@ static void rtw8852c_set_channel_bb(struct rtw89_dev *rtwdev,
 		rtw89_phy_write32_set(rtwdev, R_MUIC, B_MUIC_EN);
 	else
 		rtw89_phy_write32_clr(rtwdev, R_MUIC, B_MUIC_EN);
+
+	if (hal->antenna_tx)
+		ntx_path = hal->antenna_tx;
+	else
+		ntx_path = chan->band_type == RTW89_BAND_6G ? RF_B : RF_AB;
+
+	rtw8852c_ctrl_tx_path_tmac(rtwdev, ntx_path, (enum rtw89_mac_idx)phy_idx);
 
 	rtw8852c_bb_reset_all(rtwdev, phy_idx);
 }
@@ -2505,7 +2516,6 @@ static void rtw8852c_bb_ctrl_btc_preagc(struct rtw89_dev *rtwdev, bool bt_en)
 static void rtw8852c_bb_cfg_txrx_path(struct rtw89_dev *rtwdev)
 {
 	struct rtw89_hal *hal = &rtwdev->hal;
-	u8 ntx_path = hal->antenna_tx ? hal->antenna_tx : RF_AB;
 
 	rtw8852c_bb_cfg_rx_path(rtwdev, RF_PATH_AB);
 
@@ -2520,8 +2530,6 @@ static void rtw8852c_bb_cfg_txrx_path(struct rtw89_dev *rtwdev)
 		rtw89_phy_write32_mask(rtwdev, R_RXHE, B_RXHE_MAX_NSS, 1);
 		rtw89_phy_write32_mask(rtwdev, R_RXHE, B_RXHETB_MAX_NSS, 1);
 	}
-
-	rtw8852c_ctrl_tx_path_tmac(rtwdev, ntx_path, RTW89_MAC_0);
 }
 
 static u8 rtw8852c_get_thermal(struct rtw89_dev *rtwdev, enum rtw89_rf_path rf_path)
