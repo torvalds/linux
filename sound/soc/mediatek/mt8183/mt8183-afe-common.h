@@ -99,6 +99,9 @@ unsigned int mt8183_general_rate_transform(struct device *dev,
 unsigned int mt8183_rate_transform(struct device *dev,
 				   unsigned int rate, int aud_blk);
 
+int mt8183_dai_i2s_set_share(struct mtk_base_afe *afe, const char *main_i2s_name,
+			     const char *secondary_i2s_name);
+
 /* dai register */
 int mt8183_dai_adda_register(struct mtk_base_afe *afe);
 int mt8183_dai_pcm_register(struct mtk_base_afe *afe);
