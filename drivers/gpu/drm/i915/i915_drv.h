@@ -38,7 +38,6 @@
 
 #include "display/intel_display.h"
 #include "display/intel_display_core.h"
-#include "display/intel_dsb.h"
 
 #include "gem/i915_gem_context_types.h"
 #include "gem/i915_gem_lmem.h"
