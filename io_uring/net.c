@@ -291,13 +291,13 @@ int io_sendmsg(struct io_kiocb *req, unsigned int issue_flags)
 	if (ret < min_ret) {
 		if (ret == -EAGAIN && (issue_flags & IO_URING_F_NONBLOCK))
 			return io_setup_async_msg(req, kmsg, issue_flags);
-		if (ret == -ERESTARTSYS)
-			ret = -EINTR;
 		if (ret > 0 && io_net_retry(sock, flags)) {
 			sr->done_io += ret;
 			req->flags |= REQ_F_PARTIAL_IO;
 			return io_setup_async_msg(req, kmsg, issue_flags);
 		}
+		if (ret == -ERESTARTSYS)
+			ret = -EINTR;
 		req_set_fail(req);
 	}
 	/* fast path, check for non-NULL to avoid function call */
@@ -352,8 +352,6 @@ int io_send(struct io_kiocb *req, unsigned int issue_flags)
 	if (ret < min_ret) {
 		if (ret == -EAGAIN && (issue_flags & IO_URING_F_NONBLOCK))
 			return -EAGAIN;
-		if (ret == -ERESTARTSYS)
-			ret = -EINTR;
 		if (ret > 0 && io_net_retry(sock, flags)) {
 			sr->len -= ret;
 			sr->buf += ret;
@@ -361,6 +359,8 @@ int io_send(struct io_kiocb *req, unsigned int issue_flags)
 			req->flags |= REQ_F_PARTIAL_IO;
 			return -EAGAIN;
 		}
+		if (ret == -ERESTARTSYS)
+			ret = -EINTR;
 		req_set_fail(req);
 	}
 	if (ret >= 0)
@@ -751,13 +751,13 @@ retry_multishot:
 			}
 			return ret;
 		}
-		if (ret == -ERESTARTSYS)
-			ret = -EINTR;
 		if (ret > 0 && io_net_retry(sock, flags)) {
 			sr->done_io += ret;
 			req->flags |= REQ_F_PARTIAL_IO;
 			return io_setup_async_msg(req, kmsg, issue_flags);
 		}
+		if (ret == -ERESTARTSYS)
+			ret = -EINTR;
 		req_set_fail(req);
 	} else if ((flags & MSG_WAITALL) && (kmsg->msg.msg_flags & (MSG_TRUNC | MSG_CTRUNC))) {
 		req_set_fail(req);
@@ -847,8 +847,6 @@ retry_multishot:
 
 			return -EAGAIN;
 		}
-		if (ret == -ERESTARTSYS)
-			ret = -EINTR;
 		if (ret > 0 && io_net_retry(sock, flags)) {
 			sr->len -= ret;
 			sr->buf += ret;
@@ -856,6 +854,8 @@ retry_multishot:
 			req->flags |= REQ_F_PARTIAL_IO;
 			return -EAGAIN;
 		}
+		if (ret == -ERESTARTSYS)
+			ret = -EINTR;
 		req_set_fail(req);
 	} else if ((flags & MSG_WAITALL) && (msg.msg_flags & (MSG_TRUNC | MSG_CTRUNC))) {
 out_free:
