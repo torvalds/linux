@@ -3239,13 +3239,10 @@ static void skl_read_wm_latency(struct drm_i915_private *i915, u16 wm[])
 		return;
 	}
 
-	wm[0] = (val & GEN9_MEM_LATENCY_LEVEL_MASK) * mult;
-	wm[1] = ((val >> GEN9_MEM_LATENCY_LEVEL_1_5_SHIFT) &
-		 GEN9_MEM_LATENCY_LEVEL_MASK) * mult;
-	wm[2] = ((val >> GEN9_MEM_LATENCY_LEVEL_2_6_SHIFT) &
-		 GEN9_MEM_LATENCY_LEVEL_MASK) * mult;
-	wm[3] = ((val >> GEN9_MEM_LATENCY_LEVEL_3_7_SHIFT) &
-		 GEN9_MEM_LATENCY_LEVEL_MASK) * mult;
+	wm[0] = REG_FIELD_GET(GEN9_MEM_LATENCY_LEVEL_0_4_MASK, val) * mult;
+	wm[1] = REG_FIELD_GET(GEN9_MEM_LATENCY_LEVEL_1_5_MASK, val) * mult;
+	wm[2] = REG_FIELD_GET(GEN9_MEM_LATENCY_LEVEL_2_6_MASK, val) * mult;
+	wm[3] = REG_FIELD_GET(GEN9_MEM_LATENCY_LEVEL_3_7_MASK, val) * mult;
 
 	/* read the second set of memory latencies[4:7] */
 	val = 1; /* data0 to be programmed to 1 for second set */
@@ -3255,13 +3252,10 @@ static void skl_read_wm_latency(struct drm_i915_private *i915, u16 wm[])
 		return;
 	}
 
-	wm[4] = (val & GEN9_MEM_LATENCY_LEVEL_MASK) * mult;
-	wm[5] = ((val >> GEN9_MEM_LATENCY_LEVEL_1_5_SHIFT) &
-		 GEN9_MEM_LATENCY_LEVEL_MASK) * mult;
-	wm[6] = ((val >> GEN9_MEM_LATENCY_LEVEL_2_6_SHIFT) &
-		 GEN9_MEM_LATENCY_LEVEL_MASK) * mult;
-	wm[7] = ((val >> GEN9_MEM_LATENCY_LEVEL_3_7_SHIFT) &
-		 GEN9_MEM_LATENCY_LEVEL_MASK) * mult;
+	wm[4] = REG_FIELD_GET(GEN9_MEM_LATENCY_LEVEL_0_4_MASK, val) * mult;
+	wm[5] = REG_FIELD_GET(GEN9_MEM_LATENCY_LEVEL_1_5_MASK, val) * mult;
+	wm[6] = REG_FIELD_GET(GEN9_MEM_LATENCY_LEVEL_2_6_MASK, val) * mult;
+	wm[7] = REG_FIELD_GET(GEN9_MEM_LATENCY_LEVEL_3_7_MASK, val) * mult;
 
 	adjust_wm_latency(i915, wm, max_level, read_latency);
 }
