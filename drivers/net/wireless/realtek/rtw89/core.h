@@ -522,7 +522,7 @@ struct rtw89_rx_phy_ppdu {
 	u8 *buf;
 	u32 len;
 	u8 rssi_avg;
-	s8 rssi[RF_PATH_MAX];
+	u8 rssi[RF_PATH_MAX];
 	u8 mac_id;
 	u8 chan_idx;
 	u8 ie;
@@ -2136,12 +2136,14 @@ struct rtw89_sec_cam_entry {
 struct rtw89_sta {
 	u8 mac_id;
 	bool disassoc;
+	struct rtw89_dev *rtwdev;
 	struct rtw89_vif *rtwvif;
 	struct rtw89_ra_info ra;
 	struct rtw89_ra_report ra_report;
 	int max_agg_wait;
 	u8 prev_rssi;
 	struct ewma_rssi avg_rssi;
+	struct ewma_rssi rssi[RF_PATH_MAX];
 	struct rtw89_ampdu_params ampdu_params[IEEE80211_NUM_TIDS];
 	struct ieee80211_rx_status rx_status;
 	u16 rx_hw_rate;

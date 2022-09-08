@@ -1143,9 +1143,14 @@ static void rtw89_core_rx_process_phy_ppdu_iter(void *data,
 {
 	struct rtw89_sta *rtwsta = (struct rtw89_sta *)sta->drv_priv;
 	struct rtw89_rx_phy_ppdu *phy_ppdu = (struct rtw89_rx_phy_ppdu *)data;
+	struct rtw89_dev *rtwdev = rtwsta->rtwdev;
+	int i;
 
-	if (rtwsta->mac_id == phy_ppdu->mac_id && phy_ppdu->to_self)
+	if (rtwsta->mac_id == phy_ppdu->mac_id && phy_ppdu->to_self) {
 		ewma_rssi_add(&rtwsta->avg_rssi, phy_ppdu->rssi_avg);
+		for (i = 0; i < rtwdev->chip->rf_path_num; i++)
+			ewma_rssi_add(&rtwsta->rssi[i], phy_ppdu->rssi[i]);
+	}
 }
 
 #define VAR_LEN 0xff
@@ -1201,15 +1206,15 @@ static int rtw89_core_process_phy_status_ie(struct rtw89_dev *rtwdev, u8 *addr,
 
 static void rtw89_core_update_phy_ppdu(struct rtw89_rx_phy_ppdu *phy_ppdu)
 {
-	s8 *rssi = phy_ppdu->rssi;
+	u8 *rssi = phy_ppdu->rssi;
 	u8 *buf = phy_ppdu->buf;
 
 	phy_ppdu->ie = RTW89_GET_PHY_STS_IE_MAP(buf);
 	phy_ppdu->rssi_avg = RTW89_GET_PHY_STS_RSSI_AVG(buf);
-	rssi[RF_PATH_A] = RTW89_RSSI_RAW_TO_DBM(RTW89_GET_PHY_STS_RSSI_A(buf));
-	rssi[RF_PATH_B] = RTW89_RSSI_RAW_TO_DBM(RTW89_GET_PHY_STS_RSSI_B(buf));
-	rssi[RF_PATH_C] = RTW89_RSSI_RAW_TO_DBM(RTW89_GET_PHY_STS_RSSI_C(buf));
-	rssi[RF_PATH_D] = RTW89_RSSI_RAW_TO_DBM(RTW89_GET_PHY_STS_RSSI_D(buf));
+	rssi[RF_PATH_A] = RTW89_GET_PHY_STS_RSSI_A(buf);
+	rssi[RF_PATH_B] = RTW89_GET_PHY_STS_RSSI_B(buf);
+	rssi[RF_PATH_C] = RTW89_GET_PHY_STS_RSSI_C(buf);
+	rssi[RF_PATH_D] = RTW89_GET_PHY_STS_RSSI_D(buf);
 }
 
 static int rtw89_core_rx_process_phy_ppdu(struct rtw89_dev *rtwdev,
@@ -2365,6 +2370,7 @@ int rtw89_core_sta_add(struct rtw89_dev *rtwdev,
 	struct rtw89_sta *rtwsta = (struct rtw89_sta *)sta->drv_priv;
 	int i;
 
+	rtwsta->rtwdev = rtwdev;
 	rtwsta->rtwvif = rtwvif;
 	rtwsta->prev_rssi = 0;
 	INIT_LIST_HEAD(&rtwsta->ba_cam_list);
@@ -2373,6 +2379,8 @@ int rtw89_core_sta_add(struct rtw89_dev *rtwdev,
 		rtw89_core_txq_init(rtwdev, sta->txq[i]);
 
 	ewma_rssi_init(&rtwsta->avg_rssi);
+	for (i = 0; i < rtwdev->chip->rf_path_num; i++)
+		ewma_rssi_init(&rtwsta->rssi[i]);
 
 	if (vif->type == NL80211_IFTYPE_STATION && !sta->tdls) {
 		/* for station mode, assign the mac_id from itself */

@@ -2290,7 +2290,9 @@ static void rtw89_sta_info_get_iter(void *data, struct ieee80211_sta *sta)
 	struct rate_info *rate = &rtwsta->ra_report.txrate;
 	struct ieee80211_rx_status *status = &rtwsta->rx_status;
 	struct seq_file *m = (struct seq_file *)data;
+	struct rtw89_dev *rtwdev = rtwsta->rtwdev;
 	u8 rssi;
+	int i;
 
 	seq_printf(m, "TX rate [%d]: ", rtwsta->mac_id);
 
@@ -2335,8 +2337,14 @@ static void rtw89_sta_info_get_iter(void *data, struct ieee80211_sta *sta)
 	seq_printf(m, "\t(hw_rate=0x%x)\n", rtwsta->rx_hw_rate);
 
 	rssi = ewma_rssi_read(&rtwsta->avg_rssi);
-	seq_printf(m, "RSSI: %d dBm (raw=%d, prev=%d)\n",
+	seq_printf(m, "RSSI: %d dBm (raw=%d, prev=%d) [",
 		   RTW89_RSSI_RAW_TO_DBM(rssi), rssi, rtwsta->prev_rssi);
+	for (i = 0; i < rtwdev->chip->rf_path_num; i++) {
+		rssi = ewma_rssi_read(&rtwsta->rssi[i]);
+		seq_printf(m, "%d%s", RTW89_RSSI_RAW_TO_DBM(rssi),
+			   i + 1 == rtwdev->chip->rf_path_num ? "" : ", ");
+	}
+	seq_puts(m, "]\n");
 }
 
 static void

@@ -2051,12 +2051,12 @@ static void rtw8852a_query_ppdu(struct rtw89_dev *rtwdev,
 				struct ieee80211_rx_status *status)
 {
 	u8 path;
-	s8 *rx_power = phy_ppdu->rssi;
+	u8 *rx_power = phy_ppdu->rssi;
 
-	status->signal = max_t(s8, rx_power[RF_PATH_A], rx_power[RF_PATH_B]);
+	status->signal = RTW89_RSSI_RAW_TO_DBM(max(rx_power[RF_PATH_A], rx_power[RF_PATH_B]));
 	for (path = 0; path < rtwdev->chip->rf_path_num; path++) {
 		status->chains |= BIT(path);
-		status->chain_signal[path] = rx_power[path];
+		status->chain_signal[path] = RTW89_RSSI_RAW_TO_DBM(rx_power[path]);
 	}
 	if (phy_ppdu->valid)
 		rtw8852a_fill_freq_with_ppdu(rtwdev, phy_ppdu, status);
