@@ -2291,6 +2291,7 @@ static void rtw89_sta_info_get_iter(void *data, struct ieee80211_sta *sta)
 	struct ieee80211_rx_status *status = &rtwsta->rx_status;
 	struct seq_file *m = (struct seq_file *)data;
 	struct rtw89_dev *rtwdev = rtwsta->rtwdev;
+	struct rtw89_hal *hal = &rtwdev->hal;
 	u8 rssi;
 	int i;
 
@@ -2341,7 +2342,8 @@ static void rtw89_sta_info_get_iter(void *data, struct ieee80211_sta *sta)
 		   RTW89_RSSI_RAW_TO_DBM(rssi), rssi, rtwsta->prev_rssi);
 	for (i = 0; i < rtwdev->chip->rf_path_num; i++) {
 		rssi = ewma_rssi_read(&rtwsta->rssi[i]);
-		seq_printf(m, "%d%s", RTW89_RSSI_RAW_TO_DBM(rssi),
+		seq_printf(m, "%d%s%s", RTW89_RSSI_RAW_TO_DBM(rssi),
+			   hal->tx_path_diversity && (hal->antenna_tx & BIT(i)) ? "*" : "",
 			   i + 1 == rtwdev->chip->rf_path_num ? "" : ", ");
 	}
 	seq_puts(m, "]\n");
