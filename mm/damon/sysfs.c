@@ -1031,14 +1031,15 @@ static ssize_t nr_schemes_show(struct kobject *kobj,
 static ssize_t nr_schemes_store(struct kobject *kobj,
 		struct kobj_attribute *attr, const char *buf, size_t count)
 {
-	struct damon_sysfs_schemes *schemes = container_of(kobj,
-			struct damon_sysfs_schemes, kobj);
+	struct damon_sysfs_schemes *schemes;
 	int nr, err = kstrtoint(buf, 0, &nr);
 
 	if (err)
 		return err;
 	if (nr < 0)
 		return -EINVAL;
+
+	schemes = container_of(kobj, struct damon_sysfs_schemes, kobj);
 
 	if (!mutex_trylock(&damon_sysfs_lock))
 		return -EBUSY;
@@ -1237,14 +1238,15 @@ static ssize_t nr_regions_show(struct kobject *kobj,
 static ssize_t nr_regions_store(struct kobject *kobj,
 		struct kobj_attribute *attr, const char *buf, size_t count)
 {
-	struct damon_sysfs_regions *regions = container_of(kobj,
-			struct damon_sysfs_regions, kobj);
+	struct damon_sysfs_regions *regions;
 	int nr, err = kstrtoint(buf, 0, &nr);
 
 	if (err)
 		return err;
 	if (nr < 0)
 		return -EINVAL;
+
+	regions = container_of(kobj, struct damon_sysfs_regions, kobj);
 
 	if (!mutex_trylock(&damon_sysfs_lock))
 		return -EBUSY;
@@ -1440,14 +1442,15 @@ static ssize_t nr_targets_show(struct kobject *kobj,
 static ssize_t nr_targets_store(struct kobject *kobj,
 		struct kobj_attribute *attr, const char *buf, size_t count)
 {
-	struct damon_sysfs_targets *targets = container_of(kobj,
-			struct damon_sysfs_targets, kobj);
+	struct damon_sysfs_targets *targets;
 	int nr, err = kstrtoint(buf, 0, &nr);
 
 	if (err)
 		return err;
 	if (nr < 0)
 		return -EINVAL;
+
+	targets = container_of(kobj, struct damon_sysfs_targets, kobj);
 
 	if (!mutex_trylock(&damon_sysfs_lock))
 		return -EBUSY;
@@ -1962,8 +1965,7 @@ static ssize_t nr_contexts_show(struct kobject *kobj,
 static ssize_t nr_contexts_store(struct kobject *kobj,
 		struct kobj_attribute *attr, const char *buf, size_t count)
 {
-	struct damon_sysfs_contexts *contexts = container_of(kobj,
-			struct damon_sysfs_contexts, kobj);
+	struct damon_sysfs_contexts *contexts;
 	int nr, err;
 
 	err = kstrtoint(buf, 0, &nr);
@@ -1973,6 +1975,7 @@ static ssize_t nr_contexts_store(struct kobject *kobj,
 	if (nr < 0 || 1 < nr)
 		return -EINVAL;
 
+	contexts = container_of(kobj, struct damon_sysfs_contexts, kobj);
 	if (!mutex_trylock(&damon_sysfs_lock))
 		return -EBUSY;
 	err = damon_sysfs_contexts_add_dirs(contexts, nr);
@@ -2737,8 +2740,7 @@ static ssize_t nr_kdamonds_show(struct kobject *kobj,
 static ssize_t nr_kdamonds_store(struct kobject *kobj,
 		struct kobj_attribute *attr, const char *buf, size_t count)
 {
-	struct damon_sysfs_kdamonds *kdamonds = container_of(kobj,
-			struct damon_sysfs_kdamonds, kobj);
+	struct damon_sysfs_kdamonds *kdamonds;
 	int nr, err;
 
 	err = kstrtoint(buf, 0, &nr);
@@ -2746,6 +2748,8 @@ static ssize_t nr_kdamonds_store(struct kobject *kobj,
 		return err;
 	if (nr < 0)
 		return -EINVAL;
+
+	kdamonds = container_of(kobj, struct damon_sysfs_kdamonds, kobj);
 
 	if (!mutex_trylock(&damon_sysfs_lock))
 		return -EBUSY;
