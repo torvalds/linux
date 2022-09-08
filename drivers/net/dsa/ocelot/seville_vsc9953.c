@@ -343,7 +343,7 @@ static const u32 vsc9953_sys_regmap[] = {
 	REG(SYS_COUNT_TX_GREEN_PRIO_5,		0x00016c),
 	REG(SYS_COUNT_TX_GREEN_PRIO_6,		0x000170),
 	REG(SYS_COUNT_TX_GREEN_PRIO_7,		0x000174),
-	REG(SYS_COUNT_TX_AGING,			0x000178),
+	REG(SYS_COUNT_TX_AGED,			0x000178),
 	REG(SYS_COUNT_DROP_LOCAL,		0x000200),
 	REG(SYS_COUNT_DROP_TAIL,		0x000204),
 	REG(SYS_COUNT_DROP_YELLOW_PRIO_0,	0x000208),
@@ -912,7 +912,7 @@ static const struct ocelot_stat_layout vsc9953_stats_layout[OCELOT_NUM_STATS] = 
 	},
 	[OCELOT_STAT_TX_AGED] = {
 		.name = "tx_aged",
-		.reg = SYS_COUNT_TX_AGING,
+		.reg = SYS_COUNT_TX_AGED,
 	},
 	[OCELOT_STAT_DROP_LOCAL] = {
 		.name = "drop_local",

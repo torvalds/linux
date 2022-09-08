@@ -395,7 +395,7 @@ static const struct ocelot_stat_layout ocelot_stats_layout[OCELOT_NUM_STATS] = {
 	},
 	[OCELOT_STAT_TX_AGED] = {
 		.name = "tx_aged",
-		.reg = SYS_COUNT_TX_AGING,
+		.reg = SYS_COUNT_TX_AGED,
 	},
 	[OCELOT_STAT_DROP_LOCAL] = {
 		.name = "drop_local",
