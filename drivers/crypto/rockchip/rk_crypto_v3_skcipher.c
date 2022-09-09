@@ -135,11 +135,13 @@ static int get_tag_reg(struct rk_crypto_dev *rk_dev, u8 *tag, u32 tag_len)
 	if (tag_len > RK_MAX_TAG_SIZE)
 		return -EINVAL;
 
-	ret = readl_poll_timeout_atomic(rk_dev->reg + CRYPTO_TAG_VALID,
+	ret = read_poll_timeout_atomic(CRYPTO_READ,
 					reg_ctrl,
 					reg_ctrl & CRYPTO_CH0_TAG_VALID,
-					RK_POLL_PERIOD_US,
-					RK_POLL_TIMEOUT_US);
+					0,
+					RK_POLL_TIMEOUT_US,
+					false,
+					rk_dev, CRYPTO_TAG_VALID);
 	if (ret)
 		goto exit;
 
@@ -187,8 +189,8 @@ static void rk_cipher_reset(struct rk_crypto_dev *rk_dev)
 	CRYPTO_WRITE(rk_dev, CRYPTO_RST_CTL, tmp | tmp_mask);
 
 	/* This is usually done in 20 clock cycles */
-	ret = readl_poll_timeout_atomic(rk_dev->reg + CRYPTO_RST_CTL,
-					tmp, !tmp, 0, pool_timeout_us);
+	ret = read_poll_timeout_atomic(CRYPTO_READ, tmp, !tmp, 0,
+				       pool_timeout_us, false, rk_dev, CRYPTO_RST_CTL);
 	if (ret)
 		dev_err(rk_dev->dev, "cipher reset pool timeout %ums.",
 			pool_timeout_us);

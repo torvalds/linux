@@ -175,7 +175,7 @@ static int pka_wait_pipe_rdy(void)
 {
 	u32 reg_val = 0;
 
-	return readl_poll_timeout(pka_base + CRYPTO_PKA_PIPE_RDY, reg_val,
+	return readx_poll_timeout(PKA_READ, CRYPTO_PKA_PIPE_RDY, reg_val,
 				  reg_val, PKA_POLL_PERIOD_US, PKA_POLL_TIMEOUT_US);
 }
 
@@ -183,7 +183,7 @@ static int pka_wait_done(void)
 {
 	u32 reg_val = 0;
 
-	return readl_poll_timeout(pka_base + CRYPTO_PKA_DONE, reg_val,
+	return readx_poll_timeout(PKA_READ, CRYPTO_PKA_DONE, reg_val,
 				  reg_val, PKA_POLL_PERIOD_US, PKA_POLL_TIMEOUT_US);
 }
 
@@ -191,7 +191,7 @@ static int pka_max_wait_done(void)
 {
 	u32 reg_val = 0;
 
-	return readl_poll_timeout(pka_base + CRYPTO_PKA_DONE, reg_val,
+	return readx_poll_timeout(PKA_READ, CRYPTO_PKA_DONE, reg_val,
 				  reg_val, PKA_MAX_POLL_PERIOD_US, PKA_MAX_POLL_TIMEOUT_US);
 }
 
