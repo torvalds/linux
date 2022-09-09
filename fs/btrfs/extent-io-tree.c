@@ -161,6 +161,24 @@ void free_extent_state(struct extent_state *state)
 	}
 }
 
+static int add_extent_changeset(struct extent_state *state, u32 bits,
+				 struct extent_changeset *changeset,
+				 int set)
+{
+	int ret;
+
+	if (!changeset)
+		return 0;
+	if (set && (state->state & bits) == bits)
+		return 0;
+	if (!set && (state->state & bits) == 0)
+		return 0;
+	changeset->bytes_changed += state->end - state->start + 1;
+	ret = ulist_add(&changeset->range_changed, state->start, state->end,
+			GFP_ATOMIC);
+	return ret;
+}
+
 /*
  * Search @tree for an entry that contains @offset. Such entry would have
  * entry->start <= offset && entry->end >= offset.
@@ -266,6 +284,229 @@ struct rb_node *tree_search_prev_next(struct extent_io_tree *tree, u64 offset,
 	*prev_ret = prev;
 
 	return NULL;
+}
+
+/*
+ * Utility function to look for merge candidates inside a given range.  Any
+ * extents with matching state are merged together into a single extent in the
+ * tree.  Extents with EXTENT_IO in their state field are not merged because
+ * the end_io handlers need to be able to do operations on them without
+ * sleeping (or doing allocations/splits).
+ *
+ * This should be called with the tree lock held.
+ */
+void merge_state(struct extent_io_tree *tree, struct extent_state *state)
+{
+	struct extent_state *other;
+	struct rb_node *other_node;
+
+	if (state->state & (EXTENT_LOCKED | EXTENT_BOUNDARY))
+		return;
+
+	other_node = rb_prev(&state->rb_node);
+	if (other_node) {
+		other = rb_entry(other_node, struct extent_state, rb_node);
+		if (other->end == state->start - 1 &&
+		    other->state == state->state) {
+			if (tree->private_data &&
+			    is_data_inode(tree->private_data))
+				btrfs_merge_delalloc_extent(tree->private_data,
+							    state, other);
+			state->start = other->start;
+			rb_erase(&other->rb_node, &tree->state);
+			RB_CLEAR_NODE(&other->rb_node);
+			free_extent_state(other);
+		}
+	}
+	other_node = rb_next(&state->rb_node);
+	if (other_node) {
+		other = rb_entry(other_node, struct extent_state, rb_node);
+		if (other->start == state->end + 1 &&
+		    other->state == state->state) {
+			if (tree->private_data &&
+			    is_data_inode(tree->private_data))
+				btrfs_merge_delalloc_extent(tree->private_data,
+							    state, other);
+			state->end = other->end;
+			rb_erase(&other->rb_node, &tree->state);
+			RB_CLEAR_NODE(&other->rb_node);
+			free_extent_state(other);
+		}
+	}
+}
+
+void set_state_bits(struct extent_io_tree *tree, struct extent_state *state,
+		    u32 bits, struct extent_changeset *changeset)
+{
+	u32 bits_to_set = bits & ~EXTENT_CTLBITS;
+	int ret;
+
+	if (tree->private_data && is_data_inode(tree->private_data))
+		btrfs_set_delalloc_extent(tree->private_data, state, bits);
+
+	if ((bits_to_set & EXTENT_DIRTY) && !(state->state & EXTENT_DIRTY)) {
+		u64 range = state->end - state->start + 1;
+		tree->dirty_bytes += range;
+	}
+	ret = add_extent_changeset(state, bits_to_set, changeset, 1);
+	BUG_ON(ret < 0);
+	state->state |= bits_to_set;
+}
+
+/*
+ * Insert an extent_state struct into the tree.  'bits' are set on the
+ * struct before it is inserted.
+ *
+ * This may return -EEXIST if the extent is already there, in which case the
+ * state struct is freed.
+ *
+ * The tree lock is not taken internally.  This is a utility function and
+ * probably isn't what you want to call (see set/clear_extent_bit).
+ */
+int insert_state(struct extent_io_tree *tree, struct extent_state *state,
+		 u32 bits, struct extent_changeset *changeset)
+{
+	struct rb_node **node;
+	struct rb_node *parent;
+	const u64 end = state->end;
+
+	set_state_bits(tree, state, bits, changeset);
+
+	node = &tree->state.rb_node;
+	while (*node) {
+		struct tree_entry *entry;
+
+		parent = *node;
+		entry = rb_entry(parent, struct tree_entry, rb_node);
+
+		if (end < entry->start) {
+			node = &(*node)->rb_left;
+		} else if (end > entry->end) {
+			node = &(*node)->rb_right;
+		} else {
+			btrfs_err(tree->fs_info,
+			       "found node %llu %llu on insert of %llu %llu",
+			       entry->start, entry->end, state->start, end);
+			return -EEXIST;
+		}
+	}
+
+	rb_link_node(&state->rb_node, parent, node);
+	rb_insert_color(&state->rb_node, &tree->state);
+
+	merge_state(tree, state);
+	return 0;
+}
+
+/*
+ * Insert state to @tree to the location given by @node and @parent.
+ */
+void insert_state_fast(struct extent_io_tree *tree, struct extent_state *state,
+		       struct rb_node **node, struct rb_node *parent,
+		       unsigned bits, struct extent_changeset *changeset)
+{
+	set_state_bits(tree, state, bits, changeset);
+	rb_link_node(&state->rb_node, parent, node);
+	rb_insert_color(&state->rb_node, &tree->state);
+	merge_state(tree, state);
+}
+
+/*
+ * Split a given extent state struct in two, inserting the preallocated
+ * struct 'prealloc' as the newly created second half.  'split' indicates an
+ * offset inside 'orig' where it should be split.
+ *
+ * Before calling,
+ * the tree has 'orig' at [orig->start, orig->end].  After calling, there
+ * are two extent state structs in the tree:
+ * prealloc: [orig->start, split - 1]
+ * orig: [ split, orig->end ]
+ *
+ * The tree locks are not taken by this function. They need to be held
+ * by the caller.
+ */
+int split_state(struct extent_io_tree *tree, struct extent_state *orig,
+		struct extent_state *prealloc, u64 split)
+{
+	struct rb_node *parent = NULL;
+	struct rb_node **node;
+
+	if (tree->private_data && is_data_inode(tree->private_data))
+		btrfs_split_delalloc_extent(tree->private_data, orig, split);
+
+	prealloc->start = orig->start;
+	prealloc->end = split - 1;
+	prealloc->state = orig->state;
+	orig->start = split;
+
+	parent = &orig->rb_node;
+	node = &parent;
+	while (*node) {
+		struct tree_entry *entry;
+
+		parent = *node;
+		entry = rb_entry(parent, struct tree_entry, rb_node);
+
+		if (prealloc->end < entry->start) {
+			node = &(*node)->rb_left;
+		} else if (prealloc->end > entry->end) {
+			node = &(*node)->rb_right;
+		} else {
+			free_extent_state(prealloc);
+			return -EEXIST;
+		}
+	}
+
+	rb_link_node(&prealloc->rb_node, parent, node);
+	rb_insert_color(&prealloc->rb_node, &tree->state);
+
+	return 0;
+}
+
+/*
+ * Utility function to clear some bits in an extent state struct.  It will
+ * optionally wake up anyone waiting on this state (wake == 1).
+ *
+ * If no bits are set on the state struct after clearing things, the
+ * struct is freed and removed from the tree
+ */
+struct extent_state *clear_state_bit(struct extent_io_tree *tree,
+				     struct extent_state *state, u32 bits,
+				     int wake,
+				     struct extent_changeset *changeset)
+{
+	struct extent_state *next;
+	u32 bits_to_clear = bits & ~EXTENT_CTLBITS;
+	int ret;
+
+	if ((bits_to_clear & EXTENT_DIRTY) && (state->state & EXTENT_DIRTY)) {
+		u64 range = state->end - state->start + 1;
+		WARN_ON(range > tree->dirty_bytes);
+		tree->dirty_bytes -= range;
+	}
+
+	if (tree->private_data && is_data_inode(tree->private_data))
+		btrfs_clear_delalloc_extent(tree->private_data, state, bits);
+
+	ret = add_extent_changeset(state, bits_to_clear, changeset, 0);
+	BUG_ON(ret < 0);
+	state->state &= ~bits_to_clear;
+	if (wake)
+		wake_up(&state->wq);
+	if (state->state == 0) {
+		next = next_state(state);
+		if (extent_state_in_tree(state)) {
+			rb_erase(&state->rb_node, &tree->state);
+			RB_CLEAR_NODE(&state->rb_node);
+			free_extent_state(state);
+		} else {
+			WARN_ON(1);
+		}
+	} else {
+		merge_state(tree, state);
+		next = next_state(state);
+	}
+	return next;
 }
 
 /* Wrappers around set/clear extent bit */

@@ -291,5 +291,31 @@ struct rb_node *tree_search_for_insert(struct extent_io_tree *tree, u64 offset,
 struct rb_node *tree_search_prev_next(struct extent_io_tree *tree, u64 offset,
 				      struct rb_node **prev_ret,
 				      struct rb_node **next_ret);
+void merge_state(struct extent_io_tree *tree, struct extent_state *state);
+
+static inline struct extent_state *next_state(struct extent_state *state)
+{
+	struct rb_node *next = rb_next(&state->rb_node);
+	if (next)
+		return rb_entry(next, struct extent_state, rb_node);
+	else
+		return NULL;
+}
+
+struct extent_state *clear_state_bit(struct extent_io_tree *tree,
+				     struct extent_state *state, u32 bits,
+				     int wake,
+				     struct extent_changeset *changeset);
+int insert_state(struct extent_io_tree *tree, struct extent_state *state,
+		 u32 bits, struct extent_changeset *changeset);
+int split_state(struct extent_io_tree *tree, struct extent_state *orig,
+		struct extent_state *prealloc, u64 split);
+int insert_state(struct extent_io_tree *tree, struct extent_state *state,
+		 u32 bits, struct extent_changeset *changeset);
+void insert_state_fast(struct extent_io_tree *tree, struct extent_state *state,
+		       struct rb_node **node, struct rb_node *parent,
+		       unsigned bits, struct extent_changeset *changeset);
+void set_state_bits(struct extent_io_tree *tree, struct extent_state *state,
+		    u32 bits, struct extent_changeset *changeset);
 
 #endif /* BTRFS_EXTENT_IO_TREE_H */
