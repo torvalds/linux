@@ -3167,6 +3167,9 @@ static void bond_ns_send_all(struct bonding *bond, struct slave *slave)
 found:
 		if (!ipv6_dev_get_saddr(dev_net(dst->dev), dst->dev, &targets[i], 0, &saddr))
 			bond_ns_send(slave, &targets[i], &saddr, tags);
+		else
+			bond_ns_send(slave, &targets[i], &in6addr_any, tags);
+
 		dst_release(dst);
 		kfree(tags);
 	}
@@ -3198,12 +3201,19 @@ static bool bond_has_this_ip6(struct bonding *bond, struct in6_addr *addr)
 	return ret;
 }
 
-static void bond_validate_ns(struct bonding *bond, struct slave *slave,
+static void bond_validate_na(struct bonding *bond, struct slave *slave,
 			     struct in6_addr *saddr, struct in6_addr *daddr)
 {
 	int i;
 
-	if (ipv6_addr_any(saddr) || !bond_has_this_ip6(bond, daddr)) {
+	/* Ignore NAs that:
+	 * 1. Source address is unspecified address.
+	 * 2. Dest address is neither all-nodes multicast address nor
+	 *    exist on bond interface.
+	 */
+	if (ipv6_addr_any(saddr) ||
+	    (!ipv6_addr_equal(daddr, &in6addr_linklocal_allnodes) &&
+	     !bond_has_this_ip6(bond, daddr))) {
 		slave_dbg(bond->dev, slave->dev, "%s: sip %pI6c tip %pI6c not found\n",
 			  __func__, saddr, daddr);
 		return;
@@ -3246,14 +3256,14 @@ static int bond_na_rcv(const struct sk_buff *skb, struct bonding *bond,
 	 * see bond_arp_rcv().
 	 */
 	if (bond_is_active_slave(slave))
-		bond_validate_ns(bond, slave, saddr, daddr);
+		bond_validate_na(bond, slave, saddr, daddr);
 	else if (curr_active_slave &&
 		 time_after(slave_last_rx(bond, curr_active_slave),
 			    curr_active_slave->last_link_up))
-		bond_validate_ns(bond, slave, saddr, daddr);
+		bond_validate_na(bond, slave, saddr, daddr);
 	else if (curr_arp_slave &&
 		 bond_time_in_interval(bond, slave_last_tx(curr_arp_slave), 1))
-		bond_validate_ns(bond, slave, saddr, daddr);
+		bond_validate_na(bond, slave, saddr, daddr);
 
 out:
 	return RX_HANDLER_ANOTHER;

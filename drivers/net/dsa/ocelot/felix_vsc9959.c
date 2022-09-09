@@ -22,6 +22,7 @@
 #define VSC9959_NUM_PORTS		6
 
 #define VSC9959_TAS_GCL_ENTRY_MAX	63
+#define VSC9959_TAS_MIN_GATE_LEN_NS	33
 #define VSC9959_VCAP_POLICER_BASE	63
 #define VSC9959_VCAP_POLICER_MAX	383
 #define VSC9959_SWITCH_PCI_BAR		4
@@ -1478,6 +1479,23 @@ static void vsc9959_mdio_bus_free(struct ocelot *ocelot)
 	mdiobus_free(felix->imdio);
 }
 
+/* The switch considers any frame (regardless of size) as eligible for
+ * transmission if the traffic class gate is open for at least 33 ns.
+ * Overruns are prevented by cropping an interval at the end of the gate time
+ * slot for which egress scheduling is blocked, but we need to still keep 33 ns
+ * available for one packet to be transmitted, otherwise the port tc will hang.
+ * This function returns the size of a gate interval that remains available for
+ * setting the guard band, after reserving the space for one egress frame.
+ */
+static u64 vsc9959_tas_remaining_gate_len_ps(u64 gate_len_ns)
+{
+	/* Gate always open */
+	if (gate_len_ns == U64_MAX)
+		return U64_MAX;
+
+	return (gate_len_ns - VSC9959_TAS_MIN_GATE_LEN_NS) * PSEC_PER_NSEC;
+}
+
 /* Extract shortest continuous gate open intervals in ns for each traffic class
  * of a cyclic tc-taprio schedule. If a gate is always open, the duration is
  * considered U64_MAX. If the gate is always closed, it is considered 0.
@@ -1539,6 +1557,65 @@ static void vsc9959_tas_min_gate_lengths(struct tc_taprio_qopt_offload *taprio,
 			min_gate_len[tc] = 0;
 }
 
+/* ocelot_write_rix is a macro that concatenates QSYS_MAXSDU_CFG_* with _RSZ,
+ * so we need to spell out the register access to each traffic class in helper
+ * functions, to simplify callers
+ */
+static void vsc9959_port_qmaxsdu_set(struct ocelot *ocelot, int port, int tc,
+				     u32 max_sdu)
+{
+	switch (tc) {
+	case 0:
+		ocelot_write_rix(ocelot, max_sdu, QSYS_QMAXSDU_CFG_0,
+				 port);
+		break;
+	case 1:
+		ocelot_write_rix(ocelot, max_sdu, QSYS_QMAXSDU_CFG_1,
+				 port);
+		break;
+	case 2:
+		ocelot_write_rix(ocelot, max_sdu, QSYS_QMAXSDU_CFG_2,
+				 port);
+		break;
+	case 3:
+		ocelot_write_rix(ocelot, max_sdu, QSYS_QMAXSDU_CFG_3,
+				 port);
+		break;
+	case 4:
+		ocelot_write_rix(ocelot, max_sdu, QSYS_QMAXSDU_CFG_4,
+				 port);
+		break;
+	case 5:
+		ocelot_write_rix(ocelot, max_sdu, QSYS_QMAXSDU_CFG_5,
+				 port);
+		break;
+	case 6:
+		ocelot_write_rix(ocelot, max_sdu, QSYS_QMAXSDU_CFG_6,
+				 port);
+		break;
+	case 7:
+		ocelot_write_rix(ocelot, max_sdu, QSYS_QMAXSDU_CFG_7,
+				 port);
+		break;
+	}
+}
+
+static u32 vsc9959_port_qmaxsdu_get(struct ocelot *ocelot, int port, int tc)
+{
+	switch (tc) {
+	case 0: return ocelot_read_rix(ocelot, QSYS_QMAXSDU_CFG_0, port);
+	case 1: return ocelot_read_rix(ocelot, QSYS_QMAXSDU_CFG_1, port);
+	case 2: return ocelot_read_rix(ocelot, QSYS_QMAXSDU_CFG_2, port);
+	case 3: return ocelot_read_rix(ocelot, QSYS_QMAXSDU_CFG_3, port);
+	case 4: return ocelot_read_rix(ocelot, QSYS_QMAXSDU_CFG_4, port);
+	case 5: return ocelot_read_rix(ocelot, QSYS_QMAXSDU_CFG_5, port);
+	case 6: return ocelot_read_rix(ocelot, QSYS_QMAXSDU_CFG_6, port);
+	case 7: return ocelot_read_rix(ocelot, QSYS_QMAXSDU_CFG_7, port);
+	default:
+		return 0;
+	}
+}
+
 /* Update QSYS_PORT_MAX_SDU to make sure the static guard bands added by the
  * switch (see the ALWAYS_GUARD_BAND_SCH_Q comment) are correct at all MTU
  * values (the default value is 1518). Also, for traffic class windows smaller
@@ -1595,11 +1672,16 @@ static void vsc9959_tas_guard_bands_update(struct ocelot *ocelot, int port)
 
 	vsc9959_tas_min_gate_lengths(ocelot_port->taprio, min_gate_len);
 
+	mutex_lock(&ocelot->fwd_domain_lock);
+
 	for (tc = 0; tc < OCELOT_NUM_TC; tc++) {
+		u64 remaining_gate_len_ps;
 		u32 max_sdu;
 
-		if (min_gate_len[tc] == U64_MAX /* Gate always open */ ||
-		    min_gate_len[tc] * PSEC_PER_NSEC > needed_bit_time_ps) {
+		remaining_gate_len_ps =
+			vsc9959_tas_remaining_gate_len_ps(min_gate_len[tc]);
+
+		if (remaining_gate_len_ps > needed_bit_time_ps) {
 			/* Setting QMAXSDU_CFG to 0 disables oversized frame
 			 * dropping.
 			 */
@@ -1612,9 +1694,15 @@ static void vsc9959_tas_guard_bands_update(struct ocelot *ocelot, int port)
 			/* If traffic class doesn't support a full MTU sized
 			 * frame, make sure to enable oversize frame dropping
 			 * for frames larger than the smallest that would fit.
+			 *
+			 * However, the exact same register, QSYS_QMAXSDU_CFG_*,
+			 * controls not only oversized frame dropping, but also
+			 * per-tc static guard band lengths, so it reduces the
+			 * useful gate interval length. Therefore, be careful
+			 * to calculate a guard band (and therefore max_sdu)
+			 * that still leaves 33 ns available in the time slot.
 			 */
-			max_sdu = div_u64(min_gate_len[tc] * PSEC_PER_NSEC,
-					  picos_per_byte);
+			max_sdu = div_u64(remaining_gate_len_ps, picos_per_byte);
 			/* A TC gate may be completely closed, which is a
 			 * special case where all packets are oversized.
 			 * Any limit smaller than 64 octets accomplishes this
@@ -1637,47 +1725,14 @@ static void vsc9959_tas_guard_bands_update(struct ocelot *ocelot, int port)
 				 max_sdu);
 		}
 
-		/* ocelot_write_rix is a macro that concatenates
-		 * QSYS_MAXSDU_CFG_* with _RSZ, so we need to spell out
-		 * the writes to each traffic class
-		 */
-		switch (tc) {
-		case 0:
-			ocelot_write_rix(ocelot, max_sdu, QSYS_QMAXSDU_CFG_0,
-					 port);
-			break;
-		case 1:
-			ocelot_write_rix(ocelot, max_sdu, QSYS_QMAXSDU_CFG_1,
-					 port);
-			break;
-		case 2:
-			ocelot_write_rix(ocelot, max_sdu, QSYS_QMAXSDU_CFG_2,
-					 port);
-			break;
-		case 3:
-			ocelot_write_rix(ocelot, max_sdu, QSYS_QMAXSDU_CFG_3,
-					 port);
-			break;
-		case 4:
-			ocelot_write_rix(ocelot, max_sdu, QSYS_QMAXSDU_CFG_4,
-					 port);
-			break;
-		case 5:
-			ocelot_write_rix(ocelot, max_sdu, QSYS_QMAXSDU_CFG_5,
-					 port);
-			break;
-		case 6:
-			ocelot_write_rix(ocelot, max_sdu, QSYS_QMAXSDU_CFG_6,
-					 port);
-			break;
-		case 7:
-			ocelot_write_rix(ocelot, max_sdu, QSYS_QMAXSDU_CFG_7,
-					 port);
-			break;
-		}
+		vsc9959_port_qmaxsdu_set(ocelot, port, tc, max_sdu);
 	}
 
 	ocelot_write_rix(ocelot, maxlen, QSYS_PORT_MAX_SDU, port);
+
+	ocelot->ops->cut_through_fwd(ocelot);
+
+	mutex_unlock(&ocelot->fwd_domain_lock);
 }
 
 static void vsc9959_sched_speed_set(struct ocelot *ocelot, int port,
@@ -1704,12 +1759,12 @@ static void vsc9959_sched_speed_set(struct ocelot *ocelot, int port,
 		break;
 	}
 
+	mutex_lock(&ocelot->tas_lock);
+
 	ocelot_rmw_rix(ocelot,
 		       QSYS_TAG_CONFIG_LINK_SPEED(tas_speed),
 		       QSYS_TAG_CONFIG_LINK_SPEED_M,
 		       QSYS_TAG_CONFIG, port);
-
-	mutex_lock(&ocelot->tas_lock);
 
 	if (ocelot_port->taprio)
 		vsc9959_tas_guard_bands_update(ocelot, port);
@@ -2770,7 +2825,7 @@ static void vsc9959_cut_through_fwd(struct ocelot *ocelot)
 {
 	struct felix *felix = ocelot_to_felix(ocelot);
 	struct dsa_switch *ds = felix->ds;
-	int port, other_port;
+	int tc, port, other_port;
 
 	lockdep_assert_held(&ocelot->fwd_domain_lock);
 
@@ -2814,9 +2869,17 @@ static void vsc9959_cut_through_fwd(struct ocelot *ocelot)
 				min_speed = other_ocelot_port->speed;
 		}
 
-		/* Enable cut-through forwarding for all traffic classes. */
-		if (ocelot_port->speed == min_speed)
+		/* Enable cut-through forwarding for all traffic classes that
+		 * don't have oversized dropping enabled, since this check is
+		 * bypassed in cut-through mode.
+		 */
+		if (ocelot_port->speed == min_speed) {
 			val = GENMASK(7, 0);
+
+			for (tc = 0; tc < OCELOT_NUM_TC; tc++)
+				if (vsc9959_port_qmaxsdu_get(ocelot, port, tc))
+					val &= ~BIT(tc);
+		}
 
 set:
 		tmp = ocelot_read_rix(ocelot, ANA_CUT_THRU_CFG, port);
@@ -2824,9 +2887,9 @@ set:
 			continue;
 
 		dev_dbg(ocelot->dev,
-			"port %d fwd mask 0x%lx speed %d min_speed %d, %s cut-through forwarding\n",
+			"port %d fwd mask 0x%lx speed %d min_speed %d, %s cut-through forwarding on TC mask 0x%x\n",
 			port, mask, ocelot_port->speed, min_speed,
-			val ? "enabling" : "disabling");
+			val ? "enabling" : "disabling", val);
 
 		ocelot_write_rix(ocelot, val, ANA_CUT_THRU_CFG, port);
 	}
