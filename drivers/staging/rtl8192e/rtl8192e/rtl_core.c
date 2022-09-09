@@ -139,7 +139,7 @@ bool rtl92e_set_rf_state(struct net_device *dev,
 	struct rtllib_device *ieee = priv->rtllib;
 	bool action_allowed = false;
 	bool connect_by_ssid = false;
-	enum rt_rf_power_state rtState;
+	enum rt_rf_power_state rt_state;
 	u16			RFWaitCounter = 0;
 	unsigned long flag;
 
@@ -166,7 +166,7 @@ bool rtl92e_set_rf_state(struct net_device *dev,
 		}
 	}
 
-	rtState = priv->rtllib->eRFPowerState;
+	rt_state = priv->rtllib->eRFPowerState;
 
 	switch (state_to_set) {
 	case eRfOn:
@@ -179,7 +179,7 @@ bool rtl92e_set_rf_state(struct net_device *dev,
 			priv->rtllib->RfOffReason = 0;
 			action_allowed = true;
 
-			if (rtState == eRfOff &&
+			if (rt_state == eRfOff &&
 			    change_source >= RF_CHANGE_BY_HW)
 				connect_by_ssid = true;
 		}

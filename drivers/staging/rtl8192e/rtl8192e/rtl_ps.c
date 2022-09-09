@@ -126,11 +126,11 @@ void rtl92e_ips_enter(struct net_device *dev)
 	struct r8192_priv *priv = rtllib_priv(dev);
 	struct rt_pwr_save_ctrl *pPSC = (struct rt_pwr_save_ctrl *)
 					&(priv->rtllib->PowerSaveControl);
-	enum rt_rf_power_state rtState;
+	enum rt_rf_power_state rt_state;
 
 	if (pPSC->bInactivePs) {
-		rtState = priv->rtllib->eRFPowerState;
-		if (rtState == eRfOn && !pPSC->bSwRfProcessing &&
+		rt_state = priv->rtllib->eRFPowerState;
+		if (rt_state == eRfOn && !pPSC->bSwRfProcessing &&
 			(priv->rtllib->state != RTLLIB_LINKED) &&
 			(priv->rtllib->iw_mode != IW_MODE_MASTER)) {
 			RT_TRACE(COMP_PS, "%s(): Turn off RF.\n", __func__);
@@ -147,11 +147,11 @@ void rtl92e_ips_leave(struct net_device *dev)
 	struct r8192_priv *priv = rtllib_priv(dev);
 	struct rt_pwr_save_ctrl *pPSC = (struct rt_pwr_save_ctrl *)
 					&(priv->rtllib->PowerSaveControl);
-	enum rt_rf_power_state rtState;
+	enum rt_rf_power_state rt_state;
 
 	if (pPSC->bInactivePs) {
-		rtState = priv->rtllib->eRFPowerState;
-		if (rtState != eRfOn  && !pPSC->bSwRfProcessing &&
+		rt_state = priv->rtllib->eRFPowerState;
+		if (rt_state != eRfOn  && !pPSC->bSwRfProcessing &&
 		    priv->rtllib->RfOffReason <= RF_CHANGE_BY_IPS) {
 			RT_TRACE(COMP_PS, "%s(): Turn on RF.\n", __func__);
 			pPSC->eInactivePowerState = eRfOn;
@@ -176,12 +176,12 @@ void rtl92e_ips_leave_wq(void *data)
 void rtl92e_rtllib_ips_leave_wq(struct net_device *dev)
 {
 	struct r8192_priv *priv = (struct r8192_priv *)rtllib_priv(dev);
-	enum rt_rf_power_state rtState;
+	enum rt_rf_power_state rt_state;
 
-	rtState = priv->rtllib->eRFPowerState;
+	rt_state = priv->rtllib->eRFPowerState;
 
 	if (priv->rtllib->PowerSaveControl.bInactivePs) {
-		if (rtState == eRfOff) {
+		if (rt_state == eRfOff) {
 			if (priv->rtllib->RfOffReason > RF_CHANGE_BY_IPS) {
 				netdev_warn(dev, "%s(): RF is OFF.\n",
 					    __func__);
