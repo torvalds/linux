@@ -39,6 +39,7 @@ test_cpp
 /tools
 /runqslower
 /bench
+/veristat
 *.ko
 *.tmp
 xskxceiver
