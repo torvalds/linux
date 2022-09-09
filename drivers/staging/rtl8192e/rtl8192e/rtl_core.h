@@ -392,7 +392,7 @@ struct r8192_priv {
 	u16		ShortRetryLimit;
 	u16		LongRetryLimit;
 
-	bool		bHwRadioOff;
+	bool		hw_radio_off;
 	bool		blinked_ingpio;
 	u8		polling_timer_on;
 

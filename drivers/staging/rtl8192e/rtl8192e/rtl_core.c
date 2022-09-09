@@ -172,8 +172,8 @@ bool rtl92e_set_rf_state(struct net_device *dev,
 	case eRfOn:
 		priv->rtllib->RfOffReason &= (~change_source);
 
-		if ((change_source == RF_CHANGE_BY_HW) && priv->bHwRadioOff)
-			priv->bHwRadioOff = false;
+		if ((change_source == RF_CHANGE_BY_HW) && priv->hw_radio_off)
+			priv->hw_radio_off = false;
 
 		if (!priv->rtllib->RfOffReason) {
 			priv->rtllib->RfOffReason = 0;
@@ -199,8 +199,8 @@ bool rtl92e_set_rf_state(struct net_device *dev,
 						      WLAN_REASON_DISASSOC_STA_HAS_LEFT);
 			}
 		}
-		if ((change_source == RF_CHANGE_BY_HW) && !priv->bHwRadioOff)
-			priv->bHwRadioOff = true;
+		if ((change_source == RF_CHANGE_BY_HW) && !priv->hw_radio_off)
+			priv->hw_radio_off = true;
 		priv->rtllib->RfOffReason |= change_source;
 		action_allowed = true;
 		break;
@@ -878,7 +878,7 @@ static void _rtl92e_init_priv_variable(struct net_device *dev)
 	memset(&priv->InterruptLog, 0, sizeof(struct log_int_8190));
 	priv->RxCounter = 0;
 	priv->rtllib->wx_set_enc = 0;
-	priv->bHwRadioOff = false;
+	priv->hw_radio_off = false;
 	priv->RegRfOff = false;
 	priv->isRFOff = false;
 	priv->bInPowerSaveMode = false;
@@ -1292,7 +1292,7 @@ static void _rtl92e_watchdog_wq_cb(void *data)
 	bool	bHigherBusyRxTraffic = false;
 	bool bEnterPS = false;
 
-	if (!priv->up || priv->bHwRadioOff)
+	if (!priv->up || priv->hw_radio_off)
 		return;
 
 	if (priv->rtllib->state >= RTLLIB_LINKED) {

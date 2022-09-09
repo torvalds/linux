@@ -1819,15 +1819,15 @@ static void _rtl92e_dm_check_rf_ctrl_gpio(void *data)
 
 	eRfPowerStateToSet = (tmp1byte&BIT1) ?  eRfOn : eRfOff;
 
-	if (priv->bHwRadioOff && (eRfPowerStateToSet == eRfOn)) {
+	if (priv->hw_radio_off && (eRfPowerStateToSet == eRfOn)) {
 		RT_TRACE(COMP_RF, "gpiochangeRF  - HW Radio ON\n");
 		netdev_info(dev, "gpiochangeRF  - HW Radio ON\n");
-		priv->bHwRadioOff = false;
+		priv->hw_radio_off = false;
 		bActuallySet = true;
-	} else if (!priv->bHwRadioOff && (eRfPowerStateToSet == eRfOff)) {
+	} else if (!priv->hw_radio_off && (eRfPowerStateToSet == eRfOff)) {
 		RT_TRACE(COMP_RF, "gpiochangeRF  - HW Radio OFF\n");
 		netdev_info(dev, "gpiochangeRF  - HW Radio OFF\n");
-		priv->bHwRadioOff = true;
+		priv->hw_radio_off = true;
 		bActuallySet = true;
 	}
 
@@ -1835,7 +1835,7 @@ static void _rtl92e_dm_check_rf_ctrl_gpio(void *data)
 		mdelay(1000);
 		priv->bHwRfOffAction = 1;
 		rtl92e_set_rf_state(dev, eRfPowerStateToSet, RF_CHANGE_BY_HW);
-		if (priv->bHwRadioOff)
+		if (priv->hw_radio_off)
 			argv[1] = "RFOFF";
 		else
 			argv[1] = "RFON";
