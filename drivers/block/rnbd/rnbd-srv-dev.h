@@ -29,6 +29,4 @@ struct rnbd_dev *rnbd_dev_open(const char *path, fmode_t flags);
  */
 void rnbd_dev_close(struct rnbd_dev *dev);
 
-void rnbd_endio(void *priv, int error);
-
 #endif /* RNBD_SRV_DEV_H */
