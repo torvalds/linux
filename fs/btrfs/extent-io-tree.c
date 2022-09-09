@@ -9,6 +9,11 @@
 
 static struct kmem_cache *extent_state_cache;
 
+static inline bool extent_state_in_tree(const struct extent_state *state)
+{
+	return !RB_EMPTY_NODE(&state->rb_node);
+}
+
 #ifdef CONFIG_BTRFS_DEBUG
 static LIST_HEAD(states);
 static DEFINE_SPINLOCK(leak_lock);
@@ -81,6 +86,12 @@ static inline void __btrfs_debug_check_extent_io_range(const char *caller,
  */
 static struct lock_class_key file_extent_tree_class;
 
+struct tree_entry {
+	u64 start;
+	u64 end;
+	struct rb_node rb_node;
+};
+
 void extent_io_tree_init(struct btrfs_fs_info *fs_info,
 			 struct extent_io_tree *tree, unsigned int owner,
 			 void *private_data)
@@ -124,7 +135,7 @@ void extent_io_tree_release(struct extent_io_tree *tree)
 	spin_unlock(&tree->lock);
 }
 
-struct extent_state *alloc_extent_state(gfp_t mask)
+static struct extent_state *alloc_extent_state(gfp_t mask)
 {
 	struct extent_state *state;
 
@@ -145,7 +156,7 @@ struct extent_state *alloc_extent_state(gfp_t mask)
 	return state;
 }
 
-struct extent_state *alloc_extent_state_atomic(struct extent_state *prealloc)
+static struct extent_state *alloc_extent_state_atomic(struct extent_state *prealloc)
 {
 	if (!prealloc)
 		prealloc = alloc_extent_state(GFP_ATOMIC);
@@ -183,6 +194,16 @@ static int add_extent_changeset(struct extent_state *state, u32 bits,
 	return ret;
 }
 
+static inline struct extent_state *next_state(struct extent_state *state)
+{
+	struct rb_node *next = rb_next(&state->rb_node);
+
+	if (next)
+		return rb_entry(next, struct extent_state, rb_node);
+	else
+		return NULL;
+}
+
 /*
  * Search @tree for an entry that contains @offset. Such entry would have
  * entry->start <= offset && entry->end >= offset.
@@ -200,9 +221,10 @@ static int add_extent_changeset(struct extent_state *state, u32 bits,
  * If no such entry exists, return pointer to entry that ends before @offset
  * and fill parameters @node_ret and @parent_ret, ie. does not return NULL.
  */
-struct rb_node *tree_search_for_insert(struct extent_io_tree *tree, u64 offset,
-				       struct rb_node ***node_ret,
-				       struct rb_node **parent_ret)
+static inline struct rb_node *tree_search_for_insert(struct extent_io_tree *tree,
+						     u64 offset,
+						     struct rb_node ***node_ret,
+						     struct rb_node **parent_ret)
 {
 	struct rb_root *root = &tree->state;
 	struct rb_node **node = &root->rb_node;
@@ -247,9 +269,10 @@ struct rb_node *tree_search_for_insert(struct extent_io_tree *tree, u64 offset,
  * such entry exists, then return NULL and fill @prev_ret and @next_ret.
  * Otherwise return the found entry and other pointers are left untouched.
  */
-struct rb_node *tree_search_prev_next(struct extent_io_tree *tree, u64 offset,
-				      struct rb_node **prev_ret,
-				      struct rb_node **next_ret)
+static inline struct rb_node *tree_search_prev_next(struct extent_io_tree *tree,
+						    u64 offset,
+						    struct rb_node **prev_ret,
+						    struct rb_node **next_ret)
 {
 	struct rb_root *root = &tree->state;
 	struct rb_node **node = &root->rb_node;
@@ -313,7 +336,7 @@ static void extent_io_tree_panic(struct extent_io_tree *tree, int err)
  *
  * This should be called with the tree lock held.
  */
-void merge_state(struct extent_io_tree *tree, struct extent_state *state)
+static void merge_state(struct extent_io_tree *tree, struct extent_state *state)
 {
 	struct extent_state *other;
 	struct rb_node *other_node;
@@ -353,8 +376,9 @@ void merge_state(struct extent_io_tree *tree, struct extent_state *state)
 	}
 }
 
-void set_state_bits(struct extent_io_tree *tree, struct extent_state *state,
-		    u32 bits, struct extent_changeset *changeset)
+static void set_state_bits(struct extent_io_tree *tree,
+			   struct extent_state *state,
+			   u32 bits, struct extent_changeset *changeset)
 {
 	u32 bits_to_set = bits & ~EXTENT_CTLBITS;
 	int ret;
@@ -381,8 +405,9 @@ void set_state_bits(struct extent_io_tree *tree, struct extent_state *state,
  * The tree lock is not taken internally.  This is a utility function and
  * probably isn't what you want to call (see set/clear_extent_bit).
  */
-int insert_state(struct extent_io_tree *tree, struct extent_state *state,
-		 u32 bits, struct extent_changeset *changeset)
+static int insert_state(struct extent_io_tree *tree,
+			struct extent_state *state,
+			u32 bits, struct extent_changeset *changeset)
 {
 	struct rb_node **node;
 	struct rb_node *parent;
@@ -419,9 +444,10 @@ int insert_state(struct extent_io_tree *tree, struct extent_state *state,
 /*
  * Insert state to @tree to the location given by @node and @parent.
  */
-void insert_state_fast(struct extent_io_tree *tree, struct extent_state *state,
-		       struct rb_node **node, struct rb_node *parent,
-		       unsigned bits, struct extent_changeset *changeset)
+static void insert_state_fast(struct extent_io_tree *tree,
+			      struct extent_state *state, struct rb_node **node,
+			      struct rb_node *parent, unsigned bits,
+			      struct extent_changeset *changeset)
 {
 	set_state_bits(tree, state, bits, changeset);
 	rb_link_node(&state->rb_node, parent, node);
@@ -443,8 +469,8 @@ void insert_state_fast(struct extent_io_tree *tree, struct extent_state *state,
  * The tree locks are not taken by this function. They need to be held
  * by the caller.
  */
-int split_state(struct extent_io_tree *tree, struct extent_state *orig,
-		struct extent_state *prealloc, u64 split)
+static int split_state(struct extent_io_tree *tree, struct extent_state *orig,
+		       struct extent_state *prealloc, u64 split)
 {
 	struct rb_node *parent = NULL;
 	struct rb_node **node;
@@ -488,10 +514,10 @@ int split_state(struct extent_io_tree *tree, struct extent_state *orig,
  * If no bits are set on the state struct after clearing things, the
  * struct is freed and removed from the tree
  */
-struct extent_state *clear_state_bit(struct extent_io_tree *tree,
-				     struct extent_state *state, u32 bits,
-				     int wake,
-				     struct extent_changeset *changeset)
+static struct extent_state *clear_state_bit(struct extent_io_tree *tree,
+					    struct extent_state *state,
+					    u32 bits, int wake,
+					    struct extent_changeset *changeset)
 {
 	struct extent_state *next;
 	u32 bits_to_clear = bits & ~EXTENT_CTLBITS;
