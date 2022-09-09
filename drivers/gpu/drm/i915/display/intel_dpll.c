@@ -1302,7 +1302,9 @@ static int g4x_crtc_compute_clock(struct intel_atomic_state *state,
 			  &crtc_state->dpll);
 
 	crtc_state->port_clock = crtc_state->dpll.dot;
-	crtc_state->hw.adjusted_mode.crtc_clock = intel_crtc_dotclock(crtc_state);
+	/* FIXME this is a mess */
+	if (!intel_crtc_has_type(crtc_state, INTEL_OUTPUT_TVOUT))
+		crtc_state->hw.adjusted_mode.crtc_clock = intel_crtc_dotclock(crtc_state);
 
 	return 0;
 }
@@ -1374,7 +1376,9 @@ static int i9xx_crtc_compute_clock(struct intel_atomic_state *state,
 			  &crtc_state->dpll);
 
 	crtc_state->port_clock = crtc_state->dpll.dot;
-	crtc_state->hw.adjusted_mode.crtc_clock = intel_crtc_dotclock(crtc_state);
+	/* FIXME this is a mess */
+	if (!intel_crtc_has_type(crtc_state, INTEL_OUTPUT_TVOUT))
+		crtc_state->hw.adjusted_mode.crtc_clock = intel_crtc_dotclock(crtc_state);
 
 	return 0;
 }
