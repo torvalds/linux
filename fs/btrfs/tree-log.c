@@ -4271,8 +4271,8 @@ static int log_csums(struct btrfs_trans_handle *trans,
 	 * file which happens to refer to the same extent as well. Such races
 	 * can leave checksum items in the log with overlapping ranges.
 	 */
-	ret = lock_extent_bits(&log_root->log_csum_range, sums->bytenr,
-			       lock_end, &cached_state);
+	ret = lock_extent(&log_root->log_csum_range, sums->bytenr, lock_end,
+			  &cached_state);
 	if (ret)
 		return ret;
 	/*
@@ -4288,8 +4288,8 @@ static int log_csums(struct btrfs_trans_handle *trans,
 	if (!ret)
 		ret = btrfs_csum_file_blocks(trans, log_root, sums);
 
-	unlock_extent_cached(&log_root->log_csum_range, sums->bytenr, lock_end,
-			     &cached_state);
+	unlock_extent(&log_root->log_csum_range, sums->bytenr, lock_end,
+		      &cached_state);
 
 	return ret;
 }

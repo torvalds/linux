@@ -348,7 +348,7 @@ int btrfs_truncate_free_space_cache(struct btrfs_trans_handle *trans,
 	btrfs_i_size_write(inode, 0);
 	truncate_pagecache(vfs_inode, 0);
 
-	lock_extent_bits(&inode->io_tree, 0, (u64)-1, &cached_state);
+	lock_extent(&inode->io_tree, 0, (u64)-1, &cached_state);
 	btrfs_drop_extent_cache(inode, 0, (u64)-1, 0);
 
 	/*
@@ -360,7 +360,7 @@ int btrfs_truncate_free_space_cache(struct btrfs_trans_handle *trans,
 	inode_sub_bytes(&inode->vfs_inode, control.sub_bytes);
 	btrfs_inode_safe_disk_i_size_write(inode, control.last_size);
 
-	unlock_extent_cached(&inode->io_tree, 0, (u64)-1, &cached_state);
+	unlock_extent(&inode->io_tree, 0, (u64)-1, &cached_state);
 	if (ret)
 		goto fail;
 
@@ -1292,8 +1292,8 @@ cleanup_write_cache_enospc(struct inode *inode,
 			   struct extent_state **cached_state)
 {
 	io_ctl_drop_pages(io_ctl);
-	unlock_extent_cached(&BTRFS_I(inode)->io_tree, 0,
-			     i_size_read(inode) - 1, cached_state);
+	unlock_extent(&BTRFS_I(inode)->io_tree, 0, i_size_read(inode) - 1,
+		      cached_state);
 }
 
 static int __btrfs_wait_cache_io(struct btrfs_root *root,
@@ -1418,8 +1418,8 @@ static int __btrfs_write_out_cache(struct btrfs_root *root, struct inode *inode,
 	if (ret)
 		goto out_unlock;
 
-	lock_extent_bits(&BTRFS_I(inode)->io_tree, 0, i_size_read(inode) - 1,
-			 &cached_state);
+	lock_extent(&BTRFS_I(inode)->io_tree, 0, i_size_read(inode) - 1,
+		    &cached_state);
 
 	io_ctl_set_generation(io_ctl, trans->transid);
 
@@ -1474,8 +1474,8 @@ static int __btrfs_write_out_cache(struct btrfs_root *root, struct inode *inode,
 	io_ctl_drop_pages(io_ctl);
 	io_ctl_free(io_ctl);
 
-	unlock_extent_cached(&BTRFS_I(inode)->io_tree, 0,
-			     i_size_read(inode) - 1, &cached_state);
+	unlock_extent(&BTRFS_I(inode)->io_tree, 0, i_size_read(inode) - 1,
+		      &cached_state);
 
 	/*
 	 * at this point the pages are under IO and we're happy,

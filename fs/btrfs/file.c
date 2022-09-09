@@ -1426,15 +1426,14 @@ lock_and_cleanup_extent_if_need(struct btrfs_inode *inode, struct page **pages,
 	if (start_pos < inode->vfs_inode.i_size) {
 		struct btrfs_ordered_extent *ordered;
 
-		lock_extent_bits(&inode->io_tree, start_pos, last_pos,
-				cached_state);
+		lock_extent(&inode->io_tree, start_pos, last_pos, cached_state);
 		ordered = btrfs_lookup_ordered_range(inode, start_pos,
 						     last_pos - start_pos + 1);
 		if (ordered &&
 		    ordered->file_offset + ordered->num_bytes > start_pos &&
 		    ordered->file_offset <= last_pos) {
-			unlock_extent_cached(&inode->io_tree, start_pos,
-					last_pos, cached_state);
+			unlock_extent(&inode->io_tree, start_pos, last_pos,
+				      cached_state);
 			for (i = 0; i < num_pages; i++) {
 				unlock_page(pages[i]);
 				put_page(pages[i]);
@@ -1510,7 +1509,7 @@ int btrfs_check_nocow_lock(struct btrfs_inode *inode, loff_t pos,
 		*write_bytes = min_t(size_t, *write_bytes ,
 				     num_bytes - pos + lockstart);
 	}
-	unlock_extent(&inode->io_tree, lockstart, lockend);
+	unlock_extent(&inode->io_tree, lockstart, lockend, NULL);
 
 	return ret;
 }
@@ -1782,8 +1781,8 @@ again:
 		 * possible cached extent state to avoid a memory leak.
 		 */
 		if (extents_locked)
-			unlock_extent_cached(&BTRFS_I(inode)->io_tree,
-					     lockstart, lockend, &cached_state);
+			unlock_extent(&BTRFS_I(inode)->io_tree, lockstart,
+				      lockend, &cached_state);
 		else
 			free_extent_state(cached_state);
 
@@ -2592,8 +2591,8 @@ static void btrfs_punch_hole_lock_range(struct inode *inode,
 	while (1) {
 		truncate_pagecache_range(inode, lockstart, lockend);
 
-		lock_extent_bits(&BTRFS_I(inode)->io_tree, lockstart, lockend,
-				 cached_state);
+		lock_extent(&BTRFS_I(inode)->io_tree, lockstart, lockend,
+			    cached_state);
 		/*
 		 * We can't have ordered extents in the range, nor dirty/writeback
 		 * pages, because we have locked the inode's VFS lock in exclusive
@@ -2608,8 +2607,8 @@ static void btrfs_punch_hole_lock_range(struct inode *inode,
 					    page_lockend))
 			break;
 
-		unlock_extent_cached(&BTRFS_I(inode)->io_tree, lockstart,
-				     lockend, cached_state);
+		unlock_extent(&BTRFS_I(inode)->io_tree, lockstart, lockend,
+			      cached_state);
 	}
 
 	btrfs_assert_inode_range_clean(BTRFS_I(inode), lockstart, lockend);
@@ -3109,8 +3108,8 @@ static int btrfs_punch_hole(struct file *file, loff_t offset, loff_t len)
 	btrfs_end_transaction(trans);
 	btrfs_btree_balance_dirty(fs_info);
 out:
-	unlock_extent_cached(&BTRFS_I(inode)->io_tree, lockstart, lockend,
-			     &cached_state);
+	unlock_extent(&BTRFS_I(inode)->io_tree, lockstart, lockend,
+		      &cached_state);
 out_only_mutex:
 	if (!updated_inode && truncated_block && !ret) {
 		/*
@@ -3383,16 +3382,16 @@ reserve_space:
 		ret = btrfs_qgroup_reserve_data(BTRFS_I(inode), &data_reserved,
 						alloc_start, bytes_to_reserve);
 		if (ret) {
-			unlock_extent_cached(&BTRFS_I(inode)->io_tree, lockstart,
-					     lockend, &cached_state);
+			unlock_extent(&BTRFS_I(inode)->io_tree, lockstart,
+				      lockend, &cached_state);
 			goto out;
 		}
 		ret = btrfs_prealloc_file_range(inode, mode, alloc_start,
 						alloc_end - alloc_start,
 						i_blocksize(inode),
 						offset + len, &alloc_hint);
-		unlock_extent_cached(&BTRFS_I(inode)->io_tree, lockstart,
-				     lockend, &cached_state);
+		unlock_extent(&BTRFS_I(inode)->io_tree, lockstart, lockend,
+			      &cached_state);
 		/* btrfs_prealloc_file_range releases reserved space on error */
 		if (ret) {
 			space_reserved = false;
@@ -3503,8 +3502,8 @@ static long btrfs_fallocate(struct file *file, int mode,
 	}
 
 	locked_end = alloc_end - 1;
-	lock_extent_bits(&BTRFS_I(inode)->io_tree, alloc_start, locked_end,
-			 &cached_state);
+	lock_extent(&BTRFS_I(inode)->io_tree, alloc_start, locked_end,
+		    &cached_state);
 
 	btrfs_assert_inode_range_clean(BTRFS_I(inode), alloc_start, locked_end);
 
@@ -3593,8 +3592,8 @@ static long btrfs_fallocate(struct file *file, int mode,
 	 */
 	ret = btrfs_fallocate_update_isize(inode, actual_end, mode);
 out_unlock:
-	unlock_extent_cached(&BTRFS_I(inode)->io_tree, alloc_start, locked_end,
-			     &cached_state);
+	unlock_extent(&BTRFS_I(inode)->io_tree, alloc_start, locked_end,
+		      &cached_state);
 out:
 	btrfs_inode_unlock(inode, BTRFS_ILOCK_MMAP);
 	extent_changeset_free(data_reserved);
@@ -3899,7 +3898,7 @@ static loff_t find_desired_extent(struct btrfs_inode *inode, loff_t offset,
 
 	last_extent_end = lockstart;
 
-	lock_extent_bits(&inode->io_tree, lockstart, lockend, &cached_state);
+	lock_extent(&inode->io_tree, lockstart, lockend, &cached_state);
 
 	ret = btrfs_search_slot(NULL, root, &key, path, 0, 0);
 	if (ret < 0) {
@@ -4035,8 +4034,7 @@ static loff_t find_desired_extent(struct btrfs_inode *inode, loff_t offset,
 	}
 
 out:
-	unlock_extent_cached(&inode->io_tree, lockstart, lockend,
-			     &cached_state);
+	unlock_extent(&inode->io_tree, lockstart, lockend, &cached_state);
 	btrfs_free_path(path);
 
 	if (ret < 0)

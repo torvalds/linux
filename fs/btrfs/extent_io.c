@@ -463,14 +463,14 @@ again:
 	}
 
 	/* step three, lock the state bits for the whole range */
-	lock_extent_bits(tree, delalloc_start, delalloc_end, &cached_state);
+	lock_extent(tree, delalloc_start, delalloc_end, &cached_state);
 
 	/* then test to make sure it is all still delalloc */
 	ret = test_range_bit(tree, delalloc_start, delalloc_end,
 			     EXTENT_DELALLOC, 1, cached_state);
 	if (!ret) {
-		unlock_extent_cached(tree, delalloc_start, delalloc_end,
-				     &cached_state);
+		unlock_extent(tree, delalloc_start, delalloc_end,
+			      &cached_state);
 		__unlock_for_delalloc(inode, locked_page,
 			      delalloc_start, delalloc_end);
 		cond_resched();
@@ -913,8 +913,8 @@ static void end_sector_io(struct page *page, u64 offset, bool uptodate)
 	if (uptodate)
 		set_extent_uptodate(&inode->io_tree, offset,
 				    offset + sectorsize - 1, &cached, GFP_ATOMIC);
-	unlock_extent_cached_atomic(&inode->io_tree, offset,
-				    offset + sectorsize - 1, &cached);
+	unlock_extent_atomic(&inode->io_tree, offset, offset + sectorsize - 1,
+			     &cached);
 }
 
 static void submit_data_read_repair(struct inode *inode,
@@ -1118,8 +1118,7 @@ static void endio_readpage_release_extent(struct processed_extent *processed,
 	 * Now we don't have range contiguous to the processed range, release
 	 * the processed range now.
 	 */
-	unlock_extent_cached_atomic(tree, processed->start, processed->end,
-				    &cached);
+	unlock_extent_atomic(tree, processed->start, processed->end, &cached);
 
 update:
 	/* Update processed to current range */
@@ -1761,7 +1760,7 @@ static int btrfs_do_readpage(struct page *page, struct extent_map **em_cached,
 
 	ret = set_page_extent_mapped(page);
 	if (ret < 0) {
-		unlock_extent(tree, start, end);
+		unlock_extent(tree, start, end, NULL);
 		btrfs_page_set_error(fs_info, page, start, PAGE_SIZE);
 		unlock_page(page);
 		goto out;
@@ -1789,15 +1788,14 @@ static int btrfs_do_readpage(struct page *page, struct extent_map **em_cached,
 			memzero_page(page, pg_offset, iosize);
 			set_extent_uptodate(tree, cur, cur + iosize - 1,
 					    &cached, GFP_NOFS);
-			unlock_extent_cached(tree, cur,
-					     cur + iosize - 1, &cached);
+			unlock_extent(tree, cur, cur + iosize - 1, &cached);
 			end_page_read(page, true, cur, iosize);
 			break;
 		}
 		em = __get_extent_map(inode, page, pg_offset, cur,
 				      end - cur + 1, em_cached);
 		if (IS_ERR(em)) {
-			unlock_extent(tree, cur, end);
+			unlock_extent(tree, cur, end, NULL);
 			end_page_read(page, false, cur, end + 1 - cur);
 			ret = PTR_ERR(em);
 			break;
@@ -1872,8 +1870,7 @@ static int btrfs_do_readpage(struct page *page, struct extent_map **em_cached,
 
 			set_extent_uptodate(tree, cur, cur + iosize - 1,
 					    &cached, GFP_NOFS);
-			unlock_extent_cached(tree, cur,
-					     cur + iosize - 1, &cached);
+			unlock_extent(tree, cur, cur + iosize - 1, &cached);
 			end_page_read(page, true, cur, iosize);
 			cur = cur + iosize;
 			pg_offset += iosize;
@@ -1881,7 +1878,7 @@ static int btrfs_do_readpage(struct page *page, struct extent_map **em_cached,
 		}
 		/* the get_extent function already copied into the page */
 		if (block_start == EXTENT_MAP_INLINE) {
-			unlock_extent(tree, cur, cur + iosize - 1);
+			unlock_extent(tree, cur, cur + iosize - 1, NULL);
 			end_page_read(page, true, cur, iosize);
 			cur = cur + iosize;
 			pg_offset += iosize;
@@ -1897,7 +1894,7 @@ static int btrfs_do_readpage(struct page *page, struct extent_map **em_cached,
 			 * We have to unlock the remaining range, or the page
 			 * will never be unlocked.
 			 */
-			unlock_extent(tree, cur, end);
+			unlock_extent(tree, cur, end, NULL);
 			end_page_read(page, false, cur, end + 1 - cur);
 			goto out;
 		}
@@ -3364,7 +3361,7 @@ int extent_invalidate_folio(struct extent_io_tree *tree,
 	if (start > end)
 		return 0;
 
-	lock_extent_bits(tree, start, end, &cached_state);
+	lock_extent(tree, start, end, &cached_state);
 	folio_wait_writeback(folio);
 
 	/*
@@ -3372,7 +3369,7 @@ int extent_invalidate_folio(struct extent_io_tree *tree,
 	 * so here we only need to unlock the extent range to free any
 	 * existing extent state.
 	 */
-	unlock_extent_cached(tree, start, end, &cached_state);
+	unlock_extent(tree, start, end, &cached_state);
 	return 0;
 }
 
@@ -3939,7 +3936,7 @@ int extent_fiemap(struct btrfs_inode *inode, struct fiemap_extent_info *fieinfo,
 	lockend = round_up(start + len, btrfs_inode_sectorsize(inode));
 	prev_extent_end = lockstart;
 
-	lock_extent_bits(&inode->io_tree, lockstart, lockend, &cached_state);
+	lock_extent(&inode->io_tree, lockstart, lockend, &cached_state);
 
 	ret = fiemap_find_last_extent_offset(inode, path, &last_extent_end);
 	if (ret < 0)
@@ -4129,7 +4126,7 @@ check_eof_delalloc:
 	ret = emit_last_fiemap_cache(fieinfo, &cache);
 
 out_unlock:
-	unlock_extent_cached(&inode->io_tree, lockstart, lockend, &cached_state);
+	unlock_extent(&inode->io_tree, lockstart, lockend, &cached_state);
 out:
 	kfree(backref_cache);
 	btrfs_free_path(path);
@@ -4972,7 +4969,7 @@ static int read_extent_buffer_subpage(struct extent_buffer *eb, int wait,
 		if (!try_lock_extent(io_tree, eb->start, eb->start + eb->len - 1))
 			return -EAGAIN;
 	} else {
-		ret = lock_extent(io_tree, eb->start, eb->start + eb->len - 1);
+		ret = lock_extent(io_tree, eb->start, eb->start + eb->len - 1, NULL);
 		if (ret < 0)
 			return ret;
 	}
@@ -4982,7 +4979,7 @@ static int read_extent_buffer_subpage(struct extent_buffer *eb, int wait,
 	    PageUptodate(page) ||
 	    btrfs_subpage_test_uptodate(fs_info, page, eb->start, eb->len)) {
 		set_bit(EXTENT_BUFFER_UPTODATE, &eb->bflags);
-		unlock_extent(io_tree, eb->start, eb->start + eb->len - 1);
+		unlock_extent(io_tree, eb->start, eb->start + eb->len - 1, NULL);
 		return ret;
 	}
 

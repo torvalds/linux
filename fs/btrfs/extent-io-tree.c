@@ -1649,8 +1649,8 @@ int try_lock_extent(struct extent_io_tree *tree, u64 start, u64 end)
  * Either insert or lock state struct between start and end use mask to tell
  * us if waiting is desired.
  */
-int lock_extent_bits(struct extent_io_tree *tree, u64 start, u64 end,
-		     struct extent_state **cached_state)
+int lock_extent(struct extent_io_tree *tree, u64 start, u64 end,
+		struct extent_state **cached_state)
 {
 	int err;
 	u64 failed_start;
