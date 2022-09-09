@@ -70,7 +70,6 @@ struct extent_io_tree {
 	struct btrfs_fs_info *fs_info;
 	void *private_data;
 	u64 dirty_bytes;
-	bool track_uptodate;
 
 	/* Who owns this io tree, should be one of IO_TREE_* */
 	u8 owner;
