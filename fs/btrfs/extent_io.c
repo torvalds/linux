@@ -2163,8 +2163,8 @@ out:
  * set the private field for a given byte offset in the tree.  If there isn't
  * an extent_state there already, this does nothing.
  */
-int set_state_failrec(struct extent_io_tree *tree, u64 start,
-		      struct io_failure_record *failrec)
+static int set_state_failrec(struct extent_io_tree *tree, u64 start,
+			     struct io_failure_record *failrec)
 {
 	struct rb_node *node;
 	struct extent_state *state;
@@ -2191,7 +2191,8 @@ out:
 	return ret;
 }
 
-struct io_failure_record *get_state_failrec(struct extent_io_tree *tree, u64 start)
+static struct io_failure_record *get_state_failrec(struct extent_io_tree *tree,
+						   u64 start)
 {
 	struct rb_node *node;
 	struct extent_state *state;
@@ -2275,9 +2276,9 @@ int test_range_bit(struct extent_io_tree *tree, u64 start, u64 end,
 	return bitset;
 }
 
-int free_io_failure(struct extent_io_tree *failure_tree,
-		    struct extent_io_tree *io_tree,
-		    struct io_failure_record *rec)
+static int free_io_failure(struct extent_io_tree *failure_tree,
+			   struct extent_io_tree *io_tree,
+			   struct io_failure_record *rec)
 {
 	int ret;
 	int err = 0;
