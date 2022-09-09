@@ -297,8 +297,6 @@ void atomisp_buf_done(struct atomisp_sub_device *asd, int error,
 		      bool q_buffers, enum atomisp_input_stream_id stream_id);
 
 void atomisp_css_flush(struct atomisp_device *isp);
-int atomisp_source_pad_to_stream_id(struct atomisp_sub_device *asd,
-				    uint16_t source_pad);
 
 /* Events. Only one event has to be exported for now. */
 void atomisp_eof_event(struct atomisp_sub_device *asd, uint8_t exp_id);

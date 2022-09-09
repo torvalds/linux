@@ -1112,10 +1112,7 @@ int atomisp_reqbufs(struct file *file, void *fh, struct v4l2_requestbuffers *req
 	struct ia_css_frame *frame;
 	struct videobuf_vmalloc_memory *vm_mem;
 	u16 source_pad = atomisp_subdev_source_pad(vdev);
-	u16 stream_id;
 	int ret = 0, i = 0;
-
-	stream_id = atomisp_source_pad_to_stream_id(asd, source_pad);
 
 	if (req->count == 0) {
 		mutex_lock(&pipe->capq.vb_lock);
@@ -1137,7 +1134,7 @@ int atomisp_reqbufs(struct file *file, void *fh, struct v4l2_requestbuffers *req
 	if (ret)
 		return ret;
 
-	atomisp_alloc_css_stat_bufs(asd, stream_id);
+	atomisp_alloc_css_stat_bufs(asd, ATOMISP_INPUT_STREAM_GENERAL);
 
 	/*
 	 * for user pointer type, buffers are not really allocated here,

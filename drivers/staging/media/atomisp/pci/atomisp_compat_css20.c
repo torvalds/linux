@@ -1427,7 +1427,6 @@ int atomisp_css_get_grid_info(struct atomisp_sub_device *asd,
 	struct ia_css_pipe_info p_info;
 	struct ia_css_grid_info old_info;
 	struct atomisp_device *isp = asd->isp;
-	int stream_index = atomisp_source_pad_to_stream_id(asd, source_pad);
 	int md_width = asd->stream_env[ATOMISP_INPUT_STREAM_GENERAL].
 		       stream_config.metadata_config.resolution.width;
 
@@ -1435,7 +1434,7 @@ int atomisp_css_get_grid_info(struct atomisp_sub_device *asd,
 	memset(&old_info, 0, sizeof(struct ia_css_grid_info));
 
 	if (ia_css_pipe_get_info(
-		asd->stream_env[stream_index].pipes[pipe_id],
+		asd->stream_env[ATOMISP_INPUT_STREAM_GENERAL].pipes[pipe_id],
 		&p_info) != 0) {
 		dev_err(isp->dev, "ia_css_pipe_get_info failed\n");
 		return -EINVAL;
@@ -2680,11 +2679,11 @@ int atomisp_get_css_frame_info(struct atomisp_sub_device *asd,
 	struct atomisp_device *isp = asd->isp;
 
 	if (ATOMISP_SOC_CAMERA(asd)) {
-		stream_index = atomisp_source_pad_to_stream_id(asd, source_pad);
+		stream_index = ATOMISP_INPUT_STREAM_GENERAL;
 	} else {
 		stream_index = (pipe_index == IA_CSS_PIPE_ID_YUVPP) ?
 			       ATOMISP_INPUT_STREAM_VIDEO :
-			       atomisp_source_pad_to_stream_id(asd, source_pad);
+			       ATOMISP_INPUT_STREAM_GENERAL;
 	}
 
 	if (0 != ia_css_pipe_get_info(asd->stream_env[stream_index]
