@@ -78,6 +78,11 @@
 		compatible = "rockchip,thunder-boot-service";
 		mbox-names = "amp-rx";
 		mboxes = <&mailbox 1>;
+		resets = <&cru SRST_CORE_MCU>, <&cru SRST_CORE_MCU_PWRUP>,
+			 <&cru SRST_CORE_MCU_CPU>, <&cru SRST_T_CORE_MCU_CPU>;
+		reset-names = "core_mcu", "core_mcu_pwrup",
+			      "core_mcu_cpu", "t_core_mcu_cpu";
+		memory-region = <&rtos>;
 		status = "disabled";
 	};
 };
