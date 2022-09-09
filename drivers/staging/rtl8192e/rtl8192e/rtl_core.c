@@ -137,7 +137,7 @@ bool rtl92e_set_rf_state(struct net_device *dev,
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	struct rtllib_device *ieee = priv->rtllib;
-	bool			bActionAllowed = false;
+	bool action_allowed = false;
 	bool			bConnectBySSID = false;
 	enum rt_rf_power_state rtState;
 	u16			RFWaitCounter = 0;
@@ -177,7 +177,7 @@ bool rtl92e_set_rf_state(struct net_device *dev,
 
 		if (!priv->rtllib->RfOffReason) {
 			priv->rtllib->RfOffReason = 0;
-			bActionAllowed = true;
+			action_allowed = true;
 
 			if (rtState == eRfOff &&
 			    change_source >= RF_CHANGE_BY_HW)
@@ -202,19 +202,19 @@ bool rtl92e_set_rf_state(struct net_device *dev,
 		if ((change_source == RF_CHANGE_BY_HW) && !priv->bHwRadioOff)
 			priv->bHwRadioOff = true;
 		priv->rtllib->RfOffReason |= change_source;
-		bActionAllowed = true;
+		action_allowed = true;
 		break;
 
 	case eRfSleep:
 		priv->rtllib->RfOffReason |= change_source;
-		bActionAllowed = true;
+		action_allowed = true;
 		break;
 
 	default:
 		break;
 	}
 
-	if (bActionAllowed) {
+	if (action_allowed) {
 		rtl92e_set_rf_power_state(dev, state_to_set);
 		if (state_to_set == eRfOn) {
 			if (bConnectBySSID && priv->blinked_ingpio) {
@@ -228,7 +228,7 @@ bool rtl92e_set_rf_state(struct net_device *dev,
 	spin_lock_irqsave(&priv->rf_ps_lock, flag);
 	priv->RFChangeInProgress = false;
 	spin_unlock_irqrestore(&priv->rf_ps_lock, flag);
-	return bActionAllowed;
+	return action_allowed;
 }
 
 static short _rtl92e_check_nic_enough_desc(struct net_device *dev, int prio)
