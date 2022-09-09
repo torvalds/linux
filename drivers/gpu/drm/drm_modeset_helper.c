@@ -108,9 +108,7 @@ static const uint32_t safe_modeset_formats[] = {
 };
 
 static const struct drm_plane_funcs primary_plane_funcs = {
-	.update_plane = drm_plane_helper_update_primary,
-	.disable_plane = drm_plane_helper_disable_primary,
-	.destroy = drm_plane_helper_destroy,
+	DRM_PLANE_NON_ATOMIC_FUNCS,
 };
 
 /**
