@@ -304,17 +304,17 @@ static void _rtl92e_update_cap(struct net_device *dev, u16 cap)
 
 	if (net->mode & (IEEE_G | IEEE_N_24G)) {
 		u8	slot_time_val;
-		u8	CurSlotTime = priv->slot_time;
+		u8	cur_slot_time = priv->slot_time;
 
 		if ((cap & WLAN_CAPABILITY_SHORT_SLOT_TIME) &&
 		   (!priv->rtllib->pHTInfo->bCurrentRT2RTLongSlotTime)) {
-			if (CurSlotTime != SHORT_SLOT_TIME) {
+			if (cur_slot_time != SHORT_SLOT_TIME) {
 				slot_time_val = SHORT_SLOT_TIME;
 				priv->rtllib->SetHwRegHandler(dev,
 					 HW_VAR_SLOT_TIME, &slot_time_val);
 			}
 		} else {
-			if (CurSlotTime != NON_SHORT_SLOT_TIME) {
+			if (cur_slot_time != NON_SHORT_SLOT_TIME) {
 				slot_time_val = NON_SHORT_SLOT_TIME;
 				priv->rtllib->SetHwRegHandler(dev,
 					 HW_VAR_SLOT_TIME, &slot_time_val);
