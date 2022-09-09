@@ -366,10 +366,9 @@ thp_split_pmd
 	page table entry.
 
 thp_zero_page_alloc
-	is incremented every time a huge zero page is
-	successfully allocated. It includes allocations which where
-	dropped due race with other allocation. Note, it doesn't count
-	every map of the huge zero page, only its allocation.
+	is incremented every time a huge zero page used for thp is
+	successfully allocated. Note, it doesn't count every map of
+	the huge zero page, only its allocation.
 
 thp_zero_page_alloc_failed
 	is incremented if kernel fails to allocate
