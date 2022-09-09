@@ -112,19 +112,28 @@ examples:
 
         fastrpc {
             compatible = "qcom,fastrpc";
-            label = "adsp";
-            qcom,smd-channels = "fastrpcsmd-apps-dsp";
+            qcom,glink-channels = "fastrpcglink-apps-dsp";
+            label = "sdsp";
+            qcom,non-secure-domain;
             #address-cells = <1>;
             #size-cells = <0>;
 
             compute-cb@1 {
                 compatible = "qcom,fastrpc-compute-cb";
                 reg = <1>;
+                iommus = <&apps_smmu 0x0541 0x0>;
             };
 
             compute-cb@2 {
                 compatible = "qcom,fastrpc-compute-cb";
                 reg = <2>;
+                iommus = <&apps_smmu 0x0542 0x0>;
+            };
+
+            compute-cb@3 {
+                compatible = "qcom,fastrpc-compute-cb";
+                reg = <3>;
+                iommus = <&apps_smmu 0x0543 0x0>;
             };
         };
     };
