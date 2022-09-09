@@ -3399,6 +3399,8 @@ static void dw_hdmi_rockchip_shutdown(struct platform_device *pdev)
 		return;
 
 	if (hdmi->is_hdmi_qp) {
+		if (hdmi->hpd_irq)
+			disable_irq(hdmi->hpd_irq);
 		cancel_delayed_work(&hdmi->work);
 		flush_workqueue(hdmi->workqueue);
 		dw_hdmi_qp_suspend(hdmi->dev, hdmi->hdmi_qp);
@@ -3420,10 +3422,13 @@ static int dw_hdmi_rockchip_suspend(struct device *dev)
 {
 	struct rockchip_hdmi *hdmi = dev_get_drvdata(dev);
 
-	if (hdmi->is_hdmi_qp)
+	if (hdmi->is_hdmi_qp) {
+		if (hdmi->hpd_irq)
+			disable_irq(hdmi->hpd_irq);
 		dw_hdmi_qp_suspend(dev, hdmi->hdmi_qp);
-	else
+	} else {
 		dw_hdmi_suspend(hdmi->hdmi);
+	}
 	pm_runtime_put_sync(dev);
 
 	return 0;
@@ -3466,6 +3471,8 @@ static int dw_hdmi_rockchip_resume(struct device *dev)
 		}
 
 		dw_hdmi_qp_resume(dev, hdmi->hdmi_qp);
+		if (hdmi->hpd_irq)
+			enable_irq(hdmi->hpd_irq);
 		drm_helper_hpd_irq_event(hdmi->drm_dev);
 	} else {
 		dw_hdmi_resume(hdmi->hdmi);
