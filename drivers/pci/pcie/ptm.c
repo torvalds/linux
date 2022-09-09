@@ -31,13 +31,9 @@ static void pci_ptm_info(struct pci_dev *dev)
 
 void pci_disable_ptm(struct pci_dev *dev)
 {
-	int ptm;
+	u16 ptm = dev->ptm_cap;
 	u16 ctrl;
 
-	if (!pci_is_pcie(dev))
-		return;
-
-	ptm = pci_find_ext_capability(dev, PCI_EXT_CAP_ID_PTM);
 	if (!ptm)
 		return;
 
@@ -48,14 +44,10 @@ void pci_disable_ptm(struct pci_dev *dev)
 
 void pci_save_ptm_state(struct pci_dev *dev)
 {
-	int ptm;
+	u16 ptm = dev->ptm_cap;
 	struct pci_cap_saved_state *save_state;
 	u16 *cap;
 
-	if (!pci_is_pcie(dev))
-		return;
-
-	ptm = pci_find_ext_capability(dev, PCI_EXT_CAP_ID_PTM);
 	if (!ptm)
 		return;
 
@@ -69,16 +61,15 @@ void pci_save_ptm_state(struct pci_dev *dev)
 
 void pci_restore_ptm_state(struct pci_dev *dev)
 {
+	u16 ptm = dev->ptm_cap;
 	struct pci_cap_saved_state *save_state;
-	int ptm;
 	u16 *cap;
 
-	if (!pci_is_pcie(dev))
+	if (!ptm)
 		return;
 
 	save_state = pci_find_saved_ext_cap(dev, PCI_EXT_CAP_ID_PTM);
-	ptm = pci_find_ext_capability(dev, PCI_EXT_CAP_ID_PTM);
-	if (!save_state || !ptm)
+	if (!save_state)
 		return;
 
 	cap = (u16 *)&save_state->cap.data[0];
@@ -87,7 +78,7 @@ void pci_restore_ptm_state(struct pci_dev *dev)
 
 void pci_ptm_init(struct pci_dev *dev)
 {
-	int pos;
+	u16 ptm;
 	u32 cap, ctrl;
 	u8 local_clock;
 	struct pci_dev *ups;
@@ -117,13 +108,14 @@ void pci_ptm_init(struct pci_dev *dev)
 		return;
 	}
 
-	pos = pci_find_ext_capability(dev, PCI_EXT_CAP_ID_PTM);
-	if (!pos)
+	ptm = pci_find_ext_capability(dev, PCI_EXT_CAP_ID_PTM);
+	if (!ptm)
 		return;
 
+	dev->ptm_cap = ptm;
 	pci_add_ext_cap_save_buffer(dev, PCI_EXT_CAP_ID_PTM, sizeof(u16));
 
-	pci_read_config_dword(dev, pos + PCI_PTM_CAP, &cap);
+	pci_read_config_dword(dev, ptm + PCI_PTM_CAP, &cap);
 	local_clock = (cap & PCI_PTM_GRANULARITY_MASK) >> 8;
 
 	/*
@@ -148,7 +140,7 @@ void pci_ptm_init(struct pci_dev *dev)
 	}
 
 	ctrl |= dev->ptm_granularity << 8;
-	pci_write_config_dword(dev, pos + PCI_PTM_CTRL, ctrl);
+	pci_write_config_dword(dev, ptm + PCI_PTM_CTRL, ctrl);
 	dev->ptm_enabled = 1;
 
 	pci_ptm_info(dev);
@@ -156,18 +148,19 @@ void pci_ptm_init(struct pci_dev *dev)
 
 int pci_enable_ptm(struct pci_dev *dev, u8 *granularity)
 {
-	int pos;
+	u16 ptm;
 	u32 cap, ctrl;
 	struct pci_dev *ups;
 
 	if (!pci_is_pcie(dev))
 		return -EINVAL;
 
-	pos = pci_find_ext_capability(dev, PCI_EXT_CAP_ID_PTM);
-	if (!pos)
+	ptm = pci_find_ext_capability(dev, PCI_EXT_CAP_ID_PTM);
+	if (!ptm)
 		return -EINVAL;
 
-	pci_read_config_dword(dev, pos + PCI_PTM_CAP, &cap);
+	dev->ptm_cap = ptm;
+	pci_read_config_dword(dev, ptm + PCI_PTM_CAP, &cap);
 	if (!(cap & PCI_PTM_CAP_REQ))
 		return -EINVAL;
 
@@ -192,7 +185,7 @@ int pci_enable_ptm(struct pci_dev *dev, u8 *granularity)
 
 	ctrl = PCI_PTM_CTRL_ENABLE;
 	ctrl |= dev->ptm_granularity << 8;
-	pci_write_config_dword(dev, pos + PCI_PTM_CTRL, ctrl);
+	pci_write_config_dword(dev, ptm + PCI_PTM_CTRL, ctrl);
 	dev->ptm_enabled = 1;
 
 	pci_ptm_info(dev);
