@@ -3098,6 +3098,7 @@ void dce110_enable_dp_link_output(
 	if (dmcu != NULL && dmcu->funcs->unlock_phy)
 		dmcu->funcs->unlock_phy(dmcu);
 
+	dp_source_sequence_trace(link, DPCD_SOURCE_SEQ_AFTER_ENABLE_LINK_PHY);
 }
 
 void dce110_disable_link_output(struct dc_link *link,
@@ -3111,7 +3112,7 @@ void dce110_disable_link_output(struct dc_link *link,
 	if (signal == SIGNAL_TYPE_EDP &&
 			link->dc->hwss.edp_backlight_control)
 		link->dc->hwss.edp_backlight_control(link, false);
-	else if (dc_is_dp_signal(signal) && dmcu != NULL && dmcu->funcs->lock_phy)
+	else if (dmcu != NULL && dmcu->funcs->lock_phy)
 		dmcu->funcs->lock_phy(dmcu);
 
 	link_hwss->disable_link_output(link, link_res, signal);
@@ -3120,8 +3121,9 @@ void dce110_disable_link_output(struct dc_link *link,
 	if (signal == SIGNAL_TYPE_EDP &&
 			link->dc->hwss.edp_backlight_control)
 		link->dc->hwss.edp_power_control(link, false);
-	else if (dc_is_dp_signal(signal) && dmcu != NULL && dmcu->funcs->lock_phy)
+	else if (dmcu != NULL && dmcu->funcs->lock_phy)
 		dmcu->funcs->unlock_phy(dmcu);
+	dp_source_sequence_trace(link, DPCD_SOURCE_SEQ_AFTER_DISABLE_LINK_PHY);
 }
 
 static const struct hw_sequencer_funcs dce110_funcs = {

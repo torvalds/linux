@@ -7073,9 +7073,9 @@ void dp_enable_link_phy(
 	enum clock_source_id clock_source,
 	const struct dc_link_settings *link_settings)
 {
+	link->cur_link_settings = *link_settings;
 	link->dc->hwss.enable_dp_link_output(link, link_res, signal,
 			clock_source, link_settings);
-	link->cur_link_settings = *link_settings;
 	dp_receiver_power_ctrl(link, true);
 }
 
@@ -7148,6 +7148,9 @@ void dp_disable_link_phy(struct dc_link *link, const struct link_resource *link_
 		enum signal_type signal)
 {
 	struct dc  *dc = link->ctx->dc;
+
+	if (!link->wa_flags.dp_keep_receiver_powered)
+		dp_receiver_power_ctrl(link, false);
 
 	dc->hwss.disable_link_output(link, link_res, signal);
 	/* Clear current link setting.*/
