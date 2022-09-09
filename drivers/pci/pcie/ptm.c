@@ -9,26 +9,6 @@
 #include <linux/pci.h>
 #include "../pci.h"
 
-static void pci_ptm_info(struct pci_dev *dev)
-{
-	char clock_desc[8];
-
-	switch (dev->ptm_granularity) {
-	case 0:
-		snprintf(clock_desc, sizeof(clock_desc), "unknown");
-		break;
-	case 255:
-		snprintf(clock_desc, sizeof(clock_desc), ">254ns");
-		break;
-	default:
-		snprintf(clock_desc, sizeof(clock_desc), "%uns",
-			 dev->ptm_granularity);
-		break;
-	}
-	pci_info(dev, "PTM enabled%s, %s granularity\n",
-		 dev->ptm_root ? " (root)" : "", clock_desc);
-}
-
 static void __pci_disable_ptm(struct pci_dev *dev)
 {
 	u16 ptm = dev->ptm_cap;
@@ -213,16 +193,32 @@ static int __pci_enable_ptm(struct pci_dev *dev)
 int pci_enable_ptm(struct pci_dev *dev, u8 *granularity)
 {
 	int rc;
+	char clock_desc[8];
 
 	rc = __pci_enable_ptm(dev);
 	if (rc)
 		return rc;
 
 	dev->ptm_enabled = 1;
-	pci_ptm_info(dev);
 
 	if (granularity)
 		*granularity = dev->ptm_granularity;
+
+	switch (dev->ptm_granularity) {
+	case 0:
+		snprintf(clock_desc, sizeof(clock_desc), "unknown");
+		break;
+	case 255:
+		snprintf(clock_desc, sizeof(clock_desc), ">254ns");
+		break;
+	default:
+		snprintf(clock_desc, sizeof(clock_desc), "%uns",
+			 dev->ptm_granularity);
+		break;
+	}
+	pci_info(dev, "PTM enabled%s, %s granularity\n",
+		 dev->ptm_root ? " (root)" : "", clock_desc);
+
 	return 0;
 }
 EXPORT_SYMBOL(pci_enable_ptm);
