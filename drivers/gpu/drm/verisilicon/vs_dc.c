@@ -811,7 +811,7 @@ static void vs_dc_enable(struct device *dev, struct drm_crtc *crtc)
 			dc->pix_clk_rate = mode->clock;
 		}
 
-		clk_set_parent(dc->dc8200_clk_pix1, dc->dc8200_pix0 );//child,parent
+		clk_set_parent(dc->dc8200_clk_pix1, dc->dc8200_pix0);
 		udelay(1000);
 		dc_hw_set_out(&dc->hw, OUT_DPI, display.id);
 	} else {
