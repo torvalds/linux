@@ -13,6 +13,7 @@
 #include <linux/kconfig.h>
 #include <linux/export.h>
 #include <linux/bits.h>
+#include "../ipc4-priv.h"
 #include "../ops.h"
 #include "hda.h"
 #include "hda-ipc.h"
@@ -106,11 +107,30 @@ int sof_icl_ops_init(struct snd_sof_dev *sdev)
 	/* probe/remove/shutdown */
 	sof_icl_ops.shutdown	= hda_dsp_shutdown;
 
-	/* doorbell */
-	sof_icl_ops.irq_thread	= cnl_ipc_irq_thread;
+	if (sdev->pdata->ipc_type == SOF_IPC) {
+		/* doorbell */
+		sof_icl_ops.irq_thread	= cnl_ipc_irq_thread;
 
-	/* ipc */
-	sof_icl_ops.send_msg	= cnl_ipc_send_msg;
+		/* ipc */
+		sof_icl_ops.send_msg	= cnl_ipc_send_msg;
+	}
+
+	if (sdev->pdata->ipc_type == SOF_INTEL_IPC4) {
+		struct sof_ipc4_fw_data *ipc4_data;
+
+		sdev->private = devm_kzalloc(sdev->dev, sizeof(*ipc4_data), GFP_KERNEL);
+		if (!sdev->private)
+			return -ENOMEM;
+
+		ipc4_data = sdev->private;
+		ipc4_data->manifest_fw_hdr_offset = SOF_MAN4_FW_HDR_OFFSET;
+
+		/* doorbell */
+		sof_icl_ops.irq_thread	= cnl_ipc4_irq_thread;
+
+		/* ipc */
+		sof_icl_ops.send_msg	= cnl_ipc4_send_msg;
+	}
 
 	/* debug */
 	sof_icl_ops.debug_map	= icl_dsp_debugfs;
