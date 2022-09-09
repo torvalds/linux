@@ -239,6 +239,11 @@ static const struct clk_ops mpfs_clk_cfg_ops = {
 	.hw.init = CLK_HW_INIT(_name, _parent, &mpfs_clk_cfg_ops, 0),			\
 }
 
+#define CLK_CPU_OFFSET		0u
+#define CLK_AXI_OFFSET		1u
+#define CLK_AHB_OFFSET		2u
+#define CLK_RTCREF_OFFSET	3u
+
 static struct mpfs_cfg_hw_clock mpfs_cfg_clks[] = {
 	CLK_CFG(CLK_CPU, "clk_cpu", "clk_msspll", 0, 2, mpfs_div_cpu_axi_table, 0,
 		REG_CLOCK_CONFIG_CR),
@@ -362,7 +367,7 @@ static const struct clk_ops mpfs_periph_clk_ops = {
 				  _flags),					\
 }
 
-#define PARENT_CLK(PARENT) (&mpfs_cfg_clks[CLK_##PARENT].hw)
+#define PARENT_CLK(PARENT) (&mpfs_cfg_clks[CLK_##PARENT##_OFFSET].hw)
 
 /*
  * Critical clocks:
