@@ -32,7 +32,8 @@ properties:
       A list of channels tied to this function, used for matching
       the function to a set of virtual channels.
     $ref: "/schemas/types.yaml#/definitions/string-array"
-    maxItems: 1
+    items:
+      - const: fastrpcglink-apps-dsp
 
   qcom,non-secure-domain:
     description:
@@ -43,7 +44,8 @@ properties:
     description:
       Channel name used for the RPM communication
     $ref: "/schemas/types.yaml#/definitions/string-array"
-    maxItems: 1
+    items:
+      - const: fastrpcsmd-apps-dsp
 
   qcom,vmids:
     description:
