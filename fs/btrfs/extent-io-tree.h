@@ -250,4 +250,7 @@ void btrfs_free_io_failure_record(struct btrfs_inode *inode, u64 start,
 int btrfs_clean_io_failure(struct btrfs_inode *inode, u64 start,
 			   struct page *page, unsigned int pg_offset);
 
+struct extent_state *alloc_extent_state_atomic(struct extent_state *prealloc);
+struct extent_state *alloc_extent_state(gfp_t mask);
+
 #endif /* BTRFS_EXTENT_IO_TREE_H */
