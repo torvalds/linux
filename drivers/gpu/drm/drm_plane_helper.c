@@ -30,8 +30,10 @@
 #include <drm/drm_atomic_uapi.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_device.h>
+#include <drm/drm_drv.h>
 #include <drm/drm_encoder.h>
 #include <drm/drm_plane_helper.h>
+#include <drm/drm_print.h>
 #include <drm/drm_rect.h>
 
 #define SUBPIXEL_MASK 0xffff
@@ -195,9 +197,13 @@ int drm_plane_helper_update_primary(struct drm_plane *plane, struct drm_crtc *cr
 		.x2 = crtc_x + crtc_w,
 		.y2 = crtc_y + crtc_h,
 	};
+	struct drm_device *dev = plane->dev;
 	struct drm_connector **connector_list;
 	int num_connectors, ret;
 	bool visible;
+
+	if (drm_WARN_ON_ONCE(dev, drm_drv_uses_atomic_modeset(dev)))
+		return -EINVAL;
 
 	ret = drm_plane_helper_check_update(plane, crtc, fb,
 					    &src, &dest,
@@ -260,6 +266,10 @@ EXPORT_SYMBOL(drm_plane_helper_update_primary);
 int drm_plane_helper_disable_primary(struct drm_plane *plane,
 				     struct drm_modeset_acquire_ctx *ctx)
 {
+	struct drm_device *dev = plane->dev;
+
+	drm_WARN_ON_ONCE(dev, drm_drv_uses_atomic_modeset(dev));
+
 	return -EINVAL;
 }
 EXPORT_SYMBOL(drm_plane_helper_disable_primary);
