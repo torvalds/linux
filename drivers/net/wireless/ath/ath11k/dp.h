@@ -997,8 +997,7 @@ struct htt_rx_ring_tlv_filter {
 #define HTT_RX_FULL_MON_MODE_CFG_CMD_CFG_NON_ZERO_MPDUS_END	BIT(2)
 #define HTT_RX_FULL_MON_MODE_CFG_CMD_CFG_RELEASE_RING		GENMASK(10, 3)
 
-/**
- * Enumeration for full monitor mode destination ring select
+/* Enumeration for full monitor mode destination ring select
  * 0 - REO destination ring select
  * 1 - FW destination ring select
  * 2 - SW destination ring select
@@ -1395,8 +1394,7 @@ struct htt_ppdu_stats_info {
 	struct list_head list;
 };
 
-/**
- * @brief target -> host packet log message
+/* @brief target -> host packet log message
  *
  * @details
  * The following field definitions describe the format of the packet log
@@ -1434,8 +1432,7 @@ struct htt_pktlog_msg {
 	u8 payload[];
 };
 
-/**
- * @brief host -> target FW extended statistics retrieve
+/* @brief host -> target FW extended statistics retrieve
  *
  * @details
  * The following field definitions describe the format of the HTT host
@@ -1570,8 +1567,7 @@ struct htt_ext_stats_cfg_params {
 	u32 cfg3;
 };
 
-/**
- * @brief target -> host extended statistics upload
+/* @brief target -> host extended statistics upload
  *
  * @details
  * The following field definitions describe the format of the HTT target

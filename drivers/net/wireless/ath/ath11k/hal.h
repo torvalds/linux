@@ -451,13 +451,13 @@ enum hal_ring_type {
 
 /**
  * enum hal_reo_cmd_type: Enum for REO command type
- * @CMD_GET_QUEUE_STATS: Get REO queue status/stats
- * @CMD_FLUSH_QUEUE: Flush all frames in REO queue
- * @CMD_FLUSH_CACHE: Flush descriptor entries in the cache
- * @CMD_UNBLOCK_CACHE: Unblock a descriptor's address that was blocked
+ * @HAL_REO_CMD_GET_QUEUE_STATS: Get REO queue status/stats
+ * @HAL_REO_CMD_FLUSH_QUEUE: Flush all frames in REO queue
+ * @HAL_REO_CMD_FLUSH_CACHE: Flush descriptor entries in the cache
+ * @HAL_REO_CMD_UNBLOCK_CACHE: Unblock a descriptor's address that was blocked
  *      earlier with a 'REO_FLUSH_CACHE' command
- * @CMD_FLUSH_TIMEOUT_LIST: Flush buffers/descriptors from timeout list
- * @CMD_UPDATE_RX_REO_QUEUE: Update REO queue settings
+ * @HAL_REO_CMD_FLUSH_TIMEOUT_LIST: Flush buffers/descriptors from timeout list
+ * @HAL_REO_CMD_UPDATE_RX_QUEUE: Update REO queue settings
  */
 enum hal_reo_cmd_type {
 	HAL_REO_CMD_GET_QUEUE_STATS     = 0,
@@ -875,8 +875,7 @@ struct hal_reo_status {
 	} u;
 };
 
-/**
- * HAL context to be used to access SRNG APIs (currently used by data path
+/* HAL context to be used to access SRNG APIs (currently used by data path
  * and transport (CE) modules)
  */
 struct ath11k_hal {
