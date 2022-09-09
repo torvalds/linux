@@ -835,7 +835,7 @@ static const struct attribute_group kbd_rgb_state_group = {
 	.attrs = kbd_rgb_state_attrs,
 };
 
-const struct attribute_group *kbd_rgb_mode_groups[] = {
+static const struct attribute_group *kbd_rgb_mode_groups[] = {
 	NULL,
 	NULL,
 	NULL,
