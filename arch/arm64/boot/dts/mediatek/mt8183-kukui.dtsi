@@ -221,11 +221,6 @@
 	};
 };
 
-&afe {
-	i2s3-share = "I2S2";
-	i2s0-share = "I2S5";
-};
-
 &auxadc {
 	status = "okay";
 };
