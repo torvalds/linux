@@ -26,8 +26,6 @@
 /delete-node/ &rmtfs_mem;
 
 / {
-	model = "Xiaomi Pocophone F1";
-	compatible = "xiaomi,beryllium", "qcom,sdm845";
 	chassis-type = "handset";
 
 	/* required for bootloader to select correct board */
@@ -221,8 +219,7 @@
 	status = "okay";
 	vdda-supply = <&vreg_l26a_1p2>;
 
-	panel@0 {
-		compatible = "tianma,fhd-video";
+	display_panel: panel@0 {
 		reg = <0>;
 		vddio-supply = <&vreg_l14a_1p8>;
 		vddpos-supply = <&lab>;
@@ -234,8 +231,10 @@
 		backlight = <&pmi8998_wled>;
 		reset-gpios = <&tlmm 6 GPIO_ACTIVE_LOW>;
 
+		status = "disabled";
+
 		port {
-			tianma_nt36672a_in_0: endpoint {
+			panel_in_0: endpoint {
 				remote-endpoint = <&dsi0_out>;
 			};
 		};
@@ -243,7 +242,7 @@
 };
 
 &dsi0_out {
-	remote-endpoint = <&tianma_nt36672a_in_0>;
+	remote-endpoint = <&panel_in_0>;
 	data-lanes = <0 1 2 3>;
 };
 
