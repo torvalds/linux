@@ -1293,7 +1293,7 @@ int set_record_extent_bits(struct extent_io_tree *tree, u64 start, u64 end,
 	 * either fail with -EEXIST or changeset will record the whole
 	 * range.
 	 */
-	BUG_ON(bits & EXTENT_LOCKED);
+	ASSERT(!(bits & EXTENT_LOCKED));
 
 	return set_extent_bit(tree, start, end, bits, 0, NULL, NULL, GFP_NOFS,
 			      changeset);
@@ -1321,7 +1321,7 @@ int clear_record_extent_bits(struct extent_io_tree *tree, u64 start, u64 end,
 	 * Don't support EXTENT_LOCKED case, same reason as
 	 * set_record_extent_bits().
 	 */
-	BUG_ON(bits & EXTENT_LOCKED);
+	ASSERT(!(bits & EXTENT_LOCKED));
 
 	return __clear_extent_bit(tree, start, end, bits, 0, 0, NULL, GFP_NOFS,
 				  changeset);
