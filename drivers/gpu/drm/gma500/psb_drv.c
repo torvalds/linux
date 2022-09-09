@@ -433,18 +433,7 @@ static inline void get_brightness(struct backlight_device *bd)
 static long psb_unlocked_ioctl(struct file *filp, unsigned int cmd,
 			       unsigned long arg)
 {
-	struct drm_file *file_priv = filp->private_data;
-	struct drm_device *dev = file_priv->minor->dev;
-	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
-	static unsigned int runtime_allowed;
-
-	if (runtime_allowed == 1 && dev_priv->is_lvds_on) {
-		runtime_allowed++;
-		pm_runtime_allow(dev->dev);
-		dev_priv->rpm_enabled = 1;
-	}
 	return drm_ioctl(filp, cmd, arg);
-	/* FIXME: do we need to wrap the other side of this */
 }
 
 static int psb_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
