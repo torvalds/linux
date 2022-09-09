@@ -31,12 +31,16 @@ properties:
 
   reg-names:
     description: CSR space IDs
+    contains:
+      const: ahci
 
   interrupts:
     description:
       Generic AHCI state change interrupt. Can be implemented either as a
       single line attached to the controller or as a set of the signals
       indicating the particular port events.
+    minItems: 1
+    maxItems: 32
 
   ahci-supply:
     description: Power regulator for AHCI controller
@@ -52,14 +56,13 @@ properties:
     maxItems: 1
 
   phy-names:
-    maxItems: 1
+    const: sata-phy
 
   ports-implemented:
     $ref: '/schemas/types.yaml#/definitions/uint32'
     description:
       Mask that indicates which ports the HBA supports. Useful if PI is not
       programmed by the BIOS, which is true for some embedded SoC's.
-    maximum: 0x1f
 
 patternProperties:
   "^sata-port@[0-9a-f]+$":
@@ -80,8 +83,12 @@ $defs:
 
     properties:
       reg:
-        description: AHCI SATA port identifier
-        maxItems: 1
+        description:
+          AHCI SATA port identifier. By design AHCI controller can't have
+          more than 32 ports due to the CAP.NP fields and PI register size
+          constraints.
+        minimum: 0
+        maximum: 31
 
       phys:
         description: Individual AHCI SATA port PHY
@@ -89,7 +96,7 @@ $defs:
 
       phy-names:
         description: AHCI SATA port PHY ID
-        maxItems: 1
+        const: sata-phy
 
       target-supply:
         description: Power regulator for SATA port target device
