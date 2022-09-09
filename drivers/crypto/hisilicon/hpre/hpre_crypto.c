@@ -51,11 +51,11 @@ struct hpre_ctx;
 #define HPRE_ECC_HW256_KSZ_B	32
 #define HPRE_ECC_HW384_KSZ_B	48
 
-/* capability register mask */
-#define HPRE_DRV_RSA_MASK_CAP          BIT(0)
-#define HPRE_DRV_DH_MASK_CAP           BIT(1)
-#define HPRE_DRV_ECDH_MASK_CAP         BIT(2)
-#define HPRE_DRV_X25519_MASK_CAP       BIT(5)
+/* capability register mask of driver */
+#define HPRE_DRV_RSA_MASK_CAP		BIT(0)
+#define HPRE_DRV_DH_MASK_CAP		BIT(1)
+#define HPRE_DRV_ECDH_MASK_CAP		BIT(2)
+#define HPRE_DRV_X25519_MASK_CAP	BIT(5)
 
 typedef void (*hpre_cb)(struct hpre_ctx *ctx, void *sqe);
 

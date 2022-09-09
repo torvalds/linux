@@ -118,6 +118,8 @@
 #define HPRE_DFX_COMMON2_LEN		0xE
 #define HPRE_DFX_CORE_LEN		0x43
 
+#define HPRE_DEV_ALG_MAX_LEN	256
+
 static const char hpre_name[] = "hisi_hpre";
 static struct dentry *hpre_debugfs_root;
 static const struct pci_device_id hpre_dev_ids[] = {
@@ -131,6 +133,38 @@ MODULE_DEVICE_TABLE(pci, hpre_dev_ids);
 struct hpre_hw_error {
 	u32 int_msk;
 	const char *msg;
+};
+
+struct hpre_dev_alg {
+	u32 alg_msk;
+	const char *alg;
+};
+
+static const struct hpre_dev_alg hpre_dev_algs[] = {
+	{
+		.alg_msk = BIT(0),
+		.alg = "rsa\n"
+	}, {
+		.alg_msk = BIT(1),
+		.alg = "dh\n"
+	}, {
+		.alg_msk = BIT(2),
+		.alg = "ecdh\n"
+	}, {
+		.alg_msk = BIT(3),
+		.alg = "ecdsa\n"
+	}, {
+		.alg_msk = BIT(4),
+		.alg = "sm2\n"
+	}, {
+		.alg_msk = BIT(5),
+		.alg = "x25519\n"
+	}, {
+		.alg_msk = BIT(6),
+		.alg = "x448\n"
+	}, {
+		/* sentinel */
+	}
 };
 
 static struct hisi_qm_list hpre_devices = {
@@ -323,6 +357,35 @@ bool hpre_check_alg_support(struct hisi_qm *qm, u32 alg)
 		return true;
 
 	return false;
+}
+
+static int hpre_set_qm_algs(struct hisi_qm *qm)
+{
+	struct device *dev = &qm->pdev->dev;
+	char *algs, *ptr;
+	u32 alg_msk;
+	int i;
+
+	if (!qm->use_sva)
+		return 0;
+
+	algs = devm_kzalloc(dev, HPRE_DEV_ALG_MAX_LEN * sizeof(char), GFP_KERNEL);
+	if (!algs)
+		return -ENOMEM;
+
+	alg_msk = hisi_qm_get_hw_info(qm, hpre_basic_info, HPRE_DEV_ALG_BITMAP_CAP, qm->cap_ver);
+
+	for (i = 0; i < ARRAY_SIZE(hpre_dev_algs); i++)
+		if (alg_msk & hpre_dev_algs[i].alg_msk)
+			strcat(algs, hpre_dev_algs[i].alg);
+
+	ptr = strrchr(algs, '\n');
+	if (ptr)
+		*ptr = '\0';
+
+	qm->uacce->algs = algs;
+
+	return 0;
 }
 
 static int hpre_diff_regs_show(struct seq_file *s, void *unused)
@@ -1073,15 +1136,13 @@ static void hpre_debugfs_exit(struct hisi_qm *qm)
 
 static int hpre_qm_init(struct hisi_qm *qm, struct pci_dev *pdev)
 {
+	int ret;
+
 	if (pdev->revision == QM_HW_V1) {
 		pci_warn(pdev, "HPRE version 1 is not supported!\n");
 		return -EINVAL;
 	}
 
-	if (pdev->revision >= QM_HW_V3)
-		qm->algs = "rsa\ndh\necdh\nx25519\nx448\necdsa\nsm2";
-	else
-		qm->algs = "rsa\ndh";
 	qm->mode = uacce_mode;
 	qm->pdev = pdev;
 	qm->ver = pdev->revision;
@@ -1097,7 +1158,19 @@ static int hpre_qm_init(struct hisi_qm *qm, struct pci_dev *pdev)
 		qm->qm_list = &hpre_devices;
 	}
 
-	return hisi_qm_init(qm);
+	ret = hisi_qm_init(qm);
+	if (ret) {
+		pci_err(pdev, "Failed to init hpre qm configures!\n");
+		return ret;
+	}
+
+	ret = hpre_set_qm_algs(qm);
+	if (ret) {
+		pci_err(pdev, "Failed to set hpre algs!\n");
+		hisi_qm_uninit(qm);
+	}
+
+	return ret;
 }
 
 static int hpre_show_last_regs_init(struct hisi_qm *qm)

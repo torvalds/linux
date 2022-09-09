@@ -3484,7 +3484,6 @@ static int qm_alloc_uacce(struct hisi_qm *qm)
 
 	uacce->is_vf = pdev->is_virtfn;
 	uacce->priv = qm;
-	uacce->algs = qm->algs;
 
 	if (qm->ver == QM_HW_V1)
 		uacce->api_ver = HISI_QM_API_VER_BASE;

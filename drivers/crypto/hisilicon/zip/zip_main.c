@@ -74,6 +74,12 @@
 #define HZIP_AXI_SHUTDOWN_ENABLE	BIT(14)
 #define HZIP_WR_PORT			BIT(11)
 
+#define HZIP_DEV_ALG_MAX_LEN		256
+#define HZIP_ALG_ZLIB_BIT		GENMASK(1, 0)
+#define HZIP_ALG_GZIP_BIT		GENMASK(3, 2)
+#define HZIP_ALG_DEFLATE_BIT		GENMASK(5, 4)
+#define HZIP_ALG_LZ77_BIT		GENMASK(7, 6)
+
 #define HZIP_BUF_SIZE			22
 #define HZIP_SQE_MASK_OFFSET		64
 #define HZIP_SQE_MASK_LEN		48
@@ -112,6 +118,26 @@ struct hisi_zip_hw_error {
 struct zip_dfx_item {
 	const char *name;
 	u32 offset;
+};
+
+struct zip_dev_alg {
+	u32 alg_msk;
+	const char *algs;
+};
+
+static const struct zip_dev_alg zip_dev_algs[] = { {
+		.alg_msk = HZIP_ALG_ZLIB_BIT,
+		.algs = "zlib\n",
+	}, {
+		.alg_msk = HZIP_ALG_GZIP_BIT,
+		.algs = "gzip\n",
+	}, {
+		.alg_msk = HZIP_ALG_DEFLATE_BIT,
+		.algs = "deflate\n",
+	}, {
+		.alg_msk = HZIP_ALG_LZ77_BIT,
+		.algs = "lz77_zstd\n",
+	},
 };
 
 static struct hisi_qm_list zip_devices = {
@@ -386,6 +412,35 @@ bool hisi_zip_alg_support(struct hisi_qm *qm, u32 alg)
 		return true;
 
 	return false;
+}
+
+static int hisi_zip_set_qm_algs(struct hisi_qm *qm)
+{
+	struct device *dev = &qm->pdev->dev;
+	char *algs, *ptr;
+	u32 alg_mask;
+	int i;
+
+	if (!qm->use_sva)
+		return 0;
+
+	algs = devm_kzalloc(dev, HZIP_DEV_ALG_MAX_LEN * sizeof(char), GFP_KERNEL);
+	if (!algs)
+		return -ENOMEM;
+
+	alg_mask = hisi_qm_get_hw_info(qm, zip_basic_cap_info, ZIP_DEV_ALG_BITMAP, qm->cap_ver);
+
+	for (i = 0; i < ARRAY_SIZE(zip_dev_algs); i++)
+		if (alg_mask & zip_dev_algs[i].alg_msk)
+			strcat(algs, zip_dev_algs[i].algs);
+
+	ptr = strrchr(algs, '\n');
+	if (ptr)
+		*ptr = '\0';
+
+	qm->uacce->algs = algs;
+
+	return 0;
 }
 
 static void hisi_zip_open_sva_prefetch(struct hisi_qm *qm)
@@ -1071,12 +1126,10 @@ static int hisi_zip_pf_probe_init(struct hisi_zip *hisi_zip)
 
 static int hisi_zip_qm_init(struct hisi_qm *qm, struct pci_dev *pdev)
 {
+	int ret;
+
 	qm->pdev = pdev;
 	qm->ver = pdev->revision;
-	if (pdev->revision >= QM_HW_V3)
-		qm->algs = "zlib\ngzip\ndeflate\nlz77_zstd";
-	else
-		qm->algs = "zlib\ngzip";
 	qm->mode = uacce_mode;
 	qm->sqe_size = HZIP_SQE_SIZE;
 	qm->dev_name = hisi_zip_name;
@@ -1100,7 +1153,19 @@ static int hisi_zip_qm_init(struct hisi_qm *qm, struct pci_dev *pdev)
 		qm->qp_num = HZIP_QUEUE_NUM_V1 - HZIP_PF_DEF_Q_NUM;
 	}
 
-	return hisi_qm_init(qm);
+	ret = hisi_qm_init(qm);
+	if (ret) {
+		pci_err(qm->pdev, "Failed to init zip qm configures!\n");
+		return ret;
+	}
+
+	ret = hisi_zip_set_qm_algs(qm);
+	if (ret) {
+		pci_err(qm->pdev, "Failed to set zip algs!\n");
+		hisi_qm_uninit(qm);
+	}
+
+	return ret;
 }
 
 static void hisi_zip_qm_uninit(struct hisi_qm *qm)

@@ -115,6 +115,14 @@
 
 #define SEC_ALG_BITMAP_SHIFT		32
 
+#define SEC_CIPHER_BITMAP		(GENMASK_ULL(5, 0) | GENMASK_ULL(16, 12) | \
+					GENMASK(24, 21))
+#define SEC_DIGEST_BITMAP		(GENMASK_ULL(11, 8) | GENMASK_ULL(20, 19) | \
+					GENMASK_ULL(42, 25))
+#define SEC_AEAD_BITMAP			(GENMASK_ULL(7, 6) | GENMASK_ULL(18, 17) | \
+					GENMASK_ULL(45, 43))
+#define SEC_DEV_ALG_MAX_LEN		256
+
 struct sec_hw_error {
 	u32 int_msk;
 	const char *msg;
@@ -123,6 +131,11 @@ struct sec_hw_error {
 struct sec_dfx_item {
 	const char *name;
 	u32 offset;
+};
+
+struct sec_dev_alg {
+	u64 alg_msk;
+	const char *algs;
 };
 
 static const char sec_name[] = "hisi_sec2";
@@ -159,6 +172,18 @@ static const struct hisi_qm_cap_info sec_basic_info[] = {
 	{SEC_CORE3_ALG_BITMAP_HIGH, 0x3168, 0, GENMASK(31, 0), 0x3FFF, 0x3FFF, 0x3FFF},
 	{SEC_CORE4_ALG_BITMAP_LOW, 0x316c, 0, GENMASK(31, 0), 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF},
 	{SEC_CORE4_ALG_BITMAP_HIGH, 0x3170, 0, GENMASK(31, 0), 0x3FFF, 0x3FFF, 0x3FFF},
+};
+
+static const struct sec_dev_alg sec_dev_algs[] = { {
+		.alg_msk = SEC_CIPHER_BITMAP,
+		.algs = "cipher\n",
+	}, {
+		.alg_msk = SEC_DIGEST_BITMAP,
+		.algs = "digest\n",
+	}, {
+		.alg_msk = SEC_AEAD_BITMAP,
+		.algs = "aead\n",
+	},
 };
 
 static const struct sec_hw_error sec_hw_errors[] = {
@@ -1052,11 +1077,41 @@ static int sec_pf_probe_init(struct sec_dev *sec)
 	return ret;
 }
 
+static int sec_set_qm_algs(struct hisi_qm *qm)
+{
+	struct device *dev = &qm->pdev->dev;
+	char *algs, *ptr;
+	u64 alg_mask;
+	int i;
+
+	if (!qm->use_sva)
+		return 0;
+
+	algs = devm_kzalloc(dev, SEC_DEV_ALG_MAX_LEN * sizeof(char), GFP_KERNEL);
+	if (!algs)
+		return -ENOMEM;
+
+	alg_mask = sec_get_alg_bitmap(qm, SEC_DEV_ALG_BITMAP_HIGH, SEC_DEV_ALG_BITMAP_LOW);
+
+	for (i = 0; i < ARRAY_SIZE(sec_dev_algs); i++)
+		if (alg_mask & sec_dev_algs[i].alg_msk)
+			strcat(algs, sec_dev_algs[i].algs);
+
+	ptr = strrchr(algs, '\n');
+	if (ptr)
+		*ptr = '\0';
+
+	qm->uacce->algs = algs;
+
+	return 0;
+}
+
 static int sec_qm_init(struct hisi_qm *qm, struct pci_dev *pdev)
 {
+	int ret;
+
 	qm->pdev = pdev;
 	qm->ver = pdev->revision;
-	qm->algs = "cipher\ndigest\naead";
 	qm->mode = uacce_mode;
 	qm->sqe_size = SEC_SQE_SIZE;
 	qm->dev_name = sec_name;
@@ -1079,7 +1134,19 @@ static int sec_qm_init(struct hisi_qm *qm, struct pci_dev *pdev)
 		qm->qp_num = SEC_QUEUE_NUM_V1 - SEC_PF_DEF_Q_NUM;
 	}
 
-	return hisi_qm_init(qm);
+	ret = hisi_qm_init(qm);
+	if (ret) {
+		pci_err(qm->pdev, "Failed to init sec qm configures!\n");
+		return ret;
+	}
+
+	ret = sec_set_qm_algs(qm);
+	if (ret) {
+		pci_err(qm->pdev, "Failed to set sec algs!\n");
+		hisi_qm_uninit(qm);
+	}
+
+	return ret;
 }
 
 static void sec_qm_uninit(struct hisi_qm *qm)
