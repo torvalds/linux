@@ -166,21 +166,21 @@ static inline int clear_extent_bits(struct extent_io_tree *tree, u64 start,
 int set_record_extent_bits(struct extent_io_tree *tree, u64 start, u64 end,
 			   u32 bits, struct extent_changeset *changeset);
 int set_extent_bit(struct extent_io_tree *tree, u64 start, u64 end,
-		   u32 bits, unsigned exclusive_bits, u64 *failed_start,
+		   u32 bits, u64 *failed_start,
 		   struct extent_state **cached_state, gfp_t mask,
 		   struct extent_changeset *changeset);
 
 static inline int set_extent_bits_nowait(struct extent_io_tree *tree, u64 start,
 					 u64 end, u32 bits)
 {
-	return set_extent_bit(tree, start, end, bits, 0, NULL, NULL,
-			      GFP_NOWAIT, NULL);
+	return set_extent_bit(tree, start, end, bits, NULL, NULL, GFP_NOWAIT,
+			      NULL);
 }
 
 static inline int set_extent_bits(struct extent_io_tree *tree, u64 start,
 		u64 end, u32 bits)
 {
-	return set_extent_bit(tree, start, end, bits, 0, NULL, NULL, GFP_NOFS,
+	return set_extent_bit(tree, start, end, bits, NULL, NULL, GFP_NOFS,
 			      NULL);
 }
 
@@ -194,8 +194,8 @@ static inline int clear_extent_uptodate(struct extent_io_tree *tree, u64 start,
 static inline int set_extent_dirty(struct extent_io_tree *tree, u64 start,
 		u64 end, gfp_t mask)
 {
-	return set_extent_bit(tree, start, end, EXTENT_DIRTY, 0, NULL, NULL,
-			      mask, NULL);
+	return set_extent_bit(tree, start, end, EXTENT_DIRTY, NULL, NULL, mask,
+			      NULL);
 }
 
 static inline int clear_extent_dirty(struct extent_io_tree *tree, u64 start,
@@ -216,7 +216,7 @@ static inline int set_extent_delalloc(struct extent_io_tree *tree, u64 start,
 {
 	return set_extent_bit(tree, start, end,
 			      EXTENT_DELALLOC | extra_bits,
-			      0, NULL, cached_state, GFP_NOFS, NULL);
+			      NULL, cached_state, GFP_NOFS, NULL);
 }
 
 static inline int set_extent_defrag(struct extent_io_tree *tree, u64 start,
@@ -224,20 +224,20 @@ static inline int set_extent_defrag(struct extent_io_tree *tree, u64 start,
 {
 	return set_extent_bit(tree, start, end,
 			      EXTENT_DELALLOC | EXTENT_DEFRAG,
-			      0, NULL, cached_state, GFP_NOFS, NULL);
+			      NULL, cached_state, GFP_NOFS, NULL);
 }
 
 static inline int set_extent_new(struct extent_io_tree *tree, u64 start,
 		u64 end)
 {
-	return set_extent_bit(tree, start, end, EXTENT_NEW, 0, NULL, NULL,
+	return set_extent_bit(tree, start, end, EXTENT_NEW, NULL, NULL,
 			      GFP_NOFS, NULL);
 }
 
 static inline int set_extent_uptodate(struct extent_io_tree *tree, u64 start,
 		u64 end, struct extent_state **cached_state, gfp_t mask)
 {
-	return set_extent_bit(tree, start, end, EXTENT_UPTODATE, 0, NULL,
+	return set_extent_bit(tree, start, end, EXTENT_UPTODATE, NULL,
 			      cached_state, mask, NULL);
 }
 

@@ -953,8 +953,8 @@ out:
  *
  * [start, end] is inclusive This takes the tree lock.
  */
-int set_extent_bit(struct extent_io_tree *tree, u64 start, u64 end, u32 bits,
-		   u32 exclusive_bits, u64 *failed_start,
+int set_extent_bit(struct extent_io_tree *tree, u64 start, u64 end,
+		   u32 bits, u64 *failed_start,
 		   struct extent_state **cached_state, gfp_t mask,
 		   struct extent_changeset *changeset)
 {
@@ -965,6 +965,7 @@ int set_extent_bit(struct extent_io_tree *tree, u64 start, u64 end, u32 bits,
 	int err = 0;
 	u64 last_start;
 	u64 last_end;
+	u32 exclusive_bits = (bits & EXTENT_LOCKED);
 
 	btrfs_debug_check_extent_io_range(tree, start, end);
 	trace_btrfs_set_extent_bit(tree, start, end - start + 1, bits);
@@ -1603,7 +1604,7 @@ int set_record_extent_bits(struct extent_io_tree *tree, u64 start, u64 end,
 	 */
 	ASSERT(!(bits & EXTENT_LOCKED));
 
-	return set_extent_bit(tree, start, end, bits, 0, NULL, NULL, GFP_NOFS,
+	return set_extent_bit(tree, start, end, bits, NULL, NULL, GFP_NOFS,
 			      changeset);
 }
 
@@ -1625,8 +1626,8 @@ int try_lock_extent(struct extent_io_tree *tree, u64 start, u64 end)
 	int err;
 	u64 failed_start;
 
-	err = set_extent_bit(tree, start, end, EXTENT_LOCKED, EXTENT_LOCKED,
-			     &failed_start, NULL, GFP_NOFS, NULL);
+	err = set_extent_bit(tree, start, end, EXTENT_LOCKED, &failed_start,
+			     NULL, GFP_NOFS, NULL);
 	if (err == -EEXIST) {
 		if (failed_start > start)
 			clear_extent_bit(tree, start, failed_start - 1,
@@ -1648,8 +1649,8 @@ int lock_extent_bits(struct extent_io_tree *tree, u64 start, u64 end,
 
 	while (1) {
 		err = set_extent_bit(tree, start, end, EXTENT_LOCKED,
-				     EXTENT_LOCKED, &failed_start,
-				     cached_state, GFP_NOFS, NULL);
+				     &failed_start, cached_state, GFP_NOFS,
+				     NULL);
 		if (err == -EEXIST) {
 			wait_extent_bit(tree, failed_start, end, EXTENT_LOCKED);
 			start = failed_start;
