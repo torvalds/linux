@@ -654,13 +654,12 @@ bool gen11_vdbox_has_sfc(struct intel_gt *gt,
 	 */
 	if ((gt->info.sfc_mask & BIT(physical_vdbox / 2)) == 0)
 		return false;
-	else if (GRAPHICS_VER(i915) == 12)
+	else if (MEDIA_VER(i915) >= 12)
 		return (physical_vdbox % 2 == 0) ||
 			!(BIT(physical_vdbox - 1) & vdbox_mask);
-	else if (GRAPHICS_VER(i915) == 11)
+	else if (MEDIA_VER(i915) == 11)
 		return logical_vdbox % 2 == 0;
 
-	MISSING_CASE(GRAPHICS_VER(i915));
 	return false;
 }
 
@@ -747,14 +746,14 @@ static intel_engine_mask_t init_engine_mask(struct intel_gt *gt)
 	 * and bits have disable semantices.
 	 */
 	media_fuse = intel_uncore_read(uncore, GEN11_GT_VEBOX_VDBOX_DISABLE);
-	if (GRAPHICS_VER_FULL(i915) < IP_VER(12, 50))
+	if (MEDIA_VER_FULL(i915) < IP_VER(12, 50))
 		media_fuse = ~media_fuse;
 
 	vdbox_mask = media_fuse & GEN11_GT_VDBOX_DISABLE_MASK;
 	vebox_mask = (media_fuse & GEN11_GT_VEBOX_DISABLE_MASK) >>
 		      GEN11_GT_VEBOX_DISABLE_SHIFT;
 
-	if (GRAPHICS_VER_FULL(i915) >= IP_VER(12, 50)) {
+	if (MEDIA_VER_FULL(i915) >= IP_VER(12, 50)) {
 		fuse1 = intel_uncore_read(uncore, HSW_PAVP_FUSE1);
 		gt->info.sfc_mask = REG_FIELD_GET(XEHP_SFC_ENABLE_MASK, fuse1);
 	} else {
