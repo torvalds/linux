@@ -907,6 +907,8 @@ static inline unsigned int get_vmid_bits(u64 mmfr1)
 	return 8;
 }
 
+struct arm64_ftr_reg *get_arm64_ftr_reg(u32 sys_id);
+
 extern struct arm64_ftr_override id_aa64mmfr1_override;
 extern struct arm64_ftr_override id_aa64pfr0_override;
 extern struct arm64_ftr_override id_aa64pfr1_override;

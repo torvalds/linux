@@ -750,7 +750,7 @@ static struct arm64_ftr_reg *get_arm64_ftr_reg_nowarn(u32 sys_id)
  * returns - Upon success,  matching ftr_reg entry for id.
  *         - NULL on failure but with an WARN_ON().
  */
-static struct arm64_ftr_reg *get_arm64_ftr_reg(u32 sys_id)
+struct arm64_ftr_reg *get_arm64_ftr_reg(u32 sys_id)
 {
 	struct arm64_ftr_reg *reg;
 
