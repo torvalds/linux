@@ -60,7 +60,7 @@ static inline void __btrfs_debug_check_extent_io_range(const char *caller,
 	struct inode *inode = tree->private_data;
 	u64 isize;
 
-	if (!inode || !is_data_inode(inode))
+	if (!inode)
 		return;
 
 	isize = i_size_read(inode);
@@ -346,7 +346,7 @@ static void merge_state(struct extent_io_tree *tree, struct extent_state *state)
 	other = prev_state(state);
 	if (other && other->end == state->start - 1 &&
 	    other->state == state->state) {
-		if (tree->private_data && is_data_inode(tree->private_data))
+		if (tree->private_data)
 			btrfs_merge_delalloc_extent(tree->private_data,
 						    state, other);
 		state->start = other->start;
@@ -357,7 +357,7 @@ static void merge_state(struct extent_io_tree *tree, struct extent_state *state)
 	other = next_state(state);
 	if (other && other->start == state->end + 1 &&
 	    other->state == state->state) {
-		if (tree->private_data && is_data_inode(tree->private_data))
+		if (tree->private_data)
 			btrfs_merge_delalloc_extent(tree->private_data, state,
 						    other);
 		state->end = other->end;
@@ -374,7 +374,7 @@ static void set_state_bits(struct extent_io_tree *tree,
 	u32 bits_to_set = bits & ~EXTENT_CTLBITS;
 	int ret;
 
-	if (tree->private_data && is_data_inode(tree->private_data))
+	if (tree->private_data)
 		btrfs_set_delalloc_extent(tree->private_data, state, bits);
 
 	ret = add_extent_changeset(state, bits_to_set, changeset, 1);
@@ -462,7 +462,7 @@ static int split_state(struct extent_io_tree *tree, struct extent_state *orig,
 	struct rb_node *parent = NULL;
 	struct rb_node **node;
 
-	if (tree->private_data && is_data_inode(tree->private_data))
+	if (tree->private_data)
 		btrfs_split_delalloc_extent(tree->private_data, orig, split);
 
 	prealloc->start = orig->start;
@@ -510,7 +510,7 @@ static struct extent_state *clear_state_bit(struct extent_io_tree *tree,
 	u32 bits_to_clear = bits & ~EXTENT_CTLBITS;
 	int ret;
 
-	if (tree->private_data && is_data_inode(tree->private_data))
+	if (tree->private_data)
 		btrfs_clear_delalloc_extent(tree->private_data, state, bits);
 
 	ret = add_extent_changeset(state, bits_to_clear, changeset, 0);
