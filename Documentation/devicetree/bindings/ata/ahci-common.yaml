@@ -58,6 +58,14 @@ properties:
   phy-names:
     const: sata-phy
 
+  hba-cap:
+    $ref: '/schemas/types.yaml#/definitions/uint32'
+    description:
+      Bitfield of the HBA generic platform capabilities like Staggered
+      Spin-up or Mechanical Presence Switch support. It can be used to
+      appropriately initialize the HWinit fields of the HBA CAP register
+      in case if the system firmware hasn't done it.
+
   ports-implemented:
     $ref: '/schemas/types.yaml#/definitions/uint32'
     description:
@@ -100,6 +108,14 @@ $defs:
 
       target-supply:
         description: Power regulator for SATA port target device
+
+      hba-port-cap:
+        $ref: '/schemas/types.yaml#/definitions/uint32'
+        description:
+          Bitfield of the HBA port-specific platform capabilities like Hot
+          plugging, eSATA, FIS-based Switching, etc (see AHCI specification
+          for details). It can be used to initialize the HWinit fields of
+          the PxCMD register in case if the system firmware hasn't done it.
 
     required:
       - reg
