@@ -21,7 +21,7 @@ static void _rtl92e_hw_sleep(struct net_device *dev)
 	unsigned long flags = 0;
 
 	spin_lock_irqsave(&priv->rf_ps_lock, flags);
-	if (priv->RFChangeInProgress) {
+	if (priv->rf_change_in_progress) {
 		spin_unlock_irqrestore(&priv->rf_ps_lock, flags);
 		RT_TRACE(COMP_DBG,
 			 "%s(): RF Change in progress!\n", __func__);
@@ -48,7 +48,7 @@ void rtl92e_hw_wakeup(struct net_device *dev)
 	unsigned long flags = 0;
 
 	spin_lock_irqsave(&priv->rf_ps_lock, flags);
-	if (priv->RFChangeInProgress) {
+	if (priv->rf_change_in_progress) {
 		spin_unlock_irqrestore(&priv->rf_ps_lock, flags);
 		RT_TRACE(COMP_DBG,
 			 "%s(): RF Change in progress!\n", __func__);

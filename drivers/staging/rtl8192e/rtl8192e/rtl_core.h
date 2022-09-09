@@ -478,7 +478,7 @@ struct r8192_priv {
 	bool bInPowerSaveMode;
 	u8 bHwRfOffAction;
 
-	bool RFChangeInProgress;
+	bool rf_change_in_progress;
 	bool SetRFPowerStateInProgress;
 	bool bdisable_nic;
 

@@ -145,10 +145,10 @@ bool rtl92e_set_rf_state(struct net_device *dev,
 
 	while (true) {
 		spin_lock_irqsave(&priv->rf_ps_lock, flag);
-		if (priv->RFChangeInProgress) {
+		if (priv->rf_change_in_progress) {
 			spin_unlock_irqrestore(&priv->rf_ps_lock, flag);
 
-			while (priv->RFChangeInProgress) {
+			while (priv->rf_change_in_progress) {
 				rf_wait_counter++;
 				mdelay(1);
 
@@ -160,7 +160,7 @@ bool rtl92e_set_rf_state(struct net_device *dev,
 				}
 			}
 		} else {
-			priv->RFChangeInProgress = true;
+			priv->rf_change_in_progress = true;
 			spin_unlock_irqrestore(&priv->rf_ps_lock, flag);
 			break;
 		}
@@ -226,7 +226,7 @@ bool rtl92e_set_rf_state(struct net_device *dev,
 	}
 
 	spin_lock_irqsave(&priv->rf_ps_lock, flag);
-	priv->RFChangeInProgress = false;
+	priv->rf_change_in_progress = false;
 	spin_unlock_irqrestore(&priv->rf_ps_lock, flag);
 	return action_allowed;
 }
@@ -755,7 +755,7 @@ static int _rtl92e_sta_down(struct net_device *dev, bool shutdownrf)
 
 	rtllib_softmac_stop_protocol(priv->rtllib, 0, true);
 	spin_lock_irqsave(&priv->rf_ps_lock, flags);
-	while (priv->RFChangeInProgress) {
+	while (priv->rf_change_in_progress) {
 		spin_unlock_irqrestore(&priv->rf_ps_lock, flags);
 		if (RFInProgressTimeOut > 100) {
 			spin_lock_irqsave(&priv->rf_ps_lock, flags);
@@ -765,11 +765,11 @@ static int _rtl92e_sta_down(struct net_device *dev, bool shutdownrf)
 		RFInProgressTimeOut++;
 		spin_lock_irqsave(&priv->rf_ps_lock, flags);
 	}
-	priv->RFChangeInProgress = true;
+	priv->rf_change_in_progress = true;
 	spin_unlock_irqrestore(&priv->rf_ps_lock, flags);
 	priv->ops->stop_adapter(dev, false);
 	spin_lock_irqsave(&priv->rf_ps_lock, flags);
-	priv->RFChangeInProgress = false;
+	priv->rf_change_in_progress = false;
 	spin_unlock_irqrestore(&priv->rf_ps_lock, flags);
 	udelay(100);
 	memset(&priv->rtllib->current_network, 0,
@@ -883,7 +883,7 @@ static void _rtl92e_init_priv_variable(struct net_device *dev)
 	priv->isRFOff = false;
 	priv->bInPowerSaveMode = false;
 	priv->rtllib->RfOffReason = 0;
-	priv->RFChangeInProgress = false;
+	priv->rf_change_in_progress = false;
 	priv->bHwRfOffAction = 0;
 	priv->SetRFPowerStateInProgress = false;
 	priv->rtllib->PowerSaveControl.bInactivePs = true;
@@ -1151,11 +1151,11 @@ static void _rtl92e_if_silent_reset(struct net_device *dev)
 		priv->ResetProgress = RESET_TYPE_SILENT;
 
 		spin_lock_irqsave(&priv->rf_ps_lock, flag);
-		if (priv->RFChangeInProgress) {
+		if (priv->rf_change_in_progress) {
 			spin_unlock_irqrestore(&priv->rf_ps_lock, flag);
 			goto END;
 		}
-		priv->RFChangeInProgress = true;
+		priv->rf_change_in_progress = true;
 		priv->bResetInProgress = true;
 		spin_unlock_irqrestore(&priv->rf_ps_lock, flag);
 
@@ -1217,7 +1217,7 @@ RESET_START:
 		ieee->is_silent_reset = 1;
 
 		spin_lock_irqsave(&priv->rf_ps_lock, flag);
-		priv->RFChangeInProgress = false;
+		priv->rf_change_in_progress = false;
 		spin_unlock_irqrestore(&priv->rf_ps_lock, flag);
 
 		rtl92e_enable_hw_security_config(dev);
@@ -1403,7 +1403,7 @@ static void _rtl92e_watchdog_wq_cb(void *data)
 
 	spin_lock_irqsave(&priv->tx_lock, flags);
 	if ((check_reset_cnt++ >= 3) && (!ieee->is_roaming) &&
-	    (!priv->RFChangeInProgress) && (!pPSC->bSwRfProcessing)) {
+	    (!priv->rf_change_in_progress) && (!pPSC->bSwRfProcessing)) {
 		ResetType = _rtl92e_if_check_reset(dev);
 		check_reset_cnt = 3;
 	}
