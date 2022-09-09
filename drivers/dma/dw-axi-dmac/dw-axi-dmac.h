@@ -23,6 +23,8 @@
 #define DMAC_MAX_MASTERS	2
 #define DMAC_MAX_BLK_SIZE	0x200000
 
+#define TIMEOUT_US		200000
+
 struct dma_ch_en {
 	u8 ch_en;
 	u8 ch_en_shift;
@@ -77,10 +79,8 @@ struct axi_dma_chan {
 	enum dma_transfer_direction	direction;
 	bool 				fixed_burst_trans_len;
 	bool				cyclic;
-	//bool				is_err;
 	/* these other elements are all protected by vc.lock */
 	bool				is_paused;
-	struct tasklet_struct		dma_tasklet;
 };
 
 struct dw_axi_dma {
@@ -131,11 +131,11 @@ struct axi_dma_hw_desc {
 struct axi_dma_desc {
 	struct axi_dma_hw_desc	*hw_desc;
 
-	struct virt_dma_desc		vd;
-	struct axi_dma_chan		*chan;
-	u32				completed_blocks;
-	u32				length;
-	u32				period_len;
+	struct virt_dma_desc	vd;
+	struct axi_dma_chan	*chan;
+	u32			completed_blocks;
+	u32			length;
+	u32			period_len;
 };
 
 static inline struct device *dchan2dev(struct dma_chan *dchan)
