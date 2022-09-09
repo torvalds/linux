@@ -76,6 +76,29 @@ void pci_restore_ptm_state(struct pci_dev *dev)
 	pci_write_config_word(dev, ptm + PCI_PTM_CTRL, *cap);
 }
 
+/*
+ * If the next upstream device supports PTM, return it; otherwise return
+ * NULL.  PTM Messages are local, so both link partners must support it.
+ */
+static struct pci_dev *pci_upstream_ptm(struct pci_dev *dev)
+{
+	struct pci_dev *ups = pci_upstream_bridge(dev);
+
+	/*
+	 * Switch Downstream Ports are not permitted to have a PTM
+	 * capability; their PTM behavior is controlled by the Upstream
+	 * Port (PCIe r5.0, sec 7.9.16), so if the upstream bridge is a
+	 * Switch Downstream Port, look up one more level.
+	 */
+	if (ups && pci_pcie_type(ups) == PCI_EXP_TYPE_DOWNSTREAM)
+		ups = pci_upstream_bridge(ups);
+
+	if (ups && ups->ptm_cap)
+		return ups;
+
+	return NULL;
+}
+
 void pci_ptm_init(struct pci_dev *dev)
 {
 	u16 ptm;
@@ -95,19 +118,6 @@ void pci_ptm_init(struct pci_dev *dev)
 	     pci_pcie_type(dev) == PCI_EXP_TYPE_RC_END))
 		return;
 
-	/*
-	 * Switch Downstream Ports are not permitted to have a PTM
-	 * capability; their PTM behavior is controlled by the Upstream
-	 * Port (PCIe r5.0, sec 7.9.16).
-	 */
-	ups = pci_upstream_bridge(dev);
-	if (pci_pcie_type(dev) == PCI_EXP_TYPE_DOWNSTREAM &&
-	    ups && ups->ptm_enabled) {
-		dev->ptm_granularity = ups->ptm_granularity;
-		dev->ptm_enabled = 1;
-		return;
-	}
-
 	ptm = pci_find_ext_capability(dev, PCI_EXT_CAP_ID_PTM);
 	if (!ptm)
 		return;
@@ -124,6 +134,7 @@ void pci_ptm_init(struct pci_dev *dev)
 	 * the spec recommendation (PCIe r3.1, sec 7.32.3), select the
 	 * furthest upstream Time Source as the PTM Root.
 	 */
+	ups = pci_upstream_ptm(dev);
 	if (ups && ups->ptm_enabled) {
 		ctrl = PCI_PTM_CTRL_ENABLE;
 		if (ups->ptm_granularity == 0)
@@ -173,7 +184,7 @@ int pci_enable_ptm(struct pci_dev *dev, u8 *granularity)
 	 * associate the endpoint with a time source.
 	 */
 	if (pci_pcie_type(dev) == PCI_EXP_TYPE_ENDPOINT) {
-		ups = pci_upstream_bridge(dev);
+		ups = pci_upstream_ptm(dev);
 		if (!ups || !ups->ptm_enabled)
 			return -EINVAL;
 
