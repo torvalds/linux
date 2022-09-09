@@ -338,6 +338,7 @@ struct ahci_host_priv {
 	u32			saved_cap;	/* saved initial cap */
 	u32			saved_cap2;	/* saved initial cap2 */
 	u32			saved_port_map;	/* saved initial port_map */
+	u32			saved_port_cap[AHCI_MAX_PORTS]; /* saved port_cap */
 	u32 			em_loc; /* enclosure management location */
 	u32			em_buf_sz;	/* EM buffer size in byte */
 	u32			em_msg_type;	/* EM message type */

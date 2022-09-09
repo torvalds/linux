@@ -382,6 +382,34 @@ static int ahci_platform_get_regulator(struct ahci_host_priv *hpriv, u32 port,
 	return rc;
 }
 
+static int ahci_platform_get_firmware(struct ahci_host_priv *hpriv,
+				      struct device *dev)
+{
+	struct device_node *child;
+	u32 port;
+
+	if (!of_property_read_u32(dev->of_node, "hba-cap", &hpriv->saved_cap))
+		hpriv->saved_cap &= (HOST_CAP_SSS | HOST_CAP_MPS);
+
+	of_property_read_u32(dev->of_node,
+			     "ports-implemented", &hpriv->saved_port_map);
+
+	for_each_child_of_node(dev->of_node, child) {
+		if (!of_device_is_available(child))
+			continue;
+
+		if (of_property_read_u32(child, "reg", &port)) {
+			of_node_put(child);
+			return -EINVAL;
+		}
+
+		if (!of_property_read_u32(child, "hba-port-cap", &hpriv->saved_port_cap[port]))
+			hpriv->saved_port_cap[port] &= PORT_CMD_CAP;
+	}
+
+	return 0;
+}
+
 /**
  * ahci_platform_get_resources - Get platform resources
  * @pdev: platform device to get resources for
@@ -525,9 +553,6 @@ struct ahci_host_priv *ahci_platform_get_resources(struct platform_device *pdev,
 		goto err_out;
 	}
 
-	of_property_read_u32(dev->of_node,
-			     "ports-implemented", &hpriv->saved_port_map);
-
 	if (child_nodes) {
 		for_each_child_of_node(dev->of_node, child) {
 			u32 port;
@@ -592,6 +617,15 @@ struct ahci_host_priv *ahci_platform_get_resources(struct platform_device *pdev,
 		if (rc == -EPROBE_DEFER)
 			goto err_out;
 	}
+
+	/*
+	 * Retrieve firmware-specific flags which then will be used to set
+	 * the HW-init fields of HBA and its ports
+	 */
+	rc = ahci_platform_get_firmware(hpriv, dev);
+	if (rc)
+		goto err_out;
+
 	pm_runtime_enable(dev);
 	pm_runtime_get_sync(dev);
 	hpriv->got_runtime_pm = true;
