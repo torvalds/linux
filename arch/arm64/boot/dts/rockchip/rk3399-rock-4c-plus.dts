@@ -175,6 +175,8 @@
 };
 
 &hdmi {
+	avdd-0v9-supply = <&vcc_0v9_s0>;
+	avdd-1v8-supply = <&vcc_1v8_s0>;
 	ddc-i2c-bus = <&i2c3>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&hdmi_cec>;
