@@ -13,6 +13,9 @@
 #include <sound/sof/ext_manifest4.h>
 #include "sof-priv.h"
 
+/* The DSP window indices are fixed */
+#define SOF_IPC4_OUTBOX_WINDOW_IDX	1
+
 /**
  * struct sof_ipc4_fw_data - IPC4-specific data
  * @manifest_fw_hdr_offset: FW header offset in the manifest
