@@ -9,6 +9,7 @@
 #include <linux/btrfs_tree.h>
 #include "compression.h"
 #include "ulist.h"
+#include "misc.h"
 
 enum {
 	EXTENT_BUFFER_UPTODATE,
@@ -29,13 +30,15 @@ enum {
 };
 
 /* these are flags for __process_pages_contig */
-#define PAGE_UNLOCK		(1 << 0)
-/* Page starts writeback, clear dirty bit and set writeback bit */
-#define PAGE_START_WRITEBACK	(1 << 1)
-#define PAGE_END_WRITEBACK	(1 << 2)
-#define PAGE_SET_ORDERED	(1 << 3)
-#define PAGE_SET_ERROR		(1 << 4)
-#define PAGE_LOCK		(1 << 5)
+enum {
+	ENUM_BIT(PAGE_UNLOCK),
+	/* Page starts writeback, clear dirty bit and set writeback bit */
+	ENUM_BIT(PAGE_START_WRITEBACK),
+	ENUM_BIT(PAGE_END_WRITEBACK),
+	ENUM_BIT(PAGE_SET_ORDERED),
+	ENUM_BIT(PAGE_SET_ERROR),
+	ENUM_BIT(PAGE_LOCK),
+};
 
 /*
  * page->private values.  Every page that is controlled by the extent
