@@ -183,9 +183,8 @@ static void end_compressed_bio_read(struct btrfs_bio *bbio)
 		if (!status &&
 		    (!csum || !btrfs_check_data_csum(inode, bbio, offset,
 						     bv.bv_page, bv.bv_offset))) {
-			clean_io_failure(fs_info, &bi->io_failure_tree,
-					 &bi->io_tree, start, bv.bv_page,
-					 btrfs_ino(bi), bv.bv_offset);
+			btrfs_clean_io_failure(bi, start, bv.bv_page,
+					       bv.bv_offset);
 		} else {
 			int ret;
 

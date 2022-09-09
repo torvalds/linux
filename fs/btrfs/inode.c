@@ -7869,8 +7869,6 @@ static blk_status_t btrfs_check_read_dio_bio(struct btrfs_dio_private *dip,
 {
 	struct inode *inode = dip->inode;
 	struct btrfs_fs_info *fs_info = BTRFS_I(inode)->root->fs_info;
-	struct extent_io_tree *failure_tree = &BTRFS_I(inode)->io_failure_tree;
-	struct extent_io_tree *io_tree = &BTRFS_I(inode)->io_tree;
 	const bool csum = !(BTRFS_I(inode)->flags & BTRFS_INODE_NODATASUM);
 	blk_status_t err = BLK_STS_OK;
 	struct bvec_iter iter;
@@ -7883,9 +7881,8 @@ static blk_status_t btrfs_check_read_dio_bio(struct btrfs_dio_private *dip,
 		if (uptodate &&
 		    (!csum || !btrfs_check_data_csum(inode, bbio, offset, bv.bv_page,
 					       bv.bv_offset))) {
-			clean_io_failure(fs_info, failure_tree, io_tree, start,
-					 bv.bv_page, btrfs_ino(BTRFS_I(inode)),
-					 bv.bv_offset);
+			btrfs_clean_io_failure(BTRFS_I(inode), start,
+					       bv.bv_page, bv.bv_offset);
 		} else {
 			int ret;
 

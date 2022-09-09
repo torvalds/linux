@@ -256,9 +256,7 @@ void btrfs_free_io_failure_record(struct btrfs_inode *inode, u64 start,
 int free_io_failure(struct extent_io_tree *failure_tree,
 		    struct extent_io_tree *io_tree,
 		    struct io_failure_record *rec);
-int clean_io_failure(struct btrfs_fs_info *fs_info,
-		     struct extent_io_tree *failure_tree,
-		     struct extent_io_tree *io_tree, u64 start,
-		     struct page *page, u64 ino, unsigned int pg_offset);
+int btrfs_clean_io_failure(struct btrfs_inode *inode, u64 start,
+			   struct page *page, unsigned int pg_offset);
 
 #endif /* BTRFS_EXTENT_IO_TREE_H */

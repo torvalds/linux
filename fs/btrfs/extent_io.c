@@ -2431,11 +2431,13 @@ static int prev_mirror(const struct io_failure_record *failrec, int cur_mirror)
  * each time an IO finishes, we do a fast check in the IO failure tree
  * to see if we need to process or clean up an io_failure_record
  */
-int clean_io_failure(struct btrfs_fs_info *fs_info,
-		     struct extent_io_tree *failure_tree,
-		     struct extent_io_tree *io_tree, u64 start,
-		     struct page *page, u64 ino, unsigned int pg_offset)
+int btrfs_clean_io_failure(struct btrfs_inode *inode, u64 start,
+			   struct page *page, unsigned int pg_offset)
 {
+	struct btrfs_fs_info *fs_info = inode->root->fs_info;
+	struct extent_io_tree *failure_tree = &inode->io_failure_tree;
+	struct extent_io_tree *io_tree = &inode->io_tree;
+	u64 ino = btrfs_ino(inode);
 	u64 private;
 	struct io_failure_record *failrec;
 	struct extent_state *state;
@@ -2963,7 +2965,6 @@ static void end_bio_extent_readpage(struct btrfs_bio *bbio)
 {
 	struct bio *bio = &bbio->bio;
 	struct bio_vec *bvec;
-	struct extent_io_tree *tree, *failure_tree;
 	struct processed_extent processed = { 0 };
 	/*
 	 * The offset to the beginning of a bio, since one bio can never be
@@ -2990,8 +2991,6 @@ static void end_bio_extent_readpage(struct btrfs_bio *bbio)
 			"end_bio_extent_readpage: bi_sector=%llu, err=%d, mirror=%u",
 			bio->bi_iter.bi_sector, bio->bi_status,
 			bbio->mirror_num);
-		tree = &BTRFS_I(inode)->io_tree;
-		failure_tree = &BTRFS_I(inode)->io_failure_tree;
 
 		/*
 		 * We always issue full-sector reads, but if some block in a
@@ -3032,9 +3031,7 @@ static void end_bio_extent_readpage(struct btrfs_bio *bbio)
 			loff_t i_size = i_size_read(inode);
 			pgoff_t end_index = i_size >> PAGE_SHIFT;
 
-			clean_io_failure(BTRFS_I(inode)->root->fs_info,
-					 failure_tree, tree, start, page,
-					 btrfs_ino(BTRFS_I(inode)), 0);
+			btrfs_clean_io_failure(BTRFS_I(inode), start, page, 0);
 
 			/*
 			 * Zero out the remaining part if this range straddles
