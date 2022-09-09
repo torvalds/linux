@@ -441,7 +441,7 @@ void erdma_cmdq_build_reqhdr(u64 *hdr, u32 mod, u32 op)
 	       FIELD_PREP(ERDMA_CMD_HDR_OPCODE_MASK, op);
 }
 
-int erdma_post_cmd_wait(struct erdma_cmdq *cmdq, u64 *req, u32 req_size,
+int erdma_post_cmd_wait(struct erdma_cmdq *cmdq, void *req, u32 req_size,
 			u64 *resp0, u64 *resp1)
 {
 	struct erdma_comp_wait *comp_wait;
