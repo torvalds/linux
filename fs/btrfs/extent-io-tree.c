@@ -204,6 +204,16 @@ static inline struct extent_state *next_state(struct extent_state *state)
 		return NULL;
 }
 
+static inline struct extent_state *prev_state(struct extent_state *state)
+{
+	struct rb_node *next = rb_prev(&state->rb_node);
+
+	if (next)
+		return rb_entry(next, struct extent_state, rb_node);
+	else
+		return NULL;
+}
+
 /*
  * Search @tree for an entry that contains @offset. Such entry would have
  * entry->start <= offset && entry->end >= offset.
@@ -267,46 +277,39 @@ static inline struct extent_state *tree_search_for_insert(struct extent_io_tree 
  * such entry exists, then return NULL and fill @prev_ret and @next_ret.
  * Otherwise return the found entry and other pointers are left untouched.
  */
-static inline struct rb_node *tree_search_prev_next(struct extent_io_tree *tree,
-						    u64 offset,
-						    struct rb_node **prev_ret,
-						    struct rb_node **next_ret)
+static struct extent_state *tree_search_prev_next(struct extent_io_tree *tree,
+						  u64 offset,
+						  struct extent_state **prev_ret,
+						  struct extent_state **next_ret)
 {
 	struct rb_root *root = &tree->state;
 	struct rb_node **node = &root->rb_node;
-	struct rb_node *prev = NULL;
-	struct rb_node *orig_prev = NULL;
-	struct extent_state *entry;
+	struct extent_state *orig_prev;
+	struct extent_state *entry = NULL;
 
 	ASSERT(prev_ret);
 	ASSERT(next_ret);
 
 	while (*node) {
-		prev = *node;
-		entry = rb_entry(prev, struct extent_state, rb_node);
+		entry = rb_entry(*node, struct extent_state, rb_node);
 
 		if (offset < entry->start)
 			node = &(*node)->rb_left;
 		else if (offset > entry->end)
 			node = &(*node)->rb_right;
 		else
-			return *node;
+			return entry;
 	}
 
-	orig_prev = prev;
-	while (prev && offset > entry->end) {
-		prev = rb_next(prev);
-		entry = rb_entry(prev, struct extent_state, rb_node);
-	}
-	*next_ret = prev;
-	prev = orig_prev;
+	orig_prev = entry;
+	while (entry && offset > entry->end)
+		entry = next_state(entry);
+	*next_ret = entry;
+	entry = orig_prev;
 
-	entry = rb_entry(prev, struct extent_state, rb_node);
-	while (prev && offset < entry->start) {
-		prev = rb_prev(prev);
-		entry = rb_entry(prev, struct extent_state, rb_node);
-	}
-	*prev_ret = prev;
+	while (entry && offset < entry->start)
+		entry = prev_state(entry);
+	*prev_ret = entry;
 
 	return NULL;
 }
@@ -1404,14 +1407,14 @@ void find_first_clear_extent_bit(struct extent_io_tree *tree, u64 start,
 				 u64 *start_ret, u64 *end_ret, u32 bits)
 {
 	struct extent_state *state;
-	struct rb_node *node, *prev = NULL, *next;
+	struct extent_state *prev = NULL, *next;
 
 	spin_lock(&tree->lock);
 
 	/* Find first extent with bits cleared */
 	while (1) {
-		node = tree_search_prev_next(tree, start, &prev, &next);
-		if (!node && !next && !prev) {
+		state = tree_search_prev_next(tree, start, &prev, &next);
+		if (!state && !next && !prev) {
 			/*
 			 * Tree is completely empty, send full range and let
 			 * caller deal with it
@@ -1419,24 +1422,22 @@ void find_first_clear_extent_bit(struct extent_io_tree *tree, u64 start,
 			*start_ret = 0;
 			*end_ret = -1;
 			goto out;
-		} else if (!node && !next) {
+		} else if (!state && !next) {
 			/*
 			 * We are past the last allocated chunk, set start at
 			 * the end of the last extent.
 			 */
-			state = rb_entry(prev, struct extent_state, rb_node);
-			*start_ret = state->end + 1;
+			*start_ret = prev->end + 1;
 			*end_ret = -1;
 			goto out;
-		} else if (!node) {
-			node = next;
+		} else if (!state) {
+			state = next;
 		}
-		/*
-		 * At this point 'node' either contains 'start' or start is
-		 * before 'node'
-		 */
-		state = rb_entry(node, struct extent_state, rb_node);
 
+		/*
+		 * At this point 'state' either contains 'start' or start is
+		 * before 'state'
+		 */
 		if (in_range(start, state->start, state->end - state->start + 1)) {
 			if (state->state & bits) {
 				/*
@@ -1470,13 +1471,10 @@ void find_first_clear_extent_bit(struct extent_io_tree *tree, u64 start,
 			 * 0   |
 			 *    start
 			 */
-			if (prev) {
-				state = rb_entry(prev, struct extent_state,
-						 rb_node);
-				*start_ret = state->end + 1;
-			} else {
+			if (prev)
+				*start_ret = prev->end + 1;
+			else
 				*start_ret = 0;
-			}
 			break;
 		}
 	}
@@ -1485,7 +1483,6 @@ void find_first_clear_extent_bit(struct extent_io_tree *tree, u64 start,
 	 * Find the longest stretch from start until an entry which has the
 	 * bits set
 	 */
-	state = rb_entry(node, struct extent_state, rb_node);
 	while (state) {
 		if (state->end >= start && !(state->state & bits)) {
 			*end_ret = state->end;
