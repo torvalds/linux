@@ -80,29 +80,9 @@ void btrfs_extent_buffer_leak_debug_check(struct btrfs_fs_info *fs_info)
 	}
 	spin_unlock_irqrestore(&fs_info->eb_leak_lock, flags);
 }
-
-#define btrfs_debug_check_extent_io_range(tree, start, end)		\
-	__btrfs_debug_check_extent_io_range(__func__, (tree), (start), (end))
-static inline void __btrfs_debug_check_extent_io_range(const char *caller,
-		struct extent_io_tree *tree, u64 start, u64 end)
-{
-	struct inode *inode = tree->private_data;
-	u64 isize;
-
-	if (!inode || !is_data_inode(inode))
-		return;
-
-	isize = i_size_read(inode);
-	if (end >= PAGE_SIZE && (end % 2) == 0 && end != isize - 1) {
-		btrfs_debug_rl(BTRFS_I(inode)->root->fs_info,
-		    "%s: ino %llu isize %llu odd range [%llu,%llu]",
-			caller, btrfs_ino(BTRFS_I(inode)), isize, start, end);
-	}
-}
 #else
 #define btrfs_leak_debug_add_eb(eb)			do {} while (0)
 #define btrfs_leak_debug_del_eb(eb)			do {} while (0)
-#define btrfs_debug_check_extent_io_range(c, s, e)	do {} while (0)
 #endif
 
 struct tree_entry {

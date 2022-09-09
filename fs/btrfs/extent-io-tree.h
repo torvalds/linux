@@ -269,4 +269,14 @@ static inline bool extent_state_in_tree(const struct extent_state *state)
 	return !RB_EMPTY_NODE(&state->rb_node);
 }
 
+#ifdef CONFIG_BTRFS_DEBUG
+void __btrfs_debug_check_extent_io_range(const char *caller,
+					 struct extent_io_tree *tree, u64 start,
+					 u64 end);
+#define btrfs_debug_check_extent_io_range(tree, start, end)		\
+	__btrfs_debug_check_extent_io_range(__func__, (tree), (start), (end))
+#else
+#define btrfs_debug_check_extent_io_range(c, s, e)	do {} while (0)
+#endif
+
 #endif /* BTRFS_EXTENT_IO_TREE_H */

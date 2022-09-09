@@ -4,6 +4,7 @@
 #include <trace/events/btrfs.h>
 #include "ctree.h"
 #include "extent-io-tree.h"
+#include "btrfs_inode.h"
 
 static struct kmem_cache *extent_state_cache;
 
@@ -41,6 +42,24 @@ static inline void btrfs_extent_state_leak_debug_check(void)
 		       refcount_read(&state->refs));
 		list_del(&state->leak_list);
 		kmem_cache_free(extent_state_cache, state);
+	}
+}
+
+void __btrfs_debug_check_extent_io_range(const char *caller,
+					 struct extent_io_tree *tree, u64 start,
+					 u64 end)
+{
+	struct inode *inode = tree->private_data;
+	u64 isize;
+
+	if (!inode || !is_data_inode(inode))
+		return;
+
+	isize = i_size_read(inode);
+	if (end >= PAGE_SIZE && (end % 2) == 0 && end != isize - 1) {
+		btrfs_debug_rl(BTRFS_I(inode)->root->fs_info,
+		    "%s: ino %llu isize %llu odd range [%llu,%llu]",
+			caller, btrfs_ino(BTRFS_I(inode)), isize, start, end);
 	}
 }
 #else
