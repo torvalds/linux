@@ -486,9 +486,6 @@ struct drm_psb_private {
 	unsigned int core_freq;
 	uint32_t iLVDS_enable;
 
-	/* Runtime PM state */
-	int rpm_enabled;
-
 	/* MID specific */
 	bool use_msi;
 	bool has_gct;
