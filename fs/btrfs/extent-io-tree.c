@@ -46,9 +46,11 @@ static inline void btrfs_extent_state_leak_debug_check(void)
 	}
 }
 
-void __btrfs_debug_check_extent_io_range(const char *caller,
-					 struct extent_io_tree *tree, u64 start,
-					 u64 end)
+#define btrfs_debug_check_extent_io_range(tree, start, end)		\
+	__btrfs_debug_check_extent_io_range(__func__, (tree), (start), (end))
+static inline void __btrfs_debug_check_extent_io_range(const char *caller,
+						       struct extent_io_tree *tree,
+						       u64 start, u64 end)
 {
 	struct inode *inode = tree->private_data;
 	u64 isize;
@@ -67,6 +69,7 @@ void __btrfs_debug_check_extent_io_range(const char *caller,
 #define btrfs_leak_debug_add_state(state)		do {} while (0)
 #define btrfs_leak_debug_del_state(state)		do {} while (0)
 #define btrfs_extent_state_leak_debug_check()		do {} while (0)
+#define btrfs_debug_check_extent_io_range(c, s, e)	do {} while (0)
 #endif
 
 /*
