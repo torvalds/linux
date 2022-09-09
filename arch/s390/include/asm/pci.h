@@ -117,7 +117,6 @@ struct zpci_bus {
 struct zpci_dev {
 	struct zpci_bus *zbus;
 	struct list_head entry;		/* list of all zpci_devices, needed for hotplug, etc. */
-	struct list_head bus_next;
 	struct kref kref;
 	struct hotplug_slot hotplug_slot;
 
