@@ -1,0 +1,31 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2022 Fuzhou Rockchip Electronics Co., Ltd
+ */
+
+&gmac {
+	clock_in_out = "output";
+	/delete-property/ assigned-clocks;
+	/delete-property/ assigned-clock-parents;
+	pinctrl-names = "default";
+	pinctrl-0 = <&rmii_pins &mac_refclk_12ma>;
+};
+
+&rk_headset {
+	headset_gpio = <&gpio3 RK_PA4 GPIO_ACTIVE_LOW>;
+};
+
+
+&pinctrl {
+	headphone {
+		hp_det: hp-det {
+			rockchip,pins = <3 RK_PA4 RK_FUNC_GPIO &pcfg_pull_down>;
+		};
+	};
+};
+
+&wireless_bluetooth {
+	BT,reset_gpio = <&gpio0 RK_PA1 GPIO_ACTIVE_HIGH>;
+	BT,wake_gpio = <&gpio2 RK_PB0 GPIO_ACTIVE_HIGH>;
+};
+
