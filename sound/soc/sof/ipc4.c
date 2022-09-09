@@ -205,6 +205,11 @@ static void sof_ipc4_log_header(struct device *dev, u8 *text, struct sof_ipc4_ms
 			/* Notification message */
 			u32 notif = SOF_IPC4_NOTIFICATION_TYPE_GET(msg->primary);
 
+			/* Do not print log buffer notification if not desired */
+			if (notif == SOF_IPC4_NOTIFY_LOG_BUFFER_STATUS &&
+			    !sof_debug_check_flag(SOF_DBG_PRINT_DMA_POSITION_UPDATE_LOGS))
+				return;
+
 			if (notif < SOF_IPC4_NOTIFY_TYPE_LAST)
 				str2 = ipc4_dbg_notification_type[notif];
 			if (!str2)
@@ -234,6 +239,13 @@ static void sof_ipc4_log_header(struct device *dev, u8 *text, struct sof_ipc4_ms
 static void sof_ipc4_log_header(struct device *dev, u8 *text, struct sof_ipc4_msg *msg,
 				bool data_size_valid)
 {
+	/* Do not print log buffer notification if not desired */
+	if (!sof_debug_check_flag(SOF_DBG_PRINT_DMA_POSITION_UPDATE_LOGS) &&
+	    !SOF_IPC4_MSG_IS_MODULE_MSG(msg->primary) &&
+	    SOF_IPC4_MSG_TYPE_GET(msg->primary) == SOF_IPC4_GLB_NOTIFICATION &&
+	    SOF_IPC4_NOTIFICATION_TYPE_GET(msg->primary) == SOF_IPC4_NOTIFY_LOG_BUFFER_STATUS)
+		return;
+
 	if (data_size_valid && msg->data_size)
 		dev_dbg(dev, "%s: %#x|%#x [data size: %zu]\n", text,
 			msg->primary, msg->extension, msg->data_size);
