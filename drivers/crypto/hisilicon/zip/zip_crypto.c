@@ -39,6 +39,9 @@
 #define HZIP_ALG_PRIORITY			300
 #define HZIP_SGL_SGE_NR				10
 
+#define HZIP_ALG_ZLIB				GENMASK(1, 0)
+#define HZIP_ALG_GZIP				GENMASK(3, 2)
+
 static const u8 zlib_head[HZIP_ZLIB_HEAD_SIZE] = {0x78, 0x9c};
 static const u8 gzip_head[HZIP_GZIP_HEAD_SIZE] = {
 	0x1f, 0x8b, 0x08, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x03
@@ -756,6 +759,28 @@ static struct acomp_alg hisi_zip_acomp_zlib = {
 	}
 };
 
+static int hisi_zip_register_zlib(struct hisi_qm *qm)
+{
+	int ret;
+
+	if (!hisi_zip_alg_support(qm, HZIP_ALG_ZLIB))
+		return 0;
+
+	ret = crypto_register_acomp(&hisi_zip_acomp_zlib);
+	if (ret)
+		dev_err(&qm->pdev->dev, "failed to register to zlib (%d)!\n", ret);
+
+	return ret;
+}
+
+static void hisi_zip_unregister_zlib(struct hisi_qm *qm)
+{
+	if (!hisi_zip_alg_support(qm, HZIP_ALG_ZLIB))
+		return;
+
+	crypto_unregister_acomp(&hisi_zip_acomp_zlib);
+}
+
 static struct acomp_alg hisi_zip_acomp_gzip = {
 	.init			= hisi_zip_acomp_init,
 	.exit			= hisi_zip_acomp_exit,
@@ -770,27 +795,45 @@ static struct acomp_alg hisi_zip_acomp_gzip = {
 	}
 };
 
-int hisi_zip_register_to_crypto(struct hisi_qm *qm)
+static int hisi_zip_register_gzip(struct hisi_qm *qm)
 {
 	int ret;
 
-	ret = crypto_register_acomp(&hisi_zip_acomp_zlib);
-	if (ret) {
-		pr_err("failed to register to zlib (%d)!\n", ret);
-		return ret;
-	}
+	if (!hisi_zip_alg_support(qm, HZIP_ALG_GZIP))
+		return 0;
 
 	ret = crypto_register_acomp(&hisi_zip_acomp_gzip);
-	if (ret) {
-		pr_err("failed to register to gzip (%d)!\n", ret);
-		crypto_unregister_acomp(&hisi_zip_acomp_zlib);
-	}
+	if (ret)
+		dev_err(&qm->pdev->dev, "failed to register to gzip (%d)!\n", ret);
+
+	return ret;
+}
+
+static void hisi_zip_unregister_gzip(struct hisi_qm *qm)
+{
+	if (!hisi_zip_alg_support(qm, HZIP_ALG_GZIP))
+		return;
+
+	crypto_unregister_acomp(&hisi_zip_acomp_gzip);
+}
+
+int hisi_zip_register_to_crypto(struct hisi_qm *qm)
+{
+	int ret = 0;
+
+	ret = hisi_zip_register_zlib(qm);
+	if (ret)
+		return ret;
+
+	ret = hisi_zip_register_gzip(qm);
+	if (ret)
+		hisi_zip_unregister_zlib(qm);
 
 	return ret;
 }
 
 void hisi_zip_unregister_from_crypto(struct hisi_qm *qm)
 {
-	crypto_unregister_acomp(&hisi_zip_acomp_gzip);
-	crypto_unregister_acomp(&hisi_zip_acomp_zlib);
+	hisi_zip_unregister_zlib(qm);
+	hisi_zip_unregister_gzip(qm);
 }

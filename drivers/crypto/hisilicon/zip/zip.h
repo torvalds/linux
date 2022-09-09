@@ -84,4 +84,5 @@ struct hisi_zip_sqe {
 int zip_create_qps(struct hisi_qp **qps, int qp_num, int node);
 int hisi_zip_register_to_crypto(struct hisi_qm *qm);
 void hisi_zip_unregister_from_crypto(struct hisi_qm *qm);
+bool hisi_zip_alg_support(struct hisi_qm *qm, u32 alg);
 #endif
