@@ -242,6 +242,8 @@ void extent_range_redirty_for_io(struct inode *inode, u64 start, u64 end);
 void extent_clear_unlock_delalloc(struct btrfs_inode *inode, u64 start, u64 end,
 				  struct page *locked_page,
 				  u32 bits_to_clear, unsigned long page_ops);
+int extent_invalidate_folio(struct extent_io_tree *tree,
+			    struct folio *folio, size_t offset);
 
 int btrfs_alloc_page_array(unsigned int nr_pages, struct page **page_array);
 
@@ -273,6 +275,9 @@ struct io_failure_record {
 int btrfs_repair_one_sector(struct inode *inode, struct btrfs_bio *failed_bbio,
 			    u32 bio_offset, struct page *page, unsigned int pgoff,
 			    submit_bio_hook_t *submit_bio_hook);
+void btrfs_free_io_failure_record(struct btrfs_inode *inode, u64 start, u64 end);
+int btrfs_clean_io_failure(struct btrfs_inode *inode, u64 start,
+			   struct page *page, unsigned int pg_offset);
 
 #ifdef CONFIG_BTRFS_FS_RUN_SANITY_TESTS
 bool find_lock_delalloc_range(struct inode *inode,

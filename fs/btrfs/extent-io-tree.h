@@ -248,17 +248,9 @@ void find_first_clear_extent_bit(struct extent_io_tree *tree, u64 start,
 				 u64 *start_ret, u64 *end_ret, u32 bits);
 int find_contiguous_extent_bit(struct extent_io_tree *tree, u64 start,
 			       u64 *start_ret, u64 *end_ret, u32 bits);
-int extent_invalidate_folio(struct extent_io_tree *tree,
-			  struct folio *folio, size_t offset);
 bool btrfs_find_delalloc_range(struct extent_io_tree *tree, u64 *start,
 			       u64 *end, u64 max_bytes,
 			       struct extent_state **cached_state);
 void wait_extent_bit(struct extent_io_tree *tree, u64 start, u64 end, u32 bits);
-
-/* This should be reworked in the future and put elsewhere. */
-void btrfs_free_io_failure_record(struct btrfs_inode *inode, u64 start,
-		u64 end);
-int btrfs_clean_io_failure(struct btrfs_inode *inode, u64 start,
-			   struct page *page, unsigned int pg_offset);
 
 #endif /* BTRFS_EXTENT_IO_TREE_H */
