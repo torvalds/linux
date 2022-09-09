@@ -230,7 +230,7 @@ static void submit_write_bio(struct extent_page_data *epd, int ret)
 	}
 }
 
-int __init extent_io_init(void)
+int __init extent_state_init_cachep(void)
 {
 	extent_state_cache = kmem_cache_create("btrfs_extent_state",
 			sizeof(struct extent_state), 0,
@@ -238,18 +238,27 @@ int __init extent_io_init(void)
 	if (!extent_state_cache)
 		return -ENOMEM;
 
+	return 0;
+}
+
+int __init extent_buffer_init_cachep(void)
+{
 	extent_buffer_cache = kmem_cache_create("btrfs_extent_buffer",
 			sizeof(struct extent_buffer), 0,
 			SLAB_MEM_SPREAD, NULL);
-	if (!extent_buffer_cache) {
-		kmem_cache_destroy(extent_state_cache);
+	if (!extent_buffer_cache)
 		return -ENOMEM;
-	}
 
 	return 0;
 }
 
-void __cold extent_io_exit(void)
+void __cold extent_state_free_cachep(void)
+{
+	btrfs_extent_state_leak_debug_check();
+	kmem_cache_destroy(extent_state_cache);
+}
+
+void __cold extent_buffer_free_cachep(void)
 {
 	/*
 	 * Make sure all delayed rcu free are flushed before we
@@ -257,8 +266,6 @@ void __cold extent_io_exit(void)
 	 */
 	rcu_barrier();
 	kmem_cache_destroy(extent_buffer_cache);
-	btrfs_extent_state_leak_debug_check();
-	kmem_cache_destroy(extent_state_cache);
 }
 
 /*

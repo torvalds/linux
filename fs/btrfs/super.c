@@ -2736,13 +2736,17 @@ static int __init init_btrfs_fs(void)
 	if (err)
 		goto free_compress;
 
-	err = extent_io_init();
+	err = extent_state_init_cachep();
 	if (err)
 		goto free_cachep;
 
+	err = extent_buffer_init_cachep();
+	if (err)
+		goto free_extent_cachep;
+
 	err = btrfs_bioset_init();
 	if (err)
-		goto free_extent_io;
+		goto free_eb_cachep;
 
 	err = extent_map_init();
 	if (err)
@@ -2800,8 +2804,10 @@ free_extent_map:
 	extent_map_exit();
 free_bioset:
 	btrfs_bioset_exit();
-free_extent_io:
-	extent_io_exit();
+free_eb_cachep:
+	extent_buffer_free_cachep();
+free_extent_cachep:
+	extent_state_free_cachep();
 free_cachep:
 	btrfs_destroy_cachep();
 free_compress:
@@ -2821,7 +2827,8 @@ static void __exit exit_btrfs_fs(void)
 	ordered_data_exit();
 	extent_map_exit();
 	btrfs_bioset_exit();
-	extent_io_exit();
+	extent_state_free_cachep();
+	extent_buffer_free_cachep();
 	btrfs_interface_exit();
 	unregister_filesystem(&btrfs_fs_type);
 	btrfs_exit_sysfs();

@@ -64,6 +64,9 @@ struct btrfs_fs_info;
 struct io_failure_record;
 struct extent_io_tree;
 
+int __init extent_buffer_init_cachep(void);
+void __cold extent_buffer_free_cachep(void);
+
 typedef void (submit_bio_hook_t)(struct inode *inode, struct bio *bio,
 					 int mirror_num,
 					 enum btrfs_compression_type compress_type);

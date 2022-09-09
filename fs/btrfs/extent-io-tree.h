@@ -108,8 +108,8 @@ static inline int lock_extent(struct extent_io_tree *tree, u64 start, u64 end)
 
 int try_lock_extent(struct extent_io_tree *tree, u64 start, u64 end);
 
-int __init extent_io_init(void);
-void __cold extent_io_exit(void);
+int __init extent_state_init_cachep(void);
+void __cold extent_state_free_cachep(void);
 
 u64 count_range_bits(struct extent_io_tree *tree,
 		     u64 *start, u64 search_end,
