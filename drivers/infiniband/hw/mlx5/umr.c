@@ -177,6 +177,7 @@ int mlx5r_umr_resource_init(struct mlx5_ib_dev *dev)
 
 	sema_init(&dev->umrc.sem, MAX_UMR_WR);
 	mutex_init(&dev->umrc.lock);
+	dev->umrc.state = MLX5_UMR_STATE_ACTIVE;
 
 	return 0;
 
@@ -191,6 +192,8 @@ destroy_pd:
 
 void mlx5r_umr_resource_cleanup(struct mlx5_ib_dev *dev)
 {
+	if (dev->umrc.state == MLX5_UMR_STATE_UNINIT)
+		return;
 	ib_destroy_qp(dev->umrc.qp);
 	ib_free_cq(dev->umrc.cq);
 	ib_dealloc_pd(dev->umrc.pd);
