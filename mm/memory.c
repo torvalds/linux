@@ -5690,11 +5690,11 @@ static void clear_gigantic_page(struct page *page,
 				unsigned int pages_per_huge_page)
 {
 	int i;
-	struct page *p = page;
+	struct page *p;
 
 	might_sleep();
-	for (i = 0; i < pages_per_huge_page;
-	     i++, p = mem_map_next(p, page, i)) {
+	for (i = 0; i < pages_per_huge_page; i++) {
+		p = nth_page(page, i);
 		cond_resched();
 		clear_user_highpage(p, addr + i * PAGE_SIZE);
 	}
@@ -5730,13 +5730,12 @@ static void copy_user_gigantic_page(struct page *dst, struct page *src,
 	struct page *dst_base = dst;
 	struct page *src_base = src;
 
-	for (i = 0; i < pages_per_huge_page; ) {
+	for (i = 0; i < pages_per_huge_page; i++) {
+		dst = nth_page(dst_base, i);
+		src = nth_page(src_base, i);
+
 		cond_resched();
 		copy_user_highpage(dst, src, addr + i*PAGE_SIZE, vma);
-
-		i++;
-		dst = mem_map_next(dst, dst_base, i);
-		src = mem_map_next(src, src_base, i);
 	}
 }
 
@@ -5783,10 +5782,10 @@ long copy_huge_page_from_user(struct page *dst_page,
 	void *page_kaddr;
 	unsigned long i, rc = 0;
 	unsigned long ret_val = pages_per_huge_page * PAGE_SIZE;
-	struct page *subpage = dst_page;
+	struct page *subpage;
 
-	for (i = 0; i < pages_per_huge_page;
-	     i++, subpage = mem_map_next(subpage, dst_page, i)) {
+	for (i = 0; i < pages_per_huge_page; i++) {
+		subpage = nth_page(dst_page, i);
 		if (allow_pagefault)
 			page_kaddr = kmap(subpage);
 		else
