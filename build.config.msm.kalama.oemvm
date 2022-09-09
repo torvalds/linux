@@ -1,0 +1,10 @@
+################################################################################
+## Inheriting MSM configs
+. ${KERNEL_DIR}/build.config.msm.kalama.vm
+################################################################################
+## Setting parameter to build only OEMVM images
+
+MKDTIMGDTBS=()
+MKDTIMGDTBS["kalama_oemvm"]="kalama-oemvm"
+
+################################################################################
