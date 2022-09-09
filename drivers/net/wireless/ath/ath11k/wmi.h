@@ -17,7 +17,7 @@ struct ath11k_vif;
 
 #define PSOC_HOST_MAX_NUM_SS (8)
 
-/* defines to set Packet extension values whic can be 0 us, 8 usec or 16 usec */
+/* defines to set Packet extension values which can be 0 us, 8 usec or 16 usec */
 #define MAX_HE_NSS               8
 #define MAX_HE_MODULATION        8
 #define MAX_HE_RU                4
@@ -4482,7 +4482,7 @@ struct wmi_pdev_radar_ev {
 } __packed;
 
 struct wmi_pdev_temperature_event {
-	/* temperature value in Celcius degree */
+	/* temperature value in Celsius degree */
 	s32 temp;
 	u32 pdev_id;
 } __packed;
@@ -4708,7 +4708,7 @@ enum wmi_sta_ps_param_tx_wake_threshold {
  */
 enum wmi_sta_ps_param_pspoll_count {
 	WMI_STA_PS_PSPOLL_COUNT_NO_MAX = 0,
-	/* Values greater than 0 indicate the maximum numer of PS-Poll frames
+	/* Values greater than 0 indicate the maximum number of PS-Poll frames
 	 * FW will send before waking up.
 	 */
 };

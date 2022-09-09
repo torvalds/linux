@@ -1879,7 +1879,7 @@ static int ath11k_qmi_respond_fw_mem_request(struct ath11k_base *ab)
 
 	/* For QCA6390 by default FW requests a block of ~4M contiguous
 	 * DMA memory, it's hard to allocate from OS. So host returns
-	 * failure to FW and FW will then request mulitple blocks of small
+	 * failure to FW and FW will then request multiple blocks of small
 	 * chunk size memory.
 	 */
 	if (!(ab->hw_params.fixed_mem_region ||

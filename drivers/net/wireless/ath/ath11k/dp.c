@@ -967,7 +967,7 @@ static void ath11k_dp_update_vdev_search(struct ath11k_vif *arvif)
 {
 	 /* When v2_map_support is true:for STA mode, enable address
 	  * search index, tcl uses ast_hash value in the descriptor.
-	  * When v2_map_support is false: for STA mode, dont' enable
+	  * When v2_map_support is false: for STA mode, don't enable
 	  * address search index.
 	  */
 	switch (arvif->vdev_type) {

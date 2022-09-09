@@ -2499,7 +2499,7 @@ static void ath11k_dp_rx_deliver_msdu(struct ath11k *ar, struct napi_struct *nap
 
 	/* PN for multicast packets are not validate in HW,
 	 * so skip 802.3 rx path
-	 * Also, fast_rx expectes the STA to be authorized, hence
+	 * Also, fast_rx expects the STA to be authorized, hence
 	 * eapol packets are sent in slow path.
 	 */
 	if (decap == DP_RX_DECAP_TYPE_ETHERNET2_DIX && !is_eapol &&

@@ -303,7 +303,7 @@ struct ath11k_dp {
 
 #define HTT_TX_WBM_COMP_STATUS_OFFSET 8
 
-/* HTT tx completion is overlayed in wbm_release_ring */
+/* HTT tx completion is overlaid in wbm_release_ring */
 #define HTT_TX_WBM_COMP_INFO0_STATUS		GENMASK(12, 9)
 #define HTT_TX_WBM_COMP_INFO0_REINJECT_REASON	GENMASK(16, 13)
 #define HTT_TX_WBM_COMP_INFO0_REINJECT_REASON	GENMASK(16, 13)
@@ -470,7 +470,7 @@ enum htt_srng_ring_id {
  *                     3'b010: 4 usec
  *                     3'b011: 8 usec (default)
  *                     3'b100: 16 usec
- *                     Others: Reserverd
+ *                     Others: Reserved
  *           b'19    - response_required:
  *                     Host needs HTT_T2H_MSG_TYPE_SRING_SETUP_DONE as response
  *           b'20:31 - reserved:  reserved for future use

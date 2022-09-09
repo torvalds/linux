@@ -243,7 +243,7 @@ struct ath11k_base;
 #define HAL_WBM0_RELEASE_RING_HP		0x000030c0
 #define HAL_WBM1_RELEASE_RING_HP		0x000030c8
 
-/* TCL ring feild mask and offset */
+/* TCL ring field mask and offset */
 #define HAL_TCL1_RING_BASE_MSB_RING_SIZE		GENMASK(27, 8)
 #define HAL_TCL1_RING_BASE_MSB_RING_BASE_ADDR_MSB	GENMASK(7, 0)
 #define HAL_TCL1_RING_ID_ENTRY_SIZE			GENMASK(7, 0)
@@ -268,7 +268,7 @@ struct ath11k_base;
 #define HAL_TCL1_RING_FIELD_DSCP_TID_MAP6		GENMASK(20, 18)
 #define HAL_TCL1_RING_FIELD_DSCP_TID_MAP7		GENMASK(23, 21)
 
-/* REO ring feild mask and offset */
+/* REO ring field mask and offset */
 #define HAL_REO1_RING_BASE_MSB_RING_SIZE		GENMASK(27, 8)
 #define HAL_REO1_RING_BASE_MSB_RING_BASE_ADDR_MSB	GENMASK(7, 0)
 #define HAL_REO1_RING_ID_RING_ID			GENMASK(15, 8)
@@ -636,7 +636,7 @@ struct hal_srng {
 	} u;
 };
 
-/* Interrupt mitigation - Batch threshold in terms of numer of frames */
+/* Interrupt mitigation - Batch threshold in terms of number of frames */
 #define HAL_SRNG_INT_BATCH_THRESHOLD_TX 256
 #define HAL_SRNG_INT_BATCH_THRESHOLD_RX 128
 #define HAL_SRNG_INT_BATCH_THRESHOLD_OTHER 1
