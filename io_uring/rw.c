@@ -206,6 +206,20 @@ static bool __io_complete_rw_common(struct io_kiocb *req, long res)
 	return false;
 }
 
+static inline unsigned io_fixup_rw_res(struct io_kiocb *req, unsigned res)
+{
+	struct io_async_rw *io = req->async_data;
+
+	/* add previously done IO, if any */
+	if (req_has_async_data(req) && io->bytes_done > 0) {
+		if (res < 0)
+			res = io->bytes_done;
+		else
+			res += io->bytes_done;
+	}
+	return res;
+}
+
 static void io_complete_rw(struct kiocb *kiocb, long res)
 {
 	struct io_rw *rw = container_of(kiocb, struct io_rw, kiocb);
@@ -213,7 +227,7 @@ static void io_complete_rw(struct kiocb *kiocb, long res)
 
 	if (__io_complete_rw_common(req, res))
 		return;
-	io_req_set_res(req, res, 0);
+	io_req_set_res(req, io_fixup_rw_res(req, res), 0);
 	req->io_task_work.func = io_req_task_complete;
 	io_req_task_work_add(req);
 }
@@ -240,22 +254,14 @@ static void io_complete_rw_iopoll(struct kiocb *kiocb, long res)
 static int kiocb_done(struct io_kiocb *req, ssize_t ret,
 		       unsigned int issue_flags)
 {
-	struct io_async_rw *io = req->async_data;
 	struct io_rw *rw = io_kiocb_to_cmd(req, struct io_rw);
-
-	/* add previously done IO, if any */
-	if (req_has_async_data(req) && io->bytes_done > 0) {
-		if (ret < 0)
-			ret = io->bytes_done;
-		else
-			ret += io->bytes_done;
-	}
+	unsigned final_ret = io_fixup_rw_res(req, ret);
 
 	if (req->flags & REQ_F_CUR_POS)
 		req->file->f_pos = rw->kiocb.ki_pos;
 	if (ret >= 0 && (rw->kiocb.ki_complete == io_complete_rw)) {
 		if (!__io_complete_rw_common(req, ret)) {
-			io_req_set_res(req, req->cqe.res,
+			io_req_set_res(req, final_ret,
 				       io_put_kbuf(req, issue_flags));
 			return IOU_OK;
 		}
@@ -268,7 +274,7 @@ static int kiocb_done(struct io_kiocb *req, ssize_t ret,
 		if (io_resubmit_prep(req))
 			io_req_task_queue_reissue(req);
 		else
-			io_req_task_queue_fail(req, ret);
+			io_req_task_queue_fail(req, final_ret);
 	}
 	return IOU_ISSUE_SKIP_COMPLETE;
 }
