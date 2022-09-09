@@ -505,11 +505,13 @@ static inline int pci_iov_bus_range(struct pci_bus *bus)
 #endif /* CONFIG_PCI_IOV */
 
 #ifdef CONFIG_PCIE_PTM
+void pci_ptm_init(struct pci_dev *dev);
 void pci_save_ptm_state(struct pci_dev *dev);
 void pci_restore_ptm_state(struct pci_dev *dev);
 void pci_suspend_ptm(struct pci_dev *dev);
 void pci_resume_ptm(struct pci_dev *dev);
 #else
+static inline void pci_ptm_init(struct pci_dev *dev) { }
 static inline void pci_save_ptm_state(struct pci_dev *dev) { }
 static inline void pci_restore_ptm_state(struct pci_dev *dev) { }
 static inline void pci_suspend_ptm(struct pci_dev *dev) { }
@@ -575,12 +577,6 @@ void pcie_ecrc_get_policy(char *str);
 #else
 static inline void pcie_set_ecrc_checking(struct pci_dev *dev) { }
 static inline void pcie_ecrc_get_policy(char *str) { }
-#endif
-
-#ifdef CONFIG_PCIE_PTM
-void pci_ptm_init(struct pci_dev *dev);
-#else
-static inline void pci_ptm_init(struct pci_dev *dev) { }
 #endif
 
 struct pci_dev_reset_methods {
