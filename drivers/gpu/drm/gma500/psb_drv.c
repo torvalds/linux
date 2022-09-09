@@ -407,11 +407,6 @@ static int psb_driver_load(struct drm_device *dev, unsigned long flags)
 	if (ret)
 		return ret;
 	psb_intel_opregion_enable_asle(dev);
-#if 0
-	/* Enable runtime pm at last */
-	pm_runtime_enable(dev->dev);
-	pm_runtime_set_active(dev->dev);
-#endif
 
 	return devm_add_action_or_reset(dev->dev, psb_device_release, dev);
 
@@ -484,7 +479,6 @@ static const struct dev_pm_ops psb_pm_ops = {
 	.restore = gma_power_restore,
 	.runtime_suspend = psb_runtime_suspend,
 	.runtime_resume = psb_runtime_resume,
-	.runtime_idle = psb_runtime_idle,
 };
 
 static const struct file_operations psb_gem_fops = {

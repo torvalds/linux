@@ -426,9 +426,7 @@ struct drm_psb_private {
 	spinlock_t irqmask_lock;
 
 	/* Power */
-	bool suspended;
-	bool display_power;
-	int display_count;
+	bool pm_initialized;
 
 	/* Modesetting */
 	struct psb_intel_mode_device mode_dev;
