@@ -38,6 +38,7 @@
 #include <linux/hugetlb.h>
 #include <linux/fs_parser.h>
 #include <linux/swapfile.h>
+#include <linux/iversion.h>
 #include "swap.h"
 
 static struct vfsmount *shm_mnt;
@@ -1030,6 +1031,7 @@ void shmem_truncate_range(struct inode *inode, loff_t lstart, loff_t lend)
 {
 	shmem_undo_range(inode, lstart, lend, false);
 	inode->i_ctime = inode->i_mtime = current_time(inode);
+	inode_inc_iversion(inode);
 }
 EXPORT_SYMBOL_GPL(shmem_truncate_range);
 
@@ -1074,6 +1076,8 @@ static int shmem_setattr(struct user_namespace *mnt_userns,
 	struct inode *inode = d_inode(dentry);
 	struct shmem_inode_info *info = SHMEM_I(inode);
 	int error;
+	bool update_mtime = false;
+	bool update_ctime = true;
 
 	error = setattr_prepare(&init_user_ns, dentry, attr);
 	if (error)
@@ -1094,7 +1098,9 @@ static int shmem_setattr(struct user_namespace *mnt_userns,
 			if (error)
 				return error;
 			i_size_write(inode, newsize);
-			inode->i_ctime = inode->i_mtime = current_time(inode);
+			update_mtime = true;
+		} else {
+			update_ctime = false;
 		}
 		if (newsize <= oldsize) {
 			loff_t holebegin = round_up(newsize, PAGE_SIZE);
@@ -1114,6 +1120,12 @@ static int shmem_setattr(struct user_namespace *mnt_userns,
 	setattr_copy(&init_user_ns, inode, attr);
 	if (attr->ia_valid & ATTR_MODE)
 		error = posix_acl_chmod(&init_user_ns, inode, inode->i_mode);
+	if (!error && update_ctime) {
+		inode->i_ctime = current_time(inode);
+		if (update_mtime)
+			inode->i_mtime = inode->i_ctime;
+		inode_inc_iversion(inode);
+	}
 	return error;
 }
 
@@ -2890,6 +2902,7 @@ shmem_mknod(struct user_namespace *mnt_userns, struct inode *dir,
 		error = 0;
 		dir->i_size += BOGO_DIRENT_SIZE;
 		dir->i_ctime = dir->i_mtime = current_time(dir);
+		inode_inc_iversion(dir);
 		d_instantiate(dentry, inode);
 		dget(dentry); /* Extra count - pin the dentry in core */
 	}
@@ -2965,6 +2978,7 @@ static int shmem_link(struct dentry *old_dentry, struct inode *dir, struct dentr
 
 	dir->i_size += BOGO_DIRENT_SIZE;
 	inode->i_ctime = dir->i_ctime = dir->i_mtime = current_time(inode);
+	inode_inc_iversion(dir);
 	inc_nlink(inode);
 	ihold(inode);	/* New dentry reference */
 	dget(dentry);		/* Extra pinning count for the created dentry */
@@ -2982,6 +2996,7 @@ static int shmem_unlink(struct inode *dir, struct dentry *dentry)
 
 	dir->i_size -= BOGO_DIRENT_SIZE;
 	inode->i_ctime = dir->i_ctime = dir->i_mtime = current_time(inode);
+	inode_inc_iversion(dir);
 	drop_nlink(inode);
 	dput(dentry);	/* Undo the count from "create" - this does all the work */
 	return 0;
@@ -3071,6 +3086,8 @@ static int shmem_rename2(struct user_namespace *mnt_userns,
 	old_dir->i_ctime = old_dir->i_mtime =
 	new_dir->i_ctime = new_dir->i_mtime =
 	inode->i_ctime = current_time(old_dir);
+	inode_inc_iversion(old_dir);
+	inode_inc_iversion(new_dir);
 	return 0;
 }
 
@@ -3123,6 +3140,7 @@ static int shmem_symlink(struct user_namespace *mnt_userns, struct inode *dir,
 	}
 	dir->i_size += BOGO_DIRENT_SIZE;
 	dir->i_ctime = dir->i_mtime = current_time(dir);
+	inode_inc_iversion(dir);
 	d_instantiate(dentry, inode);
 	dget(dentry);
 	return 0;
@@ -3194,6 +3212,7 @@ static int shmem_fileattr_set(struct user_namespace *mnt_userns,
 
 	shmem_set_inode_flags(inode, info->fsflags);
 	inode->i_ctime = current_time(inode);
+	inode_inc_iversion(inode);
 	return 0;
 }
 
@@ -3257,9 +3276,15 @@ static int shmem_xattr_handler_set(const struct xattr_handler *handler,
 				   size_t size, int flags)
 {
 	struct shmem_inode_info *info = SHMEM_I(inode);
+	int err;
 
 	name = xattr_full_name(handler, name);
-	return simple_xattr_set(&info->xattrs, name, value, size, flags, NULL);
+	err = simple_xattr_set(&info->xattrs, name, value, size, flags, NULL);
+	if (!err) {
+		inode->i_ctime = current_time(inode);
+		inode_inc_iversion(inode);
+	}
+	return err;
 }
 
 static const struct xattr_handler shmem_security_xattr_handler = {
@@ -3722,7 +3747,7 @@ static int shmem_fill_super(struct super_block *sb, struct fs_context *fc)
 		sb->s_flags |= SB_NOUSER;
 	}
 	sb->s_export_op = &shmem_export_ops;
-	sb->s_flags |= SB_NOSEC;
+	sb->s_flags |= SB_NOSEC | SB_I_VERSION;
 #else
 	sb->s_flags |= SB_NOUSER;
 #endif
