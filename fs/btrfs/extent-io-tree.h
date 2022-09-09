@@ -279,4 +279,17 @@ void __btrfs_debug_check_extent_io_range(const char *caller,
 #define btrfs_debug_check_extent_io_range(c, s, e)	do {} while (0)
 #endif
 
+struct tree_entry {
+	u64 start;
+	u64 end;
+	struct rb_node rb_node;
+};
+
+struct rb_node *tree_search_for_insert(struct extent_io_tree *tree, u64 offset,
+				       struct rb_node ***node_ret,
+				       struct rb_node **parent_ret);
+struct rb_node *tree_search_prev_next(struct extent_io_tree *tree, u64 offset,
+				      struct rb_node **prev_ret,
+				      struct rb_node **next_ret);
+
 #endif /* BTRFS_EXTENT_IO_TREE_H */

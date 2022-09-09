@@ -85,12 +85,6 @@ void btrfs_extent_buffer_leak_debug_check(struct btrfs_fs_info *fs_info)
 #define btrfs_leak_debug_del_eb(eb)			do {} while (0)
 #endif
 
-struct tree_entry {
-	u64 start;
-	u64 end;
-	struct rb_node rb_node;
-};
-
 /*
  * Structure to record info about the bio being assembled, and other info like
  * how many bytes are there before stripe/ordered extent boundary.
@@ -205,121 +199,12 @@ void __cold extent_buffer_free_cachep(void)
 	kmem_cache_destroy(extent_buffer_cache);
 }
 
-/**
- * Search @tree for an entry that contains @offset. Such entry would have
- * entry->start <= offset && entry->end >= offset.
- *
- * @tree:       the tree to search
- * @offset:     offset that should fall within an entry in @tree
- * @node_ret:   pointer where new node should be anchored (used when inserting an
- *	        entry in the tree)
- * @parent_ret: points to entry which would have been the parent of the entry,
- *               containing @offset
- *
- * Return a pointer to the entry that contains @offset byte address and don't change
- * @node_ret and @parent_ret.
- *
- * If no such entry exists, return pointer to entry that ends before @offset
- * and fill parameters @node_ret and @parent_ret, ie. does not return NULL.
- */
-static inline struct rb_node *tree_search_for_insert(struct extent_io_tree *tree,
-					             u64 offset,
-						     struct rb_node ***node_ret,
-						     struct rb_node **parent_ret)
-{
-	struct rb_root *root = &tree->state;
-	struct rb_node **node = &root->rb_node;
-	struct rb_node *prev = NULL;
-	struct tree_entry *entry;
-
-	while (*node) {
-		prev = *node;
-		entry = rb_entry(prev, struct tree_entry, rb_node);
-
-		if (offset < entry->start)
-			node = &(*node)->rb_left;
-		else if (offset > entry->end)
-			node = &(*node)->rb_right;
-		else
-			return *node;
-	}
-
-	if (node_ret)
-		*node_ret = node;
-	if (parent_ret)
-		*parent_ret = prev;
-
-	/* Search neighbors until we find the first one past the end */
-	while (prev && offset > entry->end) {
-		prev = rb_next(prev);
-		entry = rb_entry(prev, struct tree_entry, rb_node);
-	}
-
-	return prev;
-}
-
 /*
  * Inexact rb-tree search, return the next entry if @offset is not found
  */
 static inline struct rb_node *tree_search(struct extent_io_tree *tree, u64 offset)
 {
 	return tree_search_for_insert(tree, offset, NULL, NULL);
-}
-
-/**
- * Search offset in the tree or fill neighbor rbtree node pointers.
- *
- * @tree:      the tree to search
- * @offset:    offset that should fall within an entry in @tree
- * @next_ret:  pointer to the first entry whose range ends after @offset
- * @prev_ret:  pointer to the first entry whose range begins before @offset
- *
- * Return a pointer to the entry that contains @offset byte address. If no
- * such entry exists, then return NULL and fill @prev_ret and @next_ret.
- * Otherwise return the found entry and other pointers are left untouched.
- */
-static struct rb_node *tree_search_prev_next(struct extent_io_tree *tree,
-					     u64 offset,
-					     struct rb_node **prev_ret,
-					     struct rb_node **next_ret)
-{
-	struct rb_root *root = &tree->state;
-	struct rb_node **node = &root->rb_node;
-	struct rb_node *prev = NULL;
-	struct rb_node *orig_prev = NULL;
-	struct tree_entry *entry;
-
-	ASSERT(prev_ret);
-	ASSERT(next_ret);
-
-	while (*node) {
-		prev = *node;
-		entry = rb_entry(prev, struct tree_entry, rb_node);
-
-		if (offset < entry->start)
-			node = &(*node)->rb_left;
-		else if (offset > entry->end)
-			node = &(*node)->rb_right;
-		else
-			return *node;
-	}
-
-	orig_prev = prev;
-	while (prev && offset > entry->end) {
-		prev = rb_next(prev);
-		entry = rb_entry(prev, struct tree_entry, rb_node);
-	}
-	*next_ret = prev;
-	prev = orig_prev;
-
-	entry = rb_entry(prev, struct tree_entry, rb_node);
-	while (prev && offset < entry->start) {
-		prev = rb_prev(prev);
-		entry = rb_entry(prev, struct tree_entry, rb_node);
-	}
-	*prev_ret = prev;
-
-	return NULL;
 }
 
 /*
