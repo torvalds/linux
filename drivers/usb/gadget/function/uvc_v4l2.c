@@ -48,6 +48,31 @@ static struct uvc_format_desc *to_uvc_format(struct uvcg_format *uformat)
 	return format;
 }
 
+static int uvc_v4l2_get_bytesperline(struct uvcg_format *uformat,
+			      struct uvcg_frame *uframe)
+{
+	struct uvcg_uncompressed *u;
+
+	if (uformat->type == UVCG_UNCOMPRESSED) {
+		u = to_uvcg_uncompressed(&uformat->group.cg_item);
+		if (!u)
+			return 0;
+
+		return u->desc.bBitsPerPixel * uframe->frame.w_width / 8;
+	}
+
+	return 0;
+}
+
+static int uvc_get_frame_size(struct uvcg_format *uformat,
+		       struct uvcg_frame *uframe)
+{
+	unsigned int bpl = uvc_v4l2_get_bytesperline(uformat, uframe);
+
+	return bpl ? bpl * uframe->frame.w_height :
+		uframe->frame.dw_max_video_frame_buffer_size;
+}
+
 static struct uvcg_format *find_format_by_index(struct uvc_device *uvc, int index)
 {
 	struct uvcg_format_ptr *format;
@@ -103,6 +128,50 @@ static struct uvcg_format *find_format_by_pix(struct uvc_device *uvc,
 	}
 
 	return uformat;
+}
+
+static struct uvcg_frame *find_closest_frame_by_size(struct uvc_device *uvc,
+					   struct uvcg_format *uformat,
+					   u16 rw, u16 rh)
+{
+	struct uvc_video *video = &uvc->video;
+	struct uvcg_format_ptr *format;
+	struct uvcg_frame_ptr *frame;
+	struct uvcg_frame *uframe = NULL;
+	unsigned int d, maxd;
+
+	/* Find the closest image size. The distance between image sizes is
+	 * the size in pixels of the non-overlapping regions between the
+	 * requested size and the frame-specified size.
+	 */
+	maxd = (unsigned int)-1;
+
+	list_for_each_entry(format, &uvc->header->formats, entry) {
+		if (format->fmt->type != uformat->type)
+			continue;
+
+		list_for_each_entry(frame, &format->fmt->frames, entry) {
+			u16 w, h;
+
+			w = frame->frm->frame.w_width;
+			h = frame->frm->frame.w_height;
+
+			d = min(w, rw) * min(h, rh);
+			d = w*h + rw*rh - 2*d;
+			if (d < maxd) {
+				maxd = d;
+				uframe = frame->frm;
+			}
+
+			if (maxd == 0)
+				break;
+		}
+	}
+
+	if (!uframe)
+		uvcg_dbg(&video->uvc->func, "Unsupported size %ux%u\n", rw, rh);
+
+	return uframe;
 }
 
 /* --------------------------------------------------------------------------
@@ -208,6 +277,46 @@ uvc_v4l2_set_format(struct file *file, void *fh, struct v4l2_format *fmt)
 	fmt->fmt.pix.field = V4L2_FIELD_NONE;
 	fmt->fmt.pix.bytesperline = bpl;
 	fmt->fmt.pix.sizeimage = imagesize;
+	fmt->fmt.pix.colorspace = V4L2_COLORSPACE_SRGB;
+	fmt->fmt.pix.priv = 0;
+
+	return 0;
+}
+
+static int
+uvc_v4l2_try_format(struct file *file, void *fh, struct v4l2_format *fmt)
+{
+	struct video_device *vdev = video_devdata(file);
+	struct uvc_device *uvc = video_get_drvdata(vdev);
+	struct uvc_video *video = &uvc->video;
+	struct uvcg_format *uformat;
+	struct uvcg_frame *uframe;
+	u8 *fcc;
+
+	if (fmt->type != video->queue.queue.type)
+		return -EINVAL;
+
+	fcc = (u8 *)&fmt->fmt.pix.pixelformat;
+	uvcg_dbg(&uvc->func, "Trying format 0x%08x (%c%c%c%c): %ux%u\n",
+		fmt->fmt.pix.pixelformat,
+		fcc[0], fcc[1], fcc[2], fcc[3],
+		fmt->fmt.pix.width, fmt->fmt.pix.height);
+
+	uformat = find_format_by_pix(uvc, fmt->fmt.pix.pixelformat);
+	if (!uformat)
+		return -EINVAL;
+
+	uframe = find_closest_frame_by_size(uvc, uformat,
+				fmt->fmt.pix.width, fmt->fmt.pix.height);
+	if (!uframe)
+		return -EINVAL;
+
+	fmt->fmt.pix.width = uframe->frame.w_width;
+	fmt->fmt.pix.height = uframe->frame.w_height;
+	fmt->fmt.pix.field = V4L2_FIELD_NONE;
+	fmt->fmt.pix.bytesperline = uvc_v4l2_get_bytesperline(uformat, uframe);
+	fmt->fmt.pix.sizeimage = uvc_get_frame_size(uformat, uframe);
+	fmt->fmt.pix.pixelformat = to_uvc_format(uformat)->fcc;
 	fmt->fmt.pix.colorspace = V4L2_COLORSPACE_SRGB;
 	fmt->fmt.pix.priv = 0;
 
@@ -471,6 +580,7 @@ uvc_v4l2_ioctl_default(struct file *file, void *fh, bool valid_prio,
 
 const struct v4l2_ioctl_ops uvc_v4l2_ioctl_ops = {
 	.vidioc_querycap = uvc_v4l2_querycap,
+	.vidioc_try_fmt_vid_out = uvc_v4l2_try_format,
 	.vidioc_g_fmt_vid_out = uvc_v4l2_get_format,
 	.vidioc_s_fmt_vid_out = uvc_v4l2_set_format,
 	.vidioc_enum_frameintervals = uvc_v4l2_enum_frameintervals,
