@@ -140,7 +140,7 @@ bool rtl92e_set_rf_state(struct net_device *dev,
 	bool action_allowed = false;
 	bool connect_by_ssid = false;
 	enum rt_rf_power_state rt_state;
-	u16			RFWaitCounter = 0;
+	u16 rf_wait_counter = 0;
 	unsigned long flag;
 
 	while (true) {
@@ -149,10 +149,10 @@ bool rtl92e_set_rf_state(struct net_device *dev,
 			spin_unlock_irqrestore(&priv->rf_ps_lock, flag);
 
 			while (priv->RFChangeInProgress) {
-				RFWaitCounter++;
+				rf_wait_counter++;
 				mdelay(1);
 
-				if (RFWaitCounter > 100) {
+				if (rf_wait_counter > 100) {
 					netdev_warn(dev,
 						    "%s(): Timeout waiting for RF change.\n",
 						    __func__);
