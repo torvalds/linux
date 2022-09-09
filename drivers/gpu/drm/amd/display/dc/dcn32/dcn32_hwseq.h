@@ -92,4 +92,12 @@ void dcn32_update_phantom_vp_position(struct dc *dc,
 		struct dc_state *context,
 		struct pipe_ctx *phantom_pipe);
 
+bool dcn32_dsc_pg_status(
+		struct dce_hwseq *hws,
+		unsigned int dsc_inst);
+
+void dcn32_update_dsc_pg(struct dc *dc,
+		struct dc_state *context,
+		bool safe_to_disable);
+
 #endif /* __DC_HWSS_DCN32_H__ */

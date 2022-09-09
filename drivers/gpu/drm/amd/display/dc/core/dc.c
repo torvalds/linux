@@ -1750,6 +1750,9 @@ static enum dc_status dc_commit_state_no_check(struct dc *dc, struct dc_state *c
 		context->stream_count == 0)
 		dc->hwss.prepare_bandwidth(dc, context);
 
+	if (dc->debug.enable_double_buffered_dsc_pg_support)
+		dc->hwss.update_dsc_pg(dc, context, false);
+
 	disable_dangling_plane(dc, context);
 	/* re-program planes for existing stream, in case we need to
 	 * free up plane resource for later use
@@ -1839,6 +1842,9 @@ static enum dc_status dc_commit_state_no_check(struct dc *dc, struct dc_state *c
 		/* pplib is notified if disp_num changed */
 		dc->hwss.optimize_bandwidth(dc, context);
 	}
+
+	if (dc->debug.enable_double_buffered_dsc_pg_support)
+		dc->hwss.update_dsc_pg(dc, context, true);
 
 	if (dc->ctx->dce_version >= DCE_VERSION_MAX)
 		TRACE_DCN_CLOCK_STATE(&context->bw_ctx.bw.dcn.clk);
@@ -2002,6 +2008,9 @@ void dc_post_update_surfaces_to_stream(struct dc *dc)
 	process_deferred_updates(dc);
 
 	dc->hwss.optimize_bandwidth(dc, context);
+
+	if (dc->debug.enable_double_buffered_dsc_pg_support)
+		dc->hwss.update_dsc_pg(dc, context, true);
 
 	dc->optimized_required = false;
 	dc->wm_optimized_required = false;
@@ -3194,6 +3203,9 @@ static void commit_planes_for_stream(struct dc *dc,
 		if (get_seamless_boot_stream_count(context) == 0)
 			dc->hwss.prepare_bandwidth(dc, context);
 
+		if (dc->debug.enable_double_buffered_dsc_pg_support)
+			dc->hwss.update_dsc_pg(dc, context, false);
+
 		context_clock_trace(dc, context);
 	}
 
@@ -3517,11 +3529,59 @@ static void commit_planes_for_stream(struct dc *dc,
 	}
 }
 
+/* Determines if the incoming context requires a applying transition state with unnecessary
+ * pipe splitting and ODM disabled, due to hardware limitations. In a case where
+ * the OPP associated with an MPCC might change due to plane additions, this function
+ * returns true.
+ */
+static bool could_mpcc_tree_change_for_active_pipes(struct dc *dc,
+		struct dc_stream_state *stream,
+		int surface_count,
+		bool *is_plane_addition)
+{
+
+	struct dc_stream_status *cur_stream_status = stream_get_status(dc->current_state, stream);
+	bool force_minimal_pipe_splitting = false;
+
+	*is_plane_addition = false;
+
+	if (cur_stream_status &&
+			dc->current_state->stream_count > 0 &&
+			dc->debug.pipe_split_policy != MPC_SPLIT_AVOID) {
+		/* determine if minimal transition is required due to MPC*/
+		if (surface_count > 0) {
+			if (cur_stream_status->plane_count > surface_count) {
+				force_minimal_pipe_splitting = true;
+			} else if (cur_stream_status->plane_count < surface_count) {
+				force_minimal_pipe_splitting = true;
+				*is_plane_addition = true;
+			}
+		}
+	}
+
+	if (cur_stream_status &&
+			dc->current_state->stream_count == 1 &&
+			dc->debug.enable_single_display_2to1_odm_policy) {
+		/* determine if minimal transition is required due to dynamic ODM*/
+		if (surface_count > 0) {
+			if (cur_stream_status->plane_count > 2 && cur_stream_status->plane_count > surface_count) {
+				force_minimal_pipe_splitting = true;
+			} else if (surface_count > 2 && cur_stream_status->plane_count < surface_count) {
+				force_minimal_pipe_splitting = true;
+				*is_plane_addition = true;
+			}
+		}
+	}
+
+	return force_minimal_pipe_splitting;
+}
+
 static bool commit_minimal_transition_state(struct dc *dc,
 		struct dc_state *transition_base_context)
 {
 	struct dc_state *transition_context = dc_create_state(dc);
-	enum pipe_split_policy tmp_policy;
+	enum pipe_split_policy tmp_mpc_policy;
+	bool temp_dynamic_odm_policy;
 	enum dc_status ret = DC_ERROR_UNEXPECTED;
 	unsigned int i, j;
 
@@ -3529,9 +3589,12 @@ static bool commit_minimal_transition_state(struct dc *dc,
 		return false;
 
 	if (!dc->config.is_vmin_only_asic) {
-		tmp_policy = dc->debug.pipe_split_policy;
+		tmp_mpc_policy = dc->debug.pipe_split_policy;
 		dc->debug.pipe_split_policy = MPC_SPLIT_AVOID;
 	}
+
+	temp_dynamic_odm_policy = dc->debug.enable_single_display_2to1_odm_policy;
+	dc->debug.enable_single_display_2to1_odm_policy = false;
 
 	dc_resource_state_copy_construct(transition_base_context, transition_context);
 
@@ -3553,20 +3616,22 @@ static bool commit_minimal_transition_state(struct dc *dc,
 		ret = dc_commit_state_no_check(dc, transition_context);
 	}
 
-	//always release as dc_commit_state_no_check retains in good case
+	/*always release as dc_commit_state_no_check retains in good case*/
 	dc_release_state(transition_context);
 
-	//restore previous pipe split policy
+	/*restore previous pipe split and odm policy*/
 	if (!dc->config.is_vmin_only_asic)
-		dc->debug.pipe_split_policy = tmp_policy;
+		dc->debug.pipe_split_policy = tmp_mpc_policy;
+
+	dc->debug.enable_single_display_2to1_odm_policy = temp_dynamic_odm_policy;
 
 	if (ret != DC_OK) {
-		//this should never happen
+		/*this should never happen*/
 		BREAK_TO_DEBUGGER();
 		return false;
 	}
 
-	//force full surface update
+	/*force full surface update*/
 	for (i = 0; i < dc->current_state->stream_count; i++) {
 		for (j = 0; j < dc->current_state->stream_status[i].plane_count; j++) {
 			dc->current_state->stream_status[i].plane_states[j]->update_flags.raw = 0xFFFFFFFF;
@@ -3589,24 +3654,14 @@ bool dc_update_planes_and_stream(struct dc *dc,
 	 * cause underflow. Apply stream configuration with minimal pipe
 	 * split first to avoid unsupported transitions for active pipes.
 	 */
-	bool force_minimal_pipe_splitting = false;
-	bool is_plane_addition = false;
+	bool force_minimal_pipe_splitting;
+	bool is_plane_addition;
 
-	struct dc_stream_status *cur_stream_status = stream_get_status(dc->current_state, stream);
-
-	if (cur_stream_status &&
-			dc->current_state->stream_count > 0 &&
-			dc->debug.pipe_split_policy != MPC_SPLIT_AVOID) {
-		/* determine if minimal transition is required */
-		if (surface_count > 0) {
-			if (cur_stream_status->plane_count > surface_count) {
-				force_minimal_pipe_splitting = true;
-			} else if (cur_stream_status->plane_count < surface_count) {
-				force_minimal_pipe_splitting = true;
-				is_plane_addition = true;
-			}
-		}
-	}
+	force_minimal_pipe_splitting = could_mpcc_tree_change_for_active_pipes(
+			dc,
+			stream,
+			surface_count,
+			&is_plane_addition);
 
 	/* on plane addition, minimal state is the current one */
 	if (force_minimal_pipe_splitting && is_plane_addition &&
@@ -3623,7 +3678,7 @@ bool dc_update_planes_and_stream(struct dc *dc,
 			&context))
 		return false;
 
-	/* on plane addition, minimal state is the new one */
+	/* on plane removal, minimal state is the new one */
 	if (force_minimal_pipe_splitting && !is_plane_addition) {
 		if (!commit_minimal_transition_state(dc, context)) {
 			dc_release_state(context);

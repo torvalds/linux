@@ -1364,3 +1364,57 @@ void dcn32_update_phantom_vp_position(struct dc *dc,
 		}
 	}
 }
+
+bool dcn32_dsc_pg_status(
+		struct dce_hwseq *hws,
+		unsigned int dsc_inst)
+{
+	uint32_t pwr_status = 0;
+
+	switch (dsc_inst) {
+	case 0: /* DSC0 */
+		REG_GET(DOMAIN16_PG_STATUS,
+				DOMAIN_PGFSM_PWR_STATUS, &pwr_status);
+		break;
+	case 1: /* DSC1 */
+
+		REG_GET(DOMAIN17_PG_STATUS,
+				DOMAIN_PGFSM_PWR_STATUS, &pwr_status);
+		break;
+	case 2: /* DSC2 */
+		REG_GET(DOMAIN18_PG_STATUS,
+				DOMAIN_PGFSM_PWR_STATUS, &pwr_status);
+		break;
+	case 3: /* DSC3 */
+		REG_GET(DOMAIN19_PG_STATUS,
+				DOMAIN_PGFSM_PWR_STATUS, &pwr_status);
+		break;
+	default:
+		BREAK_TO_DEBUGGER();
+		break;
+	}
+
+	return pwr_status == 0 ? true : false;
+}
+
+void dcn32_update_dsc_pg(struct dc *dc,
+		struct dc_state *context,
+		bool safe_to_disable)
+{
+	struct dce_hwseq *hws = dc->hwseq;
+
+	for (int i = 0; i < dc->res_pool->res_cap->num_dsc; i++) {
+		struct display_stream_compressor *dsc = dc->res_pool->dscs[i];
+		bool is_dsc_ungated = hws->funcs.dsc_pg_status(hws, dsc->inst);
+
+		if (context->res_ctx.is_dsc_acquired[i]) {
+			if (!is_dsc_ungated) {
+				hws->funcs.dsc_pg_control(hws, dsc->inst, true);
+			}
+		} else if (safe_to_disable) {
+			if (is_dsc_ungated) {
+				hws->funcs.dsc_pg_control(hws, dsc->inst, false);
+			}
+		}
+	}
+}
