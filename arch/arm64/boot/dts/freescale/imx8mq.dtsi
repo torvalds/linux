@@ -1186,7 +1186,7 @@
 			};
 
 			csi1: csi@30a90000 {
-				compatible = "fsl,imx8mq-csi", "fsl,imx7-csi";
+				compatible = "fsl,imx8mq-csi";
 				reg = <0x30a90000 0x10000>;
 				interrupts = <GIC_SPI 42 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&clk IMX8MQ_CLK_CSI1_ROOT>;
@@ -1238,7 +1238,7 @@
 			};
 
 			csi2: csi@30b80000 {
-				compatible = "fsl,imx8mq-csi", "fsl,imx7-csi";
+				compatible = "fsl,imx8mq-csi";
 				reg = <0x30b80000 0x10000>;
 				interrupts = <GIC_SPI 43 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&clk IMX8MQ_CLK_CSI2_ROOT>;
