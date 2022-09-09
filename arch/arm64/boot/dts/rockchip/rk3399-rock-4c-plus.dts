@@ -427,6 +427,7 @@
 
 &io_domains {
 	bt656-supply = <&vcc_3v0>;
+	audio-supply = <&vcca_1v8>;
 	gpio1830-supply = <&vcc_3v0>;
 	sdmmc-supply = <&vccio_sd>;
 	status = "okay";
