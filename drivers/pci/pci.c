@@ -2714,7 +2714,7 @@ int pci_prepare_to_sleep(struct pci_dev *dev)
 	 * lower-power idle state as a whole.
 	 */
 	if (pci_pcie_type(dev) == PCI_EXP_TYPE_ROOT_PORT)
-		pci_disable_ptm(dev);
+		pci_suspend_ptm(dev);
 
 	pci_enable_wake(dev, target_state, wakeup);
 
@@ -2772,7 +2772,7 @@ int pci_finish_runtime_suspend(struct pci_dev *dev)
 	 * lower-power idle state as a whole.
 	 */
 	if (pci_pcie_type(dev) == PCI_EXP_TYPE_ROOT_PORT)
-		pci_disable_ptm(dev);
+		pci_suspend_ptm(dev);
 
 	__pci_enable_wake(dev, target_state, pci_dev_run_wake(dev));
 

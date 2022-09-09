@@ -29,7 +29,7 @@ static void pci_ptm_info(struct pci_dev *dev)
 		 dev->ptm_root ? " (root)" : "", clock_desc);
 }
 
-void pci_disable_ptm(struct pci_dev *dev)
+static void __pci_disable_ptm(struct pci_dev *dev)
 {
 	u16 ptm = dev->ptm_cap;
 	u16 ctrl;
@@ -41,6 +41,21 @@ void pci_disable_ptm(struct pci_dev *dev)
 	ctrl &= ~(PCI_PTM_CTRL_ENABLE | PCI_PTM_CTRL_ROOT);
 	pci_write_config_word(dev, ptm + PCI_PTM_CTRL, ctrl);
 }
+
+/**
+ * pci_disable_ptm() - Disable Precision Time Measurement
+ * @dev: PCI device
+ *
+ * Disable Precision Time Measurement for @dev.
+ */
+void pci_disable_ptm(struct pci_dev *dev)
+{
+	if (dev->ptm_enabled) {
+		__pci_disable_ptm(dev);
+		dev->ptm_enabled = 0;
+	}
+}
+EXPORT_SYMBOL(pci_disable_ptm);
 
 void pci_save_ptm_state(struct pci_dev *dev)
 {
@@ -151,18 +166,8 @@ void pci_ptm_init(struct pci_dev *dev)
 		pci_enable_ptm(dev, NULL);
 }
 
-/**
- * pci_enable_ptm() - Enable Precision Time Measurement
- * @dev: PCI device
- * @granularity: pointer to return granularity
- *
- * Enable Precision Time Measurement for @dev.  If successful and
- * @granularity is non-NULL, return the Effective Granularity.
- *
- * Return: zero if successful, or -EINVAL if @dev lacks a PTM Capability or
- * is not a PTM Root and lacks an upstream path of PTM-enabled devices.
- */
-int pci_enable_ptm(struct pci_dev *dev, u8 *granularity)
+/* Enable PTM in the Control register if possible */
+static int __pci_enable_ptm(struct pci_dev *dev)
 {
 	u16 ptm = dev->ptm_cap;
 	struct pci_dev *ups;
@@ -191,8 +196,29 @@ int pci_enable_ptm(struct pci_dev *dev, u8 *granularity)
 		ctrl |= PCI_PTM_CTRL_ROOT;
 
 	pci_write_config_dword(dev, ptm + PCI_PTM_CTRL, ctrl);
-	dev->ptm_enabled = 1;
+	return 0;
+}
 
+/**
+ * pci_enable_ptm() - Enable Precision Time Measurement
+ * @dev: PCI device
+ * @granularity: pointer to return granularity
+ *
+ * Enable Precision Time Measurement for @dev.  If successful and
+ * @granularity is non-NULL, return the Effective Granularity.
+ *
+ * Return: zero if successful, or -EINVAL if @dev lacks a PTM Capability or
+ * is not a PTM Root and lacks an upstream path of PTM-enabled devices.
+ */
+int pci_enable_ptm(struct pci_dev *dev, u8 *granularity)
+{
+	int rc;
+
+	rc = __pci_enable_ptm(dev);
+	if (rc)
+		return rc;
+
+	dev->ptm_enabled = 1;
 	pci_ptm_info(dev);
 
 	if (granularity)
@@ -200,6 +226,23 @@ int pci_enable_ptm(struct pci_dev *dev, u8 *granularity)
 	return 0;
 }
 EXPORT_SYMBOL(pci_enable_ptm);
+
+/*
+ * Disable PTM, but preserve dev->ptm_enabled so we silently re-enable it on
+ * resume if necessary.
+ */
+void pci_suspend_ptm(struct pci_dev *dev)
+{
+	if (dev->ptm_enabled)
+		__pci_disable_ptm(dev);
+}
+
+/* If PTM was enabled before suspend, re-enable it when resuming */
+void pci_resume_ptm(struct pci_dev *dev)
+{
+	if (dev->ptm_enabled)
+		__pci_enable_ptm(dev);
+}
 
 bool pcie_ptm_enabled(struct pci_dev *dev)
 {
