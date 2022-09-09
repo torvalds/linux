@@ -120,13 +120,18 @@ int test_range_bit(struct extent_io_tree *tree, u64 start, u64 end,
 		   u32 bits, int filled, struct extent_state *cached_state);
 int clear_record_extent_bits(struct extent_io_tree *tree, u64 start, u64 end,
 			     u32 bits, struct extent_changeset *changeset);
-int clear_extent_bit(struct extent_io_tree *tree, u64 start, u64 end,
-		     u32 bits, int wake, int delete,
-		     struct extent_state **cached);
 int __clear_extent_bit(struct extent_io_tree *tree, u64 start, u64 end,
 		     u32 bits, int wake, int delete,
 		     struct extent_state **cached, gfp_t mask,
 		     struct extent_changeset *changeset);
+
+static inline int clear_extent_bit(struct extent_io_tree *tree, u64 start,
+				   u64 end, u32 bits, int wake, int delete,
+				   struct extent_state **cached)
+{
+	return __clear_extent_bit(tree, start, end, bits, wake, delete,
+				  cached, GFP_NOFS, NULL);
+}
 
 static inline int unlock_extent(struct extent_io_tree *tree, u64 start, u64 end)
 {
@@ -164,8 +169,13 @@ int set_extent_bit(struct extent_io_tree *tree, u64 start, u64 end,
 		   u32 bits, unsigned exclusive_bits, u64 *failed_start,
 		   struct extent_state **cached_state, gfp_t mask,
 		   struct extent_changeset *changeset);
-int set_extent_bits_nowait(struct extent_io_tree *tree, u64 start, u64 end,
-			   u32 bits);
+
+static inline int set_extent_bits_nowait(struct extent_io_tree *tree, u64 start,
+					 u64 end, u32 bits)
+{
+	return set_extent_bit(tree, start, end, bits, 0, NULL, NULL,
+			      GFP_NOWAIT, NULL);
+}
 
 static inline int set_extent_bits(struct extent_io_tree *tree, u64 start,
 		u64 end, u32 bits)
