@@ -153,6 +153,7 @@ enum CMDQ_COMMON_OPCODE {
 	CMDQ_OPCODE_CREATE_EQ = 0,
 	CMDQ_OPCODE_DESTROY_EQ = 1,
 	CMDQ_OPCODE_QUERY_FW_INFO = 2,
+	CMDQ_OPCODE_CONF_MTU = 3,
 };
 
 /* cmdq-SQE HDR */
@@ -188,6 +189,11 @@ struct erdma_cmdq_destroy_eq_req {
 	u8 eqn;
 	u8 rsvd1;
 	u8 qtype;
+};
+
+struct erdma_cmdq_config_mtu_req {
+	u64 hdr;
+	u32 mtu;
 };
 
 /* create_cq cfg0 */

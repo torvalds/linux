@@ -1436,6 +1436,17 @@ err_out_xa:
 	return ret;
 }
 
+void erdma_set_mtu(struct erdma_dev *dev, u32 mtu)
+{
+	struct erdma_cmdq_config_mtu_req req;
+
+	erdma_cmdq_build_reqhdr(&req.hdr, CMDQ_SUBMOD_COMMON,
+				CMDQ_OPCODE_CONF_MTU);
+	req.mtu = mtu;
+
+	erdma_post_cmd_wait(&dev->cmdq, &req, sizeof(req), NULL, NULL);
+}
+
 void erdma_port_event(struct erdma_dev *dev, enum ib_event_type reason)
 {
 	struct ib_event event;
