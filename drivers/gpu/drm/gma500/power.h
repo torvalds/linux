@@ -43,9 +43,6 @@ void gma_power_uninit(struct drm_device *dev);
  */
 int gma_power_suspend(struct device *dev);
 int gma_power_resume(struct device *dev);
-int gma_power_thaw(struct device *dev);
-int gma_power_freeze(struct device *dev);
-int gma_power_restore(struct device *_dev);
 
 /*
  * These are the functions the driver should use to wrap all hw access
@@ -53,11 +50,5 @@ int gma_power_restore(struct device *_dev);
  */
 bool gma_power_begin(struct drm_device *dev, bool force);
 void gma_power_end(struct drm_device *dev);
-
-/*
- * GFX-Runtime PM callbacks
- */
-int psb_runtime_suspend(struct device *dev);
-int psb_runtime_resume(struct device *dev);
 
 #endif /*_PSB_POWERMGMT_H_*/

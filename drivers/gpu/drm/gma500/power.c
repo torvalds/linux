@@ -230,28 +230,3 @@ void gma_power_end(struct drm_device *dev)
 {
 	pm_runtime_put(dev->dev);
 }
-
-int psb_runtime_suspend(struct device *dev)
-{
-	return gma_power_suspend(dev);
-}
-
-int psb_runtime_resume(struct device *dev)
-{
-	return gma_power_resume(dev);
-}
-
-int gma_power_thaw(struct device *_dev)
-{
-	return gma_power_resume(_dev);
-}
-
-int gma_power_freeze(struct device *_dev)
-{
-	return gma_power_suspend(_dev);
-}
-
-int gma_power_restore(struct device *_dev)
-{
-	return gma_power_resume(_dev);
-}

@@ -471,15 +471,7 @@ static void psb_pci_remove(struct pci_dev *pdev)
 	drm_dev_unregister(dev);
 }
 
-static const struct dev_pm_ops psb_pm_ops = {
-	.resume = gma_power_resume,
-	.suspend = gma_power_suspend,
-	.thaw = gma_power_thaw,
-	.freeze = gma_power_freeze,
-	.restore = gma_power_restore,
-	.runtime_suspend = psb_runtime_suspend,
-	.runtime_resume = psb_runtime_resume,
-};
+static DEFINE_RUNTIME_DEV_PM_OPS(psb_pm_ops, gma_power_suspend, gma_power_resume, NULL);
 
 static const struct file_operations psb_gem_fops = {
 	.owner = THIS_MODULE,
