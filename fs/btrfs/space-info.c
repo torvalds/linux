@@ -1583,6 +1583,16 @@ static inline bool can_steal(enum btrfs_reserve_flush_enum flush)
 		flush == BTRFS_RESERVE_FLUSH_EVICT);
 }
 
+/*
+ * NO_FLUSH and FLUSH_EMERGENCY don't want to create a ticket, they just want to
+ * fail as quickly as possible.
+ */
+static inline bool can_ticket(enum btrfs_reserve_flush_enum flush)
+{
+	return (flush != BTRFS_RESERVE_NO_FLUSH &&
+		flush != BTRFS_RESERVE_FLUSH_EMERGENCY);
+}
+
 /**
  * Try to reserve bytes from the block_rsv's space
  *
@@ -1645,13 +1655,28 @@ static int __reserve_bytes(struct btrfs_fs_info *fs_info,
 	}
 
 	/*
+	 * Things are dire, we need to make a reservation so we don't abort.  We
+	 * will let this reservation go through as long as we have actual space
+	 * left to allocate for the block.
+	 */
+	if (ret && unlikely(flush == BTRFS_RESERVE_FLUSH_EMERGENCY)) {
+		used = btrfs_space_info_used(space_info, false);
+		if (used + orig_bytes <=
+		    writable_total_bytes(fs_info, space_info)) {
+			btrfs_space_info_update_bytes_may_use(fs_info, space_info,
+							      orig_bytes);
+			ret = 0;
+		}
+	}
+
+	/*
 	 * If we couldn't make a reservation then setup our reservation ticket
 	 * and kick the async worker if it's not already running.
 	 *
 	 * If we are a priority flusher then we just need to add our ticket to
 	 * the list and we will do our own flushing further down.
 	 */
-	if (ret && flush != BTRFS_RESERVE_NO_FLUSH) {
+	if (ret && can_ticket(flush)) {
 		ticket.bytes = orig_bytes;
 		ticket.error = 0;
 		space_info->reclaim_size += ticket.bytes;
@@ -1701,7 +1726,7 @@ static int __reserve_bytes(struct btrfs_fs_info *fs_info,
 		}
 	}
 	spin_unlock(&space_info->lock);
-	if (!ret || flush == BTRFS_RESERVE_NO_FLUSH)
+	if (!ret || !can_ticket(flush))
 		return ret;
 
 	return handle_reserve_ticket(fs_info, space_info, &ticket, start_ns,

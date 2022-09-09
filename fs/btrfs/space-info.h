@@ -48,6 +48,24 @@ enum btrfs_reserve_flush_enum {
 	 * Can be interrupted by a fatal signal.
 	 */
 	BTRFS_RESERVE_FLUSH_ALL_STEAL,
+
+	/*
+	 * This is for btrfs_use_block_rsv only.  We have exhausted our block
+	 * rsv and our global block rsv.  This can happen for things like
+	 * delalloc where we are overwriting a lot of extents with a single
+	 * extent and didn't reserve enough space.  Alternatively it can happen
+	 * with delalloc where we reserve 1 extents worth for a large extent but
+	 * fragmentation leads to multiple extents being created.  This will
+	 * give us the reservation in the case of
+	 *
+	 * if (num_bytes < (space_info->total_bytes -
+	 *		    btrfs_space_info_used(space_info, false))
+	 *
+	 * Which ignores bytes_may_use.  This is potentially dangerous, but our
+	 * reservation system is generally pessimistic so is able to absorb this
+	 * style of mistake.
+	 */
+	BTRFS_RESERVE_FLUSH_EMERGENCY,
 };
 
 enum btrfs_flush_state {
