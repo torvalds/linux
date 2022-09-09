@@ -748,12 +748,10 @@ again:
 		 * range starts.
 		 */
 		node = tree_search(tree, start);
-process_node:
 		if (!node)
 			break;
-
 		state = rb_entry(node, struct extent_state, rb_node);
-
+process_node:
 		if (state->start > end)
 			goto out;
 
@@ -770,7 +768,7 @@ process_node:
 			break;
 
 		if (!cond_resched_lock(&tree->lock)) {
-			node = rb_next(node);
+			state = next_state(state);
 			goto process_node;
 		}
 	}
@@ -815,15 +813,13 @@ static struct extent_state *find_first_extent_bit_state(struct extent_io_tree *t
 	node = tree_search(tree, start);
 	if (!node)
 		goto out;
+	state = rb_entry(node, struct extent_state, rb_node);
 
-	while (1) {
-		state = rb_entry(node, struct extent_state, rb_node);
+	while (state) {
 		if (state->end >= start && (state->state & bits))
 			return state;
 
-		node = rb_next(node);
-		if (!node)
-			break;
+		state = next_state(state);
 	}
 out:
 	return NULL;
@@ -939,8 +935,8 @@ bool btrfs_find_delalloc_range(struct extent_io_tree *tree, u64 *start,
 		goto out;
 	}
 
-	while (1) {
-		state = rb_entry(node, struct extent_state, rb_node);
+	state = rb_entry(node, struct extent_state, rb_node);
+	while (state) {
 		if (found && (state->start != cur_start ||
 			      (state->state & EXTENT_BOUNDARY))) {
 			goto out;
@@ -958,12 +954,10 @@ bool btrfs_find_delalloc_range(struct extent_io_tree *tree, u64 *start,
 		found = true;
 		*end = state->end;
 		cur_start = state->end + 1;
-		node = rb_next(node);
 		total_bytes += state->end - state->start + 1;
 		if (total_bytes >= max_bytes)
 			break;
-		if (!node)
-			break;
+		state = next_state(state);
 	}
 out:
 	spin_unlock(&tree->lock);
@@ -1514,18 +1508,15 @@ void find_first_clear_extent_bit(struct extent_io_tree *tree, u64 start,
 	 * Find the longest stretch from start until an entry which has the
 	 * bits set
 	 */
-	while (1) {
-		state = rb_entry(node, struct extent_state, rb_node);
+	state = rb_entry(node, struct extent_state, rb_node);
+	while (state) {
 		if (state->end >= start && !(state->state & bits)) {
 			*end_ret = state->end;
 		} else {
 			*end_ret = state->start - 1;
 			break;
 		}
-
-		node = rb_next(node);
-		if (!node)
-			break;
+		state = next_state(state);
 	}
 out:
 	spin_unlock(&tree->lock);
@@ -1563,8 +1554,8 @@ u64 count_range_bits(struct extent_io_tree *tree,
 	if (!node)
 		goto out;
 
-	while (1) {
-		state = rb_entry(node, struct extent_state, rb_node);
+	state = rb_entry(node, struct extent_state, rb_node);
+	while (state) {
 		if (state->start > search_end)
 			break;
 		if (contig && found && state->start > last + 1)
@@ -1582,9 +1573,7 @@ u64 count_range_bits(struct extent_io_tree *tree,
 		} else if (contig && found) {
 			break;
 		}
-		node = rb_next(node);
-		if (!node)
-			break;
+		state = next_state(state);
 	}
 out:
 	spin_unlock(&tree->lock);
@@ -1609,9 +1598,11 @@ int test_range_bit(struct extent_io_tree *tree, u64 start, u64 end,
 		node = &cached->rb_node;
 	else
 		node = tree_search(tree, start);
-	while (node && start <= end) {
-		state = rb_entry(node, struct extent_state, rb_node);
+	if (!node)
+		goto out;
 
+	state = rb_entry(node, struct extent_state, rb_node);
+	while (state && start <= end) {
 		if (filled && state->start > start) {
 			bitset = 0;
 			break;
@@ -1635,13 +1626,13 @@ int test_range_bit(struct extent_io_tree *tree, u64 start, u64 end,
 		start = state->end + 1;
 		if (start > end)
 			break;
-		node = rb_next(node);
-		if (!node) {
-			if (filled)
-				bitset = 0;
-			break;
-		}
+		state = next_state(state);
 	}
+
+	/* We ran out of states and were still inside of our range. */
+	if (filled && !state)
+		bitset = 0;
+out:
 	spin_unlock(&tree->lock);
 	return bitset;
 }
